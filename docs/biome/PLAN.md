@@ -56,3 +56,16 @@ _(chaque lot documente ici ses constantes : nom, fichier, valeur, effet)_
 - Options de lancement : `--biome=ancien|nouveau` (ou `set_meta("biome", …)`), `--sans-particules`, `--paisible` (draugrs/dragon figés, pas de dégâts), cycle figé en `--capture` même avec `--heure`.
 - Outils : `outils/test_biome.gd` (`-- ecrire|comparer <fichier> [--sans-zone] [--biome=…]`, signature hauteurs + MultiMesh + pierres), `outils/comparer_images.gd` (`-- a.png b.png`, % de pixels > 8/255).
 - Références Lot 0 : `captures/biome/ref_ancien.sig` (état `biome-avant`), non versionnée.
+
+### Lot C : relief local et chemins (`scripts/chemins.gd`, `monde.gd` `hauteur()`)
+- Deux polylignes Catmull-Rom (24 pas par intervalle, rééchantillonnées à 1 m, 46 points au total) ; décalage latéral bruité ±1,2 m (`FastNoiseLite`, graine `ZoneBiome.graine("chemin")`, 1D le long de l'abscisse, nul aux 3 derniers mètres de chaque bout).
+  - feu → cercle : (-6,-6.5) (-10.5,-9) (-13.5,-13) (-18.5,-16.5) (-22,-21.5) (-26.5,-23) (-29.5,-26) (-33.2,-29.4). Les 7 pierres sont à r 6,5 aux angles 17,2° + k·51,4° ; (-33.2,-29.4) est à 43,8°, au milieu de la brèche 17,2°/68,6° (≈ 4,8 m libres entre deux pierres) : points inchangés.
+  - cercle → tumulus : (-34.8,-39.8) (-35.8,-43) (-38,-45.2) ; départ à 298,9°, au milieu de la brèche 274,3°/325,8° ; `porte_dehors` = (-38, -45.2) (tertre.position + (0,0,2.8)) : le sentier s'arrête exactement devant la porte.
+  - `points` = les deux polylignes mises bout à bout, `debuts` = indices de départ (le saut entre les deux n'est pas un segment).
+- `distance(x,z)` : seaux de 8 m (Dictionary), 9 seaux voisins, O(1) ; renvoie INF au-delà de ~7 m. `profil(x,z)` = poids 0..1 (smoothstep(4, 1.2, dist)), pour le sol du lot D. `hauteur_axe(x,z)` = hauteur lissée de l'axe.
+- Profil de l'axe : hauteur `hauteur_sans_chemin` tous les mètres, moyenne glissante ±4 (9 m), pente plafonnée à 12° (passes aller/retour). Dans `hauteur()` : `w = smoothstep(4, 1.2, dist) * masque * 0.85`, `h = lerp(h, axe, w)`, puis ornière `-0,10 m * smoothstep(1, 0.2, dist) * masque`. Les 15 % restants font que la pente réelle atteint ~16° par endroits (mesure).
+- Bords de plateaux (feu, cercle) : `d' = d + 3,5 * bruit(x*0,08, z*0,08) * smoothstep(11, 15, d) * masque` (`BORD_NIVEAU 11`, `BORD_AMPLITUDE 3,5`, `BORD_FREQ 0,08`, bruit graine "chemin"+1) : rien ne bouge jusqu'à 11 m du centre (pierres r 6,5, draugrs endormis, feu, `h_cercle`).
+- Tumulus : `monde.h_tumulus` = hauteur (sans l'aplanissement) en TUMULUS (-38,-48) ; disque centré (-38,-54.5), plat jusqu'à r 8, raccord smoothstep jusqu'à r 14, pondéré par le masque, appliqué après chemins. La façade et la porte gardent exactement leur hauteur.
+- Cône de vue : axe (-18.5,-16.5) → stèle (-38,-34), demi-angle 7°, à 4-24 m de (-18.5,-16.5) (l'origine du cône), ou couloir de 1,5 m autour du segment axe (`dans_cone_vue`).
+- Invariance : `hauteur()` commence par `if m <= 0.0: return _hauteur_ancienne(x,z)` (copie verbatim de l'ancien calcul). `test_biome -- comparer ref_ancien.sig --sans-zone` : identique.
+- Test : `outils/test_chemin_biome.gd -- --paisible [--sans-arbres]` (capsule suivant les points, traversée du cercle par (-33.5,-34)).
