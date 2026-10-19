@@ -8,6 +8,9 @@ extends Node3D
 const EPEE_NORDIQUE := preload("res://assets/modeles/joueur/epee_nordique.glb")
 const BRAS := preload("res://assets/modeles/joueur/bras_fps.glb")
 const ORIENTATION := preload("res://scripts/orientation_main.gd")
+## Milieu de la poignée de l'épée le long de la lame (pommeau sous 0,005, garde au-dessus
+## de 0,075) : l'index touche la garde, l'auriculaire mord sur le pommeau, à la viking.
+const MILIEU_POIGNEE := 0.03
 const POS_TORCHE := Vector3(-0.34, -0.44, -0.62)
 
 enum { REPOS, ARMER, CHARGE, FRAPPE, RETOUR, GARDE, ENCAISSE }
@@ -48,9 +51,10 @@ var _balance := Vector2.ZERO
 var _respiration := 0.0
 var _pose_figee := ""
 var _baisse := 0.0
-## Prises de l'épée et de la torche dans les mains (repère des os hand_r / hand_l).
-var PRISE_D := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
-var PRISE_G := Transform3D(Basis(Vector3(-0.999251, 0.038333, 0.005287), Vector3(0.014456, 0.243068, 0.969901), Vector3(0.035894, 0.969252, -0.24344)), Vector3(0.007936, 0.142938, 0.002241))
+## Prises de l'épée et de la torche dans les mains (repère des os hand_r / hand_l),
+## calculées sur le poing fermé (voir _calculer_prise).
+var PRISE_D := Transform3D()
+var PRISE_G := Transform3D()
 var _acier: ShaderMaterial
 var _mats := {}
 
@@ -174,6 +178,8 @@ func _bras() -> void:
 	var tour := Basis(Vector3.UP, PI)
 	bras.transform = Transform3D(tour, -(tour * yeux) + Vector3(0, -0.1, -0.24))
 	_poings()
+	PRISE_D = _calculer_prise("r", MILIEU_POIGNEE)
+	PRISE_G = _calculer_prise("l", 0.0)
 	# cibles des mains et du coude
 	var cible_d := Node3D.new()
 	pivot_epee.add_child(cible_d)
@@ -202,6 +208,7 @@ func _bras() -> void:
 		o.set_script(ORIENTATION)
 		o.os = ["hand_r", "hand_l"][i]
 		o.cible = [cible_d, cible_g][i]
+		o.prise = [PRISE_D, PRISE_G][i]
 		_sq.add_child(o)
 	_accroche_d = BoneAttachment3D.new()
 	_accroche_d.bone_name = "hand_r"
@@ -209,6 +216,33 @@ func _bras() -> void:
 	_accroche_g = BoneAttachment3D.new()
 	_accroche_g.bone_name = "hand_l"
 	_sq.add_child(_accroche_g)
+
+## Prise d'un objet dans le poing fermé (repère de l'os de la main) : axe passant par le
+## creux de chaque doigt, de l'auriculaire vers l'index ; le +X de l'objet (tranchant,
+## quillons de la garde) dans le sens des jointures. `milieu` : point de l'objet (le long
+## de son +Y) qui doit être au centre du poing.
+func _calculer_prise(cote: String, milieu: float) -> Transform3D:
+	var main := _pose_os("hand_" + cote).affine_inverse()
+	var creux: Array[Vector3] = []
+	for d in ["index", "middle", "ring", "pinky"]:
+		var p1 := main * _pose_os("%s_01_%s" % [d, cote]).origin
+		var p2 := main * _pose_os("%s_02_%s" % [d, cote]).origin
+		var p3 := main * _pose_os("%s_03_%s" % [d, cote]).origin
+		# sous la première phalange (rayon du doigt + rayon de la poignée), entre la paume
+		# et le bout des doigts repliés
+		creux.append(Vector3((p1.x + p3.x) * 0.5, minf(p1.y, p2.y) - 0.009 - 0.018, p1.z))
+	var centre := (creux[0] + creux[1] + creux[2] + creux[3]) * 0.25
+	var axe := (creux[0] - creux[3]).normalized()
+	var jointures := (Vector3.UP - axe * axe.dot(Vector3.UP)).normalized()
+	return Transform3D(Basis(jointures, axe, jointures.cross(axe)), centre - axe * milieu)
+
+func _pose_os(nom: String) -> Transform3D:
+	var i := _sq.find_bone(nom)
+	var t := Transform3D()
+	while i >= 0:
+		t = _sq.get_bone_pose(i) * t
+		i = _sq.get_bone_parent(i)
+	return t
 
 ## Doigts refermés : pose des poings prise dans l'animation de coup de poing.
 func _poings() -> void:
