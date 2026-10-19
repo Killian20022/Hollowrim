@@ -33,7 +33,7 @@ static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, ua: Vector
 	st.set_color(cc); st.set_uv(uc); st.add_vertex(c)
 
 ## Un étage de branches en étoile : `pointes` branches qui retombent autour du tronc.
-static func _etage(feuille: SurfaceTool, neige: SurfaceTool, rng: RandomNumberGenerator, y_haut: float, rayon: float, chute: float, pointes: int, rot: float, enneige: float) -> void:
+static func _etage(feuille: SurfaceTool, neige: SurfaceTool, rng: RandomNumberGenerator, y_haut: float, rayon: float, chute: float, pointes: int, rot: float, enneige: float, assombri := 1.0) -> void:
 	var sommet := Vector3(0, y_haut, 0)
 	var dessous := Vector3(0, y_haut - chute * 0.55, 0)
 	var bouts: Array[Vector3] = []
@@ -47,8 +47,10 @@ static func _etage(feuille: SurfaceTool, neige: SurfaceTool, rng: RandomNumberGe
 		creux.append(Vector3(cos(a2) * r * 0.52, y_haut - chute * 0.45, sin(a2) * r * 0.52))
 	# couleurs de sommet plafonnées à 1 : le matériau éclaircit l'ensemble (teinte)
 	var clair := Color(1.0, 1.0, 0.95)
-	var moyen := Color(0.72, 0.72, 0.72)
-	var sombre := Color(0.27, 0.29, 0.33)
+	var moyen := Color(0.72, 0.72, 0.72) * assombri
+	var sombre := Color(0.27, 0.29, 0.33) * assombri
+	moyen.a = 1.0
+	sombre.a = 1.0
 	for k in pointes:
 		var b0 := bouts[k]
 		var c0 := creux[k]
@@ -123,6 +125,11 @@ static func epicea(forme: int, graine: int, materiaux: Array) -> ArrayMesh:
 		mesh.surface_set_material(i, materiaux[i])
 	return mesh
 
+const LOD_POINTES := 6      # pointes par étage du LOD (5 avant : silhouette trop clairsemée)
+const LOD_RAYON := 1.08     # rayon des étages du LOD / arbre complet
+const LOD_NEIGE := 0.7    # part des plaques de neige gardées (à distance elles scintillent sur l'aurore)
+const LOD_ASSOMBRI := 0.82  # facteur sur les couleurs de sommet (hors neige) du LOD
+
 ## Épicéa lointain (LOD) : même silhouette (mêmes hauteur, rayon de base et nombre d'étages que
 ## `epicea(forme, graine, …)`) avec la moitié des étages, 5 pointes par étage et un tronc à 3 pans :
 ## ~100 triangles au lieu de ~600. Prévu pour la vue lointaine, noyée dans la brume.
@@ -145,11 +152,13 @@ static func epicea_lointain(forme: int, graine: int, materiaux: Array) -> ArrayM
 	for e in n:
 		var k := float(e) / (n - 1)
 		var y := lerpf(bas + 1.1, hauteur, k)
-		var rayon := base * (1.0 - k * 0.82) * rng.randf_range(0.9, 1.08)
+		# un peu plus large que l'arbre complet : moins de vide entre les pointes
+		var rayon := base * (1.0 - k * 0.82) * rng.randf_range(0.95, 1.15) * LOD_RAYON
 		# deux fois moins d'étages : ils tombent deux fois plus bas pour garder le volume
 		var chute := lerpf(1.25, 0.55, k) * (hauteur / 9.0) * 1.8
-		_etage(feuille, neige, rng, y, rayon, chute, 5, rng.randf() * TAU, lerpf(0.8, 1.0, k))
-	_etage(feuille, neige, rng, hauteur + 0.7, 0.35, 0.9, 4, rng.randf() * TAU, 1.0)
+		# les étages se recouvrent moins : on assombrit comme le cumul des dessous de l'arbre complet
+		_etage(feuille, neige, rng, y, rayon, chute, LOD_POINTES, rng.randf() * TAU, lerpf(0.8, 1.0, k) * LOD_NEIGE, LOD_ASSOMBRI)
+	_etage(feuille, neige, rng, hauteur + 0.7, 0.35, 0.9, 4, rng.randf() * TAU, LOD_NEIGE, LOD_ASSOMBRI)
 	var mesh := ArrayMesh.new()
 	var surfaces := [tronc, feuille, neige]
 	for i in 3:

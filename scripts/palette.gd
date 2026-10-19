@@ -16,9 +16,9 @@ const PLANCHES := ["#1b1510", "#2a2018", "#3a2d21", "#4b3b2b"]
 const FOIN := ["#4a3c1c", "#62502a", "#7a6636", "#947e46"]
 const OSSEMENT := ["#6b6452", "#8f8670", "#b3aa8f", "#d2c9ad"]
 # sol écologique de la zone témoin (lot D)
-const TERRE := ["#38302f", "#463a3a", "#574844", "#6a5a52"]
+const TERRE := ["#443a39", "#52453f", "#63544d", "#766560"]
 const NEIGE_PIETINEE := ["#6f7c95", "#7f8ca5", "#909db5", "#a3afc5"]
-const AIGUILLES_SOL := ["#2a1e15", "#3a2a1b", "#4d3822", "#5e472c"]
+const AIGUILLES_SOL := ["#78726f", "#898386", "#9a959a", "#aba8b1"]  # neige sale / brun-gris, peu contrastée
 const MOUSSE := ["#1c2a20", "#25372a", "#304433", "#3d5240"]
 
 static var materiaux: Array[ShaderMaterial] = []
@@ -105,7 +105,7 @@ static func texture_aiguilles_sol() -> ImageTexture:
 	var r := RandomNumberGenerator.new()
 	r.seed = 4103
 	return texture_mip(32, AIGUILLES_SOL, 8, 43, 0.6, r, func(img: Image, rr: RandomNumberGenerator) -> void:
-		_pailleter_img(img, rr, 0.03))
+		_pailleter_img(img, rr, 0.24))
 
 ## Mousse gelée, pailletée de neige.
 static func texture_mousse() -> ImageTexture:

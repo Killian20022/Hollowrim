@@ -26,19 +26,28 @@ const PLAQUE_PART := 0.25     # part de terre dans les plaques (bruit_clair > 0,
 const RAYON_STELE := 3.5      # neige piétinée autour de la stèle (bande tramée 0,8 m)
 const RAYON_PORTE := 3.0      # devant la porte du tertre
 const RAYON_FEU := 5.0        # plateau du feu
-const AIGUILLES_PLEIN := 1.2  # × échelle de l'arbre : 70 % d'aiguilles
-const AIGUILLES_BORD := 2.0   # × échelle : 30 % tramé
 const CREUX_SEUIL := 0.05     # creux : moyenne des voisins à 4 m − hauteur (m)
 const MOUSSE_NORD := -0.2     # normale.z sous laquelle la pente regarde le nord
 const MOUSSE_PART := 0.4
 
-const BAYER := [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
+const AIGUILLES_DENSITE := 0.45  # densité max d'aiguilles (hors cœur de tache) à ~0,3 × échelle du tronc
+const AIGUILLES_COEUR := 0.5     # × échelle : agglomérat serré autour du tronc
+const AIGUILLES_PLEIN := 0.9     # × échelle : le tapis s'éclaircit
+const AIGUILLES_BORD := 1.6      # × échelle : quelques pixels épars
+const GRAIN := 0.55              # part du bruit fin (taches de quelques texels) dans les seuils de tramage
+const MASQUE_BRUIT := 0.45       # part du bruit basse fréquence dans le seuil du masque de zone
 
 ## Durée du dernier calcul (ms), pour les mesures.
 static var temps_ms := 0.0
 
-static func _bayer(i: int, j: int) -> float:
-	return (float(BAYER[(i & 3) + ((j & 3) << 2)]) + 0.5) / 16.0
+## Seuil de tramage : hachage de position, irrégulier (aucun motif périodique), dans [0 ; 1).
+## `s` décorrèle les usages (masque, chemin, aiguilles, mousse…).
+static func _alea(i: int, j: int, s: int) -> float:
+	var h := (i * 374761393 + j * 668265263 + s * 1442695041) & 0x7fffffff
+	h = ((h ^ (h >> 13)) * 1274126177) & 0x7fffffff
+	h = (h ^ (h >> 16)) * 2246822519 & 0x7fffffff
+	h = h ^ (h >> 15)
+	return float(h & 0xffff) / 65536.0
 
 ## `arbres` = transforms des arbres (monde.arbres), pour l'effet « sous les arbres ».
 static func appliquer(mat_terrain: ShaderMaterial, monde: Node, arbres: Array) -> void:
@@ -64,6 +73,18 @@ static func _calculer(monde: Node, arbres: Array) -> Image:
 	var bruit_clair := FastNoiseLite.new()
 	bruit_clair.seed = ZoneBiome.graine("sol") + 1
 	bruit_clair.frequency = 0.35
+	var bruit_masque := FastNoiseLite.new()  # fondu de la couture : taches de 5-10 m, pas un tramage fin
+	bruit_masque.seed = ZoneBiome.graine("sol") + 2
+	bruit_masque.frequency = 0.1
+	bruit_masque.fractal_octaves = 2
+	var bruit_fin := FastNoiseLite.new()     # seuil de tramage : grain de 0,5-1 m mêlé au bruit blanc
+	bruit_fin.seed = ZoneBiome.graine("sol") + 4
+	bruit_fin.frequency = 1.3
+	bruit_fin.fractal_octaves = 2
+	var bruit_tache := FastNoiseLite.new()   # agglomérats d'aiguilles
+	bruit_tache.seed = ZoneBiome.graine("sol") + 3
+	bruit_tache.frequency = 0.9
+	bruit_tache.fractal_octaves = 2
 
 	# texels de la zone ; hauteurs sur une grille de 1 m (un texel sur deux, marge de 5 m pour le
 	# laplacien à 4 m), puis normale / creux calculés aux nœuds et interpolés par texel
@@ -127,9 +148,11 @@ static func _calculer(monde: Node, arbres: Array) -> Image:
 		var z := ORIGINE + (j + 0.5) * TEXEL
 		for i in range(i0, i1 + 1):
 			var x := ORIGINE + (i + 0.5) * TEXEL
-			var b := _bayer(i, j)
+			var b := clampf(lerpf(_alea(i, j, 2), 0.5 + 0.9 * bruit_fin.get_noise_2d(x, z), GRAIN), 0.0, 0.999)
 			var cur := x > xin0 and x < xin1 and z > zin0 and z < zin1  # cœur : masque = 1
-			if not cur and ZoneBiome.masque(x, z) <= b:
+			# seuil du masque : bruit blanc mêlé à un bruit lent → fondu en plaques irrégulières
+			var seuil := lerpf(_alea(i, j, 1), 0.5 + 0.5 * bruit_masque.get_noise_2d(x, z), MASQUE_BRUIT)
+			if not cur and ZoneBiome.masque(x, z) <= seuil:
 				continue  # tramage du masque : ce texel garde l'ancien rendu
 			var k := j * TAILLE + i
 			actif[k] = 1
@@ -168,7 +191,8 @@ static func _calculer(monde: Node, arbres: Array) -> Image:
 			var c := 128.0 + bruit_clair.get_noise_2d(x, z) * 22.0
 			clair[k] = clampi(int(c * (0.85 if mt == ROCHE else 1.0)), 0, 255)
 
-	# sous les arbres : aiguilles (70 % jusqu'à 1,2 × échelle, 30 % tramé jusqu'à 2 × échelle)
+	# sous les arbres : tapis irrégulier (agglomérat serré au pied, puis taches de plus en plus éparses),
+	# densité modulée par un bruit de taches, seuil par hachage de position (aucun motif régulier)
 	for tr: Transform3D in arbres:
 		var p := tr.origin
 		if ZoneBiome.masque(p.x, p.z) <= 0.0:
@@ -176,7 +200,7 @@ static func _calculer(monde: Node, arbres: Array) -> Image:
 		var s := tr.basis.get_scale().x
 		var ci := int((p.x - ORIGINE) / TEXEL)
 		var cj := int((p.z - ORIGINE) / TEXEL)
-		var rt := int(ceil(AIGUILLES_BORD * s * 1.3 / TEXEL))
+		var rt := int(ceil(AIGUILLES_BORD * s * 1.4 / TEXEL))
 		for j in range(maxi(cj - rt, j0), mini(cj + rt, j1) + 1):
 			var z := ORIGINE + (j + 0.5) * TEXEL
 			for i in range(maxi(ci - rt, i0), mini(ci + rt, i1) + 1):
@@ -185,16 +209,29 @@ static func _calculer(monde: Node, arbres: Array) -> Image:
 					continue
 				var x := ORIGINE + (i + 0.5) * TEXEL
 				# rayon bruité : jamais un disque régulier
-				var r := Vector2(x - p.x, z - p.z).length() / (s * (1.0 + 0.25 * bruit_clair.get_noise_2d(x * 1.7, z * 1.7)))
-				var b := _bayer(i, j)
-				if (r < AIGUILLES_PLEIN and b < 0.7) or (r < AIGUILLES_BORD and b < 0.3):
+				var r := Vector2(x - p.x, z - p.z).length() / (s * (1.0 + 0.3 * bruit_clair.get_noise_2d(x * 1.7, z * 1.7)))
+				if r >= AIGUILLES_BORD:
+					continue
+				var tache := 0.5 + 0.5 * bruit_tache.get_noise_2d(x, z)  # 0..1
+				var dens: float
+				if r < AIGUILLES_COEUR:
+					dens = 0.75
+				elif r < AIGUILLES_PLEIN:
+					dens = lerpf(0.75, AIGUILLES_DENSITE * 0.5, (r - AIGUILLES_COEUR) / (AIGUILLES_PLEIN - AIGUILLES_COEUR))
+				else:
+					dens = AIGUILLES_DENSITE * 0.5 * (1.0 - (r - AIGUILLES_PLEIN) / (AIGUILLES_BORD - AIGUILLES_PLEIN))
+				# taches : le bruit retire (neige qui recouvre) ou renforce localement
+				dens *= smoothstep(0.25, 0.75, tache) * 1.3
+				if lerpf(_alea(i, j, 3), 0.5 + 0.9 * bruit_fin.get_noise_2d(x + 40.0, z), GRAIN) < dens:
 					mat[k] = AIGUILLES
 
 	# mousse : creux ET pente au nord, tramée 40 % ; un peu au pied des roches, côté nord
 	for j in range(j0, j1 + 1):
 		for i in range(i0, i1 + 1):
 			var k := j * TAILLE + i
-			if actif[k] == 0 or mat[k] != NEIGE or _bayer(i, j) >= MOUSSE_PART:
+			var x := ORIGINE + (i + 0.5) * TEXEL
+			var z := ORIGINE + (j + 0.5) * TEXEL
+			if actif[k] == 0 or mat[k] != NEIGE or lerpf(_alea(i, j, 4), 0.5 + 0.9 * bruit_fin.get_noise_2d(x - 40.0, z), GRAIN) >= MOUSSE_PART:
 				continue
 			var mousse: bool = creux[k] > CREUX_SEUIL and nz[k] < MOUSSE_NORD
 			if not mousse:
