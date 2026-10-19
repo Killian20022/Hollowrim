@@ -40,7 +40,8 @@ static func jouer_a(parent: Node, noms: Array, position: Vector3, volume_db := 0
 	a.unit_size = 5.0
 	a.max_distance = 60.0
 	a.pitch_scale = randf_range(1.0 - variation, 1.0 + variation)
-	parent.get_tree().current_scene.add_child(a)
+	var scene := parent.get_tree().current_scene
+	(scene if scene else parent.get_tree().root).add_child(a)
 	a.global_position = position
 	a.play()
 	a.finished.connect(a.queue_free)

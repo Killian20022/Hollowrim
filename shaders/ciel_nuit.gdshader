@@ -7,6 +7,10 @@ uniform vec3 couleur_horizon : source_color = vec3(0.045, 0.07, 0.12);
 uniform vec3 aurore_bas : source_color = vec3(0.15, 1.0, 0.55);
 uniform vec3 aurore_haut : source_color = vec3(0.55, 0.2, 0.95);
 uniform float aurore_force = 1.0;
+uniform float jour = 0.0;     // 0 nuit, 1 plein jour (pâle : hiver polaire)
+uniform float soleil = 0.0;   // l'astre dessiné : 0 lune, 1 soleil
+uniform vec3 jour_haut : source_color = vec3(0.32, 0.42, 0.58);
+uniform vec3 jour_horizon : source_color = vec3(0.72, 0.68, 0.66);
 
 float hash2(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -53,29 +57,32 @@ vec3 aurore(vec3 d) {
 
 void sky() {
 	vec3 d = normalize(EYEDIR);
-	vec3 col = mix(couleur_horizon, couleur_haut, smoothstep(-0.05, 0.55, d.y));
+	vec3 haut = mix(couleur_haut, jour_haut, jour);
+	vec3 horizon = mix(couleur_horizon, jour_horizon, jour);
+	vec3 col = mix(horizon, haut, smoothstep(-0.05, 0.55, d.y));
 	if (d.y < 0.0) {
-		col = couleur_horizon * 0.6;
+		col = horizon * 0.6;
 	}
 
 	// étoiles : cellules d'une grille en 3D, quelques-unes allumées
 	vec3 cellule = floor(d * 160.0);
 	float h = hash3(cellule);
-	if (h > 0.9965 && d.y > 0.02) {
+	if (h > 0.9965 && d.y > 0.02 && jour < 0.9) {
 		float scintille = 0.6 + 0.4 * sin(TIME * (2.0 + h * 40.0) + h * 100.0);
-		col += vec3(0.8, 0.85, 1.0) * (h - 0.9965) / 0.0035 * scintille * smoothstep(0.02, 0.2, d.y);
+		col += vec3(0.8, 0.85, 1.0) * (h - 0.9965) / 0.0035 * scintille * smoothstep(0.02, 0.2, d.y) * (1.0 - jour);
 	}
 
-	col += aurore(d);
+	col += aurore(d) * (1.0 - jour);
 
 	// lune
 	float m = dot(d, LIGHT0_DIRECTION);
 	if (LIGHT0_ENABLED) {
 		float disque = smoothstep(0.99935, 0.99945, m);
-		float taches = bruit(d.xy * 900.0) * 0.25;
-		col = mix(col, vec3(0.95, 0.95, 0.85) * (1.1 - taches), disque);
-		col += vec3(0.25, 0.3, 0.45) * pow(max(m, 0.0), 600.0) * 0.8;
-		col += vec3(0.1, 0.13, 0.2) * pow(max(m, 0.0), 30.0) * 0.4;
+		float taches = bruit(d.xy * 900.0) * 0.25 * (1.0 - soleil);
+		vec3 astre = mix(vec3(0.95, 0.95, 0.85), vec3(1.6, 1.25, 0.85), soleil);
+		col = mix(col, astre * (1.1 - taches), disque);
+		col += mix(vec3(0.25, 0.3, 0.45), vec3(0.9, 0.6, 0.35), soleil) * pow(max(m, 0.0), 600.0) * 0.8;
+		col += mix(vec3(0.1, 0.13, 0.2), vec3(0.45, 0.3, 0.2), soleil) * pow(max(m, 0.0), 30.0) * 0.4;
 	}
 
 	COLOR = col;

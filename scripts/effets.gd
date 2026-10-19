@@ -25,7 +25,8 @@ static func eclats(parent: Node, position: Vector3, couleur: Color, nombre := 14
 		m.albedo_color = couleur
 		cube.material = m
 	p.draw_pass_1 = cube
-	parent.get_tree().current_scene.add_child(p)
+	var scene := parent.get_tree().current_scene
+	(scene if scene else parent.get_tree().root).add_child(p)
 	p.global_position = position
 	p.emitting = true
 	p.finished.connect(p.queue_free)

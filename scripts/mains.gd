@@ -227,7 +227,7 @@ func _pose(nom: String, sens := 1.0) -> Transform3D:
 	return Transform3D(Basis.from_euler(r * (PI / 180.0)), p)
 
 func _unhandled_input(e: InputEvent) -> void:
-	if joueur == null or joueur.mort or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+	if joueur == null or joueur.mort or joueur.en_dialogue or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
 	if e is InputEventMouseMotion:
 		_balance += Vector2(e.screen_relative.x, e.screen_relative.y) * 0.00035
@@ -366,7 +366,10 @@ func _tester_coup() -> void:
 			continue
 		if d > 0.9 and Vector2(v.x, v.z).normalized().dot(face_plate) < 0.5:
 			continue
-		var r: String = e.recevoir_coup(DEGATS_PUISSANT if _puissant else DEGATS_LEGER, joueur.global_position, _puissant)
+		var base := DEGATS_PUISSANT if _puissant else DEGATS_LEGER
+		var r: String = e.recevoir_coup(base * joueur.competences.multiplicateur_degats(), joueur.global_position, _puissant)
+		if r == "touche" or r == "tue":
+			joueur.competences.pratiquer("epee", 1.8 if _puissant else 1.0)
 		joueur.ennemi_vise = e
 		if r == "bloque" and resultat == "":
 			resultat = "bloque"

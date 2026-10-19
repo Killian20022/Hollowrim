@@ -7,8 +7,10 @@ extends Node3D
 
 const TAILLE := 240.0           # côté du terrain (m)
 const CASES := 120              # cases par côté
+const MORCEAU := 30             # cases par morceau de terrain (4x4 morceaux)
 const RAYON_CLAIRIERE := 9.0
 const CERCLE := Vector3(-38.0, 0.0, -34.0)  # cercle de pierres runiques
+const VILLAGE := Vector3(44.0, 0.0, 40.0)   # Skarnholt
 const NB_SAPINS := 1500
 const NB_ROCHERS := 160
 
@@ -17,6 +19,10 @@ const POST := preload("res://shaders/ps1_post.gdshader")
 const JOUEUR := preload("res://scripts/joueur.gd")
 const DRAUGR := preload("res://scripts/draugr.gd")
 const HUD := preload("res://scripts/hud.gd")
+const VILLAGE_SCRIPT := preload("res://scripts/village.gd")
+const CYCLE := preload("res://scripts/cycle.gd")
+const VILLAGEOIS := preload("res://scripts/villageois.gd")
+const DIALOGUE := preload("res://scripts/dialogue.gd")
 
 var bruit := FastNoiseLite.new()
 var bruit_detail := FastNoiseLite.new()
@@ -24,6 +30,13 @@ var bruit_densite := FastNoiseLite.new()
 var rng := RandomNumberGenerator.new()
 var h_centre := 0.0
 var h_cercle := 0.0
+var h_village := 0.0
+var village: Node3D
+var cycle: Node
+var calque: CanvasLayer
+var dialogue: Control
+var _env: Environment
+var _ciel: ShaderMaterial
 
 var tex_neige: ImageTexture
 var tex_roche: ImageTexture
@@ -38,6 +51,9 @@ var aide: Label
 var hud: Control
 var sbire: CharacterBody3D
 var depart_joueur := Vector3.ZERO
+var draugrs := {}  # identifiant → draugr
+var _minuterie_sauvegarde := 0.0
+const FICHIER_SAUVEGARDE := "user://sauvegarde.json"
 var _t := 0.0
 
 var _audio_vent: AudioStreamGeneratorPlayback
@@ -59,6 +75,7 @@ func _ready() -> void:
 	h_centre = _hauteur_brute(0.0, 0.0)
 	for k in 8:
 		var a := TAU * k / 8.0
+		h_village += _hauteur_brute(VILLAGE.x + cos(a) * 30.0, VILLAGE.z + sin(a) * 30.0) / 8.0
 		h_cercle += _hauteur_brute(CERCLE.x + cos(a) * 16.0, CERCLE.z + sin(a) * 16.0) / 8.0
 
 	tex_neige = Palette.texture(32, Palette.NEIGE, 4, 1, 0.35, rng)
@@ -73,11 +90,15 @@ func _ready() -> void:
 	_foret()
 	_rochers()
 	_cercle_runique()
+	_village()
 	_feu_de_camp()
 	_joueur()
 	_neige()
 	_interface()
 	_draugrs()
+	_villageois()
+	if not _arguments().has("capture") and not _arguments().has("nouvelle"):
+		charger()
 	if not _arguments().has("capture"):
 		_audio()
 	_capture()
@@ -90,11 +111,28 @@ func _hauteur_brute(x: float, z: float) -> float:
 	h += smoothstep(70.0, 118.0, Vector2(x, z).length()) * 24.0
 	return h
 
+## Vrai si (x, z) est à moins de `marge` m du sentier qui relie le feu à la porte du village.
+func _pres_du_chemin(x: float, z: float, marge: float) -> bool:
+	var porte := Vector2(VILLAGE.x, VILLAGE.z) - Vector2(VILLAGE.x, VILLAGE.z).normalized() * 22.0
+	var debut := Vector2(VILLAGE.x, VILLAGE.z).normalized() * (RAYON_CLAIRIERE - 2.0)
+	var p := Vector2(x, z)
+	var t := clampf((p - debut).dot(porte - debut) / (porte - debut).length_squared(), 0.0, 1.0)
+	return p.distance_to(debut.lerp(porte, t)) < marge
+
+func _village() -> void:
+	village = Node3D.new()
+	village.set_script(VILLAGE_SCRIPT)
+	village.position = Vector3(VILLAGE.x, h_village, VILLAGE.z)
+	var vers_feu := -Vector2(VILLAGE.x, VILLAGE.z).normalized()
+	village.rotation.y = atan2(vers_feu.x, vers_feu.y)
+	add_child(village)
+
 func hauteur(x: float, z: float) -> float:
 	var h := _hauteur_brute(x, z)
 	# clairière du feu et clairière du cercle aplanies
 	h = lerpf(h_centre, h, smoothstep(RAYON_CLAIRIERE, RAYON_CLAIRIERE + 14.0, Vector2(x, z).length()))
 	h = lerpf(h_cercle, h, smoothstep(9.0, 26.0, Vector2(x - CERCLE.x, z - CERCLE.z).length()))
+	h = lerpf(h_village, h, smoothstep(25.0, 38.0, Vector2(x - VILLAGE.x, z - VILLAGE.z).length()))
 	return h
 
 # --- ambiance ----------------------------------------------------------------
@@ -126,6 +164,8 @@ func _environnement() -> void:
 	env.glow_bloom = 0.02
 	env.glow_hdr_threshold = 0.9
 
+	_env = env
+	_ciel = ciel
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
@@ -142,6 +182,18 @@ func _lune() -> void:
 	lune.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	lune.directional_shadow_max_distance = 70.0
 	add_child(lune)
+	cycle = Node.new()
+	cycle.set_script(CYCLE)
+	cycle.env = _env
+	cycle.lumiere = lune
+	cycle.ciel = _ciel
+	var h: String = _arguments().get("heure", "")
+	if h != "":
+		cycle.heure = float(h)
+	# en capture sans heure imposée, le temps reste figé (images comparables)
+	if _arguments().has("capture") and h == "":
+		cycle.process_mode = Node.PROCESS_MODE_DISABLED
+	add_child(cycle)
 
 # --- terrain -----------------------------------------------------------------
 
@@ -155,46 +207,52 @@ func _terrain() -> void:
 		for i in n:
 			hs[j * n + i] = hauteur(i * pas - demi, j * pas - demi)
 
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for j in n:
-		for i in n:
-			var hg := hs[j * n + maxi(i - 1, 0)]
-			var hd := hs[j * n + mini(i + 1, n - 1)]
-			var hh := hs[maxi(j - 1, 0) * n + i]
-			var hb := hs[mini(j + 1, n - 1) * n + i]
-			var normale := Vector3(hg - hd, 2.0 * pas, hh - hb).normalized()
-			var x := i * pas - demi
-			var z := j * pas - demi
-			# la roche affleure sur les pentes raides ; un peu de bruit casse la limite
-			var roche := 1.0 - normale.y + bruit_detail.get_noise_2d(x * 3.0, z * 3.0) * 0.12
-			var clair := 0.93 + bruit_detail.get_noise_2d(x * 0.7, z * 0.7) * 0.07
-			st.set_color(Color(clair, clair, clair, 1.0 if roche > 0.2 else 0.0))
-			st.set_normal(normale)
-			st.add_vertex(Vector3(x, hs[j * n + i], z))
-	for j in CASES:
-		for i in CASES:
-			var a := j * n + i
-			var b := a + 1
-			var c := a + n
-			var d := c + 1
-			st.add_index(a); st.add_index(b); st.add_index(c)
-			st.add_index(b); st.add_index(d); st.add_index(c)
-	var mesh := st.commit()
-
 	var m := Palette.materiau(tex_roche)
 	m.set_shader_parameter("uv_monde", true)
 	m.set_shader_parameter("monde_echelle", 0.22)
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = m
-	add_child(mi)
-
+	# terrain découpé en morceaux : chacun reçoit ses propres lumières (8 max par objet
+	# avec le rendu Mobile) et les morceaux hors champ ne sont pas dessinés
 	var corps := StaticBody3D.new()
-	var forme := CollisionShape3D.new()
-	forme.shape = mesh.create_trimesh_shape()
-	corps.add_child(forme)
 	add_child(corps)
+	for mj in range(0, CASES, MORCEAU):
+		for mi_ in range(0, CASES, MORCEAU):
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			for j in range(mj, mj + MORCEAU + 1):
+				for i in range(mi_, mi_ + MORCEAU + 1):
+					var hg := hs[j * n + maxi(i - 1, 0)]
+					var hd := hs[j * n + mini(i + 1, n - 1)]
+					var hh := hs[maxi(j - 1, 0) * n + i]
+					var hb := hs[mini(j + 1, n - 1) * n + i]
+					var normale := Vector3(hg - hd, 2.0 * pas, hh - hb).normalized()
+					var x := i * pas - demi
+					var z := j * pas - demi
+					# la roche affleure sur les pentes raides ; un peu de bruit casse la limite
+					var roche := 1.0 - normale.y + bruit_detail.get_noise_2d(x * 3.0, z * 3.0) * 0.12
+					var clair := 0.93 + bruit_detail.get_noise_2d(x * 0.7, z * 0.7) * 0.07
+					# neige tassée sur le chemin du feu au village
+					if _pres_du_chemin(x, z, 1.4 + bruit_detail.get_noise_2d(x * 2.0, z * 2.0) * 0.6):
+						clair *= 0.84
+					st.set_color(Color(clair, clair, clair, 1.0 if roche > 0.2 else 0.0))
+					st.set_normal(normale)
+					st.add_vertex(Vector3(x, hs[j * n + i], z))
+			var cote := MORCEAU + 1
+			for j in MORCEAU:
+				for i in MORCEAU:
+					var a := j * cote + i
+					var b := a + 1
+					var c := a + cote
+					var d := c + 1
+					st.add_index(a); st.add_index(b); st.add_index(c)
+					st.add_index(b); st.add_index(d); st.add_index(c)
+			var mesh := st.commit()
+			var morceau := MeshInstance3D.new()
+			morceau.mesh = mesh
+			morceau.material_override = m
+			add_child(morceau)
+			var forme := CollisionShape3D.new()
+			forme.shape = mesh.create_trimesh_shape()
+			corps.add_child(forme)
 
 # --- sapins ------------------------------------------------------------------
 
@@ -270,7 +328,7 @@ func _foret() -> void:
 		var x := rng.randf_range(-116.0, 116.0)
 		var z := rng.randf_range(-116.0, 116.0)
 		var d := Vector2(x, z).length()
-		if d < RAYON_CLAIRIERE + 2.5 or Vector2(x - CERCLE.x, z - CERCLE.z).length() < 11.0:
+		if d < RAYON_CLAIRIERE + 2.5 or Vector2(x - CERCLE.x, z - CERCLE.z).length() < 11.0 or Vector2(x - VILLAGE.x, z - VILLAGE.z).length() < 31.0 or _pres_du_chemin(x, z, 3.0):
 			continue
 		# la forêt s'épaissit et s'éclaircit par plaques
 		var densite := bruit_densite.get_noise_2d(x, z) * 0.5 + 0.6 + smoothstep(14.0, 30.0, d) * 0.2
@@ -349,7 +407,7 @@ func _rochers() -> void:
 	for i in NB_ROCHERS:
 		var x := rng.randf_range(-112.0, 112.0)
 		var z := rng.randf_range(-112.0, 112.0)
-		if Vector2(x, z).length() < RAYON_CLAIRIERE:
+		if Vector2(x, z).length() < RAYON_CLAIRIERE or Vector2(x - VILLAGE.x, z - VILLAGE.z).length() < 28.0 or _pres_du_chemin(x, z, 2.0):
 			continue
 		var s := rng.randf_range(0.4, 2.2) * (2.0 if rng.randf() < 0.12 else 1.0)
 		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.5, 0.9), s * rng.randf_range(0.8, 1.2)))
@@ -593,6 +651,29 @@ func _joueur_mort() -> void:
 	t.tween_callback(func() -> void: joueur.ressusciter(depart_joueur, atan2(depart_joueur.x, depart_joueur.z)))
 	t.tween_method(func(v: float) -> void: post.set_shader_parameter("fondu", v), 1.0, 0.0, 1.5)
 
+# --- villageois ------------------------------------------------------------------
+
+func _villageois() -> void:
+	dialogue = Control.new()
+	dialogue.set_script(DIALOGUE)
+	dialogue.joueur = joueur
+	calque.add_child(dialogue)
+	var promenade: Array = village.promenade
+	for d in VILLAGEOIS.charger():
+		var poste: Vector3 = village.lieux.get(d.get("lieu", "place"), village.lieux["place"])
+		var points: Array[Vector3] = [poste]
+		for p in promenade.duplicate():
+			if p != poste and randf() < 0.4 and points.size() < 4:
+				points.append(p)
+		var v := CharacterBody3D.new()
+		v.set_script(VILLAGEOIS)
+		v.donnees = d
+		v.joueur = joueur
+		v.dialogue = dialogue
+		v.points = points
+		v.position = poste + Vector3(0, 0.05, 0)
+		add_child(v)
+
 # --- draugrs ---------------------------------------------------------------------
 
 func _draugr(type: String, x: float, z: float, dort: bool, lacet := 0.0) -> CharacterBody3D:
@@ -601,6 +682,9 @@ func _draugr(type: String, x: float, z: float, dort: bool, lacet := 0.0) -> Char
 	d.type = type
 	d.dort = dort and not _arguments().has("reveiller")
 	d.joueur = joueur
+	d.hud = hud
+	d.ident = "%s_%d" % [type, draugrs.size()]
+	draugrs[d.ident] = d
 	d.position = Vector3(x, hauteur(x, z) + 0.05, z)
 	d.rotation.y = lacet
 	add_child(d)
@@ -654,7 +738,7 @@ func _neige() -> void:
 	neige.global_position = joueur.global_position + Vector3(0, 10, 0)
 
 func _interface() -> void:
-	var calque := CanvasLayer.new()
+	calque = CanvasLayer.new()
 	add_child(calque)
 	var rect := ColorRect.new()
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -685,8 +769,77 @@ func _basculer_ps1() -> void:
 	Palette.regler_ps1(actif)
 
 func _unhandled_input(e: InputEvent) -> void:
-	if e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_P:
-		_basculer_ps1()
+	if e is InputEventKey and e.pressed and not e.echo:
+		match e.physical_keycode:
+			KEY_P:
+				_basculer_ps1()
+			KEY_F5:
+				sauvegarder()
+				hud.avis("Partie sauvegardée")
+			KEY_F9:
+				# on relance le jeu plutôt que la scène : recréer le monde dans le même
+				# processus fait planter Godot (modèles importés rechargés en double)
+				if FileAccess.file_exists(FICHIER_SAUVEGARDE):
+					OS.set_restart_on_exit(true, OS.get_cmdline_args())
+					get_tree().quit()
+
+func _notification(quoi: int) -> void:
+	if quoi == NOTIFICATION_WM_CLOSE_REQUEST and not _arguments().has("capture"):
+		sauvegarder()
+
+# --- sauvegarde ------------------------------------------------------------------
+
+func sauvegarder() -> void:
+	if joueur.mort:
+		return
+	var morts := []
+	for id in draugrs:
+		if not is_instance_valid(draugrs[id]) or not draugrs[id].vivant():
+			morts.append(id)
+	var parles := []
+	for v in get_tree().get_nodes_in_group("villageois"):
+		if v.get("deja_parle"):
+			parles.append(v.donnees.get("id", ""))
+	var donnees := {
+		"version": 1,
+		"joueur": {
+			"position": [joueur.position.x, joueur.position.y, joueur.position.z],
+			"lacet": joueur.rotation.y, "vie": joueur.vie, "vigueur": joueur.vigueur,
+		},
+		"heure": cycle.heure,
+		"competences": joueur.competences.exporter(),
+		"inventaire": joueur.inventaire.exporter(),
+		"draugrs_morts": morts,
+		"villageois_parles": parles,
+	}
+	var f := FileAccess.open(FICHIER_SAUVEGARDE, FileAccess.WRITE)
+	f.store_string(JSON.stringify(donnees, "\t"))
+
+func charger() -> void:
+	if not FileAccess.file_exists(FICHIER_SAUVEGARDE):
+		return
+	var d = JSON.parse_string(FileAccess.get_file_as_string(FICHIER_SAUVEGARDE))
+	if not d is Dictionary:
+		push_warning("Sauvegarde illisible, nouvelle partie.")
+		return
+	var j: Dictionary = d.get("joueur", {})
+	var p: Array = j.get("position", [])
+	if p.size() == 3:
+		joueur.position = Vector3(p[0], p[1] + 0.2, p[2])
+	joueur.rotation.y = float(j.get("lacet", joueur.rotation.y))
+	joueur.vie = float(j.get("vie", joueur.vie_max))
+	joueur.vigueur = float(j.get("vigueur", joueur.vigueur_max))
+	cycle.heure = float(d.get("heure", cycle.heure))
+	joueur.competences.importer(d.get("competences", {}))
+	joueur.inventaire.importer(d.get("inventaire", {}))
+	for id in d.get("draugrs_morts", []):
+		if draugrs.has(id):
+			draugrs[id].queue_free()
+			draugrs.erase(id)
+	var parles: Array = d.get("villageois_parles", [])
+	for v in get_tree().get_nodes_in_group("villageois"):
+		if v.donnees.get("id", "") in parles:
+			v.deja_parle = true
 
 func _process(dt: float) -> void:
 	_t += dt
@@ -696,6 +849,10 @@ func _process(dt: float) -> void:
 	if _t > 14.0 and aide.modulate.a > 0.0:
 		aide.modulate.a = maxf(0.0, aide.modulate.a - dt * 0.5)
 	_remplir_audio()
+	_minuterie_sauvegarde += dt
+	if _minuterie_sauvegarde > 120.0 and not _arguments().has("capture"):
+		_minuterie_sauvegarde = 0.0
+		sauvegarder()
 
 # --- son : vent et crépitement générés en direct -------------------------------
 

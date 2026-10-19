@@ -30,6 +30,9 @@ var vie := 70.0
 var vie_max := 70.0
 var degats := 16.0
 var nom_affiche := "Draugr"
+var ident := ""  # pour la sauvegarde (les draugrs tués restent morts)
+var hud: Control
+const BUTIN := preload("res://scripts/butin.gd")
 
 var etat := GARDE
 var modele: Node3D
@@ -252,3 +255,17 @@ func _mourir() -> void:
 	collision_mask = 1
 	Sons.jouer_a(self, ["mnstr5", "mnstr6"], global_position + Vector3.UP, 0.0, 0.1)
 	Effets.eclats(self, global_position + Vector3(0, 0.8, 0), Color(0.75, 0.72, 0.6), 30, 4.0)
+	_laisser_butin()
+
+func _laisser_butin() -> void:
+	var b := Node3D.new()
+	b.set_script(BUTIN)
+	b.joueur = joueur
+	b.hud = hud
+	b.contenu = {"pieces": randi_range(4, 14), "os_draugr": randi_range(1, 2)}
+	if randf() < 0.5:
+		b.contenu["poussiere_tombe"] = 1
+	if type == "guerrier" and randf() < 0.4:
+		b.contenu["lame_antique"] = 1
+	get_parent().add_child(b)
+	b.global_position = global_position + global_transform.basis.z * 0.6

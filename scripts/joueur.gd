@@ -20,8 +20,11 @@ var vie_max := 100.0
 var vigueur := 100.0
 var vigueur_max := 100.0
 var mort := false
+var en_dialogue := false  # posé par la boîte de dialogue : ni marche ni combat
 var secousse := 0.0
 var ennemi_vise: Node = null
+var competences := Competences.new()
+var inventaire := Inventaire.new()
 
 var tete: Node3D
 var camera: Camera3D
@@ -75,7 +78,7 @@ func _actions() -> void:
 			InputMap.action_add_event(nom, e)
 
 func _unhandled_input(e: InputEvent) -> void:
-	if e is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not mort:
+	if e is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not mort and not en_dialogue:
 		# screen_relative : non réduit par l'agrandissement du rendu 480x270
 		rotate_y(-e.screen_relative.x * SENSIBILITE)
 		tete.rotation.x = clampf(tete.rotation.x - e.screen_relative.y * SENSIBILITE, -1.45, 1.45)
@@ -98,8 +101,10 @@ func recevoir_coup(degats: float, origine: Vector3) -> String:
 	var face := -global_transform.basis.z
 	if mains.bloque and vers.normalized().dot(Vector3(face.x, 0, face.z).normalized()) > 0.3 and vigueur > 0.0:
 		var parade: bool = mains.temps_garde < 0.3
-		depenser(degats * (0.3 if parade else 1.1))
-		vie -= 0.0 if parade else degats * 0.15
+		var reduction := competences.reduction_parade()
+		depenser(degats * (0.3 if parade else 1.1) * reduction)
+		vie -= 0.0 if parade else degats * 0.15 * reduction
+		competences.pratiquer("parade", 0.6 + degats * 0.08 + (0.6 if parade else 0.0))
 		secousse = maxf(secousse, 0.2 if parade else 0.35)
 		mains.encaisser()
 		Sons.jouer(self, ["impactMetal_heavy_000", "impactMetal_heavy_001", "impactMetal_heavy_002"], -1.0)
@@ -129,17 +134,18 @@ func _physics_process(dt: float) -> void:
 	_t += dt
 	if not is_on_floor():
 		velocity.y -= GRAVITE * dt
-	elif Input.is_action_just_pressed("saut") and not mort and vigueur > 5.0:
+	elif Input.is_action_just_pressed("saut") and not mort and not en_dialogue and vigueur > 5.0:
 		velocity.y = SAUT
 		depenser(6.0)
-	var entree := Vector2.ZERO if mort else Input.get_vector("gauche", "droite", "avant", "arriere")
+	var entree := Vector2.ZERO if (mort or en_dialogue) else Input.get_vector("gauche", "droite", "avant", "arriere")
 	var dir := (transform.basis * Vector3(entree.x, 0.0, entree.y)).normalized()
 	var court: bool = Input.is_action_pressed("course") and vigueur > 0.0 and entree.y < 0.0 and not mains.bloque
 	var vitesse := COURSE if court else VITESSE
 	if mains.bloque:
 		vitesse *= 0.5
 	if court and dir != Vector3.ZERO:
-		vigueur = maxf(0.0, vigueur - COUT_COURSE * dt)
+		vigueur = maxf(0.0, vigueur - COUT_COURSE * competences.cout_course() * dt)
+		competences.pratiquer("athletisme", dt * 0.12)
 		_repos_vigueur = 0.6
 	var cible := dir * vitesse + _recul
 	_recul = _recul.lerp(Vector3.ZERO, 1.0 - exp(-8.0 * dt))

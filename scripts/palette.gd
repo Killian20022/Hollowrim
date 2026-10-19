@@ -12,6 +12,8 @@ const ECORCE := ["#22170f", "#311f14", "#43301f", "#56402a"]
 const ACIER := ["#3a4458", "#56627a", "#8a96ad", "#b9c3d6"]
 const CUIR := ["#1e140e", "#2c1d13", "#3d2a1b", "#4f3825"]
 const FOURRURE := ["#2a2c33", "#3b3e47", "#50545e", "#6a6e78"]
+const PLANCHES := ["#1b1510", "#2a2018", "#3a2d21", "#4b3b2b"]
+const FOIN := ["#4a3c1c", "#62502a", "#7a6636", "#947e46"]
 const OSSEMENT := ["#6b6452", "#8f8670", "#b3aa8f", "#d2c9ad"]
 
 static var materiaux: Array[ShaderMaterial] = []
@@ -114,3 +116,13 @@ static func lueur(couleur: Color) -> StandardMaterial3D:
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.albedo_color = couleur
 	return m
+
+## Police pixel du jeu (Kenney Pixel, nette : ni lissage ni sous-pixel). Une copie par
+## appelant : la garder dans une variable statique fait planter Godot à la fermeture.
+static func police() -> FontFile:
+	var p := (load("res://assets/polices/Kenney Pixel.ttf") as FontFile).duplicate()
+	p.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	p.hinting = TextServer.HINTING_NONE
+	p.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+	p.generate_mipmaps = false
+	return p

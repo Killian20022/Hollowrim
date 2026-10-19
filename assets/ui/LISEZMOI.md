@@ -40,3 +40,24 @@ Tous les fichiers : uniquement des `<rect>` sur coordonnées entières, `shape-r
 - Magie (centre, optionnelle) : cadre à x=200, y=256 ; remplissage à x=203, y=258. Si omise, laisser le centre libre.
 - Réticule : x=238, y=133 (centre exact 240,135).
 - Marge basse : 7 px (256+7=263 sur 270). Tout est sur des entiers : agrandissement x3/x4 sans flou.
+
+## Dialogue
+
+| Fichier | Taille | Rôle |
+|---|---|---|
+| dialogue_cadre.svg | 24x24 | Cadre de boîte de dialogue, NinePatch |
+| dialogue_nom.svg | 12x12 | Cartouche du nom, NinePatch |
+| touche_e.svg | 11x11 | Touche E (invite d'interaction) |
+| suite.svg | 5x3 | Flèche « suite » or, pointe vers le bas |
+
+### Marges 9-slice (Godot : NinePatchRect, filtre Nearest, axes en mode Tile ou Stretch)
+- **dialogue_cadre.svg** : gauche **8**, haut **8**, droite **8**, bas **8**. Coins ornés (plaque de fer + rivet or) 8x8 ; bords 8 px uniformes dans leur sens (mode Tile conseillé) ; centre 8x8 = #0b0f1a à 85 % d'opacité (transparence conservée à l'import). Les bords font 6 px de cadre visible (contour, reflet, bande de fer, ombre, filet #1a2233) ; les 2 px restants sont du fond.
+- **dialogue_nom.svg** : gauche **4**, haut **4**, droite **4**, bas **4**. Fond #1a2233, contour #0b0f1a, liseré or (#e8a64a haut/gauche, #b8762a bas/droite). Centre plein, à étirer.
+- Éviter les tailles de boîte non entières et les tailles inférieures à 16x16 (cadre) / 8x8 (cartouche).
+
+### Disposition recommandée (écran 480x270, coin haut-gauche)
+- **Boîte** : 320x58 à x=80, y=190 (couvre 80..399 x 190..247), soit 9 px au-dessus des barres (y=256).
+- **Marges intérieures du texte** : 12 px à gauche et à droite, 10 px en haut, 8 px en bas. Zone de texte : x=92, y=200, largeur 296, hauteur 40 (3 lignes de 8-9 px d'interligne ou 4 lignes serrées).
+- **Cartouche du nom** : hauteur 12, largeur = texte + 8 px (ex. 72x12), à x=92, y=184 : il chevauche le bord haut de la boîte (y=190) de 6 px, dessiné par-dessus. Le nom est centré dans le cartouche, parchemin #e8e0c8 (ou or #e8a64a).
+- **Flèche « suite »** : x=374, y=236 (coin droit de la zone de texte, au-dessus du bord bas), clignotement 0,5 s ; masquée à la dernière réplique.
+- **Invite « E  Parler »** : touche 11x11 + 4 px d'espace + texte (parchemin, ~36 px de large pour « Parler ») ; ensemble d'environ 51 px centré sur x=240, soit touche à x=214, y=150 (150..160), texte à x=229, aligné verticalement sur la touche. Le réticule occupe y=133..137 : l'invite reste bien dégagée dessous. Masquer l'invite pendant le dialogue.

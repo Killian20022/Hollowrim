@@ -1,0 +1,131 @@
+{
+  "village": "Skarnholt",
+  "villageois": [
+    {
+      "id": "chef",
+      "nom": "Gunnhild Aldrsdotir",
+      "role": "Cheffe du hameau",
+      "modele": "Knight",
+      "lieu": "longue_maison",
+      "interpellations": ["Approche du feu, étranger.", "Les nuits sont longues ici.", "Pas de bagarre chez moi."],
+      "lignes": [
+        "Je suis Gunnhild, cheffe de Skarnholt. Tu as vu notre feu de loin ?",
+        "Une quarantaine d’âmes, une forêt, de la neige. Voilà tout le royaume.",
+        "Tu es le bienvenu. Tant que tu ne voles pas nos réserves de bière.",
+        "Ces dernières nuits, des lueurs bougent au cercle de pierres, au nord-ouest.",
+        "Les anciens disent que les morts y dorment. Ils dorment moins bien, depuis peu.",
+        "Un anneau a disparu de la tombe de Svanhild. Je veux savoir qui l’a pris."
+      ],
+      "apres": [
+        "Parle aux gens du hameau. Ils en savent plus qu’ils n’en disent.",
+        "Si tu vas au cercle, reviens entier. Je déteste les enterrements.",
+        "Le feu est à toi, étranger. Le reste se mérite."
+      ]
+    },
+    {
+      "id": "forgeron",
+      "nom": "Brodd le Large",
+      "role": "Forgeron",
+      "modele": "Barbarian",
+      "lieu": "forge",
+      "interpellations": ["Ça chauffe ici. Recule.", "Du fer, pas de discours.", "Tu as de bons bras ?"],
+      "lignes": [
+        "Brodd. Forgeron. Ne touche pas aux lames, elles sont plus polies que moi.",
+        "Haches, pelles, clous. Un hameau sans fer, c’est un tas de bois qui gèle.",
+        "Hé, tu as le regard d’un type qui marche beaucoup. Tes bottes diront le reste.",
+        "Il y a trois jours, Eirik m’a montré un anneau gris. Il glaçait mes doigts.",
+        "J’ai refusé de le chauffer. Il est parti avec, content comme un gamin.",
+        "Depuis, personne ne l’a revu. Et les morts du cercle remuent. Un hasard ?"
+      ],
+      "apres": [
+        "Mon marteau est lourd. Ma conscience aussi, pour l’anneau.",
+        "Si tu trouves Eirik, dis-lui que je lui dois une engueulade.",
+        "Une lame ? Reviens quand tu auras de l’argent."
+      ]
+    },
+    {
+      "id": "chasseuse",
+      "nom": "Ylva Frostmark",
+      "role": "Chasseuse",
+      "modele": "Rogue_Hooded",
+      "lieu": "enclos",
+      "interpellations": ["Chut. Tu fais fuir tout.", "Reste derrière moi.", "Tu as vu des traces ?"],
+      "lignes": [
+        "Ylva. Je chasse. Toi, tu parles trop fort pour un inconnu.",
+        "Les cerfs ont fui vers le sud. Les loups aussi. Ça ne leur ressemble pas.",
+        "Ils évitent le cercle de pierres. Moi, j’y suis allée hier, de loin.",
+        "J’ai vu des silhouettes en armure bouger. Raides. Silencieuses. Vivantes ? Non.",
+        "Mon frère Eirik est parti là-bas une nuit. Il n’est pas revenu.",
+        "Retrouve-le, étranger. Je te devrai une peau de loup. Et plus encore."
+      ],
+      "apres": [
+        "Les traces d’Eirik s’arrêtent près des pierres. Je n’y vais pas seule.",
+        "Garde ton arc bandé. Ces choses-là n’ont pas peur.",
+        "Si tu le retrouves, ramène-le. Même en morceaux."
+      ]
+    },
+    {
+      "id": "volva",
+      "nom": "Sigrún la Voyante",
+      "role": "Völva",
+      "modele": "Mage",
+      "lieu": "place",
+      "interpellations": ["Les runes parlent de toi…", "Le ciel brûle ce soir.", "Approche, enfant du froid."],
+      "lignes": [
+        "Les aurores dansent. Elles te connaissaient avant que tu ne viennes.",
+        "Je suis Sigrún. Je lis les os, les flammes, parfois le fond de ton âme.",
+        "Le cercle runique garde une reine endormie. Svanhild, la Dame de givre.",
+        "Son anneau scellait leur sommeil. On l’a arraché de sa main.",
+        "Voilà pourquoi ses gardes se lèvent. Ils cherchent ce qu’on leur a pris.",
+        "Rapporte l’anneau à la tombe. Sinon, les morts viendront le chercher ici."
+      ],
+      "apres": [
+        "Les runes se taisent un peu. Mauvais signe, ça.",
+        "L’anneau a une volonté. Ne le porte pas, quoi qu’il murmure.",
+        "Le ciel te regarde, étranger. Sois digne de lui."
+      ]
+    },
+    {
+      "id": "garde",
+      "nom": "Haldor Quatre-Yeux",
+      "role": "Garde de la porte",
+      "modele": "Knight",
+      "lieu": "porte",
+      "interpellations": ["Halte. Qui va là ?", "Pas de lame dégainée.", "Circule, ou entre."],
+      "lignes": [
+        "Halte. Haldor, garde de la porte. Rassure-moi, tu n’es pas un mort ?",
+        "Non ? Bien. Le dernier visiteur nocturne n’avait plus de visage.",
+        "Quatre-Yeux, c’est pour mes lunettes de neige. Pas pour le ridicule.",
+        "Je veille depuis une semaine. Des lueurs vertes montent du nord-ouest.",
+        "Eirik est passé en courant, la nuit dernière. Un truc brillait dans sa main.",
+        "Il a filé vers le cercle. Moi, je tiens la porte. Toi, tu as des jambes."
+      ],
+      "apres": [
+        "Je garde la porte. Rien d’autre. Ne me demande pas de courir.",
+        "Les loups hurlent moins. C’est pire que s’ils hurlaient.",
+        "Reviens vivant, étranger. Je déteste la paperasse des deuils."
+      ]
+    },
+    {
+      "id": "ancienne",
+      "nom": "Grima Cendrefroide",
+      "role": "Doyenne du puits",
+      "modele": "Rogue_Hooded",
+      "lieu": "puits",
+      "interpellations": ["Hé, petit. Tire-moi de l’eau.", "Ah, de la jeunesse…", "Mes genoux me parlent."],
+      "lignes": [
+        "Tire-moi un seau, petit. Mes genoux ont voté contre l’eau aujourd’hui.",
+        "Grima. J’ai vu naître ce hameau. Et enterrer la moitié de ses habitants.",
+        "Petite, ma grand-mère racontait le cercle. Un lieu qu’on ne dérange pas.",
+        "On y a posé Svanhild avec son anneau, pour tenir les siens tranquilles.",
+        "Eirik a toujours été curieux. Les curieux finissent dans les légendes.",
+        "Si tu l’aperçois, dis-lui que sa tante garde sa soupe au chaud."
+      ],
+      "apres": [
+        "Merci pour l’eau. Les jeunes d’aujourd’hui ont du cœur, parfois.",
+        "Le puits est plus froid que d’habitude. Il sait quelque chose.",
+        "Va, étranger. Mes vieux os attendront ton retour."
+      ]
+    }
+  ]
+}
