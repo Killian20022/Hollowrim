@@ -185,18 +185,15 @@ func _construire_crypte() -> void:
 
 	# alcôve d'Eirik, à l'ouest
 	_salle(-11, -7, -23, -27, 3.0, [["est", -25.0, 3.0]])
-	var eirik := load("res://assets/modeles/villageois/Rogue_Hooded.glb").instantiate() as Node3D
-	eirik.scale = Vector3.ONE * 0.86
-	eirik.position = Vector3(-9.6, 0.02, -25.0)
+	var eirik := Humain.creer({"corps": "homme", "cheveux": "Hair_SimpleParted", "teinte_cheveux": Color(0.85, 0.55, 0.3), "peau": Color(0.75, 0.75, 0.8),
+		"tenue": {"tunique": Color(0.4, 0.5, 0.42), "pantalon": Color(0.6, 0.55, 0.5), "bottes": Color.WHITE, "ceinture": Color.WHITE, "mante": Color(0.9, 0.85, 0.8)}})
+	eirik.position = Vector3(-9.3, 0.02, -25.0)
 	eirik.rotation.y = 1.2
 	crypte.add_child(eirik)
-	for mi: MeshInstance3D in eirik.find_children("*", "MeshInstance3D", true, false):
-		if not String(mi.name).begins_with("Rogue_") and mi.name != "Knife":
-			mi.visible = false
-	Palette.convertir(eirik, 128, Color(0.75, 0.8, 0.95), 0.35)
-	var ap: AnimationPlayer = eirik.find_child("AnimationPlayer", true, false)
-	if ap and ap.has_animation("Death_A_Pose"):
-		ap.play("Death_A_Pose")
+	var ap: AnimationPlayer = eirik.get_node("Animations")
+	ap.play("Death01")
+	ap.seek(ap.get_animation("Death01").length - 0.05, true)
+	ap.pause()
 	_interactif(crypte, Vector3(-9.3, 0.6, -25.0), "Note d’Eirik", "Fouiller le corps d’Eirik", _fouiller_eirik, Callable(), true)
 	_flamme(crypte, Vector3(-10.4, 0.15, -23.6), 0.3, 0.6, 4.0)  # chandelle d'Eirik
 
@@ -298,7 +295,8 @@ func _peut_rendre() -> bool:
 func _lever_svanhild() -> void:
 	_svanhild_levee = true
 	_svanhild = monde.creer_draugr("guerrier", crypte.to_global(Vector3(0, 0.05, -48.6)), PI, true, {
-		"ident": "svanhild", "echelle": 1.15, "teinte": Color(0.7, 0.85, 1.05), "saturation": 0.15,
+		"ident": "svanhild", "echelle": 1.12,
+		"apparence": {"corps": "femme", "cheveux": "Hair_Long", "teinte_cheveux": Color(1.1, 1.15, 1.25), "tenue": {"tunique": Color(0.4, 0.45, 0.6), "mante": Color(0.8, 0.85, 0.95), "brassards": Color(0.8, 0.85, 0.9), "ceinture": Color(0.8, 0.8, 0.8), "bottes": Color(0.6, 0.6, 0.6)}},
 		"vie_imposee": 260.0, "degats_imposes": 24.0, "nom_affiche": "Svanhild, Dame de givre",
 	})
 	var lignes: Array = quetes.texte("svanhild_reveil")

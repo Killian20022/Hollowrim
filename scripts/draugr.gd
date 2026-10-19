@@ -7,15 +7,11 @@ enum { DORT, REVEIL, GARDE, TRAQUE, ATTAQUE, TITUBE, MORT }
 
 signal mort(ident: String)
 
-const MODELES := {
-	"guerrier": "res://assets/modeles/squelettes/Skeleton_Warrior.glb",
-	"sbire": "res://assets/modeles/squelettes/Skeleton_Minion.glb",
-}
-const LAME := preload("res://assets/modeles/squelettes/Skeleton_Blade.gltf")
-const HACHE := preload("res://assets/modeles/squelettes/Skeleton_Axe.gltf")
-const BOUCLIER := preload("res://assets/modeles/squelettes/Skeleton_Shield_Small_A.gltf")
-const BOUCLE := ["Idle", "Idle_Combat", "Walking_D_Skeletons", "Running_C", "Blocking", "Skeletons_Inactive_Floor_Pose"]
-const ATTAQUES := ["1H_Melee_Attack_Chop", "1H_Melee_Attack_Slice_Diagonal", "1H_Melee_Attack_Slice_Horizontal"]
+const EPEE := preload("res://assets/modeles/joueur/epee_nordique.glb")
+## Prise de l'épée dans la main droite (repère de l'os hand_r) : lame de l'auriculaire vers
+## l'index, poignée au creux des doigts — calculée par outils/calcul_prise.gd.
+var prise := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
+const ATTAQUES := ["Sword_Attack", "Sword_Attack", "Punch_Cross"]
 
 const GRAVITE := 13.0
 const DETECTION := 17.0
@@ -33,7 +29,8 @@ var vie_max := 70.0
 var degats := 16.0
 var nom_affiche := "Draugr"
 # réglages facultatifs, posés avant add_child (boss…)
-var echelle := 0.86
+var echelle := 1.0
+var apparence := {}  # remplace des éléments de l'allure (corps, cheveux, tenue)
 var teinte := Color(0.78, 0.82, 0.92)
 var saturation := 0.3
 var vie_imposee := 0.0
@@ -54,8 +51,6 @@ var _coup_donne := false
 var _recharge := 0.0
 var _recul := Vector3.ZERO
 var _mailles: Array[MeshInstance3D] = []
-var _squelette: Skeleton3D
-var _os_tete := -1
 
 func _ready() -> void:
 	add_to_group("ennemis")
@@ -76,52 +71,59 @@ func _ready() -> void:
 	forme.position.y = 0.9
 	add_child(forme)
 
-	modele = load(MODELES[type]).instantiate()
+	var app := {"corps": "homme", "draugr": true, "tenue": {"tunique": Color(0.42, 0.38, 0.34), "ceinture": Color(0.6, 0.6, 0.6), "brassards": Color(0.65, 0.62, 0.6)}}
+	if type == "guerrier":
+		app["tenue"]["mante"] = Color(0.5, 0.48, 0.45)
+		app["tenue"]["bottes"] = Color(0.6, 0.6, 0.6)
+	app.merge(apparence, true)
+	modele = Humain.creer(app)
 	modele.scale = Vector3.ONE * echelle
 	add_child(modele)
-	# os sales et bleuis par le froid
-	Palette.convertir(modele, 128, teinte, saturation)
 	for mi: MeshInstance3D in modele.find_children("*", "MeshInstance3D", true, false):
 		_mailles.append(mi)
-		if mi.name.ends_with("Eyes"):
-			mi.material_override = Palette.lueur(Color(0.6, 1.8, 2.4))
 	var squelette: Skeleton3D = modele.find_child("Skeleton3D", true, false)
-	_armer(squelette, "handslot.r", HACHE if type == "sbire" else LAME)
-	if type == "guerrier":
-		_armer(squelette, "handslot.l", BOUCLIER)
-
-	anim = modele.find_child("AnimationPlayer", true, false)
-	# tête rétrécie après chaque animation : moins « jouet », plus mort-vivant
-	_squelette = squelette
-	_os_tete = squelette.find_bone("head")
-	anim.mixer_applied.connect(_proportions)
-	for nom in BOUCLE:
-		if anim.has_animation(nom):
-			anim.get_animation(nom).loop_mode = Animation.LOOP_LINEAR
+	_armer(squelette)
+	anim = modele.get_node("Animations")
 	origine = global_position
 	if dort:
 		etat = DORT
-		_jouer("Skeleton_Inactive_Standing_Pose" if debout else "Skeletons_Inactive_Floor_Pose", 0.0)
+		if debout:
+			_jouer("Idle", 0.0)
+			anim.speed_scale = 0.0  # figé dans sa niche
+		else:
+			# allongé : dernière image de l'animation de mort
+			_jouer("Death01", 0.0)
+			anim.seek(_duree("Death01") - 0.05, true)
+			anim.pause()
 	else:
-		_jouer("Idle", 0.0)
+		_jouer("Sword_Idle", 0.0)
 		anim.seek(randf() * 2.0)
 
-func _anim_reveil() -> String:
-	return "Skeletons_Awaken_Standing" if debout else "Skeletons_Awaken_Floor"
+## Le réveil : un dormeur allongé rejoue sa mort à l'envers et se relève.
+func _reveiller() -> void:
+	anim.speed_scale = 1.0
+	if debout:
+		_jouer("Sword_Idle", 0.6)
+	else:
+		_anim = "reveil"
+		anim.play_backwards("Death01")
 
-func _armer(squelette: Skeleton3D, os: String, scene: PackedScene) -> void:
+func _duree_reveil() -> float:
+	return 0.8 if debout else _duree("Death01")
+
+## Lame nordique rouillée (modèle du joueur) tenue dans la main droite.
+func _armer(squelette: Skeleton3D) -> void:
 	var accroche := BoneAttachment3D.new()
-	accroche.bone_name = os
+	accroche.bone_name = "hand_r"
 	squelette.add_child(accroche)
-	var arme: Node3D = scene.instantiate()
-	Palette.convertir(arme, 64, Color(0.75, 0.78, 0.86), 0.45)
+	var arme: Node3D = EPEE.instantiate()
+	arme.transform = prise
 	accroche.add_child(arme)
+	var rouille := Palette.materiau(Palette.tex("rouille", ["#2a1c14", "#3b2a1e", "#4f3a2a", "#5e5048"], 4, 0.7), Vector2(1, 3))
+	rouille.set_shader_parameter("tex_neige", rouille.get_shader_parameter("tex_base"))
 	for mi: MeshInstance3D in arme.find_children("*", "MeshInstance3D", true, false):
+		mi.material_override = rouille
 		_mailles.append(mi)
-
-func _proportions() -> void:
-	if _os_tete >= 0:
-		_squelette.set_bone_pose_scale(_os_tete, Vector3.ONE * 0.74)
 
 func vivant() -> bool:
 	return etat != MORT
@@ -161,11 +163,11 @@ func _physics_process(dt: float) -> void:
 			regard = false
 			if dist < REVEIL_DISTANCE and not joueur.mort:
 				_changer(REVEIL)
-				_jouer(_anim_reveil(), 0.1)
+				_reveiller()
 				Sons.jouer_a(self, ["giant1", "giant2", "giant3"], global_position + Vector3.UP, -2.0, 0.15)
 		REVEIL:
 			regard = _t > 0.6
-			if _t >= _duree(_anim_reveil()) * 0.95:
+			if _t >= _duree_reveil() * 0.95:
 				_changer(TRAQUE)
 		GARDE:
 			var retour := origine - global_position
@@ -173,10 +175,10 @@ func _physics_process(dt: float) -> void:
 			if retour.length() > 1.5:
 				dir = retour.normalized()
 				vitesse = MARCHE
-				_jouer("Walking_D_Skeletons")
+				_jouer("Walk")
 			else:
 				regard = false
-				_jouer("Idle")
+				_jouer("Sword_Idle")
 			if dist < DETECTION and not joueur.mort:
 				_changer(TRAQUE)
 				Sons.jouer_a(self, ["mnstr1", "mnstr2", "mnstr3", "mnstr4"], global_position + Vector3.UP, -4.0, 0.15)
@@ -185,9 +187,9 @@ func _physics_process(dt: float) -> void:
 				_changer(GARDE)
 			elif dist > PORTEE:
 				vitesse = COURSE if dist > 4.0 else MARCHE * 1.4
-				_jouer("Running_C" if dist > 4.0 else "Walking_D_Skeletons")
+				_jouer("Jog_Fwd" if dist > 4.0 else "Walk")
 			else:
-				_jouer("Idle_Combat")
+				_jouer("Sword_Idle")
 				if _recharge <= 0.0:
 					_attaque = ATTAQUES.pick_random()
 					_coup_donne = false
@@ -234,7 +236,7 @@ func recevoir_coup(quantite: float, origine_coup: Vector3, puissant: bool) -> St
 	vers.y = 0.0
 	var de_face := vers.normalized().dot(global_transform.basis.z) > 0.3
 	if type == "guerrier" and not puissant and de_face and etat in [TRAQUE] and randf() < 0.3:
-		_jouer("Block_Hit", 0.05, true)
+		_jouer("Hit_Chest", 0.05, true)
 		_changer(TITUBE)
 		Sons.jouer_a(self, ["impactPlate_medium_000", "impactPlate_medium_001"], global_position + Vector3.UP, 0.0)
 		Effets.eclats(self, global_position + Vector3(0, 1.1, 0) + vers.normalized() * 0.4, Color(3.0, 2.2, 0.8), 8, 2.5, true)
@@ -255,7 +257,7 @@ func recevoir_coup(quantite: float, origine_coup: Vector3, puissant: bool) -> St
 func _tituber(recul: Vector3) -> void:
 	_recul = recul
 	_changer(TITUBE)
-	_jouer(["Hit_A", "Hit_B"].pick_random(), 0.05, true)
+	_jouer(["Hit_Chest", "Hit_Head"].pick_random(), 0.05, true)
 
 func _eclair() -> void:
 	var t := create_tween()
@@ -267,7 +269,7 @@ func _eclair() -> void:
 func _mourir() -> void:
 	_changer(MORT)
 	mort.emit(ident)
-	_jouer("Death_A", 0.1, true)
+	_jouer("Death01", 0.1, true)
 	collision_layer = 0
 	collision_mask = 1
 	Sons.jouer_a(self, ["mnstr5", "mnstr6"], global_position + Vector3.UP, 0.0, 0.1)

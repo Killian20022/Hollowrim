@@ -10,3 +10,4 @@ Toutes en CC0 1.0 (domaine public, usage commercial libre, aucune attribution ex
 | modeles/villageois | KayKit Character Pack: Adventurers 1.0 (github.com/KayKit-Game-Assets) | Kay Lousberg | CC0 |
 | polices | Kenney Fonts (kenney.nl) | Kenney | CC0 |
 | modeles/joueur | Modélisés pour le jeu (Blender, sources dans sources_blender/) | — | propriété du projet |
+| modeles/humains | Universal Base Characters + Universal Animation Library (quaternius.com) | Quaternius | CC0 |

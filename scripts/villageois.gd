@@ -12,13 +12,12 @@ const DIST_REGARD := 4.0
 const DIST_INTERPELLE := 5.0
 const DIST_PARLER := 2.6
 const DOT_PARLER := 0.85
-const BOUCLE := ["Idle", "Walking_A", "Use_Item", "Interact", "Spellcasting", "Sit_Floor_Idle"]
 ## Activité au poste selon le lieu (une animation en boucle ; "PickUp" = ponctuelle).
 const ACTIVITES := {
-	"forge": "Use_Item",
+	"forge": "Fixing_Kneeling",
 	"puits": "Idle",
-	"place": "Spellcasting",
-	"enclos": "PickUp",
+	"place": "Spell_Simple_Idle",
+	"enclos": "PickUp_Table",
 	"longue_maison": "Idle",
 	"porte": "Idle",
 }
@@ -42,8 +41,6 @@ var _en_conversation := false
 var _debut_conversation := 0.0
 var _bloque := 0.0
 var _invite := false
-var _squelette: Skeleton3D
-var _os_tete := -1
 
 ## Lit res://data/villageois.json et renvoie la liste des villageois (vide si absent ou invalide).
 static func charger() -> Array:
@@ -72,26 +69,9 @@ func _ready() -> void:
 	forme.position.y = 0.9
 	add_child(forme)
 
-	var nom_modele: String = donnees.get("modele", "Barbarian")
-	var chemin := "res://assets/modeles/villageois/%s.glb" % nom_modele
-	if not ResourceLoader.exists(chemin):
-		push_warning("Villageois : modèle introuvable : " + chemin)
-		chemin = "res://assets/modeles/villageois/Barbarian.glb"
-	modele = load(chemin).instantiate()
-	modele.scale = Vector3.ONE * 0.86
+	modele = Humain.creer(APPARENCES.get(donnees.get("id", ""), APPARENCES["chef"]))
 	add_child(modele)
-	_ranger_accessoires()
-	Palette.convertir(modele, 128, Color(0.86, 0.88, 0.95), 0.4)
-
-	_squelette = modele.find_child("Skeleton3D", true, false)
-	anim = modele.find_child("AnimationPlayer", true, false)
-	if _squelette != null:
-		_os_tete = _squelette.find_bone("head")
-	if anim != null:
-		anim.mixer_applied.connect(_proportions)
-		for nom in BOUCLE:
-			if anim.has_animation(nom):
-				anim.get_animation(nom).loop_mode = Animation.LOOP_LINEAR
+	anim = modele.get_node("Animations")
 	if points.is_empty():
 		points.append(global_position)
 	rotation.y = randf() * TAU
@@ -101,22 +81,23 @@ func _ready() -> void:
 	if anim != null:
 		anim.seek(randf() * 2.0)
 
-## Les modèles KayKit portent tous leurs accessoires à la fois (épées, boucliers, livres…) :
-## on ne garde que ceux du rôle.
-const ACCESSOIRES := {"garde": ["1H_Sword", "Round_Shield"], "forgeron": ["1H_Axe"], "chef": ["1H_Sword"], "chasseuse": ["Knife"], "volva": ["2H_Staff"], "ancienne": []}
-const MOTS_ACCESSOIRES := ["Sword", "Shield", "Axe", "Crossbow", "Staff", "Wand", "Dagger", "Knife", "Mug", "Spellbook", "Bow", "Quiver", "Throwable"]
-
-func _ranger_accessoires() -> void:
-	var gardes: Array = ACCESSOIRES.get(donnees.get("id", ""), [])
-	for mi: MeshInstance3D in modele.find_children("*", "MeshInstance3D", true, false):
-		var nom := String(mi.name)
-		for mot in MOTS_ACCESSOIRES:
-			if mot in nom and not nom in gardes:
-				mi.visible = false
-
-func _proportions() -> void:
-	if _os_tete >= 0:
-		_squelette.set_bone_pose_scale(_os_tete, Vector3.ONE * 0.8)
+## Allure de chaque habitant (corps, couleurs de la tenue, cheveux) ; trousse commune :
+## pantalon, bottes et ceinture.
+const C := Color.WHITE
+const APPARENCES := {
+	"chef": {"corps": "femme", "tenue": {"tunique": Color(0.42, 0.5, 0.78), "mante": Color(1.15, 1.1, 1.05), "brassards": C, "pantalon": Color(0.7, 0.65, 0.6), "bottes": C, "ceinture": C},
+		"cheveux": "Hair_Long", "teinte_cheveux": Color(1.0, 0.82, 0.55)},
+	"forgeron": {"corps": "homme", "tenue": {"tunique": Color(0.62, 0.48, 0.38), "brassards": C, "gants": C, "pantalon": Color(0.65, 0.6, 0.55), "bottes": C, "ceinture": C},
+		"cheveux": "Hair_Buzzed", "barbe": true, "teinte_cheveux": Color(0.35, 0.22, 0.12), "peau": Color(0.95, 0.8, 0.72)},
+	"chasseuse": {"corps": "femme", "tenue": {"tunique": Color(0.45, 0.58, 0.4), "mante": Color(0.95, 0.85, 0.75), "brassards": C, "gants": C, "pantalon": Color(0.6, 0.55, 0.5), "bottes": C, "ceinture": C},
+		"cheveux": "Hair_Buns", "teinte_cheveux": Color(0.85, 0.38, 0.2)},
+	"volva": {"corps": "femme", "tenue": {"tunique": Color(0.48, 0.38, 0.6), "mante": Color(0.45, 0.45, 0.5), "pantalon": Color(0.5, 0.45, 0.5), "bottes": C, "ceinture": C},
+		"cheveux": "Hair_Long", "teinte_cheveux": Color(1.15, 1.15, 1.2), "peau": Color(0.9, 0.85, 0.85)},
+	"garde": {"corps": "homme", "tenue": {"tunique": Color(0.72, 0.3, 0.26), "mante": C, "brassards": C, "gants": C, "pantalon": Color(0.65, 0.6, 0.55), "bottes": C, "ceinture": C},
+		"cheveux": "Hair_SimpleParted", "barbe": true, "teinte_cheveux": Color(0.55, 0.38, 0.22)},
+	"ancienne": {"corps": "femme", "tenue": {"tunique": Color(0.58, 0.52, 0.46), "mante": Color(0.85, 0.8, 0.75), "pantalon": Color(0.55, 0.5, 0.45), "bottes": C, "ceinture": C},
+		"cheveux": "Hair_Buns", "teinte_cheveux": Color(1.1, 1.1, 1.1), "peau": Color(0.92, 0.84, 0.8)},
+}
 
 func nom_affiche() -> String:
 	return donnees.get("nom", "Villageois")
@@ -155,7 +136,7 @@ func _jouer(nom: String, fondu := 0.2) -> void:
 func _activite(immediat := false) -> void:
 	var lieu: String = donnees.get("lieu", "")
 	var nom: String = ACTIVITES.get(lieu, "Idle")
-	if nom == "PickUp":
+	if nom == "PickUp_Table":
 		nom = "Idle"
 		_delai_activite = randf_range(4.0, 9.0)
 	_jouer(nom, 0.0 if immediat else 0.3)
@@ -183,7 +164,7 @@ func _physics_process(dt: float) -> void:
 	if _en_conversation:
 		_t = 0.0
 		if _debut_conversation > 1.2:
-			_jouer("Idle", 0.3)
+			_jouer("Idle_Talking", 0.3)
 	else:
 		match etat:
 			POSTE:
@@ -194,16 +175,16 @@ func _physics_process(dt: float) -> void:
 				if _t > _duree_pause:
 					etat = RETOUR
 					_t = 0.0
-					_jouer("Walking_A", 0.3)
+					_jouer("Walk", 0.3)
 			RETOUR:
 				cap = _vers_point(points[0], dt)
 		if cap == Vector3.ZERO and etat == POSTE and anim != null and _anim == "Idle" \
-				and ACTIVITES.get(donnees.get("lieu", ""), "") == "PickUp":
+				and ACTIVITES.get(donnees.get("lieu", ""), "") == "PickUp_Table":
 			_delai_activite -= dt
 			if _delai_activite <= 0.0:
-				_jouer("PickUp", 0.2)
+				_jouer("PickUp_Table", 0.2)
 				_delai_activite = randf_range(6.0, 14.0)
-				get_tree().create_timer(anim.get_animation("PickUp").length).timeout.connect(_activite)
+				get_tree().create_timer(anim.get_animation("PickUp_Table").length).timeout.connect(_activite)
 
 	# orientation : vers le joueur s'il est proche, sinon vers où il marche
 	var vise := Vector3.ZERO
@@ -225,7 +206,7 @@ func _t_poste(_dt: float) -> void:
 		etat = ALLER
 		_t = 0.0
 		_bloque = 0.0
-		_jouer("Walking_A", 0.3)
+		_jouer("Walk", 0.3)
 	elif _t >= _prochaine_promenade:
 		_t = 0.0
 		_prochaine_promenade = randf_range(15.0, 40.0)
