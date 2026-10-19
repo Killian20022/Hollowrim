@@ -40,6 +40,7 @@ var _depart := Transform3D()
 var _balance := Vector2.ZERO
 var _respiration := 0.0
 var _pose_figee := ""
+var _baisse := 0.0
 
 var pivot_epee: Node3D
 var pivot_torche: Node3D
@@ -344,7 +345,9 @@ func _process(dt: float) -> void:
 	# inertie de la souris et respiration
 	_balance = _balance.lerp(Vector2.ZERO, 1.0 - exp(-6.0 * dt))
 	var souffle := sin(_respiration * 1.6) * 0.006
-	position = Vector3(-_balance.x, _balance.y + souffle, 0.0)
+	# pendant une conversation, on baisse les armes
+	_baisse = lerpf(_baisse, 0.45 if joueur.en_dialogue else 0.0, 1.0 - exp(-6.0 * dt))
+	position = Vector3(-_balance.x, _balance.y + souffle - _baisse, 0.0)
 
 	# torche : baissée pendant la garde, rangée avec T
 	var y_torche := -0.44

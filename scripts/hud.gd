@@ -121,7 +121,7 @@ func _draw() -> void:
 	_barre(Vector2(384, 256), joueur.vigueur / joueur.vigueur_max, VIGUEUR, _a_vigueur)
 	for i in _avis.size():
 		var alpha := clampf(_avis[i][1], 0.0, 1.0)
-		var pos := Vector2(8, 30 + i * 12)
+		var pos := Vector2(8, 46 + i * 12)
 		draw_string(_police, pos + Vector2(1, 1), _avis[i][0], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(FOND, alpha))
 		draw_string(_police, pos, _avis[i][0], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(PARCHEMIN, alpha))
 	if _cible != null and _a_cible > 0.0:

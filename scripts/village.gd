@@ -191,13 +191,13 @@ func _fumee(parent: Node3D, position_: Vector3) -> void:
 	pm.scale_curve = ct
 	var g := Gradient.new()
 	g.offsets = PackedFloat32Array([0.0, 0.2, 1.0])
-	g.colors = PackedColorArray([Color(0.3, 0.32, 0.38, 0.0), Color(0.3, 0.32, 0.38, 0.45), Color(0.2, 0.22, 0.28, 0.0)])
+	g.colors = PackedColorArray([Color(0.22, 0.24, 0.3, 0.0), Color(0.22, 0.24, 0.3, 0.22), Color(0.16, 0.18, 0.24, 0.0)])
 	var gt := GradientTexture1D.new()
 	gt.gradient = g
 	pm.color_ramp = gt
 	p.process_material = pm
 	var q := QuadMesh.new()
-	q.size = Vector2(0.7, 0.7)
+	q.size = Vector2(0.45, 0.45)
 	var mq := StandardMaterial3D.new()
 	mq.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mq.vertex_color_use_as_albedo = true

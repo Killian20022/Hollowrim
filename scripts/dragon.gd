@@ -451,17 +451,17 @@ func _poudrerie(pos: Vector3, nombre := 40, force := 7.0) -> void:
 	pm.gravity = Vector3(0, -1.2, 0)
 	pm.damping_min = 2.0
 	pm.damping_max = 3.5
-	pm.scale_min = 1.5
-	pm.scale_max = 3.0
+	pm.scale_min = 0.5
+	pm.scale_max = 1.2
 	var deg := Gradient.new()
-	deg.set_color(0, Color(0.9, 0.95, 1.0, 0.8))
+	deg.set_color(0, Color(0.78, 0.84, 0.95, 0.35))
 	deg.set_color(1, Color(0.8, 0.88, 1.0, 0.0))
 	var rampe := GradientTexture1D.new()
 	rampe.gradient = deg
 	pm.color_ramp = rampe
 	p.process_material = pm
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.6, 0.6)
+	quad.size = Vector2(0.4, 0.4)
 	var mq := StandardMaterial3D.new()
 	mq.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mq.vertex_color_use_as_albedo = true

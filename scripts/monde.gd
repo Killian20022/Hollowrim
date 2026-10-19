@@ -730,9 +730,11 @@ func _sous_terre(dedans: bool) -> void:
 	cycle.lumiere.visible = not dedans
 	neige.visible = not dedans
 	cycle.process_mode = Node.PROCESS_MODE_DISABLED if dedans else Node.PROCESS_MODE_INHERIT
+	_env.background_mode = Environment.BG_COLOR if dedans else Environment.BG_SKY
+	_env.background_color = Color(0.0, 0.0, 0.0)
 	if dedans:
-		_env.ambient_light_color = Color(0.16, 0.2, 0.32)
-		_env.ambient_light_energy = 0.5
+		_env.ambient_light_color = Color(0.26, 0.32, 0.48)
+		_env.ambient_light_energy = 1.0
 		_env.fog_light_color = Color(0.02, 0.03, 0.05)
 		_env.fog_density = 0.06
 		_env.fog_height_density = 0.0
@@ -1000,6 +1002,8 @@ func _capture() -> void:
 		await get_tree().process_frame
 	if _arguments().has("test-combat"):
 		await _test_combat()
+	if _arguments().has("scenario"):
+		await _scenario(_arguments()["scenario"])
 	print("FPS : ", Engine.get_frames_per_second())
 	var img := get_viewport().get_texture().get_image()
 	img.resize(img.get_width() * 2, img.get_height() * 2, Image.INTERPOLATE_NEAREST)
@@ -1022,3 +1026,66 @@ func _test_combat() -> void:
 		print("coup ", c, " -> draugr etat=", sbire.etat, " vie=", sbire.vie, " | joueur vie=", snappedf(joueur.vie, 0.1), " vigueur=", snappedf(joueur.vigueur, 0.1))
 	joueur.mains.attaquer(false)
 	await get_tree().create_timer(0.16).timeout
+
+func _viser(cible: Vector3) -> void:
+	var cam: Vector3 = joueur.camera.global_position
+	joueur.look_at(Vector3(cible.x, joueur.global_position.y, cible.z))
+	var d: Vector3 = cible - cam
+	joueur.tete.rotation.x = atan2(d.y, Vector2(d.x, d.z).length())
+
+func _placer(pos: Vector3, cible: Vector3) -> void:
+	joueur.global_position = Vector3(pos.x, hauteur(pos.x, pos.z) + 0.1, pos.z) if pos.y > -50.0 else pos
+	_viser(cible)
+
+## Mises en scène pour les captures : --scenario=village|place|forge|dialogue|crypte|tombe|dragon
+func _scenario(nom: String) -> void:
+	var v := village
+	match nom:
+		"village":
+			_placer(v.to_global(Vector3(0, 0, 30)), v.to_global(Vector3(0, 2.5, 0)))
+		"place":
+			_placer(v.to_global(Vector3(4, 0, 7)), v.to_global(Vector3(0, 2.2, -12)))
+		"forge":
+			_placer(v.to_global(Vector3(-6, 0, 9)), v.to_global(Vector3(-12.5, 1.2, 6)))
+		"dialogue":
+			var chef: Node3D
+			for p in get_tree().get_nodes_in_group("villageois"):
+				if p.donnees.get("id") == "chef":
+					chef = p
+			chef.set_physics_process(false)
+			var devant := chef.global_position + Vector3(0, 0, 2.0)
+			_placer(devant, chef.global_position + Vector3(0, 1.5, 0))
+			await get_tree().create_timer(0.3).timeout
+			dialogue._ouvrir(chef)
+			await get_tree().create_timer(2.5).timeout
+		"crypte", "tombe":
+			tertre._passer(true)
+			await get_tree().create_timer(1.3).timeout
+			if nom == "crypte":
+				_placer(tertre.crypte.to_global(Vector3(2, 0.1, -19.5)), tertre.crypte.to_global(Vector3(-3, 1.4, -28)))
+			else:
+				joueur.inventaire.ajouter("anneau_givre")
+				_placer(tertre.crypte.to_global(Vector3(0, 0.1, -43.0)), tertre.crypte.to_global(Vector3(0, 1.5, -51.5)))
+				await get_tree().create_timer(2.5).timeout
+		"dragon", "dragon_sol", "dragon_loin":
+			_dragon()
+			_placer(v.to_global(Vector3(0, 0, 4)), dragon.global_position)
+			for i in (3000 if nom == "dragon_sol" else 30):
+				await get_tree().process_frame
+				_viser(dragon.global_position + Vector3(0, 1.5, 0))
+				if nom != "dragon" and dragon.nom_etat() == "AU_SOL":
+					break
+			if nom == "dragon_loin":
+				# recul pour voir toute la silhouette ; le dragon est figé pour la photo
+				var dir := (joueur.global_position - dragon.global_position)
+				dir.y = 0.0
+				var loin := dragon.global_position + dir.normalized().rotated(Vector3.UP, 0.6) * 22.0
+				joueur.set_physics_process(false)
+				joueur.global_position = Vector3(loin.x, hauteur(loin.x, loin.z) + 5.0, loin.z)
+				_viser(dragon.global_position + Vector3(0, 2.0, 0))
+				await get_tree().create_timer(0.5).timeout
+				dragon.process_mode = Node.PROCESS_MODE_DISABLED
+	for i in 20:
+		await get_tree().process_frame
+		if nom.begins_with("dragon"):
+			_viser(dragon.global_position + Vector3(0, 2.0 if nom == "dragon_loin" else 1.5, 0))

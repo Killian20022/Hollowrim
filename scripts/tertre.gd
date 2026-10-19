@@ -138,6 +138,13 @@ func _salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Ar
 					if b < m[1]:
 						nouveaux.append([b, m[1]])
 			morceaux = nouveaux
+		# linteaux : les passages font 3 m de haut, la pièce peut être plus haute
+		if h > 3.0:
+			for o in ouvertures:
+				if o[0] == cote:
+					var pos_l := Vector3(o[1], y + (3.0 + h) * 0.5, fixe) if horizontal else Vector3(fixe, y + (3.0 + h) * 0.5, o[1])
+					var taille_l := Vector3(o[2], h - 3.0, 0.6) if horizontal else Vector3(0.6, h - 3.0, o[2])
+					_boite(crypte, taille_l, Transform3D(Basis(), pos_l), m_pierre, corps)
 		for m in morceaux:
 			var longueur: float = m[1] - m[0]
 			if longueur < 0.05:
@@ -183,6 +190,9 @@ func _construire_crypte() -> void:
 	eirik.position = Vector3(-9.6, 0.02, -25.0)
 	eirik.rotation.y = 1.2
 	crypte.add_child(eirik)
+	for mi: MeshInstance3D in eirik.find_children("*", "MeshInstance3D", true, false):
+		if not String(mi.name).begins_with("Rogue_") and mi.name != "Knife":
+			mi.visible = false
 	Palette.convertir(eirik, 128, Color(0.75, 0.8, 0.95), 0.35)
 	var ap: AnimationPlayer = eirik.find_child("AnimationPlayer", true, false)
 	if ap and ap.has_animation("Death_A_Pose"):

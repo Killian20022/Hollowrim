@@ -80,7 +80,8 @@ func _ready() -> void:
 	modele = load(chemin).instantiate()
 	modele.scale = Vector3.ONE * 0.86
 	add_child(modele)
-	Palette.convertir(modele, 128, Color(0.9, 0.9, 0.95), 0.55)
+	_ranger_accessoires()
+	Palette.convertir(modele, 128, Color(0.86, 0.88, 0.95), 0.4)
 
 	_squelette = modele.find_child("Skeleton3D", true, false)
 	anim = modele.find_child("AnimationPlayer", true, false)
@@ -99,6 +100,19 @@ func _ready() -> void:
 	_activite(true)
 	if anim != null:
 		anim.seek(randf() * 2.0)
+
+## Les modèles KayKit portent tous leurs accessoires à la fois (épées, boucliers, livres…) :
+## on ne garde que ceux du rôle.
+const ACCESSOIRES := {"garde": ["1H_Sword", "Round_Shield"], "forgeron": ["1H_Axe"], "chef": ["1H_Sword"], "chasseuse": ["Knife"], "volva": ["2H_Staff"], "ancienne": []}
+const MOTS_ACCESSOIRES := ["Sword", "Shield", "Axe", "Crossbow", "Staff", "Wand", "Dagger", "Knife", "Mug", "Spellbook", "Bow", "Quiver", "Throwable"]
+
+func _ranger_accessoires() -> void:
+	var gardes: Array = ACCESSOIRES.get(donnees.get("id", ""), [])
+	for mi: MeshInstance3D in modele.find_children("*", "MeshInstance3D", true, false):
+		var nom := String(mi.name)
+		for mot in MOTS_ACCESSOIRES:
+			if mot in nom and not nom in gardes:
+				mi.visible = false
 
 func _proportions() -> void:
 	if _os_tete >= 0:
