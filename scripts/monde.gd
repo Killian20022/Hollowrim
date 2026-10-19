@@ -110,6 +110,7 @@ func _ready() -> void:
 	SousBois.creer(self)  # lot E : après les rochers (touffes collées aux pierres)
 	CercleRunique.creer(self)
 	Sol.appliquer(mat_terrain, self, arbres)
+	DetailsSol.creer(self)  # lot 3 : cailloux du sol (après la carte de sol)
 	_village()
 	_feu_de_camp()
 	_joueur()
