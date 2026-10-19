@@ -126,9 +126,19 @@ static func tex(nom: String, palette: Array, periode := 4, grain := 0.4) -> Imag
 		_cache[nom] = texture(32, palette, periode, nom.hash() & 0xff, grain)
 	return _cache[nom]
 
-static func materiau(base: Texture2D, echelle_uv := Vector2.ONE, teinte := Color.WHITE) -> ShaderMaterial:
+static var _ps1_double: Shader
+
+## Variante de ps1.gdshader sans élimination des faces arrière : pour les pièces fines et ouvertes
+## (vêtements découpés dans le corps, cheveux) dont on verrait sinon le vide à travers l'étoffe.
+static func shader_double_face() -> Shader:
+	if _ps1_double == null:
+		_ps1_double = Shader.new()
+		_ps1_double.code = PS1.code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_disabled, cull_disabled;")
+	return _ps1_double
+
+static func materiau(base: Texture2D, echelle_uv := Vector2.ONE, teinte := Color.WHITE, double_face := false) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
-	m.shader = PS1
+	m.shader = shader_double_face() if double_face else PS1
 	m.set_shader_parameter("tex_base", base)
 	m.set_shader_parameter("tex_neige", tex_neige if tex_neige else base)
 	m.set_shader_parameter("uv_echelle", echelle_uv)
@@ -192,6 +202,7 @@ static func vider() -> void:
 	_cache.clear()
 	_conversions.clear()
 	tex_neige = null
+	_ps1_double = null
 
 ## Paillettes : quelques pixels très clairs (cristaux de neige qui accrochent la lumière).
 static func pailleter(tex: ImageTexture, part: float, couleur := Color("#eef4ff")) -> ImageTexture:

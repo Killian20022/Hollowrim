@@ -12,6 +12,7 @@ uniform vec2 uv_echelle = vec2(1.0);
 uniform bool uv_monde = false;      // terrain : UV tirés de la position monde
 uniform float monde_echelle = 0.25;
 uniform float grille = 135.0;       // lignes de la grille d'accroche (0 = pas de tremblement)
+uniform float gonfle = 0.0;         // décalage des sommets le long de la normale (m) : négatif = sous-couche rentrée
 uniform float affine = 1.0;         // 1 = déformation affine façon PS1
 uniform vec3 emission : source_color = vec3(0.0);
 uniform float saturation = 1.0;
@@ -33,6 +34,7 @@ varying vec2 uv_macro;
 varying vec2 pos_monde;  // position monde (interpolation normale, non affine)
 
 void vertex() {
+	VERTEX += NORMAL * gonfle;
 	vec2 uv = UV * uv_echelle;
 	if (uv_monde) {
 		uv = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz * monde_echelle;

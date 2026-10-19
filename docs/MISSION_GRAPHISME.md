@@ -185,3 +185,50 @@ sons, ambiance).
 - `outils/planche.gd`, `outils/comparer_images.gd`, `outils/mesure_perf.gd`, `outils/test_biome.gd`.
 - Captures : `--capture= --pose=x,z,lacet,tangage --heure=12 (après --) --paisible --sans-particules
   --mains=<pose> --camera-main=d|g,<angle>,<distance> --camera-debug --vue=3 --scenario=<nom>`.
+
+---
+
+## Journal — Lot 1 (trous et défauts de maillage), branche `graphisme/lot1-trous`
+
+### Outils ajoutés
+- `outils/galerie_trous.gd` : galerie de contrôle (fenêtre nécessaire, rendu dans un SubViewport 256x256 comme le jeu).
+  `godot --path . --resolution 320x180 --script res://outils/galerie_trous.gd -- --sortie=res://captures/trous/apres [--perso=homme,femme,pnj_*,draugr_sbire,draugr_guerrier,svanhild,joueur_3e] [--pose=T,Idle,Walk,Attaque,Parle,Genoux] [--dist=2.2,6.0] [--haut=1.0] [--cote=256] [--angles=face,dos,dessous,...]`.
+  Chaque feuille = 8 angles (face, 3/4, profils, 3/4 dos, dos, dessus, dessous) x 4 lignes (normal 2 m, debug 2 m, normal 6 m, debug 6 m) ;
+  rendu « normal » sur fond magenta (le vide se voit), rendu « debug » = `shaders/debug_faces.gdshader` qui peint les FACES ARRIÈRE visibles
+  (une couleur par maillage) : du coloré visible = on regarde l'intérieur d'un maillage. `metriques.csv` / `metriques_mesh.csv` : pixels de faces
+  arrière (par maillage) et pixels de fond enclos. Godot a parfois bloqué en milieu de longue série : lancer un personnage par processus.
+- `outils/rogner.gd` (rogner/agrandir une zone) et `outils/montage.gd` (grille d'images) pour les planches.
+- `sources_blender/scripts/` : `inspecter.py` (arêtes de bord, composantes), `decalage.py` (distance vêtement-corps), `iles.py` (îlots d'une pièce),
+  `bras_sous_couche.py` et `femme_sans_volants.py` (les deux corrections Blender, rejouables).
+- Bras FPS : captures `--mains=<pose> --camera-main=...` (5 poses x 7 vues + vue joueur).
+
+### Trous constatés et cause prouvée
+| # | Où | Quand | Cause (preuve) |
+|---|----|-------|----------------|
+| 1 | Bras FPS : manches, brassards, gants | tout angle hors vue normale, surtout dessus/dessous/dedans ; on voit le ciel à travers la manche et le dos du gant | **Coques ouvertes + `cull_back`** : `bras_fps.glb` ne contient que 3 maillages d'étoffe (manches 101, brassards 76, gants 414 arêtes de bord) et AUCUN avant-bras : rien derrière l'étoffe (mesure `inspecter_glb.py`) |
+| 2 | Bras FPS : liseré clair entre manche, brassard et gant | vue joueur normale incluse | **Fissures entre pièces** (pièces séparées, aucun recouvrement, tremblement des sommets) : le ciel passe dans l'interstice |
+| 3 | Tunique (jupe, bas de manche, col), mante, bottes, brassards | de dos, dessous, 3/4, en Attaque/Genoux surtout : jupe en lambeaux, intérieur de la jupe vu | **Faces simples vues de l'intérieur** : 347 (homme) / 461 (femme) arêtes de bord sur la tunique, 258 la mante, 248 les bottes ; rendu debug : jusqu'à 1 938 px de faces arrière visibles sur la seule tunique de la femme en Attaque à 2 m |
+| 4 | Entre tunique/ceinture/pantalon/bottes (taille, dos, mollets) | de dos et 3/4 dos surtout, fine ligne magenta | **Fissures de snapping** + pièces découpées sans recouvrement : le corps entier est masqué pour les civils (`mi.visible = draugr`), donc le vide apparaît dans la moindre fente |
+| 5 | Tunique de la femme : deux « volants » plats à hauteur de mollet | toutes poses, tous angles, 6 PNJ/Svanhild | **Îlots détachés** dans le maillage (`iles.py` : îlots n°6 et 7 de `tunique`, 69 sommets chacun, z 0,34-0,53 m, jusqu'à 41 cm de côté), absents chez l'homme |
+| 6 | Cheveux, casques, bouclier, couronne | vues de côté | faces simples (casques 56-60 arêtes de bord, bouclier 56) : même cause que 3 |
+
+Causes **écartées** par mesure : normales inversées (aucune face retournée visible hors bord ouvert), z-fighting peau/vêtement (les pièces sont à 1-5 cm du corps ; `decalage.py` : médiane 1,1 cm pantalon, 2 cm tunique/bottes, 5 cm mante, 0,6 cm gants),
+doigts du poing qui s'écartent (les poings sont fermés sur l'épée dans les 5 poses), jonction poignet/brassard quand `orientation_main` tourne la main (seule la fissure du point 2 est visible). Corps traversant le vêtement : 12 à 48 sommets de tunique à l'intérieur du corps (jusqu'à -3 cm) mais le corps est masqué ; voir « sous-couche » ci-dessous (rentrée de 1,6 cm).
+
+### Corrections (par cause)
+1. **Matériau double face** (causes 1, 3, 6) : `Palette.shader_double_face()` = `ps1.gdshader` avec `cull_disabled` (même source, remplacé à l'exécution : un seul fichier à maintenir) ;
+   `Palette.materiau(..., double_face := true)`. Appliqué aux étoffes des civils (`humain.gd`), cheveux greffés, équipements accrochés (casques, bouclier, couronne) et à tout le matériel des bras FPS (`mains.gd`). Refermer ces maillages dans Blender n'a pas de sens pour de l'étoffe fine ouverte (jupe, manche) ; l'envers montre la même étoffe.
+2. **Sous-couche** (causes 2, 4) : le corps entier (déjà dans les glb, masqué) est affiché sous les vêtements des civils, rentré de 1,6 cm (`ps1.gdshader` : uniform `gonfle` = décalage le long de la normale, 0 par défaut, donc décor inchangé), teinte du pantalon x 0,6. Toute fissure laisse voir une étoffe sombre au lieu du vide. Pour les draugrs le corps est déjà visible.
+   Bras FPS : `sources_blender/scripts/bras_sous_couche.py` ajoute à `bras_fps.glb` un maillage `peau_bras` (bras, avant-bras et paume pris sur le corps `homme_vetu.blend`, mêmes os/poids ; rentré de 1,6 cm sous la manche, 0,8 cm sous le gant ; doigts exclus : trop fins, le gant creux suffit). Matériau `sous_couche` (cuir sombre) dans `mains.gd`. Source : `sources_blender/bras_fps.blend` ; état d'avant : `sources_blender/bras_fps_original.glb`.
+3. **Îlots détachés** (cause 5) : `sources_blender/scripts/femme_sans_volants.py` supprime ces deux îlots de `tunique` dans `femme_vetue.blend` et ré-exporte `assets/modeles/humains/femme_vetue.glb` (structure Godot identique, vérifiée).
+4. Rien changé aux textures (lot 4) ni aux proportions.
+
+### Preuves
+- Avant : `captures/trous/avant/` (12 personnages x 6 poses) et `captures/trous/fps_avant/` ; après : `captures/trous/apres/`, `captures/trous/fps_apres/`.
+- Planches avant (haut) / après (bas) : `captures/trous/planches/avant_apres_<perso>.png` (Attaque, Genoux, Walk, 8 angles à 2,2 m), `fps_avant_apres_d_dessous|d_dessus|d_dedans|vue_joueur.png` (5 poses), `jeu_galerie_avant_apres.png` (en jeu, volants de la femme disparus).
+- Pixels de fond magenta enclos (poches vues à travers le personnage, somme de 8 angles x 6 poses à 2 m) : 23 907 avant, 9 234 après (femmes 2 100-2 300 → 400-570 ; hommes ~2 200 → ~970, le reste = espaces légitimes entre bras et torse ; draugrs 1 500-1 700 → 1 000-1 400 : corps toujours visible dessous, seul le fond bouge). Aucun trou visible à l'œil sur les planches après, sous aucun angle ni pose.
+- Reste visible mais hors périmètre « trou » : la jupe de la femme et les manches s'étirent en pointes dans certaines poses extrêmes (poids de peau du maillage Quaternius) ; petites dents sombres sur les jointures des gants FPS (détail du modèle de gant d'origine).
+
+### Tests et perf
+- Tests headless : test_quetes (--nouvelle), test_sauvegarde (ecrire puis verifier), test_dragon_monde, test_marche_pnj, test_degats_sanctuaire : OK. test_mort_ragdoll : OK (sortie 5 une fois pendant que le test du sanctuaire tournait en parallèle ; relancé seul : OK, code 0).
+- `outils/mesure_perf.gd` au feu (`--nouvelle --paisible --pose=2.5,8.5,16,4`, vsync off) : avant 6,88 / 6,67 ms GPU, après 6,87 / 6,95 ms (moyenne 6,78 → 6,91, +0,13 ms), 631 → 632 appels de dessin, primitives 330 k → 335 k.

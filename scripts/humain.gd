@@ -55,14 +55,16 @@ static func creer(options: Dictionary) -> Node3D:
 			if mi.visible:
 				var e: Array = ETOFFES[nom]
 				var tex := Palette.tex("etoffe_" + nom, e[0], e[1], e[2])
-				var m := Palette.materiau(tex, e[3], tenue[nom])
+				var m := Palette.materiau(tex, e[3], tenue[nom], true)
 				m.set_shader_parameter("tex_neige", tex)
 				if draugr:
 					m.set_shader_parameter("saturation", 0.25)
 				mi.material_override = m
 		elif nom.begins_with("SuperHero") or nom.begins_with("Superhero"):
 			# corps entier : seulement pour le draugr (chair desséchée sous des haillons)
-			mi.visible = draugr
+			mi.visible = true
+			if not draugr:
+				mi.material_override = _sous_couche(tenue)
 		elif nom == "peau":
 			mi.visible = not draugr
 		if nom == "Eyes" and draugr:
@@ -92,6 +94,18 @@ static func creer(options: Dictionary) -> Node3D:
 	ap.add_animation_library("", bibliotheque())
 	return racine
 
+## Sous-couche : le corps entier, rentré de 1,6 cm (les vêtements sont à 1 à 5 cm de la peau), sous
+## l'étoffe. Les vêtements sont découpés dans le corps : sans elle, la moindre fissure entre deux
+## pièces (tremblement des sommets, animation) laisse voir le vide. Rentrée, elle ne traverse pas l'étoffe.
+static func _sous_couche(tenue: Dictionary) -> ShaderMaterial:
+	var e: Array = ETOFFES["pantalon"]
+	var base: Color = tenue.get("pantalon", tenue.get("tunique", Color(0.5, 0.5, 0.5)))
+	var tex := Palette.tex("etoffe_pantalon", e[0], e[1], e[2])
+	var m := Palette.materiau(tex, e[3], base * 0.6)
+	m.set_shader_parameter("tex_neige", tex)
+	m.set_shader_parameter("gonfle", -0.016)
+	return m
+
 const MATIERES := {
 	"fer": [["#3a4458", "#56627a", "#8a96ad", "#b9c3d6"], Color(0.75, 0.78, 0.85)],
 	"fer_sombre": [["#22262e", "#2e333d", "#3c424e", "#4b525f"], Color(1, 1, 1)],
@@ -120,7 +134,7 @@ static func _accrocher(squelette: Skeleton3D, os: String, chemin: String, repere
 			var nom := m.resource_name.get_slice(".", 0) if m else "fer"
 			var def: Array = MATIERES.get(nom, MATIERES["fer"])
 			var tex := Palette.tex("matiere_" + nom, def[0], 4, 0.4)
-			var mat := Palette.materiau(tex, Vector2(2, 2), def[1])
+			var mat := Palette.materiau(tex, Vector2(2, 2), def[1], true)
 			mat.set_shader_parameter("tex_neige", tex)
 			if nom == "gemme":
 				mat.set_shader_parameter("emission", Color(0.2, 0.45, 0.9))
@@ -150,7 +164,7 @@ static func _greffer(squelette: Skeleton3D, nom: String, teinte: Color) -> void:
 	mi.skeleton = NodePath("..")
 	var mat := mi.get_active_material(0) as BaseMaterial3D
 	var tex: Texture2D = mat.albedo_texture if mat else null
-	var m := Palette.materiau(tex if tex else Palette.tex("cheveux", ["#2a1a10", "#3b2414", "#4a2e18", "#5a3a20"]), Vector2.ONE, teinte)
+	var m := Palette.materiau(tex if tex else Palette.tex("cheveux", ["#2a1a10", "#3b2414", "#4a2e18", "#5a3a20"]), Vector2.ONE, teinte, true)
 	m.set_shader_parameter("tex_neige", m.get_shader_parameter("tex_base"))
 	m.set_shader_parameter("saturation", 0.6)
 	mi.material_override = m
