@@ -14,8 +14,8 @@
         {
           "id": "tertre",
           "declencheur": "lieu:tertre",
-          "objectif": "Descendre l’escalier sous la stèle",
-          "journal": "Sous la stèle du cercle, j’ai trouvé un escalier de pierre qui s’enfonce dans le tertre. L’air en sort, glacé. Quelqu’un est passé par là avant moi."
+          "objectif": "Descendre l’escalier du tertre",
+          "journal": "Au nord du cercle, j’ai trouvé un escalier de pierre qui s’enfonce dans le tertre. L’air en sort, glacé. Quelqu’un est passé par là avant moi."
         },
         {
           "id": "eirik",

@@ -58,10 +58,11 @@ func _signature() -> Dictionary:
 	# pierres du cercle : boîtes posées à moins de 10 m du centre (menhirs) + stèle
 	var pierres: Array = []
 	for nd in m.get_children():
-		if nd is MeshInstance3D and nd.mesh is BoxMesh:
+		# lot F : les pierres de la zone sont des ArrayMesh neigeux, leur taille est en meta `pierre_taille`
+		if nd is MeshInstance3D and (nd.mesh is BoxMesh or nd.has_meta("pierre_taille")):
 			var p: Vector3 = nd.position
 			if Vector2(p.x - m.CERCLE.x, p.z - m.CERCLE.z).length() < 10.0:
-				pierres.append([nd.transform, (nd.mesh as BoxMesh).size])
+				pierres.append([nd.transform, nd.get_meta("pierre_taille") if nd.has_meta("pierre_taille") else (nd.mesh as BoxMesh).size])
 	pierres.sort_custom(func(a, b) -> bool: return _tri_transforms(a[0], b[0]))
 	sig["pierres"] = pierres
 	return sig

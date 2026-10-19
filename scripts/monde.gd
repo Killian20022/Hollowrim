@@ -118,6 +118,7 @@ func _ready() -> void:
 	_draugrs()
 	_villageois()
 	_tertre()
+	AbordsTumulus.creer(self)  # lot F : abords du tertre (après sa création)
 	if not _arguments().has("capture"):
 		_musique()
 	if not _arguments().has("capture") and not _arguments().has("nouvelle"):
