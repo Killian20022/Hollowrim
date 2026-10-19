@@ -110,6 +110,9 @@ var _autour_lacet := 0.0
 var _autour_duree := 4.0
 var _parle := false  # conversation : Idle_Talking (vrai) ou Idle
 var _delai_parole := 0.0
+var _pieds: PiedsAuSol  # pieds posés sur le terrain (coupé à genoux, assis ou allongé)
+## Animations où le corps est près du sol ou assis : l'IK des jambes les déformerait.
+const SANS_PIEDS := ["Fixing_Kneeling"]
 
 ## Lit res://data/villageois.json et renvoie la liste des villageois (vide si absent ou invalide).
 static func charger() -> Array:
@@ -153,6 +156,7 @@ func _ready() -> void:
 	if squelette != null:
 		_tete = SuiviTete.new()
 		squelette.add_child(_tete)
+		_pieds = PiedsAuSol.equiper(modele, self) as PiedsAuSol
 	_activite(true)
 	if anim != null:
 		anim.seek(randf() * 2.0)
@@ -211,6 +215,8 @@ func _jouer(nom: String, fondu := 0.2) -> void:
 		return
 	_anim = nom
 	anim.play(nom, fondu)
+	if _pieds != null:
+		_pieds.actif = not (nom in SANS_PIEDS or nom.begins_with("Sit") or nom.begins_with("Lie") or nom.begins_with("Death"))
 	if nom != "Walk":  # Walk est réglé à chaque image sur la vitesse réelle
 		anim.speed_scale = _var
 

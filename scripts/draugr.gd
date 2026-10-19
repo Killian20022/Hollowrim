@@ -61,6 +61,8 @@ var _recul := Vector3.ZERO
 var _mailles: Array[MeshInstance3D] = []
 var _var := 1.0  # petite variation de rythme propre à chaque draugr
 var _vit := 0.0
+var _pieds: PiedsAuSol  # pieds posés sur le terrain (coupé tant qu'il dort ou se relève allongé)
+var _ragdoll: Ragdoll  # corps physique à la mort
 
 func _ready() -> void:
 	add_to_group("ennemis")
@@ -94,11 +96,13 @@ func _ready() -> void:
 		_mailles.append(mi)
 	var squelette: Skeleton3D = modele.find_child("Skeleton3D", true, false)
 	_armer(squelette)
+	_pieds = PiedsAuSol.equiper(modele, self) as PiedsAuSol
 	anim = modele.get_node("Animations")
 	_var = randf_range(0.94, 1.06)
 	origine = global_position
 	if dort:
 		etat = DORT
+		_regler_pieds()
 		if debout:
 			_jouer("Idle", 0.0)
 			anim.speed_scale = 0.0  # figé dans sa niche
@@ -160,9 +164,23 @@ func _duree(nom: String) -> float:
 func _changer(nouvel: int) -> void:
 	etat = nouvel
 	_t = 0.0
+	_regler_pieds()
+
+## Les pieds épousent le sol sauf s'il dort ou se relève de sa pose allongée (Death01 à l'envers).
+func _regler_pieds() -> void:
+	if _pieds == null:
+		return
+	var voulu := not (etat == DORT or etat == MORT or (etat == REVEIL and not debout))
+	if _pieds.actif != voulu:
+		_pieds.actif = voulu
 
 func _physics_process(dt: float) -> void:
 	_t += dt
+	if etat == MORT:
+		# le cadavre est un ragdoll : plus de déplacement ni d'orientation
+		if _t > 30.0:
+			queue_free()
+		return
 	_recharge -= dt
 	if not is_on_floor():
 		velocity.y -= GRAVITE * dt
@@ -170,6 +188,10 @@ func _physics_process(dt: float) -> void:
 	vers.y = 0.0
 	var dist := vers.length()
 	var dir := vers / dist if dist > 0.01 else Vector3.ZERO
+	# Étages différents (crypte sous le cercle de pierres, joueur au-dessus ou l'inverse) : il ne
+	# l'entend ni ne le voit, et ne peut pas le frapper à travers le sol.
+	if absf(joueur.global_position.y - global_position.y) > 3.5:
+		dist = 1000.0
 	var vitesse := 0.0
 	var regard := true
 	var vitesse_rot := ROT_MAX
@@ -235,8 +257,6 @@ func _physics_process(dt: float) -> void:
 				_changer(TRAQUE)
 		MORT:
 			regard = false
-			if _t > 30.0:
-				queue_free()
 
 	var ecart := 0.0
 	if (regard or loco != "") and dist > 0.01:
@@ -278,7 +298,7 @@ func recevoir_coup(quantite: float, origine_coup: Vector3, puissant: bool) -> St
 	Effets.eclats(self, global_position + Vector3(0, 1.1, 0), Color(0.75, 0.72, 0.6), 18 if puissant else 10, 3.5)
 	Sons.jouer_a(self, ["knifeSlice", "knifeSlice2", "chop"], global_position + Vector3.UP, 2.0 if puissant else 0.0)
 	if vie <= 0.0:
-		_mourir()
+		_mourir(origine_coup, quantite, puissant)
 		return "tue"
 	if etat in [DORT, GARDE, REVEIL]:
 		_changer(TRAQUE)
@@ -298,12 +318,31 @@ func _eclair() -> void:
 			if is_instance_valid(mi):
 				mi.set_instance_shader_parameter("eclair", v), 0.9, 0.0, 0.18)
 
-func _mourir() -> void:
+## Mort : le corps passe de l'animation au ragdoll, projeté dans le sens du coup (de
+## l'origine du coup vers lui) ; plus le coup est puissant, plus il chute loin.
+func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false) -> void:
 	_changer(MORT)
 	mort.emit(ident)
-	_jouer("Death01", 0.1, true)
 	collision_layer = 0
-	collision_mask = 1
+	collision_mask = 0
+	var vitesse_avant := Vector3(velocity.x, 0.0, velocity.z).limit_length(6.0)
+	velocity = Vector3.ZERO
+	var dir := global_position - origine_coup
+	dir.y = 0.0
+	dir = dir.normalized() if dir.length() > 0.01 else -global_transform.basis.z
+	var force := (350.0 if puissant else 120.0) * clampf(quantite / (34.0 if puissant else 14.0), 0.7, 1.6)
+	# coup porté vers le haut (tête levée du joueur) : la tête est touchée, sinon le torse
+	var tete_joueur: Variant = joueur.get("tete") if joueur else null
+	var haut: bool = tete_joueur != null and (tete_joueur as Node3D).rotation.x > 0.05
+	var point := global_position + Vector3(0.0, 1.5 if haut else 1.15, 0.0) - dir * 0.2
+	_ragdoll = Ragdoll.equiper(modele) as Ragdoll
+	if _ragdoll:
+		if joueur:
+			_ragdoll.ignorer(joueur)
+		_ragdoll.endormir_apres(4.0)
+		_ragdoll.declencher(dir * force + Vector3.UP * force * 0.15, point, "Head" if haut else "spine_03", vitesse_avant)
+	else:
+		_jouer("Death01", 0.1, true)
 	Sons.jouer_a(self, ["mnstr5", "mnstr6"], global_position + Vector3.UP, 0.0, 0.1)
 	Effets.eclats(self, global_position + Vector3(0, 0.8, 0), Color(0.75, 0.72, 0.6), 30, 4.0)
 	_laisser_butin()

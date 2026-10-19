@@ -25,6 +25,9 @@ var mort := false
 var en_dialogue := false  # posé par la boîte de dialogue : ni marche ni combat
 var secousse := 0.0
 var ennemi_vise: Node = null
+## Dernier coup subi (pour la chute du corps à la mort) : origine de l'attaquant et dégâts.
+var origine_dernier_coup := Vector3.ZERO
+var degats_dernier_coup := 0.0
 var competences := Competences.new()
 var inventaire := Inventaire.new()
 
@@ -142,6 +145,8 @@ func recevoir_coup(degats: float, origine: Vector3) -> String:
 		Effets.eclats(self, mains.pivot_epee.global_position, Color(3.0, 2.2, 0.8), 10, 2.5, true)
 		return "parade" if parade else "bloque"
 	vie -= degats
+	origine_dernier_coup = origine
+	degats_dernier_coup = degats
 	secousse = maxf(secousse, 0.7)
 	_recul = -vers.normalized() * 4.0
 	touche.emit(degats)

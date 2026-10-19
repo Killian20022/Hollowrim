@@ -163,7 +163,16 @@ func _lancer() -> void:
 	_verif(d._anim in ["Hit_Chest", "Hit_Head"], "draugr : réaction au coup")
 	j.global_position = Vector3(40, 0.1, 40)
 	d.recevoir_coup(500.0, j.global_position, true)
-	await create_timer(3.0).timeout
-	_verif(d._anim == "Death01" and not d.anim.is_playing() or d.anim.current_animation_position >= d.anim.current_animation_length - 0.05, "draugr : mort au sol")
+	await create_timer(6.0).timeout
+	# la mort est un ragdoll : le corps doit être couché sur le sol (bassin bas) et figé
+	var sqd: Skeleton3D = d.modele.find_child("Skeleton3D", true, false)
+	var ba := BoneAttachment3D.new()
+	ba.bone_name = "pelvis"
+	sqd.add_child(ba)
+	await process_frame
+	await process_frame
+	var haut_bassin := ba.global_position.y - d.global_position.y
+	print("   bassin à ", haut_bassin, " m du sol, ragdoll figé : ", d._ragdoll != null and d._ragdoll.est_fige())
+	_verif(d._ragdoll != null and d._ragdoll.est_fige() and haut_bassin < 0.35 and haut_bassin > -0.1, "draugr : mort au sol (ragdoll couché et figé)")
 	print("FIN ", "tout vert" if _echecs == 0 else "%d échec(s)" % _echecs)
 	quit()

@@ -1066,6 +1066,24 @@ func _capture() -> void:
 		c.current = true
 		for i in 5:
 			await get_tree().process_frame
+	if _arguments().has("camera-main"):
+		# gros plan sur une main (vérifier la prise) : --camera-main=d|g,dessus|dessous|dehors|dedans|face|joueur
+		var c := Camera3D.new()
+		add_child(c)
+		c.fov = 40.0
+		c.near = 0.01
+		var reglage: PackedStringArray = String(_arguments()["camera-main"]).split(",")
+		var accroche: Node3D = joueur.mains._accroche_g if reglage[0] == "g" else joueur.mains._accroche_d
+		var cam: Camera3D = joueur.camera
+		var centre := accroche.global_position
+		var dirs := {"dessus": Vector3(0, 1, 0.2), "dessous": Vector3(0, -1, 0.2), "dehors": Vector3(1, 0, 0), "dedans": Vector3(-1, 0, 0), "face": Vector3(0, 0, -1), "joueur": Vector3(0, 0.3, 1)}
+		var d: Vector3 = cam.global_transform.basis * (dirs.get(reglage[1] if reglage.size() > 1 else "dehors", Vector3.RIGHT) as Vector3).normalized()
+		c.global_position = centre + d * (float(reglage[2]) if reglage.size() > 2 else 0.32)
+		var haut := cam.global_transform.basis.y if absf(d.dot(cam.global_transform.basis.y)) < 0.9 else -cam.global_transform.basis.z
+		c.look_at(centre, haut)
+		c.current = true
+		for i in 5:
+			await get_tree().process_frame
 	print("FPS : ", Engine.get_frames_per_second())
 	var img := get_viewport().get_texture().get_image()
 	img.resize(img.get_width() * 2, img.get_height() * 2, Image.INTERPOLATE_NEAREST)
@@ -1120,6 +1138,23 @@ func _scenario(nom: String) -> void:
 			await get_tree().create_timer(0.3).timeout
 			dialogue._ouvrir(chef)
 			await get_tree().create_timer(2.5).timeout
+		"mort":
+			# un draugr tué d'un coup puissant venu de la gauche de l'image : il doit tomber à plat sur la pente
+			var x0 := 5.0
+			var z0 := -7.0
+			var dm := creer_draugr("guerrier", Vector3(x0, hauteur(x0, z0) + 0.05, z0), 0.0, false)
+			dm.set_physics_process(false)
+			joueur.global_position = Vector3(40, hauteur(40, 40) + 0.1, 40)
+			var c := Camera3D.new()
+			add_child(c)
+			c.global_position = Vector3(x0 + 2.0, hauteur(x0, z0) + 1.1, z0 + 3.3)
+			c.look_at(Vector3(x0 + 2.0, hauteur(x0, z0) + 0.1, z0))
+			c.current = true
+			await get_tree().create_timer(0.5).timeout
+			dm.etat = dm.GARDE
+			dm.vie = 1.0
+			dm.recevoir_coup(40.0, dm.global_position + Vector3(-1.8, 0, 0), true)
+			await get_tree().create_timer(3.5).timeout
 		"galerie":
 			# quatre habitants côte à côte devant le feu
 			var tenues := [

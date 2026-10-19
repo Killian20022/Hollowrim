@@ -36,8 +36,18 @@ var _tenir := -1.0     # si >= 0 : image maintenue de l'animation courante
 var _t := 0.0
 var _debug := ""
 var _mailles: Array[MeshInstance3D] = []
+var _pieds: PiedsAuSol
+var _ragdoll: Ragdoll
 
 func _ready() -> void:
+	_creer_modele()
+	joueur.touche.connect(_touche)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--anim="):
+			_debug = a.substr(7)  # captures : --anim=Nom:temps fige une image d'animation
+
+## Construit (ou reconstruit, à la résurrection) le modèle vêtu, ses accessoires et ses pieds.
+func _creer_modele() -> void:
 	modele = Humain.creer({
 		"corps": "homme",
 		"tenue": {
@@ -49,17 +59,31 @@ func _ready() -> void:
 	modele.rotation.y = PI  # le modèle regarde +Z, le joueur -Z
 	add_child(modele)
 	var squelette: Skeleton3D = modele.find_child("Skeleton3D", true, false)
+	_pieds = PiedsAuSol.equiper(modele, joueur) as PiedsAuSol
 	_epee(squelette)
 	_torche(squelette)
 	anim = modele.get_node("Animations")
 	anim.animation_finished.connect(_fini)
 	_mailles.assign(modele.find_children("*", "MeshInstance3D", true, false))
-	joueur.touche.connect(_touche)
+	_cle = ""
 	_jouer("Sword_Idle", 0.0)
-	definir_vue(false)
-	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--anim="):
-			_debug = a.substr(7)  # captures : --anim=Nom:temps fige une image d'animation
+	definir_vue(_vue_3)
+
+## Mort : le corps tombe en ragdoll, projeté dans le sens du dernier coup reçu.
+func _chuter() -> void:
+	var dir: Vector3 = joueur.global_position - joueur.origine_dernier_coup
+	dir.y = 0.0
+	dir = dir.normalized() if dir.length() > 0.01 else joueur.global_transform.basis.z
+	var force := clampf(joueur.degats_dernier_coup * 8.0, 100.0, 400.0)
+	var vitesse := Vector3(joueur.velocity.x, 0.0, joueur.velocity.z).limit_length(6.0)
+	_ragdoll = Ragdoll.equiper(modele) as Ragdoll
+	if _ragdoll == null:
+		_action = "Death01"
+		_jouer("Death01", 0.15, 1.0, 0.0, -1.0, true)
+		return
+	_ragdoll.ignorer(joueur)
+	_ragdoll.endormir_apres(4.0)
+	_ragdoll.declencher(dir * force + Vector3.UP * force * 0.15, joueur.global_position + Vector3(0, 1.2, 0) - dir * 0.2, "spine_03", vitesse)
 
 ## true : troisième personne (corps visible) ; false : première personne (ombre seule).
 func definir_vue(troisieme: bool) -> void:
@@ -231,15 +255,19 @@ func _process(dt: float) -> void:
 	if joueur.mort:
 		if not _mort_jouee:
 			_mort_jouee = true
-			_action = "Death01"
-			_jouer("Death01", 0.15, 1.0, 0.0, -1.0, true)
+			_chuter()
 		_lacet = lerp_angle(_lacet, 0.0, 1.0 - exp(-8.0 * dt))
 		modele.rotation.y = PI + _lacet
 		return
 	if _mort_jouee:
+		# résurrection : le corps ragdoll est remplacé par un modèle neuf
 		_mort_jouee = false
 		_action = ""
 		_cle = ""
+		if _ragdoll != null:
+			_ragdoll = null
+			modele.queue_free()
+			_creer_modele()
 
 	# image tenue (armer, garde)
 	if _tenir >= 0.0 and anim.current_animation_position > _tenir:
