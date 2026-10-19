@@ -52,6 +52,7 @@ func _ready() -> void:
 	pivot_epee = Node3D.new()
 	add_child(pivot_epee)
 	pivot_epee.add_child(_epee())
+	joueur.inventaire.change.connect(_teinte_epee)
 	bras_epee = _main(pivot_epee, 1.0)
 	pivot_epee.transform = _pose("repos")
 	_depart = pivot_epee.transform
@@ -97,6 +98,7 @@ func _recaler_bras(bras: MeshInstance3D, epaule: Vector3, poing: Vector3) -> voi
 ## Épée nordique à une main : lame à section losange, garde droite, poignée de cuir, pommeau.
 func _epee() -> MeshInstance3D:
 	var acier := Palette.materiau(Palette.tex("acier", Palette.ACIER, 4, 0.3), Vector2(1, 4), Color(0.85, 0.9, 1.0))
+	_acier = acier
 	var fer := Palette.materiau(Palette.tex("acier", Palette.ACIER, 4, 0.3), Vector2.ONE, Color(0.55, 0.58, 0.66))
 	var cuir := Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(1, 3))
 	var mesh := ArrayMesh.new()
@@ -145,6 +147,14 @@ func _epee() -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	return mi
+
+var _acier: ShaderMaterial
+
+## L'Épée de Skarnholt, forgée par Brodd : lame claire aux reflets dorés.
+func _teinte_epee() -> void:
+	if _acier != null and joueur.inventaire.a("epee_skarnholt"):
+		_acier.set_shader_parameter("teinte", Color(1.15, 1.05, 0.85))
+		_acier.set_shader_parameter("emission", Color(0.05, 0.04, 0.02))
 
 func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, ua: Vector2, ub: Vector2, uc: Vector2) -> void:
 	st.set_uv(ua); st.add_vertex(a)
@@ -360,13 +370,16 @@ func _tester_coup() -> void:
 	for e in get_tree().get_nodes_in_group("ennemis"):
 		if not e.vivant():
 			continue
-		var v: Vector3 = e.global_position + Vector3(0, 1.0, 0) - origine
+		var cible_coup: Vector3 = e.point_impact() if e.has_method("point_impact") else e.global_position + Vector3(0, 1.0, 0)
+		var v: Vector3 = cible_coup - origine
 		var d := v.length()
 		if d > portee + 0.4:
 			continue
 		if d > 0.9 and Vector2(v.x, v.z).normalized().dot(face_plate) < 0.5:
 			continue
 		var base := DEGATS_PUISSANT if _puissant else DEGATS_LEGER
+		if joueur.inventaire.a("epee_skarnholt"):
+			base *= 1.35
 		var r: String = e.recevoir_coup(base * joueur.competences.multiplicateur_degats(), joueur.global_position, _puissant)
 		if r == "touche" or r == "tue":
 			joueur.competences.pratiquer("epee", 1.8 if _puissant else 1.0)

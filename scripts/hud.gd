@@ -29,6 +29,7 @@ var _avis: Array = []  # [texte, temps restant] : « Épée : niveau 16 »…
 var _police: FontFile
 var _cadre: StyleBoxTexture
 var panneau_ouvert := false
+var quetes: Node = null
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -125,6 +126,13 @@ func _draw() -> void:
 		draw_string(_police, pos, _avis[i][0], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(PARCHEMIN, alpha))
 	if _cible != null and _a_cible > 0.0:
 		_barre(Vector2(200, 19), _cible.vie / _cible.vie_max, VIE, clampf(_a_cible, 0.0, 1.0))
+	# objectif de la quête la plus récente, discret sous la boussole
+	if quetes != null and not panneau_ouvert:
+		var obj: Array = quetes.objectifs()
+		if not obj.is_empty():
+			var texte: String = "> " + obj[-1][1]
+			var l := _police.get_string_size(texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
+			_texte(Vector2(roundf(240 - l * 0.5), 27), texte, Color(PARCHEMIN, 0.6))
 	if panneau_ouvert:
 		_panneau()
 
@@ -154,6 +162,12 @@ func _panneau() -> void:
 	for id in inv.objets:
 		_texte(Vector2(250, y), "%s  x%d" % [inv.nom(id), inv.objets[id]])
 		y += 13.0
+	if quetes != null:
+		var yq := 150.0
+		_texte(Vector2(76, yq), "Quêtes", OR)
+		for q in quetes.objectifs():
+			yq += 13.0
+			_texte(Vector2(76, yq), "> " + q[1])
 	_texte(Vector2(250, 206), "Poids : %.1f" % inv.poids(), Color(PARCHEMIN, 0.7))
 	_texte(Vector2(76, 206), "Tab : fermer", Color(PARCHEMIN, 0.5))
 	var c2 = get_tree().current_scene.get("cycle") if get_tree().current_scene else null

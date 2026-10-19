@@ -45,3 +45,6 @@ static func jouer_a(parent: Node, noms: Array, position: Vector3, volume_db := 0
 	a.global_position = position
 	a.play()
 	a.finished.connect(a.queue_free)
+
+static func vider() -> void:
+	_cache.clear()

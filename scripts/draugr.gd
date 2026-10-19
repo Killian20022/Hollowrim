@@ -5,6 +5,8 @@ extends CharacterBody3D
 
 enum { DORT, REVEIL, GARDE, TRAQUE, ATTAQUE, TITUBE, MORT }
 
+signal mort(ident: String)
+
 const MODELES := {
 	"guerrier": "res://assets/modeles/squelettes/Skeleton_Warrior.glb",
 	"sbire": "res://assets/modeles/squelettes/Skeleton_Minion.glb",
@@ -30,6 +32,13 @@ var vie := 70.0
 var vie_max := 70.0
 var degats := 16.0
 var nom_affiche := "Draugr"
+# réglages facultatifs, posés avant add_child (boss…)
+var echelle := 0.86
+var teinte := Color(0.78, 0.82, 0.92)
+var saturation := 0.3
+var vie_imposee := 0.0
+var degats_imposes := 0.0
+var debout := false  # endormi debout (niches) plutôt qu'allongé
 var ident := ""  # pour la sauvegarde (les draugrs tués restent morts)
 var hud: Control
 const BUTIN := preload("res://scripts/butin.gd")
@@ -53,6 +62,10 @@ func _ready() -> void:
 	if type == "sbire":
 		vie_max = 45.0
 		degats = 12.0
+	if vie_imposee > 0.0:
+		vie_max = vie_imposee
+	if degats_imposes > 0.0:
+		degats = degats_imposes
 	vie = vie_max
 	floor_snap_length = 0.4
 	var forme := CollisionShape3D.new()
@@ -64,10 +77,10 @@ func _ready() -> void:
 	add_child(forme)
 
 	modele = load(MODELES[type]).instantiate()
-	modele.scale = Vector3.ONE * 0.86
+	modele.scale = Vector3.ONE * echelle
 	add_child(modele)
 	# os sales et bleuis par le froid
-	Palette.convertir(modele, 128, Color(0.78, 0.82, 0.92), 0.3)
+	Palette.convertir(modele, 128, teinte, saturation)
 	for mi: MeshInstance3D in modele.find_children("*", "MeshInstance3D", true, false):
 		_mailles.append(mi)
 		if mi.name.ends_with("Eyes"):
@@ -88,10 +101,13 @@ func _ready() -> void:
 	origine = global_position
 	if dort:
 		etat = DORT
-		_jouer("Skeletons_Inactive_Floor_Pose", 0.0)
+		_jouer("Skeleton_Inactive_Standing_Pose" if debout else "Skeletons_Inactive_Floor_Pose", 0.0)
 	else:
 		_jouer("Idle", 0.0)
 		anim.seek(randf() * 2.0)
+
+func _anim_reveil() -> String:
+	return "Skeletons_Awaken_Standing" if debout else "Skeletons_Awaken_Floor"
 
 func _armer(squelette: Skeleton3D, os: String, scene: PackedScene) -> void:
 	var accroche := BoneAttachment3D.new()
@@ -145,11 +161,11 @@ func _physics_process(dt: float) -> void:
 			regard = false
 			if dist < REVEIL_DISTANCE and not joueur.mort:
 				_changer(REVEIL)
-				_jouer("Skeletons_Awaken_Floor", 0.1)
+				_jouer(_anim_reveil(), 0.1)
 				Sons.jouer_a(self, ["giant1", "giant2", "giant3"], global_position + Vector3.UP, -2.0, 0.15)
 		REVEIL:
 			regard = _t > 0.6
-			if _t >= _duree("Skeletons_Awaken_Floor") * 0.95:
+			if _t >= _duree(_anim_reveil()) * 0.95:
 				_changer(TRAQUE)
 		GARDE:
 			var retour := origine - global_position
@@ -250,6 +266,7 @@ func _eclair() -> void:
 
 func _mourir() -> void:
 	_changer(MORT)
+	mort.emit(ident)
 	_jouer("Death_A", 0.1, true)
 	collision_layer = 0
 	collision_mask = 1

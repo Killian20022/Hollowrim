@@ -126,3 +126,11 @@ static func police() -> FontFile:
 	p.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	p.generate_mipmaps = false
 	return p
+
+## À appeler quand le monde se ferme : les ressources gardées dans des variables statiques
+## seraient sinon libérées après l'arrêt du moteur de rendu (plantage à la fermeture).
+static func vider() -> void:
+	materiaux.clear()
+	_cache.clear()
+	_conversions.clear()
+	tex_neige = null

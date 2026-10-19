@@ -1,0 +1,199 @@
+{
+  "quetes": [
+    {
+      "id": "anneau_givre",
+      "titre": "L’anneau de givre",
+      "donneur": "chef",
+      "etapes": [
+        {
+          "id": "debut",
+          "declencheur": "parle:chef",
+          "objectif": "Se rendre au cercle runique, au nord-ouest",
+          "journal": "Gunnhild m’a chargé de retrouver l’anneau volé dans la tombe de Svanhild. Le cercle runique est au nord-ouest du hameau. Les morts y bougent."
+        },
+        {
+          "id": "tertre",
+          "declencheur": "lieu:tertre",
+          "objectif": "Descendre l’escalier sous la stèle",
+          "journal": "Sous la stèle du cercle, j’ai trouvé un escalier de pierre qui s’enfonce dans le tertre. L’air en sort, glacé. Quelqu’un est passé par là avant moi."
+        },
+        {
+          "id": "eirik",
+          "declencheur": "ramasse:anneau_givre",
+          "objectif": "Fouiller le tertre",
+          "journal": "Eirik gît dans le tertre, l’anneau de givre serré dans sa main raide. Une note dépasse de sa ceinture. Il a compris trop tard ce qu’il avait pris."
+        },
+        {
+          "id": "tombe",
+          "declencheur": "tue:svanhild",
+          "objectif": "Rapporter l’anneau à la tombe de Svanhild",
+          "journal": "L’anneau doit retourner sur le sarcophage. Svanhild s’est levée à mon approche. Le combat a été rude, mais la reine-guerrière est retombée."
+        },
+        {
+          "id": "rendre",
+          "declencheur": "lieu:tombe_svanhild",
+          "objectif": "Poser l’anneau sur le sarcophage",
+          "journal": "J’ai replacé l’anneau de givre sur le sarcophage. Le froid a reflué d’un coup, comme une marée. Le sommeil de Svanhild est de nouveau scellé."
+        },
+        {
+          "id": "fin",
+          "declencheur": "parle:chef",
+          "objectif": "Raconter tout à Gunnhild",
+          "journal": "J’ai tout raconté à Gunnhild : Eirik, la note, Svanhild. Elle a gardé le silence un long moment, puis m’a remis sa récompense. Les morts dorment."
+        }
+      ],
+      "recompense": { "pieces": 150, "objets": { "amulette_givre": 1 } }
+    },
+    {
+      "id": "frere_ylva",
+      "titre": "Le frère d’Ylva",
+      "donneur": "chasseuse",
+      "etapes": [
+        {
+          "id": "debut",
+          "declencheur": "parle:chasseuse",
+          "objectif": "Retrouver Eirik, le frère d’Ylva",
+          "journal": "Ylva n’a plus de nouvelles de son frère Eirik, parti une nuit vers le cercle de pierres. Elle me demande de le retrouver. Je lui dois bien ça."
+        },
+        {
+          "id": "amulette",
+          "declencheur": "ramasse:amulette_eirik",
+          "objectif": "Rapporter l’amulette d’Eirik à Ylva",
+          "journal": "J’ai pris l’amulette d’Eirik sur son corps. Ylva la reconnaîtra : elle est taillée dans l’os de cerf. Il faut maintenant lui dire la vérité."
+        },
+        {
+          "id": "fin",
+          "declencheur": "parle:chasseuse",
+          "objectif": "Annoncer le sort d’Eirik à Ylva",
+          "journal": "J’ai remis l’amulette à Ylva et je lui ai dit ce que j’avais vu. Elle n’a pas pleuré devant moi. Elle m’a donné de quoi payer ma route."
+        }
+      ],
+      "recompense": { "pieces": 60, "objets": {} }
+    },
+    {
+      "id": "lames_brodd",
+      "titre": "Le fer des morts",
+      "donneur": "forgeron",
+      "etapes": [
+        {
+          "id": "debut",
+          "declencheur": "parle:forgeron",
+          "objectif": "Prendre 3 lames antiques aux draugrs",
+          "journal": "Brodd rêve d’une épée digne du hameau. Il lui faut trois lames antiques, du vieux fer de guerre. Les draugrs du cercle en portent encore."
+        },
+        {
+          "id": "lames",
+          "declencheur": "objet:lame_antique>=3",
+          "objectif": "Rapporter les 3 lames à Brodd",
+          "journal": "J’ai trois lames antiques, noircies par les siècles. Elles sentent la terre et le froid. Brodd saura quoi en faire."
+        },
+        {
+          "id": "fin",
+          "declencheur": "parle:forgeron",
+          "objectif": "Voir Brodd forger l’épée",
+          "journal": "Brodd a fondu les trois lames et battu l’acier toute la nuit. Il en est sorti une épée au fil clair : l’Épée de Skarnholt. Elle est à moi."
+        }
+      ],
+      "recompense": { "pieces": 0, "objets": { "epee_skarnholt": 1 } }
+    }
+  ],
+  "dialogues": {
+    "chef": {
+      "anneau_givre:debut": [
+        "Écoute-moi bien, étranger. Va au cercle runique, au nord-ouest.",
+        "Trouve qui a pris l’anneau de Svanhild. Et rapporte-le, s’il est encore temps.",
+        "Je te paierai. Je préfère payer que pleurer."
+      ],
+      "anneau_givre:pendant": [
+        "Le cercle est au nord-ouest. Cherche un escalier sous la stèle.",
+        "Tu es encore là ? Les morts n’attendent pas.",
+        "Reviens entier. Je déteste les enterrements."
+      ],
+      "anneau_givre:fin": [
+        "Eirik… Pauvre garçon. Grima et Ylva devront l’apprendre.",
+        "Tu as rendu l’anneau et scellé Svanhild. Skarnholt te doit une dette.",
+        "Prends cet or et cette amulette. Le givre te reconnaîtra."
+      ]
+    },
+    "chasseuse": {
+      "frere_ylva:debut": [
+        "Mon frère Eirik n’est pas revenu du cercle. Retrouve-le.",
+        "Si tu croises ses affaires, rapporte-les-moi. Même une botte.",
+        "Je te devrai une peau de loup. Et bien plus."
+      ],
+      "frere_ylva:pendant": [
+        "Cherche vers les pierres. Les traces s’y arrêtent.",
+        "Eirik porte une amulette d’os de cerf. Je l’ai taillée moi-même.",
+        "Ne me mens pas, au retour. Je préfère savoir."
+      ],
+      "frere_ylva:fin": [
+        "Son amulette. Donc c’est vrai.",
+        "Merci de me l’avoir dit en face. Il était têtu. Il n’a jamais su s’arrêter.",
+        "Prends ces pièces. Et si tu vas là-bas, ne le laisse pas seul."
+      ]
+    },
+    "forgeron": {
+      "lames_brodd:debut": [
+        "Tu veux une vraie lame ? Alors rapporte-moi du vieux fer.",
+        "Trois lames antiques, prises aux draugrs du cercle. Le métal des morts est pur.",
+        "Je les fondrai. Tu auras une épée digne de Skarnholt."
+      ],
+      "lames_brodd:pendant": [
+        "Il me faut trois lames antiques. Pas deux. Je sais compter.",
+        "Les draugrs en portent. Frappe-les d’abord, ramasse ensuite.",
+        "Mon feu est prêt. Ma patience, beaucoup moins."
+      ],
+      "lames_brodd:fin": [
+        "Ha ! Regarde ce fil. On dirait de la glace claire.",
+        "Je l’appelle l’Épée de Skarnholt. Ne la plante pas dans mon établi.",
+        "Elle est à toi. Fais-en bon usage."
+      ]
+    },
+    "ancienne": {
+      "frere_ylva:pendant": [
+        "Tu cherches Eirik ? Ylva me l’a dit. Ma soupe est toujours chaude.",
+        "Ce garçon est mon neveu. Si tu le trouves, ramène-le-moi.",
+        "Les curieux finissent dans les légendes. J’aurais préféré qu’il reste ici."
+      ]
+    },
+    "garde": {
+      "anneau_givre:pendant": [
+        "Tu vas au cercle ? Par là, au nord-ouest. Garde ton épée à la main.",
+        "Les lueurs vertes sont plus fortes cette nuit. Mauvais signe.",
+        "Si tu croises Eirik, dis-lui que j’ai tout vu."
+      ]
+    },
+    "volva": {
+      "anneau_givre:pendant": [
+        "L’anneau a une volonté. Ne le glisse pas à ton doigt.",
+        "Svanhild se lèvera si tu viens les mains vides. Rapporte l’anneau.",
+        "Les runes pâlissent. Hâte-toi, étranger."
+      ],
+      "anneau_givre:fin": [
+        "Les aurores se calment. Tu as scellé le sommeil de la reine.",
+        "Garde ton amulette. Le givre te protégera, mais ne te réchauffera pas.",
+        "Les morts rendent peu de dettes. Toi, tu as payé la leur."
+      ]
+    }
+  },
+  "textes": {
+    "note_eirik": [
+      "Je n’aurais pas dû l’emporter. Elle me suit depuis la tombe.",
+      "L’anneau est lourd, il me parle. Il veut retourner à sa main.",
+      "Si on me trouve, qu’on le rende à Svanhild. Dites à Ylva…",
+      "Dites à Ylva que j’ai voulu bien faire. Je me suis trompé."
+    ],
+    "inscription_tombe": [
+      "Ici dort Svanhild, reine-guerrière, Dame de givre.",
+      "Qui lui prend son anneau lui prend son sommeil.",
+      "Que l’anneau reste sur la pierre, et les morts sur leur lit."
+    ],
+    "svanhild_reveil": [
+      "Qui ose réveiller la reine ? Rends-moi ce qui est à moi.",
+      "Ton souffle est chaud. Je vais l’éteindre."
+    ],
+    "svanhild_defaite": [
+      "Le givre… me rappelle… Que l’anneau… me ferme les yeux."
+    ]
+  }
+}

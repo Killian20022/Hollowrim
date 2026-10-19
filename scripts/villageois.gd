@@ -28,6 +28,7 @@ var joueur: CharacterBody3D
 var dialogue: Control
 var points: Array = []  # de Vector3
 var deja_parle := false
+var quetes: Node = null  # posé par le monde
 
 var etat := POSTE
 var modele: Node3D
@@ -108,7 +109,13 @@ func nom_affiche() -> String:
 
 ## Appelé par le dialogue : renvoie les répliques (1re fois puis « apres »).
 func parler() -> Array:
-	var lignes: Array = donnees.get("apres", []) if deja_parle else donnees.get("lignes", [])
+	# la première fois il se présente ; ses répliques de quête viennent ensuite
+	var lignes: Array = [] if deja_parle else donnees.get("lignes", []).duplicate()
+	var de_quete: Array = quetes.repliques(donnees.get("id", "")) if quetes != null else []
+	if not de_quete.is_empty():
+		lignes += de_quete
+	elif deja_parle:
+		lignes = donnees.get("apres", [])
 	if lignes.is_empty():
 		lignes = donnees.get("lignes", ["…"])
 	deja_parle = true

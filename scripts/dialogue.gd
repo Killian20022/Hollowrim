@@ -232,7 +232,8 @@ func _process(dt: float) -> void:
 	var p := _plus_proche() if not _ouvert else null
 	_invite.visible = p != null
 	if p != null:
-		_invite_texte.text = "Parler à %s" % p.nom_affiche()
+		# un objet peut proposer son propre verbe (« Fouiller le corps », « Entrer »…)
+		_invite_texte.text = p.texte_action() if p.has_method("texte_action") else "Parler à %s" % p.nom_affiche()
 		var l := ceilf(_police.get_string_size(_invite_texte.text, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
 		var icone: Texture2D = _tex["touche"]
 		var larg_icone := 11.0 if icone != null else _police.get_string_size("[E] ", HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x

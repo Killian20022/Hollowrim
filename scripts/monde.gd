@@ -23,6 +23,10 @@ const VILLAGE_SCRIPT := preload("res://scripts/village.gd")
 const CYCLE := preload("res://scripts/cycle.gd")
 const VILLAGEOIS := preload("res://scripts/villageois.gd")
 const DIALOGUE := preload("res://scripts/dialogue.gd")
+const QUETES := preload("res://scripts/quetes.gd")
+const TERTRE := preload("res://scripts/tertre.gd")
+const DRAGON := preload("res://scripts/dragon.gd")
+const TUMULUS := Vector3(-38.0, 0.0, -48.0)  # façade du tertre, au nord du cercle
 
 var bruit := FastNoiseLite.new()
 var bruit_detail := FastNoiseLite.new()
@@ -35,6 +39,10 @@ var village: Node3D
 var cycle: Node
 var calque: CanvasLayer
 var dialogue: Control
+var quetes: Node
+var tertre: Node3D
+var dragon: CharacterBody3D = null
+var dragon_vaincu := false
 var _env: Environment
 var _ciel: ShaderMaterial
 
@@ -97,6 +105,7 @@ func _ready() -> void:
 	_interface()
 	_draugrs()
 	_villageois()
+	_tertre()
 	if not _arguments().has("capture") and not _arguments().has("nouvelle"):
 		charger()
 	if not _arguments().has("capture"):
@@ -328,7 +337,7 @@ func _foret() -> void:
 		var x := rng.randf_range(-116.0, 116.0)
 		var z := rng.randf_range(-116.0, 116.0)
 		var d := Vector2(x, z).length()
-		if d < RAYON_CLAIRIERE + 2.5 or Vector2(x - CERCLE.x, z - CERCLE.z).length() < 11.0 or Vector2(x - VILLAGE.x, z - VILLAGE.z).length() < 31.0 or _pres_du_chemin(x, z, 3.0):
+		if d < RAYON_CLAIRIERE + 2.5 or Vector2(x - CERCLE.x, z - CERCLE.z).length() < 11.0 or Vector2(x - VILLAGE.x, z - VILLAGE.z).length() < 31.0 or _pres_du_chemin(x, z, 3.0) or Vector2(x - TUMULUS.x, z - (TUMULUS.z - 6.0)).length() < 11.0:
 			continue
 		# la forêt s'épaissit et s'éclaircit par plaques
 		var densite := bruit_densite.get_noise_2d(x, z) * 0.5 + 0.6 + smoothstep(14.0, 30.0, d) * 0.2
@@ -658,6 +667,12 @@ func _villageois() -> void:
 	dialogue.set_script(DIALOGUE)
 	dialogue.joueur = joueur
 	calque.add_child(dialogue)
+	quetes = Node.new()
+	quetes.set_script(QUETES)
+	quetes.joueur = joueur
+	quetes.hud = hud
+	add_child(quetes)
+	hud.quetes = quetes
 	var promenade: Array = village.promenade
 	for d in VILLAGEOIS.charger():
 		var poste: Vector3 = village.lieux.get(d.get("lieu", "place"), village.lieux["place"])
@@ -670,13 +685,68 @@ func _villageois() -> void:
 		v.donnees = d
 		v.joueur = joueur
 		v.dialogue = dialogue
+		v.quetes = quetes
 		v.points = points
 		v.position = poste + Vector3(0, 0.05, 0)
 		add_child(v)
 
+# --- le tertre ----------------------------------------------------------------------
+
+func _tertre() -> void:
+	tertre = Node3D.new()
+	tertre.set_script(TERTRE)
+	tertre.monde = self
+	tertre.joueur = joueur
+	tertre.dialogue = dialogue
+	tertre.quetes = quetes
+	tertre.hud = hud
+	tertre.position = Vector3(TUMULUS.x, hauteur(TUMULUS.x, TUMULUS.z), TUMULUS.z)
+	tertre.porte_dehors = tertre.position + Vector3(0, 0, 2.8)
+	tertre.orientation = PI  # en sortant, on regarde vers le cercle, au sud
+	add_child(tertre)
+	tertre.entree.connect(_sous_terre)
+	# le sommeil de Svanhild rescellé, un dragon de givre vient tourner au-dessus du hameau
+	quetes.change.connect(func() -> void:
+		if quetes.etat.get("anneau_givre", 0) >= 6 and dragon == null and not dragon_vaincu:
+			_dragon())
+	hud.lieux.append([tertre.porte_dehors, Color("#6fd8ff")])
+
+func _dragon() -> void:
+	dragon = CharacterBody3D.new()
+	dragon.set_script(DRAGON)
+	dragon.joueur = joueur
+	dragon.hud = hud
+	dragon.centre = Vector3(VILLAGE.x, h_village, VILLAGE.z)
+	dragon.hauteur_sol = hauteur
+	dragon.vaincu.connect(func() -> void:
+		dragon_vaincu = true
+		quetes.signaler("tue:dragon")
+		hud.avis("Le dragon de givre est vaincu"))
+	add_child(dragon)
+	hud.avis("Un rugissement fait trembler la forêt…")
+
+## Sous terre : ni lune, ni neige, ni ciel ; une brume noire et froide.
+func _sous_terre(dedans: bool) -> void:
+	cycle.lumiere.visible = not dedans
+	neige.visible = not dedans
+	cycle.process_mode = Node.PROCESS_MODE_DISABLED if dedans else Node.PROCESS_MODE_INHERIT
+	if dedans:
+		_env.ambient_light_color = Color(0.16, 0.2, 0.32)
+		_env.ambient_light_energy = 0.5
+		_env.fog_light_color = Color(0.02, 0.03, 0.05)
+		_env.fog_density = 0.06
+		_env.fog_height_density = 0.0
+	else:
+		_env.fog_height_density = 0.12
+		cycle._process(0.0)
+
 # --- draugrs ---------------------------------------------------------------------
 
 func _draugr(type: String, x: float, z: float, dort: bool, lacet := 0.0) -> CharacterBody3D:
+	return creer_draugr(type, Vector3(x, hauteur(x, z) + 0.05, z), lacet, dort)
+
+## Crée un draugr ; `options` règle ses propriétés (ident, echelle, vie_imposee, debout…).
+func creer_draugr(type: String, position_: Vector3, lacet: float, dort: bool, options := {}) -> CharacterBody3D:
 	var d := CharacterBody3D.new()
 	d.set_script(DRAUGR)
 	d.type = type
@@ -684,9 +754,12 @@ func _draugr(type: String, x: float, z: float, dort: bool, lacet := 0.0) -> Char
 	d.joueur = joueur
 	d.hud = hud
 	d.ident = "%s_%d" % [type, draugrs.size()]
+	for cle in options:
+		d.set(cle, options[cle])
 	draugrs[d.ident] = d
-	d.position = Vector3(x, hauteur(x, z) + 0.05, z)
+	d.position = position_
 	d.rotation.y = lacet
+	d.mort.connect(func(id: String) -> void: quetes.signaler("tue:" + id))
 	add_child(d)
 	return d
 
@@ -783,6 +856,10 @@ func _unhandled_input(e: InputEvent) -> void:
 					OS.set_restart_on_exit(true, OS.get_cmdline_args())
 					get_tree().quit()
 
+func _exit_tree() -> void:
+	Palette.vider()
+	Sons.vider()
+
 func _notification(quoi: int) -> void:
 	if quoi == NOTIFICATION_WM_CLOSE_REQUEST and not _arguments().has("capture"):
 		sauvegarder()
@@ -808,6 +885,9 @@ func sauvegarder() -> void:
 		},
 		"heure": cycle.heure,
 		"competences": joueur.competences.exporter(),
+		"quetes": quetes.exporter(),
+		"herse": tertre._herse_ouverte,
+		"dragon_vaincu": dragon_vaincu,
 		"inventaire": joueur.inventaire.exporter(),
 		"draugrs_morts": morts,
 		"villageois_parles": parles,
@@ -832,6 +912,9 @@ func charger() -> void:
 	cycle.heure = float(d.get("heure", cycle.heure))
 	joueur.competences.importer(d.get("competences", {}))
 	joueur.inventaire.importer(d.get("inventaire", {}))
+	dragon_vaincu = bool(d.get("dragon_vaincu", false))
+	quetes.importer(d.get("quetes", {}))
+	tertre.restaurer(bool(d.get("herse", false)))
 	for id in d.get("draugrs_morts", []):
 		if draugrs.has(id):
 			draugrs[id].queue_free()
