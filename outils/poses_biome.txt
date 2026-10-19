@@ -1,0 +1,17 @@
+# Poses de revue visuelle du biome : nom x,z,lacet°,tangage° (lacet 0 = nord/-Z, 90 = ouest, 180 = sud, -90 = est)
+# Zone témoin (feu → cercle → tumulus)
+P1 -4,-3,48,-2
+P2 -18.5,-16.5,48,0
+P3 -10,-9,45,-4
+P4 -29.5,-26,47,0
+P5 -38,-31,0,4
+P6 -38,-45,180,-3
+P7 -28,-50,66,0
+P8 -2,-20,90,0
+P9 -20,10,180,0
+Q1 -40,-22.5,52,-6
+Q2 -35.2,-40.5,20,-17
+Q3 -24,-22.5,170,-2
+Q4 -35.8,-43,83,-6
+# Témoin hors zone (doit rester identique tant que la zone n'est pas généralisée)
+P10 30,-30,-90,0
