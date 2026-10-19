@@ -1,13 +1,21 @@
 ; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
 config_version=5
 
 [application]
+
 config/name="Nordique (nom provisoire)"
 run/main_scene="res://scenes/foret_test.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 
 [display]
-; Rendu interne 480x270 agrandi en entier (x3 en fenêtre, x4 en 1080p) : c'est le look PS1.
+
 window/size/viewport_width=480
 window/size/viewport_height=270
 window/size/window_width_override=1440
@@ -16,5 +24,6 @@ window/stretch/mode="viewport"
 window/stretch/scale_mode="integer"
 
 [rendering]
-renderer/rendering_method="mobile"
+
 textures/canvas_textures/default_texture_filter=0
+renderer/rendering_method="mobile"

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="23" height="7" viewBox="0 0 23 7" shape-rendering="crispEdges">
+  <!-- N (x=0..4) or -->
+  <g fill="#e8a64a">
+    <rect x="0" y="0" width="1" height="7"/>
+    <rect x="4" y="0" width="1" height="7"/>
+    <rect x="1" y="1" width="1" height="1"/>
+    <rect x="2" y="2" width="1" height="1"/>
+    <rect x="3" y="3" width="1" height="1"/>
+  </g>
+  <g fill="#e8e0c8">
+    <!-- E (x=6..10) -->
+    <rect x="6" y="0" width="5" height="1"/>
+    <rect x="6" y="1" width="1" height="5"/>
+    <rect x="6" y="3" width="4" height="1"/>
+    <rect x="6" y="6" width="5" height="1"/>
+    <!-- S (x=12..16) -->
+    <rect x="13" y="0" width="4" height="1"/>
+    <rect x="12" y="1" width="1" height="2"/>
+    <rect x="13" y="3" width="3" height="1"/>
+    <rect x="16" y="4" width="1" height="2"/>
+    <rect x="12" y="6" width="4" height="1"/>
+    <!-- O (x=18..22) -->
+    <rect x="19" y="0" width="3" height="1"/>
+    <rect x="18" y="1" width="1" height="5"/>
+    <rect x="22" y="1" width="1" height="5"/>
+    <rect x="19" y="6" width="3" height="1"/>
+  </g>
+</svg>

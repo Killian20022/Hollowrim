@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="11" viewBox="0 0 160 11" shape-rendering="crispEdges">
+  <!-- fond semi-sombre -->
+  <rect x="0" y="0" width="160" height="11" fill="#0b0f1a" fill-opacity="0.6"/>
+  <!-- liseres haut et bas -->
+  <rect x="4" y="0" width="152" height="1" fill="#56627a"/>
+  <rect x="4" y="10" width="152" height="1" fill="#3a4458"/>
+  <!-- embout gauche -->
+  <rect x="1" y="0" width="3" height="1" fill="#0b0f1a"/>
+  <rect x="1" y="10" width="3" height="1" fill="#0b0f1a"/>
+  <rect x="0" y="1" width="1" height="9" fill="#0b0f1a"/>
+  <rect x="1" y="1" width="3" height="9" fill="#56627a"/>
+  <rect x="1" y="1" width="3" height="1" fill="#8a96ad"/>
+  <rect x="2" y="4" width="1" height="3" fill="#e8a64a"/>
+  <rect x="1" y="5" width="3" height="1" fill="#e8a64a"/>
+  <rect x="4" y="1" width="1" height="9" fill="#1a2233"/>
+  <!-- embout droit -->
+  <rect x="156" y="0" width="3" height="1" fill="#0b0f1a"/>
+  <rect x="156" y="10" width="3" height="1" fill="#0b0f1a"/>
+  <rect x="159" y="1" width="1" height="9" fill="#0b0f1a"/>
+  <rect x="156" y="1" width="3" height="9" fill="#56627a"/>
+  <rect x="156" y="1" width="3" height="1" fill="#8a96ad"/>
+  <rect x="157" y="4" width="1" height="3" fill="#e8a64a"/>
+  <rect x="156" y="5" width="3" height="1" fill="#e8a64a"/>
+  <rect x="155" y="1" width="1" height="9" fill="#1a2233"/>
+</svg>

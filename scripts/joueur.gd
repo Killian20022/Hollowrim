@@ -1,6 +1,11 @@
 extends CharacterBody3D
-## Joueur à la première personne : marche, course, saut, balancement de tête.
-## Les touches sont physiques : ZQSD sur AZERTY = WASD sur QWERTY.
+## Joueur à la première personne : marche, course, saut, balancement de tête,
+## vie, vigueur, coups reçus. Les touches sont physiques : ZQSD sur AZERTY = WASD sur QWERTY.
+
+signal touche(degats: float)
+signal deces
+
+const MAINS := preload("res://scripts/mains.gd")
 
 const VITESSE := 3.2
 const COURSE := 6.5
@@ -8,10 +13,25 @@ const SAUT := 4.4
 const GRAVITE := 13.0
 const SENSIBILITE := 0.0022
 const LIMITE := 108.0  # bord du terrain jouable
+const COUT_COURSE := 12.0  # vigueur par seconde
+
+var vie := 100.0
+var vie_max := 100.0
+var vigueur := 100.0
+var vigueur_max := 100.0
+var mort := false
+var secousse := 0.0
+var ennemi_vise: Node = null
 
 var tete: Node3D
 var camera: Camera3D
+var mains: Node3D
 var _pas := 0.0
+var _dernier_pas := 0
+var _repos_vigueur := 0.0
+var _recul := Vector3.ZERO
+var _bruit_secousse := FastNoiseLite.new()
+var _t := 0.0
 
 func _ready() -> void:
 	_actions()
@@ -32,6 +52,11 @@ func _ready() -> void:
 	camera.far = 180.0
 	tete.add_child(camera)
 	camera.current = true
+	mains = Node3D.new()
+	mains.set_script(MAINS)
+	mains.joueur = self
+	camera.add_child(mains)
+	_bruit_secousse.frequency = 2.0
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _actions() -> void:
@@ -44,13 +69,13 @@ func _actions() -> void:
 		if InputMap.has_action(nom):
 			continue
 		InputMap.add_action(nom)
-		for touche in touches[nom]:
+		for touche_clavier in touches[nom]:
 			var e := InputEventKey.new()
-			e.physical_keycode = touche
+			e.physical_keycode = touche_clavier
 			InputMap.action_add_event(nom, e)
 
 func _unhandled_input(e: InputEvent) -> void:
-	if e is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	if e is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not mort:
 		# screen_relative : non réduit par l'agrandissement du rendu 480x270
 		rotate_y(-e.screen_relative.x * SENSIBILITE)
 		tete.rotation.x = clampf(tete.rotation.x - e.screen_relative.y * SENSIBILITE, -1.45, 1.45)
@@ -59,14 +84,65 @@ func _unhandled_input(e: InputEvent) -> void:
 	elif e is InputEventKey and e.pressed and e.physical_keycode == KEY_ESCAPE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
+## Retire de la vigueur ; la récupération reprend une seconde après.
+func depenser(quantite: float) -> void:
+	vigueur = maxf(0.0, vigueur - quantite)
+	_repos_vigueur = 1.0
+
+## Appelé par un ennemi qui frappe. Renvoie "parade", "bloque" ou "touche".
+func recevoir_coup(degats: float, origine: Vector3) -> String:
+	if mort:
+		return ""
+	var vers := origine - global_position
+	vers.y = 0.0
+	var face := -global_transform.basis.z
+	if mains.bloque and vers.normalized().dot(Vector3(face.x, 0, face.z).normalized()) > 0.3 and vigueur > 0.0:
+		var parade: bool = mains.temps_garde < 0.3
+		depenser(degats * (0.3 if parade else 1.1))
+		vie -= 0.0 if parade else degats * 0.15
+		secousse = maxf(secousse, 0.2 if parade else 0.35)
+		mains.encaisser()
+		Sons.jouer(self, ["impactMetal_heavy_000", "impactMetal_heavy_001", "impactMetal_heavy_002"], -1.0)
+		Effets.eclats(self, mains.pivot_epee.global_position, Color(3.0, 2.2, 0.8), 10, 2.5, true)
+		return "parade" if parade else "bloque"
+	vie -= degats
+	secousse = maxf(secousse, 0.7)
+	_recul = -vers.normalized() * 4.0
+	touche.emit(degats)
+	Sons.jouer(self, ["impactPunch_heavy_000", "impactPunch_heavy_001", "impactPunch_heavy_002"], 0.0)
+	if vie <= 0.0:
+		vie = 0.0
+		mort = true
+		deces.emit()
+	return "touche"
+
+func ressusciter(lieu: Vector3, lacet: float) -> void:
+	position = lieu
+	rotation.y = lacet
+	tete.rotation = Vector3.ZERO
+	velocity = Vector3.ZERO
+	vie = vie_max
+	vigueur = vigueur_max
+	mort = false
+
 func _physics_process(dt: float) -> void:
+	_t += dt
 	if not is_on_floor():
 		velocity.y -= GRAVITE * dt
-	elif Input.is_action_just_pressed("saut"):
+	elif Input.is_action_just_pressed("saut") and not mort and vigueur > 5.0:
 		velocity.y = SAUT
-	var entree := Input.get_vector("gauche", "droite", "avant", "arriere")
+		depenser(6.0)
+	var entree := Vector2.ZERO if mort else Input.get_vector("gauche", "droite", "avant", "arriere")
 	var dir := (transform.basis * Vector3(entree.x, 0.0, entree.y)).normalized()
-	var cible := dir * (COURSE if Input.is_action_pressed("course") else VITESSE)
+	var court: bool = Input.is_action_pressed("course") and vigueur > 0.0 and entree.y < 0.0 and not mains.bloque
+	var vitesse := COURSE if court else VITESSE
+	if mains.bloque:
+		vitesse *= 0.5
+	if court and dir != Vector3.ZERO:
+		vigueur = maxf(0.0, vigueur - COUT_COURSE * dt)
+		_repos_vigueur = 0.6
+	var cible := dir * vitesse + _recul
+	_recul = _recul.lerp(Vector3.ZERO, 1.0 - exp(-8.0 * dt))
 	var reactivite := 1.0 - exp(-(10.0 if is_on_floor() else 2.0) * dt)
 	velocity.x = lerpf(velocity.x, cible.x, reactivite)
 	velocity.z = lerpf(velocity.z, cible.z, reactivite)
@@ -74,9 +150,32 @@ func _physics_process(dt: float) -> void:
 	position.x = clampf(position.x, -LIMITE, LIMITE)
 	position.z = clampf(position.z, -LIMITE, LIMITE)
 
+	# récupération
+	_repos_vigueur -= dt
+	if _repos_vigueur <= 0.0:
+		vigueur = minf(vigueur_max, vigueur + 22.0 * dt)
+	if not mort:
+		vie = minf(vie_max, vie + 0.8 * dt)
+
+	# pas dans la neige
 	var vitesse_sol := Vector2(velocity.x, velocity.z).length()
 	if is_on_floor() and vitesse_sol > 0.3:
 		_pas += dt * vitesse_sol * 2.4
+		var n := floori(_pas / PI)
+		if n != _dernier_pas:
+			_dernier_pas = n
+			Sons.jouer(self, ["footstep_snow_000", "footstep_snow_001", "footstep_snow_002", "footstep_snow_003", "footstep_snow_004"], -12.0 if not court else -8.0, 0.1)
 	var amplitude := clampf(vitesse_sol / COURSE, 0.0, 1.0)
 	var bob := Vector3(cos(_pas) * 0.035, absf(sin(_pas)) * 0.06, 0.0) * amplitude
+	if mort:
+		# on s'effondre
+		bob = Vector3(0, -1.2, 0)
+		tete.rotation.z = lerpf(tete.rotation.z, 1.2, 1.0 - exp(-3.0 * dt))
 	camera.position = camera.position.lerp(bob, 1.0 - exp(-12.0 * dt))
+
+	# secousse de caméra
+	secousse = maxf(0.0, secousse - dt * 1.8)
+	var s := secousse * secousse
+	camera.h_offset = _bruit_secousse.get_noise_2d(_t * 40.0, 0.0) * s * 0.08
+	camera.v_offset = _bruit_secousse.get_noise_2d(0.0, _t * 40.0) * s * 0.08
+	camera.rotation.z = _bruit_secousse.get_noise_2d(_t * 30.0, 50.0) * s * 0.06

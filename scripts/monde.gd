@@ -11,12 +11,12 @@ const RAYON_CLAIRIERE := 9.0
 const CERCLE := Vector3(-38.0, 0.0, -34.0)  # cercle de pierres runiques
 const NB_SAPINS := 1500
 const NB_ROCHERS := 160
-const AFFINE := 0.55  # 1 = PS1 pur, mais les grands triangles proches se tordent trop
 
-const PS1 := preload("res://shaders/ps1.gdshader")
 const CIEL := preload("res://shaders/ciel_nuit.gdshader")
 const POST := preload("res://shaders/ps1_post.gdshader")
 const JOUEUR := preload("res://scripts/joueur.gd")
+const DRAUGR := preload("res://scripts/draugr.gd")
+const HUD := preload("res://scripts/hud.gd")
 
 var bruit := FastNoiseLite.new()
 var bruit_detail := FastNoiseLite.new()
@@ -29,13 +29,15 @@ var tex_neige: ImageTexture
 var tex_roche: ImageTexture
 var tex_aiguilles: ImageTexture
 var tex_ecorce: ImageTexture
-var materiaux: Array[ShaderMaterial] = []
 
 var joueur: CharacterBody3D
 var neige: GPUParticles3D
 var feu_lumiere: OmniLight3D
 var post: ShaderMaterial
 var aide: Label
+var hud: Control
+var sbire: CharacterBody3D
+var depart_joueur := Vector3.ZERO
 var _t := 0.0
 
 var _audio_vent: AudioStreamGeneratorPlayback
@@ -59,10 +61,11 @@ func _ready() -> void:
 		var a := TAU * k / 8.0
 		h_cercle += _hauteur_brute(CERCLE.x + cos(a) * 16.0, CERCLE.z + sin(a) * 16.0) / 8.0
 
-	tex_neige = _texture(32, ["#7f90ad", "#9cadc8", "#b9c6dc", "#d6e0ee"], 4, 1, 0.35)
-	tex_roche = _texture(32, ["#2e323b", "#41464f", "#565c67", "#6d7480"], 4, 2, 0.45)
-	tex_aiguilles = _texture(32, ["#0b1814", "#12261d", "#1b3626", "#274a33"], 8, 3, 0.7)
-	tex_ecorce = _texture(32, ["#22170f", "#311f14", "#43301f", "#56402a"], 4, 4, 0.4)
+	tex_neige = Palette.texture(32, Palette.NEIGE, 4, 1, 0.35, rng)
+	Palette.tex_neige = tex_neige
+	tex_roche = Palette.texture(32, Palette.ROCHE, 4, 2, 0.45, rng)
+	tex_aiguilles = Palette.texture(32, Palette.AIGUILLES, 8, 3, 0.7, rng)
+	tex_ecorce = Palette.texture(32, Palette.ECORCE, 4, 4, 0.4, rng)
 
 	_environnement()
 	_lune()
@@ -74,6 +77,7 @@ func _ready() -> void:
 	_joueur()
 	_neige()
 	_interface()
+	_draugrs()
 	if not _arguments().has("capture"):
 		_audio()
 	_capture()
@@ -92,56 +96,6 @@ func hauteur(x: float, z: float) -> float:
 	h = lerpf(h_centre, h, smoothstep(RAYON_CLAIRIERE, RAYON_CLAIRIERE + 14.0, Vector2(x, z).length()))
 	h = lerpf(h_cercle, h, smoothstep(9.0, 26.0, Vector2(x - CERCLE.x, z - CERCLE.z).length()))
 	return h
-
-# --- textures procédurales en palette (rendu pixel) ----------------------
-
-func _hash(x: int, y: int, g: int) -> float:
-	var h := (x * 73856093) ^ (y * 19349663) ^ (g * 83492791)
-	h = (h ^ (h >> 13)) * 1274126177
-	h = h ^ (h >> 16)
-	return float(h & 0xffff) / 65535.0
-
-func _valeur_periodique(x: float, y: float, p: int, g: int) -> float:
-	var xi := floori(x)
-	var yi := floori(y)
-	var fx := x - xi
-	var fy := y - yi
-	fx = fx * fx * (3.0 - 2.0 * fx)
-	fy = fy * fy * (3.0 - 2.0 * fy)
-	var a := _hash(posmod(xi, p), posmod(yi, p), g)
-	var b := _hash(posmod(xi + 1, p), posmod(yi, p), g)
-	var c := _hash(posmod(xi, p), posmod(yi + 1, p), g)
-	var d := _hash(posmod(xi + 1, p), posmod(yi + 1, p), g)
-	return lerpf(lerpf(a, b, fx), lerpf(c, d, fx), fy)
-
-func _texture(taille: int, palette: Array, periode: int, graine: int, grain: float) -> ImageTexture:
-	var img := Image.create(taille, taille, false, Image.FORMAT_RGBA8)
-	var couleurs: Array[Color] = []
-	for hex in palette:
-		couleurs.append(Color(hex))
-	for y in taille:
-		for x in taille:
-			var v := 0.0
-			var amp := 0.5
-			var per := periode
-			for o in 3:
-				v += _valeur_periodique(float(x) / taille * per, float(y) / taille * per, per, graine * 10 + o) * amp
-				amp *= 0.5
-				per *= 2
-			v = v / 0.875 + (rng.randf() - 0.5) * grain
-			img.set_pixel(x, y, couleurs[clampi(int(v * couleurs.size()), 0, couleurs.size() - 1)])
-	return ImageTexture.create_from_image(img)
-
-func materiau(base: Texture2D, echelle_uv := Vector2.ONE, teinte := Color.WHITE) -> ShaderMaterial:
-	var m := ShaderMaterial.new()
-	m.shader = PS1
-	m.set_shader_parameter("tex_base", base)
-	m.set_shader_parameter("tex_neige", tex_neige)
-	m.set_shader_parameter("uv_echelle", echelle_uv)
-	m.set_shader_parameter("teinte", teinte)
-	m.set_shader_parameter("affine", AFFINE)
-	materiaux.append(m)
-	return m
 
 # --- ambiance ----------------------------------------------------------------
 
@@ -228,7 +182,7 @@ func _terrain() -> void:
 			st.add_index(b); st.add_index(d); st.add_index(c)
 	var mesh := st.commit()
 
-	var m := materiau(tex_roche)
+	var m := Palette.materiau(tex_roche)
 	m.set_shader_parameter("uv_monde", true)
 	m.set_shader_parameter("monde_echelle", 0.22)
 	var mi := MeshInstance3D.new()
@@ -300,7 +254,7 @@ func _sapin() -> ArrayMesh:
 			_tri(neige_st, p0, p1, sommet, Vector2(k * 0.3, 1), Vector2((k + 1) * 0.3, 1), Vector2(k * 0.3, 0))
 
 	var mesh := ArrayMesh.new()
-	for paire in [[tronc, materiau(tex_ecorce)], [feuillage, materiau(tex_aiguilles)], [neige_st, materiau(tex_neige)]]:
+	for paire in [[tronc, Palette.materiau(tex_ecorce)], [feuillage, Palette.materiau(tex_aiguilles)], [neige_st, Palette.materiau(tex_neige)]]:
 		var st: SurfaceTool = paire[0]
 		st.generate_normals()
 		st.commit(mesh)
@@ -385,7 +339,7 @@ func _rocher_mesh(graine: int) -> ArrayMesh:
 	return st.commit()
 
 func _rochers() -> void:
-	var m := materiau(tex_roche)
+	var m := Palette.materiau(tex_roche)
 	var modeles: Array[ArrayMesh] = []
 	for g in 4:
 		var mesh := _rocher_mesh(40 + g)
@@ -441,7 +395,7 @@ func _texture_runes() -> ImageTexture:
 
 func _cercle_runique() -> void:
 	var centre := Vector3(CERCLE.x, h_cercle, CERCLE.z)
-	var m := materiau(tex_roche, Vector2(1, 2))
+	var m := Palette.materiau(tex_roche, Vector2(1, 2))
 	var corps := StaticBody3D.new()
 	add_child(corps)
 	for i in 7:
@@ -504,8 +458,8 @@ func _cercle_runique() -> void:
 
 func _feu_de_camp() -> void:
 	var sol := Vector3(0, h_centre, 0)
-	var m_bois := materiau(tex_ecorce, Vector2(1, 2))
-	var m_pierre := materiau(tex_roche)
+	var m_bois := Palette.materiau(tex_ecorce, Vector2(1, 2))
+	var m_pierre := Palette.materiau(tex_roche)
 	var buche := CylinderMesh.new()
 	buche.top_radius = 0.08
 	buche.bottom_radius = 0.1
@@ -624,6 +578,42 @@ func _joueur() -> void:
 	joueur.position = Vector3(depart.x, hauteur(depart.x, depart.z) + 0.1, depart.z)
 	joueur.rotation.y = lacet
 	joueur.tete.rotation.x = tangage
+	depart_joueur = joueur.position
+	joueur.touche.connect(_joueur_touche)
+	joueur.deces.connect(_joueur_mort)
+
+func _joueur_touche(_degats: float) -> void:
+	var t := create_tween()
+	t.tween_method(func(v: float) -> void: post.set_shader_parameter("degat", v), 0.8, 0.0, 0.6)
+
+func _joueur_mort() -> void:
+	var t := create_tween()
+	t.tween_method(func(v: float) -> void: post.set_shader_parameter("fondu", v), 0.0, 1.0, 2.0)
+	t.tween_interval(1.5)
+	t.tween_callback(func() -> void: joueur.ressusciter(depart_joueur, atan2(depart_joueur.x, depart_joueur.z)))
+	t.tween_method(func(v: float) -> void: post.set_shader_parameter("fondu", v), 1.0, 0.0, 1.5)
+
+# --- draugrs ---------------------------------------------------------------------
+
+func _draugr(type: String, x: float, z: float, dort: bool, lacet := 0.0) -> CharacterBody3D:
+	var d := CharacterBody3D.new()
+	d.set_script(DRAUGR)
+	d.type = type
+	d.dort = dort and not _arguments().has("reveiller")
+	d.joueur = joueur
+	d.position = Vector3(x, hauteur(x, z) + 0.05, z)
+	d.rotation.y = lacet
+	add_child(d)
+	return d
+
+func _draugrs() -> void:
+	# trois gardiens endormis au cercle de pierres, un guerrier debout à l'entrée
+	_draugr("guerrier", CERCLE.x + 2.6, CERCLE.z + 1.2, true, 2.0)
+	_draugr("sbire", CERCLE.x - 2.2, CERCLE.z + 2.6, true, -0.6)
+	_draugr("sbire", CERCLE.x + 0.6, CERCLE.z - 3.0, true, 3.4)
+	_draugr("guerrier", CERCLE.x + 9.0, CERCLE.z + 9.0, false, 0.8)
+	# un rôdeur dans la forêt, entre le feu et le cercle
+	sbire = _draugr("sbire", -16.0, -15.0, false, 0.6)
 
 func _neige() -> void:
 	neige = GPUParticles3D.new()
@@ -674,10 +664,15 @@ func _interface() -> void:
 	rect.material = post
 	calque.add_child(rect)
 	aide = Label.new()
-	aide.text = "ZQSD : marcher   Maj : courir   Espace : sauter\nP : effet PS1   Échap : libérer la souris"
+	aide.text = "ZQSD : marcher   Maj : courir   Espace : sauter\nClic gauche : frapper (maintenir = coup puissant)\nClic droit : garde   T : torche   P : effet PS1   Échap : souris"
 	aide.add_theme_font_size_override("font_size", 8)
 	aide.add_theme_color_override("font_color", Color(0.85, 0.9, 1.0, 0.85))
-	aide.position = Vector2(6, 246)
+	aide.position = Vector2(6, 18)
+	hud = Control.new()
+	hud.set_script(HUD)
+	hud.joueur = joueur
+	hud.lieux = [[Vector3(CERCLE.x, 0, CERCLE.z), Color("#6fd8ff")], [Vector3.ZERO, Color("#e8a64a")]]
+	calque.add_child(hud)
 	calque.add_child(aide)
 	if _arguments().has("capture"):
 		aide.visible = false
@@ -687,9 +682,7 @@ func _interface() -> void:
 func _basculer_ps1() -> void:
 	var actif: bool = not post.get_shader_parameter("actif")
 	post.set_shader_parameter("actif", actif)
-	for m in materiaux:
-		m.set_shader_parameter("grille", 135.0 if actif else 0.0)
-		m.set_shader_parameter("affine", AFFINE if actif else 0.0)
+	Palette.regler_ps1(actif)
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_P:
@@ -700,7 +693,7 @@ func _process(dt: float) -> void:
 	neige.global_position = joueur.global_position + Vector3(0, 10, 0)
 	# le feu vacille : deux sinus désaccordés + un peu de hasard
 	feu_lumiere.light_energy = 3.2 + sin(_t * 11.0) * 0.25 + sin(_t * 23.7) * 0.18 + randf() * 0.25
-	if _t > 10.0 and aide.modulate.a > 0.0:
+	if _t > 14.0 and aide.modulate.a > 0.0:
 		aide.modulate.a = maxf(0.0, aide.modulate.a - dt * 0.5)
 	_remplir_audio()
 
@@ -765,8 +758,27 @@ func _capture() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	for i in (int(_arguments().get("attente", "90"))):
 		await get_tree().process_frame
+	if _arguments().has("test-combat"):
+		await _test_combat()
 	print("FPS : ", Engine.get_frames_per_second())
 	var img := get_viewport().get_texture().get_image()
 	img.resize(img.get_width() * 2, img.get_height() * 2, Image.INTERPOLATE_NEAREST)
 	img.save_png(chemin)
 	get_tree().quit()
+
+## Test automatique : le joueur se place face au rôdeur et enchaîne des coups.
+func _test_combat() -> void:
+	var cible := sbire.global_position + Vector3(0, 0, 2.2).rotated(Vector3.UP, sbire.rotation.y)
+	joueur.global_position = cible
+	joueur.look_at(Vector3(sbire.global_position.x, joueur.global_position.y, sbire.global_position.z))
+	joueur.tete.rotation.x = -0.1
+	for i in 30:
+		await get_tree().physics_frame
+	print("draugr : etat=", sbire.etat, " vie=", sbire.vie)
+	var coups: Array = _arguments().get("test-combat", "lpll").split("")
+	for c in coups:
+		joueur.mains.attaquer(c == "p")
+		await get_tree().create_timer(0.75).timeout
+		print("coup ", c, " -> draugr etat=", sbire.etat, " vie=", sbire.vie, " | joueur vie=", snappedf(joueur.vie, 0.1), " vigueur=", snappedf(joueur.vigueur, 0.1))
+	joueur.mains.attaquer(false)
+	await get_tree().create_timer(0.16).timeout

@@ -13,6 +13,9 @@ uniform bool uv_monde = false;      // terrain : UV tirés de la position monde
 uniform float monde_echelle = 0.25;
 uniform float grille = 135.0;       // lignes de la grille d'accroche (0 = pas de tremblement)
 uniform float affine = 1.0;         // 1 = déformation affine façon PS1
+uniform vec3 emission : source_color = vec3(0.0);
+uniform float saturation = 1.0;    // < 1 : couleurs ternies (morts-vivants…)
+instance uniform float eclair = 0.0; // flash quand l'objet est touché (par instance)
 
 varying vec3 uv_aff;
 
@@ -38,5 +41,8 @@ void fragment() {
 	vec3 base = texture(tex_base, uv).rgb;
 	vec3 neige = texture(tex_neige, uv).rgb;
 	ALBEDO = mix(neige, base, step(0.5, COLOR.a)) * COLOR.rgb * teinte.rgb;
+	ALBEDO = mix(vec3(dot(ALBEDO, vec3(0.3, 0.59, 0.11))), ALBEDO, saturation);
+	ALBEDO = mix(ALBEDO, vec3(1.0, 0.85, 0.8), eclair);
+	EMISSION = emission + vec3(0.6, 0.25, 0.2) * eclair;
 	ROUGHNESS = 1.0;
 }

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="7" viewBox="0 0 80 7" shape-rendering="crispEdges">
+  <!-- contours -->
+  <rect x="1" y="0" width="78" height="1" fill="#0b0f1a"/>
+  <rect x="1" y="6" width="78" height="1" fill="#0b0f1a"/>
+  <rect x="0" y="1" width="1" height="5" fill="#0b0f1a"/>
+  <rect x="79" y="1" width="1" height="5" fill="#0b0f1a"/>
+  <!-- liseres haut (lumiere) et bas (ombre) -->
+  <rect x="1" y="1" width="78" height="1" fill="#8a96ad"/>
+  <rect x="1" y="5" width="78" height="1" fill="#3a4458"/>
+  <!-- embouts en fer -->
+  <rect x="1" y="2" width="2" height="3" fill="#56627a"/>
+  <rect x="77" y="2" width="2" height="3" fill="#56627a"/>
+  <!-- rune / point d'or -->
+  <rect x="1" y="3" width="1" height="1" fill="#e8a64a"/>
+  <rect x="78" y="3" width="1" height="1" fill="#e8a64a"/>
+  <!-- interieur transparent : x=3..76, y=2..4 (74x3) -->
+</svg>
