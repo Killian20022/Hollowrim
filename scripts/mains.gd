@@ -5,6 +5,9 @@ extends Node3D
 ## T : sortir / ranger la torche.
 
 
+const EPEE_NORDIQUE := preload("res://assets/modeles/joueur/epee_nordique.glb")
+const MAINS := preload("res://assets/modeles/joueur/mains.glb")
+
 enum { REPOS, ARMER, CHARGE, FRAPPE, RETOUR, GARDE, ENCAISSE }
 
 const DEGATS_LEGER := 14.0
@@ -41,20 +44,20 @@ var _balance := Vector2.ZERO
 var _respiration := 0.0
 var _pose_figee := ""
 var _baisse := 0.0
+var _acier: ShaderMaterial
+var _mats := {}
 
 var pivot_epee: Node3D
 var pivot_torche: Node3D
 var torche_lumiere: OmniLight3D
 var flamme: GPUParticles3D
-var bras_epee: MeshInstance3D
-var bras_torche: MeshInstance3D
 
 func _ready() -> void:
 	pivot_epee = Node3D.new()
 	add_child(pivot_epee)
-	pivot_epee.add_child(_epee())
+	pivot_epee.add_child(_modele_epee())
 	joueur.inventaire.change.connect(_teinte_epee)
-	bras_epee = _main(pivot_epee, 1.0)
+	_poser_main(pivot_epee, "main_droite")
 	pivot_epee.transform = _pose("repos")
 	_depart = pivot_epee.transform
 
@@ -63,93 +66,85 @@ func _ready() -> void:
 	pivot_torche.rotation_degrees = Vector3(-14, 0, -12)
 	add_child(pivot_torche)
 	_torche()
-	bras_torche = _main(pivot_torche, -1.0)
+	_poser_main(pivot_torche, "main_gauche")
 
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--mains="):
 			_pose_figee = a.substr(8)
 
-## Gant de cuir qui tient l'objet ; l'avant-bras est un cylindre recalé à chaque image
-## entre une épaule hors écran et le poing.
-func _main(pivot: Node3D, cote: float) -> MeshInstance3D:
-	var cuir := Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5))
-	var poing := MeshInstance3D.new()
-	var b := BoxMesh.new()
-	b.size = Vector3(0.075, 0.09, 0.085)
-	poing.mesh = b
-	poing.material_override = cuir
-	pivot.add_child(poing)
-	var bras := MeshInstance3D.new()
-	var c := CylinderMesh.new()
-	c.top_radius = 0.035
-	c.bottom_radius = 0.05
-	c.height = 1.0
-	c.radial_segments = 6
-	c.rings = 1
-	bras.mesh = c
-	bras.material_override = cuir
-	add_child(bras)
-	return bras
+## Lame : acier, gorge centrale plus sombre, tranchants clairs (u = travers, v = longueur).
+func _texture_lame() -> ImageTexture:
+	var base := Palette.tex("acier", Palette.ACIER, 4, 0.3).get_image()
+	var img := Image.create(32, 64, false, Image.FORMAT_RGBA8)
+	for y in 64:
+		for x in 32:
+			var u := (x + 0.5) / 32.0
+			var c := base.get_pixel(x, y % 32)
+			if u < 0.09 or u > 0.91:
+				c = Color("#d6dde8")            # fil du tranchant
+			elif u > 0.36 and u < 0.64:
+				c = c.darkened(0.35)            # gorge
+				if (x + y) % 7 == 0:
+					c = c.lightened(0.15)
+			img.set_pixel(x, y, c)
+	return ImageTexture.create_from_image(img)
 
-func _recaler_bras(bras: MeshInstance3D, epaule: Vector3, poing: Vector3) -> void:
-	var axe := poing - epaule
-	var base := Basis(Quaternion(Vector3.UP, axe.normalized()))
-	bras.transform = Transform3D(base.scaled_local(Vector3(1, axe.length() * 0.92, 1)), epaule + axe * 0.46)
+## Cuir de la poignée : bandes obliques de lanière.
+func _texture_poignee() -> ImageTexture:
+	var img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
+	var cuir := [Color("#24170e"), Color("#352316"), Color("#4a3220")]
+	for y in 32:
+		for x in 32:
+			var bande := (x + y * 2) % 8
+			img.set_pixel(x, y, cuir[0] if bande == 0 else (cuir[2] if bande < 3 else cuir[1]))
+	return ImageTexture.create_from_image(img)
 
-## Épée nordique à une main : lame à section losange, garde droite, poignée de cuir, pommeau.
-func _epee() -> MeshInstance3D:
-	var acier := Palette.materiau(Palette.tex("acier", Palette.ACIER, 4, 0.3), Vector2(1, 4), Color(0.85, 0.9, 1.0))
-	_acier = acier
-	var fer := Palette.materiau(Palette.tex("acier", Palette.ACIER, 4, 0.3), Vector2.ONE, Color(0.55, 0.58, 0.66))
-	var cuir := Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(1, 3))
-	var mesh := ArrayMesh.new()
+## Matériaux PS1 de l'équipement du joueur, par nom de matériau Blender.
+func _materiaux_equipement() -> Dictionary:
+	if not _mats.is_empty():
+		return _mats
+	_acier = Palette.materiau(_texture_lame(), Vector2.ONE, Color(0.9, 0.95, 1.05))
+	_mats = {
+		"lame": _acier,
+		"fer": Palette.materiau(Palette.tex("acier", Palette.ACIER, 4, 0.3), Vector2(2, 2), Color(0.5, 0.52, 0.6)),
+		"cuir": Palette.materiau(_texture_poignee(), Vector2(1, 2)),
+		"gant": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(3, 3), Color(1.05, 0.95, 0.88)),
+		"brassard": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(2, 2), Color(0.7, 0.66, 0.66)),
+		"fourrure": Palette.materiau(Palette.tex("fourrure", Palette.FOURRURE, 8, 0.8), Vector2(3, 1), Color(1.25, 1.15, 1.0)),
+		"manche": Palette.materiau(Palette.tex("laine", ["#1a1d26", "#22262f", "#2b303b", "#353b48"], 4, 0.6), Vector2(2, 3)),
+	}
+	# les fichiers exportés de Blender portent des couleurs de sommet d'alpha nul, que le
+	# shader lirait comme « neige » : la texture de neige devient la texture de base
+	for m: ShaderMaterial in _mats.values():
+		m.set_shader_parameter("tex_neige", m.get_shader_parameter("tex_base"))
+	return _mats
 
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	# section : tranchant gauche, plat avant, tranchant droit, plat arrière
-	var section := [Vector2(-0.026, 0), Vector2(0, 0.007), Vector2(0.026, 0), Vector2(0, -0.007)]
-	var anneaux := [[0.1, 1.0], [0.62, 0.85]]
-	var pointe := Vector3(0, 0.8, 0)
-	for k in 4:
-		var a0: Vector2 = section[k]
-		var a1: Vector2 = section[(k + 1) % 4]
-		var b0 := Vector3(a0.x, anneaux[0][0], a0.y) * Vector3(anneaux[0][1], 1, 1)
-		var b1 := Vector3(a1.x, anneaux[0][0], a1.y) * Vector3(anneaux[0][1], 1, 1)
-		var h0 := Vector3(a0.x * anneaux[1][1], anneaux[1][0], a0.y)
-		var h1 := Vector3(a1.x * anneaux[1][1], anneaux[1][0], a1.y)
-		_tri(st, b1, b0, h0, Vector2(1, 1), Vector2(0, 1), Vector2(0, 0.2))
-		_tri(st, b1, h0, h1, Vector2(1, 1), Vector2(0, 0.2), Vector2(1, 0.2))
-		_tri(st, h1, h0, pointe, Vector2(1, 0.2), Vector2(0, 0.2), Vector2(0.5, 0))
-	st.generate_normals()
-	st.commit(mesh)
-	mesh.surface_set_material(0, acier)
+func _habiller(racine: Node) -> void:
+	var mats := _materiaux_equipement()
+	var mailles: Array = racine.find_children("*", "MeshInstance3D", true, false)
+	if racine is MeshInstance3D:
+		mailles.append(racine)
+	for mi: MeshInstance3D in mailles:
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		for s in mi.mesh.get_surface_count():
+			var m := mi.mesh.surface_get_material(s)
+			var nom := m.resource_name.get_slice(".", 0) if m else ""
+			if mats.has(nom):
+				mi.set_surface_override_material(s, mats[nom])
 
-	var garde := BoxMesh.new()
-	garde.size = Vector3(0.17, 0.028, 0.034)
-	var pommeau := SphereMesh.new()
-	pommeau.radius = 0.024
-	pommeau.height = 0.042
-	pommeau.radial_segments = 6
-	pommeau.rings = 3
-	var poignee := CylinderMesh.new()
-	poignee.top_radius = 0.016
-	poignee.bottom_radius = 0.018
-	poignee.height = 0.13
-	poignee.radial_segments = 6
-	poignee.rings = 1
-	for partie in [[garde, fer, Vector3(0, 0.088, 0)], [pommeau, fer, Vector3(0, -0.05, 0)], [poignee, cuir, Vector3(0, 0.015, 0)]]:
-		var arrays: Array = partie[0].get_mesh_arrays()
-		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		for i in verts.size():
-			verts[i] += partie[2]
-		arrays[Mesh.ARRAY_VERTEX] = verts
-		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		mesh.surface_set_material(mesh.get_surface_count() - 1, partie[1])
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	return mi
+func _modele_epee() -> Node3D:
+	var e: Node3D = EPEE_NORDIQUE.instantiate()
+	_habiller(e)
+	return e
 
-var _acier: ShaderMaterial
+func _poser_main(pivot: Node3D, nom: String) -> void:
+	var toutes: Node3D = MAINS.instantiate()
+	var main := toutes.find_child(nom, true, false) as Node3D
+	main.get_parent().remove_child(main)
+	toutes.free()
+	main.transform = Transform3D()
+	_habiller(main)
+	pivot.add_child(main)
 
 ## L'Épée de Skarnholt, forgée par Brodd : lame claire aux reflets dorés.
 func _teinte_epee() -> void:
@@ -360,8 +355,6 @@ func _process(dt: float) -> void:
 	flamme.emitting = allumee
 	torche_lumiere.visible = allumee
 	torche_lumiere.light_energy = 1.4 + sin(_respiration * 13.0) * 0.12 + sin(_respiration * 29.0) * 0.08 + randf() * 0.12
-	_recaler_bras(bras_epee, Vector3(0.42, -0.85, 0.05), pivot_epee.position)
-	_recaler_bras(bras_torche, Vector3(-0.42, -0.85, 0.05), pivot_torche.position)
 
 func _tester_coup() -> void:
 	var cam := get_parent() as Node3D

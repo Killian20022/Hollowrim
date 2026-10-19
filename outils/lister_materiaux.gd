@@ -7,6 +7,6 @@ func _init() -> void:
 			for s in mi.mesh.get_surface_count():
 				var m := mi.get_active_material(s)
 				var t = m.albedo_texture if m is BaseMaterial3D else null
-				print(chemin.get_file(), " ", mi.name, " surf", s, " ", m.get_class() if m else "aucun", " tex=", t.resource_path if t else "AUCUNE")
+				print(chemin.get_file(), " ", mi.name, " surf", s, " ", m.get_class() if m else "aucun", " nom=", m.resource_name if m else "", " tex=", t.resource_path if t else "AUCUNE")
 		scene.free()
 	quit()
