@@ -33,6 +33,8 @@ var bruit_densite := FastNoiseLite.new()
 var rng := RandomNumberGenerator.new()
 var h_centre := 0.0
 var h_cercle := 0.0
+var h_tumulus := 0.0  # hauteur au pied de la façade du tertre (lot C)
+const TUMULUS_DISQUE := Vector2(-38.0, -54.5)  # centre du disque aplani derrière la façade
 var h_village := 0.0
 var village: Node3D
 var cycle: Node
@@ -91,6 +93,8 @@ func _ready() -> void:
 		h_village += _hauteur_brute(VILLAGE.x + cos(a) * 30.0, VILLAGE.z + sin(a) * 30.0) / 8.0
 		h_cercle += _hauteur_brute(CERCLE.x + cos(a) * 16.0, CERCLE.z + sin(a) * 16.0) / 8.0
 	chemins = Chemins.new(self)
+	if ZoneBiome.actif:
+		h_tumulus = _hauteur_sans_tumulus(TUMULUS.x, TUMULUS.z)
 
 	tex_neige = Palette.pailleter(Palette.texture(64, Palette.NEIGE, 3, 1, 0.12, rng), 0.012)
 	Palette.tex_neige = tex_neige
@@ -148,13 +152,46 @@ func _village() -> void:
 	village.rotation.y = atan2(vers_feu.x, vers_feu.y)
 	add_child(village)
 
-func hauteur(x: float, z: float) -> float:
+## Relief d'avant le biome (identique au bit près) : seule référence hors de la zone témoin.
+func _hauteur_ancienne(x: float, z: float) -> float:
 	var h := _hauteur_brute(x, z)
 	# clairière du feu et clairière du cercle aplanies
 	h = lerpf(h_centre, h, smoothstep(RAYON_CLAIRIERE, RAYON_CLAIRIERE + 14.0, Vector2(x, z).length()))
 	h = lerpf(h_cercle, h, smoothstep(9.0, 26.0, Vector2(x - CERCLE.x, z - CERCLE.z).length()))
 	h = lerpf(h_village, h, smoothstep(25.0, 38.0, Vector2(x - VILLAGE.x, z - VILLAGE.z).length()))
 	return h
+
+## Relief de la zone sans chemin ni tumulus : plateaux du feu et du cercle à bords bruités (lot C).
+func hauteur_sans_chemin(x: float, z: float) -> float:
+	var m := ZoneBiome.masque(x, z)
+	if m <= 0.0 or chemins == null:
+		return _hauteur_ancienne(x, z)
+	var h := _hauteur_brute(x, z)
+	var d_feu := chemins.distance_bruitee(x, z, Vector2(x, z).length(), m)
+	h = lerpf(h_centre, h, smoothstep(RAYON_CLAIRIERE, RAYON_CLAIRIERE + 14.0, d_feu))
+	var d_cercle := chemins.distance_bruitee(x, z, Vector2(x - CERCLE.x, z - CERCLE.z).length(), m)
+	h = lerpf(h_cercle, h, smoothstep(9.0, 26.0, d_cercle))
+	return lerpf(h_village, h, smoothstep(25.0, 38.0, Vector2(x - VILLAGE.x, z - VILLAGE.z).length()))
+
+## Avec chemins (profil lissé sur 4 m + ornière) mais sans l'aplanissement du tumulus.
+func _hauteur_sans_tumulus(x: float, z: float) -> float:
+	var m := ZoneBiome.masque(x, z)
+	var h := hauteur_sans_chemin(x, z)
+	var dist := chemins.distance(x, z)
+	if dist < Chemins.LARGEUR_PROFIL.x:
+		var w := smoothstep(Chemins.LARGEUR_PROFIL.x, Chemins.LARGEUR_PROFIL.y, dist) * m * 0.85
+		h = lerpf(h, chemins.hauteur_axe(x, z), w)
+		h -= Chemins.ORNIERE * smoothstep(1.0, 0.2, dist) * m
+	return h
+
+func hauteur(x: float, z: float) -> float:
+	var m := ZoneBiome.masque(x, z)
+	if m <= 0.0 or chemins == null:
+		return _hauteur_ancienne(x, z)
+	var h := _hauteur_sans_tumulus(x, z)
+	# tumulus : disque plat (r ≤ 8) à la hauteur du pied de la façade, raccord jusqu'à r 14
+	var r := Vector2(x - TUMULUS_DISQUE.x, z - TUMULUS_DISQUE.y).length()
+	return lerpf(h, lerpf(h_tumulus, h, smoothstep(8.0, 14.0, r)), m)
 
 # --- ambiance ----------------------------------------------------------------
 
