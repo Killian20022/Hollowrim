@@ -18,17 +18,27 @@ uniform float saturation = 1.0;
 // grandes variations du sol (congères, zones plus grises) pour casser la répétition
 uniform sampler2D tex_macro : filter_linear, repeat_enable;
 uniform float macro_force = 0.0;    // < 1 : couleurs ternies (morts-vivants…)
+// sol écologique (terrain seulement, lot D) : carte 480² RGBA8, R = matière × 32, G = clarté, B = zone
+uniform bool sol_carte = false;
+uniform sampler2D carte_sol : filter_nearest, repeat_disable;
+uniform vec3 carte_rect = vec3(-120.0, -120.0, 0.0041666667); // x0, z0, 1/taille
+uniform sampler2D tex_terre : source_color, filter_nearest_mipmap, repeat_enable;
+uniform sampler2D tex_mousse : source_color, filter_nearest_mipmap, repeat_enable;
+uniform sampler2D tex_aiguilles_sol : source_color, filter_nearest_mipmap, repeat_enable;
+uniform sampler2D tex_neige_pietinee : source_color, filter_nearest_mipmap, repeat_enable;
 instance uniform float eclair = 0.0; // flash quand l'objet est touché (par instance)
 
 varying vec3 uv_aff;
 varying vec2 uv_macro;
+varying vec2 pos_monde;  // position monde (interpolation normale, non affine)
 
 void vertex() {
 	vec2 uv = UV * uv_echelle;
 	if (uv_monde) {
 		uv = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz * monde_echelle;
 	}
-	uv_macro = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz * 0.03;
+	pos_monde = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;
+	uv_macro = pos_monde * 0.03;
 	vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	// Pas d'accroche dans la passe d'ombre (projection orthographique) : sinon acné.
 	if (grille > 0.0 && PROJECTION_MATRIX[3][3] < 0.5) {
@@ -46,6 +56,28 @@ void fragment() {
 	vec3 base = texture(tex_base, uv).rgb;
 	vec3 neige = texture(tex_neige, uv).rgb;
 	ALBEDO = mix(neige, base, step(0.5, COLOR.a)) * COLOR.rgb * teinte.rgb;
+	if (sol_carte) {
+		// zone témoin : matière lue dans la carte, UV monde non affines (8 texels/m).
+		// Toutes les textures sont lues sans condition (dérivées définies pour les mipmaps).
+		vec4 carte = texture(carte_sol, (pos_monde - carte_rect.xy) * carte_rect.z);
+		vec2 p4 = pos_monde * 0.25;
+		vec3 s_neige = texture(tex_neige, pos_monde * 0.125).rgb;
+		vec3 s_piet = texture(tex_neige_pietinee, p4).rgb;
+		vec3 s_terre = texture(tex_terre, p4).rgb;
+		vec3 s_aig = texture(tex_aiguilles_sol, p4).rgb;
+		vec3 s_mousse = texture(tex_mousse, p4).rgb;
+		vec3 s_roche = texture(tex_base, p4).rgb;
+		if (carte.b > 0.5) {
+			int m = int(carte.r * 255.0 / 32.0 + 0.5);
+			vec3 sol = s_roche;
+			if (m == 0) sol = s_neige;
+			else if (m == 1) sol = s_piet;
+			else if (m == 2) sol = s_terre;
+			else if (m == 3) sol = s_aig;
+			else if (m == 4) sol = s_mousse;
+			ALBEDO = sol * (0.5 + carte.g) * COLOR.rgb * teinte.rgb;
+		}
+	}
 	if (macro_force > 0.0) {
 		float m = texture(tex_macro, uv_macro).r;
 		ALBEDO *= mix(1.0, 0.8 + m * 0.36, macro_force);
