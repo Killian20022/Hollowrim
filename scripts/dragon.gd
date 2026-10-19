@@ -420,7 +420,7 @@ func _son(noms: Array, pos: Vector3, volume := 0.0, hauteur := 1.0) -> void:
 
 func _cri() -> void:
 	_bouche_t = 1.4
-	_son(["giant1", "giant2", "giant3", "mnstr5", "mnstr6"], _pos_bouche(), 8.0, randf_range(0.5, 0.65))
+	_son(["ambiance_rugissement1", "ambiance_rugissement2"], _pos_bouche(), 8.0, randf_range(0.7, 0.85))
 
 func _eclair() -> void:
 	var tw := create_tween()
@@ -691,7 +691,7 @@ func _decoller() -> void:
 	_vitesse = 0.0
 	_balai_cible = 0.0
 	_poudrerie(Vector3(global_position.x, _sol(global_position) + 0.3, global_position.z), 50, 9.0)
-	_son(["giant4", "giant5"], _pos_bouche(), 6.0, 0.55)
+	_son(["ambiance_rugissement1", "ambiance_rugissement2"], _pos_bouche(), 6.0, 0.7)
 	joueur.secousse = maxf(joueur.secousse, 0.4)
 
 func _logique_sol(dt: float, jp: Vector3, vers: Vector3, dist: float) -> void:

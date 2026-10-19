@@ -75,6 +75,7 @@ func _ready() -> void:
 	if type == "guerrier":
 		app["tenue"]["mante"] = Color(0.5, 0.48, 0.45)
 		app["tenue"]["bottes"] = Color(0.6, 0.6, 0.6)
+		app["casque"] = "casque_draugr"
 	app.merge(apparence, true)
 	modele = Humain.creer(app)
 	modele.scale = Vector3.ONE * echelle

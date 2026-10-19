@@ -94,7 +94,7 @@ const APPARENCES := {
 	"volva": {"corps": "femme", "tenue": {"tunique": Color(0.48, 0.38, 0.6), "mante": Color(0.45, 0.45, 0.5), "pantalon": Color(0.5, 0.45, 0.5), "bottes": C, "ceinture": C},
 		"cheveux": "Hair_Long", "teinte_cheveux": Color(1.15, 1.15, 1.2), "peau": Color(0.9, 0.85, 0.85)},
 	"garde": {"corps": "homme", "tenue": {"tunique": Color(0.72, 0.3, 0.26), "mante": C, "brassards": C, "gants": C, "pantalon": Color(0.65, 0.6, 0.55), "bottes": C, "ceinture": C},
-		"cheveux": "Hair_SimpleParted", "barbe": true, "teinte_cheveux": Color(0.55, 0.38, 0.22)},
+		"cheveux": "Hair_SimpleParted", "barbe": true, "teinte_cheveux": Color(0.55, 0.38, 0.22), "casque": "casque_nasal", "bouclier": true},
 	"ancienne": {"corps": "femme", "tenue": {"tunique": Color(0.58, 0.52, 0.46), "mante": Color(0.85, 0.8, 0.75), "pantalon": Color(0.55, 0.5, 0.45), "bottes": C, "ceinture": C},
 		"cheveux": "Hair_Buns", "teinte_cheveux": Color(1.1, 1.1, 1.1), "peau": Color(0.92, 0.84, 0.8)},
 }

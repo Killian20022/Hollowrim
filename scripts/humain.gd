@@ -75,12 +75,59 @@ static func creer(options: Dictionary) -> Node3D:
 		_greffer(squelette, options["cheveux"], options.get("teinte_cheveux", Color(0.5, 0.35, 0.2)))
 	if options.get("barbe", false):
 		_greffer(squelette, "Hair_Beard", options.get("teinte_cheveux", Color(0.5, 0.35, 0.2)))
+	if options.has("casque"):
+		_accrocher(squelette, "Head", "res://assets/modeles/equipement/%s.glb" % options["casque"], Transform3D(Basis(), _origine_tete(squelette)), draugr)
+		# les cheveux passeraient à travers le casque (la barbe reste)
+		var coupe: Node = squelette.get_node_or_null(String(options.get("cheveux", "")))
+		if coupe and options["casque"] != "couronne_givre":
+			coupe.visible = false
+	if options.get("bouclier", false):
+		# bouclier porté dans le dos, face peinte vers l'arrière
+		var dos := Transform3D(Basis(Vector3.UP, PI), Vector3(0.0, 1.3, -0.2))
+		_accrocher(squelette, "spine_03", "res://assets/modeles/equipement/bouclier_rond.glb", dos, draugr)
 	var ap := AnimationPlayer.new()
 	ap.name = "Animations"
 	racine.add_child(ap)
 	ap.root_node = NodePath("..")
 	ap.add_animation_library("", bibliotheque())
 	return racine
+
+const MATIERES := {
+	"fer": [["#3a4458", "#56627a", "#8a96ad", "#b9c3d6"], Color(0.75, 0.78, 0.85)],
+	"fer_sombre": [["#22262e", "#2e333d", "#3c424e", "#4b525f"], Color(1, 1, 1)],
+	"mailles": [["#2e333d", "#4b525f", "#6a7282", "#2e333d"], Color(0.9, 0.9, 0.95)],
+	"gemme": [["#1f3a7a", "#2f5fb8", "#6f9be8", "#b8d8ff"], Color(1.2, 1.3, 1.5)],
+	"bois": [["#2a1d14", "#3a2a1d", "#4b3826", "#5c4630"], Color(1, 1, 1)],
+	"peinture": [["#5a1a14", "#7a241c", "#8e3024", "#a03a2c"], Color(1, 1, 1)],
+}
+
+## Origine des casques : la tête de l'os Head au repos (repère du modèle).
+static func _origine_tete(squelette: Skeleton3D) -> Vector3:
+	return squelette.get_bone_global_rest(squelette.find_bone("Head")).origin
+
+## Accroche une pièce (exprimée dans le repère du modèle, autour de `repere`) à un os,
+## en annulant l'orientation de repos de l'os.
+static func _accrocher(squelette: Skeleton3D, os: String, chemin: String, repere: Transform3D, draugr: bool) -> void:
+	var accroche := BoneAttachment3D.new()
+	accroche.bone_name = os
+	squelette.add_child(accroche)
+	var piece: Node3D = load(chemin).instantiate()
+	piece.transform = squelette.get_bone_global_rest(squelette.find_bone(os)).affine_inverse() * repere
+	accroche.add_child(piece)
+	for mi: MeshInstance3D in piece.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var m := mi.mesh.surface_get_material(i)
+			var nom := m.resource_name.get_slice(".", 0) if m else "fer"
+			var def: Array = MATIERES.get(nom, MATIERES["fer"])
+			var tex := Palette.tex("matiere_" + nom, def[0], 4, 0.4)
+			var mat := Palette.materiau(tex, Vector2(2, 2), def[1])
+			mat.set_shader_parameter("tex_neige", tex)
+			if nom == "gemme":
+				mat.set_shader_parameter("emission", Color(0.2, 0.45, 0.9))
+			if draugr and nom != "gemme":
+				mat.set_shader_parameter("saturation", 0.3)
+				mat.set_shader_parameter("teinte", def[1] * Color(0.75, 0.68, 0.6))
+			mi.set_surface_override_material(i, mat)
 
 ## Les maillages exportés de Blender ont une couleur de sommet d'alpha nul (lue comme
 ## « neige » par le shader) : la texture de neige devient la texture de base.

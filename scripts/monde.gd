@@ -106,6 +106,8 @@ func _ready() -> void:
 	_draugrs()
 	_villageois()
 	_tertre()
+	if not _arguments().has("capture"):
+		_musique()
 	if not _arguments().has("capture") and not _arguments().has("nouvelle"):
 		charger()
 	if not _arguments().has("capture"):
@@ -982,6 +984,12 @@ func _process(dt: float) -> void:
 	if _minuterie_sauvegarde > 120.0 and not _arguments().has("capture"):
 		_minuterie_sauvegarde = 0.0
 		sauvegarder()
+
+func _musique() -> void:
+	var m := Node.new()
+	m.set_script(preload("res://scripts/musique.gd"))
+	m.monde = self
+	add_child(m)
 
 # --- son : vent et crépitement générés en direct -------------------------------
 
