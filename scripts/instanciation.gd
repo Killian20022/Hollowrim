@@ -14,6 +14,10 @@ const CELLULE := 20.0
 ##   "marge"        float, 10 par défaut : hystérésis de la portée (pas de fondu).
 ##   "ombre_proche" float, 0 = ombres sur toute la portée : si > 0, l'affichage lointain est sans
 ##                  ombre et un second MMI « ombre seule » ne couvre que cette distance (méta "lod").
+##   "principal"    bool, vrai par défaut : faux = seulement les MMI d'ombre et de LOD (lot 2 : les variantes
+##                  d'un même arbre partagent leur ombre et leur LOD, un seul MMI de chaque par cellule).
+##   "ombre_mesh"   Mesh du MMI « ombre seule » (défaut : le mesh affiché) : silhouette d'ombre moins
+##                  coûteuse (lot 2 : les cartes de rameaux en alpha coûtent cher dans la passe d'ombre).
 ##   "lod_mesh"     Mesh simplifié affiché de "lod_debut" (85 m) à "lod_portee" (250 m), sans ombre :
 ##                  garde l'horizon boisé quand le mesh complet est coupé à "portee" (méta "lod").
 static func repartir(parent: Node, mesh: Mesh, transforms: Array, reglages := {}) -> Array:
@@ -35,14 +39,15 @@ static func repartir(parent: Node, mesh: Mesh, transforms: Array, reglages := {}
 		# nœud au centre de la cellule, transforms exprimés en local
 		var centre := Vector3((cle.x + 0.5) * CELLULE, 0.0, (cle.y + 0.5) * CELLULE)
 		var separe := ombre and portee > 0.0 and ombre_proche > 0.0
-		var principal := _creer(mesh, liste, centre)
-		if not ombre or separe:
-			principal.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_portee(principal, portee, marge)
-		parent.add_child(principal)
-		resultat.append(principal)
+		if reglages.get("principal", true):
+			var principal := _creer(mesh, liste, centre)
+			if not ombre or separe:
+				principal.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			_portee(principal, portee, marge)
+			parent.add_child(principal)
+			resultat.append(principal)
 		if separe:
-			var ombres := _creer(mesh, liste, centre)
+			var ombres := _creer(reglages.get("ombre_mesh", mesh), liste, centre)
 			ombres.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 			ombres.set_meta("lod", "ombre")
 			_portee(ombres, minf(ombre_proche, portee), marge)

@@ -1,6 +1,7 @@
 extends SceneTree
 ## Planches de comparaison AVANT | APRÈS (côte à côte, bandeau de texte en police bitmap 5x7).
-##   godot --headless --path . --script outils/planche.gd -- [dossier] [poses_recap]
+##   godot --headless --path . --script outils/planche.gd -- [dossier] [poses_recap] [apres] [poses]
+## (lot 2 : [poses] = liste séparée par des virgules, défaut POSES ; ex. A2,A10,A30,A90)
 ## Lit <dossier>/avant_<pose>_<jour|nuit>.png et apres_… ; écrit <dossier>/planche_<pose>.png (jour au-dessus,
 ## nuit en dessous) et planche_recap_jour.png / planche_recap_nuit.png (poses_recap séparées par des virgules,
 ## 2 paires par ligne, images réduites de moitié). Largeur ≤ 1920 px.
@@ -22,6 +23,8 @@ const GLYPHES := {
 	"3": [30, 1, 1, 14, 1, 1, 30], "4": [2, 6, 10, 18, 31, 2, 2], "5": [31, 16, 30, 1, 1, 17, 14],
 	"6": [6, 8, 16, 30, 17, 17, 14], "7": [31, 1, 2, 4, 8, 8, 8], "8": [14, 17, 17, 14, 17, 17, 14],
 	"9": [14, 17, 17, 15, 1, 2, 12], "-": [0, 0, 0, 31, 0, 0, 0], " ": [0, 0, 0, 0, 0, 0, 0],
+	"D": [30, 17, 17, 17, 17, 17, 30], "G": [14, 17, 16, 23, 17, 17, 15], "L": [16, 16, 16, 16, 16, 16, 31],
+	"M": [17, 27, 21, 21, 17, 17, 17], "H": [17, 17, 17, 31, 17, 17, 17], "F": [31, 16, 16, 30, 16, 16, 16],
 }
 
 func _init() -> void:
@@ -30,7 +33,8 @@ func _init() -> void:
 	apres = args[2] if args.size() > 2 else "apres"  # ex. apres2 → planche2_*.png
 	sortie = "planche2" if apres == "apres2" else "planche"
 	var recap: PackedStringArray = (args[1] if args.size() > 1 else "P2,P4,P5,P6,Q1,Q2").split(",")
-	for p in POSES:
+	var poses: Array = Array(POSES) if args.size() <= 3 else Array(args[3].split(","))
+	for p in poses:
 		var jour := _paire(dossier, p, "jour", 1.0)
 		var nuit := _paire(dossier, p, "nuit", 1.0)
 		if jour == null or nuit == null:

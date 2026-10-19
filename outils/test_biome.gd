@@ -6,6 +6,8 @@ extends SceneTree
 ##   godot --headless --path . --script outils/test_biome.gd -- ecrire <fichier>
 ##   godot --headless --path . --script outils/test_biome.gd -- comparer <fichier> [--sans-zone] [--biome=ancien]
 ## --sans-zone : ignore tout ce qui touche la zone témoin (x ∈ [-58, 4], z ∈ [-64, 4] + fondu de 8 m).
+## --sans-cles : compare l'ensemble de toutes les transforms de MultiMesh, tous meshes confondus (lot 2 : les
+##   modèles d'arbres changent, donc leur clé — boîte, sommets — aussi ; le placement doit rester identique).
 const SCENE := preload("res://scenes/foret_test.tscn")
 const PAS := 2.0
 const DEMI := 120.0
@@ -106,6 +108,16 @@ func _filtrer(sig: Dictionary) -> Dictionary:
 			p2.append(p)
 	return {"hauteurs": h2, "multimesh": mm2, "pierres": p2}
 
+## Toutes les transforms dans un seul groupe trié (placement indépendant des modèles).
+func _fusionner(sig: Dictionary) -> Dictionary:
+	var tout: Array = []
+	for cle in sig["multimesh"]:
+		tout.append_array(sig["multimesh"][cle])
+	tout.sort_custom(_tri_transforms)
+	var r := sig.duplicate()
+	r["multimesh"] = {"tout": tout}
+	return r
+
 func _tester() -> void:
 	var args := OS.get_cmdline_user_args()
 	var mode := args[0] if args.size() > 0 else ""
@@ -141,6 +153,9 @@ func _tester() -> void:
 	if args.has("--sans-zone"):
 		a = _filtrer(sig)
 		b = _filtrer(ref)
+	if args.has("--sans-cles"):
+		a = _fusionner(a)
+		b = _fusionner(b)
 	var erreurs := 0
 	if a["hauteurs"] != b["hauteurs"]:
 		erreurs += 1

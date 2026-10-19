@@ -84,18 +84,30 @@ static func instancier(monde: Node, foret: Dictionary, buissons: Array) -> Array
 		Palette.materiau(Arbres.texture_aiguilles(3), Vector2(1, 1), Color(1.25, 1.3, 1.25)),
 		Palette.materiau(Arbres.texture_neige_branches(9), Vector2(1, 1)),
 	]
-	var mats_mort := [Palette.materiau(monde.tex_roche, Vector2(1, 2), Color(0.95, 0.92, 0.88)), null, mats[2]]
 	# trois formes d'épicéa et des arbres morts, chacun dans son MultiMesh
-	var modeles: Array[Mesh] = [Arbres.epicea(0, 11, mats), Arbres.epicea(1, 12, mats), Arbres.epicea(2, 13, mats), Arbres.arbre_mort(14, mats_mort)]
+	# lot 2 : épicéas en cartes de rameaux pixel art (tronc + rameaux, matériaux partagés)
+	var t0 := Time.get_ticks_usec()
+	var mats_ep := Arbres.materiaux_epicea()
+	var mort := Arbres.arbre_mort(14)
+	var pin := Arbres.pin(31, Arbres.materiaux_essence("pin"))
+	var bouleau := Arbres.bouleau(41, Arbres.materiaux_essence("bouleau"))
+	# formes : 0-2 épicéas, 3 arbre mort, 4 pin sylvestre, 5 bouleau (4 et 5 : zone témoin seulement)
+	var modeles: Array[Mesh] = [Arbres.epicea(0, 11, mats_ep), Arbres.epicea(1, 12, mats_ep), Arbres.epicea(2, 13, mats_ep), mort, pin, bouleau]
 	# silhouettes simplifiées pour la vue lointaine (au-delà de la portée du mesh complet)
-	var lointains: Array[Mesh] = [Arbres.epicea_lointain(0, 11, mats), Arbres.epicea_lointain(1, 12, mats), Arbres.epicea_lointain(2, 13, mats), modeles[3]]
+	var lointains: Array[Mesh] = [Arbres.epicea_lointain(0, 11, mats_ep), Arbres.epicea_lointain(1, 12, mats_ep), Arbres.epicea_lointain(2, 13, mats_ep), mort, pin, bouleau]
+	# lot 2 : silhouettes d'ombre opaques des épicéas (les cartes en alpha coûtent cher en passe d'ombre)
+	var ombres: Array[Mesh] = [Arbres.epicea_ombre(0, 11, mats_ep[0]), Arbres.epicea_ombre(1, 12, mats_ep[0]), Arbres.epicea_ombre(2, 13, mats_ep[0]), mort, pin, bouleau]
+	var variantes: Array[Mesh] = [Arbres.epicea(0, 111, mats_ep), Arbres.epicea(1, 112, mats_ep)]
+	print("Lot 2 : textures et modèles d'arbres en %d ms" % ((Time.get_ticks_usec() - t0) / 1000))
 	var lots: Array = foret["lots"]
 	var corps := StaticBody3D.new()
 	var cylindre := CylinderShape3D.new()
 	cylindre.radius = 0.35
 	cylindre.height = 4.0
 	var arbres: Array = []
-	for i in 4:
+	for i in lots.size():
+		if lots[i].is_empty():
+			continue
 		for t: Transform3D in lots[i]:
 			arbres.append(t)
 			var forme_col := CollisionShape3D.new()
@@ -111,7 +123,22 @@ static func instancier(monde: Node, foret: Dictionary, buissons: Array) -> Array
 				forme_col.shape = cylindre
 				forme_col.position = t.origin + Vector3(0, 2, 0)
 			corps.add_child(forme_col)
-		Instanciation.repartir(monde, modeles[i], lots[i], {"portee": 90.0, "marge": 10.0, "ombre_proche": 50.0, "lod_mesh": lointains[i]})
+		var reglages := {"portee": 90.0, "marge": 10.0, "ombre_proche": 50.0, "lod_mesh": lointains[i], "ombre_mesh": ombres[i]}
+		if i <= 1:
+			# lot 2 : deux graines pour les épicéas courants (formes 0 et 1), choisies par hachage de
+			# position (aucun tirage RNG) : deux arbres voisins n'ont pas les mêmes branches
+			var lot_a: Array = []
+			var lot_b: Array = []
+			for t: Transform3D in lots[i]:
+				(lot_b if ZoneBiome.alea_pos(t.origin.x, t.origin.z, 11) < 0.5 else lot_a).append(t)
+			# ombre et LOD communs aux deux graines (un MMI de chaque par cellule), affichage proche par graine
+			var commun := reglages.duplicate()
+			commun["principal"] = false
+			Instanciation.repartir(monde, modeles[i], lots[i], commun)
+			Instanciation.repartir(monde, modeles[i], lot_a, {"portee": 90.0, "marge": 10.0, "ombre": false})
+			Instanciation.repartir(monde, variantes[i], lot_b, {"portee": 90.0, "marge": 10.0, "ombre": false})
+		else:
+			Instanciation.repartir(monde, modeles[i], lots[i], reglages)
 	monde.add_child(corps)
 	Instanciation.repartir(monde, Arbres.buisson(21, mats), buissons, {"ombre": false, "portee": 60.0, "marge": 10.0})
 	return arbres
@@ -139,6 +166,10 @@ const MARGE_CHEMIN_ARBRE := 2.5
 const ESSAIS_ZONE := 20000        # plafond d'essais (on s'arrête dès que la cible est atteinte)
 const JEUNES_MIN := 25
 const JEUNES_MAX := 35
+const PIN_BUTTE := 0.3            # lot 2 : h − h_moy_r12 au-dessus duquel un arbre peut être un pin
+const PIN_PART := 0.75            # part de pins sur ces buttes (hachage de position)
+const BOULEAU_CREUX := -0.4       # h − h_moy_r12 en dessous duquel un arbre peut être un bouleau
+const BOULEAU_PART := 0.4
 
 static func nouveau_bruit_amas() -> FastNoiseLite:
 	var b := FastNoiseLite.new()
@@ -230,7 +261,7 @@ static func _transform_arbre(monde: Node, rng: RandomNumberGenerator, x: float, 
 
 static func _remanier_zone(monde: Node, lots: Array) -> Array:
 	var chemins = monde.chemins
-	var nv: Array = [[], [], [], []]
+	var nv: Array = [[], [], [], [], [], []]
 	var infos: Array = []
 	var grille := {}
 	var avant := 0
@@ -315,10 +346,19 @@ static func _remanier_zone(monde: Node, lots: Array) -> Array:
 				forme = 0 if rng.randf() < 0.5 else 1
 			s = rng.randf_range(0.75, 1.3)
 			sy = rng.randf_range(0.9, 1.2)
+			# lot 2 : essences secondaires, choisies par hachage de position (aucun tirage RNG en plus) :
+			# pin sylvestre sur les buttes sèches, bouleau dans les creux humides
+			var ess := ZoneBiome.alea_pos(x, z, 7)
+			if forme != 3 and h - hm > PIN_BUTTE and ess < PIN_PART:
+				forme = 4
+			elif forme != 3 and h - hm < BOULEAU_CREUX and ess < BOULEAU_PART:
+				forme = 5
 		var t := _transform_arbre(monde, rng, x, z, s, sy)
 		nv[forme].append(t)
 		infos.append({"pos": t.origin, "s": s, "forme": forme, "nouveau": true, "lisiere": c["lisiere"]})
 	monde.set_meta("arbres_zone", infos)
 	monde.set_meta("arbres_zone_avant", avant)  # nombre d'arbres anciens dans la zone (référence des tests)
+	var nb_ess := [nv[4].size(), nv[5].size()]
+	print("Lot 2 : %d pins, %d bouleaux dans la zone" % nb_ess)
 	print("Biome lot E : zone %d arbres avant, %d anciens gardés + %d nouveaux (dont %d jeunes), %d essais" % [avant, gardes, crees.size(), jeunes.size(), essais])
 	return nv
