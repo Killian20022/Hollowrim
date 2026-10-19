@@ -8,8 +8,18 @@ const Z0 := -64.0
 const Z1 := 4.0
 const FONDU := 8.0  # largeur de la bande de transition, à l'intérieur de la zone (m)
 
-## Disques réservés (composition) : [centre Vector2, rayon]. Vide pour l'instant.
-const OCCUPATIONS := []
+## Disques réservés (composition, lot F) : [centre Vector2, rayon]. Évités par les rochers (lot B)
+## et la végétation (lot E). Positions fixes (polaires autour du cercle (-38,-34), calculées une fois) :
+## 2 menhirs couchés (r 11, 2,6 rad ; r 11,4, 4,2 rad), 3 arbres morts (r 11,5 / 12,2 / 11 ; 1,8 / 3,3 / 5,9 rad),
+## 6 rochers bas, puis abords du tumulus (borne runique, 2 arbres morts des flancs).
+## À garder en phase avec `CercleRunique.ELEMENTS` et `AbordsTumulus`.
+const OCCUPATIONS := [
+	[Vector2(-47.43, -28.33), 2.6], [Vector2(-43.59, -43.94), 3.2],
+	[Vector2(-40.61, -22.80), 1.6], [Vector2(-50.05, -35.92), 1.6], [Vector2(-27.80, -38.11), 1.6],
+	[Vector2(-35.70, -25.71), 1.0], [Vector2(-43.53, -26.40), 1.0], [Vector2(-48.29, -31.46), 1.0],
+	[Vector2(-44.80, -39.26), 1.0], [Vector2(-28.26, -33.02), 1.0], [Vector2(-30.21, -37.14), 1.0],
+	[Vector2(-32.20, -42.60), 1.5], [Vector2(-45.50, -58.50), 1.8], [Vector2(-30.50, -58.50), 1.8],
+]
 
 ## Posé par monde._ready() (--biome=ancien|nouveau) avant toute génération.
 static var actif := false

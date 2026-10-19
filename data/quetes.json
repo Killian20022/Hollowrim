@@ -14,8 +14,8 @@
         {
           "id": "tertre",
           "declencheur": "lieu:tertre",
-          "objectif": "Descendre l’escalier sous la stèle",
-          "journal": "Sous la stèle du cercle, j’ai trouvé un escalier de pierre qui s’enfonce dans le tertre. L’air en sort, glacé. Quelqu’un est passé par là avant moi."
+          "objectif": "Descendre l’escalier du tertre",
+          "journal": "Au nord du cercle, j’ai trouvé un escalier de pierre qui s’enfonce dans le tertre. L’air en sort, glacé. Quelqu’un est passé par là avant moi."
         },
         {
           "id": "eirik",
@@ -105,7 +105,7 @@
         "Je te paierai. Je préfère payer que pleurer."
       ],
       "anneau_givre:pendant": [
-        "Le cercle est au nord-ouest. Cherche un escalier sous la stèle.",
+        "Le cercle est au nord-ouest. Cherche un escalier dans le tertre, juste au nord des pierres.",
         "Tu es encore là ? Les morts n’attendent pas.",
         "Reviens entier. Je déteste les enterrements."
       ],
