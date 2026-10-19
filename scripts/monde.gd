@@ -4,6 +4,7 @@ extends Node3D
 ##
 ## Capture d'écran sans jouer (pour les tests) :
 ##   godot --path . -- --capture=C:/chemin/image.png [--pose=x,z,lacet,tangage] [--sans-ps1]
+##   [--heure=12] [--sans-particules] [--paisible] [--biome=ancien|nouveau]
 
 const TAILLE := 240.0           # côté du terrain (m)
 const CASES := 120              # cases par côté
@@ -11,8 +12,6 @@ const MORCEAU := 30             # cases par morceau de terrain (4x4 morceaux)
 const RAYON_CLAIRIERE := 9.0
 const CERCLE := Vector3(-38.0, 0.0, -34.0)  # cercle de pierres runiques
 const VILLAGE := Vector3(44.0, 0.0, 40.0)   # Skarnholt
-const NB_SAPINS := 1500
-const NB_ROCHERS := 160
 
 const CIEL := preload("res://shaders/ciel_nuit.gdshader")
 const POST := preload("res://shaders/ps1_post.gdshader")
@@ -41,6 +40,9 @@ var calque: CanvasLayer
 var dialogue: Control
 var quetes: Node
 var tertre: Node3D
+var chemins: Chemins
+var arbres: Array = []  # transforms de tous les arbres (pour Sol)
+var mat_terrain: ShaderMaterial
 var dragon: CharacterBody3D = null
 var dragon_vaincu := false
 var _env: Environment
@@ -72,6 +74,9 @@ var _crepite := 0.0
 var _t_audio := 0.0
 
 func _ready() -> void:
+	# variante du biome, lue AVANT toute génération (--biome=… ou set_meta("biome", …))
+	var biome: String = str(get_meta("biome")) if has_meta("biome") else str(_arguments().get("biome", "nouveau"))
+	ZoneBiome.actif = (biome == "nouveau")
 	rng.seed = 1234
 	bruit.seed = 7
 	bruit.frequency = 0.009
@@ -85,6 +90,7 @@ func _ready() -> void:
 		var a := TAU * k / 8.0
 		h_village += _hauteur_brute(VILLAGE.x + cos(a) * 30.0, VILLAGE.z + sin(a) * 30.0) / 8.0
 		h_cercle += _hauteur_brute(CERCLE.x + cos(a) * 16.0, CERCLE.z + sin(a) * 16.0) / 8.0
+	chemins = Chemins.new(self)
 
 	tex_neige = Palette.pailleter(Palette.texture(64, Palette.NEIGE, 3, 1, 0.12, rng), 0.012)
 	Palette.tex_neige = tex_neige
@@ -95,9 +101,10 @@ func _ready() -> void:
 	_environnement()
 	_lune()
 	_terrain()
-	_foret()
-	_rochers()
-	_cercle_runique()
+	arbres = Vegetation.creer(self)
+	Rochers.creer(self)
+	CercleRunique.creer(self)
+	Sol.appliquer(mat_terrain, self, arbres)
 	_village()
 	_feu_de_camp()
 	_joueur()
@@ -112,6 +119,9 @@ func _ready() -> void:
 		charger()
 	if not _arguments().has("capture"):
 		_audio()
+	_cacher_particules()
+	_cacher_particules()
+	_rendre_paisible()
 	_capture()
 
 # --- relief ---------------------------------------------------------------
@@ -201,10 +211,12 @@ func _lune() -> void:
 	var h: String = _arguments().get("heure", "")
 	if h != "":
 		cycle.heure = float(h)
-	# en capture sans heure imposée, le temps reste figé (images comparables)
-	if _arguments().has("capture") and h == "":
-		cycle.process_mode = Node.PROCESS_MODE_DISABLED
 	add_child(cycle)
+	# en capture, le temps reste figé (images comparables), même avec une heure imposée
+	if _arguments().has("capture"):
+		cycle.process_mode = Node.PROCESS_MODE_DISABLED
+		if h != "":
+			cycle._process(0.0)  # applique l'éclairage de l'heure demandée une fois
 
 # --- terrain -----------------------------------------------------------------
 
@@ -223,6 +235,7 @@ func _terrain() -> void:
 	m.set_shader_parameter("monde_echelle", 0.11)
 	m.set_shader_parameter("tex_macro", Palette.texture_macro())
 	m.set_shader_parameter("macro_force", 1.0)
+	mat_terrain = m
 	# terrain découpé en morceaux : chacun reçoit ses propres lumières (8 max par objet
 	# avec le rendu Mobile) et les morceaux hors champ ne sont pas dessinés
 	var corps := StaticBody3D.new()
@@ -266,305 +279,6 @@ func _terrain() -> void:
 			var forme := CollisionShape3D.new()
 			forme.shape = mesh.create_trimesh_shape()
 			corps.add_child(forme)
-
-# --- sapins ------------------------------------------------------------------
-
-func _cone(st: SurfaceTool, y0: float, y1: float, r: float, cotes: int, rot: float, sous := true) -> void:
-	var sommet := Vector3(0.0, y1, 0.0)
-	var centre := Vector3(0.0, y0, 0.0)
-	for k in cotes:
-		var a0 := rot + TAU * k / cotes
-		var a1 := rot + TAU * (k + 1) / cotes
-		var p0 := Vector3(cos(a0) * r, y0, sin(a0) * r)
-		var p1 := Vector3(cos(a1) * r, y0, sin(a1) * r)
-		_tri(st, p0, p1, sommet, Vector2(float(k) / cotes * 2.0, 1.0), Vector2(float(k + 1) / cotes * 2.0, 1.0), Vector2(float(k + 0.5) / cotes * 2.0, 0.0))
-		if sous:
-			_tri(st, p1, p0, centre, Vector2(0, 0), Vector2(1, 0), Vector2(0.5, 0.5))
-
-func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, ua: Vector2, ub: Vector2, uc: Vector2) -> void:
-	st.set_uv(ua); st.add_vertex(a)
-	st.set_uv(ub); st.add_vertex(b)
-	st.set_uv(uc); st.add_vertex(c)
-
-func _sapin() -> ArrayMesh:
-	var tronc := SurfaceTool.new()
-	tronc.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for k in 5:
-		var a0 := TAU * k / 5.0
-		var a1 := TAU * (k + 1) / 5.0
-		var p0 := Vector3(cos(a0) * 0.2, -0.5, sin(a0) * 0.2)
-		var p1 := Vector3(cos(a1) * 0.2, -0.5, sin(a1) * 0.2)
-		var h0 := Vector3(cos(a0) * 0.12, 2.2, sin(a0) * 0.12)
-		var h1 := Vector3(cos(a1) * 0.12, 2.2, sin(a1) * 0.12)
-		_tri(tronc, p0, p1, h1, Vector2(k, 3), Vector2(k + 1, 3), Vector2(k + 1, 0))
-		_tri(tronc, p0, h1, h0, Vector2(k, 3), Vector2(k + 1, 0), Vector2(k, 0))
-
-	var feuillage := SurfaceTool.new()
-	feuillage.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var neige_st := SurfaceTool.new()
-	neige_st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var etages := 5
-	for e in etages:
-		var y0 := 1.1 + e * 1.25
-		var y1 := y0 + 2.6 - e * 0.25
-		var r := 2.1 - e * 0.38
-		var rot := e * 0.7
-		_cone(feuillage, y0, y1, r, 7, rot)
-		# calotte de neige : couvre le haut de l'étage, bord irrégulier qui « coule »
-		var ys := y1 - (y1 - y0) * 0.5
-		var rs := r * 0.5 + 0.07
-		var sommet := Vector3(0.0, y1 + 0.04, 0.0)
-		var n := 14
-		for k in n:
-			var a0 := rot + TAU * k / n
-			var a1 := rot + TAU * (k + 1) / n
-			var d0 := 0.22 if k % 2 == 1 else 0.0
-			var d1 := 0.22 if (k + 1) % 2 == 1 else 0.0
-			var p0 := Vector3(cos(a0) * (rs + d0 * 0.45), ys - d0, sin(a0) * (rs + d0 * 0.45))
-			var p1 := Vector3(cos(a1) * (rs + d1 * 0.45), ys - d1, sin(a1) * (rs + d1 * 0.45))
-			_tri(neige_st, p0, p1, sommet, Vector2(k * 0.3, 1), Vector2((k + 1) * 0.3, 1), Vector2(k * 0.3, 0))
-
-	var mesh := ArrayMesh.new()
-	for paire in [[tronc, Palette.materiau(tex_ecorce)], [feuillage, Palette.materiau(tex_aiguilles)], [neige_st, Palette.materiau(tex_neige)]]:
-		var st: SurfaceTool = paire[0]
-		st.generate_normals()
-		st.commit(mesh)
-		mesh.surface_set_material(mesh.get_surface_count() - 1, paire[1])
-	return mesh
-
-func _foret() -> void:
-	var positions: Array[Vector3] = []
-	var grille := {}
-	var essais := 0
-	while positions.size() < NB_SAPINS and essais < NB_SAPINS * 20:
-		essais += 1
-		var x := rng.randf_range(-116.0, 116.0)
-		var z := rng.randf_range(-116.0, 116.0)
-		var d := Vector2(x, z).length()
-		if d < RAYON_CLAIRIERE + 2.5 or Vector2(x - CERCLE.x, z - CERCLE.z).length() < 11.0 or Vector2(x - VILLAGE.x, z - VILLAGE.z).length() < 31.0 or _pres_du_chemin(x, z, 3.0) or Vector2(x - TUMULUS.x, z - (TUMULUS.z - 6.0)).length() < 11.0:
-			continue
-		# la forêt s'épaissit et s'éclaircit par plaques
-		var densite := bruit_densite.get_noise_2d(x, z) * 0.5 + 0.6 + smoothstep(14.0, 30.0, d) * 0.2
-		if rng.randf() > densite:
-			continue
-		var cle := Vector2i(floori(x / 3.0), floori(z / 3.0))
-		if grille.has(cle):
-			continue
-		grille[cle] = true
-		positions.append(Vector3(x, hauteur(x, z) - 0.15, z))
-
-	var mats := [
-		Palette.materiau(tex_ecorce, Vector2(1, 1)),
-		Palette.materiau(Arbres.texture_aiguilles(3), Vector2(1, 1), Color(1.25, 1.3, 1.25)),
-		Palette.materiau(Arbres.texture_neige_branches(9), Vector2(1, 1)),
-	]
-	var mats_mort := [Palette.materiau(tex_roche, Vector2(1, 2), Color(0.95, 0.92, 0.88)), null, mats[2]]
-	# trois formes d'épicéa et des arbres morts, chacun dans son MultiMesh
-	var modeles: Array[Mesh] = [Arbres.epicea(0, 11, mats), Arbres.epicea(1, 12, mats), Arbres.epicea(2, 13, mats), Arbres.arbre_mort(14, mats_mort)]
-	var lots: Array = [[], [], [], []]
-	var corps := StaticBody3D.new()
-	var cylindre := CylinderShape3D.new()
-	cylindre.radius = 0.35
-	cylindre.height = 4.0
-	for p in positions:
-		var tirage := rng.randf()
-		var forme := 0 if tirage < 0.5 else (1 if tirage < 0.8 else (2 if tirage < 0.95 else 3))
-		var s := rng.randf_range(0.75, 1.3)
-		var b := Basis(Vector3.UP, rng.randf() * TAU)
-		b = Basis(Vector3(1, 0, 0), rng.randf_range(-0.04, 0.04)) * b
-		b = b.scaled(Vector3(s, s * rng.randf_range(0.9, 1.2), s))
-		lots[forme].append(Transform3D(b, p))
-		var forme_col := CollisionShape3D.new()
-		forme_col.shape = cylindre
-		forme_col.position = p + Vector3(0, 2, 0)
-		corps.add_child(forme_col)
-	for i in 4:
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = modeles[i]
-		mm.instance_count = lots[i].size()
-		for k in lots[i].size():
-			mm.set_instance_transform(k, lots[i][k])
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		add_child(mmi)
-	add_child(corps)
-	_couvre_sol(mats)
-
-## Genévriers bas et branches mortes à moitié enfouies : le sol n'est plus nu.
-func _couvre_sol(mats: Array) -> void:
-	var buissons := MultiMesh.new()
-	buissons.transform_format = MultiMesh.TRANSFORM_3D
-	buissons.mesh = Arbres.buisson(21, mats)
-	var xfs: Array[Transform3D] = []
-	var essais := 0
-	while xfs.size() < 900 and essais < 20000:
-		essais += 1
-		var x := rng.randf_range(-112.0, 112.0)
-		var z := rng.randf_range(-112.0, 112.0)
-		if Vector2(x, z).length() < RAYON_CLAIRIERE + 1.0 or Vector2(x - VILLAGE.x, z - VILLAGE.z).length() < 26.0 or _pres_du_chemin(x, z, 1.8) or Vector2(x - CERCLE.x, z - CERCLE.z).length() < 8.0:
-			continue
-		# plus dense là où la forêt l'est
-		if rng.randf() > bruit_densite.get_noise_2d(x, z) * 0.6 + 0.45:
-			continue
-		var s := rng.randf_range(0.6, 1.4)
-		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.6, 1.0), s))
-		xfs.append(Transform3D(b, Vector3(x, hauteur(x, z) - 0.25, z)))
-	buissons.instance_count = xfs.size()
-	for i in xfs.size():
-		buissons.set_instance_transform(i, xfs[i])
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = buissons
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mmi)
-
-# --- rochers -----------------------------------------------------------------
-
-func _rocher_mesh(graine: int) -> ArrayMesh:
-	var n := FastNoiseLite.new()
-	n.seed = graine
-	n.frequency = 1.4
-	var sphere := SphereMesh.new()
-	sphere.radial_segments = 7
-	sphere.rings = 4
-	var arrays := sphere.get_mesh_arrays()
-	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
-	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-	for i in verts.size():
-		var v := verts[i]
-		verts[i] = v * (1.0 + n.get_noise_3dv(v * 2.0) * 0.45)
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for t in range(0, index.size(), 3):
-		var a := verts[index[t]]
-		var b := verts[index[t + 1]]
-		var c := verts[index[t + 2]]
-		var normale := (c - a).cross(b - a).normalized()
-		# neige sur les faces tournées vers le ciel
-		var col := Color(1, 1, 1, 0.0 if normale.y > 0.55 else 1.0)
-		for k in 3:
-			st.set_color(col)
-			st.set_uv(uvs[index[t + k]] * 2.0)
-			st.add_vertex(verts[index[t + k]])
-	st.generate_normals()
-	return st.commit()
-
-func _rochers() -> void:
-	var m := Palette.materiau(tex_roche)
-	var modeles: Array[ArrayMesh] = []
-	for g in 4:
-		var mesh := _rocher_mesh(40 + g)
-		mesh.surface_set_material(0, m)
-		modeles.append(mesh)
-	var parts: Array[Array] = [[], [], [], []]
-	for i in NB_ROCHERS:
-		var x := rng.randf_range(-112.0, 112.0)
-		var z := rng.randf_range(-112.0, 112.0)
-		if Vector2(x, z).length() < RAYON_CLAIRIERE or Vector2(x - VILLAGE.x, z - VILLAGE.z).length() < 28.0 or _pres_du_chemin(x, z, 2.0):
-			continue
-		var s := rng.randf_range(0.4, 2.2) * (2.0 if rng.randf() < 0.12 else 1.0)
-		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.5, 0.9), s * rng.randf_range(0.8, 1.2)))
-		parts[i % 4].append(Transform3D(b, Vector3(x, hauteur(x, z) - s * 0.25, z)))
-	var corps := StaticBody3D.new()
-	for g in 4:
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = modeles[g]
-		mm.instance_count = parts[g].size()
-		var forme_modele := modeles[g].create_convex_shape()
-		for i in parts[g].size():
-			mm.set_instance_transform(i, parts[g][i])
-			var forme := CollisionShape3D.new()
-			forme.shape = forme_modele
-			forme.transform = parts[g][i]
-			corps.add_child(forme)
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		add_child(mmi)
-	add_child(corps)
-
-# --- cercle de pierres runiques ----------------------------------------------
-
-func _texture_runes() -> ImageTexture:
-	var img := Image.create(12, 34, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var c := Color(0.5, 1.6, 2.0)
-	for r in 3:
-		var y0 := 1 + r * 11
-		for y in range(y0, y0 + 10):
-			img.set_pixel(5, y, c)
-		# branches façon futhark
-		var motifs := [[[5, 1, 9, 5]], [[5, 2, 9, 0], [5, 6, 9, 4]], [[5, 4, 1, 0], [5, 4, 9, 0]], [[5, 1, 9, 5], [9, 5, 5, 9]]]
-		for seg in motifs[(r * 3 + 1) % motifs.size()]:
-			var a := Vector2(seg[0], y0 + seg[1])
-			var b := Vector2(seg[2], y0 + seg[3])
-			var pas := int(maxf(absf(b.x - a.x), absf(b.y - a.y)))
-			for k in pas + 1:
-				var p := a.lerp(b, float(k) / maxf(pas, 1))
-				img.set_pixel(clampi(roundi(p.x), 0, 11), clampi(roundi(p.y), 0, 33), c)
-	return ImageTexture.create_from_image(img)
-
-func _cercle_runique() -> void:
-	var centre := Vector3(CERCLE.x, h_cercle, CERCLE.z)
-	var m := Palette.materiau(tex_roche, Vector2(1, 2))
-	var corps := StaticBody3D.new()
-	add_child(corps)
-	for i in 7:
-		var a := TAU * i / 7.0 + 0.3
-		var haut := rng.randf_range(2.2, 3.4)
-		var boite := BoxMesh.new()
-		boite.size = Vector3(1.0, haut, 0.45)
-		var mi := MeshInstance3D.new()
-		mi.mesh = boite
-		mi.material_override = m
-		var p := centre + Vector3(cos(a) * 6.5, haut * 0.5 - 0.3, sin(a) * 6.5)
-		mi.transform = Transform3D(Basis(Vector3.UP, -a + PI * 0.5).rotated(Vector3(cos(a), 0, sin(a)), rng.randf_range(-0.08, 0.08)), p)
-		add_child(mi)
-		var forme := CollisionShape3D.new()
-		var bf := BoxShape3D.new()
-		bf.size = boite.size
-		forme.shape = bf
-		forme.transform = mi.transform
-		corps.add_child(forme)
-
-	# pierre centrale gravée de runes qui luisent
-	var stele := MeshInstance3D.new()
-	var bs := BoxMesh.new()
-	bs.size = Vector3(1.3, 3.6, 0.5)
-	stele.mesh = bs
-	stele.material_override = m
-	stele.position = centre + Vector3(0, 1.5, 0)
-	stele.rotation.y = 0.5
-	add_child(stele)
-	var forme_s := CollisionShape3D.new()
-	var bfs := BoxShape3D.new()
-	bfs.size = bs.size
-	forme_s.shape = bfs
-	forme_s.transform = stele.transform
-	corps.add_child(forme_s)
-	var runes := MeshInstance3D.new()
-	var q := QuadMesh.new()
-	q.size = Vector2(0.75, 2.1)
-	runes.mesh = q
-	var mr := StandardMaterial3D.new()
-	mr.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mr.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	mr.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	mr.albedo_texture = _texture_runes()
-	mr.cull_mode = BaseMaterial3D.CULL_DISABLED
-	runes.material_override = mr
-	for cote in [1.0, -1.0]:
-		var r := runes.duplicate() as MeshInstance3D
-		r.position = Vector3(0, 0.2, 0.256 * cote)
-		stele.add_child(r)
-	runes.free()  # gabarit, jamais ajouté à la scène
-	var lueur := OmniLight3D.new()
-	lueur.light_color = Color(0.35, 0.8, 1.0)
-	lueur.light_energy = 1.2
-	lueur.omni_range = 7.0
-	lueur.position = Vector3(0, 0.3, 0)
-	stele.add_child(lueur)
 
 # --- feu de camp ---------------------------------------------------------------
 
@@ -695,6 +409,8 @@ func _joueur() -> void:
 	joueur.deces.connect(_joueur_mort)
 
 func _joueur_touche(_degats: float) -> void:
+	if _paisible():
+		return  # --paisible : pas de vignette de dégâts
 	var t := create_tween()
 	t.tween_method(func(v: float) -> void: post.set_shader_parameter("degat", v), 0.8, 0.0, 0.6)
 
@@ -763,6 +479,8 @@ func _dragon() -> void:
 	dragon.hud = hud
 	dragon.centre = Vector3(VILLAGE.x, h_village, VILLAGE.z)
 	dragon.hauteur_sol = hauteur
+	if _paisible():
+		dragon.process_mode = Node.PROCESS_MODE_DISABLED  # --paisible : dragon figé
 	dragon.vaincu.connect(func() -> void:
 		dragon_vaincu = true
 		quetes.signaler("tue:dragon")
@@ -1045,6 +763,25 @@ func _arguments() -> Dictionary:
 			res[parts[0]] = parts[1] if parts.size() > 1 else ""
 	return res
 
+## --sans-particules : cache neige et flammes (feu, torches) pour comparer des captures au pixel près.
+func _cacher_particules() -> void:
+	if not _arguments().has("sans-particules"):
+		return
+	for p in find_children("*", "GPUParticles3D", true, false):
+		p.visible = false
+
+func _paisible() -> bool:
+	return _arguments().has("paisible")
+
+## --paisible : draugrs figés à leur point d'apparition (modèles visibles), dragon figé,
+## pas de dégâts au joueur ; captures avant/après comparables. N'affecte pas les draugrs
+## créés ensuite par un scénario (mort, galerie…).
+func _rendre_paisible() -> void:
+	if not _paisible():
+		return
+	for id in draugrs:
+		draugrs[id].process_mode = Node.PROCESS_MODE_DISABLED
+
 func _capture() -> void:
 	var chemin: String = _arguments().get("capture", "")
 	if chemin == "":
@@ -1052,6 +789,7 @@ func _capture() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	for i in (int(_arguments().get("attente", "90"))):
 		await get_tree().process_frame
+	_cacher_particules()
 	if _arguments().has("test-combat"):
 		await _test_combat()
 	if _arguments().has("scenario"):
