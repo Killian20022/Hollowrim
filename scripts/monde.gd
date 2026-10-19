@@ -86,7 +86,7 @@ func _ready() -> void:
 		h_village += _hauteur_brute(VILLAGE.x + cos(a) * 30.0, VILLAGE.z + sin(a) * 30.0) / 8.0
 		h_cercle += _hauteur_brute(CERCLE.x + cos(a) * 16.0, CERCLE.z + sin(a) * 16.0) / 8.0
 
-	tex_neige = Palette.texture(32, Palette.NEIGE, 4, 1, 0.35, rng)
+	tex_neige = Palette.pailleter(Palette.texture(64, Palette.NEIGE, 3, 1, 0.12, rng), 0.012)
 	Palette.tex_neige = tex_neige
 	tex_roche = Palette.texture(32, Palette.ROCHE, 4, 2, 0.45, rng)
 	tex_aiguilles = Palette.texture(32, Palette.AIGUILLES, 8, 3, 0.7, rng)
@@ -218,7 +218,9 @@ func _terrain() -> void:
 
 	var m := Palette.materiau(tex_roche)
 	m.set_shader_parameter("uv_monde", true)
-	m.set_shader_parameter("monde_echelle", 0.22)
+	m.set_shader_parameter("monde_echelle", 0.11)
+	m.set_shader_parameter("tex_macro", Palette.texture_macro())
+	m.set_shader_parameter("macro_force", 1.0)
 	# terrain découpé en morceaux : chacun reçoit ses propres lumières (8 max par objet
 	# avec le rendu Mobile) et les morceaux hors champ ne sont pas dessinés
 	var corps := StaticBody3D.new()
@@ -349,29 +351,70 @@ func _foret() -> void:
 		grille[cle] = true
 		positions.append(Vector3(x, hauteur(x, z) - 0.15, z))
 
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = _sapin()
-	mm.instance_count = positions.size()
+	var mats := [
+		Palette.materiau(tex_ecorce, Vector2(1, 1)),
+		Palette.materiau(Arbres.texture_aiguilles(3), Vector2(1, 1), Color(1.25, 1.3, 1.25)),
+		Palette.materiau(Arbres.texture_neige_branches(9), Vector2(1, 1)),
+	]
+	var mats_mort := [Palette.materiau(tex_roche, Vector2(1, 2), Color(0.95, 0.92, 0.88)), null, mats[2]]
+	# trois formes d'épicéa et des arbres morts, chacun dans son MultiMesh
+	var modeles: Array[Mesh] = [Arbres.epicea(0, 11, mats), Arbres.epicea(1, 12, mats), Arbres.epicea(2, 13, mats), Arbres.arbre_mort(14, mats_mort)]
+	var lots: Array = [[], [], [], []]
 	var corps := StaticBody3D.new()
 	var cylindre := CylinderShape3D.new()
 	cylindre.radius = 0.35
 	cylindre.height = 4.0
-	for i in positions.size():
-		var p := positions[i]
-		var s := rng.randf_range(0.65, 1.35)
+	for p in positions:
+		var tirage := rng.randf()
+		var forme := 0 if tirage < 0.5 else (1 if tirage < 0.8 else (2 if tirage < 0.95 else 3))
+		var s := rng.randf_range(0.75, 1.3)
 		var b := Basis(Vector3.UP, rng.randf() * TAU)
 		b = Basis(Vector3(1, 0, 0), rng.randf_range(-0.04, 0.04)) * b
-		b = b.scaled(Vector3(s, s * rng.randf_range(0.9, 1.25), s))
-		mm.set_instance_transform(i, Transform3D(b, p))
-		var forme := CollisionShape3D.new()
-		forme.shape = cylindre
-		forme.position = p + Vector3(0, 2, 0)
-		corps.add_child(forme)
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	add_child(mmi)
+		b = b.scaled(Vector3(s, s * rng.randf_range(0.9, 1.2), s))
+		lots[forme].append(Transform3D(b, p))
+		var forme_col := CollisionShape3D.new()
+		forme_col.shape = cylindre
+		forme_col.position = p + Vector3(0, 2, 0)
+		corps.add_child(forme_col)
+	for i in 4:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = modeles[i]
+		mm.instance_count = lots[i].size()
+		for k in lots[i].size():
+			mm.set_instance_transform(k, lots[i][k])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		add_child(mmi)
 	add_child(corps)
+	_couvre_sol(mats)
+
+## Genévriers bas et branches mortes à moitié enfouies : le sol n'est plus nu.
+func _couvre_sol(mats: Array) -> void:
+	var buissons := MultiMesh.new()
+	buissons.transform_format = MultiMesh.TRANSFORM_3D
+	buissons.mesh = Arbres.buisson(21, mats)
+	var xfs: Array[Transform3D] = []
+	var essais := 0
+	while xfs.size() < 900 and essais < 20000:
+		essais += 1
+		var x := rng.randf_range(-112.0, 112.0)
+		var z := rng.randf_range(-112.0, 112.0)
+		if Vector2(x, z).length() < RAYON_CLAIRIERE + 1.0 or Vector2(x - VILLAGE.x, z - VILLAGE.z).length() < 26.0 or _pres_du_chemin(x, z, 1.8) or Vector2(x - CERCLE.x, z - CERCLE.z).length() < 8.0:
+			continue
+		# plus dense là où la forêt l'est
+		if rng.randf() > bruit_densite.get_noise_2d(x, z) * 0.6 + 0.45:
+			continue
+		var s := rng.randf_range(0.6, 1.4)
+		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.6, 1.0), s))
+		xfs.append(Transform3D(b, Vector3(x, hauteur(x, z) - 0.25, z)))
+	buissons.instance_count = xfs.size()
+	for i in xfs.size():
+		buissons.set_instance_transform(i, xfs[i])
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = buissons
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mmi)
 
 # --- rochers -----------------------------------------------------------------
 

@@ -5,7 +5,7 @@ class_name Palette
 const PS1 := preload("res://shaders/ps1.gdshader")
 const AFFINE := 0.55  # 1 = PS1 pur, mais les grands triangles proches se tordent trop
 
-const NEIGE := ["#7f90ad", "#9cadc8", "#b9c6dc", "#d6e0ee"]
+const NEIGE := ["#8796b2", "#97a6c0", "#a8b6cd", "#b9c5da", "#c9d3e5"]
 const ROCHE := ["#2e323b", "#41464f", "#565c67", "#6d7480"]
 const AIGUILLES := ["#0b1814", "#12261d", "#1b3626", "#274a33"]
 const ECORCE := ["#22170f", "#311f14", "#43301f", "#56402a"]
@@ -134,3 +134,27 @@ static func vider() -> void:
 	_cache.clear()
 	_conversions.clear()
 	tex_neige = null
+
+## Paillettes : quelques pixels très clairs (cristaux de neige qui accrochent la lumière).
+static func pailleter(tex: ImageTexture, part: float, couleur := Color("#eef4ff")) -> ImageTexture:
+	var img := tex.get_image()
+	var r := RandomNumberGenerator.new()
+	r.seed = 77
+	for y in img.get_height():
+		for x in img.get_width():
+			if r.randf() < part:
+				img.set_pixel(x, y, couleur)
+	return ImageTexture.create_from_image(img)
+
+## Bruit doux en niveaux de gris pour `tex_macro` (filtré, sans palette).
+static func texture_macro() -> NoiseTexture2D:
+	var n := FastNoiseLite.new()
+	n.seed = 5
+	n.frequency = 0.02
+	n.fractal_octaves = 3
+	var t := NoiseTexture2D.new()
+	t.width = 128
+	t.height = 128
+	t.seamless = true
+	t.noise = n
+	return t

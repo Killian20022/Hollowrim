@@ -14,16 +14,21 @@ uniform float monde_echelle = 0.25;
 uniform float grille = 135.0;       // lignes de la grille d'accroche (0 = pas de tremblement)
 uniform float affine = 1.0;         // 1 = déformation affine façon PS1
 uniform vec3 emission : source_color = vec3(0.0);
-uniform float saturation = 1.0;    // < 1 : couleurs ternies (morts-vivants…)
+uniform float saturation = 1.0;
+// grandes variations du sol (congères, zones plus grises) pour casser la répétition
+uniform sampler2D tex_macro : filter_linear, repeat_enable;
+uniform float macro_force = 0.0;    // < 1 : couleurs ternies (morts-vivants…)
 instance uniform float eclair = 0.0; // flash quand l'objet est touché (par instance)
 
 varying vec3 uv_aff;
+varying vec2 uv_macro;
 
 void vertex() {
 	vec2 uv = UV * uv_echelle;
 	if (uv_monde) {
 		uv = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz * monde_echelle;
 	}
+	uv_macro = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz * 0.03;
 	vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	// Pas d'accroche dans la passe d'ombre (projection orthographique) : sinon acné.
 	if (grille > 0.0 && PROJECTION_MATRIX[3][3] < 0.5) {
@@ -41,6 +46,10 @@ void fragment() {
 	vec3 base = texture(tex_base, uv).rgb;
 	vec3 neige = texture(tex_neige, uv).rgb;
 	ALBEDO = mix(neige, base, step(0.5, COLOR.a)) * COLOR.rgb * teinte.rgb;
+	if (macro_force > 0.0) {
+		float m = texture(tex_macro, uv_macro).r;
+		ALBEDO *= mix(1.0, 0.8 + m * 0.36, macro_force);
+	}
 	ALBEDO = mix(vec3(dot(ALBEDO, vec3(0.3, 0.59, 0.11))), ALBEDO, saturation);
 	ALBEDO = mix(ALBEDO, vec3(1.0, 0.85, 0.8), eclair);
 	EMISSION = emission + vec3(0.6, 0.25, 0.2) * eclair;
