@@ -18,15 +18,17 @@ const COUT_LEGER := 8.0
 const COUT_PUISSANT := 26.0
 const SEUIL_CHARGE := 0.28  # durée d'appui au-delà de laquelle le coup devient puissant
 
-# poses de l'épée : [position, rotation en degrés (x, y, z)] pour un coup de droite à gauche ;
-# le coup inverse utilise la pose miroir.
+# poses de l'épée, à la manière de Skyrim (repère caméra : +X droite, +Y haut, -Z devant) :
+# [position de la poignée, direction de la lame, côté du tranchant]. Coup de droite à gauche :
+# armé au-dessus de l'épaule droite, tranchant en avant, la lame balaie devant soi et finit
+# en bas à gauche. Le coup inverse utilise la pose miroir.
 const POSES := {
-	"repos": [Vector3(0.26, -0.30, -0.56), Vector3(-30, 0, 12)],
-	"armer": [Vector3(0.42, -0.16, -0.50), Vector3(15, -20, -62)],
-	"charge": [Vector3(0.46, -0.08, -0.40), Vector3(30, -28, -75)],
-	"frappe": [Vector3(-0.24, -0.38, -0.6), Vector3(-70, 30, 92)],
-	"garde": [Vector3(0.12, -0.26, -0.56), Vector3(-10, 10, 78)],
-	"encaisse": [Vector3(0.16, -0.18, -0.48), Vector3(5, 10, 92)],
+	"repos": [Vector3(0.26, -0.30, -0.56), Vector3(-0.22, 0.82, -0.55), Vector3(-0.3, 0.0, -1.0)],
+	"armer": [Vector3(0.36, -0.12, -0.58), Vector3(0.45, 0.85, 0.28), Vector3(0.28, 0.0, -0.45)],
+	"charge": [Vector3(0.40, -0.06, -0.52), Vector3(0.45, 0.85, 0.36), Vector3(0.36, 0.0, -0.45)],
+	"frappe": [Vector3(-0.16, -0.30, -0.60), Vector3(-0.85, -0.12, -0.50), Vector3(-0.50, 0.0, 0.85)],
+	"garde": [Vector3(0.10, -0.20, -0.50), Vector3(-0.85, 0.42, -0.25), Vector3(0.0, 0.5, -1.0)],
+	"encaisse": [Vector3(0.14, -0.13, -0.42), Vector3(-0.85, 0.52, -0.08), Vector3(0.0, 0.5, -1.0)],
 }
 
 var joueur: CharacterBody3D
@@ -61,7 +63,7 @@ var _accroche_d: BoneAttachment3D
 var _accroche_g: BoneAttachment3D
 var _doigts := {}
 var torche_lumiere: OmniLight3D
-var flamme: GPUParticles3D
+var flammes: Array[GPUParticles3D] = []
 
 func _ready() -> void:
 	# les pivots ne portent plus rien : ce sont les cibles que les mains suivent (IK)
@@ -74,7 +76,9 @@ func _ready() -> void:
 	pivot_torche.rotation_degrees = Vector3(-14, 0, -12)
 	add_child(pivot_torche)
 	_bras()
-	_accroche_d.add_child(_modele_epee())
+	var epee := _modele_epee()
+	_accroche_d.add_child(epee)
+	epee.transform = PRISE_D
 	joueur.inventaire.change.connect(_teinte_epee)
 	porte_torche = Node3D.new()
 	_accroche_g.add_child(porte_torche)
@@ -242,79 +246,22 @@ func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, ua: Vector2, ub: 
 	st.set_uv(uc); st.add_vertex(c)
 
 func _torche() -> void:
-	var baton := MeshInstance3D.new()
-	var c := CylinderMesh.new()
-	c.top_radius = 0.022
-	c.bottom_radius = 0.026
-	c.height = 0.42
-	c.radial_segments = 5
-	c.rings = 1
-	baton.mesh = c
-	baton.material_override = Palette.materiau(Palette.tex("ecorce", Palette.ECORCE), Vector2(1, 3))
-	baton.position = Vector3(0, 0.08, 0)
-	porte_torche.add_child(baton)
-	var tete := MeshInstance3D.new()
-	var t := CylinderMesh.new()
-	t.top_radius = 0.045
-	t.bottom_radius = 0.035
-	t.height = 0.11
-	t.radial_segments = 6
-	t.rings = 1
-	tete.mesh = t
-	tete.material_override = Palette.materiau(Palette.tex("chiffon", ["#2a1a10", "#3b2414", "#1a0f08", "#4a2e18"], 8, 0.6))
-	tete.position = Vector3(0, 0.31, 0)
-	porte_torche.add_child(tete)
-
-	flamme = GPUParticles3D.new()
-	flamme.amount = 32
-	flamme.lifetime = 0.3
-	flamme.local_coords = true
-	flamme.position = Vector3(0, 0.36, 0)
-	var pm := ParticleProcessMaterial.new()
-	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	pm.emission_sphere_radius = 0.035
-	pm.direction = Vector3.UP
-	pm.spread = 10.0
-	pm.initial_velocity_min = 0.3
-	pm.initial_velocity_max = 0.6
-	pm.gravity = Vector3(0, 0.6, 0)
-	var g := Gradient.new()
-	g.offsets = PackedFloat32Array([0.0, 0.4, 0.75, 1.0])
-	g.colors = PackedColorArray([Color(3.0, 2.3, 0.9), Color(2.6, 1.0, 0.25), Color(1.2, 0.25, 0.05), Color(0.3, 0.05, 0.0, 0.0)])
-	var gt := GradientTexture1D.new()
-	gt.gradient = g
-	pm.color_ramp = gt
-	pm.scale_min = 0.7
-	pm.scale_max = 1.2
-	flamme.process_material = pm
-	var q := QuadMesh.new()
-	q.size = Vector2(0.04, 0.04)
-	var mq := StandardMaterial3D.new()
-	mq.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mq.vertex_color_use_as_albedo = true
-	mq.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mq.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	mq.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	q.material = mq
-	flamme.draw_pass_1 = q
-	porte_torche.add_child(flamme)
-
-	torche_lumiere = OmniLight3D.new()
-	torche_lumiere.light_color = Color(1.0, 0.58, 0.28)
-	torche_lumiere.light_energy = 1.5
-	torche_lumiere.omni_range = 10.0
-	torche_lumiere.omni_attenuation = 1.3
-	torche_lumiere.position = Vector3(0, 0.42, 0.08)
-	porte_torche.add_child(torche_lumiere)
+	var t := Torche.construire(porte_torche)
+	flammes.assign(t["flamme"])
+	torche_lumiere = t["lumiere"]
 
 func _pose(nom: String, sens := 1.0) -> Transform3D:
 	var p: Vector3 = POSES[nom][0]
-	var r: Vector3 = POSES[nom][1]
+	var lame: Vector3 = POSES[nom][1]
+	var fil: Vector3 = POSES[nom][2]
 	if sens < 0.0:
 		p.x = -p.x
-		r.y = -r.y
-		r.z = -r.z
-	return Transform3D(Basis.from_euler(r * (PI / 180.0)), p)
+		lame.x = -lame.x
+		fil.x = -fil.x
+	# repère de l'épée : +Y le long de la lame, +X vers le tranchant
+	var y := lame.normalized()
+	var x := (fil - y * fil.dot(y)).normalized()
+	return Transform3D(Basis(x, y, x.cross(y)), p)
 
 func _unhandled_input(e: InputEvent) -> void:
 	if joueur == null or joueur.mort or joueur.en_dialogue or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
@@ -437,7 +384,8 @@ func _process(dt: float) -> void:
 		y_torche = -0.95
 	pivot_torche.position.y = lerpf(pivot_torche.position.y, y_torche, 1.0 - exp(-8.0 * dt))
 	var allumee := torche_sortie or pivot_torche.position.y > -0.8
-	flamme.emitting = allumee
+	for f in flammes:
+		f.emitting = allumee
 	torche_lumiere.visible = allumee
 	torche_lumiere.light_energy = 1.4 + sin(_respiration * 13.0) * 0.12 + sin(_respiration * 29.0) * 0.08 + randf() * 0.12
 
