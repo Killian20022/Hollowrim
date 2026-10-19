@@ -66,7 +66,7 @@ static func creer(monde: Node) -> void:
 			forme.shape = convexe
 			forme.position = t.origin  # translation seule, aucune échelle
 			corps.add_child(forme)
-		Instanciation.repartir(monde, modeles[g], parts[g])
+		Instanciation.repartir(monde, modeles[g], parts[g], {"portee": 120.0, "marge": 10.0})
 	monde.add_child(corps)
 
 static func rocher_mesh(graine: int) -> ArrayMesh:

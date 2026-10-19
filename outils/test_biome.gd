@@ -1,6 +1,8 @@
 extends SceneTree
 ## Signature d'invariance du biome : hauteurs du terrain, transforms de tous les MultiMesh
 ## (par mesh, triés) et pierres du cercle runique. Sert à prouver qu'un refactoring ne change rien.
+## ATTENTION : en --headless le MultiMesh ne relit pas ses transforms (identité) : lancer AVEC fenêtre
+##   (ex. --resolution 160x90) pour que la comparaison soit réelle ; référence : ref_ancien_fenetre.sig.
 ##   godot --headless --path . --script outils/test_biome.gd -- ecrire <fichier>
 ##   godot --headless --path . --script outils/test_biome.gd -- comparer <fichier> [--sans-zone] [--biome=ancien]
 ## --sans-zone : ignore tout ce qui touche la zone témoin (x ∈ [-58, 4], z ∈ [-64, 4] + fondu de 8 m).
@@ -20,6 +22,20 @@ func _init() -> void:
 
 func _dans_zone(x: float, z: float) -> bool:
 	return x >= ZX0 and x <= ZX1 and z >= ZZ0 and z <= ZZ1
+
+## Comparaison à 1e-4 près : le découpage en cellules (lot A) passe par des coordonnées locales,
+## donc l'arrondi flottant peut différer d'un ulp ; l'ensemble trié reste le même.
+func _memes_transforms(x: Array, y: Array) -> bool:
+	if x.size() != y.size():
+		return false
+	for k in x.size():
+		var p: Transform3D = x[k]
+		var q: Transform3D = y[k]
+		if (p.origin - q.origin).length() > 1e-4 or (p.basis.x - q.basis.x).length() > 1e-4 or (p.basis.y - q.basis.y).length() > 1e-4 or (p.basis.z - q.basis.z).length() > 1e-4:
+			print("  premier écart (indice %d) : %s <> %s" % [k, p.origin, q.origin])
+			print("   suite : ", x[k + 1].origin, x[k + 2].origin, " | ", y[k + 1].origin, y[k + 2].origin)
+			return false
+	return true
 
 func _tri_transforms(a: Transform3D, b: Transform3D) -> bool:
 	var oa := a.origin
@@ -46,6 +62,8 @@ func _signature() -> Dictionary:
 	var groupes := {}
 	for nd in m.find_children("*", "MultiMeshInstance3D", true, false):
 		var mmi := nd as MultiMeshInstance3D
+		if mmi.has_meta("lod"):
+			continue  # MMI d'ombre ou de LOD ajoutés par le lot A
 		var mm := mmi.multimesh
 		var cle := "%s|%s|%d|%d" % [mm.mesh.get_class(), str(mm.mesh.get_aabb()), mm.mesh.get_surface_count(), (mm.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() if mm.mesh is ArrayMesh else 0]
 		if not groupes.has(cle):
@@ -135,7 +153,7 @@ func _tester() -> void:
 	for c in b["multimesh"]:
 		cles[c] = true
 	for c in cles:
-		if a["multimesh"].get(c, []) != b["multimesh"].get(c, []):
+		if not _memes_transforms(a["multimesh"].get(c, []), b["multimesh"].get(c, [])):
 			erreurs += 1
 			print("ECART multimesh ", c)
 	print("OK : signature identique" if erreurs == 0 else "ECHEC : %d écart(s)" % erreurs)
