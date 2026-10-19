@@ -84,12 +84,17 @@ func _tumulus() -> void:
 	add_child(butte)
 	var corps_dehors := StaticBody3D.new()
 	add_child(corps_dehors)
-	var cyl := CylinderShape3D.new()
-	cyl.radius = 6.8
-	cyl.height = 4.0
+	# collision = faces de la sphère visible (même échelle, même décalage) : on peut gravir la butte
+	var xf_butte := Transform3D(Basis.from_scale(butte.scale), butte.position)
+	var faces := PackedVector3Array()
+	for v in s.get_faces():
+		faces.append(xf_butte * v)
+	var dome := ConcavePolygonShape3D.new()
+	dome.set_faces(faces)
+	dome.backface_collision = true
 	var cs := CollisionShape3D.new()
-	cs.shape = cyl
-	cs.position = Vector3(0, 1.0, -6.5)
+	cs.name = "CollisionDome"
+	cs.shape = dome
 	corps_dehors.add_child(cs)
 	# façade : deux pierres dressées, un linteau, une dalle sombre pour la porte
 	for x in [-1.3, 1.3]:

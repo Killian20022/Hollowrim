@@ -95,8 +95,17 @@ static func instancier(monde: Node, foret: Dictionary, buissons: Array) -> Array
 		for t: Transform3D in lots[i]:
 			arbres.append(t)
 			var forme_col := CollisionShape3D.new()
-			forme_col.shape = cylindre
-			forme_col.position = t.origin + Vector3(0, 2, 0)
+			if ZoneBiome.masque(t.origin.x, t.origin.z) > 0.0:
+				# dans la zone : tronc ∝ échelle (rayon min 0,15 ; hauteur 4 × échelle)
+				var sc := t.basis.get_scale()
+				var cyl_zone := CylinderShape3D.new()
+				cyl_zone.radius = maxf(0.15, 0.35 * sc.x)
+				cyl_zone.height = 4.0 * sc.y
+				forme_col.shape = cyl_zone
+				forme_col.position = t.origin + Vector3(0, 2.0 * sc.y, 0)
+			else:
+				forme_col.shape = cylindre
+				forme_col.position = t.origin + Vector3(0, 2, 0)
 			corps.add_child(forme_col)
 		Instanciation.repartir(monde, modeles[i], lots[i])
 	monde.add_child(corps)
