@@ -16,7 +16,7 @@ func _tester() -> void:
 	print("dragon apparu : ", m.dragon != null, " état=", m.dragon.nom_etat() if m.dragon else "")
 	m.joueur.global_position = m.dragon.centre + Vector3(0, 0.2, 0)
 	var vu := {}
-	for i in 1800:
+	for i in 6000:  # 2 à 3 passes en piqué avant l'atterrissage
 		await physics_frame
 		vu[m.dragon.nom_etat()] = true
 		if m.dragon.nom_etat() == "AU_SOL":
