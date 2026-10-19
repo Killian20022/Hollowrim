@@ -107,6 +107,7 @@ func _ready() -> void:
 	_terrain()
 	arbres = Vegetation.creer(self)
 	Rochers.creer(self)
+	SousBois.creer(self)  # lot E : après les rochers (touffes collées aux pierres)
 	CercleRunique.creer(self)
 	Sol.appliquer(mat_terrain, self, arbres)
 	_village()

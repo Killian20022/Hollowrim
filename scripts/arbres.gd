@@ -171,3 +171,22 @@ static func buisson(graine: int, materiaux: Array) -> ArrayMesh:
 		st.commit(mesh)
 		mesh.surface_set_material(i, materiaux[[1, 2][i]])
 	return mesh
+
+## Semis (lot E) : jeune épicéa de sous-bois, deux étages de 5 pointes (~40 triangles), sans tronc.
+## Surfaces : 0 aiguilles, 1 neige.
+static func semis(graine: int, materiaux: Array) -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = graine
+	var feuille := SurfaceTool.new()
+	feuille.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var neige := SurfaceTool.new()
+	neige.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_etage(feuille, neige, rng, 0.45, 0.42, 0.4, 5, rng.randf() * TAU, 0.7)
+	_etage(feuille, neige, rng, 0.85, 0.22, 0.4, 5, rng.randf() * TAU, 0.8)
+	var mesh := ArrayMesh.new()
+	for i in 2:
+		var st: SurfaceTool = [feuille, neige][i]
+		st.generate_normals()
+		st.commit(mesh)
+		mesh.surface_set_material(i, materiaux[[1, 2][i]])
+	return mesh

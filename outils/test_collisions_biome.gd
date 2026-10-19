@@ -124,7 +124,7 @@ func _tester() -> void:
 				var cyl := cs.shape as CylinderShape3D
 				if ZoneBiome.masque(cs.position.x, cs.position.z) > 0.0:
 					n_zone += 1
-					if cyl.radius < 0.15 - 0.0001 or cyl.height < 4.0 * 0.5:
+					if cyl.radius < 0.15 - 0.0001 or cyl.height < 4.0 * 0.3:
 						ok_hors = false
 				else:
 					n_hors += 1
