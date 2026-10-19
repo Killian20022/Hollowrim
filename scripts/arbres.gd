@@ -123,6 +123,42 @@ static func epicea(forme: int, graine: int, materiaux: Array) -> ArrayMesh:
 		mesh.surface_set_material(i, materiaux[i])
 	return mesh
 
+## Épicéa lointain (LOD) : même silhouette (mêmes hauteur, rayon de base et nombre d'étages que
+## `epicea(forme, graine, …)`) avec la moitié des étages, 5 pointes par étage et un tronc à 3 pans :
+## ~100 triangles au lieu de ~600. Prévu pour la vue lointaine, noyée dans la brume.
+## N'utilise que son propre RNG (graine) : aucun effet sur `monde.rng`.
+static func epicea_lointain(forme: int, graine: int, materiaux: Array) -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = graine
+	var tronc := SurfaceTool.new()
+	tronc.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var feuille := SurfaceTool.new()
+	feuille.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var neige := SurfaceTool.new()
+	neige.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var hauteur: float = [9.5, 7.5, 5.0][forme]
+	var base: float = [2.3, 2.9, 1.7][forme]
+	var etages: int = [8, 7, 5][forme]
+	var bas: float = [1.3, 0.9, 0.8][forme]
+	_tronc(tronc, 0.2 if forme != 2 else 0.13, hauteur * 0.92, 3)
+	var n := maxi(3, etages / 2)
+	for e in n:
+		var k := float(e) / (n - 1)
+		var y := lerpf(bas + 1.1, hauteur, k)
+		var rayon := base * (1.0 - k * 0.82) * rng.randf_range(0.9, 1.08)
+		# deux fois moins d'étages : ils tombent deux fois plus bas pour garder le volume
+		var chute := lerpf(1.25, 0.55, k) * (hauteur / 9.0) * 1.8
+		_etage(feuille, neige, rng, y, rayon, chute, 5, rng.randf() * TAU, lerpf(0.8, 1.0, k))
+	_etage(feuille, neige, rng, hauteur + 0.7, 0.35, 0.9, 4, rng.randf() * TAU, 1.0)
+	var mesh := ArrayMesh.new()
+	var surfaces := [tronc, feuille, neige]
+	for i in 3:
+		var st: SurfaceTool = surfaces[i]
+		st.generate_normals()
+		st.commit(mesh)
+		mesh.surface_set_material(i, materiaux[i])
+	return mesh
+
 ## Arbre mort : tronc gris et quelques branches nues tordues, un peu de neige.
 static func arbre_mort(graine: int, materiaux: Array) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()

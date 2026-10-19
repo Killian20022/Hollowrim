@@ -32,7 +32,7 @@ static func creer(monde: Node) -> void:
 			forme.shape = forme_modele
 			forme.transform = t
 			corps.add_child(forme)
-		Instanciation.repartir(monde, modeles[g], parts[g])
+		Instanciation.repartir(monde, modeles[g], parts[g], {"portee": 120.0, "marge": 10.0})
 	monde.add_child(corps)
 
 static func rocher_mesh(graine: int) -> ArrayMesh:

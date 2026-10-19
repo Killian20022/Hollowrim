@@ -85,6 +85,8 @@ static func instancier(monde: Node, foret: Dictionary, buissons: Array) -> Array
 	var mats_mort := [Palette.materiau(monde.tex_roche, Vector2(1, 2), Color(0.95, 0.92, 0.88)), null, mats[2]]
 	# trois formes d'épicéa et des arbres morts, chacun dans son MultiMesh
 	var modeles: Array[Mesh] = [Arbres.epicea(0, 11, mats), Arbres.epicea(1, 12, mats), Arbres.epicea(2, 13, mats), Arbres.arbre_mort(14, mats_mort)]
+	# silhouettes simplifiées pour la vue lointaine (au-delà de la portée du mesh complet)
+	var lointains: Array[Mesh] = [Arbres.epicea_lointain(0, 11, mats), Arbres.epicea_lointain(1, 12, mats), Arbres.epicea_lointain(2, 13, mats), modeles[3]]
 	var lots: Array = foret["lots"]
 	var corps := StaticBody3D.new()
 	var cylindre := CylinderShape3D.new()
@@ -98,7 +100,7 @@ static func instancier(monde: Node, foret: Dictionary, buissons: Array) -> Array
 			forme_col.shape = cylindre
 			forme_col.position = t.origin + Vector3(0, 2, 0)
 			corps.add_child(forme_col)
-		Instanciation.repartir(monde, modeles[i], lots[i])
+		Instanciation.repartir(monde, modeles[i], lots[i], {"portee": 90.0, "marge": 10.0, "ombre_proche": 50.0, "lod_mesh": lointains[i]})
 	monde.add_child(corps)
-	Instanciation.repartir(monde, Arbres.buisson(21, mats), buissons, {"ombre": false})
+	Instanciation.repartir(monde, Arbres.buisson(21, mats), buissons, {"ombre": false, "portee": 60.0, "marge": 10.0})
 	return arbres

@@ -56,3 +56,11 @@ _(chaque lot documente ici ses constantes : nom, fichier, valeur, effet)_
 - Options de lancement : `--biome=ancien|nouveau` (ou `set_meta("biome", …)`), `--sans-particules`, `--paisible` (draugrs/dragon figés, pas de dégâts), cycle figé en `--capture` même avec `--heure`.
 - Outils : `outils/test_biome.gd` (`-- ecrire|comparer <fichier> [--sans-zone] [--biome=…]`, signature hauteurs + MultiMesh + pierres), `outils/comparer_images.gd` (`-- a.png b.png`, % de pixels > 8/255).
 - Références Lot 0 : `captures/biome/ref_ancien.sig` (état `biome-avant`), non versionnée.
+
+### Lot A : performances (instanciation.gd, arbres.gd, appels dans vegetation.gd et rochers.gd)
+- `Instanciation.CELLULE = 20.0` : côté des cellules (grille alignée sur l'origine du monde) ; un MultiMeshInstance3D par (mesh, cellule), nœud posé au centre de la cellule, transforms en local.
+- Réglages de `Instanciation.repartir` : `portee` (0 = illimitée), `marge` (10, hystérésis, fade DISABLED), `ombre_proche` (distance des ombres : l'affichage est alors sans ombre et un MMI « ombre seule » couvre cette distance), `lod_mesh` / `lod_debut` (85) / `lod_portee` (250). Les MMI ajoutés portent la méta `lod` (`"ombre"` ou `"loin"`) : le test d'invariance les ignore.
+- Valeurs (vegetation.gd `instancier`) : épicéas et arbres morts `portee 90`, `marge 10`, `ombre_proche 50` ; genévriers `portee 60` (sans ombre) ; rochers (rochers.gd) `portee 120`.
+- LOD lointain : `Arbres.epicea_lointain(forme, graine, mats)` (moitié des étages, 5 pointes, tronc 3 pans, ~100 triangles) de 85 à 250 m, sans ombre ; les arbres morts réutilisent leur mesh complet (peu nombreux). Nécessaire pour garder l'horizon boisé de jour (sans lui, la forêt disparaît au-delà de 90 m, la brume ne la cache pas assez).
+- Invariance : `test_biome.gd` compare désormais à 1e-4 près (coordonnées locales) ; il faut le lancer AVEC fenêtre (`--resolution 160x90`, pas `--headless` : le MultiMesh ne relit pas ses transforms en headless, l'ancienne signature était donc vide de sens pour les MultiMesh). Référence réelle : `captures/biome/ref_ancien_fenetre.sig` (générée sur le tag `biome-avant`).
+- Mesure : `outils/mesure_perf.gd` (fenêtre ; 10 s de stabilisation puis moyenne sur 20 s).
