@@ -3,11 +3,17 @@ config_version=5
 
 [application]
 config/name="Nordique (nom provisoire)"
+run/main_scene="res://scenes/foret_test.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 
 [display]
-window/size/viewport_width=1280
-window/size/viewport_height=720
+; Rendu interne 480x270 agrandi en entier (x3 en fenêtre, x4 en 1080p) : c'est le look PS1.
+window/size/viewport_width=480
+window/size/viewport_height=270
+window/size/window_width_override=1440
+window/size/window_height_override=810
+window/stretch/mode="viewport"
+window/stretch/scale_mode="integer"
 
 [rendering]
 renderer/rendering_method="mobile"
