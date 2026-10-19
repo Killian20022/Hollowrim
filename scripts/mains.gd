@@ -6,7 +6,9 @@ extends Node3D
 
 
 const EPEE_NORDIQUE := preload("res://assets/modeles/joueur/epee_nordique.glb")
-const MAINS := preload("res://assets/modeles/joueur/mains.glb")
+const BRAS := preload("res://assets/modeles/joueur/bras_fps.glb")
+const ORIENTATION := preload("res://scripts/orientation_main.gd")
+const POS_TORCHE := Vector3(-0.34, -0.44, -0.62)
 
 enum { REPOS, ARMER, CHARGE, FRAPPE, RETOUR, GARDE, ENCAISSE }
 
@@ -19,7 +21,7 @@ const SEUIL_CHARGE := 0.28  # durée d'appui au-delà de laquelle le coup devien
 # poses de l'épée : [position, rotation en degrés (x, y, z)] pour un coup de droite à gauche ;
 # le coup inverse utilise la pose miroir.
 const POSES := {
-	"repos": [Vector3(0.30, -0.36, -0.58), Vector3(-30, 0, 12)],
+	"repos": [Vector3(0.26, -0.30, -0.56), Vector3(-30, 0, 12)],
 	"armer": [Vector3(0.42, -0.16, -0.50), Vector3(15, -20, -62)],
 	"charge": [Vector3(0.46, -0.08, -0.40), Vector3(30, -28, -75)],
 	"frappe": [Vector3(-0.24, -0.38, -0.6), Vector3(-70, 30, 92)],
@@ -44,29 +46,40 @@ var _balance := Vector2.ZERO
 var _respiration := 0.0
 var _pose_figee := ""
 var _baisse := 0.0
+## Prises de l'épée et de la torche dans les mains (repère des os hand_r / hand_l).
+var PRISE_D := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
+var PRISE_G := Transform3D(Basis(Vector3(-0.999251, 0.038333, 0.005287), Vector3(0.014456, 0.243068, 0.969901), Vector3(0.035894, 0.969252, -0.24344)), Vector3(0.007936, 0.142938, 0.002241))
 var _acier: ShaderMaterial
 var _mats := {}
 
 var pivot_epee: Node3D
 var pivot_torche: Node3D
+var porte_torche: Node3D
+var bras: Node3D
+var _sq: Skeleton3D
+var _accroche_d: BoneAttachment3D
+var _accroche_g: BoneAttachment3D
+var _doigts := {}
 var torche_lumiere: OmniLight3D
 var flamme: GPUParticles3D
 
 func _ready() -> void:
+	# les pivots ne portent plus rien : ce sont les cibles que les mains suivent (IK)
 	pivot_epee = Node3D.new()
 	add_child(pivot_epee)
-	pivot_epee.add_child(_modele_epee())
-	joueur.inventaire.change.connect(_teinte_epee)
-	_poser_main(pivot_epee, "main_droite")
 	pivot_epee.transform = _pose("repos")
 	_depart = pivot_epee.transform
-
 	pivot_torche = Node3D.new()
-	pivot_torche.position = Vector3(-0.34, -0.44, -0.62)
+	pivot_torche.position = POS_TORCHE
 	pivot_torche.rotation_degrees = Vector3(-14, 0, -12)
 	add_child(pivot_torche)
+	_bras()
+	_accroche_d.add_child(_modele_epee())
+	joueur.inventaire.change.connect(_teinte_epee)
+	porte_torche = Node3D.new()
+	_accroche_g.add_child(porte_torche)
+	porte_torche.transform = PRISE_G
 	_torche()
-	_poser_main(pivot_torche, "main_gauche")
 
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--mains="):
@@ -111,6 +124,9 @@ func _materiaux_equipement() -> Dictionary:
 		"gant": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(3, 3), Color(1.05, 0.95, 0.88)),
 		"brassard": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(2, 2), Color(0.7, 0.66, 0.66)),
 		"fourrure": Palette.materiau(Palette.tex("fourrure", Palette.FOURRURE, 8, 0.8), Vector2(3, 1), Color(1.25, 1.15, 1.0)),
+		"tunique": Palette.materiau(Palette.tex("laine_bleue", ["#1c2232", "#232a3d", "#2c3449", "#363f56"], 8, 0.5), Vector2(6, 6)),
+		"gants": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(4, 4), Color(1.05, 0.95, 0.88)),
+		"brassards": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(4, 4), Color(0.7, 0.66, 0.66)),
 		"manche": Palette.materiau(Palette.tex("laine", ["#1a1d26", "#22262f", "#2b303b", "#353b48"], 4, 0.6), Vector2(2, 3)),
 	}
 	# les fichiers exportés de Blender portent des couleurs de sommet d'alpha nul, que le
@@ -137,16 +153,84 @@ func _modele_epee() -> Node3D:
 	_habiller(e)
 	return e
 
-func _poser_main(pivot: Node3D, nom: String) -> void:
-	var toutes: Node3D = MAINS.instantiate()
-	var main := toutes.find_child(nom, true, false) as Node3D
-	main.get_parent().remove_child(main)
-	toutes.free()
-	main.transform = Transform3D()
-	_habiller(main)
-	pivot.add_child(main)
+## Vrais bras : manches, brassards et gants du corps du joueur, sur son squelette, placés
+## pour que les yeux du squelette soient la caméra. L'IK à deux os (épaule, coude) amène
+## chaque main sur sa cible ; l'arme et la torche sont tenues par les os des mains.
+func _bras() -> void:
+	bras = BRAS.instantiate()
+	add_child(bras)
+	_sq = bras.find_child("Skeleton3D", true, false)
+	_habiller(bras)
+	for mi: MeshInstance3D in bras.find_children("*", "MeshInstance3D", true, false):
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.extra_cull_margin = 2.0
+	# modèle tourné vers -Z (la caméra), yeux sur l'origine de la caméra
+	var tete := _sq.get_bone_global_rest(_sq.find_bone("Head")).origin
+	var yeux := tete + Vector3(0, 0.07, 0.1)
+	var tour := Basis(Vector3.UP, PI)
+	bras.transform = Transform3D(tour, -(tour * yeux) + Vector3(0, -0.1, -0.24))
+	_poings()
+	# cibles des mains et du coude
+	var cible_d := Node3D.new()
+	pivot_epee.add_child(cible_d)
+	cible_d.transform = PRISE_D.affine_inverse()
+	var cible_g := Node3D.new()
+	pivot_torche.add_child(cible_g)
+	cible_g.transform = PRISE_G.affine_inverse()
+	var coude_d := Node3D.new()
+	add_child(coude_d)
+	coude_d.position = Vector3(0.8, -0.9, -0.1)
+	var coude_g := Node3D.new()
+	add_child(coude_g)
+	coude_g.position = Vector3(-0.8, -0.9, -0.1)
+	var ik := TwoBoneIK3D.new()
+	_sq.add_child(ik)
+	ik.set_setting_count(2)
+	for i in 2:
+		var c: String = ["r", "l"][i]
+		ik.set_root_bone_name(i, "upperarm_" + c)
+		ik.set_middle_bone_name(i, "lowerarm_" + c)
+		ik.set_end_bone_name(i, "hand_" + c)
+		ik.set_target_node(i, ik.get_path_to([cible_d, cible_g][i]))
+		ik.set_pole_node(i, ik.get_path_to([coude_d, coude_g][i]))
+	for i in 2:
+		var o := SkeletonModifier3D.new()
+		o.set_script(ORIENTATION)
+		o.os = ["hand_r", "hand_l"][i]
+		o.cible = [cible_d, cible_g][i]
+		_sq.add_child(o)
+	_accroche_d = BoneAttachment3D.new()
+	_accroche_d.bone_name = "hand_r"
+	_sq.add_child(_accroche_d)
+	_accroche_g = BoneAttachment3D.new()
+	_accroche_g.bone_name = "hand_l"
+	_sq.add_child(_accroche_g)
 
-## L'Épée de Skarnholt, forgée par Brodd : lame claire aux reflets dorés.
+## Doigts refermés : pose des poings prise dans l'animation de coup de poing.
+func _poings() -> void:
+	var ap := AnimationPlayer.new()
+	bras.add_child(ap)
+	ap.root_node = NodePath("..")
+	ap.add_animation_library("", Humain.bibliotheque())
+	ap.play("Punch_Cross")
+	ap.seek(0.0, true)
+	var doigts := {}
+	for i in _sq.get_bone_count():
+		var n := _sq.get_bone_name(i)
+		if n.begins_with("thumb") or n.begins_with("index") or n.begins_with("middle") or n.begins_with("ring") or n.begins_with("pinky"):
+			doigts[i] = _sq.get_bone_pose_rotation(i)
+	ap.stop()
+	ap.queue_free()
+	_sq.reset_bone_poses()
+	_doigts = doigts
+	_reposer_doigts()
+
+## Réappliquée à chaque image : sans animation, le squelette ne serait jamais marqué
+## « modifié » et l'IK des bras ne tournerait pas.
+func _reposer_doigts() -> void:
+	for i in _doigts:
+		_sq.set_bone_pose_rotation(i, _doigts[i])
+
 func _teinte_epee() -> void:
 	if _acier != null and joueur.inventaire.a("epee_skarnholt"):
 		_acier.set_shader_parameter("teinte", Color(1.15, 1.05, 0.85))
@@ -168,7 +252,7 @@ func _torche() -> void:
 	baton.mesh = c
 	baton.material_override = Palette.materiau(Palette.tex("ecorce", Palette.ECORCE), Vector2(1, 3))
 	baton.position = Vector3(0, 0.08, 0)
-	pivot_torche.add_child(baton)
+	porte_torche.add_child(baton)
 	var tete := MeshInstance3D.new()
 	var t := CylinderMesh.new()
 	t.top_radius = 0.045
@@ -179,7 +263,7 @@ func _torche() -> void:
 	tete.mesh = t
 	tete.material_override = Palette.materiau(Palette.tex("chiffon", ["#2a1a10", "#3b2414", "#1a0f08", "#4a2e18"], 8, 0.6))
 	tete.position = Vector3(0, 0.31, 0)
-	pivot_torche.add_child(tete)
+	porte_torche.add_child(tete)
 
 	flamme = GPUParticles3D.new()
 	flamme.amount = 32
@@ -213,7 +297,7 @@ func _torche() -> void:
 	mq.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	q.material = mq
 	flamme.draw_pass_1 = q
-	pivot_torche.add_child(flamme)
+	porte_torche.add_child(flamme)
 
 	torche_lumiere = OmniLight3D.new()
 	torche_lumiere.light_color = Color(1.0, 0.58, 0.28)
@@ -221,7 +305,7 @@ func _torche() -> void:
 	torche_lumiere.omni_range = 10.0
 	torche_lumiere.omni_attenuation = 1.3
 	torche_lumiere.position = Vector3(0, 0.42, 0.08)
-	pivot_torche.add_child(torche_lumiere)
+	porte_torche.add_child(torche_lumiere)
 
 func _pose(nom: String, sens := 1.0) -> Transform3D:
 	var p: Vector3 = POSES[nom][0]
@@ -279,6 +363,7 @@ func encaisser() -> void:
 func _process(dt: float) -> void:
 	if joueur == null:
 		return
+	_reposer_doigts()
 	_t += dt
 	_depuis_coup += dt
 	_respiration += dt

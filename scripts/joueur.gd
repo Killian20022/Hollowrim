@@ -6,6 +6,8 @@ signal touche(degats: float)
 signal deces
 
 const MAINS := preload("res://scripts/mains.gd")
+const CORPS := preload("res://scripts/corps_joueur.gd")
+const CAMERA_TP := preload("res://scripts/camera_tp.gd")
 
 const VITESSE := 3.2
 const COURSE := 6.5
@@ -29,6 +31,9 @@ var inventaire := Inventaire.new()
 var tete: Node3D
 var camera: Camera3D
 var mains: Node3D
+var corps: Node3D  # corps visible à la troisième personne
+var camera_tp: Node3D
+var troisieme := false  # V : bascule première / troisième personne
 var _pas := 0.0
 var _dernier_pas := 0
 var _repos_vigueur := 0.0
@@ -59,8 +64,32 @@ func _ready() -> void:
 	mains.set_script(MAINS)
 	mains.joueur = self
 	camera.add_child(mains)
+	corps = Node3D.new()
+	corps.set_script(CORPS)
+	corps.joueur = self
+	corps.mains = mains
+	add_child(corps)
+	camera_tp = Node3D.new()
+	camera_tp.set_script(CAMERA_TP)
+	camera_tp.joueur = self
+	add_child(camera_tp)
+	for a in OS.get_cmdline_user_args():
+		if a == "--vue=3":
+			basculer_vue(true)
 	_bruit_secousse.frequency = 2.0
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+## V : passe de la première à la troisième personne. La caméra de la tête reste en place
+## (hors champ) : les coups d'épée et les invites partent donc toujours des yeux du joueur.
+func basculer_vue(troisieme_personne: bool) -> void:
+	troisieme = troisieme_personne
+	mains.visible = not troisieme
+	corps.definir_vue(troisieme)
+	if troisieme:
+		camera_tp.recaler()
+		camera_tp.camera.current = true
+	else:
+		camera.current = true
 
 func _actions() -> void:
 	var touches := {
@@ -84,6 +113,8 @@ func _unhandled_input(e: InputEvent) -> void:
 		tete.rotation.x = clampf(tete.rotation.x - e.screen_relative.y * SENSIBILITE, -1.45, 1.45)
 	elif e is InputEventMouseButton and e.pressed:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	elif e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_V:
+		basculer_vue(not troisieme)
 	elif e is InputEventKey and e.pressed and e.physical_keycode == KEY_ESCAPE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
@@ -185,3 +216,7 @@ func _physics_process(dt: float) -> void:
 	camera.h_offset = _bruit_secousse.get_noise_2d(_t * 40.0, 0.0) * s * 0.08
 	camera.v_offset = _bruit_secousse.get_noise_2d(0.0, _t * 40.0) * s * 0.08
 	camera.rotation.z = _bruit_secousse.get_noise_2d(_t * 30.0, 50.0) * s * 0.06
+	var cam_tp: Camera3D = camera_tp.camera
+	cam_tp.h_offset = camera.h_offset
+	cam_tp.v_offset = camera.v_offset
+	cam_tp.rotation.z = camera.rotation.z

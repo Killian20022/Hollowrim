@@ -868,7 +868,7 @@ func _interface() -> void:
 	rect.material = post
 	calque.add_child(rect)
 	aide = Label.new()
-	aide.text = "ZQSD : marcher   Maj : courir   Espace : sauter\nClic gauche : frapper (maintenir = coup puissant)\nClic droit : garde   T : torche   P : effet PS1   Échap : souris"
+	aide.text = "ZQSD : marcher   Maj : courir   Espace : sauter\nClic gauche : frapper (maintenir = coup puissant)\nClic droit : garde   T : torche   V : vue   P : effet PS1   Échap : souris"
 	aide.add_theme_font_size_override("font_size", 8)
 	aide.add_theme_color_override("font_color", Color(0.85, 0.9, 1.0, 0.85))
 	aide.position = Vector2(6, 18)
@@ -1056,6 +1056,16 @@ func _capture() -> void:
 		await _test_combat()
 	if _arguments().has("scenario"):
 		await _scenario(_arguments()["scenario"])
+	if _arguments().has("camera-debug"):
+		# filme le joueur de côté (réglage des bras à la 1re personne)
+		var c := Camera3D.new()
+		add_child(c)
+		var cam: Camera3D = joueur.camera
+		c.global_position = cam.to_global(Vector3(1.4, 0.2, -0.9))
+		c.look_at(cam.to_global(Vector3(0.0, -0.25, -0.35)))
+		c.current = true
+		for i in 5:
+			await get_tree().process_frame
 	print("FPS : ", Engine.get_frames_per_second())
 	var img := get_viewport().get_texture().get_image()
 	img.resize(img.get_width() * 2, img.get_height() * 2, Image.INTERPOLATE_NEAREST)

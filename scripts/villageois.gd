@@ -12,6 +12,17 @@ const DIST_REGARD := 4.0
 const DIST_INTERPELLE := 5.0
 const DIST_PARLER := 2.6
 const DOT_PARLER := 0.85
+## Vitesse du corps que suppose l'animation Walk de la bibliothèque (mesurée avec
+## outils/mesure_pas.gd : pied d'appui, 1,03 m/s en médiane). anim.speed_scale = vitesse réelle / REF_MARCHE
+## évite que les pieds glissent.
+const REF_MARCHE := 1.03
+const ACCEL := 3.0  # m/s², départ et arrêt progressifs
+const ROT_MAX := 3.5  # rad/s, vitesse de rotation maximale du corps
+const ECART_DEPART := 0.5  # il ne part que presque aligné (rad) ; il continue jusqu'à ECART_MAX
+const ECART_MAX := 1.0
+const DIST_TETE := 5.0  # la tête suit le joueur en deçà
+const LACET_TETE := deg_to_rad(60.0)
+const TANGAGE_TETE := deg_to_rad(25.0)
 ## Activité au poste selon le lieu (une animation en boucle ; "PickUp" = ponctuelle).
 const ACTIVITES := {
 	"forge": "Fixing_Kneeling",
@@ -21,6 +32,52 @@ const ACTIVITES := {
 	"longue_maison": "Idle",
 	"porte": "Idle",
 }
+
+## Modificateur de squelette : oriente cou et tête vers un point du monde, avec lissage et
+## limites (±60° de lacet, ±25° de tangage). S'applique après l'animation.
+class SuiviTete extends SkeletonModifier3D:
+	var cible := Vector3.ZERO  # point à regarder (repère du monde)
+	var voulu := false
+	var lacet := 0.0
+	var tangage := 0.0
+	var _cou := -1
+	var _tete := -1
+
+	func _process_modification() -> void:
+		var sq := get_skeleton()
+		if sq == null:
+			return
+		if _tete < 0:
+			_tete = sq.find_bone("Head")
+			_cou = sq.find_bone("neck_01")
+			if _tete < 0:
+				return
+		var dt := get_process_delta_time()
+		var but_l := 0.0
+		var but_t := 0.0
+		if voulu:
+			var d := sq.global_transform.affine_inverse() * cible - sq.get_bone_global_pose(_tete).origin
+			var plan := Vector2(d.x, d.z).length()
+			if plan > 0.3:
+				but_l = clampf(atan2(d.x, d.z), -LACET_TETE, LACET_TETE)
+				but_t = clampf(atan2(d.y, plan), -TANGAGE_TETE, TANGAGE_TETE)
+		var k := 1.0 - exp(-5.0 * dt)
+		lacet = lerp_angle(lacet, but_l, k)
+		tangage = lerpf(tangage, but_t, k)
+		if absf(lacet) < 0.002 and absf(tangage) < 0.002:
+			return
+		# 40 % sur le cou, 60 % sur la tête
+		_tourner(sq, _cou, 0.4)
+		_tourner(sq, _tete, 0.6)
+
+	func _tourner(sq: Skeleton3D, os: int, part: float) -> void:
+		if os < 0:
+			return
+		var rot := Basis(Vector3.UP, lacet * part) * Basis(Vector3.RIGHT, -tangage * part)
+		var parent := sq.get_bone_parent(os)
+		var pb := sq.get_bone_global_pose(parent).basis if parent >= 0 else Basis()
+		var voulue := rot * sq.get_bone_global_pose(os).basis
+		sq.set_bone_pose_rotation(os, (pb.inverse() * voulue).orthonormalized().get_rotation_quaternion())
 
 var donnees: Dictionary = {}
 var joueur: CharacterBody3D
@@ -41,6 +98,18 @@ var _en_conversation := false
 var _debut_conversation := 0.0
 var _bloque := 0.0
 var _invite := false
+var _var := 1.0  # variation personnelle de rythme (animations de repos)
+var _marche := MARCHE  # vitesse de marche personnelle
+var _vit := 0.0  # vitesse de marche actuelle
+var _avance := false
+var _tete: SuiviTete
+var _delai_variete := 12.0
+var _variete_fin := 0.0  # durée restante d'une petite animation de repos
+var _autour := 0.0  # durée restante d'un regard circulaire
+var _autour_lacet := 0.0
+var _autour_duree := 4.0
+var _parle := false  # conversation : Idle_Talking (vrai) ou Idle
+var _delai_parole := 0.0
 
 ## Lit res://data/villageois.json et renvoie la liste des villageois (vide si absent ou invalide).
 static func charger() -> Array:
@@ -77,6 +146,13 @@ func _ready() -> void:
 	rotation.y = randf() * TAU
 	_prochaine_promenade = randf_range(8.0, 40.0)
 	_delai_interpelle = randf_range(0.0, 15.0)
+	_var = randf_range(0.93, 1.07)
+	_marche = MARCHE * randf_range(0.92, 1.08)
+	_delai_variete = randf_range(8.0, 20.0)
+	var squelette: Skeleton3D = modele.find_child("Skeleton3D", true, false)
+	if squelette != null:
+		_tete = SuiviTete.new()
+		squelette.add_child(_tete)
 	_activite(true)
 	if anim != null:
 		anim.seek(randf() * 2.0)
@@ -118,7 +194,11 @@ func parler() -> Array:
 	_debut_conversation = 0.0
 	etat = POSTE
 	_t = 0.0
-	_jouer("Interact", 0.2)
+	_variete_fin = 0.0
+	_autour = 0.0
+	_parle = false
+	_delai_parole = 1.2  # il fait d'abord un geste d'accueil (Interact), puis il parle
+	_jouer("Interact", 0.25)
 	return lignes
 
 ## Facultatif : le dialogue peut prévenir de la fin (sinon détecté via joueur.en_dialogue).
@@ -131,6 +211,8 @@ func _jouer(nom: String, fondu := 0.2) -> void:
 		return
 	_anim = nom
 	anim.play(nom, fondu)
+	if nom != "Walk":  # Walk est réglé à chaque image sur la vitesse réelle
+		anim.speed_scale = _var
 
 ## Animation d'activité du poste (PickUp : ponctuelle, entre deux Idle).
 func _activite(immediat := false) -> void:
@@ -160,22 +242,22 @@ func _physics_process(dt: float) -> void:
 			fin_conversation()
 
 	var cap := Vector3.ZERO  # direction de marche
-	var regarde := _en_conversation or dist < DIST_REGARD
 	if _en_conversation:
 		_t = 0.0
-		if _debut_conversation > 1.2:
-			_jouer("Idle_Talking", 0.3)
+		_variete_fin = 0.0
+		_autour = 0.0
+		_parole(dt)
 	else:
 		match etat:
 			POSTE:
 				_t_poste(dt)
+				_variete(dt)
 			ALLER:
 				cap = _vers_point(points[_cible_index()], dt)
 			PAUSE:
 				if _t > _duree_pause:
 					etat = RETOUR
 					_t = 0.0
-					_jouer("Walk", 0.3)
 			RETOUR:
 				cap = _vers_point(points[0], dt)
 		if cap == Vector3.ZERO and etat == POSTE and anim != null and _anim == "Idle" \
@@ -186,27 +268,80 @@ func _physics_process(dt: float) -> void:
 				_delai_activite = randf_range(6.0, 14.0)
 				get_tree().create_timer(anim.get_animation("PickUp_Table").length).timeout.connect(_activite)
 
-	# orientation : vers le joueur s'il est proche, sinon vers où il marche
+	# orientation : face au joueur à l'arrêt (conversation ou proche), sinon dans le sens de la marche.
+	# Jamais face au joueur en marchant : le corps regarde où il va (la tête suit le joueur).
 	var vise := Vector3.ZERO
-	if regarde:
+	if _en_conversation or (cap == Vector3.ZERO and dist < DIST_REGARD):
 		vise = dir
 	elif cap != Vector3.ZERO:
 		vise = cap
+	var ecart_cap := 0.0
+	if cap != Vector3.ZERO:
+		ecart_cap = absf(angle_difference(rotation.y, atan2(cap.x, cap.z)))
 	if vise != Vector3.ZERO:
-		rotation.y = lerp_angle(rotation.y, atan2(vise.x, vise.z), 1.0 - exp(-6.0 * dt))
+		var ecart := angle_difference(rotation.y, atan2(vise.x, vise.z))
+		var pas := ecart * (1.0 - exp(-6.0 * dt))
+		rotation.y += clampf(pas, -ROT_MAX * dt, ROT_MAX * dt)
 
-	velocity.x = cap.x * MARCHE
-	velocity.z = cap.z * MARCHE
+	# il ne part que lorsqu'il est à peu près tourné vers sa destination (demi-tour sur place)
+	_avance = cap != Vector3.ZERO and ecart_cap < (ECART_MAX if _vit > 0.05 else ECART_DEPART)
+	_vit = move_toward(_vit, _marche if _avance else 0.0, ACCEL * dt) if cap != Vector3.ZERO else 0.0
+	velocity.x = cap.x * _vit
+	velocity.z = cap.z * _vit
 	move_and_slide()
 
+	if cap != Vector3.ZERO:  # en déplacement : Walk si ça avance, Idle si demi-tour
+		if etat in [ALLER, RETOUR]:
+			if _vit > 0.1:
+				_jouer("Walk", 0.3)
+				anim.speed_scale = clampf(_vit / REF_MARCHE, 0.5, 1.6)
+			elif not _avance:
+				_jouer("Idle", 0.3)
+	_regard_tete(dist)
 	_interactions(dist, dt)
+
+## Conversation : alterne Idle_Talking (2,5 à 5 s) et Idle (1 à 2,5 s).
+func _parole(dt: float) -> void:
+	_delai_parole -= dt
+	if _delai_parole > 0.0:
+		return
+	_parle = not _parle
+	_delai_parole = randf_range(2.5, 5.0) if _parle else randf_range(1.0, 2.5)
+	_jouer("Idle_Talking" if _parle else "Idle", 0.3)
+
+## Repos : toutes les 8 à 20 s, un petit geste (Interact, Idle_Talking court) ou un regard autour,
+## puis retour à l'activité du poste.
+func _variete(dt: float) -> void:
+	if _variete_fin > 0.0:
+		_variete_fin -= dt
+		if _variete_fin <= 0.0:
+			_activite()
+	if _autour > 0.0:
+		_autour -= dt
+	_delai_variete -= dt
+	if _delai_variete > 0.0 or _variete_fin > 0.0 or _autour > 0.0 or anim == null:
+		return
+	_delai_variete = randf_range(8.0, 20.0)
+	var base_repos: bool = ACTIVITES.get(donnees.get("lieu", ""), "Idle") in ["Idle", "PickUp_Table"] and _anim == "Idle"
+	var choix: Array = ["autour", "autour"]
+	if base_repos:
+		choix += ["Interact", "Idle_Talking"]
+	var c: String = choix.pick_random()
+	if c == "autour":
+		_autour_duree = randf_range(3.0, 5.0)
+		_autour = _autour_duree
+		_autour_lacet = deg_to_rad(randf_range(35.0, 60.0)) * (1.0 if randf() < 0.5 else -1.0)
+	elif anim.has_animation(c):
+		_variete_fin = anim.get_animation(c).length if c == "Interact" else randf_range(2.5, 3.5)
+		_jouer(c, 0.25)
 
 func _t_poste(_dt: float) -> void:
 	if _t >= _prochaine_promenade and points.size() > 1:
 		etat = ALLER
 		_t = 0.0
 		_bloque = 0.0
-		_jouer("Walk", 0.3)
+		_variete_fin = 0.0
+		_autour = 0.0
 	elif _t >= _prochaine_promenade:
 		_t = 0.0
 		_prochaine_promenade = randf_range(15.0, 40.0)
@@ -222,7 +357,7 @@ func _vers_point(p: Vector3, dt: float) -> Vector3:
 	var d := p - global_position
 	d.y = 0.0
 	var vitesse_reelle := Vector2(velocity.x, velocity.z).length()
-	_bloque = _bloque + dt if (_t > 1.0 and vitesse_reelle < 0.2) else 0.0
+	_bloque = _bloque + dt if (_t > 1.0 and _avance and vitesse_reelle < 0.2) else 0.0
 	if d.length() < 0.25 or _bloque > 2.0 or _t > 40.0:
 		_bloque = 0.0
 		if etat == ALLER:
@@ -239,6 +374,24 @@ func _vers_point(p: Vector3, dt: float) -> Vector3:
 			_activite()
 		return Vector3.ZERO
 	return d.normalized()
+
+## Tête : suit le joueur en deçà de DIST_TETE (ou pendant la conversation), sinon un éventuel
+## regard autour ; sinon revient droit devant.
+func _regard_tete(dist: float) -> void:
+	if _tete == null:
+		return
+	var oeil := global_position + Vector3.UP * 1.55
+	if joueur != null and (dist < DIST_TETE or _en_conversation):
+		var cam: Camera3D = joueur.camera if "camera" in joueur else null
+		_tete.cible = cam.global_position if cam != null else joueur.global_position + Vector3.UP * 1.6
+		_tete.voulu = true
+	elif _autour > 0.0:
+		var moitie := _autour > _autour_duree * 0.5
+		var lacet := _autour_lacet if moitie else -_autour_lacet * 0.6
+		_tete.cible = oeil + global_transform.basis * (Basis(Vector3.UP, lacet) * Vector3(0.0, 0.0, 4.0))
+		_tete.voulu = true
+	else:
+		_tete.voulu = false
 
 func _interactions(dist: float, dt: float) -> void:
 	if dialogue == null or not is_instance_valid(dialogue):

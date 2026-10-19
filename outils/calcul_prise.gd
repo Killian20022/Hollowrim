@@ -6,11 +6,16 @@ func _init() -> void:
 	root.add_child(h)
 	var sq: Skeleton3D = h.find_child("Skeleton3D", true, false)
 	var p := func(n: String) -> Vector3: return sq.get_bone_global_rest(sq.find_bone(n)).origin
-	var main: Transform3D = sq.get_bone_global_rest(sq.find_bone("hand_r"))
-	var index: Vector3 = p.call("index_01_r")
-	var auri: Vector3 = p.call("pinky_01_r")
-	var milieu: Vector3 = p.call("middle_01_r")
-	var bout: Vector3 = p.call("middle_03_r")
+	for cote in ["r", "l"]:
+		_prise(sq, p, cote)
+	quit()
+
+func _prise(sq: Skeleton3D, p: Callable, cote: String) -> void:
+	var main: Transform3D = sq.get_bone_global_rest(sq.find_bone("hand_" + cote))
+	var index: Vector3 = p.call("index_01_" + cote)
+	var auri: Vector3 = p.call("pinky_01_" + cote)
+	var milieu: Vector3 = p.call("middle_01_" + cote)
+	var bout: Vector3 = p.call("middle_03_" + cote)
 	var lame := (index - auri).normalized()
 	var doigts := (bout - milieu).normalized()
 	var z := doigts - lame * doigts.dot(lame)
@@ -19,5 +24,4 @@ func _init() -> void:
 	var poignee := (index + auri) * 0.5 + doigts * 0.035
 	var monde := Transform3D(Basis(x, lame, z), poignee)
 	var local := main.affine_inverse() * monde
-	print("PRISE = Transform3D(Basis(Vector3", local.basis.x, ", Vector3", local.basis.y, ", Vector3", local.basis.z, "), Vector3", local.origin, ")")
-	quit()
+	print("PRISE_", cote, " = Transform3D(Basis(Vector3", local.basis.x, ", Vector3", local.basis.y, ", Vector3", local.basis.z, "), Vector3", local.origin, ")")

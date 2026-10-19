@@ -18,8 +18,16 @@ const DETECTION := 17.0
 const REVEIL_DISTANCE := 10.0
 const ABANDON := 45.0
 const PORTEE := 1.9
-const MARCHE := 1.5
+const MARCHE := 0.85  # démarche lente et raide (Walk à ~0,82 de sa vitesse d'origine)
+const MARCHE_PROCHE := 1.2  # derniers mètres avant le corps à corps
 const COURSE := 3.4
+## Vitesses du corps supposées par les animations de la bibliothèque (mesurées avec
+## outils/mesure_pas.gd : pied d'appui) : Walk 1,03 m/s, Jog_Fwd ≈ 6 m/s. speed_scale = vitesse réelle / référence
+## évite que les pieds glissent (Walk à 0,85 m/s => ~0,82 ; Jog_Fwd à 3,4 m/s => ~0,57 : course lourde de mort-vivant).
+const REF_MARCHE := 1.03
+const REF_COURSE := 6.0
+const ACCEL := 8.0  # m/s²
+const ROT_MAX := 6.0  # rad/s ; 10 pendant le geste d'attaque
 
 var type := "guerrier"
 var dort := false
@@ -51,6 +59,8 @@ var _coup_donne := false
 var _recharge := 0.0
 var _recul := Vector3.ZERO
 var _mailles: Array[MeshInstance3D] = []
+var _var := 1.0  # petite variation de rythme propre à chaque draugr
+var _vit := 0.0
 
 func _ready() -> void:
 	add_to_group("ennemis")
@@ -85,6 +95,7 @@ func _ready() -> void:
 	var squelette: Skeleton3D = modele.find_child("Skeleton3D", true, false)
 	_armer(squelette)
 	anim = modele.get_node("Animations")
+	_var = randf_range(0.94, 1.06)
 	origine = global_position
 	if dort:
 		etat = DORT
@@ -98,7 +109,7 @@ func _ready() -> void:
 			anim.pause()
 	else:
 		_jouer("Sword_Idle", 0.0)
-		anim.seek(randf() * 2.0)
+		anim.seek(randf() * 2.0)  # phase au hasard : les gardes ne bougent pas en même temps
 
 ## Le réveil : un dormeur allongé rejoue sa mort à l'envers et se relève.
 func _reveiller() -> void:
@@ -139,6 +150,9 @@ func _jouer(nom: String, fondu := 0.15, forcer := false) -> void:
 	if forcer:
 		anim.stop()
 	anim.play(nom, fondu)
+	# Walk et Jog_Fwd : speed_scale réglé à chaque image sur la vitesse réelle
+	if nom != "Walk" and nom != "Jog_Fwd":
+		anim.speed_scale = _var if nom in ["Sword_Idle", "Idle"] else 1.0
 
 func _duree(nom: String) -> float:
 	return anim.get_animation(nom).length
@@ -158,6 +172,8 @@ func _physics_process(dt: float) -> void:
 	var dir := vers / dist if dist > 0.01 else Vector3.ZERO
 	var vitesse := 0.0
 	var regard := true
+	var vitesse_rot := ROT_MAX
+	var loco := ""  # animation de déplacement voulue ("" = sur place)
 
 	match etat:
 		DORT:
@@ -176,7 +192,7 @@ func _physics_process(dt: float) -> void:
 			if retour.length() > 1.5:
 				dir = retour.normalized()
 				vitesse = MARCHE
-				_jouer("Walk")
+				loco = "Walk"
 			else:
 				regard = false
 				_jouer("Sword_Idle")
@@ -187,8 +203,8 @@ func _physics_process(dt: float) -> void:
 			if joueur.mort or dist > ABANDON:
 				_changer(GARDE)
 			elif dist > PORTEE:
-				vitesse = COURSE if dist > 4.0 else MARCHE * 1.4
-				_jouer("Jog_Fwd" if dist > 4.0 else "Walk")
+				vitesse = COURSE if dist > 4.0 else MARCHE_PROCHE
+				loco = "Jog_Fwd" if dist > 4.0 else "Walk"
 			else:
 				_jouer("Sword_Idle")
 				if _recharge <= 0.0:
@@ -198,7 +214,8 @@ func _physics_process(dt: float) -> void:
 					_jouer(_attaque, 0.1, true)
 		ATTAQUE:
 			var duree := _duree(_attaque)
-			regard = _t < duree * 0.3
+			regard = _t < duree * 0.45  # il se vise avant de frapper
+			vitesse_rot = 10.0
 			if not _coup_donne and _t >= duree * 0.42:
 				_coup_donne = true
 				Sons.jouer_a(self, ["swing", "swing2", "swing3"], global_position + Vector3.UP, -6.0, 0.2)
@@ -221,12 +238,26 @@ func _physics_process(dt: float) -> void:
 			if _t > 30.0:
 				queue_free()
 
-	if regard and dist > 0.01:
+	var ecart := 0.0
+	if (regard or loco != "") and dist > 0.01:
 		var cible := atan2(dir.x, dir.z)
-		rotation.y = lerp_angle(rotation.y, cible, 1.0 - exp(-8.0 * dt))
+		ecart = angle_difference(rotation.y, cible)
+		var pas := ecart * (1.0 - exp(-8.0 * dt))
+		rotation.y += clampf(pas, -vitesse_rot * dt, vitesse_rot * dt)
+	# déplacement : il ne court pas de dos ni de travers ; très désaligné, il pivote sur place
+	var aligne := clampf(1.0 - (absf(ecart) - 0.3) / 1.0, 0.0, 1.0)
+	if loco != "" and aligne >= 0.25:
+		_vit = move_toward(_vit, vitesse * aligne, ACCEL * dt)
+		_jouer(loco)
+		anim.speed_scale = clampf(_vit / (REF_COURSE if loco == "Jog_Fwd" else REF_MARCHE), 0.4, 1.5)
+	else:
+		_vit = 0.0
+		vitesse = 0.0
+		if loco != "":
+			_jouer("Sword_Idle")
 	_recul = _recul.lerp(Vector3.ZERO, 1.0 - exp(-6.0 * dt))
-	velocity.x = dir.x * vitesse + _recul.x
-	velocity.z = dir.z * vitesse + _recul.z
+	velocity.x = dir.x * _vit + _recul.x
+	velocity.z = dir.z * _vit + _recul.z
 	move_and_slide()
 
 ## Appelé par l'épée du joueur. Renvoie "bloque", "touche" ou "tue".
