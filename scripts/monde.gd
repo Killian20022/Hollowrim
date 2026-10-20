@@ -543,8 +543,8 @@ func _sous_terre(dedans: bool) -> void:
 	_env.glow_enabled = not dedans
 	post.set_shader_parameter("tramage", 0.45 if dedans else 1.0)
 	if dedans:
-		_env.ambient_light_color = Color(0.34, 0.44, 0.70)
-		_env.ambient_light_energy = 0.95
+		_env.ambient_light_color = Color(0.40, 0.45, 0.62)
+		_env.ambient_light_energy = 0.9
 		_env.fog_light_color = Color(0.03, 0.045, 0.08)
 		_env.fog_density = 0.028
 		_env.fog_height_density = 0.0

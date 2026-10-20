@@ -23,6 +23,10 @@ func _tester() -> void:
 		await physics_frame
 	var c: Node3D = m.tertre.crypte
 	var ss := m.get_world_3d().direct_space_state
+	# les êtres vivants (draugrs, PNJ, joueur) se déplacent selon la sauvegarde : seul le décor est testé
+	var vivants: Array[RID] = []
+	for n in m.find_children("*", "CharacterBody3D", true, false):
+		vivants.append((n as CharacterBody3D).get_rid())
 	var chemin := [
 		Vector3(0, 0, 0.5), Vector3(0, 0, -4), Vector3(0, 0, -12), Vector3(0, 0, -19), Vector3(0, 0, -25),
 		Vector3(5.5, 0, -25), Vector3(0, 0, -25), Vector3(-6.5, 0, -25), Vector3(-9.0, 0, -24.0), Vector3(-7.5, 0, -25),
@@ -34,6 +38,7 @@ func _tester() -> void:
 			var a: Vector3 = c.to_global(chemin[i] + Vector3(0, h, 0))
 			var b: Vector3 = c.to_global(chemin[i + 1] + Vector3(0, h, 0))
 			var q := PhysicsRayQueryParameters3D.create(a, b)
+			q.exclude = vivants
 			var r := ss.intersect_ray(q)
 			if i == 12 and not m.tertre._herse_ouverte:     # segment qui traverse la herse baissée : doit être bloqué
 				_verif(not r.is_empty(), "segment %d→%d à %.1f m arrêté par la herse baissée" % [i, i + 1, h])
@@ -41,7 +46,9 @@ func _tester() -> void:
 			_verif(r.is_empty(), "segment %d→%d à %.1f m dégagé%s" % [i, i + 1, h, "" if r.is_empty() else " (touche %s en %s)" % [(r["collider"] as Node).name, r["position"]]])
 	for p: Vector3 in chemin:
 		var o: Vector3 = c.to_global(p + Vector3(0, 1.0, 0))
-		var r := ss.intersect_ray(PhysicsRayQueryParameters3D.create(o, o + Vector3(0, -2.0, 0)))
+		var qs := PhysicsRayQueryParameters3D.create(o, o + Vector3(0, -2.0, 0))
+		qs.exclude = vivants
+		var r := ss.intersect_ray(qs)
 		_verif(not r.is_empty() and absf(r["position"].y - c.global_position.y) < 0.05, "sol à y=0 sous %s" % [p])
 	var n := 0
 	for s in m.tertre.corps.get_children():

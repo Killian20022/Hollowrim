@@ -576,6 +576,32 @@ Aucune fonction de `palette.gd` n'est touchée.
 - Sprite de flamme et lumière de la torche tenue : seulement sous terre (le lot 6 refera la torche partout).
 - Pas de collision sur la plupart des petits objets (urnes, os, armes) : on les traverse ; seuls sarcophages, coffres, contreforts et piliers sont solides.
 
+### Lot 7a, 2e passe — « réalisme 32 bits » de la crypte (retour : « ça fait dessin d'enfant »)
+Planches : `captures/crypte/planches/avant_apres_<pose>_v2.png` (avant = 1fff394 | après) et `recap_avant_apres_v2.png`.
+- **Textures** (`crypte_textures.gd` réécrit) : chaque matière naît d'une carte de hauteur (joints creux, biseau arrondi, ondulation, éclats, fissures)
+  d'où l'on tire l'albédo (éclairage peint haut-gauche, AO de joint, ombre portée d'une pierre sur sa voisine, dégradé haut clair/bas sombre dans chaque pierre,
+  teinte par pierre entre rampe froide et chaude, coulures, salpêtre, mousse) et une carte de pentes. Rampes ÉTENDUES, interpolées puis quantifiées à 26 niveaux
+  par tramage 4x4 : `PIERRE_FROID`/`PIERRE_CHAUD`/`PIERRE_SOMBRE_F` (10 tons), `BOIS` (10), `FER` (8), `MOUSSE`/`SALPETRE` (6), `OSSE`/`ARGILE`/`PARCHEMIN` (6), `ROUILLE` (5).
+  Toujours 32 texels/m ; la dalle passe à une tuile de 4 m (128 px) pour tenir le temps de peinture. Mipmaps : égalité du vote 2x2 départagée vers la moyenne.
+- **Shader `crypte.gdshader`** : `tex_nm` + `relief` perturbent la normale dans un repère déduit de l'axe dominant de la face (sans tangentes) : la torche en rasant
+  sculpte joints, dalles, gravures. Pied de mur en dégradé lisse ; AO des coins, du haut des murs et du bord des sols cuite dans les couleurs de sommet (`plan_v`, `plan_h`).
+- **Géométrie** (`_relief_mur`) : soubassement en deux assises de profondeur irrégulière, corniche à trois ressauts sur corbeaux, pierres d'assise en saillie.
+- **Lumière** : ambiant sous terre moins saturé (0,40/0,45/0,62 ; `monde.gd`), lueur du sarcophage froide, basse, devant lui (rase les flancs), halo d'applique en
+  dégradé sans centre sombre et décollé du mur, flammes d'appliques plus grandes.
+- **Test** : `test_crypte.gd` exclut les CharacterBody3D (draugrs/PNJ selon la sauvegarde) ; la cause était un vivant sur le parcours, pas un défaut du décor.
+- **Défauts restants** : coût de chargement de la crypte à mesurer au calme (peinture ~120 ms par texture de pierre en parallèle, mesures faussées par d'autres Godot) ;
+  joints du sol encore marqués en rasant ; le tombeau reste froid hors des braseros ; pas de nervures de voûte en relief supplémentaires.
+
+#### Lot 7a, 2e passe — corrections (v3)
+- **Murs « disparus » (aplat noir sur un tiers de l'image)** : l'accroche des sommets du shader divisait par `clip.w` ; un sommet proche du plan de la caméra
+  (w ≈ 0, rendu fréquent depuis que les murs sont découpés tous les 0,7 m pour l'AO cuite) part dans le décor et emporte le pan. Correctif : pas d'accroche si `clip.w <= 0,6`.
+- **Pixel art net** : grain de pierre en amas de ~3 texels (bruit sans lissage, posterisé), biseau en 3 marches, joints de 1 à 2 texels sombres avec lèvre claire
+  nette côté éclairé, rampes conservées (10 tons). Le tramage 4x4 de Bayer (interdit par la bible) est remplacé par une quantification à 18 niveaux avec tirage
+  de bruit seulement près des seuils.
+- **Chargement** : textures précalculées dans `assets/crypte/*.res` par `outils/generer_crypte.gd` (albédo avec mipmaps + `_nm`), chargées si `CrypteTextures.VERSION`
+  correspond, sinon recalculées (repli). Après toute modif de `crypte_textures.gd` : incrémenter `VERSION` puis relancer l'outil.
+- **GPU** : mesuré à conditions égales (3 à 4 Godot ouverts) : 1fff394 = 3,83 ms, après = 4,35 à 4,5 ms (salle) ; le 1,1 ms du premier lot datait d'une machine au calme.
+
 ## Journal — Grotte vitrine, branche `graphisme/grotte`
 
 Grotte de ~124 m (parcours entrée → fond), construite à la demande sous le monde (origine `POS_MONDE = (20, -220, 100)`), **sans entrée câblée** dans le monde. Nouveaux fichiers : `scripts/grotte.gd`, `scripts/grotte_decor.gd` (étend `CrypteDecor`, non modifié), `scripts/grotte_textures.gd`, `shaders/grotte.gdshader`, `outils/test_grotte.gd`, `outils/captures_grotte.gd|.sh`, `outils/planche_grotte.gd`.
