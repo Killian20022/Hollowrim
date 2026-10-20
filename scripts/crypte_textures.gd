@@ -4,7 +4,7 @@ class_name CrypteTextures
 ## peint (lumière haut-gauche), occlusion ambiante dans les joints, ombres portées d'un bloc sur son voisin, dégradé
 ## interne de chaque pierre, teinte propre à chaque pierre (rampe froide <-> rampe chaude), coulures, salpêtre, mousse ;
 ## (2) une carte de pentes (`*_nm`) que le shader lit pour que la torche sculpte le relief en lumière rasante.
-## Densité : 32 texels/m (K = 2) pour la pierre, le bois, le fer et les petits objets (tuiles de 1 à 8 m).
+## Densité : 64 texels/m (E = 2) pour murs, dalles, voûte et ossuaire (vus de près : plus de gros pixels) ; 32 texels/m (K = 2) pour la pierre, le bois, le fer et les petits objets (tuiles de 1 à 8 m).
 ## Les rampes comptent 8 à 10 tons et sont INTERPOLÉES puis quantifiées à ~26 niveaux par quantification au bruit
 ## (grain « photo réduite et retouchée » au lieu d'aplats). Mipmaps « nearest » maison (vote de couleur 2x2,
 ## égalité départagée vers la valeur moyenne : plus d'assombrissement au loin).
@@ -12,7 +12,10 @@ class_name CrypteTextures
 
 const CLEAR := Color(0, 0, 0, 0)
 const DOSSIER := "res://assets/crypte"   # textures précalculées par outils/generer_crypte.gd
-const VERSION := 7                       # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
+const VERSION := 8                       # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
+const E := 2   # facteur de finesse de la pierre proche (murs, dalles, voûte, ossuaire) : 2 = 64 texels/m (tuiles de 256 px pour 4 m)
+## Murs et ossuaire : 128 texels/m (tuile de 512 px), car le joueur les frôle (< 1 m) ; dalles et voûte restent à 64.
+const EM := 4
 const K := 2   # facteur de densité de la pierre : 1 = 16 texels/m, 2 = 32 texels/m
 
 # rampes (indice 0 = creux/joint, dernier = lumière) : désaturées, froides dans l'ombre, un peu plus chaudes en lumière
@@ -192,6 +195,7 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 	var elev_max: float = o.get("elev", 0.6)
 	var creux: float = o.get("creux", 0.0)
 	var jl: float = o.get("joint_l", 0.06)
+	var ech: int = o.get("ech", 1)               # finesse : tailles en texels (biseau, ombres, fissures) multipliées par ech
 	var lisse: bool = o.get("lisse", false)     # dalles lisibles de loin : pas de grain texel par texel, usure en macro-taches
 	var froid := _cols(PIERRE_SOMBRE_F if o.get("sombre", false) else PIERRE_FROID)
 	var chaud := _cols(PIERRE_CHAUD)
@@ -227,19 +231,19 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 			var t := 0.45 * pow(rng.randf(), 2.0) + (0.3 if rng.randf() < 0.14 else 0.0)
 			var elev := rng.randf() * elev_max
 			var rugb := rug * (0.55 + rng.randf() * 0.9)
-			var gxb := (rng.randf() - 0.5) * 0.09
-			var gyb := (rng.randf() - 0.5) * 0.09
+			var gxb := (rng.randf() - 0.5) * 0.09 / ech
+			var gyb := (rng.randf() - 0.5) * 0.09 / ech
 			var grad := 0.06 + rng.randf() * 0.1          # haut éclairé, bas sombre
 			var coin := rng.randi_range(0, 3) if rng.randf() < 0.45 else -1
-			var rc := rng.randf_range(3.0, 7.0)
+			var rc := rng.randf_range(3.0, 7.0) * ech
 			for ly in rh:
 				for lx in w:
 					var i := (y0 + ly) * S + posmod(x + lx, S)
-					var d := float(mini(mini(lx, w - 1 - lx), mini(ly, rh - 1 - ly)) + int(floorf((n_wob[i] - 0.5) * 1.6 + 0.5)))
+					var d := float(mini(mini(lx, w - 1 - lx), mini(ly, rh - 1 - ly)) + int(floorf((n_wob[i] - 0.5) * 1.6 * ech + 0.5)))
 					var hh := -0.9
 					var ll := jl
 					if d >= J:
-						var e := clampf((d - J + 1.0) / B, 0.0, 1.0)
+						var e := clampf((d - J + 1.0) / (B * ech), 0.0, 1.0)
 						var prof := floorf(e * 3.0 + 0.5) / 3.0           # biseau en 3 marches : arête nette
 						if lisse:
 							var us := floorf(n_mac[i] * 3.0) / 3.0       # usure : 3 paliers de macro-taches
@@ -268,7 +272,7 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 	for k in o.get("fissures", S / 24):
 		var fx := rng.randi_range(0, S - 1)
 		var fy := rng.randi_range(0, S - 1)
-		for s in rng.randi_range(8, 22):
+		for s in rng.randi_range(8, 22) * ech:
 			var i := posmod(fy, S) * S + posmod(fx, S)
 			if D[i] >= J:
 				H[i] = -0.8
@@ -304,13 +308,13 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 			var gx := (H[ir] - H[il]) * 0.5
 			var gy := (H[id] - H[iu]) * 0.5
 			var shade := clampf((gx + gy) * 0.55, -0.5, 0.5) * 0.5
-			var ic := posmod(y - 2, S) * S + posmod(x - 2, S)
+			var ic := posmod(y - 2 * ech, S) * S + posmod(x - 2 * ech, S)
 			var proj := clampf(H[ic] - H[i] - 0.25, 0.0, 1.0) * 0.2
 			var d: float = D[i]
-			var a := _ss(J, J + 2.0, d)
+			var a := _ss(J, J + 2.0 * ech, d)
 			var ao := 0.76 + 0.24 * a
 			var lip := 0.0
-			if d >= J and d < J + 1.0:                    # lèvre claire nette le long des joints (côtés éclairés)
+			if d >= J and d < J + float(ech):                    # lèvre claire nette le long des joints (côtés éclairés)
 				lip = (0.2 if v == 4 else 0.12) if (gx + gy) > 0.05 else 0.0
 			var l: float = (L[i] + shade) * ao - proj + lip
 			var ln := n_big[i]
@@ -329,7 +333,7 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 			elif v == 4:
 				# glace taillée : toute la pierre en rampe bleue (10 tons), reflets en lèvre claire, amas de givre, bulles
 				c = _rp(gla, clampf(lq * 0.98, 0.0, 1.0))
-				if (n_mac2[i] > 0.72 if lisse else n_gr2[i] > 0.8) and d >= J + 1.0:
+				if (n_mac2[i] > 0.72 if lisse else n_gr2[i] > 0.8) and d >= J + float(ech):
 					c = _rp(giv, clampf(0.35 + lq * 0.8, 0.0, 1.0))
 				if bul.has(i):
 					var bt: int = bul[i]
@@ -347,32 +351,32 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 static func mur_paire(v: int) -> Array:
 	var rangs := []
 	for r in 16:
-		rangs.append(4 * K)
+		rangs.append(4 * K * EM)
 	# moellons lisibles de 25 x 25-40 cm, joints sombres nets, contraste ramené (pas de damier clair / sombre)
-	return _pierre(64 * K, rangs, [8, 10, 12, 12], {"seed": 8100 + v * 17, "v": v, "sombre": v == 2, "joint": 1.0, "biseau": 2.0,
+	return _pierre(64 * K * EM, rangs, [8 * EM, 10 * EM, 12 * EM, 12 * EM], {"ech": EM, "seed": 8100 + v * 17, "v": v, "sombre": v == 2, "joint": 1.0, "biseau": 2.0,
 		"rug": 0.6, "l_lo": 0.44 if v == 2 else 0.52, "l_hi": 0.58 if v == 2 else 0.68, "elev": 0.3, "fissures": 3, "lisse": true})
 
 static func dalle_paire(v: int) -> Array:
 	var rng := _rng(8200 + v)
-	var S := 64 * K                       # tuile de 4 m (32 texels/m)
-	var rangs: Array = _largeurs(rng, S, [24, 28, 32, 32, 40])
+	var S := 64 * K * E                   # tuile de 4 m (64 texels/m)
+	var rangs: Array = _largeurs(rng, S, [24 * E, 28 * E, 32 * E, 32 * E, 40 * E])
 	var lisse := true                      # dalles de l'arène et du niveau gelé : grandes dalles nettes (retouche « sol granuleux »)
-	return _pierre(S, rangs, [24, 32, 40, 48] if not lisse else [32, 40, 48, 64], {"seed": 8210 + v * 31, "v": v, "joint": 1.6 if lisse else 1.1,
+	return _pierre(S, rangs, [24 * E, 32 * E, 40 * E, 48 * E] if not lisse else [32 * E, 40 * E, 48 * E, 64 * E], {"ech": E, "seed": 8210 + v * 31, "v": v, "joint": 1.6 if lisse else 1.1,
 		"biseau": 2.6, "rug": 0.5, "l_lo": 0.52, "l_hi": 0.8, "elev": 1.0, "creux": 0.35 if lisse else 0.55, "joint_l": 0.12,
 		"fissures": 4 if v < 3 else 5, "lisse": lisse})
 
 static func voute_paire() -> Array:
 	var rangs := []
 	for r in 16:
-		rangs.append(4 * K)
-	return _pierre(64 * K, rangs, [8, 10, 12, 12], {"seed": 8300, "sombre": true, "joint": 0.9, "biseau": 2.0, "rug": 0.5,
+		rangs.append(4 * K * E)
+	return _pierre(64 * K * E, rangs, [8 * E, 10 * E, 12 * E, 12 * E], {"ech": E, "seed": 8300, "sombre": true, "joint": 0.9, "biseau": 2.0, "rug": 0.5,
 		"l_lo": 0.44, "l_hi": 0.58, "elev": 0.3, "fissures": 3, "lisse": true})
 
 ## Mur d'ossuaire (tuile de 4 m = 128 px) : 8 x 8 niches de 0,5 m, cadre de pierre, crâne ou fagot d'os ; relief par la carte de pentes.
 const CRANE := ["..XXXXXX..", ".XXXXXXXX.", "XXXXXXXXXX", "XXXXXXXXXX", "XXooXXooXX", "XXooXXooXX", "XXXXnnXXXX", ".XXXXXXXX.", "..XXXXXX..", "..XtXtXt.."]
 
 static func ossuaire_paire() -> Array:
-	var S := 64 * K
+	var S := 64 * K * EM
 	var rng := _rng(8900)
 	var pierre := _cols(PIERRE_SOMBRE_F)
 	var osse := _cols(OSSE)
@@ -382,12 +386,13 @@ static func ossuaire_paire() -> Array:
 	cols.resize(S * S)
 	var H := PackedFloat32Array()
 	H.resize(S * S)
-	var cell := 16
+	var cell := 16 * EM
+	var fr := 2 * EM       # épaisseur du cadre
 	for cy in S / cell:
 		for cx in S / cell:
 			var genre := rng.randf()
-			var jx := rng.randi_range(-1, 1)
-			var jy := rng.randi_range(-1, 1)
+			var jx := rng.randi_range(-1, 1) * EM
+			var jy := rng.randi_range(-1, 1) * EM
 			var rot := rng.randi_range(0, 1)
 			for ly in cell:
 				for lx in cell:
@@ -398,11 +403,11 @@ static func ossuaire_paire() -> Array:
 					var l: float
 					var h: float
 					var c: Color
-					if lx < 2 or ly < 2 or lx >= cell - 2 or ly >= cell - 2:    # cadre : arête claire en haut/gauche, ombre en bas/droite
+					if lx < fr or ly < fr or lx >= cell - fr or ly >= cell - fr:    # cadre : arête claire en haut/gauche, ombre en bas/droite
 						l = 0.5 + (nf - 0.5) * 0.3 + n_big[i] * 0.12
-						if lx < 2 or ly < 2:
+						if lx < EM or ly < EM:
 							l += 0.14
-						if lx >= cell - 1 or ly >= cell - 1:
+						if lx >= cell - EM or ly >= cell - EM:
 							l -= 0.28
 						h = 1.0
 						c = _rp(pierre, _q(clampf(l, 0.0, 1.0), x, y))
@@ -413,17 +418,20 @@ static func ossuaire_paire() -> Array:
 					cols[i] = c
 					H[i] = h
 			if genre < 0.62:                                                       # crâne
-				var ox := cx * cell + 3 + jx
-				var oy := cy * cell + 3 + jy
-				for sy in 10:
-					for sx in 10:
-						var m: String = CRANE[sy][sx]
+				var ox := cx * cell + 3 * EM + jx
+				var oy := cy * cell + 3 * EM + jy
+				var N := 10 * EM
+				for sy in N:
+					for sx in N:
+						var m: String = CRANE[sy / EM][sx / EM]
 						if m == ".":
 							continue
 						var i := posmod(oy + sy, S) * S + posmod(ox + sx, S)
 						var nf: float = n_fin[i]
-						var l := 0.58 - 0.12 * float(sy) / 9.0 + (0.1 if sx < 3 else 0.0) - (0.12 if sx > 6 else 0.0) + (nf - 0.5) * 0.2
-						var h := 0.5 + 0.2 * sin(float(sx) / 9.0 * PI) * sin(float(sy) / 9.0 * PI)
+						var fx := float(sx) / float(N - 1)
+						var fy := float(sy) / float(N - 1)
+						var l := 0.58 - 0.12 * fy + (0.1 if fx < 0.3 else 0.0) - (0.12 if fx > 0.65 else 0.0) + (nf - 0.5) * 0.2
+						var h := 0.5 + 0.2 * sin(fx * PI) * sin(fy * PI)
 						if m == "o" or m == "n":
 							l = 0.0
 							h = -0.5
@@ -434,18 +442,18 @@ static func ossuaire_paire() -> Array:
 						H[i] = h
 			elif genre < 0.88:                                                     # fagot de trois os en diagonale
 				for k in 3:
-					var bx := cx * cell + 3 + rng.randi_range(0, 3)
-					var by := cy * cell + 3 + k * 3 + rng.randi_range(0, 1)
+					var bx := cx * cell + (3 + rng.randi_range(0, 3)) * EM
+					var by := cy * cell + (3 + k * 3 + rng.randi_range(0, 1)) * EM
 					var pente := 0.35 if rot == 0 else -0.35
-					for t in 11:
+					for t in 11 * EM:
 						var px := bx + t
-						var py := by + int(float(t) * pente) + (4 if rot == 1 else 0)
-						for w in 2:
+						var py := by + int(float(t) * pente) + (4 * EM if rot == 1 else 0)
+						for w in 2 * EM:
 							var i := posmod(py + w, S) * S + posmod(px, S)
-							var knob := t < 2 or t > 8
-							var l := 0.62 - 0.1 * w + (nf_safe(n_fin, i) - 0.5) * 0.2 + (0.08 if knob else 0.0)
+							var knob := t < 2 * EM or t > 8 * EM
+							var l := 0.62 - 0.1 * float(w) / EM + (nf_safe(n_fin, i) - 0.5) * 0.2 + (0.08 if knob else 0.0)
 							cols[i] = _rp(osse, _q(clampf(l, 0.0, 1.0), px, py + w))
-							H[i] = 0.55 + (0.2 if knob else 0.0) - 0.2 * w
+							H[i] = 0.55 + (0.2 if knob else 0.0) - 0.2 * float(w) / EM
 	return [_vers_image(S, cols), _pentes(H, S, 0.9)]
 
 static func nf_safe(a: PackedFloat32Array, i: int) -> float:

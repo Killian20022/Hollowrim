@@ -905,3 +905,7 @@ Tests : tous OK sauf `test_dragon_monde` en headless (erreurs du moteur factice 
   de congère plus haute côté vent, pente qui se fond dans le sol ; 24-32 triangles). Mesure : +3 000 primitives sur 250 000,
   draw calls identiques (523), GPU 7,2 ms (indicatif, 4 agents en parallèle).
 - Murs, voûte, piliers (mur0-4, voute) et dalles 0-1 : option `lisse` généralisée (VERSION 7) : moellons de 25 x 25-40 cm, joints nets, contraste ramené, usure en macro-taches. Planche : captures/retouches/planche_murs.png.
+
+## Lot « crypte de près » (graphisme/crypte-proche)
+- Crypte (VERSION 8) : murs (mur0-4) et ossuaire à 128 texels/m (tuiles 512 px, `EM = 4`), dalles et voûte à 64 texels/m (256 px, `E = 2`) ; même dessin lisse, joints 1-2 texels, tailles en texels mises à l'échelle (`ech`). Nearest conservé. Textures .res : 583 Ko -> 4,5 Mo sur disque ; VRAM albédo+pentes avec mips ~1,75 Mo -> ~19,5 Mo (estimation 512²/256² RGBA8 x 4/3).
+- Grotte : caverne (s 35-67) anneaux tous les 1,8 m au lieu de 3 ; construction : clé de tampon entière, base UV calculée une fois par facette, `_subdiviser` niveau 1 sans récursion. Headless : meilleur temps 644 -> 335 ms (28 430 facettes, 120 anneaux).

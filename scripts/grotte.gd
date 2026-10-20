@@ -243,7 +243,7 @@ func _liste_s() -> Array:
 		if s >= 17.0 and s < 35.0:
 			ds = 1.6
 		elif s >= 35.0 and s < 67.0:
-			ds = 3.0
+			ds = 1.8        # caverne : anneaux serres (3 m donnaient de grandes facettes plates)
 		elif s >= 67.0 and s < 91.5:
 			ds = 1.7
 		elif s >= 108.0:
@@ -349,26 +349,41 @@ func _subdiviser(nom: String, a: Vector3, b: Vector3, c: Vector3, ref: Vector3, 
 	if niveau <= 0:
 		decor.facette(nom, a, b, c, ref, cols, true, TUILE_COQUE, true)
 		return
-	var m: Array = []
-	var mc: Array = []
-	var pts := [a, b, c]
-	for e in 3:
-		var p: Vector3 = pts[e]
-		var q: Vector3 = pts[(e + 1) % 3]
-		var mid := (p + q) * 0.5
-		var l := p.distance_to(q)
-		var d := Vector3(GrotteDecor.hash2(mid.x * 3.1, mid.y * 1.7 + mid.z) - 0.5, GrotteDecor.hash2(mid.y * 2.3, mid.z * 1.9 + mid.x) - 0.5, GrotteDecor.hash2(mid.z * 2.9, mid.x * 1.3 + mid.y) - 0.5)
-		var fixe := _fixes.has(p) and _fixes.has(q)       # arête d'un anneau d'extrémité (raccord avec les caps) : pas de déplacement
-		m.append(mid if fixe else mid + Vector3(d.x, d.y * 0.35, d.z) * (0.14 * minf(l, 2.4) * amp))
-		var c0: Color = cols[e]
-		var c1: Color = cols[(e + 1) % 3]
-		var cm := c0.lerp(c1, 0.5)
-		cm.a = clampf(cm.a + (GrotteDecor.hash2(mid.x * 5.3, mid.z * 4.1 + mid.y * 2.0) - 0.5) * 0.5 * (1.0 if cm.a > 0.01 else 0.0), 0.0, 1.5)
-		mc.append(cm)
-	_subdiviser(nom, a, m[0], m[2], ref, [cols[0], mc[0], mc[2]], niveau - 1, amp)
-	_subdiviser(nom, m[0], b, m[1], ref, [mc[0], cols[1], mc[1]], niveau - 1, amp)
-	_subdiviser(nom, m[2], m[1], c, ref, [mc[2], mc[1], cols[2]], niveau - 1, amp)
-	_subdiviser(nom, m[0], m[1], m[2], ref, [mc[0], mc[1], mc[2]], niveau - 1, amp)
+	var m0 := _milieu(a, b, amp)
+	var m1 := _milieu(b, c, amp)
+	var m2 := _milieu(c, a, amp)
+	var c0: Color = cols[0]
+	var c1: Color = cols[1]
+	var c2: Color = cols[2]
+	var q0 := _couleur_milieu(c0, c1, a, b)
+	var q1 := _couleur_milieu(c1, c2, b, c)
+	var q2 := _couleur_milieu(c2, c0, c, a)
+	if niveau == 1:        # cas courant : les quatre sous-triangles sont posés directement (pas de récursion ni de tableaux)
+		decor.facette(nom, a, m0, m2, ref, [c0, q0, q2], true, TUILE_COQUE, true)
+		decor.facette(nom, m0, b, m1, ref, [q0, c1, q1], true, TUILE_COQUE, true)
+		decor.facette(nom, m2, m1, c, ref, [q2, q1, c2], true, TUILE_COQUE, true)
+		decor.facette(nom, m0, m1, m2, ref, [q0, q1, q2], true, TUILE_COQUE, true)
+		return
+	_subdiviser(nom, a, m0, m2, ref, [c0, q0, q2], niveau - 1, amp)
+	_subdiviser(nom, m0, b, m1, ref, [q0, c1, q1], niveau - 1, amp)
+	_subdiviser(nom, m2, m1, c, ref, [q2, q1, c2], niveau - 1, amp)
+	_subdiviser(nom, m0, m1, m2, ref, [q0, q1, q2], niveau - 1, amp)
+
+## Milieu d'arête déplacé (ne dépend que de la POSITION : les deux triangles voisins déplacent le même point).
+func _milieu(p: Vector3, q: Vector3, amp: float) -> Vector3:
+	var mid := (p + q) * 0.5
+	if _fixes.has(p) and _fixes.has(q):       # arête d'un anneau d'extrémité (raccord avec les caps) : pas de déplacement
+		return mid
+	var l := p.distance_to(q)
+	var d := Vector3(GrotteDecor.hash2(mid.x * 3.1, mid.y * 1.7 + mid.z) - 0.5, GrotteDecor.hash2(mid.y * 2.3, mid.z * 1.9 + mid.x) - 0.5, GrotteDecor.hash2(mid.z * 2.9, mid.x * 1.3 + mid.y) - 0.5)
+	return mid + Vector3(d.x, d.y * 0.35, d.z) * (0.14 * minf(l, 2.4) * amp)
+
+## Couleur au milieu d'une arête (bruit au milieu : taches nettes de neige / glace / mousse plutôt que blocs).
+func _couleur_milieu(c0: Color, c1: Color, p: Vector3, q: Vector3) -> Color:
+	var mid := (p + q) * 0.5
+	var cm := c0.lerp(c1, 0.5)
+	cm.a = clampf(cm.a + (GrotteDecor.hash2(mid.x * 5.3, mid.z * 4.1 + mid.y * 2.0) - 0.5) * 0.5 * (1.0 if cm.a > 0.01 else 0.0), 0.0, 1.5)
+	return cm
 
 # ------------------------------------------------------------------ construction
 func construire() -> void:
