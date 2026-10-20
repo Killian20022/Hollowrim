@@ -626,7 +626,8 @@ func _lever_svanhild() -> void:
 	_svanhild_levee = true
 	_svanhild = monde.creer_draugr("guerrier", crypte.to_global(SARCO + Vector3(0, 0.45, 3.4)), PI, true, {
 		"ident": "svanhild", "echelle": 1.12,
-		"apparence": {"corps": "femme", "casque": "couronne_givre", "cheveux": "Hair_Long", "teinte_cheveux": Color(1.1, 1.15, 1.25), "tenue": {"tunique": Color(0.4, 0.45, 0.6), "mante": Color(0.8, 0.85, 0.95), "brassards": Color(0.8, 0.85, 0.9), "ceinture": Color(0.8, 0.8, 0.8), "bottes": Color(0.6, 0.6, 0.6)}},
+		"apparence": {"corps": "femme", "casque": "couronne_givre", "cheveux": "Hair_Long", "teinte_cheveux": Color(1.1, 1.15, 1.25), "tenue": {"tunique": Color.WHITE, "robe": Color.WHITE, "cape": Color.WHITE, "mante": Color.WHITE, "brassards": Color.WHITE, "ceinture": Color.WHITE, "bottes": Color.WHITE, "epaulieres": Color.WHITE},
+			"etoffes": {"tunique": "draugr", "robe": "draugr", "cape": "draugr", "mante": "blanc", "epaulieres": "draugr"}},
 		"vie_imposee": 260.0, "degats_imposes": 24.0, "nom_affiche": "Svanhild, Dame de givre",
 	})
 	var lignes: Array = quetes.texte("svanhild_reveil")

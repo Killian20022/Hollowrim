@@ -54,6 +54,7 @@ func _creer_modele() -> void:
 			"tunique": Color(0.35, 0.4, 0.55), "pantalon": Color(0.8, 0.75, 0.7), "bottes": Color.WHITE,
 			"ceinture": Color.WHITE, "mante": Color(1.1, 1.0, 0.95), "brassards": Color.WHITE, "gants": Color.WHITE,
 		},
+		"etoffes": {"tunique": "bleu", "mante": "gris", "pantalon": "brun", "bottes": "cuir_a", "ceinture": "cuir_a", "brassards": "cuir_a", "gants": "cuir_a"},
 		"cheveux": "Hair_SimpleParted", "teinte_cheveux": Color(0.42, 0.28, 0.17), "barbe": true,
 	})
 	modele.rotation.y = PI  # le modèle regarde +Z, le joueur -Z
