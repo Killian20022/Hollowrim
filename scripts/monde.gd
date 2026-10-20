@@ -131,6 +131,8 @@ func _ready() -> void:
 	_rendre_paisible()
 	_capture()
 	_aller_crypte()
+	if _arguments().has("grotte") and not _arguments().has("capture"):
+		_aller_grotte(_arguments()["grotte"])
 
 # --- relief ---------------------------------------------------------------
 
@@ -821,6 +823,20 @@ func _aller_crypte() -> void:
 	joueur.rotation.y = tertre.crypte.global_rotation.y + deg_to_rad(float(cp[2]))
 	joueur.tete.rotation.x = deg_to_rad(float(cp[3]))
 
+## Grotte vitrine (lot grotte, scripts/grotte.gd) : construite à la demande sous le monde (y = -220), sans entrée.
+## --grotte=s,décalage,lacet°,tangage° (hors capture) ou --scenario=grotte --gpose=… : s = mètres le long du parcours (0-124),
+## décalage latéral (+ = droite), lacet 0 = vers le fond.
+var grotte: Node
+
+func _aller_grotte(pose: String) -> void:
+	grotte = Grotte.creer(self, joueur)
+	_sous_terre(true)
+	grotte.ambiance(_env)
+	var p := pose.split_floats(",")
+	joueur.global_position = grotte.monde_sol(p[0], p[1]) + Vector3(0, 0.1, 0)
+	joueur.rotation.y = grotte.cap_monde(p[0]) + deg_to_rad(p[2])
+	joueur.tete.rotation.x = deg_to_rad(p[3])
+
 ## --sans-particules : cache neige et flammes (feu, torches) pour comparer des captures au pixel près.
 func _cacher_particules() -> void:
 	if not _arguments().has("sans-particules"):
@@ -991,6 +1007,9 @@ func _scenario(nom: String) -> void:
 				joueur.inventaire.ajouter("anneau_givre")
 				_placer(tertre.crypte.to_global(Vector3(0, 0.1, -43.0)), tertre.crypte.to_global(Vector3(0, 1.5, -51.5)))
 				await get_tree().create_timer(2.5).timeout
+		"grotte":
+			_aller_grotte(_arguments().get("gpose", "4,0,0,-5"))
+			await get_tree().create_timer(0.8).timeout
 		"dragon", "dragon_sol", "dragon_loin":
 			_dragon()
 			_placer(v.to_global(Vector3(0, 0, 4)), dragon.global_position)
