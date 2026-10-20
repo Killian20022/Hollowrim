@@ -118,11 +118,12 @@ static func materiaux_epicea() -> Array:
 
 ## Réglages de l'épicéa (voir docs/MISSION_GRAPHISME.md, journal du lot 2).
 const REGLAGES_EPICEA := {
-	"teinte": Color(0.9, 1.0, 1.08),   # éclaircit la rampe EPICEA AIGUILLES sous la lumière du jeu
+	"teinte": Color(0.84, 0.94, 0.95),   # éclaircit la rampe EPICEA AIGUILLES sous la lumière du jeu
 	"teinte_neige": Color(1.0, 1.0, 1.0),
 	"pli": 0.45,          # angle (rad) des deux ailes d'un rameau sous l'horizontale (rameau en toit)
-	"crete": 0.08,        # hauteur de la crête de neige posée sur la tige (m)
+	"crete": 0.1,         # hauteur de la crête de neige posée sur la tige (m)
 	"aile": 0.47,         # demi-largeur d'une carte / longueur du rameau
+	"milieu": 0.3,        # part de la retombée atteinte à mi-branche (bas : branche presque horizontale, bout qui retombe)
 }
 
 ## Triangle orienté : sa face avant regarde `face` (Godot : (b - a) × (c - a) du côté de la face avant).
@@ -158,7 +159,7 @@ static func _rameau(st: SurfaceTool, origine: Vector3, a: float, L: float, chute
 	var tige: Array[Vector3] = [origine]
 	var vs: Array[float] = [1.0]
 	if segments == 2:
-		tige.append(origine + d * L * 0.5 + Vector3(0, -chute * 0.65, 0))
+		tige.append(origine + d * L * 0.5 + Vector3(0, -chute * REGLAGES_EPICEA["milieu"], 0))
 		tige.append(origine + d * L + Vector3(0, -chute + releve, 0))
 		vs.append_array([0.5, 0.0])
 	else:
@@ -295,7 +296,7 @@ static func epicea(forme: int, graine: int, materiaux: Array, lod := false) -> A
 	# jupe basse : petits rameaux courts et pendants sous le premier étage (plus de tronc nu sous la couronne)
 	for e in (1 if lod else 3):
 		var yj := lerpf(0.55, bas + 0.55, float(e) / 2.0) if not lod else 0.9
-		var rj := base * lerpf(0.5, 0.78, float(e) / 2.0)
+		var rj := base * lerpf(0.4, 0.62, float(e) / 2.0)
 		var nj := 4 if lod else 6
 		var rotj := rng.randf() * TAU
 		var aoj := Color(0.62 + 0.1 * e, 0.62 + 0.1 * e, 0.64 + 0.1 * e, 1.0)
@@ -303,7 +304,7 @@ static func epicea(forme: int, graine: int, materiaux: Array, lod := false) -> A
 			var a := rotj + TAU * (b + rng.randf_range(-0.2, 0.2)) / nj
 			var Lj := rj * rng.randf_range(0.8, 1.1)
 			var cj := TexturesArbres.uv_epicea(TexturesArbres.R_COURT_A if rng.randf() < 0.5 else TexturesArbres.R_COURT_B)
-			_rameau(rameaux, Vector3(cos(a) * 0.08, yj + rng.randf_range(-0.1, 0.1), sin(a) * 0.08), a, Lj, Lj * rng.randf_range(0.45, 0.65), 0.0, cj, pli * 1.35, aoj, 0.0, Rect2(), 1)
+			_rameau(rameaux, Vector3(cos(a) * 0.08, yj + rng.randf_range(-0.1, 0.1), sin(a) * 0.08), a, Lj, Lj * rng.randf_range(0.2, 0.32), 0.0, cj, pli * 1.0, aoj, 0.0, Rect2(), 1)
 	for e in n_etages:
 		var k := float(e) / (n_etages - 1)
 		# étages plus serrés vers la flèche (la pointe de l'épicéa est dense, le bas aéré)
@@ -318,13 +319,13 @@ static func epicea(forme: int, graine: int, materiaux: Array, lod := false) -> A
 			var a := rot + TAU * (b + rng.randf_range(-0.22, 0.22)) / n
 			var L := rayon * rng.randf_range(0.85, 1.1) * (1.15 if lod else 1.0)
 			# les étages du bas tombent, ceux du haut se redressent (flèche de l'épicéa)
-			var chute := L * lerpf(0.42, -0.05, pow(k, 1.3)) * rng.randf_range(0.8, 1.2)
-			var releve := L * 0.14 * (1.0 - k)
+			var chute := L * lerpf(0.17, -0.05, pow(k, 1.1)) * rng.randf_range(0.8, 1.2)
+			var releve := L * 0.05 * (1.0 - k)
 			var o := Vector3(cos(a) * 0.08, y + rng.randf_range(-0.12, 0.12), sin(a) * 0.08)
 			var region: Rect2 = (longs if L > 1.3 else courts)[rng.randi_range(0, 1)]
 			var cv := TexturesArbres.uv_epicea(Rect2i(TexturesArbres.R_CRETE_X, TexturesArbres.R_CRETE_Y + TexturesArbres.CRETE_H * rng.randi_range(0, TexturesArbres.CRETES - 1), TexturesArbres.CRETE_W, TexturesArbres.CRETE_H))
 			# ailes plus tombantes en bas (rameaux pendants de l'épicéa), plus plates en haut
-			var pli_b := pli * lerpf(1.3, 0.8, k) * rng.randf_range(0.85, 1.15)
+			var pli_b := pli * lerpf(0.9, 0.8, k) * rng.randf_range(0.85, 1.15)
 			_rameau(rameaux, o, a, L, chute, releve, region, pli_b, ao, crete * rng.randf_range(0.7, 1.2) if L > 0.8 else 0.0, cv, 1 if lod else 2)
 	# flèche : deux cartes verticales croisées
 	var fr := TexturesArbres.uv_epicea(TexturesArbres.R_FLECHE)
