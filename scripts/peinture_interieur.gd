@@ -185,13 +185,13 @@ static func vitrage() -> Array:
 			var my := 8 <= y and y <= 9
 			if x < 2 or x >= w - 2 or y < 2 or y >= h - 2 or mx or my:
 				var L := 0.34 + (0.14 if (x == 2 or y == 2) else 0.0) - (0.1 if (x == w - 3 or y == h - 3) else 0.0)
-				col = bois[PeintureBati.ton(L, x, y)]
+				col = bois[PeintureBati.ton_e(L, x, y, 2)]
 				col.a = 1.0
 			else:
 				var px := x - 2 if x < 10 else x - 12
 				var py := y - 2 if y < 8 else y - 10
 				var L := 0.85 - float(px) / 18.0 - float(py) / 16.0 + (0.18 if px < 3 and py < 2 else 0.0)
-				col = verre[PeintureBati.ton(L, x, y, 12)]
+				col = verre[PeintureBati.ton_e(L, x, y, 2, 12)]
 				col.a = 0.0
 			img.set_pixel(x, y, col)
 	return [img, null]
@@ -394,13 +394,18 @@ static func raffine_bois(r: Array, graine: int, axe: int) -> Array:
 			img.set_pixel(x, y, Color(clampf(c.r * k, 0, 1), clampf(c.g * k, 0, 1), clampf(c.b * k, 0, 1), c.a))
 	return [img, rel]
 
+## Nettoyage des texels isolés (le doublement + bruit de pores en laissait ~70 %) : 4 passes, veinage continu conservé.
+static func _net(r: Array) -> Array:
+	PeintureBati.nettoie(r[0], 4)
+	return r
+
 static func fabriques() -> Dictionary:
 	return {
-		"planches_v_int": func() -> Array: return raffine_bois(PeintureBati.planches(5311), 5311, 1),
-		"planches_h_int": func() -> Array: return raffine_bois(PeintureBati.planches(5312, 128, 128, true), 5312, 0),
-		"rondins_int": func() -> Array: return raffine_bois(PeintureBati.rondins(5321), 5321, 0),
-		"pierre_int": func() -> Array: return pierre_int(6201),
-		"pierre_int_s": func() -> Array: return pierre_int(6203, 256, 256, 18, 28, 36, 90, 4.4),
+		"planches_v_int": func() -> Array: return _net(raffine_bois(PeintureBati.planches(5311), 5311, 1)),
+		"planches_h_int": func() -> Array: return _net(raffine_bois(PeintureBati.planches(5312, 128, 128, true), 5312, 0)),
+		"rondins_int": func() -> Array: return _net(raffine_bois(PeintureBati.rondins(5321), 5321, 0)),
+		"pierre_int": func() -> Array: return _net(pierre_int(6201)),
+		"pierre_int_s": func() -> Array: return _net(pierre_int(6203, 256, 256, 18, 28, 36, 90, 4.4)),
 		"tenture_rouge": func() -> Array: return tenture(6101, K_ROUGE, K_OCRE),
 		"tenture_bleue": func() -> Array: return tenture(6102, K_BLEU, K_CREME),
 		"tenture_verte": func() -> Array: return tenture(6103, K_VERT, K_OCRE),
