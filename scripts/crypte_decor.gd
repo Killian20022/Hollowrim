@@ -17,7 +17,7 @@ const FEU := Color(1.0, 0.56, 0.24)
 
 const TUILE := {
 	"mur0": 4.0, "mur1": 4.0, "mur2": 4.0, "dalle0": 4.0, "dalle1": 4.0, "voute": 4.0,
-	"bois": 2.0, "fer": 1.0, "lame": 1.0, "gravure": 2.0, "argile": 1.0, "os": 0.5, "parchemin": 0.5,
+	"bois": 2.0, "fer": 1.0, "lame": 1.0, "gravure": 2.0, "argile": 1.0, "os": 1.0, "parchemin": 1.0,
 	"toile": 1.0, "noir": 1.0, "halo": 1.0, "halo_f": 1.0, "rai": 1.0, "braise": 1.0,
 	# donjon (agrandissement) : pierre givrée / glace, ossuaire, or
 	"mur3": 4.0, "mur4": 4.0, "dalle3": 4.0, "dalle4": 4.0, "ossuaire": 4.0, "or": 0.5, "neige": 2.0,

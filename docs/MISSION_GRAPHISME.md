@@ -997,3 +997,12 @@ Sans changement visuel. Mesures, tableau avant/après et corrections : docs/SOCL
 « Attempting to initialize the wrong RID »), pose étalée du donjon, captures qui attendent `village.prets`.
 Fichiers : `scripts/village.gd`, `scripts/prim_geo.gd`, `scripts/interieurs.gd` (une ligne dans `finir`), `scripts/tertre.gd`, `scripts/monde.gd` (attente en capture),
 `outils/mesure_images.gd`, `outils/empreinte_interieurs.gd`, `outils/test_primitives.gd`.
+
+## Journal — lot « petites textures » (branche graphisme/petites-textures)
+Mesures : `outils/stat_petites.gd` (avant : captures/petites/stat_avant.txt, après : stat_apres.txt) ; poses : `outils/poses_petites.txt` et `poses_petites_gros.txt` ; planches : captures/petites/planche_{crypte,grotte,abords}.png (gauche = avant, droite = après).
+- Crypte : `lame`, `argile`, `os`, `parchemin`, `or` repassés à 64 texels/m (tuiles de 1 m, 64 px ; `or` 32 px pour 0,5 m), 10-12 tons par `_rq` (tramage par bruit stable), nettoyage final (`_fin`), `VERSION` 9 -> 10. Lame : coupe biseau/gorge, traînées, rouille en plaques. Isolés : lame 67,5 % -> 0, or 15,2 % -> 0. `toile` laissée à 32 texels/m (3,4 %).
+- Intérieurs : `peau` 19,5 %, `terre` 6,1 %, `charbon` 13,5 % -> 0 % (`_net`).
+- Grotte : `roche`, `roche_b`, `roche_givre`, `strate`, `sol`, `piste`, `mousse` à 64 texels/m (E = 2, 256 px / 4 m), `cristal` 128 px / 2 m, `peau`/`paille` 64 px / 1 m, `or` = celui de la crypte. `_net_rgb` nettoie la couleur des textures à alpha-seuil sans toucher l'alpha. Joints et fractures gardent la même largeur en mètres (lisibilité), grain de strate réduit. `piste` : plus de tramage par pixel, ornières lisibles. `neige_sol` reste à 32 texels/m (vient de SolTuiles).
+- Abords : nouvelle classe `TexturesPetites` (assets/petites/, `outils/generer_petites.gd`, étape « petites » de precalculer_tout) : `roche_e` (64 texels/m) pour les menhirs et la stèle du cercle, la façade du tertre, les dalles/bornes des abords ; `os_e` pour les offrandes ; neige des arbres morts et butte du tertre = `neige_e`. Tronc des arbres morts du cercle : inchangé (Palette 32 px, domaine « arbres »).
+- Précalcul : `precalculer_tout -- --verifier --seulement=crypte,grotte,bati,petites` : 0 différence.
+- Mémoire (stat_petites, RGBA8 + mips, sous-ensemble mesuré) : 2321 Ko -> 3275 Ko (+ roche_e 341 Ko, grotte roche/strate/sol/piste/mousse ×4).

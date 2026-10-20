@@ -1,0 +1,18 @@
+# Poses du lot « petites textures » (avant/après) : crypte (ossuaire, reliquaire, trésor), camp de la grotte, cercle, tertre, piste
+oss_n crypte -35,-10,0,-5 ouvre=s1,s2,s3,secret,herse
+oss_o crypte -27,-20,90,-5 ouvre=s1,s2,s3,secret,herse
+rel_n crypte -38,-51.5,0,-5 ouvre=s1,s2,s3,secret,herse
+rel_o crypte -27,-60,90,-5 ouvre=s1,s2,s3,secret,herse
+tresor crypte -52,-59,90,-5 ouvre=s1,s2,s3,secret,herse
+camp grotte 95,0,15,-6
+camp2 grotte 98,-1,-35,-8
+camp_feu grotte 96.5,2,-25,-6
+camp3 grotte 105,0,180,-6
+cercle_p4 monde -29.5,-26,47,0 heure=12
+cercle_q1 monde -40,-22.5,52,-6 heure=12
+cercle_pres monde -33.5,-29.5,40,-8 heure=12
+tertre_q2 monde -35.2,-40.5,20,-17 heure=12
+tertre_p5 monde -38,-31,0,4 heure=12
+piste_jour monde 66,-26.5,-88,-10 heure=12
+piste_pres monde 79,-27,-90,-12 heure=12
+bouche_jour monde 86.5,-27,-90,6 heure=12

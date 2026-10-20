@@ -125,9 +125,9 @@ func _tumulus() -> void:
 	s.rings = 6
 	butte.mesh = s
 	# lot 5 : façade et butte en pierre / neige pixel art (16 texels/m) ; la crypte garde ses matériaux
-	var m_facade := TexturesBati.m_roche(Color(0.8, 0.79, 0.84))
-	var m_porte_dalle := TexturesBati.m_roche(Color(0.42, 0.42, 0.5))
-	butte.material_override = TexturesBati.m_neige_toit()
+	var m_facade := TexturesPetites.m_roche_e(Color(0.8, 0.79, 0.84))
+	var m_porte_dalle := TexturesPetites.m_roche_e(Color(0.42, 0.42, 0.5))
+	butte.material_override = TexturesBati.m_neige_toit_e()
 	butte.scale = Vector3(1, 0.42, 1)
 	butte.position = Vector3(0, -0.6, -6.5)
 	add_child(butte)
