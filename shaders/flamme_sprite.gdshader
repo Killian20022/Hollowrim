@@ -6,7 +6,7 @@ render_mode unshaded, cull_disabled, depth_draw_opaque;
 
 uniform sampler2D atlas : source_color, filter_nearest, repeat_disable;
 uniform int images = 6;
-uniform vec2 taille = vec2(0.21, 0.34);
+uniform vec2 taille = vec2(0.18, 0.29);
 uniform float cadence = 10.0;
 uniform vec3 teinte : source_color = vec3(1.0);
 uniform float phase = 0.0;

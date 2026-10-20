@@ -785,3 +785,46 @@ Dans la grotte, la position sauvegardée est celle du fichier (y ≈ -215) ; au 
 - **Tests** : `tous_les_tests.sh` 15 OK / 0 échec. Sous terre inchangé (comparé avant/après).
 - Planches : `captures/lumiere/planches/avant_apres_{jour,crepuscule,nuit}.png` (avant | après ; poses feu, chemin, crête, lisière, village).
 - Défauts restants : la crête hors zone témoin montre le sol vert de l'ancien biome ; le « pop » mesh complet → LOD à 44-48 m n'est pas mesuré à l'oeil en mouvement ; village : le crépuscule de scénario non vérifié séparément.
+
+
+## Journal — Lot 6 (objets tenus : torche, épée, gants et manches), branche `graphisme/lot6-objets`
+
+### Constat (captures `captures/objets/avant/`, base 59068a5)
+- Torche dehors : flamme = 3 systèmes de particules additives (cœur, corps, langues) HDR > 1 → tache blanche carrée avec des carrés roses, sans bord ; fumée en carrés. Manche = cinq cylindres à 4 teintes (bruit), aucun détail de chiffon ni de braise. Sous terre la flamme était déjà le sprite de la crypte (tertre.gd / grotte.gd masquaient les particules et posaient un second sprite).
+- Épée : lame de 72 sommets, sans gorge en relief (une gorge « dessinée » dans une texture 32x64 de bruit), garde et pommeau en blocs, poignée à bandes obliques de 3 tons.
+- Gants / manches : UV de l'atlas du personnage (inutilisables : on tuilait une texture de bruit ×3), donc gros texels sans coutures ; gants = « blobs » orange sans manchette ; aucune fissure visible au poignet (sous-couche du lot 1) mais aucune fourrure ni rivet.
+
+### Réalisation
+- **Textures dessinées** : `scripts/objets_textures.gd` (ObjetsTextures, VERSION 3) ; précalcul `outils/generer_objets.gd` → `assets/objets/*.res` (repli : calcul direct, 0,3 s) ; `-- --planche=<dossier>` écrit chaque texture ×8. Rampes de 6 à 10 tons, quantification au bruit (jamais Bayer).
+- **Torche** (`scripts/torche.gd`, réécrit) :
+  - flamme = sprite pixel art en 6 images de 20x32 (`shaders/flamme_sprite.gdshader` : plan vertical vers la caméra autour de Y monde, ordre des images brouillé, hauteur qui vacille, jamais d'éclairage) ; même rampe de couleurs que les flammes de la crypte (4 images 16x24, inchangées) ;
+  - halo net additif à anneaux posterisés (`shaders/halo_sprite.gdshader`, texture halo de la crypte, 0,34 m, intensité qui suit la lumière) ;
+  - braises : calotte `shaders/braise.gdshader` (croûte noire et fentes incandescentes qui vacillent) ; manche à 8 pans, bois à fibres/nœuds/fentes (32x64), lanière de cuir tressé au-dessus du poing, bague de fer à 4 clous, 3 bandes de chiffon enroulées (diagonales + trame), 2 bandes goudronnées, 4 bouts de chiffon qui pendent, 4 coulures de goudron ;
+  - 7 étincelles carrées de 1 cm, nettes (couleurs par paliers, rétrécissent) ; plus de fumée, plus de particule floue ;
+  - lumière : sinus incommensurables + scintillement par PALIERS (14/s, hachage, plus de `randf()` par image) ; le halo suit l'énergie.
+  - Même torche dehors, dedans, en grotte : `tertre._flamme_main` et `grotte._torche` ne font plus rien (une ligne `return` chacun) pour ne pas poser un second sprite.
+- **Épée** : reconstruite en Blender (`sources_blender/scripts/epee_nordique.py`, sortie `assets/modeles/joueur/epee_nordique.glb`, copie `sources_blender/epee_nordique_lot6.glb`, ancien `epee_nordique_original.glb`) : 788 faces, lame de 0,74 m à biseaux de fil et GORGE EN RELIEF (sections à 14 points, fuller de 0,19 à 0,70 m, fin arrondie), pointe, garde à quillons évasés et affaissés + 4 rivets, poignée renflée à frettes, pommeau « noix » à bague et rivet de peen. Mêmes matériaux (lame / fer / cuir), même repère, même prise (`_calculer_prise` inchangé). Textures : lame 32x128 (≈ 170 texels/m, acier 10 tons : fil clair, biseaux, plats brossés, gorge sombre à lèvres, deux reflets en biais, marque du forgeron au ricasso, ébréchures et rayures), cuir tressé en chevrons, fer martelé (cuvettes à lèvre claire, un peu de rouille).
+- **Gants et manches** (`sources_blender/scripts/gants_manches.py` ; état d'avant `bras_fps_lot1.glb`) : UV cylindriques autour de l'axe de chaque bras (raccord sous le bras) pour manches, brassards et gants ; textures dédiées (laine à mailles en V + côtes au poignet + couture d'épaule ; brassard de cuir à lanières cousues et lacet croisé ; gant de cuir à plis, coutures en pointillé de fil, liseré de poignet) ; **manchette de fourrure** au poignet (anneau hirsute à 22 segments, pondéré 50/50 avant-bras/main : suit les torsions) et **16 rivets de fer** par brassard (2 rangées de 8). Aucune fissure : la sous-couche du lot 1 reste dessous et la manchette recouvre la jonction brassard/gant.
+- **Déterminisme** (demande technique) : `Palette.texture()` sans RNG passé prend un RNG à graine fixe propre à la texture (`graine*7919 + taille*31 + période`) ; `_villageois()` tire ses points de promenade dans un RNG local (graine 20261020). Le grain des matériaux villageois / joueur / tertre change UNE fois ; reste non déterministe : `randf()` global de `villageois.gd` (non touché : un autre agent).
+
+### Outils
+- `outils/captures_objets.sh <dossier>` : 48 vues (6 poses × torche/épée/poignets/jour/nuit/crypte + gros plans). Un Godot par vue (`--camera-main` n'existe qu'en capture simple), ≈ 9 min.
+
+### Pièges
+- Un parse error dans un script chargé par `--script` ne ressort pas : Godot reste bloqué sans rien afficher. Rediriger la sortie vers un fichier et lire l'erreur.
+- Ne jamais écraser un asset suivi par git pendant une série de captures « avant » : sauvegarder d'abord.
+- `captures/.gdignore` évite que Godot importe les PNG de capture.
+
+### Résultats (lot 6)
+- Planches avant | après (gauche = 59068a5, droite = lot 6) : `captures/objets/planches/` (`torche_gros_plans`, `epee_gros_plans`, `poignets_gauche`, `poignets_droit`, `jour_poses`, `nuit_poses`, `crypte_poses`), générées par `outils/planches_objets.sh` ; vues brutes `captures/objets/avant|apres/`, textures ×8 `captures/objets/textures/`.
+- Poses extrêmes (charge, frappe, garde, encaisse, gros plans dedans/dehors/dessus) : aucune fissure au poignet, la manchette de fourrure recouvre la jonction brassard/gant.
+- Perf au feu (`mesure_perf.gd --nouvelle --paisible --pose=2.5,8.5,16,4`, vsync off, 2 mesures, 4 agents actifs : indicatif) : base 59068a5 = 8,30 / 8,44 ms GPU, 679 appels ; lot 6 fusionné avec d4ea38d = 6,92 / 6,61 ms GPU, 474 appels (l'écart vient surtout de la fusion, pas du lot : la torche passe de 5 systèmes de particules à 1 + 2 cartes, +20 petits maillages).
+- Tests (`bash outils/tous_les_tests.sh`, 16 tests) : 15 OK ; `test_grotte_acces` (test d'un autre agent) échoue sur « ambiance de la grotte (brume 1.000) », vérification de brouillard étrangère à ce lot (ses vérifications sur les flammes de la torche tenue passent). Pas de `test_combat` dans ce worktree.
+- Halo de torche resserré (demande lot 7) : 0,34 m (au lieu de 0,5), intensité 0,65-0,75 selon la lumière.
+
+### Défauts restants
+- Doigts du gant toujours lisses (le maillage de 534 sommets n'a pas de doigts séparés) ; le gant est un cuir cousu, pas des doigts modelés.
+- Dos des manches : quelques raccords de texture visibles au repli du coude en frappe.
+- La flamme de la torche a 6 images à 10 i/s, celle des appliques murales 4 images à 9 i/s : même rampe, rythme légèrement différent.
+- Troisième personne (`corps_joueur.gd`) : la torche vue de l'extérieur garde ses particules d'origine (hors périmètre).
+- `villageois.gd` : `randf()` global non déterministe (non touché).

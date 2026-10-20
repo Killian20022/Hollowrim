@@ -150,8 +150,8 @@ static func construire(parent: Node3D) -> Dictionary:
 	var hm := ShaderMaterial.new()
 	hm.shader = HALO_SHADER
 	hm.set_shader_parameter("halo", ObjetsTextures.tex("halo"))
-	hm.set_shader_parameter("taille", 0.5)
-	hm.set_shader_parameter("intensite", 0.9)
+	hm.set_shader_parameter("taille", 0.34)
+	hm.set_shader_parameter("intensite", 0.75)
 	var halo := _carte(parent, Vector3(0, HAUT_TETE + 0.1, 0), hm)
 
 	var systemes: Array[GPUParticles3D] = [_etincelles(parent, Vector3(0, HAUT_TETE + 0.05, 0))]

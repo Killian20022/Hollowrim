@@ -434,7 +434,7 @@ func _process(dt: float) -> void:
 	var palier := floorf(_respiration * 14.0)
 	var scint := fposmod(sin(palier * 12.9898) * 43758.5453, 1.0)
 	torche_lumiere.light_energy = 1.4 + sin(_respiration * 13.0) * 0.12 + sin(_respiration * 29.0) * 0.08 + scint * 0.14
-	_halo_mat.set_shader_parameter("intensite", 0.8 + (torche_lumiere.light_energy - 1.4) * 0.8)
+	_halo_mat.set_shader_parameter("intensite", 0.65 + (torche_lumiere.light_energy - 1.4) * 0.7)
 
 func _tester_coup() -> void:
 	var cam := get_parent() as Node3D
