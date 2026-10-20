@@ -12,10 +12,11 @@ class_name CrypteTextures
 
 const CLEAR := Color(0, 0, 0, 0)
 const DOSSIER := "res://assets/crypte"   # textures précalculées par outils/generer_crypte.gd
-const VERSION := 8                       # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
+const VERSION := 9                       # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
 const E := 2   # facteur de finesse de la pierre proche (murs, dalles, voûte, ossuaire) : 2 = 64 texels/m (tuiles de 256 px pour 4 m)
 ## Murs et ossuaire : 128 texels/m (tuile de 512 px), car le joueur les frôle (< 1 m) ; dalles et voûte restent à 64.
 const EM := 4
+const F := 2   # bois, fer, gravure : 64 texels/m (tuiles de 128 / 64 / 128 px) ; dessin pensé en « unités » de 2 cm (ancienne grille)
 const K := 2   # facteur de densité de la pierre : 1 = 16 texels/m, 2 = 32 texels/m
 
 # rampes (indice 0 = creux/joint, dernier = lumière) : désaturées, froides dans l'ombre, un peu plus chaudes en lumière
@@ -497,7 +498,8 @@ static func mur_image(v: int) -> Image:
 # ------------------------------------------------------------------ planches de bois (32 texels/m)
 static func bois_paire() -> Array:
 	var rng := _rng(8400)
-	var S := 64
+	var S := 64 * F
+	var R := 8 * F          # hauteur d'une planche en texels
 	var n_gr := _nmap(S, 2, S / 2, 8401)       # fil : traînées horizontales fines
 	var n_gr2 := _nmap(S, 3, S / 4, 8402)
 	var n_fin := _nmap(S, S / 4, S / 4, 8403)
@@ -510,35 +512,35 @@ static func bois_paire() -> Array:
 	T.resize(S * S)
 	var cols := _cols(BOIS)
 	for rang in 8:
-		var y0 := rang * 8
+		var y0 := rang * R
 		var l0 := lerpf(0.34, 0.58, rng.randf())
 		var tt := rng.randf()
 		var kx := rng.randi_range(4, 59)
 		var avec_noeud := rng.randf() < 0.5
-		var ax := rng.randi_range(0, 63)
-		for ly in 8:
+		var ax := rng.randi_range(0, 63) * F
+		for ly in R:
 			for lx in S:
 				var i := (y0 + ly) * S + lx
 				var fil := n_gr[i] * 0.6 + n_gr2[i] * 0.4
 				var hh := 0.45 * fil + (n_fin[i] - 0.5) * 0.2
-				var ll := l0 + (fil - 0.5) * 0.4 + (n_fin[i] - 0.5) * 0.1 + (n_big[i] - 0.5) * 0.15 + (0.5 - ly / 7.0) * 0.12
-				if ly == 0:
+				var ll := l0 + (fil - 0.5) * 0.4 + (n_fin[i] - 0.5) * 0.1 + (n_big[i] - 0.5) * 0.15 + (0.5 - float(ly) / (R - 1)) * 0.12
+				if ly < F:
 					hh += 0.5
 					ll += 0.08
-				elif ly == 7:
+				elif ly >= R - F:
 					hh = -0.9
 					ll = 0.05
-				elif ly == 6:
+				elif ly >= R - 2 * F:
 					ll -= 0.07
 				if avec_noeud:
-					var r := Vector2(lx - kx, (ly - 3.5) * 1.6).length()
+					var r := Vector2(float(lx) / F - kx, (float(ly) / F - 3.5) * 1.6).length()
 					if r < 3.6:
 						ll = l0 - 0.2 + 0.11 * sin(r * 2.3) + 0.04 * (1.0 - r / 3.6)
 						hh += 0.25 * sin(r * 2.3) - 0.2
-				if lx == ax and ly < 7:
+				if ly < R - F and lx >= ax and lx < ax + F:
 					hh = -0.8
 					ll = 0.07
-				elif lx == ax + 1 and ly < 7:
+				elif ly < R - F and lx >= ax + F and lx < ax + 2 * F:
 					ll += 0.06
 				L[i] = ll
 				H[i] = hh
@@ -554,12 +556,15 @@ static func bois_paire() -> Array:
 			var c := _rp(cols, _q(clampf(l, 0.0, 1.0), x, y))
 			c = c.lerp(Color(c.g * 0.95, c.g * 1.0, c.b * 1.1), T[i] * 0.18)   # planche un peu plus grise
 			out[i] = c
-	# clous : tête claire et ombre
+	# clous : tête ronde claire (F x F) et ombre dessous
+	var fer := _cols(FER)
 	for k in 14:
-		var nx := rng.randi_range(0, S - 1)
-		var ny := rng.randi_range(0, 7) * 8 + rng.randi_range(2, 4)
-		out[ny * S + nx] = _rp(_cols(FER), 0.75)
-		out[((ny + 1) % S) * S + nx] = _rp(_cols(FER), 0.15)
+		var nx := rng.randi_range(0, 63) * F
+		var ny := (rng.randi_range(0, 7) * 8 + rng.randi_range(2, 4)) * F
+		for dy in F:
+			for dx in F:
+				out[posmod(ny + dy, S) * S + posmod(nx + dx, S)] = _rp(fer, 0.75 - 0.2 * float(dx + dy) / (2 * F))
+				out[posmod(ny + F + dy, S) * S + posmod(nx + dx, S)] = _rp(fer, 0.15)
 	return [_vers_image(S, out), _pentes(H, S, 0.9)]
 
 static func bois_image() -> Image:
@@ -567,7 +572,7 @@ static func bois_image() -> Image:
 
 # ------------------------------------------------------------------ fer riveté, rouille (32 texels/m)
 static func fer_paire() -> Array:
-	var S := 32
+	var S := 32 * F
 	var n_fin := _nmap(S, S / 2, S / 2, 8501)
 	var n_big := _nmap(S, 3, 3, 8502)
 	var n_rou := _nmap(S, 5, 5, 8503)
@@ -576,14 +581,15 @@ static func fer_paire() -> Array:
 	H.resize(S * S)
 	for y in S:
 		for x in S:
-			var by := y % 16
+			var v := float(y % (16 * F)) / F          # coordonnées en unités de l'ancienne grille
+			var u := float(x) / F
 			var h := 0.6 + (n_fin[y * S + x] - 0.5) * 0.25
-			if by < 2:
-				h = 0.9 * (by + 1) * 0.5
-			elif by > 12:
-				h = 0.2 * (15 - by)
+			if v < 2.0:
+				h = 0.9 * (floorf(v) + 1.0) * 0.5
+			elif v > 12.0:
+				h = 0.2 * (15.0 - v)
 			for rx in [4, 12, 20, 28]:
-				var r := Vector2(x - rx, by - 6.5).length()
+				var r := Vector2(u - rx, v - 6.5).length()
 				if r < 2.4:
 					h = 1.5 - r * 0.28 + 0.6
 			H[y * S + x] = h
@@ -596,17 +602,18 @@ static func fer_paire() -> Array:
 			var i := y * S + x
 			var gx := (H[y * S + posmod(x + 1, S)] - H[y * S + posmod(x - 1, S)]) * 0.5
 			var gy := (H[posmod(y + 1, S) * S + x] - H[posmod(y - 1, S) * S + x]) * 0.5
-			var l := 0.36 + (n_big[i] - 0.5) * 0.2 + (n_fin[i] - 0.5) * 0.1 + clampf((gx + gy) * 0.5, -0.5, 0.5) * 0.4
+			var l := 0.36 + (n_big[i] - 0.5) * 0.2 + (n_fin[i] - 0.5) * 0.1 + clampf((gx + gy) * 0.5 * F, -0.5, 0.5) * 0.4
 			var c := _rp(fer, _q(clampf(l, 0.0, 1.0), x, y))
 			var rm := _ss(0.58, 0.78, n_rou[i])
 			if rm > 0.0:
 				c = c.lerp(_rp(rou, 0.2 + l * 0.9), rm * 0.85)
 			out[i] = c
-	for k in 5:                                             # rayures claires
-		var gx := rng.randi_range(0, 28)
-		var gy := rng.randi_range(2, 28)
-		for j in rng.randi_range(2, 5):
-			out[gy * S + gx + j] = out[gy * S + gx + j].lightened(0.25)
+	for k in 5 * F:                                         # rayures claires (fines)
+		var gx := rng.randi_range(0, 28 * F)
+		var gy := rng.randi_range(2 * F, 28 * F)
+		for j in rng.randi_range(2 * F, 5 * F):
+			var ip := posmod(gy, S) * S + posmod(gx + j, S)
+			out[ip] = out[ip].lightened(0.25)
 	return [_vers_image(S, out), _pentes(H, S, 0.8)]
 
 static func fer_image() -> Image:
@@ -641,39 +648,42 @@ static func lame_image() -> Image:
 # ------------------------------------------------------------------ gravure runique (sarcophages) : creusée dans la pierre
 static func gravure_paire() -> Array:
 	var rng := _rng(8600)
-	var S := 64
+	var S := 64 * F
 	var carve := PackedFloat32Array()
 	carve.resize(S * S)
-	var tr := func(x: int, y: int, f: float) -> void:
-		var i := posmod(y, S) * S + posmod(x, S)
-		carve[i] = maxf(carve[i], f)
-	for i in range(6, 58):                                  # cadre gravé
-		for k in 2:
-			tr.call(i, 6 + k, 1.0)
-			tr.call(i, 56 + k, 1.0)
-			tr.call(6 + k, i, 1.0)
-			tr.call(56 + k, i, 1.0)
+	# trace de largeur w (unités de 2 cm) entre deux points (unités) : disques posés à pas fin, bords nets mais non crénelés en gros
+	var trace := func(x0: float, y0: float, x1: float, y1: float, w: float) -> void:
+		var hw := maxf(w * F * 0.5, 0.75)
+		var n := maxi(int(Vector2(x1 - x0, y1 - y0).length() * F * 2.0), 1)
+		for k in n + 1:
+			var t := float(k) / n
+			var cx := (x0 + (x1 - x0) * t) * F
+			var cy := (y0 + (y1 - y0) * t) * F
+			for py in range(int(cy - hw - 1.0), int(cy + hw + 2.0)):
+				for px in range(int(cx - hw - 1.0), int(cx + hw + 2.0)):
+					if Vector2(px + 0.5 - cx, py + 0.5 - cy).length() <= hw:
+						carve[posmod(py, S) * S + posmod(px, S)] = 1.0
+	trace.call(6.0, 6.5, 58.0, 6.5, 2.0)                     # cadre gravé
+	trace.call(6.0, 56.5, 58.0, 56.5, 2.0)
+	trace.call(6.5, 6.0, 6.5, 58.0, 2.0)
+	trace.call(56.5, 6.0, 56.5, 58.0, 2.0)
 	for rang in [12, 46]:                                   # frises de runes
 		var x := 11
 		while x < 52:
-			for j in 8:
-				tr.call(x, rang + j, 1.0)
+			trace.call(x + 0.5, rang, x + 0.5, rang + 8.0, 1.0)
 			var forme := rng.randi_range(0, 3)
-			for j in 3:
-				if forme == 0 or forme == 2:
-					tr.call(x + 1 + j, rang + 1 + j, 1.0)
-				if forme == 1 or forme == 2:
-					tr.call(x + 1 + j, rang + 5 - j, 1.0)
-				if forme == 3:
-					tr.call(x - 1 - j, rang + 2 + j, 1.0)
+			if forme == 0 or forme == 2:
+				trace.call(x + 1.5, rang + 1.5, x + 4.0, rang + 4.0, 1.0)
+			if forme == 1 or forme == 2:
+				trace.call(x + 1.5, rang + 5.5, x + 4.0, rang + 3.0, 1.0)
+			if forme == 3:
+				trace.call(x - 0.5, rang + 2.5, x - 3.0, rang + 5.0, 1.0)
 			x += 6
-	for x in range(10, 54):                                 # serpent
-		var y := 32 + int(round(sin(float(x) * 0.42) * 5.0))
-		for k in 3:
-			tr.call(x, y + k - 1, 1.0)
-	for dy in 3:
-		for dx in 4:
-			tr.call(52 + dx, 29 + dy, 1.0)
+	for k in range(0, 44 * 4):                              # serpent
+		var xs := 10.0 + float(k) / 4.0
+		var xe := xs + 0.25
+		trace.call(xs, 32.5 + sin(xs * 0.42) * 5.0, xe, 32.5 + sin(xe * 0.42) * 5.0, 3.0)
+	trace.call(52.0, 30.5, 56.0, 30.5, 3.0)                 # tête
 	var n_fin := _nmap(S, S / 4, S / 4, 8601)
 	var n_gr := _nmap(S, 4, 4, 8602)
 	var H := PackedFloat32Array()
@@ -687,9 +697,9 @@ static func gravure_paire() -> Array:
 					cm += carve[posmod(y + dy, S) * S + posmod(x + dx, S)]
 			cm = cm / 9.0 * 0.5 + carve[i] * 0.5
 			var h := (n_fin[i] - 0.5) * 0.25 + (n_gr[i] - 0.5) * 0.4 - cm * 1.6
-			var e := mini(mini(x, 63 - x), mini(y, 63 - y))
-			if e < 2:
-				h += 0.3 * (2 - e) - 0.4 * (1.0 if e == 0 and (x == 63 or y == 63) else 0.0)
+			var e := mini(mini(x, S - 1 - x), mini(y, S - 1 - y))
+			if e < 2 * F:
+				h += 0.3 * float(2 * F - e) / F - 0.4 * (1.0 if e == 0 and (x == S - 1 or y == S - 1) else 0.0)
 			H[i] = h
 	var fr := _cols(PIERRE_FROID)
 	var ch := _cols(PIERRE_CHAUD)
@@ -700,7 +710,7 @@ static func gravure_paire() -> Array:
 			var i := y * S + x
 			var gx := (H[y * S + posmod(x + 1, S)] - H[y * S + posmod(x - 1, S)]) * 0.5
 			var gy := (H[posmod(y + 1, S) * S + x] - H[posmod(y - 1, S) * S + x]) * 0.5
-			var l := 0.5 + (n_fin[i] - 0.5) * 0.12 + (n_gr[i] - 0.5) * 0.14 + clampf((gx + gy) * 0.8, -0.5, 0.5) * 0.3 - carve[i] * 0.16
+			var l := 0.5 + (n_fin[i] - 0.5) * 0.12 + (n_gr[i] - 0.5) * 0.14 + clampf((gx + gy) * 0.8 * F, -0.5, 0.5) * 0.3 - carve[i] * 0.16
 			var lq := _q(clampf(l, 0.0, 1.0), x, y)
 			out[i] = (_rp(fr, lq) as Color).lerp(_rp(ch, lq), 0.25)
 	return [_vers_image(S, out), _pentes(H, S, 1.0)]
