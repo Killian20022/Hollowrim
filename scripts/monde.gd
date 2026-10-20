@@ -824,8 +824,8 @@ func _process(dt: float) -> void:
 ## crêtes : elle se dégage (jusqu'à +25 %), récompense d'exploration. Lissé sur ~1,5 s ; `net` = sans lissage (captures).
 var _brume_t := 0.0
 func _brume_locale(dt: float, net := false) -> void:
-	if cycle == null or joueur == null:
-		return
+	if cycle == null or joueur == null or _sous_terre_actif:
+		return  # sous terre, la crypte ou la grotte règlent leur propre brume
 	_brume_t -= dt
 	if _brume_t > 0.0 and not net:
 		cycle.local = lerpf(cycle.local, _brume_cible, minf(dt * 0.8, 1.0))
@@ -834,8 +834,6 @@ func _brume_locale(dt: float, net := false) -> void:
 		return
 	_brume_t = 0.4
 	var p := joueur.global_position
-	if _sous_terre_actif:
-		return
 	var moy := 0.0
 	for k in 8:
 		var a := k * TAU / 8.0
