@@ -63,7 +63,7 @@ static func materiaux() -> Dictionary:
 	d["pierre"] = _m("pierre_fine", Color(0.95, 0.9, 0.88))
 	d["pierre_sombre"] = _m("pierre_fine", Color(0.62, 0.6, 0.64))
 	d["brute"] = _m("pierre_brute", Color(0.95, 0.9, 0.9))
-	d["seche"] = _m("pierre_seche", Color(0.85, 0.78, 0.74))
+	d["seche"] = _m("pierre_seche", Color(0.95, 0.8, 0.7))
 	d["fer"] = _m("fer", Color(0.85, 0.87, 0.95))
 	d["fer_noir"] = _m("fer", Color(0.45, 0.45, 0.5))
 	d["etain"] = _m("fer", Color(1.35, 1.38, 1.45))
