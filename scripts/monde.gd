@@ -1269,20 +1269,22 @@ func _scenario(nom: String) -> void:
 			dm.recevoir_coup(40.0, dm.global_position + Vector3(-1.8, 0, 0), true)
 			await get_tree().create_timer(3.5).timeout
 		"galerie":
-			# quatre habitants côte à côte devant le feu
-			var tenues := [
-				{"corps": "homme", "tenue": {"tunique": Color(0.75, 0.35, 0.3), "pantalon": Color(0.8, 0.75, 0.7), "bottes": Color.WHITE, "ceinture": Color.WHITE, "mante": Color(1.2, 1.1, 1.0), "brassards": Color.WHITE}, "barbe": true, "cheveux": "Hair_Long", "teinte_cheveux": Color(0.75, 0.5, 0.3)},
-				{"corps": "femme", "tenue": {"tunique": Color(0.45, 0.55, 0.75), "bottes": Color.WHITE, "ceinture": Color.WHITE, "mante": Color(1.0, 1.0, 1.0)}, "cheveux": "Hair_Buns", "teinte_cheveux": Color(0.9, 0.75, 0.5)},
-				{"corps": "homme", "tenue": {"tunique": Color(0.5, 0.6, 0.45), "pantalon": Color(0.7, 0.65, 0.6), "bottes": Color.WHITE, "ceinture": Color.WHITE, "gants": Color.WHITE}, "cheveux": "Hair_SimpleParted", "teinte_cheveux": Color(0.35, 0.25, 0.15)},
-				{"corps": "homme", "draugr": true, "tenue": {"tunique": Color(0.4, 0.38, 0.35), "brassards": Color(0.7, 0.7, 0.7), "ceinture": Color(0.6, 0.6, 0.6)}},
-			]
+			# habitants côte à côte devant le feu (lot 4 : les vraies tenues du jeu, dont un draugr) ; --galerie=chef,garde,... pour choisir
+			var ids: PackedStringArray = String(_arguments().get("galerie", "forgeron,chef,volva,garde,draugr")).split(",")
+			var tenues: Array = []
+			for id in ids:
+				if id == "draugr":
+					tenues.append({"corps": "homme", "draugr": true, "casque": "casque_draugr", "etoffes": {"tunique": "mailles_rouille", "brassards": "draugr"},
+						"tenue": {"tunique": Color.WHITE, "ceinture": Color.WHITE, "brassards": Color.WHITE, "mante": Color.WHITE, "bottes": Color.WHITE, "epaulieres": Color.WHITE, "pteruges": Color.WHITE, "cape_courte": Color.WHITE}})
+				elif VILLAGEOIS.APPARENCES.has(id):
+					tenues.append(VILLAGEOIS.APPARENCES[id])
 			for i in tenues.size():
 				var h := Humain.creer(tenues[i])
 				add_child(h)
-				var x := -2.4 + i * 1.6
+				var x := -1.6 * (tenues.size() - 1) * 0.5 + i * 1.6
 				h.global_position = Vector3(x, hauteur(x, -4.6), -4.6)
 				h.rotation.y = 0.0
-				(h.get_node("Animations") as AnimationPlayer).play(["Idle", "Idle_Talking", "Idle_Torch", "Sword_Idle"][i])
+				(h.get_node("Animations") as AnimationPlayer).play(["Idle", "Idle_Talking", "Idle", "Idle_Talking", "Sword_Idle"][i % 5])
 			joueur.mains.visible = false
 			_placer(Vector3(0, 0, -1.3), Vector3(0, 1.1, -4.6))
 			await get_tree().create_timer(1.0).timeout

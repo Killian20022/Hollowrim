@@ -92,10 +92,15 @@ func _ready() -> void:
 	forme.position.y = 0.9
 	add_child(forme)
 
-	var app := {"corps": "homme", "draugr": true, "tenue": {"tunique": Color(0.42, 0.38, 0.34), "ceinture": Color(0.6, 0.6, 0.6), "brassards": Color(0.65, 0.62, 0.6)}}
+	var app := {"corps": "homme", "draugr": true, "tenue": {"tunique": Color(0.42, 0.38, 0.34), "ceinture": Color(0.6, 0.6, 0.6), "brassards": Color(0.65, 0.62, 0.6), "haillons": Color.WHITE}}
 	if type == "guerrier":
+		# lot 4 : cotte de mailles rouillée, épaulières, jupe de lanières, cape en lambeaux
 		app["tenue"]["mante"] = Color(0.5, 0.48, 0.45)
 		app["tenue"]["bottes"] = Color(0.6, 0.6, 0.6)
+		app["tenue"]["epaulieres"] = Color.WHITE
+		app["tenue"]["pteruges"] = Color.WHITE
+		app["tenue"]["cape_courte"] = Color.WHITE
+		app["etoffes"] = {"tunique": "mailles_rouille", "brassards": "draugr"}
 		app["casque"] = "casque_draugr"
 	app.merge(apparence, true)
 	modele = Humain.creer(app)

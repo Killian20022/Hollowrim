@@ -16,18 +16,34 @@ const CORPS := {
 const ANIMATIONS := preload("res://assets/modeles/humains/animations.glb")
 const BOUCLE := ["Idle", "Walk", "Walk_Formal", "Jog_Fwd", "Sprint", "Sword_Idle", "Idle_Talking", "Idle_Torch",
 	"Sitting_Idle", "Fixing_Kneeling", "Spell_Simple_Idle", "Crouch_Idle", "Crouch_Fwd", "Sitting_Talking"]
-const PIECES := ["tunique", "pantalon", "bottes", "ceinture", "mante", "brassards", "gants"]
+const PIECES := ["tunique", "pantalon", "bottes", "ceinture", "mante", "brassards", "gants",
+	"robe", "cape", "cape_courte", "tablier", "capuche", "epaulieres", "haillons", "pteruges", "sacoche", "carquois", "manchettes"]
+## Pièces de silhouette (sources_blender/scripts/personnages_accessoires.py) : type de texture qu'elles empruntent.
+const TYPE_TEX := {"robe": "tunique", "cape": "tunique", "cape_courte": "tunique", "tablier": "tunique", "capuche": "tunique",
+	"haillons": "tunique", "pteruges": "tunique", "epaulieres": "brassards", "sacoche": "bottes", "carquois": "bottes", "manchettes": "mante"}
 
-## Texture de chaque pièce : [palette, période, grain, échelle UV]
-const ETOFFES := {
-	"tunique": [["#3a3a3a", "#474747", "#545454", "#616161"], 8, 0.5, Vector2(6, 6)],
-	"pantalon": [["#353535", "#404040", "#4b4b4b", "#565656"], 8, 0.5, Vector2(6, 6)],
-	"bottes": [["#1e140e", "#2c1d13", "#3d2a1b", "#4f3825"], 4, 0.5, Vector2(4, 4)],
-	"ceinture": [["#1e140e", "#2c1d13", "#3d2a1b", "#4f3825"], 4, 0.5, Vector2(4, 4)],
-	"mante": [["#2a2c33", "#3b3e47", "#50545e", "#6a6e78"], 8, 0.9, Vector2(10, 10)],
-	"brassards": [["#1e140e", "#2c1d13", "#3d2a1b", "#4f3825"], 4, 0.5, Vector2(4, 4)],
-	"gants": [["#1e140e", "#2c1d13", "#3d2a1b", "#4f3825"], 4, 0.5, Vector2(4, 4)],
-}
+## Variante d'étoffe par défaut de chaque pièce (PersonnagesTextures, lot 4) : « neutre » = tissage gris que la couleur de `tenue` teinte
+## (anciens appels : galerie, Eirik) ; les rôles choisissent leurs variantes par `etoffes` et la teinte est alors blanche.
+const DEFAUT := {"tunique": "neutre", "pantalon": "neutre", "bottes": "cuir_a", "ceinture": "cuir_a", "mante": "gris", "brassards": "cuir_a", "gants": "cuir_a",
+	"surcotte": "neutre", "robe": "neutre", "cape": "gris", "cape_courte": "gris", "tablier": "cuir_a", "capuche": "neutre", "epaulieres": "fer", "haillons": "lin",
+	"pteruges": "cuir_a", "sacoche": "cuir_b", "carquois": "cuir_a", "manchettes": "gris"}
+const DEFAUT_DRAUGR := {"tunique": "draugr", "pantalon": "draugr", "bottes": "draugr", "ceinture": "draugr", "mante": "draugr", "brassards": "draugr", "gants": "cuir_b",
+	"surcotte": "draugr", "robe": "draugr", "cape": "draugr", "cape_courte": "draugr", "tablier": "draugr", "capuche": "draugr", "epaulieres": "draugr",
+	"haillons": "draugr", "pteruges": "draugr", "sacoche": "draugr", "carquois": "draugr", "manchettes": "draugr"}
+
+static var _shaders_perso := {}
+
+## Variante de ps1.gdshader pour les personnages : mipmaps plus proche voisin sur la texture de base (à 8 m le tissage à 64 texels/m
+## est réduit ~3 fois : sans mipmaps, il scintille). Les autres textures du jeu gardent le shader d'origine.
+static func shader_perso(double_face: bool) -> Shader:
+	if not _shaders_perso.has(double_face):
+		var sh := Shader.new()
+		var code: String = Palette.PS1.code.replace("uniform sampler2D tex_base : source_color, filter_nearest, repeat_enable;", "uniform sampler2D tex_base : source_color, filter_nearest_mipmap, repeat_enable;")
+		if double_face:
+			code = code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_disabled, cull_disabled;")
+		sh.code = code
+		_shaders_perso[double_face] = sh
+	return _shaders_perso[double_face]
 
 static var _bibliotheque: AnimationLibrary
 
@@ -53,12 +69,13 @@ static func creer(options: Dictionary) -> Node3D:
 		if nom in PIECES:
 			mi.visible = tenue.has(nom)
 			if mi.visible:
-				var e: Array = ETOFFES[nom]
-				var tex := Palette.tex("etoffe_" + nom, e[0], e[1], e[2])
-				var m := Palette.materiau(tex, e[3], tenue[nom], true)
+				var etoffes: Dictionary = options.get("etoffes", {})
+				var variante: String = etoffes.get(nom, (DEFAUT_DRAUGR if draugr else DEFAUT)[nom])
+				var tex := PersonnagesTextures.tex(TYPE_TEX.get(nom, nom) + "_" + variante)
+				var teinte: Color = Color.WHITE if (etoffes.has(nom) or draugr) else tenue[nom]
+				var m := Palette.materiau(tex, Vector2.ONE, teinte, true)
+				m.shader = shader_perso(true)
 				m.set_shader_parameter("tex_neige", tex)
-				if draugr:
-					m.set_shader_parameter("saturation", 0.25)
 				mi.material_override = m
 		elif nom.begins_with("SuperHero") or nom.begins_with("Superhero"):
 			# corps entier : seulement pour le draugr (chair desséchée sous des haillons)
@@ -71,7 +88,7 @@ static func creer(options: Dictionary) -> Node3D:
 			mi.material_override = Palette.lueur(Color(0.6, 1.8, 2.4))
 	# peau, yeux, sourcils : textures d'origine réduites, ternies
 	var teinte_peau := Color(0.55, 0.62, 0.68) if draugr else peau
-	Palette.convertir(squelette, 128, teinte_peau, 0.2 if draugr else 0.75)
+	_peau(squelette, options.get("corps", "homme"), draugr, teinte_peau, Color(0.2, 0.2, 0.22) if draugr else options.get("teinte_cheveux", Color(0.3, 0.2, 0.12)) * 0.75)
 	_corriger_neige(squelette)
 	if options.has("cheveux"):
 		_greffer(squelette, options["cheveux"], options.get("teinte_cheveux", Color(0.5, 0.35, 0.2)))
@@ -83,6 +100,10 @@ static func creer(options: Dictionary) -> Node3D:
 		var coupe: Node = squelette.get_node_or_null(String(options.get("cheveux", "")))
 		if coupe and options["casque"] != "couronne_givre":
 			coupe.visible = false
+	if tenue.has("capuche"):
+		var coupe2: Node = squelette.get_node_or_null(String(options.get("cheveux", "")))
+		if coupe2:
+			coupe2.visible = false
 	if options.get("bouclier", false):
 		# bouclier porté dans le dos, face peinte vers l'arrière
 		var dos := Transform3D(Basis(Vector3.UP, PI), Vector3(0.0, 1.3, -0.2))
@@ -94,14 +115,44 @@ static func creer(options: Dictionary) -> Node3D:
 	ap.add_animation_library("", bibliotheque())
 	return racine
 
+static var _mats_peau := {}
+
+## Peau, yeux et sourcils (lot 4) : atlas redessinés par PersonnagesTextures (réduction en moyenne, rampe de 10 tons, visage lisible),
+## au lieu de la texture d'origine réduite au plus proche voisin. Un peu de lumière propre à la peau (`emission`) : pas de visage noir la nuit.
+static func _peau(squelette: Skeleton3D, corps: String, draugr: bool, teinte: Color, teinte_sourcils: Color) -> void:
+	for mi: MeshInstance3D in squelette.find_children("*", "MeshInstance3D", false, false):
+		if mi.material_override != null:
+			continue
+		for s in mi.mesh.get_surface_count():
+			var mat := mi.get_active_material(s)
+			var nom := mat.resource_name if mat else ""
+			var tex_nom := ""
+			if nom.contains("Superhero") or nom.contains("SuperHero"):
+				tex_nom = "peau_%s%s" % [corps, "_draugr" if draugr else ""]
+			elif nom.contains("Eyes"):
+				tex_nom = "yeux_draugr" if draugr else "yeux"
+			elif nom.contains("Hair"):
+				tex_nom = "sourcils"
+			else:
+				continue
+			var t_mat := teinte_sourcils if tex_nom == "sourcils" else teinte
+			var cle := "%s:%s" % [tex_nom, t_mat.to_html()]
+			if not _mats_peau.has(cle):
+				var m := Palette.materiau(PersonnagesTextures.tex(tex_nom), Vector2.ONE, t_mat)
+				m.shader = shader_perso(false)
+				m.set_shader_parameter("saturation", 0.55 if draugr else 0.9)
+				if tex_nom.begins_with("peau"):
+					m.set_shader_parameter("emission", Color(0.03, 0.04, 0.05) if draugr else Color(0.05, 0.04, 0.04))
+				_mats_peau[cle] = m
+			mi.set_surface_override_material(s, _mats_peau[cle])
+
 ## Sous-couche : le corps entier, rentré de 1,6 cm (les vêtements sont à 1 à 5 cm de la peau), sous
 ## l'étoffe. Les vêtements sont découpés dans le corps : sans elle, la moindre fissure entre deux
 ## pièces (tremblement des sommets, animation) laisse voir le vide. Rentrée, elle ne traverse pas l'étoffe.
 static func _sous_couche(tenue: Dictionary) -> ShaderMaterial:
-	var e: Array = ETOFFES["pantalon"]
 	var base: Color = tenue.get("pantalon", tenue.get("tunique", Color(0.5, 0.5, 0.5)))
-	var tex := Palette.tex("etoffe_pantalon", e[0], e[1], e[2])
-	var m := Palette.materiau(tex, e[3], base * 0.6)
+	var tex := PersonnagesTextures.tex("pantalon_neutre")
+	var m := Palette.materiau(tex, Vector2.ONE, base * 0.6)
 	m.set_shader_parameter("tex_neige", tex)
 	m.set_shader_parameter("gonfle", -0.016)
 	return m
@@ -171,3 +222,6 @@ static func _greffer(squelette: Skeleton3D, nom: String, teinte: Color) -> void:
 
 static func vider() -> void:
 	_bibliotheque = null
+	_mats_peau.clear()
+	_shaders_perso.clear()
+	PersonnagesTextures.vider()

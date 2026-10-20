@@ -165,17 +165,29 @@ func _ready() -> void:
 ## pantalon, bottes et ceinture.
 const C := Color.WHITE
 const APPARENCES := {
-	"chef": {"corps": "femme", "tenue": {"tunique": Color(0.42, 0.5, 0.78), "mante": Color(1.15, 1.1, 1.05), "brassards": C, "pantalon": Color(0.7, 0.65, 0.6), "bottes": C, "ceinture": C},
+	# Gunnhild, la cheffe : longue robe bleue brodée sur tunique de lin, manteau de fourrure blanche, bijoux de cuir clair
+	"chef": {"corps": "femme", "tenue": {"tunique": C, "robe": C, "mante": C, "brassards": C, "pantalon": C, "bottes": C, "ceinture": C},
+		"etoffes": {"tunique": "lin", "robe": "bleu", "mante": "blanc", "pantalon": "bleu", "bottes": "cuir_c", "ceinture": "cuir_c", "brassards": "cuir_c"},
 		"cheveux": "Hair_Long", "teinte_cheveux": Color(1.0, 0.82, 0.55)},
-	"forgeron": {"corps": "homme", "tenue": {"tunique": Color(0.62, 0.48, 0.38), "brassards": C, "gants": C, "pantalon": Color(0.65, 0.6, 0.55), "bottes": C, "ceinture": C},
+	# Brodd, le forgeron : épaules nues sous un tablier de cuir, avant-bras gantés, bourse
+	"forgeron": {"corps": "homme", "tenue": {"tunique": C, "tablier": C, "brassards": C, "gants": C, "pantalon": C, "bottes": C, "ceinture": C, "sacoche": C},
+		"etoffes": {"tunique": "brun", "tablier": "cuir_b", "pantalon": "noir", "bottes": "cuir_b", "ceinture": "cuir_b", "brassards": "cuir_b", "gants": "cuir_b", "sacoche": "cuir_b"},
 		"cheveux": "Hair_Buzzed", "barbe": true, "teinte_cheveux": Color(0.35, 0.22, 0.12), "peau": Color(0.95, 0.8, 0.72)},
-	"chasseuse": {"corps": "femme", "tenue": {"tunique": Color(0.45, 0.58, 0.4), "mante": Color(0.95, 0.85, 0.75), "brassards": C, "gants": C, "pantalon": Color(0.6, 0.55, 0.5), "bottes": C, "ceinture": C},
+	# la chasseuse : capuche verte, fourrure brune, carquois et bourse
+	"chasseuse": {"corps": "femme", "tenue": {"tunique": C, "capuche": C, "mante": C, "brassards": C, "gants": C, "pantalon": C, "bottes": C, "ceinture": C, "carquois": C, "sacoche": C},
+		"etoffes": {"tunique": "vert", "capuche": "vert", "mante": "brun", "pantalon": "brun", "bottes": "cuir_a", "ceinture": "cuir_a", "brassards": "cuir_a", "gants": "cuir_a", "carquois": "cuir_a", "sacoche": "cuir_a"},
 		"cheveux": "Hair_Buns", "teinte_cheveux": Color(0.85, 0.38, 0.2)},
-	"volva": {"corps": "femme", "tenue": {"tunique": Color(0.48, 0.38, 0.6), "mante": Color(0.45, 0.45, 0.5), "pantalon": Color(0.5, 0.45, 0.5), "bottes": C, "ceinture": C},
+	# Sigrún, la völva : longue robe, cape à capuche violette, pas d'armure
+	"volva": {"corps": "femme", "tenue": {"tunique": C, "robe": C, "capuche": C, "cape": C, "bottes": C, "ceinture": C, "pantalon": C, "sacoche": C},
+		"etoffes": {"tunique": "violet", "robe": "gris", "capuche": "violet", "cape": "gris", "pantalon": "gris", "bottes": "cuir_b", "ceinture": "cuir_c", "sacoche": "cuir_c"},
 		"cheveux": "Hair_Long", "teinte_cheveux": Color(1.15, 1.15, 1.2), "peau": Color(0.9, 0.85, 0.85)},
-	"garde": {"corps": "homme", "tenue": {"tunique": Color(0.72, 0.3, 0.26), "mante": C, "brassards": C, "gants": C, "pantalon": Color(0.65, 0.6, 0.55), "bottes": C, "ceinture": C},
+	# garde : tunique rouge, épaulières et jupe de lanières, cape courte, gantelets de fer
+	"garde": {"corps": "homme", "tenue": {"tunique": C, "cape_courte": C, "epaulieres": C, "pteruges": C, "brassards": C, "gants": C, "pantalon": C, "bottes": C, "ceinture": C},
+		"etoffes": {"tunique": "rouge", "cape_courte": "gris", "epaulieres": "fer", "pteruges": "cuir_b", "pantalon": "gris", "bottes": "cuir_b", "ceinture": "cuir_b", "brassards": "fer", "gants": "cuir_b"},
 		"cheveux": "Hair_SimpleParted", "barbe": true, "teinte_cheveux": Color(0.55, 0.38, 0.22), "casque": "casque_nasal", "bouclier": true},
-	"ancienne": {"corps": "femme", "tenue": {"tunique": Color(0.58, 0.52, 0.46), "mante": Color(0.85, 0.8, 0.75), "pantalon": Color(0.55, 0.5, 0.45), "bottes": C, "ceinture": C},
+	# Grima, l'ancienne : robe de lin, châle de laine et foulard
+	"ancienne": {"corps": "femme", "tenue": {"tunique": C, "robe": C, "capuche": C, "mante": C, "bottes": C, "ceinture": C, "pantalon": C},
+		"etoffes": {"tunique": "lin", "robe": "gris", "capuche": "lin", "mante": "gris", "pantalon": "lin", "bottes": "cuir_c", "ceinture": "cuir_c"},
 		"cheveux": "Hair_Buns", "teinte_cheveux": Color(1.1, 1.1, 1.1), "peau": Color(0.92, 0.84, 0.8)},
 }
 
