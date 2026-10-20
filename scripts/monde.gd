@@ -26,6 +26,7 @@ const VILLAGEOIS := preload("res://scripts/villageois.gd")
 const DIALOGUE := preload("res://scripts/dialogue.gd")
 const QUETES := preload("res://scripts/quetes.gd")
 const TERTRE := preload("res://scripts/tertre.gd")
+const GROTTE_ACCES := preload("res://scripts/grotte_acces.gd")
 const DRAGON := preload("res://scripts/dragon.gd")
 const TUMULUS := Vector3(-38.0, 0.0, -48.0)  # façade du tertre, au nord du cercle
 
@@ -38,6 +39,8 @@ var h_cercle := 0.0
 var h_tumulus := 0.0  # hauteur au pied de la façade du tertre (lot C)
 const TUMULUS_DISQUE := Vector2(-38.0, -54.5)  # centre du disque aplani derrière la façade
 var h_village := 0.0
+var h_grotte := 0.0  # niveau de la terrasse devant la bouche de la grotte (relief d'avant l'aplanissement)
+var grotte_acces: Node3D
 var village: Node3D
 var cycle: Node
 var calque: CanvasLayer
@@ -104,6 +107,7 @@ func _ready() -> void:
 		var a := TAU * k / 8.0
 		h_village += _hauteur_brute(VILLAGE.x + cos(a) * 30.0, VILLAGE.z + sin(a) * 30.0) / 8.0
 		h_cercle += _hauteur_brute(CERCLE.x + cos(a) * 16.0, CERCLE.z + sin(a) * 16.0) / 8.0
+	h_grotte = _hauteur_ancienne(GrotteAcces.SITE.x - 1.0, GrotteAcces.SITE.y)
 	chemins = Chemins.new(self)
 	if ZoneBiome.actif:
 		h_tumulus = _hauteur_sans_tumulus(TUMULUS.x, TUMULUS.z)
@@ -140,6 +144,8 @@ func _ready() -> void:
 	_chrono("villageois")
 	_tertre()
 	_chrono("tertre+crypte")
+	_grotte_acces()
+	_chrono("entree de la grotte")
 	AbordsTumulus.creer(self)  # lot F : abords du tertre (après sa création)
 	if not _arguments().has("capture"):
 		_musique()
@@ -218,7 +224,7 @@ func _hauteur_sans_tumulus(x: float, z: float) -> float:
 func hauteur(x: float, z: float) -> float:
 	var m := ZoneBiome.masque(x, z)
 	if m <= 0.0 or chemins == null:
-		return _hauteur_ancienne(x, z)
+		return GrotteAcces.aplani(x, z, _hauteur_ancienne(x, z), h_grotte)
 	var h := _hauteur_sans_tumulus(x, z)
 	# tumulus : disque plat (r ≤ 8) à la hauteur du pied de la façade, raccord jusqu'à r 14
 	var r := Vector2(x - TUMULUS_DISQUE.x, z - TUMULUS_DISQUE.y).length()
@@ -242,16 +248,18 @@ func _environnement() -> void:
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.1
-	env.fog_enabled = true
-	env.fog_light_color = Color(0.1, 0.14, 0.22)
-	env.fog_density = 0.024
-	env.fog_sky_affect = 0.15
-	env.fog_height = h_centre + 1.5
-	env.fog_height_density = 0.12
+	env.fog_enabled = true  # lot 7 : brouillard en profondeur, réglé chaque image par cycle.gd (appliquer_brume)
+	env.fog_mode = Environment.FOG_MODE_DEPTH
+	env.fog_light_color = Color(0.05, 0.075, 0.13)
+	env.fog_density = 1.0
+	env.fog_sky_affect = 0.0
 	env.glow_enabled = true
 	env.glow_intensity = 0.7
-	env.glow_bloom = 0.02
+	env.glow_bloom = 0.0
 	env.glow_hdr_threshold = 0.9
+	# halos de flammes nets : seuls les niveaux serrés (2 et 3) restent, plus de voile large
+	for i in 7:
+		env.set_glow_level(i, 1.0 if (i == 1 or i == 2) else 0.0)
 
 	_env = env
 	_ciel = ciel
@@ -269,13 +277,14 @@ func _lune() -> void:
 	lune.shadow_enabled = true
 	lune.shadow_bias = 0.08
 	lune.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	lune.directional_shadow_max_distance = 70.0
+	lune.directional_shadow_max_distance = 62.0  # lot 7 : ombres jusqu'à la fin du brouillard de nuit claire
 	add_child(lune)
 	cycle = Node.new()
 	cycle.set_script(CYCLE)
 	cycle.env = _env
 	cycle.lumiere = lune
 	cycle.ciel = _ciel
+	cycle.appliquer_brume()
 	var h: String = _arguments().get("heure", "")
 	if h != "":
 		cycle.heure = float(h)
@@ -486,7 +495,9 @@ func _joueur_mort() -> void:
 	var t := create_tween()
 	t.tween_method(func(v: float) -> void: post.set_shader_parameter("fondu", v), 0.0, 1.0, 2.0)
 	t.tween_interval(1.5)
-	t.tween_callback(func() -> void: joueur.ressusciter(depart_joueur, atan2(depart_joueur.x, depart_joueur.z)))
+	t.tween_callback(func() -> void:
+		grotte_acces.reinitialiser()      # mort sous terre : la grotte se referme, le monde reprend sa lumière
+		joueur.ressusciter(depart_joueur, atan2(depart_joueur.x, depart_joueur.z)))
 	t.tween_method(func(v: float) -> void: post.set_shader_parameter("fondu", v), 1.0, 0.0, 1.5)
 
 # --- villageois ------------------------------------------------------------------
@@ -542,6 +553,24 @@ func _tertre() -> void:
 			_dragon())
 	hud.lieux.append([tertre.porte_dehors, Color("#6fd8ff")])
 
+## Entrée de la grotte des bandits (flanc est) : bouche de roche, passage fondu, grotte bâtie en fil d'exécution.
+func _grotte_acces() -> void:
+	grotte_acces = Node3D.new()
+	grotte_acces.set_script(GROTTE_ACCES)
+	grotte_acces.monde = self
+	grotte_acces.joueur = joueur
+	grotte_acces.dialogue = dialogue
+	grotte_acces.quetes = quetes
+	grotte_acces.hud = hud
+	grotte_acces.position = Vector3(GrotteAcces.SITE.x, h_grotte, GrotteAcces.SITE.y)
+	grotte_acces.rotation.y = GrotteAcces.LACET
+	add_child(grotte_acces)
+	grotte_acces.entree.connect(func(dedans: bool) -> void:
+		_sous_terre(dedans)
+		if dedans:
+			grotte_acces.grotte.ambiance(_env))
+	hud.lieux.append([grotte_acces.porte_dehors, Color("#ffb347")])
+
 func _dragon() -> void:
 	dragon = CharacterBody3D.new()
 	dragon.set_script(DRAGON)
@@ -568,6 +597,8 @@ func _sous_terre(dedans: bool) -> void:
 	# Lot 7a : pénombre bleutée lisible (ambiant plus clair), brume courte et froide, pas de glow (halos nets,
 	# dessinés dans la crypte) et tramage du post-traitement adouci (le Bayer 4x4 grésille dans le sombre).
 	_env.glow_enabled = not dedans
+	_sous_terre_actif = dedans
+	_env.fog_mode = Environment.FOG_MODE_EXPONENTIAL if dedans else Environment.FOG_MODE_DEPTH
 	post.set_shader_parameter("tramage", 0.45 if dedans else 1.0)
 	if dedans:
 		_env.ambient_light_color = Color(0.40, 0.45, 0.62)
@@ -575,8 +606,8 @@ func _sous_terre(dedans: bool) -> void:
 		_env.fog_light_color = Color(0.03, 0.045, 0.08)
 		_env.fog_density = 0.028
 		_env.fog_height_density = 0.0
+		_env.fog_sky_affect = 1.0
 	else:
-		_env.fog_height_density = 0.12
 		cycle._process(0.0)
 
 # --- draugrs ---------------------------------------------------------------------
@@ -717,6 +748,9 @@ func sauvegarder() -> void:
 	for id in tertre.morts_charges:        # gardiens du donjon tués dans une partie précédente et pas (encore) réapparus
 		if not morts.has(id):
 			morts.append(id)
+	for id in grotte_acces.morts_charges:  # idem pour les bandits de la grotte
+		if not morts.has(id):
+			morts.append(id)
 	var parles := []
 	for v in get_tree().get_nodes_in_group("villageois"):
 		if v.get("deja_parle"):
@@ -759,6 +793,8 @@ func charger() -> void:
 	dragon_vaincu = bool(d.get("dragon_vaincu", false))
 	quetes.importer(d.get("quetes", {}))
 	tertre.restaurer(bool(d.get("herse", false)))
+	grotte_acces.morts_charges = d.get("draugrs_morts", [])
+	grotte_acces.restaurer()      # sauvegardé dans la grotte : on y revient (position du fichier)
 	tertre.morts_charges = d.get("draugrs_morts", [])      # le donjon de la crypte ne refait pas ceux-là
 	for id in d.get("draugrs_morts", []):
 		if draugrs.has(id):
@@ -771,6 +807,7 @@ func charger() -> void:
 
 func _process(dt: float) -> void:
 	_t += dt
+	_brume_locale(dt)
 	neige.global_position = joueur.global_position + Vector3(0, 10, 0)
 	# le feu vacille : deux sinus désaccordés + un peu de hasard
 	feu_lumiere.light_energy = 3.2 + sin(_t * 11.0) * 0.25 + sin(_t * 23.7) * 0.18 + randf() * 0.25
@@ -781,6 +818,42 @@ func _process(dt: float) -> void:
 	if _minuterie_sauvegarde > 120.0 and not _arguments().has("capture"):
 		_minuterie_sauvegarde = 0.0
 		sauvegarder()
+
+## Lot 7 : distance du brouillard variable. Creux et forêt dense : la brume se resserre (jusqu'à -35 %) ;
+## crêtes : elle se dégage (jusqu'à +25 %), récompense d'exploration. Lissé sur ~1,5 s ; `net` = sans lissage (captures).
+var _brume_t := 0.0
+func _brume_locale(dt: float, net := false) -> void:
+	if cycle == null or joueur == null:
+		return
+	_brume_t -= dt
+	if _brume_t > 0.0 and not net:
+		cycle.local = lerpf(cycle.local, _brume_cible, minf(dt * 0.8, 1.0))
+		if abs(cycle.local - _brume_cible) > 0.002:
+			cycle.appliquer_brume()
+		return
+	_brume_t = 0.4
+	var p := joueur.global_position
+	if _sous_terre_actif:
+		return
+	var moy := 0.0
+	for k in 8:
+		var a := k * TAU / 8.0
+		moy += hauteur(p.x + cos(a) * 20.0, p.z + sin(a) * 20.0) / 8.0
+	var relief := clampf((p.y - moy) * 0.05, -0.2, 0.25)
+	var n := 0
+	for t: Transform3D in arbres:
+		var dx := t.origin.x - p.x
+		var dz := t.origin.z - p.z
+		if dx * dx + dz * dz < 196.0:  # 14 m
+			n += 1
+	var foret := -0.15 * clampf(n / 24.0, 0.0, 1.0)
+	_brume_cible = 1.0 + relief + foret
+	if net:
+		cycle.local = _brume_cible
+		cycle.appliquer_brume()
+
+var _brume_cible := 1.0
+var _sous_terre_actif := false
 
 func _musique() -> void:
 	var m := Node.new()
@@ -871,7 +944,8 @@ func _aller_crypte() -> void:
 var grotte: Node
 
 func _aller_grotte(pose: String) -> void:
-	grotte = Grotte.creer(self, joueur)
+	grotte = grotte_acces.obtenir()
+	grotte_acces.montrer(true)
 	_sous_terre(true)
 	grotte.ambiance(_env)
 	var p := pose.split_floats(",")
@@ -1011,6 +1085,7 @@ func _lot_captures(fichier: String) -> void:
 				joueur.rotation.y = deg_to_rad(c[2])
 				joueur.tete.rotation.x = deg_to_rad(c[3]) if c.size() > 3 else 0.0
 				joueur.velocity = Vector3.ZERO
+				_brume_locale(0.0, true)
 		elif type == "crypte":
 			if dessous == "":
 				tertre._passer(true)
@@ -1026,7 +1101,8 @@ func _lot_captures(fichier: String) -> void:
 			if dessous != "grotte":
 				if dessous == "crypte":
 					tertre.crypte.visible = false  # on quitte la crypte pour la grotte (autre lieu sous terre)
-				grotte = Grotte.creer(self, joueur)
+				grotte = grotte_acces.obtenir()
+				grotte_acces.montrer(true)
 				_sous_terre(true)
 				grotte.ambiance(_env)
 				dessous = "grotte"
@@ -1060,7 +1136,9 @@ func _etat_lumiere() -> Dictionary:
 	return {
 		"basis": cycle.lumiere.basis, "couleur": cycle.lumiere.light_color, "energie": cycle.lumiere.light_energy,
 		"amb": _env.ambient_light_color, "amb_e": _env.ambient_light_energy,
-		"brume": _env.fog_light_color, "dens": _env.fog_density,
+		"brume": _env.fog_light_color, "dens": _env.fog_density, "local": cycle.local,
+		"horizon": cycle._horizon, "fin_base": cycle._fin_base, "expo": _env.tonemap_exposure, "seuil_glow": _env.glow_hdr_threshold,
+		"ciel_horizon": _ciel.get_shader_parameter("horizon_courant"), "ciel_haut": _ciel.get_shader_parameter("haut_courant"),
 		"jour": _ciel.get_shader_parameter("jour"), "soleil": _ciel.get_shader_parameter("soleil"),
 	}
 
@@ -1072,6 +1150,14 @@ func _restaurer_lumiere(e: Dictionary) -> void:
 	_env.ambient_light_energy = e["amb_e"]
 	_env.fog_light_color = e["brume"]
 	_env.fog_density = e["dens"]
+	cycle.local = e["local"]
+	cycle._horizon = e["horizon"]
+	cycle._fin_base = e["fin_base"]
+	_env.tonemap_exposure = e["expo"]
+	_env.glow_hdr_threshold = e["seuil_glow"]
+	_ciel.set_shader_parameter("horizon_courant", e["ciel_horizon"])
+	_ciel.set_shader_parameter("haut_courant", e["ciel_haut"])
+	cycle.appliquer_brume()
 	_ciel.set_shader_parameter("jour", e["jour"])
 	_ciel.set_shader_parameter("soleil", e["soleil"])
 

@@ -568,7 +568,7 @@ func restaurer(herse_ouverte: bool) -> void:
 				it.actif = false
 	_etat_donjon()
 	# partie sauvegardée sous terre
-	if joueur.global_position.y < PROFONDEUR * 0.5:
+	if joueur.global_position.y < PROFONDEUR * 0.5 and joueur.global_position.y > GrotteAcces.SEUIL_Y:   # plus bas : la grotte (y ≈ -220)
 		attendre_donjon()
 		dedans = true
 		crypte.visible = true

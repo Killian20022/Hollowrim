@@ -60,7 +60,7 @@ func _ready() -> void:
 	camera = Camera3D.new()
 	camera.fov = 72.0
 	camera.near = 0.05
-	camera.far = 180.0
+	camera.far = 90.0  # lot 7 : au-delà de la fin du brouillard (75 m max) rien n'est visible
 	tete.add_child(camera)
 	camera.current = true
 	mains = Node3D.new()
