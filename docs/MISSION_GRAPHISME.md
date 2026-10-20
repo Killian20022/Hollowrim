@@ -997,3 +997,11 @@ Sans changement visuel. Mesures, tableau avant/après et corrections : docs/SOCL
 « Attempting to initialize the wrong RID »), pose étalée du donjon, captures qui attendent `village.prets`.
 Fichiers : `scripts/village.gd`, `scripts/prim_geo.gd`, `scripts/interieurs.gd` (une ligne dans `finir`), `scripts/tertre.gd`, `scripts/monde.gd` (attente en capture),
 `outils/mesure_images.gd`, `outils/empreinte_interieurs.gd`, `outils/test_primitives.gd`.
+
+## Lot « sapins inclinés » (branche graphisme/sapins-inclines)
+Demande : branches d'épicéa trop droites et horizontales. `_rameau` reçoit un paramètre `arc` (épicéa seulement ; pin et
+bouleau inchangés) : tige en 3 points en courbe de S (départ presque horizontal, arc pendant, bout relevé), ailes de plus en
+plus tombantes vers le bout (rideau), `_arc_epicea` : forte retombée en bas, branches qui montent vers la cime, affaissement
+propre à l'arbre / à l'étage / à la branche, neige = branche plus lourde ; flèche parfois penchée. Second RNG (graine*13+5) :
+le placement des branches est inchangé. LOD (1 tronçon) : bout placé à `mid + tip/2` pour garder l'affaissement moyen.
+Textures, couleurs, nombre de triangles : inchangés (0 %). Planches : captures/sapins/planche_avant_apres_{jour,nuit}.png.

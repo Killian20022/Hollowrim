@@ -313,12 +313,29 @@ static func _uv(r: Rect2, u: float, v: float) -> Vector2:
 ## carte pliée en toit le long de la tige (deux ailes inclinées de `pli` sous l'horizontale, texture
 ## coupée en deux le long de la tige dessinée), plus une crête de neige debout sur la tige.
 ## `segments` 1 (LOD) ou 2. `ao` : couleur de sommet (occlusion), `crete` : hauteur de crête (0 = aucune).
-static func _rameau(st: SurfaceTool, origine: Vector3, a: float, L: float, chute: float, releve: float, region: Rect2, pli: float, ao: Color, crete: float, crete_v: Rect2, segments := 2) -> void:
+static func _rameau(st: SurfaceTool, origine: Vector3, a: float, L: float, chute: float, releve: float, region: Rect2, pli: float, ao: Color, crete: float, crete_v: Rect2, segments := 2, arc := {}) -> void:
 	var d := Vector3(cos(a), 0.0, sin(a))
 	var cote := Vector3(-sin(a), 0.0, cos(a))
 	var tige: Array[Vector3] = [origine]
 	var vs: Array[float] = [1.0]
-	if segments == 2:
+	var plis: Array[float] = [pli, pli, pli]
+	if not arc.is_empty():
+		# épicéa : arc pendant, bout relevé (S), ailes de plus en plus tombantes vers le bout (rideau)
+		var ym: float = arc["mid"]
+		var yb: float = arc["tip"]
+		var lm: float = arc.get("lean", 0.0)
+		if segments == 2:
+			tige.append(origine + d * L * 0.5 + Vector3(0, ym, 0))
+			tige.append(origine + d * L * (1.0 - lm) + Vector3(0, yb, 0))
+			vs.append_array([0.5, 0.0])
+			var pa: Array = arc["pli"]
+			plis = [pli * pa[0], pli * pa[1], pli * pa[2]]
+		else:   # LOD : un seul tronçon, bout placé pour garder le même affaissement moyen
+			tige.append(origine + d * L * (1.0 - lm) + Vector3(0, ym + yb * 0.5, 0))
+			vs.append(0.0)
+			var pa: Array = arc["pli"]
+			plis = [pli * (pa[0] + pa[1]) * 0.5, pli * (pa[1] + pa[2]) * 0.5, pli]
+	elif segments == 2:
 		tige.append(origine + d * L * 0.5 + Vector3(0, -chute * REGLAGES_EPICEA["milieu"], 0))
 		tige.append(origine + d * L + Vector3(0, -chute + releve, 0))
 		vs.append_array([0.5, 0.0])
@@ -334,9 +351,10 @@ static func _rameau(st: SurfaceTool, origine: Vector3, a: float, L: float, chute
 		var p1 := tige[i + 1]
 		var axe := (p1 - p0).normalized()
 		for w in [-1.0, 1.0]:
-			var dir_aile: Vector3 = cote * w * cos(pli) + Vector3.DOWN * sin(pli)
+			var dir_aile: Vector3 = cote * w * cos(plis[i]) + Vector3.DOWN * sin(plis[i])
+			var dir_aile1: Vector3 = cote * w * cos(plis[i + 1]) + Vector3.DOWN * sin(plis[i + 1])
 			var aile: Vector3 = dir_aile * W * largeurs[i]
-			var aile1: Vector3 = dir_aile * W * largeurs[i + 1]
+			var aile1: Vector3 = dir_aile1 * W * largeurs[i + 1]
 			var face := axe.cross(aile)
 			if face.y < 0.0:
 				face = -face
@@ -362,6 +380,19 @@ static func _rameau(st: SurfaceTool, origine: Vector3, a: float, L: float, chute
 			_quad_o(st, [b0, b1, b1 + h, b0 + h],
 				[_uv(crete_v, u0, 1.0), _uv(crete_v, u0 + 0.5, 1.0), _uv(crete_v, u0 + 0.5, 0.0), _uv(crete_v, u0, 0.0)],
 				col, [nn, nn, nn, nn], cote)
+
+## Courbe d'une branche d'épicéa : hauteurs relatives du milieu et du bout (m), plis des trois points.
+## Bas de l'arbre : forte retombée puis bout qui se relève ; vers la cime : branches qui montent (arc court).
+static func _arc_epicea(rng: RandomNumberGenerator, L: float, k: float, e: int, neige: bool, droop_arbre: float, phase: float) -> Dictionary:
+	var etage := 1.0 + 0.18 * sin(phase + e * 2.1)            # deux étages ne se ressemblent pas
+	var lourd := droop_arbre * etage * rng.randf_range(0.85, 1.15) * (1.0 + (0.3 * (1.0 - k * 0.5) if neige else 0.0))
+	var bas := 1.0 - pow(k, 0.65)                             # 1 au pied, 0 à la cime
+	var mid := L * lerpf(0.03, 0.3, bas) * lourd            # milieu : descente
+	var tip := L * lerpf(0.06, 0.46, bas) * lourd            # bout : encore plus bas...
+	var releve := L * lerpf(0.08, 0.2, bas) * rng.randf_range(0.8, 1.2)  # ...moins le coup de reins final
+	var haut := L * lerpf(0.0, 0.3, pow(k, 1.6))             # vers la cime les branches montent
+	return {"mid": -mid + haut * 0.45, "tip": -(tip - releve) + haut, "lean": 0.04 * bas,
+		"pli": [0.8, 1.15, lerpf(1.3, 1.55, bas)]}
 
 static func r_ou(v: Vector3) -> float:
 	return Vector3(v.x, 0, v.z).length() + 0.3
@@ -476,6 +507,12 @@ static func epicea(forme: int, graine: int, materiaux: Array, lod := false) -> A
 	var longs := [TexturesArbres.uv_epicea(TexturesArbres.R_LONG_A), TexturesArbres.uv_epicea(TexturesArbres.R_LONG_B)]
 	var courts := [TexturesArbres.uv_epicea(TexturesArbres.R_COURT_A), TexturesArbres.uv_epicea(TexturesArbres.R_COURT_B)]
 	var n_etages := maxi(4, etages / 2) if lod else etages
+	# variation par arbre : second RNG (le placement des branches reste celui d'avant)
+	var rng2 := RandomNumberGenerator.new()
+	rng2.seed = graine * 13 + 5
+	var droop_arbre := rng2.randf_range(0.85, 1.2)
+	var penche := Vector2.from_angle(rng2.randf() * TAU) * (rng2.randf_range(0.0, 0.35) if rng2.randf() < 0.6 else 0.0)
+	var etage_phase := rng2.randf() * TAU
 	# jupe basse : petits rameaux courts et pendants sous le premier étage (plus de tronc nu sous la couronne)
 	for e in (1 if lod else 3):
 		var yj := lerpf(0.55, bas + 0.55, float(e) / 2.0) if not lod else 0.9
@@ -509,7 +546,11 @@ static func epicea(forme: int, graine: int, materiaux: Array, lod := false) -> A
 			var cv := TexturesArbres.uv_epicea(Rect2i(TexturesArbres.R_CRETE_X, TexturesArbres.R_CRETE_Y + TexturesArbres.CRETE_H * rng.randi_range(0, TexturesArbres.CRETES - 1), TexturesArbres.CRETE_W, TexturesArbres.CRETE_H))
 			# ailes plus tombantes en bas (rameaux pendants de l'épicéa), plus plates en haut
 			var pli_b := pli * lerpf(0.9, 0.8, k) * rng.randf_range(0.85, 1.15)
-			_rameau(rameaux, o, a, L, chute, releve, region, pli_b, ao, crete * rng.randf_range(0.7, 1.2) if L > 0.8 else 0.0, cv, 1 if lod else 2)
+			var cr := crete * rng.randf_range(0.7, 1.2) if L > 0.8 else 0.0
+			# courbe en S : départ presque à l'horizontale, arc pendant, bout relevé ; affaissement propre à
+			# l'arbre (tirage 2), à l'étage et à la branche ; la neige alourdit les branches enneigées
+			var arc := _arc_epicea(rng2, L, k, e, cr > 0.0, droop_arbre, etage_phase)
+			_rameau(rameaux, o, a, L, chute, releve, region, pli_b, ao, cr, cv, 1 if lod else 2, arc)
 	# flèche : deux cartes verticales croisées
 	var fr := TexturesArbres.uv_epicea(TexturesArbres.R_FLECHE)
 	var hf := 2.2
@@ -520,7 +561,8 @@ static func epicea(forme: int, graine: int, materiaux: Array, lod := false) -> A
 	for q in 2:
 		var a := rng.randf() * PI if q == 0 else 0.0
 		var dd := Vector3(cos(a + q * PI * 0.5), 0, sin(a + q * PI * 0.5)) * lf * 0.5
-		_quad_o(rameaux, [Vector3(0, y0, 0) - dd, Vector3(0, y0, 0) + dd, Vector3(0, y0 + hf, 0) + dd, Vector3(0, y0 + hf, 0) - dd],
+		var ph := Vector3(penche.x, 0.0, penche.y)
+		_quad_o(rameaux, [Vector3(0, y0, 0) - dd, Vector3(0, y0, 0) + dd, ph + Vector3(0, y0 + hf, 0) + dd, ph + Vector3(0, y0 + hf, 0) - dd],
 			[_uv(fr, 0, 1), _uv(fr, 1, 1), _uv(fr, 1, 0), _uv(fr, 0, 0)], col, [nn, nn, nn, nn], dd.cross(Vector3.UP))
 	var mesh := ArrayMesh.new()
 	var surfaces := [tronc, rameaux]
