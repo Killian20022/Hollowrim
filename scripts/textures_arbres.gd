@@ -223,11 +223,12 @@ static func rameau_epicea(S: int, graine: int, neige: float, densite: float) -> 
 				if rng.randf() > lerpf(0.75, 0.95, densite):
 					L *= 0.55
 				var dl := v.dot(lumiere)
-				var ton := 1
-				if dl > 0.25 and amas > 0.35:
-					ton = 3 if (dl > 0.6 and amas > 0.7) else 2
+				# rampe remontée côté lumière : le fond est le ton 2, la lumière le ton 3, l'ombre franche le ton 1
+				var ton := 2
+				if dl > 0.2 and amas > 0.3:
+					ton = 3
 				elif dl < -0.35 or amas < 0.2:
-					ton = 0 if amas < 0.1 else 1
+					ton = 0 if amas < 0.06 else 1
 				var givre := prof == 2 and s > 0.8 and dl > 0.2 and rng.randf() < 0.3
 				var nb := 3 + (1 if amas > 0.55 else 0)
 				for t in nb:
@@ -277,26 +278,39 @@ static func rameau_epicea(S: int, graine: int, neige: float, densite: float) -> 
 					j1 = mini(n - 2, j0 + int(n * rng.randf_range(0.1, 0.18)) + 2)
 				else:
 					j0 = int(rng.randf_range(0.05, 0.25) * n)
-					j1 = mini(n - 2, j0 + int(rng.randf_range(0.35, 0.6) * n) + 2)
-				var emax := (0.9 + (1.1 if prof < 2 else 0.5) * neige * k)
+					j1 = mini(n - 2, j0 + int(rng.randf_range(0.18, 0.4) * n) + 2)
+				# amas irrégulier : taille propre à chaque paquet, bord qui ondule (deux ondes déphasées),
+				# interruptions (le paquet se coupe en deux lobes), grumeaux isolés sur le flanc haut
+				var emax := (0.7 + (1.5 if prof < 2 else 0.7) * neige * k) * rng.randf_range(0.55, 1.15)
+				var ph1 := rng.randf() * TAU
+				var ph2 := rng.randf() * TAU
+				var coupe := rng.randf_range(0.35, 0.7) if (j1 - j0 > 9 and rng.randf() < 0.5) else -1.0
 				for jj in range(j0, j1 + 1):
 					var p: Vector2 = pts[jj]
 					var d: Vector2 = dirs[jj]
 					var nrm := d.orthogonal()
 					var u := (float(jj - j0) / maxf(j1 - j0, 1)) * 2.0 - 1.0
-					var e := int(round(emax * sqrt(maxf(1.0 - u * u, 0.0))))
-					for dd in range(-e, e + 1):
+					var prof_u := sqrt(maxf(1.0 - u * u, 0.0))
+					var ond := 0.55 * sin(jj * 0.9 + ph1) + 0.4 * sin(jj * 2.1 + ph2)
+					if coupe > 0.0 and absf((u + 1.0) * 0.5 - coupe) < 0.07:
+						prof_u *= 0.25
+					var e_h := int(round(emax * prof_u + ond * prof_u))     # demi-largeur côté lumière (haut)
+					var e_b := int(round(emax * prof_u * 0.8 - ond * 0.5 * prof_u))  # côté bas : plus court
+					for dd in range(-e_b, e_h + 1):
 						var q := p + nrm * dd
 						var bas := (nrm * dd).y > 0.3
 						var ton := 4
-						if absi(dd) == e and e > 0:
-							ton = 3 if bas else 5
-						elif bas and absi(dd) == e - 1:
-							ton = 4
+						if dd == e_h and e_h > 0:
+							ton = 5 if (not bas and ond > 0.1) else 4
+						elif dd == -e_b and e_b > 0:
+							ton = 3 if bas else 4
+						elif bas and dd <= -e_b + 1:
+							ton = 3
 						cases.append([roundi(q.x), roundi(q.y), ton])
-					# ombre portée sous le paquet (côté base de l'image)
-					var sous := p + Vector2(0, e + 1)
-					cases.append([roundi(sous.x), roundi(sous.y), 2])
+					# ombre portée sous le paquet (côté base de l'image), seulement là où il déborde
+					if e_b > 0 and ond > -0.4:
+						var sous := p + Vector2(0, e_b + 1)
+						cases.append([roundi(sous.x), roundi(sous.y), 2])
 		cases.sort_custom(func(a, b): return a[2] < b[2])
 		for c in cases:
 			_px(img, c[0], c[1], _c(NEIGE, c[2]))
@@ -308,7 +322,7 @@ static func rameau_epicea(S: int, graine: int, neige: float, densite: float) -> 
 		for xx in S:
 			var c := src.get_pixel(xx, yy)
 			if c.a > 0.0 and src.get_pixel(xx, yy + 1).a == 0.0 and not _est_neige(c):
-				img.set_pixel(xx, yy, _c(AIGUILLES, 0))
+				img.set_pixel(xx, yy, _c(AIGUILLES, 1))
 	return img
 
 ## Un axe du rameau (récursif) : avance pixel par pixel en se courbant vers la pointe (y-), pose ses
@@ -398,7 +412,8 @@ static func fleche_epicea(S: int, graine: int) -> Image:
 	_lisser(img, false)
 	return img
 
-## Crête de neige posée sur un rameau, vue de côté : bande 64×8, dessus bosselé, dessous découpé.
+## Crête de neige posée sur un rameau, vue de côté : bande 64×8 (×f), amas irréguliers (longueurs 4 à 17 px,
+## sommet décentré, flancs qui ondulent), interruptions, dessous en dents de scie : jamais des « gélules » régulières.
 static func crete_neige(graine: int, f := 1) -> Image:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
@@ -406,28 +421,36 @@ static func crete_neige(graine: int, f := 1) -> Image:
 	var H := 8 * f
 	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
 	img.fill(CLEAR)
-	# profil du dessus : suite de bosses (paquets de neige) de 6 à 14 px, interrompues
-	var x := rng.randi_range(0, 4) * f
-	while x < W - 3:
-		var L := rng.randi_range(6, 14) * f
-		var hmax := rng.randf_range(2.5, 5.0) * f
-		var bas := rng.randi_range(5, 7) * f + (f - 1)
+	var x := rng.randi_range(0, 6) * f
+	var bas0 := rng.randi_range(5, 7) * f + (f - 1)
+	while x < W - 3 * f:
+		var grand := rng.randf() < 0.3
+		var L := (rng.randi_range(11, 17) if grand else rng.randi_range(4, 10)) * f
+		var hmax := (rng.randf_range(3.5, 5.5) if grand else rng.randf_range(1.5, 3.2)) * f
+		var pic := rng.randf_range(0.2, 0.75)
+		var bas := bas0
+		var bruit := 0.0
 		for d in L:
 			if x + d >= W - 1:
 				break
-			var u := (d - L * 0.5) / (L * 0.5)
-			var h := int(round(hmax * sqrt(maxf(1.0 - u * u, 0.0)))) + 1
+			var u := float(d) / L
+			var prof := pow(u / pic, 0.65) if u < pic else pow((1.0 - u) / (1.0 - pic), 0.9)
+			if d % f == 0:
+				bruit = clampf(bruit + rng.randf_range(-0.9, 0.9), -1.3, 1.3)   # flanc qui ondule, par paliers
+			var h := int(round(hmax * prof + bruit * f * 0.5)) + 1
+			if d % (3 * f) == 0 and rng.randf() < 0.45:
+				bas = clampi(bas0 + rng.randi_range(-1, 0) * f, 0, H - 1)       # dents sous la crête
 			var top := bas - h
 			for yy in range(top, bas + 1):
 				var ton := 4
 				if yy == top:
-					ton = 5 if u < 0.2 else 4
+					ton = 5 if (u < pic and h > 2 * f) else 4
 				elif yy >= bas - f:
 					ton = 2
 				elif yy >= bas - 2 * f:
 					ton = 3
 				_px(img, x + d, yy, _c(NEIGE, ton))
-		x += L + rng.randi_range(1, 6) * f
+		x += L + rng.randi_range(1, 7) * f
 	_nettoyer(img)
 	return img
 
@@ -443,10 +466,10 @@ static func atlas_epicea() -> ImageTexture:
 static func atlas_epicea_image() -> Image:
 	var img := Image.create(ATLAS_EPICEA, ATLAS_EPICEA, false, Image.FORMAT_RGBA8)
 	img.fill(CLEAR)
-	img.blit_rect(rameau_epicea(128, 501, 0.55, 1.0), Rect2i(0, 0, 128, 128), R_LONG_A.position)
-	img.blit_rect(rameau_epicea(128, 502, 0.8, 0.85), Rect2i(0, 0, 128, 128), R_LONG_B.position)
-	img.blit_rect(rameau_epicea(64, 503, 0.6, 1.0), Rect2i(0, 0, 64, 64), R_COURT_A.position)
-	img.blit_rect(rameau_epicea(64, 504, 0.85, 0.9), Rect2i(0, 0, 64, 64), R_COURT_B.position)
+	img.blit_rect(rameau_epicea(128, 501, 0.75, 1.0), Rect2i(0, 0, 128, 128), R_LONG_A.position)
+	img.blit_rect(rameau_epicea(128, 502, 0.95, 0.85), Rect2i(0, 0, 128, 128), R_LONG_B.position)
+	img.blit_rect(rameau_epicea(64, 503, 0.8, 1.0), Rect2i(0, 0, 64, 64), R_COURT_A.position)
+	img.blit_rect(rameau_epicea(64, 504, 0.95, 0.9), Rect2i(0, 0, 64, 64), R_COURT_B.position)
 	img.blit_rect(fleche_epicea(64, 505), Rect2i(0, 0, 64, 64), R_FLECHE.position)
 	img.blit_rect(rameau_epicea(64, 506, 0.0, 1.0), Rect2i(0, 0, 64, 64), R_COEUR.position)
 	for k in CRETES:

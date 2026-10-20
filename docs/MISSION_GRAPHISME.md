@@ -300,6 +300,21 @@ Textures : `captures/arbres/textures/`.
 - Ramilles du bouleau presque invisibles au-delà de ~40 m (mips à seuil 2) ; arbre mort assez maigre.
 - Les matériaux cercle/tumulus de l'ancien arbre mort sont encore créés dans `vegetation.gd` mais plus utilisés par `arbre_mort`.
 
+### Lot 2, 3e passe (silhouette d'épicéa, nuit lisible, neige posée)
+Retour utilisateur : conifères « en saules », nuit trop noire sur les arbres, neige à poser sur les rameaux.
+- `scripts/arbres.gd` (`REGLAGES_EPICEA`) : branches presque horizontales à mi-longueur (`milieu` 0,3) dont le bout seul retombe, flèche
+  au sommet, jupe basse plus courte (0,4-0,62 au lieu de 0,5-0,78), crête de neige 0,10 m, teinte du feuillage éclaircie.
+- `scripts/textures_arbres.gd` : rampe d'aiguilles remontée côté lumière (fond = ton 2, lumière = ton 3), neige en amas irréguliers
+  (taille propre, bords qui ondulent, interruptions, ombre portée seulement sous le débord) sur les faces tournées vers le haut,
+  crêtes de neige 64x8 sans « gélules » régulières, contour du bas en ton 1 (non plus le plus sombre) ; neige 0,75-0,95 selon le rameau.
+- `shaders/ps1_rameau.gdshader` : `light()` à éclairage enveloppant (`enroule` 0,18) : la face opposée à la lune n'est plus noire, sans
+  toucher à l'albédo ni à la palette nuit.
+- Perf feu (`2.5,8.5,16,4`, vsync off) : 5,67 ms (661 appels, 383 k primitives) et 6,10 ms (852 appels, 417 k) : < 8 ms.
+- Tests : test_quetes OK, test_vegetation_biome conforme, test_collisions_biome TOUT OK.
+- Planches : `captures/arbres/planches_v3/` (avant = HEAD 713cf2b | après ; A2, A10, A30, M10 jour+nuit, plus A90 et C5 en « apres »).
+- Défauts restants : la nuit reste sombre dans les sous-bois profonds (volontaire, palette bible) ; le gain de lisibilité nocturne est
+  modeste ; les cartes de rameau proches montrent encore de gros pixels ; le sol n'a pas été touché (lot 3).
+
 ---
 
 ## Journal — Lot 3 (vrai sol), branche `graphisme/lot3-sol`

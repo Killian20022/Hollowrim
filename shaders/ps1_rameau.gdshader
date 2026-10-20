@@ -15,6 +15,7 @@ uniform float dessous = 0.7;       // assombrissement de la face arrière
 uniform vec2 uv_echelle = vec2(1.0);
 uniform float grille = 135.0;       // lignes de la grille d'accroche (0 = pas de tremblement)
 uniform float affine = 1.0;         // 1 = déformation affine façon PS1
+uniform float enroule = 0.18;       // éclairage enveloppant : la face opposée à la lumière n'est jamais noire
 
 varying vec3 uv_aff;
 varying vec3 n_vue;
@@ -51,4 +52,10 @@ void fragment() {
 	ALBEDO = c * COLOR.rgb * (neige ? teinte_neige.rgb : teinte.rgb);
 	NORMAL = normalize(n_vue);
 	ROUGHNESS = 1.0;
+}
+
+// Lambert « enveloppant » : les touffes restent lisibles côté ombre (surtout à la lune), sans éclaircir l'albédo.
+void light() {
+	float nl = clamp((dot(NORMAL, LIGHT) + enroule) / (1.0 + enroule), 0.0, 1.0);
+	DIFFUSE_LIGHT += ATTENUATION * LIGHT_COLOR * nl;
 }
