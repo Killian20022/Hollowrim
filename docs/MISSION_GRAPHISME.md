@@ -431,6 +431,62 @@ non concluante, la preuve reste visuelle (planches) ; les mipmaps sont en place.
 - Jour : le bois (rampe « bois travaillé » désaturée à 0,78) reste un peu plus chaud que le reste de la scène ; de nuit, l'ombre portée des contreforts est dure.
 - La mesure de scintillement par décalage de caméra n'est pas concluante (voir constat).
 
+## Journal — Lot 5, 2e passe « réalisme 32 bits » (maisons, village, façade du tertre, pierres du cercle), branche `graphisme/lot5-pierre`
+
+Retour utilisateur du 2026-10-20 : « c'est beau mais ça fait un peu DESSIN D'ENFANT ; pousse plus loin les traits, la PROFONDEUR, pour quelque chose de plus RÉEL, toujours en 32 bits » (arbres et sol : intouchés).
+Cible : Thief / Silent Hill / Daggerfall / King's Field IV (textures photo réduites et retouchées). Demande complète : `/tmp/realisme_32bit.md` (5 pistes : tons, profondeur peinte, profondeur géométrique, arêtes, lumière).
+
+### Diagnostic (lot 5 initial)
+Rampes à 4-5 tons posées en amas (« coloriage »), murs = boîtes de planches lisses, plinthe = une boîte, toit = deux dalles plates, menhirs et façade = boîtes, aucune occlusion, aucun relief sous la lumière.
+
+### Structure des lieux (3 points)
+**Maisons (4, murs de 2,3 m, 9 lits de rondins)** : Murs/Structure : soubassement de pierres brutes chanfreinées en saillie de 2 à 15 cm (dessus à 0,38-0,5 m) sur remplissage en retrait, murs de rondins de 30 cm à 8 pans empilés tous les 25 cm (lits alternés : bouts de 28 cm qui se croisent aux angles, bouts visibles à cernes, affaissement de 2 cm par rondin) sur une âme sombre, 4 contreforts de moellons à chaperon, cheminée en petits moellons avec chaînages d'angle alternés et chapeau enneigé, toit à épaisseur (planches, chevrons tous les 90 cm qui dépassent, dalle de neige de 18-26 cm à bord irrégulier, lèvre de tourbe sombre, rives en cornes, faîtière en rondin dont les bouts sortent des pignons + rouleau de neige, stalactites), pignons de planches debout. Mobilier : porte de planches debout dans l'ouverture des rondins (1,2 × 2 m) avec cadre épais, bandes de fer rivetées, anneau, deux marches de 20 cm, fenêtres à linteau/appui en pente/jambages/meneau/volet entrouvert, boucliers, bancs, torche. Éclairage : inchangé (vitrage émissif, torche murale, une OmniLight, fumée).
+**Forge** : poteaux octogonaux, toit à une pente en dalle de neige, mur de fond et contreforts en piles de moellons, foyer, hotte et cheminée en moellons. **Puits** : margelle de 22 moellons en deux rangs, toit à deux pans en neige. **Porte du village / brasero** : socles en blocs irréguliers. **Enclos** : poteaux à 8 pans.
+**Cercle et façade du tertre** : pierres levées taillées (7 anneaux, section irrégulière, fût effilé et penché, pointe asymétrique, neige sur la pointe) ; stèle à faces ±Z planes (runes plaquées) ; façade (`FacadeTertre`) : deux pierres levées + assises de calage, linteau en gros bloc enneigé, cales, dalle de porte enfoncée, seuil ; collisions d'origine.
+
+### Réalisation
+- **`scripts/peinture_bati.gd` (PeintureBati, nouveau)** : chaque matière est d'abord un CHAMP DE HAUTEUR (pierres bombées aux joints creux et irréguliers, éclats facettés, rondins fibreux à fentes de séchage et nœuds, planches à chanfrein et clous, facettes de granite de Voronoï déformées…), éclairé par une lumière rasante (haut gauche), avec OMBRES PORTÉES (marche de 8 texels), OCCLUSION AMBIANTE (hauteur − hauteur floutée), dégradé haut clair / bas sombre dans chaque pierre, clarté et teinte propres à chaque pierre / planche, coulures, lichen gris-vert et ocre, neige sur les replats et dans les calottes, puis lu dans une rampe de 12 tons avec tramage de Bayer d'amplitude 0,55 ton. Produit aussi une carte de RELIEF (gradient de hauteur). Textures CUITES hors ligne (`outils/cuire_bati.gd` → `assets/bati/*.res`, mipmaps « vote de couleur » 2×2 : aucune couleur nouvelle) ; chargement de 14 matières : **128 ms** (le lot 5 initial en demandait ~320 ms de génération).
+- **`shaders/ps1_bati.gdshader`** : 32 texels/m (tuiles ×2 en résolution : pierre 256 × 128 = 8 × 4 m), **couche proche** : chaque cellule de 1/16 m choisit par seuil de bruit (tramage, comme le sol du lot 3) entre le niveau 0 (32 texels/m) et le niveau 1 (16 texels/m) selon la distance (plein détail < 3 m, 16 texels/m > 10 m) ; `tex_relief` penche la normale (on ajoute à la normale du moteur le décalage du relief : juste même sous échelle non uniforme) → le soleil bas et les torches sculptent la pierre ; `uv_metres` (rondins) ; couleur de sommet = occlusion peinte.
+- **`scripts/bati_geo.gd` (BatiGeo, nouveau)** : `bloc` (chanfreiné, 24 sommets irréguliers, facettes plates, neige au dessus), `pierre_levee` (7 anneaux × 8), `rondin` (octogone, fût + bouts), `dalle_neige` (grille bosselée, faîte qui ondule et s'affaisse, lèvre d'égout et rives à bord irrégulier, tourbe dessous). Normales plates (facettes franches) sauf la neige (lissée).
+- **`scripts/village.gd`** : `_ajouter` porte les couleurs de sommet et applique une OCCLUSION DE PIED à tout ce qui touche le sol (0,66 → 1 sur 0,8 m) ; nouvelles fonctions `_maison` (refaite), `_soubassement`, `_murs_rondins`, `_toit`/`_pan`, `_cheminee`, `_fenetre_cadre`, `_bloc`, `_rondin`, `_pile` ; forge, puits, porte, brasero, enclos améliorés. Lots fusionnés conservés.
+- **`scripts/textures_bati.gd`** : réécrit (chargement des textures cuites, mêmes noms `m_*` + `m_rondins`, `m_bout_rondin`, `m_tourbe`, `m_glace`) ; les anciens générateurs d'amas sont supprimés.
+- `scripts/facade_tertre.gd` (nouveau) ; `scripts/tertre.gd` : seul `_tumulus()` (façade → 1 appel, quad des runes avancé de 5 cm) ; `scripts/cercle_runique.gd` : `boite_neige` réécrit (même signature + `plat`), utilisé aussi par `abords_tumulus.gd` (borne, bordure).
+- Outils : `outils/cuire_bati.gd` (cuit les textures + aperçus dans `captures/batiments/textures_v2/`), `outils/mesure_chargement_bati.gd`, poses G1-G8 (gros plans à 1,5 m et 4 m : mur, soubassement, angle, avant-toit, porte, menhir) et T3-T4 dans `outils/poses_bati.txt`, `captures_bati.sh` passe maintenant `--nouvelle`.
+
+### Nouvelles rampes (bible §2 étendue : on garde les teintes, 12 tons par matière, ombre froide et violette → lumière chaude)
+Clés interpolées linéairement en 12 tons (dans `PeintureBati`) ; la rampe de la bible reste le squelette (ses 5 tons y figurent).
+| Rampe | Clés (ombre → lumière) |
+|---|---|
+| Pierre froide | `#12141d #1e2230 #2c3145 #3f455c #565c73 #6f758a #8a8d9e #a3a5af #bbbab9` |
+| Pierre chaude | `#16141a #242024 #383037 #4f434a #67595d #826f6d #9d8b85 #b7a89f` |
+| Pierre verdâtre | `#11161a #1c2429 #2b373b #3f4e4f #566763 #6f8077 #8c9a8d #a7b0a2` |
+| Lichen gris-vert / ocre | `#10191a … #97a88f` / `#2a1e20 … #cba66f` (7 clés) |
+| Neige (12 tons) | `#3a4469 #4a557f #5d6a95 #6877a3 #7b8bb3 #8898bf #99a9cb #aab8d6 #bcc8e1 #cdd7ec #e0e6f2 #f0eff4` |
+| Bois | `#150d10 #2b1a1e #3a2320 #472a21 #58361f #6a4229 #7e4f31 #92613a #a87546 #bb8a53 #cca066` ; gris argenté `#14151b … #a9a4a6` (mélangé planche par planche) |
+| Fer / rouille | `#12151c … #bcc6d8` (10 clés) / `#2a1a1e … #b0662f` |
+| Chaume / tourbe | `#16130f … #c9b574` (11 clés) / `#0f0d0f … #6e5f4e` |
+| Cuir, braises | `#140c10 … #9b7347` ; `#2a0e12 … #fff0a8` (10 clés) |
+
+### Réglages et pièges
+- Une jointure creuse trop large (rayon du biseau, AO fort) donne des « contours épais » : AO ramené à 0,6 × (hauteur − flou), ombre portée à 0,1, joints de 0,3-0,75 texel de demi-largeur. Les textures contiennent du GRAIN (tramage, ±1 ton) : `stat_textures` annonce ~25 % de texels « isolés » (c'était 0 % au lot 5 initial) ; c'est voulu (texture photo réduite), mais c'est le point à surveiller si le « sel et poivre » revient dans les retours.
+- Neige : ne pas mettre de calotte sur chaque pierre (effet zèbre) : 12 % de la pierre sèche, 6 % de la fine.
+- Les captures doivent passer `--nouvelle` (sinon la sauvegarde rechargée fausse les poses).
+- `Palette._appliquer`, `Palette._ps1_actif`, `Palette.materiaux` toujours lus par `TexturesBati.materiau` : ne pas les renommer.
+
+### Résultats
+- Planches avant (1fff394, à gauche) | après (à droite), jour en haut, nuit en bas : `captures/batiments/planches/planche_<pose>_v2.png` (V1-V12, D1, T1-T4, Z1-Z5, gros plans G1-G8 : mur à 1,5 m / 4 m, soubassement, angle croisé, avant-toit, porte, menhir à 1,5 m / 4 m) ; récapitulatifs `planche_recap_jour_v2.png` et `planche_recap_nuit_v2.png` (paires avant | après des 12 poses) ; « après » brutes dans `captures/batiments/apres_v2/`, « avant » dans `captures/batiments/base1fff/` ; textures cuites en aperçu (×2, zoom ×6) dans `captures/batiments/textures_v2/`. Outil : `outils/planches_bati_v2.sh`.
+- Perf (machine très chargée par d'autres Godot : TOUS les chiffres sont ~3 × le niveau habituel, avant et après alternés pour la comparaison) : feu `2.5,8.5,16,4` vsync off, avant 22,5 / 25,8 ms GPU, après 19,7 / 23,0 ms ; 661 → 679 appels de dessin ; 383 k → 385 k primitives. Village V1 : avant 17,6 / 21,0, après 18,3 / 21,3 ms ; 284-289 → 294-298 appels ; 347-354 k → 418-423 k primitives (+20 %). Forge V3 : avant 23,6 / 19,2, après 19,1 / 23,4 ms ; 297 → 318-322 appels ; 374 k → 467 k primitives (+25 %). Le coût en images est dans le bruit de mesure (< 8 ms habituel : à re-mesurer sur machine au repos) ; le surcoût mesurable est géométrique (≈ +70 000 à +90 000 triangles dans le village : rondins, pierres, dalles) et 4 textures par pixel dans le shader.
+- Chargement : 14 matières cuites chargées en **128 ms** (headless, `outils/mesure_chargement_bati.gd`) contre ~320 ms de génération au lot 5 initial : −190 ms.
+- Tests headless : `test_quetes -- --nouvelle` OK, `test_collisions_biome` TOUT OK, `test_chemin_biome -- --paisible` 0 échec, `test_vegetation_biome` conforme, `test_villageois` OK.
+
+### Défauts restants
+- Le grain (tramage ±1 ton) donne ~25 % de texels « isolés » : à surveiller (retour « sel et poivre » du lot 5). Les blocs de pierre brute vus à 1,5 m restent bruités (« camouflage ») : la tuile de 4 m ne contient que trois facettes.
+- Les contours des arbres, le sol, les personnages sont ceux d'avant : le village est maintenant plus réel que son entourage immédiat (rochers du sous-bois = sphères aplaties, palissade = rondins hexagonaux de l'écorce du lot 2).
+- Vitrages : 18 × 12 texels, deux carreaux émissifs plats ; boucliers (cuir) en disques à bossage sans relief propre ; tonneaux, caisses et bancs gardent leurs boîtes/cylindres (non refaits).
+- Les rondins se traversent aux angles (pas de vraie encoche) ; les pignons sont des triangles de planches debout sans chevrons visibles.
+- La neige des toits répète à 8 m (tuile 256 × 256) ; les stalactites sont toujours des pyramides plates.
+- Mesure de perf non concluante en valeur absolue (voir plus haut) ; à refaire machine au repos.
+
 ## Journal — Lot 7a (intérieur de la crypte), branche `graphisme/lot7-crypte`
 
 Retour utilisateur : « l'effet de lumière dans le tombeau est raté », « murs et pierre trop pixélisés, ça fait mal aux yeux ».

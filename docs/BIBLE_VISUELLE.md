@@ -52,6 +52,10 @@ Règles d'usage de la palette :
 - Les rampes se croisent peu : une écorce ne porte que sa rampe + `NEIGE` (givre) ; le fer n'emprunte que `FER` + `BRAISE FLAMME` près du feu.
 - Hors palette interdits : noir `#000000`, blanc `#ffffff`, gris neutres purs.
 
+### 2 bis. Rampes étendues à 12 tons (lot 5, 2e passe, 2026-10-20)
+
+Retour utilisateur : « dessin d'enfant ». Les rampes à 4-6 tons des matières du BÂTI (pierre, bois, neige de toit, fer, tourbe, chaume, cuir, braises) sont étendues à 8-12 tons par interpolation entre les clés ci-dessous : mêmes teintes que le §2, on ajoute seulement des tons intermédiaires et un ton plus sombre / plus clair à chaque bout (ombre toujours froide et violette, lumière chaude). Les arbres, le sol et les personnages gardent leurs rampes du §2. Détail et clés exactes : tableau « Nouvelles rampes » du journal « Lot 5, 2e passe » de `docs/MISSION_GRAPHISME.md` et constantes `K_*` de `scripts/peinture_bati.gd`. Densité (écart au §3) : le bâti est peint à 32 texels/m et le shader `ps1_bati` retombe, par tramage de bruit, à 16 texels/m entre 3 et 10 m de la caméra (comme le sol du lot 3). Règle de lecture : une texture du bâti peut contenir un grain de ±1 ton (tramage de Bayer) ; elle ne contient jamais de contour noir épais.
+
 ## 3. Densité de pixels (une seule, partout)
 
 | Catégorie | Densité | Conséquence |
