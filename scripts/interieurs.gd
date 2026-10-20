@@ -52,14 +52,14 @@ static func materiaux() -> Dictionary:
 			var img: Image = ResourceLoader.load("res://assets/crypte/%s.res" % nom)
 			TexturesBati._cache[nom] = [ImageTexture.create_from_image(img), TexturesBati.relief_neutre()]
 	var d := {}
-	d["bois"] = _m("planches_h", Color(0.95, 0.9, 0.86))
-	d["bois_v"] = _m("planches_v", Color(0.95, 0.9, 0.86))
-	d["bois_sombre"] = _m("planches_h", Color(0.74, 0.66, 0.62))
-	d["bois_suie"] = _m("planches_v", Color(0.42, 0.38, 0.38))
-	d["bois_clair"] = _m("planches_v", Color(1.15, 1.08, 0.98))
-	d["ame"] = _m("planches_h", Color(0.3, 0.29, 0.32))
-	d["rondin"] = _m("rondins", Color(1.12, 1.05, 1.0), 32.0, 0.9, true)
-	d["rondin_sombre"] = _m("rondins", Color(0.95, 0.87, 0.82), 32.0, 0.9, true)
+	d["bois"] = _m("planches_h_int", Color(0.95, 0.9, 0.86), 64.0)
+	d["bois_v"] = _m("planches_v_int", Color(0.95, 0.9, 0.86), 64.0)
+	d["bois_sombre"] = _m("planches_h_int", Color(0.74, 0.66, 0.62), 64.0)
+	d["bois_suie"] = _m("planches_v_int", Color(0.42, 0.38, 0.38), 64.0)
+	d["bois_clair"] = _m("planches_v_int", Color(1.15, 1.08, 0.98), 64.0)
+	d["ame"] = _m("planches_h_int", Color(0.3, 0.29, 0.32), 64.0)
+	d["rondin"] = _m("rondins_int", Color(1.12, 1.05, 1.0), 64.0, 0.9, true)
+	d["rondin_sombre"] = _m("rondins_int", Color(0.95, 0.87, 0.82), 64.0, 0.9, true)
 	d["bout"] = _m("bout_rondin", Color.WHITE, 64.0, 0.0, true)
 	d["pierre"] = _m("pierre_int", Color(1.04, 0.99, 0.94), 64.0, 0.9)
 	d["pierre_sombre"] = _m("pierre_int", Color(0.7, 0.65, 0.62), 64.0, 0.9)
@@ -86,10 +86,10 @@ static func materiaux() -> Dictionary:
 	d["tenture_r"] = _m("tenture_rouge", Color.WHITE, 64.0, 0.6, true)
 	d["tenture_b"] = _m("tenture_bleue", Color.WHITE, 64.0, 0.6, true)
 	d["tenture_v"] = _m("tenture_verte", Color.WHITE, 64.0, 0.6, true)
-	d["bouclier_r"] = _m("planches_v", Color(1.1, 0.34, 0.3))
-	d["bouclier_b"] = _m("planches_v", Color(0.36, 0.5, 0.95))
-	d["bouclier_n"] = _m("planches_v", Color(0.4, 0.38, 0.4))
-	d["bouclier_j"] = _m("planches_v", Color(1.35, 1.1, 0.5))
+	d["bouclier_r"] = _m("planches_v_int", Color(1.1, 0.34, 0.3), 64.0)
+	d["bouclier_b"] = _m("planches_v_int", Color(0.36, 0.5, 0.95), 64.0)
+	d["bouclier_n"] = _m("planches_v_int", Color(0.4, 0.38, 0.4), 64.0)
+	d["bouclier_j"] = _m("planches_v_int", Color(1.35, 1.1, 0.5), 64.0)
 	var br := _m("braises")
 	br.set_shader_parameter("emission", Color(1.7, 0.65, 0.18))
 	br.set_shader_parameter("emission_texture", true)
@@ -142,8 +142,27 @@ func cyl_h(pos: Vector3, r: float, longueur: float, mat: String, lacet := 0.0, c
 	var b := Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, PI * 0.5)
 	v._cylindre(_p(), r, r, longueur, Transform3D(b, pos), M[mat], cotes, solide)
 
+## Pile de moellons d'intérieur : rangs de 22-30 cm, pierres de 28-52 cm, arêtes franches (chanfrein et gauchissement
+## réduits) ; la texture `pierre_int` (64 texels/m, projetée en mètres : pas d'étirement) dessine les joints fins.
 func pile(pos: Vector3, taille: Vector3, graine: int, mat := "brute", solide := false, neige := 0.0, lacet := 0.0) -> void:
-	v._pile(_p(), pos, taille, graine, M[mat], solide, neige, lacet)
+	var r := RandomNumberGenerator.new()
+	r.seed = graine
+	var rangs := maxi(1, roundi(taille.y / 0.27))
+	var hh := taille.y / rangs
+	var basis := Basis(Vector3.UP, lacet)
+	for k in rangs:
+		var x := -taille.x * 0.5 - r.randf_range(0.0, 0.25)
+		while x < taille.x * 0.5:
+			var w := r.randf_range(0.28, 0.52)
+			var x0 := maxf(x, -taille.x * 0.5)
+			var x1 := minf(x + w, taille.x * 0.5)
+			x += w * 0.98
+			if x1 - x0 < 0.12:
+				continue
+			var c := Vector3((x0 + x1) * 0.5, -taille.y * 0.5 + hh * (k + 0.5), r.randf_range(-0.02, 0.02))
+			v._ajouter(_p(), BatiGeo.bloc(Vector3(x1 - x0, hh * 1.03, taille.z), r.randi(), 0.1, 0.035, 0.0, 0.7).arrays(), Transform3D(basis, pos + basis * c), M[mat])
+	if solide:
+		v._collision(_p(), BoxShape3D.new(), Transform3D(basis, pos), taille)
 
 func bloc(taille: Vector3, graine: int, pos: Vector3, mat := "brute", lacet := 0.0, chanfrein := 0.2, jitter := 0.06, solide := false) -> void:
 	v._bloc(_p(), taille, graine, pos, M[mat], lacet, 0.0, chanfrein, jitter, solide)
@@ -730,6 +749,8 @@ func finir() -> void:
 			if groupe != nom:
 				continue
 			var c: Vector3 = h[0]
+			if nom == "sol":
+				c.y += 0.05      # un peu au-dessus du sol : le fondu de profondeur ne l'éteint pas
 			var w: float = h[2]
 			var hh: float = h[3]
 			var plans: Array = []      # [droite, haut, normale, largeur haut, largeur bas]
@@ -776,8 +797,8 @@ func finir() -> void:
 		var s := ShaderMaterial.new()
 		s.shader = RAI_SHADER
 		s.set_shader_parameter("mode", 0 if nom == "rai" else 1)
-		s.set_shader_parameter("angle_fondu", 0.0 if nom == "sol" else 1.0)
-		s.set_shader_parameter("fondu_profondeur", 0.0 if nom == "sol" else (0.5 if nom == "rai" else 0.3))
+		s.set_shader_parameter("angle_fondu", 0.75 if nom == "sol" else 1.0)
+		s.set_shader_parameter("fondu_profondeur", 0.12 if nom == "sol" else (0.5 if nom == "rai" else 0.3))
 		s.set_shader_parameter("intensite", 1.0)
 		var mi := MeshInstance3D.new()
 		mi.mesh = mesh
