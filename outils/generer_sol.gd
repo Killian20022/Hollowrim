@@ -13,6 +13,8 @@ func _init() -> void:
 	ResourceSaver.save(res["atlas_index"], SolTuiles.DOSSIER + "/sol_index.res", ResourceSaver.FLAG_COMPRESS)
 	ResourceSaver.save(res["atlas_couleur"], SolTuiles.DOSSIER + "/sol_couleur.res", ResourceSaver.FLAG_COMPRESS)
 	ResourceSaver.save(res["image_details"], SolTuiles.DOSSIER + "/sol_details.res", ResourceSaver.FLAG_COMPRESS)
+	ResourceSaver.save(res["atlas_index2"], SolTuiles.DOSSIER + "/sol_index2.res", ResourceSaver.FLAG_COMPRESS)
+	ResourceSaver.save(res["image_details2"], SolTuiles.DOSSIER + "/sol_details2.res", ResourceSaver.FLAG_COMPRESS)
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dossier))
 	var noms := ["neige", "pietinee", "terre", "aiguilles", "mousse", "roche", "glace", "croute"]
 	var toiles: Array = res["toiles"]
@@ -43,5 +45,25 @@ func _init() -> void:
 	var di := SolTuiles.image_couleur(d, Color("#aab8d6"))
 	di.resize(SolTuiles.ND * 8, SolTuiles.ND * 8, Image.INTERPOLATE_NEAREST)
 	di.save_png("%s/details_x8.png" % dossier)
+	var ai2: Image = res["atlas_index2"]
+	var noms2 := ["neige", "pietinee", "terre", "aiguilles", "mousse", "roche", "glace", "croute"]
+	var prox := Image.create(8 * (96 * 2 + 8), 96 * 2 * 2 + 8, false, Image.FORMAT_RGBA8)
+	prox.fill(Color(0.07, 0.07, 0.09))
+	for m in SolTuiles.NB_MATIERES:
+		# en haut : coin 48×48 de la tuile 16 texels/m (×4) ; en bas : même zone en 32 texels/m (×2)
+		var c16 := SolTuiles.image_couleur(toiles[m * 2]).get_region(Rect2i(0, 0, 48, 48))
+		c16.resize(192, 192, Image.INTERPOLATE_NEAREST)
+		var t2 := SolTuiles.Toile.new(SolTuiles.N * 2)
+		var data := ai2.get_region(Rect2i(0, m * 2 * SolTuiles.N * 2, 96, 96))
+		var c32 := Image.create(96, 96, false, Image.FORMAT_RGBA8)
+		var cs := SolTuiles._couleurs()
+		for y in 96:
+			for x in 96:
+				var px := data.get_pixel(x, y)
+				c32.set_pixel(x, y, cs[int(round(px.g * 255.0))][int(round(px.r * 255.0))])
+		c32.resize(192, 192, Image.INTERPOLATE_NEAREST)
+		prox.blit_rect(c16, Rect2i(0, 0, 192, 192), Vector2i(m * 200, 0))
+		prox.blit_rect(c32, Rect2i(0, 0, 192, 192), Vector2i(m * 200, 200))
+	prox.save_png("%s/planche_proximite.png" % dossier)
 	print("planches dans ", dossier)
 	quit()

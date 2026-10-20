@@ -1,6 +1,6 @@
 class_name Sol
 ## Sol de la zone témoin (lot D du biome, lot 3 de la mission graphisme) : une carte précalculée
-## 960² (0,25 m/texel) lue par le shader du terrain, plus une carte d'empreintes à 1/16 m.
+## 960² (0,25 m/texel) lue par le shader du terrain, plus une carte d'empreintes à 1/32 m.
 ##   R = matière × 16 ; G = relief fin (128 + h × 400, h en m : congères, cuvettes, bosses) ;
 ##   B = 128 (zone) | variante << 5 | densité de détails << 3 | (creux + 4).
 ## Le shader dessine les tuiles pixel art de SolTuiles (16 texels/m) selon la matière, avec des bords
@@ -35,7 +35,7 @@ const RAYON_FEU := 5.0        # plateau du feu
 const CREUX_SEUIL := 0.05     # creux : moyenne des voisins à 4 m − hauteur (m)
 const MOUSSE_NORD := -0.2     # normale.z sous laquelle la pente regarde le nord
 const MOUSSE_PART := 0.4
-const GLACE_CREUX := 0.22     # creux plus marqué et plat : plaque de glace (eau de fonte regelée)
+const GLACE_CREUX := 0.27     # creux plus marqué et plat : plaque de glace (eau de fonte regelée)
 const CROUTE_BOSSE := -0.04   # bosse exposée au vent (creux < seuil) : neige croûtée
 const CROUTE_BRUIT := 0.42    # ou plaques de croûte d'un bruit lent
 
@@ -56,10 +56,11 @@ const DOUVE := 0.08              # cuvette de vent autour de la base des obstacl
 const CREUX_TON := [0.014, 0.06]   # laplacien (m) au-delà duquel le ton baisse de 1, de 2
 const BOSSE_TON := -0.022          # en deçà : arête claire (+1)
 
-# empreintes (carte 1/16 m de la zone)
+# empreintes (carte 1/32 m de la zone)
 const TRACES_ORIGINE := Vector2(ZoneBiome.X0, ZoneBiome.Z0)
-const TRACES_W := int((ZoneBiome.X1 - ZoneBiome.X0) * 16.0)
-const TRACES_H := int((ZoneBiome.Z1 - ZoneBiome.Z0) * 16.0)
+const TRACES_RES := 32.0         # texels/m de la carte d'empreintes (formes de bottes lisibles de près)
+const TRACES_W := int((ZoneBiome.X1 - ZoneBiome.X0) * TRACES_RES)
+const TRACES_H := int((ZoneBiome.Z1 - ZoneBiome.Z0) * TRACES_RES)
 const PISTES_CHEMIN := 11        # pistes de pas le long des chemins
 const RENARDS := 3
 const LIEVRES := 2
@@ -102,6 +103,8 @@ static func appliquer(mat_terrain: ShaderMaterial, monde: Node, arbres: Array) -
 	mat_terrain.set_shader_parameter("sol_index", tuiles["index"])
 	mat_terrain.set_shader_parameter("sol_couleur", tuiles["couleur"])
 	mat_terrain.set_shader_parameter("sol_details", tuiles["details"])
+	mat_terrain.set_shader_parameter("sol_index2", tuiles["index2"])
+	mat_terrain.set_shader_parameter("sol_details2", tuiles["details2"])
 	mat_terrain.set_shader_parameter("sol_lut", SolTuiles.lut())
 	mat_terrain.set_shader_parameter("sol_traces", ImageTexture.create_from_image(cartes[1]))
 	mat_terrain.set_shader_parameter("traces_rect", Vector4(TRACES_ORIGINE.x, TRACES_ORIGINE.y, TRACES_W, TRACES_H))
@@ -241,7 +244,7 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 					if plaque:
 						pt = maxf(pt, PLAQUE_PART)
 					if pt > b:
-						mt = GLACE if plaque and bruit_croute.get_noise_2d(x * 6.0, z * 6.0) > 0.35 else TERRE
+						mt = TERRE
 				else:
 					var p := Vector2(x, z)
 					if p.distance_to(stele) < RAYON_STELE + 0.8 * t or p.distance_to(porte) < RAYON_PORTE + 0.8 * t or p.length() < RAYON_FEU + 0.8 * t:
@@ -293,7 +296,8 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 			var x := ORIGINE + (i + 0.5) * TEXEL
 			var z := ORIGINE + (j + 0.5) * TEXEL
 			var s := lerpf(_alea(i, j, 4), 0.5 + 0.9 * bruit_fin.get_noise_2d(x - 40.0, z), GRAIN)
-			if creux[k] > GLACE_CREUX + 0.05 * (s - 0.5) and absf(nz[k]) < 0.12 and bruit_croute.get_noise_2d(x * 3.0, z * 3.0) > 0.25 and dchemin[k] > 4.0:
+			# glace : seuil lisse (aucun bruit blanc) → quelques grandes plaques, seulement dans les creux
+			if creux[k] > GLACE_CREUX - 0.06 * bruit_croute.get_noise_2d(x * 1.5, z * 1.5) and absf(nz[k]) < 0.15 and dchemin[k] > 4.0:
 				mat[k] = GLACE
 				continue
 			if s >= MOUSSE_PART:
@@ -308,6 +312,23 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 				mat[k] = MOUSSE
 
 	_chrono("aiguilles mousse")
+	# glace : pas d'éclats (moins de 5 voisins de glace → neige), puis bords arrondis d'un texel
+	# dans les creux voisins (≥ 4 voisins de glace)
+	for passe in 2:
+		var mg := mat.duplicate()
+		for j in range(j0 + 1, j1):
+			for i in range(i0 + 1, i1):
+				var k := j * TAILLE + i
+				if actif[k] == 0 or (mat[k] != GLACE and (passe == 0 or mat[k] != NEIGE or creux[k] <= CREUX_SEUIL)):
+					continue
+				var ng := int(mat[k - 1] == GLACE) + int(mat[k + 1] == GLACE) + int(mat[k - TAILLE] == GLACE) + int(mat[k + TAILLE] == GLACE) \
+					+ int(mat[k - TAILLE - 1] == GLACE) + int(mat[k - TAILLE + 1] == GLACE) + int(mat[k + TAILLE - 1] == GLACE) + int(mat[k + TAILLE + 1] == GLACE)
+				if mat[k] == GLACE and ng < 5:
+					mg[k] = NEIGE
+				elif passe == 1 and mat[k] == NEIGE and ng >= 4 and creux[k] > CREUX_SEUIL:
+					mg[k] = GLACE
+		mat = mg
+	_chrono("glace")
 	# filtre de majorité (3×3) : pas de texel de matière isolé (les bords sont dessinés par le shader)
 	var mat2 := mat.duplicate()
 	for j in range(j0 + 1, j1):
@@ -456,7 +477,7 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 
 # --- empreintes -------------------------------------------------------------------------------------
 
-## Carte d'empreintes 1/16 m de la zone : 128 = rien, < 128 creux (ton plus sombre), > 128 lèvre.
+## Carte d'empreintes 1/32 m de la zone : 128 = rien, < 128 creux (ton plus sombre), > 128 lèvre.
 static func _traces(monde: Node, mat: PackedByteArray, actif: PackedByteArray) -> Image:
 	_tt = PackedByteArray()
 	_tt.resize(TRACES_W * TRACES_H)
@@ -548,7 +569,7 @@ const DIRECTIONS := 32  # orientations précalculées des tampons d'empreinte
 static var _tampons := {}
 static var _tt: PackedByteArray  # carte d'empreintes en cours (statique : pas de copie à l'écriture)
 
-## Tampon d'une empreinte : liste [dx, dz, valeur] (unités 1/16 m) pour la direction `idx`/DIRECTIONS.
+## Tampon d'une empreinte : liste [dx, dz, valeur] (unités 1/32 m) pour la direction `idx`/DIRECTIONS.
 static func _tampon(forme: String, idx: int) -> Array:
 	var cle := "%s%d" % [forme, idx]
 	if _tampons.has(cle):
@@ -567,11 +588,12 @@ static func _tampon(forme: String, idx: int) -> Array:
 			W = 0.035
 	var dir := Vector2.RIGHT.rotated(TAU * idx / DIRECTIONS)
 	var nrm := Vector2(-dir.y, dir.x)
-	var r := int(ceil(L * 16.0)) + 1
+	var r := int(ceil(L * TRACES_RES)) + 1
 	var l: Array = []
+	var dans := {}
 	for dz in range(-r, r + 1):
 		for dx in range(-r, r + 1):
-			var c := Vector2(dx, dz) / 16.0
+			var c := Vector2(dx, dz) / TRACES_RES
 			var u := c.dot(dir) / L
 			var v := c.dot(nrm) / W
 			if forme == "botte":
@@ -583,11 +605,15 @@ static func _tampon(forme: String, idx: int) -> Array:
 					continue
 			elif u * u + v * v > 1.0:
 				continue
-			l.append([dx, dz, 125 if (forme != "botte" or (absf(v) < 0.6 and absf(u) < 0.75)) else 126])
+			dans[Vector2i(dx, dz)] = true
+	# bord haut-gauche profond (ombre), intérieur peu creusé : la forme se lit
+	for pt: Vector2i in dans:
+		var bord: bool = not dans.has(pt - Vector2i(1, 0)) or not dans.has(pt - Vector2i(0, 1))
+		l.append([pt.x, pt.y, 125 if bord else 127])
 	_tampons[cle] = l
 	return l
 
-## Tamponne une empreinte orientée (`dir` = sens de la marche) dans la carte 1/16 m.
+## Tamponne une empreinte orientée (`dir` = sens de la marche) dans la carte 1/32 m.
 static func _empreinte(ctx: Dictionary, p: Vector2, dir: Vector2, forme: String) -> void:
 	# pas d'empreinte sur la roche, la glace, hors zone
 	var ci := int((p.x - ORIGINE) / TEXEL)
@@ -600,9 +626,19 @@ static func _empreinte(ctx: Dictionary, p: Vector2, dir: Vector2, forme: String)
 		return
 	var creux: Array[int] = ctx["creux"]
 	var idx := posmod(int(round(dir.angle() / TAU * DIRECTIONS)), DIRECTIONS)
-	var qx := int(floor((p.x - TRACES_ORIGINE.x) * 16.0))
-	var qz := int(floor((p.y - TRACES_ORIGINE.y) * 16.0))
-	for e: Array in _tampon(forme, idx):
+	var qx := int(floor((p.x - TRACES_ORIGINE.x) * TRACES_RES))
+	var qz := int(floor((p.y - TRACES_ORIGINE.y) * TRACES_RES))
+	var tampon := _tampon(forme, idx)
+	# une empreinte qui en recouvre déjà une autre (> 15 %) est omise : les pas restent lisibles
+	var deja := 0
+	for e: Array in tampon:
+		var x2: int = qx + e[0]
+		var z2: int = qz + e[1]
+		if x2 >= 0 and z2 >= 0 and x2 < TRACES_W and z2 < TRACES_H and _tt[z2 * TRACES_W + x2] != 128:
+			deja += 1
+	if deja * 100 > tampon.size() * 15:
+		return
+	for e: Array in tampon:
 		var x: int = qx + e[0]
 		var z: int = qz + e[1]
 		if x < 0 or z < 0 or x >= TRACES_W or z >= TRACES_H:

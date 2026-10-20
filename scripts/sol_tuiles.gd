@@ -511,30 +511,22 @@ static func tuile_glace(v: int) -> Toile:
 	var t := Toile.new(N)
 	var r := RandomNumberGenerator.new()
 	r.seed = 5801 + v * 17
-	# glace : bandes diagonales sombres/claires (reflets), bulles, fissures blanches
+	# glace douce : grandes nappes de 2 tons proches (reflets en bandes larges), quelques longues
+	# fissures claires, voile de givre et poudre de neige ; aucun ton sombre (pas d'« éclats »)
 	for y in N:
 		for x in N:
-			var f := _fbm(x + y, y, N, 4, 4, 2, 580 + v)
-			var ton := 1
-			if f > 0.66:
-				ton = 2
-			if f < 0.3:
-				ton = 0
-			t.pose(x, y, ton, GLACE)
+			var f := _fbm(x + y, y, N, 3, 3, 2, 580 + v)
+			t.pose(x, y, 2 if f > 0.55 else 1, GLACE)
 	t.filtre_mode(2)
-	for i in 12:
-		_fissure(t, r, r.randi_range(0, N - 1), r.randi_range(0, N - 1), r.randi_range(10, 30), 3, GLACE)
-	for i in 16:
-		var x := r.randi_range(0, N - 1)
-		var y := r.randi_range(0, N - 1)
-		t.pose(x, y, 3, GLACE)
-		t.pose(x + 1, y, 2, GLACE)
-	# poudre de neige poussée par le vent
+	for i in 5:
+		_fissure(t, r, r.randi_range(0, N - 1), r.randi_range(0, N - 1), r.randi_range(14, 30), 2, GLACE, 3, NEIGE)
 	for y in N:
 		for x in N:
 			var f := _fbm(x, y, N, 6, 3, 2, 585 + v)
-			if f > 0.56:
+			if f > 0.6:
 				t.pose(x, y, 3 if f < 0.7 else 4, NEIGE)
+			elif f > 0.54:
+				t.pose(x, y, 3, GLACE)  # givre léger
 	t.filtre_mode(1)
 	return t
 
@@ -548,6 +540,120 @@ static func tuile(matiere: int, v: int) -> Toile:
 		M_ROCHE: return tuile_roche(v)
 		M_GLACE: return tuile_glace(v)
 	return tuile_croute(v)
+
+## Agrandissement pixel art ×2 (Scale2x / EPX) : arrondit les diagonales sans créer de couleur.
+static func scale2x(t: Toile) -> Toile:
+	var o := Toile.new(t.n * 2)
+	for y in t.n:
+		for x in t.n:
+			var p := t.ton[t.k(x, y)] | (t.rampe[t.k(x, y)] << 8)
+			var A := t.ton[t.k(x, y - 1)] | (t.rampe[t.k(x, y - 1)] << 8)
+			var B := t.ton[t.k(x + 1, y)] | (t.rampe[t.k(x + 1, y)] << 8)
+			var C := t.ton[t.k(x - 1, y)] | (t.rampe[t.k(x - 1, y)] << 8)
+			var D := t.ton[t.k(x, y + 1)] | (t.rampe[t.k(x, y + 1)] << 8)
+			var e := [p, p, p, p]
+			if C == A and C != D and A != B:
+				e[0] = A
+			if A == B and A != C and B != D:
+				e[1] = B
+			if D == C and D != B and C != A:
+				e[2] = C
+			if B == D and B != A and D != C:
+				e[3] = D
+			for q in 4:
+				var i := o.k(x * 2 + (q & 1), y * 2 + (q >> 1))
+				o.ton[i] = e[q] & 0xff
+				o.rampe[i] = e[q] >> 8
+			var c := t.classe[t.k(x, y)]
+			for q in 4:
+				o.classe[o.k(x * 2 + (q & 1), y * 2 + (q >> 1))] = c
+	return o
+
+## Vagues de vent à 32 texels/m : lignes de niveau d'un champ de phase gauchi par un bruit lent
+## (crête claire d'un texel, ombre froide d'un texel dessous), par plaques ; perpendiculaires au vent.
+static func _rides_fines(t: Toile, matiere: int, v: int) -> void:
+	var n := t.n
+	var cycles := (30 + v * 4) if matiere == M_NEIGE else (20 + v * 3)
+	for y in n:
+		for x in n:
+			if t.r_de(x, y) != NEIGE:
+				continue
+			var masque := _fbm(x, y, n, 3, 3, 2, 7400 + v * 5 + matiere)
+			if masque < 0.5:
+				continue
+			var gauchi := _fbm(x, y, n, 4, 3, 3, 7420 + v * 5 + matiere) - 0.5
+			var f := fposmod(float(y) * cycles / n + gauchi * 2.2, 1.0)
+			var t0 := t.t_de(x, y)
+			if f < 0.15:
+				t.pose(x, y, mini(t0 + 1, 5), NEIGE)
+			elif f < 0.3:
+				t.pose(x, y, maxi(t0 - 1, 1), NEIGE)
+
+## Détail de proximité à 32 texels/m, semé sur la tuile agrandie : amas de 2-5 px d'un ton voisin
+## (grains, cristaux, fines ombres, aiguilles, fissures capillaires). Jamais un pixel isolé.
+static func affiner(t: Toile, matiere: int, v: int) -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = 7301 + matiere * 31 + v * 7
+	var n := t.n
+	var dirs := [Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(1, -1)]
+	if matiere == M_NEIGE or matiere == M_CROUTE:
+		_rides_fines(t, matiere, v)
+	var nb := 300 if matiere in [M_TERRE, M_ROCHE] else (700 if matiere in [M_NEIGE, M_CROUTE, M_PIETINEE] else 550)
+	for i in nb:
+		var x := r.randi_range(0, n - 1)
+		var y := r.randi_range(0, n - 1)
+		var t0 := t.t_de(x, y)
+		var r0 := t.r_de(x, y)
+		match matiere:
+			M_NEIGE, M_CROUTE, M_PIETINEE:
+				if r0 != NEIGE:
+					continue
+				# les petits détails se groupent en plaques (jamais semés uniformément)
+				if matiere != M_PIETINEE and _fbm(x, y, n, 3, 3, 2, 7440 + v) < 0.45:
+					continue
+				var u := r.randf()
+				if u < 0.35:
+					# fine ombre sous un grain : 2-3 px un ton plus bas
+					_trait(t, x, y, 1, 0, r.randi_range(2, 3), t0 - 1, NEIGE)
+					t.pose(x, y - 1, mini(t0 + 1, 5), NEIGE)
+				elif u < 0.55:
+					# cristaux : paire claire
+					t.pose(x, y, mini(t0 + 1, 5), NEIGE)
+					t.pose(x + 1, y + (i % 2), mini(t0 + 1, 5), NEIGE)
+				elif matiere == M_CROUTE and u < 0.7:
+					_trait(t, x, y, 1, 0, r.randi_range(3, 5), t0 - 1, NEIGE)  # fissure capillaire
+				elif matiere == M_PIETINEE:
+					t.pose(x, y, t0 - 1, NEIGE)
+					t.pose(x, y + 1, t0 - 1, NEIGE)
+			M_TERRE:
+				if i % 3 == 0:
+					t.pose(x, y, r.randi_range(2, 3), PIERRE)
+					t.pose(x + 1, y, 2, PIERRE)
+				elif i % 3 == 1:
+					t.pose(x, y, 4, NEIGE)
+					t.pose(x + 1, y + 1, 3, NEIGE)
+				else:
+					t.pose(x, y, t0 + 1, r0)
+					t.pose(x, y + 1, t0 + 1, r0)
+			M_AIGUILLES:
+				var d: Vector2i = dirs[r.randi() % 4]
+				var rp := ROUX if r.randf() < 0.3 else TERRE
+				_trait(t, x, y, d.x, d.y, r.randi_range(3, 5), 1 if rp == ROUX else r.randi_range(2, 3), rp)
+			M_MOUSSE:
+				if r0 == VERT:
+					t.pose(x, y, mini(t0 + 1, 5), VERT)
+					t.pose(x + 1, y, mini(t0 + 1, 5), VERT)
+			M_ROCHE:
+				if r0 == PIERRE and i % 2 == 0:
+					var d: Vector2i = dirs[r.randi() % 4]
+					_trait(t, x, y, d.x, d.y, r.randi_range(3, 6), maxi(t0 - 1, 0), PIERRE)
+				elif r0 == PIERRE:
+					t.pose(x, y, mini(t0 + 1, 4), PIERRE)
+					t.pose(x, y + 1, mini(t0 + 1, 4), PIERRE)
+			M_GLACE:
+				if i % 4 == 0 and r0 == GLACE:
+					t.pose(x, y, 3, GLACE)
+					t.pose(x + 1, y, 3, GLACE)
 
 ## Détails épars (période 5 m, décalée de celle des tuiles) : R ton, G rampe, B classe (0 = rien).
 static func toile_details() -> Toile:
@@ -687,17 +793,26 @@ static func calculer() -> Dictionary:
 		var c0 := couleur[i].duplicate()
 		c0.clear_mipmaps()
 		ac.blit_rect(c0, Rect2i(0, 0, N, N), Vector2i(0, i * N))
+	# tuiles de proximité (32 texels/m) : Scale2x de chaque tuile + détail fin
+	var ai2 := Image.create(N * 2, N * 2 * index.size(), false, Image.FORMAT_RG8)
+	for i in index.size():
+		var t2 := scale2x(toiles[i])
+		affiner(t2, i / 2, i % 2)
+		ai2.blit_rect(image_index(t2), Rect2i(0, 0, N * 2, N * 2), Vector2i(0, i * N * 2))
 	var d := toile_details()
 	toiles.append(d)
-	var res := _textures(ai, ac, image_index(d, true))
+	var d2 := image_index(scale2x(d), true)
+	var res := _textures(ai, ac, image_index(d, true), ai2, d2)
 	res["toiles"] = toiles
 	res["atlas_index"] = ai
 	res["atlas_couleur"] = ac
 	res["image_details"] = image_index(d, true)
+	res["atlas_index2"] = ai2
+	res["image_details2"] = d2
 	return res
 
 ## Atlas (couches empilées verticalement) → Texture2DArray ; couleur avec mipmaps (lointain).
-static func _textures(ai: Image, ac: Image, det: Image) -> Dictionary:
+static func _textures(ai: Image, ac: Image, det: Image, ai2: Image, det2: Image) -> Dictionary:
 	var index: Array[Image] = []
 	var couleur: Array[Image] = []
 	for i in ai.get_height() / N:
@@ -709,14 +824,22 @@ static func _textures(ai: Image, ac: Image, det: Image) -> Dictionary:
 	ti.create_from_images(index)
 	var tc := Texture2DArray.new()
 	tc.create_from_images(couleur)
-	return {"index": ti, "couleur": tc, "details": ImageTexture.create_from_image(det)}
+	var index2: Array[Image] = []
+	for i in ai2.get_height() / (N * 2):
+		index2.append(ai2.get_region(Rect2i(0, i * N * 2, N * 2, N * 2)))
+	var ti2 := Texture2DArray.new()
+	ti2.create_from_images(index2)
+	return {"index": ti, "couleur": tc, "details": ImageTexture.create_from_image(det),
+		"index2": ti2, "details2": ImageTexture.create_from_image(det2)}
 
 ## Ressources précalculées (outils/generer_sol.gd), recalculées si absentes.
 static func charger() -> Dictionary:
 	var fi := DOSSIER + "/sol_index.res"
 	var fc := DOSSIER + "/sol_couleur.res"
 	var fd := DOSSIER + "/sol_details.res"
-	if ResourceLoader.exists(fi) and ResourceLoader.exists(fc) and ResourceLoader.exists(fd):
-		return _textures(load(fi), load(fc), load(fd))
+	var fi2 := DOSSIER + "/sol_index2.res"
+	var fd2 := DOSSIER + "/sol_details2.res"
+	if ResourceLoader.exists(fi) and ResourceLoader.exists(fc) and ResourceLoader.exists(fd) and ResourceLoader.exists(fi2) and ResourceLoader.exists(fd2):
+		return _textures(load(fi), load(fc), load(fd), load(fi2), load(fd2))
 	push_warning("SolTuiles : ressources absentes, calcul au chargement (lancer outils/generer_sol.gd)")
 	return calculer()
