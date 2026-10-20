@@ -904,3 +904,4 @@ Tests : tous OK sauf `test_dragon_monde` en headless (erreurs du moteur factice 
 - Pieds des pins et épicéas : 5 contreforts épais (pin) / 4 (épicéa) + `Arbres._congere` (cuvette sombre près de l'écorce, lèvre
   de congère plus haute côté vent, pente qui se fond dans le sol ; 24-32 triangles). Mesure : +3 000 primitives sur 250 000,
   draw calls identiques (523), GPU 7,2 ms (indicatif, 4 agents en parallèle).
+- Murs, voûte, piliers (mur0-4, voute) et dalles 0-1 : option `lisse` généralisée (VERSION 7) : moellons de 25 x 25-40 cm, joints nets, contraste ramené, usure en macro-taches. Planche : captures/retouches/planche_murs.png.
