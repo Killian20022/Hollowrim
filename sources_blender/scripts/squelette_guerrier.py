@@ -158,8 +158,9 @@ for i, b in enumerate(corps.bone):
         corps.v[i] = CTR + (corps.v[i] - CTR) * 1.12
 
 # bouclier rond ebreche, fixe a l'avant-bras gauche (face vers l'avant = -Y)
-SC = V(0.600, 0.065 - 0.155, 1.456)
-R = 0.225
+OFFS = 0.08      # decalage du bouclier devant l axe de l avant-bras (m, + = vers l avant)
+SC = V(0.600, 0.065 - OFFS, 1.456)
+R = 0.19
 bor = []
 anneaux = []
 for yy in (-0.014, 0.014):

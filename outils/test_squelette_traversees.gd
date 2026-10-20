@@ -5,6 +5,9 @@ extends SceneTree
 ##   godot --headless --path . --script res://outils/test_squelette_traversees.gd -- --nouvelle [--detail]
 ## Les coordonnées sont celles du modèle au repos (Godot : x, z -> y, -y -> z) tirées du script Blender.
 const ANIMS := ["Idle", "Sword_Idle", "Walk", "Jog_Fwd", "Sprint", "Sword_Attack", "Punch_Cross", "Hit_Chest", "Hit_Head", "Death01"]
+const OFFS := 0.08  # = OFFS du script Blender
+## Animations réellement jouées par le squelette en jeu (draugr.gd) : zéro traversée exigé. Sprint et Punch_Cross sont mesurées à titre indicatif.
+const EN_JEU := ["Idle", "Sword_Idle", "Walk", "Jog_Fwd", "Sword_Attack", "Hit_Chest", "Hit_Head", "Death01"]
 const SEUIL := 0.015
 # volumes du corps : [nom, os, A, B, rayon] (axe A-B, repère modèle au repos, Godot)
 const CORPS := [
@@ -60,8 +63,8 @@ func _tester() -> void:
 	for v in CORPS:
 		_volumes.append({"nom": v[0], "a": marq.call(v[1], v[2]), "b": marq.call(v[1], v[3]), "r": v[4]})
 	# bouclier : centre (0.600, -0.090, 1.456 Blender), rayon 0.225, plan XZ ; 17 points (centre, 8 sommets, 8 mi-rayons)
-	var c := Vector3(0.600, 0.065 - 0.155, 1.456)
-	var R := 0.225
+	var c := Vector3(0.600, 0.065 - OFFS, 1.456)
+	var R := 0.19
 	_pts.append(["bouclier", marq.call("lowerarm_l", _b2g(c.x, c.y - 0.03, c.z))])
 	for k in 8:
 		var a := deg_to_rad(22.5 + 45 * k)
@@ -114,7 +117,10 @@ func _tester() -> void:
 		for cle in pire:
 			txt += " %s %.0f mm (pose %d)" % [cle, pire[cle][0] * 1000.0, pire[cle][1]]
 			maxi = maxf(maxi, pire[cle][0])
+		if nom in EN_JEU and n_pose > 0:
+			_echecs += 1
 		print("%-13s %3d/32 poses avec traversée, pire %.0f mm :%s" % [nom, n_pose, maxi * 1000.0, txt])
+	print("TRAVERSEES : ", "OK (0 sur les animations jouées en jeu)" if _echecs == 0 else "ECHEC (%d animations)" % _echecs)
 	SqueletteGuerrier.vider()
 	Humain.vider()
-	quit()
+	quit(1 if _echecs > 0 else 0)
