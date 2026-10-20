@@ -852,3 +852,27 @@ Dans la grotte, la position sauvegardée est celle du fichier (y ≈ -215) ; au 
 - **Tests** : `tous_les_tests.sh` 15 OK / 0 échec. Sous terre inchangé (comparé avant/après).
 - Planches : `captures/lumiere/planches/avant_apres_{jour,crepuscule,nuit}.png` (avant | après ; poses feu, chemin, crête, lisière, village).
 - Défauts restants : la crête hors zone témoin montre le sol vert de l'ancien biome ; le « pop » mesh complet → LOD à 44-48 m n'est pas mesuré à l'oeil en mouvement ; village : le crépuscule de scénario non vérifié séparément.
+
+### Résultats (kit intérieur)
+- **Perf** (fenêtre, vsync off, PC chargé par 4 agents, mesures A/B alternées avec `../nordique` = biome/zone-temoin, `outils/mesure_perf.gd`) : pose habituelle du village
+  (2.5,8.5,16,4) **inchangée** (8,2-8,4 ms des deux côtés, 679 appels : les intérieurs sont masqués au-delà de 13 m) ; pire cas, face à la porte de la halle à 5 m
+  (45.5,41.3,-132,-2) : base 7,3-7,9 ms / 246 appels / 384 k primitives → **8,1 ms** / 302 appels / 412 k (+0,5 ms) ; DANS la halle (`--dans=halle,0,2,0,-4,ouvert`) 8,1 ms,
+  266 appels ; dans la forge 8,6-8,7 ms (331 appels). Triangles par intérieur : halle 19,9 k, Sigrún 12,7 k, chasseurs 8,2 k, Grima 9,1 k, forge 5,8 k ; ni ombre ni
+  collision de décor inutile (l'intérieur ne projette pas d'ombre). La base elle-même dépasse 8 ms quand la machine est chargée.
+- **Chargement** : `monde._ready` ≈ inchangé (3 paires A/B alternées : 1 718 → 1 710 ms, 1 338 → 1 313 ms ; village + villageois +0 à +40 ms) ; le mobilier est construit après,
+  une maison par image (40-150 ms par image les 5 premières images du jeu).
+- **Tests** : `test_interieurs` (85+ vérifications : porte fermée bloque, entrée/sortie par la porte des 5 bâtiments, poussée contre les murs de dedans et de dehors, sol, fermeture automatique,
+  visibilité/lumières à 0 / 5 / 11 / 50 m, ≤ 8 lumières par bâtiment, forgeron dans sa forge), `test_quetes -- --nouvelle`, `test_villageois`, `test_marche_pnj`, `test_collisions_biome`,
+  `test_chemin_biome -- --paisible` : tous OK.
+- **Planches** (non commitées, `captures/` est ignoré) : `captures/interieurs/planches/{halle_jour,halle_nuit,maisons_jour,maisons_nuit,forge_jour_nuit}.png` ; vues individuelles
+  `captures/interieurs/final3/*.png` (46 poses jour/nuit, `bash outils/captures_interieurs.sh <dossier>` : 25 s pour 48 vues).
+- **Brume** : la brume du lot 7 (`cycle.gd`, début à 0,36 × fin ≈ 16-27 m) ne voile pas les pièces (14 m au plus) ; les intérieurs ne la modifient pas.
+
+### Défauts restants
+- Les maisons n'ont pas de vie nocturne : aucun villageois n'y dort (seul le forgeron y est, toute la journée) ; les poses « sous un entrait » (< 0,5 m) montrent un rondin très sombre.
+- Pierre sèche de la forge (doublage) encore un peu bleutée à 0,5 m ; texels de peau et de terre visibles à moins de 1 m (32 texels/m).
+- Pas de collision sur les petits objets (bols, crânes, chopes) ; les herbes/viandes pendues n'ont pas de collision (elles sont au-dessus de la tête ou hors passage).
+- Le rai de lumière et les halos sont des cartes additives plates : lisibles de loin, plats à 30 cm. La fenêtre de la forge n'a pas de carreau (ouverte, volet relevé).
+- Un seul modèle de porte par maison (pas de serrure) ; la porte de la halle s'ouvre vers l'extérieur et passe au-dessus des marches.
+- Fichiers partagés touchés : `scripts/village.gd` (réécriture des maisons et de la forge), `scripts/monde.gd` (+~60 lignes : scénario/lot `interieur`, `--dans=`, `activer_interieurs`,
+  forgeron sédentaire), `scripts/bati_geo.gd` (`dalle_neige` + `trou_cases`), `scripts/peinture_bati.gd` (fusion des fabriques), `outils/tous_les_tests.sh` (+ `test_interieurs`).
