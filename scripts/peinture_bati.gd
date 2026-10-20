@@ -872,9 +872,9 @@ static func fer(graine: int, n := 64, e := 1) -> Array:
 			var L := 0.42 + (lit[i] - 0.5) * 0.8 + (meso[i] - 0.5) * 0.35 + (grain[i] - 0.5) * 0.12 + raies[i] * 0.16
 			if piq[i] > 0.86:
 				L -= 0.2
-			var col := coul[ton_e(L, x, y, e, N, graine)]
+			var col := coul[ton_e(L, x, y, 2, N, graine)]
 			if rl[i] > 0.6 and piq[i] > 0.45:
-				col = cr[ton_e(0.35 + (lit[i] - 0.5) * 0.7 + (grain[i] - 0.5) * 0.2, x, y, e, 8, graine)]
+				col = cr[ton_e(0.35 + (lit[i] - 0.5) * 0.7 + (grain[i] - 0.5) * 0.2, x, y, 2, 8, graine)]
 			img.set_pixel(x, y, col)
 	return [img, relief_image(hf, n, n, 5.0 * e)]
 
@@ -895,7 +895,7 @@ static func cuir(graine: int, n := 64, e := 1) -> Array:
 		for x in n:
 			var i := y * n + x
 			var L := 0.48 + (lit[i] - 0.5) * 0.9 + (meso[i] - 0.5) * 0.3 + (grain[i] - 0.5) * 0.1
-			img.set_pixel(x, y, coul[ton_e(L, x, y, e, N, graine)])
+			img.set_pixel(x, y, coul[ton_e(L, x, y, 2, N, graine)])
 	return [img, relief_image(hf, n, n, 5.0 * e)]
 
 static func foin(graine: int, n := 64, e := 1) -> Array:
@@ -925,7 +925,7 @@ static func foin(graine: int, n := 64, e := 1) -> Array:
 		for x in n:
 			var i := y * n + x
 			var L := 0.32 + hf[i] * 0.55 + (lit[i] - 0.5) * 0.5 + (teinte[i] - 0.5) * 0.2
-			img.set_pixel(x, y, coul[ton_e(L, x, y, e, N, graine)])
+			img.set_pixel(x, y, coul[ton_e(L, x, y, 2, N, graine)])
 	return [img, relief_image(hf, n, n, 4.0 * e)]
 
 ## Tourbe du bord de toit : terre sombre, racines et touffes d'herbe sèche pendantes.
@@ -957,9 +957,9 @@ static func tourbe(graine: int, n := 64, e := 1) -> Array:
 		for x in n:
 			var i := y * n + x
 			var L := 0.4 + (lit[i] - 0.5) * 0.8 + (meso[i] - 0.5) * 0.35 + (grain[i] - 0.5) * 0.15
-			var col := terre[ton_e(L, x, y, e, N, graine)]
+			var col := terre[ton_e(L, x, y, 2, N, graine)]
 			if herbe[i] > 0.5:
-				col = chaume[ton_e(0.28 + (lit[i] - 0.5) * 0.5 + (grain[i] - 0.5) * 0.2, x, y, e, N, graine)]
+				col = chaume[ton_e(0.28 + (lit[i] - 0.5) * 0.5 + (grain[i] - 0.5) * 0.2, x, y, 2, N, graine)]
 			img.set_pixel(x, y, col)
 	return [img, relief_image(hf, n, n, 5.0 * e)]
 
@@ -976,7 +976,7 @@ static func braises(graine: int, n := 32) -> Array:
 			var L := chaud * 1.15 - 0.12 + (grain[i] - 0.5) * 0.12
 			if chaud < 0.34:
 				L = 0.04 + chaud * 0.4        # croûte de cendre
-			img.set_pixel(x, y, coul[ton(L, x, y, 10)])
+			img.set_pixel(x, y, coul[ton_e(L, x, y, 2, 10, 7)])
 	return [img, null]
 
 ## Vitrage d'une fenêtre de 0,55 × 0,36 m (18 × 12 texels, UV du quad) : deux carreaux de verre chaud à
@@ -991,14 +991,14 @@ static func fenetre() -> Array:
 		for x in w:
 			var col: Color
 			if x == 8 or x == 9:
-				col = bois[ton(0.32 + (0.15 if x == 8 else 0.0), x, y)]
+				col = bois[ton_e(0.32 + (0.15 if x == 8 else 0.0), x, y, 2)]
 			else:
 				var px := x if x < 8 else x - 10
 				var d := absf(px - 3.5) / 4.2 + absf(y - 5.0) / 7.0
 				var L := 1.04 - d * 0.5 - (0.12 if y > 8 else 0.0)
 				if px == 0 or y == 0:
 					L -= 0.18
-				col = coul[ton(L, x, y, 10)]
+				col = coul[ton_e(L, x, y, 2, 10, 7)]
 			img.set_pixel(x, y, col)
 	return [img, null]
 
@@ -1053,12 +1053,12 @@ static func fabriques() -> Dictionary:
 		"rondins": func() -> Array: return rondins(5321),
 		"bout_rondin": func() -> Array: return bout_rondin(5322),
 		"neige": func() -> Array: return neige(),
-		"fer": func() -> Array: return fer(5411),
-		"cuir": func() -> Array: return cuir(5412),
-		"foin": func() -> Array: return foin(5413),
-		"tourbe": func() -> Array: return tourbe(5414),
-		"braises": func() -> Array: return braises(5415),
-		"fenetre": func() -> Array: return fenetre(),
+		"fer": func() -> Array: return _net(fer(5411)),
+		"cuir": func() -> Array: return _net(cuir(5412)),
+		"foin": func() -> Array: return _net(foin(5413)),
+		"tourbe": func() -> Array: return _net(tourbe(5414)),
+		"braises": func() -> Array: return _net(braises(5415)),
+		"fenetre": func() -> Array: return _net(fenetre()),
 	}
 	# Passe « extérieur à 64 texels/m » (`_e`, lues avec texels_par_m = 64) : génération native à 2× la résolution (mêmes
 	# dimensions en mètres), tramage par bruit, nettoyage des texels isolés. Les anciennes (32 texels/m) restent pour
