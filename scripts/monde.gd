@@ -76,6 +76,8 @@ var _crepite := 0.0
 var _t_audio := 0.0
 
 func _ready() -> void:
+	Chrono.demarre()
+	Prechargement.lancer()
 	# variante du biome, lue AVANT toute génération (--biome=… ou set_meta("biome", …))
 	var biome: String = str(get_meta("biome")) if has_meta("biome") else str(_arguments().get("biome", "nouveau"))
 	ZoneBiome.actif = (biome == "nouveau")
@@ -101,24 +103,33 @@ func _ready() -> void:
 	tex_roche = Palette.texture(32, Palette.ROCHE, 4, 2, 0.45, rng)
 	tex_aiguilles = Palette.texture(32, Palette.AIGUILLES, 8, 3, 0.7, rng)
 	tex_ecorce = Palette.texture(32, Palette.ECORCE, 4, 4, 0.4, rng)
+	_chrono("textures de base")
 
 	_environnement()
 	_lune()
 	_terrain()
+	_chrono("terrain")
 	arbres = Vegetation.creer(self)
+	_chrono("arbres (placement+modeles+MultiMesh)")
 	Rochers.creer(self)
 	SousBois.creer(self)  # lot E : après les rochers (touffes collées aux pierres)
 	CercleRunique.creer(self)
+	_chrono("rochers+sous-bois+cercle")
 	Sol.appliquer(mat_terrain, self, arbres)
+	_chrono("carte de sol")
 	DetailsSol.creer(self)  # lot 3 : cailloux du sol (après la carte de sol)
 	_village()
+	_chrono("village (bati)")
 	_feu_de_camp()
 	_joueur()
+	_chrono("joueur")
 	_neige()
 	_interface()
 	_draugrs()
 	_villageois()
+	_chrono("villageois")
 	_tertre()
+	_chrono("tertre+crypte")
 	AbordsTumulus.creer(self)  # lot F : abords du tertre (après sa création)
 	if not _arguments().has("capture"):
 		_musique()
@@ -130,9 +141,13 @@ func _ready() -> void:
 	_cacher_particules()
 	_rendre_paisible()
 	_capture()
+	Chrono.total()
 	_aller_crypte()
 	if _arguments().has("grotte") and not _arguments().has("capture"):
 		_aller_grotte(_arguments()["grotte"])
+
+func _chrono(etape: String) -> void:
+	Chrono.marque(etape)
 
 # --- relief ---------------------------------------------------------------
 

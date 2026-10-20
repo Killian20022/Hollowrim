@@ -81,3 +81,62 @@ et (dès que le streaming existe) la pire image du test de traversée. Mesures f
 3. Textures 64² à 256² max, Nearest, ~16 texels/m uniformes, arêtes contrastées et usure dessinée.
 4. Lumières intégrées à la scène (appliques, torches, braseros, rais de lumière), dans le budget du § 2.
 5. Pour chaque lieu : description en 3 points (Murs/Structure, Mobilier, Éclairage) avant le code.
+
+## 6. Journal « Précalcul et chargement » (branche outils/precalcul, 2026-10-20)
+
+**Tout régénérer d'un coup** (≈ 25 s) :
+
+```
+godot --headless --path . --import          # worktree neuf seulement
+godot --headless --path . --script res://outils/precalculer_tout.gd
+godot --headless --path . --script res://outils/precalculer_tout.gd -- --verifier   # compare tout au calcul direct, octet par octet
+```
+
+Options : `-- --seulement=arbres,ecorces,sol,crypte,grotte,bati,carte_sol`. L'outil lance chaque générateur existant
+(`generer_arbres`, `generer_ecorces`, `generer_sol`, `generer_crypte`, `generer_grotte`, `cuire_bati`) dans son propre Godot,
+puis `generer_carte_sol` (le monde entier, car la carte de sol dépend du relief, des arbres, des rochers et des chemins).
+
+**Règle** : après toute modification d'un générateur (`textures_arbres.gd`, `ecorces.gd`, `crypte_textures.gd`,
+`grotte_textures.gd`, `peinture_bati.gd`, `sol_tuiles.gd`…), incrémenter sa constante `VERSION` quand elle existe
+(`TexturesArbres`, `Ecorces`, `CrypteTextures`) puis relancer `precalculer_tout`. Un `.res` de mauvaise version est ignoré
+(repli : calcul au lancement, donc jamais d'image fausse, seulement plus lent). Les `.res` des écorces n'avaient pas de
+version : ajoutée (1) et fichiers régénérés.
+
+**Mesurer** : `godot --headless --path . -- --nouvelle --chrono` affiche le temps de chaque étape de `monde._ready`
+(`scripts/chrono.gd`, `Chrono.marque("étape")` ; inactif sans `--chrono`). `--sans-prechargement` coupe le préchargement.
+
+| Étape (headless, médiane de 3, PC chargé par 4 agents) | Avant | Après |
+|---|---|---|
+| Arbres (atlas épicéa 413 ms, pin 31, bouleau 9 → fichiers) | 501 ms | 146 ms |
+| Carte de sol 960² + empreintes (cache signé) | 501 ms | 100 ms |
+| Joueur (1er corps humain `homme_vetu.glb` + cheveux) | 894 ms | 201 ms |
+| Villageois (`femme_vetue.glb` 16 Mo + cheveux) | 934 ms | 101 ms |
+| Terrain / village / tertre+crypte / rochers+sous-bois | 116 / 367 / 187 / 98 | inchangé |
+| **Total de `monde._ready`** | **≈ 3,7 s** (3,5 à 4,1) | **≈ 1,2 à 1,6 s** |
+
+Avant `_ready`, le moteur lit et compile la scène et ses scripts : ≈ 1,5 à 2 s (voir « Restant »).
+
+**Ce qui a été fait**
+- `assets/arbres/atlas_{epicea,pin,bouleau}.res` (`TexturesArbres.VERSION`, repli = calcul ; `outils/generer_arbres.gd`).
+- `Ecorces.VERSION` + `DOSSIER`.
+- Carte de sol : `assets/sol/carte_sol.res` + `carte_traces.res`, valides seulement si la **signature SHA-256** de leurs entrées
+  est la même (relief échantillonné, positions des arbres, obstacles, chemins, code de `sol.gd`, `zone_biome.gd`, `chemins.gd`).
+  Quiconque change le terrain, la forêt ou ces scripts invalide le cache tout seul : le jeu recalcule (~0,6 s), et
+  `precalculer_tout` régénère. `Sol.cache_statut` dit « lu », « perime », etc.
+- `scripts/prechargement.gd` : `ResourceLoader.load_threaded_request` des corps humains et cheveux, lancé par l'autoload
+  Fenetre (avant la compilation de la scène) et par Monde. Même fichiers, même importeur : aucun effet sur le rendu.
+- Vérification : 0 différence octet par octet sur les atlas, les écorces, la crypte (24), la grotte (18), le bâti (28), les
+  tuiles de sol (5) et la carte de sol (carte + empreintes). Les générateurs existants (sol, crypte, grotte, bâti) ressortent
+  identiques aux fichiers déjà commités.
+
+**Restant (non fait, par ordre de gain)**
+1. ~1,5 à 2 s avant `_ready` : compilation GDScript de toutes les scripts préchargés. Un export avec « binary tokens » la réduit ;
+   en développement, rien à précalculer.
+2. Géométrie du village (`village.gd`, 370 à 550 ms) : maillages `SurfaceTool` déterministes (graine 99), donc cuisibles en
+   `ArrayMesh` `.res` ; gain attendu ~0,4 s, mais gros chantier (matériaux, collisions, lieux à ré-attacher).
+3. Terrain (~120 ms), bras et torche du joueur (~130 ms), sous-bois (~55 ms), arbres (placement 25 ms, maillages 60 ms) : mettables
+   en tâche de fond (thread) à condition de séparer calcul pur et création de nœuds ; gain faible, risque réel.
+4. `Palette.tex()` sans RNG (matériaux des villageois, du joueur, du tertre) utilise un `RandomNumberGenerator` NON initialisé :
+   le grain de ces textures change à chaque lancement (les captures ne sont donc pas identiques d'un lancement à l'autre,
+   écart mesuré 0,05 à 5 %). Les graines fixer coûterait un léger changement de grain une fois ; à décider avec l'équipe graphisme.
+   `randf()` global dans `_villageois()` (points de promenade) est aussi non déterministe.
