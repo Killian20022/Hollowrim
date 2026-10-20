@@ -162,6 +162,40 @@ static func _ride(t: Toile, cx: int, cy: int, L: int, H: int, base := 4) -> void
 		for d in ep:
 			t.pose(cx + lx, ycr + hc + 1 + d, base - 2 if d == 0 and absf(u) < 0.5 and H >= 2 else base - 1, NEIGE)
 
+## Orientation locale du vent (rad.), champ lent commun aux deux couches (coordonnées normalisées).
+static func _flux(x: float, y: float, n: int, g: int) -> float:
+	return (_fbm(x, y, n, 2, 2, 2, 7420 + g) - 0.5) * 2.0 * 0.95
+
+## Ride libre : croissant d'axe incliné de `ang`, courbé (`courb` > 0 ouvert vers le bas, < 0 vers le
+## haut), crête claire (interrompue par endroits si `trous`), corps de ton `base`, ombre froide dessous
+## qui s'effile aux pointes. `H` = épaisseur du corps (0 = simple trait crête + ombre).
+static func _ride_libre(t: Toile, cx: float, cy: float, ang: float, L: float, courb: float, H: int, base: int, trous := 0.0, g := 0) -> void:
+	var dir := Vector2(cos(ang), sin(ang))
+	var perp := Vector2(-dir.y, dir.x)
+	var pas := 0.5
+	var demi := L * 0.5
+	var s := -demi
+	var vus := {}
+	while s <= demi:
+		var u := s / demi
+		var p := Vector2(cx, cy) + dir * s + perp * (courb * (1.0 - u * u) * demi * 0.35)
+		var px := roundi(p.x)
+		var py := roundi(p.y)
+		s += pas
+		if vus.has(Vector2i(px, py)):
+			continue
+		vus[Vector2i(px, py)] = true
+		var hc := int(round(H * (1.0 - u * u)))
+		var cret := base + 1 if (absf(u) < 0.5 and H >= 1) else base
+		if trous > 0.0 and _h(px, py, 733 + g) < trous:
+			cret = base  # crête interrompue : plaque lisse à la place
+		t.pose(px, py, cret, NEIGE)
+		for d in range(1, hc + 1):
+			t.pose(px, py + d, base, NEIGE)
+		var ep := 2 if (absf(u) < 0.45 and H >= 2) else 1
+		for d in ep:
+			t.pose(px, py + hc + 1 + d, base - 2 if d == 0 and absf(u) < 0.4 and H >= 2 else base - 1, NEIGE)
+
 ## Langue de sastrugi (allongée dans le sens du vent, +y) : bout au vent creusé (ombre), dos clair.
 static func _sastrugi(t: Toile, cx: int, cy: int, L: int, W: int) -> void:
 	for ly in L:
@@ -246,21 +280,25 @@ static func tuile_neige(v: int) -> Toile:
 	var r := RandomNumberGenerator.new()
 	r.seed = 5101 + v * 17
 	_fond_neige(t, 510 + v * 3, 4, 3, 0.40 if v == 0 else 0.33, 0.16)
-	# familles de rides de vent (2 à 4 crêtes parallèles), plus grandes et plus rares en variante 1
-	var groupes := 30 if v == 0 else 16
-	for gi in groupes:
+	# rides de vent organiques : orientation qui suit un champ de vent lent (±55°), longueurs, courbures
+	# et épaisseurs variables, crêtes interrompues ; quelques congères longues et basses
+	var nr := 70 if v == 0 else 46
+	for i in nr:
 		var cx := r.randi_range(0, N - 1)
 		var cy := r.randi_range(0, N - 1)
-		var nb := r.randi_range(2, 4)
-		var L := r.randi_range(8, 16) if v == 0 else r.randi_range(14, 26)
-		for k in nb:
-			var lk := int(L * (1.0 - 0.22 * k))
-			if lk < 5:
-				break
-			_ride(t, cx + r.randi_range(-3, 3), cy + k * r.randi_range(4, 6), lk, 1 if v == 0 or k > 0 else 2)
-	# micro-rides isolées : petits croissants de 5-8 px partout (lisible au ras du sol)
-	for i in (45 if v == 0 else 30):
-		_ride(t, r.randi_range(0, N - 1), r.randi_range(0, N - 1), r.randi_range(5, 8), 1)
+		var ang := _flux(cx, cy, N, v) + r.randf_range(-0.3, 0.3)
+		var u := r.randf()
+		var L := r.randf_range(5.0, 11.0) if u < 0.5 else (r.randf_range(10.0, 20.0) if u < 0.85 else r.randf_range(18.0, 30.0))
+		var H := 0 if u < 0.3 else (1 if u < 0.8 else 2)
+		_ride_libre(t, cx, cy, ang, L, r.randf_range(-0.9, 0.9), H, 4, 0.18, v)
+		if u > 0.6 and r.randf() < 0.5:
+			# deuxième crête à l'écart, plus courte, pas parallèle tout à fait
+			var d := r.randf_range(4.0, 8.0)
+			_ride_libre(t, cx - sin(ang) * d, cy + cos(ang) * d, ang + r.randf_range(-0.25, 0.25), L * r.randf_range(0.5, 0.85), r.randf_range(-0.7, 0.7), mini(H, 1), 4, 0.25, v)
+	for i in (7 if v == 0 else 5):
+		var cx := r.randi_range(0, N - 1)
+		var cy := r.randi_range(0, N - 1)
+		_ride_libre(t, cx, cy, _flux(cx, cy, N, v) + r.randf_range(-0.2, 0.2), r.randf_range(32.0, 54.0), r.randf_range(-0.5, 0.5), 3, 4, 0.3, v)
 	# petits creux (vent tourbillonnant) en amas de 2-3 px
 	for i in 40:
 		var x := r.randi_range(0, N - 1)
@@ -507,26 +545,61 @@ static func tuile_roche(v: int) -> Toile:
 	t.filtre_mode(1)
 	return t
 
+## Fissure fine de glace : trait de 1 texel à direction persistante (dérive lente), quelques
+## embranchements courts ; ton sombre, lèvre claire sur une partie seulement.
+static func _fente(t: Toile, r: RandomNumberGenerator, x0: float, y0: float, ang: float, longueur: int, ton: int, branche := true) -> void:
+	var p := Vector2(x0, y0)
+	var a := ang
+	var pas_levre := r.randi_range(3, 7)
+	for i in longueur:
+		a += r.randf_range(-0.22, 0.22)
+		p += Vector2(cos(a), sin(a))
+		var px := roundi(p.x)
+		var py := roundi(p.y)
+		t.pose(px, py, ton, GLACE)
+		if (i / pas_levre) % 2 == 0:
+			t.pose(px, py - 1, 3, GLACE)  # lèvre claire côté haut, par tronçons
+		if branche and i > 4 and i < longueur - 6 and r.randf() < 0.06:
+			_fente(t, r, p.x, p.y, a + r.randf_range(0.6, 1.1) * (1.0 if r.randf() < 0.5 else -1.0), r.randi_range(4, 9), ton, false)
+
 static func tuile_glace(v: int) -> Toile:
 	var t := Toile.new(N)
 	var r := RandomNumberGenerator.new()
 	r.seed = 5801 + v * 17
-	# glace douce : grandes nappes de 2 tons proches (reflets en bandes larges), quelques longues
-	# fissures claires, voile de givre et poudre de neige ; aucun ton sombre (pas d'« éclats »)
+	# glace lisse : fond uni ton 2 (bleu clair, aucun bruit) ; le reflet est un voile de ton 3 en bandes
+	# allongées, effilées et interrompues (ciel qui se mire) ; une ou deux fissures fines, quelques bulles.
 	for y in N:
 		for x in N:
-			var f := _fbm(x + y, y, N, 3, 3, 2, 580 + v)
-			t.pose(x, y, 2 if f > 0.55 else 1, GLACE)
-	t.filtre_mode(2)
-	for i in 5:
-		_fissure(t, r, r.randi_range(0, N - 1), r.randi_range(0, N - 1), r.randi_range(14, 30), 2, GLACE, 3, NEIGE)
-	for y in N:
-		for x in N:
-			var f := _fbm(x, y, N, 6, 3, 2, 585 + v)
-			if f > 0.6:
-				t.pose(x, y, 3 if f < 0.7 else 4, NEIGE)
-			elif f > 0.54:
-				t.pose(x, y, 3, GLACE)  # givre léger
+			t.pose(x, y, 2, GLACE)
+	# reflets : bandes de ton 3 de 1-2 texels de haut, 8-26 de long, légèrement inclinées, alignées
+	# sur un même sens (la lumière) ; elles s'effilent et se cassent
+	var sens := r.randf_range(-0.35, 0.1)
+	for i in 11:
+		var cx := r.randf_range(0.0, N)
+		var cy := r.randf_range(0.0, N)
+		var L := r.randf_range(14.0, 44.0)
+		var ep := 1 if r.randf() < 0.45 else (2 if r.randf() < 0.7 else 3)
+		var a := sens + r.randf_range(-0.12, 0.12)
+		for q in int(L):
+			var u := float(q) / L
+			var h := ep if (u > 0.2 and u < 0.8) else 1
+			var px := roundi(cx + cos(a) * q)
+			var py := roundi(cy + sin(a) * q)
+			if _h(px, py, 589 + v) < 0.12:
+				continue
+			for d in h:
+				t.pose(px, py + d, 3, GLACE)
+	# deux fissures fines, rares
+	for i in 2:
+		_fente(t, r, r.randf_range(0.0, N), r.randf_range(0.0, N), r.randf_range(0.0, TAU), r.randi_range(22, 44), 1)
+	# bulles d'air : amas de 2-3 texels clairs
+	for i in 9:
+		var x := r.randi_range(0, N - 1)
+		var y := r.randi_range(0, N - 1)
+		t.pose(x, y, 3, GLACE)
+		t.pose(x + 1, y, 3, GLACE)
+		if i % 3 == 0:
+			t.pose(x, y + 1, 3, GLACE)
 	t.filtre_mode(1)
 	return t
 
@@ -569,25 +642,28 @@ static func scale2x(t: Toile) -> Toile:
 				o.classe[o.k(x * 2 + (q & 1), y * 2 + (q >> 1))] = c
 	return o
 
-## Vagues de vent à 32 texels/m : lignes de niveau d'un champ de phase gauchi par un bruit lent
-## (crête claire d'un texel, ombre froide d'un texel dessous), par plaques ; perpendiculaires au vent.
+## Vagues de vent à 32 texels/m : traits courts de crête claire (+ ombre froide d'un texel dessous),
+## en PLAQUES (zones de neige lisse entre elles), d'orientation, d'espacement et de longueur variables
+## par plaque, lignes interrompues. Détail fin seulement : les grandes formes restent celles de la
+## couche 16 texels/m (fondu 4-8 m imperceptible).
 static func _rides_fines(t: Toile, matiere: int, v: int) -> void:
 	var n := t.n
-	var cycles := (30 + v * 4) if matiere == M_NEIGE else (20 + v * 3)
-	for y in n:
-		for x in n:
-			if t.r_de(x, y) != NEIGE:
-				continue
-			var masque := _fbm(x, y, n, 3, 3, 2, 7400 + v * 5 + matiere)
-			if masque < 0.5:
-				continue
-			var gauchi := _fbm(x, y, n, 4, 3, 3, 7420 + v * 5 + matiere) - 0.5
-			var f := fposmod(float(y) * cycles / n + gauchi * 2.2, 1.0)
-			var t0 := t.t_de(x, y)
-			if f < 0.15:
-				t.pose(x, y, mini(t0 + 1, 5), NEIGE)
-			elif f < 0.3:
-				t.pose(x, y, maxi(t0 - 1, 1), NEIGE)
+	var r := RandomNumberGenerator.new()
+	r.seed = 7400 + v * 5 + matiere
+	var essais := 300 if matiere == M_NEIGE else 200
+	for i in essais:
+		var cx := r.randi_range(0, n - 1)
+		var cy := r.randi_range(0, n - 1)
+		if t.r_de(cx, cy) != NEIGE:
+			continue
+		# plaques : la densité varie de 0 (neige lisse) à 1 (neige très ridée)
+		var dens := _fbm(cx, cy, n, 3, 3, 2, 7400 + v * 5 + matiere)
+		if dens < 0.42 or r.randf() > (dens - 0.3) * 2.2:
+			continue
+		var ang := _flux(cx, cy, n, v) + r.randf_range(-0.35, 0.35)
+		var u := r.randf()
+		var L := r.randf_range(5.0, 12.0) if u < 0.6 else r.randf_range(12.0, 26.0)
+		_ride_libre(t, cx, cy, ang, L, r.randf_range(-1.0, 1.0), 0 if u < 0.8 else 1, t.t_de(cx, cy), 0.3, v + 5)
 
 ## Détail de proximité à 32 texels/m, semé sur la tuile agrandie : amas de 2-5 px d'un ton voisin
 ## (grains, cristaux, fines ombres, aiguilles, fissures capillaires). Jamais un pixel isolé.
@@ -651,9 +727,7 @@ static func affiner(t: Toile, matiere: int, v: int) -> void:
 					t.pose(x, y, mini(t0 + 1, 4), PIERRE)
 					t.pose(x, y + 1, mini(t0 + 1, 4), PIERRE)
 			M_GLACE:
-				if i % 4 == 0 and r0 == GLACE:
-					t.pose(x, y, 3, GLACE)
-					t.pose(x + 1, y, 3, GLACE)
+				pass  # glace lisse : aucun grain en proximité
 
 ## Détails épars (période 5 m, décalée de celle des tuiles) : R ton, G rampe, B classe (0 = rien).
 static func toile_details() -> Toile:
