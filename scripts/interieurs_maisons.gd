@@ -27,8 +27,8 @@ static func _colonne_foyer(b: Interieurs, xch: float) -> void:
 	var h_haut := b.y0 - 0.12
 	var g := 7200 + int(xch * 10.0)
 	# collier de pierre sur la base de la cheminée du dehors, puis gaine jusqu'au lambris (le fût extérieur reste caché)
-	b.pile(Vector3(xch, b.y0 - 0.2, 0), Vector3(1.14, 0.56, 1.14), g + 11, "pierre")
-	b.pile(Vector3(xch, b.y0 + 0.08 + (b.faite - 0.5) * 0.5, 0), Vector3(0.86, b.faite - 0.5 + 0.2, 0.86), g + 13, "pierre")
+	b.pile(Vector3(xch, b.y0 - 0.2, 0), Vector3(1.24, 0.62, 1.24), g + 11, "pierre")
+	b.pile(Vector3(xch, b.y0 + 0.08 + (b.faite - 0.5) * 0.5, 0), Vector3(1.1, b.faite - 0.5 + 0.2, 1.1), g + 13, "pierre")
 	# parois de la niche : fond, joues, linteau
 	b.pile(Vector3(xch + 0.33, (F + h_haut) * 0.5, 0), Vector3(0.26, h_haut - F, 0.95), g, "pierre")
 	for sz in [-1.0, 1.0]:

@@ -143,10 +143,9 @@ static func _foyer(b: Interieurs, xh: float) -> void:
 	b.halo(Vector3(xh, F + 0.04, 0), Vector3.UP, 4.4, 2.2, Color(1, 0.85, 0.7, 1))
 	b.lumiere(Vector3(xh - 1.3, F + 1.0, 0), 2.6, 8.5)
 	b.lumiere(Vector3(xh + 1.3, F + 1.0, 0), 2.6, 8.5)
-	# rai de lumière du trou à fumée jusqu'au foyer (deux cartes croisées)
+	# rai de lumière du trou à fumée jusqu'au foyer (quatre plans croisés, volume : shader ps1_rai)
 	var haut := b.y0 + b.faite - F - 0.1
-	b.halo(Vector3(xh, F + haut * 0.5, 0), Vector3.BACK, 1.3, haut, Color(1.3, 1.25, 1.1, 1), "rai")
-	b.halo(Vector3(xh, F + haut * 0.5, 0), Vector3.RIGHT, 1.3, haut, Color(1.3, 1.25, 1.1, 1), "rai")
+	b.halo(Vector3(xh, F + haut * 0.5, 0), Vector3.BACK, 1.5, haut, Color(1.3, 1.25, 1.1, 1), "rai")
 	# crémaillère et marmite au-dessus du foyer (côté est)
 	b.cyl(Vector3(xh + 1.2, b.y0 + 0.6, 0), 0.02, 2.4, "fer_noir", 4)
 	b.chaudron(Vector3(xh + 1.2, F + 0.62, 0), 0.28)

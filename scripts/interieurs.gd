@@ -12,8 +12,9 @@ extends RefCounted
 
 const SHADER := preload("res://shaders/ps1_interieur.gdshader")
 const FLAMME_SHADER := preload("res://shaders/crypte_flamme.gdshader")
+const RAI_SHADER := preload("res://shaders/ps1_rai.gdshader")
 const F := 0.42
-const AMBIANT := Color(0.25, 0.21, 0.23)
+const AMBIANT := Color(0.29, 0.24, 0.25)
 const DECAL_PLAFOND := 0.27       # le lambris du plafond pend sous le plan du toit
 const FEU := Color(1.0, 0.56, 0.24)
 
@@ -53,28 +54,28 @@ static func materiaux() -> Dictionary:
 	var d := {}
 	d["bois"] = _m("planches_h", Color(0.95, 0.9, 0.86))
 	d["bois_v"] = _m("planches_v", Color(0.95, 0.9, 0.86))
-	d["bois_sombre"] = _m("planches_h", Color(0.62, 0.56, 0.54))
+	d["bois_sombre"] = _m("planches_h", Color(0.74, 0.66, 0.62))
 	d["bois_suie"] = _m("planches_v", Color(0.42, 0.38, 0.38))
 	d["bois_clair"] = _m("planches_v", Color(1.15, 1.08, 0.98))
 	d["ame"] = _m("planches_h", Color(0.3, 0.29, 0.32))
 	d["rondin"] = _m("rondins", Color(1.12, 1.05, 1.0), 32.0, 0.9, true)
-	d["rondin_sombre"] = _m("rondins", Color(0.8, 0.74, 0.72), 32.0, 0.9, true)
+	d["rondin_sombre"] = _m("rondins", Color(0.95, 0.87, 0.82), 32.0, 0.9, true)
 	d["bout"] = _m("bout_rondin", Color.WHITE, 64.0, 0.0, true)
-	d["pierre"] = _m("pierre_fine", Color(0.95, 0.9, 0.88))
-	d["pierre_sombre"] = _m("pierre_fine", Color(0.62, 0.6, 0.64))
-	d["brute"] = _m("pierre_brute", Color(0.95, 0.9, 0.9))
-	d["seche"] = _m("pierre_seche", Color(0.95, 0.8, 0.7))
+	d["pierre"] = _m("pierre_int", Color(1.04, 0.99, 0.94), 64.0, 0.9)
+	d["pierre_sombre"] = _m("pierre_int", Color(0.7, 0.65, 0.62), 64.0, 0.9)
+	d["brute"] = _m("pierre_int_s", Color(1.0, 0.96, 0.92), 64.0, 0.9)
+	d["seche"] = _m("pierre_int", Color(1.0, 0.95, 0.9), 64.0, 1.0)
 	d["fer"] = _m("fer", Color(0.85, 0.87, 0.95))
 	d["fer_noir"] = _m("fer", Color(0.45, 0.45, 0.5))
 	d["etain"] = _m("fer", Color(1.35, 1.38, 1.45))
 	d["cuir"] = _m("cuir", Color(1.2, 1.08, 0.95))
 	d["foin"] = _m("foin", Color(0.9, 0.9, 0.82))
 	d["herbe"] = _m("foin", Color(0.55, 0.78, 0.45))
-	d["peau"] = _m("peau", Color(0.95, 0.85, 0.78))
-	d["peau_claire"] = _m("peau", Color(1.25, 1.15, 1.05))
-	d["peau_sombre"] = _m("peau", Color(0.55, 0.48, 0.46))
-	d["terre"] = _m("terre", Color.WHITE)
-	d["charbon"] = _m("charbon", Color.WHITE)
+	d["peau"] = _m("peau", Color(0.95, 0.85, 0.78), 64.0)
+	d["peau_claire"] = _m("peau", Color(1.25, 1.15, 1.05), 64.0)
+	d["peau_sombre"] = _m("peau", Color(0.55, 0.48, 0.46), 64.0)
+	d["terre"] = _m("terre", Color.WHITE, 64.0)
+	d["charbon"] = _m("charbon", Color.WHITE, 64.0)
 	d["os"] = _m("os", Color(1.15, 1.1, 1.0), 64.0, 0.0)
 	d["parchemin"] = _m("parchemin", Color(1.1, 1.05, 0.95), 64.0, 0.0)
 	d["cire"] = _m("os", Color(1.3, 1.15, 0.8), 64.0, 0.0)
@@ -82,9 +83,9 @@ static func materiaux() -> Dictionary:
 	var eau := _m("fer", Color(0.1, 0.14, 0.22), 32.0, 0.0)
 	eau.set_shader_parameter("emission", Color(0.03, 0.06, 0.12))
 	d["eau"] = eau
-	d["tenture_r"] = _m("tenture_rouge", Color.WHITE, 32.0, 0.6, true)
-	d["tenture_b"] = _m("tenture_bleue", Color.WHITE, 32.0, 0.6, true)
-	d["tenture_v"] = _m("tenture_verte", Color.WHITE, 32.0, 0.6, true)
+	d["tenture_r"] = _m("tenture_rouge", Color.WHITE, 64.0, 0.6, true)
+	d["tenture_b"] = _m("tenture_bleue", Color.WHITE, 64.0, 0.6, true)
+	d["tenture_v"] = _m("tenture_verte", Color.WHITE, 64.0, 0.6, true)
 	d["bouclier_r"] = _m("planches_v", Color(1.1, 0.34, 0.3))
 	d["bouclier_b"] = _m("planches_v", Color(0.36, 0.5, 0.95))
 	d["bouclier_n"] = _m("planches_v", Color(0.4, 0.38, 0.4))
@@ -96,7 +97,7 @@ static func materiaux() -> Dictionary:
 	var rune := _m("fer", Color(0.5, 0.55, 0.62), 32.0, 0.0)
 	rune.set_shader_parameter("emission", Color(0.25, 0.85, 1.0))
 	d["rune"] = rune
-	var cendre := _m("charbon", Color(1.5, 1.4, 1.4))
+	var cendre := _m("charbon", Color(1.5, 1.4, 1.4), 64.0)
 	d["cendre"] = cendre
 	# vitrage translucide (plan) + halo additif des flammes
 	var vit := ShaderMaterial.new()
@@ -451,6 +452,7 @@ func etagere(pos: Vector3, lacet: float, larg: float, haut: float, niveaux := 3,
 		var y := haut * (float(i) + 0.8) / (niveaux + 0.5) - 0.0
 		bx(pos + Vector3(0, y, 0), Vector3(larg, 0.045, prof), "bois", lacet)
 	bx(pos + b * Vector3(0, haut * 0.5, -prof * 0.5 + 0.015), Vector3(larg - 0.08, haut - 0.1, 0.02), "bois_sombre", lacet)
+	solide(pos + Vector3(0, haut * 0.5, 0), Vector3(larg, haut, prof), lacet)
 
 ## Lit : cadre, paillasse de foin, couverture de peau, oreiller. `tete` : sens de la tête (lacet).
 func lit(pos: Vector3, lacet: float, long := 1.95, larg := 0.95, peau_mat := "peau", etat := 0) -> void:
@@ -715,54 +717,72 @@ func finir() -> void:
 		mmi.name = "Flammes"
 		ip.racine.add_child(mmi)
 	_flammes.clear()
-	for nom in ["halo", "rai"]:
+	# lumière volumétrique (shader ps1_rai) : halos au sol, halos muraux, rais ; chaque groupe = un maillage fusionné
+	for nom in ["sol", "mur", "rai"]:
 		var verts := PackedVector3Array()
+		var norms := PackedVector3Array()
 		var uvs := PackedVector2Array()
 		var cols := PackedColorArray()
 		for h in _halos:
-			if h[5] != nom:
-				continue
 			var n: Vector3 = h[1]
-			var droite := Vector3.UP.cross(n)
-			var haut := Vector3.UP
-			if absf(n.y) > 0.9:
-				droite = Vector3.RIGHT
-				haut = Vector3.FORWARD
-			else:
-				droite = droite.normalized()
+			var est_rai: bool = h[5] == "rai"
+			var groupe := "rai" if est_rai else ("sol" if absf(n.y) > 0.9 else "mur")
+			if groupe != nom:
+				continue
 			var c: Vector3 = h[0]
 			var w: float = h[2]
 			var hh: float = h[3]
-			var a: Vector3 = c - droite * w * 0.5 - haut * hh * 0.5
-			var b: Vector3 = c + droite * w * 0.5 - haut * hh * 0.5
-			var cc: Vector3 = c + droite * w * 0.5 + haut * hh * 0.5
-			var d: Vector3 = c - droite * w * 0.5 + haut * hh * 0.5
-			for k in [[a, Vector2(0, 1)], [b, Vector2(1, 1)], [cc, Vector2(1, 0)], [a, Vector2(0, 1)], [cc, Vector2(1, 0)], [d, Vector2(0, 0)]]:
-				verts.append(k[0])
-				uvs.append(k[1])
-				cols.append(h[4])
+			var plans: Array = []      # [droite, haut, normale, largeur haut, largeur bas]
+			if est_rai:
+				for k in 4:
+					var ang := PI * 0.25 * k
+					var d := Vector3(cos(ang), 0, sin(ang))
+					plans.append([d, Vector3.UP, Vector3(-d.z, 0, d.x), w * 0.5, w])
+			else:
+				var droite := Vector3.UP.cross(n)
+				var haut := Vector3.UP
+				if absf(n.y) > 0.9:
+					droite = Vector3.RIGHT
+					haut = Vector3.FORWARD
+				else:
+					droite = droite.normalized()
+				plans.append([droite, haut, n, w, w])
+			for pl in plans:
+				var dr: Vector3 = pl[0]
+				var hu: Vector3 = pl[1]
+				var nn: Vector3 = pl[2]
+				var wt: float = pl[3]
+				var wb: float = pl[4]
+				# rai : le haut (y max) est en UV.y = 0, la base en UV.y = 1 ; halo : (0,1) = bas gauche
+				var a: Vector3 = c - dr * wb * 0.5 - hu * hh * 0.5
+				var b: Vector3 = c + dr * wb * 0.5 - hu * hh * 0.5
+				var cc: Vector3 = c + dr * wt * 0.5 + hu * hh * 0.5
+				var d2: Vector3 = c - dr * wt * 0.5 + hu * hh * 0.5
+				for q in [[a, Vector2(0, 1)], [b, Vector2(1, 1)], [cc, Vector2(1, 0)], [a, Vector2(0, 1)], [cc, Vector2(1, 0)], [d2, Vector2(0, 0)]]:
+					verts.append(q[0])
+					norms.append(nn)
+					uvs.append(q[1])
+					cols.append(h[4])
 		if verts.is_empty():
 			continue
 		var arrays := []
 		arrays.resize(Mesh.ARRAY_MAX)
 		arrays[Mesh.ARRAY_VERTEX] = verts
+		arrays[Mesh.ARRAY_NORMAL] = norms
 		arrays[Mesh.ARRAY_TEX_UV] = uvs
 		arrays[Mesh.ARRAY_COLOR] = cols
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		var s := StandardMaterial3D.new()
-		s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		s.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		s.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-		s.albedo_texture = _halo if nom == "halo" else _rai
-		s.vertex_color_use_as_albedo = true
-		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		s.cull_mode = BaseMaterial3D.CULL_DISABLED
-		s.disable_receive_shadows = true
+		var s := ShaderMaterial.new()
+		s.shader = RAI_SHADER
+		s.set_shader_parameter("mode", 0 if nom == "rai" else 1)
+		s.set_shader_parameter("angle_fondu", 0.0 if nom == "sol" else 1.0)
+		s.set_shader_parameter("fondu_profondeur", 0.0 if nom == "sol" else (0.5 if nom == "rai" else 0.3))
+		s.set_shader_parameter("intensite", 1.0)
 		var mi := MeshInstance3D.new()
 		mi.mesh = mesh
 		mi.material_override = s
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mi.name = "Halos" if nom == "halo" else "Rais"
+		mi.name = "Rais" if nom == "rai" else "Halos"
 		ip.racine.add_child(mi)
 	_halos.clear()

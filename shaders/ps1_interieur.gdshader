@@ -107,6 +107,10 @@ void fragment() {
 	ALBEDO = couleur * COLOR.rgb * teinte.rgb;
 	ALBEDO = mix(vec3(dot(ALBEDO, vec3(0.3, 0.59, 0.11))), ALBEDO, saturation);
 	ALBEDO = mix(ALBEDO, vec3(1.0, 0.85, 0.8), eclair);
-	EMISSION = (emission_texture ? emission * couleur : emission) + vec3(0.6, 0.25, 0.2) * eclair + ALBEDO * ambiant;
+	// ambiante d'appoint : les faces tournées vers le bas (plafond, dessous d'entrait) en reçoivent un peu plus, comme si le sol
+	// et les murs chauds les renvoyaient ; sans cela le lambris et les rondins sous l'entrait tombent dans le noir
+	float ny = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y;
+	float rebond = mix(1.45, 0.95, smoothstep(-1.0, 1.0, ny));
+	EMISSION = (emission_texture ? emission * couleur : emission) + vec3(0.6, 0.25, 0.2) * eclair + ALBEDO * ambiant * rebond;
 	ROUGHNESS = 1.0;
 }
