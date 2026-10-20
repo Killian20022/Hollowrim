@@ -37,7 +37,7 @@ uniform float relief_force = 2.0;
 // fondu tramé par bruit entre PROCHE.x et PROCHE.y mètres de la caméra
 uniform sampler2DArray sol_index2 : filter_nearest;
 uniform sampler2D sol_details2 : filter_nearest, repeat_enable;   // 160² (Scale2x des détails)
-uniform vec2 sol_proche = vec2(4.0, 8.0);
+uniform vec2 sol_proche = vec2(3.0, 11.0);
 instance uniform float eclair = 0.0; // flash quand l'objet est touché (par instance)
 
 varying vec3 uv_aff;
@@ -125,7 +125,7 @@ void fragment() {
 		float texels_par_px = max(dq.x, dq.y);
 		// près du joueur : texels de 1/32 m ; le fondu est tramé par texel de 1/16 m (bruit lisse + grain)
 		float dist = length(VERTEX);
-		float seuil_fin = 0.6 * bruit_sol(q * 0.21) + 0.4 * hash_sol(q + 71.3);
+		float seuil_fin = 0.3 * bruit_sol(q * 0.07) + 0.25 * bruit_sol(q * 0.21) + 0.45 * hash_sol(q + 71.3);
 		float fin = (smoothstep(sol_proche.y, sol_proche.x, dist) > seuil_fin) ? 1.0 : 0.0;
 		float pas = fin > 0.5 ? 1.0 / 32.0 : 1.0 / 16.0;
 		vec2 qf = floor(pos_monde / pas);
@@ -166,6 +166,10 @@ void fragment() {
 			}
 			if (m == 5 || m == 6) trace = 0;
 			// décalages cumulés bornés : jamais plus de 2 tons plus sombre (pas de trou noir)
+			if (m == 6) {
+				creux = 0;  // glace : surface lisse, ni creux sombres ni ombre de bord (le givre est dessiné)
+				bord = max(bord, 0);
+			}
 			ton = ton + clamp(creux + bord + trace, -2, 1);
 			if (rampe == 0) ton = max(ton, 1);  // neige : le ton 0 reste un accent (bible §2)
 			if (givre) {

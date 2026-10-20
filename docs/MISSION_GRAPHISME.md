@@ -354,3 +354,12 @@ Retour utilisateur : « même chose pour le sol avec la neige » (détail pixel 
 - **Empreintes** : carte portée à **1/32 m** (4,3 Mo, calculée au chargement) ; tampon de botte avec bord haut-gauche profond et intérieur peu creusé ; une empreinte qui en recouvre une autre (> 15 %) est omise. Cause prouvée du « damier » au pied du joueur sur les chemins : superposition de pistes à 1/16 m qui formait des losanges clair/sombre (vu par désactivation successive du relief, des creux, de la carte, puis visualisation des composantes).
 - Perf au feu (`2.5,8.5,16,4`, vsync off, GPU) : 5cad5ef 5,26 ms (2 mesures 5,27 / 5,26) → 6,40 à 6,91 ms (2 mesures), < 8 ms ; 632 appels de dessin (inchangé), primitives 334 k.
 - Planches : `captures/sol/planches/*_v2.png` (avant | v1 | v2 pour les gros plans).
+
+### Lot 3, 3e passe (rides organiques, glace, fondu invisible)
+- **Rides de vent** : plus de lignes de niveau parallèles. Primitive `_ride_libre` (croissant d'axe incliné, courbure signée, crête interrompue par un bruit, corps + ombre froide qui s'effile) ; orientation = champ de vent lent commun aux deux couches (`_flux`, ±55°), longueurs 5-30 texels, épaisseurs 0-2, 2e crête décalée non parallèle, quelques congères longues et basses (32-54 texels). Couche proche : mêmes rides à échelle fine, par plaques de densité variable (neige lisse entre elles).
+- **Glace** : retour à la rampe GLACE de la bible (4 tons ; l'essai à 6 tons est abandonné). Fond uni ton 2, reflets en bandes ton 3 effilées et interrompues, 2 fissures fines à dérive lente avec lèvre claire par tronçons, quelques bulles ; plus aucun grain en proximité. Shader : sur la glace, ni creux sombre ni ombre de bord (c'étaient eux, les « taches » bleu foncé) ; bord givré conservé.
+- **Fondu 32/16 texels** : plage 3-11 m (au lieu de 4-8) et seuil = grain 45 % + bruits lisses 25 %/30 % de deux échelles : plus de bande ni de cercle (vue `zone_fondu_v3.png`).
+- Perf au feu (`2.5,8.5,16,4`, vsync off) : 3,2-3,7 ms GPU (2 mesures), 420 appels de dessin ; la base du journal (6-7 ms) a été mesurée dans un autre état du monde, comparaison directe non faite.
+- Tests : test_quetes, test_chemin_biome (0 échec), test_collisions_biome OK ; test_vegetation_biome plante sur `arbre_mort` introuvable (script d'arbres, hors périmètre, fichier non modifié).
+- Planches : `captures/sol/planches/*_v3.png` (avant | après, jour en haut, nuit en bas ; gros plans de nuit ; `zone_fondu_v3.png` jour | nuit).
+- Défaut restant : en plein jour la brume écrase les rides fines ; à 1,6 m les texels restent gros.
