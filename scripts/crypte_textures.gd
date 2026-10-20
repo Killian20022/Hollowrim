@@ -12,7 +12,7 @@ class_name CrypteTextures
 
 const CLEAR := Color(0, 0, 0, 0)
 const DOSSIER := "res://assets/crypte"   # textures précalculées par outils/generer_crypte.gd
-const VERSION := 6                       # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
+const VERSION := 7                       # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
 const K := 2   # facteur de densité de la pierre : 1 = 16 texels/m, 2 = 32 texels/m
 
 # rampes (indice 0 = creux/joint, dernier = lumière) : désaturées, froides dans l'ombre, un peu plus chaudes en lumière
@@ -346,16 +346,17 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 
 static func mur_paire(v: int) -> Array:
 	var rangs := []
-	for r in 8:
-		rangs.append(8 * K)
-	return _pierre(64 * K, rangs, [20, 24, 28, 32, 40, 48], {"seed": 8100 + v * 17, "v": v, "sombre": v == 2, "joint": 1.0, "biseau": 2.4,
-		"rug": 0.6, "l_lo": 0.42 if v == 2 else 0.5, "l_hi": 0.68 if v == 2 else 0.8, "elev": 0.7})
+	for r in 16:
+		rangs.append(4 * K)
+	# moellons lisibles de 25 x 25-40 cm, joints sombres nets, contraste ramené (pas de damier clair / sombre)
+	return _pierre(64 * K, rangs, [8, 10, 12, 12], {"seed": 8100 + v * 17, "v": v, "sombre": v == 2, "joint": 1.0, "biseau": 2.0,
+		"rug": 0.6, "l_lo": 0.44 if v == 2 else 0.52, "l_hi": 0.58 if v == 2 else 0.68, "elev": 0.3, "fissures": 3, "lisse": true})
 
 static func dalle_paire(v: int) -> Array:
 	var rng := _rng(8200 + v)
 	var S := 64 * K                       # tuile de 4 m (32 texels/m)
 	var rangs: Array = _largeurs(rng, S, [24, 28, 32, 32, 40])
-	var lisse := v >= 3                    # dalles de l'arène et du niveau gelé : grandes dalles nettes (retouche « sol granuleux »)
+	var lisse := true                      # dalles de l'arène et du niveau gelé : grandes dalles nettes (retouche « sol granuleux »)
 	return _pierre(S, rangs, [24, 32, 40, 48] if not lisse else [32, 40, 48, 64], {"seed": 8210 + v * 31, "v": v, "joint": 1.6 if lisse else 1.1,
 		"biseau": 2.6, "rug": 0.5, "l_lo": 0.52, "l_hi": 0.8, "elev": 1.0, "creux": 0.35 if lisse else 0.55, "joint_l": 0.12,
 		"fissures": 4 if v < 3 else 5, "lisse": lisse})
@@ -364,8 +365,8 @@ static func voute_paire() -> Array:
 	var rangs := []
 	for r in 16:
 		rangs.append(4 * K)
-	return _pierre(64 * K, rangs, [10, 12, 16, 20, 24], {"seed": 8300, "sombre": true, "joint": 0.9, "biseau": 2.0, "rug": 0.5,
-		"l_lo": 0.42, "l_hi": 0.68, "elev": 0.45, "fissures": 4})
+	return _pierre(64 * K, rangs, [8, 10, 12, 12], {"seed": 8300, "sombre": true, "joint": 0.9, "biseau": 2.0, "rug": 0.5,
+		"l_lo": 0.44, "l_hi": 0.58, "elev": 0.3, "fissures": 3, "lisse": true})
 
 ## Mur d'ossuaire (tuile de 4 m = 128 px) : 8 x 8 niches de 0,5 m, cadre de pierre, crâne ou fagot d'os ; relief par la carte de pentes.
 const CRANE := ["..XXXXXX..", ".XXXXXXXX.", "XXXXXXXXXX", "XXXXXXXXXX", "XXooXXooXX", "XXooXXooXX", "XXXXnnXXXX", ".XXXXXXXX.", "..XXXXXX..", "..XtXtXt.."]
