@@ -4,7 +4,7 @@ extends SceneTree
 ##   godot --path . --script res://outils/galerie_persos.gd -- --sortie=res://captures/lot4/apres [--perso=a,b] [--pose=Idle] [--cote=270] [--zoom=2]
 ## Les vues à 8 m sont aussi écrites agrandies (_zoom) : image 8 m recadrée sur le personnage et x4 en plus-proche-voisin.
 const ANGLES := [["face", 0.0], ["profil", 90.0], ["dos", 180.0]]
-const POSES := {"Idle": ["Idle", 0.3], "Walk": ["Walk", 0.35], "Sword_Idle": ["Sword_Idle", 0.2], "T": ["A_TPose", 0.0]}
+const POSES := {"Idle": ["Idle", 0.3], "Walk": ["Walk", 0.35], "Sword_Idle": ["Sword_Idle", 0.2], "T": ["A_TPose", 0.0], "Attaque": ["Sword_Attack", 0.45], "Genoux": ["Fixing_Kneeling", 0.5], "Course": ["Sprint", 0.3], "Assis": ["Sitting_Idle", 0.3]}
 const C := Color.WHITE
 var cote := 270
 var sv: SubViewport
@@ -28,16 +28,16 @@ func _persos() -> Dictionary:
 	for id: String in vill:
 		d["pnj_" + id] = vill[id]
 	d["joueur"] = {"corps": "homme", "tenue": {"tunique": Color(0.35, 0.4, 0.55), "pantalon": Color(0.8, 0.75, 0.7), "bottes": C, "ceinture": C,
-		"mante": Color(1.1, 1.0, 0.95), "brassards": C, "gants": C},
-		"etoffes": {"tunique": "bleu", "mante": "gris", "pantalon": "brun", "bottes": "cuir_a", "ceinture": "cuir_a", "brassards": "cuir_a", "gants": "cuir_a"}, "cheveux": "Hair_SimpleParted", "teinte_cheveux": Color(0.42, 0.28, 0.17), "barbe": true}
+		"mante": Color(1.1, 1.0, 0.95), "brassards": C, "gants": C, "manchettes": C, "sacoche": C},
+		"etoffes": {"tunique": "bleu", "mante": "gris", "pantalon": "brun", "bottes": "cuir_a", "ceinture": "cuir_a", "brassards": "cuir_c", "gants": "cuir_a", "manchettes": "gris", "sacoche": "cuir_a"}, "cheveux": "Hair_SimpleParted", "teinte_cheveux": Color(0.42, 0.28, 0.17), "barbe": true}
 	d["draugr_sbire"] = {"corps": "homme", "draugr": true, "tenue": {"tunique": C, "ceinture": C, "brassards": C, "haillons": C}}
 	d["draugr_guerrier"] = {"corps": "homme", "draugr": true, "casque": "casque_draugr", "etoffes": {"tunique": "mailles_rouille", "brassards": "draugr"},
 		"tenue": {"tunique": C, "ceinture": C, "brassards": C, "mante": C, "bottes": C, "epaulieres": C, "pteruges": C, "cape_courte": C}}
 	for k in 4:
 		d["bandit_%d" % k] = _bandit(k)
 	d["svanhild"] = {"corps": "femme", "draugr": true, "casque": "couronne_givre", "cheveux": "Hair_Long", "teinte_cheveux": Color(1.1, 1.15, 1.25),
-		"tenue": {"tunique": C, "robe": C, "cape": C, "mante": C, "brassards": C, "ceinture": C, "bottes": C, "epaulieres": C},
-		"etoffes": {"tunique": "draugr", "robe": "draugr", "cape": "draugr", "mante": "blanc", "epaulieres": "draugr"}}
+		"tenue": {"tunique": C, "haillons": C, "cape": C, "mante": C, "brassards": C, "ceinture": C, "bottes": C, "epaulieres": C},
+		"etoffes": {"tunique": "draugr", "haillons": "draugr", "cape": "draugr", "mante": "blanc", "epaulieres": "draugr"}}
 	return d
 
 func _bandit(k: int) -> Dictionary:

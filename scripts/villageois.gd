@@ -165,9 +165,9 @@ func _ready() -> void:
 ## pantalon, bottes et ceinture.
 const C := Color.WHITE
 const APPARENCES := {
-	# Gunnhild, la cheffe : surcotte bleue brodée sur tunique de lin, manteau de fourrure blanche, bijoux de cuir clair
-	"chef": {"corps": "femme", "tenue": {"tunique": C, "surcotte": C, "mante": C, "brassards": C, "pantalon": C, "bottes": C, "ceinture": C},
-		"etoffes": {"tunique": "lin", "surcotte": "bleu", "mante": "blanc", "pantalon": "bleu", "bottes": "cuir_c", "ceinture": "cuir_c", "brassards": "cuir_c"},
+	# Gunnhild, la cheffe : longue robe bleue brodée sur tunique de lin, manteau de fourrure blanche, bijoux de cuir clair
+	"chef": {"corps": "femme", "tenue": {"tunique": C, "robe": C, "mante": C, "brassards": C, "pantalon": C, "bottes": C, "ceinture": C},
+		"etoffes": {"tunique": "lin", "robe": "bleu", "mante": "blanc", "pantalon": "bleu", "bottes": "cuir_c", "ceinture": "cuir_c", "brassards": "cuir_c"},
 		"cheveux": "Hair_Long", "teinte_cheveux": Color(1.0, 0.82, 0.55)},
 	# Brodd, le forgeron : épaules nues sous un tablier de cuir, avant-bras gantés, bourse
 	"forgeron": {"corps": "homme", "tenue": {"tunique": C, "tablier": C, "brassards": C, "gants": C, "pantalon": C, "bottes": C, "ceinture": C, "sacoche": C},

@@ -9,7 +9,7 @@ from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 
 TYPE_TEX = {"surcotte": "tunique", "robe": "tunique", "cape": "tunique", "cape_courte": "tunique", "tablier": "tunique", "capuche": "tunique", "haillons": "tunique",
-            "pteruges": "tunique", "epaulieres": "brassards", "sacoche": "bottes", "carquois": "bottes"}
+            "pteruges": "tunique", "manchettes": "mante", "epaulieres": "brassards", "sacoche": "bottes", "carquois": "bottes"}
 TAILLE_ACC = dict(TAILLE)
 
 os_ = arm.data.bones
@@ -64,12 +64,14 @@ def poids_jupe(p):
     if p.z >= ZB + 0.02:
         return poids_corps(p)
     base = poids_corps(Vector((p.x * 0.5, p.y, ZB + 0.02)))
-    s = max(0.0, min(1.0, (ZB - p.z) / 0.8)) * 0.5
-    if s <= 0.0:
-        return base
-    cuisse = "thigh_l" if p.x >= 0 else "thigh_r"
+    s = max(0.0, min(1.0, (ZB - p.z) / 0.65)) * 0.85
+    tl = 0.5 + 0.5 * max(-1.0, min(1.0, p.x / 0.13))        # fondu gauche / droite : le devant ne se fend pas
+    genou = max(0.0, min(1.0, (0.58 - p.z) / 0.30))
+    mollet = s * genou * 0.55
+    cuisse = s - mollet
     w = {k: v * (1 - s) for k, v in base.items()}
-    w[cuisse] = w.get(cuisse, 0.0) + s
+    for nom, part in (("thigh_l", cuisse * tl), ("thigh_r", cuisse * (1 - tl)), ("calf_l", mollet * tl), ("calf_r", mollet * (1 - tl))):
+        w[nom] = w.get(nom, 0.0) + part
     return w
 
 # ------------------------------------------------------------------ construction
@@ -192,7 +194,7 @@ def faire_robe():
         z = (ZB + 0.02) + (zbs[i] - (ZB + 0.02)) * k
         zr = max(z, 0.68)
         r0 = max(r_ajuste(BVH_HAB, zr, th, 0.15), 0.17 if z > 0.6 else 0.13)
-        r = r0 - 0.012 + 0.16 * max(0.0, 0.68 - z) / 0.68 * (1.0) + 0.04 * k
+        r = r0 + 0.014 + 0.16 * max(0.0, 0.68 - z) / 0.68 * (1.0) + 0.04 * k
         r += 0.014 * math.sin(th * 6.0 + k) * k
         return pt(r, th, z), th * r, z - zbs[i]
     grille("robe", 32, 9, f, "jupe")
@@ -230,7 +232,7 @@ def faire_tablier():
     grille("tablier", cols, rows, f, "jupe")
 
 def faire_capuche(rabattue=False):
-    nrow, ncol = 12, 22
+    nrow, ncol = 16, 32
     rx, ry, rz = 0.100, 0.112, RZ_TETE
     avant = Vector((0, -1, 0.15)).normalized()
     verts, uvs, faces = [], [], []
@@ -259,7 +261,7 @@ def faire_capuche(rabattue=False):
             a, b, c, d2 = idx[(i, j)], idx[(i + 1, j)], idx[(i + 1, j + 1)], idx[(i, j + 1)]
             ctr = (verts[a] + verts[b] + verts[c] + verts[d2]) / 4 - HC
             az = math.atan2(ctr.x, -ctr.y)                 # 0 = devant
-            ez = (ctr.z + 0.02 * RZ_TETE / 0.12) / (0.62 * RZ_TETE)
+            ez = (ctr.z + 0.034) / (0.52 * RZ_TETE)
             if ctr.y < 0 and (az / 0.80) ** 2 + ez ** 2 < 1.0:
                 continue                                 # ouverture du visage (ovale : du menton au front)
             faces.append((a, b, c, d2))
@@ -414,8 +416,31 @@ def faire_carquois():
             faces.append((b + s2, b + (s2 + 1) % 3, b + 3 + (s2 + 1) % 3, b + 3 + s2))
     mesh_de("carquois", verts, faces, uvs, "corps")
 
+def faire_manchettes():
+    """Manchettes de fourrure au poignet (comme celles des bras de la vue a la premiere personne, lot 6)."""
+    verts, uvs, faces = [], [], []
+    bl = pos("lowerarm_l"); bt = pos("lowerarm_l", True)
+    for sg in (1, -1):
+        base = len(verts)
+        nc, nr = 14, 3
+        x0, x1 = bt.x - 0.115, bt.x - 0.012
+        for j in range(nr + 1):
+            t = j / nr
+            x = x0 + (x1 - x0) * t
+            for i in range(nc + 1):
+                th = 2 * math.pi * i / nc
+                hirsute = 1.0 + 0.30 * (1.0 if i % 2 else 0.0) * (0.4 + 0.6 * (1 - abs(t - 0.5) * 2)) + 0.12 * math.sin(i * 2.7)
+                r = 0.050 * (1.0 + 0.5 * math.sin(math.pi * t) * 0.6) * hirsute + 0.010
+                verts.append(Vector((sg * x, bl.y + r * math.sin(th), bl.z + r * math.cos(th))))
+                uvs.append(uvm("manchettes", th * 0.05, 0.22 * (1 - t) + 0.02))
+        for j in range(nr):
+            for i in range(nc):
+                a = base + j * (nc + 1) + i
+                f = (a, a + 1, a + nc + 2, a + nc + 1)
+                faces.append(f if sg > 0 else f[::-1])
+    mesh_de("manchettes", verts, faces, uvs, "corps")
+
 # ------------------------------------------------------------------ appel
-faire_surcotte()
 faire_robe()
 faire_cape(0.30)
 faire_cape(0.80, 1.5, "cape_courte")
@@ -426,3 +451,4 @@ faire_haillons()
 faire_pteruges()
 faire_sacoche()
 faire_carquois()
+faire_manchettes()

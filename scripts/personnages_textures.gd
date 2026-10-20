@@ -10,11 +10,11 @@ const VERSION := 1
 
 ## [base, fond de bordure, motif a, motif b, motif] ; motifs : losanges, dents, cordon
 const LAINES := {
-	"bleu": ["#34487c", "#1d2748", "#d2a94a", "#a8412f", "losanges"],
-	"brun": ["#6a4e34", "#3a2a1c", "#c9a560", "#8f3f2b", "dents"],
-	"vert": ["#4f6540", "#2b3a26", "#d6bd7a", "#a6502f", "dents"],
-	"violet": ["#5a4474", "#2d2240", "#d9c5e0", "#c9a24a", "losanges"],
-	"rouge": ["#8a3228", "#4a1812", "#d8c28a", "#e8e0c8", "dents"],
+	"bleu": ["#34487c", "#1d2748", "#b8923c", "#9a3d2c", "losanges"],
+	"brun": ["#6a4e34", "#3a2a1c", "#a8844a", "#7f3626", "dents"],
+	"vert": ["#4f6540", "#2b3a26", "#b09a5c", "#8f4a2c", "dents"],
+	"violet": ["#5a4474", "#2d2240", "#b8a4c0", "#b08c3c", "losanges"],
+	"rouge": ["#8a3228", "#4a1812", "#b49a5c", "#c0b498", "dents"],
 	"lin": ["#9b8a6c", "#5b4c36", "#7a3a2a", "#3d4a6a", "dents"],
 	"gris": ["#6a6c70", "#34363a", "#b8b0a0", "#8a4a3a", "cordon"],
 	"neutre": ["#9a9a9a", "#555555", "#d8d8d8", "#bdbdbd", "cordon"],
@@ -137,8 +137,8 @@ static func _laine(img: Image, r: Array, g: int, plis := 5, sale := 0.16, fin :=
 		for x in W:
 			var sg := (0.045 if ((x + y) & 3) < 2 else -0.03) if not fin else (0.05 if ((x + y) & 1) == 0 else -0.03)
 			var l := 0.52 + sg + (_h(x, 0, g) - 0.5) * 0.06 + (_h(0, y, g + 1) - 0.5) * 0.06
-			l += (_n(x, y, W, H, plis, 2, g + 2) - 0.5) * 0.34
-			l += (_n(x, y, W, H, 16, 8, g + 3) - 0.5) * 0.10
+			l += (_n(x, y, W, H, plis, 2, g + 2) - 0.5) * 0.22
+			l += (_n(x, y, W, H, 16, 8, g + 3) - 0.5) * 0.07
 			l -= sale * smoothstep(30.0, 0.0, float(vy))
 			_p(img, x, y, _t(r, l, x, y, 0.4))
 
@@ -228,15 +228,15 @@ static func tunique_mailles(img: Image, rouille: bool) -> Image:
 			if (y >> 2) & 1 == 1:
 				cx = (x + 2) & 3
 			var anneau := ((cx == 0 or cx == 3) and (cy == 1 or cy == 2)) or ((cy == 0 or cy == 3) and (cx == 1 or cx == 2))
-			var ton := 4 if anneau else 1
-			if anneau and cx <= 1 and cy <= 1: ton = 6      # arête éclairée en haut à gauche
+			var ton := 4 if anneau else 2
+			if anneau and cx <= 1 and cy <= 1: ton = 5      # arête éclairée en haut à gauche
 			var base := 0.45 + (_n(x, y, W, H, 7, 4, 181) - 0.5) * 0.5
-			ton = clampi(ton + int(floorf((base - 0.45) * 5.0)), 0, 7)
-			var c: Color = ObjetsTextures._c(fer, ton)
+			ton = clampi(ton + int(floorf((base - 0.45) * 3.0)), 0, 7)
+			var c: Color = ObjetsTextures._c(fer, ton) * 0.9
 			if rouille:
-				var rr := _n(x, y, W, H, 12, 6, 182) + (_h(x, y, 183) - 0.5) * 0.3
-				if rr > 0.52:
-					c = ObjetsTextures._c(ObjetsTextures.ROUILLE, clampi(ton / 2, 0, 3)).lerp(c, 0.15)
+				var rr := _n(x, y, W, H, 9, 5, 182) + (_h(x, y, 183) - 0.5) * 0.25
+				if rr > 0.50:
+					c = ObjetsTextures._c(ObjetsTextures.ROUILLE, clampi(ton / 2, 0, 3)).lerp(c, 0.45)
 			_p(img, x, y, c)
 	# ourlet cuir rivé
 	var cu := rampe(Color("#4a3320"))
@@ -264,7 +264,7 @@ static func pantalon(v: String) -> Image:
 	var r := rampe(Color(PANTALONS[v]))
 	_laine(img, r, 200 + v.hash() % 30, 6, 0.2, true)
 	# jambières croisées (bandelettes enroulées en diagonale) entre la botte (vy 24) et le genou : même étoffe en plus clair
-	var lin := rampe(Color(PANTALONS[v]) * 1.35 if v != "lin" else Color("#b0a283"), 8, 1.3, 0.35)
+	var lin := rampe(Color(PANTALONS[v]) * 1.18 if v != "lin" else Color("#a09474"), 8, 1.3, 0.35)
 	for vy in range(15, 34):
 		var y := H - 1 - vy
 		for x in W:
@@ -273,7 +273,7 @@ static func pantalon(v: String) -> Image:
 				var l := 0.52 + (_h(x, vy, 201) - 0.5) * 0.12 + (0.05 if ((x + y) & 3) < 2 else -0.03) - (0.14 if d == 0 else 0.0) + (0.08 if d == 8 else 0.0)
 				_p(img, x, y, _t(lin, l, x, y, 0.3))
 			else:
-				_p(img, x, y, r[1])
+				_p(img, x, y, r[2])
 	for x in W:                                     # haut et bas des jambières : lien de cuir
 		_p(img, x, H - 1 - 34, r[0])
 		_p(img, x, H - 1 - 15, r[0])
@@ -358,7 +358,7 @@ static func mante(v: String) -> Image:
 	if v == "cuir":
 		return mante_cuir(img)
 	var base := Color("#6e6a62") if v == "draugr" else Color(FOURRURES[v])
-	var r := rampe(base, 8, 1.4 if v != "draugr" else 1.2, 0.28)
+	var r := rampe(base, 8, 1.3 if v != "draugr" else 1.2, 0.46)
 	var g := 300 + v.hash() % 40
 	# sous-poil : stries verticales (cellules très allongées), un peu plus clair vers la pointe (bas de l'image)
 	for y in H:
@@ -375,7 +375,7 @@ static func mante(v: String) -> Image:
 		var cl := _h(i, 6, g + 7)
 		var pente := (_h(i, 8, g + 9) - 0.5) * 0.35
 		var larg0 := 4 + int(_h(i, 10, g + 11) * 3.0)
-		var teinte := 2 + int(cl * 3.0)
+		var teinte := 3 + int(cl * 2.0)
 		for k in lg:
 			var t := float(k) / lg
 			var vy := haut - k
@@ -385,7 +385,7 @@ static func mante(v: String) -> Image:
 			var larg := maxi(1, int(roundf(larg0 * (1.0 - pow(t, 1.6) * 0.85))))
 			var ton := teinte + int(t * 2.4)
 			for c in larg:
-				var tc := ton + (1 if c == 1 else 0) - (3 if c == 0 else 0) - (1 if c == larg - 1 and larg > 2 else 0) + (1 if _h(c + i * 3, k, g + 13) > 0.8 else 0)
+				var tc := ton + (1 if c == 1 else 0) - (2 if c == 0 else 0) - (1 if c == larg - 1 and larg > 2 else 0) + (1 if _h(c + i * 3, k, g + 13) > 0.8 else 0)
 				_p(img, xx + c, H - 1 - vy, r[clampi(tc, 0, 7)])
 	# bord du bas : touffes claires en dents de scie
 	for x in W:
@@ -395,8 +395,8 @@ static func mante(v: String) -> Image:
 	if v == "draugr":
 		for y in H:
 			for x in W:
-				if _n(x, y, W, H, 9, 5, g + 13) > 0.66:
-					_p(img, x, y, r[0])
+				if _n(x, y, W, H, 9, 5, g + 13) > 0.7:
+					_p(img, x, y, r[2])
 	return img
 
 static func mante_cuir(img: Image) -> Image:
@@ -446,6 +446,10 @@ static func brassards(v: String) -> Image:
 			_p(img, x, y, _t(r, l, x, y, 0.35))
 	couture(img, 3, Color(ObjetsTextures.FIL), 0, -1, 4)
 	couture(img, 14, Color(ObjetsTextures.FIL), 0, -1, 4)
+	for x in range(6, W, 16):                                # rivets de fer
+		for vy in [8, 9]:
+			_p(img, x, H - 1 - vy, ObjetsTextures._c(ObjetsTextures.FER, 6 if vy == 9 else 2))
+			_p(img, x + 1, H - 1 - vy, ObjetsTextures._c(ObjetsTextures.FER, 4))
 	# lacet croisé sur le dessus du bras (u = 0 : colonnes 58..6)
 	for vy in range(3, 15):
 		var dx := ((vy % 4) - 2) * 2
@@ -597,6 +601,8 @@ static func tex(nom: String) -> ImageTexture:
 			a = null
 	if a == null:
 		a = image(nom)
+	a = a.duplicate() as Image
+	a.generate_mipmaps()
 	var t := ImageTexture.create_from_image(a)
 	_cache[nom] = t
 	return t
