@@ -14,6 +14,10 @@ config/name="Nordique (nom provisoire)"
 run/main_scene="res://scenes/foret_test.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 
+[autoload]
+
+Fenetre="*res://scripts/fenetre.gd"
+
 [display]
 
 window/size/viewport_width=480
