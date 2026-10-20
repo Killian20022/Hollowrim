@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Captures de l'intérieur de la crypte : bash outils/captures_crypte.sh <dossier> [poses...]
-# Poses (repère crypte : x,z,lacet°,tangage°) dans POSES ci-dessous ; SANS_TORCHE=1 ajoute la variante sans torche.
+# Poses (repère crypte : x,z,lacet°,tangage°) dans POSES ci-dessous ; VARIANTES="torche sans" (défaut), LOT=0 : un lancement par vue.
+# Par défaut UN seul lancement de Godot pour toutes les vues (--captures, docs/SOCLE_TECHNIQUE.md).
 G="${GODOT:-/mnt/c/Users/lopezk19/Outils/godot/Godot_v4.7.2-stable_win64_console.exe}"
 ICI="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${1:?dossier}"; shift
@@ -11,6 +12,19 @@ declare -A POSE=(
  [gp_mur]="0.3,-9.5,90,0" [gp_mur2]="-0.3,-9.5,-90,-10" [gp_sol]="0,-5,0,-60" [gp_pilier]="2.5,-31,90,0" [gp_tombe]="5,-43,90,0" [gp_sarco]="0,-45,0,-25"
 )
 NOMS=("$@"); [[ ${#NOMS[@]} -eq 0 ]] && NOMS=(entree couloir couloir2 salle salle2 piliers alcove herse tombe tombe2)
+if [[ "${LOT:-1}" != 0 ]]; then
+  LOTF="$ICI/$OUT/_poses.txt"; : > "$LOTF"
+  for n in "${NOMS[@]}"; do
+    for v in ${VARIANTES:-torche sans}; do
+      extra=""; [[ $v == sans ]] && extra="torche-eteinte"
+      echo "${n}_${v} crypte ${POSE[$n]} $extra" >> "$LOTF"
+    done
+  done
+  timeout $((120 + 12 * ${#NOMS[@]} * 2)) "$G" --path "$(wslpath -w "$ICI")" -- --captures="$(wslpath -w "$LOTF")" --sortie="$(wslpath -w "$ICI/$OUT")" \
+    --nouvelle --paisible --attente=60 > "$ICI/$OUT/lot.log" 2>&1 || echo "échec du lot"
+  grep -E "^LOT" "$ICI/$OUT/lot.log"
+  exit 0
+fi
 for n in "${NOMS[@]}"; do
   for v in ${VARIANTES:-torche sans}; do
     extra=""; [[ $v == sans ]] && extra="--torche-eteinte"

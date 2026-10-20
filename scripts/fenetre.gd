@@ -5,6 +5,11 @@ extends Node
 
 const FICHIER := "user://fenetre.cfg"
 
+func _init() -> void:
+	# lecture en tâche de fond des modèles d'humains pendant que la scène se compile (voir Prechargement)
+	if not OS.get_cmdline_args().has("--script") and not OS.get_cmdline_args().has("-s"):
+		Prechargement.lancer()
+
 func _ready() -> void:
 	# ni en headless ni pendant les captures/tests (leurs images doivent rester comparables)
 	if DisplayServer.get_name() == "headless" or OS.get_cmdline_user_args().size() > 0:

@@ -68,6 +68,25 @@ const LIEVRES := 2
 ## Durée du dernier calcul (ms), pour les mesures.
 static var temps_ms := 0.0
 
+# Cartes précalculées (assets/sol/carte_sol.res + carte_traces.res) : le calcul dépend de tout le monde (relief, arbres,
+# rochers, chemins) mais il est déterministe ; on le remplace donc par la lecture du fichier SI la signature des
+# entrées (SHA-256 du relief échantillonné, des arbres, des obstacles, des chemins, du code de sol/zone/chemins)
+# est identique, sinon repli sur le calcul. outils/precalculer_tout.gd régénère le fichier (mode ECRIRE).
+const CACHE_CARTE := "res://assets/sol/carte_sol.res"
+const CACHE_TRACES := "res://assets/sol/carte_traces.res"
+const CACHE_VERSION := 1   # à incrémenter si le FORMAT du cache change (le code de sol.gd est déjà dans la signature)
+enum { CACHE_LIRE, CACHE_ECRIRE, CACHE_VERIFIER }
+static var cache_mode := CACHE_LIRE
+static var cache_statut := ""   # "lu", "ecrit", "identique", "DIFFERENT", "perime", "absent" (pour les mesures)
+
+static func _sha(ctx: HashingContext, octets: PackedByteArray) -> void:
+	ctx.update(octets)
+	ctx.update(PackedByteArray([0xff]))
+
+static func _source(chemin: String) -> PackedByteArray:
+	var sc := load(chemin) as GDScript
+	return (sc.source_code if sc != null else "").to_utf8_buffer()
+
 ## Seuil de tramage : hachage de position, irrégulier (aucun motif périodique), dans [0 ; 1).
 static func _alea(i: int, j: int, s: int) -> float:
 	var h := (i * 374761393 + j * 668265263 + s * 1442695041) & 0x7fffffff
@@ -185,6 +204,29 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 			g_cr[gk] = (h[gk - 4] + h[gk + 4] + h[gk - 4 * gw] + h[gk + 4 * gw]) * 0.25 - h[gk]
 
 	_chrono("grille")
+	var arbres_zone: Array = monde.get_meta("arbres_zone") if monde.has_meta("arbres_zone") else []
+	var obstacles := _obstacles(monde, arbres_zone)
+	var ctx := HashingContext.new()
+	ctx.start(HashingContext.HASH_SHA256)
+	_sha(ctx, PackedInt32Array([CACHE_VERSION, TAILLE, gw, gh]).to_byte_array())
+	_sha(ctx, h.to_byte_array())
+	_sha(ctx, g_pres)
+	var flux := PackedFloat32Array()
+	for tr: Transform3D in arbres:
+		flux.append_array([tr.basis.x.x, tr.basis.x.y, tr.basis.x.z, tr.basis.y.x, tr.basis.y.y, tr.basis.y.z, tr.basis.z.x, tr.basis.z.y, tr.basis.z.z, tr.origin.x, tr.origin.y, tr.origin.z])
+	_sha(ctx, flux.to_byte_array())
+	_sha(ctx, var_to_bytes([arbres_zone, obstacles, monde.chemins.points, monde.chemins.debuts, monde.CERCLE, monde.TUMULUS]))
+	for chemin in ["res://scripts/sol.gd", "res://scripts/zone_biome.gd", "res://scripts/chemins.gd"]:
+		_sha(ctx, _source(chemin))
+	var signature := ctx.finish().hex_encode()
+	if cache_mode == CACHE_LIRE and ResourceLoader.exists(CACHE_CARTE) and ResourceLoader.exists(CACHE_TRACES):
+		var c1 := ResourceLoader.load(CACHE_CARTE) as Image
+		var c2 := ResourceLoader.load(CACHE_TRACES) as Image
+		if c1 != null and c2 != null and c1.get_meta("signature", "") == signature and c2.get_meta("signature", "") == signature:
+			cache_statut = "lu"
+			_chrono("cache lu")
+			return [c1, c2]
+	cache_statut = "perime" if cache_mode == CACHE_LIRE else cache_statut
 	var mat := PackedByteArray()
 	mat.resize(TAILLE * TAILLE)      # matière (0 = neige)
 	var actif := PackedByteArray()
@@ -369,7 +411,6 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 
 	_chrono("majorité")
 	# --- relief fin ---
-	var arbres_zone: Array = monde.get_meta("arbres_zone") if monde.has_meta("arbres_zone") else []
 	var rel := PackedFloat32Array()
 	rel.resize(TAILLE * TAILLE)
 	for j in range(j0, j1 + 1):
@@ -385,7 +426,6 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 			elif mat[k] == ROCHE:
 				hb = 0.0
 			rel[k] = hb
-	var obstacles := _obstacles(monde, arbres_zone)
 	for o in obstacles:
 		var c: Vector2 = o[0]
 		var R: float = o[1]
@@ -473,6 +513,22 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 		_debug(OS.get_environment("SOL_DEBUG"), carte, mat, i0, i1, j0, j1)
 	var tr := _traces(monde, mat, actif)
 	_chrono("traces")
+	if cache_mode == CACHE_ECRIRE:
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(CACHE_CARTE.get_base_dir()))
+		carte.set_meta("signature", signature)
+		tr.set_meta("signature", signature)
+		ResourceSaver.save(carte, CACHE_CARTE, ResourceSaver.FLAG_COMPRESS)
+		ResourceSaver.save(tr, CACHE_TRACES, ResourceSaver.FLAG_COMPRESS)
+		cache_statut = "ecrit"
+	elif cache_mode == CACHE_VERIFIER:
+		var c1 := ResourceLoader.load(CACHE_CARTE) as Image if ResourceLoader.exists(CACHE_CARTE) else null
+		var c2 := ResourceLoader.load(CACHE_TRACES) as Image if ResourceLoader.exists(CACHE_TRACES) else null
+		if c1 == null or c2 == null:
+			cache_statut = "absent"
+		elif c1.get_meta("signature", "") != signature:
+			cache_statut = "perime"
+		else:
+			cache_statut = "identique" if (c1.get_data() == carte.get_data() and c2.get_data() == tr.get_data()) else "DIFFERENT"
 	return [carte, tr]
 
 # --- empreintes -------------------------------------------------------------------------------------

@@ -9,6 +9,8 @@ class_name Ecorces
 ## le relief). Aucun tirage du RNG monde : tout est déterministe (graines fixes).
 
 const N := 64
+const DOSSIER := "res://assets/ecorces"   # tuiles précalculées par outils/generer_ecorces.gd
+const VERSION := 1                        # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
 const TONS := 10
 ## Cases au-delà de TONS = lichen (3 tons gris-vert).
 const LICHEN := ["#4d5a4d", "#707c68", "#98a38a"]
@@ -440,9 +442,10 @@ static func mort_pied() -> Image:
 # ------------------------------------------------------------------ textures prêtes à l'emploi
 static func tuile(nom: String) -> ImageTexture:
 	if not _cache.has(nom):
-		var chemin := "res://assets/ecorces/%s.res" % nom
-		if ResourceLoader.exists(chemin):
-			_cache[nom] = ImageTexture.create_from_image(load(chemin))
+		var chemin := "%s/%s.res" % [DOSSIER, nom]
+		var pre: Image = ResourceLoader.load(chemin) if ResourceLoader.exists(chemin) else null
+		if pre != null and pre.get_meta("version", -1) == VERSION:
+			_cache[nom] = ImageTexture.create_from_image(pre)
 		else:
 			_cache[nom] = mips(image(nom))
 	return _cache[nom]
