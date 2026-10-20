@@ -60,6 +60,8 @@ func _persos() -> Dictionary:
 	# corps du joueur en 3e personne : scripts/corps_joueur.gd
 	d["joueur_3e"] = {"corps": "homme", "tenue": {"tunique": Color(0.35, 0.4, 0.55), "pantalon": Color(0.8, 0.75, 0.7), "bottes": C, "ceinture": C, "mante": Color(1.1, 1.0, 0.95), "brassards": C, "gants": C},
 		"cheveux": "Hair_SimpleParted", "teinte_cheveux": Color(0.42, 0.28, 0.17), "barbe": true}
+	d["squelette_epee"] = {"squelette": "epee"}   # SqueletteGuerrier (scripts/squelette_guerrier.gd)
+	d["squelette_arc"] = {"squelette": "arc"}
 	return d
 
 func _lancer() -> void:
@@ -97,7 +99,7 @@ func _lancer() -> void:
 	for nom: String in persos:
 		if not choix.is_empty() and not (nom in choix):
 			continue
-		courant = Humain.creer(persos[nom])
+		courant = SqueletteGuerrier.creer({"arme": persos[nom]["squelette"]}) if persos[nom].has("squelette") else Humain.creer(persos[nom])
 		_origine.clear()
 		_couleurs.clear()
 		sv.add_child(courant)
