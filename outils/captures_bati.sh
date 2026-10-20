@@ -12,6 +12,20 @@ while read -r nom coords; do
 	POSE[$nom]="$coords"; ORDRE+=("$nom")
 done < "$ICI/outils/poses_bati.txt"
 [[ $# -gt 0 ]] && ORDRE=("$@")
+# Un seul lancement de Godot pour toutes les vues (--captures, voir docs/SOCLE_TECHNIQUE.md) ; LOT=0 : un lancement par vue.
+OUT="$(cd "$OUT" && pwd)"
+if [[ "${LOT:-1}" != 0 ]]; then
+	LOTF="$OUT/_poses.txt"; : > "$LOTF"
+	for p in "${ORDRE[@]}"; do
+		for ph in ${PHASES:-jour nuit}; do
+			h=""; [[ "$ph" == jour ]] && h="heure=12"
+			echo "${p}_${ph} monde ${POSE[$p]} $h" >> "$LOTF"
+		done
+	done
+	timeout $((120 + 12 * ${#ORDRE[@]})) "$G" --path "$(wslpath -w "$ICI")" -- --captures="$(wslpath -w "$LOTF")" --sortie="$(wslpath -w "$OUT")" \
+		--nouvelle --paisible --sans-particules --sans-mains --attente=200 > "$OUT/lot.log" 2>&1 || echo "échec du lot"
+	grep -E "^LOT" "$OUT/lot.log"
+else
 for p in "${ORDRE[@]}"; do
 	for ph in ${PHASES:-jour nuit}; do
 		h=""; [[ "$ph" == jour ]] && h="--heure=12"
@@ -20,4 +34,5 @@ for p in "${ORDRE[@]}"; do
 			--nouvelle --paisible --sans-particules --sans-mains --attente=200 > "$f.log" 2>&1 || echo "échec $p $ph"
 	done
 done
+fi
 grep -l "SCRIPT ERROR" "$OUT"/*.log 2>/dev/null | sed 's/^/ERREURS DE SCRIPT dans /'

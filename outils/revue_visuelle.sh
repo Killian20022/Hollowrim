@@ -36,7 +36,18 @@ while read -r nom coords; do
 done < "$ICI/outils/poses_biome.txt"
 [[ $# -gt 0 ]] && ORDRE=("$@")
 
-capture() { # dossier_projet fichier_png pose phase
+lot() { # dossier_projet dossier_sortie prefixe poses... : UN lancement de Godot pour toutes les vues (--captures)
+	local proj="$1" sortie="$2" pref="$3"; shift 3
+	local f="$sortie/${pref}_poses.txt"; : > "$f"
+	for p in "$@"; do for ph in jour nuit; do
+		echo "${pref}_${p}_${ph} monde ${POSE[$p]} $([[ $ph == jour ]] && echo heure=12)" >> "$f"
+	done; done
+	timeout $((120 + 24 * $#)) "$G" --path "$(WIN "$proj")" -- --captures="$(WIN "$f")" --sortie="$(WIN "$sortie")" \
+		--paisible --sans-particules --attente=200 > "$sortie/${pref}.log" 2>&1 \
+		|| log "  échec du lot $pref ($(basename "$proj"))"
+	grep -E "^LOT" "$sortie/${pref}.log" | sed 's/^/  /' | tee -a "$RESUME"
+}
+capture() { # (repli, ancien lancement unitaire) dossier_projet fichier_png pose phase
 	local h=""; [[ "$4" == jour ]] && h="--heure=12"
 	timeout 150 "$G" --path "$(WIN "$1")" -- $h --capture="$(WIN "$2")" --pose="${POSE[$3]}" \
 		--paisible --sans-particules --attente=200 > "$2.log" 2>&1 \
@@ -44,16 +55,21 @@ capture() { # dossier_projet fichier_png pose phase
 }
 
 log "== Revue $ETQ ($(date '+%F %T')) — $(git -C "$ICI" log --oneline -1)"
-log "-- Captures (${#ORDRE[@]} poses × jour/nuit)"
-for p in "${ORDRE[@]}"; do
-	for ph in jour nuit; do
-		capture "$ICI" "$SORTIE/apres_${p}_${ph}.png" "$p" "$ph"
-		if [[ ! -f "$REF_AVANT/avant_${p}_${ph}.png" && -d "$AVANT_DIR" ]]; then
-			capture "$AVANT_DIR" "$REF_AVANT/avant_${p}_${ph}.png" "$p" "$ph"
-		fi
-		cp -f "$REF_AVANT/avant_${p}_${ph}.png" "$SORTIE/" 2>/dev/null
-	done
-done
+log "-- Captures (${#ORDRE[@]} poses × jour/nuit, un seul lancement)"
+lot "$ICI" "$SORTIE" apres "${ORDRE[@]}"
+MANQUE=()
+for p in "${ORDRE[@]}"; do for ph in jour nuit; do
+	[[ ! -f "$REF_AVANT/avant_${p}_${ph}.png" ]] && MANQUE+=("$p")
+done; done
+if [[ ${#MANQUE[@]} -gt 0 && -d "$AVANT_DIR" ]]; then
+	MQ=($(printf '%s\n' "${MANQUE[@]}" | sort -u))
+	if grep -q "_lot_captures" "$AVANT_DIR/scripts/monde.gd" 2>/dev/null; then
+		lot "$AVANT_DIR" "$REF_AVANT" avant "${MQ[@]}"
+	else  # projet de référence ancien : pas de mode --captures
+		for p in "${MQ[@]}"; do for ph in jour nuit; do capture "$AVANT_DIR" "$REF_AVANT/avant_${p}_${ph}.png" "$p" "$ph"; done; done
+	fi
+fi
+for p in "${ORDRE[@]}"; do for ph in jour nuit; do cp -f "$REF_AVANT/avant_${p}_${ph}.png" "$SORTIE/" 2>/dev/null; done; done
 
 log "-- Planches"
 RECAP=$(IFS=,; echo "${ORDRE[*]:0:6}")
@@ -65,7 +81,7 @@ if [[ -z "${SANS_PERF:-}" ]]; then
 	log "-- Performance (feu, nuit)"
 	timeout 120 "$G" --path "$(WIN "$ICI")" --disable-vsync --script outils/mesure_perf.gd -- \
 		--nouvelle --paisible --pose=2.5,8.5,16,4 2>&1 | grep -iE "gpu|draw|primitive|fps" | tee -a "$RESUME"
-	grep -h "Sol : carte" "$SORTIE"/apres_P1_jour.png.log 2>/dev/null | head -1 | sed 's/^/  /' | tee -a "$RESUME"
+	grep -h "Sol : carte" "$SORTIE"/apres.log 2>/dev/null | head -1 | sed 's/^/  /' | tee -a "$RESUME"
 fi
 
 if [[ -z "${SANS_TESTS:-}" ]]; then

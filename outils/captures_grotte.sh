@@ -13,6 +13,14 @@ declare -A POSE=(
 )
 SM="--sans-mains"; [[ -n "$MAINS" ]] && SM=""
 NOMS=("$@"); [[ ${#NOMS[@]} -eq 0 ]] && NOMS=(entree pente boyau caverne lac rai galerie marches camp camp2 fond cristaux)
+if [[ "${LOT:-1}" != 0 ]]; then  # un seul lancement (--captures) ; LOT=0 : un lancement par vue
+  LOTF="$ICI/$OUT/_poses.txt"; : > "$LOTF"
+  for n in "${NOMS[@]}"; do echo "$n grotte ${POSE[$n]:-$n} $([[ -z "$SM" ]] || echo sans-mains)" >> "$LOTF"; done
+  timeout $((120 + 12 * ${#NOMS[@]})) "$G" --path "$(wslpath -w "$ICI")" -- --captures="$(wslpath -w "$LOTF")" --sortie="$(wslpath -w "$ICI/$OUT")" \
+    --nouvelle --paisible --attente=40 > "$ICI/$OUT/lot.log" 2>&1 || echo "échec du lot"
+  grep -E "^LOT" "$ICI/$OUT/lot.log"
+  exit 0
+fi
 for n in "${NOMS[@]}"; do
   v="${POSE[$n]:-$n}"
   timeout 120 "$G" --path "$(wslpath -w "$ICI")" -- --nouvelle --paisible --scenario=grotte --gpose="$v" --capture="$(wslpath -w "$ICI/$OUT")\\${n}.png" --attente=40 $SM > "$ICI/$OUT/${n}.log" 2>&1 || echo "échec $n"

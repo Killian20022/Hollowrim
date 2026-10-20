@@ -29,7 +29,29 @@ const CRETE_W := 128
 const CRETE_H := 16
 const CRETES := 8
 
+const DOSSIER := "res://assets/arbres"   # atlas précalculés par outils/generer_arbres.gd (outils/precalculer_tout.gd)
+const VERSION := 1                        # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
+const PRECALCULES := ["atlas_epicea", "atlas_pin", "atlas_bouleau"]
+
 static var _cache := {}
+
+## Texture lue dans assets/arbres/<nom>.res si le fichier existe ET porte la VERSION courante, sinon null (repli : calcul).
+static func _precalcule(nom: String) -> ImageTexture:
+	var chemin := "%s/%s.res" % [DOSSIER, nom]
+	if not ResourceLoader.exists(chemin):
+		return null
+	var img := ResourceLoader.load(chemin) as Image
+	if img == null or img.get_meta("version", -1) != VERSION:
+		return null
+	return ImageTexture.create_from_image(img)
+
+## Image finale (avec mipmaps) d'un atlas précalculable : calcul direct, sans lire le disque.
+static func image_precalculee(nom: String) -> Image:
+	match nom:
+		"atlas_epicea": return mips_image(atlas_epicea_image())
+		"atlas_pin": return mips_image(rameau_pin(801, 0.7))
+		"atlas_bouleau": return mips_image(ramilles_bouleau(901), 2)
+	return null
 
 static func _c(rampe: Array, i: int) -> Color:
 	return Color(rampe[clampi(i, 0, rampe.size() - 1)])
@@ -140,6 +162,11 @@ static func _nettoyer(img: Image) -> void:
 ## la plus fréquente (à égalité : la plus sombre, pour garder la masse). Aucune couleur hors palette,
 ## pas de fondu d'alpha : la carte garde sa silhouette à distance.
 static func avec_mips(img: Image, seuil := 2) -> ImageTexture:
+	return ImageTexture.create_from_image(mips_image(img, seuil))
+
+## Image finale (RGBA8, chaîne de mipmaps incluse) : ce que `avec_mips` met dans la texture, et ce que
+## `outils/generer_arbres.gd` précalcule.
+static func mips_image(img: Image, seuil := 2) -> Image:
 	var niveaux: Array[Image] = [img]
 	var cur := img
 	while cur.get_width() > 1 and cur.get_height() > 1:
@@ -171,8 +198,7 @@ static func avec_mips(img: Image, seuil := 2) -> ImageTexture:
 	var data := PackedByteArray()
 	for n in niveaux:
 		data.append_array(n.get_data())
-	var finale := Image.create_from_data(img.get_width(), img.get_height(), true, Image.FORMAT_RGBA8, data)
-	return ImageTexture.create_from_image(finale)
+	return Image.create_from_data(img.get_width(), img.get_height(), true, Image.FORMAT_RGBA8, data)
 
 ## Mipmaps d'une tuile opaque (écorce) : vote de couleur 2×2, sans transparence.
 static func tuile_mips(img: Image) -> ImageTexture:
@@ -458,8 +484,9 @@ static func crete_neige(graine: int, f := 1) -> Image:
 static func atlas_epicea() -> ImageTexture:
 	if _cache.has("atlas_epicea"):
 		return _cache["atlas_epicea"]
-	var img := atlas_epicea_image()
-	var t := avec_mips(img)
+	var t := _precalcule("atlas_epicea")
+	if t == null:
+		t = avec_mips(atlas_epicea_image())
 	_cache["atlas_epicea"] = t
 	return t
 
@@ -732,13 +759,17 @@ const R_BOULEAU := Rect2i(64, 0, 64, 64)
 
 static func atlas_pin() -> ImageTexture:
 	if not _cache.has("atlas_pin"):
-		_cache["atlas_pin"] = avec_mips(rameau_pin(801, 0.7))
+		_cache["atlas_pin"] = _precalcule("atlas_pin")
+		if _cache["atlas_pin"] == null:
+			_cache["atlas_pin"] = avec_mips(rameau_pin(801, 0.7))
 	return _cache["atlas_pin"]
 
 static func atlas_bouleau() -> ImageTexture:
 	if not _cache.has("atlas_bouleau"):
 		# ramilles fines : à distance elles s'effacent (vote 2 sur 4) au lieu de former des paquets flottants
-		_cache["atlas_bouleau"] = avec_mips(ramilles_bouleau(901), 2)
+		_cache["atlas_bouleau"] = _precalcule("atlas_bouleau")
+		if _cache["atlas_bouleau"] == null:
+			_cache["atlas_bouleau"] = avec_mips(ramilles_bouleau(901), 2)
 	return _cache["atlas_bouleau"]
 
 static func _tuile(nom: String, img_f: Callable) -> ImageTexture:
