@@ -602,6 +602,68 @@ Planches : `captures/crypte/planches/avant_apres_<pose>_v2.png` (avant = 1fff394
   correspond, sinon recalculées (repli). Après toute modif de `crypte_textures.gd` : incrémenter `VERSION` puis relancer l'outil.
 - **GPU** : mesuré à conditions égales (3 à 4 Godot ouverts) : 1fff394 = 3,83 ms, après = 4,35 à 4,5 ms (salle) ; le 1,1 ms du premier lot datait d'une machine au calme.
 
+## Journal — Crypte agrandie en donjon (x8), branche `graphisme/crypte-donjon`
+
+Demande : la crypte (~600 m²) était trop petite → un vrai donjon (x7 à 8 en surface), même qualité visuelle, même quête. Résultat : **~4 990 m²**
+(4 390 m² ajoutés, surface nominale des 33 salles, murs compris ; x8,3), 2 niveaux, 3 boucles, 1 passage secret, 21 gardiens, 14 coffres et urnes.
+
+### Plan d'ensemble (repère de la crypte ; nord en haut = -Z ; haut : étage y=0, bas : y=-6)
+```
+ x: -60      -46   -24   -14  -7  0  7      24     46     60      78
+ z=-80                    +-----ARENE-----+
+                          |  estrade + sarcophage (0,-72) |
+ z=-66  [TRESOR]<-secret-[RELIQUAIRES]--S3(barree)-->|     |   (etage -6 : LB3 --- LB2 galerie --- LB1)
+ z=-58  (-60..-48)      |  (-48..-24)               +--porte--+
+                        |  W3 ^  U1 v (escalier bas)   ANTICHAMBRE (ex-tombeau, x +-8)
+ z=-34  --------------[OSSUAIRE]                          |herse
+ z=-30                  | (-46..-24)   [salle des piliers]--G0-->[G1 SALLE DES GLACES]--G3-->[G4 trone de glace]
+ z=-20  <--W1-----------+                  ^ levier            |D1 escalier vers LB1            |G5
+ z=-9    <--S1 (barree cote entree)--[niches]                  G2 --------G6------------------+  (boucle)
+ z=-2                       [ENTREE]--S2 (barree cote entree)--+
+```
+- Boucles : salle des piliers → W1 → ossuaire → S1 → couloir des niches ; salle → G0 → G1 → G2 → S2 → entrée ; G1 → G3 → G4 → G5 → G6 → G2 ; étage inférieur LB1 → LB2 → LB3 → U1 → ossuaire.
+- Raccourcis « verrouillés de l'autre côté » : **S1** (couloir des niches ↔ ossuaire), **S2** (entrée ↔ galerie gelée), **S3** (reliquaires ↔ arène). Côté bloqué : « Porte barrée » (texte) ; côté libre : « Soulever la barre » (porte qui coulisse dans le linteau). S3 évite de contourner la herse : on ne peut l'ouvrir que depuis l'arène.
+- Passage secret : le « crâne descellé » (socle de la chapelle des reliquaires, courant d'air au pied du mur) fait pivoter un pan de mur de 90° vers la salle au trésor.
+- Quête inchangée (levier → herse → note d'Eirik → anneau → Svanhild se lève près du sarcophage → rendre l'anneau) ; `data/quetes.json` non touché. Seules positions : sarcophage et réveil de Svanhild passent dans l'arène (`SARCO = (0, 0, -72)` dans `tertre.gd`), l'ancien tombeau devient l'antichambre (vasque centrale, 2 gardiens debout) avec une porte nord.
+
+### Plan en 3 points par zone (Murs/Structure · Mobilier · Éclairage)
+- **Ossuaire** (22 x 26 m, 5 m) : 4 piliers octogonaux + arcs doubleaux, panneaux de niches à crânes/fagots d'os (texture `ossuaire`, relief par pentes) sur 3 murs · autel octogonal d'os, 3 sarcophages, monticules d'os, étagère, coffre, crânes · 2 braseros, 3 appliques, bougie, oculus + rai (6).
+- **Reliquaires** (24 x 18 m) : 4 piliers, contrefort, pan de mur pivotant (ouverture « secrète » : pas de cadre) · autel gravé aux crânes, 3 sarcophages, table, 2 coffres, socle du crâne descellé · 2 braseros, 3 appliques (5).
+- **Salle au trésor** (12 x 10 m) : voûte basse, pivot du mur · tas d'or irréguliers, 3 coffres (dont « grand coffre »), râtelier, trône, urnes · 2 braseros, 2 appliques, reflet doré (5).
+- **Galeries gelées** (G0, G1 22 x 22, G2, G3, G4 18 x 20, G5, G6, S2) : pierre givrée puis glace épaisse (matières `mur3`/`mur4`, `dalle3`/`dalle4`), piliers octogonaux, stalactites/stalagmites de glace, souffle froid (particules qui dérivent le long des couloirs) · bassin gelé, trône de glace, coffres givrés, sarcophages · braseros chauds contre lampes de glace bleues (contraste chaud/froid), oculus + rai.
+- **Étage inférieur** : escalier de 24 marches de 0,25 m (D1 : G1 → LB1, U1 : ossuaire → LB3), salle à 6 piliers octogonaux (LB1), galerie funéraire de 44 m (LB2) avec chambre latérale, cisterne aux cuves (LB3) · tonneaux, sarcophages, coffres · 2 à 3 braseros + appliques par salle.
+- **Arène de Svanhild** (28 x 22 m, 8 m) : 6 piliers octogonaux de 8 m, grands arcs, estrade à trois degrés de 0,2 m, sarcophage gravé (bande cyan inchangée), stalagmites de givre · 4 braseros chauds, lampes froides, lueur du sarcophage (2,4), oculus + rai + flaque froide.
+
+### Réalisation technique
+- `scripts/crypte_donjon.gd` (nouveau) : toutes les nouvelles zones, escalier (`escalier`), portes coulissantes, glaçons, panneaux d'ossuaire, couloirs décorés. Bâti **dans un fil d'exécution**, hors de l'arbre (maillages, collisions, lumières) ; ne produit que des données pour les interactions (22) et les gardiens (21).
+- `scripts/crypte_decor.gd` : 3e paramètre `partage` du constructeur (le donjon réutilise les images déjà peintes) ; `theme` (substitution de matière dans `quad()` : un décor entier passe en glace) ; `niveau_a` ; ouverture « secrète » dans `salle()` ; liste `toutes` des lumières ; maillages séparés par étage. `GrotteDecor` hérite sans changement (test_grotte OK).
+- `scripts/crypte_textures.gd` (`VERSION` 4) : rampes `GIVRE`, `GLACE`, `OR` ; `_pierre` v=3 (pierre givrée) et v=4 (glace) ; `ossuaire_paire()` ; `or_image()`. Précalculées dans `assets/crypte/*.res` (outil `generer_crypte.gd`, 1,4 s).
+- `shaders/crypte.gdshader` : le pied de mur lit la hauteur du sol dans l'alpha des sommets (1 + y/20) : étages et escaliers ; sommets blancs inchangés. (La règle « pas d'accroche si clip.w <= 0,6 » est conservée.)
+- `scripts/tertre.gd` : intégration du donjon (`_integrer_donjon`, 6 ms), interactions (coffres → bourse via `butin.gd`, portes, secret), état sauvegardé dans `quetes.vus` (clés `crypte:<id>`), gardiens créés par zone à l'approche (2 par 0,25 s, identifiants `cr_<zone>_<n>`), lumières allumées selon la position (même étage, < 26 m ; 27 allumées au plus sur 92).
+- Gardiens : 21 dormants (dont 10 debout) répartis en 14 zones, jamais plus de 3 autour d'un même point (réveil à 10 m) ; hauteur d'écart > 3,5 m ignorée (déjà en place) : pas de coups à travers le sol.
+
+### Fichiers partagés touchés
+- `scripts/monde.gd` : `tertre.morts_charges` (charger/sauvegarder : les gardiens du donjon tués ne réapparaissent pas), `_ouvrir_donjon`, 5e coordonnée `y` et option `ouvre=` pour `--crypte=`, `--cpose=` et `--captures` (type crypte), scénario « tombe » recadré sur l'arène.
+- `outils/test_quetes.gd` : position d'approche du sarcophage = `t.SARCO + (0, 0.1, 5)`. `outils/captures_crypte.sh` : nouvelles poses. `outils/poses_donjon.txt` : 40 vues en un lot.
+
+### Mesures
+- Chargement : construction du donjon 0,4 à 0,8 s **dans un fil d'exécution** (hors du thread principal) ; surcoût mesuré sur le fil principal = intégration 6 ms ; la partie principale de la crypte reste à 190-290 ms.
+- GPU (`mesure_perf.gd`, vsync off, fenêtre) : salle des piliers 2,97 ms (855 appels, 88 k prim.), ossuaire 2,86 ms, salle des glaces 2,52 ms, arène 2,04 ms, LB1 1,85 ms (budget 8 ms). Portée de dessin 70 m.
+- Tests : `test_crypte` TOUT OK (parcours complet en 11 trajets : entrée, ossuaire, reliquaires, salle secrète, S3, arène, galeries est, boucle est, escaliers, étage inférieur ; portes fermées bloquantes ; capsule qui descend et remonte les escaliers ; <= 8 lumières allumées par maillage ; collisions dans les bornes ; coffre → bourse), `test_quetes -- --nouvelle`, `test_dragon_monde`, `test_collisions_biome`, `test_grotte` OK.
+- Planches : `captures/crypte/donjon_v1/` (19 vues) et `captures/crypte/donjon_v2/` (40 vues, ignorées par git).
+
+### Défauts restants
+- Les parois de l'arène (givre à grain fin) font un peu « fourrure » à 4 m de tuile ; le sol de glace est très uniforme.
+- Quelques glaçons proches de la torche se lisent comme des carrés pâles ; les gardiens debout sont figés en T sous `--paisible`.
+- Les marches des escaliers sont visuelles, la collision est une rampe (tolérance ~0,1 m) ; pas de collision sur les petits objets.
+- Les trois portes barrées et le mur pivotant sont animés sans son dédié (sons existants réutilisés).
+
+#### Crypte agrandie — corrections (retour du coordinateur)
+- **Fil du donjon sûr** : `_batir_donjon(dj, decor)` ne reçoit que ses deux objets (plus aucun membre du tertre ni de la scène) ; `_exit_tree` attend le fil (`wait_for_task_completion`) et libère le conteneur non intégré. `test_sauvegarde` et la suite entière passent (15/15).
+- **Glace** (`mur4`/`dalle4`, `VERSION` 5) : blocs taillés en rampe `GLACE` à 10 tons, lèvre claire plus marquée, bulles 2x2 avec point sombre, amas de givre à seuils durs (plus de dégradés mous), fissures fines ; glaçons à 6 pans et 4 niveaux de profil. 32 texels/m inchangés.
+- **Arène** : sol en `dalle3` (dalles givrées, 12 fissures, amas nets), parois `mur3` plus nettes (givre en amas, plus de « fourrure »), congères de neige soufflée (nouvelle matière `neige`, 64 px) dans les coins de l'arène et de la salle des glaces.
+- Planches : `captures/crypte/planches/gele_arene_avant_apres.png` (avant = donjon_v2 | après = donjon_v4), `donjon_lot_0..3.png` (les 40 vues en un lancement `--captures`).
+
 ## Journal — Grotte vitrine, branche `graphisme/grotte`
 
 Grotte de ~124 m (parcours entrée → fond), construite à la demande sous le monde (origine `POS_MONDE = (20, -220, 100)`), **sans entrée câblée** dans le monde. Nouveaux fichiers : `scripts/grotte.gd`, `scripts/grotte_decor.gd` (étend `CrypteDecor`, non modifié), `scripts/grotte_textures.gd`, `shaders/grotte.gdshader`, `outils/test_grotte.gd`, `outils/captures_grotte.gd|.sh`, `outils/planche_grotte.gd`.
@@ -732,3 +794,61 @@ et de bols, table de pétrissage, tresses d'oignons, quenouille au coin du feu, 
 - Le mobilier posé sur « le sol » prend `ip.sol_y` quand son y < 0,2 (halle/maisons : 0,42 ; forge : 0,04).
 - Pas de lumière ambiante dans la pièce sans `ambient_light_disabled` : sinon plafond et murs intérieurs restent clairs comme dehors (le ciel éclaire tout sans ombre).
 - La porte se referme seule quand la caméra est à plus de 14 m : les tests et captures qui l'ouvrent doivent garder le joueur près d'elle.
+
+## Journal — Entrée de la grotte des bandits, branche `graphisme/grotte-entree`
+
+La grotte vitrine (sous le monde, `POS_MONDE = (20, -220, 100)`) a maintenant une **entrée dans le monde**, une transition fondue comme la crypte, une construction en fil d'exécution, la sauvegarde sous terre et quatre bandits au camp. Nouveaux fichiers : `scripts/grotte_acces.gd` (classe `GrotteAcces`), `outils/test_grotte_acces.gd`, `outils/poses_grotte_acces.txt`, `outils/scan_relief.gd`.
+
+### Emplacement (justification)
+- **Site : (92, -27)**, flanc est de la cuvette, **96 m du feu**, 77 m du village (44, 40) ; dans la zone jouable (LIMITE 108, il reste 16 m derrière la bouche) ; hors `ZoneBiome` (x ≥ 4), à ~135 m du cercle (-38, -34) et du tumulus. Choisi avec `outils/scan_relief.gd` (carte de hauteurs et de pentes du terrain, `-- --nouvelle x0 z0 x1 z1 pas`) : le sol monte de 0,45 m par mètre vers l'est (collines du pourtour), la bouche regarde donc l'ouest, vers le feu, et on la voit de loin au bout d'une pente dégagée.
+- **Repérable de loin** : une **piste** de 5 m de large vers l'ouest (x 50 → 90, arbres et rochers retirés, voir plus bas) jalonnée de **pieux à crâne** (x 58, 68, 78) et de **cairns** (63, 73) ; devant la bouche un **brasero allumé** (la seule lumière du lieu, 6,5 m de rayon : on la voit de nuit à plus de 40 m), un étendard de peau, une torche éteinte plantée dans la neige.
+- **Marche** : rampe de 9° (`PENTE = 0.16`) sur 30 m jusqu'à la terrasse plate devant le seuil. Mesure en test : une capsule (r 0,35 ; h 1,8) fait x = 56 → fond du boyau en 12,3 s, pente max 9,1°.
+
+### Description en trois points
+**1. Murs / Structure** : front de roche à **4 strates** en retrait / surplomb (ruptures de ±0,3 m), **linteau saillant** (+0,55 m) au-dessus de l'ouverture, voûte irrégulière de 9 sommets (2,4 m de demi-largeur, ~3 m), **toit facetté** qui se fond dans la pente (max entre le terrain et un profil en cloche de 7 m), jupes de 1,4 m aux bords (aucun jour), **boyau de 3 m** à 4 anneaux dont l'occlusion peinte tombe de 0,8 à 0,03 (dégradé vers le noir) fermé par un bouchon noir (la vraie grotte est sous le monde). Matières de la grotte (`c_roche_neige`, `c_roche_nu`, `c_sol_neige` : roche givrée 32 texels/m, neige sur les faces qui regardent le haut).
+**2. Mobilier** : congères (sans collision), glaçons au linteau (7 + 5), crânes sur piques, 5 pieux taillés en chevaux de frise, caisses empilées, sacs, foyer éteint (7 pierres, bûches, os), arme rouillée, étendard de peau, brasero ; piste de pieux et de cairns. Toutes les pièces solides ont leur collision.
+**3. Éclairage** : lumière du monde (jour / lune) ; 1 OmniLight (brasero, vacille, `distance_fade`) ; flamme en sprite pixel art.
+
+### Terrain, forêt, rochers (fichiers partagés)
+- `monde.hauteur()` : `GrotteAcces.aplani()` (terrasse + rampe, 3 lignes dans `monde.gd`) ; `h_grotte` calculé comme `h_village`. Hors zone témoin seulement (la zone n'est pas touchée).
+- **Forêt dégagée APRÈS placement** (`Vegetation._degager_grotte`) : le RNG et le reste de la forêt sont identiques ; `Rochers` : `or GrotteAcces.exclu(x, z)` après les tirages (RNG intact). `GrotteAcces.exclu` = disque de 11 m devant la bouche + masse rocheuse + piste.
+- La carte de sol est signée sur le relief et les arbres : **elle s'est périmée toute seule, régénérée par `precalculer_tout --seulement=carte_sol`** (`assets/sol/carte_sol.res`, `carte_traces.res` modifiés).
+
+### Transition et ambiance
+- Interactif **« Entrer dans la grotte »** au fond du boyau (portée 4,2 m, visible dès le seuil) → fondu de 0,5 s → joueur à `s = 5` (pente d'entrée, regard vers le fond) ; `_sous_terre(true)` du monde puis `grotte.ambiance(_env)` (signal `entree`, même schéma que le tertre).
+- **« Sortir de la grotte »** à `s = 1,9`, devant la fenêtre de jour → fondu → devant la bouche (`porte_dehors`, regard vers l'ouest). `_sous_terre(false)` rend lune, neige, ciel, brume, glow, tramage ; le cycle jour / nuit repart (`cycle._process`) ; les flammes de la torche tenue sont rendues (la grotte les remplaçait par le sprite) ; la grotte est cachée et ses `_process` coupés (`process_mode`).
+- **Musique** : la grotte joue le morceau de cavernes de la crypte (`musique.gd`, 2 lignes) et coupe les bruits de bêtes lointaines.
+- **Boussole** : point ambre à la bouche.
+- **Construction en fil d'exécution** : l'extérieur (≈ 95 ms, 1 828 facettes) est bâti hors de l'arbre dès `_ready` et posé quand le fil a fini ; la grotte intérieure (≈ 0,3-0,5 s) part quand le joueur passe à moins de 85 m de la bouche, est posée cachée, et `obtenir()` attend le fil sinon (`_exit_tree` attend aussi, comme le donjon). **Coût au chargement du monde : 0,1 ms** (mesuré par `--chrono`, étape « entree de la grotte »).
+- **Mort sous terre** : `monde._joueur_mort` appelle `grotte_acces.reinitialiser()` (grotte refermée, ciel rétabli, sans fondu). *Bug existant, non touché : la mort dans la crypte ne referme pas la crypte.*
+
+### Sauvegarde
+Dans la grotte, la position sauvegardée est celle du fichier (y ≈ -215) ; au rechargement `grotte_acces.restaurer()` (y < -182) reconstruit la grotte (synchrone, ≈ 0,5 s, seulement dans ce cas) et **on y revient exactement où on était**. `tertre.restaurer` ne prend plus toute profondeur < -70 pour la crypte : `-182 < y < -70` (la crypte est à -140, la grotte à -220). Les bandits tués restent morts (`draugrs_morts` + `GrotteAcces.morts_charges`).
+
+### Bandits (bonus fait)
+4 bandits « sbire » (script `draugr.gd`, vivants : `apparence` avec `draugr: false`, peau, barbe, cheveux, tenue de cuir / laine, un casque nasal ; 55 PV, 12 de dégâts, nom « Bandit », identifiants `bandit_0..3`) autour du feu du camp, créés à la première entrée (cachés par le fondu). Limite : pas de recherche de chemin (comme les draugrs) ; ils se coincent dans le boyau si on les entraîne.
+
+### Fichiers partagés touchés
+`scripts/monde.gd` (+35 lignes : constante, `h_grotte`, `_grotte_acces()`, `hauteur`, mort, sauvegarde / chargement, captures), `scripts/grotte.gd` (`Grotte.nouvelle()` hors arbre), `scripts/tertre.gd` (1 ligne), `scripts/musique.gd` (2 lignes), `scripts/vegetation.gd` (+14), `scripts/rochers.gd` (1 ligne), `outils/tous_les_tests.sh` (+1 test), `assets/sol/carte_sol.res` et `carte_traces.res` (régénérés).
+
+### Captures et tests
+- Captures (un seul lancement) : `bash` équivalent : `$G --path "$W" --disable-vsync -- --captures="$W\outils\poses_grotte_acces.txt" --sortie="$W\captures\grotte_acces" --nouvelle --paisible --sans-particules --attente=120` → `captures/grotte_acces/*.png` (17 vues : `loin_*`, `piste_*`, `approche_*`, `bouche_*`, `bouche_lateral_*`, `seuil_*`, `flanc_jour`, `arrivee`, `sortie`, `camp`, `camp_feu`, jour = `heure=12`, nuit = heure de départ).
+- `outils/test_grotte_acces.gd` (≈ 50 vérifications) : aucun trou (224 rayons), terrasse à y = seuil, front de roche opaque à 4 et 6 m de l'axe, boyau ouvert puis bouchon, **capsule** qui monte la piste et entre dans le boyau, entrée par l'interactif → dans la grotte (position, visibilité, cycle coupé, ciel noir, brume), sauvegarde sous -182, **sortie → retour devant la bouche** (distance < 1 m, y > 0, cycle / neige / lune / ciel / brume / tramage / flammes restaurés, le cycle avance), `restaurer()`, mort sous terre, crypte non confondue, 4 bandits, bandit tué persisté.
+
+### Défauts restants
+- La piste n'a pas de texture de sentier (seulement arbres dégagés, rampe et pieux) : le sol de neige est le même.
+- Front de roche en grandes facettes à 4 strates : de près on voit les bandes horizontales, les quads de la jupe et du toit restent lisses ; pas de LOD (1 828 facettes, 14 matières de coque fusionnées par cellule de 10 m).
+- Les bandits ne retrouvent pas leur chemin dans le boyau (script commun avec les draugrs).
+- La fenêtre de jour (s = 0) de la grotte reste une carte de brume blanche (vue de l'intérieur uniquement).
+
+## Journal — Lot 7 (lumière, brouillard de distance), branche `graphisme/lot7-lumiere`
+
+- **Brouillard de distance** : mode PROFONDEUR de Godot (`cycle.appliquer_brume`), valable pour tous les matériaux sans toucher aux shaders. Net jusqu'à `fin × 0,36`, effacement jusqu'à `fin`, brume seule au-delà. `fin` : nuit 60 m, jour 50 m ; facteur local (`monde._brume_locale`) : creux −20 %, crête +25 %, forêt dense −15 % ; tempête : `cycle.tempete` (0..1) → 27 m. Règle détaillée dans SOCLE_TECHNIQUE §3 bis.
+- **Couleur** : brume = horizon du ciel (uniforms `horizon_courant` / `haut_courant` du shader de ciel) ; ciel lisible (`fog_sky_affect` = 0). Nuit : horizon un peu plus sombre qu'avant (0.05,0.075,0.13), loin plus noir, aurore/lune/étoiles intactes.
+- **Portées** : `camera.far` 180 → 90 ; arbres complets 90 → 48 m, silhouettes LOD 44-80 m, rochers 120 → 80 m, ombres de la lune 70 → 62 m.
+- **Jour** : ambiant 0,75 → 0,62 (plus bleu), exposition 1,0, soleil plus haut et plus fort (1,05 → 1,45), horizon moins blanc ; crépuscule distinct (horizon rose-violet, `crep`) ; glow : niveaux serrés seulement, seuil HDR 0,9 la nuit → 1,25 le jour, `glow_bloom` 0.
+- **Post-traitement** : Bayer 15 bits conservé, atténué à 30 % sur les arêtes franches (bords d'arbres, silhouettes sur l'aurore).
+- **Mesures** (mesure_perf, vsync off, 3 autres Godot actifs) GPU ms avant → après : feu nuit 9,56 → 6,74 ; village nuit 8,48 → 6,71 ; feu jour 9,24 → 7,02 ; vue de crête nuit 11,58 → 6,99. Primitives feu 404 k → 251 k.
+- **Tests** : `tous_les_tests.sh` 15 OK / 0 échec. Sous terre inchangé (comparé avant/après).
+- Planches : `captures/lumiere/planches/avant_apres_{jour,crepuscule,nuit}.png` (avant | après ; poses feu, chemin, crête, lisière, village).
+- Défauts restants : la crête hors zone témoin montre le sol vert de l'ancien biome ; le « pop » mesh complet → LOD à 44-48 m n'est pas mesuré à l'oeil en mouvement ; village : le crépuscule de scénario non vérifié séparément.

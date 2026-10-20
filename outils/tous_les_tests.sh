@@ -21,6 +21,7 @@ TESTS=(
 	"test_collisions_biome|--nouvelle"
 	"test_crypte|--nouvelle"
 	"test_grotte|--nouvelle"
+	"test_grotte_acces|--nouvelle"
 	"test_degats_sanctuaire|--nouvelle"
 	"test_dragon|--nouvelle"
 	"test_dragon_monde|--nouvelle"

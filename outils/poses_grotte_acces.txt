@@ -1,0 +1,20 @@
+# Entrée de la grotte des bandits : approche de loin (jour / nuit), bouche de près, grotte.
+# lancement : voir docs/MISSION_GRAPHISME.md (journal « Entrée de la grotte »)
+loin_jour monde 40,-27,-90,3 heure=12
+loin_nuit monde 40,-27,-90,3
+piste_jour monde 58,-26.3,-88,2 heure=12
+piste_nuit monde 58,-26.3,-88,2
+approche_jour monde 78,-28,-90,4 heure=12
+approche_nuit monde 78,-28,-90,4
+bouche_jour monde 86.5,-27,-90,6 heure=12
+bouche_nuit monde 86.5,-27,-90,6
+bouche_lateral_jour monde 82,-19,-52,4 heure=12
+bouche_lateral_nuit monde 82,-19,-52,4
+seuil_jour monde 90.2,-27,-90,3 heure=12
+seuil_nuit monde 90.2,-27,-90,3
+flanc_jour monde 80,-44,-135,8 heure=12
+# dans la grotte : arrivée, regard vers la sortie
+arrivee grotte 5,0,0,-6
+sortie grotte 5,0,180,0
+camp grotte 93,0,0,-3
+camp_feu grotte 96.5,2,-25,-6

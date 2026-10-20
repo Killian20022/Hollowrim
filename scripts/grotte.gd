@@ -86,11 +86,16 @@ var etapes := {}
 
 ## Crée la grotte sous le monde (y = -220), loin de la crypte. `parent` : le monde.
 static func creer(parent: Node3D, joueur_: Node = null) -> Grotte:
+	var g := nouvelle(joueur_)
+	parent.add_child(g)
+	g.construire()
+	return g
+
+## Grotte non construite et hors de l'arbre : `construire()` peut tourner dans un fil d'exécution (voir GrotteAcces).
+static func nouvelle(joueur_: Node = null) -> Grotte:
 	var g := Grotte.new()
 	g.joueur = joueur_
 	g.position = POS_MONDE
-	parent.add_child(g)
-	g.construire()
 	return g
 
 # ------------------------------------------------------------------ fonctions de forme

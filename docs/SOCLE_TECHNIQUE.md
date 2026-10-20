@@ -68,6 +68,17 @@ Le brouillard de distance (lot 7, fin à ~50-60 m, 25-30 m en tempête) fixe la 
 détaillé n'est dessiné au-delà de la fin du brouillard + marge. Les portées de visibilité des cellules, le LOD d'horizon
 et les anneaux de streaming se règlent sur cette valeur (et non l'inverse).
 
+**Règle confirmée (lot 7, mesurée)** : brouillard Godot en mode PROFONDEUR (`fog_mode = DEPTH`, `fog_density = 1`, courbe 1,
+`fog_sky_affect = 0`), réglé par `cycle.gd` (`appliquer_brume`). Il s'applique seul à TOUS les matériaux (ps1, ps1_bati, ps1_tronc,
+ps1_rameau, ps1_herbe, sol) : aucun code dans les shaders, aucun surcoût. Net jusqu'à `fin × 0,36` (~21 m nuit, ~18 m jour),
+effacement linéaire jusqu'à `fin`, brume seule au-delà. `fin` : nuit claire 60 m, jour gris 50 m ; facteur local
+(`monde._brume_locale`, relevé toutes les 0,4 s, lissé) : creux −20 %, crête +25 %, forêt dense (≥ 24 arbres à 14 m) −15 % ;
+tempête : `cycle.tempete` (0..1) ramène `fin` à 27 m (`FIN_TEMPETE`). Fin maximale `cycle.FIN_MAX = 75 m`.
+Couleur du brouillard = horizon du ciel (`horizon_courant` du shader de ciel, même valeur) : aucun raccord à l'horizon.
+Conséquences réglées sur cette valeur : `camera.far = 90`, ombres de la lune 62 m, arbres : mesh complet + ombres jusqu'à
+`PORTEE_PLEINE = 48 m` (brouillard déjà à 60-80 %), silhouettes `lod_mesh` de 44 à `PORTEE_LOD = 80 m` (> 75), rochers 80 m.
+Sous terre : brouillard exponentiel (mode rétabli par `_sous_terre`). Toute nouvelle portée de visibilité doit rester ≤ `FIN_MAX + 5`.
+
 ## 4. Contrôle à chaque lot
 
 Chaque lot rend : GPU au feu `2.5,8.5,16,4` vsync off, nombre d'appels de dessin, primitives, temps de chargement,

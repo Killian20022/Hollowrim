@@ -4,6 +4,9 @@ class_name Vegetation
 ## INSTANCIATION (MultiMesh via Instanciation, colliders des troncs).
 ## L'ordre des tirages est figé : positions, puis formes/échelles/rotations, puis couvre-sol.
 
+## Lot 7 : portées réglées sur le brouillard (cycle.gd, FIN_MAX = 75 m : tout est invisible au-delà).
+const PORTEE_PLEINE := 48.0   # mesh complet et ombres : le brouillard y est déjà à 60-80 %
+const PORTEE_LOD := 80.0      # silhouettes d'horizon, juste au-delà de la fin maximale du brouillard
 const NB_SAPINS := 1500
 const NB_BUISSONS := 900
 
@@ -11,7 +14,20 @@ const NB_BUISSONS := 900
 static func creer(monde: Node) -> Array:
 	var foret := placer_foret(monde)
 	var buissons := placer_couvre_sol(monde)
+	_degager_grotte(foret, buissons)
 	return instancier(monde, foret, buissons)
+
+## Dégage l'entrée de la grotte (disque, masse rocheuse, piste) APRÈS le placement : le RNG et la forêt d'ailleurs ne changent pas.
+static func _degager_grotte(foret: Dictionary, buissons: Array[Transform3D]) -> void:
+	for lot: Array in foret["lots"]:
+		for i in range(lot.size() - 1, -1, -1):
+			var o: Vector3 = (lot[i] as Transform3D).origin
+			if GrotteAcces.exclu(o.x, o.z):
+				lot.remove_at(i)
+	for i in range(buissons.size() - 1, -1, -1):
+		var o: Vector3 = buissons[i].origin
+		if GrotteAcces.exclu(o.x, o.z):
+			buissons.remove_at(i)
 
 ## Positions puis formes : {"lots": [4 listes de Transform3D par forme]}.
 ## Formes : 0-2 épicéas, 3 arbre mort.
@@ -123,7 +139,10 @@ static func instancier(monde: Node, foret: Dictionary, buissons: Array) -> Array
 				forme_col.shape = cylindre
 				forme_col.position = t.origin + Vector3(0, 2, 0)
 			corps.add_child(forme_col)
-		var reglages := {"portee": 90.0, "marge": 10.0, "ombre_proche": 50.0, "lod_mesh": lointains[i], "ombre_mesh": ombres[i]}
+		# lot 7 : mesh complet jusqu'à PORTEE_PLEINE (le brouillard est alors à 60-80 % : détail inutile), silhouette
+		# simplifiée jusqu'à PORTEE_LOD (> fin maximale du brouillard) : l'arbre sort de la brume sans « pop »
+		var reglages := {"portee": PORTEE_PLEINE, "marge": 4.0, "ombre_proche": PORTEE_PLEINE, "lod_mesh": lointains[i], "ombre_mesh": ombres[i],
+			"lod_debut": PORTEE_PLEINE - 4.0, "lod_portee": PORTEE_LOD}
 		if i <= 1:
 			# lot 2 : deux graines pour les épicéas courants (formes 0 et 1), choisies par hachage de
 			# position (aucun tirage RNG) : deux arbres voisins n'ont pas les mêmes branches
@@ -135,12 +154,12 @@ static func instancier(monde: Node, foret: Dictionary, buissons: Array) -> Array
 			var commun := reglages.duplicate()
 			commun["principal"] = false
 			Instanciation.repartir(monde, modeles[i], lots[i], commun)
-			Instanciation.repartir(monde, modeles[i], lot_a, {"portee": 90.0, "marge": 10.0, "ombre": false})
-			Instanciation.repartir(monde, variantes[i], lot_b, {"portee": 90.0, "marge": 10.0, "ombre": false})
+			Instanciation.repartir(monde, modeles[i], lot_a, {"portee": PORTEE_PLEINE, "marge": 4.0, "ombre": false})
+			Instanciation.repartir(monde, variantes[i], lot_b, {"portee": PORTEE_PLEINE, "marge": 4.0, "ombre": false})
 		else:
 			Instanciation.repartir(monde, modeles[i], lots[i], reglages)
 	monde.add_child(corps)
-	Instanciation.repartir(monde, Arbres.buisson(21, mats), buissons, {"ombre": false, "portee": 60.0, "marge": 10.0})
+	Instanciation.repartir(monde, Arbres.buisson(21, mats), buissons, {"ombre": false, "portee": PORTEE_PLEINE, "marge": 4.0})
 	return arbres
 
 # --- Lot E : forêt écologique de la zone témoin ------------------------------------------------

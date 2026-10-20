@@ -47,7 +47,7 @@ func _tester() -> void:
 	t._tirer_levier()
 	print("   ", t._fouiller_eirik().size(), " lignes de note ; quêtes : ", _etat())
 	print("5. approcher du sarcophage : Svanhild se lève")
-	m.joueur.global_position = t.crypte.to_global(Vector3(0, 0.1, -44.0))
+	m.joueur.global_position = t.crypte.to_global(t.SARCO + Vector3(0, 0.1, 5.0))
 	for i in 5:
 		await process_frame
 	var s = t._svanhild
