@@ -20,7 +20,7 @@ var mains: Node3D
 var modele: Node3D
 var anim: AnimationPlayer
 var pivot_torche: Node3D
-var flamme: GPUParticles3D
+var flammes: Array[GPUParticles3D] = []
 var lumiere: OmniLight3D
 
 var _vue_3 := false
@@ -138,70 +138,11 @@ func _torche(squelette: Skeleton3D) -> void:
 	pivot_torche.transform = _prise_gauche(squelette)
 	accroche.add_child(pivot_torche)
 
-	var baton := MeshInstance3D.new()
-	var c := CylinderMesh.new()
-	c.top_radius = 0.022
-	c.bottom_radius = 0.026
-	c.height = 0.5
-	c.radial_segments = 5
-	c.rings = 1
-	baton.mesh = c
-	baton.material_override = Palette.materiau(Palette.tex("ecorce", Palette.ECORCE), Vector2(1, 3))
-	baton.position = Vector3(0, 0.12, 0)
-	pivot_torche.add_child(baton)
-	var tete := MeshInstance3D.new()
-	var t := CylinderMesh.new()
-	t.top_radius = 0.05
-	t.bottom_radius = 0.037
-	t.height = 0.12
-	t.radial_segments = 6
-	t.rings = 1
-	tete.mesh = t
-	tete.material_override = Palette.materiau(Palette.tex("chiffon", ["#2a1a10", "#3b2414", "#1a0f08", "#4a2e18"], 8, 0.6))
-	tete.position = Vector3(0, 0.4, 0)
-	pivot_torche.add_child(tete)
-
-	flamme = GPUParticles3D.new()
-	flamme.amount = 32
-	flamme.lifetime = 0.3
-	flamme.local_coords = true
-	flamme.position = Vector3(0, 0.46, 0)
-	var pm := ParticleProcessMaterial.new()
-	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	pm.emission_sphere_radius = 0.04
-	pm.direction = Vector3.UP
-	pm.spread = 10.0
-	pm.initial_velocity_min = 0.3
-	pm.initial_velocity_max = 0.6
-	pm.gravity = Vector3(0, 0.6, 0)
-	var g := Gradient.new()
-	g.offsets = PackedFloat32Array([0.0, 0.4, 0.75, 1.0])
-	g.colors = PackedColorArray([Color(3.0, 2.3, 0.9), Color(2.6, 1.0, 0.25), Color(1.2, 0.25, 0.05), Color(0.3, 0.05, 0.0, 0.0)])
-	var gt := GradientTexture1D.new()
-	gt.gradient = g
-	pm.color_ramp = gt
-	pm.scale_min = 0.8
-	pm.scale_max = 1.4
-	flamme.process_material = pm
-	var q := QuadMesh.new()
-	q.size = Vector2(0.05, 0.05)
-	var mq := StandardMaterial3D.new()
-	mq.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mq.vertex_color_use_as_albedo = true
-	mq.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mq.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	mq.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	q.material = mq
-	flamme.draw_pass_1 = q
-	pivot_torche.add_child(flamme)
-
-	lumiere = OmniLight3D.new()
-	lumiere.light_color = Color(1.0, 0.58, 0.28)
+	# même torche que celle de la vue à la première personne (scripts/torche.gd, lot 6) : manche, tête, flamme sprite, halo
+	var t := Torche.construire(pivot_torche)
+	flammes.assign(t["flamme"])
+	lumiere = t["lumiere"]
 	lumiere.light_energy = 0.0
-	lumiere.omni_range = 10.0
-	lumiere.omni_attenuation = 1.3
-	lumiere.position = Vector3(0, 0.55, 0.1)
-	pivot_torche.add_child(lumiere)
 
 # --- animations ------------------------------------------------------------------
 
@@ -248,7 +189,8 @@ func _process(dt: float) -> void:
 	# reflet de la torche et de la lumière : seulement visibles à la troisième personne
 	var allumee: bool = mains.torche_sortie
 	pivot_torche.visible = allumee
-	flamme.emitting = allumee and _vue_3
+	for f in flammes:
+		f.emitting = allumee and _vue_3
 	lumiere.visible = allumee and _vue_3
 	lumiere.light_energy = 1.4 + sin(_t * 13.0) * 0.12 + sin(_t * 29.0) * 0.08 + randf() * 0.12
 

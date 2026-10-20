@@ -6,7 +6,7 @@ class_name ObjetsTextures
 ## Densités : lame 32 x 128 (≈ 170 texels/m le long, 550 en travers), cuir et fer 32 x 32 sur 5 à 10 cm, flamme 20 x 32 par image.
 
 const DOSSIER := "res://assets/objets"
-const VERSION := 3
+const VERSION := 4
 const NOMS := ["flamme", "halo", "bois", "chiffon", "goudron", "braise", "lame", "tresse", "fer", "gant", "manche", "brassard", "fourrure", "cuir"]
 const CLEAR := Color(0, 0, 0, 0)
 
@@ -83,58 +83,74 @@ const FH := 32
 const FIMAGES := 6
 
 static func flamme_atlas() -> Image:
+	# Lot 6bis : silhouette de LANGUES irrégulières (une grande, deux ou trois petites, hauteurs et inclinaisons qui changent à chaque
+	# image), cœur jaune-blanc à la base, corps orange, pointes rouges, liseré rouge sombre. Pixel art net (pas de fondu).
 	var img := _img(FW * FIMAGES, FH)
-	var sways := [-1.6, 1.8, -0.4, 2.2, -2.0, 0.8]
-	var hautes := [1.0, 0.9, 1.05, 0.82, 0.96, 0.88]
+	# par image : [décalage de pied, hauteur, inclinaison, demi-largeur] de chaque langue ; la première est la maîtresse
+	var langues := [
+		[[0.0, 1.00, -1.8, 4.6], [-3.4, 0.55, -3.2, 2.0], [3.0, 0.68, 2.6, 2.3]],
+		[[0.4, 0.88, 2.0, 4.4], [-3.0, 0.72, -2.4, 2.2], [3.6, 0.42, 3.4, 1.8]],
+		[[-0.3, 1.04, 0.6, 4.3], [-2.8, 0.60, -3.6, 2.1], [2.6, 0.78, 1.8, 2.4], [4.4, 0.34, 3.0, 1.4]],
+		[[0.2, 0.80, 2.6, 4.7], [-3.4, 0.50, -2.0, 2.2], [3.2, 0.58, 4.0, 2.0]],
+		[[-0.4, 0.94, -2.6, 4.4], [-3.6, 0.66, -4.0, 2.0], [2.8, 0.50, 1.4, 2.3], [-1.0, 0.44, 0.0, 1.5]],
+		[[0.3, 0.86, 1.2, 4.5], [-2.6, 0.78, -1.4, 2.4], [3.4, 0.46, 3.6, 1.9]],
+	]
 	for f in FIMAGES:
 		var ox := f * FW
-		var sway: float = sways[f]
-		var hf: float = hautes[f]
+		var haut_max := 0.0
+		for l in langues[f]:
+			haut_max = maxf(haut_max, l[1])
 		for y in FH:
-			var s := 1.0 - float(y) / (FH - 1)                     # 0 = pied, 1 = pointe
-			var s_eff := s / hf
-			if s_eff >= 1.0:
-				continue
-			# axe qui s'incline vers le haut, largeur : pied serré sur la tête, ventre à 25 %, pointe effilée
-			var axe := 9.5 + sway * pow(s_eff, 1.6) + sin(s * 7.0 + f * 1.9) * 0.55 * s_eff
-			var ventre := sin(clampf(s_eff * 1.15, 0.0, 1.0) * PI * 0.5) * (1.0 - pow(s_eff, 2.2))
-			var demi := 3.9 + 4.0 * ventre * (1.0 - 0.35 * s_eff)
-			demi *= 1.0 - pow(s_eff, 3.0) * 0.55
-			# deuxième langue (fourche) sur certaines images
-			var langue2 := 0.0
-			var axe2 := 0.0
-			if f % 3 != 0 and s_eff > 0.42 and s_eff < 0.95:
-				var ts := (s_eff - 0.42) / 0.53
-				axe2 = 9.5 + (-sway * 0.9 - (3.0 if sway > 0.0 else -3.0) * 0.4) * pow(s_eff, 1.3) + (3.0 if sway > 0.0 else -3.0) * -0.6 * ts
-				langue2 = 2.3 * sin(ts * PI) * (1.0 - ts * 0.5)
-			for x in FW:
-				var bruit := (_fbm(x + f * 7, y, 32, 32, 4, 4, 17 + f, 2) - 0.5) * 2.2
-				var dx := absf(float(x) - axe)
-				var dedans := dx <= demi + bruit * (0.35 + 0.5 * s_eff)
-				var d := dx / maxf(demi, 0.6)
-				if not dedans and langue2 > 0.0:
-					var dx2 := absf(float(x) - axe2)
-					if dx2 <= langue2 + bruit * 0.3:
-						dedans = true
-						d = dx2 / maxf(langue2, 0.6) * 0.95 + 0.25
-				if not dedans:
+			var s := 1.0 - float(y) / (FH - 1)                     # 0 = pied, 1 = pointe du cadre
+			for i in langues[f].size():
+				var l: Array = langues[f][i]
+				var se: float = s / l[1]
+				if se >= 1.0:
 					continue
-				# chaleur : cœur au centre et près du pied ; rouge sur les bords et en pointe
-				var chaud := (1.0 - clampf(d, 0.0, 1.0)) * (0.50 + 0.50 * (1.0 - pow(s_eff, 0.9)))
-				chaud += (_fbm(x, y + f * 5, 32, 32, 5, 5, 31, 2) - 0.5) * 0.30
-				var t := _ton(chaud, 6, x, y, 0.35)
-				if d > 0.86:
-					t = 0                                           # liseré rouge sombre : la flamme se lit sur fond clair
-				elif d > 0.62:
-					t = mini(t, 1 if s_eff > 0.5 else 2)
-				_px(img, ox + x, y, _c(FLAMME, t))
-		# étincelle détachée au-dessus de la pointe (images impaires)
+				var axe: float = 9.5 + l[0] + l[2] * pow(se, 1.5) + sin(s * 8.0 + f * 2.1 + i) * 0.5 * se
+				# ventre bas, pointe effilée (pointe fine : 1 pixel)
+				var profil := sin(clampf(se * 1.25, 0.0, 1.0) * PI * 0.5) * (1.0 - pow(se, 1.7))
+				var demi: float = (l[3] * 0.8 * (1.0 - se * 0.25) + l[3] * 0.6 * profil) * (1.0 - pow(se, 2.4) * 0.7)
+				if i > 0:
+					demi *= 0.75 + 0.25 * (1.0 - se)               # langues annexes : plus fines
+				for x in FW:
+					var bruit := (_fbm(x + f * 7, y + i * 5, 32, 32, 4, 4, 17 + f, 2) - 0.5) * 2.0
+					var dx := absf(float(x) - axe)
+					var lim: float = demi + bruit * (0.25 + 0.45 * se)
+					if dx <= lim:
+						var d := dx / maxf(demi, 0.8)
+						_px(img, ox + x, y, _flamme_px(x, y, f, d, se, s, haut_max, img, ox, i))
+		# étincelle détachée au-dessus de la pointe (images impaires) 
 		if f % 2 == 1:
-			var ey := 0
-			var ex := int(9.5 + sway * 0.9 * hf)
-			_px(img, ox + ex, ey, _c(FLAMME, 4))
-			_px(img, ox + ex, ey + 1, _c(FLAMME, 3))
+			var l0: Array = langues[f][0]
+			var ex := int(9.5 + l0[0] + l0[2])
+			var ey := maxi(0, int((1.0 - l0[1]) * (FH - 1)) - 3)
+			_px(img, ox + ex, ey, _c(FLAMME, 3))
+			_px(img, ox + ex, ey + 1, _c(FLAMME, 2))
 	return img
+
+## Ton d'un pixel de flamme : la meilleure (plus chaude) valeur écrase une langue qui en recouvre une autre.
+static func _flamme_px(x: int, y: int, f: int, d: float, se: float, s: float, haut_max: float, img: Image, ox: int, i: int) -> Color:
+	var chaud := (1.0 - clampf(d, 0.0, 1.0)) * (0.62 + 0.55 * (1.0 - se))
+	chaud += (_fbm(x, y + f * 5, 32, 32, 5, 5, 31, 2) - 0.5) * 0.28
+	if s < 0.34:
+		chaud += 0.28 * (1.0 - s / 0.34) * (1.0 - clampf(d * 1.4, 0.0, 1.0))   # cœur jaune-blanc à la base
+	var t := _ton(chaud, 6, x, y, 0.35)
+	if s / haut_max > 0.80:
+		t = mini(t, 1)                                      # pointes rouges
+	elif s / haut_max > 0.62:
+		t = mini(t, 2)
+	if d > 0.84 or se > 0.93:
+		t = 0                                               # liseré rouge sombre
+	elif d > 0.62:
+		t = mini(t, 1 if se > 0.5 else 2)
+	# langue déjà peinte plus chaude dessous : on la garde
+	var deja := img.get_pixel(ox + x, y)
+	if deja.a > 0.5:
+		for k in FLAMME.size():
+			if deja.is_equal_approx(Color(FLAMME[k])) and k > t:
+				return deja
+	return _c(FLAMME, t)
 
 ## Halo : anneaux posterisés (14 paliers), additif. Repris de la crypte (même dessin que les halos des appliques murales).
 static func halo() -> Image:
