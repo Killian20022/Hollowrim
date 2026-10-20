@@ -5,11 +5,16 @@ extends Node3D
 ##
 ## Plan de la crypte (repère local, l'entrée regarde +Z, on s'enfonce vers -Z) :
 ##   entrée (escalier) → couloir des niches → salle des piliers (corps d'Eirik à l'ouest,
-##   levier à l'est) → herse → tombeau de Svanhild.
+##   levier à l'est) → herse → antichambre → arène de Svanhild (sarcophage, z = -72).
+## Agrandissement (donjon, scripts/crypte_donjon.gd, bâti dans un fil d'exécution) : aile ouest (ossuaire, reliquaires,
+## trésor derrière un mur pivotant), aile est (galeries gelées), étage inférieur (y = -6), trois portes barrées qui
+## s'ouvrent de l'autre côté (raccourcis vers l'entrée). Voir docs/MISSION_GRAPHISME.md, « Crypte agrandie ».
 
 signal entree(dedans: bool)
 
 const PROFONDEUR := -140.0
+const SARCO := Vector3(0, 0, -72)          # sarcophage de Svanhild (arène)
+const BUTIN := preload("res://scripts/butin.gd")
 
 var monde: Node3D
 var joueur: CharacterBody3D
@@ -30,6 +35,14 @@ var _anneau_rendu := false
 var _lueur_tombe: OmniLight3D
 var _manche: Node3D
 var d: CrypteDecor
+var d2: CrypteDecor                 # décor du donjon (fil d'exécution)
+var donjon: CrypteDonjon
+var _tache := -1
+var _cont: Node3D
+var _inter := {}                    # id -> interactif du donjon
+var _file_gardiens: Array = []
+var morts_charges: Array = []       # draugrs tués d'une partie chargée (posé par le monde) : on ne les refait pas
+var _pas_zone := 0.0
 var _flamme_pixel: MeshInstance3D
 var _t := 0.0
 
@@ -57,8 +70,16 @@ func _ready() -> void:
 
 func _process(dt: float) -> void:
 	_t += dt
+	if _tache >= 0 and WorkerThreadPool.is_task_completed(_tache):
+		_integrer_donjon()
 	if d != null and dedans:
 		d.vaciller(_t)
+		if d2 != null:
+			d2.vaciller(_t)
+		_pas_zone -= dt
+		if _pas_zone <= 0.0:
+			_pas_zone = 0.25
+			_gerer_zones()
 	_flamme_main()
 	if not dedans and joueur.global_position.distance_to(porte_dehors) < 9.0:
 		quetes.signaler("lieu:tertre")
@@ -67,7 +88,7 @@ func _process(dt: float) -> void:
 		_lueur_tombe.light_energy = lerpf(_lueur_tombe.light_energy, cible, 1.0 - exp(-2.0 * dt))
 	# Svanhild se lève quand on approche du sarcophage avec l'anneau
 	if dedans and not _svanhild_levee and joueur.inventaire.a("anneau_givre"):
-		if joueur.global_position.distance_to(crypte.to_global(Vector3(0, 0, -50))) < 8.0:
+		if joueur.global_position.distance_to(crypte.to_global(SARCO)) < 8.0:
 			_lever_svanhild()
 
 ## Sous terre, la flamme de la torche tenue en main devient un sprite pixel art (les grosses particules
@@ -144,9 +165,141 @@ func _construire_crypte() -> void:
 	_alcove()
 	_couloir_herse()
 	_tombeau()
+	_sarcophage_arene()
 	var t1 := Time.get_ticks_msec()
 	d.finir()
 	print("Crypte (lot 7a) : plan %d ms + finition %d ms = %d ms" % [t1 - t0, Time.get_ticks_msec() - t1, Time.get_ticks_msec() - t0])
+	# donjon : bâti en parallèle, hors de l'arbre ; intégré dès qu'il est prêt (au plus tard à l'entrée dans la crypte)
+	_cont = Node3D.new()
+	_cont.name = "Donjon"
+	var corps2 := StaticBody3D.new()
+	_cont.add_child(corps2)
+	d2 = CrypteDecor.new(_cont, corps2, d)
+	donjon = CrypteDonjon.new(d2)
+	_tache = WorkerThreadPool.add_task(_batir_donjon)
+
+func _batir_donjon() -> void:
+	var t0 := Time.get_ticks_msec()
+	donjon.construire()
+	d2.finir()
+	print("Donjon : bâti en %d ms (fil d'exécution)" % (Time.get_ticks_msec() - t0))
+
+func attendre_donjon() -> void:
+	_integrer_donjon()
+
+func _integrer_donjon() -> void:
+	if _tache < 0:
+		return
+	WorkerThreadPool.wait_for_task_completion(_tache)
+	_tache = -1
+	var t0 := Time.get_ticks_msec()
+	crypte.add_child(_cont)
+	for it in donjon.interactions:
+		_creer_interaction(it)
+	for g in donjon.gardiens:
+		_file_gardiens.append(g)
+	_etat_donjon()
+	print("Donjon : intégré en %d ms (%d interactions, %d gardiens, %d lumières)" % [Time.get_ticks_msec() - t0, donjon.interactions.size(), donjon.gardiens.size(), d2.toutes.size()])
+
+## Rend au donjon l'état d'une partie chargée (portes ouvertes, coffres vidés, mur pivoté).
+func _etat_donjon() -> void:
+	for id in _inter:
+		var it: Node3D = _inter[id]
+		if it.get_meta("genre_donjon", "") == "coffre" and quetes.vus.has("crypte:" + id):
+			it.actif = false
+	for id in ["s1", "s2", "s3"]:
+		if quetes.vus.has("crypte:" + id) and donjon.portes.has(id):
+			(donjon.portes[id] as Node3D).position.y = 3.2
+	if quetes.vus.has("crypte:secret") and donjon.portes.has("secret"):
+		(donjon.portes["secret"] as Node3D).rotation.y = -PI * 0.5
+
+func _creer_interaction(it: Dictionary) -> void:
+	var id: String = it["id"]
+	var genre: String = it["genre"]
+	var non: String = it.get("condition_non", "")
+	var cond := Callable()
+	if non != "":
+		cond = func() -> bool: return not quetes.vus.has("crypte:" + non)
+	var action: Callable
+	match genre:
+		"texte":
+			var lignes: Array = it["texte"]
+			action = func() -> Array: return lignes
+		"porte":
+			action = func() -> Array: return _ouvrir_porte(id)
+		"secret":
+			action = func() -> Array: return _ouvrir_secret()
+		_:
+			var butin: Dictionary = it["butin"]
+			var lieu: Vector3 = it["coffre"]
+			action = func() -> Array: return _ouvrir_coffre(id, butin, lieu)
+			cond = func() -> bool: return not quetes.vus.has("crypte:" + id)
+	var n := _interactif(crypte, it["pos"], it["nom"], it["verbe"], action, cond, genre == "coffre")
+	n.set_meta("genre_donjon", genre)
+	_inter[id] = n
+
+func _ouvrir_porte(id: String) -> Array:
+	quetes.signaler("crypte:" + id)
+	var p: Node3D = donjon.portes[id]
+	var t := create_tween()
+	t.tween_property(p, "position:y", 3.2, 1.6).set_trans(Tween.TRANS_SINE)
+	Sons.jouer_a(self, ["impactMetal_heavy_000", "impactPlate_medium_000"], p.global_position, 1.0)
+	joueur.secousse = 0.2
+	return []
+
+func _ouvrir_secret() -> Array:
+	quetes.signaler("crypte:secret")
+	var p: Node3D = donjon.portes["secret"]
+	var t := create_tween()
+	t.tween_property(p, "rotation:y", -PI * 0.5, 2.2).set_trans(Tween.TRANS_SINE)
+	Sons.jouer_a(self, ["impactPlate_medium_000", "creak1"], p.global_position, 1.5)
+	joueur.secousse = 0.35
+	return []
+
+func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
+	quetes.signaler("crypte:" + id)
+	var b := Node3D.new()
+	b.set_script(BUTIN)
+	b.joueur = joueur
+	b.hud = hud
+	b.contenu = contenu.duplicate()
+	crypte.add_child(b)
+	b.position = lieu + Vector3(0, 0.7, 0)
+	Sons.jouer_a(self, ["doorOpen_1", "handleCoins"], crypte.to_global(lieu), -2.0)
+	return []
+
+## Toutes les 0,25 s : lumières (et gardiens du donjon) selon la position du joueur. Seules les lumières proches sont allumées
+## (jamais plus d'une vingtaine) ; les gardiens d'une zone n'apparaissent que lorsque le joueur s'en approche.
+func _gerer_zones() -> void:
+	var pj := joueur.global_position
+	for decor in [d, d2]:
+		if decor == null:
+			continue
+		for l: OmniLight3D in decor.toutes:
+			var gp := l.global_position
+			var dy := gp.y - pj.y
+			var meme_etage := (gp.y < crypte.global_position.y - 3.0) == (pj.y < crypte.global_position.y - 3.0)
+			l.visible = (meme_etage or absf(dy) < 3.2) and absf(dy) < 6.0 and Vector2(gp.x - pj.x, gp.z - pj.z).length() < 26.0
+	var n := 0
+	var i := 0
+	while i < _file_gardiens.size() and n < 2:
+		var g: Dictionary = _file_gardiens[i]
+		var zr: Rect2 = Rect2()
+		var zy := 0.0
+		for z in donjon.zones:
+			if z["nom"] == g["zone"]:
+				zr = z["rect"]
+				zy = z["y"]
+		var c := crypte.to_global(Vector3(zr.get_center().x, zy, zr.get_center().y))
+		if absf(c.y - pj.y) < 8.0 and Vector2(c.x - pj.x, c.z - pj.z).length() < 34.0 + zr.size.length() * 0.25:
+			_file_gardiens.remove_at(i)
+			if not morts_charges.has(g["ident"]):
+				var dr: CharacterBody3D = monde.creer_draugr(g["type"], crypte.to_global(g["pos"] + Vector3(0, 0.05, 0)), g["lacet"], g["dort"], {"debout": g["debout"], "ident": g["ident"]})
+				if monde._paisible():
+					dr.process_mode = Node.PROCESS_MODE_DISABLED
+			n += 1
+		else:
+			i += 1
 
 func _toiles(coins: Array, haut: float) -> void:
 	# coins : [x, z, vers_x, vers_z] (directions le long des deux murs qui forment le coin)
@@ -154,7 +307,7 @@ func _toiles(coins: Array, haut: float) -> void:
 		d.toile(Vector3(c[0], haut, c[1]), Vector3(c[2], 0, 0), Vector3(0, 0, c[3]))
 
 func _entree() -> void:
-	d.salle(-3, 3, 4, -6, 3.6, [["nord", 0.0, 3.2]], 0.0, "mur0")
+	d.salle(-3, 3, 4, -6, 3.6, [["nord", 0.0, 3.2], ["est", -2.0, 3.2]], 0.0, "mur0")
 	# escalier qui remonte vers la sortie (décor, contre le mur sud) et passage sombre au-dessus
 	for i in 4:
 		d.boite("dalle0", Vector3(0, 0.15 * (4 - i), 3.4 - i * 0.6), Vector3(3.0, 0.3 * (4 - i), 0.6))
@@ -170,7 +323,7 @@ func _entree() -> void:
 	d.applique(Vector3(-2.7, 0, 0.0), Vector3(1, 0, 0), 2.1, 5.0, 1.7)
 	d.applique(Vector3(2.7, 0, 0.0), Vector3(-1, 0, 0), 2.1, 5.0, 1.7)
 	d.urne(Vector3(-2.2, 0, -3.4), 1.0)
-	d.urne(Vector3(2.15, 0, -3.1), 0.8)
+	d.urne(Vector3(2.15, 0, -4.4), 0.8)
 	d.os_tas(Vector3(-1.9, 0, 2.7), 3, 0.3)
 	d.arme(Vector3(-1.4, 0, -1.4), 0.6)
 	_toiles([[-2.7, 3.7, 1, -1], [2.7, 3.7, -1, -1], [-2.7, -5.7, 1, 1], [2.7, -5.7, -1, 1]], 3.6)
@@ -187,14 +340,13 @@ func _niche(x_plan: float, z: float, vers_x: float) -> void:
 	d.os_tas(Vector3(x_plan + vers_x * 0.45, 0.0, z), 2, 0.3)
 
 func _couloir_niches() -> void:
-	d.salle(-1.6, 1.6, -6, -18, 3.0, [["sud", 0.0, 3.2], ["nord", 0.0, 3.2]], 0.0, "mur1")
+	d.salle(-1.6, 1.6, -6, -18, 3.0, [["sud", 0.0, 3.2], ["nord", 0.0, 3.2], ["ouest", -9.0, 3.2]], 0.0, "mur1")
 	for z in [-7.0, -11.0, -15.0]:
 		d.arc("mur0", "x", 0.0, z, 2.6, 1.4, 1.3, 0.32, 0.45)
 		for x in [-1.15, 1.15]:
 			d.boite("mur0", Vector3(x, 0.7, z), Vector3(0.3, 1.4, 0.45))
 	_niche(1.3, -13.0, -1.0)
 	_niche(1.3, -16.8, -1.0)
-	_niche(-1.3, -9.0, 1.0)
 	_niche(-1.3, -16.8, 1.0)
 	d.applique(Vector3(1.3, 0, -9.0), Vector3(-1, 0, 0), 1.9, 4.6, 1.5)
 	d.applique(Vector3(-1.3, 0, -13.0), Vector3(1, 0, 0), 1.9, 4.6, 1.5)
@@ -205,7 +357,7 @@ func _couloir_niches() -> void:
 	_toiles([[-1.3, -6.3, 1, -1], [1.3, -17.7, -1, 1], [-1.3, -17.7, 1, 1]], 3.0)
 
 func _salle_piliers() -> void:
-	d.salle(-7, 7, -18, -32, 4.6, [["sud", 0.0, 3.2], ["nord", 0.0, 3.2], ["ouest", -25.0, 3.0]], 0.0, "mur0")
+	d.salle(-7, 7, -18, -32, 4.6, [["sud", 0.0, 3.2], ["nord", 0.0, 3.2], ["ouest", -25.0, 3.0], ["ouest", -19.8, 3.2], ["est", -29.7, 3.2]], 0.0, "mur0")
 	# voie processionnelle gravée au centre (modules de 4 m)
 	for k in 3:
 		d.boite("gravure", Vector3(0, 0.015, -20.3 - k * 4.0), Vector3(2.0, 0.03, 4.0), 0.0, true, Vector3(1.0, 0, 20.3 + k * 4.0))
@@ -217,15 +369,15 @@ func _salle_piliers() -> void:
 		d.arc("mur0", "x", 0.0, z, 6.1, 3.6, 0.65, 0.35, 0.5)
 		for s in [-1.0, 1.0]:
 			d.arc("mur0", "x", s * 4.8, z, 3.2, 3.6, 0.65, 0.35, 0.5)
-			d.contrefort(s * 6.45, z, 4.6, -s, 0.0, 0.7, 0.5)
+			if not ((s == -1.0 and z == -21.5) or (s == 1.0 and z == -28.5)):     # pas de contrefort devant les portes de l'aile
+				d.contrefort(s * 6.45, z, 4.6, -s, 0.0, 0.7, 0.5)
 	for x in [-3.5, 3.5]:
 		d.arc("mur0", "z", x, -25.0, 6.1, 3.6, 0.65, 0.35, 0.5)
-	d.brasero(Vector3(-6.0, 0, -19.0))
-	d.brasero(Vector3(6.0, 0, -31.0))
+	d.brasero(Vector3(-5.9, 0, -22.8))
+	d.brasero(Vector3(5.9, 0, -22.8))
 	d.brasero(Vector3(6.0, 0, -19.0))
 	d.applique(Vector3(-6.2, 0, -21.5), Vector3(1, 0, 0), 2.3, 5.5, 1.8)
 	d.applique(Vector3(-6.2, 0, -28.5), Vector3(1, 0, 0), 2.3, 5.5, 1.8)
-	d.applique(Vector3(6.2, 0, -28.5), Vector3(-1, 0, 0), 2.3, 5.5, 1.8, false)
 	d.applique(Vector3(6.2, 0, -21.5), Vector3(-1, 0, 0), 2.3, 5.5, 1.8, false)
 	# mobilier : sarcophages et coffre contre le mur du fond, armes et ossements
 	d.sarcophage(Vector3(-4.7, 0, -31.15), Vector3(2.2, 0.7, 0.9), 0.0)
@@ -304,16 +456,15 @@ func _couloir_herse() -> void:
 	_toiles([[-1.3, -32.3, 1, -1], [1.3, -41.7, -1, 1]], 3.2)
 
 func _tombeau() -> void:
-	d.salle(-8, 8, -42, -58, 6.0, [["sud", 0.0, 3.2]], 0.0, "mur0")
-	# voie gravée jusqu'à l'estrade, estrade (collision d'origine), marche, sarcophage
-	for k in 2:
+	# antichambre (ancien tombeau) : la porte nord mène à l'arène de Svanhild
+	d.salle(-8, 8, -42, -58, 6.0, [["sud", 0.0, 3.2], ["nord", 0.0, 4.0]], 0.0, "mur0")
+	for k in 3:
 		d.boite("gravure", Vector3(0, 0.015, -44.3 - k * 4.0), Vector3(2.0, 0.03, 4.0), 0.0, true, Vector3(1.0, 0, 44.3 + k * 4.0))
-	d.boite_pleine("dalle0", Vector3(0, 0.2, -51.0), Vector3(6.0, 0.4, 5.0))
-	d.boite("mur1", Vector3(0, 0.1, -48.2), Vector3(4.0, 0.2, 0.6))
-	d.boite_pleine("mur0", Vector3(0, 0.9, -51.5), Vector3(1.6, 1.0, 3.0))
-	d.boite("mur1", Vector3(0, 0.52, -51.5), Vector3(1.9, 0.24, 3.3))
-	d.boite("gravure", Vector3(0, 1.48, -51.5), Vector3(1.8, 0.18, 3.2))
-	_boite(crypte, Vector3(1.0, 0.04, 2.2), Transform3D(Basis(), Vector3(0, 1.58, -51.5)), Palette.lueur(Color(0.4, 1.1, 1.6)))
+	# vasque centrale (collision : un fût) et lueur froide
+	d.tour("mur0", Vector3(0, 0, -50.0), [Vector2(2.4, 0.0), Vector2(2.4, 0.4), Vector2(1.9, 0.4), Vector2(1.9, 0.9)], 8, PI / 8.0, true)
+	d.tour("gravure", Vector3(0, 0.9, -50.0), [Vector2(1.9, 0.0), Vector2(1.6, 0.0)], 8, PI / 8.0, true)
+	d.solide(Vector3(0, 0.45, -50.0), Vector3(3.6, 0.9, 3.6))
+	d.lumiere(Vector3(0, 1.6, -50.0), Color(0.4, 0.8, 1.0), 1.5, 7.0, 1.5, false)
 	for x in [-6.5, 6.5]:
 		for z in [-44.0, -56.0]:
 			d.pilier(x, z, 6.0, 1.0)
@@ -324,37 +475,47 @@ func _tombeau() -> void:
 	for z in [-46.0, -54.0]:
 		d.contrefort(7.45, z, 6.0, -1.0, 0.0, 0.7, 0.5)
 		d.contrefort(-7.45, z, 6.0, 1.0, 0.0, 0.7, 0.5)
-	_lueur_tombe = OmniLight3D.new()
-	_lueur_tombe.light_color = Color(0.4, 0.8, 1.0)
-	_lueur_tombe.light_energy = 2.4          # lot 7a (2e passe) : source froide propre, basse, qui rase les flancs du sarcophage
-	_lueur_tombe.omni_range = 8.5
-	_lueur_tombe.omni_attenuation = 1.4
-	_lueur_tombe.position = Vector3(0, 2.1, -49.6)
-	crypte.add_child(_lueur_tombe)
 	d.brasero(Vector3(-5.0, 0, -45.0))
 	d.brasero(Vector3(5.0, 0, -45.0))
 	d.applique(Vector3(7.2, 0, -46.0), Vector3(-1, 0, 0), 2.6, 5.5, 1.8)
 	d.applique(Vector3(-7.2, 0, -46.0), Vector3(1, 0, 0), 2.6, 5.5, 1.8)
 	d.applique(Vector3(7.2, 0, -54.0), Vector3(-1, 0, 0), 2.6, 5.5, 1.8, false)
 	d.applique(Vector3(-7.2, 0, -54.0), Vector3(1, 0, 0), 2.6, 5.5, 1.8, false)
-	d.oculus(Vector3(0, 6.0, -51.5), 1.8)
-	d.rai(Vector3(0, 1.7, -51.5), 4.25, 1.7)
-	d.flaque_froide(Vector3(0, 0.41, -51.0), 5.0)
-	d.poussiere(Vector3(0, 3.6, -51.5), Vector3(0.9, 2.0, 1.4), 30)
+	d.oculus(Vector3(0, 6.0, -50.0), 1.8)
+	d.rai(Vector3(0, 0.9, -50.0), 5.0, 1.7)
+	d.flaque_froide(Vector3(0, 0.02, -50.0), 6.0)
+	d.poussiere(Vector3(0, 3.6, -50.0), Vector3(0.9, 2.0, 1.4), 30)
 	d.urne(Vector3(7.1, 0, -50.0), 1.1)
 	d.urne(Vector3(-7.1, 0, -50.0), 1.1)
-	d.crane(Vector3(2.3, 0.4, -49.2), -0.6)
-	d.crane(Vector3(-2.3, 0.4, -49.0), 0.7)
+	d.crane(Vector3(2.3, 0.0, -47.2), -0.6)
+	d.crane(Vector3(-2.3, 0.0, -53.0), 0.7)
 	d.os_tas(Vector3(-4.6, 0, -53.0), 4, 0.5)
 	d.os_tas(Vector3(4.8, 0, -56.0), 3, 0.5)
 	d.arme(Vector3(3.2, 0, -47.0), 0.3)
 	d.arme(Vector3(-3.4, 0, -53.6), 2.2)
 	_gardien("guerrier", Vector3(-3.0, 0, -45.5), PI, true, true)
 	_gardien("guerrier", Vector3(3.0, 0, -45.5), PI, true, true)
-	_givre(Vector3(0, 1.6, -51.5))
-	_interactif(crypte, Vector3(0, 1.4, -49.6), "Inscription", "Lire l’inscription", func() -> Array: return quetes.texte("inscription_tombe"), func() -> bool: return not _peut_rendre())
-	_interactif(crypte, Vector3(0, 1.4, -49.6), "Svanhild", "Replacer l’anneau sur le sarcophage", _rendre_anneau, _peut_rendre)
 	_toiles([[-7.7, -41.7, 1, -1], [7.7, -41.7, -1, -1], [-7.7, -57.7, 1, 1], [7.7, -57.7, -1, 1]], 6.0)
+
+## Sarcophage de Svanhild, dans l'arène (les degrés de l'estrade sont dans le donjon) : mêmes formes que l'ancien tombeau.
+func _sarcophage_arene() -> void:
+	var o := Vector3(0, 0.2, 0)         # dessus du troisième degré = 0,6 ; l'ancien socle était à 0,4
+	d.boite_pleine("mur0", Vector3(0, 0.9, -72.0) + o, Vector3(1.6, 1.0, 3.0))
+	d.boite("mur1", Vector3(0, 0.52, -72.0) + o + Vector3(0, 0, 0), Vector3(1.9, 0.24, 3.3))
+	d.boite("gravure", Vector3(0, 1.48, -72.0) + o, Vector3(1.8, 0.18, 3.2))
+	_boite(crypte, Vector3(1.0, 0.04, 2.2), Transform3D(Basis(), Vector3(0, 1.78, -72.0)), Palette.lueur(Color(0.4, 1.1, 1.6)))
+	_lueur_tombe = OmniLight3D.new()
+	_lueur_tombe.light_color = Color(0.4, 0.8, 1.0)
+	_lueur_tombe.light_energy = 2.4          # lot 7a (2e passe) : source froide propre, basse, qui rase les flancs du sarcophage
+	_lueur_tombe.omni_range = 8.5
+	_lueur_tombe.omni_attenuation = 1.4
+	_lueur_tombe.position = Vector3(0, 2.3, -69.6)
+	crypte.add_child(_lueur_tombe)
+	d.toutes.append(_lueur_tombe)
+	_givre(Vector3(0, 1.8, -72.0))
+	var pos := SARCO + Vector3(0, 1.6, 1.9)
+	_interactif(crypte, pos, "Inscription", "Lire l’inscription", func() -> Array: return quetes.texte("inscription_tombe"), func() -> bool: return not _peut_rendre())
+	_interactif(crypte, pos, "Svanhild", "Replacer l’anneau sur le sarcophage", _rendre_anneau, _peut_rendre)
 
 func _fouiller_eirik() -> Array:
 	joueur.inventaire.ajouter("anneau_givre")
@@ -394,8 +555,10 @@ func restaurer(herse_ouverte: bool) -> void:
 		for it in crypte.get_children():
 			if it.get("verbe") == "Fouiller le corps d’Eirik":
 				it.actif = false
+	_etat_donjon()
 	# partie sauvegardée sous terre
 	if joueur.global_position.y < PROFONDEUR * 0.5:
+		attendre_donjon()
 		dedans = true
 		crypte.visible = true
 		entree.emit.call_deferred(true)
@@ -405,7 +568,7 @@ func _peut_rendre() -> bool:
 
 func _lever_svanhild() -> void:
 	_svanhild_levee = true
-	_svanhild = monde.creer_draugr("guerrier", crypte.to_global(Vector3(0, 0.05, -48.6)), PI, true, {
+	_svanhild = monde.creer_draugr("guerrier", crypte.to_global(SARCO + Vector3(0, 0.45, 3.4)), PI, true, {
 		"ident": "svanhild", "echelle": 1.12,
 		"apparence": {"corps": "femme", "casque": "couronne_givre", "cheveux": "Hair_Long", "teinte_cheveux": Color(1.1, 1.15, 1.25), "tenue": {"tunique": Color(0.4, 0.45, 0.6), "mante": Color(0.8, 0.85, 0.95), "brassards": Color(0.8, 0.85, 0.9), "ceinture": Color(0.8, 0.8, 0.8), "bottes": Color(0.6, 0.6, 0.6)}},
 		"vie_imposee": 260.0, "degats_imposes": 24.0, "nom_affiche": "Svanhild, Dame de givre",
@@ -425,6 +588,8 @@ func _passer(vers_dedans: bool) -> Array:
 	var t := create_tween()
 	t.tween_method(func(v: float) -> void: monde.post.set_shader_parameter("fondu", v), 0.0, 1.0, 0.5)
 	t.tween_callback(func() -> void:
+		if vers_dedans:
+			attendre_donjon()
 		dedans = vers_dedans
 		crypte.visible = vers_dedans
 		if vers_dedans:

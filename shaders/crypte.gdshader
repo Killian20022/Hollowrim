@@ -53,7 +53,8 @@ void fragment() {
 		vec3 wn = normalize(nw + s.x * T + s.y * B);
 		NORMAL = normalize((VIEW_MATRIX * vec4(wn, 0.0)).xyz);
 	}
-	float h = pos_m.y - y0;
+	// sol sous le sommet : y0 pour les sommets blancs (alpha 1), plus bas de (1 - alpha) x 20 m pour les étages et les escaliers du donjon
+	float h = pos_m.y - (y0 - (1.0 - COLOR.a) * 20.0);
 	float mur = 1.0 - abs(nw.y);
 	float pied = mix(0.5, 1.0, smoothstep(0.0, 1.15, h));
 	c *= mix(1.0, pied, crasse * mur);

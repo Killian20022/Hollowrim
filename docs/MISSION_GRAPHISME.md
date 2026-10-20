@@ -602,6 +602,62 @@ Planches : `captures/crypte/planches/avant_apres_<pose>_v2.png` (avant = 1fff394
   correspond, sinon recalculées (repli). Après toute modif de `crypte_textures.gd` : incrémenter `VERSION` puis relancer l'outil.
 - **GPU** : mesuré à conditions égales (3 à 4 Godot ouverts) : 1fff394 = 3,83 ms, après = 4,35 à 4,5 ms (salle) ; le 1,1 ms du premier lot datait d'une machine au calme.
 
+## Journal — Crypte agrandie en donjon (x8), branche `graphisme/crypte-donjon`
+
+Demande : la crypte (~600 m²) était trop petite → un vrai donjon (x7 à 8 en surface), même qualité visuelle, même quête. Résultat : **~4 990 m²**
+(4 390 m² ajoutés, surface nominale des 33 salles, murs compris ; x8,3), 2 niveaux, 3 boucles, 1 passage secret, 21 gardiens, 14 coffres et urnes.
+
+### Plan d'ensemble (repère de la crypte ; nord en haut = -Z ; haut : étage y=0, bas : y=-6)
+```
+ x: -60      -46   -24   -14  -7  0  7      24     46     60      78
+ z=-80                    +-----ARENE-----+
+                          |  estrade + sarcophage (0,-72) |
+ z=-66  [TRESOR]<-secret-[RELIQUAIRES]--S3(barree)-->|     |   (etage -6 : LB3 --- LB2 galerie --- LB1)
+ z=-58  (-60..-48)      |  (-48..-24)               +--porte--+
+                        |  W3 ^  U1 v (escalier bas)   ANTICHAMBRE (ex-tombeau, x +-8)
+ z=-34  --------------[OSSUAIRE]                          |herse
+ z=-30                  | (-46..-24)   [salle des piliers]--G0-->[G1 SALLE DES GLACES]--G3-->[G4 trone de glace]
+ z=-20  <--W1-----------+                  ^ levier            |D1 escalier vers LB1            |G5
+ z=-9    <--S1 (barree cote entree)--[niches]                  G2 --------G6------------------+  (boucle)
+ z=-2                       [ENTREE]--S2 (barree cote entree)--+
+```
+- Boucles : salle des piliers → W1 → ossuaire → S1 → couloir des niches ; salle → G0 → G1 → G2 → S2 → entrée ; G1 → G3 → G4 → G5 → G6 → G2 ; étage inférieur LB1 → LB2 → LB3 → U1 → ossuaire.
+- Raccourcis « verrouillés de l'autre côté » : **S1** (couloir des niches ↔ ossuaire), **S2** (entrée ↔ galerie gelée), **S3** (reliquaires ↔ arène). Côté bloqué : « Porte barrée » (texte) ; côté libre : « Soulever la barre » (porte qui coulisse dans le linteau). S3 évite de contourner la herse : on ne peut l'ouvrir que depuis l'arène.
+- Passage secret : le « crâne descellé » (socle de la chapelle des reliquaires, courant d'air au pied du mur) fait pivoter un pan de mur de 90° vers la salle au trésor.
+- Quête inchangée (levier → herse → note d'Eirik → anneau → Svanhild se lève près du sarcophage → rendre l'anneau) ; `data/quetes.json` non touché. Seules positions : sarcophage et réveil de Svanhild passent dans l'arène (`SARCO = (0, 0, -72)` dans `tertre.gd`), l'ancien tombeau devient l'antichambre (vasque centrale, 2 gardiens debout) avec une porte nord.
+
+### Plan en 3 points par zone (Murs/Structure · Mobilier · Éclairage)
+- **Ossuaire** (22 x 26 m, 5 m) : 4 piliers octogonaux + arcs doubleaux, panneaux de niches à crânes/fagots d'os (texture `ossuaire`, relief par pentes) sur 3 murs · autel octogonal d'os, 3 sarcophages, monticules d'os, étagère, coffre, crânes · 2 braseros, 3 appliques, bougie, oculus + rai (6).
+- **Reliquaires** (24 x 18 m) : 4 piliers, contrefort, pan de mur pivotant (ouverture « secrète » : pas de cadre) · autel gravé aux crânes, 3 sarcophages, table, 2 coffres, socle du crâne descellé · 2 braseros, 3 appliques (5).
+- **Salle au trésor** (12 x 10 m) : voûte basse, pivot du mur · tas d'or irréguliers, 3 coffres (dont « grand coffre »), râtelier, trône, urnes · 2 braseros, 2 appliques, reflet doré (5).
+- **Galeries gelées** (G0, G1 22 x 22, G2, G3, G4 18 x 20, G5, G6, S2) : pierre givrée puis glace épaisse (matières `mur3`/`mur4`, `dalle3`/`dalle4`), piliers octogonaux, stalactites/stalagmites de glace, souffle froid (particules qui dérivent le long des couloirs) · bassin gelé, trône de glace, coffres givrés, sarcophages · braseros chauds contre lampes de glace bleues (contraste chaud/froid), oculus + rai.
+- **Étage inférieur** : escalier de 24 marches de 0,25 m (D1 : G1 → LB1, U1 : ossuaire → LB3), salle à 6 piliers octogonaux (LB1), galerie funéraire de 44 m (LB2) avec chambre latérale, cisterne aux cuves (LB3) · tonneaux, sarcophages, coffres · 2 à 3 braseros + appliques par salle.
+- **Arène de Svanhild** (28 x 22 m, 8 m) : 6 piliers octogonaux de 8 m, grands arcs, estrade à trois degrés de 0,2 m, sarcophage gravé (bande cyan inchangée), stalagmites de givre · 4 braseros chauds, lampes froides, lueur du sarcophage (2,4), oculus + rai + flaque froide.
+
+### Réalisation technique
+- `scripts/crypte_donjon.gd` (nouveau) : toutes les nouvelles zones, escalier (`escalier`), portes coulissantes, glaçons, panneaux d'ossuaire, couloirs décorés. Bâti **dans un fil d'exécution**, hors de l'arbre (maillages, collisions, lumières) ; ne produit que des données pour les interactions (22) et les gardiens (21).
+- `scripts/crypte_decor.gd` : 3e paramètre `partage` du constructeur (le donjon réutilise les images déjà peintes) ; `theme` (substitution de matière dans `quad()` : un décor entier passe en glace) ; `niveau_a` ; ouverture « secrète » dans `salle()` ; liste `toutes` des lumières ; maillages séparés par étage. `GrotteDecor` hérite sans changement (test_grotte OK).
+- `scripts/crypte_textures.gd` (`VERSION` 4) : rampes `GIVRE`, `GLACE`, `OR` ; `_pierre` v=3 (pierre givrée) et v=4 (glace) ; `ossuaire_paire()` ; `or_image()`. Précalculées dans `assets/crypte/*.res` (outil `generer_crypte.gd`, 1,4 s).
+- `shaders/crypte.gdshader` : le pied de mur lit la hauteur du sol dans l'alpha des sommets (1 + y/20) : étages et escaliers ; sommets blancs inchangés. (La règle « pas d'accroche si clip.w <= 0,6 » est conservée.)
+- `scripts/tertre.gd` : intégration du donjon (`_integrer_donjon`, 6 ms), interactions (coffres → bourse via `butin.gd`, portes, secret), état sauvegardé dans `quetes.vus` (clés `crypte:<id>`), gardiens créés par zone à l'approche (2 par 0,25 s, identifiants `cr_<zone>_<n>`), lumières allumées selon la position (même étage, < 26 m ; 27 allumées au plus sur 92).
+- Gardiens : 21 dormants (dont 10 debout) répartis en 14 zones, jamais plus de 3 autour d'un même point (réveil à 10 m) ; hauteur d'écart > 3,5 m ignorée (déjà en place) : pas de coups à travers le sol.
+
+### Fichiers partagés touchés
+- `scripts/monde.gd` : `tertre.morts_charges` (charger/sauvegarder : les gardiens du donjon tués ne réapparaissent pas), `_ouvrir_donjon`, 5e coordonnée `y` et option `ouvre=` pour `--crypte=`, `--cpose=` et `--captures` (type crypte), scénario « tombe » recadré sur l'arène.
+- `outils/test_quetes.gd` : position d'approche du sarcophage = `t.SARCO + (0, 0.1, 5)`. `outils/captures_crypte.sh` : nouvelles poses. `outils/poses_donjon.txt` : 40 vues en un lot.
+
+### Mesures
+- Chargement : construction du donjon 0,4 à 0,8 s **dans un fil d'exécution** (hors du thread principal) ; surcoût mesuré sur le fil principal = intégration 6 ms ; la partie principale de la crypte reste à 190-290 ms.
+- GPU (`mesure_perf.gd`, vsync off, fenêtre) : salle des piliers 2,97 ms (855 appels, 88 k prim.), ossuaire 2,86 ms, salle des glaces 2,52 ms, arène 2,04 ms, LB1 1,85 ms (budget 8 ms). Portée de dessin 70 m.
+- Tests : `test_crypte` TOUT OK (parcours complet en 11 trajets : entrée, ossuaire, reliquaires, salle secrète, S3, arène, galeries est, boucle est, escaliers, étage inférieur ; portes fermées bloquantes ; capsule qui descend et remonte les escaliers ; <= 8 lumières allumées par maillage ; collisions dans les bornes ; coffre → bourse), `test_quetes -- --nouvelle`, `test_dragon_monde`, `test_collisions_biome`, `test_grotte` OK.
+- Planches : `captures/crypte/donjon_v1/` (19 vues) et `captures/crypte/donjon_v2/` (40 vues, ignorées par git).
+
+### Défauts restants
+- Les parois de l'arène (givre à grain fin) font un peu « fourrure » à 4 m de tuile ; le sol de glace est très uniforme.
+- Quelques glaçons proches de la torche se lisent comme des carrés pâles ; les gardiens debout sont figés en T sous `--paisible`.
+- Les marches des escaliers sont visuelles, la collision est une rampe (tolérance ~0,1 m) ; pas de collision sur les petits objets.
+- Les trois portes barrées et le mur pivotant sont animés sans son dédié (sons existants réutilisés).
+
 ## Journal — Grotte vitrine, branche `graphisme/grotte`
 
 Grotte de ~124 m (parcours entrée → fond), construite à la demande sous le monde (origine `POS_MONDE = (20, -220, 100)`), **sans entrée câblée** dans le monde. Nouveaux fichiers : `scripts/grotte.gd`, `scripts/grotte_decor.gd` (étend `CrypteDecor`, non modifié), `scripts/grotte_textures.gd`, `shaders/grotte.gdshader`, `outils/test_grotte.gd`, `outils/captures_grotte.gd|.sh`, `outils/planche_grotte.gd`.
