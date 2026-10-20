@@ -727,3 +727,49 @@ Grotte de ~124 m (parcours entrée → fond), construite à la demande sous le m
 - Géométrie : épicéa proche 6 pans (5 anneaux), 3 racines à un seul tronçon, plus de chicots ; pin/bouleau/mort 6 pans proches ; versions lointaines (`lod`) 4 pans sans racines ni chicots pour pin/bouleau/mort (utilisées comme `lod_mesh`).
 - Mesures (2.5,8.5,16,4) : primitives 382,8 k → 401,9 k (+19 k) ; GPU 6,1-6,5 ms contre 6,0-6,8 avant (indiscernable du bruit).
 - Planches : `captures/arbres/planches_troncs/planche_troncs_avant_apres_v2_{jour,nuit}.png`.
+
+## Journal — Entrée de la grotte des bandits, branche `graphisme/grotte-entree`
+
+La grotte vitrine (sous le monde, `POS_MONDE = (20, -220, 100)`) a maintenant une **entrée dans le monde**, une transition fondue comme la crypte, une construction en fil d'exécution, la sauvegarde sous terre et quatre bandits au camp. Nouveaux fichiers : `scripts/grotte_acces.gd` (classe `GrotteAcces`), `outils/test_grotte_acces.gd`, `outils/poses_grotte_acces.txt`, `outils/scan_relief.gd`.
+
+### Emplacement (justification)
+- **Site : (92, -27)**, flanc est de la cuvette, **96 m du feu**, 77 m du village (44, 40) ; dans la zone jouable (LIMITE 108, il reste 16 m derrière la bouche) ; hors `ZoneBiome` (x ≥ 4), à ~135 m du cercle (-38, -34) et du tumulus. Choisi avec `outils/scan_relief.gd` (carte de hauteurs et de pentes du terrain, `-- --nouvelle x0 z0 x1 z1 pas`) : le sol monte de 0,45 m par mètre vers l'est (collines du pourtour), la bouche regarde donc l'ouest, vers le feu, et on la voit de loin au bout d'une pente dégagée.
+- **Repérable de loin** : une **piste** de 5 m de large vers l'ouest (x 50 → 90, arbres et rochers retirés, voir plus bas) jalonnée de **pieux à crâne** (x 58, 68, 78) et de **cairns** (63, 73) ; devant la bouche un **brasero allumé** (la seule lumière du lieu, 6,5 m de rayon : on la voit de nuit à plus de 40 m), un étendard de peau, une torche éteinte plantée dans la neige.
+- **Marche** : rampe de 9° (`PENTE = 0.16`) sur 30 m jusqu'à la terrasse plate devant le seuil. Mesure en test : une capsule (r 0,35 ; h 1,8) fait x = 56 → fond du boyau en 12,3 s, pente max 9,1°.
+
+### Description en trois points
+**1. Murs / Structure** : front de roche à **4 strates** en retrait / surplomb (ruptures de ±0,3 m), **linteau saillant** (+0,55 m) au-dessus de l'ouverture, voûte irrégulière de 9 sommets (2,4 m de demi-largeur, ~3 m), **toit facetté** qui se fond dans la pente (max entre le terrain et un profil en cloche de 7 m), jupes de 1,4 m aux bords (aucun jour), **boyau de 3 m** à 4 anneaux dont l'occlusion peinte tombe de 0,8 à 0,03 (dégradé vers le noir) fermé par un bouchon noir (la vraie grotte est sous le monde). Matières de la grotte (`c_roche_neige`, `c_roche_nu`, `c_sol_neige` : roche givrée 32 texels/m, neige sur les faces qui regardent le haut).
+**2. Mobilier** : congères (sans collision), glaçons au linteau (7 + 5), crânes sur piques, 5 pieux taillés en chevaux de frise, caisses empilées, sacs, foyer éteint (7 pierres, bûches, os), arme rouillée, étendard de peau, brasero ; piste de pieux et de cairns. Toutes les pièces solides ont leur collision.
+**3. Éclairage** : lumière du monde (jour / lune) ; 1 OmniLight (brasero, vacille, `distance_fade`) ; flamme en sprite pixel art.
+
+### Terrain, forêt, rochers (fichiers partagés)
+- `monde.hauteur()` : `GrotteAcces.aplani()` (terrasse + rampe, 3 lignes dans `monde.gd`) ; `h_grotte` calculé comme `h_village`. Hors zone témoin seulement (la zone n'est pas touchée).
+- **Forêt dégagée APRÈS placement** (`Vegetation._degager_grotte`) : le RNG et le reste de la forêt sont identiques ; `Rochers` : `or GrotteAcces.exclu(x, z)` après les tirages (RNG intact). `GrotteAcces.exclu` = disque de 11 m devant la bouche + masse rocheuse + piste.
+- La carte de sol est signée sur le relief et les arbres : **elle s'est périmée toute seule, régénérée par `precalculer_tout --seulement=carte_sol`** (`assets/sol/carte_sol.res`, `carte_traces.res` modifiés).
+
+### Transition et ambiance
+- Interactif **« Entrer dans la grotte »** au fond du boyau (portée 4,2 m, visible dès le seuil) → fondu de 0,5 s → joueur à `s = 5` (pente d'entrée, regard vers le fond) ; `_sous_terre(true)` du monde puis `grotte.ambiance(_env)` (signal `entree`, même schéma que le tertre).
+- **« Sortir de la grotte »** à `s = 1,9`, devant la fenêtre de jour → fondu → devant la bouche (`porte_dehors`, regard vers l'ouest). `_sous_terre(false)` rend lune, neige, ciel, brume, glow, tramage ; le cycle jour / nuit repart (`cycle._process`) ; les flammes de la torche tenue sont rendues (la grotte les remplaçait par le sprite) ; la grotte est cachée et ses `_process` coupés (`process_mode`).
+- **Musique** : la grotte joue le morceau de cavernes de la crypte (`musique.gd`, 2 lignes) et coupe les bruits de bêtes lointaines.
+- **Boussole** : point ambre à la bouche.
+- **Construction en fil d'exécution** : l'extérieur (≈ 95 ms, 1 828 facettes) est bâti hors de l'arbre dès `_ready` et posé quand le fil a fini ; la grotte intérieure (≈ 0,3-0,5 s) part quand le joueur passe à moins de 85 m de la bouche, est posée cachée, et `obtenir()` attend le fil sinon (`_exit_tree` attend aussi, comme le donjon). **Coût au chargement du monde : 0,1 ms** (mesuré par `--chrono`, étape « entree de la grotte »).
+- **Mort sous terre** : `monde._joueur_mort` appelle `grotte_acces.reinitialiser()` (grotte refermée, ciel rétabli, sans fondu). *Bug existant, non touché : la mort dans la crypte ne referme pas la crypte.*
+
+### Sauvegarde
+Dans la grotte, la position sauvegardée est celle du fichier (y ≈ -215) ; au rechargement `grotte_acces.restaurer()` (y < -182) reconstruit la grotte (synchrone, ≈ 0,5 s, seulement dans ce cas) et **on y revient exactement où on était**. `tertre.restaurer` ne prend plus toute profondeur < -70 pour la crypte : `-182 < y < -70` (la crypte est à -140, la grotte à -220). Les bandits tués restent morts (`draugrs_morts` + `GrotteAcces.morts_charges`).
+
+### Bandits (bonus fait)
+4 bandits « sbire » (script `draugr.gd`, vivants : `apparence` avec `draugr: false`, peau, barbe, cheveux, tenue de cuir / laine, un casque nasal ; 55 PV, 12 de dégâts, nom « Bandit », identifiants `bandit_0..3`) autour du feu du camp, créés à la première entrée (cachés par le fondu). Limite : pas de recherche de chemin (comme les draugrs) ; ils se coincent dans le boyau si on les entraîne.
+
+### Fichiers partagés touchés
+`scripts/monde.gd` (+35 lignes : constante, `h_grotte`, `_grotte_acces()`, `hauteur`, mort, sauvegarde / chargement, captures), `scripts/grotte.gd` (`Grotte.nouvelle()` hors arbre), `scripts/tertre.gd` (1 ligne), `scripts/musique.gd` (2 lignes), `scripts/vegetation.gd` (+14), `scripts/rochers.gd` (1 ligne), `outils/tous_les_tests.sh` (+1 test), `assets/sol/carte_sol.res` et `carte_traces.res` (régénérés).
+
+### Captures et tests
+- Captures (un seul lancement) : `bash` équivalent : `$G --path "$W" --disable-vsync -- --captures="$W\outils\poses_grotte_acces.txt" --sortie="$W\captures\grotte_acces" --nouvelle --paisible --sans-particules --attente=120` → `captures/grotte_acces/*.png` (17 vues : `loin_*`, `piste_*`, `approche_*`, `bouche_*`, `bouche_lateral_*`, `seuil_*`, `flanc_jour`, `arrivee`, `sortie`, `camp`, `camp_feu`, jour = `heure=12`, nuit = heure de départ).
+- `outils/test_grotte_acces.gd` (≈ 50 vérifications) : aucun trou (224 rayons), terrasse à y = seuil, front de roche opaque à 4 et 6 m de l'axe, boyau ouvert puis bouchon, **capsule** qui monte la piste et entre dans le boyau, entrée par l'interactif → dans la grotte (position, visibilité, cycle coupé, ciel noir, brume), sauvegarde sous -182, **sortie → retour devant la bouche** (distance < 1 m, y > 0, cycle / neige / lune / ciel / brume / tramage / flammes restaurés, le cycle avance), `restaurer()`, mort sous terre, crypte non confondue, 4 bandits, bandit tué persisté.
+
+### Défauts restants
+- La piste n'a pas de texture de sentier (seulement arbres dégagés, rampe et pieux) : le sol de neige est le même.
+- Front de roche en grandes facettes à 4 strates : de près on voit les bandes horizontales, les quads de la jupe et du toit restent lisses ; pas de LOD (1 828 facettes, 14 matières de coque fusionnées par cellule de 10 m).
+- Les bandits ne retrouvent pas leur chemin dans le boyau (script commun avec les draugrs).
+- La fenêtre de jour (s = 0) de la grotte reste une carte de brume blanche (vue de l'intérieur uniquement).

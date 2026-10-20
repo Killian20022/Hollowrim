@@ -26,6 +26,7 @@ const VILLAGEOIS := preload("res://scripts/villageois.gd")
 const DIALOGUE := preload("res://scripts/dialogue.gd")
 const QUETES := preload("res://scripts/quetes.gd")
 const TERTRE := preload("res://scripts/tertre.gd")
+const GROTTE_ACCES := preload("res://scripts/grotte_acces.gd")
 const DRAGON := preload("res://scripts/dragon.gd")
 const TUMULUS := Vector3(-38.0, 0.0, -48.0)  # façade du tertre, au nord du cercle
 
@@ -38,6 +39,8 @@ var h_cercle := 0.0
 var h_tumulus := 0.0  # hauteur au pied de la façade du tertre (lot C)
 const TUMULUS_DISQUE := Vector2(-38.0, -54.5)  # centre du disque aplani derrière la façade
 var h_village := 0.0
+var h_grotte := 0.0  # niveau de la terrasse devant la bouche de la grotte (relief d'avant l'aplanissement)
+var grotte_acces: Node3D
 var village: Node3D
 var cycle: Node
 var calque: CanvasLayer
@@ -104,6 +107,7 @@ func _ready() -> void:
 		var a := TAU * k / 8.0
 		h_village += _hauteur_brute(VILLAGE.x + cos(a) * 30.0, VILLAGE.z + sin(a) * 30.0) / 8.0
 		h_cercle += _hauteur_brute(CERCLE.x + cos(a) * 16.0, CERCLE.z + sin(a) * 16.0) / 8.0
+	h_grotte = _hauteur_ancienne(GrotteAcces.SITE.x - 1.0, GrotteAcces.SITE.y)
 	chemins = Chemins.new(self)
 	if ZoneBiome.actif:
 		h_tumulus = _hauteur_sans_tumulus(TUMULUS.x, TUMULUS.z)
@@ -140,6 +144,8 @@ func _ready() -> void:
 	_chrono("villageois")
 	_tertre()
 	_chrono("tertre+crypte")
+	_grotte_acces()
+	_chrono("entree de la grotte")
 	AbordsTumulus.creer(self)  # lot F : abords du tertre (après sa création)
 	if not _arguments().has("capture"):
 		_musique()
@@ -218,7 +224,7 @@ func _hauteur_sans_tumulus(x: float, z: float) -> float:
 func hauteur(x: float, z: float) -> float:
 	var m := ZoneBiome.masque(x, z)
 	if m <= 0.0 or chemins == null:
-		return _hauteur_ancienne(x, z)
+		return GrotteAcces.aplani(x, z, _hauteur_ancienne(x, z), h_grotte)
 	var h := _hauteur_sans_tumulus(x, z)
 	# tumulus : disque plat (r ≤ 8) à la hauteur du pied de la façade, raccord jusqu'à r 14
 	var r := Vector2(x - TUMULUS_DISQUE.x, z - TUMULUS_DISQUE.y).length()
@@ -486,7 +492,9 @@ func _joueur_mort() -> void:
 	var t := create_tween()
 	t.tween_method(func(v: float) -> void: post.set_shader_parameter("fondu", v), 0.0, 1.0, 2.0)
 	t.tween_interval(1.5)
-	t.tween_callback(func() -> void: joueur.ressusciter(depart_joueur, atan2(depart_joueur.x, depart_joueur.z)))
+	t.tween_callback(func() -> void:
+		grotte_acces.reinitialiser()      # mort sous terre : la grotte se referme, le monde reprend sa lumière
+		joueur.ressusciter(depart_joueur, atan2(depart_joueur.x, depart_joueur.z)))
 	t.tween_method(func(v: float) -> void: post.set_shader_parameter("fondu", v), 1.0, 0.0, 1.5)
 
 # --- villageois ------------------------------------------------------------------
@@ -539,6 +547,24 @@ func _tertre() -> void:
 		if quetes.etat.get("anneau_givre", 0) >= 6 and dragon == null and not dragon_vaincu:
 			_dragon())
 	hud.lieux.append([tertre.porte_dehors, Color("#6fd8ff")])
+
+## Entrée de la grotte des bandits (flanc est) : bouche de roche, passage fondu, grotte bâtie en fil d'exécution.
+func _grotte_acces() -> void:
+	grotte_acces = Node3D.new()
+	grotte_acces.set_script(GROTTE_ACCES)
+	grotte_acces.monde = self
+	grotte_acces.joueur = joueur
+	grotte_acces.dialogue = dialogue
+	grotte_acces.quetes = quetes
+	grotte_acces.hud = hud
+	grotte_acces.position = Vector3(GrotteAcces.SITE.x, h_grotte, GrotteAcces.SITE.y)
+	grotte_acces.rotation.y = GrotteAcces.LACET
+	add_child(grotte_acces)
+	grotte_acces.entree.connect(func(dedans: bool) -> void:
+		_sous_terre(dedans)
+		if dedans:
+			grotte_acces.grotte.ambiance(_env))
+	hud.lieux.append([grotte_acces.porte_dehors, Color("#ffb347")])
 
 func _dragon() -> void:
 	dragon = CharacterBody3D.new()
@@ -715,6 +741,9 @@ func sauvegarder() -> void:
 	for id in tertre.morts_charges:        # gardiens du donjon tués dans une partie précédente et pas (encore) réapparus
 		if not morts.has(id):
 			morts.append(id)
+	for id in grotte_acces.morts_charges:  # idem pour les bandits de la grotte
+		if not morts.has(id):
+			morts.append(id)
 	var parles := []
 	for v in get_tree().get_nodes_in_group("villageois"):
 		if v.get("deja_parle"):
@@ -757,6 +786,8 @@ func charger() -> void:
 	dragon_vaincu = bool(d.get("dragon_vaincu", false))
 	quetes.importer(d.get("quetes", {}))
 	tertre.restaurer(bool(d.get("herse", false)))
+	grotte_acces.morts_charges = d.get("draugrs_morts", [])
+	grotte_acces.restaurer()      # sauvegardé dans la grotte : on y revient (position du fichier)
 	tertre.morts_charges = d.get("draugrs_morts", [])      # le donjon de la crypte ne refait pas ceux-là
 	for id in d.get("draugrs_morts", []):
 		if draugrs.has(id):
@@ -869,7 +900,8 @@ func _aller_crypte() -> void:
 var grotte: Node
 
 func _aller_grotte(pose: String) -> void:
-	grotte = Grotte.creer(self, joueur)
+	grotte = grotte_acces.obtenir()
+	grotte_acces.montrer(true)
 	_sous_terre(true)
 	grotte.ambiance(_env)
 	var p := pose.split_floats(",")
@@ -1024,7 +1056,8 @@ func _lot_captures(fichier: String) -> void:
 			if dessous != "grotte":
 				if dessous == "crypte":
 					tertre.crypte.visible = false  # on quitte la crypte pour la grotte (autre lieu sous terre)
-				grotte = Grotte.creer(self, joueur)
+				grotte = grotte_acces.obtenir()
+				grotte_acces.montrer(true)
 				_sous_terre(true)
 				grotte.ambiance(_env)
 				dessous = "grotte"

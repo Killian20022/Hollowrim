@@ -40,8 +40,8 @@ func situation() -> String:
 	var j: Node3D = monde.joueur
 	if _sortie_combat > 0.0:
 		return "combat"
-	if monde.tertre != null and monde.tertre.dedans:
-		return "crypte"
+	if (monde.tertre != null and monde.tertre.dedans) or (monde.grotte_acces != null and monde.grotte_acces.dedans):
+		return "crypte"        # la même musique de cavernes sert à la grotte
 	if Vector2(j.global_position.x - monde.VILLAGE.x, j.global_position.z - monde.VILLAGE.z).length() < RAYON_VILLAGE:
 		return "village"
 	return "foret"
@@ -120,7 +120,7 @@ func _fini(l: AudioStreamPlayer) -> void:
 
 ## Corbeau ou loup lointain en forêt, toutes les 40 à 90 s (jamais sous terre).
 func _bruits_lointains(dt: float) -> void:
-	if monde.tertre != null and monde.tertre.dedans:
+	if (monde.tertre != null and monde.tertre.dedans) or (monde.grotte_acces != null and monde.grotte_acces.dedans):
 		return
 	_prochaine_bete -= dt
 	if _prochaine_bete > 0.0:
