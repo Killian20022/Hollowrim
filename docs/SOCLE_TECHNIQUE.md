@@ -62,6 +62,12 @@ Fils d'exécution (`WorkerThreadPool`) :
 - Mesure obligatoire : un test de traversée de la carte en ligne droite à la vitesse de course qui enregistre la
   **pire image** (objectif : aucune image > 33 ms, 99 % des images < 16,7 ms).
 
+## 3 bis. Brouillard = distance d'affichage
+
+Le brouillard de distance (lot 7, fin à ~50-60 m, 25-30 m en tempête) fixe la distance utile d'affichage : rien de
+détaillé n'est dessiné au-delà de la fin du brouillard + marge. Les portées de visibilité des cellules, le LOD d'horizon
+et les anneaux de streaming se règlent sur cette valeur (et non l'inverse).
+
 ## 4. Contrôle à chaque lot
 
 Chaque lot rend : GPU au feu `2.5,8.5,16,4` vsync off, nombre d'appels de dessin, primitives, temps de chargement,

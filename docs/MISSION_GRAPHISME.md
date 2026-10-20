@@ -156,6 +156,14 @@ silhouette, aucun mur « plat » sans texture lisible, aucune pièce flottante.
   halos de flammes nets (glow réglé), crépuscule distinct ; nuit inchangée dans son esprit.
 - Tramage du post-traitement : vérifier qu'il ne crée pas de bruit sur l'aurore et les bords d'arbres.
 - Passe de cohérence : densités de pixels, palette, contours ; liste des assets qui « jurent ».
+- **Brouillard de distance (demande utilisateur du 2026-10-20)** : le joueur ne doit jamais voir le bout du monde, pour que
+  la carte paraisse gigantesque (esprit Silent Hill / Daggerfall). Brouillard en profondeur avec une vraie limite : net
+  jusqu'à ~20 m, effacement entre 20 et 50-60 m, au-delà la brume seule. Distance variable : nuit claire ~60 m, jour gris
+  ~50 m, tempête de neige 25-30 m ; plus dense dans les creux et les forêts, plus dégagé sur les crêtes (récompense
+  d'exploration). Le ciel reste lisible (aurore, lune : `fog_sky_affect` bas). Les arbres lointains sortent de la brume en
+  silhouettes, jamais de « pop » : les portées de visibilité (`visibility_range_end`, LOD d'horizon) sont recalées juste
+  au-delà de la fin du brouillard, ce qui rend du budget GPU à réinvestir près du joueur. Couleur du brouillard accordée à
+  l'horizon du ciel. Captures avant/après jour, nuit, tempête ; mesure GPU avant/après.
 
 ---
 
