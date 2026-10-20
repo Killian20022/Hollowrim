@@ -5,6 +5,8 @@ extends Node3D
 ## Capture d'écran sans jouer (pour les tests) :
 ##   godot --path . -- --capture=C:/chemin/image.png [--pose=x,z,lacet,tangage] [--sans-ps1]
 ##   [--heure=12] [--sans-particules] [--paisible] [--biome=ancien|nouveau]
+##   LOT : godot --path . --disable-vsync -- --captures=poses.txt --sortie=dossier [--paisible --sans-particules --sans-mains --attente=200]
+##   (plusieurs vues en un lancement ; format du fichier : voir _lot_captures plus bas ; sauvegarde de test : voir fichier_sauvegarde)
 
 const TAILLE := 240.0           # côté du terrain (m)
 const CASES := 120              # cases par côté
@@ -65,7 +67,15 @@ var sbire: CharacterBody3D
 var depart_joueur := Vector3.ZERO
 var draugrs := {}  # identifiant → draugr
 var _minuterie_sauvegarde := 0.0
-const FICHIER_SAUVEGARDE := "user://sauvegarde.json"
+const SAUVEGARDE_REELLE := "user://sauvegarde.json"
+const SAUVEGARDE_TEST := "user://sauvegarde_test.json"
+## La vraie partie reste sur sauvegarde.json ; tout lancement avec arguments utilisateur (après « -- »),
+## en --script ou sans fenêtre (tests, captures, --nouvelle…) lit et écrit sauvegarde_test.json.
+static func fichier_sauvegarde() -> String:
+	var args := OS.get_cmdline_args()
+	if OS.get_cmdline_user_args().size() > 0 or "--script" in args or "-s" in args or DisplayServer.get_name() == "headless":
+		return SAUVEGARDE_TEST
+	return SAUVEGARDE_REELLE
 var _t := 0.0
 
 var _audio_vent: AudioStreamGeneratorPlayback
@@ -664,7 +674,7 @@ func _unhandled_input(e: InputEvent) -> void:
 			KEY_F9:
 				# on relance le jeu plutôt que la scène : recréer le monde dans le même
 				# processus fait planter Godot (modèles importés rechargés en double)
-				if FileAccess.file_exists(FICHIER_SAUVEGARDE):
+				if FileAccess.file_exists(fichier_sauvegarde()):
 					OS.set_restart_on_exit(true, OS.get_cmdline_args())
 					get_tree().quit()
 
@@ -706,13 +716,13 @@ func sauvegarder() -> void:
 		"draugrs_morts": morts,
 		"villageois_parles": parles,
 	}
-	var f := FileAccess.open(FICHIER_SAUVEGARDE, FileAccess.WRITE)
+	var f := FileAccess.open(fichier_sauvegarde(), FileAccess.WRITE)
 	f.store_string(JSON.stringify(donnees, "\t"))
 
 func charger() -> void:
-	if not FileAccess.file_exists(FICHIER_SAUVEGARDE):
+	if not FileAccess.file_exists(fichier_sauvegarde()):
 		return
-	var d = JSON.parse_string(FileAccess.get_file_as_string(FICHIER_SAUVEGARDE))
+	var d = JSON.parse_string(FileAccess.get_file_as_string(fichier_sauvegarde()))
 	if not d is Dictionary:
 		push_warning("Sauvegarde illisible, nouvelle partie.")
 		return
@@ -809,6 +819,8 @@ func _arguments() -> Dictionary:
 		if a.begins_with("--"):
 			var parts := a.substr(2).split("=", true, 1)
 			res[parts[0]] = parts[1] if parts.size() > 1 else ""
+	if res.has("captures") and not res.has("capture"):
+		res["capture"] = ""  # --captures=<fichier> : mode capture (temps figé, ni musique ni sauvegarde)
 	return res
 
 ## --crypte=x,z,lacet°,tangage° : descend dans la crypte et s'y place (mesures de performance, essais ; repère de la crypte).
@@ -858,6 +870,9 @@ func _rendre_paisible() -> void:
 
 func _capture() -> void:
 	var chemin: String = _arguments().get("capture", "")
+	if _arguments().has("captures"):
+		await _lot_captures(String(_arguments()["captures"]))
+		return
 	if chemin == "":
 		return
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -905,6 +920,128 @@ func _capture() -> void:
 	img.resize(img.get_width() * 2, img.get_height() * 2, Image.INTERPOLATE_NEAREST)
 	img.save_png(chemin)
 	get_tree().quit()
+
+## --captures=<fichier> : plusieurs captures en UN lancement (monde construit une fois).
+## Une ligne par vue : `nom type coords [option=valeur …]` ; `#` = commentaire. Types :
+##   monde x,z,lacet°,tangage°      crypte x,z,lacet°,tangage° (repère de la crypte)
+##   grotte s,décalage,lacet°,tangage°      scenario <nom> (village, place, forge, dialogue…)
+## Options : heure=12 (sinon l'heure de départ, nuit) · sans-mains · torche-eteinte · attente=N images.
+## --attente= vaut pour la 1re vue ; les suivantes attendent --attente-suite= (20) images.
+## Les PNG vont dans --sortie=<dossier> (ou à côté du fichier de poses), nommés <nom>.png.
+## Ordre imposé : monde, puis scénarios, puis crypte, puis grotte (on ne ressort pas du sous-sol).
+## Les options globales (--paisible, --sans-particules, --sans-mains, --attente=) valent pour toutes les vues.
+func _lot_captures(fichier: String) -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var texte := FileAccess.get_file_as_string(fichier)
+	if texte == "":
+		push_error("--captures : fichier de poses introuvable ou vide : " + fichier)
+		get_tree().quit(1)
+		return
+	var sortie: String = _arguments().get("sortie", fichier.get_base_dir())
+	DirAccess.make_dir_recursive_absolute(sortie)
+	var rang := {"monde": 0, "scenario": 1, "crypte": 2, "grotte": 3}
+	var vues: Array = []
+	for ligne in texte.split("\n"):
+		var m := ligne.strip_edges().split(" ", false)
+		if m.size() < 3 or m[0].begins_with("#"):
+			continue
+		var v := {"nom": m[0], "type": m[1], "coords": m[2], "opt": {}}
+		for k in range(3, m.size()):
+			var kv := m[k].split("=", true, 1)
+			v["opt"][kv[0]] = kv[1] if kv.size() > 1 else ""
+		vues.append(v)
+	vues.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return rang.get(a["type"], 0) < rang.get(b["type"], 0))
+	var heure_depart: float = cycle.heure
+	var depart := _etat_lumiere()
+	var attente_globale := int(_arguments().get("attente", "90"))
+	var attente_suite := int(_arguments().get("attente-suite", "20"))
+	var mains_globales := _arguments().has("sans-mains")
+	var torche_masque: int = joueur.mains.torche_lumiere.light_cull_mask
+	var dessous := ""
+	var t0 := Time.get_ticks_msec()
+	var n := 0
+	for v in vues:
+		var opt: Dictionary = v["opt"]
+		var type: String = v["type"]
+		var c := PackedFloat64Array()
+		if type != "scenario":
+			c = String(v["coords"]).split_floats(",")
+		if type == "monde" or type == "scenario":
+			if dessous != "":
+				push_error("--captures : vue monde/scénario « %s » après le sous-sol, ignorée" % v["nom"])
+				continue
+			if opt.has("heure"):
+				cycle.heure = float(opt["heure"])
+				cycle._process(0.0)
+			else:
+				cycle.heure = heure_depart
+				_restaurer_lumiere(depart)  # état exact du lancement isolé (≠ cycle._process à l'heure de départ)
+			if type == "monde":
+				joueur.global_position = Vector3(c[0], hauteur(c[0], c[1]) + 0.1, c[1])
+				joueur.rotation.y = deg_to_rad(c[2])
+				joueur.tete.rotation.x = deg_to_rad(c[3]) if c.size() > 3 else 0.0
+				joueur.velocity = Vector3.ZERO
+		elif type == "crypte":
+			if dessous == "":
+				tertre._passer(true)
+				await get_tree().create_timer(1.3).timeout
+				dessous = "crypte"
+			joueur.global_position = tertre.crypte.to_global(Vector3(c[0], 0.1, c[1]))
+			joueur.rotation.y = tertre.crypte.global_rotation.y + deg_to_rad(c[2])
+			joueur.tete.rotation.x = deg_to_rad(c[3])
+			joueur.velocity = Vector3.ZERO
+		elif type == "grotte":
+			if dessous != "grotte":
+				if dessous == "crypte":
+					tertre.crypte.visible = false  # on quitte la crypte pour la grotte (autre lieu sous terre)
+				grotte = Grotte.creer(self, joueur)
+				_sous_terre(true)
+				grotte.ambiance(_env)
+				dessous = "grotte"
+			joueur.global_position = grotte.monde_sol(c[0], c[1]) + Vector3(0, 0.1, 0)
+			joueur.rotation.y = grotte.cap_monde(c[0]) + deg_to_rad(c[2])
+			joueur.tete.rotation.x = deg_to_rad(c[3])
+			joueur.velocity = Vector3.ZERO
+		else:
+			push_error("--captures : type inconnu « %s » (vue %s)" % [type, v["nom"]])
+			continue
+		joueur.mains.torche_lumiere.light_cull_mask = 0 if opt.has("torche-eteinte") else torche_masque
+		joueur.mains.visible = not (mains_globales or opt.has("sans-mains"))
+		# 1re vue : attente complète (compilation des shaders, stabilisation) ; les suivantes : --attente-suite (20 images)
+		var att: int = int(opt["attente"]) if opt.has("attente") else (attente_globale if n == 0 else mini(attente_globale, attente_suite))
+		for i in att:
+			await get_tree().process_frame
+		_cacher_particules()
+		if type == "scenario":
+			await _scenario(String(v["coords"]))
+		for i in 3:
+			await get_tree().process_frame
+		var img := get_viewport().get_texture().get_image()
+		img.resize(img.get_width() * 2, img.get_height() * 2, Image.INTERPOLATE_NEAREST)
+		img.save_png(sortie.path_join(String(v["nom"]) + ".png"))
+		n += 1
+		print("CAPTURE ", v["nom"], " (", type, ") joueur=", joueur.global_position)
+	print("LOT : %d captures en %.1f s" % [n, (Time.get_ticks_msec() - t0) / 1000.0])
+	get_tree().quit()
+
+func _etat_lumiere() -> Dictionary:
+	return {
+		"basis": cycle.lumiere.basis, "couleur": cycle.lumiere.light_color, "energie": cycle.lumiere.light_energy,
+		"amb": _env.ambient_light_color, "amb_e": _env.ambient_light_energy,
+		"brume": _env.fog_light_color, "dens": _env.fog_density,
+		"jour": _ciel.get_shader_parameter("jour"), "soleil": _ciel.get_shader_parameter("soleil"),
+	}
+
+func _restaurer_lumiere(e: Dictionary) -> void:
+	cycle.lumiere.basis = e["basis"]
+	cycle.lumiere.light_color = e["couleur"]
+	cycle.lumiere.light_energy = e["energie"]
+	_env.ambient_light_color = e["amb"]
+	_env.ambient_light_energy = e["amb_e"]
+	_env.fog_light_color = e["brume"]
+	_env.fog_density = e["dens"]
+	_ciel.set_shader_parameter("jour", e["jour"])
+	_ciel.set_shader_parameter("soleil", e["soleil"])
 
 ## Test automatique : le joueur se place face au rôdeur et enchaîne des coups.
 func _test_combat() -> void:
