@@ -20,9 +20,13 @@ func _init(decor: CrypteDecor) -> void:
 func zone(nom: String, x0: float, x1: float, z0: float, z1: float, y := 0.0) -> void:
 	zones.append({"nom": nom, "rect": Rect2(x0, z0, x1 - x0, z1 - z0), "y": y})
 
-func gardien(zone_: String, type: String, pos: Vector3, lacet: float, dort := true, debout := false) -> void:
-	_n_gardien += 1
-	gardiens.append({"zone": zone_, "type": type, "pos": pos, "lacet": lacet, "dort": dort, "debout": debout, "ident": "cr_%s_%d" % [zone_, _n_gardien]})
+## `ident_` : identifiant fixe (sans toucher au compteur) pour les gardiens ajoutés après coup : les identifiants numérotés des
+## autres gardiens, enregistrés dans les sauvegardes (draugrs_morts), ne doivent pas changer.
+func gardien(zone_: String, type: String, pos: Vector3, lacet: float, dort := true, debout := false, ident_ := "") -> void:
+	if ident_ == "":
+		_n_gardien += 1
+		ident_ = "cr_%s_%d" % [zone_, _n_gardien]
+	gardiens.append({"zone": zone_, "type": type, "pos": pos, "lacet": lacet, "dort": dort, "debout": debout, "ident": ident_})
 
 func interaction(id: String, pos: Vector3, nom: String, verbe: String, genre: String, extra := {}) -> void:
 	var it := {"id": id, "pos": pos, "nom": nom, "verbe": verbe, "genre": genre}
@@ -363,6 +367,10 @@ func _ossuaire() -> void:
 	gardien("ossuaire", "sbire", Vector3(-43.0, 0, -28.0), 0.8)
 	gardien("ossuaire", "guerrier", Vector3(-27.0, 0, -13.0), -1.2, true, true)
 	gardien("ossuaire", "sbire", Vector3(-33.0, 0, -11.0), PI)
+	# squelettes nordiques (SqueletteGuerrier) : deux épéistes debout dans les niches du fond, un archer (variante visuelle : pas de tir) à l'est
+	gardien("ossuaire", "squelette", Vector3(-39.0, 0, -31.0), 0.5, true, true, "cr_ossuaire_sq1")
+	gardien("ossuaire", "squelette", Vector3(-30.5, 0, -30.2), -0.4, true, true, "cr_ossuaire_sq2")
+	gardien("ossuaire", "squelette_archer", Vector3(-26.5, 0, -19.5), -1.6, true, true, "cr_ossuaire_sqa")
 	interaction("cof_ossuaire", Vector3(-25.2, 0.7, -30.8), "Coffre ferré", "Ouvrir le coffre", "coffre", {"butin": {"pieces": 34, "os_draugr": 2, "poussiere_tombe": 1}, "coffre": Vector3(-25.2, 0, -30.8)})
 	interaction("urne_ossuaire", Vector3(-44.8, 0.5, -13.0), "Urne funéraire", "Fouiller l’urne", "coffre", {"butin": {"pieces": 9}, "coffre": Vector3(-44.8, 0, -13.0)})
 	# couloir vers les reliquaires et escalier vers l'étage inférieur
