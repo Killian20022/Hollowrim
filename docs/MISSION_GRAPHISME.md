@@ -535,3 +535,13 @@ Planches : `captures/crypte/planches/avant_apres_<pose>_v2.png` (avant = 1fff394
 - **Test** : `test_crypte.gd` exclut les CharacterBody3D (draugrs/PNJ selon la sauvegarde) ; la cause était un vivant sur le parcours, pas un défaut du décor.
 - **Défauts restants** : coût de chargement de la crypte à mesurer au calme (peinture ~120 ms par texture de pierre en parallèle, mesures faussées par d'autres Godot) ;
   joints du sol encore marqués en rasant ; le tombeau reste froid hors des braseros ; pas de nervures de voûte en relief supplémentaires.
+
+#### Lot 7a, 2e passe — corrections (v3)
+- **Murs « disparus » (aplat noir sur un tiers de l'image)** : l'accroche des sommets du shader divisait par `clip.w` ; un sommet proche du plan de la caméra
+  (w ≈ 0, rendu fréquent depuis que les murs sont découpés tous les 0,7 m pour l'AO cuite) part dans le décor et emporte le pan. Correctif : pas d'accroche si `clip.w <= 0,6`.
+- **Pixel art net** : grain de pierre en amas de ~3 texels (bruit sans lissage, posterisé), biseau en 3 marches, joints de 1 à 2 texels sombres avec lèvre claire
+  nette côté éclairé, rampes conservées (10 tons). Le tramage 4x4 de Bayer (interdit par la bible) est remplacé par une quantification à 18 niveaux avec tirage
+  de bruit seulement près des seuils.
+- **Chargement** : textures précalculées dans `assets/crypte/*.res` par `outils/generer_crypte.gd` (albédo avec mipmaps + `_nm`), chargées si `CrypteTextures.VERSION`
+  correspond, sinon recalculées (repli). Après toute modif de `crypte_textures.gd` : incrémenter `VERSION` puis relancer l'outil.
+- **GPU** : mesuré à conditions égales (3 à 4 Godot ouverts) : 1fff394 = 3,83 ms, après = 4,35 à 4,5 ms (salle) ; le 1,1 ms du premier lot datait d'une machine au calme.

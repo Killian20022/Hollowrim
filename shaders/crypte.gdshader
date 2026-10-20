@@ -26,7 +26,8 @@ varying vec3 n_m;
 
 void vertex() {
 	vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
-	if (grille > 0.0 && PROJECTION_MATRIX[3][3] < 0.5) {
+	// pas d'accroche près du plan de la caméra (w petit ou négatif) : xy/w explose et le sommet part dans le décor (murs « disparus »)
+	if (grille > 0.0 && PROJECTION_MATRIX[3][3] < 0.5 && clip.w > 0.6) {
 		vec2 g = vec2(grille * VIEWPORT_SIZE.x / VIEWPORT_SIZE.y, grille);
 		clip.xy = round(clip.xy / clip.w * g) / g * clip.w;
 	}

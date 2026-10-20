@@ -5,12 +5,14 @@ class_name CrypteTextures
 ## interne de chaque pierre, teinte propre à chaque pierre (rampe froide <-> rampe chaude), coulures, salpêtre, mousse ;
 ## (2) une carte de pentes (`*_nm`) que le shader lit pour que la torche sculpte le relief en lumière rasante.
 ## Densité : 32 texels/m (K = 2) pour la pierre, le bois, le fer et les petits objets (tuiles de 1 à 8 m).
-## Les rampes comptent 8 à 10 tons et sont INTERPOLÉES puis quantifiées à ~26 niveaux par tramage ordonné 4x4
+## Les rampes comptent 8 à 10 tons et sont INTERPOLÉES puis quantifiées à ~26 niveaux par quantification au bruit
 ## (grain « photo réduite et retouchée » au lieu d'aplats). Mipmaps « nearest » maison (vote de couleur 2x2,
 ## égalité départagée vers la valeur moyenne : plus d'assombrissement au loin).
 ## Aucune fonction partagée de palette.gd n'est touchée.
 
 const CLEAR := Color(0, 0, 0, 0)
+const DOSSIER := "res://assets/crypte"   # textures précalculées par outils/generer_crypte.gd
+const VERSION := 3                       # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
 const K := 2   # facteur de densité de la pierre : 1 = 16 texels/m, 2 = 32 texels/m
 
 # rampes (indice 0 = creux/joint, dernier = lumière) : désaturées, froides dans l'ombre, un peu plus chaudes en lumière
@@ -27,8 +29,7 @@ const ARGILE := ["#1d110b", "#2f1b11", "#432819", "#5a3a24", "#734c30", "#8c613f
 const PARCHEMIN := ["#3b301d", "#5c4e30", "#80704a", "#a39266", "#c2b284", "#d8cb9e"]
 const TOILE := ["#8d9db0", "#b5c4d3"]
 const FLAMME := ["#4a1008", "#a8330c", "#f0801a", "#ffcb52", "#fff3c4"]
-const BAYER := [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
-const NIVEAUX := 26.0
+const NIVEAUX := 18.0
 
 static func _c(rampe: Array, i: int) -> Color:
 	return Color(rampe[clampi(i, 0, rampe.size() - 1)])
@@ -45,8 +46,10 @@ static func _rp(cols: Array, l: float) -> Color:
 	var i := mini(int(f), cols.size() - 2)
 	return (cols[i] as Color).lerp(cols[i + 1], f - i)
 
+## Quantification au bruit (jamais de motif ordonné) : le tirage ne bascule que les valeurs proches d'un seuil.
 static func _q(l: float, x: int, y: int) -> float:
-	return floorf(l * NIVEAUX + (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16.0) / NIVEAUX
+	var h := float(((x * 73856093) ^ (y * 19349663)) & 1023) / 1023.0
+	return floorf(l * NIVEAUX + 0.5 + (h - 0.5) * 0.55) / NIVEAUX
 
 static func _px(img: Image, x: int, y: int, c: Color) -> void:
 	img.set_pixel(posmod(x, img.get_width()), posmod(y, img.get_height()), c)
@@ -67,7 +70,7 @@ static func _ss(a: float, b: float, x: float) -> float:
 
 ## Bruit de valeurs PÉRIODIQUE (tuile S x S) : treillis cx x cy de tirages, tuilé 3x3, agrandi en bicubique (natif, rapide),
 ## recadré sur la tuile centrale. Valeurs ~[0, 1] (le bicubique déborde un peu).
-static func _nmap(S: int, cx: int, cy: int, graine: int) -> PackedFloat32Array:
+static func _nmap(S: int, cx: int, cy: int, graine: int, net := false) -> PackedFloat32Array:
 	var rng := _rng(graine)
 	var v := PackedFloat32Array()
 	for i in cx * cy:
@@ -76,7 +79,7 @@ static func _nmap(S: int, cx: int, cy: int, graine: int) -> PackedFloat32Array:
 	for y in cy * 3:
 		for x in cx * 3:
 			g.set_pixel(x, y, Color(v[(y % cy) * cx + (x % cx)], 0, 0))
-	g.resize(S * 3, S * 3, Image.INTERPOLATE_CUBIC)
+	g.resize(S * 3, S * 3, Image.INTERPOLATE_NEAREST if net else Image.INTERPOLATE_CUBIC)
 	return g.get_region(Rect2i(S, S, S, S)).get_data().to_float32_array()
 
 ## Largeurs de blocs qui totalisent exactement `total` (coupe en cas de reste trop petit).
@@ -185,12 +188,13 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 	var l_hi: float = o.get("l_hi", 0.58)
 	var elev_max: float = o.get("elev", 0.6)
 	var creux: float = o.get("creux", 0.0)
-	var jl: float = o.get("joint_l", 0.1)
+	var jl: float = o.get("joint_l", 0.06)
 	var froid := _cols(PIERRE_SOMBRE_F if o.get("sombre", false) else PIERRE_FROID)
 	var chaud := _cols(PIERRE_CHAUD)
 	var mou := _cols(MOUSSE)
 	var sal := _cols(SALPETRE)
-	var n_fin := _nmap(S, S / 2, S / 2, graine + 1)
+	var n_fin := _nmap(S, S / 3, S / 3, graine + 1, true)       # grain en amas de ~3 texels, sans lissage
+	var n_gr2 := _nmap(S, S / 6, S / 6, graine + 8, true)
 	var n_gr := _nmap(S, S / 12, S / 12, graine + 2)
 	var n_wob := _nmap(S, S / 8, S / 8, graine + 3)
 	var n_big := _nmap(S, 4, 4, graine + 4)
@@ -223,14 +227,14 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 			for ly in rh:
 				for lx in w:
 					var i := (y0 + ly) * S + posmod(x + lx, S)
-					var d := float(mini(mini(lx, w - 1 - lx), mini(ly, rh - 1 - ly))) + (n_wob[i] - 0.5) * 1.3
+					var d := float(mini(mini(lx, w - 1 - lx), mini(ly, rh - 1 - ly)) + int(floorf((n_wob[i] - 0.5) * 1.6 + 0.5)))
 					var hh := -0.9
 					var ll := jl
 					if d >= J:
-						var e := clampf((d - J) / B, 0.0, 1.0)
-						var prof := 1.0 - (1.0 - e) * (1.0 - e)
-						hh = prof * 0.95 + elev + (n_fin[i] - 0.5) * rugb * 0.9 + (n_gr[i] - 0.5) * 0.55 * rugb + gxb * lx + gyb * ly
-						ll = l0 + grad * (0.5 - float(ly) / rh) * 1.6 + (n_fin[i] - 0.5) * 0.3 * rugb + (n_gr[i] - 0.5) * 0.2 - 0.1 * _ss(0.8, 0.95, n_fin[(i + S * 3 + 7) % (S * S)]) * rugb
+						var e := clampf((d - J + 1.0) / B, 0.0, 1.0)
+						var prof := floorf(e * 3.0 + 0.5) / 3.0           # biseau en 3 marches : arête nette
+						hh = prof * 0.95 + elev + (floorf(n_fin[i] * 4.0) / 4.0 - 0.4) * rugb * 1.1 + (n_gr[i] - 0.5) * 0.55 * rugb + gxb * lx + gyb * ly
+						ll = l0 + grad * (0.5 - float(ly) / rh) * 1.6 + (floorf(n_fin[i] * 4.0) / 4.0 - 0.4) * 0.5 * rugb + (floorf(n_gr2[i] * 3.0) / 3.0 - 0.33) * 0.22 + (n_gr[i] - 0.5) * 0.12 - 0.1 * _ss(0.8, 0.95, n_fin[(i + S * 3 + 7) % (S * S)]) * rugb
 						if creux > 0.0:
 							var cm := minf(float(w), float(rh)) * 0.5
 							hh -= creux * (1.0 - clampf(d / cm, 0.0, 1.0)) * (0.6 + n_gr[i])
@@ -277,9 +281,12 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 			var ic := posmod(y - 2, S) * S + posmod(x - 2, S)
 			var proj := clampf(H[ic] - H[i] - 0.25, 0.0, 1.0) * 0.2
 			var d: float = D[i]
-			var a := _ss(J, J + 3.0, d)
-			var ao := 0.68 + 0.32 * a
-			var l: float = (L[i] + shade) * ao - proj
+			var a := _ss(J, J + 2.0, d)
+			var ao := 0.76 + 0.24 * a
+			var lip := 0.0
+			if d >= J and d < J + 1.0:                    # lèvre claire nette le long des joints (côtés éclairés)
+				lip = 0.12 if (gx + gy) > 0.05 else 0.0
+			var l: float = (L[i] + shade) * ao - proj + lip
 			var ln := n_big[i]
 			l -= 0.1 * _ss(0.55, 0.8, ln) * (1.0 + v * 0.6)
 			var stk := _ss(0.6, 0.8, n_stk[i]) * (0.45 + 0.55 * (1.0 - a))
@@ -309,7 +316,7 @@ static func dalle_paire(v: int) -> Array:
 	var S := 64 * K                       # tuile de 4 m (32 texels/m)
 	var rangs: Array = _largeurs(rng, S, [24, 28, 32, 32, 40])
 	return _pierre(S, rangs, [24, 32, 40, 48], {"seed": 8210 + v * 31, "v": v, "joint": 1.1, "biseau": 2.6, "rug": 0.5,
-		"l_lo": 0.52, "l_hi": 0.8, "elev": 1.0, "creux": 0.55, "joint_l": 0.2, "fissures": 4})
+		"l_lo": 0.52, "l_hi": 0.8, "elev": 1.0, "creux": 0.55, "joint_l": 0.12, "fissures": 4})
 
 static func voute_paire() -> Array:
 	var rangs := []

@@ -53,6 +53,14 @@ func _init(parent: Node3D, solide: StaticBody3D) -> void:
 		_taches[nom] = WorkerThreadPool.add_task(_peindre.bind(nom, cible))
 
 func _peindre(nom: String, cible: Array) -> void:
+	# précalculées par outils/generer_crypte.gd dans assets/crypte/*.res (version vérifiée) ; repli : calcul
+	var base := "%s/%s" % [CrypteTextures.DOSSIER, nom]
+	if ResourceLoader.exists(base + ".res"):
+		var a: Image = ResourceLoader.load(base + ".res")
+		if a != null and a.get_meta("version", -1) == CrypteTextures.VERSION:
+			cible[0] = a
+			cible.append(ResourceLoader.load(base + "_nm.res") if ResourceLoader.exists(base + "_nm.res") else null)
+			return
 	var paire := CrypteTextures.paire(nom)
 	cible[0] = CrypteTextures.mips_image(paire[0]) if nom in AVEC_MIPS else paire[0]
 	cible.append(paire[1])      # carte de pentes (ou null) ; ses mipmaps linéaires sont déjà générées
