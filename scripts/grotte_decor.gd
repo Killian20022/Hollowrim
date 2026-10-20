@@ -150,11 +150,22 @@ func mat(nom: String) -> Material:
 	return m
 
 # ------------------------------------------------------------------ facettes colorées
+var _coq_idx := {}     # nom -> { Vector2i(case) -> tampon } : évite de fabriquer une clé texte par facette
+
 func _buf_c(c: Vector3, nom: String) -> Dictionary:
-	var cle := "%d,%d|%s" % [floori(c.x / CASE_C), floori(c.z / CASE_C), nom]
-	if not _coq.has(cle):
-		_coq[cle] = {"nom": nom, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray()}
-	return _coq[cle]
+	var par_nom: Dictionary
+	if _coq_idx.has(nom):
+		par_nom = _coq_idx[nom]
+	else:
+		par_nom = {}
+		_coq_idx[nom] = par_nom
+	var ci := Vector2i(floori(c.x / CASE_C), floori(c.z / CASE_C))
+	if par_nom.has(ci):
+		return par_nom[ci]
+	var buf := {"nom": nom, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray()}
+	par_nom[ci] = buf
+	_coq["%d,%d|%s" % [ci.x, ci.y, nom]] = buf
+	return buf
 
 static func hash2(a: float, b: float) -> float:
 	return fposmod(sin(a * 127.1 + b * 311.7) * 43758.5453, 1.0)
@@ -171,18 +182,35 @@ func facette(nom: String, a: Vector3, b: Vector3, c: Vector3, ref: Vector3, cols
 	if (vers < 0.0) == ref_visible:
 		n = -n
 	var buf := _buf_c(centre, nom)
-	var pts: Array = [a, b, c]
 	var v: PackedVector3Array = buf["v"]
 	var nn: PackedVector3Array = buf["n"]
 	var uu: PackedVector2Array = buf["u"]
 	var cc: PackedColorArray = buf["c"]
-	var ordre := [0, 2, 1] if geo.dot(n) > 0.0 else [0, 1, 2]
-	for k in ordre:
-		var p: Vector3 = pts[k]
-		v.append(p)
-		nn.append(n)
-		uu.append(_uv_plan(p, n, tuile) if uvs.is_empty() else uvs[k])
-		cc.append(cols[k])
+	var inv := geo.dot(n) > 0.0                      # ordre d'enroulement (0, 2, 1) ou (0, 1, 2)
+	var p1 := c if inv else b
+	var p2 := b if inv else c
+	var k1 := 2 if inv else 1
+	var k2 := 1 if inv else 2
+	v.append(a); v.append(p1); v.append(p2)
+	nn.append(n); nn.append(n); nn.append(n)
+	if uvs.is_empty():
+		# base du plan calculée UNE fois pour la facette (et non à chaque sommet)
+		var t: Vector3
+		var paroi := absf(n.y) < 0.7
+		if paroi:
+			t = Vector3.UP.cross(n).normalized()
+		else:
+			t = (Vector3.RIGHT - n * n.x).normalized()
+		var bb := n.cross(t)
+		if paroi and bb.y > 0.0:
+			bb = -bb
+		var it := 1.0 / tuile
+		uu.append(Vector2(a.dot(t), a.dot(bb)) * it)
+		uu.append(Vector2(p1.dot(t), p1.dot(bb)) * it)
+		uu.append(Vector2(p2.dot(t), p2.dot(bb)) * it)
+	else:
+		uu.append(uvs[0]); uu.append(uvs[k1]); uu.append(uvs[k2])
+	cc.append(cols[0]); cc.append(cols[k1]); cc.append(cols[k2])
 	if collision:
 		coll.append(a); coll.append(b); coll.append(c)
 	nb_facettes += 1
@@ -547,3 +575,4 @@ func finir() -> void:
 		mi.name = "Coque_" + String(cle).replace("|", "_").replace(",", "_").replace("-", "m")
 		racine.add_child(mi)
 	_coq.clear()
+	_coq_idx.clear()

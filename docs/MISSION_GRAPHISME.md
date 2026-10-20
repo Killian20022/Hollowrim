@@ -948,3 +948,7 @@ Tests : tous OK sauf `test_dragon_monde` en headless (erreurs du moteur factice 
 - La flamme de la torche a 6 images à 10 i/s, celle des appliques murales 4 images à 9 i/s : même rampe, rythme légèrement différent.
 - Troisième personne (`corps_joueur.gd`) : la torche vue de l'extérieur garde ses particules d'origine (hors périmètre).
 - `villageois.gd` : `randf()` global non déterministe (non touché).
+
+## Lot « crypte de près » (graphisme/crypte-proche)
+- Crypte (VERSION 8) : murs (mur0-4) et ossuaire à 128 texels/m (tuiles 512 px, `EM = 4`), dalles et voûte à 64 texels/m (256 px, `E = 2`) ; même dessin lisse, joints 1-2 texels, tailles en texels mises à l'échelle (`ech`). Nearest conservé. Textures .res : 583 Ko -> 4,5 Mo sur disque ; VRAM albédo+pentes avec mips ~1,75 Mo -> ~19,5 Mo (estimation 512²/256² RGBA8 x 4/3).
+- Grotte : caverne (s 35-67) anneaux tous les 1,8 m au lieu de 3 ; construction : clé de tampon entière, base UV calculée une fois par facette, `_subdiviser` niveau 1 sans récursion. Headless : meilleur temps 644 -> 335 ms (28 430 facettes, 120 anneaux).
