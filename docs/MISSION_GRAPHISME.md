@@ -967,3 +967,9 @@ Structure (rappel, 3 points) : **Murs** = rondins + doublage de pierre plat (for
 - **Tests** : `tous_les_tests.sh` 16 OK / 1 ÉCHEC (`test_ragdoll`, « genou hyper-étendu », hors intérieurs). `test_interieurs` OK.
 - **Non fait** : villageois qui dorment la nuit (option 7) ; bois (planches, rondins) toujours à 32 texels/m ; les moellons des `pile` (hotte, cheminées) gardent des facettes larges.
 - Planches : `captures/interieurs2/planches/avant_apres_*.png` (avant | après), `captures/interieurs2/{avant,apres}/`.
+
+#### Intérieurs, 2e passe
+- Bois d'intérieur à 64 texels/m (`planches_v_int`, `planches_h_int`, `rondins_int` : structure du bâti doublée en résolution + veinage fin, cernes, pores, bruit) ; toutes les matières bois/boucliers de `interieurs.gd`.
+- `Interieurs.pile` refait : rangs de 22-30 cm, pierres de 28-52 cm, chanfrein/gauchissement réduits ; texture `pierre_int` à 64 texels/m (projection en mètres).
+- Rai : 4 paliers postérisés doux (aucun bruit) + grains de poussière nets épars. Halos du sol : fondu d'angle et de profondeur comme les muraux (cartes relevées de 5 cm).
+- Planches : `captures/interieurs2/planches/passe2_*.png` (passe 1 | passe 2). Tests : 17 OK (test_vegetation_biome a échoué une fois puis OK seul : flaky).

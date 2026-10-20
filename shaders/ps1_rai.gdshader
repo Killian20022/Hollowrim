@@ -46,19 +46,18 @@ void fragment() {
 	vec3 v = normalize(CAMERA_POSITION_WORLD - pw);
 	float facing = abs(dot(nw, v));
 	float a;
+	float dust = 0.0;
 	vec3 col;
 	if (mode == 0) {
 		float u = abs(UV.x * 2.0 - 1.0);
 		float prof_u = pow(clamp(1.0 - u, 0.0, 1.0), 1.6);
 		float haut = smoothstep(0.0, 0.18, UV.y) * smoothstep(1.0, 0.7, UV.y);     // UV.y : 0 en haut, 1 en bas
-		float vol = mix(0.8, 1.0, hash21(floor(vec2(UV.x * 24.0, UV.y * 40.0 - TIME * 0.6)) + floor(pw.xz * 3.0)));
-		a = prof_u * haut * mix(0.7, 1.0, UV.y) * vol * 0.27;
+		a = prof_u * haut * mix(0.7, 1.0, UV.y) * 0.2;
 		col = mix(vec3(0.62, 0.74, 0.95), vec3(0.95, 0.9, 0.78), UV.y * 0.6);
-		// poussière : points qui scintillent et montent
+		// poussière : quelques grains nets et épars qui montent
 		vec3 cell = floor(pw * vec3(26.0, 20.0, 26.0) + vec3(0.0, TIME * 1.4, 0.0));
-		float p = hash31(cell);
-		if (p > 0.994) {
-			a += 0.22 * prof_u;
+		if (hash31(cell) > 0.9985) {
+			dust = 0.5 * step(0.15, prof_u);
 		}
 	} else {
 		vec2 c = UV * 2.0 - 1.0;
@@ -82,9 +81,11 @@ void fragment() {
 		a *= smoothstep(0.5, 2.2, length(CAMERA_POSITION_WORLD - pw));   // dans le rai, on ne voit pas un écran de brume
 	}
 	a *= intensite;
-	// tramage de bruit : le dégradé garde un grain de pixel au lieu d'une rampe lisse
-	float n = hash21(floor(FRAGCOORD.xy));
-	a = floor(a * 20.0 + n) / 20.0;
+	if (mode == 0) {
+		a = floor(a / 0.2 * 4.0 + 0.5) / 4.0 * 0.2 + dust * step(0.5, smoothstep(0.5, 2.2, length(CAMERA_POSITION_WORLD - pw)));   // 4 paliers doux + grains de poussière nets
+	} else {
+		a = floor(a * 28.0 + hash21(floor(FRAGCOORD.xy))) / 28.0;
+	}
 	ALBEDO = col;
 	ALPHA = a;
 }

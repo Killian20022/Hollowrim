@@ -366,8 +366,39 @@ static func pierre_int(graine: int, w := 256, h := 256, hmin := 14, hmax := 22, 
 			img.set_pixel(x, y, col)
 	return [img, PeintureBati.relief_image(hf, w, h, 3.2)]
 
+## Bois à 64 texels/m : on repart de la matière du bâti (structure : joints, nœuds, fentes), doublée en résolution, puis on
+## ajoute le veinage fin (fibres de 1 texel le long du fil, cernes), des pores sombres et des arêtes de joint nettes.
+## `axe` : 0 = fil le long de X, 1 = fil le long de Y. Pas de tramage ordonné : bruit fin seulement.
+static func raffine_bois(r: Array, graine: int, axe: int) -> Array:
+	var img: Image = r[0]
+	var rel: Image = r[1]
+	var w := img.get_width() * 2
+	var h := img.get_height() * 2
+	img.resize(w, h, Image.INTERPOLATE_NEAREST)
+	rel.resize(w, h, Image.INTERPOLATE_BILINEAR)
+	var cx := w / 2 if axe == 1 else 14
+	var cy := 14 if axe == 1 else h / 2
+	var fib := PeintureBati.bruit(w, h, cx, cy, graine + 21)
+	var fib2 := PeintureBati.bruit(w, h, cx * 2 if axe == 1 else 28, 28 if axe == 1 else cy * 2, graine + 22)
+	var cerne := PeintureBati.bruit(w, h, 4 if axe == 1 else 3, 3 if axe == 1 else 4, graine + 23)
+	var pores := PeintureBati.bruit(w, h, w / 2 if axe == 1 else 40, 40 if axe == 1 else h / 2, graine + 24)
+	for y in h:
+		for x in w:
+			var c := img.get_pixel(x, y)
+			var f := (fib[y * w + x] - 0.5) * 0.5 + (fib2[y * w + x] - 0.5) * 0.35
+			var k := 1.0 + f * 0.55 + (cerne[y * w + x] - 0.5) * 0.12
+			var hsh := fposmod(sin(float(x) * 12.9898 + float(y) * 78.233 + float(graine)) * 43758.5453, 1.0)
+			k += (hsh - 0.5) * 0.05
+			if pores[y * w + x] > 0.84:
+				k *= 0.8       # pores / fibres creuses
+			img.set_pixel(x, y, Color(clampf(c.r * k, 0, 1), clampf(c.g * k, 0, 1), clampf(c.b * k, 0, 1), c.a))
+	return [img, rel]
+
 static func fabriques() -> Dictionary:
 	return {
+		"planches_v_int": func() -> Array: return raffine_bois(PeintureBati.planches(5311), 5311, 1),
+		"planches_h_int": func() -> Array: return raffine_bois(PeintureBati.planches(5312, 128, 128, true), 5312, 0),
+		"rondins_int": func() -> Array: return raffine_bois(PeintureBati.rondins(5321), 5321, 0),
 		"pierre_int": func() -> Array: return pierre_int(6201),
 		"pierre_int_s": func() -> Array: return pierre_int(6203, 256, 256, 18, 28, 36, 90, 4.4),
 		"tenture_rouge": func() -> Array: return tenture(6101, K_ROUGE, K_OCRE),
