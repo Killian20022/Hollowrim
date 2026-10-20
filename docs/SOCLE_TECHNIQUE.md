@@ -188,3 +188,58 @@ affiche `OK`/`ÉCHEC` + durée par test et un total ; code de sortie = nombre d'
 Verdict : code 0, ni « SCRIPT ERROR » ni « ÉCHEC ». Les tests tournent en `--fixed-fps 60` (simulation accélérée : suite entière 581 s → ~170 s) sauf `test_ragdoll` et `test_mort_ragdoll` (résultat dépendant du pas de physique : temps réel, un 2e essai autorisé sous charge). `bash outils/tous_les_tests.sh dragon` n'en lance qu'une partie ; `TEMPS_MAX=…` règle le délai par test.
 Exception : `test_biome.gd comparer` exige une fenêtre (MultiMesh vides en headless) → `AVEC_FENETRE=1 bash outils/tous_les_tests.sh biome`.
 Fenêtre réservée aux captures (`--captures`) et à `outils/mesure_perf.gd` (GPU réel, sans `--headless`).
+
+## 8. Mesures de référence et audit de non-régression perf (branche graphisme/perf-audit, 2026-10-20)
+
+Base 17b8489 (brouillard lot 7, grotte, intérieurs enterables, crypte-donjon, pieds de pins). **Aucun changement visuel** (voir « Vérifications »).
+
+**Outil** : `outils/mesure_images.gd` (fenêtre, vsync coupé) :
+`godot --path . --disable-vsync --script res://outils/mesure_images.gd -- --nouvelle --paisible [--chrono] [--seulement=feu,dans_halle]`.
+Il mesure le chargement (images > 33 ms jusqu'aux intérieurs posés), puis à chaque poste 1,5 s d'arrivée (le pire = saccade de 1re vue) et 4 s stabilisées
+(moyenne, PIRE image, nombre d'images > 33 ms, GPU) ; trois marches scriptées (feu → grotte, village → halle, feu → forge) ; toute image > 33 ms est journalisée
+avec la position du joueur, le temps CPU script/physique et le GPU (`pic …`). Postes : feu `2.5,8.5,16,4`, village `32,30,-125,0`, devant la halle, dans la halle,
+entrée de la grotte, crypte (arène), dans la grotte. `outils/empreinte_interieurs.gd` : empreinte (sommets, UV, couleurs, lumières, collisions) des 5 intérieurs, à comparer entre deux versions.
+
+**Protocole** : A/B alterné (base / audit) × 3, médiane. PC partagé avec 3 autres agents Godot (GPU saturé par moments : des rafales de 30 à 100 ms sur TOUTES les images
+apparaissent au hasard et sont écartées ; chiffres indicatifs, à refaire sur machine libre). Moyennes en ms par image (GPU entre parenthèses).
+
+| Poste (médiane de 3 lancements) | Avant : moy. / PIRE | Après : moy. / PIRE | GPU avant → après |
+|---|---|---|---|
+| Feu de camp (départ) | 8,9 / 15,7 | 8,4 / 14,3 | 6,4 → 6,5 |
+| Village de loin (32,30) | 9,6 / 15,4 | 8,8 / 14,4 | 6,8 → 6,7 |
+| Devant la halle | 8,5 / 14,1 | 8,2 / 14,7 | 6,1 → 6,4 |
+| Dans la halle | 9,7 / 15,4 | 9,0 / 14,4 | 7,6 → 7,6 (budget 8) |
+| Entrée de la grotte | 7,9 / 12,9 | 7,2 / 12,1 | 4,6 → 4,5 |
+| Marche feu → grotte (90 m) | 8,4 / 40,5 | 8,1 / 19,4 | 6,0 → 5,7 |
+| Marche village → halle | 8,7 / 30,0 | 8,9 / 43,1 (1 image à t = 2,9 s, présente aussi avant : 30 ms) | 6,8 → 6,5 |
+| Marche feu → forge | 9,3 / 27,7 | 8,4 / 26,6 | 6,8 → 6,5 |
+| Crypte (arène) | 6,1 / 23,7 | 5,4 / 20,8 | 2,2 → 1,8 |
+| Dans la grotte | 6,7 / 11,0 | 5,4 / 8,8 | 2,7 → 2,2 |
+| **Chargement : images > 33 ms** | **4 images : 560 à 780 ms chacune, 1,3 à 1,7 s cumulées** | **1 à 2 images : 140 à 240 ms, 0,16 à 0,4 s cumulées** | |
+
+Image > 33 ms restantes (mesurées, non corrigées) : (a) 1re image du jeu (compilation de la scène : 160 à 240 ms, inévitable sans écran de chargement) ; (b) 1 à 3 images de
+35 à 60 ms dans la première demi-seconde de jeu (modèles et shaders qui n'étaient avant « absorbés » que parce que le chargement durait 1,5 s de plus) ; (c) une image de 30 à 45 ms
+≈ 3 s après le départ, en marchant, quelle que soit la direction (présente avant, origine non identifiée : ni la pose de l'entrée de la grotte, 1 ms, ni l'intégration du donjon) ;
+(d) l'entrée dans la crypte : 2 images de 55 à 80 ms pendant le fondu au noir (1re vue des shaders de crypte, pas de caméra sous terre pour les préchauffer).
+
+**Cause du pic annoncé « 40-150 ms par maison »** : la construction du mobilier (`village._differes`) tournait sur le fil principal, UNE MAISON PAR IMAGE : mesuré 560-780 ms (halle),
+400-540 ms, 230-350 ms, 160-240 ms (PC chargé ; 40-150 ms sur machine libre) au chargement, soit 4 images très au-dessus de 33 ms.
+
+**Corrections** (aucun effet sur le rendu) :
+1. `scripts/village.gd` : le mobilier des 5 intérieurs est construit dans UN fil de travail (`WorkerThreadPool`), hors de l'arbre, dans un `Interieur` temporaire (lots fusionnés, flammes, halos, lumières,
+   collisions mises en file). Le fil principal ne fait que la POSE : `_poser_interieurs`, tâches de ≤ 1,5 ms par image (`BUDGET_INT_US`, un enfant du contenu ou 24 collisions par tâche ; mesuré 1,6 à 2,0 ms par image de pose, 4 images).
+   `village.prets` / `interieurs_prets` : émis quand tout est posé. Les lumières posées reprennent l'état allumé/éteint de l'intérieur (`_allume`).
+2. **Préchauffage des shaders d'intérieur** (`village._prechauffer`) : un triangle minuscule par shader (`ps1_interieur`, `ps1_vitre`, flammes `crypte_flamme`, halos additifs) posé 3 images devant la caméra du joueur,
+   pendant la 1re image du jeu. Évite la compilation à la 1re vue d'un intérieur. La grotte (`dans_grotte`, 1re vue : 8-16 ms) n'en a pas besoin ; la crypte oui (restant d).
+3. **Course sur les ressources de rendu (bug du journal de test_collisions_biome : « Attempting to initialize the wrong RID » → « SCRIPT ERROR: Trying to assign value of type 'Nil' »)** : `village._boite` / `_cylindre`
+   créaient des `BoxMesh` / `CylinderMesh` (création de ressource de rendu) sur le fil principal pendant que le fil du donjon en créait aussi. Racine corrigée : nouveau `scripts/prim_geo.gd`
+   (`PrimGeo.boite`, `cylindre`, `plan`) calcule les tableaux de maillage à la main (mêmes sommets, normales, UV et indices que le moteur ; `outils/test_primitives.gd` : indices identiques, écart max 6,6e-5 m, quantification des normales du moteur).
+   `Interieurs.finir` utilise aussi `PrimGeo.plan` à la place du `QuadMesh` des flammes. `village._ajouter` ignore désormais un tableau vide ou incomplet (plus d'erreur de type).
+4. `scripts/tertre.gd` : intégration du donjon étalée (le nœud « Donjon », 1 100 enfants / 1 356 nœuds, entre VIDE dans l'arbre puis reçoit ses enfants par tranches de 1,5 ms par image ; l'entrée dans la crypte force la pose complète).
+5. `scripts/monde.gd` : une capture (`--capture`, `--captures`) attend `village.prets` avant de partir.
+
+**Lumières d'intérieur dehors** : vérifié, `Interieur._process` éteint les lumières et masque le contenu au-delà de 8 m / 13 m (`DIST_LUMIERE`, `DIST_VISIBLE`) ; nombre d'OmniLight visibles : 9 au feu comme devant la halle (torches du village), 14 dans la halle,
+22 dans la crypte, 28 dans la grotte. Rien d'allumé dehors.
+
+**Vérifications** : `outils/empreinte_interieurs.gd` identique avant/après pour les 5 intérieurs (maillages, sommets : 32 108 / 24 107 / 16 018 / 16 727 / 13 006, sommes des positions/UV/couleurs à 0,01 près, lumières, 498 collisions et leur signature) ;
+`bash outils/tous_les_tests.sh` : tous OK.

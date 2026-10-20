@@ -990,3 +990,10 @@ Structure (rappel, 3 points) : **Murs** = rondins à 8 pans sur âme sombre, sou
 - **Palissade** : les pieux lisaient l'écorce d'arbre à 16 texels/m ; ils passent à `planches_v_e` (grisé).
 - Mémoire des textures du village : 1,2 Mo → 4,7 Mo (+3,6 Mo, RGBA8 + mips) ; précalcul `precalculer_tout.gd -- --verifier --seulement=bati` : 0 différence.
 - Constat hors périmètre : `planches_v_int`, `planches_h_int`, `rondins_int` (agent intérieurs) ont 67-70 % de texels isolés (le doublement par `raffine_bois` + bruit de pores) : à nettoyer avec `PeintureBati.nettoie`.
+
+## Lot « audit de non-régression perf » (branche graphisme/perf-audit, 2026-10-20)
+Sans changement visuel. Mesures, tableau avant/après et corrections : docs/SOCLE_TECHNIQUE.md § 8. En bref : mobilier des intérieurs construit en fil
+(plus de 4 images de 560-780 ms au chargement), préchauffage des shaders d'intérieur, `PrimGeo` (boîtes/cylindres sans ressource de rendu : corrige la course
+« Attempting to initialize the wrong RID »), pose étalée du donjon, captures qui attendent `village.prets`.
+Fichiers : `scripts/village.gd`, `scripts/prim_geo.gd`, `scripts/interieurs.gd` (une ligne dans `finir`), `scripts/tertre.gd`, `scripts/monde.gd` (attente en capture),
+`outils/mesure_images.gd`, `outils/empreinte_interieurs.gd`, `outils/test_primitives.gd`.

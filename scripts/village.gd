@@ -38,10 +38,18 @@ var m_glace: ShaderMaterial
 var mats_int: Dictionary                 # matières d'intérieur (Interieurs.materiaux)
 var interieurs: Array[Interieur] = []    # un par bâtiment enterable : longue maison, 3 maisons, forge
 var _nuit_vitre := -1.0
-## Le mobilier des intérieurs se construit APRÈS le chargement, une maison par image (≈ 40-150 ms chacune) : le temps de
-## chargement ne grandit pas (les maisons sont invisibles de loin, et le joueur démarre à plus de 13 m des portes).
-var _differes: Array[Callable] = []
-var prets := false           # vrai quand tous les intérieurs sont construits
+## Le mobilier des intérieurs se construit dans UN fil de travail, hors de l'arbre (un `Interieur` temporaire reçoit lots, flammes
+## et lumières), puis est posé par petites tâches de ≤ BUDGET_INT_US µs par image sur le fil principal : plus aucune image de
+## 40-700 ms au chargement (les maisons sont invisibles de loin, le joueur démarre à plus de 13 m des portes).
+const BUDGET_INT_US := 1500
+var _jobs: Array = []                    # [Interieurs, Callable] : travaux du fil
+var _fil := -1                           # tâche WorkerThreadPool
+var _mutex := Mutex.new()
+var _faits: Array = []                   # [Interieur réel, Interieur temporaire, collisions] construits, à poser
+var _coll_fil: Array = []                # collisions demandées par le fil : [parent, forme, transform local]
+var _a_poser: Array[Callable] = []       # petites tâches de pose (fil principal)
+var _nb_poses := 0
+var prets := false           # vrai quand tous les intérieurs sont construits et posés
 signal interieurs_prets
 
 func _ready() -> void:
@@ -90,6 +98,7 @@ func _ready() -> void:
 	Chrono.marque("  village : puits/enclos/accessoires")
 	_finaliser()
 	Chrono.marque("  village : maillages fusionnés")
+	_lancer_fil()
 
 	var postes := {
 		"longue_maison": Vector3(1.2, 0, -7.4),
@@ -120,11 +129,16 @@ func interieur(id: String) -> Interieur:
 
 func _process(dt: float) -> void:
 	_t += dt
-	if not _differes.is_empty():
-		_differes.pop_front().call()
-		if _differes.is_empty():
-			prets = true
-			interieurs_prets.emit()
+	if _chauffe_images >= 0:
+		if _chauffe_images == 0:
+			_prechauffer()
+		_chauffe_images += 1
+		if _chauffe_images > 3 and _chauffe != null:
+			_chauffe.queue_free()
+			_chauffe = null
+			_chauffe_images = -1
+	if not prets and _fil >= 0:
+		_poser_interieurs()
 	# vitrages : s'allument la nuit (vus du dehors)
 	var cyc = get_parent().get("cycle") if get_parent() != null else null
 	if cyc != null and mats_int.has("vitre"):
@@ -146,7 +160,7 @@ var _arrays_cache := {}
 
 func _arrays_de(cle: String, fabrique: Callable) -> Array:
 	if not _arrays_cache.has(cle):
-		_arrays_cache[cle] = fabrique.call().get_mesh_arrays()
+		_arrays_cache[cle] = fabrique.call()
 	return _arrays_cache[cle]
 
 ## Occlusion peinte au pied de tout ce qui touche le sol (y local 0 = sol du village) : le bas des murs, des
@@ -155,6 +169,8 @@ func _ao_pied(y: float) -> float:
 	return 0.66 + 0.34 * smoothstep(0.0, 0.8, y)
 
 func _ajouter(parent: Node3D, arrays: Array, xf: Transform3D, mat: Material, ao_sol := true) -> void:
+	if arrays.size() <= Mesh.ARRAY_NORMAL or arrays[Mesh.ARRAY_VERTEX] == null or arrays[Mesh.ARRAY_NORMAL] == null:
+		return   # tableau vide ou incomplet : rien à ajouter (jamais d'erreur de type)
 	var cle := "%d|%d" % [parent.get_instance_id(), mat.get_instance_id()]
 	if not _lots.has(cle):
 		_lots[cle] = {"parent": parent, "mat": mat, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray(), "i": PackedInt32Array()}
@@ -216,23 +232,13 @@ func _finaliser() -> void:
 	_arrays_cache.clear()
 
 func _boite(parent: Node3D, taille: Vector3, xf: Transform3D, mat: Material, solide := false) -> void:
-	var arrays := _arrays_de("boite%s" % taille, func() -> Mesh:
-		var b := BoxMesh.new()
-		b.size = taille
-		return b)
+	var arrays := _arrays_de("boite%s" % taille, func() -> Array: return PrimGeo.boite(taille))
 	_ajouter(parent, arrays, xf, mat)
 	if solide:
 		_collision(parent, BoxShape3D.new(), xf, taille)
 
 func _cylindre(parent: Node3D, r_haut: float, r_bas: float, h: float, xf: Transform3D, mat: Material, cotes := 6, solide := false) -> void:
-	var arrays := _arrays_de("cyl%f|%f|%f|%d" % [r_haut, r_bas, h, cotes], func() -> Mesh:
-		var c := CylinderMesh.new()
-		c.top_radius = r_haut
-		c.bottom_radius = r_bas
-		c.height = h
-		c.radial_segments = cotes
-		c.rings = 1
-		return c)
+	var arrays := _arrays_de("cyl%f|%f|%f|%d" % [r_haut, r_bas, h, cotes], func() -> Array: return PrimGeo.cylindre(r_haut, r_bas, h, cotes))
 	_ajouter(parent, arrays, xf, mat)
 	if solide:
 		var forme := CylinderShape3D.new()
@@ -243,11 +249,156 @@ func _cylindre(parent: Node3D, r_haut: float, r_bas: float, h: float, xf: Transf
 func _collision(parent: Node3D, forme: Shape3D, xf: Transform3D, taille: Vector3) -> void:
 	if forme is BoxShape3D:
 		forme.size = taille
+	if not parent.is_inside_tree():
+		_coll_fil.append([parent, forme, xf])   # construction hors de l'arbre (fil) : posée plus tard sur le fil principal
+		return
 	var cs := CollisionShape3D.new()
 	cs.shape = forme
 	corps.add_child(cs)
 	# la forme est rangée sous le corps du village : on repasse en repère du village
 	cs.transform = corps.global_transform.affine_inverse() * parent.global_transform * xf
+
+# --- intérieurs : construction en fil, pose étalée ------------------------------------
+
+func _differer(ib: Interieurs, travail: Callable) -> void:
+	_jobs.append([ib, travail])
+
+func _lancer_fil() -> void:
+	if not _jobs.is_empty():
+		_fil = WorkerThreadPool.add_task(_construire_interieurs)
+
+## Fil de travail : un intérieur après l'autre. Ne touche ni à l'arbre ni aux nœuds du village (seulement aux lots, au cache de
+## tableaux et à un `Interieur` temporaire jeté ensuite).
+func _construire_interieurs() -> void:
+	for j in _jobs:
+		var ib: Interieurs = j[0]
+		var reel: Interieur = ib.ip
+		var t := Interieur.new()
+		t.nom = reel.nom
+		t.demi = reel.demi
+		t.sol_y = reel.sol_y
+		t.porte_locale = reel.porte_locale
+		ib.ip = t
+		_coll_fil = []
+		(j[1] as Callable).call()
+		_finaliser()
+		ib.ip = reel
+		_mutex.lock()
+		_faits.append([reel, t, _coll_fil])
+		_mutex.unlock()
+
+func _poser_interieurs() -> void:
+	var debut := Time.get_ticks_usec()
+	while true:
+		if _a_poser.is_empty():
+			_mutex.lock()
+			var f = _faits.pop_front() if not _faits.is_empty() else null
+			_mutex.unlock()
+			if f == null:
+				break
+			_planifier_pose(f[0], f[1], f[2])
+		else:
+			_a_poser.pop_front().call()
+		if Time.get_ticks_usec() - debut > BUDGET_INT_US:
+			break
+	if Chrono.actif:
+		print("CHRONO pose interieurs : %.2f ms (reste %d taches, %d faits, %d poses)" % [(Time.get_ticks_usec() - debut) / 1000.0, _a_poser.size(), _faits.size(), _nb_poses])
+	if _nb_poses == _jobs.size() and _a_poser.is_empty():
+		WorkerThreadPool.wait_for_task_completion(_fil)
+		_fil = -1
+		prets = true
+		interieurs_prets.emit()
+
+## Découpe la pose d'un intérieur construit en fil : un enfant du contenu par tâche, collisions par paquets de 24.
+func _planifier_pose(reel: Interieur, t: Interieur, colls: Array) -> void:
+	for c in t.racine.get_children():
+		_a_poser.append(func() -> void:
+			t.racine.remove_child(c)
+			reel.racine.add_child(c))
+	_a_poser.append(func() -> void:
+		for l in t.lumieres:
+			(l[0] as OmniLight3D).visible = reel._allume
+		reel.lumieres.append_array(t.lumieres))
+	for i in range(0, colls.size(), 24):
+		var paquet := colls.slice(i, i + 24)
+		_a_poser.append(func() -> void:
+			for c in paquet:
+				var parent: Node3D = reel.racine if c[0] == t.racine else c[0]
+				var cs := CollisionShape3D.new()
+				cs.shape = c[1]
+				corps.add_child(cs)
+				cs.transform = corps.global_transform.affine_inverse() * parent.global_transform * (c[2] as Transform3D))
+	_a_poser.append(func() -> void:
+		t.free()
+		_nb_poses += 1)
+
+## Préchauffage des shaders d'intérieur (ps1_interieur, ps1_vitre, flammes, halos additifs) : un triangle minuscule par shader,
+## posé 3 images devant la caméra du joueur, pendant la toute première image (déjà longue : compilation du reste de la scène).
+## Sans lui, la compilation tombait à la 1re vue d'un intérieur ou 0,5 s après le départ (3 images de 35 à 60 ms).
+## Mêmes formats de sommets, mêmes réglages de matière que le vrai contenu (`Interieurs.finir`, `_finaliser`) : mêmes pipelines.
+var _chauffe: Node3D
+var _chauffe_images := 0
+
+func _prechauffer() -> void:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	_chauffe = Node3D.new()
+	_chauffe.position = Vector3(0, 0, -0.5)
+	var tri := PackedVector3Array([Vector3(-0.004, -0.004, 0), Vector3(0.004, -0.004, 0), Vector3(0, 0.004, 0)])
+	var nor := PackedVector3Array([Vector3.BACK, Vector3.BACK, Vector3.BACK])
+	var uv := PackedVector2Array([Vector2(0, 1), Vector2(1, 1), Vector2(0.5, 0)])
+	var col := PackedColorArray([Color.WHITE, Color.WHITE, Color.WHITE])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = tri
+	arrays[Mesh.ARRAY_NORMAL] = nor
+	arrays[Mesh.ARRAY_TEX_UV] = uv
+	arrays[Mesh.ARRAY_COLOR] = col
+	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2])
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var vus := {}
+	var mats: Array = []
+	for k in mats_int:
+		var m: ShaderMaterial = mats_int[k]
+		if not vus.has(m.shader):
+			vus[m.shader] = true
+			mats.append(m)
+	var s := StandardMaterial3D.new()    # halos et rais additifs (réglages de Interieurs.finir)
+	s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	s.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	s.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	s.vertex_color_use_as_albedo = true
+	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	s.cull_mode = BaseMaterial3D.CULL_DISABLED
+	s.disable_receive_shadows = true
+	mats.append(s)
+	for m in mats:
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.material_override = m
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_chauffe.add_child(mi)
+	var fm := MultiMesh.new()    # flammes : plan + données d'instance
+	fm.transform_format = MultiMesh.TRANSFORM_3D
+	fm.use_custom_data = true
+	fm.mesh = PrimGeo.maillage(PrimGeo.plan(Vector2(1, 1), Vector3(0, 0.5, 0)))
+	fm.instance_count = 1
+	fm.set_instance_transform(0, Transform3D(Basis.from_scale(Vector3(0.01, 0.01, 0.01)), Vector3.ZERO))
+	var fs := ShaderMaterial.new()
+	fs.shader = Interieurs.FLAMME_SHADER
+	var fi := MultiMeshInstance3D.new()
+	fi.multimesh = fm
+	fi.material_override = fs
+	fi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_chauffe.add_child(fi)
+	cam.add_child(_chauffe)
+
+func _exit_tree() -> void:
+	if _fil >= 0:
+		WorkerThreadPool.wait_for_task_completion(_fil)
+		_fil = -1
 
 func _pivot(position_: Vector3, lacet: float) -> Node3D:
 	var n := Node3D.new()
@@ -751,11 +902,10 @@ func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_m
 		_banc(p, Vector3(2.2, 0, zf + 0.75), 2.0)
 	# l'intérieur (plafond, mobilier, lumières) : construit après le chargement, une maison par image
 	Chrono.marque("  maison %s : coque extérieure" % id)
-	_differes.append(func() -> void:
+	_differer(ib, func() -> void:
 		ib.coque(id)
 		ib.contenu(id)
-		ib.finir()
-		_finaliser())
+		ib.finir())
 
 ## Vantail de porte sur charnière : planches debout, deux bandes de fer cloutées, anneau. `pos` = axe de la charnière.
 func _vantail(parent: Node3D, pos: Vector3, larg: float, haut: float, cote := 1.0) -> Node3D:
@@ -982,7 +1132,7 @@ func _forge(centre: Vector3) -> void:
 	# torche à gauche de la porte, au dehors
 	_torche_murale(p, Vector3(0.2, 1.5, 1.93), 1.0, false)
 	# doublage intérieur (pierre sèche, matière d'intérieur) et mobilier : après le chargement
-	_differes.append(func() -> void:
+	_differer(ib, func() -> void:
 		for sx in [-1.0, 1.0]:
 			var k := 0
 			for t in tronc:
@@ -993,8 +1143,7 @@ func _forge(centre: Vector3) -> void:
 			ib.pile(Vector3(x, 1.0, -1.5), Vector3(0.6, 2.0, 0.3), 4310 + int(x), "brute")
 		ib.fenetre_cadre(-1.4, (fe[2] + fe[3]) * 0.5, 1.72, 1.0, 0.5, (fe[3] - fe[2]) * 0.5)
 		ib.contenu("forge")
-		ib.finir()
-		_finaliser())
+		ib.finir())
 
 func _puits(centre: Vector3) -> void:
 	var p := _pivot(centre, 0.3)
