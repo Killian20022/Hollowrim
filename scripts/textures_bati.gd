@@ -40,17 +40,19 @@ static func tex(nom: String) -> Texture2D:
 	return charge(nom)[0]
 
 ## Matériau PS1 « bâti » par nom de texture. `texels` : 32 (défaut) ou 64 (petits détails).
-static func materiau(nom: String, teinte := Color.WHITE, texels := 32.0, force_relief := 0.8) -> ShaderMaterial:
+static func materiau(nom: String, teinte := Color.WHITE, texels := 32.0, force_relief := 0.8, nom_neige := "neige") -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = SHADER
 	var c := charge(nom)
 	m.set_shader_parameter("tex_base", c[0])
 	m.set_shader_parameter("tex_relief", c[1])
-	var n := charge("neige")
+	var n := charge(nom_neige)
 	m.set_shader_parameter("tex_neige", n[0])
 	m.set_shader_parameter("tex_neige_relief", n[1])
 	m.set_shader_parameter("teinte", teinte)
 	m.set_shader_parameter("texels_par_m", texels)
+	if nom_neige != "neige":
+		m.set_shader_parameter("neige_propre", true)   # la neige se lit à SA taille, pas à celle de la matière
 	m.set_shader_parameter("relief", force_relief if (c[1] != relief_neutre()) else 0.0)
 	Palette._appliquer(m, Palette._ps1_actif)
 	Palette.materiaux.append(m)
@@ -127,6 +129,51 @@ static func m_ecorce(teinte := Color.WHITE) -> ShaderMaterial:
 	m.set_shader_parameter("tex_base", _cache["ecorce"][0])
 	m.set_shader_parameter("proche", Vector2(100000.0, 200000.0))
 	return m
+
+# --- extérieur du village à 64 texels/m (lot « bâti 3 ») : textures `_e`, neige `neige_e`, fondu 64 → 32 texels/m ---------
+
+static func materiau_e(nom: String, teinte := Color.WHITE, force_relief := 0.8) -> ShaderMaterial:
+	var m := materiau(nom, teinte, 64.0, force_relief, "neige_e")
+	m.set_shader_parameter("proche", Vector2(4.0, 14.0))
+	return m
+
+static func m_pierre_seche_e(teinte := Color.WHITE) -> ShaderMaterial:
+	return materiau_e("pierre_seche_e", teinte)
+
+static func m_pierre_fine_e(teinte := Color.WHITE) -> ShaderMaterial:
+	return materiau_e("pierre_fine_e", teinte)
+
+static func m_pierre_brute_e(teinte := Color.WHITE) -> ShaderMaterial:
+	return materiau_e("pierre_brute_e", teinte)
+
+static func m_planches_e(teinte := Color.WHITE) -> ShaderMaterial:
+	return materiau_e("planches_h_e", teinte)
+
+static func m_bois_debout_e(teinte := Color.WHITE) -> ShaderMaterial:
+	return materiau_e("planches_v_e", teinte)
+
+static func m_rondins_e(teinte := Color.WHITE) -> ShaderMaterial:
+	var m := materiau_e("rondins_e", teinte, 0.9)
+	m.set_shader_parameter("uv_metres", true)
+	return m
+
+static func m_fer_e(teinte := Color.WHITE) -> ShaderMaterial:
+	return materiau_e("fer_e", teinte)
+
+static func m_cuir_e(teinte := Color.WHITE) -> ShaderMaterial:
+	return materiau_e("cuir_e", teinte)
+
+static func m_foin_e(teinte := Color.WHITE) -> ShaderMaterial:
+	return materiau_e("foin_e", teinte)
+
+static func m_tourbe_e(teinte := Color.WHITE) -> ShaderMaterial:
+	return materiau_e("tourbe_e", teinte)
+
+static func m_neige_toit_e() -> ShaderMaterial:
+	return materiau_e("neige_e", Color.WHITE, 0.9)
+
+static func m_glace_e() -> ShaderMaterial:
+	return materiau_e("neige_e", Color(0.78, 0.92, 1.05), 0.3)
 
 static func m_neige_toit() -> ShaderMaterial:
 	return materiau("neige", Color.WHITE, 32.0, 0.9)
