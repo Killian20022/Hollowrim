@@ -11,7 +11,20 @@ const NB_BUISSONS := 900
 static func creer(monde: Node) -> Array:
 	var foret := placer_foret(monde)
 	var buissons := placer_couvre_sol(monde)
+	_degager_grotte(foret, buissons)
 	return instancier(monde, foret, buissons)
+
+## Dégage l'entrée de la grotte (disque, masse rocheuse, piste) APRÈS le placement : le RNG et la forêt d'ailleurs ne changent pas.
+static func _degager_grotte(foret: Dictionary, buissons: Array[Transform3D]) -> void:
+	for lot: Array in foret["lots"]:
+		for i in range(lot.size() - 1, -1, -1):
+			var o: Vector3 = (lot[i] as Transform3D).origin
+			if GrotteAcces.exclu(o.x, o.z):
+				lot.remove_at(i)
+	for i in range(buissons.size() - 1, -1, -1):
+		var o: Vector3 = buissons[i].origin
+		if GrotteAcces.exclu(o.x, o.z):
+			buissons.remove_at(i)
 
 ## Positions puis formes : {"lots": [4 listes de Transform3D par forme]}.
 ## Formes : 0-2 épicéas, 3 arbre mort.
