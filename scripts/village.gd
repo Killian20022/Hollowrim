@@ -33,6 +33,9 @@ var m_fenetre: ShaderMaterial
 var m_braises: ShaderMaterial
 var m_eau: ShaderMaterial
 var m_glace: ShaderMaterial
+var mats_int: Dictionary                 # matières d'intérieur (Interieurs.materiaux)
+var interieurs: Array[Interieur] = []    # un par bâtiment enterable : longue maison, 3 maisons, forge
+var _nuit_vitre := -1.0
 
 func _ready() -> void:
 	rng.seed = 99
@@ -59,12 +62,13 @@ func _ready() -> void:
 	m_glace = TexturesBati.m_glace()
 	m_eau = Palette.materiau(Palette.tex("eau", ["#05070c", "#0a0f18", "#101824", "#162030"], 4, 0.3))
 
+	mats_int = Interieurs.materiaux()
 	_palissade()
 	_porte()
-	_maison(Vector3(0, 0, -12), 0.0, 14.0, 7.0, 2.2, 3.2, true)       # longue maison de la cheffe
-	_maison(Vector3(-11.5, 0, -3), PI * 0.5, 8.0, 5.5, 2.0, 2.4, false)
-	_maison(Vector3(11.5, 0, 7.5), -PI * 0.5, 8.0, 5.5, 2.0, 2.4, false)
-	_maison(Vector3(-9.5, 0, 13.0), PI * 0.62, 7.0, 5.0, 1.9, 2.2, false)
+	_maison(Vector3(0, 0, -12), 0.0, 14.0, 7.0, 2.2, 3.2, "halle")        # longue maison de la cheffe
+	_maison(Vector3(-11.5, 0, -3), PI * 0.5, 8.0, 5.5, 2.0, 2.4, "sigrun")      # la voyante
+	_maison(Vector3(11.5, 0, 7.5), -PI * 0.5, 8.0, 5.5, 2.0, 2.4, "chasseurs") # famille de chasseurs
+	_maison(Vector3(-9.5, 0, 13.0), PI * 0.62, 7.0, 5.0, 1.9, 2.2, "grima")    # la doyenne
 	_forge(Vector3(-12.5, 0, 6.0))
 	_puits(Vector3(4.5, 0, 1.5))
 	_brasero(Vector3(-2.5, 0, -2.5))
@@ -74,7 +78,7 @@ func _ready() -> void:
 
 	var postes := {
 		"longue_maison": Vector3(1.2, 0, -7.4),
-		"forge": Vector3(-11.0, 0, 7.8),
+		"forge": Vector3(-11.9, 0.0, 6.3),   # dans la forge, entre le foyer et l'enclume
 		"puits": Vector3(6.0, 0, 2.6),
 		"place": Vector3(-1.2, 0, -0.4),
 		"enclos": Vector3(9.0, 0, -3.0),
@@ -82,12 +86,32 @@ func _ready() -> void:
 	}
 	for nom in postes:
 		lieux[nom] = to_global(postes[nom])
-		promenade.append(lieux[nom])
+		if nom != "forge":
+			promenade.append(lieux[nom])   # personne d'autre ne se promène dans la forge
 	for p in [Vector3(0, 0, 6), Vector3(-5, 0, 3), Vector3(6, 0, -5), Vector3(-4, 0, -7)]:
 		promenade.append(to_global(p))
 
+## Pose les objets « porte » (touche E) des bâtiments ; appelé par le monde quand joueur et dialogue existent.
+func activer_interieurs(joueur: CharacterBody3D, dialogue: Control) -> void:
+	for ip in interieurs:
+		ip.activer(joueur, dialogue)
+
+## Intérieur dont le nom d'id est `id` (« halle », « sigrun », « chasseurs », « grima », « forge »).
+func interieur(id: String) -> Interieur:
+	for ip in interieurs:
+		if ip.nom == NOMS_BATIMENTS[id]:
+			return ip
+	return null
+
 func _process(dt: float) -> void:
 	_t += dt
+	# vitrages : s'allument la nuit (vus du dehors)
+	var cyc = get_parent().get("cycle") if get_parent() != null else null
+	if cyc != null and mats_int.has("vitre"):
+		var n: float = 1.0 - cyc.clarte()
+		if absf(n - _nuit_vitre) > 0.01:
+			_nuit_vitre = n
+			(mats_int["vitre"] as ShaderMaterial).set_shader_parameter("nuit", n)
 	for f in _flammes:
 		var l: OmniLight3D = f[0]
 		var k: float = f[2]
@@ -382,12 +406,29 @@ func _bloc(parent: Node3D, taille: Vector3, graine: int, pos: Vector3, mat: Mate
 		_collision(parent, BoxShape3D.new(), Transform3D(Basis(Vector3.UP, lacet), pos), taille)
 
 ## Rondin à 8 pans : fût (matière rondins) + deux bouts (matière bout_rondin). `lacet` PI/2 = le long de Z.
-func _rondin(parent: Node3D, pos: Vector3, lacet: float, longueur: float, rayon: float, graine: int, teinte := 1.0, sag := 0.02) -> void:
+## Si `interieur` est donné (rondin d'un mur de maison), le fût est coupé en deux : la moitié tournée vers `dehors`
+## (+1 ou -1 selon Z local du rondin) reste à l'extérieur, l'autre (vue de la pièce) rejoint l'intérieur et prend la
+## matière « intérieur » (pas de lumière ambiante du ciel dans la pièce).
+func _rondin(parent: Node3D, pos: Vector3, lacet: float, longueur: float, rayon: float, graine: int, teinte := 1.0, sag := 0.02, interieur: Interieur = null, dehors := 1.0) -> void:
 	var rr := RandomNumberGenerator.new()
 	rr.seed = graine
 	var r := BatiGeo.rondin(longueur, rayon, graine, sag, rr.randi_range(0, 3), rr.randf() * 8.0, teinte)
 	var xf := Transform3D(Basis(Vector3.UP, lacet), pos)
-	_ajouter(parent, (r[0] as BatiGeo.Maillage).arrays(), xf, m_rondins)
+	if interieur == null:
+		_ajouter(parent, (r[0] as BatiGeo.Maillage).arrays(), xf, m_rondins)
+	else:
+		var fut: BatiGeo.Maillage = r[0]
+		var ext := BatiGeo.Maillage.new()
+		var dedans := BatiGeo.Maillage.new()
+		for i in range(0, fut.v.size(), 3):
+			var cible := ext if fut.n[i].z * dehors > -0.3 else dedans
+			for k in 3:
+				cible.v.append(fut.v[i + k])
+				cible.n.append(fut.n[i + k])
+				cible.uv.append(fut.uv[i + k])
+				cible.c.append(fut.c[i + k])
+		_ajouter(parent, ext.arrays(), xf, m_rondins)
+		_ajouter(interieur.racine, dedans.arrays(), xf, mats_int["rondin"])
 	_ajouter(parent, (r[1] as BatiGeo.Maillage).arrays(), xf, m_bout)
 
 ## Soubassement : remplissage en retrait + pierres brutes en saillie irrégulière (5 à 15 cm), dessus à ~0,4 m.
@@ -416,42 +457,105 @@ func _soubassement(p: Node3D, L: float, W: float, graine: int) -> void:
 			var taille := Vector3(lg, hh, prof) if horiz else Vector3(prof, hh, lg)
 			_bloc(p, taille, r.randi(), pos, m_brute, 0.0, 0.22, 0.2, 0.08)
 
-## Murs en rondins de 30 cm à 8 pans, empilés tous les 25 cm, croisés aux angles (bouts qui dépassent de 28 cm,
-## alternés d'un lit à l'autre) ; ouverture de la porte (1,2 × 2 m) dans le long pan +Z.
-func _murs_rondins(p: Node3D, L: float, W: float, h_murs: float, graine: int) -> int:
+## Hauteur d'une rangée de rondins (lit k) et rangées traversées par les fenêtres.
+const LITS_FENETRE := [4, 5]
+func _y_lit(k: int, h_murs: float) -> float:
 	var nk := roundi((h_murs - 0.30) / 0.25) + 1
-	var pitch := (h_murs - 0.30) / (nk - 1)
+	return 0.4 + 0.15 + k * (h_murs - 0.30) / (nk - 1)
+
+## Intervalles [a, b] d'une rangée de longueur [-xl, xl] une fois ôtées les ouvertures `coupes` ([x0, x1]).
+func _segments(xl: float, coupes: Array) -> Array:
+	var segs := []
+	var x := -xl
+	var tri := coupes.duplicate()
+	tri.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	for c in tri:
+		if c[0] > x + 0.05:
+			segs.append([x, c[0]])
+		x = maxf(x, c[1])
+	if xl > x + 0.05:
+		segs.append([x, xl])
+	return segs
+
+## Murs en rondins de 30 cm à 8 pans, empilés tous les 25 cm, croisés aux angles (bouts qui dépassent de 28 cm,
+## alternés d'un lit à l'autre) ; ouverture de la porte (1,2 × 2 m) dans le long pan +Z, fenêtres de 0,7 × 0,55 m
+## (lits 4 et 5) aux abscisses `fenetres` des deux longs pans. Chaque rondin est coupé aux ouvertures ; sa moitié
+## visible de la pièce passe dans `ip` (matière d'intérieur).
+func _murs_rondins(p: Node3D, ip: Interieur, L: float, W: float, h_murs: float, graine: int, fenetres: Array, demi_porte := 0.62) -> int:
+	var nk := roundi((h_murs - 0.30) / 0.25) + 1
 	for k in nk:
-		var y := 0.4 + 0.15 + k * pitch
+		var y := _y_lit(k, h_murs)
 		var long_deborde := k % 2 == 0
 		var xl := L * 0.5 + (0.15 + 0.28 if long_deborde else 0.0)
 		var zl := W * 0.5 + (0.0 if long_deborde else 0.15 + 0.28)
 		# sous les rives : le haut des murs est dans l'ombre du toit, le pied est sali
 		var teinte := 1.0 - 0.2 * smoothstep(nk - 4.0, nk - 1.0, k)
 		var g := graine * 100 + k * 8
+		var fen: Array = []
+		if k in LITS_FENETRE:
+			for x in fenetres:
+				fen.append([x - 0.35, x + 0.35])
 		for cote in [-1.0, 1.0]:
+			var coupes := fen.duplicate()
 			if cote > 0.0 and k <= nk - 2:
-				_rondin(p, Vector3((-xl - 0.62) * 0.5, y, W * 0.5), 0.0, xl - 0.62, 0.15, g + 1, teinte)
-				_rondin(p, Vector3((xl + 0.62) * 0.5, y, W * 0.5), 0.0, xl - 0.62, 0.15, g + 2, teinte)
-			else:
-				_rondin(p, Vector3(0, y, cote * W * 0.5), 0.0, xl * 2.0, 0.15, g + 3 + int(cote), teinte)
-			_rondin(p, Vector3(cote * L * 0.5, y, 0), PI * 0.5, zl * 2.0, 0.15, g + 5 + int(cote), teinte)
+				coupes.append([-demi_porte, demi_porte])
+			var n := 0
+			for seg in _segments(xl, coupes):
+				_rondin(p, Vector3((seg[0] + seg[1]) * 0.5, y, cote * W * 0.5), 0.0, seg[1] - seg[0], 0.15, g + 1 + n * 3 + int(cote + 1.0) * 11, teinte, 0.02, ip, cote)
+				n += 1
+			_rondin(p, Vector3(cote * L * 0.5, y, 0), PI * 0.5, zl * 2.0, 0.15, g + 5 + int(cote), teinte, 0.02, ip, cote)
 	return nk
 
-## Fenêtre encadrée (linteau, appui en saillie, jambages, meneau), vitrage émissif ; `face` = +1 (côté +Z) ou -1.
+## Âme du mur (fond sombre vu dans les joints entre rondins) : quatre cloisons de 20 cm au plan des murs, percées de
+## la porte et des fenêtres (le mur n'est plus un bloc plein : la pièce est creuse).
+func _ame(p: Node3D, L: float, W: float, h_murs: float, fenetres: Array, demi_porte := 0.62) -> void:
+	var y_haut := 0.4 + h_murs
+	var fy0 := _y_lit(LITS_FENETRE[0], h_murs) - 0.15
+	var fy1 := _y_lit(LITS_FENETRE[1], h_murs) + 0.15
+	for cote in [-1.0, 1.0]:
+		var coupes: Array = []
+		for x in fenetres:
+			coupes.append([x - 0.35, x + 0.35, fy0, fy1])
+		if cote > 0.0:
+			coupes.append([-demi_porte, demi_porte, 0.4, 0.4 + 2.0])
+		var bords := [-L * 0.5, L * 0.5]
+		for c in coupes:
+			bords.append(c[0])
+			bords.append(c[1])
+		bords.sort()
+		for i in bords.size() - 1:
+			var xa: float = bords[i]
+			var xb: float = bords[i + 1]
+			if xb - xa < 0.01:
+				continue
+			var xm := (xa + xb) * 0.5
+			var morceaux := [[0.4, y_haut]]
+			for c in coupes:
+				if xm > c[0] and xm < c[1]:
+					morceaux = []
+					if c[2] > 0.41:
+						morceaux.append([0.4, c[2]])
+					morceaux.append([c[3], y_haut])
+			for mo in morceaux:
+				_boite(p, Vector3(xb - xa, mo[1] - mo[0], 0.2), Transform3D(Basis(), Vector3(xm, (mo[0] + mo[1]) * 0.5, cote * W * 0.5)), m_ame)
+	for cote in [-1.0, 1.0]:
+		_boite(p, Vector3(0.2, h_murs, W), Transform3D(Basis(), Vector3(cote * L * 0.5, 0.4 + h_murs * 0.5, 0)), m_ame)
+
+## Fenêtre encadrée de 0,7 × 0,55 m (linteau, appui en saillie, jambages), vitrage TRANSLUCIDE (plan `ps1_vitre`) et
+## volet entrouvert ; `face` = +1 (côté +Z) ou -1. Le cadre côté pièce est posé par `Interieurs.fenetre_cadre`.
 func _fenetre_cadre(p: Node3D, x: float, y: float, z: float, face: float) -> void:
-	_vitre(p, Vector3(x, y, z - 0.01 * face), Vector2(0.55, 0.36), 0.0 if face > 0.0 else PI)
-	_boite(p, Vector3(0.8, 0.1, 0.16), Transform3D(Basis(), Vector3(x, y + 0.25, z + 0.05 * face)), m_poutres_h)
-	_boite(p, Vector3(0.84, 0.08, 0.26), Transform3D(Basis(Vector3.RIGHT, 0.12 * face), Vector3(x, y - 0.25, z + 0.09 * face)), m_poutres_h)
-	for fx in [-0.34, 0.34]:
-		_boite(p, Vector3(0.1, 0.5, 0.15), Transform3D(Basis(), Vector3(x + fx, y, z + 0.045 * face)), m_poutres_h)
-	_boite(p, Vector3(0.04, 0.4, 0.1), Transform3D(Basis(), Vector3(x, y, z + 0.03 * face)), m_poutres_h)
+	_vitre(p, Vector3(x, y, z - 0.17 * face), Vector2(0.7, 0.55), 0.0 if face > 0.0 else PI)
+	_boite(p, Vector3(0.92, 0.1, 0.16), Transform3D(Basis(), Vector3(x, y + 0.325, z + 0.05 * face)), m_poutres_h)
+	_boite(p, Vector3(0.96, 0.08, 0.26), Transform3D(Basis(Vector3.RIGHT, 0.12 * face), Vector3(x, y - 0.33, z + 0.09 * face)), m_poutres_h)
+	for fx in [-0.4, 0.4]:
+		_boite(p, Vector3(0.1, 0.62, 0.15), Transform3D(Basis(), Vector3(x + fx, y, z + 0.045 * face)), m_poutres_h)
 	# volet entrouvert
-	_boite(p, Vector3(0.3, 0.46, 0.04), Transform3D(Basis(Vector3.UP, 1.1 * face * signf(x + 0.001)), Vector3(x + 0.55 * signf(x + 0.001), y, z + 0.16 * face)), m_poutres)
+	_boite(p, Vector3(0.34, 0.56, 0.04), Transform3D(Basis(Vector3.UP, 1.1 * face * signf(x + 0.001)), Vector3(x + 0.62 * signf(x + 0.001), y, z + 0.18 * face)), m_poutres)
 
 ## Un pan de toit : planches dessous, chevrons qui dépassent, dalle de neige à épaisseur (BatiGeo.dalle_neige),
 ## rives croisées en cornes. `Rp` = point du faîte, `d` = vecteur faîte → égout (x nul). Renvoie le repère du pan.
-func _pan(p: Node3D, Rp: Vector3, d: Vector3, Lx: float, graine: int, L_murs: float, cornes := true) -> Transform3D:
+## `trou` = (x0, x1) : trou à fumée au faîte (premier rang de la dalle, planches et chevrons coupés).
+func _pan(p: Node3D, Rp: Vector3, d: Vector3, Lx: float, graine: int, L_murs: float, cornes := true, trou := Vector2.ZERO) -> Transform3D:
 	var Sl := d.length()
 	var t := d / Sl
 	var nrm := Vector3(0, t.z, -t.y)
@@ -459,12 +563,24 @@ func _pan(p: Node3D, Rp: Vector3, d: Vector3, Lx: float, graine: int, L_murs: fl
 		nrm = -nrm
 	var bx := Vector3.RIGHT * (1.0 if d.z > 0.0 else -1.0)
 	var xf := Transform3D(Basis(bx, nrm, t), Rp)
-	_boite(p, Vector3(Lx - 0.1, 0.09, Sl + 0.12), xf * Transform3D(Basis(), Vector3(0, -0.05, Sl * 0.5)), m_poutres_h)
+	var sh := Sl / 5.0     # profondeur du trou : un rang de la dalle
+	if trou == Vector2.ZERO:
+		_boite(p, Vector3(Lx - 0.1, 0.09, Sl + 0.12), xf * Transform3D(Basis(), Vector3(0, -0.05, Sl * 0.5)), m_poutres_h)
+	else:
+		var xa := -Lx * 0.5 + 0.05
+		var xb := Lx * 0.5 - 0.05
+		_boite(p, Vector3(trou.x - xa, 0.09, Sl + 0.12), xf * Transform3D(Basis(), Vector3((xa + trou.x) * 0.5, -0.05, Sl * 0.5)), m_poutres_h)
+		_boite(p, Vector3(xb - trou.y, 0.09, Sl + 0.12), xf * Transform3D(Basis(), Vector3((trou.y + xb) * 0.5, -0.05, Sl * 0.5)), m_poutres_h)
+		var lm := Sl + 0.06 - sh
+		_boite(p, Vector3(trou.y - trou.x, 0.09, lm), xf * Transform3D(Basis(), Vector3((trou.x + trou.y) * 0.5, -0.05, sh + lm * 0.5)), m_poutres_h)
 	var x := -Lx * 0.5 + 0.2
 	while x <= Lx * 0.5 - 0.15:
-		_boite(p, Vector3(0.11, 0.17, Sl + 0.3), xf * Transform3D(Basis(), Vector3(x, -0.15, Sl * 0.5 + 0.04)), m_poutres_h)
+		var dans := trou != Vector2.ZERO and x > trou.x - 0.06 and x < trou.y + 0.06
+		var l_ch := Sl + 0.3 - (sh if dans else 0.0)
+		var s_c := Sl * 0.5 + 0.04 + (sh * 0.5 if dans else 0.0)
+		_boite(p, Vector3(0.11, 0.17, l_ch), xf * Transform3D(Basis(), Vector3(x, -0.15, s_c)), m_poutres_h)
 		x += 0.9
-	_ajouter(p, BatiGeo.dalle_neige(Lx, Sl, graine).surface_get_arrays(0), xf, m_toit)
+	_ajouter(p, BatiGeo.dalle_neige(Lx, Sl, graine, 0.22, 0.05, trou).surface_get_arrays(0), xf, m_toit)
 	if cornes:
 		for bout in [-1.0, 1.0]:
 			var rive := Transform3D(Basis(bx, nrm, t), Rp + bx * (bout * (Lx * 0.5 - 0.1)) + nrm * 0.02)
@@ -473,20 +589,31 @@ func _pan(p: Node3D, Rp: Vector3, d: Vector3, Lx: float, graine: int, L_murs: fl
 
 ## Toit en deux pans (lot 5, 2e passe) : chevrons qui dépassent, planches dessous, dalle de neige à épaisseur et à
 ## bord irrégulier (tourbe sombre à la lèvre), faîtière en rondin dont les bouts sortent des pignons et rouleau
-## de neige au faîte ; rives croisées en cornes.
-func _toit(p: Node3D, L: float, W: float, y0: float, faite: float, graine: int) -> Vector2:
+## de neige au faîte ; rives croisées en cornes. `trou` : trou à fumée (voir `_pan`) ; la faîtière et le rouleau
+## s'interrompent de part et d'autre.
+func _toit(p: Node3D, L: float, W: float, y0: float, faite: float, graine: int, trou := Vector2.ZERO) -> Vector2:
 	var avancee := 0.78
 	var Rp := Vector3(0, y0 + faite, 0)
 	var eave_z := W * 0.5 + avancee
 	var Lx := L + 1.5
 	var bas_y := y0 - 0.5
 	for cote in [-1.0, 1.0]:
-		_pan(p, Rp, Vector3(0, bas_y - Rp.y, cote * eave_z), Lx, graine * 7 + int(cote) + 3, L)
+		_pan(p, Rp, Vector3(0, bas_y - Rp.y, cote * eave_z), Lx, graine * 7 + int(cote) + 3, L, true, trou)
 		_stalactites(p, -L * 0.5 - 0.5, L * 0.5 + 0.5, bas_y - 0.12, cote * (eave_z + 0.06), graine * 31 + int(cote))
 	# faîtière : rondin qui dépasse des pignons + rouleau de neige
-	_rondin(p, Rp + Vector3(0, 0.02, 0), 0.0, L + 2.1, 0.13, graine + 9, 1.0, 0.03)
-	var roul := BatiGeo.rondin(L + 1.5, 0.19, graine + 11, 0.05, 0, 0.0, 1.0)
-	_ajouter(p, (roul[0] as BatiGeo.Maillage).arrays(), Transform3D(Basis(), Rp + Vector3(0, 0.2, 0)), m_neige)
+	var morceaux: Array = [[-(L + 2.1) * 0.5, (L + 2.1) * 0.5]]
+	var rouleaux: Array = [[-(L + 1.5) * 0.5, (L + 1.5) * 0.5]]
+	if trou != Vector2.ZERO:
+		morceaux = [[-(L + 2.1) * 0.5, trou.x - 0.05], [trou.y + 0.05, (L + 2.1) * 0.5]]
+		rouleaux = [[-(L + 1.5) * 0.5, trou.x - 0.1], [trou.y + 0.1, (L + 1.5) * 0.5]]
+	var k := 0
+	for m in morceaux:
+		_rondin(p, Rp + Vector3((m[0] + m[1]) * 0.5, 0.02, 0), 0.0, m[1] - m[0], 0.13, graine + 9 + k, 1.0, 0.03)
+		k += 1
+	for m in rouleaux:
+		var roul := BatiGeo.rondin(m[1] - m[0], 0.19, graine + 11 + k, 0.05, 0, 0.0, 1.0)
+		_ajouter(p, (roul[0] as BatiGeo.Maillage).arrays(), Transform3D(Basis(), Rp + Vector3((m[0] + m[1]) * 0.5, 0.2, 0)), m_neige)
+		k += 1
 	return Vector2(eave_z, bas_y)
 
 ## Cheminée de pierre : fût en petits moellons, chaînages d'angle en gros blocs alternés, base évasée, chapeau
@@ -505,18 +632,45 @@ func _cheminee(p: Node3D, xch: float, y_base: float, h_ch: float, graine: int) -
 	_bloc(p, Vector3(1.05, 0.5, 1.05), r.randi(), Vector3(xch, y_base + 0.0, 0), m_brute, 0.0, 0.0, 0.18, 0.05)
 	_bloc(p, Vector3(1.12, 0.2, 1.12), r.randi(), Vector3(xch, y_base + h_ch + 0.05, 0), m_brute, 0.0, 1.0, 0.25, 0.04)
 
+## Noms affichés (porte) des bâtiments enterables.
+const NOMS_BATIMENTS := {
+	"halle": "Halle de Gunnhild",
+	"sigrun": "Maison de Sigrún la Voyante",
+	"chasseurs": "Maison des chasseurs",
+	"grima": "Maison de Grima Cendrefroide",
+	"forge": "Forge de Brodd",
+}
+
+## Abscisses des fenêtres (sur les deux longs pans) d'une maison de longueur L.
+func _fenetres_de(longueur: float) -> Array:
+	return [-longueur * 0.26, longueur * 0.26]
+
 ## Maison nordique (lot 5, 2e passe) : soubassement de pierres brutes en saillie, murs de rondins à 8 pans croisés
 ## aux angles sur âme sombre, contreforts de pierre, toit à épaisseur (chevrons, faîtière, rives en cornes,
 ## stalactites), cheminée de pierre appareillée, porte renforcée de fer dans un cadre épais, deux marches,
 ## fenêtres encadrées à volet, torche murale et fumée.
-func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_murs: float, faite: float, cheffe: bool) -> void:
+## Lot « kit intérieur » : la maison est CREUSE et ENTERABLE (murs de rondins vus des deux côtés, plancher, plafond sous
+## charpente, porte sur charnière, fenêtres ouvertes aux carreaux translucides) ; l'intérieur (`Interieur` + `Interieurs`)
+## dépend de `id` : halle (longue maison), sigrun, chasseurs, grima.
+func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_murs: float, faite: float, id: String) -> void:
+	var cheffe := id == "halle"
 	var p := _pivot(centre, lacet)
+	p.name = "Maison_" + id
 	h_murs = maxf(h_murs, 2.3)   # porte de 2 m + linteau : 9 lits de rondins
 	var y0 := 0.4 + h_murs
 	var graine := int(absf(centre.x) * 13.0 + absf(centre.z) * 7.0) + 1
+	var ip := Interieur.new()
+	ip.name = "Interieur"
+	ip.nom = NOMS_BATIMENTS[id]
+	ip.demi = Vector2(longueur * 0.5 - 0.15, largeur * 0.5 - 0.15)
+	ip.porte_locale = Vector3(0, 1.4, largeur * 0.5 + 0.05)
+	p.add_child(ip)
+	interieurs.append(ip)
+	var ib := Interieurs.new(self, ip, mats_int, longueur, largeur, h_murs, faite)
+	var fen := _fenetres_de(longueur)
 	_soubassement(p, longueur, largeur, graine)
-	_boite(p, Vector3(longueur, h_murs, largeur), Transform3D(Basis(), Vector3(0, 0.4 + h_murs * 0.5, 0)), m_ame)
-	_murs_rondins(p, longueur, largeur, h_murs, graine)
+	_ame(p, longueur, largeur, h_murs, fen)
+	_murs_rondins(p, ip, longueur, largeur, h_murs, graine, fen)
 	for cote in [-1.0, 1.0]:
 		_pignon(p, cote * longueur * 0.5, y0, largeur * 0.5 + 0.1, faite)
 	# contreforts de pierre sur les longs pans, à (L/2 - 1)
@@ -529,32 +683,40 @@ func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_m
 				var s := 0.64 - i * 0.05
 				_bloc(p, Vector3(s, 0.44 - i * 0.02, s * 0.9), rc.randi(), Vector3(xc + rc.randf_range(-0.03, 0.03), 0.3 + i * 0.4, zc), m_brute, rc.randf_range(-0.06, 0.06), 0.05, 0.2, 0.07)
 			_bloc(p, Vector3(0.72, 0.2, 0.66), rc.randi(), Vector3(xc, 1.95, zc), m_brute, 0.0, 1.0, 0.3, 0.05)
-	_collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(0, (y0 + faite * 0.5) * 0.5, 0)), Vector3(longueur + 0.3, y0 + faite * 0.5, largeur + 0.3))
-	var eave := _toit(p, longueur, largeur, y0, faite, graine)
-	# cheminée
-	var xch := longueur * 0.15
-	var h_ch := faite + 0.7
-	_cheminee(p, xch, y0 - 0.2, h_ch, graine + 5)
-	_fumee(p, Vector3(xch, y0 + h_ch + 0.2, 0))
-	# porte (côté +Z) : cadre épais, planches debout dans l'ouverture des rondins, bandes de fer, anneau ; marches de 20 cm
+			_collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(xc, 1.1, zc)), Vector3(0.76, 2.2, 0.72))
+	_coque_collisions(p, longueur, largeur, y0, faite)
+	# trou à fumée de la halle : deux cases de la dalle, de part et d'autre du faîte
+	var trou := Vector2.ZERO
+	if cheffe:
+		trou = BatiGeo.trou_cases(longueur + 1.5, -1.0, 2)
+	var eave := _toit(p, longueur, largeur, y0, faite, graine, trou)
+	if cheffe:
+		ib.gaine_fumee(trou)
+		_fumee(p, Vector3((trou.x + trou.y) * 0.5, y0 + faite + 1.3, 0))
+	else:
+		var xch := longueur * 0.15
+		var h_ch := faite + 0.7
+		_cheminee(p, xch, y0 - 0.2, h_ch, graine + 5)
+		_fumee(p, Vector3(xch, y0 + h_ch + 0.2, 0))
+	# porte (côté +Z) : cadre épais, vantail sur charnière (planches debout, bandes de fer, anneau), marches de 20 cm
 	var zf := largeur * 0.5 + 0.17
-	_boite(p, Vector3(1.2, 2.0, 0.1), Transform3D(Basis(), Vector3(0, 0.4 + 1.0, largeur * 0.5)), m_poutres)
 	for jx in [-0.7, 0.7]:
 		_boite(p, Vector3(0.2, 2.05, 0.34), Transform3D(Basis(), Vector3(jx, 0.4 + 1.02, largeur * 0.5 + 0.01)), m_poutres_h)
 	_boite(p, Vector3(1.8, 0.2, 0.36), Transform3D(Basis(), Vector3(0, 0.4 + 2.1, largeur * 0.5 + 0.01)), m_poutres_h)
-	for by in [0.45, 1.5]:
-		_boite(p, Vector3(1.2, 0.13, 0.04), Transform3D(Basis(), Vector3(0, 0.4 + by, largeur * 0.5 + 0.07)), m_fer)
-		for rx in [-0.5, 0.0, 0.5]:
-			_boite(p, Vector3(0.04, 0.04, 0.03), Transform3D(Basis(), Vector3(rx, 0.4 + by, largeur * 0.5 + 0.09)), m_fer)
-	_boite(p, Vector3(0.09, 0.22, 0.05), Transform3D(Basis(), Vector3(0.4, 0.4 + 1.0, largeur * 0.5 + 0.1)), m_fer)
+	var charniere := _vantail(p, Vector3(-0.6, 0.4, largeur * 0.5), 1.2, 2.0)
+	ip.vantaux.append([charniere, -1.75])
 	_bloc(p, Vector3(1.95, 0.2, 0.62), rc.randi(), Vector3(0, 0.1, zf + 0.5), m_brute, 0.0, 0.5, 0.2, 0.05)
 	_bloc(p, Vector3(1.65, 0.2, 0.42), rc.randi(), Vector3(0, 0.3, zf + 0.26), m_brute, 0.0, 0.5, 0.2, 0.05)
-	# fenêtres
-	for x in [-longueur * 0.26, longueur * 0.26]:
+	_rampe_porte(p, Vector3(0, 0, largeur * 0.5), 1.8)
+	_bloc_porte(ip, p, Vector3(0, 0.4 + 1.25, largeur * 0.5), Vector3(1.24, 2.5, 0.3))
+	# fenêtres (cadre extérieur ici, cadre intérieur par Interieurs)
+	var yf := (_y_lit(LITS_FENETRE[0], h_murs) + _y_lit(LITS_FENETRE[1], h_murs)) * 0.5
+	for x in fen:
 		for face in [1.0, -1.0]:
-			_fenetre_cadre(p, x, 0.4 + h_murs * 0.62, face * (largeur * 0.5 + 0.17), face)
+			_fenetre_cadre(p, x, yf, face * (largeur * 0.5 + 0.17), face)
+			ib.fenetre_cadre(x, yf, face * (largeur * 0.5 + 0.17), face)
 	# torche murale à droite de la porte
-	_torche_murale(p, Vector3(1.25, 0.4 + 1.45, zf + 0.03), 1.0, cheffe)
+	_torche_murale(p, Vector3(1.25, 0.4 + 1.45, zf + 0.03), 1.0, false)
 	if cheffe:
 		# boucliers peints accrochés au mur, de part et d'autre de la porte, et bancs
 		for x in [-2.6, -1.7, 1.9, 2.7]:
@@ -562,14 +724,68 @@ func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_m
 			_cylindre(p, 0.09, 0.09, 0.09, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(x, 0.4 + 1.3, zf + 0.1)), m_fer, 8)
 		_banc(p, Vector3(-2.2, 0, zf + 0.75), 2.0)
 		_banc(p, Vector3(2.2, 0, zf + 0.75), 2.0)
+	# l'intérieur
+	ib.coque(id)
+	ib.contenu(id)
+	ib.finir()
 
-## Vitrage : quad orienté vers +Z (lacet 0) ou -Z (lacet PI), UV 0..1 (la texture de fenêtre le couvre exactement).
+## Vantail de porte sur charnière : planches debout, deux bandes de fer cloutées, anneau. `pos` = axe de la charnière.
+func _vantail(parent: Node3D, pos: Vector3, larg: float, haut: float, cote := 1.0) -> Node3D:
+	var h := Node3D.new()
+	h.position = pos
+	parent.add_child(h)
+	var x := cote * larg * 0.5
+	_boite(h, Vector3(larg - 0.06, haut, 0.1), Transform3D(Basis(), Vector3(x, haut * 0.5, 0)), m_poutres)
+	for by in [0.22, haut * 0.74]:
+		_boite(h, Vector3(larg - 0.06, 0.13, 0.04), Transform3D(Basis(), Vector3(x, by, 0.07)), m_fer)
+		_boite(h, Vector3(larg - 0.06, 0.13, 0.04), Transform3D(Basis(), Vector3(x, by, -0.07)), m_fer)
+		for rx in [-0.4, 0.0, 0.4]:
+			_boite(h, Vector3(0.04, 0.04, 0.03), Transform3D(Basis(), Vector3(x + rx * larg / 1.2, by, 0.09)), m_fer)
+	_boite(h, Vector3(0.09, 0.22, 0.05), Transform3D(Basis(), Vector3(x + cote * (larg * 0.5 - 0.2), haut * 0.5, 0.1)), m_fer)
+	_boite(h, Vector3(0.09, 0.22, 0.05), Transform3D(Basis(), Vector3(x + cote * (larg * 0.5 - 0.2), haut * 0.5, -0.1)), m_fer)
+	return h
+
+## Rampe de collision sous les deux marches de la porte (le joueur n'a pas de montée de marche) : de 0 à F sur 1 m.
+func _rampe_porte(p: Node3D, plan: Vector3, larg: float) -> void:
+	var f := ConvexPolygonShape3D.new()
+	var y := Interieurs.F
+	f.points = PackedVector3Array([
+		Vector3(-larg * 0.5, 0, 1.0), Vector3(larg * 0.5, 0, 1.0), Vector3(-larg * 0.5, y, 0.0), Vector3(larg * 0.5, y, 0.0),
+		Vector3(-larg * 0.5, 0, 0.0), Vector3(larg * 0.5, 0, 0.0)])
+	_collision(p, f, Transform3D(Basis(), plan + Vector3(0, 0, 0.1)), Vector3.ZERO)
+
+## Blocage de la porte fermée (désactivé à l'ouverture).
+func _bloc_porte(ip: Interieur, p: Node3D, pos: Vector3, taille: Vector3) -> void:
+	_collision(p, BoxShape3D.new(), Transform3D(Basis(), pos), taille)
+	ip.bloc_porte = corps.get_child(corps.get_child_count() - 1) as CollisionShape3D
+
+## Collisions de la coque : plancher, quatre murs creux (ouverture de la porte côté +Z), linteau, sommet.
+func _coque_collisions(p: Node3D, L: float, W: float, y0: float, faite: float, demi_porte := 0.62, epaisseur := 0.5) -> void:
+	var haut := y0 + faite + 0.5
+	_collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(0, Interieurs.F * 0.5 - 0.3, 0)), Vector3(L - 0.2, Interieurs.F + 0.6, W + 0.3))
+	# longs pans (le long de X) : décalés vers l'extérieur de 0,1 m pour ne pas rogner la pièce
+	for cote in [-1.0, 1.0]:
+		var zc: float = cote * (W * 0.5 + 0.1)
+		if cote > 0.0:
+			var xa := demi_porte
+			var xb := L * 0.5 + 0.3
+			for sx in [-1.0, 1.0]:
+				_collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(sx * (xa + xb) * 0.5, haut * 0.5, zc)), Vector3(xb - xa, haut, epaisseur))
+			_collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(0, (2.4 + haut) * 0.5, zc)), Vector3(demi_porte * 2.0, haut - 2.4, epaisseur))
+		else:
+			_collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(0, haut * 0.5, zc)), Vector3(L + 0.6, haut, epaisseur))
+		_collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(cote * (L * 0.5 + 0.1), haut * 0.5, 0)), Vector3(epaisseur, haut, W + 0.6))
+
+## Vitrage : quad orienté vers +Z (lacet 0) ou -Z (lacet PI), UV 0..1 (la texture de vitrage le couvre exactement).
 func _vitre(parent: Node3D, pos: Vector3, taille: Vector2, lacet: float) -> void:
-	var arrays := _arrays_de("quad%s" % taille, func() -> Mesh:
-		var q := QuadMesh.new()
-		q.size = taille
-		return q)
-	_ajouter(parent, arrays, Transform3D(Basis(Vector3.UP, lacet), pos), m_fenetre)
+	var q := QuadMesh.new()
+	q.size = taille
+	var mi := MeshInstance3D.new()
+	mi.mesh = q
+	mi.material_override = mats_int["vitre"]
+	mi.transform = Transform3D(Basis(Vector3.UP, lacet), pos)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
 
 ## Banc : planche épaisse sur deux pieds.
 func _banc(parent: Node3D, pos: Vector3, longueur: float) -> void:
@@ -671,45 +887,74 @@ func _porte() -> void:
 	_boite(p, Vector3(DEMI_PORTE * 2 + 1.2, 0.42, 0.42), Transform3D(Basis(), Vector3(0, 4.7, 0)), m_poutres_h)
 	_boite(p, Vector3(DEMI_PORTE * 2 + 1.4, 0.22, 0.66), Transform3D(Basis(), Vector3(0, 5.0, 0)), m_neige)
 
+## Forge de Brodd (lot « kit intérieur » : fermée et enterable). Appentis de 5 × 4 m : quatre poteaux octogonaux, toit à
+## une pente, mur de fond en pierre, murs latéraux de pierre sèche, façade de planches (double porte à deux vantaux,
+## fenêtre à volet relevé). Foyer, enclume, soufflet, bac de trempe, réserves : `InterieurForge`.
+## Repère local : -Z = le fond (foyer), +Z = la façade ; le sol est au niveau du village (y = 0), sans marche.
 func _forge(centre: Vector3) -> void:
 	var p := _pivot(centre, PI * 0.5)
-	# appentis ouvert : quatre poteaux octogonaux et un toit à une pente
+	p.name = "Forge"
+	var ip := Interieur.new()
+	ip.name = "Interieur"
+	ip.nom = NOMS_BATIMENTS["forge"]
+	ip.demi = Vector2(2.1, 1.7)
+	ip.porte_locale = Vector3(1.35, 1.3, 1.85)
+	ip.sol_y = 0.04
+	p.add_child(ip)
+	interieurs.append(ip)
+	var ib := Interieurs.new(self, ip, mats_int, 4.2, 3.4, 2.0, 0.6)
+	# poteaux octogonaux (le mur de pierre les enserre) et toit à une pente
 	for x in [-2.4, 2.4]:
 		for z in [-1.8, 1.8]:
-			_poteau(p, Vector3(x, 0, z), 0.13, 2.7 if z < 0 else 2.2, m_poutres, true)
+			_poteau(p, Vector3(x, 0, z), 0.13, 2.7 if z < 0 else 2.2, m_poutres, false)
 	_pan(p, Vector3(0, 2.72, -2.3), Vector3(0, -0.63, 4.55), 5.9, 4242, 5.0, false)
 	for z in [-1.8, 1.8]:   # sablières
 		_boite(p, Vector3(5.2, 0.22, 0.26), Transform3D(Basis(), Vector3(0, 2.7 if z < 0 else 2.2, z) + Vector3(0, -0.12, 0)), m_poutres_h)
-	# mur de fond en pierre sèche derrière le foyer, avec contreforts
+	# mur de fond en pierre derrière le foyer, avec contreforts
 	_pile(p, Vector3(0, 1.2, -2.0), Vector3(4.8, 2.4, 0.5), 4301, m_brute, true)
 	for x in [-2.4, 0.0, 2.4]:
 		_pile(p, Vector3(x, 1.0, -1.7), Vector3(0.6, 2.0, 0.6), 4310 + int(x), m_brute, false, 1.0)
-	# foyer de pierre et braises, hotte et cheminée
-	_pile(p, Vector3(-0.8, 0.45, -1.2), Vector3(1.8, 0.9, 1.2), 4320, m_brute, true, 0.0)
-	_boite(p, Vector3(1.1, 0.08, 0.7), Transform3D(Basis(), Vector3(-0.8, 0.94, -1.2)), m_braises)
-	_pile(p, Vector3(-0.8, 1.55, -1.45), Vector3(1.2, 0.5, 0.9), 4321, m_brute, false, 0.0)
-	_pile(p, Vector3(-0.8, 2.2, -1.5), Vector3(0.7, 1.6, 0.7), 4322, m_brute, false, 1.0)
-	_feu(p, Vector3(-0.8, 0.95, -1.2), 0.7, 2.6, 9.0)
-	_fumee(p, Vector3(-0.8, 3.1, -1.5))
-	# enclume sur son billot, tonneau d'eau, soufflet de cuir
-	_poteau(p, Vector3(1.0, 0, 0.2), 0.24, 0.5, m_poutres, true)
-	_boite(p, Vector3(0.3, 0.14, 0.62), Transform3D(Basis(), Vector3(1.0, 0.57, 0.2)), m_fer)
-	_boite(p, Vector3(0.18, 0.14, 0.3), Transform3D(Basis(), Vector3(1.0, 0.68, 0.2)), m_fer)
-	_boite(p, Vector3(0.3, 0.1, 0.5), Transform3D(Basis(), Vector3(1.0, 0.79, 0.2)), m_fer)
-	_boite(p, Vector3(0.14, 0.1, 0.3), Transform3D(Basis(), Vector3(1.0, 0.8, 0.62)), m_fer)
-	_tonneau(p, Vector3(2.0, 0, -1.2))
-	_boite(p, Vector3(0.5, 0.3, 0.7), Transform3D(Basis(Vector3.UP, 0.2), Vector3(-1.9, 0.55, -1.2)), m_cuir)
-	# établi avec ses outils, lingots en pile
-	_boite(p, Vector3(1.5, 0.1, 0.7), Transform3D(Basis(), Vector3(-0.2, 0.85, 1.4)), m_poutres_h, true)
-	for dx in [-0.65, 0.65]:
-		_boite(p, Vector3(0.12, 0.8, 0.6), Transform3D(Basis(), Vector3(-0.2 + dx, 0.4, 1.4)), m_poutres)
-	for i in 3:
-		_boite(p, Vector3(0.05, 0.3, 0.02), Transform3D(Basis(Vector3.FORWARD, 0.1 * i), Vector3(-0.6 + i * 0.12, 0.98, 1.3)), m_fer)
-	for i in 3:
-		_boite(p, Vector3(0.28, 0.07, 0.12), Transform3D(Basis(), Vector3(0.3, 0.94 + i * 0.07, 1.5)), m_fer)
-	# lames en attente contre le mur de fond
-	for i in 3:
-		_boite(p, Vector3(0.05, 0.8, 0.012), Transform3D(Basis(Vector3.FORWARD, 0.12), Vector3(1.6 + i * 0.22, 0.5, -1.74)), m_fer)
+	# murs latéraux : pierre sèche en trois tronçons qui suivent la pente du toit (plein haut sous les chevrons)
+	var tronc := [[-2.0, -0.6, 2.4], [-0.6, 0.8, 2.2], [0.8, 1.9, 2.04]]
+	for sx in [-1.0, 1.0]:
+		var k := 0
+		for t in tronc:
+			var zc: float = (t[0] + t[1]) * 0.5
+			_pile(p, Vector3(sx * 2.4, t[2] * 0.5, zc), Vector3(0.4, t[2], t[1] - t[0]), 4400 + k + int(sx + 1.0) * 5, m_roche, true, 0.0)
+			ib.pile(Vector3(sx * 2.155, t[2] * 0.5, zc), Vector3(0.1, t[2], t[1] - t[0]), 4420 + k + int(sx + 1.0) * 5, "seche")
+			k += 1
+	# doublage intérieur du fond
+	ib.pile(Vector3(0, 1.2, -1.7), Vector3(4.2, 2.4, 0.1), 4440, "seche")
+	# façade de planches : de part et d'autre de la porte (x de 0,55 à 2,15), fenêtre à gauche (x de -1,9 à -0,9)
+	var haut_f := 2.05
+	var fe := [-1.9, -0.9, 1.1, 1.85]    # fenêtre : x0, x1, y0, y1
+	_boite(p, Vector3(0.55, haut_f, 0.16), Transform3D(Basis(), Vector3(-2.175, haut_f * 0.5, 1.8)), m_poutres, true)
+	_boite(p, Vector3(1.45, haut_f, 0.16), Transform3D(Basis(), Vector3(-0.175, haut_f * 0.5, 1.8)), m_poutres, true)
+	_boite(p, Vector3(1.0, fe[2], 0.16), Transform3D(Basis(), Vector3(-1.4, fe[2] * 0.5, 1.8)), m_poutres, true)
+	_boite(p, Vector3(1.0, haut_f - fe[3], 0.16), Transform3D(Basis(), Vector3(-1.4, (haut_f + fe[3]) * 0.5, 1.8)), m_poutres, false)
+	_boite(p, Vector3(0.3, haut_f, 0.16), Transform3D(Basis(), Vector3(2.3, haut_f * 0.5, 1.8)), m_poutres, true)
+	_boite(p, Vector3(1.6, haut_f - 1.95, 0.16), Transform3D(Basis(), Vector3(1.35, (haut_f + 1.95) * 0.5, 1.8)), m_poutres_h, false)   # linteau
+	# volet de la fenêtre : relevé en auvent sur un bâton
+	_boite(p, Vector3(1.0, 0.04, 0.7), Transform3D(Basis(Vector3.RIGHT, 0.5), Vector3(-1.4, fe[3] + 0.28, 2.1)), m_poutres_h)
+	_boite(p, Vector3(0.04, 0.04, 0.6), Transform3D(Basis(Vector3.RIGHT, -0.6), Vector3(-1.85, 1.65, 2.2)), m_poutres)
+	_boite(p, Vector3(1.0, 0.1, 0.22), Transform3D(Basis(), Vector3(-1.4, fe[2] - 0.03, 1.86)), m_poutres_h)   # appui
+	for fx in [-1.95, -0.85]:
+		_boite(p, Vector3(0.1, fe[3] - fe[2] + 0.2, 0.2), Transform3D(Basis(), Vector3(fx, (fe[2] + fe[3]) * 0.5, 1.82)), m_poutres_h)
+	# double porte (deux vantaux sur charnière) : 1,6 m × 1,95 m, blocage de collision tant qu'elle est fermée
+	var ha := _vantail(p, Vector3(0.55, 0.0, 1.8), 0.8, 1.95, 1.0)
+	var hb := _vantail(p, Vector3(2.15, 0.0, 1.8), 0.8, 1.95, -1.0)
+	ip.vantaux.append([ha, -1.75])
+	ip.vantaux.append([hb, 1.75])
+	_bloc_porte(ip, p, Vector3(1.35, 1.0, 1.8), Vector3(1.6, 2.0, 0.3))
+	# dalle de seuil
+	_bloc(p, Vector3(2.0, 0.08, 0.7), 4470, Vector3(1.35, 0.03, 2.25), m_brute, 0.0, 0.3, 0.2, 0.04)
+	# cheminée au-dessus de la hotte (la hotte et le foyer sont dans l'intérieur)
+	_pile(p, Vector3(-0.8, 2.3, -1.5), Vector3(0.7, 1.6, 0.7), 4322, m_brute, false, 1.0)
+	_fumee(p, Vector3(-0.8, 3.2, -1.5))
+	# torche à gauche de la porte, au dehors
+	_torche_murale(p, Vector3(0.2, 1.7, 1.93), 1.0, false)
+	ib.contenu("forge")
+	ib.finir()
 
 func _puits(centre: Vector3) -> void:
 	var p := _pivot(centre, 0.3)

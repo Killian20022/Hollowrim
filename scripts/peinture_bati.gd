@@ -965,7 +965,7 @@ static func relief_mips(rel: Image) -> ImageTexture:
 
 ## Liste des textures cuites : nom → fabrique (renvoie [albédo, relief|null]).
 static func fabriques() -> Dictionary:
-	return {
+	var base := {
 		"pierre_seche": func() -> Array: return mur_pierre(5111, 256, 128, 9, 15, 15, 34, 0.12),
 		"pierre_fine": func() -> Array: return mur_pierre(5113, 256, 128, 6, 10, 9, 20, 0.06, 2.0),
 		"roche": func() -> Array: return roche(5211),
@@ -982,6 +982,8 @@ static func fabriques() -> Dictionary:
 		"braises": func() -> Array: return braises(5415),
 		"fenetre": func() -> Array: return fenetre(),
 	}
+	base.merge(PeintureInterieur.fabriques())   # lot « intérieurs » : tentures, peaux, terre battue, charbon, vitrage
+	return base
 
 const DOSSIER := "res://assets/bati/"
 

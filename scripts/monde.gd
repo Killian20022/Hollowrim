@@ -477,6 +477,7 @@ func _villageois() -> void:
 	quetes.hud = hud
 	add_child(quetes)
 	hud.quetes = quetes
+	village.activer_interieurs(joueur, dialogue)   # portes des maisons (touche E)
 	var promenade: Array = village.promenade
 	for d in VILLAGEOIS.charger():
 		var poste: Vector3 = village.lieux.get(d.get("lieu", "place"), village.lieux["place"])
@@ -941,6 +942,18 @@ func _scenario(nom: String) -> void:
 			_placer(v.to_global(Vector3(0, 0, 30)), v.to_global(Vector3(0, 2.5, 0)))
 		"place":
 			_placer(v.to_global(Vector3(4, 0, 7)), v.to_global(Vector3(0, 2.2, -12)))
+		"interieur":
+			# --bat=halle|sigrun|chasseurs|grima|forge --ipose=x,z,lacet°,tangage° (repère du bâtiment ; lacet 0 = vers -Z)
+			# [--ouvert] porte ouverte ; [--ext] pose exprimée hors du bâtiment (même repère)
+			var ip: Interieur = v.interieur(String(_arguments().get("bat", "halle")))
+			var a: PackedStringArray = String(_arguments().get("ipose", "0,0,0,0")).split(",")
+			if _arguments().has("ouvert"):
+				ip.basculer(true, false)
+			joueur.global_position = ip.to_global(Vector3(float(a[0]), ip.sol_y + 0.12, float(a[1])))
+			joueur.rotation.y = ip.global_rotation.y + deg_to_rad(float(a[2]))
+			joueur.tete.rotation.x = deg_to_rad(float(a[3]) if a.size() > 3 else 0.0)
+			for i in 40:
+				await get_tree().process_frame
 		"forge":
 			_placer(v.to_global(Vector3(-6, 0, 9)), v.to_global(Vector3(-12.5, 1.2, 6)))
 		"dialogue":
