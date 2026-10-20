@@ -94,7 +94,7 @@ static func instancier(monde: Node, foret: Dictionary, buissons: Array) -> Array
 	# formes : 0-2 épicéas, 3 arbre mort, 4 pin sylvestre, 5 bouleau (4 et 5 : zone témoin seulement)
 	var modeles: Array[Mesh] = [Arbres.epicea(0, 11, mats_ep), Arbres.epicea(1, 12, mats_ep), Arbres.epicea(2, 13, mats_ep), mort, pin, bouleau]
 	# silhouettes simplifiées pour la vue lointaine (au-delà de la portée du mesh complet)
-	var lointains: Array[Mesh] = [Arbres.epicea_lointain(0, 11, mats_ep), Arbres.epicea_lointain(1, 12, mats_ep), Arbres.epicea_lointain(2, 13, mats_ep), mort, pin, bouleau]
+	var lointains: Array[Mesh] = [Arbres.epicea_lointain(0, 11, mats_ep), Arbres.epicea_lointain(1, 12, mats_ep), Arbres.epicea_lointain(2, 13, mats_ep), Arbres.arbre_mort(14, [], true), Arbres.pin(31, Arbres.materiaux_essence("pin"), true), Arbres.bouleau(41, Arbres.materiaux_essence("bouleau"), true)]
 	# lot 2 : silhouettes d'ombre opaques des épicéas (les cartes en alpha coûtent cher en passe d'ombre)
 	var ombres: Array[Mesh] = [Arbres.epicea_ombre(0, 11, mats_ep[0]), Arbres.epicea_ombre(1, 12, mats_ep[0]), Arbres.epicea_ombre(2, 13, mats_ep[0]), mort, pin, bouleau]
 	var variantes: Array[Mesh] = [Arbres.epicea(0, 111, mats_ep), Arbres.epicea(1, 112, mats_ep)]

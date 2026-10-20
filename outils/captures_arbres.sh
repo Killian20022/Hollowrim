@@ -17,7 +17,7 @@ for p in "${ORDRE[@]}"; do
 		h=""; [[ "$ph" == jour ]] && h="--heure=12"
 		f="$OUT/${p}_${ph}.png"
 		timeout 150 "$G" --path "$(wslpath -w "$ICI")" -- $h --capture="$(wslpath -w "$f")" --pose="${POSE[$p]}" \
-			--paisible --sans-particules --sans-mains --attente=200 > "$f.log" 2>&1 || echo "échec $p $ph"
+			--nouvelle --paisible --sans-particules --sans-mains --attente=200 > "$f.log" 2>&1 || echo "échec $p $ph"
 	done
 done
 grep -l "SCRIPT ERROR" "$OUT"/*.log 2>/dev/null | sed 's/^/ERREURS DE SCRIPT dans /'

@@ -91,6 +91,130 @@ static func _tronc(st: SurfaceTool, rayon: float, hauteur: float, cotes := 6) ->
 		_tri(st, m0, m1, h1, Vector2(k, 3), Vector2(k + 1, 3), Vector2(k + 1, 0), w, w, w)
 		_tri(st, m0, h1, h0, Vector2(k, 3), Vector2(k + 1, 0), Vector2(k, 0), w, w, w)
 
+# --- Lot 2, troncs : écorce à 32 texels/m, fût en 8 pans irréguliers, racines, mousse, neige plaquée -------
+const TRONC := preload("res://shaders/ps1_tronc.gdshader")
+const VENT := Vector2(0.8, -0.6)    # le vent vient du nord-est : la neige se plaque de ce côté
+const NORD := Vector2(-0.35, -0.94) # mousse et lichen côté nord(-ouest)
+
+## Matériau des troncs (ps1_tronc.gdshader) : tuiles `haut` et `pied` d'`Ecorces`, enregistré dans Palette.materiaux.
+static func materiau_tronc(haut: String, pied: String, teinte := Color.WHITE, mousse := 1.0) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = TRONC
+	m.set_shader_parameter("tex_haut", Ecorces.tuile(haut))
+	m.set_shader_parameter("tex_pied", Ecorces.tuile(pied))
+	m.set_shader_parameter("teinte", teinte)
+	m.set_shader_parameter("mousse_force", mousse)
+	Palette._appliquer(m, Palette._ps1_actif)
+	Palette.materiaux.append(m)
+	return m
+
+## Abscisse de texture autour d'un tronc, en miroir (0 → 1 → 0) : continue partout, sans couture (cotes pair).
+static func _tri_u(k: int, n: int) -> float:
+	var kk := k if k * 2 <= n else n - k
+	return float(kk) / (n * 0.5)
+
+static func _vert(st: SurfaceTool, p: Vector3, n: Vector3, c: Color, uv: Vector2, uv2: Vector2) -> void:
+	st.set_color(c)
+	st.set_normal(n)
+	st.set_uv(uv)
+	st.set_uv2(uv2)
+	st.add_vertex(p)
+
+## Fût en tour : `anneaux` = [[y, rayon, cx, cz], ...] du bas vers le haut, `cotes` pans (pair), section
+## irrégulière (chaque sommet écarté de ±`irr`), normales lissées. cfg : pied (Vector2 : y où l'écorce du pied
+## est pleine / nulle), ao (Callable y -> occlusion), mousse, vent (force de la neige plaquée), irr.
+## Alpha de sommet = 1 − neige : dans la terre (y < 0) le sol est tout blanc, puis la neige se retire ; côté
+## vent elle remonte. Aucun tirage dans le RNG de l'arbre (rt = RNG propre).
+static func _fut(st: SurfaceTool, rt: RandomNumberGenerator, anneaux: Array, cotes: int, cfg: Dictionary) -> void:
+	var nr := anneaux.size()
+	var irr: float = cfg.get("irr", 0.07)
+	var pied: Vector2 = cfg.get("pied", Vector2(0.4, 1.5))
+	var ao_f: Callable = cfg.get("ao", func(_y: float) -> float: return 0.8)
+	var mousse: float = cfg.get("mousse", 1.0)
+	var vent: float = cfg.get("vent", 0.55)
+	var bk: Array[float] = []
+	for k in cotes:
+		bk.append(rt.randf_range(-1.0, 1.0))
+	var P: Array = []
+	for j in nr:
+		var a: Array = anneaux[j]
+		var row: Array[Vector3] = []
+		for k in cotes:
+			var ang := TAU * k / cotes
+			var f := 1.0 + irr * (bk[k] * 0.6 + rt.randf_range(-1.0, 1.0) * 0.4)
+			row.append(Vector3(a[2] + cos(ang) * a[1] * f, a[0], a[3] + sin(ang) * a[1] * f))
+		P.append(row)
+	var V: Array = []
+	for j in nr:
+		var a: Array = anneaux[j]
+		var row: Array = []
+		for k in cotes:
+			var ang := TAU * k / cotes
+			var d := Vector2(cos(ang), sin(ang))
+			var kp: int = (k + 1) % cotes
+			var km: int = (k + cotes - 1) % cotes
+			var nrm: Vector3 = (P[j][kp] - P[j][km]).cross(P[mini(j + 1, nr - 1)][k] - P[maxi(j - 1, 0)][k])
+			if nrm.dot(Vector3(d.x, 0.0, d.y)) < 0.0:
+				nrm = -nrm
+			nrm = nrm.normalized()
+			var y: float = a[0]
+			var s_pied := 1.0 if y < -0.05 else (lerpf(0.85, 0.25, clampf(y / 0.7, 0.0, 1.0)) * (0.75 + 0.25 * bk[k]))
+			if y >= 0.7:
+				s_pied = 0.0
+			var w := maxf(0.0, d.dot(VENT))
+			var s_vent := w * w * vent * smoothstep(0.4, 2.0, y) * (0.7 + 0.3 * bk[(k + 3) % cotes])
+			var neige := maxf(s_pied, s_vent)
+			var ao: float = ao_f.call(y)
+			var m := smoothstep(0.05, 0.9, d.dot(NORD)) * (1.0 - smoothstep(1.4, 3.4, y)) * mousse
+			var pw := clampf((pied.y - y) / maxf(pied.y - pied.x, 0.01), 0.0, 1.0)
+			row.append([nrm, Color(ao, ao, ao, 1.0 - neige), Vector2(pw, m)])
+		V.append(row)
+	for j in nr - 1:
+		var a0: Array = anneaux[j]
+		var a1: Array = anneaux[j + 1]
+		var t0: float = TAU * a0[1] * 0.25
+		var t1: float = TAU * a1[1] * 0.25
+		for k in cotes:
+			var k2 := (k + 1) % cotes
+			var ids := [[j, k, t0, k], [j, k2, t0, k + 1], [j + 1, k2, t1, k + 1], [j + 1, k, t1, k]]
+			var pts: Array[Vector3] = []
+			for q in 4:
+				pts.append(P[ids[q][0]][ids[q][1]])
+			for tri in [[0, 1, 2], [0, 2, 3]]:
+				for q in tri:
+					var jj: int = ids[q][0]
+					var kk: int = ids[q][1]
+					var v: Array = V[jj][kk]
+					var u: float = float(ids[q][2]) * _tri_u(ids[q][3], cotes)
+					_vert(st, pts[q], v[0], v[1], Vector2(u, -float(anneaux[jj][0]) / 2.0), v[2])
+
+## Contreforts : `n` racines en prismes à 4 pans qui partent du fût, s'écartent et plongent dans la neige.
+static func _racines(st: SurfaceTool, rt: RandomNumberGenerator, n: int, r: float, cx: float, cz: float, haut := 0.8, ampleur := 1.0, simple := false) -> void:
+	var off := rt.randf() * TAU
+	for i in n:
+		var ang := off + TAU * (i + rt.randf_range(-0.25, 0.25)) / n
+		var d := Vector3(cos(ang), 0.0, sin(ang))
+		var o := Vector3(cx, 0.0, cz)
+		var rr := r * 0.55 * rt.randf_range(0.8, 1.2) * ampleur
+		var L := r * rt.randf_range(2.4, 3.4) * ampleur
+		var p0 := o + d * r * 0.6 + Vector3(0, haut * rt.randf_range(0.8, 1.2), 0)
+		var p1 := o + d * (r * 0.95 + L * 0.35) + Vector3(0, haut * 0.28, 0)
+		var p2 := o + d * (r * 0.8 + L) + Vector3(0, -0.32, 0)
+		if simple:
+			_bois(st, p0, p2, rr, rr * 0.45, 3, Color(0.58, 0.58, 0.58), true, -p0.y / 2.0, 1.0, 0.7)
+			continue
+		_bois(st, p0, p1, rr, rr * 0.8, 4, Color(0.62, 0.62, 0.62), true, -p0.y / 2.0, 1.0, 0.7)
+		_bois(st, p1, p2, rr * 0.8, rr * 0.45, 4, Color(0.55, 0.55, 0.55), true, -p1.y / 2.0, 1.0, 0.7)
+
+## Chicots : moignons de branches mortes sur le fût (prismes à 4 pans).
+static func _chicots(st: SurfaceTool, rt: RandomNumberGenerator, n: int, y0: float, y1: float, r: float, cx: float, cz: float, rayon_fut: float, cotes := 4) -> void:
+	for i in n:
+		var y := rt.randf_range(y0, y1)
+		var a := rt.randf() * TAU
+		var d := Vector3(cos(a), rt.randf_range(-0.1, 0.35), sin(a))
+		var o := Vector3(cx + cos(a) * rayon_fut * 0.7, y, cz + sin(a) * rayon_fut * 0.7)
+		_bois(st, o, o + d * rt.randf_range(0.14, 0.36), r, r * 0.55, cotes, Color(0.78, 0.78, 0.78), true)
+
 # --- Lot 2 : épicéa en cartes de rameaux ----------------------------------------------------------
 const RAMEAU := preload("res://shaders/ps1_rameau.gdshader")
 
@@ -111,7 +235,7 @@ static var _mats_epicea: Array = []
 static func materiaux_epicea() -> Array:
 	if _mats_epicea.is_empty() or not is_instance_valid(_mats_epicea[0]):
 		_mats_epicea = [
-			Palette.materiau(TexturesArbres.ecorce_epicea(), Vector2(1, 1), Color(0.8, 0.8, 0.82)),
+			materiau_tronc("epicea_haut", "epicea_pied", Color(0.95, 0.95, 0.98)),
 			materiau_rameau(TexturesArbres.atlas_epicea(), REGLAGES_EPICEA["teinte"], REGLAGES_EPICEA["teinte_neige"]),
 		]
 	return _mats_epicea
@@ -270,6 +394,25 @@ static func _forme_epicea(forme: int) -> Dictionary:
 		"tronc": [0.2, 0.22, 0.13][forme],
 	}
 
+## Fût d'épicéa : 8 pans (4 au loin), évasé en contreforts, chicots sous la jupe de branches.
+static func _fut_epicea(st: SurfaceTool, graine: int, r: float, H: float, bas: float, lod: bool) -> void:
+	var rt := RandomNumberGenerator.new()
+	rt.seed = graine * 31 + 7
+	var ys: Array = [-0.5, 0.3, 1.4, H] if lod else [-0.5, 0.1, 1.2, H * 0.55, H]
+	var fl: Array = [1.7, 1.05, 1.0, 0.35] if lod else [1.75, 1.3, 1.02, 0.72, 0.35]
+	var an: Array = []
+	for i in ys.size():
+		an.append([ys[i], r * fl[i], 0.0, 0.0])
+	var ao := func(y: float) -> float:
+		if y < 0.0:
+			return 0.45
+		if y < 1.0:
+			return lerpf(0.52, 0.8, y)
+		return lerpf(0.74, 0.95, clampf((y - 1.0) / (H - 1.0), 0.0, 1.0))
+	_fut(st, rt, an, 4 if lod else 6, {"pied": Vector2(0.35, 1.7), "ao": ao, "mousse": 1.0, "vent": 0.5})
+	if not lod:
+		_racines(st, rt, 3, r, 0.0, 0.0, 0.7, 0.9, true)
+
 ## Épicéa : `forme` 0 élancé, 1 large et touffu, 2 jeune et clairsemé. Squelette (hauteur, largeur,
 ## étages) identique à l'ancien modèle ; le feuillage est fait de cartes de rameaux en pixel art
 ## (une carte pliée par branche, orientée selon la branche), avec du ciel entre les étages.
@@ -287,7 +430,10 @@ static func epicea(forme: int, graine: int, materiaux: Array, lod := false) -> A
 	tronc.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var rameaux := SurfaceTool.new()
 	rameaux.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_tronc_ecorce(tronc, rng, f["tronc"], hauteur * 0.88, 3 if lod else 6)
+	# le fût n'utilise plus `rng` (silhouette inchangée) : on consomme les mêmes tirages que l'ancien tronc
+	for _i in (4 if lod else 7):
+		rng.randf()
+	_fut_epicea(tronc, graine, f["tronc"], hauteur * 0.88, bas, lod)
 	var pli: float = REGLAGES_EPICEA["pli"]
 	var crete: float = 0.0 if lod else REGLAGES_EPICEA["crete"]
 	var longs := [TexturesArbres.uv_epicea(TexturesArbres.R_LONG_A), TexturesArbres.uv_epicea(TexturesArbres.R_LONG_B)]
@@ -383,7 +529,7 @@ static func epicea_lointain(forme: int, graine: int, materiaux: Array) -> ArrayM
 ## Branche en prisme effilé de `p0` (rayon r0) à `p1` (rayon r1), `cotes` pans, UV d'écorce à 16 texels/m
 ## (tuile 32 px = 2 m). Neige sur le dessus : l'arête du haut a l'alpha de sommet 0 (ps1 : 0 = neige),
 ## si `neige` est vrai. `col` : teinte de sommet (occlusion). Renvoie rien ; écrit dans `st`.
-static func _bois(st: SurfaceTool, p0: Vector3, p1: Vector3, r0: float, r1: float, cotes: int, col: Color, neige: bool, v0 := 0.0) -> void:
+static func _bois(st: SurfaceTool, p0: Vector3, p1: Vector3, r0: float, r1: float, cotes: int, col: Color, neige: bool, v0 := 0.0, pied := 0.0, mousse := 0.0) -> void:
 	var axe := p1 - p0
 	var L := axe.length()
 	if L < 0.001:
@@ -398,13 +544,16 @@ static func _bois(st: SurfaceTool, p0: Vector3, p1: Vector3, r0: float, r1: floa
 		v = -v
 		u = -u
 	var tour := TAU * maxf(r0, 0.03) / 2.0
+	var miroir := cotes % 2 == 0
 	for k in cotes:
 		var a0 := TAU * k / cotes
 		var a1 := TAU * (k + 1) / cotes
 		var d0 := v * cos(a0) + u * sin(a0)
 		var d1 := v * cos(a1) + u * sin(a1)
 		var q := [p0 + d0 * r0, p0 + d1 * r0, p1 + d1 * r1, p1 + d0 * r1]
-		var uv := [Vector2(tour * k / cotes, v0), Vector2(tour * (k + 1) / cotes, v0), Vector2(tour * (k + 1) / cotes, v0 - L / 2.0), Vector2(tour * k / cotes, v0 - L / 2.0)]
+		var ua := tour * 0.5 * _tri_u(k, cotes) if miroir else tour * k / cotes
+		var ub := tour * 0.5 * _tri_u(k + 1, cotes) if miroir else tour * (k + 1) / cotes
+		var uv := [Vector2(ua, v0), Vector2(ub, v0), Vector2(ub, v0 - L / 2.0), Vector2(ua, v0 - L / 2.0)]
 		var c0 := col
 		var c1 := col
 		if neige:
@@ -413,6 +562,7 @@ static func _bois(st: SurfaceTool, p0: Vector3, p1: Vector3, r0: float, r1: floa
 		var cs := [c0, c1, c1, c0]
 		var ns := [d0, d1, d1, d0]
 		var face := (d0 + d1) * 0.5
+		var aux := Vector2(pied, mousse)
 		for t in [[0, 1, 2], [0, 2, 3]]:
 			var ia: int = t[0]
 			var ib: int = t[1]
@@ -420,7 +570,7 @@ static func _bois(st: SurfaceTool, p0: Vector3, p1: Vector3, r0: float, r1: floa
 			if (q[ib] - q[ia]).cross(q[ic] - q[ia]).dot(face) < 0.0:
 				var tmp := ib; ib = ic; ic = tmp
 			for idx in [ia, ib, ic]:
-				st.set_color(cs[idx]); st.set_normal(ns[idx]); st.set_uv(uv[idx]); st.add_vertex(q[idx])
+				st.set_color(cs[idx]); st.set_normal(ns[idx]); st.set_uv(uv[idx]); st.set_uv2(aux); st.add_vertex(q[idx])
 
 ## Ligne brisée de bois : points `pts`, rayons interpolés de r0 à r1.
 static func _bois_chaine(st: SurfaceTool, pts: Array, r0: float, r1: float, cotes: int, col: Color, neige: bool) -> void:
@@ -449,13 +599,13 @@ static func materiaux_essence(nom: String) -> Array:
 	if not _mats_essences.has(nom) or not is_instance_valid(_mats_essences[nom][0]):
 		match nom:
 			"pin":
-				_mats_essences[nom] = [Palette.materiau(TexturesArbres.ecorce_pin(), Vector2.ONE, Color(0.72, 0.7, 0.72)),
+				_mats_essences[nom] = [materiau_tronc("pin_haut", "pin_pied", Color(1.05, 1.0, 1.02), 0.25),
 					materiau_rameau(TexturesArbres.atlas_pin(), Color(1.15, 1.22, 1.25))]
 			"bouleau":
-				_mats_essences[nom] = [Palette.materiau(TexturesArbres.ecorce_bouleau(), Vector2.ONE, Color(0.92, 0.92, 0.95)),
+				_mats_essences[nom] = [materiau_tronc("bouleau_haut", "bouleau_pied", Color(0.95, 0.95, 1.0), 0.3),
 					materiau_rameau(TexturesArbres.atlas_bouleau(), Color(1.1, 1.1, 1.1))]
 			"mort":
-				_mats_essences[nom] = [Palette.materiau(TexturesArbres.bois_mort(), Vector2.ONE, Color(0.95, 0.95, 0.98))]
+				_mats_essences[nom] = [materiau_tronc("mort_haut", "mort_pied", Color(1.0, 1.0, 1.0), 0.6)]
 	return _mats_essences[nom]
 
 static func _commit(surfaces: Array, mats: Array) -> ArrayMesh:
@@ -474,7 +624,32 @@ static func _st() -> SurfaceTool:
 ## Pin sylvestre (buttes sèches) : haut fût droit, écorce orangée en haut et grise au pied, chicots des
 ## branches tombées, couronne haute et irrégulière de grosses branches relevées portant des houppes
 ## d'aiguilles (cartes de rameaux de pin pliées en toit). Surfaces : 0 bois (ps1), 1 houppes (ps1_rameau).
-static func pin(graine: int, mats: Array) -> ArrayMesh:
+## Fût du pin : 8 pans à travers les points `fut` (sinueux), racines, chicots ; écorce du pied jusqu'à ~3 m.
+static func _fut_pin(st: SurfaceTool, graine: int, fut: Array, H: float, lod := false) -> void:
+	var rt := RandomNumberGenerator.new()
+	rt.seed = graine * 17 + 3
+	var an: Array = [[-0.5, 0.17 * 1.9, 0.0, 0.0], [0.0, 0.17 * 1.45, 0.0, 0.0], [0.6, 0.17 * 1.15, 0.0, 0.0], [1.5, 0.165, 0.0, 0.0]]
+	var y_prec := 1.5
+	for i in range(1, 5):
+		var pf: Vector3 = fut[i]
+		var rad := lerpf(0.17, 0.05, float(i) / 4.0)
+		# un anneau intermédiaire entre chaque point du fût (fût moins anguleux)
+		var pm: Vector3 = (fut[i] as Vector3).lerp(fut[i - 1], 0.5)
+		if pm.y > y_prec + 0.3:
+			an.append([pm.y, lerpf(0.17, 0.05, (i - 0.5) / 4.0), pm.x, pm.z])
+		an.append([pf.y, rad, pf.x, pf.z])
+		y_prec = pf.y
+	var ao := func(y: float) -> float:
+		if y < 0.0:
+			return 0.45
+		if y < 1.2:
+			return lerpf(0.5, 0.82, y / 1.2)
+		return 0.95 if y < H * 0.5 else lerpf(0.95, 0.7, clampf((y - H * 0.5) / (H * 0.4), 0.0, 1.0))
+	_fut(st, rt, an, 4 if lod else 6, {"pied": Vector2(0.9, 2.8), "ao": ao, "mousse": 0.7, "vent": 0.6, "irr": 0.06})
+	if not lod:
+		_racines(st, rt, 4, 0.17, 0.0, 0.0, 0.9, 1.0)
+
+static func pin(graine: int, mats: Array, lod := false) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var bois := _st()
@@ -487,9 +662,7 @@ static func pin(graine: int, mats: Array) -> ArrayMesh:
 	for i in 4:
 		var y := H * (i + 1) / 4.0
 		fut.append(Vector3(rng.randf_range(-0.12, 0.12), y, rng.randf_range(-0.12, 0.12)))
-	for i in 4:
-		var col := Color(0.5, 0.47, 0.52) if i == 0 else (Color(0.78, 0.74, 0.76) if i == 1 else Color(1, 1, 1))
-		_bois(bois, fut[i], fut[i + 1], lerpf(0.17, 0.05, i / 4.0) * (1.3 if i == 0 else 1.0), lerpf(0.17, 0.05, (i + 1) / 4.0), 6, col, false, -fut[i].y / 2.0)
+	_fut_pin(bois, graine, fut, H, lod)
 	# chicots (branches mortes cassées) sur le fût
 	for i in 5:
 		var y := rng.randf_range(2.5, H * 0.6)
@@ -507,7 +680,7 @@ static func pin(graine: int, mats: Array) -> ArrayMesh:
 		var d := Vector3(cos(a) * cos(elev), sin(elev), sin(a) * cos(elev))
 		var o := Vector3(fut[3].x * (y / H), y, fut[3].z * (y / H))
 		var pts := _chemin_tordu(rng, o, d, L, 3, 0.25)
-		_bois_chaine(bois, pts, 0.07, 0.025, 4, Color(1, 1, 1), true)
+		_bois_chaine(bois, pts, 0.07, 0.025, 6, Color(1, 1, 1), true)
 		var bout: Vector3 = pts[3]
 		# houppes : une dans le prolongement, trois sur les côtés
 		for h in 4:
@@ -526,7 +699,28 @@ static func pin(graine: int, mats: Array) -> ArrayMesh:
 ## Bouleau d'hiver (zones humides) : tronc blanc fin à marques noires, pied sombre, branches nues
 ## montantes qui s'arquent, voile de ramilles pendantes violacées (cartes verticales).
 ## Surfaces : 0 bois (ps1), 1 ramilles (ps1_rameau, sans dessous distinct).
-static func bouleau(graine: int, mats: Array) -> ArrayMesh:
+## Fût du bouleau : 8 pans, blanc à lenticelles, pied crevassé sombre jusqu'à ~1,2 m, petits contreforts.
+static func _fut_bouleau(st: SurfaceTool, graine: int, fut: Array, H: float, lod := false) -> void:
+	var rt := RandomNumberGenerator.new()
+	rt.seed = graine * 13 + 5
+	var an: Array = [[-0.5, 0.16 * 1.7, 0.0, 0.0], [0.0, 0.16 * 1.35, 0.0, 0.0], [0.5, 0.16 * 1.1, 0.0, 0.0]]
+	var y_prec := 0.5
+	for i in range(1, 5):
+		var pf: Vector3 = fut[i]
+		var pm: Vector3 = (fut[i] as Vector3).lerp(fut[i - 1], 0.5)
+		if pm.y > y_prec + 0.3:
+			an.append([pm.y, lerpf(0.16, 0.04, (i - 0.5) / 4.0), pm.x, pm.z])
+		an.append([pf.y, lerpf(0.16, 0.04, float(i) / 4.0), pf.x, pf.z])
+		y_prec = pf.y
+	var ao := func(y: float) -> float:
+		if y < 0.0:
+			return 0.5
+		return lerpf(0.62, 0.98, clampf(y / 1.5, 0.0, 1.0))
+	_fut(st, rt, an, 4 if lod else 6, {"pied": Vector2(0.5, 1.5), "ao": ao, "mousse": 0.3, "vent": 0.5, "irr": 0.05})
+	if not lod:
+		_racines(st, rt, 3, 0.16, 0.0, 0.0, 0.7, 0.85)
+
+static func bouleau(graine: int, mats: Array, lod := false) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var bois := _st()
@@ -537,9 +731,7 @@ static func bouleau(graine: int, mats: Array) -> ArrayMesh:
 	for i in 4:
 		var t := (i + 1) / 4.0
 		fut.append(penche * t * t + Vector3(rng.randf_range(-0.08, 0.08), H * t, rng.randf_range(-0.08, 0.08)))
-	for i in 4:
-		var col := Color(0.42, 0.4, 0.46) if i == 0 else Color(1, 1, 1)
-		_bois(bois, fut[i], fut[i + 1], lerpf(0.16, 0.04, i / 4.0) * (1.2 if i == 0 else 1.0), lerpf(0.16, 0.04, (i + 1) / 4.0), 6, col, false, -fut[i].y / 2.0)
+	_fut_bouleau(bois, graine, fut, H, lod)
 	var region := TexturesArbres.uv_region(Rect2i(0, 0, 64, 64))
 	var n := rng.randi_range(9, 12)
 	for b in n:
@@ -578,13 +770,40 @@ static func bouleau(graine: int, mats: Array) -> ArrayMesh:
 ## branche (alpha de sommet → neige du shader ps1). Une seule surface (bois).
 ## `materiaux` est gardé pour compatibilité avec les appelants (forêt, sous-bois, zones) : le bois mort
 ## utilise toujours la texture pixel art partagée `materiaux_essence("mort")`.
-static func arbre_mort(graine: int, materiaux: Array = []) -> ArrayMesh:
+## Fût de l'arbre mort : 8 pans le long de la ligne brisée `fut`, évasé, racines exposées, chicots, fentes.
+static func _fut_mort(st: SurfaceTool, graine: int, fut: Array, lod := false) -> void:
+	var rt := RandomNumberGenerator.new()
+	rt.seed = graine * 19 + 11
+	var an: Array = []
+	var n := fut.size()
+	var pre: Vector3 = fut[0]
+	an.append([pre.y, 0.24 * 1.9, pre.x, pre.z])
+	for i in range(1, n):
+		var a: Vector3 = fut[i - 1]
+		var b: Vector3 = fut[i]
+		if i == 1:
+			var m := a.lerp(b, 0.28)
+			an.append([m.y, 0.24 * 1.45, m.x, m.z])
+		var m2 := a.lerp(b, 0.6) if i > 1 else a.lerp(b, 0.6)
+		an.append([m2.y, lerpf(0.24, 0.08, (i - 0.4) / (n - 1.0)), m2.x, m2.z])
+		an.append([b.y, lerpf(0.24, 0.08, float(i) / (n - 1.0)), b.x, b.z])
+	var ao := func(y: float) -> float:
+		if y < 0.0:
+			return 0.5
+		return lerpf(0.6, 1.0, clampf(y / 2.0, 0.0, 1.0))
+	_fut(st, rt, an, 4 if lod else 6, {"pied": Vector2(0.3, 1.2), "ao": ao, "mousse": 0.6, "vent": 0.65, "irr": 0.1})
+	if lod:
+		return
+	_racines(st, rt, 4, 0.24, (fut[0] as Vector3).x, (fut[0] as Vector3).z, 0.9, 1.0)
+	_chicots(st, rt, 5, 0.9, 3.8, 0.04, 0.0, 0.0, 0.2)
+
+static func arbre_mort(graine: int, materiaux: Array = [], lod := false) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var bois := _st()
 	var H := rng.randf_range(5.0, 6.4)
 	var fut := _chemin_tordu(rng, Vector3(0, -0.5, 0), Vector3.UP, H + 0.5, 4, 0.12)
-	_bois_chaine(bois, fut, 0.24, 0.08, 6, Color(1, 1, 1), false)
+	_fut_mort(bois, graine, fut, lod)
 	# sommet cassé : éclat pointu de travers
 	var top: Vector3 = fut[4]
 	_bois(bois, top, top + Vector3(rng.randf_range(-0.15, 0.15), 0.55, rng.randf_range(-0.15, 0.15)), 0.08, 0.01, 4, Color(0.9, 0.9, 0.9), false)
@@ -600,7 +819,7 @@ static func arbre_mort(graine: int, materiaux: Array = []) -> ArrayMesh:
 		var L := lerpf(2.8, 1.3, k) * rng.randf_range(0.75, 1.15) * (0.35 if casse else 1.0)
 		var d := Vector3(cos(a) * cos(elev), sin(elev), sin(a) * cos(elev))
 		var pts := _chemin_tordu(rng, o, d, L, 1 if casse else 3, 0.6)
-		_bois_chaine(bois, pts, 0.09, 0.025 if not casse else 0.06, 4, Color(0.95, 0.95, 0.95), true)
+		_bois_chaine(bois, pts, 0.09, 0.025 if not casse else 0.06, 6, Color(0.95, 0.95, 0.95), true)
 		if not casse:
 			# rameaux secondaires tordus
 			for s in rng.randi_range(2, 3):
