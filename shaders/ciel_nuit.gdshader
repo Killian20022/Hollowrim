@@ -11,6 +11,9 @@ uniform float jour = 0.0;     // 0 nuit, 1 plein jour (pâle : hiver polaire)
 uniform float soleil = 0.0;   // l'astre dessiné : 0 lune, 1 soleil
 uniform vec3 jour_haut : source_color = vec3(0.32, 0.42, 0.58);
 uniform vec3 jour_horizon : source_color = vec3(0.72, 0.68, 0.66);
+// Lot 7 : couleurs courantes fixées par cycle.gd (l'horizon est aussi la couleur du brouillard : aucun raccord).
+uniform vec3 horizon_courant : source_color = vec3(0.05, 0.075, 0.13);
+uniform vec3 haut_courant : source_color = vec3(0.008, 0.012, 0.035);
 
 float hash2(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -57,11 +60,11 @@ vec3 aurore(vec3 d) {
 
 void sky() {
 	vec3 d = normalize(EYEDIR);
-	vec3 haut = mix(couleur_haut, jour_haut, jour);
-	vec3 horizon = mix(couleur_horizon, jour_horizon, jour);
+	vec3 haut = haut_courant;
+	vec3 horizon = horizon_courant;
 	vec3 col = mix(horizon, haut, smoothstep(-0.05, 0.55, d.y));
 	if (d.y < 0.0) {
-		col = horizon * 0.6;
+		col = horizon;
 	}
 
 	// étoiles : cellules d'une grille en 3D, quelques-unes allumées

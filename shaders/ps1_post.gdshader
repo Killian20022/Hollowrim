@@ -23,9 +23,19 @@ void fragment() {
 	c = mix(c, vec3(0.45, 0.02, 0.02), degat * smoothstep(0.05, 0.5, dot(v, v) * 2.0));
 	c *= 1.0 - fondu;
 	if (actif) {
+		// Lot 7 : le tramage Bayer 15 bits reste (il casse les bandes des dégradés : brume, ciel), mais il s'efface sur
+		// les arêtes franches (bords d'arbres, silhouettes sur l'aurore) où le motif fixe crépitait.
+		vec2 px = SCREEN_PIXEL_SIZE;
+		float l0 = dot(texture(ecran, SCREEN_UV).rgb, vec3(0.3, 0.55, 0.15));
+		float ec = 0.0;
+		ec = max(ec, abs(dot(texture(ecran, SCREEN_UV + vec2(px.x, 0.0)).rgb, vec3(0.3, 0.55, 0.15)) - l0));
+		ec = max(ec, abs(dot(texture(ecran, SCREEN_UV - vec2(px.x, 0.0)).rgb, vec3(0.3, 0.55, 0.15)) - l0));
+		ec = max(ec, abs(dot(texture(ecran, SCREEN_UV + vec2(0.0, px.y)).rgb, vec3(0.3, 0.55, 0.15)) - l0));
+		ec = max(ec, abs(dot(texture(ecran, SCREEN_UV - vec2(0.0, px.y)).rgb, vec3(0.3, 0.55, 0.15)) - l0));
+		float force = tramage * mix(1.0, 0.3, smoothstep(0.04, 0.16, ec));
 		ivec2 p = ivec2(FRAGCOORD.xy) % 4;
 		float b = BAYER[p.y * 4 + p.x] / 16.0 - 0.5;
-		c = floor(c * (niveaux - 1.0) + 0.5 + b * tramage) / (niveaux - 1.0);
+		c = floor(c * (niveaux - 1.0) + 0.5 + b * force) / (niveaux - 1.0);
 	}
 	COLOR = vec4(clamp(c, 0.0, 1.0), 1.0);
 }

@@ -30,7 +30,7 @@ func _ready() -> void:
 	camera = Camera3D.new()
 	camera.fov = 72.0
 	camera.near = 0.05
-	camera.far = 180.0
+	camera.far = 90.0  # lot 7 : au-delà de la fin du brouillard (75 m max) rien n'est visible
 	bras.add_child(camera)
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--tp-orbite="):
