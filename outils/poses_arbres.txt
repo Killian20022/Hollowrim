@@ -11,3 +11,12 @@ D6 -36,-25,115,10
 M10 -12,-10,-24,4
 # scintillement : A30 décalée de 12 cm et 0,4° (comparer A30 / S30 avant et après)
 S30 2.12,-2.05,60.4,2
+# lot 2, troncs : gros plans du fût à 1 m et 3 m (e épicéa, p pin, b bouleau, m arbre mort)
+Te1 2.7,-10.4,0,3
+Te3 2.7,-8.4,0,3
+Tp1 -8.9,-16.1,0,3
+Tp3 -8.9,-14.1,0,3
+Tb1 -0.3,-21.8,0,3
+Tb3 -0.3,-19.8,0,3
+Tm1 -24,-10.6,0,3
+Tm3 -24,-8.6,0,3

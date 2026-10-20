@@ -519,3 +519,11 @@ Aucune fonction de `palette.gd` n'est touchée.
 - Les appliques vues de loin se lisent comme un anneau orange à centre sombre (la torche) ; le halo est volontairement discret.
 - Sprite de flamme et lumière de la torche tenue : seulement sous terre (le lot 6 refera la torche partout).
 - Pas de collision sur la plupart des petits objets (urnes, os, armes) : on les traverse ; seuls sarcophages, coffres, contreforts et piliers sont solides.
+
+### Lot 2, troncs (« réalisme 32 bits » des fûts et grosses branches)
+- `scripts/ecorces.gd` (`Ecorces`) : 8 tuiles 64² = 2 m (32 texels/m) : `epicea|pin|bouleau|mort` × `haut|pied`. Champ de hauteur (Voronoï périodique à crevasses, fibres, lenticelles) → éclairage rasant → 10 tons par essence (rampes étendues) + 3 tons de lichen, filtre « mode » (aucun texel isolé), alpha = hauteur. Mipmaps nearest « vote 2×2 ». Précalculées dans `assets/ecorces/*.res` (`outils/generer_ecorces.gd`, à relancer après toute modif d'`ecorces.gd` ; sinon repli sur génération au lancement ≈ 1 s). Planche : `outils/planche_ecorces.gd`.
+- `shaders/ps1_tronc.gdshader` : dérivé de ps1 ; écorce 32 texels/m avec fondu tramé PAR BRUIT (6→16 m) vers 16 texels/m ; tuile du pied mêlée à seuil bruité (UV2.x) ; relief par normale depuis la hauteur ; mousse côté nord (UV2.y, sommets des plaques) ; neige plaquée côté vent (alpha de sommet) ; AO peinte en couleur de sommet.
+- `scripts/arbres.gd` : `_fut` (8 pans, section irrégulière, normales lissées, 4 pans au loin), `_racines`, `_chicots`, `_fut_epicea/pin/bouleau/mort`, `materiau_tronc`. Grosses branches à 6 pans (pin, mort), UV en miroir sans couture. RNG de l'arbre inchangé (silhouette, rameaux, placement identiques ; le fût a son propre RNG).
+- Mesures (2.5,8.5,16,4) : GPU 7,05–7,26 ms avant → 7,30–7,67 ms après (autres agents actifs) ; primitives 382 k → 430 k ; chargement arbres ≈ égal (bruit 630–1010 ms des deux côtés).
+- Planches : `captures/arbres/planches_troncs/planche_troncs_avant_apres_{jour,nuit}.png` (avant | après, 11 poses : Te/Tp/Tb/Tm 1 m et 3 m, A2, A10, M10).
+- Défauts restants : à 1 m le texel (≈ 3 cm) reste visible (inhérent à 32 texels/m) ; mousse du pied un peu verte/patchée sur le pin ; fût de l'arbre mort peu contrasté dans la brume ; pin de nuit encore sombre au pied.
