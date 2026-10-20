@@ -6,7 +6,7 @@ func _init() -> void:
 		if a.begins_with("--sortie="):
 			dossier = a.substr(9)
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dossier))
-	var noms := ["roche", "roche_b", "strate", "sol", "neige", "glace", "glace_sup", "mousse", "cristal", "peau", "paille", "jour", "ciel", "rai", "flaque"]
+	var noms := ["roche", "roche_b", "roche_givre", "strate", "sol", "neige", "glace", "glace_sup", "mousse", "cristal", "peau", "paille", "jour", "ciel", "rai", "flaque"]
 	var t0 := Time.get_ticks_msec()
 	for n in noms:
 		var t1 := Time.get_ticks_msec()

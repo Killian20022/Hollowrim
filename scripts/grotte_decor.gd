@@ -8,20 +8,21 @@ extends CrypteDecor
 
 const CASE_C := 10.0
 const PAINT_PARENT := ["bois", "fer", "lame", "os", "argile", "parchemin", "toile", "halo", "flamme"]
-const PROPRES_MIPS := ["roche", "roche_b", "strate", "sol", "neige", "glace", "glace_sup", "mousse", "cristal", "peau", "paille", "or"]
+const DOSSIER := "res://assets/grotte"
+const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "mousse", "cristal", "peau", "paille", "or"]
 const PROPRES_PLATES := ["jour", "ciel", "rai", "flaque"]
 const GROTTE_SHADER := preload("res://shaders/grotte.gdshader")
 
 ## Coques : [texture de base, texture superposée ("" = aucune), teinte, émission, part de texture en émission]
 const COQUES := {
-	"c_roche_neige": ["roche", "neige", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
+	"c_roche_neige": ["roche_givre", "neige", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
 	"c_roche_mousse": ["roche", "mousse", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
 	"c_roche_glace": ["roche_b", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
 	"c_roche_nu": ["roche_b", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
 	"c_strate_mousse": ["strate", "mousse", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
 	"c_strate_glace": ["strate", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
 	"c_strate_suie": ["strate", "", Color(0.95, 0.86, 0.8), Vector3(0.0, 0.0, 0.0), 0.0],
-	"c_sol_neige": ["sol", "neige", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
+	"c_sol_neige": ["sol", "neige_sol", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
 	"c_sol_mousse": ["sol", "mousse", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
 	"c_sol_glace": ["sol", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
 	"c_sol_nu": ["sol", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
@@ -44,19 +45,23 @@ func _init(parent: Node3D, solide: StaticBody3D) -> void:
 	for nom in PROPRES_MIPS + PROPRES_PLATES:
 		var cible: Array = [null]
 		_gimg[nom] = cible
-		_gtaches[nom] = WorkerThreadPool.add_task(_peindre_g.bind(nom, cible))
+		var chemin := "%s/%s.res" % [DOSSIER, nom]
+		if ResourceLoader.exists(chemin):        # textures précalculées (outils/generer_grotte.gd)
+			cible[0] = load(chemin)
+		else:                                     # repli : peintes à la volée dans un fil d'exécution
+			_gtaches[nom] = WorkerThreadPool.add_task(_peindre_g.bind(nom, cible))
 
 func _peindre(nom: String, cible: Array) -> void:
 	if nom in PAINT_PARENT:      # les autres textures de la crypte ne servent pas ici : on ne les peint pas
 		super._peindre(nom, cible)
 
 func _peindre_g(nom: String, cible: Array) -> void:
-	var img: Image
-	if nom == "or":
-		img = or_image()
-	else:
-		img = GrotteTextures.image(nom)
-	cible[0] = GrotteTextures.mips_image(img) if nom in PROPRES_MIPS else img
+	cible[0] = image_finale(nom)
+
+## Image définitive d'une matière (avec mipmaps si besoin) : calculée ici, ou précalculée par outils/generer_grotte.gd.
+static func image_finale(nom: String) -> Image:
+	var img: Image = or_image() if nom == "or" else GrotteTextures.image(nom)
+	return GrotteTextures.mips_image(img) if nom in PROPRES_MIPS else img
 
 static func or_image() -> Image:
 	var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
@@ -256,6 +261,11 @@ func rocher(nom: String, base: Vector3, r: float, h: float, graine: int, masque 
 		cs.position = base + Vector3(0, h * 0.45, 0)
 		corps.add_child(cs)
 
+## Congère : monticule bas de neige soufflée (crête de vent), sans collision (haut ≤ 0,5 m : on le traverse comme une neige molle).
+func congere(base: Vector3, r: float, h: float, graine: int) -> void:
+	var profil := [Vector2(r, -0.06), Vector2(r * 0.93, h * 0.42), Vector2(r * 0.66, h * 0.82), Vector2(r * 0.3, h), Vector2(0.0, h * 1.02)]
+	revolution("c_sol_neige", base, profil, 9, graine, 0.34, 1.6, 0.8, 1.0, 4.0)
+
 ## Caillou : pyramide irrégulière à 4 faces (micro-détail du sol, 4 triangles).
 func caillou(nom: String, base: Vector3, r: float, h: float, graine: int, masque := 0.0) -> void:
 	var rg := RandomNumberGenerator.new()
@@ -292,10 +302,10 @@ func cristal(base: Vector3, r: float, l: float, graine: int, incl := 0.5, axe_bi
 		ring2.append(base + d * l * 0.9 + rad * r * 0.5)
 	var pointe_p := base + d * l
 	var axe := base + d * l * 0.5
-	var teinte := [Color(0.62, 0.78, 1.0), Color(0.78, 0.9, 1.0), Color(0.55, 0.7, 0.98)]
+	var teinte := [Color(0.62, 0.78, 1.0), Color(0.7, 1.0, 1.0), Color(0.9, 0.78, 1.0), Color(0.78, 0.9, 1.0), Color(0.55, 0.7, 0.98)]
 	for i in 6:
 		var j := (i + 1) % 6
-		var c0: Color = teinte[(i + graine) % 3]
+		var c0: Color = teinte[(i + graine) % 5]
 		c0.a = 0.0
 		var c1 := Color(1, 1, 1, 0.0)
 		facette("c_cristal", ring0[i], ring0[j], ring1[j], axe, [c0, c0, c1], false, 2.0)
@@ -448,13 +458,20 @@ func tabouret(pos: Vector3) -> void:
 
 func couchage(pos: Vector3, lacet := 0.0, peau_col := true) -> void:
 	var b := Basis(Vector3.UP, lacet)
-	boite("peau", pos + Vector3(0, 0.06, 0), Vector3(0.98, 0.12, 1.98), lacet)               # paillasse (toile de peau)
-	boite("paille", pos + b * Vector3(0, 0.125, 0.35), Vector3(0.9, 0.03, 1.2), lacet)         # paille qui déborde
-	boite("peau", pos + b * Vector3(0.02, 0.17, 0.32), Vector3(0.84, 0.07, 1.1), lacet + 0.04)  # couverture de fourrure
-	boite("peau", pos + b * Vector3(-0.1, 0.23, -0.1), Vector3(0.5, 0.07, 0.34), lacet + 0.5)   # fourrure roulée
-	boite("paille" if peau_col else "peau", pos + b * Vector3(0.0, 0.2, -0.76), Vector3(0.46, 0.12, 0.3), lacet)   # oreiller
-	var s := b * Vector3(0.98, 0, 1.98)
-	solide(pos + Vector3(0, 0.1, 0), Vector3(absf(s.x), 0.2, absf(s.z)))
+	# châlit de bois sur 4 pieds (plateau à 0,3 m), paillasse, paille, fourrures, oreiller : haut de 0,55 m
+	for sx in [-0.44, 0.44]:
+		for sz in [-0.9, 0.9]:
+			boite("bois", pos + b * Vector3(sx, 0.15, sz), Vector3(0.09, 0.3, 0.09), lacet)
+	boite("bois", pos + b * Vector3(0, 0.31, 0), Vector3(1.0, 0.07, 2.0), lacet)
+	boite("bois", pos + b * Vector3(-0.47, 0.37, 0), Vector3(0.06, 0.1, 2.0), lacet)
+	boite("bois", pos + b * Vector3(0.47, 0.37, 0), Vector3(0.06, 0.1, 2.0), lacet)
+	boite("peau", pos + b * Vector3(0, 0.41, 0), Vector3(0.88, 0.14, 1.9), lacet)                 # paillasse
+	boite("paille", pos + b * Vector3(0, 0.49, 0.35), Vector3(0.82, 0.03, 1.2), lacet)           # paille qui déborde
+	boite("peau", pos + b * Vector3(0.02, 0.53, 0.32), Vector3(0.8, 0.07, 1.1), lacet + 0.04)    # couverture de fourrure
+	boite("peau", pos + b * Vector3(-0.1, 0.6, -0.1), Vector3(0.5, 0.08, 0.34), lacet + 0.5)     # fourrure roulée
+	boite("paille" if peau_col else "peau", pos + b * Vector3(0.0, 0.54, -0.76), Vector3(0.46, 0.14, 0.3), lacet)   # oreiller
+	var s := b * Vector3(1.0, 0, 2.0)
+	solide(pos + Vector3(0, 0.3, 0), Vector3(absf(s.x), 0.6, absf(s.z)))
 
 func ratelier(pos: Vector3, lacet := 0.0) -> void:
 	var b := Basis(Vector3.UP, lacet)

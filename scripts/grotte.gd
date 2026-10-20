@@ -280,7 +280,7 @@ func _matiere(s: float, n: Vector3, hrel: float, k: int, lam: float) -> Array:
 			return ["c_sol_glace", 0.85]
 		if plaf:
 			return ["c_roche_glace", 0.25]
-		return ["c_roche_glace", 0.42 if hrel < 3.0 else 0.2]
+		return ["c_roche_glace", 0.62 if hrel < 3.0 else 0.4]
 	if s < 91.7:
 		if sol_:
 			return ["c_sol_mousse" if hrel < 0.5 and s > 70.0 else "c_sol_nu", 0.2]
@@ -404,18 +404,31 @@ func _caps() -> void:
 			var lat := (p - c0).dot(R0)
 			uvs.append(Vector2(0.5 + lat / 17.0, 1.0 - (p.y - (float(r0["y"]) - 1.5)) / 8.5))
 		decor.facette("jour", pts[0], pts[1], pts[2], ref0, [blanc, blanc, blanc], true, 4.0, true, uvs)
+	# fond : dôme en anneaux concentriques décalés (pas d'étoile de triangles), glace uniforme
 	var rn: Dictionary = _anneaux[_anneaux.size() - 1]
 	var pn: Array = rn["pts"]
-	var cn: Vector3 = rn["P"] + Vector3(0, 0.5 * float(rn["h"]), 0) + (rn["T"] as Vector3) * 2.2
-	var refn: Vector3 = (rn["P"] as Vector3) + Vector3(0, 0.45 * float(rn["h"]), 0) - (rn["T"] as Vector3) * 4.0
-	for k in NB:
-		var j := (k + 1) % NB
-		var mid: Vector3 = ((pn[k] as Vector3) + (pn[j] as Vector3)) * 0.5 + (rn["T"] as Vector3) * (0.9 + 0.8 * GrotteDecor.hash2(float(k), 9.0))
-		var cc := GrotteDecor.col(AO[k] * 0.9, 0.9)
-		var ci := GrotteDecor.col(1.0, 0.9)
-		decor.facette("c_roche_glace", pn[k], pn[j], mid, refn, [cc, cc, ci], true, 4.0, true)
-		decor.facette("c_roche_glace", pn[j], cn, mid, refn, [cc, ci, ci], true, 4.0, true)
-		decor.facette("c_roche_glace", pn[k], mid, cn, refn, [cc, ci, ci], true, 4.0, true)
+	var Tn: Vector3 = rn["T"]
+	var c_plan: Vector3 = (rn["P"] as Vector3) + Vector3(0, 0.45 * float(rn["h"]), 0)
+	var refn: Vector3 = (rn["P"] as Vector3) + Vector3(0, 0.45 * float(rn["h"]), 0) - Tn * 4.0
+	var anneaux_d: Array = [pn]
+	for e in [[0.66, 0.9], [0.33, 1.7]]:
+		var rg: Array = []
+		for k in NB:
+			var j: float = GrotteDecor.hash2(float(k) * 2.3 + float(e[0]) * 10.0, 9.0)
+			rg.append(c_plan.lerp(pn[k], e[0]) + Tn * (e[1] + 0.45 * j) + Vector3(0, 0.25 * (j - 0.5), 0))
+		anneaux_d.append(rg)
+	var cn: Vector3 = c_plan + Tn * 2.5
+	for r in anneaux_d.size():
+		var A: Array = anneaux_d[r]
+		var cc := GrotteDecor.col(AO[(r * 3) % NB] * 0.92, 0.9)
+		for k in NB:
+			var j := (k + 1) % NB
+			if r + 1 < anneaux_d.size():
+				var B: Array = anneaux_d[r + 1]
+				decor.facette("c_roche_glace", A[k], A[j], B[j], refn, [cc, cc, cc], true, 4.0, true)
+				decor.facette("c_roche_glace", A[k], B[j], B[k], refn, [cc, cc, cc], true, 4.0, true)
+			else:
+				decor.facette("c_roche_glace", A[k], A[j], cn, refn, [cc, cc, cc], true, 4.0, true)
 
 # ------------------------------------------------------------------ index spatial de la coque
 func _indexer() -> void:
@@ -521,6 +534,7 @@ func _decorer() -> void:
 	_caverne()
 	_galerie()
 	_camp()
+	_rideau(109.4)
 	_fond()
 
 func _entree() -> void:
@@ -529,13 +543,12 @@ func _entree() -> void:
 		var s := _r(1.0, 15.0)
 		var cote := 1.0 if k % 2 == 0 else -1.0
 		var w := _interp(CLES, s, 3 if cote > 0 else 2)
-		var p := sol_en(s, cote * w * _r(0.55, 0.85))
-		decor.rocher("c_roche_neige", p, _r(1.0, 2.1), _r(0.5, 1.0), rng.randi(), 1.5, true, 7)
+		decor.congere(sol_en(s, cote * w * _r(0.5, 0.85)), _r(1.3, 2.6), _r(0.25, 0.5), rng.randi())
 	for k in 5:
 		var s := _r(2.0, 13.0)
 		var cote := 1.0 if k % 2 == 0 else -1.0
 		var w := _interp(CLES, s, 3 if cote > 0 else 2)
-		decor.rocher("c_roche_neige", sol_en(s, cote * w * _r(0.4, 0.8)), _r(0.7, 1.5), _r(0.7, 1.6), rng.randi(), 0.65, true, 6)
+		decor.rocher("c_roche_neige", sol_en(s, cote * w * _r(0.4, 0.8)), _r(0.6, 1.2), _r(0.6, 1.3), rng.randi(), 0.4, true, 7)
 	_pointes(5.0, 11.0, -3.5, 3.5, 12, "c_roche_glace", 0.2, 1.6, 1.0, false)
 	_pointes(17.0, 20.0, -1.2, 1.2, 3, "c_roche_nu", 0.18, 0.8, 0.0, false)
 	decor.trophee(sol_en(13.0, -2.2), 1.7, 0.4)
@@ -676,6 +689,30 @@ func _camp() -> void:
 		var cote := 1.0 if k % 2 == 0 else -1.0
 		decor.rocher("c_strate_suie", sol_en(s, cote * _r(5.4, 6.2)), _r(0.45, 0.9), _r(0.4, 0.9), rng.randi(), 0.0, true, 6)
 
+## Goulet du camp : portique de bois et rideau de peaux fendu (on passe par la fente, sans collision) : il ferme la vue
+## sur la salle des cristaux, dont le bleu se découpait comme un portail depuis le camp.
+func _rideau(s: float) -> void:
+	var T := tangente(s)
+	var lacet := atan2(T.x, T.z)
+	var wl := _interp(CLES, s, 2)
+	var wr := _interp(CLES, s, 3)
+	var haut := _interp(CLES, s, 4)
+	var bas := sol_en(s, 0.0)
+	var d := droite(s)
+	for sg in [-1.0, 1.0]:
+		var w: float = wr if sg > 0.0 else wl
+		var pied: Vector3 = bas + d * sg * (w - 0.12)
+		decor.boite("bois", pied + Vector3(0, (haut - 0.3) * 0.5, 0), Vector3(0.24, haut - 0.3, 0.24), lacet)
+		# panneau de peaux : de la paroi jusqu'à 0,25 m AU-DELÀ de l'axe, les deux panneaux décalés en profondeur : pas de jour
+		# direct, on passe en les traversant (aucune collision)
+		var larg := w - 0.12 + 0.25
+		var centre: Vector3 = bas + d * sg * ((w - 0.12 - 0.25) * 0.5 + 0.0) + T * sg * 0.1
+		decor.boite("peau", centre + Vector3(0, 1.65, 0), Vector3(larg, 3.3, 0.07), lacet)
+		decor.boite("peau", centre + T * sg * 0.07 + Vector3(0, 1.4, 0), Vector3(larg * 0.9, 2.8, 0.05), lacet + sg * 0.04)
+	var centre_h: Vector3 = bas + d * (wr - wl) * 0.5
+	decor.boite("bois", centre_h + Vector3(0, haut - 0.5, 0), Vector3(wl + wr, 0.22, 0.24), lacet)
+	decor.boite("peau", centre_h + Vector3(0, haut - 1.05, 0), Vector3(wl + wr - 0.3, 0.9, 0.07), lacet)
+
 func _anneau_proche(s: float) -> Dictionary:
 	var best: Dictionary = _anneaux[0]
 	for r: Dictionary in _anneaux:
@@ -724,7 +761,7 @@ func _fond() -> void:
 const FEU_C := Color(1.0, 0.56, 0.24)
 const JOUR_C := Color(0.74, 0.86, 1.0)
 const GLACE_C := Color(0.52, 0.74, 1.0)
-const MOUSSE_C := Color(0.5, 0.85, 0.64)
+const MOUSSE_C := Color(0.56, 0.8, 0.68)
 
 func _l(s: float, lat: float, haut: float, c: Color, e: float, portee: float, att := 1.6, vacille := false) -> void:
 	var p := sol_en(s, lat) + Vector3(0, haut, 0)

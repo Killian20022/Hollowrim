@@ -26,9 +26,9 @@ void vertex() {
 void fragment() {
 	vec4 b = texture(tex_base, UV);
 	vec4 s = texture(tex_sup, UV * echelle_sup + vec2(0.37, 0.13));
-	// trois niveaux (plein, demi-teinte, voile) : bord de plaque adouci au texel, sans dégradé lisse
+	// deux niveaux : bord de plaque net au texel (pixel art), ni demi-teinte ni dégradé
 	float d = COLOR.a - s.a;
-	float amt = d > 0.2 ? 1.0 : (d > 0.0 ? 0.62 : (d > -0.1 ? 0.24 : 0.0));
+	float amt = d > 0.0 ? 1.0 : 0.0;
 	amt *= step(0.01, COLOR.a);
 	vec3 c = mix(b.rgb, s.rgb, amt);
 	ALBEDO = c * COLOR.rgb * teinte.rgb;
