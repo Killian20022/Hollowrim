@@ -687,6 +687,9 @@ func sauvegarder() -> void:
 	for id in draugrs:
 		if not is_instance_valid(draugrs[id]) or not draugrs[id].vivant():
 			morts.append(id)
+	for id in tertre.morts_charges:        # gardiens du donjon tués dans une partie précédente et pas (encore) réapparus
+		if not morts.has(id):
+			morts.append(id)
 	var parles := []
 	for v in get_tree().get_nodes_in_group("villageois"):
 		if v.get("deja_parle"):
@@ -729,6 +732,7 @@ func charger() -> void:
 	dragon_vaincu = bool(d.get("dragon_vaincu", false))
 	quetes.importer(d.get("quetes", {}))
 	tertre.restaurer(bool(d.get("herse", false)))
+	tertre.morts_charges = d.get("draugrs_morts", [])      # le donjon de la crypte ne refait pas ceux-là
 	for id in d.get("draugrs_morts", []):
 		if draugrs.has(id):
 			draugrs[id].queue_free()
@@ -819,7 +823,7 @@ func _aller_crypte() -> void:
 	tertre._passer(true)
 	await get_tree().create_timer(1.3).timeout
 	var cp: PackedStringArray = a.split(",")
-	joueur.global_position = tertre.crypte.to_global(Vector3(float(cp[0]), 0.1, float(cp[1])))
+	joueur.global_position = tertre.crypte.to_global(Vector3(float(cp[0]), float(cp[4]) + 0.1 if cp.size() > 4 else 0.1, float(cp[1])))
 	joueur.rotation.y = tertre.crypte.global_rotation.y + deg_to_rad(float(cp[2]))
 	joueur.tete.rotation.x = deg_to_rad(float(cp[3]))
 
@@ -995,7 +999,14 @@ func _scenario(nom: String) -> void:
 			if _arguments().has("cpose"):
 				# --cpose=x,z,lacet,tangage (repère de la crypte ; lacet 0 = vers -Z) ; --sans-torche
 				var cp: PackedStringArray = String(_arguments()["cpose"]).split(",")
-				joueur.global_position = tertre.crypte.to_global(Vector3(float(cp[0]), 0.1, float(cp[1])))
+				if _arguments().has("couvre"):      # --couvre=s1,s2,s3,secret,herse : portes ouvertes (captures du donjon)
+					for id in String(_arguments()["couvre"]).split(","):
+						if id == "herse":
+							tertre.herse.position.y = 2.9
+						else:
+							tertre.quetes.vus["crypte:" + id] = true
+					tertre._etat_donjon()
+				joueur.global_position = tertre.crypte.to_global(Vector3(float(cp[0]), float(cp[4]) + 0.1 if cp.size() > 4 else 0.1, float(cp[1])))
 				joueur.rotation.y = tertre.crypte.global_rotation.y + deg_to_rad(float(cp[2]))
 				joueur.tete.rotation.x = deg_to_rad(float(cp[3]))
 				if _arguments().has("torche-eteinte"):
@@ -1005,7 +1016,7 @@ func _scenario(nom: String) -> void:
 				_placer(tertre.crypte.to_global(Vector3(2, 0.1, -19.5)), tertre.crypte.to_global(Vector3(-3, 1.4, -28)))
 			else:
 				joueur.inventaire.ajouter("anneau_givre")
-				_placer(tertre.crypte.to_global(Vector3(0, 0.1, -43.0)), tertre.crypte.to_global(Vector3(0, 1.5, -51.5)))
+				_placer(tertre.crypte.to_global(Vector3(0, 0.1, -65.0)), tertre.crypte.to_global(Vector3(0, 1.8, -72.0)))
 				await get_tree().create_timer(2.5).timeout
 		"grotte":
 			_aller_grotte(_arguments().get("gpose", "4,0,0,-5"))

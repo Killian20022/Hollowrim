@@ -12,7 +12,7 @@ class_name CrypteTextures
 
 const CLEAR := Color(0, 0, 0, 0)
 const DOSSIER := "res://assets/crypte"   # textures précalculées par outils/generer_crypte.gd
-const VERSION := 3                       # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
+const VERSION := 4                       # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
 const K := 2   # facteur de densité de la pierre : 1 = 16 texels/m, 2 = 32 texels/m
 
 # rampes (indice 0 = creux/joint, dernier = lumière) : désaturées, froides dans l'ombre, un peu plus chaudes en lumière
@@ -27,6 +27,9 @@ const ROUILLE := ["#2b160d", "#46230f", "#6a3517", "#8f4a21", "#b06530"]
 const OSSE := ["#3f3b31", "#625c4c", "#867e68", "#a89f84", "#c8bfa2", "#e4dcc0"]
 const ARGILE := ["#1d110b", "#2f1b11", "#432819", "#5a3a24", "#734c30", "#8c613f"]
 const PARCHEMIN := ["#3b301d", "#5c4e30", "#80704a", "#a39266", "#c2b284", "#d8cb9e"]
+const GIVRE := ["#2c3a4c", "#46607a", "#6c8fab", "#9ab9cf", "#c4dae6", "#e6f2f8"]      # donjon : pierre prise dans le gel
+const GLACE := ["#1d3347", "#2d5573", "#43799a", "#69a0bd", "#95c6dc", "#c9e8f2"]      # donjon : glace épaisse sur la pierre
+const OR := ["#3d2a08", "#6e4d10", "#a8791c", "#d9a830", "#f6d56a", "#fff1b0"]
 const TOILE := ["#8d9db0", "#b5c4d3"]
 const FLAMME := ["#4a1008", "#a8330c", "#f0801a", "#ffcb52", "#fff3c4"]
 const NIVEAUX := 18.0
@@ -193,6 +196,8 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 	var chaud := _cols(PIERRE_CHAUD)
 	var mou := _cols(MOUSSE)
 	var sal := _cols(SALPETRE)
+	var giv := _cols(GIVRE)
+	var gla := _cols(GLACE)
 	var n_fin := _nmap(S, S / 3, S / 3, graine + 1, true)       # grain en amas de ~3 texels, sans lissage
 	var n_gr2 := _nmap(S, S / 6, S / 6, graine + 8, true)
 	var n_gr := _nmap(S, S / 12, S / 12, graine + 2)
@@ -288,13 +293,22 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 				lip = 0.12 if (gx + gy) > 0.05 else 0.0
 			var l: float = (L[i] + shade) * ao - proj + lip
 			var ln := n_big[i]
-			l -= 0.1 * _ss(0.55, 0.8, ln) * (1.0 + v * 0.6)
+			l -= 0.1 * _ss(0.55, 0.8, ln) * (1.0 + minf(v, 2.0) * 0.6)
 			var stk := _ss(0.6, 0.8, n_stk[i]) * (0.45 + 0.55 * (1.0 - a))
 			l -= coulure * stk * 0.6
 			var t: float = T[i]
 			var lq := _q(clampf(l, 0.0, 1.0), x, y)
 			var c: Color = (_rp(froid, lq) as Color).lerp(_rp(chaud, lq), t)
-			if v >= 1:
+			if v >= 3:
+				# donjon gelé : v 3 = pierre givrée (plaques et joints blancs), v 4 = glace épaisse (coulures vitrées)
+				var gl: float
+				if v == 3:
+					gl = _ss(0.46, 0.7, n_sal[i]) * (0.4 + 0.6 * (1.0 - a))
+					gl = maxf(gl, _ss(0.82, 0.94, n_fin[(i + S * 2 + 5) % (S * S)]) * 0.8)
+				else:
+					gl = maxf(_ss(0.30, 0.52, n_sal[i]) * (0.55 + 0.45 * (1.0 - a)), stk * 0.8)
+				c = c.lerp(_rp(giv if v == 3 else gla, 0.25 + lq * 0.75), clampf(gl, 0.0, 1.0) * (0.9 if v == 3 else 0.93))
+			elif v >= 1:
 				var ms := _ss(0.72, 0.88, n_sal[i]) * (0.3 + 0.7 * (1.0 - a)) * (0.5 + 0.5 * (0.5 if v == 1 else 1.0))
 				ms = maxf(ms, stk * 0.45 * (1.0 if v == 2 else 0.6) * _ss(0.78, 0.9, n_sal[(i + S * 5) % (S * S)]))
 				c = c.lerp(_rp(sal, 0.25 + lq * 0.65), clampf(ms, 0.0, 1.0) * 0.85)
@@ -309,7 +323,7 @@ static func mur_paire(v: int) -> Array:
 	for r in 8:
 		rangs.append(8 * K)
 	return _pierre(64 * K, rangs, [20, 24, 28, 32, 40, 48], {"seed": 8100 + v * 17, "v": v, "sombre": v == 2, "joint": 1.0, "biseau": 2.4,
-		"rug": 0.6, "l_lo": 0.5 if v < 2 else 0.42, "l_hi": 0.8 if v < 2 else 0.68, "elev": 0.7})
+		"rug": 0.6, "l_lo": 0.42 if v == 2 else 0.5, "l_hi": 0.68 if v == 2 else 0.8, "elev": 0.7})
 
 static func dalle_paire(v: int) -> Array:
 	var rng := _rng(8200 + v)
@@ -324,6 +338,103 @@ static func voute_paire() -> Array:
 		rangs.append(4 * K)
 	return _pierre(64 * K, rangs, [10, 12, 16, 20, 24], {"seed": 8300, "sombre": true, "joint": 0.9, "biseau": 2.0, "rug": 0.5,
 		"l_lo": 0.42, "l_hi": 0.68, "elev": 0.45, "fissures": 4})
+
+## Mur d'ossuaire (tuile de 4 m = 128 px) : 8 x 8 niches de 0,5 m, cadre de pierre, crâne ou fagot d'os ; relief par la carte de pentes.
+const CRANE := ["..XXXXXX..", ".XXXXXXXX.", "XXXXXXXXXX", "XXXXXXXXXX", "XXooXXooXX", "XXooXXooXX", "XXXXnnXXXX", ".XXXXXXXX.", "..XXXXXX..", "..XtXtXt.."]
+
+static func ossuaire_paire() -> Array:
+	var S := 64 * K
+	var rng := _rng(8900)
+	var pierre := _cols(PIERRE_SOMBRE_F)
+	var osse := _cols(OSSE)
+	var n_fin := _nmap(S, S / 3, S / 3, 8901, true)
+	var n_big := _nmap(S, 4, 4, 8902)
+	var cols := PackedColorArray()
+	cols.resize(S * S)
+	var H := PackedFloat32Array()
+	H.resize(S * S)
+	var cell := 16
+	for cy in S / cell:
+		for cx in S / cell:
+			var genre := rng.randf()
+			var jx := rng.randi_range(-1, 1)
+			var jy := rng.randi_range(-1, 1)
+			var rot := rng.randi_range(0, 1)
+			for ly in cell:
+				for lx in cell:
+					var x := cx * cell + lx
+					var y := cy * cell + ly
+					var i := y * S + x
+					var nf: float = n_fin[i]
+					var l: float
+					var h: float
+					var c: Color
+					if lx < 2 or ly < 2 or lx >= cell - 2 or ly >= cell - 2:    # cadre : arête claire en haut/gauche, ombre en bas/droite
+						l = 0.5 + (nf - 0.5) * 0.3 + n_big[i] * 0.12
+						if lx < 2 or ly < 2:
+							l += 0.14
+						if lx >= cell - 1 or ly >= cell - 1:
+							l -= 0.28
+						h = 1.0
+						c = _rp(pierre, _q(clampf(l, 0.0, 1.0), x, y))
+					else:                                                          # fond de la niche : très sombre, plus clair vers le haut
+						l = 0.08 + 0.06 * nf + 0.05 * (1.0 - float(ly) / cell)
+						h = 0.0
+						c = _rp(pierre, _q(clampf(l, 0.0, 1.0), x, y))
+					cols[i] = c
+					H[i] = h
+			if genre < 0.62:                                                       # crâne
+				var ox := cx * cell + 3 + jx
+				var oy := cy * cell + 3 + jy
+				for sy in 10:
+					for sx in 10:
+						var m: String = CRANE[sy][sx]
+						if m == ".":
+							continue
+						var i := posmod(oy + sy, S) * S + posmod(ox + sx, S)
+						var nf: float = n_fin[i]
+						var l := 0.58 - 0.12 * float(sy) / 9.0 + (0.1 if sx < 3 else 0.0) - (0.12 if sx > 6 else 0.0) + (nf - 0.5) * 0.2
+						var h := 0.5 + 0.2 * sin(float(sx) / 9.0 * PI) * sin(float(sy) / 9.0 * PI)
+						if m == "o" or m == "n":
+							l = 0.0
+							h = -0.5
+						elif m == "t":
+							l = 0.1
+							h = 0.1
+						cols[i] = _rp(osse, _q(clampf(l, 0.0, 1.0), ox + sx, oy + sy))
+						H[i] = h
+			elif genre < 0.88:                                                     # fagot de trois os en diagonale
+				for k in 3:
+					var bx := cx * cell + 3 + rng.randi_range(0, 3)
+					var by := cy * cell + 3 + k * 3 + rng.randi_range(0, 1)
+					var pente := 0.35 if rot == 0 else -0.35
+					for t in 11:
+						var px := bx + t
+						var py := by + int(float(t) * pente) + (4 if rot == 1 else 0)
+						for w in 2:
+							var i := posmod(py + w, S) * S + posmod(px, S)
+							var knob := t < 2 or t > 8
+							var l := 0.62 - 0.1 * w + (nf_safe(n_fin, i) - 0.5) * 0.2 + (0.08 if knob else 0.0)
+							cols[i] = _rp(osse, _q(clampf(l, 0.0, 1.0), px, py + w))
+							H[i] = 0.55 + (0.2 if knob else 0.0) - 0.2 * w
+	return [_vers_image(S, cols), _pentes(H, S, 0.9)]
+
+static func nf_safe(a: PackedFloat32Array, i: int) -> float:
+	return a[i % a.size()]
+
+static func or_image() -> Image:
+	var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
+	var rng := _rng(5)
+	var R := _cols(OR)
+	for y in 16:
+		for x in 16:
+			var t := 0.35 + rng.randf() * 0.3
+			if (x + y) % 5 == 0:
+				t += 0.25
+			if y % 8 == 0 or x % 8 == 0:
+				t -= 0.3
+			img.set_pixel(x, y, R[clampi(int(t * 6.0), 0, 5)])
+	return img
 
 static func mur_image(v: int) -> Image:
 	return mur_paire(v)[0]
@@ -716,6 +827,11 @@ static func paire(nom: String) -> Array:
 		"mur0": return mur_paire(0)
 		"mur1": return mur_paire(1)
 		"mur2": return mur_paire(2)
+		"mur3": return mur_paire(3)
+		"mur4": return mur_paire(4)
+		"dalle3": return dalle_paire(3)
+		"dalle4": return dalle_paire(4)
+		"ossuaire": return ossuaire_paire()
 		"dalle0": return dalle_paire(0)
 		"dalle1": return dalle_paire(1)
 		"voute": return voute_paire()
@@ -726,8 +842,9 @@ static func paire(nom: String) -> Array:
 
 static func image(nom: String) -> Image:
 	match nom:
-		"mur0", "mur1", "mur2", "dalle0", "dalle1", "voute", "bois", "fer", "gravure":
+		"mur0", "mur1", "mur2", "mur3", "mur4", "dalle0", "dalle1", "dalle3", "dalle4", "voute", "bois", "fer", "gravure", "ossuaire":
 			return paire(nom)[0]
+		"or": return or_image()
 		"lame": return lame_image()
 		"argile": return argile_image()
 		"os": return os_image()

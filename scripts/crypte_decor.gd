@@ -19,6 +19,8 @@ const TUILE := {
 	"mur0": 4.0, "mur1": 4.0, "mur2": 4.0, "dalle0": 4.0, "dalle1": 4.0, "voute": 4.0,
 	"bois": 2.0, "fer": 1.0, "lame": 1.0, "gravure": 2.0, "argile": 1.0, "os": 0.5, "parchemin": 0.5,
 	"toile": 1.0, "noir": 1.0, "halo": 1.0, "halo_f": 1.0, "rai": 1.0, "braise": 1.0,
+	# donjon (agrandissement) : pierre givrée / glace, ossuaire, or
+	"mur3": 4.0, "mur4": 4.0, "dalle3": 4.0, "dalle4": 4.0, "ossuaire": 4.0, "or": 0.5,
 }
 
 const CRYPTE_SHADER := preload("res://shaders/crypte.gdshader")
@@ -33,20 +35,35 @@ var _tex := {}
 var _bufs := {}
 var _fait := {}
 var lumieres: Array = []       # [OmniLight3D, énergie, phase]
+var toutes: Array = []         # toutes les OmniLight3D du décor (allumées selon la position du joueur, voir tertre.gd)
 var _flammes_def: Array = []    # [position, échelle, phase] : fusionnées en MultiMesh par cellule dans finir()
 var _nb_pieces := 0
+## Donjon : remplace une matière par une autre dans quad() (« mur0 » -> « mur4 » : tout un décor passe en glace d'un coup).
+var theme := {}
+## Hauteur du sol sous les sommets, codée dans l'alpha de la couleur de sommet (1 + y/20, y relatif au sol de la crypte) :
+## le shader en tire la bande de crasse du pied de mur, pour les étages et les escaliers.
+var niveau_a := 1.0
 
-const RELIEF := {"mur0": 0.75, "mur1": 0.75, "mur2": 0.75, "dalle0": 0.8, "dalle1": 0.8, "voute": 0.7, "bois": 0.8, "fer": 0.7, "gravure": 1.0}
-const AVEC_MIPS := ["mur0", "mur1", "mur2", "dalle0", "voute", "bois", "fer", "lame", "gravure", "argile", "os", "parchemin", "toile"]
+const RELIEF := {"mur0": 0.75, "mur1": 0.75, "mur2": 0.75, "dalle0": 0.8, "dalle1": 0.8, "voute": 0.7, "bois": 0.8, "fer": 0.7, "gravure": 1.0,
+	"mur3": 0.8, "mur4": 0.9, "dalle3": 0.8, "dalle4": 0.9, "ossuaire": 1.0}
+const AVEC_MIPS := ["mur0", "mur1", "mur2", "dalle0", "voute", "bois", "fer", "lame", "gravure", "argile", "os", "parchemin", "toile",
+	"mur3", "mur4", "dalle3", "dalle4", "ossuaire", "or"]
 const SANS_MIPS := ["halo", "rai", "flamme"]
 
 var _taches := {}    # nom -> id de tâche ; les images sont peintes dans des fils d'exécution pendant que le plan se construit
 var _images := {}    # nom -> Image (tableau d'un seul élément par tâche : pas d'écriture concurrente dans un même conteneur)
 
-func _init(parent: Node3D, solide: StaticBody3D) -> void:
+func _init(parent: Node3D, solide: StaticBody3D, partage: CrypteDecor = null) -> void:
 	racine = parent
 	corps = solide
 	rng.seed = 7007
+	if partage != null:
+		# second décor (le donjon, bâti dans un fil d'exécution) : mêmes images, déjà peintes ; ses propres matériaux
+		partage.attendre_tout()
+		_images = partage._images
+		_tex = partage._tex.duplicate()
+		rng.seed = 7013
+		return
 	for nom in AVEC_MIPS + SANS_MIPS:
 		var cible: Array = [null]
 		_images[nom] = cible
@@ -105,6 +122,11 @@ func mat(nom: String) -> Material:
 			m = s
 		_:
 			var sm := ShaderMaterial.new()
+			if nom == "mur4" or nom == "dalle4":
+				sm.set_shader_parameter("emission", Vector3(0.012, 0.034, 0.056))     # la glace garde un fond bleu dans le noir
+			elif nom == "or":
+				sm.set_shader_parameter("emission", Vector3(0.04, 0.028, 0.004))
+				sm.set_shader_parameter("crasse", 0.0)
 			var sh := CRYPTE_SHADER
 			if nom == "toile":
 				var s2 := Shader.new()
@@ -141,7 +163,7 @@ func _texture(nom: String) -> ImageTexture:
 
 # ------------------------------------------------------------------ accumulateur de maillage
 func _buf(c: Vector3, nom: String) -> Dictionary:
-	var cle := "%d,%d|%s" % [floori(c.x / CASE), floori(c.z / CASE), nom]
+	var cle := "%d,%d,%d|%s" % [floori(c.x / CASE), floori(c.z / CASE), 1 if c.y < -3.0 else 0, nom]      # l'étage inférieur a ses propres maillages
 	if not _bufs.has(cle):
 		_bufs[cle] = {"nom": nom, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray()}
 	return _bufs[cle]
@@ -163,6 +185,10 @@ func _tri(b: Dictionary, a: Vector3, bb: Vector3, c: Vector3, n: Vector3, ua: Ve
 	var nn: PackedVector3Array = b["n"]
 	var uu: PackedVector2Array = b["u"]
 	var co: PackedColorArray = b["c"]
+	if niveau_a != 1.0:
+		ca.a *= niveau_a
+		cb.a *= niveau_a
+		cc.a *= niveau_a
 	if geo.dot(n) > 0.0:    # Godot : face avant = sens horaire
 		v.append(a); v.append(c); v.append(bb)
 		uu.append(ua); uu.append(uc); uu.append(ub)
@@ -174,7 +200,8 @@ func _tri(b: Dictionary, a: Vector3, bb: Vector3, c: Vector3, n: Vector3, ua: Ve
 	nn.append(n); nn.append(n); nn.append(n)
 
 ## Quad a-b-c-d (ordre de contour), normale n ; UV imposés ou calculés depuis les positions p_uv.
-func quad(nom: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, uvs: Array = [], p_uv: Array = [], cols: Array = []) -> void:
+func quad(nom_: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, uvs: Array = [], p_uv: Array = [], cols: Array = []) -> void:
+	var nom: String = theme.get(nom_, nom_) if not theme.is_empty() else nom_
 	var centre := (a + b + c + d) * 0.25
 	var buf := _buf(centre, nom)
 	var t: float = TUILE.get(nom, 1.0)
@@ -497,7 +524,7 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 				continue
 			var ca: float = o[1] - o[2] * 0.5 + 0.3
 			var cb: float = o[1] + o[2] * 0.5 - 0.3
-			clairs.append([ca, cb])
+			clairs.append([ca, cb, o.size() > 3 and o[3]])      # 4e élément : ouverture secrète (pas de cadre, relief de mur)
 			var nouveaux := []
 			for m in libres:
 				if cb <= m[0] or ca >= m[1]:
@@ -528,7 +555,8 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 				else:
 					quad(mur, Vector3(fixe_mur - 0.3, y, e), Vector3(fixe_mur + 0.3, y, e), Vector3(fixe_mur + 0.3, y + ho, e), Vector3(fixe_mur - 0.3, y + ho, e), Vector3(0, 0, sg))
 			if deja:
-				_cadre(horizontal, plan, signe, c[0], c[1], ho, y)
+				if not c[2]:
+					_cadre(horizontal, plan, signe, c[0], c[1], ho, y)
 				continue
 			if horizontal:
 				quad("dalle0", Vector3(c[0], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur + 0.3), Vector3(c[0], y, fixe_mur + 0.3), Vector3.UP)
@@ -537,7 +565,10 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 				quad("dalle0", Vector3(fixe_mur - 0.3, y, c[0]), Vector3(fixe_mur + 0.3, y, c[0]), Vector3(fixe_mur + 0.3, y, c[1]), Vector3(fixe_mur - 0.3, y, c[1]), Vector3.UP)
 				quad("voute", Vector3(fixe_mur - 0.3, y + ho, c[0]), Vector3(fixe_mur + 0.3, y + ho, c[0]), Vector3(fixe_mur + 0.3, y + ho, c[1]), Vector3(fixe_mur - 0.3, y + ho, c[1]), Vector3.DOWN)
 			# cadre de porte épais : deux jambages et un linteau en saillie sur le mur
-			_cadre(horizontal, plan, signe, c[0], c[1], ho, y)
+			if not c[2]:
+				_cadre(horizontal, plan, signe, c[0], c[1], ho, y)
+			else:
+				_relief_mur(horizontal, plan, signe, c[0], c[1], y, h)
 		# soubassement en deux assises irrégulières, corniche à trois ressauts sur corbeaux, pierres en saillie
 		for m in libres:
 			_relief_mur(horizontal, plan, signe, m[0], m[1], y, h)
@@ -634,6 +665,7 @@ func lumiere(pos: Vector3, couleur: Color, energie: float, portee: float, att :=
 	l.distance_fade_length = 6.0
 	l.position = pos
 	racine.add_child(l)
+	toutes.append(l)
 	if vacille:
 		lumieres.append([l, energie, rng.randf() * 10.0])
 	return l
