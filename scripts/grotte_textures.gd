@@ -374,11 +374,11 @@ static func piste_image() -> Image:
 					v += 0.08
 			var c := _ton(R, clampf(v, 0.0, 0.999))
 			# cailloux et terre dégelée vers les bords
-			var terre := (fin[i] > 0.84 and al > 0.8) or (gros[i] < 0.16 and al > 0.5)
+			var terre := (fin[i] > 0.9 and al > 0.85) or (gros[i] < 0.09 and al > 0.6)
 			if terre:
 				c = _ton(T, clampf(0.35 + 0.5 * (fin[i] - 0.4) + 0.3 * (gros[i] - 0.3), 0.0, 0.999))
 			var gr := _hash_i(x * 3, y * 7 + 5)
-			if gr > 0.992:
+			if gr > 0.996:
 				c = _ton(T, 0.95 if gr > 0.993 else 0.1)             # gravillon clair / ombré
 			c.a = clampf(0.5 + 1.3 * (seuil[i] - 0.5) + 0.12 * (_hash_i(x, y) - 0.5), 0.04, 0.96)
 			img.set_pixel(x, y, c)

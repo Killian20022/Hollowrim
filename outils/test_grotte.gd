@@ -99,6 +99,7 @@ func _lancer() -> void:
 		var r := ss.intersect_ray(PhysicsRayQueryParameters3D.create(p + Vector3(0, 1.0, 0), p - Vector3(0, 2.0, 0)))
 		if r.is_empty() or absf(float(r["position"].y) - (p.y - 0.1)) > 0.4:
 			sans_sol += 1
+			print("   sans sol en %s (impact : %s)" % [p, r.get("position", "aucun")])
 	_verif(sans_sol == 0, "sol sous chacun des %d points du chemin (%d sans sol)" % [route.size(), sans_sol])
 	# 4. la capsule marche de l'entrée au fond
 	var capsule := CharacterBody3D.new()
