@@ -13,15 +13,20 @@ const BOIS_MORT := ["#3d3c4a", "#5b5a66", "#7f7d82", "#a7a19b"]
 const NEIGE := ["#4a557f", "#6877a3", "#8898bf", "#aab8d6", "#cdd7ec", "#f0eff4"]
 const CLEAR := Color(0, 0, 0, 0)
 
-## Régions de l'atlas des épicéas (128×128), en pixels.
+## Taille des atlas pin / bouleau (uv_region par défaut).
 const ATLAS := 128
-const R_LONG_A := Rect2i(0, 0, 64, 64)
-const R_LONG_B := Rect2i(64, 0, 64, 64)
-const R_COURT_A := Rect2i(0, 64, 32, 32)
-const R_COURT_B := Rect2i(32, 64, 32, 32)
-const R_FLECHE := Rect2i(0, 96, 32, 32)
-const R_COEUR := Rect2i(32, 96, 32, 32)
-const R_CRETE_Y := 64          # crêtes de neige : bandes 64×8 en (64, 64 + 8k), k = 0..7
+## Régions de l'atlas des épicéas (256×256, rameaux longs à 128 px : détail du gros plan), en pixels.
+const ATLAS_EPICEA := 256
+const R_LONG_A := Rect2i(0, 0, 128, 128)
+const R_LONG_B := Rect2i(128, 0, 128, 128)
+const R_COURT_A := Rect2i(0, 128, 64, 64)
+const R_COURT_B := Rect2i(64, 128, 64, 64)
+const R_FLECHE := Rect2i(0, 192, 64, 64)
+const R_COEUR := Rect2i(64, 192, 64, 64)
+const R_CRETE_X := 128         # crêtes de neige : bandes CRETE_W×CRETE_H en (128, 128 + CRETE_H·k)
+const R_CRETE_Y := 128
+const CRETE_W := 128
+const CRETE_H := 16
 const CRETES := 8
 
 static var _cache := {}
@@ -174,9 +179,12 @@ static func tuile_mips(img: Image) -> ImageTexture:
 	return avec_mips(img)
 
 # ------------------------------------------------------------------ rameau d'épicéa (vu de dessus)
-## Rameau S×S, tige verticale au centre (colonnes S/2-1 et S/2 : la carte est pliée en V le long de
-## cette ligne), base en bas (côté tronc), pointe en haut. Rameaux secondaires alternés, aiguilles en
-## traits groupés (amas), bois visible au cœur, neige en paquets sur la tige et les rameaux.
+## Rameau S×S (S = 128 pour les longs, 64 pour les courts), vu de dessus, base en bas (côté tronc),
+## pointe en haut. La tige principale suit l'axe vertical (colonnes S/2-1 et S/2 : la carte est
+## légèrement pliée le long de cette ligne) et se ramifie : 2 sous-rameaux majeurs près de la base,
+## puis des rameaux secondaires alternés, eux-mêmes ramifiés. Les aiguilles sont des TOUFFES de traits
+## courts parallèles, orientés vers l'avant le long de chaque rameau (pas un semis) ; leurs bouts font le
+## bord dentelé. Lumière de la texture : haut-gauche (face claire / face sombre de chaque touffe).
 ## `neige` 0..1 : quantité de neige ; `densite` 0..1 : remplissage (1 = touffu).
 static func rameau_epicea(S: int, graine: int, neige: float, densite: float) -> Image:
 	var rng := RandomNumberGenerator.new()
@@ -184,109 +192,111 @@ static func rameau_epicea(S: int, graine: int, neige: float, densite: float) -> 
 	var k := S / 64.0
 	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
 	img.fill(CLEAR)
-	var cx := S * 0.5 - 0.5          # axe de la tige (entre les colonnes S/2-1 et S/2)
-	var y_base := S - 2.0
-	var y_pointe := 2.0 + 2.0 * k
-	# --- rameaux secondaires alternés : longs à la base, courts vers la pointe (silhouette en flèche)
-	var rameaux: Array = []          # chaque rameau : {"pts": [[x, y]...], "cote": ±1}
-	var ecart := lerpf(7.5, 6.0, densite) * maxf(k, 0.62)   # entre deux rameaux d'un même côté
-	var cote := -1 if rng.randf() < 0.5 else 1
-	var y := y_base - 2.0 * k
-	while y > y_pointe + 5.0 * k:
-		var t := (y_base - y) / (y_base - y_pointe)   # 0 base → 1 pointe
-		var longueur := (cx - 2.0) * (0.22 + 0.78 * pow(1.0 - t, 0.9)) * rng.randf_range(0.82, 1.0)
-		if rng.randf() < 0.12:
-			longueur *= 0.6
-		var ang := deg_to_rad(lerpf(58.0, 40.0, t) + rng.randf_range(-6, 6))   # écart avec la tige
-		var pts: Array = []
-		var x0 := cx + cote * 0.5
-		var y0 := y
-		var n := maxi(int(longueur), 3)
-		for s in n:
-			pts.append([x0, y0])
-			var a2 := ang * (1.0 - 0.3 * float(s) / n)     # le rameau se courbe vers la pointe
-			x0 += cote * sin(a2)
-			y0 -= cos(a2)
-		rameaux.append({"pts": pts, "cote": cote})
-		cote = -cote
-		y -= ecart * 0.5 * rng.randf_range(0.85, 1.15)
-	# --- aiguilles : deux rangs de traits courts par rameau, en amas ; face tournée vers la pointe
-	# (dessus du rameau) claire, face tournée vers la base sombre
+	var cx := S * 0.5 - 0.5
+	var axes: Array = []      # {"pts": [Vector2], "dirs": [Vector2], "prof": int}
+	var base := Vector2(cx, S - 2.0)
+	_axe_rameau(axes, rng, base, Vector2(0, -1), S - 4.0 - 2.0 * k, 0, k, densite, S)
+	# --- aiguilles : touffes de 2-3 traits parallèles de part et d'autre de chaque rameau
+	var lumiere := Vector2(-0.6, -0.8)
 	var traits: Array = []
-	for r: Dictionary in rameaux:
-		var pts: Array = r["pts"]
-		var c0: int = r["cote"]
-		var n: int = pts.size()
+	for ax: Dictionary in axes:
+		var pts: Array = ax["pts"]
+		var dirs: Array = ax["dirs"]
+		var prof: int = ax["prof"]
+		var n := pts.size()
+		var pas := maxi(2, int(round(1.6 * k)))
 		var ph := rng.randf() * TAU
-		for j in n:
+		var j := 1 if prof == 0 else 0
+		while j < n:
 			var s := float(j) / maxf(n - 1, 1)
-			var q0: Array = pts[maxi(j - 1, 0)]
-			var q1: Array = pts[mini(j + 1, n - 1)]
-			var dir := atan2(float(q1[1]) - float(q0[1]), float(q1[0]) - float(q0[0]))
-			var amas := 0.5 + 0.5 * sin(j * 0.9 + ph)
-			for face in [-1, 1]:
-				# face -1 : côté pointe (image y-) ; +1 : côté base
-				var a3: float = dir - face * c0 * deg_to_rad(rng.randf_range(42, 60))
-				var L := (1.6 + 1.6 * amas) * (0.75 + 0.35 * k) * (1.0 - 0.35 * s)
-				if rng.randf() > lerpf(0.8, 1.0, densite):
-					L *= 0.5
-				var ton := 2
-				if face < 0:
-					ton = 3 if amas > 0.6 else 2
-				else:
-					ton = 1 if amas < 0.6 else 2
-				if s > 0.8 and face < 0 and amas > 0.75:
-					ton = 4   # bouts givrés, clairs
-				var p: Array = pts[j]
-				traits.append([ton, p[0], p[1], p[0] + cos(a3) * L, p[1] + sin(a3) * L])
-	traits.sort_custom(func(u, v): return u[0] < v[0])
+			var p: Vector2 = pts[j]
+			var d: Vector2 = dirs[j]
+			var amas := 0.5 + 0.5 * sin(j * 0.55 + ph)
+			for cote in [-1.0, 1.0]:
+				if prof == 0 and rng.randf() < 0.45:
+					continue    # la tige principale reste lisible par endroits
+				var ang: float = deg_to_rad(rng.randf_range(38.0, 52.0)) * cote
+				var v := d.rotated(ang)
+				var L := (1.5 + 1.15 * k) * (1.0 - 0.4 * s) * lerpf(0.8, 1.15, amas)
+				if prof == 0:
+					L *= 0.8
+				if rng.randf() > lerpf(0.75, 0.95, densite):
+					L *= 0.55
+				var dl := v.dot(lumiere)
+				var ton := 1
+				if dl > 0.25 and amas > 0.35:
+					ton = 3 if (dl > 0.6 and amas > 0.7) else 2
+				elif dl < -0.35 or amas < 0.2:
+					ton = 0 if amas < 0.1 else 1
+				var givre := prof == 2 and s > 0.8 and dl > 0.2 and rng.randf() < 0.3
+				var nb := 3 + (1 if amas > 0.55 else 0)
+				for t in nb:
+					var q := p + d * (t * 1.0 - 0.5) + v.orthogonal() * 0.0
+					var e := q + v * (L - t * 0.6)
+					traits.append([4 if givre and t == 0 else ton, q.x, q.y, e.x, e.y])
+			j += pas
+	traits.sort_custom(func(u, w): return u[0] < w[0])
 	for t in traits:
 		_ligne(img, roundi(t[1]), roundi(t[2]), roundi(t[3]), roundi(t[4]), _c(AIGUILLES, t[0]))
-	# --- bois : cœur des rameaux et tige (on lit des branches, pas une masse)
-	for r: Dictionary in rameaux:
-		var pts: Array = r["pts"]
-		for j in int(pts.size() * 0.5):
-			var p: Array = pts[j]
-			_px(img, roundi(p[0]), roundi(p[1]), _c(ECORCE, 1))
-	for yy in range(int(y_pointe) + 3, int(y_base) + 2):
-		var tt := (y_base - yy) / (y_base - y_pointe)
-		_px(img, int(cx), yy, _c(ECORCE, 2 if tt < 0.75 else 1))
-		_px(img, int(cx) + 1, yy, _c(ECORCE, 1 if tt < 0.75 else 0))
-	# bourgeon terminal
-	for s in int(4 * k) + 3:
-		var yy := int(y_pointe) + s
-		var w := mini(s / 2, 2)
-		for dx in range(-w, w + 2):
-			_px(img, int(cx) + dx, yy, _c(AIGUILLES, 3 if dx <= 0 else 2))
-	# --- neige : paquets allongés posés sur le dessus (côté pointe) du cœur des rameaux
+	# --- bois : tige principale brune, sous-rameaux bruns au cœur, rameaux fins sombres (ombre)
+	for ax: Dictionary in axes:
+		var pts: Array = ax["pts"]
+		var prof: int = ax["prof"]
+		var n := pts.size()
+		var fin := n if prof == 0 else int(n * (0.6 if prof == 1 else 0.35))
+		for j in fin:
+			var p: Vector2 = pts[j]
+			var s := float(j) / maxf(n - 1, 1)
+			if prof == 0:
+				_px(img, roundi(p.x), roundi(p.y), _c(ECORCE, 1))
+				if s < 0.55:
+					_px(img, roundi(p.x) + 1, roundi(p.y), _c(ECORCE, 1))
+			elif prof == 1:
+				_px(img, roundi(p.x), roundi(p.y), _c(ECORCE, 1))
+			else:
+				_px(img, roundi(p.x), roundi(p.y), _c(ECORCE, 1 if j < fin * 0.6 else 0))
+	# --- neige : paquets allongés posés sur le cœur des rameaux (amas francs), ombrés côté base
 	if neige > 0.0:
 		var cases: Array = []
-		for r: Dictionary in rameaux:
-			var pts: Array = r["pts"]
-			var n: int = pts.size()
-			if n < 4 or rng.randf() > neige * 0.75:
+		for ax: Dictionary in axes:
+			var pts: Array = ax["pts"]
+			var dirs: Array = ax["dirs"]
+			var prof: int = ax["prof"]
+			var n := pts.size()
+			if n < 5:
 				continue
-			# un paquet par rameau, posé sur le cœur (amas francs plutôt que des grains épars)
-			var j0 := int(rng.randf_range(0.0, 0.25) * n)
-			var j1 := mini(n - 2, j0 + int(rng.randf_range(0.4, 0.65) * n) + 2)
-			for j in range(j0, j1 + 1):
-				var p: Array = pts[j]
-				var u := (float(j - j0) / maxf(j1 - j0, 1)) * 2.0 - 1.0
-				var e := int(round((1.3 + 1.4 * neige * k) * sqrt(maxf(1.0 - u * u, 0.0))))
-				var x := roundi(p[0])
-				var yb := roundi(p[1])
-				cases.append([x, yb, 3])                   # base du paquet, ombrée
-				for d in range(1, e + 1):
-					cases.append([x, yb - d, 5 if d == e and u < 0.3 else 4])
-		# quelques tronçons de neige sur la tige
-		var yy2 := int(y_base) - int(3 * k)
-		while yy2 > int(y_pointe) + 6:
-			var long := int(rng.randf_range(2, 5) * k) + 2
-			if rng.randf() < neige * 0.7:
-				for d in long:
-					cases.append([int(cx), yy2 - d, 4])
-					cases.append([int(cx) + 1, yy2 - d, 3 if d % 3 else 4])
-			yy2 -= long + int(rng.randf_range(4, 9) * k)
+			var proba := neige * (0.9 if prof < 2 else 0.4)
+			var nb_paquets := 2 if prof == 0 else 1
+			for pk in nb_paquets:
+				if rng.randf() > proba:
+					continue
+				var j0: int
+				var j1: int
+				if prof == 0:
+					j0 = int(n * (0.1 + 0.3 * pk + rng.randf_range(0.0, 0.08)))
+					j1 = mini(n - 2, j0 + int(n * rng.randf_range(0.1, 0.18)) + 2)
+				else:
+					j0 = int(rng.randf_range(0.05, 0.25) * n)
+					j1 = mini(n - 2, j0 + int(rng.randf_range(0.35, 0.6) * n) + 2)
+				var emax := (0.9 + (1.1 if prof < 2 else 0.5) * neige * k)
+				for jj in range(j0, j1 + 1):
+					var p: Vector2 = pts[jj]
+					var d: Vector2 = dirs[jj]
+					var nrm := d.orthogonal()
+					var u := (float(jj - j0) / maxf(j1 - j0, 1)) * 2.0 - 1.0
+					var e := int(round(emax * sqrt(maxf(1.0 - u * u, 0.0))))
+					for dd in range(-e, e + 1):
+						var q := p + nrm * dd
+						var bas := (nrm * dd).y > 0.3
+						var ton := 4
+						if absi(dd) == e and e > 0:
+							ton = 3 if bas else 5
+						elif bas and absi(dd) == e - 1:
+							ton = 4
+						cases.append([roundi(q.x), roundi(q.y), ton])
+					# ombre portée sous le paquet (côté base de l'image)
+					var sous := p + Vector2(0, e + 1)
+					cases.append([roundi(sous.x), roundi(sous.y), 2])
 		cases.sort_custom(func(a, b): return a[2] < b[2])
 		for c in cases:
 			_px(img, c[0], c[1], _c(NEIGE, c[2]))
@@ -300,6 +310,62 @@ static func rameau_epicea(S: int, graine: int, neige: float, densite: float) -> 
 			if c.a > 0.0 and src.get_pixel(xx, yy + 1).a == 0.0 and not _est_neige(c):
 				img.set_pixel(xx, yy, _c(AIGUILLES, 0))
 	return img
+
+## Un axe du rameau (récursif) : avance pixel par pixel en se courbant vers la pointe (y-), pose ses
+## enfants en alterné. prof 0 = tige, 1 = sous-rameau majeur, 2 = rameau fin (sans enfant).
+static func _axe_rameau(axes: Array, rng: RandomNumberGenerator, p0: Vector2, d0: Vector2, L: float, prof: int, k: float, densite: float, S: int) -> void:
+	var pts: Array = []
+	var dirs: Array = []
+	var p := p0
+	var d := d0.normalized()
+	var n := maxi(int(L), 3)
+	var avant := Vector2(0, -1)
+	for s in n:
+		# reste dans la carte : marge de 3 px pour les aiguilles
+		if p.x < 3.0 or p.x > S - 4.0 or p.y < 3.0:
+			break
+		pts.append(p)
+		dirs.append(d)
+		if prof > 0:
+			d = (d + avant * 0.025).normalized()
+		p += d
+	axes.append({"pts": pts, "dirs": dirs, "prof": prof})
+	if prof == 2 or pts.size() < 6:
+		return
+	var m := pts.size()
+	var cote := -1.0 if rng.randf() < 0.5 else 1.0
+	if prof == 0:
+		# deux sous-rameaux majeurs (la tige se ramifie), puis des rameaux fins alternés
+		var j_maj := [int(m * rng.randf_range(0.14, 0.2)), int(m * rng.randf_range(0.3, 0.38))]
+		for q in 2:
+			var j: int = j_maj[q]
+			var c := cote if q == 0 else -cote
+			var dd: Vector2 = (dirs[j] as Vector2).rotated(deg_to_rad(rng.randf_range(34.0, 42.0)) * c)
+			_axe_rameau(axes, rng, pts[j], dd, (m - j) * rng.randf_range(0.6, 0.7), 1, k, densite, S)
+		var j2 := int(m * 0.42)
+		var ecart := lerpf(7.5, 6.0, densite) * k * 0.5
+		while j2 < m - 3:
+			var t := float(j2) / m
+			var dd: Vector2 = (dirs[j2] as Vector2).rotated(deg_to_rad(lerpf(55.0, 38.0, t) + rng.randf_range(-5, 5)) * cote)
+			var Lc := ((m - j2) * 0.5 + 2.0 * k) * rng.randf_range(0.8, 1.0)
+			_axe_rameau(axes, rng, pts[j2], dd, Lc, 2, k, densite, S)
+			cote = -cote
+			j2 += maxi(2, int(ecart * rng.randf_range(0.85, 1.15)))
+		# quelques rameaux fins à la base, entre les deux sous-rameaux majeurs
+		for j in [int(m * 0.06), int(m * 0.25)]:
+			var dd: Vector2 = (dirs[j] as Vector2).rotated(deg_to_rad(rng.randf_range(60.0, 70.0)) * cote)
+			_axe_rameau(axes, rng, pts[j], dd, m * 0.22 * rng.randf_range(0.8, 1.0), 2, k, densite, S)
+			cote = -cote
+	else:
+		var j := 3
+		var ecart := lerpf(7.0, 5.5, densite) * k * 0.5
+		while j < m - 3:
+			var t := float(j) / m
+			var dd: Vector2 = (dirs[j] as Vector2).rotated(deg_to_rad(lerpf(52.0, 36.0, t) + rng.randf_range(-6, 6)) * cote)
+			var Lc := ((m - j) * 0.48 + 1.5 * k) * rng.randf_range(0.75, 1.0)
+			_axe_rameau(axes, rng, pts[j], dd, Lc, 2, k, densite, S)
+			cote = -cote
+			j += maxi(2, int(ecart * rng.randf_range(0.85, 1.15)))
 
 ## Flèche (sommet) vue de côté, S×S : tige dressée, courtes branches relevées, capuchon de neige.
 static func fleche_epicea(S: int, graine: int) -> Image:
@@ -333,19 +399,19 @@ static func fleche_epicea(S: int, graine: int) -> Image:
 	return img
 
 ## Crête de neige posée sur un rameau, vue de côté : bande 64×8, dessus bosselé, dessous découpé.
-static func crete_neige(graine: int) -> Image:
+static func crete_neige(graine: int, f := 1) -> Image:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
-	var W := 64
-	var H := 8
+	var W := 64 * f
+	var H := 8 * f
 	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
 	img.fill(CLEAR)
 	# profil du dessus : suite de bosses (paquets de neige) de 6 à 14 px, interrompues
-	var x := rng.randi_range(0, 4)
+	var x := rng.randi_range(0, 4) * f
 	while x < W - 3:
-		var L := rng.randi_range(6, 14)
-		var hmax := rng.randf_range(2.5, 5.0)
-		var bas := rng.randi_range(5, 7)
+		var L := rng.randi_range(6, 14) * f
+		var hmax := rng.randf_range(2.5, 5.0) * f
+		var bas := rng.randi_range(5, 7) * f + (f - 1)
 		for d in L:
 			if x + d >= W - 1:
 				break
@@ -356,16 +422,16 @@ static func crete_neige(graine: int) -> Image:
 				var ton := 4
 				if yy == top:
 					ton = 5 if u < 0.2 else 4
-				elif yy >= bas - 1:
+				elif yy >= bas - f:
 					ton = 2
-				elif yy == bas - 2:
+				elif yy >= bas - 2 * f:
 					ton = 3
 				_px(img, x + d, yy, _c(NEIGE, ton))
-		x += L + rng.randi_range(1, 6)
+		x += L + rng.randi_range(1, 6) * f
 	_nettoyer(img)
 	return img
 
-## Atlas des épicéas 128×128 (voir les régions R_*), avec mipmaps pixel art.
+## Atlas des épicéas 256×256 (voir les régions R_*), avec mipmaps pixel art.
 static func atlas_epicea() -> ImageTexture:
 	if _cache.has("atlas_epicea"):
 		return _cache["atlas_epicea"]
@@ -375,21 +441,25 @@ static func atlas_epicea() -> ImageTexture:
 	return t
 
 static func atlas_epicea_image() -> Image:
-	var img := Image.create(ATLAS, ATLAS, false, Image.FORMAT_RGBA8)
+	var img := Image.create(ATLAS_EPICEA, ATLAS_EPICEA, false, Image.FORMAT_RGBA8)
 	img.fill(CLEAR)
-	img.blit_rect(rameau_epicea(64, 501, 0.55, 1.0), Rect2i(0, 0, 64, 64), R_LONG_A.position)
-	img.blit_rect(rameau_epicea(64, 502, 0.8, 0.85), Rect2i(0, 0, 64, 64), R_LONG_B.position)
-	img.blit_rect(rameau_epicea(32, 503, 0.6, 1.0), Rect2i(0, 0, 32, 32), R_COURT_A.position)
-	img.blit_rect(rameau_epicea(32, 504, 0.85, 0.9), Rect2i(0, 0, 32, 32), R_COURT_B.position)
-	img.blit_rect(fleche_epicea(32, 505), Rect2i(0, 0, 32, 32), R_FLECHE.position)
-	img.blit_rect(rameau_epicea(32, 506, 0.0, 1.0), Rect2i(0, 0, 32, 32), R_COEUR.position)
+	img.blit_rect(rameau_epicea(128, 501, 0.55, 1.0), Rect2i(0, 0, 128, 128), R_LONG_A.position)
+	img.blit_rect(rameau_epicea(128, 502, 0.8, 0.85), Rect2i(0, 0, 128, 128), R_LONG_B.position)
+	img.blit_rect(rameau_epicea(64, 503, 0.6, 1.0), Rect2i(0, 0, 64, 64), R_COURT_A.position)
+	img.blit_rect(rameau_epicea(64, 504, 0.85, 0.9), Rect2i(0, 0, 64, 64), R_COURT_B.position)
+	img.blit_rect(fleche_epicea(64, 505), Rect2i(0, 0, 64, 64), R_FLECHE.position)
+	img.blit_rect(rameau_epicea(64, 506, 0.0, 1.0), Rect2i(0, 0, 64, 64), R_COEUR.position)
 	for k in CRETES:
-		img.blit_rect(crete_neige(510 + k), Rect2i(0, 0, 64, 8), Vector2i(64, R_CRETE_Y + 8 * k))
+		img.blit_rect(crete_neige(510 + k, 2), Rect2i(0, 0, CRETE_W, CRETE_H), Vector2i(R_CRETE_X, R_CRETE_Y + CRETE_H * k))
 	return img
 
-## Rectangle UV (0..1) d'une région de l'atlas.
-static func uv_region(r: Rect2i) -> Rect2:
-	return Rect2(Vector2(r.position) / ATLAS, Vector2(r.size) / ATLAS)
+## Rectangle UV (0..1) d'une région d'un atlas de côté `taille`.
+static func uv_region(r: Rect2i, taille := ATLAS) -> Rect2:
+	return Rect2(Vector2(r.position) / taille, Vector2(r.size) / taille)
+
+## Rectangle UV d'une région de l'atlas des épicéas.
+static func uv_epicea(r: Rect2i) -> Rect2:
+	return uv_region(r, ATLAS_EPICEA)
 
 # ------------------------------------------------------------------ écorces (tuiles 32×32)
 static func _onde(x: float, y: float, n: int, fx: int, fy: int, ph: float) -> float:

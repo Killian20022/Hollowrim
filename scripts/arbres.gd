@@ -118,9 +118,9 @@ static func materiaux_epicea() -> Array:
 
 ## Réglages de l'épicéa (voir docs/MISSION_GRAPHISME.md, journal du lot 2).
 const REGLAGES_EPICEA := {
-	"teinte": Color(1.08, 1.13, 1.08),   # éclaircit la rampe EPICEA AIGUILLES sous la lumière du jeu
+	"teinte": Color(0.9, 1.0, 1.08),   # éclaircit la rampe EPICEA AIGUILLES sous la lumière du jeu
 	"teinte_neige": Color(1.0, 1.0, 1.0),
-	"pli": 0.62,          # angle (rad) des deux ailes d'un rameau sous l'horizontale (rameau en toit)
+	"pli": 0.45,          # angle (rad) des deux ailes d'un rameau sous l'horizontale (rameau en toit)
 	"crete": 0.08,        # hauteur de la crête de neige posée sur la tige (m)
 	"aile": 0.47,         # demi-largeur d'une carte / longueur du rameau
 }
@@ -289,9 +289,21 @@ static func epicea(forme: int, graine: int, materiaux: Array, lod := false) -> A
 	_tronc_ecorce(tronc, rng, f["tronc"], hauteur * 0.88, 3 if lod else 6)
 	var pli: float = REGLAGES_EPICEA["pli"]
 	var crete: float = 0.0 if lod else REGLAGES_EPICEA["crete"]
-	var longs := [TexturesArbres.uv_region(TexturesArbres.R_LONG_A), TexturesArbres.uv_region(TexturesArbres.R_LONG_B)]
-	var courts := [TexturesArbres.uv_region(TexturesArbres.R_COURT_A), TexturesArbres.uv_region(TexturesArbres.R_COURT_B)]
+	var longs := [TexturesArbres.uv_epicea(TexturesArbres.R_LONG_A), TexturesArbres.uv_epicea(TexturesArbres.R_LONG_B)]
+	var courts := [TexturesArbres.uv_epicea(TexturesArbres.R_COURT_A), TexturesArbres.uv_epicea(TexturesArbres.R_COURT_B)]
 	var n_etages := maxi(4, etages / 2) if lod else etages
+	# jupe basse : petits rameaux courts et pendants sous le premier étage (plus de tronc nu sous la couronne)
+	for e in (1 if lod else 3):
+		var yj := lerpf(0.55, bas + 0.55, float(e) / 2.0) if not lod else 0.9
+		var rj := base * lerpf(0.5, 0.78, float(e) / 2.0)
+		var nj := 4 if lod else 6
+		var rotj := rng.randf() * TAU
+		var aoj := Color(0.62 + 0.1 * e, 0.62 + 0.1 * e, 0.64 + 0.1 * e, 1.0)
+		for b in nj:
+			var a := rotj + TAU * (b + rng.randf_range(-0.2, 0.2)) / nj
+			var Lj := rj * rng.randf_range(0.8, 1.1)
+			var cj := TexturesArbres.uv_epicea(TexturesArbres.R_COURT_A if rng.randf() < 0.5 else TexturesArbres.R_COURT_B)
+			_rameau(rameaux, Vector3(cos(a) * 0.08, yj + rng.randf_range(-0.1, 0.1), sin(a) * 0.08), a, Lj, Lj * rng.randf_range(0.45, 0.65), 0.0, cj, pli * 1.35, aoj, 0.0, Rect2(), 1)
 	for e in n_etages:
 		var k := float(e) / (n_etages - 1)
 		# étages plus serrés vers la flèche (la pointe de l'épicéa est dense, le bas aéré)
@@ -310,12 +322,12 @@ static func epicea(forme: int, graine: int, materiaux: Array, lod := false) -> A
 			var releve := L * 0.14 * (1.0 - k)
 			var o := Vector3(cos(a) * 0.08, y + rng.randf_range(-0.12, 0.12), sin(a) * 0.08)
 			var region: Rect2 = (longs if L > 1.3 else courts)[rng.randi_range(0, 1)]
-			var cv := TexturesArbres.uv_region(Rect2i(64, TexturesArbres.R_CRETE_Y + 8 * rng.randi_range(0, TexturesArbres.CRETES - 1), 64, 8))
+			var cv := TexturesArbres.uv_epicea(Rect2i(TexturesArbres.R_CRETE_X, TexturesArbres.R_CRETE_Y + TexturesArbres.CRETE_H * rng.randi_range(0, TexturesArbres.CRETES - 1), TexturesArbres.CRETE_W, TexturesArbres.CRETE_H))
 			# ailes plus tombantes en bas (rameaux pendants de l'épicéa), plus plates en haut
 			var pli_b := pli * lerpf(1.3, 0.8, k) * rng.randf_range(0.85, 1.15)
 			_rameau(rameaux, o, a, L, chute, releve, region, pli_b, ao, crete * rng.randf_range(0.7, 1.2) if L > 0.8 else 0.0, cv, 1 if lod else 2)
 	# flèche : deux cartes verticales croisées
-	var fr := TexturesArbres.uv_region(TexturesArbres.R_FLECHE)
+	var fr := TexturesArbres.uv_epicea(TexturesArbres.R_FLECHE)
 	var hf := 2.2
 	var lf := 1.3
 	var y0 := hauteur - 1.2
@@ -563,7 +575,7 @@ static func bouleau(graine: int, mats: Array) -> ArrayMesh:
 ## Arbre mort : fût gris argenté sans écorce, sommet cassé, branches tordues lisibles (prismes à 2-3
 ## tronçons qui dévient), quelques rameaux secondaires et moignons cassés, givre sur le dessus de chaque
 ## branche (alpha de sommet → neige du shader ps1). Une seule surface (bois).
-## `materiaux` est gardé pour compatibilité avec les appelants (cercle, tumulus, forêt) : le bois mort
+## `materiaux` est gardé pour compatibilité avec les appelants (forêt, sous-bois, zones) : le bois mort
 ## utilise toujours la texture pixel art partagée `materiaux_essence("mort")`.
 static func arbre_mort(graine: int, materiaux: Array = []) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
@@ -602,7 +614,7 @@ static func buisson(graine: int, materiaux: Array = []) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var st := _st()
-	var courts := [TexturesArbres.uv_region(TexturesArbres.R_COURT_A), TexturesArbres.uv_region(TexturesArbres.R_COURT_B)]
+	var courts := [TexturesArbres.uv_epicea(TexturesArbres.R_COURT_A), TexturesArbres.uv_epicea(TexturesArbres.R_COURT_B)]
 	for i in 3:
 		var y := 0.5 + i * 0.13
 		var r := rng.randf_range(0.55, 0.85) * (1.0 - i * 0.2)
@@ -620,7 +632,7 @@ static func semis(graine: int, materiaux: Array = []) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var st := _st()
-	var courts := [TexturesArbres.uv_region(TexturesArbres.R_COURT_A), TexturesArbres.uv_region(TexturesArbres.R_COURT_B)]
+	var courts := [TexturesArbres.uv_epicea(TexturesArbres.R_COURT_A), TexturesArbres.uv_epicea(TexturesArbres.R_COURT_B)]
 	for e in 3:
 		var k := e / 2.0
 		var y := lerpf(0.3, 0.75, k)
@@ -630,7 +642,7 @@ static func semis(graine: int, materiaux: Array = []) -> ArrayMesh:
 		for b in n:
 			var a := rot + TAU * (b + rng.randf_range(-0.2, 0.2)) / n
 			_rameau(st, Vector3(0, y, 0), a, r, r * lerpf(0.4, 0.1, k), 0.0, courts[rng.randi_range(0, 1)], 0.7, Color(0.85 + 0.15 * k, 0.85 + 0.15 * k, 0.85 + 0.15 * k, 1.0), 0.0, Rect2(), 1)
-	var fr := TexturesArbres.uv_region(TexturesArbres.R_FLECHE)
+	var fr := TexturesArbres.uv_epicea(TexturesArbres.R_FLECHE)
 	var nn := Vector3.UP
 	for q in 2:
 		var dd := Vector3(cos(q * PI * 0.5), 0, sin(q * PI * 0.5)) * 0.15
