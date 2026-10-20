@@ -527,3 +527,10 @@ Aucune fonction de `palette.gd` n'est touchée.
 - Mesures (2.5,8.5,16,4) : GPU 7,05–7,26 ms avant → 7,30–7,67 ms après (autres agents actifs) ; primitives 382 k → 430 k ; chargement arbres ≈ égal (bruit 630–1010 ms des deux côtés).
 - Planches : `captures/arbres/planches_troncs/planche_troncs_avant_apres_{jour,nuit}.png` (avant | après, 11 poses : Te/Tp/Tb/Tm 1 m et 3 m, A2, A10, M10).
 - Défauts restants : à 1 m le texel (≈ 3 cm) reste visible (inhérent à 32 texels/m) ; mousse du pied un peu verte/patchée sur le pin ; fût de l'arbre mort peu contrasté dans la brume ; pin de nuit encore sombre au pied.
+
+### Lot 2, troncs, 2e passe (fin du « camouflage »)
+- Textures : `_plaques()` générique dans `ecorces.gd` (contraste faible entre plaques, contraste fort réservé aux fissures fines et courtes). Épicéa : écailles 2-5 cm, gris-brun, rampe resserrée. Pin haut : plaquettes orangées fines ; pin pied : plaques allongées verticalement (16×3 cellules, rapport ≈ 1:5), crevasses longues. Bouleau pied : moins de papier blanc. `_finir` quantifie sur la taille de la rampe. `.res` régénérés (`outils/generer_ecorces.gd`).
+- Mousse (shader) : ton olive sombre, uniquement dans les creux (liserés) ; pin ×0,25.
+- Géométrie : épicéa proche 6 pans (5 anneaux), 3 racines à un seul tronçon, plus de chicots ; pin/bouleau/mort 6 pans proches ; versions lointaines (`lod`) 4 pans sans racines ni chicots pour pin/bouleau/mort (utilisées comme `lod_mesh`).
+- Mesures (2.5,8.5,16,4) : primitives 382,8 k → 401,9 k (+19 k) ; GPU 6,1-6,5 ms contre 6,0-6,8 avant (indiscernable du bruit).
+- Planches : `captures/arbres/planches_troncs/planche_troncs_avant_apres_v2_{jour,nuit}.png`.

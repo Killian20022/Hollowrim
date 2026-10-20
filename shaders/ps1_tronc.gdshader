@@ -23,7 +23,7 @@ uniform float mousse_force = 1.0;
 varying vec3 uv_aff;
 varying vec2 aux;   // UV2 : x = poids de l'écorce du pied, y = poids de mousse
 
-const vec3 MOUSSE[4] = vec3[4](vec3(0.045, 0.075, 0.055), vec3(0.075, 0.12, 0.075), vec3(0.13, 0.19, 0.11), vec3(0.22, 0.29, 0.17));
+const vec3 MOUSSE[4] = vec3[4](vec3(0.05, 0.062, 0.032), vec3(0.08, 0.098, 0.04), vec3(0.115, 0.135, 0.058), vec3(0.16, 0.18, 0.085));
 const vec3 NEIGE[4] = vec3[4](vec3(0.15, 0.2, 0.36), vec3(0.3, 0.38, 0.58), vec3(0.58, 0.66, 0.84), vec3(0.88, 0.9, 0.95));
 
 float hs(vec2 p) {
@@ -75,8 +75,8 @@ void fragment() {
 	float hy = mix(textureLod(tex_haut, uv + vec2(0.0, pas), lod).a, textureLod(tex_pied, uv + vec2(0.0, pas), lod).a, bp);
 	// mousse : côté nord, haut des plaques, bords irréguliers
 	float lum = dot(col, vec3(0.3, 0.59, 0.11));
-	float m = aux.y * mousse_force + (bruit(ix * 0.12 + 5.0) - 0.5) * 0.9 + (h - 0.5) * 0.7 + (hs(ix + 41.0) - 0.5) * 0.25;
-	if (m > 0.82) {
+	float m = aux.y * mousse_force + (bruit(ix * 0.12 + 5.0) - 0.5) * 0.9 + (0.45 - h) * 0.8 + (hs(ix + 41.0) - 0.5) * 0.25;
+	if (m > 0.84) {
 		int mi = clamp(int(lum * 5.0 + h * 1.5), 0, 3);
 		col = MOUSSE[mi];
 	}

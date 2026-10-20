@@ -155,16 +155,16 @@ static func _fissures(H: PackedFloat32Array, lum: PackedFloat32Array, n: int, s:
 					lum[k2] += 0.07 * ef
 
 # ------------------------------------------------------------------ finition
-static func _finir(lum: PackedFloat32Array, H: PackedFloat32Array, ramp: Array, graine: int, lichen := PackedFloat32Array()) -> Image:
+static func _finir(lum: PackedFloat32Array, H: PackedFloat32Array, ramp: Array, graine: int, lichen := PackedFloat32Array(), passes := 2) -> Image:
 	var idx := PackedInt32Array()
 	idx.resize(N * N)
 	var grain := _champ(32, 32, graine + 3)   # grain fin (aucun bruit blanc : lisse sur 2 texels)
 	for i in N * N:
 		var v := clampf(lum[i] + (grain[i] - 0.5) * 0.07, 0.0, 1.0)
-		idx[i] = clampi(int(round(v * (TONS - 1))), 0, TONS - 1)
+		idx[i] = clampi(int(round(v * (ramp.size() - 1))), 0, ramp.size() - 1)
 		if lichen.size() > 0 and lichen[i] > 0.0:
 			idx[i] = TONS + clampi(int(lichen[i] * 3.0), 0, 2)
-	_mode(idx, 2)
+	_mode(idx, passes)
 	var img := Image.create(N, N, false, Image.FORMAT_RGBA8)
 	for y in N:
 		for x in N:
@@ -236,108 +236,47 @@ static func mips_image(img: Image) -> Image:
 		data.append_array(n.get_data())
 	return Image.create_from_data(N, N, true, Image.FORMAT_RGBA8, data)
 
+
+## Écorce générique : plaques de Voronoï (cx × cy cellules), contraste faible entre plaques, fissures sombres fines.
+static func _plaques(cx: int, cy: int, jit: float, stag: float, warp: float, graine: int, base: float, ecart: float, relief: float, crev: float, crev_w: float, ramp: Array, fiss: int, fl: Vector2i, passes := 1, lichen := PackedFloat32Array()) -> Image:
+	var v := _voronoi(cx, cy, jit, 1.0, 1.0, stag, warp, graine)
+	var gap: PackedFloat32Array = v["gap"]
+	var id: PackedFloat32Array = v["id"]
+	var lent := _champ(3, 4, graine + 1)
+	var fin := _champ(12, 16, graine + 2)
+	var H := PackedFloat32Array()
+	H.resize(N * N)
+	var lum := PackedFloat32Array()
+	lum.resize(N * N)
+	for i in N * N:
+		H[i] = clampf(smoothstep(0.0, crev_w * 2.5, gap[i]) * 0.8 + (fin[i] - 0.5) * 0.14 + 0.12, 0.0, 1.0)
+	var L := _lumiere(H)
+	for i in N * N:
+		var c := 1.0 - smoothstep(0.0, crev_w, gap[i])
+		lum[i] = base + ecart * (id[i] - 0.5) + 0.07 * (lent[i] - 0.5) + relief * L[i] + 0.06 * (fin[i] - 0.5) - crev * c
+	if fiss > 0:
+		_fissures(H, lum, fiss, graine % 97, 0.6, fl.x, fl.y, 0.9)
+	return _finir(lum, H, ramp, graine, lichen, passes)
+
 # ------------------------------------------------------------------ épicéa : écailles fines gris-brun
-const R_EPICEA := ["#1d181e", "#2f2628", "#43372f", "#574a3e", "#6c5f50", "#827565"]
+const R_EPICEA := ["#231d1d", "#322a28", "#41372f", "#4d433a", "#5a4f45", "#665b50", "#72675b"]
 static func epicea_haut() -> Image:
-	var v := _voronoi(11, 14, 0.75, 1.0, 1.15, 1.0, 4.0, 101)
-	var gap: PackedFloat32Array = v["gap"]
-	var id: PackedFloat32Array = v["id"]
-	var f1: PackedFloat32Array = v["f1"]
-	var lent := _champ(3, 4, 111)
-	var fin := _champ(10, 8, 121)
-	var H := PackedFloat32Array()
-	H.resize(N * N)
-	var lum := PackedFloat32Array()
-	lum.resize(N * N)
-	for i in N * N:
-		var plaque := smoothstep(0.0, 2.4, gap[i])
-		H[i] = clampf(plaque * (0.85 - f1[i] * 0.025) + (fin[i] - 0.5) * 0.12 + 0.12, 0.0, 1.0)
-	_fissures(H, lum, 0, 1, 1.0, 8, 12, 0.0)
-	var L := _lumiere(H)
-	for i in N * N:
-		var crevasse := 1.0 - smoothstep(0.0, 0.8, gap[i])
-		lum[i] = 0.4 + 0.2 * id[i] + 0.16 * (lent[i] - 0.5) + 0.2 * (H[i] - 0.5) + 0.55 * L[i] - 0.34 * crevasse + 0.07 * (fin[i] - 0.5)
-	_fissures(H, lum, 5, 11, 1.1, 14, 28, 1.0)
-	# lichen gris-vert sur le haut de quelques plaques
+	# écailles fines (1-3 texels), valeurs voisines, fissures courtes
 	var lic := _champ(4, 5, 131)
-	var lichen := PackedFloat32Array()
-	lichen.resize(N * N)
-	for i in N * N:
-		if lic[i] > 0.9 and H[i] > 0.75 and id[i] > 0.6:
-			lichen[i] = clampf((H[i] - 0.6) * 1.2, 0.0, 0.5)
-	return _finir(lum, H, rampe(R_EPICEA), 101, lichen)
-
+	var v0 := _plaques(20, 15, 0.8, 1.0, 1.5, 101, 0.5, 0.24, 0.38, 0.34, 0.55, rampe(R_EPICEA), 4, Vector2i(5, 10))
+	return v0
 static func epicea_pied() -> Image:
-	# vieilles plaques épaisses, crevasses profondes : cellules plus larges et plus hautes
-	var v := _voronoi(7, 6, 0.8, 1.0, 0.6, 0.5, 5.0, 151)
-	var gap: PackedFloat32Array = v["gap"]
-	var id: PackedFloat32Array = v["id"]
-	var f1: PackedFloat32Array = v["f1"]
-	var fin := _champ(12, 12, 161)
-	var H := PackedFloat32Array()
-	H.resize(N * N)
-	var lum := PackedFloat32Array()
-	lum.resize(N * N)
-	for i in N * N:
-		H[i] = clampf(smoothstep(0.0, 3.2, gap[i]) * (0.9 - f1[i] * 0.02) + (fin[i] - 0.5) * 0.14 + 0.08, 0.0, 1.0)
-	var L := _lumiere(H)
-	for i in N * N:
-		var crevasse := 1.0 - smoothstep(0.0, 1.2, gap[i])
-		lum[i] = 0.34 + 0.2 * id[i] + 0.22 * (H[i] - 0.5) + 0.6 * L[i] - 0.4 * crevasse + 0.08 * (fin[i] - 0.5)
-	_fissures(H, lum, 4, 21, 1.4, 18, 34, 1.0)
-	return _finir(lum, H, rampe(R_EPICEA), 151)
-
+	# plaques un peu plus larges et hautes, fissures verticales courtes
+	return _plaques(14, 12, 0.8, 0.5, 2.0, 151, 0.45, 0.22, 0.3, 0.38, 0.7, rampe(R_EPICEA), 6, Vector2i(8, 16))
 # ------------------------------------------------------------------ pin : plaques orangées / crevasses grises
 const R_PIN_HAUT := ["#2c161b", "#4b2321", "#703224", "#92472a", "#b4602f", "#d4803c", "#eea560"]
-const R_PIN_PIED := ["#1c1620", "#2f2829", "#463b38", "#5f5144", "#7c6d5e", "#9c8c7a"]
+const R_PIN_PIED := ["#1c1620", "#2b2527", "#3a3231", "#483f3a", "#574d45", "#675b50"]
 static func pin_haut() -> Image:
-	var v := _voronoi(6, 6, 0.85, 1.0, 1.1, 0.5, 5.0, 201)
-	var gap: PackedFloat32Array = v["gap"]
-	var id: PackedFloat32Array = v["id"]
-	var f1: PackedFloat32Array = v["f1"]
-	# écailles minces qui se détachent : petit réseau dont seules les arêtes sont tracées
-	var w := _voronoi(13, 11, 0.9, 1.0, 1.0, 0.5, 3.0, 211)
-	var gap2: PackedFloat32Array = w["gap"]
-	var id2: PackedFloat32Array = w["id"]
-	var lent := _champ(3, 4, 221)
-	var fin := _champ(10, 10, 231)
-	var H := PackedFloat32Array()
-	H.resize(N * N)
-	var lum := PackedFloat32Array()
-	lum.resize(N * N)
-	for i in N * N:
-		var pl := smoothstep(0.0, 1.8, gap[i])
-		var ec := smoothstep(0.0, 1.2, gap2[i])
-		H[i] = clampf(pl * 0.62 + ec * 0.2 * _st(0.55, id2[i]) + (fin[i] - 0.5) * 0.12 + 0.16, 0.0, 1.0)
-	var L := _lumiere(H)
-	for i in N * N:
-		var famille := 0.4 + 0.2 * floorf(id[i] * 3.0) / 2.0   # trois familles de plaques : sombre / moyenne / claire
-		var crevasse := 1.0 - smoothstep(0.0, 1.0, gap[i])
-		var eclat := (1.0 - smoothstep(0.0, 0.9, gap2[i])) * _st(0.55, id2[i])
-		lum[i] = famille + 0.14 * (id[i] - 0.5) + 0.12 * (lent[i] - 0.5) + 0.5 * L[i] - 0.4 * crevasse - 0.12 * eclat + 0.1 * eclat * (id2[i] - 0.5) + 0.06 * (fin[i] - 0.5)
-	_fissures(H, lum, 3, 31, 0.9, 10, 22, 0.9)
-	return _finir(lum, H, rampe(R_PIN_HAUT), 201)
-
+	# fines plaquettes orangées qui pèlent, valeurs proches
+	return _plaques(12, 14, 0.8, 0.5, 2.0, 201, 0.55, 0.2, 0.4, 0.34, 0.6, rampe(R_PIN_HAUT), 3, Vector2i(6, 12))
 static func pin_pied() -> Image:
-	# longues crêtes grises séparées par des crevasses profondes
-	var v := _voronoi(7, 3, 0.7, 1.0, 0.45, 0.0, 7.0, 251)
-	var gap: PackedFloat32Array = v["gap"]
-	var id: PackedFloat32Array = v["id"]
-	var f1: PackedFloat32Array = v["f1"]
-	var fin := _champ(10, 14, 261)
-	var H := PackedFloat32Array()
-	H.resize(N * N)
-	var lum := PackedFloat32Array()
-	lum.resize(N * N)
-	for i in N * N:
-		H[i] = clampf(smoothstep(0.0, 3.0, gap[i]) * 0.85 + (fin[i] - 0.5) * 0.18 + 0.1, 0.0, 1.0)
-	var L := _lumiere(H)
-	for i in N * N:
-		var crevasse := 1.0 - smoothstep(0.0, 1.3, gap[i])
-		lum[i] = 0.42 + 0.18 * id[i] + 0.2 * (H[i] - 0.5) + 0.55 * L[i] - 0.42 * crevasse + 0.1 * (fin[i] - 0.5)
-	_fissures(H, lum, 5, 41, 1.2, 20, 40, 1.0)
-	return _finir(lum, H, rampe(R_PIN_PIED), 251)
-
+	# plaques allongées verticalement (≈ 1:4), longues crevasses grises
+	return _plaques(16, 3, 0.5, 0.5, 2.0, 251, 0.46, 0.3, 0.4, 0.55, 1.1, rampe(R_PIN_PIED), 8, Vector2i(16, 34))
 # ------------------------------------------------------------------ bouleau : papier blanc, lenticelles, losanges noirs
 const R_BOULEAU := ["#14121a", "#2b2935", "#47465a", "#686d8a", "#8e93ad", "#b4b8ca", "#d3d5e0", "#ebe9ea", "#f6f1e7"]
 const R_BOULEAU_PIED := ["#0f0e14", "#1a1820", "#2a2831", "#3d3b47", "#57566a", "#787f9e"]
@@ -430,7 +369,7 @@ static func bouleau_pied() -> Image:
 	# restes de papier blanc, hauts de crête
 	var pap := _champ(4, 5, 371)
 	for i in N * N:
-		if pap[i] > 0.74 and H[i] > 0.6:
+		if pap[i] > 0.82 and H[i] > 0.65:
 			lum[i] = maxf(lum[i], 0.72 + (pap[i] - 0.74) * 0.8)
 	return _finir(lum, H, rampe(R_BOULEAU_PIED), 351)
 

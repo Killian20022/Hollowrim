@@ -189,7 +189,7 @@ static func _fut(st: SurfaceTool, rt: RandomNumberGenerator, anneaux: Array, cot
 					_vert(st, pts[q], v[0], v[1], Vector2(u, -float(anneaux[jj][0]) / 2.0), v[2])
 
 ## Contreforts : `n` racines en prismes à 4 pans qui partent du fût, s'écartent et plongent dans la neige.
-static func _racines(st: SurfaceTool, rt: RandomNumberGenerator, n: int, r: float, cx: float, cz: float, haut := 0.8, ampleur := 1.0) -> void:
+static func _racines(st: SurfaceTool, rt: RandomNumberGenerator, n: int, r: float, cx: float, cz: float, haut := 0.8, ampleur := 1.0, simple := false) -> void:
 	var off := rt.randf() * TAU
 	for i in n:
 		var ang := off + TAU * (i + rt.randf_range(-0.25, 0.25)) / n
@@ -200,17 +200,20 @@ static func _racines(st: SurfaceTool, rt: RandomNumberGenerator, n: int, r: floa
 		var p0 := o + d * r * 0.6 + Vector3(0, haut * rt.randf_range(0.8, 1.2), 0)
 		var p1 := o + d * (r * 0.95 + L * 0.35) + Vector3(0, haut * 0.28, 0)
 		var p2 := o + d * (r * 0.8 + L) + Vector3(0, -0.32, 0)
+		if simple:
+			_bois(st, p0, p2, rr, rr * 0.45, 3, Color(0.58, 0.58, 0.58), true, -p0.y / 2.0, 1.0, 0.7)
+			continue
 		_bois(st, p0, p1, rr, rr * 0.8, 4, Color(0.62, 0.62, 0.62), true, -p0.y / 2.0, 1.0, 0.7)
 		_bois(st, p1, p2, rr * 0.8, rr * 0.45, 4, Color(0.55, 0.55, 0.55), true, -p1.y / 2.0, 1.0, 0.7)
 
 ## Chicots : moignons de branches mortes sur le fût (prismes à 4 pans).
-static func _chicots(st: SurfaceTool, rt: RandomNumberGenerator, n: int, y0: float, y1: float, r: float, cx: float, cz: float, rayon_fut: float) -> void:
+static func _chicots(st: SurfaceTool, rt: RandomNumberGenerator, n: int, y0: float, y1: float, r: float, cx: float, cz: float, rayon_fut: float, cotes := 4) -> void:
 	for i in n:
 		var y := rt.randf_range(y0, y1)
 		var a := rt.randf() * TAU
 		var d := Vector3(cos(a), rt.randf_range(-0.1, 0.35), sin(a))
 		var o := Vector3(cx + cos(a) * rayon_fut * 0.7, y, cz + sin(a) * rayon_fut * 0.7)
-		_bois(st, o, o + d * rt.randf_range(0.14, 0.36), r, r * 0.55, 4, Color(0.78, 0.78, 0.78), true)
+		_bois(st, o, o + d * rt.randf_range(0.14, 0.36), r, r * 0.55, cotes, Color(0.78, 0.78, 0.78), true)
 
 # --- Lot 2 : épicéa en cartes de rameaux ----------------------------------------------------------
 const RAMEAU := preload("res://shaders/ps1_rameau.gdshader")
@@ -395,8 +398,8 @@ static func _forme_epicea(forme: int) -> Dictionary:
 static func _fut_epicea(st: SurfaceTool, graine: int, r: float, H: float, bas: float, lod: bool) -> void:
 	var rt := RandomNumberGenerator.new()
 	rt.seed = graine * 31 + 7
-	var ys: Array = [-0.5, 0.3, 1.4, H] if lod else [-0.5, -0.05, 0.25, 0.7, 1.4, 2.6, H * 0.55, H]
-	var fl: Array = [1.7, 1.05, 1.0, 0.35] if lod else [1.75, 1.4, 1.14, 1.05, 1.0, 0.94, 0.72, 0.35]
+	var ys: Array = [-0.5, 0.3, 1.4, H] if lod else [-0.5, 0.1, 1.2, H * 0.55, H]
+	var fl: Array = [1.7, 1.05, 1.0, 0.35] if lod else [1.75, 1.3, 1.02, 0.72, 0.35]
 	var an: Array = []
 	for i in ys.size():
 		an.append([ys[i], r * fl[i], 0.0, 0.0])
@@ -406,10 +409,9 @@ static func _fut_epicea(st: SurfaceTool, graine: int, r: float, H: float, bas: f
 		if y < 1.0:
 			return lerpf(0.52, 0.8, y)
 		return lerpf(0.74, 0.95, clampf((y - 1.0) / (H - 1.0), 0.0, 1.0))
-	_fut(st, rt, an, 4 if lod else 8, {"pied": Vector2(0.35, 1.7), "ao": ao, "mousse": 1.0, "vent": 0.5})
+	_fut(st, rt, an, 4 if lod else 6, {"pied": Vector2(0.35, 1.7), "ao": ao, "mousse": 1.0, "vent": 0.5})
 	if not lod:
-		_racines(st, rt, 4, r, 0.0, 0.0, 0.7, 0.9)
-		_chicots(st, rt, 4, 1.0, minf(2.6, bas + 1.4), 0.022, 0.0, 0.0, r)
+		_racines(st, rt, 3, r, 0.0, 0.0, 0.7, 0.9, true)
 
 ## Épicéa : `forme` 0 élancé, 1 large et touffu, 2 jeune et clairsemé. Squelette (hauteur, largeur,
 ## étages) identique à l'ancien modèle ; le feuillage est fait de cartes de rameaux en pixel art
@@ -597,7 +599,7 @@ static func materiaux_essence(nom: String) -> Array:
 	if not _mats_essences.has(nom) or not is_instance_valid(_mats_essences[nom][0]):
 		match nom:
 			"pin":
-				_mats_essences[nom] = [materiau_tronc("pin_haut", "pin_pied", Color(1.05, 1.0, 1.02), 0.5),
+				_mats_essences[nom] = [materiau_tronc("pin_haut", "pin_pied", Color(1.05, 1.0, 1.02), 0.25),
 					materiau_rameau(TexturesArbres.atlas_pin(), Color(1.15, 1.22, 1.25))]
 			"bouleau":
 				_mats_essences[nom] = [materiau_tronc("bouleau_haut", "bouleau_pied", Color(0.95, 0.95, 1.0), 0.3),
@@ -623,7 +625,7 @@ static func _st() -> SurfaceTool:
 ## branches tombées, couronne haute et irrégulière de grosses branches relevées portant des houppes
 ## d'aiguilles (cartes de rameaux de pin pliées en toit). Surfaces : 0 bois (ps1), 1 houppes (ps1_rameau).
 ## Fût du pin : 8 pans à travers les points `fut` (sinueux), racines, chicots ; écorce du pied jusqu'à ~3 m.
-static func _fut_pin(st: SurfaceTool, graine: int, fut: Array, H: float) -> void:
+static func _fut_pin(st: SurfaceTool, graine: int, fut: Array, H: float, lod := false) -> void:
 	var rt := RandomNumberGenerator.new()
 	rt.seed = graine * 17 + 3
 	var an: Array = [[-0.5, 0.17 * 1.9, 0.0, 0.0], [0.0, 0.17 * 1.45, 0.0, 0.0], [0.6, 0.17 * 1.15, 0.0, 0.0], [1.5, 0.165, 0.0, 0.0]]
@@ -643,10 +645,11 @@ static func _fut_pin(st: SurfaceTool, graine: int, fut: Array, H: float) -> void
 		if y < 1.2:
 			return lerpf(0.5, 0.82, y / 1.2)
 		return 0.95 if y < H * 0.5 else lerpf(0.95, 0.7, clampf((y - H * 0.5) / (H * 0.4), 0.0, 1.0))
-	_fut(st, rt, an, 8, {"pied": Vector2(0.9, 2.8), "ao": ao, "mousse": 0.7, "vent": 0.6, "irr": 0.06})
-	_racines(st, rt, 4, 0.17, 0.0, 0.0, 0.9, 1.0)
+	_fut(st, rt, an, 4 if lod else 6, {"pied": Vector2(0.9, 2.8), "ao": ao, "mousse": 0.7, "vent": 0.6, "irr": 0.06})
+	if not lod:
+		_racines(st, rt, 4, 0.17, 0.0, 0.0, 0.9, 1.0)
 
-static func pin(graine: int, mats: Array) -> ArrayMesh:
+static func pin(graine: int, mats: Array, lod := false) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var bois := _st()
@@ -659,7 +662,7 @@ static func pin(graine: int, mats: Array) -> ArrayMesh:
 	for i in 4:
 		var y := H * (i + 1) / 4.0
 		fut.append(Vector3(rng.randf_range(-0.12, 0.12), y, rng.randf_range(-0.12, 0.12)))
-	_fut_pin(bois, graine, fut, H)
+	_fut_pin(bois, graine, fut, H, lod)
 	# chicots (branches mortes cassées) sur le fût
 	for i in 5:
 		var y := rng.randf_range(2.5, H * 0.6)
@@ -697,7 +700,7 @@ static func pin(graine: int, mats: Array) -> ArrayMesh:
 ## montantes qui s'arquent, voile de ramilles pendantes violacées (cartes verticales).
 ## Surfaces : 0 bois (ps1), 1 ramilles (ps1_rameau, sans dessous distinct).
 ## Fût du bouleau : 8 pans, blanc à lenticelles, pied crevassé sombre jusqu'à ~1,2 m, petits contreforts.
-static func _fut_bouleau(st: SurfaceTool, graine: int, fut: Array, H: float) -> void:
+static func _fut_bouleau(st: SurfaceTool, graine: int, fut: Array, H: float, lod := false) -> void:
 	var rt := RandomNumberGenerator.new()
 	rt.seed = graine * 13 + 5
 	var an: Array = [[-0.5, 0.16 * 1.7, 0.0, 0.0], [0.0, 0.16 * 1.35, 0.0, 0.0], [0.5, 0.16 * 1.1, 0.0, 0.0]]
@@ -713,10 +716,11 @@ static func _fut_bouleau(st: SurfaceTool, graine: int, fut: Array, H: float) -> 
 		if y < 0.0:
 			return 0.5
 		return lerpf(0.62, 0.98, clampf(y / 1.5, 0.0, 1.0))
-	_fut(st, rt, an, 8, {"pied": Vector2(0.5, 1.5), "ao": ao, "mousse": 0.3, "vent": 0.5, "irr": 0.05})
-	_racines(st, rt, 3, 0.16, 0.0, 0.0, 0.7, 0.85)
+	_fut(st, rt, an, 4 if lod else 6, {"pied": Vector2(0.5, 1.5), "ao": ao, "mousse": 0.3, "vent": 0.5, "irr": 0.05})
+	if not lod:
+		_racines(st, rt, 3, 0.16, 0.0, 0.0, 0.7, 0.85)
 
-static func bouleau(graine: int, mats: Array) -> ArrayMesh:
+static func bouleau(graine: int, mats: Array, lod := false) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var bois := _st()
@@ -727,7 +731,7 @@ static func bouleau(graine: int, mats: Array) -> ArrayMesh:
 	for i in 4:
 		var t := (i + 1) / 4.0
 		fut.append(penche * t * t + Vector3(rng.randf_range(-0.08, 0.08), H * t, rng.randf_range(-0.08, 0.08)))
-	_fut_bouleau(bois, graine, fut, H)
+	_fut_bouleau(bois, graine, fut, H, lod)
 	var region := TexturesArbres.uv_region(Rect2i(0, 0, 64, 64))
 	var n := rng.randi_range(9, 12)
 	for b in n:
@@ -767,7 +771,7 @@ static func bouleau(graine: int, mats: Array) -> ArrayMesh:
 ## `materiaux` est gardé pour compatibilité avec les appelants (forêt, sous-bois, zones) : le bois mort
 ## utilise toujours la texture pixel art partagée `materiaux_essence("mort")`.
 ## Fût de l'arbre mort : 8 pans le long de la ligne brisée `fut`, évasé, racines exposées, chicots, fentes.
-static func _fut_mort(st: SurfaceTool, graine: int, fut: Array) -> void:
+static func _fut_mort(st: SurfaceTool, graine: int, fut: Array, lod := false) -> void:
 	var rt := RandomNumberGenerator.new()
 	rt.seed = graine * 19 + 11
 	var an: Array = []
@@ -787,17 +791,19 @@ static func _fut_mort(st: SurfaceTool, graine: int, fut: Array) -> void:
 		if y < 0.0:
 			return 0.5
 		return lerpf(0.6, 1.0, clampf(y / 2.0, 0.0, 1.0))
-	_fut(st, rt, an, 8, {"pied": Vector2(0.3, 1.2), "ao": ao, "mousse": 0.6, "vent": 0.65, "irr": 0.1})
+	_fut(st, rt, an, 4 if lod else 6, {"pied": Vector2(0.3, 1.2), "ao": ao, "mousse": 0.6, "vent": 0.65, "irr": 0.1})
+	if lod:
+		return
 	_racines(st, rt, 4, 0.24, (fut[0] as Vector3).x, (fut[0] as Vector3).z, 0.9, 1.0)
 	_chicots(st, rt, 5, 0.9, 3.8, 0.04, 0.0, 0.0, 0.2)
 
-static func arbre_mort(graine: int, materiaux: Array = []) -> ArrayMesh:
+static func arbre_mort(graine: int, materiaux: Array = [], lod := false) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var bois := _st()
 	var H := rng.randf_range(5.0, 6.4)
 	var fut := _chemin_tordu(rng, Vector3(0, -0.5, 0), Vector3.UP, H + 0.5, 4, 0.12)
-	_fut_mort(bois, graine, fut)
+	_fut_mort(bois, graine, fut, lod)
 	# sommet cassé : éclat pointu de travers
 	var top: Vector3 = fut[4]
 	_bois(bois, top, top + Vector3(rng.randf_range(-0.15, 0.15), 0.55, rng.randf_range(-0.15, 0.15)), 0.08, 0.01, 4, Color(0.9, 0.9, 0.9), false)
