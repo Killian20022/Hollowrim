@@ -1036,3 +1036,6 @@ plus tombantes vers le bout (rideau), `_arc_epicea` : forte retombée en bas, br
 propre à l'arbre / à l'étage / à la branche, neige = branche plus lourde ; flèche parfois penchée. Second RNG (graine*13+5) :
 le placement des branches est inchangé. LOD (1 tronçon) : bout placé à `mid + tip/2` pour garder l'affaissement moyen.
 Textures, couleurs, nombre de triangles : inchangés (0 %). Planches : captures/sapins/planche_avant_apres_{jour,nuit}.png.
+
+## Lot « squelette guerrier » (branche graphisme/squelette-guerrier)
+Nouvel ennemi : squelette nordique (ossements, casque à nasal, bouclier rond ébréché, épée ou arc). Fiche : `docs/PERSONNAGES_TECH.md`. 552 tris corps + 38 épée / 44 arc, 25 os, atlas 256² à 32 texels/m. Intégré à `draugr.gd` (types `squelette`, `squelette_archer`), 3 gardiens dans l'ossuaire (`cr_ossuaire_sq1/sq2/sqa`, identifiants fixes). Tests : `test_squelette` (apparition, coups, mort/ragdoll, sauvegarde, crypte), `test_squelette_traversees` (bouclier/lame contre le corps sur 10 animations : 0 traversée sur Idle, Sword_Idle, Walk, Jog_Fwd, Sword_Attack, Hit_*; Punch_Cross/Sprint/Death01 : bouclier dans la cage jusqu'à 71 mm ; le squelette n'utilise donc que Sword_Attack). Planches : `captures/squelette/`.

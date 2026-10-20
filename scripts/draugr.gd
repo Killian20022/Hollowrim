@@ -264,7 +264,7 @@ func _physics_process(dt: float) -> void:
 			else:
 				_jouer("Sword_Idle")
 				if _recharge <= 0.0:
-					_attaque = ATTAQUES.pick_random()
+					_attaque = (["Sword_Attack"] if _os else ATTAQUES).pick_random()  # le squelette frappe à l’arme (pas de coup de poing : la lame traverserait la tête)
 					_coup_donne = false
 					_changer(ATTAQUE)
 					_jouer(_attaque, 0.1, true)

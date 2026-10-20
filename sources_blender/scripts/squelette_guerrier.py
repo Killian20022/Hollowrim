@@ -80,9 +80,11 @@ def loft(M, bone, rings, cls, part, caps=True, apex=None, pits=None, **kw):
 def ring_rect(c, s, f, hs, hf):
     return [c + s * hs + f * hf, c + s * hs - f * hf, c - s * hs - f * hf, c - s * hs + f * hf]
 
+EPAIS = 1.22     # os longs plus epais (lisibles a 20 m) ; les epiphyses (extremites) en profitent aussi
+
 def os_long(M, bone, a, b, stations, side, front, part, cls="os"):
     ax = b - a
-    rings = [ring_rect(a + ax * t, side, front, hs, hf) for t, hs, hf in stations]
+    rings = [ring_rect(a + ax * t, side, front, hs * EPAIS, hf * EPAIS) for t, hs, hf in stations]
     return loft(M, bone, rings, cls, part)
 
 def mir(p):
@@ -148,6 +150,12 @@ for sg, nom in ((1, "l"), (-1, "r")):
     x = sg * 0.114
     loft(M, "foot_" + nom, [[V(x + 0.032, 0.125, 0.0), V(x - 0.032, 0.125, 0.0), V(x - 0.030, 0.125, 0.096), V(x + 0.030, 0.125, 0.096)],
                             [V(x + 0.046, -0.215, 0.0), V(x - 0.046, -0.215, 0.0), V(x - 0.040, -0.215, 0.034), V(x + 0.040, -0.215, 0.034)]], "os", "pied_" + nom)
+
+# tete : un peu plus grosse (lisibilite a distance), echelle autour de la nuque
+CTR = V(0.0, 0.03, 1.75)
+for i, b in enumerate(corps.bone):
+    if b == "Head":
+        corps.v[i] = CTR + (corps.v[i] - CTR) * 1.12
 
 # bouclier rond ebreche, fixe a l'avant-bras gauche (face vers l'avant = -Y)
 SC = V(0.600, 0.065 - 0.155, 1.456)
