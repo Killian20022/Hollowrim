@@ -1,0 +1,13 @@
+# Poses du lot 2 (arbres) : nom x,z,lacet°,tangage° (lacet 0 = nord/-Z, 90 = ouest, 180 = sud, -90 = est)
+# A2 gros plan d'épicéa (bout des branches à ~1 m), A10 épicéa à 10 m, A30 lisière, A90 horizon
+A2 2.7,-7.2,0,10
+A10 2.7,-1.4,0,6
+A30 2,-2,60,2
+A90 -4,-3,135,1
+# essences secondaires : B pins (butte), C bouleau (creux), D arbre mort, M plan moyen mélangé
+B5 -8.9,-12.3,0,12
+C5 -4.0,-21.8,10,8
+D6 -36,-25,115,10
+M10 -12,-10,-24,4
+# scintillement : A30 décalée de 12 cm et 0,4° (comparer A30 / S30 avant et après)
+S30 2.12,-2.05,60.4,2

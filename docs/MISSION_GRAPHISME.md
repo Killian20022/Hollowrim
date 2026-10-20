@@ -232,3 +232,70 @@ doigts du poing qui s'écartent (les poings sont fermés sur l'épée dans les 5
 ### Tests et perf
 - Tests headless : test_quetes (--nouvelle), test_sauvegarde (ecrire puis verifier), test_dragon_monde, test_marche_pnj, test_degats_sanctuaire : OK. test_mort_ragdoll : OK (sortie 5 une fois pendant que le test du sanctuaire tournait en parallèle ; relancé seul : OK, code 0).
 - `outils/mesure_perf.gd` au feu (`--nouvelle --paisible --pose=2.5,8.5,16,4`, vsync off) : avant 6,88 / 6,67 ms GPU, après 6,87 / 6,95 ms (moyenne 6,78 → 6,91, +0,13 ms), 631 → 632 appels de dessin, primitives 330 k → 335 k.
+
+## Journal — Lot 2 (vrais beaux arbres en pixel art), branche `graphisme/lot2-arbres`
+
+Retour utilisateur visé : « ça fait toujours des paquets… faudrait vraiment des branches avec des feuilles ». Les épicéas ne sont plus des étoiles
+de triangles pleins : chaque branche est une carte de rameau dessinée en pixel art, posée le long de la branche, avec du ciel entre les étages.
+
+### Fichiers
+- `scripts/textures_arbres.gd` (nouveau, `TexturesArbres`) : toutes les textures générées en code, RNG propres (aucun tirage du RNG monde).
+  Palettes tirées de la bible : `AIGUILLES` (6 verts), `ECORCE`, `PIN` (écorce orangée), `BOULEAU`, `BOIS_MORT`, `NEIGE`.
+  Mipmaps « pixel art » maison (`avec_mips`) : chaque niveau vote la couleur majoritaire d'un bloc 2x2 et reste opaque si ≥ `seuil` pixels
+  sur 4 le sont → pas de bouillie ni de scintillement des cartes à distance.
+  Atlas épicéa 128x128 : rameaux longs A/B (64x64), courts A/B (32x32), flèche, cœur, 8 crêtes de neige (64x8). Rameau `rameau_epicea` =
+  arête de poisson : tige centrale, rameaux secondaires alternés, aiguilles en traits courts (dessus clair, dessous sombre), bois au cœur,
+  un paquet de neige par rameau posé côté dessus, contour sombre sélectif. Atlas pin (touffes + calottes de neige), bouleau (ramilles
+  pendantes), écorces épicéa/pin/bouleau (lenticelles, bandes sombres), bois mort.
+- `shaders/ps1_rameau.gdshader` (nouveau) : dérivé de `ps1_herbe` (même accroche à la grille de 135 lignes, même affine, nearest),
+  double face, découpe alpha ≥ 0,5, `filter_nearest_mipmap`. Normale de feuillage fournie par le maillage (radiale + haut : volume doux
+  de la couronne). Face arrière : assombrie (`dessous` 0,7) et neige remplacée par `couleur_dessous` (la neige est sur le dessus) ;
+  `COLOR.a < 0,5` désactive ce traitement (crêtes de neige, flèche).
+- `scripts/arbres.gd` : nouveaux modèles. `epicea(forme, graine, materiaux, lod)` : tronc à écorce texturée (pied neigeux par l'alpha
+  de sommet, mousse au nord, plus sombre sous 1,5 m), 6-10 étages, 5-11 branches par étage. Une branche (`_rameau`) = tige en 2
+  segments qui retombe puis remonte au bout (`chute` 0,42 L en bas → -0,05 L en haut), carte pliée en toit (deux ailes inclinées de
+  `pli` ≈ 0,62 rad sous l'horizontale, texture coupée le long de la tige dessinée), crête de neige verticale sur les branches > 0,8 m.
+  Réglages dans `REGLAGES_EPICEA` (teinte, pli, aile, crête). Flèche = 2 cartes croisées. Version lointaine (`lod`) : moins de branches,
+  plus longues, sans crête. `epicea_ombre` : proxy OPAQUE (étoiles d'étages + tronc à 3 pans, ~130 triangles) utilisé seul pour les
+  ombres. `pin()` (tronc sinueux nu, couronne haute de touffes), `bouleau()` (tronc blanc penché, branches en arc, ramilles pendantes),
+  `arbre_mort()` (tronc tordu cassé, branches nues dont 20 % brisées), `buisson()`/`semis()` refaits en rameaux.
+- `scripts/vegetation.gd` : modèles et matériaux construits une fois (« Lot 2 : textures et modèles d'arbres en ~185 ms »).
+  Deux graines par forme d'épicéa (choix par `ZoneBiome.alea_pos(x,z,11)`) pour casser la répétition ; ombre et LOD partagés.
+  Essences dans la zone témoin seulement : `ZoneBiome.alea_pos(x,z,7)` décide ; pin sur butte (`h - hm > PIN_BUTTE` 0,3, part 0,75),
+  bouleau au creux (`h - hm < BOULEAU_CREUX` -0,4, part 0,4) → 10 pins, 10 bouleaux. Aucun arbre ajouté ni déplacé.
+- `scripts/instanciation.gd` : réglages `ombre_mesh` (maillage de la MMI d'ombre seule) et `principal` (false = pas de MMI principale).
+- `scripts/monde.gd` : `--sans-mains` pour les captures. `outils/test_biome.gd` : `--sans-cles` (fusionne les transformées de toutes
+  les clés : compare le placement indépendamment des modèles). `outils/revue_visuelle.sh` compare désormais avec `--sans-cles`.
+- Outils : `outils/captures_arbres.sh <dossier> [poses]` (jour+nuit, `PHASES=jour`), `outils/poses_arbres.txt` (A2 gros plan,
+  A10, A30 lisière, A90 horizon, M10 arbre mort, B5 bouleau, C5 pin, D6, S30 = A30 décalé de 12 cm pour le scintillement),
+  `outils/planche_arbres.gd` (textures x8 + mips dans `captures/arbres/textures/`), `outils/trouver_arbres.gd`, `outils/planche.gd`
+  (4e argument : liste des poses).
+
+### Invariance hors zone (justifiée)
+Le placement est identique partout : `test_biome comparer ref_ancien_fenetre.sig --sans-zone --sans-cles` → OK, et
+`comparer ref_lot2_avant_fenetre.sig --sans-cles` (carte entière, état d'avant le lot) → OK. Les MODÈLES changent hors zone aussi
+(tous les épicéas, arbres morts, genévriers) : garder les anciens « paquets » hors zone aurait donné deux forêts incohérentes ; la
+référence sans `--sans-cles` diffère donc forcément (clés = AABB/sommets des maillages). Pins et bouleaux restent dans la zone.
+
+### Perf (feu, `--nouvelle --paisible --pose=2.5,8.5,16,4`, vsync off, seul)
+- HEAD avant lot : 6,87 ms GPU, 632 appels, 335 k primitives. Après : 7,36 / 7,47 / 7,50 ms (mesures précédentes 7,0-7,1), 661 appels,
+  366 k primitives (budget 8 ms tenu).
+- Les cartes alpha dans la passe d'ombre coûtaient ~3 ms (9,7 ms) → proxy d'ombre opaque. Des MMI séparées par graine coûtaient
+  ~0,8 ms → ombre et LOD partagés entre graines.
+- Chargement : +~185 ms (textures + modèles), sous les +0,5 s.
+- Scintillement (proxy) : A30 vs S30 (caméra décalée de 12 cm), pixels changés 25,1 → 27,9 % le jour, 31,6 → 33,1 % la nuit : faible hausse.
+
+### Tests
+test_quetes OK, test_vegetation_biome conforme, test_chemin_biome 0 échec, test_collisions_biome TOUT OK ; aussi test_sauvegarde,
+test_dragon_monde, test_marche_pnj, test_mort_ragdoll, test_degats_sanctuaire OK.
+
+### Preuves
+`captures/arbres/planches/` : `planche_recap_jour.png`, `planche_recap_nuit.png` (avant/après A2, A10, A30, A90),
+`planche_<pose>.png` par pose (A2, A10, A30, A90, M10, B5, C5, D6 ; jour et nuit), images `avant_*`/`apres_*`.
+Textures : `captures/arbres/textures/`.
+
+### Défauts restants
+- Gros plan (2 m) : les ailes du rameau du bas montrent leur pli et les gros pixels des aiguilles (le grossissement x16 d'une texture
+  64 px) ; quelques « rayons » de rameaux qui partent du tronc se lisent sous l'arbre.
+- Ramilles du bouleau presque invisibles au-delà de ~40 m (mips à seuil 2) ; arbre mort assez maigre.
+- Les matériaux cercle/tumulus de l'ancien arbre mort sont encore créés dans `vegetation.gd` mais plus utilisés par `arbre_mort`.

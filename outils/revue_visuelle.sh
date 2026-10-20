@@ -70,8 +70,9 @@ fi
 
 if [[ -z "${SANS_TESTS:-}" ]]; then
 	log "-- Invariance hors zone (avec fenêtre)"
+	# --sans-cles (lot 2) : compare le placement seul ; les modèles d'arbres ont changé partout.
 	timeout 300 "$G" --path "$(WIN "$ICI")" --resolution 160x90 --script outils/test_biome.gd -- \
-		comparer captures/biome/ref_ancien_fenetre.sig --sans-zone 2>&1 | grep -E "^OK|DIFF|ERREUR" | tee -a "$RESUME"
+		comparer captures/biome/ref_ancien_fenetre.sig --sans-zone --sans-cles 2>&1 | grep -E "^OK|DIFF|ERREUR" | tee -a "$RESUME"
 	log "-- Tests"
 	for t in "test_quetes.gd -- --nouvelle" "test_vegetation_biome.gd" "test_chemin_biome.gd -- --paisible" "test_collisions_biome.gd"; do
 		set -- $t; f=$1; shift

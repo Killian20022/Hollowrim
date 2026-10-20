@@ -829,6 +829,10 @@ func _capture() -> void:
 	for i in (int(_arguments().get("attente", "90"))):
 		await get_tree().process_frame
 	_cacher_particules()
+	if _arguments().has("sans-mains"):
+		joueur.mains.visible = false  # captures de décor (lot 2 : arbres) sans les bras FPS
+		for i in 3:
+			await get_tree().process_frame
 	if _arguments().has("test-combat"):
 		await _test_combat()
 	if _arguments().has("scenario"):
