@@ -248,16 +248,18 @@ func _environnement() -> void:
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.1
-	env.fog_enabled = true
-	env.fog_light_color = Color(0.1, 0.14, 0.22)
-	env.fog_density = 0.024
-	env.fog_sky_affect = 0.15
-	env.fog_height = h_centre + 1.5
-	env.fog_height_density = 0.12
+	env.fog_enabled = true  # lot 7 : brouillard en profondeur, réglé chaque image par cycle.gd (appliquer_brume)
+	env.fog_mode = Environment.FOG_MODE_DEPTH
+	env.fog_light_color = Color(0.05, 0.075, 0.13)
+	env.fog_density = 1.0
+	env.fog_sky_affect = 0.0
 	env.glow_enabled = true
 	env.glow_intensity = 0.7
-	env.glow_bloom = 0.02
+	env.glow_bloom = 0.0
 	env.glow_hdr_threshold = 0.9
+	# halos de flammes nets : seuls les niveaux serrés (2 et 3) restent, plus de voile large
+	for i in 7:
+		env.set_glow_level(i, 1.0 if (i == 1 or i == 2) else 0.0)
 
 	_env = env
 	_ciel = ciel
@@ -275,13 +277,14 @@ func _lune() -> void:
 	lune.shadow_enabled = true
 	lune.shadow_bias = 0.08
 	lune.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	lune.directional_shadow_max_distance = 70.0
+	lune.directional_shadow_max_distance = 62.0  # lot 7 : ombres jusqu'à la fin du brouillard de nuit claire
 	add_child(lune)
 	cycle = Node.new()
 	cycle.set_script(CYCLE)
 	cycle.env = _env
 	cycle.lumiere = lune
 	cycle.ciel = _ciel
+	cycle.appliquer_brume()
 	var h: String = _arguments().get("heure", "")
 	if h != "":
 		cycle.heure = float(h)
@@ -592,6 +595,8 @@ func _sous_terre(dedans: bool) -> void:
 	# Lot 7a : pénombre bleutée lisible (ambiant plus clair), brume courte et froide, pas de glow (halos nets,
 	# dessinés dans la crypte) et tramage du post-traitement adouci (le Bayer 4x4 grésille dans le sombre).
 	_env.glow_enabled = not dedans
+	_sous_terre_actif = dedans
+	_env.fog_mode = Environment.FOG_MODE_EXPONENTIAL if dedans else Environment.FOG_MODE_DEPTH
 	post.set_shader_parameter("tramage", 0.45 if dedans else 1.0)
 	if dedans:
 		_env.ambient_light_color = Color(0.40, 0.45, 0.62)
@@ -599,8 +604,8 @@ func _sous_terre(dedans: bool) -> void:
 		_env.fog_light_color = Color(0.03, 0.045, 0.08)
 		_env.fog_density = 0.028
 		_env.fog_height_density = 0.0
+		_env.fog_sky_affect = 1.0
 	else:
-		_env.fog_height_density = 0.12
 		cycle._process(0.0)
 
 # --- draugrs ---------------------------------------------------------------------
@@ -800,6 +805,7 @@ func charger() -> void:
 
 func _process(dt: float) -> void:
 	_t += dt
+	_brume_locale(dt)
 	neige.global_position = joueur.global_position + Vector3(0, 10, 0)
 	# le feu vacille : deux sinus désaccordés + un peu de hasard
 	feu_lumiere.light_energy = 3.2 + sin(_t * 11.0) * 0.25 + sin(_t * 23.7) * 0.18 + randf() * 0.25
@@ -810,6 +816,42 @@ func _process(dt: float) -> void:
 	if _minuterie_sauvegarde > 120.0 and not _arguments().has("capture"):
 		_minuterie_sauvegarde = 0.0
 		sauvegarder()
+
+## Lot 7 : distance du brouillard variable. Creux et forêt dense : la brume se resserre (jusqu'à -35 %) ;
+## crêtes : elle se dégage (jusqu'à +25 %), récompense d'exploration. Lissé sur ~1,5 s ; `net` = sans lissage (captures).
+var _brume_t := 0.0
+func _brume_locale(dt: float, net := false) -> void:
+	if cycle == null or joueur == null:
+		return
+	_brume_t -= dt
+	if _brume_t > 0.0 and not net:
+		cycle.local = lerpf(cycle.local, _brume_cible, minf(dt * 0.8, 1.0))
+		if abs(cycle.local - _brume_cible) > 0.002:
+			cycle.appliquer_brume()
+		return
+	_brume_t = 0.4
+	var p := joueur.global_position
+	if _sous_terre_actif:
+		return
+	var moy := 0.0
+	for k in 8:
+		var a := k * TAU / 8.0
+		moy += hauteur(p.x + cos(a) * 20.0, p.z + sin(a) * 20.0) / 8.0
+	var relief := clampf((p.y - moy) * 0.05, -0.2, 0.25)
+	var n := 0
+	for t: Transform3D in arbres:
+		var dx := t.origin.x - p.x
+		var dz := t.origin.z - p.z
+		if dx * dx + dz * dz < 196.0:  # 14 m
+			n += 1
+	var foret := -0.15 * clampf(n / 24.0, 0.0, 1.0)
+	_brume_cible = 1.0 + relief + foret
+	if net:
+		cycle.local = _brume_cible
+		cycle.appliquer_brume()
+
+var _brume_cible := 1.0
+var _sous_terre_actif := false
 
 func _musique() -> void:
 	var m := Node.new()
@@ -1041,6 +1083,7 @@ func _lot_captures(fichier: String) -> void:
 				joueur.rotation.y = deg_to_rad(c[2])
 				joueur.tete.rotation.x = deg_to_rad(c[3]) if c.size() > 3 else 0.0
 				joueur.velocity = Vector3.ZERO
+				_brume_locale(0.0, true)
 		elif type == "crypte":
 			if dessous == "":
 				tertre._passer(true)
@@ -1091,7 +1134,9 @@ func _etat_lumiere() -> Dictionary:
 	return {
 		"basis": cycle.lumiere.basis, "couleur": cycle.lumiere.light_color, "energie": cycle.lumiere.light_energy,
 		"amb": _env.ambient_light_color, "amb_e": _env.ambient_light_energy,
-		"brume": _env.fog_light_color, "dens": _env.fog_density,
+		"brume": _env.fog_light_color, "dens": _env.fog_density, "local": cycle.local,
+		"horizon": cycle._horizon, "fin_base": cycle._fin_base, "expo": _env.tonemap_exposure, "seuil_glow": _env.glow_hdr_threshold,
+		"ciel_horizon": _ciel.get_shader_parameter("horizon_courant"), "ciel_haut": _ciel.get_shader_parameter("haut_courant"),
 		"jour": _ciel.get_shader_parameter("jour"), "soleil": _ciel.get_shader_parameter("soleil"),
 	}
 
@@ -1103,6 +1148,14 @@ func _restaurer_lumiere(e: Dictionary) -> void:
 	_env.ambient_light_energy = e["amb_e"]
 	_env.fog_light_color = e["brume"]
 	_env.fog_density = e["dens"]
+	cycle.local = e["local"]
+	cycle._horizon = e["horizon"]
+	cycle._fin_base = e["fin_base"]
+	_env.tonemap_exposure = e["expo"]
+	_env.glow_hdr_threshold = e["seuil_glow"]
+	_ciel.set_shader_parameter("horizon_courant", e["ciel_horizon"])
+	_ciel.set_shader_parameter("haut_courant", e["ciel_haut"])
+	cycle.appliquer_brume()
 	_ciel.set_shader_parameter("jour", e["jour"])
 	_ciel.set_shader_parameter("soleil", e["soleil"])
 

@@ -773,3 +773,15 @@ Dans la grotte, la position sauvegardée est celle du fichier (y ≈ -215) ; au 
 - Front de roche en grandes facettes à 4 strates : de près on voit les bandes horizontales, les quads de la jupe et du toit restent lisses ; pas de LOD (1 828 facettes, 14 matières de coque fusionnées par cellule de 10 m).
 - Les bandits ne retrouvent pas leur chemin dans le boyau (script commun avec les draugrs).
 - La fenêtre de jour (s = 0) de la grotte reste une carte de brume blanche (vue de l'intérieur uniquement).
+
+## Journal — Lot 7 (lumière, brouillard de distance), branche `graphisme/lot7-lumiere`
+
+- **Brouillard de distance** : mode PROFONDEUR de Godot (`cycle.appliquer_brume`), valable pour tous les matériaux sans toucher aux shaders. Net jusqu'à `fin × 0,36`, effacement jusqu'à `fin`, brume seule au-delà. `fin` : nuit 60 m, jour 50 m ; facteur local (`monde._brume_locale`) : creux −20 %, crête +25 %, forêt dense −15 % ; tempête : `cycle.tempete` (0..1) → 27 m. Règle détaillée dans SOCLE_TECHNIQUE §3 bis.
+- **Couleur** : brume = horizon du ciel (uniforms `horizon_courant` / `haut_courant` du shader de ciel) ; ciel lisible (`fog_sky_affect` = 0). Nuit : horizon un peu plus sombre qu'avant (0.05,0.075,0.13), loin plus noir, aurore/lune/étoiles intactes.
+- **Portées** : `camera.far` 180 → 90 ; arbres complets 90 → 48 m, silhouettes LOD 44-80 m, rochers 120 → 80 m, ombres de la lune 70 → 62 m.
+- **Jour** : ambiant 0,75 → 0,62 (plus bleu), exposition 1,0, soleil plus haut et plus fort (1,05 → 1,45), horizon moins blanc ; crépuscule distinct (horizon rose-violet, `crep`) ; glow : niveaux serrés seulement, seuil HDR 0,9 la nuit → 1,25 le jour, `glow_bloom` 0.
+- **Post-traitement** : Bayer 15 bits conservé, atténué à 30 % sur les arêtes franches (bords d'arbres, silhouettes sur l'aurore).
+- **Mesures** (mesure_perf, vsync off, 3 autres Godot actifs) GPU ms avant → après : feu nuit 9,56 → 6,74 ; village nuit 8,48 → 6,71 ; feu jour 9,24 → 7,02 ; vue de crête nuit 11,58 → 6,99. Primitives feu 404 k → 251 k.
+- **Tests** : `tous_les_tests.sh` 15 OK / 0 échec. Sous terre inchangé (comparé avant/après).
+- Planches : `captures/lumiere/planches/avant_apres_{jour,crepuscule,nuit}.png` (avant | après ; poses feu, chemin, crête, lisière, village).
+- Défauts restants : la crête hors zone témoin montre le sol vert de l'ancien biome ; le « pop » mesh complet → LOD à 44-48 m n'est pas mesuré à l'oeil en mouvement ; village : le crépuscule de scénario non vérifié séparément.
