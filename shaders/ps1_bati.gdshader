@@ -23,6 +23,7 @@ uniform float relief = 0.8;           // force du relief sur la normale (0 = auc
 uniform vec2 proche = vec2(3.0, 10.0);// fondu tramé 32 → 16 texels/m (mètres de la caméra)
 uniform vec2 decalage = vec2(0.0);    // décalage de la tuile (texels)
 uniform bool uv_maillage = false;     // UV du maillage (0..1 sur la pièce) : vitrages
+uniform bool neige_propre = false;    // la neige se lit à sa propre taille (textures `_e` à 64 texels/m)
 uniform bool uv_metres = false;       // UV du maillage en mètres (× texels_par_m / taille de la texture)
 uniform float grille = 135.0;         // lignes de la grille d'accroche (0 = pas de tremblement)
 uniform float affine = 0.0;           // ignoré (gardé pour Palette.regler_ps1)
@@ -88,9 +89,10 @@ void fragment() {
 	float seuil = hash21(floor((uv_metres ? uv_m : m) * 16.0) + 7.0);
 	float biais = f > seuil ? 0.0 : 1.0;
 	vec3 base = texture(tex_base, uv, biais).rgb;
-	vec3 neige = texture(tex_neige, uv, biais).rgb;
+	vec2 uv_n = neige_propre ? uv * taille / vec2(textureSize(tex_neige, 0)) : uv;
+	vec3 neige = texture(tex_neige, uv_n, biais).rgb;
 	vec2 rb = texture(tex_relief, uv, biais).rg * 2.0 - 1.0;
-	vec2 rn = texture(tex_neige_relief, uv, biais).rg * 2.0 - 1.0;
+	vec2 rn = texture(tex_neige_relief, uv_n, biais).rg * 2.0 - 1.0;
 	float est_base = step(0.5, COLOR.a);
 	vec3 couleur = mix(neige, base, est_base);
 	vec2 rg = mix(rn, rb, est_base);

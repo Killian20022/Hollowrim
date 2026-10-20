@@ -30,6 +30,7 @@ var m_fer: ShaderMaterial
 var m_foin: ShaderMaterial
 var m_cuir: ShaderMaterial
 var m_ecorce: ShaderMaterial
+var m_palissade: ShaderMaterial
 var m_fenetre: ShaderMaterial
 var m_braises: ShaderMaterial
 var m_eau: ShaderMaterial
@@ -47,25 +48,26 @@ func _ready() -> void:
 	rng.seed = 99
 	corps = StaticBody3D.new()
 	add_child(corps)
-	# Lot 5 (2e passe) : matières peintes à 32 texels/m, relief sur la normale, mipmaps nearest (TexturesBati)
-	m_planches = TexturesBati.m_planches(Color(0.95, 0.93, 0.92))      # planches horizontales
-	m_poutres = TexturesBati.m_bois_debout(Color(0.92, 0.9, 0.88))      # poteaux, portes, caisses (fil vertical)
-	m_poutres_h = TexturesBati.m_planches(Color(0.9, 0.87, 0.85))       # solives, rives, dessous de toit
-	m_rondins = TexturesBati.m_rondins(Color(1.3, 1.24, 1.18))
+	# Lot « bâti 3 » : matières extérieures peintes à 64 texels/m (textures `_e`, neige `neige_e`), relief sur la normale, mipmaps nearest (TexturesBati)
+	m_planches = TexturesBati.m_planches_e(Color(0.95, 0.93, 0.92))      # planches horizontales
+	m_poutres = TexturesBati.m_bois_debout_e(Color(0.92, 0.9, 0.88))      # poteaux, portes, caisses (fil vertical)
+	m_poutres_h = TexturesBati.m_planches_e(Color(0.9, 0.87, 0.85))       # solives, rives, dessous de toit
+	m_rondins = TexturesBati.m_rondins_e(Color(1.4, 1.32, 1.24))
 	m_bout = TexturesBati.m_bout_rondin()
-	m_ame = TexturesBati.m_planches(Color(0.3, 0.29, 0.32))             # fond sombre derrière les rondins (joints)
-	m_neige = TexturesBati.m_neige_toit()
-	m_toit = TexturesBati.m_tourbe()                                    # toits : alpha 0 = neige, 1 = tourbe sombre
-	m_roche = TexturesBati.m_pierre_seche(Color(1.3, 1.28, 1.32))
-	m_brute = TexturesBati.m_pierre_brute(Color(1.18, 1.16, 1.2))
-	m_pierre_fine = TexturesBati.m_pierre_fine(Color(1.25, 1.23, 1.27))
-	m_fer = TexturesBati.m_fer(Color(0.8, 0.82, 0.9))
-	m_foin = TexturesBati.m_foin(Color(0.85, 0.85, 0.8))
-	m_cuir = TexturesBati.m_cuir(Color(1.3, 1.15, 1.0))
+	m_ame = TexturesBati.m_planches_e(Color(0.3, 0.29, 0.32))             # fond sombre derrière les rondins (joints)
+	m_neige = TexturesBati.m_neige_toit_e()
+	m_toit = TexturesBati.m_tourbe_e()                                    # toits : alpha 0 = neige, 1 = tourbe sombre
+	m_roche = TexturesBati.m_pierre_seche_e(Color(1.3, 1.28, 1.32))
+	m_brute = TexturesBati.m_pierre_brute_e(Color(1.18, 1.16, 1.2))
+	m_pierre_fine = TexturesBati.m_pierre_fine_e(Color(1.25, 1.23, 1.27))
+	m_fer = TexturesBati.m_fer_e(Color(0.8, 0.82, 0.9))
+	m_foin = TexturesBati.m_foin_e(Color(0.85, 0.85, 0.8))
+	m_cuir = TexturesBati.m_cuir_e(Color(1.3, 1.15, 1.0))
 	m_ecorce = TexturesBati.m_ecorce()
+	m_palissade = TexturesBati.m_bois_debout_e(Color(1.1, 0.98, 0.88))     # pieux : bois grisé à 64 texels/m (l'écorce d'arbre ne lit qu'à 16)
 	m_fenetre = TexturesBati.m_fenetre()
 	m_braises = TexturesBati.m_braises()
-	m_glace = TexturesBati.m_glace()
+	m_glace = TexturesBati.m_glace_e()
 	m_eau = Palette.materiau(Palette.tex("eau", ["#05070c", "#0a0f18", "#101824", "#162030"], 4, 0.3))
 
 	Chrono.marque("  village : matières bâti")
@@ -361,24 +363,26 @@ func _pignon(parent: Node3D, x: float, y0: float, demi_largeur: float, hauteur_:
 # Lot 5. Structure modulaire (grille de 2 m : contreforts, bouts de solives, poteaux) ; textures en mètres
 # (TexturesBati) : la même densité de pixels sur la pierre, le bois et la neige.
 
-## Pile de moellons : `taille` (x, y, z) en rangs de ~42 cm de blocs irréguliers aux joints décalés ; collision = une boîte.
+## Pile de moellons : `taille` (x, y, z) en rangs de ~34 cm de moellons de 40 à 75 cm aux joints décalés (même approche que
+## `Interieurs.pile` : pierres plus petites, chanfrein et gauchissement réduits ; la matière est projetée en MÈTRES par le
+## shader, donc aucune texture n'est étirée) ; collision = une boîte.
 func _pile(parent: Node3D, pos: Vector3, taille: Vector3, graine: int, mat: Material, solide := false, neige_haut := 0.5, lacet := 0.0) -> void:
 	var r := RandomNumberGenerator.new()
 	r.seed = graine
-	var rangs := maxi(1, roundi(taille.y / 0.42))
+	var rangs := maxi(1, roundi(taille.y / 0.34))
 	var hh := taille.y / rangs
 	var basis := Basis(Vector3.UP, lacet)
 	for k in rangs:
-		var x := -taille.x * 0.5 - r.randf_range(0.0, 0.4)
+		var x := -taille.x * 0.5 - r.randf_range(0.0, 0.3)
 		while x < taille.x * 0.5:
-			var w := r.randf_range(0.55, 0.95)
+			var w := r.randf_range(0.4, 0.75)
 			var x0 := maxf(x, -taille.x * 0.5)
 			var x1 := minf(x + w, taille.x * 0.5)
-			x += w * 0.97
-			if x1 - x0 < 0.2:
+			x += w * 0.98
+			if x1 - x0 < 0.16:
 				continue
-			var c := Vector3((x0 + x1) * 0.5, -taille.y * 0.5 + hh * (k + 0.5), r.randf_range(-0.03, 0.03))
-			_ajouter(parent, BatiGeo.bloc(Vector3(x1 - x0, hh * 1.04, taille.z), r.randi(), 0.2, 0.06, neige_haut if k == rangs - 1 else 0.0).arrays(), Transform3D(basis, pos + basis * c), mat)
+			var c := Vector3((x0 + x1) * 0.5, -taille.y * 0.5 + hh * (k + 0.5), r.randf_range(-0.025, 0.025))
+			_ajouter(parent, BatiGeo.bloc(Vector3(x1 - x0, hh * 1.03, taille.z), r.randi(), 0.13, 0.045, neige_haut if k == rangs - 1 else 0.0, 0.66).arrays(), Transform3D(basis, pos + basis * c), mat)
 	if solide:
 		_collision(parent, BoxShape3D.new(), Transform3D(basis, pos), taille)
 
@@ -643,13 +647,13 @@ func _cheminee(p: Node3D, xch: float, y_base: float, h_ch: float, graine: int) -
 	_boite(p, Vector3(0.72, h_ch, 0.72), Transform3D(Basis(), Vector3(xch, y_base + h_ch * 0.5, 0)), m_pierre_fine)
 	var r := RandomNumberGenerator.new()
 	r.seed = graine
-	var n := int(h_ch / 0.4)
+	var n := int(h_ch / 0.3)
 	for i in n:
 		for sx in [-1.0, 1.0]:
 			for sz in [-1.0, 1.0]:
 				var gros := (i + (0 if sx * sz > 0 else 1)) % 2 == 0
-				var sc := Vector3(0.34 if gros else 0.26, 0.38, 0.26 if gros else 0.34)
-				_bloc(p, sc, r.randi(), Vector3(xch + sx * 0.33, y_base + 0.2 + i * 0.4, sz * 0.33), m_brute, 0.0, 0.0, 0.2, 0.09)
+				var sc := Vector3(0.3 if gros else 0.22, 0.29, 0.22 if gros else 0.3)   # chaînage d'angle : moellons de 22 à 30 cm
+				_bloc(p, sc, r.randi(), Vector3(xch + sx * 0.35, y_base + 0.15 + i * 0.3, sz * 0.35), m_brute, 0.0, 0.0, 0.16, 0.06)
 	_bloc(p, Vector3(1.05, 0.5, 1.05), r.randi(), Vector3(xch, y_base + 0.0, 0), m_brute, 0.0, 0.0, 0.18, 0.05)
 	_bloc(p, Vector3(1.12, 0.2, 1.12), r.randi(), Vector3(xch, y_base + h_ch + 0.05, 0), m_brute, 0.0, 1.0, 0.25, 0.04)
 
@@ -827,7 +831,7 @@ func _palissade() -> void:
 	c.height = 1.0
 	c.radial_segments = 6
 	c.rings = 1
-	c.material = m_ecorce
+	c.material = m_palissade
 	rondins.mesh = c
 	var pointes := MultiMesh.new()
 	pointes.transform_format = MultiMesh.TRANSFORM_3D
@@ -837,7 +841,7 @@ func _palissade() -> void:
 	cone.height = 0.55
 	cone.radial_segments = 6
 	cone.rings = 1
-	cone.material = m_ecorce
+	cone.material = m_palissade
 	pointes.mesh = cone
 	var xf_r: Array[Transform3D] = []
 	var xf_p: Array[Transform3D] = []

@@ -156,17 +156,17 @@ static func eclairage(hf: PackedFloat32Array, w: int, h: int, k := PENTE_K) -> P
 	return out
 
 ## Ombre portée (0 ou 1) : on remonte vers la lumière (haut gauche) sur 8 texels.
-static func ombres(hf: PackedFloat32Array, w: int, h: int, pente := 0.16) -> PackedFloat32Array:
+static func ombres(hf: PackedFloat32Array, w: int, h: int, pente := 0.16, e := 1) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	out.resize(w * h)
 	for y in h:
 		for x in w:
 			var h0 := hf[y * w + x]
 			var o := 0.0
-			for s in range(1, 9):
+			for s in range(1, 8 * e + 1):
 				var xx := posmod(x - int(round(0.62 * s)), w)
 				var yy := posmod(y - int(round(0.78 * s)), h)
-				if hf[yy * w + xx] > h0 + s * pente * 0.5:
+				if hf[yy * w + xx] > h0 + float(s) / e * pente * 0.5:
 					o = 1.0
 					break
 			out[y * w + x] = o
@@ -192,6 +192,64 @@ static func ton(L: float, x: int, y: int, n := N) -> int:
 	var b: int = BAYER[(y & 3) * 4 + (x & 3)]
 	return clampi(int(floor(L * (n - 1) + (b / 16.0 - 0.47) * 0.55 + 0.5)), 0, n - 1)
 
+## Ton pour la passe « 64 texels/m » (`e` = 2) : tramage par BRUIT blanc stable (jamais de Bayer, interdit par la bible) ;
+## `e` = 1 garde le tramage historique (les textures dérivées, ex. l'intérieur, restent identiques octet pour octet).
+static func ton_e(L: float, x: int, y: int, e: int, n := N, graine := 0) -> int:
+	if e <= 1:
+		return ton(L, x, y, n)
+	var hsh := fposmod(sin(float(x) * 12.9898 + float(y) * 78.233 + float(graine) * 3.7) * 43758.5453, 1.0)
+	return clampi(int(floor(L * (n - 1) + (hsh - 0.5) * 0.5 + 0.5)), 0, n - 1)
+
+## Nettoyage : un texel qui ne ressemble à AUCUN de ses 8 voisins (tuile raccordée) prend la couleur la plus fréquente
+## autour de lui. Deux passes (la première peut isoler un voisin). Les lignes d'un texel (joints, fibres) survivent :
+## elles sont continues, donc leurs texels ont au moins un voisin identique.
+static func nettoie(img: Image, passes := 2) -> Image:
+	var w := img.get_width()
+	var h := img.get_height()
+	for _p in passes:
+		var src := img.duplicate() as Image
+		for y in h:
+			for x in w:
+				var c := src.get_pixel(x, y)
+				var cnt := {}
+				var egal := false
+				for dy in range(-1, 2):
+					for dx in range(-1, 2):
+						if dx == 0 and dy == 0:
+							continue
+						var v := src.get_pixel(posmod(x + dx, w), posmod(y + dy, h))
+						if v == c:
+							egal = true
+						cnt[v] = int(cnt.get(v, 0)) + 1
+				if egal:
+					continue
+				var best := c
+				var bn := 0
+				for v: Color in cnt:
+					var n: int = cnt[v]
+					if n > bn or (n == bn and absf(v.get_luminance() - c.get_luminance()) < absf(best.get_luminance() - c.get_luminance())):
+						bn = n
+						best = v
+				img.set_pixel(x, y, best)
+	return img
+
+## Nombre de texels isolés (aucun des 8 voisins identique) : mesure de qualité, en pourcentage.
+static func part_isolee(img: Image) -> float:
+	var w := img.get_width()
+	var h := img.get_height()
+	var n := 0
+	for y in h:
+		for x in w:
+			var c := img.get_pixel(x, y)
+			var egal := false
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					if (dx != 0 or dy != 0) and img.get_pixel(posmod(x + dx, w), posmod(y + dy, h)) == c:
+						egal = true
+			if not egal:
+				n += 1
+	return 100.0 * n / (w * h)
+
 static func _sstep(a: float, b: float, v: float) -> float:
 	var t := clampf((v - a) / (b - a), 0.0, 1.0)
 	return t * t * (3.0 - 2.0 * t)
@@ -202,7 +260,7 @@ static func _sstep(a: float, b: float, v: float) -> float:
 ## joints creux et irréguliers, éclats facettés, lumière rasante + ombres + occlusion, teinte et clarté propres à
 ## chaque pierre, dégradé haut clair / bas sombre dans chaque pierre, coulures, lichen gris-vert et orangé,
 ## calottes de neige sur les replats, neige dans les joints. Tuile 256 × 128 texels = 8 × 4 m à 32 texels/m.
-static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, wmin := 15, wmax := 34, part_neige := 0.3, rayon := 3.0) -> Array:
+static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, wmin := 15, wmax := 34, part_neige := 0.3, rayon := 3.0, e := 1) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var assises := _decouper(rng, h, hmin, hmax)
@@ -235,7 +293,7 @@ static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, w
 			for lw in larg:
 				st.append(x)
 				for p in prec:
-					if absf(fposmod(x - p + w * 0.5, w) - w * 0.5) < 4.0:
+					if absf(fposmod(x - p + w * 0.5, w) - w * 0.5) < 4.0 * e:
 						ok = false
 				x += lw
 			if ok:
@@ -255,7 +313,7 @@ static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, w
 		l0.append(rng.randf_range(0.42, 0.7))
 		tint.append(rng.randf())
 		proud.append(rng.randf_range(0.55, 0.85) if rng.randf() > 0.2 else rng.randf_range(0.9, 1.0))
-		neige_d.append(rng.randf_range(2.0, 5.5) if rng.randf() < part_neige else 0.0)
+		neige_d.append(rng.randf_range(2.0 * e, 5.5 * e) if rng.randf() < part_neige else 0.0)
 		lich.append(rng.randf())
 	# ondulation des assises
 	var ond := PackedInt32Array()
@@ -263,7 +321,7 @@ static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, w
 	var p1 := rng.randf() * TAU
 	var p2 := rng.randf() * TAU
 	for x in w:
-		ond[x] = int(round(1.4 * sin(TAU * 2 * x / w + p1) + 0.9 * sin(TAU * 5 * x / w + p2)))
+		ond[x] = int(round(e * (1.4 * sin(TAU * 2 * x / w + p1) + 0.9 * sin(TAU * 5 * x / w + p2))))
 	var nj := bruit(w, h, 24, 12, graine + 1)
 	var chip := fbm(w, h, 10, 6, 3, graine + 2)
 	var meso := fbm(w, h, 12, 6, 3, graine + 3)
@@ -298,9 +356,9 @@ static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, w
 					break
 			var sw: float = (st[k + 1] if k + 1 < st.size() else st[0] + w) - st[k]
 			var u := xx - st[k]
-			var jit := (nj[i] - 0.5) * 2.4
+			var jit := (nj[i] - 0.5) * 2.4 * e
 			var du := minf(u, sw - u) + jit
-			var dv := minf(v, hh - v) + (nj[(i + w * 3) % (w * h)] - 0.5) * 1.6
+			var dv := minf(v, hh - v) + (nj[(i + w * 3) % (w * h)] - 0.5) * 1.6 * e
 			var ex := minf(du, dv)
 			if du < rayon and dv < rayon:
 				ex = rayon - sqrt((rayon - du) * (rayon - du) + (rayon - dv) * (rayon - dv))
@@ -309,13 +367,13 @@ static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, w
 			vfr[i] = v / hh
 			vloc[i] = v
 			uu[i] = u
-			var jw := 0.3 + nj[(i + 7) % (w * h)] * 0.45
+			var jw := (0.3 + nj[(i + 7) % (w * h)] * 0.45) * (1.0 if e == 1 else 1.7)
 			dist[i] = ex - jw
-			var t := clampf((ex - jw) / (rayon + 1.5 * (1.0 - proud[id])), 0.0, 1.0)
+			var t := clampf((ex - jw) / (rayon + 1.5 * e * (1.0 - proud[id])), 0.0, 1.0)
 			var prof := _sstep(0.0, 1.0, t)
 			var dome := 1.0 - 0.5 * (pow(u / sw * 2.0 - 1.0, 2.0) + pow(v / hh * 2.0 - 1.0, 2.0))
 			var ht := proud[id] * (0.5 + 0.5 * pow(prof, 0.8)) + 0.2 * dome + (meso[i] - 0.5) * 0.4 + (grain[i] - 0.5) * 0.07
-			if chip[i] > 0.7 and ex > jw + 0.5:
+			if chip[i] > 0.7 and ex > jw + 0.5 * e:
 				ht -= 0.16 + (chip[i] - 0.7) * 0.9
 			hf[i] = 0.0 if ex < jw else maxf(ht, 0.04)
 	# calottes de neige : relief ajouté avant l'éclairage (la neige est un volume sur le replat)
@@ -327,12 +385,18 @@ static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, w
 		var d := neige_d[id]
 		if d > 0.0 and hf[i] > 0.0:
 			var prof := d * (0.45 + nsn[i] * 0.9)
-			if vloc[i] < prof and dist[i] > -0.2:
+			if vloc[i] < prof and dist[i] > -0.2 * e:
 				neige[i] = 1.0
 				hf[i] += 0.16 + 0.06 * (1.0 - vloc[i] / prof)
-	var lit := eclairage(hf, w, h)
-	var omb := ombres(hf, w, h)
-	var hb := flou(hf, w, h, 2)
+	var lit := eclairage(hf, w, h, PENTE_K * e)
+	var omb := ombres(hf, w, h, 0.16, e)
+	var hb := flou(hf, w, h, 2 * e)
+	var lev := PackedFloat32Array()    # 64 texels/m : lèvre claire sous le joint du haut, ombre au bas de chaque pierre
+	lev.resize(w * h)
+	if e > 1:
+		for i in w * h:
+			if hf[i] > 0.0 and dist[i] < 1.7 * e:
+				lev[i] = 1.0 if vfr[i] < 0.5 else -1.0
 	var coul_a := rampe(K_PIERRE)
 	var coul_b := rampe(K_PIERRE_CH)
 	var coul_c := rampe(K_PIERRE_VERT)
@@ -355,11 +419,15 @@ static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, w
 			var s := strie[i]
 			if s > 0.6:
 				L -= (s - 0.6) * 0.5 * (1.0 - vfr[i] * 0.5)
+			if lev[i] > 0.5:
+				L += 0.1
+			elif lev[i] < -0.5:
+				L -= 0.07
 			if joint:
 				L = 0.04 + grain[i] * 0.06
 			var t := tint[id]
 			var col: Color
-			var ix := ton(L, x, y)
+			var ix := ton_e(L, x, y, e, N, graine)
 			if t < 0.45:
 				col = coul_a[ix].lerp(coul_b[ix], t / 0.45 * 0.6)
 			elif t < 0.8:
@@ -369,21 +437,21 @@ static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, w
 			# lichen
 			var m := lk[i] + (lk2[i] - 0.5) * 0.2 + (lich[id] - 0.5) * 0.28
 			if not joint and m > 0.73 and neige[i] < 0.5 and lit[i] > 0.3:
-				col = coul_l[ton(L * 0.95 + 0.06, x, y)] if lk2[i] < 0.72 else coul_r[ton(L * 0.95 + 0.04, x, y)]
+				col = coul_l[ton_e(L * 0.95 + 0.06, x, y, e, N, graine)] if lk2[i] < 0.72 else coul_r[ton_e(L * 0.95 + 0.04, x, y, e, N, graine)]
 			if neige[i] > 0.5:
-				var ln := 0.82 + (lit[i] - 0.5) * 0.7 - (vloc[i] / maxf(neige_d[id], 1.0)) * 0.22 - omb[i] * 0.1
-				col = coul_n[ton(ln, x, y)]
-			elif not joint and dist[i] < 1.0 and neige_d[id] > 0.0 and vloc[i] < neige_d[id] + 2.5:
+				var ln := 0.82 + (lit[i] - 0.5) * 0.7 - (vloc[i] / maxf(neige_d[id], float(e))) * 0.22 - omb[i] * 0.1
+				col = coul_n[ton_e(ln, x, y, e, N, graine)]
+			elif not joint and dist[i] < 1.0 * e and neige_d[id] > 0.0 and vloc[i] < neige_d[id] + 2.5 * e:
 				col = col.darkened(0.25)   # ombre sous la calotte
 			img.set_pixel(x, y, col)
-	return [img, relief_image(hf, w, h)]
+	return [img, relief_image(hf, w, h, PENTE_K * e)]
 
 # --- roche fracturée (menhirs, rochers, façade) ---------------------------------------------------------------
 
 ## Granite fracturé : facettes de Voronoï inclinées (chacune a sa pente, donc sa clarté sous la lumière rasante),
 ## fractures sombres à lèvre claire, strates fines, lichen, neige sur les facettes tournées vers le ciel.
 ## Tuile 128 × 128 = 4 × 4 m. Boucle sur les quatre bords.
-static func roche(graine: int, n := 128, cellules := 5, part_neige := 1.0, fissures := 1.0) -> Array:
+static func roche(graine: int, n := 128, cellules := 5, part_neige := 1.0, fissures := 1.0, e := 1) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var gr: Array[Vector2] = []
@@ -404,8 +472,8 @@ static func roche(graine: int, n := 128, cellules := 5, part_neige := 1.0, fissu
 			l0.append(rng.randf_range(0.46, 0.7))
 			tint.append(rng.randf())
 			ang.append(rng.randf_range(-0.3, 0.3))
-			bande.append(rng.randf_range(4.5, 8.0))
-			dec.append(rng.randf() * 30.0)
+			bande.append(rng.randf_range(4.5, 8.0) * e)
+			dec.append(rng.randf() * 30.0 * e)
 	var nc := gr.size()
 	var cid := PackedInt32Array()
 	cid.resize(n * n)
@@ -427,8 +495,8 @@ static func roche(graine: int, n := 128, cellules := 5, part_neige := 1.0, fissu
 			var d1 := 1e9
 			var d2 := 1e9
 			var i1 := 0
-			var qx := x + (wx[y * n + x] - 0.5) * 14.0
-			var qy := y + (wy[y * n + x] - 0.5) * 14.0
+			var qx := x + (wx[y * n + x] - 0.5) * 14.0 * e
+			var qy := y + (wy[y * n + x] - 0.5) * 14.0 * e
 			for k in nc:
 				var dx := wrapf(qx - gr[k].x, -n * 0.5, n * 0.5)
 				var dy := wrapf(qy - gr[k].y, -n * 0.5, n * 0.5) * 0.6
@@ -447,17 +515,17 @@ static func roche(graine: int, n := 128, cellules := 5, part_neige := 1.0, fissu
 			var u := (-sin(ang[i1]) * dx1 + cos(ang[i1]) * dy1 + dec[i1]) / bande[i1]
 			var f := fposmod(u, 1.0)
 			strat[i] = 1.0 if f < 0.16 else (0.5 if f < 0.32 else 0.0)
-			var ht := off[i1] + sx[i1] * dx1 * PENTE_K * 0.18 + sy[i1] * dy1 * PENTE_K * 0.18
+			var ht := off[i1] + (sx[i1] * dx1 + sy[i1] * dy1) * PENTE_K * 0.18 / e
 			ht += (meso[i] - 0.5) * 0.28 + (fin[i] - 0.5) * 0.12 + (grain[i] - 0.5) * 0.06
 			ht -= strat[i] * 0.05
-			var bord := minf(marge[i] / 5.0, 1.0)
+			var bord := minf(marge[i] / (5.0 * e), 1.0)
 			ht = ht * (0.55 + 0.45 * sqrt(bord))
-			if marge[i] < 0.75 and rupt[i] > seuil_f:
+			if marge[i] < 0.75 * e and rupt[i] > seuil_f:
 				ht = 0.0
 			hf[i] = ht
-	var lit := eclairage(hf, n, n)
-	var omb := ombres(hf, n, n)
-	var hb := flou(hf, n, n, 3)
+	var lit := eclairage(hf, n, n, PENTE_K * e)
+	var omb := ombres(hf, n, n, 0.16, e)
+	var hb := flou(hf, n, n, 3 * e)
 	var coul_a := rampe(K_PIERRE)
 	var coul_b := rampe(K_PIERRE_CH)
 	var coul_c := rampe(K_PIERRE_VERT)
@@ -470,42 +538,42 @@ static func roche(graine: int, n := 128, cellules := 5, part_neige := 1.0, fissu
 	var nm := PackedFloat32Array()
 	nm.resize(n * n)
 	for i in n * n:
-		nm[i] = 1.0 if (lit[i] > 0.58 and not (marge[i] < 0.75 and rupt[i] > seuil_f) and sn[i] + (lit[i] - 0.58) * 0.7 > 0.56 / part_neige) else 0.0
-	nm = flou(nm, n, n, 1)
+		nm[i] = 1.0 if (lit[i] > 0.58 and not (marge[i] < 0.75 * e and rupt[i] > seuil_f) and sn[i] + (lit[i] - 0.58) * 0.7 > 0.56 / part_neige) else 0.0
+	nm = flou(nm, n, n, e)
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
 	for y in n:
 		for x in n:
 			var i := y * n + x
 			var c := cid[i]
-			var joint := marge[i] < 0.75 and rupt[i] > seuil_f
+			var joint := marge[i] < 0.75 * e and rupt[i] > seuil_f
 			var ao := clampf(hb[i] - hf[i], 0.0, 0.3)
 			var L := l0[c] + (lit[i] - 0.5) * 1.2 - ao * 0.8 + (meso[i] - 0.5) * 0.2 + (grain[i] - 0.5) * 0.12 - omb[i] * 0.1
 			L += (strat[i] - 0.3) * -0.07
 			L += clampf(marge[i] / 14.0 - 0.5, -0.4, 0.0) * 0.0
 			if joint:
 				L = 0.03 + grain[i] * 0.06
-			elif marge[i] < 2.0 and lit[i] > 0.52:
+			elif marge[i] < 2.0 * e and lit[i] > 0.52:
 				L += 0.12   # lèvre claire de la fracture
-			var ix := ton(L, x, y)
+			var ix := ton_e(L, x, y, e, N, graine)
 			var t := tint[c]
 			var col := coul_a[ix].lerp(coul_b[ix], t * 0.55) if t < 0.65 else coul_a[ix].lerp(coul_c[ix], (t - 0.65) / 0.35 * 0.7)
 			var m := lk[i] + (lk2[i] - 0.5) * 0.25
 			if not joint and m > 0.7 and lit[i] > 0.3:
-				col = coul_l[ton(L * 0.95 + 0.06, x, y)] if lk2[i] < 0.8 else coul_r[ton(L * 0.95 + 0.04, x, y)]
+				col = coul_l[ton_e(L * 0.95 + 0.06, x, y, e, N, graine)] if lk2[i] < 0.8 else coul_r[ton_e(L * 0.95 + 0.04, x, y, e, N, graine)]
 			if not joint and nm[i] > 0.5:
-				col = coul_n[ton(0.7 + (lit[i] - 0.5) * 0.6 - omb[i] * 0.12 - ao * 0.6, x, y)]
+				col = coul_n[ton_e(0.7 + (lit[i] - 0.5) * 0.6 - omb[i] * 0.12 - ao * 0.6, x, y, e, N, graine)]
 			img.set_pixel(x, y, col)
-	return [img, relief_image(hf, n, n)]
+	return [img, relief_image(hf, n, n, PENTE_K * e)]
 
 # --- bois : planches debout, rondins, bout de rondin ---------------------------------------------------------
 
 ## Planches debout (le shader ne tourne rien : `horizontal` les couche). Planches de 6 à 9 texels (19 à 28 cm),
 ## joint sombre, chanfrein (arête claire à gauche, ombre à droite), fil du bois ondulé, nœuds à anneaux, fentes,
 ## clous à tête claire, teinte qui va du brun chaud au gris argenté d'une planche à l'autre, coulures.
-static func planches(graine: int, w := 128, h := 128, horizontal := false) -> Array:
+static func planches(graine: int, w := 128, h := 128, horizontal := false, e := 1, gris := 0.0) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
-	var larg := _decouper(rng, w, 6, 9)
+	var larg := _decouper(rng, w, 6 * e, 9 * e)
 	var bid := PackedInt32Array()
 	bid.resize(w)
 	var bx0 := PackedInt32Array()
@@ -540,15 +608,16 @@ static func planches(graine: int, w := 128, h := 128, horizontal := false) -> Ar
 	for y in h:
 		for xx in w:
 			var i := y * w + xx
-			var xs := posmod(xx + int((onde[i] - 0.5) * 3.0), w)
+			var xs := posmod(xx + int((onde[i] - 0.5) * 3.0 * e), w)
 			var b := bid[xs]
 			var u := float(xs - bx0[b]) + 0.5
 			var du := minf(u, bw[b] - u)
 			var g := fib[i] * 0.6 + fib2[i] * 0.4
 			ligne[i] = g
-			var prof := _sstep(0.9, 2.0, u) * (1.0 - 0.3 * _sstep(bw[b] - 2.0, bw[b] - 0.5, u))
+			var jw := 1.0 if e == 1 else 1.5
+			var prof := _sstep(0.9 * e, 2.0 * e, u) * (1.0 - 0.3 * _sstep(bw[b] - 2.0 * e, bw[b] - 0.5 * e, u))
 			var ht := 0.5 * prof + 0.4 + (g - 0.5) * 0.22 + (grain[i] - 0.5) * 0.05
-			if u < 1.0:
+			if u < jw:
 				joint[i] = 1
 				ht = 0.0
 			hf[i] = ht
@@ -556,26 +625,27 @@ static func planches(graine: int, w := 128, h := 128, horizontal := false) -> Ar
 	var noeuds: Array = []
 	for k in 3 + w / 64:
 		var b := rng.randi_range(0, nb - 1)
-		noeuds.append(Vector3(bx0[b] + bw[b] * 0.5, rng.randf_range(10, h - 10), b))
+		noeuds.append(Vector3(bx0[b] + bw[b] * 0.5, rng.randf_range(10 * e, h - 10 * e), b))
 	var fentes: Array = []
 	for k in 2 + w / 50:
 		var b := rng.randi_range(0, nb - 1)
-		fentes.append([bx0[b] + rng.randi_range(2, maxi(bw[b] - 3, 3)), rng.randi_range(0, h - 1), rng.randi_range(10, 30), b])
+		fentes.append([bx0[b] + rng.randi_range(2 * e, maxi(bw[b] - 3 * e, 3 * e)), rng.randi_range(0, h - 1), rng.randi_range(10 * e, 30 * e), b])
 	var clou := PackedByteArray()
 	clou.resize(w * h)
 	for b in nb:
-		for yy in [5 + decal[b] % 11, h / 2 + 5 + decal[b] % 11]:
-			for dx in 2:
-				for dy in 2:
-					var cx: int = bx0[b] + bw[b] / 2 - 1 + dx
+		for yy in [(5 + decal[b] % 11) * e, h / 2 + (5 + decal[b] % 11) * e]:
+			var kc := 2 if e == 1 else 3
+			for dx in kc:
+				for dy in kc:
+					var cx: int = bx0[b] + bw[b] / 2 - kc / 2 + dx
 					var cy: int = yy + dy
-					clou[posmod(cy, h) * w + posmod(cx, w)] = 1 if (dx + dy < 2) else 2
+					clou[posmod(cy, h) * w + posmod(cx, w)] = 1 if (dx + dy < kc) else 2
 	var ring := PackedFloat32Array()
 	ring.resize(w * h)
 	for nd: Vector3 in noeuds:
-		for dy in range(-7, 8):
-			for dx in range(-4, 5):
-				var r := sqrt((dx / 3.4) * (dx / 3.4) + (dy / 6.0) * (dy / 6.0))
+		for dy in range(-7 * e, 7 * e + 1):
+			for dx in range(-4 * e, 4 * e + 1):
+				var r := sqrt((dx / (3.4 * e)) * (dx / (3.4 * e)) + (dy / (6.0 * e)) * (dy / (6.0 * e)))
 				if r < 1.0:
 					var i := posmod(int(nd.y) + dy, h) * w + posmod(int(nd.x) + dx, w)
 					if joint[i] == 0:
@@ -585,20 +655,20 @@ static func planches(graine: int, w := 128, h := 128, horizontal := false) -> Ar
 		var fx: float = ft[0]
 		var fy: int = ft[1]
 		for s in int(ft[2]):
-			var i := posmod(fy + s, h) * w + posmod(int(round(fx + sin(s * 0.3 + ft[3]) * 0.8)), w)
+			var i := posmod(fy + s, h) * w + posmod(int(round(fx + sin(s * 0.3 / e + ft[3]) * 0.8 * e)), w)
 			if joint[i] == 0:
 				hf[i] -= 0.4
 				ring[i] = -1.0
-	var lit := eclairage(hf, w, h)
-	var omb := ombres(hf, w, h)
-	var hb := flou(hf, w, h, 2)
+	var lit := eclairage(hf, w, h, PENTE_K * e)
+	var omb := ombres(hf, w, h, 0.16, e)
+	var hb := flou(hf, w, h, 2 * e)
 	var coul_a := rampe(K_BOIS)
 	var coul_g := rampe(K_BOIS_GRIS)
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	for y in h:
 		for xx in w:
 			var i := y * w + xx
-			var xs := posmod(xx + int((onde[i] - 0.5) * 3.0), w)
+			var xs := posmod(xx + int((onde[i] - 0.5) * 3.0 * e), w)
 			var b := bid[xs]
 			var ao := clampf(hb[i] - hf[i], 0.0, 0.5)
 			var L := l0[b] + (lit[i] - 0.5) * 0.7 - ao * 0.7 + (ligne[i] - 0.5) * 0.42 + (meso[i] - 0.5) * 0.14
@@ -616,11 +686,11 @@ static func planches(graine: int, w := 128, h := 128, horizontal := false) -> Ar
 				L = 0.1
 			if joint[i] == 1:
 				L = 0.05 + grain[i] * 0.05
-			var ix := ton(L, xx, y)
+			var ix := ton_e(L, xx, y, e, N, graine)
 			var t := tint[b]
-			var col := coul_a[ix].lerp(coul_g[clampi(int(ix * 7.0 / (N - 1) + 0.5), 0, 7)], clampf(t * 1.15 - 0.15, 0.0, 0.85))
+			var col := coul_a[ix].lerp(coul_g[clampi(int(ix * 7.0 / (N - 1) + 0.5), 0, 7)], clampf(t * 1.15 - 0.15 + gris, 0.0, 0.85))
 			img.set_pixel(xx, y, col)
-	var rel := relief_image(hf, w, h)
+	var rel := relief_image(hf, w, h, PENTE_K * e)
 	if horizontal:
 		return [_transposee(img), _transposee(rel, true)]
 	return [img, rel]
@@ -639,7 +709,7 @@ static func _transposee(img: Image, relief := false) -> Image:
 ## bois dans le sens de la longueur, fentes de séchage, nœuds, plaques d'écorce, bords des bandes assombris
 ## (le rondin se creuse là où il rejoint le suivant). Pas de lumière dirigée cuite : l'éclairage vient de la
 ## géométrie (rondin à 8 pans) et du relief.
-static func rondins(graine: int, w := 256, h := 128) -> Array:
+static func rondins(graine: int, w := 256, h := 128, e := 1, gris := 0.0) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var bandes := 4
@@ -669,25 +739,25 @@ static func rondins(graine: int, w := 256, h := 128) -> Array:
 		for k in rng.randi_range(2, 3):
 			var fy := b * bh + rng.randi_range(5, bh - 6)
 			var fx := rng.randi_range(0, w - 1)
-			var l := rng.randi_range(30, 90)
+			var l := rng.randi_range(30 * e, 90 * e)
 			for s in l:
-				var yy := fy + int(round(sin(s * 0.09 + k) * 1.2))
+				var yy := fy + int(round(sin(s * 0.09 / e + k) * 1.2 * e))
 				var i := posmod(yy, h) * w + posmod(fx + s, w)
-				var prof := minf(float(s), float(l - s)) / 6.0
+				var prof := minf(float(s), float(l - s)) / (6.0 * e)
 				hf[i] -= 0.38 * clampf(prof, 0.0, 1.0)
 				ring[i] = -clampf(prof, 0.0, 1.0)
 		if rng.randf() < 0.9:
-			var cx := rng.randi_range(8, w - 9)
-			var cy := b * bh + rng.randi_range(9, bh - 10)
-			for dy in range(-6, 7):
-				for dx in range(-8, 9):
-					var r := sqrt((dx / 7.5) * (dx / 7.5) + (dy / 5.5) * (dy / 5.5))
+			var cx := rng.randi_range(8 * e, w - 9 * e)
+			var cy := b * bh + rng.randi_range(9 * e, bh - 10 * e)
+			for dy in range(-6 * e, 6 * e + 1):
+				for dx in range(-8 * e, 8 * e + 1):
+					var r := sqrt((dx / (7.5 * e)) * (dx / (7.5 * e)) + (dy / (5.5 * e)) * (dy / (5.5 * e)))
 					if r < 1.0:
 						var i := posmod(cy + dy, h) * w + posmod(cx + dx, w)
 						ring[i] = maxf(ring[i], 0.5 + 0.5 * cos(r * 11.0))
 						hf[i] -= 0.1 * (1.0 - r)
-	var lit := eclairage(hf, w, h, 5.0)
-	var hb := flou(hf, w, h, 2)
+	var lit := eclairage(hf, w, h, 5.0 * e)
+	var hb := flou(hf, w, h, 2 * e)
 	var ecorce := fbm(w, h, 6, 6, 3, graine + 6)
 	var coul_a := rampe(K_BOIS)
 	var coul_g := rampe(K_BOIS_GRIS)
@@ -706,10 +776,10 @@ static func rondins(graine: int, w := 256, h := 128) -> Array:
 				L -= 0.05 + ring[i] * 0.09
 			elif ring[i] < 0.0:
 				L = lerpf(L, 0.1, -ring[i])
-			var ix := ton(L, x, y)
-			var t := clampf(teinte[b] * 0.9 + (ecorce[i] - 0.5) * 0.7 - 0.1, 0.0, 0.9)
+			var ix := ton_e(L, x, y, e, N, graine)
+			var t := clampf(teinte[b] * 0.9 + (ecorce[i] - 0.5) * 0.7 - 0.1 + gris, 0.0, 0.9)
 			img.set_pixel(x, y, coul_a[ix].lerp(coul_g[clampi(int(ix * 7.0 / (N - 1) + 0.5), 0, 7)], t))
-	return [img, relief_image(hf, w, h, 5.0)]
+	return [img, relief_image(hf, w, h, 5.0 * e)]
 
 ## Bout de rondin (64 texels/m : 32 × 32 = 0,5 m, le rondin de 28 cm est au centre) : cernes, fentes radiales,
 ## écorce sombre au bord.
@@ -742,14 +812,14 @@ static func bout_rondin(graine: int, n := 32) -> Array:
 				if absf(angle_difference(a, fa)) < 0.09 and r < 8.0 and r > 1.0:
 					L = 0.12
 			hf[y * n + x] = 0.5 + cerne * 0.1
-			img.set_pixel(x, y, coul_a[ton(L, x, y)])
-	return [img, relief_image(hf, n, n)]
+			img.set_pixel(x, y, coul_a[ton_e(L, x, y, 2, N, graine)])
+	return [nettoie(img), relief_image(hf, n, n)]
 
 # --- neige de toit -----------------------------------------------------------------------------------------
 
 ## Neige : houle large, rides du vent, creux à l'ombre bleutée, crêtes claires. 12 tons de la bible, de
 ## `#3a4469` (creux à l'ombre) à `#f0eff4`. Tuile 256 × 256 = 8 × 8 m.
-static func neige(graine := 5501, n := 256) -> Array:
+static func neige(graine := 5501, n := 256, e := 1) -> Array:
 	var hf := PackedFloat32Array()
 	hf.resize(n * n)
 	var g1 := fbm(n, n, 3, 3, 4, graine + 1)
@@ -757,21 +827,22 @@ static func neige(graine := 5501, n := 256) -> Array:
 	var g3 := bruit(n, n, n / 3, n / 3, graine + 3)
 	for i in n * n:
 		hf[i] = g1[i] * 0.6 + g2[i] * 0.3 + (g3[i] - 0.5) * 0.04
-	var lit := eclairage(hf, n, n, 7.0)
-	var omb := ombres(hf, n, n, 0.2)
-	var hb := flou(hf, n, n, 4)
+	var lit := eclairage(hf, n, n, 7.0 * e)
+	var omb := ombres(hf, n, n, 0.2, e)
+	var hb := flou(hf, n, n, 4 * e)
 	var coul := rampe(K_NEIGE)
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
 	for y in n:
 		for x in n:
 			var i := y * n + x
 			var L := 0.7 + (lit[i] - 0.5) * 1.0 + (hf[i] - 0.5) * 0.3 - clampf(hb[i] - hf[i], 0.0, 0.3) * 1.2 - omb[i] * 0.12
-			img.set_pixel(x, y, coul[ton(L, x, y)])
-	return [img, relief_image(hf, n, n, 7.0)]
+			img.set_pixel(x, y, coul[ton_e(L, x, y, e, N, graine)])
+	return [img, relief_image(hf, n, n, 7.0 * e)]
 
 # --- fer, cuir, foin, tourbe, vitrage -----------------------------------------------------------------------
 
-static func fer(graine: int, n := 64) -> Array:
+static func fer(graine: int, n := 64, e := 1) -> Array:
+	n *= e
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var meso := fbm(n, n, 5, 5, 3, graine + 1)
@@ -786,11 +857,11 @@ static func fer(graine: int, n := 64) -> Array:
 	for k in 9:
 		var x := rng.randi_range(0, n - 1)
 		var y := rng.randi_range(0, n - 1)
-		for s in rng.randi_range(8, 22):
+		for s in rng.randi_range(8 * e, 22 * e):
 			var i := posmod(y + s / 5, n) * n + posmod(x + s, n)
 			raies[i] = 1.0
 			hf[i] -= 0.08
-	var lit := eclairage(hf, n, n, 5.0)
+	var lit := eclairage(hf, n, n, 5.0 * e)
 	var coul := rampe(K_FER)
 	var cr := rampe(K_ROUILLE, 8)
 	var rl := fbm(n, n, 4, 4, 3, graine + 4)
@@ -801,13 +872,14 @@ static func fer(graine: int, n := 64) -> Array:
 			var L := 0.42 + (lit[i] - 0.5) * 0.8 + (meso[i] - 0.5) * 0.35 + (grain[i] - 0.5) * 0.12 + raies[i] * 0.16
 			if piq[i] > 0.86:
 				L -= 0.2
-			var col := coul[ton(L, x, y)]
+			var col := coul[ton_e(L, x, y, e, N, graine)]
 			if rl[i] > 0.6 and piq[i] > 0.45:
-				col = cr[ton(0.35 + (lit[i] - 0.5) * 0.7 + (grain[i] - 0.5) * 0.2, x, y, 8)]
+				col = cr[ton_e(0.35 + (lit[i] - 0.5) * 0.7 + (grain[i] - 0.5) * 0.2, x, y, e, 8, graine)]
 			img.set_pixel(x, y, col)
-	return [img, relief_image(hf, n, n, 5.0)]
+	return [img, relief_image(hf, n, n, 5.0 * e)]
 
-static func cuir(graine: int, n := 64) -> Array:
+static func cuir(graine: int, n := 64, e := 1) -> Array:
+	n *= e
 	var cell := bruit(n, n, 16, 16, graine + 1)
 	var meso := fbm(n, n, 4, 4, 3, graine + 2)
 	var grain := bruit(n, n, n / 2, n / 2, graine + 3)
@@ -816,17 +888,18 @@ static func cuir(graine: int, n := 64) -> Array:
 	hf.resize(n * n)
 	for i in n * n:
 		hf[i] = 0.5 + (cell[i] - 0.5) * 0.3 + (meso[i] - 0.5) * 0.3 - (0.3 if absf(plis[i] - 0.5) < 0.03 else 0.0)
-	var lit := eclairage(hf, n, n, 5.0)
+	var lit := eclairage(hf, n, n, 5.0 * e)
 	var coul := rampe(K_CUIR)
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
 	for y in n:
 		for x in n:
 			var i := y * n + x
 			var L := 0.48 + (lit[i] - 0.5) * 0.9 + (meso[i] - 0.5) * 0.3 + (grain[i] - 0.5) * 0.1
-			img.set_pixel(x, y, coul[ton(L, x, y)])
-	return [img, relief_image(hf, n, n, 5.0)]
+			img.set_pixel(x, y, coul[ton_e(L, x, y, e, N, graine)])
+	return [img, relief_image(hf, n, n, 5.0 * e)]
 
-static func foin(graine: int, n := 64) -> Array:
+static func foin(graine: int, n := 64, e := 1) -> Array:
+	n *= e
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var hf := PackedFloat32Array()
@@ -839,24 +912,25 @@ static func foin(graine: int, n := 64) -> Array:
 		var x := rng.randf_range(0, n)
 		var y := rng.randf_range(0, n)
 		var pente := rng.randf_range(-0.6, 0.6)
-		var l := rng.randi_range(8, 20)
+		var l := rng.randi_range(8 * e, 20 * e)
 		var t := rng.randf_range(0.3, 0.95)
 		for s in l:
 			var i := posmod(int(y + s), n) * n + posmod(int(round(x + pente * s)), n)
 			hf[i] = maxf(hf[i], 0.3 + 0.5 * (1.0 - absf(s - l * 0.5) / (l * 0.5)) * t)
 			teinte[i] = t
-	var lit := eclairage(hf, n, n, 4.0)
+	var lit := eclairage(hf, n, n, 4.0 * e)
 	var coul := rampe(K_CHAUME)
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
 	for y in n:
 		for x in n:
 			var i := y * n + x
 			var L := 0.32 + hf[i] * 0.55 + (lit[i] - 0.5) * 0.5 + (teinte[i] - 0.5) * 0.2
-			img.set_pixel(x, y, coul[ton(L, x, y)])
-	return [img, relief_image(hf, n, n, 4.0)]
+			img.set_pixel(x, y, coul[ton_e(L, x, y, e, N, graine)])
+	return [img, relief_image(hf, n, n, 4.0 * e)]
 
 ## Tourbe du bord de toit : terre sombre, racines et touffes d'herbe sèche pendantes.
-static func tourbe(graine: int, n := 64) -> Array:
+static func tourbe(graine: int, n := 64, e := 1) -> Array:
+	n *= e
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var meso := fbm(n, n, 5, 5, 3, graine + 1)
@@ -871,11 +945,11 @@ static func tourbe(graine: int, n := 64) -> Array:
 		var x := rng.randi_range(0, n - 1)
 		var y := rng.randi_range(0, n - 1)
 		var pente := rng.randf_range(-0.5, 0.5)
-		for s in rng.randi_range(5, 14):
+		for s in rng.randi_range(5 * e, 14 * e):
 			var i := posmod(y + s, n) * n + posmod(int(round(x + pente * s)), n)
 			herbe[i] = 1.0
 			hf[i] += 0.2
-	var lit := eclairage(hf, n, n, 5.0)
+	var lit := eclairage(hf, n, n, 5.0 * e)
 	var terre := rampe(K_TERRE)
 	var chaume := rampe(K_CHAUME)
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
@@ -883,11 +957,11 @@ static func tourbe(graine: int, n := 64) -> Array:
 		for x in n:
 			var i := y * n + x
 			var L := 0.4 + (lit[i] - 0.5) * 0.8 + (meso[i] - 0.5) * 0.35 + (grain[i] - 0.5) * 0.15
-			var col := terre[ton(L, x, y)]
+			var col := terre[ton_e(L, x, y, e, N, graine)]
 			if herbe[i] > 0.5:
-				col = chaume[ton(0.28 + (lit[i] - 0.5) * 0.5 + (grain[i] - 0.5) * 0.2, x, y)]
+				col = chaume[ton_e(0.28 + (lit[i] - 0.5) * 0.5 + (grain[i] - 0.5) * 0.2, x, y, e, N, graine)]
 			img.set_pixel(x, y, col)
-	return [img, relief_image(hf, n, n, 5.0)]
+	return [img, relief_image(hf, n, n, 5.0 * e)]
 
 static func braises(graine: int, n := 32) -> Array:
 	var cell := bruit(n, n, 6, 6, graine + 1)
@@ -963,6 +1037,10 @@ static func relief_mips(rel: Image) -> ImageTexture:
 	r.generate_mipmaps()
 	return ImageTexture.create_from_image(r)
 
+static func _net(r: Array) -> Array:
+	nettoie(r[0])
+	return r
+
 ## Liste des textures cuites : nom → fabrique (renvoie [albédo, relief|null]).
 static func fabriques() -> Dictionary:
 	var base := {
@@ -982,6 +1060,20 @@ static func fabriques() -> Dictionary:
 		"braises": func() -> Array: return braises(5415),
 		"fenetre": func() -> Array: return fenetre(),
 	}
+	# Passe « extérieur à 64 texels/m » (`_e`, lues avec texels_par_m = 64) : génération native à 2× la résolution (mêmes
+	# dimensions en mètres), tramage par bruit, nettoyage des texels isolés. Les anciennes (32 texels/m) restent pour
+	# les rochers, le tertre, l'intérieur (fer, cuir, foin) qui les lisent encore.
+	base["pierre_seche_e"] = func() -> Array: return _net(mur_pierre(5111, 512, 256, 16, 28, 30, 68, 0.12, 6.0, 2))
+	base["pierre_fine_e"] = func() -> Array: return _net(mur_pierre(5113, 512, 256, 12, 20, 18, 40, 0.06, 4.0, 2))
+	base["pierre_brute_e"] = func() -> Array: return _net(roche(5217, 256, 3, 0.4, 0.2, 2))
+	base["planches_v_e"] = func() -> Array: return _net(planches(5311, 256, 256, false, 2, 0.3))
+	base["planches_h_e"] = func() -> Array: return _net(planches(5312, 256, 256, true, 2, 0.3))
+	base["rondins_e"] = func() -> Array: return _net(rondins(5321, 512, 256, 2, 0.3))
+	base["neige_e"] = func() -> Array: return _net(neige(5501, 512, 2))
+	base["fer_e"] = func() -> Array: return _net(fer(5411, 64, 2))
+	base["cuir_e"] = func() -> Array: return _net(cuir(5412, 64, 2))
+	base["foin_e"] = func() -> Array: return _net(foin(5413, 64, 2))
+	base["tourbe_e"] = func() -> Array: return _net(tourbe(5414, 64, 2))
 	base.merge(PeintureInterieur.fabriques())   # lot « intérieurs » : tentures, peaux, terre battue, charbon, vitrage
 	return base
 
