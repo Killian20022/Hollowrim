@@ -891,3 +891,16 @@ Tests : tous OK sauf `test_dragon_monde` en headless (erreurs du moteur factice 
 ### Finitions de la grotte, 2e passe
 - Parois de la grotte : tuile de 2 m (`Grotte.TUILE_COQUE`, 64 texels/m ; l'échelle UV de `_uv_plan` était juste, 32 texels/m, mais les blocs de texture et les facettes de 1,5 à 3 m restaient énormes à la torche). Chaque triangle de la coque est coupé en 4 (`Grotte._subdiviser`), milieux d'arête déplacés par un vecteur dépendant de leur seule position (aucune fissure), masque de neige/glace/mousse bruité au milieu (taches plutôt que blocs). Arêtes des anneaux d'extrémité et du sol (centre, pieds de paroi) non déplacées (raccord des caps, chemin, lac). Niveau de subdivision constant : deux niveaux voisins feraient des fissures. Construction de la grotte 1,2-1,5 s dans le fil (avant ≈ 0,5 s), 27 290 facettes.
 - Piste : points bruns réduits de moitié.
+
+## Lot « retouches crypte / mort / pieds de pins » (branche graphisme/retouches-crypte)
+- Sol de l'arène (dalle3, et dalle4 du niveau gelé) : option `lisse` de `CrypteTextures._pierre` (VERSION 6) : grandes dalles
+  (32-64 texels), joints nets de 1,6 texel, usure en macro-taches (bruit 5x5 et 9x9 quantifié en 3 paliers), givre en
+  plaques larges, plus de grain texel par texel ni de tramage fort (`_q` avec amplitude 0,12), éclats de coin droits.
+  Les autres dalles et murs ne changent pas. Textures régénérées (`outils/generer_crypte.gd`).
+- Mort dans la crypte : `Tertre.reinitialiser(morts)` (appelé par `Monde._joueur_mort`) : gardiens retirés puis remis en file,
+  seuls ceux de `draugrs_morts` du fichier de sauvegarde restent morts ; Svanhild vivante retirée ; bourse de coffre non ramassée
+  perdue = coffre rendu ; portes/herse/mur secret suivent les événements de quête ; crypte cachée, signal `entree(false)`.
+  Test : `outils/test_crypte_mort.gd` (ajouté à tous_les_tests.sh), sans toucher au fichier de sauvegarde.
+- Pieds des pins et épicéas : 5 contreforts épais (pin) / 4 (épicéa) + `Arbres._congere` (cuvette sombre près de l'écorce, lèvre
+  de congère plus haute côté vent, pente qui se fond dans le sol ; 24-32 triangles). Mesure : +3 000 primitives sur 250 000,
+  draw calls identiques (523), GPU 7,2 ms (indicatif, 4 agents en parallèle).

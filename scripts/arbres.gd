@@ -206,6 +206,42 @@ static func _racines(st: SurfaceTool, rt: RandomNumberGenerator, n: int, r: floa
 		_bois(st, p0, p1, rr, rr * 0.8, 4, Color(0.62, 0.62, 0.62), true, -p0.y / 2.0, 1.0, 0.7)
 		_bois(st, p1, p2, rr * 0.8, rr * 0.45, 4, Color(0.55, 0.55, 0.55), true, -p1.y / 2.0, 1.0, 0.7)
 
+## Raccord au sol : cuvette de neige autour du fût (la neige fond près de l'écorce, creux sombre) bordée d'une petite congère,
+## plus haute côté vent, qui s'étale en pente douce. Anneaux de `n` pans (24 à 32 triangles), alpha de sommet 0 = tout blanc.
+static func _congere(st: SurfaceTool, rt: RandomNumberGenerator, n: int, r: float, cx: float, cz: float, ampleur := 1.0) -> void:
+	# [rayon / r, hauteur, éclairage] : cuvette près de l'écorce, lèvre de la congère, pente qui se fond dans le sol
+	var profil := [[1.15, -0.05, 0.55], [1.9, 0.07, 0.92], [3.0, 0.12, 1.0], [4.6, -0.12, 1.0]]
+	var bk: Array[float] = []
+	for k in n:
+		bk.append(rt.randf_range(0.8, 1.2))
+	var P: Array = []
+	for j in profil.size():
+		var row: Array[Vector3] = []
+		for k in n:
+			var a := TAU * k / n
+			var w := maxf(0.0, Vector2(cos(a), sin(a)).dot(VENT))
+			var h: float = profil[j][1]
+			if h > 0.0:
+				h *= (0.55 + 0.9 * w) * bk[k] * ampleur
+			row.append(Vector3(cx + cos(a) * r * profil[j][0] * bk[k] * (0.9 if j == 3 else 1.0), h, cz + sin(a) * r * profil[j][0] * bk[k] * (0.9 if j == 3 else 1.0)))
+		P.append(row)
+	for j in profil.size() - 1:
+		for k in n:
+			var k2 := (k + 1) % n
+			var ids := [[j, k], [j, k2], [j + 1, k2], [j + 1, k]]
+			for tri in [[0, 1, 2], [0, 2, 3]]:
+				var q: Array[Vector3] = []
+				for i in tri:
+					q.append(P[ids[i][0]][ids[i][1]])
+				var nr := (q[1] - q[0]).cross(q[2] - q[0])
+				var flip := nr.y > 0.0     # front = sens horaire, vu du dessus
+				for i in ([tri[0], tri[2], tri[1]] if flip else tri):
+					var jj: int = ids[i][0]
+					var kk: int = ids[i][1]
+					var v: Vector3 = P[jj][kk]
+					var e: float = profil[jj][2]
+					_vert(st, v, Vector3(0, 1, 0), Color(e, e, e, 0.0), Vector2(v.x, v.z) * 0.5, Vector2.ZERO)
+
 ## Chicots : moignons de branches mortes sur le fût (prismes à 4 pans).
 static func _chicots(st: SurfaceTool, rt: RandomNumberGenerator, n: int, y0: float, y1: float, r: float, cx: float, cz: float, rayon_fut: float, cotes := 4) -> void:
 	for i in n:
@@ -411,7 +447,8 @@ static func _fut_epicea(st: SurfaceTool, graine: int, r: float, H: float, bas: f
 		return lerpf(0.74, 0.95, clampf((y - 1.0) / (H - 1.0), 0.0, 1.0))
 	_fut(st, rt, an, 4 if lod else 6, {"pied": Vector2(0.35, 1.7), "ao": ao, "mousse": 1.0, "vent": 0.5})
 	if not lod:
-		_racines(st, rt, 3, r, 0.0, 0.0, 0.7, 0.9, true)
+		_racines(st, rt, 4, r, 0.0, 0.0, 0.85, 1.15, true)
+		_congere(st, rt, 6, r, 0.0, 0.0)
 
 ## Épicéa : `forme` 0 élancé, 1 large et touffu, 2 jeune et clairsemé. Squelette (hauteur, largeur,
 ## étages) identique à l'ancien modèle ; le feuillage est fait de cartes de rameaux en pixel art
@@ -647,7 +684,8 @@ static func _fut_pin(st: SurfaceTool, graine: int, fut: Array, H: float, lod := 
 		return 0.95 if y < H * 0.5 else lerpf(0.95, 0.7, clampf((y - H * 0.5) / (H * 0.4), 0.0, 1.0))
 	_fut(st, rt, an, 4 if lod else 6, {"pied": Vector2(0.9, 2.8), "ao": ao, "mousse": 0.7, "vent": 0.6, "irr": 0.06})
 	if not lod:
-		_racines(st, rt, 4, 0.17, 0.0, 0.0, 0.9, 1.0)
+		_racines(st, rt, 5, 0.17, 0.0, 0.0, 1.15, 1.5)
+		_congere(st, rt, 8, 0.17, 0.0, 0.0, 1.4)
 
 static func pin(graine: int, mats: Array, lod := false) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()

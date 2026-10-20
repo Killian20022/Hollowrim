@@ -272,6 +272,7 @@ func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
 	b.joueur = joueur
 	b.hud = hud
 	b.contenu = contenu.duplicate()
+	b.set_meta("coffre", id)         # pour rendre le coffre si le joueur meurt avant d'avoir ramassé la bourse
 	crypte.add_child(b)
 	b.position = lieu + Vector3(0, 0.7, 0)
 	Sons.jouer_a(self, ["doorOpen_1", "handleCoins"], crypte.to_global(lieu), -2.0)
@@ -571,6 +572,50 @@ func restaurer(herse_ouverte: bool) -> void:
 		dedans = true
 		crypte.visible = true
 		entree.emit.call_deferred(true)
+
+## Mort du joueur sous terre : la crypte revient à un état cohérent avec la sauvegarde. Les gardiens tués ne restent morts que
+## s'ils le sont dans le fichier de sauvegarde (`morts` : liste imposée, sinon lue dans le fichier) ; les autres sont retirés
+## puis remis dans la file d'apparition. Une bourse de coffre non ramassée est perdue : le coffre se referme (rejouable).
+## Portes, herse et mur secret suivent les événements des quêtes (qui, eux, restent acquis, comme l'inventaire).
+func reinitialiser(morts: Variant = null) -> void:
+	if not dedans:
+		return
+	var sauves: Array = morts if morts is Array else _morts_sauvegardes()
+	morts_charges = sauves.duplicate()
+	if donjon != null:
+		for g in donjon.gardiens:
+			var id: String = g["ident"]
+			if monde.draugrs.has(id):
+				if is_instance_valid(monde.draugrs[id]):
+					monde.draugrs[id].queue_free()
+				monde.draugrs.erase(id)
+		_file_gardiens.clear()
+		for g in donjon.gardiens:
+			_file_gardiens.append(g)
+	if _svanhild != null and is_instance_valid(_svanhild) and _svanhild.vivant():
+		monde.draugrs.erase("svanhild")
+		_svanhild.queue_free()
+		_svanhild = null
+		_svanhild_levee = quetes.vus.has("tue:svanhild")
+	for b in crypte.get_children():
+		if b.has_meta("coffre"):
+			var id: String = b.get_meta("coffre")
+			b.queue_free()
+			quetes.vus.erase("crypte:" + id)
+			if _inter.has(id):
+				(_inter[id] as Node3D).actif = true
+	_etat_donjon()
+	dedans = false
+	crypte.visible = false
+	entree.emit(false)
+
+func _morts_sauvegardes() -> Array:
+	var f: String = monde.fichier_sauvegarde()
+	if FileAccess.file_exists(f):
+		var d = JSON.parse_string(FileAccess.get_file_as_string(f))
+		if d is Dictionary:
+			return d.get("draugrs_morts", [])
+	return []
 
 func _peut_rendre() -> bool:
 	return not _anneau_rendu and joueur.inventaire.a("anneau_givre") and _svanhild_levee and (_svanhild == null or not is_instance_valid(_svanhild) or not _svanhild.vivant())

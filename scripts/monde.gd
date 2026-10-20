@@ -497,6 +497,7 @@ func _joueur_mort() -> void:
 	t.tween_method(func(v: float) -> void: post.set_shader_parameter("fondu", v), 0.0, 1.0, 2.0)
 	t.tween_interval(1.5)
 	t.tween_callback(func() -> void:
+		tertre.reinitialiser()            # mort dans la crypte : ennemis, bourses et portes selon la sauvegarde
 		grotte_acces.reinitialiser()      # mort sous terre : la grotte se referme, le monde reprend sa lumière
 		joueur.ressusciter(depart_joueur, atan2(depart_joueur.x, depart_joueur.z)))
 	t.tween_method(func(v: float) -> void: post.set_shader_parameter("fondu", v), 1.0, 0.0, 1.5)
