@@ -46,6 +46,15 @@ var degats_imposes := 0.0
 var debout := false  # endormi debout (niches) plutôt qu'allongé
 var ident := ""  # pour la sauvegarde (les draugrs tués restent morts)
 var hud: Control
+## Contournement des obstacles par rayons (bandits de la grotte : caisses, tables, colonnes, parois) ; les draugrs des
+## cryptes gardent leur marche en ligne droite.
+var contourne := false
+var _cote := 1.0               # côté préféré pour longer un obstacle (+1 gauche, -1 droite)
+var _tenue := 0.0              # durée pendant laquelle la direction de contournement est conservée (pas d'hésitation)
+var _dir_evit := Vector3.ZERO
+var _detour := 0.0             # durée restante d'un détour forcé (bloqué)
+var _dernier := Vector3.ZERO
+var _t_bloque := 0.0
 const BUTIN := preload("res://scripts/butin.gd")
 
 var etat := GARDE
@@ -106,6 +115,7 @@ func _ready() -> void:
 		if debout:
 			_jouer("Idle", 0.0)
 			anim.speed_scale = 0.0  # figé dans sa niche
+			anim.advance(0.0)       # pose appliquée tout de suite : sous --paisible (process coupé), plus de T-pose
 		else:
 			# allongé : dernière image de l'animation de mort
 			_jouer("Death01", 0.0)
@@ -113,7 +123,7 @@ func _ready() -> void:
 			anim.pause()
 	else:
 		_jouer("Sword_Idle", 0.0)
-		anim.seek(randf() * 2.0)  # phase au hasard : les gardes ne bougent pas en même temps
+		anim.seek(randf() * 2.0, true)  # phase au hasard : les gardes ne bougent pas en même temps (update immédiat : pas de T-pose si le process est coupé)
 
 ## Le réveil : un dormeur allongé rejoue sa mort à l'envers et se relève.
 func _reveiller() -> void:
@@ -258,6 +268,11 @@ func _physics_process(dt: float) -> void:
 		MORT:
 			regard = false
 
+	if contourne and loco != "":
+		dir = _eviter(dir, dt)
+	else:
+		_detour = 0.0
+		_t_bloque = 0.0
 	var ecart := 0.0
 	if (regard or loco != "") and dist > 0.01:
 		var cible := atan2(dir.x, dir.z)
@@ -279,6 +294,56 @@ func _physics_process(dt: float) -> void:
 	velocity.x = dir.x * _vit + _recul.x
 	velocity.z = dir.z * _vit + _recul.z
 	move_and_slide()
+
+## Rayon horizontal de 1,3 m à hauteur de genou : libre si rien (hors lui, le joueur et les autres ennemis) ne le coupe.
+func _libre(d: Vector3, longueur: float) -> bool:
+	var de := global_position + Vector3(0, 0.55, 0)
+	var q := PhysicsRayQueryParameters3D.create(de, de + d * longueur)
+	var ex: Array[RID] = [get_rid()]
+	if joueur != null:
+		ex.append(joueur.get_rid())
+	for e in get_tree().get_nodes_in_group("ennemis"):
+		if e is CollisionObject3D and e != self:
+			ex.append((e as CollisionObject3D).get_rid())
+	q.exclude = ex
+	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+
+## Direction voulue corrigée pour longer les obstacles : trois rayons (droit, ±35°, ±70°, ±110°), côté mémorisé pour ne pas
+## hésiter ; si le bandit n'avance plus (coincé dans un angle), détour forcé d'une demi-seconde du côté opposé.
+func _eviter(dir: Vector3, dt: float) -> Vector3:
+	var avance := global_position.distance_to(_dernier)
+	_dernier = global_position
+	if _vit > 0.3 and avance < _vit * dt * 0.3:
+		_t_bloque += dt
+	else:
+		_t_bloque = maxf(_t_bloque - dt, 0.0)
+	if _t_bloque > 0.4:
+		_t_bloque = 0.0
+		_cote = -_cote
+		_detour = 0.7
+	if _detour > 0.0:
+		_detour -= dt
+		var forc := dir.rotated(Vector3.UP, _cote * 1.2)
+		if _libre(forc, 1.0):
+			return forc
+	if _tenue > 0.0:
+		_tenue -= dt
+		if _libre(_dir_evit, 1.0):
+			return _dir_evit
+		_tenue = 0.0
+	if _libre(dir, 1.4):
+		return dir
+	for a in [0.6, 1.2, 1.9]:
+		for c in [_cote, -_cote]:
+			var d := dir.rotated(Vector3.UP, c * a)
+			if _libre(d, 1.2):
+				_cote = c
+				_dir_evit = d
+				_tenue = 0.7
+				return d
+	_dir_evit = dir.rotated(Vector3.UP, _cote * 2.4)
+	_tenue = 0.5
+	return _dir_evit
 
 ## Appelé par l'épée du joueur. Renvoie "bloque", "touche" ou "tue".
 func recevoir_coup(quantite: float, origine_coup: Vector3, puissant: bool) -> String:

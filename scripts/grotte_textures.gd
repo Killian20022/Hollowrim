@@ -263,30 +263,42 @@ static func neige_image(sol_ := false) -> Image:
 static func glace_image(superposee := false) -> Image:
 	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
 	var R := _rampe(R_GLACE)
-	var profond := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.016, 81, S, 4)
-	var nuage := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.05, 86, S, 3)
-	var fissure := _champ(FastNoiseLite.TYPE_CELLULAR, 0.026, 82, S, 1, FastNoiseLite.FRACTAL_NONE, FastNoiseLite.RETURN_DISTANCE2_SUB)
-	var plaque := _champ(FastNoiseLite.TYPE_CELLULAR, 0.026, 82, S, 1, FastNoiseLite.FRACTAL_NONE, FastNoiseLite.RETURN_CELL_VALUE)
+	var profond := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.012, 81, S, 3)
+	var nuage := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.04, 86, S, 2)
+	var fissure := _champ(FastNoiseLite.TYPE_CELLULAR, 0.02, 82, S, 1, FastNoiseLite.FRACTAL_NONE, FastNoiseLite.RETURN_DISTANCE2_SUB)
+	var plaque := _champ(FastNoiseLite.TYPE_CELLULAR, 0.02, 82, S, 1, FastNoiseLite.FRACTAL_NONE, FastNoiseLite.RETURN_CELL_VALUE)
 	var presence := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.03, 87, S, 2)
-	var bulle := _champ(FastNoiseLite.TYPE_SIMPLEX, 0.3, 83, S, 1)
-	var grain := _champ(FastNoiseLite.TYPE_SIMPLEX, 0.5, 84, S, 2)
-	var seuil := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.05, 85, S, 4)
-	var h := _mix(profond, fissure, 0.2)
+	var bulle := _champ(FastNoiseLite.TYPE_SIMPLEX, 0.25, 83, S, 1)
+	var fin := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.11, 89, S, 3)
+	var onde := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.015, 88, S, 2)
+	var h := _mix(profond, fissure, 0.15)
 	for y in S:
 		for x in S:
 			var i := y * S + x
-			var v := 0.42 + 0.42 * (profond[i] - 0.45) + 0.16 * (nuage[i] - 0.5) + 0.06 * (plaque[i] - 0.5) + 0.05 * (grain[i] - 0.5)
-			v += _repoussoir(h, x, y, 0.6)
-			var f := fissure[i]
-			if presence[i] > 0.64:                         # toutes les cassures ne se voient pas
-				if f < 0.028:
-					v = 0.74                               # givre dans la cassure
-				elif f < 0.06:
-					v -= 0.1                               # lèvre sombre
-			if bulle[i] > 0.93:
-				v = 0.86 if bulle[i] > 0.965 else v - 0.1   # bulle emprisonnée
+			# glace lisible : grands plans de ton (une plaque = un palier), pas de grain fin
+			var v := 0.46 + 0.5 * (profond[i] - 0.5) + 0.2 * (plaque[i] - 0.5) + 0.1 * (nuage[i] - 0.5) + 0.2 * (fin[i] - 0.5)
+			v += _repoussoir(h, x, y, 0.7)
+			# reflets nets : traînées obliques fines (2 px), claires, interrompues ; un liseré sombre juste dessous
+			var u := (float(x) + float(y) * 0.6 + onde[i] * 30.0) / 42.0
+			var f := u - floorf(u)
+			var br := _hash_i(int(floorf(u)), 91)
+			if br > 0.35:
+				if f < 0.035:
+					v = 0.93
+				elif f < 0.05:
+					v = maxf(v, 0.78)
+				elif f > 0.052 and f < 0.07:
+					v -= 0.12
+			var fi := fissure[i]
+			if presence[i] > 0.55:                         # fissures : filet de givre clair bordé d'un creux bleu nuit
+				if fi < 0.012:
+					v = 0.8
+				elif fi < 0.03:
+					v -= 0.22
+			if bulle[i] > 0.94 and presence[i] < 0.5:
+				v = 0.88                                    # bulle emprisonnée (rare, isolée)
 			var c := _ton(R, clampf(v, 0.0, 0.999))
-			c.a = _seuil_bancs(x, y, profond, nuage, 5) if superposee else 1.0
+			c.a = clampf(0.04 + 0.4 * nuage[i] + 0.25 * (onde[i] - 0.3), 0.03, 0.6) if superposee else 1.0
 			img.set_pixel(x, y, c)
 	return img
 

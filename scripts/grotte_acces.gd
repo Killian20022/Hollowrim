@@ -537,7 +537,7 @@ func _bandits() -> void:
 		if k == 1:
 			app["casque"] = "casque_nasal"
 		var b: Node = monde.creer_draugr("sbire", grotte.monde_sol(s, lat) + Vector3(0, 0.05, 0), grotte.cap_monde(s) + PI + 0.5 * (k - 1.5), false,
-			{"ident": id, "nom_affiche": "Bandit", "apparence": app, "vie_imposee": 55.0})
+			{"ident": id, "nom_affiche": "Bandit", "contourne": true, "apparence": app, "vie_imposee": 55.0})
 		if monde._paisible():
 			b.process_mode = Node.PROCESS_MODE_DISABLED        # --paisible : figés (captures comparables)
 		bandits.append(b)

@@ -148,6 +148,41 @@ func _tester() -> void:
 		if not is_instance_valid(b) or b.global_position.y > -200.0 or not b.vivant() or b.nom_affiche != "Bandit":
 			camp_ok = false
 	_verif(camp_ok, "4 bandits vivants au camp, dans la grotte")
+	# navigation : un mur de 3,6 m entre le bandit et le joueur, le bandit le contourne et vient au corps à corps
+	var gr: Grotte = a.grotte
+	var bn: CharacterBody3D = a.bandits[1]
+	for k in a.bandits.size():
+		if k != 1:
+			a.bandits[k].process_mode = Node.PROCESS_MODE_DISABLED
+	var mur := StaticBody3D.new()
+	var mc := CollisionShape3D.new()
+	var bx := BoxShape3D.new()
+	bx.size = Vector3(3.6, 2.0, 0.4)
+	mc.shape = bx
+	mur.add_child(mc)
+	gr.add_child(mur)
+	var s_b := 98.2
+	var lat_b := 2.6
+	var cap_b := gr.cap_monde(s_b)
+	var pm: Vector3 = gr.monde_sol(s_b - 2.5, lat_b)
+	mur.global_position = pm + Vector3(0, 1.0, 0)
+	mur.rotation.y = cap_b
+	j.global_position = gr.monde_sol(s_b - 6.0, lat_b) + Vector3(0, 0.2, 0)
+	bn.etat = bn.TRAQUE
+	var d_min := 999.0
+	for i in 900:
+		await physics_frame
+		d_min = minf(d_min, Vector2(bn.global_position.x - j.global_position.x, bn.global_position.z - j.global_position.z).length())
+		if d_min < 2.2:
+			break
+	bn.process_mode = Node.PROCESS_MODE_DISABLED
+	_verif(d_min < 2.4, "bandit : contourne un mur de 3,6 m et rejoint le joueur (distance mini %.2f m)" % d_min)
+	mur.queue_free()
+	bn.global_position = gr.monde_sol(s_b, lat_b) + Vector3(0, 0.05, 0)
+	for k in a.bandits.size():
+		a.bandits[k].process_mode = Node.PROCESS_MODE_INHERIT
+		a.bandits[k].etat = a.bandits[k].GARDE
+	j.global_position = gr.monde_sol(5.0, 0.0) + Vector3(0, 0.2, 0)
 	# un bandit tué reste mort dans la sauvegarde
 	a.bandits[0].recevoir_coup(999.0, a.bandits[0].global_position + Vector3(1, 0, 0), true)
 	_verif(m.cycle.process_mode == Node.PROCESS_MODE_DISABLED and not m.neige.visible and not m.cycle.lumiere.visible, "cycle coupé, neige et lune éteintes sous terre")
