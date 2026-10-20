@@ -125,8 +125,9 @@ func mat(nom: String) -> Material:
 			if nom == "mur4" or nom == "dalle4":
 				sm.set_shader_parameter("emission", Vector3(0.012, 0.034, 0.056))     # la glace garde un fond bleu dans le noir
 			elif nom == "or":
-				sm.set_shader_parameter("emission", Vector3(0.04, 0.028, 0.004))
+				sm.set_shader_parameter("emission", Vector3(0.03, 0.02, 0.003))
 				sm.set_shader_parameter("crasse", 0.0)
+				sm.set_shader_parameter("teinte", Color(0.7, 0.64, 0.58))
 			var sh := CRYPTE_SHADER
 			if nom == "toile":
 				var s2 := Shader.new()

@@ -842,6 +842,15 @@ func _arguments() -> Dictionary:
 		res["capture"] = ""  # --captures=<fichier> : mode capture (temps figé, ni musique ni sauvegarde)
 	return res
 
+## Ouvre des portes du donjon sans animation (captures, essais) : « s1,s2,s3,secret,herse ».
+func _ouvrir_donjon(liste: String) -> void:
+	for id in liste.split(","):
+		if id == "herse":
+			tertre.herse.position.y = 2.9
+		elif id != "":
+			tertre.quetes.vus["crypte:" + id] = true
+	tertre._etat_donjon()
+
 ## --crypte=x,z,lacet°,tangage° : descend dans la crypte et s'y place (mesures de performance, essais ; repère de la crypte).
 func _aller_crypte() -> void:
 	var a: String = _arguments().get("crypte", "")
@@ -1005,7 +1014,9 @@ func _lot_captures(fichier: String) -> void:
 				tertre._passer(true)
 				await get_tree().create_timer(1.3).timeout
 				dessous = "crypte"
-			joueur.global_position = tertre.crypte.to_global(Vector3(c[0], 0.1, c[1]))
+			if opt.has("ouvre"):     # ouvre=s1,s2,s3,secret,herse : portes ouvertes (captures du donjon) ; y optionnel en 5e coordonnée
+				_ouvrir_donjon(String(opt["ouvre"]))
+			joueur.global_position = tertre.crypte.to_global(Vector3(c[0], c[4] + 0.1 if c.size() > 4 else 0.1, c[1]))
 			joueur.rotation.y = tertre.crypte.global_rotation.y + deg_to_rad(c[2])
 			joueur.tete.rotation.x = deg_to_rad(c[3])
 			joueur.velocity = Vector3.ZERO
@@ -1152,12 +1163,7 @@ func _scenario(nom: String) -> void:
 				# --cpose=x,z,lacet,tangage (repère de la crypte ; lacet 0 = vers -Z) ; --sans-torche
 				var cp: PackedStringArray = String(_arguments()["cpose"]).split(",")
 				if _arguments().has("couvre"):      # --couvre=s1,s2,s3,secret,herse : portes ouvertes (captures du donjon)
-					for id in String(_arguments()["couvre"]).split(","):
-						if id == "herse":
-							tertre.herse.position.y = 2.9
-						else:
-							tertre.quetes.vus["crypte:" + id] = true
-					tertre._etat_donjon()
+					_ouvrir_donjon(String(_arguments()["couvre"]))
 				joueur.global_position = tertre.crypte.to_global(Vector3(float(cp[0]), float(cp[4]) + 0.1 if cp.size() > 4 else 0.1, float(cp[1])))
 				joueur.rotation.y = tertre.crypte.global_rotation.y + deg_to_rad(float(cp[2]))
 				joueur.tete.rotation.x = deg_to_rad(float(cp[3]))

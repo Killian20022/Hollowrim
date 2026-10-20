@@ -245,7 +245,16 @@ func _toiles(coins: Array, haut: float, y := 0.0) -> void:
 		d.toile(Vector3(c[0], y + haut, c[1]), Vector3(c[2], 0, 0), Vector3(0, 0, c[3]))
 
 func or_tas(pos: Vector3, r := 0.6, h := 0.3) -> void:
-	d.tour("or", pos, [Vector2(r, 0.0), Vector2(r * 0.8, h * 0.5), Vector2(r * 0.4, h * 0.9), Vector2(r * 0.1, h)], 7, 0.1, true)
+	# tas irrégulier : un monticule principal et des petits à son pied, quelques pièces au sol
+	d.tour("or", pos, [Vector2(r, 0.0), Vector2(r * 0.75, h * 0.55), Vector2(r * 0.4, h * 0.92), Vector2(r * 0.12, h)], 7, 0.1, true)
+	for k in 4:
+		var a := d.rng.randf() * TAU
+		var rr := r * d.rng.randf_range(0.7, 1.1)
+		var rs := r * d.rng.randf_range(0.3, 0.5)
+		d.tour("or", pos + Vector3(cos(a) * rr, 0, sin(a) * rr), [Vector2(rs, 0.0), Vector2(rs * 0.6, h * 0.5), Vector2(rs * 0.15, h * 0.7)], 5, 0.4, true)
+	for k in 6:
+		var a := d.rng.randf() * TAU
+		d.boite("or", pos + Vector3(cos(a), 0.012, sin(a)) * r * d.rng.randf_range(1.0, 1.6), Vector3(0.07, 0.02, 0.07), d.rng.randf() * TAU)
 
 func _froid(pos: Vector3, e := 1.3, portee := 6.0) -> void:
 	d.lumiere(pos, Color(0.45, 0.72, 1.0), e, portee, 1.6, false)
