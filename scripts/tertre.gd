@@ -63,7 +63,7 @@ func _process(dt: float) -> void:
 	if not dedans and joueur.global_position.distance_to(porte_dehors) < 9.0:
 		quetes.signaler("lieu:tertre")
 	if _lueur_tombe:
-		var cible := 3.2 if _anneau_rendu else 1.6 + sin(_t * 1.3) * 0.3
+		var cible := 3.6 if _anneau_rendu else 2.4 + sin(_t * 1.3) * 0.4
 		_lueur_tombe.light_energy = lerpf(_lueur_tombe.light_energy, cible, 1.0 - exp(-2.0 * dt))
 	# Svanhild se lève quand on approche du sarcophage avec l'anneau
 	if dedans and not _svanhild_levee and joueur.inventaire.a("anneau_givre"):
@@ -329,10 +329,10 @@ func _tombeau() -> void:
 		d.contrefort(-7.45, z, 6.0, 1.0, 0.0, 0.7, 0.5)
 	_lueur_tombe = OmniLight3D.new()
 	_lueur_tombe.light_color = Color(0.4, 0.8, 1.0)
-	_lueur_tombe.light_energy = 1.6
-	_lueur_tombe.omni_range = 10.0
-	_lueur_tombe.omni_attenuation = 1.5
-	_lueur_tombe.position = Vector3(0, 3.0, -51.5)
+	_lueur_tombe.light_energy = 2.4          # lot 7a (2e passe) : source froide propre, basse, qui rase les flancs du sarcophage
+	_lueur_tombe.omni_range = 8.5
+	_lueur_tombe.omni_attenuation = 1.4
+	_lueur_tombe.position = Vector3(0, 2.1, -49.6)
 	crypte.add_child(_lueur_tombe)
 	d.brasero(Vector3(-5.0, 0, -45.0))
 	d.brasero(Vector3(5.0, 0, -45.0))

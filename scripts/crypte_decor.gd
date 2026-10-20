@@ -16,7 +16,7 @@ const CASE := 8.0
 const FEU := Color(1.0, 0.56, 0.24)
 
 const TUILE := {
-	"mur0": 4.0, "mur1": 4.0, "mur2": 4.0, "dalle0": 8.0, "dalle1": 8.0, "voute": 4.0,
+	"mur0": 4.0, "mur1": 4.0, "mur2": 4.0, "dalle0": 4.0, "dalle1": 4.0, "voute": 4.0,
 	"bois": 2.0, "fer": 1.0, "lame": 1.0, "gravure": 2.0, "argile": 1.0, "os": 0.5, "parchemin": 0.5,
 	"toile": 1.0, "noir": 1.0, "halo": 1.0, "halo_f": 1.0, "rai": 1.0, "braise": 1.0,
 }
@@ -36,6 +36,7 @@ var lumieres: Array = []       # [OmniLight3D, énergie, phase]
 var _flammes_def: Array = []    # [position, échelle, phase] : fusionnées en MultiMesh par cellule dans finir()
 var _nb_pieces := 0
 
+const RELIEF := {"mur0": 0.75, "mur1": 0.75, "mur2": 0.75, "dalle0": 0.8, "dalle1": 0.8, "voute": 0.7, "bois": 0.8, "fer": 0.7, "gravure": 1.0}
 const AVEC_MIPS := ["mur0", "mur1", "mur2", "dalle0", "voute", "bois", "fer", "lame", "gravure", "argile", "os", "parchemin", "toile"]
 const SANS_MIPS := ["halo", "rai", "flamme"]
 
@@ -52,8 +53,9 @@ func _init(parent: Node3D, solide: StaticBody3D) -> void:
 		_taches[nom] = WorkerThreadPool.add_task(_peindre.bind(nom, cible))
 
 func _peindre(nom: String, cible: Array) -> void:
-	var img := CrypteTextures.image(nom)
-	cible[0] = CrypteTextures.mips_image(img) if nom in AVEC_MIPS else img
+	var paire := CrypteTextures.paire(nom)
+	cible[0] = CrypteTextures.mips_image(paire[0]) if nom in AVEC_MIPS else paire[0]
+	cible.append(paire[1])      # carte de pentes (ou null) ; ses mipmaps linéaires sont déjà générées
 
 func _attendre(nom: String) -> void:
 	if _taches.has(nom):
@@ -105,11 +107,22 @@ func mat(nom: String) -> Material:
 				sm.set_shader_parameter("emission", Vector3(0.06, 0.08, 0.1))
 			sm.shader = sh
 			sm.set_shader_parameter("tex_base", _texture(nom))
+			var nm := _pentes(nom)
+			if nm != null:
+				sm.set_shader_parameter("tex_nm", nm)
+				sm.set_shader_parameter("relief", RELIEF.get(nom, 1.0))
 			if nom == "fer" or nom == "lame":
 				sm.set_shader_parameter("crasse", 0.0)
 			m = sm
 	_mats[nom] = m
 	return m
+
+func _pentes(nom: String) -> ImageTexture:
+	_attendre(nom)
+	var cible: Array = _images[nom]
+	if cible.size() < 2 or cible[1] == null:
+		return null
+	return ImageTexture.create_from_image(cible[1])
 
 func _texture(nom: String) -> ImageTexture:
 	if not _tex.has(nom):
@@ -122,7 +135,7 @@ func _texture(nom: String) -> ImageTexture:
 func _buf(c: Vector3, nom: String) -> Dictionary:
 	var cle := "%d,%d|%s" % [floori(c.x / CASE), floori(c.z / CASE), nom]
 	if not _bufs.has(cle):
-		_bufs[cle] = {"nom": nom, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array()}
+		_bufs[cle] = {"nom": nom, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray()}
 	return _bufs[cle]
 
 func _uv(p: Vector3, n: Vector3, tuile: float) -> Vector2:
@@ -136,21 +149,24 @@ func _uv(p: Vector3, n: Vector3, tuile: float) -> Vector2:
 		uv = Vector2(p.x, -p.y)
 	return uv / tuile
 
-func _tri(b: Dictionary, a: Vector3, bb: Vector3, c: Vector3, n: Vector3, ua: Vector2, ub: Vector2, uc: Vector2) -> void:
+func _tri(b: Dictionary, a: Vector3, bb: Vector3, c: Vector3, n: Vector3, ua: Vector2, ub: Vector2, uc: Vector2, ca := Color.WHITE, cb := Color.WHITE, cc := Color.WHITE) -> void:
 	var geo := (bb - a).cross(c - a)
 	var v: PackedVector3Array = b["v"]
 	var nn: PackedVector3Array = b["n"]
 	var uu: PackedVector2Array = b["u"]
+	var co: PackedColorArray = b["c"]
 	if geo.dot(n) > 0.0:    # Godot : face avant = sens horaire
 		v.append(a); v.append(c); v.append(bb)
 		uu.append(ua); uu.append(uc); uu.append(ub)
+		co.append(ca); co.append(cc); co.append(cb)
 	else:
 		v.append(a); v.append(bb); v.append(c)
 		uu.append(ua); uu.append(ub); uu.append(uc)
+		co.append(ca); co.append(cb); co.append(cc)
 	nn.append(n); nn.append(n); nn.append(n)
 
 ## Quad a-b-c-d (ordre de contour), normale n ; UV imposés ou calculés depuis les positions p_uv.
-func quad(nom: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, uvs: Array = [], p_uv: Array = []) -> void:
+func quad(nom: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, uvs: Array = [], p_uv: Array = [], cols: Array = []) -> void:
 	var centre := (a + b + c + d) * 0.25
 	var buf := _buf(centre, nom)
 	var t: float = TUILE.get(nom, 1.0)
@@ -158,8 +174,10 @@ func quad(nom: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector
 	if u.is_empty():
 		var pp: Array = p_uv if not p_uv.is_empty() else [a, b, c, d]
 		u = [_uv(pp[0], n, t), _uv(pp[1], n, t), _uv(pp[2], n, t), _uv(pp[3], n, t)]
-	_tri(buf, a, b, c, n, u[0], u[1], u[2])
-	_tri(buf, a, c, d, n, u[0], u[2], u[3])
+	if cols.is_empty():
+		cols = [Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE]
+	_tri(buf, a, b, c, n, u[0], u[1], u[2], cols[0], cols[1], cols[2])
+	_tri(buf, a, c, d, n, u[0], u[2], u[3], cols[0], cols[2], cols[3])
 
 const _FACES := [
 	[Vector3.RIGHT, [Vector3(1, -1, -1), Vector3(1, -1, 1), Vector3(1, 1, 1), Vector3(1, 1, -1)]],
@@ -189,7 +207,7 @@ func boite(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0, sans_des
 
 ## Boîte autonome (pièces mobiles : herse, levier) : maillage propre, UV en mètres comme le reste.
 func instance_boite(parent: Node3D, nom: String, taille: Vector3, pos: Vector3, lacet := 0.0) -> MeshInstance3D:
-	var buf := {"nom": nom, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array()}
+	var buf := {"nom": nom, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray()}
 	var h := taille * 0.5
 	var t: float = TUILE.get(nom, 1.0)
 	for f in _FACES:
@@ -207,6 +225,7 @@ func instance_boite(parent: Node3D, nom: String, taille: Vector3, pos: Vector3, 
 	arr[Mesh.ARRAY_VERTEX] = buf["v"]
 	arr[Mesh.ARRAY_NORMAL] = buf["n"]
 	arr[Mesh.ARRAY_TEX_UV] = buf["u"]
+	arr[Mesh.ARRAY_COLOR] = buf["c"]
 	var m := ArrayMesh.new()
 	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 	var mi := MeshInstance3D.new()
@@ -332,25 +351,66 @@ func arc(nom: String, plan: String, cx: float, cz: float, w: float, ys: float, f
 		quad(nom, ea, eb, ec, ed, -nint, [Vector2(s0, 0), Vector2(s1, 0), Vector2(s1, prof / t), Vector2(s0, prof / t)])
 	_nb_pieces += 1
 
-# ------------------------------------------------------------------ surfaces modulaires (pas de 4 m)
-func plan_h(nom: String, x0: float, x1: float, z0: float, z1: float, y: float, vers_haut: bool) -> void:
+## Occlusion ambiante cuite dans les sommets : 1 = rien, `fond` au contact. Teinte un peu froide (l'ombre est bleutée).
+func _ao(d: float, portee: float, fond: float) -> Color:
+	var t := clampf(d / portee, 0.0, 1.0)
+	t = t * t * (3.0 - 2.0 * t)
+	var f := lerpf(fond, 1.0, t)
+	return Color(f, f, minf(1.0, f + 0.07 * (1.0 - f)))
+
+## Points de coupe d'un segment [a, b] : bords, bords + marge, puis pas de 4 m au plus ; sans doublons proches.
+func _coupes(a: float, b: float, marges: Array) -> Array:
+	var pts := [a, b]
+	for m: float in marges:
+		if b - a > 2.0 * m + 0.1:
+			pts.append(a + m)
+			pts.append(b - m)
+	pts.sort()
+	var res := [pts[0]]
+	for k in range(1, pts.size()):
+		if pts[k] - res[res.size() - 1] > 0.05:
+			res.append(pts[k])
+	var out := [res[0]]
+	for k in range(1, res.size()):
+		var n := maxi(1, int(ceil((res[k] - out[out.size() - 1]) / 4.0 - 0.001)))
+		var d0: float = out[out.size() - 1]
+		for j in range(1, n + 1):
+			out.append(lerpf(d0, res[k], float(j) / n))
+	return out
+
+# ------------------------------------------------------------------ surfaces modulaires (pas de 4 m), AO cuite
+func plan_h(nom: String, x0: float, x1: float, z0: float, z1: float, y: float, vers_haut: bool, marge := 0.9, fond := 0.5) -> void:
 	var n := Vector3.UP if vers_haut else Vector3.DOWN
-	var xs := _pas(x0, x1)
-	var zs := _pas(z0, z1)
+	var xs := _coupes(x0, x1, [marge])
+	var zs := _coupes(z0, z1, [marge])
+	var col := func(x: float, z: float) -> Color:
+		return _ao(minf(minf(x - x0, x1 - x), minf(z - z0, z1 - z)), marge, fond)
 	for i in xs.size() - 1:
 		for j in zs.size() - 1:
-			quad(nom, Vector3(xs[i], y, zs[j]), Vector3(xs[i + 1], y, zs[j]), Vector3(xs[i + 1], y, zs[j + 1]), Vector3(xs[i], y, zs[j + 1]), n)
+			quad(nom, Vector3(xs[i], y, zs[j]), Vector3(xs[i + 1], y, zs[j]), Vector3(xs[i + 1], y, zs[j + 1]), Vector3(xs[i], y, zs[j + 1]), n, [], [],
+				[col.call(xs[i], zs[j]), col.call(xs[i + 1], zs[j]), col.call(xs[i + 1], zs[j + 1]), col.call(xs[i], zs[j + 1])])
 
 ## Mur vertical ; `axe` "x" : le mur s'étend le long de X à z = fixe (normale ±Z) ; "z" : le long de Z à x = fixe.
+## Coins (extrémités du pan) et haut du mur assombris (sommets) ; le pied l'est par le shader.
 func plan_v(nom: String, axe: String, fixe: float, a0: float, a1: float, y0: float, y1: float, signe: float) -> void:
 	if a1 - a0 < 0.01 or y1 - y0 < 0.01:
 		return
-	var s := _pas(a0, a1)
+	var s := _coupes(a0, a1, [0.7])
+	var ys := _coupes(y0, y1, [0.8])
+	var col := func(a: float, y: float) -> Color:
+		var f := _ao(minf(a - a0, a1 - a), 0.7, 0.55) * _ao(y1 - y, 0.8, 0.5)
+		if y0 > 0.5:     # dessous d'un linteau : l'angle avec le mur est sombre aussi
+			f *= _ao(y - y0, 0.5, 0.7)
+		return f
 	for i in s.size() - 1:
-		if axe == "x":
-			quad(nom, Vector3(s[i], y0, fixe), Vector3(s[i + 1], y0, fixe), Vector3(s[i + 1], y1, fixe), Vector3(s[i], y1, fixe), Vector3(0, 0, signe))
-		else:
-			quad(nom, Vector3(fixe, y0, s[i]), Vector3(fixe, y0, s[i + 1]), Vector3(fixe, y1, s[i + 1]), Vector3(fixe, y1, s[i]), Vector3(signe, 0, 0))
+		for j in ys.size() - 1:
+			var ya: float = ys[j]
+			var yb: float = ys[j + 1]
+			var cc := [col.call(s[i], ya), col.call(s[i + 1], ya), col.call(s[i + 1], yb), col.call(s[i], yb)]
+			if axe == "x":
+				quad(nom, Vector3(s[i], ya, fixe), Vector3(s[i + 1], ya, fixe), Vector3(s[i + 1], yb, fixe), Vector3(s[i], yb, fixe), Vector3(0, 0, signe), [], [], cc)
+			else:
+				quad(nom, Vector3(fixe, ya, s[i]), Vector3(fixe, ya, s[i + 1]), Vector3(fixe, yb, s[i + 1]), Vector3(fixe, yb, s[i]), Vector3(signe, 0, 0), [], [], cc)
 
 func _pas(a: float, b: float, pas := 4.0) -> Array:
 	var n := maxi(1, int(ceil((b - a) / pas - 0.001)))
@@ -470,17 +530,38 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 				quad("voute", Vector3(fixe_mur - 0.3, y + ho, c[0]), Vector3(fixe_mur + 0.3, y + ho, c[0]), Vector3(fixe_mur + 0.3, y + ho, c[1]), Vector3(fixe_mur - 0.3, y + ho, c[1]), Vector3.DOWN)
 			# cadre de porte épais : deux jambages et un linteau en saillie sur le mur
 			_cadre(horizontal, plan, signe, c[0], c[1], ho, y)
-		# plinthe et corniche le long de chaque mur
+		# soubassement en deux assises irrégulières, corniche à trois ressauts sur corbeaux, pierres en saillie
 		for m in libres:
-			var lon: float = m[1] - m[0]
-			var mil: float = (m[0] + m[1]) * 0.5
-			var p_in: float = plan + signe * 0.07
-			if horizontal:
-				boite("mur0", Vector3(mil, y + 0.15, p_in), Vector3(lon, 0.3, 0.14))
-				boite("mur0", Vector3(mil, y + h - 0.12, plan + signe * 0.06), Vector3(lon, 0.24, 0.12))
-			else:
-				boite("mur0", Vector3(p_in, y + 0.15, mil), Vector3(0.14, 0.3, lon))
-				boite("mur0", Vector3(plan + signe * 0.06, y + h - 0.12, mil), Vector3(0.12, 0.24, lon))
+			_relief_mur(horizontal, plan, signe, m[0], m[1], y, h)
+
+## Relief géométrique d'un pan de mur : pierres de soubassement de profondeur variable, corniche (ressauts + corbeaux),
+## quelques pierres d'assise en saillie (alignées sur les assises de 0,5 m de la texture).
+func _relief_mur(horizontal: bool, plan: float, signe: float, a0: float, a1: float, y: float, h: float) -> void:
+	var dos := func(a: float, y_c: float, lon: float, ep: float, haut: float, nom: String) -> void:
+		var c := Vector3(a, y + y_c, plan + signe * (ep * 0.5)) if horizontal else Vector3(plan + signe * (ep * 0.5), y + y_c, a)
+		boite(nom, c, Vector3(lon, haut, ep) if horizontal else Vector3(ep, haut, lon))
+	var a := a0
+	while a < a1 - 0.05:                                 # assise basse : 0,3 m, saillie 0,10 à 0,20
+		var l := minf(rng.randf_range(0.7, 1.5), a1 - a)
+		dos.call(a + l * 0.5, 0.15 + rng.randf_range(-0.01, 0.01), l - 0.02, rng.randf_range(0.10, 0.20), 0.3 + rng.randf_range(-0.03, 0.03), "mur1" if rng.randf() < 0.4 else "mur0")
+		a += l
+	a = a0 + rng.randf_range(0.0, 0.5)
+	while a < a1 - 0.05:                                 # seconde assise : 0,3 à 0,62, saillie 0,04 à 0,09
+		var l := minf(rng.randf_range(0.9, 1.7), a1 - a)
+		dos.call(a + l * 0.5, 0.46, l - 0.02, rng.randf_range(0.04, 0.09), 0.32, "mur0" if rng.randf() < 0.6 else "mur1")
+		a += l
+	dos.call((a0 + a1) * 0.5, h - 0.1, a1 - a0, 0.12, 0.2, "mur0")      # corniche : trois ressauts
+	dos.call((a0 + a1) * 0.5, h - 0.3, a1 - a0, 0.07, 0.2, "mur1")
+	dos.call((a0 + a1) * 0.5, h - 0.45, a1 - a0, 0.035, 0.12, "mur0")
+	a = a0 + 0.9                                         # corbeaux sous la corniche
+	while a < a1 - 0.5:
+		dos.call(a, h - 0.38, 0.3, 0.2, 0.26, "mur1")
+		a += 2.0
+	if a1 - a0 > 1.6:                                    # pierres d'assise en saillie
+		for k in int((a1 - a0) / 2.6):
+			var cen := rng.randf_range(a0 + 0.8, a1 - 0.8)
+			var rang := rng.randi_range(1, maxi(1, int(minf(h, 3.0) / 0.5) - 3))
+			dos.call(cen, rang * 0.5 + 0.25, rng.randf_range(0.7, 1.2), rng.randf_range(0.04, 0.09), 0.48, "mur1" if rng.randf() < 0.5 else "mur2")
 
 func _var_mur(base: String, i: int) -> String:
 	if base == "mur0":
@@ -600,8 +681,8 @@ func applique(plan_mur: Vector3, vers: Vector3, haut := 2.1, portee := 5.0, ener
 	tour("fer", p + d * 0.32 - Vector3(0, 0.1, 0), [Vector2(0.05, 0.0), Vector2(0.075, 0.12)], 6, -1.0, false)
 	tour("bois", p + d * 0.32 - Vector3(0, 0.08, 0), [Vector2(0.03, 0.0), Vector2(0.035, 0.3)], 6, -1.0, true)
 	tour("bois", p + d * 0.32 + Vector3(0, 0.12, 0), [Vector2(0.045, 0.0), Vector2(0.062, 0.1)], 6, -1.0, false)
-	flamme(p + d * 0.32 + Vector3(0, 0.2, 0), 1.35)
-	carte("halo", p + d * 0.05 + Vector3(0, 0.3, 0), d, 1.7, 1.7)
+	flamme(p + d * 0.32 + Vector3(0, 0.2, 0), 1.6)
+	carte("halo", p + d * 0.13 + Vector3(0, 0.3, 0), d, 1.4, 1.4)
 	if avec_lumiere:
 		lumiere(p + d * 0.5 + Vector3(0, 0.45, 0), FEU, energie, portee, 1.8)
 
@@ -786,6 +867,7 @@ func finir() -> void:
 		arr[Mesh.ARRAY_VERTEX] = v
 		arr[Mesh.ARRAY_NORMAL] = b["n"]
 		arr[Mesh.ARRAY_TEX_UV] = b["u"]
+		arr[Mesh.ARRAY_COLOR] = b["c"]
 		var m := ArrayMesh.new()
 		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 		var mi := MeshInstance3D.new()

@@ -1,30 +1,52 @@
 class_name CrypteTextures
-## Textures de la crypte (lot 7a), dessinées en AMAS de pixels et non par bruit : blocs taillés avec joints,
-## arête haute claire, arête basse ombrée, coins épaufrés, salpêtre, mousse, fissures, poussière.
-## Densité : 16 texels/m pour la structure (tuile 64 px = 4 m), 32 texels/m pour le bois, le fer et les
-## petits objets (tuile 32 ou 64 px = 1 à 2 m). Tout est dans des rampes de la bible, glissement de teinte
-## compris (ombres bleu-violet, lumières un peu plus chaudes). Mipmaps « nearest » maison (vote de couleur 2x2).
+## Textures de la crypte (lot 7a, 2e passe « réalisme 32 bits »). Chaque texture naît d'une CARTE DE HAUTEUR (blocs taillés,
+## joints creux, biseaux arrondis, ondulation de la pierre, éclats, fissures) dont on tire : (1) l'albédo, par éclairage
+## peint (lumière haut-gauche), occlusion ambiante dans les joints, ombres portées d'un bloc sur son voisin, dégradé
+## interne de chaque pierre, teinte propre à chaque pierre (rampe froide <-> rampe chaude), coulures, salpêtre, mousse ;
+## (2) une carte de pentes (`*_nm`) que le shader lit pour que la torche sculpte le relief en lumière rasante.
+## Densité : 32 texels/m (K = 2) pour la pierre, le bois, le fer et les petits objets (tuiles de 1 à 8 m).
+## Les rampes comptent 8 à 10 tons et sont INTERPOLÉES puis quantifiées à ~26 niveaux par tramage ordonné 4x4
+## (grain « photo réduite et retouchée » au lieu d'aplats). Mipmaps « nearest » maison (vote de couleur 2x2,
+## égalité départagée vers la valeur moyenne : plus d'assombrissement au loin).
 ## Aucune fonction partagée de palette.gd n'est touchée.
 
 const CLEAR := Color(0, 0, 0, 0)
-const K := 2   # facteur de densité de la pierre : 1 = 16 texels/m, 2 = 32 texels/m (voir journal : couloirs étroits)
+const K := 2   # facteur de densité de la pierre : 1 = 16 texels/m, 2 = 32 texels/m
 
-# rampes : indice 0 = joint / creux, dernier = arête claire
-const PIERRE := ["#1f2430", "#2f3643", "#424b5b", "#5a6579", "#7c889c"]
-const PIERRE_SOMBRE := ["#161a23", "#212733", "#2f3745", "#414b5c", "#586377"]
-const MOUSSE := ["#14231a", "#1e3524", "#2c4c2f", "#44703c"]
-const SALPETRE := ["#6a8789", "#8cadab", "#b3cfc8"]
-const BOIS := ["#1d130c", "#2d1e13", "#43301e", "#5d4329", "#7b5a37"]
-const FER := ["#1e222b", "#323947", "#4c5568", "#7a869c"]
-const ROUILLE := ["#3a1f14", "#5e3018", "#8a4a22"]
-const OSSE := ["#4f4a3d", "#7b7360", "#a69d82", "#d0c7a8", "#ece4c8"]
-const ARGILE := ["#281811", "#412819", "#5d3b26", "#7d5638"]
-const PARCHEMIN := ["#4a3d27", "#76663f", "#a8956a", "#c9b88a"]
+# rampes (indice 0 = creux/joint, dernier = lumière) : désaturées, froides dans l'ombre, un peu plus chaudes en lumière
+const PIERRE_FROID := ["#0f1219", "#171b25", "#212733", "#2d3441", "#3b4352", "#4b5363", "#5e6575", "#747a89", "#8c909d", "#a6a9b3"]
+const PIERRE_CHAUD := ["#15131a", "#1e1b20", "#2b2627", "#3a322f", "#4b413a", "#5e5247", "#75685a", "#8d806e", "#a59885", "#beb19d"]
+const PIERRE_SOMBRE_F := ["#0b0d13", "#12151e", "#1b2029", "#262c37", "#323946", "#414857", "#535a69", "#676d7c", "#7d828f", "#979aa5"]
+const MOUSSE := ["#0e1810", "#16261a", "#203820", "#2d4e2e", "#3f6a39", "#5b8a49"]
+const SALPETRE := ["#4a5d5f", "#647e80", "#82a09f", "#a0bdb8", "#bdd5cd", "#d9e8e0"]
+const BOIS := ["#130c07", "#1c120a", "#291a0f", "#372314", "#473019", "#593d22", "#6c4c2b", "#815c36", "#966e42", "#ab8250"]
+const FER := ["#13161c", "#1c2029", "#292f3b", "#394150", "#4c5568", "#66718a", "#8591a8", "#a6b1c4"]
+const ROUILLE := ["#2b160d", "#46230f", "#6a3517", "#8f4a21", "#b06530"]
+const OSSE := ["#3f3b31", "#625c4c", "#867e68", "#a89f84", "#c8bfa2", "#e4dcc0"]
+const ARGILE := ["#1d110b", "#2f1b11", "#432819", "#5a3a24", "#734c30", "#8c613f"]
+const PARCHEMIN := ["#3b301d", "#5c4e30", "#80704a", "#a39266", "#c2b284", "#d8cb9e"]
 const TOILE := ["#8d9db0", "#b5c4d3"]
 const FLAMME := ["#4a1008", "#a8330c", "#f0801a", "#ffcb52", "#fff3c4"]
+const BAYER := [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
+const NIVEAUX := 26.0
 
 static func _c(rampe: Array, i: int) -> Color:
 	return Color(rampe[clampi(i, 0, rampe.size() - 1)])
+
+static func _cols(r: Array) -> Array:
+	var o := []
+	for h in r:
+		o.append(Color(h))
+	return o
+
+## Interpolation le long d'une rampe (liste de Color), l dans [0, 1].
+static func _rp(cols: Array, l: float) -> Color:
+	var f := clampf(l, 0.0, 1.0) * (cols.size() - 1)
+	var i := mini(int(f), cols.size() - 2)
+	return (cols[i] as Color).lerp(cols[i + 1], f - i)
+
+static func _q(l: float, x: int, y: int) -> float:
+	return floorf(l * NIVEAUX + (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16.0) / NIVEAUX
 
 static func _px(img: Image, x: int, y: int, c: Color) -> void:
 	img.set_pixel(posmod(x, img.get_width()), posmod(y, img.get_height()), c)
@@ -39,6 +61,24 @@ static func _rng(graine: int) -> RandomNumberGenerator:
 	r.seed = graine
 	return r
 
+static func _ss(a: float, b: float, x: float) -> float:
+	var t := clampf((x - a) / (b - a), 0.0, 1.0)
+	return t * t * (3.0 - 2.0 * t)
+
+## Bruit de valeurs PÉRIODIQUE (tuile S x S) : treillis cx x cy de tirages, tuilé 3x3, agrandi en bicubique (natif, rapide),
+## recadré sur la tuile centrale. Valeurs ~[0, 1] (le bicubique déborde un peu).
+static func _nmap(S: int, cx: int, cy: int, graine: int) -> PackedFloat32Array:
+	var rng := _rng(graine)
+	var v := PackedFloat32Array()
+	for i in cx * cy:
+		v.append(rng.randf())
+	var g := Image.create(cx * 3, cy * 3, false, Image.FORMAT_RF)
+	for y in cy * 3:
+		for x in cx * 3:
+			g.set_pixel(x, y, Color(v[(y % cy) * cx + (x % cx)], 0, 0))
+	g.resize(S * 3, S * 3, Image.INTERPOLATE_CUBIC)
+	return g.get_region(Rect2i(S, S, S, S)).get_data().to_float32_array()
+
 ## Largeurs de blocs qui totalisent exactement `total` (coupe en cas de reste trop petit).
 static func _largeurs(rng: RandomNumberGenerator, total: int, choix: Array) -> Array:
 	var res := []
@@ -51,8 +91,8 @@ static func _largeurs(rng: RandomNumberGenerator, total: int, choix: Array) -> A
 		reste -= w
 	return res
 
-## Chaîne de mipmaps « pixel art » : chaque niveau garde la couleur majoritaire d'un bloc 2x2 (à égalité, la plus
-## sombre) ; reste opaque si au moins `seuil` pixels sur 4 le sont. Pure (utilisable dans un fil d'exécution).
+## Chaîne de mipmaps « pixel art » : chaque niveau garde la couleur majoritaire d'un bloc 2x2 ; sans majorité, celle dont la
+## luminance est la plus proche de la moyenne ; reste opaque si au moins `seuil` pixels sur 4 le sont.
 static func mips_image(img: Image, seuil := 2) -> Image:
 	var data := PackedByteArray()
 	data.append_array(img.get_data())
@@ -65,12 +105,15 @@ static func mips_image(img: Image, seuil := 2) -> Image:
 			for x in w:
 				var c: Array[Color] = [cur.get_pixel(x * 2, y * 2), cur.get_pixel(x * 2 + 1, y * 2), cur.get_pixel(x * 2, y * 2 + 1), cur.get_pixel(x * 2 + 1, y * 2 + 1)]
 				var opaques := 0
+				var moy := 0.0
 				for k in 4:
 					if c[k].a > 0.5:
 						opaques += 1
+						moy += c[k].get_luminance()
 				if opaques < seuil:
 					nxt.set_pixel(x, y, CLEAR)
 					continue
+				moy /= opaques
 				var best := -1
 				var bn := 0
 				for k in 4:
@@ -80,7 +123,7 @@ static func mips_image(img: Image, seuil := 2) -> Image:
 					for j in 4:
 						if c[j].a > 0.5 and c[j] == c[k]:
 							n += 1
-					if n > bn or (n == bn and c[k].get_luminance() < c[best].get_luminance()):
+					if best < 0 or n > bn or (n == bn and absf(c[k].get_luminance() - moy) < absf(c[best].get_luminance() - moy)):
 						bn = n
 						best = k
 				var r := c[best]
@@ -93,378 +136,469 @@ static func mips_image(img: Image, seuil := 2) -> Image:
 static func _mips(img: Image) -> ImageTexture:
 	return ImageTexture.create_from_image(mips_image(img))
 
-# ------------------------------------------------------------------ pierre taillée en assises
-## Mur : assises de 8 texels (0,5 m), blocs de 0,75 à 1,5 m, joints décalés d'une assise à l'autre.
-## `v` : 0 = sain, 1 = mousse aux joints + coulures de salpêtre, 2 = humide (salpêtre, plaques sombres).
-static func mur_image(v: int, graine := 0) -> Image:
-	var rng := _rng(8100 + v * 17 + graine)
-	var S := 64 * K
-	var RH := 8 * K
-	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
-	var R := PIERRE_SOMBRE if v == 2 else PIERRE
-	img.fill(_c(R, 2))
-	var coulures: Array = []
-	for rang in 8:
-		var y0 := rang * RH
-		var x := rng.randi_range(0, S - 1)
-		for w: int in _largeurs(rng, S, [12 * K, 16 * K, 16 * K, 20 * K, 24 * K]):
-			var ton: int = [1, 2, 2, 2, 3, 3][rng.randi_range(0, 5)]
-			if v == 2 and rng.randf() < 0.35:
-				ton = 1
-			_bloc(img, rng, x, y0, w, RH, R, ton)
-			if v >= 1:
-				_mousse_bloc(img, rng, x, y0, w, v)
-				if rng.randf() < 0.14:
-					coulures.append(Vector3i(x + rng.randi_range(2, w - 3), y0 + RH - 1, rng.randi_range(5, 14) * K))
-			x += w
-	for cl: Vector3i in coulures:
-		var xs := cl.x
-		for k in cl.z:
-			var tone := 1 if k < cl.z - 2 else 2
-			_px(img, xs, cl.y + k, _c(SALPETRE, tone if k % 5 != 4 else 0))
-			if k % 4 == 1 and rng.randf() < 0.6:
-				xs += rng.randi_range(-1, 1)
-		_px(img, xs, cl.y + cl.z, _c(SALPETRE, 2))
-		_px(img, xs + 1, cl.y + cl.z, _c(SALPETRE, 1))
+## Carte de pentes (R = -dh/dx, G = -dh/dy, 0,5 = plat) tirée d'une carte de hauteur périodique ; mipmaps linéaires.
+static func _pentes(H: PackedFloat32Array, S: int, gain: float) -> Image:
+	var d := PackedByteArray()
+	d.resize(S * S * 4)
+	for y in S:
+		var yu := posmod(y - 1, S) * S
+		var yd := posmod(y + 1, S) * S
+		var y0 := y * S
+		for x in S:
+			var xl := posmod(x - 1, S)
+			var xr := posmod(x + 1, S)
+			var gx := (H[y0 + xr] - H[y0 + xl]) * 0.5
+			var gy := (H[yd + x] - H[yu + x]) * 0.5
+			var o := (y0 + x) * 4
+			d[o] = int(clampf(0.5 - gx * gain * 0.5, 0.0, 1.0) * 255.0)
+			d[o + 1] = int(clampf(0.5 - gy * gain * 0.5, 0.0, 1.0) * 255.0)
+			d[o + 2] = 255
+			d[o + 3] = 255
+	var img := Image.create_from_data(S, S, false, Image.FORMAT_RGBA8, d)
+	img.generate_mipmaps()
 	return img
 
-## Un bloc : fond, arête haute et gauche claires, arête basse ombrée, joint sombre bas et droite,
-## coins épaufrés, amas de relief, éventuelle fissure.
-static func _bloc(img: Image, rng: RandomNumberGenerator, x0: int, y0: int, w: int, h: int, R: Array, ton: int) -> void:
-	_rect(img, x0, y0, w, h, _c(R, ton))
-	for x in w:
-		_px(img, x0 + x, y0, _c(R, ton + 1))                # arête haute claire
-		_px(img, x0 + x, y0 + h - 2, _c(R, ton - 1))        # ombre du bas
-		_px(img, x0 + x, y0 + h - 1, _c(R, 0))              # joint bas
-	for y in h - 1:
-		_px(img, x0, y0 + y, _c(R, ton + 1))                # arête gauche claire
-		_px(img, x0 + w - 1, y0 + y, _c(R, 0))              # joint droit
-		_px(img, x0 + w - 2, y0 + y, _c(R, ton - 1))        # ombre de droite
-	_px(img, x0, y0 + h - 1, _c(R, 0))
-	_px(img, x0 + w - 1, y0, _c(R, 0))
-	# coins épaufrés (un cran qui mord dans l'arête)
-	if rng.randf() < 0.55:
-		_px(img, x0, y0, _c(R, 0))
-		_px(img, x0 + 1, y0, _c(R, ton))
-		_px(img, x0, y0 + 1, _c(R, ton))
-	if rng.randf() < 0.4:
-		_px(img, x0 + w - 2, y0, _c(R, 0))
-		_px(img, x0 + w - 3, y0, _c(R, ton - 1))
-	if rng.randf() < 0.35:
-		_px(img, x0, y0 + h - 2, _c(R, 0))
-	# amas de relief : 2 à 4 petits plats, plus clairs ou plus sombres
-	for k in rng.randi_range(2, 4) * K * K:
-		var cx := x0 + rng.randi_range(2, w - 4)
-		var cy := y0 + rng.randi_range(1, h - 4)
-		var sx := rng.randi_range(1, 3)
-		var sy := rng.randi_range(1, 2)
-		var t: int = ton + (1 if rng.randf() < 0.5 else -1)
-		_rect(img, cx, cy, sx, sy, _c(R, t))
-		if t > ton:
-			_px(img, cx, cy + sy, _c(R, ton - 1))           # petit ombrage sous un éclat clair
-	# fissure en escalier
-	if rng.randf() < 0.2:
-		var fx := x0 + rng.randi_range(3, w - 4)
-		var fy := y0 + 1
-		for k in rng.randi_range(4, 6) * K:
-			_px(img, fx, fy, _c(R, 0))
+static func _vers_image(S: int, cols: PackedColorArray) -> Image:
+	var d := PackedByteArray()
+	d.resize(S * S * 4)
+	for i in S * S:
+		var c := cols[i]
+		d[i * 4] = int(c.r * 255.0 + 0.5)
+		d[i * 4 + 1] = int(c.g * 255.0 + 0.5)
+		d[i * 4 + 2] = int(c.b * 255.0 + 0.5)
+		d[i * 4 + 3] = 255
+	return Image.create_from_data(S, S, false, Image.FORMAT_RGBA8, d)
+
+# ------------------------------------------------------------------ pierre générique (murs, dalles, voûte)
+## Assises de hauteurs `rangs` (somme = S), blocs de largeurs tirées dans `larg`. Options `o` :
+## seed, v (0 sain, 1 mousse + salpêtre, 2 humide), joint, biseau, rug (rugosité), l_lo/l_hi (luminance des blocs), sombre,
+## elev (écart de profondeur entre blocs), creux (usure en cuvette au centre : dalles), fissures (nombre).
+## Retourne [albédo, pentes].
+static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
+	var graine: int = o.get("seed", 1)
+	var rng := _rng(graine)
+	var v: int = o.get("v", 0)
+	var J: float = o.get("joint", 1.6)
+	var B: float = o.get("biseau", 4.0)
+	var rug: float = o.get("rug", 0.5)
+	var l_lo: float = o.get("l_lo", 0.36)
+	var l_hi: float = o.get("l_hi", 0.58)
+	var elev_max: float = o.get("elev", 0.6)
+	var creux: float = o.get("creux", 0.0)
+	var jl: float = o.get("joint_l", 0.1)
+	var froid := _cols(PIERRE_SOMBRE_F if o.get("sombre", false) else PIERRE_FROID)
+	var chaud := _cols(PIERRE_CHAUD)
+	var mou := _cols(MOUSSE)
+	var sal := _cols(SALPETRE)
+	var n_fin := _nmap(S, S / 2, S / 2, graine + 1)
+	var n_gr := _nmap(S, S / 12, S / 12, graine + 2)
+	var n_wob := _nmap(S, S / 8, S / 8, graine + 3)
+	var n_big := _nmap(S, 4, 4, graine + 4)
+	var n_stk := _nmap(S, S / 3, 3, graine + 5)
+	var n_sal := _nmap(S, S / 8, S / 8, graine + 6) if v >= 1 else n_big
+	var n_mou := _nmap(S, 6, 6, graine + 7) if v == 1 else n_big
+	var H := PackedFloat32Array()
+	H.resize(S * S)
+	var L := PackedFloat32Array()
+	L.resize(S * S)
+	var T := PackedFloat32Array()
+	T.resize(S * S)
+	var D := PackedFloat32Array()
+	D.resize(S * S)
+	var y0 := 0
+	for rh: int in rangs:
+		var x := rng.randi_range(0, S - 1)
+		for w: int in _largeurs(rng, S, larg):
+			var l0 := lerpf(l_lo, l_hi, rng.randf())
+			if rng.randf() < 0.12:
+				l0 -= 0.09
+			var t := 0.45 * pow(rng.randf(), 2.0) + (0.3 if rng.randf() < 0.14 else 0.0)
+			var elev := rng.randf() * elev_max
+			var rugb := rug * (0.55 + rng.randf() * 0.9)
+			var gxb := (rng.randf() - 0.5) * 0.09
+			var gyb := (rng.randf() - 0.5) * 0.09
+			var grad := 0.06 + rng.randf() * 0.1          # haut éclairé, bas sombre
+			var coin := rng.randi_range(0, 3) if rng.randf() < 0.45 else -1
+			var rc := rng.randf_range(3.0, 7.0)
+			for ly in rh:
+				for lx in w:
+					var i := (y0 + ly) * S + posmod(x + lx, S)
+					var d := float(mini(mini(lx, w - 1 - lx), mini(ly, rh - 1 - ly))) + (n_wob[i] - 0.5) * 1.3
+					var hh := -0.9
+					var ll := jl
+					if d >= J:
+						var e := clampf((d - J) / B, 0.0, 1.0)
+						var prof := 1.0 - (1.0 - e) * (1.0 - e)
+						hh = prof * 0.95 + elev + (n_fin[i] - 0.5) * rugb * 0.9 + (n_gr[i] - 0.5) * 0.55 * rugb + gxb * lx + gyb * ly
+						ll = l0 + grad * (0.5 - float(ly) / rh) * 1.6 + (n_fin[i] - 0.5) * 0.3 * rugb + (n_gr[i] - 0.5) * 0.2 - 0.1 * _ss(0.8, 0.95, n_fin[(i + S * 3 + 7) % (S * S)]) * rugb
+						if creux > 0.0:
+							var cm := minf(float(w), float(rh)) * 0.5
+							hh -= creux * (1.0 - clampf(d / cm, 0.0, 1.0)) * (0.6 + n_gr[i])
+							ll += creux * 0.05 * (1.0 - clampf(d / cm, 0.0, 1.0))
+						if coin >= 0:
+							var cx := float(lx if (coin & 1) == 0 else w - 1 - lx)
+							var cy := float(ly if (coin & 2) == 0 else rh - 1 - ly)
+							if cx + cy < rc + (n_fin[i] - 0.5) * 3.0:
+								hh -= 0.75
+								ll -= 0.09
+					L[i] = ll
+					H[i] = hh
+					T[i] = t
+					D[i] = d
+			x += w
+		y0 += rh
+	# fissures : marche aléatoire qui creuse la pierre
+	for k in o.get("fissures", S / 24):
+		var fx := rng.randi_range(0, S - 1)
+		var fy := rng.randi_range(0, S - 1)
+		for s in rng.randi_range(8, 22):
+			var i := posmod(fy, S) * S + posmod(fx, S)
+			if D[i] >= J:
+				H[i] = -0.8
+				L[i] = 0.08
+				D[i] = J
 			fy += 1
 			if rng.randf() < 0.55:
 				fx += rng.randi_range(-1, 1)
-				_px(img, fx, fy - 1, _c(R, 0))
+	# passe 2 : éclairage peint, occlusion, ombres portées, salissures, teinte, tramage
+	var cols := PackedColorArray()
+	cols.resize(S * S)
+	var coulure := 0.18 if v == 0 else 0.3
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var il := y * S + posmod(x - 1, S)
+			var ir := y * S + posmod(x + 1, S)
+			var iu := posmod(y - 1, S) * S + x
+			var id := posmod(y + 1, S) * S + x
+			var gx := (H[ir] - H[il]) * 0.5
+			var gy := (H[id] - H[iu]) * 0.5
+			var shade := clampf((gx + gy) * 0.55, -0.5, 0.5) * 0.5
+			var ic := posmod(y - 2, S) * S + posmod(x - 2, S)
+			var proj := clampf(H[ic] - H[i] - 0.25, 0.0, 1.0) * 0.2
+			var d: float = D[i]
+			var a := _ss(J, J + 3.0, d)
+			var ao := 0.68 + 0.32 * a
+			var l: float = (L[i] + shade) * ao - proj
+			var ln := n_big[i]
+			l -= 0.1 * _ss(0.55, 0.8, ln) * (1.0 + v * 0.6)
+			var stk := _ss(0.6, 0.8, n_stk[i]) * (0.45 + 0.55 * (1.0 - a))
+			l -= coulure * stk * 0.6
+			var t: float = T[i]
+			var lq := _q(clampf(l, 0.0, 1.0), x, y)
+			var c: Color = (_rp(froid, lq) as Color).lerp(_rp(chaud, lq), t)
+			if v >= 1:
+				var ms := _ss(0.72, 0.88, n_sal[i]) * (0.3 + 0.7 * (1.0 - a)) * (0.5 + 0.5 * (0.5 if v == 1 else 1.0))
+				ms = maxf(ms, stk * 0.45 * (1.0 if v == 2 else 0.6) * _ss(0.78, 0.9, n_sal[(i + S * 5) % (S * S)]))
+				c = c.lerp(_rp(sal, 0.25 + lq * 0.65), clampf(ms, 0.0, 1.0) * 0.85)
+				if v == 1:
+					var mm := _ss(0.68, 0.84, n_mou[i]) * (1.0 - a * 0.7)
+					c = c.lerp(_rp(mou, 0.15 + lq * 0.9), clampf(mm, 0.0, 1.0) * 0.9)
+			cols[i] = c
+	return [_vers_image(S, cols), _pentes(H, S, 0.9)]
 
-static func _mousse_bloc(img: Image, rng: RandomNumberGenerator, x0: int, y0: int, w: int, v: int) -> void:
-	var p := 0.45 if v == 1 else 0.2
-	if rng.randf() < p:
-		var mx := x0 + rng.randi_range(1, maxi(1, w - 7))
-		var n := rng.randi_range(3, 6)
-		for k in n:
-			var h := 2 if (k > 0 and k < n - 1) else 1
-			for j in h:
-				_px(img, mx + k, y0 + j, _c(MOUSSE, 1 + (1 if j == 1 else 0) + (1 if k % 2 == 0 else 0)))
-		_px(img, mx + 1, y0 + 2, _c(MOUSSE, 1))
-		_px(img, mx + n - 2, y0 + 2, _c(MOUSSE, 0))
-	if v == 1 and rng.randf() < 0.25:
-		var sx := x0 + rng.randi_range(2, w - 4)
-		_rect(img, sx, y0 + 5, 3, 1, _c(SALPETRE, 1))
-		_px(img, sx + 1, y0 + 4, _c(SALPETRE, 2))
+static func mur_paire(v: int) -> Array:
+	var rangs := []
+	for r in 8:
+		rangs.append(8 * K)
+	return _pierre(64 * K, rangs, [20, 24, 28, 32, 40, 48], {"seed": 8100 + v * 17, "v": v, "sombre": v == 2, "joint": 1.0, "biseau": 2.4,
+		"rug": 0.6, "l_lo": 0.5 if v < 2 else 0.42, "l_hi": 0.8 if v < 2 else 0.68, "elev": 0.7})
 
-# ------------------------------------------------------------------ dalles du sol
-## Dalles de 1 m (16 texels), joint sombre, biseau, usure au centre, poussière dans les joints.
-static func dalle_image(v: int) -> Image:
+static func dalle_paire(v: int) -> Array:
 	var rng := _rng(8200 + v)
-	var L := 16 * K                       # une dalle = 1 m
-	var N := 8                            # 8x8 dalles = 8 m
-	var S := L * N
-	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
-	var R := PIERRE
-	for gy in N:
-		for gx in N:
-			var x0 := gx * L
-			var y0 := gy * L
-			var ton: int = [1, 2, 2, 2, 3][rng.randi_range(0, 4)]
-			_rect(img, x0, y0, L, L, _c(R, ton))
-			for i in L:
-				_px(img, x0 + i, y0, _c(R, ton + 1))        # biseau haut
-				_px(img, x0, y0 + i, _c(R, ton + 1))        # biseau gauche
-				_px(img, x0 + i, y0 + L - 1, _c(R, 0))      # joint bas
-				_px(img, x0 + L - 1, y0 + i, _c(R, 0))      # joint droit
-				_px(img, x0 + i, y0 + L - 2, _c(R, ton - 1))
-				_px(img, x0 + L - 2, y0 + i, _c(R, ton - 1))
-			_px(img, x0, y0, _c(R, ton))
-			_px(img, x0 + L - 1, y0, _c(R, 0))
-			_px(img, x0, y0 + L - 1, _c(R, 0))
-			# usure : creux plus clair au centre (passage), en amas
-			if rng.randf() < 0.6:
-				var wx := x0 + rng.randi_range(L / 4, L / 2)
-				var wy := y0 + rng.randi_range(L / 4, L / 2)
-				_rect(img, wx, wy, rng.randi_range(3, 5) * K, rng.randi_range(2, 4) * K, _c(R, ton + 1))
-				_rect(img, wx + K, wy + K, 2 * K, K, _c(R, ton))
-			# éclats sombres
-			for k in rng.randi_range(1, 3) * K:
-				_rect(img, x0 + rng.randi_range(2, L - 5), y0 + rng.randi_range(2, L - 5), rng.randi_range(1, 3) * K, 1, _c(R, ton - 1))
-			# fissure
-			if rng.randf() < 0.22:
-				var fx := x0 + rng.randi_range(3, L - 4)
-				var fy := y0 + 2
-				for k in rng.randi_range(6, 11) * K:
-					_px(img, fx, fy, _c(R, 0))
-					fy += 1
-					if rng.randf() < 0.5:
-						fx += rng.randi_range(-1, 1)
-						_px(img, fx, fy - 1, _c(R, 0))
-	# poussière ou salpêtre dans les joints (petits amas clairs, teinte plus chaude)
-	var poussiere := ["#6c6d78", "#858691"] if v == 0 else ["#6a8789", "#8cadab"]
-	for k in 14 * N:
-		var jx := rng.randi_range(0, N - 1) * L + L - 1
-		var jy := rng.randi_range(0, S - 1)
-		_rect(img, jx - 1, jy, 3, 1, Color(poussiere[0]))
-		if rng.randf() < 0.6:
-			_px(img, jx, jy - 1, Color(poussiere[1]))
-		var jy2 := rng.randi_range(0, N - 1) * L + L - 1
-		var jx2 := rng.randi_range(0, S - 1)
-		_rect(img, jx2, jy2 - 1, 1, 3, Color(poussiere[0]))
-		_px(img, jx2 - 1, jy2, Color(poussiere[1]))
-	return img
+	var S := 64 * K                       # tuile de 4 m (32 texels/m)
+	var rangs: Array = _largeurs(rng, S, [24, 28, 32, 32, 40])
+	return _pierre(S, rangs, [24, 32, 40, 48], {"seed": 8210 + v * 31, "v": v, "joint": 1.1, "biseau": 2.6, "rug": 0.5,
+		"l_lo": 0.52, "l_hi": 0.8, "elev": 1.0, "creux": 0.55, "joint_l": 0.2, "fissures": 4})
 
-# ------------------------------------------------------------------ voûte en petites briques
-static func voute_image() -> Image:
-	var rng := _rng(8300)
-	var S := 64 * K
-	var RH := 4 * K
-	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
-	var R := PIERRE_SOMBRE
-	img.fill(_c(R, 1))
-	for rang in 16:
-		var y0 := rang * RH
-		var x := rng.randi_range(0, S - 1)
-		for w: int in _largeurs(rng, S, [8 * K, 8 * K, 12 * K, 12 * K, 16 * K]):
-			var ton: int = [1, 1, 2, 2, 3][rng.randi_range(0, 4)]
-			_rect(img, x, y0, w, RH, _c(R, ton))
-			for i in w:
-				_px(img, x + i, y0, _c(R, ton + 1))
-				_px(img, x + i, y0 + RH - 1, _c(R, 0))
-			for j in RH - 1:
-				_px(img, x + w - 1, y0 + j, _c(R, 0))
-			if rng.randf() < 0.3:
-				_rect(img, x + rng.randi_range(2, maxi(2, w - 4)), y0 + 1 + (K - 1), 2, 1, _c(R, ton - 1))
-			x += w
-	# suie : plaques sombres en amas
-	for k in 9 * K:
-		var sx := rng.randi_range(0, S - 1)
-		var sy := rng.randi_range(0, S - 1)
-		for j in rng.randi_range(2, 4):
-			_rect(img, sx + rng.randi_range(-1, 1), sy + j, rng.randi_range(3, 7), 1, _c(R, 0 if j == 1 else 1))
-	return img
+static func voute_paire() -> Array:
+	var rangs := []
+	for r in 16:
+		rangs.append(4 * K)
+	return _pierre(64 * K, rangs, [10, 12, 16, 20, 24], {"seed": 8300, "sombre": true, "joint": 0.9, "biseau": 2.0, "rug": 0.5,
+		"l_lo": 0.42, "l_hi": 0.68, "elev": 0.45, "fissures": 4})
+
+static func mur_image(v: int) -> Image:
+	return mur_paire(v)[0]
 
 # ------------------------------------------------------------------ planches de bois (32 texels/m)
-static func bois_image() -> Image:
+static func bois_paire() -> Array:
 	var rng := _rng(8400)
 	var S := 64
-	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
+	var n_gr := _nmap(S, 2, S / 2, 8401)       # fil : traînées horizontales fines
+	var n_gr2 := _nmap(S, 3, S / 4, 8402)
+	var n_fin := _nmap(S, S / 4, S / 4, 8403)
+	var n_big := _nmap(S, 3, 3, 8404)
+	var H := PackedFloat32Array()
+	H.resize(S * S)
+	var L := PackedFloat32Array()
+	L.resize(S * S)
+	var T := PackedFloat32Array()
+	T.resize(S * S)
+	var cols := _cols(BOIS)
 	for rang in 8:
 		var y0 := rang * 8
-		var ton: int = [1, 2, 2, 3][rng.randi_range(0, 3)]
-		_rect(img, 0, y0, S, 8, _c(BOIS, ton))
+		var l0 := lerpf(0.34, 0.58, rng.randf())
+		var tt := rng.randf()
+		var kx := rng.randi_range(4, 59)
+		var avec_noeud := rng.randf() < 0.5
+		var ax := rng.randi_range(0, 63)
+		for ly in 8:
+			for lx in S:
+				var i := (y0 + ly) * S + lx
+				var fil := n_gr[i] * 0.6 + n_gr2[i] * 0.4
+				var hh := 0.45 * fil + (n_fin[i] - 0.5) * 0.2
+				var ll := l0 + (fil - 0.5) * 0.4 + (n_fin[i] - 0.5) * 0.1 + (n_big[i] - 0.5) * 0.15 + (0.5 - ly / 7.0) * 0.12
+				if ly == 0:
+					hh += 0.5
+					ll += 0.08
+				elif ly == 7:
+					hh = -0.9
+					ll = 0.05
+				elif ly == 6:
+					ll -= 0.07
+				if avec_noeud:
+					var r := Vector2(lx - kx, (ly - 3.5) * 1.6).length()
+					if r < 3.6:
+						ll = l0 - 0.2 + 0.11 * sin(r * 2.3) + 0.04 * (1.0 - r / 3.6)
+						hh += 0.25 * sin(r * 2.3) - 0.2
+				if lx == ax and ly < 7:
+					hh = -0.8
+					ll = 0.07
+				elif lx == ax + 1 and ly < 7:
+					ll += 0.06
+				L[i] = ll
+				H[i] = hh
+				T[i] = tt
+	var out := PackedColorArray()
+	out.resize(S * S)
+	for y in S:
 		for x in S:
-			_px(img, x, y0, _c(BOIS, ton + 1))              # arête haute
-			_px(img, x, y0 + 7, _c(BOIS, 0))                # joint bas
-			_px(img, x, y0 + 6, _c(BOIS, ton - 1))
-		# fil du bois : traits horizontaux groupés
-		for k in rng.randi_range(5, 8):
-			var gx := rng.randi_range(0, 63)
-			var gy := y0 + rng.randi_range(1, 5)
-			var gl := rng.randi_range(6, 20)
-			var t: int = ton + (1 if rng.randf() < 0.45 else -1)
-			for i in gl:
-				_px(img, gx + i, gy, _c(BOIS, t))
-		# nœud : petit anneau
-		if rng.randf() < 0.45:
-			var nx := rng.randi_range(4, 59)
-			var ny := y0 + 3
-			_rect(img, nx - 1, ny - 1, 4, 3, _c(BOIS, ton - 1))
-			_rect(img, nx, ny, 2, 1, _c(BOIS, 0))
-			_px(img, nx - 1, ny + 1, _c(BOIS, ton + 1))
-		# aboutage vertical (planches mises bout à bout) et clou
-		var jx := rng.randi_range(0, 63)
-		for j in 7:
-			_px(img, jx, y0 + j, _c(BOIS, 0))
-		_px(img, jx + 2, y0 + 3, _c(FER, 3))
-		_px(img, jx + 2, y0 + 4, _c(FER, 1))
-	return img
+			var i := y * S + x
+			var gx := (H[y * S + posmod(x + 1, S)] - H[y * S + posmod(x - 1, S)]) * 0.5
+			var gy := (H[posmod(y + 1, S) * S + x] - H[posmod(y - 1, S) * S + x]) * 0.5
+			var l := L[i] + clampf((gx + gy) * 0.5, -0.4, 0.4) * 0.22
+			var c := _rp(cols, _q(clampf(l, 0.0, 1.0), x, y))
+			c = c.lerp(Color(c.g * 0.95, c.g * 1.0, c.b * 1.1), T[i] * 0.18)   # planche un peu plus grise
+			out[i] = c
+	# clous : tête claire et ombre
+	for k in 14:
+		var nx := rng.randi_range(0, S - 1)
+		var ny := rng.randi_range(0, 7) * 8 + rng.randi_range(2, 4)
+		out[ny * S + nx] = _rp(_cols(FER), 0.75)
+		out[((ny + 1) % S) * S + nx] = _rp(_cols(FER), 0.15)
+	return [_vers_image(S, out), _pentes(H, S, 0.9)]
+
+static func bois_image() -> Image:
+	return bois_paire()[0]
 
 # ------------------------------------------------------------------ fer riveté, rouille (32 texels/m)
-static func fer_image() -> Image:
-	var rng := _rng(8500)
+static func fer_paire() -> Array:
 	var S := 32
-	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
-	img.fill(_c(FER, 1))
-	for bande in 2:
-		var y0 := bande * 16
-		_rect(img, 0, y0, S, 14, _c(FER, 1))
+	var n_fin := _nmap(S, S / 2, S / 2, 8501)
+	var n_big := _nmap(S, 3, 3, 8502)
+	var n_rou := _nmap(S, 5, 5, 8503)
+	var rng := _rng(8500)
+	var H := PackedFloat32Array()
+	H.resize(S * S)
+	for y in S:
 		for x in S:
-			_px(img, x, y0, _c(FER, 3))                     # arête claire
-			_px(img, x, y0 + 1, _c(FER, 2))
-			_px(img, x, y0 + 13, _c(FER, 0))                # ombre
-			_px(img, x, y0 + 14, _c(FER, 0))
-		for rx in [4, 12, 20, 28]:                          # rivets : tête claire + ombre
-			_rect(img, rx - 1, y0 + 5, 3, 3, _c(FER, 2))
-			_px(img, rx - 1, y0 + 5, _c(FER, 3))
-			_px(img, rx + 1, y0 + 7, _c(FER, 0))
-		for k in 4:                                         # rayures
-			var gx := rng.randi_range(0, 31)
-			_rect(img, gx, y0 + rng.randi_range(2, 11), rng.randi_range(2, 5), 1, _c(FER, 2 if k % 2 == 0 else 0))
-	for k in 5:                                             # rouille en amas
-		var rx := rng.randi_range(0, 31)
-		var ry := rng.randi_range(0, 31)
-		for j in rng.randi_range(2, 3):
-			_rect(img, rx + rng.randi_range(0, 1), ry + j, rng.randi_range(2, 5), 1, _c(ROUILLE, rng.randi_range(0, 2)))
-	return img
+			var by := y % 16
+			var h := 0.6 + (n_fin[y * S + x] - 0.5) * 0.25
+			if by < 2:
+				h = 0.9 * (by + 1) * 0.5
+			elif by > 12:
+				h = 0.2 * (15 - by)
+			for rx in [4, 12, 20, 28]:
+				var r := Vector2(x - rx, by - 6.5).length()
+				if r < 2.4:
+					h = 1.5 - r * 0.28 + 0.6
+			H[y * S + x] = h
+	var fer := _cols(FER)
+	var rou := _cols(ROUILLE)
+	var out := PackedColorArray()
+	out.resize(S * S)
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var gx := (H[y * S + posmod(x + 1, S)] - H[y * S + posmod(x - 1, S)]) * 0.5
+			var gy := (H[posmod(y + 1, S) * S + x] - H[posmod(y - 1, S) * S + x]) * 0.5
+			var l := 0.36 + (n_big[i] - 0.5) * 0.2 + (n_fin[i] - 0.5) * 0.1 + clampf((gx + gy) * 0.5, -0.5, 0.5) * 0.4
+			var c := _rp(fer, _q(clampf(l, 0.0, 1.0), x, y))
+			var rm := _ss(0.58, 0.78, n_rou[i])
+			if rm > 0.0:
+				c = c.lerp(_rp(rou, 0.2 + l * 0.9), rm * 0.85)
+			out[i] = c
+	for k in 5:                                             # rayures claires
+		var gx := rng.randi_range(0, 28)
+		var gy := rng.randi_range(2, 28)
+		for j in rng.randi_range(2, 5):
+			out[gy * S + gx + j] = out[gy * S + gx + j].lightened(0.25)
+	return [_vers_image(S, out), _pentes(H, S, 0.8)]
+
+static func fer_image() -> Image:
+	return fer_paire()[0]
 
 ## Lame rouillée (armes au sol) : métal éteint, taches de rouille, fil clair d'un seul côté.
 static func lame_image() -> Image:
-	var rng := _rng(8550)
 	var S := 32
-	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
-	img.fill(_c(FER, 1))
-	for x in S:
-		_px(img, x, 0, _c(FER, 3))
-		_px(img, x, 1, _c(FER, 2))
-		_px(img, x, 15, _c(FER, 0))
-		_px(img, x, 16, _c(FER, 0))
-		_px(img, x, 17, _c(FER, 2))
-		_px(img, x, 18, _c(FER, 1))
-	for k in 12:
-		var rx := rng.randi_range(0, 31)
-		var ry := rng.randi_range(0, 31)
-		_rect(img, rx, ry, rng.randi_range(2, 6), rng.randi_range(1, 3), _c(ROUILLE, rng.randi_range(0, 2)))
-	return img
+	var n_fin := _nmap(S, S / 2, S / 2, 8551)
+	var n_rou := _nmap(S, 4, 4, 8552)
+	var fer := _cols(FER)
+	var rou := _cols(ROUILLE)
+	var out := PackedColorArray()
+	out.resize(S * S)
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var by := y % 16
+			var l := 0.42 + (n_fin[i] - 0.5) * 0.14
+			if by < 2:
+				l += 0.32 - by * 0.12                        # fil clair
+			elif by > 12:
+				l -= 0.22
+			elif by > 8:
+				l -= 0.05 * (by - 8)
+			var c := _rp(fer, _q(clampf(l, 0.0, 1.0), x, y))
+			var rm := _ss(0.5, 0.72, n_rou[i])
+			c = c.lerp(_rp(rou, 0.15 + l), rm * 0.9)
+			out[i] = c
+	return _vers_image(S, out)
 
-# ------------------------------------------------------------------ gravure runique (sarcophages)
-static func gravure_image() -> Image:
+# ------------------------------------------------------------------ gravure runique (sarcophages) : creusée dans la pierre
+static func gravure_paire() -> Array:
 	var rng := _rng(8600)
 	var S := 64
-	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
-	var R := PIERRE
-	img.fill(_c(R, 2))
-	# fond en grandes dalles lisses
-	for i in S:
-		_px(img, i, 0, _c(R, 3))
-		_px(img, 0, i, _c(R, 3))
-		_px(img, i, 63, _c(R, 0))
-		_px(img, 63, i, _c(R, 0))
-	for k in 30:
-		_rect(img, rng.randi_range(2, 60), rng.randi_range(2, 60), rng.randi_range(1, 3), 1, _c(R, 1 if k % 3 else 3))
-	# cadre gravé : trait sombre + lèvre claire en dessous/à droite
-	for i in range(6, 58):
-		_px(img, i, 6, _c(R, 0))
-		_px(img, i, 7, _c(R, 4))
-		_px(img, i, 56, _c(R, 0))
-		_px(img, i, 57, _c(R, 4))
-		_px(img, 6, i, _c(R, 0))
-		_px(img, 7, i, _c(R, 4))
-		_px(img, 56, i, _c(R, 0))
-		_px(img, 57, i, _c(R, 4))
-	# frise de runes : traits verticaux avec branches (futhark simplifié)
-	for rang in [12, 46]:
+	var carve := PackedFloat32Array()
+	carve.resize(S * S)
+	var tr := func(x: int, y: int, f: float) -> void:
+		var i := posmod(y, S) * S + posmod(x, S)
+		carve[i] = maxf(carve[i], f)
+	for i in range(6, 58):                                  # cadre gravé
+		for k in 2:
+			tr.call(i, 6 + k, 1.0)
+			tr.call(i, 56 + k, 1.0)
+			tr.call(6 + k, i, 1.0)
+			tr.call(56 + k, i, 1.0)
+	for rang in [12, 46]:                                   # frises de runes
 		var x := 11
 		while x < 52:
 			for j in 8:
-				_px(img, x, rang + j, _c(R, 0))
-				_px(img, x + 1, rang + j, _c(R, 4) if j % 3 == 0 else _c(R, 3))
+				tr.call(x, rang + j, 1.0)
 			var forme := rng.randi_range(0, 3)
 			for j in 3:
 				if forme == 0 or forme == 2:
-					_px(img, x + 1 + j, rang + 1 + j, _c(R, 0))
+					tr.call(x + 1 + j, rang + 1 + j, 1.0)
 				if forme == 1 or forme == 2:
-					_px(img, x + 1 + j, rang + 5 - j, _c(R, 0))
+					tr.call(x + 1 + j, rang + 5 - j, 1.0)
 				if forme == 3:
-					_px(img, x - 1 - j, rang + 2 + j, _c(R, 0))
+					tr.call(x - 1 - j, rang + 2 + j, 1.0)
 			x += 6
-	# serpent / entrelacs : sinusoïde de 2 px au centre, ombre sombre + reflet clair
-	for x in range(10, 54):
+	for x in range(10, 54):                                 # serpent
 		var y := 32 + int(round(sin(float(x) * 0.42) * 5.0))
-		_px(img, x, y, _c(R, 0))
-		_px(img, x, y + 1, _c(R, 0))
-		_px(img, x, y - 1, _c(R, 4))
-		_px(img, x, y + 2, _c(R, 1))
-	_rect(img, 52, 29, 3, 3, _c(R, 0))                      # tête
-	_px(img, 53, 30, _c(R, 4))
-	return img
+		for k in 3:
+			tr.call(x, y + k - 1, 1.0)
+	for dy in 3:
+		for dx in 4:
+			tr.call(52 + dx, 29 + dy, 1.0)
+	var n_fin := _nmap(S, S / 4, S / 4, 8601)
+	var n_gr := _nmap(S, 4, 4, 8602)
+	var H := PackedFloat32Array()
+	H.resize(S * S)
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var cm := 0.0                                   # creux adouci : moyenne 3x3
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					cm += carve[posmod(y + dy, S) * S + posmod(x + dx, S)]
+			cm = cm / 9.0 * 0.5 + carve[i] * 0.5
+			var h := (n_fin[i] - 0.5) * 0.25 + (n_gr[i] - 0.5) * 0.4 - cm * 1.6
+			var e := mini(mini(x, 63 - x), mini(y, 63 - y))
+			if e < 2:
+				h += 0.3 * (2 - e) - 0.4 * (1.0 if e == 0 and (x == 63 or y == 63) else 0.0)
+			H[i] = h
+	var fr := _cols(PIERRE_FROID)
+	var ch := _cols(PIERRE_CHAUD)
+	var out := PackedColorArray()
+	out.resize(S * S)
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var gx := (H[y * S + posmod(x + 1, S)] - H[y * S + posmod(x - 1, S)]) * 0.5
+			var gy := (H[posmod(y + 1, S) * S + x] - H[posmod(y - 1, S) * S + x]) * 0.5
+			var l := 0.5 + (n_fin[i] - 0.5) * 0.12 + (n_gr[i] - 0.5) * 0.14 + clampf((gx + gy) * 0.8, -0.5, 0.5) * 0.3 - carve[i] * 0.16
+			var lq := _q(clampf(l, 0.0, 1.0), x, y)
+			out[i] = (_rp(fr, lq) as Color).lerp(_rp(ch, lq), 0.25)
+	return [_vers_image(S, out), _pentes(H, S, 1.0)]
+
+static func gravure_image() -> Image:
+	return gravure_paire()[0]
 
 # ------------------------------------------------------------------ poterie, os, parchemin
 static func argile_image() -> Image:
-	var rng := _rng(8700)
 	var S := 32
-	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
-	img.fill(_c(ARGILE, 2))
-	for bande in 4:
-		var y0 := bande * 8
+	var n_fin := _nmap(S, S / 2, S / 2, 8701)
+	var n_big := _nmap(S, 3, 3, 8702)
+	var cols := _cols(ARGILE)
+	var out := PackedColorArray()
+	out.resize(S * S)
+	for y in S:
 		for x in S:
-			_px(img, x, y0, _c(ARGILE, 3))
-			_px(img, x, y0 + 7, _c(ARGILE, 0))
-			_px(img, x, y0 + 6, _c(ARGILE, 1))
-		if bande % 2 == 0:                                  # frise en zigzag
-			for x in S:
-				_px(img, x, y0 + 3 + (x % 4 if x % 8 < 4 else 3 - x % 4) / 2, _c(ARGILE, 0))
-	for k in 8:
-		_rect(img, rng.randi_range(0, 31), rng.randi_range(0, 31), rng.randi_range(1, 3), rng.randi_range(1, 2), _c(ARGILE, rng.randi_range(1, 3)))
-	return img
+			var i := y * S + x
+			var by := y % 8
+			var l := 0.5 + (n_big[i] - 0.5) * 0.3 + (n_fin[i] - 0.5) * 0.16
+			l += 0.12 * (1.0 - by / 7.0) - 0.1 * (1.0 if by == 7 else 0.0)
+			if (y / 8) % 2 == 0:                            # frise en zigzag peinte
+				var zz := 3 + (x % 4 if x % 8 < 4 else 3 - x % 4) / 2
+				if by == zz or by == zz + 1:
+					l -= 0.28
+			out[i] = _rp(cols, _q(clampf(l, 0.0, 1.0), x, y))
+	return _vers_image(S, out)
 
 static func os_image() -> Image:
-	var rng := _rng(8800)
 	var S := 32
-	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
-	img.fill(_c(OSSE, 2))
-	for k in 26:
-		var x := rng.randi_range(0, 31)
-		var y := rng.randi_range(0, 31)
-		var t: int = [0, 1, 1, 3, 3, 4][rng.randi_range(0, 5)]
-		_rect(img, x, y, rng.randi_range(1, 3), rng.randi_range(1, 2), _c(OSSE, t))
+	var n_fin := _nmap(S, S / 2, S / 2, 8801)
+	var n_big := _nmap(S, 4, 4, 8802)
+	var rng := _rng(8800)
+	var cols := _cols(OSSE)
+	var out := PackedColorArray()
+	out.resize(S * S)
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var l := 0.58 + (n_big[i] - 0.5) * 0.4 + (n_fin[i] - 0.5) * 0.18
+			out[i] = _rp(cols, _q(clampf(l, 0.0, 1.0), x, y)).lerp(Color(0.55, 0.42, 0.25), _ss(0.7, 0.95, n_big[(i * 7) % (S * S)]) * 0.4)
 	for k in 5:                                             # fêlures
 		var x := rng.randi_range(0, 31)
 		var y := rng.randi_range(0, 28)
 		for j in 4:
-			_px(img, x + (j / 2), y + j, _c(OSSE, 0))
-	return img
+			out[(y + j) * S + posmod(x + (j / 2), S)] = _c(OSSE, 0)
+	return _vers_image(S, out)
 
 static func parchemin_image() -> Image:
-	var rng := _rng(8900)
 	var S := 32
-	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
-	img.fill(_c(PARCHEMIN, 2))
-	for y in range(3, 30, 4):                               # lignes d'écriture : groupes de traits
+	var rng := _rng(8900)
+	var n_fin := _nmap(S, S / 2, S / 2, 8901)
+	var n_big := _nmap(S, 3, 3, 8902)
+	var cols := _cols(PARCHEMIN)
+	var out := PackedColorArray()
+	out.resize(S * S)
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var l := 0.55 + (n_big[i] - 0.5) * 0.4 + (n_fin[i] - 0.5) * 0.12
+			if y < 2 or y > 29:
+				l -= 0.14                                   # bords brunis
+			out[i] = _rp(cols, _q(clampf(l, 0.0, 1.0), x, y))
+	for y in range(3, 30, 4):                               # lignes d'écriture
 		var x := 2
 		while x < 28:
 			var l := rng.randi_range(2, 5)
-			_rect(img, x, y, l, 1, _c(PARCHEMIN, 0))
+			for j in l:
+				out[y * S + x + j] = _c(PARCHEMIN, 0).lerp(_c(PARCHEMIN, 1), 0.3)
 			x += l + 1
-	for i in S:
-		_px(img, i, 0, _c(PARCHEMIN, 1))
-		_px(img, i, 31, _c(PARCHEMIN, 1))
-	for k in 4:
-		_rect(img, rng.randi_range(0, 30), rng.randi_range(0, 30), 2, 2, _c(PARCHEMIN, 1))
-	return img
+	return _vers_image(S, out)
 
 # ------------------------------------------------------------------ toile d'araignée (alpha, un coin)
 ## 32x32 : rayons partant du coin (0,0), arcs en fils pendants ; fond transparent (découpe à 0,5).
@@ -527,28 +661,20 @@ static func flamme_atlas_image() -> Image:
 			_px(img, ox + 7 + int(decal[f]), 3, _c(FLAMME, 3))
 	return img
 
-## Halo chaud NET : quatre anneaux d'alpha posterisés (pas de dégradé), à poser en additif sur le mur.
+## Halo chaud en dégradé posterisé à 14 paliers (cœur clair, bord orangé) : lisible de loin, additif sur le mur.
 static func halo_image() -> Image:
 	var S := 32
 	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
+	var chaud := [Color("#ffe2a8"), Color("#ffb458"), Color("#f0801f"), Color("#b8420f")]
 	for y in S:
 		for x in S:
 			var d := Vector2(x - 15.5, y - 15.5).length() / 16.0
-			var a := 0.0
-			var c := Color("#ff7a1c")
-			if d < 0.2:
-				a = 0.55
-				c = Color("#ffc46a")
-			elif d < 0.42:
-				a = 0.34
-				c = Color("#ff9a2e")
-			elif d < 0.7:
-				a = 0.2
-				c = Color("#e8601a")
-			elif d < 0.98:
-				a = 0.09
-				c = Color("#b8420f")
-			img.set_pixel(x, y, Color(c.r, c.g, c.b, a))
+			var f := clampf(1.0 - d, 0.0, 1.0)
+			var a := floorf(pow(f, 2.2) * 0.34 * 24.0 + 0.5) / 24.0
+			var k := clampf(d * 1.15, 0.0, 1.0) * 3.0
+			var i := mini(int(k), 2)
+			var c: Color = (chaud[i] as Color).lerp(chaud[i + 1], k - i)
+			img.set_pixel(x, y, Color(c.r, c.g, c.b, a if d < 1.0 else 0.0))
 	return img
 
 static func rai_image() -> Image:
@@ -577,18 +703,25 @@ static func poussiere_image() -> Image:
 static func tex(nom: String) -> ImageTexture:
 	return _mips(image(nom))
 
+## Albédo + carte de pentes ([albédo, pentes] ; pentes = null si la matière n'a pas de relief).
+static func paire(nom: String) -> Array:
+	match nom:
+		"mur0": return mur_paire(0)
+		"mur1": return mur_paire(1)
+		"mur2": return mur_paire(2)
+		"dalle0": return dalle_paire(0)
+		"dalle1": return dalle_paire(1)
+		"voute": return voute_paire()
+		"bois": return bois_paire()
+		"fer": return fer_paire()
+		"gravure": return gravure_paire()
+	return [image(nom), null]
+
 static func image(nom: String) -> Image:
 	match nom:
-		"mur0": return mur_image(0)
-		"mur1": return mur_image(1)
-		"mur2": return mur_image(2)
-		"dalle0": return dalle_image(0)
-		"dalle1": return dalle_image(1)
-		"voute": return voute_image()
-		"bois": return bois_image()
-		"fer": return fer_image()
+		"mur0", "mur1", "mur2", "dalle0", "dalle1", "voute", "bois", "fer", "gravure":
+			return paire(nom)[0]
 		"lame": return lame_image()
-		"gravure": return gravure_image()
 		"argile": return argile_image()
 		"os": return os_image()
 		"parchemin": return parchemin_image()
