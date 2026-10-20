@@ -1028,3 +1028,11 @@ Gunnhild : longue robe bleue brodée, tunique de lin, manteau de fourrure blanch
 ### Perf et tests (lot 4)
 - `mesure_perf.gd`, vsync off, 4 agents actifs (indicatif), A/B alternés avec un worktree à la base 499da38 (`../nordique_lot4_base`) : **village** `--pose=32,30,-125,0` base 6,83 / 7,19 ms GPU (495-508 appels) → lot 6,89 / 7,04 (502 appels), écart nul ; **camp de la grotte** `--grotte=93.5,0.5,0,-4` (4 bandits) base 2,17 / 1,82 / 2,27 / 2,46 / 2,34 (moyenne 2,21) → lot 2,32 / 2,44 / 2,61 / 2,61 / 2,50 (moyenne 2,50) : +0,29 ms, +7 appels de dessin (les pièces de silhouette ajoutent des surfaces), primitives +0,3 k.
 - `bash outils/tous_les_tests.sh` : 17 OK, 1 échec (`test_ragdoll`, « genou hyper-étendu ») ; le test est instable (même échec avec l'état intermédiaire du lot, valeurs qui changent d'un lancement à l'autre ; réussi une fois dans un autre worktree) et n'utilise aucun maillage (`ragdoll.gd` ne lit que le squelette).
+
+## Lot « sapins inclinés » (branche graphisme/sapins-inclines)
+Demande : branches d'épicéa trop droites et horizontales. `_rameau` reçoit un paramètre `arc` (épicéa seulement ; pin et
+bouleau inchangés) : tige en 3 points en courbe de S (départ presque horizontal, arc pendant, bout relevé), ailes de plus en
+plus tombantes vers le bout (rideau), `_arc_epicea` : forte retombée en bas, branches qui montent vers la cime, affaissement
+propre à l'arbre / à l'étage / à la branche, neige = branche plus lourde ; flèche parfois penchée. Second RNG (graine*13+5) :
+le placement des branches est inchangé. LOD (1 tronçon) : bout placé à `mid + tip/2` pour garder l'affaissement moyen.
+Textures, couleurs, nombre de triangles : inchangés (0 %). Planches : captures/sapins/planche_avant_apres_{jour,nuit}.png.
