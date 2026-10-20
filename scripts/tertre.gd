@@ -78,7 +78,10 @@ func _tumulus() -> void:
 	s.radial_segments = 12
 	s.rings = 6
 	butte.mesh = s
-	butte.material_override = m_neige
+	# lot 5 : façade et butte en pierre / neige pixel art (16 texels/m) ; la crypte garde ses matériaux
+	var m_facade := TexturesBati.m_roche(Color(0.8, 0.79, 0.84))
+	var m_porte_dalle := TexturesBati.m_roche(Color(0.42, 0.42, 0.5))
+	butte.material_override = TexturesBati.m_neige_toit()
 	butte.scale = Vector3(1, 0.42, 1)
 	butte.position = Vector3(0, -0.6, -6.5)
 	add_child(butte)
@@ -98,9 +101,9 @@ func _tumulus() -> void:
 	corps_dehors.add_child(cs)
 	# façade : deux pierres dressées, un linteau, une dalle sombre pour la porte
 	for x in [-1.3, 1.3]:
-		_boite(self, Vector3(0.8, 3.0, 0.8), Transform3D(Basis(), Vector3(x, 1.3, -0.4)), m_pierre, corps_dehors)
-	_boite(self, Vector3(3.6, 0.7, 1.0), Transform3D(Basis(), Vector3(0, 3.0, -0.4)), m_pierre, corps_dehors)
-	_boite(self, Vector3(1.9, 2.6, 0.2), Transform3D(Basis(), Vector3(0, 1.2, -0.75)), m_dalle, corps_dehors)
+		_boite(self, Vector3(0.8, 3.0, 0.8), Transform3D(Basis(), Vector3(x, 1.3, -0.4)), m_facade, corps_dehors)
+	_boite(self, Vector3(3.6, 0.7, 1.0), Transform3D(Basis(), Vector3(0, 3.0, -0.4)), m_facade, corps_dehors)
+	_boite(self, Vector3(1.9, 2.6, 0.2), Transform3D(Basis(), Vector3(0, 1.2, -0.75)), m_porte_dalle, corps_dehors)
 	# runes qui luisent sur le linteau
 	var lueur := OmniLight3D.new()
 	lueur.light_color = Color(0.35, 0.8, 1.0)

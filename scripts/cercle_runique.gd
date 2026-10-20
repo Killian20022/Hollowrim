@@ -88,7 +88,7 @@ static func creer(monde: Node) -> void:
 	var rng: RandomNumberGenerator = monde.rng
 	var cercle: Vector3 = monde.CERCLE
 	var centre := Vector3(cercle.x, monde.h_cercle, cercle.z)
-	var m := Palette.materiau(monde.tex_roche, Vector2(1, 2))
+	var m := TexturesBati.m_roche()   # lot 5
 	var corps := StaticBody3D.new()
 	monde.add_child(corps)
 	for i in 7:

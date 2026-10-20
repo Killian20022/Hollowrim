@@ -325,7 +325,7 @@ func _terrain() -> void:
 func _feu_de_camp() -> void:
 	var sol := Vector3(0, h_centre, 0)
 	var m_bois := Palette.materiau(tex_ecorce, Vector2(1, 2))
-	var m_pierre := Palette.materiau(tex_roche)
+	var m_pierre := TexturesBati.m_roche()   # lot 5
 	var buche := CylinderMesh.new()
 	buche.top_radius = 0.08
 	buche.bottom_radius = 0.1
@@ -663,6 +663,7 @@ func _unhandled_input(e: InputEvent) -> void:
 
 func _exit_tree() -> void:
 	Palette.vider()
+	TexturesBati.vider()
 	Humain.vider()
 	Sons.vider()
 
