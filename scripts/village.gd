@@ -936,7 +936,7 @@ func _forge(centre: Vector3) -> void:
 	# mur de fond en pierre derrière le foyer, avec contreforts
 	_pile(p, Vector3(0, 1.2, -2.0), Vector3(4.8, 2.4, 0.5), 4301, m_brute, true)
 	for x in [-2.4, 0.0, 2.4]:
-		_pile(p, Vector3(x, 1.0, -1.7), Vector3(0.6, 2.0, 0.6), 4310 + int(x), m_brute, false, 1.0)
+		_pile(p, Vector3(x, 1.0, -2.4), Vector3(0.6, 2.0, 0.3), 4310 + int(x), m_brute, false, 1.0)   # contreforts : côté dehors seulement
 	# murs latéraux : pierre sèche en trois tronçons qui suivent la pente du toit (plein haut sous les chevrons)
 	var tronc := [[-2.0, -0.6, 2.4], [-0.6, 0.8, 2.2], [0.8, 1.9, 2.04]]
 	for sx in [-1.0, 1.0]:
@@ -954,6 +954,9 @@ func _forge(centre: Vector3) -> void:
 	_boite(p, Vector3(1.0, haut_f - fe[3], 0.16), Transform3D(Basis(), Vector3(-1.4, (haut_f + fe[3]) * 0.5, 1.8)), m_poutres, false)
 	_boite(p, Vector3(0.3, haut_f, 0.16), Transform3D(Basis(), Vector3(2.3, haut_f * 0.5, 1.8)), m_poutres, true)
 	_boite(p, Vector3(1.6, haut_f - 1.95, 0.16), Transform3D(Basis(), Vector3(1.35, (haut_f + 1.95) * 0.5, 1.8)), m_poutres_h, false)   # linteau
+	# vitrage translucide (plan ps1_vitre) + meneau : la fenêtre n'est plus un trou
+	_vitre(p, Vector3(-1.4, (fe[2] + fe[3]) * 0.5, 1.8), Vector2(1.0, fe[3] - fe[2]), 0.0)
+	_boite(p, Vector3(0.05, fe[3] - fe[2], 0.08), Transform3D(Basis(), Vector3(-1.4, (fe[2] + fe[3]) * 0.5, 1.8)), m_poutres)
 	# volet de la fenêtre : relevé en auvent sur un bâton
 	_boite(p, Vector3(1.0, 0.04, 0.7), Transform3D(Basis(Vector3.RIGHT, 0.5), Vector3(-1.4, fe[3] + 0.28, 2.1)), m_poutres_h)
 	_boite(p, Vector3(0.04, 0.04, 0.6), Transform3D(Basis(Vector3.RIGHT, -0.6), Vector3(-1.85, 1.65, 2.2)), m_poutres)
@@ -978,9 +981,12 @@ func _forge(centre: Vector3) -> void:
 		for sx in [-1.0, 1.0]:
 			var k := 0
 			for t in tronc:
-				ib.pile(Vector3(sx * 2.155, t[2] * 0.5, (t[0] + t[1]) * 0.5), Vector3(0.1, t[2], t[1] - t[0]), 4420 + k + int(sx + 1.0) * 5, "seche")
+				ib.bx(Vector3(sx * 2.155, t[2] * 0.5, (t[0] + t[1]) * 0.5), Vector3(0.1, t[2], t[1] - t[0]), "seche")   # doublage plat : la texture de pierre (64 texels/m) porte les joints ; l'ancien `pile` ne posait aucun bloc (épaisseur en X < 0,2 m) et laissait voir la pierre du dehors
 				k += 1
-		ib.pile(Vector3(0, 1.2, -1.7), Vector3(4.2, 2.4, 0.1), 4440, "seche")
+		ib.bx(Vector3(0, 1.2, -1.7), Vector3(4.2, 2.4, 0.1), "seche")
+		for x in [-2.4, 0.0, 2.4]:      # contreforts côté pièce : matière d'intérieur, sans neige
+			ib.pile(Vector3(x, 1.0, -1.5), Vector3(0.6, 2.0, 0.3), 4310 + int(x), "brute")
+		ib.fenetre_cadre(-1.4, (fe[2] + fe[3]) * 0.5, 1.72, 1.0, 0.5, (fe[3] - fe[2]) * 0.5)
 		ib.contenu("forge")
 		ib.finir()
 		_finaliser())
