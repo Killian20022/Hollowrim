@@ -29,7 +29,8 @@ var _svanhild_levee := false
 var _anneau_rendu := false
 var _lueur_tombe: OmniLight3D
 var _manche: Node3D
-var _flammes: Array = []
+var d: CrypteDecor
+var _flamme_pixel: MeshInstance3D
 var _t := 0.0
 
 var m_pierre: ShaderMaterial
@@ -52,11 +53,13 @@ func _ready() -> void:
 	corps = StaticBody3D.new()
 	crypte.add_child(corps)
 	_construire_crypte()
+	crypte.visible = false      # tant qu'on est dehors, ni rendu ni lumières (le décor reste solide)
 
 func _process(dt: float) -> void:
 	_t += dt
-	for f in _flammes:
-		f[0].light_energy = f[1] * (0.85 + sin(_t * 7.0 + f[2]) * 0.08 + randf() * 0.07)
+	if d != null and dedans:
+		d.vaciller(_t)
+	_flamme_main()
 	if not dedans and joueur.global_position.distance_to(porte_dehors) < 9.0:
 		quetes.signaler("lieu:tertre")
 	if _lueur_tombe:
@@ -66,6 +69,21 @@ func _process(dt: float) -> void:
 	if dedans and not _svanhild_levee and joueur.inventaire.a("anneau_givre"):
 		if joueur.global_position.distance_to(crypte.to_global(Vector3(0, 0, -50))) < 8.0:
 			_lever_svanhild()
+
+## Sous terre, la flamme de la torche tenue en main devient un sprite pixel art (les grosses particules
+## additives faisaient une tache blanche carrée sans glow) ; dehors, tout est remis comme avant.
+func _flamme_main() -> void:
+	var mains: Node = joueur.mains
+	if mains == null or d == null:
+		return
+	if dedans and _flamme_pixel == null and mains.porte_torche != null:
+		_flamme_pixel = d.flamme_sur(mains.porte_torche, Vector3(0, 0.53, 0.0), 0.5)
+	if _flamme_pixel == null:
+		return
+	_flamme_pixel.visible = dedans and mains.torche_lumiere.visible
+	for i in mains.flammes.size():
+		if i != 3:                               # on garde les étincelles ; cœur, corps, langues et fumée cèdent la place au sprite
+			mains.flammes[i].visible = not dedans
 
 # --- extérieur ---------------------------------------------------------------------
 
@@ -116,83 +134,124 @@ func _tumulus() -> void:
 	_interactif(self, Vector3(0, 1.2, 0.3), "Tertre de Svanhild", "Entrer dans le tertre", func() -> Array: return _passer(true))
 
 # --- crypte --------------------------------------------------------------------------
-
-## Pièce rectangulaire : sol, plafond et quatre murs, avec des ouvertures [côté, centre, largeur].
-func _salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Array, y := 0.0) -> void:
-	var cx := (x0 + x1) * 0.5
-	var cz := (z0 + z1) * 0.5
-	var lx := absf(x1 - x0)
-	var lz := absf(z1 - z0)
-	_boite(crypte, Vector3(lx + 0.6, 0.4, lz + 0.6), Transform3D(Basis(), Vector3(cx, y - 0.2, cz)), m_dalle, corps)
-	_boite(crypte, Vector3(lx + 0.6, 0.4, lz + 0.6), Transform3D(Basis(), Vector3(cx, y + h + 0.2, cz)), m_pierre, corps)
-	for cote in ["nord", "sud", "ouest", "est"]:
-		var horizontal: bool = cote in ["nord", "sud"]
-		var fixe: float = (minf(z0, z1) if cote == "nord" else maxf(z0, z1)) if horizontal else (minf(x0, x1) if cote == "ouest" else maxf(x0, x1))
-		var debut: float = minf(x0, x1) if horizontal else minf(z0, z1)
-		var fin: float = maxf(x0, x1) if horizontal else maxf(z0, z1)
-		var morceaux := [[debut, fin]]
-		for o in ouvertures:
-			if o[0] != cote:
-				continue
-			var nouveaux := []
-			for m in morceaux:
-				var a: float = o[1] - o[2] * 0.5
-				var b: float = o[1] + o[2] * 0.5
-				if b <= m[0] or a >= m[1]:
-					nouveaux.append(m)
-				else:
-					if a > m[0]:
-						nouveaux.append([m[0], a])
-					if b < m[1]:
-						nouveaux.append([b, m[1]])
-			morceaux = nouveaux
-		# linteaux : les passages font 3 m de haut, la pièce peut être plus haute
-		if h > 3.0:
-			for o in ouvertures:
-				if o[0] == cote:
-					var pos_l := Vector3(o[1], y + (3.0 + h) * 0.5, fixe) if horizontal else Vector3(fixe, y + (3.0 + h) * 0.5, o[1])
-					var taille_l := Vector3(o[2], h - 3.0, 0.6) if horizontal else Vector3(0.6, h - 3.0, o[2])
-					_boite(crypte, taille_l, Transform3D(Basis(), pos_l), m_pierre, corps)
-		for m in morceaux:
-			var longueur: float = m[1] - m[0]
-			if longueur < 0.05:
-				continue
-			var milieu: float = (m[0] + m[1]) * 0.5
-			var pos := Vector3(milieu, y + h * 0.5, fixe) if horizontal else Vector3(fixe, y + h * 0.5, milieu)
-			var taille := Vector3(longueur + 0.6, h, 0.6) if horizontal else Vector3(0.6, h, longueur + 0.6)
-			_boite(crypte, taille, Transform3D(Basis(), pos), m_pierre, corps)
+## Lot 7a : toute la construction visible (murs, voûtes, piliers, mobilier, lumières) est dans CrypteDecor ;
+## ici ne restent que le plan, les collisions d'origine (refaites à l'identique par CrypteDecor), les
+## interactions, les gardiens et le corps d'Eirik.
 
 func _construire_crypte() -> void:
-	# entrée et escalier qui remonte vers la sortie
-	_salle(-3, 3, 4, -6, 3.6, [["nord", 0.0, 3.2]])
-	for i in 6:
-		_boite(crypte, Vector3(3.0, 0.3 * (i + 1), 0.6), Transform3D(Basis(), Vector3(0, 0.15 * (i + 1), 3.6 - i * 0.6)), m_dalle)
-	_interactif(crypte, Vector3(0, 1.6, 1.5), "Sortie", "Sortir du tertre", func() -> Array: return _passer(false))
-	_brasero(Vector3(-2.3, 0, -5.2))
-	_brasero(Vector3(2.3, 0, -5.2))
+	var t0 := Time.get_ticks_msec()
+	d = CrypteDecor.new(crypte, corps)
+	_entree()
+	_couloir_niches()
+	_salle_piliers()
+	_alcove()
+	_couloir_herse()
+	_tombeau()
+	var t1 := Time.get_ticks_msec()
+	d.finir()
+	print("Crypte (lot 7a) : plan %d ms + finition %d ms = %d ms" % [t1 - t0, Time.get_ticks_msec() - t1, Time.get_ticks_msec() - t0])
 
-	# couloir des niches : des gardiens endormis debout contre les murs
-	_salle(-1.6, 1.6, -6, -18, 3.0, [["sud", 0.0, 3.2], ["nord", 0.0, 3.2]])
-	for z in [-9.0, -13.0, -16.5]:
-		for x in [-1.25, 1.25]:
-			_boite(crypte, Vector3(0.3, 2.6, 1.2), Transform3D(Basis(), Vector3(x * 1.05, 1.3, z)), m_dalle)
+func _toiles(coins: Array, haut: float) -> void:
+	# coins : [x, z, vers_x, vers_z] (directions le long des deux murs qui forment le coin)
+	for c in coins:
+		d.toile(Vector3(c[0], haut, c[1]), Vector3(c[2], 0, 0), Vector3(0, 0, c[3]))
+
+func _entree() -> void:
+	d.salle(-3, 3, 4, -6, 3.6, [["nord", 0.0, 3.2]], 0.0, "mur0")
+	# escalier qui remonte vers la sortie (décor, contre le mur sud) et passage sombre au-dessus
+	for i in 4:
+		d.boite("dalle0", Vector3(0, 0.15 * (4 - i), 3.4 - i * 0.6), Vector3(3.0, 0.3 * (4 - i), 0.6))
+	d.quad("noir", Vector3(-1.0, 1.2, 3.69), Vector3(1.0, 1.2, 3.69), Vector3(1.0, 3.0, 3.69), Vector3(-1.0, 3.0, 3.69), Vector3(0, 0, -1))
+	d.boite("mur0", Vector3(-1.2, 2.1, 3.62), Vector3(0.4, 1.8, 0.16))
+	d.boite("mur0", Vector3(1.2, 2.1, 3.62), Vector3(0.4, 1.8, 0.16))
+	d.boite("mur0", Vector3(0, 3.1, 3.62), Vector3(2.8, 0.4, 0.16))
+	_interactif(crypte, Vector3(0, 1.6, 1.5), "Sortie", "Sortir du tertre", func() -> Array: return _passer(false))
+	for z in [2.0, 0.0, -2.0, -4.0]:
+		d.poutre(-2.7, 2.7, 3.45, z)
+	d.brasero(Vector3(-2.3, 0, -5.2))
+	d.brasero(Vector3(2.3, 0, -5.2))
+	d.applique(Vector3(-2.7, 0, 0.0), Vector3(1, 0, 0), 2.1, 5.0, 1.7)
+	d.applique(Vector3(2.7, 0, 0.0), Vector3(-1, 0, 0), 2.1, 5.0, 1.7)
+	d.urne(Vector3(-2.2, 0, -3.4), 1.0)
+	d.urne(Vector3(2.15, 0, -3.1), 0.8)
+	d.os_tas(Vector3(-1.9, 0, 2.7), 3, 0.3)
+	d.arme(Vector3(-1.4, 0, -1.4), 0.6)
+	_toiles([[-2.7, 3.7, 1, -1], [2.7, 3.7, -1, -1], [-2.7, -5.7, 1, 1], [2.7, -5.7, -1, 1]], 3.6)
+
+func _niche(x_plan: float, z: float, vers_x: float) -> void:
+	# niche à gardien : encadrement épais, tablette, crâne et urne
+	var x := x_plan + vers_x * 0.08
+	d.boite("mur0", Vector3(x, 1.1, z - 0.7), Vector3(0.16, 2.2, 0.24))
+	d.boite("mur0", Vector3(x, 1.1, z + 0.7), Vector3(0.16, 2.2, 0.24))
+	d.boite("mur0", Vector3(x, 2.25, z), Vector3(0.16, 0.3, 1.64))
+	d.boite("mur1", Vector3(x_plan + vers_x * 0.13, 0.95, z), Vector3(0.26, 0.1, 1.2))
+	d.crane(Vector3(x_plan + vers_x * 0.15, 1.0, z - 0.25), atan2(vers_x, 0.0))
+	d.urne(Vector3(x_plan + vers_x * 0.15, 1.0, z + 0.3), 0.7)
+	d.os_tas(Vector3(x_plan + vers_x * 0.45, 0.0, z), 2, 0.3)
+
+func _couloir_niches() -> void:
+	d.salle(-1.6, 1.6, -6, -18, 3.0, [["sud", 0.0, 3.2], ["nord", 0.0, 3.2]], 0.0, "mur1")
+	for z in [-7.0, -11.0, -15.0]:
+		d.arc("mur0", "x", 0.0, z, 2.6, 1.4, 1.3, 0.32, 0.45)
+		for x in [-1.15, 1.15]:
+			d.boite("mur0", Vector3(x, 0.7, z), Vector3(0.3, 1.4, 0.45))
+	_niche(1.3, -13.0, -1.0)
+	_niche(1.3, -16.8, -1.0)
+	_niche(-1.3, -9.0, 1.0)
+	_niche(-1.3, -16.8, 1.0)
+	d.applique(Vector3(1.3, 0, -9.0), Vector3(-1, 0, 0), 1.9, 4.6, 1.5)
+	d.applique(Vector3(-1.3, 0, -13.0), Vector3(1, 0, 0), 1.9, 4.6, 1.5)
 	_gardien("sbire", Vector3(-1.0, 0, -11.0), PI * 0.5, true)
 	_gardien("sbire", Vector3(1.0, 0, -15.0), -PI * 0.5, true)
+	d.arme(Vector3(0.5, 0, -8.6), 1.1)
+	d.os_tas(Vector3(0.85, 0, -12.3), 3, 0.3)
+	_toiles([[-1.3, -6.3, 1, -1], [1.3, -17.7, -1, 1], [-1.3, -17.7, 1, 1]], 3.0)
 
-	# salle des piliers
-	_salle(-7, 7, -18, -32, 4.6, [["sud", 0.0, 3.2], ["nord", 0.0, 3.2], ["ouest", -25.0, 3.0]])
+func _salle_piliers() -> void:
+	d.salle(-7, 7, -18, -32, 4.6, [["sud", 0.0, 3.2], ["nord", 0.0, 3.2], ["ouest", -25.0, 3.0]], 0.0, "mur0")
+	# voie processionnelle gravée au centre (modules de 4 m)
+	for k in 3:
+		d.boite("gravure", Vector3(0, 0.015, -20.3 - k * 4.0), Vector3(2.0, 0.03, 4.0), 0.0, true, Vector3(1.0, 0, 20.3 + k * 4.0))
 	for x in [-3.5, 3.5]:
 		for z in [-21.5, -28.5]:
-			_boite(crypte, Vector3(0.9, 4.6, 0.9), Transform3D(Basis(), Vector3(x, 2.3, z)), m_pierre, corps)
-	_brasero(Vector3(-6.0, 0, -19.0))
-	_brasero(Vector3(6.0, 0, -31.0))
-	_brasero(Vector3(6.0, 0, -19.0))
+			d.pilier(x, z, 4.6, 0.9)
+	# arcs doubleaux entre les piliers, et de chaque pilier au contrefort du mur
+	for z in [-21.5, -28.5]:
+		d.arc("mur0", "x", 0.0, z, 6.1, 3.6, 0.65, 0.35, 0.5)
+		for s in [-1.0, 1.0]:
+			d.arc("mur0", "x", s * 4.8, z, 3.2, 3.6, 0.65, 0.35, 0.5)
+			d.contrefort(s * 6.45, z, 4.6, -s, 0.0, 0.7, 0.5)
+	for x in [-3.5, 3.5]:
+		d.arc("mur0", "z", x, -25.0, 6.1, 3.6, 0.65, 0.35, 0.5)
+	d.brasero(Vector3(-6.0, 0, -19.0))
+	d.brasero(Vector3(6.0, 0, -31.0))
+	d.brasero(Vector3(6.0, 0, -19.0))
+	d.applique(Vector3(-6.2, 0, -21.5), Vector3(1, 0, 0), 2.3, 5.5, 1.8)
+	d.applique(Vector3(-6.2, 0, -28.5), Vector3(1, 0, 0), 2.3, 5.5, 1.8)
+	d.applique(Vector3(6.2, 0, -28.5), Vector3(-1, 0, 0), 2.3, 5.5, 1.8, false)
+	d.applique(Vector3(6.2, 0, -21.5), Vector3(-1, 0, 0), 2.3, 5.5, 1.8, false)
+	# mobilier : sarcophages et coffre contre le mur du fond, armes et ossements
+	d.sarcophage(Vector3(-4.7, 0, -31.15), Vector3(2.2, 0.7, 0.9), 0.0)
+	d.sarcophage(Vector3(4.0, 0, -31.15), Vector3(2.2, 0.7, 0.9), 0.0)
+	d.coffre(Vector3(-6.2, 0, -30.9), PI * 0.5)
+	d.urne(Vector3(-6.2, 0, -26.0), 1.0)
+	d.os_tas(Vector3(-4.0, 0, -26.8), 5, 0.6)
+	d.arme(Vector3(2.0, 0, -22.8), 2.3)
+	d.arme(Vector3(-2.5, 0, -19.4), 0.4)
+	d.crane(Vector3(3.5, 0.0, -22.4), 0.8)
+	d.crane(Vector3(-3.1, 0.0, -29.4), 2.4)
+	d.oculus(Vector3(0, 4.6, -25.0), 1.4)
+	d.rai(Vector3(0, 0.0, -25.0), 4.55, 1.5)
+	d.flaque_froide(Vector3(0, 0.0, -25.0), 3.2)
+	d.lumiere(Vector3(0, 1.3, -25.0), Color(0.55, 0.75, 1.0), 0.7, 4.5, 1.8, false)
+	d.poussiere(Vector3(0, 2.3, -25.0), Vector3(0.7, 2.2, 0.7), 22)
 	_gardien("guerrier", Vector3(-4.0, 0, -26.0), 0.4, false)
 	_gardien("sbire", Vector3(3.0, 0, -24.0), 2.0, true)
 	_gardien("sbire", Vector3(-2.0, 0, -30.0), -0.8, true)
+	_toiles([[-6.7, -18.3, 1, -1], [6.7, -18.3, -1, -1], [-6.7, -31.7, 1, 1], [6.7, -31.7, -1, 1]], 4.6)
 
-	# alcôve d'Eirik, à l'ouest
-	_salle(-11, -7, -23, -27, 3.0, [["est", -25.0, 3.0]])
+func _alcove() -> void:
+	d.salle(-11, -7, -23, -27, 3.0, [["est", -25.0, 3.0]], 0.0, "mur2")
 	var eirik := Humain.creer({"corps": "homme", "cheveux": "Hair_SimpleParted", "teinte_cheveux": Color(0.85, 0.55, 0.3), "peau": Color(0.75, 0.75, 0.8),
 		"tenue": {"tunique": Color(0.4, 0.5, 0.42), "pantalon": Color(0.6, 0.55, 0.5), "bottes": Color.WHITE, "ceinture": Color.WHITE, "mante": Color(0.9, 0.85, 0.8)}})
 	eirik.position = Vector3(-9.3, 0.02, -25.0)
@@ -203,19 +262,28 @@ func _construire_crypte() -> void:
 	ap.seek(ap.get_animation("Death01").length - 0.05, true)
 	ap.pause()
 	_interactif(crypte, Vector3(-9.3, 0.6, -25.0), "Note d’Eirik", "Fouiller le corps d’Eirik", _fouiller_eirik, Callable(), true)
-	_flamme(crypte, Vector3(-10.4, 0.15, -23.6), 0.3, 0.6, 4.0)  # chandelle d'Eirik
+	d.coffre(Vector3(-10.2, 0, -26.4), 0.0)
+	d.table(Vector3(-9.0, 0, -23.75), 0.0)
+	d.bougie(Vector3(-9.35, 0.795, -23.8))      # la chandelle d'Eirik
+	d.etagere(Vector3(-8.5, 0, -26.53), 0.0, 1.7, 2.0)
+	d.applique(Vector3(-10.7, 0, -25.0), Vector3(1, 0, 0), 2.1, 4.2, 1.2)
+	d.arme(Vector3(-8.2, 0, -24.9), 2.6)
+	d.os_tas(Vector3(-10.2, 0, -24.0), 2, 0.25)
+	_toiles([[-10.7, -23.3, 1, -1], [-7.3, -26.7, -1, 1]], 3.0)
 
-	# couloir de la herse
-	_salle(-1.6, 1.6, -32, -42, 3.2, [["sud", 0.0, 3.2], ["nord", 0.0, 3.2]])
+func _couloir_herse() -> void:
+	d.salle(-1.6, 1.6, -32, -42, 3.2, [["sud", 0.0, 3.2], ["nord", 0.0, 3.2]], 0.0, "mur2")
+	for z in [-34.5, -36.5, -38.5, -40.5]:
+		d.poutre(-1.3, 1.3, 3.05, z)
 	herse = Node3D.new()
 	herse.position = Vector3(0, 0, -33.0)
 	crypte.add_child(herse)
 	var corps_herse := StaticBody3D.new()
 	herse.add_child(corps_herse)
 	for i in 7:
-		_boite(herse, Vector3(0.08, 3.1, 0.08), Transform3D(Basis(), Vector3(-1.35 + i * 0.45, 1.55, 0)), m_fer)
+		d.instance_boite(herse, "fer", Vector3(0.08, 3.1, 0.08), Vector3(-1.35 + i * 0.45, 1.55, 0))
 	for y in [0.6, 1.8, 2.8]:
-		_boite(herse, Vector3(3.0, 0.08, 0.08), Transform3D(Basis(), Vector3(0, y, 0)), m_fer)
+		d.instance_boite(herse, "fer", Vector3(3.0, 0.08, 0.08), Vector3(0, y, 0))
 	var bs := BoxShape3D.new()
 	bs.size = Vector3(3.2, 3.2, 0.3)
 	var cs := CollisionShape3D.new()
@@ -226,33 +294,70 @@ func _construire_crypte() -> void:
 	var levier := Node3D.new()
 	levier.position = Vector3(6.55, 1.1, -25.0)
 	crypte.add_child(levier)
-	_boite(levier, Vector3(0.2, 0.5, 0.3), Transform3D(), m_fer)
-	var manche := _boite(levier, Vector3(0.06, 0.6, 0.06), Transform3D(Basis(Vector3.BACK, 0.5), Vector3(-0.15, 0.25, 0)), m_poutre)
+	d.instance_boite(levier, "fer", Vector3(0.2, 0.5, 0.3), Vector3.ZERO)
+	var manche := d.instance_boite(levier, "bois", Vector3(0.06, 0.6, 0.06), Vector3(-0.15, 0.25, 0))
+	manche.rotation = Vector3(0, 0, 0.5)
 	_manche = manche
 	_interactif(crypte, Vector3(6.3, 1.1, -25.0), "Levier", "Tirer le levier", _tirer_levier, func() -> bool: return not _herse_ouverte)
+	d.applique(Vector3(1.3, 0, -37.5), Vector3(-1, 0, 0), 1.9, 4.5, 1.5)
+	d.os_tas(Vector3(-0.8, 0, -34.7), 4, 0.35)
+	d.arme(Vector3(0.5, 0, -39.0), 1.0)
+	d.urne(Vector3(-1.0, 0, -41.2), 0.9)
+	d.urne(Vector3(1.0, 0, -41.0), 0.8)
+	_toiles([[-1.3, -32.3, 1, -1], [1.3, -41.7, -1, 1]], 3.2)
 
-	# tombeau de Svanhild
-	_salle(-8, 8, -42, -58, 6.0, [["sud", 0.0, 3.2]])
-	_boite(crypte, Vector3(6.0, 0.4, 5.0), Transform3D(Basis(), Vector3(0, 0.2, -51.0)), m_pierre, corps)
-	_boite(crypte, Vector3(1.6, 1.0, 3.0), Transform3D(Basis(), Vector3(0, 0.9, -51.5)), m_pierre, corps)
-	_boite(crypte, Vector3(1.8, 0.18, 3.2), Transform3D(Basis(), Vector3(0, 1.48, -51.5)), m_dalle)
+func _tombeau() -> void:
+	d.salle(-8, 8, -42, -58, 6.0, [["sud", 0.0, 3.2]], 0.0, "mur0")
+	# voie gravée jusqu'à l'estrade, estrade (collision d'origine), marche, sarcophage
+	for k in 2:
+		d.boite("gravure", Vector3(0, 0.015, -44.3 - k * 4.0), Vector3(2.0, 0.03, 4.0), 0.0, true, Vector3(1.0, 0, 44.3 + k * 4.0))
+	d.boite_pleine("dalle0", Vector3(0, 0.2, -51.0), Vector3(6.0, 0.4, 5.0))
+	d.boite("mur1", Vector3(0, 0.1, -48.2), Vector3(4.0, 0.2, 0.6))
+	d.boite_pleine("mur0", Vector3(0, 0.9, -51.5), Vector3(1.6, 1.0, 3.0))
+	d.boite("mur1", Vector3(0, 0.52, -51.5), Vector3(1.9, 0.24, 3.3))
+	d.boite("gravure", Vector3(0, 1.48, -51.5), Vector3(1.8, 0.18, 3.2))
 	_boite(crypte, Vector3(1.0, 0.04, 2.2), Transform3D(Basis(), Vector3(0, 1.58, -51.5)), Palette.lueur(Color(0.4, 1.1, 1.6)))
 	for x in [-6.5, 6.5]:
 		for z in [-44.0, -56.0]:
-			_boite(crypte, Vector3(1.0, 6.0, 1.0), Transform3D(Basis(), Vector3(x, 3.0, z)), m_pierre, corps)
+			d.pilier(x, z, 6.0, 1.0)
+	for z in [-44.0, -56.0]:
+		d.arc("mur0", "x", 0.0, z, 12.0, 4.6, 1.0, 0.4, 0.6, 12)
+	for x in [-6.5, 6.5]:
+		d.arc("mur0", "z", x, -50.0, 11.0, 4.6, 1.0, 0.4, 0.6, 12)
+	for z in [-46.0, -54.0]:
+		d.contrefort(7.45, z, 6.0, -1.0, 0.0, 0.7, 0.5)
+		d.contrefort(-7.45, z, 6.0, 1.0, 0.0, 0.7, 0.5)
 	_lueur_tombe = OmniLight3D.new()
 	_lueur_tombe.light_color = Color(0.4, 0.8, 1.0)
 	_lueur_tombe.light_energy = 1.6
-	_lueur_tombe.omni_range = 14.0
+	_lueur_tombe.omni_range = 10.0
+	_lueur_tombe.omni_attenuation = 1.5
 	_lueur_tombe.position = Vector3(0, 3.0, -51.5)
 	crypte.add_child(_lueur_tombe)
-	_brasero(Vector3(-5.0, 0, -45.0))
-	_brasero(Vector3(5.0, 0, -45.0))
+	d.brasero(Vector3(-5.0, 0, -45.0))
+	d.brasero(Vector3(5.0, 0, -45.0))
+	d.applique(Vector3(7.2, 0, -46.0), Vector3(-1, 0, 0), 2.6, 5.5, 1.8)
+	d.applique(Vector3(-7.2, 0, -46.0), Vector3(1, 0, 0), 2.6, 5.5, 1.8)
+	d.applique(Vector3(7.2, 0, -54.0), Vector3(-1, 0, 0), 2.6, 5.5, 1.8, false)
+	d.applique(Vector3(-7.2, 0, -54.0), Vector3(1, 0, 0), 2.6, 5.5, 1.8, false)
+	d.oculus(Vector3(0, 6.0, -51.5), 1.8)
+	d.rai(Vector3(0, 1.7, -51.5), 4.25, 1.7)
+	d.flaque_froide(Vector3(0, 0.41, -51.0), 5.0)
+	d.poussiere(Vector3(0, 3.6, -51.5), Vector3(0.9, 2.0, 1.4), 30)
+	d.urne(Vector3(7.1, 0, -50.0), 1.1)
+	d.urne(Vector3(-7.1, 0, -50.0), 1.1)
+	d.crane(Vector3(2.3, 0.4, -49.2), -0.6)
+	d.crane(Vector3(-2.3, 0.4, -49.0), 0.7)
+	d.os_tas(Vector3(-4.6, 0, -53.0), 4, 0.5)
+	d.os_tas(Vector3(4.8, 0, -56.0), 3, 0.5)
+	d.arme(Vector3(3.2, 0, -47.0), 0.3)
+	d.arme(Vector3(-3.4, 0, -53.6), 2.2)
 	_gardien("guerrier", Vector3(-3.0, 0, -45.5), PI, true, true)
 	_gardien("guerrier", Vector3(3.0, 0, -45.5), PI, true, true)
 	_givre(Vector3(0, 1.6, -51.5))
 	_interactif(crypte, Vector3(0, 1.4, -49.6), "Inscription", "Lire l’inscription", func() -> Array: return quetes.texte("inscription_tombe"), func() -> bool: return not _peut_rendre())
 	_interactif(crypte, Vector3(0, 1.4, -49.6), "Svanhild", "Replacer l’anneau sur le sarcophage", _rendre_anneau, _peut_rendre)
+	_toiles([[-7.7, -41.7, 1, -1], [7.7, -41.7, -1, -1], [-7.7, -57.7, 1, 1], [7.7, -57.7, -1, 1]], 6.0)
 
 func _fouiller_eirik() -> Array:
 	joueur.inventaire.ajouter("anneau_givre")
@@ -295,6 +400,7 @@ func restaurer(herse_ouverte: bool) -> void:
 	# partie sauvegardée sous terre
 	if joueur.global_position.y < PROFONDEUR * 0.5:
 		dedans = true
+		crypte.visible = true
 		entree.emit.call_deferred(true)
 
 func _peut_rendre() -> bool:
@@ -323,6 +429,7 @@ func _passer(vers_dedans: bool) -> Array:
 	t.tween_method(func(v: float) -> void: monde.post.set_shader_parameter("fondu", v), 0.0, 1.0, 0.5)
 	t.tween_callback(func() -> void:
 		dedans = vers_dedans
+		crypte.visible = vers_dedans
 		if vers_dedans:
 			joueur.global_position = crypte.to_global(Vector3(0, 0.1, 0.5))
 			joueur.rotation.y = crypte.global_rotation.y
@@ -370,64 +477,6 @@ func _interactif(parent: Node3D, pos: Vector3, nom: String, verbe: String, actio
 
 func _gardien(type: String, pos: Vector3, lacet: float, dort: bool, debout := false) -> void:
 	monde.creer_draugr(type, crypte.to_global(pos + Vector3(0, 0.05, 0)), lacet, dort, {"debout": debout})
-
-func _flamme(parent: Node3D, pos: Vector3, taille: float, energie: float, portee: float, couleur := Color(1.0, 0.55, 0.22)) -> void:
-	var l := OmniLight3D.new()
-	l.light_color = couleur
-	l.light_energy = energie
-	l.omni_range = portee
-	l.position = pos + Vector3(0, 0.3, 0)
-	parent.add_child(l)
-	_flammes.append([l, energie, randf() * 10.0])
-	var p := GPUParticles3D.new()
-	p.amount = int(16 * taille) + 6
-	p.lifetime = 0.5
-	p.position = pos
-	var pm := ParticleProcessMaterial.new()
-	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	pm.emission_sphere_radius = 0.1 * taille
-	pm.direction = Vector3.UP
-	pm.spread = 12.0
-	pm.initial_velocity_min = 0.5 * taille
-	pm.initial_velocity_max = 0.9 * taille
-	pm.gravity = Vector3(0, 0.6, 0)
-	var g := Gradient.new()
-	var froid := couleur.b > couleur.r
-	g.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
-	if froid:
-		g.colors = PackedColorArray([Color(1.6, 2.6, 3.0), Color(0.4, 1.2, 2.2), Color(0.05, 0.2, 0.5, 0.0)])
-	else:
-		g.colors = PackedColorArray([Color(3.0, 2.3, 0.9), Color(2.0, 0.6, 0.15), Color(0.3, 0.05, 0.0, 0.0)])
-	var gt := GradientTexture1D.new()
-	gt.gradient = g
-	pm.color_ramp = gt
-	p.process_material = pm
-	var q := QuadMesh.new()
-	q.size = Vector2(0.1, 0.1) * maxf(taille, 0.4)
-	var mq := StandardMaterial3D.new()
-	mq.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mq.vertex_color_use_as_albedo = true
-	mq.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mq.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	mq.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	q.material = mq
-	p.draw_pass_1 = q
-	parent.add_child(p)
-
-## Brasero de pierre aux flammes bleues des morts.
-func _brasero(pos: Vector3) -> void:
-	var c := CylinderMesh.new()
-	c.top_radius = 0.45
-	c.bottom_radius = 0.3
-	c.height = 0.9
-	c.radial_segments = 7
-	c.rings = 1
-	var mi := MeshInstance3D.new()
-	mi.mesh = c
-	mi.material_override = m_pierre
-	mi.position = pos + Vector3(0, 0.45, 0)
-	crypte.add_child(mi)
-	_flamme(crypte, pos + Vector3(0, 0.95, 0), 1.2, 1.6, 9.0, Color(0.35, 0.7, 1.0))
 
 func _givre(pos: Vector3) -> void:
 	var p := GPUParticles3D.new()

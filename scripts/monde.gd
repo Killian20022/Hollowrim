@@ -130,6 +130,7 @@ func _ready() -> void:
 	_cacher_particules()
 	_rendre_paisible()
 	_capture()
+	_aller_crypte()
 
 # --- relief ---------------------------------------------------------------
 
@@ -535,11 +536,15 @@ func _sous_terre(dedans: bool) -> void:
 	cycle.process_mode = Node.PROCESS_MODE_DISABLED if dedans else Node.PROCESS_MODE_INHERIT
 	_env.background_mode = Environment.BG_COLOR if dedans else Environment.BG_SKY
 	_env.background_color = Color(0.0, 0.0, 0.0)
+	# Lot 7a : pénombre bleutée lisible (ambiant plus clair), brume courte et froide, pas de glow (halos nets,
+	# dessinés dans la crypte) et tramage du post-traitement adouci (le Bayer 4x4 grésille dans le sombre).
+	_env.glow_enabled = not dedans
+	post.set_shader_parameter("tramage", 0.45 if dedans else 1.0)
 	if dedans:
-		_env.ambient_light_color = Color(0.26, 0.32, 0.48)
-		_env.ambient_light_energy = 1.0
-		_env.fog_light_color = Color(0.02, 0.03, 0.05)
-		_env.fog_density = 0.06
+		_env.ambient_light_color = Color(0.34, 0.44, 0.70)
+		_env.ambient_light_energy = 0.95
+		_env.fog_light_color = Color(0.03, 0.045, 0.08)
+		_env.fog_density = 0.028
 		_env.fog_height_density = 0.0
 	else:
 		_env.fog_height_density = 0.12
@@ -804,6 +809,18 @@ func _arguments() -> Dictionary:
 			res[parts[0]] = parts[1] if parts.size() > 1 else ""
 	return res
 
+## --crypte=x,z,lacet°,tangage° : descend dans la crypte et s'y place (mesures de performance, essais ; repère de la crypte).
+func _aller_crypte() -> void:
+	var a: String = _arguments().get("crypte", "")
+	if a == "" or _arguments().has("capture"):
+		return
+	tertre._passer(true)
+	await get_tree().create_timer(1.3).timeout
+	var cp: PackedStringArray = a.split(",")
+	joueur.global_position = tertre.crypte.to_global(Vector3(float(cp[0]), 0.1, float(cp[1])))
+	joueur.rotation.y = tertre.crypte.global_rotation.y + deg_to_rad(float(cp[2]))
+	joueur.tete.rotation.x = deg_to_rad(float(cp[3]))
+
 ## --sans-particules : cache neige et flammes (feu, torches) pour comparer des captures au pixel près.
 func _cacher_particules() -> void:
 	if not _arguments().has("sans-particules"):
@@ -867,7 +884,7 @@ func _capture() -> void:
 		c.current = true
 		for i in 5:
 			await get_tree().process_frame
-	print("FPS : ", Engine.get_frames_per_second())
+	print("FPS : ", Engine.get_frames_per_second(), " joueur=", joueur.global_position, " lacet=", joueur.rotation.y, " tangage=", joueur.tete.rotation.x, " cam=", joueur.camera.global_position)
 	var img := get_viewport().get_texture().get_image()
 	img.resize(img.get_width() * 2, img.get_height() * 2, Image.INTERPOLATE_NEAREST)
 	img.save_png(chemin)
@@ -959,7 +976,16 @@ func _scenario(nom: String) -> void:
 		"crypte", "tombe":
 			tertre._passer(true)
 			await get_tree().create_timer(1.3).timeout
-			if nom == "crypte":
+			if _arguments().has("cpose"):
+				# --cpose=x,z,lacet,tangage (repère de la crypte ; lacet 0 = vers -Z) ; --sans-torche
+				var cp: PackedStringArray = String(_arguments()["cpose"]).split(",")
+				joueur.global_position = tertre.crypte.to_global(Vector3(float(cp[0]), 0.1, float(cp[1])))
+				joueur.rotation.y = tertre.crypte.global_rotation.y + deg_to_rad(float(cp[2]))
+				joueur.tete.rotation.x = deg_to_rad(float(cp[3]))
+				if _arguments().has("torche-eteinte"):
+					joueur.mains.torche_lumiere.light_cull_mask = 0
+				await get_tree().create_timer(0.8).timeout
+			elif nom == "crypte":
 				_placer(tertre.crypte.to_global(Vector3(2, 0.1, -19.5)), tertre.crypte.to_global(Vector3(-3, 1.4, -28)))
 			else:
 				joueur.inventaire.ajouter("anneau_givre")

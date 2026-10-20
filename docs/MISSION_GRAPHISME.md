@@ -430,3 +430,92 @@ non concluante, la preuve reste visuelle (planches) ; les mipmaps sont en place.
 - La neige de toit a une période de 8 m (répétition discrète sur la longue maison) ; les stalactites sont des pyramides plates, bleutées.
 - Jour : le bois (rampe « bois travaillé » désaturée à 0,78) reste un peu plus chaud que le reste de la scène ; de nuit, l'ombre portée des contreforts est dure.
 - La mesure de scintillement par décalage de caméra n'est pas concluante (voir constat).
+
+## Journal — Lot 7a (intérieur de la crypte), branche `graphisme/lot7-crypte`
+
+Retour utilisateur : « l'effet de lumière dans le tombeau est raté », « murs et pierre trop pixélisés, ça fait mal aux yeux ».
+Règles ajoutées par l'utilisateur (modules 1/2/4 m, Macro/Méso/Micro, texel density uniforme, edge highlighting, lumières courtes) et
+`docs/SOCLE_TECHNIQUE.md` § 2 (aucune ombre omni, 4 à 6 lumières par salle, `distance_fade`, fusion des pièces répétées) appliqués.
+
+### Diagnostic (avant : `captures/crypte/avant/`)
+1. **Densité de texels incohérente et étirée** : murs et sol étaient des `BoxMesh` dont les UV couvrent chaque face de 0 à 1, avec une
+   texture de 32 px × `uv_echelle` 2 : un mur de 14 m x 4,6 m portait 64 texels sur 14 m (4,5 texels/m) et 64 sur 4,6 m (14 texels/m),
+   soit des pixels de 22 cm étirés en bandes, 3 à 10 fois plus gros que le bois ou le fer voisins (la herse, elle, était à 40 texels/m).
+2. **Mapping affine (`affine` 0,55) sur de grands quads** : chaque grand mur se tordait en « éclats » triangulaires ; l'accroche des sommets à
+   la grille de 135 lignes faisait trembler les arêtes.
+3. **Textures = bruit quantifié** (`Palette.tex`, 32 px, 4 tons) sans joints ni arêtes : du sel et poivre bleu nuit ; **aucune mipmap** dans
+   `ps1.gdshader` (`filter_nearest`) : scintillement dès qu'on s'éloigne.
+4. **Contraste nul** : pierre #1c1f26…#3f4553 (albédo 0,1 à 0,25) sous un ambiant bleu 0,26/0,32/0,48 : aucune différence de ton lisible, 32 niveaux
+   + tramage Bayer 4x4 pleine force qui grésille dans le sombre.
+5. **Lumière ratée** : seules flammes bleues (particules additives molles, HDR > 1 donc blanches et baveuses), brasero en cylindre de 7 pans,
+   `glow` actif (bavure), halo nul, pas de lumière chaude : tombe, couloirs et salle = noir uniforme ; la torche du joueur (grosses particules
+   additives en carré sans glow, fumée en blocs gris) faisait une tache blanche carrée.
+6. Décor : boîtes nues (piliers carrés, niches = dalles plates), escalier de l'entrée qui bouchait la vue (et aucun mobilier, aucun objet).
+
+### Réalisation
+Fichiers nouveaux : `scripts/crypte_textures.gd`, `scripts/crypte_decor.gd`, `shaders/crypte.gdshader`, `shaders/crypte_flamme.gdshader`,
+`outils/captures_crypte.sh`, `outils/planche_crypte.gd`, `outils/test_crypte.gd`. Modifiés : `scripts/tertre.gd` (la construction de la crypte est
+réécrite ; façade et butte du tumulus INCHANGÉES : `_tumulus`, `m_pierre`, `m_dalle`, `_boite` intacts), `scripts/monde.gd` (voir « Fichiers partagés »).
+Aucune fonction de `palette.gd` n'est touchée.
+- **Textures** (`CrypteTextures`) : amas de pixels, pas de bruit. Pierre en assises de 0,5 m (blocs 0,75 à 1,5 m, joints décalés), joint sombre de 1 px,
+  arête haute et gauche claires, ombre basse, coins épaufrés, amas de relief, fissures en escalier, mousse sur les arêtes hautes, coulures de salpêtre
+  (3 variantes de mur : sain, mousse + salpêtre, humide) ; dalles de 1 m (biseau, usure au centre, poussière dans les joints, tuile de 8 m) ; voûte en
+  petites briques suiffées ; planches de bois avec fil, nœuds, clous ; fer riveté + rouille ; lame rouillée ; gravure runique (cadre, frises, serpent) ;
+  argile à frise ; os ; parchemin ; toile d'araignée (alpha) ; atlas de flamme 4 images ; halo à 4 anneaux posterisés ; rai de lumière en paliers.
+  Rampes de la bible (pierre bleu-gris, mousse, salpêtre, bois, fer), glissement de teinte conservé. **Densité : 32 texels/m pour la pierre** (K = 2 : tuile
+  de mur 128 px = 4 m, dalles 256 px = 8 m) et 32 texels/m pour le bois/fer/objets : dans un couloir de 2,6 m on voit la pierre à 1-1,5 m, où 16 texels/m
+  font des pixels de 8 px d'écran ; écart à la bible (16 texels/m) justifié par ce point de vue, et uniforme dans toute la crypte.
+  Mipmaps « nearest » par vote de couleur 2x2 (peintes en fils d'exécution, `WorkerThreadPool`, pendant que le plan se construit).
+- **Shader `crypte.gdshader`** : `filter_nearest_mipmap`, UV en mètres/tuile, perspective correcte (`affine` 0), accroche des sommets au PIXEL du rendu
+  (grille 270 : plus de tremblement), bande de crasse au pied des murs en 3 paliers (pas de dégradé).
+- **Géométrie** (`CrypteDecor`) : quads par morceaux ≤ 4 m, UV = position monde / tuile ; fusion par cellule de 8 m et par matériau (une quarantaine de
+  maillages, culling par cellule, < 8 lumières par maillage) ; embrasures, cadres de porte, plinthes et corniches ; collisions d'origine refaites à
+  l'identique (sol, plafond, murs, linteaux, piliers, estrade, sarcophage, herse).
+- **Éclairage** : sprites de flamme pixel art animés (MultiMesh par cellule, 9 images/s), halos de mur et flaques de sol (cartes additives à anneaux nets),
+  `OmniLight3D` courtes et fortement atténuées (appliques 4,2-5,5 m, braseros 5,8 m), `shadow_enabled = false`, `distance_fade`, vacillement à trois
+  fréquences + tirage par pas de 1/12 s ; `glow` coupé sous terre, ambiant 0,95 bleu-gris, brume 0,028, tramage du post-traitement ramené à 0,45 sous
+  terre ; flaque et rai de lumière froids (tombeau, salle des piliers) ; `crypte.visible = false` tant qu'on est dehors (ni rendu ni lumières).
+- **Torche tenue** : sous terre uniquement, ses particules (cœur, corps, langues, fumée) sont masquées et remplacées par le même sprite de flamme ; dehors, rien ne change.
+
+### Description par lieu (Murs/Structure · Mobilier · Éclairage)
+- **Entrée** (6 x 10 x 3,6 m) : assises de pierre, plinthe, corniche, cadre épais de la porte nord, 4 poutres de bois ferrées, escalier de 4 marches contre le mur sud avec
+  passage sombre encadré (décor) · urnes, ossements, épée rouillée, toiles aux 4 coins · 2 braseros + 2 appliques (4 lumières).
+- **Couloir des niches** (3,2 x 12 m, 3 m) : 3 arches brisées (ogives) sur pilastres, 4 niches à encadrement épais, tablette, crâne et urne · armes, ossements, toiles · 2 appliques.
+- **Salle des piliers** (14 x 14 m, 4,6 m) : 4 piliers OCTOGONAUX (base et chapiteau évasés, bague), arcs doubleaux dans les deux sens, 4 contreforts engagés, voie
+  processionnelle gravée (modules de 4 m), oculus au plafond · 2 sarcophages gravés, coffre ferré, urne, tas d'os, armes, crânes · 3 braseros + 2 appliques avec lumière
+  (+ 2 appliques sans lumière) + flaque et rai froids (6 lumières).
+- **Alcôve d'Eirik** (4 x 4 m) : murs humides · table (parchemin, plats d'étain), étagère (rouleaux, grimoires, urne), coffre ferré, arme, ossements · bougie sur la table
+  + applique (2 lumières).
+- **Couloir de la herse** (3,2 x 10 m) : 4 poutres, herse et levier (maillages UV en mètres) · prisonnier (os), arme, 2 urnes · 1 applique.
+- **Tombeau** (16 x 16 m, 6 m) : 4 piliers octogonaux de 6 m, arcs surbaissés, 4 contreforts, voie gravée, estrade (collision d'origine) à marche, sarcophage à soubassement
+  et couvercle gravé (bande runique cyan inchangée), oculus + rai et flaque cyan · 2 urnes, 2 crânes sur l'estrade, ossements, armes · 2 braseros + 2 appliques avec lumière
+  (+ 2 sans) + lueur froide du sarcophage (portée 14 → 10 m) : 5 lumières.
+
+### Fichiers partagés touchés (à signaler au fusionneur)
+- `scripts/monde.gd` : `_sous_terre` (ambiant, brume, glow, tramage du post), `--cpose=x,z,lacet,tangage` + `--torche-eteinte` dans le scénario `crypte` (le drapeau
+  `--sans-torche` ne marchait pas : voir plus bas), `--crypte=x,z,lacet,tangage` (descend dans la crypte hors capture, pour les mesures), position/vue joueur dans le journal FPS de capture.
+- `scripts/tertre.gd` : tout le bloc « crypte » (hors `_tumulus` et `_boite`) ; `m_poutre` et `m_fer` restent déclarés mais ne servent plus.
+- Aucun changement à `palette.gd`, `ps1.gdshader`, `torche.gd`, `mains.gd`.
+
+### Outils et pièges
+- `bash outils/captures_crypte.sh <dossier> [poses]` (12 poses, torche et torche éteinte), `outils/planche_crypte.gd` (textures x6/x8 dans `captures/crypte/textures/`),
+  `outils/test_crypte.gd` (rayons le long du chemin, sol, herse).
+- PIÈGE capture : sans `--nouvelle`, la sauvegarde (herse levée, position) est rechargée au 2e lancement et fausse les poses ; toujours `--nouvelle`. Les captures « avant » sans torche
+  de `captures/crypte/avant/` (prises avec l'ancien drapeau) sont parfois à la mauvaise pose : ne comparer que les colonnes « torche ».
+- `captures/` est ignoré par git : planches seulement sur disque (`captures/crypte/planches/avant_apres_<pose>.png`, `recap_avant_apres.png`).
+
+### Perf et chargement
+- Crypte, GPU (`mesure_perf.gd --crypte=…`, vsync off) : 1,12 ms (salle, 272 appels, 36 k primitives), 1,21 ms (tombeau, 116 appels), 1,24 ms (retour vers l'entrée, 146 appels) : très en dessous de 8 ms.
+- Feu `2.5,8.5,16,4` (vsync off) : 6,01 ms GPU, 661 appels, 383 k primitives (la crypte masquée dehors ne coûte plus rien).
+- Chargement : `_construire_crypte` 390-420 ms au total dont ~250 ms d'apparition des 7 draugrs et du corps d'Eirik (inchangé) ; surcoût du décor ≈ 150 ms (textures peintes en parallèle).
+
+### Tests
+`test_crypte` TOUT OK (14 segments du parcours dégagés à 0,5 et 1,4 m, sol à y=0 sous chaque point, herse baissée bloquante, 67 collisions) ; `test_quetes -- --nouvelle` OK ;
+`test_collisions_biome` TOUT OK ; `test_dragon_monde` OK ; `test_sauvegarde` écrire/vérifier OK.
+
+### Défauts restants
+- À 1-1,5 m d'un mur le texel (3 cm) fait encore ~4 px d'écran : ce sont de vrais pixels, mais nets et ordonnés (plus de bandes ni d'étirement).
+- Le tombeau reste très bleu-nuit en dehors des appliques : le sarcophage n'a pas de lumière chaude propre ; les gardiens debout sont figés en T sous `--paisible`.
+- Les appliques vues de loin se lisent comme un anneau orange à centre sombre (la torche) ; le halo est volontairement discret.
+- Sprite de flamme et lumière de la torche tenue : seulement sous terre (le lot 6 refera la torche partout).
+- Pas de collision sur la plupart des petits objets (urnes, os, armes) : on les traverse ; seuls sarcophages, coffres, contreforts et piliers sont solides.
