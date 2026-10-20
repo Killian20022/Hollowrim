@@ -13,6 +13,7 @@ uniform float grille = 270.0;
 uniform vec3 emission : source_color = vec3(0.0);
 uniform float emis_tex = 0.0;        // part de la texture réinjectée en émission (cristaux, mousse luisante)
 uniform float echelle_sup = 0.77;
+uniform float decoupe = 0.0;        // 1 : l'alpha de tex_base est un seuil de bruit comparé au masque du sommet (piste, bords tramés)
 
 void vertex() {
 	vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
@@ -25,6 +26,9 @@ void vertex() {
 
 void fragment() {
 	vec4 b = texture(tex_base, UV);
+	if (decoupe > 0.5 && COLOR.a < b.a) {
+		discard;
+	}
 	vec4 s = texture(tex_sup, UV * echelle_sup + vec2(0.37, 0.13));
 	// deux niveaux : bord de plaque net au texel (pixel art), ni demi-teinte ni dégradé
 	float d = COLOR.a - s.a;

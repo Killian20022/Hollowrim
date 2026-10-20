@@ -263,30 +263,42 @@ static func neige_image(sol_ := false) -> Image:
 static func glace_image(superposee := false) -> Image:
 	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
 	var R := _rampe(R_GLACE)
-	var profond := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.016, 81, S, 4)
-	var nuage := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.05, 86, S, 3)
-	var fissure := _champ(FastNoiseLite.TYPE_CELLULAR, 0.026, 82, S, 1, FastNoiseLite.FRACTAL_NONE, FastNoiseLite.RETURN_DISTANCE2_SUB)
-	var plaque := _champ(FastNoiseLite.TYPE_CELLULAR, 0.026, 82, S, 1, FastNoiseLite.FRACTAL_NONE, FastNoiseLite.RETURN_CELL_VALUE)
+	var profond := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.012, 81, S, 3)
+	var nuage := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.04, 86, S, 2)
+	var fissure := _champ(FastNoiseLite.TYPE_CELLULAR, 0.02, 82, S, 1, FastNoiseLite.FRACTAL_NONE, FastNoiseLite.RETURN_DISTANCE2_SUB)
+	var plaque := _champ(FastNoiseLite.TYPE_CELLULAR, 0.02, 82, S, 1, FastNoiseLite.FRACTAL_NONE, FastNoiseLite.RETURN_CELL_VALUE)
 	var presence := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.03, 87, S, 2)
-	var bulle := _champ(FastNoiseLite.TYPE_SIMPLEX, 0.3, 83, S, 1)
-	var grain := _champ(FastNoiseLite.TYPE_SIMPLEX, 0.5, 84, S, 2)
-	var seuil := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.05, 85, S, 4)
-	var h := _mix(profond, fissure, 0.2)
+	var bulle := _champ(FastNoiseLite.TYPE_SIMPLEX, 0.25, 83, S, 1)
+	var fin := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.11, 89, S, 3)
+	var onde := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.015, 88, S, 2)
+	var h := _mix(profond, fissure, 0.15)
 	for y in S:
 		for x in S:
 			var i := y * S + x
-			var v := 0.42 + 0.42 * (profond[i] - 0.45) + 0.16 * (nuage[i] - 0.5) + 0.06 * (plaque[i] - 0.5) + 0.05 * (grain[i] - 0.5)
-			v += _repoussoir(h, x, y, 0.6)
-			var f := fissure[i]
-			if presence[i] > 0.64:                         # toutes les cassures ne se voient pas
-				if f < 0.028:
-					v = 0.74                               # givre dans la cassure
-				elif f < 0.06:
-					v -= 0.1                               # lèvre sombre
-			if bulle[i] > 0.93:
-				v = 0.86 if bulle[i] > 0.965 else v - 0.1   # bulle emprisonnée
+			# glace lisible : grands plans de ton (une plaque = un palier), pas de grain fin
+			var v := 0.46 + 0.5 * (profond[i] - 0.5) + 0.2 * (plaque[i] - 0.5) + 0.1 * (nuage[i] - 0.5) + 0.2 * (fin[i] - 0.5)
+			v += _repoussoir(h, x, y, 0.7)
+			# reflets nets : traînées obliques fines (2 px), claires, interrompues ; un liseré sombre juste dessous
+			var u := (float(x) + float(y) * 0.6 + onde[i] * 30.0) / 42.0
+			var f := u - floorf(u)
+			var br := _hash_i(int(floorf(u)), 91)
+			if br > 0.35:
+				if f < 0.035:
+					v = 0.93
+				elif f < 0.05:
+					v = maxf(v, 0.78)
+				elif f > 0.052 and f < 0.07:
+					v -= 0.12
+			var fi := fissure[i]
+			if presence[i] > 0.55:                         # fissures : filet de givre clair bordé d'un creux bleu nuit
+				if fi < 0.012:
+					v = 0.8
+				elif fi < 0.03:
+					v -= 0.22
+			if bulle[i] > 0.94 and presence[i] < 0.5:
+				v = 0.88                                    # bulle emprisonnée (rare, isolée)
 			var c := _ton(R, clampf(v, 0.0, 0.999))
-			c.a = _seuil_bancs(x, y, profond, nuage, 5) if superposee else 1.0
+			c.a = clampf(0.04 + 0.4 * nuage[i] + 0.25 * (onde[i] - 0.3), 0.03, 0.6) if superposee else 1.0
 			img.set_pixel(x, y, c)
 	return img
 
@@ -305,6 +317,70 @@ static func mousse_image() -> Image:
 			v += _repoussoir(touffe, x, y, -1.2)
 			var c := _ton(R, clampf(v, 0.0, 0.999))
 			c.a = _seuil_bancs(x, y, tache, seuil, 9)
+			img.set_pixel(x, y, c)
+	return img
+
+# ------------------------------------------------------------------ piste de la grotte (neige tassée, ornières, cailloux)
+## Texture d'un ruban posé sur la neige : u = le long de la piste, v = en travers (centre à v = 0,5), 32 texels/m, tuile de 4 m.
+## Neige tassée gris-bleu (plus sombre et plus brune que la neige vierge), deux ornières de 25 cm (creux sombre, lèvre claire
+## côté lumière), pas de bottes espacés au centre, cailloux bruns et gravillons sur les bords, croûte de glace brillante par
+## plaques. L'alpha est un SEUIL de bruit : le shader ne montre que les texels dont le seuil est sous le masque du sommet (bords
+## tramés par bruit, jamais un trait droit).
+const R_PISTE := ["#566074", "#6c778c", "#8590a6", "#9ea9bf", "#b6c1d4", "#cdd7e6", "#e4ebf4"]
+const R_PISTE_TERRE := ["#2a211b", "#3d3027", "#53443a", "#6b5a4b", "#8a7863"]
+static func piste_image() -> Image:
+	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
+	var R := _rampe(R_PISTE, 10)
+	var T := _rampe(R_PISTE_TERRE, 8)
+	var gros := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.018, 301, S, 3)
+	var fin := _champ(FastNoiseLite.TYPE_SIMPLEX, 0.35, 302, S, 2)
+	var plaque := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.04, 303, S, 3)
+	var seuil := _champ(FastNoiseLite.TYPE_SIMPLEX, 0.9, 304, S, 1)
+	var ride := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.02, 305, S, 2)
+	var h := PackedFloat32Array()
+	h.resize(S * S)
+	for y in S:
+		for x in S:
+			var lat := float(y - 64) / 32.0                       # mètres en travers
+			var d1 := absf(lat + 0.62 + (ride[y * S + x] - 0.5) * 0.5)
+			var d2 := absf(lat - 0.62 + (ride[y * S + x] - 0.5) * 0.5)
+			var orn := minf(d1, d2)
+			h[y * S + x] = (0.0 if orn > 0.17 else -(0.17 - orn) * 3.0 * clampf((ride[y * S + x] - 0.3) * 4.0, 0.0, 1.0)) + 0.1 * gros[y * S + x] + 0.04 * fin[y * S + x]
+	var pas_bottes: Array = []
+	for k in 7:
+		pas_bottes.append(Vector3(_hash_i(k, 11) * S, 52.0 + (k % 2) * 24.0 + (_hash_i(k, 12) - 0.5) * 8.0, _hash_i(k, 13)))
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var lat := float(y - 64) / 32.0
+			var al := absf(lat)
+			var v := 0.46 + 0.3 * (gros[i] - 0.5) + 0.16 * (fin[i] - 0.5) - 0.05 * al
+			v += _repoussoir(h, x, y, 2.2)                         # ornières : lèvre claire en haut-gauche, creux en bas-droite
+			var d1 := absf(lat + 0.62 + (ride[i] - 0.5) * 0.5)
+			var d2 := absf(lat - 0.62 + (ride[i] - 0.5) * 0.5)
+			var orn := minf(d1, d2)
+			if orn < 0.07 and ride[i] > 0.4:
+				v -= 0.12                                          # fond d'ornière : neige sale et tassée
+			if plaque[i] > 0.7 and orn > 0.1:
+				v += 0.2                                           # croûte de glace luisante, par plaques
+			# empreintes de bottes : ovale creux, talon plus profond
+			for b: Vector3 in pas_bottes:
+				var dx := posmod(x - int(b.x) + S / 2, S) - S / 2
+				var dy := y - int(b.y)
+				var e := (dx * dx) / 56.0 + (dy * dy) / 14.0
+				if e < 1.0 and b.z > 0.25:
+					v -= 0.16 + (0.05 if dx < -3 else 0.0)
+				elif e < 1.5 and b.z > 0.25 and dx - dy > 0:
+					v += 0.08
+			var c := _ton(R, clampf(v, 0.0, 0.999))
+			# cailloux et terre dégelée vers les bords
+			var terre := (fin[i] > 0.84 and al > 0.8) or (gros[i] < 0.16 and al > 0.5)
+			if terre:
+				c = _ton(T, clampf(0.35 + 0.5 * (fin[i] - 0.4) + 0.3 * (gros[i] - 0.3), 0.0, 0.999))
+			var gr := _hash_i(x * 3, y * 7 + 5)
+			if gr > 0.992:
+				c = _ton(T, 0.95 if gr > 0.993 else 0.1)             # gravillon clair / ombré
+			c.a = clampf(0.5 + 1.3 * (seuil[i] - 0.5) + 0.12 * (_hash_i(x, y) - 0.5), 0.04, 0.96)
 			img.set_pixel(x, y, c)
 	return img
 
@@ -457,6 +533,7 @@ static func image(nom: String) -> Image:
 		"glace": return glace_image(false)
 		"glace_sup": return glace_image(true)
 		"mousse": return mousse_image()
+		"piste": return piste_image()
 		"cristal": return cristal_image()
 		"peau": return peau_image()
 		"paille": return paille_image()

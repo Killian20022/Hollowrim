@@ -9,7 +9,7 @@ extends CrypteDecor
 const CASE_C := 10.0
 const PAINT_PARENT := ["bois", "fer", "lame", "os", "argile", "parchemin", "toile", "halo", "flamme"]
 const DOSSIER := "res://assets/grotte"
-const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "mousse", "cristal", "peau", "paille", "or"]
+const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "mousse", "cristal", "peau", "paille", "or", "piste"]
 const PROPRES_PLATES := ["jour", "ciel", "rai", "flaque"]
 const GROTTE_SHADER := preload("res://shaders/grotte.gdshader")
 
@@ -28,6 +28,7 @@ const COQUES := {
 	"c_sol_nu": ["sol", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
 	"c_sol_camp": ["sol", "", Color(1.0, 0.86, 0.74), Vector3(0.0, 0.0, 0.0), 0.0],
 	"c_glace": ["glace", "", Color(1, 1, 1), Vector3(0.012, 0.03, 0.05), 0.06],
+	"c_piste": ["piste", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
 	"c_cristal": ["cristal", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.5],
 	"c_or": ["or", "", Color(1, 1, 1), Vector3(0.05, 0.035, 0.0), 0.12],
 }
@@ -113,6 +114,7 @@ func mat(nom: String) -> Material:
 		sm.set_shader_parameter("teinte", d[2])
 		sm.set_shader_parameter("emission", d[3])
 		sm.set_shader_parameter("emis_tex", d[4])
+		sm.set_shader_parameter("decoupe", 1.0 if nom == "c_piste" else 0.0)
 		m = sm
 	elif nom == "jour" or nom == "ciel":
 		var s := StandardMaterial3D.new()
@@ -169,9 +171,6 @@ func facette(nom: String, a: Vector3, b: Vector3, c: Vector3, ref: Vector3, cols
 	if (vers < 0.0) == ref_visible:
 		n = -n
 	var buf := _buf_c(centre, nom)
-	var off := Vector2(hash2(centre.x * 1.7, centre.z * 2.3 + centre.y), hash2(centre.y * 3.1, centre.x * 0.9 + centre.z))
-	if absf(n.y) < 0.7:
-		off.y = 0.0                                  # parois : on garde l'alignement vertical des strates
 	var pts: Array = [a, b, c]
 	var v: PackedVector3Array = buf["v"]
 	var nn: PackedVector3Array = buf["n"]
@@ -182,11 +181,26 @@ func facette(nom: String, a: Vector3, b: Vector3, c: Vector3, ref: Vector3, cols
 		var p: Vector3 = pts[k]
 		v.append(p)
 		nn.append(n)
-		uu.append(_uv(p, n, tuile) + off if uvs.is_empty() else uvs[k])
+		uu.append(_uv_plan(p, n, tuile) if uvs.is_empty() else uvs[k])
 		cc.append(cols[k])
 	if collision:
 		coll.append(a); coll.append(b); coll.append(c)
 	nb_facettes += 1
+
+## UV dans le plan de la facette (mètres / tuile) : densité de texels uniforme quelle que soit la pente (la projection sur un
+## axe du monde étirait la roche en « bandes » sur les toits et parois obliques). Parois : haut de la texture = haut du monde
+## (strates horizontales) ; sol et toits doux : axe X du monde. Pas de décalage au hasard par facette : la texture est continue
+## d'une facette à sa voisine (plus de « triangles » visibles).
+static func _uv_plan(p: Vector3, n: Vector3, tuile: float) -> Vector2:
+	var t: Vector3
+	if absf(n.y) < 0.7:
+		t = Vector3.UP.cross(n).normalized()
+	else:
+		t = (Vector3.RIGHT - n * n.x).normalized()
+	var b := n.cross(t)
+	if absf(n.y) < 0.7 and b.y > 0.0:
+		b = -b                                       # « bas » de la texture vers le bas du monde
+	return Vector2(p.dot(t), p.dot(b)) / tuile
 
 static func col(ao: float, masque := 0.0) -> Color:
 	return Color(ao, ao * 0.99, ao * 1.02, masque)
