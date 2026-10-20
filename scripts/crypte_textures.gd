@@ -12,7 +12,7 @@ class_name CrypteTextures
 
 const CLEAR := Color(0, 0, 0, 0)
 const DOSSIER := "res://assets/crypte"   # textures précalculées par outils/generer_crypte.gd
-const VERSION := 4                       # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
+const VERSION := 5                       # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
 const K := 2   # facteur de densité de la pierre : 1 = 16 texels/m, 2 = 32 texels/m
 
 # rampes (indice 0 = creux/joint, dernier = lumière) : désaturées, froides dans l'ombre, un peu plus chaudes en lumière
@@ -27,8 +27,8 @@ const ROUILLE := ["#2b160d", "#46230f", "#6a3517", "#8f4a21", "#b06530"]
 const OSSE := ["#3f3b31", "#625c4c", "#867e68", "#a89f84", "#c8bfa2", "#e4dcc0"]
 const ARGILE := ["#1d110b", "#2f1b11", "#432819", "#5a3a24", "#734c30", "#8c613f"]
 const PARCHEMIN := ["#3b301d", "#5c4e30", "#80704a", "#a39266", "#c2b284", "#d8cb9e"]
-const GIVRE := ["#2c3a4c", "#46607a", "#6c8fab", "#9ab9cf", "#c4dae6", "#e6f2f8"]      # donjon : pierre prise dans le gel
-const GLACE := ["#1d3347", "#2d5573", "#43799a", "#69a0bd", "#95c6dc", "#c9e8f2"]      # donjon : glace épaisse sur la pierre
+const GIVRE := ["#27364a", "#3b546f", "#587a98", "#7ea0ba", "#a4c3d6", "#c8dfec", "#e2f0f7", "#f4fafd"]      # donjon : pierre prise dans le gel
+const GLACE := ["#122233", "#1a3550", "#254d6c", "#33688a", "#4585a8", "#5ea2c2", "#7fbed6", "#a4d6e6", "#c8e9f2", "#e8f7fb"]      # donjon : glace épaisse sur la pierre
 const OR := ["#3d2a08", "#6e4d10", "#a8791c", "#d9a830", "#f6d56a", "#fff1b0"]
 const TOILE := ["#8d9db0", "#b5c4d3"]
 const FLAMME := ["#4a1008", "#a8330c", "#f0801a", "#ffcb52", "#fff3c4"]
@@ -269,6 +269,19 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 			fy += 1
 			if rng.randf() < 0.55:
 				fx += rng.randi_range(-1, 1)
+	# glace : bulles piégées (2x2 claires avec un point sombre dessous), posées dans les blocs
+	var bul := {}
+	if v == 4:
+		for k in S / 3:
+			var bx := rng.randi_range(0, S - 4)
+			var by := rng.randi_range(0, S - 4)
+			if D[by * S + bx] < J + 2.0 or D[(by + 1) * S + bx + 1] < J + 2.0:
+				continue
+			bul[by * S + bx] = 1
+			bul[by * S + bx + 1] = 1
+			bul[(by + 1) * S + bx] = 1
+			bul[(by + 1) * S + bx + 1] = 0
+			bul[(by + 2) * S + bx + 1] = -1
 	# passe 2 : éclairage peint, occlusion, ombres portées, salissures, teinte, tramage
 	var cols := PackedColorArray()
 	cols.resize(S * S)
@@ -290,7 +303,7 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 			var ao := 0.76 + 0.24 * a
 			var lip := 0.0
 			if d >= J and d < J + 1.0:                    # lèvre claire nette le long des joints (côtés éclairés)
-				lip = 0.12 if (gx + gy) > 0.05 else 0.0
+				lip = (0.2 if v == 4 else 0.12) if (gx + gy) > 0.05 else 0.0
 			var l: float = (L[i] + shade) * ao - proj + lip
 			var ln := n_big[i]
 			l -= 0.1 * _ss(0.55, 0.8, ln) * (1.0 + minf(v, 2.0) * 0.6)
@@ -299,15 +312,20 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 			var t: float = T[i]
 			var lq := _q(clampf(l, 0.0, 1.0), x, y)
 			var c: Color = (_rp(froid, lq) as Color).lerp(_rp(chaud, lq), t)
-			if v >= 3:
-				# donjon gelé : v 3 = pierre givrée (plaques et joints blancs), v 4 = glace épaisse (coulures vitrées)
-				var gl: float
-				if v == 3:
-					gl = _ss(0.46, 0.7, n_sal[i]) * (0.4 + 0.6 * (1.0 - a))
-					gl = maxf(gl, _ss(0.82, 0.94, n_fin[(i + S * 2 + 5) % (S * S)]) * 0.8)
-				else:
-					gl = maxf(_ss(0.30, 0.52, n_sal[i]) * (0.55 + 0.45 * (1.0 - a)), stk * 0.8)
-				c = c.lerp(_rp(giv if v == 3 else gla, 0.25 + lq * 0.75), clampf(gl, 0.0, 1.0) * (0.9 if v == 3 else 0.93))
+			if v == 3:
+				# pierre givrée : amas de givre nets (seuils durs sur un bruit en amas), givre sur les arêtes hautes et dans les joints
+				var amas: float = n_gr2[i]
+				var gl := amas > 0.82 or (a < 0.35 and n_fin[(i + S * 2 + 5) % (S * S)] > 0.72) or (lip > 0.0 and n_fin[i] > 0.62)
+				if gl:
+					c = c.lerp(_rp(giv, clampf(0.2 + lq * 0.75, 0.0, 1.0)), 0.8)
+			elif v == 4:
+				# glace taillée : toute la pierre en rampe bleue (10 tons), reflets en lèvre claire, amas de givre, bulles
+				c = _rp(gla, clampf(lq * 0.98, 0.0, 1.0))
+				if n_gr2[i] > 0.8 and d >= J + 1.0:
+					c = _rp(giv, clampf(0.35 + lq * 0.8, 0.0, 1.0))
+				if bul.has(i):
+					var bt: int = bul[i]
+					c = _rp(gla, 0.92 if bt == 1 else (0.7 if bt == 0 else 0.12))
 			elif v >= 1:
 				var ms := _ss(0.72, 0.88, n_sal[i]) * (0.3 + 0.7 * (1.0 - a)) * (0.5 + 0.5 * (0.5 if v == 1 else 1.0))
 				ms = maxf(ms, stk * 0.45 * (1.0 if v == 2 else 0.6) * _ss(0.78, 0.9, n_sal[(i + S * 5) % (S * S)]))
@@ -330,7 +348,7 @@ static func dalle_paire(v: int) -> Array:
 	var S := 64 * K                       # tuile de 4 m (32 texels/m)
 	var rangs: Array = _largeurs(rng, S, [24, 28, 32, 32, 40])
 	return _pierre(S, rangs, [24, 32, 40, 48], {"seed": 8210 + v * 31, "v": v, "joint": 1.1, "biseau": 2.6, "rug": 0.5,
-		"l_lo": 0.52, "l_hi": 0.8, "elev": 1.0, "creux": 0.55, "joint_l": 0.12, "fissures": 4})
+		"l_lo": 0.52, "l_hi": 0.8, "elev": 1.0, "creux": 0.55, "joint_l": 0.12, "fissures": 4 if v < 3 else 12})
 
 static func voute_paire() -> Array:
 	var rangs := []
@@ -421,6 +439,24 @@ static func ossuaire_paire() -> Array:
 
 static func nf_safe(a: PackedFloat32Array, i: int) -> float:
 	return a[i % a.size()]
+
+## Neige soufflée (tuile de 2 m = 64 px) : amas nets blancs-bleutés, creux ombrés ; pour les congères des coins.
+static func neige_image() -> Image:
+	var S := 64
+	var n_a := _nmap(S, 16, 16, 9001, true)
+	var n_b := _nmap(S, 8, 8, 9002)
+	var n_c := _nmap(S, 32, 32, 9003, true)
+	var giv := _cols(GIVRE)
+	var cols := PackedColorArray()
+	cols.resize(S * S)
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var l := 0.62 + (n_b[i] - 0.5) * 0.5 + (floorf(n_a[i] * 3.0) / 3.0 - 0.4) * 0.22
+			if n_c[i] > 0.85:
+				l += 0.2
+			cols[i] = _rp(giv, _q(clampf(l, 0.0, 1.0), x, y))
+	return _vers_image(S, cols)
 
 static func or_image() -> Image:
 	var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
@@ -845,6 +881,7 @@ static func image(nom: String) -> Image:
 		"mur0", "mur1", "mur2", "mur3", "mur4", "dalle0", "dalle1", "dalle3", "dalle4", "voute", "bois", "fer", "gravure", "ossuaire":
 			return paire(nom)[0]
 		"or": return or_image()
+		"neige": return neige_image()
 		"lame": return lame_image()
 		"argile": return argile_image()
 		"os": return os_image()

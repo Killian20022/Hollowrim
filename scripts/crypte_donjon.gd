@@ -171,7 +171,16 @@ func souffle(centre: Vector3, ext: Vector3, dir: Vector3, nombre := 36) -> void:
 
 ## Stalactite de glace : cône pointant vers le bas depuis le plafond.
 func glacon(pos_plafond: Vector3, longueur := 0.8, r := 0.12) -> void:
-	d.tour("mur4", pos_plafond + Vector3(0, -longueur, 0), [Vector2(0.0, 0.0), Vector2(r * 0.55, longueur * 0.45), Vector2(r, longueur)], 5, 0.3, false)
+	d.tour("mur4", pos_plafond + Vector3(0, -longueur, 0), [Vector2(0.0, 0.0), Vector2(r * 0.5, longueur * 0.4), Vector2(r * 0.85, longueur * 0.8), Vector2(r, longueur)], 6, 0.3, false)
+
+## Congère de neige soufflée dans un coin ou contre un mur (monticule irrégulier de 3 à 5 lobes).
+func congere(pos: Vector3, r := 1.8, h := 0.7) -> void:
+	d.tour("neige", pos, [Vector2(r, 0.0), Vector2(r * 0.82, h * 0.45), Vector2(r * 0.45, h * 0.85), Vector2(r * 0.12, h)], 7, 0.2, true)
+	for k in 3:
+		var a := d.rng.randf() * TAU
+		var rr := r * d.rng.randf_range(0.6, 0.9)
+		var rs := r * d.rng.randf_range(0.35, 0.55)
+		d.tour("neige", pos + Vector3(cos(a) * rr, 0, sin(a) * rr), [Vector2(rs, 0.0), Vector2(rs * 0.7, h * 0.4), Vector2(rs * 0.2, h * 0.65)], 6, 0.3, true)
 
 func stalagmite(pos: Vector3, haut := 0.7, r := 0.16) -> void:
 	d.tour("mur4", pos, [Vector2(r, 0.0), Vector2(r * 0.55, haut * 0.55), Vector2(0.0, haut)], 5, 0.3, false)
@@ -489,7 +498,10 @@ func _aile_est() -> void:
 		stalagmite(Vector3(35 + cos(a) * 1.7, 0.3, -29 + sin(a) * 1.7), 0.7 + d.rng.randf() * 0.7, 0.16)
 	for k in 14:
 		glacon(Vector3(d.rng.randf_range(25.0, 45.0), 5.2, d.rng.randf_range(-39.0, -19.0)), 0.5 + d.rng.randf() * 0.9, 0.12)
-	d.urne(Vector3(25.0, 0, -37.5), 1.0)
+	congere(Vector3(25.2, 0, -39.0), 1.7, 0.7)
+	congere(Vector3(45.0, 0, -39.0), 1.7, 0.7)
+	congere(Vector3(45.0, 0, -19.0), 1.4, 0.6)
+	d.urne(Vector3(25.0, 0, -35.5), 1.0)
 	d.os_tas(Vector3(44.0, 0, -37.0), 4, 0.5)
 	d.arme(Vector3(31.0, 0, -21.0), 0.8)
 	d.crane(Vector3(37.5, 0.0, -33.0), 0.9)
@@ -661,7 +673,7 @@ func _niveau_bas() -> void:
 # ---------------------------------------------------------------- arène de Svanhild
 func _arene() -> void:
 	zone("arene", -14, 14, -80, -58)
-	d.theme = {"mur0": "mur3", "mur1": "mur3", "mur2": "mur3", "dalle0": "dalle4", "voute": "mur3"}
+	d.theme = {"mur0": "mur3", "mur1": "mur3", "mur2": "mur3", "dalle0": "dalle3", "voute": "mur3"}
 	d.salle(-14, 14, -80, -58, 8.0, [["sud", 0.0, 4.0], ["ouest", -66.0, 3.2]], 0.0, "mur0")
 	for x in [-9.0, 9.0]:
 		for z in [-63.0, -71.0, -77.0]:
@@ -680,6 +692,10 @@ func _arene() -> void:
 		stalagmite(Vector3(cos(a) * 6.8, 0.0, -72.0 + sin(a) * 5.6), 0.5 + d.rng.randf() * 0.6, 0.14)
 	for k in 16:
 		glacon(Vector3(d.rng.randf_range(-12.0, 12.0), 8.0, d.rng.randf_range(-78.0, -60.0)), 0.7 + d.rng.randf() * 1.1, 0.14)
+	for c in [Vector2(-13.0, -79.0), Vector2(13.0, -79.0), Vector2(-13.0, -59.0), Vector2(13.0, -59.0)]:
+		congere(Vector3(c.x, 0, c.y), d.rng.randf_range(1.6, 2.3), d.rng.randf_range(0.6, 0.9))
+	congere(Vector3(-6.0, 0, -79.0), 1.2, 0.45)
+	congere(Vector3(7.5, 0, -79.0), 1.4, 0.5)
 	d.urne(Vector3(-13.0, 0, -61.0), 1.2)
 	d.urne(Vector3(13.0, 0, -61.0), 1.2)
 	d.os_tas(Vector3(-5.0, 0, -62.0), 5, 0.6)

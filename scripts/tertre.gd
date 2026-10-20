@@ -176,13 +176,22 @@ func _construire_crypte() -> void:
 	_cont.add_child(corps2)
 	d2 = CrypteDecor.new(_cont, corps2, d)
 	donjon = CrypteDonjon.new(d2)
-	_tache = WorkerThreadPool.add_task(_batir_donjon)
+	_tache = WorkerThreadPool.add_task(_batir_donjon.bind(donjon, d2))
 
-func _batir_donjon() -> void:
+## Le fil ne touche qu'à ses deux arguments (jamais à la scène ni aux membres du tertre : le monde peut être libéré pendant qu'il tourne).
+func _batir_donjon(dj: CrypteDonjon, decor: CrypteDecor) -> void:
 	var t0 := Time.get_ticks_msec()
-	donjon.construire()
-	d2.finir()
+	dj.construire()
+	decor.finir()
 	print("Donjon : bâti en %d ms (fil d'exécution)" % (Time.get_ticks_msec() - t0))
+
+## Sortie du jeu / fin d'un test pendant la construction : on attend le fil (sinon fuites de ressources).
+func _exit_tree() -> void:
+	if _tache >= 0:
+		WorkerThreadPool.wait_for_task_completion(_tache)
+		_tache = -1
+		if _cont != null and is_instance_valid(_cont) and not _cont.is_inside_tree():
+			_cont.free()
 
 func attendre_donjon() -> void:
 	_integrer_donjon()
