@@ -49,7 +49,9 @@ static func _valeur_periodique(x: float, y: float, p: int, g: int) -> float:
 ## Texture tuilable : bruit périodique sur 3 octaves, quantifié dans la palette.
 static func texture(taille: int, palette: Array, periode: int, graine: int, grain: float, rng: RandomNumberGenerator = null) -> ImageTexture:
 	if rng == null:
-		rng = _rng
+		# graine fixe propre à la texture : grain reproductible, indépendant de l'ordre de création
+		rng = RandomNumberGenerator.new()
+		rng.seed = graine * 7919 + taille * 31 + periode
 	var img := Image.create(taille, taille, false, Image.FORMAT_RGBA8)
 	var couleurs: Array[Color] = []
 	for hex in palette:

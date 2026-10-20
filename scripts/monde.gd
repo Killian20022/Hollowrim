@@ -517,12 +517,14 @@ func _villageois() -> void:
 	hud.quetes = quetes
 	village.activer_interieurs(joueur, dialogue)   # portes des maisons (touche E)
 	var promenade: Array = village.promenade
+	var rng_pts := RandomNumberGenerator.new()
+	rng_pts.seed = 20261020          # promenades des villageois reproductibles (captures)
 	for d in VILLAGEOIS.charger():
 		var poste: Vector3 = village.lieux.get(d.get("lieu", "place"), village.lieux["place"])
 		var points: Array[Vector3] = [poste]
 		if not village.sedentaires.has(d.get("lieu", "place")):   # le forgeron reste dans sa forge (porte fermée la nuit, murs)
 			for p in promenade.duplicate():
-				if p != poste and randf() < 0.4 and points.size() < 4:
+				if p != poste and rng_pts.randf() < 0.4 and points.size() < 4:
 					points.append(p)
 		var v := CharacterBody3D.new()
 		v.set_script(VILLAGEOIS)

@@ -68,6 +68,9 @@ var _accroche_g: BoneAttachment3D
 var _doigts := {}
 var torche_lumiere: OmniLight3D
 var flammes: Array[GPUParticles3D] = []
+var _visuels_torche: Array = []   # sprite de flamme et halo (lot 6)
+var _halo_mat: ShaderMaterial
+var _scint := 0.0
 
 func _ready() -> void:
 	# les pivots ne portent plus rien : ce sont les cibles que les mains suivent (IK)
@@ -124,17 +127,17 @@ func _texture_poignee() -> ImageTexture:
 func _materiaux_equipement() -> Dictionary:
 	if not _mats.is_empty():
 		return _mats
-	_acier = Palette.materiau(_texture_lame(), Vector2.ONE, Color(0.9, 0.95, 1.05))
+	_acier = Palette.materiau(ObjetsTextures.tex("lame"), Vector2.ONE, Color(1.3, 1.3, 1.38))
 	_mats = {
 		"lame": _acier,
-		"fer": Palette.materiau(Palette.tex("acier", Palette.ACIER, 4, 0.3), Vector2(2, 2), Color(0.5, 0.52, 0.6)),
-		"cuir": Palette.materiau(_texture_poignee(), Vector2(1, 2)),
+		"fer": Palette.materiau(ObjetsTextures.tex("fer"), Vector2.ONE, Color(0.9, 0.9, 0.95)),
+		"cuir": Palette.materiau(ObjetsTextures.tex("tresse"), Vector2.ONE),
 		"gant": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(3, 3), Color(1.05, 0.95, 0.88), true),
 		"brassard": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(2, 2), Color(0.7, 0.66, 0.66), true),
-		"fourrure": Palette.materiau(Palette.tex("fourrure", Palette.FOURRURE, 8, 0.8), Vector2(3, 1), Color(1.25, 1.15, 1.0), true),
-		"tunique": Palette.materiau(Palette.tex("laine_bleue", ["#1c2232", "#232a3d", "#2c3449", "#363f56"], 8, 0.5), Vector2(6, 6), Color.WHITE, true),
-		"gants": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(4, 4), Color(1.05, 0.95, 0.88), true),
-		"brassards": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(4, 4), Color(0.7, 0.66, 0.66), true),
+		"fourrure": Palette.materiau(ObjetsTextures.tex("fourrure"), Vector2(2, 1), Color(1.05, 1.0, 0.95), true),
+		"tunique": Palette.materiau(ObjetsTextures.tex("manche"), Vector2(2, 1), Color.WHITE, true),
+		"gants": Palette.materiau(ObjetsTextures.tex("gant"), Vector2(2, 1), Color(0.86, 0.78, 0.72), true),
+		"brassards": Palette.materiau(ObjetsTextures.tex("brassard"), Vector2(2, 1), Color(1.0, 0.96, 0.96), true),
 		"manche": Palette.materiau(Palette.tex("laine", ["#1a1d26", "#22262f", "#2b303b", "#353b48"], 4, 0.6), Vector2(2, 3), Color.WHITE, true),
 		# peau des bras et des mains sous l'étoffe (bras_fps.glb) : bouche les fissures manche/brassard/gant
 		"sous_couche": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(3, 3), Color(0.8, 0.72, 0.68)),
@@ -285,6 +288,8 @@ func _torche() -> void:
 	var t := Torche.construire(porte_torche)
 	flammes.assign(t["flamme"])
 	torche_lumiere = t["lumiere"]
+	_visuels_torche = t["visuels"]
+	_halo_mat = t["halo_mat"]
 
 func _pose(nom: String, sens := 1.0) -> Transform3D:
 	var p: Vector3 = POSES[nom][0]
@@ -422,8 +427,14 @@ func _process(dt: float) -> void:
 	var allumee := torche_sortie or pivot_torche.position.y > -0.8
 	for f in flammes:
 		f.emitting = allumee
+	for n: Node3D in _visuels_torche:
+		n.visible = allumee
 	torche_lumiere.visible = allumee
-	torche_lumiere.light_energy = 1.4 + sin(_respiration * 13.0) * 0.12 + sin(_respiration * 29.0) * 0.08 + randf() * 0.12
+	# lumière vacillante : sinus incommensurables + scintillement par paliers (14 par seconde), sans hasard par image
+	var palier := floorf(_respiration * 14.0)
+	var scint := fposmod(sin(palier * 12.9898) * 43758.5453, 1.0)
+	torche_lumiere.light_energy = 1.4 + sin(_respiration * 13.0) * 0.12 + sin(_respiration * 29.0) * 0.08 + scint * 0.14
+	_halo_mat.set_shader_parameter("intensite", 0.65 + (torche_lumiere.light_energy - 1.4) * 0.7)
 
 func _tester_coup() -> void:
 	var cam := get_parent() as Node3D
