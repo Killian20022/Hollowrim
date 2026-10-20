@@ -658,6 +658,12 @@ Demande : la crypte (~600 m²) était trop petite → un vrai donjon (x7 à 8 en
 - Les marches des escaliers sont visuelles, la collision est une rampe (tolérance ~0,1 m) ; pas de collision sur les petits objets.
 - Les trois portes barrées et le mur pivotant sont animés sans son dédié (sons existants réutilisés).
 
+#### Crypte agrandie — corrections (retour du coordinateur)
+- **Fil du donjon sûr** : `_batir_donjon(dj, decor)` ne reçoit que ses deux objets (plus aucun membre du tertre ni de la scène) ; `_exit_tree` attend le fil (`wait_for_task_completion`) et libère le conteneur non intégré. `test_sauvegarde` et la suite entière passent (15/15).
+- **Glace** (`mur4`/`dalle4`, `VERSION` 5) : blocs taillés en rampe `GLACE` à 10 tons, lèvre claire plus marquée, bulles 2x2 avec point sombre, amas de givre à seuils durs (plus de dégradés mous), fissures fines ; glaçons à 6 pans et 4 niveaux de profil. 32 texels/m inchangés.
+- **Arène** : sol en `dalle3` (dalles givrées, 12 fissures, amas nets), parois `mur3` plus nettes (givre en amas, plus de « fourrure »), congères de neige soufflée (nouvelle matière `neige`, 64 px) dans les coins de l'arène et de la salle des glaces.
+- Planches : `captures/crypte/planches/gele_arene_avant_apres.png` (avant = donjon_v2 | après = donjon_v4), `donjon_lot_0..3.png` (les 40 vues en un lancement `--captures`).
+
 ## Journal — Grotte vitrine, branche `graphisme/grotte`
 
 Grotte de ~124 m (parcours entrée → fond), construite à la demande sous le monde (origine `POS_MONDE = (20, -220, 100)`), **sans entrée câblée** dans le monde. Nouveaux fichiers : `scripts/grotte.gd`, `scripts/grotte_decor.gd` (étend `CrypteDecor`, non modifié), `scripts/grotte_textures.gd`, `shaders/grotte.gdshader`, `outils/test_grotte.gd`, `outils/captures_grotte.gd|.sh`, `outils/planche_grotte.gd`.

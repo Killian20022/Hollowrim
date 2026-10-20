@@ -20,7 +20,7 @@ const TUILE := {
 	"bois": 2.0, "fer": 1.0, "lame": 1.0, "gravure": 2.0, "argile": 1.0, "os": 0.5, "parchemin": 0.5,
 	"toile": 1.0, "noir": 1.0, "halo": 1.0, "halo_f": 1.0, "rai": 1.0, "braise": 1.0,
 	# donjon (agrandissement) : pierre givrée / glace, ossuaire, or
-	"mur3": 4.0, "mur4": 4.0, "dalle3": 4.0, "dalle4": 4.0, "ossuaire": 4.0, "or": 0.5,
+	"mur3": 4.0, "mur4": 4.0, "dalle3": 4.0, "dalle4": 4.0, "ossuaire": 4.0, "or": 0.5, "neige": 2.0,
 }
 
 const CRYPTE_SHADER := preload("res://shaders/crypte.gdshader")
@@ -47,7 +47,7 @@ var niveau_a := 1.0
 const RELIEF := {"mur0": 0.75, "mur1": 0.75, "mur2": 0.75, "dalle0": 0.8, "dalle1": 0.8, "voute": 0.7, "bois": 0.8, "fer": 0.7, "gravure": 1.0,
 	"mur3": 0.8, "mur4": 0.9, "dalle3": 0.8, "dalle4": 0.9, "ossuaire": 1.0}
 const AVEC_MIPS := ["mur0", "mur1", "mur2", "dalle0", "voute", "bois", "fer", "lame", "gravure", "argile", "os", "parchemin", "toile",
-	"mur3", "mur4", "dalle3", "dalle4", "ossuaire", "or"]
+	"mur3", "mur4", "dalle3", "dalle4", "ossuaire", "or", "neige"]
 const SANS_MIPS := ["halo", "rai", "flamme"]
 
 var _taches := {}    # nom -> id de tâche ; les images sont peintes dans des fils d'exécution pendant que le plan se construit
