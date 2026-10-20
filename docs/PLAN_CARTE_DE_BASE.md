@@ -23,3 +23,7 @@ Objectif utilisateur : que TOUT soit propre sur la carte actuelle (240 m) avant 
 ## Plus tard (à terme)
 - Phase 3 / agrandissement à ~1 km² avec 2 nouveaux biomes (docs/SOCLE_TECHNIQUE.md : chunks, MultiMesh, lumières).
 - Faune, ennemis, gameplay.
+
+## Reporté (décision du 2026-10-20 soir)
+- Étendre le biome de la zone témoin à toute la carte : à faire AU MOMENT de l'agrandissement à 1 km², pas avant.
+  Travail commencé conservé, non fusionné : branche `graphisme/carte-entiere` (4a661c5 + WIP), worktree ../nordique_carte-entiere.
