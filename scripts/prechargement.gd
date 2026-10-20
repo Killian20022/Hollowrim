@@ -5,6 +5,9 @@ class_name Prechargement
 ## Aucun effet sur le rendu : mêmes fichiers, même importeur. Lancé par l'autoload Fenetre (avant même la compilation de
 ## la scène) et par Monde (tests et captures, qui n'ont pas l'autoload actif) ; idempotent.
 const CHEMINS := [
+	# personnages de base unifies (villageois, bandits, joueur) : kits de ~100 Ko
+	"res://assets/modeles/persos/kit_homme.glb",
+	"res://assets/modeles/persos/kit_femme.glb",
 	"res://assets/modeles/humains/homme_vetu.glb",
 	"res://assets/modeles/humains/cheveux/Hair_SimpleParted.gltf",
 	"res://assets/modeles/humains/cheveux/Hair_Beard.gltf",

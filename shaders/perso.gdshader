@@ -41,10 +41,6 @@ vec3 rampe(vec3 base, int ton) {
 	return clamp(c, 0.0, 1.0);
 }
 
-vec3 srgb_lin(vec3 c) {
-	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
-}
-
 void vertex() {
 	vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	if (grille > 0.0 && PROJECTION_MATRIX[3][3] < 0.5) {
@@ -78,7 +74,7 @@ void fragment() {
 		c = rampe(b, ton);
 	}
 	c = floor(c * 31.0 + 0.5) / 31.0;                 // palette 15 bits
-	c = srgb_lin(c);
+	// pas de conversion sRGB -> lineaire : comme les textures du reste du jeu (ps1.gdshader), la valeur de la rampe est l'albedo
 	c = mix(vec3(dot(c, vec3(0.3, 0.59, 0.11))), c, saturation);
 	ALBEDO = mix(c, vec3(1.0, 0.85, 0.8), eclair);
 	EMISSION = (reg == 0 ? emission_peau : vec3(0.0)) + vec3(0.6, 0.25, 0.2) * eclair;

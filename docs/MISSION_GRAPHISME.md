@@ -1036,3 +1036,13 @@ plus tombantes vers le bout (rideau), `_arc_epicea` : forte retombée en bas, br
 propre à l'arbre / à l'étage / à la branche, neige = branche plus lourde ; flèche parfois penchée. Second RNG (graine*13+5) :
 le placement des branches est inchangé. LOD (1 tronçon) : bout placé à `mid + tip/2` pour garder l'affaissement moyen.
 Textures, couleurs, nombre de triangles : inchangés (0 %). Planches : captures/sapins/planche_avant_apres_{jour,nuit}.png.
+
+## Lot « personnages vivants : base unifiée » (branche graphisme/persos-base, 2026-10-20)
+Détail, budgets, mode d'emploi, mesures : **docs/PERSONNAGES_TECH.md, section « Vivants »**. En bref :
+- **Macro / Méso / Micro** (3 points écrits avant le code) : un corps fermé par morphologie (748 triangles avec les bagues), vêtements en couches calculés sur les anneaux du corps (marge 1-4 cm), atlas d'indices 256² à 48 texels/m + rampes de 8 tons / 15 bits dans le shader.
+- **Blender rejouable** : `sources_blender/scripts/base_persos.py -- homme|femme` + `persos_lib.py` → `assets/modeles/persos/kit_<sexe>.glb` (RIG18 : 21 os de `sources_blender/rig18.txt` + 5 os secondaires = 26) et `assets/personnages/mise_en_page_<sexe>.json`.
+- **Variantes sans scène** : `PersoDef` (ressource), `PersoDefs` (villageois, bandits, joueur), `Personnage.creer(def)` ; 2 matériaux partagés par morphologie, 8 paramètres d'instance ; têtes 1-3, coiffures 0-3, barbes 0-2, gilet / tablier / cape courte / cape longue / capuche / robe / épaulières / lanières / bourse / carquois, casque et bouclier existants.
+- **Ressorts** (`PersoRessorts`) : cape, capuche, pans de robe et de tablier, 7 collisions, coupés à 15 m.
+- **Rebranchés** : `villageois.gd`, bandits (`grotte_acces.gd` + 3 lignes de `draugr.gd`), `corps_joueur.gd` (prise de torche constante : plus de doigts), `pieds_au_sol.gd` / `ragdoll.gd` (repli sans orteils ni doigts), `prechargement.gd` (kits).
+- **Tests / outils** : `test_persos_base` (ajouté à `tous_les_tests.sh`), `galerie_base` (statique, bande animée, `--live` avec déplacement), `planche_persos`, `capture_perso_jeu`, `dump_atlas`, `generer_atlas_persos`, `mesure_ressorts`.
+- Fichiers hors périmètre non touchés : `monde.gd`, `tertre.gd`, `village.gd`, décors ; `draugr.gd` : une branche `if app.has("perso")` (bandits seulement).

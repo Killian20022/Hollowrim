@@ -36,8 +36,9 @@ const BANDITS := [
 		"cuir": "cuir_b", "fourrure": "blanc", "accessoires": ["carquois", "pteruges", "cape_courte"]},
 ]
 
-const JOUEUR := {"corps": "homme", "tete": 1, "cheveux": 1, "barbe": 1, "couleur_cheveux": Color("#6b4528"), "tunique": "bleu", "sur": "gris", "pantalon": "brun",
-	"cuir": "cuir_a", "fourrure": "gris", "accessoires": ["gilet", "cape_courte", "sacoche"], "peau": Color("#eec9b3")}
+## Tunique d'un bleu proche de la laine des manches FPS (objets_textures.gd LAINE #2d3956), cuir sombre comme les gants et brassards FPS : meme palette a la 1re et a la 3e personne.
+const JOUEUR := {"corps": "homme", "tete": 1, "cheveux": 1, "barbe": 1, "couleur_cheveux": Color("#6b4528"), "tunique": Color("#34436b"), "sur": Color("#4a5468"), "pantalon": "brun",
+	"cuir": "cuir_b", "fourrure": "gris", "accessoires": ["gilet", "cape_courte", "sacoche"], "peau": Color("#eec9b3")}
 
 static func villageois(id: String) -> PersoDef:
 	return _def("v:" + id, VILLAGEOIS.get(id, VILLAGEOIS["chef"]))

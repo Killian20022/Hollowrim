@@ -15,8 +15,8 @@ const DIST_REPRISE := 13.5      # hysteresis : pas de clignotement a la limite
 const CHAINES := {
 	"cape": {"racine": "cape_1", "fin": "cape_2", "longueur": 0.28, "rigidite": 0.12, "frottement": 0.25, "gravite": 5.0, "rayon": 0.045},
 	"capuche": {"racine": "capuche_1", "fin": "capuche_1", "longueur": 0.14, "rigidite": 0.5, "frottement": 0.35, "gravite": 2.0, "rayon": 0.035},
-	"pan_av": {"racine": "pan_av_1", "fin": "pan_av_1", "longueur": 0.30, "rigidite": 0.25, "frottement": 0.35, "gravite": 4.0, "rayon": 0.05},
-	"pan_ar": {"racine": "pan_ar_1", "fin": "pan_ar_1", "longueur": 0.28, "rigidite": 0.25, "frottement": 0.35, "gravite": 4.0, "rayon": 0.05},
+	"pan_av": {"racine": "pan_av_1", "fin": "pan_av_1", "longueur": 0.30, "rigidite": 1.2, "frottement": 0.5, "gravite": 2.0, "rayon": 0.015},
+	"pan_ar": {"racine": "pan_ar_1", "fin": "pan_ar_1", "longueur": 0.28, "rigidite": 1.2, "frottement": 0.5, "gravite": 2.0, "rayon": 0.015},
 }
 ## accessoire -> chaines
 const PAR_ACCESSOIRE := {"cape_courte": ["cape"], "cape_longue": ["cape"], "capuche": ["capuche"], "tablier": ["pan_av"], "robe": ["pan_av", "pan_ar"]}
@@ -34,7 +34,7 @@ static func chaines_de(def: PersoDef) -> Array:
 
 static func equiper(modele: Node3D, def: PersoDef) -> PersoRessorts:
 	var chaines := chaines_de(def)
-	if chaines.is_empty() or not def.ressorts:
+	if chaines.is_empty() or not def.ressorts or OS.get_cmdline_user_args().has("--sans-ressorts"):    # option : mesures A/B
 		return null
 	var sq := modele.find_child("Skeleton3D", true, false) as Skeleton3D
 	if sq == null:
@@ -52,7 +52,7 @@ static func equiper(modele: Node3D, def: PersoDef) -> PersoRessorts:
 		sim.set_root_bone_name(i, c["racine"])
 		sim.set_end_bone_name(i, c["fin"])
 		sim.set_extend_end_bone(i, true)
-		sim.set_end_bone_direction(i, SpringBoneSimulator3D.BONE_DIRECTION_FROM_PARENT)
+		sim.set_end_bone_direction(i, SpringBoneSimulator3D.BONE_DIRECTION_PLUS_Y)    # +Y local = le long de l'os (vers le bas) ; FROM_PARENT couchait les pans a l'horizontale
 		sim.set_end_bone_length(i, c["longueur"])
 		sim.set_radius(i, c["rayon"])
 		sim.set_stiffness(i, c["rigidite"])
