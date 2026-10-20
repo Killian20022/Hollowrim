@@ -99,6 +99,18 @@ static func _carte(parent: Node3D, pos: Vector3, mat: ShaderMaterial) -> MeshIns
 	parent.add_child(mi)
 	return mi
 
+## Même flamme (même atlas, même rythme brouillé à 10 i/s) pour une applique ou un feu fixe : shader crypte_flamme (mêmes images,
+## phase propre à l'instance). `echelle` 1 = flamme de torche murale de la crypte.
+static func flamme_fixe(parent: Node3D, pos: Vector3, echelle := 1.0, phase := 0.0) -> MeshInstance3D:
+	var sm := ShaderMaterial.new()
+	sm.shader = preload("res://shaders/crypte_flamme.gdshader")
+	sm.set_shader_parameter("atlas", ObjetsTextures.tex("flamme"))
+	sm.set_shader_parameter("echelle_u", echelle)
+	sm.set_shader_parameter("phase_u", phase)
+	var mi := _carte(parent, pos, sm)
+	(mi.mesh as QuadMesh).center_offset = Vector3(0, 0.5, 0)
+	return mi
+
 ## Construit la torche sous `parent`. Renvoie {"flamme": Array[GPUParticles3D] (étincelles), "lumiere": OmniLight3D,
 ## "haut": Vector3, "visuels": Array[Node3D] (flamme + halo : à masquer avec la torche), "halo_mat": ShaderMaterial}.
 static func construire(parent: Node3D) -> Dictionary:

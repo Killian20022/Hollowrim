@@ -395,6 +395,7 @@ func _torche_murale(parent: Node3D, pos: Vector3, vers: float, reelle := false) 
 	var haut := pos + Vector3(0, 0.38, 0.34 * vers)
 	_boite(parent, Vector3(0.14, 0.2, 0.14), Transform3D(Basis(Vector3.UP, 0.4), haut), m_braises)
 	_boite(parent, Vector3(0.08, 0.14, 0.08), Transform3D(Basis(Vector3.UP, 0.2), haut + Vector3(0, 0.15, 0)), m_braises)
+	Torche.flamme_fixe(parent, haut + Vector3(0, 0.2, 0), 1.3, absf(sin(pos.x * 12.9898 + pos.z * 78.233)) * 4.0)   # même flamme que partout (lot 6bis)
 	if reelle:
 		_feu(parent, haut, 0.6, 1.4, 7.0)
 

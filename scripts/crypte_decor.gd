@@ -678,7 +678,7 @@ func flamme(pos: Vector3, echelle := 1.0) -> void:
 func _mat_flamme() -> ShaderMaterial:
 	var sm := ShaderMaterial.new()
 	sm.shader = FLAMME_SHADER
-	sm.set_shader_parameter("atlas", _texture("flamme"))
+	sm.set_shader_parameter("atlas", ObjetsTextures.tex("flamme"))    # même atlas que la torche tenue
 	return sm
 
 ## Même flamme, isolée, accrochée à un parent (torche tenue en main).

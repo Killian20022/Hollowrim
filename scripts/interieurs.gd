@@ -109,7 +109,7 @@ static func materiaux() -> Dictionary:
 
 static func _textures_feu() -> void:
 	if _atlas == null:
-		_atlas = ImageTexture.create_from_image(CrypteTextures.flamme_atlas_image())
+		_atlas = ObjetsTextures.tex("flamme")
 		_halo = ImageTexture.create_from_image(CrypteTextures.halo_image())
 		_rai = ImageTexture.create_from_image(CrypteTextures.rai_image())
 

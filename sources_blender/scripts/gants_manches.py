@@ -4,9 +4,9 @@
 # l'avant-bras et la main : suit la torsion sans fissure) ; (3) rivets de fer sur les brassards.
 #   blender.exe -b --python gants_manches.py     (ré-exporte assets/modeles/joueur/bras_fps.glb ; état d'avant : bras_fps_lot1.glb)
 import bpy, bmesh, math, os, shutil
-base = r"C:\Users\lopezk19\Jeux\nordique_objets"
-glb = base + r"\assets\modeles\joueur\bras_fps.glb"
-SAUVE = base + r"\sources_blender\bras_fps_lot1.glb"
+base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # racine du worktree
+glb = os.path.join(base, "assets", "modeles", "joueur", "bras_fps.glb")
+SAUVE = os.path.join(base, "sources_blender", "bras_fps_lot1.glb")
 if not os.path.exists(SAUVE):
     shutil.copy(glb, SAUVE)
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -20,6 +20,31 @@ YC, ZC = 0.065, 1.456            # axe du bras (os lowerarm / hand)
 
 def theta(y, z):
     return math.atan2(y - YC, z - ZC)
+
+# ---------------------------------------------------------------- 0. fente du dessous (lot 6bis)
+# Les manches et brassards d'origine sont des tubes OUVERTS : une fente d'un à deux centimètres court sous le bras (z < axe, y ~ axe),
+# là où passe le raccord des UV ; elle laissait voir la sous-couche sombre (« trait noir » au dos / dessous des manches, pli du coude en
+# frappe). On soude les sommets de bord des deux lèvres puis on rebouche ce qui reste.
+def souder_fente(o, dist=0.03):
+    me = o.data
+    bm = bmesh.new(); bm.from_mesh(me)
+    def fente(v):
+        return (v.co.z < ZC - 0.065 and abs(v.co.y - YC) < 0.045 and 0.19 < abs(v.co.x) < 0.62
+                and any(e.is_boundary for e in v.link_edges))
+    av = len([e for e in bm.edges if e.is_boundary])
+    vs = [v for v in bm.verts if fente(v)]
+    bmesh.ops.remove_doubles(bm, verts=vs, dist=dist)
+    bmesh.ops.dissolve_degenerate(bm, dist=1e-5, edges=bm.edges[:])
+    bm.verts.ensure_lookup_table()
+    reste = [e for e in bm.edges if e.is_boundary and all(fente(v) for v in e.verts)]
+    if reste:
+        bmesh.ops.holes_fill(bm, edges=reste, sides=6)
+    ap = len([e for e in bm.edges if e.is_boundary])
+    bm.to_mesh(me); bm.free()
+    print("fente", o.name, "arêtes de bord", av, "->", ap)
+
+souder_fente(obj["manches"])
+souder_fente(obj["brassards"])
 
 # ---------------------------------------------------------------- 1. UV cylindriques
 def uv_cyl(o, v_wrist_bottom):
