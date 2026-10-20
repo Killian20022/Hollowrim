@@ -371,3 +371,62 @@ Retour utilisateur : « même chose pour le sol avec la neige » (détail pixel 
 - Tests : test_quetes, test_chemin_biome (0 échec), test_collisions_biome OK ; test_vegetation_biome plante sur `arbre_mort` introuvable (script d'arbres, hors périmètre, fichier non modifié).
 - Planches : `captures/sol/planches/*_v3.png` (avant | après, jour en haut, nuit en bas ; gros plans de nuit ; `zone_fondu_v3.png` jour | nuit).
 - Défaut restant : en plein jour la brume écrase les rides fines ; à 1,6 m les texels restent gros.
+
+---
+
+## Journal — Lot 5 (pierre et bâtiments), branche `graphisme/lot5-pierre`
+
+Retour utilisateur : « la qualité pourrie des murs, de la pierre et autres, ça fait trop pixélisé, ça fait mal aux yeux ».
+Règles ajoutées par l'utilisateur (Lead Technical Artist rétro 32 bits) et `docs/SOCLE_TECHNIQUE.md` § 1-2 : géométrie modulaire sur grille de 1/2/4 m avec éléments porteurs
+(poutres, contreforts, plinthes, cadres de porte épais, poteaux octogonaux), 3 niveaux de lecture, texel density uniforme ~16 texels/m, usure et arêtes dessinées,
+lumières intégrées dans le budget (au plus 3 locales visibles, pas d'ombre omni, fenêtres chaudes émissives), pièces répétées fusionnées ou en MultiMesh.
+Pas d'intérieur de maison (autre agent : `../nordique_kit`), pas de crypte (autre agent : `nordique_lot7`).
+
+### Constat et causes prouvées (captures `captures/batiments/avant/`, planches `captures/batiments/planches/`)
+| # | Cause | Preuve |
+|---|-------|--------|
+| 1 | **Densité de texels incohérente et anisotrope** : `BoxMesh` donne des UV 0..1 PAR FACE, donc une texture de 32 px est étirée sur toute la face, quelle que soit sa taille | Murs de la longue maison (14 × 2,2 m, uv 3 × 0,6) : 6,9 × 8,7 texels/m ; plinthe (14,3 × 0,45 m, uv 2 × 1) : **4,5 × 71 texels/m (étirement ×16)** ; dessous de toit (15,3 × 4,4 m, uv 0,5 × 2) : 1,0 × 14,5 ; menhirs : 32 × 64 ; rochers : sphère à UV ×2, pôles pincés ; bible : 16 partout. Vu dans `gros_plan_pierre_mur.png`, `gros_plan_maison.png` : plinthe en traînées horizontales, murs en gros carreaux |
+| 2 | **Bruit « sel et poivre »** : `Palette.texture()` = bruit de valeur quantifié en 4 tons + grain aléatoire (`rng.randf()`), et `pailleter()` pour la neige (pixels blancs isolés) | `outils/stat_textures.gd` : texels isolés **13,96 % (roche), 16,80 % (planches), 12,01 % (écorce), 4,79 % (neige paillettes)** ; amas moyens de 3,5 à 4,9 texels. Après : **0,00 à 0,01 %**, amas de 23 à 431 texels |
+| 3 | **Pas de mipmaps** (`filter_nearest` seul) + **mapping affine** (AFFINE 0,55) | Joints et planches « nagent » sur les grands pans et scintillent dès que le texel passe sous le pixel. Cure : mipmaps nearest « vote de couleur » + coordonnées perspective-correctes |
+| 4 | **Bugs de géométrie découverts en regardant de près** | (a) la neige des toits était ENFOUIE sous les planches (la normale `rot * UP` regarde vers le bas pour ces rotations) : toits noirs sans neige ; (b) les petites maisons avaient des murs de 1,9-2,0 m pour une porte de 1,95 m : le linteau perçait le toit ; (c) boucliers et lanterne se recouvraient |
+| 5 | Fond de palette : tons moyens sombres sans arête ni joint lisible, neige de toit identique au bruit | planches avant/après `planche_V*.png` |
+
+Scintillement (proxy : caméra décalée de 12 cm, part de pixels changés) : S2 jour 13,8 → 15,0 %, S2 nuit 22,5 → 17,9 %, S1 nuit 21,5 → 19,8 % (S1 jour invalide : vue différente). La mesure est dominée par le sol et les arbres :
+non concluante, la preuve reste visuelle (planches) ; les mipmaps sont en place.
+
+### Structure des lieux (3 points, règle de l'utilisateur)
+**Maisons (longue maison 14 × 7 m de la cheffe, 3 maisons 8 × 5,5 / 8 × 5,5 / 7 × 5 m, murs ≥ 2,3 m)**
+- Murs/Structure : plinthe de pierre sèche (saillie 10 cm, dessus à 0,4 m), murs de planches à clin, sablière en saillie, poteaux d'angle, bouts de solives tous les 2 m (grille de 2 m, hors porte), contreforts à (L/2 − 1) sur les longs pans (pierre à petits moellons, chaperon), cadre de porte épais (jambages 0,24 × 2,1 m, linteau 0,3 m), deux marches de pierre, toit à 2 pans (neige de 30 cm, faîtage enneigé, stalactites, cornes), cheminée de pierre, pignons de planches.
+- Mobilier : porte debout à bandes de fer et anneau, boucliers peints (cheffe), deux bancs devant la longue maison, tas de bois, tonneaux cerclés de fer, coffres ferrés.
+- Éclairage : fenêtres encadrées à vitrage ÉMISSIF dessiné (2 carreaux, tuile 9 × 6 texels, aucune OmniLight), torche murale à flamme émissive à droite de chaque porte ; une seule vraie lumière par maison : la lanterne de la longue maison (celle d'avant), fumée des cheminées.
+
+**Palissade et porte** : rondins hexagonaux à pointes taillées (2 MultiMesh, 329 pieux), deux rubans de corde (liens) à 1,0 et 2,3 m ; porte à poteaux OCTOGONAUX sur socles de pierre, contrefiches, poutre, têtes de dragon, poutre sommitale enneigée ; éclairage : les deux torches du portail (lumières d'avant, maintenant sans ombre et avec fondu de distance).
+
+**Forge** : appentis à 4 poteaux octogonaux, sablières, mur de fond de pierre sèche avec contreforts, foyer + hotte + cheminée en pierre à petits moellons, enclume sur billot (4 pièces), tonneau d'eau, soufflet de cuir, établi avec outils et lingots, lames ; éclairage : foyer (OmniLight d'avant + braises émissives), fumée.
+
+**Place** : puits à 8 pans (margelle, toit enneigé, corde et seau), brasero (socle de pierre, coupe de fer, poteau sculpté octogonal sur socle), enclos (poteaux, lisses, meules de foin, séchoir à peaux de cuir) ; **Cercle / tertre** : pierres du cercle, stèle, menhirs couchés, bordure, rochers et pierres du feu en roche fracturée ; façade du tertre (deux piliers, linteau, dalle) en roche fracturée, butte en neige de toit.
+
+### Réalisation
+- **`scripts/textures_bati.gd` (TexturesBati, nouveau)** : toiles d'index (ton, rampe) dans les rampes de la bible, filtre « mode » (aucun texel isolé), RNG propres, tuiles qui bouclent.
+  `pierre_seche` (assises de 8-12 texels, pierres de 11-22 dont les joints verticaux ne se superposent pas, joint de 1 texel, arête haute claire, pied dans l'ombre, coins arrondis, fissures, lichen gris-vert, neige dans les joints et en calottes) et sa variante `pierre_fine` (assises de 5-8, pour puits, foyers, marches, contreforts) ;
+  `roche_brute` (douze dalles Voronoï périodiques à strates inclinées, joints, arête haute, grain en amas, lichen, neige sur les replats) ; `planches` (planches de 7-9 texels, joint, arête, veines, abouts décalés, nœuds ; version transposée pour le bois debout) ; `fer`, `cuir`, `foin`, `braises`, `fenetre` (9 × 6) ; `neige_toit` (plaques calmes de 2 tons proches, congères) ; écorce de la palissade = celle des arbres (lot 2).
+  Mipmaps maison (vote 2×2, à égalité le ton le plus sombre, côtés non carrés permis). Génération ~320 ms au total (headless, mesuré).
+- **`shaders/ps1_bati.gdshader` (nouveau)** : même accroche des sommets que `ps1` (grille 135, désactivée dans la passe d'ombre), même neige par l'alpha de sommet, mais coordonnées de texture = position d'OBJET en mètres × échelle de l'instance (triplanaire dur par la normale locale) : 16 texels/m partout, sans étirement sur les boîtes, les sphères déformées ni les MultiMesh à échelle ; `filter_nearest_mipmap` ; pas d'affine ; `uv_maillage` pour les vitrages ; `emission_texture` (l'émission suit la clarté de la texture : fenêtres, braises).
+- **`scripts/village.gd`** : toutes les matières remplacées ; **lots fusionnés** (`_ajouter` / `_finaliser`) : un maillage par (pivot, matériau) au lieu d'un MeshInstance3D par pièce (socle technique § 1) ; géométrie et mobilier décrits plus haut ; murs des petites maisons portés à 2,3 m ; toit corrigé (neige au-dessus) ; boucliers et lanterne déplacés ; `_feu` : `shadow_enabled = false`, `distance_fade` 22 + 8 m. Aucune lumière ajoutée.
+- `scripts/rochers.gd`, `cercle_runique.gd`, `abords_tumulus.gd` : `Palette.materiau(monde.tex_roche…)` → `TexturesBati.m_roche()` (1 ligne chacun). `scripts/monde.gd` : pierres du feu de camp (1 ligne) et `TexturesBati.vider()` à la fermeture (1 ligne) ; `tex_roche` reste utilisé par le TERRAIN, intact. `scripts/tertre.gd` : seulement `_tumulus()` (façade, dalle, butte) ; la crypte et `_ready` ne sont pas touchés.
+- Outils : `outils/captures_bati.sh` + `outils/poses_bati.txt` (V1-V12 : tour du village à hauteur d'yeux ; Z1-Z5 : cercle, tertre, rochers ; T1-T2 : façade du tertre ; D1 : maison ; S* : décalages de 12 cm), `outils/planche_bati.gd` (textures ×4-6 et mosaïques), `outils/stat_textures.gd` (statistiques de bruit).
+- **Fichiers partagés** : aucune fonction partagée modifiée (`palette.gd`, `ps1.gdshader`, `sol*.gd`, `arbres.gd`, `tertre.gd` hors façade intacts). `TexturesBati.materiau` lit les membres « privés » `Palette._appliquer`, `Palette._ps1_actif` et `Palette.materiaux` (pour que `--sans-ps1` s'applique aussi à ces matériaux) : ne pas les renommer.
+
+### Résultats
+- Planches avant (gauche) | après (droite), jour en haut, nuit en bas : `captures/batiments/planches/planche_<pose>.png` (V1-V12, Z1-Z5, T1, T2, D1), `planche_recap_jour.png` et `planche_recap_nuit.png` ; gros plans `gros_plan_pierre_mur.png`, `gros_plan_maison.png`, `gros_plan_puits.png`, `gros_plan_menhir.png`, `gros_plan_tertre.png` ; textures ×4-6 et mosaïques 3 × 3 : `captures/batiments/textures/planche_textures.png`.
+- Perf au feu (`2.5,8.5,16,4`, vsync off, un seul Godot, avant/après alternés) : avant 6,02 / 6,48 ms GPU, après 6,04 / 5,76 ms ; 661 appels de dessin (inchangé), 383 k primitives. Au village (V1) : avant 5,06 / 4,85 ms, 414 / 404 appels ; après 4,98 / 5,38 ms, **275 / 300 appels** (lots fusionnés). Forge (V3) : avant 5,54 / 5,36, après 5,36 / 5,28 (347 → 304 appels).
+- Chargement : +~320 ms (mesure headless des matières du lot 5, sans cache), sous les +0,5 s.
+- Tests headless : test_quetes (--nouvelle) OK, test_collisions_biome TOUT OK, test_chemin_biome 0 échec, test_vegetation_biome conforme ; en plus test_villageois OK et test_marche_pnj OK.
+
+### Défauts restants
+- À 1,6 m de distance un texel de pierre ou de planche fait ~13 px du rendu 480 × 270 (densité 16 texels/m de la bible) : plus net et lisible qu'avant, mais toujours « gros pixels » en gros plan ; une couche proche à 32 texels/m (comme le sol, lot 3) n'a pas été faite.
+- Les 7 pierres du cercle, la stèle et les menhirs restent des boîtes à neige en calotte (`boite_neige`) : silhouette inchangée ; la roche fracturée donne des dalles lisibles mais un peu « pavage » en gros plan.
+- Les pièces répétées du village (contreforts, marches, poteaux, lisses) sont fusionnées par bâtiment et par matière (pas en MultiMesh) ; les arbres morts des abords du tumulus restent des MeshInstance isolés (dette connue du socle technique).
+- La neige de toit a une période de 8 m (répétition discrète sur la longue maison) ; les stalactites sont des pyramides plates, bleutées.
+- Jour : le bois (rampe « bois travaillé » désaturée à 0,78) reste un peu plus chaud que le reste de la scène ; de nuit, l'ombre portée des contreforts est dure.
+- La mesure de scintillement par décalage de caméra n'est pas concluante (voir constat).

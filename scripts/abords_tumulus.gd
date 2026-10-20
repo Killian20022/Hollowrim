@@ -21,8 +21,8 @@ static func creer(monde: Node) -> void:
 	monde.add_child(racine)
 	var corps := StaticBody3D.new()
 	racine.add_child(corps)
-	var m_roche := Palette.materiau(monde.tex_roche)
-	var m_roche_haute := Palette.materiau(monde.tex_roche, Vector2(1, 2))
+	var m_roche := TexturesBati.m_roche()   # lot 5 : roche feuilletée, 16 texels/m
+	var m_roche_haute := m_roche
 	_dalles(monde, racine, m_roche, rng)
 	_borne(monde, racine, corps, m_roche_haute)
 	_arbres(monde, racine, corps, rng)

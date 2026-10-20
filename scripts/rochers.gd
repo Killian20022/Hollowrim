@@ -31,7 +31,7 @@ static func creer(monde: Node) -> void:
 	var rng: RandomNumberGenerator = monde.rng
 	var village: Vector3 = monde.VILLAGE
 	var clairiere: float = monde.RAYON_CLAIRIERE
-	var m := Palette.materiau(monde.tex_roche)
+	var m := TexturesBati.m_roche()   # lot 5 : roche feuilletée, 16 texels/m, mipmaps nearest
 	var modeles: Array[ArrayMesh] = []
 	for g in 4:
 		var mesh := rocher_mesh(40 + g)
