@@ -20,6 +20,7 @@ extends Node3D
 ##     faille ; émissif pour les cristaux ; ambiante bleu-gris : jamais noir total.
 
 const NB := 18
+const TUILE_COQUE := 2.0           # mètres par tuile de 128 px = 64 texels/m sur les parois (32 visés : jamais moins)
 const LONGUEUR := 124.0
 const LAC_Y := -4.7
 const Q := 0.32                 # hauteur d'une marche naturelle (m)
@@ -77,6 +78,7 @@ var rng := RandomNumberGenerator.new()
 var _bruit := FastNoiseLite.new()
 var _chemin := PackedVector2Array()      # xz tous les 0,1 m
 var _anneaux: Array = []
+var _fixes := {}
 var _idx := {}                            # cellule 4 m -> indices de triangles de la coque
 var _t := 0.0
 var _flamme_pixel: MeshInstance3D
@@ -325,6 +327,7 @@ func _tri_coque(a: Vector3, b: Vector3, c: Vector3, ka: int, kb: int, kc: int, r
 		nom = m[0]
 		masque = m[1]
 		masque *= 0.8 + 0.4 * GrotteDecor.hash2(ct.x * 0.7, ct.z * 1.3 + ct.y)
+	var amp_sub := 1.0
 	var sombre := 0.94 if (s >= 91.7 and s < 108.2 and not (n.y > 0.55)) else 1.0
 	if nom == "ciel":
 		var cl := Color(1, 1, 1, 0)
@@ -337,7 +340,35 @@ func _tri_coque(a: Vector3, b: Vector3, c: Vector3, ka: int, kb: int, kc: int, r
 		if etroit < 5.5:
 			ao *= 0.9
 		cols.append(GrotteDecor.col(ao, masque))
-	decor.facette(nom, a, b, c, ref, cols, true, 4.0, true)
+	_subdiviser(nom, a, b, c, ref, cols, 1, amp_sub)      # niveau constant : deux niveaux différents côte à côte laisseraient des fissures (T)
+
+## Relief méso : le triangle est coupé en 4 (facettes de 0,4 à 1,5 m) ; chaque milieu d'arête est déplacé d'un petit vecteur
+## qui ne dépend que de sa POSITION (deux triangles voisins déplacent donc le même point : aucune fissure). Le masque de
+## neige / glace / mousse reçoit aussi un bruit au milieu : taches nettes plutôt que blocs. Densité de texture : tuile de 2 m.
+func _subdiviser(nom: String, a: Vector3, b: Vector3, c: Vector3, ref: Vector3, cols: Array, niveau: int, amp := 1.0) -> void:
+	if niveau <= 0:
+		decor.facette(nom, a, b, c, ref, cols, true, TUILE_COQUE, true)
+		return
+	var m: Array = []
+	var mc: Array = []
+	var pts := [a, b, c]
+	for e in 3:
+		var p: Vector3 = pts[e]
+		var q: Vector3 = pts[(e + 1) % 3]
+		var mid := (p + q) * 0.5
+		var l := p.distance_to(q)
+		var d := Vector3(GrotteDecor.hash2(mid.x * 3.1, mid.y * 1.7 + mid.z) - 0.5, GrotteDecor.hash2(mid.y * 2.3, mid.z * 1.9 + mid.x) - 0.5, GrotteDecor.hash2(mid.z * 2.9, mid.x * 1.3 + mid.y) - 0.5)
+		var fixe := _fixes.has(p) and _fixes.has(q)       # arête d'un anneau d'extrémité (raccord avec les caps) : pas de déplacement
+		m.append(mid if fixe else mid + Vector3(d.x, d.y * 0.35, d.z) * (0.14 * minf(l, 2.4) * amp))
+		var c0: Color = cols[e]
+		var c1: Color = cols[(e + 1) % 3]
+		var cm := c0.lerp(c1, 0.5)
+		cm.a = clampf(cm.a + (GrotteDecor.hash2(mid.x * 5.3, mid.z * 4.1 + mid.y * 2.0) - 0.5) * 0.5 * (1.0 if cm.a > 0.01 else 0.0), 0.0, 1.5)
+		mc.append(cm)
+	_subdiviser(nom, a, m[0], m[2], ref, [cols[0], mc[0], mc[2]], niveau - 1, amp)
+	_subdiviser(nom, m[0], b, m[1], ref, [mc[0], cols[1], mc[1]], niveau - 1, amp)
+	_subdiviser(nom, m[2], m[1], c, ref, [mc[2], mc[1], cols[2]], niveau - 1, amp)
+	_subdiviser(nom, m[0], m[1], m[2], ref, [mc[0], mc[1], mc[2]], niveau - 1, amp)
 
 # ------------------------------------------------------------------ construction
 func construire() -> void:
@@ -382,6 +413,13 @@ func construire() -> void:
 	temps_ms = Time.get_ticks_msec() - t0
 
 func _coque() -> void:
+	_fixes.clear()
+	for r: Dictionary in [_anneaux[0], _anneaux[_anneaux.size() - 1]]:
+		for p: Vector3 in r["pts"]:
+			_fixes[p] = true
+	for r: Dictionary in _anneaux:             # sol (centre et pieds de paroi) : plat, il porte le chemin et le lac
+		for k in [0, 1, 17, 2, 16]:
+			_fixes[(r["pts"] as Array)[k]] = true
 	for i in _anneaux.size() - 1:
 		var ra: Dictionary = _anneaux[i]
 		var rb: Dictionary = _anneaux[i + 1]
