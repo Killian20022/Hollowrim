@@ -785,3 +785,16 @@ Dans la grotte, la position sauvegardée est celle du fichier (y ≈ -215) ; au 
 - **Tests** : `tous_les_tests.sh` 15 OK / 0 échec. Sous terre inchangé (comparé avant/après).
 - Planches : `captures/lumiere/planches/avant_apres_{jour,crepuscule,nuit}.png` (avant | après ; poses feu, chemin, crête, lisière, village).
 - Défauts restants : la crête hors zone témoin montre le sol vert de l'ancien biome ; le « pop » mesh complet → LOD à 44-48 m n'est pas mesuré à l'oeil en mouvement ; village : le crépuscule de scénario non vérifié séparément.
+
+## Lot « retouches crypte / mort / pieds de pins » (branche graphisme/retouches-crypte)
+- Sol de l'arène (dalle3, et dalle4 du niveau gelé) : option `lisse` de `CrypteTextures._pierre` (VERSION 6) : grandes dalles
+  (32-64 texels), joints nets de 1,6 texel, usure en macro-taches (bruit 5x5 et 9x9 quantifié en 3 paliers), givre en
+  plaques larges, plus de grain texel par texel ni de tramage fort (`_q` avec amplitude 0,12), éclats de coin droits.
+  Les autres dalles et murs ne changent pas. Textures régénérées (`outils/generer_crypte.gd`).
+- Mort dans la crypte : `Tertre.reinitialiser(morts)` (appelé par `Monde._joueur_mort`) : gardiens retirés puis remis en file,
+  seuls ceux de `draugrs_morts` du fichier de sauvegarde restent morts ; Svanhild vivante retirée ; bourse de coffre non ramassée
+  perdue = coffre rendu ; portes/herse/mur secret suivent les événements de quête ; crypte cachée, signal `entree(false)`.
+  Test : `outils/test_crypte_mort.gd` (ajouté à tous_les_tests.sh), sans toucher au fichier de sauvegarde.
+- Pieds des pins et épicéas : 5 contreforts épais (pin) / 4 (épicéa) + `Arbres._congere` (cuvette sombre près de l'écorce, lèvre
+  de congère plus haute côté vent, pente qui se fond dans le sol ; 24-32 triangles). Mesure : +3 000 primitives sur 250 000,
+  draw calls identiques (523), GPU 7,2 ms (indicatif, 4 agents en parallèle).
