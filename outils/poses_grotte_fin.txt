@@ -1,0 +1,13 @@
+piste_jour monde 66,-26.5,-88,-10 heure=12
+piste_nuit monde 66,-26.5,-88,-10
+bouche_jour monde 84,-27,-90,-6 heure=12
+bouche_nuit monde 84,-27,-90,-6
+bouche_lat_jour monde 82,-19,-52,-4 heure=12
+seuil_jour monde 90.2,-27,-90,0 heure=12
+boyau grotte 20,0,0,-3
+boyau2 grotte 29,0,0,-4
+caverne grotte 37,2.5,0,-4
+lac grotte 41,1.5,-50,-6
+rai grotte 53,2.4,-55,-4
+camp grotte 95,0,15,-6
+camp2 grotte 98,-1,-35,-8

@@ -71,7 +71,7 @@ static func exclu(x: float, z: float) -> bool:
 		return true
 	if x > 89.0 and x < 105.0 and absf(z - SITE.y) < 11.0:
 		return true
-	return x > 50.0 and x < 90.0 and absf(z - piste_z(x)) < 2.6
+	return x > 50.0 and x < 90.0 and absf(z - axe_piste(x)) < 2.6
 
 ## Axe de la piste (z monde) à l'abscisse x : ondule doucement.
 static func piste_z(x: float) -> float:
@@ -118,6 +118,7 @@ func _construire() -> void:
 	_mur_toit_tunnel()
 	_neige_glacons()
 	_signes_des_bandits()
+	_ruban_piste()
 	_piste()
 	decor.finir()
 	nb_facettes = decor.nb_facettes
@@ -349,12 +350,47 @@ func _brasero(pos: Vector3) -> void:
 	decor.lumiere(pos + Vector3(0, 1.5, 0), CrypteDecor.FEU, 2.6, 6.5, 1.7)
 	decor.solide_rond(pos + Vector3(0, 0.55, 0), 0.46, 1.1)
 
+## Axe de la piste au sol (z monde) : ondule à l'ouest, rejoint l'axe de la rampe (z = SITE.y) près de la terrasse.
+static func axe_piste(x: float) -> float:
+	return SITE.y + (piste_z(x) - SITE.y) * clampf((90.0 - x) / 14.0, 0.0, 1.0)
+
+## Ruban de neige tassée posé sur la piste (ornières, pas, cailloux : texture « piste », bords tramés par bruit), de l'ouest
+## jusqu'au seuil ; il s'élargit en terrasse piétinée devant la bouche. Pas de 1 m, 7 sommets en travers, 7 cm au-dessus du relief.
+func _ruban_piste() -> void:
+	var x0 := 46.0
+	var x1 := SITE.x - 0.8
+	var n := int((x1 - x0) / 1.0)
+	var lignes: Array = []
+	for i in n + 1:
+		var x := lerpf(x0, x1, float(i) / n)
+		var hw := 1.55 + 0.25 * sin(x * 0.7) + 2.6 * smoothstep(80.0, 88.0, x)
+		var fin_o := smoothstep(x0, x0 + 8.0, x)                     # le ruban s'efface en s'éloignant vers l'ouest
+		var ligne: Array = []
+		for j in range(-3, 4):
+			var lat := hw * float(j) / 3.0
+			var zw := axe_piste(x) + lat
+			var xl := zw - SITE.y
+			var zl := SITE.x - x
+			var p := _sol(xl, zl) + Vector3(0, 0.07, 0)
+			var masque := (1.0 - absf(float(j)) / 3.0) * (0.92 + 0.16 * GrotteDecor.hash2(x * 1.9, float(j) * 3.1)) * fin_o
+			ligne.append([p, Vector2((SITE.x - x) / 4.0, lat / 4.0 + 0.5), GrotteDecor.col(1.0, clampf(masque, 0.0, 1.0))])
+		lignes.append(ligne)
+	for i in n:
+		for j in 6:
+			var a: Array = lignes[i][j]
+			var b: Array = lignes[i][j + 1]
+			var c: Array = lignes[i + 1][j + 1]
+			var d: Array = lignes[i + 1][j]
+			var ref: Vector3 = (a[0] as Vector3) + Vector3(0, 5, 0)
+			decor.facette("c_piste", a[0], b[0], c[0], ref, [a[2], b[2], c[2]], true, 4.0, false, [a[1], b[1], c[1]])
+			decor.facette("c_piste", a[0], c[0], d[0], ref, [a[2], c[2], d[2]], true, 4.0, false, [a[1], c[1], d[1]])
+
 ## Piste vers l'ouest : pieux à crâne tous les ~12 m, un cairn entre deux (repérables de loin).
 func _piste() -> void:
 	var k := 0
 	for xm in [78.0, 68.0, 58.0]:
 		var side := 1.0 if k % 2 == 0 else -1.0
-		var zm := piste_z(xm) + side * 2.1
+		var zm := axe_piste(xm) + side * 2.1
 		var w := Vector2(xm, zm)
 		var xl := w.y - SITE.y
 		var zl := SITE.x - w.x
@@ -363,7 +399,7 @@ func _piste() -> void:
 	k = 0
 	for xm in [73.0, 63.0]:
 		var side := -1.0 if k % 2 == 0 else 1.0
-		var w := Vector2(xm, piste_z(xm) + side * 2.0)
+		var w := Vector2(xm, axe_piste(xm) + side * 2.0)
 		var xl := w.y - SITE.y
 		var zl := SITE.x - w.x
 		var base := _sol(xl, zl)

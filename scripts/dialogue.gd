@@ -230,6 +230,8 @@ func _process(dt: float) -> void:
 			_fleche.queue_redraw()
 	# invite
 	var p := _plus_proche() if not _ouvert else null
+	if _invite.visible != (p != null):
+		queue_redraw()  # sans cela, l'icône « E » dessinée restait affichée après l'invite
 	_invite.visible = p != null
 	if p != null:
 		# un objet peut proposer son propre verbe (« Fouiller le corps », « Entrer »…)
