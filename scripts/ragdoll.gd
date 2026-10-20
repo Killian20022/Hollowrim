@@ -83,8 +83,11 @@ func _construire(perso: Node3D, sq: Skeleton3D) -> void:
 	sq.add_child(simulateur)
 	# repère du modèle au repos : avant = direction pied → orteils, à plat
 	var pied := sq.get_bone_global_rest(sq.find_bone("foot_l")).origin
-	var orteil := sq.get_bone_global_rest(sq.find_bone("ball_l")).origin
-	var avant := Vector3(orteil.x - pied.x, 0.0, orteil.z - pied.z).normalized()
+	var avant := Vector3.BACK          # RIG18 (sans orteils) : le pied regarde +Z du modèle
+	var ib := sq.find_bone("ball_l")
+	if ib >= 0:
+		var orteil := sq.get_bone_global_rest(ib).origin
+		avant = Vector3(orteil.x - pied.x, 0.0, orteil.z - pied.z).normalized()
 	var total := 0.0
 	for d in DEFS:
 		total += d[5] * (2.0 if String(d[0]).ends_with("*") else 1.0)
@@ -112,7 +115,15 @@ func _creer_os(d: Array, cote: String, avant: Vector3, masse: float) -> void:
 		longueur = 0.0
 	else:
 		var enfant := squelette.find_bone(_nom(d[1], cote))
-		var v := squelette.get_bone_global_rest(enfant).origin - repos.origin
+		var v: Vector3
+		if enfant >= 0:
+			v = squelette.get_bone_global_rest(enfant).origin - repos.origin
+		elif nom.begins_with("hand"):
+			# RIG18 : plus de doigts, la main prolonge l'avant-bras
+			v = (repos.origin - squelette.get_bone_global_rest(squelette.get_bone_parent(i)).origin).normalized() * 0.10
+		else:
+			# RIG18 : plus d'orteils, le pied part vers l'avant et un peu vers le bas
+			v = avant * 0.12 + Vector3.DOWN * 0.05
 		axe = (inv * v).normalized()
 		longueur = v.length()
 	longueur += float(extra.get("longueur_plus", 0.0)) + float(extra.get("allonge", 0.0))

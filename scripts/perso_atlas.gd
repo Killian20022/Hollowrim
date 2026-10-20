@@ -9,7 +9,7 @@ class_name PersoAtlas
 ## (ourlet du torse, poignet de la manche, cheville du pantalon, haut du crane...). Precalcul : outils/generer_personnages.gd -> atlas_<sexe>.res.
 
 const DOSSIER := "res://assets/personnages"
-const VERSION := 3
+const VERSION := 4
 ## Regions
 const PEAU := 0
 const TUN := 1
@@ -192,7 +192,6 @@ static func _tunique(z: Zone, reg: int, cle: String) -> void:
 	var bw := maxi(3, int(round(z.d * 0.16)))
 	match String(info["bord_debut"]):
 		"ourlet": _bordure(z, z.debut, 1, bw + 3, reg)
-		"poignet": _bordure(z, z.debut, 1, maxi(3, bw - 1), reg, false)
 	match String(info["bord_fin"]):
 		"col":
 			for k in maxi(2, bw - 2):
@@ -200,6 +199,8 @@ static func _tunique(z: Zone, reg: int, cle: String) -> void:
 					z.ton(x, z.fin - k, 1 if k == 0 else 2, reg)
 					if k == 1 and (x & 3) != 3:
 						z.fixe(x, z.fin - k, F_OR)
+		"poignet": _bordure(z, z.fin, -1, maxi(4, bw), reg, false)
+		"ourlet": _bordure(z, z.fin, -1, bw + 3, reg)
 	# couture verticale du dos (colonne 0) : points clairs
 	for y in range(z.debut + bw + 4, z.fin - 2):
 		if (y & 3) < 2:
@@ -218,18 +219,18 @@ static func _tunique(z: Zone, reg: int, cle: String) -> void:
 
 static func _pantalon(z: Zone) -> void:
 	_laine(z, PAN, 6, 0.18, true)
-	# revers de cheville (debut) : deux rangs
+	# revers de cheville (fin) : deux rangs
 	for x in z.w:
-		z.ton(x, z.debut, 1, PAN)
-		z.ton(x, z.debut + 1, 5, PAN)
+		z.ton(x, z.fin, 1, PAN)
+		z.ton(x, z.fin - 1, 5, PAN)
 	# genou : pièce plus sombre cousue
-	var yg := z.debut + int((z.fin - z.debut) * 0.62)
+	var yg := z.debut + int((z.fin - z.debut) * 0.5)
 	for j in range(-2, 3):
 		for i in z.w:
 			if absi(i - z.w / 2) < 4 + 1:
 				z.ton(i, yg + j, 2 + int(_h(i, j, z.g) > 0.7), PAN)
 	# couture exterieure
-	for y in range(z.debut + 3, z.fin):
+	for y in range(z.debut + 3, z.fin - 3):
 		if (y & 3) < 2:
 			z.ton(0, y, 5, PAN)
 
@@ -303,6 +304,16 @@ static func _poil(z: Zone) -> void:
 	# bords du bas effilochés / cheveux plus sombres près de la racine
 	for x in z.w:
 		z.ton(x, z.debut, 1, CHEV)
+	if z.info.has("z_bouche"):
+		# barbe : la bouche reste visible (peau, lèvres) sous une moustache
+		var yb := z.z_vers_y(float(z.info["z_bouche"]))
+		var xc := z.w / 2
+		var lw := int(round(0.05 * z.d * float(z.info.get("echelle", 1.0))))
+		for j in range(-1, 2):
+			for i in range(-lw / 2, lw / 2 + 1):
+				z.ton(xc + i, yb + j, 3 if j != 0 else 1, PEAU)
+		for i in range(-lw / 2 - 1, lw / 2 + 2):
+			z.ton(xc + i, yb - 2, 1, CHEV)
 
 static func _fourrure(z: Zone) -> void:
 	for y in z.h + 2:

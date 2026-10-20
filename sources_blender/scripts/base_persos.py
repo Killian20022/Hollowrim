@@ -43,14 +43,14 @@ def ajuster_squelette():
     z0 = hs.z - 0.03
     os2("cape_1", "spine_03", Vector((0, yb, z0)), Vector((0, yb + 0.03, z0 - 0.2)))
     os2("cape_2", "cape_1", Vector((0, yb + 0.03, z0 - 0.2)), Vector((0, yb + 0.07, z0 - 0.45)))
-    os2("capuche", "Head", Vector((0, BONE["Head"][0].y + 0.07, hd.z + 0.02)), Vector((0, BONE["Head"][0].y + 0.1, hd.z - 0.14)))
+    os2("capuche_1", "Head", Vector((0, BONE["Head"][0].y + 0.07, hd.z + 0.02)), Vector((0, BONE["Head"][0].y + 0.1, hd.z - 0.14)))
     zt = BONE["pelvis"][0].z + 0.06; zg = BONE["calf_l"][0].z; zh = BONE["calf_l"][0].z * 0.5
     yv = BONE["pelvis"][0].y - 0.13
     os2("pan_av_1", "pelvis", Vector((0, yv, zt)), Vector((0, yv - 0.02, zh)))
     os2("pan_ar_1", "pelvis", Vector((0, BONE["pelvis"][0].y + 0.13, zt)), Vector((0, BONE["pelvis"][0].y + 0.14, zg - 0.05)))
     bpy.ops.object.mode_set(mode='OBJECT')
 ajuster_squelette()
-SECONDAIRES = ["cape_1", "cape_2", "capuche", "pan_av_1", "pan_ar_1"]
+SECONDAIRES = ["cape_1", "cape_2", "capuche_1", "pan_av_1", "pan_ar_1"]
 assert len(RIG18) + len(SECONDAIRES) <= 26
 
 # ------------------------------------------------------------------ repere
@@ -83,11 +83,11 @@ def lerp(a, b, t):
 # rx : demi-largeur, ry : demi-profondeur, dy : decalage vers l'avant (poitrine). Valeurs en metres, relevees sur les proportions Skyrim
 # (epaules larges, taille marquee) ; la femme est plus etroite aux epaules (squelette Quaternius : epaule a 15 cm contre 21 cm).
 if not F:
-    TORSE = [(-0.10, 0.212, 0.128, 0.0, {"pelvis": 1}), (0.12, 0.196, 0.120, 0.0, {"pelvis": 1}), (0.36, 0.170, 0.108, 0.0, {"spine_01": 1}),
+    TORSE = [(-0.10, 0.212, 0.128, 0.0, {"pelvis": 1}), (0.12, 0.205, 0.122, 0.0, {"pelvis": 1}), (0.36, 0.170, 0.108, 0.0, {"spine_01": 1}),
              (0.58, 0.178, 0.116, 0.0, {"spine_01": 0.4, "spine_02": 0.6}), (0.80, 0.200, 0.122, 0.0, {"spine_02": 0.5, "spine_03": 0.5}),
              (0.95, 0.192, 0.105, 0.0, {"spine_03": 1}), (1.06, 0.095, 0.078, 0.0, {"spine_03": 1})]
 else:
-    TORSE = [(-0.10, 0.200, 0.120, 0.0, {"pelvis": 1}), (0.12, 0.178, 0.108, 0.0, {"pelvis": 1}), (0.36, 0.140, 0.095, 0.0, {"spine_01": 1}),
+    TORSE = [(-0.10, 0.200, 0.120, 0.0, {"pelvis": 1}), (0.12, 0.195, 0.115, 0.0, {"pelvis": 1}), (0.36, 0.140, 0.095, 0.0, {"spine_01": 1}),
              (0.58, 0.150, 0.108, 0.010, {"spine_01": 0.4, "spine_02": 0.6}), (0.80, 0.160, 0.118, 0.012, {"spine_02": 0.5, "spine_03": 0.5}),
              (0.95, 0.158, 0.096, 0.0, {"spine_03": 1}), (1.06, 0.080, 0.070, 0.0, {"spine_03": 1})]
 
@@ -125,7 +125,7 @@ def pieces_corps():
     corps = nouvelle("corps")
     # --- torse (tunique) : ourlet au bassin, col aux epaules
     ring = [anneau_torse(u) for (u, *_r) in TORSE]
-    tube(corps, "torse", ring, n=8, cap0=True, kind="tunique", debut="ourlet", fin="col")
+    tube(corps, "torse", ring, n=8, cap0=True, cap1=True, kind="tunique", debut="ourlet", fin="col")
     # --- cou (peau)
     r = 0.052 if not F else 0.045
     tube(corps, "cou", [Anneau(P("neck_01", -0.15), r + 0.006, r + 0.004, {"spine_03": 0.5, "neck_01": 0.5}),
@@ -142,7 +142,7 @@ def pieces_corps():
                  Anneau(P(ua, 0.98), 0.060 * k, 0.062 * k, {ua: 0.5, la: 0.5}, e1=ex),
                  Anneau(P(la, 0.45), 0.054 * k, 0.056 * k, {la: 1}, e1=ex),
                  Anneau(P(la, 1.0), 0.041 * k, 0.043 * k, {la: 0.5, ha: 0.5}, e1=ex)]
-        tube(corps, "manche" + sf, rings, n=8, cap0=True, cap1=True, kind="tunique", debut="poignet", fin="aucun", hint=(0, 0, 1))
+        tube(corps, "manche" + sf, rings, n=8, cap1=True, kind="tunique", debut="aucun", fin="poignet", hint=(0, 0, 1))
         # --- main (moufle a pouce separe), paume vers le bas dans la pose de repos
         w0 = P(la, 1.0); dirx = Vector((s, 0, 0)); hk = 0.88 if F else 1.0
         def hp(d): return w0 + dirx * d
@@ -157,12 +157,12 @@ def pieces_corps():
         # --- jambe : pantalon (hanche -> cheville), botte (mollet -> orteil)
         th, ca, fo = "thigh" + sf, "calf" + sf, "foot" + sf
         kt = 1.0 if not F else 1.02
-        rj = [Anneau(P(th, -0.04), 0.108 * kt, 0.112 * kt, {"pelvis": 0.5, th: 0.5}),
+        rj = [Anneau(P(th, -0.04), (0.092 if not F else 0.088) * kt, 0.108 * kt, {"pelvis": 0.5, th: 0.5}),
               Anneau(P(th, 0.40), 0.096 * kt, 0.100 * kt, {th: 1}),
               Anneau(P(ca, 0.0), 0.069 * kt, 0.073 * kt, {th: 0.5, ca: 0.5}),
               Anneau(P(ca, 0.32), 0.070 * kt, 0.076 * kt, {ca: 1}),
               Anneau(P(ca, 1.0), 0.047, 0.049, {ca: 0.5, fo: 0.5})]
-        tube(corps, "jambe" + sf, rj, n=8, kind="pantalon", debut="cheville", fin="aucun")
+        tube(corps, "jambe" + sf, rj, n=8, kind="pantalon", debut="aucun", fin="cheville")
         rb = [Anneau(P(ca, 0.40), 0.080, 0.084, {ca: 1}),
               Anneau(P(ca, 1.0), 0.064, 0.068, {ca: 0.5, fo: 0.5}, dy=0.008),
               Anneau(P(fo, 0.50) + Vector((0, 0, 0.0)), 0.056, 0.060, {fo: 1}),
@@ -185,7 +185,7 @@ def bagues():
         tube(bg, "bracelet" + sf, [Anneau(P(la, 0.80), 0.047 * k + 0.012, 0.049 * k + 0.012, {la: 1}, e1=ex),
                                    Anneau(P(la, 1.04), 0.043 * k + 0.012, 0.045 * k + 0.012, {la: 0.6, "hand" + sf: 0.4}, e1=ex)], n=8, kind="cuir", hint=(0, 0, 1))
         ca = "calf" + sf
-        tube(bg, "revers" + sf, [Anneau(P(ca, 0.33), 0.092, 0.096, {ca: 1}), Anneau(P(ca, 0.47), 0.088, 0.092, {ca: 1})], n=8, kind="fourrure")
+        tube(bg, "revers" + sf, [Anneau(P(ca, 0.33), 0.092, 0.096, {ca: 1}), Anneau(P(ca, 0.47), 0.088, 0.092, {ca: 1})], n=6, kind="fourrure")
     return bg
 
 pieces_corps(); bagues()
@@ -263,8 +263,8 @@ def pieces_cheveux():
             rings.append(Anneau((0, HY + (0.0 if z > hz(1.62) else 0.012), z), rx + off + plus, ry + off + plus, w, dy=-(av * ECH) + (0.0 if z > hz(1.62) else 0.0), vz=lift(z, 0.0) if z < LIGNE else None))
         return p, rings
     # 1 : coupe courte (calotte jusqu'aux oreilles)
-    zs = [hz(1.690), hz(1.725), hz(1.755), hz(1.785), hz(1.815)]
-    p, rg = coupe("cheveux_1", zs, 0.012, [0, 0.002, 0.003, 0.002, -0.008], lambda z: {"Head": 1})
+    zs = [hz(1.640), hz(1.690), hz(1.725), hz(1.755), hz(1.785), hz(1.815)]
+    p, rg = coupe("cheveux_1", zs, 0.012, [0.004, 0.003, 0.003, 0.003, 0.002, -0.008], lambda z: {"Head": 1})
     tube(p, "coupe", rg, n=10, cap1=True, kind="cheveux")
     # 2 : mi-longs, tombant sur la nuque et les epaules (os du cou en bas)
     zs = [hz(1.540), hz(1.585), hz(1.640), hz(1.690), hz(1.730), hz(1.765), hz(1.795), hz(1.818)]
@@ -273,8 +273,8 @@ def pieces_cheveux():
     p, rg = coupe("cheveux_2", zs, 0.012, pl, wb)
     tube(p, "coupe", rg, n=10, cap1=True, kind="cheveux")
     # 3 : calotte + chignon haut + tresse dans le dos
-    zs = [hz(1.660), hz(1.700), hz(1.735), hz(1.765), hz(1.795), hz(1.818)]
-    p, rg = coupe("cheveux_3", zs, 0.012, [0.0, 0.004, 0.004, 0.003, 0.0, -0.01], lambda z: {"Head": 1})
+    zs = [hz(1.640), hz(1.700), hz(1.735), hz(1.765), hz(1.795), hz(1.818)]
+    p, rg = coupe("cheveux_3", zs, 0.012, [0.004, 0.004, 0.004, 0.003, 0.0, -0.01], lambda z: {"Head": 1})
     tube(p, "coupe", rg, n=10, cap1=True, kind="cheveux")
     tube(p, "chignon", [Anneau((0, HY + 0.075, hz(1.790)), 0.040 * ECH, 0.036 * ECH, {"Head": 1}, t=(0, 0.3, 1)),
                         Anneau((0, HY + 0.085, hz(1.830)), 0.046 * ECH, 0.040 * ECH, {"Head": 1}, t=(0, 0.3, 1)),
@@ -293,11 +293,11 @@ def pieces_barbes():
     # 1 : barbe courte (joues, menton), fente de la bouche peinte
     p = nouvelle("barbe_1")
     rg = [anneau_b(hz(1.700), 0.010), anneau_b(hz(1.668), 0.012), anneau_b(hz(1.630), 0.014), anneau_b(hz(1.598), 0.010)]
-    tube(p, "barbe", rg, n=8, cap1=False, kind="barbe", arc=(70, 290), hint=(1, 0, 0))
+    tube(p, "barbe", rg, n=8, cap1=False, kind="barbe", arc=(70, 290), hint=(1, 0, 0), z_bouche=hz(1.650), echelle=ECH)
     # 2 : barbe tressee : meme couverture + tresse tombant sur la poitrine
     p = nouvelle("barbe_2")
     rg = [anneau_b(hz(1.700), 0.010), anneau_b(hz(1.668), 0.014), anneau_b(hz(1.622), 0.018), anneau_b(hz(1.585), 0.018, {"Head": 0.5, "neck_01": 0.5})]
-    tube(p, "barbe", rg, n=8, kind="barbe", arc=(70, 290), hint=(1, 0, 0))
+    tube(p, "barbe", rg, n=8, kind="barbe", arc=(70, 290), hint=(1, 0, 0), z_bouche=hz(1.650), echelle=ECH)
     yf = HY - 0.10 * ECH
     tube(p, "tresse", [Anneau((0, yf + 0.018, hz(1.600)), 0.028, 0.022, {"Head": 0.5, "neck_01": 0.5}, t=(0, -0.2, -1)),
                        Anneau((0, yf + 0.008, hz(1.545)), 0.026, 0.020, {"neck_01": 1}, t=(0, -0.1, -1)),
@@ -395,7 +395,7 @@ def pieces_accessoires():
     rg = []
     for z, pp in zip(zs, pl):
         rx, ry, av = interp(t, min(max(z, hz(1.628)), hz(1.797)))
-        w = {"capuche": 0.5, "neck_01": 0.5} if z < hz(1.52) else ({"Head": 0.5, "capuche": 0.5} if z < hz(1.58) else {"Head": 1})
+        w = {"capuche_1": 0.5, "neck_01": 0.5} if z < hz(1.52) else ({"Head": 0.5, "capuche_1": 0.5} if z < hz(1.58) else {"Head": 1})
         rg.append(Anneau((0, HY + (0.018 if z < hz(1.6) else 0.0), z), rx + pp, ry + pp, w, dy=-(av * ECH), vz=lift(z) if z < LIGNE else None))
     tube(p, "capuche", rg, n=10, cap1=True, kind="sur", debut="ourlet", fin="aucun")
     # 6. epaulieres (plaques de fer sur le haut du bras) et pteruges (lanieres de cuir)
@@ -449,6 +449,19 @@ def terminer():
                     mauvais += 1
                     if mauvais < 6: print("UV HORS RECT", p.nom, part, round(px, 1), round(py, 1), rects[p.nom + "." + part])
     print("UV hors rectangle :", mauvais)
+    # etancheite : aretes de bord (1 seule face) par partie ; les panneaux de tissu OUVERTS (arc) et les tubes sans calotte sont attendus
+    bord = {}
+    for p in PIECES:
+        ar = {}
+        for q, uv, part in p.f:
+            for i in range(len(q)):
+                a, b = q[i], q[(i + 1) % len(q)]
+                k = (min(a, b), max(a, b), part)
+                ar[k] = ar.get(k, 0) + 1
+        for (a, b, part), n_ in ar.items():
+            if n_ == 1:
+                bord[p.nom + "." + part] = bord.get(p.nom + "." + part, 0) + 1
+    print("ARETES DE BORD (parties ouvertes) :", json.dumps(bord))
     objs = creer_objets(PIECES, arm, RIG18 + SECONDAIRES)
     tris = {p.nom: triangles(p) for p in PIECES}
     info = {"densite": DENSITE, "atlas": ATLAS, "sexe": SEXE, "hauteur_utilisee": hauteur, "rects": {}, "triangles": tris}

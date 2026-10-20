@@ -78,14 +78,17 @@ func _lancer() -> void:
 			continue
 		courant = Personnage.creer(persos[nom])
 		sv.add_child(courant)
+		if _arg("sans-ressorts", "") != "" and courant.has_node("PersoRessorts"):
+			courant.get_node("PersoRessorts").simulateur.active = false
 		var ap: AnimationPlayer = courant.get_node("Animations")
 		if anim_nom != "":
 			await _bande(ap, nom, sortie, anim_nom)
 		else:
-			var def: Array = POSES[pose]
-			ap.play(def[0])
-			ap.seek(ap.get_animation(def[0]).length * float(def[1]), true)
-			ap.pause()
+			var def: Array = POSES.get(pose, ["A_TPose", 0.0])
+			if pose != "repos":
+				ap.play(def[0])
+				ap.seek(ap.get_animation(def[0]).length * float(def[1]), true)
+				ap.pause()
 			for i in 3:
 				await process_frame
 			var rangs := _arg("rangs", "j2,j8,n2,n8").split(",", false)
@@ -121,6 +124,9 @@ func _bande(ap: AnimationPlayer, nom: String, sortie: String, anim_nom: String) 
 	_regler(nuit)
 	var anim := ap.get_animation(anim_nom)
 	var duree := anim.length
+	if _arg("live", "") != "":
+		await _bande_live(ap, nom, sortie, anim_nom, n, dist, nuit)
+		return
 	ap.play(anim_nom)
 	var bande := Image.create(cote * n, cote * ANGLES.size(), false, Image.FORMAT_RGBA8)
 	for col in ANGLES.size():
@@ -132,3 +138,32 @@ func _bande(ap: AnimationPlayer, nom: String, sortie: String, anim_nom: String) 
 			var img: Image = await _photo(float(ANGLES[col][1]), dist, 0.95)
 			bande.blit_rect(img, Rect2i(0, 0, cote, cote), Vector2i(k * cote, col * cote))
 	bande.save_png(ProjectSettings.globalize_path(sortie) + "/%s_%s_bande%s.png" % [nom, anim_nom, "_nuit" if nuit else ""])
+
+## Bande « en direct » : l'animation tourne en temps reel pendant que le personnage AVANCE (--vit=m/s) : les ressorts prennent l'inertie du
+## deplacement (cape qui traine, pan qui se souleve). Une image tous les duree/n secondes ; la camera suit le personnage.
+func _bande_live(ap: AnimationPlayer, nom: String, sortie: String, anim_nom: String, n: int, dist: float, nuit: bool) -> void:
+	var vit := float(_arg("vit", "1.3"))
+	var duree := ap.get_animation(anim_nom).length
+	ap.play(anim_nom)
+	ap.speed_scale = vit / float(_arg("ref", "1.03")) if anim_nom == "Walk" else 1.0
+	var bande := Image.create(cote * n, cote * ANGLES.size(), false, Image.FORMAT_RGBA8)
+	for col in ANGLES.size():
+		courant.position = Vector3.ZERO
+		ap.play(anim_nom)
+		for i in 40:            # lancement : la cape prend sa vitesse de croisiere
+			courant.position.z += vit / 60.0
+			await process_frame
+		for k in n:
+			var t_prochain := Time.get_ticks_msec() + int(duree / ap.speed_scale / n * 1000.0)
+			while Time.get_ticks_msec() < t_prochain:
+				await process_frame
+				courant.position.z += vit * 1.0 / maxf(Engine.get_frames_per_second(), 20.0)
+			var az := deg_to_rad(float(ANGLES[col][1]))
+			var cible := courant.position + Vector3(0, 0.95, 0)
+			cam.global_position = cible + Vector3(sin(az), 0.0, cos(az)) * dist
+			cam.look_at(cible, Vector3.UP)
+			await RenderingServer.frame_post_draw
+			var img := sv.get_texture().get_image()
+			img.convert(Image.FORMAT_RGBA8)
+			bande.blit_rect(img, Rect2i(0, 0, cote, cote), Vector2i(k * cote, col * cote))
+	bande.save_png(ProjectSettings.globalize_path(sortie) + "/%s_%s_live%s.png" % [nom, anim_nom, "_nuit" if nuit else ""])

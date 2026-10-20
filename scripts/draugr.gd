@@ -103,7 +103,10 @@ func _ready() -> void:
 		app["etoffes"] = {"tunique": "mailles_rouille", "brassards": "draugr"}
 		app["casque"] = "casque_draugr"
 	app.merge(apparence, true)
-	modele = Humain.creer(app)
+	if app.has("perso"):
+		modele = Personnage.creer(app["perso"])      # bandits vivants : personnage de base unifie (PersoDef)
+	else:
+		modele = Humain.creer(app)
 	modele.scale = Vector3.ONE * echelle
 	add_child(modele)
 	for mi: MeshInstance3D in modele.find_children("*", "MeshInstance3D", true, false):

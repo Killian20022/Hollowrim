@@ -141,7 +141,7 @@ func _ready() -> void:
 	forme.position.y = 0.9
 	add_child(forme)
 
-	modele = Humain.creer(APPARENCES.get(donnees.get("id", ""), APPARENCES["chef"]))
+	modele = Personnage.creer(PersoDefs.villageois(donnees.get("id", "")))
 	add_child(modele)
 	anim = modele.get_node("Animations")
 	if points.is_empty():
@@ -161,8 +161,7 @@ func _ready() -> void:
 	if anim != null:
 		anim.seek(randf() * 2.0)
 
-## Allure de chaque habitant (corps, couleurs de la tenue, cheveux) ; trousse commune :
-## pantalon, bottes et ceinture.
+## ANCIENNES apparences (Humain.creer) : gardees pour la galerie du monde (monde.gd, scenario « galerie ») ; les villageois utilisent PersoDefs.villageois().
 const C := Color.WHITE
 const APPARENCES := {
 	# Gunnhild, la cheffe : longue robe bleue brodée sur tunique de lin, manteau de fourrure blanche, bijoux de cuir clair

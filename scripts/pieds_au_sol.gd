@@ -100,9 +100,11 @@ func _construire(sq: Skeleton3D) -> void:
 		_os["mollet"].append(sq.find_bone("calf_" + c))
 		_os["pied"].append(sq.find_bone("foot_" + c))
 	var pied := sq.get_bone_global_rest(_os["pied"][0]).origin
-	var orteil := sq.get_bone_global_rest(sq.find_bone("ball_l")).origin
 	_h_repos = pied.y
-	_avant = Vector3(orteil.x - pied.x, 0.0, orteil.z - pied.z).normalized()
+	var ib := sq.find_bone("ball_l")      # RIG18 : pas d'orteils, le pied regarde +Z du modele
+	if ib >= 0:
+		var orteil := sq.get_bone_global_rest(ib).origin
+		_avant = Vector3(orteil.x - pied.x, 0.0, orteil.z - pied.z).normalized()
 	_ik = TwoBoneIK3D.new()
 	_ik.name = "IKJambes"
 	_orienteur = Orienteur.new()

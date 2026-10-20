@@ -90,6 +90,7 @@ static func creer(def: PersoDef) -> Node3D:
 	if def.echelle != 1.0:
 		racine.scale = Vector3.ONE * def.echelle
 	racine.set_meta("perso_def", def)
+	PersoRessorts.equiper(racine, def)
 	return racine
 
 static func vider() -> void:
