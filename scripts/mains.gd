@@ -127,17 +127,17 @@ func _texture_poignee() -> ImageTexture:
 func _materiaux_equipement() -> Dictionary:
 	if not _mats.is_empty():
 		return _mats
-	_acier = Palette.materiau(_texture_lame(), Vector2.ONE, Color(0.9, 0.95, 1.05))
+	_acier = Palette.materiau(ObjetsTextures.tex("lame"), Vector2.ONE, Color(1.3, 1.3, 1.38))
 	_mats = {
 		"lame": _acier,
-		"fer": Palette.materiau(Palette.tex("acier", Palette.ACIER, 4, 0.3), Vector2(2, 2), Color(0.5, 0.52, 0.6)),
-		"cuir": Palette.materiau(_texture_poignee(), Vector2(1, 2)),
+		"fer": Palette.materiau(ObjetsTextures.tex("fer"), Vector2.ONE, Color(0.9, 0.9, 0.95)),
+		"cuir": Palette.materiau(ObjetsTextures.tex("tresse"), Vector2.ONE),
 		"gant": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(3, 3), Color(1.05, 0.95, 0.88), true),
 		"brassard": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(2, 2), Color(0.7, 0.66, 0.66), true),
-		"fourrure": Palette.materiau(Palette.tex("fourrure", Palette.FOURRURE, 8, 0.8), Vector2(3, 1), Color(1.25, 1.15, 1.0), true),
-		"tunique": Palette.materiau(Palette.tex("laine_bleue", ["#1c2232", "#232a3d", "#2c3449", "#363f56"], 8, 0.5), Vector2(6, 6), Color.WHITE, true),
-		"gants": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(4, 4), Color(1.05, 0.95, 0.88), true),
-		"brassards": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(4, 4), Color(0.7, 0.66, 0.66), true),
+		"fourrure": Palette.materiau(ObjetsTextures.tex("fourrure"), Vector2(2, 1), Color(1.05, 1.0, 0.95), true),
+		"tunique": Palette.materiau(ObjetsTextures.tex("manche"), Vector2(2, 1), Color.WHITE, true),
+		"gants": Palette.materiau(ObjetsTextures.tex("gant"), Vector2(2, 1), Color(0.86, 0.78, 0.72), true),
+		"brassards": Palette.materiau(ObjetsTextures.tex("brassard"), Vector2(2, 1), Color(1.0, 0.96, 0.96), true),
 		"manche": Palette.materiau(Palette.tex("laine", ["#1a1d26", "#22262f", "#2b303b", "#353b48"], 4, 0.6), Vector2(2, 3), Color.WHITE, true),
 		# peau des bras et des mains sous l'étoffe (bras_fps.glb) : bouche les fissures manche/brassard/gant
 		"sous_couche": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(3, 3), Color(0.8, 0.72, 0.68)),

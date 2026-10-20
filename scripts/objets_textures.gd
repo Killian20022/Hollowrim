@@ -6,7 +6,7 @@ class_name ObjetsTextures
 ## Densités : lame 32 x 128 (≈ 170 texels/m le long, 550 en travers), cuir et fer 32 x 32 sur 5 à 10 cm, flamme 20 x 32 par image.
 
 const DOSSIER := "res://assets/objets"
-const VERSION := 2
+const VERSION := 3
 const NOMS := ["flamme", "halo", "bois", "chiffon", "goudron", "braise", "lame", "tresse", "fer", "gant", "manche", "brassard", "fourrure", "cuir"]
 const CLEAR := Color(0, 0, 0, 0)
 
@@ -351,94 +351,108 @@ static func fer() -> Image:
 	return img
 
 # ------------------------------------------------------------------ gants, manches, brassards, fourrure
-## Cuir de gant 64 x 64 : grain fin en cellules, pli aux articulations, coutures en pointillé (fil clair) et lisérés.
+## Cuir de gant 64 x 96 (UV cylindriques : u = tour de la main, répété 2 fois ; v = le long, poignet en haut) : grain fin en cellules,
+## plis aux articulations, coutures en pointillé (fil clair, trous) sur le dos et au bord, liseré cousu au poignet.
 static func gant() -> Image:
-	var S := 64
-	var img := _img(S, S)
-	for y in S:
-		for x in S:
-			var n := _fbm(x, y, S, S, 6, 6, 41, 3)
+	var W := 64
+	var H := 96
+	var img := _img(W, H)
+	for y in H:
+		for x in W:
+			var n := _fbm(x, y, W, H, 6, 9, 41, 3)
 			var cell := _h(x / 3, y / 3, 42)
-			var l := 0.34 + n * 0.40 + (cell - 0.5) * 0.16
-			# plis horizontaux (articulations) : fines bandes sombres à v = 0.25, 0.5, 0.75
-			var pli := absf(fmod(float(y) / S * 4.0, 1.0) - 0.5)
-			if pli > 0.46:
+			var l := 0.36 + n * 0.40 + (cell - 0.5) * 0.16
+			var pli := absf(fmod(float(y) / H * 6.0, 1.0) - 0.5)       # plis horizontaux (articulations)
+			if pli > 0.47:
 				l -= 0.20
 			_px(img, x, y, _c(CUIR_CLAIR, _ton(l, CUIR_CLAIR.size(), x, y, 0.5)))
-	# coutures : deux lignes verticales (x = 15 et 47) et une horizontale (y = 31), pointillé 3 px fil / 2 px trou, double rangée de trous
-	for t in S:
+	# coutures longitudinales (x = 15 et 47) et transversale (jointures, y = 40) : fil clair 3 px / trou 2 px, ombre de chaque côté
+	for t in H:
 		if t % 5 < 3:
 			_px(img, 15, t, FIL)
 			_px(img, 47, t, FIL)
-			_px(img, t, 31, FIL)
 		_px(img, 16, t, _c(CUIR_CLAIR, 0))
 		_px(img, 14, t, _c(CUIR_CLAIR, 1))
 		_px(img, 48, t, _c(CUIR_CLAIR, 0))
 		_px(img, 46, t, _c(CUIR_CLAIR, 1))
-		_px(img, t, 32, _c(CUIR_CLAIR, 0))
-		_px(img, t, 30, _c(CUIR_CLAIR, 1))
-	# liseré de bord (haut de la texture = poignet) : bande plus sombre cousue
-	for x in S:
-		_px(img, x, 0, _c(CUIR_CLAIR, 0))
-		_px(img, x, 1, _c(CUIR_CLAIR, 1))
-		_px(img, x, 63, _c(CUIR_CLAIR, 0))
-	return img
-
-## Cuir sombre 64 x 64 (gants de la sous-couche, brassards) : même grain, coutures et lacet croisé.
-static func brassard() -> Image:
-	var S := 64
-	var img := _img(S, S)
-	for y in S:
-		for x in S:
-			var n := _fbm(x, y, S, S, 6, 6, 47, 3)
-			var cell := _h(x / 3, y / 3, 48)
-			var l := 0.28 + n * 0.38 + (cell - 0.5) * 0.14
-			_px(img, x, y, _c(CUIR, _ton(l, CUIR.size(), x, y, 0.5)))
-	# lanière de bord (haut et bas) : bande cousue
-	for x in S:
-		for k in 4:
-			_px(img, x, k, _c(CUIR, 2 + (1 if k == 0 else 0)))
-			_px(img, x, S - 1 - k, _c(CUIR, 2 + (1 if k == 3 else 0)))
+	for t in W:
+		if t % 5 < 3:
+			_px(img, t, 40, FIL)
+		_px(img, t, 41, _c(CUIR_CLAIR, 0))
+		_px(img, t, 39, _c(CUIR_CLAIR, 1))
+	# liseré de poignet (haut) : bande cousue, double rangée de fil
+	for x in W:
+		for k in 5:
+			_px(img, x, k, _c(CUIR_CLAIR, 1 if k < 4 else 0))
 		if x % 4 < 2:
 			_px(img, x, 2, FIL)
-			_px(img, x, S - 3, FIL)
-	# lacet croisé au milieu (u 0.4 - 0.6) : X de lanières
-	for y in range(8, S - 8):
-		var phase := (y - 8) % 12
-		var a := 22 + phase if phase < 6 else 22 + 12 - phase
-		for dx in 2:
-			_px(img, a + dx, y, _c(CUIR, 4))
-			_px(img, 41 - (a - 22) + dx, y, _c(CUIR, 4))
-	for k in 6:
-		_px(img, 31, 8 + k * 8, _c(CUIR, 5))
-		_px(img, 32, 8 + k * 8, _c(CUIR, 5))
+	# bouts des doigts (bas) : calotte plus sombre
+	for y in range(H - 10, H):
+		for x in W:
+			var c := img.get_pixel(x, y)
+			img.set_pixel(x, y, c.darkened(0.12 + 0.03 * (y - (H - 10))))
 	return img
 
-## Laine de la manche 64 x 64 : mailles en V (rangées de 4 px), fils plus clairs au bord de chaque maille, côtes en bas.
+## Cuir sombre du brassard 64 x 48 (u = tour, répété 2 fois ; v = le long) : grain, lanières cousues en haut et en bas, lacet croisé.
+static func brassard() -> Image:
+	var W := 64
+	var H := 48
+	var img := _img(W, H)
+	for y in H:
+		for x in W:
+			var n := _fbm(x, y, W, H, 6, 5, 47, 3)
+			var cell := _h(x / 3, y / 3, 48)
+			var l := 0.30 + n * 0.38 + (cell - 0.5) * 0.14
+			_px(img, x, y, _c(CUIR, _ton(l, CUIR.size(), x, y, 0.5)))
+	for x in W:
+		for k in 5:
+			_px(img, x, k, _c(CUIR, 2 + (1 if k == 0 else 0)))
+			_px(img, x, H - 1 - k, _c(CUIR, 2 + (1 if k == 4 else 0)))
+		if x % 4 < 2:
+			_px(img, x, 2, FIL)
+			_px(img, x, H - 3, FIL)
+	# lacet croisé (X) sur la bande centrale de chaque demi-tour (x 20 - 44 de 0 - 64 = 2 motifs de 32)
+	for rep in 2:
+		var ox := rep * 32
+		for y in range(7, H - 7):
+			var ph := (y - 7) % 10
+			var a := 9 + (ph if ph < 5 else 10 - ph) * 2
+			for dx in 2:
+				_px(img, ox + a + dx, y, _c(CUIR, 4))
+				_px(img, ox + 25 - (a - 9) + dx, y, _c(CUIR, 4))
+		_px(img, ox + 15, 6, _c(CUIR, 5))
+	return img
+
+## Laine de la manche 64 x 96 (u = tour, répété 2 fois ; v = le long, poignet en bas) : mailles en V, côtes serrées au poignet.
 static func manche() -> Image:
-	var S := 64
-	var img := _img(S, S)
-	for y in S:
-		for x in S:
+	var W := 64
+	var H := 96
+	var img := _img(W, H)
+	for y in H:
+		for x in W:
 			var rang := y / 4
 			var lx := (x + (0 if rang % 2 == 0 else 2)) % 4
 			var ly := y % 4
-			# maille = V : deux brins diagonaux
 			var brin := (ly == lx) or (ly == 3 - lx)
-			var l := 0.30 + (_fbm(x, y, S, S, 5, 5, 51, 2) - 0.5) * 0.35
+			var l := 0.30 + (_fbm(x, y, W, H, 5, 7, 51, 2) - 0.5) * 0.35
 			if brin:
 				l += 0.22
 			if ly == 3:
 				l -= 0.12
 			_px(img, x, y, _c(LAINE, _ton(l, LAINE.size(), x, y, 0.4)))
-	# côtes du bord (bas, 8 px) : traits verticaux serrés
-	for y in range(S - 8, S):
-		for x in S:
+	# côtes du poignet (bas, 14 px) : traits verticaux serrés ; surpiqûre au-dessus
+	for y in range(H - 14, H):
+		for x in W:
 			var c := 0.18 if x % 4 == 0 else (0.62 if x % 4 == 1 else 0.38)
 			_px(img, x, y, _c(LAINE, _ton(c + (_h(x, y, 52) - 0.5) * 0.2, LAINE.size(), x, y, 0.3)))
-	for x in S:
+	for x in W:
 		if x % 6 < 3:
-			_px(img, x, S - 9, FIL.darkened(0.25))                       # surpiqûre
+			_px(img, x, H - 15, FIL.darkened(0.25))
+	# couture d'épaule à mi-longueur : ligne de fil clair verticale (x = 31)
+	for y in range(0, H - 15):
+		if y % 5 < 3:
+			_px(img, 31, y, FIL.darkened(0.35))
+			_px(img, 63, y, FIL.darkened(0.35))
 	return img
 
 ## Fourrure 32 x 32 : mèches plongeantes (traits de 3 à 6 px clairs et sombres), pointes claires.
