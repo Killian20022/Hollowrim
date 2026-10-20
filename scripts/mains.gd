@@ -68,6 +68,9 @@ var _accroche_g: BoneAttachment3D
 var _doigts := {}
 var torche_lumiere: OmniLight3D
 var flammes: Array[GPUParticles3D] = []
+var _visuels_torche: Array = []   # sprite de flamme et halo (lot 6)
+var _halo_mat: ShaderMaterial
+var _scint := 0.0
 
 func _ready() -> void:
 	# les pivots ne portent plus rien : ce sont les cibles que les mains suivent (IK)
@@ -285,6 +288,8 @@ func _torche() -> void:
 	var t := Torche.construire(porte_torche)
 	flammes.assign(t["flamme"])
 	torche_lumiere = t["lumiere"]
+	_visuels_torche = t["visuels"]
+	_halo_mat = t["halo_mat"]
 
 func _pose(nom: String, sens := 1.0) -> Transform3D:
 	var p: Vector3 = POSES[nom][0]
@@ -422,8 +427,14 @@ func _process(dt: float) -> void:
 	var allumee := torche_sortie or pivot_torche.position.y > -0.8
 	for f in flammes:
 		f.emitting = allumee
+	for n: Node3D in _visuels_torche:
+		n.visible = allumee
 	torche_lumiere.visible = allumee
-	torche_lumiere.light_energy = 1.4 + sin(_respiration * 13.0) * 0.12 + sin(_respiration * 29.0) * 0.08 + randf() * 0.12
+	# lumière vacillante : sinus incommensurables + scintillement par paliers (14 par seconde), sans hasard par image
+	var palier := floorf(_respiration * 14.0)
+	var scint := fposmod(sin(palier * 12.9898) * 43758.5453, 1.0)
+	torche_lumiere.light_energy = 1.4 + sin(_respiration * 13.0) * 0.12 + sin(_respiration * 29.0) * 0.08 + scint * 0.14
+	_halo_mat.set_shader_parameter("intensite", 0.8 + (torche_lumiere.light_energy - 1.4) * 0.8)
 
 func _tester_coup() -> void:
 	var cam := get_parent() as Node3D

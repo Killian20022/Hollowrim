@@ -838,6 +838,8 @@ func _process(dt: float) -> void:
 
 ## Sous terre, la flamme de la torche tenue devient le sprite pixel art (comme dans la crypte, sans toucher à tertre.gd).
 func _torche() -> void:
+	return   # lot 6 : la torche tenue porte déjà son sprite de flamme partout (scripts/torche.gd)
+	@warning_ignore("unreachable_code")
 	if joueur == null or not is_instance_valid(joueur):
 		return
 	var mains: Node = joueur.get("mains")

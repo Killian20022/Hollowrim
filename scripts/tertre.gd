@@ -94,6 +94,8 @@ func _process(dt: float) -> void:
 ## Sous terre, la flamme de la torche tenue en main devient un sprite pixel art (les grosses particules
 ## additives faisaient une tache blanche carrée sans glow) ; dehors, tout est remis comme avant.
 func _flamme_main() -> void:
+	return   # lot 6 : la torche tenue porte déjà son sprite de flamme partout (scripts/torche.gd)
+	@warning_ignore("unreachable_code")
 	var mains: Node = joueur.mains
 	if mains == null or d == null:
 		return
