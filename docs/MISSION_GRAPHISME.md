@@ -728,6 +728,73 @@ Grotte de ~124 m (parcours entrée → fond), construite à la demande sous le m
 - Mesures (2.5,8.5,16,4) : primitives 382,8 k → 401,9 k (+19 k) ; GPU 6,1-6,5 ms contre 6,0-6,8 avant (indiscernable du bruit).
 - Planches : `captures/arbres/planches_troncs/planche_troncs_avant_apres_v2_{jour,nuit}.png`.
 
+## Journal — Intérieurs enterables de Skarnholt (« kit intérieur »), branche `graphisme/kit-interieur`
+
+Mission : les 5 bâtiments du village (longue maison de la cheffe, trois maisons, forge) s'ouvrent : on pousse la porte (touche E) et on
+marche DANS le volume, sans écran de chargement. Les intérieurs sont dessinés à l'image de leurs occupants (`data/villageois.json`).
+Référence de style : lot 5 (rondins octogonaux, soubassement, 12 tons) et lot 7a (flammes sprites, halos, lumières courtes).
+
+### Description par lieu (Murs/Structure · Mobilier · Éclairage)
+**Halle de Gunnhild (longue maison 14 × 7 m)**
+1. *Murs/Structure* : nef de rondins octogonaux (moitié visible de la pièce en matière d'intérieur), deux files de 5 poteaux octogonaux sur
+   socle de pierre, 5 fermes (entrait en rondin, poinçon, jambes de force, arbalétriers), faîtage, lambris sombre sous le toit avec nervures, pignons
+   lambrissés, trou à fumée réel dans la dalle de toit (gaine sombre, rebord, petite lucarne à deux pans), plancher de planches, dallage de foyer.
+2. *Mobilier* : foyer long de 4,4 m (cadre de pierre, cendre, braises, bûches), estrade à deux marches et trône sculpté (dossier, poteaux à têtes de
+   dragon, accoudoirs, peaux), 4 longues tables sur tréteaux et bancs, boucliers peints, 3 tentures tissées, ramures, râteliers de lances et de haches,
+   lit clos de la cheffe, coffres ferrés, tonneaux cerclés, étagère de cruches, sacs, bûchers ; Micro : étain, chopes, pain, os rongés, parchemins,
+   bougies, crânes, jambons et saucissons, herbes, lanterne, marmite sur crémaillère.
+3. *Éclairage* : 2 feux (2,6 / 8,5 m) sur le foyer, 3 appliques (1,5 / 5 m), flammes en sprites, halos au sol, rai de lumière du trou à fumée (cartes
+   additives croisées) — 5 lumières, sans ombre.
+
+**Forge de Brodd (appentis fermé ≈ 4,2 × 3,4 m)**
+1. *Murs/Structure* : quatre poteaux octogonaux, murs latéraux en pierre sèche à trois tronçons suivant la pente du toit (doublage intérieur en
+   matière d'intérieur), mur de fond en pierre, façade de planches avec fenêtre à volet relevé et double porte à deux vantaux, toit à une pente lambrissé,
+   sol de terre battue et de dalles au niveau du village (pas de marche).
+2. *Mobilier* : foyer surélevé sous une hotte de pierre étagée, soufflet de cuir, enclume sur billot avec barre chauffée à blanc, bac de trempe cerclé,
+   réserve de charbon, établi (étau, limes, lame brute, clous), meule à eau, tonneau, râteliers d'outils et de lames, fers à cheval suspendus.
+3. *Éclairage* : foyer (3,2 / 8 m) + 1 applique ; flammes sprites, halo au sol, braise émissive sur l'enclume.
+
+**Maison de Sigrún la Voyante (8 × 5,5 m)** — murs de rondins, colonne-cheminée centrale en pierre (niche, linteau, âtre, crémaillère), 3 fermes ;
+plate-forme octogonale de transe avec 8 pierres de rune luisantes (halo et lumière bleus), bâton de seiðr, table d'herboriste (mortier, balance, runes,
+livre, crâne, bougies), étagère de crânes et de bocaux, perche et bouquets d'herbes, mobile de runes et d'os, lit de peaux, coffres, tonneaux ;
+4 lumières (âtre, bougies, applique, rune).
+**Maison des chasseurs (8 × 5,5 m)** — même coque ; deux lits (celui d'Ylva et celui d'Eirik, défait, avec sac et parchemin), mur d'arcs/carquois/hache/épée,
+table de dépeçage (peau en raclage, couteau, pierre à aiguiser), deux cadres de peaux tendues, séchoir à viande, viandes pendues, raquettes, bottes qui sèchent,
+tonneau de viande salée ; 3 lumières.
+**Maison de Grima Cendrefroide (7 × 5 m)** — métier à tisser à poids (montants, fils tendus, pesons, tissu commencé), marmite à la crémaillère, étagère de pots
+et de bols, table de pétrissage, tresses d'oignons, quenouille au coin du feu, lit modeste, tonneaux, coffre ; 3 lumières.
+
+### Réalisation
+- **Coque creuse** (`village.gd`) : `_ame` (cloisons de 20 cm percées de la porte et des 4 fenêtres), `_murs_rondins` (chaque rondin coupé aux ouvertures ;
+  `_rondin` sépare le fût en deux moitiés : l'extérieure garde la matière du village, l'intérieure passe dans l'intérieur avec la matière `ps1_interieur`),
+  `_coque_collisions` (plancher, 4 murs, linteau, ouverture de 1,24 m côté +Z), `_rampe_porte` (le joueur ne monte pas de marche : prisme convexe de 0 à 0,42 m
+  sous les deux marches), `_bloc_porte` (blocage tant que la porte est fermée), `_vantail` (porte sur charnière).
+- **Interieur** (`scripts/interieur.gd`) : un nœud par bâtiment. Masque le contenu au-delà de 13 m de l'emprise, n'allume les lumières qu'à moins de 8 m ou dedans
+  (vacillement au pas de 1/12 s), anime la porte (0,5 s, bruit de porte), la referme seule au-delà de 14 m, expose l'objet « porte » (`Interactif`, touche E,
+  « Ouvrir / Fermer la porte »). `monde.gd` appelle `village.activer_interieurs(joueur, dialogue)`.
+- **Interieurs** (`scripts/interieurs.gd`) : matières, briques (boîte, cylindre, rondin, quad, polygone, tenture), coque (plancher, plafond sous charpente, fermes, poteaux,
+  gaine du trou à fumée), mobilier courant, flammes (`crypte_flamme.gdshader`), halos et rais additifs. Contenus : `interieur_halle.gd`, `interieurs_maisons.gd`
+  (+ colonne de foyer), `interieur_forge.gd`.
+- **Shaders** : `ps1_interieur.gdshader` (copie de `ps1_bati` SANS lumière ambiante du ciel — `ambient_light_disabled` + ambiante propre `ambiant` ajoutée à l'émission ;
+  le soleil/la lune n'entrent que par les fenêtres, la porte et le trou à fumée grâce à leurs ombres) ; `ps1_vitre.gdshader` (carreaux translucides vus du dedans, de plus en plus
+  opaques avec la distance, allumés la nuit seulement vus du dehors : `nuit` réglée depuis `village.gd` d'après `cycle.clarte()`).
+- **Textures peintes** (`scripts/peinture_interieur.gd`, ajoutées à `PeintureBati.fabriques()`) : `tenture_rouge/bleue/verte` (1,5 × 2 m, galon, losanges, frange), `peau` (poil par
+  touffes, taches), `terre` (terre battue, cailloux, paille), `charbon`, `vitrage`. Cuites dans `assets/bati/` par `outils/cuire_bati.gd` ; `os` et `parchemin` réutilisent ceux de la crypte.
+  `precalculer_tout` les prend en charge (générateur `bati`).
+- **Toit** : `_pan` / `_toit` / `BatiGeo.dalle_neige` acceptent un trou à fumée (premier rang de la dalle, planches et chevrons coupés, faîtière et rouleau de neige interrompus) ;
+  `BatiGeo.trou_cases` aligne le trou sur la grille de la dalle.
+- **Forge** : réécrite en bâtiment fermé ; poste du forgeron déplacé DANS la forge (`lieux["forge"]`), forgeron sédentaire (`village.sedentaires`), plus dans la promenade des autres.
+- **Chargement** : la coque est construite au chargement ; plafond, mobilier et lumières sont construits APRÈS, une maison par image (`village._differes`, signal `interieurs_prets`).
+- **Outils** : `outils/captures_interieurs.sh` + `outils/poses_interieurs.txt` (captures groupées, type `interieur`), option `--dans=bat,x,z,lacet,tangage[,ouvert]`
+  (mesures), `outils/test_interieurs.gd` (ajouté à `tous_les_tests.sh`).
+
+### Pièges rencontrés
+- GDScript : `//` n'existe pas ; `var x := variante` ne se type pas (`for c in [-1.0, 1.0]` donne des Variant) ; un nouveau `class_name` demande `--headless --import` avant `--check-only`.
+- Chaque `Basis(Vector3.UP, lacet) * Vector3.BACK` donne la direction regardée par un objet de lacet donné (0 → +Z, π/2 → +X) ; le joueur, lui, regarde -Z (lacet 0 → mur du fond).
+- Le mobilier posé sur « le sol » prend `ip.sol_y` quand son y < 0,2 (halle/maisons : 0,42 ; forge : 0,04).
+- Pas de lumière ambiante dans la pièce sans `ambient_light_disabled` : sinon plafond et murs intérieurs restent clairs comme dehors (le ciel éclaire tout sans ombre).
+- La porte se referme seule quand la caméra est à plus de 14 m : les tests et captures qui l'ouvrent doivent garder le joueur près d'elle.
+
 ## Journal — Entrée de la grotte des bandits, branche `graphisme/grotte-entree`
 
 La grotte vitrine (sous le monde, `POS_MONDE = (20, -220, 100)`) a maintenant une **entrée dans le monde**, une transition fondue comme la crypte, une construction en fil d'exécution, la sauvegarde sous terre et quatre bandits au camp. Nouveaux fichiers : `scripts/grotte_acces.gd` (classe `GrotteAcces`), `outils/test_grotte_acces.gd`, `outils/poses_grotte_acces.txt`, `outils/scan_relief.gd`.
@@ -785,3 +852,27 @@ Dans la grotte, la position sauvegardée est celle du fichier (y ≈ -215) ; au 
 - **Tests** : `tous_les_tests.sh` 15 OK / 0 échec. Sous terre inchangé (comparé avant/après).
 - Planches : `captures/lumiere/planches/avant_apres_{jour,crepuscule,nuit}.png` (avant | après ; poses feu, chemin, crête, lisière, village).
 - Défauts restants : la crête hors zone témoin montre le sol vert de l'ancien biome ; le « pop » mesh complet → LOD à 44-48 m n'est pas mesuré à l'oeil en mouvement ; village : le crépuscule de scénario non vérifié séparément.
+
+### Résultats (kit intérieur)
+- **Perf** (fenêtre, vsync off, PC chargé par 4 agents, mesures A/B alternées avec `../nordique` = biome/zone-temoin, `outils/mesure_perf.gd`) : pose habituelle du village
+  (2.5,8.5,16,4) **inchangée** (8,2-8,4 ms des deux côtés, 679 appels : les intérieurs sont masqués au-delà de 13 m) ; pire cas, face à la porte de la halle à 5 m
+  (45.5,41.3,-132,-2) : base 7,3-7,9 ms / 246 appels / 384 k primitives → **8,1 ms** / 302 appels / 412 k (+0,5 ms) ; DANS la halle (`--dans=halle,0,2,0,-4,ouvert`) 8,1 ms,
+  266 appels ; dans la forge 8,6-8,7 ms (331 appels). Triangles par intérieur : halle 19,9 k, Sigrún 12,7 k, chasseurs 8,2 k, Grima 9,1 k, forge 5,8 k ; ni ombre ni
+  collision de décor inutile (l'intérieur ne projette pas d'ombre). La base elle-même dépasse 8 ms quand la machine est chargée.
+- **Chargement** : `monde._ready` ≈ inchangé (3 paires A/B alternées : 1 718 → 1 710 ms, 1 338 → 1 313 ms ; village + villageois +0 à +40 ms) ; le mobilier est construit après,
+  une maison par image (40-150 ms par image les 5 premières images du jeu).
+- **Tests** : `test_interieurs` (85+ vérifications : porte fermée bloque, entrée/sortie par la porte des 5 bâtiments, poussée contre les murs de dedans et de dehors, sol, fermeture automatique,
+  visibilité/lumières à 0 / 5 / 11 / 50 m, ≤ 8 lumières par bâtiment, forgeron dans sa forge), `test_quetes -- --nouvelle`, `test_villageois`, `test_marche_pnj`, `test_collisions_biome`,
+  `test_chemin_biome -- --paisible` : tous OK.
+- **Planches** (non commitées, `captures/` est ignoré) : `captures/interieurs/planches/{halle_jour,halle_nuit,maisons_jour,maisons_nuit,forge_jour_nuit}.png` ; vues individuelles
+  `captures/interieurs/final3/*.png` (46 poses jour/nuit, `bash outils/captures_interieurs.sh <dossier>` : 25 s pour 48 vues).
+- **Brume** : la brume du lot 7 (`cycle.gd`, début à 0,36 × fin ≈ 16-27 m) ne voile pas les pièces (14 m au plus) ; les intérieurs ne la modifient pas.
+
+### Défauts restants
+- Les maisons n'ont pas de vie nocturne : aucun villageois n'y dort (seul le forgeron y est, toute la journée) ; les poses « sous un entrait » (< 0,5 m) montrent un rondin très sombre.
+- Pierre sèche de la forge (doublage) encore un peu bleutée à 0,5 m ; texels de peau et de terre visibles à moins de 1 m (32 texels/m).
+- Pas de collision sur les petits objets (bols, crânes, chopes) ; les herbes/viandes pendues n'ont pas de collision (elles sont au-dessus de la tête ou hors passage).
+- Le rai de lumière et les halos sont des cartes additives plates : lisibles de loin, plats à 30 cm. La fenêtre de la forge n'a pas de carreau (ouverte, volet relevé).
+- Un seul modèle de porte par maison (pas de serrure) ; la porte de la halle s'ouvre vers l'extérieur et passe au-dessus des marches.
+- Fichiers partagés touchés : `scripts/village.gd` (réécriture des maisons et de la forge), `scripts/monde.gd` (+~60 lignes : scénario/lot `interieur`, `--dans=`, `activer_interieurs`,
+  forgeron sédentaire), `scripts/bati_geo.gd` (`dalle_neige` + `trou_cases`), `scripts/peinture_bati.gd` (fusion des fabriques), `outils/tous_les_tests.sh` (+ `test_interieurs`).

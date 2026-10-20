@@ -279,7 +279,7 @@ static func _orienter_fut(fut: Maillage, anneaux: Array) -> Maillage:
 ## depuis le faîte). Épaisseur ~ 18-26 cm, dessus bosselé (neige soufflée), faîte qui ondule et qui s'affaisse,
 ## lèvre d'égout et rives à bord irrégulier (neige puis tourbe sombre, alpha de sommet 1). `Lx` longueur, `Sl`
 ## longueur de pente. Normales lissées (SurfaceTool) : la neige est molle.
-static func dalle_neige(Lx: float, Sl: float, graine: int, epaisseur := 0.22, ondule := 0.05) -> ArrayMesh:
+static func dalle_neige(Lx: float, Sl: float, graine: int, epaisseur := 0.22, ondule := 0.05, trou := Vector2.ZERO) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var nx := maxi(4, ceili(Lx / 0.9))
@@ -307,6 +307,11 @@ static func dalle_neige(Lx: float, Sl: float, graine: int, epaisseur := 0.22, on
 		grid.append(col)
 	for i in nx:
 		for j in ns:
+			# trou à fumée (lot intérieurs) : les cases du premier rang (au faîte) dont le centre est dans [trou.x, trou.y] manquent
+			if trou != Vector2.ZERO and j == 0:
+				var xc := -Lx * 0.5 + Lx * (i + 0.5) / nx
+				if xc > trou.x and xc < trou.y:
+					continue
 			var a: Vector3 = grid[i][j]
 			var b: Vector3 = grid[i + 1][j]
 			var c: Vector3 = grid[i + 1][j + 1]
@@ -358,3 +363,12 @@ static func dalle_neige(Lx: float, Sl: float, graine: int, epaisseur := 0.22, on
 			pb = bas
 	st.generate_normals()
 	return st.commit()
+
+## Intervalle [x0, x1] de `nb` cases de dalle (voir `dalle_neige`) le plus proche de `centre_x` : les bords du trou à fumée
+## tombent exactement sur les arêtes de la grille de la dalle.
+static func trou_cases(Lx: float, centre_x: float, nb: int) -> Vector2:
+	var nx := maxi(4, ceili(Lx / 0.9))
+	var dx := Lx / nx
+	var i0 := roundi((centre_x + Lx * 0.5) / dx - nb * 0.5)
+	var x0 := -Lx * 0.5 + i0 * dx
+	return Vector2(x0, x0 + nb * dx)

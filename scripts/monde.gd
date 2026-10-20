@@ -159,6 +159,7 @@ func _ready() -> void:
 	_capture()
 	Chrono.total()
 	_aller_crypte()
+	_aller_interieur()
 	if _arguments().has("grotte") and not _arguments().has("capture"):
 		_aller_grotte(_arguments()["grotte"])
 
@@ -513,13 +514,15 @@ func _villageois() -> void:
 	quetes.hud = hud
 	add_child(quetes)
 	hud.quetes = quetes
+	village.activer_interieurs(joueur, dialogue)   # portes des maisons (touche E)
 	var promenade: Array = village.promenade
 	for d in VILLAGEOIS.charger():
 		var poste: Vector3 = village.lieux.get(d.get("lieu", "place"), village.lieux["place"])
 		var points: Array[Vector3] = [poste]
-		for p in promenade.duplicate():
-			if p != poste and randf() < 0.4 and points.size() < 4:
-				points.append(p)
+		if not village.sedentaires.has(d.get("lieu", "place")):   # le forgeron reste dans sa forge (porte fermée la nuit, murs)
+			for p in promenade.duplicate():
+				if p != poste and randf() < 0.4 and points.size() < 4:
+					points.append(p)
 		var v := CharacterBody3D.new()
 		v.set_script(VILLAGEOIS)
 		v.donnees = d
@@ -913,6 +916,22 @@ func _arguments() -> Dictionary:
 		res["capture"] = ""  # --captures=<fichier> : mode capture (temps figé, ni musique ni sauvegarde)
 	return res
 
+## --dans=bat,x,z,lacet°,tangage°[,ouvert] : se place dans (ou devant) une maison (hors capture : mesures de performance, essais ;
+## repère du bâtiment, lacet 0 = vers -Z).
+func _aller_interieur() -> void:
+	var a: String = _arguments().get("dans", "")
+	if a == "" or _arguments().has("capture"):
+		return
+	var p := a.split(",")
+	var ip: Interieur = village.interieur(p[0])
+	if ip == null or p.size() < 5:
+		return
+	if p.size() > 5 and p[5] == "ouvert":
+		ip.basculer(true, false)
+	joueur.global_position = ip.to_global(Vector3(float(p[1]), ip.sol_y + 0.12, float(p[2])))
+	joueur.rotation.y = ip.global_rotation.y + deg_to_rad(float(p[3]))
+	joueur.tete.rotation.x = deg_to_rad(float(p[4]))
+
 ## Ouvre des portes du donjon sans animation (captures, essais) : « s1,s2,s3,secret,herse ».
 func _ouvrir_donjon(liste: String) -> void:
 	for id in liste.split(","):
@@ -1025,6 +1044,7 @@ func _capture() -> void:
 ## Une ligne par vue : `nom type coords [option=valeur …]` ; `#` = commentaire. Types :
 ##   monde x,z,lacet°,tangage°      crypte x,z,lacet°,tangage° (repère de la crypte)
 ##   grotte s,décalage,lacet°,tangage°      scenario <nom> (village, place, forge, dialogue…)
+##   interieur x,z,lacet°,tangage° bat=halle|sigrun|chasseurs|grima|forge [ouvert]  (repère du bâtiment ; lacet 0 = vers -Z)
 ## Options : heure=12 (sinon l'heure de départ, nuit) · sans-mains · torche-eteinte · attente=N images.
 ## --attente= vaut pour la 1re vue ; les suivantes attendent --attente-suite= (20) images.
 ## Les PNG vont dans --sortie=<dossier> (ou à côté du fichier de poses), nommés <nom>.png.
@@ -1039,7 +1059,7 @@ func _lot_captures(fichier: String) -> void:
 		return
 	var sortie: String = _arguments().get("sortie", fichier.get_base_dir())
 	DirAccess.make_dir_recursive_absolute(sortie)
-	var rang := {"monde": 0, "scenario": 1, "crypte": 2, "grotte": 3}
+	var rang := {"monde": 0, "interieur": 0, "scenario": 1, "crypte": 2, "grotte": 3}
 	var vues: Array = []
 	for ligne in texte.split("\n"):
 		var m := ligne.strip_edges().split(" ", false)
@@ -1066,7 +1086,7 @@ func _lot_captures(fichier: String) -> void:
 		var c := PackedFloat64Array()
 		if type != "scenario":
 			c = String(v["coords"]).split_floats(",")
-		if type == "monde" or type == "scenario":
+		if type == "monde" or type == "scenario" or type == "interieur":
 			if dessous != "":
 				push_error("--captures : vue monde/scénario « %s » après le sous-sol, ignorée" % v["nom"])
 				continue
@@ -1079,6 +1099,15 @@ func _lot_captures(fichier: String) -> void:
 			if type == "monde":
 				joueur.global_position = Vector3(c[0], hauteur(c[0], c[1]) + 0.1, c[1])
 				joueur.rotation.y = deg_to_rad(c[2])
+				joueur.tete.rotation.x = deg_to_rad(c[3]) if c.size() > 3 else 0.0
+				joueur.velocity = Vector3.ZERO
+				_brume_locale(0.0, true)
+			elif type == "interieur":
+				# lot « kit intérieur » : `nom interieur x,z,lacet°,tangage° bat=halle|sigrun|chasseurs|grima|forge [ouvert]` (repère du bâtiment)
+				var ip: Interieur = village.interieur(String(opt.get("bat", "halle")))
+				ip.basculer(opt.has("ouvert"), false)
+				joueur.global_position = ip.to_global(Vector3(c[0], ip.sol_y + 0.12, c[1]))
+				joueur.rotation.y = ip.global_rotation.y + deg_to_rad(c[2])
 				joueur.tete.rotation.x = deg_to_rad(c[3]) if c.size() > 3 else 0.0
 				joueur.velocity = Vector3.ZERO
 				_brume_locale(0.0, true)
@@ -1192,6 +1221,18 @@ func _scenario(nom: String) -> void:
 			_placer(v.to_global(Vector3(0, 0, 30)), v.to_global(Vector3(0, 2.5, 0)))
 		"place":
 			_placer(v.to_global(Vector3(4, 0, 7)), v.to_global(Vector3(0, 2.2, -12)))
+		"interieur":
+			# --bat=halle|sigrun|chasseurs|grima|forge --ipose=x,z,lacet°,tangage° (repère du bâtiment ; lacet 0 = vers -Z)
+			# [--ouvert] porte ouverte ; [--ext] pose exprimée hors du bâtiment (même repère)
+			var ip: Interieur = v.interieur(String(_arguments().get("bat", "halle")))
+			var a: PackedStringArray = String(_arguments().get("ipose", "0,0,0,0")).split(",")
+			if _arguments().has("ouvert"):
+				ip.basculer(true, false)
+			joueur.global_position = ip.to_global(Vector3(float(a[0]), ip.sol_y + 0.12, float(a[1])))
+			joueur.rotation.y = ip.global_rotation.y + deg_to_rad(float(a[2]))
+			joueur.tete.rotation.x = deg_to_rad(float(a[3]) if a.size() > 3 else 0.0)
+			for i in 40:
+				await get_tree().process_frame
 		"forge":
 			_placer(v.to_global(Vector3(-6, 0, 9)), v.to_global(Vector3(-12.5, 1.2, 6)))
 		"dialogue":

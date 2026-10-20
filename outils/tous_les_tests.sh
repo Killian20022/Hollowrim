@@ -30,6 +30,7 @@ TESTS=(
 	"test_ragdoll|--nouvelle"
 	"test_musique|--nouvelle"
 	"test_villageois|--nouvelle"
+	"test_interieurs|--nouvelle"
 	"test_sauvegarde|ecrire;verifier"   # deux processus à la suite
 )
 # tests dont le résultat dépend du pas de physique : lancés en temps réel (test_ragdoll : « genou hyper-étendu » en --fixed-fps, et parfois en temps réel sous charge → un 2e essai)
