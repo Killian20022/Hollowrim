@@ -575,3 +575,52 @@ Aucune fonction de `palette.gd` n'est touchée.
 - Les appliques vues de loin se lisent comme un anneau orange à centre sombre (la torche) ; le halo est volontairement discret.
 - Sprite de flamme et lumière de la torche tenue : seulement sous terre (le lot 6 refera la torche partout).
 - Pas de collision sur la plupart des petits objets (urnes, os, armes) : on les traverse ; seuls sarcophages, coffres, contreforts et piliers sont solides.
+
+## Journal — Grotte vitrine, branche `graphisme/grotte`
+
+Grotte de ~124 m (parcours entrée → fond), construite à la demande sous le monde (origine `POS_MONDE = (20, -220, 100)`), **sans entrée câblée** dans le monde. Nouveaux fichiers : `scripts/grotte.gd`, `scripts/grotte_decor.gd` (étend `CrypteDecor`, non modifié), `scripts/grotte_textures.gd`, `shaders/grotte.gdshader`, `outils/test_grotte.gd`, `outils/captures_grotte.gd|.sh`, `outils/planche_grotte.gd`.
+
+### Principe
+- Un TUBE fermé : anneaux de 18 sommets le long d'une ligne médiane (cap + altitude en terrasses), facettes plates, couleur de sommet : rgb = AO peinte, a = masque de recouvrement (neige / glace / mousse) comparé au seuil stocké dans l'alpha de la texture de recouvrement. Aucune fuite de ciel possible (test d'étanchéité par rayons).
+- Collisions : trimesh de la coque (4068 triangles) + cylindres/boîtes pour les accessoires (81 formes).
+- Textures 128 px = 4 m (32 texels/m), rampes de 8-12 tons (roche, strate, sol, neige, glace, mousse, cristal, peau, paille, bois via la crypte). Épaulement/AO peints, arêtes discrètes.
+- Lumières : OmniLight courtes, sans ombre, 19 au total, 4-6 par salle, `distance_fade`. Chaud au camp, vert mousse / bleu glacier ailleurs ; cristaux émissifs ; rai de lumière oblique par la faille ; jamais de noir total.
+
+### Description en trois points, par lieu
+**1. Pente d'entrée** — Murs/Structure : pente de neige soufflée entre deux parois, lèvre de roche, ciel peint fermant l'entrée (carte « jour » non éclairée). Mobilier : rochers, cailloux, quelques sapins en fond. Éclairage : jour froid bleuté, flocons.
+**2. Boyau** — Murs : tube étroit en facettes, roche humide et mousse, étais. Mobilier : crâne sur pique, cailloux. Éclairage : vert mousse faible, lueur bleue au loin.
+**3. Grande caverne / lac gelé** — Murs : voûte haute avec faille au plafond fermée par une bande émissive, lac gelé (`LAC_Y = -4.7`), colonnes, stalactites/stalagmites repères. Mobilier : blocs de glace, cristaux en grappes sur les sommets d'anneau. Éclairage : bleu glacier, rai oblique, flaque lumineuse au sol.
+**4. Galerie à strates** — Murs : strates marquées, marches naturelles, ruptures de pente (≤ 27,8°), boisage. Mobilier : caisses, os. Éclairage : torches chaudes éparses, bleu sourd.
+**5. Camp de bandits** — Murs : salle élargie, roche nue au goulet. Mobilier : feu de camp (MultiMesh), couchages, caisses, tonneaux, râtelier d'armes, coffre ouvert, butin (pièces, sacs), crânes. Éclairage : feu orange vacillant + torches, ambiance chaude.
+**6. Fond de cristaux** — Murs : cul-de-sac à cristaux bleu glacier. Mobilier : grappes de cristaux. Éclairage : émission des cristaux.
+
+### Lignes partagées touchées : `scripts/monde.gd` (+19 lignes)
+- `var grotte: Node` et `_aller_grotte(pose)` (crée la grotte, `_sous_terre(true)`, `grotte.ambiance(_env)`, place le joueur).
+- `_ready` : après `_aller_crypte()`, `--grotte=s,décalage,lacet°,tangage°` (hors `--capture`).
+- `_scenario` : cas `"grotte"` (`--scenario=grotte --gpose=…`).
+- Convention : lacet positif = tourner à gauche ; `s` = mètres le long du parcours (0-124).
+
+### Pièges
+- Le joueur est borné à `LIMITE = 108` : l'origine de la grotte doit rester dans ±108 (d'où x=20, z=100).
+- `captures/` est ignoré par git : les planches (`captures/grotte/planche_*.png`, `textures/`) n'existent que sur disque.
+- `GrotteDecor` dépend des internes de `CrypteDecor` (`_buf`, `_tri`, `quad`, `TUILE`, `mat`, `_mats`…) : si la crypte est refactorée, vérifier `test_grotte`.
+- Outils : `outils/captures_grotte.gd` (multi-poses, `--mains`, `--x2`), `outils/test_grotte.gd`.
+
+### Mesures (indicatives, 3 autres agents actifs)
+- Construction : ~890 ms à vide (15 141 facettes, 112 anneaux).
+- Fenêtre, vsync off : caverne (s=50) GPU 0,94 ms, 170 appels, 20 544 primitives ; camp (s=100) GPU 0,86 ms, 121 appels, 13 440 primitives (budget 8 ms).
+- Test : étanchéité 4480 rayons, 0 sans impact ; capsule arrive au fond en 30,5 s ; `test_quetes -- --nouvelle` OK.
+
+### Défauts restants
+- Léger halo bleu (« portail ») au goulet du camp ; bruit « fourrure » sur la voûte de la caverne ; couchages bas ; blocs de texels visibles à 1-1,5 m des parois ; petits accessoires sans collision ; monochromie bleue au fond ; plaques de neige un peu « camouflage » ; motif en étoile au bouchon de fin ; construction synchrone (~1-2,7 s sous charge), à passer en thread si l'entrée est câblée.
+
+### Grotte vitrine — 2e passe (pixel art net, textures précalculées)
+- **Roche** (`GrotteTextures.roche_image`, 3 variantes : ardoise, gris, **roche givrée** pour l'entrée) : réécrite en aplats. Grandes facettes (~1,5 m) d'UN ton, bancs horizontaux décalant le ton d'un cran, fractures de 1 px (ligne sombre, lèvre claire / creux sombre), amas d'éclats ; plus aucun grain. 10 tons utilisés de 1 à 8. Fini le bruit « fourrure ».
+- **Neige** : couleurs et rides du sol du lot 3 (`SolTuiles.tuile_neige`, dépendance : le lot 3 doit être présent). Deux textures : `neige` (parois ; seuil en BANCS horizontaux : la neige s'accroche en haut des strates) et `neige_sol` (plaques irrégulières, tons resserrés). Glace et mousse utilisent le même seuil en bancs. Le shader `grotte.gdshader` n'a plus que deux niveaux (net / pas de demi-teinte).
+- **Entrée** : congères basses (`GrotteDecor.congere`, sans collision, ≤ 0,5 m) à la place des gros blocs lisses ; parois de roche givrée. Vue vers l'extérieur : brume blanche de tempête (rubans de vent par paliers, masses lointaines à peine visibles) au lieu des sapins plats.
+- **Goulet du camp** : portique de bois + rideau de peaux à deux panneaux décalés (sans collision) : il ferme la vue sur le bleu des cristaux (le « portail »). La pose `fond` est maintenant à s = 112,5.
+- **Camp** : couchages sur châlit (0,6 m, collision recalée). **Fond** : bouchon en anneaux concentriques décalés (plus d'étoile), AO uniforme. **Cristaux** : 4 familles de couleurs (bleu, cyan, violet froid, blanc), bandes obliques nettes, arêtes claires, reflets d'un pixel ; teintes de sommet cyan/violet.
+- **Précalcul** : `outils/generer_grotte.gd` écrit `assets/grotte/*.res` (18 images avec mipmaps, ~255 Ko). `GrotteDecor` les charge si elles existent et repeint dans des fils sinon (repli). **Relancer l'outil après toute modif de `grotte_textures.gd`** : `godot --headless --path . --script res://outils/generer_grotte.gd`. Construction de la grotte : ~890 ms → ~275-520 ms (le reste est le maillage, inchangé).
+- Mesures (fenêtre, vsync off) : s=50 GPU 0,89 ms, 171 appels, 21 017 primitives ; s=100 GPU 0,85 ms, 101 appels, 11 256 primitives. Tests : `test_grotte` (étanchéité 4480 rayons, capsule au fond en 30,4 s), `test_quetes -- --nouvelle`, `test_collisions_biome` : OK.
+- Planches : `captures/grotte/planche_v2_*.png` (avant = 9ce611e sans mains | après avec mains/torche), `planche_v2_montage.png`.
+- Défauts restants : les parois de glace gardent des « éclats » de fissure blancs un peu rayés ; bruit de bancs encore perceptible en très gros plan ; mousse du boyau encore vive ; le sol de neige à l'entrée garde un aspect de mosaïque de plaques (même rendu que le terrain) ; le rideau se traverse sans collision.
