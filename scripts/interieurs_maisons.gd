@@ -47,7 +47,7 @@ static func _colonne_foyer(b: Interieurs, xch: float) -> void:
 	# âtre : dalle de pierre devant la bouche, halos, lumière
 	b.dallage(Rect2(xch - 1.5, -0.85, 1.1, 1.7), "pierre_sombre", F + 0.03)
 	b.halo(Vector3(xch - 0.85, F + 0.05, 0), Vector3.UP, 3.4, 3.4, Color(1, 0.9, 0.8, 1))
-	b.lumiere(Vector3(xch - 0.9, F + 1.0, 0), 2.3, 7.0)
+	b.lumiere(Vector3(xch - 0.9, F + 1.1, 0), 2.9, 7.5)
 	# crémaillère : bras de fer pivotant et marmite
 	b.cyl(Vector3(xch - 0.5, F + 1.3, 0.45), 0.025, 1.7, "fer_noir", 4)
 	b.cyl_h(Vector3(xch - 0.88, F + 1.7, 0.45), 0.02, 0.8, "fer_noir", PI * 0.5, 4)
@@ -119,7 +119,7 @@ static func _sigrun(b: Interieurs, xch: float) -> void:
 	# --- suspendus aux entraits : bouquets, mobile de runes et d'os
 	for x in Interieurs.FERMES["sigrun"]:
 		for k in 4:
-			b.herbes(Vector3(x + (k - 1.5) * 0.45, b.y0 - 0.3, (k % 2) * 3.7 - 1.85), 0.6 * k, 0.8 + 0.08 * (k % 3))
+			b.herbes(Vector3(x + (k - 1.5) * 0.45 + (1.1 if absf(x) < 0.2 else 0.0), b.y0 - 0.3, (k % 2) * 4.0 - 2.0), 0.6 * k, 0.8 + 0.08 * (k % 3))
 	_mobile_runes(b, Vector3(-1.55, b.y0 - 0.1, 0.35))
 	# --- côté porte : banc, peau, applique
 	b.banc(Vector3(-2.5, 0, zf - 0.22), 1.6, 0.0)
@@ -185,7 +185,7 @@ static func _chasseurs(b: Interieurs, xch: float) -> void:
 		b.viande_seche(Vector3(xch - 1.6 + k * 0.32, b.y0 - 0.35, -1.75 if k % 2 == 0 else -1.05), 1, 0.0)
 	for x in Interieurs.FERMES["chasseurs"]:
 		b.viande_seche(Vector3(x, b.y0 - 0.3, -1.9), 3, 0.0)
-		b.viande_seche(Vector3(x + 0.4, b.y0 - 0.3, 1.9), 2, 0.5)
+		b.viande_seche(Vector3(x + 0.4 + (1.2 if absf(x) < 0.2 else 0.0), b.y0 - 0.3, 2.0), 2, 0.5)
 	# --- porte : raquettes, manteau, applique
 	_raquette(b, Vector3(-1.5, 1.4, zf - 0.04), PI)
 	_raquette(b, Vector3(-1.2, 1.35, zf - 0.04), PI)
@@ -259,7 +259,7 @@ static func _grima(b: Interieurs, xch: float) -> void:
 	# --- tresses d'oignons, viandes et herbes aux entraits
 	for x in Interieurs.FERMES["grima"]:
 		for k in 3:
-			var p := Vector3(x + (k - 1) * 0.6, b.y0 - 0.3, -1.65 if k != 1 else 1.65)
+			var p := Vector3(x + (k - 1) * 0.6 + (1.2 if absf(x) < 0.2 else 0.0), b.y0 - 0.3, -1.65 if k != 1 else (1.65 if absf(x) > 1.0 else -1.2))
 			b.cyl(p + Vector3(0, -0.22, 0), 0.012, 0.44, "cuir", 4)
 			for j in 4:
 				b.cyl(p + Vector3(0.0, -0.18 - j * 0.1, 0.0), 0.06 - j * 0.004, 0.09, "peau_claire" if k != 1 else "foin", 6, false, 0.05)

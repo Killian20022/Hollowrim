@@ -8,7 +8,7 @@ extends Node3D
 ## - porte : un ou deux vantaux sur charnière (pivot animé), un blocage de collision tant qu'elle est fermée,
 ##   fermeture automatique quand on s'éloigne.
 
-const DIST_VISIBLE := 26.0
+const DIST_VISIBLE := 13.0
 const DIST_LUMIERE := 8.0
 const DIST_FERMETURE := 14.0
 

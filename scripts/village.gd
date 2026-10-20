@@ -8,6 +8,7 @@ const DEMI_PORTE := 2.4      # demi-largeur de l'ouverture
 
 var lieux := {}
 var promenade: Array[Vector3] = []
+var sedentaires: Array[String] = ["forge"]   # postes intérieurs : on n'en sort pas se promener
 
 var corps: StaticBody3D
 var rng := RandomNumberGenerator.new()
@@ -36,6 +37,11 @@ var m_glace: ShaderMaterial
 var mats_int: Dictionary                 # matières d'intérieur (Interieurs.materiaux)
 var interieurs: Array[Interieur] = []    # un par bâtiment enterable : longue maison, 3 maisons, forge
 var _nuit_vitre := -1.0
+## Le mobilier des intérieurs se construit APRÈS le chargement, une maison par image (≈ 40-150 ms chacune) : le temps de
+## chargement ne grandit pas (les maisons sont invisibles de loin, et le joueur démarre à plus de 13 m des portes).
+var _differes: Array[Callable] = []
+var prets := false           # vrai quand tous les intérieurs sont construits
+signal interieurs_prets
 
 func _ready() -> void:
 	rng.seed = 99
@@ -62,23 +68,30 @@ func _ready() -> void:
 	m_glace = TexturesBati.m_glace()
 	m_eau = Palette.materiau(Palette.tex("eau", ["#05070c", "#0a0f18", "#101824", "#162030"], 4, 0.3))
 
+	Chrono.marque("  village : matières bâti")
 	mats_int = Interieurs.materiaux()
+	Chrono.marque("  village : matières intérieur")
 	_palissade()
 	_porte()
+	Chrono.marque("  village : palissade+porte")
 	_maison(Vector3(0, 0, -12), 0.0, 14.0, 7.0, 2.2, 3.2, "halle")        # longue maison de la cheffe
 	_maison(Vector3(-11.5, 0, -3), PI * 0.5, 8.0, 5.5, 2.0, 2.4, "sigrun")      # la voyante
 	_maison(Vector3(11.5, 0, 7.5), -PI * 0.5, 8.0, 5.5, 2.0, 2.4, "chasseurs") # famille de chasseurs
 	_maison(Vector3(-9.5, 0, 13.0), PI * 0.62, 7.0, 5.0, 1.9, 2.2, "grima")    # la doyenne
+	Chrono.marque("  village : 4 maisons")
 	_forge(Vector3(-12.5, 0, 6.0))
+	Chrono.marque("  village : forge")
 	_puits(Vector3(4.5, 0, 1.5))
 	_brasero(Vector3(-2.5, 0, -2.5))
 	_enclos(Vector3(11.5, 0, -6.5))
 	_accessoires()
+	Chrono.marque("  village : puits/enclos/accessoires")
 	_finaliser()
+	Chrono.marque("  village : maillages fusionnés")
 
 	var postes := {
 		"longue_maison": Vector3(1.2, 0, -7.4),
-		"forge": Vector3(-11.9, 0.0, 6.3),   # dans la forge, entre le foyer et l'enclume
+		"forge": Vector3(-12.15, 0.0, 5.65),   # dans la forge, à côté de l'enclume
 		"puits": Vector3(6.0, 0, 2.6),
 		"place": Vector3(-1.2, 0, -0.4),
 		"enclos": Vector3(9.0, 0, -3.0),
@@ -105,6 +118,11 @@ func interieur(id: String) -> Interieur:
 
 func _process(dt: float) -> void:
 	_t += dt
+	if not _differes.is_empty():
+		_differes.pop_front().call()
+		if _differes.is_empty():
+			prets = true
+			interieurs_prets.emit()
 	# vitrages : s'allument la nuit (vus du dehors)
 	var cyc = get_parent().get("cycle") if get_parent() != null else null
 	if cyc != null and mats_int.has("vitre"):
@@ -189,6 +207,8 @@ func _finaliser() -> void:
 		var mi := MeshInstance3D.new()
 		mi.mesh = m
 		mi.material_override = lot["mat"]
+		if (lot["parent"] as Node3D).get_parent() is Interieur:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF   # l'intérieur ne projette rien (coût de l'ombre du soleil)
 		(lot["parent"] as Node3D).add_child(mi)
 	_lots.clear()
 	_arrays_cache.clear()
@@ -716,7 +736,7 @@ func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_m
 			_fenetre_cadre(p, x, yf, face * (largeur * 0.5 + 0.17), face)
 			ib.fenetre_cadre(x, yf, face * (largeur * 0.5 + 0.17), face)
 	# torche murale à droite de la porte
-	_torche_murale(p, Vector3(1.25, 0.4 + 1.45, zf + 0.03), 1.0, false)
+	_torche_murale(p, Vector3(1.25, 0.4 + 1.45, zf + 0.03), 1.0, cheffe)   # une vraie lumière à la porte de la halle (comme avant)
 	if cheffe:
 		# boucliers peints accrochés au mur, de part et d'autre de la porte, et bancs
 		for x in [-2.6, -1.7, 1.9, 2.7]:
@@ -724,10 +744,13 @@ func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_m
 			_cylindre(p, 0.09, 0.09, 0.09, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(x, 0.4 + 1.3, zf + 0.1)), m_fer, 8)
 		_banc(p, Vector3(-2.2, 0, zf + 0.75), 2.0)
 		_banc(p, Vector3(2.2, 0, zf + 0.75), 2.0)
-	# l'intérieur
-	ib.coque(id)
-	ib.contenu(id)
-	ib.finir()
+	# l'intérieur (plafond, mobilier, lumières) : construit après le chargement, une maison par image
+	Chrono.marque("  maison %s : coque extérieure" % id)
+	_differes.append(func() -> void:
+		ib.coque(id)
+		ib.contenu(id)
+		ib.finir()
+		_finaliser())
 
 ## Vantail de porte sur charnière : planches debout, deux bandes de fer cloutées, anneau. `pos` = axe de la charnière.
 func _vantail(parent: Node3D, pos: Vector3, larg: float, haut: float, cote := 1.0) -> Node3D:
@@ -921,10 +944,7 @@ func _forge(centre: Vector3) -> void:
 		for t in tronc:
 			var zc: float = (t[0] + t[1]) * 0.5
 			_pile(p, Vector3(sx * 2.4, t[2] * 0.5, zc), Vector3(0.4, t[2], t[1] - t[0]), 4400 + k + int(sx + 1.0) * 5, m_roche, true, 0.0)
-			ib.pile(Vector3(sx * 2.155, t[2] * 0.5, zc), Vector3(0.1, t[2], t[1] - t[0]), 4420 + k + int(sx + 1.0) * 5, "seche")
 			k += 1
-	# doublage intérieur du fond
-	ib.pile(Vector3(0, 1.2, -1.7), Vector3(4.2, 2.4, 0.1), 4440, "seche")
 	# façade de planches : de part et d'autre de la porte (x de 0,55 à 2,15), fenêtre à gauche (x de -1,9 à -0,9)
 	var haut_f := 2.05
 	var fe := [-1.9, -0.9, 1.1, 1.85]    # fenêtre : x0, x1, y0, y1
@@ -952,9 +972,18 @@ func _forge(centre: Vector3) -> void:
 	_pile(p, Vector3(-0.8, 2.3, -1.5), Vector3(0.7, 1.6, 0.7), 4322, m_brute, false, 1.0)
 	_fumee(p, Vector3(-0.8, 3.2, -1.5))
 	# torche à gauche de la porte, au dehors
-	_torche_murale(p, Vector3(0.2, 1.7, 1.93), 1.0, false)
-	ib.contenu("forge")
-	ib.finir()
+	_torche_murale(p, Vector3(0.2, 1.5, 1.93), 1.0, false)
+	# doublage intérieur (pierre sèche, matière d'intérieur) et mobilier : après le chargement
+	_differes.append(func() -> void:
+		for sx in [-1.0, 1.0]:
+			var k := 0
+			for t in tronc:
+				ib.pile(Vector3(sx * 2.155, t[2] * 0.5, (t[0] + t[1]) * 0.5), Vector3(0.1, t[2], t[1] - t[0]), 4420 + k + int(sx + 1.0) * 5, "seche")
+				k += 1
+		ib.pile(Vector3(0, 1.2, -1.7), Vector3(4.2, 2.4, 0.1), 4440, "seche")
+		ib.contenu("forge")
+		ib.finir()
+		_finaliser())
 
 func _puits(centre: Vector3) -> void:
 	var p := _pivot(centre, 0.3)

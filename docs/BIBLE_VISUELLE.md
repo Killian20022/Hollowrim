@@ -56,6 +56,10 @@ Règles d'usage de la palette :
 
 Retour utilisateur : « dessin d'enfant ». Les rampes à 4-6 tons des matières du BÂTI (pierre, bois, neige de toit, fer, tourbe, chaume, cuir, braises) sont étendues à 8-12 tons par interpolation entre les clés ci-dessous : mêmes teintes que le §2, on ajoute seulement des tons intermédiaires et un ton plus sombre / plus clair à chaque bout (ombre toujours froide et violette, lumière chaude). Les arbres, le sol et les personnages gardent leurs rampes du §2. Détail et clés exactes : tableau « Nouvelles rampes » du journal « Lot 5, 2e passe » de `docs/MISSION_GRAPHISME.md` et constantes `K_*` de `scripts/peinture_bati.gd`. Densité (écart au §3) : le bâti est peint à 32 texels/m et le shader `ps1_bati` retombe, par tramage de bruit, à 16 texels/m entre 3 et 10 m de la caméra (comme le sol du lot 3). Règle de lecture : une texture du bâti peut contenir un grain de ±1 ton (tramage de Bayer) ; elle ne contient jamais de contour noir épais.
 
+### 2 ter. Intérieurs des maisons (kit intérieur, 2026-10-20)
+
+Mêmes rampes 12 tons que le §2 bis (bois, pierre, fer, cuir, braises) + `K_ROUGE`, `K_OCRE`, `K_BLEU`, `K_VERT`, `K_CREME` (tentures de laine), `K_FOURRURE` (peaux), `K_SUIE` (charbon, cendre) dans `peinture_interieur.gd`. Règle de lumière : l'intérieur n'a PAS l'ambiante du ciel (shader `ps1_interieur`, ambiante propre `Color(0.25, 0.21, 0.23)`) ; tout ce qui éclaire est chaud (flammes, braises, bougies, appliques) ; la seule lumière froide est la rune bleue de la voyante et le rai de lune/soleil du trou à fumée. Jamais de pièce vide : Macro (coque, poteaux, fermes) / Méso (foyer, tables, lits, coffres, métiers) / Micro (étain, os, herbes, parchemins). Les tentures sont des pièces de 1,5 × 2 m posées entières ; pas de motif répété au hasard.
+
 ## 3. Densité de pixels (une seule, partout)
 
 | Catégorie | Densité | Conséquence |

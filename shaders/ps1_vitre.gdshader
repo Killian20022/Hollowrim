@@ -7,7 +7,7 @@ render_mode unshaded, cull_disabled, depth_draw_opaque;
 uniform sampler2D tex_vitrage : source_color, filter_nearest, repeat_disable;
 uniform float nuit = 0.0;
 uniform vec3 lueur : source_color = vec3(1.0, 0.72, 0.34);
-uniform vec2 fondu = vec2(9.0, 20.0);   // mètres : translucide → opaque
+uniform vec2 fondu = vec2(6.0, 12.0);   // mètres : translucide → opaque (l intérieur est masqué au-delà de 13 m)
 uniform float grille = 135.0;
 
 varying float dist;

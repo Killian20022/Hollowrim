@@ -13,7 +13,7 @@ extends RefCounted
 const SHADER := preload("res://shaders/ps1_interieur.gdshader")
 const FLAMME_SHADER := preload("res://shaders/crypte_flamme.gdshader")
 const F := 0.42
-const AMBIANT := Color(0.2, 0.17, 0.2)
+const AMBIANT := Color(0.25, 0.21, 0.23)
 const DECAL_PLAFOND := 0.27       # le lambris du plafond pend sous le plan du toit
 const FEU := Color(1.0, 0.56, 0.24)
 
@@ -353,11 +353,11 @@ func plafond(fermes: Array, trou := Vector3.ZERO) -> void:
 	rondin(Vector3(0, yr_l - 0.1, 0), 0.0, L - 0.4, 0.13, 301, "rondin_sombre")
 	for xf in fermes:
 		# entrait : rondin en travers, posé sur les murs ; poinçon jusqu'au faîtage
-		rondin(Vector3(xf, y0 - 0.16, 0), PI * 0.5, W - 0.1, 0.14, 310 + int(absf(xf) * 7.0), "rondin_sombre")
-		cyl(Vector3(xf, (y0 - 0.16 + yr_l - 0.1) * 0.5, 0), 0.07, yr_l - 0.1 - (y0 - 0.16), "rondin_sombre", 6)
+		rondin(Vector3(xf, y0 - 0.06, 0), PI * 0.5, W - 0.1, 0.12, 310 + int(absf(xf) * 7.0), "rondin_sombre")
+		cyl(Vector3(xf, (y0 - 0.06 + yr_l - 0.1) * 0.5, 0), 0.07, yr_l - 0.1 - (y0 - 0.06), "rondin_sombre", 6)
 		# jambes de force (liens obliques entre le poinçon et l'entrait)
 		for sz in [-1.0, 1.0]:
-			bx(Vector3(xf, y0 + 0.28, sz * 0.62), Vector3(0.1, 0.1, 1.15), "bois_sombre", 0.0, false, Vector3(sz * 0.9, 0, 0))
+			bx(Vector3(xf, y0 + 0.36, sz * 0.62), Vector3(0.1, 0.1, 1.15), "bois_sombre", 0.0, false, Vector3(sz * 0.9, 0, 0))
 	# pignons lambrissés (intérieurs) : triangle sous le lambris
 	for cx in [-1.0, 1.0]:
 		var x: float = cx * (L * 0.5 - 0.162)
@@ -649,8 +649,8 @@ func gaine_fumee(trou: Vector2) -> void:
 	# parois courtes (à x0 et x1) : pentagone suivant la pente du lambris
 	for xe in [trou.x, trou.y]:
 		var pts := [Vector3(xe, y_bas, -zh), Vector3(xe, yr_l, 0), Vector3(xe, y_bas, zh), Vector3(xe, y_c, zh), Vector3(xe, y_c, -zh)]
-		poly("", pts, Vector3.RIGHT, p, v.m_ame)
-		poly("", pts, Vector3.LEFT, p, v.m_ame)
+		poly("", pts, Vector3.RIGHT, p, v.m_poutres_h)
+		poly("", pts, Vector3.LEFT, p, v.m_poutres_h)
 	for ex in [trou.x, trou.y]:
 		v._boite(p, Vector3(0.2, 0.14, zh * 2.0 + 0.2), Transform3D(Basis(), Vector3(ex, y_c, 0)), v.m_poutres_h)
 	# lucarne : poteaux et petit toit à deux pans

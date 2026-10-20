@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# Captures des intérieurs (lot « kit intérieur »), jour et nuit.
-#   bash outils/captures_interieurs.sh <dossier_sortie> <bat> <nom_pose:x,z,lacet,tangage[:ouvert]> [...]
-#   ex. : bash outils/captures_interieurs.sh /tmp/int halle a:0,2,0,-5 b:0,0,160,-10
+# Captures des intérieurs (lot « kit intérieur »), en un seul lancement (captures groupées, docs/SOCLE_TECHNIQUE.md § 7).
+#   bash outils/captures_interieurs.sh <dossier_sortie> [fichier_poses]       (défaut : outils/poses_interieurs.txt)
+# Format des poses : `nom interieur x,z,lacet°,tangage° bat=<id> [ouvert] [heure=12]` (repère du bâtiment ; lacet 0 = vers -Z ;
+# z > demi-largeur = dehors). Jour = heure=12 ; sans option = nuit. PHASES="jour nuit" duplique chaque ligne (défaut : les deux).
 set -u
 G="${GODOT:-/mnt/c/Users/lopezk19/Outils/godot/Godot_v4.7.2-stable_win64_console.exe}"
 ICI="$(cd "$(dirname "$0")/.." && pwd)"
-OUT="${1:?dossier}"; BAT="${2:?bat}"; shift 2
+OUT="${1:?dossier}"; POSES="${2:-$ICI/outils/poses_interieurs.txt}"
 mkdir -p "$OUT"
-for spec in "$@"; do
-	nom="${spec%%:*}"; reste="${spec#*:}"; pose="${reste%%:*}"; opt=""
-	[[ "$reste" == *:* ]] && opt="--${reste#*:}"
+TMP="$OUT/poses_lot.txt"; : > "$TMP"
+while read -r nom type reste; do
+	[[ -z "${nom:-}" || "$nom" == \#* ]] && continue
 	for ph in ${PHASES:-jour nuit}; do
-		h=""; [[ "$ph" == jour ]] && h="--heure=12"
-		f="$OUT/${BAT}_${nom}_${ph}.png"
-		timeout 150 "$G" --path "$(wslpath -w "$ICI")" -- $h --capture="$(wslpath -w "$f")" --scenario=interieur --bat="$BAT" --ipose="$pose" $opt \
-			--nouvelle --paisible --sans-particules --sans-mains --attente=60 > "$f.log" 2>&1 || echo "échec $nom $ph"
+		if [[ "$ph" == jour ]]; then echo "${nom}_jour $type $reste heure=12" >> "$TMP"; else echo "${nom}_nuit $type $reste" >> "$TMP"; fi
 	done
-done
-grep -l "SCRIPT ERROR\|ERROR:" "$OUT"/*.log 2>/dev/null | sed 's/^/ERREURS dans /'
+done < "$POSES"
+"$G" --path "$(wslpath -w "$ICI")" --disable-vsync -- --captures="$(wslpath -w "$TMP")" --sortie="$(wslpath -w "$OUT")" \
+	--nouvelle --paisible --sans-particules --sans-mains --attente=120 > "$OUT/lot.log" 2>&1
+grep -E "LOT|ERROR" "$OUT/lot.log" | head
