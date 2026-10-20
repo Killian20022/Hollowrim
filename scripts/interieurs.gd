@@ -697,10 +697,7 @@ func finir() -> void:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.use_custom_data = true
-		var q := QuadMesh.new()
-		q.size = Vector2(1, 1)
-		q.center_offset = Vector3(0, 0.5, 0)
-		mm.mesh = q
+		mm.mesh = PrimGeo.maillage(PrimGeo.plan(Vector2(1, 1), Vector3(0, 0.5, 0)))   # = QuadMesh, sans ressource primitive en fil
 		mm.instance_count = _flammes.size()
 		for i in _flammes.size():
 			mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, _flammes[i][0]))

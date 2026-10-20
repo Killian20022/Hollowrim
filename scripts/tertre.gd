@@ -41,6 +41,9 @@ var _tache := -1
 var _cont: Node3D
 var _inter := {}                    # id -> interactif du donjon
 var _file_gardiens: Array = []
+const BUDGET_POSE_US := 1500        # pose étalée du donjon : ≤ 1,5 ms par image
+var _reste_donjon: Array = []       # enfants du donjon encore hors de l'arbre
+var _t_pose := 0
 var morts_charges: Array = []       # draugrs tués d'une partie chargée (posé par le monde) : on ne les refait pas
 var _pas_zone := 0.0
 var _flamme_pixel: MeshInstance3D
@@ -72,6 +75,8 @@ func _process(dt: float) -> void:
 	_t += dt
 	if _tache >= 0 and WorkerThreadPool.is_task_completed(_tache):
 		_integrer_donjon()
+	elif not _reste_donjon.is_empty():
+		_poser_donjon(BUDGET_POSE_US)
 	if d != null and dedans:
 		d.vaciller(_t)
 		if d2 != null:
@@ -192,17 +197,43 @@ func _exit_tree() -> void:
 		_tache = -1
 		if _cont != null and is_instance_valid(_cont) and not _cont.is_inside_tree():
 			_cont.free()
+	for c in _reste_donjon:
+		if is_instance_valid(c) and not c.is_inside_tree():
+			c.free()
+	_reste_donjon.clear()
 
+## À l'entrée dans la crypte : tout le donjon doit être là tout de suite (pose complète, sans budget).
 func attendre_donjon() -> void:
 	_integrer_donjon()
+	_poser_donjon(0)
 
+## Le fil a fini : le nœud « Donjon » (≈ 1 100 enfants : lumières, murs, portes, flammes) entre dans l'arbre VIDE, puis ses enfants
+## sont posés par tranches de BUDGET_POSE_US par image (poser les 1 356 nœuds d'un coup coûtait une image de ~40 ms en pleine marche).
 func _integrer_donjon() -> void:
 	if _tache < 0:
 		return
 	WorkerThreadPool.wait_for_task_completion(_tache)
 	_tache = -1
-	var t0 := Time.get_ticks_msec()
+	_t_pose = Time.get_ticks_msec()
+	_reste_donjon = _cont.get_children()
+	for c in _reste_donjon:
+		_cont.remove_child(c)
+	_reste_donjon.reverse()          # pop_back = ordre d'origine
 	crypte.add_child(_cont)
+	_poser_donjon(BUDGET_POSE_US)
+
+func _poser_donjon(budget_us: int) -> void:
+	if _reste_donjon.is_empty():
+		return
+	var debut := Time.get_ticks_usec()
+	while not _reste_donjon.is_empty():
+		_cont.add_child(_reste_donjon.pop_back())
+		if budget_us > 0 and Time.get_ticks_usec() - debut > budget_us:
+			return
+	_finir_donjon()
+
+func _finir_donjon() -> void:
+	var t0 := _t_pose
 	for it in donjon.interactions:
 		_creer_interaction(it)
 	for g in donjon.gardiens:

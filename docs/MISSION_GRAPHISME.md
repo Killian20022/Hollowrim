@@ -905,3 +905,10 @@ Tests : tous OK sauf `test_dragon_monde` en headless (erreurs du moteur factice 
   de congère plus haute côté vent, pente qui se fond dans le sol ; 24-32 triangles). Mesure : +3 000 primitives sur 250 000,
   draw calls identiques (523), GPU 7,2 ms (indicatif, 4 agents en parallèle).
 - Murs, voûte, piliers (mur0-4, voute) et dalles 0-1 : option `lisse` généralisée (VERSION 7) : moellons de 25 x 25-40 cm, joints nets, contraste ramené, usure en macro-taches. Planche : captures/retouches/planche_murs.png.
+
+## Lot « audit de non-régression perf » (branche graphisme/perf-audit, 2026-10-20)
+Sans changement visuel. Mesures, tableau avant/après et corrections : docs/SOCLE_TECHNIQUE.md § 8. En bref : mobilier des intérieurs construit en fil
+(plus de 4 images de 560-780 ms au chargement), préchauffage des shaders d'intérieur, `PrimGeo` (boîtes/cylindres sans ressource de rendu : corrige la course
+« Attempting to initialize the wrong RID »), pose étalée du donjon, captures qui attendent `village.prets`.
+Fichiers : `scripts/village.gd`, `scripts/prim_geo.gd`, `scripts/interieurs.gd` (une ligne dans `finir`), `scripts/tertre.gd`, `scripts/monde.gd` (attente en capture),
+`outils/mesure_images.gd`, `outils/empreinte_interieurs.gd`, `outils/test_primitives.gd`.

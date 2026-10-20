@@ -990,6 +990,8 @@ func _rendre_paisible() -> void:
 
 func _capture() -> void:
 	var chemin: String = _arguments().get("capture", "")
+	while _arguments().has("capture") and not village.prets:   # les intérieurs se construisent en fil : une capture ne part qu'une fois tout posé
+		await get_tree().process_frame
 	if _arguments().has("captures"):
 		await _lot_captures(String(_arguments()["captures"]))
 		return
