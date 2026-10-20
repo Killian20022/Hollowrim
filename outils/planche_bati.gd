@@ -1,5 +1,5 @@
 extends SceneTree
-## Planche des textures du lot 5 (pierre, bois, fer…) : chaque tuile ×6 + mosaïque 3×3 ×3 + taille réelle ×1.
+## Planche des textures du lot 5 (2e passe : textures de PeintureBati, sans cuisson) (pierre, bois, fer…) : chaque tuile ×6 + mosaïque 3×3 ×3 + taille réelle ×1.
 ##   godot --headless --path . --script outils/planche_bati.gd [-- dossier]
 ## Écrit <dossier>/<nom>_x6.png, <nom>_mosaique.png et planche_textures.png (défaut res://captures/batiments/textures).
 
@@ -22,26 +22,17 @@ func _init() -> void:
 	var dossier: String = args[0] if args.size() > 0 else "res://captures/batiments/textures"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dossier))
 	var chrono := Time.get_ticks_msec()
-	var liste := {
-		"pierre_seche": TexturesBati.pierre_seche(5101).image(),
-		"roche_brute": TexturesBati.roche_brute(5201).image(),
-		"planches_h": TexturesBati.planches(5301, 128, 64).image(),
-		"planches_v": TexturesBati.planches(5302, 64, 64, true, 2).image(),
-		"fer": TexturesBati.fer(5401).image(),
-		"cuir": TexturesBati.cuir(5402).image(),
-		"foin": TexturesBati.foin(5403).image(),
-		"braises": TexturesBati.braises(5404).image(),
-		"fenetre": TexturesBati.fenetre().image(),
-		"neige_toit": TexturesBati.neige_toit(),
-		"ecorce": TexturesArbres.ecorce_epicea_image(),
-	}
+	var liste := {}
+	var f := PeintureBati.fabriques()
+	for nom: String in f:
+		liste[nom] = ((f[nom] as Callable).call() as Array)[0]
 	print("génération : %d ms" % (Time.get_ticks_msec() - chrono))
 	for nom: String in liste:
 		var img: Image = liste[nom]
 		_agrandi(img, 6 if img.get_width() <= 64 else 4).save_png("%s/%s_x6.png" % [dossier, nom])
 		_agrandi(_mosaique(img, 3), 3 if img.get_width() <= 64 else 2).save_png("%s/%s_mosaique.png" % [dossier, nom])
 	# planche : pierre, roche, planches h/v côte à côte en mosaïque 2×2 x3
-	var noms := ["pierre_seche", "roche_brute", "planches_h", "planches_v", "fer", "cuir", "foin", "ecorce", "neige_toit"]
+	var noms := ["pierre_seche", "roche", "planches_h", "planches_v", "rondins", "fer", "cuir", "foin", "neige"]
 	var tuiles: Array[Image] = []
 	for nom in noms:
 		tuiles.append(_agrandi(_mosaique(liste[nom], 2), 2))

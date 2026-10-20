@@ -10,35 +10,13 @@ const ARBRES := [[11.5, 1.8], [12.2, 3.3], [11.0, 5.9]]
 
 ## Boîte centrée de taille `taille` : dessus enneigé (alpha de sommet 0), liseré tramé en haut des côtés,
 ## le reste en matière de base (alpha 1). Normales à plat ; UV 0..1 par face. `graine` fixe le liseré.
-static func boite_neige(taille: Vector3, graine: int, liseré := 0.25) -> ArrayMesh:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = graine
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var h := taille * 0.5
-	var base := Color(1, 1, 1, 1)
-	var neige := Color(1, 1, 1, 0)
-	var bande := minf(liseré, taille.y * 0.45)
-	# côtés : [normale, tangente horizontale, largeur]
-	for cote in [[Vector3.RIGHT, Vector3.BACK, taille.z], [Vector3.LEFT, Vector3.FORWARD, taille.z], [Vector3.BACK, Vector3.LEFT, taille.x], [Vector3.FORWARD, Vector3.RIGHT, taille.x]]:
-		var n: Vector3 = cote[0]
-		var t: Vector3 = cote[1]
-		var w: float = cote[2]
-		var c := n * (h.x if absf(n.x) > 0.5 else h.z)
-		var y_bande := h.y - bande
-		_quad(st, c + t * (-w * 0.5) + Vector3(0, -h.y, 0), c + t * (w * 0.5) + Vector3(0, -h.y, 0), c + t * (w * 0.5) + Vector3(0, y_bande, 0), c + t * (-w * 0.5) + Vector3(0, y_bande, 0), n, base, base, base, base, Vector2(w, taille.y - bande))
-		var cols := maxi(2, roundi(w / 0.18))
-		for k in cols:
-			var x0 := -w * 0.5 + w * k / cols
-			var x1 := -w * 0.5 + w * (k + 1) / cols
-			# la frontière neige/base passe à `part` de la hauteur du liseré (alpha interpolé, seuil 0,5)
-			var part := rng.randf_range(0.45, 0.95)
-			var bas := Color(1, 1, 1, 0.5 / part)
-			_quad(st, c + t * x0 + Vector3(0, y_bande, 0), c + t * x1 + Vector3(0, y_bande, 0), c + t * x1 + Vector3(0, h.y, 0), c + t * x0 + Vector3(0, h.y, 0), n, bas, bas, neige, neige, Vector2(w / cols, bande))
-	_quad(st, Vector3(-h.x, h.y, -h.z), Vector3(h.x, h.y, -h.z), Vector3(h.x, h.y, h.z), Vector3(-h.x, h.y, h.z), Vector3.UP, neige, neige, neige, neige, Vector2(taille.x, taille.z))
-	_quad(st, Vector3(-h.x, -h.y, -h.z), Vector3(h.x, -h.y, -h.z), Vector3(h.x, -h.y, h.z), Vector3(-h.x, -h.y, h.z), Vector3.DOWN, base, base, base, base, Vector2(taille.x, taille.z))
-	st.generate_normals()
-	return st.commit()
+static func boite_neige(taille: Vector3, graine: int, liseré := 0.25, plat := false) -> ArrayMesh:
+	# lot 5, 2e passe : plus de boîte. Pierre levée taillée (fût effilé, section irrégulière, pointe asymétrique,
+	# neige sur les facettes hautes) si la pièce est haute, bloc chanfreiné et irrégulier sinon. Même boîte
+	# englobante : la collision reste celle d'origine. `liseré` n'est plus utilisé (gardé pour les appelants).
+	if taille.y > 1.25 * maxf(taille.x, taille.z):
+		return BatiGeo.pierre_levee(taille, graine, plat).mesh()
+	return BatiGeo.bloc(taille, graine, 0.2, 0.06, 1.0, 0.7).mesh()
 
 ## Quad p0 p1 p2 p3 (bas gauche, bas droit, haut droit, haut gauche), tourné vers `n` (sens horaire = face avant).
 static func _quad(st: SurfaceTool, p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, n: Vector3, c0: Color, c1: Color, c2: Color, c3: Color, uv_taille: Vector2) -> void:
@@ -118,7 +96,7 @@ static func creer(monde: Node) -> void:
 	var stele := MeshInstance3D.new()
 	var taille_s := Vector3(1.3, 3.6, 0.5)
 	if ZoneBiome.actif:
-		stele.mesh = boite_neige(taille_s, 200)
+		stele.mesh = boite_neige(taille_s, 200, 0.25, true)
 		stele.set_meta("pierre_taille", taille_s)
 	else:
 		var bs := BoxMesh.new()

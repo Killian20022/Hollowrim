@@ -117,11 +117,8 @@ func _tumulus() -> void:
 	cs.name = "CollisionDome"
 	cs.shape = dome
 	corps_dehors.add_child(cs)
-	# façade : deux pierres dressées, un linteau, une dalle sombre pour la porte
-	for x in [-1.3, 1.3]:
-		_boite(self, Vector3(0.8, 3.0, 0.8), Transform3D(Basis(), Vector3(x, 1.3, -0.4)), m_facade, corps_dehors)
-	_boite(self, Vector3(3.6, 0.7, 1.0), Transform3D(Basis(), Vector3(0, 3.0, -0.4)), m_facade, corps_dehors)
-	_boite(self, Vector3(1.9, 2.6, 0.2), Transform3D(Basis(), Vector3(0, 1.2, -0.75)), m_porte_dalle, corps_dehors)
+	# façade : pierres levées, linteau, jambages, dalle de porte (lot 5, 2e passe : FacadeTertre)
+	FacadeTertre.construire(self, corps_dehors, m_facade, m_porte_dalle)
 	# runes qui luisent sur le linteau
 	var lueur := OmniLight3D.new()
 	lueur.light_color = Color(0.35, 0.8, 1.0)
@@ -129,7 +126,7 @@ func _tumulus() -> void:
 	lueur.omni_range = 5.0
 	lueur.position = Vector3(0, 2.6, 0.6)
 	add_child(lueur)
-	var runes := _boite(self, Vector3(2.2, 0.12, 0.04), Transform3D(Basis(), Vector3(0, 3.0, 0.11)), Palette.lueur(Color(0.5, 1.4, 1.9)))
+	var runes := _boite(self, Vector3(2.2, 0.12, 0.04), Transform3D(Basis(), Vector3(0, 3.0, 0.16)), Palette.lueur(Color(0.5, 1.4, 1.9)))
 	runes.name = "Runes"
 	_interactif(self, Vector3(0, 1.2, 0.3), "Tertre de Svanhild", "Entrer dans le tertre", func() -> Array: return _passer(true))
 

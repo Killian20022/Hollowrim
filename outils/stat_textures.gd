@@ -42,10 +42,7 @@ func _init() -> void:
 	_stats("neige (paillettes)", Palette.pailleter(Palette.texture(64, Palette.NEIGE, 3, 1, 0.12, rng), 0.012).get_image())
 	_stats("écorce (poteaux)", Palette.texture(32, Palette.ECORCE, 4, "ecorce".hash() & 0xff, 0.4, rng).get_image())
 	print("--- APRÈS (TexturesBati : amas dessinés + filtre mode)")
-	_stats("pierre sèche", TexturesBati.pierre_seche(5101).image())
-	_stats("roche brute", TexturesBati.roche_brute(5201).image())
-	_stats("planches horizontales", TexturesBati.planches(5301, 128, 64).image())
-	_stats("bois debout", TexturesBati.planches(5302, 64, 64, true, 2).image())
-	_stats("neige de toit", TexturesBati.neige_toit())
-	_stats("fer", TexturesBati.fer(5401).image())
+	var f := PeintureBati.fabriques()
+	for nom: String in ["pierre_seche", "roche", "planches_v", "rondins", "neige", "fer"]:
+		_stats(nom, ((f[nom] as Callable).call() as Array)[0])
 	quit()
