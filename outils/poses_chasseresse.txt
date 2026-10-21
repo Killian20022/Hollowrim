@@ -15,6 +15,8 @@ p17_8m_34 pilote 8,-35 heure=17.5 sans-mains anim=Idle:0.3
 p17_8m_dos pilote 8,180 heure=17.5 sans-mains anim=Idle:0.3
 # nuit (21 h) avec torche, 3 m
 p21_3m_34_torche pilote 3,30 heure=21 anim=Idle:0.3
+p21_2m_face_torche pilote 2,0 heure=21 anim=Pistol_Aim_Neutral:0.5
+p21_4m_dos_torche pilote 4,160 heure=21 anim=Idle:0.3
 # bande d'animations (3,2 m, 3/4 côté droit, 17h30) : pose figée à la fraction t du clip
 an_idle pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Idle:0.3
 an_marche_a pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Walk:0.25
@@ -34,3 +36,8 @@ gros_arc_2m pilote 2,-50,1.25 heure=17.5 sans-mains anim=Pistol_Aim_Neutral:0.5
 gros_arc_1m pilote 1.3,-60,1.35 heure=17.5 sans-mains anim=Pistol_Aim_Neutral:0.5
 gros_carquois_2m pilote 2,160,1.3 heure=17.5 sans-mains anim=Idle:0.3
 gros_carquois_1m pilote 1.2,150,1.4 heure=17.5 sans-mains anim=Idle:0.3
+# passe 2 : capuche rabattue + tresses (dos 3/4), arc bandé de profil et de dessus (main gauche, corde tirée, flèche encochée)
+gros_capuche_2m pilote 2,145,1.45 heure=17.5 sans-mains anim=Idle:0.3
+gros_capuche_1m pilote 1.1,135,1.5 heure=17.5 sans-mains anim=Idle:0.3
+gros_arc_profil_1m pilote 1.6,-90,1.4 heure=17.5 sans-mains anim=Pistol_Aim_Neutral:0.5
+gros_arc_dessus_1m pilote 1.5,-20,1.45 heure=17.5 sans-mains anim=Pistol_Aim_Neutral:0.5

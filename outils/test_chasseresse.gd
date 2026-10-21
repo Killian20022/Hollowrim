@@ -85,7 +85,28 @@ func _lancer() -> void:
 	ok(tris <= BUDGET, "Idle : %d triangles visibles (<= %d)" % [tris, BUDGET])
 	ok(_surfaces(c) <= SURFACES_MAX, "Idle : %d surfaces visibles (<= %d)" % [_surfaces(c), SURFACES_MAX])
 	ap.play("Pistol_Aim_Neutral")
-	ok(vise != null and vise.visible and not porte.visible, "Pistol_Aim_Neutral : arc tendu main droite visible, arc porté caché")
+	ok(vise != null and vise.visible and not porte.visible, "Pistol_Aim_Neutral : arc bandé visible, arc porté caché")
+	var mod := sq.get_node_or_null("PoseArcher")
+	var relache := sq.get_node_or_null("arc_relache") as MeshInstance3D
+	ok(mod != null and relache != null, "PoseArcher (SkeletonModifier3D) et arc relâché présents")
+	ok(int(sq.get_meta("arc_vise")[0]) == sq.find_bone("hand_l"), "visée : arc tenu dans la main GAUCHE")
+	ap.seek(ap.get_animation("Pistol_Aim_Neutral").length * 0.5, true)
+	mod.appliquer(sq)
+	var prise: Vector3 = _points(sq, "arc_vise", [Vector3.ZERO])[0]
+	var dos: Vector3 = _points(sq, "arc_vise", [Vector3(0, 0, 1)])[0] - prise
+	var enc: Vector3 = _points(sq, "corde_encoche", [Vector3.ZERO])[0]
+	var doigts := sq.get_bone_global_pose(sq.find_bone("hand_r")) * Vector3(0, 0.075, 0)
+	var ml := sq.get_bone_global_pose(sq.find_bone("hand_l")).origin
+	var tirage := (prise - enc).dot(dos.normalized())
+	ok(tirage > 0.32, "corde bandée : encoche %.2f m derrière la poignée (> 0,32)" % tirage)
+	ok(enc.distance_to(doigts) < 0.03, "encoche dans les doigts de la main droite (%.3f m)" % enc.distance_to(doigts))
+	ok(prise.distance_to(ml) < 0.12, "poignée dans la main gauche (%.3f m du poignet)" % prise.distance_to(ml))
+	ok(absf(dos.normalized().y) < 0.2 and dos.normalized().dot(c.global_basis.z) > 0.9, "flèche vers l'avant du perso (dos de l'arc %s)" % dos.normalized())
+	ap.play("Pistol_Shoot")
+	ap.seek(0.3, true)
+	mod.appliquer(sq)
+	ok(relache.visible and not vise.visible and not porte.visible, "Pistol_Shoot après le lâcher : arc relâché (corde droite, sans flèche)")
+	ap.play("Pistol_Aim_Neutral")
 	ok(_tris(c) <= BUDGET and _surfaces(c) <= SURFACES_MAX, "visée : %d triangles, %d surfaces visibles" % [_tris(c), _surfaces(c)])
 	ap.play("Walk")
 	ok(porte.visible and not vise.visible, "Walk : retour de l'arc dans la main gauche")
@@ -105,7 +126,7 @@ func _lancer() -> void:
 	var arc := []
 	for k in 13:
 		var t := -1.0 + 2.0 * k / 12.0
-		arc.append(Vector3(0, t * 0.72, -0.11 * t * t))
+		arc.append(Vector3(0, t * 0.72, -0.13 * t * t))
 	for clip in ["Idle", "Walk", "Jog_Fwd", "Sprint", "Hit_Chest", "Pistol_Aim_Neutral", "Pistol_Shoot"]:
 		ap.play(clip)
 		var meta := "arc_vise" if ChasseresseNordique.clip_de_visee(clip) else "arc_porte"
@@ -113,6 +134,8 @@ func _lancer() -> void:
 		var pire := 0.0
 		for k in 12:
 			ap.seek(lg * k / 12.0, true)
+			if ChasseresseNordique.clip_de_visee(clip):
+				(sq.get_node("PoseArcher")).appliquer(sq)
 			var vols := _volumes(sq)
 			for p: Vector3 in _points(sq, meta, arc):
 				pire = maxf(pire, _profondeur(p, vols))

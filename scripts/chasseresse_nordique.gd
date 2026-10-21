@@ -14,9 +14,14 @@ class_name ChasseresseNordique
 ##   ChasseresseNordique.creer({"arc": true, "carquois": true, "couteau": true}) -> Node3D
 ## Contrat identique à Humain.creer : nœud racine -> Skeleton3D + AnimationPlayer « Animations », mêmes os.
 ##
-## Posture d'archer : clips existants Pistol_Aim_Neutral (visée) et Pistol_Shoot (tir), comme le bandit archer (draugr.gd) :
-## l'arc est alors tenu VERTICAL bras tendu dans la main droite (« arc_vise ») ; hors de ces clips, il est porté le long du corps
-## dans la main gauche (« arc_porte »). L'échange se fait tout seul au changement de clip (signal de l'AnimationPlayer).
+## Posture d'archer (passe 2) : pendant les clips Pistol_Aim_Neutral (visée) et Pistol_Shoot (tir), un SkeletonModifier3D
+## (PoseArcher) remplace le haut du corps du clip par une vraie pose d'archer calculée à la construction (IK analytique à deux os) :
+## buste tourné épaule gauche vers la cible, bras GAUCHE tendu qui tient l'arc, main DROITE à l'ancrage sous la joue droite.
+## L'arc bandé (« arc_vise ») est porté par la main gauche ; le point d'encoche de la corde et l'arrière de la flèche sont
+## pondérés sur la main droite : la corde est réellement tirée vers la main droite (deux brins en V) et la flèche encochée reste
+## entre les deux mains. Au tir (Pistol_Shoot après LACHER s), la main droite part en arrière et l'arc relâché (« arc_relache »,
+## corde droite, sans flèche) prend le relais. Hors visée, l'arc est porté le long du corps dans la main gauche (« arc_porte »),
+## comme sur la référence. L'échange se fait tout seul (signal de l'AnimationPlayer + PoseArcher).
 
 const PEAU := Color(0.96, 0.86, 0.80)
 
@@ -52,9 +57,9 @@ static func creer(options := {}) -> Node3D:
 	# -- vêtements : matières de la chasseresse (jaque, pantalon olive, brassards lacés) et communes (bottes, fourrure)
 	_habiller(pieces["tunique"], GuerrierNordique.materiau(ChasseresseTextures.tex("jaque")))
 	_habiller(pieces["pantalon"], GuerrierNordique.materiau(ChasseresseTextures.tex("pantalon")))
-	_habiller(pieces["bottes"], GuerrierNordique.materiau(GuerrierTextures.tex("bottes")))
+	_habiller(pieces["bottes"], GuerrierNordique.materiau(ChasseresseTextures.tex("bottes")))
 	_habiller(pieces["brassards"], GuerrierNordique.materiau(ChasseresseTextures.tex("brassards")))
-	_habiller(pieces["mante"], GuerrierNordique.materiau(GuerrierTextures.tex("mante")))
+	_habiller(pieces["mante"], GuerrierNordique.materiau(ChasseresseTextures.tex("mante")))
 	for nom in ["Superhero_Female", "SuperHero_Female"]:
 		if pieces.has(nom):
 			pieces[nom].visible = false
@@ -76,6 +81,15 @@ static func creer(options := {}) -> Node3D:
 		var src: Texture2D = (mi_ch.material_override as ShaderMaterial).get_shader_parameter("tex_base")
 		mi_ch.material_override = GuerrierNordique.materiau(ChasseresseTextures.cheveux(src), true, false, true, "cheveux_chasseresse")
 	_t("matieres", t0)
+	# silhouette plus élancée (passe 2) : jupe et cuisses resserrées vers l'axe de chaque jambe, taille marquée
+	_deformer(pieces["tunique"], func(q: Vector3) -> Vector3:
+		var f := 1.0 - 0.10 * smoothstep(1.02, 0.80, q.y)
+		var t := 1.0 - 0.05 * smoothstep(1.10, 0.98, q.y) * smoothstep(0.86, 0.98, q.y)
+		return Vector3(q.x * f * t, q.y, q.z * (0.5 + 0.5 * f) * t))
+	_deformer(pieces["pantalon"], func(q: Vector3) -> Vector3:
+		var f := 1.0 - 0.09 * smoothstep(0.46, 0.62, q.y) * (1.0 - smoothstep(0.96, 1.05, q.y))
+		var cx := signf(q.x) * 0.095
+		return Vector3(cx + (q.x - cx) * f, q.y, q.z * f))
 	# col de fourrure ouvert en V sur le devant (baudrier, fibule et tresses se lisent)
 	GuerrierNordique._filtrer(pieces["mante"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.0 and absf(c.x) < 0.13 + (c.y - 1.28) * 0.3 and c.y < 1.47))
 	var rest_skin := sq.create_skin_from_rest_transforms()
@@ -94,11 +108,10 @@ static func creer(options := {}) -> Node3D:
 	acc.baudrier_sur(pieces["tunique"], Vector2(-0.15, 1.42), Vector2(0.17, 0.95), 0.026)
 	# fourrure en mèches : grand col (épaules, dos, col dressé), revers des bottes, frange de la jupe, manchons aux coudes
 	acc.poitrine_libre = true
-	acc.fourrure_bord(pieces["mante"], 1.22, 1.42, 0.10, 0.17, 1.0, 1.7)
-	acc.fourrure_surface(pieces["mante"], 1.32, 1.56, 0.08, 0.13, 80)
-	acc.col_libre = true
-	acc.fourrure_bord(pieces["mante"], 1.47, 1.62, 0.05, 0.09, -0.6, 1.5)
-	acc.col_libre = false
+	acc.dos_libre = true
+	acc.fourrure_bord(pieces["mante"], 1.22, 1.42, 0.085, 0.145, 1.0, 1.7)
+	acc.fourrure_surface(pieces["mante"], 1.32, 1.56, 0.07, 0.115, 70)
+	acc.dos_libre = false
 	acc.poitrine_libre = false
 	acc.fourrure_bord(pieces["bottes"], 0.30, 0.45, 0.06, 0.09, 1.0, 1.6)
 	acc.frange(pieces["tunique"], func(m: Vector3) -> bool: return m.y < 0.72, 0.05, 0.08, Vector3.DOWN, 1.5)
@@ -110,37 +123,76 @@ static func creer(options := {}) -> Node3D:
 	acc.fibule_sur(pieces["mante"], pieces["tunique"], Vector2(-0.115, 1.40))
 	acc.yeux(yeux)
 	acc.tresses()
+	acc.capuche()
 	if options.get("carquois", true):
 		acc.carquois()
 	if options.get("couteau", true):
 		acc.couteau()
 	_t("accessoires (geometrie)", t0)
 	sq.add_child(acc.construire(rest_skin, "accessoires"))
-	# arc : deux maillages (porté main gauche / tendu main droite), un seul visible à la fois
+	# arc : trois maillages (porté main gauche / bandé main gauche + corde et flèche tirées par la main droite / relâché),
+	# un seul visible à la fois ; PoseArcher pose le haut du corps pendant la visée et le tir
 	if options.get("arc", true):
+		var posture := Posture.new(sq)
+		var pose := posture.calculer()
+		var hl := sq.find_bone("hand_l")
+		var hr := sq.find_bone("hand_r")
+		var Ml: Transform3D = sq.get_bone_global_rest(hl) * posture.glob(hl).affine_inverse()      # pose de visée -> repos (main G)
+		var Mr: Transform3D = sq.get_bone_global_rest(hr) * posture.glob(hr).affine_inverse()      # pose de visée -> repos (main D)
 		var porte := Acc.new(sq)
 		var tr_porte := porte.repere_porte()
-		var tr_vise := sq.get_bone_global_rest(sq.find_bone("hand_r")) * GuerrierNordique.Accessoires.PRISE * Transform3D(Basis(), Vector3(0, 0.04, 0))
-		sq.set_meta("arc_porte", [sq.find_bone("hand_l"), tr_porte])     # contrôle des traversées (outils/test_chasseresse.gd)
-		sq.set_meta("arc_vise", [sq.find_bone("hand_r"), tr_vise])
-		porte.arc(tr_porte, sq.find_bone("hand_l"))
+		var tr_vise: Transform3D = Ml * posture.repere_arc
+		sq.set_meta("arc_porte", [hl, tr_porte])     # contrôle des traversées (outils/test_chasseresse.gd)
+		sq.set_meta("arc_vise", [hl, tr_vise])
+		sq.set_meta("corde_encoche", [hr, Transform3D(Basis(), Mr * posture.encoche)])
+		porte.arc(tr_porte, hl)
 		var mi_porte := porte.construire(rest_skin, "arc_porte")
 		var vise := Acc.new(sq)
-		vise.arc(tr_vise, sq.find_bone("hand_r"))
+		vise.arc(tr_vise, hl, 0.165, false)
+		vise.corde_bandee(tr_vise, hl, 0.165, Mr * posture.encoche, hr, Ml, Mr, posture)
+		vise.fleche_encochee(posture, Ml, Mr, hl, hr)
 		var mi_vise := vise.construire(rest_skin, "arc_vise")
-		sq.add_child(mi_porte)
-		sq.add_child(mi_vise)
+		var relache := Acc.new(sq)
+		relache.arc(tr_vise, hl)
+		var mi_relache := relache.construire(rest_skin, "arc_relache")
+		for mi: MeshInstance3D in [mi_porte, mi_vise, mi_relache]:
+			sq.add_child(mi)
 		mi_vise.visible = false
+		mi_relache.visible = false
+		var mod := PoseArcher.new()
+		mod.name = "PoseArcher"
+		mod.ap = racine.get_node("Animations") as AnimationPlayer
+		mod.regler(sq, pose)
+		mod.mi_porte = mi_porte
+		mod.mi_vise = mi_vise
+		mod.mi_relache = mi_relache
+		sq.add_child(mod)
 		var ap := racine.get_node("Animations") as AnimationPlayer
 		ap.current_animation_changed.connect(func(nom: StringName) -> void:
-			if not is_instance_valid(mi_vise):
-				return
-			var v := clip_de_visee(String(nom))
-			mi_vise.visible = v
-			mi_porte.visible = not v)
+			if is_instance_valid(mod):
+				mod.visibilites(String(nom), 0.0))
 	_t("accessoires (materiaux)", t0)
 	racine.set_meta("chasseresse_nordique", true)
 	return racine
+
+## Déplace les sommets de `mi` par f(p) (même peau d'os, mêmes UV ; normales gardées : déformation douce).
+static func _deformer(mi: MeshInstance3D, f: Callable) -> void:
+	if mi == null:
+		return
+	var a := mi.mesh.surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var nb: int = (a[Mesh.ARRAY_BONES] as PackedInt32Array).size() / v.size() if a[Mesh.ARRAY_BONES] != null else 4
+	for i in v.size():
+		v[i] = f.call(v[i])
+	a[Mesh.ARRAY_VERTEX] = v
+	for k in [Mesh.ARRAY_TANGENT, Mesh.ARRAY_COLOR, Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_CUSTOM0, Mesh.ARRAY_CUSTOM1, Mesh.ARRAY_CUSTOM2, Mesh.ARRAY_CUSTOM3]:
+		a[k] = null
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if nb == 8 else 0)
+	var mat := mi.get_surface_override_material(0)
+	mi.mesh = m
+	if mat:
+		mi.set_surface_override_material(0, mat)
 
 static func _habiller(mi: MeshInstance3D, m: ShaderMaterial) -> void:
 	mi.visible = true
@@ -173,10 +225,255 @@ static func _peau(pieces: Dictionary) -> void:
 		mi.set_surface_override_material(s, _mats[cle])
 
 
+# ======================================================================================================== pose d'archer
+## Bassin du clip Pistol_Aim_Neutral (identique dans Pistol_Shoot), mesuré (outils/sonde_pose_archer.gd) : les poses locales
+## calculées ici sont relatives au bassin, la pose reste juste quel que soit le bassin du clip.
+const BASSIN_VISEE := Transform3D(Basis(Vector3(0.973081, 0.0, 0.230462), Vector3(-0.035619, 0.987984, 0.150394), Vector3(-0.227693, -0.154554, 0.961389)), Vector3(0.002922, 0.877129, -0.086232))
+const OS_POSE := ["spine_01", "spine_02", "spine_03", "neck_01", "Head", "clavicle_l", "upperarm_l", "lowerarm_l", "hand_l", "clavicle_r", "upperarm_r", "lowerarm_r", "hand_r"]
+## Instant du lâcher dans Pistol_Shoot (s) et durée du retour de la main droite.
+const LACHER := 0.06
+const RECUL := 0.10
+
+## Calcule la pose d'archer (poses locales des os de OS_POSE), dans l'espace du squelette, cible droit devant (+z) :
+## torsion du buste (épaule gauche vers la cible), tête qui regarde la cible, IK à deux os pour chaque bras.
+class Posture:
+	var sq: Skeleton3D
+	var loc := {}
+	var bassin := -1
+	var dir := Vector3(0, 0, 1)          # axe de la flèche
+	var prise := Vector3.ZERO            # milieu de la poignée de l'arc (main gauche)
+	var encoche := Vector3.ZERO          # point d'encoche (doigts de la main droite)
+	var repere_arc := Transform3D()      # repère de l'arc bandé (y le long de l'arc, +z = dos de l'arc, vers la cible)
+	const TORSION := [-13.0, -14.0, -15.0]
+	const PAUME := 0.075                 # du poignet au creux de la main
+	const ALLONGE := 0.548               # épaule -> poignée (bras presque tendu)
+
+	func _init(s: Skeleton3D) -> void:
+		sq = s
+		bassin = sq.find_bone("pelvis")
+		for i in sq.get_bone_count():
+			loc[i] = sq.get_bone_rest(i)
+
+	func glob(i: int) -> Transform3D:
+		var t := Transform3D()
+		while i >= 0:
+			if i == bassin:
+				return ChasseresseNordique.BASSIN_VISEE * t
+			t = loc[i] * t
+			i = sq.get_bone_parent(i)
+		return t
+
+	func _poser(nom: String, b: Basis) -> void:
+		var i := sq.find_bone(nom)
+		var pg := glob(sq.get_bone_parent(i))
+		loc[i] = Transform3D(pg.basis.orthonormalized().inverse() * b.orthonormalized(), loc[i].origin)
+
+	func _repos(nom: String) -> Basis:
+		return sq.get_bone_global_rest(sq.find_bone(nom)).basis.orthonormalized()
+
+	## IK à deux os : épaule (upperarm) -> coude -> poignet en `cible`, coude du côté `pole` ; la main prend le repère `main`.
+	func _bras(cote: String, cible: Vector3, pole: Vector3, main: Basis) -> void:
+		var iu := sq.find_bone("upperarm_" + cote)
+		var il := sq.find_bone("lowerarm_" + cote)
+		var ih := sq.find_bone("hand_" + cote)
+		var a: float = (loc[il] as Transform3D).origin.length()
+		var b: float = (loc[ih] as Transform3D).origin.length()
+		var S := glob(iu).origin
+		var d := clampf(S.distance_to(cible), 0.05, a + b - 0.002)
+		var u := (cible - S).normalized()
+		var v := (pole - u * pole.dot(u)).normalized()
+		var ca := clampf((a * a + d * d - b * b) / (2.0 * a * d), -1.0, 1.0)
+		var E := S + u * a * ca + v * a * sqrt(1.0 - ca * ca)
+		var W := S + u * d
+		for paire: Array in [[iu, E - S], [il, W - E]]:
+			var i: int = paire[0]
+			var g := glob(i).basis.orthonormalized()
+			var y: Vector3 = (paire[1] as Vector3).normalized()
+			var q := Quaternion(g.y.normalized(), y)
+			_poser(sq.get_bone_name(i), Basis(q) * g)
+		_poser("hand_" + cote, main)
+
+	func _main(y: Vector3, haut: Vector3) -> Basis:
+		var z := (haut - y * haut.dot(y)).normalized()
+		return Basis(y.cross(z), y, z)
+
+	## Pose bandée (lache = 0) ou main droite partie en arrière après le tir (lache = 1) : {os: Quaternion}.
+	func calculer(lache := 0.0) -> Dictionary:
+		var cum := 0.0
+		for k in 3:
+			cum += TORSION[k]
+			var nom: String = ["spine_01", "spine_02", "spine_03"][k]
+			_poser(nom, Basis(Vector3.UP, deg_to_rad(cum)) * _repos(nom))
+		_poser("neck_01", Basis(Vector3.UP, deg_to_rad(-cum * 0.55)) * Basis(Vector3.UP, deg_to_rad(cum)) * _repos("neck_01"))
+		_poser("Head", Basis(Vector3.RIGHT, deg_to_rad(7.0)) * Basis(Vector3.FORWARD, deg_to_rad(4.0)) * _repos("Head"))
+		for c in ["l", "r"]:
+			var i := sq.find_bone("clavicle_" + c)
+			loc[i] = sq.get_bone_rest(i)
+		# ancrage : sous la pommette droite, au coin de la mâchoire
+		var tete := glob(sq.find_bone("Head"))
+		encoche = tete * Vector3(-0.048, -0.025, 0.075)
+		# poignée : sur l'axe de la flèche, à ALLONGE de l'épaule gauche
+		var S := glob(sq.find_bone("upperarm_l")).origin
+		var w := encoche - S
+		var bq := 2.0 * w.dot(dir)
+		var tirage := (-bq + sqrt(maxf(bq * bq - 4.0 * (w.length_squared() - ALLONGE * ALLONGE), 0.0))) * 0.5
+		prise = encoche + dir * tirage
+		var cant := Basis(dir, deg_to_rad(-9.0))          # arc un peu penché (haut vers l'extérieur droit de l'archère)
+		var haut := cant * Vector3.UP
+		_bras("l", prise - dir * PAUME + haut * 0.0, Vector3(0.7, -0.6, -0.2), _main(dir, haut))
+		var recul := (-dir * 0.075 + Vector3(-0.045, 0.012, 0.0)) * lache
+		var doigts := encoche + recul
+		_bras("r", doigts - dir * PAUME + Vector3(0.0, 0.0, 0.0), Vector3(-1.0, 0.25, -0.55), _main(dir, Vector3.UP))
+		repere_arc = Transform3D(Basis(haut.cross(dir), haut, dir), prise + Vector3(-0.004, 0, 0))
+		var res := {}
+		for nom: String in ChasseresseNordique.OS_POSE:
+			var i := sq.find_bone(nom)
+			res[i] = (loc[i] as Transform3D).basis.get_rotation_quaternion()
+		return res
+
+## Applique la pose d'archer par-dessus le clip pendant la visée et le tir ; gère aussi quel arc est visible.
+class PoseArcher extends SkeletonModifier3D:
+	var ap: AnimationPlayer
+	var os_ := PackedInt32Array()
+	var bande: Array[Quaternion] = []
+	var relache: Array[Quaternion] = []
+	var origines: Array[Vector3] = []
+	var mi_porte: MeshInstance3D
+	var mi_vise: MeshInstance3D
+	var mi_relache: MeshInstance3D
+
+	func regler(sq: Skeleton3D, pose: Dictionary) -> void:
+		var p2 := ChasseresseNordique.Posture.new(sq)
+		var pr := p2.calculer(1.0)
+		for i: int in pose:
+			os_.append(i)
+			bande.append(pose[i])
+			relache.append(pr[i])
+			origines.append(sq.get_bone_rest(i).origin)
+
+	## Poids du lâcher (0 = bandé, 1 = main partie) pour le clip et l'instant donnés ; -1 = pas de visée.
+	static func lache(nom: String, t: float) -> float:
+		if not ChasseresseNordique.clip_de_visee(nom):
+			return -1.0
+		if nom.contains("Shoot"):
+			return clampf((t - ChasseresseNordique.LACHER) / ChasseresseNordique.RECUL, 0.0, 1.0)
+		return 0.0
+
+	func visibilites(nom: String, t: float) -> void:
+		var l := lache(nom, t)
+		if mi_porte:
+			mi_porte.visible = l < 0.0
+		if mi_vise:
+			mi_vise.visible = l >= 0.0 and l <= 0.0
+		if mi_relache:
+			mi_relache.visible = l > 0.0
+
+	func appliquer(sq: Skeleton3D) -> void:
+		if ap == null or sq == null:
+			return
+		var nom := String(ap.assigned_animation)
+		var t := ap.current_animation_position if ap.has_animation(nom) else 0.0
+		var l := lache(nom, t)
+		visibilites(nom, t)
+		if l < 0.0:
+			return
+		for k in os_.size():
+			sq.set_bone_pose_position(os_[k], origines[k])
+			sq.set_bone_pose_rotation(os_[k], bande[k].slerp(relache[k], l))
+
+	func _process_modification_with_delta(_dt: float) -> void:
+		appliquer(get_skeleton())
+
 # ======================================================================================================== accessoires
 ## Accessoires de la chasseresse : ceux du guerrier (mèches de fourrure, disques ouvragés, yeux, intégration à l'atlas) + arc,
 ## carquois et flèches, couteau, tresses blondes, frange, baudrier paramétré. Atlas : ChasseresseTextures (même disposition).
 class Acc extends GuerrierNordique.Accessoires:
+
+	## Haut du dos laissé sans touffes (la capuche rabattue s'y pose).
+	var dos_libre := false
+	func _poitrine(p: Vector3) -> bool:
+		return super(p) or (dos_libre and p.z < 0.0 and absf(p.x) < 0.17 and p.y > 1.27)
+
+	# ------------------------------------------------------------ capuche rabattue (cuir brun, bord de fourrure chaude)
+	## Capuche baissée : son ouverture fait le tour du cou (des clavicules au haut du dos), le sac de cuir repose à plat sur le
+	## haut du dos, entre la mante et le carquois ; doublure sombre visible sur la première rangée ; bord garni de mèches qui
+	## se dressent derrière la nuque (le grand col de fourrure de la référence). Os : spine_03 (sac), neck_01 (bord).
+	func capuche() -> void:
+		var nk := sq.find_bone("neck_01")
+		var s3 := sq.find_bone("spine_03")
+		var s2 := sq.find_bone("spine_02")
+		var NP := 10
+		var NV := 4
+		var r := ChasseresseTextures.R_CAPUCHE
+		var grille := []
+		for i in NP + 1:
+			var phi := lerpf(-1.80, 1.80, float(i) / NP)            # 0 = milieu du dos
+			var c := cos(phi)
+			var bord := Vector3(sin(phi) * 0.150, 1.455 + 0.065 * maxf(c, 0.0), -0.035 - c * 0.130)
+			var pointe := Vector3(sin(phi) * 0.075, 1.245 + 0.05 * absf(sin(phi)), -0.168 - 0.012 * c)
+			var col := []
+			for j in NV + 1:
+				var v := float(j) / NV
+				var p := bord.lerp(pointe, v)
+				var ext := Vector3(p.x, 0.0, p.z + 0.02).normalized()
+				p += ext * 0.040 * sin(PI * minf(v * 1.3, 1.0)) + Vector3.UP * 0.02 * sin(PI * v)
+				col.append(p)
+			grille.append(col)
+		var poids := func(j: int) -> Array:
+			return _pw2(s3, nk, 0.35) if j == 0 else (_pw(s3) if j < NV else _pw2(s3, s2, 0.3))
+		for i in NP:
+			for j in NV:
+				var u0 := r.position.x + r.size.x * float(i) / NP
+				var u1 := r.position.x + r.size.x * float(i + 1) / NP
+				var v0 := r.position.y + 47.0 * float(j) / NV
+				var v1 := r.position.y + 47.0 * float(j + 1) / NV
+				var a: Vector3 = grille[i][j]
+				var b: Vector3 = grille[i + 1][j]
+				var cc: Vector3 = grille[i + 1][j + 1]
+				var d: Vector3 = grille[i][j + 1]
+				var m := (a + cc) * 0.5
+				_quad(op, a, b, cc, d, _uva(u0, v0), _uva(u1, v0), _uva(u1, v1), _uva(u0, v1),
+					[poids.call(j), poids.call(j), poids.call(j + 1), poids.call(j + 1)], Vector3(0, m.y, 0.0))
+				if j == 0:
+					# doublure (face tournée vers le cou), légèrement en retrait
+					var vd0 := r.position.y + 49.0
+					var vd1 := r.position.y + 62.0
+					var dedans := Vector3(m.x, m.y, m.z) * 3.0
+					var ia := a.lerp(Vector3(0, a.y, 0), 0.03)
+					var ib := b.lerp(Vector3(0, b.y, 0), 0.03)
+					var ic := cc.lerp(Vector3(0, cc.y, 0), 0.03)
+					var id := d.lerp(Vector3(0, d.y, 0), 0.03)
+					_quad(op, ia, ib, ic, id, _uva(u0, vd0), _uva(u1, vd0), _uva(u1, vd1), _uva(u0, vd1),
+						[poids.call(0), poids.call(0), poids.call(1), poids.call(1)], dedans)
+		# bord de fourrure : une carte par segment de l'ouverture, dressée et rabattue vers l'extérieur
+		for i in NP:
+			var a: Vector3 = grille[i][0]
+			var b: Vector3 = grille[i + 1][0]
+			var m := (a + b) * 0.5
+			var ext := Vector3(m.x, 0.0, m.z + 0.02).normalized()
+			var dir := (Vector3.UP * 0.75 + ext * 0.65).normalized()
+			var cote := (b - a).normalized()
+			var lg := lerpf(0.075, 0.105, _h(i)) * (1.0 if absf(float(i) - NP * 0.5) < 3.5 else 0.8)
+			_carte_pw(m - dir * 0.015 - ext * 0.004, cote, dir, (b - a).length() * 1.6, lg, i % 4, ext, _pw2(s3, nk, 0.45))
+		# seconde rangée de mèches, couchées sur le sac (fourrure qui retombe sur le cuir)
+		for i in range(1, NP, 2):
+			var a: Vector3 = grille[i][0]
+			var b: Vector3 = grille[i + 1][0]
+			var m := (a + b) * 0.5
+			var ext := Vector3(m.x, 0.0, m.z + 0.02).normalized()
+			var dir := (Vector3.DOWN * 0.55 + ext * 0.8).normalized()
+			_carte_pw(m + ext * 0.006, (b - a).normalized(), dir, (b - a).length() * 1.8, lerpf(0.06, 0.085, _h(i + 30)), (i + 1) % 4, ext, _pw(s3))
+
+	## Carte de mèches aux poids donnés (comme _carte, sans maillage de référence).
+	func _carte_pw(r: Vector3, cote: Vector3, dir: Vector3, larg: float, lg: float, variante: int, ext: Vector3, pw: Array) -> void:
+		var g := r - cote * larg * 0.5
+		var d := r + cote * larg * 0.5
+		var R := GuerrierTextures.D_MECHES
+		var D := Vector2(GuerrierTextures.DECOUPES)
+		var u0 := (R.position.x + variante * 16.0) / D.x
+		var u1 := (R.position.x + variante * 16.0 + 16.0) / D.x
+		var v1 := (R.position.y + R.size.y) / D.y
+		_quad(dec, g, d, d + dir * lg, g + dir * lg, Vector2(u0, 0.0), Vector2(u1, 0.0), Vector2(u1, v1), Vector2(u0, v1), [pw, pw, pw, pw], r - ext * 0.1)
 
 	func _pw(os_: int) -> Array:
 		return [PackedInt32Array([os_, 0, 0, 0]), PackedFloat32Array([1.0, 0.0, 0.0, 0.0])]
@@ -330,7 +627,7 @@ class Acc extends GuerrierNordique.Accessoires:
 	## l'avant ; section rectangulaire (4 pans) qui s'affine vers les bouts ; corde tendue entre les bouts (prisme à 3 pans).
 	const DEMI_ARC := 0.72
 
-	func arc(tr: Transform3D, os_: int) -> void:
+	func arc(tr: Transform3D, os_: int, courbure := 0.11, avec_corde := true) -> void:
 		var pts := []
 		var lar := []
 		var ep := []
@@ -338,7 +635,7 @@ class Acc extends GuerrierNordique.Accessoires:
 		for i in n + 1:
 			var t := -1.0 + 2.0 * i / n
 			var at := absf(t)
-			var z := -0.11 * at * at + 0.045 * smoothstep(0.78, 1.0, at)
+			var z := -courbure * at * at + 0.045 * smoothstep(0.78, 1.0, at)
 			pts.append(Vector3(0.0, t * DEMI_ARC, z))
 			lar.append(lerpf(0.017, 0.008, smoothstep(0.1, 1.0, at)))
 			ep.append(lerpf(0.022, 0.010, smoothstep(0.1, 1.0, at)))
@@ -359,6 +656,8 @@ class Acc extends GuerrierNordique.Accessoires:
 				var u0 := r.position.x + 4.0 * k
 				_quad(op, tr * anneaux[0][k], tr * anneaux[0][k1], tr * anneaux[1][k1], tr * anneaux[1][k], _uva(u0, v0), _uva(u0 + 4.0, v0), _uva(u0 + 4.0, v1), _uva(u0, v1),
 					os_, tr * ((pts[i] + pts[i + 1]) * 0.5))
+		if not avec_corde:
+			return
 		# corde
 		var haut: Vector3 = pts[n] + Vector3(0, -0.02, -0.004)
 		var bas: Vector3 = pts[0] + Vector3(0, 0.02, -0.004)
@@ -370,6 +669,80 @@ class Acc extends GuerrierNordique.Accessoires:
 			var d1 := Vector3(cos(a1), 0, sin(a1)) * 0.0028
 			_quad(op, tr * (bas + d0), tr * (bas + d1), tr * (haut + d1), tr * (haut + d0), _uva(rc.position.x, rc.end.y), _uva(rc.end.x, rc.end.y),
 				_uva(rc.end.x, rc.position.y), _uva(rc.position.x, rc.position.y), os_, tr * ((bas + haut) * 0.5))
+
+	## Bout de l'arc (haut : signe 1, bas : -1) dans le repère de l'arc, pour une courbure k.
+	func _bout(k: float, signe: float) -> Vector3:
+		return Vector3(0.0, signe * (DEMI_ARC - 0.02), -k + 0.045 - 0.004)
+
+	## Prisme fin entre a (os/poids pa) et b (pb) ; positions dans la POSE DE VISÉE, ramenées au repos par Ma / Mb.
+	func _brin(a: Vector3, b: Vector3, Ma: Transform3D, Mb: Transform3D, pa: Variant, pb: Variant, rayon: float, cotes: int, r: Rect2i) -> void:
+		var ax := (b - a).normalized()
+		var x := ax.cross(Vector3.UP if absf(ax.y) < 0.9 else Vector3.RIGHT).normalized()
+		var y := ax.cross(x)
+		var wa: Array = pa if pa is Array else _pw(pa)
+		var wb: Array = pb if pb is Array else _pw(pb)
+		for k in cotes:
+			var o0 := (x * cos(TAU * k / cotes) + y * sin(TAU * k / cotes)) * rayon
+			var o1 := (x * cos(TAU * (k + 1) / cotes) + y * sin(TAU * (k + 1) / cotes)) * rayon
+			var u0 := r.position.x + r.size.x * float(k) / cotes
+			var u1 := r.position.x + r.size.x * float(k + 1) / cotes
+			var axe := a.lerp(b, 0.5)
+			_tri_pose(op, [a + o0, a + o1, b + o1], [Ma, Ma, Mb], [_uva(u0, r.position.y), _uva(u1, r.position.y), _uva(u1, r.end.y)], [wa, wa, wb], axe)
+			_tri_pose(op, [a + o0, b + o1, b + o0], [Ma, Mb, Mb], [_uva(u0, r.position.y), _uva(u1, r.end.y), _uva(u0, r.end.y)], [wa, wb, wb], axe)
+
+	## Triangle construit dans la pose de visée (ordre des sommets choisi là, face avant vers l'extérieur de `dedans`), chaque
+	## sommet ramené au repos par sa propre matrice (os différents : main gauche / main droite).
+	func _tri_pose(s: Dictionary, p: Array, M: Array, uv: Array, pw: Array, dedans: Vector3) -> void:
+		var p0: Vector3 = p[0]
+		var n: Vector3 = (p[2] - p0).cross(p[1] - p0)
+		var ordre := [0, 1, 2]
+		if n.dot((p[0] + p[1] + p[2]) / 3.0 - dedans) < 0.0:
+			ordre = [0, 2, 1]
+			n = -n
+		n = n.normalized()
+		for k: int in ordre:
+			var m: Transform3D = M[k]
+			s["v"].append(m * (p[k] as Vector3))
+			s["n"].append((m.basis * n).normalized())
+			s["uv"].append(uv[k])
+			s["b"].append_array(pw[k][0])
+			s["w"].append_array(pw[k][1])
+
+	## Corde bandée : deux brins des bouts de l'arc (main gauche) jusqu'au point d'encoche, pondéré sur la main droite
+	## (la corde suit les doigts pendant la visée).
+	func corde_bandee(tr: Transform3D, ol: int, k: float, _encoche_repos: Vector3, or_: int, Ml: Transform3D, Mr: Transform3D, posture: ChasseresseNordique.Posture) -> void:
+		var arc_pose := posture.repere_arc
+		var enc := posture.encoche
+		for signe: float in [1.0, -1.0]:
+			var bout := arc_pose * _bout(k, signe)
+			_brin(bout, enc, Ml, Mr, ol, or_, 0.0030, 3, ChasseresseTextures.R_CORDE)
+
+	## Flèche encochée : fût de l'encoche (main droite) à la pointe, 10 cm devant la poignée (main gauche) ; empennage près de
+	## l'encoche, pointe de fer.
+	func fleche_encochee(posture: ChasseresseNordique.Posture, Ml: Transform3D, Mr: Transform3D, ol: int, or_: int) -> void:
+		var d := posture.dir
+		var arriere := posture.encoche - d * 0.012
+		var avant := posture.prise + d * 0.10 + Vector3(0.012, 0.0, 0.0)
+		var ax := (avant - arriere).normalized()
+		_brin(arriere, avant, Mr, Ml, or_, ol, 0.0050, 3, ChasseresseTextures.R_FUT)
+		# pointe (losange de fer)
+		var p0 := avant
+		var p1 := avant + ax * 0.045
+		_brin(p0, p1, Ml, Ml, ol, ol, 0.0085, 3, GuerrierTextures.R_FER)
+		# empennage : trois ailettes triangulaires opaques (recto-verso, même surface que l'arc : pas de surface de plus)
+		var rc := ChasseresseTextures.R_CORDE
+		var w0 := ax.cross(Vector3.UP).normalized()
+		var w1 := ax.cross(w0).normalized()
+		var wr: Array = _pw(or_)
+		for k in 3:
+			var w := (w0 * cos(TAU * k / 3.0 + 0.5) + w1 * sin(TAU * k / 3.0 + 0.5)).normalized()
+			var a := arriere + ax * 0.015
+			var b := arriere + ax * 0.12
+			var c := arriere + ax * 0.04 + w * 0.022
+			for cote: float in [1.0, -1.0]:
+				var nrm := w.cross(ax) * cote
+				_tri_pose(op, [a, b, c], [Mr, Mr, Mr], [_uva(rc.position.x, rc.position.y), _uva(rc.end.x, rc.position.y + 20), _uva(rc.position.x + 2, rc.position.y + 40)],
+					[wr, wr, wr], (a + b + c) / 3.0 - nrm * 0.05)
 
 	## Repère de l'arc porté dans la main gauche : calculé sur la pose de la main dans Idle (fraction 0,3), l'arc y est presque
 	## vertical (un peu penché vers l'avant et l'extérieur, la branche haute dégage le bras) ; dans la marche il balance avec le bras.
@@ -413,9 +786,9 @@ class Acc extends GuerrierNordique.Accessoires:
 		# flèches : fûts (prismes à 3 pans) et empennage croisé (2 cartes découpées par flèche)
 		var D := Vector2(GuerrierTextures.DECOUPES)
 		var pl := ChasseresseTextures.D_PLUME
-		for i in 6:
-			var ang := TAU * i / 6.0 + 0.4
-			var ecart := (x * cos(ang) + y * sin(ang)) * 0.030
+		for i in 11:
+			var ang := TAU * i / 7.0 + 0.4
+			var ecart := (x * cos(ang) + y * sin(ang)) * (0.034 if i < 7 else 0.014)
 			var penche := (x * cos(ang) + y * sin(ang)) * 0.06 * _h(i)
 			var a := haut - axe * 0.04 + ecart
 			var b := haut + (axe + penche).normalized() * (0.27 + 0.06 * _h(i + 7)) + ecart

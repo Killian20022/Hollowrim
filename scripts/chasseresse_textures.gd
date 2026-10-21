@@ -9,11 +9,16 @@ class_name ChasseresseTextures
 # palettes (sombre -> clair)
 ## jaque de cuir à écailles : brun-gris (pas de bleu : la maille du guerrier virait trop bleu au crépuscule)
 const CUIR_E := ["#1c150e", "#30251b", "#45372a", "#5c4936", "#755d45", "#8f7558", "#a98e6e"]
-## cape : laine vert-bleu sombre (référence : sarcelle sombre)
-const LAINE_VERTE := ["#0b1413", "#122321", "#1a3331", "#234440", "#2e5651", "#3f6a63"]
-## tabard : sarcelle plus clair, liseré crème
-const TABARD := ["#13252a", "#1e353b", "#2a474e", "#385a61", "#4b6e73"]
-const LAINE_OLIVE := ["#121410", "#1c1f17", "#282c20", "#353a2a", "#444a36", "#555b43"]
+## cape (passe 2) : laine ardoise très sombre, bleu désaturé (la cape de la référence est bleu nuit, pas sarcelle ni verte)
+const LAINE_VERTE := ["#0d1015", "#151a22", "#1e252f", "#28313d", "#343e4b", "#444f5d"]
+## tabard : bleu-gris (mailles de la référence), liseré crème
+const TABARD := ["#171b22", "#222833", "#2f3744", "#3f4857", "#535d6c"]
+## pantalon (passe 2) : laine brun sombre (référence), plus d'olive
+const LAINE_OLIVE := ["#14100c", "#1e1812", "#2a2119", "#372c21", "#45382b", "#554636"]
+## fourrure (passe 2) : crème / beige chaud, pointes claires ; plus chaude que l'intuition (le crépuscule bleuit tout)
+const FOUR_CHAUD := ["#231a12", "#4a3a29", "#76614a", "#a28a69", "#c9b089", "#e6d3ac"]
+## cuir de la capuche rabattue : brun moyen usé
+const CUIR_CAPUCHE := ["#1d140d", "#33241a", "#4b3626", "#644a34", "#7e6045", "#977758"]
 const BLOND := ["#33230f", "#553c1c", "#7a5a2c", "#9e7a3e", "#c09a55", "#dbb872"]
 const PLUME := ["#2a2824", "#59544b", "#8f887a", "#bdb5a3", "#ddd6c4"]
 ## arc : bois d'if brun-roux (âme claire, dos sombre)
@@ -23,7 +28,7 @@ static var _cache := {}
 
 # ------------------------------------------------------------------ précalcul (comme GuerrierTextures)
 const DOSSIER := "res://assets/persos/chasseresse"
-const VERSION := 2
+const VERSION := 3
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -53,6 +58,8 @@ static func tex(nom: String) -> ImageTexture:
 				"brassards": img = brassards()
 				"accessoires": img = accessoires()
 				"decoupes": img = decoupes()
+				"mante": img = mante()
+				"bottes": img = bottes()
 				_: push_error("ChasseresseTextures : texture inconnue " + nom)
 			mips = GuerrierTextures.mips_pixel(img)
 			sauver(nom, mips)
@@ -132,7 +139,7 @@ static func jaque() -> Image:
 				var tf := 2 + int(f * 3.0) + (1 if vy > 2 else 0)
 				if posmod(x * 5 + vy, 4) == 0:
 					tf = 1
-				c = GuerrierTextures._c(GuerrierTextures.FOUR, tf)
+				c = _c(FOUR_CHAUD, tf)
 			elif y >= yj and vy == bande:
 				c = GuerrierTextures._c(GuerrierTextures.CUIR, 0)
 			GuerrierTextures._p(img, x, y, c)
@@ -203,6 +210,8 @@ const R_CORDE := Rect2i(16, 0, 4, 128)
 const R_CARQ := Rect2i(32, 0, 64, 64)
 const R_FUT := Rect2i(96, 0, 8, 64)
 const R_FOURREAU := Rect2i(104, 0, 16, 64)
+## (32,64,96,64) capuche rabattue : cuir brun (u autour du cou, v du bord vers la pointe), doublure sombre en v 56-63
+const R_CAPUCHE := Rect2i(32, 64, 96, 64)
 
 static func accessoires() -> Image:
 	var img := GuerrierTextures._img(GuerrierTextures.ATLAS.x, GuerrierTextures.ATLAS.y, GuerrierTextures._c(GuerrierTextures.FER, 2))
@@ -220,6 +229,7 @@ static func accessoires() -> Image:
 	_carquois(img)
 	_fut(img)
 	_fourreau(img)
+	_capuche(img)
 	return img
 
 ## Œil (passe chasseresse) : blanc TERNE (le guerrier avait des yeux presque blancs), grand iris bleu-gris, pupille, paupière.
@@ -346,7 +356,7 @@ static func decoupes() -> Image:
 	for y in 128:
 		for x in 112:
 			img.set_pixel(x, y, cp.get_pixel(posmod(x + CAPE_U0, 256), y))
-	var m := GuerrierTextures.meches()
+	var m := meches()
 	img.blit_rect(m, Rect2i(Vector2i.ZERO, m.get_size()), GuerrierTextures.D_MECHES.position)
 	_plumes(img)
 	return img
@@ -432,3 +442,112 @@ static func cheveux(src: Texture2D) -> Texture2D:
 static func vider_tout() -> void:
 	_cache.clear()
 	_tex_q.clear()
+
+# ------------------------------------------------------------------ passe 2 : fourrure chaude, capuche
+## Capuche rabattue : cuir usé (u : autour du cou, v : du bord (0) vers la pointe (47)), couture centrale du dos (u milieu),
+## piqûres le long du bord ; v 48-63 : doublure de laine sombre (vue par l'ouverture).
+static func _capuche(img: Image) -> void:
+	var r := R_CAPUCHE
+	for y in r.size.y:
+		for x in r.size.x:
+			var c: Color
+			if y >= 48:
+				c = _c(LAINE_VERTE, 1 + int(GuerrierTextures._n(x, y, 96, 16, 8, 2, 1211) * 2.0))
+			else:
+				var l := 0.55 + (GuerrierTextures._n(x, y, 96, 48, 6, 4, 1212) - 0.5) * 0.45 - float(y) / 48.0 * 0.18
+				var t := GuerrierTextures._ton(l, 6, x, y, 1213, 0.35)
+				if absi(x - 48) == 0:
+					t = 0                                       # couture du dos
+				elif absi(x - 48) == 1 and y % 3 != 0:
+					t = 5
+				elif y == 3 and x % 3 != 0:
+					t = 5                                       # piqûres du bord
+				elif y < 2:
+					t = 1
+				if GuerrierTextures._h(x, y, 1214) > 0.965:
+					t = mini(t + 2, 5)                          # éraflures claires
+				c = _c(CUIR_CAPUCHE, t)
+			img.set_pixel(r.position.x + x, r.position.y + y, c)
+
+## Touffe pointue (copie de GuerrierTextures._touffe) dans la palette chaude de la chasseresse.
+static func _touffe(img: Image, x0: int, y0: int, w: int, h: int, pente: float, clair: int) -> void:
+	for k in h:
+		var t := float(k) / maxf(1.0, h - 1)
+		var demi := w * 0.5 * (1.0 - pow(t, 1.4) * 0.92)
+		var cx := x0 + pente * k
+		var xa := int(floorf(cx - demi))
+		var xb := int(ceilf(cx + demi)) - 1
+		for x in range(xa, xb + 1):
+			var ton := clair - 1 + int(t * 2.2)
+			if t < 0.18:
+				ton = clair - 2
+			if x == xa:
+				ton = clair + 1 if t > 0.15 else clair
+			if x == xb or (k == h - 1):
+				ton = 1
+			elif x == int(roundf(cx + demi * 0.25)) and t > 0.25 and t < 0.8:
+				ton = clair - 2
+			if k == h - 1 and x == int(roundf(cx)):
+				ton = clair + 1
+			_p(img, x, y0 + k, _c(FOUR_CHAUD, ton))
+
+## Fourrure de la mante (même construction que GuerrierTextures.mante, palette chaude).
+static func mante() -> Image:
+	var W := 256
+	var H := 128
+	var img := GuerrierTextures._img(W, H, _c(FOUR_CHAUD, 1))
+	var rangs := []
+	var y := H - 12
+	while y > 50:
+		rangs.append(y)
+		y -= 6
+	for r in rangs.size():
+		var yr: int = rangs[r]
+		var x := int(GuerrierTextures._h(r, 0, 871) * 6.0)
+		var i := 0
+		while x < W + 6:
+			var w := 5 + int(GuerrierTextures._h(i, r, 872) * 3.0)
+			var h := 9 + int(GuerrierTextures._h(i, r, 873) * 5.0)
+			var clair := 3 + (1 if GuerrierTextures._h(i, r, 874) > 0.45 else 0)
+			_touffe(img, x, yr + int(GuerrierTextures._h(i, r, 875) * 3.0) - 1, w, h, (GuerrierTextures._h(i, r, 876) - 0.5) * 0.35, clair)
+			x += w - 1
+			i += 1
+	return img
+
+## Mèches (4 variantes de 16 x 32, palette chaude, pointes claires).
+static func meches() -> Image:
+	var W := 64
+	var H := 32
+	var img := GuerrierTextures._img(W, H, Color(0, 0, 0, 0))
+	for v in 4:
+		var ox := v * 16
+		var n := 2 + (v & 1)
+		var larg := 16.0 / n
+		for i in n:
+			var w := int(larg) + 2
+			var cx := ox + int(larg * (i + 0.5))
+			var h := 22 + int(GuerrierTextures._h(i, v, 881) * 9.0)
+			var clair := 3 + (1 if (i + v) % 2 == 0 else 0)
+			_touffe(img, cx, 0, mini(w, 16 - 1), mini(h, H), (GuerrierTextures._h(i, v, 882) - 0.5) * 0.25, clair)
+		for y in H:
+			for x in [ox, ox + 15]:
+				if img.get_pixel(x, y).a > 0.0:
+					img.set_pixel(x, y, _c(FOUR_CHAUD, 1))
+	return img
+
+## Bottes : celles du guerrier (cuir lacé), revers de fourrure chaude.
+static func bottes() -> Image:
+	var img := GuerrierTextures.bottes()
+	var W := img.get_width()
+	var H := img.get_height()
+	for y in H:
+		var vy := H - 1 - y
+		if vy <= 50:
+			continue
+		for x in W:
+			var f := GuerrierTextures._n(x, y, W, H, 32, 4, 844)
+			var c := _c(FOUR_CHAUD, 2 + int(f * 3.0) + (1 if vy > 53 else 0))
+			if posmod(x * 7 + vy, 5) == 0:
+				c = _c(FOUR_CHAUD, 1)
+			_p(img, x, y, c)
+	return img
