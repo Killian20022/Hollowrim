@@ -19,6 +19,8 @@ class_name MageNordique
 
 const TEINTE_BARBE := Color(0.80, 0.80, 0.82)
 const PEAU := Color(0.93, 0.84, 0.80)
+## fourrure du manteau : gris plus sombre que celle du guerrier (la référence est sombre ; la fourrure claire volait la vedette au cristal)
+const TEINTE_FOURRURE := Color(0.70, 0.71, 0.76)
 
 ## Prise du bâton (outils/inspecter_mage.gd -- 0.3) : repère centré dans la paume droite, dans le repère posé de hand_r, à 30 % du
 ## chemin entre « vertical en Idle » et « vertical en Spell_Simple_Idle » (8° en Idle, ~20° pendant le sort, au lieu de 45°).
@@ -53,7 +55,9 @@ static func creer(options := {}) -> Node3D:
 	# -- vêtements existants : matières du mage (la tunique devient le haut de la robe)
 	_habiller(pieces["tunique"], GuerrierNordique.materiau(MageTextures.tex("robe_haut")))
 	_habiller(pieces["bottes"], GuerrierNordique.materiau(GuerrierTextures.tex("bottes")))
-	_habiller(pieces["mante"], GuerrierNordique.materiau(GuerrierTextures.tex("mante")))
+	# fourrure du guerrier (même famille), teintée plus sombre pour le mage (matériaux PROPRES : le guerrier ne change pas)
+	_habiller(pieces["mante"], GuerrierNordique.materiau(GuerrierTextures.tex("mante"), true, false, true, "mage_mante"))
+	(pieces["mante"].material_override as ShaderMaterial).set_shader_parameter("teinte", TEINTE_FOURRURE)
 	if pieces.has("capuche") and options.get("capuche", true):
 		_habiller(pieces["capuche"], GuerrierNordique.materiau(MageTextures.tex("capuche")))
 		# capuche ouverte devant (le pan qui couvrait le menton et le cou est retiré : la barbe sort de la capuche comme sur la
@@ -171,8 +175,8 @@ static func _peau(pieces: Dictionary) -> void:
 				if nom == "peau":
 					m2.next_pass = GuerrierNordique.contour()
 					var te: Variant = m.get_shader_parameter("teinte")
-					m2.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * Color(1.08, 1.04, 1.02))
-					m2.set_shader_parameter("appoint", Vector3(0.09, 0.09, 0.11))
+					m2.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * Color(0.86, 0.84, 0.86))
+					m2.set_shader_parameter("appoint", Vector3(0.05, 0.05, 0.07))
 					m2.set_shader_parameter("contour_froid", Vector3(0.22, 0.27, 0.38))
 				Palette.materiaux.append(m2)
 				Palette._appliquer(m2, Palette._ps1_actif)
@@ -381,7 +385,9 @@ class Acc extends GuerrierNordique.Accessoires:
 			if s == op:
 				mats.append(GuerrierNordique.materiau(MageTextures.tex("accessoires"), false, false, true, "mage_acc"))
 			elif s == dec:
-				mats.append(GuerrierNordique.materiau(MageTextures.tex("decoupes"), true, true, false, "mage_dec"))
+				var md := GuerrierNordique.materiau(MageTextures.tex("decoupes"), true, true, false, "mage_dec")
+				md.set_shader_parameter("teinte", MageNordique.TEINTE_FOURRURE)
+				mats.append(md)
 			else:
 				mats.append(MageNordique.materiau_cristal())
 		var mi := MeshInstance3D.new()

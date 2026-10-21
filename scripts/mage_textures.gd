@@ -7,7 +7,7 @@ class_name MageTextures
 ## gris-brun sombre, barbe grise, bâton de bois brun-gris gravé de runes, cristal de glace à facettes.
 
 # palettes (sombre -> clair)
-const ROBE := ["#0f1118", "#181c27", "#232938", "#30384b", "#414b62", "#56627c", "#6f7c96"]
+const ROBE := ["#0f1016", "#181b23", "#232631", "#2f3442", "#3e4455", "#525a6e", "#6a7388"]   # ardoise gris-bleu (la référence est presque noire)
 const BRODERIE := ["#2a2f3b", "#5b6273", "#8f96a5", "#bfc4cc", "#dcdfe3"]   # fil d'argent terni (runes)
 const CAPUCHE := ["#121113", "#1c1a1d", "#272429", "#343036", "#433e44", "#554f55", "#6a636a"]
 const BARBE := ["#2b2a2b", "#4a4849", "#6c6a6a", "#8f8d8b", "#b1aeaa", "#cfccc6"]
@@ -33,7 +33,7 @@ const RUNES := [
 static var _cache := {}
 
 const DOSSIER := "res://assets/personnages/mage"
-const VERSION := 1
+const VERSION := 2
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
