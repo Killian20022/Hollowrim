@@ -76,7 +76,8 @@ static func creer(options := {}) -> Node3D:
 		pieces["Eyebrows"].visible = false
 	var mi_ch: MeshInstance3D = sq.get_node_or_null("Hair_Long")
 	if mi_ch:
-		GuerrierNordique._filtrer(mi_ch, func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002)
+		# passe 2 : les longueurs du dos sont rentrées dans la capuche rabattue (la capuche et les tresses se lisent de dos)
+		GuerrierNordique._filtrer(mi_ch, func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002 and not (c.y < 1.50 and c.z < 0.0))
 		GuerrierNordique._decimer(mi_ch, func(p: Vector3) -> float: return 0.03)
 		var src: Texture2D = (mi_ch.material_override as ShaderMaterial).get_shader_parameter("tex_base")
 		mi_ch.material_override = GuerrierNordique.materiau(ChasseresseTextures.cheveux(src), true, false, true, "cheveux_chasseresse")
@@ -407,7 +408,7 @@ class Acc extends GuerrierNordique.Accessoires:
 		var r := ChasseresseTextures.R_CAPUCHE
 		var grille := []
 		for i in NP + 1:
-			var phi := lerpf(-1.80, 1.80, float(i) / NP)            # 0 = milieu du dos
+			var phi := lerpf(-2.0, 2.0, float(i) / NP)            # 0 = milieu du dos
 			var c := cos(phi)
 			var bord := Vector3(sin(phi) * 0.150, 1.455 + 0.065 * maxf(c, 0.0), -0.035 - c * 0.130)
 			var pointe := Vector3(sin(phi) * 0.075, 1.245 + 0.05 * absf(sin(phi)), -0.168 - 0.012 * c)
@@ -451,10 +452,10 @@ class Acc extends GuerrierNordique.Accessoires:
 			var b: Vector3 = grille[i + 1][0]
 			var m := (a + b) * 0.5
 			var ext := Vector3(m.x, 0.0, m.z + 0.02).normalized()
-			var dir := (Vector3.UP * 0.75 + ext * 0.65).normalized()
+			var dir := (Vector3.UP * 0.80 + ext * 0.60).normalized()
 			var cote := (b - a).normalized()
-			var lg := lerpf(0.075, 0.105, _h(i)) * (1.0 if absf(float(i) - NP * 0.5) < 3.5 else 0.8)
-			_carte_pw(m - dir * 0.015 - ext * 0.004, cote, dir, (b - a).length() * 1.6, lg, i % 4, ext, _pw2(s3, nk, 0.45))
+			var lg := lerpf(0.10, 0.135, _h(i)) * (1.0 if absf(float(i) - NP * 0.5) < 3.5 else 0.85)
+			_carte_pw(m - dir * 0.015 - ext * 0.004, cote, dir, (b - a).length() * 2.1, lg, i % 4, ext, _pw2(s3, nk, 0.45))
 		# seconde rangée de mèches, couchées sur le sac (fourrure qui retombe sur le cuir)
 		for i in range(1, NP, 2):
 			var a: Vector3 = grille[i][0]

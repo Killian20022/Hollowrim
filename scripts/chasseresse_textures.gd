@@ -16,7 +16,7 @@ const TABARD := ["#171b22", "#222833", "#2f3744", "#3f4857", "#535d6c"]
 ## pantalon (passe 2) : laine brun sombre (référence), plus d'olive
 const LAINE_OLIVE := ["#14100c", "#1e1812", "#2a2119", "#372c21", "#45382b", "#554636"]
 ## fourrure (passe 2) : crème / beige chaud, pointes claires ; plus chaude que l'intuition (le crépuscule bleuit tout)
-const FOUR_CHAUD := ["#231a12", "#4a3a29", "#76614a", "#a28a69", "#c9b089", "#e6d3ac"]
+const FOUR_CHAUD := ["#2e2318", "#5c4834", "#8a7254", "#b49c77", "#d7c09a", "#efe1c1"]
 ## cuir de la capuche rabattue : brun moyen usé
 const CUIR_CAPUCHE := ["#1d140d", "#33241a", "#4b3626", "#644a34", "#7e6045", "#977758"]
 const BLOND := ["#33230f", "#553c1c", "#7a5a2c", "#9e7a3e", "#c09a55", "#dbb872"]
@@ -28,7 +28,7 @@ static var _cache := {}
 
 # ------------------------------------------------------------------ précalcul (comme GuerrierTextures)
 const DOSSIER := "res://assets/persos/chasseresse"
-const VERSION := 3
+const VERSION := 4
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -257,11 +257,11 @@ static func _tresse(img: Image) -> void:
 	for y in r.size.y:
 		for x in r.size.x:
 			var d := posmod(y + absi(x - 8) / 2, 4)
-			var t := 4 if d < 2 else 2
+			var t := 4 if d < 2 else 3
 			if d == 0:
 				t = 5
 			if x == 0 or x == 15:
-				t = 1
+				t = 2
 			var c := _c(BLOND, t)
 			if y >= 27:
 				c = GuerrierTextures._c(GuerrierTextures.CUIR, 2 if y % 2 == 0 else 4)   # lien de cuir
