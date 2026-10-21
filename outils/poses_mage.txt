@@ -1,0 +1,43 @@
+# Mage nordique (refonte persos) : vues en jeu. Lancer avec --mage-pilote (et --guerrier-pilote pour les vues « famille ») :
+# godot --path . --disable-vsync -- --captures=outils/poses_mage.txt --sortie=<dossier> --nouvelle --paisible --sans-particules --attente=200 --res=640x360 --mage-pilote
+entree_17h5 monde 21.80,19.82,-132.3,0.3 heure=17.5 sans-mains
+entree_21 monde 21.80,19.82,-132.3,0.3 heure=21 sans-mains torche-eteinte
+# 2 / 4 / 8 m, face, 3/4, dos, 17h30 (Idle)
+p17_2m_face pilote 2,0 heure=17.5 sans-mains anim=Idle:0.25
+p17_2m_34 pilote 2,-35 heure=17.5 sans-mains anim=Idle:0.25
+p17_2m_dos pilote 2,180 heure=17.5 sans-mains anim=Idle:0.25
+p17_4m_face pilote 4,0 heure=17.5 sans-mains anim=Idle:0.25
+p17_4m_34 pilote 4,-35 heure=17.5 sans-mains anim=Idle:0.25
+p17_4m_dos pilote 4,180 heure=17.5 sans-mains anim=Idle:0.25
+p17_8m_face pilote 8,0 heure=17.5 sans-mains anim=Idle:0.25
+p17_8m_34 pilote 8,-35 heure=17.5 sans-mains anim=Idle:0.25
+p17_8m_dos pilote 8,180 heure=17.5 sans-mains anim=Idle:0.25
+# nuit (21 h) sans torche : le cristal reste lisible sans halo
+p21_3m_34 pilote 3,-30,1.3 heure=21 sans-mains torche-eteinte anim=Idle:0.25
+p21_3m_sort pilote 3,-30,1.3 heure=21 sans-mains torche-eteinte anim=Spell_Simple_Shoot:0.4
+# gros plans : visage (capuche, barbe), bâton (cristal, griffes, runes), amulette
+gros_visage_2m pilote 2,20,1.55 heure=17.5 sans-mains anim=Idle:0.3
+gros_visage_1m pilote 1.0,20,1.62 heure=17.5 sans-mains anim=Idle:0.3
+gros_baton_2m pilote 2,-30,1.6 heure=17.5 sans-mains anim=Idle:0.3
+gros_baton_1m pilote 1.1,-35,1.75 heure=17.5 sans-mains anim=Idle:0.3
+gros_torse_2m pilote 2,0,1.2 heure=17.5 sans-mains anim=Idle:0.3
+gros_torse_1m pilote 1.1,10,1.25 heure=17.5 sans-mains anim=Idle:0.3
+# animations (3,2 m, 3/4 côté bâton, 17h30) : pose figée à la fraction t du clip
+an_idle pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Idle:0.3
+an_marche_a pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Walk:0.25
+an_marche_b pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Walk:0.75
+an_course_a pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Jog_Fwd:0.3
+an_course_b pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Sprint:0.4
+an_sort_a pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Spell_Simple_Enter:0.6
+an_sort_b pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Spell_Simple_Shoot:0.3
+an_sort_c pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Spell_Simple_Shoot:0.7
+an_coup pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Hit_Chest:0.4
+an_mort_a pilote 3.2,-40,0.6 heure=17.5 sans-mains anim=Death01:0.5
+an_mort_b pilote 3.2,-40,0.4 heure=17.5 sans-mains anim=Death01:1.0
+# marche de profil (la robe ne traverse pas les jambes)
+pr_marche_a pilote 3,90,0.8 heure=17.5 sans-mains anim=Walk:0.0
+pr_marche_b pilote 3,90,0.8 heure=17.5 sans-mains anim=Walk:0.25
+pr_marche_c pilote 3,90,0.8 heure=17.5 sans-mains anim=Walk:0.5
+pr_marche_d pilote 3,90,0.8 heure=17.5 sans-mains anim=Walk:0.75
+pr_course_a pilote 3,90,0.8 heure=17.5 sans-mains anim=Jog_Fwd:0.0
+pr_course_b pilote 3,90,0.8 heure=17.5 sans-mains anim=Jog_Fwd:0.5

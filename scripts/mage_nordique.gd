@@ -20,11 +20,12 @@ class_name MageNordique
 const TEINTE_BARBE := Color(0.80, 0.80, 0.82)
 const PEAU := Color(0.93, 0.84, 0.80)
 
-## Prise du bâton (outils/inspecter_mage.gd) : repère vertical centré dans la paume droite en pose Idle, dans le repère posé de hand_r.
-const PRISE_BATON := Transform3D(Basis(Vector3(-0.988247, -0.141011, 0.059031), Vector3(0.149039, -0.802874, 0.577219), Vector3(-0.034000, 0.579232, 0.814453)), Vector3(-0.002341, 0.057720, 0.007557))
+## Prise du bâton (outils/inspecter_mage.gd -- 0.3) : repère centré dans la paume droite, dans le repère posé de hand_r, à 30 % du
+## chemin entre « vertical en Idle » et « vertical en Spell_Simple_Idle » (8° en Idle, ~20° pendant le sort, au lieu de 45°).
+const PRISE_BATON := Transform3D(Basis(Vector3(-0.947591, -0.319101, -0.015678), Vector3(0.269132, -0.823724, 0.499045), Vector3(-0.172160, 0.468671, 0.866434)), Vector3(-0.002341, 0.057720, 0.007557))
 
 ## Bâton : (décalage vers l'extérieur de la main en m, inclinaison du pied vers l'extérieur en °, inclinaison du pied vers l'avant en °).
-static var reglage_baton := Vector3(0.035, 5.0, 3.0)
+static var reglage_baton := Vector3(0.035, 10.0, 3.0)
 ## Anneaux de la jupe (hauteur au repos) et rayons du profil (x, z) de la taille à l'ourlet.
 const ANNEAUX := [0.99, 0.90, 0.79, 0.66, 0.53, 0.40, 0.28, 0.17]
 const SECTEURS := 20
@@ -79,6 +80,11 @@ static func creer(options := {}) -> Node3D:
 	GuerrierNordique._decimer(sq.get_node_or_null("Hair_Beard"), func(p: Vector3) -> float: return 0.008)
 	var mi_b: MeshInstance3D = sq.get_node_or_null("Hair_Beard")
 	if mi_b:
+		# barbe de mage : allongée sous le menton (x 1,9 vers le bas) et un peu avancée, pointe resserrée
+		_deformer(mi_b, func(p: Vector3) -> Vector3:
+			var d := maxf(0.0, 1.635 - p.y)
+			var t := d / 0.08
+			return Vector3(p.x * (1.0 - 0.25 * clampf(t, 0.0, 1.0)), 1.635 - d * 1.9, p.z + d * 0.25))
 		GuerrierNordique._uv_barbe(mi_b)
 		mi_b.material_override = GuerrierNordique.materiau(MageTextures.tex("barbe"), true, false, false, "mage_barbe")
 		(mi_b.material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.10, 0.10, 0.11))
@@ -187,6 +193,10 @@ class Acc extends GuerrierNordique.Accessoires:
 	func _uva(x: float, y: float) -> Vector2:
 		return Vector2(x / MageTextures.ATLAS.x, y / MageTextures.ATLAS.y)
 
+	## Devant de la poitrine plus largement dégagé que sur le guerrier : la barbe, l'amulette et la bande brodée se lisent.
+	func _poitrine(p: Vector3) -> bool:
+		return poitrine_libre and p.z > 0.0 and absf(p.x) < 0.16 and p.y < 1.55
+
 	# ------------------------------------------------------------ jupe (points au repos ; maillage : MageJupe, recalculé à chaque image)
 	## Anneaux évasés (profil elliptique, rayon au moins 1,8 cm hors de la tunique et du pantalon mesurés au repos dans le même secteur).
 	func robe(tunique: MeshInstance3D, pantalon: MeshInstance3D) -> void:
@@ -266,7 +276,7 @@ class Acc extends GuerrierNordique.Accessoires:
 
 	## Pendentif : disque runique sur la poitrine (sous la barbe), cordon de cuir jusqu'au cou des deux côtés.
 	func amulette(tunique: MeshInstance3D) -> void:
-		var pr := _projeter(tunique, 0.0, 1.30, true)
+		var pr := _projeter(tunique, 0.0, 1.24, true)
 		if pr.is_empty():
 			push_warning("MageNordique : amulette hors de la tunique")
 			return

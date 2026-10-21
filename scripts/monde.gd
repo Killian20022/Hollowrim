@@ -149,6 +149,7 @@ func _ready() -> void:
 	_villageois()
 	_chrono("villageois")
 	_guerrier_pilote()
+	_mage_pilote()
 	_tertre()
 	_chrono("tertre+crypte")
 	_grotte_acces()
@@ -580,6 +581,31 @@ func _pilote_animer(nom: String, t: float) -> void:
 	ap.play(nom)
 	ap.seek(ap.get_animation(nom).length * t, true)
 	ap.pause()
+
+## --mage-pilote[=x,z,lacet°] : Mage nordique (MageNordique) au même poste que le guerrier pilote ; devient la cible des vues
+## « pilote » (le guerrier, s'il est là aussi, est posé 1,1 m à sa gauche, même orientation : planche de famille).
+## --mage-anim=Nom : animation (Idle par défaut ; signature : Spell_Simple_Shoot). Aucun effet sans l'option.
+func _mage_pilote() -> void:
+	if not _arguments().has("mage-pilote"):
+		return
+	var p := PILOTE_DEFAUT
+	var a: String = _arguments()["mage-pilote"]
+	if a != "":
+		var f := a.split_floats(",")
+		p = Vector3(f[0], f[1], f[2] if f.size() > 2 else p.z)
+	var guerrier := pilote
+	pilote = MageNordique.creer({})
+	add_child(pilote)
+	pilote.global_position = Vector3(p.x, hauteur(p.x, p.y), p.y)
+	pilote.rotation.y = deg_to_rad(p.z)
+	if guerrier:
+		var q := pilote.global_position + pilote.global_basis.x * 1.1
+		guerrier.global_position = Vector3(q.x, hauteur(q.x, q.z), q.z)
+		guerrier.rotation.y = pilote.rotation.y
+	var nom := String(_arguments().get("mage-anim", "Idle"))
+	(pilote.get_node("Animations") as AnimationPlayer).play(nom)
+	if _arguments().has("capture"):
+		_pilote_animer(nom, 0.25)
 
 # --- le tertre ----------------------------------------------------------------------
 

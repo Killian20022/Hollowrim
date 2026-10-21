@@ -95,8 +95,9 @@ func _coupe(caps: Array, y: float) -> Array:
 	return res
 
 ## Repousse q le long du rayon horizontal (axe -> q) hors des disques de la coupe. Le disque est « élargi » d'un demi-secteur
-## (demi_angle) : le rayon voisin le couvre aussi, la corde entre deux points de l'anneau ne coupe pas la jambe.
-static func _pousser(q: Vector3, axe: Vector3, disques: Array, demi_angle: float) -> Vector3:
+## (cos_d, sin_d = cos/sin du demi-angle) : le rayon voisin le couvre aussi, la corde entre deux points ne coupe pas la jambe.
+## disques : [direction unitaire depuis l'axe, distance D, rayon] (préparés une fois par anneau).
+static func _pousser(q: Vector3, axe: Vector3, disques: Array, cos_d: float, sin_d: float) -> Vector3:
 	var u := Vector2(q.x - axe.x, q.z - axe.z)
 	var lq := u.length()
 	if lq < 1e-5:
@@ -104,19 +105,25 @@ static func _pousser(q: Vector3, axe: Vector3, disques: Array, demi_angle: float
 	u /= lq
 	var t_max := lq
 	for dq: Array in disques:
-		var cc: Vector2 = dq[0] - Vector2(axe.x, axe.z)
-		var rr: float = dq[1]
-		var D := cc.length()
-		if D < 1e-4:
+		var e: Vector2 = dq[0]
+		var D: float = dq[1]
+		var rr: float = dq[2]
+		var c := u.dot(e)
+		var sn := absf(u.cross(e))
+		var cd := c
+		var sd := sn
+		if sn > sin_d or c < cos_d:
+			cd = c * cos_d + sn * sin_d       # cos(Δ - δ)
+			sd = sn * cos_d - c * sin_d       # sin(Δ - δ)
+		else:
+			cd = 1.0
+			sd = 0.0
+		if cd <= 0.0:
 			continue
-		var delta := absf(u.angle_to(cc))
-		var de := maxf(0.0, delta - demi_angle)
-		if de > PI * 0.5:
-			continue
-		var perp := D * sin(de)
+		var perp := D * sd
 		if perp >= rr:
 			continue
-		t_max = maxf(t_max, D * cos(de) + sqrt(rr * rr - perp * perp))
+		t_max = maxf(t_max, D * cd + sqrt(rr * rr - perp * perp))
 	if t_max <= lq:
 		return q
 	return Vector3(axe.x + u.x * t_max, q.y, axe.z + u.y * t_max)
@@ -146,13 +153,20 @@ func calculer() -> Array:
 			ysomme += q.y
 		# lissage latéral (le tissu ne fait pas de pointes d'un secteur à l'autre), puis jambes repoussées (en dernier)
 		var axe := po * Vector3(0, repos[k][0].y, MageNordique.Z_CENTRE)
-		var disques := _coupe(caps, ysomme / N)
+		var disques := []
+		for dq: Array in _coupe(caps, ysomme / N):
+			var cc: Vector2 = dq[0] - Vector2(axe.x, axe.z)
+			var D := cc.length()
+			if D > 1e-4:
+				disques.append([cc / D, D, dq[1]])
+		var cos_d := cos(PI / N)
+		var sin_d := sin(PI / N)
 		var lisse := []
 		for i in N:
 			var m: Vector3 = (ligne[(i + N - 1) % N] + ligne[(i + 1) % N]) * 0.5
 			var q: Vector3 = (ligne[i] as Vector3).lerp(m, lissage)
 			if not disques.is_empty():
-				q = _pousser(q, axe, disques, PI / N)
+				q = _pousser(q, axe, disques, cos_d, sin_d)
 			lisse.append(q)
 		res.append(lisse)
 	anneaux = res

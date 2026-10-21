@@ -160,7 +160,11 @@ func _lancer() -> void:
 	var t1 := Time.get_ticks_usec()
 	for i in 100:
 		jupe.mettre_a_jour()
-	print("INFO   jupe recalculée en %.3f ms (moyenne sur 100)" % ((Time.get_ticks_usec() - t1) / 100000.0))
+	var t_tout := (Time.get_ticks_usec() - t1) / 100000.0
+	t1 = Time.get_ticks_usec()
+	for i in 100:
+		jupe.calculer()
+	print("INFO   jupe recalculée en %.3f ms (moyenne sur 100 ; dont géométrie %.3f ms, le reste = maillage)" % [t_tout, (Time.get_ticks_usec() - t1) / 100000.0])
 	# bâton
 	var m: Array = sq.get_meta("baton")
 	for clip in ["Idle", "Walk", "Jog_Fwd", "Sprint", "Spell_Simple_Enter", "Spell_Simple_Shoot", "Hit_Chest"]:
