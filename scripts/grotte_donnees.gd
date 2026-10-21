@@ -272,10 +272,11 @@ static func zones_hrafn() -> Array:
 			"teinte": [Color(0.5, 0.72, 1.0), Color(0.6, 0.8, 1.0)],
 			"interactions": [
 				{"id": "journal_sigrun", "nom": "Journal de Sigrun", "verbe": "Lire le journal de Sigrun", "s": 35.0, "lat": -9.5, "prop": "journal", "evt": "ramasse:journal_sigrun", "objet": "journal_sigrun",
-					"texte": ["Journal de Sigrun, cheffe des mineurs de Skarnholt.", "« La veine d’argent nous a menés jusqu’à ce lac. Hrafn et ses hommes nous attendaient à la sortie de la mine. »", "« Nous nous sommes réfugiés sur l’îlot. La glace tient, mais nous n’avons plus de torches. Que quelqu’un rapporte ceci au village. »"]},
+					"texte_cle": "journal_sigrun",
+					"texte": ["Journal de Sigrun, cheffe des mineurs de Skarnholt.", "Elle y parle d’un filon rare derrière l’éboulement et de sa broche pour Grima."]},
 			],
 			"coffres": [
-				{"id": "ilot", "s": 34.0, "lat": -8.2, "lacet": 0.6, "nom": "Sac de l’expédition", "butin": {"pieces": 30, "lame_antique": 1}},
+				{"id": "ilot", "s": 34.0, "lat": -8.2, "lacet": 0.6, "nom": "Sac de l’expédition", "butin": {"pieces": 30, "broche_sigrun": 1}},
 			]},
 		{"id": "lac_sortie", "branche": "B", "s": [45.4, 66.0], "theme": "mine", "role": "recit", "graine": 304, "densite": 0.9, "n_lum": 3,
 			"params": {"etais": [52.0, 59.5], "rails": [], "chariots": []},
@@ -322,7 +323,8 @@ static func zones_hrafn() -> Array:
 			],
 			"interactions": [
 				{"id": "registre_hrafn", "nom": "Registre de Hrafn", "verbe": "Prendre le registre de Hrafn", "s": 14.0, "lat": 0.4, "prop": "registre", "evt": "ramasse:registre_hrafn", "objet": "registre_hrafn",
-					"texte": ["Un registre aux pages grasses : les convois de Skarnholt, jour après jour, avec le nom des marchands dépouillés.", "Rapportez-le au village."]},
+					"texte_cle": "registre_hrafn",
+					"texte": ["Un registre aux pages grasses : les convois de Skarnholt, jour après jour.", "Rapportez-le au village."]},
 			],
 			"coffres": [
 				{"id": "cache", "s": 16.5, "lat": -1.8, "lacet": 1.2, "nom": "Cachette de Hrafn", "butin": {"pieces": 200, "amulette_givre": 1, "lame_antique": 1}},
