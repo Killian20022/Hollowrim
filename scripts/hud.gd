@@ -50,6 +50,12 @@ func _ready() -> void:
 	_demo = args.has("--hud-demo")
 	_demo_cible = args.has("--hud-cible")
 	panneau_ouvert = args.has("--hud-panneau")
+	if panneau_ouvert:  # capture : un sac bien rempli pour vérifier la mise en page (jamais sauvegardé : mode capture)
+		(func() -> void:
+			for id in ["os_draugr", "poussiere_tombe", "minerai_fer", "minerai_argent", "cristal_givre", "champignon_lumineux",
+					"relique_offrande", "lame_antique", "amulette_givre", "ecaille_dragon", "hache_kolbeinn", "cle_archives", "registre_hrafn"]:
+				joueur.inventaire.ajouter(id, 2)
+			joueur.inventaire.pieces = 137).call_deferred()
 	if _demo:
 		avis("Épée : niveau 16")
 		avis("Partie sauvegardée")
@@ -210,15 +216,32 @@ func _panneau() -> void:
 		var yq := maxf(o.y + 110.0, o.y + 40.0 + 22.0 * Competences.NOMS.size() + 4.0)
 		_texte(Vector2(gx, yq), "Quêtes", OR)
 		for q in quetes.objectifs():
-			yq += 13.0
-			if yq > pied - 13.0:
-				break
-			_texte(Vector2(gx, yq), "> " + q[1], PARCHEMIN, larg_g)
+			var lignes := _couper("> " + q[1], larg_g)
+			for i in lignes.size():
+				yq += 13.0
+				if yq > pied - 13.0:
+					break
+				_texte(Vector2(gx + (0.0 if i == 0 else 8.0), yq), lignes[i], PARCHEMIN, larg_g)
 	_texte(Vector2(dx, pied), "Poids : %.1f" % inv.poids(), Color(PARCHEMIN, 0.7))
 	_texte(Vector2(gx, pied), "Tab : fermer", Color(PARCHEMIN, 0.5))
 	var c2 = get_tree().current_scene.get("cycle") if get_tree().current_scene else null
 	if c2:
 		_texte(Vector2(gx + floorf((dx - gx) * 0.55), pied), c2.texte_heure(), Color(PARCHEMIN, 0.7))
+
+## Coupe un texte en lignes de largeur <= larg (aux espaces).
+func _couper(texte: String, larg: float) -> PackedStringArray:
+	var res := PackedStringArray()
+	var ligne := ""
+	for mot in texte.split(" ", false):
+		var essai := mot if ligne == "" else ligne + " " + mot
+		if ligne != "" and _police.get_string_size(essai, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x > larg - 8.0:
+			res.append(ligne)
+			ligne = mot
+		else:
+			ligne = essai
+	if ligne != "":
+		res.append(ligne)
+	return res
 
 func _marqueur(pos: Vector3, tex: Texture2D, couleur: Color) -> void:
 	var d := pos - joueur.global_position
