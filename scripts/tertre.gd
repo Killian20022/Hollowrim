@@ -134,8 +134,8 @@ func _tumulus() -> void:
 	var m_facade := TexturesPetites.m_roche_e(Color(0.8, 0.79, 0.84))
 	var m_porte_dalle := TexturesPetites.m_roche_e(Color(0.42, 0.42, 0.5))
 	butte.material_override = TexturesBati.m_neige_toit_e()
-	butte.scale = Vector3(1, 0.42, 1)
-	butte.position = Vector3(0, -0.6, -6.5)
+	butte.scale = Vector3(1, 0.6, 1)                # refonte crypte : butte reculée et plus haute, derrière la façade monumentale
+	butte.position = Vector3(0, -0.6, -15.0)
 	add_child(butte)
 	var corps_dehors := StaticBody3D.new()
 	add_child(corps_dehors)
