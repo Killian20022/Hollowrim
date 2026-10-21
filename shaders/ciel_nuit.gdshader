@@ -1,6 +1,11 @@
-// Ciel nordique (lot 2 « étalonnage et ciel ») : dégradé, GRANDE COUCHE DE NUAGES en pixel art (formes déchiquetées,
-// volumes en paliers, bords éclairés côté astre), bande dorée sous les nuages au crépuscule, étoiles, lune, aurore.
-// Tout est calculé en direction du regard : la taille des nuages ne dépend pas de la résolution interne du jeu.
+// Ciel nordique : dégradé, bande dorée au crépuscule, étoiles, lune, aurore, et NUAGES EN DEUX COUCHES (refonte « nuages ») :
+//  - couche basse (strato-cumulus) : projetée sur un vrai plan haut (les formes s'aplatissent et rapetissent vers l'horizon),
+//    densité variable avec de grandes trouées, bords effilochés et transparents, dessous sombre, bords et touches de lumière
+//    côté astre (liserés orange/roses au couchant), modelé en 7 tons doux ;
+//  - couche haute (cirrus) : voiles fins très étirés dans le sens du vent, plus lents (parallaxe) ;
+//  - les deux couches dérivent avec le vent et se déforment lentement (octaves animées à des vitesses différentes) ;
+//  - anti-scintillement : chaque octave s'efface quand elle devient plus fine que le pixel (empreinte analytique du pixel
+//    sur le plan des nuages), puis voile de brume à l'horizon.
 // L'aurore est posée au nord (-Z). Aucun tramage ici (le tramage par bruit est dans ps1_post).
 shader_type sky;
 
@@ -16,6 +21,9 @@ uniform vec3 horizon_chaud : source_color = vec3(0.05, 0.075, 0.13);
 uniform vec3 haut_courant : source_color = vec3(0.008, 0.012, 0.035);
 uniform vec3 dir_astre = vec3(-0.8, 0.0, 0.6);  // direction horizontale du soleil (ou de la lune)
 uniform float couverture = 1.0;  // 1 = couche de nuages normale, <1 = ciel plus dégagé
+uniform float temps_force = -1.0;  // ≥ 0 : temps des nuages imposé (captures reproductibles) ; < 0 : TIME
+uniform vec2 vent = vec2(0.94, 0.34);  // direction du vent dans le plan XZ (les nuages dérivent vers +vent)
+uniform float angle_pixel = 0.0035;    // angle d'un pixel (rad) : 72° / 360 px ; sert à effacer les détails trop fins
 
 float hash2(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -70,6 +78,84 @@ float fbm(vec2 p, int oct) {
 float densite(vec2 q, int oct) {
 	vec2 w = vec2(bruit_n(q * 0.7 + 3.1), bruit_n(q * 0.7 + 11.7)) - 0.5;
 	return fbm(q + w * 0.6, oct);
+}
+
+// fbm des nuages filtré : chaque octave tourne (pas d'alignement sur la grille du bruit), dérive à sa propre vitesse
+// (la forme évolue) et s'efface quand sa période devient plus petite que ~2 pixels (empreinte `fp`, en unités du plan)
+float fbm_nuage(vec2 p, int oct, float fp, float t, vec2 v0, float gain) {
+	float s = 0.0;
+	float a = 0.5;
+	float f = 1.0;
+	for (int i = 0; i < 5; i++) {
+		if (i >= oct) {
+			break;
+		}
+		float lod = 1.0 - smoothstep(0.22, 0.5, fp * f);
+		s += a * lod * (bruit_n(p) - 0.5);
+		p = mat2(vec2(1.62, 1.18), vec2(-1.18, 1.62)) * p + v0 * t * (0.6 + 0.45 * float(i)) + vec2(5.3, 1.7);
+		f *= 2.0;
+		a *= gain;
+	}
+	return s;
+}
+
+// bruit de valeur et ses dérivées analytiques (x : valeur, yz : gradient) : le gradient modèle chaque petite masse
+vec3 bruit_nd(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	vec2 du = 6.0 * f * (1.0 - f);
+	float a = hash_n(i);
+	float b = hash_n(i + vec2(1.0, 0.0));
+	float c = hash_n(i + vec2(0.0, 1.0));
+	float e = hash_n(i + vec2(1.0, 1.0));
+	float k1 = b - a;
+	float k2 = c - a;
+	float k4 = a - b - c + e;
+	return vec3(a + k1 * u.x + k2 * u.y + k4 * u.x * u.y, du * vec2(k1 + k4 * u.y, k2 + k4 * u.x));
+}
+
+// fbm des cumulus AVEC gradient (passe 2) : la 1re octave donne les amas, les suivantes sont « bombées » (|2n-1| :
+// petites masses arrondies séparées de plis nets, aspect chou-fleur) ; chaque octave tourne, dérive à sa propre vitesse
+// (la forme évolue) et s'efface quand sa période passe sous ~2 pixels (empreinte fp, en unités de p) : pas de scintillement
+vec3 fbm_cumulus(vec2 p, float fp, float t, vec2 v0) {
+	vec3 s = vec3(0.0);
+	float a = 0.5;
+	float f = 1.0;
+	float tot = 0.0;
+	float gw = 1.0;  // poids du gradient : les masses moyennes modèlent, les octaves fines ne font que des touches
+	mat2 rot = mat2(vec2(1.62, 1.18), vec2(-1.18, 1.62));
+	mat2 m = mat2(vec2(1.0, 0.0), vec2(0.0, 1.0));
+	for (int i = 0; i < 6; i++) {
+		float lod = 1.0 - smoothstep(0.2, 0.45, fp * f);
+		if (lod <= 0.0) {
+			break;
+		}
+		vec3 n = bruit_nd(p);
+		if (i >= 1) {
+			float sg = n.x >= 0.5 ? 2.0 : -2.0;
+			n = vec3(abs(n.x - 0.5) * 2.0 + 0.14, n.yz * sg);  // +0.14 : recentre la moyenne de |2n-1|
+		}
+		s.x += a * lod * (n.x - 0.5);
+		s.yz += a * lod * gw * (transpose(m) * n.yz);
+		gw *= 0.68;
+		tot += a * lod;
+		m = rot * m;
+		p = rot * p + v0 * t * (0.6 + 0.5 * float(i)) + vec2(5.3, 1.7);
+		f *= 2.0;
+		a *= 0.55;
+	}
+	// normalisé par l'amplitude gardée : là où le détail s'efface (horizon), la densité garde le même seuil (sinon un banc
+	// uniforme se forme près de l'horizon)
+	return s * (1.08 / max(tot, 0.25));
+}
+
+// quantification douce : n paliers, transitions courtes (pas d'aplat pelucheux ni de bord en escalier dur)
+float paliers(float v, float n) {
+	float x = clamp(v, 0.0, 1.0) * n;
+	float i = floor(x);
+	float f = x - i;
+	return min((i + smoothstep(0.38, 0.62, f)) / n, 1.0);
 }
 
 vec3 palette(vec3 nuit, vec3 cr, vec3 jr) {
@@ -163,51 +249,84 @@ void sky() {
 			col += mix(vec3(0.1, 0.13, 0.2), vec3(0.45, 0.3, 0.2), soleil) * pow(max(m, 0.0), 30.0) * 0.4;
 		}
 
-		// --- couche de nuages (au-dessus de l'horizon seulement) -------------------------------------------------
+		// --- nuages (refonte passe 2) : cumulus faits de petites masses modelées + cirrus fins, au-dessus de l'horizon ----
 		if (d.y > 0.0) {
-			// plan de nuages : les formes rapetissent vers l'horizon (perspective) ; vent lent et régulier
-			vec2 p = d.xz / (d.y + 0.2) * 7.5 + vec2(TIME * 0.012, TIME * 0.005);
-			vec2 q = p * vec2(1.0, 1.3);  // étirement : les nuages s'allongent à l'horizontale
-			float n = densite(q, 5);
-			// couverture : très épaisse en hauteur, des trouées près de l'horizon (la bande dorée se montre en dessous)
-			float seuil_h = mix(0.50, 0.36, smoothstep(0.02, 0.45, d.y));
-			float seuil_n = mix(0.64, 0.50, smoothstep(0.02, 0.45, d.y));      // nuit : plus de trouées (étoiles, aurore)
-			float seuil_j = mix(0.52, 0.42, smoothstep(0.02, 0.45, d.y));      // jour : couvert avec des trouées claires
-			float seuil = mix(mix(seuil_n, seuil_j, jour), seuil_h, crep) + (1.0 - couverture) * 0.3 + trou * 0.22
-				- crep * az * 0.12 * step(yc, y) * (1.0 - smoothstep(yc, yc + 0.12, y));
-			// l'horizon lui-même reste dégagé : fondu des nuages tout près du bord (jamais de mur coupé net)
-			float fond = smoothstep(0.0, 0.035, d.y);
-			float masque = smoothstep(seuil, seuil + 0.035, n) * fond;
-			if (masque > 0.001) {
-				float s = clamp((n - seuil) / (1.0 - seuil), 0.0, 1.0);
-				// volumes en paliers + texture déchiquetée fine
-				float fin = fbm(q * 3.0 + vec2(5.0, 1.0), 3);
-				float grain = hash_n(floor(q * 14.0));  // moucheté pixel art
-				float ton = floor(clamp(s * 0.7 + fin * 0.5 + (grain - 0.5) * 0.45, 0.0, 0.999) * 4.0) / 3.0;
-				// bord éclairé : la densité baisse du côté de l'astre
-				vec2 L = sh * 0.035;
-				float d3 = densite(q, 3);  // une seule fois pour le bord éclairé et le dessous
-				float ecart = d3 - densite(q + L * vec2(0.9, 1.05), 3);
-				float rim = floor(clamp(ecart * 22.0, 0.0, 0.999) * 3.0) / 2.0;
-				// seconde source : le dessous des nuages reçoit la lueur de l'horizon
-				float bas = d3 - densite(q + normalize(q + vec2(0.0001)) * 0.05, 3);
-				float rim_bas = floor(clamp(bas * 16.0, 0.0, 0.999) * 3.0) / 2.0;
+			float t = temps_force >= 0.0 ? temps_force : TIME;
+			vec2 wd = normalize(vent);
+			vec2 wp = vec2(-wd.y, wd.x);
+			// projection en « dôme » (plan adouci, K = 0.42) : les nuages rapetissent vers l'horizon sans s'écraser en traînées
+			// qui convergent vers le point de fuite ; l'empreinte du pixel reste presque isotrope, le détail survit bas
+			float hy = d.y + 0.42;
+			vec2 pl = d.xz / hy;
+			pl = vec2(dot(pl, wd), dot(pl, wp));        // repère du vent : x = sens du vent
+			vec2 shw = vec2(dot(sh, wd), dot(sh, wp));   // direction de l'astre dans ce repère
+			vec2 vue = vec2(dot(dh, wd), dot(dh, wp));   // direction du regard : le haut de l'écran est vers -vue
+			float fp_r = angle_pixel * (1.0 + 0.42 * d.y) / (hy * hy);
+			float fp_t = angle_pixel * length(d.xz) / hy;
+			float fp = pow(fp_r, 0.6) * pow(fp_t, 0.4);
+			float pres_hz = 1.0 - smoothstep(0.0, 0.2, d.y);   // proximité de l'horizon
+			float m_astre = LIGHT0_ENABLED ? max(dot(d, LIGHT0_DIRECTION), 0.0) : 0.0;
 
-				vec3 sombre = palette(vec3(0.003, 0.005, 0.014), vec3(0.016, 0.017, 0.028), vec3(0.075, 0.09, 0.125));
-				vec3 moyen = palette(vec3(0.012, 0.018, 0.040), vec3(0.040, 0.043, 0.062), vec3(0.17, 0.20, 0.25));
-				// crépuscule : gris-violet de la référence (#272931 #393b47 #55607b), rim un peu plus clair
-				vec3 clair = palette(vec3(0.035, 0.060, 0.130), vec3(0.11, 0.115, 0.19), vec3(0.45, 0.50, 0.58));
-				vec3 c = mix(sombre, moyen, ton);
-				float proche_horizon = 1.0 - smoothstep(0.0, 0.32, d.y);
-				float eclat = rim * (0.12 + 0.88 * az * az) * (0.55 + 0.45 * proche_horizon);
-				c = mix(c, clair, eclat * mix(0.55, 1.0, crep));
-				// le dessous des nuages du côté du couchant brille (or / orange)
-				c = mix(c, vec3(0.80, 0.30, 0.08), crep * az * smoothstep(0.0,1.0,1.0 - smoothstep(0.0, 0.12, d.y)) * rim_bas * 0.7);
-				// bords des nuages qui bordent la trouée : liseré orange d'un ou deux pixels
-				float pres_trou = crep * (0.3 + 0.7 * az * az) * step(yc, y) * (1.0 - step(yc + ep, y));
-				c = mix(c, vec3(0.70, 0.32, 0.12), pres_trou * (1.0 - s) * 0.8);
-				// à la nuit, les nuages couvrent aussi un peu l'aurore et les étoiles : le fond est atténué par le masque
-				col = mix(col, c, masque);
+			// couleurs (linéaire) : dessous ombré, corps, flanc éclairé, éclat ; nuit (lune) / crépuscule / jour
+			vec3 c_sombre = palette(vec3(0.010, 0.014, 0.028), vec3(0.020, 0.019, 0.030), vec3(0.15, 0.17, 0.23));
+			vec3 c_corps = palette(vec3(0.018, 0.025, 0.048), vec3(0.045, 0.042, 0.060), vec3(0.28, 0.31, 0.38));
+			vec3 c_bord = palette(vec3(0.036, 0.048, 0.085), vec3(0.090, 0.082, 0.110), vec3(0.50, 0.53, 0.60));
+			vec3 c_eclat = palette(vec3(0.070, 0.088, 0.140), vec3(0.17, 0.15, 0.18), vec3(0.80, 0.81, 0.84));
+			// au couchant / à l'aube, côté soleil : liserés orange et or (or près de l'horizon), pas de rose
+			vec3 chaud = mix(vec3(0.90, 0.36, 0.10), vec3(1.00, 0.62, 0.22), clamp(az * (0.3 + 0.9 * pres_hz), 0.0, 1.0));
+			float k_chaud = crep * (0.25 + 0.75 * az * az);
+
+			// --- couche haute : cirrus fins et fibreux, étirés dans le sens du vent, deux fois plus lents (parallaxe)
+			vec2 q2 = pl * vec2(0.35, 1.5) * 1.6 - vec2(t * 0.0075, 0.0);
+			float fp2 = fp * 1.6 * 1.5;
+			float w2 = bruit_n(q2 * vec2(0.3, 0.6) + vec2(3.7, t * 0.004)) - 0.5;
+			float n2 = 0.5 + fbm_nuage(q2 + vec2(w2 * 1.2, w2 * 0.5), 4, fp2, t, vec2(0.012, 0.004), 0.55);
+			float fibre = 1.0 - abs(n2 * 2.0 - 1.0);                      // crêtes fines : fibres de cirrus
+			float cov2 = bruit_n(q2 * vec2(0.08, 0.2) + vec2(11.0, 2.0)) - 0.5;
+			float cir = smoothstep(0.70, 0.97, fibre) * smoothstep(-0.05, 0.2, cov2 - (1.0 - couverture) * 0.2) * 0.42;
+			cir *= smoothstep(0.03, 0.14, d.y);
+			vec3 c_cir = mix(c_bord, c_eclat, 0.3 + 0.7 * smoothstep(0.85, 1.0, fibre));
+			c_cir = mix(c_cir, chaud * mix(0.6, 1.0, az), k_chaud * 0.8);
+			c_cir += mix(vec3(0.04, 0.05, 0.08), vec3(0.40, 0.28, 0.16), soleil) * pow(m_astre, 12.0) * 0.6;
+
+			// --- couche basse : cumulus / strato-cumulus en petites masses, grandes trouées
+			vec2 q = pl * vec2(0.9, 1.0) * 3.8 - vec2(t * 0.09, 0.0);
+			float fp1 = fp * 3.8;
+			// zones chargées / dégagées (grande échelle, lente) : jamais un plafond uniforme
+			float cov = bruit_n(q * 0.26 + vec2(t * 0.006, 7.3)) - 0.5;
+			// déformation lente du domaine : les amas se tordent et se reforment
+			// (amplitude × fréquence modérée : un warp fort cisaille et étire les masses en traînées)
+			vec2 w = vec2(bruit_n(q * 0.33 + vec2(t * 0.02, 1.3)), bruit_n(q * 0.33 + vec2(5.2, -t * 0.016))) - 0.5;
+			vec2 r = q + w * 0.55;
+			vec3 nf = fbm_cumulus(r, fp1, t, vec2(0.035, 0.014));
+			float seuil = mix(mix(-0.08, -0.10, jour), -0.09, crep) + (1.0 - couverture) * 0.3 + trou * 0.18;
+			float dens = nf.x + cov * 0.26 - seuil;
+			// alpha : bords qui se dissolvent (rampe douce en paliers), fondu à l'horizon
+			float alpha = smoothstep(0.0, 0.11, dens) * smoothstep(0.0, 0.07, d.y);
+			if (alpha > 0.002) {
+				// lumière : pente de la densité vers la lumière (haut de l'écran + astre) → chaque petite masse a un sommet
+				// éclairé et un dessous ombré ; l'épaisseur assombrit le cœur des amas
+				vec2 L = normalize(mix(-vue, shw, 0.3 + 0.5 * crep) + vec2(0.0001));
+				float lit = clamp(0.5 - dot(nf.yz, L * vec2(0.9, 1.0)) * 0.3, 0.0, 1.0);
+				float epais = smoothstep(0.03, 0.32, dens);
+				float v = 0.66 * lit + 0.30 * (1.0 - epais) + 0.25 * pow(m_astre, 8.0) * (1.0 - epais * 0.7) - 0.04;
+				v = paliers(v, 7.0);
+				vec3 c = mix(c_sombre, c_corps, smoothstep(0.0, 0.32, v));
+				c = mix(c, c_bord, smoothstep(0.30, 0.64, v));
+				c = mix(c, c_eclat, smoothstep(0.62, 1.0, v));
+				// liserés chauds côté soleil : flancs éclairés et bords fins, dominants près de l'horizon
+				float lis = paliers(smoothstep(0.5, 0.85, lit) * (1.0 - epais * 0.5), 3.0);
+				c = mix(c, chaud * (0.7 + 0.5 * lit), clamp(k_chaud * lis * (0.3 + 0.7 * az) * 1.2, 0.0, 1.0));
+				// dessous des nuages qui coiffent la bande dorée : liseré orange
+				float pres_trou = crep * (0.3 + 0.7 * az * az) * step(yc, y) * (1.0 - step(yc + ep * 2.0, y));
+				c = mix(c, vec3(0.85, 0.40, 0.12), pres_trou * (1.0 - epais) * 0.8);
+				// voile de brume : vers l'horizon les nuages se fondent dans la couleur du ciel (perspective aérienne)
+				c = mix(c, col, pres_hz * pres_hz * 0.6);
+				alpha = mix(alpha, paliers(alpha, 4.0), 0.6);
+				col = mix(col, c_cir, cir * (1.0 - alpha));
+				col = mix(col, c, alpha);
+			} else {
+				col = mix(col, c_cir, cir);
 			}
 		}
 
