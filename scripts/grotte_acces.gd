@@ -109,6 +109,7 @@ func _roche(a: Vector3, b: Vector3, c: Vector3, ref: Vector3, ao: Array, nom := 
 
 ## Tourne dans un fil d'exécution : ne touche qu'à `_cont` (hors de l'arbre) et aux lectures du relief (`monde.hauteur`, sans état hors zone témoin).
 func _construire() -> void:
+	FilVerrou.prendre()
 	var t0 := Time.get_ticks_msec()
 	_rng.seed = 9031
 	corps = StaticBody3D.new()
@@ -130,6 +131,7 @@ func _construire() -> void:
 	cs.name = "RocheSolide"
 	corps.add_child(cs)
 	temps_ms = Time.get_ticks_msec() - t0
+	FilVerrou.rendre()
 
 ## Points de la voûte (x, y) : demi-ellipse irrégulière de 2,4 m de demi-largeur et ~3 m de haut, 9 sommets.
 func _voute() -> Array:
@@ -458,7 +460,9 @@ func _lancer_fil() -> void:
 
 ## Le fil ne touche qu'à son argument (jamais à la scène ni aux membres de l'accès).
 func _batir(g: Grotte) -> void:
+	FilVerrou.prendre()
 	g.construire()
+	FilVerrou.rendre()
 
 func _integrer() -> void:
 	if _tache < 0:

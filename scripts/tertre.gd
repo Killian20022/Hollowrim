@@ -190,9 +190,11 @@ func _construire_crypte() -> void:
 
 ## Le fil ne touche qu'à ses deux arguments (jamais à la scène ni aux membres du tertre : le monde peut être libéré pendant qu'il tourne).
 func _batir_donjon(dj: CrypteDonjon, decor: CrypteDecor) -> void:
+	FilVerrou.prendre()
 	var t0 := Time.get_ticks_msec()
 	dj.construire()
 	decor.finir()
+	FilVerrou.rendre()
 	print("Donjon : bâti en %d ms (fil d'exécution)" % (Time.get_ticks_msec() - t0))
 
 ## Sortie du jeu / fin d'un test pendant la construction : on attend le fil (sinon fuites de ressources).

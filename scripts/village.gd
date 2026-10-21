@@ -270,6 +270,7 @@ func _lancer_fil() -> void:
 ## Fil de travail : un intérieur après l'autre. Ne touche ni à l'arbre ni aux nœuds du village (seulement aux lots, au cache de
 ## tableaux et à un `Interieur` temporaire jeté ensuite).
 func _construire_interieurs() -> void:
+	FilVerrou.prendre()
 	for j in _jobs:
 		var ib: Interieurs = j[0]
 		var reel: Interieur = ib.ip
@@ -286,6 +287,7 @@ func _construire_interieurs() -> void:
 		_mutex.lock()
 		_faits.append([reel, t, _coll_fil])
 		_mutex.unlock()
+	FilVerrou.rendre()
 
 func _poser_interieurs() -> void:
 	var debut := Time.get_ticks_usec()
