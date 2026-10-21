@@ -43,6 +43,7 @@ TESTS=(
 	"test_mage|--nouvelle"
 	"test_chasseresse|--nouvelle"
 	"test_gardien|--nouvelle"
+	"test_troll|--nouvelle"
 	"test_interieurs|--nouvelle"
 	"test_primitives|"
 	"test_sauvegarde|ecrire;verifier"   # deux processus à la suite
