@@ -25,9 +25,9 @@ const DENS_B := 128
 # rampes (sombre → clair) : ombres froides, lumières chaudes ; 4-6 tons par matière
 const MAILLE := ["#121319", "#25272f", "#3e414b", "#60636c", "#8c8e95", "#b9b9bb"]
 const ROUILLE := ["#24150f", "#472816", "#6e4322", "#94622f"]
-const CUIR := ["#170f0c", "#2f1e17", "#4d3122", "#704a2f", "#946642"]
-const FOUR := ["#1a1617", "#342a27", "#54453a", "#7a6553", "#a38d74", "#c9b79b"]
-const BOIS := ["#1b130e", "#33241a", "#523d2a", "#725639", "#937651"]
+const CUIR := ["#160f0c", "#2b1d16", "#45301f", "#634630", "#82603f"]
+const FOUR := ["#1b1a1d", "#36322f", "#585048", "#7f766a", "#a89e8e", "#cfc6b4"]
+const BOIS := ["#17120f", "#2c231c", "#463a2f", "#625243", "#81705c"]
 const BLEU := ["#121829", "#1d2843", "#2c3d61", "#465a82", "#6a80a4"]
 const CREME := ["#4a4234", "#7a6c55", "#a8977a", "#cbbb9c"]
 const FER := ["#121216", "#26262c", "#41414a", "#64646d", "#93939a", "#c0c0c2"]
@@ -162,8 +162,8 @@ func _torse(img: Image, d: int) -> void:
 				var bord := (pl - ddx) <= 0 or y == p_haut or y == p_bas - 1
 				var tp := 2
 				var patch := _bruit(x * 0.18, y * 0.18, 5)
-				if patch > 0.66: tp = 3
-				elif patch < 0.3: tp = 1
+				if patch > 0.76: tp = 3
+				elif patch < 0.22: tp = 1
 				# plis horizontaux du cuir (cuits) et lumière en haut du plastron
 				if y < p_haut + int(0.05 * d): tp += 1
 				if y > p_bas - int(0.06 * d): tp -= 1
@@ -310,13 +310,18 @@ func _bouclier(img: Image, d: int, ox: int, oy: int, taille: int, cerclage: bool
 				col = _c(BOIS, tb)
 				# peinture bleue usée (bruit à seuil), croix crème
 				var croix := absf(x) < 0.03 or absf(z) < 0.03
-				var usure := _bruit(x * 14.0, z * 14.0, 17) + 0.25 * _bruit(x * 40.0, z * 40.0, 23)
-				if usure > 0.52 and r < RB - 0.03:
+				# usure : écaillage surtout près du cerclage et des joints, le long du fil du bois
+				var pres_bord := smoothstep(RB - 0.09, RB - 0.03, r)
+				var pres_joint := 0.0
+				for b: float in bords:
+					pres_joint = maxf(pres_joint, 1.0 - smoothstep(0.0, 0.025, absf(x - b)))
+				var usure := 0.75 * _bruit(x * 22.0, z * 7.0, 17) + 0.25 * _bruit(x * 60.0, z * 20.0, 23) - 0.45 * maxf(pres_bord, pres_joint * 0.7) + 0.1
+				if usure > 0.40 and r < RB - 0.03:
 					var tp := 2 + (1 if grain > 0.85 else (-1 if grain < 0.16 else 0))
 					if lum > 0.55: tp += 1
 					elif lum < -0.55: tp -= 1
 					col = _c(CREME, tp) if croix else _c(BLEU, tp)
-					if usure < 0.56: col = _c(BOIS, 0)       # bord écaillé : liseré sombre
+					if usure < 0.43: col = _c(BOIS, 1)       # bord écaillé : liseré sombre
 				if joint: col = _c(BOIS, 0)
 			img.set_pixel(ox + px, oy + py, col)
 	# fissure : trait sombre + reflet en haut à gauche
@@ -598,7 +603,7 @@ func _mat(tex: Image, avec_mips: bool, relief: Image, double: bool, decoupe := f
 	return m
 
 ## Échantillon A ou B : même géométrie, densité et relief différents.
-func _echantillon_ab(nom: String, d: int, avec_relief: bool, avec_mips: bool) -> Node3D:
+func _echantillon_ab(nom: String, d: int, avec_relief: bool, avec_mips: bool, contour := false) -> Node3D:
 	var racine := Node3D.new()
 	racine.name = nom
 	var t0 := Time.get_ticks_msec()
@@ -617,21 +622,42 @@ func _echantillon_ab(nom: String, d: int, avec_relief: bool, avec_mips: bool) ->
 		mi.mesh = p[0]
 		mi.material_override = p[1]
 		mi.transform = p[2]
+		mi.set_meta("contour", p[1] == opaque or p[2] != Transform3D.IDENTITY)
 		racine.add_child(mi)
 		tris += (p[0] as ArrayMesh).surface_get_array_len(0) / 3
 	stats[nom] = {"triangles": tris, "texture": "%d² RGBA8%s%s" % [atlas.get_width(), " + mips" if avec_mips else "", " + normales" if avec_relief else ""],
 		"memoire_ko": int(atlas.get_width() * atlas.get_height() * 4 * (1.33 if avec_mips else 1.0) * (2.0 if avec_relief else 1.0) / 1024.0), "materiaux": 2}
+	if contour:
+		_contours(racine, nom)
 	return racine
+
+## Contour sombre (coque inversée à épaisseur constante à l'écran) sur le corps et le bouclier.
+## Pas sur les cartes découpées (fourrure, cape) : la coque suivrait le quadrilatère, pas la découpe.
+func _contours(racine: Node3D, nom: String) -> void:
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://outils/lookdev_contour.gdshader")
+	m.set_shader_parameter("epaisseur", 1.5)
+	var n := 0
+	for mi: MeshInstance3D in racine.get_children():
+		if mi.get_meta("contour", false):
+			var c := MeshInstance3D.new()
+			c.mesh = mi.mesh
+			c.material_override = m
+			c.transform = mi.transform
+			c.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			racine.add_child(c)
+			n += 1
+	stats[nom]["contours"] = n
 
 func _pose_bouclier() -> Transform3D:
 	# au bras gauche (côté +X), tourné de 35° vers la droite de la caméra, légèrement incliné
-	var b := Basis(Vector3.UP, deg_to_rad(38.0)) * Basis(Vector3.RIGHT, deg_to_rad(-8.0))
-	return Transform3D(b, Vector3(0.36, 1.17, 0.17))
+	var b := Basis(Vector3.UP, deg_to_rad(68.0)) * Basis(Vector3.RIGHT, deg_to_rad(-6.0))
+	return Transform3D(b, Vector3(0.40, 1.12, 0.06))
 
 ## Échantillon C : base de B (sans relief) + fourrure en mèches et bouclier modelés (glb Blender).
-func _echantillon_c() -> Node3D:
+func _echantillon_c(nom := "C", contour := false) -> Node3D:
 	var racine := Node3D.new()
-	racine.name = "C"
+	racine.name = nom
 	var atlas := peindre_atlas(DENS_B)
 	var opaque := _mat(atlas, true, null, false)
 	var double := _mat(atlas, true, null, true, true)
@@ -640,6 +666,7 @@ func _echantillon_c() -> Node3D:
 		var mi := MeshInstance3D.new()
 		mi.mesh = p[0]
 		mi.material_override = p[1]
+		mi.set_meta("contour", p[1] == opaque)
 		racine.add_child(mi)
 		tris += (p[0] as ArrayMesh).surface_get_array_len(0) / 3
 	# textures propres à C (même dessin, même densité)
@@ -691,11 +718,14 @@ func _echantillon_c() -> Node3D:
 		if mi.name.begins_with("fourrure"):
 			copie.position = Vector3(0, 1.60, 0)
 		else:
-			copie.transform = _pose_bouclier() * Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.0))
+			copie.transform = _pose_bouclier()
+			copie.set_meta("contour", true)
 		racine.add_child(copie)
 	scene.free()
-	stats["C"] = {"triangles": tris, "texture": "atlas 256² + mèche %dx%d + face 97² + fer 32² (mips)" % [meche.get_width(), meche.get_height()],
+	stats[nom] = {"triangles": tris, "texture": "atlas 256² + mèche %dx%d + face 128² + fer 32² + umbo 32² (mips)" % [meche.get_width(), meche.get_height()],
 		"memoire_ko": int((256 * 256 + meche.get_width() * meche.get_height() + face.get_width() * face.get_height() + 128 * 29 + 2048) * 4 * 1.33 / 1024.0), "materiaux": 7}
+	if contour:
+		_contours(racine, nom)
 	return racine
 
 ## Texture d'une mèche (u en travers, v de la racine à la pointe) : brins clairs vers la pointe, bords découpés.
@@ -785,15 +815,15 @@ func _decor() -> void:
 	var tb := ImageTexture.create_from_image(bois)
 	mb.set_shader_parameter("tex_base", tb)
 	mb.set_shader_parameter("tex_neige", tb)
-	mb.set_shader_parameter("uv_echelle", Vector2(12, 3))
+	mb.set_shader_parameter("uv_echelle", Vector2(50, 3))
 	mb.set_shader_parameter("grille", 180.0)
 	mb.set_shader_parameter("affine", 0.55)
 	var mur := MeshInstance3D.new()
 	var bm := BoxMesh.new()
-	bm.size = Vector3(14, 3.2, 0.3)
+	bm.size = Vector3(60, 3.2, 0.3)
 	mur.mesh = bm
 	mur.material_override = mb
-	mur.position = Vector3(0, 1.6, -4.0)
+	mur.position = Vector3(6, 1.6, -4.0)
 	mur.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mur)
 	# post-traitement du jeu (15 bits, tramage par bruit, étalonnage)
@@ -824,7 +854,7 @@ func _eclairage(nom: String) -> void:
 	cycle._process(0.0)
 	torche.visible = nom == "torche"
 
-const X_ECH := {"A": -6.0, "B": 0.0, "C": 6.0, "B0": 0.0}
+const X_ECH := {"A": -6.0, "B": 0.0, "C": 6.0, "B0": 0.0, "Bc": 12.0, "Cc": 18.0}
 const ROT := -50.0   # lacet des échantillons (°)
 
 func _montrer(nom: String) -> void:
@@ -876,7 +906,9 @@ func _ready() -> void:
 	var b := _echantillon_ab("B", DENS_B, true, true)
 	var b0 := _echantillon_ab("B0", DENS_B, true, false)   # B sans mipmaps : témoin du scintillement
 	var c := _echantillon_c()
-	for n: Node3D in [a, b, b0, c]:
+	var bc := _echantillon_ab("Bc", DENS_B, true, true, true)   # B + contour
+	var cc := _echantillon_c("Cc", true)                          # C + contour
+	for n: Node3D in [a, b, b0, c, bc, cc]:
 		n.position.x = float(X_ECH[n.name])
 		n.rotation.y = deg_to_rad(ROT)
 		add_child(n)
@@ -888,7 +920,7 @@ func _ready() -> void:
 		var t0 := Time.get_ticks_msec()
 		for ecl: String in ["crep", "torche"]:
 			_eclairage(ecl)
-			for nom: String in ["A", "B", "C", "B0"]:
+			for nom: String in ["A", "B", "C", "B0", "Bc", "Cc"]:
 				_montrer(nom)
 				for dist: float in [2.0, 5.0]:
 					if nom == "B0" and dist < 3.0 and ecl == "torche":
@@ -914,7 +946,7 @@ func _perf() -> void:
 	_eclairage("crep")
 	var res := {}
 	for tour in 2:
-		for nom: String in ["aucun", "A", "B", "C"]:
+		for nom: String in ["aucun", "A", "B", "C", "Cc"]:
 			_montrer(nom)
 			_placer_camera("B" if nom == "aucun" else nom, 2.0, 0.0)
 			await _attendre(60)
