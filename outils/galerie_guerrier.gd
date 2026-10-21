@@ -77,7 +77,8 @@ func _lancer() -> void:
 	for i in 4:
 		await process_frame
 	var mode := _arg("mode", "planche")
-	_stats(n)
+	if n:
+		_stats(n)
 	var lumiere := _arg("lumiere", "crepuscule")
 	if mode == "planche":
 		_regler(lumiere)
@@ -122,11 +123,41 @@ func _lancer() -> void:
 			bande.blit_rect(img, Rect2i((W - cw) / 2, 0, cw, H), Vector2i(i * cw, 0))
 			i += 1
 		bande.save_png(sortie + "/anims_%s_az%s.png" % [lumiere, _arg("az", "40")])
+	elif mode == "cout":
+		# ms GPU du SubViewport (moyenne sur 120 images), personnage à 3 m en 3/4, n exemplaires côte à côte
+		_regler(lumiere)
+		var nb := int(_arg("nombre", "1"))
+		var copies: Array[Node3D] = [n]
+		if n:
+			n.position.x = 0.0
+			for k in range(1, nb):
+				var c2 := _construire(_arg("perso", "guerrier"))
+				c2.position.x = (k - (nb - 1) / 2.0) * 0.9
+				copies.append(c2)
+			for c3 in copies:
+				_poser(c3, "Sword_Idle" if c3.find_child("Animations", true, false).has_animation("Sword_Idle") else "Idle", 0.25)
+		await _photo(35.0, 3.0 + 0.3 * nb, 1.6, 1.0)
+		var vp := sv.get_viewport_rid()
+		RenderingServer.viewport_set_measure_render_time(vp, true)
+		for i in 30:
+			await RenderingServer.frame_post_draw
+		var gpu := 0.0
+		var cpu := 0.0
+		for i in 120:
+			await RenderingServer.frame_post_draw
+			gpu += RenderingServer.viewport_get_measured_render_time_gpu(vp)
+			cpu += RenderingServer.viewport_get_measured_render_time_cpu(vp)
+		var dc := RenderingServer.viewport_get_render_info(vp, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME)
+		var pr := RenderingServer.viewport_get_render_info(vp, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, RenderingServer.VIEWPORT_RENDER_INFO_PRIMITIVES_IN_FRAME)
+		var dco := RenderingServer.viewport_get_render_info(vp, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_SHADOW, RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME)
+		print("COUT perso=%s nombre=%d gpu=%.3f ms cpu=%.3f ms draw_calls=%d draw_calls_ombre=%d primitives=%d" % [_arg("perso", "guerrier"), nb, gpu / 120.0, cpu / 120.0, dc, dco, pr])
 	print("GALERIE : ", sortie)
 	quit(0)
 
 func _construire(quoi: String) -> Node3D:
 	var n: Node3D
+	if quoi == "rien":
+		return null
 	if quoi == "draugr":
 		var d := CharacterBody3D.new()
 		d.set_script(DRAUGR)
