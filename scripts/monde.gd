@@ -150,6 +150,7 @@ func _ready() -> void:
 	_chrono("villageois")
 	_guerrier_pilote()
 	_mage_pilote()
+	_chasseresse_pilote()
 	_tertre()
 	_chrono("tertre+crypte")
 	_grotte_acces()
@@ -572,6 +573,32 @@ func _guerrier_pilote() -> void:
 	ap.play(String(_arguments().get("guerrier-anim", "Sword_Idle")))
 	if _arguments().has("capture"):
 		_pilote_animer(String(_arguments().get("guerrier-anim", "Sword_Idle")), 0.25)
+
+## --chasseresse-pilote[=x,z,lacet°] : Chasseresse nordique (ChasseresseNordique), même usage que --guerrier-pilote (vues « pilote »)
+## et --chasseresse-anim=Nom (Idle par défaut) ; avec --guerrier-pilote en plus, elle se tient à 1,3 m à la droite du guerrier (côte à côte).
+func _chasseresse_pilote() -> void:
+	if not _arguments().has("chasseresse-pilote"):
+		return
+	var p := PILOTE_DEFAUT
+	var a: String = _arguments()["chasseresse-pilote"]
+	if a != "":
+		var f := a.split_floats(",")
+		p = Vector3(f[0], f[1], f[2] if f.size() > 2 else p.z)
+	var c := ChasseresseNordique.creer({})
+	add_child(c)
+	if pilote != null:
+		var q := pilote.global_position - pilote.global_basis.x * 1.3
+		p = Vector3(q.x, q.z, rad_to_deg(pilote.rotation.y))
+	else:
+		pilote = c
+	c.global_position = Vector3(p.x, hauteur(p.x, p.y), p.y)
+	c.rotation.y = deg_to_rad(p.z)
+	var an := String(_arguments().get("chasseresse-anim", "Idle"))
+	var ap := c.get_node("Animations") as AnimationPlayer
+	ap.play(an)
+	if _arguments().has("capture") or _arguments().has("captures"):
+		ap.seek(ap.get_animation(an).length * 0.3, true)
+		ap.pause()
 
 func _pilote_animer(nom: String, t: float) -> void:
 	var ap := pilote.get_node("Animations") as AnimationPlayer

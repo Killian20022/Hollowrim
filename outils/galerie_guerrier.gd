@@ -166,6 +166,10 @@ func _construire(quoi: String) -> Node3D:
 		sv.add_child(d)
 		d.set_physics_process(false)
 		return d
+	if quoi == "chasseresse":
+		n = ChasseresseNordique.creer({})
+		sv.add_child(n)
+		return n
 	var opts := {"casque": _arg("casque", "") != "", "bouclier": _arg("bouclier", "bras"), "sous_couche": _arg("sous-couche", "") != ""}
 	GuerrierNordique.chrono = true
 	n = GuerrierNordique.creer(opts)
