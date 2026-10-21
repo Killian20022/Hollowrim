@@ -433,8 +433,24 @@ func _ambiance_matiere(m: Dictionary, nb_lum0: int) -> void:
 			d.statue(p, atan2(v.x, v.z), 1.05, "capuche", false, "mur1")
 			_reserves.append([Vector2(p.x, p.z), 0.8])
 			ns += 1
+	# arène : pôle froid franc (audit : « tout bleu nuit ») — grands sceaux éclairés sur les murs latéraux et au fond,
+	# en contrepoint des braseros chauds
+	if m.get("id", "") == "arene":
+		for c: String in ["E", "O", "N"]:
+			var lib := murs_libres(m, c, 0.6)
+			if lib.is_empty():
+				continue
+			var best: Array = lib[0]
+			for sgm: Array in lib:
+				if sgm[1] - sgm[0] > best[1] - best[0]:
+					best = sgm
+			if best[1] - best[0] < 1.4:
+				continue
+			var pm := plan_mur(m, c)
+			var p := pt_mur(m, c, (best[0] + best[1]) * 0.5, y + minf(h - 1.2, 2.4), 0.0)
+			d.sceau(p, pm["vers"], 0.9, c != "N")
 	# sceau bleu sur un mur (accent froid), une salle sur deux
-	if r.randf() < 0.5:
+	elif r.randf() < 0.5:
 		var c: String = ["N", "S", "E", "O"][r.randi_range(0, 3)]
 		var lib := murs_libres(m, c, 0.6)
 		if not lib.is_empty():
