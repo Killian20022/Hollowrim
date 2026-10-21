@@ -17,10 +17,13 @@ class_name MageNordique
 ## Contrat identique à Humain.creer (nœud racine -> Skeleton3D + AnimationPlayer « Animations », mêmes os) : Ragdoll.equiper,
 ## PiedsAuSol.equiper marchent tels quels. Aucun PNJ modifié (nouvelle fabrique).
 
-const TEINTE_BARBE := Color(0.80, 0.80, 0.82)
+const TEINTE_BARBE := Color(0.68, 0.68, 0.69)
 const PEAU := Color(0.93, 0.84, 0.80)
 ## fourrure du manteau : gris plus sombre que celle du guerrier (la référence est sombre ; la fourrure claire volait la vedette au cristal)
 const TEINTE_FOURRURE := Color(0.70, 0.71, 0.76)
+## passe 2 : la fourrure n'est plus qu'un col (bordure de la capuche), crème / gris chaud (harmonisation des archétypes : au
+## crépuscule la lumière froide la bleuit déjà) ; teinte cuite dans l'atlas des découpes (le tissu effiloché partage la surface).
+const TEINTE_COL := Color(1.0, 0.93, 0.80)
 
 ## Prise du bâton (outils/inspecter_mage.gd -- 0.3) : repère centré dans la paume droite, dans le repère posé de hand_r, à 30 % du
 ## chemin entre « vertical en Idle » et « vertical en Spell_Simple_Idle » (8° en Idle, ~20° pendant le sort, au lieu de 45°).
@@ -41,7 +44,7 @@ static func vider() -> void:
 
 static func creer(options := {}) -> Node3D:
 	var C := Color.WHITE
-	var tenue := {"tunique": C, "pantalon": C, "bottes": C, "ceinture": C, "mante": C, "manchettes": C}
+	var tenue := {"tunique": C, "pantalon": C, "bottes": C, "ceinture": C, "mante": C}
 	if options.get("capuche", true):
 		tenue["capuche"] = C
 	var app := {"corps": "homme", "barbe": true, "cheveux": "Hair_Long", "teinte_cheveux": TEINTE_BARBE, "peau": PEAU, "tenue": tenue}
@@ -55,9 +58,15 @@ static func creer(options := {}) -> Node3D:
 	# -- vêtements existants : matières du mage (la tunique devient le haut de la robe)
 	_habiller(pieces["tunique"], GuerrierNordique.materiau(MageTextures.tex("robe_haut")))
 	_habiller(pieces["bottes"], GuerrierNordique.materiau(GuerrierTextures.tex("bottes")))
-	# fourrure du guerrier (même famille), teintée plus sombre pour le mage (matériaux PROPRES : le guerrier ne change pas)
-	_habiller(pieces["mante"], GuerrierNordique.materiau(GuerrierTextures.tex("mante"), true, false, true, "mage_mante"))
-	(pieces["mante"].material_override as ShaderMaterial).set_shader_parameter("teinte", TEINTE_FOURRURE)
+	# passe 2 : la mante devient une PÈLERINE de laine anthracite par-dessus la robe (plus de fourrure) : allongée vers le bas et
+	# un peu évasée (elle couvre le haut des bras), ouverte au milieu du devant (amulette, bande brodée) ; frange effilochée plus bas
+	_habiller(pieces["mante"], GuerrierNordique.materiau(MageTextures.tex("pelerine"), true, false, true, "mage_pelerine"))
+	_deformer(pieces["mante"], func(p: Vector3) -> Vector3:
+		var t := clampf((1.50 - p.y) / 0.20, 0.0, 1.0)
+		var r := Vector2(p.x, p.z + 0.02)
+		var e := r.normalized() * 0.035 * t
+		return Vector3(p.x + e.x, p.y - 0.07 * t, p.z + e.y))
+	GuerrierNordique._filtrer(pieces["mante"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.03 and absf(c.x) < 0.075 + maxf(0.0, 1.50 - c.y) * 0.25 and c.y < 1.52))
 	if pieces.has("capuche") and options.get("capuche", true):
 		_habiller(pieces["capuche"], GuerrierNordique.materiau(MageTextures.tex("capuche")))
 		# capuche ouverte devant (le pan qui couvrait le menton et le cou est retiré : la barbe sort de la capuche comme sur la
@@ -66,7 +75,9 @@ static func creer(options := {}) -> Node3D:
 		_deformer(pieces["capuche"], func(p: Vector3) -> Vector3:
 			var t := smoothstep(1.74, 1.86, p.y) * smoothstep(0.06, -0.10, p.z)
 			var f := smoothstep(1.68, 1.78, p.y) * smoothstep(0.02, 0.10, p.z)
-			return p + Vector3(0, 0.045 * t, -0.035 * t) + Vector3(0, -0.006 * f, 0.018 * f))
+			# passe 2 : capuche PROFONDE — tout l'avant (au-dessus de la bouche) avancé de 4 cm et élargi : le visage recule dans l'ombre
+			var a := smoothstep(1.58, 1.66, p.y) * smoothstep(-0.02, 0.08, p.z)
+			return p + Vector3(0, 0.045 * t, -0.035 * t) + Vector3(0, -0.012 * f, 0.022 * f) + Vector3(p.x * 0.18 * a, 0, 0.040 * a))
 	var sc: MeshInstance3D = pieces.get("SuperHero_Male")
 	if sc:
 		sc.visible = false
@@ -111,15 +122,17 @@ static func creer(options := {}) -> Node3D:
 		return Vector2(uv.x * 256.0 + GuerrierTextures.PL_U0, clampf((uv.y - 0.698) / 0.302, 0.0, 1.0) * 15.6 + 0.2 + GuerrierTextures.R_CEINT.position.y) / A,
 		func(p: Vector3, n: Vector3) -> Vector3: return Vector3(p.x, 0.985 + (p.y - 0.985) * 1.3, p.z) + n * 0.030)
 	pieces["ceinture"].visible = false
-	# manchettes de fourrure versées dans l'atlas des découpes (région libre de la cape, fourrure pleine)
-	acc.integrer_uv_bornes(pieces["manchettes"], acc.dec, Rect2(0, 32, 112, 64), Vector2(GuerrierTextures.DECOUPES), 0.004)
-	pieces["manchettes"].visible = false
-	# manteau de fourrure : franges longues aux épaules et dans le dos, touffes ; rien au-dessus de 1,50 m (sous la capuche)
-	acc.poitrine_libre = true
-	acc.fourrure_bord(pieces["mante"], 1.25, 1.45, 0.15, 0.24, 1.0, 1.7)
-	acc.fourrure_surface(pieces["mante"], 1.34, 1.50, 0.09, 0.15, 64)
-	acc.poitrine_libre = false
-	acc.yeux(yeux)
+	# passe 2 : manches larges évasées à bord effiloché, frange effilochée de la pèlerine, col de fourrure au bas de la capuche
+	acc.manches(pieces["tunique"])
+	acc.frange_tissu(pieces["mante"], 1.10, 1.47, 0.09, 0.17)
+	if pieces.has("capuche") and options.get("capuche", true):
+		acc.poitrine_libre = true
+		acc.fourrure_bord(pieces["capuche"], 1.44, 1.58, 0.06, 0.10, 0.7, 1.8)
+		acc.poitrine_libre = false
+	# visage dans l'ombre de la capuche : la peau du visage (front -> lèvre) devient un masque quasi noir ; yeux bleus luisants
+	acc.masque(pieces["peau"])
+	GuerrierNordique._filtrer(pieces["peau"], func(c: Vector3, n: Vector3) -> bool: return not Acc.est_visage(c))
+	acc.yeux_luisants(yeux)
 	acc.amulette(pieces["tunique"])
 	acc.pierre_ceinture()
 	if options.get("baton", true):
@@ -128,6 +141,19 @@ static func creer(options := {}) -> Node3D:
 	var mi_acc := acc.construire(rest_skin)
 	sq.add_child(mi_acc)
 	_t("accessoires (materiaux)", t0)
+	if options.get("baton", true):
+		var bd := BatonDroit.new()
+		bd.name = "BatonDroit"
+		var info: Array = sq.get_meta("baton")
+		bd.os_ = info[0]
+		bd.prise = sq.get_bone_global_rest(info[0]).affine_inverse() * (info[1] as Transform3D)
+		sq.add_child(bd)
+	# tissus noirs : lumière propre un peu plus forte que le guerrier (le côté à l'ombre garde ses plis et ses broderies au
+	# lieu de tomber en aplat noir) ; matériaux propres au mage
+	for m in [pieces["tunique"].material_override, pieces["mante"].material_override, mi_acc.get_surface_override_material(0), mi_acc.get_surface_override_material(1), jupe.mat]:
+		(m as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.075, 0.085, 0.11))
+	if pieces.has("capuche") and options.get("capuche", true):
+		(pieces["capuche"].material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.05, 0.055, 0.07))
 	racine.set_meta("mage_nordique", true)
 	return racine
 
@@ -187,7 +213,8 @@ static func _peau(pieces: Dictionary) -> void:
 ## Atlas du mage (MageTextures.ATLAS, 256 x 512) pour la surface opaque ; atlas des découpes de même mise en page que le guerrier ;
 ## 3e surface : cristal émissif.
 class Acc extends GuerrierNordique.Accessoires:
-	var cri := {"v": PackedVector3Array(), "n": PackedVector3Array(), "uv": PackedVector2Array(), "b": PackedInt32Array(), "w": PackedFloat32Array()}
+	## surface lumineuse (shader mage_orbe) : + couleur (genre / phase des particules) et UV2 (coin des quads de particules)
+	var cri := {"v": PackedVector3Array(), "n": PackedVector3Array(), "uv": PackedVector2Array(), "b": PackedInt32Array(), "w": PackedFloat32Array(), "c": PackedColorArray(), "uv2": PackedVector2Array()}
 	## points de la jupe au repos : [anneau][secteur]
 	var jupe: Array = []
 
@@ -325,9 +352,159 @@ class Acc extends GuerrierNordique.Accessoires:
 				y1 = y0 + 2.0
 			_quad(op, tr * c[fc[0]], tr * c[fc[1]], tr * c[fc[2]], tr * c[fc[3]], _uva(x0, y1), _uva(x1, y1), _uva(x1, y0), _uva(x0, y0), poids, tr * ((a + b) * 0.5))
 
+	# ------------------------------------------------------------ visage dans l'ombre, yeux luisants
+	## Triangle de la peau qui appartient au visage sous la capuche (du front à la lèvre supérieure ; la barbe couvre le reste).
+	static func est_visage(c: Vector3) -> bool:
+		return c.y > 1.612 and c.y < 1.80 and c.z > 0.015 and absf(c.x) < 0.088
+
+	## Copie les triangles du visage de la peau dans la surface opaque, texturés par R_MASQUE (quasi noir), gonflés de 2 mm.
+	func masque(peau: MeshInstance3D) -> void:
+		var a := peau.mesh.surface_get_arrays(0)
+		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var nrm: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+		var bones: PackedInt32Array = a[Mesh.ARRAY_BONES]
+		var w: PackedFloat32Array = a[Mesh.ARRAY_WEIGHTS]
+		var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+		var nb := bones.size() / v.size()
+		var r := MageTextures.R_MASQUE
+		var os_de := {}
+		for t in range(0, idx.size(), 3):
+			if not est_visage((v[idx[t]] + v[idx[t + 1]] + v[idx[t + 2]]) / 3.0):
+				continue
+			for k in 3:
+				var i := idx[t + k]
+				op["v"].append(v[i] + nrm[i] * 0.002)
+				op["n"].append(nrm[i])
+				op["uv"].append(_uva(r.position.x + 2.0 + (i % 11), r.position.y + 2.0 + (i % 7)))
+				var bo := [0, 0, 0, 0]
+				var wo := [0.0, 0.0, 0.0, 0.0]
+				for j in mini(nb, 4):
+					var bb := bones[i * nb + j]
+					if not os_de.has(bb):
+						os_de[bb] = maxi(0, GuerrierNordique._os_de_bind(peau.skin, sq, bb))
+					bo[j] = os_de[bb]
+					wo[j] = w[i * nb + j]
+				op["b"].append_array(PackedInt32Array(bo))
+				op["w"].append_array(PackedFloat32Array(wo))
+
+	## Deux fentes bleues luisantes (surface lumineuse) devant le masque, à la place des yeux.
+	func yeux_luisants(centres: Array) -> void:
+		var os_ := sq.find_bone("Head")
+		var r := MageTextures.O_OEIL
+		for c: Vector3 in centres:
+			var cote := signf(c.x)
+			var p := Vector3(c.x * 0.95, c.y - 0.002, c.z + 0.006)
+			var dx := Vector3(0.013, 0, -0.003 * cote)
+			var dy := Vector3(0, 0.0058, 0)
+			_quad_cri(p - dx - dy, p + dx - dy, p + dx + dy, p - dx + dy, _uvo(r.position.x, r.end.y), _uvo(r.end.x, r.end.y), _uvo(r.end.x, r.position.y), _uvo(r.position.x, r.position.y), os_, Color(0, 0, 0, 1), [Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
+
+	# ------------------------------------------------------------ manches larges évasées, bord effiloché (surface découpée)
+	## Cône à 10 pans du dessus du coude jusqu'au-delà du poignet (rayon 7 -> 14 cm), côté dessous plus long (le tissu pend),
+	## texture D_EFFILOCHE (laine noire, bande de runes bleu pâle, lanières découpées au bord) ; double face.
+	func manches(tunique: MeshInstance3D) -> void:
+		var a := tunique.mesh.surface_get_arrays(0)
+		var R := MageTextures.D_EFFILOCHE
+		var D := Vector2(GuerrierTextures.DECOUPES)
+		var N := 10
+		for c in ["l", "r"]:
+			var e := sq.get_bone_global_rest(sq.find_bone("lowerarm_" + c)).origin
+			var m := sq.get_bone_global_rest(sq.find_bone("hand_" + c)).origin
+			var ax := (m - e).normalized()
+			var x := Vector3.UP
+			var y := ax.cross(x).normalized()
+			# anneaux : [centre, rayon, allongement du dessous, v]
+			var anneaux := [[e - ax * 0.07, 0.068, 0.0, 0.0], [e + ax * 0.10, 0.088, 0.02, 0.35], [e + ax * 0.19, 0.118, 0.06, 0.62], [m + ax * 0.04, 0.158, 0.15, 1.0]]
+			var pts := []
+			var pds := []
+			for k in anneaux.size():
+				var an: Array = anneaux[k]
+				var ligne := []
+				var lp := []
+				for i in N + 1:
+					var ang := TAU * i / N
+					var d := x * cos(ang) + y * sin(ang)
+					var dessous := maxf(0.0, -d.y)
+					var p: Vector3 = an[0] + d * float(an[1]) + ax * float(an[2]) * dessous + Vector3.DOWN * 0.05 * float(an[3]) * dessous
+					ligne.append(p)
+					lp.append(_poids_proche(tunique, a, p) if k == 0 else sq.find_bone("lowerarm_" + c))
+				pts.append(ligne)
+				pds.append(lp)
+			for k in anneaux.size() - 1:
+				var v0: float = R.position.y + R.size.y * float(anneaux[k][3])
+				var v1: float = R.position.y + R.size.y * float(anneaux[k + 1][3]) - 0.5
+				var centre: Vector3 = (anneaux[k][0] + anneaux[k + 1][0]) * 0.5
+				for i in N:
+					var u0 := (R.position.x + R.size.x * float(i) / N) / D.x
+					var u1 := (R.position.x + R.size.x * float(i + 1) / N) / D.x
+					var w4: Variant = [pds[k][i], pds[k][i + 1], pds[k + 1][i + 1], pds[k + 1][i]]
+					var tous_int := true
+					for q in w4:
+						tous_int = tous_int and q is int
+					if tous_int:
+						w4 = [[PackedInt32Array([w4[0], 0, 0, 0]), PackedFloat32Array([1.0, 0, 0, 0])], [PackedInt32Array([w4[1], 0, 0, 0]), PackedFloat32Array([1.0, 0, 0, 0])], [PackedInt32Array([w4[2], 0, 0, 0]), PackedFloat32Array([1.0, 0, 0, 0])], [PackedInt32Array([w4[3], 0, 0, 0]), PackedFloat32Array([1.0, 0, 0, 0])]]
+					else:
+						for j in 4:
+							if w4[j] is int:
+								w4[j] = [PackedInt32Array([w4[j], 0, 0, 0]), PackedFloat32Array([1.0, 0, 0, 0])]
+					_quad(dec, pts[k][i], pts[k][i + 1], pts[k + 1][i + 1], pts[k + 1][i], Vector2(u0, v0 / D.y), Vector2(u1, v0 / D.y), Vector2(u1, v1 / D.y), Vector2(u0, v1 / D.y), w4, centre)
+
+	# ------------------------------------------------------------ frange effilochée de la pèlerine
+	## Une carte de tissu effiloché par bord libre BAS de `mi` (y entre y0 et y1, hors ouverture du devant), pendant vers le bas
+	## et un peu vers l'extérieur, longueur lg0-lg1 ; tranche de 16 texels prise au hasard dans D_EFFILOCHE (haut = laine).
+	func frange_tissu(mi: MeshInstance3D, y0: float, y1: float, lg0: float, lg1: float) -> void:
+		var a := mi.mesh.surface_get_arrays(0)
+		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+		var aretes := {}
+		var refs := {}
+		for t in range(0, idx.size(), 3):
+			var ct := (v[idx[t]] + v[idx[t + 1]] + v[idx[t + 2]]) / 3.0
+			for k in 3:
+				var i0: int = idx[t + k]
+				var i1: int = idx[t + (k + 1) % 3]
+				var p0 := v[i0].snapped(Vector3.ONE * 0.0005)
+				var p1 := v[i1].snapped(Vector3.ONE * 0.0005)
+				var cle := [p0, p1] if str(p0) < str(p1) else [p1, p0]
+				aretes[cle] = int(aretes.get(cle, 0)) + 1
+				refs[cle] = [i0, i1, ct]
+		var R := MageTextures.D_EFFILOCHE
+		var D := Vector2(GuerrierTextures.DECOUPES)
+		var n := 0
+		for cle in aretes:
+			if aretes[cle] != 1:
+				continue
+			var p0 := v[refs[cle][0]]
+			var p1 := v[refs[cle][1]]
+			var ct: Vector3 = refs[cle][2]
+			var m := (p0 + p1) * 0.5
+			# bord BAS seulement (le triangle est au-dessus de l'arête), hors du devant ouvert
+			if m.y < y0 or m.y > y1 or ct.y < m.y + 0.004 or (m.z > 0.03 and absf(m.x) < 0.10):
+				continue
+			var cote := p1 - p0
+			var lc := cote.length()
+			if lc < 0.004:
+				continue
+			cote /= lc
+			var ext := Vector3(m.x, 0.0, m.z + 0.02).normalized()
+			var dir := (Vector3.DOWN + ext * 0.22).normalized()
+			var lg := lerpf(lg0, lg1, _h(n))
+			var larg := maxf(lc * 1.35, 0.03)
+			var g := m - cote * larg * 0.5 - dir * 0.03 + ext * 0.003
+			var d := m + cote * larg * 0.5 - dir * 0.03 + ext * 0.003
+			var u0 := (R.position.x + floorf(_h(n + 7) * 6.0) * 16.0) / D.x
+			var u1 := u0 + 16.0 / D.x
+			var pr := _poids_proche(mi, a, m)
+			var pb := _poids_proche(mi, a, m + dir * lg * 0.6)
+			_quad(dec, g, d, d + dir * lg, g + dir * lg, Vector2(u0, (R.position.y + 22.0) / D.y), Vector2(u1, (R.position.y + 22.0) / D.y), Vector2(u1, (R.end.y - 0.5) / D.y), Vector2(u0, (R.end.y - 0.5) / D.y), [pr, pr, pb, pb], m - ext * 0.1)
+			n += 1
+
 	# ------------------------------------------------------------ bâton runique (main droite)
-	## Repère local : prise à l'origine, hampe le long de +y (verticale en pose Idle). Pied à -0,86 m (au sol), tête à +0,80 m,
-	## cristal jusqu'à +1,02 m (au-dessus de la capuche, comme sur la référence).
+	## Repère local : prise à l'origine, hampe le long de +y. Pied à -0,86 m (au sol), tête sculptée à +0,70 m, FOURCHE de quatre
+	## griffes de bois qui s'écartent puis se referment sur un gros ORBE de glace (rayon 7 cm, centre +0,93 m : au-dessus de la
+	## capuche), rune gravée ; étincelles qui montent et runes qui tournent autour (particules du shader mage_orbe).
+	const Y_ORBE := 0.955
+	const R_ORBE := 0.086
+
 	func baton() -> void:
 		var os_ := sq.find_bone("hand_r")
 		var rb: Vector3 = MageNordique.reglage_baton
@@ -340,32 +517,72 @@ class Acc extends GuerrierNordique.Accessoires:
 		_tube(op, L.call(-0.11), L.call(0.12), 0.024, 0.024, 6, os_, GuerrierTextures.R_POIGNEE, 1)   # prise de cuir
 		_tube(op, L.call(0.40), L.call(0.43), 0.024, 0.024, 6, os_, GuerrierTextures.R_FER, 1)        # bague
 		_tube(op, L.call(0.66), L.call(0.70), 0.026, 0.026, 6, os_, GuerrierTextures.R_FER, 1)        # bague haute
-		# tête sculptée : nœud qui s'évase puis se resserre
-		_tube(op, L.call(0.70), L.call(0.77), 0.024, 0.037, 6, os_, MageTextures.R_TETE, 1)
-		_tube(op, L.call(0.77), L.call(0.80), 0.037, 0.028, 6, os_, MageTextures.R_TETE, 1)
-		# trois griffes de bois qui enserrent le cristal
+		# tête sculptée : nœud qui s'évase (départ de la fourche)
+		_tube(op, L.call(0.70), L.call(0.80), 0.022, 0.034, 6, os_, MageTextures.R_TETE, 1)
+		# fourche : quatre griffes épaisses qui enserrent l'orbe (s'écartent, montent, se referment au-dessus de l'équateur)
+		for k in 4:
+			var ang := TAU * k / 4.0 + PI / 4.0
+			var dh := Vector3(cos(ang), 0, sin(ang))
+			var q0 := tr * (dh * 0.026 + Vector3(0, 0.79, 0))
+			var q1 := tr * (dh * 0.088 + Vector3(0, 0.865, 0))
+			var q2 := tr * (dh * 0.099 + Vector3(0, Y_ORBE + 0.01, 0))
+			var q3 := tr * (dh * 0.055 + Vector3(0, Y_ORBE + 0.090, 0))
+			_tube(op, q0, q1, 0.013, 0.011, 4, os_, MageTextures.R_TETE, 1)
+			_tube(op, q1, q2, 0.011, 0.009, 4, os_, MageTextures.R_TETE, 1)
+			_tube(op, q2, q3, 0.009, 0.004, 4, os_, MageTextures.R_TETE, 1)
+		# orbe : sphère UV 10 x 6 (surface lumineuse)
+		var c := tr * Vector3(0, Y_ORBE, 0)
+		var NU := 10
+		var NV := 6
+		var S := MageTextures.O_SPHERE
+		var noir := [Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO]
+		var P := func(i: int, j: int) -> Vector3:
+			var th := PI * j / NV
+			var ph := TAU * i / NU
+			return c + tr.basis * Vector3(sin(th) * cos(ph), cos(th), sin(th) * sin(ph)) * R_ORBE
+		for j in NV:
+			for i in NU:
+				var u0 := S.position.x + S.size.x * float(i) / NU
+				var u1 := S.position.x + S.size.x * float(i + 1) / NU
+				var v0 := S.position.y + S.size.y * float(j) / NV
+				var v1 := S.position.y + S.size.y * float(j + 1) / NV
+				_quad_cri(P.call(i, j), P.call(i + 1, j), P.call(i + 1, j + 1), P.call(i, j + 1), _uvo(u0, v0), _uvo(u1, v0), _uvo(u1, v1), _uvo(u0, v1), os_, Color(0, 0, 0, 1), noir, c)
+		# étincelles (10) et runes qui tournent (3) : quads au centre de l'orbe, mis en mouvement par le shader
+		var E := MageTextures.O_ETINCELLE
+		for k in 10:
+			var ph := fmod(float(k) * 0.618, 1.0)
+			_particule(c + tr.basis * Vector3(0, R_ORBE * 0.6, 0), E, 0.016, os_, Color(ph, 0.5, _h(k), 1.0))
+		var RU := MageTextures.O_RUNES
 		for k in 3:
-			var a := TAU * k / 3.0 + 0.4
-			var dirh := Vector3(cos(a), 0, sin(a))
-			var p0 := tr * (dirh * 0.024 + Vector3(0, 0.79, 0))
-			var p1 := tr * (dirh * 0.058 + Vector3(0, 0.88, 0))
-			var p2 := tr * (dirh * 0.026 + Vector3(0, 0.99, 0))
-			_tube(op, p0, p1, 0.010, 0.008, 4, os_, MageTextures.R_TETE, 1)
-			_tube(op, p1, p2, 0.008, 0.004, 4, os_, MageTextures.R_TETE, 1)
-		# cristal : bipyramide hexagonale allongée (surface émissive à part)
-		var bas := tr * Vector3(0, 0.80, 0)
-		var haut := tr * Vector3(0, 1.02, 0)
-		var milieu := 0.885
-		var rc := 0.034
-		for i in 6:
-			var a0 := TAU * i / 6.0
-			var a1 := TAU * (i + 1) / 6.0
-			var e0 := tr * Vector3(cos(a0) * rc, milieu, sin(a0) * rc)
-			var e1 := tr * Vector3(cos(a1) * rc, milieu, sin(a1) * rc)
-			var u0 := float(i % 4) * 8.0
-			var c := tr * Vector3(0, milieu, 0)
-			_tri(cri, [haut, e0, e1], [Vector2((u0 + 4.0) / 32.0, 0.02), Vector2(u0 / 32.0, 0.5), Vector2((u0 + 7.9) / 32.0, 0.5)], os_, c)
-			_tri(cri, [bas, e1, e0], [Vector2((u0 + 4.0) / 32.0, 0.98), Vector2((u0 + 7.9) / 32.0, 0.5), Vector2(u0 / 32.0, 0.5)], os_, c)
+			var reg := Rect2i(RU.position + Vector2i((k % 2) * 16, (k / 2) * 16), Vector2i(16, 16))
+			_particule(c, reg, 0.030, os_, Color(float(k) / 3.0, 1.0, 0.0, 1.0))
+
+	## UV (texels) de la texture de l'orbe (64 x 64).
+	func _uvo(x: float, y: float) -> Vector2:
+		return Vector2(x / 64.0, y / 64.0)
+
+	## Quad de la surface lumineuse (sommets a b c d, couleur = genre/phase, uv2 = coins) ; peau rigide sur un os.
+	func _quad_cri(a: Vector3, b: Vector3, c: Vector3, d: Vector3, ua: Vector2, ub: Vector2, uc: Vector2, ud: Vector2, os_: int, col: Color, coins: Array, dedans := Vector3.INF) -> void:
+		var pts := [a, b, c, d]
+		var uvs := [ua, ub, uc, ud]
+		var n := (c - a).cross(b - a)
+		if n.length() > 1e-9:
+			n = n.normalized()
+			if dedans != Vector3.INF and n.dot((a + c) * 0.5 - dedans) < 0.0:
+				n = -n
+		for k: int in [0, 1, 2, 0, 2, 3]:
+			cri["v"].append(pts[k])
+			cri["n"].append(n if dedans == Vector3.INF else ((pts[k] - dedans).normalized()))
+			cri["uv"].append(uvs[k])
+			cri["b"].append_array([os_, 0, 0, 0])
+			cri["w"].append_array([1.0, 0.0, 0.0, 0.0])
+			cri["c"].append(col)
+			cri["uv2"].append(coins[k])
+
+	## Particule : 4 sommets au même point p, coins (+-taille) en UV2, région r de la texture de l'orbe.
+	func _particule(p: Vector3, r: Rect2i, taille: float, os_: int, col: Color) -> void:
+		_quad_cri(p, p, p, p, _uvo(r.position.x, r.end.y), _uvo(r.end.x, r.end.y), _uvo(r.end.x, r.position.y), _uvo(r.position.x, r.position.y), os_, col,
+			[Vector2(-taille, -taille), Vector2(taille, -taille), Vector2(taille, taille), Vector2(-taille, taille)])
 
 	# ------------------------------------------------------------ assemblage
 	func construire(skin: Skin) -> MeshInstance3D:
@@ -381,13 +598,14 @@ class Acc extends GuerrierNordique.Accessoires:
 			arr[Mesh.ARRAY_TEX_UV] = s["uv"]
 			arr[Mesh.ARRAY_BONES] = s["b"]
 			arr[Mesh.ARRAY_WEIGHTS] = s["w"]
+			if s == cri:
+				arr[Mesh.ARRAY_COLOR] = s["c"]
+				arr[Mesh.ARRAY_TEX_UV2] = s["uv2"]
 			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 			if s == op:
 				mats.append(GuerrierNordique.materiau(MageTextures.tex("accessoires"), false, false, true, "mage_acc"))
 			elif s == dec:
-				var md := GuerrierNordique.materiau(MageTextures.tex("decoupes"), true, true, false, "mage_dec")
-				md.set_shader_parameter("teinte", MageNordique.TEINTE_FOURRURE)
-				mats.append(md)
+				mats.append(GuerrierNordique.materiau(MageTextures.tex("decoupes"), true, true, false, "mage_dec"))
 			else:
 				mats.append(MageNordique.materiau_cristal())
 		var mi := MeshInstance3D.new()
@@ -399,18 +617,41 @@ class Acc extends GuerrierNordique.Accessoires:
 			mi.set_surface_override_material(i, mats[i])
 		return mi
 
-## Cristal : shader du guerrier, émission froide modérée (lisible de nuit, pas de halo), liseré froid fort, pas de contour noir.
+## Surface lumineuse (orbe, yeux, particules) : shader mage_orbe (même accroche PS1), lueur portée par la texture.
+const SHADER_ORBE := preload("res://shaders/mage_orbe.gdshader")
+
 static func materiau_cristal() -> ShaderMaterial:
 	if _mats.has("cristal"):
 		return _mats["cristal"]
 	var m := ShaderMaterial.new()
-	m.shader = GuerrierNordique.shader(false)
-	m.set_shader_parameter("tex_base", MageTextures.tex("cristal"))
-	m.set_shader_parameter("emission", Color(0.16, 0.34, 0.70))
-	m.set_shader_parameter("appoint", Vector3(0.35, 0.40, 0.50))
-	m.set_shader_parameter("contour_froid", Vector3(0.30, 0.45, 0.70))
-	m.set_shader_parameter("ombre_force", 0.3)
+	m.shader = SHADER_ORBE
+	m.set_shader_parameter("tex_base", MageTextures.tex("orbe"))
+	m.set_shader_parameter("emission", Color(0.04, 0.08, 0.16))
 	Palette.materiaux.append(m)
 	Palette._appliquer(m, Palette._ps1_actif)
 	_mats["cristal"] = m
 	return m
+
+## Garde le bâton DROIT quelle que soit l'animation (Idle, marche, lancement de sort : la main droite y tourne de ~20°) :
+## après l'animation, la main droite pivote autour de la prise pour ramener l'axe du bâton à la verticale. Correction effacée
+## au-delà de 40-60° d'écart (chute, mort, ragdoll : le bâton suit la main). Aucun os ajouté, animations partagées intactes.
+class BatonDroit extends SkeletonModifier3D:
+	var os_ := -1
+	var prise := Transform3D()
+
+	func _process_modification() -> void:
+		var sq := get_skeleton()
+		if sq == null or os_ < 0:
+			return
+		var H := PiedsAuSol.pose_globale(sq, os_)
+		var S := H * prise
+		var axe := S.basis.y.normalized()
+		var ang := axe.angle_to(Vector3.UP)
+		if ang < 0.003:
+			return
+		var w := 1.0 - smoothstep(deg_to_rad(40.0), deg_to_rad(60.0), ang)
+		if w <= 0.0:
+			return
+		var q := Quaternion().slerp(Quaternion(axe, Vector3.UP), w)
+		var b := Basis(q)
+		PiedsAuSol.poser_globale(sq, os_, Transform3D(b * H.basis, S.origin + b * (H.origin - S.origin)))

@@ -7,11 +7,17 @@ class_name MageTextures
 ## gris-brun sombre, barbe grise, bâton de bois brun-gris gravé de runes, cristal de glace à facettes.
 
 # palettes (sombre -> clair)
-const ROBE := ["#0f1016", "#181b23", "#232631", "#2f3442", "#3e4455", "#525a6e", "#6a7388"]   # ardoise gris-bleu (la référence est presque noire)
-const BRODERIE := ["#2a2f3b", "#5b6273", "#8f96a5", "#bfc4cc", "#dcdfe3"]   # fil d'argent terni (runes)
-const CAPUCHE := ["#121113", "#1c1a1d", "#272429", "#343036", "#433e44", "#554f55", "#6a636a"]
+## passe 2 : robe quasi noire, ardoise très sombre à peine froide (la passe 1 virait au bleu marine au crépuscule)
+const ROBE := ["#0a0a0d", "#111216", "#1a1c21", "#24272d", "#2f333a", "#3d424a", "#50565f"]
+## broderies : fil bleu pâle glacé (les runes ressortent sur la robe noire, sans saturation « plastique »)
+const BRODERIE := ["#1f2a36", "#3f5a74", "#6f93b5", "#9dbfdc", "#c9e0f2"]
+const CAPUCHE := ["#08080a", "#0e0e11", "#151518", "#1d1d21", "#26262b", "#313136", "#3f3e44"]
+## pèlerine de laine par-dessus la robe : gris anthracite un peu plus chaud que la robe (les deux couches se distinguent)
+const PELERINE := ["#121111", "#1b1a19", "#252321", "#302d2b", "#3c3835", "#4b4642", "#5d5752"]
 const BARBE := ["#2b2a2b", "#4a4849", "#6c6a6a", "#8f8d8b", "#b1aeaa", "#cfccc6"]
 const CRISTAL := ["#132447", "#1f3d75", "#2f5fb0", "#5a8fe0", "#9cc4f5", "#d6ebff"]
+## orbe de glace : du bleu profond au blanc glacé (cœur), lumineux (surface émissive)
+const ORBE := ["#0b2350", "#16468e", "#2470c8", "#4b9ae8", "#86c6f8", "#c4e8ff"]
 const RUNE_BOIS := ["#7d8fa6", "#a9bdd2", "#cfe0ee"]                          # entaille des runes : bois clair givré, un peu bleu
 
 ## Runes (futhark simplifié) en segments sur une grille 4 x 6 : [x0, y0, x1, y1] ; tracées en 1 texel.
@@ -33,7 +39,7 @@ const RUNES := [
 static var _cache := {}
 
 const DOSSIER := "res://assets/personnages/mage"
-const VERSION := 2
+const VERSION := 3
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -65,6 +71,8 @@ static func tex(nom: String) -> ImageTexture:
 				"accessoires": img = accessoires()
 				"decoupes": img = decoupes()
 				"cristal": img = cristal()
+				"orbe": img = orbe()
+				"pelerine": img = pelerine()
 				_: push_error("MageTextures : texture inconnue " + nom)
 			mips = GuerrierTextures.mips_pixel(img)
 			sauver(nom, mips)
@@ -236,6 +244,8 @@ const R_JUPE := Rect2i(0, 256, 256, 128)
 const R_DOUBLURE := Rect2i(192, 128, 64, 32)
 const R_PANTALON := Rect2i(0, 384, 256, 128)
 const ATLAS := Vector2i(256, 512)
+## ombre du visage sous la capuche (quasi noire, très léger grain)
+const R_MASQUE := Rect2i(80, 0, 16, 16)
 
 static func accessoires() -> Image:
 	var img := GuerrierTextures._img(ATLAS.x, ATLAS.y, _c(ROBE, 1))
@@ -250,6 +260,9 @@ static func accessoires() -> Image:
 	_jupe(img)
 	_doublure(img)
 	_ceinture(img)
+	for y in R_MASQUE.size.y:
+		for x in R_MASQUE.size.x:
+			img.set_pixel(R_MASQUE.position.x + x, R_MASQUE.position.y + y, Color("#060608") if GuerrierTextures._h(x, y, 2401) > 0.3 else Color("#0b0b0e"))
 	var pa := GuerrierTextures.pantalon()
 	img.blit_rect(pa, Rect2i(Vector2i.ZERO, pa.get_size()), R_PANTALON.position)
 	return img
@@ -416,7 +429,121 @@ static func _ceinture(img: Image) -> void:
 static func decoupes() -> Image:
 	var img := GuerrierTextures._img(GuerrierTextures.DECOUPES.x, GuerrierTextures.DECOUPES.y, Color(0, 0, 0, 0))
 	var m := GuerrierTextures.meches()
+	# col de fourrure : teinte crème / gris chaud cuite ici (le tissu effiloché partage la surface, il ne doit pas être teinté)
+	for y in m.get_height():
+		for x in m.get_width():
+			var c := m.get_pixel(x, y)
+			if c.a > 0.0:
+				m.set_pixel(x, y, Color(c.r * MageNordique.TEINTE_COL.r, c.g * MageNordique.TEINTE_COL.g, c.b * MageNordique.TEINTE_COL.b, c.a))
 	img.blit_rect(m, Rect2i(Vector2i.ZERO, m.get_size()), GuerrierTextures.D_MECHES.position)
-	var f := fourrure()
-	img.blit_rect(f, Rect2i(0, 0, 112, 64), Vector2i(0, 32))      # manchettes (fourrure pleine)
+	_effiloche(img, D_EFFILOCHE)
+	return img
+
+## Région du tissu effiloché dans l'atlas des découpes (manches larges, franges de la pèlerine) : u autour / le long du bord,
+## v du haut (0) au bord libre (1).
+const D_EFFILOCHE := Rect2i(0, 32, 112, 64)
+
+## Laine noire de la robe, plis verticaux ; bande brodée de runes bleu pâle (filets en haut et en bas) au-dessus du bord ;
+## bord libre EFFILOCHÉ : lanières de 2 à 5 texels de longueurs inégales (alpha 0 dessous, découpe nette), fils pendants.
+static func _effiloche(img: Image, r: Rect2i) -> void:
+	var W := r.size.x
+	var H := r.size.y
+	# longueur de chaque lanière (rangée où le tissu s'arrête)
+	var coupe := PackedInt32Array()
+	coupe.resize(W)
+	var x := 0
+	var k := 0
+	while x < W:
+		var larg := 2 + int(GuerrierTextures._h(k, 0, 2101) * 4.0)
+		var fin := 50 + int(GuerrierTextures._h(k, 1, 2102) * 13.0)
+		for i in larg:
+			if x + i < W:
+				# pointe effilée : les bords de la lanière s'arrêtent un peu plus haut
+				coupe[x + i] = fin - (2 if (i == 0 or i == larg - 1) and larg > 2 else 0)
+		x += larg
+		k += 1
+	for y in H:
+		for x2 in W:
+			var c := Color(0, 0, 0, 0)
+			if y < coupe[x2]:
+				var l := _laine(x2, y, W, H, 0.42, 2111, 14) - float(y) / H * 0.08
+				var t := GuerrierTextures._ton(l, 6, x2, y, 2112, 0.3)
+				c = _c(ROBE, t)
+				if y == coupe[x2] - 1:
+					c = _c(ROBE, 0)                          # fil sombre au bout de la lanière
+				elif y >= 38 and y <= 48:
+					c = _c(ROBE, 1)
+					if y == 38 or y == 48:
+						c = _c(BRODERIE, 2)
+			elif y < coupe[x2] + 4 and GuerrierTextures._h(x2, 7, 2113) < 0.18:
+				c = _c(ROBE, 1)                              # fil pendant isolé
+			img.set_pixel(r.position.x + x2, r.position.y + y, c)
+	var xr := 2
+	var i2 := 0
+	while xr < W - 5:
+		_rune(img, i2 * 3 + 1, r.position.x + xr, r.position.y + 40, _c(BRODERIE, 4 if i2 % 3 != 2 else 3), _c(ROBE, 0))
+		xr += 8 + int(GuerrierTextures._h(i2, 0, 2121) * 4.0)
+		i2 += 1
+
+# ------------------------------------------------------------------ pèlerine (UV de la mante du jeu, 128 x 128, répétée)
+static func pelerine() -> Image:
+	var W := 128
+	var H := 128
+	var img := GuerrierTextures._img(W, H)
+	for y in H:
+		for x in W:
+			var l := _laine(x, y, W, H, 0.45, 2201, 10)
+			_p(img, x, y, _c(PELERINE, GuerrierTextures._ton(l, 6, x, y, 2205, 0.3)))
+	return img
+
+# ------------------------------------------------------------------ orbe et lueurs (64 x 64, surface émissive, découpe)
+##   (0,0,64,32)  surface de l'orbe : u autour, v d'un pôle à l'autre ; cœur blanc glacé, bord bleu, rune deux fois (devant / dos)
+##   (0,32,16,16) étincelle (losange à croix) ; (16,32,16,8) œil luisant (fente) ; (32,32,32,32) 4 runes flottantes 16 x 16
+const O_SPHERE := Rect2i(0, 0, 64, 32)
+const O_ETINCELLE := Rect2i(0, 32, 16, 16)
+const O_OEIL := Rect2i(16, 32, 16, 8)
+const O_RUNES := Rect2i(32, 32, 32, 32)
+
+static func orbe() -> Image:
+	var img := GuerrierTextures._img(64, 64, Color(0, 0, 0, 0))
+	for y in 32:
+		for x in 64:
+			var lat := absf(y - 15.5) / 16.0
+			var l := 0.78 - lat * lat * 0.70 + (GuerrierTextures._n(x, y, 64, 32, 8, 4, 2301) - 0.5) * 0.25
+			# volutes de givre qui tournent dans l'orbe
+			if posmod(x + int(y * 0.6), 11) == 0:
+				l -= 0.2
+			img.set_pixel(x, y, _c(ORBE, GuerrierTextures._ton(l, 6, x, y, 2302, 0.25)))
+	for cx in [10, 42]:
+		_rune(img, 7, cx, 9, _c(ORBE, 5), _c(ORBE, 2), 2.0)
+		# cercle gravé autour de la rune
+		for a in 24:
+			var p := Vector2(cx + 3, 15) + Vector2(cos(TAU * a / 24.0) * 8.0, sin(TAU * a / 24.0) * 7.0)
+			img.set_pixel(clampi(int(p.x), 0, 63), clampi(int(p.y), 0, 31), _c(ORBE, 5))
+	# étincelle
+	var r := O_ETINCELLE
+	for y in 16:
+		for x in 16:
+			var d := absf(x - 7.5) + absf(y - 7.5)
+			var croix := (absf(x - 7.5) < 1.0 or absf(y - 7.5) < 1.0) and d < 8.0
+			if d < 3.5:
+				img.set_pixel(r.position.x + x, r.position.y + y, _c(ORBE, 5))
+			elif d < 5.0 or croix:
+				img.set_pixel(r.position.x + x, r.position.y + y, _c(ORBE, 4 if d < 6.0 else 3))
+	# œil : fente horizontale, cœur blanc glacé
+	r = O_OEIL
+	for y in 8:
+		for x in 16:
+			var e := pow(absf(x - 7.5) / 8.0, 2.0) + pow(absf(y - 3.5) / 3.6, 2.0)
+			if e < 0.35:
+				img.set_pixel(r.position.x + x, r.position.y + y, _c(ORBE, 5))
+			elif e < 1.0:
+				img.set_pixel(r.position.x + x, r.position.y + y, _c(ORBE, 3))
+	# runes flottantes : tracé épais (échelle 2, doublé), cœur clair
+	r = O_RUNES
+	for k in 4:
+		var ox := r.position.x + (k % 2) * 16 + 4
+		var oy := r.position.y + (k / 2) * 16 + 2
+		_rune(img, [0, 4, 7, 10][k], ox + 1, oy, _c(ORBE, 3), _c(ORBE, 3), 2.0)
+		_rune(img, [0, 4, 7, 10][k], ox, oy, _c(ORBE, 5), _c(ORBE, 4), 2.0)
 	return img
