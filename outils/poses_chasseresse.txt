@@ -1,0 +1,36 @@
+# Chasseresse nordique (refonte persos) : vues en jeu. Lancer avec --chasseresse-pilote :
+# godot --path . --disable-vsync -- --captures=outils/poses_chasseresse.txt --sortie=<dossier> --nouvelle --paisible --sans-particules --attente=200 --res=640x360 --chasseresse-pilote
+# pose commune « entree » : la chasseresse est à 4 m devant, tournée vers la caméra
+entree_17h5 monde 21.80,19.82,-132.3,0.3 heure=17.5 sans-mains
+entree_21_torche monde 21.80,19.82,-132.3,0.3 heure=21
+# 2 / 4 / 8 m, face, 3/4, dos, 17h30 (Idle : arc porté)
+p17_2m_face pilote 2,0 heure=17.5 sans-mains anim=Idle:0.3
+p17_2m_34 pilote 2,-35 heure=17.5 sans-mains anim=Idle:0.3
+p17_2m_dos pilote 2,180 heure=17.5 sans-mains anim=Idle:0.3
+p17_4m_face pilote 4,0 heure=17.5 sans-mains anim=Idle:0.3
+p17_4m_34 pilote 4,-35 heure=17.5 sans-mains anim=Idle:0.3
+p17_4m_dos pilote 4,180 heure=17.5 sans-mains anim=Idle:0.3
+p17_8m_face pilote 8,0 heure=17.5 sans-mains anim=Idle:0.3
+p17_8m_34 pilote 8,-35 heure=17.5 sans-mains anim=Idle:0.3
+p17_8m_dos pilote 8,180 heure=17.5 sans-mains anim=Idle:0.3
+# nuit (21 h) avec torche, 3 m
+p21_3m_34_torche pilote 3,30 heure=21 anim=Idle:0.3
+# bande d'animations (3,2 m, 3/4 côté droit, 17h30) : pose figée à la fraction t du clip
+an_idle pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Idle:0.3
+an_marche_a pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Walk:0.25
+an_marche_b pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Walk:0.75
+an_course_a pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Jog_Fwd:0.3
+an_course_b pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Sprint:0.4
+an_vise pilote 3.2,-60,1.0 heure=17.5 sans-mains anim=Pistol_Aim_Neutral:0.5
+an_tir pilote 3.2,-60,1.0 heure=17.5 sans-mains anim=Pistol_Shoot:0.2
+an_vise_profil pilote 3.2,-90,1.0 heure=17.5 sans-mains anim=Pistol_Aim_Neutral:0.5
+an_coup pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Hit_Chest:0.4
+an_mort_a pilote 3.2,-40,0.6 heure=17.5 sans-mains anim=Death01:0.5
+an_mort_b pilote 3.2,-40,0.4 heure=17.5 sans-mains anim=Death01:1.0
+# gros plans : visage, arc tendu, carquois et dos (2 m et 1 m)
+gros_visage_2m pilote 2,20,1.5 heure=17.5 sans-mains anim=Idle:0.3
+gros_visage_1m pilote 1.0,25,1.58 heure=17.5 sans-mains anim=Idle:0.3
+gros_arc_2m pilote 2,-50,1.25 heure=17.5 sans-mains anim=Pistol_Aim_Neutral:0.5
+gros_arc_1m pilote 1.3,-60,1.35 heure=17.5 sans-mains anim=Pistol_Aim_Neutral:0.5
+gros_carquois_2m pilote 2,160,1.3 heure=17.5 sans-mains anim=Idle:0.3
+gros_carquois_1m pilote 1.2,150,1.4 heure=17.5 sans-mains anim=Idle:0.3

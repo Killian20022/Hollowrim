@@ -1,0 +1,7 @@
+# Chasseresse à côté du guerrier pilote (cohérence de famille). Lancer avec --guerrier-pilote --chasseresse-pilote --guerrier-anim=Idle
+# (la chasseresse se tient à 1,3 m à la droite du guerrier ; decal=0.65 centre la caméra entre les deux)
+cote_4m_face pilote 4,0,0.95 heure=17.5 sans-mains anim=Idle:0.3 decal=0.65
+cote_4m_34 pilote 4.5,-30,0.95 heure=17.5 sans-mains anim=Idle:0.3 decal=0.65
+cote_4m_dos pilote 4,180,0.95 heure=17.5 sans-mains anim=Idle:0.3 decal=-0.65
+cote_8m_face pilote 8,0,0.95 heure=17.5 sans-mains anim=Idle:0.3 decal=0.65
+cote_2m_face pilote 2.6,0,1.2 heure=17.5 sans-mains anim=Idle:0.3 decal=0.65

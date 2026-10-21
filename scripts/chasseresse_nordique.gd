@@ -418,7 +418,7 @@ class Acc extends GuerrierNordique.Accessoires:
 			var ecart := (x * cos(ang) + y * sin(ang)) * 0.030
 			var penche := (x * cos(ang) + y * sin(ang)) * 0.06 * _h(i)
 			var a := haut - axe * 0.04 + ecart
-			var b := haut + (axe + penche).normalized() * (0.20 + 0.05 * _h(i + 7)) + ecart
+			var b := haut + (axe + penche).normalized() * (0.27 + 0.06 * _h(i + 7)) + ecart
 			_tube_poly(op, [a, b], [0.0055, 0.0055], [_pw(s3), _pw(s3)], 3, ChasseresseTextures.R_FUT)
 			var ax := (b - a).normalized()
 			var w0 := ax.cross(Vector3.UP).normalized()

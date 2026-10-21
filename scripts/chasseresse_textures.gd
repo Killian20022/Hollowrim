@@ -8,13 +8,13 @@ class_name ChasseresseTextures
 
 # palettes (sombre -> clair)
 ## jaque de cuir à écailles : brun-gris (pas de bleu : la maille du guerrier virait trop bleu au crépuscule)
-const CUIR_E := ["#141009", "#261e17", "#3a2f25", "#504234", "#685745", "#82705a", "#9c8a70"]
+const CUIR_E := ["#1c150e", "#30251b", "#45372a", "#5c4936", "#755d45", "#8f7558", "#a98e6e"]
 ## cape : laine vert-bleu sombre (référence : sarcelle sombre)
-const LAINE_VERTE := ["#0b1315", "#122125", "#1a3035", "#234046", "#2e5259", "#3f666c"]
+const LAINE_VERTE := ["#0b1413", "#122321", "#1a3331", "#234440", "#2e5651", "#3f6a63"]
 ## tabard : sarcelle plus clair, liseré crème
 const TABARD := ["#13252a", "#1e353b", "#2a474e", "#385a61", "#4b6e73"]
 const LAINE_OLIVE := ["#121410", "#1c1f17", "#282c20", "#353a2a", "#444a36", "#555b43"]
-const BLOND := ["#2c2213", "#4a3a21", "#6b5631", "#8d7544", "#ae955b", "#cbb377"]
+const BLOND := ["#33230f", "#553c1c", "#7a5a2c", "#9e7a3e", "#c09a55", "#dbb872"]
 const PLUME := ["#2a2824", "#59544b", "#8f887a", "#bdb5a3", "#ddd6c4"]
 ## arc : bois d'if brun-roux (âme claire, dos sombre)
 const BOIS_ARC := ["#1c120b", "#2f1f13", "#45301d", "#5c4229", "#765637", "#8f6c48"]
@@ -23,7 +23,7 @@ static var _cache := {}
 
 # ------------------------------------------------------------------ précalcul (comme GuerrierTextures)
 const DOSSIER := "res://assets/persos/chasseresse"
-const VERSION := 1
+const VERSION := 2
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -291,7 +291,7 @@ static func _carquois(img: Image) -> void:
 	var r := R_CARQ
 	for y in r.size.y:
 		for x in r.size.x:
-			var t := GuerrierTextures._ton_cuir(x, y, r.size.x, r.size.y, 0.52, 1161)
+			var t := GuerrierTextures._ton_cuir(x, y, r.size.x, r.size.y, 0.30, 1161) - 1
 			var c := GuerrierTextures._c(GuerrierTextures.CUIR, t)
 			if y < 6:
 				c = GuerrierTextures._c(GuerrierTextures.CUIR_SOMBRE, 2 + (1 if y == 1 else 0))
