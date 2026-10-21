@@ -23,7 +23,7 @@ const R_SAPINS := Vector2(165.0, 820.0)
 ## Château : azimut (degrés depuis +Z vers +X) et distance. Visible depuis l'entrée du village (cap sud-est) et
 ## depuis le chemin du tumulus (cap sud-sud-est).
 const CHATEAU_AZIMUT := 24.0
-const CHATEAU_DIST := 700.0
+const CHATEAU_DIST := 600.0
 ## Sommets marquants : azimut (° depuis +Z vers +X), distance, hauteur, rayon (m)
 const PICS := [
 	[10.0, 1250.0, 760.0, 420.0],    # grand sommet derrière le château
@@ -325,11 +325,11 @@ func _chateau() -> Dictionary:
 	var vue := Vector2(centre.x, centre.y).normalized()
 	var axe := Vector3(-vue.y, 0.0, vue.x)
 	var sol := _y0 + _h(centre.x, centre.y) - 18.0
-	var hauteur_a := 150.0
-	var rayon_a := 70.0
+	var hauteur_a := 170.0
+	var rayon_a := 75.0
 	var o_a := Vector3(centre.x, sol, centre.y)
-	var hauteur_b := 140.0
-	var rayon_b := 32.0
+	var hauteur_b := 158.0
+	var rayon_b := 34.0
 	var o_b := o_a + axe * 165.0
 	var sol_b := _y0 + _h(o_b.x, o_b.z) - 18.0
 	o_b.y = sol_b

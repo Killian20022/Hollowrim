@@ -68,7 +68,7 @@ void fragment() {
 	float strie = vnoise(vec2((wp.x * 0.7 + wp.z) * 0.05, wp.y * 0.006));  // couloirs verticaux
 
 	// --- neige : altitude, pente douce ; les couloirs gardent la neige dans les pentes raides
-	float ligne = 135.0 + (nb - 0.5) * 100.0;
+	float ligne = 185.0 + (nb - 0.5) * 120.0;
 	float neige_alt = smoothstep(ligne - 55.0, ligne + 35.0, alt);
 	float sol_pente = smoothstep(0.20 + na * 0.18, 0.42 + na * 0.2, pente);
 	float couloir = smoothstep(0.58, 0.68, strie) * 0.85 * smoothstep(110.0, 170.0, alt);
@@ -81,8 +81,8 @@ void fragment() {
 
 	// --- matières
 	float strates = 0.5 + 0.5 * sin(wp.y * 0.55 + na * 5.0 + nc * 2.0);
-	vec3 roche = mix(vec3(0.15, 0.145, 0.17), vec3(0.30, 0.26, 0.24), clamp(na * 0.8 + strates * 0.3 + nc * 0.3, 0.0, 1.0));
-	vec3 neige_c = mix(vec3(0.74, 0.80, 0.94), vec3(0.93, 0.95, 1.0), nb);
+	vec3 roche = mix(vec3(0.065, 0.065, 0.085), vec3(0.17, 0.15, 0.15), clamp(na * 0.8 + strates * 0.3 + nc * 0.3, 0.0, 1.0));
+	vec3 neige_c = mix(vec3(0.62, 0.70, 0.88), vec3(0.88, 0.92, 1.0), nb);
 	vec3 foret = mix(vec3(0.022, 0.05, 0.05), vec3(0.06, 0.10, 0.08), clamp(vc.g * 0.8 + nc * 0.5, 0.0, 1.0));
 	vec3 albedo;
 	if (cat < 0.5 || cat > 3.5) {
@@ -115,6 +115,9 @@ void fragment() {
 	float hd = 1.0 - exp(-pow(dist / dist_brume, 1.1));
 	float hb = (1.0 - smoothstep(4.0, 60.0, alt)) * 0.88;
 	float haze = 1.0 - (1.0 - hd * 0.92) * (1.0 - hb);
+	if (cat > 1.5) {
+		haze *= 0.6;  // château et falaise : plus contrastés que le relief qui les entoure
+	}
 	vec3 brume = mix(horizon, haut, 0.22 * smoothstep(10.0, 220.0, alt));
 	float chaud = clamp((horizon.r - horizon.b) * 3.0, 0.0, 1.0);   // crépuscule : le haut des cimes rosit
 	col += neige * chaud * diff * vec3(0.5, 0.3, 0.2) * (1.0 - haze);
