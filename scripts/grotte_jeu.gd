@@ -20,7 +20,7 @@ const MAX_LUM := 7
 const DIST_APPARITION := 46.0
 
 ## Tenues des bandits (corps Humain) : [tenue, étoffes, coiffure, teinte des cheveux, barbe] ; indice 4 = Hrafn, le chef (casque nasal ;
-## mante de fourrure blanche comme sa tenue du kit : la fourrure « noir » de la version d'origine n'existe pas, Humain.creer échouait).
+## mante de fourrure brune, plus sombre que celle des bandits : la fourrure « noir » de la version d’origine n’existe pas, Humain.creer échouait).
 const C := Color.WHITE
 const TENUES := [
 	[{"tunique": C, "pantalon": C, "mante": C, "capuche": C, "sacoche": C, "bottes": C, "ceinture": C, "brassards": C, "gants": C},
@@ -32,7 +32,7 @@ const TENUES := [
 	[{"tunique": C, "pantalon": C, "mante": C, "carquois": C, "pteruges": C, "bottes": C, "ceinture": C, "brassards": C},
 		{"tunique": "cuir_a", "pantalon": "brun", "mante": "blanc", "carquois": "cuir_b", "pteruges": "cuir_b", "bottes": "cuir_b", "ceinture": "cuir_b", "brassards": "cuir_b"}, "Hair_Buzzed", Color(0.55, 0.5, 0.45), true],
 	[{"tunique": C, "pantalon": C, "mante": C, "epaulieres": C, "pteruges": C, "bottes": C, "ceinture": C, "brassards": C, "gants": C},
-		{"tunique": "cuir_b", "pantalon": "noir", "mante": "blanc", "epaulieres": "cuir_a", "pteruges": "cuir_b", "bottes": "cuir_b", "ceinture": "cuir_a", "brassards": "cuir_a", "gants": "cuir_b"}, "Hair_Long", Color(0.12, 0.1, 0.09), true],
+		{"tunique": "cuir_b", "pantalon": "noir", "mante": "brun", "epaulieres": "cuir_a", "pteruges": "cuir_b", "bottes": "cuir_b", "ceinture": "cuir_a", "brassards": "cuir_a", "gants": "cuir_b"}, "Hair_Long", Color(0.12, 0.1, 0.09), true],
 ]
 
 ## --persos-kit : tenue du chef en personnage de base unifié (les bandits ordinaires viennent alors de PersoDefs.bandit(k), k = indice « tenue » 0-3).
