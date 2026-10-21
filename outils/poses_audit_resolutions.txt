@@ -1,0 +1,5 @@
+# Audit graphique (refonte) : 3 vues pour le test de résolution 480x270 / 640x360 / 960x540.
+# entree = pose commune outils/poses_refonte.txt (refonte/abords a984c7f), à 17h30 (crépuscule).
+entree monde 21.80,19.82,-132.3,0.3 heure=17.5 attente=400
+crypte crypte 0,-19.5,0,-5 ouvre=s1,s2,s3,secret,herse attente=400
+grotte grotte 29.5,0,0,-4 attente=400
