@@ -14,7 +14,8 @@ const SURFACES_MAX := 10
 const TRAVERSEE_JUPE := 0.015
 ## course (genou levé presque à l'horizontale, talon relevé) : la jupe en cloche frôle la jambe de quelques cm au pire
 const TRAVERSEE_JUPE_COURSE := 0.05
-const ECART_OURLET := 0.90
+## ourlet : cloche plafonnée (MageJupe.CLOCHE_MAX 0,46 m depuis l'axe, 3 cm derrière le bassin)
+const ECART_OURLET := 0.55
 var echecs := 0
 var diag := ""
 
@@ -72,10 +73,7 @@ func _marge(q: Vector3, rayon: float, anneaux: Array, axe: Vector3) -> float:
 	var Q := q + dirh.normalized() * rayon
 	var bas := 1e9
 	var haut := -1e9
-	var ybas := 0.0
-	for p: Vector3 in anneaux[anneaux.size() - 1]:
-		ybas += p.y
-	bas = ybas / anneaux[anneaux.size() - 1].size() + 0.03     # sous l'ourlet (+3 cm) : la jambe sort normalement de la robe
+	bas = _ourlet_local(anneaux[anneaux.size() - 1], axe, dirh) + 0.03     # sous l'ourlet LOCAL (+3 cm) : la jambe sort normalement de la robe
 	for p: Vector3 in anneaux[0]:
 		haut = maxf(haut, p.y)
 	if q.y < bas or q.y > haut:
@@ -92,6 +90,29 @@ func _marge(q: Vector3, rayon: float, anneaux: Array, axe: Vector3) -> float:
 				if hit != null:
 					pire = maxf(pire, L - A.distance_to(hit))
 	return pire
+
+## Hauteur de l'ourlet dans la direction horizontale `dirh` depuis l'axe : interpolée (en angle) entre les deux colonnes de la
+## jupe qui encadrent cette direction. Passe 2 : là où une jambe (genou levé, talon relevé) passe la cloche plafonnée, la colonne
+## se drape sur la jambe et l'ourlet est relevé LOCALEMENT ; la jambe qui sort sous cet ourlet relevé n'est pas une traversée.
+func _ourlet_local(ourlet: Array, axe: Vector3, dirh: Vector3) -> float:
+	var aq := atan2(dirh.x, dirh.z)
+	var n := ourlet.size()
+	var best := 0
+	var bd := 1e9
+	var angles := []
+	for i in n:
+		var p: Vector3 = ourlet[i]
+		var a := atan2(p.x - axe.x, p.z - axe.z)
+		angles.append(a)
+		var d := absf(wrapf(a - aq, -PI, PI))
+		if d < bd:
+			bd = d
+			best = i
+	var e := wrapf(aq - float(angles[best]), -PI, PI)
+	var j := posmod(best + (1 if e * wrapf(float(angles[(best + 1) % n]) - float(angles[best]), -PI, PI) > 0.0 else -1), n)
+	var span := absf(wrapf(float(angles[j]) - float(angles[best]), -PI, PI))
+	var t := clampf(absf(e) / maxf(span, 1e-4), 0.0, 1.0)
+	return lerpf((ourlet[best] as Vector3).y, (ourlet[j] as Vector3).y, t)
 
 ## Volumes du corps (capsules) pour le bâton.
 func _volumes(sq: Skeleton3D) -> Array:

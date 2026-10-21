@@ -2,25 +2,54 @@ class_name MageJupe
 extends MeshInstance3D
 ## Jupe de la robe du Mage nordique : maillage recalculé à chaque mise à jour du squelette (signal skeleton_updated, après
 ## l'animation ou le ragdoll), dans le repère du Skeleton3D. Une jupe longue pesée sur les os (skinning linéaire) traversait les
-## jambes ou se tendait en voile à la course (talon qui remonte) : ici chaque colonne de la jupe PEND du bassin (longueurs de
-## tissu conservées) et chaque point est repoussé le long de son rayon hors des jambes (cuisses et mollets en capsules, marge
-## comprise) : la jambe reste DANS la jupe par construction, la jupe ne gonfle que là où une jambe la pousse.
-## Paroi extérieure (atlas MageTextures.R_JUPE), doublure (R_DOUBLURE) et lèvre d'ourlet. Coût : ~200 points, < 0,2 ms CPU.
+## jambes ou se tendait en voile à la course (talon qui remonte) : ici chaque colonne de la jupe PEND de la taille (longueurs de
+## tissu conservées) et chaque point est repoussé le long de son rayon hors des jambes (cuisses, mollets, pieds en sphères,
+## marge comprise) : la jambe reste DANS la jupe, la jupe ne gonfle que là où une jambe la pousse.
+## Passe 2 :
+##   - PESANTEUR : debout, les colonnes pendent selon la verticale (seul le cap du bassin est suivi, sa bascule ne l'est qu'à
+##     SUIVI_BASCULE) : à la course le bassin penche de 20-30° et une jupe rigide partait en balancier jusqu'à 0,75 m derrière ;
+##     couché (mort, ragdoll : bassin incliné de plus de ~50°), la jupe suit de nouveau le bassin en entier ;
+##   - CLOCHE PLAFONNÉE : aucun point à plus de CLOCHE_MAX de l'axe (ni de son rayon de repos + CLOCHE_JEU). Là où une jambe
+##     (genou levé, talon relevé) pousserait le tissu au-delà, la colonne se DRAPE sur la jambe : elle se pose sur le dessus
+##     de la jambe au rayon plafond et le reste de la colonne s'y replie ; la jambe sort SOUS l'ourlet local (ourlet relevé
+##     par le genou ou le talon) au lieu de gonfler la robe en cloche.
+## Paroi extérieure (atlas MageTextures.R_JUPE), doublure (R_DOUBLURE) et lèvre d'ourlet. Calcul en tableaux Packed, sans
+## allocation par image hors du maillage (outils/test_mage.gd mesure le coût).
 
 var sq: Skeleton3D
 var repos: Array = []          # [anneau][secteur] points au repos (repère du squelette)
-var longueurs: Array = []      # [anneau][secteur] longueur du tissu entre l'anneau k-1 et k
 var uvs := PackedVector2Array()
 var index := PackedInt32Array()
 var nb_ext := 0                # sommets de la paroi extérieure ((N + 1) x K), puis doublure, puis lèvre
 var os_ := {}
-var rayon_cuisse := 0.095      # 7 cm de jambe + 2,5 cm de marge (cordes entre deux rayons)
+var rayon_cuisse := 0.095      # 7 cm de jambe + 2,5 cm de marge
 var rayon_mollet := 0.080
+var rayon_pied := 0.07
 var lissage := 0.25
+const SUIVI_BASCULE := 0.25    # part de la bascule du bassin suivie par la jupe debout (0 = verticale pure)
+const CLOCHE_MAX := 0.46       # rayon horizontal maximal depuis l'axe de la jupe (m) ; l'axe est 3 cm derrière le bassin
+const CLOCHE_JEU := 0.22       # et au plus rayon de repos + CLOCHE_JEU (le haut de la jupe gonfle moins que l'ourlet)
 var arr := []
 var mat: Material
 ## dernier état calculé (contrôle des traversées : outils/test_mage.gd)
 var anneaux: Array = []
+
+# --- données précalculées (Packed)
+var K := 0
+var N := 0
+var _rep := PackedVector3Array()    # K x N, points au repos
+var _drest := PackedVector3Array()  # K x N, segment de tissu au repos (anneau k-1 -> k)
+var _cap := PackedFloat32Array()    # K x N, rayon plafond
+var _yk := PackedFloat32Array()     # K, hauteur de l'anneau au repos
+# --- tampons réutilisés
+var _pts := PackedVector3Array()    # K x N, résultat
+var _ligne := PackedVector3Array()  # N
+var _sph := PackedFloat32Array()    # sphères des jambes : x, y, z, r
+var _disq := PackedFloat32Array()   # disques de la coupe courante : ex, ez, D, r
+var _os_jambes := PackedInt32Array()   # thigh, calf, foot, ball (gauche puis droite)
+var _drape := PackedByteArray()     # N : colonne drapée (repliée) à partir de l'anneau courant
+var _v := PackedVector3Array()
+var _n := PackedVector3Array()
 
 func preparer(s: Skeleton3D, points: Array, m: Material) -> void:
 	sq = s
@@ -29,21 +58,33 @@ func preparer(s: Skeleton3D, points: Array, m: Material) -> void:
 	name = "jupe"
 	for o in ["pelvis", "thigh_l", "calf_l", "foot_l", "ball_l", "thigh_r", "calf_r", "foot_r", "ball_r"]:
 		os_[o] = sq.find_bone(o)
-	var K := repos.size()
-	var N: int = repos[0].size()
+	for o in ["thigh_l", "calf_l", "foot_l", "ball_l", "thigh_r", "calf_r", "foot_r", "ball_r"]:
+		_os_jambes.append(os_[o])
+	K = repos.size()
+	N = repos[0].size()
+	_rep.resize(K * N)
+	_drest.resize(K * N)
+	_cap.resize(K * N)
+	_yk.resize(K)
 	for k in K:
-		var l := []
+		_yk[k] = float(repos[k][0].y)
 		for i in N:
-			l.append(0.0 if k == 0 else (repos[k][i] as Vector3).distance_to(repos[k - 1][i]))
-		longueurs.append(l)
+			var p: Vector3 = repos[k][i]
+			_rep[k * N + i] = p
+			_drest[k * N + i] = Vector3.ZERO if k == 0 else p - (repos[k - 1][i] as Vector3)
+			var r := Vector2(p.x, p.z - MageNordique.Z_CENTRE).length()
+			_cap[k * N + i] = maxf(r, minf(CLOCHE_MAX, r + CLOCHE_JEU))
+	_pts.resize(K * N)
+	_ligne.resize(N)
+	_drape.resize(N)
 	var R := MageTextures.R_JUPE
 	var D := MageTextures.R_DOUBLURE
 	var A := Vector2(MageTextures.ATLAS)
-	var y0: float = repos[0][0].y
-	var y1: float = repos[K - 1][0].y
+	var y0: float = _yk[0]
+	var y1: float = _yk[K - 1]
 	# paroi extérieure : (N + 1) colonnes (couture dédoublée pour les UV)
 	for k in K:
-		var v: float = R.position.y + (y0 - float(repos[k][0].y)) / (y0 - y1) * (R.size.y - 0.5)
+		var v: float = R.position.y + (y0 - _yk[k]) / (y0 - y1) * (R.size.y - 0.5)
 		for i in N + 1:
 			uvs.append(Vector2(R.position.x + R.size.x * float(i) / N, v) / A)
 	nb_ext = uvs.size()
@@ -67,6 +108,8 @@ func preparer(s: Skeleton3D, points: Array, m: Material) -> void:
 	var levre := nb_ext * 2
 	for i in N:
 		index.append_array([bas + i, levre + i, bas + i + 1, bas + i + 1, levre + i, levre + i + 1])
+	_v.resize(uvs.size())
+	_n.resize(uvs.size())
 	mesh = ArrayMesh.new()
 	custom_aabb = AABB(Vector3(-1.2, -0.3, -1.2), Vector3(2.4, 2.4, 2.4))
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
@@ -76,104 +119,152 @@ func preparer(s: Skeleton3D, points: Array, m: Material) -> void:
 	sq.skeleton_updated.connect(_sur_mise_a_jour)
 	mettre_a_jour()
 
-func _pose(o: String) -> Vector3:
-	return sq.get_bone_global_pose(os_[o]).origin
+## Sphères des jambes (centre, rayon) le long des capsules cuisse / mollet / pied : la coupe horizontale d'une jambe inclinée
+## ou couchée (talon relevé à la course) est l'union des coupes de ses sphères.
+func _spheres() -> void:
+	if _sph.size() != 32 * 4:
+		_sph.resize(32 * 4)
+		_disq.resize(32 * 4)
+	var o := 0
+	for c in 2:
+		var th := sq.get_bone_global_pose(_os_jambes[c * 4]).origin
+		var ca := sq.get_bone_global_pose(_os_jambes[c * 4 + 1]).origin
+		var fo := sq.get_bone_global_pose(_os_jambes[c * 4 + 2]).origin
+		var ba := sq.get_bone_global_pose(_os_jambes[c * 4 + 3]).origin
+		o = _segment(o, th, ca, rayon_cuisse, 6, 0)
+		o = _segment(o, ca, fo, rayon_mollet, 6, 1)
+		o = _segment(o, fo, ba, rayon_pied, 3, 1)
 
-## Coupe horizontale des capsules des jambes à la hauteur y : disques [centre 2D, rayon] (7 sphères par capsule, la coupe
-## d'une jambe inclinée ou couchée — talon relevé à la course — est leur union).
-func _coupe(caps: Array, y: float) -> Array:
-	var res := []
-	for cp: Array in caps:
-		var a: Vector3 = cp[0]
-		var b: Vector3 = cp[1]
-		var r: float = cp[2]
-		for j in 7:
-			var c := a.lerp(b, j / 6.0)
-			var dy := absf(c.y - y)
-			if dy < r:
-				res.append([Vector2(c.x, c.z), sqrt(r * r - dy * dy)])
-	return res
+func _segment(o: int, a: Vector3, b: Vector3, r: float, nseg: int, j0: int) -> int:
+	for j in range(j0, nseg + 1):
+		var p := a.lerp(b, float(j) / nseg)
+		_sph[o] = p.x
+		_sph[o + 1] = p.y
+		_sph[o + 2] = p.z
+		_sph[o + 3] = r
+		o += 4
+	return o
 
-## Repousse q le long du rayon horizontal (axe -> q) hors des disques de la coupe. Le disque est « élargi » d'un demi-secteur
-## (cos_d, sin_d = cos/sin du demi-angle) : le rayon voisin le couvre aussi, la corde entre deux points ne coupe pas la jambe.
-## disques : [direction unitaire depuis l'axe, distance D, rayon] (préparés une fois par anneau).
-static func _pousser(q: Vector3, axe: Vector3, disques: Array, cos_d: float, sin_d: float) -> Vector3:
-	var u := Vector2(q.x - axe.x, q.z - axe.z)
-	var lq := u.length()
-	if lq < 1e-5:
-		return q
-	u /= lq
-	var t_max := lq
-	for dq: Array in disques:
-		var e: Vector2 = dq[0]
-		var D: float = dq[1]
-		var rr: float = dq[2]
-		var c := u.dot(e)
-		var sn := absf(u.cross(e))
-		var cd := c
-		var sd := sn
-		if sn > sin_d or c < cos_d:
-			cd = c * cos_d + sn * sin_d       # cos(Δ - δ)
-			sd = sn * cos_d - c * sin_d       # sin(Δ - δ)
-		else:
-			cd = 1.0
-			sd = 0.0
-		if cd <= 0.0:
-			continue
-		var perp := D * sd
-		if perp >= rr:
-			continue
-		t_max = maxf(t_max, D * cd + sqrt(rr * rr - perp * perp))
-	if t_max <= lq:
-		return q
-	return Vector3(axe.x + u.x * t_max, q.y, axe.z + u.y * t_max)
+## Hauteur du dessus des jambes au point horizontal (x, z) (-1e9 si aucune jambe à cet endroit).
+func _dessus_jambe(x: float, z: float) -> float:
+	var haut := -1e9
+	for s in range(0, _sph.size(), 4):
+		var dx := x - _sph[s]
+		var dz := z - _sph[s + 2]
+		var r := _sph[s + 3]
+		var d2 := dx * dx + dz * dz
+		if d2 < r * r:
+			haut = maxf(haut, _sph[s + 1] + sqrt(r * r - d2))
+	return haut
 
-func calculer() -> Array:
-	var K := repos.size()
-	var N: int = repos[0].size()
+## Calcule les points de la jupe dans _pts (K x N).
+func _calculer() -> void:
 	var po := sq.get_bone_global_pose(os_["pelvis"]) * sq.get_bone_global_rest(os_["pelvis"]).affine_inverse()
-	var caps := []
-	for c in ["l", "r"]:
-		caps.append([_pose("thigh_" + c), _pose("calf_" + c), rayon_cuisse])
-		caps.append([_pose("calf_" + c), _pose("foot_" + c), rayon_mollet])
-		caps.append([_pose("foot_" + c), _pose("ball_" + c), 0.07])
-	var res := []
-	res.append([])
+	# pesanteur : cap du bassin seul (debout), bascule suivie en partie ; couché, rotation complète
+	var b_plein := po.basis.orthonormalized()
+	var bascule := acos(clampf(b_plein.y.y, -1.0, 1.0))
+	var f := b_plein.z
+	f.y = 0.0
+	var cap_y := atan2(f.x, f.z) if f.length_squared() > 1e-8 else 0.0
+	var suivi := lerpf(SUIVI_BASCULE, 1.0, smoothstep(deg_to_rad(40.0), deg_to_rad(60.0), bascule))
+	var B := Basis(Quaternion(Vector3.UP, cap_y).slerp(b_plein.get_rotation_quaternion(), suivi))
+	var plafonne := suivi < 0.6
+	_spheres()
+	var nsph := _sph.size()
 	for i in N:
-		res[0].append(po * repos[0][i])
+		_pts[i] = po * _rep[i]
+		_drape[i] = 0
+	var taille := po * Vector3(0, _yk[0], MageNordique.Z_CENTRE)
+	var cos_d := cos(PI / N)
+	var sin_d := sin(PI / N)
 	for k in range(1, K):
-		var ligne := []
 		var ysomme := 0.0
+		var base := k * N
 		for i in N:
-			var prev: Vector3 = res[k - 1][i]
-			var q: Vector3 = po * repos[k][i]
-			var d := q - prev
-			q = prev + d.normalized() * float(longueurs[k][i])
-			ligne.append(q)
+			var prev := _pts[base - N + i]
+			var q := prev + B * _drest[base + i] if _drape[i] == 0 else prev
+			_ligne[i] = q
 			ysomme += q.y
-		# lissage latéral (le tissu ne fait pas de pointes d'un secteur à l'autre), puis jambes repoussées (en dernier)
-		var axe := po * Vector3(0, repos[k][0].y, MageNordique.Z_CENTRE)
-		var disques := []
-		for dq: Array in _coupe(caps, ysomme / N):
-			var cc: Vector2 = dq[0] - Vector2(axe.x, axe.z)
-			var D := cc.length()
-			if D > 1e-4:
-				disques.append([cc / D, D, dq[1]])
-		var cos_d := cos(PI / N)
-		var sin_d := sin(PI / N)
-		var lisse := []
+		var ym := ysomme / N
+		# axe de la jupe à cette hauteur : sous le centre de la taille, incliné comme les colonnes (pesanteur), coupe des
+		# jambes à la hauteur moyenne de l'anneau
+		var axe := taille + B * Vector3(0, _yk[k] - _yk[0], 0)
+		var nd := 0
+		for s in range(0, nsph, 4):
+			var dy := absf(_sph[s + 1] - ym)
+			var r := _sph[s + 3]
+			if dy < r:
+				var cx := _sph[s] - axe.x
+				var cz := _sph[s + 2] - axe.z
+				var D := sqrt(cx * cx + cz * cz)
+				if D > 1e-4:
+					_disq[nd] = cx / D
+					_disq[nd + 1] = cz / D
+					_disq[nd + 2] = D
+					_disq[nd + 3] = sqrt(r * r - dy * dy)
+					nd += 4
 		for i in N:
-			var m: Vector3 = (ligne[(i + N - 1) % N] + ligne[(i + 1) % N]) * 0.5
-			var q: Vector3 = (ligne[i] as Vector3).lerp(m, lissage)
-			if not disques.is_empty():
-				q = _pousser(q, axe, disques, cos_d, sin_d)
-			lisse.append(q)
-		res.append(lisse)
+			if _drape[i] != 0:
+				_pts[base + i] = _ligne[i]
+				continue
+			var m := (_ligne[(i + N - 1) % N] + _ligne[(i + 1) % N]) * 0.5
+			var q := _ligne[i].lerp(m, lissage)
+			var ux := q.x - axe.x
+			var uz := q.z - axe.z
+			var lq := sqrt(ux * ux + uz * uz)
+			if lq < 1e-5:
+				_pts[base + i] = q
+				continue
+			ux /= lq
+			uz /= lq
+			var t_max := lq
+			# repoussé hors des disques (élargis d'un demi-secteur : la corde vers le secteur voisin ne coupe pas la jambe)
+			for d in range(0, nd, 4):
+				var ex := _disq[d]
+				var ez := _disq[d + 1]
+				var D := _disq[d + 2]
+				var rr := _disq[d + 3]
+				var c := ux * ex + uz * ez
+				var sn := absf(ux * ez - uz * ex)
+				var cd := 1.0
+				var sd := 0.0
+				if sn > sin_d or c < cos_d:
+					cd = c * cos_d + sn * sin_d
+					sd = sn * cos_d - c * sin_d
+				if cd <= 0.0:
+					continue
+				var perp := D * sd
+				if perp >= rr:
+					continue
+				t_max = maxf(t_max, D * cd + sqrt(rr * rr - perp * perp))
+			var cap := _cap[base + i]
+			if plafonne and t_max > cap:
+				# drapé : la colonne se pose sur le dessus de la jambe au rayon plafond, le reste s'y replie
+				var px := axe.x + ux * cap
+				var pz := axe.z + uz * cap
+				var y := minf(_pts[base - N + i].y, maxf(q.y, _dessus_jambe(px, pz) + 0.012))
+				q = Vector3(px, y, pz)
+				_drape[i] = 1
+			elif t_max > lq:
+				q = Vector3(axe.x + ux * t_max, q.y, axe.z + uz * t_max)
+			elif plafonne and lq > cap:
+				q = Vector3(axe.x + ux * cap, q.y, axe.z + uz * cap)
+			_pts[base + i] = q
+
+## Points de la jupe [anneau][secteur] (contrôle : outils/test_mage.gd).
+func calculer() -> Array:
+	_calculer()
+	var res := []
+	for k in K:
+		var l := []
+		for i in N:
+			l.append(_pts[k * N + i])
+		res.append(l)
 	anneaux = res
 	return res
 
 ## Fréquence selon la distance à la caméra active : chaque image à moins de 8 m, une sur 2 jusqu'à 16 m, une sur 4 au-delà ;
-## rien si le personnage est caché. `forcer` : calcul immédiat (création, captures, tests).
+## rien si le personnage est caché.
 var _compteur := 0
 
 func _sur_mise_a_jour() -> void:
@@ -190,36 +281,38 @@ func _sur_mise_a_jour() -> void:
 		mettre_a_jour()
 
 func mettre_a_jour() -> void:
-	var res := calculer()
-	var K := res.size()
-	var N: int = res[0].size()
-	var v := PackedVector3Array()
-	var n := PackedVector3Array()
-	v.resize(uvs.size())
-	n.resize(uvs.size())
+	_calculer()
 	var W := N + 1
+	var pel := sq.get_bone_global_pose(os_["pelvis"]).origin
 	for k in K:
+		var kh := maxi(k - 1, 0) * N
+		var kb := mini(k + 1, K - 1) * N
+		var kk := k * N
 		for i in W:
 			var ii := i % N
-			var p: Vector3 = res[k][ii]
-			var g: Vector3 = res[k][(ii + N - 1) % N]
-			var dd: Vector3 = res[k][(ii + 1) % N]
-			var h: Vector3 = res[maxi(k - 1, 0)][ii]
-			var b: Vector3 = res[mini(k + 1, K - 1)][ii]
-			var nn := (dd - g).cross(b - h).normalized()
-			var ax := Vector3(p.x, p.y, p.z) - (sq.get_bone_global_pose(os_["pelvis"]).origin)
-			if nn.dot(Vector3(ax.x, 0, ax.z)) < 0.0:
+			var p := _pts[kk + ii]
+			var tg := _pts[kk + (ii + 1) % N] - _pts[kk + (ii + N - 1) % N]
+			var vt := _pts[kb + ii] - _pts[kh + ii]
+			var radial := Vector3(p.x - pel.x, 0.0, p.z - pel.z)
+			if vt.length_squared() < 1e-8:
+				vt = Vector3.DOWN
+			var nn := tg.cross(vt)
+			if nn.length_squared() < 1e-10:
+				nn = radial
+			nn = nn.normalized()
+			if nn.dot(radial) < 0.0:
 				nn = -nn
-			v[k * W + i] = p
-			n[k * W + i] = nn
-			v[nb_ext + k * W + i] = p - nn * 0.006
-			n[nb_ext + k * W + i] = -nn
+			var o := k * W + i
+			_v[o] = p
+			_n[o] = nn
+			_v[nb_ext + o] = p - nn * 0.006
+			_n[nb_ext + o] = -nn
 	var bas := (K - 1) * W
 	for i in W:
-		v[nb_ext * 2 + i] = v[nb_ext + bas + i] + Vector3(0, 0.002, 0)
-		n[nb_ext * 2 + i] = Vector3.DOWN
-	arr[Mesh.ARRAY_VERTEX] = v
-	arr[Mesh.ARRAY_NORMAL] = n
+		_v[nb_ext * 2 + i] = _v[nb_ext + bas + i] + Vector3(0, 0.002, 0)
+		_n[nb_ext * 2 + i] = Vector3.DOWN
+	arr[Mesh.ARRAY_VERTEX] = _v
+	arr[Mesh.ARRAY_NORMAL] = _n
 	var m := mesh as ArrayMesh
 	m.clear_surfaces()
 	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
