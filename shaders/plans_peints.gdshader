@@ -132,12 +132,6 @@ void fragment() {
 		// sous-sommet : une seconde pointe franche sur le flanc le plus long
 		float cs = p.w >= 0.0 ? 1.0 : -1.0;
 		e = max(e, p.y * 0.82 * (1.0 - abs(d - cs * w * 0.42) / (w * 0.3)));
-		// crête fractale : ondulations larges, ressauts, pointes secondaires, éclats d'un texel (relatif à la hauteur)
-		float hp = max(p.y - base_el, 1.0);
-		float fi = float(i) * 37.0;
-		e += hp * (0.12 * (b1(az_t + fi, 70.0) - 0.5) - 0.06 * rid(az_t + fi + 11.0, 15.0) - 0.05 * rid(az_t + fi + 23.0, 6.0) + 0.06 * (b1(az_t + fi, 23.0) - 0.5)
-			+ 0.11 * rid(az_t + fi, 9.0) + 0.05 * rid(az_t + fi + 5.0, 4.0) + 0.06 * floor(b1(az_t + fi, 17.0) * 3.0) / 3.0)
-			+ dentelure * (0.9 * (b1(az_t + fi, 3.0) - 0.5) + 0.5 * (h11(az_t + fi) - 0.5));
 		if (e > pic_el) {
 			pic_el = e;
 			pic_d = d;
@@ -145,6 +139,18 @@ void fragment() {
 			pic_az = p.x;
 			crete = max(crete, e);
 		}
+	}
+	// crête fractale (une fois, après le choix du pic dominant, perf) : ondulations larges, ressauts, encoches,
+	// pointes secondaires, éclats d'un texel ; amplitude relative à la hauteur du pic
+	if (nb_pics > 0 && pic_el >= crete - 0.001) {
+		float hp = max(pic_el - base_el, 1.0);
+		float fi = floor(pic_az) * 37.0;
+		float bruit = hp * (0.12 * (b1(az_t + fi, 70.0) - 0.5) - 0.06 * rid(az_t + fi + 11.0, 15.0) - 0.05 * rid(az_t + fi + 23.0, 6.0)
+			+ 0.06 * (b1(az_t + fi, 23.0) - 0.5) + 0.11 * rid(az_t + fi, 9.0) + 0.05 * rid(az_t + fi + 5.0, 4.0)
+			+ 0.06 * floor(b1(az_t + fi, 17.0) * 3.0) / 3.0)
+			+ dentelure * (0.9 * (b1(az_t + fi, 3.0) - 0.5) + 0.5 * (h11(az_t + fi) - 0.5));
+		pic_el += bruit;
+		crete = max(crete, pic_el);
 	}
 	bool foret = genre >= 1;
 	float sapin = 0.0;
