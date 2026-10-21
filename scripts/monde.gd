@@ -43,6 +43,7 @@ var h_grotte := 0.0  # niveau de la terrasse devant la bouche de la grotte (reli
 var grotte_acces: Node3D
 var village: Node3D
 var cycle: Node
+var arriere_plan: Node3D  # montagnes/château lointains (ArrierePlan), masqués sous terre
 var calque: CanvasLayer
 var dialogue: Control
 var quetes: Node
@@ -123,6 +124,9 @@ func _ready() -> void:
 
 	_environnement()
 	_lune()
+	if not _arguments().has("sans-arriere-plan"):  # --sans-arriere-plan : mesures A/B de performance
+		arriere_plan = ArrierePlan.creer(self)
+		add_child(arriere_plan)
 	_terrain()
 	_chrono("terrain")
 	arbres = Vegetation.creer(self)
@@ -149,6 +153,9 @@ func _ready() -> void:
 	_grotte_acces()
 	_chrono("entree de la grotte")
 	AbordsTumulus.creer(self)  # lot F : abords du tertre (après sa création)
+	if _arguments().has("res"):  # essai de résolution interne (captures) : --res=640x360 ; ne change pas le défaut du projet
+		var wh := String(_arguments()["res"]).split("x")
+		get_window().content_scale_size = Vector2i(int(wh[0]), int(wh[1]))
 	if not _arguments().has("capture"):
 		_musique()
 	if not _arguments().has("capture") and not _arguments().has("nouvelle"):
@@ -257,7 +264,7 @@ func _environnement() -> void:
 	env.fog_density = 1.0
 	env.fog_sky_affect = 0.0
 	env.glow_enabled = true
-	env.glow_intensity = 0.7
+	env.glow_intensity = 0.8
 	env.glow_bloom = 0.0
 	env.glow_hdr_threshold = 0.9
 	# halos de flammes nets : seuls les niveaux serrés (2 et 3) restent, plus de voile large
@@ -295,8 +302,7 @@ func _lune() -> void:
 	# en capture, le temps reste figé (images comparables), même avec une heure imposée
 	if _arguments().has("capture"):
 		cycle.process_mode = Node.PROCESS_MODE_DISABLED
-		if h != "":
-			cycle._process(0.0)  # applique l'éclairage de l'heure demandée une fois
+		cycle._process(0.0)  # applique l'éclairage (de l'heure demandée, sinon celle de départ) une fois
 
 # --- terrain -----------------------------------------------------------------
 
@@ -596,6 +602,8 @@ func _dragon() -> void:
 ## Sous terre : ni lune, ni neige, ni ciel ; une brume noire et froide.
 func _sous_terre(dedans: bool) -> void:
 	cycle.lumiere.visible = not dedans
+	if arriere_plan != null:
+		arriere_plan.visible = not dedans
 	neige.visible = not dedans
 	cycle.process_mode = Node.PROCESS_MODE_DISABLED if dedans else Node.PROCESS_MODE_INHERIT
 	_env.background_mode = Environment.BG_COLOR if dedans else Environment.BG_SKY
@@ -606,6 +614,7 @@ func _sous_terre(dedans: bool) -> void:
 	_sous_terre_actif = dedans
 	_env.fog_mode = Environment.FOG_MODE_EXPONENTIAL if dedans else Environment.FOG_MODE_DEPTH
 	post.set_shader_parameter("tramage", 0.45 if dedans else 1.0)
+	post.set_shader_parameter("etal_mix", 0.45 if dedans else 1.0)  # lot 2 : étalonnage atténué sous terre
 	if dedans:
 		_env.ambient_light_color = Color(0.40, 0.45, 0.62)
 		_env.ambient_light_energy = 0.9
@@ -816,6 +825,8 @@ func charger() -> void:
 func _process(dt: float) -> void:
 	_t += dt
 	_brume_locale(dt)
+	if cycle != null and joueur != null and not _sous_terre_actif:
+		cycle.orienter_brume(-joueur.camera.global_transform.basis.z)  # lot 2 : brouillard chaud côté soleil couchant
 	neige.global_position = joueur.global_position + Vector3(0, 10, 0)
 	# le feu vacille : deux sinus désaccordés + un peu de hasard
 	feu_lumiere.light_energy = 3.2 + sin(_t * 11.0) * 0.25 + sin(_t * 23.7) * 0.18 + randf() * 0.25
@@ -1111,7 +1122,7 @@ func _lot_captures(fichier: String) -> void:
 				cycle._process(0.0)
 			else:
 				cycle.heure = heure_depart
-				_restaurer_lumiere(depart)  # état exact du lancement isolé (≠ cycle._process à l'heure de départ)
+				cycle._process(0.0)  # lot 2 : le lancement isolé applique aussi cycle._process à l'heure de départ
 			if type == "monde":
 				joueur.global_position = Vector3(c[0], hauteur(c[0], c[1]) + 0.1, c[1])
 				joueur.rotation.y = deg_to_rad(c[2])
