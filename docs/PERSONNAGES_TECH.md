@@ -116,3 +116,7 @@ Voir le journal dans `docs/MISSION_GRAPHISME.md` (lot « squelette guerrier »).
 - **Forgeron** : poste `forge` déplacé à 65 cm de l'enclume (repère forge (0,30 ; 0,05)), `"cap": 0` dans `data/villageois.json` (nouveau champ, sinon cap aléatoire). Vérifié en jeu (capture intérieure).
 - **Outils** : `galerie_base.gd` gagne `--cible=tete|pieds`, `--angles=face,profil,dos`, `--sol=1`, `--haut=` en bande ; `dump_atlas.gd` écrit `couleurs_<sexe>_x3.png`.
 - **Perf** : village `--pose=32,30,-125,0` : 5,57 / 5,86 ms GPU, 475 / 449 appels, 293-307 k primitives (limite 6,7 ms).
+
+### v3 (vêtements) 
+- Ourlets/cols : bande tissée fine (clé grecque 2 rangées) dans les TONS de l'étoffe, plus de fil d'or ni de losanges rouges ; col sobre. Étoffes par pièce : laine (tunique), toile fine à nopes (robe), drap pelucheux (cape, capuche), cuir roussi à rivets (tablier) ; plaques élimées (`_usure`).
+- Nez 4 pans fins peint (arête, plans, ombre : `_nez`), oreille à 6 pans (`_oreille`). Têtes 208 triangles. `PersoAtlas.VERSION = 6`. Limite : la couleur du col suit la palette mais le motif est identique pour tous (atlas partagé) ; la fente de robe à la foulée est inchangée.

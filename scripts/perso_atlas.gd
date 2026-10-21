@@ -9,7 +9,7 @@ class_name PersoAtlas
 ## (ourlet du torse, poignet de la manche, cheville du pantalon, haut du crane...). Precalcul : outils/generer_personnages.gd -> atlas_<sexe>.res.
 
 const DOSSIER := "res://assets/personnages"
-const VERSION := 5
+const VERSION := 6
 ## Regions
 const PEAU := 0
 const TUN := 1
@@ -148,6 +148,8 @@ static func peindre(sexe: String) -> Image:
 			"cuir": _cuir(z, cle)
 			"peau": _peau(z)
 			"visage": _visage(z, sexe == "femme")
+			"nez": _nez(z)
+			"oreille": _oreille(z)
 			"cheveux", "barbe": _poil(z)
 			"fourrure": _fourrure(z)
 			"fer": _fer(z)
@@ -174,40 +176,105 @@ static func _laine(z: Zone, reg: int, plis := 5, sale := 0.14, fin := false) -> 
 			l -= 0.07 * smoothstep(float(z.d) * 0.5, 0.0, float(z.fin - y))    # ombre peinte au bout opposé
 			z.ton(x, y, _t(l, x, y, 0.32), reg)
 
-## Bordure brodee de `n` rangees a partir de la ligne y0, vers le bas de l'image (+1) ou le haut (-1) : repli, fil d'or, losanges.
+## Bordure v3 : repli d'ourlet, filet clair, bande tissée de 2 rangées (petite clé grecque, 1-2 texels) dans les TONS de l'étoffe (la couleur suit la palette du
+## vêtement, rien de saturé), puis arête sombre. Pas de fil d'or vif ni de losanges rouges.
 static func _bordure(z: Zone, y0: int, sens: int, n: int, reg: int, motif := true) -> void:
 	for k in n:
 		var y := y0 + sens * k
 		for x in z.w:
 			if k == 0:
 				z.ton(x, y, 1, reg)
-			elif k == 1 or k == n - 1:
-				if ((x + k) & 3) < 3:
-					z.fixe(x, y, F_OR)
-				else:
-					z.ton(x, y, 2, reg)
+			elif k == 1:
+				z.ton(x, y, 4 if (x & 7) != 5 else 3, reg)                     # filet clair du repli
+			elif k == n - 1:
+				z.ton(x, y, 2, reg)
+			elif motif and n >= 5 and k == 2:
+				z.ton(x, y, 5 if (x % 8) < 5 else 2, reg)
+			elif motif and n >= 5 and k == 3:
+				z.ton(x, y, 5 if (x & 3) == 0 else 2, reg)
 			elif k == n - 2 and n > 4:
-				z.ton(x, y, 5, reg)               # lèvre claire de l'arête
+				z.ton(x, y, 4, reg)                                             # lèvre claire de l'arête
 			else:
-				var m := motif and ((x + (k & 1) * 2) % 8) < 2
-				if m:
-					z.fixe(x, y, 12)
-				else:
-					z.ton(x, y, 2 + int(_h(x, k, z.g) > 0.6), reg)
+				z.ton(x, y, 2 + int(_h(x, k, z.g) > 0.6), reg)
+
+## Usure : deux plaques élimées (ton +1, trame qui perce) aux endroits qui frottent, placées par le nom de la pièce.
+static func _usure(z: Zone, reg: int, nom: String) -> void:
+	if z.w < 14 or z.fin - z.debut < 14 or nom == "tablier":
+		return
+	var centres: Array = []
+	if nom == "torse":
+		centres = [[z.w / 4, z.debut + int((z.fin - z.debut) * 0.45)], [(z.w * 3) / 4, z.debut + int((z.fin - z.debut) * 0.80)]]
+	elif nom.begins_with("manche"):
+		centres = [[z.w / 2, z.v_vers_y(float(z.info["anneaux"][2][0]))]]
+	else:
+		centres = [[(z.g * 3) % z.w, z.debut + (z.g * 5) % maxi(z.fin - z.debut, 1)]]
+	for c in centres:
+		for j in range(-4, 5):
+			for i in range(-6, 7):
+				var d2 := float(i * i) / 36.0 + float(j * j) / 16.0
+				if d2 > 1.0:
+					continue
+				var x: int = c[0] + i
+				var y: int = c[1] + j
+				if y < 0 or y >= z.h + 2:
+					continue
+				var px := z.img.get_pixel(z.x0 + posmod(x, z.w), z.y0 + y)
+				var t := int(round(px.r * 255.0)) / 32
+				if int(round(px.g * 255.0)) / 16 != reg:
+					continue
+				var h := _h(x, y, z.g + 21)
+				z.ton(x, y, clampi(t + (1 if h > 0.35 else -1) * (1 if d2 < 0.6 else 0) + (1 if d2 >= 0.6 else 0), 0, 7), reg)
+
+## Cuir épais roussi (tablier) : grain, plis horizontaux, brûlures sombres vers le bas, coutures du bord, 2 rivets.
+static func _cuir_brule(z: Zone, reg: int) -> void:
+	for y in z.h + 2:
+		var t_rel := float(y - z.debut) / maxf(float(z.fin - z.debut), 1.0)
+		for x in z.w:
+			var l := 0.48 + (_n(x, y, z.w, z.h, 6, 4, z.g) - 0.5) * 0.30 + (_n(x, y, z.w, z.h, 22, 14, z.g + 1) - 0.5) * 0.14 + (_h(x, y, z.g + 2) - 0.5) * 0.06
+			l += 0.05 * sin(float(y) * 0.55 + float(x) * 0.08)                 # plis d'assouplissement
+			var brule := _n(x, y, z.w, z.h, 5, 5, z.g + 3)
+			l -= 0.20 * smoothstep(0.55, 0.85, brule) * smoothstep(0.7, 0.0, t_rel)    # roussi, surtout au bas (debut = ourlet)
+			z.ton(x, y, _t(l, x, y, 0.35), reg)
+	for y in range(z.debut + 2, z.fin - 2):
+		if (y % 3) != 2:
+			z.ton(1, y, 5, reg)
+			z.ton(z.w - 2, y, 5, reg)
+	for yy in [z.debut + 8, z.fin - 8]:
+		for dx in [3, z.w - 4]:
+			z.fixe(dx, yy, 3)
+			z.fixe(dx + 1, yy, 4)
 
 static func _tunique(z: Zone, reg: int, cle: String) -> void:
 	var info := z.info
-	_laine(z, reg, 5, 0.16, false)
+	var nom0 := cle.get_slice(".", 1)
+	if nom0 == "tablier":
+		_cuir_brule(z, reg)                                  # tablier de forge : cuir épais roussi
+	elif nom0.begins_with("cote") or nom0 == "avant" or nom0 == "arriere":
+		_laine(z, reg, 5, 0.12, true)                        # robe : toile fine
+		for y in z.h + 2:                                    # fils plus gros (nopes) : traits horizontaux courts
+			for x in z.w:
+				if _h(x / 5, y, z.g + 11) > 0.93:
+					for i in 4:
+						z.ton(x + i, y, 5, reg)
+	elif nom0 == "panneau" or nom0 == "capuche":
+		_laine(z, reg, 7, 0.20, false)                       # cape / capuche : gros drap pelucheux
+		for y in z.h + 2:
+			for x in z.w:
+				if _h(x, y, z.g + 12) > 0.90:
+					z.ton(x, y, 6, reg)
+	else:
+		_laine(z, reg, 5, 0.16, false)
+	_usure(z, reg, nom0)
 	var bw := maxi(3, int(round(z.d * 0.16)))
 	match String(info["bord_debut"]):
 		"ourlet": _bordure(z, z.debut, 1, bw + 3, reg)
 	match String(info["bord_fin"]):
 		"col":
-			for k in maxi(2, bw - 2):
+			# v3 : encolure sobre, bande tissée fine dans les tons du vêtement (plus de zigzag jaune)
+			for k in maxi(3, bw - 1):
 				for x in z.w:
-					z.ton(x, z.fin - k, 1 if k == 0 else 2, reg)
-					if k == 1 and (x & 3) != 3:
-						z.fixe(x, z.fin - k, F_OR)
+					var t := 2 if k == 0 else (4 if (k == 1 and (x & 1) == 0) else 3)
+					z.ton(x, z.fin - k, t, reg)
 		"poignet": _bordure(z, z.fin, -1, maxi(4, bw), reg, false)
 		"ourlet": _bordure(z, z.fin, -1, bw + 3, reg)
 	# coutures : dos (colonne 0) et, sur un torse, les deux côtés (points clairs 2 sur 1, fil plus clair que l'étoffe)
@@ -526,3 +593,24 @@ static func _visage(z: Zone, femme: bool) -> void:
 	z.ton(xcm + 1, yC + 3, 5, PEAU)
 	if v == 1 and not femme:
 		z.ton(xcm, yC + 4, 3, PEAU)                                                      # fossette du menton carre
+
+## Nez v3 : le tube a 4 pans, le dessus (th = 90 deg) est au milieu du tour : arete claire au centre, plans latéraux moyens, dessous (couture) et narines dans l'ombre.
+static func _nez(z: Zone) -> void:
+	for y in z.h + 2:
+		var t_rel := float(y - z.debut) / maxf(float(z.fin - z.debut), 1.0)
+		for x in z.w:
+			var a := absf(float(x) / float(z.w) - 0.5) * 2.0            # 0 = arete du dessus, 1 = dessous
+			var l := 0.66 - 0.40 * smoothstep(0.15, 0.95, a) - 0.12 * smoothstep(0.55, 1.0, t_rel)
+			if a < 0.18:
+				l += 0.10                                              # arete claire
+			z.ton(x, y, _t(l, x, y, 0.2), PEAU)
+
+## Oreille v3 : bord clair, creux de la conque plus sombre au centre (la pointe du tube), lobe un peu plus clair.
+static func _oreille(z: Zone) -> void:
+	for y in z.h + 2:
+		var t_rel := float(y - z.debut) / maxf(float(z.fin - z.debut), 1.0)
+		for x in z.w:
+			var l := 0.56 - 0.24 * smoothstep(0.45, 1.0, t_rel) + (_h(x, y, z.g) - 0.5) * 0.06
+			if t_rel < 0.2:
+				l += 0.08
+			z.ton(x, y, _t(l, x, y, 0.25), PEAU)

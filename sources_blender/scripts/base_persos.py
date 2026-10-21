@@ -243,14 +243,15 @@ def pieces_tetes():
         # nez : coin pointe, plus ou moins long selon le visage
         zn = hz(1.700); yf = HY - (0.100 * ECH) + 0.004
         ln = (0.030, 0.036, 0.026)[v - 1] * ECH
-        tube(p, "nez", [Anneau((0, yf + 0.010, zn + 0.004), 0.017 * ECH, 0.020 * ECH, {"Head": 1}, t=(0, -1, -0.45)),
-                        Anneau((0, yf - ln * 0.85, zn - 0.014), 0.008 * ECH, 0.007 * ECH, {"Head": 1}, t=(0, -1, -0.45))], n=4, cap1=True, kind="peau", densite=96.0)
+        # v3 : nez plus fin (arete + ombre peinte plutot qu'une boule) : rayons reduits, pointe etroite
+        tube(p, "nez", [Anneau((0, yf + 0.010, zn + 0.004), 0.014 * ECH, 0.015 * ECH, {"Head": 1}, t=(0, -1, -0.45)),
+                        Anneau((0, yf - ln * 0.85, zn - 0.014), 0.0065 * ECH, 0.0060 * ECH, {"Head": 1}, t=(0, -1, -0.45))], n=4, cap1=True, kind="nez", densite=96.0)
         # oreilles
         for s in (1, -1):
             sf = "_l" if s > 0 else "_r"
             rx = interp(t, hz(1.715))[0]
             tube(p, "oreille" + sf, [Anneau((s * (rx - 0.004), HY + 0.004, hz(1.708)), 0.027 * ECH, 0.016 * ECH, {"Head": 1}, t=(s, 0, 0), e1=(0, 0, 1)),
-                                     Anneau((s * (rx + 0.016), HY + 0.012, hz(1.712)), 0.020 * ECH, 0.010 * ECH, {"Head": 1}, t=(s, 0, 0), e1=(0, 0, 1))], n=4, cap1=True, kind="peau", densite=64.0)
+                                     Anneau((s * (rx + 0.016), HY + 0.012, hz(1.712)), 0.020 * ECH, 0.010 * ECH, {"Head": 1}, t=(s, 0, 0), e1=(0, 0, 1))], n=6, cap1=True, kind="oreille", densite=64.0)
 
 def pieces_cheveux():
     t = table_tete(1)

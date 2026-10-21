@@ -82,7 +82,7 @@
    "vmin": 0.0,
    "vmax": 0.10633015736196333,
    "rect": [
-    150,
+    135,
     180,
     19,
     9
@@ -732,25 +732,25 @@
     [
      0.0,
      1.6531,
-     0.1159
+     0.0907
     ],
     [
-     0.0412,
+     0.0405,
      1.6351,
-     0.0469
+     0.0391
     ]
    ],
-   "kind": "peau",
+   "kind": "nez",
    "bord_debut": "aucun",
    "bord_fin": "aucun",
-   "umax": 0.11585954229755023,
+   "umax": 0.09068671863123254,
    "vmin": 0.0,
-   "vmax": 0.06107494754666893,
+   "vmax": 0.05545786595466992,
    "densite": 96.0,
    "rect": [
-    169,
+    154,
     180,
-    15,
+    12,
     9
    ],
    "piece": "tete_1",
@@ -769,7 +769,7 @@
      0.0964
     ]
    ],
-   "kind": "peau",
+   "kind": "oreille",
    "bord_debut": "aucun",
    "bord_fin": "aucun",
    "umax": 0.13663486443020514,
@@ -798,7 +798,7 @@
      0.0964
     ]
    ],
-   "kind": "peau",
+   "kind": "oreille",
    "bord_debut": "aucun",
    "bord_fin": "aucun",
    "umax": 0.13663486443020514,
@@ -888,26 +888,26 @@
     [
      0.0,
      1.6531,
-     0.1159
+     0.0907
     ],
     [
-     0.0456,
+     0.045,
      1.6351,
-     0.0469
+     0.0391
     ]
    ],
-   "kind": "peau",
+   "kind": "nez",
    "bord_debut": "aucun",
    "bord_fin": "aucun",
-   "umax": 0.11585954229755023,
+   "umax": 0.09068671863123254,
    "vmin": 0.0,
-   "vmax": 0.06550928616630765,
+   "vmax": 0.05995543034401441,
    "densite": 96.0,
    "rect": [
-    135,
+    166,
     180,
-    15,
-    10
+    12,
+    9
    ],
    "piece": "tete_2",
    "double": false
@@ -925,7 +925,7 @@
      0.0964
     ]
    ],
-   "kind": "peau",
+   "kind": "oreille",
    "bord_debut": "aucun",
    "bord_fin": "aucun",
    "umax": 0.13663486443020514,
@@ -954,7 +954,7 @@
      0.0964
     ]
    ],
-   "kind": "peau",
+   "kind": "oreille",
    "bord_debut": "aucun",
    "bord_fin": "aucun",
    "umax": 0.13663486443020514,
@@ -1044,25 +1044,25 @@
     [
      0.0,
      1.6531,
-     0.1159
+     0.0907
     ],
     [
-     0.0383,
+     0.0376,
      1.6351,
-     0.0469
+     0.0391
     ]
    ],
-   "kind": "peau",
+   "kind": "nez",
    "bord_debut": "aucun",
    "bord_fin": "aucun",
-   "umax": 0.11585954229755023,
+   "umax": 0.09068671863123254,
    "vmin": 0.0,
-   "vmax": 0.05820717708186906,
+   "vmax": 0.05254121265002528,
    "densite": 96.0,
    "rect": [
-    184,
+    178,
     180,
-    15,
+    12,
     9
    ],
    "piece": "tete_3",
@@ -1081,7 +1081,7 @@
      0.0964
     ]
    ],
-   "kind": "peau",
+   "kind": "oreille",
    "bord_debut": "aucun",
    "bord_fin": "aucun",
    "umax": 0.13663486443020514,
@@ -1110,7 +1110,7 @@
      0.0964
     ]
    ],
-   "kind": "peau",
+   "kind": "oreille",
    "bord_debut": "aucun",
    "bord_fin": "aucun",
    "umax": 0.13663486443020514,
@@ -1984,9 +1984,9 @@
  "triangles": {
   "corps": 692,
   "bagues": 88,
-  "tete_1": 196,
-  "tete_2": 196,
-  "tete_3": 196,
+  "tete_1": 208,
+  "tete_2": 208,
+  "tete_3": 208,
   "cheveux_1": 110,
   "cheveux_2": 150,
   "cheveux_3": 188,
