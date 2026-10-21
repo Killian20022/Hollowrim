@@ -251,19 +251,21 @@ func _finir_donjon() -> void:
 ## Pièges et mécanismes du donjon (classes Piege et Mecanisme) : posés sous `crypte` ; leurs états sont dans quetes.vus (« meca:<ident>:… »).
 func _poser_meca(a: Dictionary) -> void:
 	var id: String = a["id"]
+	var ctx := {"joueur": joueur, "dialogue": dialogue, "quetes": quetes}
 	match a["genre"]:
 		"dalle_flechettes":
-			Piege.dalle_flechettes(crypte, a["pos_dalle"], a["pos_bouche"], a["dir"], id)
+			Piege.dalle_flechettes(crypte, a["pos_dalle"], a["pos_bouche"], a["dir"], id, ctx)
 		"souffle_givre":
-			Piege.souffle_givre(crypte, a["pos"], a["dir"], a["longueur"], a["periode"], id)
+			Piege.souffle_givre(crypte, a["pos"], a["dir"], a["longueur"], a["periode"], id, ctx)
 		"statues":
-			Mecanisme.statues(crypte, a["positions"], a["solution"], id, _ouvrir_secret)
+			Mecanisme.statues(crypte, a["positions"], a["solution"], id, _ouvrir_secret, ctx)
 		"braseros":
-			Mecanisme.braseros(crypte, a["positions"], a["ordre"], id, Callable())
+			Mecanisme.braseros(crypte, a["positions"], a["ordre"], id, Callable(), ctx)
 		"socles":
-			Mecanisme.socles(crypte, a["positions"], a["objets"], id, _ouvrir_arene)
+			Mecanisme.socles(crypte, a["positions"], a["objets"], id, _ouvrir_arene, ctx)
 		"mur_fragile":
-			Mecanisme.mur_fragile(crypte, a["pos"], a["taille"], a["lacet"], id, Callable(), {"materiau": d.mat(a.get("materiau", "mur0"))})
+			ctx["materiau"] = d.mat(a.get("materiau", "mur0"))      # même pierre que le mur voisin
+			Mecanisme.mur_fragile(crypte, a["pos"], a["taille"], a["lacet"], id, Callable(), ctx)
 
 ## Rend au donjon l'état d'une partie chargée (portes ouvertes, coffres vidés, mur pivoté, arène et tombeau).
 func _etat_donjon() -> void:

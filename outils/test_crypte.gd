@@ -134,6 +134,17 @@ func _tester() -> void:
 			atteint[nk] = ys
 			file.append(nk)
 	print("remplissage : %d cases (%d m²) en %d ms" % [atteint.size(), atteint.size() * PAS * PAS, Time.get_ticks_msec() - tf])
+	if "--plan" in OS.get_cmdline_user_args():
+		for z in dj.zones:
+			var rr: Rect2 = z["rect"]
+			print("ZONE %s %.1f %.1f %.1f %.1f %.1f" % [z["nom"], rr.position.x, rr.end.x, rr.position.y, rr.end.y, z["y"]])
+		for g in dj.gardiens:
+			var ex: Dictionary = g["extra"]
+			print("ENNEMI %s %s %s %s %s" % [g["ident"], g["type"], g["zone"], "patrouille" if ex.has("patrouille") else "-", ex.get("reveil_evt", ex.get("boss", "-"))])
+		for it in dj.interactions:
+			print("INTER %s %s %s %s" % [it["id"], it["genre"], it["nom"], str(it.get("butin", ""))])
+		for a in dj.meca:
+			print("MECA %s %s" % [a["genre"], a["id"]])
 	if "--carte" in OS.get_cmdline_user_args():
 		# carte ASCII (1 m par caractère) : « . » étage 0, « , » étage -1 (« # » : les deux)
 		var bas := "--bas" in OS.get_cmdline_user_args()

@@ -74,7 +74,8 @@ func plan() -> Array:
 		{"lum": {"braseros": 2, "appliques": 2}, "extra": "_x_prep",
 		"garnitures": [["piliers", {"pts": [Vector3(-3.5, 0, -28.5), Vector3(-3.5, 0, -21.5), Vector3(3.5, 0, -28.5), Vector3(3.5, 0, -21.5)], "h": 4.6, "largeur": 0.9}], ["oculus", {"pos": Vector3(0, 0, -25)}]],
 		"ennemis": [_e("cr_prep_1", "guerrier", Vector3(4.6, 0, -26.8), -PI * 0.5, false), _e("cr_prep_2", "sbire", Vector3(2.5, 0, -23.5), 2.0, true), _e("cr_prep_3", "sbire", Vector3(-2.0, 0, -30.0), -0.8, true)],
-		"coffres": [{"id": "cof_prep", "pos": Vector3(-6.2, 0, -30.9), "lacet": PI * 0.5, "butin": {"pieces": 22, "os_draugr": 1}}]}))
+		"coffres": [{"id": "cof_prep", "pos": Vector3(-6.2, 0, -30.9), "lacet": PI * 0.5, "butin": {"pieces": 22, "os_draugr": 1}}],
+		"interactions": [_it("cach_prep", Vector3(-4.9, 0.45, -26.9), "Bandelettes cousues", "Défaire les bandelettes", "coffre", {"butin": {"pieces": 25, "poussiere_tombe": 1}, "coffre": Vector3(-4.9, 0, -26.9)})]}))
 	# salle rituelle (hub) : trois socles, porte scellée de l'arène, rituel interrompu
 	r.append(_salle("rituelle", Vector2(0, -48), Vector2(14, 12), 6.0, "tombeau", "enigme", 59,
 		[["S", 0.0, 3.2, false, ""], ["N", 0.0, 4.0, false, "antichambre"]],
@@ -190,7 +191,8 @@ func plan() -> Array:
 		{"y": B, "usure": 2, "lum": {"braseros": 1, "appliques": 3}, "extra": "_x_archives",
 		"ennemis": [_e("cr_lb2_17", "sbire", Vector3(-18.0, B, -45.0), PI * 0.5, false, false, {"patrouille": [Vector3(-18.0, B, -45.0), Vector3(-10.0, B, -45.0), Vector3(-10.0, B, -40.5)]})],
 		"coffres": [{"id": "cof_archives", "pos": Vector3(-21.1, B, -46.8), "lacet": PI * 0.5, "nom": "Coffre des archivistes", "butin": {"pieces": 48, "poussiere_tombe": 2}}],
-		"interactions": [_texte("notes_archives", Vector3(-9.0, B + 0.9, -45.2), "Registre des morts", "Lire le feuillet", [
+		"interactions": [_it("cach_archives", Vector3(-17.2, B + 0.35, -41.0), "Rayon creux", "Fouiller le rayonnage", "coffre", {"butin": {"pieces": 35, "poussiere_tombe": 2}, "coffre": Vector3(-17.2, B, -41.0)}),
+			_texte("notes_archives", Vector3(-9.0, B + 0.9, -45.2), "Registre des morts", "Lire le feuillet", [
 			"Le registre des morts de la Dame Svanhild, rongé par l’humidité.",
 			"Un feuillet récent, d’une autre main : « Eirik a brisé le sceau des Os, puis celui du Givre. Les morts se lèvent derrière nous. »",
 			"« Nous nous retranchons dans la salle du fond. Que les dieux nous gardent. »"])]}))
@@ -221,7 +223,8 @@ func plan() -> Array:
 		[["O", 5.0, 3.2, false, "lb2e"], ["E", -4.0, 3.2, false, "lb1c"]],
 		{"y": B, "lum": {"braseros": 1, "appliques": 2}, "extra": "_x_chapelle",
 		"coffres": [{"id": "cof_lb2a", "pos": Vector3(9.4, B, -41.0), "lacet": -PI * 0.5, "butin": {"pieces": 31, "poussiere_tombe": 1}}],
-		"interactions": [_cle("inscription_chapelle", Vector3(6.0, B + 1.25, -53.9), "Inscription", "Lire l’inscription", "inscription_chapelle")]}))
+		"interactions": [_cle("inscription_chapelle", Vector3(6.0, B + 1.25, -53.9), "Inscription", "Lire l’inscription", "inscription_chapelle"),
+			_it("cach_chapelle", Vector3(7.6, B + 0.35, -54.3), "Pierre descellée", "Soulever la pierre", "coffre", {"butin": {"pieces": 45, "amulette_givre": 1}, "coffre": Vector3(7.6, B, -54.3)})]}))
 	r.append(_cl("lb1c", Vector2(13, -52), 6.0, 1, 3.2, "tombeau", 49, "lb2a", "lb1", {"y": B}))
 	r.append(_salle("lb1", Vector2(22, -53), Vector2(12, 14), 4.6, "garde", "combat", 53,
 		[["O", 1.0, 3.2, false, "lb1c"], ["S", -1.0, 3.2, false, "d1"]],
@@ -314,7 +317,7 @@ func _x_rituelle(_m: Dictionary) -> void:
 	interaction("rituel_interrompu", _l(3.5, -49.8, 0.7), "Brasero renversé", "Examiner le rituel", "texte", {"cle": "rituel_interrompu"})
 
 func _x_antichambre(_m: Dictionary) -> void:
-	d.tapis(_l(0, -58), Vector2(2.4, 7.2), 0.0, Color(0.42, 0.18, 0.2))
+	d.tapis(_l(0, -58), Vector2(2.4, 7.2), 0.0, Color(0.34, 0.16, 0.18))
 	d.ratelier_armes(_l(-4.62, -56.6), PI * 0.5, 1.8)
 	d.ratelier_armes(_l(4.62, -56.6), -PI * 0.5, 1.8)
 	d.statue(_l(-3.4, -60.6), 0.0, 1.15, "guerrier", true, "mur0")
@@ -395,7 +398,7 @@ func _x_tombeau(_m: Dictionary) -> void:
 	d.statue(_l(22.0, -66.8), -PI * 0.5, 1.1, "jarl", true, "mur1")
 	d.statue(_l(22.0, -77.2), -PI * 0.5, 1.1, "gardienne", true, "mur1")
 	d.banniere(_l(18.0, -66.3, 3.9), Vector3(0, 0, -1), 2.2, 0.9, Color(0.45, 0.5, 0.75), "couronne", 0)
-	d.tapis(_l(17.0, -72.0), Vector2(7.0, 2.2), 0.0, Color(0.45, 0.2, 0.22))
+	d.tapis(_l(17.0, -72.0), Vector2(7.0, 2.2), 0.0, Color(0.34, 0.16, 0.18))
 	d.lumiere(_l(22.6, -72.0, 1.8), Color(1.0, 0.8, 0.45), 0.8, 4.5, 1.6, false)
 	d.bougie(_l(22.5, -69.3, 1.0), false)
 	d.bougie(_l(22.5, -74.8, 1.0), false)

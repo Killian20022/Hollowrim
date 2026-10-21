@@ -992,18 +992,18 @@ func _symbole(sujet: String) -> Array:
 			r.append([0.0, 0.0, 0.4, 0.4, 0.0])
 	return r
 
-## Emblème gravé : plaque de pierre sombre et symbole en relief clair. `vers` = normale du plan (mur, ou UP pour le sol).
-func embleme(sujet: String, centre: Vector3, vers: Vector3, taille := 0.9, teinte := Color(1, 1, 1)) -> void:
+## Emblème gravé : plaque de pierre sombre et symbole clair en relief (matière « os », teintable). `vers` = normale du plan (mur, ou UP pour le sol).
+func embleme(sujet: String, centre: Vector3, vers: Vector3, taille := 0.9, teinte := Color(0.95, 0.88, 0.7)) -> void:
 	var n := vers.normalized()
 	var ax := _axes(n)
 	var dr: Vector3 = ax[0]
 	var ha: Vector3 = ax[1]
-	_rect("mur2", centre + n * 0.012, dr, ha, 0.0, 0.0, taille * 1.2, taille * 1.2, 0.0, n, Color(0.55, 0.55, 0.62))
+	_rect("mur2", centre + n * 0.012, dr, ha, 0.0, 0.0, taille * 1.2, taille * 1.2, 0.0, n, Color(0.3, 0.3, 0.36))
 	for b: Array in _symbole(sujet):
-		_rect("gravure", centre + n * 0.026, dr, ha, b[0] * taille, b[1] * taille, b[2] * taille, b[3] * taille, b[4], n, teinte)
+		_rect("os", centre + n * 0.026, dr, ha, b[0] * taille, b[1] * taille, b[2] * taille, b[3] * taille, b[4], n, teinte)
 
 ## Bas-relief : plusieurs symboles sur une frise (liste de sujets) ; sert aux fresques et aux gravures murales.
-func frise(sujets: Array, centre: Vector3, vers: Vector3, taille := 0.9, pas := 1.2, teinte := Color(1, 1, 1)) -> void:
+func frise(sujets: Array, centre: Vector3, vers: Vector3, taille := 0.9, pas := 1.2, teinte := Color(0.95, 0.88, 0.7)) -> void:
 	var n := vers.normalized()
 	var dr: Vector3 = _axes(n)[0]
 	var x0 := -(sujets.size() - 1) * pas * 0.5
