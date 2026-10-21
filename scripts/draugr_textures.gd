@@ -9,7 +9,7 @@ class_name DraugrTextures
 
 
 # palettes (sombre -> clair)
-const MAILLE := ["#281f17", "#43372a", "#604f3d", "#7d6a52", "#9c8669", "#bea784"]   # brun-gris ferreux (chaud : la lumière de 17h30 le refroidit)
+const MAILLE := ["#1f1c19", "#34302b", "#4b4640", "#645e56", "#7d766b", "#9c9a95"]   # brun-gris ferreux (chaud : la lumière de 17h30 le refroidit)
 const ROUILLE := ["#261a12", "#3c2a1e", "#543b29", "#6c4e36"]   # rouille brun terne (orange vif = cuivre au soleil couchant)
 const FER := ["#14120f", "#29251f", "#3f3931", "#585046", "#776d5f", "#9c9180", "#c0b5a0"]
 const IVOIRE := ["#29241e", "#463e33", "#6a5f4f", "#8f826c", "#b2a58a", "#cec2a6"]
@@ -21,10 +21,11 @@ const BOIS := ["#151310", "#25211c", "#37312a", "#4a4238", "#5e5548", "#746a5a",
 const PEINT_OS := ["#6a6356", "#878070", "#a49b88", "#bdb39d"]
 const CHEVEUX := ["#26221c", "#3e372e", "#595043", "#776b5a", "#988a75"]
 const BOIS_V := ["#0a0908", "#171513", "#24211e", "#33302b", "#433f39", "#544f47", "#6a645a"]   # passe 2 : vieux bois gris-noir
+const TISSU_BLEU := ["#131314", "#1f2022", "#2e2f33", "#404247", "#55575d", "#6f7176"]   # laine gris-ardoise à peine bleutée (jupe de la référence ; le test interdit le bleu franc hors des yeux)
 const BANDE := ["#2e2a24", "#464037", "#5f574b", "#7a705f"]
 
 const DOSSIER := "res://assets/persos/draugr"
-const VERSION := 6
+const VERSION := 7
 static var enregistrer := false
 static var _cache := {}
 
@@ -158,27 +159,35 @@ static func pantalon() -> Image:
 	for y in H:
 		var vy := H - 1 - y
 		for x in W:
-			var l := 0.45 + (_n(x, y, W, H, 14, 3, 1831) - 0.5) * 0.4
+			# trame de laine : fils verticaux irréguliers, plis horizontaux sombres
+			var l := 0.42 + (_n(x, y, W, H, 14, 5, 1831) - 0.5) * 0.36 + (0.06 if (x & 1) == 0 else -0.04)
 			var c := _c(TISSU, _ton(l, 5, x, y, 1832))
-			if vy >= 2 and vy < 90:
-				# bandes en spirale, irrégulières et relâchées (lambeaux qui se décollent)
-				var d := posmod(x + vy * 2 + int(_n(x, y, W, H, 6, 3, 1833) * 4.0), 11)
-				if d < 8:
-					var t := 1 + (1 if d > 1 and d < 5 else 0)
-					if d == 0 or d == 7:
-						t = 0
-					t += int(roundf((_n(x, y, W, H, 8, 4, 1834) - 0.5) * 1.4))
-					c = _c(BANDE, t)
+			if vy >= 2 and vy < 96:
+				# bandelettes enroulées : bandes horizontales de 9 texels, pente douce, lisière haute claire, ombre dessous
+				var dec := int(vy + _n(x, y, W, H, 4, 3, 1833) * 3.0)
+				var d := posmod(dec, 14)
+				if d < 10:
+					var t := 1 + (1 if d == 1 or d == 2 else 0) - (1 if d >= 8 else 0)
+					t += int(roundf((_n(x, y, W, H, 10, 5, 1834) - 0.5) * 1.6))
+					c = _c(BANDE, clampi(t, 0, 3))
+					# fils de la bandelette (courts traits obliques)
+					if posmod(x + d, 4) == 0 and d > 1 and d < 8:
+						c = c.darkened(0.15)
 				else:
+					c = _c(TISSU, 1)
+				# bouts qui se décollent : trous rongés
+				if _n(x, y, W, H, 16, 8, 1837) > 0.84 and _h(x, y, 1838) > 0.3:
 					c = _c(TISSU, 0)
-				# lanières de cuir croisées, usées et cassées par endroits
-				for sens: int in [1, -1]:
-					var e := posmod(x + sens * vy, 26)
-					if e < 3 and _n(x, y, W, H, 10, 6, 1835 + sens) > 0.25:
-						c = _c(CUIR, [0, 4, 2][e])
+			# lanière de cuir verticale avec rivets (couture extérieure de la jambe)
+			if vy >= 10 and vy < 96:
+				var e := posmod(x, 64)
+				if e >= 30 and e < 34:
+					c = _c(CUIR, [0, 4, 3, 1][e - 30])
+					if e == 31 and vy % 11 == 5:
+						c = _c(FER, 5)
 			# boue / crasse en bas
-			if vy < 24 and _h(x, y, 1836) < (24 - vy) / 40.0:
-				c = c.darkened(0.25)
+			if vy < 26 and _h(x, y, 1836) < (26 - vy) / 38.0:
+				c = c.darkened(0.3)
 			_p(img, x, y, c)
 	return img
 
@@ -190,20 +199,37 @@ static func bottes() -> Image:
 	for y in H:
 		var vy := H - 1 - y
 		for x in W:
-			var c := _c(CUIR, _ton_cuir(x, y, W, H, 0.38, 1841) - 1)
+			var c := _c(CUIR, _ton_cuir(x, y, W, H, 0.36, 1841) - 1)
 			if vy < 3:
 				c = _c(CUIR, 0)
-			elif vy > 6 and vy < 46:
-				var a := posmod(x + vy * 2, 9)
-				if a == 0:
+			elif vy < 8:
+				c = _c(CUIR, 1 + (1 if _h(x, y, 1845) > 0.7 else 0))     # semelle crottée
+			elif vy < 50:
+				# bandes de cuir/tissu enroulées en spirale serrée, lisière claire usée, couture en pointillé
+				var a := posmod(x + int(vy * 1.5) + int(_n(x, y, W, H, 8, 4, 1846) * 2.0), 12)
+				if a < 8:
+					var t := 2 + (1 if a == 1 else 0) - (1 if a >= 6 else 0)
+					c = _c(CUIR, clampi(t + int(roundf((_n(x, y, W, H, 12, 6, 1847) - 0.5) * 1.6)), 0, 5))
+				else:
 					c = _c(CUIR, 0)
-				elif a == 1:
-					c = _c(CUIR, 4)
+				if a == 1 and (vy & 3) == 0:
+					c = _c(CUIR, 6)
+				# sangle large avec boucle
+				if vy >= 22 and vy < 29:
+					c = _c(CUIR, 3 + (1 if vy == 23 else 0) - (1 if vy >= 27 else 0))
+					if vy == 25 and x % 8 == 3:
+						c = _c(CUIR, 6)
+					if x >= 60 and x < 70:
+						c = _c(FER, 4 if vy > 22 and vy < 28 else 1)
+						if x >= 63 and x < 67 and vy > 23 and vy < 27:
+							c = _c(FER, 1)
 			if vy > 50:
 				var f := _n(x, y, W, H, 32, 4, 1844)
-				c = _c(FOUR, 2 + int(f * 3.0) + (1 if vy > 53 else 0))
+				c = _c(FOUR, 3 + int(f * 3.0) + (1 if vy > 53 else 0))     # revers plus crème
 				if posmod(x * 7 + vy, 5) == 0:
 					c = _c(FOUR, 1)
+			if vy < 18 and _h(x, y, 1848) < (18 - vy) / 40.0:
+				c = c.darkened(0.25)
 			_p(img, x, y, c)
 	return img
 
@@ -381,6 +407,9 @@ static func _ceinture_atlas(img: Image) -> void:
 			if _n(x, y, r.size.x, r.size.y, 20, 2, 1963) > 0.75:
 				t -= 2
 			_p(img, r.position.x + x, r.position.y + y, _c(CUIR, clampi(t, 0, 6)))
+	for x in range(0, r.size.x, 3):
+		_p(img, r.position.x + x, r.position.y + 3, _c(CUIR, 6))
+		_p(img, r.position.x + x, r.position.y + r.size.y - 4, _c(CUIR, 6))
 	for x in range(5, r.size.x, 11):
 		_rivet(img, r.position.x + x, r.position.y + 7)
 
@@ -720,9 +749,21 @@ static func _tabard() -> Image:
 		for x in W:
 			var pli := _n(x, 0, W, 1, 14, 1, 2011)
 			var l := 0.42 + (pli - 0.5) * 0.5 + (_n(x, y, W, H, 20, 12, 2012) - 0.5) * 0.18 + (0.05 if ((x + y) & 3) < 2 else -0.04)
-			var c := _c(TISSU, _ton(l, 6, x, y, 2013, 0.3))
-			if y >= 6 and y <= 9:
-				c = _c(TISSU, 4 if (x + y) % 4 < 2 else 2)
+			var c := _c(TISSU_BLEU, _ton(l, 6, x, y, 2013, 0.3))
+			if y >= 4 and y <= 5:
+				c = _c(TISSU_BLEU, 5 if _h(x, y, 2014) > 0.3 else 4)     # galon clair en haut
+			elif y >= 6 and y <= 15:
+				# bande brodée nordique : chaîne de losangues entrelacés
+				var px := posmod(x, 12)
+				var r := y - 6
+				var dd := absi(px - 6) + absi(r - 4)
+				c = _c(TISSU_BLEU, 1)
+				if dd == 4 or dd == 3 and (r == 4 or px == 6):
+					c = _c(TISSU_BLEU, 5 if _h(x, y, 2015) > 0.25 else 4)
+				elif dd == 1:
+					c = _c(TISSU_BLEU, 3)
+			elif y == 16:
+				c = _c(TISSU_BLEU, 4)
 			var d := 0
 			while d < bornes.size() - 2 and x >= bornes[d + 1]:
 				d += 1
@@ -738,8 +779,8 @@ static func _tabard() -> Image:
 			var ecart := absf(x + 0.5 - cxd)
 			if y > fin or (bas and ecart > demi):
 				c = Color(0, 0, 0, 0)
-			elif bas and ecart > demi - 1.3:
-				c = _c(TISSU, 0)
+			elif bas and ecart > demi - 1.6:
+				c = _c(TISSU_BLEU, 5 if _h(x, y, 2016) > 0.45 else 3)     # lisière effilochée claire
 			# trous : losanges et triangles (cellules de 26 x 22 texels, 45 % occupées)
 			var gx := x / 26
 			var gy := y / 22
@@ -751,7 +792,7 @@ static func _tabard() -> Image:
 				if (_h(gx, gy, 2039) < 0.5 and dd < rr) or (_h(gx, gy, 2039) >= 0.5 and absi(x - hx) * 2 + maxi(0, y - hy) * 2 < rr * 2 and y >= hy - rr and y < hy + rr):
 					c = Color(0, 0, 0, 0)
 				elif dd == rr and c.a > 0.0:
-					c = _c(TISSU, 0)
+					c = _c(TISSU_BLEU, 0)
 			if c.a > 0.0 and _n(x, y, W, H, 8, 8, 2017) > 0.72:
 				c = c.darkened(0.2)
 			img.set_pixel(x, y, c)

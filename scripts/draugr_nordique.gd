@@ -154,7 +154,7 @@ static func creer(options := {}) -> Node3D:
 	# lambeaux : ptéruges et tabard (devant / derrière)
 	acc.lambeaux(pieces["pteruges"], pieces["tunique"])
 	acc.cape(pieces["mante"], pieces["tunique"])
-	acc.boucle(Vector3(0.0, 0.988, 0.152), 0.062)
+	acc.boucle(Vector3(0.0, 0.988, 0.152), 0.074)
 	acc.fibule(plastron, Vector2(-0.085, 1.37))
 	for nom in ["ceinture", "pteruges"]:
 		pieces[nom].visible = false
@@ -604,6 +604,15 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 				var q := p + n * 0.022
 				if q.y < 0.86:
 					q.y -= (0.86 - q.y) * 0.6
+				return q)
+		# seconde couche (jupe en lambeaux de la référence) : panneau plus bas et plus lâche, par-dessus, texture décalée
+		var panneau2 := func(p: Vector3) -> Vector2:
+			var u := clampf((p.x + 0.15) / 0.30, 0.0, 1.0) * R.size.x * 0.5 + (0.0 if p.z > 0.0 else R.size.x * 0.5)
+			return Vector2(R.position.x + fposmod(u + R.size.x * 0.31, R.size.x), R.position.y + clampf((0.93 - p.y) / 0.50, 0.0, 1.0) * R.size.y) / D
+		integrer_pos(tunique, dec, func(c: Vector3, n: Vector3) -> bool: return c.y < 0.93 and c.y > 0.55 and absf(c.x) < 0.17 and absf(n.z) > 0.5 and signf(n.z) == signf(c.z + 0.03),
+			panneau2, func(p: Vector3, n: Vector3) -> Vector3:
+				var q := p + n * 0.040
+				q.y -= (0.93 - q.y) * 0.35 + 0.04
 				return q)
 
 	# ------------------------------------------------------------ bouclier réduit
