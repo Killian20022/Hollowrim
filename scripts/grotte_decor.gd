@@ -9,28 +9,33 @@ extends CrypteDecor
 const CASE_C := 10.0
 const PAINT_PARENT := ["bois", "fer", "lame", "os", "argile", "parchemin", "toile", "halo", "flamme"]
 const DOSSIER := "res://assets/grotte"
-const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "mousse", "cristal", "peau", "paille", "or", "piste"]
-const PROPRES_PLATES := ["jour", "ciel", "rai", "flaque"]
+const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "givre", "glacon", "cristal", "peau", "paille", "or", "piste"]
+const PROPRES_PLATES := ["jour", "ciel", "rai", "flaque", "brume"]
 const GROTTE_SHADER := preload("res://shaders/grotte.gdshader")
+const AO_GAMMA := 1.0          # occlusion peinte accentuée : creux et pieds de paroi quasi noirs (références)
 
-## Coques : [texture de base, texture superposée ("" = aucune), teinte, émission, part de texture en émission]
+## Coques : [texture de base, texture superposée ("" = aucune), teinte, émission, part de texture en émission,
+##           givre des faces hautes, sol mouillé, projection monde (1) ou UV (0)]
+## Refonte matières : plus de mousse (les styles « mousse » / « strate » gardent leur nom mais deviennent roche brune givrée
+## et sol mouillé), plus de bleu saturé ; la glace superposée n'est plus qu'un vernis gris-bleu.
 const COQUES := {
-	"c_roche_neige": ["roche_givre", "neige", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
-	"c_roche_mousse": ["roche", "mousse", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
-	"c_roche_glace": ["roche_b", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
-	"c_roche_nu": ["roche_b", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
-	"c_strate_mousse": ["strate", "mousse", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
-	"c_strate_glace": ["strate", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
-	"c_strate_suie": ["strate", "", Color(0.95, 0.86, 0.8), Vector3(0.0, 0.0, 0.0), 0.0],
-	"c_sol_neige": ["sol", "neige_sol", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
-	"c_sol_mousse": ["sol", "mousse", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
-	"c_sol_glace": ["sol", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
-	"c_sol_nu": ["sol", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
-	"c_sol_camp": ["sol", "", Color(1.0, 0.86, 0.74), Vector3(0.0, 0.0, 0.0), 0.0],
-	"c_glace": ["glace", "", Color(1, 1, 1), Vector3(0.012, 0.03, 0.05), 0.06],
-	"c_piste": ["piste", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0],
-	"c_cristal": ["cristal", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.5],
-	"c_or": ["or", "", Color(1, 1, 1), Vector3(0.05, 0.035, 0.0), 0.12],
+	"c_roche_neige": ["roche_givre", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.8, 0.0, 1.0],
+	"c_roche_mousse": ["roche", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.45, 0.0, 1.0],
+	"c_roche_glace": ["roche_b", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.7, 0.0, 1.0],
+	"c_roche_nu": ["roche", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.4, 0.0, 1.0],
+	"c_strate_mousse": ["strate", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.4, 0.0, 1.0],
+	"c_strate_glace": ["strate", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.75, 0.0, 1.0],
+	"c_strate_suie": ["strate", "", Color(0.92, 0.84, 0.78), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 1.0],
+	"c_sol_neige": ["sol", "neige_sol", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.45, 0.0, 1.0],
+	"c_sol_mousse": ["sol", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.25, 1.0, 1.0],
+	"c_sol_glace": ["sol", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.5, 0.6, 1.0],
+	"c_sol_nu": ["sol", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.3, 0.8, 1.0],
+	"c_sol_camp": ["sol", "", Color(1.0, 0.9, 0.8), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.35, 1.0],
+	"c_glace": ["glace", "", Color(1, 1, 1), Vector3(0.004, 0.008, 0.014), 0.0, 0.15, 1.0, 1.0],
+	"c_piste": ["piste", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 0.0],
+	"c_cristal": ["cristal", "", Color(0.74, 0.8, 0.92), Vector3(0.0, 0.0, 0.0), 0.25, 0.0, 0.0, 0.0],
+	"c_or": ["or", "", Color(1, 1, 1), Vector3(0.05, 0.035, 0.0), 0.12, 0.0, 0.0, 0.0],
+	"c_glacon": ["glacon", "", Color(0.9, 0.95, 1.0), Vector3(0.012, 0.018, 0.026), 0.12, 0.0, 0.0, 0.0],
 }
 
 var _coq := {}
@@ -102,7 +107,14 @@ func mat(nom: String) -> Material:
 		sm.set_shader_parameter("teinte", d[2])
 		sm.set_shader_parameter("emission", d[3])
 		sm.set_shader_parameter("emis_tex", d[4])
+		sm.set_shader_parameter("givre", d[5])
+		sm.set_shader_parameter("tex_givre", _tex_g("givre"))
+		sm.set_shader_parameter("mouille", d[6])
+		sm.set_shader_parameter("triplan", d[7])
+		sm.set_shader_parameter("ao_gamma", AO_GAMMA if nom != "c_cristal" and nom != "c_glacon" else 1.0)
 		sm.set_shader_parameter("decoupe", 1.0 if nom == "c_piste" else 0.0)
+		if nom == "c_sol_neige":
+			sm.set_shader_parameter("echelle_sup", 0.5)     # neige du sol extérieur : tuile de 8 m (16 texels/m), même grain que dehors
 		m = sm
 	elif nom == "jour" or nom == "ciel":
 		var s := StandardMaterial3D.new()
@@ -111,6 +123,17 @@ func mat(nom: String) -> Material:
 		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		s.disable_fog = true
 		s.cull_mode = BaseMaterial3D.CULL_DISABLED
+		m = s
+	elif nom == "brume_g":
+		var s := StandardMaterial3D.new()
+		s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		s.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		s.albedo_texture = _tex_g("brume")
+		s.albedo_color = Color(0.55, 0.6, 0.68)
+		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		s.cull_mode = BaseMaterial3D.CULL_DISABLED
+		s.disable_receive_shadows = true
+		s.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 		m = s
 	elif nom == "rai_g" or nom == "flaque_g":
 		var s := StandardMaterial3D.new()
@@ -408,7 +431,7 @@ func solide_rond(centre: Vector3, rayon: float, haut: float) -> void:
 
 func projecteur(pos: Vector3, cible: Vector3, couleur: Color, energie: float, portee: float, angle: float) -> SpotLight3D:
 	var l := SpotLight3D.new()
-	l.light_color = couleur
+	l.light_color = couleur.lerp(Color(0.86, 0.9, 0.97), 0.6)     # jour de la faille : blanc froid, sans bleu saturé
 	l.light_energy = energie
 	l.spot_range = portee
 	l.spot_angle = angle
@@ -542,6 +565,8 @@ func feu_camp(pos: Vector3) -> void:
 
 # ------------------------------------------------------------------ fin : coque colorée
 func finir() -> void:
+	if racine is Grotte:
+		_habiller(racine as Grotte)
 	super.finir()
 	for cle in _coq:
 		var b: Dictionary = _coq[cle]
@@ -564,3 +589,427 @@ func finir() -> void:
 		racine.add_child(mi)
 	_coq.clear()
 	_coq_idx.clear()
+
+# ------------------------------------------------------------------ habillage (refonte matières, lumière, accessoires)
+## Passe finale, après les modules de GrotteModules et avant la fusion des maillages : n'utilise que l'interface publique de Grotte
+## (zones, branches, sol_en, plafond_en, demi_l, droite, tang, libre). Aucun accessoire n'ajoute de facette de collision à la coque ;
+## les solides éventuels (caisses, poteaux) ne sont posés que là où `libre` le permet (voie centrale et réserves intactes).
+##  - lumières : les lumières vert-bleu « décoratives » deviennent des LANTERNES orange (sur étai de mine, sur poteau, ou brasero au camp) ;
+##    restent froides : l'entrée (jour), le lac gelé, la branche des cristaux.
+##  - glaçons au plafond (denses à l'entrée, au lac, aux cristaux), toiles d'araignée dans les angles, chaînes, caisses et tonneaux
+##    (mine, camp, cache), braseros du camp, cascade gelée vers le lac, nappes de brume au sol.
+const FROID_LAC := Color(0.62, 0.78, 0.86)
+const FROID_CRISTAL := Color(0.5, 0.68, 1.0)
+const JOUR_C := Color(0.78, 0.86, 1.0)
+const LANTERNE_C := Color(1.0, 0.6, 0.28)
+
+var _hab_r := RandomNumberGenerator.new()
+
+func _habiller(g: Grotte) -> void:
+	_hab_r.seed = 9173
+	_retoucher_lumieres(g)
+	for zid: String in g.zones:
+		var z: Dictionary = g.zones[zid]
+		match String(z.get("theme", "")):
+			"mine":
+				_hab_mine(g, z)
+			"repaire":
+				_hab_camp(g, z)
+			"lac":
+				_hab_lac(g, z)
+			"cristaux":
+				_hab_cristaux(g, z)
+			"cache":
+				_hab_cache(g, z)
+			"boyau", "carrefour":
+				_hab_boyau(g, z)
+	_glacons(g)
+
+## Style de matière d'une branche en s (même lecture que Grotte._matiere).
+static func _style_en(g: Grotte, id: String, s: float) -> String:
+	var sty := "nu"
+	for m: Array in ((g.br[id] as Dictionary)["d"] as Dictionary).get("matieres", [[999.0, "nu"]]):
+		sty = String(m[1])
+		if s < float(m[0]):
+			break
+	return sty
+
+## (branche, s, lat) du point de la galerie le plus proche d'une position locale.
+static func _situer(g: Grotte, p: Vector3) -> Array:
+	var best := ["", 0.0, 0.0]
+	var bd := 1e18
+	for id: String in g.ordre:
+		for r: Dictionary in (g.br[id] as Dictionary)["anneaux"]:
+			var c: Vector3 = r["P"]
+			var d := Vector2(c.x - p.x, c.z - p.z).length_squared()
+			if d < bd:
+				bd = d
+				best = [id, float(r["s"]), (p - c).dot(r["R"] as Vector3)]
+	return best
+
+static func _zone_en(g: Grotte, id: String, s: float) -> Dictionary:
+	for zid: String in g.zones:
+		var z: Dictionary = g.zones[zid]
+		if String(z["branche"]) == id and s >= float(z["s"][0]) and s <= float(z["s"][1]):
+			return z
+	return {}
+
+func _retoucher_lumieres(g: Grotte) -> void:
+	var etais := {}       # branche -> [s des étais]
+	for zid: String in g.zones:
+		var z: Dictionary = g.zones[zid]
+		var pr: Dictionary = z.get("params", {})
+		if pr.has("etais"):
+			var l: Array = etais.get(String(z["branche"]), [])
+			l.append_array(pr["etais"])
+			etais[String(z["branche"])] = l
+	for l: OmniLight3D in toutes.duplicate():
+		var col := l.light_color
+		var a_source := false                          # une flamme visible tout près (feu de camp, torche) : rien à changer
+		for f: Array in _flammes_def:
+			if (f[0] as Vector3).distance_to(l.position) < 1.6:
+				a_source = true
+				break
+		if a_source:
+			continue
+		var sit := _situer(g, l.position)
+		var id: String = sit[0]
+		if id == "":
+			continue
+		var s: float = sit[1]
+		var z := _zone_en(g, id, s)
+		var th := String(z.get("theme", ""))
+		var sty := _style_en(g, id, s)
+		if th == "entree" and s < 12.0:
+			l.light_color = JOUR_C                      # jour froid de la bouche
+			continue
+		if th == "cristaux" and sty == "cristaux":
+			l.light_color = FROID_CRISTAL                # DA « cristal bleu » : accent court, pas d'éclairage d'ensemble
+			l.light_energy = 0.9
+			l.omni_range = 5.5
+			continue
+		if th == "lac" and sty == "glace" and col.b > col.g and _hab_r.randf() < 0.6:
+			l.light_color = FROID_LAC
+			l.light_energy *= 0.75
+			continue
+		# lumière chaude : on lui donne une source visible
+		l.light_color = LANTERNE_C.lerp(Color(1.0, 0.5, 0.2), _hab_r.randf())
+		l.light_energy = maxf(l.light_energy, 2.5)
+		l.omni_range = maxf(l.omni_range, 10.0)
+		l.omni_attenuation = 1.3
+		lumieres.append([l, l.light_energy, _hab_r.randf() * 10.0])
+		var proche_etai := -1.0
+		for se: float in etais.get(id, []):
+			if absf(se - s) < 4.5 and (proche_etai < 0.0 or absf(se - s) < absf(proche_etai - s)):
+				proche_etai = se
+		if proche_etai >= 0.0:
+			l.position = _lanterne_etai(g, id, proche_etai, 1.0 if fmod(proche_etai, 2.0) < 1.0 else -1.0)
+		elif th == "repaire":
+			var dl := g.demi_l(id, s)
+			var cote := 1.0 if float(sit[2]) >= 0.0 else -1.0
+			var lat := cote * (dl.y if cote > 0.0 else dl.x) * 0.72
+			var p := g.sol_en(id, s, lat)
+			brasero_fer(p, g.libre(id, s, lat, 0.45))
+			l.position = p + Vector3(0, 1.3, 0)
+		else:
+			var dl := g.demi_l(id, s)
+			var cote := 1.0 if float(sit[2]) >= 0.0 else -1.0
+			var lat := cote * maxf((dl.y if cote > 0.0 else dl.x) - 0.55, 0.9)
+			var p := g.sol_en(id, s, lat)
+			l.position = poteau_lanterne(p, -g.droite(id, s) * cote, g.libre(id, s, lat, 0.2))
+
+# ------------------------------------------------------------------ pièces d'accessoires
+## Lanterne de fer suspendue (crochet en `haut`) : chaînette, chapeau, cage à 4 montants, flamme, halo. Rend le centre de la flamme.
+func lanterne(haut: Vector3, chaine_l := 0.18) -> Vector3:
+	var c := haut - Vector3(0, chaine_l, 0)
+	if chaine_l > 0.02:
+		chaine(haut, c)
+	tour("fer", c - Vector3(0, 0.07, 0), [Vector2(0.13, 0.0), Vector2(0.03, 0.07)], 6, 0.0, true)      # chapeau
+	var bas := c - Vector3(0, 0.36, 0)
+	tour("fer", bas, [Vector2(0.11, 0.0), Vector2(0.11, 0.025)], 6, 0.0, true)                         # fond
+	for k in 4:
+		var a := TAU * k / 4.0 + 0.4
+		var o := Vector3(cos(a) * 0.1, 0, sin(a) * 0.1)
+		boite("fer", bas + o + Vector3(0, 0.15, 0), Vector3(0.022, 0.29, 0.022))
+	boite("fer", bas + Vector3(0, 0.15, 0), Vector3(0.21, 0.018, 0.21))                               # cerclage
+	var f := bas + Vector3(0, 0.06, 0)
+	flamme(f, 0.75)
+	carte("halo", f + Vector3(0, 0.1, 0), Vector3(0, 0, 1), 0.9, 0.9)
+	carte("halo", f + Vector3(0, 0.1, 0), Vector3(1, 0, 0), 0.9, 0.9)
+	return f + Vector3(0, 0.12, 0)
+
+## Poteau de bois planté au sol, potence et lanterne pendue côté galerie (`vers` = vers le centre). Rend la position de la lumière.
+func poteau_lanterne(pied: Vector3, vers: Vector3, avec_solide := false) -> Vector3:
+	var d := Vector3(vers.x, 0, vers.z).normalized()
+	var h := 2.35
+	prisme("bois", pied + Vector3(0, -0.1, 0), pied + Vector3(0, h, 0), 0.085, 6)
+	prisme("bois", pied + Vector3(0, h - 0.12, 0) - d * 0.08, pied + Vector3(0, h - 0.12, 0) + d * 0.62, 0.05, 5)
+	prisme("bois", pied + Vector3(0, h - 0.62, 0), pied + Vector3(0, h - 0.16, 0) + d * 0.4, 0.035, 5)    # jambe de force
+	boite("fer", pied + Vector3(0, h - 0.12, 0) + d * 0.58, Vector3(0.05, 0.06, 0.05))
+	for k in 3:                                                                                           # cordage autour du pied
+		boite("paille", pied + Vector3(0, 0.25 + 0.06 * k, 0), Vector3(0.2, 0.035, 0.2), 0.4 * k)
+	if avec_solide:
+		solide_rond(pied + Vector3(0, 1.1, 0), 0.1, 2.2)
+	return lanterne(pied + Vector3(0, h - 0.16, 0) + d * 0.58, 0.16)
+
+## Lanterne pendue à la traverse d'un étai de mine (côté `cote`). Rend la position de la lumière.
+func _lanterne_etai(g: Grotte, id: String, s: float, cote: float) -> Vector3:
+	var dl := g.demi_l(id, s)
+	var w := (dl.y if cote > 0.0 else dl.x) - 0.25
+	var h := Grotte._interp((g.br[id] as Dictionary)["profil"], s, 4)
+	var pa := g.sol_en(id, s, -(dl.x - 0.25))
+	var pb := g.sol_en(id, s, dl.y - 0.25)
+	var haut := minf(pa.y, pb.y) + h - 0.55 - 0.17
+	var p := g.sol_en(id, s, cote * maxf(w - 0.55, 0.6))
+	var T := g.tang(id, s)
+	return lanterne(Vector3(p.x, haut, p.z) + T * 0.2, 0.3)
+
+## Brasero de fer forgé : trépied, vasque, braises, grande flamme, halo au sol.
+func brasero_fer(pos: Vector3, avec_solide := true) -> void:
+	for k in 3:
+		var a := TAU * k / 3.0 + 0.3
+		prisme("fer", pos + Vector3(cos(a) * 0.36, 0.0, sin(a) * 0.36), pos + Vector3(cos(a) * 0.16, 0.72, sin(a) * 0.16), 0.03, 4)
+	tour("fer", pos + Vector3(0, 0.68, 0), [Vector2(0.14, 0.0), Vector2(0.36, 0.1), Vector2(0.44, 0.24), Vector2(0.4, 0.26)], 8, 0.0, true)
+	boite("fer", pos + Vector3(0, 0.84, 0), Vector3(0.9, 0.03, 0.05), 0.3)
+	tour("braise", pos + Vector3(0, 0.9, 0), [Vector2(0.36, 0.0), Vector2(0.3, 0.04)], 8, 0.0, true)
+	flamme(pos + Vector3(0, 0.92, 0), 1.8)
+	flamme(pos + Vector3(0.1, 0.92, 0.06), 1.2)
+	carte("halo", pos + Vector3(0, 0.03, 0), Vector3.UP, 3.2, 3.2)
+	if avec_solide:
+		solide_rond(pos + Vector3(0, 0.5, 0), 0.42, 1.0)
+
+## Toile d'araignée tendue dans l'angle paroi / plafond, côté `cote`.
+func _toile_angle(g: Grotte, id: String, s: float, cote: float, l := 1.0) -> void:
+	var dl := g.demi_l(id, s)
+	var w := (dl.y if cote > 0.0 else dl.x)
+	var lat := cote * w * 0.82
+	var haut := g.plafond_en(id, s, lat)
+	var sol := g.sol_en(id, s, lat)
+	if haut.y - sol.y < 2.0:
+		return
+	var coin := Vector3(haut.x, haut.y - 0.15, haut.z)
+	var T := g.tang(id, s)
+	var R := g.droite(id, s)
+	toile(coin, T * (1.0 if _hab_r.randf() < 0.5 else -1.0), -R * cote, l)
+
+## Caisse empilée (une ou deux) près de la paroi ; collision seulement si la place est libre.
+func _caisses(g: Grotte, id: String, s: float, cote: float, n := 2) -> void:
+	var dl := g.demi_l(id, s)
+	var w := (dl.y if cote > 0.0 else dl.x)
+	if w < 1.6:
+		return
+	var lat := cote * (w - 0.75)
+	if not g.libre(id, s, lat, 0.6):
+		return
+	var p := g.sol_en(id, s, lat)
+	var lac := atan2(g.tang(id, s).x, g.tang(id, s).z) + _hab_r.randf_range(-0.3, 0.3)
+	caisse(p, Vector3(0.75, 0.55, 0.6), lac)
+	if n > 1:
+		var b := Basis(Vector3.UP, lac)
+		caisse(p + b * Vector3(0.05, 0.55, 0.02), Vector3(0.55, 0.42, 0.48), lac + 0.35)
+		if g.libre(id, s + 0.9, lat, 0.45):
+			tonneau(g.sol_en(id, s + 0.9, lat), 0.85)
+
+# ------------------------------------------------------------------ zones
+func _hab_mine(g: Grotte, z: Dictionary) -> void:
+	var id: String = z["branche"]
+	var s0: float = z["s"][0]
+	var s1: float = z["s"][1]
+	# une lanterne allumée sur chaque étai qui n'en porte pas encore (une sur deux de chaque côté)
+	var pr: Dictionary = z.get("params", {})
+	var ke := 0
+	for se: float in pr.get("etais", []):
+		var cote := 1.0 if fmod(se, 2.0) < 1.0 else -1.0
+		var deja := false
+		for l: OmniLight3D in toutes:
+			var sit := _situer(g, l.position)
+			if String(sit[0]) == id and absf(float(sit[1]) - se) < 1.0:
+				deja = true
+				break
+		if not deja:
+			var pl := _lanterne_etai(g, id, se, -cote if ke % 2 == 0 else cote)
+			lumiere(pl, LANTERNE_C, 2.2, 9.0, 1.3, true)
+		ke += 1
+	var s := s0 + 2.5
+	var k := 0
+	while s < s1 - 1.5:
+		var cote := 1.0 if k % 2 == 0 else -1.0
+		if _hab_r.randf() < 0.55:
+			_toile_angle(g, id, s, cote, _hab_r.randf_range(0.7, 1.3))
+		if k % 3 == 1:
+			_caisses(g, id, s, -cote, 1 + (k % 2))
+		if k % 3 == 2:
+			var dl := g.demi_l(id, s)
+			var lat := cote * maxf((dl.y if cote > 0.0 else dl.x) - 0.55, 0.9)
+			if g.libre(id, s, lat, 0.2):
+				var pl := poteau_lanterne(g.sol_en(id, s, lat), -g.droite(id, s) * cote, true)
+				lumiere(pl, LANTERNE_C, 2.2, 9.0, 1.3, true)
+		s += _hab_r.randf_range(3.5, 6.0)
+		k += 1
+
+func _hab_camp(g: Grotte, z: Dictionary) -> void:
+	var id: String = z["branche"]
+	var s0: float = z["s"][0]
+	var s1: float = z["s"][1]
+	# braseros de fer contre les parois (deux par zone de camp), lumière orange vacillante
+	for k in 2:
+		var sb := lerpf(s0, s1, 0.3 + 0.4 * k)
+		var cote := -1.0 if k == 0 else 1.0
+		var dlb := g.demi_l(id, sb)
+		var latb := cote * (dlb.y if cote > 0.0 else dlb.x) * 0.7
+		if g.libre(id, sb, latb, 0.5):
+			var pb := g.sol_en(id, sb, latb)
+			brasero_fer(pb, true)
+			lumiere(pb + Vector3(0, 1.4, 0), Color(1.0, 0.52, 0.2), 2.3, 9.0, 1.4, true)
+	# chaînes pendues au plafond, crochets
+	var s := s0 + 3.0
+	var k := 0
+	while s < s1 - 2.0:
+		var cote := 1.0 if k % 2 == 0 else -1.0
+		var dl := g.demi_l(id, s)
+		var lat := cote * (dl.y if cote > 0.0 else dl.x) * _hab_r.randf_range(0.45, 0.75)
+		var haut := g.plafond_en(id, s, lat)
+		var sol := g.sol_en(id, s, lat)
+		var libre_h := haut.y - sol.y
+		if libre_h > 3.2:
+			var bas := haut.y - minf(libre_h - 2.4, _hab_r.randf_range(0.8, 1.8))
+			chaine(Vector3(haut.x, haut.y + 0.1, haut.z), Vector3(haut.x, bas, haut.z))
+			boite("fer", Vector3(haut.x, bas - 0.06, haut.z), Vector3(0.12, 0.03, 0.03))
+		_caisses(g, id, s + 1.5, -cote, 2)
+		if _hab_r.randf() < 0.6:
+			_toile_angle(g, id, s + 0.7, cote, 1.1)
+		s += _hab_r.randf_range(3.5, 5.0)
+		k += 1
+
+func _hab_boyau(g: Grotte, z: Dictionary) -> void:
+	var id: String = z["branche"]
+	var s := float(z["s"][0]) + 2.0
+	var k := 0
+	while s < float(z["s"][1]) - 1.0:
+		_toile_angle(g, id, s, 1.0 if k % 2 == 0 else -1.0, _hab_r.randf_range(0.6, 1.1))
+		s += _hab_r.randf_range(3.0, 5.5)
+		k += 1
+
+func _hab_cache(g: Grotte, z: Dictionary) -> void:
+	var id: String = z["branche"]
+	var s := float(z["s"][0]) + 1.5
+	var k := 0
+	while s < float(z["s"][1]) - 0.5:
+		_toile_angle(g, id, s, 1.0, _hab_r.randf_range(0.8, 1.4))
+		_toile_angle(g, id, s + 1.2, -1.0, _hab_r.randf_range(0.8, 1.4))
+		s += _hab_r.randf_range(2.0, 3.0)
+		k += 1
+
+## Lac : cascade gelée sur la paroi du côté du lac, nappes de brume sur la glace.
+func _hab_lac(g: Grotte, z: Dictionary) -> void:
+	var id: String = z["branche"]
+	var b: Dictionary = g.br[id]
+	var s0: float = z["s"][0]
+	var s1: float = z["s"][1]
+	if String(z.get("role", "")) == "combat":
+		var best := -1.0
+		var bl := 0.0
+		var s := s0 + 3.0
+		while s < s1 - 3.0:
+			var lam := g.lac_f(b, s)
+			if lam > bl + 0.01 and g.faille_f(b, s) < 0.02:
+				bl = lam
+				best = s
+			s += 1.0
+		if best > 0.0:
+			_cascade(g, id, best + 4.0 if best + 4.0 < s1 - 2.0 else best)
+	# brume : cartes horizontales au ras du sol / de la glace
+	var s := s0 + 2.0
+	while s < s1 - 1.0:
+		var dl := g.demi_l(id, s)
+		var lat := _hab_r.randf_range(-dl.x * 0.7, dl.y * 0.7)
+		var p := g.sol_en(id, s, lat)
+		_nappe(p + Vector3(0, _hab_r.randf_range(0.12, 0.3), 0), _hab_r.randf_range(4.0, 6.5))
+		s += _hab_r.randf_range(3.0, 4.5)
+
+func _hab_cristaux(g: Grotte, z: Dictionary) -> void:
+	var id: String = z["branche"]
+	var s := float(z["s"][0]) + 6.0
+	while s < float(z["s"][1]) - 1.0:
+		var dl := g.demi_l(id, s)
+		var p := g.sol_en(id, s, _hab_r.randf_range(-dl.x * 0.6, dl.y * 0.6))
+		_nappe(p + Vector3(0, _hab_r.randf_range(0.1, 0.25), 0), _hab_r.randf_range(3.5, 5.5))
+		s += _hab_r.randf_range(3.0, 4.0)
+
+## Nappe de brume : deux cartes horizontales décalées (tons en paliers, bords rongés), sans collision.
+func _nappe(c: Vector3, taille: float) -> void:
+	var a := _hab_r.randf() * TAU
+	var u := Vector3(cos(a), 0, sin(a)) * taille * 0.5
+	var v := Vector3(-sin(a), 0, cos(a)) * taille * 0.5
+	quad("brume_g", c - u - v, c + u - v, c + u + v, c - u + v, Vector3.UP, [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)])
+	var c2 := c + Vector3(0, 0.22, 0) + u * 0.3
+	quad("brume_g", c2 - v * 0.8 - u * 0.7, c2 + u * 0.7 - v * 0.8, c2 + u * 0.7 + v * 0.8, c2 - u * 0.7 + v * 0.8, Vector3.UP, [Vector2(1, 0), Vector2(0, 0), Vector2(0, 1), Vector2(1, 1)])
+
+## Cascade gelée : rideau de colonnes de glace du haut de la paroi (côté lac, à gauche) jusqu'à la glace, pied évasé.
+func _cascade(g: Grotte, id: String, s: float) -> void:
+	var dl := g.demi_l(id, s)
+	var T := g.tang(id, s)
+	var R := g.droite(id, s)
+	var y_bas := g.lac_y - 0.05
+	for k in 11:
+		var ds := (float(k) - 5.0) * 0.32 + _hab_r.randf_range(-0.08, 0.08)
+		var lat := -dl.x * 0.93 + absf(float(k) - 5.0) * 0.05
+		var top := g.plafond_en(id, s + ds, lat)
+		var base := g.sol_en(id, s + ds, lat)
+		var pied := Vector3(base.x, maxf(y_bas, base.y - 0.1), base.z)
+		var h := top.y - pied.y - 0.3
+		if h < 1.5:
+			continue
+		var r := _hab_r.randf_range(0.14, 0.3) * (1.2 - absf(float(k) - 5.0) * 0.08)
+		var prof := [Vector2(r * 2.4, 0.0), Vector2(r * 1.5, h * 0.1), Vector2(r * 1.05, h * 0.3), Vector2(r * 0.85, h * 0.6), Vector2(r * 1.1, h * 0.85), Vector2(r * 1.6, h + 0.35)]
+		revolution("c_glacon", pied + R * 0.15, prof, 6, _hab_r.randi(), 0.3, 0.0, 0.85, 1.0, 1.0)
+	# flaque de glace claire au pied, glaçons courts tout autour
+	for k in 14:
+		var ds := _hab_r.randf_range(-2.4, 2.4)
+		var lat := -dl.x * _hab_r.randf_range(0.6, 0.9)
+		var top := g.plafond_en(id, s + ds, lat)
+		pointe("c_glacon", top + Vector3(0, 0.08, 0), _hab_r.randf_range(0.05, 0.13), -_hab_r.randf_range(0.5, 1.6), _hab_r.randi(), 0.0, 5)
+	carte("halo_f", g.sol_en(id, s, -dl.x * 0.7) + Vector3(0, 0.03, 0) + T * 0.0, Vector3.UP, 4.0, 4.0)
+
+## Glaçons pendus au plafond, par grappes : denses à l'entrée, au lac gelé et chez les cristaux, rares ailleurs, jamais au camp.
+## Ils restent hors de portée de la tête (2,3 m de garde au sol, ou près des parois).
+func _glacons(g: Grotte) -> void:
+	for id: String in g.ordre:
+		var b: Dictionary = g.br[id]
+		var L: float = b["L"]
+		var s := 1.0
+		while s < L - 1.0:
+			var sty := _style_en(g, id, s)
+			var dens := 0.0
+			match sty:
+				"neige":
+					dens = 0.95
+				"glace", "cristaux":
+					dens = 0.75
+				"camp":
+					dens = 0.0
+				"goulot":
+					dens = 0.25
+				_:
+					dens = 0.18
+			if g.faille_f(b, s) > 0.02:
+				dens = 0.0
+			if _hab_r.randf() < dens:
+				var dl := g.demi_l(id, s)
+				var cote := 1.0 if _hab_r.randf() < 0.5 else -1.0
+				var w := (dl.y if cote > 0.0 else dl.x)
+				var lat0 := cote * w * _hab_r.randf_range(0.35, 0.85)
+				var n := _hab_r.randi_range(2, 6)
+				for k in n:
+					var lat := lat0 + _hab_r.randf_range(-0.5, 0.5)
+					var ss := s + _hab_r.randf_range(-0.4, 0.4)
+					var top := g.plafond_en(id, ss, lat)
+					var sol := g.sol_en(id, ss, lat)
+					var garde := top.y - sol.y
+					var l := _hab_r.randf_range(0.25, 1.1) * (1.0 if k % 3 != 0 else 0.5)
+					if garde - l < 2.3 and absf(lat) < w * 0.7:
+						l = garde - 2.3
+					if l < 0.15 or garde < 1.0:
+						continue
+					pointe("c_glacon", top + Vector3(0, 0.1, 0), _hab_r.randf_range(0.03, 0.09) * (0.6 + l * 0.6), -l, _hab_r.randi(), 0.0, 5)
+			s += 0.8

@@ -13,10 +13,16 @@ extends RefCounted
 ##    patrouilles. Créés par petits groupes quand le joueur s'approche ; identifiants FIXES (ceux des données) ; ceux tués dans une partie
 ##    chargée (`acces.morts_charges`) ne reviennent pas.
 ##  - lumières : seules les plus proches sont allumées (au plus MAX_LUM, à moins de 26 m).
+##  - ambiance (refonte matières) : ambiante sombre et neutre (les ombres tombent presque au noir, plus de « bleu plastique »),
+##    brume noire et courte ; la couleur vient des lanternes orange et des accents froids (jour, lac, cristaux).
 ## Le préfixe des états est def["id"] ("grotte").
 
 const BUTIN := preload("res://scripts/butin.gd")
-const MAX_LUM := 7
+const MAX_LUM := 9
+const AMBIANTE := Color(0.34, 0.34, 0.37)   # gris presque neutre : à cette énergie, la teinte bleue de la DA rebleuirait toute la grotte
+const AMBIANTE_E := 2.6
+const BRUME_C := Color(0.018, 0.02, 0.026)
+const BRUME_D := 0.034
 const DIST_APPARITION := 46.0
 
 ## Tenue du chef (les bandits ordinaires viennent de PersoDefs.bandit(k), k = indice « tenue » 0-3).
@@ -231,6 +237,7 @@ func _dire_defaite() -> void:
 
 ## Appelé toutes les 0,25 s quand le joueur est dans la grotte.
 func tick(dt: float) -> void:
+	_ambiance()
 	_t += dt
 	if _t < 0.25:
 		return
@@ -275,6 +282,20 @@ func tick(dt: float) -> void:
 			var l: Array = acces.quetes.texte("hrafn_cri")
 			if not l.is_empty():
 				acces.dialogue.dire_au_passage("Hrafn", String(l[0]))
+
+## Réglages d'environnement de la refonte : réappliqués dès que l'entrée dans la grotte (monde._sous_terre puis Grotte.ambiance)
+## les a remis aux valeurs d'origine.
+func _ambiance() -> void:
+	var monde: Node = acces.monde
+	if monde == null or not ("_env" in monde):
+		return
+	var env: Environment = monde.get("_env")
+	if env == null or env.ambient_light_color == AMBIANTE:
+		return
+	env.ambient_light_color = AMBIANTE
+	env.ambient_light_energy = AMBIANTE_E
+	env.fog_light_color = BRUME_C
+	env.fog_density = BRUME_D
 
 ## Mort du joueur sous terre : ennemis retirés (ceux tués dans le fichier le restent), coffres dont la bourse n'a pas été ramassée refermés.
 func reinitialiser(sauves: Array) -> void:
