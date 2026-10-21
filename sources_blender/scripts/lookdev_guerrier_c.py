@@ -52,7 +52,7 @@ def fourrure():
         return f
 
     # coque de dessous (fourrure sombre, cache les jours entre mèches) : 3 anneaux × 12 côtés
-    anneaux = [(0.42, 0.03), (0.92, -0.07), (1.04, -0.2)]
+    anneaux = [(0.42, 0.03), (0.92, -0.06), (1.03, -0.15)]
     n = 12
     for k in range(len(anneaux) - 1):
         (s0, z0), (s1, z1) = anneaux[k], anneaux[k + 1]
@@ -67,8 +67,8 @@ def fourrure():
 
     # rangs de mèches : (échelle racine, z racine, échelle pointe, z pointe, nombre, largeur, teinte)
     rangs = [
-        (0.95, -0.10, 1.13, -0.31, 24, 0.075, 0.80),
-        (0.72, -0.03, 1.05, -0.19, 22, 0.080, 0.90),
+        (0.95, -0.08, 1.11, -0.23, 24, 0.075, 0.80),
+        (0.72, -0.03, 1.04, -0.15, 22, 0.080, 0.90),
         (0.46, 0.035, 0.84, -0.09, 18, 0.085, 1.00),
     ]
     tris = 0
