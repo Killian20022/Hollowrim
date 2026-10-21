@@ -38,7 +38,7 @@ const COQUES := {
 	"c_cristal": ["cristal", "", Color(0.7, 0.76, 0.88), Vector3(0.0, 0.0, 0.0), 0.2, 0.0, 0.0, 0.0],
 	"c_or": ["or", "", Color(1, 1, 1), Vector3(0.05, 0.035, 0.0), 0.12, 0.0, 0.0, 0.0],
 	"c_cristal_f": ["cristal_f", "", Color(0.8, 0.84, 0.95), Vector3(0.0, 0.0, 0.0), 0.22, 0.0, 0.0, 0.0],   # prismes en grappes (UV par face)
-	"c_cristal_v": ["cristal_v", "", Color(0.95, 1.0, 1.05), Vector3(0.0, 0.0, 0.0), 0.55, 0.0, 0.0, 0.0],   # grosses grappes : faces bleu vif émissives
+	"c_cristal_v": ["cristal_v", "", Color(0.78, 0.95, 1.22), Vector3(0.0, 0.0, 0.0), 0.7, 0.0, 0.0, 0.0],   # passe 2 kit : bleu plus vif (cœurs blancs : c_cristal_c)   # grosses grappes : faces bleu vif émissives
 	"c_cristal_c": ["cristal_v", "", Color(1.35, 1.45, 1.5), Vector3(0.02, 0.05, 0.07), 0.9, 0.0, 0.0, 0.0],   # cœur blanc-cyan des grosses grappes
 	"c_glacon_c": ["glacon", "", Color(1.12, 1.18, 1.22), Vector3(0.012, 0.02, 0.03), 0.16, 0.0, 0.0, 0.0],   # glace claire bleu-blanc (devant de la cascade)
 	"c_glacon": ["glacon", "", Color(0.78, 0.82, 0.86), Vector3(0.006, 0.009, 0.013), 0.06, 0.0, 0.0, 0.0],
@@ -178,6 +178,8 @@ func mat(nom: String) -> Material:
 			(m as StandardMaterial3D).albedo_color = Color(0.1, 0.36, 1.5)     # halo cyan doux (la texture "halo" est chaude)
 		if m is ShaderMaterial:
 			(m as ShaderMaterial).set_shader_parameter("crasse", 0.0)
+			if nom == "bois":
+				(m as ShaderMaterial).set_shader_parameter("teinte", Color(0.6, 0.55, 0.5))     # passe 2 kit : bois de mine sombre et brun (grottes_cryptes_6), pas orange vif
 			if nom == "os":
 				(m as ShaderMaterial).set_shader_parameter("teinte", Color(0.5, 0.48, 0.45))     # os assombris (plus de taches blanches)     # pas de bande de crasse (calée sur le sol de la crypte)
 	_mats[nom_k] = m

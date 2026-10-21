@@ -39,6 +39,10 @@ var nb_instances := 0
 var nb_solides := 0
 var nb_lum := 0
 var stats := {}                # famille de gabarit -> nombre d'instances
+var _cadres: Array = []        # passe 2 : poutres des étais de mine [Vector2 a, Vector2 b] (xz) : les stalactites les évitent
+var nb_lanternes := 0          # passe 2 : lanternes posées par le kit (vraies lumières + lueurs seules)
+var nb_lum_chaudes := 0        # passe 2 : dont vraies lumières
+const LANT_C := Color(1.0, 0.56, 0.24)
 var r := RandomNumberGenerator.new()
 
 func _init(g_: Grotte) -> void:
@@ -192,7 +196,7 @@ static func _couleurs_masse(Q: PackedVector3Array, F: Array, D: PackedFloat32Arr
 		cols.append(Color(ao, ao * 0.99, ao * 1.02, 0.3 + fr * 0.95 if fr > 0.05 else 0.0))
 	return cols
 
-static func _g_bloc(graine: int, sub: int, ecrase: float, etire: float, givre := 1.0, aplat_haut := 0.75) -> Dictionary:
+static func _g_bloc(graine: int, sub: int, ecrase: float, etire: float, givre := 1.0, aplat_haut := 0.75, mat := "k_roche_neige") -> Dictionary:
 	var rg := RandomNumberGenerator.new()
 	rg.seed = graine
 	var m := _masse(graine, sub, Vector3(etire, ecrase, 1.0), 1.0, 0.3, aplat_haut)
@@ -210,7 +214,7 @@ static func _g_bloc(graine: int, sub: int, ecrase: float, etire: float, givre :=
 		Q[i] = (Q[i] - Vector3(0, ymin, 0)) / rmax - Vector3(0, 0.06, 0)
 	var centre := Vector3(0, (ymax - ymin) / rmax * 0.4, 0)
 	var G := {"surf": {}, "h": (ymax - ymin) / rmax, "prof": 0.0}
-	_lisse(_S(G, "k_roche_neige"), Q, m[1], centre, _couleurs_masse(Q, m[1], m[2], centre, graine, givre))
+	_lisse(_S(G, mat), Q, m[1], centre, _couleurs_masse(Q, m[1], m[2], centre, graine, givre))
 	return G
 
 ## Pan de paroi : 3-4 dalles bosselées empilées en gradins (les dessus forment des rebords givrés). +z = hors du mur.
@@ -403,7 +407,7 @@ func _gabarits() -> void:
 	for k in 3:
 		gab["caillou_%d" % k] = _g_bloc(7500 + k * 41, 1, rg.randf_range(0.5, 0.8), rg.randf_range(1.0, 1.4))
 	for k in 3:
-		gab["dalle_%d" % k] = _g_bloc(7700 + k * 43, 2, rg.randf_range(0.26, 0.34), rg.randf_range(1.2, 1.6), 1.2, 0.35)
+		gab["dalle_%d" % k] = _g_bloc(7700 + k * 43, 2, rg.randf_range(0.26, 0.34), rg.randf_range(1.2, 1.6), 1.7, 0.35, "k_terrasse")   # passe 2 : terrasses givrées plus claires
 	for k in 4:
 		gab["pan_%d" % k] = _g_pan(7900 + k * 53)
 	gab["stalag_0"] = _g_stalag(8101, 0.15, 0)
@@ -668,6 +672,11 @@ func _stalagmite(id: String, s: float, lat: float, h: float, solide := true) -> 
 func _stalactite(id: String, s: float, lat: float, lmax: float, marche := true) -> void:
 	if g.faille_f(g.br[id], s) > 0.02:
 		return
+	if not _cadres.is_empty():
+		var q := _xz(g.sol_en(id, s, lat))
+		for e: Array in _cadres:
+			if _d_seg(q, e[0], e[1]) < 0.75:
+				return
 	var pb := g.sol_en(id, s, lat)
 	var pt := g.plafond_en(id, s, lat)
 	var bas_min := pb.y + (GARDE if marche else 0.9)
@@ -794,7 +803,10 @@ func _salle_cristaux(z: Dictionary) -> void:
 			_grappe(g.sol_en(id, s, lat) - Vector3(0, 0.05, 0), rr * 1.2, (Vector3.UP * 1.4 - g.tang(id, s)).normalized())
 			_occuper(id, s, lat, rr * 0.4)
 	_parer_fond(id, L - 4.0, 1.0)
-	# 4. stalactites partout
+	# passe 2 : étais de mine, lanternes, marches (RNG à part, après tout ce qui est solide : aucune collision déplacée)
+	_mine_cristaux(id, s0, L)
+	_marches(id, s0 + 1.6, L - 3.6)
+	# 4. stalactites partout (jamais à travers une poutre)
 	for k in 110:
 		var s := r.randf_range(sa, sb)
 		var dl := g.demi_l(id, s)
@@ -982,6 +994,161 @@ func _salle_lac(z: Dictionary) -> void:
 		var dl := g.demi_l(id, s2)
 		var lat := r.randf_range(-dl.x * 0.95, dl.y * 0.95)
 		_stalactite(id, s2, lat, lerpf(0.6, 4.5 if lat < -3.0 else 2.6, pow(r.randf(), 1.3)), true)
+	# passe 2 : lanternes chaudes sur la rive d'en face (à gauche dans les vues du rivage), RNG à part
+	_lanternes_lac(id, sa, sb)
+
+## Passe 2 : poteaux à lanterne sur le bord rocheux d'en face du lac (grottes_cryptes_5 : lueurs orange sur la rive gauche).
+## Une seule vraie lumière (la plus proche du rivage d'arrivée) ; les autres ne sont que flamme et halos. Non solides.
+func _lanternes_lac(id: String, sa: float, sb: float) -> void:
+	var d := g.decor
+	var faites := 0
+	for sl: float in [sa + 6.0, sa + 13.0, sa + 20.0]:
+		if sl > sb - 3.0:
+			break
+		var dl := g.demi_l(id, sl)
+		var lat := -dl.x + 0.6
+		var trouve := false
+		while lat < -3.5:
+			var q := g.sol_en(id, sl, lat)
+			if q.y > g.lac_y + 0.12 and g.libre(id, sl, lat, 0.25) and _libre_xz(_xz(q), 0.3):
+				trouve = true
+				break
+			lat += 0.4
+		if not trouve:
+			continue
+		var pied := g.sol_en(id, sl, lat)
+		var vers := g.sol_en(id, sl, 0.0) - pied
+		var f := d.poteau_lanterne(pied, vers, false)
+		_occuper(id, sl, lat, 0.3)
+		nb_lanternes += 1
+		if faites == 0:
+			var l := d.lumiere(f, LANT_C, 4.5, 9.0, 1.4, true)
+			l.light_color = LANT_C
+			l.set_meta("grappe", true)
+			g.nb_lumieres += 1
+			nb_lum_chaudes += 1
+		else:
+			var vh := vers
+			vh.y = 0.0
+			d.carte("halo", f, vh.normalized(), 1.3, 1.3)
+		faites += 1
+
+# =================================================================== passe 2 : mine des cristaux (grottes_cryptes_6)
+## Étais de mine en enfilade le long du chemin : deux poteaux équarris (à ±1,8 m de l'axe, hors de la voie de 1,25 m), linteau
+## massif à contrefiches (GrotteDecor._bois_etai), longerons et écharpes entre deux cadres, une lanterne de fer pendue à chaque
+## linteau (côté alterné). Les trois premières portent une VRAIE lumière orange (flaque chaude sur le sol et les rochers du chemin) ;
+## les suivantes ne sont que lueurs (flamme, halos additifs, flaque peinte au sol) : le rendu mobile limite les lumières par objet,
+## et GrotteJeu n'en allume de toute façon que MAX_LUM. Rien n'est solide : aucune collision ni chemin de marche ne change.
+func _mine_cristaux(id: String, s0: float, L: float) -> void:
+	var d := g.decor
+	var LAT := 1.8
+	var H := 3.2
+	var cibles := [s0 + 4.3, s0 + 7.9, s0 + 11.4, s0 + 14.8, s0 + 17.4]
+	var prev: Array = []
+	var k := 0
+	for sc: float in cibles:
+		var s := -1.0
+		for dec: float in [0.0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9]:
+			if sc + dec < L - 2.2 and _poteau_libre(id, sc + dec, -LAT) and _poteau_libre(id, sc + dec, LAT):
+				s = sc + dec
+				break
+		if s < 0.0:
+			continue
+		var R := g.droite(id, s)
+		R.y = 0.0
+		R = R.normalized()
+		var T := g.tang(id, s)
+		T.y = 0.0
+		T = T.normalized()
+		var pa := g.sol_en(id, s, -LAT)
+		var pb := g.sol_en(id, s, LAT)
+		var haut := minf(pa.y, pb.y) + H
+		var ta := Vector3(pa.x, haut, pa.z)
+		var tb := Vector3(pb.x, haut, pb.z)
+		d.prisme("bois", pa - Vector3(0, 0.15, 0), ta, 0.15, 8)        # poteaux (redessinés équarris, cerclés de fer)
+		d.prisme("bois", pb - Vector3(0, 0.15, 0), tb, 0.15, 8)
+		d.prisme("bois", ta - R * 0.3, tb + R * 0.3, 0.17, 8)          # linteau + contrefiches + chaîne
+		_cadres.append([_xz(ta - R * 0.4), _xz(tb + R * 0.4)])
+		if not prev.is_empty():
+			for j in 2:
+				var a0: Vector3 = prev[j]
+				var a1: Vector3 = ta if j == 0 else tb
+				d.prisme("bois", a0 + Vector3(0, 0.12, 0), a1 + Vector3(0, 0.12, 0), 0.1, 4)          # longeron
+				var pied: Vector3 = (pa if j == 0 else pb) + Vector3(0, 1.0, 0)
+				d.prisme("bois", a0 - Vector3(0, 0.35, 0), pied.lerp(a1, 0.05), 0.06, 4)              # écharpe
+				_cadres.append([_xz(a0), _xz(a1)])
+		prev = [ta, tb]
+		# lanterne au linteau, côté alterné, à 0,6 m du poteau vers le chemin
+		var cote := -1.0 if k % 2 == 0 else 1.0
+		var t_side := ta if cote < 0.0 else tb
+		var croc := t_side - R * cote * 0.62 - Vector3(0, 0.24, 0)
+		var f := d.lanterne(croc, 0.32)
+		nb_lanternes += 1
+		if k < 3:
+			var l := d.lumiere(f, LANT_C, 4.2, 8.5, 1.45, true)
+			l.light_color = LANT_C
+			l.set_meta("grappe", true)          # pas de retouche par GrotteDecor._retoucher_lumieres
+			g.nb_lumieres += 1
+			nb_lum_chaudes += 1
+		else:
+			d.carte("halo", f + Vector3(0, 0.05, 0), -T, 1.15, 1.15)                  # lueur lisible de loin (flamme + halos de la lanterne)
+		k += 1
+
+func _poteau_libre(id: String, s: float, lat: float) -> bool:
+	if not g.hors_jonction(id, s) or not g.libre(id, s, lat, 0.25):
+		return false
+	var p := _xz(g.sol_en(id, s, lat))
+	for e: Array in _seg:
+		if _d_seg(p, e[0], e[1]) < 0.25 + float(e[2]) * 0.8:
+			return false
+	for o: Array in _occ:             # les petites pièces (grappes, cailloux) peuvent toucher un poteau ; pas les gros blocs
+		if float(o[1]) > 0.55 and p.distance_to(o[0]) < (0.2 + float(o[1])) * 0.6:
+			return false
+	return true
+
+## Marches de pierre (décor NON bloquant) sur la descente du chemin : dalles de 0,85 m posées au ras du sol (dessus à la hauteur
+## moyenne du sol sous la dalle + 3 cm), nez de marche givré. Le sol reste la seule surface de marche (pente douce inchangée).
+func _marches(id: String, sa: float, sb: float) -> void:
+	var d := g.decor
+	var rm := RandomNumberGenerator.new()
+	rm.seed = 61057
+	var s := sa
+	var W := 1.05
+	var n := 0
+	while s < sb:
+		var lg := rm.randf_range(0.75, 0.95)
+		var s2 := minf(s + lg, sb)
+		var ws := W + rm.randf_range(-0.1, 0.15)
+		var c00 := g.sol_en(id, s, -ws)
+		var c01 := g.sol_en(id, s, ws)
+		var c10 := g.sol_en(id, s2, -ws)
+		var c11 := g.sol_en(id, s2, ws)
+		var y_min := minf(minf(c00.y, c01.y), minf(c10.y, c11.y))
+		var y_max := maxf(maxf(c00.y, c01.y), maxf(c10.y, c11.y))
+		if y_max - y_min > 0.35:          # sol trop chahuté : pas de marche ici
+			s = s2 + 0.05
+			continue
+		var y := (c00.y + c01.y + c10.y + c11.y) * 0.25 + 0.035
+		var j := func(p: Vector3, dy: float) -> Vector3:
+			return Vector3(p.x, y + dy, p.z)
+		var a: Vector3 = j.call(c00, rm.randf_range(-0.01, 0.015))
+		var b: Vector3 = j.call(c01, rm.randf_range(-0.01, 0.015))
+		var c: Vector3 = j.call(c11, rm.randf_range(-0.01, 0.015))
+		var e: Vector3 = j.call(c10, rm.randf_range(-0.01, 0.015))
+		var ref_h := (a + b + c + e) * 0.25 + Vector3(0, 1, 0)
+		var nez := GrotteDecor.col(1.0, 1.0)         # nez de marche (bord aval, celui qui dépasse du sol) : clair, liseré de givre
+		var dos := GrotteDecor.col(0.42, 0.0)        # fond de marche sombre : vue d'en haut, l'escalier se lit en bandes
+		d.facette("k_sol_nu", a, b, c, ref_h, [dos, dos, nez], true, 2.0)
+		d.facette("k_sol_nu", a, c, e, ref_h, [dos, nez, nez], true, 2.0)
+		# contremarche côté aval (on descend vers s croissant : la face visible en montant regarde vers -T)
+		var bas := 0.32
+		var ref_av := (e + c) * 0.5 + (e - a).normalized() * 1.0
+		var sombre := GrotteDecor.col(0.45, 0.0)
+		d.facette("c_roche_nu", e, c, c - Vector3(0, bas, 0), ref_av, [nez, nez, sombre], true, 2.0)
+		d.facette("c_roche_nu", e, c - Vector3(0, bas, 0), e - Vector3(0, bas, 0), ref_av, [nez, sombre, sombre], true, 2.0)
+		n += 1
+		s = s2 + rm.randf_range(0.02, 0.06)
+	stats["marche"] = n
 
 # =================================================================== cascade gelée (pièce unique)
 ## Bâtie contre la paroi du FOND de la caverne (face au rivage) : les colonnes suivent la roche (rayons contre la coque), s'élargissent
@@ -1012,7 +1179,8 @@ func _cascade(z: Dictionary) -> void:
 	var bas := g.rayon(W0 + n * 1.2 + Vector3(0, 2.0, 0), Vector3.DOWN, 12.0)
 	var yb: float = (bas["p"] as Vector3).y if not bas.is_empty() else y_ref
 	var haut := g.rayon(W0 + n * 0.6, Vector3.UP, 20.0)
-	var H := minf(((haut["p"] as Vector3).y - yb - 0.9) if not haut.is_empty() else 7.0, 8.0)
+	var H := minf(((haut["p"] as Vector3).y - yb - 0.9) if not haut.is_empty() else 7.0, 11.0)     # passe 2 : jusqu'à 11 m (8 avant)
+	var K := 1.4                # passe 2 : largeur x1,4 (rideau lisible à 28 m) ; les tirages aléatoires restent les mêmes
 	H = maxf(H, 3.5)
 	var y_top := yb + H
 	var t_res := 0.45          # ressaut à mi-hauteur
@@ -1026,27 +1194,27 @@ func _cascade(z: Dictionary) -> void:
 		return h2["p"]
 	# ressaut de tête : pans et blocs givrés en surplomb
 	for k in 3:
-		var u := (float(k) - 1.0) * 1.1 + r.randf_range(-0.2, 0.2)
+		var u := ((float(k) - 1.0) * 1.1 + r.randf_range(-0.2, 0.2)) * K
 		var p: Vector3 = mur.call(u, y_top - 0.3)
 		_add("pan_%d" % r.randi_range(0, 3), p - n * 0.35 + Vector3(0, -0.2, 0), atan2(n.x, n.z), Vector3(1.0, 0.7, 0.9) * r.randf_range(0.9, 1.2))
 	# ressaut du milieu : la glace en déborde
 	var y_m := yb + H * t_res
 	for k in 2:
-		var u := (float(k) - 0.5) * 1.6 + r.randf_range(-0.2, 0.2)
+		var u := ((float(k) - 0.5) * 1.6 + r.randf_range(-0.2, 0.2)) * K
 		var p: Vector3 = mur.call(u, y_m)
 		_add("bloc_%d" % r.randi_range(0, 7), p - n * 0.3 + Vector3(0, -0.45, 0), r.randf() * TAU, Vector3(1.0, 0.75, 1.0) * r.randf_range(0.8, 1.0))
 	# colonnes : deux couches (fond c_glacon, devant c_glacon_c), éventail du haut (étroit) vers le bas (large)
 	for couche in 2:
-		var nom := "c_glacon" if couche == 0 else "c_glacon_c"
+		var nom := "c_cascade" if couche == 0 else "c_cascade_c"
 		var nb := 15 if couche == 0 else 18
 		for j in nb:
-			var u_b := lerpf(-3.3, 3.3, (float(j) + r.randf_range(0.2, 0.8)) / float(nb))
+			var u_b := lerpf(-3.3, 3.3, (float(j) + r.randf_range(0.2, 0.8)) / float(nb)) * K
 			var u_t := u_b * r.randf_range(0.4, 0.55)
-			var rad := r.randf_range(0.14, 0.32) * (1.0 if couche == 0 else 0.85)
+			var rad := r.randf_range(0.14, 0.32) * (1.0 if couche == 0 else 0.85) * 1.45
 			var t_fin := 0.0
 			if couche == 1 and r.randf() < 0.4:           # orgue : s'arrête en grand glaçon
 				t_fin = r.randf_range(0.3, 0.7)
-			if absf(u_b) > 2.8 and r.randf() < 0.6:       # draperie de bord : plus courte
+			if absf(u_b) > 2.8 * K and r.randf() < 0.6:   # draperie de bord : plus courte
 				t_fin = maxf(t_fin, r.randf_range(0.45, 0.75))
 			var top_off := r.randf_range(-0.25, 0.2)
 			var pts: Array = []
@@ -1067,16 +1235,16 @@ func _cascade(z: Dictionary) -> void:
 	# franges sous le ressaut du milieu (là où la glace déborde)
 	for k in 5:
 		var u := lerpf(-1.8, 1.8, float(k) / 4.0) + r.randf_range(-0.2, 0.2)
-		var p: Vector3 = mur.call(u * 0.75, y_m - 0.25)
+		var p: Vector3 = mur.call(u * 0.75 * K, y_m - 0.25)
 		_frange(p + n * (0.95 + r.randf_range(0.0, 0.3)), lat_v, r.randf_range(0.8, 1.4), r.randf_range(0.9, 1.6))
 	# pied : cône de glace, cônes secondaires, flaque gelée
 	var pied := Vector3(W0.x, yb, W0.z) + n * 1.1
 	for k in 4:
-		var u := 0.0 if k == 0 else r.randf_range(-2.0, 2.0)
-		var rc := (1.5 if k == 0 else r.randf_range(0.5, 0.9))
+		var u := (0.0 if k == 0 else r.randf_range(-2.0, 2.0)) * K
+		var rc := (1.5 if k == 0 else r.randf_range(0.5, 0.9)) * 1.2
 		var hc := (1.4 if k == 0 else r.randf_range(0.4, 0.8))
 		var c := pied + lat_v * u + n * (0.0 if k == 0 else r.randf_range(-0.3, 0.6)) - Vector3(0, 0.05, 0)
-		d.revolution("c_glacon_c", c, [Vector2(rc * 1.3, 0.0), Vector2(rc, hc * 0.3), Vector2(rc * 0.55, hc * 0.7), Vector2(rc * 0.22, hc), Vector2(0.0, hc * 1.05)], 8, r.randi(), 0.35, 0.0, 0.75, 1.0, 1.0)
+		d.revolution("c_cascade_c", c, [Vector2(rc * 1.3, 0.0), Vector2(rc, hc * 0.3), Vector2(rc * 0.55, hc * 0.7), Vector2(rc * 0.22, hc), Vector2(0.0, hc * 1.05)], 8, r.randi(), 0.35, 0.0, 0.75, 1.0, 1.0)
 	var nf := 10
 	var rf := 3.0
 	for k in nf:
@@ -1087,15 +1255,112 @@ func _cascade(z: Dictionary) -> void:
 		d.facette("c_glace", pied + Vector3(0, 0.04, 0), p0, p1, pied + Vector3(0, 1, 0), [GrotteDecor.col(1.0), GrotteDecor.col(0.8), GrotteDecor.col(0.8)], true, 4.0)
 	d.carte("halo_f", pied + Vector3(0, 0.06, 0), Vector3.UP, 5.0, 5.0)
 	# jour bleuté qui tombe sur la cascade, lueur bleue de face
-	var lj := d.lumiere(Vector3(W0.x, yb + H * 0.75, W0.z) + n * 1.5, JOUR_C, 2.0, 10.0, 1.2, false)
+	_rideau(mur, yb, H, K, n)
+	_jour_du_fond(W0, n, lat_v, yb, H)
+	var lj := d.lumiere(Vector3(W0.x, yb + H * 0.75, W0.z) + n * 1.5, JOUR_C, 3.2, 15.0, 1.0, false)     # passe 2 : 2,0 / 10 m -> 3,2 / 15 m
 	lj.light_color = JOUR_C
 	lj.set_meta("grappe", true)
-	var lb := d.lumiere(Vector3(W0.x, yb + 2.4, W0.z) + n * 4.0, Color(0.5, 0.72, 1.0), 2.6, 9.0, 1.3, false)
+	var lb := d.lumiere(Vector3(W0.x, yb + 2.4, W0.z) + n * 4.0, Color(0.5, 0.72, 1.0), 3.0, 12.0, 1.2, false)
 	lb.light_color = Color(0.5, 0.72, 1.0)
 	lb.set_meta("grappe", true)
 	g.nb_lumieres += 2
 	_occ.append([_xz(pied), 3.0])
 	_solide(pied - Vector3(0, 0.1, 0), 1.1, 2.0)
+
+## Passe 2 : rideau continu derrière les colonnes (plus de trous sombres : la cascade se lit comme une seule chute claire).
+## Même éventail que les colonnes (étroit en haut, large en bas), cannelé un pas sur deux, plus clair vers le pied.
+func _rideau(mur: Callable, yb: float, H: float, K: float, n: Vector3) -> void:
+	var d := g.decor
+	var nu := 22
+	var nt := 12
+	var grille: Array = []
+	for i in nu + 1:
+		var u_b := lerpf(-3.0, 3.0, float(i) / float(nu)) * K
+		var ligne: Array = []
+		for k in nt + 1:
+			var t := 1.0 - float(k) / float(nt)
+			var u := lerpf(u_b, u_b * 0.48, pow(t, 0.8))
+			var q: Vector3 = mur.call(u, yb + H * t)
+			ligne.append(q + n * ((0.12 + 0.35 * (1.0 - t)) * 0.45 + 0.06))
+		grille.append(ligne)
+	for i in nu:
+		var f := 1.0 if i % 2 == 0 else 0.8
+		for k in nt:
+			var t0 := 1.0 - float(k) / float(nt)
+			var t1 := 1.0 - float(k + 1) / float(nt)
+			var c0 := GrotteDecor.col(lerpf(0.95, 0.7, t0) * f)
+			var c1 := GrotteDecor.col(lerpf(0.95, 0.7, t1) * f)
+			var A: Vector3 = grille[i][k]
+			var B: Vector3 = grille[i + 1][k]
+			var C: Vector3 = grille[i + 1][k + 1]
+			var D: Vector3 = grille[i][k + 1]
+			var ref := (A + C) * 0.5 + n * 2.0
+			d.facette("c_cascade", A, B, C, ref, [c0, c0, c1], true, 1.0)
+			d.facette("c_cascade", A, C, D, ref, [c0, c1, c1], true, 1.0)
+
+## Passe 2 : « jour » froid venu du fond (grottes_cryptes_5) : grande lueur additive pâle sur la paroi autour de la cascade (les
+## stalagmites du lac s'y découpent en silhouette), et brume basse en quatre plans, de plus en plus légère vers le rivage.
+## Cartes fixes, sans animation ; rien sur la glace du lac.
+func _jour_du_fond(W0: Vector3, n: Vector3, lat_v: Vector3, yb: float, H: float) -> void:
+	var v := PackedVector3Array()
+	var c := PackedColorArray()
+	# lueur : ellipse additive à anneaux, intensité (1 - r)² jusqu'à zéro (aucun bord net), un peu en avant de la paroi
+	var centre := Vector3(W0.x, yb + H * 0.42, W0.z) + n * 2.6
+	var coeur := Vector3(0.15, 0.19, 0.25)
+	var nb := 32
+	var na := 7
+	for k in nb:
+		var a0 := TAU * k / nb
+		var a1 := TAU * (k + 1) / nb
+		for j in na:
+			var ri := float(j) / na
+			var re := float(j + 1) / na
+			var ci := coeur * pow(1.0 - ri, 2.0)
+			var ce := coeur * pow(1.0 - re, 2.0)
+			var Ci := Color(ci.x, ci.y, ci.z, 1.0)
+			var Ce := Color(ce.x, ce.y, ce.z, 1.0)
+			var e0 := lat_v * cos(a0) * 14.0 + Vector3.UP * sin(a0) * 7.0
+			var e1 := lat_v * cos(a1) * 14.0 + Vector3.UP * sin(a1) * 7.0
+			v.append_array([centre + e0 * ri, centre + e0 * re, centre + e1 * re, centre + e0 * ri, centre + e1 * re, centre + e1 * ri])
+			c.append_array([Ci, Ce, Ce, Ci, Ce, Ci])
+	_carte_brute("Kit_jour_fond", v, c, true)
+	# brume basse : nappes horizontales au ras de la glace et des rochers, de plus en plus nombreuses vers la cascade
+	var d := g.decor
+	var rb := RandomNumberGenerator.new()
+	rb.seed = 61091
+	for k in 9:
+		var dist := rb.randf_range(1.0, 13.0)
+		var o := Vector3(W0.x, yb, W0.z) + n * dist + lat_v * rb.randf_range(-7.0, 7.0)
+		o.y = yb + rb.randf_range(0.25, 0.9) * (1.0 - dist / 20.0)
+		var t := rb.randf_range(4.5, 7.5)
+		var a := rb.randf() * TAU
+		var uu := Vector3(cos(a), 0, sin(a)) * t * 0.5
+		var vv := Vector3(-sin(a), 0, cos(a)) * t * 0.5
+		d.quad("brume_g", o - uu - vv, o + uu - vv, o + uu + vv, o - uu + vv, Vector3.UP, [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)])
+
+func _carte_brute(nom: String, v: PackedVector3Array, c: PackedColorArray, additif: bool) -> void:
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = v
+	arr[Mesh.ARRAY_COLOR] = c
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	var sm := StandardMaterial3D.new()
+	sm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sm.vertex_color_use_as_albedo = true
+	sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	if additif:
+		sm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		sm.disable_fog = true
+	sm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	sm.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	sm.disable_receive_shadows = true
+	var mi := MeshInstance3D.new()
+	mi.mesh = m
+	mi.material_override = sm
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.name = nom
+	g.add_child(mi)
 
 ## Tube irrégulier le long d'une polyligne (haut -> bas), anneaux horizontaux à 6 côtés, cannelures plus sombres un côté sur deux.
 func _tube(nom: String, pts: Array, rads: Array, cotes: int, ao_bas: float, ao_haut: float, pointe_bas: bool) -> void:
@@ -1140,4 +1405,4 @@ func habiller() -> void:
 				if String(z.get("role", "")) == "combat":
 					_salle_lac(z)
 	_instancier()
-	print("kit grotte : %d instances, %d triangles, %d solides, %d lumières cyan, %d ms %s" % [nb_instances, nb_triangles(), nb_solides, nb_lum, Time.get_ticks_msec() - t0, stats])
+	print("kit grotte : %d instances, %d triangles, %d solides, %d lumières cyan, %d lanternes (%d lumières chaudes), %d ms %s" % [nb_instances, nb_triangles(), nb_solides, nb_lum, nb_lanternes, nb_lum_chaudes, Time.get_ticks_msec() - t0, stats])
