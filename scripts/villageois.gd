@@ -141,12 +141,12 @@ func _ready() -> void:
 	forme.position.y = 0.9
 	add_child(forme)
 
-	modele = Humain.creer(APPARENCES.get(donnees.get("id", ""), APPARENCES["chef"]))
+	modele = Personnage.creer(PersoDefs.villageois(donnees.get("id", "")))
 	add_child(modele)
 	anim = modele.get_node("Animations")
 	if points.is_empty():
 		points.append(global_position)
-	rotation.y = randf() * TAU
+	rotation.y = deg_to_rad(float(donnees["cap"])) if donnees.has("cap") else randf() * TAU     # "cap" (degrés, 0 = vers +Z) : le forgeron fait face à son enclume
 	_prochaine_promenade = randf_range(8.0, 40.0)
 	_delai_interpelle = randf_range(0.0, 15.0)
 	_var = randf_range(0.93, 1.07)
@@ -161,8 +161,7 @@ func _ready() -> void:
 	if anim != null:
 		anim.seek(randf() * 2.0)
 
-## Allure de chaque habitant (corps, couleurs de la tenue, cheveux) ; trousse commune :
-## pantalon, bottes et ceinture.
+## ANCIENNES apparences (Humain.creer) : gardees pour la galerie du monde (monde.gd, scenario « galerie ») ; les villageois utilisent PersoDefs.villageois().
 const C := Color.WHITE
 const APPARENCES := {
 	# Gunnhild, la cheffe : longue robe bleue brodée sur tunique de lin, manteau de fourrure blanche, bijoux de cuir clair

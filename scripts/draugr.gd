@@ -169,7 +169,9 @@ func _ready() -> void:
 		app["etoffes"] = {"tunique": "mailles_rouille", "brassards": "draugr"}
 		app["casque"] = "casque_draugr"
 	app.merge(apparence, true)
-	if _os:
+	if app.has("perso"):
+		modele = Personnage.creer(app["perso"])      # bandits vivants : personnage de base unifie (PersoDef)
+	elif _os:
 		modele = SqueletteGuerrier.creer({"arme": "arc" if archer else "epee"})
 	else:
 		modele = Humain.creer(app)

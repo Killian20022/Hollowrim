@@ -517,22 +517,7 @@ func montrer(oui: bool) -> void:
 ## frappe, meurt), mais vivante : peau, barbe, cheveux, tenue de cuir et de laine ; 45 PV, 12 de dégâts (« sbire »). Créés à la
 ## première entrée seulement (modèles humains : ≈ 100 ms chacun, cachés par le fondu).
 func _bandits() -> void:
-	# lot 4 : tenue de bandit (cuir, fourrure, capuche, lanières), distincte du draugr ; chacun a sa silhouette
-	var C := Color.WHITE
-	var tenues: Array = [
-		{"tunique": C, "pantalon": C, "mante": C, "capuche": C, "sacoche": C, "bottes": C, "ceinture": C, "brassards": C, "gants": C},
-		{"tunique": C, "pantalon": C, "mante": C, "epaulieres": C, "pteruges": C, "bottes": C, "ceinture": C, "brassards": C},
-		{"tunique": C, "pantalon": C, "cape_courte": C, "capuche": C, "sacoche": C, "bottes": C, "ceinture": C, "gants": C},
-		{"tunique": C, "pantalon": C, "mante": C, "carquois": C, "pteruges": C, "bottes": C, "ceinture": C, "brassards": C},
-	]
-	var etoffes: Array = [
-		{"tunique": "cuir_a", "pantalon": "brun", "mante": "brun", "capuche": "brun", "sacoche": "cuir_b", "bottes": "cuir_b", "ceinture": "cuir_b", "brassards": "cuir_b", "gants": "cuir_b"},
-		{"tunique": "cuir_b", "pantalon": "gris", "mante": "gris", "epaulieres": "cuir_a", "pteruges": "cuir_a", "bottes": "cuir_b", "ceinture": "cuir_a", "brassards": "cuir_a"},
-		{"tunique": "lin", "pantalon": "noir", "cape_courte": "brun", "capuche": "gris", "sacoche": "cuir_a", "bottes": "cuir_a", "ceinture": "cuir_b", "gants": "cuir_b"},
-		{"tunique": "cuir_a", "pantalon": "brun", "mante": "blanc", "carquois": "cuir_b", "pteruges": "cuir_b", "bottes": "cuir_b", "ceinture": "cuir_b", "brassards": "cuir_b"},
-	]
-	var coupes: Array = ["Hair_Buzzed", "Hair_SimpleParted", "Hair_Long", "Hair_Buzzed"]
-	var cheveux_c: Array = [Color(0.3, 0.2, 0.12), Color(0.5, 0.35, 0.2), Color(0.2, 0.16, 0.12), Color(0.55, 0.5, 0.45)]
+	# personnages de base unifies (PersoDefs.bandit) : cuir, fourrure, capuche, lanieres ; chacun a sa silhouette
 	var places: Array = [[95.5, -1.4], [98.2, 2.6], [101.8, -2.4], [104.0, 1.6]]
 	for k in places.size():
 		var id := "bandit_%d" % k
@@ -540,10 +525,7 @@ func _bandits() -> void:
 			continue
 		var s: float = places[k][0]
 		var lat: float = places[k][1]
-		var app := {"corps": "homme", "draugr": false, "tenue": tenues[k], "etoffes": etoffes[k], "cheveux": coupes[k], "teinte_cheveux": cheveux_c[k],
-			"barbe": k != 2, "peau": Color(0.93, 0.78, 0.7)}
-		if k == 1:
-			app["casque"] = "casque_nasal"
+		var app := {"perso": PersoDefs.bandit(k)}
 		var b: Node = monde.creer_draugr("sbire", grotte.monde_sol(s, lat) + Vector3(0, 0.05, 0), grotte.cap_monde(s) + PI + 0.5 * (k - 1.5), false,
 			{"ident": id, "nom_affiche": "Bandit", "contourne": true, "apparence": app, "vie_imposee": 55.0})
 		if monde._paisible():
