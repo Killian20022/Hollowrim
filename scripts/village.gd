@@ -1082,7 +1082,7 @@ func _pieu_taille(loc: RandomNumberGenerator) -> ArrayMesh:
 	var bis: Array[float] = []
 	for k in n:
 		bis.append(hf + loc.randf_range(-0.07, 0.05))
-	var neige_h := hp - loc.randf_range(0.17, 0.23)     # au-dessus : neige
+	var neige_h := hp - loc.randf_range(0.25, 0.31)     # au-dessus : neige (lisible même à contre-jour)
 	var ombre_pied := Color(0.55, 0.52, 0.5, 1)
 	for k in n:
 		var k2 := (k + 1) % n
@@ -1102,8 +1102,8 @@ func _pieu_taille(loc: RandomNumberGenerator) -> ArrayMesh:
 		var cb0 := clair
 		var cb1 := clair
 		var nh := neige_h + loc.randf_range(-0.05, 0.04)
-		var m0 := b0.lerp(pointe, clampf((nh - b0.y) / (pointe.y - b0.y), 0.2, 0.8))
-		var m1 := b1.lerp(pointe, clampf((nh + loc.randf_range(-0.04, 0.04) - b1.y) / (pointe.y - b1.y), 0.2, 0.8))
+		var m0 := b0.lerp(pointe, clampf((nh - b0.y) / (pointe.y - b0.y), 0.12, 0.8))
+		var m1 := b1.lerp(pointe, clampf((nh + loc.randf_range(-0.04, 0.04) - b1.y) / (pointe.y - b1.y), 0.12, 0.8))
 		var blanc := Color(1, 1, 1, 0)
 		_tri_plat(st, [b0, b1, m1], [cb0, cb1, clair])
 		_tri_plat(st, [b0, m1, m0], [cb0, clair, clair])

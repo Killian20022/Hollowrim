@@ -141,6 +141,7 @@ func _entree() -> void:
 	if avec_sapins: _sapins([[7.6, -6.6, 1.2], [3.0, -6.6, 1.0], [10.6, -5.6, 1.1], [14.0, -7.6, 1.3], [18.2, -5.4, 1.0], [22.0, -6.8, 1.2], [26.0, -5.6, 1.0], [30.0, -7.2, 1.1],
 			[6.4, 6.9, 1.15], [2.4, 7.4, 1.0], [11.2, 7.2, 1.2], [16.6, 6.3, 1.0], [21.0, 7.6, 1.3], [25.2, 5.8, 1.0], [29.2, 6.8, 1.2], [33.0, 5.8, 1.0]], 6, 2.0, longueur + 4.0)
 	_semer_bords(0.5, longueur - 1.5)
+	_semer_premier_plan()
 
 ## Sapins qui encadrent le sentier : les épicéas validés du lot 2 (API `Arbres`, mêmes graines et mêmes réglages de portée,
 ## d'ombre et de silhouette lointaine que la forêt), une liste de cadrage [u, v, échelle] puis un remplissage au hasard.
@@ -357,11 +358,11 @@ func _rocher(u: float, v: float, s: float) -> void:
 				q.y *= 0.5
 			# masque de neige : le haut, bord irrégulier qui descend en coulures sur les flancs
 			var m := d.y + n.get_noise_3dv(d * 2.4 + Vector3(9, 9, 9)) * 0.42 + n.get_noise_3dv(Vector3(cos(a) * 3.0, 0, sin(a) * 3.0)) * 0.18
-			var neige := m > 0.36
+			var neige := m > 0.47   # passe 3 : calotte resserrée sur le haut, flancs de granit sombre visibles
 			var ao := lerpf(0.42, 1.0, clampf((d.y + 0.6) / 1.4, 0.0, 1.0))
 			if neige:
-				var ep := smoothstep(0.36, 0.75, m)   # épaisseur : nulle au bord, ~9 % de la taille au sommet
-				q += (d * 0.6 + Vector3(0, 0.6, 0)) * ep * 0.11 * s
+				var ep := smoothstep(0.47, 0.85, m)   # épaisseur : nulle au bord, ~12 % de la taille au sommet
+				q += (d * 0.6 + Vector3(0, 0.6, 0)) * ep * 0.145 * s
 				var kn := lerpf(0.8, 1.0, clampf(d.y, 0.0, 1.0)) * (0.94 + n.get_noise_3dv(d * 6.0) * 0.08)
 				cl.append(Color(kn, kn, kn * 1.02, 0.0))
 			else:
@@ -700,6 +701,27 @@ func _semer_bords(u0: float, u1: float) -> void:
 		if _libre(p, 0.05):
 			_cailloux.append(p)
 
+## Passe 3 : bouquets d'herbes sèches givrées et buissons brun-rouge au premier plan (bords du dallage, pieds des rochers,
+## comme la référence). Générateur à part : aucun tirage de `rng` n'est décalé (dalles, textures et rochers inchangés).
+func _semer_premier_plan() -> void:
+	var sauve := rng
+	rng = RandomNumberGenerator.new()
+	rng.seed = sauve.seed ^ 0x5a17
+	for g in 16:
+		var c := Vector2(rng.randf_range(0.6, 11.0), rng.randf_range(1.6, 4.6) * (1.0 if rng.randf() < 0.5 else -1.0))
+		for i in rng.randi_range(3, 6):
+			var q := c + Vector2(rng.randf_range(-0.55, 0.55), rng.randf_range(-0.4, 0.4))
+			if absf(q.y) < 1.5:
+				continue
+			var p := _p(q.x, q.y)
+			if _libre(p, 0.08):
+				_touffe(p, rng.randf_range(0.75, 1.25))
+	for i in 10:
+		var p := _p(rng.randf_range(1.0, 9.0), rng.randf_range(2.6, 5.2) * (1.0 if rng.randf() < 0.5 else -1.0))
+		if _libre(p, 0.2):
+			_buisson(p, rng.randf_range(0.6, 1.0))
+	rng = sauve
+
 # --- finalisation -------------------------------------------------------------------------------------------------
 
 func _mesh(m: BatiGeo.Maillage, mat: Material, ombre: bool, nom: String) -> MeshInstance3D:
@@ -718,7 +740,15 @@ func _finaliser() -> void:
 	var td: Array = texture_pierre(PALETTE_DALLE, 4100 + rng.randi() % 100, 5)
 	_mesh(_dalles, materiau_kit(td[0], td[1], 64.0, Color(1.14, 1.12, 1.1)), false, "Dalles")
 	var tg: Array = texture_pierre(PALETTE_GRANIT, 4300 + rng.randi() % 100, 7)
-	_mesh(_pierre, materiau_kit(tg[0], tg[1], 64.0, Color(0.74, 0.76, 0.82)), true, "PierreNeige")
+	# passe 3 : la teinte froide (0,74 ; 0,76 ; 0,82) ne s'applique plus qu'au granit (couleur de sommet) ; la neige
+	# (alpha 0) n'est plus grisée par elle : elle rejoint le blanc bleuté du sol au lieu d'un gris terne.
+	for i in _pierre.c.size():
+		var c: Color = _pierre.c[i]
+		if c.a >= 0.5:
+			_pierre.c[i] = Color(c.r * 0.74, c.g * 0.76, c.b * 0.82, c.a)
+		else:
+			_pierre.c[i] = Color(c.r * 0.9, c.g * 0.93, c.b * 0.98, c.a)
+	_mesh(_pierre, materiau_kit(tg[0], tg[1], 64.0, Color.WHITE), true, "PierreNeige")
 	_mesh(_stele, materiau_kit(texture_stele(4500 + rng.randi() % 100), TexturesBati.relief_neutre(), 64.0, Color(1.05, 1.05, 1.08), true), true, "Stele")
 	_mat_flaque = StandardMaterial3D.new()
 	_mat_flaque.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
