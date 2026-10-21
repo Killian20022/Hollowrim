@@ -4,7 +4,7 @@ extends SceneTree
 ## bras longs (bout des doigts sous le genou + 0,25 m en Idle), bibliothèque des PNJ intacte (la voûte est cuite dans une COPIE).
 ##   godot --headless --path . --script res://outils/test_troll.gd -- --nouvelle
 const ANIMS := ["Idle", "Walk", "Jog_Fwd", "Troll_Attaque", "Hit_Chest", "Death01"]
-const BUDGET := 9000
+const BUDGET := 7500
 const SURFACES_MAX := 10
 var echecs := 0
 
@@ -75,7 +75,7 @@ func _lancer() -> void:
 	var main := sq.global_transform * sq.get_bone_global_pose(sq.find_bone("middle_04_leaf_l")).origin
 	var genou := sq.global_transform * sq.get_bone_global_pose(sq.find_bone("calf_l")).origin
 	var haut := hd.y + 0.30     # sommet du crâne + crinière au-dessus de l'os de la tête
-	ok(haut > 2.3 and haut < 3.0, "hauteur en Idle (voûté) : %.2f m (2,3-3,0)" % haut)
+	ok(haut > 2.1 and haut < 3.0, "hauteur en Idle (voûté, genoux fléchis) : %.2f m (2,1-3,0)" % haut)
 	ok(main.y < genou.y + 0.25, "bras longs : bout des doigts à %.2f m (genou à %.2f m, + 0,25 m toléré : bras écartés en garde)" % [main.y, genou.y])
 	# chaque clip se joue sans NaN et garde les pieds près du sol (hors mort)
 	for clip in ANIMS:
