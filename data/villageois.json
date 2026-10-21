@@ -28,6 +28,7 @@
       "role": "Forgeron",
       "modele": "Barbarian",
       "lieu": "forge",
+      "cap": 0,
       "interpellations": ["Ça chauffe ici. Recule.", "Du fer, pas de discours.", "Tu as de bons bras ?"],
       "lignes": [
         "Brodd. Forgeron. Ne touche pas aux lames, elles sont plus polies que moi.",
@@ -125,7 +126,7 @@
       "apres": [
         "Merci pour l’eau. Les jeunes d’aujourd’hui ont du cœur, parfois.",
         "Le puits est plus froid que d’habitude. Il sait quelque chose.",
-        "Ma petite-fille Sigrun est descendue dans la vieille mine il y a trois semaines. Pas un mot depuis.",
+        "Ma petite-fille Solveig est descendue dans la vieille mine il y a trois semaines. Pas un mot depuis.",
         "Va, étranger. Mes vieux os attendront ton retour."
       ]
     }

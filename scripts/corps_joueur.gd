@@ -48,15 +48,7 @@ func _ready() -> void:
 
 ## Construit (ou reconstruit, à la résurrection) le modèle vêtu, ses accessoires et ses pieds.
 func _creer_modele() -> void:
-	modele = Humain.creer({
-		"corps": "homme",
-		"tenue": {
-			"tunique": Color(0.35, 0.4, 0.55), "pantalon": Color(0.8, 0.75, 0.7), "bottes": Color.WHITE,
-			"ceinture": Color.WHITE, "mante": Color(1.1, 1.0, 0.95), "brassards": Color.WHITE, "gants": Color.WHITE, "manchettes": Color.WHITE, "sacoche": Color.WHITE,
-		},
-		"etoffes": {"tunique": "bleu", "mante": "gris", "pantalon": "brun", "bottes": "cuir_a", "ceinture": "cuir_a", "brassards": "cuir_c", "gants": "cuir_a", "manchettes": "gris", "sacoche": "cuir_a"},
-		"cheveux": "Hair_SimpleParted", "teinte_cheveux": Color(0.42, 0.28, 0.17), "barbe": true,
-	})
+	modele = Personnage.creer(PersoDefs.joueur())
 	modele.rotation.y = PI  # le modèle regarde +Z, le joueur -Z
 	add_child(modele)
 	var squelette: Skeleton3D = modele.find_child("Skeleton3D", true, false)
@@ -115,21 +107,12 @@ func _epee(squelette: Skeleton3D) -> void:
 			if mats.has(nom):
 				mi.set_surface_override_material(i, mats[nom])
 
-## Prise d'un objet long dans la main gauche : même calcul que la prise de l'épée
-## (outils/calcul_prise.gd), avec les os du côté gauche.
-func _prise_gauche(squelette: Skeleton3D) -> Transform3D:
-	var p := func(n: String) -> Vector3: return squelette.get_bone_global_rest(squelette.find_bone(n)).origin
-	var main: Transform3D = squelette.get_bone_global_rest(squelette.find_bone("hand_l"))
-	var index: Vector3 = p.call("index_01_l")
-	var auri: Vector3 = p.call("pinky_01_l")
-	var milieu: Vector3 = p.call("middle_01_l")
-	var bout: Vector3 = p.call("middle_03_l")
-	var axe := (index - auri).normalized()
-	var doigts := (bout - milieu).normalized()
-	var z := (doigts - axe * doigts.dot(axe)).normalized()
-	var x := axe.cross(z)
-	var poignee := (index + auri) * 0.5 + doigts * 0.035
-	return main.affine_inverse() * Transform3D(Basis(x, axe, z), poignee)
+## Prise d'un objet long dans la main gauche (torche). Le RIG18 n'a plus de doigts : transformation relevee une fois avec le calcul d'origine
+## (os index/auriculaire/majeur de l'ancien squelette, outils/calcul_prise.gd), exprimee dans le repere de `hand_l` (identique dans les deux squelettes).
+const PRISE_GAUCHE := Transform3D(Basis(Vector3(-0.999251, 0.038329, 0.00529), Vector3(0.014458, 0.243068, 0.969902), Vector3(0.03589, 0.969252, -0.24344)), Vector3(0.007936, 0.142938, 0.002241))
+
+func _prise_gauche(_squelette: Skeleton3D) -> Transform3D:
+	return PRISE_GAUCHE
 
 func _torche(squelette: Skeleton3D) -> void:
 	var accroche := BoneAttachment3D.new()

@@ -102,7 +102,7 @@ func _ready() -> void:
 
 	var postes := {
 		"longue_maison": Vector3(1.2, 0, -7.4),
-		"forge": Vector3(-12.15, 0.0, 5.65),   # dans la forge, à côté de l'enclume
+		"forge": Vector3(-12.45, 0.0, 5.70),   # repère de la forge (local 0,30 ; 0,05) : à genoux à 65 cm de l'enclume (local -0,35 ; 0,05), face à elle
 		"puits": Vector3(6.0, 0, 2.6),
 		"place": Vector3(-1.2, 0, -0.4),
 		"enclos": Vector3(9.0, 0, -3.0),

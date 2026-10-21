@@ -271,9 +271,9 @@ static func zones_hrafn() -> Array:
 			"lieu": {"evt": "lieu:ilot_sigrun", "rayon": 4.0, "s": 35.0, "lat": -9.0},
 			"teinte": [Color(0.5, 0.72, 1.0), Color(0.6, 0.8, 1.0)],
 			"interactions": [
-				{"id": "journal_sigrun", "nom": "Journal de Sigrun", "verbe": "Lire le journal de Sigrun", "s": 35.0, "lat": -9.5, "prop": "journal", "evt": "ramasse:journal_sigrun", "objet": "journal_sigrun",
+				{"id": "journal_sigrun", "nom": "Journal de Solveig", "verbe": "Lire le journal de Solveig", "s": 35.0, "lat": -9.5, "prop": "journal", "evt": "ramasse:journal_sigrun", "objet": "journal_sigrun",
 					"texte_cle": "journal_sigrun",
-					"texte": ["Journal de Sigrun, cheffe des mineurs de Skarnholt.", "Elle y parle d’un filon rare derrière l’éboulement et de sa broche pour Grima."]},
+					"texte": ["Journal de Solveig, cheffe des mineurs de Skarnholt.", "Elle y parle d’un filon rare derrière l’éboulement et de sa broche pour Grima."]},
 			],
 			"coffres": [
 				{"id": "ilot", "s": 34.0, "lat": -8.2, "lacet": 0.6, "nom": "Sac de l’expédition", "butin": {"pieces": 30, "broche_sigrun": 1}},
