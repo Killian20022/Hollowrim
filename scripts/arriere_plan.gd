@@ -26,12 +26,18 @@ const CHATEAU_AZIMUT := 24.0
 const CHATEAU_DIST := 600.0
 ## Sommets marquants : azimut (° depuis +Z vers +X), distance, hauteur, rayon (m)
 const PICS := [
-	[10.0, 1500.0, 760.0, 420.0],    # grand sommet derrière le château
+	[10.0, 1500.0, 1200.0, 440.0],   # grand sommet derrière le château
 	[-32.0, 1650.0, 640.0, 360.0],
 	[148.0, 1500.0, 700.0, 380.0],   # nord-est, côté lune
 	[238.0, 1700.0, 620.0, 340.0],
 	[80.0, 1100.0, 430.0, 260.0],
 	[-95.0, 1000.0, 380.0, 240.0],
+	# refonte « lumière » : chaîne en couches derrière le village, vue depuis l'entrée (cap ≈ 48°, à gauche du château)
+	[38.0, 1350.0, 1050.0, 520.0],
+	[57.0, 1950.0, 1650.0, 640.0],
+	[74.0, 1100.0, 760.0, 420.0],
+	[92.0, 2300.0, 1700.0, 760.0],
+	[22.0, 2250.0, 1450.0, 620.0],
 ]
 
 var monde: Node
@@ -173,7 +179,8 @@ func _h(x: float, z: float) -> float:
 		var c := _pos_polaire(p[0], p[1])
 		var t := maxf(0.0, 1.0 - Vector2(x - c.x, z - c.y).length() / p[3])
 		if t > 0.0:
-			h += p[2] * 0.42 * pow(t, 1.5) * (0.7 + 0.6 * _ridge(wx, wz, 0.012, 3))
+			# massif large (t^1,15) aux crêtes ridées (deux échelles) : arêtes et couloirs lisibles, pas une aiguille isolée
+			h += p[2] * 0.42 * pow(t, 1.15) * (0.6 + 0.5 * _ridge(wx, wz, 0.009, 3) + 0.15 * _ridge(wx + 77.0, wz, 0.022, 2) * t)
 	return h
 
 func _calculer() -> void:
@@ -332,10 +339,10 @@ func _chateau() -> Dictionary:
 	var vue := Vector2(centre.x, centre.y).normalized()
 	var axe := Vector3(-vue.y, 0.0, vue.x)
 	var sol := _y0 + _h(centre.x, centre.y) - 18.0
-	var hauteur_a := 150.0
+	var hauteur_a := 230.0   # refonte « lumière » : falaise relevée, le château domine la forêt depuis l'entrée
 	var rayon_a := 58.0
 	var o_a := Vector3(centre.x, sol, centre.y)
-	var hauteur_b := 138.0
+	var hauteur_b := 212.0
 	var rayon_b := 34.0
 	var o_b := o_a + axe * 165.0
 	var sol_b := _y0 + _h(o_b.x, o_b.z) - 18.0

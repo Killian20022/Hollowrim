@@ -31,10 +31,13 @@ uniform vec3 emission : source_color = vec3(0.0);
 uniform bool emission_texture = false;
 uniform float saturation = 1.0;
 instance uniform float eclair = 0.0;
+#include "res://shaders/neige_tient.gdshaderinc"
 
 varying vec3 p_obj;
 varying vec3 n_obj;
 varying vec2 uv_m;
+varying vec3 nt_pm;  // position monde (neige qui tient)
+varying vec3 nt_nm;  // normale monde
 
 float hash21(vec2 p) {
 	p = fract(p * vec2(123.34, 456.21));
@@ -47,9 +50,11 @@ void vertex() {
 	p_obj = VERTEX * echelle;
 	n_obj = NORMAL;
 	uv_m = UV;
+	nt_pm = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	nt_nm = (MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz;
 	vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	if (grille > 0.0 && PROJECTION_MATRIX[3][3] < 0.5) {
-		vec2 g = vec2(grille * VIEWPORT_SIZE.x / VIEWPORT_SIZE.y, grille);
+		vec2 g = VIEWPORT_SIZE * (grille / 270.0);  // grille exprimée pour 270 lignes : même pas en pixels à toute résolution
 		clip.xy = round(clip.xy / clip.w * g) / g * clip.w;
 	}
 	POSITION = clip;
@@ -94,7 +99,17 @@ void fragment() {
 	vec2 rb = texture(tex_relief, uv, biais).rg * 2.0 - 1.0;
 	vec2 rn = texture(tex_neige_relief, uv_n, biais).rg * 2.0 - 1.0;
 	float est_base = step(0.5, COLOR.a);
+	// neige qui tient : sur les parties « matière » seulement (les parties déjà neigées des toits restent telles quelles) ;
+	// la neige posée prend la texture et le relief de neige du matériau, le bord un ton plus sombre
+	float couv = 0.0;
+	if (est_base > 0.5 && !uv_maillage && !emission_texture) {
+		couv = nt_couverture(normalize(nt_nm), nt_pm, dist);
+		est_base *= step(couv, 0.75);
+	}
 	vec3 couleur = mix(neige, base, est_base);
+	if (couv > 0.25 && couv <= 0.75) {
+		couleur = nt_appliquer(couleur, neige, couv);
+	}
 	vec2 rg = mix(rn, rb, est_base);
 	if (!uv_maillage && relief > 0.0) {
 		// on ajoute à la normale du moteur le décalage dû au relief (juste même sous échelle non uniforme)

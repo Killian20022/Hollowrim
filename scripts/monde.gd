@@ -154,7 +154,7 @@ func _ready() -> void:
 	_grotte_acces()
 	_chrono("entree de la grotte")
 	AbordsTumulus.creer(self)  # lot F : abords du tertre (après sa création)
-	if _arguments().has("res"):  # essai de résolution interne (captures) : --res=640x360 ; ne change pas le défaut du projet
+	if _arguments().has("res"):  # résolution interne : 640x360 par défaut (project.godot) ; --res=480x270 pour comparer
 		var wh := String(_arguments()["res"]).split("x")
 		get_window().content_scale_size = Vector2i(int(wh[0]), int(wh[1]))
 	if not _arguments().has("capture"):
