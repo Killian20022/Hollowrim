@@ -123,6 +123,7 @@ vec3 fbm_cumulus(vec2 p, float fp, float t, vec2 v0) {
 	float a = 0.5;
 	float f = 1.0;
 	float tot = 0.0;
+	float gw = 1.0;  // poids du gradient : les masses moyennes modèlent, les octaves fines ne font que des touches
 	mat2 rot = mat2(vec2(1.62, 1.18), vec2(-1.18, 1.62));
 	mat2 m = mat2(vec2(1.0, 0.0), vec2(0.0, 1.0));
 	for (int i = 0; i < 6; i++) {
@@ -136,7 +137,8 @@ vec3 fbm_cumulus(vec2 p, float fp, float t, vec2 v0) {
 			n = vec3(abs(n.x - 0.5) * 2.0 + 0.14, n.yz * sg);  // +0.14 : recentre la moyenne de |2n-1|
 		}
 		s.x += a * lod * (n.x - 0.5);
-		s.yz += a * lod * (transpose(m) * n.yz);
+		s.yz += a * lod * gw * (transpose(m) * n.yz);
+		gw *= 0.68;
 		tot += a * lod;
 		m = rot * m;
 		p = rot * p + v0 * t * (0.6 + 0.5 * float(i)) + vec2(5.3, 1.7);
@@ -252,14 +254,14 @@ void sky() {
 			float t = temps_force >= 0.0 ? temps_force : TIME;
 			vec2 wd = normalize(vent);
 			vec2 wp = vec2(-wd.y, wd.x);
-			// projection en « dôme » (plan adouci, K = 0.3) : les nuages rapetissent vers l'horizon sans s'écraser en traînées
+			// projection en « dôme » (plan adouci, K = 0.42) : les nuages rapetissent vers l'horizon sans s'écraser en traînées
 			// qui convergent vers le point de fuite ; l'empreinte du pixel reste presque isotrope, le détail survit bas
-			float hy = d.y + 0.3;
+			float hy = d.y + 0.42;
 			vec2 pl = d.xz / hy;
 			pl = vec2(dot(pl, wd), dot(pl, wp));        // repère du vent : x = sens du vent
 			vec2 shw = vec2(dot(sh, wd), dot(sh, wp));   // direction de l'astre dans ce repère
 			vec2 vue = vec2(dot(dh, wd), dot(dh, wp));   // direction du regard : le haut de l'écran est vers -vue
-			float fp_r = angle_pixel * (1.0 + 0.3 * d.y) / (hy * hy);
+			float fp_r = angle_pixel * (1.0 + 0.42 * d.y) / (hy * hy);
 			float fp_t = angle_pixel * length(d.xz) / hy;
 			float fp = pow(fp_r, 0.6) * pow(fp_t, 0.4);
 			float pres_hz = 1.0 - smoothstep(0.0, 0.2, d.y);   // proximité de l'horizon
@@ -275,8 +277,8 @@ void sky() {
 			float k_chaud = crep * (0.25 + 0.75 * az * az);
 
 			// --- couche haute : cirrus fins et fibreux, étirés dans le sens du vent, deux fois plus lents (parallaxe)
-			vec2 q2 = pl * vec2(0.35, 1.5) * 1.3 - vec2(t * 0.0075, 0.0);
-			float fp2 = fp * 1.3 * 1.5;
+			vec2 q2 = pl * vec2(0.35, 1.5) * 1.6 - vec2(t * 0.0075, 0.0);
+			float fp2 = fp * 1.6 * 1.5;
 			float w2 = bruit_n(q2 * vec2(0.3, 0.6) + vec2(3.7, t * 0.004)) - 0.5;
 			float n2 = 0.5 + fbm_nuage(q2 + vec2(w2 * 1.2, w2 * 0.5), 4, fp2, t, vec2(0.012, 0.004), 0.55);
 			float fibre = 1.0 - abs(n2 * 2.0 - 1.0);                      // crêtes fines : fibres de cirrus
@@ -288,14 +290,15 @@ void sky() {
 			c_cir += mix(vec3(0.04, 0.05, 0.08), vec3(0.40, 0.28, 0.16), soleil) * pow(m_astre, 12.0) * 0.6;
 
 			// --- couche basse : cumulus / strato-cumulus en petites masses, grandes trouées
-			vec2 q = pl * vec2(0.9, 1.0) * 3.2 - vec2(t * 0.08, 0.0);
-			float fp1 = fp * 3.2;
+			vec2 q = pl * vec2(0.9, 1.0) * 3.8 - vec2(t * 0.09, 0.0);
+			float fp1 = fp * 3.8;
 			// zones chargées / dégagées (grande échelle, lente) : jamais un plafond uniforme
 			float cov = bruit_n(q * 0.26 + vec2(t * 0.006, 7.3)) - 0.5;
 			// déformation lente du domaine : les amas se tordent et se reforment
-			vec2 w = vec2(bruit_n(q * 0.5 + vec2(t * 0.035, 1.3)), bruit_n(q * 0.5 + vec2(5.2, -t * 0.03))) - 0.5;
-			vec2 r = q + w * 0.8;
-			vec3 nf = fbm_cumulus(r, fp1, t, vec2(0.05, 0.02));
+			// (amplitude × fréquence modérée : un warp fort cisaille et étire les masses en traînées)
+			vec2 w = vec2(bruit_n(q * 0.33 + vec2(t * 0.02, 1.3)), bruit_n(q * 0.33 + vec2(5.2, -t * 0.016))) - 0.5;
+			vec2 r = q + w * 0.55;
+			vec3 nf = fbm_cumulus(r, fp1, t, vec2(0.035, 0.014));
 			float seuil = mix(mix(-0.08, -0.10, jour), -0.09, crep) + (1.0 - couverture) * 0.3 + trou * 0.18;
 			float dens = nf.x + cov * 0.26 - seuil;
 			// alpha : bords qui se dissolvent (rampe douce en paliers), fondu à l'horizon
@@ -304,7 +307,7 @@ void sky() {
 				// lumière : pente de la densité vers la lumière (haut de l'écran + astre) → chaque petite masse a un sommet
 				// éclairé et un dessous ombré ; l'épaisseur assombrit le cœur des amas
 				vec2 L = normalize(mix(-vue, shw, 0.3 + 0.5 * crep) + vec2(0.0001));
-				float lit = clamp(0.5 - dot(nf.yz, L * vec2(0.8, 1.0)) * 0.2, 0.0, 1.0);
+				float lit = clamp(0.5 - dot(nf.yz, L * vec2(0.9, 1.0)) * 0.3, 0.0, 1.0);
 				float epais = smoothstep(0.03, 0.32, dens);
 				float v = 0.66 * lit + 0.30 * (1.0 - epais) + 0.25 * pow(m_astre, 8.0) * (1.0 - epais * 0.7) - 0.04;
 				v = paliers(v, 7.0);
