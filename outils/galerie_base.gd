@@ -65,6 +65,15 @@ func _lancer() -> void:
 	sv.add_child(we)
 	soleil = DirectionalLight3D.new()
 	sv.add_child(soleil)
+	if _arg("sol", "") != "":        # plan gris a y = 0 : juge le contact des semelles
+		var plan := MeshInstance3D.new()
+		var pm := PlaneMesh.new()
+		pm.size = Vector2(20, 20)
+		plan.mesh = pm
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.35, 0.36, 0.34)
+		plan.material_override = mat
+		sv.add_child(plan)
 	cam = Camera3D.new()
 	cam.fov = 72.0
 	cam.near = 0.05
@@ -100,6 +109,11 @@ func _lancer() -> void:
 				_regler(nuit)
 				for col in ANGLES.size():
 					var haut := float(_arg("haut", "1.15")) if dist < 3.0 else 0.95
+					var cible := _arg("cible", "")          # tete | pieds : vise un os du squelette (gros plans, hauteur propre a chaque morphologie)
+					if cible != "":
+						var sq := courant.find_child("Skeleton3D", true, false) as Skeleton3D
+						var os_ := sq.find_bone("Head" if cible == "tete" else "calf_l")
+						haut = (sq.global_transform * sq.get_bone_global_pose(os_)).origin.y + (0.07 if cible == "tete" else -0.25)
 					var img: Image = await _photo(float(ANGLES[col][1]), dist, haut)
 					feuille.blit_rect(img, Rect2i(0, 0, cote, cote), Vector2i(col * cote, rang * cote))
 					if dist > 3.0:
@@ -116,6 +130,15 @@ func _lancer() -> void:
 	Personnage.vider()
 	quit(0)
 
+## Angles retenus (--angles=face,profil,dos ; defaut : les trois).
+func _angles() -> Array:
+	var voulus := _arg("angles", "face,profil,dos").split(",", false)
+	var r := []
+	for a: Array in ANGLES:
+		if a[0] in voulus:
+			r.append(a)
+	return r
+
 ## Bande animee : N images regulieres d'un cycle, 3 angles (lignes). Les ressorts tournent en temps reel : on avance l'animation par pas de temps simules.
 func _bande(ap: AnimationPlayer, nom: String, sortie: String, anim_nom: String) -> void:
 	var n := int(_arg("images", "8"))
@@ -128,14 +151,15 @@ func _bande(ap: AnimationPlayer, nom: String, sortie: String, anim_nom: String) 
 		await _bande_live(ap, nom, sortie, anim_nom, n, dist, nuit)
 		return
 	ap.play(anim_nom)
-	var bande := Image.create(cote * n, cote * ANGLES.size(), false, Image.FORMAT_RGBA8)
-	for col in ANGLES.size():
+	var angles := _angles()
+	var bande := Image.create(cote * n, cote * angles.size(), false, Image.FORMAT_RGBA8)
+	for col in angles.size():
 		ap.play(anim_nom)
 		ap.seek(0.0, true)
 		for k in n:
 			ap.seek(duree * float(k) / n, true)
 			ap.pause()
-			var img: Image = await _photo(float(ANGLES[col][1]), dist, 0.95)
+			var img: Image = await _photo(float(angles[col][1]), dist, float(_arg("haut", "0.95")))
 			bande.blit_rect(img, Rect2i(0, 0, cote, cote), Vector2i(k * cote, col * cote))
 	bande.save_png(ProjectSettings.globalize_path(sortie) + "/%s_%s_bande%s.png" % [nom, anim_nom, "_nuit" if nuit else ""])
 

@@ -129,8 +129,9 @@ def disposer(pieces, densite=DENSITE, atlas=ATLAS, marge=1):
     items = []
     for p in pieces:
         for nom, d in p.parts.items():
-            w = int(math.ceil(d["umax"] * densite)) + 2 * marge + 1
-            h = int(math.ceil((d["vmax"] - d["vmin"]) * densite)) + 2 * marge + 1
+            dn = d.get("densite", densite)       # densite propre a la partie (visage : plus fine que le reste)
+            w = int(math.ceil(d["umax"] * dn)) + 2 * marge + 1
+            h = int(math.ceil((d["vmax"] - d["vmin"]) * dn)) + 2 * marge + 1
             items.append((h, w, p.nom + "." + nom, p, nom))
     items.sort(key=lambda a: (-a[0], -a[1]))
     x = y = 0; rang = 0; rects = {}
@@ -149,7 +150,8 @@ def uv_pixels(pieces, rects, densite=DENSITE, atlas=ATLAS, marge=1):
         for fi, (q, uv, part) in enumerate(p.f):
             x, y, w, h = rects[p.nom + "." + part]
             vmin = p.parts[part]["vmin"]
-            p.f[fi] = (q, [((x + marge + u * densite) / atlas, 1.0 - (y + marge + (v - vmin) * densite) / atlas) for (u, v) in uv], part)
+            dn = p.parts[part].get("densite", densite)
+            p.f[fi] = (q, [((x + marge + u * dn) / atlas, 1.0 - (y + marge + (v - vmin) * dn) / atlas) for (u, v) in uv], part)
 
 # ------------------------------------------------------------------ objets Blender
 def creer_objets(pieces, arm, noms_os):

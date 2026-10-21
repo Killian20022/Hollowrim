@@ -9,7 +9,7 @@ class_name PersoAtlas
 ## (ourlet du torse, poignet de la manche, cheville du pantalon, haut du crane...). Precalcul : outils/generer_personnages.gd -> atlas_<sexe>.res.
 
 const DOSSIER := "res://assets/personnages"
-const VERSION := 4
+const VERSION := 5
 ## Regions
 const PEAU := 0
 const TUN := 1
@@ -120,9 +120,9 @@ static func _zone(img: Image, cle: String, info: Dictionary, dens: float) -> Zon
 	var r: Array = info["rect"]
 	z.x0 = int(r[0]) + 1
 	z.y0 = int(r[1]) + 1
-	z.d = dens
-	z.w = int(ceil(float(info["umax"]) * dens))
-	z.h = int(ceil((float(info["vmax"]) - float(info["vmin"])) * dens))
+	z.d = float(info.get("densite", dens))        # densite propre a la partie (visage v2 : 128 texels/m)
+	z.w = int(ceil(float(info["umax"]) * z.d))
+	z.h = int(ceil((float(info["vmax"]) - float(info["vmin"])) * z.d))
 	z.debut = z.v_vers_y(float(info["anneaux"][0][0]))
 	z.fin = z.v_vers_y(float(info["anneaux"][-1][0]))
 	z.g = 100 + cle.hash() % 90
@@ -154,16 +154,25 @@ static func peindre(sexe: String) -> Image:
 			_: _tunique(z, TUN, cle)
 	return img
 
-## Sergé : nervures diagonales, plis verticaux doux, salissure vers le DEBUT (ourlet) ; `fin` = maille plus fine.
+## Etoffe v2 : sergé fin, PLIS verticaux (phase deformee par un bruit lent : jamais regulier) avec ligne de creux sombre et arete claire, patine plus claire sur les
+## aretes, saleté et ombre peinte (AO) vers l'ourlet, taches basses frequences faibles (plus de « camouflage »).
 static func _laine(z: Zone, reg: int, plis := 5, sale := 0.14, fin := false) -> void:
+	var nf := maxi(3, int(round(float(z.w) / 9.0)))
 	for y in z.h + 2:
 		var vy := y - z.debut
 		for x in z.w:
-			var sg := (0.05 if ((x + y) & 3) < 2 else -0.03) if not fin else (0.05 if ((x + y) & 1) == 0 else -0.03)
-			var l := 0.52 + sg + (_h(x, 0, z.g) - 0.5) * 0.06 + (_h(0, y, z.g + 1) - 0.5) * 0.06
-			l += (_n(x, y, z.w, z.h, plis, 3, z.g + 2) - 0.5) * 0.24
-			l -= sale * smoothstep(float(z.d) * 0.9, 0.0, float(vy))
-			z.ton(x, y, _t(l, x, y), reg)
+			var sg := (0.04 if ((x + y) & 3) < 2 else -0.025) if not fin else (0.04 if ((x + y) & 1) == 0 else -0.025)
+			var ph := float(x) / float(z.w) * float(nf) + (_n(x, y, z.w, z.h, 2, 3, z.g + 7) - 0.5) * 0.7 + float(y) * 0.006
+			var f := sin(ph * TAU)
+			var l := 0.52 + sg + 0.085 * f
+			if f < -0.90:
+				l -= 0.13                                             # creux du pli
+			elif f > 0.93:
+				l += 0.09                                             # arete eclairee
+			l += (_h(x, y, z.g) - 0.5) * 0.05 + (_n(x, y, z.w, z.h, 3, 2, z.g + 2) - 0.5) * 0.11 + (_n(x, y, z.w, z.h, 8, 6, z.g + 5) - 0.5) * 0.07
+			l -= sale * smoothstep(float(z.d) * 0.9, 0.0, float(vy))        # saleté vers l'ourlet / le poignet
+			l -= 0.07 * smoothstep(float(z.d) * 0.5, 0.0, float(z.fin - y))    # ombre peinte au bout opposé
+			z.ton(x, y, _t(l, x, y, 0.32), reg)
 
 ## Bordure brodee de `n` rangees a partir de la ligne y0, vers le bas de l'image (+1) ou le haut (-1) : repli, fil d'or, losanges.
 static func _bordure(z: Zone, y0: int, sens: int, n: int, reg: int, motif := true) -> void:
@@ -188,7 +197,7 @@ static func _bordure(z: Zone, y0: int, sens: int, n: int, reg: int, motif := tru
 
 static func _tunique(z: Zone, reg: int, cle: String) -> void:
 	var info := z.info
-	_laine(z, reg, 5, 0.14, false)
+	_laine(z, reg, 5, 0.16, false)
 	var bw := maxi(3, int(round(z.d * 0.16)))
 	match String(info["bord_debut"]):
 		"ourlet": _bordure(z, z.debut, 1, bw + 3, reg)
@@ -201,10 +210,39 @@ static func _tunique(z: Zone, reg: int, cle: String) -> void:
 						z.fixe(x, z.fin - k, F_OR)
 		"poignet": _bordure(z, z.fin, -1, maxi(4, bw), reg, false)
 		"ourlet": _bordure(z, z.fin, -1, bw + 3, reg)
-	# couture verticale du dos (colonne 0) : points clairs
-	for y in range(z.debut + bw + 4, z.fin - 2):
-		if (y & 3) < 2:
-			z.ton(0, y, 5, reg)
+	# coutures : dos (colonne 0) et, sur un torse, les deux côtés (points clairs 2 sur 1, fil plus clair que l'étoffe)
+	var nom := cle.get_slice(".", 1)
+	var coutures: Array = [0]
+	if nom == "torse":
+		coutures = [0, z.w / 4, (z.w * 3) / 4]
+	for cx: int in coutures:
+		for y in range(z.debut + bw + 4, z.fin - 2):
+			if (y % 3) != 2:
+				z.ton(cx, y, 5, reg)
+				z.ton(cx + 1, y, 2, reg)                                # ombre du surjet
+	if nom.begins_with("manche"):
+		# plis du coude : trois fronces cassées + patine claire sur le pli
+		var ye := z.v_vers_y(float(info["anneaux"][2][0]))
+		for k in [-3, 0, 3]:
+			for x in z.w:
+				if ((x + k * 2) % 7) < 4:
+					z.ton(x, ye + k, 2 if k != 0 else 1, reg)
+					z.ton(x, ye + k + 1, 5, reg)
+	if nom == "torse":
+		# fronces au-dessus de la ceinture : petits plis obliques sur 2 rangées
+		var yf := z.debut + int(float(z.fin - z.debut) * 0.30)
+		for x in z.w:
+			var h := _h(x / 3, 5, z.g)
+			if h > 0.45:
+				z.ton(x, yf + (x & 1), 2, reg)
+				z.ton(x, yf + 1 + (x & 1), 5, reg)
+		# col : laçage en V (deux cordons) au milieu du devant
+		var xc := z.w / 2
+		for k in 7:
+			z.ton(xc - 1 - k / 2, z.fin - 3 - k, 5, reg)
+			z.ton(xc + 1 + k / 2, z.fin - 3 - k, 5, reg)
+		for k in 7:
+			z.ton(xc, z.fin - 3 - k, 1, reg)
 	# une pièce rapportée cousue, une reprise (placées par le nom : chaque pièce a la sienne)
 	var g := z.g
 	if z.fin - z.debut > 14 and z.w > 12:
@@ -216,6 +254,9 @@ static func _tunique(z: Zone, reg: int, cle: String) -> void:
 		for i in 5:
 			z.ton(px + i, py, 6, reg)
 			z.ton(px + i, py + 3, 2, reg)
+		for j in 4:
+			z.ton(px - 1, py + j, 5 if (j & 1) == 0 else 3, reg)           # fil de reprise
+			z.ton(px + 5, py + j, 5 if (j & 1) == 0 else 3, reg)
 
 static func _pantalon(z: Zone) -> void:
 	_laine(z, PAN, 6, 0.18, true)
@@ -262,17 +303,50 @@ static func _cuir(z: Zone, cle: String) -> void:
 				z.fixe(xc + i, ym + j, 4 if bord else F_FER)
 		for i in range(-1, 2):
 			z.fixe(xc + i, ym, 0)
+		# v2 : clous de laiton tous les 6 texels, une rangée de trous d'ardillon d'un côté de la boucle, languette qui pend
+		for x in range(3, z.w, 6):
+			if absi(x - xc) > 6:
+				z.fixe(x, ym, F_OR)
+				z.ton(x, ym - 1, 1, CUIR)
+		for k in 3:
+			z.fixe(xc + 6 + k * 3, ym, 0)
+		for j in range(-1, 2):
+			z.ton(xc + 4, ym + j, 7, CUIR)
 	elif nom.begins_with("bracelet"):
 		for x in range(2, z.w, 6):
 			z.fixe(x, (z.debut + z.fin) / 2, 3)
 	elif nom.begins_with("botte"):
-		# revers de fourrure au haut du fût, semelle sombre vers l'orteil
+		# v2 : fut de cuir avec deux sangles bouclees, couture sous le revers, SEMELLE sur la couture du dos de l'anneau (colonne 0 = dessous du pied),
+		# bout arrondi use et eclairci, boue vers la semelle
+		var an: Array = z.info["anneaux"]
+		var ya := z.v_vers_y(float(an[1][0]))                       # ligne de la cheville
 		for y in range(z.debut, z.debut + maxi(3, int(z.d * 0.12))):
 			for x in z.w:
 				z.ton(x, y, 5 if ((x + y) & 3) < 2 else 4, CUIR)
-		for y in range(z.fin - 2, z.fin + 4):
+		for k in [0.35, 0.72]:
+			var ys := z.debut + int(float(ya - z.debut) * k)
 			for x in z.w:
-				z.ton(x, y, 1, CUIR)
+				z.ton(x, ys, 1, CUIR)
+				z.ton(x, ys + 1, 5 if (x & 3) != 3 else 2, CUIR)
+				z.ton(x, ys - 1, 2, CUIR)
+			z.fixe(z.w / 2, ys, 3)
+			z.fixe(z.w / 2 + 1, ys, 4)                                # boucle de fer au milieu du cou-de-pied
+		for y in range(ya - 2, z.h + 2):
+			var t := clampf(float(y - ya) / maxf(float(z.fin - ya), 1.0), 0.0, 1.0)
+			var ep := 1 + int(round(t * 2.0))                         # la semelle s'epaissit vers l'orteil
+			for x in range(-ep, ep + 1):
+				z.ton(x, y, 0 if absi(x) < ep else 1, CUIR)
+			z.ton(ep + 1, y, 5 if (y & 1) == 0 else 2, CUIR)          # couture de la semelle
+			z.ton(-ep - 2, y, 5 if (y & 1) == 0 else 2, CUIR)
+			if y > ya + 2:
+				for x in z.w:
+					var xs := minf(float(x), float(z.w - x))
+					if xs > float(ep) + 2.0:
+						var usure := 0.20 * smoothstep(float(z.fin - 8), float(z.fin + 2), float(y)) * (_n(x, y, z.w, z.h, 6, 4, z.g + 4))
+						z.ton(x, y, clampi(4 + int(round(usure * 10.0)), 3, 7), CUIR)
+		for x in z.w:
+			var bas := _h(x, 0, z.g + 6) > 0.55
+			z.ton(x, z.fin - 3, 1 if bas else 2, CUIR)
 	elif nom.begins_with("carquois") or nom.begins_with("sacoche"):
 		for y in range(z.debut + 2, z.fin - 1, 7):
 			for x in z.w:
@@ -289,31 +363,41 @@ static func _peau(z: Zone) -> void:
 	for x in z.w:
 		z.ton(x, z.debut, 2, PEAU)
 
+## Cheveux et barbes v2 : meches de 2-3 texels qui ondulent, reflet doux, pointes plus claires, racines sombres. Barbe : le bord haut s'effiloche (alpha decoupe) et
+## une fenetre a la bouche laisse voir la bouche peinte du visage (piece double face).
 static func _poil(z: Zone) -> void:
 	var tresse := bool(z.info.get("tresse", 0))
+	var barbe := z.info.has("z_bouche")
 	for y in z.h + 2:
+		var t_rel := float(y - z.debut) / maxf(float(z.fin - z.debut), 1.0)
 		for x in z.w:
-			var l := 0.50 + (_n(x, y, z.w, z.h, 22, 3, z.g) - 0.5) * 0.62 + (_h(x, 0, z.g + 5) - 0.5) * 0.20
-			l += 0.16 * smoothstep(0.4, 0.0, absf(float(y - z.debut) / maxf(float(z.fin - z.debut), 1.0) - 0.30))     # reflet
+			var xs := x + int(round(sin(float(y) * 0.30 + float(x / 5) * 1.7) * 1.3))
+			var meche := _h(xs / 2, 3, z.g)                       # luminosite de la meche (2 texels de large)
+			var l := 0.46 + (meche - 0.5) * 0.38 + (_n(x, y, z.w, z.h, 9, 4, z.g + 1) - 0.5) * 0.12 + (_h(x, y, z.g + 2) - 0.5) * 0.08
+			l += 0.15 * smoothstep(0.30, 0.0, absf(t_rel - 0.34))                # reflet
 			if tresse:
-				# nattes : chevrons obliques de 3 px
-				var c := ((x + y) % 6) < 3
-				l = 0.62 if c else 0.28
-				l += (_h(x, y, z.g) - 0.5) * 0.12
-			z.ton(x, y, _t(l, x, y, 0.45), CHEV)
-	# bords du bas effilochés / cheveux plus sombres près de la racine
-	for x in z.w:
-		z.ton(x, z.debut, 1, CHEV)
-	if z.info.has("z_bouche"):
-		# barbe : la bouche reste visible (peau, lèvres) sous une moustache
+				var c := ((x + y) % 6) < 3                                      # nattes : chevrons obliques
+				l = 0.60 if c else 0.30
+				l += (meche - 0.5) * 0.20 + (_h(x, y, z.g) - 0.5) * 0.10
+			var a := 255
+			if barbe:
+				l -= 0.10 * smoothstep(0.55, 1.0, t_rel)                        # le bas de la barbe est dans l'ombre du menton
+				if y - z.debut < 3 and _h(x, 1, z.g + 9) * 3.0 > float(y - z.debut) + 0.4 and not tresse:
+					a = 0                                                       # bord haut effiloche (favoris)
+			z.ton(x, y, _t(l, x, y, 0.40), CHEV, a)
+	if barbe and not tresse:
+		# barbe : fenetre sur la bouche du visage (transparente), moustache juste au-dessus (la rangee suivante vers le bas du chemin = vers le menton)
 		var yb := z.z_vers_y(float(z.info["z_bouche"]))
 		var xc := z.w / 2
-		var lw := int(round(0.05 * z.d * float(z.info.get("echelle", 1.0))))
-		for j in range(-1, 2):
-			for i in range(-lw / 2, lw / 2 + 1):
-				z.ton(xc + i, yb + j, 3 if j != 0 else 1, PEAU)
-		for i in range(-lw / 2 - 1, lw / 2 + 2):
-			z.ton(xc + i, yb - 2, 1, CHEV)
+		var lw := int(round(0.043 * z.d * float(z.info.get("echelle", 1.0))))
+		for j in range(-2, 3):
+			for i in range(-lw, lw + 1):
+				if absi(j) == 2 and absi(i) > lw - 2:
+					continue
+				z.ton(xc + i, yb + j, 1, CHEV, 0)                               # fenetre
+		for i in range(-lw - 2, lw + 3):
+			z.ton(xc + i, yb - 3, 5 if absi(i) < lw else 2, CHEV)               # moustache : levre haute couverte
+			z.ton(xc + i, yb - 4, 3, CHEV)
 
 static func _fourrure(z: Zone) -> void:
 	for y in z.h + 2:
@@ -336,65 +420,109 @@ static func _fer(z: Zone) -> void:
 		z.fixe(x, z.debut, 4)
 		z.fixe(x, z.debut + 1, 3)
 
-## Visage : cylindre (l'avant est a la moitie du tour). Volumes de la geometrie + yeux, sourcils, bouche et reflets peints a la meme densite que le reste.
+## Visage v2 : cylindre (l'avant est a la moitie du tour), 128 texels/m. Les rangees croissent VERS LE HAUT du visage (menton -> crane). Lumiere peinte (orbites,
+## pommettes, dessous du menton), yeux de 5 x 3 texels (paupiere, blanc, iris, pupille, reflet), sourcils par variante, ailes du nez, bouche (levres, commissures),
+## menton. Aucun tramage regulier : le bruit est un bruit de valeur a seuil.
 static func _visage(z: Zone, femme: bool) -> void:
 	var inf := z.info
 	var d := z.d
 	var v := int(inf.get("var", 1))
+	var yE := z.z_vers_y(float(inf["z_yeux"]))
+	var yN := z.z_vers_y(float(inf["z_nez"]))
+	var yM := z.z_vers_y(float(inf["z_bouche"]))
+	var yC := z.z_vers_y(float(inf["z_menton"]))
+	var ec := float(inf["ecart_yeux"]) * d
+	var yB := yE + 3 + (1 if v == 3 else 0)                 # sourcils : 3 rangees au-dessus de l'oeil (4 pour le visage rond)
+	# --- 1. volumes : lumiere douce + bruit de valeur
 	for y in z.h + 2:
 		var xc := z.tour_a(y) * 0.5
 		for x in z.w:
-			var s := absf(float(x) - xc) / d / 0.085          # 0 = milieu du visage, 1 = le côté
-			var l := 0.60 - 0.26 * smoothstep(0.65, 1.25, s)
-			l += (_n(x, y, z.w, z.h, 6, 4, z.g) - 0.5) * 0.10 + (_h(x, y, z.g + 4) - 0.5) * 0.04
+			var dx := float(x) - xc
+			var s := absf(dx) / d / 0.085                       # 0 = milieu du visage, 1 = le cote
+			var l := 0.60 - 0.27 * smoothstep(0.62, 1.25, s)
+			l += 0.05 * smoothstep(float(yB), float(yB + 7), float(y))                      # front plus clair
+			l -= 0.13 * smoothstep(float(yM - 1), float(yC - 1), float(y))                  # dessous du menton dans l'ombre
+			var oeil := absf(absf(dx) - ec) / 4.2                                           # orbite : ombre autour de chaque oeil
+			l -= 0.11 * exp(-(oeil * oeil + pow((float(y) - float(yE) - 0.5) / 3.2, 2.0)))
+			l += 0.05 * exp(-(pow((absf(dx) - 0.058 * d) / 3.0, 2.0) + pow((float(y) - float(yN) - 1.0) / 3.2, 2.0)))   # pommette
+			l -= 0.05 * exp(-(pow((absf(dx) - 0.050 * d) / 2.5, 2.0) + pow((float(y) - float(yN) + 3.0) / 3.0, 2.0)))   # creux de la joue
+			l -= 0.06 * exp(-(pow(dx / 5.0, 2.0) + pow((float(y) - float(yN) + 1.0) / 1.6, 2.0)))                       # dessous du nez
+			l += (_n(x, y, z.w, z.h, 7, 5, z.g) - 0.5) * 0.08 + (_h(x, y, z.g + 4) - 0.5) * 0.05
 			z.ton(x, y, _t(l, x, y, 0.3), PEAU)
-	var yy := z.z_vers_y(float(inf["z_yeux"]))
-	var ec := float(inf["ecart_yeux"]) * d
-	var pw := maxi(1, int(round(0.026 * d * float(inf.get("echelle", 1.0)))))
+	var xc_e := z.tour_a(yE) * 0.5
+	# --- 2. yeux (5 x 3 texels) : paupiere, blanc, iris, pupille, reflet, poche
 	for s: int in [-1, 1]:
-		var xc2 := z.tour_a(yy) * 0.5 + s * ec
-		# orbite : ombre au-dessus (arcade), blanc, iris, reflet
-		for i in range(-pw, pw + 1):
-			z.ton(int(xc2) + i, yy - 1 - (1 if d >= 48 else 0), 2, PEAU)
-		for i in pw:
-			var xi := int(round(xc2)) - pw / 2 + i
-			var iris := i == pw / 2 or (pw >= 3 and i == pw / 2 + 1 and s > 0) or (pw >= 3 and i == pw / 2 - 1 and s < 0)
-			if iris:
-				z.ton(xi, yy, 1, IRIS)
+		var cx := int(round(xc_e + s * ec))
+		for i in range(-3, 4):
+			z.ton(cx + i, yE + 2, 2 if absi(i) < 3 else 3, PEAU)                           # pli de la paupiere
+		for i in range(-2, 3):                                                         # ligne des cils (fonce chez les femmes)
+			if femme:
+				z.fixe(cx + i, yE + 2, 14)
 			else:
-				z.fixe(xi, yy, F_BLANC)
+				z.ton(cx + i, yE + 2, 1, PEAU)
+		for r in 2:                                                                    # rangee haute (r = 1) et basse (r = 0)
+			for i in range(-2, 3):
+				if absi(i) == 2:
+					z.fixe(cx + i, yE + r, F_BLANC if (i * s) > 0 or r == 1 else 8)            # blanc ; coin interieur un peu gris
+				elif i == 0 and r == 1:
+					z.fixe(cx + i, yE + r, F_NOIR)                                          # pupille
+				else:
+					z.ton(cx + i, yE + r, 2 if r == 1 else 4, IRIS)
+		z.ton(cx - s, yE, 6, IRIS)                                                     # reflet clair dans l'iris
+		for i in range(-1, 2):
+			z.ton(cx + i, yE - 1, 3, PEAU)                                              # poche sous l'oeil
 		if femme:
-			for i in pw:
-				z.ton(int(round(xc2)) - pw / 2 + i, yy - 1, 0, CHEV)
-	# sourcils
-	var ys := z.z_vers_y(float(inf["z_sourcils"]))
+			z.ton(cx - 2 * s, yE + 1, 2, PEAU)
+	# --- 3. sourcils (par variante : 1 carre, droit et epais ; 2 long, arque fin ; 3 rond, haut et doux)
 	for s: int in [-1, 1]:
-		var xc3 := z.tour_a(ys) * 0.5 + s * ec
-		var bw := int(round((0.040 if not femme else 0.034) * d))
+		var bw := (7 if v == 1 else 6) - (1 if femme else 0)
+		var cxb := xc_e + s * (ec + 0.3)
 		for i in range(-bw / 2, bw / 2 + 1):
-			z.ton(int(round(xc3)) + i, ys - (1 if v == 2 and absi(i) < 1 else 0), 1, CHEV)
-			if not femme and d >= 48 and v != 3:
-				z.ton(int(round(xc3)) + i, ys - 1, 2, CHEV)
-	# nez : arete claire, narines
-	var yn := z.z_vers_y(float(inf["z_nez"]))
-	var xcn := z.tour_a(yn) * 0.5
-	for k in 2 + int(d >= 48):
-		z.ton(int(round(xcn)), yn - k, 6, PEAU)
-	z.ton(int(round(xcn)) - 1, yn + 1, 2, PEAU)
-	z.ton(int(round(xcn)) + 1, yn + 1, 2, PEAU)
-	# pommettes
-	for s: int in [-1, 1]:
-		z.ton(int(round(xcn + s * 0.050 * d)), yn - 1, 6, PEAU)
-	# bouche : trait sombre, lèvre inférieure plus claire
-	var yb := z.z_vers_y(float(inf["z_bouche"]))
-	var bw2 := int(round((0.046 if not femme else 0.040) * d))
-	var xcb := z.tour_a(yb) * 0.5
-	for i in range(-bw2 / 2, bw2 / 2 + 1):
-		z.ton(int(round(xcb)) + i, yb, 1 if absi(i) < bw2 / 2 else 2, PEAU)
-		z.ton(int(round(xcb)) + i, yb + 1, 5 if absi(i) < bw2 / 3 else 4, PEAU)
+			var ext := absi(i)                      # distance au centre ; l'extremite EXTERIEURE descend
+			var ext_ext := float(i * s) > 0.0
+			var yy := yB + (0 if not ext_ext else (-1 if ext >= bw / 2 else 0))
+			var ton_b := 1 if ext < bw / 2 else 3
+			z.ton(int(round(cxb)) + i, yy, ton_b, CHEV)
+			if not femme and v != 3:
+				z.ton(int(round(cxb)) + i, yy + 1, 2 if ext < bw / 2 else 4, CHEV)     # sourcil epais : 2e rangee
+			elif v == 2 and ext_ext:
+				z.ton(int(round(cxb)) + i, yy + 1, 4, CHEV)
+	# --- 4. nez : arete claire, plans lateraux, narines, ombre portee (la geometrie du nez est une piece separee : on peint son pied)
+	var xcn := int(round(z.tour_a(yN) * 0.5))
+	for k in range(-1, 5):
+		z.ton(xcn, yN + k, 6 if k > 1 else 5, PEAU)
+	for k in range(-1, 4):
+		z.ton(xcn - 2, yN + k, 3, PEAU)
+		z.ton(xcn + 2, yN + k, 3, PEAU)
+	z.ton(xcn - 2, yN - 1, 1, PEAU)
+	z.ton(xcn + 2, yN - 1, 1, PEAU)
+	for i in range(-2, 3):
+		z.ton(xcn + i, yN - 2, 2, PEAU)
+	# --- 5. bouche : levre haute, fente, levre basse (+ rouge pour les femmes), commissures (variante 2 : leger sourire, 3 : levres pleines)
+	var xcb := int(round(z.tour_a(yM) * 0.5))
+	var bw2 := (4 if v == 1 else 3) + (0 if femme else 1)
+	for i in range(-bw2, bw2 + 1):
+		var bord := absi(i) == bw2
+		var yl := yM + (1 if (v == 2 and bord) else 0)
 		if femme:
-			z.fixe(int(round(xcb)) + i, yb, 12 if absi(i) < bw2 / 2 else 14)
-	# menton : reflet
-	var ym := z.z_vers_y(float(inf["z_menton"]) + 0.012)
-	var xcm := z.tour_a(ym) * 0.5
-	z.ton(int(round(xcm)), ym, 6, PEAU)
+			z.fixe(xcb + i, yl + 1, 12 if not bord else 14)                              # levre haute
+			z.fixe(xcb + i, yl, 14 if absi(i) < bw2 else 12)                              # fente
+			if not bord:
+				z.fixe(xcb + i, yl - 1, 13 if absi(i) < bw2 - 1 else 12)                  # levre basse
+				if v == 3:
+					z.fixe(xcb + i, yl - 2, 12)
+		else:
+			z.ton(xcb + i, yl + 1, 3 if not bord else 4, PEAU)
+			z.ton(xcb + i, yl, 0 if not bord else 2, PEAU)
+			if not bord:
+				z.ton(xcb + i, yl - 1, 5 if absi(i) < bw2 - 1 else 4, PEAU)
+	z.ton(xcb, yM - 1, 6, PEAU)                                                          # reflet de la levre basse
+	for i in range(-2, 3):
+		z.ton(xcb + i, yM - 2 - (1 if v == 3 else 0), 3, PEAU)                           # creux sous la levre
+	# --- 6. menton et machoire
+	var xcm := int(round(z.tour_a(yC + 3) * 0.5))
+	z.ton(xcm, yC + 3, 6, PEAU)
+	z.ton(xcm - 1, yC + 3, 5, PEAU)
+	z.ton(xcm + 1, yC + 3, 5, PEAU)
+	if v == 1 and not femme:
+		z.ton(xcm, yC + 4, 3, PEAU)                                                      # fossette du menton carre

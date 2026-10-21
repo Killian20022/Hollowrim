@@ -8,6 +8,10 @@ class_name Personnage
 const CHEMIN := "res://assets/modeles/persos/kit_%s.glb"
 const SHADER := preload("res://shaders/perso.gdshader")
 
+## v2 : la tete est plus grande de 7 % et la bande du casque nasal cachait les yeux : casque agrandi et remonte pour degager le regard.
+const CASQUE_ECHELLE := 1.07
+const CASQUE_HAUSSE := 0.032
+
 static var _scenes := {}
 static var _mats := {}
 static var _doubles := {}
@@ -78,7 +82,7 @@ static func creer(def: PersoDef) -> Node3D:
 		mi.set_instance_shader_parameter("c_four", def.fourrure)
 		mi.set_instance_shader_parameter("c_iris", def.iris)
 	if def.casque != "":
-		Humain._accrocher(sq, "Head", "res://assets/modeles/equipement/%s.glb" % def.casque, Transform3D(Basis(), Humain._origine_tete(sq)), false)
+		Humain._accrocher(sq, "Head", "res://assets/modeles/equipement/%s.glb" % def.casque, Transform3D(Basis().scaled(Vector3.ONE * CASQUE_ECHELLE), Humain._origine_tete(sq) + Vector3(0.0, CASQUE_HAUSSE, 0.0)), false)
 	if def.bouclier:
 		var dos := Transform3D(Basis(Vector3.UP, PI), Vector3(0.0, 1.3, -0.2))
 		Humain._accrocher(sq, "spine_03", "res://assets/modeles/equipement/bouclier_rond.glb", dos, false)

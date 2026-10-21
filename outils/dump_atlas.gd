@@ -25,5 +25,8 @@ func _init() -> void:
 				c.a = 1.0 if p.a > 0.5 else 0.0
 				out.set_pixel(x, y, c)
 		out.save_png(ProjectSettings.globalize_path("%s/couleurs_%s.png" % [sortie, sexe]))
+		var grand := out.duplicate() as Image                  # x3 au plus proche voisin : lisible a la revue
+		grand.resize(out.get_width() * 3, out.get_height() * 3, Image.INTERPOLATE_NEAREST)
+		grand.save_png(ProjectSettings.globalize_path("%s/couleurs_%s_x3.png" % [sortie, sexe]))
 		print("atlas ", sexe, " ", img.get_size())
 	quit()

@@ -157,17 +157,22 @@ def pieces_corps():
         # --- jambe : pantalon (hanche -> cheville), botte (mollet -> orteil)
         th, ca, fo = "thigh" + sf, "calf" + sf, "foot" + sf
         kt = 1.0 if not F else 1.02
-        rj = [Anneau(P(th, -0.04), (0.092 if not F else 0.088) * kt, 0.108 * kt, {"pelvis": 0.5, th: 0.5}),
-              Anneau(P(th, 0.40), 0.096 * kt, 0.100 * kt, {th: 1}),
-              Anneau(P(ca, 0.0), 0.069 * kt, 0.073 * kt, {th: 0.5, ca: 0.5}),
-              Anneau(P(ca, 0.32), 0.070 * kt, 0.076 * kt, {ca: 1}),
-              Anneau(P(ca, 1.0), 0.047, 0.049, {ca: 0.5, fo: 0.5})]
+        # v2 : cuisse pleine, genou net, mollet galbe (renfle vers l'arriere, +y = dos dans ce squelette), cheville fine
+        rj = [Anneau(P(th, -0.04), (0.098 if not F else 0.094) * kt, 0.114 * kt, {"pelvis": 0.5, th: 0.5}),
+              Anneau(P(th, 0.40), 0.106 * kt, 0.110 * kt, {th: 1}),
+              Anneau(P(ca, 0.0), 0.077 * kt, 0.081 * kt, {th: 0.5, ca: 0.5}),
+              Anneau(P(ca, 0.30), 0.083 * kt, 0.092 * kt, {ca: 1}, dy=0.008),
+              Anneau(P(ca, 1.0), 0.049, 0.051, {ca: 0.5, fo: 0.5})]
         tube(corps, "jambe" + sf, rj, n=8, kind="pantalon", debut="aucun", fin="cheville")
-        rb = [Anneau(P(ca, 0.40), 0.080, 0.084, {ca: 1}),
-              Anneau(P(ca, 1.0), 0.064, 0.068, {ca: 0.5, fo: 0.5}, dy=0.008),
-              Anneau(P(fo, 0.50) + Vector((0, 0, 0.0)), 0.056, 0.060, {fo: 1}),
-              Anneau(P(fo, 1.0), 0.058, 0.044, {fo: 1}),
-              Anneau(P(fo, 1.0) + Vector((0, -0.09, -0.004)), 0.040, 0.026, {fo: 1})]
+        # botte v2 : fut qui epouse le mollet, cou-de-pied, BOUT ARRONDI (profil d'ellipse : r = R sqrt(1 - (s/L)^2)), semelle au sol
+        fd = (P(fo, 1.0) - P(fo, 0.0)).normalized()
+        def bout(d, f): return P(fo, 1.0) + fd * d
+        rb = [Anneau(P(ca, 0.38), 0.091, 0.098, {ca: 1}, dy=0.004),
+              Anneau(P(ca, 1.0), 0.066, 0.074, {ca: 0.5, fo: 0.5}, dy=0.010),
+              Anneau(P(fo, 0.50), 0.060, 0.058, {fo: 1}),
+              Anneau(P(fo, 1.0), 0.061, 0.047, {fo: 1}),
+              Anneau(bout(0.045, 0), 0.054, 0.041, {fo: 1}),
+              Anneau(bout(0.080, 0), 0.036, 0.027, {fo: 1})]
         tube(corps, "botte" + sf, rb, n=8, cap1=True, kind="cuir", debut="revers", fin="semelle")
     return corps
 
@@ -192,7 +197,9 @@ pieces_corps(); bagues()
 
 # ------------------------------------------------------------------ tetes (3), cheveux (3), barbes (2)
 HZ0 = BONE["Head"][0].z; HY = BONE["Head"][0].y
-ECH = 0.93 if F else 1.0
+HS = 1.07            # v2 : tete agrandie de 7 % (23 cm de haut au lieu de 21,5 : 1/8 de la taille, proportion realiste, visage plus lisible)
+ECH = (0.93 if F else 1.0) * HS
+DENSITE_VISAGE = 128.0   # texels/m du crane (visage lisible : yeux de 4 texels) ; nez 96, oreilles 64
 def hz(z):            # hauteur d'un niveau de tete du modele masculin (repere du squelette masculin : os Head a 1,600) -> squelette courant
     return HZ0 + (z - 1.600) * ECH
 
@@ -211,6 +218,7 @@ def table_tete(v):
     if F:
         for r in t: r[1] *= 0.92; r[2] *= 0.94
         t[0][1] -= .006; t[1][1] -= .008; t[3][1] += .002; t[4][2] += .002
+    for r in t: r[1] *= HS; r[2] *= HS
     return t
 
 def interp(t, z):
@@ -231,18 +239,18 @@ def pieces_tetes():
         p = nouvelle("tete_%d" % v)
         t = table_tete(v)
         rings = [Anneau((0, HY, hz(r[0])), r[1], r[2], {"Head": 1}, dy=-(r[3] * ECH)) for r in t]
-        tube(p, "crane", rings, n=10, cap0=True, cap1=True, kind="visage", var=v, femme=F, z_yeux=hz(1.722), z_sourcils=hz(1.744), z_bouche=hz(1.650), z_nez=hz(1.690), z_menton=hz(1.605), z_front=hz(1.775), ecart_yeux=0.034 * ECH, echelle=ECH)
+        tube(p, "crane", rings, n=10, cap0=True, cap1=True, kind="visage", var=v, femme=F, z_yeux=hz(1.722), z_sourcils=hz(1.744), z_bouche=hz(1.650), z_nez=hz(1.690), z_menton=hz(1.605), z_front=hz(1.775), ecart_yeux=0.034 * ECH, echelle=ECH, densite=DENSITE_VISAGE)
         # nez : coin pointe, plus ou moins long selon le visage
         zn = hz(1.700); yf = HY - (0.100 * ECH) + 0.004
         ln = (0.030, 0.036, 0.026)[v - 1] * ECH
         tube(p, "nez", [Anneau((0, yf + 0.010, zn + 0.004), 0.017 * ECH, 0.020 * ECH, {"Head": 1}, t=(0, -1, -0.45)),
-                        Anneau((0, yf - ln * 0.85, zn - 0.014), 0.008 * ECH, 0.007 * ECH, {"Head": 1}, t=(0, -1, -0.45))], n=4, cap1=True, kind="peau")
+                        Anneau((0, yf - ln * 0.85, zn - 0.014), 0.008 * ECH, 0.007 * ECH, {"Head": 1}, t=(0, -1, -0.45))], n=4, cap1=True, kind="peau", densite=96.0)
         # oreilles
         for s in (1, -1):
             sf = "_l" if s > 0 else "_r"
             rx = interp(t, hz(1.715))[0]
             tube(p, "oreille" + sf, [Anneau((s * (rx - 0.004), HY + 0.004, hz(1.708)), 0.027 * ECH, 0.016 * ECH, {"Head": 1}, t=(s, 0, 0), e1=(0, 0, 1)),
-                                     Anneau((s * (rx + 0.016), HY + 0.012, hz(1.712)), 0.020 * ECH, 0.010 * ECH, {"Head": 1}, t=(s, 0, 0), e1=(0, 0, 1))], n=4, cap1=True, kind="peau")
+                                     Anneau((s * (rx + 0.016), HY + 0.012, hz(1.712)), 0.020 * ECH, 0.010 * ECH, {"Head": 1}, t=(s, 0, 0), e1=(0, 0, 1))], n=4, cap1=True, kind="peau", densite=64.0)
 
 def pieces_cheveux():
     t = table_tete(1)
@@ -291,13 +299,13 @@ def pieces_barbes():
     def anneau_b(z, off, w=None):
         return anneau_tete(t, z, off, w)
     # 1 : barbe courte (joues, menton), fente de la bouche peinte
-    p = nouvelle("barbe_1")
+    p = nouvelle("barbe_1", double=True)
     rg = [anneau_b(hz(1.700), 0.010), anneau_b(hz(1.668), 0.012), anneau_b(hz(1.630), 0.014), anneau_b(hz(1.598), 0.010)]
-    tube(p, "barbe", rg, n=8, cap1=False, kind="barbe", arc=(70, 290), hint=(1, 0, 0), z_bouche=hz(1.650), echelle=ECH)
+    tube(p, "barbe", rg, n=8, cap1=False, kind="barbe", arc=(70, 290), hint=(1, 0, 0), z_bouche=hz(1.650), echelle=ECH, densite=96.0)
     # 2 : barbe tressee : meme couverture + tresse tombant sur la poitrine
-    p = nouvelle("barbe_2")
+    p = nouvelle("barbe_2", double=True)
     rg = [anneau_b(hz(1.700), 0.010), anneau_b(hz(1.668), 0.014), anneau_b(hz(1.622), 0.018), anneau_b(hz(1.585), 0.018, {"Head": 0.5, "neck_01": 0.5})]
-    tube(p, "barbe", rg, n=8, kind="barbe", arc=(70, 290), hint=(1, 0, 0), z_bouche=hz(1.650), echelle=ECH)
+    tube(p, "barbe", rg, n=8, kind="barbe", arc=(70, 290), hint=(1, 0, 0), z_bouche=hz(1.650), echelle=ECH, densite=96.0)
     yf = HY - 0.10 * ECH
     tube(p, "tresse", [Anneau((0, yf + 0.018, hz(1.600)), 0.028, 0.022, {"Head": 0.5, "neck_01": 0.5}, t=(0, -0.2, -1)),
                        Anneau((0, yf + 0.008, hz(1.545)), 0.026, 0.020, {"neck_01": 1}, t=(0, -0.1, -1)),
@@ -353,12 +361,18 @@ def pieces_accessoires():
         for (z, rx, ry), w in zip(niveaux(0.012 if s < 0 else 0.0), ws):
             rg.append(Anneau((0, Y0 - 0.005, z), rx, ry, w))
         tube(p, "cote" + sf, rg, n=6, kind="sur", debut="aucun", fin="ourlet", arc=arc)
-    for nom, arc, os_, dy in (("avant", (150, 210), "pan_av_1", -0.0), ("arriere", (-30, 30), "pan_ar_1", 0.0)):
-        ws = [{"pelvis": 1}, {"pelvis": 0.6, os_: 0.4}, {os_: 1}, {os_: 1}, {os_: 1}]
+    # v2 : les pans avant / arriere sont des COQUES COURBES (arc +-62 degres, pas un ruban plat) : vus de profil ils gardent une epaisseur visible au lieu d'un
+    # trait fin ; ils s'arretent sous le genou (le tissu qui pend entre les jambes ne descend plus jusqu'a l'ourlet des cotes) et restent sous les cotes (marge -0,02).
+    zk2 = BONE["thigh_l"][1].z - 0.06
+    def niveaux_pan(marge):
+        return [(ZH + 0.12, 0.185 + marge, 0.125 + marge), (ZH + 0.00, 0.235 + marge, 0.150 + marge), (zg + 0.14, 0.255 + marge, 0.160 + marge),
+                (zk2, 0.262 + marge, 0.165 + marge)]
+    for nom, arc, os_ in (("avant", (118, 242), "pan_av_1"), ("arriere", (-62, 62), "pan_ar_1")):
+        ws = [{"pelvis": 1}, {"pelvis": 0.6, os_: 0.4}, {os_: 1}, {os_: 1}]
         rg = []
-        for (z, rx, ry), w in zip(niveaux(-0.014), ws):
+        for (z, rx, ry), w in zip(niveaux_pan(-0.020), ws):
             rg.append(Anneau((0, Y0 - 0.005, z), rx, ry, w))
-        tube(p, nom, rg, n=4, kind="sur", debut="aucun", fin="ourlet", arc=arc)
+        tube(p, nom, rg, n=6, kind="sur", debut="aucun", fin="ourlet", arc=arc)
     # 4. capes : collet de fourrure + panneau dorsal sur la chaine cape_1 / cape_2
     for nom, bas_u, zbas, longue in (("cape_courte", 0.30, None, False), ("cape_longue", 0.12, 0.45, True)):
         p = nouvelle(nom, double=True)
