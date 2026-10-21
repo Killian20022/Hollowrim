@@ -1,0 +1,19 @@
+entree_17h5 monde 21.80,19.82,-132.3,0.3 heure=17.5 sans-mains
+entree_21 monde 21.80,19.82,-132.3,0.3 heure=21 sans-mains torche-eteinte
+entree_21_torche monde 21.80,19.82,-132.3,0.3 heure=21
+# 2 / 4 / 8 m, face, 3/4, dos, 17h30
+p17_2m_face pilote 2,0 heure=17.5 sans-mains anim=Idle:0.25
+p17_2m_34 pilote 2,-35 heure=17.5 sans-mains anim=Idle:0.25
+p17_2m_dos pilote 2,180 heure=17.5 sans-mains anim=Idle:0.25
+p17_4m_face pilote 4,0 heure=17.5 sans-mains anim=Idle:0.25
+p17_4m_34 pilote 4,-35 heure=17.5 sans-mains anim=Idle:0.25
+p17_4m_dos pilote 4,180 heure=17.5 sans-mains anim=Idle:0.25
+p17_8m_face pilote 8,0 heure=17.5 sans-mains anim=Idle:0.25
+p17_8m_34 pilote 8,-35 heure=17.5 sans-mains anim=Idle:0.25
+p17_8m_dos pilote 8,180 heure=17.5 sans-mains anim=Idle:0.25
+gros_col_2m pilote 2,-20,1.5 heure=17.5 sans-mains anim=Idle:0.3
+gros_col_1m pilote 1.0,-20,1.5 heure=17.5 sans-mains anim=Idle:0.3
+gros_col_dos_1m pilote 1.0,160,1.5 heure=17.5 sans-mains anim=Idle:0.3
+gros_surcot_2m pilote 2,-30,0.85 heure=17.5 sans-mains anim=Idle:0.3
+gros_surcot_1m pilote 1.2,-30,0.8 heure=17.5 sans-mains anim=Idle:0.3
+gros_surcot_marche pilote 2,-30,0.85 heure=17.5 sans-mains anim=Walk:0.25

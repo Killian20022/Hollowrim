@@ -149,6 +149,13 @@ func _ready() -> void:
 	_draugrs()
 	_villageois()
 	_chrono("villageois")
+	_guerrier_pilote()
+	_mage_pilote()
+	_chasseresse_pilote()
+	_gardien_pilote()
+	_troll_pilote()
+	_draugr_pilote()
+	_persos_tous()
 	_tertre()
 	_chrono("tertre+crypte")
 	_grotte_acces()
@@ -160,7 +167,7 @@ func _ready() -> void:
 		_ciel.set_shader_parameter("angle_pixel", deg_to_rad(72.0) / maxf(float(wh[1]), 1.0))  # nuages : finesse max du détail
 	if not _arguments().has("capture"):
 		_musique()
-	if not _arguments().has("capture") and not _arguments().has("nouvelle"):
+	if not _arguments().has("capture") and not _arguments().has("nouvelle") and not _arguments().has("persos-tous"):
 		charger()
 	if not _arguments().has("capture"):
 		_audio()
@@ -545,6 +552,222 @@ func _villageois() -> void:
 		v.points = points
 		v.position = poste + Vector3(0, 0.05, 0)
 		add_child(v)
+
+# --- guerrier pilote (refonte des personnages) ------------------------------------
+
+## --guerrier-pilote[=x,z,lacet°] : Guerrier nordique pilote (GuerrierNordique) debout en Idle près de l'entrée du village,
+## pour les captures en jeu ; par défaut à 4 m devant la pose commune « entree » (outils/poses_refonte.txt), tourné vers elle.
+## --guerrier-casque : casque à nasal ; --guerrier-anim=Nom : animation (Sword_Idle par défaut : debout, garde basse armée). Aucun effet sans l'option.
+## Dans un lot --captures : type de vue `pilote d,az°[,cible_y]` (caméra à d m du guerrier, az = 0 de face, 180 de dos)
+## et options de ligne `anim=Nom:t` (pose figée à la fraction t du clip), `decal=m` (caméra décalée sur le côté).
+const PILOTE_DEFAUT := Vector3(24.76, 22.51, -132.3)
+var pilote: Node3D
+
+func _guerrier_pilote() -> void:
+	if not _arguments().has("guerrier-pilote"):
+		return
+	var p := PILOTE_DEFAUT
+	var a: String = _arguments()["guerrier-pilote"]
+	if a != "":
+		var f := a.split_floats(",")
+		p = Vector3(f[0], f[1], f[2] if f.size() > 2 else p.z)
+	pilote = GuerrierNordique.creer({"casque": _arguments().has("guerrier-casque")})
+	add_child(pilote)
+	pilote.global_position = Vector3(p.x, hauteur(p.x, p.y), p.y)
+	pilote.rotation.y = deg_to_rad(p.z)
+	var ap := pilote.get_node("Animations") as AnimationPlayer
+	ap.play(String(_arguments().get("guerrier-anim", "Sword_Idle")))
+	if _arguments().has("capture"):
+		_pilote_animer(String(_arguments().get("guerrier-anim", "Sword_Idle")), 0.25)
+
+## --chasseresse-pilote[=x,z,lacet°] : Chasseresse nordique (ChasseresseNordique), même usage que --guerrier-pilote (vues « pilote »)
+## et --chasseresse-anim=Nom (Idle par défaut) ; avec --guerrier-pilote en plus, elle se tient à 1,3 m à la droite du guerrier (côte à côte).
+func _chasseresse_pilote() -> void:
+	if not _arguments().has("chasseresse-pilote"):
+		return
+	var p := PILOTE_DEFAUT
+	var a: String = _arguments()["chasseresse-pilote"]
+	if a != "":
+		var f := a.split_floats(",")
+		p = Vector3(f[0], f[1], f[2] if f.size() > 2 else p.z)
+	var c := ChasseresseNordique.creer({})
+	add_child(c)
+	if pilote != null:
+		var q := pilote.global_position - pilote.global_basis.x * 1.3
+		p = Vector3(q.x, q.z, rad_to_deg(pilote.rotation.y))
+	else:
+		pilote = c
+	c.global_position = Vector3(p.x, hauteur(p.x, p.y), p.y)
+	c.rotation.y = deg_to_rad(p.z)
+	var an := String(_arguments().get("chasseresse-anim", "Idle"))
+	var ap := c.get_node("Animations") as AnimationPlayer
+	ap.play(an)
+	if _arguments().has("capture") or _arguments().has("captures"):
+		ap.seek(ap.get_animation(an).length * 0.3, true)
+		ap.pause()
+## --draugr-pilote[=x,z,lacet°] : Draugr nordique (DraugrNordique) debout au même endroit (ou x,z,lacet) ; --draugr-anim=Nom
+## (Sword_Idle par défaut). Seul, il devient le « pilote » des vues `pilote` de --captures ; avec --guerrier-pilote, il se
+## tient à côté (comparaison de famille) et le guerrier reste le pilote. Aucun effet sans l'option.
+func _draugr_pilote() -> void:
+	if not _arguments().has("draugr-pilote"):
+		return
+	var p := PILOTE_DEFAUT
+	var a: String = _arguments()["draugr-pilote"]
+	if a != "":
+		var f := a.split_floats(",")
+		p = Vector3(f[0], f[1], f[2] if f.size() > 2 else p.z)
+	var d := DraugrNordique.creer({})
+	add_child(d)
+	d.global_position = Vector3(p.x, hauteur(p.x, p.y), p.y)
+	d.rotation.y = deg_to_rad(p.z)
+	var anim := String(_arguments().get("draugr-anim", "Sword_Idle"))
+	(d.get_node("Animations") as AnimationPlayer).play(anim)
+	if pilote == null:
+		pilote = d
+		if _arguments().has("capture"):
+			_pilote_animer(anim, 0.25)
+
+## --persos-tous : essai « galerie vivante ». Les 6 persos refondus (guerrier, mage, chasseresse, gardien, troll, draugr) en Idle,
+## côte à côte (2,5 m) à l'entrée du village (poste de PILOTE_DEFAUT), face au joueur, qui est posé 5 m devant eux et peut marcher
+## librement (ZQSD/WASD ou flèches, Maj = course, Espace = saut). Un nom flotte au-dessus de chacun. Avec des arguments, la partie
+## utilise la sauvegarde de TEST (jamais user://sauvegarde.json) ; ici on ne la charge même pas (comme --nouvelle).
+## Les nœuds sont dans le groupe « persos_tous » (méta « nom »).
+const PERSOS_TOUS := [
+	["Guerrier", "GuerrierNordique"], ["Mage", "MageNordique"], ["Chasseresse", "ChasseresseNordique"],
+	["Gardien", "GardienNordique"], ["Troll de givre", "TrollGivre"], ["Draugr", "DraugrNordique"]]
+const ECART_PERSOS := 2.5
+func _persos_tous() -> void:
+	if not _arguments().has("persos-tous"):
+		return
+	var yaw := deg_to_rad(PILOTE_DEFAUT.z)
+	var centre := Vector2(PILOTE_DEFAUT.x, PILOTE_DEFAUT.y)
+	var droite := Vector2(cos(yaw), -sin(yaw))     # axe X local du lacet
+	var devant := Vector2(sin(yaw), cos(yaw))      # axe +Z local : le côté vers lequel les persos regardent
+	for i in PERSOS_TOUS.size():
+		var nom: String = PERSOS_TOUS[i][0]
+		var n: Node3D
+		match PERSOS_TOUS[i][1]:
+			"GuerrierNordique": n = GuerrierNordique.creer({})
+			"MageNordique": n = MageNordique.creer({})
+			"ChasseresseNordique": n = ChasseresseNordique.creer({})
+			"GardienNordique": n = GardienNordique.creer({})
+			"TrollGivre": n = TrollGivre.creer({})
+			_: n = DraugrNordique.creer({})
+		add_child(n)
+		var q := centre + droite * (i - (PERSOS_TOUS.size() - 1) * 0.5) * ECART_PERSOS
+		n.global_position = Vector3(q.x, hauteur(q.x, q.y), q.y)
+		n.rotation.y = yaw
+		n.add_to_group("persos_tous")
+		n.set_meta("nom", nom)
+		var ap := n.get_node("Animations") as AnimationPlayer
+		for an in ["Idle", "Sword_Idle"]:
+			if ap.has_animation(an):
+				ap.play(an)
+				break
+		var l := Label3D.new()
+		l.text = nom
+		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		l.shaded = false
+		l.double_sided = true
+		l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		l.font_size = 40
+		l.pixel_size = 0.006
+		l.outline_size = 14
+		l.outline_modulate = Color(0.05, 0.04, 0.03)
+		l.modulate = Color(1.0, 0.93, 0.75)
+		l.position = Vector3(0, 2.7 if nom == "Troll de givre" else 2.25, 0)
+		n.add_child(l)
+	# le joueur 5 m devant la rangée, regardant vers elle
+	var j := centre + devant * 5.0
+	joueur.position = Vector3(j.x, hauteur(j.x, j.y) + 0.1, j.y)
+	joueur.rotation.y = yaw
+	joueur.tete.rotation.x = 0.05
+	depart_joueur = joueur.position
+
+func _pilote_animer(nom: String, t: float) -> void:
+	var ap := pilote.get_node("Animations") as AnimationPlayer
+	if not ap.has_animation(nom):
+		push_error("guerrier pilote : animation inconnue " + nom)
+		return
+	ap.play(nom)
+	ap.seek(ap.get_animation(nom).length * t, true)
+	ap.pause()
+
+## --mage-pilote[=x,z,lacet°] : Mage nordique (MageNordique) au même poste que le guerrier pilote ; devient la cible des vues
+## « pilote » (le guerrier, s'il est là aussi, est posé 1,1 m à sa gauche, même orientation : planche de famille).
+## --mage-anim=Nom : animation (Idle par défaut ; signature : Spell_Simple_Shoot). Aucun effet sans l'option.
+func _mage_pilote() -> void:
+	if not _arguments().has("mage-pilote"):
+		return
+	var p := PILOTE_DEFAUT
+	var a: String = _arguments()["mage-pilote"]
+	if a != "":
+		var f := a.split_floats(",")
+		p = Vector3(f[0], f[1], f[2] if f.size() > 2 else p.z)
+	var guerrier := pilote
+	pilote = MageNordique.creer({})
+	add_child(pilote)
+	pilote.global_position = Vector3(p.x, hauteur(p.x, p.y), p.y)
+	pilote.rotation.y = deg_to_rad(p.z)
+	if guerrier:
+		var q := pilote.global_position + pilote.global_basis.x * 1.1
+		guerrier.global_position = Vector3(q.x, hauteur(q.x, q.z), q.z)
+		guerrier.rotation.y = pilote.rotation.y
+	var nom := String(_arguments().get("mage-anim", "Idle"))
+	(pilote.get_node("Animations") as AnimationPlayer).play(nom)
+	if _arguments().has("capture"):
+		_pilote_animer(nom, 0.25)
+## --gardien-pilote[=x,z,lacet°] : Gardien nordique (GardienNordique), même emplacement par défaut que le guerrier pilote ; seul, il
+## devient la cible des vues « pilote » ; avec --guerrier-pilote, il se tient à côté (comparaison de famille). --gardien-anim=Nom (Idle =
+## garde en faction par défaut). Aucun effet sans l'option.
+var gardien: Node3D
+
+func _gardien_pilote() -> void:
+	if not _arguments().has("gardien-pilote"):
+		return
+	var p := PILOTE_DEFAUT
+	var a: String = _arguments()["gardien-pilote"]
+	if a != "":
+		var f := a.split_floats(",")
+		p = Vector3(f[0], f[1], f[2] if f.size() > 2 else p.z)
+	gardien = GardienNordique.creer({})
+	add_child(gardien)
+	gardien.global_position = Vector3(p.x, hauteur(p.x, p.y), p.y)
+	gardien.rotation.y = deg_to_rad(p.z)
+	var nom := String(_arguments().get("gardien-anim", "Idle"))
+	var ap := gardien.get_node("Animations") as AnimationPlayer
+	ap.play(nom)
+	if _arguments().has("capture"):
+		ap.seek(ap.get_animation(nom).length * 0.25, true)
+		ap.pause()
+	if pilote == null:
+		pilote = gardien
+## --troll-pilote[=x,z,lacet°] : Troll de givre (TrollGivre) à la place du guerrier pour les vues « pilote » (le guerrier, s'il est
+## demandé aussi, reste à sa place : planche d'échelle). --troll-anim=Nom (Idle par défaut). Vue grotte + option `troll=d` : le troll
+## est posé à d m devant la caméra, tourné vers elle. Aucun effet sans l'option.
+func _troll_pilote() -> void:
+	if not _arguments().has("troll-pilote"):
+		return
+	var p := PILOTE_DEFAUT
+	var a: String = _arguments()["troll-pilote"]
+	if a != "":
+		var f := a.split_floats(",")
+		p = Vector3(f[0], f[1], f[2] if f.size() > 2 else p.z)
+	pilote = TrollGivre.creer({})
+	add_child(pilote)
+	pilote.global_position = Vector3(p.x, hauteur(p.x, p.y), p.y)
+	pilote.rotation.y = deg_to_rad(p.z)
+	_pilote_animer(String(_arguments().get("troll-anim", "Idle")), 0.25)
+
+func _troll_grotte(d: float, anim: String) -> void:
+	var av := -joueur.global_basis.z
+	av.y = 0.0
+	var pos := joueur.global_position + av.normalized() * d
+	var r := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 2.0, pos + Vector3.DOWN * 4.0))
+	pilote.global_position = r["position"] if r else pos
+	pilote.rotation.y = atan2(-av.x, -av.z)   # face (+Z) tournée vers la caméra
+	var an := anim.split(":")
+	_pilote_animer(an[0], float(an[1]) if an.size() > 1 else 0.25)
 
 # --- le tertre ----------------------------------------------------------------------
 
@@ -1090,7 +1313,7 @@ func _lot_captures(fichier: String) -> void:
 		return
 	var sortie: String = _arguments().get("sortie", fichier.get_base_dir())
 	DirAccess.make_dir_recursive_absolute(sortie)
-	var rang := {"monde": 0, "interieur": 0, "scenario": 1, "crypte": 2, "grotte": 3}
+	var rang := {"monde": 0, "interieur": 0, "pilote": 0, "scenario": 1, "crypte": 2, "grotte": 3}
 	var vues: Array = []
 	for ligne in texte.split("\n"):
 		var m := ligne.strip_edges().split(" ", false)
@@ -1108,6 +1331,10 @@ func _lot_captures(fichier: String) -> void:
 	var attente_suite := int(_arguments().get("attente-suite", "20"))
 	var mains_globales := _arguments().has("sans-mains")
 	var torche_masque: int = joueur.mains.torche_lumiere.light_cull_mask
+	if _arguments().has("sans-hud"):   # --sans-hud : ni boussole ni répliques (planches de personnages)
+		hud.visible = false
+		if dialogue:
+			dialogue.visible = false
 	var dessous := ""
 	var t0 := Time.get_ticks_msec()
 	var n := 0
@@ -1117,7 +1344,7 @@ func _lot_captures(fichier: String) -> void:
 		var c := PackedFloat64Array()
 		if type != "scenario":
 			c = String(v["coords"]).split_floats(",")
-		if type == "monde" or type == "scenario" or type == "interieur":
+		if type == "monde" or type == "scenario" or type == "interieur" or type == "pilote":
 			if dessous != "":
 				push_error("--captures : vue monde/scénario « %s » après le sous-sol, ignorée" % v["nom"])
 				continue
@@ -1133,6 +1360,28 @@ func _lot_captures(fichier: String) -> void:
 				joueur.global_position = Vector3(c[0], hauteur(c[0], c[1]) + 0.1, c[1])
 				joueur.rotation.y = deg_to_rad(c[2])
 				joueur.tete.rotation.x = deg_to_rad(c[3]) if c.size() > 3 else 0.0
+				joueur.velocity = Vector3.ZERO
+				_brume_locale(0.0, true)
+			elif type == "pilote":
+				# guerrier pilote : caméra à c[0] m, azimut c[1]° (0 = de face), visant c[2] m au-dessus de ses pieds (1,0 par défaut)
+				if pilote == null:
+					push_error("--captures : vue « pilote » sans --guerrier-pilote")
+					continue
+				var an := String(opt.get("anim", String(_arguments().get("guerrier-anim", "Sword_Idle")))).split(":")
+				_pilote_animer(an[0], float(an[1]) if an.size() > 1 else 0.25)
+				var pp := pilote.global_position
+				var dir := pilote.global_basis.z.rotated(Vector3.UP, deg_to_rad(c[1]))
+				dir.y = 0.0
+				var pos := pp + dir.normalized() * c[0]
+				if opt.has("decal"):     # décalage latéral de la caméra (m) : contrôle de scintillement
+					pos += dir.cross(Vector3.UP).normalized() * float(opt["decal"])
+				pos.y = hauteur(pos.x, pos.z) + 0.1
+				joueur.global_position = pos
+				var vers := pp - pos
+				joueur.rotation.y = atan2(-vers.x, -vers.z)
+				var oeil_y := pos.y + 1.62
+				var cible_y := pp.y + (c[2] if c.size() > 2 else 1.0)
+				joueur.tete.rotation.x = atan2(cible_y - oeil_y, Vector2(vers.x, vers.z).length())
 				joueur.velocity = Vector3.ZERO
 				_brume_locale(0.0, true)
 			elif type == "interieur":
@@ -1168,6 +1417,8 @@ func _lot_captures(fichier: String) -> void:
 			joueur.rotation.y = grotte.cap_monde(c[0]) + deg_to_rad(c[2])
 			joueur.tete.rotation.x = deg_to_rad(c[3])
 			joueur.velocity = Vector3.ZERO
+			if opt.has("troll") and pilote:
+				_troll_grotte(float(opt["troll"]), String(opt.get("anim", "Idle")))
 		else:
 			push_error("--captures : type inconnu « %s » (vue %s)" % [type, v["nom"]])
 			continue

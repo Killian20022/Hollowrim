@@ -1,0 +1,6 @@
+p17_4m_34 pilote 4,-35 heure=17.5 sans-mains anim=Idle:0.25
+p17_8m_face pilote 8,0 heure=17.5 sans-mains anim=Idle:0.25
+gros_visage_1m pilote 1.0,20,1.62 heure=17.5 sans-mains anim=Idle:0.3
+orbe_2m_17 pilote 2,-30,1.7 heure=17.5 sans-mains anim=Idle:0.3
+orbe_2m_21 pilote 2,-30,1.7 heure=21 sans-mains torche-eteinte anim=Idle:0.3
+gros_torse_2m pilote 2,0,1.2 heure=17.5 anim=Idle:0.3
