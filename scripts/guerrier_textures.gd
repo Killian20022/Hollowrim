@@ -16,8 +16,8 @@ const CUIR_CLAIR := ["#24170e", "#4e3320", "#74502f", "#956b43", "#b38858", "#cc
 ## métal clair (boucle, fibule) : gris chaud poli, reste clair sous la lumière froide du crépuscule
 const METAL_CLAIR := ["#2a2723", "#4a453f", "#6f685f", "#948c80", "#b7afa2", "#d4cdc0", "#ece7dc"]
 const CUIR_SOMBRE := ["#100c0b", "#1d1613", "#2c221c", "#3f3228", "#544537"]
-const FOUR := ["#1d1b19", "#38342f", "#575049", "#787066", "#9a9083", "#bab0a0"]   # gris-brun (référence), moins blanc
-const LAINE_BLEUE := ["#0f1422", "#1a2439", "#283855", "#384d74", "#4c6490", "#687fa8"]
+const FOUR := ["#231e18", "#433a2e", "#655846", "#8a7a63", "#ad9c80", "#ccbb9b"]   # passe 3 : crème / beige chaud (l'ancien gris-brun bleuissait au crépuscule)
+const LAINE_BLEUE := ["#13161c", "#1f242e", "#2e3542", "#3f4858", "#545e6f", "#6e7787"]   # passe 3 : bleu-gris délavé, teint naturel usé (l'ancien bleu était trop saturé)
 const LAINE_GRISE := ["#17171c", "#25252b", "#35343a", "#47454a", "#5b585b"]
 const BANDE := ["#2c2a29", "#423e3a", "#57524b", "#6d675d"]   # bandes molletières (laine écrue)
 const BOIS := ["#16110d", "#271e17", "#3a2d22", "#4f3f30", "#665341", "#7f6a54"]
@@ -92,7 +92,7 @@ static func mips_pixel(img: Image) -> Image:
 ## Précalcul (outils/generer_guerrier.gd) : images mipmappées dans DOSSIER/<clé>.res ; VERSION à incrémenter après toute
 ## modification d'un dessin (un .res d'une autre version est ignoré : recalcul au lancement, jamais d'image fausse).
 const DOSSIER := "res://assets/personnages/guerrier"
-const VERSION := 3
+const VERSION := 4
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
