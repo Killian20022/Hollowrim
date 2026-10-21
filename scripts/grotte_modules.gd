@@ -824,26 +824,46 @@ static func _cristaux(g: Grotte, z: Dictionary, r: RandomNumberGenerator) -> voi
 	var s1: float = z["s"][1]
 	var dens: float = float(z.get("densite", 1.0))
 	var d := g.decor
-	# 4e passe (grottes_cryptes_6) : 4 GROSSES grappes éclairantes (0,9 à 1,5 m) au premier plan et le long du chemin,
-	# cœur blanc-cyan, faces bleu vif, lumière cyan locale ; quelques grappes moyennes éteintes entre elles
-	var gros := [[s0 + 4.5, -1.0, 1.25], [s0 + 8.0, 1.0, 1.0], [s0 + 12.5, -1.0, 1.5], [s0 + 16.5, 1.0, 1.1]]
-	for e: Array in gros:
+	# 5e passe (grottes_cryptes_6) : chemin BORDÉ des deux côtés de massifs de cristaux. 4 énormes au premier plan (prismes 1-2 m
+	# en éventail, seules à porter une lumière cyan), des moyennes au pied des parois, d'autres en hauteur sur les parois.
+	var enormes := [[s0 + 4.6, -1.0, 1.9], [s0 + 6.0, 1.0, 1.7], [s0 + 11.8, -1.0, 1.8], [s0 + 13.6, 1.0, 2.0]]
+	for e: Array in enormes:
 		var s: float = e[0]
 		var cote: float = e[1]
 		var dl := g.demi_l(id, s)
-		var lat: float = cote * (dl.y if cote > 0.0 else dl.x) * 0.62
+		var lat: float = cote * (dl.y if cote > 0.0 else dl.x) * 0.66
 		var q := _p(g, id, s, lat)
 		var vers_axe := (_p(g, id, s, 0.0) - q).normalized()
-		d.grosse_grappe(q + Vector3(0, -0.12, 0), float(e[2]), r.randi(), (Vector3.UP * 1.6 + vers_axe).normalized())
+		d.grosse_grappe(q + Vector3(0, -0.15, 0), float(e[2]), r.randi(), (Vector3.UP * 1.3 + vers_axe).normalized())
 		g.nb_lumieres += 1
-		if g.loin_du_jeu(id, s, lat, 0.45):
-			d.solide_rond(q + Vector3(0, 0.6, 0), 0.4, 1.2)
-	for k in 6:
-		var s := s0 + 2.5 + float(k) * 3.0 + r.randf_range(-0.5, 0.5)
+		if g.loin_du_jeu(id, s, lat, 0.5):
+			d.solide_rond(q + Vector3(0, 0.7, 0), 0.5, 1.4)
+	var moyennes := [[s0 + 2.2, 1.0], [s0 + 8.6, -1.0], [s0 + 9.4, 1.0], [s0 + 16.0, -1.0], [s0 + 17.2, 1.0], [s0 + 19.0, -1.0]]
+	for e: Array in moyennes:
+		var s: float = float(e[0]) + r.randf_range(-0.4, 0.4)
+		var cote: float = e[1]
 		var dl := g.demi_l(id, s)
-		var cote := -1.0 if k % 2 == 0 else 1.0
-		var q := _p(g, id, s, cote * (dl.y if cote > 0.0 else dl.x) * r.randf_range(0.78, 0.9))
-		d.grosse_grappe(q + Vector3(0, -0.08, 0), r.randf_range(0.45, 0.65), r.randi(), (Vector3.UP * 1.4 + (_p(g, id, s, 0.0) - q).normalized()).normalized(), false)
+		var q := _p(g, id, s, cote * (dl.y if cote > 0.0 else dl.x) * r.randf_range(0.76, 0.88))
+		d.grosse_grappe(q + Vector3(0, -0.1, 0), r.randf_range(0.6, 0.95), r.randi(), (Vector3.UP * 1.3 + (_p(g, id, s, 0.0) - q).normalized()).normalized(), false)
+	for k in 6:                                                 # grappes en hauteur sur les parois, penchées vers le chemin
+		var rg := _ring_proche(g, id, s0 + 2.0 + float(k) * 3.2 + r.randf_range(-0.6, 0.6))
+		var vtx: int = [4, 5, 13, 14, 6, 12][k]
+		var pv: Vector3 = (rg["pts"] as Array)[vtx]
+		var centre: Vector3 = (rg["P"] as Vector3) + Vector3(0, float(rg["h"]) * 0.4, 0)
+		var hit := g.rayon(centre, pv - centre, 40.0)
+		if not hit.is_empty():
+			pv = hit["p"]
+		var vers_centre: Vector3 = (centre - pv).normalized()
+		d.grosse_grappe(pv - vers_centre * 0.1, r.randf_range(0.55, 0.85), r.randi(), (vers_centre + Vector3(0, 0.35, 0)).normalized(), false)
+	# rochers givrés au premier plan (profondeur), voûte : frange de stalactites près de la caméra
+	for k in 5:
+		var s := s0 + 2.5 + float(k) * 1.6 + r.randf_range(-0.3, 0.3)
+		var dl := g.demi_l(id, s)
+		var cote := 1.0 if k % 2 == 0 else -1.0
+		var lat := cote * (dl.y if cote > 0.0 else dl.x) * r.randf_range(0.45, 0.58)
+		var rb := r.randf_range(0.45, 0.75)
+		d.rocher("c_roche_neige", _p(g, id, s, lat) + Vector3(0, -0.1, 0), rb, rb * r.randf_range(0.8, 1.1), r.randi(), 1.0, g.loin_du_jeu(id, s, lat, rb), 6)
+	frange_voute(g, r, id, s0 + 1.5, s0 + 8.0, 34, "c_roche_glace")
 	pointes(g, r, id, s0 - 1.0, s1, int(26.0 * dens), 0.35, 2.4, false, 0.0, "c_roche_glace")
 	pointes(g, r, id, s0, s1, int(12.0 * dens), 0.25, 1.2, true, 1.3, "c_roche_glace")
 	rochers(g, r, id, s0, s1 - 1.0, int(6.0 * dens), 0.4, 0.9, true, "c_roche_glace")
@@ -876,6 +896,32 @@ static func _cache(g: Grotte, z: Dictionary, r: RandomNumberGenerator) -> void:
 	d.pieces(_p(g, id, s1 - 4.0, -2.2), 20, 0.4)
 	d.applique(g.mur_en(id, s0 + 9.0, -1.0), g.droite(id, s0 + 9.0), _p(g, id, s0 + 9.0, -3.0).y + 1.9, 4.5, 1.7, true)
 
+
+# ------------------------------------------------------------------ 5e passe : frange de stalactites à la voûte
+## Stalactites denses et serrées entre sa et sb, sur toute la largeur (2,3 m de garde au-dessus du chemin, 0,8 m ailleurs),
+## chacune entourée de 2 à 4 plus petites : le « premier plan haut » des références (grottes_cryptes_5 / 6).
+static func frange_voute(g: Grotte, r: RandomNumberGenerator, id: String, sa: float, sb: float, n: int, nom := "c_roche_nu") -> void:
+	for k in n:
+		var s := r.randf_range(sa, sb)
+		var dl := g.demi_l(id, s)
+		var lat := r.randf_range(-dl.x * 0.9, dl.y * 0.9)
+		if g.faille_f(g.br[id], s) > 0.02:
+			continue
+		var pb := _p(g, id, s, lat)
+		var pt := g.plafond_en(id, s, lat)
+		var bas_min := pb.y + (2.3 if absf(lat) < 1.8 else 0.9)
+		var lq := minf(r.randf_range(1.2, 5.0), pt.y + 0.1 - bas_min)     # longues : elles doivent entrer dans le cadre près de la caméra
+		if lq < 0.4:
+			continue
+		var rq := minf(lq * r.randf_range(0.08, 0.12), 0.45)
+		concretion(g, nom, pt + Vector3(0, 0.15, 0), rq, -lq, r.randi(), 0.0)
+		for j in r.randi_range(2, 4):
+			var a := r.randf() * TAU
+			var off := rq * r.randf_range(1.6, 3.2)
+			var q := g.plafond_en(id, s + sin(a) * off, lat + cos(a) * off)
+			var l2 := minf(lq * r.randf_range(0.3, 0.7), q.y + 0.1 - bas_min)
+			if l2 > 0.2:
+				concretion(g, nom, q + Vector3(0, 0.12, 0), rq * r.randf_range(0.4, 0.7), -l2, r.randi(), 0.0)
 
 # ------------------------------------------------------------------ 3e passe : silhouettes (mine, lac)
 ## Rive du lac : premier écart latéral (côté gauche) où le sol rejoint la glace ; 999 si pas de lac à cet endroit.
@@ -1023,10 +1069,11 @@ static func _foret_lac(g: Grotte, z: Dictionary) -> void:
 				var hb := r.randf_range(0.42, 0.6) * (1.0 - 0.3 * j)
 				var base := Vector3(q.x, maxf(q.y, g.lac_y) - 0.12 + 0.2 * (1 - j), q.z)
 				var prof := [Vector2(rb * 0.8, -0.1), Vector2(rb * 0.9, hb * 0.5), Vector2(rb * 1.05, hb * 0.85), Vector2(rb * 0.98, hb), Vector2(rb * 0.55, hb * 1.04), Vector2(0.0, hb * 1.05)]
-				d.revolution("c_roche_neige", base, prof, 7, r.randi(), 0.3, 0.0, 0.62, 1.0, 3.0)
+				d.revolution("c_roche_neige", base, prof, 7, r.randi(), 0.3, 1.0, 0.62, 1.0, 3.0)
 				for k in r.randi_range(3, 6):               # frange de glaçons sous le rebord, côté lac
 					var a := r.randf_range(-1.1, 1.1)
 					var dir := vers_lac.rotated(Vector3.UP, a)
 					var top := base + dir * rb * 1.0 + Vector3(0, hb * 0.82, 0)
 					d.pointe("c_glacon", top, r.randf_range(0.03, 0.07), -r.randf_range(0.15, minf(0.45, hb * 0.75)), r.randi(), 0.0, 5)
 		s += r.randf_range(2.2, 3.6)
+	frange_voute(g, r, id, s0 + 1.5, s0 + 9.5, 40, "c_roche_nu")

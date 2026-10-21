@@ -21,15 +21,15 @@ const AO_GAMMA := 1.0          # occlusion peinte accentuée : creux et pieds de
 const COQUES := {
 	"c_roche_neige": ["roche_givre", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.8, 0.0, 1.0],
 	"c_roche_mousse": ["roche", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.7, 0.0, 1.0],
-	"c_roche_glace": ["roche_b", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.85, 0.0, 1.0],
+	"c_roche_glace": ["roche_b", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.4, 0.0, 1.0],
 	"c_roche_nu": ["roche", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.65, 0.0, 1.0],
 	"c_roche_mur": ["roche", "", Color(0.74, 0.73, 0.75), Vector3(0.0, 0.0, 0.0), 0.0, 0.4, 0.0, 1.0],   # mur fragile (boîte sans occlusion peinte)
-	"c_strate_mousse": ["strate", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.65, 0.0, 1.0],
+	"c_strate_mousse": ["strate", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 1.0],
 	"c_strate_glace": ["strate", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.75, 0.0, 1.0],
 	"c_strate_suie": ["strate", "", Color(0.8, 0.8, 0.82), Vector3(0.0, 0.0, 0.0), 0.0, 0.35, 0.0, 1.0],
 	"c_sol_neige": ["sol", "neige_sol", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.45, 0.0, 1.0],
 	"c_sol_mousse": ["sol", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.25, 1.0, 1.0],
-	"c_sol_glace": ["sol", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.5, 0.6, 1.0],
+	"c_sol_glace": ["sol", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.2, 0.6, 1.0],
 	"c_sol_nu": ["sol", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.3, 0.8, 1.0],
 	"c_sol_camp": ["sol", "", Color(0.95, 0.95, 0.97), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.35, 1.0],
 	"c_glace": ["glace", "", Color(1, 1, 1), Vector3(0.004, 0.008, 0.014), 0.0, 0.15, 1.0, 1.0],
@@ -39,6 +39,7 @@ const COQUES := {
 	"c_cristal_f": ["cristal_f", "", Color(0.8, 0.84, 0.95), Vector3(0.0, 0.0, 0.0), 0.22, 0.0, 0.0, 0.0],   # prismes en grappes (UV par face)
 	"c_cristal_v": ["cristal_v", "", Color(0.95, 1.0, 1.05), Vector3(0.0, 0.0, 0.0), 0.55, 0.0, 0.0, 0.0],   # grosses grappes : faces bleu vif émissives
 	"c_cristal_c": ["cristal_v", "", Color(1.35, 1.45, 1.5), Vector3(0.02, 0.05, 0.07), 0.9, 0.0, 0.0, 0.0],   # cœur blanc-cyan des grosses grappes
+	"c_glacon_c": ["glacon", "", Color(1.12, 1.18, 1.22), Vector3(0.012, 0.02, 0.03), 0.16, 0.0, 0.0, 0.0],   # glace claire bleu-blanc (devant de la cascade)
 	"c_glacon": ["glacon", "", Color(0.78, 0.82, 0.86), Vector3(0.006, 0.009, 0.013), 0.06, 0.0, 0.0, 0.0],
 }
 
@@ -115,7 +116,7 @@ func mat(nom: String) -> Material:
 		sm.set_shader_parameter("tex_givre", _tex_g("givre"))
 		sm.set_shader_parameter("mouille", d[6])
 		sm.set_shader_parameter("triplan", d[7])
-		sm.set_shader_parameter("ao_gamma", AO_GAMMA if not nom in ["c_cristal", "c_cristal_f", "c_cristal_v", "c_cristal_c", "c_glacon"] else 1.0)
+		sm.set_shader_parameter("ao_gamma", AO_GAMMA if not nom in ["c_cristal", "c_cristal_f", "c_cristal_v", "c_cristal_c", "c_glacon", "c_glacon_c"] else 1.0)
 		sm.set_shader_parameter("decoupe", 1.0 if nom == "c_piste" else 0.0)
 		if nom == "c_sol_neige":
 			sm.set_shader_parameter("echelle_sup", 0.5)     # neige du sol extérieur : tuile de 8 m (16 texels/m), même grain que dehors
@@ -395,7 +396,7 @@ func grosse_grappe(base: Vector3, taille: float, graine: int, axe := Vector3.UP,
 		carte("halo_f", base + d0 * taille * 0.45, Vector3(d0.x, 0.0, d0.z).normalized(), taille * 2.2, taille * 2.2)
 	if not eclaire:
 		return null
-	var l := lumiere(base + d0 * taille * 0.7, Color(0.45, 0.8, 1.0), 2.4, 5.5 + taille * 1.5, 1.3, false)
+	var l := lumiere(base + d0 * taille * 0.7, Color(0.45, 0.8, 1.0), 3.0, 6.0 + taille * 1.8, 1.2, false)
 	l.light_color = Color(0.45, 0.8, 1.0)
 	l.set_meta("grappe", true)                     # _retoucher_lumieres n'y touche pas
 	return l
@@ -1210,38 +1211,67 @@ func _nappe(c: Vector3, taille: float) -> void:
 
 ## Cascade gelée : rideau de colonnes de glace du haut de la paroi (côté lac, à gauche) jusqu'à la glace, pied évasé.
 func _cascade(g: Grotte, id: String, s: float) -> void:
+	# 5e passe : colonnes de glace irrégulières de largeurs variées, en trois couches (fond sombre -> devant bleu-blanc),
+	# sommet sous un ressaut de roche, pied élargi en cônes de glace ; déployée en travers du fond, face au rivage
 	var dl := g.demi_l(id, s)
-	var T := g.tang(id, s)
 	var R := g.droite(id, s)
 	var y_bas := g.lac_y - 0.05
-	# 4e passe : rideau dégagé de la paroi, déployé EN TRAVERS du fond (face au rivage), légèrement cintré
 	var lat_c := -dl.x * 0.5
-	for k in 17:
-		var ds := absf(float(k) - 8.0) * 0.07 + _hab_r.randf_range(-0.08, 0.08)
-		var lat := lat_c + (float(k) - 8.0) * 0.32
-		var top := g.plafond_en(id, s + ds, lat)
-		var base := g.sol_en(id, s + ds, lat)
-		var pied := Vector3(base.x, minf(y_bas, base.y - 0.1), base.z)     # toujours jusqu'à la glace (le pied s'enfonce dans la rive)
-		var h := top.y - pied.y - 0.2
-		if h < 1.5:
-			continue
-		var r := _hab_r.randf_range(0.14, 0.5) * (1.25 - absf(float(k) - 8.0) * 0.06)
-		if k % 3 == 1 or _hab_r.randf() < 0.2:            # orgues : certaines coulées s'arrêtent en grands glaçons (bord bas déchiqueté)
-			var lq := h * _hab_r.randf_range(0.45, 0.8)
-			pointe("c_glacon", top + Vector3(0, 0.1, 0) + R * 0.2, r * 1.5, -lq, _hab_r.randi(), 0.0, 6)
-			continue
-		var prof := [Vector2(r * 2.6, 0.0), Vector2(r * 1.6, h * 0.08), Vector2(r * 1.05, h * 0.3), Vector2(r * 0.8, h * 0.55), Vector2(r * 1.0, h * 0.8), Vector2(r * 1.7, h + 0.35)]
-		revolution("c_glacon", pied + R * 0.2, prof, 6, _hab_r.randi(), 0.3, 0.0, 0.85, 1.0, 1.0)
-	for k in 22:
-		var ds := _hab_r.randf_range(-0.6, 0.8)
-		var lat := lat_c + _hab_r.randf_range(-2.8, 2.8)
-		var top := g.plafond_en(id, s + ds, lat)
-		pointe("c_glacon", top + Vector3(0, 0.08, 0), _hab_r.randf_range(0.04, 0.1), -_hab_r.randf_range(0.3, 1.0), _hab_r.randi(), 0.0, 5)
+	var larg := 3.4
+	# ressaut de roche : dalles en surplomb sous la voûte, à la tête de la cascade
+	var y_res := INF
+	for k in 4:
+		var lat := lat_c + (float(k) - 1.5) * 1.5
+		var top := g.plafond_en(id, s + 0.4, lat)
+		y_res = minf(y_res, top.y)
+	var top0 := g.plafond_en(id, s + 0.4, lat_c)
+	y_res = maxf(y_res - 1.1, y_bas + 3.0)
+	for k in 4:
+		var lat := lat_c + (float(k) - 1.5) * 1.45 + _hab_r.randf_range(-0.2, 0.2)
+		var c := g.sol_en(id, s + 0.5, lat)
+		var rb := _hab_r.randf_range(1.0, 1.4)
+		var hb := _hab_r.randf_range(0.7, 1.1)
+		var prof := [Vector2(0.0, -hb * 0.15), Vector2(rb * 0.6, -hb * 0.05), Vector2(rb * 1.05, hb * 0.3), Vector2(rb * 0.95, hb * 0.8), Vector2(rb * 0.5, hb), Vector2(0.0, hb * 1.02)]
+		revolution("c_roche_nu", Vector3(c.x, y_res - hb * 0.2, c.z), prof, 7, _hab_r.randi(), 0.3, 0.0, 0.55, 0.9, 3.0)
+	# trois couches de colonnes : 0 = fond (c_glacon), 1 = milieu, 2 = devant (c_glacon_c, plus clair)
+	var T := (g.sol_en(id, s + 1.0, lat_c) - g.sol_en(id, s, lat_c))
+	T.y = 0.0
+	T = T.normalized()
+	for couche in 3:
+		var nom := "c_glacon" if couche < 2 else "c_glacon_c"
+		var prof_t := 0.15 - float(couche) * 0.45
+		var lat := lat_c - larg * 0.5 - 0.6 + float(couche) * 0.25
+		while lat < lat_c + larg * 0.5 + 0.6:
+			var r := _hab_r.randf_range(0.08, 0.5) * (1.0 - 0.25 * float(couche))
+			lat += r * 1.5
+			var bord := absf(lat - lat_c) / (larg * 0.5 + 0.6)
+			var base := g.sol_en(id, s, lat) - T * 0.0 + T * prof_t
+			var pied := Vector3(base.x, minf(y_bas, base.y - 0.1), base.z)
+			var y_haut := y_res + _hab_r.randf_range(-0.1, 0.25)
+			var h := y_haut - pied.y
+			if h < 1.5:
+				lat += r * 1.5
+				continue
+			if couche == 2 and _hab_r.randf() < 0.45 or bord > 0.85:       # orgues : s'arrêtent en grands glaçons
+				var lq := h * _hab_r.randf_range(0.35, 0.8)
+				pointe(nom, Vector3(pied.x, y_haut + 0.05, pied.z), r * 1.4, -lq, _hab_r.randi(), 0.0, 6)
+			else:
+				var w1 := _hab_r.randf_range(0.75, 1.15)
+				var w2 := _hab_r.randf_range(0.6, 1.0)
+				var prof := [Vector2(r * 2.4, 0.0), Vector2(r * 1.5, h * 0.07), Vector2(r * w1, h * 0.25), Vector2(r * w2, h * 0.5), Vector2(r * w1, h * 0.75), Vector2(r * 1.6, h * 0.96), Vector2(r * 2.0, h + 0.05)]
+				revolution(nom, pied, prof, 6, _hab_r.randi(), 0.35, 0.0, 0.7 if couche < 2 else 0.85, 1.0, 1.0)
+			lat += r * 1.5 + _hab_r.randf_range(0.0, 0.25)
+	# pied : cônes de glace élargis sur la glace du lac
+	for k in 4:
+		var lat := lat_c + (float(k) - 1.5) * 1.1 + _hab_r.randf_range(-0.2, 0.2)
+		var c := g.sol_en(id, s, lat) - T * 0.5
+		var rc := _hab_r.randf_range(0.8, 1.2)
+		var hc := _hab_r.randf_range(0.7, 1.3)
+		revolution("c_glacon_c", Vector3(c.x, y_bas - 0.05, c.z), [Vector2(rc * 1.4, 0.0), Vector2(rc, hc * 0.3), Vector2(rc * 0.55, hc * 0.7), Vector2(rc * 0.25, hc), Vector2(0.0, hc * 1.05)], 7, _hab_r.randi(), 0.3, 0.0, 0.8, 1.0, 1.0)
 	var pied_c := g.sol_en(id, s, lat_c)
-	carte("halo_f", Vector3(pied_c.x, maxf(pied_c.y, g.lac_y) + 0.03, pied_c.z), Vector3.UP, 6.0, 6.0)
+	carte("halo_f", Vector3(pied_c.x, maxf(pied_c.y, g.lac_y) + 0.03, pied_c.z) - T * 1.0, Vector3.UP, 6.0, 6.0)
 	# jour bleuté qui tombe sur la cascade (lumière fixe, froide)
-	var top_c := g.plafond_en(id, s, lat_c * 0.7)
-	var lj := lumiere(Vector3(top_c.x, lerpf(pied_c.y, top_c.y, 0.65), top_c.z) - R * 1.2, JOUR_C, 2.2, 11.0, 1.2, false)
+	var lj := lumiere(Vector3(top0.x, lerpf(pied_c.y, y_res, 0.7), top0.z) - T * 1.0, JOUR_C, 2.0, 10.0, 1.2, false)
 	lj.light_color = JOUR_C
 	# éclairage bleu de face (depuis le rivage) : la cascade se lit au fond
 	var face := g.sol_en(id, s - 3.5, lat_c)

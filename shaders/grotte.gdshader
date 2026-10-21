@@ -111,10 +111,11 @@ void fragment() {
 		// 4e passe : plus de « confettis » sur les parois verticales ; seules les faces franchement horizontales (rebords,
 		// dessus de rochers, sol) prennent du givre, et en liseré sur l'arête haute (COLOR.a) plutôt qu'en plaques éparses
 		float plat = smoothstep(0.62, 0.86, n.y);
-		float part = plat * (1.0 - 0.5 * smoothstep(0.9, 0.98, n.y)) * givre;
+		float pas_sol = 1.0 - 0.9 * smoothstep(0.88, 0.97, n.y);     // 5e passe : pas de plaques en grain sur les sols plats
+		float part = plat * pas_sol * givre;
 		part *= mix(0.3, 1.0, clamp(COLOR.r, 0.0, 1.0)) * 0.6;   // jamais plein : la carte de givre découpe toujours en grain
 		// « arête haute » du relief (COLOR.a relevé sur les dessus de corniche, têtes de stalagmites) : liseré franc
-		part = max(part, clamp(COLOR.a - 0.3, 0.0, 1.0) * smoothstep(0.5, 0.75, n.y) * givre * 0.95);
+		part = max(part, clamp(COLOR.a - 0.3, 0.0, 1.0) * smoothstep(0.5, 0.75, n.y) * pas_sol * givre * 0.95);
 		if (part > gv.a) {
 			c = gv.rgb;
 			amt = 1.0;
