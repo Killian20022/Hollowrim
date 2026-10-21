@@ -85,7 +85,7 @@ void fragment() {
 	// --- matières
 	float strates = 0.5 + 0.5 * sin(wp.y * 0.55 + na * 5.0 + nc * 2.0);
 	vec3 roche = mix(vec3(0.045, 0.055, 0.075), vec3(0.14, 0.155, 0.185), clamp(na * 0.8 + strates * 0.3 + nc * 0.3, 0.0, 1.0));
-	vec3 neige_c = mix(vec3(0.52, 0.58, 0.68), vec3(0.78, 0.82, 0.88), nb);
+	vec3 neige_c = mix(vec3(0.46, 0.51, 0.62), vec3(0.66, 0.71, 0.80), nb);  // blanc-gris bleuté (référence), jamais blanc pur
 	vec3 foret = mix(vec3(0.022, 0.05, 0.05), vec3(0.06, 0.10, 0.08), clamp(vc.g * 0.8 + nc * 0.5, 0.0, 1.0));
 	vec3 albedo;
 	if (cat < 0.5 || cat > 3.5) {
@@ -108,16 +108,22 @@ void fragment() {
 	// --- éclairage
 	float diff = max(dot(n, normalize(dir_lum)), 0.0);
 	float ciel = 0.65 + 0.35 * n.y;
-	vec3 col = albedo * (ambiant * ciel * 1.6 + col_lum * diff * 0.9);
+	// château et falaise : pierre sombre en silhouette (référence), la lumière rasante ne les délave pas
+	float lum_dir = (cat > 1.5 && cat < 4.5) ? 0.45 : 0.9;
+	vec3 col = albedo * (ambiant * ciel * 1.6 + col_lum * diff * lum_dir);
 	if (cat > 4.5) {
 		col = mix(col, vec3(1.6, 0.9, 0.4), 0.9 * (1.0 - jour));  // fenêtre allumée la nuit
 		albedo = vec3(0.1);
 	}
 
-	// --- perspective atmosphérique : distance + brume basse (vallées)
-	float hd = 1.0 - exp(-pow(dist / dist_brume, 1.1));
-	float hb = (1.0 - smoothstep(4.0, 60.0, alt)) * 0.88;
-	float haze = 1.0 - (1.0 - hd * 0.92) * (1.0 - hb);
+	// --- perspective atmosphérique EN COUCHES (refonte « lumière ») : chaque plan (collines < 450 m, montagnes
+	// < 1 000 m, lointain) a son voile, presque constant, avec un saut net d'une couche à l'autre ; une nappe de
+	// brume claire noie le pied de chaque plan (vallées) : les silhouettes se détachent l'une derrière l'autre.
+	float couche = smoothstep(380.0, 520.0, dist) + smoothstep(900.0, 1150.0, dist);
+	float hd = mix(0.22, 0.55, couche * 0.5) + 0.20 * smoothstep(1150.0, 2400.0, dist);
+	float pied = 30.0 + 45.0 * couche;   // hauteur de la nappe, plus haute au loin
+	float hb = (1.0 - smoothstep(pied * 0.25, pied, alt + (nb - 0.5) * 18.0)) * 0.85;
+	float haze = 1.0 - (1.0 - hd) * (1.0 - hb);
 	if (cat > 1.5) {
 		haze *= 0.6;  // château et falaise : plus contrastés que le relief qui les entoure
 	}

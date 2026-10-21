@@ -372,3 +372,202 @@ static func trou_cases(Lx: float, centre_x: float, nb: int) -> Vector2:
 	var i0 := roundi((centre_x + Lx * 0.5) / dx - nb * 0.5)
 	var x0 := -Lx * 0.5 + i0 * dx
 	return Vector2(x0, x0 + nb * dx)
+
+# --- refonte « entrée du village » : neige épaisse débordante, pieux de palissade taillés ---------------------
+
+## Pan de toit en neige ÉPAISSE (refonte bâti, image de référence : couche de 35-50 cm qui déborde) : même repère que
+## `dalle_neige` (x le long du faîte, y normale du pan, z le long de la pente depuis le faîte), 5 rangs (le trou à fumée
+## tombe sur les mêmes cases). En plus de l'ancienne dalle : la neige s'épaissit vers l'égout (bourrelet), DÉBORDE de
+## l'égout (`deborde`, 18-34 cm) et des rives (10-22 cm) en un rouleau arrondi qui pend de longueurs irrégulières
+## (`pend` au plus sous le bord : on passe sous l'avant-toit), petites corniches soufflées sur le dessus. Tout en neige
+## (alpha 0), dessous assombri (occlusion peinte). Normales lissées (neige molle).
+static func dalle_neige_epaisse(Lx: float, Sl: float, graine: int, epaisseur := 0.42, deborde := 0.26, pend := 0.22, trou := Vector2.ZERO) -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = graine
+	var nx := 2 * maxi(4, ceili(Lx / 0.9))   # double de la grille de `dalle_neige` : le trou à fumée (`trou_cases`) tombe sur ses arêtes
+	var ns := 5
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var p1 := rng.randf() * TAU
+	var p2 := rng.randf() * TAU
+	var p3 := rng.randf() * TAU
+	var sag := rng.randf_range(0.03, 0.06)
+	var haut := func(x: float, s: float) -> Vector3:
+		var tx := x / Lx + 0.5
+		var ts := s / Sl
+		var y := epaisseur * (0.72 + 0.18 * ts) + epaisseur * 0.22 * smoothstep(0.62, 1.0, ts)
+		y += (sin(x * 1.3 + s * 0.8 + p1) * 0.5 + sin(x * 2.9 - s * 1.7 + p2) * 0.3) * 0.035
+		# corniches soufflées : crêtes obliques douces
+		y += maxf(0.0, sin(x * 0.9 + s * 2.3 + p3)) * 0.075 * (1.0 - absf(ts - 0.5) * 1.4)
+		y -= sag * 4.0 * tx * (1.0 - tx) * (1.0 - ts * 0.5)
+		return Vector3(x, y, s)
+	var grid: Array = []
+	for i in nx + 1:
+		var x := -Lx * 0.5 + Lx * i / nx
+		var col: Array = []
+		for j in ns + 1:
+			var p: Vector3 = haut.call(x, Sl * j / ns)
+			if j > 0 and j < ns and i > 0 and i < nx:
+				p.y += rng.randf_range(-0.03, 0.03)
+			col.append(p)
+		grid.append(col)
+	var blanc := Color(1, 1, 1, 0.0)
+	var add := func(tri_: Array, cols: Array) -> void:
+		for k in 3:
+			st.set_color(cols[k])
+			st.add_vertex(tri_[k])
+	for i in nx:
+		for j in ns:
+			if trou != Vector2.ZERO and j == 0:
+				var xc := -Lx * 0.5 + Lx * (i + 0.5) / nx
+				if xc > trou.x and xc < trou.y:
+					continue
+			var a: Vector3 = grid[i][j]
+			var b: Vector3 = grid[i + 1][j]
+			var c: Vector3 = grid[i + 1][j + 1]
+			var d: Vector3 = grid[i][j + 1]
+			add.call([a, b, d], [blanc, blanc, blanc])
+			add.call([b, c, d], [blanc, blanc, blanc])
+	# profil du rouleau débordant : 5 points depuis le bord du dessus (t) vers l'extérieur `o` puis sous la dalle
+	var ombre := [1.0, 1.0, 0.92, 0.74, 0.55]
+	var profil := func(t: Vector3, o: Vector3, ov: float, dr: float) -> Array:
+		return [t,
+			t + o * (ov * 0.62) + Vector3(0, 0.025, 0),
+			t + o * ov + Vector3(0, -epaisseur * 0.42, 0),
+			t + o * (ov * 0.7) + Vector3(0, -epaisseur * 0.82 - dr, 0),
+			Vector3(t.x, -0.05, t.z) - o * 0.06]
+	var bande := func(pa: Array, pb: Array) -> void:
+		for k in 4:
+			var ca := Color(ombre[k], ombre[k], ombre[k], 0.0)
+			var cb := Color(ombre[k + 1], ombre[k + 1], ombre[k + 1], 1.0 if k + 1 == 4 else 0.0)   # sous la dalle : tourbe sombre
+			add.call([pa[k], pb[k], pa[k + 1]], [ca, ca, cb])
+			add.call([pb[k], pb[k + 1], pa[k + 1]], [ca, cb, cb])
+	# égout : la neige glisse et pend en paquets (largeurs irrégulières : `dr` change tous les 1 à 3 points)
+	var egout: Array = []
+	var dr := 0.0
+	for i in nx + 1:
+		if i == 0 or rng.randf() < 0.55:
+			dr = rng.randf_range(0.0, pend) * (0.4 if rng.randf() < 0.4 else 1.0)
+		var ov := deborde * rng.randf_range(0.75, 1.3)
+		egout.append(profil.call(grid[i][ns], Vector3(0, 0, 1), ov, dr))
+	for i in nx:
+		bande.call(egout[i], egout[i + 1])
+	# rives : rouleau plus mince qui suit la pente
+	var rives := {}
+	for cote in [-1, 1]:
+		var pr: Array = []
+		for j in ns + 1:
+			var ov := deborde * rng.randf_range(0.4, 0.85)
+			var d2 := rng.randf_range(0.0, pend * 0.6)
+			pr.append(profil.call(grid[0 if cote < 0 else nx][j], Vector3(cote, 0, 0), ov, d2))
+		rives[cote] = pr
+		for j in ns:
+			# ordre gauche → droite vu du dehors (faces avant)
+			if cote < 0:
+				bande.call(pr[j], pr[j + 1])
+			else:
+				bande.call(pr[j + 1], pr[j])
+		# coin égout × rive : quart de rouleau (on relie le profil d'égout du bord au profil de rive du bas)
+		var pe: Array = egout[0 if cote < 0 else nx]
+		var prb: Array = pr[ns]
+		var coin: Array = []
+		for k in 5:
+			coin.append(Vector3(prb[k].x, (pe[k].y + prb[k].y) * 0.5 - 0.02, pe[k].z))
+		if cote < 0:
+			bande.call(prb, coin)
+			bande.call(coin, pe)
+		else:
+			bande.call(pe, coin)
+			bande.call(coin, prb)
+	st.generate_normals()
+	return st.commit()
+
+## Pieu de palissade taillé (refonte bâti) : fût à 8 pans irrégulier (rayon ±8 %, léger fuseau, courbure), pointe
+## taillée en 2 temps (anneau de 4 facettes décalé puis pointe désaxée), neige sur le haut de la pointe (alpha 0,
+## probabilité `neige`). Base à y = 0, hauteur totale `h`. UV en mètres (u le long du fût, v autour : matière
+## `rondins` avec `uv_metres`). Couleur de sommet : pied sali (0,6 → 1 sur 0,8 m), faces creusées au hasard.
+static func pieu(h: float, r: float, graine: int, neige := 0.85) -> Maillage:
+	var m := Maillage.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = graine
+	var hp := rng.randf_range(0.42, 0.68)           # hauteur de la pointe
+	var ht := h - hp
+	var stations := 4
+	var cx := rng.randf_range(-0.03, 0.03)
+	var cz := rng.randf_range(-0.03, 0.03)
+	var anneaux: Array = []
+	var jr := []
+	for k in 8:
+		jr.append(1.0 + rng.randf_range(-0.09, 0.09))
+	var a0 := rng.randf() * TAU
+	for s in stations:
+		var t := float(s) / (stations - 1)
+		var y := ht * t
+		var rad := r * (1.0 - 0.07 * t) * (1.0 + rng.randf_range(-0.03, 0.03))
+		var c := Vector3(cx * 4.0 * t * (1.0 - t) * 2.0, y, cz * 4.0 * t * (1.0 - t) * 2.0)
+		var ring := PackedVector3Array()
+		for k in 8:
+			var a: float = a0 + TAU * k / 8.0
+			ring.append(c + Vector3(cos(a), 0, sin(a)) * rad * float(jr[k]))
+		anneaux.append(ring)
+	var teint := rng.randf_range(0.82, 1.08)
+	var pied := func(y: float) -> float:
+		return (0.6 + 0.4 * smoothstep(0.0, 0.8, y)) * teint
+	var face_ao := []
+	for k in 8:
+		face_ao.append(1.0 if rng.randf() > 0.25 else rng.randf_range(0.78, 0.9))
+	var strate := rng.randi_range(0, 3)
+	var u0 := rng.randf() * 6.0
+	for s in stations - 1:
+		var a: PackedVector3Array = anneaux[s]
+		var b: PackedVector3Array = anneaux[s + 1]
+		var ctr := Vector3(0, (a[0].y + b[0].y) * 0.5, 0)
+		for k in 8:
+			var k2 := (k + 1) % 8
+			var fa: float = face_ao[k]
+			var ca: float = pied.call(a[k].y) * fa
+			var cb: float = pied.call(b[k].y) * fa
+			var v0 := strate + 0.93 * k / 8.0
+			var v1 := strate + 0.93 * (k + 1) / 8.0
+			m.tri(a[k], b[k], b[k2], Color(ca, ca, ca), Color(cb, cb, cb), Color(cb, cb, cb), ctr, Vector2(u0 + a[k].y, v0), Vector2(u0 + b[k].y, v0), Vector2(u0 + b[k2].y, v1))
+			m.tri(a[k], b[k2], a[k2], Color(ca, ca, ca), Color(cb, cb, cb), Color(ca, ca, ca), ctr, Vector2(u0 + a[k].y, v0), Vector2(u0 + b[k2].y, v1), Vector2(u0 + a[k2].y, v1))
+	# pointe : anneau de 4 (coups de hache) puis sommet désaxé
+	var top: PackedVector3Array = anneaux[stations - 1]
+	var ctop := Vector3(cx * 0.0, ht, 0)
+	var ym := ht + hp * rng.randf_range(0.45, 0.6)
+	var mid := PackedVector3Array()
+	var am := a0 + rng.randf_range(0.2, 0.6)
+	for k in 4:
+		var a: float = am + TAU * k / 4.0
+		mid.append(Vector3(cos(a), 0, sin(a)) * r * rng.randf_range(0.36, 0.5) + Vector3(0, ym + rng.randf_range(-0.04, 0.04), 0))
+	var apex := Vector3(rng.randf_range(-0.04, 0.04), h, rng.randf_range(-0.04, 0.04))
+	var enneige := rng.randf() < neige
+	var cn := Color(1, 1, 1, 0.0) if enneige else Color(1.05 * teint, 1.05 * teint, 1.05 * teint, 1.0)
+	var cbord := Color(teint, teint, teint, 1.0)
+	var cmid := Color(0.97 * teint, 0.97 * teint, 0.97 * teint, 0.0 if (enneige and rng.randf() < 0.5) else 1.0)
+	# chaque sommet de l'anneau du haut va vers le point « mid » le plus proche en angle ; une arête qui change de
+	# « mid » donne deux triangles (quadrilatère haut k, haut k2, mid q', mid q) : aucune fente
+	var choix := PackedInt32Array()
+	for k in 8:
+		var best := 0
+		var bd := 1e9
+		for q in 4:
+			var d := absf(wrapf(atan2(mid[q].z, mid[q].x) - atan2(top[k].z, top[k].x), -PI, PI))
+			if d < bd:
+				bd = d
+				best = q
+		choix.append(best)
+	var cc := ctop + Vector3(0, 0.05, 0)
+	for k in 8:
+		var k2 := (k + 1) % 8
+		var q := choix[k]
+		var q2 := choix[k2]
+		var ua := Vector2(u0 + top[k].y, 0.0)
+		var ub := Vector2(u0 + top[k2].y, 0.12)
+		m.tri(top[k], top[k2], mid[q2], cbord, cbord, cmid, cc, ua, ub, Vector2(u0 + mid[q2].y, 0.06))
+		if q2 != q:
+			m.tri(top[k], mid[q2], mid[q], cbord, cmid, cmid, cc, ua, Vector2(u0 + mid[q2].y, 0.12), Vector2(u0 + mid[q].y, 0.0))
+	for q in 4:
+		var q2 := (q + 1) % 4
+		m.tri(mid[q], mid[q2], apex, cmid, cmid, cn, Vector3(0, ym - 0.1, 0), Vector2(u0 + mid[q].y, 0.0), Vector2(u0 + mid[q2].y, 0.12), Vector2(u0 + h, 0.06))
+	return m

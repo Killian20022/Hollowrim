@@ -1,0 +1,6 @@
+marche_1 monde 20.69,18.81,-132.3,0.3 heure=17.5 sans-mains
+marche_2 monde 20.88,18.98,-132.3,0.3 heure=17.5 sans-mains
+marche_3 monde 21.06,19.15,-132.3,0.3 heure=17.5 sans-mains
+marche_4 monde 21.25,19.32,-132.3,0.3 heure=17.5 sans-mains
+marche_5 monde 21.43,19.48,-132.3,0.3 heure=17.5 sans-mains
+marche_6 monde 21.62,19.65,-132.3,0.3 heure=17.5 sans-mains

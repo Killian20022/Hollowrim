@@ -13,7 +13,7 @@ render_mode diffuse_lambert, specular_disabled;
 uniform sampler2D tex_base : source_color, filter_nearest_mipmap, repeat_enable;
 uniform sampler2D tex_nm : filter_nearest_mipmap, repeat_enable;
 uniform vec4 teinte : source_color = vec4(1.0);
-uniform float grille = 270.0;        // 0 = pas d'accroche ; 270 = un pixel du rendu 480x270
+uniform float grille = 270.0;        // 0 = pas d'accroche ; 270 = un pixel du rendu (exprimé pour 270 lignes, mis à la hauteur interne)
 uniform float y0 = -140.0;           // sol de la crypte (m, monde)
 uniform float crasse = 1.0;          // 0 = sans occlusion de pied de mur
 uniform float relief = 0.0;          // 0 = pas de carte de pentes
@@ -28,7 +28,7 @@ void vertex() {
 	vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	// pas d'accroche près du plan de la caméra (w petit ou négatif) : xy/w explose et le sommet part dans le décor (murs « disparus »)
 	if (grille > 0.0 && PROJECTION_MATRIX[3][3] < 0.5 && clip.w > 0.6) {
-		vec2 g = vec2(grille * VIEWPORT_SIZE.x / VIEWPORT_SIZE.y, grille);
+		vec2 g = VIEWPORT_SIZE * (grille / 270.0);  // grille exprimée pour 270 lignes : même pas en pixels à toute résolution
 		clip.xy = round(clip.xy / clip.w * g) / g * clip.w;
 	}
 	POSITION = clip;

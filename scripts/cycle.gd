@@ -20,7 +20,7 @@ var ciel: ShaderMaterial
 ## « froid » = couleur de l'horizon et du brouillard hors du côté du soleil ; « chaud » = côté du soleil (crépuscule seulement) ;
 ## « fin » = distance (m) où le brouillard est total (SOCLE_TECHNIQUE §3 bis).
 const NUIT := {
-	"ambiant": Color(0.34, 0.41, 0.60), "ambiant_e": 0.58, "froid": Color(0.04, 0.07, 0.15), "fin": 62.0, "expo": 1.1,
+	"ambiant": Color(0.34, 0.41, 0.60), "ambiant_e": 0.52, "froid": Color(0.04, 0.07, 0.15), "fin": 62.0, "expo": 1.1,
 	"haut": Color(0.008, 0.014, 0.04), "glow": 0.88,
 }
 ## Jour : ciel couvert gris-bleu froid (pas un aplat pâle : le contraste vient du soleil bas chaud et des ombres bleues).
@@ -30,14 +30,14 @@ const JOUR := {
 }
 ## Crépuscule : horizon violet-gris, côté soleil rose-ocre (la bande dorée est dessinée par le ciel), zénith bleu nuit.
 const CREPUSCULE := {
-	"ambiant": Color(0.42, 0.45, 0.58), "ambiant_e": 0.52, "froid": Color(0.22, 0.25, 0.34), "chaud": Color(0.62, 0.44, 0.34),
-	"fin": 58.0, "expo": 1.05, "haut": Color(0.09, 0.11, 0.20), "glow": 0.92,
+	"ambiant": Color(0.40, 0.43, 0.60), "ambiant_e": 0.44, "froid": Color(0.22, 0.25, 0.34), "chaud": Color(0.62, 0.44, 0.34),
+	"fin": 58.0, "expo": 1.3, "haut": Color(0.09, 0.11, 0.20), "glow": 1.15,
 }
 ## Étalonnage (post-traitement, voir ps1_post.gdshader) : multiplicateurs appliqués aux ombres / aux hautes lumières.
 const ETAL := {
-	"nuit": {"ombre": Color(0.93, 0.98, 1.08), "clair": Color(0.98, 1.0, 1.03), "sat": 0.88, "contraste": 0.28},
-	"jour": {"ombre": Color(0.92, 0.97, 1.08), "clair": Color(1.05, 1.01, 0.94), "sat": 0.8, "contraste": 0.38},
-	"crep": {"ombre": Color(0.90, 0.95, 1.08), "clair": Color(1.10, 1.0, 0.86), "sat": 0.78, "contraste": 0.42},
+	"nuit": {"ombre": Color(0.93, 0.97, 1.08), "clair": Color(1.0, 1.0, 1.01), "sat": 0.72, "contraste": 0.32},
+	"jour": {"ombre": Color(0.92, 0.96, 1.08), "clair": Color(1.05, 1.01, 0.95), "sat": 0.76, "contraste": 0.40},
+	"crep": {"ombre": Color(0.90, 0.94, 1.10), "clair": Color(1.08, 1.0, 0.90), "sat": 0.78, "contraste": 0.52},
 }
 
 ## Le brouillard commence à ce rapport de sa fin (net jusqu'à ~20 m pour une fin à 55-60 m).
@@ -123,7 +123,7 @@ func _process(_dt: float) -> void:
 	var t := clampf((h - 12.6) / 4.6, -1.15, 1.15)
 	var az := t * AZIMUT_MAX
 	var soleil_h := Vector2(-sin(az), cos(az))
-	var haut_soleil := maxf(0.10, 0.34 * (1.0 - t * t))
+	var haut_soleil := maxf(0.21, 0.34 * (1.0 - t * t))  # ≥ 12° : le soleil bas touche encore les façades (audit)
 	var e_soleil := smoothstep(8.0, 9.4, h) * (1.0 - smoothstep(17.7, 18.9, h))
 	var e_lune := (1.0 - smoothstep(7.3, 8.0, h)) + smoothstep(18.95, 19.7, h)
 	var est_soleil := h > 8.0 and h < 18.95
@@ -132,7 +132,7 @@ func _process(_dt: float) -> void:
 	if est_soleil:
 		vers_astre = Vector3(soleil_h.x, haut_soleil, soleil_h.y).normalized()
 		# le jour couvert est doux ; la lumière rasante du couchant est plus forte et dorée
-		energie = e_soleil * lerpf(1.2, 1.3, crep)
+		energie = e_soleil * lerpf(1.2, 1.8, crep)
 		lumiere.light_color = Color(1.0, 0.88, 0.76).lerp(Color(1.0, 0.60, 0.32), crep)
 		_dir_h = soleil_h
 	else:
@@ -166,6 +166,7 @@ func _process(_dt: float) -> void:
 	ciel.set_shader_parameter("jour", j)
 	ciel.set_shader_parameter("soleil", 1.0 if est_soleil else 0.0)
 	_etalonner(j, crep)
+	_regler_neige_objets(_dt)
 
 ## Étalonnage global du post-traitement (nuit ↔ jour ↔ crépuscule).
 func _etalonner(j: float, crep: float) -> void:
@@ -203,3 +204,51 @@ func appliquer_brume() -> void:
 	env.fog_density = 1.0
 	env.fog_height_density = 0.0
 	env.fog_sky_affect = 0.0
+
+# --- neige qui tient sur les objets (refonte « lumière », shaders/neige_tient.gdshaderinc) ----------------------
+
+## Uniforme global `neige_objets` : 1 dehors, 0 sous terre (crypte, grotte), caméra dans un intérieur, ou option
+## --sans-neige-objets (A/B). Relevé 4 fois par seconde, écrit seulement quand il change.
+var _neige_objets := -1.0
+var _neige_t := 0.0
+var _sans_neige_objets := OS.get_cmdline_user_args().has("--sans-neige-objets")
+
+func _regler_neige_objets(dt: float) -> void:
+	_neige_t -= dt
+	if _neige_t > 0.0 and _neige_objets >= 0.0:
+		return
+	_neige_t = 0.25
+	_exclure_neige()
+	var v := 0.0 if _sans_neige_objets or _sous_abri() else 1.0
+	if v != _neige_objets:
+		_neige_objets = v
+		RenderingServer.global_shader_parameter_set("neige_objets", v)
+
+func _sous_abri() -> bool:
+	var m := get_parent()
+	if m == null:
+		return false
+	if m.get("_sous_terre_actif") == true:
+		return true
+	var v = m.get("village")
+	if v == null or not is_instance_valid(v):
+		return false
+	for ip in v.interieurs:
+		if is_instance_valid(ip) and ip.dedans(ip._camera()):
+			return true
+	return false
+
+## Matériaux ps1 qui ne reçoivent jamais la neige posée : l'eau (pas d'effet sur l'eau). Passe sur les matériaux créés
+## depuis le dernier appel seulement.
+var _nb_mat_vus := 0
+
+func _exclure_neige() -> void:
+	var mats: Array = Palette.materiaux
+	if mats.size() == _nb_mat_vus:
+		return
+	var eau = Palette._cache.get("eau")
+	for i in range(mini(_nb_mat_vus, mats.size()), mats.size()):
+		var m: ShaderMaterial = mats[i]
+		if eau != null and m.get_shader_parameter("tex_base") == eau:
+			m.set_shader_parameter("neige_tient", 0.0)
+	_nb_mat_vus = mats.size()

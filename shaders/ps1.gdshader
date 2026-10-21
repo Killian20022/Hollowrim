@@ -39,11 +39,14 @@ uniform sampler2DArray sol_index2 : filter_nearest;
 uniform sampler2D sol_details2 : filter_nearest, repeat_enable;   // 160² (Scale2x des détails)
 uniform vec2 sol_proche = vec2(3.0, 11.0);
 instance uniform float eclair = 0.0; // flash quand l'objet est touché (par instance)
+#include "res://shaders/neige_tient.gdshaderinc"
 
 varying vec3 uv_aff;
 varying vec2 uv_macro;
 varying vec2 pos_monde;  // position monde (interpolation normale, non affine)
 varying vec3 normale_monde;
+varying vec3 pos_monde3; // position monde 3D (neige qui tient)
+varying float peau;      // 1 = maillage animé par un squelette (personnages) : pas de neige posée
 
 // niveau de chaque matière du sol (un bord se dessine entre niveaux différents : lèvre claire en haut,
 // ombre en bas) : neige, piétinée, terre, aiguilles, mousse, roche, glace, croûte
@@ -93,11 +96,13 @@ void vertex() {
 	}
 	pos_monde = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;
 	normale_monde = (MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz;
+	pos_monde3 = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	peau = step(0.001, BONE_WEIGHTS.x + BONE_WEIGHTS.y + BONE_WEIGHTS.z + BONE_WEIGHTS.w);
 	uv_macro = pos_monde * 0.03;
 	vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	// Pas d'accroche dans la passe d'ombre (projection orthographique) : sinon acné.
 	if (grille > 0.0 && PROJECTION_MATRIX[3][3] < 0.5) {
-		vec2 g = vec2(grille * VIEWPORT_SIZE.x / VIEWPORT_SIZE.y, grille);
+		vec2 g = VIEWPORT_SIZE * (grille / 270.0);  // grille exprimée pour 270 lignes : même pas en pixels à toute résolution
 		clip.xy = round(clip.xy / clip.w * g) / g * clip.w;
 	}
 	POSITION = clip;
@@ -216,6 +221,16 @@ void fragment() {
 		ALBEDO *= mix(1.0, 0.8 + m * 0.36, macro_force * macro_sol);
 	}
 	ALBEDO = mix(vec3(dot(ALBEDO, vec3(0.3, 0.59, 0.11))), ALBEDO, saturation);
+	// neige qui tient (objets dehors) : jamais sur le terrain (sol validé), ni sur les parties déjà neigées, ni sur les personnages
+	if (!sol_carte && !uv_monde && COLOR.a >= 0.5 && peau < 0.5) {
+		vec3 nm = normalize(normale_monde);
+		float couv = nt_couverture(nm, pos_monde3, length(VERTEX));
+		if (couv > 0.0) {
+			vec2 tq = nt_texel(pos_monde3, nm);
+			vec3 nc = texture(tex_neige, (tq + 0.5) / vec2(textureSize(tex_neige, 0))).rgb;
+			ALBEDO = nt_appliquer(ALBEDO, nc, couv);
+		}
+	}
 	ALBEDO = mix(ALBEDO, vec3(1.0, 0.85, 0.8), eclair);
 	EMISSION = emission + vec3(0.6, 0.25, 0.2) * eclair;
 	ROUGHNESS = 1.0;
