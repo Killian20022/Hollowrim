@@ -1175,9 +1175,8 @@ func _lot_captures(fichier: String) -> void:
 				if pilote == null:
 					push_error("--captures : vue « pilote » sans --guerrier-pilote")
 					continue
-				if opt.has("anim"):
-					var an := String(opt["anim"]).split(":")
-					_pilote_animer(an[0], float(an[1]) if an.size() > 1 else 0.25)
+				var an := String(opt.get("anim", String(_arguments().get("guerrier-anim", "Sword_Idle")))).split(":")
+				_pilote_animer(an[0], float(an[1]) if an.size() > 1 else 0.25)
 				var pp := pilote.global_position
 				var dir := pilote.global_basis.z.rotated(Vector3.UP, deg_to_rad(c[1]))
 				dir.y = 0.0

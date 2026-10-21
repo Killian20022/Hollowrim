@@ -1,0 +1,4 @@
+# Guerrier pilote, variante casque à nasal (--guerrier-casque)
+c17_2m_face pilote 2,0 heure=17.5 sans-mains
+c17_2m_34 pilote 2,-35 heure=17.5 sans-mains
+c17_4m_34 pilote 4,-35 heure=17.5 sans-mains

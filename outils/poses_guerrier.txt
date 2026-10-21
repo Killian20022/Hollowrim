@@ -21,3 +21,15 @@ p21_3m_34_torche pilote 3,30 heure=21
 scint_0 pilote 4,25 heure=17.5 sans-mains
 scint_1 pilote 4,25 heure=17.5 sans-mains decal=0.02
 scint_2 pilote 4,25 heure=17.5 sans-mains decal=0.04
+# bande d'animations (3,2 m, 3/4 côté épée, 17h30) : pose figée à la fraction t du clip
+an_idle pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Idle:0.3
+an_garde pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Sword_Idle:0.3
+an_marche_a pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Walk:0.25
+an_marche_b pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Walk:0.75
+an_course_a pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Jog_Fwd:0.3
+an_course_b pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Sprint:0.4
+an_attaque_a pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Sword_Attack:0.35
+an_attaque_b pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Sword_Attack:0.6
+an_coup pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Hit_Chest:0.4
+an_mort_a pilote 3.2,-40,0.6 heure=17.5 sans-mains anim=Death01:0.5
+an_mort_b pilote 3.2,-40,0.4 heure=17.5 sans-mains anim=Death01:1.0
