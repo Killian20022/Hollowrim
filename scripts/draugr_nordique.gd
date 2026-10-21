@@ -19,7 +19,11 @@ class_name DraugrNordique
 
 const SHADER := preload("res://shaders/ps1_draugr.gdshader")
 const LUEUR := Vector3(3.0, 5.4, 7.6)
-const TEINTE_CHAIR := Color(0.80, 0.74, 0.64)
+const TEINTE_CHAIR := Color(0.64, 0.58, 0.49)   # passe 2 : peau parcheminée gris-brun, plus sombre et terne
+const RAIDEUR := preload("res://scripts/draugr_raideur.gd")
+const BOUCLIER_ECH := 0.7    # passe 2 : bouclier à 70 % de la taille de la passe 1
+## passe 2 : membres décharnés (facteur du rayon autour de l'axe de l'os ; 1 = inchangé)
+const MAIGREUR := {"upperarm_l": 0.66, "upperarm_r": 0.66, "lowerarm_l": 0.60, "lowerarm_r": 0.60, "thigh_l": 0.70, "thigh_r": 0.70, "calf_l": 0.62, "calf_r": 0.62}
 const APPOINT := Vector3(0.13, 0.12, 0.11)
 
 static var _shaders := {}
@@ -75,6 +79,8 @@ static func creer(options := {}) -> Node3D:
 	_habiller(pieces["bottes"], materiau(DraugrTextures.tex("bottes")))
 	_habiller(pieces["brassards"], materiau(DraugrTextures.tex("brassards")))
 	_habiller(pieces["mante"], materiau(DraugrTextures.tex("mante")))
+	for nom in ["tunique", "pantalon", "bottes", "brassards", "mante", "peau", "ceinture", "pteruges"]:
+		_maigrir(sq, pieces.get(nom))
 	var sc: MeshInstance3D = pieces.get("SuperHero_Male")
 	if sc:
 		sc.visible = false
@@ -90,7 +96,7 @@ static func creer(options := {}) -> Node3D:
 			m2.shader = shader(false)
 			m2.set_shader_parameter("tex_base", m.get_shader_parameter("tex_base"))
 			m2.set_shader_parameter("teinte", TEINTE_CHAIR)
-			m2.set_shader_parameter("saturation", 0.18)
+			m2.set_shader_parameter("saturation", 0.12)
 			m2.set_shader_parameter("appoint", APPOINT)
 			m2.next_pass = GuerrierNordique.contour()
 			Palette.materiaux.append(m2)
@@ -112,7 +118,11 @@ static func creer(options := {}) -> Node3D:
 		GuerrierNordique._decimer(mi_ch, func(p: Vector3) -> float: return 0.03)
 		mi_ch.material_override = materiau(_tex_cheveux(mi_ch), true, false, true, "cheveux_draugr")
 	# -- pièces ajoutées
+	# passe 2 : poitrine ouverte en V sur la tunique et le plastron (côtes et clavicules à nu)
+	var ouvert := func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.0 and c.y > 1.20 and c.y < 1.56 and absf(c.x) < 0.062 + (c.y - 1.20) * 0.16)
+	GuerrierNordique._filtrer(pieces["tunique"], ouvert)
 	var plastron := GuerrierNordique._plastron(sq, pieces["tunique"])
+	GuerrierNordique._filtrer(plastron, ouvert)
 	# mante ouverte en V sur le devant (comme le guerrier, plus large) : mailles, médaillon et baudrier lisibles
 	GuerrierNordique._filtrer(pieces["mante"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.0 and absf(c.x) < 0.17 + (c.y - 1.30) * 0.3 and c.y < 1.55))
 	var rest_skin := sq.create_skin_from_rest_transforms()
@@ -130,6 +140,7 @@ static func creer(options := {}) -> Node3D:
 	acc.casque(pe, mi_ch)
 	# épaulières puis fourrure (frange sous les épaulières, touffes dans le dos, col)
 	acc.epaulieres(pieces["mante"])
+	acc.cotes(pe)
 	acc.poitrine_libre = true
 	acc.fourrure_bord(pieces["mante"], 1.25, 1.45, 0.10, 0.19, 1.0, 1.7)
 	acc.dos_seul = true
@@ -142,6 +153,7 @@ static func creer(options := {}) -> Node3D:
 	acc.fourrure_bord(pieces["bottes"], 0.30, 0.45, 0.06, 0.10, 1.0, 1.6)
 	# lambeaux : ptéruges et tabard (devant / derrière)
 	acc.lambeaux(pieces["pteruges"], pieces["tunique"])
+	acc.cape(pieces["mante"], pieces["tunique"])
 	acc.boucle(Vector3(0.0, 0.988, 0.152), 0.062)
 	acc.fibule(plastron, Vector2(-0.085, 1.37))
 	for nom in ["ceinture", "pteruges"]:
@@ -153,8 +165,64 @@ static func creer(options := {}) -> Node3D:
 	if options.get("epee", true):
 		acc.epee()
 	sq.add_child(acc.construire(rest_skin))
+	var rd: SkeletonModifier3D = RAIDEUR.new()
+	rd.name = "Raideur"
+	sq.add_child(rd)
 	racine.set_meta("draugr_nordique", true)
 	return racine
+
+## Passe 2 : amaigrit une pièce (position de repos) : chaque sommet est rapproché de l'axe de l'os porteur (bras, jambes) selon
+## ses poids ; torse resserré en largeur. Mêmes poids d'os : aucune animation n'est touchée.
+static func _maigrir(sq: Skeleton3D, mi: MeshInstance3D) -> void:
+	if mi == null or mi.mesh == null:
+		return
+	var segs := {}
+	for nom: String in MAIGREUR:
+		var i := sq.find_bone(nom)
+		var fils := -1
+		for j in sq.get_bone_count():
+			if sq.get_bone_parent(j) == i:
+				fils = j
+				break
+		if i >= 0 and fils >= 0:
+			segs[i] = [sq.get_bone_global_rest(i).origin, sq.get_bone_global_rest(fils).origin, MAIGREUR[nom]]
+	var torse := {}
+	for nom in ["spine_01", "spine_02", "spine_03"]:
+		torse[sq.find_bone(nom)] = true
+	var a := mi.mesh.surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var bones: PackedInt32Array = a[Mesh.ARRAY_BONES]
+	var w: PackedFloat32Array = a[Mesh.ARRAY_WEIGHTS]
+	var nb := bones.size() / v.size()
+	var cache := {}
+	for i in v.size():
+		var p := v[i]
+		var q := p
+		for j in nb:
+			var wj := w[i * nb + j]
+			if wj <= 0.0:
+				continue
+			var b := bones[i * nb + j]
+			if not cache.has(b):
+				cache[b] = maxi(0, GuerrierNordique._os_de_bind(mi.skin, sq, b))
+			var os_: int = cache[b]
+			if segs.has(os_):
+				var s: Array = segs[os_]
+				var ab: Vector3 = s[1] - s[0]
+				var t := clampf((p - s[0]).dot(ab) / maxf(ab.length_squared(), 1e-6), 0.0, 1.0)
+				q += ((s[0] + ab * t) - p) * (1.0 - float(s[2])) * wj
+			elif torse.has(os_):
+				q.x -= p.x * 0.09 * wj
+		v[i] = q
+	a[Mesh.ARRAY_VERTEX] = v
+	for k in [Mesh.ARRAY_TANGENT, Mesh.ARRAY_COLOR, Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_CUSTOM0, Mesh.ARRAY_CUSTOM1, Mesh.ARRAY_CUSTOM2, Mesh.ARRAY_CUSTOM3]:
+		a[k] = null
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if nb == 8 else 0)
+	var mat := mi.get_surface_override_material(0)
+	mi.mesh = m
+	if mat:
+		mi.set_surface_override_material(0, mat)
 
 static func _habiller(mi: MeshInstance3D, m: ShaderMaterial) -> void:
 	mi.visible = true
@@ -411,18 +479,112 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 			var k1 := (k + 1) % 4
 			_quad(op, q[k], b[k], b[k1], q[k1], u0, u1, u2, u3, os_, dedans)
 
-	# ------------------------------------------------------------ épaulières (coques de lames sur la mante)
-	## Triangles de la mante sur les épaules (|x| > 0,14, y > 1,36, -0,15 < z < 0,13 : le dessus de l'épaule, tournés vers l'extérieur), gonflés de 2,4 cm (+ bombés
-	## vers le haut au centre), mêmes poids que la mante : elles suivent les épaules dans toutes les animations.
+	# ------------------------------------------------------------ épaulières en DÔME (passe 2)
+	## Calotte de fer bombée (ellipsoïde à 9 pans, 4 rangs + collerette évasée) posée sur l'épaule, rivets peints en couronne ;
+	## poids repris de la mante au sommet voisin : elle suit l'épaule dans toutes les animations.
 	func epaulieres(mante: MeshInstance3D) -> void:
 		var R := DraugrTextures.R_EPAUL
-		var centre := Vector3(0.0, 1.42, -0.02)
-		var garder := func(c: Vector3, n: Vector3) -> bool:
-			return absf(c.x) > 0.14 and c.y > 1.36 and c.z > -0.15 and c.z < 0.13 and n.dot(c - centre) > 0.0
-		var deforme := func(p: Vector3, n: Vector3) -> Vector3:
-			var bombe := clampf((absf(p.x) - 0.12) / 0.18, 0.0, 1.0)
-			return p + n * (0.020 + 0.012 * sin(bombe * PI)) + Vector3(signf(p.x) * 0.01 * bombe, 0.004, 0)
-		integrer_pos(mante, op, garder, func(p: Vector3) -> Vector2: return _uvr(R, (p.z + 0.23) / 0.42, (1.64 - p.y) / 0.32), deforme)
+		var am := mante.mesh.surface_get_arrays(0)
+		var N := 9
+		var phis := [0.0, 0.5, 0.95, 1.3, 1.5]
+		for nom in ["upperarm_l", "upperarm_r"]:
+			var o := sq.get_bone_global_rest(sq.find_bone(nom)).origin
+			var sg := signf(o.x)
+			# sommet de la mante au-dessus de l'épaule : la coupole se pose dessus
+			var ytop := o.y + 0.08
+			for q: Vector3 in am[Mesh.ARRAY_VERTEX]:
+				if absf(q.x - o.x) < 0.06 and absf(q.z - o.z) < 0.08:
+					ytop = maxf(ytop, q.y)
+			var C := Vector3(o.x * 0.97, ytop - 0.05, o.z + 0.005)
+			var d := Vector3(sg * 0.50, 0.87, 0.0).normalized()
+			var zz := Vector3(0, 0, 1)
+			var ww := d.cross(zz) * -sg
+			var pt := func(k: int, i: int) -> Vector3:
+				var ph: float = phis[k]
+				var th := TAU * i / N
+				var lat := 1.0 + (0.14 if k == phis.size() - 1 else 0.0)
+				return C + d * cos(ph) * 0.105 + (zz * cos(th) * 0.125 + ww * sin(th) * 0.128) * sin(ph) * lat
+			var uv := func(k: int, i: int) -> Vector2:
+				return _uva(R.position.x + float(R.size.x) * i / N, R.position.y + float(R.size.y) * float(phis[k]) / 1.5)
+			var pw := func(p: Vector3) -> Array: return _poids_proche(mante, am, p)
+			var dedans := C - d * 0.04
+			for i in N:
+				var j := (i + 1) % N
+				var j_u := i + 1
+				var ua: Vector2 = uv.call(0, i)
+				_tri(op, [pt.call(0, 0), pt.call(1, i), pt.call(1, j)], [Vector2(ua.x, _uva(0, R.position.y).y), uv.call(1, i), uv.call(1, j_u)],
+					[pw.call(pt.call(0, 0)), pw.call(pt.call(1, i)), pw.call(pt.call(1, j))], dedans)
+				for k in range(1, phis.size() - 1):
+					var a: Vector3 = pt.call(k, i)
+					var b: Vector3 = pt.call(k, j)
+					var c: Vector3 = pt.call(k + 1, j)
+					var e: Vector3 = pt.call(k + 1, i)
+					_quad(op, a, b, c, e, uv.call(k, i), uv.call(k, j_u), uv.call(k + 1, j_u), uv.call(k + 1, i), [pw.call(a), pw.call(b), pw.call(c), pw.call(e)], dedans)
+
+	# ------------------------------------------------------------ poitrine décharnée : côtes, sternum, clavicules (passe 2)
+	## Altitude de la surface de la peau (devant) au point (x, y), par le sommet de peau le plus proche en (x, y).
+	func _z_peau(peau: MeshInstance3D, x: float, y: float) -> float:
+		var v: PackedVector3Array = peau.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		var z := -9.0
+		var best := 1e9
+		for p in v:
+			if p.z > 0.0:
+				var d := (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y)
+				if d < best:
+					best = d
+					z = p.z
+		return z if best < 0.0016 else 0.10
+
+	func cotes(peau: MeshInstance3D) -> void:
+		var os_ := sq.find_bone("spine_03")
+		var R := DraugrTextures.R_OSS
+		var os_u := func(fx: float, fy: float, moitie: int) -> Vector2: return _uva(R.position.x + moitie * 32 + fx * 31.0, R.position.y + fy * 31.0)
+		# fond : chair desséchée creusée entre les côtes (deux panneaux, un par côté)
+		for sg: float in [-1.0, 1.0]:
+			var pts := []
+			for kx in 3:
+				var col := []
+				for ky in 3:
+					var x := sg * (0.012 + kx * 0.046)
+					var y := 1.25 + ky * 0.115
+					col.append(Vector3(x, y, _z_peau(peau, x, y) + 0.004 - kx * 0.003))
+				pts.append(col)
+			for kx in 2:
+				for ky in 2:
+					_quad(op, pts[kx][ky], pts[kx + 1][ky], pts[kx + 1][ky + 1], pts[kx][ky + 1], os_u.call(0, 0, 1), os_u.call(1, 0, 1), os_u.call(1, 1, 1), os_u.call(0, 1, 1), os_, Vector3(0, 1.4, 0.0))
+		# côtes : bandes courbes, se courbant vers l'arrière
+		for k in 5:
+			var y0 := 1.44 - k * 0.05
+			for sg: float in [-1.0, 1.0]:
+				var xs := [0.016, 0.050, 0.082, 0.110]
+				for s in 3:
+					var xa: float = xs[s] * sg
+					var xb: float = xs[s + 1] * sg
+					var ya := y0 - 0.010 * s - 0.0008
+					var yb := y0 - 0.010 * (s + 1) - 0.0008
+					var za := _z_peau(peau, xa, ya) + 0.010 - s * 0.003
+					var zb := _z_peau(peau, xb, yb) + 0.010 - (s + 1) * 0.003
+					var h := 0.0125
+					_quad(op, Vector3(xa, ya + h, za), Vector3(xb, yb + h, zb), Vector3(xb, yb, zb), Vector3(xa, ya, za), os_u.call(0, 0, 0), os_u.call(1, 0, 0), os_u.call(1, 1, 0), os_u.call(0, 1, 0), os_, Vector3(xa, ya, za - 0.12))
+		# sternum
+		for s in 3:
+			var ya := 1.50 - s * 0.085
+			var yb := ya - 0.085
+			var za := _z_peau(peau, 0.0, ya) + 0.011
+			var zb := _z_peau(peau, 0.0, yb) + 0.011
+			_quad(op, Vector3(-0.011, ya, za), Vector3(0.011, ya, za), Vector3(0.011, yb, zb), Vector3(-0.011, yb, zb), os_u.call(0, 0, 0), os_u.call(1, 0, 0), os_u.call(1, 1, 0), os_u.call(0, 1, 0), os_, Vector3(0, ya, za - 0.12))
+		# clavicules : barres en V légèrement relevées vers les épaules
+		for sg: float in [-1.0, 1.0]:
+			var pa := Vector3(sg * 0.012, 1.52, _z_peau(peau, 0.0, 1.52) + 0.012)
+			var pb := Vector3(sg * 0.075, 1.545, _z_peau(peau, sg * 0.075, 1.54) + 0.014)
+			var pc := Vector3(sg * 0.140, 1.545, _z_peau(peau, sg * 0.13, 1.54) + 0.004)
+			for seg: Array in [[pa, pb], [pb, pc]]:
+				var a: Vector3 = seg[0]
+				var b: Vector3 = seg[1]
+				var h := Vector3(0, 0.014, 0)
+				var ep := Vector3(0, 0.0, 0.010)
+				_quad(op, a + h, b + h, b, a, os_u.call(0, 0, 0), os_u.call(1, 0, 0), os_u.call(1, 1, 0), os_u.call(0, 1, 0), os_, a - Vector3(0, 0, 0.12))
+				_quad(op, a + h + ep * 0.0, b + h, b + h - ep, a + h - ep, os_u.call(0, 0, 0), os_u.call(1, 0, 0), os_u.call(1, 0.5, 0), os_u.call(0, 0.5, 0), os_, a - Vector3(0, 0.12, 0))
 
 	# ------------------------------------------------------------ lambeaux : ptéruges + tabard devant / derrière
 	func lambeaux(pteruges: MeshInstance3D, tunique: MeshInstance3D) -> void:
@@ -443,6 +605,143 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 				if q.y < 0.86:
 					q.y -= (0.86 - q.y) * 0.6
 				return q)
+
+	# ------------------------------------------------------------ bouclier réduit
+	## Passe 2 : copie du bouclier du guerrier à l'échelle BOUCLIER_ECH (texture gris-noir fendue, cerclage rouillé).
+	func bouclier(ou: String) -> void:
+		var os_ := sq.find_bone("lowerarm_l" if ou == "bras" else "spine_03")
+		var tr: Transform3D
+		var rest := sq.get_bone_global_rest(os_)
+		if ou == "bras":
+			# au repos (pose en T), l'avant-bras gauche est horizontal vers +X : le bouclier se tient sur le dessus de
+			# l'avant-bras (normale +Y au repos = vers l'extérieur une fois le bras baissé), haut du bouclier vers le coude.
+			var cx := (rest.origin.x + sq.get_bone_global_rest(sq.find_bone("hand_l")).origin.x) * 0.5
+			var b := Basis(Vector3(0, 0, 1), Vector3(-1, 0, 0), Vector3(0, 1, 0))   # colonnes : x local, y local (haut), z local (face)
+			var rg: Vector3 = GuerrierNordique.reglage_bouclier
+			b = Basis(Vector3.RIGHT, deg_to_rad(rg.y)) * b * Basis(Vector3.FORWARD, deg_to_rad(rg.z))
+			tr = Transform3D(b.scaled(Vector3.ONE * DraugrNordique.BOUCLIER_ECH), Vector3(cx, rest.origin.y + rg.x * 0.78, rest.origin.z + 0.02))   # passe 2 : 70 % de la taille, plus près du bras décharné
+		else:
+			tr = Transform3D((Basis(Vector3.UP, PI) * Basis(Vector3.RIGHT, deg_to_rad(8.0))).scaled(Vector3.ONE * DraugrNordique.BOUCLIER_ECH), Vector3(0.0, 1.22, -0.21))
+		sq.set_meta("bouclier", [os_, tr])     # contrôle des traversées (outils/test_guerrier.gd)
+		var n := 14
+		var anneaux := [[0.105, 0.030], [0.25, 0.024], [0.375, 0.012]]     # [rayon, z] de la face bombée
+		var fa := GuerrierTextures.R_FACE
+		var fuv := func(p: Vector3) -> Vector2:
+			return _uva(fa.position.x + (0.5 + p.x / (2.0 * RB * 0.97)) * fa.size.x, fa.position.y + (0.5 - p.y / (2.0 * RB * 0.97)) * fa.size.y)
+		for i in n:
+			var a0 := TAU * i / n
+			var a1 := TAU * (i + 1) / n
+			var e0 := Vector3(cos(a0), sin(a0), 0.0)
+			var e1 := Vector3(cos(a1), sin(a1), 0.0)
+			# face (planches peintes)
+			for k in anneaux.size() - 1:
+				var ri: float = anneaux[k][0]
+				var ro: float = anneaux[k + 1][0]
+				var zi: float = anneaux[k][1]
+				var zo: float = anneaux[k + 1][1]
+				var p := [e0 * ri + Vector3(0, 0, zi), e1 * ri + Vector3(0, 0, zi), e1 * ro + Vector3(0, 0, zo), e0 * ro + Vector3(0, 0, zo)]
+				_quad(op, tr * p[1], tr * p[0], tr * p[3], tr * p[2], fuv.call(p[1]), fuv.call(p[0]), fuv.call(p[3]), fuv.call(p[2]), os_, tr * Vector3(0, 0, -1))
+			# cerclage : lèvre avant, bande extérieure, lèvre arrière
+			var f := GuerrierTextures.R_FER
+			var uf0 := f.position.x + 32.0 * i / n
+			var uf1 := f.position.x + 32.0 * (i + 1) / n
+			var ro2 := RB + 0.008
+			var lev := [[e0 * 0.372 + Vector3(0, 0, 0.016), e1 * 0.372 + Vector3(0, 0, 0.016), e1 * ro2 + Vector3(0, 0, 0.022), e0 * ro2 + Vector3(0, 0, 0.022), 0, 8, Vector3(0, 0, -1)],
+				[e0 * ro2 + Vector3(0, 0, 0.022), e1 * ro2 + Vector3(0, 0, 0.022), e1 * ro2 + Vector3(0, 0, -0.016), e0 * ro2 + Vector3(0, 0, -0.016), 8, 20, Vector3.ZERO],
+				[e0 * ro2 + Vector3(0, 0, -0.016), e1 * ro2 + Vector3(0, 0, -0.016), e1 * 0.385 + Vector3(0, 0, -0.016), e0 * 0.385 + Vector3(0, 0, -0.016), 20, 30, Vector3(0, 0, 1)]]
+			for l: Array in lev:
+				_quad(op, tr * l[1], tr * l[0], tr * l[3], tr * l[2], _uva(uf1, f.position.y + l[4]), _uva(uf0, f.position.y + l[4]),
+					_uva(uf0, f.position.y + l[5]), _uva(uf1, f.position.y + l[5]), os_, tr * l[6])
+			# dos (bois brut + sangles) : éventail
+			var d := GuerrierTextures.R_DOS
+			var duv := func(p: Vector3) -> Vector2:
+				return _uva(d.position.x + (0.5 + p.x / (2.0 * RB)) * d.size.x, d.position.y + (0.5 - p.y / (2.0 * RB)) * d.size.y)
+			var c := Vector3(0, 0, -0.016)
+			var q0 := e0 * 0.385 + c
+			var q1 := e1 * 0.385 + c
+			_tri(op, [tr * c, tr * q0, tr * q1], [duv.call(c), duv.call(q0), duv.call(q1)], os_, tr * Vector3(0, 0, 1))
+			# umbo : collerette plate + dôme (2 rangs)
+			var u := GuerrierTextures.R_UMBO
+			var uu0 := u.position.x + 32.0 * i / n
+			var uu1 := u.position.x + 32.0 * (i + 1) / n
+			var dome := [[0.105, 0.032, 30.0], [0.075, 0.040, 26.0], [0.068, 0.075, 16.0], [0.040, 0.105, 7.0], [0.0, 0.115, 0.0]]
+			for k in dome.size() - 1:
+				var A: Array = dome[k]
+				var B: Array = dome[k + 1]
+				var p := [e0 * A[0] + Vector3(0, 0, A[1]), e1 * A[0] + Vector3(0, 0, A[1]), e1 * B[0] + Vector3(0, 0, B[1]), e0 * B[0] + Vector3(0, 0, B[1])]
+				if k == dome.size() - 2:
+					_tri(op, [tr * p[1], tr * p[0], tr * p[3]], [_uva(uu1, u.position.y + A[2]), _uva(uu0, u.position.y + A[2]), _uva(uu0, u.position.y + 1)], os_, tr * Vector3.ZERO)
+				else:
+					_quad(op, tr * p[1], tr * p[0], tr * p[3], tr * p[2], _uva(uu1, u.position.y + A[2]), _uva(uu0, u.position.y + A[2]),
+						_uva(uu0, u.position.y + B[2]), _uva(uu1, u.position.y + B[2]), os_, tr * Vector3.ZERO)
+
+	# ------------------------------------------------------------ épée large ébréchée (passe 2)
+	func epee() -> void:
+		var os_ := sq.find_bone("hand_r")
+		var tr := sq.get_bone_global_rest(os_) * PRISE
+		sq.set_meta("epee", [os_, tr])
+		var l := GuerrierTextures.R_LAME
+		var f := GuerrierTextures.R_FER
+		# lame de draugr : large (9 cm), à peine effilée, bords ébréchés (largeurs gauche / droite décalées), épaisse, rouillée
+		# [y, demi-largeur gauche, demi-largeur droite, demi-épaisseur]
+		var sec := [[0.105, 0.036, 0.036, 0.008], [0.20, 0.044, 0.044, 0.008], [0.33, 0.048, 0.048, 0.008], [0.38, 0.048, 0.039, 0.0075],
+			[0.43, 0.040, 0.047, 0.0075], [0.51, 0.045, 0.045, 0.007], [0.57, 0.036, 0.044, 0.007], [0.62, 0.044, 0.038, 0.0065],
+			[0.69, 0.041, 0.040, 0.006], [0.77, 0.030, 0.031, 0.005]]
+		var pointe := Vector3(0.002, 0.875, 0)
+		for k in sec.size():
+			var A: Array = sec[k]
+			var pa := [Vector3(-A[1], A[0], 0), Vector3(0, A[0], A[3]), Vector3(A[2], A[0], 0), Vector3(0, A[0], -A[3])]
+			var va: float = l.position.y + l.size.y * (A[0] - 0.105) / 0.77
+			if k == sec.size() - 1:
+				for i in 4:
+					var u0 := l.position.x + (0.0 if i < 2 else 8.0) + (0.0 if i % 2 == 0 else 8.0)
+					_tri(op, [tr * pa[i], tr * pa[(i + 1) % 4], tr * pointe], [_uva(u0, va), _uva(u0 + 7.9, va), _uva(u0 + 4.0, l.position.y + l.size.y - 0.5)], os_, tr * Vector3(0, A[0], 0))
+				break
+			var B: Array = sec[k + 1]
+			var pb := [Vector3(-B[1], B[0], 0), Vector3(0, B[0], B[3]), Vector3(B[2], B[0], 0), Vector3(0, B[0], -B[3])]
+			var vb: float = l.position.y + l.size.y * (B[0] - 0.105) / 0.77
+			for i in 4:
+				var u0 := l.position.x + (0.0 if i % 2 == 0 else 8.0)
+				var u1 := u0 + 7.9
+				_quad(op, tr * pa[i], tr * pa[(i + 1) % 4], tr * pb[(i + 1) % 4], tr * pb[i], _uva(u0, va), _uva(u1, va), _uva(u1, vb), _uva(u0, vb), os_, tr * Vector3(0, (A[0] + B[0]) * 0.5, 0))
+		# garde simple : barre droite épaisse
+		_boite(Vector3(-0.088, 0.076, -0.020), Vector3(0.088, 0.106, 0.020), tr, os_, f)
+		# poignée : prisme à 6 pans, pommeau trapu
+		_tube(op, tr * Vector3(0, 0.078, 0), tr * Vector3(0, -0.005, 0), 0.016, 0.015, 6, os_, GuerrierTextures.R_POIGNEE, 1)
+		_boite(Vector3(-0.036, -0.042, -0.019), Vector3(0.036, -0.004, 0.019), tr, os_, f)
+
+	# ------------------------------------------------------------ cape en lambeaux (dos) : lanières pointues (passe 2)
+	## Deux rangées de lanières géométriques (rectangle + pointe), longueurs et pointes irrégulières, pendues aux épaules.
+	func cape(mante: MeshInstance3D, tunique: MeshInstance3D) -> void:
+		var R := DraugrTextures.R_LAMB
+		var D := Vector2(GuerrierTextures.DECOUPES)
+		var am := mante.mesh.surface_get_arrays(0)
+		var at := tunique.mesh.surface_get_arrays(0)
+		var rang := 0
+		for r in 2:
+			var n := 8 - r
+			for i in n:
+				var xc := (-0.165 + 0.33 * (i + 0.5) / n) * (1.0 - r * 0.05)
+				var w := 0.38 / n * (1.0 + 0.25 * (_h(i + r * 9) - 0.5))
+				var y0 := 1.43 - r * 0.20
+				var lg := 0.34 + _h(i + r * 17) * 0.50 - r * 0.06
+				var z0 := -0.125 - r * 0.020
+				var ymid := y0 - lg * 0.62
+				var ytip := y0 - lg
+				var tip_dx := (_h(i + 40 + r) - 0.5) * 0.04
+				var zb := z0 - 0.045 - lg * 0.06
+				var pts := [Vector3(xc - w * 0.5, y0, z0), Vector3(xc + w * 0.5, y0, z0), Vector3(xc + w * 0.47, ymid, zb), Vector3(xc - w * 0.47, ymid, zb), Vector3(xc + tip_dx, ytip, zb - 0.03)]
+				var pw := []
+				for p: Vector3 in pts:
+					pw.append(_poids_proche(mante, am, p) if p.y > 1.12 else _poids_proche(tunique, at, p))
+				var u0 := (R.position.x + (i % 2) * 16.0) / D.x
+				var u1 := u0 + 16.0 / D.x
+				var v0 := R.position.y / D.y
+				var v1 := (R.position.y + R.size.y * 0.62) / D.y
+				var v2 := (R.position.y + R.size.y) / D.y
+				var dentro := Vector3(xc, y0 - lg * 0.5, 0.0)
+				_quad(dec, pts[0], pts[1], pts[2], pts[3], Vector2(u0, v0), Vector2(u1, v0), Vector2(u1, v1), Vector2(u0, v1), [pw[0], pw[1], pw[2], pw[3]], dentro)
+				_tri(dec, [pts[3], pts[2], pts[4]], [Vector2(u0, v1), Vector2(u1, v1), Vector2((u0 + u1) * 0.5, v2)], [pw[3], pw[2], pw[4]], dentro)
 
 	# ------------------------------------------------------------ assemblage (matériaux du draugr, lueur des yeux)
 	func construire(skin: Skin) -> MeshInstance3D:

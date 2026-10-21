@@ -112,6 +112,14 @@ func _lancer() -> void:
 			c += 1
 		pl.resize(W * 2, H, Image.INTERPOLATE_NEAREST)
 		pl.save_png(sortie + "/gros_%s.png" % lumiere)
+	elif mode == "vue":
+		# vue libre : --az= --dist= --h= (caméra) --cible= (hauteur visée) --anim= --t= --nom=
+		_regler(lumiere)
+		_poser(n, _arg("anim", "Idle"), float(_arg("t", "0.25")))
+		var img: Image = await _photo(float(_arg("az", "0")), float(_arg("dist", "2")), float(_arg("h", "1.5")), float(_arg("cible", "1.3")))
+		if _arg("x2", "") != "":
+			img.resize(W * 2, H * 2, Image.INTERPOLATE_NEAREST)
+		img.save_png(sortie + "/%s.png" % _arg("nom", "vue"))
 	elif mode == "anims":
 		_regler(lumiere)
 		var clips := [["Idle", 0.3], ["Walk", 0.25], ["Walk", 0.75], ["Jog_Fwd", 0.3], ["Sprint", 0.4], ["Sword_Idle", 0.3], ["Sword_Attack", 0.35], ["Sword_Attack", 0.6], ["Hit_Chest", 0.4], ["Death01", 0.5], ["Death01", 1.0]]

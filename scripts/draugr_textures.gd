@@ -20,10 +20,11 @@ const CUIR := ["#1a140f", "#2e231a", "#433427", "#5a4635", "#715a45", "#8b7258",
 const BOIS := ["#151310", "#25211c", "#37312a", "#4a4238", "#5e5548", "#746a5a", "#8a806e"]
 const PEINT_OS := ["#6a6356", "#878070", "#a49b88", "#bdb39d"]
 const CHEVEUX := ["#26221c", "#3e372e", "#595043", "#776b5a", "#988a75"]
+const BOIS_V := ["#0a0908", "#171513", "#24211e", "#33302b", "#433f39", "#544f47", "#6a645a"]   # passe 2 : vieux bois gris-noir
 const BANDE := ["#2e2a24", "#464037", "#5f574b", "#7a705f"]
 
 const DOSSIER := "res://assets/persos/draugr"
-const VERSION := 4
+const VERSION := 6
 static var enregistrer := false
 static var _cache := {}
 
@@ -32,6 +33,8 @@ const R_CRANE := Rect2i(136, 128, 32, 32)     # masque-crâne : x = visage de -0
 const R_CASQUE := Rect2i(200, 128, 56, 64)    # dôme du casque : u = tour (0 = devant), v = sommet (0) -> bord (63)
 const R_EPAUL := Rect2i(136, 192, 64, 64)     # épaulières : lames de fer superposées, rivets
 const R_TABARD := Rect2i(0, 0, 112, 128)      # (atlas des découpes) tabard et ptéruges en lambeaux
+const R_LAMB := Rect2i(128, 40, 32, 64)       # (atlas des découpes) lanières de la cape : tissu cendré, trous, v = 0 en haut
+const R_OSS := Rect2i(0, 212, 64, 32)         # côtes / clavicules : moitié gauche os ivoire, moitié droite chair desséchée creuse
 
 static func _c(pal: Array, i: int) -> Color:
 	return Color(pal[clampi(i, 0, pal.size() - 1)])
@@ -134,9 +137,10 @@ static func mailles() -> Image:
 			if t > 0 and (r > 0.66 or coulure) and _h(x, y, 1815) > 0.3:
 				c = _c(ROUILLE, clampi(t / 2 + (1 if r > 0.8 else 0), 0, 3)).lerp(c, 0.4)
 			# ourlet déchiré : lanières de 3 à 9 texels, longueurs 0 à 16 texels, bord effiloché
-			var lan := int(x / 6.0 + _h(x / 6, 7, 1818) * 1.5)
-			var coupe := 2 + int(_h(lan, 0, 1819) * 15.0)
-			if vy < coupe and (posmod(x, 6) == 0 or _h(lan, 1, 1820) < 0.45):
+			var lan := x / 10
+			var tri := absf(posmod(x, 10) - 4.5) / 4.5     # 0 au centre de la dent, 1 entre deux dents
+			var coupe := 3 + int(_h(lan, 0, 1819) * 10.0) + int(tri * (6.0 + _h(lan, 2, 1824) * 14.0))
+			if vy < coupe and _h(lan, 1, 1820) < 0.8:
 				c = Color(0, 0, 0, 0)
 			elif vy < coupe + 1 and c.a > 0.0:
 				c = _c(MAILLE, 0)
@@ -325,6 +329,7 @@ static func accessoires() -> Image:
 	_crane(img)
 	_casque(img)
 	_epaul(img)
+	_oss(img)
 	return img
 
 ## « Plastron » du draugr (même pièce que le guerrier, gonflée au-dessus de la tunique) : seconde couche de mailles, plus
@@ -394,12 +399,12 @@ static func _face_bouclier(img: Image) -> void:
 			while k < GuerrierTextures.PLANCHES.size() - 2 and x >= GuerrierTextures.PLANCHES[k + 1]:
 				k += 1
 			var dj: int = x - int(GuerrierTextures.PLANCHES[k])
-			var base := 0.36 + _h(k, 0, 1912) * 0.22
+			var base := 0.30 + _h(k, 0, 1912) * 0.20
 			var lb := base + (_n(x, y, n, n, 10, 3, 1911 + k) - 0.5) * 0.30 + (_h(x, k, 1918) - 0.5) * 0.2
 			var t := clampi(_ton(lb, 5, x, y, 1913, 0.2) + 1, 1, 5)
 			if dj == 1 and k > 0:
 				t = 4
-			var c := _c(BOIS, t)
+			var c := _c(BOIS_V, t)
 			# rune en étoile (croix + diagonales), peinte en os pâle, écaillée
 			var a := atan2(dy, dx)
 			var bras := absf(sin(a * 4.0)) < 0.16 + 0.05 / maxf(r, 0.05)
@@ -409,20 +414,31 @@ static func _face_bouclier(img: Image) -> void:
 			if r > 0.82:
 				c = c.darkened(0.22)
 			if k > 0 and dj == 0:
-				c = _c(BOIS, 0)
+				c = _c(BOIS_V, 0)
+			# fentes : fissures qui serpentent le long des planches (arête claire à droite)
+			for fi in 5:
+				var fx := 8 + int(_h(fi, 0, 1951) * (n - 16))
+				var y0 := int(_h(fi, 1, 1952) * n * 0.6)
+				var yl := 18 + int(_h(fi, 2, 1953) * 44)
+				var cx := fx + int(roundf(sin(y * 0.21 + fi * 2.0) * 2.0))
+				if y >= y0 and y < y0 + yl and r < 0.92:
+					if x == cx:
+						c = _c(BOIS_V, 0)
+					elif x == cx + 1:
+						c = _c(BOIS_V, 5)
 			# trous et éclats
 			for e: Vector3 in [Vector3(0.42, -0.38, 0.07), Vector3(-0.5, 0.36, 0.06), Vector3(-0.25, -0.55, 0.045), Vector3(0.2, 0.52, 0.05)]:
 				var dd := Vector2(dx - e.x, (dy - e.y) * 1.6).length()
 				if dd < e.z:
-					c = _c(BOIS, 0) if dd < e.z * 0.7 else _c(BOIS, 6)
+					c = _c(BOIS_V, 0) if dd < e.z * 0.7 else _c(BOIS_V, 6)
 			# morceau arraché (bas à droite) : bord déchiqueté clair, bois noir derrière
 			var cassure := dx * 0.7 + dy * 0.7 - 0.86 - (_h(int(dx * 20.0), 3, 1919) - 0.5) * 0.12
 			if cassure > 0.0 and r < 1.0:
-				c = _c(BOIS, 0) if cassure > 0.04 else _c(BOIS, 6)
+				c = _c(BOIS_V, 0) if cassure > 0.04 else _c(BOIS_V, 6)
 			if r > 0.86 and r < 0.92:
 				var ang := atan2(dy, dx)
 				if posmod(int(roundf(ang / TAU * 18.0 * 4.0)), 4) == 0:
-					c = _c(ROUILLE, 2) if dy < 0.0 else _c(ROUILLE, 1)
+					c = _c(ROUILLE, 3) if dy < 0.0 else _c(ROUILLE, 2)
 			img.set_pixel(o.x + x, o.y + y, c)
 
 ## Œil du draugr : orbite noire, braise bleu glacé au centre (le shader la fait luire : c'est le SEUL bleu du personnage).
@@ -505,8 +521,8 @@ static func _fer(img: Image, r: Rect2i) -> void:
 			var c := _c(FER, t + (1 if _h(x, y, 1921) > 0.92 else 0))
 			if (y == 12 or y == 20) and x % 8 == 3:
 				c = _c(FER, 6)
-			elif _n(x, y, r.size.x, r.size.y, 4, 4, 1922) > 0.6 and t > 1:
-				c = _c(ROUILLE, clampi(t - 1, 0, 3))
+			elif _n(x, y, r.size.x, r.size.y, 4, 4, 1922) > 0.48 and t > 1:
+				c = _c(ROUILLE, clampi(t - 1, 1, 3))
 			img.set_pixel(r.position.x + x, r.position.y + y, c)
 
 static func _umbo(img: Image) -> void:
@@ -532,18 +548,20 @@ static func _lame(img: Image) -> void:
 	var r := GuerrierTextures.R_LAME
 	for y in r.size.y:
 		for x in r.size.x:
-			var t := 4
+			var t := 3
 			if x <= 1 or x >= 14:
-				t = 6
-				if _h(y / 2, x / 8, 1932) > 0.72:
-					t = 1                                 # ébréchure
+				t = 5
+				if _h(y / 3, x / 8, 1932) > 0.85:
+					t = 2                                 # ébréchure
 			elif x == 2 or x == 13:
 				t = 5
 			elif x >= 6 and x <= 9 and y < 48:
 				t = 2 if x == 6 else 3
 			var c := _c(FER, t)
-			if t >= 2 and t <= 5 and _n(x, y, r.size.x, r.size.y, 4, 12, 1931) > 0.5:
+			if t >= 2 and t <= 5 and _n(x, y, r.size.x, r.size.y, 4, 12, 1931) > 0.38:
 				c = _c(ROUILLE, clampi(t - 2, 0, 3))
+			if t >= 2 and t <= 5 and _n(x, y, r.size.x, r.size.y, 3, 5, 1933) > 0.62:
+				c = _c(ROUILLE, 0).lerp(_c(FER, 2), 0.3)
 			img.set_pixel(r.position.x + x, r.position.y + y, c)
 
 static func _poignee(img: Image) -> void:
@@ -563,7 +581,7 @@ static func _dos_bouclier(img: Image) -> void:
 			var t := _ton(lb, 4, x, y, 1942)
 			if posmod(x, 8) == 0:
 				t = 0
-			var c := _c(BOIS, t)
+			var c := _c(BOIS_V, t)
 			if (y > 22 and y < 28) or (y > 38 and y < 44):
 				c = _c(CUIR, 1 if (y == 23 or y == 39) else 2)
 			img.set_pixel(r.position.x + x, r.position.y + y, c)
@@ -638,27 +656,52 @@ static func _casque(img: Image) -> void:
 					c = _c(FER, 6)
 			img.set_pixel(r.position.x + x, r.position.y + y, c)
 
-## Épaulières (64 x 64, u = avant -> arrière, v = haut -> bas) : lames de fer superposées (bord clair en haut, ombre sous la
-## lame), rivets en rang, rouille ; écailles de la référence lues comme des lames de 8 texels.
+## Épaulières en DÔME (64 x 64, u = tour en 9 pans, v = sommet -> collerette) : fer bombé terni, reflet clair au sommet,
+## 9 pans séparés par des nervures, couronne de rivets en bas de la coupole, collerette sombre, rouille en coulures.
 static func _epaul(img: Image) -> void:
 	var r := R_EPAUL
 	for y in r.size.y:
 		for x in r.size.x:
-			var off := int(_h(y / 8, 0, 2001) * 4.0)
-			var ly := posmod(y + off, 8)
-			var t := 4 - ly / 3
-			if ly == 0:
-				t = 5
-			elif ly == 7:
-				t = 0
-			t += int(roundf((_n(x, y, 64, 64, 8, 8, 2002) - 0.5) * 1.6))
+			var fx := int(fposmod(x * 9.0 / 64.0, 1.0) * 8.0)
+			var t := 4 - y / 22
+			t += int(roundf((_n(x, y, 64, 64, 8, 8, 2002) - 0.5) * 1.8))
+			if y < 10:
+				t += 1                                        # reflet au sommet
 			var c := _c(FER, clampi(t, 0, 6))
-			if _n(x, y, 64, 64, 6, 6, 2003) > 0.74 and ly != 0 and ly != 7:
+			if _n(x, y, 64, 64, 6, 6, 2003) > 0.66 or (y > 44 and _h(x, y, 2004) < (y - 44) / 60.0):
 				c = _c(ROUILLE, clampi(t - 1, 0, 3))
-			if ly == 2 and posmod(x + (y / 8) * 3, 7) == 0:
-				_rivet(img, r.position.x + x, r.position.y + y)
-				continue
+			if fx == 0:
+				c = _c(FER, 1)                                # nervure entre deux pans
+			elif fx == 1:
+				c = _c(FER, 5) if y < 44 else c
+			if y >= 50:
+				c = _c(FER, 1 if y > 58 else 2)               # collerette
+			elif y == 49:
+				c = _c(FER, 5)
 			img.set_pixel(r.position.x + x, r.position.y + y, c)
+	for k in range(0, 9):
+		var cx := r.position.x + int((k + 0.5) * 64.0 / 9.0)
+		_rivet(img, cx - 1, r.position.y + 45)
+		_rivet(img, cx - 1, r.position.y + 54)
+
+## Côtes / clavicules (R_OSS : 64 x 32) : moitié gauche = os ivoire sale (arête claire en haut, ombre dessous), moitié droite =
+## chair desséchée creuse, très sombre (fond entre les côtes).
+static func _oss(img: Image) -> void:
+	var r := R_OSS
+	for y in 32:
+		for x in 32:
+			var l := 0.60 - float(y) / 32.0 * 0.35 + (_n(x, y, 32, 32, 6, 6, 2021) - 0.5) * 0.3
+			var t := _ton(l, 6, x, y, 2022, 0.3)
+			if y < 3:
+				t = 5
+			elif y > 28:
+				t = 0
+			img.set_pixel(r.position.x + x, r.position.y + y, _c(IVOIRE, clampi(t, 0, 5)))
+			var q := 0.30 + (_n(x, y, 32, 32, 5, 7, 2023) - 0.5) * 0.7
+			var ch := _c(CHAIR, _ton(q, 5, x, y, 2024, 0.3) - 1)
+			if posmod(x + y * 2, 11) == 0 and _h(x, y, 2025) > 0.5:
+				ch = _c(CHAIR, 0)
+			img.set_pixel(r.position.x + 32 + x, r.position.y + y, ch)
 
 # ------------------------------------------------------------------ atlas des découpes (192 x 128) : tabard + mèches
 ## Tabard / ptéruges (112 x 128, u = autour du corps, v = 0 en haut -> 1 en bas) : tissu cendré grossier, plis, taches,
@@ -667,27 +710,64 @@ static func _tabard() -> Image:
 	var W := 112
 	var H := 128
 	var img := _img(W, H, Color(0, 0, 0, 0))
+	# dents triangulaires : largeurs 7 à 14 texels, une sur quatre COURTE (échancrure), pointes décalées
+	var bornes := [0]
+	var i := 0
+	while bornes[-1] < W:
+		bornes.append(bornes[-1] + 7 + int(_h(i, 5, 2031) * 8.0))
+		i += 1
 	for y in H:
 		for x in W:
 			var pli := _n(x, 0, W, 1, 14, 1, 2011)
 			var l := 0.42 + (pli - 0.5) * 0.5 + (_n(x, y, W, H, 20, 12, 2012) - 0.5) * 0.18 + (0.05 if ((x + y) & 3) < 2 else -0.04)
 			var c := _c(TISSU, _ton(l, 6, x, y, 2013, 0.3))
-			# bord tissé (ancienne broderie, à peine lisible)
 			if y >= 6 and y <= 9:
 				c = _c(TISSU, 4 if (x + y) % 4 < 2 else 2)
-			# lambeaux : dents de 3-6 texels, longueur variable (bas : v > 0,55)
-			var dent := int(x / 4.0 + _h(x / 4, 3, 2014))
-			var fin := int(H * (0.62 + _h(dent, 0, 2015) * 0.36))
-			var larg := 1.0 - float(y - (fin - 22)) / 22.0     # la dent s'amincit vers le bas
-			if y > fin or (y > fin - 22 and absf(posmod(x, 4) - 1.5) > 2.0 * larg + 0.2):
+			var d := 0
+			while d < bornes.size() - 2 and x >= bornes[d + 1]:
+				d += 1
+			var x0: int = bornes[d]
+			var x1: int = bornes[d + 1]
+			var cxd := x0 + (x1 - x0) * (0.25 + 0.5 * _h(d, 1, 2032))
+			var court := _h(d, 0, 2033) < 0.28
+			var fin := int(H * ((0.52 + _h(d, 2, 2034) * 0.12) if court else (0.80 + _h(d, 2, 2034) * 0.19)))
+			var prof := 40.0 if not court else 18.0
+			var t0 := clampf(float(y - (fin - prof)) / prof, 0.0, 1.0)     # 0 en haut de la dent, 1 à la pointe
+			var demi := (x1 - x0) * 0.5 * (1.0 - t0) + 0.4
+			var bas := y > fin - prof
+			var ecart := absf(x + 0.5 - cxd)
+			if y > fin or (bas and ecart > demi):
 				c = Color(0, 0, 0, 0)
-			elif y > fin - 2:
+			elif bas and ecart > demi - 1.3:
 				c = _c(TISSU, 0)
-			# trous rongés
-			if _n(x, y, W, H, 12, 14, 2016) > 0.84 and y > 14:
-				c = Color(0, 0, 0, 0)
+			# trous : losanges et triangles (cellules de 26 x 22 texels, 45 % occupées)
+			var gx := x / 26
+			var gy := y / 22
+			if gy >= 1 and _h(gx, gy, 2035) < 0.45:
+				var hx := gx * 26 + 6 + int(_h(gx, gy, 2036) * 14.0)
+				var hy := gy * 22 + 5 + int(_h(gx, gy, 2037) * 10.0)
+				var rr := 3 + int(_h(gx, gy, 2038) * 4.0)
+				var dd := absi(x - hx) + absi(y - hy)
+				if (_h(gx, gy, 2039) < 0.5 and dd < rr) or (_h(gx, gy, 2039) >= 0.5 and absi(x - hx) * 2 + maxi(0, y - hy) * 2 < rr * 2 and y >= hy - rr and y < hy + rr):
+					c = Color(0, 0, 0, 0)
+				elif dd == rr and c.a > 0.0:
+					c = _c(TISSU, 0)
 			if c.a > 0.0 and _n(x, y, W, H, 8, 8, 2017) > 0.72:
-				c = c.darkened(0.2)          # taches
+				c = c.darkened(0.2)
+			img.set_pixel(x, y, c)
+	return img
+
+## Lanière de cape (32 x 64) : tissu cendré rongé, couture, bord sombre, quelques trous.
+static func _lamb() -> Image:
+	var img := _img(32, 64, Color(0, 0, 0, 0))
+	for y in 64:
+		for x in 32:
+			var l := 0.45 - float(y) / 64.0 * 0.12 + (_n(x, y, 32, 64, 5, 8, 2041) - 0.5) * 0.4 + (0.05 if ((x + y) & 3) < 2 else -0.04)
+			var c := _c(TISSU, _ton(l, 6, x, y, 2042, 0.3))
+			if posmod(x, 16) < 2 or posmod(x, 16) > 13:
+				c = _c(TISSU, 0)
+			if _n(x, y, 32, 64, 6, 10, 2043) > 0.80 and y > 8:
+				c = Color(0, 0, 0, 0)
 			img.set_pixel(x, y, c)
 	return img
 
@@ -697,4 +777,6 @@ static func decoupes() -> Image:
 	img.blit_rect(t, Rect2i(Vector2i.ZERO, t.get_size()), R_TABARD.position)
 	var m := meches()
 	img.blit_rect(m, Rect2i(Vector2i.ZERO, m.get_size()), GuerrierTextures.D_MECHES.position)
+	var lb := _lamb()
+	img.blit_rect(lb, Rect2i(Vector2i.ZERO, lb.get_size()), R_LAMB.position)
 	return img
