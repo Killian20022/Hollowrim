@@ -22,7 +22,7 @@ const FRENE := ["#1c140e", "#33251a", "#4b3726", "#654b34", "#7f6146", "#9a7a5a"
 
 # ------------------------------------------------------------------ précalcul (même contrat que GuerrierTextures)
 const DOSSIER := "res://assets/persos/gardien"
-const VERSION := 8
+const VERSION := 10
 static var enregistrer := false
 static var _cache := {}
 
@@ -146,6 +146,7 @@ static func accessoires() -> Image:
 	_plastron_mailles(img)
 	_sacoche(img)
 	_baudrier(img)
+	_gants(img)
 	return img
 
 ## Baudrier de cuir brun usé (référence : sangle brune cousue qui barre la poitrine) : bords sombres, piqûres claires à 2 texels du
@@ -734,3 +735,21 @@ static func brassards() -> Image:
 					t -= 1
 				img.set_pixel(x, y, _c(FOUR_CHAUD, clampi(t, 1, 5)))
 	return img
+
+
+## Gants de cuir brun, 16 x 16 texels dans l'atlas des accessoires en (60,208) (UV du gant étirées sur la région : cuir usé uni,
+## coutures verticales piquées, arêtes claires).
+const R_GANT := Rect2i(60, 208, 16, 16)
+
+static func _gants(img: Image) -> void:
+	var r := R_GANT
+	for y in r.size.y:
+		for x in r.size.x:
+			var t := GuerrierTextures._ton_cuir(x, y, r.size.x, r.size.y, 0.40, 3901)
+			if x % 5 == 0:
+				t = 1
+			elif x % 5 == 1 and _h(x, y, 3902) > 0.4:
+				t = 5
+			elif x % 5 == 3 and y % 3 != 0:
+				t = 6
+			img.set_pixel(r.position.x + x, r.position.y + y, _c(GuerrierTextures.CUIR, t))

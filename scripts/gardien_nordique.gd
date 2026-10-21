@@ -43,7 +43,7 @@ static func vider() -> void:
 static func creer(options := {}) -> Node3D:
 	var C := Color.WHITE
 	var app := {"corps": "homme", "barbe": true, "cheveux": "Hair_Long", "teinte_cheveux": TEINTE_CHEVEUX, "peau": PEAU,
-		"tenue": {"tunique": C, "pantalon": C, "bottes": C, "ceinture": C, "brassards": C, "cape": C, "mante": C, "tablier": C, "epaulieres": C}}
+		"tenue": {"tunique": C, "pantalon": C, "bottes": C, "ceinture": C, "brassards": C, "cape": C, "mante": C, "tablier": C, "epaulieres": C, "gants": C}}
 	var racine := Humain.creer(app)
 	racine.name = "GardienNordique"
 	var sq := racine.find_child("Skeleton3D", true, false) as Skeleton3D
@@ -65,6 +65,10 @@ static func creer(options := {}) -> Node3D:
 	_habiller(pieces["bottes"], materiau(GardienTextures.tex("bottes")))
 	_habiller(pieces["brassards"], materiau(GardienTextures.tex("brassards")))
 	_habiller(pieces["mante"], materiau(GardienTextures.tex("mante")))
+	# passe vêtements : GANTS de cuir (référence) à la place des mains nues ; mains de peau retirées du maillage de peau
+	var avec_gants := pieces.has("gants")
+	if avec_gants:
+		GuerrierNordique._decimer(pieces["gants"], func(p: Vector3) -> float: return 0.024)
 	# passe 3 : le surcot cache le haut du pantalon et le bas de la cotte, le col couvre la mante : décimation de ces zones
 	GuerrierNordique._decimer(pieces["pantalon"], func(p: Vector3) -> float: return 0.045 if p.y > 0.60 else 0.0)
 	GuerrierNordique._decimer(pieces["tunique"], func(p: Vector3) -> float: return 0.045 if p.y < 1.0 else 0.0)
@@ -101,7 +105,7 @@ static func creer(options := {}) -> Node3D:
 	for nom in ["Eyes", "Eyebrows"]:
 		if pieces.has(nom):
 			pieces[nom].visible = false
-	GuerrierNordique._filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return absf(c.x) < 0.19 or absf(c.x) > 0.69)
+	GuerrierNordique._filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return absf(c.x) < 0.19 or (absf(c.x) > 0.69 and not avec_gants))
 	GuerrierNordique._decimer(pieces.get("peau"), func(p: Vector3) -> float: return 0.027 if absf(p.x) > 0.5 else (0.018 if p.z < 0.035 else 0.0))
 	var mi_ch: MeshInstance3D = sq.get_node_or_null("Hair_Long")
 	if mi_ch:
@@ -167,6 +171,12 @@ static func creer(options := {}) -> Node3D:
 	# seulement sous la pèlerine (au-dessus, il serait caché et se battrait avec elle)
 	var sous_pelerine := func(a: Vector3, b: Vector3, c: Vector3) -> bool: return minf(a.y, minf(b.y, c.y)) < 0.97
 	acc.copier(pieces["tablier"], acc.dec, uv_tabard, sur_le_dos, sous_pelerine, true)
+	if avec_gants:
+		# gants versés dans la surface des accessoires (budget de 10 surfaces) : cuir peint en (60,208,16,16)
+		var RG := GardienTextures.R_GANT
+		acc.integrer(pieces["gants"], acc.op, func(uv: Vector2) -> Vector2:
+			return Vector2(RG.position.x + clampf(uv.x, 0.0, 1.0) * (RG.size.x - 1.0) + 0.5, RG.position.y + clampf(uv.y, 0.0, 1.0) * (RG.size.y - 1.0) + 0.5) / A)
+		pieces["gants"].visible = false
 	for nom in ["ceinture", "cape", "tablier", "epaulieres"]:
 		pieces[nom].visible = false
 	acc.poitrine_libre = true
