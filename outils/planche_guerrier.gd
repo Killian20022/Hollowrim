@@ -52,10 +52,16 @@ func _init() -> void:
 	if larg_p1 > 0:
 		p.blit_rect(p1, Rect2i(Vector2i.ZERO, p1.get_size()), Vector2i(ref.get_width(), 0))
 	p.blit_rect(g, Rect2i(Vector2i.ZERO, g.get_size()), Vector2i(ref.get_width() + larg_p1, 0))
-	p.save_png(sortie.path_join("planche_ref_draugr__passe1__passe2_face_34_dos_2_4_8m.png" if larg_p1 > 0 else "planche_ref_draugr__guerrier_face_34_dos_2_4_8m.png"))
+	# --noms=<colonne précédente>,<colonne actuelle> (défaut passe1,passe2) : nom du fichier de la planche à 3 colonnes
+	var noms := (_arg("noms") if _arg("noms") != "" else "passe1,passe2").split(",")
+	p.save_png(sortie.path_join(("planche_ref_draugr__%s__%s_face_34_dos_2_4_8m.png" % [noms[0], noms[1]]) if larg_p1 > 0 else "planche_ref_draugr__guerrier_face_34_dos_2_4_8m.png"))
 	# gros plans (passe 2) : visage et bouclier à 2 m (bande centrale) et à 1-1,3 m
 	if FileAccess.file_exists(cap.path_join("gros_visage_2m.png")):
-		_grille(["gros_visage_2m", "gros_bouclier_2m", "gros_torse_2m", "gros_visage_1m", "gros_bouclier_1m", "gros_torse_1m"], 3, 640).save_png(sortie.path_join("planche_gros_plans_visage_bouclier_torse_2m_1m.png"))
+		if FileAccess.file_exists(cap.path_join("nuque_1m.png")):
+			# finition : + profil et nuque à 1 m (mèches détachées)
+			_grille(["gros_visage_2m", "gros_bouclier_2m", "gros_torse_2m", "profil_1m", "gros_visage_1m", "gros_bouclier_1m", "gros_torse_1m", "nuque_1m"], 4, 640).save_png(sortie.path_join("planche_gros_plans_visage_bouclier_torse_profil_nuque_2m_1m.png"))
+		else:
+			_grille(["gros_visage_2m", "gros_bouclier_2m", "gros_torse_2m", "gros_visage_1m", "gros_bouclier_1m", "gros_torse_1m"], 3, 640).save_png(sortie.path_join("planche_gros_plans_visage_bouclier_torse_2m_1m.png"))
 		_grille(["p17_8m_face", "p17_8m_face_idle"], 2, 640).save_png(sortie.path_join("planche_silhouette_8m_garde_idle.png"))
 	# 2. animations
 	_grille(["an_idle", "an_garde", "an_marche_a", "an_marche_b", "an_course_a", "an_course_b", "an_attaque_a", "an_attaque_b", "an_coup", "an_mort_a", "an_mort_b"], 11, 360).save_png(sortie.path_join("planche_animations_idle_garde_marche_course_attaque_coup_mort.png"))
@@ -65,6 +71,9 @@ func _init() -> void:
 	# 4. casque
 	if FileAccess.file_exists(cap.path_join("c17_2m_face.png")):
 		_grille(["p17_2m_face", "c17_2m_face", "p17_2m_34", "c17_2m_34"], 4, 480).save_png(sortie.path_join("planche_sans_avec_casque_2m.png"))
+	# finition : planche « avec casque » (2 m face / 3/4 / dos, 4 m et 8 m 3/4, gros plan visage et nuque à 1 m)
+	if FileAccess.file_exists(cap.path_join("c_gros_visage_1m.png")):
+		_grille(["c17_2m_face", "c17_2m_34", "c17_2m_dos", "c17_4m_34", "c17_8m_34", "c_gros_visage_1m", "c_nuque_1m", "c21_3m_34_torche"], 4, 480).save_png(sortie.path_join("planche_avec_casque_2_4_8m_gros_plans_nuit.png"))
 	# 5. scintillement : bande centrale 200x400 (perso), pixels qui changent de plus de 24/255 d'une vue à la suivante
 	var s := _grille(["scint_0", "scint_1", "scint_2"], 3, 480)
 	s.save_png(sortie.path_join("planche_scintillement_camera_2cm.png"))

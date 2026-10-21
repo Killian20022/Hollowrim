@@ -43,3 +43,6 @@ p17_8m_face_idle pilote 8,0 heure=17.5 sans-mains anim=Idle:0.3
 # passe 2 : torse côté épée (baudrier, grosse boucle ronde, fibule), Idle
 gros_torse_2m pilote 2,-35,1.2 heure=17.5 sans-mains anim=Idle:0.3
 gros_torse_1m pilote 1.2,-25,1.25 heure=17.5 sans-mains anim=Idle:0.3
+# finition : nuque et profil à 1 m (mèches détachées des tempes et de la nuque)
+nuque_1m pilote 1.0,160,1.55 heure=17.5 sans-mains anim=Idle:0.3
+profil_1m pilote 1.0,-70,1.62 heure=17.5 sans-mains anim=Idle:0.3

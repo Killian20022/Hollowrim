@@ -2,3 +2,9 @@
 c17_2m_face pilote 2,0 heure=17.5 sans-mains
 c17_2m_34 pilote 2,-35 heure=17.5 sans-mains
 c17_4m_34 pilote 4,-35 heure=17.5 sans-mains
+# finition : planche « avec casque » (c* seulement ; lancer dans un dossier à part, les p17 ci-dessus portent aussi le casque)
+c17_2m_dos pilote 2,180 heure=17.5 sans-mains
+c17_8m_34 pilote 8,-35 heure=17.5 sans-mains
+c_gros_visage_1m pilote 1.0,25,1.62 heure=17.5 sans-mains anim=Idle:0.3
+c_nuque_1m pilote 1.0,160,1.55 heure=17.5 sans-mains anim=Idle:0.3
+c21_3m_34_torche pilote 3,30 heure=21
