@@ -23,6 +23,8 @@ const TEINTE_CHEVEUX := Color(0.62, 0.45, 0.32)
 const PEAU := Color(0.95, 0.86, 0.82)
 ## Prise du poing droit (repère de la main au repos) : axe de la hampe = Y local, centre du poing à l'origine (prise de l'épée).
 const PRISE := GuerrierNordique.Accessoires.PRISE
+## Tabard élargi (passe 2) : 0,33 m au lieu de 0,29 m, la bande bleue de la garde se lit de face et de dos à 8 m.
+const LARGEUR_TABARD := 1.15
 
 static var _mats := {}
 
@@ -58,9 +60,9 @@ static func creer(options := {}) -> Node3D:
 	# -- matières
 	_habiller(pieces["tunique"], materiau(GardienTextures.tex("mailles")))
 	_habiller(pieces["pantalon"], materiau(GuerrierTextures.tex("pantalon")))
-	_habiller(pieces["bottes"], materiau(GuerrierTextures.tex("bottes")))
+	_habiller(pieces["bottes"], materiau(GardienTextures.tex("bottes")))
 	_habiller(pieces["brassards"], materiau(GuerrierTextures.tex("brassards")))
-	_habiller(pieces["mante"], materiau(GuerrierTextures.tex("mante")))
+	_habiller(pieces["mante"], materiau(GardienTextures.tex("mante")))
 	var sc: MeshInstance3D = pieces.get("SuperHero_Male")
 	if sc:
 		sc.visible = false
@@ -129,19 +131,41 @@ static func creer(options := {}) -> Node3D:
 	var EP := GardienTextures.R_EPAUL
 	acc.integrer(pieces["epaulieres"], acc.op, func(uv: Vector2) -> Vector2:
 		return Vector2(EP.position.x + clampf((uv.x + 0.198) / 0.396, 0.0, 1.0) * (EP.size.x - 0.5), EP.position.y + clampf((uv.y - 0.17) / 0.23, 0.0, 1.0) * (EP.size.y - 0.5)) / A,
-		func(p: Vector3, n: Vector3) -> Vector3: return p + n * 0.012)
-	acc.integrer(pieces["cape"], acc.dec, func(uv: Vector2) -> Vector2:
-		return Vector2(uv.x * 256.0 - GuerrierTextures.CAPE_U0, uv.y * 128.0) / D)
+		func(p: Vector3, n: Vector3) -> Vector3: return p + n * 0.022 + Vector3(signf(p.x) * 0.012, -0.012, 0.0) * clampf((absf(p.x) - 0.18) / 0.2, 0.0, 1.0))
+	# pèlerine (passe 2) : la cape du guerrier coupée aux hanches (rangée de 0,85 m), UV planaires vus de dos (emblème net)
+	var PE := GardienTextures.D_PELERINE
+	var uv_pelerine := func(_uv: Vector2, p: Vector3) -> Vector2:
+		return Vector2(PE.position.x + clampf((GardienTextures.PEL_X - p.x) * 128.0, 0.0, PE.size.x - 0.5), PE.position.y + clampf((GardienTextures.PEL_Y - p.y) * 128.0, 0.0, PE.size.y - 0.5)) / D
+	var aux_hanches := func(a: Vector3, b: Vector3, c: Vector3) -> bool: return maxf(a.y, maxf(b.y, c.y)) > 0.90
+	acc.copier(pieces["cape"], acc.dec, uv_pelerine, Callable(), aux_hanches)
+	# tabard : devant élargi (lisible à 8 m) + DOS (copie miroir posée sur le dos de la cotte et du pantalon, dépasse sous la pèlerine)
 	var T := GardienTextures.D_TABARD
-	acc.integrer(pieces["tablier"], acc.dec, func(uv: Vector2) -> Vector2:
-		return Vector2(T.position.x + clampf((uv.x + 0.0796) / 0.1592, 0.0, 1.0) * (T.size.x - 0.5), T.position.y + clampf((uv.y - 0.078) / 0.922, 0.0, 1.0) * (T.size.y - 0.5)) / D,
-		func(p: Vector3, n: Vector3) -> Vector3: return p + n * 0.006)
+	var uv_tabard := func(uv: Vector2, _p: Vector3) -> Vector2:
+		return Vector2(T.position.x + clampf((uv.x + 0.0796) / 0.1592, 0.0, 1.0) * (T.size.x - 0.5), T.position.y + clampf((uv.y - 0.078) / 0.922, 0.0, 1.0) * (T.size.y - 0.5)) / D
+	acc.copier(pieces["tablier"], acc.dec, uv_tabard, func(p: Vector3, n: Vector3) -> Vector3: return Vector3(p.x * LARGEUR_TABARD, p.y, p.z) + n * 0.006)
+	var dos := {}
+	var sur_le_dos := func(p: Vector3, _n: Vector3) -> Vector3:
+		var cle := p.snapped(Vector3.ONE * 0.0005)
+		if not dos.has(cle):
+			var x := p.x * LARGEUR_TABARD
+			var z := 1.0
+			for mi: MeshInstance3D in [pieces["tunique"], pieces["pantalon"]]:
+				var pr := acc._projeter(mi, x, p.y, false)
+				if not pr.is_empty():
+					z = minf(z, pr[0].z - 0.016)
+			dos[cle] = Vector3(x, p.y, z if z < 0.5 else -0.075 - p.z)
+		return dos[cle]
+	# seulement sous la pèlerine (au-dessus, il serait caché et se battrait avec elle)
+	var sous_pelerine := func(a: Vector3, b: Vector3, c: Vector3) -> bool: return minf(a.y, minf(b.y, c.y)) < 0.97
+	acc.copier(pieces["tablier"], acc.dec, uv_tabard, sur_le_dos, sous_pelerine, true)
 	for nom in ["ceinture", "cape", "tablier", "epaulieres"]:
 		pieces[nom].visible = false
 	acc.poitrine_libre = true
+	acc.epaules_libres = true
 	acc.fourrure_bord(pieces["mante"], 1.25, 1.43, 0.12, 0.20, 1.0, 1.7)
 	acc.fourrure_surface(pieces["mante"], 1.36, 1.60, 0.08, 0.14, 62)
 	acc.poitrine_libre = false
+	acc.epaules_libres = false
 	acc.fourrure_bord(pieces["bottes"], 0.30, 0.45, 0.06, 0.09, 1.0, 1.6)
 	acc.boucle(Vector3(0.0, 0.988, 0.176), 0.062)
 	acc.fibule(plastron, Vector2(-0.13, 1.38))
@@ -276,6 +300,46 @@ static func _clip_lance(ap: AnimationPlayer, sq: Skeleton3D, src: String, mode: 
 
 # ======================================================================================================== accessoires
 class AccGardien extends GuerrierNordique.Accessoires:
+	## Fourrure retirée des épaules (|x| > 0,24) : les épaulières de plaques restent lisibles sous le col de fourrure.
+	var epaules_libres := false
+	func _poitrine(p: Vector3) -> bool:
+		return super._poitrine(p) or (epaules_libres and absf(p.x) > 0.24)
+
+	## Comme integrer(), triangle par triangle : uvmap(uv, p) reçoit aussi la position (UV planaires), garder(a, b, c) filtre les
+	## triangles (positions au repos), miroir = copie retournée devant/derrière (ordre des sommets inversé, normale z opposée).
+	func copier(mi: MeshInstance3D, s: Dictionary, uvmap: Callable, deforme := Callable(), garder := Callable(), miroir := false) -> void:
+		var a := mi.mesh.surface_get_arrays(0)
+		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var nrm: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+		var uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+		var bones: PackedInt32Array = a[Mesh.ARRAY_BONES]
+		var w: PackedFloat32Array = a[Mesh.ARRAY_WEIGHTS]
+		var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+		var nb := bones.size() / v.size()
+		var os_de := {}
+		for t in range(0, idx.size(), 3):
+			if garder.is_valid() and not garder.call(v[idx[t]], v[idx[t + 1]], v[idx[t + 2]]):
+				continue
+			for k: int in ([0, 2, 1] if miroir else [0, 1, 2]):
+				var i := idx[t + k]
+				var n := nrm[i]
+				if miroir:
+					n = Vector3(n.x, n.y, -n.z)
+				var p := v[i]
+				var q: Vector3 = deforme.call(p, n) if deforme.is_valid() else p
+				s["v"].append(q)
+				s["n"].append(n)
+				s["uv"].append(uvmap.call(uv[i], p))
+				var bo := [0, 0, 0, 0]
+				var wo := [0.0, 0.0, 0.0, 0.0]
+				for j in mini(nb, 4):
+					var b := bones[i * nb + j]
+					if not os_de.has(b):
+						os_de[b] = maxi(0, GuerrierNordique._os_de_bind(mi.skin, sq, b))
+					bo[j] = os_de[b]
+					wo[j] = w[i * nb + j]
+				s["b"].append_array(PackedInt32Array(bo))
+				s["w"].append_array(PackedFloat32Array(wo))
 	func _uva(x: float, y: float) -> Vector2:
 		return Vector2(x / GuerrierTextures.ATLAS.x, y / GuerrierTextures.ATLAS.y)
 

@@ -12,13 +12,15 @@ class_name GardienTextures
 
 const MAILLE_FER := ["#151310", "#26231e", "#3a362f", "#524c43", "#736b5f", "#9b9284"]   # brun-gris ferreux (pas bleu)
 const FER_BRUN := ["#0f0e0d", "#1d1b19", "#302d29", "#47433d", "#666058", "#8d867b", "#b7b0a3"]
-const BLEU_JARL := ["#12182a", "#1c2740", "#283856", "#364a6e", "#475e86", "#5e769e"]   # bleu ardoise (référence), moins saturé
+const BLEU_JARL := ["#121620", "#1b2331", "#283244", "#36435a", "#475670", "#5d6c86"]   # bleu ardoise délavé (passe 2 : moins « plastique »)
+## Fourrure crème chaude (passe 2) : remplace ton pour ton la palette gris-brun du guerrier, qui bleuissait au crépuscule.
+const FOUR_CHAUD := ["#251f18", "#463b2d", "#6b5c47", "#8f7e63", "#b3a083", "#d3c2a2"]
 const CREME := ["#4e4636", "#73694f", "#9a8f70", "#bdb291", "#d8cfae"]
 const FRENE := ["#1c140e", "#33251a", "#4b3726", "#654b34", "#7f6146", "#9a7a5a"]
 
 # ------------------------------------------------------------------ précalcul (même contrat que GuerrierTextures)
 const DOSSIER := "res://assets/persos/gardien"
-const VERSION := 2
+const VERSION := 3
 static var enregistrer := false
 static var _cache := {}
 
@@ -47,6 +49,8 @@ static func tex(nom: String) -> ImageTexture:
 				"mailles": img = mailles()
 				"accessoires": img = accessoires()
 				"decoupes": img = decoupes()
+				"mante": img = _rechauffer(GuerrierTextures.mante())
+				"bottes": img = _rechauffer(GuerrierTextures.bottes())
 				_: push_error("GardienTextures : texture inconnue " + nom)
 			mips = GuerrierTextures.mips_pixel(img)
 			sauver(nom, mips)
@@ -64,6 +68,22 @@ static func _h(x: int, y: int, g: int) -> float:
 
 static func _n(x: int, y: int, w: int, h: int, cx: int, cy: int, g: int) -> float:
 	return ObjetsTextures._vn(float(x) / w * cx, float(y) / h * cy, cx, cy, g)
+
+## Tons de fourrure du guerrier (GuerrierTextures.FOUR) remplacés par la fourrure crème chaude, dans `r` (toute l'image par défaut).
+static func _rechauffer(img: Image, r := Rect2i()) -> Image:
+	if r.size == Vector2i.ZERO:
+		r = Rect2i(Vector2i.ZERO, img.get_size())
+	var carte := {}
+	for i in GuerrierTextures.FOUR.size():
+		carte[Color(GuerrierTextures.FOUR[i])] = _c(FOUR_CHAUD, i)
+	for y in range(r.position.y, r.end.y):
+		for x in range(r.position.x, r.end.x):
+			var c := img.get_pixel(x, y)
+			var k := Color(c.r, c.g, c.b, 1.0)
+			if carte.has(k):
+				var n: Color = carte[k]
+				img.set_pixel(x, y, Color(n.r, n.g, n.b, c.a))
+	return img
 
 static func _rivet(img: Image, x: int, y: int) -> void:
 	img.set_pixel(x, y, _c(GuerrierTextures.METAL_CLAIR, 6))
@@ -298,6 +318,8 @@ const D_TABARD := Rect2i(128, 32, 40, 96)
 
 static func decoupes() -> Image:
 	var img := GuerrierTextures.decoupes()
+	_rechauffer(img, GuerrierTextures.D_MECHES)
+	_pelerine(img)
 	var r := D_TABARD
 	var W := r.size.x
 	var H := r.size.y
@@ -343,3 +365,68 @@ static func decoupes() -> Image:
 				img.set_pixel(xx, yy, _c(CREME, 3))
 				img.set_pixel(xx, yy + 1, _c(BLEU_JARL, 0))
 	return img
+
+# ------------------------------------------------------------------ pèlerine de la garde (passe 2)
+## La cape longue du guerrier devient une PÈLERINE aux couleurs de la garde qui s'arrête aux hanches (le tabard se voit dessous,
+## de dos) : UV planaires vus de dos à 128 texels/m, x = (0,28 - x) * 128 (gauche de l'image = côté gauche vu de dos),
+## y = (1,58 - y) * 128. Laine bleu ardoise, plis, EMBLÈME de la cité (étoile crème à 8 branches du bouclier, dans un anneau)
+## centré à 1,10 m, galon crème doublé de filets sombres au-dessus de l'ourlet, ourlet effiloché découpé vers 0,87 m.
+const D_PELERINE := Rect2i(0, 0, 72, 96)
+const PEL_X := 0.28
+const PEL_Y := 1.58
+
+static func _pelerine(img: Image) -> void:
+	var r := D_PELERINE
+	var W := r.size.x
+	var H := r.size.y
+	var cx := W * 0.5 - 0.5
+	var cy := (PEL_Y - 1.10) * 128.0
+	var R := 13.0
+	for y in H:
+		for x in W:
+			var sg := 0.05 if ((x + y) & 3) < 2 else -0.04
+			var pli := _n(x, 0, W, 1, 7, 1, 3301)
+			var l := 0.46 + sg + (pli - 0.5) * 0.5 + (_n(x, y, W, H, 10, 12, 3302) - 0.5) * 0.12
+			l += 0.10 * (1.0 - float(y) / H)                      # le haut (épaules) prend la lumière
+			var t := clampi(int(floorf(l * 6.0 + (_h(x, y, 3303) - 0.5) * 0.3)), 0, 5)
+			var c := _c(BLEU_JARL, t)
+			# emblème : anneau crème + étoile à 8 branches (croix + sautoir), ombre portée d'un texel en bas à droite
+			var dx := x - cx
+			var dy := y - cy
+			var rr := sqrt(dx * dx + dy * dy)
+			var ang := atan2(dy, dx)
+			var motif := false
+			if rr > R - 1.6 and rr < R + 0.6:
+				motif = true
+			if rr < R - 2.5:
+				for b in 8:
+					var a := b * PI / 4.0
+					var lb := 1.7 if b % 2 == 0 else 1.3
+					if absf(sin(ang - a)) * rr < lb * (1.0 - rr / R * 0.45) and cos(ang - a) > 0.0:
+						motif = true
+				if rr < 2.2:
+					motif = true
+			if motif:
+				c = _c(CREME, 3 if (dx + dy) < 2.0 else 2)
+			else:
+				var dx2 := dx - 1.0
+				var dy2 := dy - 1.0
+				var rr2 := sqrt(dx2 * dx2 + dy2 * dy2)
+				if (rr2 > R - 1.6 and rr2 < R + 0.6) or rr2 < 2.2:
+					c = _c(BLEU_JARL, 0)
+			# galon crème (y 80-84) : filets sombres, chevrons crème sur fond bleu sombre
+			if y >= 79 and y <= 85:
+				if y == 79 or y == 85:
+					c = _c(BLEU_JARL, 0)
+				elif y == 80 or y == 84:
+					c = _c(CREME, 3)
+				else:
+					var d := posmod(x + absi(y - 82), 5)
+					c = _c(CREME, 2) if d < 2 else _c(BLEU_JARL, 1)
+			# ourlet effiloché : coupe irrégulière à partir de y 88 (le maillage s'arrête à 0,85 m, y 93)
+			var coupe := 88 + int(_h(x / 2, 0, 3304) * 3.0) + int(_h(x, 1, 3305) * 2.0)
+			if y > coupe:
+				c = Color(0, 0, 0, 0)
+			elif y == coupe:
+				c = _c(BLEU_JARL, 0)
+			img.set_pixel(r.position.x + x, r.position.y + y, c)
