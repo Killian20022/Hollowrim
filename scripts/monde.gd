@@ -156,6 +156,7 @@ func _ready() -> void:
 	if _arguments().has("res"):  # résolution interne : 640x360 par défaut (project.godot) ; --res=480x270 pour comparer
 		var wh := String(_arguments()["res"]).split("x")
 		get_window().content_scale_size = Vector2i(int(wh[0]), int(wh[1]))
+		_ciel.set_shader_parameter("angle_pixel", deg_to_rad(72.0) / maxf(float(wh[1]), 1.0))  # nuages : finesse max du détail
 	if not _arguments().has("capture"):
 		_musique()
 	if not _arguments().has("capture") and not _arguments().has("nouvelle"):
@@ -1123,6 +1124,8 @@ func _lot_captures(fichier: String) -> void:
 			else:
 				cycle.heure = heure_depart
 				cycle._process(0.0)  # lot 2 : le lancement isolé applique aussi cycle._process à l'heure de départ
+			# refonte « nuages » : temps_ciel=S fige la dérive des nuages à S secondes (planches reproductibles, bandes de mouvement)
+			_ciel.set_shader_parameter("temps_force", float(opt.get("temps_ciel", "-1")))
 			if type == "monde":
 				joueur.global_position = Vector3(c[0], hauteur(c[0], c[1]) + 0.1, c[1])
 				joueur.rotation.y = deg_to_rad(c[2])
