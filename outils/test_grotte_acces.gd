@@ -143,17 +143,15 @@ func _tester() -> void:
 	_verif(g != null and a.dedans, "dedans = vrai, grotte construite (fil sûr)")
 	_verif(j.global_position.y < -200.0 and absf(j.global_position.x - 20.0) < 30.0, "joueur dans la grotte (%s)" % [j.global_position])
 	_verif(g.visible and g.process_mode != Node.PROCESS_MODE_DISABLED, "grotte visible et active")
-	var camp_ok: bool = a.bandits.size() == 4
-	for b in a.bandits:
-		if not is_instance_valid(b) or b.global_position.y > -200.0 or not b.vivant() or b.nom_affiche != "Bandit":
-			camp_ok = false
-	_verif(camp_ok, "4 bandits vivants au camp, dans la grotte")
+	# le guetteur de l'entrée apparaît (les autres ennemis n'apparaissent que quand on s'en approche)
+	await _attendre(0.7)
+	_verif(a.jeu != null and a.jeu.ennemis.has("bandit_4"), "le guetteur (bandit_4) est apparu à l'entrée")
+	_verif(not a.jeu.ennemis.has("hrafn") and not a.jeu.ennemis.has("bandit_0"), "le camp (hrafn, bandit_0) n'est pas encore apparu : apparition progressive")
+	var guet: CharacterBody3D = a.jeu.ennemis["bandit_4"]
+	_verif(is_instance_valid(guet) and guet.global_position.y < -200.0 and guet.vivant() and guet.nom_affiche == "Guetteur", "guetteur vivant, dans la grotte")
 	# navigation : un mur de 3,6 m entre le bandit et le joueur, le bandit le contourne et vient au corps à corps
 	var gr: Grotte = a.grotte
-	var bn: CharacterBody3D = a.bandits[1]
-	for k in a.bandits.size():
-		if k != 1:
-			a.bandits[k].process_mode = Node.PROCESS_MODE_DISABLED
+	var bn: CharacterBody3D = guet
 	var mur := StaticBody3D.new()
 	var mc := CollisionShape3D.new()
 	var bx := BoxShape3D.new()
@@ -161,13 +159,14 @@ func _tester() -> void:
 	mc.shape = bx
 	mur.add_child(mc)
 	gr.add_child(mur)
-	var s_b := 98.2
-	var lat_b := 2.6
+	var s_b := 7.0
+	var lat_b := 0.0
 	var cap_b := gr.cap_monde(s_b)
-	var pm: Vector3 = gr.monde_sol(s_b - 2.5, lat_b)
+	var pm: Vector3 = gr.monde_sol(s_b - 2.0, lat_b)
 	mur.global_position = pm + Vector3(0, 1.0, 0)
 	mur.rotation.y = cap_b
-	j.global_position = gr.monde_sol(s_b - 6.0, lat_b) + Vector3(0, 0.2, 0)
+	j.global_position = gr.monde_sol(s_b - 5.0, lat_b) + Vector3(0, 0.2, 0)
+	bn.global_position = gr.monde_sol(s_b, lat_b) + Vector3(0, 0.05, 0)
 	bn.etat = bn.TRAQUE
 	var d_min := 999.0
 	for i in 900:
@@ -178,13 +177,11 @@ func _tester() -> void:
 	bn.process_mode = Node.PROCESS_MODE_DISABLED
 	_verif(d_min < 2.4, "bandit : contourne un mur de 3,6 m et rejoint le joueur (distance mini %.2f m)" % d_min)
 	mur.queue_free()
-	bn.global_position = gr.monde_sol(s_b, lat_b) + Vector3(0, 0.05, 0)
-	for k in a.bandits.size():
-		a.bandits[k].process_mode = Node.PROCESS_MODE_INHERIT
-		a.bandits[k].etat = a.bandits[k].GARDE
+	bn.process_mode = Node.PROCESS_MODE_INHERIT
+	bn.etat = bn.GARDE
 	j.global_position = gr.monde_sol(5.0, 0.0) + Vector3(0, 0.2, 0)
 	# un bandit tué reste mort dans la sauvegarde
-	a.bandits[0].recevoir_coup(999.0, a.bandits[0].global_position + Vector3(1, 0, 0), true)
+	bn.recevoir_coup(999.0, bn.global_position + Vector3(1, 0, 0), true)
 	_verif(m.cycle.process_mode == Node.PROCESS_MODE_DISABLED and not m.neige.visible and not m.cycle.lumiere.visible, "cycle coupé, neige et lune éteintes sous terre")
 	_verif(env.background_mode == Environment.BG_COLOR, "ciel remplacé par la couleur noire")
 	_verif(absf(env.fog_density - 0.012) < 0.001, "ambiance de la grotte (brume %.3f)" % env.fog_density)
@@ -199,7 +196,7 @@ func _tester() -> void:
 	var d = JSON.parse_string(FileAccess.get_file_as_string(m.fichier_sauvegarde()))
 	var py: float = d["joueur"]["position"][1]
 	_verif(py < -182.0, "sauvegardé dans la grotte (y = %.1f)" % py)
-	_verif(d["draugrs_morts"].has("bandit_0") and not d["draugrs_morts"].has("bandit_1"), "le bandit tué est dans la sauvegarde, pas les autres")
+	_verif(d["draugrs_morts"].has("bandit_4") and not d["draugrs_morts"].has("hrafn"), "le guetteur tué est dans la sauvegarde, pas les autres")
 	_verif(m.fichier_sauvegarde().ends_with("sauvegarde_test.json"), "fichier de test, pas la vraie partie")
 	_verif(not m.tertre.dedans, "le tertre ne se croit pas dedans")
 	# 6. sortie

@@ -44,7 +44,7 @@ var temps_ms := 0
 var nb_facettes := 0
 
 var morts_charges: Array = []                 # bandits tués dans une partie chargée (posé par le monde) : on ne les refait pas
-var bandits: Array[Node] = []
+var jeu: GrotteJeu                            # gameplay de la grotte (ennemis, coffres, ressources…) : voir grotte_jeu.gd
 var _tache := -1
 var _tache_ext := -1                          # fil d'exécution de l'extérieur (bouche, décor)
 var _cont: Node3D                             # extérieur bâti hors de l'arbre, posé quand le fil a fini
@@ -436,6 +436,8 @@ func _process(dt: float) -> void:
 			quetes.signaler("lieu:grotte")
 	if _tache >= 0 and WorkerThreadPool.is_task_completed(_tache):
 		_integrer()
+	if dedans and jeu != null:
+		jeu.tick(dt)
 
 ## Pose l'extérieur dans la scène (attend le fil s'il tourne encore).
 func attendre_exterieur() -> void:
@@ -471,6 +473,8 @@ func _poser(g: Grotte) -> void:
 	grotte.visible = false
 	grotte.process_mode = Node.PROCESS_MODE_DISABLED
 	monde.add_child(grotte)
+	jeu = GrotteJeu.new()
+	jeu.installer(self, grotte)
 	_interactif_sortie()
 
 ## Sortie du jeu pendant la construction : on attend le fil (sinon fuites de ressources).
@@ -500,37 +504,16 @@ func obtenir() -> Grotte:
 	return grotte
 
 func _interactif_sortie() -> void:
-	var p := grotte.sol_en(SORTIE_S, 0.0) + Vector3(0, 1.5, 0)
+	var p := grotte.sol_en("T1", SORTIE_S, 0.0) + Vector3(0, 1.5, 0)
 	var it := _interactif(p, "Sortie de la grotte", "Sortir de la grotte", func() -> Array: return _passer(false), grotte)
 	it.rayon = 3.4
 
 ## Affiche / cache la grotte (sans fondu) : passage, restauration, captures.
 func montrer(oui: bool) -> void:
 	obtenir()
-	if oui and bandits.is_empty():
-		_bandits()
 	dedans = oui
 	grotte.visible = oui
 	grotte.process_mode = Node.PROCESS_MODE_INHERIT if oui else Node.PROCESS_MODE_DISABLED
-
-## Quatre bandits montent la garde autour du feu du camp (s = 96-104). Même créature que le draugr (script draugr.gd : garde, traque,
-## frappe, meurt), mais vivante : peau, barbe, cheveux, tenue de cuir et de laine ; 45 PV, 12 de dégâts (« sbire »). Créés à la
-## première entrée seulement (modèles humains : ≈ 100 ms chacun, cachés par le fondu).
-func _bandits() -> void:
-	# personnages de base unifies (PersoDefs.bandit) : cuir, fourrure, capuche, lanieres ; chacun a sa silhouette
-	var places: Array = [[95.5, -1.4], [98.2, 2.6], [101.8, -2.4], [104.0, 1.6]]
-	for k in places.size():
-		var id := "bandit_%d" % k
-		if morts_charges.has(id):
-			continue
-		var s: float = places[k][0]
-		var lat: float = places[k][1]
-		var app := {"perso": PersoDefs.bandit(k)}
-		var b: Node = monde.creer_draugr("sbire", grotte.monde_sol(s, lat) + Vector3(0, 0.05, 0), grotte.cap_monde(s) + PI + 0.5 * (k - 1.5), false,
-			{"ident": id, "nom_affiche": "Bandit", "contourne": true, "apparence": app, "vie_imposee": 55.0})
-		if monde._paisible():
-			b.process_mode = Node.PROCESS_MODE_DISABLED        # --paisible : figés (captures comparables)
-		bandits.append(b)
 
 func _passer(vers_dedans: bool) -> Array:
 	var t := create_tween()
@@ -567,8 +550,19 @@ func reinitialiser() -> void:
 	if not dedans:
 		return
 	montrer(false)
+	if jeu != null:
+		jeu.reinitialiser(_morts_sauvegardes())
 	_rendre_flammes()
 	entree.emit(false)
+
+## Ennemis tués dans le fichier de sauvegarde (la mort du joueur ne les ressuscite pas).
+func _morts_sauvegardes() -> Array:
+	var f: String = monde.fichier_sauvegarde()
+	if FileAccess.file_exists(f):
+		var d = JSON.parse_string(FileAccess.get_file_as_string(f))
+		if d is Dictionary:
+			return d.get("draugrs_morts", [])
+	return []
 
 ## Partie sauvegardée dans la grotte : on y revient exactement là (la position est celle du fichier).
 func restaurer() -> void:
