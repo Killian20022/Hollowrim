@@ -63,6 +63,10 @@ static func creer(options := {}) -> Node3D:
 	_habiller(pieces["bottes"], materiau(GardienTextures.tex("bottes")))
 	_habiller(pieces["brassards"], materiau(GuerrierTextures.tex("brassards")))
 	_habiller(pieces["mante"], materiau(GardienTextures.tex("mante")))
+	# passe 3 : le surcot cache le haut du pantalon et le bas de la cotte, le col couvre la mante : décimation de ces zones
+	GuerrierNordique._decimer(pieces["pantalon"], func(p: Vector3) -> float: return 0.045 if p.y > 0.60 else 0.0)
+	GuerrierNordique._decimer(pieces["tunique"], func(p: Vector3) -> float: return 0.045 if p.y < 1.0 else 0.0)
+	GuerrierNordique._decimer(pieces["mante"], func(p: Vector3) -> float: return 0.032)
 	var sc: MeshInstance3D = pieces.get("SuperHero_Male")
 	if sc:
 		sc.visible = false
@@ -108,7 +112,7 @@ static func creer(options := {}) -> Node3D:
 	var mi_b: MeshInstance3D = sq.get_node_or_null("Hair_Beard")
 	if mi_b:
 		GuerrierNordique._filtrer(mi_b, func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002)
-		GuerrierNordique._decimer(mi_b, func(p: Vector3) -> float: return 0.008)
+		GuerrierNordique._decimer(mi_b, func(p: Vector3) -> float: return 0.011)
 		GuerrierNordique._uv_barbe(mi_b)
 		var mb := materiau(GuerrierTextures.tex("barbe"), true, false, false, "gardien_barbe")
 		mb.set_shader_parameter("teinte", Color(0.70, 0.56, 0.46))
@@ -162,8 +166,7 @@ static func creer(options := {}) -> Node3D:
 		pieces[nom].visible = false
 	acc.poitrine_libre = true
 	acc.epaules_libres = true
-	acc.fourrure_bord(pieces["mante"], 1.25, 1.43, 0.12, 0.20, 1.0, 1.7)
-	acc.fourrure_surface(pieces["mante"], 1.36, 1.60, 0.08, 0.14, 62)
+	acc.col(pieces["mante"])
 	acc.poitrine_libre = false
 	acc.epaules_libres = false
 	acc.fourrure_bord(pieces["bottes"], 0.30, 0.45, 0.06, 0.09, 1.0, 1.6)
@@ -171,6 +174,7 @@ static func creer(options := {}) -> Node3D:
 	acc.fibule(plastron, Vector2(-0.13, 1.38))
 	acc.yeux(yeux)
 	acc.echarpe()
+	acc.surcot(pieces["pantalon"], pieces["tunique"])
 	acc.casque()
 	plastron.visible = false
 	var bouclier: String = options.get("bouclier", "bras")
@@ -429,6 +433,135 @@ class AccGardien extends GuerrierNordique.Accessoires:
 				var v0 := R.position.y + R.size.y * float(j) / sec
 				var v1 := R.position.y + R.size.y * float(j + 1) / sec
 				_quad(op, p[0], p[1], p[2], p[3], _uva(u0, v0), _uva(u1, v0), _uva(u1, v1), _uva(u0, v1), [pw, pw, pw, pw], (m0 + m1) * 0.5)
+
+
+	# ------------------------------------------------------------ surcot de cuir (passe 3)
+	## Deux panneaux de cuir brun (flancs gauche et droit) du bas de la ceinture (0,99 m) aux genoux (0,57 m), évasés, devant et dos
+	## laissés libres (le tabard passe dessus, les jambes jouent). Rayons mesurés sur le pantalon et la cotte + marge + évasement ;
+	## poids d'os du sommet de pantalon le plus proche. Ourlet bordé de fourrure crème (cartes plates).
+	func surcot(pantalon: MeshInstance3D, tunique: MeshInstance3D) -> void:
+		var ys := [0.99, 0.90, 0.80, 0.68, 0.57]
+		var arr := pantalon.mesh.surface_get_arrays(0)
+		var rayons := []
+		for yy: float in ys:
+			var rx := 0.0
+			var zf := 0.0
+			var zb := 0.0
+			for mi: MeshInstance3D in [pantalon, tunique]:
+				var v: PackedVector3Array = mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+				for p in v:
+					if absf(p.y - yy) < 0.045:
+						rx = maxf(rx, absf(p.x))
+						zf = maxf(zf, p.z)
+						zb = maxf(zb, -p.z)
+			var marge := 0.028 + 0.070 * (0.99 - yy) / 0.42
+			rayons.append([rx + marge, zf + marge, zb + marge])
+		var R := GardienTextures.R_SURCOT
+		var seg := 7
+		var th0 := 0.30
+		var th1 := PI - 0.30
+		var cache := {}
+		for lado: float in [1.0, -1.0]:
+			for k in seg:
+				var ta := lerpf(th0, th1, float(k) / seg)
+				var tb := lerpf(th0, th1, float(k + 1) / seg)
+				var ux := R.position.x + 10.0 * (k % 2)
+				var ua := (ux + 0.3) if lado > 0.0 else (ux + 9.7)
+				var ub := (ux + 9.7) if lado > 0.0 else (ux + 0.3)
+				for j in ys.size() - 1:
+					var pts := []
+					var uvs := []
+					var pws := []
+					for c in 4:
+						var t := ta if (c == 0 or c == 3) else tb
+						var jj := j if c < 2 else j + 1
+						var ra: Array = rayons[jj]
+						var cz := cos(t)
+						var pz: float = (ra[1] if cz > 0.0 else ra[2]) * cz
+						var p := Vector3(lado * ra[0] * sin(t), ys[jj], pz)
+						pts.append(p)
+						uvs.append(_uva(ua if (c == 0 or c == 3) else ub, R.position.y + 0.3 + (R.size.y - 0.6) * float(jj) / (ys.size() - 1)))
+						var ck := p.snapped(Vector3.ONE * 0.001)
+						if not cache.has(ck):
+							cache[ck] = _poids_proche(pantalon, arr, p)
+						pws.append(cache[ck])
+					_quad(op, pts[0], pts[1], pts[2], pts[3], uvs[0], uvs[1], uvs[2], uvs[3], pws, Vector3(0, pts[0].y, 0))
+				# ourlet : carte de fourrure sous chaque segment
+				var rb: Array = rayons[ys.size() - 1]
+				var tm := (ta + tb) * 0.5
+				var cz2 := cos(tm)
+				var pm := Vector3(lado * rb[0] * sin(tm), ys[ys.size() - 1] + 0.012, (rb[1] if cz2 > 0.0 else rb[2]) * cz2)
+				var ext := Vector3(pm.x, 0.0, pm.z).normalized()
+				var tg := Vector3(-ext.z, 0.0, ext.x) * lado
+				_carte_col(pantalon, arr, pm + ext * 0.004, tg, (Vector3.DOWN * 0.9 + ext * 0.45).normalized(), 0.085, 0.085 + _h(k) * 0.03, (k + int(lado)) % 4, false)
+
+	# ------------------------------------------------------------ gros col de fourrure crème (passe 3)
+	## Carte de mèche du col (D_COL), pliée en deux (la pointe retombe) : root, mi-longueur puis pointe ; `plie` = 4 triangles.
+	func _carte_col(mi: MeshInstance3D, a: Array, r: Vector3, cote: Vector3, dir: Vector3, larg: float, lg: float, variante: int, plie := true) -> void:
+		var C := GardienTextures.D_COL
+		var D := Vector2(GuerrierTextures.DECOUPES)
+		var u0 := (C.position.x + variante * 12.0 + 0.3) / D.x
+		var u1 := (C.position.x + variante * 12.0 + 11.7) / D.x
+		var v0 := (C.position.y + 0.3) / D.y
+		var v1 := (C.position.y + C.size.y - 0.3) / D.y
+		var ext := Vector3(dir.x, 0.0, dir.z).normalized()
+		var d2 := (dir + Vector3.DOWN * 0.9).normalized() if plie else dir
+		var m := r + dir * lg * 0.5
+		var t := m + d2 * lg * 0.5
+		var g := r - cote * larg * 0.5
+		var d := r + cote * larg * 0.5
+		var gm := m - cote * larg * 0.46
+		var dm := m + cote * larg * 0.46
+		var gt := t - cote * larg * 0.40
+		var dt := t + cote * larg * 0.40
+		var pr := _poids_proche(mi, a, r)
+		var pm := _poids_proche(mi, a, m)
+		var pt := _poids_proche(mi, a, t)
+		var dedans := r - ext * 0.1 + Vector3(0, 0.05, 0)
+		if plie:
+			var vm := (v0 + v1) * 0.5
+			_quad(dec, g, d, dm, gm, Vector2(u0, v0), Vector2(u1, v0), Vector2(u1, vm), Vector2(u0, vm), [pr, pr, pm, pm], dedans)
+			_quad(dec, gm, dm, dt, gt, Vector2(u0, vm), Vector2(u1, vm), Vector2(u1, v1), Vector2(u0, v1), [pm, pm, pt, pt], dedans)
+		else:
+			_quad(dec, g, d, dt, gt, Vector2(u0, v0), Vector2(u1, v0), Vector2(u1, v1), Vector2(u0, v1), [pr, pr, pt, pt], dedans)
+
+	## Trois couronnes de mèches autour du cou et sur les épaules, racines accrochées à la surface de la mante (sommet le plus
+	## proche) : dressée autour du cou, retombant sur les épaules, retombée basse. Devant dégagé (menton, fibule).
+	func col(mante: MeshInstance3D) -> void:
+		var a := mante.mesh.surface_get_arrays(0)
+		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var nrm: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+		# [nombre, y, rx, rz, vers l'extérieur, vers le haut/bas (+ = haut), longueur, largeur, angle mort devant]
+		var couronnes := [
+			[16, 1.52, 0.105, 0.12, 0.60, 0.80, 0.17, 0.11, 0.35],
+			[22, 1.47, 0.160, 0.155, 0.95, -0.05, 0.24, 0.14, 0.40],
+			[26, 1.42, 0.230, 0.180, 0.95, -0.45, 0.22, 0.13, 0.55],
+			[28, 1.36, 0.300, 0.200, 0.90, -0.80, 0.18, 0.12, 0.90],
+		]
+		var n := 0
+		for cr: Array in couronnes:
+			var nb: int = cr[0]
+			for i in nb:
+				var th := TAU * (float(i) + 0.5 * (n % 2)) / nb
+				var cz := cos(th)
+				var ext := Vector3(sin(th), 0.0, cz)
+				if cz > 0.0 and absf(sin(th)) < sin(float(cr[8])):
+					continue
+				var p := Vector3(sin(th) * cr[2], cr[1], cos(th) * cr[3] - 0.012)
+				# accrochage : sommet de mante le plus proche
+				var best := 0
+				var bd := 1e9
+				for k in v.size():
+					var d := v[k].distance_squared_to(p)
+					if d < bd:
+						bd = d
+						best = k
+				var root := v[best] + nrm[best] * 0.012
+				var dir := (ext * float(cr[4]) + Vector3.UP * float(cr[5])).normalized()
+				var cote := ext.cross(Vector3.UP).normalized()
+				var rd := 0.82 + _h(n) * 0.36
+				_carte_col(mante, a, root, cote, dir, float(cr[7]) * (0.9 + _h(n + 1) * 0.3), float(cr[6]) * rd, (n + i) % 4)
+				n += 1
 
 	# ------------------------------------------------------------ lance (main droite)
 	## Repère de la prise : hampe selon Y local ; talon à -bas, douille à 1,00 m, pointe à 1,30 m au-dessus du poing.

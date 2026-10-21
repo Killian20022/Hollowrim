@@ -16,11 +16,13 @@ const BLEU_JARL := ["#121620", "#1b2331", "#283244", "#36435a", "#475670", "#5d6
 ## Fourrure crème chaude (passe 2) : remplace ton pour ton la palette gris-brun du guerrier, qui bleuissait au crépuscule.
 const FOUR_CHAUD := ["#251f18", "#463b2d", "#6b5c47", "#8f7e63", "#b3a083", "#d3c2a2"]
 const CREME := ["#4e4636", "#73694f", "#9a8f70", "#bdb291", "#d8cfae"]
+## Col de fourrure (passe 3) : crème chaude plus claire que FOUR_CHAUD, pour rester crème sous la lumière froide du crépuscule.
+const COL_FOUR := ["#3a2f22", "#6b5a42", "#9a8765", "#c2b18c", "#e2d4b0", "#f2e8c8"]
 const FRENE := ["#1c140e", "#33251a", "#4b3726", "#654b34", "#7f6146", "#9a7a5a"]
 
 # ------------------------------------------------------------------ précalcul (même contrat que GuerrierTextures)
 const DOSSIER := "res://assets/persos/gardien"
-const VERSION := 3
+const VERSION := 5
 static var enregistrer := false
 static var _cache := {}
 
@@ -49,7 +51,7 @@ static func tex(nom: String) -> ImageTexture:
 				"mailles": img = mailles()
 				"accessoires": img = accessoires()
 				"decoupes": img = decoupes()
-				"mante": img = _rechauffer(GuerrierTextures.mante())
+				"mante": img = mante_creme()
 				"bottes": img = _rechauffer(GuerrierTextures.bottes())
 				_: push_error("GardienTextures : texture inconnue " + nom)
 			mips = GuerrierTextures.mips_pixel(img)
@@ -125,6 +127,8 @@ const R_HAMPE := Rect2i(200, 144, 16, 64)
 const R_FER_LANCE := Rect2i(216, 144, 16, 48)
 const R_LAINE := Rect2i(232, 144, 24, 32)
 const R_EPAUL := Rect2i(136, 176, 96, 32)
+## Surcot de cuir (passe 3) : tuile de 20 x 48 texels = 2 segments (0,156 m) x 0,42 m, jointure de panneau à gauche.
+const R_SURCOT := Rect2i(0, 208, 20, 48)
 
 static func accessoires() -> Image:
 	var img := GuerrierTextures.accessoires()
@@ -136,7 +140,51 @@ static func accessoires() -> Image:
 	_fer_lance(img)
 	_laine(img)
 	_epaulieres(img)
+	_surcot(img)
 	return img
+
+## Surcot de cuir brun usé : panneaux cousus (jointure sombre + points clairs de part et d'autre), clous de fer sur la jointure,
+## plis de cuir frotté, ourlet replié cousu en bas. Jamais de damier : grain et plaques de frottement.
+static func _surcot(img: Image) -> void:
+	var r := R_SURCOT
+	var W := r.size.x
+	var H := r.size.y
+	for y in H:
+		for x in W:
+			var t := GuerrierTextures._ton_cuir(x, y, W, H, 0.46 - 0.10 * float(y) / H, 3401)
+			# jointure verticale (x 0) : fente sombre, point de couture clair à 2 texels de chaque côté, un point sur deux
+			var c := _c(GuerrierTextures.CUIR, t)
+			if x == 0:
+				c = _c(GuerrierTextures.CUIR, 0)
+			elif x == 1:
+				c = _c(GuerrierTextures.CUIR, 3)
+			elif (x == 2 or x == W - 2) and (y % 4) < 2:
+				c = _c(GuerrierTextures.CUIR, 6)
+			elif x == W - 1:
+				c = _c(GuerrierTextures.CUIR, 1)
+			# ourlet replié (y 41-47) : bord clair, couture, ombre
+			if y == 40:
+				c = _c(GuerrierTextures.CUIR, 0)
+			elif y == 41:
+				c = _c(GuerrierTextures.CUIR, 5)
+			elif y == 43 and (x % 3) != 0:
+				c = _c(GuerrierTextures.CUIR, 6)
+			elif y >= 44:
+				c = _c(GuerrierTextures.CUIR, clampi(t - 1, 1, 4))
+				if y == H - 1:
+					c = _c(GuerrierTextures.CUIR, 0)
+			# bande de cuir plus sombre près de la taille (sous la ceinture)
+			if y < 3:
+				c = c.darkened(0.35)
+			img.set_pixel(r.position.x + x, r.position.y + y, c)
+	# clous de fer sur la jointure, tous les 12 texels
+	for y in [10, 22, 34]:
+		_rivet(img, r.position.x + 0, r.position.y + y)
+	# deux plis de cuir (traits sombres + rehaut) par tuile
+	for y in range(8, 38):
+		var x := 7 + int(2.0 * sin(y * 0.45))
+		img.set_pixel(r.position.x + x, r.position.y + y, _c(GuerrierTextures.CUIR, 1))
+		img.set_pixel(r.position.x + x + 1, r.position.y + y, _c(GuerrierTextures.CUIR, 5))
 
 ## Bouclier : planches verticales (mêmes joints que le guerrier), peinture bleue couvrante usée sur les arêtes, étoile crème à
 ## 8 branches fines (croix + sautoir) partant de l'umbo, anneau crème au bord ; clous du cerclage.
@@ -315,11 +363,15 @@ static func _epaulieres(img: Image) -> void:
 ## Laine bleue du jarl, bordure crème de 2 texels doublée d'un filet sombre, UNE rune crème sobre sur la poitrine
 ## (pal à deux chevrons, celle des bannières du village), bande de chevrons crème au-dessus des franges découpées.
 const D_TABARD := Rect2i(128, 32, 40, 96)
+## Mèches du col (passe 3) : 4 variantes de 12 x 24 texels (128 texels/m) en (72, 0) : mèche effilée en pointe (une fourchue),
+## brun-crème à la racine, crème clair à la pointe, brins sombres tous les 3 texels.
+const D_COL := Rect2i(72, 0, 48, 24)
 
 static func decoupes() -> Image:
 	var img := GuerrierTextures.decoupes()
 	_rechauffer(img, GuerrierTextures.D_MECHES)
 	_pelerine(img)
+	_mechesCol(img)
 	var r := D_TABARD
 	var W := r.size.x
 	var H := r.size.y
@@ -430,3 +482,51 @@ static func _pelerine(img: Image) -> void:
 			elif y == coupe:
 				c = _c(BLEU_JARL, 0)
 			img.set_pixel(r.position.x + x, r.position.y + y, c)
+
+## Mèches du col : alpha découpé, pointe vers le bas (v croissant). Variantes : 0 droite, 1 courbée à gauche, 2 courbée à droite, 3 fourchue.
+static func _mechesCol(img: Image) -> void:
+	var r := D_COL
+	for k in 4:
+		var x0 := r.position.x + k * 12
+		for y in 24:
+			var f := float(y) / 23.0
+			var demi := 5.8 * (1.0 - pow(f, 2.6)) + 0.4
+			var cx := 5.5
+			if k == 1:
+				cx -= 2.2 * f * f
+			elif k == 2:
+				cx += 2.2 * f * f
+			for x in 12:
+				var d := absf(x - cx)
+				var visible := d <= demi
+				if k == 3 and f > 0.55:
+					visible = absf(d - 2.0 * (f - 0.45) * 4.0) < demi * 0.6 + 0.4 and d <= demi
+				if not visible:
+					img.set_pixel(x0 + x, r.position.y + y, Color(0, 0, 0, 0))
+					continue
+				var t := 1 + int(f * 3.6) + int(roundf((_h(x, y + k * 24, 3501) - 0.5) * 0.9))
+				if (x + k) % 3 == 0:
+					t -= 1                                   # brin sombre
+				elif absf(x - cx) < 1.0:
+					t += 1                                   # arête de la mèche, plus claire
+				if d > demi - 1.0:
+					t -= 1                                   # bord dans l'ombre
+				img.set_pixel(x0 + x, r.position.y + y, _c(COL_FOUR, clampi(t, 0, 5)))
+
+## Peau de la mante sous le col (passe 3) : pelage crème chaud uni, brins verticaux courts un ton plus clairs ou plus sombres,
+## racines sombres vers le bas de l'image (jamais de plaques « camouflage »).
+static func mante_creme() -> Image:
+	var W := 256
+	var H := 128
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	for y in H:
+		for x in W:
+			var t := 3
+			var brin := _h(x, y / 6, 3601)
+			if brin > 0.72:
+				t = 4
+			elif brin < 0.22:
+				t = 2
+			t += int(roundf((_n(x, y, W, H, 6, 3, 3602) - 0.5) * 1.2))
+			img.set_pixel(x, y, _c(COL_FOUR, clampi(t, 1, 5)))
+	return img
