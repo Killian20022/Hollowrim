@@ -216,7 +216,7 @@ void sky() {
 			float m_astre = LIGHT0_ENABLED ? max(dot(d, LIGHT0_DIRECTION), 0.0) : 0.0;
 
 			// couleurs des nuages (linéaire) : dessous sombre, corps, bord éclairé, éclat ; nuit / crépuscule / jour couvert
-			vec3 c_sombre = palette(vec3(0.006, 0.009, 0.022), vec3(0.018, 0.019, 0.032), vec3(0.11, 0.13, 0.17));
+			vec3 c_sombre = palette(vec3(0.011, 0.016, 0.034), vec3(0.018, 0.019, 0.032), vec3(0.11, 0.13, 0.17));
 			vec3 c_corps = palette(vec3(0.016, 0.024, 0.050), vec3(0.042, 0.044, 0.068), vec3(0.22, 0.25, 0.31));
 			vec3 c_bord = palette(vec3(0.050, 0.068, 0.125), vec3(0.085, 0.09, 0.15), vec3(0.44, 0.48, 0.56));
 			vec3 c_eclat = palette(vec3(0.13, 0.15, 0.24), vec3(0.16, 0.16, 0.24), vec3(0.72, 0.74, 0.78));
@@ -249,6 +249,16 @@ void sky() {
 			float seuil = mix(mix(0.08, 0.02, jour), 0.03, crep) + (1.0 - couverture) * 0.3 + trou * 0.18
 				- smoothstep(0.05, 0.5, d.y) * 0.04;
 			float dens = n1 + cov * 0.6 - seuil;
+			// micro-relief « chou-fleur » (2 octaves bombées, filtrées) : bords effilochés et petites touches à l'intérieur
+			float det = 0.0;
+			if (dens > -0.12) {
+				vec2 qd = r * 3.1 + vec2(t * 0.05, t * 0.02);
+				float fpd = fp1 * 3.1;
+				det += 0.65 * (1.0 - smoothstep(0.22, 0.5, fpd)) * (0.62 - abs(bruit_n(qd) - 0.5) * 2.0);
+				qd = mat2(vec2(1.62, 1.18), vec2(-1.18, 1.62)) * qd + vec2(t * 0.03, 3.1);
+				det += 0.35 * (1.0 - smoothstep(0.22, 0.5, fpd * 2.0)) * (0.62 - abs(bruit_n(qd) - 0.5) * 2.0);
+				dens += det * 0.11 * (1.0 - smoothstep(0.0, 0.09, dens));
+			}
 			// alpha : bords transparents et effilochés, fondu vers l'horizon (jamais de mur coupé net)
 			float alpha = smoothstep(0.0, 0.07, dens) * smoothstep(0.0, 0.06, d.y);
 			if (alpha > 0.002) {
@@ -261,7 +271,7 @@ void sky() {
 				float fin = n1 - d_ici + cov * 0.6;                 // détail fin (octaves 4-5)
 				float touches = clamp(fin * 8.0 + 0.1, 0.0, 1.0);
 				float vers_astre = 0.25 + 0.75 * az;
-				float v = 0.30 * (1.0 - epais) + 0.40 * bord * vers_astre + 0.34 * touches * (0.45 + 0.55 * vers_astre) + fin * 0.9
+				float v = 0.30 * (1.0 - epais) + 0.40 * bord * vers_astre + 0.34 * touches * (0.45 + 0.55 * vers_astre) + fin * 0.7 + det * 0.3 * (0.5 + 0.5 * vers_astre)
 					+ 0.25 * pow(m_astre, 6.0) * (1.0 - epais * 0.6);
 				v = paliers(v, 7.0);
 				vec3 c = mix(c_sombre, c_corps, smoothstep(0.0, 0.34, v));
