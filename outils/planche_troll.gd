@@ -1,7 +1,8 @@
 extends SceneTree
 ## Planches du Troll de givre à partir des captures en jeu (outils/poses_troll.txt, sorties x2 de 1280x720) :
 ##   godot --headless --path . --script res://outils/planche_troll.gd -- --captures=<dossier> --sortie=<dossier> --ref=<image de référence>
-##        [--passe1=<planche_ref__troll_... de la passe 1>] : ajoute la colonne « passe 1 » (référence | passe 1 | passe 2) et la planche de nuit.
+##        [--passe1=<planche_ref__troll_... de la passe précédente>] [--noms=passe2__passe3] : ajoute la colonne de la passe précédente
+##        (référence | passe N-1 | passe N) et la planche de nuit.
 var cap := ""
 var sortie := ""
 
@@ -50,11 +51,18 @@ func _init() -> void:
 		bande.fill(Color(0.9, 0.9, 0.9))
 		bande.blit_rect(g1, Rect2i(Vector2i.ZERO, g1.get_size()), Vector2i.ZERO)
 		bande.blit_rect(g2, Rect2i(Vector2i.ZERO, g2.get_size()), Vector2i(g1.get_width() + 24, 0))
-		_avec_ref(bande).save_png(sortie.path_join("planche_ref__passe1__passe2_face_34_dos_2_4_8m_entree_17h30.png"))
+		var noms := _arg("noms")
+		if noms == "":
+			noms = "passe1__passe2"
+		_avec_ref(bande).save_png(sortie.path_join("planche_ref__%s_face_34_dos_2_4_8m_entree_17h30.png" % noms))
 		_grille(["nuit_4m_face", "nuit_4m_34", "nuit_tete_2m"], 3, 1000).save_png(sortie.path_join("planche_nuit_23h_4m_tete_2m.png"))
 	_avec_ref(_grille(["p17_2m_face", "p17_2m_34", "p17_2m_dos", "p17_4m_face", "p17_4m_34", "p17_4m_dos", "p17_8m_face", "p17_8m_34", "p17_8m_dos"], 3, 560)).save_png(sortie.path_join("planche_ref__troll_face_34_dos_2_4_8m_entree_17h30.png"))
 	_grille(["gros_tete_2m", "gros_main_2m", "gros_tete_1m", "gros_main_1m"], 2, 800).save_png(sortie.path_join("planche_gros_plans_tete_griffes_2m_1m.png"))
-	_grille(["an_idle", "an_marche_a", "an_marche_b", "an_course_a", "an_course_b", "an_attaque_a", "an_attaque_b", "an_coup", "an_mort_a", "an_mort_b"], 10, 420).save_png(sortie.path_join("planche_animations_idle_marche_course_attaque_coup_mort.png"))
+	if FileAccess.file_exists(cap.path_join("gros_torse_1m.png")):
+		_grille(["gros_torse_2m", "gros_torse_1m", "gros_pied_1m"], 3, 1000).save_png(sortie.path_join("planche_gros_plans_torse_2m_1m_pied_1m.png"))
+		_grille(["an_idle", "an_marche_a", "an_marche_b", "an_course_a", "an_course_b", "an_attaque_a", "an_attaque_b", "an_griffes_a", "an_griffes_b", "an_coup", "an_mort_a", "an_mort_b"], 12, 420).save_png(sortie.path_join("planche_animations_idle_marche_course_attaque_griffes_coup_mort.png"))
+	else:
+		_grille(["an_idle", "an_marche_a", "an_marche_b", "an_course_a", "an_course_b", "an_attaque_a", "an_attaque_b", "an_coup", "an_mort_a", "an_mort_b"], 10, 420).save_png(sortie.path_join("planche_animations_idle_marche_course_attaque_coup_mort.png"))
 	_grille(["entree_17h5", "echelle_face", "echelle_34"], 3, 1000).save_png(sortie.path_join("planche_echelle_a_cote_du_guerrier_entree_17h30.png"))
 	_avec_ref(_grille(["grotte_lac", "grotte_lac_b", "grotte_caverne"], 3, 1000)).save_png(sortie.path_join("planche_grotte_caverne_du_lac.png"))
 	print("PLANCHES : ", sortie)

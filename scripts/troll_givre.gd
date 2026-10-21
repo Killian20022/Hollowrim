@@ -476,6 +476,8 @@ class Ctx:
 					return [700.0, 0.14, 0.24, 0, 2, 0]         # barbe (pend sur le haut du poitrail)
 				if absf(q.x) >= 0.06 and q.z > -0.03 and q.y < 0.11:
 					return [900.0, 0.18, 0.28, 0, 2, 4]         # favoris : la crinière ENCADRE le visage et tombe sur le poitrail
+				if q.y > 0.15 and q.z > 0.02:
+					return [1250.0, 0.06, 0.10, 0, 2, 2]        # frange courte : ne tombe pas devant les yeux
 				if q.y > 0.15:
 					return [1250.0, 0.13, 0.21, 0, 2, 2]         # crâne : touffes rejetées en arrière, pointes givrées
 				return [950.0, 0.19, 0.30, 0, 2, 3]             # crinière (côtés, nuque) : longue, tombe sur les épaules
