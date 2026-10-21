@@ -24,8 +24,8 @@ const OBJETS := {
 	"champignon_lumineux": {"nom": "Champignon lumineux", "poids": 0.1, "valeur": 8},
 	"relique_offrande": {"nom": "Relique d’offrande royale", "poids": 1.5, "valeur": 90},
 	"registre_hrafn": {"nom": "Registre de Hrafn", "poids": 0.8, "valeur": 0},
-	"journal_sigrun": {"nom": "Journal de Sigrun", "poids": 0.3, "valeur": 0},
-	"broche_sigrun": {"nom": "Broche de Sigrun", "poids": 0.1, "valeur": 0},
+	"journal_sigrun": {"nom": "Journal de Solveig", "poids": 0.3, "valeur": 0},
+	"broche_sigrun": {"nom": "Broche de Solveig", "poids": 0.1, "valeur": 0},
 	"hache_kolbeinn": {"nom": "Hache de Kolbeinn le Gelé", "poids": 7.0, "valeur": 200},
 }
 

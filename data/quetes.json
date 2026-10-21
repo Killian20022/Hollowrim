@@ -136,26 +136,26 @@
     },
     {
       "id": "expedition_sigrun",
-      "titre": "L’expédition de Sigrun",
+      "titre": "L’expédition de Solveig",
       "donneur": "ancienne",
       "etapes": [
         {
           "id": "debut",
           "declencheur": "parle:ancienne",
-          "objectif": "Chercher des nouvelles de Sigrun dans la vieille mine",
-          "journal": "Grima n’a plus de nouvelles de sa petite-fille Sigrun, descendue avec quatre mineurs dans la vieille mine. Elle veut savoir, quoi qu’il arrive."
+          "objectif": "Chercher des nouvelles de Solveig dans la vieille mine",
+          "journal": "Grima n’a plus de nouvelles de sa petite-fille Solveig, descendue avec quatre mineurs dans la vieille mine. Elle veut savoir, quoi qu’il arrive."
         },
         {
           "id": "journal",
           "declencheur": "ramasse:journal_sigrun",
-          "objectif": "Retrouver aussi la broche de Sigrun",
-          "journal": "J’ai trouvé le journal de Sigrun sur l’îlot du lac souterrain. Elle y parle de sa broche et de Grima. Les derniers mots tremblent."
+          "objectif": "Retrouver aussi la broche de Solveig",
+          "journal": "J’ai trouvé le journal de Solveig sur l’îlot du lac souterrain. Elle y parle de sa broche et de Grima. Les derniers mots tremblent."
         },
         {
           "id": "broche",
           "declencheur": "ramasse:broche_sigrun",
-          "objectif": "Rapporter les affaires de Sigrun à Grima",
-          "journal": "J’ai la broche de Sigrun. Elle ne la quittait jamais, dit-on. Il faut maintenant rendre la vérité à Grima."
+          "objectif": "Rapporter les affaires de Solveig à Grima",
+          "journal": "J’ai la broche de Solveig. Elle ne la quittait jamais, dit-on. Il faut maintenant rendre la vérité à Grima."
         },
         {
           "id": "fin",
@@ -290,7 +290,7 @@
         "Les curieux finissent dans les légendes. J’aurais préféré qu’il reste ici."
       ],
       "expedition_sigrun:debut": [
-        "Ma petite-fille Sigrun — pas la Voyante, l’autre — est descendue dans la vieille mine avec quatre mineurs.",
+        "Ma petite-fille Solveig est descendue dans la vieille mine avec quatre mineurs.",
         "Voilà trois semaines. Pas un mot, pas un chant, rien.",
         "Ramène-moi de quoi savoir : un objet, un mot d’elle. Je n’ai pas besoin de mensonges."
       ],
