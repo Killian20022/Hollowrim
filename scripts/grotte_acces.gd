@@ -500,7 +500,7 @@ func obtenir() -> Grotte:
 	return grotte
 
 func _interactif_sortie() -> void:
-	var p := grotte.sol_en(SORTIE_S, 0.0) + Vector3(0, 1.5, 0)
+	var p := grotte.sol_en("T1", SORTIE_S, 0.0) + Vector3(0, 1.5, 0)
 	var it := _interactif(p, "Sortie de la grotte", "Sortir de la grotte", func() -> Array: return _passer(false), grotte)
 	it.rayon = 3.4
 
