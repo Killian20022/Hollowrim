@@ -398,7 +398,7 @@ func _ambiance(m: Dictionary) -> void:
 
 ## Refonte matière (références grottes_cryptes_2/3) : lustre de fer à bougies, statues encapuchonnées, sceau bleu, brume au sol.
 ## RNG séparé (rng_deco) ; budget : 6 lumières au plus par salle (le lustre et le sceau n'ont de lumière que s'il en reste).
-func _ambiance_matiere(m: Dictionary, nb_lum0: int) -> void:
+func _ambiance_matiere(m: Dictionary, _nb_lum0: int) -> void:
 	var dim: Vector2 = m["dim"]
 	var h := float(m.get("h", 3.0))
 	var y := float(m.get("y", 0.0))
@@ -406,9 +406,8 @@ func _ambiance_matiere(m: Dictionary, nb_lum0: int) -> void:
 	var role: String = m.get("role", "")
 	var r := d.rng_deco
 	if h >= 3.6 and aire >= 36.0 and role != "arene":
-		var nl := d.toutes.size() - nb_lum0
 		var p := Vector3(r.randf_range(-0.6, 0.6), y + h, r.randf_range(-0.6, 0.6))
-		d.lustre(p, clampf(h - 2.9, 0.7, 4.0), 0.55 if aire < 90.0 else 0.75, nl < 6)
+		d.lustre(p, clampf(h - 2.9, 0.7, 4.0), 0.55 if aire < 90.0 else 0.75, false)   # budget : 7 lumières par salle (test_crypte)
 		if aire >= 110.0:
 			for sx: float in [-1.0, 1.0]:
 				var q := Vector3(sx * dim.x * 0.26, y + h, r.randf_range(-dim.y * 0.2, dim.y * 0.2))
@@ -448,7 +447,7 @@ func _ambiance_matiere(m: Dictionary, nb_lum0: int) -> void:
 				continue
 			var pm := plan_mur(m, c)
 			var p := pt_mur(m, c, (best[0] + best[1]) * 0.5, y + minf(h - 1.2, 2.4), 0.0)
-			d.sceau(p, pm["vers"], 0.9, c != "N")
+			d.sceau(p, pm["vers"], 0.9, c == "N", 4.0)   # une seule lumière (budget : 8 par maillage)
 	# sceau bleu sur un mur (accent froid), une salle sur deux
 	elif r.randf() < 0.5:
 		var c: String = ["N", "S", "E", "O"][r.randi_range(0, 3)]
@@ -458,7 +457,7 @@ func _ambiance_matiere(m: Dictionary, nb_lum0: int) -> void:
 			if sgm[1] - sgm[0] > 1.0:
 				var pm := plan_mur(m, c)
 				var p := pt_mur(m, c, (sgm[0] + sgm[1]) * 0.5, y + minf(h - 1.0, 2.0), 0.0)
-				d.sceau(p, pm["vers"], 0.6, d.toutes.size() - nb_lum0 < 6)
+				d.sceau(p, pm["vers"], 0.6, false)
 	# brume au ras du sol
 	d.brume(Vector3(0, y, 0), Vector2(dim.x * 0.32, dim.y * 0.32), clampi(int(aire / 18.0), 3, 9))
 

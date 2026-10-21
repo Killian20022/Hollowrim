@@ -828,7 +828,7 @@ func lustre(plafond: Vector3, chute := 1.2, rayon := 0.55, avec_lumiere := true)
 		lumiere(c + Vector3(0, 0.3, 0), FEU_BOUGIE, 1.3, 6.0, 1.7)
 
 ## Sceau runique : losange gravé dont les traits luisent en bleu (accent froid des références), sur un mur ; petite lumière bleue.
-func sceau(centre: Vector3, vers: Vector3, taille := 0.7, avec_lumiere := true) -> void:
+func sceau(centre: Vector3, vers: Vector3, taille := 0.7, avec_lumiere := true, portee := 5.0) -> void:
 	var n := vers.normalized()
 	var dr: Vector3 = _axes(n)[0]
 	var p := centre + n * 0.02
@@ -846,7 +846,7 @@ func sceau(centre: Vector3, vers: Vector3, taille := 0.7, avec_lumiere := true) 
 	_rect("sceau", p, dr, Vector3.UP, 0.0, 0.0, ep, taille * 0.9, 0.0, n)       # trait vertical (rune Is)
 	carte("halo_f", p + n * 0.05, n, taille * 2.6, taille * 2.6)
 	if avec_lumiere:
-		lumiere(p + n * 0.5, RUNE, 0.9, 5.0, 1.5, false)
+		lumiere(p + n * 0.5, RUNE, 0.9, portee, 1.5, false)
 
 func contrefort(x: float, z: float, h: float, sens_x: float, sens_z: float, l := 0.7, p := 0.5) -> void:
 	# pilier engagé contre un mur : (sens_x, sens_z) = direction du mur vers la pièce
@@ -936,7 +936,7 @@ func applique(plan_mur: Vector3, vers: Vector3, haut := 2.1, portee := 5.0, ener
 	flamme(p + d * 0.32 + Vector3(0, 0.2, 0), 1.6)
 	carte("halo", p + d * 0.13 + Vector3(0, 0.3, 0), d, 1.4, 1.4)
 	if avec_lumiere:
-		lumiere(p + d * 0.5 + Vector3(0, 0.45, 0), FEU_CRYPTE if est_crypte else FEU, energie, portee * (1.35 if est_crypte else 1.0), 1.5 if est_crypte else 1.8)
+		lumiere(p + d * 0.5 + Vector3(0, 0.45, 0), FEU_CRYPTE if est_crypte else FEU, energie, portee, 1.5 if est_crypte else 1.8)
 
 func brasero(pos: Vector3, froid := false) -> void:  # froid : lumière bleue (inutilisée dans la crypte actuelle)
 	var prof := [Vector2(0.36, 0.0), Vector2(0.32, 0.1), Vector2(0.24, 0.36), Vector2(0.26, 0.66), Vector2(0.44, 0.74), Vector2(0.5, 0.9), Vector2(0.42, 0.92)]
@@ -945,7 +945,7 @@ func brasero(pos: Vector3, froid := false) -> void:  # froid : lumière bleue (i
 	tour("braise", pos + Vector3(0, 0.84, 0), [Vector2(0.4, 0.0), Vector2(0.4, 0.0)], 8, PI / 8.0, true)
 	flamme(pos + Vector3(0, 0.9, 0), 1.7)
 	carte("halo", pos + Vector3(0, 0.02, 0), Vector3.UP, 3.4, 3.4)
-	lumiere(pos + Vector3(0, 1.4, 0), Color(0.45, 0.75, 1.0) if froid else (FEU_BRASERO if est_crypte else FEU), 2.4, 5.8 if not est_crypte else 8.5, 1.7 if not est_crypte else 1.4)
+	lumiere(pos + Vector3(0, 1.4, 0), Color(0.45, 0.75, 1.0) if froid else (FEU_BRASERO if est_crypte else FEU), 2.4, 5.8, 1.7 if not est_crypte else 1.4)
 
 # ------------------------------------------------------------------ mobilier (Méso)
 func sarcophage(pos: Vector3, taille: Vector3, lacet := 0.0, collision := true) -> void:
