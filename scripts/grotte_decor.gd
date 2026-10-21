@@ -36,8 +36,8 @@ const COQUES := {
 	"c_piste": ["piste", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 0.0],
 	"c_cristal": ["cristal", "", Color(0.7, 0.76, 0.88), Vector3(0.0, 0.0, 0.0), 0.2, 0.0, 0.0, 0.0],
 	"c_or": ["or", "", Color(1, 1, 1), Vector3(0.05, 0.035, 0.0), 0.12, 0.0, 0.0, 0.0],
-	"c_cristal_f": ["cristal_f", "", Color(0.9, 0.92, 1.0), Vector3(0.0, 0.0, 0.0), 0.35, 0.0, 0.0, 0.0],   # prismes en grappes (UV par face)
-	"c_glacon": ["glacon", "", Color(0.9, 0.95, 1.0), Vector3(0.012, 0.018, 0.026), 0.12, 0.0, 0.0, 0.0],
+	"c_cristal_f": ["cristal_f", "", Color(0.8, 0.84, 0.95), Vector3(0.0, 0.0, 0.0), 0.22, 0.0, 0.0, 0.0],   # prismes en grappes (UV par face)
+	"c_glacon": ["glacon", "", Color(0.78, 0.82, 0.86), Vector3(0.006, 0.009, 0.013), 0.06, 0.0, 0.0, 0.0],
 }
 
 var _coq := {}
@@ -731,7 +731,7 @@ const FROID_LAC := Color(0.62, 0.78, 0.86)
 const FROID_CRISTAL := Color(0.6, 0.74, 1.0)
 const JOUR_C := Color(0.78, 0.86, 1.0)
 const LANTERNE_C := Color(1.0, 0.6, 0.28)
-const LANT_E := 6.0      # lanternes : énergie, portée, atténuation (2e passe : flaques chaudes locales, chute forte)
+const LANT_E := 7.0      # lanternes : énergie, portée, atténuation (2e passe : flaques chaudes locales, chute forte)
 const LANT_P := 8.0
 const LANT_A := 2.0
 
@@ -756,6 +756,68 @@ func _habiller(g: Grotte) -> void:
 			"boyau", "carrefour":
 				_hab_boyau(g, z)
 	_glacons(g)
+	_hab_relief(g)
+
+## Accroches du relief (Grotte.levres / Grotte.rebords, lot « grotte relief ») :
+##  - lèvres (dessous de surplomb) : franges de glaçons de longueurs variées, quelques toiles dans les zones sèches ;
+##  - rebords (dessus de corniches) : croûtes de givre épais (congères plates), os et bougies éteintes dans les zones habitées.
+## Rien de solide (pas de collision), rien sous 2,3 m au-dessus du passage.
+func _hab_relief(g: Grotte) -> void:
+	var nl := 0
+	for e: Array in g.levres:
+		if _hab_r.randf() > 0.3:
+			continue
+		var p: Vector3 = e[0]
+		var sit := _situer(g, p)
+		var id: String = sit[0]
+		if id == "":
+			continue
+		var s: float = sit[1]
+		var sty := _style_en(g, id, s)
+		if sty == "camp" or g.faille_f(g.br[id], s) > 0.02:
+			continue
+		var th := String(_zone_en(g, id, s).get("theme", ""))
+		var sol := g.sol_en(id, s, float(sit[2]))
+		var garde := p.y - sol.y
+		var au_passage := absf(float(sit[2])) < 1.2
+		if (th == "mine" or th == "boyau" or th == "cache") and _hab_r.randf() < 0.12:
+			var n2: Vector3 = e[1]
+			var t := Vector3(n2.z, 0, -n2.x).normalized() if Vector2(n2.x, n2.z).length() > 0.05 else g.tang(id, s)
+			toile(p - Vector3(0, 0.05, 0), t, (Vector3(n2.x, 0, n2.z).normalized() if Vector2(n2.x, n2.z).length() > 0.05 else Vector3.DOWN), _hab_r.randf_range(0.6, 1.1))
+			continue
+		var n := _hab_r.randi_range(2, 5)
+		for k in n:
+			var q := p + Vector3(_hab_r.randf_range(-0.35, 0.35), 0.06, _hab_r.randf_range(-0.35, 0.35))
+			var l := _hab_r.randf_range(0.1, 0.45) if _hab_r.randf() < 0.7 else _hab_r.randf_range(0.5, 1.3)
+			if au_passage:
+				l = minf(l, garde - 2.3)
+			l = minf(l, garde - 0.3)
+			if l < 0.08:
+				continue
+			pointe("c_glacon", q, _hab_r.randf_range(0.025, 0.06) * (0.6 + l * 0.6), -l, _hab_r.randi(), 0.0, 5)
+			nl += 1
+	for e: Array in g.rebords:
+		var p: Vector3 = e[0]
+		var r := _hab_r.randf()
+		if r > 0.5:
+			continue
+		var sit := _situer(g, p)
+		var id: String = sit[0]
+		if id == "":
+			continue
+		var s: float = sit[1]
+		var sty := _style_en(g, id, s)
+		var th := String(_zone_en(g, id, s).get("theme", ""))
+		if sty == "camp":
+			if r < 0.12:
+				bougie(p + Vector3(0, 0.02, 0), false)
+			continue
+		if r < 0.2 and (sty == "neige" or sty == "glace" or sty == "mousse"):
+			congere(p - Vector3(0, 0.04, 0), _hab_r.randf_range(0.2, 0.45), _hab_r.randf_range(0.05, 0.12), _hab_r.randi())     # givre épais
+		elif r < 0.34 and (th == "mine" or th == "cache" or th == "boyau"):
+			os_tas(p, 2, 0.2)
+		elif r < 0.36 and (th == "cache" or th == "mine"):
+			bougie(p + Vector3(0, 0.02, 0), false)
 
 ## Style de matière d'une branche en s (même lecture que Grotte._matiere).
 static func _style_en(g: Grotte, id: String, s: float) -> String:
@@ -768,15 +830,31 @@ static func _style_en(g: Grotte, id: String, s: float) -> String:
 
 ## (branche, s, lat) du point de la galerie le plus proche d'une position locale.
 static func _situer(g: Grotte, p: Vector3) -> Array:
+	var grille: Dictionary = g.get_meta("_situer_grille", {})
+	if grille.is_empty():                                  # anneaux rangés par case de 4 m (calculé une fois par grotte)
+		for id: String in g.ordre:
+			for r: Dictionary in (g.br[id] as Dictionary)["anneaux"]:
+				var c: Vector3 = r["P"]
+				var k := Vector2i(floori(c.x / 4.0), floori(c.z / 4.0))
+				if not grille.has(k):
+					grille[k] = []
+				(grille[k] as Array).append([id, r])
+		g.set_meta("_situer_grille", grille)
 	var best := ["", 0.0, 0.0]
 	var bd := 1e18
-	for id: String in g.ordre:
-		for r: Dictionary in (g.br[id] as Dictionary)["anneaux"]:
-			var c: Vector3 = r["P"]
-			var d := Vector2(c.x - p.x, c.z - p.z).length_squared()
-			if d < bd:
-				bd = d
-				best = [id, float(r["s"]), (p - c).dot(r["R"] as Vector3)]
+	var k0 := Vector2i(floori(p.x / 4.0), floori(p.z / 4.0))
+	for ray in [1, 3, 8]:
+		for dx in range(-ray, ray + 1):
+			for dz in range(-ray, ray + 1):
+				for e: Array in grille.get(k0 + Vector2i(dx, dz), []):
+					var r: Dictionary = e[1]
+					var c: Vector3 = r["P"]
+					var d := Vector2(c.x - p.x, c.z - p.z).length_squared()
+					if d < bd:
+						bd = d
+						best = [e[0], float(r["s"]), (p - c).dot(r["R"] as Vector3)]
+		if bd < float(ray * ray) * 16.0:
+			break
 	return best
 
 static func _zone_en(g: Grotte, id: String, s: float) -> Dictionary:
@@ -1118,15 +1196,13 @@ func _glacons(g: Grotte) -> void:
 			var dens := 0.0
 			match sty:
 				"neige":
-					dens = 1.0
+					dens = 0.7
 				"glace", "cristaux":
-					dens = 0.9
-				"camp":
-					dens = 0.0
-				"goulot":
 					dens = 0.5
+				"camp", "goulot":
+					dens = 0.0
 				_:
-					dens = 0.42
+					dens = 0.2
 			if g.faille_f(b, s) > 0.02:
 				dens = 0.0
 			if _hab_r.randf() < dens:

@@ -14,11 +14,11 @@ const E := 2          # roche, strates, sol, givre : tuile de 256 px (2 m dans l
 const SG := S * E
 
 # bornes de rampe (sombre -> clair)
-const R_ROCHE := ["#050608", "#0a0c0f", "#121519", "#1b1e23", "#24282e", "#2e3239", "#393e46", "#4a5059", "#666d77"]   # 2e passe : anthracite froid légèrement bleuté (références : la chaleur ne vient que des lanternes)
-const R_ROCHE_GRIS := ["#060606", "#0d0d0e", "#161718", "#202123", "#2a2b2e", "#35373a", "#424448", "#55575c", "#717479"]
-const R_ROCHE_FROID := ["#050608", "#0b0d10", "#14161a", "#1d2024", "#272a2f", "#31353a", "#3d4147", "#4f5359", "#6b7076"]
-const R_BRUN := ["#070605", "#0f0e0c", "#191714", "#23201c", "#2d2a25", "#39352f", "#46413a", "#57514a"]   # brun éteint, presque gris
-const R_SOL := ["#040505", "#090a0b", "#111214", "#191b1e", "#222529", "#2c3034", "#383c41", "#474c52", "#5c6268"]
+const R_ROCHE := ["#050608", "#0a0c0f", "#121519", "#1b1e23", "#262a30", "#33373e", "#434850", "#5b616a", "#838a94"]   # 2e passe : anthracite froid légèrement bleuté (références : la chaleur ne vient que des lanternes)
+const R_ROCHE_GRIS := ["#060606", "#0d0d0e", "#161718", "#202123", "#2a2b2e", "#37393c", "#46484c", "#5d5f64", "#7f8287"]
+const R_ROCHE_FROID := ["#050608", "#0b0d10", "#14161a", "#1d2024", "#272a2f", "#33373c", "#41454b", "#575b61", "#777c83"]
+const R_BRUN := ["#070605", "#0f0e0c", "#191714", "#23201c", "#302d28", "#3d3933", "#4c463f", "#5f5850"]   # brun éteint, presque gris
+const R_SOL := ["#040505", "#090a0b", "#111214", "#191b1e", "#24272b", "#31353a", "#40444a", "#545960", "#70767d"]
 const R_GIVRE := ["#464e62", "#55607b", "#697492", "#8089a6", "#98a1be", "#b6c0d6", "#cdd7ec"]   # DA « neige crépuscule » (jamais #ffffff)
 const R_NEIGE := ["#6a7f9e", "#8397b3", "#a0b2c9", "#bdcbdc", "#dce5ef", "#f6f9fc"]
 const R_GLACE := ["#06080b", "#0c1015", "#141a21", "#1d252f", "#28323e", "#36424f", "#4a5867", "#687a8a", "#93a5b3", "#c4d1da"]   # glace du lac : gris-bleu sombre, peu saturé
@@ -482,7 +482,7 @@ static func cristal_image() -> Image:
 ## u = travers de la face (0 -> 1), v = long du prisme (0 = pied, 1 = pointe ; l'image est retournée : y = 0 en haut = pointe).
 ## Dégradé interne bleu nuit (pied, enfoncé dans la roche) -> cyan pâle (pointe), arête claire d'1 texel à gauche,
 ## joint sombre à droite, inclusions et fêlures obliques, quelques reflets. 64 x 64 texels (carré : chaîne de mipmaps complète).
-const R_CRISTAL_F := ["#05080f", "#09101c", "#0e182a", "#14223a", "#1b2e4b", "#243d5f", "#2f4f77", "#4a7aa6", "#7fb0d4", "#b4d8ee"]   # corps bleu nuit, cyan pâle seulement en tête
+const R_CRISTAL_F := ["#05080f", "#09101c", "#0e182a", "#14223a", "#1a2b44", "#223853", "#2b4664", "#456c8f", "#7aa6c6", "#b4d8ee"]   # corps bleu nuit, cyan pâle seulement en tête
 
 static func cristal_face_image() -> Image:
 	var W := 64
