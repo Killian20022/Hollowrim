@@ -7,8 +7,8 @@ class_name MageTextures
 ## gris-brun sombre, barbe grise, bâton de bois brun-gris gravé de runes, cristal de glace à facettes.
 
 # palettes (sombre -> clair)
-## passe 2 : robe quasi noire, ardoise très sombre à peine froide (la passe 1 virait au bleu marine au crépuscule)
-const ROBE := ["#0a0a0d", "#111216", "#1a1c21", "#262a31", "#353b45", "#4c5663", "#6c7a8b"]
+## passe vetements : robe bleu ardoise delavee comme la reference (tons moyens #2c3b52 / #3d5470, arete #7896b3) ; passe 2 : robe quasi noire, ardoise très sombre à peine froide (la passe 1 virait au bleu marine au crépuscule)
+const ROBE := ["#0c1018", "#151c28", "#1f2a3b", "#2c3b52", "#3d5470", "#56728f", "#7896b3"]
 ## broderies : fil bleu pâle glacé (les runes ressortent sur la robe noire, sans saturation « plastique »)
 const BRODERIE := ["#1f2a36", "#3f5a74", "#6f93b5", "#9dbfdc", "#c9e0f2"]
 const CAPUCHE := ["#08080a", "#0e0e11", "#151518", "#1d1d21", "#26262b", "#313136", "#3f3e44"]
@@ -39,7 +39,7 @@ const RUNES := [
 static var _cache := {}
 
 const DOSSIER := "res://assets/personnages/mage"
-const VERSION := 4
+const VERSION := 5
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -122,16 +122,19 @@ static func robe_haut() -> Image:
 	_poignet(img, W, H)
 	return img
 
-## Bande brodée verticale centrée sur x = 0 (repliée) : fond sombre, deux filets d'argent, runes empilées.
+## Bande brodée verticale centrée sur x = 0 (repliée) : fond sombre, deux filets d'argent, chaîne de losanges de chaque côté
+## (comme le plastron brodé de la référence), runes empilées au centre.
 static func _bande_devant(img: Image, W: int, y0: int, y1: int) -> void:
 	for y in range(y0, y1):
-		for dx in range(-6, 7):
+		for dx in range(-10, 11):
 			var x := posmod(dx, W)
 			var c := _c(ROBE, 1)
-			if absf(dx) == 6:
+			if absf(dx) == 10:
 				c = _c(BRODERIE, 2)
-			elif absf(dx) == 5:
+			elif absf(dx) == 9:
 				c = _c(ROBE, 0)
+			elif absf(dx) == 3:
+				c = _c(BRODERIE, 1)
 			_p(img, x, y, c)
 	var k := 0
 	var y := y0 + 2
@@ -139,6 +142,35 @@ static func _bande_devant(img: Image, W: int, y0: int, y1: int) -> void:
 		_rune(img, k * 5 + 3, -2, y, _c(BRODERIE, 3), _c(ROBE, 0))
 		y += 9 + (k % 2)
 		k += 1
+	# chaîne de losanges creux (5 de haut, période 6) de part et d'autre
+	for cote in [-1, 1]:
+		var yy := y0 + 1
+		while yy + 5 <= y1:
+			for r in 5:
+				var demi := 2 - absi(r - 2)
+				for sgn in [-1, 1]:
+					_p(img, posmod(cote * 6 + sgn * demi, W), yy + r, _c(BRODERIE, 3 if sgn > 0 else 2))
+			yy += 6
+
+## Entrelacs (tresse à deux brins) sur le rectangle (x0, y0, w, h) : les brins s'enlacent (dessus / dessous alternés), chacun cerné
+## d'un trait sombre ; période 16 texels (divise 128 et 256 : le motif se referme sur le tour).
+static func _entrelacs(img: Image, x0: int, y0: int, w: int, h: int, fond: Color, ombre: Color, fil: Array) -> void:
+	for x in w:
+		for y in h:
+			_p(img, x0 + x, y0 + y, fond)
+	for x in w:
+		var ph := TAU * float(x) / 16.0
+		var haut_a := cos(ph) > 0.0
+		for passe in 2:
+			var brin_a := (passe == 0) != haut_a        # le brin dessiné en second est au-dessus
+			var s := sin(ph) if brin_a else -sin(ph)
+			var yy := roundi((h - 2) * 0.5 + s * (h - 4) * 0.5)
+			for dy in [-1, 2]:
+				if yy + dy >= 0 and yy + dy < h:
+					_p(img, x0 + x, y0 + yy + dy, ombre)
+			for dy in 2:
+				if yy + dy >= 0 and yy + dy < h:
+					_p(img, x0 + x, y0 + yy + dy, _c(fil, 3 if dy == 0 else 2))
 
 ## Poignet (bas de l'image) : 9 rangées sombres unies, runes espacées irrégulièrement, arête claire en haut, liseré au bord.
 static func _poignet(img: Image, W: int, H: int) -> void:
@@ -375,33 +407,38 @@ static func _jupe(img: Image) -> void:
 			# crasse et neige fondue vers l'ourlet (taches allongées, pas de grain)
 			if y > H - 24 and GuerrierTextures._n(x, y, W, H, 32, 6, 1705) < 0.3 + (y - (H - 24)) / 60.0:
 				t -= 1
+			# neige fondue accrochée aux plis du bas : petits éclats clairs et allongés
+			if y > H - 62 and y < H - 25 and GuerrierTextures._n(x, y, W, H, 12, 4, 1706) > 0.80:
+				t += 2
 			img.set_pixel(r.position.x + x, r.position.y + y, _c(ROBE, t))
 	# bande brodée du devant (repliée autour de x = 0) jusqu'à la bande de l'ourlet
 	var sous := Image.create(W, H, false, Image.FORMAT_RGBA8)
 	sous.blit_rect(img, r, Vector2i.ZERO)
-	_bande_devant(sous, W, 0, H - 16)
-	# bande de runes au-dessus de l'ourlet (y H-15 .. H-7), ourlet uni (H-6 .. H-1)
+	_bande_devant(sous, W, 0, H - 25)
+	# ourlet brodé (25 rangées depuis le bas) : ourlet uni roulé (arête claire + liseré froid), tresse entrelacée, filet,
+	# rangée de runes espacées, filet haut
 	for x in W:
-		for k in 15:
+		for k in 25:
 			var yy := H - 1 - k
 			var c := _c(ROBE, 1)
 			if k <= 1:
 				c = _c(ROBE, 0)
-			elif k == 5:
-				c = _c(ROBE, 5)             # arête claire de l'ourlet replié
-			elif k == 6:
-				c = _c(ROBE, 0)
-			elif k == 14:
-				c = _c(BRODERIE, 2)         # filet d'argent haut
+			elif k <= 3:
+				c = _c(ROBE, 2)
 			elif k == 4:
-				c = _c(BRODERIE, 1)         # liseré froid sous la bande de runes
-			elif k == 13:
+				c = _c(ROBE, 5)             # arête claire de l'ourlet replié
+			elif k == 5:
+				c = _c(BRODERIE, 1)         # liseré froid
+			elif k == 6 or k == 15 or k == 23:
 				c = _c(ROBE, 0)
+			elif k == 14 or k == 24:
+				c = _c(BRODERIE, 2)         # filets d'argent
 			sous.set_pixel(x, yy, c)
+	_entrelacs(sous, 0, H - 14, W, 7, _c(ROBE, 1), _c(ROBE, 0), BRODERIE)
 	var x := 3
 	var i := 0
 	while x < W - 5:
-		_rune(sous, i * 5 + 2, x, H - 13, _c(BRODERIE, 3 if i % 3 != 1 else 2), _c(ROBE, 0))
+		_rune(sous, i * 5 + 2, x, H - 23, _c(BRODERIE, 3 if i % 3 != 1 else 2), _c(ROBE, 0))
 		x += 8 + int(GuerrierTextures._h(i, 0, 1711) * 5.0)
 		i += 1
 	img.blit_rect(sous, Rect2i(Vector2i.ZERO, sous.get_size()), r.position)
@@ -495,7 +532,12 @@ static func pelerine() -> Image:
 	for y in H:
 		for x in W:
 			var l := _laine(x, y, W, H, 0.45, 2201, 10)
-			_p(img, x, y, _c(PELERINE, GuerrierTextures._ton(l, 6, x, y, 2205, 0.3)))
+			var t := GuerrierTextures._ton(l, 6, x, y, 2205, 0.3)
+			# neige accrochée aux plis : éclats clairs épars (la frange et les épaules en prennent le plus)
+			if GuerrierTextures._h(x, y, 2206) > 0.975:
+				_p(img, x, y, _c(BARBE, 1))
+			else:
+				_p(img, x, y, _c(PELERINE, t))
 	return img
 
 # ------------------------------------------------------------------ orbe et lueurs (64 x 64, surface émissive, découpe)

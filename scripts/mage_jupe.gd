@@ -29,6 +29,8 @@ var lissage := 0.25
 const SUIVI_BASCULE := 0.25    # part de la bascule du bassin suivie par la jupe debout (0 = verticale pure)
 const CLOCHE_MAX := 0.46       # rayon horizontal maximal depuis l'axe de la jupe (m) ; l'axe est 3 cm derrière le bassin
 const CLOCHE_JEU := 0.22       # et au plus rayon de repos + CLOCHE_JEU (le haut de la jupe gonfle moins que l'ourlet)
+const PLI_MAX := 0.028         # bombement maximal des plis à l'ourlet (m)
+var _pli := PackedFloat32Array()   # N : amplitude de chaque colonne (0..1), irrégulière, fixe
 var arr := []
 var mat: Material
 ## dernier état calculé (contrôle des traversées : outils/test_mage.gd)
@@ -74,6 +76,9 @@ func preparer(s: Skeleton3D, points: Array, m: Material) -> void:
 			_drest[k * N + i] = Vector3.ZERO if k == 0 else p - (repos[k - 1][i] as Vector3)
 			var r := Vector2(p.x, p.z - MageNordique.Z_CENTRE).length()
 			_cap[k * N + i] = maxf(r, minf(CLOCHE_MAX, r + CLOCHE_JEU))
+	_pli.resize(N)
+	for i in N:
+		_pli[i] = 0.15 + 0.85 * (0.5 + 0.5 * sin(float(i) * 2.0 * TAU / N * 3.0 + 0.7 * sin(float(i) * 1.9))) 
 	_pts.resize(K * N)
 	_ligne.resize(N)
 	_drape.resize(N)
@@ -303,9 +308,16 @@ func mettre_a_jour() -> void:
 			if nn.dot(radial) < 0.0:
 				nn = -nn
 			var o := k * W + i
+			# plis principaux : l'étoffe ne fait que BOMBER vers l'extérieur (jamais vers les jambes), de plus en plus bas ;
+			# bord inférieur : ourlet roulé, la doublure recule de 6 mm (tailles) à 2,2 cm (ourlet) : le bord a de l'épaisseur
+			var hk := float(k) / float(K - 1)
+			var rl := radial.length()
+			if rl > 1e-5:
+				p += radial / rl * (PLI_MAX * hk * hk * _pli[ii])
+			var ep := 0.006 + 0.016 * smoothstep(0.55, 1.0, hk)
 			_v[o] = p
 			_n[o] = nn
-			_v[nb_ext + o] = p - nn * 0.006
+			_v[nb_ext + o] = p - nn * ep
 			_n[nb_ext + o] = -nn
 	var bas := (K - 1) * W
 	for i in W:

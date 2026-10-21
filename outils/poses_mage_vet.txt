@@ -5,9 +5,9 @@ v_2m_dos pilote 2,180,1.0 heure=17.5 sans-mains anim=Idle:0.25
 v_4m_34 pilote 4,-35,1.0 heure=17.5 sans-mains anim=Idle:0.25
 v_8m_face pilote 8,0,1.0 heure=17.5 sans-mains anim=Idle:0.25
 g_torse pilote 1.0,-20,1.35 heure=17.5 sans-mains anim=Idle:0.3
-g_ceinture pilote 1.0,-25,0.95 heure=17.5 sans-mains anim=Idle:0.3
-g_bas pilote 1.1,-30,0.45 heure=17.5 sans-mains anim=Idle:0.3
-g_bottes pilote 1.0,-40,0.2 heure=17.5 sans-mains anim=Walk:0.25
+g_ceinture pilote 1.2,-25,0.95 heure=17.5 sans-mains anim=Idle:0.3
+g_bas pilote 1.7,-30,0.45 heure=17.5 sans-mains anim=Idle:0.3
+g_bottes pilote 1.6,-40,0.2 heure=17.5 sans-mains anim=Walk:0.25
 g_dos pilote 1.1,180,1.2 heure=17.5 sans-mains anim=Idle:0.3
 a_marche pilote 3,-90,0.9 heure=17.5 sans-mains anim=Walk:0.25
 a_course1 pilote 3,-90,0.9 heure=17.5 sans-mains anim=Jog_Fwd:0.3
