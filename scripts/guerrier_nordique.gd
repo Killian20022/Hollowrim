@@ -19,7 +19,7 @@ const SHADER := preload("res://shaders/ps1_perso.gdshader")
 const CONTOUR := preload("res://shaders/contour_perso.gdshader")
 
 const TEINTE_CHEVEUX := Color(0.95, 0.85, 0.75)
-const PEAU := Color(0.95, 0.86, 0.82)
+const PEAU := Color(0.97, 0.85, 0.76)   # finition : un peu plus chaude (le visage paraissait pâle au crépuscule)
 
 static var _shaders := {}
 static var _contour: ShaderMaterial
@@ -85,6 +85,11 @@ static func creer(options := {}) -> Node3D:
 		pieces[String(mi.name)] = mi
 	# -- vêtements existants : matières du guerrier
 	_habiller(pieces["tunique"], materiau(GuerrierTextures.tex("mailles")))
+	# maille (finition) : ombre propre moins bleue que les autres matières (le fer brun-gris ne vire plus au bleu au crépuscule) ;
+	# le liseré froid (contour_froid) reste : reflets froids seulement sur les arêtes
+	var m_maille := materiau(GuerrierTextures.tex("mailles"))
+	m_maille.set_shader_parameter("ombre_froide", Vector3(0.34, 0.38, 0.50))
+	m_maille.set_shader_parameter("contour_froid", Vector3(0.13, 0.16, 0.24))
 	_habiller(pieces["pantalon"], materiau(GuerrierTextures.tex("pantalon")))
 	_habiller(pieces["bottes"], materiau(GuerrierTextures.tex("bottes")))
 	_habiller(pieces["brassards"], materiau(GuerrierTextures.tex("brassards")))
@@ -112,9 +117,9 @@ static func creer(options := {}) -> Node3D:
 				if nom == "peau":
 					m2.next_pass = contour()
 					var te: Variant = m.get_shader_parameter("teinte")
-					m2.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * Color(1.22, 1.16, 1.12))
-					m2.set_shader_parameter("appoint", Vector3(0.16, 0.15, 0.17))
-					m2.set_shader_parameter("contour_froid", Vector3(0.24, 0.29, 0.40))
+					m2.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * Color(1.24, 1.13, 1.01))   # finition : plus chaud
+					m2.set_shader_parameter("appoint", Vector3(0.17, 0.145, 0.13))
+					m2.set_shader_parameter("contour_froid", Vector3(0.22, 0.25, 0.34))
 				Palette.materiaux.append(m2)
 				Palette._appliquer(m2, Palette._ps1_actif)
 				_mats[cle] = m2
@@ -186,6 +191,7 @@ static func creer(options := {}) -> Node3D:
 		print("GUERRIER disques (boucle + fibule) : %d triangles" % ((acc.op["v"].size()) / 3))
 	acc.yeux(yeux)
 	acc.tresses()
+	acc.meches_cheveux(sq.get_node_or_null("Hair_Long"))
 	plastron.visible = false
 	var bouclier: String = options.get("bouclier", "bras")
 	if bouclier != "":
@@ -865,6 +871,60 @@ class Accessoires:
 			_tube(op, haut, bas, 0.011, 0.007, 4, os_, r)
 			# tresse de tempe, devant l'oreille, jusqu'à la clavicule
 			_tube(op, Vector3(0.078 * cote, 1.70, 0.035), Vector3(0.088 * cote, 1.52, 0.05), 0.014, 0.008, 4, os_, r)
+
+	# ------------------------------------------------------------ mèches de cheveux détachées (finition)
+	## Cartes découpées (atlas des découpes, D_CHEV) qui cassent la silhouette « casque » des cheveux : tempes (devant la
+	## tresse), derrière les oreilles, nuque. Chaque carte = 2 segments (4 triangles) qui s'écartent de la tête en descendant ;
+	## peau d'os des cheveux (sommet le plus proche) : elles suivent la tête. 13 cartes = 52 triangles.
+	func meches_cheveux(mi: MeshInstance3D) -> void:
+		if mi == null:
+			return
+		var a := mi.mesh.surface_get_arrays(0)
+		var liste := []   # [racine, direction (vers le bas/l'extérieur), longueur, variante]
+		for c: float in [-1.0, 1.0]:
+			# tempes : racine dans la chevelure au-dessus de l'oreille, devant la tresse ; la mèche tombe le long de la joue,
+			# en dehors du visage (x >= 9 cm : jamais devant l'œil)
+			liste.append([Vector3(0.086 * c, 1.725, 0.045), Vector3(0.30 * c, -1.0, 0.0), 0.12, 0])
+			liste.append([Vector3(0.094 * c, 1.70, 0.010), Vector3(0.45 * c, -1.0, -0.10), 0.13, 3])
+			# derrière les oreilles
+			liste.append([Vector3(0.112 * c, 1.62, -0.045), Vector3(0.40 * c, -1.0, -0.15), 0.14, 1 + (2 if c > 0 else 0)])
+			liste.append([Vector3(0.108 * c, 1.60, -0.095), Vector3(0.35 * c, -1.0, -0.40), 0.15, 6])
+		# nuque : au-dessus du col de fourrure (il monte à 1,66 m dans le dos), rejetées en arrière par-dessus
+		for i in 5:
+			var x := -0.08 + 0.04 * i
+			liste.append([Vector3(x, 1.61, -0.150 + absf(x) * 0.25), Vector3(x * 2.0, -1.0, -0.75), 0.13 + 0.025 * (i % 2), (2 * i + 1) % 8])
+		var R := GuerrierTextures.D_CHEV
+		var D := Vector2(GuerrierTextures.DECOUPES)
+		var tete := sq.get_bone_global_rest(sq.find_bone("Head")).origin + Vector3(0, 0.07, 0)
+		for m: Array in liste:
+			var r: Vector3 = m[0]
+			var dir: Vector3 = (m[1] as Vector3).normalized()
+			var lg: float = m[2]
+			var ext := Vector3(r.x, 0.0, r.z - tete.z).normalized()
+			var cote := ext.cross(dir).normalized()
+			var larg := 0.045
+			var u0 := (R.position.x + int(m[3]) * 8.0 + 0.5) / D.x
+			var u1 := (R.position.x + int(m[3]) * 8.0 + 7.5) / D.x
+			var vt := lg * 128.0          # 128 texels/m le long de la mèche
+			# segment 1 le long de dir, segment 2 plus écarté de la tête (la mèche se décolle)
+			var mil := r + dir * lg * 0.5
+			var bas := mil + (dir + ext * 0.35).normalized() * lg * 0.5
+			var pr := _poids_proche(mi, a, r)
+			var pm := _poids_proche(mi, a, mil)
+			var pb := _poids_proche(mi, a, bas)
+			var w0 := cote * larg * 0.5
+			var w1 := cote * larg * 0.42
+			var w2 := cote * larg * 0.30
+			var v0 := R.position.y / D.y
+			var v1 := (R.position.y + vt * 0.5) / D.y
+			var v2 := (R.position.y + minf(vt, 31.5)) / D.y
+			_quad(dec, r - w0, r + w0, mil + w1, mil - w1, Vector2(u0, v0), Vector2(u1, v0), Vector2(u1, v1), Vector2(u0, v1), [pr, pr, pm, pm], r - ext * 0.1)
+			_quad(dec, mil - w1, mil + w1, bas + w2, bas - w2, Vector2(u0, v1), Vector2(u1, v1), Vector2(u1, v2), Vector2(u0, v2), [pm, pm, pb, pb], r - ext * 0.1)
+			# normales de la chevelure (vers l'extérieur et le ciel) au lieu de la normale plate de la carte : la mèche reçoit la même
+			# lumière que les cheveux voisins (sinon, à contre-jour, elle fait une tache sombre sur l'oreille)
+			var nh := (ext + Vector3.UP * 0.7).normalized()
+			for k in 12:
+				dec["n"][dec["n"].size() - 1 - k] = nh
 
 	## Tube à `cotes` pans (UV : région de l'atlas, enroulée en u, du haut au bas en v).
 	func _tube(s: Dictionary, a: Vector3, b: Vector3, ra: float, rb: float, cotes: int, os_: int, r: Rect2i, segments := 3) -> void:

@@ -7,7 +7,9 @@ class_name GuerrierTextures
 ## pas de moiré ni de grouillement à 4-8 m.
 
 # palettes (sombre -> clair)
-const MAILLE := ["#14171e", "#252a35", "#3b4250", "#56606f", "#7c8696", "#b0b8c4"]
+## maille (finition) : fer brun-gris, PAS gris-bleu (sous l'ombre froide et le liseré du shader, le gris-bleu virait au bleu franc
+## au crépuscule). 0-4 = fer terni chaud, 5 = reflet froid réservé aux arêtes éclairées des anneaux.
+const MAILLE := ["#19140f", "#32291f", "#4c4135", "#685b4b", "#887a66", "#a4a7a8"]
 const CUIR := ["#1a130e", "#2f2118", "#463325", "#614a34", "#7f6446", "#9e825e", "#b89d76"]   # 6 = arête usée, couture
 ## cuir clair et chaud (baudrier, ceinture) : se détache du plastron et de la maille sous la lumière froide
 const CUIR_CLAIR := ["#24170e", "#4e3320", "#74502f", "#956b43", "#b38858", "#cca46f", "#dcbb88"]
@@ -25,7 +27,7 @@ const PEINT_DELAVE := ["#77736a", "#959083", "#b2ac9c", "#cbc4b1"]
 const PEINT_BLEU := ["#141b2b", "#1f2b44", "#2c3d5e", "#3e5276", "#566c90"]
 const PEINT_CREME := ["#5c5546", "#807864", "#a39a84", "#c4bba3"]
 const FER := ["#0d0e12", "#1b1d23", "#2e313a", "#474b56", "#6c717d", "#9da2ac", "#c9ccd2"]
-const ROUILLE := ["#24150e", "#3d2416", "#5a3820"]
+const ROUILLE := ["#24150e", "#3d2416", "#5a3820", "#74482a"]
 ## barbe : teinte des cheveux, plus rousse et plus sombre
 const BARBE := ["#1f150e", "#3a2618", "#573a24", "#764f30", "#946a40", "#b0855a"]
 const CHEVEUX := ["#211b15", "#3a3024", "#574836", "#76644a", "#9a8666"]   # passe 2 : un demi-ton plus clair (la tête se détache à 8 m)
@@ -90,7 +92,7 @@ static func mips_pixel(img: Image) -> Image:
 ## Précalcul (outils/generer_guerrier.gd) : images mipmappées dans DOSSIER/<clé>.res ; VERSION à incrémenter après toute
 ## modification d'un dessin (un .res d'une autre version est ignoré : recalcul au lancement, jamais d'image fausse).
 const DOSSIER := "res://assets/personnages/guerrier"
-const VERSION := 2
+const VERSION := 3
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -197,8 +199,10 @@ static func mailles() -> Image:
 			var cx := (x + (rang & 1) * 2) & 3
 			var cy := y % 3
 			var t := 0
+			var arete := false
 			if cy == 0:
 				t = 4 if (cx == 1 or cx == 2) else 2
+				arete = cx == 1                                 # haut éclairé de l'anneau : seul endroit du reflet froid
 			elif cy == 1:
 				t = 3 if (cx == 0 or cx == 3) else 0
 			else:
@@ -211,9 +215,18 @@ static func mailles() -> Image:
 			# crasse vers l'ourlet
 			if vy < 18 and _h(x, y, 813) < (18 - vy) / 30.0:
 				t -= 1
+			t = clampi(t, 0, 4)
+			# reflet froid : arête d'un anneau sur un pli qui prend la lumière (jamais en aplat)
+			if arete and pli > 0.58 and _h(x, y, 816) > 0.45:
+				t = 5
 			var c := _c(MAILLE, t)
-			if t > 0 and _n(x, y, W, H, 16, 8, 814) > 0.74 and _h(x, y, 815) > 0.35:
-				c = _c(ROUILLE, clampi(t / 2, 0, 2)).lerp(c, 0.55)
+			# rouille dans les creux (trou et dessous des anneaux, plis à l'ombre), plus dense vers l'ourlet et sous les bras
+			var creux := t <= 1
+			var zone := _n(x, y, W, H, 16, 8, 814) + (0.18 if vy < 30 else 0.0)
+			if creux and zone > 0.45 and _h(x, y, 815) > 0.25:
+				c = _c(ROUILLE, 1 + (1 if zone > 0.7 else 0)).lerp(c, 0.35 if t == 0 else 0.2)
+			elif t == 2 and zone > 0.78 and _h(x, y, 817) > 0.55:
+				c = _c(ROUILLE, 3).lerp(c, 0.5)                 # coulure de rouille sur le dessous des anneaux
 			_p(img, x, y, c)
 	# ourlet de cuir : 5 rangées, bord sombre, piqûre claire
 	for x in W:
@@ -556,6 +569,8 @@ static func _plastron_atlas() -> Image:
 ## (0,0,112,128) cape (x = (u - 0,21875) * 256, y = v * 128) ; (128,0,64,32) mèches de fourrure (4 variantes de 16 x 32).
 const D_CAPE := Rect2i(0, 0, 112, 128)
 const D_MECHES := Rect2i(128, 0, 64, 32)
+## (128,32,64,32) mèches de cheveux détachées (finition) : 8 variantes de 8 x 32 (6 x 25 cm à 128 texels/m)
+const D_CHEV := Rect2i(128, 32, 64, 32)
 const DECOUPES := Vector2i(192, 128)
 const CAPE_U0 := 56
 
@@ -564,6 +579,37 @@ static func decoupes() -> Image:
 	_copier(img, D_CAPE, cape(), CAPE_U0, 0)
 	var m := meches()
 	img.blit_rect(m, Rect2i(Vector2i.ZERO, m.get_size()), D_MECHES.position)
+	var mc := meches_cheveux()
+	img.blit_rect(mc, Rect2i(Vector2i.ZERO, mc.get_size()), D_CHEV.position)
+	return img
+
+## Mèches de cheveux détachées (64 x 32, 8 variantes de 8 x 32, racine en haut) : 2 ou 3 brins effilés de 1-2 texels, racine sombre,
+## pointe plus claire, arête gauche éclairée, fond transparent (cartes découpées : la silhouette « casque » se casse).
+static func meches_cheveux() -> Image:
+	var img := _img(64, 32, Color(0, 0, 0, 0))
+	for v in 8:
+		var ox := v * 8
+		var n := 2
+		for i in n:
+			var x0 := 1.5 + 4.5 * i + (_h(i, v, 981) - 0.5)
+			var lg := 18 + int(_h(i, v, 982) * 13.0)
+			var derive := (_h(i, v, 983) - 0.5) * 3.0           # le brin s'écarte en descendant
+			var larg := 1.8 if _h(i, v, 984) > 0.5 else 1.3
+			for y in lg:
+				var t := float(y) / lg
+				var cx := x0 + derive * t * t
+				var demi := larg * 0.5 * (1.0 - t * 0.75) * minf(1.0, 0.45 + t * 2.5)   # racine fine (sort de la chevelure)
+				for x in range(int(floorf(cx - demi)), int(ceilf(cx + demi))):
+					if x < 0 or x > 7:
+						continue
+					var ton := 2 + int(t * 2.2)               # clair (racine cachée dans la chevelure) : pas de tache sombre
+					if t < 0.12:
+						ton = 1
+					if x == int(floorf(cx - demi)) and t > 0.2:
+						ton += 1                               # arête éclairée
+					if _h(x + ox, y, 985) > 0.85:
+						ton -= 1
+					img.set_pixel(ox + x, y, _c(CHEVEUX, clampi(ton, 0, 4)))
 	return img
 
 ## Bouclier : planches VERTICALES (5, largeurs inégales) lisibles à 4 m : joints sombres de 2 texels + arête claire,
@@ -622,19 +668,26 @@ static func _face_bouclier(img: Image) -> void:
 					c = _c(FER, 5) if dy < 0.0 else _c(FER, 3)
 			img.set_pixel(o.x + x, o.y + y, c)
 
-## Œil : blanc cassé lumineux, iris clair gris-bleu, pupille, ligne de paupière sombre en haut et coins sombres.
+## Œil (finition) : blanc ivoire TERNE (moins lumineux que la peau éclairée), iris sombre gris-brun cerclé, pupille, ombre de la
+## paupière supérieure sur le haut du globe, coins rosés-sombres.
 static func _oeil(img: Image) -> void:
 	var r := R_OEIL
 	for y in r.size.y:
 		for x in r.size.x:
 			var dx := (x - 7.5) / 7.5
 			var dy := (y - 3.5) / 3.5
-			var c := Color("#d9d4c8")
+			var c := Color("#9c9184")
+			if absf(dx) > 0.62:
+				c = Color("#7d6c62")                     # coins : blanc dans l'ombre, rosé
 			if dx * dx + dy * dy > 1.0:
 				c = Color("#3a2a24")
 			var di := Vector2(x - 7.5, (y - 4.0) * 1.2).length()
-			if di < 2.6:
-				c = Color("#8aa2bc") if di > 1.0 else Color("#141418")
+			if di < 2.8:
+				c = Color("#4a4136") if di > 1.9 else (Color("#3a342d") if di > 1.0 else Color("#0f0d0c"))
+			if di >= 1.9 and di < 2.8 and x > 7 and y > 4:
+				c = Color("#5a4f40")                     # lumière dans le bas de l'iris
+			if y == 1 and dx * dx < 0.8:
+				c = c.darkened(0.35)                     # ombre de la paupière
 			if y == 0:
 				c = Color("#2a1e1a")
 			img.set_pixel(r.position.x + x, r.position.y + y, c)
