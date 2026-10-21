@@ -298,12 +298,28 @@ func _anneau(b: Dictionary, s: float) -> Dictionary:
 	var w_att: Array = []
 	var d_att: Array = []
 	var hb_att: Array = []
+	var fm_att: Array = []
+	# côté du pilier d'une jonction (intérieur du pincement) : le relief n'y creuse pas la roche (les deux galeries sœurs se
+	# recouperaient), il ne fait que des saillies ; il retrouve sa profondeur au-delà de la zone de pincement.
+	var fm_d := 9.0
+	var fm_g := 9.0
+	var dd: Dictionary = b["d"]
+	for fin in [false, true]:
+		var cle := "pince_fin" if fin else "pince_deb"
+		if dd.has(cle):
+			var dist: float = (float(b["L"]) - s) if fin else s
+			var lim_p := lerpf(0.0, 9.0, smoothstep(0.55 * ZONE_PINCE, ZONE_PINCE, dist))
+			if float((dd[cle] as Dictionary)["cote"]) > 0.0:
+				fm_g = minf(fm_g, lim_p)
+			else:
+				fm_d = minf(fm_d, lim_p)
 	for k in NB:
 		var q: Vector3 = pts[k]
 		var hb := q.y - y0
 		var wk: float = POIDS[k]
+		fm_att.append(9.0 if k == 0 or k == 9 else (fm_d if k < 9 else fm_g))
 		if k != 0 and k != 9:
-			wk *= clampf((wr if k < 9 else wl) / 1.3, 0.04, 1.0)       # le relief s'éteint sur le nez d'un pilier
+			wk *= clampf((wr if k < 9 else wl) / 0.7, 0.3, 1.0)        # nez d'un pilier : relief adouci (sommets serrés)
 		if k >= 7 and k <= 11:
 			wk *= clampf(1.0 - kap / 0.85, 0.0, 1.0)                    # bord de la faille de ciel (facettes « ciel » non découpées)
 		if lam > 0.0 and (k == 0 or k == 16):
@@ -316,7 +332,7 @@ func _anneau(b: Dictionary, s: float) -> Dictionary:
 		d_att.append(dir)
 		hb_att.append(hb)
 	return {"s": s, "y": y0, "pts": pts, "R": R, "T": T, "h": h, "wl": wl, "wr": wr, "lam": lam, "kap": kap, "P": P, "b": b["id"], "forcee": false,
-		"w": w_att, "dir": d_att, "hb": hb_att, "arc": _arc(pts)}
+		"w": w_att, "dir": d_att, "hb": hb_att, "arc": _arc(pts), "fm": fm_att}
 
 ## Abscisse curviligne |arc| de chaque sommet depuis le milieu du sol (k 0), de part et d'autre : coordonnée v des UV de la coque
 ## (miroir au sommet de la voûte : continue partout ; le haut de la texture suit le haut de la paroi).
@@ -493,7 +509,9 @@ func _tri_coque(a: Vector3, b: Vector3, c: Vector3, ka: int, kb: int, kc: int, r
 			ao *= 0.9
 		aos.append(ao)
 	# attributs de relief des trois coins (a, b sur l'anneau ra ou rb selon l'appel : voir _coque)
-	_tri_fin(nom, a, b, c, ref, aos, masque, att[0], att[1], att[2], k_seg == 17 or k_seg == 0)
+	# UV : parois = (s, |arc|) (strates horizontales) ; sol et voûte = plan XZ du monde (des bandes le long de la galerie y
+	# convergeaient en « rayons » vers le point de fuite)
+	_tri_fin(nom, a, b, c, ref, aos, masque, att[0], att[1], att[2], k_seg == 17 or k_seg == 0, k_seg == 17 or k_seg == 0 or (k_seg >= 7 and k_seg <= 10))
 
 ## Bruit de relief (m) au point p : > 0 = creux (vers la roche), < 0 = saillie. hb = hauteur au-dessus du sol de l'anneau.
 ## Échelles : masses (3,5 m), bosses (1 m), grain (0,4 m), strates horizontales en gradins (lèvre en surplomb + dessus de corniche),
@@ -522,7 +540,7 @@ func relief(p: Vector3, hb: float) -> float:
 ## jonction) produisent EXACTEMENT les mêmes points sur leur arête commune, donc aucune fissure. L'intérieur est une grille de pas
 ## n = max(n_e) ; les points de bord de la grille sont ramenés sur le découpage de leur arête (triangles dégénérés ignorés).
 ## Les attributs (poids, direction vers la roche, hauteur au-dessus du sol, occlusion) sont interpolés de la même façon.
-func _tri_fin(nom: String, A: Vector3, B: Vector3, C: Vector3, ref: Vector3, aos: PackedFloat32Array, masque: float, ta: Array, tb: Array, tc: Array, sol_: bool) -> void:
+func _tri_fin(nom: String, A: Vector3, B: Vector3, C: Vector3, ref: Vector3, aos: PackedFloat32Array, masque: float, ta: Array, tb: Array, tc: Array, sol_: bool, plan: bool) -> void:
 	var cible := FACETTE_SOL if sol_ else FACETTE_PAROI
 	var wA: float = ta[0]
 	var wB: float = tb[0]
@@ -538,6 +556,9 @@ func _tri_fin(nom: String, A: Vector3, B: Vector3, C: Vector3, ref: Vector3, aos
 	var n_bc := _n_arete(B, C, hB, hC, cible)
 	var n_ca := _n_arete(C, A, hC, hA, cible)
 	var n := maxi(n_ab, maxi(n_bc, n_ca))
+	var fA: float = ta[4]
+	var fB: float = tb[4]
+	var fC: float = tc[4]
 	var uA: Vector2 = ta[3]
 	var uB: Vector2 = tb[3]
 	var uC: Vector2 = tc[3]
@@ -572,12 +593,13 @@ func _tri_fin(nom: String, A: Vector3, B: Vector3, C: Vector3, ref: Vector3, aos
 				w = float(j) / nf
 				u = 1.0 - v - w
 			var p := A * u + B * v + C * w
+			var uv := Vector2(p.x, p.z) if plan else uA * u + uB * v + uC * w
 			var pw := wA * u + wB * v + wC * w
 			var hb := hA * u + hB * v + hC * w
 			var f := 0.0
 			if pw > 0.001:
 				var dir := (dA * u + dB * v + dC * w).normalized()
-				f = relief(p, hb) * pw
+				f = minf(relief(p, hb), fA * u + fB * v + fC * w) * pw
 				p += dir * f
 			var ao := aos[0] * u + aos[1] * v + aos[2] * w
 			ao *= 1.0 - 0.6 * smoothstep(0.02, 0.5, f) + 0.12 * smoothstep(0.0, 0.3, -f)   # creux sombres, saillies claires
@@ -586,7 +608,7 @@ func _tri_fin(nom: String, A: Vector3, B: Vector3, C: Vector3, ref: Vector3, aos
 				mk = clampf(mk + (GrotteDecor.hash2(p.x * 5.3, p.z * 4.1 + p.y * 2.0) - 0.5) * 0.4, 0.0, 1.5)
 			pos.append(p)
 			col.append(GrotteDecor.col(ao, mk))
-			uvs.append((uA * u + uB * v + uC * w) / TUILE_COQUE)
+			uvs.append(uv / TUILE_COQUE)
 			hbs.append(hb)
 	# triangles de la grille
 	var ligne := PackedInt32Array()
@@ -883,10 +905,10 @@ func _coque() -> void:
 				var j := (k + 1) % NB
 				var ua := float(ra["s"]) + float(b["decalage"])
 				var ub := float(rb["s"]) + float(b["decalage"])
-				var tak := [ra["w"][k], ra["dir"][k], ra["hb"][k], Vector2(ua, ra["arc"][k])]
-				var taj := [ra["w"][j], ra["dir"][j], ra["hb"][j], Vector2(ua, ra["arc"][j])]
-				var tbj := [rb["w"][j], rb["dir"][j], rb["hb"][j], Vector2(ub, rb["arc"][j])]
-				var tbk := [rb["w"][k], rb["dir"][k], rb["hb"][k], Vector2(ub, rb["arc"][k])]
+				var tak := [ra["w"][k], ra["dir"][k], ra["hb"][k], Vector2(ua, ra["arc"][k]), ra["fm"][k]]
+				var taj := [ra["w"][j], ra["dir"][j], ra["hb"][j], Vector2(ua, ra["arc"][j]), ra["fm"][j]]
+				var tbj := [rb["w"][j], rb["dir"][j], rb["hb"][j], Vector2(ub, rb["arc"][j]), rb["fm"][j]]
+				var tbk := [rb["w"][k], rb["dir"][k], rb["hb"][k], Vector2(ub, rb["arc"][k]), rb["fm"][k]]
 				_tri_coque(pa[k], pa[j], pb[j], k, j, j, ra, rb, k, ref, b, [tak, taj, tbj])
 				_tri_coque(pa[k], pb[j], pb[k], k, j, k, ra, rb, k, ref, b, [tak, tbj, tbk])
 
@@ -1119,6 +1141,7 @@ func _cailloux() -> void:
 
 func _decorer() -> void:
 	_cailloux()
+	GrotteModules.nez_piliers(self)
 	for z: Dictionary in def.get("zones", []):
 		_corniches_zone(z)
 	for z: Dictionary in def.get("zones", []):

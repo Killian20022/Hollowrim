@@ -181,6 +181,66 @@ static func pointes(g: Grotte, r: RandomNumberGenerator, id: String, s0: float, 
 					if lq > 0.15:
 						concretion(g, nm, q2 + Vector3(0, 0.12, 0), rr2 * r.randf_range(0.35, 0.6), -lq, r.randi(), m)
 
+## Nez des piliers de jonction (fourches et confluents) : une masse rocheuse irrégulière, allongée dans le pilier, du sol à la voûte.
+## Le nez géométrique de la coque est une arête verticale nette (le relief y est éteint : les deux galeries sœurs s'y rejoignent) ;
+## la masse la cache. Collision étroite (rayon 0,4 m) au droit du nez.
+static func nez_piliers(g: Grotte) -> void:
+	var vus := {}
+	for id: String in g.ordre:
+		var b: Dictionary = g.br[id]
+		var d: Dictionary = b["d"]
+		for fin in [false, true]:
+			var cle := "pince_fin" if fin else "pince_deb"
+			if not d.has(cle):
+				continue
+			var par: String = (d[cle] as Dictionary)["vers" if fin else "de"]
+			var cle_v := "%s|%s" % [par, fin]
+			if vus.has(cle_v):
+				continue
+			vus[cle_v] = true
+			var pr: Dictionary = b["pr_fin"] if fin else b["pr_deb"]
+			var P: Vector3 = pr["P"]
+			var T: Vector3 = pr["T"]
+			var sens := -1.0 if fin else 1.0                  # vers l'intérieur du pilier
+			var haut: float = ((pr["pts"] as Array)[9] as Vector3).y
+			var sty := _style(g, par, float(pr["s"]))
+			_masse_nez(g, _roche(sty), P, T * sens, haut, hash(cle_v), _masque(sty))
+			g.decor.solide_rond(P + T * sens * 0.3 + Vector3(0, 1.0, 0), 0.4, 2.0)
+
+static func _masse_nez(g: Grotte, nom: String, P: Vector3, T: Vector3, haut: float, graine: int, masque: float) -> void:
+	var rg := RandomNumberGenerator.new()
+	rg.seed = graine
+	var R := T.cross(Vector3.UP).normalized()
+	var y0 := P.y - 0.25
+	var H := haut - y0 + 0.4
+	var nr := clampi(int(H / 0.45) + 2, 4, 16)
+	var cotes := 9
+	var anneaux: Array = []
+	for k in nr:
+		var t := float(k) / float(nr - 1)
+		var y := y0 + H * t
+		var lat := 0.55 + 0.25 * sin(t * 7.0 + rg.randf()) + 0.35 * pow(absf(2.0 * t - 1.0), 3.0)    # étranglement au milieu, évasé en haut et en bas
+		var lon := 1.5
+		var c := P + T * (lon * 0.62) + Vector3(0, y - P.y, 0)
+		var ring: Array = []
+		for i in cotes:
+			var a := TAU * (float(i) + rg.randf_range(-0.2, 0.2)) / float(cotes)
+			var jr := rg.randf_range(0.8, 1.2)
+			ring.append(c + T * cos(a) * lon * jr + R * sin(a) * lat * jr + Vector3(0, rg.randf_range(-0.1, 0.1), 0))
+		anneaux.append(ring)
+	for k in nr - 1:
+		var t0 := float(k) / float(nr - 1)
+		var t1 := float(k + 1) / float(nr - 1)
+		var c0 := GrotteDecor.col(lerpf(0.55, 0.95, sin(t0 * PI)), masque)
+		var c1 := GrotteDecor.col(lerpf(0.55, 0.95, sin(t1 * PI)), masque)
+		var A: Array = anneaux[k]
+		var B: Array = anneaux[k + 1]
+		var ref := P + T * 0.93 + Vector3(0, y0 + H * (t0 + t1) * 0.5 - P.y, 0)
+		for i in cotes:
+			var j := (i + 1) % cotes
+			g.decor.facette(nom, A[i], A[j], B[j], ref, [c0, c0, c1], false, 2.0)
+			g.decor.facette(nom, A[i], B[j], B[i], ref, [c0, c1, c1], false, 2.0)
+
 ## Éboulis au pied des parois : amas de 3 à 7 blocs anguleux, en partie enterrés, contre la paroi (sans collision : on les longe).
 static func eboulis_pied(g: Grotte, r: RandomNumberGenerator, id: String, s0: float, s1: float, n: int, nom := "") -> void:
 	for k in n:
