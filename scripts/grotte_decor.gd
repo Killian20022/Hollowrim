@@ -23,6 +23,7 @@ const COQUES := {
 	"c_roche_mousse": ["roche", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.45, 0.0, 1.0],
 	"c_roche_glace": ["roche_b", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.7, 0.0, 1.0],
 	"c_roche_nu": ["roche", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.4, 0.0, 1.0],
+	"c_roche_mur": ["roche", "", Color(0.74, 0.73, 0.75), Vector3(0.0, 0.0, 0.0), 0.0, 0.4, 0.0, 1.0],   # mur fragile (boîte sans occlusion peinte)
 	"c_strate_mousse": ["strate", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.4, 0.0, 1.0],
 	"c_strate_glace": ["strate", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.75, 0.0, 1.0],
 	"c_strate_suie": ["strate", "", Color(0.92, 0.84, 0.78), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 1.0],
@@ -33,7 +34,7 @@ const COQUES := {
 	"c_sol_camp": ["sol", "", Color(1.0, 0.9, 0.8), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.35, 1.0],
 	"c_glace": ["glace", "", Color(1, 1, 1), Vector3(0.004, 0.008, 0.014), 0.0, 0.15, 1.0, 1.0],
 	"c_piste": ["piste", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 0.0],
-	"c_cristal": ["cristal", "", Color(0.74, 0.8, 0.92), Vector3(0.0, 0.0, 0.0), 0.25, 0.0, 0.0, 0.0],
+	"c_cristal": ["cristal", "", Color(0.7, 0.76, 0.88), Vector3(0.0, 0.0, 0.0), 0.2, 0.0, 0.0, 0.0],
 	"c_or": ["or", "", Color(1, 1, 1), Vector3(0.05, 0.035, 0.0), 0.12, 0.0, 0.0, 0.0],
 	"c_glacon": ["glacon", "", Color(0.9, 0.95, 1.0), Vector3(0.012, 0.018, 0.026), 0.12, 0.0, 0.0, 0.0],
 }

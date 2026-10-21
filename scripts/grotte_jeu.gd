@@ -14,7 +14,7 @@ extends RefCounted
 ##    chargée (`acces.morts_charges`) ne reviennent pas.
 ##  - lumières : seules les plus proches sont allumées (au plus MAX_LUM, à moins de 26 m).
 ##  - ambiance (refonte matières) : ambiante sombre et neutre (les ombres tombent presque au noir, plus de « bleu plastique »),
-##    brume noire et courte ; la couleur vient des lanternes orange et des accents froids (jour, lac, cristaux).
+##    brume noire (densité de Grotte.ambiance inchangée, vérifiée par test_grotte_acces) ; la couleur vient des lanternes orange et des accents froids (jour, lac, cristaux).
 ## Le préfixe des états est def["id"] ("grotte").
 
 const BUTIN := preload("res://scripts/butin.gd")
@@ -22,7 +22,6 @@ const MAX_LUM := 9
 const AMBIANTE := Color(0.34, 0.34, 0.37)   # gris presque neutre : à cette énergie, la teinte bleue de la DA rebleuirait toute la grotte
 const AMBIANTE_E := 2.6
 const BRUME_C := Color(0.018, 0.02, 0.026)
-const BRUME_D := 0.034
 const DIST_APPARITION := 46.0
 
 ## Tenue du chef (les bandits ordinaires viennent de PersoDefs.bandit(k), k = indice « tenue » 0-3).
@@ -185,7 +184,7 @@ func _meca(a: Dictionary) -> void:
 			var centre: Vector3 = (a["pos"] as Vector3) + Vector3(0, taille.y * 0.5, 0)
 			var ident := "%s_%s" % [prefixe, a["id"]]
 			var evt: String = d.get("evt", "")
-			var ctx := {"materiau": g.decor.mat("c_roche_nu")}       # le mur se fond dans la roche voisine
+			var ctx := {"materiau": g.decor.mat("c_roche_mur")}      # le mur se fond dans la roche voisine (assombri : pas d'occlusion peinte)
 			var m: Node3D = Mecanisme.mur_fragile(g, centre, taille, float(a["lacet"]), ident, func() -> void:
 				if evt != "":
 					acces.quetes.signaler(evt), ctx)
@@ -295,7 +294,6 @@ func _ambiance() -> void:
 	env.ambient_light_color = AMBIANTE
 	env.ambient_light_energy = AMBIANTE_E
 	env.fog_light_color = BRUME_C
-	env.fog_density = BRUME_D
 
 ## Mort du joueur sous terre : ennemis retirés (ceux tués dans le fichier le restent), coffres dont la bourse n'a pas été ramassée refermés.
 func reinitialiser(sauves: Array) -> void:
