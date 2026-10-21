@@ -32,6 +32,9 @@ Tous les fichiers : uniquement des `<rect>` sur coordonnées entières, `shape-r
 - O : x=18 (Ouest)
 - Pour faire défiler : découper en régions 5x7 (Rect2(x,0,5,7)) et répéter la séquence N E S O sur 360 degrés, avec un pas régulier (par ex. 40 px entre lettres, soit 160 px = 90 degrés visibles à ~2,25 px/degré) ; on peut ajouter des petits traits intermédiaires NE/SE/SO/NO en rect 1x3 si besoin.
 
+## Mise en page réelle (refonte 640x360)
+`hud.gd` et `dialogue.gd` placent tout en RELATIF à la taille logique de l'écran (centre, bas, droite), avec un facteur d'échelle ENTIER (`scripts/echelle_ui.gd`) : 480x270 et 640x360 → ×1, 960x540 → ×2 (écran logique 480x270). Les tailles des SVG ne changent pas. Les coordonnées ci-dessous restent celles de la maquette 480x270 (barres : 16 px des bords, 14 px du bas ; boussole centrée en y=4 ; réticule centré).
+
 ## Disposition recommandée (écran 480x270, coin haut-gauche de chaque élément)
 - Boussole : x=160, y=4 (centrée, 160..319). Repère : x=238, y=0 (colonne centrale 240). Lettres : y=6 (bandeau y + 2), visibles entre x=165 et x=314 : à clipper.
 - Indicateur de dégât : x = 240 + décalage angulaire - 2, y=7 (centré verticalement dans le bandeau, 5 px : y=7..11).
