@@ -24,6 +24,7 @@ uniform float echelle = 0.25;       // tuiles par mètre (projection monde) : 25
 uniform float givre = 0.0;          // part de givre sur les faces hautes (0 = aucun)
 uniform float mouille = 0.0;        // part de sol mouillé (0 = sec)
 uniform float ao_gamma = 1.0;       // contraste de l'occlusion peinte
+uniform float sol_plat = 1.0;       // 1 : faces très plates = sol (peu de givre) ; 0 : calotte de givre pleine (rochers du kit)
 
 varying vec3 wp;
 varying vec3 wn;
@@ -111,7 +112,7 @@ void fragment() {
 		// 4e passe : plus de « confettis » sur les parois verticales ; seules les faces franchement horizontales (rebords,
 		// dessus de rochers, sol) prennent du givre, et en liseré sur l'arête haute (COLOR.a) plutôt qu'en plaques éparses
 		float plat = smoothstep(0.62, 0.86, n.y);
-		float pas_sol = 1.0 - 0.9 * smoothstep(0.88, 0.97, n.y);     // 5e passe : pas de plaques en grain sur les sols plats
+		float pas_sol = 1.0 - 0.9 * sol_plat * smoothstep(0.88, 0.97, n.y);     // 5e passe : pas de plaques en grain sur les sols plats
 		float part = plat * pas_sol * givre;
 		part *= mix(0.3, 1.0, clamp(COLOR.r, 0.0, 1.0)) * 0.6;   // jamais plein : la carte de givre découpe toujours en grain
 		// « arête haute » du relief (COLOR.a relevé sur les dessus de corniche, têtes de stalagmites) : liseré franc

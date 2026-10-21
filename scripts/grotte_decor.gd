@@ -1168,7 +1168,7 @@ func _hab_lac(g: Grotte, z: Dictionary) -> void:
 			if g.lac_f(b, s) > 0.9 and g.faille_f(b, s) < 0.02:
 				best = s
 			s += 0.5
-		if best > 0.0:
+		if best > 0.0 and g.kit == null:      # kit actif : la cascade est une pièce du kit (GrotteKit._cascade)
 			_cascade(g, id, best - 1.0)
 		# lanternes sur la rive : flaques chaudes et reflets sur la glace
 		for sl: float in [s0 + 7.0, s0 + 19.0, s0 + 29.0]:

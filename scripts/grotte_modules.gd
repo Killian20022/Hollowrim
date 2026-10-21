@@ -444,7 +444,11 @@ static func _relief_zone(g: Grotte, z: Dictionary) -> void:
 	var theme: String = z.get("theme", "")
 	var role: String = z.get("role", "")
 	var camp := theme == "repaire" and role != "transition"
+	var kit := GrotteKit.actif() and (theme == "cristaux" or theme == "lac" and role == "combat")   # blocs et colonnes : pièces du kit
 	eboulis_pied(g, r, id, s0, s1, int(lg * (0.25 if camp else 0.45) * dens))
+	if kit:
+		pointes(g, r, id, s0, s1, int(lg * 0.4 * dens), 0.16, 1.1, false)
+		return
 	if not camp and theme != "cache":
 		blocs(g, r, id, s0, s1, int(lg * 0.08 * dens), 0.5, 1.0)
 	pointes(g, r, id, s0, s1, int(lg * 0.7 * dens), 0.16, 1.1, false)
@@ -464,7 +468,7 @@ static func _relief_zone(g: Grotte, z: Dictionary) -> void:
 
 static func lumieres(g: Grotte, z: Dictionary) -> void:
 	var n: int = int(z.get("n_lum", 0))
-	if n <= 0:
+	if n <= 0 or GrotteKit.actif() and z.get("theme", "") == "cristaux":     # kit : 4 lumières cyan, portées par ses grandes grappes
 		return
 	var r := _rg(z)
 	r.randf()
@@ -668,6 +672,12 @@ static func _lac(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: Strin
 				var cote := 1.0 if k % 2 == 0 else -1.0
 				var dl := g.demi_l(id, s)
 				champignons(g, r, _p(g, id, s, cote * (dl.y if cote > 0 else dl.x) * 0.8), r.randi_range(2, 4))
+		"combat" when GrotteKit.actif():
+			# kit : forêt, blocs, terrasses, cristaux et cascade sont des pièces du kit (GrotteKit._salle_lac) ; restent les accessoires
+			d.os_tas(_p(g, id, s0 + 7.0, 2.0), 4, 0.6)
+			d.arme(_p(g, id, s0 + 13.0, 1.6), 4.0)
+			d.caisse(_p(g, id, s0 + 1.5, 2.4), Vector3(0.7, 0.5, 0.5), 0.9)
+			_faille(g, id)
 		"combat":
 			# colonnes (repères) entre la glace et le plafond, du côté du lac
 			for c in [[0.1, -6.5, 0.8], [0.32, -11.0, 1.0], [0.62, -9.0, 0.9], [0.86, -5.8, 0.75]]:
@@ -698,17 +708,7 @@ static func _lac(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: Strin
 				var s := r.randf_range(s0 + 2.0, s1 - 6.0)
 				champignons(g, r, _p(g, id, s, r.randf_range(3.0, 6.0)), 3)
 			_foret_lac(g, z)
-			# faille du plafond : lumière du jour, rai oblique, flaque, projecteur étroit
-			if g.br[id]["d"].has("faille"):
-				var fa: Array = g.br[id]["d"]["faille"]
-				var s_f := (float(fa[1]) + float(fa[2])) * 0.5
-				var haut_f := g.plafond_en(id, s_f, 2.0)
-				var bas_f := _p(g, id, s_f, -5.2)
-				d.lumiere(haut_f + Vector3(0, 3.0, 0), Color(0.82, 0.9, 1.0), 1.6, 11.0, 1.4, false)
-				g.nb_lumieres += 1
-				d.projecteur(haut_f + Vector3(0.0, 4.5, 0.0), bas_f, Color(0.85, 0.93, 1.0), 6.0, 30.0, 17.0)
-				d.carte("halo_f", haut_f + Vector3(0.0, -0.25, 0.0), Vector3.DOWN, 5.0, 5.0)     # lueur douce à l'ouverture (plus de rai en plaque)
-				d.carte("flaque_g", bas_f + Vector3(0, 0.04, 0), Vector3.UP, 6.5, 6.5)
+			_faille(g, id)
 		"recit":
 			var sl: float = float(p.get("ilot_s", (s0 + s1) * 0.5))
 			var la: float = float(p.get("ilot_lat", -9.0))
@@ -726,6 +726,22 @@ static func _lac(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: Strin
 			d.couchage(Vector3(c.x - 1.4, top, c.z - 1.3), 0.7, false)
 			for k in 5:
 				cristaux(g, r, _p(g, id, sl + r.randf_range(-4.0, 4.0), la + r.randf_range(-4.0, 4.0)), 3, 0.5)
+
+
+## Faille du plafond : lumière du jour, flaque, projecteur étroit.
+static func _faille(g: Grotte, id: String) -> void:
+	var d := g.decor
+	if not g.br[id]["d"].has("faille"):
+		return
+	var fa: Array = g.br[id]["d"]["faille"]
+	var s_f := (float(fa[1]) + float(fa[2])) * 0.5
+	var haut_f := g.plafond_en(id, s_f, 2.0)
+	var bas_f := _p(g, id, s_f, -5.2)
+	d.lumiere(haut_f + Vector3(0, 3.0, 0), Color(0.82, 0.9, 1.0), 1.6, 11.0, 1.4, false)
+	g.nb_lumieres += 1
+	d.projecteur(haut_f + Vector3(0.0, 4.5, 0.0), bas_f, Color(0.85, 0.93, 1.0), 6.0, 30.0, 17.0)
+	d.carte("halo_f", haut_f + Vector3(0.0, -0.25, 0.0), Vector3.DOWN, 5.0, 5.0)     # lueur douce à l'ouverture (plus de rai en plaque)
+	d.carte("flaque_g", bas_f + Vector3(0, 0.04, 0), Vector3.UP, 6.5, 6.5)
 
 # ------------------------------------------------------------------ camp de Hrafn et abords
 static func _repaire(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: String) -> void:
@@ -824,6 +840,13 @@ static func _cristaux(g: Grotte, z: Dictionary, r: RandomNumberGenerator) -> voi
 	var s1: float = z["s"][1]
 	var dens: float = float(z.get("densite", 1.0))
 	var d := g.decor
+	if GrotteKit.actif():
+		# kit : grappes, blocs, pans, stalagmites et stalactites sont des pièces du kit (GrotteKit._salle_cristaux)
+		frange_voute(g, r, id, s0 + 1.5, s0 + 8.0, 20, "c_roche_glace")
+		d.os_tas(_p(g, id, s1 - 7.0, 2.0), 5, 0.5)
+		d.arme(_p(g, id, s1 - 9.0, 1.6), 2.2)
+		d.crane(_p(g, id, s1 - 8.0, -1.6), 2.5)
+		return
 	# 5e passe (grottes_cryptes_6) : chemin BORDÉ des deux côtés de massifs de cristaux. 4 énormes au premier plan (prismes 1-2 m
 	# en éventail, seules à porter une lumière cyan), des moyennes au pied des parois, d'autres en hauteur sur les parois.
 	var enormes := [[s0 + 4.6, -1.0, 1.9], [s0 + 6.0, 1.0, 1.7], [s0 + 11.8, -1.0, 1.8], [s0 + 13.6, 1.0, 2.0]]
