@@ -12,13 +12,34 @@ extends Node3D
 ## - Rien à moins de 150 m du centre ; invisible sous terre (monde._sous_terre).
 
 const SHADER := preload("res://shaders/arriere_plan.gdshader")
+const SHADER_PLANS := preload("res://shaders/plans_peints.gdshader")
+const SHADER_PEINTURE := preload("res://shaders/peinture_plans.gdshader")
+## 4e passe : au-delà de ~600 m, le relief 3D est remplacé par 5 PLANS PEINTS (cylindres centrés sur la carte, image
+## dessinée par plans_peints.gdshader). --lointain-3d rétablit l'ancien relief 3D lointain et le château 3D (A/B).
+var lointain_3d := OS.get_cmdline_user_args().has("--lointain-3d")
+# mesure de perf : `--sans-plans=2400,650` ne crée pas ces plans peints (rayons en mètres)
+var _sans_plans: PackedStringArray = []
+## [rayon (m), genre (0 montagnes, 1 forêt, 2 forêt + château), voile, pied (°), dentelure (°), graine, pics visibles]
+## pics : [azimut °, sommet °, demi-largeur °, dissymétrie] ; vue de l'entrée : cap ≈ 48°, château à 24° (à droite).
+## La forêt 3D proche monte jusqu'à ~25-30° d'élévation depuis l'entrée : les sommets peints montent à 30-38°.
+const PLANS := [
+	# 6e passe : 3 à 5 grands massifs par plan, base large (flancs ~30-40°), ~15 % plus bas en élévation (la forêt proche masque déjà le pied : ~40 % de moins visible) ; un pic élancé au fond
+	[2400.0, 0, 0.52, 12.0, 0.35, 5.0, [[52.0, 32.0, 20.0, 0.2], [30.0, 28.0, 7.0, -0.2], [82.0, 25.0, 14.0, 0.3], [8.0, 24.0, 14.0, 0.0]]],
+	[1800.0, 0, 0.37, 10.5, 0.30, 11.0, [[41.0, 26.0, 16.0, -0.3], [67.0, 23.0, 14.0, 0.3], [17.0, 21.0, 12.0, 0.2]]],
+	[1300.0, 0, 0.25, 9.0, 0.25, 17.0, [[60.0, 20.0, 11.0, 0.3], [27.0, 18.0, 10.0, -0.2], [88.0, 17.0, 9.0, 0.0]]],
+	[900.0, 2, 0.2, 8.0, 0.7, 23.0, [[70.0, 8.5, 12.0, 0.2], [82.0, 7.0, 14.0, 0.0]]],
+	# (7e passe, perf) l'ancien plan de forêt à 650 m est fondu dans celui à 900 m : la forêt proche le couvrait
+]
+const CHATEAU_EL := 10.5     # élévation peinte du pied de la falaise du château (°)
+const CHATEAU_ECH := 1.5    # taille du château peint
+var _plans: Array[ShaderMaterial] = []
 const R_MIN := 150.0
 const R_MAX := 2500.0
 const LIGNES := 72        # rangées radiales (pas géométrique)
 const COLONNES := 512     # colonnes angulaires
 const COUPURES := [0, 26, 50, 71]   # rangées de début/fin des 3 bandes (chevauchement d'une rangée)
-const NB_SAPINS := 4200
-const R_SAPINS := Vector2(165.0, 820.0)
+const NB_SAPINS := 5200
+const R_SAPINS := Vector2(165.0, 1150.0)   # 3e passe : bandes boisées jusque dans la vallée
 
 ## Château : azimut (degrés depuis +Z vers +X) et distance. Visible depuis l'entrée du village (cap sud-est) et
 ## depuis le chemin du tumulus (cap sud-sud-est).
@@ -32,12 +53,13 @@ const PICS := [
 	[238.0, 1700.0, 620.0, 340.0],
 	[80.0, 1100.0, 430.0, 260.0],
 	[-95.0, 1000.0, 380.0, 240.0],
-	# refonte « lumière » : chaîne en couches derrière le village, vue depuis l'entrée (cap ≈ 48°, à gauche du château)
-	[38.0, 1350.0, 1050.0, 520.0],
-	[57.0, 1950.0, 1650.0, 640.0],
-	[74.0, 1100.0, 760.0, 420.0],
-	[92.0, 2300.0, 1700.0, 760.0],
-	[22.0, 2250.0, 1450.0, 620.0],
+	# refonte « lumière » (3e passe) : quelques GRANDS massifs aux pentes longues, un sommet franc chacun, de part et
+	# d'autre d'une vallée ouverte dans l'axe de l'entrée (cap ≈ 46°) ; le plus haut au fond de la vallée
+	[46.0, 2150.0, 1700.0, 950.0],
+	[56.0, 2000.0, 1250.0, 700.0],   # épaule du massif central
+	[66.0, 1550.0, 1250.0, 800.0],
+	[82.0, 1200.0, 800.0, 600.0],
+	[32.0, 1800.0, 1250.0, 850.0],
 ]
 
 var monde: Node
@@ -70,6 +92,8 @@ func _ready() -> void:
 	_n2.seed = 99
 	_n3.seed = 2718
 	_rng.seed = 31337
+	if not lointain_3d:
+		_creer_plans()
 	_actualiser()
 	_tache = WorkerThreadPool.add_task(_calculer, false, "arriere-plan")
 
@@ -113,11 +137,15 @@ func _actualiser() -> void:
 	var amb := e.ambient_light_color
 	_mat.set_shader_parameter("ambiant", Vector3(amb.r, amb.g, amb.b) * e.ambient_light_energy)
 	_mat.set_shader_parameter("jour", monde.cycle.clarte())
+	for m in _plans:
+		for nom in ["horizon", "horizon_chaud", "dir_astre", "crep", "haut", "dir_lum", "col_lum", "ambiant", "jour"]:
+			m.set_shader_parameter(nom, _mat.get_shader_parameter(nom))
 
 # --- construction des nœuds (fil principal) ------------------------------------------------------------------
 
 func _creer_noeuds() -> void:
-	for nom in ["collines", "montagnes", "lointain", "sapins", "chateau"]:
+	var noms := ["collines", "montagnes", "lointain", "sapins", "chateau"] if lointain_3d else ["collines", "montagnes", "sapins"]
+	for nom in noms:
 		var d: Dictionary = _res[nom]
 		var mesh := ArrayMesh.new()
 		var tab := []
@@ -172,15 +200,26 @@ func _h(x: float, z: float) -> float:
 	var eb := smoothstep(850.0, 1700.0, r)
 	var colline := _n3.get_noise_2d(wx * 0.004, wz * 0.004) * 0.5 + 0.5
 	var h := 22.0 + ef * (22.0 + 50.0 * colline * colline)
-	h += ef * 20.0 * _ridge(wx, wz, 0.006, 3)
-	h += em * (30.0 + 120.0 * pow(_ridge(wx, wz, 0.0034, 6), 1.9))
-	h += eb * (170.0 * pow(_ridge(wx + 500.0, wz - 300.0, 0.0018, 6), 1.9))
+	h += ef * 16.0 * _ridge(wx, wz, 0.006, 2)
+	# 3e passe : crêtes douces (3 octaves au lieu de 6 : plus d'aiguilles), pentes longues
+	h += em * (30.0 + 95.0 * pow(_ridge(wx, wz, 0.0028, 3), 1.6))
+	h += eb * (210.0 * pow(_ridge(wx + 500.0, wz - 300.0, 0.0015, 3), 1.4))   # chaîne continue qui relie les massifs
+	# vallée qui s'ouvre au centre de la vue de l'entrée (cap ≈ 46°), entre 300 m et 1 800 m
+	var dv := absf(wrapf(rad_to_deg(atan2(x, z)) - 46.0, -180.0, 180.0))
+	var vallee := (1.0 - smoothstep(5.0, 20.0, dv)) * smoothstep(260.0, 520.0, r) * (1.0 - smoothstep(1500.0, 1900.0, r))
+	if not lointain_3d:
+		# 5e passe : la vallée s'ouvre dès 200 m et plus franchement (les plans peints prennent le relais au fond)
+		vallee = (1.0 - smoothstep(6.0, 18.0, dv)) * smoothstep(190.0, 380.0, r)
+		var dc := absf(wrapf(rad_to_deg(atan2(x, z)) - 24.0, -180.0, 180.0))
+		vallee = maxf(vallee, 0.8 * (1.0 - smoothstep(4.0, 12.0, dc)) * smoothstep(230.0, 420.0, r))
+	h = lerpf(h, 22.0 + ef * 18.0, (0.7 if lointain_3d else 0.85) * vallee)
 	for p in PICS:
 		var c := _pos_polaire(p[0], p[1])
 		var t := maxf(0.0, 1.0 - Vector2(x - c.x, z - c.y).length() / p[3])
 		if t > 0.0:
 			# massif large (t^1,15) aux crêtes ridées (deux échelles) : arêtes et couloirs lisibles, pas une aiguille isolée
-			h += p[2] * 0.42 * pow(t, 1.15) * (0.6 + 0.5 * _ridge(wx, wz, 0.009, 3) + 0.15 * _ridge(wx + 77.0, wz, 0.022, 2) * t)
+			# profil concave (pentes longues, sommet franc), crête modulée à basse fréquence seulement
+			h += p[2] * 0.42 * (0.6 * pow(t, 1.8) + 0.4 * pow(t, 4.0)) * (0.8 + 0.4 * _ridge(wx, wz, 0.004, 2))
 	return h
 
 func _calculer() -> void:
@@ -222,7 +261,7 @@ func _calculer() -> void:
 			dens *= 0.55 + 0.45 * (_n3.get_noise_2d(p.x * 0.011, p.z * 0.011) * 0.5 + 0.5)
 			col[j * cols + i] = Color(dens, _rng.randf(), 0.0, 1.0)
 	_res["collines"] = _bande(pos, nor, col, COUPURES[0], COUPURES[1])
-	_res["montagnes"] = _bande(pos, nor, col, COUPURES[1], COUPURES[2])
+	_res["montagnes"] = _bande(pos, nor, col, COUPURES[1], COUPURES[2] if lointain_3d else 35)   # plans peints au-delà de ~600 m
 	_res["lointain"] = _bande(pos, nor, col, COUPURES[2], COUPURES[3])
 	_res["sapins"] = _sapins(pos, nor, col)
 	_res["chateau"] = _chateau()
@@ -273,10 +312,18 @@ func _sapins(pos: PackedVector3Array, nor: PackedVector3Array, col: PackedColorA
 	var lr := log(R_MAX / R_MIN)
 	while poses < NB_SAPINS and essais < NB_SAPINS * 14:
 		essais += 1
-		var r := R_SAPINS.x + (R_SAPINS.y - R_SAPINS.x) * pow(rng.randf(), 1.7)
+		var r_max := R_SAPINS.y if lointain_3d else 580.0   # au-delà : bandes de sapins peintes
+		var r := R_SAPINS.x + (r_max - R_SAPINS.x) * pow(rng.randf(), 1.7)
 		var a := rng.randf() * TAU
 		var e := _echant(pos, nor, col, log(r / R_MIN) / lr * (LIGNES - 1), a / TAU * COLONNES)
 		var nm0: Vector3 = e[1]
+		# 5e passe : axes dégagés (vallée de l'entrée ≈ 46°, château ≈ 24°) pour qu'on lise la bande dorée, les forêts
+		# peintes et la falaise du château ; quelques sapins épars restent
+		if not lointain_3d:
+			var az := rad_to_deg(a)
+			var degage := maxf(1.0 - smoothstep(6.0, 12.0, absf(az - 46.0)), 1.0 - smoothstep(5.0, 10.0, absf(az - 24.0)))
+			if rng.randf() < 0.9 * degage:
+				continue
 		if e[0] - _y0 > 175.0 or nm0.y < 0.8 or rng.randf() > float(e[2]) * 1.15:
 			continue
 		poses += 1
@@ -326,76 +373,84 @@ func _boite(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray, b
 	_quad(p, n, c, pts[0] + Vector3.UP * sy, pts[3] + Vector3.UP * sy, pts[2] + Vector3.UP * sy, pts[1] + Vector3.UP * sy, col)
 
 func _chateau() -> Dictionary:
+	# 3e passe : château sur falaise lisible en silhouette à 640x360 : socle rocheux sombre et abrupt, enceinte crénelée,
+	# 4 tours carrées de hauteurs différentes (2 à toit pointu enneigé, 2 crénelées), donjon, fenêtres chaudes.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5150
 	var p := PackedVector3Array()
 	var n := PackedVector3Array()
 	var c := PackedColorArray()
 	var pierre := Color(0.0, 0.5, 2.0 / 5.0, 1.0)
+	var toit := Color(1.0, 0.5, 2.0 / 5.0, 1.0)     # R = 1 : pierre neigée (toits)
 	var roche := Color(0.0, 0.5, 4.0 / 5.0, 1.0)
 	var fenetre := Color(0.0, 0.5, 1.0, 1.0)
 	var centre := _pos_polaire(CHATEAU_AZIMUT, CHATEAU_DIST)
-	# axe du pont : perpendiculaire à la ligne de vue (on voit l'arche de profil)
 	var vue := Vector2(centre.x, centre.y).normalized()
-	var axe := Vector3(-vue.y, 0.0, vue.x)
+	var lat := Vector3(-vue.y, 0.0, vue.x)          # perpendiculaire à la ligne de vue : l'enceinte s'étale à l'écran
 	var sol := _y0 + _h(centre.x, centre.y) - 18.0
-	var hauteur_a := 230.0   # refonte « lumière » : falaise relevée, le château domine la forêt depuis l'entrée
-	var rayon_a := 58.0
+	var hauteur_a := 205.0
+	var rayon_a := 95.0
 	var o_a := Vector3(centre.x, sol, centre.y)
-	var hauteur_b := 212.0
-	var rayon_b := 34.0
-	var o_b := o_a + axe * 165.0
-	var sol_b := _y0 + _h(o_b.x, o_b.z) - 18.0
-	o_b.y = sol_b
 	_falaise(p, n, c, o_a, rayon_a, hauteur_a, rng, roche)
-	_falaise(p, n, c, o_b, rayon_b, hauteur_b - (sol_b - sol), rng, roche)
-	# --- sommet de la falaise A : enceinte, tours, donjon
-	var top_a := o_a + Vector3.UP * hauteur_a
-	var sommets: Array[Vector3] = []
-	var nb := 7
-	for k in nb:
-		var a := TAU * k / nb + rng.randf_range(-0.12, 0.12)
-		var rr := rayon_a * 0.50 * rng.randf_range(0.9, 1.1)
-		sommets.append(top_a + Vector3(cos(a) * rr, 0.0, sin(a) * rr))
-	for k in nb:
-		var a: Vector3 = sommets[k]
-		var b: Vector3 = sommets[(k + 1) % nb]
-		if k == 3:
-			# brèche : mur effondré, deux moignons
-			var d := b - a
-			_boite(p, n, c, a, 6.0, 6.0, d.length() * 0.3, atan2(d.x, d.z), pierre)
-			continue
-		var mid := (a + b) * 0.5
+	var top := o_a + Vector3.UP * hauteur_a
+	var yaw := atan2(lat.x, lat.z)
+	# enceinte : rectangle allongé face au village (125 x 40 m), murs de 16 m crénelés
+	var L := 125.0
+	var P := 40.0
+	var av := Vector3(vue.x, 0.0, vue.y)
+	var coins: Array[Vector3] = [top - lat * L * 0.5 - av * P * 0.5, top + lat * L * 0.5 - av * P * 0.5,
+		top + lat * L * 0.5 + av * P * 0.5, top - lat * L * 0.5 + av * P * 0.5]
+	for k in 4:
+		var a: Vector3 = coins[k]
+		var b: Vector3 = coins[(k + 1) % 4]
 		var d := b - a
-		var h_mur := 15.0 if k != 5 else 9.0
-		_boite(p, n, c, mid, 6.0, h_mur, d.length(), atan2(d.x, d.z), pierre)
-	for k in nb:
-		var h_t := rng.randf_range(32.0, 44.0)
-		if k == 2 or k == 5:
-			h_t *= 0.62   # tours écrêtées (ruine)
-		_boite(p, n, c, sommets[k], 13.0, h_t, 13.0, rng.randf() * 0.5, pierre)
-		if k != 2 and k != 5:
+		var lg := d.length()
+		var ang := atan2(d.x, d.z)
+		_boite(p, n, c, (a + b) * 0.5, 5.0, 16.0, lg, ang, pierre)
+		var nb_m := int(lg / 6.0)
+		for q in nb_m:
+			var m := a + d * ((q + 0.5) / nb_m)
+			_boite(p, n, c, m + Vector3.UP * 16.0, 5.0, 3.5, 3.0, ang, pierre)
+	# tours aux coins + donjon : hauteurs différentes, 2 toits pointus
+	var tours := [[coins[0], 40.0, true], [coins[1], 50.0, false], [coins[2], 34.0, false], [coins[3], 44.0, true],
+		[top + lat * 18.0, 66.0, true], [top - lat * 30.0 - av * 20.0, 30.0, false]]
+	for t in tours:
+		var base: Vector3 = t[0]
+		var ht: float = t[1]
+		var larg := 13.0 if ht < 80.0 else 18.0
+		_boite(p, n, c, base, larg, ht, larg, yaw, pierre)
+		if t[2]:
+			_pyramide(p, n, c, base + Vector3.UP * ht, larg * 1.15, larg * 1.5, yaw, toit)
+		else:
 			for q in 4:
-				var ox := -4.8 if q % 2 == 0 else 4.8
-				var oz := -4.8 if q < 2 else 4.8
-				_boite(p, n, c, sommets[k] + Vector3(ox, h_t, oz), 3.2, 4.5, 3.2, 0.0, pierre)
-		_fenetre_sur(p, n, c, sommets[k] + Vector3(0.0, h_t * 0.7, 0.0), 13.0, fenetre)
-	# donjon central, haut, brisé d'un côté
-	var dj := top_a + Vector3(-6.0, 0.0, 4.0)
-	_boite(p, n, c, dj, 26.0, 62.0, 22.0, 0.35, pierre)
-	_boite(p, n, c, dj + Vector3(0.0, 62.0, 0.0), 26.0, 8.0, 5.0, 0.35, pierre)
-	for q in 5:
-		_boite(p, n, c, dj + Basis(Vector3.UP, 0.35) * Vector3(-10.0 + q * 5.0, 62.0, -9.0), 3.5, 5.0, 3.5, 0.35, pierre)
-	_fenetre_sur(p, n, c, dj + Vector3(0.0, 38.0, 0.0), 22.0, fenetre)
-	_boite(p, n, c, top_a + Vector3(14.0, 0.0, -18.0), 20.0, 30.0, 16.0, -0.4, pierre)   # logis
-	# --- tour sur la falaise B et pont
-	var top_b := o_b + Vector3.UP * (hauteur_b - (sol_b - sol))
-	_boite(p, n, c, top_b, 14.0, 40.0, 14.0, 0.2, pierre)
-	for q in 4:
-		_boite(p, n, c, top_b + Vector3(-4.8 + (q % 2) * 9.6, 40.0, -4.8 + (q / 2) * 9.6), 3.2, 4.5, 3.2, 0.2, pierre)
-	_fenetre_sur(p, n, c, top_b + Vector3(0.0, 26.0, 0.0), 14.0, fenetre)
-	_pont(p, n, c, top_a + axe * (rayon_a * 0.64), top_b - axe * (rayon_b * 0.62), pierre)
+				var ox := -0.38 * larg if q % 2 == 0 else 0.38 * larg
+				var oz := -0.38 * larg if q < 2 else 0.38 * larg
+				_boite(p, n, c, base + Vector3.UP * ht + Basis(Vector3.UP, yaw) * Vector3(ox, 0.0, oz), 3.4, 4.5, 3.4, yaw, pierre)
+		_fenetre_sur(p, n, c, base + Vector3(0.0, ht * 0.72, 0.0), larg, fenetre)
+		if ht > 50.0:
+			_fenetre_sur(p, n, c, base + Vector3(0.0, ht * 0.45, 0.0), larg, fenetre)
+	# logis contre le mur du fond, toit à deux pans enneigé (pyramide allongée)
+	var logis := top - lat * 14.0 + av * 8.0
+	_boite(p, n, c, logis, 30.0, 24.0, 14.0, yaw, pierre)
+	_pyramide(p, n, c, logis + Vector3.UP * 24.0, 31.0, 10.0, yaw, toit, 15.0)
+	_fenetre_sur(p, n, c, logis + Vector3(0.0, 14.0, 0.0), 30.0, fenetre)
 	return {"pos": p, "nor": n, "col": c}
+
+## Toit pyramidal (ou à deux pans si `prof` > 0 : base largeur x prof) posé sur `base`.
+func _pyramide(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray, base: Vector3, larg: float, haut: float, yaw: float, col: Color, prof := 0.0) -> void:
+	var b := Basis(Vector3.UP, yaw)
+	var dz := (prof if prof > 0.0 else larg) * 0.5
+	var dx := larg * 0.5
+	var pts: Array[Vector3] = [base + b * Vector3(-dx, 0, -dz), base + b * Vector3(dx, 0, -dz), base + b * Vector3(dx, 0, dz), base + b * Vector3(-dx, 0, dz)]
+	var s0 := base + b * Vector3(-dx * (0.0 if prof <= 0.0 else 0.8), haut, 0.0)
+	var s1 := base + b * Vector3(dx * (0.0 if prof <= 0.0 else 0.8), haut, 0.0)
+	# 4 pans (deux triangles + deux trapèzes si deux pans)
+	_tri(p, n, c, pts[0], pts[1], s1, ((pts[1] - pts[0]).cross(s1 - pts[0])).normalized() * -1.0, col)
+	_tri(p, n, c, pts[0], s1, s0, ((pts[1] - pts[0]).cross(s1 - pts[0])).normalized() * -1.0, col)
+	_tri(p, n, c, pts[2], pts[3], s0, ((pts[3] - pts[2]).cross(s0 - pts[2])).normalized() * -1.0, col)
+	_tri(p, n, c, pts[2], s0, s1, ((pts[3] - pts[2]).cross(s0 - pts[2])).normalized() * -1.0, col)
+	_tri(p, n, c, pts[1], pts[2], s1, ((pts[2] - pts[1]).cross(s1 - pts[1])).normalized() * -1.0, col)
+	_tri(p, n, c, pts[3], pts[0], s0, ((pts[0] - pts[3]).cross(s0 - pts[3])).normalized() * -1.0, col)
 
 ## Falaise facettée : colonne irrégulière à 4 anneaux (pied évasé, tête étroite), dessus plat accidenté.
 func _falaise(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray, o: Vector3, rayon: float, hauteur: float, rng: RandomNumberGenerator, col: Color) -> void:
@@ -419,14 +474,15 @@ func _falaise(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray,
 	for k in cotes:
 		_tri(p, n, c, haut[k], haut[(k + 1) % cotes], cm, Vector3.UP, col)
 
-## Petits carrés allumés (visibles la nuit seulement) sur la face tournée vers le sud-est de `centre`.
+## Carrés allumés (crépuscule et nuit) sur la face tournée vers le sud-est de `centre`.
 func _fenetre_sur(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray, centre: Vector3, largeur: float, col: Color) -> void:
 	var vue := Vector3(centre.x, 0.0, centre.z).normalized()
 	var lat := Vector3(-vue.z, 0.0, vue.x)
 	var f := centre - vue * (largeur * 0.52)
 	for k in 2:
 		var o := f + lat * (-largeur * 0.22 + k * largeur * 0.44)
-		_quad(p, n, c, o - lat * 0.9, o + lat * 0.9, o + lat * 0.9 + Vector3.UP * 2.6, o - lat * 0.9 + Vector3.UP * 2.6, col)
+		# 4 x 5 m : 2 à 3 pixels à 600 m en 640x360 (l'ancienne 1,8 x 2,6 m tombait sous le pixel)
+		_quad(p, n, c, o - lat * 2.0, o + lat * 2.0, o + lat * 2.0 + Vector3.UP * 5.0, o - lat * 2.0 + Vector3.UP * 5.0, col)
 
 ## Pont en arche entre deux têtes de falaise : tablier, arche (anneau) et tympans pleins.
 func _pont(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray, a: Vector3, b: Vector3, col: Color) -> void:
@@ -462,3 +518,155 @@ func _pont(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray, a:
 		var e0 := base - dir * cos(t0) * rayon + Vector3.DOWN * (creux - sin(t0) * creux)
 		var e1 := base - dir * cos(t1) * rayon + Vector3.DOWN * (creux - sin(t1) * creux)
 		_quad(p, n, c, e0 + lat * larg * 0.5, e1 + lat * larg * 0.5, e1 - lat * larg * 0.5, e0 - lat * larg * 0.5, col)
+
+# --- plans peints (4e passe) ------------------------------------------------------------------------------------
+
+# élévation (°) au-dessus de laquelle le plan peint n'a plus rien à dessiner autour de l'azimut `a` (majorant du profil de
+# plans_peints.gdshader sur ± 1 pan : pics élargis ×1,5, dissymétrie, dentelure, sapins, château)
+func _haut_profil(a: float, d: Array, pics: Array) -> float:
+	var h: float = float(d[3]) + float(d[4]) + 2.5
+	for k in 7:
+		var x := a + (float(k) - 3.0) * 0.25   # ± 0,75° : un demi-pan de 1,4° de part et d'autre
+		for p in pics:
+			var dd := absf(wrapf(x - float(p[0]), -180.0, 180.0))
+			var w := 1.5 * float(p[2]) * (1.0 + 0.35 * absf(float(p[3])))
+			var f := maxf(1.0 - dd / w, 0.82 * (1.0 - maxf(dd - 0.42 * w, 0.0) / (0.3 * w)))   # pic, sous-sommet
+			f = maxf(f, 0.62 * (1.0 - maxf(dd - 0.45 * w, 0.0) / (0.55 * w)))                      # épaule
+			f = maxf(f, 0.9 * (1.0 - maxf(dd - 0.6 * w, 0.0) / (0.33 * w)))                      # sommets secondaires
+			h = maxf(h, float(p[1]) * f + 0.2 * maxf(float(p[1]) - float(d[3]), 1.0) + 0.8 * float(d[4]))
+	if int(d[1]) == 2 and absf(wrapf(a - CHATEAU_AZIMUT, -180.0, 180.0)) < 16.0:
+		h = maxf(h, CHATEAU_EL + 70.0 * CHATEAU_ECH / 6.0)
+	return minf(h + (0.5 if int(d[1]) == 0 else 2.0), 60.0)   # forêts : cimes des sapins au-dessus de la crête
+
+
+# élévation (°) sous laquelle le plan peint est PLEIN à coup sûr (minorant de la crête de plans_peints.gdshader sur
+# ± 1 pan) : cette bande basse utilise une variante du shader sans `discard`, ce qui rend au GPU le test de profondeur
+# précoce (le plus gros des plans est caché par le monde : ses fragments ne sont alors plus calculés)
+func _bas_profil(a: float, d: Array, pics: Array) -> float:
+	var base := float(d[3])
+	var dent := float(d[4])
+	var b := base - (5.5 if int(d[1]) == 0 else 6.2)
+	if int(d[1]) == 0:
+		for p in pics:
+			var m := 1e5
+			for k in 7:
+				var x := a + (float(k) - 3.0) * 0.25
+				var dd := absf(wrapf(x - float(p[0]), -180.0, 180.0))
+				var w := 1.5 * float(p[2]) * (1.0 - 0.35 * absf(float(p[3])))
+				var e := float(p[1]) * (1.0 - dd / w)
+				m = minf(m, e - 0.13 * maxf(e - base, 0.0) - 0.75 * dent)
+			b = maxf(b, m - 0.3)
+	return b
+
+
+var _sh_plein: Shader = null
+
+func _shader_plein() -> Shader:
+	if _sh_plein == null:
+		_sh_plein = Shader.new()
+		_sh_plein.code = SHADER_PLANS.code.replace("discard;", "")
+	return _sh_plein
+
+
+func _creer_plans() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--sans-plans="):
+			_sans_plans = arg.trim_prefix("--sans-plans=").split(",")
+	for d in PLANS:
+		if _sans_plans.has(str(int(d[0]))):
+			continue
+		var r: float = d[0]
+		var m := ShaderMaterial.new()
+		m.shader = SHADER_PLANS
+		m.set_shader_parameter("rayon", r)
+		m.set_shader_parameter("niveau0", _y0)
+		m.set_shader_parameter("voile", d[2])
+		m.set_shader_parameter("base_el", d[3])
+		# peinture (8e passe) : le plan est dessiné une fois dans une texture par peinture_plans.gdshader
+		var mp := ShaderMaterial.new()
+		mp.shader = SHADER_PEINTURE
+		mp.set_shader_parameter("genre", d[1])
+		mp.set_shader_parameter("base_el", d[3])
+		mp.set_shader_parameter("dentelure", d[4])
+		mp.set_shader_parameter("graine", d[5])
+		mp.set_shader_parameter("chateau_az", CHATEAU_AZIMUT)
+		mp.set_shader_parameter("chateau_el", CHATEAU_EL)
+		mp.set_shader_parameter("chateau_ech", CHATEAU_ECH)
+		# pics : ceux de la vue de l'entrée + des pics tirés au hasard sur le reste du tour (hors 0-100°)
+		var pics: Array = (d[6] as Array).duplicate()
+		if d[1] == 0:
+			var a := 110.0
+			while a < 350.0 and pics.size() < 16:
+				var e: float = (d[6][0][1] as float) * rng.randf_range(0.6, 0.85)
+				pics.append([a, e, rng.randf_range(11.0, 17.0), rng.randf_range(-0.4, 0.4)])
+				a += rng.randf_range(30.0, 45.0)
+		var v: Array[Vector4] = []
+		for p in pics:
+			v.append(Vector4(float(p[0]), float(p[1]), float(p[2]), float(p[3])))
+		while v.size() < 16:
+			v.append(Vector4.ZERO)
+		mp.set_shader_parameter("pics", v)
+		mp.set_shader_parameter("nb_pics", pics.size())
+		var hauts := PackedFloat32Array()
+		var el_max := 0.0
+		for i in 257:
+			var hp := _haut_profil(360.0 * float(i) / 256.0, d, pics)
+			hauts.append(hp)
+			el_max = maxf(el_max, hp)
+		var nb_rangs := int(ceil((el_max + 6.0) * 6.0)) + 2
+		mp.set_shader_parameter("el0_t", -36.0)
+		var sv := SubViewport.new()
+		sv.size = Vector2i(2160, nb_rangs)
+		sv.transparent_bg = true
+		sv.disable_3d = true
+		sv.render_target_update_mode = SubViewport.UPDATE_ONCE
+		var toile := ColorRect.new()
+		toile.size = Vector2(2160, nb_rangs)
+		toile.material = mp
+		sv.add_child(toile)
+		add_child(sv)
+		m.set_shader_parameter("peinture", sv.get_texture())
+		m.set_shader_parameter("el0_t", -36.0)
+		m.set_shader_parameter("hauteur_t", nb_rangs)
+		# cylindre : 256 pans, du dessous de l'horizon jusqu'au-dessus du profil peint (bord haut qui épouse les pics,
+		# avec marge) : le ciel n'est pas recouvert de fragments rejetés (perf : 5 couches de surdessin évitées)
+		var pos := PackedVector3Array()
+		var idx_bas := PackedInt32Array()
+		var idx_haut := PackedInt32Array()
+		var bas := _y0 - 60.0
+		for i in 257:
+			var a := TAU * float(i) / 256.0
+			var e_haut := hauts[i]
+			var e_mi := clampf(_bas_profil(rad_to_deg(a), d, pics), -5.0, e_haut)
+			var haut := _y0 + r * tan(deg_to_rad(e_haut))
+			var mi_y := maxf(_y0 + r * tan(deg_to_rad(e_mi)), bas)
+			pos.append(Vector3(sin(a) * r, bas, cos(a) * r))
+			pos.append(Vector3(sin(a) * r, mi_y, cos(a) * r))
+			pos.append(Vector3(sin(a) * r, haut, cos(a) * r))
+		for i in 256:
+			var k := i * 3
+			idx_bas.append_array([k, k + 1, k + 3, k + 3, k + 1, k + 4])
+			idx_haut.append_array([k + 1, k + 2, k + 4, k + 4, k + 2, k + 5])
+		var mesh := ArrayMesh.new()
+		for idx in [idx_bas, idx_haut]:
+			var tab := []
+			tab.resize(Mesh.ARRAY_MAX)
+			tab[Mesh.ARRAY_VERTEX] = pos
+			tab[Mesh.ARRAY_INDEX] = idx
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, tab)
+		var m_plein := m.duplicate() as ShaderMaterial
+		m_plein.shader = _shader_plein()
+		mesh.custom_aabb = AABB(Vector3(-R_MAX, -200.0, -R_MAX), Vector3(2.0 * R_MAX, 2000.0, 2.0 * R_MAX))
+		var mi := MeshInstance3D.new()
+		mi.name = "plan_%d" % int(r)
+		mi.mesh = mesh
+		mi.set_surface_override_material(0, m_plein)
+		mi.set_surface_override_material(1, m)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		mi.extra_cull_margin = 16384.0
+		add_child(mi)
+		_plans.append(m)
+		_plans.append(m_plein)
