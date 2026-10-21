@@ -38,6 +38,19 @@ var m_glace: ShaderMaterial
 var mats_int: Dictionary                 # matières d'intérieur (Interieurs.materiaux)
 var interieurs: Array[Interieur] = []    # un par bâtiment enterable : longue maison, 3 maisons, forge
 var _nuit_vitre := -1.0
+## Refonte « entrée du village » (bâti) : toits raides à neige épaisse débordante, pignons à colombages et têtes de
+## dragon, fenêtres de pignon, fumée en pixels, palissade de pieux taillés. `--sans-refonte-bati` = ancien bâti (A/B).
+var _sans_refonte := "--sans-refonte-bati" in OS.get_cmdline_user_args()
+const PENTE_TOIT := 53.0          # degrés (pente des toits des maisons : raide, comme l'image de référence)
+const RELEVE_EGOUT := 0.3         # l'égout est à y0 - 0,3 m (au lieu de 0,5) : on passe sous le rouleau de neige
+const EPAISSEUR_NEIGE := 0.42
+var m_colombage: ShaderMaterial   # poutres sombres des pignons, planches de rive, têtes de dragon
+var m_vitre_ext: ShaderMaterial   # vitrage vu du dehors : lueur réglée par l'heure (faible le jour)
+var m_fen_pignon: ShaderMaterial  # fenêtre de pignon émissive (même réglage)
+var _fumees: Array[StandardMaterial3D] = []
+var _vitres: Node3D
+const TEINTE_COLOMBAGE := Color(0.44, 0.4, 0.4)
+const LUEUR := Color(0.988, 0.71, 0.227)   # vitre émissive #fcb53a (DIRECTION_ARTISTIQUE §6, préréglage « lanterne »)
 ## Le mobilier des intérieurs se construit dans UN fil de travail, hors de l'arbre (un `Interieur` temporaire reçoit lots, flammes
 ## et lumières), puis est posé par petites tâches de ≤ BUDGET_INT_US µs par image sur le fil principal : plus aucune image de
 ## 40-700 ms au chargement (les maisons sont invisibles de loin, le joueur démarre à plus de 13 m des portes).
@@ -77,9 +90,17 @@ func _ready() -> void:
 	m_braises = TexturesBati.m_braises()
 	m_glace = TexturesBati.m_glace_e()
 	m_eau = Palette.materiau(Palette.tex("eau", ["#05070c", "#0a0f18", "#101824", "#162030"], 4, 0.3))
+	m_colombage = ShaderMaterial.new()   # étiquette : rejoint le lot `m_poutres_h`, assombri par la couleur de sommet (`_ajouter`)
+	m_fen_pignon = TexturesBati.m_fenetre()
+	_vitres = _pivot(Vector3.ZERO, 0.0)  # tous les vitrages vus du dehors : UN maillage (au lieu d'un par fenêtre)
+	_vitres.name = "Vitrages"
 
 	Chrono.marque("  village : matières bâti")
 	mats_int = Interieurs.materiaux()
+	m_vitre_ext = mats_int["vitre"]
+	if not _sans_refonte:
+		m_vitre_ext = (mats_int["vitre"] as ShaderMaterial).duplicate()
+		Palette.materiaux.append(m_vitre_ext)
 	Chrono.marque("  village : matières intérieur")
 	_palissade()
 	_porte()
@@ -146,6 +167,9 @@ func _process(dt: float) -> void:
 		if absf(n - _nuit_vitre) > 0.01:
 			_nuit_vitre = n
 			(mats_int["vitre"] as ShaderMaterial).set_shader_parameter("nuit", n)
+			if not _sans_refonte:
+				m_vitre_ext.set_shader_parameter("nuit", n)
+				_regler_lueurs(n)
 	for f in _flammes:
 		var l: OmniLight3D = f[0]
 		var k: float = f[2]
@@ -171,6 +195,9 @@ func _ao_pied(y: float) -> float:
 func _ajouter(parent: Node3D, arrays: Array, xf: Transform3D, mat: Material, ao_sol := true) -> void:
 	if arrays.size() <= Mesh.ARRAY_NORMAL or arrays[Mesh.ARRAY_VERTEX] == null or arrays[Mesh.ARRAY_NORMAL] == null:
 		return   # tableau vide ou incomplet : rien à ajouter (jamais d'erreur de type)
+	var sombre := mat == m_colombage and m_colombage != null
+	if sombre:
+		mat = m_poutres_h
 	var cle := "%d|%d" % [parent.get_instance_id(), mat.get_instance_id()]
 	if not _lots.has(cle):
 		_lots[cle] = {"parent": parent, "mat": mat, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray(), "i": PackedInt32Array()}
@@ -194,6 +221,8 @@ func _ajouter(parent: Node3D, arrays: Array, xf: Transform3D, mat: Material, ao_
 		n.append((xf.basis * norms[k]).normalized())
 		uvs.append(uv_src[k] if k < uv_src.size() else Vector2.ZERO)
 		var c := c_src[k] if k < c_src.size() else Color.WHITE
+		if sombre:
+			c = Color(c.r * TEINTE_COLOMBAGE.r, c.g * TEINTE_COLOMBAGE.g, c.b * TEINTE_COLOMBAGE.b, c.a)
 		if ao_sol:
 			var g := _ao_pied(pw.y - pivot_y)
 			c = Color(c.r * g, c.g * g, c.b * g, c.a)
@@ -225,7 +254,7 @@ func _finaliser() -> void:
 		var mi := MeshInstance3D.new()
 		mi.mesh = m
 		mi.material_override = lot["mat"]
-		if (lot["parent"] as Node3D).get_parent() is Interieur:
+		if (lot["parent"] as Node3D).get_parent() is Interieur or lot["parent"] == _vitres:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF   # l'intérieur ne projette rien (coût de l'ombre du soleil)
 		(lot["parent"] as Node3D).add_child(mi)
 	_lots.clear()
@@ -454,6 +483,9 @@ func _feu(parent: Node3D, position_: Vector3, taille: float, energie: float, por
 	parent.add_child(p)
 
 func _fumee(parent: Node3D, position_: Vector3) -> void:
+	if not _sans_refonte:
+		_fumee_pixels(parent, position_)
+		return
 	var p := GPUParticles3D.new()
 	p.amount = 14
 	p.lifetime = 7.0
@@ -492,6 +524,88 @@ func _fumee(parent: Node3D, position_: Vector3) -> void:
 	mq.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	q.material = mq
 	p.draw_pass_1 = q
+	parent.add_child(p)
+
+## Bouffée de fumée 16 × 16 en pixels (filtrage au plus proche) : disque bosselé, alpha en 3 paliers (pas de dégradé
+## lisse, pas de tramage en damier : les bords sont découpés par un bruit fixe). Partagée par toutes les cheminées.
+static var _tex_bouffee: ImageTexture
+static func _bouffee() -> ImageTexture:
+	if _tex_bouffee != null:
+		return _tex_bouffee
+	var n := 16
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var r := RandomNumberGenerator.new()
+	r.seed = 7707
+	var bosses: Array = []
+	for k in 5:
+		bosses.append([Vector2(r.randf_range(4.5, 11.5), r.randf_range(4.5, 11.5)), r.randf_range(3.0, 5.0)])
+	for y in n:
+		for x in n:
+			var p := Vector2(x + 0.5, y + 0.5)
+			var d := 0.0
+			for b in bosses:
+				d = maxf(d, 1.0 - p.distance_to(b[0]) / float(b[1]))
+			d += (r.randf() - 0.5) * 0.18
+			var a := 0.0
+			if d > 0.55:
+				a = 1.0
+			elif d > 0.3:
+				a = 0.66
+			elif d > 0.1:
+				a = 0.33
+			var l := 0.86 + 0.14 * clampf(1.0 - (y - 4.0) / 10.0, 0.0, 1.0)   # dessous un peu plus sombre
+			img.set_pixel(x, y, Color(l, l, l * 1.02, a))
+	_tex_bouffee = ImageTexture.create_from_image(img)
+	return _tex_bouffee
+
+## Fumée de cheminée légère (refonte bâti) : 22 bouffées en pixels qui montent, grossissent et dérivent avec le vent ;
+## teinte réglée par l'heure (`_regler_lueurs`). Coût : une GPUParticles3D par cheminée (5 au village).
+func _fumee_pixels(parent: Node3D, position_: Vector3) -> void:
+	var p := GPUParticles3D.new()
+	p.amount = 22
+	p.lifetime = 8.0
+	p.preprocess = 8.0
+	p.position = position_
+	p.visibility_aabb = AABB(Vector3(-5, -1, -5), Vector3(14, 12, 14))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	pm.emission_sphere_radius = 0.12
+	pm.direction = Vector3.UP
+	pm.spread = 6.0
+	pm.initial_velocity_min = 0.35
+	pm.initial_velocity_max = 0.55
+	pm.gravity = Vector3(0.2, 0.03, 0.08)
+	pm.angle_min = 0.0
+	pm.angle_max = 360.0
+	pm.scale_min = 0.8
+	pm.scale_max = 1.25
+	var courbe := Curve.new()
+	courbe.add_point(Vector2(0, 0.35))
+	courbe.add_point(Vector2(1, 2.6))
+	var ct := CurveTexture.new()
+	ct.curve = courbe
+	pm.scale_curve = ct
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 0.08, 0.55, 1.0])
+	g.colors = PackedColorArray([Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.5), Color(1, 1, 1, 0.26), Color(1, 1, 1, 0.0)])
+	var gt := GradientTexture1D.new()
+	gt.gradient = g
+	pm.color_ramp = gt
+	p.process_material = pm
+	var q := QuadMesh.new()
+	q.size = Vector2(0.55, 0.55)
+	var mq := StandardMaterial3D.new()
+	mq.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mq.vertex_color_use_as_albedo = true
+	mq.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mq.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mq.albedo_texture = _bouffee()
+	mq.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mq.albedo_color = Color(0.6, 0.62, 0.7)
+	q.material = mq
+	_fumees.append(mq)
+	p.draw_pass_1 = q
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(p)
 
 ## Pignon triangulaire plein (visible des deux côtés), dans le plan YZ.
@@ -563,17 +677,36 @@ func _stalactites(parent: Node3D, x0: float, x1: float, y: float, z: float, grai
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var x := x0
-	while x < x1:
-		var l := r.randf_range(0.1, 0.32)
-		var w := r.randf_range(0.04, 0.06)
-		var h := Vector3(x, y, z)
-		var c := [h + Vector3(-w, 0, -w), h + Vector3(w, 0, -w), h + Vector3(w, 0, w), h + Vector3(-w, 0, w)]
-		var pointe := h + Vector3(0, -l, 0)
-		for i in 4:
-			st.add_vertex(c[i])
-			st.add_vertex(c[(i + 1) % 4])
-			st.add_vertex(pointe)
-		x += r.randf_range(0.28, 0.5)
+	if _sans_refonte:
+		while x < x1:
+			var l := r.randf_range(0.1, 0.32)
+			var w := r.randf_range(0.04, 0.06)
+			var h := Vector3(x, y, z)
+			var c := [h + Vector3(-w, 0, -w), h + Vector3(w, 0, -w), h + Vector3(w, 0, w), h + Vector3(-w, 0, w)]
+			var pointe := h + Vector3(0, -l, 0)
+			for i in 4:
+				st.add_vertex(c[i])
+				st.add_vertex(c[(i + 1) % 4])
+				st.add_vertex(pointe)
+			x += r.randf_range(0.28, 0.5)
+	else:
+		# refonte bâti : glaçons fins en grappes (quelques longs, beaucoup de courts), trous entre les grappes
+		while x < x1:
+			if r.randf() < 0.3:
+				x += r.randf_range(0.4, 1.1)   # pas de glace sous ce bout d'égout
+				continue
+			var l := r.randf_range(0.06, 0.2) if r.randf() < 0.7 else r.randf_range(0.25, 0.55)
+			var w := r.randf_range(0.02, 0.035) + l * 0.05
+			var h := Vector3(x, y + r.randf_range(-0.03, 0.03), z + r.randf_range(-0.04, 0.04))
+			var c := [h + Vector3(-w, 0, -w * 0.6), h + Vector3(w, 0, -w * 0.6), h + Vector3(0, 0, w)]
+			var milieu := h + Vector3(r.randf_range(-0.01, 0.01), -l * 0.45, 0)
+			var cm := [milieu + Vector3(-w * 0.45, 0, -w * 0.3), milieu + Vector3(w * 0.45, 0, -w * 0.3), milieu + Vector3(0, 0, w * 0.5)]
+			var pointe := h + Vector3(r.randf_range(-0.015, 0.015), -l, 0)
+			for i in 3:
+				var i2 := (i + 1) % 3
+				for v in [c[i], c[i2], cm[i2], c[i], cm[i2], cm[i], cm[i], cm[i2], pointe]:
+					st.add_vertex(v)
+			x += r.randf_range(0.07, 0.22)
 	st.generate_normals()
 	_ajouter(parent, st.commit_to_arrays(), Transform3D(), m_glace)
 
@@ -733,7 +866,7 @@ func _fenetre_cadre(p: Node3D, x: float, y: float, z: float, face: float) -> voi
 ## Un pan de toit : planches dessous, chevrons qui dépassent, dalle de neige à épaisseur (BatiGeo.dalle_neige),
 ## rives croisées en cornes. `Rp` = point du faîte, `d` = vecteur faîte → égout (x nul). Renvoie le repère du pan.
 ## `trou` = (x0, x1) : trou à fumée au faîte (premier rang de la dalle, planches et chevrons coupés).
-func _pan(p: Node3D, Rp: Vector3, d: Vector3, Lx: float, graine: int, L_murs: float, cornes := true, trou := Vector2.ZERO) -> Transform3D:
+func _pan(p: Node3D, Rp: Vector3, d: Vector3, Lx: float, graine: int, L_murs: float, cornes := true, trou := Vector2.ZERO, epaisse := false) -> Transform3D:
 	var Sl := d.length()
 	var t := d / Sl
 	var nrm := Vector3(0, t.z, -t.y)
@@ -758,26 +891,41 @@ func _pan(p: Node3D, Rp: Vector3, d: Vector3, Lx: float, graine: int, L_murs: fl
 		var s_c := Sl * 0.5 + 0.04 + (sh * 0.5 if dans else 0.0)
 		_boite(p, Vector3(0.11, 0.17, l_ch), xf * Transform3D(Basis(), Vector3(x, -0.15, s_c)), m_poutres_h)
 		x += 0.9
-	_ajouter(p, BatiGeo.dalle_neige(Lx, Sl, graine, 0.22, 0.05, trou).surface_get_arrays(0), xf, m_toit)
+	if epaisse and not _sans_refonte:
+		# refonte bâti : neige ÉPAISSE qui déborde de l'égout et des rives (image de référence)
+		_ajouter(p, BatiGeo.dalle_neige_epaisse(Lx, Sl, graine, EPAISSEUR_NEIGE, 0.26, 0.2, trou).surface_get_arrays(0), xf, m_toit)
+	else:
+		_ajouter(p, BatiGeo.dalle_neige(Lx, Sl, graine, 0.22, 0.05, trou).surface_get_arrays(0), xf, m_toit)
 	if cornes:
 		for bout in [-1.0, 1.0]:
 			var rive := Transform3D(Basis(bx, nrm, t), Rp + bx * (bout * (Lx * 0.5 - 0.1)) + nrm * 0.02)
-			_boite(p, Vector3(0.14, 0.3, Sl + 0.5), rive * Transform3D(Basis(), Vector3(0, -0.02, Sl * 0.5 - 0.15)), m_poutres_h)
+			if epaisse and not _sans_refonte:
+				# planche de rive plus haute, sombre, sous le rouleau de neige
+				_boite(p, Vector3(0.15, 0.4, Sl + 0.2), rive * Transform3D(Basis(), Vector3(0, -0.08, Sl * 0.5 + 0.02)), m_colombage)
+			else:
+				_boite(p, Vector3(0.14, 0.3, Sl + 0.5), rive * Transform3D(Basis(), Vector3(0, -0.02, Sl * 0.5 - 0.15)), m_poutres_h)
 	return xf
 
 ## Toit en deux pans (lot 5, 2e passe) : chevrons qui dépassent, planches dessous, dalle de neige à épaisseur et à
 ## bord irrégulier (tourbe sombre à la lèvre), faîtière en rondin dont les bouts sortent des pignons et rouleau
 ## de neige au faîte ; rives croisées en cornes. `trou` : trou à fumée (voir `_pan`) ; la faîtière et le rouleau
 ## s'interrompent de part et d'autre.
-func _toit(p: Node3D, L: float, W: float, y0: float, faite: float, graine: int, trou := Vector2.ZERO) -> Vector2:
+func _toit(p: Node3D, L: float, W: float, y0: float, faite: float, graine: int, trou := Vector2.ZERO, releve := 0.5) -> Vector2:
 	var avancee := 0.78
 	var Rp := Vector3(0, y0 + faite, 0)
 	var eave_z := W * 0.5 + avancee
 	var Lx := L + 1.5
-	var bas_y := y0 - 0.5
+	var bas_y := y0 - releve
+	var epaisse := not _sans_refonte
 	for cote in [-1.0, 1.0]:
-		_pan(p, Rp, Vector3(0, bas_y - Rp.y, cote * eave_z), Lx, graine * 7 + int(cote) + 3, L, true, trou)
-		_stalactites(p, -L * 0.5 - 0.5, L * 0.5 + 0.5, bas_y - 0.12, cote * (eave_z + 0.06), graine * 31 + int(cote))
+		var xf := _pan(p, Rp, Vector3(0, bas_y - Rp.y, cote * eave_z), Lx, graine * 7 + int(cote) + 3, L, true, trou, epaisse)
+		if epaisse:
+			# glaçons sous le rouleau de neige débordant (et non plus sous la planche d'égout)
+			var Sl := Vector2(bas_y - Rp.y, eave_z).length()
+			var bord := xf * Vector3(0, -0.02, Sl + 0.16)
+			_stalactites(p, -L * 0.5 - 0.4, L * 0.5 + 0.4, bord.y, bord.z, graine * 31 + int(cote))
+		else:
+			_stalactites(p, -L * 0.5 - 0.5, L * 0.5 + 0.5, bas_y - 0.12, cote * (eave_z + 0.06), graine * 31 + int(cote))
 	# faîtière : rondin qui dépasse des pignons + rouleau de neige
 	var morceaux: Array = [[-(L + 2.1) * 0.5, (L + 2.1) * 0.5]]
 	var rouleaux: Array = [[-(L + 1.5) * 0.5, (L + 1.5) * 0.5]]
@@ -789,8 +937,9 @@ func _toit(p: Node3D, L: float, W: float, y0: float, faite: float, graine: int, 
 		_rondin(p, Rp + Vector3((m[0] + m[1]) * 0.5, 0.02, 0), 0.0, m[1] - m[0], 0.13, graine + 9 + k, 1.0, 0.03)
 		k += 1
 	for m in rouleaux:
-		var roul := BatiGeo.rondin(m[1] - m[0], 0.19, graine + 11 + k, 0.05, 0, 0.0, 1.0)
-		_ajouter(p, (roul[0] as BatiGeo.Maillage).arrays(), Transform3D(Basis(), Rp + Vector3((m[0] + m[1]) * 0.5, 0.2, 0)), m_neige)
+		var r_roul := 0.19 if _sans_refonte else 0.3
+		var roul := BatiGeo.rondin(m[1] - m[0], r_roul, graine + 11 + k, 0.05, 0, 0.0, 1.0)
+		_ajouter(p, (roul[0] as BatiGeo.Maillage).arrays(), Transform3D(Basis(), Rp + Vector3((m[0] + m[1]) * 0.5, 0.2 if _sans_refonte else 0.38, 0)), m_neige)
 		k += 1
 	return Vector2(eave_z, bas_y)
 
@@ -809,6 +958,133 @@ func _cheminee(p: Node3D, xch: float, y_base: float, h_ch: float, graine: int) -
 				_bloc(p, sc, r.randi(), Vector3(xch + sx * 0.35, y_base + 0.15 + i * 0.3, sz * 0.35), m_brute, 0.0, 0.0, 0.16, 0.06)
 	_bloc(p, Vector3(1.05, 0.5, 1.05), r.randi(), Vector3(xch, y_base + 0.0, 0), m_brute, 0.0, 0.0, 0.18, 0.05)
 	_bloc(p, Vector3(1.12, 0.2, 1.12), r.randi(), Vector3(xch, y_base + h_ch + 0.05, 0), m_brute, 0.0, 1.0, 0.25, 0.04)
+
+# --- refonte « entrée du village » : pignons, têtes de dragon, lanterne de la halle, lueurs ------------------------
+
+## Pièce de bois droite de `a` à `b` (dans un plan x = constante) : section `ep` (x : épaisseur, y : largeur).
+func _piece(p: Node3D, a: Vector3, b: Vector3, ep: Vector2, mat: Material) -> void:
+	var z := (b - a)
+	var lg := z.length()
+	if lg < 0.01:
+		return
+	z /= lg
+	var x := Vector3.RIGHT
+	var y := z.cross(x).normalized()
+	_boite(p, Vector3(ep.x, ep.y, lg), Transform3D(Basis(x, y, z), (a + b) * 0.5), mat)
+
+## Quad émissif (fenêtre de pignon) tourné vers +X·cote, UV 0..1 (la tuile de vitrage le couvre exactement).
+func _quad_x(p: Node3D, c: Vector3, larg: float, haut: float, cote: float, mat: Material) -> void:
+	var dz := larg * 0.5 * cote
+	var a := c + Vector3(0, -haut * 0.5, dz)
+	var b := c + Vector3(0, -haut * 0.5, -dz)
+	var d := c + Vector3(0, haut * 0.5, -dz)
+	var e := c + Vector3(0, haut * 0.5, dz)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([a, d, b, a, e, d])   # ordre horaire vu du dehors (face avant)
+	var n := Vector3(cote, 0, 0)
+	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([n, n, n, n, n, n])
+	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(0, 1), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1), Vector2(0, 0), Vector2(1, 0)])
+	_ajouter(_vitres, arrays, p.transform, mat, false)
+
+## Pignon nordique (image de référence) : colombages sombres en saillie sur les planches debout (entrait, poinçon,
+## contrefiches, traverse), petite fenêtre à croisillons qui luit le soir, et au faîte les planches de rive qui se
+## CROISENT et finissent en têtes de dragon sculptées (coiffées de neige).
+func _pignon_decor(p: Node3D, cote: float, L: float, W: float, y0: float, faite: float, releve: float, graine: int) -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = graine
+	var xg := cote * (L * 0.5 + 0.06)
+	var hw := W * 0.5 + 0.1
+	var larg_a := func(y: float) -> float: return hw * (1.0 - (y - y0) / faite)
+	var ep := Vector2(0.11, 0.18)
+	# entrait au pied du pignon
+	_boite(p, Vector3(0.13, 0.22, hw * 2.0 + 0.1), Transform3D(Basis(), Vector3(xg, y0 + 0.1, 0)), m_colombage)
+	# fenêtre de pignon (0,62 × 0,5 m) à croisillons, cadre épais, appui
+	var yw := y0 + minf(1.05, faite * 0.27)
+	var fw := Vector2(0.62, 0.5)
+	_quad_x(p, Vector3(xg + cote * 0.02, yw, 0), fw.x, fw.y, cote, m_fen_pignon)
+	_boite(p, Vector3(0.06, fw.y, 0.05), Transform3D(Basis(), Vector3(xg + cote * 0.04, yw, 0)), m_colombage)
+	_boite(p, Vector3(0.06, 0.05, fw.x), Transform3D(Basis(), Vector3(xg + cote * 0.04, yw, 0)), m_colombage)
+	for sz in [-1.0, 1.0]:
+		_boite(p, Vector3(0.14, fw.y + 0.16, 0.1), Transform3D(Basis(), Vector3(xg, yw, sz * (fw.x * 0.5 + 0.05))), m_colombage)
+	_boite(p, Vector3(0.14, 0.1, fw.x + 0.3), Transform3D(Basis(), Vector3(xg, yw + fw.y * 0.5 + 0.05, 0)), m_colombage)
+	_boite(p, Vector3(0.2, 0.08, fw.x + 0.34), Transform3D(Basis(Vector3.BACK, 0.0), Vector3(xg + cote * 0.04, yw - fw.y * 0.5 - 0.04, 0)), m_colombage)
+	# traverse au-dessus de la fenêtre, poinçon jusqu'au faîte, contrefiches de l'entrait vers la traverse
+	var yb := yw + fw.y * 0.5 + 0.28
+	var lb: float = larg_a.call(yb)
+	_boite(p, Vector3(0.12, 0.18, lb * 2.0), Transform3D(Basis(), Vector3(xg, yb, 0)), m_colombage)
+	_piece(p, Vector3(xg, yb, 0), Vector3(xg, y0 + faite - 0.2, 0), ep, m_colombage)
+	for sz in [-1.0, 1.0]:
+		_piece(p, Vector3(xg, y0 + 0.2, sz * (hw - 0.35)), Vector3(xg, yb - 0.05, sz * (fw.x * 0.5 + 0.12)), ep, m_colombage)
+		# petits liens obliques au-dessus de la traverse
+		var yl := yb + (y0 + faite - yb) * 0.42
+		_piece(p, Vector3(xg, yb + 0.05, sz * (lb - 0.25)), Vector3(xg, yl, sz * 0.08), Vector2(0.1, 0.14), m_colombage)
+	# têtes de dragon : prolongement des planches de rive au-delà du faîte, croisées en X
+	var xr := cote * (L * 0.5 + 0.75 - 0.1)
+	var eave_z := W * 0.5 + 0.78
+	var phi := atan2(faite + releve, eave_z)
+	var Rf := Vector3(xr, y0 + faite + 0.12, 0)
+	for c in [-1.0, 1.0]:
+		var d := Vector3(0, sin(phi), -c * cos(phi))
+		var a := Rf - d * 0.15
+		var b := Rf + d * 0.85
+		_piece(p, a, b, Vector2(0.14, 0.22), m_colombage)
+		# cou qui s'enroule vers le dehors, puis la tête
+		var angles := [phi - deg_to_rad(28.0), phi - deg_to_rad(62.0)]
+		var pt := b
+		for k in angles.size():
+			var dd := Vector3(0, sin(angles[k]), -c * cos(angles[k]))
+			var q: Vector3 = pt + dd * 0.24
+			_piece(p, pt - dd * 0.03, q, Vector2(0.13, 0.2 - k * 0.02), m_colombage)
+			pt = q
+		var ah := deg_to_rad(r.randf_range(-12.0, 4.0))
+		var dh := Vector3(0, sin(ah), -c * cos(ah))
+		var up := Vector3(0, cos(ah), c * sin(ah))
+		var tete := pt + dh * 0.14
+		_piece(p, pt - dh * 0.04, pt + dh * 0.3, Vector2(0.14, 0.22), m_colombage)                       # crâne
+		_piece(p, pt + dh * 0.26 + up * 0.03, pt + dh * 0.5 + up * 0.0, Vector2(0.11, 0.12), m_colombage)  # museau
+		_piece(p, pt + dh * 0.12 - up * 0.1, pt + dh * 0.42 - up * 0.18, Vector2(0.09, 0.06), m_colombage) # mâchoire ouverte
+		_piece(p, tete + up * 0.1, tete + up * 0.24 - dh * 0.2, Vector2(0.05, 0.06), m_colombage)          # corne
+		_piece(p, tete + up * 0.12 + dh * 0.02, pt + up * 0.17 + dh * 0.32, Vector2(0.15, 0.05), m_neige)   # neige sur la tête
+
+## Lanterne de fumée de la halle : le toit raide enveloppe la gaine de l'intérieur (qui s'arrête à l'ancien faîte) ;
+## une tourelle de planches debout l'enferme et la prolonge au-dessus du nouveau faîte, petit toit enneigé sur poteaux
+## (la fumée sort entre les deux).
+func _lanterne_fumee(p: Node3D, trou: Vector2, W: float, y0: float, faite: float, faite_int: float, releve: float, graine: int) -> void:
+	var eave_z := W * 0.5 + 0.78
+	var tanp := (faite + releve) / eave_z
+	var zh := eave_z / 5.0 + 0.36
+	var x0 := trou.x - 0.3
+	var x1 := trou.y + 0.3
+	var xc := (x0 + x1) * 0.5
+	var lg := x1 - x0
+	var y_faite := y0 + faite
+	var ybot := minf(y_faite - zh * tanp - 0.25, y0 + faite_int + 0.42)
+	var ytop := maxf(y_faite + 0.45, y0 + faite_int + 1.75)
+	var h := ytop - ybot
+	for cz in [-1.0, 1.0]:
+		_boite(p, Vector3(lg + 0.1, h, 0.1), Transform3D(Basis(), Vector3(xc, (ybot + ytop) * 0.5, cz * zh)), m_poutres)
+		_boite(p, Vector3(lg + 0.22, 0.14, 0.18), Transform3D(Basis(), Vector3(xc, ytop, cz * zh)), m_colombage)
+	for ex in [x0, x1]:
+		_boite(p, Vector3(0.1, h, zh * 2.0 + 0.1), Transform3D(Basis(), Vector3(ex, (ybot + ytop) * 0.5, 0)), m_poutres)
+		_boite(p, Vector3(0.18, 0.14, zh * 2.0 + 0.22), Transform3D(Basis(), Vector3(ex, ytop, 0)), m_colombage)
+		for cz in [-1.0, 1.0]:
+			_poteau(p, Vector3(ex, ytop, cz * zh), 0.06, 0.42, m_colombage)
+	var yr := ytop + 0.42
+	_pan(p, Vector3(xc, yr + 0.45, 0), Vector3(0, -0.5, zh + 0.3), lg + 0.5, graine + 4600, lg, false)
+	_pan(p, Vector3(xc, yr + 0.45, 0), Vector3(0, -0.5, -(zh + 0.3)), lg + 0.5, graine + 4601, lg, false)
+	_fumee(p, Vector3(xc, ytop + 0.25, 0))
+
+## Lueur des fenêtres vues du dehors selon l'heure (`n` = 1 - clarté du ciel) : presque éteintes en plein jour,
+## franches au crépuscule et la nuit (sources chaudes contre l'ambiance bleue, sans lumière dynamique).
+func _regler_lueurs(n: float) -> void:
+	var k := lerpf(0.22, 1.0, smoothstep(0.12, 0.6, n))
+	m_vitre_ext.set_shader_parameter("lueur", LUEUR * (0.7 * k))
+	m_fen_pignon.set_shader_parameter("emission", LUEUR * (1.15 * k))
+	m_fen_pignon.set_shader_parameter("teinte", Color(1, 1, 1) * lerpf(0.5, 1.0, k))
+	var cf := Color(0.78, 0.8, 0.86).lerp(Color(0.3, 0.33, 0.42), smoothstep(0.2, 0.8, n))
+	for mq in _fumees:
+		mq.albedo_color = cf
 
 ## Noms affichés (porte) des bâtiments enterables.
 const NOMS_BATIMENTS := {
@@ -845,12 +1121,21 @@ func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_m
 	p.add_child(ip)
 	interieurs.append(ip)
 	var ib := Interieurs.new(self, ip, mats_int, longueur, largeur, h_murs, faite)
+	# refonte bâti : le toit EXTÉRIEUR est plus raide (PENTE_TOIT) et son égout plus haut ; l'intérieur (plafond sous
+	# charpente, gaine de fumée) garde `faite` : le nouveau toit l'enveloppe entièrement (plans plus hauts partout).
+	var faite_int := faite
+	var releve := 0.5
+	if not _sans_refonte:
+		releve = RELEVE_EGOUT
+		faite = (largeur * 0.5 + 0.78) * tan(deg_to_rad(PENTE_TOIT)) - releve
 	var fen := _fenetres_de(longueur)
 	_soubassement(p, longueur, largeur, graine)
 	_ame(p, longueur, largeur, h_murs, fen)
 	_murs_rondins(p, ip, longueur, largeur, h_murs, graine, fen)
 	for cote in [-1.0, 1.0]:
 		_pignon(p, cote * longueur * 0.5, y0, largeur * 0.5 + 0.1, faite)
+		if not _sans_refonte:
+			_pignon_decor(p, cote, longueur, largeur, y0, faite, releve, graine + int(cote) * 17)
 	# contreforts de pierre sur les longs pans, à (L/2 - 1)
 	var rc := RandomNumberGenerator.new()
 	rc.seed = graine + 77
@@ -862,18 +1147,21 @@ func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_m
 				_bloc(p, Vector3(s, 0.44 - i * 0.02, s * 0.9), rc.randi(), Vector3(xc + rc.randf_range(-0.03, 0.03), 0.3 + i * 0.4, zc), m_brute, rc.randf_range(-0.06, 0.06), 0.05, 0.2, 0.07)
 			_bloc(p, Vector3(0.72, 0.2, 0.66), rc.randi(), Vector3(xc, 1.95, zc), m_brute, 0.0, 1.0, 0.3, 0.05)
 			_collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(xc, 1.1, zc)), Vector3(0.76, 2.2, 0.72))
-	_coque_collisions(p, longueur, largeur, y0, faite)
+	_coque_collisions(p, longueur, largeur, y0, faite_int)
 	# trou à fumée de la halle : deux cases de la dalle, de part et d'autre du faîte
 	var trou := Vector2.ZERO
 	if cheffe:
 		trou = BatiGeo.trou_cases(longueur + 1.5, -1.0, 2)
-	var eave := _toit(p, longueur, largeur, y0, faite, graine, trou)
+	var eave := _toit(p, longueur, largeur, y0, faite, graine, trou, releve)
 	if cheffe:
 		ib.gaine_fumee(trou)
-		_fumee(p, Vector3((trou.x + trou.y) * 0.5, y0 + faite + 1.3, 0))
+		if _sans_refonte:
+			_fumee(p, Vector3((trou.x + trou.y) * 0.5, y0 + faite + 1.3, 0))
+		else:
+			_lanterne_fumee(p, trou, largeur, y0, faite, faite_int, releve, graine)
 	else:
 		var xch := longueur * 0.15
-		var h_ch := faite + 0.7
+		var h_ch := faite + (0.7 if _sans_refonte else 0.95)
 		_cheminee(p, xch, y0 - 0.2, h_ch, graine + 5)
 		_fumee(p, Vector3(xch, y0 + h_ch + 0.2, 0))
 	# porte (côté +Z) : cadre épais, vantail sur charnière (planches debout, bandes de fer, anneau), marches de 20 cm
@@ -958,11 +1246,24 @@ func _coque_collisions(p: Node3D, L: float, W: float, y0: float, faite: float, d
 
 ## Vitrage : quad orienté vers +Z (lacet 0) ou -Z (lacet PI), UV 0..1 (la texture de vitrage le couvre exactement).
 func _vitre(parent: Node3D, pos: Vector3, taille: Vector2, lacet: float) -> void:
+	if not _sans_refonte:
+		# refonte : tous les vitrages dans le lot `_vitres` (repère du village) : ~17 appels de dessin en moins
+		var hx := taille.x * 0.5
+		var hy := taille.y * 0.5
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		# ordre horaire vu de +Z (face avant de Godot), comme le QuadMesh d'avant
+		arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3(-hx, -hy, 0), Vector3(hx, hy, 0), Vector3(hx, -hy, 0), Vector3(-hx, -hy, 0), Vector3(-hx, hy, 0), Vector3(hx, hy, 0)])
+		arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.BACK, Vector3.BACK, Vector3.BACK, Vector3.BACK, Vector3.BACK, Vector3.BACK])
+		arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(0, 1), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1), Vector2(0, 0), Vector2(1, 0)])
+		var xf := (parent.transform if parent.get_parent() == self else (transform.affine_inverse() * parent.global_transform)) * Transform3D(Basis(Vector3.UP, lacet), pos)
+		_ajouter(_vitres, arrays, xf, m_vitre_ext, false)
+		return
 	var q := QuadMesh.new()
 	q.size = taille
 	var mi := MeshInstance3D.new()
 	mi.mesh = q
-	mi.material_override = mats_int["vitre"]
+	mi.material_override = m_vitre_ext
 	mi.transform = Transform3D(Basis(Vector3.UP, lacet), pos)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
@@ -974,6 +1275,9 @@ func _banc(parent: Node3D, pos: Vector3, longueur: float) -> void:
 		_boite(parent, Vector3(0.1, 0.5, 0.36), Transform3D(Basis(), pos + Vector3(dx * longueur * 0.5 / 0.42 * 0.8, 0.25, 0)), m_poutres)
 
 func _palissade() -> void:
+	if not _sans_refonte:
+		_palissade_pieux()
+		return
 	var nombre := int(TAU * RAYON / 0.42)
 	var rondins := MultiMesh.new()
 	rondins.transform_format = MultiMesh.TRANSFORM_3D
@@ -1024,6 +1328,51 @@ func _palissade() -> void:
 		var mmi := MultiMeshInstance3D.new()
 		mmi.multimesh = mm
 		add_child(mmi)
+	_liens_palissade(ouverture)
+
+## Palissade de la refonte : pieux TAILLÉS en pointe (BatiGeo.pieu : 8 pans irréguliers, pointe à facettes désaxée,
+## neige sur les pointes), 8 variantes tournées au hasard ; mêmes
+## emplacements, hauteurs, inclinaisons et collisions que l'ancienne palissade (mêmes tirages du `rng` du village :
+## les accessoires tirés ensuite ne bougent pas). Fusionnés en un seul maillage (la palissade entoure le joueur : un
+## MultiMesh n'était pas mieux découpé par le moteur).
+func _palissade_pieux() -> void:
+	var nombre := int(TAU * RAYON / 0.42)
+	var m_pieux := TexturesBati.m_rondins_e(Color(1.18, 1.12, 1.08))
+	m_pieux.set_shader_parameter("saturation", 0.62)   # bois gris vieilli (palette commune « Bois gris »)
+	var variantes: Array = []
+	var hauts: Array[float] = []
+	var NV := 8
+	for k in NV:
+		var hv := lerpf(3.65, 4.45, float(k) / (NV - 1))
+		variantes.append(BatiGeo.pieu(hv, 0.185 + 0.012 * float(k % 3), 9100 + k * 37).arrays())
+		hauts.append(hv)
+	var r2 := RandomNumberGenerator.new()
+	r2.seed = 9177
+	var forme := CylinderShape3D.new()
+	forme.radius = 0.22
+	forme.height = 3.6
+	var ouverture := asin(DEMI_PORTE / RAYON)
+	for i in nombre:
+		var a := TAU * i / nombre
+		if absf(wrapf(a, -PI, PI)) < ouverture:
+			continue
+		var pos := Vector3(sin(a) * RAYON, 0, cos(a) * RAYON)
+		var h := rng.randf_range(3.2, 3.9)
+		var penche := Basis(Vector3(cos(a), 0, -sin(a)), rng.randf_range(-0.03, 0.03))
+		var cible := h + 0.5 + r2.randf_range(-0.12, 0.12)
+		var best := 0
+		for k in NV:
+			if absf(hauts[k] - cible) < absf(hauts[best] - cible):
+				best = k
+		var b := penche * Basis(Vector3.UP, r2.randf() * TAU)
+		b = b.scaled(Vector3(1.0, cible / hauts[best], 1.0))
+		var dr := Vector3(cos(a), 0, -sin(a)) * r2.randf_range(-0.03, 0.03) + Vector3(sin(a), 0, cos(a)) * r2.randf_range(-0.04, 0.04)
+		# tous les pieux dans UN maillage (lot du village) : 1 appel de dessin au lieu des 2 MultiMesh d'avant
+		_ajouter(self, variantes[best], Transform3D(b, pos + dr + Vector3(0, -0.2, 0)), m_pieux, false)
+		var cs := CollisionShape3D.new()
+		cs.shape = forme
+		cs.position = pos + Vector3(0, 1.8, 0)
+		corps.add_child(cs)
 	_liens_palissade(ouverture)
 
 ## Liens de corde : deux rubans autour de la palissade (côté intérieur), à 1,0 m et 2,3 m ; coupés à la porte.
