@@ -1,0 +1,181 @@
+extends SceneTree
+## Test du Mage nordique (MageNordique) : contrat de Humain.creer (65 os, AnimationPlayer « Animations », clips dont Spell_Simple_*),
+## budget (triangles, surfaces), matériaux au shader PS1 à accroche, PNJ non modifiés, ragdoll, et :
+##   - JUPE / JAMBES : sur 8 clips (12 instants chacun), aucune jambe ne traverse la jupe modelée : chaque point de la jambe
+##     (cuisse 7 cm, mollet 5,5 cm de rayon) sous la taille doit rester DANS l'anneau déformé de la jupe à sa hauteur
+##     (marge mesurée en m, tolérance TRAVERSEE_JUPE) ;
+##   - jupe gonflée : aucun point de l'ourlet à plus de ECART_OURLET de l'axe du bassin (pas de « voile ») ;
+##   - bâton : traversée grossière dans le corps < 6 cm (comme l'épée du guerrier).
+##   godot --headless --path . --script res://outils/test_mage.gd -- --nouvelle
+const ANIMS := ["Idle", "Walk", "Jog_Fwd", "Sprint", "Spell_Simple_Enter", "Spell_Simple_Idle", "Spell_Simple_Shoot", "Spell_Simple_Exit", "Hit_Chest", "Death01"]
+const CLIPS_JUPE := ["Idle", "Walk", "Jog_Fwd", "Sprint", "Spell_Simple_Enter", "Spell_Simple_Shoot", "Spell_Simple_Exit", "Hit_Chest"]
+const BUDGET := 7500
+const SURFACES_MAX := 10
+const TRAVERSEE_JUPE := 0.015
+## course (genou levé presque à l'horizontale, talon relevé) : la jupe en cloche frôle la jambe de quelques cm au pire
+const TRAVERSEE_JUPE_COURSE := 0.05
+const ECART_OURLET := 0.90
+var echecs := 0
+var diag := ""
+
+func ok(cond: bool, msg: String) -> void:
+	print(("OK     " if cond else "ECHEC  ") + msg)
+	if not cond:
+		echecs += 1
+
+func _init() -> void:
+	_lancer.call_deferred()
+
+func _tris(n: Node) -> int:
+	var t := 0
+	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
+		if not mi.is_visible_in_tree():
+			continue
+		for s in mi.mesh.get_surface_count():
+			t += (mi.mesh.surface_get_array_index_len(s) if (mi.mesh.surface_get_format(s) & Mesh.ARRAY_FORMAT_INDEX) else mi.mesh.surface_get_array_len(s)) / 3
+	return t
+
+## Pire traversée jambes -> jupe et plus grand écart horizontal de l'ourlet à l'axe du bassin sur un clip (12 instants).
+func _jupe_clip(sq: Skeleton3D, ap: AnimationPlayer, clip: String, jupe: MageJupe) -> Vector2:
+	ap.play(clip)
+	var lg := ap.get_animation(clip).length
+	var pire := -1.0
+	var ecart := 0.0
+	for k in 12:
+		ap.seek(lg * k / 12.0, true)
+		var anneaux := jupe.calculer()
+		var pel := sq.get_bone_global_pose(sq.find_bone("pelvis"))
+		for p: Vector3 in anneaux[anneaux.size() - 1]:
+			ecart = maxf(ecart, Vector2(p.x - pel.origin.x, p.z - pel.origin.z).length())
+		for cote in ["l", "r"]:
+			var th := sq.get_bone_global_pose(sq.find_bone("thigh_" + cote)).origin
+			var ca := sq.get_bone_global_pose(sq.find_bone("calf_" + cote)).origin
+			var fo := sq.get_bone_global_pose(sq.find_bone("foot_" + cote)).origin
+			for s in 10:
+				var t := float(s + 1) / 10.0
+				var q := th.lerp(ca, t * 2.0) if t <= 0.5 else ca.lerp(fo, (t - 0.5) * 2.0)
+				var rayon := 0.07 if t <= 0.5 else 0.055
+				var mg := _marge(q, rayon, anneaux, pel.origin)
+				if mg > pire:
+					pire = mg
+					diag = "%s t=%.2f %s s=%d q=%s" % [clip, float(k) / 12.0, cote, s, q.snapped(Vector3.ONE * 0.01)]
+	return Vector2(pire, ecart)
+
+## Marge de sortie (m, > 0 = la jambe dépasse de la jupe) du disque (q, rayon) : segment horizontal de l'axe du bassin (à la
+## hauteur de q) jusqu'au bord extérieur de la jambe (q + rayon, vers l'extérieur) ; s'il coupe la paroi déformée de la jupe
+## (triangles réels), la longueur au-delà de la paroi est la traversée. -1 si q est sous l'ourlet ou au-dessus de la taille.
+func _marge(q: Vector3, rayon: float, anneaux: Array, axe: Vector3) -> float:
+	var A := Vector3(axe.x, q.y, axe.z)
+	var dirh := Vector3(q.x - A.x, 0, q.z - A.z)
+	if dirh.length() < 1e-4:
+		return -1.0
+	var Q := q + dirh.normalized() * rayon
+	var bas := 1e9
+	var haut := -1e9
+	var ybas := 0.0
+	for p: Vector3 in anneaux[anneaux.size() - 1]:
+		ybas += p.y
+	bas = ybas / anneaux[anneaux.size() - 1].size() + 0.03     # sous l'ourlet (+3 cm) : la jambe sort normalement de la robe
+	for p: Vector3 in anneaux[0]:
+		haut = maxf(haut, p.y)
+	if q.y < bas or q.y > haut:
+		return -1.0
+	var pire := -1.0
+	var L := A.distance_to(Q)
+	for a in anneaux.size() - 1:
+		var R0: Array = anneaux[a]
+		var R1: Array = anneaux[a + 1]
+		for i in R0.size():
+			var j := (i + 1) % R0.size()
+			for tri in [[R0[i], R0[j], R1[j]], [R0[i], R1[j], R1[i]]]:
+				var hit: Variant = Geometry3D.segment_intersects_triangle(A, Q, tri[0], tri[1], tri[2])
+				if hit != null:
+					pire = maxf(pire, L - A.distance_to(hit))
+	return pire
+
+## Volumes du corps (capsules) pour le bâton.
+func _volumes(sq: Skeleton3D) -> Array:
+	var g := func(o: String) -> Vector3: return sq.get_bone_global_pose(sq.find_bone(o)).origin
+	return [[g.call("pelvis"), g.call("neck_01"), 0.12], [g.call("Head") + Vector3(0, 0.02, 0), g.call("Head") + Vector3(0, 0.14, 0), 0.085],
+		[g.call("thigh_l"), g.call("calf_l"), 0.07], [g.call("thigh_r"), g.call("calf_r"), 0.07], [g.call("calf_l"), g.call("foot_l"), 0.05], [g.call("calf_r"), g.call("foot_r"), 0.05]]
+
+func _profondeur(p: Vector3, vols: Array) -> float:
+	var pire := 0.0
+	for v: Array in vols:
+		var a: Vector3 = v[0]
+		var ab: Vector3 = v[1] - a
+		var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 1e-6), 0.0, 1.0)
+		pire = maxf(pire, float(v[2]) - p.distance_to(a + ab * t))
+	return pire
+
+func _lancer() -> void:
+	var t0 := Time.get_ticks_usec()
+	var g := MageNordique.creer({})
+	var dt := (Time.get_ticks_usec() - t0) / 1000.0
+	root.add_child(g)
+	var h := Humain.creer({"corps": "homme", "tenue": {"tunique": Color.WHITE}})
+	root.add_child(h)
+	var sq := g.find_child("Skeleton3D", true, false) as Skeleton3D
+	var sqh := h.find_child("Skeleton3D", true, false) as Skeleton3D
+	var memes := sq.get_bone_count() == sqh.get_bone_count()
+	for i in sqh.get_bone_count():
+		memes = memes and sq.get_bone_name(i) == sqh.get_bone_name(i)
+	ok(memes, "mêmes os que Humain.creer (%d)" % sq.get_bone_count())
+	var ap := g.get_node_or_null("Animations") as AnimationPlayer
+	var manque := []
+	for a in ANIMS:
+		if ap == null or not ap.has_animation(a):
+			manque.append(a)
+	ok(manque.is_empty(), "AnimationPlayer « Animations » et clips %s (absents : %s) ; creer %.0f ms" % [ANIMS, manque, dt])
+	var tris := _tris(g)
+	ok(tris <= BUDGET, "%d triangles visibles (<= %d)" % [tris, BUDGET])
+	var surfaces := 0
+	for mi: MeshInstance3D in g.find_children("*", "MeshInstance3D", true, false):
+		if mi.is_visible_in_tree():
+			surfaces += mi.mesh.get_surface_count()
+	ok(surfaces <= SURFACES_MAX, "%d surfaces visibles (<= %d)" % [surfaces, SURFACES_MAX])
+	var non_ps1 := []
+	var emissif := false
+	for mi: MeshInstance3D in g.find_children("*", "MeshInstance3D", true, false):
+		if not mi.is_visible_in_tree():
+			continue
+		for s in mi.mesh.get_surface_count():
+			var m: Material = mi.get_active_material(s)
+			if not (m is ShaderMaterial) or not ((m as ShaderMaterial).shader.code.contains("grille")):
+				non_ps1.append("%s/%d" % [mi.name, s])
+			elif m == MageNordique.materiau_cristal():
+				var e: Color = (m as ShaderMaterial).get_shader_parameter("emission")
+				emissif = e.get_luminance() > 0.1 and maxf(e.r, maxf(e.g, e.b)) <= 1.0
+	ok(non_ps1.is_empty(), "toutes les surfaces passent par un shader PS1 à accroche (%s)" % [non_ps1])
+	ok(emissif, "cristal du bâton légèrement émissif (émission <= 1, pas de halo)")
+	var tun := sqh.get_node("tunique") as MeshInstance3D
+	ok((tun.material_override as ShaderMaterial).shader != GuerrierNordique.SHADER, "Humain.creer (PNJ) non modifié")
+	# jupe
+	var jupe := sq.get_node_or_null("jupe") as MageJupe
+	ok(jupe != null and jupe.repos.size() == MageNordique.ANNEAUX.size(), "jupe modelée dynamique : %d anneaux de %d secteurs" % [MageNordique.ANNEAUX.size(), MageNordique.SECTEURS])
+	for clip in CLIPS_JUPE:
+		var r := _jupe_clip(sq, ap, clip, jupe)
+		var tol := TRAVERSEE_JUPE_COURSE if clip in ["Jog_Fwd", "Sprint"] else TRAVERSEE_JUPE
+		ok(r.x < tol and r.y < ECART_OURLET, "%s : jambe hors de la jupe de %.3f m au pire (< %.3f ; -1 = jamais), ourlet à %.2f m de l'axe au plus (< %.2f)%s" % [clip, r.x, tol, r.y, ECART_OURLET, "" if r.x < tol else " [" + diag + "]"])
+	var t1 := Time.get_ticks_usec()
+	for i in 100:
+		jupe.mettre_a_jour()
+	print("INFO   jupe recalculée en %.3f ms (moyenne sur 100)" % ((Time.get_ticks_usec() - t1) / 100000.0))
+	# bâton
+	var m: Array = sq.get_meta("baton")
+	for clip in ["Idle", "Walk", "Jog_Fwd", "Sprint", "Spell_Simple_Enter", "Spell_Simple_Shoot", "Hit_Chest"]:
+		ap.play(clip)
+		var lg := ap.get_animation(clip).length
+		var pire := 0.0
+		for k in 12:
+			ap.seek(lg * k / 12.0, true)
+			var tr: Transform3D = sq.get_bone_global_pose(m[0]) * sq.get_bone_global_rest(m[0]).affine_inverse() * m[1]
+			var vols := _volumes(sq)
+			for y in [-0.8, -0.6, -0.4, -0.2, 0.3, 0.6, 0.9]:
+				pire = maxf(pire, _profondeur(tr * Vector3(0, y, 0), vols))
+		ok(pire < 0.06, "%s : traversée max du bâton %.3f m (< 0,06)" % [clip, pire])
+	var rd := Ragdoll.equiper(g) as Ragdoll
+	ok(rd != null and rd.os.size() == 16, "ragdoll : %d os physiques" % (rd.os.size() if rd else 0))
+	print("TEST MAGE : %s (%d échecs)" % ["OK" if echecs == 0 else "ÉCHEC", echecs])
+	quit(echecs)
+
