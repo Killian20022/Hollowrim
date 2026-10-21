@@ -58,7 +58,7 @@ void fragment() {
 		if (dot(nf, n) < 0.0) {
 			nf = -nf;
 		}
-		n = normalize(mix(n, nf, 0.7));
+		n = normalize(mix(n, nf, 0.45));  // facettes adoucies : arêtes lisibles sans « papier froissé »
 	}
 	float alt = wp.y - niveau0;
 	float dist = length(wp - CAMERA_POSITION_WORLD);
@@ -70,21 +70,25 @@ void fragment() {
 	float nc = vnoise(vec2(wp.x * 0.8 + wp.z, wp.y * 1.5) * 0.13) * fin;
 	float strie = vnoise(vec2((wp.x * 0.7 + wp.z) * 0.05, wp.y * 0.006));  // couloirs verticaux
 
-	// --- neige : altitude, pente douce ; les couloirs gardent la neige dans les pentes raides
+	// --- neige (2e passe « lumière ») : la roche domine les pentes raides ; la neige tient sur les replats et les
+	// épaules, et descend en COULÉES et COULOIRS étroits dans les faces raides ; au-dessus de la ligne de neige seulement
 	float ligne = 110.0 + (nb - 0.5) * 70.0;
 	float neige_alt = smoothstep(ligne - 40.0, ligne + 25.0, alt);
-	float sol_pente = smoothstep(0.20 + na * 0.18, 0.42 + na * 0.2, pente);
-	float couloir = smoothstep(0.60, 0.66, strie) * 0.9 * smoothstep(70.0, 110.0, alt);
+	float sol_pente = smoothstep(0.14 + na * 0.10, 0.26 + na * 0.12, pente);       // 1 = trop raide pour tenir
+	float couloir = smoothstep(0.58, 0.63, strie) * smoothstep(70.0, 130.0, alt);  // coulées verticales
+	float coulee = smoothstep(0.62, 0.70, vnoise(vec2((wp.x * 0.7 + wp.z) * 0.11, wp.y * 0.02))) * 0.8;
 	if (cat > 3.5 && cat < 4.5) {
 		neige_alt = smoothstep(0.78, 0.95, n.y) * 0.9;  // falaise : roche nue, neige sur les replats seulement
 		sol_pente = 0.0;
 		couloir = 0.0;
+		coulee = 0.0;
 	}
-	float neige = clamp(neige_alt * (1.0 - sol_pente) + neige_alt * sol_pente * couloir, 0.0, 1.0);
+	float neige = clamp(neige_alt * ((1.0 - sol_pente) + sol_pente * max(couloir, coulee * fin)), 0.0, 1.0);
+	neige = step(0.5, neige + (nc - 0.25) * 0.3);   // bord franc (pixel art), découpé par le bruit fin
 
-	// --- matières
+	// --- matières : roche gris-bleu sombre en strates, neige blanc-gris bleuté
 	float strates = 0.5 + 0.5 * sin(wp.y * 0.55 + na * 5.0 + nc * 2.0);
-	vec3 roche = mix(vec3(0.045, 0.055, 0.075), vec3(0.14, 0.155, 0.185), clamp(na * 0.8 + strates * 0.3 + nc * 0.3, 0.0, 1.0));
+	vec3 roche = mix(vec3(0.028, 0.033, 0.048), vec3(0.085, 0.098, 0.13), clamp(na * 0.7 + strates * 0.3 + nc * 0.3, 0.0, 1.0));
 	vec3 neige_c = mix(vec3(0.46, 0.51, 0.62), vec3(0.66, 0.71, 0.80), nb);  // blanc-gris bleuté (référence), jamais blanc pur
 	vec3 foret = mix(vec3(0.022, 0.05, 0.05), vec3(0.06, 0.10, 0.08), clamp(vc.g * 0.8 + nc * 0.5, 0.0, 1.0));
 	vec3 albedo;
@@ -93,26 +97,26 @@ void fragment() {
 		f = smoothstep(0.35, 0.6, f + (na - 0.5) * 0.3);
 		albedo = mix(roche, neige_c, neige);
 		albedo = mix(albedo, foret, f * (1.0 - neige * 0.7));
-		// lisières claires : un peu de neige sur les sapins
 		albedo = mix(albedo, neige_c * 0.7, f * neige_alt * 0.25);
 	} else if (cat < 1.5) {
 		albedo = mix(foret, neige_c * 0.55, clamp(neige_alt * 0.5 + vc.g * 0.12, 0.0, 1.0) * (0.4 + 0.6 * n.y));
 	} else if (cat < 2.5) {
+		// château : pierre sombre (silhouette sur le ciel), neige sur les dessus seulement
 		float pierre = h21(floor(vec2(wp.x + wp.z, wp.y * 2.0) * 0.45));
-		albedo = mix(vec3(0.09, 0.10, 0.125), vec3(0.20, 0.21, 0.24), pierre);
-		albedo = mix(albedo, neige_c * 0.95, smoothstep(0.7, 0.95, n.y) * 0.85);
+		albedo = mix(vec3(0.030, 0.033, 0.045), vec3(0.075, 0.080, 0.100), pierre);
+		albedo = mix(albedo, neige_c * 0.8, smoothstep(0.8, 0.95, n.y) * 0.85);
 	} else {
 		albedo = vec3(0.56, 0.70, 0.84) * (0.85 + 0.15 * nb);  // glace
 	}
 
-	// --- éclairage
+	// --- éclairage par face orientée vers l'astre : faces au soleil claires, faces à l'ombre sombres et froides
 	float diff = max(dot(n, normalize(dir_lum)), 0.0);
-	float ciel = 0.65 + 0.35 * n.y;
-	// château et falaise : pierre sombre en silhouette (référence), la lumière rasante ne les délave pas
-	float lum_dir = (cat > 1.5 && cat < 4.5) ? 0.45 : 0.9;
-	vec3 col = albedo * (ambiant * ciel * 1.6 + col_lum * diff * lum_dir);
+	diff = floor(diff * 4.0 + 0.5) / 4.0;   // paliers : arêtes nettes entre face éclairée et face à l'ombre
+	float ciel = 0.55 + 0.45 * n.y;
+	float lum_dir = (cat > 1.5 && cat < 4.5) ? 0.35 : 0.85;
+	vec3 col = albedo * (ambiant * ciel * 1.05 + col_lum * diff * lum_dir);
 	if (cat > 4.5) {
-		col = mix(col, vec3(1.6, 0.9, 0.4), 0.9 * (1.0 - jour));  // fenêtre allumée la nuit
+		col = mix(col, vec3(1.6, 0.9, 0.4), 0.95 * (1.0 - jour));  // fenêtre allumée au crépuscule et la nuit
 		albedo = vec3(0.1);
 	}
 
@@ -120,12 +124,12 @@ void fragment() {
 	// < 1 000 m, lointain) a son voile, presque constant, avec un saut net d'une couche à l'autre ; une nappe de
 	// brume claire noie le pied de chaque plan (vallées) : les silhouettes se détachent l'une derrière l'autre.
 	float couche = smoothstep(380.0, 520.0, dist) + smoothstep(900.0, 1150.0, dist);
-	float hd = mix(0.22, 0.55, couche * 0.5) + 0.20 * smoothstep(1150.0, 2400.0, dist);
+	float hd = mix(0.18, 0.48, couche * 0.5) + 0.27 * smoothstep(1150.0, 2400.0, dist);  // le plan le plus lointain est le plus pâle
 	float pied = 30.0 + 45.0 * couche;   // hauteur de la nappe, plus haute au loin
 	float hb = (1.0 - smoothstep(pied * 0.25, pied, alt + (nb - 0.5) * 18.0)) * 0.85;
 	float haze = 1.0 - (1.0 - hd) * (1.0 - hb);
 	if (cat > 1.5) {
-		haze *= 0.6;  // château et falaise : plus contrastés que le relief qui les entoure
+		haze *= (cat > 4.5) ? 0.25 : 0.45;  // château et falaise : silhouette sombre sur le ciel ; fenêtres nettes
 	}
 	vec3 dv = wp - CAMERA_POSITION_WORLD;
 	vec2 dh = normalize(dv.xz + vec2(0.0001));
@@ -133,7 +137,7 @@ void fragment() {
 	vec3 hz = mix(horizon, horizon_chaud, crep * az);   // = couleur_horizon(dir) du cycle : aucun raccord avec le ciel
 	vec3 brume = mix(hz, haut, 0.18 * smoothstep(10.0, 160.0, alt));
 	// crépuscule : seulement les cimes enneigées côté couchant se dorent
-	float cime = smoothstep(60.0, 150.0, alt);
+	float cime = smoothstep(60.0, 150.0, alt) * ((cat > 1.5 && cat < 4.5) ? 0.0 : 1.0);  // pas sur le château
 	col += neige * cime * crep * az * az * (0.3 + 0.7 * diff) * vec3(0.55, 0.36, 0.17) * (1.0 - haze);
 	col = mix(col, brume, haze);
 	ALBEDO = col;

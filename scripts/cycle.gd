@@ -115,6 +115,11 @@ func _process(_dt: float) -> void:
 	var h := heure
 	var j := _clarte_a(h)
 	var crep := _lueur_a(h)
+	# aube (refonte « lumière », 2e passe) : dès 5 h le ciel s'éclaircit en bleu-gris et une lueur rose-orange pâle monte
+	# à l'est ; `jc` éclaircit ciel / ambiant / brume sans toucher à clarte() (vitrages, PNJ)
+	var aube := smoothstep(4.8, 6.0, h) * (1.0 - smoothstep(8.6, 10.4, h))
+	crep = maxf(crep, 0.5 * aube * (1.0 - smoothstep(7.4, 9.2, h)))
+	var jc := maxf(j, 0.3 * aube)
 	_j = j
 	_crep = crep
 
@@ -141,21 +146,21 @@ func _process(_dt: float) -> void:
 		energie = 0.75 * e_lune
 		lumiere.light_color = Color(0.62, 0.72, 1.0)
 		_dir_h = Vector2(vers_astre.x, vers_astre.z).normalized()
-		if e_lune < 0.999:
+		if e_lune < 0.999 or aube > 0.01:
 			_dir_h = soleil_h  # la lueur du ciel reste du côté du soleil jusqu'à la nuit noire
 	lumiere.basis = Basis.looking_at(-vers_astre, Vector3.UP)
 	lumiere.light_energy = energie
 
-	var base_a: Color = NUIT["ambiant"].lerp(JOUR["ambiant"], j).lerp(CREPUSCULE["ambiant"], crep)
+	var base_a: Color = NUIT["ambiant"].lerp(JOUR["ambiant"], jc).lerp(CREPUSCULE["ambiant"], crep)
 	env.ambient_light_color = base_a
-	env.ambient_light_energy = lerpf(lerpf(NUIT["ambiant_e"], JOUR["ambiant_e"], j), CREPUSCULE["ambiant_e"], crep)
-	env.tonemap_exposure = lerpf(lerpf(NUIT["expo"], JOUR["expo"], j), CREPUSCULE["expo"], crep)
+	env.ambient_light_energy = lerpf(lerpf(NUIT["ambiant_e"], JOUR["ambiant_e"], jc), CREPUSCULE["ambiant_e"], crep)
+	env.tonemap_exposure = lerpf(lerpf(NUIT["expo"], JOUR["expo"], jc), CREPUSCULE["expo"], crep)
 	# le glow ne garde que les vraies sources (flammes, fenêtres) : seuil haut en plein jour, la neige éclairée ne bave pas
-	env.glow_hdr_threshold = lerpf(lerpf(NUIT["glow"], JOUR["glow"], j), CREPUSCULE["glow"], crep)
-	_froid = NUIT["froid"].lerp(JOUR["froid"], j).lerp(CREPUSCULE["froid"], crep)
+	env.glow_hdr_threshold = lerpf(lerpf(NUIT["glow"], JOUR["glow"], jc), CREPUSCULE["glow"], crep)
+	_froid = NUIT["froid"].lerp(JOUR["froid"], jc).lerp(CREPUSCULE["froid"], crep)
 	_chaud = _froid.lerp(CREPUSCULE["chaud"], crep)
-	_haut = NUIT["haut"].lerp(JOUR["haut"], j).lerp(CREPUSCULE["haut"], crep)
-	_fin_base = lerpf(lerpf(NUIT["fin"], JOUR["fin"], j), CREPUSCULE["fin"], crep)
+	_haut = NUIT["haut"].lerp(JOUR["haut"], jc).lerp(CREPUSCULE["haut"], crep)
+	_fin_base = lerpf(lerpf(NUIT["fin"], JOUR["fin"], jc), CREPUSCULE["fin"], crep)
 	_horizon = _froid
 	appliquer_brume()
 	ciel.set_shader_parameter("horizon_courant", _froid)
@@ -163,9 +168,9 @@ func _process(_dt: float) -> void:
 	ciel.set_shader_parameter("haut_courant", _haut)
 	ciel.set_shader_parameter("dir_astre", Vector3(_dir_h.x, 0.0, _dir_h.y))
 	ciel.set_shader_parameter("crep", crep)
-	ciel.set_shader_parameter("jour", j)
+	ciel.set_shader_parameter("jour", jc)
 	ciel.set_shader_parameter("soleil", 1.0 if est_soleil else 0.0)
-	_etalonner(j, crep)
+	_etalonner(jc, crep)
 	_regler_neige_objets(_dt)
 
 ## Étalonnage global du post-traitement (nuit ↔ jour ↔ crépuscule).

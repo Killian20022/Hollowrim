@@ -419,14 +419,15 @@ func _falaise(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray,
 	for k in cotes:
 		_tri(p, n, c, haut[k], haut[(k + 1) % cotes], cm, Vector3.UP, col)
 
-## Petits carrés allumés (visibles la nuit seulement) sur la face tournée vers le sud-est de `centre`.
+## Carrés allumés (crépuscule et nuit) sur la face tournée vers le sud-est de `centre`.
 func _fenetre_sur(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray, centre: Vector3, largeur: float, col: Color) -> void:
 	var vue := Vector3(centre.x, 0.0, centre.z).normalized()
 	var lat := Vector3(-vue.z, 0.0, vue.x)
 	var f := centre - vue * (largeur * 0.52)
 	for k in 2:
 		var o := f + lat * (-largeur * 0.22 + k * largeur * 0.44)
-		_quad(p, n, c, o - lat * 0.9, o + lat * 0.9, o + lat * 0.9 + Vector3.UP * 2.6, o - lat * 0.9 + Vector3.UP * 2.6, col)
+		# 4 x 5 m : 2 à 3 pixels à 600 m en 640x360 (l'ancienne 1,8 x 2,6 m tombait sous le pixel)
+		_quad(p, n, c, o - lat * 2.0, o + lat * 2.0, o + lat * 2.0 + Vector3.UP * 5.0, o - lat * 2.0 + Vector3.UP * 5.0, col)
 
 ## Pont en arche entre deux têtes de falaise : tablier, arche (anneau) et tympans pleins.
 func _pont(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray, a: Vector3, b: Vector3, col: Color) -> void:
