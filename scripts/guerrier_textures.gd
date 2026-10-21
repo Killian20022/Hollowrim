@@ -8,13 +8,16 @@ class_name GuerrierTextures
 
 # palettes (sombre -> clair)
 const MAILLE := ["#14171e", "#252a35", "#3b4250", "#56606f", "#7c8696", "#b0b8c4"]
-const CUIR := ["#1a130e", "#2f2118", "#463325", "#614a34", "#7f6446", "#9e825e"]
+const CUIR := ["#1a130e", "#2f2118", "#463325", "#614a34", "#7f6446", "#9e825e", "#b89d76"]   # 6 = arête usée, couture
 const CUIR_SOMBRE := ["#100c0b", "#1d1613", "#2c221c", "#3f3228", "#544537"]
-const FOUR := ["#1c1d22", "#383a40", "#5b5c60", "#838482", "#aeaca4", "#d3d0c4"]
+const FOUR := ["#1d1b19", "#38342f", "#575049", "#787066", "#9a9083", "#bab0a0"]   # gris-brun (référence), moins blanc
 const LAINE_BLEUE := ["#0f1422", "#1a2439", "#283855", "#384d74", "#4c6490", "#687fa8"]
 const LAINE_GRISE := ["#17171c", "#25252b", "#35343a", "#47454a", "#5b585b"]
 const BANDE := ["#2c2a29", "#423e3a", "#57524b", "#6d675d"]   # bandes molletières (laine écrue)
 const BOIS := ["#16110d", "#271e17", "#3a2d22", "#4f3f30", "#665341", "#7f6a54"]
+## bois du bouclier : brun-gris usé, délavé par la neige (sombre -> clair)
+const BOIS_GRIS := ["#1d1712", "#33291f", "#4a3d30", "#625142", "#7b6853", "#958169", "#ae9a7f"]
+const PEINT_DELAVE := ["#77736a", "#959083", "#b2ac9c", "#cbc4b1"]
 const PEINT_BLEU := ["#141b2b", "#1f2b44", "#2c3d5e", "#3e5276", "#566c90"]
 const PEINT_CREME := ["#5c5546", "#807864", "#a39a84", "#c4bba3"]
 const FER := ["#0d0e12", "#1b1d23", "#2e313a", "#474b56", "#6c717d", "#9da2ac", "#c9ccd2"]
@@ -81,7 +84,7 @@ static func mips_pixel(img: Image) -> Image:
 ## Précalcul (outils/generer_guerrier.gd) : images mipmappées dans DOSSIER/<clé>.res ; VERSION à incrémenter après toute
 ## modification d'un dessin (un .res d'une autre version est ignoré : recalcul au lancement, jamais d'image fausse).
 const DOSSIER := "res://assets/personnages/guerrier"
-const VERSION := 1
+const VERSION := 2
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -120,6 +123,7 @@ static func tex(nom: String, args := []) -> ImageTexture:
 				"cape": img = cape()
 				"cheveux": img = cheveux()
 				"accessoires": img = accessoires()
+				"decoupes": img = decoupes()
 				_: push_error("GuerrierTextures : texture inconnue " + nom)
 			mips = mips_pixel(img)
 			sauver(cle, mips)
@@ -140,6 +144,37 @@ static func _rivet(img: Image, x: int, y: int) -> void:
 	_p(img, x + 1, y, _c(FER, 3))
 	_p(img, x, y + 1, _c(FER, 2))
 	_p(img, x + 1, y + 1, _c(CUIR, 0))
+
+
+## Ton de cuir usé (index CUIR) : grain, plaques frottées plus claires, crasse dans les creux (jamais de damier).
+static func _ton_cuir(x: int, y: int, W: int, H: int, base: float, g: int) -> int:
+	var l := base + (_n(x, y, W, H, 10, 6, g) - 0.5) * 0.35 + (_n(x, y, W, H, 40, 20, g + 1) - 0.5) * 0.12
+	var t := _ton(l, 5, x, y, g + 2, 0.35) + 1
+	if _n(x, y, W, H, 7, 5, g + 3) > 0.66:
+		t += 1                                  # frottement
+	if _n(x, y, W, H, 18, 9, g + 4) < 0.22:
+		t -= 1                                  # crasse
+	return clampi(t, 1, 5)
+
+## Éraflures : courts traits clairs en diagonale, liseré sombre dessous.
+static func _eraflures(img: Image, r: Rect2i, nombre: int, g: int) -> void:
+	for k in nombre:
+		var x := r.position.x + int(_h(k, 0, g) * r.size.x)
+		var y := r.position.y + int(_h(k, 1, g) * r.size.y)
+		var lg := 3 + int(_h(k, 2, g) * 4.0)
+		var sx := 1 if _h(k, 3, g) > 0.5 else -1
+		for i in lg:
+			var yy := y + i / 2
+			if yy >= r.end.y:
+				break
+			_p(img, x + i * sx, yy, _c(CUIR, 5))
+			_p(img, x + i * sx, yy + 1, _c(CUIR, 1))
+
+## Image d'origine recopiée dans une région d'atlas (décalage en texels, u bouclé).
+static func _copier(dst: Image, r: Rect2i, src: Image, ox: int, oy: int) -> void:
+	for y in r.size.y:
+		for x in r.size.x:
+			dst.set_pixel(r.position.x + x, r.position.y + y, src.get_pixel(posmod(x + ox, src.get_width()), clampi(y + oy, 0, src.get_height() - 1)))
 
 # ------------------------------------------------------------------ cotte de mailles (UV de la tunique, 256 x 128)
 ## Anneaux en quinconce de 4 x 3 texels (3 cm) : dessus éclairé, trou sombre, dessous ombré ; plis larges, crasse vers l'ourlet,
@@ -195,22 +230,26 @@ static func plastron(v0: float, v1: float) -> Image:
 	var y1 := int(v1 * H)
 	for y in H:
 		for x in W:
-			var l := 0.50 + (_n(x, y, W, H, 10, 6, 821) - 0.5) * 0.35 + (_n(x, y, W, H, 40, 20, 822) - 0.5) * 0.12
-			# frottement : clair au milieu des panneaux
-			var t := _ton(l, 5, x, y, 823, 0.35) + 1
-			_p(img, x, y, _c(CUIR, t))
+			_p(img, x, y, _c(CUIR, _ton_cuir(x, y, W, H, 0.50, 821)))
+	_eraflures(img, Rect2i(0, y0 + 5, W, maxi(1, y1 - y0 - 10)), 70, 826)
 	# coutures verticales : devant (u = 0 -> x = 0), flancs (u = +-0.12 -> x = +-31), dos (x = 128)
 	for xs: int in [0, 31, W - 31, 77, W - 77]:
 		for y in range(y0, y1 + 1):
 			_p(img, xs, y, _c(CUIR, 0))
 			_p(img, xs + 1, y, _c(CUIR, 4))
-			if y % 3 == 0:
-				_p(img, xs - 1, y, _c(CUIR, 5))
+			if y % 3 != 2:
+				_p(img, xs - 2, y, _c(CUIR, 6))         # piqûre claire
 	# bandes de bord (haut et bas) : 4 rangées sombres, rivets tous les 6 texels
 	for x in W:
 		for k in 4:
 			_p(img, x, y0 + k, _c(CUIR_SOMBRE, 2 + (1 if k == 1 else 0)))
 			_p(img, x, y1 - k, _c(CUIR_SOMBRE, 2 + (1 if k == 2 else 0)))
+		# arête usée (le cuir épais blanchit sur les bords) et piqûre le long des bandes
+		_p(img, x, y0, _c(CUIR, 5 if _h(x, 0, 827) > 0.35 else 4))
+		_p(img, x, y1, _c(CUIR, 5 if _h(x, 1, 827) > 0.35 else 4))
+		if x % 4 < 2:
+			_p(img, x, y0 + 6, _c(CUIR, 6))
+			_p(img, x, y1 - 6, _c(CUIR, 6))
 		_p(img, x, y0 + 4, _c(CUIR, 0))             # ombre portée sous la bande
 		_p(img, x, y1 - 4, _c(CUIR, 4))             # arête éclairée au-dessus de la bande du bas
 		if x % 6 == 2:
@@ -236,8 +275,8 @@ static func pantalon() -> Image:
 			var sg := 0.05 if ((x + y) & 3) < 2 else -0.04
 			var l := 0.48 + sg + (_n(x, y, W, H, 14, 3, 831) - 0.5) * 0.35
 			var c := _c(LAINE_GRISE, _ton(l, 5, x, y, 832))
-			# bandes molletières : de 4 à 40 cm au-dessus de l'ourlet, bandes de 5 texels en diagonale, bord sombre
-			if vy >= 4 and vy < 52:
+			# bandes molletières de laine écrue (de 4 à 66 cm au-dessus de l'ourlet) sous des lanières de cuir CROISÉES
+			if vy >= 4 and vy < 84:
 				var d := posmod(x + vy * 2, 12)
 				if d < 9:
 					var t := 1 + (1 if d > 1 and d < 6 else 0)
@@ -247,6 +286,16 @@ static func pantalon() -> Image:
 					c = _c(BANDE, t)
 				else:
 					c = _c(LAINE_GRISE, 1)
+				# lanières : deux familles de diagonales (pas de 22 texels), 3 texels de large, bords sombres, arête claire
+				for sens: int in [1, -1]:
+					var e := posmod(x + sens * vy, 22)
+					if e < 4:
+						var tc: int = [0, 5, 3, 0][e]
+						if e == 2 and _h(x, y, 834) > 0.7:
+							tc = 4
+						if _n(x, y, W, H, 12, 6, 835) > 0.7 and e == 1:
+							tc = 6                      # usure claire
+						c = _c(CUIR, tc)
 			_p(img, x, y, c)
 	return img
 
@@ -259,8 +308,7 @@ static func bottes() -> Image:
 	for y in H:
 		var vy := H - 1 - y           # hauteur depuis la semelle (texels)
 		for x in W:
-			var l := 0.45 + (_n(x, y, W, H, 8, 8, 841) - 0.5) * 0.4
-			var c := _c(CUIR, _ton(l, 5, x, y, 842) + 1)
+			var c := _c(CUIR, _ton_cuir(x, y, W, H, 0.45, 841))
 			if vy < 3:
 				c = _c(CUIR_SOMBRE, 1 + (1 if vy == 2 else 0))
 			elif vy < 5:
@@ -310,13 +358,14 @@ static func brassards() -> Image:
 	var img := _img(W, H)
 	for y in H:
 		for x in W:
-			var l := 0.5 + (_n(x, y, W, H, 8, 4, 861) - 0.5) * 0.45
-			var c := _c(CUIR, _ton(l, 5, x, y, 862))
+			var c := _c(CUIR, _ton_cuir(x, y, W, H, 0.42, 861) - 1)
 			# rainures verticales (lanières cousues)
 			if x % 8 == 0:
 				c = _c(CUIR, 0)
 			elif x % 8 == 1:
-				c = _c(CUIR, 4)
+				c = _c(CUIR, 5 if _h(x, y, 863) > 0.5 else 4)
+			elif x % 8 == 4 and y % 3 != 0:
+				c = _c(CUIR, 6)                          # piqûre
 			_p(img, x, y, c)
 	# bandes de fer : rangées 0-3 et 60-63 en v (bords du brassard selon les UV du lot 4 : poignet et coude)
 	for x in W:
@@ -442,23 +491,36 @@ static func cheveux() -> Image:
 			_p(img, x, y, _c(CHEVEUX, _ton(l, 5, x, y, 903, 0.4)))
 	return img
 
-# ------------------------------------------------------------------ atlas des accessoires (256 x 128)
+# ------------------------------------------------------------------ atlas des accessoires (256 x 256)
 ## Régions (texels) :
-##   (0,0,128,128)   face du bouclier : planches verticales, joints, veinure, peinture bleue usée + croix crème, clous du cerclage
-##   (128,0,32,32)   fer (cerclage, boucle, garde) : bandes de tons, rivets, rouille
-##   (160,0,32,32)   umbo : dôme de fer, reflet
+##   (0,0,128,128)   face du bouclier : 5 planches verticales lisibles, joints sombres, bois brun-gris usé, croix délavée, clous
+##   (128,0,32,32)   fer (cerclage, garde) : bandes de tons, rivets, rouille
+##   (160,0,32,32)   umbo : dôme de fer éclairé en haut à gauche
 ##   (192,0,16,64)   lame : arête claire, gouttière sombre
 ##   (208,0,16,32)   poignée de cuir tressé
 ##   (224,0,16,32)   tresses de cheveux
-##   (128,32,64,64)  dos du bouclier : bois brut sombre, sangles de cuir
+##   (224,32,16,8)   œil (blanc, iris clair, pupille, paupière)
+##   (240,0,16,64)   baudrier : cuir, arêtes usées, piqûre, rivets
+##   (128,32,64,64)  dos du bouclier : bois brut, sangles de cuir
+##   (192,64,32,32)  anneau ouvragé (boucle de ceinture, fibule)
+##   (0,128,136,64)  plastron (UV de la tunique : x = u*256 + 68, y = (v - 0,203125)*128)
+##   (0,192,136,16)  large ceinture (x = u*256 + 68, y = (v - 0,698) / 0,302 * 16)
 const R_FACE := Rect2i(0, 0, 128, 128)
 const R_FER := Rect2i(128, 0, 32, 32)
 const R_UMBO := Rect2i(160, 0, 32, 32)
 const R_LAME := Rect2i(192, 0, 16, 64)
 const R_POIGNEE := Rect2i(208, 0, 16, 32)
 const R_TRESSE := Rect2i(224, 0, 16, 32)
+const R_OEIL := Rect2i(224, 32, 16, 8)
+const R_BAUD := Rect2i(240, 0, 16, 64)
 const R_DOS := Rect2i(128, 32, 64, 64)
-const ATLAS := Vector2i(256, 128)
+const R_ANNEAU := Rect2i(192, 64, 32, 32)
+const R_PLASTRON := Rect2i(0, 128, 136, 64)
+const R_CEINT := Rect2i(0, 192, 136, 16)
+const ATLAS := Vector2i(256, 256)
+## bornes des UV du plastron et de la ceinture dans l'atlas
+const PL_U0 := 68
+const PL_V0 := 26           # texels (0,203125 x 128)
 
 static func accessoires() -> Image:
 	var img := _img(ATLAS.x, ATLAS.y, _c(FER, 2))
@@ -468,8 +530,37 @@ static func accessoires() -> Image:
 	_lame(img)
 	_poignee(img)
 	_tresse(img)
+	_oeil(img)
+	_baudrier(img)
 	_dos_bouclier(img)
+	_anneau(img)
+	var pl := _plastron_atlas()
+	_copier(img, R_PLASTRON, pl, -PL_U0, PL_V0)
+	_ceinture_atlas(img)
 	return img
+
+## Plastron peint dans les UV de la tunique (bornes en v mesurées sur le maillage : 0,217 - 0,668).
+static func _plastron_atlas() -> Image:
+	return plastron(0.22, 0.66)
+
+# ------------------------------------------------------------------ atlas des découpes (192 x 128) : cape + mèches
+## (0,0,112,128) cape (x = (u - 0,21875) * 256, y = v * 128) ; (128,0,64,32) mèches de fourrure (4 variantes de 16 x 32).
+const D_CAPE := Rect2i(0, 0, 112, 128)
+const D_MECHES := Rect2i(128, 0, 64, 32)
+const DECOUPES := Vector2i(192, 128)
+const CAPE_U0 := 56
+
+static func decoupes() -> Image:
+	var img := _img(DECOUPES.x, DECOUPES.y, Color(0, 0, 0, 0))
+	_copier(img, D_CAPE, cape(), CAPE_U0, 0)
+	var m := meches()
+	img.blit_rect(m, Rect2i(Vector2i.ZERO, m.get_size()), D_MECHES.position)
+	return img
+
+## Bouclier : planches VERTICALES (5, largeurs inégales) lisibles à 4 m : joints sombres de 2 texels + arête claire,
+## veinure longue, nœuds ; bois brun-gris usé ; croix peinte délavée (mêlée au bois, écaillée par grandes plaques
+## et le long des joints) ; crasse vers le bord ; clous du cerclage.
+const PLANCHES := [0, 24, 51, 77, 104, 128]
 
 static func _face_bouclier(img: Image) -> void:
 	var o := R_FACE.position
@@ -480,40 +571,118 @@ static func _face_bouclier(img: Image) -> void:
 			var dx := (x - c0) / c0
 			var dy := (y - c0) / c0
 			var r := sqrt(dx * dx + dy * dy)
-			# planches verticales de 15 texels (12 cm), joint sombre + arête claire
-			var pl := posmod(x + 3, 15)
-			var veine := _n(x, y, n, n, 6, 28, 911 + (x + 3) / 15)
-			var lb := 0.5 + (veine - 0.5) * 0.7 + (_h((x + 3) / 15, 0, 912) - 0.5) * 0.25
-			var bois := _c(BOIS, _ton(lb, 5, x, y, 913, 0.25) + 1)
-			if pl == 0:
-				bois = _c(BOIS, 0)
-			elif pl == 1:
-				bois = _c(BOIS, 4)
-			# peinture : champ bleu, croix crème (bras de 12 texels), anneau bleu sombre au bord
-			var croix := absf(x - c0) < 7.0 or absf(y - c0) < 7.0
-			var peint: Color
-			var lp := 0.55 + (veine - 0.5) * 0.4
-			if r > 0.80:
-				peint = _c(PEINT_BLEU, _ton(lp * 0.7, 5, x, y, 914))
-			elif croix:
-				peint = _c(PEINT_CREME, [0, 2, 2, 3][_ton(lp, 4, x, y, 915)])
-			else:
-				peint = _c(PEINT_BLEU, _ton(lp, 5, x, y, 916) + 1)
-			# usure : la peinture part par plaques (bruit) et le long des joints
-			var usure := _n(x, y, n, n, 9, 9, 917) + (0.25 if pl <= 1 else 0.0) + r * 0.15
-			var c := peint if usure < 0.76 else bois
-			if usure >= 0.72 and usure < 0.76:
-				c = _c(BOIS, 0)                       # bord écaillé sombre
+			var k := 0
+			while k < PLANCHES.size() - 2 and x >= PLANCHES[k + 1]:
+				k += 1
+			var dj: int = x - int(PLANCHES[k])                    # distance au joint gauche de la planche
+			var base := 0.42 + _h(k, 0, 912) * 0.22
+			var veine := _n(x, y, n, n, 10, 3, 911 + k)
+			var fil := (_h(x, k, 918) - 0.5) * 0.18          # fil du bois : colonnes plus ou moins claires
+			var lb := base + (veine - 0.5) * 0.30 + fil
+			var t := clampi(_ton(lb, 5, x, y, 913, 0.2) + 1, 1, 5)
+			if dj == 1 and k > 0:
+				t = 5                                    # arête éclairée à droite du joint
+			# nœud (un par planche)
+			var nx: float = PLANCHES[k] + 6 + _h(k, 1, 919) * (PLANCHES[k + 1] - PLANCHES[k] - 12)
+			var ny: float = 20 + _h(k, 2, 919) * (n - 40)
+			var dn := Vector2((x - nx) * 1.6, (y - ny) * 0.6).length()
+			if dn < 2.5:
+				t = 1 if dn < 1.2 else 2
+			var c := _c(BOIS_GRIS, t)
+			# croix peinte délavée (bras de 13 texels), écaillée par grandes plaques
+			var croix := absf(x - c0) < 6.5 or absf(y - c0) < 6.5
+			if croix and r < 0.9:
+				var usure := _n(x, y, n, n, 5, 5, 917) + _h(x / 3, y / 3, 916) * 0.18
+				if dj <= 2:
+					usure += 0.3
+				if usure < 0.68:
+					c = c.lerp(_c(PEINT_DELAVE, clampi(t - 1, 0, 3)), 0.8)
+				elif usure < 0.72:
+					c = _c(BOIS_GRIS, maxi(t - 1, 1))    # bord écaillé
+			# crasse vers le bord, sous le cerclage
+			if r > 0.84:
+				c = c.darkened(0.18)
+			# joints (2 texels, le plus sombre)
+			if k > 0 and dj == 0:
+				c = _c(BOIS_GRIS, 0)
 			# éclats dans le bois (2 entailles)
-			for e: Vector3 in [Vector3(0.45, -0.35, 0.08), Vector3(-0.55, 0.42, 0.06)]:
+			for e: Vector3 in [Vector3(0.45, -0.35, 0.07), Vector3(-0.55, 0.42, 0.05)]:
 				if Vector2(dx - e.x, (dy - e.y) * 2.5).length() < e.z:
-					c = _c(BOIS, 0)
+					c = _c(BOIS_GRIS, 0)
 			# clous du cerclage
 			if r > 0.86 and r < 0.92:
 				var ang := atan2(dy, dx)
 				if posmod(int(roundf(ang / TAU * 20.0 * 4.0)), 4) == 0:
 					c = _c(FER, 5) if dy < 0.0 else _c(FER, 3)
 			img.set_pixel(o.x + x, o.y + y, c)
+
+## Œil : blanc cassé lumineux, iris clair gris-bleu, pupille, ligne de paupière sombre en haut et coins sombres.
+static func _oeil(img: Image) -> void:
+	var r := R_OEIL
+	for y in r.size.y:
+		for x in r.size.x:
+			var dx := (x - 7.5) / 7.5
+			var dy := (y - 3.5) / 3.5
+			var c := Color("#d9d4c8")
+			if dx * dx + dy * dy > 1.0:
+				c = Color("#3a2a24")
+			var di := Vector2(x - 7.5, (y - 4.0) * 1.2).length()
+			if di < 2.6:
+				c = Color("#8aa2bc") if di > 1.0 else Color("#141418")
+			if y == 0:
+				c = Color("#2a1e1a")
+			img.set_pixel(r.position.x + x, r.position.y + y, c)
+
+## Baudrier : u en travers (0-15), v le long (se répète). Bords sombres, arêtes usées claires, piqûre, rivets.
+static func _baudrier(img: Image) -> void:
+	var r := R_BAUD
+	for y in r.size.y:
+		for x in r.size.x:
+			var t := _ton_cuir(x, y, r.size.x, r.size.y, 0.30, 951) - 1      # cuir sombre : tranche sur le plastron clair
+			if x == 0 or x == r.size.x - 1:
+				t = 0
+			elif x == 1 or x == r.size.x - 2:
+				t = 5 if _h(x, y, 952) > 0.3 else 6
+			elif (x == 3 or x == r.size.x - 4) and y % 3 != 0:
+				t = 6
+			_p(img, r.position.x + x, r.position.y + y, _c(CUIR, t))
+		if y % 16 == 8:
+			_rivet(img, r.position.x + 7, r.position.y + y)
+
+## Large ceinture : cuir épais, bords sombres, arêtes usées, deux piqûres, rivets, plaques frottées.
+static func _ceinture_atlas(img: Image) -> void:
+	var r := R_CEINT
+	for y in r.size.y:
+		for x in r.size.x:
+			var t := _ton_cuir(x, y, r.size.x, r.size.y, 0.44, 961)
+			if y == 0 or y == r.size.y - 1:
+				t = 0
+			elif y == 1 or y == r.size.y - 2:
+				t = 5 if _h(x, y, 962) > 0.3 else 6
+			elif (y == 3 or y == r.size.y - 4) and x % 4 < 2:
+				t = 6
+			_p(img, r.position.x + x, r.position.y + y, _c(CUIR, t))
+	for x in range(5, r.size.x, 9):
+		_rivet(img, r.position.x + x, r.position.y + 7)
+
+## Anneau ouvragé (boucle, fibule) : u = angle (32 texels), v = du bord intérieur (0) au bord extérieur (31) ;
+## entrelacs en chevrons (2 brins), bords sombres, éclairé en haut à gauche.
+static func _anneau(img: Image) -> void:
+	var r := R_ANNEAU
+	for y in r.size.y:
+		for x in r.size.x:
+			var ang := TAU * (x + 0.5) / r.size.x
+			var lum := cos(ang - deg_to_rad(135.0))
+			var d := posmod(x * 2 + absi(y - 16) / 3, 8)
+			var t := 4 if d < 4 else 3
+			if d == 0 or d == 4:
+				t = 1
+			t += int(roundf(lum * 1.2))
+			if y < 3 or y > 28:
+				t = 1
+			elif y == 3 or y == 28:
+				t = 5 if lum > 0.0 else 3
+			img.set_pixel(r.position.x + x, r.position.y + y, _c(FER, clampi(t, 0, 6)))
 
 static func _fer(img: Image, r: Rect2i) -> void:
 	for y in r.size.y:
@@ -534,15 +703,20 @@ static func _umbo(img: Image) -> void:
 	var r := R_UMBO
 	for y in r.size.y:
 		for x in r.size.x:
-			# u = angle autour du dôme, v = du sommet (0) au bord (1)
-			var t := 3 + (1 if x < 12 else 0) - (1 if x > 22 else 0)
-			if y < 6:
-				t += 1
-			if x == 9 and y < 20:
+			# u = angle autour du dôme (0 = droite, sens trigo), v = du sommet (0) au bord (31) ; lumière en haut à gauche
+			var ang := TAU * (x + 0.5) / r.size.x
+			var lum := cos(ang - deg_to_rad(135.0))
+			var t := 3 + int(roundf(lum * 1.6))
+			if y < 5:
+				t = 4
+			if absf(wrapf(ang - deg_to_rad(135.0), -PI, PI)) < 0.35 and y > 6 and y < 16:
 				t = 6                                 # reflet
-			if y > 28:
-				t = 1
-			img.set_pixel(r.position.x + x, r.position.y + y, _c(FER, t))
+			if y > 27:
+				t = 1 if y > 29 else 2                # pied du dôme, dans l'ombre
+			var c := _c(FER, clampi(t, 0, 6))
+			if _n(x, y, r.size.x, r.size.y, 6, 4, 925) > 0.78 and t < 5:
+				c = _c(ROUILLE, 1)
+			img.set_pixel(r.position.x + x, r.position.y + y, c)
 
 static func _lame(img: Image) -> void:
 	var r := R_LAME
@@ -591,7 +765,7 @@ static func _dos_bouclier(img: Image) -> void:
 			var t := _ton(lb, 4, x, y, 942)
 			if pl == 0:
 				t = 0
-			var c := _c(BOIS, t)
+			var c := _c(BOIS_GRIS, t)
 			# sangles de cuir horizontales
 			if (y > 22 and y < 28) or (y > 38 and y < 44):
 				c = _c(CUIR, 2 if (y == 23 or y == 39) else 3)

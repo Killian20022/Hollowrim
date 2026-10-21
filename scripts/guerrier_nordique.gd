@@ -87,17 +87,15 @@ static func creer(options := {}) -> Node3D:
 	_habiller(pieces["tunique"], materiau(GuerrierTextures.tex("mailles")))
 	_habiller(pieces["pantalon"], materiau(GuerrierTextures.tex("pantalon")))
 	_habiller(pieces["bottes"], materiau(GuerrierTextures.tex("bottes")))
-	_habiller(pieces["ceinture"], materiau(GuerrierTextures.tex("ceinture")))
 	_habiller(pieces["brassards"], materiau(GuerrierTextures.tex("brassards")))
 	_habiller(pieces["mante"], materiau(GuerrierTextures.tex("mante")))
-	_habiller(pieces["cape"], materiau(GuerrierTextures.tex("cape"), true, true, false))
 	# sous-couche (corps entier rentré sous l'étoffe) : coupée par défaut (3 768 triangles), les pièces se recouvrent
 	var sc: MeshInstance3D = pieces.get("SuperHero_Male")
 	if sc and not options.get("sous_couche", false):
 		sc.visible = false
-	# peau, yeux, sourcils : mêmes textures (Humain._peau), passées au shader du guerrier (soleil désaturé, ombres froides) ;
-	# contour sur la peau (visage, mains)
-	for nom in ["peau", "Eyes", "Eyebrows"]:
+	# peau et sourcils : mêmes textures (Humain._peau), passées au shader du guerrier ; la PEAU est éclaircie et reçoit un
+	# appoint propre plus fort (le visage reste lisible à 17h30 et à 8 m) ; contour sur la peau (visage, mains)
+	for nom in ["peau", "Eyebrows"]:
 		var mi: MeshInstance3D = pieces.get(nom)
 		if mi == null:
 			continue
@@ -113,19 +111,32 @@ static func creer(options := {}) -> Node3D:
 					m2.set_shader_parameter(p, m.get_shader_parameter(p))
 				if nom == "peau":
 					m2.next_pass = contour()
+					var te: Variant = m.get_shader_parameter("teinte")
+					m2.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * Color(1.22, 1.16, 1.12))
+					m2.set_shader_parameter("appoint", Vector3(0.16, 0.15, 0.17))
+					m2.set_shader_parameter("contour_froid", Vector3(0.20, 0.25, 0.34))
 				Palette.materiaux.append(m2)
 				Palette._appliquer(m2, Palette._ps1_actif)
 				_mats[cle] = m2
 			mi.set_surface_override_material(s, _mats[cle])
-	# allègement (budget) : faces cachées retirées (arrière des globes oculaires, peau sous les manches et les brassards,
-	# couches intérieures des cheveux et de la barbe), sourcils remplacés par rien (1-2 px à 2 m, ombrés par l'arcade)
+	# allègement (budget passe 2 : ~7 000 triangles, 10 surfaces) :
+	#   - yeux Quaternius (544 triangles, 1 surface) remplacés par 2 cartes peintes dans l'atlas des accessoires ;
+	#   - peau sous les manches retirée ; MAINS décimées (regroupement de sommets 1,6 cm), visage gardé ;
+	#   - couches intérieures des cheveux et de la barbe retirées, puis mèches décimées (2,7 cm / 1,5 cm) ;
+	#   - sourcils retirés (1-2 px à 2 m, ombrés par l'arcade).
 	var tete := sq.get_bone_global_rest(sq.find_bone("Head")).origin + Vector3(0, 0.07, 0)
-	_filtrer(pieces.get("Eyes"), func(c: Vector3, n: Vector3) -> bool: return n.z > -0.2)
+	var yeux := _centres_yeux(pieces.get("Eyes"))
+	if pieces.has("Eyes"):
+		pieces["Eyes"].visible = false
 	_filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return absf(c.x) < 0.19 or absf(c.x) > 0.69)
+	# mains : 2,2 cm ; arrière du crâne et nuque (sous les cheveux) : 1,6 cm ; visage intact
+	_decimer(pieces.get("peau"), func(p: Vector3) -> float: return 0.022 if absf(p.x) > 0.5 else (0.016 if p.z < 0.035 else 0.0))
 	if pieces.has("Eyebrows"):
 		pieces["Eyebrows"].visible = false
 	for nom in ["Hair_Long", "Hair_Beard"]:
 		_filtrer(sq.get_node_or_null(nom), func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002)
+	_decimer(sq.get_node_or_null("Hair_Long"), func(p: Vector3) -> float: return 0.027)
+	_decimer(sq.get_node_or_null("Hair_Beard"), func(p: Vector3) -> float: return 0.015)
 	# cheveux et barbe : mèches Quaternius gardées, texture ramenée à la palette (64², au lieu de 2048²)
 	for nom in ["Hair_Long", "Hair_Beard"]:
 		var mi: MeshInstance3D = sq.get_node_or_null(nom)
@@ -133,16 +144,39 @@ static func creer(options := {}) -> Node3D:
 			mi.material_override = materiau(_tex_cheveux(mi), true, false, true, "cheveux_" + nom)
 	_t("matieres", t0)
 	# -- pièces ajoutées
-	_plastron(sq, pieces["tunique"])
+	var plastron := _plastron(sq, pieces["tunique"])
+	# mante ouverte en V sur le devant : la poitrine (plastron, baudrier, fibule) se lit comme sur la référence
+	_filtrer(pieces["mante"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.0 and absf(c.x) < 0.15 + (c.y - 1.30) * 0.25 and c.y < 1.53))
 	_t("plastron", t0)
 	var rest_skin := sq.create_skin_from_rest_transforms()
 	var acc := Accessoires.new(sq)
-	acc.fourrure_bord(pieces["mante"], 1.25, 1.43, 0.10, 0.17, 1.0, 1.7)       # frange des épaules
-	acc.fourrure_surface(pieces["mante"], 1.40, 1.58, 0.07, 0.11, 70)          # touffes sur le dessus
-	acc.fourrure_bord(pieces["mante"], 1.52, 1.66, 0.05, 0.08, -0.6, 1.4)      # col (vers le haut)
+	# plastron, ceinture (élargie) et cape versés dans les 2 surfaces des accessoires (atlas) : 3 surfaces de moins
+	var A := Vector2(GuerrierTextures.ATLAS)
+	acc.integrer(plastron, acc.op, func(uv: Vector2) -> Vector2:
+		return Vector2(uv.x * 256.0 + GuerrierTextures.PL_U0, (uv.y - GuerrierTextures.PL_V0 / 128.0) * 128.0 + GuerrierTextures.R_PLASTRON.position.y) / A)
+	var n0: int = acc.op["v"].size()
+	acc.baudrier(plastron)
+	if chrono:
+		print("GUERRIER baudrier : %d triangles" % ((acc.op["v"].size() - n0) / 3))
+	acc.integrer(pieces["ceinture"], acc.op, func(uv: Vector2) -> Vector2:
+		return Vector2(uv.x * 256.0 + GuerrierTextures.PL_U0, clampf((uv.y - 0.698) / 0.302, 0.0, 1.0) * 15.6 + 0.2 + GuerrierTextures.R_CEINT.position.y) / A,
+		func(p: Vector3, n: Vector3) -> Vector3: return Vector3(p.x, 0.989 + (p.y - 0.989) * 1.55, p.z) + n * 0.006)
+	var D := Vector2(GuerrierTextures.DECOUPES)
+	acc.integrer(pieces["cape"], acc.dec, func(uv: Vector2) -> Vector2:
+		return Vector2(uv.x * 256.0 - GuerrierTextures.CAPE_U0, uv.y * 128.0) / D)
+	for nom in ["ceinture", "cape"]:
+		pieces[nom].visible = false
+	acc.poitrine_libre = true
+	acc.fourrure_bord(pieces["mante"], 1.25, 1.43, 0.12, 0.20, 1.0, 1.7)       # frange des épaules (plus longue)
+	acc.fourrure_surface(pieces["mante"], 1.36, 1.60, 0.08, 0.14, 85)         # touffes sur le dessus et le dos (fournies)
+	acc.fourrure_bord(pieces["mante"], 1.52, 1.66, 0.05, 0.09, -0.6, 1.4)      # col (vers le haut)
+	acc.poitrine_libre = false
 	acc.fourrure_bord(pieces["bottes"], 0.30, 0.45, 0.06, 0.09, 1.0, 1.6)      # revers des bottes
-	acc.boucle(Vector3(0.0, 0.988, 0.135))
+	acc.boucle(Vector3(0.0, 0.988, 0.150), 0.056)
+	acc.fibule(plastron, Vector2(-0.115, 1.405))
+	acc.yeux(yeux)
 	acc.tresses()
+	plastron.visible = false
 	var bouclier: String = options.get("bouclier", "bras")
 	if bouclier != "":
 		acc.bouclier(bouclier)
@@ -180,6 +214,108 @@ static func _filtrer(mi: MeshInstance3D, garder: Callable) -> void:
 	mi.mesh = m
 	if mat:
 		mi.set_surface_override_material(0, mat)
+
+## Décimation par regroupement de sommets : les sommets d'une même case (taille cellule(p) ; 0 = sommet gardé tel quel) et de
+## même orientation dominante sont fusionnés au barycentre, avec la peau d'os du sommet le plus proche du barycentre
+## (pas de fente à l'animation) ; chaque sommet garde ses UV ; triangles dégénérés et doublons retirés.
+static func _decimer(mi: MeshInstance3D, cellule: Callable) -> void:
+	if mi == null:
+		return
+	var a := mi.mesh.surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var nrm: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+	var bones: PackedInt32Array = a[Mesh.ARRAY_BONES]
+	var w: PackedFloat32Array = a[Mesh.ARRAY_WEIGHTS]
+	var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+	var nb := bones.size() / v.size()
+	var groupe := PackedInt32Array()
+	groupe.resize(v.size())
+	var cles := {}
+	var somme := []
+	var membres := []
+	for i in v.size():
+		var c: float = cellule.call(v[i])
+		var cle: Variant
+		if c <= 0.0:
+			cle = i
+		else:
+			var n := nrm[i]
+			var ax := 0 if absf(n.x) >= absf(n.y) and absf(n.x) >= absf(n.z) else (1 if absf(n.y) >= absf(n.z) else 2)
+			var sg := 1 if n[ax] >= 0.0 else 0
+			cle = [Vector3i((v[i] / c).floor()), ax * 2 + sg]
+		if not cles.has(cle):
+			cles[cle] = somme.size()
+			somme.append(Vector3.ZERO)
+			membres.append([])
+		var g: int = cles[cle]
+		groupe[i] = g
+		somme[g] += v[i]
+		membres[g].append(i)
+	var nv := v.duplicate()
+	var nbo := bones.duplicate()
+	var nw := w.duplicate()
+	for g in somme.size():
+		var m: Array = membres[g]
+		if m.size() < 2:
+			continue
+		var centre: Vector3 = somme[g] / m.size()
+		var rep: int = m[0]
+		for i: int in m:
+			if v[i].distance_squared_to(centre) < v[rep].distance_squared_to(centre):
+				rep = i
+		for i: int in m:
+			nv[i] = centre
+			for j in nb:
+				nbo[i * nb + j] = bones[rep * nb + j]
+				nw[i * nb + j] = w[rep * nb + j]
+	var garde := PackedInt32Array()
+	var vus := {}
+	for t in range(0, idx.size(), 3):
+		var g0 := groupe[idx[t]]
+		var g1 := groupe[idx[t + 1]]
+		var g2 := groupe[idx[t + 2]]
+		if g0 == g1 or g1 == g2 or g0 == g2:
+			continue
+		var tri := [g0, g1, g2]
+		tri.sort()
+		if vus.has(tri):
+			continue
+		vus[tri] = true
+		garde.append_array([idx[t], idx[t + 1], idx[t + 2]])
+	a[Mesh.ARRAY_VERTEX] = nv
+	a[Mesh.ARRAY_BONES] = nbo
+	a[Mesh.ARRAY_WEIGHTS] = nw
+	a[Mesh.ARRAY_INDEX] = garde
+	for k in [Mesh.ARRAY_TANGENT, Mesh.ARRAY_COLOR, Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_CUSTOM0, Mesh.ARRAY_CUSTOM1, Mesh.ARRAY_CUSTOM2, Mesh.ARRAY_CUSTOM3]:
+		a[k] = null
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if nb == 8 else 0)
+	var mat := mi.get_surface_override_material(0)
+	mi.mesh = mesh
+	if mat:
+		mi.set_surface_override_material(0, mat)
+
+## Centre (avant) de chaque œil Quaternius au repos : [gauche (+x), droit (-x)], z = avant du globe.
+static func _centres_yeux(mi: MeshInstance3D) -> Array:
+	if mi == null:
+		return [Vector3(0.03, 1.699, 0.078), Vector3(-0.03, 1.699, 0.078)]
+	var v: PackedVector3Array = mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var res := []
+	for cote: float in [1.0, -1.0]:
+		var s := Vector3.ZERO
+		var n := 0
+		var zmax := -1.0
+		for p in v:
+			if p.x * cote > 0.0:
+				s += p
+				n += 1
+				zmax = maxf(zmax, p.z)
+		var c := s / maxi(n, 1)
+		res.append(Vector3(c.x, c.y, zmax))
+	return res
+
+## Bouclier au bras : (hauteur au-dessus de l'avant-bras en m, inclinaison autour de X en °, rotation dans son plan en °).
+static var reglage_bouclier := Vector3(0.13, 15.0, -12.0)   # passe 2 : 0 cm de traversée en course et en sprint (passe 1 : 5,2 cm)
 
 static var chrono := false
 
@@ -235,7 +371,7 @@ static func _tex_cheveux(mi: MeshInstance3D) -> Texture2D:
 ## copiés avec leur peau d'os et gonflés de 1,3 cm le long de la normale. Mêmes UV que la tunique, texture propre.
 const OS_BRAS := ["upperarm_l", "upperarm_r", "lowerarm_l", "lowerarm_r", "clavicle_l", "clavicle_r", "hand_l", "hand_r"]
 
-static func _plastron(sq: Skeleton3D, tunique: MeshInstance3D) -> void:
+static func _plastron(sq: Skeleton3D, tunique: MeshInstance3D) -> MeshInstance3D:
 	var a := tunique.mesh.surface_get_arrays(0)
 	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
 	var nrm: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
@@ -304,7 +440,37 @@ static func _plastron(sq: Skeleton3D, tunique: MeshInstance3D) -> void:
 	mi.skin = tunique.skin
 	sq.add_child(mi)
 	mi.skeleton = NodePath("..")
-	mi.material_override = materiau(GuerrierTextures.tex("plastron", [snappedf(vmin, 0.01), snappedf(vmax, 0.01)]), true)
+	# la tunique perd les triangles recouverts par le plastron, sauf la rangée du bord (pas de fente visible sous l'arête)
+	var bord := {}
+	var cpt := {}
+	for t in range(0, garde.size(), 3):
+		for k in 3:
+			var e := [garde[t + k], garde[t + (k + 1) % 3]]
+			e.sort()
+			cpt[e] = int(cpt.get(e, 0)) + 1
+	for e: Array in cpt:
+		if cpt[e] == 1:
+			bord[v[e[0]].snapped(Vector3.ONE * 0.0005)] = true
+			bord[v[e[1]].snapped(Vector3.ONE * 0.0005)] = true
+	var dedans := {}
+	for t in range(0, garde.size(), 3):
+		var interieur := true
+		for k in 3:
+			if bord.has(v[garde[t + k]].snapped(Vector3.ONE * 0.0005)):
+				interieur = false
+		if interieur:
+			dedans[[garde[t], garde[t + 1], garde[t + 2]]] = true
+	var reste := PackedInt32Array()
+	for t in range(0, idx.size(), 3):
+		if not dedans.has([idx[t], idx[t + 1], idx[t + 2]]):
+			reste.append_array([idx[t], idx[t + 1], idx[t + 2]])
+	a[Mesh.ARRAY_INDEX] = reste
+	for k in [Mesh.ARRAY_TANGENT, Mesh.ARRAY_COLOR, Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_CUSTOM0, Mesh.ARRAY_CUSTOM1, Mesh.ARRAY_CUSTOM2, Mesh.ARRAY_CUSTOM3]:
+		a[k] = null
+	var mt := ArrayMesh.new()
+	mt.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if nb == 8 else 0)
+	tunique.mesh = mt
+	return mi
 
 ## Indice de bind (dans `skin`) de l'os `nom` (les maillages glTF indexent leurs poids par bind, pas par os).
 static func _bind_de(skin: Skin, sq: Skeleton3D, nom: String) -> int:
@@ -410,11 +576,14 @@ class Accessoires:
 		var d := r + cote * larg * 0.5
 		var gb := g + dir * lg
 		var db := d + dir * lg
-		var u0 := variante * 0.25
-		var u1 := u0 + 0.25
+		var R := GuerrierTextures.D_MECHES
+		var D := Vector2(GuerrierTextures.DECOUPES)
+		var u0 := (R.position.x + variante * 16.0) / D.x
+		var u1 := (R.position.x + variante * 16.0 + 16.0) / D.x
+		var v1 := (R.position.y + R.size.y) / D.y
 		var pr := _poids_proche(mi, a, r)
 		var pb := _poids_proche(mi, a, r + dir * lg * 0.6)
-		_quad(dec, g, d, db, gb, Vector2(u0, 0.0), Vector2(u1, 0.0), Vector2(u1, 1.0), Vector2(u0, 1.0), [pr, pr, pb, pb], r - ext * 0.1)
+		_quad(dec, g, d, db, gb, Vector2(u0, 0.0), Vector2(u1, 0.0), Vector2(u1, v1), Vector2(u0, v1), [pr, pr, pb, pb], r - ext * 0.1)
 
 	## Frange de mèches le long des bords libres de `mi` compris entre y0 et y1 : une carte par arête (élargie pour se
 	## recouvrir), pendant vers le bas et vers l'extérieur (`bas` : 1 = vers le bas, négatif = se dresse), longueur lg0-lg1.
@@ -443,7 +612,7 @@ class Accessoires:
 			var p0 := v[i0]
 			var p1 := v[i1]
 			var m := (p0 + p1) * 0.5
-			if m.y < y0 or m.y > y1:
+			if m.y < y0 or m.y > y1 or _poitrine(m):
 				continue
 			var cote := (p1 - p0)
 			var lc := cote.length()
@@ -459,6 +628,12 @@ class Accessoires:
 			var lg := lerpf(lg0, lg1, _h(n))
 			_carte(mi, a, m - dir * 0.012 + ext * 0.004, cote, dir, maxf(lc * elargi, 0.035), lg, n % 4, ext)
 			n += 1
+
+	## Devant de la poitrine laissé dégagé (baudrier, fibule, plastron lisibles comme sur la référence) : la fourrure
+	## reste sur les épaules, le haut du dos et le col.
+	var poitrine_libre := false
+	func _poitrine(p: Vector3) -> bool:
+		return poitrine_libre and p.z > 0.0 and absf(p.x) < 0.11 and p.y < 1.53
 
 	## Touffes posées sur la surface de `mi` (triangles entre y0 et y1) : cartes couchées, dirigées vers le bas et l'extérieur.
 	func fourrure_surface(mi: MeshInstance3D, y0: float, y1: float, lg0: float, lg1: float, nombre: int) -> void:
@@ -478,6 +653,8 @@ class Accessoires:
 			var b1 := _h(k + 1)
 			var b2 := _h(k + 2) * (1.0 - b1)
 			var p := v[idx[t]] * (1.0 - b1 - b2) + v[idx[t + 1]] * b1 + v[idx[t + 2]] * b2
+			if _poitrine(p):
+				continue
 			var n := (nrm[idx[t]] + nrm[idx[t + 1]] + nrm[idx[t + 2]]).normalized()
 			var ext := Vector3(n.x, 0.0, n.z)
 			if ext.length() < 0.05:
@@ -487,25 +664,159 @@ class Accessoires:
 			var cote := ext.cross(Vector3.UP).normalized()
 			_carte(mi, a, p + n * 0.006, cote, dir, lerpf(0.045, 0.07, _h(k + 3)), lerpf(lg0, lg1, _h(k + 4)), k % 4, ext)
 
-	# ------------------------------------------------------------ boucle de ceinture (os pelvis)
-	func boucle(centre: Vector3) -> void:
-		var os_ := sq.find_bone("pelvis")
-		var f := GuerrierTextures.R_FER
+	# ------------------------------------------------------------ pièces existantes versées dans l'atlas
+	## Copie les triangles de `mi` (peau d'os convertie en os du squelette, UV passés par uvmap, sommets par deforme(p, n))
+	## dans la surface `s` (op ou dec). Ordre des sommets et normales lissées d'origine conservés.
+	func integrer(mi: MeshInstance3D, s: Dictionary, uvmap: Callable, deforme := Callable()) -> void:
+		var a := mi.mesh.surface_get_arrays(0)
+		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var nrm: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+		var uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+		var bones: PackedInt32Array = a[Mesh.ARRAY_BONES]
+		var w: PackedFloat32Array = a[Mesh.ARRAY_WEIGHTS]
+		var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+		var nb := bones.size() / v.size()
+		var os_de := {}
+		for i in idx:
+			var p := v[i]
+			if deforme.is_valid():
+				p = deforme.call(p, nrm[i])
+			s["v"].append(p)
+			s["n"].append(nrm[i])
+			s["uv"].append(uvmap.call(uv[i]))
+			var bo := [0, 0, 0, 0]
+			var wo := [0.0, 0.0, 0.0, 0.0]
+			for j in mini(nb, 4):
+				var b := bones[i * nb + j]
+				if not os_de.has(b):
+					os_de[b] = maxi(0, GuerrierNordique._os_de_bind(mi.skin, sq, b))
+				bo[j] = os_de[b]
+				wo[j] = w[i * nb + j]
+			s["b"].append_array(PackedInt32Array(bo))
+			s["w"].append_array(PackedFloat32Array(wo))
+
+	## Point de la surface de `mi` (au repos) sous (x, y), vu de devant (z max) ou de dos (z min) : [point, normale] ou [].
+	func _projeter(mi: MeshInstance3D, x: float, y: float, devant: bool) -> Array:
+		var a := mi.mesh.surface_get_arrays(0)
+		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+		var best: Array = []
+		var bz := -1e9
+		for t in range(0, idx.size(), 3):
+			var p0 := v[idx[t]]
+			var p1 := v[idx[t + 1]]
+			var p2 := v[idx[t + 2]]
+			var d := (p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y)
+			if absf(d) < 1e-9:
+				continue
+			var l1 := ((x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (y - p0.y)) / d
+			var l2 := ((p1.x - p0.x) * (y - p0.y) - (x - p0.x) * (p1.y - p0.y)) / d
+			if l1 < -0.001 or l2 < -0.001 or l1 + l2 > 1.002:
+				continue
+			var p := p0 + (p1 - p0) * l1 + (p2 - p0) * l2
+			var z := p.z if devant else -p.z
+			if z > bz:
+				bz = z
+				var n := (p1 - p0).cross(p2 - p0).normalized()
+				if (n.z < 0.0) == devant:
+					n = -n
+				best = [p, n]
+		return best
+
+	# ------------------------------------------------------------ baudrier (épaule droite -> hanche gauche, devant et dos)
+	func baudrier(plastron: MeshInstance3D) -> void:
+		var a := plastron.mesh.surface_get_arrays(0)
+		var r := GuerrierTextures.R_BAUD
+		var demi := 0.026
+		for devant: bool in [true, false]:
+			var depart := Vector2(-0.17, 1.455)
+			var arrivee := Vector2(0.185, 1.005)
+			var dir := (arrivee - depart).normalized()
+			var perp := Vector2(-dir.y, dir.x)
+			var nseg := 12
+			var prec: Array = []
+			for k in nseg + 1:
+				var c := depart.lerp(arrivee, float(k) / nseg)
+				var bords := []
+				for sg: float in [-1.0, 1.0]:
+					var q := c + perp * demi * sg
+					var pr := _projeter(plastron, q.x, q.y, devant)
+					if pr.is_empty():
+						bords = []
+						break
+					bords.append(pr[0] + pr[1] * 0.007)
+				if bords.is_empty():
+					prec = []
+					continue
+				var vt: float = r.position.y + posmod(k * 5, 60)
+				if not prec.is_empty():
+					var v0: float = prec[2]
+					var v1 := v0 + 5.0
+					var pw0 := _poids_proche(plastron, a, prec[0])
+					var pw1 := _poids_proche(plastron, a, prec[1])
+					var pw2 := _poids_proche(plastron, a, bords[1])
+					var pw3 := _poids_proche(plastron, a, bords[0])
+					var dedans := Vector3(c.x, c.y, -0.5 if devant else 0.5)
+					_quad(op, prec[0], prec[1], bords[1], bords[0], _uva(r.position.x + 0.5, v0), _uva(r.end.x - 0.5, v0),
+						_uva(r.end.x - 0.5, v1), _uva(r.position.x + 0.5, v1), [pw0, pw1, pw2, pw3], dedans)
+				prec = [bords[0], bords[1], vt]
+
+	# ------------------------------------------------------------ disque ouvragé (boucle, fibule)
+	## Disque orienté par `n` : anneau ouvragé (R_ANNEAU), puis dôme central (umbo).
+	func _disque(centre: Vector3, n: Vector3, rayon: float, poids: Variant, cotes := 12) -> void:
+		var x := n.cross(Vector3.UP).normalized()
+		if x.length() < 0.1:
+			x = Vector3.RIGHT
+		var y := x.cross(n).normalized() * -1.0
+		if y.y < 0.0:
+			y = -y
+		var an := GuerrierTextures.R_ANNEAU
 		var u := GuerrierTextures.R_UMBO
-		var n := 10
-		var r0 := 0.036
-		var r1 := 0.026
-		for i in n:
-			var a0 := TAU * i / n
-			var a1 := TAU * (i + 1) / n
-			var e0 := Vector3(cos(a0), sin(a0), 0.0)
-			var e1 := Vector3(cos(a1), sin(a1), 0.0)
-			# anneau plat (fer) puis bossette bombée (umbo)
-			_quad(op, centre + e0 * r1 + Vector3(0, 0, 0.006), centre + e1 * r1 + Vector3(0, 0, 0.006), centre + e1 * r0, centre + e0 * r0,
-				_uva(f.position.x + 4 * i % 32, f.position.y + 2), _uva(f.position.x + 4 * (i + 1) % 32 + 0.01, f.position.y + 2),
-				_uva(f.position.x + 4 * (i + 1) % 32 + 0.01, f.position.y + 12), _uva(f.position.x + 4 * i % 32, f.position.y + 12), os_, centre - Vector3(0, 0, 0.05))
-			_tri(op, [centre + Vector3(0, 0, 0.016), centre + e1 * r1 + Vector3(0, 0, 0.006), centre + e0 * r1 + Vector3(0, 0, 0.006)],
-				[_uva(u.position.x + 16, u.position.y + 2), _uva(u.position.x + 3.2 * (i + 1), u.position.y + 26), _uva(u.position.x + 3.2 * i, u.position.y + 26)], os_, centre - Vector3(0, 0, 0.05))
+		var r1 := rayon * 0.62
+		var dedans := centre - n * 0.05
+		for i in cotes:
+			var a0 := TAU * i / cotes
+			var a1 := TAU * (i + 1) / cotes
+			var e0 := x * cos(a0) + y * sin(a0)
+			var e1 := x * cos(a1) + y * sin(a1)
+			var ux0 := an.position.x + an.size.x * float(i) / cotes
+			var ux1 := an.position.x + an.size.x * float(i + 1) / cotes
+			# anneau : bord extérieur rabattu vers la surface, face plate
+			_quad(op, centre + e0 * r1 + n * 0.008, centre + e1 * r1 + n * 0.008, centre + e1 * rayon + n * 0.004, centre + e0 * rayon + n * 0.004,
+				_uva(ux0, an.position.y + 2), _uva(ux1, an.position.y + 2), _uva(ux1, an.position.y + 29), _uva(ux0, an.position.y + 29), poids, dedans)
+			_quad(op, centre + e0 * rayon + n * 0.004, centre + e1 * rayon + n * 0.004, centre + e1 * rayon * 1.04 - n * 0.003, centre + e0 * rayon * 1.04 - n * 0.003,
+				_uva(ux0, an.position.y + 30), _uva(ux1, an.position.y + 30), _uva(ux1, an.position.y + 31), _uva(ux0, an.position.y + 31), poids, dedans)
+			# dôme
+			var uu0 := u.position.x + 32.0 * i / cotes
+			var uu1 := u.position.x + 32.0 * (i + 1) / cotes
+			_tri(op, [centre + n * (0.008 + rayon * 0.45), centre + e1 * r1 + n * 0.008, centre + e0 * r1 + n * 0.008],
+				[_uva((uu0 + uu1) * 0.5, u.position.y + 1), _uva(uu1, u.position.y + 26), _uva(uu0, u.position.y + 26)], poids if poids is int else [poids[0], poids[1], poids[2]], dedans)
+
+	# ------------------------------------------------------------ grosse boucle de ceinture ronde (os pelvis)
+	func boucle(centre: Vector3, rayon := 0.056) -> void:
+		_disque(centre, Vector3(0, 0, 1), rayon, sq.find_bone("pelvis"))
+
+	# ------------------------------------------------------------ fibule ronde sur l'épaule (posée sur le plastron)
+	func fibule(plastron: MeshInstance3D, xy: Vector2) -> void:
+		var pr := _projeter(plastron, xy.x, xy.y, true)
+		if pr.is_empty():
+			return
+		var a := plastron.mesh.surface_get_arrays(0)
+		var pw := _poids_proche(plastron, a, pr[0])
+		_disque(pr[0] + pr[1] * 0.012, pr[1], 0.034, [pw, pw, pw, pw])
+
+	# ------------------------------------------------------------ yeux : cartes peintes (os Head)
+	func yeux(centres: Array) -> void:
+		var os_ := sq.find_bone("Head")
+		var r := GuerrierTextures.R_OEIL
+		for c: Vector3 in centres:
+			var cote := signf(c.x)
+			var p := Vector3(c.x, c.y, c.z - 0.003)
+			var dx := Vector3(0.0125, 0, 0.004 * cote * -1.0)   # légèrement tournées vers l'extérieur
+			var dy := Vector3(0, 0.0062, 0)
+			_quad(op, p - dx - dy, p + dx - dy, p + dx + dy, p - dx + dy,
+				_uva(r.position.x if cote < 0 else r.end.x, r.end.y), _uva(r.end.x if cote < 0 else r.position.x, r.end.y),
+				_uva(r.end.x if cote < 0 else r.position.x, r.position.y), _uva(r.position.x if cote < 0 else r.end.x, r.position.y), os_, p - Vector3(0, 0, 0.05))
 
 	# ------------------------------------------------------------ tresses de barbe (os Head)
 	func tresses() -> void:
@@ -555,12 +866,13 @@ class Accessoires:
 			# l'avant-bras (normale +Y au repos = vers l'extérieur une fois le bras baissé), haut du bouclier vers le coude.
 			var cx := (rest.origin.x + sq.get_bone_global_rest(sq.find_bone("hand_l")).origin.x) * 0.5
 			var b := Basis(Vector3(0, 0, 1), Vector3(-1, 0, 0), Vector3(0, 1, 0))   # colonnes : x local, y local (haut), z local (face)
-			b = Basis(Vector3.RIGHT, deg_to_rad(28.0)) * b * Basis(Vector3.FORWARD, deg_to_rad(-12.0))
-			tr = Transform3D(b, Vector3(cx, rest.origin.y + 0.09, rest.origin.z + 0.02))
+			var rg: Vector3 = GuerrierNordique.reglage_bouclier
+			b = Basis(Vector3.RIGHT, deg_to_rad(rg.y)) * b * Basis(Vector3.FORWARD, deg_to_rad(rg.z))
+			tr = Transform3D(b, Vector3(cx, rest.origin.y + rg.x, rest.origin.z + 0.02))   # 13 cm au-dessus de l'avant-bras (passe 2 : 9 cm frôlait la cuisse en course)
 		else:
 			tr = Transform3D(Basis(Vector3.UP, PI) * Basis(Vector3.RIGHT, deg_to_rad(8.0)), Vector3(0.0, 1.22, -0.21))
 		sq.set_meta("bouclier", [os_, tr])     # contrôle des traversées (outils/test_guerrier.gd)
-		var n := 16
+		var n := 14
 		var anneaux := [[0.105, 0.030], [0.25, 0.024], [0.375, 0.012]]     # [rayon, z] de la face bombée
 		var fa := GuerrierTextures.R_FACE
 		var fuv := func(p: Vector3) -> Vector2:
@@ -685,5 +997,5 @@ class Accessoires:
 		if s_op >= 0:
 			mi.set_surface_override_material(s_op, GuerrierNordique.materiau(GuerrierTextures.tex("accessoires"), false, false, true))
 		if s_dec >= 0:
-			mi.set_surface_override_material(s_dec, GuerrierNordique.materiau(GuerrierTextures.tex("meches"), true, true, false))
+			mi.set_surface_override_material(s_dec, GuerrierNordique.materiau(GuerrierTextures.tex("decoupes"), true, true, false))
 		return mi

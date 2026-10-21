@@ -4,7 +4,9 @@ extends SceneTree
 ## (Humain.creer garde ses pièces), et traversées grossières bouclier / épée dans le corps sur 6 clips (> 6 cm de profondeur).
 ##   godot --headless --path . --script res://outils/test_guerrier.gd -- --nouvelle
 const ANIMS := ["Idle", "Sword_Idle", "Walk", "Jog_Fwd", "Sword_Attack", "Hit_Chest", "Death01"]
-const BUDGET := 11000
+const BUDGET := 7500
+const SURFACES_MAX := 10
+const DEGAGEMENT_BOUCLIER := 0.02   # traversée max du bouclier dans le corps (passe 1 : 0,052 en course ; passe 2 : 0)
 var echecs := 0
 
 func ok(cond: bool, msg: String) -> void:
@@ -70,6 +72,11 @@ func _lancer() -> void:
 	ok(manque.is_empty(), "AnimationPlayer « Animations » et clips %s (absents : %s) ; creer %.0f ms" % [ANIMS, manque, dt])
 	var tris := _tris(g)
 	ok(tris <= BUDGET, "%d triangles visibles (<= %d)" % [tris, BUDGET])
+	var surfaces := 0
+	for mi: MeshInstance3D in g.find_children("*", "MeshInstance3D", true, false):
+		if mi.is_visible_in_tree():
+			surfaces += mi.mesh.get_surface_count()
+	ok(surfaces <= SURFACES_MAX, "%d surfaces visibles (<= %d)" % [surfaces, SURFACES_MAX])
 	var non_ps1 := []
 	for mi: MeshInstance3D in g.find_children("*", "MeshInstance3D", true, false):
 		if not mi.is_visible_in_tree():
@@ -92,7 +99,7 @@ func _lancer() -> void:
 	var lame := []
 	for k in 6:
 		lame.append(Vector3(0, 0.15 + k * 0.14, 0))
-	for clip in ["Idle", "Sword_Idle", "Walk", "Jog_Fwd", "Sword_Attack", "Hit_Chest"]:
+	for clip in ["Idle", "Sword_Idle", "Walk", "Jog_Fwd", "Sprint", "Sword_Attack", "Hit_Chest"]:
 		ap.play(clip)
 		var lg := ap.get_animation(clip).length
 		var pire_b := 0.0
@@ -104,7 +111,7 @@ func _lancer() -> void:
 				pire_b = maxf(pire_b, _profondeur(p, vols))
 			for p: Vector3 in _points(sq, "epee", lame):
 				pire_e = maxf(pire_e, _profondeur(p, vols))
-		ok(pire_b < 0.06 and pire_e < 0.06, "%s : traversée max bouclier %.3f m, épée %.3f m (< 0,06)" % [clip, pire_b, pire_e])
+		ok(pire_b < DEGAGEMENT_BOUCLIER and pire_e < 0.06, "%s : traversée max bouclier %.3f m (< %.3f), épée %.3f m (< 0,06)" % [clip, pire_b, DEGAGEMENT_BOUCLIER, pire_e])
 	# ragdoll
 	var rd := Ragdoll.equiper(g) as Ragdoll
 	ok(rd != null and rd.os.size() == 16, "ragdoll : %d os physiques" % (rd.os.size() if rd else 0))

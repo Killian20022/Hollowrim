@@ -2,6 +2,7 @@
 // (sommets accrochés à la grille d'écran, mapping affine, texels nets), sans le code du sol, plus :
 //   - mipmaps pixel art (précalculées par vote de couleur : à distance, pas de moiré ni de fondu de teinte) ;
 //   - découpe alpha nette (mèches de fourrure, bords dentelés de la cape) : seuil 0,5, jamais de fondu ;
+//   - liseré froid propre (contour_froid) : silhouette lisible au crépuscule sans toucher l'éclairage de la scène ;
 //   - soleil en partie désaturé et ombres propres froides (sous la lumière orangée du crépuscule, tout ne vire pas au brun) ;
 //     les lumières ponctuelles (torches, feux) gardent leur couleur chaude.
 shader_type spatial;
@@ -20,7 +21,10 @@ uniform float soleil_desat = 0.45;  // part de la couleur du soleil/lune ramené
 uniform vec3 ombre_froide : source_color = vec3(0.30, 0.42, 0.75); // teinte de la face non éclairée par le soleil
 uniform float ombre_force = 0.75;   // intensité de cette teinte, relative à la lumière du soleil
 uniform float rehaut = 0.9;
-uniform vec3 appoint = vec3(0.035, 0.045, 0.07); // lumière propre froide (ciel) : la face à l'ombre ne tombe pas au noir         // rehaut d'arête : liseré de soleil sur la silhouette quand il est à contre-jour
+uniform vec3 appoint = vec3(0.035, 0.045, 0.07); // lumière propre froide (ciel) : la face à l'ombre ne tombe pas au noir
+// liseré froid propre au personnage (toutes heures, indépendant des lumières de la scène) : la silhouette se détache
+// du fond au crépuscule et de nuit. Large fondu (pas de palier qui scintille), proportionnel à l'albédo + un peu de constant.
+uniform vec3 contour_froid = vec3(0.10, 0.13, 0.20);
 instance uniform float eclair = 0.0;
 
 varying vec3 uv_aff;
@@ -46,7 +50,9 @@ void fragment() {
 	ALBEDO = c.rgb * COLOR.rgb * teinte.rgb;
 	ALBEDO = mix(vec3(dot(ALBEDO, vec3(0.3, 0.59, 0.11))), ALBEDO, saturation);
 	ALBEDO = mix(ALBEDO, vec3(1.0, 0.85, 0.8), eclair);
-	EMISSION = emission + ALBEDO * appoint + vec3(0.6, 0.25, 0.2) * eclair;
+	float bord = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
+	EMISSION = emission + ALBEDO * appoint + vec3(0.6, 0.25, 0.2) * eclair
+		+ contour_froid * (ALBEDO * 1.5 + 0.06) * smoothstep(0.45, 0.85, bord);
 	ROUGHNESS = 1.0;
 }
 
