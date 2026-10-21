@@ -122,3 +122,28 @@ static func creer(monde: Node) -> void:
 			mmi.set_meta("details_sol", g)
 			mmi.set_meta("transforms", parts[g])
 	print("Détails du sol : %d cailloux" % total)
+
+## Kit réutilisable (abords du village, plus tard toute la carte) : sème des cailloux à demi enfouis aux positions
+## `points` (x, z), mêmes maillages et matériau que la zone témoin, RNG propre `graine` ; MultiMesh sans ombre ni
+## collision, portée courte. Rien n'est filtré ici : l'appelant choisit des points hors de la piste. Renvoie le nombre posé.
+static func semer(parent: Node, monde: Node, points: Array, graine: int, taille := TAILLE) -> int:
+	if points.is_empty():
+		return 0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = graine
+	var m := Palette.materiau(monde.tex_roche, Vector2.ONE, Color(1.15, 1.15, 1.2), true)
+	var parts: Array[Array] = [[], [], [], []]
+	for p: Vector2 in points:
+		var s := rng.randf_range(taille.x, taille.y) * (1.6 if rng.randf() < 0.1 else 1.0)
+		var y := hauteur_maillage(monde, p.x, p.y) - s * 0.15
+		parts[rng.randi() % 4].append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.6, 0.9), s)), Vector3(p.x, y, p.y)))
+	for g in 4:
+		if parts[g].is_empty():
+			continue
+		var me := mesh_caillou(910 + g, g < 2)
+		me.surface_set_material(0, m)
+		for mmi in Instanciation.repartir(parent, me, parts[g], {"portee": PORTEE, "ombre": false}):
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mmi.set_meta("details_sol", g)
+			mmi.set_meta("transforms", parts[g])
+	return points.size()
