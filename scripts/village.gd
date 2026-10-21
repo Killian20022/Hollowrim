@@ -973,7 +973,12 @@ func _banc(parent: Node3D, pos: Vector3, longueur: float) -> void:
 	for dx in [-0.42, 0.42]:
 		_boite(parent, Vector3(0.1, 0.5, 0.36), Transform3D(Basis(), pos + Vector3(dx * longueur * 0.5 / 0.42 * 0.8, 0.25, 0)), m_poutres)
 
+## Palissade. Visuel (refonte, passe 3 validée par l'utilisateur) : pieux BAS (~1,5 m visibles) taillés en pointe, bois sombre
+## usé, neige sur le haut des pointes, pour voir le village par-dessus. La COLLISION est inchangée : un cylindre de 3,6 m
+## (rayon 0,22) par pieu, même tracé. `--palissade-haute` : ancien visuel (A/B). Les tirages de `rng` sont conservés à
+## l'identique (2 par pieu) pour ne rien décaler dans la suite du village ; la géométrie neuve tire sur un générateur local.
 func _palissade() -> void:
+	var haute := OS.get_cmdline_user_args().has("--palissade-haute")
 	var nombre := int(TAU * RAYON / 0.42)
 	var rondins := MultiMesh.new()
 	rondins.transform_format = MultiMesh.TRANSFORM_3D
@@ -997,6 +1002,13 @@ func _palissade() -> void:
 	pointes.mesh = cone
 	var xf_r: Array[Transform3D] = []
 	var xf_p: Array[Transform3D] = []
+	# pieux bas : 4 variantes taillées, réparties au hasard (générateur local)
+	var loc := RandomNumberGenerator.new()
+	loc.seed = 70313
+	var variantes: Array[ArrayMesh] = []
+	for k in 4:
+		variantes.append(_pieu_taille(loc))
+	var xf_v: Array = [[], [], [], []]
 	var forme := CylinderShape3D.new()
 	forme.radius = 0.22
 	forme.height = 3.6
@@ -1009,29 +1021,108 @@ func _palissade() -> void:
 		var pos := Vector3(sin(a) * RAYON, 0, cos(a) * RAYON)
 		var h := rng.randf_range(3.2, 3.9)
 		var penche := Basis(Vector3(cos(a), 0, -sin(a)), rng.randf_range(-0.03, 0.03))
-		xf_r.append(Transform3D(penche.scaled(Vector3(1, h, 1)), pos + Vector3(0, h * 0.5 - 0.2, 0)))
-		xf_p.append(Transform3D(penche, pos + penche * Vector3(0, h - 0.2 + 0.27, 0)))
+		if haute:
+			xf_r.append(Transform3D(penche.scaled(Vector3(1, h, 1)), pos + Vector3(0, h * 0.5 - 0.2, 0)))
+			xf_p.append(Transform3D(penche, pos + penche * Vector3(0, h - 0.2 + 0.27, 0)))
+		else:
+			# hauteur 0,88-1,12 × la variante (~1,5 m), lacet libre, léger dévers ; jointifs : décalage radial infime
+			var sy := loc.randf_range(0.88, 1.12)
+			var b := Basis(Vector3.UP, loc.randf() * TAU)
+			b = Basis(Vector3(cos(a), 0, -sin(a)), loc.randf_range(-0.035, 0.035)) * Basis(Vector3(sin(a), 0, cos(a)), loc.randf_range(-0.02, 0.02)) * b
+			var pr := pos + Vector3(sin(a), 0, cos(a)) * loc.randf_range(-0.04, 0.04)
+			xf_v[loc.randi() % 4].append(Transform3D(b.scaled(Vector3(1, sy, 1)), pr))
 		var cs := CollisionShape3D.new()
 		cs.shape = forme
 		cs.position = pos + Vector3(0, 1.8, 0)
 		corps.add_child(cs)
-	rondins.instance_count = xf_r.size()
-	pointes.instance_count = xf_p.size()
-	for i in xf_r.size():
-		rondins.set_instance_transform(i, xf_r[i])
-		pointes.set_instance_transform(i, xf_p[i])
-	for mm in [rondins, pointes]:
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		add_child(mmi)
-	_liens_palissade(ouverture)
+	if haute:
+		rondins.instance_count = xf_r.size()
+		pointes.instance_count = xf_p.size()
+		for i in xf_r.size():
+			rondins.set_instance_transform(i, xf_r[i])
+			pointes.set_instance_transform(i, xf_p[i])
+		for mm in [rondins, pointes]:
+			var mmi := MultiMeshInstance3D.new()
+			mmi.multimesh = mm
+			add_child(mmi)
+	else:
+		for k in 4:
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.mesh = variantes[k]
+			mm.instance_count = xf_v[k].size()
+			for i in xf_v[k].size():
+				mm.set_instance_transform(i, xf_v[k][i])
+			var mmi := MultiMeshInstance3D.new()
+			mmi.name = "PieuxBas%d" % k
+			mmi.multimesh = mm
+			add_child(mmi)
+	_liens_palissade(ouverture, [1.0, 2.3] if haute else [0.42, 0.98])
 
-## Liens de corde : deux rubans autour de la palissade (côté intérieur), à 1,0 m et 2,3 m ; coupés à la porte.
-func _liens_palissade(ouverture: float) -> void:
+## Pieu taillé à la hache : fût à 7 pans irréguliers (rayon ~0,17 m, de -0,3 à ~1,15 m), pointe à 4-5 facettes jusqu'à
+## ~1,55 m, pointe un peu décentrée. Couleur de sommet : rgb = usure/occlusion (pied et fentes sombres, arêtes de la taille
+## plus claires), alpha 0 = neige sur le haut de la pointe (bord irrégulier). Faces à plat (taille franche).
+func _pieu_taille(loc: RandomNumberGenerator) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_material(m_palissade)
+	var n := 7
+	var hf := loc.randf_range(1.08, 1.2)                # haut du fût (début de la taille)
+	var hp := hf + loc.randf_range(0.36, 0.46)           # sommet de la pointe
+	var r_bas: Array[float] = []
+	var r_haut: Array[float] = []
+	var ang: Array[float] = []
+	for k in n:
+		ang.append(TAU * (k + loc.randf_range(-0.2, 0.2)) / n)
+		var r := loc.randf_range(0.155, 0.19)
+		r_bas.append(r * 1.04)
+		r_haut.append(r * loc.randf_range(0.93, 1.0))
+	var pointe := Vector3(loc.randf_range(-0.04, 0.04), hp, loc.randf_range(-0.04, 0.04))
+	# taille : chaque pan du haut est biseauté à une hauteur différente (coups de hache), puis converge vers la pointe
+	var bis: Array[float] = []
+	for k in n:
+		bis.append(hf + loc.randf_range(-0.07, 0.05))
+	var neige_h := hp - loc.randf_range(0.17, 0.23)     # au-dessus : neige
+	var ombre_pied := Color(0.55, 0.52, 0.5, 1)
+	for k in n:
+		var k2 := (k + 1) % n
+		var d0 := Vector3(cos(ang[k]), 0, sin(ang[k]))
+		var d1 := Vector3(cos(ang[k2]), 0, sin(ang[k2]))
+		var a0 := d0 * r_bas[k] + Vector3(0, -0.3, 0)
+		var a1 := d1 * r_bas[k2] + Vector3(0, -0.3, 0)
+		var b0 := d0 * r_haut[k] + Vector3(0, bis[k], 0)
+		var b1 := d1 * r_haut[k2] + Vector3(0, bis[k2], 0)
+		var usure := loc.randf_range(0.78, 1.0)          # pans plus ou moins grisés par les intempéries
+		var ch := Color(usure, usure * 0.97, usure * 0.95, 1)
+		var cp := Color(ombre_pied.r * usure, ombre_pied.g * usure, ombre_pied.b * usure, 1)
+		_tri_plat(st, [a0, a1, b1], [cp, cp, ch])
+		_tri_plat(st, [a0, b1, b0], [cp, ch, ch])
+		# pointe : bois frais de la taille un peu plus clair ; neige au-dessus de neige_h (bord découpé par pan)
+		var clair := Color(minf(usure * 1.12, 1.15), usure * 1.05, usure * 0.98, 1)
+		var cb0 := clair
+		var cb1 := clair
+		var nh := neige_h + loc.randf_range(-0.05, 0.04)
+		var m0 := b0.lerp(pointe, clampf((nh - b0.y) / (pointe.y - b0.y), 0.2, 0.8))
+		var m1 := b1.lerp(pointe, clampf((nh + loc.randf_range(-0.04, 0.04) - b1.y) / (pointe.y - b1.y), 0.2, 0.8))
+		var blanc := Color(1, 1, 1, 0)
+		_tri_plat(st, [b0, b1, m1], [cb0, cb1, clair])
+		_tri_plat(st, [b0, m1, m0], [cb0, clair, clair])
+		_tri_plat(st, [m0, m1, pointe], [blanc, blanc, blanc])
+	return st.commit()
+
+func _tri_plat(st: SurfaceTool, p: Array, cols: Array) -> void:
+	var nrm: Vector3 = (p[2] - p[0]).cross(p[1] - p[0]).normalized()
+	for i in 3:
+		st.set_normal(nrm)
+		st.set_color(cols[i])
+		st.add_vertex(p[i])
+
+## Liens de corde : deux rubans autour de la palissade (côté intérieur), aux hauteurs données ; coupés à la porte.
+func _liens_palissade(ouverture: float, hauteurs: Array) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var pas := 96
-	for hy in [1.0, 2.3]:
+	for hy in hauteurs:
 		for i in pas:
 			var a0 := TAU * i / pas
 			var a1 := TAU * (i + 1) / pas
