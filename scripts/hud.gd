@@ -3,7 +3,7 @@ extends Control
 ## Les barres s'effacent quand tout est plein, comme dans Skyrim.
 ## Positions RELATIVES à `size` (écran logique, voir EchelleUi) : juste à 480x270, 640x360 et 960x540.
 ## Tailles des éléments : voir assets/ui/LISEZMOI.md.
-## Captures : --hud-demo (barres, barre d'ennemi et avis affichés), --hud-panneau (panneau Tab ouvert).
+## Captures : --hud-demo (barres et avis affichés), --hud-cible (barre d'ennemi), --hud-panneau (panneau Tab).
 
 const CADRE := preload("res://assets/ui/barre_cadre.svg")
 const BOUSSOLE := preload("res://assets/ui/boussole.svg")
@@ -33,6 +33,7 @@ var _cadre: StyleBoxTexture
 var panneau_ouvert := false
 var quetes: Node = null
 var _demo := false
+var _demo_cible := false
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -47,6 +48,7 @@ func _ready() -> void:
 	EchelleUi.appliquer(self)
 	var args := OS.get_cmdline_user_args()
 	_demo = args.has("--hud-demo")
+	_demo_cible = args.has("--hud-cible")
 	panneau_ouvert = args.has("--hud-panneau")
 	if _demo:
 		avis("Épée : niveau 16")
@@ -90,7 +92,6 @@ func _process(dt: float) -> void:
 	if _demo:
 		_a_vie = 1.0
 		_a_vigueur = 1.0
-		_a_cible = 4.0
 		for a in _avis:
 			a[1] = 4.0
 	_avis = _avis.filter(func(a: Array) -> bool: return a[1] > 0.0)
@@ -142,22 +143,27 @@ func _draw() -> void:
 	draw_texture(RETICULE, Vector2(cx - 2, floorf(size.y * 0.5) - 2), Color(1, 1, 1, 0.7))
 	_barre(Vector2(MARGE, bas), joueur.vie / joueur.vie_max, VIE, _a_vie)
 	_barre(Vector2(size.x - MARGE - 80, bas), joueur.vigueur / joueur.vigueur_max, VIGUEUR, _a_vigueur)
-	for i in _avis.size():
+	for i in (0 if panneau_ouvert else _avis.size()):  # le panneau les masquerait à moitié
 		var alpha := clampf(_avis[i][1], 0.0, 1.0)
 		var pos := Vector2(8, 46 + i * 12)
 		draw_string(_police, pos + Vector2(1, 1), _avis[i][0], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(FOND, alpha))
 		draw_string(_police, pos, _avis[i][0], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(PARCHEMIN, alpha))
+	var a_cible := 0.0  # la barre de l'ennemi prend la place de l'objectif (ils se chevauchaient)
 	if _cible != null and _a_cible > 0.0:
-		_barre(Vector2(cx - 40, 19), _cible.vie / _cible.vie_max, VIE, clampf(_a_cible, 0.0, 1.0))
-	elif _demo:
+		a_cible = clampf(_a_cible, 0.0, 1.0)
+		_barre(Vector2(cx - 40, 19), _cible.vie / _cible.vie_max, VIE, a_cible)
+	elif _demo_cible:
+		a_cible = 1.0
 		_barre(Vector2(cx - 40, 19), 0.6, VIE, 1.0)
 	# objectif de la quête la plus récente, discret sous la boussole
-	if quetes != null and not panneau_ouvert:
+	if quetes != null and not panneau_ouvert and a_cible < 0.98:
 		var obj: Array = quetes.objectifs()
 		if not obj.is_empty():
 			var texte: String = "> " + obj[-1][1]
 			var l := _police.get_string_size(texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
-			_texte(Vector2(roundf(cx - l * 0.5), 27), texte, Color(PARCHEMIN, 0.6))
+			var a := 0.6 * (1.0 - a_cible)
+			draw_string(_police, Vector2(roundf(cx - l * 0.5) + 1, 28), texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(FOND, 1.0 - a_cible))
+			draw_string(_police, Vector2(roundf(cx - l * 0.5), 27), texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(PARCHEMIN, a))
 	if panneau_ouvert:
 		_panneau()
 
@@ -166,10 +172,10 @@ func _texte(pos: Vector2, texte: String, couleur := PARCHEMIN, largeur := -1.0) 
 	draw_string(_police, pos, texte, HORIZONTAL_ALIGNMENT_LEFT, largeur, TAILLE_POLICE, couleur)
 
 ## Panneau du personnage (Tab) : compétences et quêtes à gauche, sac à droite.
-## Centré ; il s'élargit quand l'écran logique est plus grand (360x180 à 480x270, 480x240 à 640x360).
+## Centré ; il s'élargit quand l'écran logique est plus grand (360x180 à 480x270, 440x220 à 640x360).
 func _panneau() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(FOND, 0.45))
-	var t := Vector2(clampf(size.x - 120.0, 360.0, 480.0), clampf(size.y - 120.0, 180.0, 260.0)).floor()
+	var t := Vector2(clampf(size.x - 200.0, 360.0, 440.0), clampf(size.y - 140.0, 180.0, 220.0)).floor()
 	var o := ((size - t) * 0.5).floor()
 	draw_style_box(_cadre, Rect2(o, t))
 	var gx := o.x + 16.0                  # colonne de gauche
