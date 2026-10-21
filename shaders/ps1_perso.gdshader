@@ -18,8 +18,9 @@ uniform float saturation = 1.0;
 uniform bool decoupe = false;
 uniform float soleil_desat = 0.45;  // part de la couleur du soleil/lune ramenée au gris (0 = inchangée)
 uniform vec3 ombre_froide : source_color = vec3(0.30, 0.42, 0.75); // teinte de la face non éclairée par le soleil
-uniform float ombre_force = 0.40;   // intensité de cette teinte, relative à la lumière du soleil
-uniform float rehaut = 0.9;         // rehaut d'arête : liseré de soleil sur la silhouette quand il est à contre-jour
+uniform float ombre_force = 0.75;   // intensité de cette teinte, relative à la lumière du soleil
+uniform float rehaut = 0.9;
+uniform vec3 appoint = vec3(0.035, 0.045, 0.07); // lumière propre froide (ciel) : la face à l'ombre ne tombe pas au noir         // rehaut d'arête : liseré de soleil sur la silhouette quand il est à contre-jour
 instance uniform float eclair = 0.0;
 
 varying vec3 uv_aff;
@@ -45,7 +46,7 @@ void fragment() {
 	ALBEDO = c.rgb * COLOR.rgb * teinte.rgb;
 	ALBEDO = mix(vec3(dot(ALBEDO, vec3(0.3, 0.59, 0.11))), ALBEDO, saturation);
 	ALBEDO = mix(ALBEDO, vec3(1.0, 0.85, 0.8), eclair);
-	EMISSION = emission + vec3(0.6, 0.25, 0.2) * eclair;
+	EMISSION = emission + ALBEDO * appoint + vec3(0.6, 0.25, 0.2) * eclair;
 	ROUGHNESS = 1.0;
 }
 
@@ -60,7 +61,7 @@ void light() {
 		// rehaut d'arête (contre-jour) : bord de silhouette tourné vers le soleil, en palier net (pas de dégradé qui scintille)
 		float bord = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
 		float contre = clamp(dot(LIGHT, -VIEW) * 0.5 + 0.5, 0.0, 1.0);
-		float r = step(0.62, bord) * step(0.0, ndl + 0.25) * contre;
+		float r = step(0.55, bord) * step(0.0, ndl + 0.25) * contre;
 		DIFFUSE_LIGHT += col * r * rehaut * ATTENUATION / PI;
 	}
 	DIFFUSE_LIGHT += clamp(ndl, 0.0, 1.0) * ATTENUATION * col / PI;

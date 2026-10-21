@@ -7,12 +7,12 @@ class_name GuerrierTextures
 ## pas de moiré ni de grouillement à 4-8 m.
 
 # palettes (sombre -> clair)
-const MAILLE := ["#0e1016", "#1b1f28", "#2d333f", "#465061", "#6b7586", "#a3abb8"]
-const CUIR := ["#140e0b", "#261a13", "#3b2a1d", "#55402c", "#73593d", "#927553"]
+const MAILLE := ["#14171e", "#252a35", "#3b4250", "#56606f", "#7c8696", "#b0b8c4"]
+const CUIR := ["#1a130e", "#2f2118", "#463325", "#614a34", "#7f6446", "#9e825e"]
 const CUIR_SOMBRE := ["#100c0b", "#1d1613", "#2c221c", "#3f3228", "#544537"]
 const FOUR := ["#1c1d22", "#383a40", "#5b5c60", "#838482", "#aeaca4", "#d3d0c4"]
-const LAINE_BLEUE := ["#0b0f1b", "#141c30", "#1f2c4a", "#2d4068", "#3f5786", "#5a72a0"]
-const LAINE_GRISE := ["#121216", "#1e1e23", "#2c2b30", "#3c3a3e", "#4f4c4e"]
+const LAINE_BLEUE := ["#0f1422", "#1a2439", "#283855", "#384d74", "#4c6490", "#687fa8"]
+const LAINE_GRISE := ["#17171c", "#25252b", "#35343a", "#47454a", "#5b585b"]
 const BANDE := ["#2c2a29", "#423e3a", "#57524b", "#6d675d"]   # bandes molletières (laine écrue)
 const BOIS := ["#16110d", "#271e17", "#3a2d22", "#4f3f30", "#665341", "#7f6a54"]
 const PEINT_BLEU := ["#141b2b", "#1f2b44", "#2c3d5e", "#3e5276", "#566c90"]
@@ -78,24 +78,52 @@ static func mips_pixel(img: Image) -> Image:
 		data.append_array(n.get_data())
 	return Image.create_from_data(img.get_width(), img.get_height(), true, Image.FORMAT_RGBA8, data)
 
+## Précalcul (outils/generer_guerrier.gd) : images mipmappées dans DOSSIER/<clé>.res ; VERSION à incrémenter après toute
+## modification d'un dessin (un .res d'une autre version est ignoré : recalcul au lancement, jamais d'image fausse).
+const DOSSIER := "res://assets/personnages/guerrier"
+const VERSION := 1
+static var enregistrer := false
+
+static func charger(cle: String) -> Image:
+	var chemin := "%s/%s.res" % [DOSSIER, cle.validate_filename()]
+	if not ResourceLoader.exists(chemin):
+		return null
+	var img := ResourceLoader.load(chemin) as Image
+	if img == null or img.get_meta("version", -1) != VERSION:
+		return null
+	return img
+
+static func sauver(cle: String, img: Image) -> void:
+	if not enregistrer:
+		return
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DOSSIER))
+	img.set_meta("version", VERSION)
+	ResourceSaver.save(img, "%s/%s.res" % [DOSSIER, cle.validate_filename()], ResourceSaver.FLAG_COMPRESS)
+
 static func tex(nom: String, args := []) -> ImageTexture:
-	var cle := nom + str(args)
+	var cle := nom
+	for a in args:
+		cle += "_%s" % str(a)
 	if not _cache.has(cle):
-		var img: Image
-		match nom:
-			"mailles": img = mailles()
-			"plastron": img = plastron(args[0], args[1])
-			"pantalon": img = pantalon()
-			"bottes": img = bottes()
-			"ceinture": img = ceinture()
-			"brassards": img = brassards()
-			"mante": img = mante()
-			"meches": img = meches()
-			"cape": img = cape()
-			"cheveux": img = cheveux()
-			"accessoires": img = accessoires()
-			_: push_error("GuerrierTextures : texture inconnue " + nom)
-		_cache[cle] = ImageTexture.create_from_image(mips_pixel(img))
+		var mips := charger(cle)
+		if mips == null:
+			var img: Image
+			match nom:
+				"mailles": img = mailles()
+				"plastron": img = plastron(args[0], args[1])
+				"pantalon": img = pantalon()
+				"bottes": img = bottes()
+				"ceinture": img = ceinture()
+				"brassards": img = brassards()
+				"mante": img = mante()
+				"meches": img = meches()
+				"cape": img = cape()
+				"cheveux": img = cheveux()
+				"accessoires": img = accessoires()
+				_: push_error("GuerrierTextures : texture inconnue " + nom)
+			mips = mips_pixel(img)
+			sauver(cle, mips)
+		_cache[cle] = ImageTexture.create_from_image(mips)
 	return _cache[cle]
 
 static func vider() -> void:

@@ -203,6 +203,11 @@ static func _tex_cheveux(mi: MeshInstance3D) -> Texture2D:
 	var cle := src.resource_path
 	if _tex_q.has(cle):
 		return _tex_q[cle]
+	var cle_res := "cheveux_q_" + cle.get_file().get_basename()
+	var deja := GuerrierTextures.charger(cle_res)
+	if deja:
+		_tex_q[cle] = ImageTexture.create_from_image(deja)
+		return _tex_q[cle]
 	var img := src.get_image()
 	if img.is_compressed():
 		img.decompress()
@@ -219,7 +224,9 @@ static func _tex_cheveux(mi: MeshInstance3D) -> Texture2D:
 		for x in 64:
 			var l := (img.get_pixel(x, y).get_luminance() - lmin) / maxf(0.01, lmax - lmin)
 			img.set_pixel(x, y, GuerrierTextures._c(GuerrierTextures.CHEVEUX, GuerrierTextures._ton(l, 5, x, y, 951, 0.3)))
-	var t := ImageTexture.create_from_image(GuerrierTextures.mips_pixel(img))
+	var mips := GuerrierTextures.mips_pixel(img)
+	GuerrierTextures.sauver(cle_res, mips)
+	var t := ImageTexture.create_from_image(mips)
 	_tex_q[cle] = t
 	return t
 
@@ -549,9 +556,10 @@ class Accessoires:
 			var cx := (rest.origin.x + sq.get_bone_global_rest(sq.find_bone("hand_l")).origin.x) * 0.5
 			var b := Basis(Vector3(0, 0, 1), Vector3(-1, 0, 0), Vector3(0, 1, 0))   # colonnes : x local, y local (haut), z local (face)
 			b = Basis(Vector3.RIGHT, deg_to_rad(28.0)) * b * Basis(Vector3.FORWARD, deg_to_rad(-12.0))
-			tr = Transform3D(b, Vector3(cx, rest.origin.y + 0.075, rest.origin.z + 0.02))
+			tr = Transform3D(b, Vector3(cx, rest.origin.y + 0.09, rest.origin.z + 0.02))
 		else:
 			tr = Transform3D(Basis(Vector3.UP, PI) * Basis(Vector3.RIGHT, deg_to_rad(8.0)), Vector3(0.0, 1.22, -0.21))
+		sq.set_meta("bouclier", [os_, tr])     # contrôle des traversées (outils/test_guerrier.gd)
 		var n := 16
 		var anneaux := [[0.105, 0.030], [0.25, 0.024], [0.375, 0.012]]     # [rayon, z] de la face bombée
 		var fa := GuerrierTextures.R_FACE
@@ -611,6 +619,7 @@ class Accessoires:
 	func epee() -> void:
 		var os_ := sq.find_bone("hand_r")
 		var tr := sq.get_bone_global_rest(os_) * PRISE
+		sq.set_meta("epee", [os_, tr])
 		var l := GuerrierTextures.R_LAME
 		var f := GuerrierTextures.R_FER
 		# lame : section en losange (4 pans) de la garde (y 0,105) à la pointe (0,88)
