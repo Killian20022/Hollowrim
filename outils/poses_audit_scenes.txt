@@ -1,0 +1,15 @@
+# Audit graphique : une vue par famille de scène, en 640x360 (résolution du jeu), sans les mains.
+foret_17h5 monde 2,-2,60,2 heure=17.5 sans-mains
+foret_10 monde 2,-2,60,2 heure=10 sans-mains
+village_crep monde 32,30,-125,0 heure=17.5 sans-mains
+village_g2_nuit monde 50.28,39.63,-132.3,0 sans-mains
+tumulus_17h5 monde -35.8,-43,205,3 heure=17.5 sans-mains
+grotte_bouche monde 84,-27,-90,-6 heure=17.5 sans-mains
+halle interieur 3.4,0.9,-78,-5 bat=halle sans-mains
+forge interieur -0.9,0.9,-60,-3 bat=forge sans-mains
+dialogue scenario dialogue heure=10
+crypte_arene crypte 0,-65,0,-3 ouvre=s1,s2,s3,secret,herse sans-mains
+crypte_niche crypte 0,-12,-90,0 ouvre=s1,s2,s3,secret,herse sans-mains
+grotte_cristaux grotte 412,0,0,-4 sans-mains
+grotte_lac grotte 214,0,-30,-6 sans-mains
+grotte_camp grotte 304,0,15,-6 sans-mains
