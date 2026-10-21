@@ -148,6 +148,7 @@ func _ready() -> void:
 	_draugrs()
 	_villageois()
 	_chrono("villageois")
+	_guerrier_pilote()
 	_tertre()
 	_chrono("tertre+crypte")
 	_grotte_acces()
@@ -543,6 +544,42 @@ func _villageois() -> void:
 		v.points = points
 		v.position = poste + Vector3(0, 0.05, 0)
 		add_child(v)
+
+# --- guerrier pilote (refonte des personnages) ------------------------------------
+
+## --guerrier-pilote[=x,z,lacet°] : Guerrier nordique pilote (GuerrierNordique) debout en Idle près de l'entrée du village,
+## pour les captures en jeu ; par défaut à 4 m devant la pose commune « entree » (outils/poses_refonte.txt), tourné vers elle.
+## --guerrier-casque : casque à nasal ; --guerrier-anim=Nom : animation (Idle par défaut). Aucun effet sans l'option.
+## Dans un lot --captures : type de vue `pilote d,az°[,cible_y]` (caméra à d m du guerrier, az = 0 de face, 180 de dos)
+## et options de ligne `anim=Nom:t` (pose figée à la fraction t du clip), `decal=m` (caméra décalée sur le côté).
+const PILOTE_DEFAUT := Vector3(24.76, 22.51, -132.3)
+var pilote: Node3D
+
+func _guerrier_pilote() -> void:
+	if not _arguments().has("guerrier-pilote"):
+		return
+	var p := PILOTE_DEFAUT
+	var a: String = _arguments()["guerrier-pilote"]
+	if a != "":
+		var f := a.split_floats(",")
+		p = Vector3(f[0], f[1], f[2] if f.size() > 2 else p.z)
+	pilote = GuerrierNordique.creer({"casque": _arguments().has("guerrier-casque")})
+	add_child(pilote)
+	pilote.global_position = Vector3(p.x, hauteur(p.x, p.y), p.y)
+	pilote.rotation.y = deg_to_rad(p.z)
+	var ap := pilote.get_node("Animations") as AnimationPlayer
+	ap.play(String(_arguments().get("guerrier-anim", "Idle")))
+	if _arguments().has("capture"):
+		_pilote_animer(String(_arguments().get("guerrier-anim", "Idle")), 0.25)
+
+func _pilote_animer(nom: String, t: float) -> void:
+	var ap := pilote.get_node("Animations") as AnimationPlayer
+	if not ap.has_animation(nom):
+		push_error("guerrier pilote : animation inconnue " + nom)
+		return
+	ap.play(nom)
+	ap.seek(ap.get_animation(nom).length * t, true)
+	ap.pause()
 
 # --- le tertre ----------------------------------------------------------------------
 
@@ -1076,7 +1113,7 @@ func _capture() -> void:
 ## --attente= vaut pour la 1re vue ; les suivantes attendent --attente-suite= (20) images.
 ## Les PNG vont dans --sortie=<dossier> (ou à côté du fichier de poses), nommés <nom>.png.
 ## Ordre imposé : monde, puis scénarios, puis crypte, puis grotte (on ne ressort pas du sous-sol).
-## Les options globales (--paisible, --sans-particules, --sans-mains, --attente=) valent pour toutes les vues.
+## Les options globales (--paisible, --sans-particules, --sans-mains, --sans-hud, --attente=) valent pour toutes les vues.
 func _lot_captures(fichier: String) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var texte := FileAccess.get_file_as_string(fichier)
@@ -1086,7 +1123,7 @@ func _lot_captures(fichier: String) -> void:
 		return
 	var sortie: String = _arguments().get("sortie", fichier.get_base_dir())
 	DirAccess.make_dir_recursive_absolute(sortie)
-	var rang := {"monde": 0, "interieur": 0, "scenario": 1, "crypte": 2, "grotte": 3}
+	var rang := {"monde": 0, "interieur": 0, "pilote": 0, "scenario": 1, "crypte": 2, "grotte": 3}
 	var vues: Array = []
 	for ligne in texte.split("\n"):
 		var m := ligne.strip_edges().split(" ", false)
@@ -1104,6 +1141,10 @@ func _lot_captures(fichier: String) -> void:
 	var attente_suite := int(_arguments().get("attente-suite", "20"))
 	var mains_globales := _arguments().has("sans-mains")
 	var torche_masque: int = joueur.mains.torche_lumiere.light_cull_mask
+	if _arguments().has("sans-hud"):   # --sans-hud : ni boussole ni répliques (planches de personnages)
+		hud.visible = false
+		if dialogue:
+			dialogue.visible = false
 	var dessous := ""
 	var t0 := Time.get_ticks_msec()
 	var n := 0
@@ -1113,7 +1154,7 @@ func _lot_captures(fichier: String) -> void:
 		var c := PackedFloat64Array()
 		if type != "scenario":
 			c = String(v["coords"]).split_floats(",")
-		if type == "monde" or type == "scenario" or type == "interieur":
+		if type == "monde" or type == "scenario" or type == "interieur" or type == "pilote":
 			if dessous != "":
 				push_error("--captures : vue monde/scénario « %s » après le sous-sol, ignorée" % v["nom"])
 				continue
@@ -1127,6 +1168,29 @@ func _lot_captures(fichier: String) -> void:
 				joueur.global_position = Vector3(c[0], hauteur(c[0], c[1]) + 0.1, c[1])
 				joueur.rotation.y = deg_to_rad(c[2])
 				joueur.tete.rotation.x = deg_to_rad(c[3]) if c.size() > 3 else 0.0
+				joueur.velocity = Vector3.ZERO
+				_brume_locale(0.0, true)
+			elif type == "pilote":
+				# guerrier pilote : caméra à c[0] m, azimut c[1]° (0 = de face), visant c[2] m au-dessus de ses pieds (1,0 par défaut)
+				if pilote == null:
+					push_error("--captures : vue « pilote » sans --guerrier-pilote")
+					continue
+				if opt.has("anim"):
+					var an := String(opt["anim"]).split(":")
+					_pilote_animer(an[0], float(an[1]) if an.size() > 1 else 0.25)
+				var pp := pilote.global_position
+				var dir := pilote.global_basis.z.rotated(Vector3.UP, deg_to_rad(c[1]))
+				dir.y = 0.0
+				var pos := pp + dir.normalized() * c[0]
+				if opt.has("decal"):     # décalage latéral de la caméra (m) : contrôle de scintillement
+					pos += dir.cross(Vector3.UP).normalized() * float(opt["decal"])
+				pos.y = hauteur(pos.x, pos.z) + 0.1
+				joueur.global_position = pos
+				var vers := pp - pos
+				joueur.rotation.y = atan2(-vers.x, -vers.z)
+				var oeil_y := pos.y + 1.62
+				var cible_y := pp.y + (c[2] if c.size() > 2 else 1.0)
+				joueur.tete.rotation.x = atan2(cible_y - oeil_y, Vector2(vers.x, vers.z).length())
 				joueur.velocity = Vector3.ZERO
 				_brume_locale(0.0, true)
 			elif type == "interieur":

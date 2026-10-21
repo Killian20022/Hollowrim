@@ -1,0 +1,23 @@
+# Guerrier nordique pilote (refonte persos) : vues en jeu. Lancer avec --guerrier-pilote :
+# godot --path . --disable-vsync -- --captures=outils/poses_guerrier.txt --sortie=<dossier> --nouvelle --paisible --sans-particules --attente=200 --res=640x360 --guerrier-pilote
+# pose commune « entree » (outils/poses_refonte.txt) : le guerrier est à 4 m devant, tourné vers la caméra
+entree_17h5 monde 21.80,19.82,-132.3,0.3 heure=17.5 sans-mains
+entree_21 monde 21.80,19.82,-132.3,0.3 heure=21 sans-mains torche-eteinte
+entree_21_torche monde 21.80,19.82,-132.3,0.3 heure=21
+# 2 / 4 / 8 m, face, 3/4, dos, 17h30
+p17_2m_face pilote 2,0 heure=17.5 sans-mains
+p17_2m_34 pilote 2,35 heure=17.5 sans-mains
+p17_2m_dos pilote 2,180 heure=17.5 sans-mains
+p17_4m_face pilote 4,0 heure=17.5 sans-mains
+p17_4m_34 pilote 4,35 heure=17.5 sans-mains
+p17_4m_dos pilote 4,180 heure=17.5 sans-mains
+p17_8m_face pilote 8,0 heure=17.5 sans-mains
+p17_8m_34 pilote 8,35 heure=17.5 sans-mains
+p17_8m_dos pilote 8,180 heure=17.5 sans-mains
+# nuit (21 h) sans et avec torche, 3 m
+p21_3m_34 pilote 3,30 heure=21 sans-mains torche-eteinte
+p21_3m_34_torche pilote 3,30 heure=21
+# scintillement : caméra décalée de 2 cm (3 vues), 4 m, 17h30
+scint_0 pilote 4,25 heure=17.5 sans-mains
+scint_1 pilote 4,25 heure=17.5 sans-mains decal=0.02
+scint_2 pilote 4,25 heure=17.5 sans-mains decal=0.04
