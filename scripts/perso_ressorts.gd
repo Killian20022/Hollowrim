@@ -19,7 +19,7 @@ const CHAINES := {
 	"pan_ar": {"racine": "pan_ar_1", "fin": "pan_ar_1", "longueur": 0.28, "rigidite": 1.2, "frottement": 0.5, "gravite": 2.0, "rayon": 0.015},
 }
 ## accessoire -> chaines
-const PAR_ACCESSOIRE := {"cape_courte": ["cape"], "cape_longue": ["cape"], "capuche": ["capuche"], "tablier": ["pan_av"], "robe": ["pan_av", "pan_ar"]}
+const PAR_ACCESSOIRE := {"cape_courte": ["cape"], "cape_longue": ["cape"], "capuche": ["capuche"], "tablier": ["pan_av"]}      # robe : plus de ressort (panneaux skinnes sur les cuisses, v2)
 
 var simulateur: SpringBoneSimulator3D
 var _actif := true

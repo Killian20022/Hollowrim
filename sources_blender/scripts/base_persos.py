@@ -367,10 +367,18 @@ def pieces_accessoires():
     def niveaux_pan(marge):
         return [(ZH + 0.12, 0.185 + marge, 0.125 + marge), (ZH + 0.00, 0.235 + marge, 0.150 + marge), (zg + 0.14, 0.255 + marge, 0.160 + marge),
                 (zk2, 0.262 + marge, 0.165 + marge)]
-    for nom, arc, os_ in (("avant", (118, 242), "pan_av_1"), ("arriere", (-62, 62), "pan_ar_1")):
-        ws = [{"pelvis": 1}, {"pelvis": 0.6, os_: 0.4}, {os_: 1}, {os_: 1}]
+    def poids_pan(arc):
+        # v2 : panneaux ECRASES SUR LES JAMBES (plus de ressort, plus de plaque qui pend) : hanche = bassin, genou = cuisse du cote ; l'axe central partage les deux cuisses
+        # (la robe s'ouvre entre les jambes a la foulee, comme une fente de robe, au lieu de laisser pendre une plaque vue par la tranche)
+        def cote_de(k):
+            l = lateral(k, 6, arc)
+            return "thigh_l" if l > 0.15 else ("thigh_r" if l < -0.15 else None)
+        return [lambda k: {"pelvis": 1}, lambda k: {"pelvis": 1},
+                lambda k: ({"pelvis": 0.4, cote_de(k): 0.6} if cote_de(k) else {"pelvis": 1}),
+                lambda k: ({cote_de(k): 1} if cote_de(k) else {"thigh_l": 0.5, "thigh_r": 0.5})]
+    for nom, arc in (("avant", (118, 242)), ("arriere", (-62, 62))):
         rg = []
-        for (z, rx, ry), w in zip(niveaux_pan(-0.020), ws):
+        for (z, rx, ry), w in zip(niveaux_pan(-0.020), poids_pan(arc)):
             rg.append(Anneau((0, Y0 - 0.005, z), rx, ry, w))
         tube(p, nom, rg, n=6, kind="sur", debut="aucun", fin="ourlet", arc=arc)
     # 4. capes : collet de fourrure + panneau dorsal sur la chaine cape_1 / cape_2

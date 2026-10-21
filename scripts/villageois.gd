@@ -146,7 +146,7 @@ func _ready() -> void:
 	anim = modele.get_node("Animations")
 	if points.is_empty():
 		points.append(global_position)
-	rotation.y = randf() * TAU
+	rotation.y = deg_to_rad(float(donnees["cap"])) if donnees.has("cap") else randf() * TAU     # "cap" (degrés, 0 = vers +Z) : le forgeron fait face à son enclume
 	_prochaine_promenade = randf_range(8.0, 40.0)
 	_delai_interpelle = randf_range(0.0, 15.0)
 	_var = randf_range(0.93, 1.07)

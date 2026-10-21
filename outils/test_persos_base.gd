@@ -1,7 +1,7 @@
 extends SceneTree
 ## Test des personnages « base unifiee » : fabrique, squelette (RIG18 + os secondaires <= 26), budgets de triangles, animations existantes, atlas,
 ## ressorts (la cape ne traverse jamais le dos ni le bassin pendant une course). Sans fenetre : godot --headless --script res://outils/test_persos_base.gd -- --nouvelle
-const BUDGET_CORPS := 750          # corps + bagues
+const BUDGET_CORPS := 800          # corps + bagues (v2 : 780 = jambes galbees + bottes a bout rond ; v1 : 748)
 const BUDGET_TOTAL := 1500         # le variant le plus charge (corps + tete + coiffure + barbe + accessoires)
 const ANIMS := ["Idle", "Walk", "Sprint", "Sword_Attack", "Sword_Idle", "Fixing_Kneeling", "Interact", "Idle_Talking", "Death01"]
 var echecs := 0
