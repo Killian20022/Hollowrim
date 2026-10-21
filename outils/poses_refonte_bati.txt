@@ -1,0 +1,20 @@
+# Lot « refonte bâti » : entrée du village (pose commune de outils/poses_refonte.txt) + vues des maisons (repère village converti en monde).
+# porte = juste passé le portail, regard vers la halle ; grima / chasseurs = maisons latérales de trois quarts ;
+# palissade = pieux vus du dehors ; toit = gros plan avant-toit de la halle.
+entree_10 monde 21.80,19.82,-132.3,0.3 heure=10 sans-mains
+entree_17h5 monde 21.80,19.82,-132.3,0.3 heure=17.5 sans-mains
+entree_21 monde 21.80,19.82,-132.3,0.3 heure=21 sans-mains
+entree_06 monde 21.80,19.82,-132.3,0.3 heure=6 sans-mains
+porte_10 monde 29.68,29.00,-129.0,2 heure=10 sans-mains
+porte_17h5 monde 29.68,29.00,-129.0,2 heure=17.5 sans-mains
+porte_21 monde 29.68,29.00,-129.0,2 heure=21 sans-mains
+porte_6 monde 29.68,29.00,-129.0,2 heure=6 sans-mains
+grima_17h5 monde 32.84,28.49,-61.7,4 heure=17.5 sans-mains
+grima_21 monde 32.84,28.49,-61.7,4 heure=21 sans-mains
+grima_10 monde 32.84,28.49,-61.7,4 heure=10 sans-mains
+chasseurs_17h5 monde 33.11,34.14,165.6,5 heure=17.5 sans-mains
+chasseurs_10 monde 33.11,34.14,165.6,5 heure=10 sans-mains
+palissade_17h5 monde 20.66,25.53,-168.3,5 heure=17.5 sans-mains
+palissade_10 monde 20.66,25.53,-168.3,5 heure=10 sans-mains
+grima_pres_17h5 monde 40.04,30.98,-6.3,10 heure=17.5 sans-mains
+halle_pres_21 monde 44.87,43.50,-119.8,8 heure=21 sans-mains
