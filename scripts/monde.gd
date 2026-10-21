@@ -138,6 +138,7 @@ func _ready() -> void:
 	Sol.appliquer(mat_terrain, self, arbres)
 	_chrono("carte de sol")
 	DetailsSol.creer(self)  # lot 3 : cailloux du sol (après la carte de sol)
+	if not _arguments().has("sans-abords"): AbordsVillage.creer(self)  # refonte : abords de l'entrée du village (avant le fil des intérieurs ; --sans-abords : A/B)
 	_village()
 	_chrono("village (bati)")
 	_feu_de_camp()

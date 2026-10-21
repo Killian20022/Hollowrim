@@ -202,3 +202,9 @@ func dans_cone_vue(x: float, z: float) -> bool:
 ## Perturbation des bords de plateau : distance au centre modifiée seulement au-delà de BORD_NIVEAU.
 func distance_bruitee(x: float, z: float, d: float, masque: float) -> float:
 	return d + BORD_AMPLITUDE * _bruit_bord.get_noise_2d(x * BORD_FREQ, z * BORD_FREQ) * smoothstep(BORD_NIVEAU, BORD_NIVEAU + 4.0, d) * masque
+
+## Sentier feu → porte du village (hors zone témoin) : [début, porte] en (x, z), même tracé que `monde._pres_du_chemin`.
+## Sert au kit `AbordsVillage` (dalles, lanternes, barrières le long du sentier).
+static func axe_village(monde_: Node) -> PackedVector2Array:
+	var v := Vector2(monde_.VILLAGE.x, monde_.VILLAGE.z)
+	return PackedVector2Array([v.normalized() * (monde_.RAYON_CLAIRIERE - 2.0), v - v.normalized() * 22.0])
