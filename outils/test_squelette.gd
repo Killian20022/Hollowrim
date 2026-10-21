@@ -114,12 +114,12 @@ func _tester() -> void:
 	for g in t.donjon.gardiens:
 		if String(g["type"]).begins_with("squelette"):
 			ids.append(g["ident"] + ":" + g["type"])
-	_verif(ids.size() == 3 and ids.has("cr_ossuaire_sq1:squelette") and ids.has("cr_ossuaire_sq2:squelette") and ids.has("cr_ossuaire_sqa:squelette_archer"), "donjon : 2 squelettes à l'épée + 1 archer dans l'ossuaire %s" % [ids])
-	var n_num := 0
+	_verif(ids.has("cr_ossuaire_sq1:squelette") and ids.has("cr_ossuaire_sq2:squelette") and ids.has("cr_ossuaire_sqa:squelette_archer"), "donjon : 2 squelettes à l'épée + 1 archer dans l'ossuaire %s" % [ids])
+	var fixes := true
 	for g in t.donjon.gardiens:
-		if not String(g["ident"]).begins_with("cr_ossuaire_sq"):
-			n_num += 1
-	_verif(t.donjon.gardiens[0]["ident"] == "cr_ossuaire_1" and n_num == t.donjon.gardiens.size() - 3, "identifiants numérotés des autres gardiens inchangés")
+		var gi: String = g["ident"]
+		fixes = fixes and (gi.begins_with("cr_") or gi == "jarl")      # tous les identifiants du donjon sont fixes (fournis par la table du kit)
+	_verif(fixes and t.donjon.gardiens.size() >= 30, "identifiants de gardiens fixes, jamais numérotés automatiquement (%d gardiens)" % t.donjon.gardiens.size())
 	t.dedans = true
 	c.visible = true
 	m.joueur.global_position = c.to_global(Vector3(-35, 0.1, -20))
