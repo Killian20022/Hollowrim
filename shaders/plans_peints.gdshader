@@ -113,45 +113,50 @@ void fragment() {
 	float el_t = floor(degrees(atan(wp.y - niveau0, rayon)) * TEXEL) + 0.5;
 	float el = el_t / TEXEL;
 
-	// --- profil : pied + pics triangulaires (le plus haut l'emporte) + dentelure de crête
+	// --- profil (6e passe) : pied + grands massifs (pic, sous-sommet, épaule) + crête fractale commune.
+	// Les massifs sont ÉTAGÉS : le plus bas est devant (il chevauche le plus haut), avec un contour sombre.
 	float crete = base_el + dentelure * (0.6 * b1(az_t, 9.0) + 0.4 * b1(az_t, 3.0));
+	float nz = 0.10 * (b1(az_t, 70.0) - 0.5) + 0.05 * (b1(az_t, 23.0) - 0.5) - 0.04 * rid(az_t + 11.0, 15.0)
+		+ 0.05 * rid(az_t, 9.0) + 0.02 * rid(az_t + 5.0, 4.0) + 0.05 * floor(b1(az_t, 17.0) * 3.0) / 3.0;
+	float jz = dentelure * (0.9 * (b1(az_t, 3.0) - 0.5) + 0.5 * (h11(az_t) - 0.5));
 	float pic_el = -1.0;
 	float pic_d = 0.0;      // écart d'azimut au sommet (°), signé
 	float pic_w = 1.0;
 	float pic_az = 0.0;
+	float avant_h = 1e5;    // hauteur du massif de devant retenu
+	int couvrent = 0;       // massifs dont la silhouette couvre ce texel
+	float max_e = -1.0;
+	float max_d = 0.0;
+	float max_w = 1.0;
+	float max_az = 0.0;
 	for (int i = 0; i < 16; i++) {
 		if (i >= nb_pics) {
 			break;
 		}
 		vec4 p = pics[i];
 		float d = wrapd(az - p.x);
-		float w = 1.5 * p.z * (d < 0.0 ? 1.0 - 0.35 * p.w : 1.0 + 0.35 * p.w);   // massifs larges
+		float w = 1.5 * p.z * (d < 0.0 ? 1.0 - 0.35 * p.w : 1.0 + 0.35 * p.w);
 		float e = p.y * (1.0 - abs(d) / w);
-		// épaule : une arête secondaire casse le flanc (deux pentes au lieu d'une)
-		e = max(e, p.y * 0.62 * (1.0 - abs(d - sign(d) * w * 0.45) / (w * 0.55)));
-		// sous-sommet : une seconde pointe franche sur le flanc le plus long
+		e = max(e, p.y * 0.62 * (1.0 - abs(d - sign(d) * w * 0.45) / (w * 0.55)));   // épaule
 		float cs = p.w >= 0.0 ? 1.0 : -1.0;
-		e = max(e, p.y * 0.82 * (1.0 - abs(d - cs * w * 0.42) / (w * 0.3)));
-		if (e > pic_el) {
-			pic_el = e;
-			pic_d = d;
-			pic_w = w;
-			pic_az = p.x;
-			crete = max(crete, e);
+		e = max(e, p.y * 0.82 * (1.0 - abs(d - cs * w * 0.42) / (w * 0.3)));         // sous-sommet
+		float hl = max(e - base_el, 0.0);
+		e += hl * nz + (hl > 0.0 ? jz : 0.0);
+		crete = max(crete, e);
+		if (e > max_e) {
+			max_e = e; max_d = d; max_w = w; max_az = p.x;
+		}
+		if (el <= e && hl > 0.0) {
+			couvrent++;
+			if (p.y < avant_h) {
+				avant_h = p.y; pic_el = e; pic_d = d; pic_w = w; pic_az = p.x;
+			}
 		}
 	}
-	// crête fractale (une fois, après le choix du pic dominant, perf) : ondulations larges, ressauts, encoches,
-	// pointes secondaires, éclats d'un texel ; amplitude relative à la hauteur du pic
-	if (nb_pics > 0 && pic_el >= crete - 0.001) {
-		float hp = max(pic_el - base_el, 1.0);
-		float fi = floor(pic_az) * 37.0;
-		float bruit = hp * (0.12 * (b1(az_t + fi, 70.0) - 0.5) - 0.06 * rid(az_t + fi + 11.0, 15.0) - 0.05 * rid(az_t + fi + 23.0, 6.0)
-			+ 0.06 * (b1(az_t + fi, 23.0) - 0.5) + 0.11 * rid(az_t + fi, 9.0) + 0.05 * rid(az_t + fi + 5.0, 4.0)
-			+ 0.06 * floor(b1(az_t + fi, 17.0) * 3.0) / 3.0)
-			+ dentelure * (0.9 * (b1(az_t + fi, 3.0) - 0.5) + 0.5 * (h11(az_t + fi) - 0.5));
-		pic_el += bruit;
-		crete = max(crete, pic_el);
+	if (couvrent == 0) {
+		pic_el = max_e; pic_d = max_d; pic_w = max_w; pic_az = max_az;
 	}
+	bool contour = couvrent >= 2 && el > pic_el - 1.0 / TEXEL;
 	bool foret = genre >= 1;
 	float sapin = 0.0;
 	if (foret) {
@@ -308,6 +313,9 @@ void fragment() {
 		if (el > crete - 1.0 / TEXEL && face > 0.5) {
 			col *= 1.3;
 		}
+		if (contour) {
+			col *= 0.5;   // massif de devant : contour sombre d'un texel sur celui de derrière
+		}
 		// plafond : la neige lointaine reste rosée / dorée, jamais blanche
 		float lc = dot(col, vec3(0.3, 0.55, 0.15));
 		col *= min(1.0, 0.48 / max(lc, 0.001));
@@ -321,7 +329,7 @@ void fragment() {
 	float v = clamp(voile + 0.35 * pied * (1.0 - voile), 0.0, 0.95);
 	v *= mix(1.0, 0.72, jour);
 	if (ch > 0.5) {
-		v *= 0.6;   // château et falaise : silhouette sombre qui se détache
+		v *= ch > 3.5 ? 0.35 : 0.6;   // château sombre qui se détache ; falaise encore moins voilée (ses sapins ressortent)
 	}   // de jour, le relief se détache mieux des nuages clairs
 	if (ch > 2.5 && ch < 3.5) {
 		v *= 0.3;   // fenêtres : nettes

@@ -20,12 +20,15 @@ var lointain_3d := OS.get_cmdline_user_args().has("--lointain-3d")
 ## pics : [azimut °, sommet °, demi-largeur °, dissymétrie] ; vue de l'entrée : cap ≈ 48°, château à 24° (à droite).
 ## La forêt 3D proche monte jusqu'à ~25-30° d'élévation depuis l'entrée : les sommets peints montent à 30-38°.
 const PLANS := [
-	[2400.0, 0, 0.52, 14.0, 0.35, 5.0, [[50.0, 38.0, 17.0, 0.2], [32.0, 33.0, 13.0, -0.3], [68.0, 32.0, 14.0, 0.4], [12.0, 28.0, 12.0, 0.0], [88.0, 27.0, 13.0, -0.2]]],
-	[1800.0, 0, 0.37, 12.0, 0.30, 11.0, [[43.0, 34.0, 11.0, -0.2], [58.0, 28.0, 9.0, 0.3], [26.0, 25.0, 9.5, 0.2], [78.0, 24.0, 10.0, -0.3]]],
-	[1300.0, 0, 0.25, 10.0, 0.25, 17.0, [[66.0, 24.0, 9.0, 0.3], [20.0, 21.0, 8.0, -0.2], [86.0, 20.0, 8.5, 0.0], [4.0, 18.0, 7.0, 0.3]]],
-	[900.0, 2, 0.24, 9.0, 0.6, 23.0, [[24.0, 13.5, 14.0, 0.0], [70.0, 11.0, 12.0, 0.2]]],
-	[650.0, 1, 0.16, 6.0, 0.8, 29.0, [[80.0, 8.0, 14.0, 0.0]]],
+	# 6e passe : 3 à 5 grands massifs par plan, base large (flancs ~30-40°), ~15 % plus bas en élévation (la forêt proche masque déjà le pied : ~40 % de moins visible) ; un pic élancé au fond
+	[2400.0, 0, 0.52, 12.0, 0.35, 5.0, [[52.0, 32.0, 20.0, 0.2], [30.0, 28.0, 7.0, -0.2], [82.0, 25.0, 14.0, 0.3], [8.0, 24.0, 14.0, 0.0]]],
+	[1800.0, 0, 0.37, 10.5, 0.30, 11.0, [[41.0, 26.0, 16.0, -0.3], [67.0, 23.0, 14.0, 0.3], [17.0, 21.0, 12.0, 0.2]]],
+	[1300.0, 0, 0.25, 9.0, 0.25, 17.0, [[60.0, 20.0, 11.0, 0.3], [27.0, 18.0, 10.0, -0.2], [88.0, 17.0, 9.0, 0.0]]],
+	[900.0, 2, 0.24, 8.0, 0.6, 23.0, [[70.0, 8.5, 12.0, 0.2]]],
+	[650.0, 1, 0.16, 5.5, 0.8, 29.0, [[80.0, 6.0, 14.0, 0.0]]],
 ]
+const CHATEAU_EL := 10.5     # élévation peinte du pied de la falaise du château (°)
+const CHATEAU_ECH := 1.5    # taille du château peint
 var _plans: Array[ShaderMaterial] = []
 const R_MIN := 150.0
 const R_MAX := 2500.0
@@ -528,7 +531,7 @@ func _haut_profil(a: float, d: Array, pics: Array) -> float:
 			f = maxf(f, 0.62 * (1.0 - maxf(dd - 0.45 * w, 0.0) / (0.55 * w)))                      # épaule
 			h = maxf(h, float(p[1]) * f + 0.17 * maxf(float(p[1]) - float(d[3]), 1.0) + 1.5 * float(d[4]))
 	if int(d[1]) == 2 and absf(wrapf(a - CHATEAU_AZIMUT, -180.0, 180.0)) < 16.0:
-		h = maxf(h, 12.0 + 70.0 * 1.7 / 6.0)
+		h = maxf(h, CHATEAU_EL + 70.0 * CHATEAU_ECH / 6.0)
 	return minf(h + 1.5, 60.0)
 
 
@@ -547,21 +550,16 @@ func _creer_plans() -> void:
 		m.set_shader_parameter("dentelure", d[4])
 		m.set_shader_parameter("graine", d[5])
 		m.set_shader_parameter("chateau_az", CHATEAU_AZIMUT)
-		m.set_shader_parameter("chateau_el", 12.0)   # sur la butte peinte à 24°
-		m.set_shader_parameter("chateau_ech", 1.7)
+		m.set_shader_parameter("chateau_el", CHATEAU_EL)
+		m.set_shader_parameter("chateau_ech", CHATEAU_ECH)
 		# pics : ceux de la vue de l'entrée + des pics tirés au hasard sur le reste du tour (hors 0-100°)
 		var pics: Array = (d[6] as Array).duplicate()
 		if d[1] == 0:
-			# 5e passe : pics secondaires de largeurs et de hauteurs très variées qui chevauchent ceux de la vue
-			var hmax: float = d[6][0][1]
-			for k in 5:
-				pics.append([rng.randf_range(-8.0, 100.0), lerpf(float(d[3]) + 3.0, hmax * 0.9, pow(rng.randf(), 0.8)),
-					rng.randf_range(2.5, 11.0), rng.randf_range(-0.6, 0.6)])
 			var a := 110.0
 			while a < 350.0 and pics.size() < 16:
-				var e: float = (d[6][0][1] as float) * rng.randf_range(0.55, 0.9)
-				pics.append([a, e, rng.randf_range(7.0, 13.0), rng.randf_range(-0.4, 0.4)])
-				a += rng.randf_range(22.0, 38.0)
+				var e: float = (d[6][0][1] as float) * rng.randf_range(0.6, 0.85)
+				pics.append([a, e, rng.randf_range(11.0, 17.0), rng.randf_range(-0.4, 0.4)])
+				a += rng.randf_range(30.0, 45.0)
 		var v: Array[Vector4] = []
 		for p in pics:
 			v.append(Vector4(float(p[0]), float(p[1]), float(p[2]), float(p[3])))
