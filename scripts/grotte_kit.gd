@@ -423,12 +423,7 @@ func _gabarits() -> void:
 func _mat(nom: String) -> Material:
 	if _mats.has(nom):
 		return _mats[nom]
-	var m: Material
-	if nom.begins_with("k_"):
-		m = (g.decor.mat("c_" + nom.substr(2)) as Material).duplicate()
-		(m as ShaderMaterial).set_shader_parameter("sol_plat", 0.0)
-	else:
-		m = g.decor.mat(nom)
+	var m: Material = g.decor.mat(nom)   # « k_* » : variante sans sol plat, créée par le décor (pas de duplicate() : lecture serveur bloquante en fil)
 	_mats[nom] = m
 	return m
 

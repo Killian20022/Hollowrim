@@ -96,10 +96,17 @@ func mat(nom: String) -> Material:
 	if _mats.has(nom):
 		return _mats[nom]
 	var m: Material
+	var plat := 1.0
+	var nom_k := nom
+	if nom.begins_with("k_"):          # variante du kit de décor : même matière, sans le « sol plat » (givre sur les dessus)
+		nom = "c_" + nom.substr(2)
+		plat = 0.0
 	if COQUES.has(nom):
 		var d: Array = COQUES[nom]
 		var sm := ShaderMaterial.new()
 		sm.shader = GROTTE_SHADER
+		if plat < 1.0:
+			sm.set_shader_parameter("sol_plat", plat)
 		sm.set_shader_parameter("tex_base", _tex_g(d[0]))
 		if d[1] != "":
 			sm.set_shader_parameter("tex_sup", _tex_g(d[1]))
@@ -166,7 +173,7 @@ func mat(nom: String) -> Material:
 			(m as ShaderMaterial).set_shader_parameter("crasse", 0.0)
 			if nom == "os":
 				(m as ShaderMaterial).set_shader_parameter("teinte", Color(0.5, 0.48, 0.45))     # os assombris (plus de taches blanches)     # pas de bande de crasse (calée sur le sol de la crypte)
-	_mats[nom] = m
+	_mats[nom_k] = m
 	return m
 
 # ------------------------------------------------------------------ facettes colorées
