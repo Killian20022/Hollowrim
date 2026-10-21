@@ -1224,10 +1224,20 @@ func _corniches_zone(z: Dictionary) -> void:
 			var cen: Vector3 = ((TL[k] as Vector3) + (TR[k + 1] as Vector3)) * 0.5
 			decor.facette(nm, TL[k], TL[k + 1], TR[k + 1], cen + Vector3(0, 3.0, 0), [cc, cc, cc], true, TUILE_COQUE, true)
 			decor.facette(nm, TL[k], TR[k + 1], TR[k], cen + Vector3(0, 3.0, 0), [cc, cc, cc], true, TUILE_COQUE, true)
-			decor.facette(nm, TL[k], BL[k], BL[k + 1], cen - R * 3.0, [cs, cs, cs], true, TUILE_COQUE, true)
-			decor.facette(nm, TL[k], BL[k + 1], TL[k + 1], cen - R * 3.0, [cs, cs, cs], true, TUILE_COQUE, true)
-			decor.facette(nm, TR[k], TR[k + 1], BR[k + 1], cen + R * 3.0, [cs, cs, cs], true, TUILE_COQUE, true)
-			decor.facette(nm, TR[k], BR[k + 1], BR[k], cen + R * 3.0, [cs, cs, cs], true, TUILE_COQUE, true)
+			# flancs rocheux : profil à 4 niveaux bombé par le bruit de relief, pied évasé, arête haute givrée
+			for cote: float in [-1.0, 1.0]:
+				var hautA: Vector3 = TL[k] if cote < 0.0 else TR[k]
+				var hautB: Vector3 = TL[k + 1] if cote < 0.0 else TR[k + 1]
+				var basA: Vector3 = BL[k] if cote < 0.0 else BR[k]
+				var basB: Vector3 = BL[k + 1] if cote < 0.0 else BR[k + 1]
+				var colA := _flanc(hautA, basA, R * cote)
+				var colB := _flanc(hautB, basB, R * cote)
+				var ref_f: Vector3 = cen + R * float(cote) * 3.0
+				for m in 3:
+					var ca_ := GrotteDecor.col(lerpf(0.95, 0.6, float(m) / 3.0), mk + (0.45 if m == 0 else 0.0))
+					var cb_ := GrotteDecor.col(lerpf(0.95, 0.6, float(m + 1) / 3.0), mk)
+					decor.facette(nm, colA[m], colA[m + 1], colB[m + 1], ref_f, [ca_, cb_, cb_], true, TUILE_COQUE, true)
+					decor.facette(nm, colA[m], colB[m + 1], colB[m], ref_f, [ca_, cb_, ca_], true, TUILE_COQUE, true)
 		# front vertical (extrémité haute de la dalle)
 		var haut_k := 0 if rampe == "fin" else st.size() - 1
 		var sgn := -1.0 if rampe == "fin" else 1.0
@@ -1236,6 +1246,16 @@ func _corniches_zone(z: Dictionary) -> void:
 		decor.facette(nm, TL[haut_k], BR[haut_k], BL[haut_k], cf + T * sgn * 3.0, [cs, cs, cs], true, TUILE_COQUE, true)
 		u0 = u0
 		u1 = u1
+
+## Profil d'un flanc de corniche : arête haute (exacte : le dessus reste praticable), deux points bombés, pied évasé.
+func _flanc(haut: Vector3, bas: Vector3, dehors: Vector3) -> Array:
+	var res: Array = [haut]
+	for f: float in [0.33, 0.68]:
+		var q := haut.lerp(bas, f)
+		var n := relief(q * 1.7, 2.0)
+		res.append(q + dehors * clampf(0.06 + 0.22 * f + 0.25 * n, 0.0, 0.4))
+	res.append(bas + dehors * 0.2)
+	return res
 
 ## Îlot : tronc de cône octogonal très évasé (pente ≈ 20°), praticable, posé sur le sol de la glace.
 func ilot(id: String, s: float, lat: float, r_haut: float, h: float) -> void:
