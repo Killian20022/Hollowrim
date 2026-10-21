@@ -582,12 +582,12 @@ class AccGardien extends GuerrierNordique.Accessoires:
 		var F := GardienTextures.R_FER_LANCE
 		_tube(op, tr * Vector3(0, 1.0, 0), tr * Vector3(0, 1.075, 0), 0.019, 0.011, 6, os_, Rect2i(F.position.x, F.position.y, F.size.x, 10), 1)
 		# fer en feuille : section en losange, [y, demi-largeur, demi-épaisseur]
-		var sec := [[1.07, 0.012, 0.008], [1.13, 0.034, 0.007], [1.22, 0.026, 0.005], [1.28, 0.012, 0.004]]
-		var pointe := Vector3(0, 1.33, 0)
+		var sec := [[1.07, 0.014, 0.009], [1.14, 0.050, 0.009], [1.25, 0.040, 0.006], [1.34, 0.014, 0.004]]
+		var pointe := Vector3(0, 1.42, 0)
 		for k in sec.size():
 			var A: Array = sec[k]
 			var pa := [Vector3(-A[1], A[0], 0), Vector3(0, A[0], A[2]), Vector3(A[1], A[0], 0), Vector3(0, A[0], -A[2])]
-			var va: float = F.position.y + 10.0 + (F.size.y - 11.0) * (A[0] - 1.07) / 0.26
+			var va: float = F.position.y + 10.0 + (F.size.y - 11.0) * (A[0] - 1.07) / 0.27
 			if k == sec.size() - 1:
 				for i in 4:
 					var u0 := F.position.x + (0.0 if i % 2 == 0 else 8.0)
@@ -595,7 +595,7 @@ class AccGardien extends GuerrierNordique.Accessoires:
 				break
 			var Bs: Array = sec[k + 1]
 			var pb := [Vector3(-Bs[1], Bs[0], 0), Vector3(0, Bs[0], Bs[2]), Vector3(Bs[1], Bs[0], 0), Vector3(0, Bs[0], -Bs[2])]
-			var vb: float = F.position.y + 10.0 + (F.size.y - 11.0) * (Bs[0] - 1.07) / 0.26
+			var vb: float = F.position.y + 10.0 + (F.size.y - 11.0) * (Bs[0] - 1.07) / 0.27
 			for i in 4:
 				var u0 := F.position.x + (0.0 if i % 2 == 0 else 8.0)
 				_quad(op, tr * pa[i], tr * pa[(i + 1) % 4], tr * pb[(i + 1) % 4], tr * pb[i], _uva(u0, va), _uva(u0 + 7.9, va), _uva(u0 + 7.9, vb), _uva(u0, vb), os_, tr * Vector3(0, (A[0] + Bs[0]) * 0.5, 0))

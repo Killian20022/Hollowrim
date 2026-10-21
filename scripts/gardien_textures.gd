@@ -22,7 +22,7 @@ const FRENE := ["#1c140e", "#33251a", "#4b3726", "#654b34", "#7f6146", "#9a7a5a"
 
 # ------------------------------------------------------------------ précalcul (même contrat que GuerrierTextures)
 const DOSSIER := "res://assets/persos/gardien"
-const VERSION := 5
+const VERSION := 6
 static var enregistrer := false
 static var _cache := {}
 
@@ -504,12 +504,12 @@ static func _mechesCol(img: Image) -> void:
 				if not visible:
 					img.set_pixel(x0 + x, r.position.y + y, Color(0, 0, 0, 0))
 					continue
-				var t := 1 + int(f * 3.6) + int(roundf((_h(x, y + k * 24, 3501) - 0.5) * 0.9))
-				if (x + k) % 3 == 0:
+				var t := 2 + int(f * 3.0) + int(roundf((_h(x, y + k * 24, 3501) - 0.5) * 0.9))
+				if (x + k) % 4 == 0:
 					t -= 1                                   # brin sombre
 				elif absf(x - cx) < 1.0:
 					t += 1                                   # arête de la mèche, plus claire
-				if d > demi - 1.0:
+				if d > demi - 0.7:
 					t -= 1                                   # bord dans l'ombre
 				img.set_pixel(x0 + x, r.position.y + y, _c(COL_FOUR, clampi(t, 0, 5)))
 

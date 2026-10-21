@@ -14,6 +14,6 @@ p17_8m_dos pilote 8,180 heure=17.5 sans-mains anim=Idle:0.25
 gros_col_2m pilote 2,-20,1.5 heure=17.5 sans-mains anim=Idle:0.3
 gros_col_1m pilote 1.0,-20,1.5 heure=17.5 sans-mains anim=Idle:0.3
 gros_col_dos_1m pilote 1.0,160,1.5 heure=17.5 sans-mains anim=Idle:0.3
-gros_surcot_2m pilote 2,-55,0.85 heure=17.5 sans-mains anim=Idle:0.3
-gros_surcot_1m pilote 1.2,-55,0.85 heure=17.5 sans-mains anim=Idle:0.3
-gros_surcot_marche pilote 2,-55,0.85 heure=17.5 sans-mains anim=Walk:0.25
+gros_surcot_2m pilote 2,-30,0.85 heure=17.5 sans-mains anim=Idle:0.3
+gros_surcot_1m pilote 1.2,-30,0.8 heure=17.5 sans-mains anim=Idle:0.3
+gros_surcot_marche pilote 2,-30,0.85 heure=17.5 sans-mains anim=Walk:0.25
