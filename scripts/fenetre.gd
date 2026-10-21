@@ -1,6 +1,6 @@
 extends Node
 ## Plein écran : F11 ou Alt+Entrée bascule entre fenêtre et plein écran.
-## Le rendu reste en 480×270, agrandi d'un facteur entier (×4 en 1920×1080 : pixels nets).
+## Le rendu reste en 640×360, agrandi d'un facteur entier (×3 en 1920×1080 : pixels nets).
 ## Le choix est retenu dans user://fenetre.cfg et rétabli au lancement.
 
 const FICHIER := "user://fenetre.cfg"
