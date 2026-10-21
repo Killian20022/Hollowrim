@@ -1,0 +1,7 @@
+# Pose commune de la refonte « entrée du village » (même cadrage pour tous les agents de la refonte).
+# entree = scénario village (devant la porte de la palissade, local 0,0,30, regard vers la longue maison) ; 4 heures.
+# Monde équivalent : 21.81,19.81,-132.3,1.7. Lancer en 480x270 (défaut) puis avec --res=640x360.
+entree_10 scenario village heure=10
+entree_17h5 scenario village heure=17.5
+entree_21 scenario village heure=21
+entree_6 scenario village heure=6
