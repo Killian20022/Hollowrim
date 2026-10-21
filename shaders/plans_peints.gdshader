@@ -94,7 +94,7 @@ float champ(float azt, float elt, float paz, float pe, float w) {
 	f += 1.0 * rid(q2 + cote + 33.0, 19.0);
 	// strates : bancs horizontaux un peu ondulés, et bosselage
 	f += 0.25 * n2(vec2(azt / 16.0, elt / 2.5 + 3.0 * n2(vec2(azt / 40.0, 7.0))));
-	f += 0.35 * n2(vec2(azt / 4.0, elt / 4.0) + 50.0);
+	f += 0.15 * n2(vec2(azt / 8.0, elt / 6.0) + 50.0);
 	return f;
 }
 
@@ -238,12 +238,19 @@ void fragment() {
 		vec3 pierre = vec3(0.045, 0.048, 0.060);
 		col = pierre * (ambiant * 1.4 + col_lum * 0.25);
 		if (ch > 3.5) {
-			// falaise : roche striée verticalement, corniches de neige (lignes de 1 texel), côté gauche éclairé
-			float cote = dx < 0.0 ? 1.0 : 0.55;
-			col = vec3(0.060, 0.062, 0.075) * (ambiant * 1.2 + col_lum * 0.6 * cote);
-			if (h21(vec2(floor(dx / 2.0), 3.0)) > 0.6) col *= 0.6;                                // fissures verticales
-			float corniche = step(0.72, h21(vec2(floor(dx / 5.0), floor(dy / 3.0)))) * step(fract(dy / 3.0), 0.34);
-			col = mix(col, neige_o * (ambiant * 1.3 + col_lum * 0.7 * cote), corniche);
+			// falaise : roche sombre, sapins accrochés aux vires (dents vert-noir), quelques corniches de neige
+			float cote = dx < 0.0 ? 1.0 : 0.5;
+			col = vec3(0.034, 0.036, 0.046) * (ambiant * 1.1 + col_lum * 0.45 * cote);
+			if (h21(vec2(floor(dx / 3.0), 3.0)) > 0.65) col *= 0.65;                               // fissures verticales
+			float vire = fract(dy / 6.0);
+			float cell_s = floor(dx / 3.0);
+			float hs = (2.0 + 3.0 * h11(cell_s + floor(dy / 6.0) * 13.0)) / 6.0;
+			float dent = 1.0 - abs(fract(dx / 3.0) - 0.5) * 2.0;                   // pointe du sapin
+			if (vire < hs * dent && h11(cell_s * 3.1 + floor(dy / 6.0)) > 0.3) {
+				col = vec3(0.018, 0.032, 0.034) * (ambiant * 1.5 + col_lum * 0.2);
+			}
+			float corniche = step(0.8, h21(vec2(floor(dx / 5.0), floor(dy / 6.0)))) * step(vire, 0.12);
+			col = mix(col, neige_o * (ambiant * 1.2 + col_lum * 0.5 * cote), corniche);
 		} else if (ch > 2.5) {
 			col = mix(col, vec3(1.6, 0.9, 0.4), 0.95 * (1.0 - jour));
 		} else if (ch > 1.5) {
@@ -264,28 +271,42 @@ void fragment() {
 		float fu = (champ(az_t + 1.0, el_t, paz_t, pic_el, pic_w) - f0) * TEXEL;
 		float fv = (champ(az_t, el_t + 1.0, paz_t, pic_el, pic_w) - f0) * TEXEL;
 		vec3 n = normalize(vec3(-fu, -fv, 1.0));
-		// lumière : l'astre du côté de son azimut (u croissant = azimut croissant), rasante au crépuscule
+		// VOLUME : la face du pic tournée vers l'astre est claire et chaude, l'autre bleu-gris ; dégradé en paliers
+		// (plus clair près de l'arête et du sommet, plus sombre vers le pied), les facettes ne font que le moduler
 		float cs = sign(wrapd(az_soleil - pic_az) + 0.001);
-		vec3 Ld = normalize(vec3(cs * 0.9, 0.3, 0.25));
-		float dif = clamp(dot(n, Ld), 0.0, 1.0);
+		float face = cs * sign(pic_d + 0.0001) > 0.0 ? 1.0 : 0.0;            // 1 = face au soleil
+		vec3 Ld = normalize(vec3(cs * 0.9, 0.35, 0.3));
+		float facette = clamp(dot(n, Ld), 0.0, 1.0);
 		float prof = pic_el - el;
 		float rel = clamp(prof / max(pic_el - base_el, 0.5), 0.0, 1.0);   // 0 au sommet, 1 au pied
-		// neige : replats (normale vers le haut), creux entre éperons, calotte ; la roche tient les éperons raides
+		float pres_arete = 1.0 - clamp(abs(pic_d) / max(pic_w * 0.6, 0.5), 0.0, 1.0);
+		float dif = face * (0.55 + 0.25 * pres_arete + 0.2 * (1.0 - rel)) * (0.7 + 0.3 * facette)
+			+ (1.0 - face) * (0.08 + 0.22 * facette * (1.0 - rel));
+		// éperons : lignes qui descendent en s'écartant de l'arête (faîtes rocheux sombres)
 		float q = (abs(pic_d) - 0.75 * prof) * TEXEL;
-		float creux = 1.0 - rid(q + (pic_d < 0.0 ? 0.0 : 57.0) + graine * 13.0, 26.0);
-		float tache = n2(vec2(az_t / 3.0, el_t / 2.0) + 20.0);
-		float sn = 1.1 * n.y + 0.5 * creux + 0.25 * (1.0 - rel) + 0.35 * (tache - 0.5) - 0.35 * abs(n.x);
-		float neige = step(0.72, sn);
-		// 7 tons par face, moucheté granuleux (bruit par texel, fixé au monde : pas de scintillement)
-		float grain = h21(vec2(az_t, el_t) + 7.0) - 0.5;
-		float ton = floor(clamp(dif * 1.05 + grain * 0.16, 0.0, 0.999) * 7.0) / 6.0;
-		vec3 base = neige > 0.5 ? mix(neige_o, neige_c, ton) : mix(roche_o * 0.55, roche_c * 0.85, ton);
-		col = base * (ambiant * 1.0 + col_lum * 0.95 * L * (0.25 + 0.75 * ton));
-		// liserés clairs : bord des arêtes éclairées (crête de la silhouette et faîte des éperons)
-		bool bord = el > crete - 1.0 / TEXEL;
-		bool faite = rid(q + (pic_d < 0.0 ? 0.0 : 57.0) + graine * 13.0, 26.0) > 0.93;
-		if ((bord || faite) && dif > 0.45) {
-			col *= 1.35;
+		float cote_e = pic_d < 0.0 ? 0.0 : 57.0;
+		float faite = rid(q + cote_e + graine * 13.0, 26.0);
+		// neige : couloirs VERTICAUX (1 à 2 texels, longueurs variées), replats, calotte ; roche sur les faîtes
+		// (légèrement penchés vers l'extérieur, effilés vers le bas, courts : pas de rayures sur toute la face)
+		float xc = az_t - sign(pic_d) * prof * TEXEL * 0.25 + 2.0 * (b1(el_t, 7.0) - 0.5);
+		float col_c = floor(xc / 5.0);
+		float lg = 0.12 + 0.4 * h11(col_c + 21.0);
+		float couloir = step(0.62, h11(col_c * 1.7 + 3.0)) * step(rel, lg)
+			* step(abs(fract(xc / 5.0) - 0.5), 0.1 + 0.2 * (1.0 - rel / max(lg, 0.01)));
+		float tache = n2(vec2(az_t / 7.0, el_t / 4.0) + 20.0);
+		float sn = 0.9 * n.y + 0.35 * (1.0 - faite) + 0.35 * (1.0 - rel) + 0.3 * (tache - 0.5);
+		float neige = max(step(0.9, sn), couloir * step(faite, 0.8));
+		float ton = floor(clamp(dif, 0.0, 0.999) * 7.0) / 6.0;            // 7 paliers, sans grain par texel
+		vec3 neige_chaude = mix(neige_o, neige_c, ton);
+		vec3 roche = mix(roche_o * 0.5, roche_c * 0.8, ton);
+		vec3 base = neige > 0.5 ? neige_chaude : roche;
+		col = base * (ambiant * 1.0 + col_lum * 0.95 * L * (0.2 + 0.8 * ton));
+		// faîtes d'éperons rocheux : lignes sombres ; liseré clair sur la crête côté soleil
+		if (faite > 0.84 && rel > 0.08) {
+			col *= 0.5;
+		}
+		if (el > crete - 1.0 / TEXEL && face > 0.5) {
+			col *= 1.3;
 		}
 		// plafond : la neige lointaine reste rosée / dorée, jamais blanche
 		float lc = dot(col, vec3(0.3, 0.55, 0.15));
@@ -298,7 +319,10 @@ void fragment() {
 	vec3 hz = mix(horizon, horizon_chaud, crep * k);
 	float pied = 1.0 - smoothstep(base_el - 1.0, base_el + 2.5, el);
 	float v = clamp(voile + 0.35 * pied * (1.0 - voile), 0.0, 0.95);
-	v *= mix(1.0, 0.72, jour);   // de jour, le relief se détache mieux des nuages clairs
+	v *= mix(1.0, 0.72, jour);
+	if (ch > 0.5) {
+		v *= 0.6;   // château et falaise : silhouette sombre qui se détache
+	}   // de jour, le relief se détache mieux des nuages clairs
 	if (ch > 2.5 && ch < 3.5) {
 		v *= 0.3;   // fenêtres : nettes
 	}
