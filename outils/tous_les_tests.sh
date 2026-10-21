@@ -40,6 +40,7 @@ TESTS=(
 	"test_villageois|--nouvelle"
 	"test_persos_base|--nouvelle"
 	"test_guerrier|--nouvelle"
+	"test_draugr|--nouvelle"
 	"test_interieurs|--nouvelle"
 	"test_primitives|"
 	"test_sauvegarde|ecrire;verifier"   # deux processus à la suite

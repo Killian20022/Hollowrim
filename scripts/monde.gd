@@ -149,6 +149,7 @@ func _ready() -> void:
 	_villageois()
 	_chrono("villageois")
 	_guerrier_pilote()
+	_draugr_pilote()
 	_tertre()
 	_chrono("tertre+crypte")
 	_grotte_acces()
@@ -571,6 +572,28 @@ func _guerrier_pilote() -> void:
 	ap.play(String(_arguments().get("guerrier-anim", "Sword_Idle")))
 	if _arguments().has("capture"):
 		_pilote_animer(String(_arguments().get("guerrier-anim", "Sword_Idle")), 0.25)
+
+## --draugr-pilote[=x,z,lacet°] : Draugr nordique (DraugrNordique) debout au même endroit (ou x,z,lacet) ; --draugr-anim=Nom
+## (Sword_Idle par défaut). Seul, il devient le « pilote » des vues `pilote` de --captures ; avec --guerrier-pilote, il se
+## tient à côté (comparaison de famille) et le guerrier reste le pilote. Aucun effet sans l'option.
+func _draugr_pilote() -> void:
+	if not _arguments().has("draugr-pilote"):
+		return
+	var p := PILOTE_DEFAUT
+	var a: String = _arguments()["draugr-pilote"]
+	if a != "":
+		var f := a.split_floats(",")
+		p = Vector3(f[0], f[1], f[2] if f.size() > 2 else p.z)
+	var d := DraugrNordique.creer({})
+	add_child(d)
+	d.global_position = Vector3(p.x, hauteur(p.x, p.y), p.y)
+	d.rotation.y = deg_to_rad(p.z)
+	var anim := String(_arguments().get("draugr-anim", "Sword_Idle"))
+	(d.get_node("Animations") as AnimationPlayer).play(anim)
+	if pilote == null:
+		pilote = d
+		if _arguments().has("capture"):
+			_pilote_animer(anim, 0.25)
 
 func _pilote_animer(nom: String, t: float) -> void:
 	var ap := pilote.get_node("Animations") as AnimationPlayer

@@ -1,0 +1,7 @@
+# Draugr nordique à côté du guerrier pilote (cohérence de famille) :
+# ... -- --captures=outils/poses_draugr_famille.txt ... --guerrier-pilote --draugr-pilote=23.885,23.471,-132.3
+fam_4m_face pilote 4.5,0,1.0 heure=17.5 sans-mains
+fam_4m_34 pilote 4.5,-35,1.0 heure=17.5 sans-mains
+fam_4m_dos pilote 4.5,180,1.0 heure=17.5 sans-mains
+fam_8m_face pilote 8,0 heure=17.5 sans-mains
+fam_21_3m pilote 4,20 heure=21 sans-mains torche-eteinte

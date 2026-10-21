@@ -1,0 +1,37 @@
+# Draugr nordique (refonte persos) : vues en jeu. Lancer avec --draugr-pilote :
+# godot --path . --disable-vsync -- --captures=outils/poses_draugr.txt --sortie=<dossier> --nouvelle --paisible --sans-particules --attente=200 --res=640x360 --draugr-pilote
+entree_17h5 monde 21.80,19.82,-132.3,0.3 heure=17.5 sans-mains
+# 2 / 4 / 8 m, face, 3/4, dos, 17h30
+p17_2m_face pilote 2,0 heure=17.5 sans-mains
+p17_2m_34 pilote 2,-35 heure=17.5 sans-mains
+p17_2m_dos pilote 2,180 heure=17.5 sans-mains
+p17_4m_face pilote 4,0 heure=17.5 sans-mains
+p17_4m_34 pilote 4,-35 heure=17.5 sans-mains
+p17_4m_dos pilote 4,180 heure=17.5 sans-mains
+p17_8m_face pilote 8,0 heure=17.5 sans-mains
+p17_8m_34 pilote 8,-35 heure=17.5 sans-mains
+p17_8m_dos pilote 8,180 heure=17.5 sans-mains
+# nuit (21 h) sans et avec torche, 3 m et 8 m
+p21_3m_34 pilote 3,30 heure=21 sans-mains torche-eteinte
+p21_3m_34_torche pilote 3,30 heure=21
+p21_8m_face pilote 8,0 heure=21 sans-mains torche-eteinte
+p21_2m_face pilote 2,10,1.5 heure=21 sans-mains torche-eteinte
+# gros plans : visage (crâne, yeux, casque) et bouclier, 2 m et 1 m
+gros_visage_2m pilote 2,20,1.55 heure=17.5 sans-mains anim=Idle:0.3
+gros_visage_1m pilote 1.0,25,1.62 heure=17.5 sans-mains anim=Idle:0.3
+gros_bouclier_2m pilote 2,40,1.1 heure=17.5 sans-mains anim=Idle:0.3
+gros_bouclier_1m pilote 1.3,45,1.0 heure=17.5 sans-mains anim=Idle:0.3
+gros_torse_2m pilote 2,-35,1.2 heure=17.5 sans-mains anim=Idle:0.3
+gros_epee_1m pilote 1.3,-60,1.0 heure=17.5 sans-mains anim=Idle:0.3
+# animations (3,2 m, 3/4 côté épée, 17h30)
+an_idle pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Idle:0.3
+an_garde pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Sword_Idle:0.3
+an_marche_a pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Walk:0.25
+an_marche_b pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Walk:0.75
+an_course_a pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Jog_Fwd:0.3
+an_course_b pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Sprint:0.4
+an_attaque_a pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Sword_Attack:0.35
+an_attaque_b pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Sword_Attack:0.6
+an_coup pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Hit_Chest:0.4
+an_mort_a pilote 3.2,-40,0.6 heure=17.5 sans-mains anim=Death01:0.5
+an_mort_b pilote 3.2,-40,0.4 heure=17.5 sans-mains anim=Death01:1.0
