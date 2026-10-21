@@ -1,0 +1,15 @@
+# Poses communes de la refonte graphique (phase 2 : prototype « entrée du village »).
+# Pose « entree » = scénario village (village.to_global(0,0,30) regardant le centre du village à 2,5 m) :
+# sur le sentier feu → porte, à 8 m de la porte de la palissade, regard vers les maisons, montagnes derrière.
+# Lancer : godot --path . --disable-vsync -- --captures=outils/poses_refonte.txt --sortie=<dossier> --nouvelle --paisible --sans-particules --sans-mains --attente=200 --res=640x360
+entree_10 monde 21.80,19.82,-132.3,0.3 heure=10
+entree_17h5 monde 21.80,19.82,-132.3,0.3 heure=17.5
+entree_21 monde 21.80,19.82,-132.3,0.3 heure=21
+entree_06 monde 21.80,19.82,-132.3,0.3 heure=6
+# bande « en marchant » (stabilité des pixels) : pas de 0,25 m vers la porte, crépuscule
+marche_1 monde 20.69,18.81,-132.3,0.3 heure=17.5
+marche_2 monde 20.88,18.98,-132.3,0.3 heure=17.5
+marche_3 monde 21.06,19.15,-132.3,0.3 heure=17.5
+marche_4 monde 21.25,19.32,-132.3,0.3 heure=17.5
+marche_5 monde 21.43,19.48,-132.3,0.3 heure=17.5
+marche_6 monde 21.62,19.65,-132.3,0.3 heure=17.5
