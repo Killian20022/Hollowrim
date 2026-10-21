@@ -80,7 +80,57 @@ static func _masque(sty: String) -> float:
 			return 0.8
 	return 0.0
 
-## Pointes (stalactites au plafond ou stalagmites au sol) : n tirages, hors du passage central si `ecart` > 0.
+## Concrétion (stalagmite si h > 0, stalactite si h < 0) : profil en gouttes (bourrelets de coulée), pied évasé qui se fond dans le
+## sol, légère inclinaison, 6 à 8 côtés, 4 à 11 anneaux selon la hauteur. Stalagmite : tête givrée (masque croissant vers la pointe).
+static func concretion(g: Grotte, nom: String, base: Vector3, r: float, h: float, graine: int, masque := 0.0, givre_tete := 0.4) -> void:
+	var rg := RandomNumberGenerator.new()
+	rg.seed = graine
+	var cotes := 8 if r > 0.22 else 6
+	var hh := absf(h)
+	var sg := signf(h)
+	var nr := clampi(int(hh / 0.32) + 3, 4, 11)
+	var lean := Vector3(rg.randf_range(-1.0, 1.0), 0.0, rg.randf_range(-1.0, 1.0)) * hh * rg.randf_range(0.02, 0.08)
+	var phase := rg.randf() * TAU
+	var nb := rg.randf_range(2.0, 4.5)
+	var a0 := rg.randf() * TAU
+	var anneaux: Array = []
+	var axe: Array = []
+	for k in nr:
+		var t := float(k) / float(nr - 1)
+		var c := base + Vector3(0.0, sg * hh * t, 0.0) + lean * pow(t, 1.5)
+		axe.append(c)
+		if k == nr - 1:
+			break
+		var rad := r * pow(1.0 - t, 0.8) * (1.0 + 0.17 * sin(t * PI * nb + phase) * (1.0 - t)) * (1.0 + 0.8 * pow(1.0 - t, 8.0))
+		var ring: Array = []
+		for i in cotes:
+			var a := a0 + TAU * (float(i) + rg.randf_range(-0.22, 0.22)) / float(cotes)
+			var rr := rad * rg.randf_range(0.8, 1.16)
+			ring.append(c + Vector3(cos(a) * rr, rg.randf_range(-0.3, 0.3) * hh / float(nr), sin(a) * rr))
+		anneaux.append(ring)
+	var tip: Vector3 = axe[nr - 1]
+	for k in nr - 1:
+		var t0 := float(k) / float(nr - 1)
+		var t1 := float(k + 1) / float(nr - 1)
+		var ao0 := lerpf(0.5, 1.0, t0) if sg > 0.0 else lerpf(0.55, 0.92, t0)
+		var ao1 := lerpf(0.5, 1.0, t1) if sg > 0.0 else lerpf(0.55, 0.92, t1)
+		var gv := givre_tete if sg > 0.0 else 0.0
+		var c0 := GrotteDecor.col(ao0, masque + gv * t0 * t0)
+		var c1 := GrotteDecor.col(ao1, masque + gv * t1 * t1)
+		var ref: Vector3 = ((axe[k] as Vector3) + (axe[k + 1] as Vector3)) * 0.5
+		var A: Array = anneaux[k]
+		for i in cotes:
+			var j := (i + 1) % cotes
+			if k + 1 >= anneaux.size():
+				g.decor.facette(nom, A[i], A[j], tip, ref, [c0, c0, c1], false, 2.0)
+			else:
+				var B: Array = anneaux[k + 1]
+				g.decor.facette(nom, A[i], A[j], B[j], ref, [c0, c0, c1], false, 2.0)
+				g.decor.facette(nom, A[i], B[j], B[i], ref, [c0, c1, c1], false, 2.0)
+
+## Pointes (stalactites au plafond ou stalagmites au sol) : n tirages, hors du passage central si `ecart` > 0. Les grandes
+## stalagmites (≥ 1,1 m) sont entourées de 2 ou 3 petites et deviennent solides si elles ne gênent aucun passage ; une stalagmite
+## ne dépasse pas 70 % de la hauteur libre, une stalactite au-dessus du passage s'arrête à 2,2 m du sol.
 static func pointes(g: Grotte, r: RandomNumberGenerator, id: String, s0: float, s1: float, n: int, rmax: float, lmax: float, sol_: bool, ecart := 0.0, nom := "") -> void:
 	for k in n:
 		var s := r.randf_range(s0, s1)
@@ -91,12 +141,149 @@ static func pointes(g: Grotte, r: RandomNumberGenerator, id: String, s0: float, 
 		var sty := _style(g, id, s)
 		var nm := nom if nom != "" else _roche(sty)
 		var m := _masque(sty)
+		var pb := _p(g, id, s, lat)
+		var pt := g.plafond_en(id, s, lat)
+		var libre_h := pt.y - pb.y
 		if sol_:
-			g.decor.pointe(nm, _p(g, id, s, lat) + Vector3(0, -0.05, 0), r.randf_range(0.12, rmax), r.randf_range(0.4, lmax), r.randi(), m)
+			var rr := r.randf_range(0.12, rmax) * 1.15
+			var hh := r.randf_range(0.4, lmax) * r.randf_range(1.0, 1.7)
+			hh = minf(hh, 0.7 * libre_h)
+			rr = minf(rr, maxf(hh * 0.32, 0.1))
+			if hh < 0.25:
+				continue
+			concretion(g, nm, pb + Vector3(0, -0.06, 0), rr, hh, r.randi(), m)
+			if hh >= 1.1:
+				for j in r.randi_range(2, 3):
+					var a := r.randf() * TAU
+					var d := rr * r.randf_range(1.4, 2.6)
+					var q := g.sol_en(id, s + sin(a) * d, lat + cos(a) * d)
+					if absf(q.y - pb.y) < 0.5:
+						concretion(g, nm, q + Vector3(0, -0.05, 0), rr * r.randf_range(0.3, 0.55), hh * r.randf_range(0.2, 0.45), r.randi(), m)
+				var w_c := dl.y if lat > 0.0 else dl.x
+				if rr >= 0.28 and absf(lat) > 0.62 * w_c and g.loin_du_jeu(id, s, lat, rr):     # près de la paroi seulement
+					g.decor.solide_rond(pb + Vector3(0, hh * 0.35, 0), rr * 0.8, hh * 0.7)
 		else:
 			if g.faille_f(g.br[id], s) > 0.02:
 				continue
-			g.decor.pointe(nm, g.plafond_en(id, s, lat) + Vector3(0, 0.12, 0), r.randf_range(0.1, rmax), -r.randf_range(0.4, lmax), r.randi(), m)
+			var hh2 := r.randf_range(0.4, lmax) * r.randf_range(1.0, 1.5)
+			var bas_min := pb.y + (2.2 if absf(lat) < 1.6 else 0.6)
+			hh2 = minf(hh2, pt.y + 0.12 - bas_min)
+			if hh2 < 0.2:
+				continue
+			var rr2 := minf(r.randf_range(0.1, rmax), maxf(hh2 * 0.22, 0.06))
+			concretion(g, nm, pt + Vector3(0, 0.15, 0), rr2, -hh2, r.randi(), m)
+			# draperie : 2 à 4 stalactites fines alignées à côté des grandes
+			if hh2 > 0.9 and r.randf() < 0.5:
+				var dir := r.randf() * TAU
+				for j in r.randi_range(2, 4):
+					var off := (float(j) + 1.0) * rr2 * 1.3
+					var q2 := g.plafond_en(id, s + sin(dir) * off, lat + cos(dir) * off)
+					var lq := minf(hh2 * r.randf_range(0.35, 0.8), q2.y + 0.1 - bas_min)
+					if lq > 0.15:
+						concretion(g, nm, q2 + Vector3(0, 0.12, 0), rr2 * r.randf_range(0.35, 0.6), -lq, r.randi(), m)
+
+## Nez des piliers de jonction (fourches et confluents) : une masse rocheuse irrégulière, allongée dans le pilier, du sol à la voûte.
+## Le nez géométrique de la coque est une arête verticale nette (le relief y est éteint : les deux galeries sœurs s'y rejoignent) ;
+## la masse la cache. Collision étroite (rayon 0,4 m) au droit du nez.
+static func nez_piliers(g: Grotte) -> void:
+	var vus := {}
+	for id: String in g.ordre:
+		var b: Dictionary = g.br[id]
+		var d: Dictionary = b["d"]
+		for fin in [false, true]:
+			var cle := "pince_fin" if fin else "pince_deb"
+			if not d.has(cle):
+				continue
+			var par: String = (d[cle] as Dictionary)["vers" if fin else "de"]
+			var cle_v := "%s|%s" % [par, fin]
+			if vus.has(cle_v):
+				continue
+			vus[cle_v] = true
+			var pr: Dictionary = b["pr_fin"] if fin else b["pr_deb"]
+			var P: Vector3 = pr["P"]
+			var T: Vector3 = pr["T"]
+			var sens := -1.0 if fin else 1.0                  # vers l'intérieur du pilier
+			var haut: float = ((pr["pts"] as Array)[9] as Vector3).y
+			var sty := _style(g, par, float(pr["s"]))
+			_masse_nez(g, _roche(sty), P, T * sens, haut, hash(cle_v), _masque(sty))
+			g.decor.solide_rond(P + T * sens * 0.3 + Vector3(0, 1.0, 0), 0.4, 2.0)
+
+static func _masse_nez(g: Grotte, nom: String, P: Vector3, T: Vector3, haut: float, graine: int, masque: float) -> void:
+	var rg := RandomNumberGenerator.new()
+	rg.seed = graine
+	var R := T.cross(Vector3.UP).normalized()
+	var y0 := P.y - 0.25
+	var H := haut - y0 + 0.4
+	var nr := clampi(int(H / 0.45) + 2, 4, 16)
+	var cotes := 9
+	var anneaux: Array = []
+	for k in nr:
+		var t := float(k) / float(nr - 1)
+		var y := y0 + H * t
+		var lat := 0.55 + 0.25 * sin(t * 7.0 + rg.randf()) + 0.35 * pow(absf(2.0 * t - 1.0), 3.0)    # étranglement au milieu, évasé en haut et en bas
+		var lon := 1.5
+		var c := P + T * (lon * 0.62) + Vector3(0, y - P.y, 0)
+		var ring: Array = []
+		for i in cotes:
+			var a := TAU * (float(i) + rg.randf_range(-0.2, 0.2)) / float(cotes)
+			var jr := rg.randf_range(0.8, 1.2)
+			ring.append(c + T * cos(a) * lon * jr + R * sin(a) * lat * jr + Vector3(0, rg.randf_range(-0.1, 0.1), 0))
+		anneaux.append(ring)
+	for k in nr - 1:
+		var t0 := float(k) / float(nr - 1)
+		var t1 := float(k + 1) / float(nr - 1)
+		var c0 := GrotteDecor.col(lerpf(0.55, 0.95, sin(t0 * PI)), masque)
+		var c1 := GrotteDecor.col(lerpf(0.55, 0.95, sin(t1 * PI)), masque)
+		var A: Array = anneaux[k]
+		var B: Array = anneaux[k + 1]
+		var ref := P + T * 0.93 + Vector3(0, y0 + H * (t0 + t1) * 0.5 - P.y, 0)
+		for i in cotes:
+			var j := (i + 1) % cotes
+			g.decor.facette(nom, A[i], A[j], B[j], ref, [c0, c0, c1], false, 2.0)
+			g.decor.facette(nom, A[i], B[j], B[i], ref, [c0, c1, c1], false, 2.0)
+
+## Éboulis au pied des parois : amas de 3 à 7 blocs anguleux, en partie enterrés, contre la paroi (sans collision : on les longe).
+static func eboulis_pied(g: Grotte, r: RandomNumberGenerator, id: String, s0: float, s1: float, n: int, nom := "") -> void:
+	for k in n:
+		var s := r.randf_range(s0 + 0.5, s1 - 0.5)
+		if not g.hors_jonction(id, s):
+			continue
+		var cote := 1.0 if r.randf() < 0.5 else -1.0
+		var dl := g.demi_l(id, s)
+		var w := dl.y if cote > 0.0 else dl.x
+		if w < 1.6:
+			continue
+		var sty := _style(g, id, s)
+		var nm := nom if nom != "" else _roche(sty)
+		var m := _masque(sty)
+		for j in r.randi_range(3, 7):
+			var sj := s + r.randf_range(-0.9, 0.9)
+			var lj := cote * w * r.randf_range(0.78, 0.97)
+			var q := g.sol_en(id, clampf(sj, 0.3, g.longueur(id) - 0.3), lj)
+			var rb := r.randf_range(0.09, 0.42) * (1.0 if j > 0 else 1.4)
+			g.decor.rocher(nm, q + Vector3(0, -rb * 0.25, 0), rb, rb * r.randf_range(0.6, 1.05), r.randi(), m * 0.9 + 0.1, false, r.randi_range(4, 6))
+
+## Gros blocs tombés de la voûte (repères), solides quand ils ne gênent aucun passage.
+static func blocs(g: Grotte, r: RandomNumberGenerator, id: String, s0: float, s1: float, n: int, rmin: float, rmax: float, nom := "") -> void:
+	for k in n:
+		var s := r.randf_range(s0 + 1.0, s1 - 1.0)
+		if not g.hors_jonction(id, s):
+			continue
+		var dl := g.demi_l(id, s)
+		var cote := 1.0 if k % 2 == 0 else -1.0
+		var w := dl.y if cote > 0.0 else dl.x
+		if w < 2.4:
+			continue
+		var lat := cote * w * r.randf_range(0.45, 0.75)
+		var rb := r.randf_range(rmin, rmax)
+		var hb := rb * r.randf_range(0.7, 1.1)
+		var sty := _style(g, id, s)
+		var solide := g.loin_du_jeu(id, s, lat, rb * 0.8)
+		g.decor.rocher(nom if nom != "" else _roche(sty), _p(g, id, s, lat) + Vector3(0, -0.1, 0), rb, hb, r.randi(), _masque(sty) + 0.15, solide and hb >= 0.55, 5)
+		for j in r.randi_range(1, 3):                    # éclats autour
+			var a := r.randf() * TAU
+			var q := g.sol_en(id, s + sin(a) * rb * 1.5, lat + cos(a) * rb * 1.5)
+			g.decor.rocher(nom if nom != "" else _roche(sty), q + Vector3(0, -0.05, 0), rb * r.randf_range(0.2, 0.4), rb * r.randf_range(0.15, 0.35), r.randi(), _masque(sty), false, 5)
 
 ## Rochers contre les parois (collision pour les plus gros).
 static func rochers(g: Grotte, r: RandomNumberGenerator, id: String, s0: float, s1: float, n: int, rmin: float, rmax: float, collision := true, nom := "") -> void:
@@ -109,7 +296,7 @@ static func rochers(g: Grotte, r: RandomNumberGenerator, id: String, s0: float, 
 		var rr := r.randf_range(rmin, rmax)
 		var hh := rr * r.randf_range(0.8, 1.1)
 		var lat_r := cote * minf(w, 12.0) * r.randf_range(0.55, 0.88)
-		var solide := collision and hh >= 0.55 and g.libre(id, s, lat_r, rr * 0.8)
+		var solide := collision and hh >= 0.55 and g.loin_du_jeu(id, s, lat_r, rr * 0.8)
 		g.decor.rocher(nom if nom != "" else _roche(sty), _p(g, id, s, lat_r), rr, hh, r.randi(), _masque(sty), solide, 6)
 
 static func etai(g: Grotte, id: String, s: float) -> void:
@@ -242,6 +429,38 @@ static func poser(g: Grotte, z: Dictionary) -> void:
 			_cristaux(g, z, r)
 		"cache":
 			_cache(g, z, r)
+	_relief_zone(g, z)
+
+## Relief commun à toutes les zones (RNG à part : le décor des thèmes ne bouge pas) : éboulis au pied des parois, gros blocs dans les
+## salles larges, colonnes dans les grandes salles, stalactites fines supplémentaires (la voûte n'est jamais nue).
+static func _relief_zone(g: Grotte, z: Dictionary) -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = int(z.get("graine", 1)) * 31 + 7
+	var id: String = z["branche"]
+	var s0: float = z["s"][0]
+	var s1: float = z["s"][1]
+	var lg := s1 - s0
+	var dens: float = float(z.get("densite", 1.0))
+	var theme: String = z.get("theme", "")
+	var role: String = z.get("role", "")
+	var camp := theme == "repaire" and role != "transition"
+	eboulis_pied(g, r, id, s0, s1, int(lg * (0.25 if camp else 0.45) * dens))
+	if not camp and theme != "cache":
+		blocs(g, r, id, s0, s1, int(lg * 0.08 * dens), 0.5, 1.0)
+	pointes(g, r, id, s0, s1, int(lg * 0.7 * dens), 0.16, 1.1, false)
+	if theme == "mine" and role == "ressources" or theme == "cristaux" or theme == "carrefour":
+		for k in (2 if theme != "carrefour" else 1):
+			var s := r.randf_range(s0 + 2.0, s1 - 2.0)
+			var dl := g.demi_l(id, s)
+			var cote := 1.0 if k % 2 == 0 else -1.0
+			var lat := cote * (dl.y if cote > 0.0 else dl.x) * r.randf_range(0.62, 0.78)
+			var rc := r.randf_range(0.45, 0.65)
+			if not g.loin_du_jeu(id, s, lat, rc * 1.8) or (dl.y if cote > 0.0 else dl.x) < 3.5:
+				continue
+			var pb := _p(g, id, s, lat)
+			var pt := g.plafond_en(id, s, lat)
+			var sty := _style(g, id, s)
+			g.decor.colonne(_roche(sty), pb.x, pb.z, pb.y - 0.2, pt.y + 0.1, rc, r.randi(), _masque(sty) + 0.2)
 
 static func lumieres(g: Grotte, z: Dictionary) -> void:
 	var n: int = int(z.get("n_lum", 0))
@@ -453,7 +672,7 @@ static func _lac(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: Strin
 			for c in [[0.1, -6.5, 0.8], [0.32, -11.0, 1.0], [0.62, -9.0, 0.9], [0.86, -5.8, 0.75]]:
 				var s: float = lerpf(s0, s1, float(c[0])) + r.randf_range(-1.0, 1.0)
 				var lat: float = float(c[1]) * r.randf_range(0.9, 1.1)
-				if not g.libre(id, s, lat, 1.0):
+				if not g.loin_du_jeu(id, s, lat, 1.0):
 					continue
 				var pb := _p(g, id, s, lat)
 				var pt := g.plafond_en(id, s, lat)
@@ -467,7 +686,7 @@ static func _lac(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: Strin
 					continue
 				var rb := r.randf_range(0.5, 1.3)
 				var hb := rb * r.randf_range(0.8, 1.2)
-				d.rocher("c_roche_glace", _p(g, id, s, lat), rb, hb, r.randi(), 0.7, hb >= 0.55 and g.libre(id, s, lat, rb * 0.8), 6)
+				d.rocher("c_roche_glace", _p(g, id, s, lat), rb, hb, r.randi(), 0.7, hb >= 0.55 and g.loin_du_jeu(id, s, lat, rb * 0.8), 6)
 			for c in [[0.06, -3.5], [0.4, -4.4], [0.55, -3.0], [0.2, -9.0], [0.48, -8.0]]:     # cristaux au bord du lac
 				var q := _p(g, id, lerpf(s0, s1, float(c[0])) + r.randf_range(-1.0, 1.0), float(c[1]))
 				cristaux(g, r, q, 4, 0.7)
@@ -618,7 +837,11 @@ static func _cristaux(g: Grotte, z: Dictionary, r: RandomNumberGenerator) -> voi
 		var rg := _ring_proche(g, id, r.randf_range(s0 + 0.5, s1))
 		var vtx: int = [3, 4, 5, 6, 7, 11, 12, 13, 14, 15][r.randi() % 10]
 		var pv: Vector3 = (rg["pts"] as Array)[vtx]
-		var vers_centre: Vector3 = ((rg["P"] as Vector3) + Vector3(0, float(rg["h"]) * 0.4, 0) - pv).normalized()
+		var centre: Vector3 = (rg["P"] as Vector3) + Vector3(0, float(rg["h"]) * 0.4, 0)
+		var hit := g.rayon(centre, pv - centre, 40.0)           # la paroi bosselée (le sommet d'anneau peut être enfoui ou décollé)
+		if not hit.is_empty():
+			pv = hit["p"]
+		var vers_centre: Vector3 = (centre - pv).normalized()
 		for j in r.randi_range(2, 4):
 			d.cristal(pv + vers_centre * 0.05, r.randf_range(0.1, 0.28), r.randf_range(0.6, 2.0), r.randi(), 0.5, (vers_centre + Vector3(0, 0.15, 0)).normalized())
 	pointes(g, r, id, s0 - 1.0, s1, int(26.0 * dens), 0.35, 2.4, false, 0.0, "c_roche_glace")
