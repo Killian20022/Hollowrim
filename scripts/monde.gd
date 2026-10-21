@@ -122,8 +122,9 @@ func _ready() -> void:
 
 	_environnement()
 	_lune()
-	arriere_plan = ArrierePlan.creer(self)
-	add_child(arriere_plan)
+	if not _arguments().has("sans-arriere-plan"):  # --sans-arriere-plan : mesures A/B de performance
+		arriere_plan = ArrierePlan.creer(self)
+		add_child(arriere_plan)
 	_terrain()
 	_chrono("terrain")
 	arbres = Vegetation.creer(self)
