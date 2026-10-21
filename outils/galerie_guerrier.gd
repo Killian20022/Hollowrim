@@ -104,8 +104,8 @@ func _lancer() -> void:
 		_poser(n, "Idle", 0.25)
 		var pl := Image.create(W * 2, H, false, Image.FORMAT_RGBA8)
 		var c := 0
-		for az: float in [20.0, 200.0]:
-			var img: Image = await _photo(az, 1.6, 1.5, 1.3)
+		for vue: Array in [[15.0, 0.9, 1.62, 1.6], [-30.0, 1.4, 1.5, 1.35]]:
+			var img: Image = await _photo(vue[0], vue[1], vue[2], vue[3])
 			pl.blit_rect(img, Rect2i(0, 0, W, H), Vector2i(c * W, 0))
 			c += 1
 		pl.resize(W * 2, H, Image.INTERPOLATE_NEAREST)
@@ -136,6 +136,7 @@ func _construire(quoi: String) -> Node3D:
 		d.set_physics_process(false)
 		return d
 	var opts := {"casque": _arg("casque", "") != "", "bouclier": _arg("bouclier", "bras"), "sous_couche": _arg("sous-couche", "") != ""}
+	GuerrierNordique.chrono = true
 	n = GuerrierNordique.creer(opts)
 	sv.add_child(n)
 	return n

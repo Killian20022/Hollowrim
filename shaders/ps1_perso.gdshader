@@ -18,7 +18,8 @@ uniform float saturation = 1.0;
 uniform bool decoupe = false;
 uniform float soleil_desat = 0.45;  // part de la couleur du soleil/lune ramenée au gris (0 = inchangée)
 uniform vec3 ombre_froide : source_color = vec3(0.30, 0.42, 0.75); // teinte de la face non éclairée par le soleil
-uniform float ombre_force = 0.22;   // intensité de cette teinte, relative à la lumière du soleil
+uniform float ombre_force = 0.40;   // intensité de cette teinte, relative à la lumière du soleil
+uniform float rehaut = 0.9;         // rehaut d'arête : liseré de soleil sur la silhouette quand il est à contre-jour
 instance uniform float eclair = 0.0;
 
 varying vec3 uv_aff;
@@ -56,6 +57,11 @@ void light() {
 		col = mix(col, vec3(l), soleil_desat);
 		// face à l'ombre du soleil : appoint froid (le ciel), proportionnel à la force du soleil
 		DIFFUSE_LIGHT += ombre_froide * l * ombre_force * clamp(-ndl * 0.7 + 0.3, 0.0, 1.0) / PI;
+		// rehaut d'arête (contre-jour) : bord de silhouette tourné vers le soleil, en palier net (pas de dégradé qui scintille)
+		float bord = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
+		float contre = clamp(dot(LIGHT, -VIEW) * 0.5 + 0.5, 0.0, 1.0);
+		float r = step(0.62, bord) * step(0.0, ndl + 0.25) * contre;
+		DIFFUSE_LIGHT += col * r * rehaut * ATTENUATION / PI;
 	}
 	DIFFUSE_LIGHT += clamp(ndl, 0.0, 1.0) * ATTENUATION * col / PI;
 }

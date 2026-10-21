@@ -19,7 +19,7 @@ const SHADER := preload("res://shaders/ps1_perso.gdshader")
 const CONTOUR := preload("res://shaders/contour_perso.gdshader")
 
 const TEINTE_CHEVEUX := Color(0.95, 0.85, 0.75)
-const PEAU := Color(0.92, 0.8, 0.72)
+const PEAU := Color(0.95, 0.86, 0.82)
 
 static var _shaders := {}
 static var _contour: ShaderMaterial
@@ -75,7 +75,9 @@ static func creer(options := {}) -> Node3D:
 	var casque: bool = options.get("casque", false)
 	if casque:
 		app["casque"] = "casque_nasal"
+	var t0 := Time.get_ticks_usec()
 	var racine := Humain.creer(app)
+	_t("Humain.creer", t0)
 	racine.name = "GuerrierNordique"
 	var sq := racine.find_child("Skeleton3D", true, false) as Skeleton3D
 	var pieces := {}
@@ -93,22 +95,46 @@ static func creer(options := {}) -> Node3D:
 	var sc: MeshInstance3D = pieces.get("SuperHero_Male")
 	if sc and not options.get("sous_couche", false):
 		sc.visible = false
-	# peau : contour (visage, mains)
-	var peau: MeshInstance3D = pieces.get("peau")
-	if peau:
-		for s in peau.mesh.get_surface_count():
-			var m := peau.get_surface_override_material(s) as ShaderMaterial
-			if m and m.next_pass == null:
-				var m2 := m.duplicate() as ShaderMaterial
-				m2.next_pass = contour()
-				peau.set_surface_override_material(s, m2)
+	# peau, yeux, sourcils : mêmes textures (Humain._peau), passées au shader du guerrier (soleil désaturé, ombres froides) ;
+	# contour sur la peau (visage, mains)
+	for nom in ["peau", "Eyes", "Eyebrows"]:
+		var mi: MeshInstance3D = pieces.get(nom)
+		if mi == null:
+			continue
+		for s in mi.mesh.get_surface_count():
+			var m := mi.get_surface_override_material(s) as ShaderMaterial
+			if m == null:
+				continue
+			var cle := "peau_%s_%d" % [nom, s]
+			if not _mats.has(cle):
+				var m2 := ShaderMaterial.new()
+				m2.shader = shader(nom == "Eyebrows")
+				for p in ["tex_base", "teinte", "emission", "saturation"]:
+					m2.set_shader_parameter(p, m.get_shader_parameter(p))
+				if nom == "peau":
+					m2.next_pass = contour()
+				Palette.materiaux.append(m2)
+				Palette._appliquer(m2, Palette._ps1_actif)
+				_mats[cle] = m2
+			mi.set_surface_override_material(s, _mats[cle])
+	# allègement (budget) : faces cachées retirées (arrière des globes oculaires, peau sous les manches et les brassards,
+	# couches intérieures des cheveux et de la barbe), sourcils remplacés par rien (1-2 px à 2 m, ombrés par l'arcade)
+	var tete := sq.get_bone_global_rest(sq.find_bone("Head")).origin + Vector3(0, 0.07, 0)
+	_filtrer(pieces.get("Eyes"), func(c: Vector3, n: Vector3) -> bool: return n.z > -0.2)
+	_filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return absf(c.x) < 0.19 or absf(c.x) > 0.69)
+	if pieces.has("Eyebrows"):
+		pieces["Eyebrows"].visible = false
+	for nom in ["Hair_Long", "Hair_Beard"]:
+		_filtrer(sq.get_node_or_null(nom), func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002)
 	# cheveux et barbe : mèches Quaternius gardées, texture ramenée à la palette (64², au lieu de 2048²)
 	for nom in ["Hair_Long", "Hair_Beard"]:
 		var mi: MeshInstance3D = sq.get_node_or_null(nom)
 		if mi:
 			mi.material_override = materiau(_tex_cheveux(mi), true, false, true, "cheveux_" + nom)
+	_t("matieres", t0)
 	# -- pièces ajoutées
 	_plastron(sq, pieces["tunique"])
+	_t("plastron", t0)
 	var rest_skin := sq.create_skin_from_rest_transforms()
 	var acc := Accessoires.new(sq)
 	acc.fourrure_bord(pieces["mante"], 1.25, 1.43, 0.10, 0.17, 1.0, 1.7)       # frange des épaules
@@ -122,10 +148,44 @@ static func creer(options := {}) -> Node3D:
 		acc.bouclier(bouclier)
 	if options.get("epee", true):
 		acc.epee()
+	_t("accessoires (geometrie)", t0)
 	var mi_acc := acc.construire(rest_skin)
+	_t("accessoires (materiaux)", t0)
 	sq.add_child(mi_acc)
 	racine.set_meta("guerrier_nordique", true)
 	return racine
+
+## Garde les triangles de `mi` pour lesquels garder(centre, normale) est vrai (même peau d'os, mêmes sommets).
+static func _filtrer(mi: MeshInstance3D, garder: Callable) -> void:
+	if mi == null:
+		return
+	var a := mi.mesh.surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var nb: int = (a[Mesh.ARRAY_BONES] as PackedInt32Array).size() / v.size() if a[Mesh.ARRAY_BONES] != null else 4
+	var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+	var garde := PackedInt32Array()
+	for t in range(0, idx.size(), 3):
+		var p0 := v[idx[t]]
+		var p1 := v[idx[t + 1]]
+		var p2 := v[idx[t + 2]]
+		var n := (p2 - p0).cross(p1 - p0).normalized()
+		if garder.call((p0 + p1 + p2) / 3.0, n):
+			garde.append_array([idx[t], idx[t + 1], idx[t + 2]])
+	a[Mesh.ARRAY_INDEX] = garde
+	for k in [Mesh.ARRAY_TANGENT, Mesh.ARRAY_COLOR, Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_CUSTOM0, Mesh.ARRAY_CUSTOM1, Mesh.ARRAY_CUSTOM2, Mesh.ARRAY_CUSTOM3]:
+		a[k] = null
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if nb == 8 else 0)
+	var mat := mi.get_surface_override_material(0)
+	mi.mesh = m
+	if mat:
+		mi.set_surface_override_material(0, mat)
+
+static var chrono := false
+
+static func _t(etape: String, t0: int) -> void:
+	if chrono:
+		print("GUERRIER %-26s %7.1f ms" % [etape, (Time.get_ticks_usec() - t0) / 1000.0])
 
 static func _habiller(mi: MeshInstance3D, m: ShaderMaterial) -> void:
 	mi.visible = true
@@ -448,6 +508,8 @@ class Accessoires:
 			var haut := Vector3(0.022 * cote, 1.585, 0.098)
 			var bas := Vector3(0.030 * cote, 1.47, 0.115)
 			_tube(op, haut, bas, 0.012, 0.007, 4, os_, r)
+			# tresse de tempe, devant l'oreille, jusqu'à la clavicule
+			_tube(op, Vector3(0.078 * cote, 1.70, 0.035), Vector3(0.088 * cote, 1.52, 0.05), 0.014, 0.008, 4, os_, r)
 
 	## Tube à `cotes` pans (UV : région de l'atlas, enroulée en u, du haut au bas en v).
 	func _tube(s: Dictionary, a: Vector3, b: Vector3, ra: float, rb: float, cotes: int, os_: int, r: Rect2i, segments := 3) -> void:
@@ -486,7 +548,7 @@ class Accessoires:
 			# l'avant-bras (normale +Y au repos = vers l'extérieur une fois le bras baissé), haut du bouclier vers le coude.
 			var cx := (rest.origin.x + sq.get_bone_global_rest(sq.find_bone("hand_l")).origin.x) * 0.5
 			var b := Basis(Vector3(0, 0, 1), Vector3(-1, 0, 0), Vector3(0, 1, 0))   # colonnes : x local, y local (haut), z local (face)
-			b = b * Basis(Vector3.FORWARD, deg_to_rad(-12.0))
+			b = Basis(Vector3.RIGHT, deg_to_rad(28.0)) * b * Basis(Vector3.FORWARD, deg_to_rad(-12.0))
 			tr = Transform3D(b, Vector3(cx, rest.origin.y + 0.075, rest.origin.z + 0.02))
 		else:
 			tr = Transform3D(Basis(Vector3.UP, PI) * Basis(Vector3.RIGHT, deg_to_rad(8.0)), Vector3(0.0, 1.22, -0.21))
@@ -552,7 +614,7 @@ class Accessoires:
 		var l := GuerrierTextures.R_LAME
 		var f := GuerrierTextures.R_FER
 		# lame : section en losange (4 pans) de la garde (y 0,105) à la pointe (0,88)
-		var sec := [[0.105, 0.030, 0.0055], [0.70, 0.026, 0.0045], [0.80, 0.017, 0.0035]]
+		var sec := [[0.105, 0.034, 0.006], [0.70, 0.029, 0.005], [0.80, 0.019, 0.004]]
 		var pointe := Vector3(0, 0.885, 0)
 		for k in sec.size():
 			var A: Array = sec[k]

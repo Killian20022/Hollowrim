@@ -549,7 +549,7 @@ func _villageois() -> void:
 
 ## --guerrier-pilote[=x,z,lacet°] : Guerrier nordique pilote (GuerrierNordique) debout en Idle près de l'entrée du village,
 ## pour les captures en jeu ; par défaut à 4 m devant la pose commune « entree » (outils/poses_refonte.txt), tourné vers elle.
-## --guerrier-casque : casque à nasal ; --guerrier-anim=Nom : animation (Idle par défaut). Aucun effet sans l'option.
+## --guerrier-casque : casque à nasal ; --guerrier-anim=Nom : animation (Sword_Idle par défaut : debout, garde basse armée). Aucun effet sans l'option.
 ## Dans un lot --captures : type de vue `pilote d,az°[,cible_y]` (caméra à d m du guerrier, az = 0 de face, 180 de dos)
 ## et options de ligne `anim=Nom:t` (pose figée à la fraction t du clip), `decal=m` (caméra décalée sur le côté).
 const PILOTE_DEFAUT := Vector3(24.76, 22.51, -132.3)
@@ -568,9 +568,9 @@ func _guerrier_pilote() -> void:
 	pilote.global_position = Vector3(p.x, hauteur(p.x, p.y), p.y)
 	pilote.rotation.y = deg_to_rad(p.z)
 	var ap := pilote.get_node("Animations") as AnimationPlayer
-	ap.play(String(_arguments().get("guerrier-anim", "Idle")))
+	ap.play(String(_arguments().get("guerrier-anim", "Sword_Idle")))
 	if _arguments().has("capture"):
-		_pilote_animer(String(_arguments().get("guerrier-anim", "Idle")), 0.25)
+		_pilote_animer(String(_arguments().get("guerrier-anim", "Sword_Idle")), 0.25)
 
 func _pilote_animer(nom: String, t: float) -> void:
 	var ap := pilote.get_node("Animations") as AnimationPlayer

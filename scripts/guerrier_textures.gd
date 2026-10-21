@@ -13,13 +13,13 @@ const CUIR_SOMBRE := ["#100c0b", "#1d1613", "#2c221c", "#3f3228", "#544537"]
 const FOUR := ["#1c1d22", "#383a40", "#5b5c60", "#838482", "#aeaca4", "#d3d0c4"]
 const LAINE_BLEUE := ["#0b0f1b", "#141c30", "#1f2c4a", "#2d4068", "#3f5786", "#5a72a0"]
 const LAINE_GRISE := ["#121216", "#1e1e23", "#2c2b30", "#3c3a3e", "#4f4c4e"]
-const BANDE := ["#3f3a33", "#5c564c", "#7d766a", "#9c9586"]   # bandes molletières (laine écrue)
+const BANDE := ["#2c2a29", "#423e3a", "#57524b", "#6d675d"]   # bandes molletières (laine écrue)
 const BOIS := ["#16110d", "#271e17", "#3a2d22", "#4f3f30", "#665341", "#7f6a54"]
 const PEINT_BLEU := ["#141b2b", "#1f2b44", "#2c3d5e", "#3e5276", "#566c90"]
 const PEINT_CREME := ["#5c5546", "#807864", "#a39a84", "#c4bba3"]
 const FER := ["#0d0e12", "#1b1d23", "#2e313a", "#474b56", "#6c717d", "#9da2ac", "#c9ccd2"]
 const ROUILLE := ["#24150e", "#3d2416", "#5a3820"]
-const CHEVEUX := ["#1a120c", "#2e1f13", "#48311d", "#654629", "#86603a"]
+const CHEVEUX := ["#1b1712", "#33291f", "#4f412f", "#6e5c42", "#927e5c"]
 
 static var _cache := {}
 
@@ -212,13 +212,13 @@ static func pantalon() -> Image:
 			if vy >= 4 and vy < 52:
 				var d := posmod(x + vy * 2, 12)
 				if d < 9:
-					var t := 1 + (2 if d > 1 and d < 6 else 1) + (1 if d == 2 else 0)
+					var t := 1 + (1 if d > 1 and d < 6 else 0)
 					if d == 0 or d == 8:
 						t = 0
-					t += int(roundf((_n(x, y, W, H, 8, 4, 833) - 0.5) * 1.6))
+					t += int(roundf((_n(x, y, W, H, 8, 4, 833) - 0.5) * 1.2))
 					c = _c(BANDE, t)
 				else:
-					c = _c(LAINE_GRISE, 0)
+					c = _c(LAINE_GRISE, 1)
 			_p(img, x, y, c)
 	return img
 
@@ -301,57 +301,75 @@ static func brassards() -> Image:
 			_p(img, x, H - 3, _c(FER, 6))
 	return img
 
-# ------------------------------------------------------------------ fourrure de la mante (256 x 128)
-## Sous-poil strié + touffes en mèches de 3 à 6 texels (liseré sombre à gauche, pointe claire), recouvrements aléatoires.
+# ------------------------------------------------------------------ fourrure : touffes pointues en écailles
+## Une touffe : pointe vers le bas, racine sombre, corps blanc cassé, arête gauche éclairée, liseré sombre sur le bord droit
+## et la pointe, fente sombre au milieu (brins séparés). (x0, y0) = milieu de la racine ; w, h en texels.
+static func _touffe(img: Image, x0: int, y0: int, w: int, h: int, pente: float, clair: int, alpha_fond := false) -> void:
+	for k in h:
+		var t := float(k) / maxf(1.0, h - 1)
+		var demi := w * 0.5 * (1.0 - pow(t, 1.4) * 0.92)
+		var cx := x0 + pente * k
+		var xa := int(floorf(cx - demi))
+		var xb := int(ceilf(cx + demi)) - 1
+		for x in range(xa, xb + 1):
+			var ton := clair - 1 + int(t * 2.2)
+			if t < 0.18:
+				ton = clair - 2                          # racine dans l'ombre des touffes du dessus
+			if x == xa:
+				ton = clair + 1 if t > 0.15 else clair   # arête éclairée (lumière en haut à gauche)
+			if x == xb or (k == h - 1):
+				ton = 1                                  # liseré sombre
+			elif x == int(roundf(cx + demi * 0.25)) and t > 0.25 and t < 0.8:
+				ton = clair - 2                          # fente entre deux brins
+			if k == h - 1 and x == int(roundf(cx)):
+				ton = clair + 1                          # pointe claire
+			_p(img, x, y0 + k, _c(FOUR, ton))
+
+## Fourrure de la mante (256 x 128 ; la mante n'occupe que le bas, v 0,58-1) : rangées de touffes en quinconce, les rangées
+## du HAUT peintes en dernier (elles recouvrent la racine des suivantes, comme une fourrure qui pend).
 static func mante() -> Image:
 	var W := 256
 	var H := 128
-	var img := _img(W, H)
-	for y in H:
-		for x in W:
-			var l := 0.35 + (_n(x, y, W, H, 80, 4, 871) - 0.5) * 0.35 + (_n(x, y, W, H, 12, 6, 872) - 0.5) * 0.2
-			_p(img, x, y, _c(FOUR, _ton(l, 6, x, y, 873, 0.4)))
-	for i in 420:
-		var x := int(_h(i, 1, 874) * W)
-		var y0 := int(_h(i, 2, 875) * H)
-		var lg := 8 + int(_h(i, 3, 876) * 12.0)
-		var larg0 := 3 + int(_h(i, 4, 877) * 3.0)
-		var pente := (_h(i, 5, 878) - 0.5) * 0.5
-		var base_t := 2 + int(_h(i, 6, 879) * 2.0)
-		for k in lg:
-			var t := float(k) / lg
-			var larg := maxi(1, int(roundf(larg0 * (1.0 - pow(t, 1.5) * 0.85))))
-			var xx := x + int(roundf(pente * k))
-			for cc in larg:
-				var tc := base_t + int(t * 2.5) + (1 if cc == 1 else 0) - (2 if cc == 0 else 0)
-				_p(img, xx + cc, y0 + k, _c(FOUR, tc))
+	var img := _img(W, H, _c(FOUR, 1))
+	var rangs := []
+	var y := H - 12
+	while y > 50:
+		rangs.append(y)
+		y -= 6
+	for r in rangs.size():
+		var yr: int = rangs[r]
+		var x := int(_h(r, 0, 871) * 6.0)
+		var i := 0
+		while x < W + 6:
+			var w := 5 + int(_h(i, r, 872) * 3.0)
+			var h := 9 + int(_h(i, r, 873) * 5.0)
+			var clair := 3 + (1 if _h(i, r, 874) > 0.45 else 0)
+			_touffe(img, x, yr + int(_h(i, r, 875) * 3.0) - 1, w, h, (_h(i, r, 876) - 0.5) * 0.35, clair)
+			x += w - 1
+			i += 1
 	return img
 
-# ------------------------------------------------------------------ mèches (cartes découpées) : 4 variantes de 8 x 32
-## u en travers de la carte, v de la racine (haut) à la pointe (bas) ; 2 ou 3 pointes par carte, liseré sombre, brins clairs.
+# ------------------------------------------------------------------ mèches (cartes découpées) : 4 variantes de 16 x 32
+## Chaque carte porte 2 ou 3 touffes pointues côte à côte (une devant l'autre), fond transparent.
 static func meches() -> Image:
-	var W := 32
+	var W := 64
 	var H := 32
 	var img := _img(W, H, Color(0, 0, 0, 0))
-	for var_i in 4:
-		var ox := var_i * 8
-		var pointes := 2 + (var_i & 1)
-		for x in 8:
-			# longueur de la colonne : dents de scie (pointes) + aléa
-			var phase := float(x) / 8.0 * pointes
-			var dent := 1.0 - absf(fmod(phase, 1.0) - 0.5) * 2.0     # 1 au sommet d'une pointe
-			var lg := int(H * (0.55 + 0.42 * dent - 0.08 * _h(x, var_i, 881)))
-			for y in lg:
-				var t := float(y) / lg
-				var ton := 1 + int(t * 4.2)
-				var bord_pointe := fmod(phase, 1.0) < 0.18
-				if bord_pointe:
-					ton -= 2                      # liseré sombre entre les pointes
-				if (x + var_i) % 3 == 0 and t < 0.8:
-					ton -= 1                      # creux entre les brins
-				if y == lg - 1:
-					ton = 5                       # pointe claire
-				_p(img, ox + x, y, _c(FOUR, ton))
+	for v in 4:
+		var ox := v * 16
+		var n := 2 + (v & 1)
+		var larg := 16.0 / n
+		for i in n:
+			var w := int(larg) + 2
+			var cx := ox + int(larg * (i + 0.5))
+			var h := 22 + int(_h(i, v, 881) * 9.0)
+			var clair := 3 + (1 if (i + v) % 2 == 0 else 0)
+			_touffe(img, cx, 0, mini(w, 16 - 1), mini(h, H), (_h(i, v, 882) - 0.5) * 0.25, clair)
+		# pas de débord sur la variante voisine
+		for y in H:
+			for x in [ox, ox + 15]:
+				if img.get_pixel(x, y).a > 0.0:
+					img.set_pixel(x, y, _c(FOUR, 1))
 	return img
 
 # ------------------------------------------------------------------ cape bleue (UV de la cape : u 0,22-0,62, v 0,1-1)
@@ -455,8 +473,8 @@ static func _face_bouclier(img: Image) -> void:
 				peint = _c(PEINT_BLEU, _ton(lp, 5, x, y, 916) + 1)
 			# usure : la peinture part par plaques (bruit) et le long des joints
 			var usure := _n(x, y, n, n, 9, 9, 917) + (0.25 if pl <= 1 else 0.0) + r * 0.15
-			var c := peint if usure < 0.66 else bois
-			if usure >= 0.62 and usure < 0.66:
+			var c := peint if usure < 0.76 else bois
+			if usure >= 0.72 and usure < 0.76:
 				c = _c(BOIS, 0)                       # bord écaillé sombre
 			# éclats dans le bois (2 entailles)
 			for e: Vector3 in [Vector3(0.45, -0.35, 0.08), Vector3(-0.55, 0.42, 0.06)]:
