@@ -137,7 +137,8 @@ func _ready() -> void:
 	if type == "squelette_archer":
 		archer = true
 	if archer:
-		nom_affiche = "Squelette archer" if _os else "Bandit archer"
+		if not _os:
+			nom_affiche = "Bandit archer"
 		degats = minf(degats, 8.0)  # corps à corps faible : l'arc est son arme
 		contourne = true
 	if not patrouille.is_empty():
