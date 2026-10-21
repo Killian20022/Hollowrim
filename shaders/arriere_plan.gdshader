@@ -74,9 +74,11 @@ void fragment() {
 	// épaules, et descend en COULÉES et COULOIRS étroits dans les faces raides ; au-dessus de la ligne de neige seulement
 	float ligne = 110.0 + (nb - 0.5) * 70.0;
 	float neige_alt = smoothstep(ligne - 40.0, ligne + 25.0, alt);
-	float sol_pente = smoothstep(0.14 + na * 0.10, 0.26 + na * 0.12, pente);       // 1 = trop raide pour tenir
-	float couloir = smoothstep(0.58, 0.63, strie) * smoothstep(70.0, 130.0, alt);  // coulées verticales
-	float coulee = smoothstep(0.62, 0.70, vnoise(vec2((wp.x * 0.7 + wp.z) * 0.11, wp.y * 0.02))) * 0.8;
+	float sol_pente = smoothstep(0.08 + na * 0.08, 0.17 + na * 0.10, pente);       // 1 = trop raide pour tenir
+	// couloirs de neige en TRAITS FINS qui descendent les faces raides (bruit très étiré à la verticale)
+	float strie_f = vnoise(vec2((wp.x * 0.7 + wp.z) * 0.16, wp.y * 0.008));
+	float couloir = smoothstep(0.70, 0.74, strie_f) * smoothstep(70.0, 130.0, alt);
+	float coulee = smoothstep(0.66, 0.72, vnoise(vec2((wp.x * 0.7 + wp.z) * 0.09, wp.y * 0.015))) * 0.8;
 	if (cat > 3.5 && cat < 4.5) {
 		neige_alt = smoothstep(0.78, 0.95, n.y) * 0.9;  // falaise : roche nue, neige sur les replats seulement
 		sol_pente = 0.0;
@@ -103,8 +105,8 @@ void fragment() {
 	} else if (cat < 2.5) {
 		// château : pierre sombre (silhouette sur le ciel), neige sur les dessus seulement
 		float pierre = h21(floor(vec2(wp.x + wp.z, wp.y * 2.0) * 0.45));
-		albedo = mix(vec3(0.030, 0.033, 0.045), vec3(0.075, 0.080, 0.100), pierre);
-		albedo = mix(albedo, neige_c * 0.8, smoothstep(0.8, 0.95, n.y) * 0.85);
+		albedo = mix(vec3(0.050, 0.054, 0.068), vec3(0.110, 0.115, 0.135), pierre);  // un ton au-dessus du socle : murailles lisibles
+		albedo = mix(albedo, neige_c * 0.85, max(smoothstep(0.8, 0.95, n.y) * 0.85, step(0.5, vc.r)));  // toits enneigés
 	} else {
 		albedo = vec3(0.56, 0.70, 0.84) * (0.85 + 0.15 * nb);  // glace
 	}
@@ -115,6 +117,11 @@ void fragment() {
 	float ciel = 0.55 + 0.45 * n.y;
 	float lum_dir = (cat > 1.5 && cat < 4.5) ? 0.35 : 0.85;
 	vec3 col = albedo * (ambiant * ciel * 1.05 + col_lum * diff * lum_dir);
+	if (cat < 0.5 || cat > 3.5 && cat < 4.5) {
+		// neige lointaine : jamais blanc pur au soleil (rosée / dorée au crépuscule, plafonnée)
+		float lc = dot(col, vec3(0.3, 0.55, 0.15));
+		col *= min(1.0, 0.40 / max(lc, 0.001));
+	}
 	if (cat > 4.5) {
 		col = mix(col, vec3(1.6, 0.9, 0.4), 0.95 * (1.0 - jour));  // fenêtre allumée au crépuscule et la nuit
 		albedo = vec3(0.1);

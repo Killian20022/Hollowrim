@@ -17,8 +17,8 @@ const R_MAX := 2500.0
 const LIGNES := 72        # rangées radiales (pas géométrique)
 const COLONNES := 512     # colonnes angulaires
 const COUPURES := [0, 26, 50, 71]   # rangées de début/fin des 3 bandes (chevauchement d'une rangée)
-const NB_SAPINS := 4200
-const R_SAPINS := Vector2(165.0, 820.0)
+const NB_SAPINS := 5200
+const R_SAPINS := Vector2(165.0, 1150.0)   # 3e passe : bandes boisées jusque dans la vallée
 
 ## Château : azimut (degrés depuis +Z vers +X) et distance. Visible depuis l'entrée du village (cap sud-est) et
 ## depuis le chemin du tumulus (cap sud-sud-est).
@@ -32,12 +32,13 @@ const PICS := [
 	[238.0, 1700.0, 620.0, 340.0],
 	[80.0, 1100.0, 430.0, 260.0],
 	[-95.0, 1000.0, 380.0, 240.0],
-	# refonte « lumière » : chaîne en couches derrière le village, vue depuis l'entrée (cap ≈ 48°, à gauche du château)
-	[38.0, 1350.0, 1050.0, 520.0],
-	[57.0, 1950.0, 1650.0, 640.0],
-	[74.0, 1100.0, 760.0, 420.0],
-	[92.0, 2300.0, 1700.0, 760.0],
-	[22.0, 2250.0, 1450.0, 620.0],
+	# refonte « lumière » (3e passe) : quelques GRANDS massifs aux pentes longues, un sommet franc chacun, de part et
+	# d'autre d'une vallée ouverte dans l'axe de l'entrée (cap ≈ 46°) ; le plus haut au fond de la vallée
+	[46.0, 2150.0, 1700.0, 950.0],
+	[56.0, 2000.0, 1250.0, 700.0],   # épaule du massif central
+	[66.0, 1550.0, 1250.0, 800.0],
+	[82.0, 1200.0, 800.0, 600.0],
+	[32.0, 1800.0, 1250.0, 850.0],
 ]
 
 var monde: Node
@@ -172,15 +173,21 @@ func _h(x: float, z: float) -> float:
 	var eb := smoothstep(850.0, 1700.0, r)
 	var colline := _n3.get_noise_2d(wx * 0.004, wz * 0.004) * 0.5 + 0.5
 	var h := 22.0 + ef * (22.0 + 50.0 * colline * colline)
-	h += ef * 20.0 * _ridge(wx, wz, 0.006, 3)
-	h += em * (30.0 + 120.0 * pow(_ridge(wx, wz, 0.0034, 6), 1.9))
-	h += eb * (170.0 * pow(_ridge(wx + 500.0, wz - 300.0, 0.0018, 6), 1.9))
+	h += ef * 16.0 * _ridge(wx, wz, 0.006, 2)
+	# 3e passe : crêtes douces (3 octaves au lieu de 6 : plus d'aiguilles), pentes longues
+	h += em * (30.0 + 95.0 * pow(_ridge(wx, wz, 0.0028, 3), 1.6))
+	h += eb * (210.0 * pow(_ridge(wx + 500.0, wz - 300.0, 0.0015, 3), 1.4))   # chaîne continue qui relie les massifs
+	# vallée qui s'ouvre au centre de la vue de l'entrée (cap ≈ 46°), entre 300 m et 1 800 m
+	var dv := absf(wrapf(rad_to_deg(atan2(x, z)) - 46.0, -180.0, 180.0))
+	var vallee := (1.0 - smoothstep(5.0, 20.0, dv)) * smoothstep(260.0, 520.0, r) * (1.0 - smoothstep(1500.0, 1900.0, r))
+	h = lerpf(h, 22.0 + ef * 18.0, 0.7 * vallee)
 	for p in PICS:
 		var c := _pos_polaire(p[0], p[1])
 		var t := maxf(0.0, 1.0 - Vector2(x - c.x, z - c.y).length() / p[3])
 		if t > 0.0:
 			# massif large (t^1,15) aux crêtes ridées (deux échelles) : arêtes et couloirs lisibles, pas une aiguille isolée
-			h += p[2] * 0.42 * pow(t, 1.15) * (0.6 + 0.5 * _ridge(wx, wz, 0.009, 3) + 0.15 * _ridge(wx + 77.0, wz, 0.022, 2) * t)
+			# profil concave (pentes longues, sommet franc), crête modulée à basse fréquence seulement
+			h += p[2] * 0.42 * (0.6 * pow(t, 1.8) + 0.4 * pow(t, 4.0)) * (0.8 + 0.4 * _ridge(wx, wz, 0.004, 2))
 	return h
 
 func _calculer() -> void:
@@ -326,76 +333,84 @@ func _boite(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray, b
 	_quad(p, n, c, pts[0] + Vector3.UP * sy, pts[3] + Vector3.UP * sy, pts[2] + Vector3.UP * sy, pts[1] + Vector3.UP * sy, col)
 
 func _chateau() -> Dictionary:
+	# 3e passe : château sur falaise lisible en silhouette à 640x360 : socle rocheux sombre et abrupt, enceinte crénelée,
+	# 4 tours carrées de hauteurs différentes (2 à toit pointu enneigé, 2 crénelées), donjon, fenêtres chaudes.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5150
 	var p := PackedVector3Array()
 	var n := PackedVector3Array()
 	var c := PackedColorArray()
 	var pierre := Color(0.0, 0.5, 2.0 / 5.0, 1.0)
+	var toit := Color(1.0, 0.5, 2.0 / 5.0, 1.0)     # R = 1 : pierre neigée (toits)
 	var roche := Color(0.0, 0.5, 4.0 / 5.0, 1.0)
 	var fenetre := Color(0.0, 0.5, 1.0, 1.0)
 	var centre := _pos_polaire(CHATEAU_AZIMUT, CHATEAU_DIST)
-	# axe du pont : perpendiculaire à la ligne de vue (on voit l'arche de profil)
 	var vue := Vector2(centre.x, centre.y).normalized()
-	var axe := Vector3(-vue.y, 0.0, vue.x)
+	var lat := Vector3(-vue.y, 0.0, vue.x)          # perpendiculaire à la ligne de vue : l'enceinte s'étale à l'écran
 	var sol := _y0 + _h(centre.x, centre.y) - 18.0
-	var hauteur_a := 230.0   # refonte « lumière » : falaise relevée, le château domine la forêt depuis l'entrée
-	var rayon_a := 58.0
+	var hauteur_a := 205.0
+	var rayon_a := 95.0
 	var o_a := Vector3(centre.x, sol, centre.y)
-	var hauteur_b := 212.0
-	var rayon_b := 34.0
-	var o_b := o_a + axe * 165.0
-	var sol_b := _y0 + _h(o_b.x, o_b.z) - 18.0
-	o_b.y = sol_b
 	_falaise(p, n, c, o_a, rayon_a, hauteur_a, rng, roche)
-	_falaise(p, n, c, o_b, rayon_b, hauteur_b - (sol_b - sol), rng, roche)
-	# --- sommet de la falaise A : enceinte, tours, donjon
-	var top_a := o_a + Vector3.UP * hauteur_a
-	var sommets: Array[Vector3] = []
-	var nb := 7
-	for k in nb:
-		var a := TAU * k / nb + rng.randf_range(-0.12, 0.12)
-		var rr := rayon_a * 0.50 * rng.randf_range(0.9, 1.1)
-		sommets.append(top_a + Vector3(cos(a) * rr, 0.0, sin(a) * rr))
-	for k in nb:
-		var a: Vector3 = sommets[k]
-		var b: Vector3 = sommets[(k + 1) % nb]
-		if k == 3:
-			# brèche : mur effondré, deux moignons
-			var d := b - a
-			_boite(p, n, c, a, 6.0, 6.0, d.length() * 0.3, atan2(d.x, d.z), pierre)
-			continue
-		var mid := (a + b) * 0.5
+	var top := o_a + Vector3.UP * hauteur_a
+	var yaw := atan2(lat.x, lat.z)
+	# enceinte : rectangle allongé face au village (125 x 40 m), murs de 16 m crénelés
+	var L := 125.0
+	var P := 40.0
+	var av := Vector3(vue.x, 0.0, vue.y)
+	var coins: Array[Vector3] = [top - lat * L * 0.5 - av * P * 0.5, top + lat * L * 0.5 - av * P * 0.5,
+		top + lat * L * 0.5 + av * P * 0.5, top - lat * L * 0.5 + av * P * 0.5]
+	for k in 4:
+		var a: Vector3 = coins[k]
+		var b: Vector3 = coins[(k + 1) % 4]
 		var d := b - a
-		var h_mur := 15.0 if k != 5 else 9.0
-		_boite(p, n, c, mid, 6.0, h_mur, d.length(), atan2(d.x, d.z), pierre)
-	for k in nb:
-		var h_t := rng.randf_range(32.0, 44.0)
-		if k == 2 or k == 5:
-			h_t *= 0.62   # tours écrêtées (ruine)
-		_boite(p, n, c, sommets[k], 13.0, h_t, 13.0, rng.randf() * 0.5, pierre)
-		if k != 2 and k != 5:
+		var lg := d.length()
+		var ang := atan2(d.x, d.z)
+		_boite(p, n, c, (a + b) * 0.5, 5.0, 16.0, lg, ang, pierre)
+		var nb_m := int(lg / 6.0)
+		for q in nb_m:
+			var m := a + d * ((q + 0.5) / nb_m)
+			_boite(p, n, c, m + Vector3.UP * 16.0, 5.0, 3.5, 3.0, ang, pierre)
+	# tours aux coins + donjon : hauteurs différentes, 2 toits pointus
+	var tours := [[coins[0], 40.0, true], [coins[1], 50.0, false], [coins[2], 34.0, false], [coins[3], 44.0, true],
+		[top + lat * 18.0, 66.0, true], [top - lat * 30.0 - av * 20.0, 30.0, false]]
+	for t in tours:
+		var base: Vector3 = t[0]
+		var ht: float = t[1]
+		var larg := 13.0 if ht < 80.0 else 18.0
+		_boite(p, n, c, base, larg, ht, larg, yaw, pierre)
+		if t[2]:
+			_pyramide(p, n, c, base + Vector3.UP * ht, larg * 1.15, larg * 1.5, yaw, toit)
+		else:
 			for q in 4:
-				var ox := -4.8 if q % 2 == 0 else 4.8
-				var oz := -4.8 if q < 2 else 4.8
-				_boite(p, n, c, sommets[k] + Vector3(ox, h_t, oz), 3.2, 4.5, 3.2, 0.0, pierre)
-		_fenetre_sur(p, n, c, sommets[k] + Vector3(0.0, h_t * 0.7, 0.0), 13.0, fenetre)
-	# donjon central, haut, brisé d'un côté
-	var dj := top_a + Vector3(-6.0, 0.0, 4.0)
-	_boite(p, n, c, dj, 26.0, 62.0, 22.0, 0.35, pierre)
-	_boite(p, n, c, dj + Vector3(0.0, 62.0, 0.0), 26.0, 8.0, 5.0, 0.35, pierre)
-	for q in 5:
-		_boite(p, n, c, dj + Basis(Vector3.UP, 0.35) * Vector3(-10.0 + q * 5.0, 62.0, -9.0), 3.5, 5.0, 3.5, 0.35, pierre)
-	_fenetre_sur(p, n, c, dj + Vector3(0.0, 38.0, 0.0), 22.0, fenetre)
-	_boite(p, n, c, top_a + Vector3(14.0, 0.0, -18.0), 20.0, 30.0, 16.0, -0.4, pierre)   # logis
-	# --- tour sur la falaise B et pont
-	var top_b := o_b + Vector3.UP * (hauteur_b - (sol_b - sol))
-	_boite(p, n, c, top_b, 14.0, 40.0, 14.0, 0.2, pierre)
-	for q in 4:
-		_boite(p, n, c, top_b + Vector3(-4.8 + (q % 2) * 9.6, 40.0, -4.8 + (q / 2) * 9.6), 3.2, 4.5, 3.2, 0.2, pierre)
-	_fenetre_sur(p, n, c, top_b + Vector3(0.0, 26.0, 0.0), 14.0, fenetre)
-	_pont(p, n, c, top_a + axe * (rayon_a * 0.64), top_b - axe * (rayon_b * 0.62), pierre)
+				var ox := -0.38 * larg if q % 2 == 0 else 0.38 * larg
+				var oz := -0.38 * larg if q < 2 else 0.38 * larg
+				_boite(p, n, c, base + Vector3.UP * ht + Basis(Vector3.UP, yaw) * Vector3(ox, 0.0, oz), 3.4, 4.5, 3.4, yaw, pierre)
+		_fenetre_sur(p, n, c, base + Vector3(0.0, ht * 0.72, 0.0), larg, fenetre)
+		if ht > 50.0:
+			_fenetre_sur(p, n, c, base + Vector3(0.0, ht * 0.45, 0.0), larg, fenetre)
+	# logis contre le mur du fond, toit à deux pans enneigé (pyramide allongée)
+	var logis := top - lat * 14.0 + av * 8.0
+	_boite(p, n, c, logis, 30.0, 24.0, 14.0, yaw, pierre)
+	_pyramide(p, n, c, logis + Vector3.UP * 24.0, 31.0, 10.0, yaw, toit, 15.0)
+	_fenetre_sur(p, n, c, logis + Vector3(0.0, 14.0, 0.0), 30.0, fenetre)
 	return {"pos": p, "nor": n, "col": c}
+
+## Toit pyramidal (ou à deux pans si `prof` > 0 : base largeur x prof) posé sur `base`.
+func _pyramide(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray, base: Vector3, larg: float, haut: float, yaw: float, col: Color, prof := 0.0) -> void:
+	var b := Basis(Vector3.UP, yaw)
+	var dz := (prof if prof > 0.0 else larg) * 0.5
+	var dx := larg * 0.5
+	var pts: Array[Vector3] = [base + b * Vector3(-dx, 0, -dz), base + b * Vector3(dx, 0, -dz), base + b * Vector3(dx, 0, dz), base + b * Vector3(-dx, 0, dz)]
+	var s0 := base + b * Vector3(-dx * (0.0 if prof <= 0.0 else 0.8), haut, 0.0)
+	var s1 := base + b * Vector3(dx * (0.0 if prof <= 0.0 else 0.8), haut, 0.0)
+	# 4 pans (deux triangles + deux trapèzes si deux pans)
+	_tri(p, n, c, pts[0], pts[1], s1, ((pts[1] - pts[0]).cross(s1 - pts[0])).normalized() * -1.0, col)
+	_tri(p, n, c, pts[0], s1, s0, ((pts[1] - pts[0]).cross(s1 - pts[0])).normalized() * -1.0, col)
+	_tri(p, n, c, pts[2], pts[3], s0, ((pts[3] - pts[2]).cross(s0 - pts[2])).normalized() * -1.0, col)
+	_tri(p, n, c, pts[2], s0, s1, ((pts[3] - pts[2]).cross(s0 - pts[2])).normalized() * -1.0, col)
+	_tri(p, n, c, pts[1], pts[2], s1, ((pts[2] - pts[1]).cross(s1 - pts[1])).normalized() * -1.0, col)
+	_tri(p, n, c, pts[3], pts[0], s0, ((pts[0] - pts[3]).cross(s0 - pts[3])).normalized() * -1.0, col)
 
 ## Falaise facettée : colonne irrégulière à 4 anneaux (pied évasé, tête étroite), dessus plat accidenté.
 func _falaise(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray, o: Vector3, rayon: float, hauteur: float, rng: RandomNumberGenerator, col: Color) -> void:
