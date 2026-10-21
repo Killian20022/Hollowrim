@@ -436,6 +436,7 @@ func _ambiance_matiere(m: Dictionary, _nb_lum0: int) -> void:
 	# 2e passe : murs en TRAVÉES (pilastres, étagères funéraires, arcatures, statues, sceau), nervures de voûte, densité
 	_travees(m)
 	_densite_sol(m)
+	_fers_pendants(m)
 	# brume au ras du sol
 	d.brume(Vector3(0, y, 0), Vector2(dim.x * 0.36, dim.y * 0.36), clampi(int(aire / 9.0), 4, 16))
 
@@ -462,7 +463,7 @@ func _travees(m: Dictionary) -> void:
 		f = 0.0
 		hp_long = h - 0.6
 	var statues := 0
-	var quota_st := 2 if aire >= 90.0 else (1 if aire >= 40.0 else 0)
+	var quota_st := 3 if aire >= 150.0 else (2 if aire >= 90.0 else (1 if aire >= 40.0 else 0))
 	var sceau_fait: bool = m.get("id", "") == "arene" or r.randf() < 0.5
 	for c: String in ["N", "S", "O", "E"]:
 		var horiz := c == "N" or c == "S"
@@ -519,7 +520,7 @@ func _travees(m: Dictionary) -> void:
 				sceau_fait = true
 				d.sceau(pt_mur(m, c, am, y + minf(h - 1.0, 2.1), 0.0), v, 0.6, false)
 				_arcature_vide(m, c, am, y, wb, minf(h - 0.9, 3.0))
-			elif statues < quota_st and wb >= 1.5 and t < 0.35 and libre(m, pt_mur(m, c, am, y, 0.45), 0.4, -0.9):
+			elif statues < quota_st and wb >= 1.5 and t < 0.45 and libre(m, pt_mur(m, c, am, y, 0.45), 0.4, -0.9):
 				statues += 1
 				_arcature_vide(m, c, am, y, wb, minf(h - 0.6, 3.4))
 				var p := pt_mur(m, c, am, y, 0.42)
@@ -631,6 +632,31 @@ func _etageres(m: Dictionary, c: String, am: float, y: float, wb: float, h: floa
 	if r.randf() < 0.7:
 		var s := 1.0 if r.randf() < 0.5 else -1.0
 		d.toile(P.call(s * w * 0.5, y + haut, 0.02), dr * -s, v, r.randf_range(0.45, 0.7))
+
+## Fers qui pendent (4e passe) : un ou deux lustres éteints sur chaînes et des chaînes isolées le long des murs, toujours au-dessus
+## de 2,3 m (aucune gêne, aucune collision). RNG : rng_deco.
+func _fers_pendants(m: Dictionary) -> void:
+	var dim: Vector2 = m["dim"]
+	var h := float(m.get("h", 3.0))
+	var y := float(m.get("y", 0.0))
+	var r := d.rng_deco
+	if dim.x * dim.y < 60.0 or h < 3.6:
+		return
+	var nl := 2 if dim.x * dim.y >= 150.0 else 1
+	for i in nl:
+		var px := (dim.x * 0.25) * (1.0 if i == 0 else -1.0) * r.randf_range(0.6, 1.0)
+		var pz := r.randf_range(-dim.y * 0.25, dim.y * 0.25)
+		d.lustre(Vector3(px, y + h, pz), minf(h - 2.5, 1.4), 0.5, false)
+	var nc := clampi(int((dim.x + dim.y) / 4.0), 3, 8)
+	for i in nc:
+		var c: String = ["N", "S", "E", "O"][r.randi_range(0, 3)]
+		var pm := plan_mur(m, c)
+		var Lw := dim.x if pm["horiz"] else dim.y
+		var p := pt_mur(m, c, r.randf_range(-Lw * 0.5 + 0.8, Lw * 0.5 - 0.8), y + h, r.randf_range(0.4, 1.1))
+		var lo := r.randf_range(0.5, minf(h - 2.4, 1.6))
+		d.chaine(p, p - Vector3(0, lo, 0))
+		if r.randf() < 0.4:      # crochet ou anneau au bout
+			d.boite("fer", p - Vector3(0, lo + 0.06, 0), Vector3(0.12, 0.04, 0.12))
 
 ## Densité au sol : givre dans les angles et au pied des murs, urnes et ossements contre les murs (hors passages).
 func _densite_sol(m: Dictionary) -> void:
@@ -770,7 +796,7 @@ func _couloir(m: Dictionary) -> void:
 			for ap: Array in zap:
 				if absf(float(ap[0]) - zn) < 1.3 and float(ap[1]) == s:
 					gene = true
-			if not gene and d.rng_deco.randf() < 0.8:
+			if not gene:
 				niche_os(m, "E" if s > 0.0 else "O", zn, y)
 		zn += 4.0
 	z = -L * 0.5 + 2.0
@@ -1083,12 +1109,23 @@ func porte_coulissante(id: String, pos: Vector3, axe_passage: String, largeur :=
 	sb.add_child(cs)
 	var saved := d.xf
 	d.xf = Transform3D.IDENTITY
-	d.instance_boite(n, "bois", taille, Vector3(0, w.y + 1.5, 0))
-	for yy in [0.5, 1.5, 2.5]:
-		d.instance_boite(n, "fer", taille + (Vector3(0.06, -2.85, 0.0) if vers_x else Vector3(0.0, -2.85, 0.06)), Vector3(0, w.y + yy, 0))
-	for sg in [-1.0, 1.0]:
-		var dec := Vector3(0.03 * sg, 0, 0) if vers_x else Vector3(0, 0, 0.03 * sg)
-		d.instance_boite(n, "fer", Vector3(0.08, 3.0, 0.08), Vector3(0, w.y + 1.5, largeur * 0.3 * sg if vers_x else 0) + dec)
+	if d.est_crypte:      # 4e passe : dalle de pierre (plus de planches orange) : panneau gravé, bandeaux en saillie, clous de fer
+		d.instance_boite(n, "mur1", taille, Vector3(0, w.y + 1.5, 0))
+		var ep2 := Vector3(0.06, 0, 0) if vers_x else Vector3(0, 0, 0.06)
+		var lw := Vector3(0, 0, 1) if vers_x else Vector3(1, 0, 0)
+		d.instance_boite(n, "gravure", (Vector3(ep + 0.02, 1.7, largeur * 0.56) if vers_x else Vector3(largeur * 0.56, 1.7, ep + 0.02)), Vector3(0, w.y + 1.45, 0))
+		for yy in [0.32, 2.72]:
+			d.instance_boite(n, "mur0", taille * Vector3(1, 0, 1) + Vector3(0, 0.26, 0) + ep2, Vector3(0, w.y + yy, 0))
+		for sg in [-1.0, 1.0]:
+			for yy in [0.32, 2.72]:
+				d.instance_boite(n, "fer", Vector3(ep + 0.1, 0.07, 0.07) if vers_x else Vector3(0.07, 0.07, ep + 0.1), Vector3(0, w.y + yy, 0) + lw * largeur * 0.38 * sg)
+	else:
+		d.instance_boite(n, "bois", taille, Vector3(0, w.y + 1.5, 0))
+		for yy in [0.5, 1.5, 2.5]:
+			d.instance_boite(n, "fer", taille + (Vector3(0.06, -2.85, 0.0) if vers_x else Vector3(0.0, -2.85, 0.06)), Vector3(0, w.y + yy, 0))
+		for sg in [-1.0, 1.0]:
+			var dec := Vector3(0.03 * sg, 0, 0) if vers_x else Vector3(0, 0, 0.03 * sg)
+			d.instance_boite(n, "fer", Vector3(0.08, 3.0, 0.08), Vector3(0, w.y + 1.5, largeur * 0.3 * sg if vers_x else 0) + dec)
 	d.xf = saved
 	portes[id] = n
 	return n

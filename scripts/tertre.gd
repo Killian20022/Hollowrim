@@ -720,12 +720,18 @@ func _passer(vers_dedans: bool) -> Array:
 	t.tween_callback(func() -> void:
 		# donjon pas encore prêt (entrée juste après le chargement) : on ne fige plus l'image en attendant le fil ; l'écran reste
 		# noir, le fil finit, la pose et l'intégration se font par tranches (_process), puis on bascule exactement comme avant
-		if vers_dedans and not _donjon_pret():
+		if vers_dedans and not _donjon_pret() and not _entree_synchrone():
 			_entree_en_attente = true
 			return
 		_basculer(vers_dedans))
 	Sons.jouer(self, ["doorOpen_1", "creak1"], -4.0)
 	return []
+
+## Outils de capture et de mesure de monde.gd (--captures, --crypte, --scenario) : ils se placent 1,3 s après _passer(true) ;
+## on garde pour eux l'entrée bloquante d'origine (l'image figée n'y gêne pas).
+func _entree_synchrone() -> bool:
+	var a: Dictionary = monde._arguments()
+	return a.has("capture") or a.has("crypte") or a.has("scenario")
 
 ## Bascule dehors / dedans (sous l'écran noir du fondu), puis retour de l'image.
 func _basculer(vers_dedans: bool) -> void:

@@ -26,8 +26,12 @@ const TUILE := {
 ## Refonte « crypte matière » (références grottes_cryptes_2/3) : feu plus orangé, ambiant écrasé dans les matériaux de la crypte
 ## (ombres presque noires, la torche et les braseros gardent toute leur force). La grotte (GrotteDecor) garde les anciennes valeurs.
 ## Préréglages de DIRECTION_ARTISTIQUE §6 (torche, brasero, bougie, rune) ; ambiant ramené vers « Ambiance donjon » (≈ x 0,45).
-const FEU_CRYPTE := Color(1.0, 0.56, 0.24)       # torche
-const FEU_BRASERO := Color(1.0, 0.52, 0.20)
+# 4e passe : feu ambré (plus de vert) — le rouge-orangé de la torche + le bleu de l'ambiant (sans vert) donnaient une pierre ROSÉE
+const FEU_CRYPTE := Color(1.0, 0.66, 0.36)       # torche
+const FEU_BRASERO := Color(1.0, 0.62, 0.32)
+## Pierre de la crypte : léger filtre vert-neutre (coupe un peu le rouge du feu et le bleu de l'ambiant) → brun-gris froid hors des flaques.
+const TEINTE_PIERRE := Color(0.82, 0.97, 0.93)
+const PIERRE_NEUTRE := ["mur0", "mur1", "mur2", "mur3", "dalle0", "dalle1", "dalle3", "voute", "ossuaire", "gravure", "entrelacs"]
 const FEU_BOUGIE := Color(1.0, 0.66, 0.36)
 const RUNE := Color(0.35, 0.80, 1.0)
 const AMBIANT_CRYPTE := 1.6
@@ -189,6 +193,8 @@ func mat(nom: String) -> Material:
 					sm.set_shader_parameter("crasse", 0.0)
 				elif nom == "mur4":
 					sm.set_shader_parameter("emission", Vector3(0.012, 0.03, 0.05))
+				if nom in PIERRE_NEUTRE:
+					sm.set_shader_parameter("teinte", TEINTE_PIERRE)
 			m = sm
 	_mats[nom] = m
 	return m
@@ -688,6 +694,10 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 		# soubassement en deux assises irrégulières, corniche à trois ressauts sur corbeaux, pierres en saillie
 		for m in libres:
 			_relief_mur(horizontal, plan, signe, m[0], m[1], y, h)
+	if est_crypte:       # 4e passe : toiles d'araignée dans les angles hauts
+		for cn: Array in [[xa, za, 1.0, 1.0], [xb, za, -1.0, 1.0], [xa, zb, 1.0, -1.0], [xb, zb, -1.0, -1.0]]:
+			if rng_deco.randf() < 0.75:
+				toile(Vector3(cn[0], y + h - 0.02, cn[1]), Vector3(cn[2], 0, 0), Vector3(0, 0, cn[3]), rng_deco.randf_range(0.7, 1.3))
 
 ## Relief géométrique d'un pan de mur : pierres de soubassement de profondeur variable, corniche (ressauts + corbeaux),
 ## quelques pierres d'assise en saillie (alignées sur les assises de 0,5 m de la texture).
@@ -745,6 +755,16 @@ func _givre_mur(horizontal: bool, plan: float, signe: float, a0: float, a1: floa
 			a += l + rng_deco.randf_range(0.0, 0.6)
 		glacons_arete(pt.call(a0 + 0.1, yb - 0.12, 0.2), pt.call(a1 - 0.1, yb - 0.12, 0.2), 2.0 if gele else 1.0, 0.8 if gele else 0.55)
 	glacons_arete(pt.call(a0 + 0.3, y + h - 0.5, 0.2), pt.call(a1 - 0.3, y + h - 0.5, 0.2), 1.7 if gele else 0.9, 0.7 if gele else 0.5)
+	if est_crypte:       # 4e passe : givre visible d'en bas sur les ressauts de la corniche et le bandeau, glaçons longs épars
+		var vv := Vector3(0, 0, signe) if horizontal else Vector3(signe, 0, 0)
+		givre_levre(pt.call(a0, y + h - 0.2, 0.24), pt.call(a1, y + h - 0.2, 0.24), vv, 0.05, 0.85)
+		givre_levre(pt.call(a0, y + h - 0.4, 0.14), pt.call(a1, y + h - 0.4, 0.14), vv, 0.035, 0.6)
+		if h >= 3.5:
+			givre_levre(pt.call(a0, y + h - 0.98, 0.22), pt.call(a1, y + h - 0.98, 0.22), vv, 0.05, 0.85)
+		var ag := a0 + rng_deco.randf_range(0.3, 1.2)
+		while ag < a1 - 0.3:
+			glacon_sous(pt.call(ag, y + h - 0.2, 0.2), rng_deco.randf_range(0.7, 1.3), 0.06)
+			ag += rng_deco.randf_range(1.2, 2.6)
 	# lèvre du soubassement : givre en plaques discontinues (pas une ligne blanche continue)
 	var a := a0
 	while a < a1 - 0.3:
@@ -822,6 +842,7 @@ func pilastre_mur(pied: Vector3, vers: Vector3, hp: float) -> void:
 	boite("mur0", P.call(hp - 0.11, 0.17), D.call(0.74, 0.22, 0.34), 0.0, false)
 	givre_dessus(P.call(hp, 0.17), Vector2(0.74, 0.32) if horiz else Vector2(0.32, 0.74), 0.04)
 	glacons_arete(P.call(hp - 0.22, 0.33) - dr * 0.33, P.call(hp - 0.22, 0.33) + dr * 0.33, 1.6, 0.45)
+	givre_levre(P.call(hp, 0.34) - dr * 0.37, P.call(hp, 0.34) + dr * 0.37, v, 0.05, 1.0)
 	var hpan := minf(1.5, hp - 1.4)
 	if hpan > 0.5:
 		var cc: Vector3 = P.call(0.75 + hpan * 0.5, 0.225)
@@ -895,6 +916,27 @@ func givre_dessus(centre: Vector3, taille: Vector2, deb := 0.04, lacet := 0.0) -
 		var oz := (taille.y + deb - sz) * rng_deco.randf_range(-0.5, 0.5)
 		var ep := 0.04 + 0.025 * k
 		boite("neige", centre + Basis(Vector3.UP, lacet) * Vector3(ox, ep * 0.5, oz), Vector3(sx, ep, sz), lacet, true)
+
+## Lèvre de givre (4e passe, références : arêtes hautes blanches, lisibles D'EN BAS) : bande blanche discontinue posée en haut de la face
+## avant d'une arête horizontale (a → b), un peu en saillie, avec de petites coulures. `vers` = normale de la face avant.
+func givre_levre(a: Vector3, b: Vector3, vers: Vector3, haut := 0.045, densite := 0.75) -> void:
+	var l := a.distance_to(b)
+	if l < 0.2:
+		return
+	var dr := (b - a) / l
+	var le_long_x := absf(dr.x) >= absf(dr.z)
+	var v := vers.normalized()
+	var t := 0.0
+	while t < l - 0.1:
+		var lp := minf(rng_deco.randf_range(0.3, 1.1), l - t)
+		if rng_deco.randf() < densite:
+			var hh := haut * rng_deco.randf_range(0.7, 1.4)
+			var c := a + dr * (t + lp * 0.5) + v * 0.015 - Vector3(0, hh * 0.5, 0)
+			boite("neige", c, Vector3(lp, hh, 0.035) if le_long_x else Vector3(0.035, hh, lp), 0.0, true)
+			if rng_deco.randf() < 0.5:        # coulure
+				var q := a + dr * (t + rng_deco.randf_range(0.1, 0.9) * lp) + v * 0.02 - Vector3(0, hh, 0)
+				boite("neige", q - Vector3(0, 0.03, 0), Vector3(0.03, 0.06, 0.03), 0.0, true)
+		t += lp + rng_deco.randf_range(0.0, 0.35)
 
 ## Glaçon : cône effilé de glace (6 pans) pendu sous `haut`.
 func glacon_sous(haut: Vector3, longueur := 0.5, r := 0.06) -> void:
@@ -991,7 +1033,7 @@ func lumiere(pos: Vector3, couleur: Color, energie: float, portee: float, att :=
 		energie *= GAIN_LUMIERE
 	l.light_energy = energie
 	l.omni_range = portee
-	l.omni_attenuation = att
+	l.omni_attenuation = att * (1.3 if est_crypte else 1.0)     # 4e passe : flaques de feu plus serrées, pierre froide entre elles
 	l.shadow_enabled = false
 	l.distance_fade_enabled = true
 	l.distance_fade_begin = 20.0
@@ -1105,6 +1147,8 @@ func urne(pos: Vector3, e := 1.0, cotes := 8) -> void:
 	for p: Vector2 in prof:
 		pe.append(p * e)
 	tour("argile", pos, pe, cotes, 0.0, false)
+	if est_crypte and e >= 0.45:      # 4e passe : bandeau d'entrelacs gravé sur la panse (références : urnes ornées des niches)
+		tour("entrelacs", pos + Vector3(0, 0.15 * e, 0), [Vector2(0.244 * e, 0.0), Vector2(0.256 * e, 0.07 * e), Vector2(0.244 * e, 0.14 * e)], cotes, 0.0, false)
 
 func tonneau(pos: Vector3, e := 1.0) -> void:
 	var prof := [Vector2(0.3, 0.0), Vector2(0.37, 0.25), Vector2(0.4, 0.5), Vector2(0.37, 0.75), Vector2(0.3, 1.0)]
