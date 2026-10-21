@@ -100,21 +100,22 @@ func _lancer() -> void:
 				ap.pause()
 			for i in 3:
 				await process_frame
+			var angles := _angles()
 			var rangs := _arg("rangs", "j2,j8,n2,n8").split(",", false)
-			var feuille := Image.create(cote * ANGLES.size(), cote * rangs.size(), false, Image.FORMAT_RGBA8)
-			var zoom := Image.create(cote * ANGLES.size(), cote * rangs.size(), false, Image.FORMAT_RGBA8)
+			var feuille := Image.create(cote * angles.size(), cote * rangs.size(), false, Image.FORMAT_RGBA8)
+			var zoom := Image.create(cote * angles.size(), cote * rangs.size(), false, Image.FORMAT_RGBA8)
 			for rang in rangs.size():
 				var nuit: bool = rangs[rang].begins_with("n")
 				var dist := float(rangs[rang].substr(1))
 				_regler(nuit)
-				for col in ANGLES.size():
+				for col in angles.size():
 					var haut := float(_arg("haut", "1.15")) if dist < 3.0 else 0.95
 					var cible := _arg("cible", "")          # tete | pieds : vise un os du squelette (gros plans, hauteur propre a chaque morphologie)
 					if cible != "":
 						var sq := courant.find_child("Skeleton3D", true, false) as Skeleton3D
 						var os_ := sq.find_bone("Head" if cible == "tete" else "calf_l")
 						haut = (sq.global_transform * sq.get_bone_global_pose(os_)).origin.y + (0.07 if cible == "tete" else -0.25)
-					var img: Image = await _photo(float(ANGLES[col][1]), dist, haut)
+					var img: Image = await _photo(float(angles[col][1]), dist, haut)
 					feuille.blit_rect(img, Rect2i(0, 0, cote, cote), Vector2i(col * cote, rang * cote))
 					if dist > 3.0:
 						var r := Rect2i(cote / 2 - 34, cote / 2 - 56, 68, 112)

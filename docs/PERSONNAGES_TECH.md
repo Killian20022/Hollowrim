@@ -104,3 +104,15 @@ Coût mesuré (`outils/mesure_ressorts.gd`, 12 volvas qui marchent, 4 chaînes c
 
 ### Vérifications
 Voir le journal dans `docs/MISSION_GRAPHISME.md` (lot « squelette guerrier »).
+
+## Finitions v2 des personnages de base (agent « persos-base v2 », branche graphisme/persos-base)
+
+- **Visage** : tête +7 % (`HS = 1.07` dans `base_persos.py`, 23 cm de haut), crâne à **128 texels/m** (densité PAR PARTIE : clé `densite` dans la mise en page, lue par `PersoAtlas._zone` ; nez 96, oreilles 64, barbes 96, le reste 48). Visage ≈ 22 × 22 texels. `_visage` repeint : lumière (orbites, pommettes, dessous du menton), yeux 5 × 3 (paupière, blanc, iris, pupille, reflet), sourcils par variante, nez, bouche (rouge chez les femmes), menton. Atlas 238/256 lignes (homme). Précalcul `generer_atlas_persos.gd` obligatoire (repli par calcul direct : ≈ 0,8 s par atlas au lieu de 0,15 s). `PersoAtlas.VERSION = 5`.
+- **Barbes** : pièces double face ; fenêtre transparente sur la bouche du visage, bord haut effiloché. Cheveux/barbes : mèches ondulées (plus de camouflage).
+- **Casque** : agrandi (`CASQUE_ECHELLE` 1,07) et remonté (`CASQUE_HAUSSE` 3,2 cm) : la bande nasale cachait les yeux. **Capuche** : sommets du front collés à l'os `Head` (avec le ressort ils retombaient devant le visage).
+- **Jambes/bottes** : cuisse 0,106 × 0,110, genou net, mollet galbé vers l'arrière ; botte à 6 anneaux, bout arrondi (profil d'ellipse), semelle sur la couture du dos de l'anneau, 2 sangles à boucle. Corps + bagues : **780 triangles** (était 748 ; budget du test relevé à 800).
+- **Robe et tablier** : plus de ressort. Panneaux avant/arrière en coques courbes (arc ±62°), skinnés bassin → cuisse du côté (axe central : moyenne des deux cuisses) : à la course, plus de plaque vue par la tranche. `PAR_ACCESSOIRE` ne garde que cape et capuche ; `pan_av_1`/`pan_ar_1` restent dans le squelette (26 os) sans chaîne.
+- **Étoffe** : plis verticaux à phase bruitée (creux sombre, arête claire), patine, saleté à l'ourlet, coutures dos + côtés, fronces au-dessus de la ceinture, plis du coude, laçage du col ; ceinture à clous de laiton.
+- **Forgeron** : poste `forge` déplacé à 65 cm de l'enclume (repère forge (0,30 ; 0,05)), `"cap": 0` dans `data/villageois.json` (nouveau champ, sinon cap aléatoire). Vérifié en jeu (capture intérieure).
+- **Outils** : `galerie_base.gd` gagne `--cible=tete|pieds`, `--angles=face,profil,dos`, `--sol=1`, `--haut=` en bande ; `dump_atlas.gd` écrit `couleurs_<sexe>_x3.png`.
+- **Perf** : village `--pose=32,30,-125,0` : 5,57 / 5,86 ms GPU, 475 / 449 appels, 293-307 k primitives (limite 6,7 ms).
