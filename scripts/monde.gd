@@ -154,6 +154,7 @@ func _ready() -> void:
 	_gardien_pilote()
 	_troll_pilote()
 	_draugr_pilote()
+	_persos_tous()
 	_tertre()
 	_chrono("tertre+crypte")
 	_grotte_acces()
@@ -164,7 +165,7 @@ func _ready() -> void:
 		get_window().content_scale_size = Vector2i(int(wh[0]), int(wh[1]))
 	if not _arguments().has("capture"):
 		_musique()
-	if not _arguments().has("capture") and not _arguments().has("nouvelle"):
+	if not _arguments().has("capture") and not _arguments().has("nouvelle") and not _arguments().has("persos-tous"):
 		charger()
 	if not _arguments().has("capture"):
 		_audio()
@@ -623,6 +624,63 @@ func _draugr_pilote() -> void:
 		pilote = d
 		if _arguments().has("capture"):
 			_pilote_animer(anim, 0.25)
+
+## --persos-tous : essai « galerie vivante ». Les 6 persos refondus (guerrier, mage, chasseresse, gardien, troll, draugr) en Idle,
+## côte à côte (2,5 m) à l'entrée du village (poste de PILOTE_DEFAUT), face au joueur, qui est posé 5 m devant eux et peut marcher
+## librement (ZQSD/WASD ou flèches, Maj = course, Espace = saut). Un nom flotte au-dessus de chacun. Avec des arguments, la partie
+## utilise la sauvegarde de TEST (jamais user://sauvegarde.json) ; ici on ne la charge même pas (comme --nouvelle).
+## Les nœuds sont dans le groupe « persos_tous » (méta « nom »).
+const PERSOS_TOUS := [
+	["Guerrier", "GuerrierNordique"], ["Mage", "MageNordique"], ["Chasseresse", "ChasseresseNordique"],
+	["Gardien", "GardienNordique"], ["Troll de givre", "TrollGivre"], ["Draugr", "DraugrNordique"]]
+const ECART_PERSOS := 2.5
+func _persos_tous() -> void:
+	if not _arguments().has("persos-tous"):
+		return
+	var yaw := deg_to_rad(PILOTE_DEFAUT.z)
+	var centre := Vector2(PILOTE_DEFAUT.x, PILOTE_DEFAUT.y)
+	var droite := Vector2(cos(yaw), -sin(yaw))     # axe X local du lacet
+	var devant := Vector2(sin(yaw), cos(yaw))      # axe +Z local : le côté vers lequel les persos regardent
+	for i in PERSOS_TOUS.size():
+		var nom: String = PERSOS_TOUS[i][0]
+		var n: Node3D
+		match PERSOS_TOUS[i][1]:
+			"GuerrierNordique": n = GuerrierNordique.creer({})
+			"MageNordique": n = MageNordique.creer({})
+			"ChasseresseNordique": n = ChasseresseNordique.creer({})
+			"GardienNordique": n = GardienNordique.creer({})
+			"TrollGivre": n = TrollGivre.creer({})
+			_: n = DraugrNordique.creer({})
+		add_child(n)
+		var q := centre + droite * (i - (PERSOS_TOUS.size() - 1) * 0.5) * ECART_PERSOS
+		n.global_position = Vector3(q.x, hauteur(q.x, q.y), q.y)
+		n.rotation.y = yaw
+		n.add_to_group("persos_tous")
+		n.set_meta("nom", nom)
+		var ap := n.get_node("Animations") as AnimationPlayer
+		for an in ["Idle", "Sword_Idle"]:
+			if ap.has_animation(an):
+				ap.play(an)
+				break
+		var l := Label3D.new()
+		l.text = nom
+		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		l.shaded = false
+		l.double_sided = true
+		l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		l.font_size = 40
+		l.pixel_size = 0.006
+		l.outline_size = 14
+		l.outline_modulate = Color(0.05, 0.04, 0.03)
+		l.modulate = Color(1.0, 0.93, 0.75)
+		l.position = Vector3(0, 2.7 if nom == "Troll de givre" else 2.25, 0)
+		n.add_child(l)
+	# le joueur 5 m devant la rangée, regardant vers elle
+	var j := centre + devant * 5.0
+	joueur.position = Vector3(j.x, hauteur(j.x, j.y) + 0.1, j.y)
+	joueur.rotation.y = yaw
+	joueur.tete.rotation.x = 0.05
+	depart_joueur = joueur.position
 
 func _pilote_animer(nom: String, t: float) -> void:
 	var ap := pilote.get_node("Animations") as AnimationPlayer
