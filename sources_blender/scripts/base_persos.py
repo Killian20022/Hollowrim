@@ -340,10 +340,15 @@ def pieces_accessoires():
     rg = [anneau_torse(0.62, 0.030), anneau_torse(0.30, 0.034), anneau_torse(0.10, 0.040)]
     for r in rg: r.p = {"spine_02": 1} if r is rg[0] else ({"spine_01": 1} if r is rg[1] else {"pelvis": 1})
     zk = BONE["thigh_l"][1].z + 0.05
-    bas = Anneau((0, Y0 - 0.02, zk), 0.205, 0.165, {"pan_av_1": 1})
-    mid = Anneau((0, Y0 - 0.02, ZH - 0.05), 0.20, 0.158, {"pelvis": 0.5, "pan_av_1": 0.5})
+    # v2 : tablier ECRASE SUR LES CUISSES (comme la robe : plus de ressort, plus de lanière vue par la tranche a la course), arc +-62 degres
+    arc_t = (118, 242)
+    def cote_t(k):
+        l = lateral(k, 6, arc_t)
+        return "thigh_l" if l > 0.15 else ("thigh_r" if l < -0.15 else None)
+    bas = Anneau((0, Y0 - 0.02, zk), 0.205, 0.165, lambda k: ({cote_t(k): 1} if cote_t(k) else {"thigh_l": 0.5, "thigh_r": 0.5}))
+    mid = Anneau((0, Y0 - 0.02, ZH - 0.05), 0.20, 0.158, lambda k: ({"pelvis": 0.4, cote_t(k): 0.6} if cote_t(k) else {"pelvis": 1}))
     # le haut suit la poitrine (largeur de torse), le bas s'evase vers le genou
-    tube(p, "tablier", rg + [mid, bas], n=6, kind="sur", debut="aucun", fin="ourlet", arc=(130, 230))
+    tube(p, "tablier", rg + [mid, bas], n=6, kind="sur", debut="aucun", fin="ourlet", arc=arc_t)
     # 3. robe : deux panneaux lateraux (jambes) + panneaux avant / arriere internes sur ressort ; l'ourlet reste au mollet
     p = nouvelle("robe", double=True)
     zc = BONE["calf_l"][0].z * 0.62                        # ourlet : sous le genou, bien au-dessus de la cheville
@@ -418,6 +423,11 @@ def pieces_accessoires():
     for z, pp in zip(zs, pl):
         rx, ry, av = interp(t, min(max(z, hz(1.628)), hz(1.797)))
         w = {"capuche_1": 0.5, "neck_01": 0.5} if z < hz(1.52) else ({"Head": 0.5, "capuche_1": 0.5} if z < hz(1.58) else {"Head": 1})
+        if z < LIGNE:
+            # v2 : les sommets de DEVANT remontes a la ligne du front sont collés a la tete (os Head) : avec le ressort ils retombaient devant le visage
+            def wf(k, w=w):
+                return {"Head": 1} if math.sin(-math.pi / 2 + 2 * math.pi * k / 10) > 0.2 else w
+            w = wf
         rg.append(Anneau((0, HY + (0.018 if z < hz(1.6) else 0.0), z), rx + pp, ry + pp, w, dy=-(av * ECH), vz=lift(z) if z < LIGNE else None))
     tube(p, "capuche", rg, n=10, cap1=True, kind="sur", debut="ourlet", fin="aucun")
     # 6. epaulieres (plaques de fer sur le haut du bras) et pteruges (lanieres de cuir)
