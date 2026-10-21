@@ -11,8 +11,9 @@ const PAINT_PARENT := ["bois", "fer", "lame", "os", "argile", "parchemin", "toil
 const DOSSIER := "res://assets/grotte"
 const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "givre", "glacon", "cristal", "cristal_f", "cristal_v", "planches", "peau", "paille", "or", "piste"]
 const PROPRES_PLATES := ["jour", "ciel", "rai", "flaque", "brume"]
+const GRAIN_MIPS := ["roche", "roche_b", "roche_givre", "strate", "sol"]   # passe 2 kit : mipmaps qui gardent le moucheté (GrotteTextures.mips_image)
 const GROTTE_SHADER := preload("res://shaders/grotte.gdshader")
-const AO_GAMMA := 1.0          # occlusion peinte accentuée : creux et pieds de paroi quasi noirs (références)
+const AO_GAMMA := 1.35         # occlusion peinte accentuée : creux et pieds de paroi quasi noirs (références ; passe 2 kit : 1,0 -> 1,35)
 
 ## Coques : [texture de base, texture superposée ("" = aucune), teinte, émission, part de texture en émission,
 ##           givre des faces hautes, sol mouillé, projection monde (1) ou UV (0)]
@@ -32,15 +33,19 @@ const COQUES := {
 	"c_sol_glace": ["sol", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.2, 0.6, 1.0],
 	"c_sol_nu": ["sol", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.3, 0.8, 1.0],
 	"c_sol_camp": ["sol", "", Color(0.95, 0.95, 0.97), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.35, 1.0],
-	"c_glace": ["glace", "", Color(1, 1, 1), Vector3(0.004, 0.008, 0.014), 0.0, 0.15, 1.0, 1.0],
+	"c_glace": ["glace", "", Color(1.3, 1.32, 1.36), Vector3(0.006, 0.01, 0.016), 0.0, 0.15, 0.0, 1.0],   # passe 2 kit : glace MATE plus claire (plus de reflet : aucun effet sur l'eau)
 	"c_piste": ["piste", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 0.0],
 	"c_cristal": ["cristal", "", Color(0.7, 0.76, 0.88), Vector3(0.0, 0.0, 0.0), 0.2, 0.0, 0.0, 0.0],
 	"c_or": ["or", "", Color(1, 1, 1), Vector3(0.05, 0.035, 0.0), 0.12, 0.0, 0.0, 0.0],
 	"c_cristal_f": ["cristal_f", "", Color(0.8, 0.84, 0.95), Vector3(0.0, 0.0, 0.0), 0.22, 0.0, 0.0, 0.0],   # prismes en grappes (UV par face)
-	"c_cristal_v": ["cristal_v", "", Color(0.95, 1.0, 1.05), Vector3(0.0, 0.0, 0.0), 0.55, 0.0, 0.0, 0.0],   # grosses grappes : faces bleu vif émissives
+	"c_cristal_v": ["cristal_v", "", Color(0.78, 0.95, 1.22), Vector3(0.0, 0.0, 0.0), 0.7, 0.0, 0.0, 0.0],   # passe 2 kit : bleu plus vif (cœurs blancs : c_cristal_c)   # grosses grappes : faces bleu vif émissives
 	"c_cristal_c": ["cristal_v", "", Color(1.35, 1.45, 1.5), Vector3(0.02, 0.05, 0.07), 0.9, 0.0, 0.0, 0.0],   # cœur blanc-cyan des grosses grappes
 	"c_glacon_c": ["glacon", "", Color(1.12, 1.18, 1.22), Vector3(0.012, 0.02, 0.03), 0.16, 0.0, 0.0, 0.0],   # glace claire bleu-blanc (devant de la cascade)
 	"c_glacon": ["glacon", "", Color(0.78, 0.82, 0.86), Vector3(0.006, 0.009, 0.013), 0.06, 0.0, 0.0, 0.0],
+	# passe 2 kit : la cascade du kit (lisible à 28 m) et les terrasses givrées du lac
+	"c_cascade": ["glacon", "", Color(0.7, 0.76, 0.84), Vector3(0.006, 0.01, 0.018), 0.08, 0.0, 0.0, 0.0],      # fond et stries sombres
+	"c_cascade_c": ["glacon", "", Color(1.28, 1.34, 1.4), Vector3(0.016, 0.026, 0.04), 0.24, 0.0, 0.0, 0.0],      # colonnes claires (sans halo)
+	"c_terrasse": ["roche_givre", "", Color(1.12, 1.12, 1.15), Vector3(0.0, 0.0, 0.0), 0.0, 1.0, 0.0, 1.0],
 }
 
 var _coq := {}
@@ -72,7 +77,7 @@ func _peindre_g(nom: String, cible: Array) -> void:
 ## Image définitive d'une matière (avec mipmaps si besoin) : calculée ici, ou précalculée par outils/generer_grotte.gd.
 static func image_finale(nom: String) -> Image:
 	var img: Image = or_image() if nom == "or" else GrotteTextures.image(nom)
-	return GrotteTextures.mips_image(img) if nom in PROPRES_MIPS else img
+	return GrotteTextures.mips_image(img, nom in GRAIN_MIPS) if nom in PROPRES_MIPS else img
 
 static func or_image() -> Image:
 	return CrypteTextures.or_image()   # même or martelé que la crypte (64 texels/m)
@@ -96,10 +101,17 @@ func mat(nom: String) -> Material:
 	if _mats.has(nom):
 		return _mats[nom]
 	var m: Material
+	var plat := 1.0
+	var nom_k := nom
+	if nom.begins_with("k_"):          # variante du kit de décor : même matière, sans le « sol plat » (givre sur les dessus)
+		nom = "c_" + nom.substr(2)
+		plat = 0.0
 	if COQUES.has(nom):
 		var d: Array = COQUES[nom]
 		var sm := ShaderMaterial.new()
 		sm.shader = GROTTE_SHADER
+		if plat < 1.0:
+			sm.set_shader_parameter("sol_plat", plat)
 		sm.set_shader_parameter("tex_base", _tex_g(d[0]))
 		if d[1] != "":
 			sm.set_shader_parameter("tex_sup", _tex_g(d[1]))
@@ -116,8 +128,10 @@ func mat(nom: String) -> Material:
 		sm.set_shader_parameter("tex_givre", _tex_g("givre"))
 		sm.set_shader_parameter("mouille", d[6])
 		sm.set_shader_parameter("triplan", d[7])
-		sm.set_shader_parameter("ao_gamma", AO_GAMMA if not nom in ["c_cristal", "c_cristal_f", "c_cristal_v", "c_cristal_c", "c_glacon", "c_glacon_c"] else 1.0)
+		sm.set_shader_parameter("ao_gamma", AO_GAMMA if not nom in ["c_cristal", "c_cristal_f", "c_cristal_v", "c_cristal_c", "c_glacon", "c_glacon_c", "c_cascade", "c_cascade_c"] else 1.0)
 		sm.set_shader_parameter("decoupe", 1.0 if nom == "c_piste" else 0.0)
+		if d[7] > 0.5:
+			sm.set_shader_parameter("modele", 1.0)
 		if nom == "c_sol_neige":
 			sm.set_shader_parameter("echelle_sup", 0.5)     # neige du sol extérieur : tuile de 8 m (16 texels/m), même grain que dehors
 		m = sm
@@ -164,9 +178,11 @@ func mat(nom: String) -> Material:
 			(m as StandardMaterial3D).albedo_color = Color(0.1, 0.36, 1.5)     # halo cyan doux (la texture "halo" est chaude)
 		if m is ShaderMaterial:
 			(m as ShaderMaterial).set_shader_parameter("crasse", 0.0)
+			if nom == "bois":
+				(m as ShaderMaterial).set_shader_parameter("teinte", Color(0.4, 0.35, 0.31))     # passe 2 kit : bois de mine brun sombre usé (grottes_cryptes_6), pas orange vif
 			if nom == "os":
 				(m as ShaderMaterial).set_shader_parameter("teinte", Color(0.5, 0.48, 0.45))     # os assombris (plus de taches blanches)     # pas de bande de crasse (calée sur le sol de la crypte)
-	_mats[nom] = m
+	_mats[nom_k] = m
 	return m
 
 # ------------------------------------------------------------------ facettes colorées
@@ -1168,7 +1184,7 @@ func _hab_lac(g: Grotte, z: Dictionary) -> void:
 			if g.lac_f(b, s) > 0.9 and g.faille_f(b, s) < 0.02:
 				best = s
 			s += 0.5
-		if best > 0.0:
+		if best > 0.0 and g.kit == null:      # kit actif : la cascade est une pièce du kit (GrotteKit._cascade)
 			_cascade(g, id, best - 1.0)
 		# lanternes sur la rive : flaques chaudes et reflets sur la glace
 		for sl: float in [s0 + 7.0, s0 + 19.0, s0 + 29.0]:

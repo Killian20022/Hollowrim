@@ -14,8 +14,8 @@ const E := 2          # roche, strates, sol, givre : tuile de 256 px (2 m dans l
 const SG := S * E
 
 # bornes de rampe (sombre -> clair)
-const R_ROCHE := ["#050608", "#0a0c0f", "#121519", "#1b1e23", "#262a30", "#33373e", "#434850", "#5b616a", "#838a94"]   # 2e passe : anthracite froid légèrement bleuté (références : la chaleur ne vient que des lanternes)
-const R_ROCHE_GRIS := ["#060606", "#0d0d0e", "#161718", "#202123", "#2a2b2e", "#37393c", "#46484c", "#5d5f64", "#7f8287"]
+const R_ROCHE := ["#040303", "#0b0908", "#15120f", "#1f1b17", "#2a2520", "#37312b", "#463f37", "#5a5148", "#73695d", "#958a7c"]   # passe 2 kit : brun-gris granuleux (grottes_cryptes_6), plus de bleu dans la pierre
+const R_ROCHE_GRIS := ["#040404", "#0c0c0c", "#161616", "#201f1e", "#2b2a28", "#383634", "#484542", "#5e5a56", "#7b7670", "#9b958e"]
 const R_ROCHE_FROID := ["#050608", "#0b0d10", "#14161a", "#1d2024", "#272a2f", "#33373c", "#41454b", "#575b61", "#777c83"]
 const R_BRUN := ["#070605", "#0f0e0c", "#191714", "#23201c", "#302d28", "#3d3933", "#4c463f", "#5f5850"]   # brun éteint, presque gris
 const R_SOL := ["#040505", "#090a0b", "#111214", "#191b1e", "#24272b", "#31353a", "#40444a", "#545960", "#70767d"]
@@ -73,7 +73,7 @@ static func _mix(a: PackedFloat32Array, b: PackedFloat32Array, t: float) -> Pack
 
 ## Chaîne de mipmaps : par bloc 2x2 on garde la couleur existante la plus proche de la moyenne (pas de teinte
 ## nouvelle), l'alpha est moyenné (les textures « seuil » en ont besoin).
-static func mips_image(img: Image) -> Image:
+static func mips_image(img: Image, grain := false) -> Image:
 	var data := PackedByteArray()
 	data.append_array(img.get_data())
 	var cur := img
@@ -92,6 +92,8 @@ static func mips_image(img: Image) -> Image:
 					if d < bd:
 						bd = d
 						best = k
+				if grain:     # passe 2 kit (roches) : un des 4 texels tiré au hasard, le moucheté reste visible au loin (pas de fondu vers le ton moyen)
+					best = int(_hash_i(x * 7 + w * 13, y * 11 + h * 3) * 3.999)
 				var r := c[best]
 				r.a = moy.a
 				nxt.set_pixel(x, y, r)
@@ -124,15 +126,16 @@ static func roche_image(variante := 0) -> Image:
 		for x in SG:
 			var i := y * SG + x
 			# granit : amas de 2 à 4 px d'un ton (deux échelles), nuages lents, relief doux ; jamais de grands à-plats
-			var v := 0.66 + 0.16 * (nuage[i] - 0.5) + 0.16 * (amas[i] - 0.5) + 0.1 * (amas2[i] - 0.5)
-			v += _repoussoir(h, x, y, 0.9, SG)
-			v += 0.05 * (_hash_i(x, y + 977 * variante) - 0.5)
+			# passe 2 kit : plus de tons (moucheté fin au texel ±1 ton, faces du relief plus claires, fractures presque noires)
+			var v := 0.6 + 0.22 * (nuage[i] - 0.5) + 0.2 * (amas[i] - 0.5) + 0.12 * (amas2[i] - 0.5)
+			v += _repoussoir(h, x, y, 1.35, SG)
+			v += 0.15 * (_hash_i(x, y + 977 * variante) - 0.5)
 			var a := arete[i]
 			if coupe[i] > 0.48:                                  # fractures interrompues
 				if a < 0.018:
-					v = 0.08 + 0.05 * amas[i]
+					v = 0.02 + 0.04 * amas[i]
 				elif a < 0.04:
-					v -= 0.1
+					v -= 0.16
 			var hs := _hash_i((x / 2) * 3 + 11, (y / 2) * 5 + variante)
 			if hs > eclats:
 				v += 0.26                                         # éclat clair 2x2 (givre, mica)

@@ -82,6 +82,7 @@ var accroches: Array = []                 # points d'accroche du gameplay (voir 
 var corniches := {}                       # id -> { "top": y, "b": branche, ... }
 var zones := {}                           # id -> données de la zone
 var projecteurs: Array = []
+var kit: GrotteKit                       # kit de décor modulaire (null avec --sans-kit-grotte)
 var reserves: Array = []                  # zones de passage à garder libres de décor solide : [branche, s0, s1, lat0, lat1]
 const VOIE_LIBRE := 0.55                  # demi-largeur du couloir central réservé le long de chaque branche (m)
 
@@ -1166,6 +1167,9 @@ func _decorer() -> void:
 		GrotteModules.poser(self, z)
 		_accroches_zone(z)
 		GrotteModules.lumieres(self, z)
+	if GrotteKit.actif():
+		kit = GrotteKit.new(self)
+		kit.habiller()
 
 ## Dalle praticable (corniche) : profil extrudé (rampe puis plateau) posé sur le sol, collisions comprises. Le dessus est horizontal
 ## (altitude `top`), les pieds suivent le sol ; la rampe fait ≈ 17° (3,4 x la hauteur).
