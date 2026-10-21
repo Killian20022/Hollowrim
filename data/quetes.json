@@ -95,6 +95,140 @@
         }
       ],
       "recompense": { "pieces": 0, "objets": { "epee_skarnholt": 1 } }
+    },
+    {
+      "id": "repaire_hrafn",
+      "titre": "Le repaire de Hrafn",
+      "donneur": "garde",
+      "etapes": [
+        {
+          "id": "debut",
+          "declencheur": "parle:garde",
+          "objectif": "Trouver le repaire de Hrafn, dans la vieille mine",
+          "journal": "Haldor veut la tête de Hrafn, le chef des bandits qui détroussent les convois de Skarnholt. Ils se terrent dans une vieille mine abandonnée."
+        },
+        {
+          "id": "camp",
+          "declencheur": "lieu:camp_hrafn|tue:hrafn",
+          "objectif": "Tuer Hrafn, au fond de son camp",
+          "journal": "J’ai trouvé le camp : des feux, des caisses volées, des archers sur les corniches. Hrafn est quelque part là-dedans."
+        },
+        {
+          "id": "hrafn",
+          "declencheur": "tue:hrafn",
+          "objectif": "Reprendre le registre de Hrafn",
+          "journal": "Hrafn est tombé. Ses hommes ne volent plus personne. Reste à retrouver son registre, que Haldor réclame."
+        },
+        {
+          "id": "registre",
+          "declencheur": "ramasse:registre_hrafn",
+          "objectif": "Rapporter le registre à Haldor",
+          "journal": "J’ai le registre de Hrafn : des noms, des dates, des parts. Haldor saura qu’en faire."
+        },
+        {
+          "id": "fin",
+          "declencheur": "parle:garde",
+          "objectif": "Remettre le registre à Haldor",
+          "journal": "Haldor a lu le registre sans un mot, puis m’a remis sa bourse. Les convois passeront, au moins jusqu’à la prochaine neige."
+        }
+      ],
+      "recompense": { "pieces": 120, "objets": {} }
+    },
+    {
+      "id": "expedition_sigrun",
+      "titre": "L’expédition de Sigrun",
+      "donneur": "ancienne",
+      "etapes": [
+        {
+          "id": "debut",
+          "declencheur": "parle:ancienne",
+          "objectif": "Chercher des nouvelles de Sigrun dans la vieille mine",
+          "journal": "Grima n’a plus de nouvelles de sa petite-fille Sigrun, descendue avec quatre mineurs dans la vieille mine. Elle veut savoir, quoi qu’il arrive."
+        },
+        {
+          "id": "journal",
+          "declencheur": "ramasse:journal_sigrun",
+          "objectif": "Retrouver aussi la broche de Sigrun",
+          "journal": "J’ai trouvé le journal de Sigrun sur l’îlot du lac souterrain. Elle y parle de sa broche et de Grima. Les derniers mots tremblent."
+        },
+        {
+          "id": "broche",
+          "declencheur": "ramasse:broche_sigrun",
+          "objectif": "Rapporter les affaires de Sigrun à Grima",
+          "journal": "J’ai la broche de Sigrun. Elle ne la quittait jamais, dit-on. Il faut maintenant rendre la vérité à Grima."
+        },
+        {
+          "id": "fin",
+          "declencheur": "parle:ancienne",
+          "objectif": "Rendre la broche et le récit à Grima",
+          "journal": "J’ai rendu la broche à Grima et dit ce que j’avais lu. Elle a serré la broche longtemps. Elle m’a payé, à sa façon."
+        }
+      ],
+      "recompense": { "pieces": 90, "objets": {} }
+    },
+    {
+      "id": "sceaux_brises",
+      "titre": "Les sceaux brisés",
+      "donneur": "volva",
+      "etapes": [
+        {
+          "id": "debut",
+          "declencheur": "lieu:tertre|lieu:vestibule_crypte",
+          "objectif": "Lire la fresque des sceaux, dans le vestibule",
+          "journal": "Le tertre cache une crypte tenue par trois sceaux : l’Os, le Givre, l’Eau. Eirik les a brisés. Leurs éclats ouvrent la porte de la reine."
+        },
+        {
+          "id": "os",
+          "declencheur": "ramasse:fragment_sceau_os",
+          "objectif": "Trouver l’éclat du sceau des Os (aile ouest)",
+          "journal": "J’ai l’éclat du sceau des Os. Il est froid et léger, comme un os de nouveau-né."
+        },
+        {
+          "id": "givre",
+          "declencheur": "ramasse:fragment_sceau_givre",
+          "objectif": "Trouver l’éclat du sceau du Givre (aile est)",
+          "journal": "J’ai l’éclat du sceau du Givre. Mes doigts y collent. Il me reste le sceau de l’Eau, plus bas."
+        },
+        {
+          "id": "eau",
+          "declencheur": "ramasse:fragment_sceau_eau",
+          "objectif": "Poser les trois éclats sur les socles de la salle rituelle",
+          "journal": "J’ai l’éclat du sceau de l’Eau. Les trois sont réunis : leur place est sur les socles de la salle rituelle."
+        },
+        {
+          "id": "fin",
+          "declencheur": "meca:socles_rituel:complet",
+          "objectif": "Franchir la porte de l’arène",
+          "journal": "Les trois éclats reposent sur leurs socles. La porte de l’arène s’est ouverte avec un soupir. Svanhild attend derrière."
+        }
+      ],
+      "recompense": { "pieces": 50, "objets": {} }
+    },
+    {
+      "id": "jarl_gele",
+      "titre": "Le Jarl gelé",
+      "donneur": "",
+      "etapes": [
+        {
+          "id": "debut",
+          "declencheur": "lieu:salle_trone|tue:jarl",
+          "objectif": "Affronter Kolbeinn, le Jarl gelé",
+          "journal": "Dans la salle du trône, un Jarl en armure de givre veille encore sur un royaume mort. Son bouclier n’a jamais baissé."
+        },
+        {
+          "id": "jarl",
+          "declencheur": "tue:jarl",
+          "objectif": "Prendre la hache de Kolbeinn",
+          "journal": "Kolbeinn est tombé, ses coups lents m’ont presque brisé les bras. Sa hache gît près du trône."
+        },
+        {
+          "id": "hache",
+          "declencheur": "ramasse:hache_kolbeinn",
+          "objectif": "Garder la hache du Jarl",
+          "journal": "J’ai pris la hache de Kolbeinn. Elle pèse comme un serment. Elle est à moi."
+        }
+      ],
+      "recompense": { "pieces": 0, "objets": {} }
     }
   ],
   "dialogues": {
@@ -154,6 +288,21 @@
         "Tu cherches Eirik ? Ylva me l’a dit. Ma soupe est toujours chaude.",
         "Ce garçon est mon neveu. Si tu le trouves, ramène-le-moi.",
         "Les curieux finissent dans les légendes. J’aurais préféré qu’il reste ici."
+      ],
+      "expedition_sigrun:debut": [
+        "Ma petite-fille Sigrun — pas la Voyante, l’autre — est descendue dans la vieille mine avec quatre mineurs.",
+        "Voilà trois semaines. Pas un mot, pas un chant, rien.",
+        "Ramène-moi de quoi savoir : un objet, un mot d’elle. Je n’ai pas besoin de mensonges."
+      ],
+      "expedition_sigrun:pendant": [
+        "La vieille mine, derrière les étais. Les anciens parlaient d’un lac sous la roche.",
+        "Elle portait une broche d’argent. Si tu la vois, c’est elle.",
+        "Ne me raconte pas d’histoires, au retour."
+      ],
+      "expedition_sigrun:fin": [
+        "Sa broche… et ses mots. Donc c’est fini.",
+        "Merci d’être allé jusqu’au bout. Elle aurait ri de te voir ramper dans ses galeries.",
+        "Prends cet or. Elle t’aurait offert mieux."
       ]
     },
     "garde": {
@@ -161,6 +310,21 @@
         "Tu vas au cercle ? Par là, au nord-ouest. Garde ton épée à la main.",
         "Les lueurs vertes sont plus fortes cette nuit. Mauvais signe.",
         "Si tu croises Eirik, dis-lui que j’ai tout vu."
+      ],
+      "repaire_hrafn:debut": [
+        "Écoute. Les convois de Skarnholt se font détrousser, route après route.",
+        "Les survivants parlent d’un certain Hrafn et de bandits tapis dans une vieille mine abandonnée.",
+        "Tue-le et rapporte-moi son registre. Je veux savoir qui paie, qui vend, qui ferme les yeux."
+      ],
+      "repaire_hrafn:pendant": [
+        "La vieille mine. Ils ont un guetteur à l’entrée : ne te montre pas sans regarder.",
+        "Hrafn garde son registre près de lui. Sans le registre, aucune preuve.",
+        "Des archers sur les corniches, dit-on. Avance de couvert en couvert."
+      ],
+      "repaire_hrafn:fin": [
+        "Le registre de Hrafn… Voilà les noms, les dates, les parts.",
+        "En une journée, tu as plus fait pour cette porte que moi en un an.",
+        "Prends cette bourse. Les convois passeront, pour une saison au moins."
       ]
     },
     "volva": {
@@ -173,6 +337,11 @@
         "Les aurores se calment. Tu as scellé le sommeil de la reine.",
         "Garde ton amulette. Le givre te protégera, mais ne te réchauffera pas.",
         "Les morts rendent peu de dettes. Toi, tu as payé la leur."
+      ],
+      "sceaux_brises:pendant": [
+        "Trois sceaux tenaient la maison de la reine : l’Os pour la mémoire, le Givre pour le silence, l’Eau pour l’oubli.",
+        "Eirik les a brisés sans comprendre. Chaque éclat est un morceau de la porte.",
+        "Réunis-les sur les socles de la salle rituelle. Pas avant."
       ]
     }
   },
@@ -194,6 +363,82 @@
     ],
     "svanhild_defaite": [
       "Le givre… me rappelle… Que l’anneau… me ferme les yeux."
+    ],
+    "fresque_sceaux": [
+      "Trois sceaux tiennent la maison de la reine : l’Os, le Givre, l’Eau.",
+      "Brisés, ils laissent chacun un éclat. Réunis sur les socles du rituel, ils rouvrent la porte de l’arène.",
+      "Qui les brise trop vite réveille ceux qu’ils retenaient."
+    ],
+    "inscription_rituel": [
+      "Os pour la mémoire, givre pour le silence, eau pour l’oubli.",
+      "Que rien ne manque sur la pierre, ou la porte restera close."
+    ],
+    "rituel_interrompu": [
+      "Des bols renversés, des bougies fondues d’un seul côté.",
+      "Le rituel s’est arrêté à mi-geste. Quelqu’un a couru."
+    ],
+    "note_compagnon_1": [
+      "Nous avons barré la porte de l’intérieur. Ils grattent depuis l’aube.",
+      "Eirik a promis de revenir avec du secours. Il n’est pas revenu."
+    ],
+    "note_compagnon_2": [
+      "Halfdan ne parle plus. Il fixe l’eau qui monte sous la porte.",
+      "Nous avons brisé le sceau de l’Eau en dernier. Une erreur de plus."
+    ],
+    "note_compagnon_3": [
+      "Si quelqu’un lit ceci : n’ouvre pas aux morts, même s’ils ont notre voix.",
+      "Dis à Ylva que son frère a tenu jusqu’au bout."
+    ],
+    "journal_gardien": [
+      "Troisième jour de garde. Le Jarl ne dort plus. Il parle à son bouclier comme à un fils.",
+      "Nous avons juré de veiller sur les offrandes. Nul ne les touchera.",
+      "Si le serment se brise, que les gardiens se lèvent sur le pilleur."
+    ],
+    "inscription_chapelle": [
+      "Ici l’on priait les morts de rester morts.",
+      "Peu l’ont fait. Moins encore ont été entendus."
+    ],
+    "inscription_jarl": [
+      "Kolbeinn, jarl de la garde de glace, veille encore.",
+      "Son bouclier n’a jamais baissé, son serment non plus."
+    ],
+    "inscription_offrandes": [
+      "Offrandes du roi à ses morts : or, ambre, fers anciens.",
+      "Qui les prend marche seul. Qui les laisse ne marche jamais seul."
+    ],
+    "choix_piller": [
+      "Tu rafles l’or des morts. Quelque part dans la crypte, des pas répondent aux tiens."
+    ],
+    "choix_respecter": [
+      "Tu laisses l’or aux morts. Un froid doux passe sur tes épaules : les ancêtres t’ont vu."
+    ],
+    "fresque_svanhild": [
+      "Svanhild, fille de pêcheurs, devint reine par l’épée.",
+      "Trois hivers de suite, elle brisa les raids du nord sur la glace.",
+      "À sa mort, on enferma son givre dans un anneau et son sommeil sous trois sceaux.",
+      "Ce n’est pas la haine qui la relevait. C’est l’oubli."
+    ],
+    "svanhild_phase2": [
+      "Venez, mes gardes. Le vivant s’obstine."
+    ],
+    "journal_sigrun": [
+      "Troisième descente. Les étais craquent. Skuli jure que le filon rare est derrière l’éboulement.",
+      "Sous la mine, un lac noir, des champignons qui brillent. Nous avons campé sur l’îlot.",
+      "Je laisse ce journal ici. Si je ne remonte pas : ma broche est pour Grima, et pardon."
+    ],
+    "registre_hrafn": [
+      "Convoi de Skarnholt : douze peaux, trois barils, un coffre de sel. Pris au gué.",
+      "Part de Hrafn : la moitié. Part des archers : ce qu’ils osent réclamer.",
+      "Prochain convoi : après la première neige. Les gardes comptent mal le soir."
+    ],
+    "hrafn_cri": [
+      "Archers ! Descendez-le avant qu’il touche à mon or !"
+    ],
+    "hrafn_defaite": [
+      "Mon or… tout ce que je… voulais."
+    ],
+    "jarl_reveil": [
+      "Nul ne passe… tant que le serment tient."
     ]
   }
 }

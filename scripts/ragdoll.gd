@@ -194,8 +194,9 @@ func _creer_os(d: Array, cote: String, avant: Vector3, masse: float) -> void:
 			var bs := Basis(xl, zl.cross(xl), zl)
 			pb.joint_offset = Transform3D(bs, Vector3.ZERO)
 			pb.set("joint_constraints/angular_limit_enabled", true)
-			pb.set("joint_constraints/angular_limit_lower", -5.0)
-			pb.set("joint_constraints/angular_limit_upper", float(extra["flexion"]))
+			# l'angle de la charnière tourne autour de +Z = -axe_monde : il vaut -flexion (cf. flexion())
+			pb.set("joint_constraints/angular_limit_lower", -float(extra["flexion"]))
+			pb.set("joint_constraints/angular_limit_upper", 5.0)
 	_infos[nom] = info
 	os[nom] = pb
 
@@ -244,14 +245,16 @@ func declencher(impulsion: Vector3, point: Vector3, os_touche := "", vitesse := 
 		_anim.active = false
 	squelette.force_update_all_bone_transforms()
 	simulateur.physical_bones_start_simulation()
-	# limites des charnières recentrées sur la pose de départ (l'articulation prend la pose animée pour origine)
+	# limites des charnières recentrées sur la pose de départ (l'articulation prend la pose animée pour origine).
+	# Angle de la charnière = -(flexion - phi) : flexion dans [-5, max] <=> angle dans [phi - max, 5 + phi].
+	# (L'ancien signe inversé laissait le genou s'hyper-étendre jusqu'à -90°.)
 	for nom: String in os:
 		var info: Dictionary = _infos[nom]
 		if info["joint"] == "charniere":
 			var phi := rad_to_deg(flexion(nom))
 			var pb: PhysicalBone3D = os[nom]
-			pb.set("joint_constraints/angular_limit_lower", -5.0 - phi)
-			pb.set("joint_constraints/angular_limit_upper", float(info["flexion"]) - phi)
+			pb.set("joint_constraints/angular_limit_lower", phi - float(info["flexion"]))
+			pb.set("joint_constraints/angular_limit_upper", 5.0 + phi)
 	# l'os touché : celui dont l'axe est le plus près du point
 	var cible := os_touche
 	if not os.has(cible):

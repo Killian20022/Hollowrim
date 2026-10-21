@@ -6,9 +6,18 @@ extends Node
 ## d'Eirik avant qu'Ylva ne la demande), sauf les conversations.
 
 signal change
+## Chaque événement signalé (hors "") : les ennemis en attente (reveil_evt) s'y abonnent.
+signal evenement(evt: String)
 
 ## Objets remis au donneur quand la quête se termine.
-const REMIS := {"lames_brodd": {"lame_antique": 3}, "frere_ylva": {"amulette_eirik": 1}}
+const REMIS := {"lames_brodd": {"lame_antique": 3}, "frere_ylva": {"amulette_eirik": 1}, "repaire_hrafn": {"registre_hrafn": 1}, "expedition_sigrun": {"broche_sigrun": 1}}
+
+## Choix moral du tombeau (événements "choix:piller_offrandes" / "choix:respecter_offrandes", mémorisés dans `vus` donc sauvegardés).
+const CHOIX_PILLER := "choix:piller_offrandes"
+const CHOIX_RESPECTER := "choix:respecter_offrandes"
+const PILLAGE_PIECES := 240
+const PILLAGE_RELIQUES := 3
+var _sac := {}  # état du sac au dernier changement : sert à détecter « ramasse:<objet> »
 
 var joueur: CharacterBody3D
 var hud: Control
@@ -26,7 +35,17 @@ func _ready() -> void:
 	else:
 		push_warning("Quêtes : %s illisible" % chemin)
 		donnees = {"quetes": [], "dialogues": {}, "textes": {}}
-	joueur.inventaire.change.connect(func() -> void: signaler(""))
+	_sac = joueur.inventaire.objets.duplicate()
+	joueur.inventaire.change.connect(_sac_change)
+
+## Tout objet dont le nombre augmente signale « ramasse:<id> » (en plus des signaux explicites du jeu : idempotent).
+func _sac_change() -> void:
+	var avant := _sac
+	_sac = joueur.inventaire.objets.duplicate()
+	for id in _sac:
+		if _sac[id] > avant.get(id, 0):
+			signaler("ramasse:" + id)
+	signaler("")
 
 func texte(cle: String) -> Array:
 	return donnees.get("textes", {}).get(cle, [])
@@ -57,7 +76,18 @@ func _quete(id: String) -> Dictionary:
 			return q
 	return {}
 
+## Un déclencheur peut proposer des variantes séparées par « | » (« lieu:camp_hrafn|tue:hrafn ») : la première survenue suffit.
+func _egal(declencheur: String, evt: String) -> bool:
+	if evt == "":
+		return false
+	return declencheur == evt or (declencheur.contains("|") and evt in declencheur.split("|"))
+
 func _satisfait(declencheur: String, evt: String) -> bool:
+	if declencheur.contains("|"):
+		for d in declencheur.split("|"):
+			if _satisfait(d, evt):
+				return true
+		return false
 	if declencheur == evt and evt != "":
 		return true
 	if declencheur.begins_with("objet:"):
@@ -68,12 +98,13 @@ func _satisfait(declencheur: String, evt: String) -> bool:
 func signaler(evt: String) -> void:
 	if evt != "":
 		vus[evt] = true
+		evenement.emit(evt)
 	for q in donnees["quetes"]:
 		var etapes: Array = q["etapes"]
 		var n: int = etat.get(q["id"], -1)
 		if n == -1:
 			# une quête ne commence que par son propre déclencheur
-			if etapes[0]["declencheur"] != evt:
+			if not _egal(etapes[0]["declencheur"], evt):
 				continue
 			_completer(q, 0)
 			n = 1
@@ -131,6 +162,36 @@ func repliques(villageois: String) -> Array:
 				return lignes
 	return []
 
+## Choix moral dans le tombeau : renvoie false si un choix a déjà été fait (définitif). `choix` = "piller_offrandes" | "respecter_offrandes".
+## Respecter : Bénédiction des ancêtres (+10 vie max, sauvegardée). Piller : pièces + reliques d'offrande, et l'événement
+## "vague_gardiens" (les gardiens du serment se lèvent : reveil_evt côté crypte).
+func choisir(choix: String) -> bool:
+	if choix_fait() != "" or not choix in ["piller_offrandes", "respecter_offrandes"]:
+		return false
+	signaler("choix:" + choix)
+	if choix == "respecter_offrandes":
+		joueur.regler_benediction(true, true)
+		hud.avis("Bénédiction des ancêtres : +10 vie maximale")
+	else:
+		joueur.inventaire.ajouter("pieces", PILLAGE_PIECES)
+		if Inventaire.OBJETS.has("relique_offrande"):
+			joueur.inventaire.ajouter("relique_offrande", PILLAGE_RELIQUES)
+		hud.avis("+ %d pièces" % PILLAGE_PIECES)
+		signaler("vague_gardiens")
+	change.emit()
+	return true
+
+## "" (pas de choix), "piller_offrandes" ou "respecter_offrandes".
+func choix_fait() -> String:
+	if vus.has(CHOIX_PILLER):
+		return "piller_offrandes"
+	if vus.has(CHOIX_RESPECTER):
+		return "respecter_offrandes"
+	return ""
+
+func benediction() -> bool:
+	return vus.has(CHOIX_RESPECTER)
+
 func exporter() -> Dictionary:
 	return {"etat": etat.duplicate(), "vus": vus.keys(), "journal": journal.duplicate()}
 
@@ -142,4 +203,6 @@ func importer(d: Dictionary) -> void:
 	for evt in d.get("vus", []):
 		vus[evt] = true
 	journal = d.get("journal", [])
+	_sac = joueur.inventaire.objets.duplicate()
+	joueur.regler_benediction(benediction())  # ancienne sauvegarde : pas de choix → 100 de vie max
 	change.emit()
