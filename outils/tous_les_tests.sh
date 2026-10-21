@@ -25,6 +25,7 @@ TESTS=(
 	"test_squelette_traversees|--nouvelle"
 	"test_grotte|--nouvelle"
 	"test_grotte_acces|--nouvelle"
+	"test_mecanismes|--nouvelle"
 	"test_degats_sanctuaire|--nouvelle"
 	"test_dragon|--nouvelle"
 	"test_dragon_monde|--nouvelle"
@@ -37,7 +38,7 @@ TESTS=(
 	"test_primitives|"
 	"test_sauvegarde|ecrire;verifier"   # deux processus à la suite
 )
-# tests dont le résultat dépend du pas de physique : lancés en temps réel (test_ragdoll : « genou hyper-étendu » en --fixed-fps, et parfois en temps réel sous charge → un 2e essai)
+# tests dont le résultat dépend du pas de physique : lancés en temps réel (test_ragdoll : OK aussi en --fixed-fps depuis la correction du signe des limites de charnière, 10/10 sous charge ; gardé en temps réel par prudence)
 TEMPS_REEL="test_ragdoll test_mort_ragdoll"
 nok=0; nko=0; RES=(); t_debut=$SECONDS
 for t in "${TESTS[@]}"; do

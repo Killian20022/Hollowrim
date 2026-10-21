@@ -436,6 +436,15 @@ func _process(dt: float) -> void:
 	torche_lumiere.light_energy = 1.4 + sin(_respiration * 13.0) * 0.12 + sin(_respiration * 29.0) * 0.08 + scint * 0.14
 	_halo_mat.set_shader_parameter("intensite", 0.65 + (torche_lumiere.light_energy - 1.4) * 0.7)
 
+## Multiplicateur des armes uniques portées (épée de Skarnholt ×1,35 ; hache de Kolbeinn ×1,25 ; pas de cumul).
+func _bonus_arme() -> float:
+	var b := 1.0
+	if joueur.inventaire.a("epee_skarnholt"):
+		b = 1.35
+	if joueur.inventaire.a("hache_kolbeinn"):
+		b = maxf(b, 1.25)
+	return b
+
 func _tester_coup() -> void:
 	var cam := get_parent() as Node3D
 	var origine := cam.global_position
@@ -454,8 +463,7 @@ func _tester_coup() -> void:
 		if d > 0.9 and Vector2(v.x, v.z).normalized().dot(face_plate) < 0.5:
 			continue
 		var base := DEGATS_PUISSANT if _puissant else DEGATS_LEGER
-		if joueur.inventaire.a("epee_skarnholt"):
-			base *= 1.35
+		base *= _bonus_arme()
 		var r: String = e.recevoir_coup(base * joueur.competences.multiplicateur_degats(), joueur.global_position, _puissant)
 		if r == "touche" or r == "tue":
 			joueur.competences.pratiquer("epee", 1.8 if _puissant else 1.0)
@@ -463,6 +471,19 @@ func _tester_coup() -> void:
 		if r == "bloque" and resultat == "":
 			resultat = "bloque"
 		elif r != "bloque":
+			resultat = "touche"
+	# éléments cassables (mur fragile…) : groupe « cassables », méthode frapper(puissant, origine) ; ne change rien pour les ennemis
+	for c in get_tree().get_nodes_in_group("cassables"):
+		if not is_instance_valid(c) or not c.has_method("frapper"):
+			continue
+		# point du cassable le plus proche des yeux (méthode facultative : sinon son origine)
+		var centre: Vector3 = c.point_proche(origine) if c.has_method("point_proche") else c.global_position
+		var vc: Vector3 = centre - origine
+		if vc.length() > portee + 0.3:
+			continue
+		if vc.length() > 0.9 and Vector2(vc.x, vc.z).normalized().dot(face_plate) < 0.5:
+			continue
+		if c.frapper(_puissant, joueur.global_position) and resultat == "":
 			resultat = "touche"
 	if resultat == "touche":
 		Effets.arret_image(get_tree(), 0.11 if _puissant else 0.06)
