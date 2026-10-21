@@ -149,6 +149,7 @@ func _ready() -> void:
 	_villageois()
 	_chrono("villageois")
 	_guerrier_pilote()
+	_gardien_pilote()
 	_tertre()
 	_chrono("tertre+crypte")
 	_grotte_acces()
@@ -580,6 +581,32 @@ func _pilote_animer(nom: String, t: float) -> void:
 	ap.play(nom)
 	ap.seek(ap.get_animation(nom).length * t, true)
 	ap.pause()
+
+## --gardien-pilote[=x,z,lacet°] : Gardien nordique (GardienNordique), même emplacement par défaut que le guerrier pilote ; seul, il
+## devient la cible des vues « pilote » ; avec --guerrier-pilote, il se tient à côté (comparaison de famille). --gardien-anim=Nom (Idle =
+## garde en faction par défaut). Aucun effet sans l'option.
+var gardien: Node3D
+
+func _gardien_pilote() -> void:
+	if not _arguments().has("gardien-pilote"):
+		return
+	var p := PILOTE_DEFAUT
+	var a: String = _arguments()["gardien-pilote"]
+	if a != "":
+		var f := a.split_floats(",")
+		p = Vector3(f[0], f[1], f[2] if f.size() > 2 else p.z)
+	gardien = GardienNordique.creer({})
+	add_child(gardien)
+	gardien.global_position = Vector3(p.x, hauteur(p.x, p.y), p.y)
+	gardien.rotation.y = deg_to_rad(p.z)
+	var nom := String(_arguments().get("gardien-anim", "Idle"))
+	var ap := gardien.get_node("Animations") as AnimationPlayer
+	ap.play(nom)
+	if _arguments().has("capture"):
+		ap.seek(ap.get_animation(nom).length * 0.25, true)
+		ap.pause()
+	if pilote == null:
+		pilote = gardien
 
 # --- le tertre ----------------------------------------------------------------------
 
