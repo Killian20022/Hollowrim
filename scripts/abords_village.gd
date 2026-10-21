@@ -135,17 +135,18 @@ func _entree() -> void:
 	for b in [[6.1, -2.95], [3.7, -4.4], [4.5, 4.7], [2.6, 4.0], [6.4, 3.3], [1.2, -3.9], [8.0, -3.3], [10.4, 3.5], [12.6, -4.0], [16.2, 3.6], [6.9, -4.3], [4.3, 3.0]]:
 		_buisson(_p(_j(b[0], 0.2), _j(b[1] * cote, 0.15)), rng.randf_range(0.75, 1.15))
 	# sapins chargés de neige de part et d'autre, du premier plan jusqu'à la porte (la porte reste visible au bout)
+	var avec_sapins := not OS.get_cmdline_user_args().has("--sans-sapins-abords")   # A/B de coût
 	# grands sapins du tout premier plan, à gauche et à droite : ils coupent le bord de l'image (pose commune)
-	_sapins([[4.6, -5.6, 1.45, true], [5.6, 5.1, 1.5, true], [1.8, -6.2, 1.6, true]], 0, 0.0, 0.0)
-	_sapins([[7.6, -6.6, 1.2], [3.0, -6.6, 1.0], [10.6, -5.6, 1.1], [14.0, -7.6, 1.3], [18.2, -5.4, 1.0], [22.0, -6.8, 1.2], [26.0, -5.6, 1.0], [30.0, -7.2, 1.1],
-			[6.4, 6.9, 1.15], [2.4, 7.4, 1.0], [11.2, 7.2, 1.2], [16.6, 6.3, 1.0], [21.0, 7.6, 1.3], [25.2, 5.8, 1.0], [29.2, 6.8, 1.2], [33.0, 5.8, 1.0]], 14, 2.0, longueur + 4.0)
+	if avec_sapins: _sapins([[4.6, -5.6, 1.45, true], [5.6, 5.1, 1.5, true]], 0, 0.0, 0.0, false)   # sans ombre (coût : ils couvrent l'écran)
+	if avec_sapins: _sapins([[7.6, -6.6, 1.2], [3.0, -6.6, 1.0], [10.6, -5.6, 1.1], [14.0, -7.6, 1.3], [18.2, -5.4, 1.0], [22.0, -6.8, 1.2], [26.0, -5.6, 1.0], [30.0, -7.2, 1.1],
+			[6.4, 6.9, 1.15], [2.4, 7.4, 1.0], [11.2, 7.2, 1.2], [16.6, 6.3, 1.0], [21.0, 7.6, 1.3], [25.2, 5.8, 1.0], [29.2, 6.8, 1.2], [33.0, 5.8, 1.0]], 6, 2.0, longueur + 4.0)
 	_semer_bords(0.5, longueur - 1.5)
 
 ## Sapins qui encadrent le sentier : les épicéas validés du lot 2 (API `Arbres`, mêmes graines et mêmes réglages de portée,
 ## d'ombre et de silhouette lointaine que la forêt), une liste de cadrage [u, v, échelle] puis un remplissage au hasard.
 ## Hors de la palissade, hors du dallage (|v| ≥ 3,6 m), loin des autres objets. Collision : le tronc (comme la forêt).
 ## Ils ne sont pas ajoutés à `monde.arbres` (carte de sol et brume locale inchangées).
-func _sapins(liste: Array, nb_remplir: int, u0: float, u1: float) -> void:
+func _sapins(liste: Array, nb_remplir: int, u0: float, u1: float, ombre := true) -> void:
 	var centre_village := Vector2(monde.VILLAGE.x, monde.VILLAGE.z)
 	var r_min: float = VILLAGE_RAYON + 2.2
 	var pris: Array[Vector2] = []
@@ -195,9 +196,11 @@ func _sapins(liste: Array, nb_remplir: int, u0: float, u1: float) -> void:
 	for f in 3:
 		if lots[f].is_empty():
 			continue
-		Instanciation.repartir(monde, Arbres.epicea(f, 11 + f, mats), lots[f], {"portee": pp, "marge": 4.0, "ombre_proche": pp,
-			"lod_mesh": Arbres.epicea_lointain(f, 11 + f, mats), "ombre_mesh": Arbres.epicea_ombre(f, 11 + f, mats[0]),
-			"lod_debut": pp - 4.0, "lod_portee": Vegetation.PORTEE_LOD})
+		var reg := {"portee": pp, "marge": 4.0, "ombre_proche": pp, "lod_mesh": Arbres.epicea_lointain(f, 11 + f, mats),
+			"ombre_mesh": Arbres.epicea_ombre(f, 11 + f, mats[0]), "lod_debut": pp - 4.0, "lod_portee": Vegetation.PORTEE_LOD}
+		if not ombre:
+			reg = {"portee": pp, "marge": 4.0, "ombre": false}
+		Instanciation.repartir(monde, Arbres.epicea(f, 11 + f, mats), lots[f], reg)
 		_nb_sapins += lots[f].size()
 
 ## Dallage en pierres irrégulières (cellules de Voronoï sur une grille décalée et bruitée, rétrécies d'un joint, coins
