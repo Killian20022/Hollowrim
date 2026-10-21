@@ -151,6 +151,24 @@ func module(m: Dictionary) -> void:
 	var h := float(m.get("h", 3.0))
 	_lanes = []
 	_reserves = []
+	# les accroches de la table réservent leur place : aucun décor aléatoire (couverts, gravats) ne s'y pose
+	for e: Dictionary in m.get("ennemis", []):
+		var q := lw(e["pos"])
+		_reserves.append([Vector2(q.x, q.z), 1.1])
+	for c: Dictionary in m.get("coffres", []):
+		var q := lw(c["pos"])
+		_reserves.append([Vector2(q.x, q.z), 1.1])
+	for it: Dictionary in m.get("interactions", []):
+		var q := lw(it["pos"])
+		_reserves.append([Vector2(q.x, q.z), 0.9])
+	for dm: Dictionary in m.get("meca", []):
+		var pts: Array = dm.get("positions", [])
+		for k in ["pos", "pos_dalle"]:
+			if dm.has(k):
+				pts.append(dm[k])
+		for q0: Vector3 in pts:
+			var q := lw(q0)
+			_reserves.append([Vector2(q.x, q.z), 1.4])
 	modules[id] = {"centre": mw(Vector3(0, y, 0)), "y": y, "h": h, "ouv": [], "cibles": [], "ennemis": [], "dim": dim, "rot": int(m.get("rot", 0)), "role": m.get("role", ""), "theme": m.get("theme", "tombeau")}
 	if type == "escalier":
 		_escalier(m)
@@ -212,22 +230,16 @@ func module(m: Dictionary) -> void:
 	d.niveau_a = 1.0
 	_m = {}
 
-## Les arguments de garniture écrits en repère de la crypte (Vector3, ou tableaux de Vector3) passent en repère local ; clés finissant par « _l » : déjà locales.
+## Arguments de garniture : les positions (clés « pos » et « pts », écrites en repère de la crypte) passent en repère local ; le reste (tailles, nombres) est inchangé.
 func _args_locaux(a: Dictionary) -> Dictionary:
-	var r := {}
-	for k: String in a:
-		var v: Variant = a[k]
-		if k.ends_with("_l"):
-			r[k.trim_suffix("_l")] = v
-		elif v is Vector3:
-			r[k] = lw(v)
-		elif v is Array and not (v as Array).is_empty() and (v as Array)[0] is Vector3:
-			var l: Array = []
-			for q: Vector3 in v:
-				l.append(lw(q))
-			r[k] = l
-		else:
-			r[k] = v
+	var r := a.duplicate()
+	if a.has("pos") and a["pos"] is Vector3:
+		r["pos"] = lw(a["pos"])
+	if a.has("pts"):
+		var l: Array = []
+		for q: Vector3 in a["pts"]:
+			l.append(lw(q))
+		r["pts"] = l
 	return r
 
 func _ennemi(m: Dictionary, e: Dictionary) -> void:
@@ -521,7 +533,7 @@ func _g_sarcophages(m: Dictionary, a: Dictionary) -> void:
 	var s: Array = lib[0]
 	var pm := plan_mur(m, c)
 	var taille: Vector3 = a.get("taille", Vector3(2.2, 0.7, 0.9))
-	var pas := (s[1] - s[0]) / n
+	var pas: float = (s[1] - s[0]) / n
 	var pille: Array = a.get("pille", [])
 	for i in n:
 		var u: float = s[0] + pas * (i + 0.5)

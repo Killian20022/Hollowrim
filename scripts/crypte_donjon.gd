@@ -11,9 +11,12 @@ extends DonjonKit
 const FRAG_OS := "fragment_sceau_os"
 const FRAG_GIVRE := "fragment_sceau_givre"
 const FRAG_EAU := "fragment_sceau_eau"
-const EVT_OS := "crypte:fragment_os"
+const EVT_OS := "crypte:fragment_os"                 # marqueur « fragment pris » (l'interaction disparaît)
 const EVT_GIVRE := "crypte:fragment_givre"
 const EVT_EAU := "crypte:fragment_eau"
+const REVEIL_OS := "ramasse:fragment_sceau_os"       # événement de quête qui réveille le gardien (émis à l'entrée dans le sac)
+const REVEIL_GIVRE := "ramasse:fragment_sceau_givre"
+const REVEIL_EAU := "ramasse:fragment_sceau_eau"
 
 func construire() -> void:
 	for m: Dictionary in plan():
@@ -49,19 +52,23 @@ func _it(id: String, pos: Vector3, nom: String, verbe: String, genre: String, ex
 func _texte(id: String, pos: Vector3, nom: String, verbe: String, lignes: Array) -> Dictionary:
 	return _it(id, pos, nom, verbe, "texte", {"texte": lignes})
 
+## Texte tiré de data/quetes.json (quetes.texte(cle)) ; `plus` : lignes ajoutées.
+func _cle(id: String, pos: Vector3, nom: String, verbe: String, cle: String, plus := []) -> Dictionary:
+	return _it(id, pos, nom, verbe, "texte", {"cle": cle, "plus": plus})
+
 func _e(id: String, type: String, pos: Vector3, lacet := 0.0, dort := true, debout := false, extra := {}) -> Dictionary:
 	return {"id": id, "type": type, "pos": pos, "lacet": lacet, "dort": dort, "debout": debout, "extra": extra}
 
 func plan() -> Array:
 	var B := BAS
 	var r: Array = []
-	var serment := {"si": "crypte:choix_piller", "vie_imposee": 90.0, "degats_imposes": 18.0, "nom_affiche": "Gardien du serment"}
+	var serment := {"reveil_evt": "vague_gardiens", "vie_imposee": 90.0, "degats_imposes": 18.0, "nom_affiche": "Gardien du serment"}
 	# ============================================================ COLONNE VERTÉBRALE (étage 0)
 	# vestibule (entrée), alcôve d'Eirik et couloir de la herse : bâtis par tertre.gd (pièces uniques : levier, herse, corps d'Eirik)
 	r.append(_cl("niches", Vector2(0, -12), 12.0, 0, 3.0, "tombeau", 3, "prep", "",
 		{"role": "combat", "extra": "_x_niches", "detritus": false, "lum": {"appliques": 2},
 		"ouv": [["N", 0.0, 3.2, false, "prep"], ["S", 0.0, 3.2, false, ""], ["O", 3.0, 3.2, false, "s1"]],
-		"ennemis": [_e("cr_niches_1", "sbire", Vector3(1.0, 0, -13.0), -PI * 0.5, true, true), _e("cr_niches_2", "sbire", Vector3(-1.0, 0, -16.8), PI * 0.5, true, true)]}))
+		"ennemis": [_e("cr_niches_1", "sbire", Vector3(0.85, 0, -13.0), -PI * 0.5, true, true), _e("cr_niches_2", "sbire", Vector3(-0.85, 0, -16.8), PI * 0.5, true, true)]}))
 	r.append(_salle("prep", Vector2(0, -25), Vector2(14, 14), 4.6, "tombeau", "combat", 5,
 		[["S", 0.0, 3.2, false, "niches"], ["N", 0.0, 3.2, false, ""], ["O", 0.0, 3.0, false, ""], ["O", 5.2, 3.2, false, "w1"], ["E", -4.7, 3.2, false, "g0"]],
 		{"lum": {"braseros": 2, "appliques": 2}, "extra": "_x_prep",
@@ -71,12 +78,12 @@ func plan() -> Array:
 	# salle rituelle (hub) : trois socles, porte scellée de l'arène, rituel interrompu
 	r.append(_salle("rituelle", Vector2(0, -48), Vector2(14, 12), 6.0, "tombeau", "enigme", 59,
 		[["S", 0.0, 3.2, false, ""], ["N", 0.0, 4.0, false, "antichambre"]],
-		{"lum": {"braseros": 2, "appliques": 2}, "extra": "_x_rituelle",
+		{"lum": {"braseros": 1, "appliques": 2}, "extra": "_x_rituelle",
 		"ennemis": [_e("cr_rituelle_1", "guerrier", Vector3(-2.7, 0, -52.0), 0.0, true, true), _e("cr_rituelle_2", "guerrier", Vector3(2.7, 0, -52.0), 0.0, true, true)],
-		"meca": [{"genre": "socles", "id": "socles_sceaux", "positions": [Vector3(-4.4, 0, -45.0), Vector3(4.4, 0, -45.0), Vector3(0, 0, -51.4)], "objets": [FRAG_OS, FRAG_GIVRE, FRAG_EAU]}]}))
+		"meca": [{"genre": "socles", "id": "socles_rituel", "positions": [Vector3(-4.4, 0, -45.0), Vector3(4.4, 0, -45.0), Vector3(0, 0, -51.4)], "objets": [FRAG_OS, FRAG_GIVRE, FRAG_EAU]}]}))
 	r.append(_salle("antichambre", Vector2(0, -58), Vector2(10, 8), 5.0, "tombeau", "repos", 61,
 		[["S", 0.0, 4.0, false, "rituelle"], ["N", 0.0, 4.0, false, "arene"]],
-		{"lum": {"braseros": 2, "appliques": 2}, "extra": "_x_antichambre",
+		{"lum": {"braseros": 1, "appliques": 2}, "extra": "_x_antichambre",
 		"coffres": [{"id": "cof_antichambre", "pos": Vector3(4.1, 0, -55.1), "lacet": -PI * 0.5, "nom": "Coffre de la Dame", "butin": {"pieces": 110, "amulette_givre": 1}}]}))
 	r.append(_salle("arene", Vector2(0, -71), Vector2(24, 18), 8.0, "givre", "combat", 67,
 		[["S", 0.0, 4.0, false, "antichambre"], ["E", -1.0, 3.2, false, "tombeau"]],
@@ -84,9 +91,9 @@ func plan() -> Array:
 	r.append(_salle("tombeau", Vector2(18, -72), Vector2(12, 12), 5.0, "tombeau", "recit", 71,
 		[["O", 0.0, 3.2, false, "arene"]],
 		{"lum": {"braseros": 2, "appliques": 2}, "extra": "_x_tombeau",
-		"ennemis": [_e("cr_serment_1", "guerrier", Vector3(14.6, 0, -75.4), 0.0, false, false, serment),
-			_e("cr_serment_2", "guerrier", Vector3(14.6, 0, -68.6), 0.0, false, false, serment),
-			_e("cr_serment_3", "guerrier", Vector3(19.0, 0, -77.0), 0.0, false, false, serment)]}))
+		"ennemis": [_e("cr_serment_1", "guerrier", Vector3(14.6, 0, -75.4), PI * 0.5, true, true, serment),
+			_e("cr_serment_2", "guerrier", Vector3(14.6, 0, -68.6), PI * 0.5, true, true, serment),
+			_e("cr_serment_3", "guerrier", Vector3(19.0, 0, -77.0), 0.0, true, true, serment)]}))
 
 	# ============================================================ AILE OUEST : sceau des Os
 	r.append(_cl("w1", Vector2(-10, -19.8), 6.0, 1, 3.0, "tombeau", 7, "ossuaire", "prep"))
@@ -104,8 +111,8 @@ func plan() -> Array:
 			_e("cr_ossuaire_3", "sbire", Vector3(-23.0, 0, -8.8), PI),
 			_e("cr_ossuaire_sq1", "squelette", Vector3(-27.7, 0, -21.5), 1.5, true, true),
 			_e("cr_ossuaire_sq2", "squelette", Vector3(-27.7, 0, -18.2), 1.5, true, true),
-			_e("cr_ossuaire_sqa", "squelette_archer", Vector3(-27.0, 0.9, -11.0), -1.2, true, true, {"archer": true}),
-			_e("cr_ossuaire_gardien", "guerrier", Vector3(-21.0, 0, -12.0), 0.0, true, false, {"reveil_evt": EVT_OS, "vie_imposee": 120.0, "degats_imposes": 20.0, "nom_affiche": "Gardien des Os"})],
+			_e("cr_ossuaire_sqa", "squelette_archer", Vector3(-27.0, 0.9, -11.0), -1.2, true, true, {"archer": true, "poste": true}),
+			_e("cr_ossuaire_gardien", "guerrier", Vector3(-21.0, 0, -12.0), 0.0, true, false, {"reveil_evt": REVEIL_OS, "vie_imposee": 120.0, "degats_imposes": 20.0, "nom_affiche": "Gardien des Os"})],
 		"coffres": [{"id": "cof_ossuaire", "pos": Vector3(-28.2, 0, -24.7), "lacet": PI * 0.5, "butin": {"pieces": 34, "os_draugr": 2, "poussiere_tombe": 1}}],
 		"interactions": [_it("urne_ossuaire", Vector3(-28.4, 0.5, -19.0), "Urne funéraire", "Fouiller l’urne", "coffre", {"butin": {"pieces": 9}, "coffre": Vector3(-28.4, 0, -19.0)}),
 			_it("fragment_os", Vector3(-21.0, 1.9, -16.0), "Fragment du sceau des Os", "Prendre le fragment", "fragment", {"objet": FRAG_OS, "evt": EVT_OS,
@@ -142,7 +149,7 @@ func plan() -> Array:
 		"ennemis": [_e("cr_g1_9", "guerrier", Vector3(21.0, 0, -32.0), 0.4, true, true),
 			_e("cr_g1_10", "sbire", Vector3(30.0, 0, -20.0), 3.5),
 			_e("cr_g1_arch", "squelette_archer", Vector3(33.0, 0, -24.3), -1.9, true, true, {"archer": true}),
-			_e("cr_g1_gardien", "guerrier", Vector3(28.0, 0, -19.6), 0.0, true, false, {"reveil_evt": EVT_GIVRE, "vie_imposee": 110.0, "degats_imposes": 19.0, "nom_affiche": "Gardien du Givre"})],
+			_e("cr_g1_gardien", "guerrier", Vector3(28.0, 0, -19.6), 0.0, true, false, {"reveil_evt": REVEIL_GIVRE, "vie_imposee": 110.0, "degats_imposes": 19.0, "nom_affiche": "Gardien du Givre"})],
 		"coffres": [{"id": "cof_g1", "pos": Vector3(34.3, 0, -19.0), "lacet": -PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 38, "poussiere_tombe": 1}}],
 		"interactions": [_it("fragment_givre", Vector3(33.2, 1.5, -32.2), "Fragment du sceau du Givre", "Prendre le fragment", "fragment", {"objet": FRAG_GIVRE, "evt": EVT_GIVRE,
 			"texte": ["Un éclat de glace qui ne fond pas, gravé du sceau du Givre.", "Sous la glace du sol, un corps cuirassé s’éveille."]})],
@@ -154,11 +161,7 @@ func plan() -> Array:
 		[["N", 3.0, 3.2, false, "g2"], ["O", 2.0, 3.2, false, "s2"], ["E", 0.0, 2.4, true, "armurerie"]],
 		{"lum": {"braseros": 1, "appliques": 3}, "extra": "_x_quartiers",
 		"coffres": [{"id": "cof_quartiers", "pos": Vector3(15.9, 0, -7.9), "lacet": PI * 0.5, "butin": {"pieces": 55, "os_draugr": 1, "poussiere_tombe": 2}}],
-		"interactions": [_texte("journal_quartiers", Vector3(24.2, 0.9, -0.6), "Journal du capitaine", "Lire le journal", [
-				"Journal du capitaine de garde de Svanhild.",
-				"« Les trois sceaux tiennent : l’Os, le Givre, l’Eau. Tant qu’ils sont scellés, la Dame dort. »",
-				"« Le jarl Kolbeinn veille toujours sur son trône, à l’est. Il n’a jamais pardonné la mort de la Dame. »",
-				"La dernière page est arrachée."]),
+		"interactions": [_cle("journal_quartiers", Vector3(24.2, 0.9, -0.6), "Journal de la garde", "Lire le journal", "journal_gardien"),
 			_it("cach_quartiers", Vector3(19.5, 0.3, -1.4), "Planche disjointe", "Soulever la planche", "coffre", {"butin": {"pieces": 40, "amulette_givre": 1}, "coffre": Vector3(19.5, 0, -1.4)})],
 		"meca": [{"genre": "mur_fragile", "id": "mur_quartiers", "pos": Vector3(27.0, 1.5, -4.0), "taille": Vector3(0.6, 3.0, 2.4), "lacet": 0.0, "materiau": "mur0"}]}))
 	r.append(_salle("armurerie", Vector2(30, -4), Vector2(6, 6), 3.2, "tombeau", "tresor", 33,
@@ -173,7 +176,7 @@ func plan() -> Array:
 		[["O", 0.0, 3.2, false, "g3"]],
 		{"usure": 1, "lum": {"braseros": 2, "appliques": 2}, "extra": "_x_trone",
 		"garnitures": [["piliers", {"pts": [Vector3(47.0, 0, -34.0), Vector3(47.0, 0, -26.0), Vector3(53.0, 0, -34.0), Vector3(53.0, 0, -26.0)], "h": 4.6, "largeur": 0.9}]],
-		"ennemis": [_e("cr_g4_jarl", "guerrier", Vector3(53.8, 0, -30.0), -PI * 0.5, true, true, {"boss": "jarl", "vie_imposee": 170.0, "degats_imposes": 21.0, "nom_affiche": "Jarl Kolbeinn le Gelé", "echelle": 1.12}),
+		"ennemis": [_e("jarl", "guerrier", Vector3(53.8, 0, -30.0), -PI * 0.5, true, true, {"boss": "jarl"}),
 			_e("cr_g4_arch1", "squelette_archer", Vector3(56.2, 0, -35.8), -PI * 0.5, true, true, {"archer": true}),
 			_e("cr_g4_arch2", "squelette_archer", Vector3(56.2, 0, -24.2), -PI * 0.5, true, true, {"archer": true})],
 		"coffres": [{"id": "cof_g4a", "pos": Vector3(57.9, 0, -36.8), "lacet": -PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 58, "lame_antique": 1}},
@@ -195,11 +198,10 @@ func plan() -> Array:
 		[["S", 0.0, 3.2, false, "lb2"]],
 		{"y": B, "lum": {"braseros": 0, "appliques": 1}, "extra": "_x_barricade",
 		"coffres": [{"id": "cof_lb2b", "pos": Vector3(-17.2, B, -54.8), "lacet": PI * 0.5, "nom": "Bagages de l’expédition", "butin": {"pieces": 60, "poussiere_tombe": 1}}],
-		"interactions": [_texte("notes_barricade", Vector3(-11.9, B + 0.9, -52.2), "Carnet d’un compagnon", "Lire le carnet", [
-			"Un corps serre encore un carnet. L’écriture est tremblante.",
-			"« Halvard est tombé. Nous avons barré la porte de l’intérieur. »",
-			"« Ils ne frappent plus. Mais l’eau remue dans la citerne… »",
-			"« Si quelqu’un lit ceci : la citerne. Quatre braseros, dans l’ordre des bannières. L’Eau garde le dernier sceau. »"])]}))
+		"interactions": [_cle("note_compagnon_1", Vector3(-11.9, B + 0.9, -52.2), "Carnet d’un compagnon", "Lire le carnet", "note_compagnon_1"),
+			_cle("note_compagnon_2", Vector3(-16.0, B + 0.5, -53.0), "Corps d’un compagnon", "Fouiller le corps", "note_compagnon_2"),
+			_cle("note_compagnon_3", Vector3(-12.6, B + 0.5, -54.2), "Dernier mot", "Lire le mot", "note_compagnon_3",
+				["Au dos : « La citerne : quatre braseros, à allumer dans l’ordre des bannières. L’Eau garde le dernier sceau. »"])]}))
 	r.append(_cl("lb2w", Vector2(-25, -43), 6.0, 1, 3.2, "tombeau", 39, "lb3", "lb2", {"y": B, "extra": "_x_piege_lb2w",
 		"meca": [{"genre": "dalle_flechettes", "id": "piege_lb2w", "pos_dalle": Vector3(-25.0, B, -43.0), "pos_bouche": Vector3(-25.0, B + 1.1, -44.3), "dir": Vector3(0, 0, 1)}]}))
 	r.append(_salle("lb3", Vector2(-35, -43), Vector2(14, 14), 5.0, "eau", "enigme", 43,
@@ -207,8 +209,8 @@ func plan() -> Array:
 		{"y": B, "usure": 1, "lum": {"braseros": 0, "appliques": 2}, "extra": "_x_cisterne",
 		"ennemis": [_e("cr_lb3_18", "guerrier", Vector3(-33.0, B, -38.0), 0.0, true, true),
 			_e("cr_lb3_19", "sbire", Vector3(-37.8, B, -47.6), 1.5),
-			_e("cr_lb3_arch", "squelette_archer", Vector3(-40.6, B, -47.4), 0.8, true, true, {"archer": true}),
-			_e("cr_lb3_noye", "guerrier", Vector3(-38.0, B, -39.6), 0.0, true, false, {"reveil_evt": EVT_EAU, "vie_imposee": 115.0, "degats_imposes": 19.0, "nom_affiche": "Gardien de l’Eau"})],
+			_e("cr_lb3_arch", "squelette_archer", Vector3(-40.6, B, -47.4), 0.8, true, true, {"archer": true, "poste": true}),
+			_e("cr_lb3_noye", "guerrier", Vector3(-38.0, B, -39.6), 0.0, true, false, {"reveil_evt": REVEIL_EAU, "vie_imposee": 115.0, "degats_imposes": 19.0, "nom_affiche": "Gardien de l’Eau"})],
 		"coffres": [{"id": "cof_lb3", "pos": Vector3(-28.6, B, -37.7), "lacet": -PI * 0.5, "butin": {"pieces": 47, "lame_antique": 1, "os_draugr": 2}}],
 		"interactions": [_it("fragment_eau", Vector3(-40.6, B + 1.5, -43.0), "Fragment du sceau de l’Eau", "Prendre le fragment", "fragment", {"objet": FRAG_EAU, "evt": EVT_EAU, "requiert": ["meca:braseros_cisterne:resolu"],
 			"texte": ["Un éclat de pierre humide, gravé du sceau de l’Eau.", "Les eaux de la citerne frémissent derrière vous."]})],
@@ -219,9 +221,7 @@ func plan() -> Array:
 		[["O", 5.0, 3.2, false, "lb2e"], ["E", -4.0, 3.2, false, "lb1c"]],
 		{"y": B, "lum": {"braseros": 1, "appliques": 2}, "extra": "_x_chapelle",
 		"coffres": [{"id": "cof_lb2a", "pos": Vector3(9.4, B, -41.0), "lacet": -PI * 0.5, "butin": {"pieces": 31, "poussiere_tombe": 1}}],
-		"interactions": [_texte("inscription_chapelle", Vector3(6.0, B + 1.25, -53.9), "Inscription", "Lire l’inscription", [
-			"Une inscription nordique, usée par l’humidité :",
-			"« Ici reposent ceux qui ont juré. Que la Dame dorme, que les sceaux tiennent. »"])]}))
+		"interactions": [_cle("inscription_chapelle", Vector3(6.0, B + 1.25, -53.9), "Inscription", "Lire l’inscription", "inscription_chapelle")]}))
 	r.append(_cl("lb1c", Vector2(13, -52), 6.0, 1, 3.2, "tombeau", 49, "lb2a", "lb1", {"y": B}))
 	r.append(_salle("lb1", Vector2(22, -53), Vector2(12, 14), 4.6, "garde", "combat", 53,
 		[["O", 1.0, 3.2, false, "lb1c"], ["S", -1.0, 3.2, false, "d1"]],
@@ -310,6 +310,8 @@ func _x_rituelle(_m: Dictionary) -> void:
 	d.bougie(_l(-3.9, -46.3), false)
 	d.bougie(_l(3.9, -46.3), false)
 	d.bougie(_l(0.6, -53.0), false)
+	interaction("inscription_rituel", _l(0, -53.0, 1.3), "Porte scellée", "Lire les sceaux", "texte", {"cle": "inscription_rituel"})
+	interaction("rituel_interrompu", _l(3.5, -49.8, 0.7), "Brasero renversé", "Examiner le rituel", "texte", {"cle": "rituel_interrompu"})
 
 func _x_antichambre(_m: Dictionary) -> void:
 	d.tapis(_l(0, -58), Vector2(2.4, 7.2), 0.0, Color(0.42, 0.18, 0.2))
@@ -320,7 +322,7 @@ func _x_antichambre(_m: Dictionary) -> void:
 	d.banniere(_l(-4.62, -59.5, 3.8), Vector3(1, 0, 0), 2.4, 0.9, Color(0.4, 0.5, 0.78), "couronne", 1)
 	d.banniere(_l(4.62, -59.5, 3.8), Vector3(-1, 0, 0), 2.4, 0.9, Color(0.4, 0.5, 0.78), "couronne", 2)
 	d.table(_l(-3.1, -55.0), 0.0)
-	d.bougie(_l(-3.1, -55.0, 0.8), true)
+	d.bougie(_l(-3.1, -55.0, 0.8), false)
 	d.urne(_l(3.1, -61.1), 1.3)
 	d.os_tas(_l(0.6, -56.5), 2, 0.3)
 
@@ -357,10 +359,10 @@ func _x_arene(_m: Dictionary) -> void:
 	d.crane(_l(-3.0, -66.0), 0.5)
 	d.crane(_l(4.0, -66.5), 2.0)
 	# lumière : braseros chauds aux coins de l'entrée, lampes froides à l'estrade
-	d.brasero(_l(-10.6, -62.9))
-	d.brasero(_l(10.6, -62.9))
-	d.brasero(_l(-5.6, -66.2))
-	d.brasero(_l(5.6, -66.2))
+	d.brasero(_l(-10.6, -63.4))
+	d.brasero(_l(10.6, -63.4))
+	d.brasero(_l(-5.6, -67.2))
+	d.brasero(_l(5.6, -67.2))
 	d.applique(_l(0, -79.7), Vector3(0, 0, 1), 3.0, 6.0, 1.6, true)
 	d.oculus(_l(0, -72.0, 8.0), 2.0)
 	d.rai(_l(0, -72.0, 0.7), 7.2, 2.0)
@@ -398,13 +400,11 @@ func _x_tombeau(_m: Dictionary) -> void:
 	d.bougie(_l(22.5, -69.3, 1.0), false)
 	d.bougie(_l(22.5, -74.8, 1.0), false)
 	# récit, choix moral : piller (beaucoup d'or, relique, gardiens du serment) ou respecter (bénédiction des ancêtres)
-	interaction("fresque_svanhild", _l(18.0, -77.0, 1.3), "Fresque de Svanhild", "Lire la fresque", "texte", {"texte": [
-		"La fresque raconte Svanhild : une reine venue par la mer, couronnée, victorieuse à la hache et à l’épée.",
-		"Puis le givre, et la porte scellée. Ses fidèles l’ont ensevelie avec leurs offrandes."]})
-	interaction("inscription_offrandes", _l(22.2, -72.0, 1.2), "Inscription des offrandes", "Lire l’inscription", "texte", {"texte": [
-		"« Ce qui est offert aux morts ne se reprend pas. Qui prend, réveille le serment. Qui s’incline, reçoit la bénédiction. »"]})
-	interaction("piller_offrandes", _l(22.1, -74.6, 1.1), "Offrandes royales", "Piller les offrandes", "choix", {"choix": "piller", "interdit": ["crypte:choix_piller", "crypte:choix_respect"]})
-	interaction("honorer_ancetres", _l(22.1, -69.4, 1.1), "Autel des ancêtres", "S’incliner devant les ancêtres", "choix", {"choix": "respect", "interdit": ["crypte:choix_piller", "crypte:choix_respect"]})
+	interaction("fresque_svanhild", _l(18.0, -77.0, 1.3), "Fresque de Svanhild", "Lire la fresque", "texte", {"cle": "fresque_svanhild"})
+	interaction("inscription_offrandes", _l(22.2, -72.0, 1.2), "Inscription des offrandes", "Lire l’inscription", "texte", {"cle": "inscription_offrandes"})
+	var interdit := ["choix:piller_offrandes", "choix:respecter_offrandes"]
+	interaction("piller_offrandes", _l(22.1, -74.6, 1.1), "Offrandes royales", "Piller les offrandes", "choix", {"choix": "piller_offrandes", "interdit": interdit})
+	interaction("honorer_ancetres", _l(22.1, -69.4, 1.1), "Autel des ancêtres", "S’incliner devant les ancêtres", "choix", {"choix": "respecter_offrandes", "interdit": interdit})
 
 # ------------------------------------------------------------------ aile ouest
 func _x_s1(_m: Dictionary) -> void:
@@ -587,6 +587,7 @@ func _x_trone(_m: Dictionary) -> void:
 	d.os_tas(_l(48.0, -30.0), 5, 0.6)
 	d.arme(_l(52.0, -32.5), 2.0)
 	d.crane(_l(46.0, -27.5), 0.9)
+	interaction("inscription_jarl", _l(50.0, -36.0, 1.4), "Stèle du Jarl", "Lire la stèle", "texte", {"cle": "inscription_jarl"})
 
 # ------------------------------------------------------------------ étage -1
 func _x_archives(_m: Dictionary) -> void:

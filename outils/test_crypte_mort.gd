@@ -39,7 +39,7 @@ func _tester() -> void:
 	c.visible = true
 	var etats := []
 	t.entree.connect(func(d: bool) -> void: etats.append(d))
-	m.joueur.global_position = c.to_global(Vector3(-35, 0.1, -20))
+	m.joueur.global_position = c.to_global(Vector3(-21, 0.1, -12))
 	for i in 4:
 		t._gerer_zones()
 		await physics_frame
@@ -53,7 +53,7 @@ func _tester() -> void:
 		m.draugrs[id]._mourir()
 	_verif(not m.draugrs[a].vivant() and not m.draugrs[b].vivant(), "deux gardiens tués")
 	# coffre ouvert, bourse posée mais non ramassée ; porte S1 ouverte
-	t._ouvrir_coffre("cof_ossuaire", {"pieces": 34}, Vector3(-25.2, 0, -30.8))
+	t._ouvrir_coffre("cof_ossuaire", {"pieces": 34}, Vector3(-28.2, 0, -24.7))
 	t._ouvrir_porte("s1")
 	var n_butin := 0
 	for n in c.get_children():
@@ -78,12 +78,39 @@ func _tester() -> void:
 	# retour dans la crypte : le gardien non sauvegardé réapparaît vivant, l'autre non
 	t.dedans = true
 	c.visible = true
-	m.joueur.global_position = c.to_global(Vector3(-35, 0.1, -20))
+	m.joueur.global_position = c.to_global(Vector3(-21, 0.1, -12))
 	for i in 4:
 		t._gerer_zones()
 		await physics_frame
 	_verif(m.draugrs.has(b) and m.draugrs[b].vivant(), "gardien non sauvegardé réapparu vivant")
 	_verif(not m.draugrs.has(a), "gardien sauvegardé comme tué : toujours absent")
+	# les gardiens de la partie d'origine (couloir des niches, salle de préparation, salle rituelle) sont réinitialisés comme les autres (bug corrigé)
+	t.dedans = true
+	c.visible = true
+	m.joueur.global_position = c.to_global(Vector3(0, 0.1, -20))
+	for i in 12:
+		t._gerer_zones()
+		await physics_frame
+	var orig := ["cr_niches_2", "cr_prep_1", "cr_prep_2", "cr_prep_3", "cr_rituelle_1"]   # (cr_niches_1 est « tué et sauvegardé » plus haut)
+	var tous := true
+	for id in orig:
+		tous = tous and m.draugrs.has(id) and is_instance_valid(m.draugrs[id])
+	_verif(tous, "les gardiens de la partie d'origine passent par la file d'apparition du donjon (identifiants fixes)")
+	m.draugrs["cr_niches_2"]._mourir()
+	m.draugrs["cr_prep_2"]._mourir()
+	m.joueur.mort = true
+	t.reinitialiser([])
+	for i in 3:
+		await physics_frame
+	_verif(not m.draugrs.has("cr_niches_2") and not m.draugrs.has("cr_prep_2") and not m.draugrs.has("cr_prep_1"), "mort du joueur : gardiens d'origine retirés (tués ou non), à refaire")
+	t.dedans = true
+	c.visible = true
+	m.joueur.mort = false
+	m.joueur.global_position = c.to_global(Vector3(0, 0.1, -20))
+	for i in 12:
+		t._gerer_zones()
+		await physics_frame
+	_verif(m.draugrs.has("cr_niches_2") and m.draugrs["cr_niches_2"].vivant() and m.draugrs.has("cr_prep_2") and m.draugrs["cr_prep_2"].vivant(), "gardiens d'origine réapparus vivants (non sauvegardés comme tués)")
 	# chemin complet : la mort passe par le monde (fondu, puis réinitialisation, puis résurrection)
 	m.joueur.mort = true
 	m._joueur_mort()

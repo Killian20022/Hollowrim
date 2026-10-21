@@ -46,6 +46,8 @@ var _reste_donjon: Array = []       # enfants du donjon encore hors de l'arbre
 var _t_pose := 0
 var morts_charges: Array = []       # draugrs tués d'une partie chargée (posé par le monde) : on ne les refait pas
 var _pas_zone := 0.0
+var _vu_vestibule := false
+var _vu_trone := false
 var _flamme_pixel: MeshInstance3D
 var _t := 0.0
 
@@ -295,6 +297,7 @@ func _porte_haut(id: String, instant := false) -> void:
 
 ## Rappelé par les socles (aussi à la restauration) : les trois sceaux sont rétablis, la porte de l'arène s'ouvre.
 func _ouvrir_arene() -> void:
+	quetes.signaler("meca:socles_rituel:complet")
 	_porte_haut("arene")
 
 func _creer_interaction(it: Dictionary) -> void:
@@ -319,8 +322,15 @@ func _creer_interaction(it: Dictionary) -> void:
 	var action: Callable
 	match genre:
 		"texte":
-			var lignes: Array = it["texte"]
-			action = func() -> Array: return lignes
+			var lignes: Array = it.get("texte", [])
+			var cle: String = it.get("cle", "")
+			var plus: Array = it.get("plus", [])
+			action = func() -> Array:
+				if cle == "":
+					return lignes
+				var l: Array = quetes.texte(cle).duplicate()
+				l.append_array(plus)
+				return l
 		"porte":
 			action = func() -> Array: return _ouvrir_porte(id)
 		"secret":
@@ -361,43 +371,22 @@ func _ouvrir_secret() -> Array:
 	joueur.secousse = 0.35
 	return []
 
-## Fragment de sceau : objet de l'inventaire + événement (réveil des gardiens : `reveil_evt` du draugr).
+## Fragment de sceau : objet de l'inventaire (quetes signale « ramasse:<objet> » tout seul : les gardiens `reveil_evt` se réveillent) + marqueur.
 func _prendre_fragment(it: Dictionary) -> Array:
 	var objet: String = it["objet"]
 	quetes.signaler(it["evt"])
 	joueur.inventaire.ajouter(objet)
 	hud.avis("+ " + joueur.inventaire.nom(objet))
-	quetes.signaler("ramasse:" + objet)
 	joueur.secousse = 0.3
 	Sons.jouer_a(self, ["impactPlate_medium_000"], crypte.to_global(it["pos"]), 0.0)
 	return it["texte"]
 
-## Choix moral devant les offrandes royales : piller (or, reliques, gardiens du serment) ou respecter (bénédiction des ancêtres, +10 vie max).
+## Choix moral devant les offrandes royales (définitif, géré par quetes.choisir) : piller (or, reliques, « vague_gardiens ») ou respecter (bénédiction).
 func _choisir(choix: String) -> Array:
-	if choix == "piller":
-		quetes.signaler("crypte:choix_piller")
-		joueur.inventaire.ajouter("pieces", 700)
-		joueur.inventaire.ajouter("relique_offrande", 2)
-		hud.avis("+ 700 pièces")
-		hud.avis("+ 2 Reliques d’offrande royale")
-		joueur.secousse = 0.5
-		return ["Vous raflez l’or et les reliques des morts.", "Un souffle glacé monte de la tombe : les gardiens du serment s’éveillent."]
-	quetes.signaler("crypte:choix_respect")
-	_appliquer_benediction(true)
-	return ["Vous vous inclinez devant les ancêtres.", "Une chaleur ancienne vous traverse : bénédiction des ancêtres (+10 vie max)."]
-
-## Bénédiction des ancêtres : bonus permanent de vie maximale (une seule fois). Utilise joueur.appliquer_benediction() si le joueur le fournit.
-func _appliquer_benediction(avec_avis := false) -> void:
-	if joueur.has_meta("benediction_appliquee"):
-		return
-	joueur.set_meta("benediction_appliquee", true)
-	if joueur.has_method("appliquer_benediction"):
-		joueur.call("appliquer_benediction")
-	else:
-		joueur.vie_max += 10.0
-		joueur.vie += 10.0
-	if avec_avis:
-		hud.avis("+ Bénédiction des ancêtres")
+	if not quetes.choisir(choix):
+		return []
+	joueur.secousse = 0.4
+	return quetes.texte("choix_piller" if choix == "piller_offrandes" else "choix_respecter")
 
 func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
 	quetes.signaler("crypte:" + id)
@@ -424,6 +413,19 @@ func _gerer_zones() -> void:
 			var dy := gp.y - pj.y
 			var meme_etage := (gp.y < crypte.global_position.y - 3.0) == (pj.y < crypte.global_position.y - 3.0)
 			l.visible = (meme_etage or absf(dy) < 3.2) and absf(dy) < 6.0 and Vector2(gp.x - pj.x, gp.z - pj.z).length() < 26.0
+	# lieux de quête : vestibule et salle du trône (le Jarl parle à qui entre, s'il est encore là)
+	var pl := crypte.to_local(pj)
+	if not _vu_vestibule and absf(pl.x) < 3.0 and pl.z > -6.0 and pl.z < 4.0 and absf(pl.y) < 3.0:
+		_vu_vestibule = true
+		quetes.signaler("lieu:vestibule_crypte")
+	if not _vu_trone and pl.x > 43.0 and pl.x < 59.0 and pl.z > -38.0 and pl.z < -22.0 and absf(pl.y) < 3.0:
+		_vu_trone = true
+		quetes.signaler("lieu:salle_trone")
+		var jarl = monde.draugrs.get("jarl")
+		if jarl != null and is_instance_valid(jarl) and jarl.vivant():
+			var lj: Array = quetes.texte("jarl_reveil")
+			if not lj.is_empty():
+				dialogue.dire_au_passage("Kolbeinn", lj[0])
 	var n := 0
 	var i := 0
 	while i < _file_gardiens.size() and n < 2:
@@ -487,9 +489,7 @@ func _entree() -> void:
 	_toiles([[-2.7, 3.7, 1, -1], [2.7, 3.7, -1, -1], [-2.7, -5.7, 1, 1], [2.7, -5.7, -1, 1]], 3.6)
 	# fresque des trois sceaux (Os, Givre, Eau) sur le mur ouest : l'objectif de la crypte se lit dès l'entrée
 	d.frise(["os", "givre", "eau"], Vector3(-2.68, 1.85, -2.9), Vector3(1, 0, 0), 0.8, 1.15)
-	_interactif(crypte, Vector3(-2.2, 1.4, -2.9), "Fresque des trois sceaux", "Examiner la fresque", func() -> Array: return [
-		"Une fresque ancienne : trois sceaux ferment une porte de pierre. L’Os, le Givre et l’Eau.",
-		"Les sceaux sont brisés. Au fond de la crypte, trois socles attendent leurs fragments."])
+	_interactif(crypte, Vector3(-2.2, 1.4, -2.9), "Fresque des trois sceaux", "Examiner la fresque", func() -> Array: return quetes.texte("fresque_sceaux"))
 
 func _alcove() -> void:
 	d.salle(-11, -7, -23, -27, 3.0, [["est", -25.0, 3.0]], 0.0, "mur2")
@@ -605,8 +605,6 @@ func restaurer(herse_ouverte: bool) -> void:
 		for it in crypte.get_children():
 			if it.get("verbe") == "Fouiller le corps d’Eirik":
 				it.actif = false
-	if quetes.vus.has("crypte:choix_respect"):
-		_appliquer_benediction()
 	# l'état du donjon (portes, coffres, mécanismes) est rendu à son intégration : _finir_donjon()
 	# partie sauvegardée sous terre
 	if joueur.global_position.y < PROFONDEUR * 0.5 and joueur.global_position.y > GrotteAcces.SEUIL_Y:   # plus bas : la grotte (y ≈ -220)
