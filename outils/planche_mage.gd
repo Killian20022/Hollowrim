@@ -60,7 +60,10 @@ func _init() -> void:
 	_grille(["an_idle", "an_marche_a", "an_marche_b", "an_course_a", "an_course_b", "an_sort_a", "an_sort_tenu", "an_sort_b", "an_sort_c", "an_coup", "an_mort_a", "an_mort_b"], 12, 360).save_png(sortie.path_join("c_planche_animations_idle_marche_course_sort_coup_mort.png"))
 	_grille(["pr_marche_a", "pr_marche_b", "pr_marche_c", "pr_marche_d", "pr_course_a", "pr_course_b", "pr_sprint_a", "pr_sprint_b"], 8, 420).save_png(sortie.path_join("c_planche_profil_marche_x4_course_x2_sprint_x2_robe_jambes.png"))
 	# (d) famille : mage + guerrier côte à côte
-	_grille(["fam_2m_face", "fam_4m_face", "fam_4m_34", "fam_8m_face"], 2, 1280).save_png(sortie.path_join("d_planche_famille_mage_guerrier_2_4_8m.png"))
+	if FileAccess.file_exists(cap.path_join("fam_2m_face.png")):
+		_grille(["fam_2m_face", "fam_4m_face", "fam_4m_34", "fam_8m_face"], 2, 1280).save_png(sortie.path_join("d_planche_famille_mage_guerrier_2_4_8m.png"))
+	# passe 3 : visage (crépuscule 2 m, 1 m, nuit 2 m) et orbe (2 m, 1 m ; crépuscule puis nuit)
+	_grille(["gros_visage_2m", "gros_visage_1m", "gros_visage_2m_21", "orbe_2m_17", "orbe_1m_17", "orbe_2m_21", "orbe_1m_21"], 4, 640).save_png(sortie.path_join("b3_planche_visage_et_orbe_2m_1m_crepuscule_nuit.png"))
 	# ambiances : entrée 17h30 / 21 h, nuit 3 m (cristal sans halo), sort de nuit
 	_grille(["entree_17h5", "entree_21"], 2, 1280).save_png(sortie.path_join("planche_entree_village_17h30_21h.png"))
 	_grille(["p21_3m_34", "p21_3m_sort", "p21_15m_orbe"], 3, 640).save_png(sortie.path_join("planche_nuit_3m_idle_sort_orbe_1m5.png"))

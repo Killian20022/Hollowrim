@@ -8,7 +8,7 @@ class_name MageTextures
 
 # palettes (sombre -> clair)
 ## passe 2 : robe quasi noire, ardoise très sombre à peine froide (la passe 1 virait au bleu marine au crépuscule)
-const ROBE := ["#0a0a0d", "#111216", "#1a1c21", "#24272d", "#2f333a", "#3d424a", "#50565f"]
+const ROBE := ["#0a0a0d", "#111216", "#1a1c21", "#262a31", "#353b45", "#4c5663", "#6c7a8b"]
 ## broderies : fil bleu pâle glacé (les runes ressortent sur la robe noire, sans saturation « plastique »)
 const BRODERIE := ["#1f2a36", "#3f5a74", "#6f93b5", "#9dbfdc", "#c9e0f2"]
 const CAPUCHE := ["#08080a", "#0e0e11", "#151518", "#1d1d21", "#26262b", "#313136", "#3f3e44"]
@@ -17,7 +17,7 @@ const PELERINE := ["#121111", "#1b1a19", "#252321", "#302d2b", "#3c3835", "#4b46
 const BARBE := ["#2b2a2b", "#4a4849", "#6c6a6a", "#8f8d8b", "#b1aeaa", "#cfccc6"]
 const CRISTAL := ["#132447", "#1f3d75", "#2f5fb0", "#5a8fe0", "#9cc4f5", "#d6ebff"]
 ## orbe de glace : du bleu profond au blanc glacé (cœur), lumineux (surface émissive)
-const ORBE := ["#0b2350", "#16468e", "#2470c8", "#4b9ae8", "#86c6f8", "#c4e8ff"]
+const ORBE := ["#0a1d48", "#123a80", "#1d62bf", "#3a8ae4", "#62b0f4", "#9ad2ff"]
 const RUNE_BOIS := ["#7d8fa6", "#a9bdd2", "#cfe0ee"]                          # entaille des runes : bois clair givré, un peu bleu
 
 ## Runes (futhark simplifié) en segments sur une grille 4 x 6 : [x0, y0, x1, y1] ; tracées en 1 texel.
@@ -39,7 +39,7 @@ const RUNES := [
 static var _cache := {}
 
 const DOSSIER := "res://assets/personnages/mage"
-const VERSION := 3
+const VERSION := 4
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -103,7 +103,7 @@ static func _rune(img: Image, k: int, x0: int, y0: int, c: Color, ombre: Color, 
 ## Laine épaisse (robe, capuche) : plis verticaux larges (bruit 1D), grain lent, PAS de sergé ni de motif périodique.
 static func _laine(x: int, y: int, W: int, H: int, base: float, g: int, plis := 18) -> float:
 	var pli := GuerrierTextures._n(x, 0, W, 1, plis, 1, g)
-	return base + (pli - 0.5) * 0.5 + (GuerrierTextures._n(x, y, W, H, 24, 8, g + 1) - 0.5) * 0.16 + (GuerrierTextures._h(x, y, g + 2) - 0.5) * 0.06
+	return base + (pli - 0.5) * 0.62 + maxf(0.0, pli - 0.72) * 0.55 + (GuerrierTextures._n(x, y, W, H, 24, 8, g + 1) - 0.5) * 0.16 + (GuerrierTextures._h(x, y, g + 2) - 0.5) * 0.06
 
 # ------------------------------------------------------------------ robe (haut : UV de la tunique, 256 x 128 ; u = 0 devant)
 ## Laine bleu ardoise ; bande brodée de runes au milieu du devant (torse) ; poignets (v = 1) : bande sombre unie, runes
@@ -151,7 +151,7 @@ static func _poignet(img: Image, W: int, H: int) -> void:
 			elif k == 9:
 				c = _c(BRODERIE, 1)
 			elif k == 8:
-				c = _c(ROBE, 3)
+				c = _c(ROBE, 5)
 			_p(img, x, yy, c)
 	var x := 2
 	var i := 0
@@ -388,11 +388,13 @@ static func _jupe(img: Image) -> void:
 			if k <= 1:
 				c = _c(ROBE, 0)
 			elif k == 5:
-				c = _c(ROBE, 3)             # arête claire de l'ourlet replié
+				c = _c(ROBE, 5)             # arête claire de l'ourlet replié
 			elif k == 6:
 				c = _c(ROBE, 0)
 			elif k == 14:
-				c = _c(BRODERIE, 1)         # filet d'argent haut
+				c = _c(BRODERIE, 2)         # filet d'argent haut
+			elif k == 4:
+				c = _c(BRODERIE, 1)         # liseré froid sous la bande de runes
 			elif k == 13:
 				c = _c(ROBE, 0)
 			sous.set_pixel(x, yy, c)
@@ -415,7 +417,7 @@ static func _ceinture(img: Image) -> void:
 	var r := GuerrierTextures.R_CEINT
 	for y in r.size.y:
 		for x in r.size.x:
-			var t := GuerrierTextures._ton_cuir(x, y, r.size.x, r.size.y, 0.40, 1901)
+			var t := GuerrierTextures._ton_cuir(x, y, r.size.x, r.size.y, 0.58, 1901)
 			if y <= 1 or y >= r.size.y - 2:
 				t = 1
 			elif y == 2 or y == r.size.y - 3:
@@ -509,7 +511,7 @@ static func orbe() -> Image:
 	for y in 32:
 		for x in 64:
 			var lat := absf(y - 15.5) / 16.0
-			var l := 0.78 - lat * lat * 0.70 + (GuerrierTextures._n(x, y, 64, 32, 8, 4, 2301) - 0.5) * 0.25
+			var l := 0.64 - lat * lat * 0.62 + (GuerrierTextures._n(x, y, 64, 32, 8, 4, 2301) - 0.5) * 0.25
 			# volutes de givre qui tournent dans l'orbe
 			if posmod(x + int(y * 0.6), 11) == 0:
 				l -= 0.2

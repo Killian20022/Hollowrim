@@ -18,7 +18,7 @@ class_name MageNordique
 ## PiedsAuSol.equiper marchent tels quels. Aucun PNJ modifié (nouvelle fabrique).
 
 const TEINTE_BARBE := Color(0.68, 0.68, 0.69)
-const PEAU := Color(0.93, 0.84, 0.80)
+const PEAU := Color(0.52, 0.41, 0.36)
 ## fourrure du manteau : gris plus sombre que celle du guerrier (la référence est sombre ; la fourrure claire volait la vedette au cristal)
 const TEINTE_FOURRURE := Color(0.70, 0.71, 0.76)
 ## passe 2 : la fourrure n'est plus qu'un col (bordure de la capuche), crème / gris chaud (harmonisation des archétypes : au
@@ -95,14 +95,15 @@ static func creer(options := {}) -> Node3D:
 	GuerrierNordique._decimer(sq.get_node_or_null("Hair_Beard"), func(p: Vector3) -> float: return 0.008)
 	var mi_b: MeshInstance3D = sq.get_node_or_null("Hair_Beard")
 	if mi_b:
-		# barbe de mage : allongée sous le menton (x 1,9 vers le bas) et un peu avancée, pointe resserrée
+		# passe 3 : barbe COURTE (x 1,15), rabattue contre la poitrine (aucune pointe en avant : fini le « bec » de masque de peste)
 		_deformer(mi_b, func(p: Vector3) -> Vector3:
 			var d := maxf(0.0, 1.635 - p.y)
 			var t := d / 0.08
-			return Vector3(p.x * (1.0 - 0.25 * clampf(t, 0.0, 1.0)), 1.635 - d * 1.9, p.z + d * 0.25))
+			return Vector3(p.x * (1.0 - 0.10 * clampf(t, 0.0, 1.0)), 1.635 - d * 1.15, p.z - d * 0.35))
 		GuerrierNordique._uv_barbe(mi_b)
 		mi_b.material_override = GuerrierNordique.materiau(MageTextures.tex("barbe"), true, false, false, "mage_barbe")
-		(mi_b.material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.10, 0.10, 0.11))
+		(mi_b.material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.06, 0.06, 0.07))
+		(mi_b.material_override as ShaderMaterial).set_shader_parameter("teinte", Color(0.62, 0.62, 0.64))
 	# la tunique s'arrête sous la ceinture (la jupe modelée prend le relais) ; le pantalon reste (vu sous la robe à la mort)
 	GuerrierNordique._filtrer(pieces["tunique"], func(c: Vector3, n: Vector3) -> bool: return c.y > 0.93)
 	_t("matieres", t0)
@@ -111,7 +112,11 @@ static func creer(options := {}) -> Node3D:
 	var A := Vector2(MageTextures.ATLAS)
 	acc.robe(pieces["tunique"], pieces["pantalon"])
 	var jupe := MageJupe.new()
-	jupe.preparer(sq, acc.jupe, GuerrierNordique.materiau(MageTextures.tex("accessoires"), false, false, true, "mage_acc"))
+	var mat_acc := GuerrierNordique.materiau(MageTextures.tex("accessoires"), false, false, true, "mage_acc")
+	# passe 3 : liseré froid plus fort sur la robe et la pèlerine (la silhouette ne forme plus une masse noire à 4-8 m)
+	mat_acc.set_shader_parameter("contour_froid", Vector3(0.36, 0.48, 0.68))
+	(pieces["mante"].material_override as ShaderMaterial).set_shader_parameter("contour_froid", Vector3(0.30, 0.40, 0.58))
+	jupe.preparer(sq, acc.jupe, mat_acc)
 	sq.add_child(jupe)
 	# pantalon (vu sous la robe à la mort, au saut) versé dans l'atlas (région R_PANTALON : ses UV tels quels) : une surface de moins
 	acc.integrer(pieces["pantalon"], acc.op, func(uv: Vector2) -> Vector2:
@@ -151,7 +156,7 @@ static func creer(options := {}) -> Node3D:
 	# tissus noirs : lumière propre un peu plus forte que le guerrier (le côté à l'ombre garde ses plis et ses broderies au
 	# lieu de tomber en aplat noir) ; matériaux propres au mage
 	for m in [pieces["tunique"].material_override, pieces["mante"].material_override, mi_acc.get_surface_override_material(0), mi_acc.get_surface_override_material(1), jupe.mat]:
-		(m as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.075, 0.085, 0.11))
+		(m as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.10, 0.115, 0.15))
 	if pieces.has("capuche") and options.get("capuche", true):
 		(pieces["capuche"].material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.05, 0.055, 0.07))
 	racine.set_meta("mage_nordique", true)
