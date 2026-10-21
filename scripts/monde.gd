@@ -43,6 +43,7 @@ var h_grotte := 0.0  # niveau de la terrasse devant la bouche de la grotte (reli
 var grotte_acces: Node3D
 var village: Node3D
 var cycle: Node
+var arriere_plan: Node3D  # montagnes/château lointains (ArrierePlan), masqués sous terre
 var calque: CanvasLayer
 var dialogue: Control
 var quetes: Node
@@ -121,6 +122,9 @@ func _ready() -> void:
 
 	_environnement()
 	_lune()
+	if not _arguments().has("sans-arriere-plan"):  # --sans-arriere-plan : mesures A/B de performance
+		arriere_plan = ArrierePlan.creer(self)
+		add_child(arriere_plan)
 	_terrain()
 	_chrono("terrain")
 	arbres = Vegetation.creer(self)
@@ -596,6 +600,8 @@ func _dragon() -> void:
 ## Sous terre : ni lune, ni neige, ni ciel ; une brume noire et froide.
 func _sous_terre(dedans: bool) -> void:
 	cycle.lumiere.visible = not dedans
+	if arriere_plan != null:
+		arriere_plan.visible = not dedans
 	neige.visible = not dedans
 	cycle.process_mode = Node.PROCESS_MODE_DISABLED if dedans else Node.PROCESS_MODE_INHERIT
 	_env.background_mode = Environment.BG_COLOR if dedans else Environment.BG_SKY
