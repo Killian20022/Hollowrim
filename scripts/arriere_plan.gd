@@ -16,6 +16,8 @@ const SHADER_PLANS := preload("res://shaders/plans_peints.gdshader")
 ## 4e passe : au-delà de ~600 m, le relief 3D est remplacé par 5 PLANS PEINTS (cylindres centrés sur la carte, image
 ## dessinée par plans_peints.gdshader). --lointain-3d rétablit l'ancien relief 3D lointain et le château 3D (A/B).
 var lointain_3d := OS.get_cmdline_user_args().has("--lointain-3d")
+# mesure de perf : `--sans-plans=2400,650` ne crée pas ces plans peints (rayons en mètres)
+var _sans_plans: PackedStringArray = []
 ## [rayon (m), genre (0 montagnes, 1 forêt, 2 forêt + château), voile, pied (°), dentelure (°), graine, pics visibles]
 ## pics : [azimut °, sommet °, demi-largeur °, dissymétrie] ; vue de l'entrée : cap ≈ 48°, château à 24° (à droite).
 ## La forêt 3D proche monte jusqu'à ~25-30° d'élévation depuis l'entrée : les sommets peints montent à 30-38°.
@@ -24,8 +26,8 @@ const PLANS := [
 	[2400.0, 0, 0.52, 12.0, 0.35, 5.0, [[52.0, 32.0, 20.0, 0.2], [30.0, 28.0, 7.0, -0.2], [82.0, 25.0, 14.0, 0.3], [8.0, 24.0, 14.0, 0.0]]],
 	[1800.0, 0, 0.37, 10.5, 0.30, 11.0, [[41.0, 26.0, 16.0, -0.3], [67.0, 23.0, 14.0, 0.3], [17.0, 21.0, 12.0, 0.2]]],
 	[1300.0, 0, 0.25, 9.0, 0.25, 17.0, [[60.0, 20.0, 11.0, 0.3], [27.0, 18.0, 10.0, -0.2], [88.0, 17.0, 9.0, 0.0]]],
-	[900.0, 2, 0.24, 8.0, 0.6, 23.0, [[70.0, 8.5, 12.0, 0.2]]],
-	[650.0, 1, 0.16, 5.5, 0.8, 29.0, [[80.0, 6.0, 14.0, 0.0]]],
+	[900.0, 2, 0.2, 8.0, 0.7, 23.0, [[70.0, 8.5, 12.0, 0.2], [82.0, 7.0, 14.0, 0.0]]],
+	# (7e passe, perf) l'ancien plan de forêt à 650 m est fondu dans celui à 900 m : la forêt proche le couvrait
 ]
 const CHATEAU_EL := 10.5     # élévation peinte du pied de la falaise du château (°)
 const CHATEAU_ECH := 1.5    # taille du château peint
@@ -523,16 +525,16 @@ func _pont(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray, a:
 func _haut_profil(a: float, d: Array, pics: Array) -> float:
 	var h: float = float(d[3]) + float(d[4]) + 2.5
 	for k in 7:
-		var x := a + (float(k) - 3.0) * 0.5
+		var x := a + (float(k) - 3.0) * 0.25   # ± 0,75° : un demi-pan de 1,4° de part et d'autre
 		for p in pics:
 			var dd := absf(wrapf(x - float(p[0]), -180.0, 180.0))
 			var w := 1.5 * float(p[2]) * (1.0 + 0.35 * absf(float(p[3])))
 			var f := maxf(1.0 - dd / w, 0.82 * (1.0 - maxf(dd - 0.42 * w, 0.0) / (0.3 * w)))   # pic, sous-sommet
 			f = maxf(f, 0.62 * (1.0 - maxf(dd - 0.45 * w, 0.0) / (0.55 * w)))                      # épaule
-			h = maxf(h, float(p[1]) * f + 0.17 * maxf(float(p[1]) - float(d[3]), 1.0) + 1.5 * float(d[4]))
+			h = maxf(h, float(p[1]) * f + 0.2 * maxf(float(p[1]) - float(d[3]), 1.0) + 0.8 * float(d[4]))
 	if int(d[1]) == 2 and absf(wrapf(a - CHATEAU_AZIMUT, -180.0, 180.0)) < 16.0:
 		h = maxf(h, CHATEAU_EL + 70.0 * CHATEAU_ECH / 6.0)
-	return minf(h + 1.5, 60.0)
+	return minf(h + 0.5, 60.0)
 
 
 # élévation (°) sous laquelle le plan peint est PLEIN à coup sûr (minorant de la crête de plans_peints.gdshader sur
@@ -555,6 +557,44 @@ func _bas_profil(a: float, d: Array, pics: Array) -> float:
 	return b
 
 
+# --- données par colonne des plans peints (7e passe, perf) : ce qui ne dépend que de l'azimut est calculé une fois ici
+# (mêmes formules que l'ancien shader : bruit de crête, éclats, dentelure du pied, sapins peints)
+static func _h11(x: float, g: float) -> float:
+	var v: float = sin(x * 127.1 + g * 31.7) * 43758.5453
+	return v - floor(v)
+
+static func _b1(x: float, pas: float, g: float) -> float:
+	var c: float = floor(x / pas)
+	var f: float = x / pas - c
+	f = f * f * (3.0 - 2.0 * f)
+	return lerpf(_h11(c, g), _h11(c + 1.0, g), f)
+
+static func _rid(x: float, pas: float, g: float) -> float:
+	var r: float = 1.0 - absf(2.0 * _b1(x, pas, g) - 1.0)
+	return r * r
+
+func _colonnes(d: Array) -> ImageTexture:
+	var g := float(d[5])
+	var dent := float(d[4])
+	var foret := int(d[1]) >= 1
+	var img := Image.create(2160, 1, false, Image.FORMAT_RGBAF)
+	for i in 2160:
+		var x := float(i - 1080) + 0.5
+		var nz: float = 0.10 * (_b1(x, 70.0, g) - 0.5) + 0.05 * (_b1(x, 23.0, g) - 0.5) - 0.04 * _rid(x + 11.0, 15.0, g) \
+			+ 0.05 * _rid(x, 9.0, g) + 0.02 * _rid(x + 5.0, 4.0, g) + 0.05 * floor(_b1(x, 17.0, g) * 3.0) / 3.0
+		var jz: float = dent * (0.9 * (_b1(x, 3.0, g) - 0.5) + 0.5 * (_h11(x, g) - 0.5))
+		var pied: float = dent * (0.6 * _b1(x, 9.0, g) + 0.4 * _b1(x, 3.0, g))
+		var sapin := 0.0
+		if foret:
+			var cell: float = floor(x / 5.0)
+			var larg: float = 4.0 + floor(_h11(cell, g) * 3.0)
+			var xx: float = x - cell * 5.0 - 2.5
+			var ht: float = (5.0 + _h11(cell + 7.0, g) * 7.0) / 6.0
+			sapin = ht * maxf(0.0, 1.0 - absf(xx) / (larg * 0.5 + 0.5))
+		img.set_pixel(i, 0, Color(nz, jz, pied, sapin))
+	return ImageTexture.create_from_image(img)
+
+
 var _sh_plein: Shader = null
 
 func _shader_plein() -> Shader:
@@ -567,7 +607,12 @@ func _shader_plein() -> Shader:
 func _creer_plans() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--sans-plans="):
+			_sans_plans = arg.trim_prefix("--sans-plans=").split(",")
 	for d in PLANS:
+		if _sans_plans.has(str(int(d[0]))):
+			continue
 		var r: float = d[0]
 		var m := ShaderMaterial.new()
 		m.shader = SHADER_PLANS
@@ -578,6 +623,7 @@ func _creer_plans() -> void:
 		m.set_shader_parameter("base_el", d[3])
 		m.set_shader_parameter("dentelure", d[4])
 		m.set_shader_parameter("graine", d[5])
+		m.set_shader_parameter("colonnes", _colonnes(d))
 		m.set_shader_parameter("chateau_az", CHATEAU_AZIMUT)
 		m.set_shader_parameter("chateau_el", CHATEAU_EL)
 		m.set_shader_parameter("chateau_ech", CHATEAU_ECH)

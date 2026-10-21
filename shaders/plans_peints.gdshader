@@ -19,6 +19,9 @@ uniform float dentelure = 0.3;          // amplitude du bruit de crête (°)
 uniform int nb_pics = 0;
 uniform vec4 pics[16];                  // azimut (°), élévation du sommet (°), demi-largeur (°), dissymétrie (-1..1)
 uniform float graine = 0.0;
+// (7e passe, perf) données par colonne précalculées par arriere_plan.gd : r = bruit de crête relatif, g = éclats,
+// b = dentelure du pied, a = hauteur du sapin peint (°) ; 2 160 colonnes (1/6°), index = floor(az_t) + 1080
+uniform sampler2D colonnes : filter_nearest, repeat_disable;
 uniform float chateau_az = 24.0;
 uniform float chateau_el = 3.0;         // élévation du pied de la falaise du château (°)
 uniform float chateau_ech = 1.5;        // taille du château (texels de dessin par texel écran)
@@ -93,8 +96,7 @@ float champ(float azt, float elt, float paz, float pe, float w) {
 	float q2 = (au + 0.5 * t) * TEXEL;
 	f += 1.0 * rid(q2 + cote + 33.0, 19.0);
 	// strates : bancs horizontaux un peu ondulés, et bosselage
-	f += 0.25 * n2(vec2(azt / 16.0, elt / 2.5 + 3.0 * n2(vec2(azt / 40.0, 7.0))));
-	f += 0.15 * n2(vec2(azt / 8.0, elt / 6.0) + 50.0);
+	f += 0.3 * n2(vec2(azt / 16.0, elt / 2.5));   // strates (perf : sans gauchissement ni bosselage)
 	return f;
 }
 
@@ -115,10 +117,10 @@ void fragment() {
 
 	// --- profil (6e passe) : pied + grands massifs (pic, sous-sommet, épaule) + crête fractale commune.
 	// Les massifs sont ÉTAGÉS : le plus bas est devant (il chevauche le plus haut), avec un contour sombre.
-	float crete = base_el + dentelure * (0.6 * b1(az_t, 9.0) + 0.4 * b1(az_t, 3.0));
-	float nz = 0.10 * (b1(az_t, 70.0) - 0.5) + 0.05 * (b1(az_t, 23.0) - 0.5) - 0.04 * rid(az_t + 11.0, 15.0)
-		+ 0.05 * rid(az_t, 9.0) + 0.02 * rid(az_t + 5.0, 4.0) + 0.05 * floor(b1(az_t, 17.0) * 3.0) / 3.0;
-	float jz = dentelure * (0.9 * (b1(az_t, 3.0) - 0.5) + 0.5 * (h11(az_t) - 0.5));
+	vec4 cc = texelFetch(colonnes, ivec2(clamp(int(floor(az_t)) + 1080, 0, 2159), 0), 0);
+	float crete = base_el + cc.b;
+	float nz = cc.r;
+	float jz = cc.g;
 	float pic_el = -1.0;
 	float pic_d = 0.0;      // écart d'azimut au sommet (°), signé
 	float pic_w = 1.0;
@@ -160,12 +162,7 @@ void fragment() {
 	bool foret = genre >= 1;
 	float sapin = 0.0;
 	if (foret) {
-		// bandes de sapins dentelées : un sapin par cellule de 4 à 7 texels, pointe triangulaire
-		float cell = floor(az_t / 5.0);
-		float larg = 4.0 + floor(h11(cell) * 3.0);
-		float x = az_t - cell * 5.0 - 2.5;
-		float ht = (5.0 + h11(cell + 7.0) * 7.0) / TEXEL;
-		sapin = ht * max(0.0, 1.0 - abs(x) / (larg * 0.5 + 0.5));
+		sapin = cc.a;   // bandes de sapins dentelées (précalculées)
 		crete += sapin;
 	}
 	// 5e passe : creux dans l'axe de la vallée de l'entrée (≈ 46°) et, pour la forêt devant le château, dans l'axe
@@ -272,10 +269,13 @@ void fragment() {
 	} else {
 		// montagne (5e passe) : normale fictive tirée de champ() par différences d'un texel (fixées sur le cylindre)
 		float paz_t = pic_az * TEXEL;
-		float f0 = champ(az_t, el_t, paz_t, pic_el, pic_w);
-		float fu = (champ(az_t + 1.0, el_t, paz_t, pic_el, pic_w) - f0) * TEXEL;
-		float fv = (champ(az_t, el_t + 1.0, paz_t, pic_el, pic_w) - f0) * TEXEL;
-		vec3 n = normalize(vec3(-fu, -fv, 1.0));
+		vec3 n = vec3(0.0, 0.45, 0.89);
+		if (voile < 0.45) {   // perf : le plan du fond, très voilé, garde le volume par face sans facettes
+			float f0 = champ(az_t, el_t, paz_t, pic_el, pic_w);
+			float fu = (champ(az_t + 1.0, el_t, paz_t, pic_el, pic_w) - f0) * TEXEL;
+			float fv = (champ(az_t, el_t + 1.0, paz_t, pic_el, pic_w) - f0) * TEXEL;
+			n = normalize(vec3(-fu, -fv, 1.0));
+		}
 		// VOLUME : la face du pic tournée vers l'astre est claire et chaude, l'autre bleu-gris ; dégradé en paliers
 		// (plus clair près de l'arête et du sommet, plus sombre vers le pied), les facettes ne font que le moduler
 		float cs = sign(wrapd(az_soleil - pic_az) + 0.001);
@@ -291,6 +291,9 @@ void fragment() {
 		float q = (abs(pic_d) - 0.75 * prof) * TEXEL;
 		float cote_e = pic_d < 0.0 ? 0.0 : 57.0;
 		float faite = rid(q + cote_e + graine * 13.0, 26.0);
+		float faite2 = rid(q * 1.7 + cote_e + 91.0, 11.0);          // éperons secondaires, plus serrés
+		// barres rocheuses : bancs allongés horizontaux où la neige ne tient pas
+		float barre = step(0.68, n2(vec2(az_t / 12.0, el_t / 1.6) + 70.0)) * step(0.15, rel);
 		// neige : couloirs VERTICAUX (1 à 2 texels, longueurs variées), replats, calotte ; roche sur les faîtes
 		// (légèrement penchés vers l'extérieur, effilés vers le bas, courts : pas de rayures sur toute la face)
 		float xc = az_t - sign(pic_d) * prof * TEXEL * 0.25 + 2.0 * (b1(el_t, 7.0) - 0.5);
@@ -300,16 +303,21 @@ void fragment() {
 			* step(abs(fract(xc / 5.0) - 0.5), 0.1 + 0.2 * (1.0 - rel / max(lg, 0.01)));
 		float tache = n2(vec2(az_t / 7.0, el_t / 4.0) + 20.0);
 		float sn = 0.9 * n.y + 0.35 * (1.0 - faite) + 0.35 * (1.0 - rel) + 0.3 * (tache - 0.5);
-		float neige = max(step(0.9, sn), couloir * step(faite, 0.8));
+		float neige = max(step(0.95, sn), couloir * step(faite, 0.8)) * step(faite, 0.78) * step(faite2, 0.86) * (1.0 - barre);
 		float ton = floor(clamp(dif, 0.0, 0.999) * 7.0) / 6.0;            // 7 paliers, sans grain par texel
 		vec3 neige_chaude = mix(neige_o, neige_c, ton);
 		vec3 roche = mix(roche_o * 0.5, roche_c * 0.8, ton);
 		vec3 base = neige > 0.5 ? neige_chaude : roche;
 		col = base * (ambiant * 1.0 + col_lum * 0.95 * L * (0.2 + 0.8 * ton));
 		// faîtes d'éperons rocheux : lignes sombres ; liseré clair sur la crête côté soleil
-		if (faite > 0.84 && rel > 0.08) {
+		// lignes de roche sombre qui descendent des arêtes (deux échelles) et barres rocheuses
+		if ((faite > 0.84 || faite2 > 0.92) && rel > 0.06) {
 			col *= 0.5;
+		} else if (barre > 0.5) {
+			col *= 0.75;
 		}
+		// de jour : contraste lumière / ombre renforcé (la face à l'ombre ne se fond plus dans les nuages clairs)
+		col *= mix(1.0, face > 0.5 ? 1.12 : 0.62, jour);
 		if (el > crete - 1.0 / TEXEL && face > 0.5) {
 			col *= 1.3;
 		}
@@ -326,11 +334,13 @@ void fragment() {
 	float k = smoothstep(-0.2, 1.0, dot(dh, sh));
 	vec3 hz = mix(horizon, horizon_chaud, crep * k);
 	float pied = 1.0 - smoothstep(base_el - 1.0, base_el + 2.5, el);
-	float v = clamp(voile + 0.35 * pied * (1.0 - voile), 0.0, 0.95);
-	v *= mix(1.0, 0.72, jour);
+	// de jour : voile léger en haut, voile BLEU plus marqué en bas des massifs (le pied plonge dans la brume)
+	float bas_j = jour * (1.0 - smoothstep(base_el, base_el + 6.0, el));
+	float v = clamp(voile * mix(1.0, 0.55, jour) + (0.35 * pied + 0.35 * bas_j) * (1.0 - voile), 0.0, 0.95);
+	hz = mix(hz, hz * vec3(0.72, 0.88, 1.25), bas_j);
 	if (ch > 0.5) {
 		v *= ch > 3.5 ? 0.35 : 0.6;   // château sombre qui se détache ; falaise encore moins voilée (ses sapins ressortent)
-	}   // de jour, le relief se détache mieux des nuages clairs
+	}
 	if (ch > 2.5 && ch < 3.5) {
 		v *= 0.3;   // fenêtres : nettes
 	}
