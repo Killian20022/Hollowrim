@@ -9,7 +9,7 @@ class_name DraugrTextures
 
 
 # palettes (sombre -> clair)
-const MAILLE := ["#221d17", "#3b3429", "#564c3e", "#726553", "#918269", "#b5a588"]
+const MAILLE := ["#281f17", "#43372a", "#604f3d", "#7d6a52", "#9c8669", "#bea784"]   # brun-gris ferreux (chaud : la lumière de 17h30 le refroidit)
 const ROUILLE := ["#261a12", "#3c2a1e", "#543b29", "#6c4e36"]   # rouille brun terne (orange vif = cuivre au soleil couchant)
 const FER := ["#14120f", "#29251f", "#3f3931", "#585046", "#776d5f", "#9c9180", "#c0b5a0"]
 const IVOIRE := ["#29241e", "#463e33", "#6a5f4f", "#8f826c", "#b2a58a", "#cec2a6"]
@@ -23,7 +23,7 @@ const CHEVEUX := ["#26221c", "#3e372e", "#595043", "#776b5a", "#988a75"]
 const BANDE := ["#2e2a24", "#464037", "#5f574b", "#7a705f"]
 
 const DOSSIER := "res://assets/persos/draugr"
-const VERSION := 3
+const VERSION := 4
 static var enregistrer := false
 static var _cache := {}
 
@@ -653,7 +653,7 @@ static func _epaul(img: Image) -> void:
 				t = 0
 			t += int(roundf((_n(x, y, 64, 64, 8, 8, 2002) - 0.5) * 1.6))
 			var c := _c(FER, clampi(t, 0, 6))
-			if _n(x, y, 64, 64, 6, 6, 2003) > 0.6 and ly != 0 and ly != 7:
+			if _n(x, y, 64, 64, 6, 6, 2003) > 0.74 and ly != 0 and ly != 7:
 				c = _c(ROUILLE, clampi(t - 1, 0, 3))
 			if ly == 2 and posmod(x + (y / 8) * 3, 7) == 0:
 				_rivet(img, r.position.x + x, r.position.y + y)

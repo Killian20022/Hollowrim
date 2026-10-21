@@ -20,6 +20,7 @@ class_name DraugrNordique
 const SHADER := preload("res://shaders/ps1_draugr.gdshader")
 const LUEUR := Vector3(3.0, 5.4, 7.6)
 const TEINTE_CHAIR := Color(0.80, 0.74, 0.64)
+const APPOINT := Vector3(0.13, 0.12, 0.11)
 
 static var _shaders := {}
 static var _mats := {}
@@ -44,6 +45,8 @@ static func materiau(tex: Texture2D, double_face := true, decoupe := false, avec
 	m.set_shader_parameter("tex_base", tex)
 	m.set_shader_parameter("decoupe", decoupe)
 	m.set_shader_parameter("lueur", LUEUR)
+	# lumière propre neutre-chaude : côté ombre et de nuit, la silhouette brune ne tombe pas au noir ni au bleu
+	m.set_shader_parameter("appoint", APPOINT)
 	if avec_contour:
 		m.next_pass = GuerrierNordique.contour()
 	Palette.materiaux.append(m)
@@ -88,7 +91,7 @@ static func creer(options := {}) -> Node3D:
 			m2.set_shader_parameter("tex_base", m.get_shader_parameter("tex_base"))
 			m2.set_shader_parameter("teinte", TEINTE_CHAIR)
 			m2.set_shader_parameter("saturation", 0.18)
-			m2.set_shader_parameter("appoint", Vector3(0.10, 0.10, 0.10))
+			m2.set_shader_parameter("appoint", APPOINT)
 			m2.next_pass = GuerrierNordique.contour()
 			Palette.materiaux.append(m2)
 			Palette._appliquer(m2, Palette._ps1_actif)
@@ -105,11 +108,13 @@ static func creer(options := {}) -> Node3D:
 	var tete := sq.get_bone_global_rest(sq.find_bone("Head")).origin + Vector3(0, 0.07, 0)
 	var mi_ch: MeshInstance3D = sq.get_node_or_null("Hair_Long")
 	if mi_ch:
-		GuerrierNordique._filtrer(mi_ch, func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002 and not (c.z > 0.03 and c.y > 1.64))
+		GuerrierNordique._filtrer(mi_ch, func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002 and not (c.z > 0.03 and c.y > 1.64) and not (c.z > 0.0 and c.y < 1.54))
 		GuerrierNordique._decimer(mi_ch, func(p: Vector3) -> float: return 0.03)
 		mi_ch.material_override = materiau(_tex_cheveux(mi_ch), true, false, true, "cheveux_draugr")
 	# -- pièces ajoutées
 	var plastron := GuerrierNordique._plastron(sq, pieces["tunique"])
+	# mante ouverte en V sur le devant (comme le guerrier, plus large) : mailles, médaillon et baudrier lisibles
+	GuerrierNordique._filtrer(pieces["mante"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.0 and absf(c.x) < 0.17 + (c.y - 1.30) * 0.3 and c.y < 1.55))
 	var rest_skin := sq.create_skin_from_rest_transforms()
 	var acc := AccDraugr.new(sq)
 	var A := Vector2(GuerrierTextures.ATLAS)
@@ -202,7 +207,9 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 	var dos_seul := false
 
 	func _poitrine(p: Vector3) -> bool:
-		return super(p) or (dos_seul and p.z > -0.03)
+		# poitrine dégagée plus large que le guerrier (pas de plastron de cuir : mailles, médaillon et baudrier à lire)
+		return (poitrine_libre and p.z > 0.0 and absf(p.x) < 0.17 and p.y < 1.56) or (col_libre and p.z > 0.0 and absf(p.x) < 0.15) \
+			or (dos_seul and p.z > -0.03)
 
 	func _uvr(r: Rect2i, fx: float, fy: float) -> Vector2:
 		return _uva(r.position.x + clampf(fx, 0.0, 1.0) * r.size.x, r.position.y + clampf(fy, 0.0, 1.0) * r.size.y)
@@ -405,13 +412,13 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 			_quad(op, q[k], b[k], b[k1], q[k1], u0, u1, u2, u3, os_, dedans)
 
 	# ------------------------------------------------------------ épaulières (coques de lames sur la mante)
-	## Triangles de la mante sur les épaules (|x| > 0,12, y > 1,34, tournés vers l'extérieur), gonflés de 2,4 cm (+ bombés
+	## Triangles de la mante sur les épaules (|x| > 0,14, y > 1,36, -0,15 < z < 0,13 : le dessus de l'épaule, tournés vers l'extérieur), gonflés de 2,4 cm (+ bombés
 	## vers le haut au centre), mêmes poids que la mante : elles suivent les épaules dans toutes les animations.
 	func epaulieres(mante: MeshInstance3D) -> void:
 		var R := DraugrTextures.R_EPAUL
 		var centre := Vector3(0.0, 1.42, -0.02)
 		var garder := func(c: Vector3, n: Vector3) -> bool:
-			return absf(c.x) > 0.12 and c.y > 1.34 and n.dot(c - centre) > 0.0
+			return absf(c.x) > 0.14 and c.y > 1.36 and c.z > -0.15 and c.z < 0.13 and n.dot(c - centre) > 0.0
 		var deforme := func(p: Vector3, n: Vector3) -> Vector3:
 			var bombe := clampf((absf(p.x) - 0.12) / 0.18, 0.0, 1.0)
 			return p + n * (0.020 + 0.012 * sin(bombe * PI)) + Vector3(signf(p.x) * 0.01 * bombe, 0.004, 0)
