@@ -43,6 +43,9 @@ var theme := {}
 ## Hauteur du sol sous les sommets, codée dans l'alpha de la couleur de sommet (1 + y/20, y relatif au sol de la crypte) :
 ## le shader en tire la bande de crasse du pied de mur, pour les étages et les escaliers.
 var niveau_a := 1.0
+## Transformation courante (kit de donjon) : un module est écrit en repère LOCAL (centre de la salle, +z vers le sud) ; `xf` le pose dans le
+## repère de la crypte (translation, quarts de tour, miroir gauche/droite). Tout passe par quad(), solide(), lumiere(), flamme()… qui l'appliquent.
+var xf := Transform3D.IDENTITY
 
 const RELIEF := {"mur0": 0.75, "mur1": 0.75, "mur2": 0.75, "dalle0": 0.8, "dalle1": 0.8, "voute": 0.7, "bois": 0.8, "fer": 0.7, "gravure": 1.0,
 	"mur3": 0.8, "mur4": 0.9, "dalle3": 0.8, "dalle4": 0.9, "ossuaire": 1.0}
@@ -203,13 +206,19 @@ func _tri(b: Dictionary, a: Vector3, bb: Vector3, c: Vector3, n: Vector3, ua: Ve
 ## Quad a-b-c-d (ordre de contour), normale n ; UV imposés ou calculés depuis les positions p_uv.
 func quad(nom_: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, uvs: Array = [], p_uv: Array = [], cols: Array = []) -> void:
 	var nom: String = theme.get(nom_, nom_) if not theme.is_empty() else nom_
-	var centre := (a + b + c + d) * 0.25
-	var buf := _buf(centre, nom)
 	var t: float = TUILE.get(nom, 1.0)
 	var u: Array = uvs
 	if u.is_empty():
 		var pp: Array = p_uv if not p_uv.is_empty() else [a, b, c, d]
 		u = [_uv(pp[0], n, t), _uv(pp[1], n, t), _uv(pp[2], n, t), _uv(pp[3], n, t)]
+	if xf != Transform3D.IDENTITY:        # UV calculés en repère local (texture continue dans le module), sommets posés ensuite
+		a = xf * a
+		b = xf * b
+		c = xf * c
+		d = xf * d
+		n = xf.basis * n
+	var centre := (a + b + c + d) * 0.25
+	var buf := _buf(centre, nom)
 	if cols.is_empty():
 		cols = [Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE]
 	_tri(buf, a, b, c, n, u[0], u[1], u[2], cols[0], cols[1], cols[2])
@@ -267,18 +276,18 @@ func instance_boite(parent: Node3D, nom: String, taille: Vector3, pos: Vector3, 
 	var mi := MeshInstance3D.new()
 	mi.mesh = m
 	mi.material_override = mat(nom)
-	mi.position = pos
-	mi.rotation.y = lacet
+	mi.position = xf * pos
+	mi.rotation.y = lacet + xf.basis.get_euler().y
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 	return mi
 
 func solide(centre: Vector3, taille: Vector3) -> void:
 	var bs := BoxShape3D.new()
-	bs.size = taille
+	bs.size = (xf.basis * taille).abs() if xf != Transform3D.IDENTITY else taille      # quarts de tour : la boîte reste alignée sur les axes
 	var cs := CollisionShape3D.new()
 	cs.shape = bs
-	cs.position = centre
+	cs.position = xf * centre
 	corps.add_child(cs)
 
 ## Boîte visible ET solide (collision identique à l'ancienne _boite).
@@ -313,13 +322,13 @@ func tour(nom: String, base: Vector3, profil: Array, cotes := 8, decal := -1.0, 
 		var top: Vector2 = profil[profil.size() - 1]
 		if top.x > 0.001:
 			var c := base + Vector3(0, top.y, 0)
-			var b := _buf(c, nom)
+			var b := _buf(xf * c, nom)
 			for i in cotes:
 				var a0 := d + TAU * i / cotes
 				var a1 := d + TAU * (i + 1) / cotes
 				var q0 := c + Vector3(cos(a0) * top.x, 0, sin(a0) * top.x)
 				var q1 := c + Vector3(cos(a1) * top.x, 0, sin(a1) * top.x)
-				_tri(b, c, q0, q1, Vector3.UP, _uv(c, Vector3.UP, t), _uv(q0, Vector3.UP, t), _uv(q1, Vector3.UP, t))
+				_tri(b, xf * c, xf * q0, xf * q1, xf.basis * Vector3.UP, _uv(c, Vector3.UP, t), _uv(q0, Vector3.UP, t), _uv(q1, Vector3.UP, t))
 	_nb_pieces += 1
 
 ## Arche (rib) : `plan` "x" = l'arche franchit un vide le long de X (extrudée le long de Z), "z" = l'inverse.
@@ -546,7 +555,9 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 				plan_v(_var_mur(mur, idx), axe, plan, c[0], c[1], y + 3.0, y + h, signe)
 				idx += 1
 			# embrasure : jambages, seuil et dessous de linteau (une seule fois par ouverture)
-			var cle := "%s|%.1f|%.1f|%.1f" % [axe, fixe_mur, c[0], y]
+			var w0 := xf * (Vector3(c[0], y, fixe_mur) if horizontal else Vector3(fixe_mur, y, c[0]))      # clé en repère de la crypte : deux modules voisins partagent l'embrasure
+			var w1 := xf * (Vector3(c[1], y, fixe_mur) if horizontal else Vector3(fixe_mur, y, c[1]))
+			var cle := "%.1f,%.1f,%.1f|%.1f,%.1f" % [minf(w0.x, w1.x), minf(w0.z, w1.z), y, maxf(w0.x, w1.x), maxf(w0.z, w1.z)]
 			var deja := _fait.has(cle)
 			_fait[cle] = true
 			for e in ([] if deja else [c[0], c[1]]):
@@ -664,7 +675,7 @@ func lumiere(pos: Vector3, couleur: Color, energie: float, portee: float, att :=
 	l.distance_fade_enabled = true
 	l.distance_fade_begin = 20.0
 	l.distance_fade_length = 6.0
-	l.position = pos
+	l.position = xf * pos
 	racine.add_child(l)
 	toutes.append(l)
 	if vacille:
@@ -673,7 +684,7 @@ func lumiere(pos: Vector3, couleur: Color, energie: float, portee: float, att :=
 
 ## Flamme en sprite pixel art (fusionnée en MultiMesh par cellule dans finir()) ; `echelle` 1 = torche, 1,7 = brasero.
 func flamme(pos: Vector3, echelle := 1.0) -> void:
-	_flammes_def.append([pos, echelle, rng.randf() * 4.0])
+	_flammes_def.append([xf * pos, echelle, rng.randf() * 4.0])
 
 func _mat_flamme() -> ShaderMaterial:
 	var sm := ShaderMaterial.new()
@@ -760,11 +771,12 @@ func coffre(pos: Vector3, lacet := 0.0, collision := true) -> void:
 		var s := b * Vector3(0.9, 0, 0.56)
 		solide(pos + Vector3(0, 0.3, 0), Vector3(absf(s.x), 0.6, absf(s.z)))
 
-func bougie(pos: Vector3) -> void:
+func bougie(pos: Vector3, avec_lumiere := true) -> void:
 	tour("os", pos, [Vector2(0.03, 0.0), Vector2(0.026, 0.14)], 6, 0.0, true)
 	tour("fer", pos, [Vector2(0.06, 0.0), Vector2(0.06, 0.012)], 6, 0.0, true)
 	flamme(pos + Vector3(0, 0.14, 0), 0.4)
-	lumiere(pos + Vector3(0, 0.4, 0), FEU, 0.9, 4.0, 1.8)
+	if avec_lumiere:
+		lumiere(pos + Vector3(0, 0.4, 0), FEU, 0.9, 4.0, 1.8)
 
 func urne(pos: Vector3, e := 1.0) -> void:
 	var prof := [Vector2(0.13, 0.0), Vector2(0.2, 0.08), Vector2(0.25, 0.22), Vector2(0.21, 0.4), Vector2(0.12, 0.5), Vector2(0.14, 0.56), Vector2(0.09, 0.56)]
@@ -839,6 +851,10 @@ func toile(coin: Vector3, a: Vector3, b: Vector3, l := 1.1) -> void:
 	var p1 := coin + a.normalized() * l - Vector3(0, 0.1 * l, 0)
 	var p2 := coin + b.normalized() * l - Vector3(0, 0.85 * l, 0)
 	var n := (p1 - p0).cross(p2 - p0).normalized()
+	p0 = xf * p0
+	p1 = xf * p1
+	p2 = xf * p2
+	n = xf.basis * n
 	var buf := _buf((p0 + p1 + p2) / 3.0, "toile")
 	_tri(buf, p0, p1, p2, n, Vector2(0, 0), Vector2(1, 0), Vector2(0, 1))
 
@@ -862,7 +878,8 @@ func poussiere(centre: Vector3, ext: Vector3, nombre := 28) -> void:
 	var p := GPUParticles3D.new()
 	p.amount = nombre
 	p.lifetime = 7.0
-	p.position = centre
+	p.position = xf * centre
+	ext = (xf.basis * ext).abs()
 	p.visibility_aabb = AABB(-ext - Vector3.ONE, ext * 2.0 + Vector3(2, 2, 2))
 	var pm := ParticleProcessMaterial.new()
 	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
@@ -884,6 +901,430 @@ func poussiere(centre: Vector3, ext: Vector3, nombre := 28) -> void:
 	p.draw_pass_1 = q
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	racine.add_child(p)
+
+
+# ------------------------------------------------------------------ récit : statues, bannières, gravures, pillage (kit de donjon)
+## Repère d'un plan décoré : [droite, haut] pour une normale `vers` (mur vertical ou sol/plafond).
+func _axes(vers: Vector3) -> Array:
+	var n := vers.normalized()
+	if absf(n.y) > 0.9:
+		return [Vector3.RIGHT, Vector3.FORWARD * signf(n.y)]
+	var dr := Vector3.UP.cross(n).normalized()
+	return [dr, Vector3.UP]
+
+## Rectangle tourné dans un plan (décalque) : centre c, axes dr/ha, décalé de (cx, cy), taille w x h, angle ang.
+func _rect(nom: String, c: Vector3, dr: Vector3, ha: Vector3, cx: float, cy: float, w: float, h: float, ang: float, n: Vector3, col := Color.WHITE) -> void:
+	var s := sin(ang)
+	var co := cos(ang)
+	var pts: Array = []
+	for k: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		var lx := k.x * w * 0.5
+		var ly := k.y * h * 0.5
+		pts.append(c + dr * (cx + lx * co - ly * s) + ha * (cy + lx * s + ly * co))
+	quad(nom, pts[0], pts[1], pts[2], pts[3], n, [], [], [col, col, col, col])
+
+## Barres [cx, cy, w, h, angle] d'un symbole sur [-0.5, 0.5] : sceaux (os, givre, eau), formes des énigmes, scènes des gravures.
+func _symbole(sujet: String) -> Array:
+	var r: Array = []
+	match sujet:
+		"cercle":
+			for k in 12:
+				var a := TAU * k / 12.0
+				r.append([cos(a) * 0.34, sin(a) * 0.34, 0.07, 0.2, a + PI * 0.5])
+		"disque":
+			r.append([0.0, 0.0, 0.5, 0.5, 0.0])
+			r.append([0.0, 0.0, 0.5, 0.5, PI * 0.25])
+		"triangle":
+			r.append([0.0, -0.25, 0.72, 0.08, 0.0])
+			r.append([-0.18, 0.03, 0.66, 0.08, 1.0])
+			r.append([0.18, 0.03, 0.66, 0.08, -1.0])
+		"croix":
+			r.append([0.0, 0.0, 0.09, 0.78, 0.0])
+			r.append([0.0, 0.0, 0.78, 0.09, 0.0])
+			r.append([0.0, 0.0, 0.24, 0.24, PI * 0.25])
+		"vague":
+			for row in [-1, 0, 1]:
+				for k in 4:
+					var up := k % 2 == 0
+					r.append([-0.3 + k * 0.2, row * 0.22 + (0.05 if up else -0.05), 0.24, 0.06, 0.4 if up else -0.4])
+		"eau":
+			for row in [-1, 0, 1]:
+				for k in 5:
+					var up := k % 2 == 0
+					r.append([-0.32 + k * 0.16, row * 0.2 + (0.04 if up else -0.04), 0.2, 0.06, 0.45 if up else -0.45])
+		"os":
+			r.append([0.0, 0.12, 0.44, 0.38, 0.0])
+			r.append([0.0, -0.1, 0.24, 0.12, 0.0])
+			r.append([0.0, -0.3, 0.8, 0.08, 0.55])
+			r.append([0.0, -0.3, 0.8, 0.08, -0.55])
+		"givre":
+			for k in 3:
+				r.append([0.0, 0.0, 0.84, 0.07, PI * k / 3.0])
+			for k in 6:
+				var a := TAU * k / 6.0
+				r.append([cos(a) * 0.3, sin(a) * 0.3, 0.2, 0.05, a + 1.0])
+				r.append([cos(a) * 0.3, sin(a) * 0.3, 0.2, 0.05, a - 1.0])
+		"soleil":
+			r.append([0.0, 0.0, 0.34, 0.34, 0.0])
+			r.append([0.0, 0.0, 0.34, 0.34, PI * 0.25])
+			for k in 8:
+				var a := TAU * k / 8.0
+				r.append([cos(a) * 0.38, sin(a) * 0.38, 0.16, 0.05, a])
+		"couronne":
+			r.append([0.0, -0.18, 0.72, 0.14, 0.0])
+			for k in [-1, 0, 1]:
+				r.append([k * 0.27, 0.1, 0.1, 0.4, 0.0])
+				r.append([k * 0.27, 0.34, 0.14, 0.1, PI * 0.25])
+		"navire":
+			r.append([0.0, -0.22, 0.72, 0.1, 0.0])
+			r.append([-0.38, -0.12, 0.2, 0.08, 0.9])
+			r.append([0.38, -0.12, 0.2, 0.08, -0.9])
+			r.append([0.0, 0.05, 0.05, 0.6, 0.0])
+			r.append([0.17, 0.1, 0.3, 0.42, 0.0])
+		"hache":
+			r.append([0.0, -0.05, 0.07, 0.86, 0.3])
+			r.append([0.13, 0.25, 0.32, 0.3, 0.3])
+		"epee":
+			r.append([0.0, 0.08, 0.07, 0.74, 0.0])
+			r.append([0.0, -0.2, 0.42, 0.07, 0.0])
+			r.append([0.0, -0.34, 0.1, 0.12, 0.0])
+		_:
+			r.append([0.0, 0.0, 0.4, 0.4, 0.0])
+	return r
+
+## Emblème gravé : plaque de pierre sombre et symbole clair en relief (matière « os », teintable). `vers` = normale du plan (mur, ou UP pour le sol).
+func embleme(sujet: String, centre: Vector3, vers: Vector3, taille := 0.9, teinte := Color(0.95, 0.88, 0.7)) -> void:
+	var n := vers.normalized()
+	var ax := _axes(n)
+	var dr: Vector3 = ax[0]
+	var ha: Vector3 = ax[1]
+	_rect("mur2", centre + n * 0.012, dr, ha, 0.0, 0.0, taille * 1.2, taille * 1.2, 0.0, n, Color(0.3, 0.3, 0.36))
+	for b: Array in _symbole(sujet):
+		_rect("os", centre + n * 0.026, dr, ha, b[0] * taille, b[1] * taille, b[2] * taille, b[3] * taille, b[4], n, teinte)
+
+## Bas-relief : plusieurs symboles sur une frise (liste de sujets) ; sert aux fresques et aux gravures murales.
+func frise(sujets: Array, centre: Vector3, vers: Vector3, taille := 0.9, pas := 1.2, teinte := Color(0.95, 0.88, 0.7)) -> void:
+	var n := vers.normalized()
+	var dr: Vector3 = _axes(n)[0]
+	var x0 := -(sujets.size() - 1) * pas * 0.5
+	for i in sujets.size():
+		embleme(sujets[i], centre + dr * (x0 + i * pas), n, taille, teinte)
+	# cadre de la frise
+	var ha: Vector3 = _axes(n)[1]
+	var l := (sujets.size() - 1) * pas + taille * 1.5
+	_rect("mur0", centre + n * 0.006, dr, ha, 0.0, 0.0, l, taille * 1.5, 0.0, n, Color(0.7, 0.7, 0.78))
+
+## Socle de pierre (collision). `taille` = largeur x hauteur x profondeur.
+func socle(pos: Vector3, taille := Vector3(0.9, 0.9, 0.9), lacet := 0.0, mat := "mur1") -> void:
+	var b := Basis(Vector3.UP, lacet)
+	boite(mat, pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
+	boite("mur0", pos + Vector3(0, taille.y + 0.04, 0), Vector3(taille.x + 0.12, 0.08, taille.z + 0.12), lacet)
+	boite("mur0", pos + Vector3(0, 0.07, 0), Vector3(taille.x + 0.1, 0.14, taille.z + 0.1), lacet)
+	var s := b * Vector3(taille.x + 0.12, 0, taille.z + 0.12)
+	solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s.x), taille.y + 0.08, absf(s.z)))
+
+## Statue de pierre sur socle (visage vers +Z local, tourné de `lacet`). type : guerrier (casque, lance, bouclier), jarl (couronne, épée plantée),
+## ancetre (capuche, mains jointes), gardienne (voile).
+func statue(pos: Vector3, lacet := 0.0, e := 1.0, type := "guerrier", collision := true, mat := "mur1") -> void:
+	var b := Basis(Vector3.UP, lacet)
+	var h0 := 0.5                                          # socle
+	boite(mat, pos + Vector3(0, h0 * 0.5, 0), Vector3(0.95, h0, 0.95), lacet)
+	boite("mur0", pos + Vector3(0, h0 + 0.04, 0), Vector3(1.05, 0.08, 1.05), lacet)
+	boite("mur0", pos + Vector3(0, 0.07, 0), Vector3(1.05, 0.14, 1.05), lacet)
+	var base := pos + Vector3(0, h0 + 0.08, 0)
+	# robe : fût qui s'évase (profil de révolution), épaules, tête
+	tour(mat, base, [Vector2(0.34 * e, 0.0), Vector2(0.3 * e, 0.5 * e), Vector2(0.24 * e, 1.0 * e), Vector2(0.3 * e, 1.18 * e), Vector2(0.14 * e, 1.28 * e)], 8, 0.0, true)
+	boite(mat, base + b * Vector3(0, 1.16 * e, 0), Vector3(0.74 * e, 0.16 * e, 0.3 * e), lacet)
+	tour(mat, base + Vector3(0, 1.26 * e, 0), [Vector2(0.09 * e, 0.0), Vector2(0.12 * e, 0.1 * e), Vector2(0.115 * e, 0.24 * e), Vector2(0.06 * e, 0.3 * e)], 8, 0.0, true)
+	boite(mat, base + b * Vector3(0, 1.38 * e, 0.12 * e), Vector3(0.04 * e, 0.09 * e, 0.06 * e), lacet)                 # nez : donne le sens du regard
+	for sx in [-1.0, 1.0]:
+		boite(mat, base + b * Vector3(sx * 0.36 * e, 0.92 * e, 0.0), Vector3(0.12 * e, 0.5 * e, 0.14 * e), lacet)       # bras
+	match type:
+		"guerrier":
+			tour("mur0", base + Vector3(0, 1.4 * e, 0), [Vector2(0.135 * e, 0.0), Vector2(0.13 * e, 0.1 * e), Vector2(0.0, 0.2 * e)], 8, 0.0, false)
+			boite("bois", base + b * Vector3(0.4 * e, 1.0 * e, 0.1 * e), Vector3(0.05, 1.9 * e, 0.05), lacet)
+			boite("lame", base + b * Vector3(0.4 * e, 2.02 * e, 0.1 * e), Vector3(0.06, 0.22 * e, 0.015), lacet)
+			boite("mur0", base + b * Vector3(-0.36 * e, 0.95 * e, 0.16 * e), Vector3(0.42 * e, 0.5 * e, 0.07), lacet)
+			boite("fer", base + b * Vector3(-0.36 * e, 0.95 * e, 0.205 * e), Vector3(0.12 * e, 0.12 * e, 0.04), lacet)
+		"jarl":
+			tour("or", base + Vector3(0, 1.4 * e, 0), [Vector2(0.125 * e, 0.0), Vector2(0.135 * e, 0.08 * e)], 6, 0.0, false)
+			for k in 5:
+				var a := TAU * k / 5.0
+				boite("or", base + Vector3(cos(a) * 0.12 * e, 1.52 * e, sin(a) * 0.12 * e), Vector3(0.03, 0.1 * e, 0.03))
+			boite("lame", base + b * Vector3(0, 0.5 * e, 0.3 * e), Vector3(0.06, 1.0 * e, 0.02), lacet)
+			boite("fer", base + b * Vector3(0, 0.98 * e, 0.3 * e), Vector3(0.34 * e, 0.05, 0.06), lacet)
+		"ancetre":
+			boite(mat, base + b * Vector3(0, 1.36 * e, -0.02 * e), Vector3(0.3 * e, 0.3 * e, 0.3 * e), lacet)
+			boite(mat, base + b * Vector3(0, 0.82 * e, 0.2 * e), Vector3(0.22 * e, 0.1 * e, 0.12 * e), lacet)
+		_:
+			boite(mat, base + b * Vector3(0, 1.2 * e, -0.02 * e), Vector3(0.34 * e, 0.5 * e, 0.28 * e), lacet)
+	if collision:
+		solide(pos + Vector3(0, 1.2, 0), Vector3(1.0, 2.4, 1.0))
+
+## Bannière accrochée à une tringle : `haut` = point du mur (hauteur de la tringle), `vers` = normale vers la pièce, usure 0 intacte, 1 déchirée, 2 en lambeaux.
+func banniere(haut: Vector3, vers: Vector3, long := 1.7, larg := 0.75, couleur := Color(0.62, 0.3, 0.26), sujet := "", usure := 1) -> void:
+	var n := vers.normalized()
+	var dr: Vector3 = _axes(n)[0]
+	var lacet := atan2(n.x, n.z)
+	boite("bois", haut + n * 0.1, Vector3(larg + 0.24, 0.05, 0.05), lacet)
+	boite("fer", haut + n * 0.1 + dr * (larg * 0.5 + 0.13), Vector3(0.06, 0.07, 0.07), lacet)
+	boite("fer", haut + n * 0.1 - dr * (larg * 0.5 + 0.13), Vector3(0.06, 0.07, 0.07), lacet)
+	var teinte := Color(couleur.r, couleur.g, couleur.b)
+	var haut_plein := long * (1.0 if usure == 0 else 0.42)
+	var p0 := haut + n * 0.07
+	# partie haute pleine
+	quad("parchemin", p0 - dr * larg * 0.5, p0 + dr * larg * 0.5, p0 + dr * larg * 0.5 - Vector3(0, haut_plein, 0) + n * 0.03, p0 - dr * larg * 0.5 - Vector3(0, haut_plein, 0) + n * 0.03, n, [], [], [teinte, teinte, teinte, teinte])
+	if usure > 0:
+		var nb := 3 if usure == 1 else 2
+		var lw := larg / nb
+		for k in nb:
+			var lon := long * rng.randf_range(0.5, 0.85) if usure == 1 else long * rng.randf_range(0.5, 0.65)
+			var x0 := -larg * 0.5 + k * lw
+			var ya := p0 - Vector3(0, haut_plein, 0) + n * 0.03
+			var yb := p0 - Vector3(0, lon, 0) + n * (0.03 + rng.randf() * 0.05)
+			var inc := rng.randf_range(-0.05, 0.05)
+			quad("parchemin", ya + dr * x0, ya + dr * (x0 + lw * 0.9), yb + dr * (x0 + lw * 0.9 + inc), yb + dr * (x0 + inc), n, [], [], [teinte, teinte, Color(teinte.r * 0.8, teinte.g * 0.8, teinte.b * 0.8), Color(teinte.r * 0.8, teinte.g * 0.8, teinte.b * 0.8)])
+	if sujet != "":
+		embleme(sujet, p0 + n * 0.045 - Vector3(0, minf(haut_plein, long) * 0.32, 0), n, larg * 0.5, Color(0.9, 0.85, 0.7))
+
+## Chaîne verticale (maillons alternés) du point `haut` au point `bas`.
+func chaine(haut: Vector3, bas: Vector3) -> void:
+	var l := haut.distance_to(bas)
+	var nb := maxi(2, int(l / 0.1))
+	for i in nb:
+		var p := haut.lerp(bas, (i + 0.5) / nb)
+		boite("fer", p, Vector3(0.06, 0.12, 0.025) if i % 2 == 0 else Vector3(0.025, 0.12, 0.06))
+
+## Table d'embaumement : dalle de pierre sur deux piliers, rigole, bandelettes, bol d'huiles ; `corps` : dépouille enveloppée dessus.
+func table_embaumement(pos: Vector3, lacet := 0.0, corps := false) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	boite("mur1", pos + Vector3(0, 0.88, 0), Vector3(2.1, 0.14, 0.86), lacet)
+	for sx in [-0.7, 0.7]:
+		boite("mur0", pos + b * Vector3(sx, 0.4, 0), Vector3(0.34, 0.8, 0.7), lacet)
+	boite("mur0", pos + Vector3(0, 0.28, 0), Vector3(1.2, 0.12, 0.5), lacet)
+	boite("gravure", pos + Vector3(0, 0.962, 0), Vector3(1.7, 0.012, 0.36), lacet)
+	for k in 3:
+		boite("parchemin", pos + b * Vector3(-0.5 + k * 0.5, 0.55, 0.45), Vector3(0.1, 0.5, 0.012), lacet)
+	tour("fer", pos + b * Vector3(1.2, 0, 0.1), [Vector2(0.14, 0.0), Vector2(0.16, 0.1), Vector2(0.1, 0.2)], 8, 0.0, false)
+	if corps:
+		boite("parchemin", pos + Vector3(0, 1.06, 0), Vector3(1.55, 0.17, 0.46), lacet, false)
+		boite("os", pos + b * Vector3(-0.85, 1.08, 0), Vector3(0.2, 0.18, 0.2), lacet)
+	var s := b * Vector3(2.1, 0, 0.86)
+	solide(pos + Vector3(0, 0.5, 0), Vector3(absf(s.x), 1.0, absf(s.z)))
+
+## Barricade de planches, tonneaux et table renversée en travers d'un passage (largeur `largeur`) ; `trou` > 0 : brèche de cette largeur,
+## décalée de `decal` le long du passage (jamais bloquée : les deux blocs de collision laissent la brèche libre).
+func barricade(pos: Vector3, lacet := 0.0, largeur := 3.0, trou := 1.3, decal := 0.0) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	var g0 := decal - trou * 0.5
+	var g1 := decal + trou * 0.5
+	for seg in [[-largeur * 0.5, g0], [g1, largeur * 0.5]]:
+		var a: float = seg[0]
+		var z: float = seg[1]
+		if z - a < 0.1:
+			continue
+		var m := (a + z) * 0.5
+		solide(pos + b * Vector3(m, 0.8, 0), (b * Vector3(z - a, 1.6, 0.5)).abs())
+		for k in 5:
+			boite("bois", pos + b * Vector3(m + rng.randf_range(-0.1, 0.1), 0.2 + k * 0.32, rng.randf_range(-0.1, 0.1)), Vector3(z - a + rng.randf_range(-0.1, 0.1), 0.15, 0.06), lacet + rng.randf_range(-0.07, 0.07))
+		boite("bois", pos + b * Vector3(a + 0.1, 0.8, 0.12), Vector3(0.1, 1.7, 0.1), lacet)
+		boite("bois", pos + b * Vector3(z - 0.1, 0.8, 0.12), Vector3(0.1, 1.7, 0.1), lacet)
+	tonneau(pos + b * Vector3(-largeur * 0.5 + 0.35, 0, 0.5), 0.9)
+	boite("bois", pos + b * Vector3(largeur * 0.5 - 0.7, 0.5, 0.55), Vector3(1.0, 0.07, 0.65), lacet + 0.3)       # table renversée
+	boite("bois", pos + b * Vector3(largeur * 0.5 - 0.7, 0.28, 0.55), Vector3(0.07, 0.5, 0.07), lacet + 0.3)
+	for k in 3:       # planches tombées devant
+		boite("bois", pos + b * Vector3(rng.randf_range(-largeur * 0.4, largeur * 0.4), 0.04, rng.randf_range(0.4, 1.0)), Vector3(1.2, 0.05, 0.14), lacet + rng.randf_range(-0.6, 0.6))
+
+## Lit de caserne : cadre de bois, paillasse, couverture (teinte) ; collision.
+func lit(pos: Vector3, lacet := 0.0, teinte := Color(0.5, 0.4, 0.36)) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	for sz in [-0.4, 0.4]:
+		boite("bois", pos + b * Vector3(0, 0.3, sz), Vector3(1.95, 0.1, 0.07), lacet)
+	for sx in [-0.95, 0.95]:
+		boite("bois", pos + b * Vector3(sx, 0.22, 0), Vector3(0.08, 0.44, 0.88), lacet)
+	boite("bois", pos + b * Vector3(-0.95, 0.5, 0), Vector3(0.08, 0.6, 0.88), lacet)
+	boite("parchemin", pos + Vector3(0, 0.4, 0), Vector3(1.8, 0.12, 0.78), lacet, false, Vector3.ZERO)
+	boite("parchemin", pos + b * Vector3(0.3, 0.47, 0), Vector3(1.1, 0.05, 0.8), lacet)
+	var s := b * Vector3(2.0, 0, 0.9)
+	solide(pos + Vector3(0, 0.3, 0), Vector3(absf(s.x), 0.6, absf(s.z)))
+
+## Râtelier d'armes contre un mur (dos vers -Z local) : épées, lances, haches.
+func ratelier_armes(pos: Vector3, lacet := 0.0, largeur := 1.8) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	boite("bois", pos + b * Vector3(0, 0.95, 0), Vector3(largeur, 1.5, 0.05), lacet)
+	for y in [0.55, 1.3]:
+		boite("bois", pos + b * Vector3(0, y, 0.1), Vector3(largeur, 0.06, 0.1), lacet)
+	for sx in [-largeur * 0.5, largeur * 0.5]:
+		boite("bois", pos + b * Vector3(sx, 0.9, 0.04), Vector3(0.08, 1.8, 0.1), lacet)
+	var n := int(largeur / 0.3)
+	for k in n:
+		var x := -largeur * 0.5 + 0.2 + k * (largeur - 0.4) / maxf(1.0, n - 1.0)
+		match k % 3:
+			0:
+				boite("lame", pos + b * Vector3(x, 1.0, 0.13), Vector3(0.06, 0.95, 0.015), lacet)
+				boite("fer", pos + b * Vector3(x, 0.52, 0.13), Vector3(0.2, 0.04, 0.04), lacet)
+			1:
+				boite("bois", pos + b * Vector3(x, 1.0, 0.13), Vector3(0.04, 1.7, 0.04), lacet)
+				boite("lame", pos + b * Vector3(x, 1.9, 0.13), Vector3(0.07, 0.22, 0.015), lacet)
+			_:
+				boite("bois", pos + b * Vector3(x, 0.95, 0.13), Vector3(0.04, 1.2, 0.04), lacet)
+				boite("fer", pos + b * Vector3(x + 0.07, 1.45, 0.13), Vector3(0.2, 0.22, 0.02), lacet)
+	var s := b * Vector3(largeur, 0, 0.3)
+	solide(pos + b * Vector3(0, 0.9, 0.05), Vector3(absf(s.x), 1.8, maxf(0.3, absf(s.z))))
+
+## Bouclier rond accroché au mur (octogone de bois cerclé de fer).
+func bouclier_mural(centre: Vector3, vers: Vector3, rayon := 0.32, teinte := Color(0.6, 0.4, 0.3)) -> void:
+	var n := vers.normalized()
+	var ax := _axes(n)
+	_rect("bois", centre + n * 0.03, ax[0], ax[1], 0.0, 0.0, rayon * 2.0, rayon * 2.0, 0.0, n, teinte)
+	_rect("bois", centre + n * 0.032, ax[0], ax[1], 0.0, 0.0, rayon * 2.0, rayon * 2.0, PI * 0.25, n, teinte)
+	_rect("fer", centre + n * 0.045, ax[0], ax[1], 0.0, 0.0, rayon * 0.5, rayon * 0.5, PI * 0.25, n)
+	_rect("fer", centre + n * 0.04, ax[0], ax[1], 0.0, 0.0, rayon * 2.1, 0.04, 0.0, n)
+
+## Autel de chapelle : massif de pierre, nappe, dessus gravé, deux bougies sans lumière.
+func autel(pos: Vector3, lacet := 0.0, largeur := 2.0) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	boite("mur1", pos + Vector3(0, 0.45, 0), Vector3(largeur, 0.9, 0.9), lacet)
+	boite("mur0", pos + Vector3(0, 0.94, 0), Vector3(largeur + 0.16, 0.1, 1.06), lacet)
+	boite("parchemin", pos + Vector3(0, 0.995, 0), Vector3(largeur * 0.6, 0.012, 0.9), lacet, false, Vector3.ZERO)
+	boite("gravure", pos + b * Vector3(0, 0.45, 0.455), Vector3(largeur * 0.7, 0.5, 0.012), lacet)
+	for sx in [-0.7, 0.7]:
+		bougie(pos + b * Vector3(sx * largeur * 0.5, 1.0, 0.0), false)
+	var s := b * Vector3(largeur + 0.16, 0, 1.06)
+	solide(pos + Vector3(0, 0.5, 0), Vector3(absf(s.x), 1.0, absf(s.z)))
+
+## Bassin : margelle de pierre (collision, h de haut) et surface noire en retrait.
+func bassin(centre: Vector3, w: float, p: float, h := 0.5) -> void:
+	var e := 0.4
+	boite_pleine("mur1", centre + Vector3(0, h * 0.5, -(p * 0.5 - e * 0.5)), Vector3(w, h, e))
+	boite_pleine("mur1", centre + Vector3(0, h * 0.5, (p * 0.5 - e * 0.5)), Vector3(w, h, e))
+	boite_pleine("mur1", centre + Vector3(-(w * 0.5 - e * 0.5), h * 0.5, 0), Vector3(e, h, p - 2.0 * e))
+	boite_pleine("mur1", centre + Vector3(w * 0.5 - e * 0.5, h * 0.5, 0), Vector3(e, h, p - 2.0 * e))
+	for sg in [-1.0, 1.0]:
+		boite("mur0", centre + Vector3(0, h + 0.03, sg * (p * 0.5 - 0.03)), Vector3(w + 0.1, 0.06, 0.1))
+		boite("mur0", centre + Vector3(sg * (w * 0.5 - 0.03), h + 0.03, 0), Vector3(0.1, 0.06, p + 0.1))
+	quad("noir", centre + Vector3(-w * 0.5 + e, h - 0.12, -p * 0.5 + e), centre + Vector3(w * 0.5 - e, h - 0.12, -p * 0.5 + e), centre + Vector3(w * 0.5 - e, h - 0.12, p * 0.5 - e), centre + Vector3(-w * 0.5 + e, h - 0.12, p * 0.5 - e), Vector3.UP)
+	solide(centre + Vector3(0, h * 0.5, 0), Vector3(w - 0.2, h, p - 0.2))
+
+## Parchemins, feuillets et livres éparpillés au sol (archives pillées).
+func parchemins_epars(centre: Vector3, rayon: float, n := 12) -> void:
+	for k in n:
+		var a := rng.randf() * TAU
+		var r := sqrt(rng.randf()) * rayon
+		var p := centre + Vector3(cos(a) * r, 0.01 + 0.004 * (k % 3), sin(a) * r)
+		if k % 4 == 0:
+			boite("bois", p + Vector3(0, 0.03, 0), Vector3(0.2, 0.06, 0.28), rng.randf() * TAU)
+		else:
+			boite("parchemin", p, Vector3(rng.randf_range(0.2, 0.34), 0.01, rng.randf_range(0.14, 0.24)), rng.randf() * TAU)
+
+## Étagère renversée (cadre couché et rayons obliques) : décor d'archives en ruine.
+func etagere_renversee(pos: Vector3, lacet := 0.0, largeur := 1.8) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	boite("bois", pos + b * Vector3(0, 0.07, 0), Vector3(largeur, 0.1, 0.8), lacet, false)
+	for k in 4:
+		boite("bois", pos + b * Vector3(0, 0.14 + k * 0.01, -0.3 + k * 0.2), Vector3(largeur, 0.05, 0.06), lacet + 0.05)
+	for sx in [-largeur * 0.5, largeur * 0.5]:
+		boite("bois", pos + b * Vector3(sx, 0.4, 0.38), Vector3(0.07, 0.8, 0.07), lacet + 0.1)
+	var s := b * Vector3(largeur, 0, 0.8)
+	solide(pos + Vector3(0, 0.25, 0), Vector3(absf(s.x), 0.5, absf(s.z)))
+
+## Tas de gravats (roche effondrée) : cône irrégulier et blocs ; collision facultative.
+func gravats(pos: Vector3, r := 1.0, h := 0.7, avec_collision := true, mat := "mur2") -> void:
+	tour(mat, pos, [Vector2(r, 0.0), Vector2(r * 0.8, h * 0.45), Vector2(r * 0.42, h * 0.85), Vector2(r * 0.12, h)], 7, 0.3, true)
+	for k in 5:
+		var a := rng.randf() * TAU
+		var rr := r * rng.randf_range(0.55, 1.05)
+		var t := rng.randf_range(0.18, 0.4)
+		boite(mat if k % 2 == 0 else "mur1", pos + Vector3(cos(a) * rr, t * 0.4, sin(a) * rr), Vector3(t * 1.4, t * 0.8, t), rng.randf() * TAU)
+	if avec_collision:
+		solide(pos + Vector3(0, h * 0.4, 0), Vector3(r * 1.5, h * 0.8, r * 1.5))
+
+## Fissures noires qui courent sur un mur (mur fragile : on les voit, et la poussière au pied).
+func fissures(centre: Vector3, vers: Vector3, larg := 2.0, haut := 2.6, n := 3) -> void:
+	var nv := vers.normalized()
+	var ax := _axes(nv)
+	for k in n:
+		var x := -larg * 0.35 + k * larg * 0.35 + rng.randf_range(-0.1, 0.1)
+		var y := haut * 0.5
+		for j in 6:
+			var ang := PI * 0.5 + rng.randf_range(-0.5, 0.5)
+			var l := rng.randf_range(0.25, 0.5)
+			_rect("noir", centre + nv * 0.02, ax[0], ax[1], x, y - haut * 0.5 + 0.0, 0.03, l, ang - PI * 0.5, nv)
+			x += cos(ang) * l * 0.5
+			y -= l * 0.55
+			if y < 0.1:
+				break
+	gravats(centre + Vector3(0, -centre.y, 0) + nv * 0.5, 0.35, 0.18, false, "mur1")
+
+## Dalle de pression fendue : cadre de fissures autour (la dalle elle-même est celle du piège) ; os et fléchette brisée devant.
+func dalle_fendue(pos: Vector3, lacet := 0.0) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	for k in 4:
+		var a := TAU * k / 4.0 + 0.4
+		_rect("noir", pos + Vector3(0, 0.017, 0) + b * Vector3(cos(a) * 0.62, 0, sin(a) * 0.62), Vector3.RIGHT, Vector3.FORWARD, 0.0, 0.0, 0.05, 0.5, a + lacet, Vector3.UP)
+	os_tas(pos + b * Vector3(0.1, 0, 1.0), 3, 0.35)
+	boite("bois", pos + b * Vector3(-0.4, 0.015, 1.3), Vector3(0.3, 0.015, 0.015), lacet + 0.8)
+
+## Sarcophage au couvercle poussé de côté (pillage) : la cuve noire apparaît.
+func sarcophage_pille(pos: Vector3, taille: Vector3, lacet := 0.0) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	boite("mur0", pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
+	boite("mur1", pos + Vector3(0, 0.07, 0), Vector3(taille.x + 0.14, 0.14, taille.z + 0.14), lacet)
+	boite("noir", pos + Vector3(0, taille.y + 0.005, 0), Vector3(taille.x - 0.3, 0.01, taille.z - 0.3), lacet)
+	boite("gravure", pos + b * Vector3(taille.x * 0.28, taille.y + 0.14, 0.26), Vector3(taille.x * 0.8, 0.16, taille.z + 0.04), lacet + 0.25)
+	boite("fer", pos + b * Vector3(-taille.x * 0.5 - 0.15, 0.04, 0.5), Vector3(0.7, 0.03, 0.04), lacet + 0.5)       # pied-de-biche
+	var s := b * Vector3(taille.x + 0.6, 0, taille.z + 0.3)
+	solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s.x), taille.y, absf(s.z)))
+
+## Sac de pillard éventré (étoffe, pièces, os) et coffre forcé (couvercle dressé derrière, serrure arrachée).
+func sac_dechire(pos: Vector3, lacet := 0.0) -> void:
+	boite("parchemin", pos + Vector3(0, 0.1, 0), Vector3(0.5, 0.2, 0.34), lacet + 0.3, false, Vector3.ZERO)
+	boite("parchemin", pos + Vector3(0.18, 0.025, 0.2), Vector3(0.45, 0.02, 0.3), lacet - 0.5)
+	for k in 7:
+		boite("or", pos + Vector3(rng.randf_range(-0.4, 0.5), 0.012, rng.randf_range(-0.3, 0.5)), Vector3(0.05, 0.015, 0.05), rng.randf() * TAU)
+	boite("fer", pos + Vector3(0.5, 0.02, -0.1), Vector3(0.12, 0.04, 0.12), rng.randf() * TAU)
+
+func coffre_force(pos: Vector3, lacet := 0.0) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	boite("bois", pos + Vector3(0, 0.22, 0), Vector3(0.9, 0.44, 0.56), lacet)
+	boite("noir", pos + Vector3(0, 0.445, 0), Vector3(0.78, 0.01, 0.44), lacet)
+	boite("bois", pos + b * Vector3(0, 0.62, -0.3), Vector3(0.9, 0.5, 0.06), lacet + 0.12)
+	for dx in [-0.3, 0.3]:
+		boite("fer", pos + b * Vector3(dx, 0.31, 0), Vector3(0.09, 0.64, 0.6), lacet)
+	solide(pos + Vector3(0, 0.3, 0), (b * Vector3(0.9, 0.6, 0.56)).abs())
+	for k in 5:
+		boite("or", pos + b * Vector3(rng.randf_range(-0.5, 0.5), 0.012, rng.randf_range(0.35, 0.8)), Vector3(0.05, 0.015, 0.05), rng.randf() * TAU)
+
+## Tapis processionnel (étoffe teintée, deux liserés) posé au sol.
+func tapis(centre: Vector3, taille: Vector2, lacet := 0.0, teinte := Color(0.5, 0.2, 0.2)) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	boite("parchemin", centre + Vector3(0, 0.008, 0), Vector3(taille.x, 0.012, taille.y), lacet, true)
+	var c := Color(teinte.r, teinte.g, teinte.b)
+	var a := b * Vector3(-taille.x * 0.5, 0, -taille.y * 0.5)
+	var bb := b * Vector3(taille.x * 0.5, 0, -taille.y * 0.5)
+	var cc := b * Vector3(taille.x * 0.5, 0, taille.y * 0.5)
+	var dd := b * Vector3(-taille.x * 0.5, 0, taille.y * 0.5)
+	quad("parchemin", centre + a + Vector3(0, 0.015, 0), centre + bb + Vector3(0, 0.015, 0), centre + cc + Vector3(0, 0.015, 0), centre + dd + Vector3(0, 0.015, 0), Vector3.UP, [], [], [c, c, c, c])
+	for sz in [-1.0, 1.0]:
+		boite("or", centre + b * Vector3(0, 0.017, sz * (taille.y * 0.5 - 0.1)), Vector3(taille.x, 0.004, 0.05), lacet)
+
+## Trône (estrade à deux degrés, siège, haut dossier, accoudoirs) ; collision. `mat` : « mur4 » pour la glace.
+func trone(pos: Vector3, lacet := 0.0, mat := "mur1") -> void:
+	var b := Basis(Vector3.UP, lacet)
+	boite_pleine_l(mat, pos + Vector3(0, 0.15, 0), Vector3(3.6, 0.3, 3.0), lacet)
+	boite_pleine_l(mat, pos + Vector3(0, 0.4, -0.2), Vector3(2.6, 0.2, 2.2), lacet)
+	boite_pleine_l(mat, pos + b * Vector3(0, 0.85, -0.2), Vector3(1.3, 0.7, 1.2), lacet)
+	boite(mat, pos + b * Vector3(0, 1.7, -0.7), Vector3(1.4, 2.0, 0.28), lacet)
+	for sx in [-0.75, 0.75]:
+		boite(mat, pos + b * Vector3(sx, 1.35, -0.2), Vector3(0.2, 0.5, 1.1), lacet)
+	for k in 3:
+		boite(mat, pos + b * Vector3((k - 1) * 0.45, 2.85, -0.7), Vector3(0.16, 0.5, 0.2), lacet)
+
+## Boîte pleine tournée : visible et solide (la collision reste alignée sur les axes : quarts de tour seulement).
+func boite_pleine_l(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0) -> void:
+	boite(nom, centre, taille, lacet)
+	var s := Basis(Vector3.UP, lacet) * taille
+	solide(centre, Vector3(absf(s.x), taille.y, absf(s.z)))
 
 # ------------------------------------------------------------------ vie et fin
 ## Lumières qui vacillent : trois fréquences + un tirage par pas de 1/12 s (le feu « saute » comme en pixel art).
