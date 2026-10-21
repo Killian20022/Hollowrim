@@ -11,6 +11,7 @@ class_name TrollTextures
 const PEAU := ["#1c1d23", "#282a32", "#363842", "#444752", "#535763", "#636775", "#747887", "#878a98", "#9b9eaa", "#b1b3bd"]   # gris bleuté (moins violet, plus clair : lisible à l'ombre)   # gris-bleu sombre légèrement violacé (référence)
 const FOUR := ["#1c1b19", "#393632", "#5c5853", "#827d76", "#a7a29a", "#c7c3bb", "#e0ddd6", "#f2f0eb"]   # crème / gris chaud, pointes presque neutres (pas « pêche » au couchant)
 const GIVRE := Color("#f6f6f3")
+const IVOIRE_CROC := ["#3a3630", "#6b655a", "#9a9384", "#c4bdab", "#ddd7c6", "#ece7da", "#f7f4ec"]   # crocs : ivoire neutre (le jaune virait orange au couchant)
 const IVOIRE := ["#3a2e22", "#5c4a36", "#806a4e", "#a68f6c", "#c8b38c", "#e0d1ad", "#f2e8cf"]
 const GUEULE := ["#0e0708", "#1e0c0e", "#341418", "#4c1e22"]
 const SOURCE_PEAU := "res://assets/modeles/humains/T_Superhero_Male_Dark.png"
@@ -31,7 +32,7 @@ static func _p(img: Image, x: int, y: int, c: Color) -> void:
 
 # ------------------------------------------------------------------ précalcul (outils/generer_troll.gd)
 const DOSSIER := "res://assets/personnages/troll"
-const VERSION := 9
+const VERSION := 12
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -177,7 +178,7 @@ static func peau() -> Image:
 				out.set_pixel(x, y, col)
 				fait[k] = 2 if dedans else 1
 	# rides fines (traits courts courbes, plus sombres, liseré clair au-dessus) sur la peau nue seulement
-	for kk in 14000:
+	for kk in 7000:
 		var x := int(_h(kk, 0, 1304) * n)
 		var y := int(_h(kk, 1, 1304) * n)
 		var c0 := out.get_pixel(x, y)
@@ -303,7 +304,7 @@ class _Peintre:
 		var s3: Vector3 = rep["spine_03"]
 		if nr.z < 0.2 or p.y < s3.y - 0.25 or p.y > s3.y + 0.2:
 			return 0.0
-		return smoothstep(0.09, 0.0, absf(p.x)) * 0.35 + 0.04
+		return smoothstep(0.06, 0.0, absf(p.x)) * 0.12
 
 static func _indice(c: Color) -> int:
 	var best := 0
@@ -326,7 +327,7 @@ static func _brin(img: Image, cel: int, xr: float, xt: float, h: int, courbe: fl
 	for k in h:
 		var t := float(k) / maxf(1.0, h - 1)
 		var cx := lerpf(xr, xt, smoothstep(0.35, 1.0, t)) + courbe * t * t
-		var demi := w0 * 0.5 * (1.0 - pow(t, 2.0) * 0.75)
+		var demi := w0 * 0.5 * (1.0 - pow(t, 2.0) * 0.55)
 		var xa := maxi(int(floorf(cx - demi)), cel)
 		var xb := mini(int(ceilf(cx + demi)) - 1, cel + MW - 1)
 		for x in range(xa, xb + 1):
@@ -336,7 +337,9 @@ static func _brin(img: Image, cel: int, xr: float, xt: float, h: int, courbe: fl
 			elif x == xb and xb > xa + 1:
 				ton -= 1
 			var col := _c(FOUR, mini(ton, clair + 1))
-			if t > 0.72 and _h(x, k, g + 1) < givre:
+			if t > 0.75 and ton >= clair:
+				col = col.lerp(_c(FOUR, clair), 0.5)    # pointe mate : pas plus claire que le corps de la touffe
+			if t > 0.8 and _h(x, k, g + 1) < givre:
 				col = GIVRE
 			_p(img, x, k, col)
 
@@ -346,8 +349,8 @@ static func meches() -> Image:
 	img.fill(Color(0, 0, 0, 0))
 	for v in 8:
 		var cel := v * MW
-		var clair := 6 if v < 3 else (5 if v < 6 else 3)
-		var givre := 0.45 if v < 3 else (0.2 if v < 6 else 0.05)
+		var clair := 4 if v < 6 else 3       # crème / gris chaud ; plus de « glaçons » blancs
+		var givre := 0.06 if v < 3 else (0.02 if v < 6 else 0.0)
 		var courbe := (4.0 + _h(v, 1, 1317) * 5.0) * (1.0 if v % 2 == 0 else -1.0)
 		# deux pointes (touffe fendue) pour la moitié des variantes
 		var pointes := [cel + 16.0 + courbe * -0.3] if v % 3 != 1 else [cel + 11.0, cel + 21.0]
@@ -382,7 +385,7 @@ static func accessoires() -> Image:
 		for y in r.size.y:
 			var t := float(y) / (r.size.y - 1)
 			for x in r.size.x:
-				var base := 1.0 + t * 4.2 if not croc else 3.0 + t * 2.8
+				var base := 1.0 + t * 4.2 if not croc else 4.2 + t * 2.0
 				var ton := int(base + (_h(x, y, 1321) - 0.5) * 0.8)
 				if x == 0 or x == 1:
 					ton += 1
@@ -390,7 +393,7 @@ static func accessoires() -> Image:
 					ton -= 2
 				if not croc and y < 3:
 					ton = 0
-				img.set_pixel(r.position.x + x, r.position.y + y, _c(IVOIRE, ton))
+				img.set_pixel(r.position.x + x, r.position.y + y, _c(IVOIRE_CROC if croc else IVOIRE, ton))
 	for y in R_GUEULE.size.y:
 		for x in R_GUEULE.size.x:
 			var dy := absf(y - 7.5) / 7.5
@@ -398,10 +401,10 @@ static func accessoires() -> Image:
 			img.set_pixel(R_GUEULE.position.x + x, R_GUEULE.position.y + y, _c(GUEULE, ton))
 	for y in R_ARCADE.size.y:
 		for x in R_ARCADE.size.x:
-			var t := 0.58 + float(R_ARCADE.size.y - y) / R_ARCADE.size.y * 0.18 + (_h(x, y, 1323) - 0.5) * 0.12   # même peau que le front (pas de « visière »)
+			var t := 0.46 + float(R_ARCADE.size.y - y) / R_ARCADE.size.y * 0.14 + (_h(x, y, 1323) - 0.5) * 0.12   # même peau que le front (pas de « visière »)
 			var ton := clampi(int(t * PEAU.size()), 0, PEAU.size() - 1)
 			if y >= R_ARCADE.size.y - 2:
-				ton = 4                                  # dessous de l'arcade : ombre (pas un trait noir de « visière »)
+				ton = 3                                  # dessous de l'arcade : ombre (pas un trait noir de « visière »)
 			img.set_pixel(R_ARCADE.position.x + x, R_ARCADE.position.y + y, _c(PEAU, ton))
 	return img
 
