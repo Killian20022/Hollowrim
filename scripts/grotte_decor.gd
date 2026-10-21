@@ -157,8 +157,12 @@ func mat(nom: String) -> Material:
 		m = sm
 	else:
 		m = super.mat(nom)
+		if nom == "halo_f" and m is StandardMaterial3D:
+			(m as StandardMaterial3D).albedo_color = Color(0.1, 0.36, 1.5)     # halo cyan doux (la texture "halo" est chaude)
 		if m is ShaderMaterial:
-			(m as ShaderMaterial).set_shader_parameter("crasse", 0.0)     # pas de bande de crasse (calée sur le sol de la crypte)
+			(m as ShaderMaterial).set_shader_parameter("crasse", 0.0)
+			if nom == "os":
+				(m as ShaderMaterial).set_shader_parameter("teinte", Color(0.5, 0.48, 0.45))     # os assombris (plus de taches blanches)     # pas de bande de crasse (calée sur le sol de la crypte)
 	_mats[nom] = m
 	return m
 
@@ -347,8 +351,8 @@ func cristal(base: Vector3, r: float, l: float, graine: int, incl := 0.5, axe_bi
 	var d0 := (axe_bias + Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)) * incl * 0.6).normalized()
 	var u0 := d0.cross(Vector3.RIGHT if absf(d0.x) < 0.9 else Vector3.FORWARD).normalized()
 	var w0 := d0.cross(u0)
-	_prisme_cristal(base - d0 * l * 0.12, d0, r * 0.62, l, rng)
-	var n := 2 + int(clampf(l * 1.2, 0.0, 4.0)) + rng.randi_range(0, 1)
+	_prisme_cristal(base - d0 * l * 0.12, d0, r * 0.5, l, rng)
+	var n := 4 + int(clampf(l * 2.0, 0.0, 5.0)) + rng.randi_range(0, 2)
 	for k in n:
 		var a := rng.randf() * TAU
 		var dist := r * rng.randf_range(0.7, 2.4)
@@ -357,7 +361,7 @@ func cristal(base: Vector3, r: float, l: float, graine: int, incl := 0.5, axe_bi
 		var d := (d0 + (u0 * cos(a) + w0 * sin(a)) * ouv + Vector3(rng.randf_range(-0.15, 0.15), 0, rng.randf_range(-0.15, 0.15))).normalized()
 		var f := pow(rng.randf(), 1.8)                              # beaucoup de petits, quelques moyens
 		var lk := l * lerpf(0.14, 0.62, f)
-		var rk := r * 0.62 * lerpf(0.28, 0.75, f) * rng.randf_range(0.8, 1.15)
+		var rk := r * 0.5 * lerpf(0.3, 0.8, f) * rng.randf_range(0.8, 1.15)
 		_prisme_cristal(base + off - d * lk * 0.18, d, rk, lk, rng)
 
 func _prisme_cristal(base: Vector3, d: Vector3, r: float, l: float, rng: RandomNumberGenerator) -> void:
@@ -814,8 +818,6 @@ func _hab_relief(g: Grotte) -> void:
 			continue
 		if r < 0.2 and (sty == "neige" or sty == "glace" or sty == "mousse"):
 			congere(p - Vector3(0, 0.04, 0), _hab_r.randf_range(0.2, 0.45), _hab_r.randf_range(0.05, 0.12), _hab_r.randi())     # givre épais
-		elif r < 0.34 and (th == "mine" or th == "cache" or th == "boyau"):
-			os_tas(p, 2, 0.2)
 		elif r < 0.36 and (th == "cache" or th == "mine"):
 			bougie(p + Vector3(0, 0.02, 0), false)
 
@@ -1120,17 +1122,24 @@ func _hab_lac(g: Grotte, z: Dictionary) -> void:
 	var s0: float = z["s"][0]
 	var s1: float = z["s"][1]
 	if String(z.get("role", "")) == "combat":
+		# cascade AU FOND de la caverne (dernier point du plateau du lac), éclairée par un jour bleuté
 		var best := -1.0
-		var bl := 0.0
 		var s := s0 + 3.0
-		while s < s1 - 3.0:
-			var lam := g.lac_f(b, s)
-			if lam > bl + 0.01 and g.faille_f(b, s) < 0.02:
-				bl = lam
+		while s < s1 - 2.0:
+			if g.lac_f(b, s) > 0.9 and g.faille_f(b, s) < 0.02:
 				best = s
-			s += 1.0
+			s += 0.5
 		if best > 0.0:
-			_cascade(g, id, best + 4.0 if best + 4.0 < s1 - 2.0 else best)
+			_cascade(g, id, best - 1.0)
+		# lanternes sur la rive : flaques chaudes et reflets sur la glace
+		for sl: float in [s0 + 7.0, s0 + 19.0, s0 + 29.0]:
+			var rv := GrotteModules._rive(g, id, sl)
+			if rv > 900.0:
+				continue
+			var lat := rv + 0.9
+			if g.libre(id, sl, lat, 0.2):
+				var pl := poteau_lanterne(g.sol_en(id, sl, lat), -g.droite(id, sl), true)
+				lumiere(pl, LANTERNE_C, LANT_E, LANT_P + 1.0, LANT_A, true)
 	# brume : cartes horizontales au ras du sol / de la glace
 	var s := s0 + 2.0
 	while s < s1 - 1.0:
@@ -1138,7 +1147,10 @@ func _hab_lac(g: Grotte, z: Dictionary) -> void:
 		var lat := _hab_r.randf_range(-dl.x * 0.7, dl.y * 0.7)
 		var p := g.sol_en(id, s, lat)
 		_nappe(p + Vector3(0, _hab_r.randf_range(0.12, 0.3), 0), _hab_r.randf_range(4.0, 6.5))
-		s += _hab_r.randf_range(3.0, 4.5)
+		if _hab_r.randf() < 0.6:                         # nappe supplémentaire sur la glace, au ras (vue de profil, une nappe haute fait un trait)
+			var lat2 := -_hab_r.randf_range(3.0, dl.x * 0.85)
+			_nappe(g.sol_en(id, s, lat2) + Vector3(0, _hab_r.randf_range(0.15, 0.4), 0), _hab_r.randf_range(5.0, 8.0))
+		s += _hab_r.randf_range(2.5, 3.5)
 
 func _hab_cristaux(g: Grotte, z: Dictionary) -> void:
 	var id: String = z["branche"]
@@ -1164,25 +1176,31 @@ func _cascade(g: Grotte, id: String, s: float) -> void:
 	var T := g.tang(id, s)
 	var R := g.droite(id, s)
 	var y_bas := g.lac_y - 0.05
-	for k in 11:
-		var ds := (float(k) - 5.0) * 0.32 + _hab_r.randf_range(-0.08, 0.08)
-		var lat := -dl.x * 0.93 + absf(float(k) - 5.0) * 0.05
+	var lat_c := -dl.x * 0.7
+	for k in 17:
+		var ds := (float(k) - 8.0) * 0.34 + _hab_r.randf_range(-0.08, 0.08)
+		var lat := lat_c + absf(float(k) - 8.0) * 0.06
 		var top := g.plafond_en(id, s + ds, lat)
 		var base := g.sol_en(id, s + ds, lat)
-		var pied := Vector3(base.x, maxf(y_bas, base.y - 0.1), base.z)
-		var h := top.y - pied.y - 0.3
+		var pied := Vector3(base.x, minf(y_bas, base.y - 0.1), base.z)     # toujours jusqu'à la glace (le pied s'enfonce dans la rive)
+		var h := top.y - pied.y - 0.2
 		if h < 1.5:
 			continue
-		var r := _hab_r.randf_range(0.14, 0.3) * (1.2 - absf(float(k) - 5.0) * 0.08)
-		var prof := [Vector2(r * 2.4, 0.0), Vector2(r * 1.5, h * 0.1), Vector2(r * 1.05, h * 0.3), Vector2(r * 0.85, h * 0.6), Vector2(r * 1.1, h * 0.85), Vector2(r * 1.6, h + 0.35)]
-		revolution("c_glacon", pied + R * 0.15, prof, 6, _hab_r.randi(), 0.3, 0.0, 0.85, 1.0, 1.0)
-	# flaque de glace claire au pied, glaçons courts tout autour
-	for k in 14:
-		var ds := _hab_r.randf_range(-2.4, 2.4)
-		var lat := -dl.x * _hab_r.randf_range(0.6, 0.9)
+		var r := _hab_r.randf_range(0.2, 0.42) * (1.25 - absf(float(k) - 8.0) * 0.06)
+		var prof := [Vector2(r * 2.6, 0.0), Vector2(r * 1.6, h * 0.08), Vector2(r * 1.05, h * 0.3), Vector2(r * 0.8, h * 0.55), Vector2(r * 1.0, h * 0.8), Vector2(r * 1.7, h + 0.35)]
+		revolution("c_glacon", pied + R * 0.2, prof, 6, _hab_r.randi(), 0.3, 0.0, 0.85, 1.0, 1.0)
+	for k in 22:
+		var ds := _hab_r.randf_range(-3.2, 3.2)
+		var lat := lat_c * _hab_r.randf_range(0.65, 0.95)
 		var top := g.plafond_en(id, s + ds, lat)
-		pointe("c_glacon", top + Vector3(0, 0.08, 0), _hab_r.randf_range(0.05, 0.13), -_hab_r.randf_range(0.5, 1.6), _hab_r.randi(), 0.0, 5)
-	carte("halo_f", g.sol_en(id, s, -dl.x * 0.7) + Vector3(0, 0.03, 0) + T * 0.0, Vector3.UP, 4.0, 4.0)
+		pointe("c_glacon", top + Vector3(0, 0.08, 0), _hab_r.randf_range(0.04, 0.1), -_hab_r.randf_range(0.3, 1.0), _hab_r.randi(), 0.0, 5)
+	var pied_c := g.sol_en(id, s, lat_c * 0.75)
+	carte("halo_f", Vector3(pied_c.x, maxf(pied_c.y, g.lac_y) + 0.03, pied_c.z), Vector3.UP, 6.0, 6.0)
+	# jour bleuté qui tombe sur la cascade (lumière fixe, froide)
+	var top_c := g.plafond_en(id, s, lat_c * 0.7)
+	var lj := lumiere(Vector3(top_c.x, lerpf(pied_c.y, top_c.y, 0.65), top_c.z) - R * 1.2, JOUR_C, 2.2, 11.0, 1.2, false)
+	lj.light_color = JOUR_C
+	carte("halo_f", Vector3(top_c.x, lerpf(pied_c.y, top_c.y, 0.5), top_c.z) - R * 0.3, R, 4.0, 6.0)
 
 ## Glaçons pendus au plafond, par grappes : denses à l'entrée, au lac gelé et chez les cristaux, rares ailleurs, jamais au camp.
 ## Ils restent hors de portée de la tête (2,3 m de garde au sol, ou près des parois).

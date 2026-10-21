@@ -22,7 +22,7 @@ const R_SOL := ["#040505", "#090a0b", "#111214", "#191b1e", "#24272b", "#31353a"
 const R_GIVRE := ["#464e62", "#55607b", "#697492", "#8089a6", "#98a1be", "#b6c0d6", "#cdd7ec"]   # DA « neige crépuscule » (jamais #ffffff)
 const R_NEIGE := ["#6a7f9e", "#8397b3", "#a0b2c9", "#bdcbdc", "#dce5ef", "#f6f9fc"]
 const R_GLACE := ["#06080b", "#0c1015", "#141a21", "#1d252f", "#28323e", "#36424f", "#4a5867", "#687a8a", "#93a5b3", "#c4d1da"]   # glace du lac : gris-bleu sombre, peu saturé
-const R_GLACON := ["#29354a", "#33577f", "#4f86ae", "#86bfd3", "#b6dde8"]
+const R_GLACON := ["#252c36", "#36475a", "#56708a", "#8aa6ba", "#c3d6e2"]   # glace des glaçons et de la cascade : gris-bleu, peu saturé
 const R_CRISTAL := ["#0e1322", "#1f2a44", "#3a4f74", "#4275b8", "#70b9ed", "#b6e4f8"]   # DA « cristal bleu »
 const R_PEAU := ["#0e0a07", "#211710", "#3a291b", "#58402a", "#7a5b3d"]
 const R_PAILLE := ["#2e2410", "#52411d", "#7a6530", "#a08a48", "#c4ae6c"]
@@ -482,7 +482,7 @@ static func cristal_image() -> Image:
 ## u = travers de la face (0 -> 1), v = long du prisme (0 = pied, 1 = pointe ; l'image est retournée : y = 0 en haut = pointe).
 ## Dégradé interne bleu nuit (pied, enfoncé dans la roche) -> cyan pâle (pointe), arête claire d'1 texel à gauche,
 ## joint sombre à droite, inclusions et fêlures obliques, quelques reflets. 64 x 64 texels (carré : chaîne de mipmaps complète).
-const R_CRISTAL_F := ["#05080f", "#09101c", "#0e182a", "#14223a", "#1a2b44", "#223853", "#2b4664", "#456c8f", "#7aa6c6", "#b4d8ee"]   # corps bleu nuit, cyan pâle seulement en tête
+const R_CRISTAL_F := ["#05080f", "#09101c", "#0e182a", "#14223a", "#1a2b44", "#223853", "#2b4664", "#456c8f", "#80b0cf", "#c8e8f5"]   # corps bleu nuit, cyan pâle seulement en tête
 
 static func cristal_face_image() -> Image:
 	var W := 64
@@ -498,6 +498,8 @@ static func cristal_face_image() -> Image:
 			var fel := fposmod(float(x) * 0.7 + float(y) * 0.45, 13.0)
 			if fel < 0.8 and _hash_i(int((float(x) * 0.7 + float(y) * 0.45) / 13.0), 5) > 0.45:
 				t += 1.6                                          # fêlure interne claire (oblique, interrompue)
+			if x > W * 3 / 10 and x < W * 4 / 10:
+				t += 1.8                                          # facette interne plus claire (reflet d'une face arrière)
 			if x >= W - 2:
 				t = minf(t, 1.0)                                  # joint sombre
 			elif x <= 1:
