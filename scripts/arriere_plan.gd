@@ -26,12 +26,12 @@ const CHATEAU_AZIMUT := 24.0
 const CHATEAU_DIST := 600.0
 ## Sommets marquants : azimut (° depuis +Z vers +X), distance, hauteur, rayon (m)
 const PICS := [
-	[10.0, 1250.0, 760.0, 420.0],    # grand sommet derrière le château
-	[-32.0, 1450.0, 640.0, 360.0],
-	[148.0, 1250.0, 700.0, 380.0],   # nord-est, côté lune
-	[238.0, 1500.0, 620.0, 340.0],
-	[80.0, 900.0, 430.0, 260.0],
-	[-95.0, 800.0, 380.0, 240.0],
+	[10.0, 1500.0, 760.0, 420.0],    # grand sommet derrière le château
+	[-32.0, 1650.0, 640.0, 360.0],
+	[148.0, 1500.0, 700.0, 380.0],   # nord-est, côté lune
+	[238.0, 1700.0, 620.0, 340.0],
+	[80.0, 1100.0, 430.0, 260.0],
+	[-95.0, 1000.0, 380.0, 240.0],
 ]
 
 var monde: Node
@@ -90,6 +90,13 @@ func _actualiser() -> void:
 	var hau = ciel.get_shader_parameter("haut_courant")
 	if hor != null:
 		_mat.set_shader_parameter("horizon", hor)
+	var cho = ciel.get_shader_parameter("horizon_chaud")
+	if cho != null:
+		_mat.set_shader_parameter("horizon_chaud", cho)
+	var da = ciel.get_shader_parameter("dir_astre")
+	if da != null:
+		_mat.set_shader_parameter("dir_astre", da)
+	_mat.set_shader_parameter("crep", monde.cycle.chaleur())
 	if hau != null:
 		_mat.set_shader_parameter("haut", hau)
 	var lum: DirectionalLight3D = monde.cycle.lumiere
@@ -160,13 +167,13 @@ func _h(x: float, z: float) -> float:
 	var colline := _n3.get_noise_2d(wx * 0.004, wz * 0.004) * 0.5 + 0.5
 	var h := 22.0 + ef * (22.0 + 50.0 * colline * colline)
 	h += ef * 20.0 * _ridge(wx, wz, 0.006, 3)
-	h += em * (45.0 + 200.0 * pow(_ridge(wx, wz, 0.0034, 6), 1.9))
-	h += eb * (280.0 * pow(_ridge(wx + 500.0, wz - 300.0, 0.0018, 6), 1.9))
+	h += em * (30.0 + 120.0 * pow(_ridge(wx, wz, 0.0034, 6), 1.9))
+	h += eb * (170.0 * pow(_ridge(wx + 500.0, wz - 300.0, 0.0018, 6), 1.9))
 	for p in PICS:
 		var c := _pos_polaire(p[0], p[1])
 		var t := maxf(0.0, 1.0 - Vector2(x - c.x, z - c.y).length() / p[3])
 		if t > 0.0:
-			h += p[2] * 0.72 * pow(t, 1.3) * (0.7 + 0.6 * _ridge(wx, wz, 0.012, 3))
+			h += p[2] * 0.42 * pow(t, 1.5) * (0.7 + 0.6 * _ridge(wx, wz, 0.012, 3))
 	return h
 
 func _calculer() -> void:
@@ -325,10 +332,10 @@ func _chateau() -> Dictionary:
 	var vue := Vector2(centre.x, centre.y).normalized()
 	var axe := Vector3(-vue.y, 0.0, vue.x)
 	var sol := _y0 + _h(centre.x, centre.y) - 18.0
-	var hauteur_a := 170.0
-	var rayon_a := 75.0
+	var hauteur_a := 150.0
+	var rayon_a := 58.0
 	var o_a := Vector3(centre.x, sol, centre.y)
-	var hauteur_b := 158.0
+	var hauteur_b := 138.0
 	var rayon_b := 34.0
 	var o_b := o_a + axe * 165.0
 	var sol_b := _y0 + _h(o_b.x, o_b.z) - 18.0

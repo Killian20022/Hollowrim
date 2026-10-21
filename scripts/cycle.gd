@@ -30,14 +30,14 @@ const JOUR := {
 }
 ## Crépuscule : horizon violet-gris, côté soleil rose-ocre (la bande dorée est dessinée par le ciel), zénith bleu nuit.
 const CREPUSCULE := {
-	"ambiant": Color(0.46, 0.44, 0.60), "ambiant_e": 0.52, "froid": Color(0.26, 0.25, 0.38), "chaud": Color(0.80, 0.46, 0.32),
-	"fin": 58.0, "expo": 1.05, "haut": Color(0.11, 0.12, 0.25), "glow": 0.92,
+	"ambiant": Color(0.42, 0.45, 0.58), "ambiant_e": 0.52, "froid": Color(0.22, 0.25, 0.34), "chaud": Color(0.62, 0.44, 0.34),
+	"fin": 58.0, "expo": 1.05, "haut": Color(0.09, 0.11, 0.20), "glow": 0.92,
 }
 ## Étalonnage (post-traitement, voir ps1_post.gdshader) : multiplicateurs appliqués aux ombres / aux hautes lumières.
 const ETAL := {
 	"nuit": {"ombre": Color(0.93, 0.98, 1.08), "clair": Color(0.98, 1.0, 1.03), "sat": 0.88, "contraste": 0.28},
 	"jour": {"ombre": Color(0.92, 0.97, 1.08), "clair": Color(1.05, 1.01, 0.94), "sat": 0.8, "contraste": 0.38},
-	"crep": {"ombre": Color(0.92, 0.93, 1.10), "clair": Color(1.14, 1.0, 0.82), "sat": 0.9, "contraste": 0.42},
+	"crep": {"ombre": Color(0.90, 0.95, 1.08), "clair": Color(1.10, 1.0, 0.86), "sat": 0.78, "contraste": 0.42},
 }
 
 ## Le brouillard commence à ce rapport de sa fin (net jusqu'à ~20 m pour une fin à 55-60 m).

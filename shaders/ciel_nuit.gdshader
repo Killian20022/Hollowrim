@@ -115,9 +115,9 @@ void sky() {
 	// bande dorée sous les nuages : or à l'horizon, orange, puis rose-violet vers le haut
 	float k = crep * (0.25 + 0.75 * az);
 	// couleurs en linéaire (le moteur applique ensuite la courbe sRGB) : or, orange brûlé, rose-violet
-	vec3 or_ = mix(vec3(1.0, 0.50, 0.10), vec3(0.80, 0.17, 0.07), smoothstep(0.015, 0.14, y));
-	or_ = mix(or_, vec3(0.20, 0.09, 0.19), smoothstep(0.10, 0.42, y));
-	float forme = (1.0 - smoothstep(0.0, 0.5, y));
+	vec3 or_ = mix(vec3(0.85, 0.42, 0.13), vec3(0.40, 0.14, 0.09), smoothstep(0.01, 0.07, y));
+	or_ = mix(or_, vec3(0.045, 0.045, 0.075), smoothstep(0.05, 0.25, y));
+	float forme = 1.0 - smoothstep(0.0, 0.2, y);
 	forme = forme * forme;
 	col = mix(col, or_, clamp(k * forme * smoothstep(0.0, 0.03, y) * 1.15, 0.0, 1.0));
 	if (d.y < 0.0) {
@@ -148,22 +148,23 @@ void sky() {
 	// --- couche de nuages (au-dessus de l'horizon seulement) -------------------------------------------------
 	if (d.y > 0.0) {
 		// plan de nuages : les formes rapetissent vers l'horizon (perspective) ; vent lent et régulier
-		vec2 p = d.xz / (d.y + 0.2) * 3.0 + vec2(TIME * 0.012, TIME * 0.005);
-		vec2 q = p * vec2(0.9, 1.05);  // étirement : les nuages s'allongent à l'horizontale
+		vec2 p = d.xz / (d.y + 0.2) * 7.5 + vec2(TIME * 0.012, TIME * 0.005);
+		vec2 q = p * vec2(1.0, 1.3);  // étirement : les nuages s'allongent à l'horizontale
 		float n = densite(q, 5);
 		// couverture : très épaisse en hauteur, des trouées près de l'horizon (la bande dorée se montre en dessous)
-		float seuil_h = mix(0.58, 0.43, smoothstep(0.02, 0.45, d.y));
+		float seuil_h = mix(0.50, 0.36, smoothstep(0.02, 0.45, d.y));
 		float seuil_n = mix(0.64, 0.50, smoothstep(0.02, 0.45, d.y));      // nuit : plus de trouées (étoiles, aurore)
 		float seuil_j = mix(0.52, 0.42, smoothstep(0.02, 0.45, d.y));      // jour : couvert avec des trouées claires
 		float seuil = mix(mix(seuil_n, seuil_j, jour), seuil_h, crep) + (1.0 - couverture) * 0.3;
 		// l'horizon lui-même reste dégagé : fondu des nuages tout près du bord (jamais de mur coupé net)
-		float fond = smoothstep(0.0, 0.05, d.y);
+		float fond = smoothstep(0.0, 0.035, d.y);
 		float masque = smoothstep(seuil, seuil + 0.035, n) * fond;
 		if (masque > 0.001) {
 			float s = clamp((n - seuil) / (1.0 - seuil), 0.0, 1.0);
 			// volumes en paliers + texture déchiquetée fine
-			float fin = fbm(q * 4.3 + vec2(5.0, 1.0), 3);
-			float ton = floor(clamp(s * 0.9 + fin * 0.55, 0.0, 0.999) * 4.0) / 3.0;
+			float fin = fbm(q * 3.0 + vec2(5.0, 1.0), 3);
+			float grain = hash_n(floor(q * 14.0));  // moucheté pixel art
+			float ton = floor(clamp(s * 0.7 + fin * 0.5 + (grain - 0.5) * 0.45, 0.0, 0.999) * 4.0) / 3.0;
 			// bord éclairé : la densité baisse du côté de l'astre
 			vec2 L = sh * 0.035;
 			float ecart = densite(q, 3) - densite(q + L * vec2(0.9, 1.05), 3);
@@ -172,15 +173,15 @@ void sky() {
 			float bas = densite(q, 3) - densite(q + normalize(q + vec2(0.0001)) * 0.05, 3);
 			float rim_bas = floor(clamp(bas * 16.0, 0.0, 0.999) * 3.0) / 2.0;
 
-			vec3 sombre = palette(vec3(0.003, 0.005, 0.014), vec3(0.018, 0.016, 0.034), vec3(0.075, 0.09, 0.135));
-			vec3 moyen = palette(vec3(0.012, 0.018, 0.040), vec3(0.058, 0.050, 0.090), vec3(0.17, 0.20, 0.27));
-			vec3 clair = palette(vec3(0.035, 0.060, 0.130), vec3(1.000, 0.450, 0.100), vec3(0.45, 0.50, 0.60));
+			vec3 sombre = palette(vec3(0.003, 0.005, 0.014), vec3(0.016, 0.017, 0.028), vec3(0.075, 0.09, 0.125));
+			vec3 moyen = palette(vec3(0.012, 0.018, 0.040), vec3(0.050, 0.052, 0.072), vec3(0.17, 0.20, 0.25));
+			vec3 clair = palette(vec3(0.035, 0.060, 0.130), vec3(0.20, 0.17, 0.20), vec3(0.45, 0.50, 0.58));
 			vec3 c = mix(sombre, moyen, ton);
 			float proche_horizon = 1.0 - smoothstep(0.0, 0.32, d.y);
 			float eclat = rim * (0.12 + 0.88 * az * az) * (0.55 + 0.45 * proche_horizon);
 			c = mix(c, clair, eclat * mix(0.55, 1.0, crep));
 			// le dessous des nuages du côté du couchant brille (or / orange)
-			c = mix(c, vec3(1.0, 0.30, 0.05), crep * az * proche_horizon * rim_bas * 0.8);
+			c = mix(c, vec3(0.80, 0.30, 0.08), crep * az * smoothstep(0.0,1.0,1.0 - smoothstep(0.0, 0.12, d.y)) * rim_bas * 0.7);
 			// à la nuit, les nuages couvrent aussi un peu l'aurore et les étoiles : le fond est atténué par le masque
 			col = mix(col, c, masque);
 		}

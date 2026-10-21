@@ -9,13 +9,16 @@ shader_type spatial;
 render_mode unshaded, fog_disabled, cull_disabled, depth_draw_opaque;
 
 uniform vec3 horizon : source_color = vec3(0.05, 0.075, 0.13);
+uniform vec3 horizon_chaud : source_color = vec3(0.05, 0.075, 0.13);
+uniform vec3 dir_astre = vec3(-0.8, 0.0, 0.6);
+uniform float crep = 0.0;
 uniform vec3 haut : source_color = vec3(0.008, 0.012, 0.035);
 uniform vec3 dir_lum = vec3(0.3, 0.6, -0.7);       // vers la lumière (lune ou soleil)
 uniform vec3 col_lum : source_color = vec3(0.45, 0.54, 0.75);
 uniform vec3 ambiant : source_color = vec3(0.18, 0.22, 0.34);
 uniform float niveau0 = 0.0;                        // altitude du sol du village (m)
 uniform float jour = 0.0;
-uniform float dist_brume = 1300.0;                  // distance où la brume atteint ~63 %
+uniform float dist_brume = 1000.0;                  // distance où la brume atteint ~63 %
 
 varying vec3 wp;
 varying vec3 wn;
@@ -68,10 +71,10 @@ void fragment() {
 	float strie = vnoise(vec2((wp.x * 0.7 + wp.z) * 0.05, wp.y * 0.006));  // couloirs verticaux
 
 	// --- neige : altitude, pente douce ; les couloirs gardent la neige dans les pentes raides
-	float ligne = 185.0 + (nb - 0.5) * 120.0;
-	float neige_alt = smoothstep(ligne - 55.0, ligne + 35.0, alt);
+	float ligne = 110.0 + (nb - 0.5) * 70.0;
+	float neige_alt = smoothstep(ligne - 40.0, ligne + 25.0, alt);
 	float sol_pente = smoothstep(0.20 + na * 0.18, 0.42 + na * 0.2, pente);
-	float couloir = smoothstep(0.58, 0.68, strie) * 0.85 * smoothstep(110.0, 170.0, alt);
+	float couloir = smoothstep(0.60, 0.66, strie) * 0.9 * smoothstep(70.0, 110.0, alt);
 	if (cat > 3.5 && cat < 4.5) {
 		neige_alt = smoothstep(0.78, 0.95, n.y) * 0.9;  // falaise : roche nue, neige sur les replats seulement
 		sol_pente = 0.0;
@@ -81,8 +84,8 @@ void fragment() {
 
 	// --- matières
 	float strates = 0.5 + 0.5 * sin(wp.y * 0.55 + na * 5.0 + nc * 2.0);
-	vec3 roche = mix(vec3(0.065, 0.065, 0.085), vec3(0.17, 0.15, 0.15), clamp(na * 0.8 + strates * 0.3 + nc * 0.3, 0.0, 1.0));
-	vec3 neige_c = mix(vec3(0.62, 0.70, 0.88), vec3(0.88, 0.92, 1.0), nb);
+	vec3 roche = mix(vec3(0.045, 0.055, 0.075), vec3(0.14, 0.155, 0.185), clamp(na * 0.8 + strates * 0.3 + nc * 0.3, 0.0, 1.0));
+	vec3 neige_c = mix(vec3(0.52, 0.58, 0.68), vec3(0.78, 0.82, 0.88), nb);
 	vec3 foret = mix(vec3(0.022, 0.05, 0.05), vec3(0.06, 0.10, 0.08), clamp(vc.g * 0.8 + nc * 0.5, 0.0, 1.0));
 	vec3 albedo;
 	if (cat < 0.5 || cat > 3.5) {
@@ -96,7 +99,7 @@ void fragment() {
 		albedo = mix(foret, neige_c * 0.55, clamp(neige_alt * 0.5 + vc.g * 0.12, 0.0, 1.0) * (0.4 + 0.6 * n.y));
 	} else if (cat < 2.5) {
 		float pierre = h21(floor(vec2(wp.x + wp.z, wp.y * 2.0) * 0.45));
-		albedo = mix(vec3(0.11, 0.11, 0.14), vec3(0.24, 0.23, 0.25), pierre);
+		albedo = mix(vec3(0.09, 0.10, 0.125), vec3(0.20, 0.21, 0.24), pierre);
 		albedo = mix(albedo, neige_c * 0.95, smoothstep(0.7, 0.95, n.y) * 0.85);
 	} else {
 		albedo = vec3(0.56, 0.70, 0.84) * (0.85 + 0.15 * nb);  // glace
@@ -118,9 +121,14 @@ void fragment() {
 	if (cat > 1.5) {
 		haze *= 0.6;  // château et falaise : plus contrastés que le relief qui les entoure
 	}
-	vec3 brume = mix(horizon, haut, 0.22 * smoothstep(10.0, 220.0, alt));
-	float chaud = clamp((horizon.r - horizon.b) * 3.0, 0.0, 1.0);   // crépuscule : le haut des cimes rosit
-	col += neige * chaud * diff * vec3(0.5, 0.3, 0.2) * (1.0 - haze);
+	vec3 dv = wp - CAMERA_POSITION_WORLD;
+	vec2 dh = normalize(dv.xz + vec2(0.0001));
+	float az = smoothstep(-0.2, 1.0, dot(dh, normalize(dir_astre.xz + vec2(0.0001))));
+	vec3 hz = mix(horizon, horizon_chaud, crep * az);   // = couleur_horizon(dir) du cycle : aucun raccord avec le ciel
+	vec3 brume = mix(hz, haut, 0.18 * smoothstep(10.0, 160.0, alt));
+	// crépuscule : seulement les cimes enneigées côté couchant se dorent
+	float cime = smoothstep(60.0, 150.0, alt);
+	col += neige * cime * crep * az * az * (0.3 + 0.7 * diff) * vec3(0.55, 0.36, 0.17) * (1.0 - haze);
 	col = mix(col, brume, haze);
 	ALBEDO = col;
 }
