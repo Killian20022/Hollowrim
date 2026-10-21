@@ -1,5 +1,5 @@
-// Passe finale : couleurs réduites (15 bits comme la PS1) avec tramage Bayer 4x4,
-// plus un léger vignettage.
+// Passe finale : étalonnage (ombres froides, hautes lumières chaudes, contraste), couleurs réduites (15 bits comme la PS1)
+// avec tramage PAR BRUIT (jamais de damier Bayer), plus un léger vignettage.
 shader_type canvas_item;
 
 uniform sampler2D ecran : hint_screen_texture, filter_nearest;
@@ -9,22 +9,42 @@ uniform float tramage = 1.0;
 uniform float vignette = 0.35;
 uniform float degat = 0.0;  // voile rouge quand le joueur est touché
 uniform float fondu = 0.0;  // fondu au noir (mort)
+// Lot 2 : étalonnage fixé par cycle.gd selon l'heure (sous terre, monde.gd baisse `etal_mix`)
+uniform vec3 etal_ombre = vec3(0.88, 0.96, 1.14);
+uniform vec3 etal_clair = vec3(1.06, 1.01, 0.93);
+uniform float etal_sat = 0.92;
+uniform float etal_contraste = 0.35;
+uniform float etal_mix = 1.0;
 
-const float BAYER[16] = float[16](
-	0.0, 8.0, 2.0, 10.0,
-	12.0, 4.0, 14.0, 6.0,
-	3.0, 11.0, 1.0, 9.0,
-	15.0, 7.0, 13.0, 5.0);
+// bruit de gradient entrelacé (Jimenez) : grain fin sans motif en damier, stable d'une image à l'autre
+float bruit_ign(vec2 p) {
+	return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
+}
+
+vec3 etalonner(vec3 c) {
+	float l = dot(c, vec3(0.3, 0.55, 0.15));
+	// ombres froides bleu-violet, hautes lumières chaudes
+	float ombre = 1.0 - smoothstep(0.0, 0.55, l);
+	float clair = smoothstep(0.35, 0.95, l);
+	vec3 g = c * mix(vec3(1.0), etal_ombre, ombre) * mix(vec3(1.0), etal_clair, clair);
+	// saturation maîtrisée
+	float lg = dot(g, vec3(0.3, 0.55, 0.15));
+	g = mix(vec3(lg), g, etal_sat);
+	// contraste : courbe en S qui garde noir et blanc
+	vec3 gc = clamp(g, 0.0, 1.0);
+	g = mix(g, gc * gc * (3.0 - 2.0 * gc), etal_contraste);
+	return mix(c, g, etal_mix);
+}
 
 void fragment() {
-	vec3 c = texture(ecran, SCREEN_UV).rgb;
+	vec3 c = etalonner(texture(ecran, SCREEN_UV).rgb);
 	vec2 v = SCREEN_UV - 0.5;
 	c *= 1.0 - dot(v, v) * vignette;
 	c = mix(c, vec3(0.45, 0.02, 0.02), degat * smoothstep(0.05, 0.5, dot(v, v) * 2.0));
 	c *= 1.0 - fondu;
 	if (actif) {
-		// Lot 7 : le tramage Bayer 15 bits reste (il casse les bandes des dégradés : brume, ciel), mais il s'efface sur
-		// les arêtes franches (bords d'arbres, silhouettes sur l'aurore) où le motif fixe crépitait.
+		// Lot 7 : le tramage 15 bits reste (il casse les bandes des dégradés : brume, ciel), mais il s'efface sur
+		// les arêtes franches (bords d'arbres, silhouettes sur l'aurore) où le grain crépitait.
 		vec2 px = SCREEN_PIXEL_SIZE;
 		float l0 = dot(texture(ecran, SCREEN_UV).rgb, vec3(0.3, 0.55, 0.15));
 		float ec = 0.0;
@@ -33,8 +53,7 @@ void fragment() {
 		ec = max(ec, abs(dot(texture(ecran, SCREEN_UV + vec2(0.0, px.y)).rgb, vec3(0.3, 0.55, 0.15)) - l0));
 		ec = max(ec, abs(dot(texture(ecran, SCREEN_UV - vec2(0.0, px.y)).rgb, vec3(0.3, 0.55, 0.15)) - l0));
 		float force = tramage * mix(1.0, 0.3, smoothstep(0.04, 0.16, ec));
-		ivec2 p = ivec2(FRAGCOORD.xy) % 4;
-		float b = BAYER[p.y * 4 + p.x] / 16.0 - 0.5;
+		float b = bruit_ign(FRAGCOORD.xy) - 0.5;
 		c = floor(c * (niveaux - 1.0) + 0.5 + b * force) / (niveaux - 1.0);
 	}
 	COLOR = vec4(clamp(c, 0.0, 1.0), 1.0);
