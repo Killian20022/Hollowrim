@@ -30,7 +30,7 @@ const FEU_CRYPTE := Color(1.0, 0.56, 0.24)       # torche
 const FEU_BRASERO := Color(1.0, 0.52, 0.20)
 const FEU_BOUGIE := Color(1.0, 0.66, 0.36)
 const RUNE := Color(0.35, 0.80, 1.0)
-const AMBIANT_CRYPTE := 1.0
+const AMBIANT_CRYPTE := 1.6
 const GAIN_LUMIERE := 1.7          # pierre plus sombre (rampe donjon) : les feux portent plus loin et plus fort
 const GRILLE_CRYPTE := 180.0      # accroche des sommets : H / 2 à 640 x 360 (DIRECTION_ARTISTIQUE §3)
 
@@ -612,6 +612,8 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 				if not c[2]:
 					_cadre(horizontal, plan, signe, c[0], c[1], ho, y)
 				continue
+			if est_crypte and not c[2]:      # 2e passe : seuil de pierre (marche de 6 cm, franchissable) sous le passage
+				boite("mur1", Vector3((c[0] + c[1]) * 0.5, y + 0.03, fixe_mur) if horizontal else Vector3(fixe_mur, y + 0.03, (c[0] + c[1]) * 0.5), Vector3(c[1] - c[0] + 0.3, 0.06, 0.9) if horizontal else Vector3(0.9, 0.06, c[1] - c[0] + 0.3), 0.0, true)
 			if horizontal:
 				quad("dalle0", Vector3(c[0], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur + 0.3), Vector3(c[0], y, fixe_mur + 0.3), Vector3.UP)
 				quad("voute", Vector3(c[0], y + ho, fixe_mur - 0.3), Vector3(c[1], y + ho, fixe_mur - 0.3), Vector3(c[1], y + ho, fixe_mur + 0.3), Vector3(c[0], y + ho, fixe_mur + 0.3), Vector3.DOWN)
@@ -643,9 +645,10 @@ func _relief_mur(horizontal: bool, plan: float, signe: float, a0: float, a1: flo
 		var l := minf(rng.randf_range(0.9, 1.7), a1 - a)
 		dos.call(a + l * 0.5, 0.46, l - 0.02, rng.randf_range(0.04, 0.09), 0.32, "mur0" if rng.randf() < 0.6 else "mur1")
 		a += l
-	dos.call((a0 + a1) * 0.5, h - 0.1, a1 - a0, 0.12, 0.2, "mur0")      # corniche : trois ressauts
-	dos.call((a0 + a1) * 0.5, h - 0.3, a1 - a0, 0.07, 0.2, "mur1")
-	dos.call((a0 + a1) * 0.5, h - 0.45, a1 - a0, 0.035, 0.12, "mur0")
+	var kc := 2.0 if est_crypte else 1.0                 # 2e passe : corniche nettement saillante dans la crypte
+	dos.call((a0 + a1) * 0.5, h - 0.1, a1 - a0, 0.12 * kc, 0.2, "mur0")      # corniche : trois ressauts
+	dos.call((a0 + a1) * 0.5, h - 0.3, a1 - a0, 0.07 * kc, 0.2, "mur1")
+	dos.call((a0 + a1) * 0.5, h - 0.45, a1 - a0, 0.035 * kc, 0.12, "mur0")
 	a = a0 + 0.9                                         # corbeaux sous la corniche
 	while a < a1 - 0.5:
 		dos.call(a, h - 0.38, 0.3, 0.2, 0.26, "mur1")
@@ -680,8 +683,8 @@ func _givre_mur(horizontal: bool, plan: float, signe: float, a0: float, a1: floa
 			var l := minf(rng_deco.randf_range(0.8, 2.2), a1 - a)
 			givre_dessus(pt.call(a + l * 0.5, yb + 0.12, 0.11), Vector2(l, 0.22) if horizontal else Vector2(0.22, l), 0.05)
 			a += l + rng_deco.randf_range(0.0, 0.6)
-		glacons_arete(pt.call(a0 + 0.1, yb - 0.12, 0.2), pt.call(a1 - 0.1, yb - 0.12, 0.2), 1.6 if gele else 0.7, 0.7 if gele else 0.45)
-	glacons_arete(pt.call(a0 + 0.3, y + h - 0.5, 0.12), pt.call(a1 - 0.3, y + h - 0.5, 0.12), 1.2 if gele else 0.45, 0.6 if gele else 0.4)
+		glacons_arete(pt.call(a0 + 0.1, yb - 0.12, 0.2), pt.call(a1 - 0.1, yb - 0.12, 0.2), 2.4 if gele else 1.4, 0.8 if gele else 0.55)
+	glacons_arete(pt.call(a0 + 0.3, y + h - 0.5, 0.2), pt.call(a1 - 0.3, y + h - 0.5, 0.2), 2.2 if gele else 1.3, 0.7 if gele else 0.5)
 	# lèvre du soubassement : givre en plaques discontinues (pas une ligne blanche continue)
 	var a := a0
 	while a < a1 - 0.3:
@@ -698,6 +701,9 @@ func _var_mur(base: String, i: int) -> String:
 	return base
 
 func _cadre(horizontal: bool, plan: float, signe: float, ca: float, cb: float, ho: float, y: float) -> void:
+	if est_crypte:
+		_cadre_massif(horizontal, plan, signe, ca, cb, ho, y)
+		return
 	var p_in := plan + signe * 0.08
 	for k in 2:
 		var lado := ca - 0.22 if k == 0 else cb + 0.22
@@ -711,12 +717,32 @@ func _cadre(horizontal: bool, plan: float, signe: float, ca: float, cb: float, h
 		boite("mur0", Vector3(m, y + ho - 0.2, p_in + signe * 0.03), Vector3(l, 0.4, 0.22))
 	else:
 		boite("mur0", Vector3(p_in + signe * 0.03, y + ho - 0.2, m), Vector3(0.22, 0.4, l))
-	if est_crypte:      # givre sur le linteau, glaçons courts sous son arête avant
-		var pf := p_in + signe * 0.03
-		givre_dessus(Vector3(m, y + ho, pf) if horizontal else Vector3(pf, y + ho, m), Vector2(l, 0.22) if horizontal else Vector2(0.22, l), 0.04)
-		var e0 := Vector3(ca - 0.4, y + ho - 0.4, pf + signe * 0.09) if horizontal else Vector3(pf + signe * 0.09, y + ho - 0.4, ca - 0.4)
-		var e1 := Vector3(cb + 0.4, y + ho - 0.4, pf + signe * 0.09) if horizontal else Vector3(pf + signe * 0.09, y + ho - 0.4, cb + 0.4)
-		glacons_arete(e0, e1, 1.4 if not theme.is_empty() else 0.8, 0.32)
+
+## 2e passe : passage à linteau MASSIF (références) — jambages en harpe (blocs alternés), corbeaux, linteau de 0,6 m en
+## saillie de 0,3 m, clé, givre dessus, frange de glaçons dessous. Rien n'entre dans le passage (tout est hors de [ca, cb]).
+func _cadre_massif(horizontal: bool, plan: float, signe: float, ca: float, cb: float, ho: float, y: float) -> void:
+	var P := func(a: float, yy: float, ret: float) -> Vector3:
+		return Vector3(a, yy, plan + signe * ret) if horizontal else Vector3(plan + signe * ret, yy, a)
+	var D := func(l: float, hh: float, ep: float) -> Vector3:
+		return Vector3(l, hh, ep) if horizontal else Vector3(ep, hh, l)
+	for k in 2:
+		var sg := -1.0 if k == 0 else 1.0
+		var bord := ca if k == 0 else cb
+		var yy := 0.0
+		var i := 0
+		while yy < ho - 0.6:
+			var hb := minf(0.48 if i % 2 == 0 else 0.4, ho - 0.6 - yy)
+			var lb := 0.62 if i % 2 == 0 else 0.44
+			boite("mur0" if i % 3 != 1 else "mur1", P.call(bord + sg * lb * 0.5, y + yy + hb * 0.5, 0.12), D.call(lb - 0.02, hb - 0.02, 0.24))
+			yy += hb
+			i += 1
+		boite("mur1", P.call(bord + sg * 0.05, y + ho - 0.7, 0.2), D.call(0.42, 0.22, 0.4))      # corbeau
+	var l := cb - ca + 1.4
+	var m := (ca + cb) * 0.5
+	boite("mur0", P.call(m, y + ho - 0.3, 0.16), D.call(l, 0.6, 0.32))
+	boite("mur1", P.call(m, y + ho - 0.3, 0.33), D.call(0.42, 0.72, 0.06))                   # clé
+	givre_dessus(P.call(m, y + ho, 0.16), Vector2(l, 0.32) if horizontal else Vector2(0.32, l), 0.05)
+	glacons_arete(P.call(ca - 0.6, y + ho - 0.62, 0.3), P.call(cb + 0.6, y + ho - 0.62, 0.3), 2.0 if not theme.is_empty() else 1.4, 0.4)
 
 # ------------------------------------------------------------------ structure : piliers, contreforts, poutres
 ## Pilier (refonte matière, références grottes_cryptes_2/3) : fût carré à arêtes abattues, socle mouluré givré, chapiteau à

@@ -12,10 +12,10 @@ class_name CrypteTextures
 
 const CLEAR := Color(0, 0, 0, 0)
 const DOSSIER := "res://assets/crypte"   # textures précalculées par outils/generer_crypte.gd
-const VERSION := 11                      # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
+const VERSION := 12                      # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
 const E := 2   # facteur de finesse de la pierre proche (murs, dalles, voûte, ossuaire) : 2 = 64 texels/m (tuiles de 256 px pour 4 m)
 ## Murs et ossuaire : 128 texels/m (tuile de 512 px), car le joueur les frôle (< 1 m) ; dalles et voûte restent à 64.
-const EM := 2   # refonte matière : 64 texels/m comme le reste du décor proche (DIRECTION_ARTISTIQUE §3, visée 640 x 360)
+const EM := 4   # refonte matière, 2e passe : 128 texels/m pour murs et dalles (vus à 1-2 m) avec micro-détail (moucheture, arêtes ébréchées)
 const F := 2   # bois, fer, gravure : 64 texels/m (tuiles de 128 / 64 / 128 px) ; dessin pensé en « unités » de 2 cm (ancienne grille)
 const K := 2   # facteur de densité de la pierre : 1 = 16 texels/m, 2 = 32 texels/m
 
@@ -202,6 +202,7 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 	var ech: int = o.get("ech", 1)               # finesse : tailles en texels (biseau, ombres, fissures) multipliées par ech
 	var lisse: bool = o.get("lisse", false)     # dalles lisibles de loin : pas de grain texel par texel, usure en macro-taches
 	var grain: float = o.get("grain", 0.0)      # moucheture fine multi-tons (références : pierre granuleuse brun-gris)
+	var ebr: float = o.get("ebr", 0.0)          # arêtes ébréchées : éclats de 2-3 texels mordant le biseau
 	var froid := _cols(PIERRE_SOMBRE_F if o.get("sombre", false) else PIERRE_FROID)
 	var chaud := _cols(PIERRE_CHAUD)
 	var mou := _cols(MOUSSE)
@@ -246,6 +247,8 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 				for lx in w:
 					var i := (y0 + ly) * S + posmod(x + lx, S)
 					var d := float(mini(mini(lx, w - 1 - lx), mini(ly, rh - 1 - ly)) + int(floorf((n_wob[i] - 0.5) * 1.6 * ech + 0.5)))
+					if ebr > 0.0 and d >= J and d < J + 1.6 * ech and n_mou2[i] < ebr * (1.4 - (d - J) / (1.6 * ech)):
+						d = J - 0.5
 					var hh := -0.9
 					var ll := jl
 					if d >= J:
@@ -377,20 +380,20 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 	return [_vers_image(S, cols), _pentes(H, S, 0.9)]
 
 static func mur_paire(v: int) -> Array:
-	# pierre de taille (références) : assises irrégulières de 0,37 à 0,56 m, blocs de 0,6 à 1,1 m, joints creux sombres,
-	# biseaux larges, éclats aux coins, fissures ; moucheture fine (128 texels/m : le grain tombe au pixel en 640 x 360)
+	# pierre de taille (références) : assises irrégulières de 0,3 à 0,75 m, blocs de 0,35 à 1,5 m (ponctuellement une grande
+	# dalle), joints creux sombres, biseaux, arêtes ébréchées, éclats aux coins, fissures ; moucheture fine à 128 texels/m
 	var rng := _rng(8150 + v)
 	var S := 64 * K * EM
-	var rangs: Array = _largeurs(rng, S, [12 * EM, 14 * EM, 16 * EM, 18 * EM])
-	return _pierre(S, rangs, [20 * EM, 24 * EM, 28 * EM, 32 * EM, 36 * EM], {"ech": EM, "seed": 8100 + v * 17, "v": v, "sombre": v == 2, "joint": 2.4, "biseau": 2.6,
-		"rug": 0.55, "l_lo": 0.52 if v == 2 else 0.6, "l_hi": 0.7 if v == 2 else 0.84, "elev": 0.5, "fissures": 7, "grain": 1.0})
+	var rangs: Array = _largeurs(rng, S, [10 * EM, 12 * EM, 14 * EM, 16 * EM, 18 * EM, 24 * EM])
+	return _pierre(S, rangs, [12 * EM, 18 * EM, 22 * EM, 26 * EM, 30 * EM, 36 * EM, 48 * EM], {"ech": EM, "seed": 8100 + v * 17, "v": v, "sombre": v == 2, "joint": 2.6, "biseau": 2.2,
+		"rug": 0.6, "l_lo": 0.5 if v == 2 else 0.56, "l_hi": 0.7 if v == 2 else 0.86, "elev": 0.6, "fissures": 12, "grain": 1.0, "ebr": 0.15})
 
 static func dalle_paire(v: int) -> Array:
 	var rng := _rng(8200 + v)
-	var S := 64 * K * E                   # tuile de 4 m (64 texels/m)
-	var rangs: Array = _largeurs(rng, S, [24 * E, 28 * E, 32 * E, 32 * E, 40 * E])
+	var S := 64 * K * EM                  # tuile de 4 m (128 texels/m, 2e passe : sols vus de près)
+	var rangs: Array = _largeurs(rng, S, [20 * EM, 24 * EM, 28 * EM, 32 * EM, 40 * EM, 56 * EM])
 	var lisse := false                     # dalles granuleuses (refonte matière) ; avant : true, dalles de l'arène et du niveau gelé : grandes dalles nettes (retouche « sol granuleux »)
-	return _pierre(S, rangs, [24 * E, 32 * E, 40 * E, 48 * E] if not lisse else [32 * E, 40 * E, 48 * E, 64 * E], {"ech": E, "seed": 8210 + v * 31, "v": v, "joint": 1.6 if lisse else 1.1,
+	return _pierre(S, rangs, [20 * EM, 28 * EM, 36 * EM, 44 * EM, 60 * EM] if not lisse else [32 * E, 40 * E, 48 * E, 64 * E], {"ech": EM, "seed": 8210 + v * 31, "v": v, "joint": 2.4 if not lisse else 1.6, "ebr": 0.2,
 		"biseau": 2.6, "rug": 0.5, "l_lo": 0.58, "l_hi": 0.84, "elev": 1.0, "creux": 0.35 if lisse else 0.55, "joint_l": 0.06,
 		"fissures": 6 if v < 3 else 7, "lisse": lisse, "grain": 0.8})
 
