@@ -108,7 +108,13 @@ func demande_meca(genre: String, id: String, args: Dictionary) -> void:
 	var a := {"genre": genre, "id": id}
 	for k in args:
 		var v: Variant = args[k]
-		if v is Vector3:
+		if k == "dir":
+			a[k] = mdir(v)
+		elif k == "taille":
+			a[k] = (d.xf.basis * (v as Vector3)).abs()
+		elif k == "lacet":
+			a[k] = mlacet(float(v))
+		elif v is Vector3:
 			a[k] = mw(v)
 		elif v is Array and not (v as Array).is_empty() and (v as Array)[0] is Vector3:
 			var l: Array = []
@@ -117,8 +123,6 @@ func demande_meca(genre: String, id: String, args: Dictionary) -> void:
 			a[k] = l
 		else:
 			a[k] = v
-	if args.has("dir"):
-		a["dir"] = mdir(args["dir"])
 	meca.append(a)
 	if _m.has("id") and modules.has(_m["id"]):
 		for k in ["pos", "pos_dalle"]:
@@ -168,7 +172,7 @@ func module(m: Dictionary) -> void:
 		else:
 			_ambiance(m)
 		for g: Array in m.get("garnitures", []):
-			call("_g_" + String(g[0]), m, g[1] if g.size() > 1 else {})
+			call("_g_" + String(g[0]), m, _args_locaux(g[1] if g.size() > 1 else {}))
 		if int(m.get("usure", 0)) > 0:
 			_usure(m)
 		if m.has("extra"):
@@ -189,20 +193,42 @@ func module(m: Dictionary) -> void:
 		args.erase("id")
 		for k in args.keys():
 			var v: Variant = args[k]
-			if v is Vector3 and k != "dir":
+			if k == "dir":
+				args[k] = d.xf.basis.inverse() * (v as Vector3)
+			elif k == "taille":
+				args[k] = (d.xf.basis.inverse() * (v as Vector3)).abs()
+			elif k == "lacet":
+				args[k] = lw_lacet(float(v))
+			elif v is Vector3:
 				args[k] = lw(v)
 			elif v is Array and not (v as Array).is_empty() and (v as Array)[0] is Vector3:
 				var l: Array = []
 				for q: Vector3 in v:
 					l.append(lw(q))
 				args[k] = l
-		if args.has("dir"):
-			args["dir"] = d.xf.basis.inverse() * (args["dir"] as Vector3)
 		demande_meca(dm["genre"], dm["id"], args)
 	d.xf = Transform3D.IDENTITY
 	d.theme = {}
 	d.niveau_a = 1.0
 	_m = {}
+
+## Les arguments de garniture écrits en repère de la crypte (Vector3, ou tableaux de Vector3) passent en repère local ; clés finissant par « _l » : déjà locales.
+func _args_locaux(a: Dictionary) -> Dictionary:
+	var r := {}
+	for k: String in a:
+		var v: Variant = a[k]
+		if k.ends_with("_l"):
+			r[k.trim_suffix("_l")] = v
+		elif v is Vector3:
+			r[k] = lw(v)
+		elif v is Array and not (v as Array).is_empty() and (v as Array)[0] is Vector3:
+			var l: Array = []
+			for q: Vector3 in v:
+				l.append(lw(q))
+			r[k] = l
+		else:
+			r[k] = v
+	return r
 
 func _ennemi(m: Dictionary, e: Dictionary) -> void:
 	var extra: Dictionary = e.get("extra", {}).duplicate()
@@ -435,31 +461,38 @@ func _usure(m: Dictionary) -> void:
 			d.fissures(Vector3(base.x, y + 1.3, base.z), pm["vers"], 1.8, 2.4, 2)
 
 # ------------------------------------------------------------------ garnitures génériques (appelées par la table)
-## Piliers sur une grille locale {xs, zs} + arcs ; `saute` : indices de piliers omis (variation de la graine).
+## Piliers {pts: [positions]} (grille régulière : les arcs relient les voisins) ; `saute` : indices omis (variation de la graine).
 func _g_piliers(m: Dictionary, a: Dictionary) -> void:
-	var xs: Array = a["xs"]
-	var zs: Array = a["zs"]
+	var pts: Array = a["pts"]
 	var h: float = a.get("h", float(m.get("h", 4.0)))
 	var y := float(m.get("y", 0.0))
 	var w: float = a.get("largeur", 1.0)
 	var saute: Array = a.get("saute", [])
-	var i := 0
-	for x: float in xs:
-		for z: float in zs:
-			if not saute.has(i):
-				d.pilier(x, z, h, w, y)
-				_reserves.append([Vector2(x, z), w * 0.7])
-			i += 1
+	var xs: Array = []
+	var zs: Array = []
+	for i in pts.size():
+		var p: Vector3 = pts[i]
+		if not xs.any(func(v: float) -> bool: return absf(v - p.x) < 0.05):
+			xs.append(p.x)
+		if not zs.any(func(v: float) -> bool: return absf(v - p.z) < 0.05):
+			zs.append(p.z)
+		if not saute.has(i):
+			d.pilier(p.x, p.z, h, w, y)
+			_reserves.append([Vector2(p.x, p.z), w * 0.7])
+	xs.sort()
+	zs.sort()
 	if a.get("arcs", true):
 		var ys := y + h * 0.78
 		for z: float in zs:
 			for k in xs.size() - 1:
 				var ww: float = xs[k + 1] - xs[k] - w
-				d.arc("mur0", "x", (xs[k] + xs[k + 1]) * 0.5, z, ww, ys, minf(ww * 0.5, 1.2), 0.35, 0.5)
+				if ww > 0.5:
+					d.arc("mur0", "x", (xs[k] + xs[k + 1]) * 0.5, z, ww, ys, minf(ww * 0.5, 1.2), 0.35, 0.5)
 		for x: float in xs:
 			for k in zs.size() - 1:
 				var ww: float = zs[k + 1] - zs[k] - w
-				d.arc("mur0", "z", x, (zs[k] + zs[k + 1]) * 0.5, ww, ys, minf(ww * 0.5, 1.2), 0.35, 0.5)
+				if ww > 0.5:
+					d.arc("mur0", "z", x, (zs[k] + zs[k + 1]) * 0.5, ww, ys, minf(ww * 0.5, 1.2), 0.35, 0.5)
 
 ## Panneaux d'ossuaire sur les parties libres des murs choisis {murs: ["O","S"], y0, y1}
 func _g_panneaux_os(m: Dictionary, a: Dictionary) -> void:
@@ -500,27 +533,51 @@ func _g_sarcophages(m: Dictionary, a: Dictionary) -> void:
 			d.sarcophage(base, taille, lacet)
 		_reserves.append([Vector2(base.x, base.z), 1.1])
 
-## Estrade (archers, autel) {pos, taille(w,h,d), marches: "N"|"S"|"E"|"O"} : degrés de 0,3 m.
+## Estrade {pos (sol, centre), taille (largeur, hauteur, profondeur), rampe: "N"|"S"|"E"|"O"} : plate-forme pleine et RAMPE d'accès (collision inclinée).
 func _g_estrade(m: Dictionary, a: Dictionary) -> void:
 	var p: Vector3 = a["pos"]
 	var t: Vector3 = a["taille"]
 	var mat: String = a.get("mat", "mur1")
 	d.boite_pleine(mat, Vector3(p.x, p.y + t.y * 0.5, p.z), t)
 	d.boite("mur0", Vector3(p.x, p.y + t.y + 0.03, p.z), Vector3(t.x + 0.1, 0.06, t.z + 0.1))
-	var cote: String = a.get("marches", "E")
-	var n := maxi(1, int(round(t.y / 0.3)))
-	for i in n:
-		var hh := t.y * float(i + 1) / (n + 1) if n > 1 else t.y * 0.5
-		var prof := 0.6
-		var q := p
-		var sz := Vector3(t.x, hh, prof)
-		match cote:
-			"E": q = Vector3(p.x + t.x * 0.5 + prof * (n - i - 0.5), p.y + hh * 0.5, p.z); sz = Vector3(prof, hh, t.z)
-			"O": q = Vector3(p.x - t.x * 0.5 - prof * (n - i - 0.5), p.y + hh * 0.5, p.z); sz = Vector3(prof, hh, t.z)
-			"S": q = Vector3(p.x, p.y + hh * 0.5, p.z + t.z * 0.5 + prof * (n - i - 0.5)); sz = Vector3(t.x, hh, prof)
-			_: q = Vector3(p.x, p.y + hh * 0.5, p.z - t.z * 0.5 - prof * (n - i - 0.5)); sz = Vector3(t.x, hh, prof)
-		d.boite_pleine(mat, q, sz)
+	var cote: String = a.get("rampe", "E")
+	var dir := Vector3(1, 0, 0)
+	var larg := t.z
+	var dbord := t.x * 0.5
+	match cote:
+		"O": dir = Vector3(-1, 0, 0)
+		"S": dir = Vector3(0, 0, 1); larg = t.x; dbord = t.z * 0.5
+		"N": dir = Vector3(0, 0, -1); larg = t.x; dbord = t.z * 0.5
+	var lon: float = t.y * 2.8
+	rampe(p + dir * (dbord + lon) + Vector3(0, 0, 0), -dir, lon, larg - 0.2, t.y, mat)
 	_reserves.append([Vector2(p.x, p.z), maxf(t.x, t.z) * 0.6 + 0.6])
+	_reserves.append([Vector2(p.x + dir.x * (dbord + lon * 0.5), p.z + dir.z * (dbord + lon * 0.5)), lon * 0.5 + 0.8])
+
+## Rampe : bas en `bas` (sol), elle monte vers `dir` (horizontal, unitaire) sur `longueur` jusqu'à +`hauteur` ; visuel en dalle, collision inclinée.
+func rampe(bas: Vector3, dir: Vector3, longueur: float, largeur: float, hauteur: float, mat := "mur1") -> void:
+	var haut := bas + dir * longueur + Vector3(0, hauteur, 0)
+	var dr := Vector3.UP.cross(dir).normalized() * largeur * 0.5
+	var n := (haut - bas).cross(dr).normalized()
+	if n.y < 0.0:
+		n = -n
+	d.quad("dalle0", bas - dr, bas + dr, haut + dr, haut - dr, n)
+	for sg in [-1.0, 1.0]:      # flancs pleins
+		var e: Vector3 = dr * sg
+		d.quad(mat, bas + e, bas + e, haut + e, haut + e - Vector3(0, hauteur, 0), e.normalized())
+	var lp := Vector3(longueur, hauteur, 0).length()
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(largeur, 0.3, lp)
+	cs.shape = bs
+	var fwd := (haut - bas).normalized()
+	var droite := fwd.cross(Vector3.UP).normalized()
+	var haut_n := droite.cross(fwd).normalized()
+	if haut_n.y < 0.0:
+		haut_n = -haut_n
+		droite = -droite
+	var bz := Basis(droite, haut_n, -fwd)
+	cs.transform = d.xf * Transform3D(bz, (bas + haut) * 0.5 - haut_n * 0.15)
+	d.corps.add_child(cs)
 
 ## Couverts : piliers ou blocs posés dans la salle hors des passages {n, mat} ; la graine décide des emplacements.
 func _g_couverts(m: Dictionary, a: Dictionary) -> void:

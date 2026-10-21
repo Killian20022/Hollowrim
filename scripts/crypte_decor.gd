@@ -1149,7 +1149,7 @@ func lit(pos: Vector3, lacet := 0.0, teinte := Color(0.5, 0.4, 0.36)) -> void:
 	solide(pos + Vector3(0, 0.3, 0), Vector3(absf(s.x), 0.6, absf(s.z)))
 
 ## Râtelier d'armes contre un mur (dos vers -Z local) : épées, lances, haches.
-func ratelier(pos: Vector3, lacet := 0.0, largeur := 1.8) -> void:
+func ratelier_armes(pos: Vector3, lacet := 0.0, largeur := 1.8) -> void:
 	var b := Basis(Vector3.UP, lacet)
 	boite("bois", pos + b * Vector3(0, 0.95, 0), Vector3(largeur, 1.5, 0.05), lacet)
 	for y in [0.55, 1.3]:
