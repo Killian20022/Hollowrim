@@ -201,7 +201,12 @@ func _h(x: float, z: float) -> float:
 	# vallée qui s'ouvre au centre de la vue de l'entrée (cap ≈ 46°), entre 300 m et 1 800 m
 	var dv := absf(wrapf(rad_to_deg(atan2(x, z)) - 46.0, -180.0, 180.0))
 	var vallee := (1.0 - smoothstep(5.0, 20.0, dv)) * smoothstep(260.0, 520.0, r) * (1.0 - smoothstep(1500.0, 1900.0, r))
-	h = lerpf(h, 22.0 + ef * 18.0, 0.7 * vallee)
+	if not lointain_3d:
+		# 5e passe : la vallée s'ouvre dès 200 m et plus franchement (les plans peints prennent le relais au fond)
+		vallee = (1.0 - smoothstep(6.0, 18.0, dv)) * smoothstep(190.0, 380.0, r)
+		var dc := absf(wrapf(rad_to_deg(atan2(x, z)) - 24.0, -180.0, 180.0))
+		vallee = maxf(vallee, 0.8 * (1.0 - smoothstep(4.0, 12.0, dc)) * smoothstep(230.0, 420.0, r))
+	h = lerpf(h, 22.0 + ef * 18.0, (0.7 if lointain_3d else 0.85) * vallee)
 	for p in PICS:
 		var c := _pos_polaire(p[0], p[1])
 		var t := maxf(0.0, 1.0 - Vector2(x - c.x, z - c.y).length() / p[3])
@@ -306,6 +311,13 @@ func _sapins(pos: PackedVector3Array, nor: PackedVector3Array, col: PackedColorA
 		var a := rng.randf() * TAU
 		var e := _echant(pos, nor, col, log(r / R_MIN) / lr * (LIGNES - 1), a / TAU * COLONNES)
 		var nm0: Vector3 = e[1]
+		# 5e passe : axes dégagés (vallée de l'entrée ≈ 46°, château ≈ 24°) pour qu'on lise la bande dorée, les forêts
+		# peintes et la falaise du château ; quelques sapins épars restent
+		if not lointain_3d:
+			var az := rad_to_deg(a)
+			var degage := maxf(1.0 - smoothstep(6.0, 12.0, absf(az - 46.0)), 1.0 - smoothstep(5.0, 10.0, absf(az - 24.0)))
+			if rng.randf() < 0.9 * degage:
+				continue
 		if e[0] - _y0 > 175.0 or nm0.y < 0.8 or rng.randf() > float(e[2]) * 1.15:
 			continue
 		poses += 1
@@ -514,7 +526,7 @@ func _haut_profil(a: float, d: Array, pics: Array) -> float:
 			var w := 1.5 * float(p[2]) * (1.0 + 0.35 * absf(float(p[3])))
 			var f := maxf(1.0 - dd / w, 0.82 * (1.0 - maxf(dd - 0.42 * w, 0.0) / (0.3 * w)))   # pic, sous-sommet
 			f = maxf(f, 0.62 * (1.0 - maxf(dd - 0.45 * w, 0.0) / (0.55 * w)))                      # épaule
-			h = maxf(h, float(p[1]) * f + float(d[4]))
+			h = maxf(h, float(p[1]) * f + 0.17 * maxf(float(p[1]) - float(d[3]), 1.0) + 1.5 * float(d[4]))
 	if int(d[1]) == 2 and absf(wrapf(a - CHATEAU_AZIMUT, -180.0, 180.0)) < 16.0:
 		h = maxf(h, 12.0 + 70.0 * 1.7 / 6.0)
 	return minf(h + 1.5, 60.0)
@@ -540,6 +552,11 @@ func _creer_plans() -> void:
 		# pics : ceux de la vue de l'entrée + des pics tirés au hasard sur le reste du tour (hors 0-100°)
 		var pics: Array = (d[6] as Array).duplicate()
 		if d[1] == 0:
+			# 5e passe : pics secondaires de largeurs et de hauteurs très variées qui chevauchent ceux de la vue
+			var hmax: float = d[6][0][1]
+			for k in 5:
+				pics.append([rng.randf_range(-8.0, 100.0), lerpf(float(d[3]) + 3.0, hmax * 0.9, pow(rng.randf(), 0.8)),
+					rng.randf_range(2.5, 11.0), rng.randf_range(-0.6, 0.6)])
 			var a := 110.0
 			while a < 350.0 and pics.size() < 16:
 				var e: float = (d[6][0][1] as float) * rng.randf_range(0.55, 0.9)
