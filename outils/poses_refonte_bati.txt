@@ -1,10 +1,10 @@
-# Lot « refonte bâti » : entrée du village (scénario commun) + vues des maisons (repère village converti en monde).
+# Lot « refonte bâti » : entrée du village (pose commune de outils/poses_refonte.txt) + vues des maisons (repère village converti en monde).
 # porte = juste passé le portail, regard vers la halle ; grima / chasseurs = maisons latérales de trois quarts ;
 # palissade = pieux vus du dehors ; toit = gros plan avant-toit de la halle.
-entree_10 scenario village heure=10 sans-mains
-entree_17h5 scenario village heure=17.5 sans-mains
-entree_21 scenario village heure=21 sans-mains
-entree_6 scenario village heure=6 sans-mains
+entree_10 monde 21.80,19.82,-132.3,0.3 heure=10 sans-mains
+entree_17h5 monde 21.80,19.82,-132.3,0.3 heure=17.5 sans-mains
+entree_21 monde 21.80,19.82,-132.3,0.3 heure=21 sans-mains
+entree_06 monde 21.80,19.82,-132.3,0.3 heure=6 sans-mains
 porte_10 monde 29.68,29.00,-129.0,2 heure=10 sans-mains
 porte_17h5 monde 29.68,29.00,-129.0,2 heure=17.5 sans-mains
 porte_21 monde 29.68,29.00,-129.0,2 heure=21 sans-mains
