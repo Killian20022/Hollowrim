@@ -634,9 +634,10 @@ static func materiau_cristal() -> ShaderMaterial:
 
 ## Garde le bâton DROIT quelle que soit l'animation (Idle, marche, lancement de sort : la main droite y tourne de ~20°) :
 ## après l'animation, la main droite pivote autour de la prise pour ramener l'axe du bâton à la verticale. Correction effacée
-## au-delà de 40-60° d'écart (chute, mort, ragdoll : le bâton suit la main). Aucun os ajouté, animations partagées intactes.
+## quand le corps bascule de plus de 35-55° (chute, mort, ragdoll : le bâton suit la main). Aucun os ajouté, animations partagées intactes.
 class BatonDroit extends SkeletonModifier3D:
 	var os_ := -1
+	var pelvis := -1
 	var prise := Transform3D()
 
 	func _process_modification() -> void:
@@ -649,7 +650,13 @@ class BatonDroit extends SkeletonModifier3D:
 		var ang := axe.angle_to(Vector3.UP)
 		if ang < 0.003:
 			return
-		var w := 1.0 - smoothstep(deg_to_rad(40.0), deg_to_rad(60.0), ang)
+		# effacée seulement quand le CORPS bascule (chute, mort, ragdoll) : en course le bras porte le bâton très incliné (~80°),
+		# il est redressé aussi
+		if pelvis < 0:
+			pelvis = sq.find_bone("pelvis")
+		var bassin := PiedsAuSol.pose_globale(sq, pelvis).basis
+		var bascule := (bassin * sq.get_bone_global_rest(pelvis).basis.inverse()).y.normalized().angle_to(Vector3.UP)
+		var w := 1.0 - smoothstep(deg_to_rad(35.0), deg_to_rad(55.0), bascule)
 		if w <= 0.0:
 			return
 		var q := Quaternion().slerp(Quaternion(axe, Vector3.UP), w)

@@ -166,9 +166,11 @@ func _lancer() -> void:
 				non_ps1.append("%s/%d" % [mi.name, s])
 			elif m == MageNordique.materiau_cristal():
 				var e: Color = (m as ShaderMaterial).get_shader_parameter("emission")
-				emissif = e.get_luminance() > 0.1 and maxf(e.r, maxf(e.g, e.b)) <= 1.0
+				var ec: Variant = (m as ShaderMaterial).get_shader_parameter("eclat")
+				var k: float = ec if ec != null else 1.15   # valeur par défaut du shader mage_orbe
+				emissif = maxf(e.r, maxf(e.g, e.b)) <= 1.0 and k >= 0.8 and k <= 2.0
 	ok(non_ps1.is_empty(), "toutes les surfaces passent par un shader PS1 à accroche (%s)" % [non_ps1])
-	ok(emissif, "cristal du bâton légèrement émissif (émission <= 1, pas de halo)")
+	ok(emissif, "orbe du bâton lumineux (shader mage_orbe : émission de base <= 1, lueur portée par la texture, pas de halo plein écran)")
 	var tun := sqh.get_node("tunique") as MeshInstance3D
 	ok((tun.material_override as ShaderMaterial).shader != GuerrierNordique.SHADER, "Humain.creer (PNJ) non modifié")
 	# jupe
@@ -194,11 +196,28 @@ func _lancer() -> void:
 		var pire := 0.0
 		for k in 12:
 			ap.seek(lg * k / 12.0, true)
-			var tr: Transform3D = sq.get_bone_global_pose(m[0]) * sq.get_bone_global_rest(m[0]).affine_inverse() * m[1]
+			var bd0 := sq.get_node_or_null("BatonDroit")
+			if bd0:
+				bd0._process_modification()     # bâton tel qu'il est vu en jeu (redressé)
+			var tr: Transform3D = PiedsAuSol.pose_globale(sq, m[0]) * sq.get_bone_global_rest(m[0]).affine_inverse() * m[1]
 			var vols := _volumes(sq)
 			for y in [-0.8, -0.6, -0.4, -0.2, 0.3, 0.6, 0.9]:
 				pire = maxf(pire, _profondeur(tr * Vector3(0, y, 0), vols))
 		ok(pire < 0.06, "%s : traversée max du bâton %.3f m (< 0,06)" % [clip, pire])
+	# passe 2 : bâton DROIT (modificateur BatonDroit appliqué après l'animation) au repos, en marche et pendant le sort
+	var bd := sq.get_node_or_null("BatonDroit") as MageNordique.BatonDroit
+	ok(bd != null, "modificateur BatonDroit présent")
+	if bd:
+		for clip in ["Idle", "Walk", "Jog_Fwd", "Sprint", "Spell_Simple_Enter", "Spell_Simple_Idle", "Spell_Simple_Shoot"]:
+			ap.play(clip)
+			var lg := ap.get_animation(clip).length
+			var pire := 0.0
+			for k in 8:
+				ap.seek(lg * k / 8.0, true)
+				bd._process_modification()
+				var axe := (PiedsAuSol.pose_globale(sq, bd.os_) * bd.prise).basis.y
+				pire = maxf(pire, rad_to_deg(axe.angle_to(Vector3.UP)))
+			ok(pire < 3.0, "%s : bâton incliné de %.1f° au plus (< 3°)" % [clip, pire])
 	var rd := Ragdoll.equiper(g) as Ragdoll
 	ok(rd != null and rd.os.size() == 16, "ragdoll : %d os physiques" % (rd.os.size() if rd else 0))
 	print("TEST MAGE : %s (%d échecs)" % ["OK" if echecs == 0 else "ÉCHEC", echecs])
