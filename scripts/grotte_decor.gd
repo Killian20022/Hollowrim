@@ -65,19 +65,7 @@ static func image_finale(nom: String) -> Image:
 	return GrotteTextures.mips_image(img) if nom in PROPRES_MIPS else img
 
 static func or_image() -> Image:
-	var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 5
-	var R := ["#3d2a08", "#6e4d10", "#a8791c", "#d9a830", "#f6d56a", "#fff1b0"]
-	for y in 16:
-		for x in 16:
-			var t := 0.35 + rng.randf() * 0.3
-			if (x + y) % 5 == 0:
-				t += 0.25
-			if y % 8 == 0 or x % 8 == 0:
-				t -= 0.3
-			img.set_pixel(x, y, Color(R[clampi(int(t * 6.0), 0, 5)]))
-	return img
+	return CrypteTextures.or_image()   # même or martelé que la crypte (64 texels/m)
 
 func _tex_g(nom: String) -> ImageTexture:
 	if not _gtex.has(nom):

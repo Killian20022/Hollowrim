@@ -409,8 +409,8 @@ static func fabriques() -> Dictionary:
 		"tenture_rouge": func() -> Array: return tenture(6101, K_ROUGE, K_OCRE),
 		"tenture_bleue": func() -> Array: return tenture(6102, K_BLEU, K_CREME),
 		"tenture_verte": func() -> Array: return tenture(6103, K_VERT, K_OCRE),
-		"peau": func() -> Array: return peau(6111),
-		"terre": func() -> Array: return terre(6121),
-		"charbon": func() -> Array: return charbon(6131),
+		"peau": func() -> Array: return _net(peau(6111)),
+		"terre": func() -> Array: return _net(terre(6121)),
+		"charbon": func() -> Array: return _net(charbon(6131)),
 		"vitrage": func() -> Array: return vitrage(),
 	}
