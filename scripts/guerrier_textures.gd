@@ -18,6 +18,11 @@ const METAL_CLAIR := ["#2a2723", "#4a453f", "#6f685f", "#948c80", "#b7afa2", "#d
 const CUIR_SOMBRE := ["#100c0b", "#1d1613", "#2c221c", "#3f3228", "#544537"]
 const FOUR := ["#231e18", "#433a2e", "#655846", "#8a7a63", "#ad9c80", "#ccbb9b"]   # passe 3 : crème / beige chaud (l'ancien gris-brun bleuissait au crépuscule)
 const LAINE_BLEUE := ["#13161c", "#1f242e", "#2e3542", "#3f4858", "#545e6f", "#6e7787"]   # passe 3 : bleu-gris délavé, teint naturel usé (l'ancien bleu était trop saturé)
+## passe vêtements : fourrure crème CHAude (racines brun-gris, pointes blanc crème) ; lainage bleu un peu plus franc (la référence est
+## un bleu roi délavé, pas un gris ardoise) ; fil de broderie ocre des bordures de la cape
+const FOUR_G := ["#2e271d", "#554b3b", "#7e715b", "#a89a7e", "#cfc1a3", "#ece3cc"]
+const LAINE_BLEUE_G := ["#0f1428", "#192140", "#25335a", "#344574", "#47598e", "#5f73a6"]
+const BRODERIE := ["#241a10", "#4d3a1d", "#7b5f2f", "#a98441", "#d1b062"]
 const LAINE_GRISE := ["#17171c", "#25252b", "#35343a", "#47454a", "#5b585b"]
 const BANDE := ["#2c2a29", "#423e3a", "#57524b", "#6d675d"]   # bandes molletières (laine écrue)
 const BOIS := ["#16110d", "#271e17", "#3a2d22", "#4f3f30", "#665341", "#7f6a54"]
@@ -92,7 +97,7 @@ static func mips_pixel(img: Image) -> Image:
 ## Précalcul (outils/generer_guerrier.gd) : images mipmappées dans DOSSIER/<clé>.res ; VERSION à incrémenter après toute
 ## modification d'un dessin (un .res d'une autre version est ignoré : recalcul au lancement, jamais d'image fausse).
 const DOSSIER := "res://assets/personnages/guerrier"
-const VERSION := 4
+const VERSION := 5
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -121,6 +126,10 @@ static func tex(nom: String, args := []) -> ImageTexture:
 			var img: Image
 			match nom:
 				"mailles": img = mailles()
+				"mailles_g": img = mailles_g()
+				"pantalon_g": img = pantalon_g()
+				"bottes_g": img = bottes_g()
+				"brassards_g": img = brassards_g()
 				"plastron": img = plastron(args[0], args[1])
 				"pantalon": img = pantalon()
 				"bottes": img = bottes()
@@ -401,7 +410,7 @@ static func brassards() -> Image:
 # ------------------------------------------------------------------ fourrure : touffes pointues en écailles
 ## Une touffe : pointe vers le bas, racine sombre, corps blanc cassé, arête gauche éclairée, liseré sombre sur le bord droit
 ## et la pointe, fente sombre au milieu (brins séparés). (x0, y0) = milieu de la racine ; w, h en texels.
-static func _touffe(img: Image, x0: int, y0: int, w: int, h: int, pente: float, clair: int, alpha_fond := false) -> void:
+static func _touffe(img: Image, x0: int, y0: int, w: int, h: int, pente: float, clair: int, alpha_fond := false, pal: Array = FOUR) -> void:
 	for k in h:
 		var t := float(k) / maxf(1.0, h - 1)
 		var demi := w * 0.5 * (1.0 - pow(t, 1.4) * 0.92)
@@ -420,14 +429,14 @@ static func _touffe(img: Image, x0: int, y0: int, w: int, h: int, pente: float, 
 				ton = clair - 2                          # fente entre deux brins
 			if k == h - 1 and x == int(roundf(cx)):
 				ton = clair + 1                          # pointe claire
-			_p(img, x, y0 + k, _c(FOUR, ton))
+			_p(img, x, y0 + k, _c(pal, ton))
 
 ## Fourrure de la mante (256 x 128 ; la mante n'occupe que le bas, v 0,58-1) : rangées de touffes en quinconce, les rangées
 ## du HAUT peintes en dernier (elles recouvrent la racine des suivantes, comme une fourrure qui pend).
 static func mante() -> Image:
 	var W := 256
 	var H := 128
-	var img := _img(W, H, _c(FOUR, 1))
+	var img := _img(W, H, _c(FOUR_G, 1))
 	var rangs := []
 	var y := H - 12
 	while y > 50:
@@ -441,7 +450,7 @@ static func mante() -> Image:
 			var w := 5 + int(_h(i, r, 872) * 3.0)
 			var h := 9 + int(_h(i, r, 873) * 5.0)
 			var clair := 3 + (1 if _h(i, r, 874) > 0.45 else 0)
-			_touffe(img, x, yr + int(_h(i, r, 875) * 3.0) - 1, w, h, (_h(i, r, 876) - 0.5) * 0.35, clair)
+			_touffe(img, x, yr + int(_h(i, r, 875) * 3.0) - 1, w, h, (_h(i, r, 876) - 0.5) * 0.35, clair, false, FOUR_G)
 			x += w - 1
 			i += 1
 	return img
@@ -461,40 +470,79 @@ static func meches() -> Image:
 			var cx := ox + int(larg * (i + 0.5))
 			var h := 22 + int(_h(i, v, 881) * 9.0)
 			var clair := 3 + (1 if (i + v) % 2 == 0 else 0)
-			_touffe(img, cx, 0, mini(w, 16 - 1), mini(h, H), (_h(i, v, 882) - 0.5) * 0.25, clair)
+			_touffe(img, cx, 0, mini(w, 16 - 1), mini(h, H), (_h(i, v, 882) - 0.5) * 0.25, clair, false, FOUR_G)
 		# pas de débord sur la variante voisine
 		for y in H:
 			for x in [ox, ox + 15]:
 				if img.get_pixel(x, y).a > 0.0:
-					img.set_pixel(x, y, _c(FOUR, 1))
+					img.set_pixel(x, y, _c(FOUR_G, 1))
 	return img
 
 # ------------------------------------------------------------------ cape bleue (UV de la cape : u 0,22-0,62, v 0,1-1)
 ## Laine bleue froide, plis verticaux, bordure tissée sombre, ourlet effiloché découpé (alpha) en dents irrégulières.
+## Bords de la cape dans la texture (v, u gauche, u droit) mesurés sur le maillage : les bordures brodées suivent ces deux bords.
+const CAPE_BORDS := [[0.1, 0.22, 0.41], [0.2, 0.28, 0.56], [0.3, 0.25, 0.47], [0.4, 0.22, 0.43], [0.5, 0.25, 0.49], [0.6, 0.25, 0.49],
+	[0.7, 0.27, 0.52], [0.8, 0.30, 0.56], [0.9, 0.32, 0.59], [1.0, 0.34, 0.62]]
+
+static func _bord_cape(v: float) -> Vector2:
+	for i in CAPE_BORDS.size() - 1:
+		var a: Array = CAPE_BORDS[i]
+		var b: Array = CAPE_BORDS[i + 1]
+		if v <= b[0]:
+			var t := clampf((v - a[0]) / (b[0] - a[0]), 0.0, 1.0)
+			return Vector2(lerpf(a[1], b[1], t), lerpf(a[2], b[2], t)) * 256.0
+	return Vector2(CAPE_BORDS[-1][1], CAPE_BORDS[-1][2]) * 256.0
+
 static func cape() -> Image:
 	var W := 256
 	var H := 128
 	var img := _img(W, H)
 	for y in H:
 		var vy := H - 1 - y
+		var bord := _bord_cape((y + 0.5) / H)
 		for x in W:
 			var sg := 0.04 if ((x + y) & 3) < 2 else -0.03
 			var pli := _n(x, 0, W, 1, 22, 1, 891)
 			var l := 0.42 + sg + (pli - 0.5) * 0.55 + (_n(x, y, W, H, 30, 10, 892) - 0.5) * 0.12
 			l += 0.10 * smoothstep(90.0, 120.0, float(vy))          # le haut (épaules) prend la lumière
 			var t := _ton(l, 6, x, y, 893, 0.3)
-			var c := _c(LAINE_BLEUE, t)
-			# bordure tissée sombre près de l'ourlet (8 à 13 texels)
-			if vy >= 8 and vy <= 13:
-				c = _c(LAINE_BLEUE, 1 + (1 if (vy == 10 or vy == 11) and (x % 4) < 2 else 0))
-				if vy == 13:
-					c = _c(LAINE_BLEUE, 4)
-			# ourlet effiloché : coupe irrégulière (0 à 7 texels)
+			var c := _c(LAINE_BLEUE_G, t)
+			# usure : laine passée et crottée vers l'ourlet (lignes 0-30 depuis le bas)
+			if vy < 34 and _n(x, y, W, H, 26, 9, 897) > 0.5 and _h(x, y, 898) < (34 - vy) / 40.0:
+				c = _c(LAINE_BLEUE_G, maxi(0, t - 1)).lerp(Color("#3a3226"), 0.35)
+			# neige poudrée sur les épaules (haut de la cape)
+			if vy > 108 and _n(x, y, W, H, 28, 8, 899) > 0.62 and _h(x, y, 900) > 0.45:
+				c = Color("#cdd4e0") if _h(x, y, 901) > 0.3 else Color("#8f99ad")
+			# bordure de laine sombre au-dessus de la broderie (lignes 11-14) et liserés
+			if vy >= 11 and vy <= 24:
+				c = _c(LAINE_BLEUE_G, 1)
+				if vy == 24 or vy == 11:
+					c = _c(BRODERIE, 2)
+				elif vy >= 14 and vy <= 22:
+					var e := _entrelacs(x, vy - 14, 9, 14)
+					if e >= 0:
+						c = _c(BRODERIE, e + (1 if vy < 18 and e == 3 else 0))
+					elif _h(x, y, 902) > 0.9:
+						c = _c(LAINE_BLEUE_G, 0)
+			# bordures verticales brodées le long des deux bords (7 texels, à 2 texels du bord)
+			var dl := x - bord.x
+			var dr := bord.y - x
+			var dm := minf(dl, dr)
+			if dm >= 1.0 and dm < 10.0 and vy > 24:
+				var a := int(dm) - 2
+				if dm < 2.0 or dm >= 9.0:
+					c = _c(BRODERIE, 1)
+				elif a >= 0 and a < 7:
+					var e := _entrelacs(y, a, 7, 12)
+					c = _c(BRODERIE, e) if e >= 0 else _c(LAINE_BLEUE_G, 1)
+			# ourlet effiloché : coupe irrégulière (0 à 9 texels) + quelques fils pendants
 			var coupe := int(_h(x / 2, 0, 894) * 5.0) + int(_h(x, 1, 895) * 3.0)
+			if _h(x / 3, 2, 896) > 0.86:
+				coupe += 3
 			if vy < coupe:
 				c = Color(0, 0, 0, 0)
 			elif vy < coupe + 1:
-				c = _c(LAINE_BLEUE, 0)
+				c = _c(LAINE_BLEUE_G, 0)
 			_p(img, x, y, c)
 	return img
 
@@ -563,7 +611,7 @@ static func accessoires() -> Image:
 
 ## Plastron peint dans les UV de la tunique (bornes en v mesurées sur le maillage : 0,217 - 0,668).
 static func _plastron_atlas() -> Image:
-	return plastron(0.22, 0.66)
+	return plastron_maille(0.22, 0.66)
 
 # ------------------------------------------------------------------ atlas des découpes (192 x 128) : cape + mèches
 ## (0,0,112,128) cape (x = (u - 0,21875) * 256, y = v * 128) ; (128,0,64,32) mèches de fourrure (4 variantes de 16 x 32).
@@ -723,6 +771,20 @@ static func _ceinture_atlas(img: Image) -> void:
 			_p(img, r.position.x + x, r.position.y + y, _c(CUIR_CLAIR, t))
 	for x in range(5, r.size.x, 9):
 		_rivet(img, r.position.x + x, r.position.y + 7)
+	# plaques de fer cousues (7 x 8 texels) tous les 27 texels : bord sombre, rehaut, rivet, rouille dans les creux
+	for px in range(10, r.size.x - 8, 27):
+		for yy in range(4, 12):
+			for xx in 7:
+				var t := 4 if (yy < 7) else 3
+				if xx == 0 or xx == 6 or yy == 4 or yy == 11:
+					t = 1
+				elif yy == 5 or xx == 1:
+					t = 5
+				var c := _c(FER, t)
+				if t <= 3 and _n(px + xx, yy, 64, 16, 6, 3, 1601) > 0.6:
+					c = _c(ROUILLE, 1)
+				img.set_pixel(r.position.x + px + xx, r.position.y + yy, c)
+		_rivet(img, r.position.x + px + 2, r.position.y + 6)
 
 ## Anneau ouvragé (boucle, fibule) : u = angle (32 texels), v = du bord intérieur (0) au bord extérieur (31) ;
 ## entrelacs en chevrons (2 brins), bords sombres, éclairé en haut à gauche.
@@ -859,3 +921,330 @@ static func _dos_bouclier(img: Image) -> void:
 			if (y > 22 and y < 28) or (y > 38 and y < 44):
 				c = _c(CUIR, 2 if (y == 23 or y == 39) else 3)
 			img.set_pixel(r.position.x + x, r.position.y + y, c)
+
+# ================================================================================================= passe VÊTEMENTS
+## Textures propres au guerrier (les autres archétypes gardent mailles / pantalon / bottes / brassards d'origine).
+
+## Ton d'anneau de maille (0-4) en (x, y) : quinconce de 4 x 3 texels (dessus éclairé, trou, dessous ombré).
+static func _anneau_ton(x: int, y: int) -> int:
+	var cx := (x + ((y / 3) & 1) * 2) & 3
+	var cy := y % 3
+	if cy == 0:
+		return 4 if (cx == 1 or cx == 2) else 2
+	if cy == 1:
+		return 3 if (cx == 0 or cx == 3) else 0
+	return 2 if (cx == 1 or cx == 2) else 1
+
+## Maille brun-gris peinte dans `r` : plis, crasse, rouille dans les creux ; `eclat` = décalage de ton (+1 = plus clair).
+const ANNEAU_DOUX := [1, 2, 2, 3, 3]     # contraste de l'anneau réduit : de près la maille se lit en grain, pas en damier
+
+static func _maille_rect(img: Image, r: Rect2i, g: int, eclat := 0, rouille := 0.35) -> void:
+	for y in range(r.position.y, r.end.y):
+		for x in range(r.position.x, r.end.x):
+			var lx := x - r.position.x
+			var ly := y - r.position.y
+			var t: int = ANNEAU_DOUX[_anneau_ton(lx, ly)]
+			var pli := _n(x, y, img.get_width(), img.get_height(), 14, 4, g)
+			t += int(roundf((pli - 0.5) * 2.2)) + eclat
+			if _h(x, y, g + 1) > 0.94:
+				t -= 1
+			t = clampi(t, 0, 4)
+			var c := _c(MAILLE, t)
+			if t == 4 and pli > 0.6 and _h(x, y, g + 2) > 0.5:
+				c = _c(MAILLE, 5)
+			elif t <= 1 and _n(x, y, img.get_width(), img.get_height(), 18, 8, g + 3) > 0.5 and _h(x, y, g + 4) > 0.3:
+				c = _c(ROUILLE, 1 + (1 if t == 0 else 0)).lerp(c, rouille)
+			_p(img, x, y, c)
+
+## Fil de broderie ocre : entrelacs de deux brins sinusoïdaux sur une bande de `larg` texels (a = 0..larg-1 en travers, s = le long).
+## Renvoie un ton de BRODERIE, ou -1 (fond). Les brins passent alternativement dessus / dessous à chaque croisement.
+static func _entrelacs(s: int, a: int, larg: int, periode := 12) -> int:
+	var ph := float(s) / periode * TAU
+	var amp := (larg - 1) * 0.5 - 1.1
+	var mid := (larg - 1) * 0.5
+	var c1 := mid + amp * sin(ph)
+	var c2 := mid - amp * sin(ph)
+	var d1 := absf(a - c1)
+	var d2 := absf(a - c2)
+	var dessus1 := cos(ph) > 0.0
+	var t1 := -1
+	var t2 := -1
+	if d1 < 1.55:
+		t1 = 3 if d1 < 0.8 else 1
+	if d2 < 1.55:
+		t2 = 3 if d2 < 0.8 else 1
+	if t1 >= 0 and t2 >= 0:
+		return t1 if dessus1 else t2
+	if t1 >= 0:
+		return t1
+	return t2
+
+# ------------------------------------------------------------------ tunique : cotte + manchettes de cuir + jupe de cuir fourrée (256 x 176)
+## Lignes 0-127 : la cotte d'origine (UV de la tunique) ; l'avant-bras (v > 0,79) devient une manchette de cuir lacée sous un revers
+## de fourrure ; lignes 128-175 : la JUPE (UV remappés par GuerrierNordique._uv_tunique) = manteau de cuir brun, panneau central de
+## laine bleue bordé de fourrure sur un liseré de maille, ourlet de fourrure crème, boue en bas.
+const TUN_H := 176
+const JUPE_Y0 := 128
+const JUPE_H := 48
+
+static func mailles_g() -> Image:
+	var W := 256
+	var img := _img(W, TUN_H)
+	var base := mailles()
+	img.blit_rect(base, Rect2i(0, 0, W, 128), Vector2i.ZERO)
+	_maille_rect(img, Rect2i(0, 0, W, 100), 811, 0, 0.25)
+	_manchette(img)
+	_jupe(img)
+	return img
+
+## Avant-bras (lignes 101-127) : cuir épais, laçage en X, deux sangles rivées, revers de fourrure au coude.
+static func _manchette(img: Image) -> void:
+	var W := 256
+	var y0 := 100
+	for y in range(y0, 128):
+		for x in W:
+			var t := _ton_cuir(x, y, W, 128, 0.46, 1101)
+			if x % 11 == 0:
+				t = 1                                   # plis du cuir (le long du bras)
+			_p(img, x, y, _c(CUIR, t))
+	for x in W:
+		var lac := posmod(x, 12)
+		for k in 12:
+			var yy := y0 + 9 + k
+			var d := posmod(x - (k * 2 - 12), 24)
+			if d < 2 and yy < 124:                      # laçage en X : deux diagonales de 2 texels
+				_p(img, x, yy, _c(CUIR, 6))
+				_p(img, x, yy + 1, _c(CUIR, 0))
+		# sangles de fer-blanc cousues (haut et bas de la manchette), piqûre claire
+		for kk in 3:
+			_p(img, x, y0 + 7 + kk, _c(CUIR_SOMBRE, 1 + (1 if kk == 1 else 0)))
+			_p(img, x, 123 + kk, _c(CUIR_SOMBRE, 1 + (1 if kk == 1 else 0)))
+		if x % 5 == 2:
+			_p(img, x, y0 + 8, _c(CUIR, 6))
+			_p(img, x, 124, _c(CUIR, 6))
+		if x % 9 == 4:
+			_rivet(img, x, y0 + 7)
+	# revers de fourrure au coude (lignes 95-103) : pend vers le poignet
+	var i := 0
+	var x := 0
+	while x < W + 6:
+		var w := 5 + int(_h(i, 0, 1111) * 3.0)
+		_touffe(img, x, 94 + int(_h(i, 1, 1112) * 3.0), w, 10 + int(_h(i, 2, 1113) * 3.0), (_h(i, 3, 1114) - 0.5) * 0.3, 3 + (1 if _h(i, 4, 1115) > 0.4 else 0), false, FOUR_G)
+		x += w - 1
+		i += 1
+
+## Jupe (lignes 128-175 = 48 lignes sur ~26 cm), dx = distance au milieu du devant en texels (u = x / 256, devant en x = 0).
+static func _jupe(img: Image) -> void:
+	var W := 256
+	var y0 := JUPE_Y0
+	var R := JUPE_H
+	for r in R:
+		for x in W:
+			var sx := x if x < 128 else x - W
+			var dx := absi(sx)
+			var y := y0 + r
+			var c: Color
+			if r < 4:
+				# ceinture de la jupe : cuir sombre cousu (cachée sous la large ceinture, raccord avec la cotte)
+				c = _c(CUIR, 1 + (1 if r == 1 else 0))
+			elif dx <= 14:
+				# panneau central : laine bleue (trame, plis)
+				var l := 0.46 + (_n(x, r, W, R, 36, 3, 1121) - 0.5) * 0.5 + (0.06 if ((x + r) & 3) < 2 else -0.04)
+				c = _c(LAINE_BLEUE_G, _ton(l, 5, x, r, 1122, 0.3))
+				if r > 18 and r < 30 and dx <= 8:
+					# losange de maille au milieu du panneau (comme sur la référence)
+					var lim := 8 - absi(r - 24) * 2 / 3
+					if dx <= lim - 1:
+						c = _c(MAILLE, _anneau_ton(x, r) + 1)
+			elif dx <= 17:
+				# bordure du panneau : fourrure crème cousue
+				var t := 3 + int(_n(x, r, W, R, 40, 8, 1123) * 2.0)
+				if (r + dx * 3) % 5 == 0:
+					t -= 2
+				if dx == 17:
+					t = 1
+				c = _c(FOUR_G, t)
+			elif dx <= 26:
+				# dessous de cotte visible entre le panneau et les pans de cuir
+				var t: int = ANNEAU_DOUX[_anneau_ton(x, r)] + int(roundf((_n(x, r, W, R, 20, 3, 1124) - 0.5) * 2.0))
+				c = _c(MAILLE, clampi(t, 0, 4))
+				if dx == 26:
+					c = _c(CUIR, 0)
+			else:
+				# pans de manteau en cuir brun, plis verticaux, piqûres
+				var t := _ton_cuir(x, r, W, R, 0.50, 1125)
+				if (dx + int(_h(dx / 3, 0, 1126) * 2.0)) % 17 == 0:
+					t = 1                                # pli
+				c = _c(CUIR, t)
+				if dx == 27:
+					c = _c(CUIR, 6) if r % 3 != 2 else _c(CUIR, 0)       # piqûre le long du bord
+				elif dx == 28:
+					c = _c(CUIR, 0)
+				if dx > 60 and dx < 66:
+					c = _c(CUIR, 0 if dx == 63 else (1 if dx == 62 or dx == 64 else 2))   # couture du dos
+			# crasse : plus sombre et plus terreux vers l'ourlet
+			if r > 28 and r < 40 and _h(x, r, 1127) < (r - 28) / 18.0 and c.a > 0.0:
+				c = c.darkened(0.25)
+			_p(img, x, y, c)
+	# ourlet : fond de fourrure crème (racines sombres) + deux rangées de touffes en quinconce
+	for r in range(35, R):
+		for x in W:
+			var sx := x if x < 128 else x - W
+			var f := _n(x, r, W, R, 48, 5, 1131)
+			_p(img, x, y0 + r, _c(FOUR_G, 1 + int(f * 2.0)))
+	for rang in 2:
+		var i := 0
+		var x := int(_h(rang, 0, 1132) * 6.0)
+		while x < W + 6:
+			var w := 6 + int(_h(i, rang, 1133) * 3.0)
+			var h := (11 if rang == 0 else 9) + int(_h(i, rang, 1134) * 3.0)
+			var clair := 3 + (1 if _h(i, rang, 1135) > 0.45 else 0)
+			_touffe(img, x, y0 + (34 if rang == 0 else 38), w, mini(h, R - (34 if rang == 0 else 38)), (_h(i, rang, 1136) - 0.5) * 0.3, clair, false, FOUR_G)
+			x += w - 1
+			i += 1
+	# neige accrochée à l'ourlet (quelques éclats clairs sur les pointes)
+	for x in W:
+		for r in range(36, R):
+			if _h(x, r, 1137) > 0.965:
+				_p(img, x, y0 + r, Color("#e9eef5"))
+
+# ------------------------------------------------------------------ pantalon de laine charbon (256 x 128, UV du lot 4)
+## Visible : v 0,14 - 0,64 (genou -> haut des bottes), u dans +-0,16. Sergé fin, plis verticaux, plis de genou, usure, neige
+## accrochée vers les bottes ; plus de losanges (les lanières sont sur les bottes).
+static func pantalon_g() -> Image:
+	var W := 256
+	var H := 128
+	var img := _img(W, H)
+	for y in H:
+		var vy := H - 1 - y
+		for x in W:
+			var pli := _n(x, y, W, H, 46, 3, 1201)
+			var l := 0.50 + (pli - 0.5) * 0.55 + (_n(x, y, W, H, 12, 8, 1202) - 0.5) * 0.18
+			if ((x - y) % 3 + 3) % 3 == 0:
+				l += 0.045                              # sergé : fine diagonale
+			# plis de genou : creux horizontaux incurvés (v 0,40 - 0,50)
+			var gy := y - 56 - int(3.0 * sin(float(x) * 0.17))
+			if gy >= 0 and gy < 3 and absi(posmod(x + 128, W) - 128) < 70:
+				l -= 0.22 if gy == 1 else 0.08
+			var c := _c(LAINE_GRISE, _ton(l, 5, x, y, 1203, 0.35))
+			# frottement clair aux genoux et sous le mollet
+			if _n(x, y, W, H, 9, 5, 1204) > 0.72 and _h(x, y, 1205) > 0.45:
+				c = _c(LAINE_GRISE, 3)
+			# bas (près des bottes) : boue sombre + neige accrochée
+			if vy < 62:
+				var sale := _n(x, y, W, H, 40, 12, 1206)
+				if sale > 0.55 and _h(x, y, 1207) < (62 - vy) / 70.0:
+					c = _c(LAINE_GRISE, 1)
+				if vy > 40 and sale > 0.7 and _h(x, y, 1208) > 0.86:
+					c = Color("#8d95a8")                       # quelques flocons accrochés à la laine
+			_p(img, x, y, c)
+	return img
+
+# ------------------------------------------------------------------ bottes (128 x 128 = 1 m x 1 m, visible : lignes 72-127)
+## Cuir brun, semelle sombre, bandes de cuir ENROULÉES en diagonale (largeur 9 texels, bord sombre, piqûre), manchon de maille au-dessus
+## de la cheville, manchette sombre cousue, revers de fourrure crème. Neige sur la semelle, éraflures aux orteils.
+static func bottes_g() -> Image:
+	var W := 128
+	var H := 128
+	var img := _img(W, H)
+	for y in H:
+		var vy := H - 1 - y
+		for x in W:
+			var c := _c(CUIR, _ton_cuir(x, y, W, H, 0.44, 1301))
+			if vy < 2:
+				c = _c(CUIR_SOMBRE, 1)
+			elif vy < 4:
+				c = _c(CUIR, 0 if vy == 2 else 1)
+				if vy == 3 and x % 3 == 0:
+					c = _c(CUIR, 5)                    # piqûre de la semelle
+			elif vy < 40:
+				# bandes enroulées : deux familles de diagonales très écartées (une bande sur deux passe dessus)
+				var d := posmod(x + vy * 2, 22)
+				if d < 9:
+					var t := _ton_cuir(x, y, W, H, 0.50, 1302)
+					c = _c(CUIR, clampi(t, 2, 4))
+					if d == 0 or d == 8:
+						c = _c(CUIR, 1)
+					elif d == 1 and _h(x, y, 1303) > 0.5:
+						c = _c(CUIR, 5)                # arête usée de la bande
+				else:
+					c = _c(CUIR, clampi(_ton_cuir(x, y, W, H, 0.34, 1305), 1, 3))   # dessous dans l'ombre
+			elif vy < 47:
+				# manchon de maille de la cheville
+				var t: int = ANNEAU_DOUX[_anneau_ton(x, y)] + int(roundf((_n(x, y, W, H, 10, 4, 1306) - 0.5) * 1.6))
+				c = _c(MAILLE, clampi(t, 0, 4))
+				if vy == 40:
+					c = _c(CUIR, 0)
+			elif vy < 51:
+				# manchette de cuir sombre cousue
+				c = _c(CUIR, 1 + (1 if vy == 48 else 0))
+				if vy == 49 and x % 4 < 2:
+					c = _c(CUIR, 5)
+				if vy == 50:
+					c = _c(CUIR, 0)
+			else:
+				c = _c(FOUR_G, 1 + int(_n(x, y, W, H, 32, 4, 1307) * 2.0))
+			# neige sur la semelle et la pointe (v 0,94 - 1) et éraflures
+			if vy < 8 and vy > 1 and _n(x, y, W, H, 22, 3, 1308) > 0.55 and _h(x, y, 1309) > 0.4:
+				c = Color("#cfd6e2") if _h(x, y, 1310) > 0.3 else Color("#9aa3b6")
+			_p(img, x, y, c)
+	# revers de fourrure : une rangée de touffes sur le haut de la tige
+	var i := 0
+	var x2 := 0
+	while x2 < W + 6:
+		var w := 6 + int(_h(i, 0, 1311) * 3.0)
+		_touffe(img, x2, H - 1 - 58 + int(_h(i, 1, 1312) * 3.0), w, 9 + int(_h(i, 2, 1313) * 3.0), (_h(i, 3, 1314) - 0.5) * 0.3, 3 + (1 if _h(i, 4, 1315) > 0.4 else 0), false, FOUR_G)
+		x2 += w - 1
+		i += 1
+	_eraflures(img, Rect2i(0, H - 12, W, 8), 14, 1316)
+	return img
+
+# ------------------------------------------------------------------ brassards / manchettes de poignet (128 x 64, lignes 50-63 visibles)
+## Cuir épais, deux sangles de fer rivées, laçage en X au centre, plaque de fer sur le dessus.
+static func brassards_g() -> Image:
+	var W := 128
+	var H := 64
+	var img := _img(W, H)
+	for y in H:
+		for x in W:
+			var t := _ton_cuir(x, y, W, H, 0.44, 1401) - 1
+			if x % 8 == 0:
+				t = 0
+			_p(img, x, y, _c(CUIR, clampi(t, 0, 5)))
+	for x in W:
+		for k in 3:
+			var t := 3 + (1 if k == 1 else 0) - (2 if k == 2 else 0)
+			_p(img, x, 50 + k, _c(FER, t))
+			_p(img, x, H - 1 - k, _c(FER, t))
+		if x % 6 == 0:
+			_p(img, x, 51, _c(FER, 6))
+			_p(img, x, H - 2, _c(FER, 6))
+		var d := posmod(x, 10)
+		for k in 6:
+			if posmod(x - k * 2, 10) < 2:
+				_p(img, x, 55 + k, _c(CUIR, 6))
+				_p(img, x, 56 + k, _c(CUIR, 0))
+	return img
+
+# ------------------------------------------------------------------ plastron de MAILLE (UV de la tunique) pour l'atlas des accessoires
+## Comme sur la référence : le torse est une cotte de mailles brun-gris, plus claire que la jupe, bordée de cuir en bas (sous la
+## ceinture) ; neige poudrée aux épaules ; les seules pièces de cuir sont le baudrier, la ceinture et la fibule.
+static func plastron_maille(v0: float, v1: float) -> Image:
+	var W := 256
+	var H := 128
+	var img := _img(W, H)
+	var y0 := int(v0 * H)
+	var y1 := int(v1 * H)
+	_maille_rect(img, Rect2i(0, 0, W, H), 1501, 0, 0.2)
+	for x in W:
+		for k in 4:
+			_p(img, x, y1 - k, _c(CUIR_SOMBRE, 2 + (1 if k == 2 else 0)))
+		_p(img, x, y1 - 4, _c(CUIR, 4 if x % 4 < 2 else 3))
+		if x % 7 == 3:
+			_rivet(img, x, y1 - 3)
+	# poudrée de neige sur le haut (épaules, haut du dos)
+	for y in range(y0, y0 + 14):
+		for x in W:
+			if _n(x, y, W, H, 30, 12, 1502) > 0.64 and _h(x, y, 1503) > 0.5 + (y - y0) * 0.03:
+				_p(img, x, y, Color("#d5dbe6") if _h(x, y, 1504) > 0.3 else Color("#9aa3b6"))
+	return img
