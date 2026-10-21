@@ -31,3 +31,10 @@ window/stretch/scale_mode="integer"
 
 textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="mobile"
+
+[shader_globals]
+
+neige_objets={
+"type": "float",
+"value": 1.0
+}

@@ -120,6 +120,14 @@ void sky() {
 	float forme = 1.0 - smoothstep(0.0, 0.2, y);
 	forme = forme * forme;
 	col = mix(col, or_, clamp(k * forme * smoothstep(0.0, 0.03, y) * 1.15, 0.0, 1.0));
+	// trouée orange FINE (refonte « lumière ») : une fente irrégulière entre deux bancs de nuages, au-dessus de la
+	// ligne des arbres, derrière les cimes (≈ 12-15°), côté couchant seulement ; ≤ 3 % du ciel
+	float az_ang = atan(d.x, d.z);
+	float yc = 0.235 + 0.04 * (bruit_n(vec2(az_ang * 7.0, 3.0)) - 0.5) + 0.015 * (bruit_n(vec2(az_ang * 31.0, 9.0)) - 0.5);
+	float ep = 0.016 + 0.012 * bruit_n(vec2(az_ang * 11.0, 5.0));
+	float trou = crep * (0.4 + 0.6 * az * az) * (1.0 - smoothstep(ep * 0.5, ep, abs(y - yc)));
+	vec3 or_trou = mix(vec3(0.95, 0.52, 0.18), vec3(0.62, 0.26, 0.12), smoothstep(0.0, ep, abs(y - yc)));
+	col = mix(col, or_trou, trou);
 	if (d.y < 0.0) {
 		col = hz;
 	}
@@ -155,7 +163,7 @@ void sky() {
 		float seuil_h = mix(0.50, 0.36, smoothstep(0.02, 0.45, d.y));
 		float seuil_n = mix(0.64, 0.50, smoothstep(0.02, 0.45, d.y));      // nuit : plus de trouées (étoiles, aurore)
 		float seuil_j = mix(0.52, 0.42, smoothstep(0.02, 0.45, d.y));      // jour : couvert avec des trouées claires
-		float seuil = mix(mix(seuil_n, seuil_j, jour), seuil_h, crep) + (1.0 - couverture) * 0.3;
+		float seuil = mix(mix(seuil_n, seuil_j, jour), seuil_h, crep) + (1.0 - couverture) * 0.3 + trou * 0.45;
 		// l'horizon lui-même reste dégagé : fondu des nuages tout près du bord (jamais de mur coupé net)
 		float fond = smoothstep(0.0, 0.035, d.y);
 		float masque = smoothstep(seuil, seuil + 0.035, n) * fond;
@@ -174,14 +182,18 @@ void sky() {
 			float rim_bas = floor(clamp(bas * 16.0, 0.0, 0.999) * 3.0) / 2.0;
 
 			vec3 sombre = palette(vec3(0.003, 0.005, 0.014), vec3(0.016, 0.017, 0.028), vec3(0.075, 0.09, 0.125));
-			vec3 moyen = palette(vec3(0.012, 0.018, 0.040), vec3(0.050, 0.052, 0.072), vec3(0.17, 0.20, 0.25));
-			vec3 clair = palette(vec3(0.035, 0.060, 0.130), vec3(0.20, 0.17, 0.20), vec3(0.45, 0.50, 0.58));
+			vec3 moyen = palette(vec3(0.012, 0.018, 0.040), vec3(0.040, 0.043, 0.062), vec3(0.17, 0.20, 0.25));
+			// crépuscule : gris-violet de la référence (#272931 #393b47 #55607b), rim un peu plus clair
+			vec3 clair = palette(vec3(0.035, 0.060, 0.130), vec3(0.11, 0.115, 0.19), vec3(0.45, 0.50, 0.58));
 			vec3 c = mix(sombre, moyen, ton);
 			float proche_horizon = 1.0 - smoothstep(0.0, 0.32, d.y);
 			float eclat = rim * (0.12 + 0.88 * az * az) * (0.55 + 0.45 * proche_horizon);
 			c = mix(c, clair, eclat * mix(0.55, 1.0, crep));
 			// le dessous des nuages du côté du couchant brille (or / orange)
 			c = mix(c, vec3(0.80, 0.30, 0.08), crep * az * smoothstep(0.0,1.0,1.0 - smoothstep(0.0, 0.12, d.y)) * rim_bas * 0.7);
+			// bords des nuages qui bordent la trouée : liseré orange d'un ou deux pixels
+			float pres_trou = crep * (0.4 + 0.6 * az * az) * (1.0 - smoothstep(ep, ep * 2.6, abs(y - yc)));
+			c = mix(c, vec3(0.70, 0.32, 0.12), pres_trou * (1.0 - s) * 0.8);
 			// à la nuit, les nuages couvrent aussi un peu l'aurore et les étoiles : le fond est atténué par le masque
 			col = mix(col, c, masque);
 		}
