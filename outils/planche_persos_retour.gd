@@ -36,12 +36,12 @@ func _villageois(id: String) -> Node3D:
 
 ## Apparence d'un bandit casqué (tenue 1) telle que le code présent la construit.
 func _apparence_bandit() -> Dictionary:
-	if "--persos-kit" in OS.get_cmdline_user_args() or not FileAccess.file_exists("res://scripts/persos_humains.gd"):
-		for c: Dictionary in ProjectSettings.get_global_class_list():
-			if c["class"] == "PersoDefs":
-				return {"perso": load(c["path"]).bandit(1)}
-	if FileAccess.file_exists("res://scripts/persos_humains.gd"):
-		return load("res://scripts/persos_humains.gd").bandit(1)
+	var src_perso := FileAccess.get_file_as_string("res://scripts/personnage.gd")
+	var interrupteur := src_perso.contains("func kit_actif")
+	if interrupteur and not ("--persos-kit" in OS.get_cmdline_user_args()):
+		return load("res://scripts/grotte_jeu.gd").apparence_humain(1, "casque_nasal")      # retour Humain (refonte/persos_retour)
+	if src_perso != "":
+		return {"perso": load("res://scripts/perso_defs.gd").bandit(1)}                    # kit Personnage (2ec1c7e → refonte/base)
 	# avant 2ec1c7e : grotte_acces.gd, bandit k = 1
 	var C := Color.WHITE
 	return {"corps": "homme", "draugr": false, "peau": Color(0.93, 0.78, 0.7), "barbe": true, "casque": "casque_nasal",

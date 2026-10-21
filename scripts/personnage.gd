@@ -13,6 +13,15 @@ const CASQUE_ECHELLE := 1.07
 const CASQUE_HAUSSE := 0.032
 
 static var _scenes := {}
+static var _kit := -1
+
+## INTERRUPTEUR (refonte/persos_retour, 2026-10-21) : le jeu est revenu aux corps Humain (Quaternius, `Humain.creer`) pour les villageois,
+## les gardes, les bandits et le joueur ; ce kit reste dans le dépôt, désactivé. `--persos-kit` (argument utilisateur) le remet partout.
+## Les galeries et test_persos_base appellent `Personnage.creer` directement : le kit reste testé quel que soit l'interrupteur.
+static func kit_actif() -> bool:
+	if _kit < 0:
+		_kit = 1 if OS.get_cmdline_user_args().has("--persos-kit") else 0
+	return _kit == 1
 static var _mats := {}
 static var _doubles := {}
 

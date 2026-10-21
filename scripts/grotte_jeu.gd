@@ -9,7 +9,7 @@ extends RefCounted
 ##  - interactions (récit) : journal, registre… : texte (clé de quetes.texte ou lignes), objet remis, événement de quête signalé.
 ##  - mécanismes : « mur_fragile » via Mecanisme.mur_fragile (cède au coup puissant ; état géré par Mecanisme, relu à la mort).
 ##  - lieux : événement (ex. « lieu:camp_hrafn ») signalé quand le joueur approche.
-##  - ennemis : bandits (« sbire » habillé, tenue = indice de TENUES), archers (option « archer » ; « poste » sur corniche), chef (« boss »),
+##  - ennemis : bandits (« sbire » habillé, tenue = indice de TENUES, corps Humain ; --persos-kit : PersoDefs), archers (option « archer » ; « poste » sur corniche), chef (« boss »),
 ##    patrouilles. Créés par petits groupes quand le joueur s'approche ; identifiants FIXES (ceux des données) ; ceux tués dans une partie
 ##    chargée (`acces.morts_charges`) ne reviennent pas.
 ##  - lumières : seules les plus proches sont allumées (au plus MAX_LUM, à moins de 26 m).
@@ -19,7 +19,22 @@ const BUTIN := preload("res://scripts/butin.gd")
 const MAX_LUM := 7
 const DIST_APPARITION := 46.0
 
-## Tenue du chef (les bandits ordinaires viennent de PersoDefs.bandit(k), k = indice « tenue » 0-3).
+## Tenues des bandits (corps Humain) : [tenue, étoffes, coiffure, teinte des cheveux, barbe] ; indice 4 = Hrafn, le chef (casque nasal).
+const C := Color.WHITE
+const TENUES := [
+	[{"tunique": C, "pantalon": C, "mante": C, "capuche": C, "sacoche": C, "bottes": C, "ceinture": C, "brassards": C, "gants": C},
+		{"tunique": "cuir_a", "pantalon": "brun", "mante": "brun", "capuche": "brun", "sacoche": "cuir_b", "bottes": "cuir_b", "ceinture": "cuir_b", "brassards": "cuir_b", "gants": "cuir_b"}, "Hair_Buzzed", Color(0.3, 0.2, 0.12), true],
+	[{"tunique": C, "pantalon": C, "mante": C, "epaulieres": C, "pteruges": C, "bottes": C, "ceinture": C, "brassards": C},
+		{"tunique": "cuir_b", "pantalon": "gris", "mante": "gris", "epaulieres": "cuir_a", "pteruges": "cuir_a", "bottes": "cuir_b", "ceinture": "cuir_a", "brassards": "cuir_a"}, "Hair_SimpleParted", Color(0.5, 0.35, 0.2), true],
+	[{"tunique": C, "pantalon": C, "cape_courte": C, "capuche": C, "sacoche": C, "bottes": C, "ceinture": C, "gants": C},
+		{"tunique": "lin", "pantalon": "noir", "cape_courte": "brun", "capuche": "gris", "sacoche": "cuir_a", "bottes": "cuir_a", "ceinture": "cuir_b", "gants": "cuir_b"}, "Hair_Long", Color(0.2, 0.16, 0.12), false],
+	[{"tunique": C, "pantalon": C, "mante": C, "carquois": C, "pteruges": C, "bottes": C, "ceinture": C, "brassards": C},
+		{"tunique": "cuir_a", "pantalon": "brun", "mante": "blanc", "carquois": "cuir_b", "pteruges": "cuir_b", "bottes": "cuir_b", "ceinture": "cuir_b", "brassards": "cuir_b"}, "Hair_Buzzed", Color(0.55, 0.5, 0.45), true],
+	[{"tunique": C, "pantalon": C, "mante": C, "epaulieres": C, "pteruges": C, "bottes": C, "ceinture": C, "brassards": C, "gants": C},
+		{"tunique": "cuir_b", "pantalon": "noir", "mante": "noir", "epaulieres": "cuir_a", "pteruges": "cuir_b", "bottes": "cuir_b", "ceinture": "cuir_a", "brassards": "cuir_a", "gants": "cuir_b"}, "Hair_Long", Color(0.12, 0.1, 0.09), true],
+]
+
+## --persos-kit : tenue du chef en personnage de base unifié (les bandits ordinaires viennent alors de PersoDefs.bandit(k), k = indice « tenue » 0-3).
 const HRAFN := {"corps": "homme", "tete": 2, "cheveux": 2, "barbe": 2, "couleur_cheveux": Color("#1c1612"), "peau": Color("#e6bfa5"), "tunique": "cuir", "sur": "noir",
 	"pantalon": "noir", "cuir": "cuir_a", "fourrure": "blanc", "accessoires": ["epaulieres", "pteruges", "cape_courte", "gilet"], "casque": "casque_nasal"}
 
@@ -187,10 +202,24 @@ func _meca(a: Dictionary) -> void:
 
 # ------------------------------------------------------------------ ennemis
 func _apparence(e: Dictionary) -> Dictionary:
-	var k: int = maxi(int(e.get("tenue", 0)), 0)
-	if k >= 4:
-		return {"perso": PersoDef.depuis(HRAFN)}
-	return {"perso": PersoDefs.bandit(k)}
+	if Personnage.kit_actif():
+		var kk: int = maxi(int(e.get("tenue", 0)), 0)
+		if kk >= 4:
+			return {"perso": PersoDef.depuis(HRAFN)}
+		return {"perso": PersoDefs.bandit(kk)}
+	return apparence_humain(int(e.get("tenue", 0)), String(e.get("casque", "")))
+
+## Apparence Humain d'un bandit (tenue 0-4) ; `casque` imposé par les données, sinon casque nasal pour Hrafn (4).
+static func apparence_humain(tenue: int, casque := "") -> Dictionary:
+	var k: int = clampi(tenue, 0, TENUES.size() - 1)
+	var t: Array = TENUES[k]
+	var app := {"corps": "homme", "draugr": false, "tenue": (t[0] as Dictionary).duplicate(), "etoffes": (t[1] as Dictionary).duplicate(), "cheveux": t[2],
+		"teinte_cheveux": t[3], "barbe": t[4], "peau": Color(0.93, 0.78, 0.7)}
+	if casque != "":
+		app["casque"] = casque
+	elif k == 4:
+		app["casque"] = "casque_nasal"
+	return app
 
 func _creer_ennemi(a: Dictionary) -> void:
 	var id: String = a["id"]
