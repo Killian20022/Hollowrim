@@ -397,7 +397,7 @@ class Ctx:
 					return [380.0, 0.16, 0.26, 1, 5, 3]         # haut du dos
 				return []                                       # poitrine nue
 			"spine_02", "spine_01":
-				if c.y < g_nouv[os_("pelvis")].origin.y + 0.10:
+				if c.y < g_nouv[os_("pelvis")].origin.y + 0.16:
 					return [420.0, 0.14, 0.21, 3, 7, 0]         # haut du pagne (taille)
 				if c.z < -0.03:
 					return [200.0, 0.12, 0.18, 3, 7, 0]         # dos
@@ -414,7 +414,7 @@ class Ctx:
 				var axe := g_nouv[os_(nom)].origin
 				var dist := absf(c.x - axe.x)
 				if (n.y > 0.0 or c.z < axe.z - 0.02) and dist < 0.22:
-					return [520.0 * (1.0 - dist / 0.22) + 60.0, 0.12, 0.20, 0, 4, 1]   # crinière qui descend sur l'épaule
+					return [380.0 * (1.0 - dist / 0.22) + 40.0, 0.12, 0.20, 0, 4, 3]   # crinière qui descend sur l'épaule (pend, détachée)
 				return []
 			"lowerarm":
 				var axe2 := g_nouv[os_(nom)].origin
@@ -480,7 +480,7 @@ class Ctx:
 					3:
 						# épaules, nuque, haut du dos : pend vers le bas, en dehors et en arrière, jamais sur la poitrine
 						var e3 := Vector3(ext.x, 0.0, minf(ext.z, 0.0) - 0.25).normalized()
-						dir = (Vector3.DOWN * 0.85 + e3 * 0.45 + nrm * 0.2).normalized()
+						dir = (Vector3.DOWN * 0.8 + e3 * 0.45 + nrm * 0.5).normalized()   # se détache de la peau : pas de « tuiles » couchées
 					1:
 						var enfant := (g_nouv[mini(o + 1, g_nouv.size() - 1)].origin - g_nouv[o].origin).normalized()
 						dir = (enfant * 0.85 + nrm * 0.45).normalized()

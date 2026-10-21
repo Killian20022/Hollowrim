@@ -18,8 +18,8 @@ echelle_34 pilote 6,-40,1.2 heure=17.5 sans-mains anim=Idle:0.3
 # gros plans : tête (yeux, crocs, crinière) et main griffue, 2 m et 1 m
 gros_tete_2m pilote 2,15,2.15 heure=17.5 sans-mains anim=Idle:0.3
 gros_tete_1m pilote 1.2,20,2.2 heure=17.5 sans-mains anim=Idle:0.3
-gros_main_2m pilote 2,-50,0.8 heure=17.5 sans-mains anim=Idle:0.3
-gros_main_1m pilote 1.3,-55,0.7 heure=17.5 sans-mains anim=Idle:0.3
+gros_main_2m pilote 2.2,-50,1.0 heure=17.5 sans-mains anim=Idle:0.3
+gros_main_1m pilote 1.5,-60,0.9 heure=17.5 sans-mains anim=Idle:0.3
 # bande d'animations (4,5 m, 3/4, 17h30) : pose figée à la fraction t du clip
 an_idle pilote 4.5,-40,1.2 heure=17.5 sans-mains anim=Idle:0.3
 an_marche_a pilote 4.5,-40,1.2 heure=17.5 sans-mains anim=Walk:0.25
@@ -31,6 +31,7 @@ an_attaque_b pilote 4.5,-40,1.2 heure=17.5 sans-mains anim=Troll_Attaque:0.5
 an_coup pilote 4.5,-40,1.2 heure=17.5 sans-mains anim=Hit_Chest:0.4
 an_mort_a pilote 4.5,-40,0.8 heure=17.5 sans-mains anim=Death01:0.5
 an_mort_b pilote 4.5,-40,0.5 heure=17.5 sans-mains anim=Death01:1.0
-# grotte, caverne du lac (pose « lac » de poses_grotte_fin.txt) : troll à 5 m et 3,5 m devant la caméra
-grotte_lac grotte 41,1.5,-50,-6 troll=5 anim=Idle:0.3
-grotte_lac_proche grotte 41,1.5,-50,0 troll=3.5 anim=Troll_Attaque:0.35
+# grotte, caverne du lac (pose « lac » de poses_grotte_fin.txt, deux caps) et caverne : troll à 2,6-3,5 m devant la caméra
+grotte_lac grotte 41,1.5,-50,-2 troll=2.6 anim=Idle:0.3 sans-mains
+grotte_lac_b grotte 41,1.5,10,-2 troll=3.2 anim=Idle:0.3 sans-mains
+grotte_caverne grotte 37,2.5,0,-2 troll=3.5 anim=Troll_Attaque:0.35 sans-mains

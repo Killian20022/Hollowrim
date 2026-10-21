@@ -31,7 +31,7 @@ static func _p(img: Image, x: int, y: int, c: Color) -> void:
 
 # ------------------------------------------------------------------ précalcul (outils/generer_troll.gd)
 const DOSSIER := "res://assets/personnages/troll"
-const VERSION := 1
+const VERSION := 2
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -93,7 +93,7 @@ static func peau() -> Image:
 		for x in n:
 			var c := img.get_pixel(x, y)
 			var l := c.get_luminance()
-			if l < 0.2:
+			if l < 0.2 or (l < 0.34 and c.b > c.r):      # slip d'origine et sa ceinture (bleu sombre)
 				out.set_pixel(x, y, _c(PEAU, 3 + int(_h(x, y, 1300) * 1.6)))   # slip d'origine : peau moyenne (sous le pagne)
 				continue
 			# relief d'origine (muscles, creux) renforcé, marbrures larges, grain
