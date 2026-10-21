@@ -503,6 +503,23 @@ func _pont(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray, a:
 
 # --- plans peints (4e passe) ------------------------------------------------------------------------------------
 
+# élévation (°) au-dessus de laquelle le plan peint n'a plus rien à dessiner autour de l'azimut `a` (majorant du profil de
+# plans_peints.gdshader sur ± 1 pan : pics élargis ×1,5, dissymétrie, dentelure, sapins, château)
+func _haut_profil(a: float, d: Array, pics: Array) -> float:
+	var h: float = float(d[3]) + float(d[4]) + 2.5
+	for k in 7:
+		var x := a + (float(k) - 3.0) * 0.5
+		for p in pics:
+			var dd := absf(wrapf(x - float(p[0]), -180.0, 180.0))
+			var w := 1.5 * float(p[2]) * (1.0 + 0.35 * absf(float(p[3])))
+			var f := maxf(1.0 - dd / w, 0.82 * (1.0 - maxf(dd - 0.42 * w, 0.0) / (0.3 * w)))   # pic, sous-sommet
+			f = maxf(f, 0.62 * (1.0 - maxf(dd - 0.45 * w, 0.0) / (0.55 * w)))                      # épaule
+			h = maxf(h, float(p[1]) * f + float(d[4]))
+	if int(d[1]) == 2 and absf(wrapf(a - CHATEAU_AZIMUT, -180.0, 180.0)) < 16.0:
+		h = maxf(h, 12.0 + 70.0 * 1.7 / 6.0)
+	return minf(h + 1.5, 60.0)
+
+
 func _creer_plans() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
@@ -535,13 +552,14 @@ func _creer_plans() -> void:
 			v.append(Vector4.ZERO)
 		m.set_shader_parameter("pics", v)
 		m.set_shader_parameter("nb_pics", pics.size())
-		# cylindre : 256 pans, du dessous de l'horizon à 46° d'élévation
+		# cylindre : 256 pans, du dessous de l'horizon jusqu'au-dessus du profil peint (bord haut qui épouse les pics,
+		# avec marge) : le ciel n'est pas recouvert de fragments rejetés (perf : 5 couches de surdessin évitées)
 		var pos := PackedVector3Array()
 		var idx := PackedInt32Array()
 		var bas := _y0 - 60.0
-		var haut := _y0 + r * tan(deg_to_rad(46.0))
 		for i in 257:
 			var a := TAU * float(i) / 256.0
+			var haut := _y0 + r * tan(deg_to_rad(_haut_profil(rad_to_deg(a), d, pics)))
 			pos.append(Vector3(sin(a) * r, bas, cos(a) * r))
 			pos.append(Vector3(sin(a) * r, haut, cos(a) * r))
 		for i in 256:
