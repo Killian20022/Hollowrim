@@ -536,13 +536,13 @@ class Ctx:
 				return []
 			"spine_03":
 				if n.z < -0.15 or (n.y > 0.6 and n.z < 0.3):
-					return [520.0, 0.12, 0.19, 2, 5, 3]         # haut du dos (prolonge la crinière)
+					return [900.0, 0.13, 0.22, 2, 5, 3]         # haut du dos (prolonge la crinière)
 				return [10.0, 0.04, 0.06, 3, 5, 0]              # poitrine NUE : quelques poils épars
 			"spine_02", "spine_01":
 				if c.y < g_nouv[os_("pelvis")].origin.y + 0.13:
 					return [520.0, 0.11, 0.18, 3, 6, 0]         # ceinture de poils (taille)
-				if c.z < -0.02 and c.y > g_nouv[os_("spine_02")].origin.y:
-					return [260.0, 0.10, 0.16, 3, 6, 3]         # milieu du dos, plus clairsemé
+				if c.z < -0.02:
+					return [520.0, 0.12, 0.20, 3, 6, 3]         # dos fourré (passe vêtements : plus de plaque de peau nue vue de dos)
 				return []                                       # ventre et bas du dos nus
 			"pelvis":
 				if c.y > g_nouv[os_("pelvis")].origin.y - 0.06:
@@ -552,7 +552,7 @@ class Ctx:
 				if c.y > g_nouv[os_(nom)].origin.y - 0.10:
 					return [850.0, 0.13, 0.22, 3, 6, 0]         # pagne (haut des cuisses)
 				if n.z < 0.0 or absf(c.x - g_nouv[os_(nom)].origin.x) > 0.10:
-					return [260.0, 0.09, 0.15, 3, 6, 0]         # arrière et côté de la cuisse : poil court (devant nu, comme la référence)
+					return [180.0, 0.09, 0.15, 3, 6, 0]         # arrière et côté de la cuisse : poil court (devant nu, comme la référence)
 				return []                                       # cuisse nue
 			"upperarm":
 				var pres := clampf(1.0 - absf(c.x - g_nouv[os_(nom)].origin.x) / 0.14, 0.0, 1.0)
@@ -572,10 +572,10 @@ class Ctx:
 			"calf":
 				var genou := g_nouv[os_(nom)].origin.y
 				var t2 := clampf((genou - c.y) / 0.45, 0.0, 1.0)
-				return [800.0 + 500.0 * t2, 0.12, 0.21, 2, 6, 0]   # mollet : jambières de poils épaisses jusqu'à la cheville
+				return [650.0 + 450.0 * t2, 0.12, 0.21, 2, 6, 0]   # mollet : jambières de poils épaisses jusqu'à la cheville
 			"foot":
 				if n.y > 0.3 and c.z < g_nouv[os_(nom)].origin.z + 0.08:
-					return [520.0, 0.08, 0.14, 2, 6, 0]
+					return [300.0, 0.08, 0.14, 2, 6, 0]
 				return []
 		return []
 
