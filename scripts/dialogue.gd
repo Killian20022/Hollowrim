@@ -1,13 +1,16 @@
 extends Control
-## Dialogues des villageois (écran 480x270) : invite « E Parler », boîte de conversation
+## Dialogues des villageois : invite « E Parler », boîte de conversation
 ## avec texte machine à écrire, et sous-titres des phrases lancées au passage.
+## Positions relatives à `size` (écran logique, voir EchelleUi) : boîte centrée en bas, 320 px de large
+## à 480x270, jusqu'à 420 px à 640x360 ; tout est replacé par _placer() quand la taille change.
 ## Propriété à poser AVANT add_child : joueur.
 
 const VITESSE_TEXTE := 45.0  # caractères par seconde
 const DIST_FERMETURE := 4.0
 const DUREE_SOUS_TITRE := 3.5
 const TAILLE_POLICE := 16
-const BOITE := Rect2(80, 194, 320, 58)
+const HAUT_BOITE := 58.0
+const BAS_BOITE := 18.0  # marge sous la boîte (et sous les sous-titres)
 const OR := Color("#e8a64a")
 const PARCHEMIN := Color("#e9dcc0")
 const FOND := Color("#0b0f1a")
@@ -54,13 +57,12 @@ func _ready() -> void:
 	_invite_texte = _etiquette(PARCHEMIN)
 	_invite.add_child(_invite_texte)
 
-	# boîte de conversation
-	_boite = _cadre("cadre", 8, BOITE)
+	# boîte de conversation (taille et position : _placer)
+	_boite = _cadre("cadre", 8, Rect2(0, 0, 320, HAUT_BOITE))
 	_boite.visible = false
 	add_child(_boite)
 	_texte = _etiquette(PARCHEMIN)
 	_texte.position = Vector2(10, 9)
-	_texte.size = Vector2(BOITE.size.x - 28, BOITE.size.y - 14)
 	_texte.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_texte.clip_text = true
 	_boite.add_child(_texte)
@@ -70,19 +72,28 @@ func _ready() -> void:
 	_nom.position = Vector2(6, 0)
 	_cartouche.add_child(_nom)
 	_fleche = _dessin_fleche()
-	_fleche.position = Vector2(BOITE.size.x - 16, BOITE.size.y - 9)
 	_boite.add_child(_fleche)
 
 	# sous-titre « au passage »
 	_sous_titre = _etiquette(PARCHEMIN)
 	_sous_titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_sous_titre.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_sous_titre.position = Vector2(80, 232)
-	_sous_titre.size = Vector2(320, 20)
 	_sous_titre.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	_sous_titre.position.y = 252 - _sous_titre.size.y
 	_sous_titre.modulate.a = 0.0
 	add_child(_sous_titre)
+	EchelleUi.appliquer(self)
+	_placer()
+
+## Place la boîte et les sous-titres d'après la taille logique de l'écran (coordonnées entières).
+func _placer() -> void:
+	var larg := clampf(size.x - 160.0, 320.0, 420.0)
+	var cx := floorf(size.x * 0.5)
+	_boite.position = Vector2(cx - floorf(larg * 0.5), size.y - BAS_BOITE - HAUT_BOITE)
+	_boite.size = Vector2(larg, HAUT_BOITE)
+	_texte.size = Vector2(larg - 28, HAUT_BOITE - 14)
+	_fleche.position = Vector2(larg - 16, HAUT_BOITE - 9)
+	_sous_titre.size = Vector2(larg, 20)
+	_sous_titre.position = Vector2(cx - floorf(larg * 0.5), size.y - BAS_BOITE - _sous_titre.size.y)
 
 func _etiquette(couleur: Color) -> Label:
 	var l := Label.new()
@@ -216,6 +227,8 @@ func _fermer() -> void:
 	_pnj = null
 
 func _process(dt: float) -> void:
+	if EchelleUi.appliquer(self):
+		_placer()
 	if joueur == null:
 		return
 	if _ouvert:
@@ -242,7 +255,7 @@ func _process(dt: float) -> void:
 		if icone == null:
 			_invite_texte.text = "[E] " + _invite_texte.text
 		var total := l + larg_icone + (4.0 if icone != null else 0.0)
-		_invite.position = Vector2(roundf(240.0 - total * 0.5), 150)
+		_invite.position = Vector2(roundf(floorf(size.x * 0.5) - total * 0.5), floorf(size.y * 0.5) + 15.0)  # sous le réticule
 		_invite_texte.position = Vector2(larg_icone + (4.0 if icone != null else 0.0), 0) if icone != null else Vector2.ZERO
 		queue_redraw()
 	# sous-titre
