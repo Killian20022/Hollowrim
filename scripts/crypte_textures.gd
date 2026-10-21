@@ -12,7 +12,7 @@ class_name CrypteTextures
 
 const CLEAR := Color(0, 0, 0, 0)
 const DOSSIER := "res://assets/crypte"   # textures précalculées par outils/generer_crypte.gd
-const VERSION := 12                      # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
+const VERSION := 13                      # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
 const E := 2   # facteur de finesse de la pierre proche (murs, dalles, voûte, ossuaire) : 2 = 64 texels/m (tuiles de 256 px pour 4 m)
 ## Murs et ossuaire : 128 texels/m (tuile de 512 px), car le joueur les frôle (< 1 m) ; dalles et voûte restent à 64.
 const EM := 4   # refonte matière, 2e passe : 128 texels/m pour murs et dalles (vus à 1-2 m) avec micro-détail (moucheture, arêtes ébréchées)
@@ -22,10 +22,12 @@ const K := 2   # facteur de densité de la pierre : 1 = 16 texels/m, 2 = 32 texe
 # rampes (indice 0 = creux/joint, dernier = lumière) : désaturées, froides dans l'ombre, un peu plus chaudes en lumière
 # Refonte « crypte matière » (2026-10-21, références grottes_cryptes_2/3) : pierre BRUN-GRIS (et non plus gris-lilas), ombres
 # presque noires, lumière chaude ; la rampe froide ne bleuit que très peu (l'ambiant bleu de la crypte s'en charge).
-const PIERRE_FROID := ["#090809", "#121014", "#1b181d", "#252128", "#302b31", "#3d363b", "#4c4448", "#5e5558", "#73696a", "#8a7f7e"]
+# 3e passe : la pierre tirait sur la brique rose-rouge (rampe froide mauve + chaude orangée sous la torche) → brun-gris sombre et froid,
+# la seule chaleur vient des torches.
+const PIERRE_FROID := ["#08090a", "#101214", "#181a1d", "#212326", "#2b2d30", "#36383a", "#434446", "#525352", "#636360", "#77756f"]
 # rampe « Pierre de donjon » de DIRECTION_ARTISTIQUE §2 (brun-gris granuleux, mesurée sur les références), interpolée à 10 tons
-const PIERRE_CHAUD := ["#0f0b08", "#1a1614", "#241e1d", "#2f2727", "#393130", "#433630", "#4f3a2e", "#5f412f", "#7a5237", "#a07250"]
-const PIERRE_SOMBRE_F := ["#070607", "#0e0c0f", "#161317", "#1f1b20", "#292428", "#342e32", "#413a3d", "#50474a", "#625859", "#766b6a"]
+const PIERRE_CHAUD := ["#0d0b09", "#161412", "#1f1c19", "#292521", "#332e29", "#3d3731", "#48413a", "#564e44", "#686052", "#7c7263"]
+const PIERRE_SOMBRE_F := ["#060708", "#0d0e10", "#141618", "#1c1e21", "#25272a", "#2f3134", "#3b3d3f", "#494a4b", "#59595a", "#6b6a68"]
 const MOUSSE := ["#0e1810", "#16261a", "#203820", "#2d4e2e", "#3f6a39", "#5b8a49"]
 const SALPETRE := ["#4a5d5f", "#647e80", "#82a09f", "#a0bdb8", "#bdd5cd", "#d9e8e0"]
 const BOIS := ["#130c07", "#1c120a", "#291a0f", "#372314", "#473019", "#593d22", "#6c4c2b", "#815c36", "#966e42", "#ab8250"]
@@ -203,6 +205,8 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 	var lisse: bool = o.get("lisse", false)     # dalles lisibles de loin : pas de grain texel par texel, usure en macro-taches
 	var grain: float = o.get("grain", 0.0)      # moucheture fine multi-tons (références : pierre granuleuse brun-gris)
 	var ebr: float = o.get("ebr", 0.0)          # arêtes ébréchées : éclats de 2-3 texels mordant le biseau
+	var pous: float = o.get("poussiere", 0.0)   # sols : voile de poussière gris clair en macro-taches, surtout au creux des dalles
+	var gj: float = o.get("givre_joints", 0.0)  # sols : grains de givre dans les joints et au bord des dalles
 	var froid := _cols(PIERRE_SOMBRE_F if o.get("sombre", false) else PIERRE_FROID)
 	var chaud := _cols(PIERRE_CHAUD)
 	var mou := _cols(MOUSSE)
@@ -228,55 +232,67 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 	T.resize(S * S)
 	var D := PackedFloat32Array()
 	D.resize(S * S)
-	var y0 := 0
-	for rh: int in rangs:
-		var x := rng.randi_range(0, S - 1)
-		for w: int in _largeurs(rng, S, larg):
-			var l0 := lerpf(l_lo, l_hi, rng.randf())
-			if rng.randf() < 0.12:
-				l0 -= 0.09
-			var t := 0.45 * pow(rng.randf(), 2.0) + (0.3 if rng.randf() < 0.14 else 0.0)
-			var elev := rng.randf() * elev_max
-			var rugb := rug * (0.55 + rng.randf() * 0.9)
-			var gxb := (rng.randf() - 0.5) * 0.09 / ech
-			var gyb := (rng.randf() - 0.5) * 0.09 / ech
-			var grad := 0.06 + rng.randf() * 0.1          # haut éclairé, bas sombre
-			var coin := rng.randi_range(0, 3) if rng.randf() < 0.45 else -1
-			var rc := rng.randf_range(3.0, 7.0) * ech
-			for ly in rh:
-				for lx in w:
-					var i := (y0 + ly) * S + posmod(x + lx, S)
-					var d := float(mini(mini(lx, w - 1 - lx), mini(ly, rh - 1 - ly)) + int(floorf((n_wob[i] - 0.5) * 1.6 * ech + 0.5)))
-					if ebr > 0.0 and d >= J and d < J + 1.6 * ech and n_mou2[i] < ebr * (1.4 - (d - J) / (1.6 * ech)):
-						d = J - 0.5
-					var hh := -0.9
-					var ll := jl
-					if d >= J:
-						var e := clampf((d - J + 1.0) / (B * ech), 0.0, 1.0)
-						var prof := floorf(e * 3.0 + 0.5) / 3.0           # biseau en 3 marches : arête nette
-						if lisse:
-							var us := floorf(n_mac[i] * 3.0) / 3.0       # usure : 3 paliers de macro-taches
-							hh = prof * 0.95 + elev * 0.6 - us * 0.5 + gxb * lx * 0.4 + gyb * ly * 0.4
-							ll = l0 + grad * (0.5 - float(ly) / rh) * 0.8 + (us - 0.45) * 0.22 + (floorf(n_mac2[i] * 3.0) / 3.0 - 0.45) * 0.08
-						else:
-							hh = prof * 0.95 + elev + (floorf(n_fin[i] * 4.0) / 4.0 - 0.4) * rugb * 1.1 + (n_gr[i] - 0.5) * 0.55 * rugb + gxb * lx + gyb * ly
-							ll = l0 + grad * (0.5 - float(ly) / rh) * 1.6 + (floorf(n_fin[i] * 4.0) / 4.0 - 0.4) * (0.5 - 0.3 * minf(grain, 1.0)) * rugb + (floorf(n_gr2[i] * 3.0) / 3.0 - 0.33) * (0.22 - 0.12 * minf(grain, 1.0)) + (n_gr[i] - 0.5) * 0.12 - 0.1 * _ss(0.8, 0.95, n_fin[(i + S * 3 + 7) % (S * S)]) * rugb
-						if creux > 0.0:
-							var cm := minf(float(w), float(rh)) * 0.5
-							hh -= creux * (1.0 - clampf(d / cm, 0.0, 1.0)) * (0.6 + n_gr[i])
-							ll += creux * 0.05 * (1.0 - clampf(d / cm, 0.0, 1.0))
-						if coin >= 0:
-							var cx := float(lx if (coin & 1) == 0 else w - 1 - lx)
-							var cy := float(ly if (coin & 2) == 0 else rh - 1 - ly)
-							if cx + cy < rc + ((n_fin[i] - 0.5) * 3.0 if not lisse else 0.0):
-								hh -= 0.75
-								ll -= 0.09
-					L[i] = ll
-					H[i] = hh
-					T[i] = t
-					D[i] = d
-			x += w
-		y0 += rh
+	# blocs [x, y, largeur, hauteur] : assises (murs) ou découpe irrégulière en grandes dalles (sols, option « bsp » = [min, max])
+	var blocs: Array = []
+	if o.has("bsp"):
+		var lim: Array = o["bsp"]
+		_bsp(rng, 0, 0, S, S, int(lim[0]), int(lim[1]), blocs)
+	else:
+		var yb := 0
+		for rh: int in rangs:
+			var xb := rng.randi_range(0, S - 1)
+			for w: int in _largeurs(rng, S, larg):
+				blocs.append([xb, yb, w, rh])
+				xb += w
+			yb += rh
+	for bl: Array in blocs:
+		var x: int = bl[0]
+		var y0: int = bl[1]
+		var w: int = bl[2]
+		var rh: int = bl[3]
+		var l0 := lerpf(l_lo, l_hi, rng.randf())
+		if rng.randf() < 0.12:
+			l0 -= 0.09
+		var t := 0.45 * pow(rng.randf(), 2.0) + (0.3 if rng.randf() < 0.14 else 0.0)
+		var elev := rng.randf() * elev_max
+		var rugb := rug * (0.55 + rng.randf() * 0.9)
+		var gxb := (rng.randf() - 0.5) * 0.09 / ech
+		var gyb := (rng.randf() - 0.5) * 0.09 / ech
+		var grad := 0.06 + rng.randf() * 0.1          # haut éclairé, bas sombre
+		var coin := rng.randi_range(0, 3) if rng.randf() < 0.45 else -1
+		var rc := rng.randf_range(3.0, 7.0) * ech
+		for ly in rh:
+			for lx in w:
+				var i := (y0 + ly) * S + posmod(x + lx, S)
+				var d := float(mini(mini(lx, w - 1 - lx), mini(ly, rh - 1 - ly)) + int(floorf((n_wob[i] - 0.5) * 1.6 * ech + 0.5)))
+				if ebr > 0.0 and d >= J and d < J + 1.6 * ech and n_mou2[i] < ebr * (1.4 - (d - J) / (1.6 * ech)):
+					d = J - 0.5
+				var hh := -0.9
+				var ll := jl
+				if d >= J:
+					var e := clampf((d - J + 1.0) / (B * ech), 0.0, 1.0)
+					var prof := floorf(e * 3.0 + 0.5) / 3.0           # biseau en 3 marches : arête nette
+					if lisse:
+						var us := floorf(n_mac[i] * 3.0) / 3.0       # usure : 3 paliers de macro-taches
+						hh = prof * 0.95 + elev * 0.6 - us * 0.5 + gxb * lx * 0.4 + gyb * ly * 0.4
+						ll = l0 + grad * (0.5 - float(ly) / rh) * 0.8 + (us - 0.45) * 0.22 + (floorf(n_mac2[i] * 3.0) / 3.0 - 0.45) * 0.08
+					else:
+						hh = prof * 0.95 + elev + (floorf(n_fin[i] * 4.0) / 4.0 - 0.4) * rugb * 1.1 + (n_gr[i] - 0.5) * 0.55 * rugb + gxb * lx + gyb * ly
+						ll = l0 + grad * (0.5 - float(ly) / rh) * 1.6 + (floorf(n_fin[i] * 4.0) / 4.0 - 0.4) * (0.5 - 0.3 * minf(grain, 1.0)) * rugb + (floorf(n_gr2[i] * 3.0) / 3.0 - 0.33) * (0.22 - 0.12 * minf(grain, 1.0)) + (n_gr[i] - 0.5) * 0.12 - 0.1 * _ss(0.8, 0.95, n_fin[(i + S * 3 + 7) % (S * S)]) * rugb
+					if creux > 0.0:
+						var cm := minf(float(w), float(rh)) * 0.5
+						hh -= creux * (1.0 - clampf(d / cm, 0.0, 1.0)) * (0.6 + n_gr[i])
+						ll += creux * 0.05 * (1.0 - clampf(d / cm, 0.0, 1.0))
+					if coin >= 0:
+						var cx := float(lx if (coin & 1) == 0 else w - 1 - lx)
+						var cy := float(ly if (coin & 2) == 0 else rh - 1 - ly)
+						if cx + cy < rc + ((n_fin[i] - 0.5) * 3.0 if not lisse else 0.0):
+							hh -= 0.75
+							ll -= 0.09
+				L[i] = ll
+				H[i] = hh
+				T[i] = t
+				D[i] = d
 	# fissures : marche aléatoire qui creuse la pierre
 	for k in o.get("fissures", S / 24):
 		var fx := rng.randi_range(0, S - 1)
@@ -376,8 +392,34 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 				if v == 1:
 					var mm := _ss(0.68, 0.84, n_mou[i]) * (1.0 - a * 0.7)
 					c = c.lerp(_rp(mou, 0.15 + lq * 0.9), clampf(mm, 0.0, 1.0) * 0.9)
+			if pous > 0.0 and d >= J:
+				var pz := _ss(0.5, 0.85, n_mac[i]) * (0.55 + 0.45 * _ss(0.4, 0.8, n_mac2[i]))
+				var pc: Color = _rp(froid, clampf(0.5 + lq * 0.35, 0.0, 1.0))
+				var pg := pc.get_luminance()
+				c = c.lerp(Color(pg, pg, pg * 1.02).lerp(pc, 0.4), clampf(pz * pous, 0.0, 0.6))
+			if gj > 0.0:
+				var hj := float(((x * 73856093) ^ (y * 19349663)) & 1023) / 1023.0
+				if (a < 0.5 and hj < gj) or (a < 0.9 and hj < gj * 0.25 and n_mac2[i] > 0.7):
+					c = c.lerp(_rp(giv, clampf(0.45 + hj * 0.5, 0.0, 1.0)), 0.45)
 			cols[i] = c
 	return [_vers_image(S, cols), _pentes(H, S, 0.9)]
+
+## Découpe récursive d'un rectangle en dalles irrégulières (joints jamais alignés d'un bout à l'autre) : côtés entre mn et mx texels.
+static func _bsp(rng: RandomNumberGenerator, x: int, y: int, w: int, h: int, mn: int, mx: int, out: Array) -> void:
+	var peut_x := w >= mn * 2
+	var peut_y := h >= mn * 2
+	if (not peut_x and not peut_y) or (w <= mx and h <= mx and rng.randf() < 0.6):
+		out.append([x, y, w, h])
+		return
+	var en_x := peut_x and (not peut_y or float(w) * rng.randf_range(0.7, 1.3) >= float(h))
+	if en_x:
+		var c := mn + int(float(w - 2 * mn) * rng.randf_range(0.0, 1.0))
+		_bsp(rng, x, y, c, h, mn, mx, out)
+		_bsp(rng, x + c, y, w - c, h, mn, mx, out)
+	else:
+		var c := mn + int(float(h - 2 * mn) * rng.randf_range(0.0, 1.0))
+		_bsp(rng, x, y, w, c, mn, mx, out)
+		_bsp(rng, x, y + c, w, h - c, mn, mx, out)
 
 static func mur_paire(v: int) -> Array:
 	# pierre de taille (références) : assises irrégulières de 0,3 à 0,75 m, blocs de 0,35 à 1,5 m (ponctuellement une grande
@@ -393,9 +435,10 @@ static func dalle_paire(v: int) -> Array:
 	var S := 64 * K * EM                  # tuile de 4 m (128 texels/m, 2e passe : sols vus de près)
 	var rangs: Array = _largeurs(rng, S, [20 * EM, 24 * EM, 28 * EM, 32 * EM, 40 * EM, 56 * EM])
 	var lisse := false                     # dalles granuleuses (refonte matière) ; avant : true, dalles de l'arène et du niveau gelé : grandes dalles nettes (retouche « sol granuleux »)
-	return _pierre(S, rangs, [20 * EM, 28 * EM, 36 * EM, 44 * EM, 60 * EM] if not lisse else [32 * E, 40 * E, 48 * E, 64 * E], {"ech": EM, "seed": 8210 + v * 31, "v": v, "joint": 2.4 if not lisse else 1.6, "ebr": 0.2,
+	return _pierre(S, rangs, [20 * EM, 28 * EM, 36 * EM, 44 * EM, 60 * EM] if not lisse else [32 * E, 40 * E, 48 * E, 64 * E], {"ech": EM, "seed": 8210 + v * 31, "v": v, "joint": 1.7 if not lisse else 1.6, "ebr": 0.2,
 		"biseau": 2.6, "rug": 0.5, "l_lo": 0.58, "l_hi": 0.84, "elev": 1.0, "creux": 0.35 if lisse else 0.55, "joint_l": 0.06,
-		"fissures": 6 if v < 3 else 7, "lisse": lisse, "grain": 0.8})
+		"fissures": 6 if v < 3 else 7, "lisse": lisse, "grain": 0.8,
+		"bsp": [26 * EM, 72 * EM], "poussiere": 0.55 if v < 3 else 0.2, "givre_joints": 0.07 if v < 3 else 0.04})
 
 static func voute_paire() -> Array:
 	var rng := _rng(8310)

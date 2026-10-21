@@ -480,8 +480,11 @@ func _entree() -> void:
 	d.boite("mur0", Vector3(1.2, 2.1, 3.62), Vector3(0.4, 1.8, 0.16))
 	d.boite("mur0", Vector3(0, 3.1, 3.62), Vector3(2.8, 0.4, 0.16))
 	_interactif(crypte, Vector3(0, 1.6, 1.5), "Sortie", "Sortir du tertre", func() -> Array: return _passer(false))
-	for z in [2.0, 0.0, -2.0, -4.0]:
+	# doubleaux de pierre (CrypteDecor.poutre dans la crypte) retombant sur des pilastres sculptés (décor seul, sans collision)
+	for z in [2.4, 0.8, -1.4, -4.6]:
 		d.poutre(-2.7, 2.7, 3.45, z)
+	for p: Array in [[-2.7, 2.4], [-2.7, 0.8], [2.7, 2.4], [2.7, 0.8], [-2.7, -1.4], [-2.7, -4.6], [2.7, -4.6]]:
+		d.pilastre_mur(Vector3(p[0], 0, p[1]), Vector3(-signf(p[0]), 0, 0), 2.7)
 	d.brasero(Vector3(-2.3, 0, -5.2))
 	d.brasero(Vector3(2.3, 0, -5.2))
 	d.applique(Vector3(-2.7, 0, 0.0), Vector3(1, 0, 0), 2.1, 5.0, 1.7)
@@ -520,6 +523,8 @@ func _couloir_herse() -> void:
 	d.salle(-1.6, 1.6, -32, -42, 3.2, [["sud", 0.0, 3.2], ["nord", 0.0, 3.2]], 0.0, "mur2")
 	for z in [-34.5, -36.5, -38.5, -40.5]:
 		d.poutre(-1.3, 1.3, 3.05, z)
+	for p: Array in [[-1.3, -34.5], [1.3, -34.5], [-1.3, -36.5], [-1.3, -38.5], [-1.3, -40.5], [1.3, -40.5]]:
+		d.pilastre_mur(Vector3(p[0], 0, p[1]), Vector3(-signf(p[0]), 0, 0), 2.3)
 	herse = Node3D.new()
 	herse.position = Vector3(0, 0, -33.0)
 	crypte.add_child(herse)

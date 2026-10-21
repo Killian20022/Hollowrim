@@ -612,8 +612,14 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 				if not c[2]:
 					_cadre(horizontal, plan, signe, c[0], c[1], ho, y)
 				continue
-			if est_crypte and not c[2]:      # 2e passe : seuil de pierre (marche de 6 cm, franchissable) sous le passage
-				boite("mur1", Vector3((c[0] + c[1]) * 0.5, y + 0.03, fixe_mur) if horizontal else Vector3(fixe_mur, y + 0.03, (c[0] + c[1]) * 0.5), Vector3(c[1] - c[0] + 0.3, 0.06, 0.9) if horizontal else Vector3(0.9, 0.06, c[1] - c[0] + 0.3), 0.0, true)
+			if est_crypte and not c[2]:      # seuil de pierre à deux marches (9 cm, décor sans collision : franchissable) sous le passage
+				var mc: float = (c[0] + c[1]) * 0.5
+				var lw: float = c[1] - c[0] + 0.3
+				boite("mur1", Vector3(mc, y + 0.045, fixe_mur) if horizontal else Vector3(fixe_mur, y + 0.045, mc), Vector3(lw, 0.09, 0.62) if horizontal else Vector3(0.62, 0.09, lw), 0.0, true)
+				for sp: float in [-1.0, 1.0]:
+					var q := fixe_mur + sp * 0.47
+					boite("mur0", Vector3(mc, y + 0.022, q) if horizontal else Vector3(q, y + 0.022, mc), Vector3(lw - 0.1, 0.045, 0.32) if horizontal else Vector3(0.32, 0.045, lw - 0.1), 0.0, true)
+					givre_dessus(Vector3(mc + sp * lw * 0.3, y + 0.045, q) if horizontal else Vector3(q, y + 0.045, mc + sp * lw * 0.3), Vector2(0.5, 0.2) if horizontal else Vector2(0.2, 0.5), 0.0)
 			if horizontal:
 				quad("dalle0", Vector3(c[0], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur + 0.3), Vector3(c[0], y, fixe_mur + 0.3), Vector3.UP)
 				quad("voute", Vector3(c[0], y + ho, fixe_mur - 0.3), Vector3(c[1], y + ho, fixe_mur - 0.3), Vector3(c[1], y + ho, fixe_mur + 0.3), Vector3(c[0], y + ho, fixe_mur + 0.3), Vector3.DOWN)
@@ -743,6 +749,30 @@ func _cadre_massif(horizontal: bool, plan: float, signe: float, ca: float, cb: f
 	boite("mur1", P.call(m, y + ho - 0.3, 0.33), D.call(0.42, 0.72, 0.06))                   # clé
 	givre_dessus(P.call(m, y + ho, 0.16), Vector2(l, 0.32) if horizontal else Vector2(0.32, l), 0.05)
 	glacons_arete(P.call(ca - 0.6, y + ho - 0.62, 0.3), P.call(cb + 0.6, y + ho - 0.62, 0.3), 1.7 if not theme.is_empty() else 1.1, 0.4)
+
+## Pilastre engagé (décor seul, sans collision) : `pied` = pied du mur au sol, `vers` = normale du mur vers la pièce, `hp` = hauteur.
+## Base moulurée givrée, fût 0,5 x 0,22 à panneau d'entrelacs, chapiteau à ressauts, glaçons.
+func pilastre_mur(pied: Vector3, vers: Vector3, hp: float) -> void:
+	var v := vers.normalized()
+	var dr := Vector3(-v.z, 0, v.x)
+	var horiz := absf(v.z) > 0.5          # mur le long de x
+	var D := func(l: float, hh: float, ep: float) -> Vector3:
+		return Vector3(l, hh, ep) if horiz else Vector3(ep, hh, l)
+	var P := func(yy: float, ret: float) -> Vector3:
+		return pied + v * ret + Vector3(0, yy, 0)
+	boite("mur1", P.call(hp * 0.5, 0.11), D.call(0.5, hp, 0.22), 0.0, true)
+	boite("mur0", P.call(0.22, 0.15), D.call(0.68, 0.44, 0.3), 0.0, true)
+	boite("mur1", P.call(0.5, 0.13), D.call(0.6, 0.12, 0.26), 0.0, true)
+	givre_dessus(P.call(0.44, 0.26), Vector2(0.6, 0.06) if horiz else Vector2(0.06, 0.6), 0.02)
+	boite("mur1", P.call(hp - 0.3, 0.14), D.call(0.6, 0.14, 0.28), 0.0, false)
+	boite("mur0", P.call(hp - 0.11, 0.17), D.call(0.74, 0.22, 0.34), 0.0, false)
+	givre_dessus(P.call(hp, 0.17), Vector2(0.74, 0.32) if horiz else Vector2(0.32, 0.74), 0.04)
+	glacons_arete(P.call(hp - 0.22, 0.33) - dr * 0.33, P.call(hp - 0.22, 0.33) + dr * 0.33, 1.6, 0.45)
+	var hpan := minf(1.5, hp - 1.4)
+	if hpan > 0.5:
+		var cc: Vector3 = P.call(0.75 + hpan * 0.5, 0.225)
+		var hy := Vector3(0, hpan * 0.5, 0)
+		quad("entrelacs", cc - dr * 0.18 - hy, cc + dr * 0.18 - hy, cc + dr * 0.18 + hy, cc - dr * 0.18 + hy, v, [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)])
 
 # ------------------------------------------------------------------ structure : piliers, contreforts, poutres
 ## Pilier (refonte matière, références grottes_cryptes_2/3) : fût carré à arêtes abattues, socle mouluré givré, chapiteau à
@@ -887,6 +917,14 @@ func contrefort(x: float, z: float, h: float, sens_x: float, sens_z: float, l :=
 	solide(Vector3(x, h * 0.5, z), Vector3(dx, h, dz))
 
 func poutre(x0: float, x1: float, y: float, z: float, ep := 0.3) -> void:
+	if est_crypte:       # 3e passe : plus de poutres de bois dans la crypte → doubleau de pierre sur corbeaux, givre et glaçons
+		boite("mur0", Vector3((x0 + x1) * 0.5, y, z), Vector3(x1 - x0, ep + 0.06, ep + 0.08))
+		boite("mur1", Vector3((x0 + x1) * 0.5, y - (ep + 0.06) * 0.5 - 0.04, z), Vector3(x1 - x0 - 0.2, 0.08, ep - 0.04))
+		for sx: float in [x0 + 0.16, x1 - 0.16]:
+			boite("mur1", Vector3(sx, y - ep * 0.5 - 0.3, z), Vector3(0.32, 0.5, ep + 0.14))
+			boite("mur0", Vector3(sx, y - ep * 0.5 - 0.62, z), Vector3(0.22, 0.16, ep + 0.04))
+		glacons_arete(Vector3(x0 + 0.4, y - (ep + 0.06) * 0.5 - 0.08, z), Vector3(x1 - 0.4, y - (ep + 0.06) * 0.5 - 0.08, z), 1.2, 0.4)
+		return
 	boite("bois", Vector3((x0 + x1) * 0.5, y, z), Vector3(x1 - x0, ep, ep))
 	boite("fer", Vector3(x0 + 0.05, y, z), Vector3(0.04, ep + 0.06, ep + 0.06))
 	boite("fer", Vector3(x1 - 0.05, y, z), Vector3(0.04, ep + 0.06, ep + 0.06))

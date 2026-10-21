@@ -735,8 +735,19 @@ func _couloir(m: Dictionary) -> void:
 	while z < L * 0.5 - 1.5:
 		d.arc("mur0", "x", 0.0, z, dim.x - 0.6, y + 2.6, 1.3, 0.32, 0.45)
 		for s in [-1.0, 1.0]:
-			d.boite("mur0", Vector3(s * (dim.x * 0.5 - 0.45), y + 1.3, z), Vector3(0.3, 2.6, 0.45))
+			if d.est_crypte:      # 3e passe : pilastre sculpté (base givrée, entrelacs, chapiteau, glaçons) sous chaque arc
+				d.pilastre_mur(Vector3(s * (dim.x * 0.5 - 0.3), y, z), Vector3(-s, 0, 0), 2.6)
+			else:
+				d.boite("mur0", Vector3(s * (dim.x * 0.5 - 0.45), y + 1.3, z), Vector3(0.3, 2.6, 0.45))
 		z += 4.0
+	# givre au pied des murs, entre les pilastres (rng_deco : le décor tiré par rng ne bouge pas)
+	if d.est_crypte:
+		var zg := -L * 0.5 + 1.0
+		while zg < L * 0.5 - 1.0:
+			for s: float in [-1.0, 1.0]:
+				if d.rng_deco.randf() < 0.55:
+					d.givre_dessus(Vector3(s * (dim.x * 0.5 - 0.42), y + 0.005, zg + d.rng_deco.randf_range(-0.4, 0.4)), Vector2(0.24, d.rng_deco.randf_range(0.5, 1.1)), 0.01)
+			zg += 1.6
 	var nb: int = m.get("lum", {}).get("appliques", maxi(1, int((L - 2.0) / 8.0) + (1 if L > 7.0 else 0)))
 	var sg := 1.0 if d.rng.randf() < 0.5 else -1.0
 	for i in nb:
