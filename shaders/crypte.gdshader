@@ -19,6 +19,7 @@ uniform float crasse = 1.0;          // 0 = sans occlusion de pied de mur
 uniform float relief = 0.0;          // 0 = pas de carte de pentes
 uniform vec3 emission : source_color = vec3(0.0);
 uniform float decoupe = 0.0;         // > 0 : découpe alpha (toiles), double face utile
+uniform float ambiant = 1.0;         // < 1 : n'assombrit QUE la lumière ambiante (sortie AO) ; torches et braseros intacts
 instance uniform float eclair = 0.0;
 
 varying vec3 pos_m;
@@ -62,4 +63,6 @@ void fragment() {
 	ALBEDO = c;
 	EMISSION = emission;
 	ROUGHNESS = 1.0;
+	AO = ambiant;
+	AO_LIGHT_AFFECT = 0.0;
 }

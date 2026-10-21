@@ -30,6 +30,11 @@ func _tester() -> void:
 	ok = _verif("village", mu.piste, "village") and ok
 	# crypte
 	m.tertre._passer(true)
+	# l'entrée attend, écran noir, que le donjon (bâti en fil d'exécution) soit prêt : on attend la bascule, puis la musique
+	var t_att := 0.0
+	while not m.tertre.dedans and t_att < 30.0:
+		await create_timer(0.25).timeout
+		t_att += 0.25
 	await create_timer(1.5).timeout
 	ok = _verif("crypte", mu.piste, "crypte") and ok
 	m.tertre._passer(false)
