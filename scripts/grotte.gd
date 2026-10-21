@@ -13,6 +13,24 @@ extends Node3D
 ## Chaque facette est plate (normale propre), colorée aux sommets (occlusion ambiante peinte) et porte un masque de neige / glace /
 ## mousse que le shader compare à un seuil de texture. La collision est le maillage exact (trimesh).
 ##
+## RELIEF (refonte 2026-10-21, lot « grotte relief ») : chaque triangle de tube est découpé finement (arêtes de 0,42 m sur les parois,
+## 0,75 m au sol, jusqu'à x2,4 sur les voûtes hautes ; découpage PAR ARÊTE, donc sans fissure, y compris aux jonctions) puis déplacé
+## vers la roche par `relief()` : masses (3,5 m), bosses (1 m), strates en gradins (lèvre en surplomb + dessus de corniche), fissures
+## verticales profondes, poches. Sol central à peine bosselé (marchable), lisière du sol fixe, glace du lac plane, bord de la faille et
+## anneaux des bouches libres non déplacés (les bouchons ne sont pas découpés). La coque fine a ses propres maillages (« CoqueFine_* »,
+## même matière `decor.mat(nom)` que les facettes) : normales LISSES, UV continus (parois : s le long de la branche x |arc| autour de
+## l'anneau, tuile de 2 m ; sol et voûte : plan XZ du monde).
+## ATTRIBUTS POUR LA MATIÈRE (shaders/grotte.gdshader, inchangé) :
+##  - COLOR.rgb = occlusion peinte : table AO par sommet d'anneau x creux du relief (jusqu'à -60 % au fond d'une fissure ou d'une poche)
+##    x saillie (+12 %) x orientation (dessous de surplomb -25 %, dessus de corniche +12 %). Gris presque neutre (r, 0,99 r, 1,02 r).
+##  - COLOR.a = masque de la couche superposée (neige / givre / glace / mousse selon le style de la branche, voir _matiere) + bruit,
+##    RELEVÉ de 0 à +0,6 sur les faces tournées vers le haut au-dessus de 0,45 m (dessus des gradins, corniches, épaules) : « arête
+##    haute » = givre. Sur les concrétions : masque croissant vers la pointe des stalagmites (tête givrée), dessus des corniches +0,45.
+##  - `levres` : [position locale, normale] des dessous de surplomb (> 1,4 m du sol, un point par case de 1,2 m) -> glaçons, toiles.
+##  - `rebords` : [position locale, normale] des dessus de corniches naturelles -> givre épais, neige, os, urnes, bougies.
+##  - `relief(p, hb)` : creux (> 0) / saillie (< 0) en mètres au point p ; `rayon(o, d, lmax)` : impact sur la coque (sans moteur
+##    physique, utilisable dans le fil de construction) ; `mur_en` suit la paroi bosselée (rayon horizontal à 1,9 m).
+##
 ## Le décor vient de GrotteModules (thème x rôle, une graine par zone) ; les points d'accroche du gameplay (ennemis, coffres, ressources,
 ## interactions, mécanismes, lieux) sont listés dans `accroches` et animés par GrotteJeu.
 ##
@@ -316,7 +334,7 @@ func _anneau(b: Dictionary, s: float) -> Dictionary:
 	for k in NB:
 		var q: Vector3 = pts[k]
 		var hb := q.y - y0
-		var wk: float = POIDS[k]
+		var wk: float = POIDS[k] * clampf(0.72 + 0.4 * jit, 0.8, 1.25)     # colonne « relief » des profils (x variante)
 		fm_att.append(9.0 if k == 0 or k == 9 else (fm_d if k < 9 else fm_g))
 		if k != 0 and k != 9:
 			wk *= clampf((wr if k < 9 else wl) / 0.7, 0.3, 1.0)        # nez d'un pilier : relief adouci (sommets serrés)
