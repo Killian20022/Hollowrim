@@ -141,7 +141,9 @@ func _ready() -> void:
 	forme.position.y = 0.9
 	add_child(forme)
 
-	modele = Personnage.creer(PersoDefs.villageois(donnees.get("id", "")))
+	var id: String = donnees.get("id", "")
+	# corps Humain (Quaternius) par défaut ; --persos-kit : personnage de base unifié (PersoDefs)
+	modele = Personnage.creer(PersoDefs.villageois(id)) if Personnage.kit_actif() else Humain.creer(APPARENCES.get(id, APPARENCES["chef"]))
 	add_child(modele)
 	anim = modele.get_node("Animations")
 	if points.is_empty():
@@ -161,7 +163,8 @@ func _ready() -> void:
 	if anim != null:
 		anim.seek(randf() * 2.0)
 
-## ANCIENNES apparences (Humain.creer) : gardees pour la galerie du monde (monde.gd, scenario « galerie ») ; les villageois utilisent PersoDefs.villageois().
+## Allure de chaque habitant (corps Humain : couleurs de la tenue, étoffes, cheveux) ; aussi la galerie du monde (monde.gd, scénario « galerie »).
+## Avec --persos-kit, les villageois utilisent PersoDefs.villageois() à la place.
 const C := Color.WHITE
 const APPARENCES := {
 	# Gunnhild, la cheffe : longue robe bleue brodée sur tunique de lin, manteau de fourrure blanche, bijoux de cuir clair
