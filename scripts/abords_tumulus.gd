@@ -21,7 +21,7 @@ static func creer(monde: Node) -> void:
 	monde.add_child(racine)
 	var corps := StaticBody3D.new()
 	racine.add_child(corps)
-	var m_roche := TexturesBati.m_roche()   # lot 5 : roche feuilletée, 16 texels/m
+	var m_roche := TexturesPetites.m_roche_e()   # roche feuilletée, 64 texels/m
 	var m_roche_haute := m_roche
 	_dalles(monde, racine, m_roche, rng)
 	_borne(monde, racine, corps, m_roche_haute)
@@ -80,7 +80,7 @@ static func _arbres(monde: Node, racine: Node3D, corps: StaticBody3D, rng: Rando
 	var rng_tex := RandomNumberGenerator.new()
 	rng_tex.seed = ZoneBiome.graine("composition") + 3
 	var m_tronc := Palette.materiau(monde.tex_roche, Vector2(1, 2), Color(0.95, 0.92, 0.88))
-	var m_neige := Palette.materiau(Palette.texture(32, ["#8c9cb8", "#a9b7cf", "#c3cfe2", "#dde5f1"], 4, 9, 0.25, rng_tex), Vector2(1, 1))
+	var m_neige := TexturesBati.m_neige_toit_e()
 	var cyl := CylinderShape3D.new()
 	cyl.radius = 0.25
 	cyl.height = 4.0

@@ -1,0 +1,14 @@
+# Gros plans du lot « petites textures » : objets de la crypte (os, armes, urnes, tables, étagères) et du camp de la grotte
+c_os crypte -30,-17.9,0,-42 ouvre=s1,s2,s3,secret,herse
+c_arme crypte -33,-12.0,0,-50 ouvre=s1,s2,s3,secret,herse
+c_urne crypte -43.4,-13,90,-18 ouvre=s1,s2,s3,secret,herse
+c_etagere crypte -27.3,-52.5,-90,-8 ouvre=s1,s2,s3,secret,herse
+c_table crypte -36,-50.6,0,-32 ouvre=s1,s2,s3,secret,herse
+c_tresor crypte -52,-52.8,0,-30 ouvre=s1,s2,s3,secret,herse
+g_os grotte 78.3,-0.7,0,-38
+g_caisses grotte 79.8,1.8,0,-18
+g_rideau grotte 107.3,0,0,-2
+g_couch grotte 97,-2.2,90,-22
+g_trophee grotte 101.3,1.2,0,-14
+g_caisses2 grotte 103.5,2.6,-40,-14
+g_cristaux grotte 112,0,0,-3

@@ -2,7 +2,7 @@ extends SceneTree
 ## Régénère TOUT ce qui est précalculé (textures et cartes) d'un seul coup, chaque générateur dans son propre Godot :
 ##   godot --headless --path . --script res://outils/precalculer_tout.gd
 ## Options (après `--`) :  --verifier   ne rien écrire : compare chaque précalcul au calcul direct (octet par octet)
-##                         seulement=a,b  ne lancer que ces étapes (arbres, ecorces, sol, crypte, grotte, bati, carte_sol)
+##                         seulement=a,b  ne lancer que ces étapes (arbres, ecorces, sol, crypte, grotte, bati, petites, carte_sol)
 ## RÈGLE : après toute modification d'un générateur (textures_arbres.gd, ecorces.gd, crypte_textures.gd, grotte_textures.gd,
 ## peinture_bati.gd, sol_tuiles.gd…), incrémenter sa constante VERSION (quand elle existe) puis relancer cet outil.
 ## La carte de sol (carte_sol.res) porte une signature de ses entrées : elle se périme toute seule dès que le relief, les
@@ -14,6 +14,7 @@ const ETAPES := {
 	"crypte": ["generer_crypte.gd", []],
 	"grotte": ["generer_grotte.gd", []],
 	"bati": ["cuire_bati.gd", []],
+	"petites": ["generer_petites.gd", []],
 	"carte_sol": ["generer_carte_sol.gd", ["--", "--nouvelle"]],   # en dernier : lit les autres précalculs
 }
 
@@ -82,6 +83,13 @@ func _verifier_en_place(nom: String) -> int:
 				diff += _cmp(PeintureBati.avec_mips(r[0]).get_image(), PeintureBati.DOSSIER + tex + ".res"); n += 1
 				if r[1] != null:
 					diff += _cmp(PeintureBati.relief_mips(r[1]).get_image(), PeintureBati.DOSSIER + tex + "_relief.res"); n += 1
+		"petites":
+			var f := TexturesPetites.fabriques()
+			for tex: String in f:
+				var r: Array = (f[tex] as Callable).call()
+				diff += _cmp(PeintureBati.avec_mips(r[0]).get_image(), TexturesPetites.DOSSIER + tex + ".res"); n += 1
+				if r[1] != null:
+					diff += _cmp(PeintureBati.relief_mips(r[1]).get_image(), TexturesPetites.DOSSIER + tex + "_relief.res"); n += 1
 		_:
 			print("[%s] pas de vérification en place" % nom)
 			return 0

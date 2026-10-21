@@ -865,11 +865,17 @@ func _musique() -> void:
 
 # --- son : vent et crépitement générés en direct -------------------------------
 
+## Les `AudioStreamGenerator` du vent et du feu ne sont JAMAIS libérés avant la fin du processus (`reference()` : un
+## compteur de références volontairement jamais rendu, ~44 Ko chacun). Raison : `AudioStreamGeneratorPlayback` ne tient qu'un
+## POINTEUR BRUT vers son générateur, et le fil audio mixe encore le fondu de sortie de la lecture quelques millisecondes
+## après la libération du lecteur (fermeture du monde, fin d'un test). Générateur libéré trop tôt = lecture d'une mémoire
+## libérée = plantage natif aléatoire (code de sortie 5 sous Windows alors que « TOUT OK » est déjà affiché).
 func _audio() -> void:
 	var vent := AudioStreamPlayer.new()
 	var gv := AudioStreamGenerator.new()
 	gv.mix_rate = 22050
 	gv.buffer_length = 0.25
+	gv.reference()   # jamais rendu : voir le commentaire de _audio()
 	vent.stream = gv
 	vent.volume_db = -8.0
 	add_child(vent)
@@ -880,6 +886,7 @@ func _audio() -> void:
 	var gf := AudioStreamGenerator.new()
 	gf.mix_rate = 22050
 	gf.buffer_length = 0.25
+	gf.reference()
 	feu.stream = gf
 	feu.unit_size = 2.5
 	feu.position = feu_lumiere.position

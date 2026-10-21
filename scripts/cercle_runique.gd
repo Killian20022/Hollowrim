@@ -66,7 +66,7 @@ static func creer(monde: Node) -> void:
 	var rng: RandomNumberGenerator = monde.rng
 	var cercle: Vector3 = monde.CERCLE
 	var centre := Vector3(cercle.x, monde.h_cercle, cercle.z)
-	var m := TexturesBati.m_roche()   # lot 5
+	var m := TexturesPetites.m_roche_e()   # 64 texels/m
 	var corps := StaticBody3D.new()
 	monde.add_child(corps)
 	for i in 7:
@@ -190,7 +190,7 @@ static func _composition(monde: Node, centre: Vector3, m: Material) -> void:
 	var rng_tex := RandomNumberGenerator.new()
 	rng_tex.seed = ZoneBiome.graine("composition") + 1
 	var m_tronc := Palette.materiau(monde.tex_roche, Vector2(1, 2), Color(0.95, 0.92, 0.88))
-	var m_neige := Palette.materiau(Palette.texture(32, ["#8c9cb8", "#a9b7cf", "#c3cfe2", "#dde5f1"], 4, 9, 0.25, rng_tex), Vector2(1, 1))
+	var m_neige := TexturesBati.m_neige_toit_e()   # neige peinte 64 texels/m (plus de bruit blanc)
 	var cyl := CylinderShape3D.new()
 	cyl.radius = 0.25
 	cyl.height = 4.0
@@ -209,7 +209,7 @@ static func _composition(monde: Node, centre: Vector3, m: Material) -> void:
 
 ## Os et bois de cerf au pied de la stèle (sobre, sans collision).
 static func _offrandes(monde: Node, racine: Node3D, centre: Vector3, rng: RandomNumberGenerator, rng_tex: RandomNumberGenerator) -> void:
-	var m_os := Palette.materiau(Palette.texture(16, Palette.OSSEMENT, 3, 7, 0.2, rng_tex))
+	var m_os := TexturesPetites.m_os_e()
 	var pied := Node3D.new()
 	pied.name = "Offrandes"
 	racine.add_child(pied)

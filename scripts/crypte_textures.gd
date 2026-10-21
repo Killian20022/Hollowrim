@@ -12,7 +12,7 @@ class_name CrypteTextures
 
 const CLEAR := Color(0, 0, 0, 0)
 const DOSSIER := "res://assets/crypte"   # textures précalculées par outils/generer_crypte.gd
-const VERSION := 9                       # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
+const VERSION := 10                      # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
 const E := 2   # facteur de finesse de la pierre proche (murs, dalles, voûte, ossuaire) : 2 = 64 texels/m (tuiles de 256 px pour 4 m)
 ## Murs et ossuaire : 128 texels/m (tuile de 512 px), car le joueur les frôle (< 1 m) ; dalles et voûte restent à 64.
 const EM := 4
@@ -478,19 +478,40 @@ static func neige_image() -> Image:
 			cols[i] = _rp(giv, _q(clampf(l, 0.0, 1.0), x, y))
 	return _vers_image(S, cols)
 
+## Ton d'une rampe en `n` paliers (12 par défaut) : tramage par BRUIT stable de moins d'un palier, jamais d'ordre régulier.
+static func _rq(cols: Array, l: float, x: int, y: int, n := 12) -> Color:
+	var h := float(((x * 73856093) ^ (y * 19349663)) & 1023) / 1023.0
+	var i := clampi(int(floorf(clampf(l, 0.0, 1.0) * (n - 1) + (h - 0.5) * 0.5 + 0.5)), 0, n - 1)
+	return _rp(cols, float(i) / (n - 1))
+
+## Nettoyage final des petites textures : aucun texel isolé (même passe que le bâti), 64 texels/m.
+static func _fin(S: int, out: PackedColorArray) -> Image:
+	return PeintureBati.nettoie(_vers_image(S, out), 3)
+
+## Or (lingots, pièces, calices) : or martelé, facettes de coups de marteau (un ton par facette), arêtes claires,
+## creux brunis, quelques éclats blancs. 32 x 32 pour 0,5 m = 64 texels/m.
 static func or_image() -> Image:
-	var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
-	var rng := _rng(5)
+	var S := 32
 	var R := _cols(OR)
-	for y in 16:
-		for x in 16:
-			var t := 0.35 + rng.randf() * 0.3
-			if (x + y) % 5 == 0:
-				t += 0.25
-			if y % 8 == 0 or x % 8 == 0:
-				t -= 0.3
-			img.set_pixel(x, y, R[clampi(int(t * 6.0), 0, 5)])
-	return img
+	var n_cel := _nmap(S, 4, 4, 5101, true)
+	var n_big := _nmap(S, 2, 2, 5102)
+	var n_fin := _nmap(S, 8, 8, 5103)
+	var out := PackedColorArray()
+	out.resize(S * S)
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var l := 0.5 + (n_cel[i] - 0.5) * 0.34 + (n_big[i] - 0.5) * 0.3 + (n_fin[i] - 0.5) * 0.12
+			var c := n_cel[i]
+			if absf(c - n_cel[((y + 1) % S) * S + x]) > 0.12 or absf(c - n_cel[y * S + (x + 1) % S]) > 0.12:
+				l += 0.16 if (x + y) % 3 else -0.1             # arête de coup de marteau : lèvre claire ou creux
+			if n_fin[i] > 0.86:
+				l += 0.3                                         # éclat
+			elif n_fin[i] < 0.12:
+				l -= 0.22                                        # creux bruni
+			out[i] = _rq(R, l, x, y, 10)
+	return _fin(S, out)
+
 
 static func mur_image(v: int) -> Image:
 	return mur_paire(v)[0]
@@ -619,11 +640,15 @@ static func fer_paire() -> Array:
 static func fer_image() -> Image:
 	return fer_paire()[0]
 
-## Lame rouillée (armes au sol) : métal éteint, taches de rouille, fil clair d'un seul côté.
+## Lame rouillée (armes au sol) : acier forgé éteint, 64 texels/m. Coupe d'une lame de ~6 cm répétée sur 6 rangées (fil clair,
+## biseau, plat, gorge sombre, plat, dos assombri), traînées de polissage dans le sens de la lame, piqûres, rouille en plaques
+## qui se concentre sur les bords, auréole brune autour de chaque plaque.
 static func lame_image() -> Image:
-	var S := 32
-	var n_fin := _nmap(S, S / 2, S / 2, 8551)
-	var n_rou := _nmap(S, 4, 4, 8552)
+	var S := 64
+	var n_str := _nmap(S, 3, 40, 8551)
+	var n_fin := _nmap(S, S / 4, S / 4, 8553)
+	var n_rou := _nmap(S, 5, 5, 8552)
+	var n_pit := _nmap(S, S / 2, S / 2, 8554)
 	var fer := _cols(FER)
 	var rou := _cols(ROUILLE)
 	var out := PackedColorArray()
@@ -631,19 +656,26 @@ static func lame_image() -> Image:
 	for y in S:
 		for x in S:
 			var i := y * S + x
-			var by := y % 16
-			var l := 0.42 + (n_fin[i] - 0.5) * 0.14
-			if by < 2:
-				l += 0.32 - by * 0.12                        # fil clair
-			elif by > 12:
-				l -= 0.22
-			elif by > 8:
-				l -= 0.05 * (by - 8)
-			var c := _rp(fer, _q(clampf(l, 0.0, 1.0), x, y))
-			var rm := _ss(0.5, 0.72, n_rou[i])
-			c = c.lerp(_rp(rou, 0.15 + l), rm * 0.9)
+			var by := y % 6
+			var l := 0.42 + (n_str[i] - 0.5) * 0.16 + (n_fin[i] - 0.5) * 0.08
+			match by:
+				0: l += 0.3          # fil clair
+				1: l += 0.14         # biseau éclairé
+				2: l += 0.04
+				3: l -= 0.2          # gorge
+				4: l -= 0.02
+				5: l -= 0.14         # dos dans l'ombre
+			if n_pit[i] > 0.9:
+				l -= 0.22            # piqûre
+			var rm: float = n_rou[i] + (0.1 if by == 0 or by == 5 else 0.0)
+			var c := _rq(fer, l, x, y)
+			if rm > 0.62:
+				c = _rq(rou, 0.12 + l * 0.9 + (n_fin[i] - 0.5) * 0.3, x, y, 10)
+			elif rm > 0.55:
+				c = _rq(fer, l - 0.17, x, y)        # auréole brune
 			out[i] = c
-	return _vers_image(S, out)
+	return _fin(S, out)
+
 
 # ------------------------------------------------------------------ gravure runique (sarcophages) : creusée dans la pierre
 static func gravure_paire() -> Array:
@@ -720,29 +752,38 @@ static func gravure_image() -> Image:
 
 # ------------------------------------------------------------------ poterie, os, parchemin
 static func argile_image() -> Image:
-	var S := 32
-	var n_fin := _nmap(S, S / 2, S / 2, 8701)
+	var S := 64
+	var n_fin := _nmap(S, S / 4, S / 4, 8701)
 	var n_big := _nmap(S, 3, 3, 8702)
+	var n_cou := _nmap(S, 2, 12, 8703)
 	var cols := _cols(ARGILE)
 	var out := PackedColorArray()
 	out.resize(S * S)
 	for y in S:
 		for x in S:
 			var i := y * S + x
-			var by := y % 8
-			var l := 0.5 + (n_big[i] - 0.5) * 0.3 + (n_fin[i] - 0.5) * 0.16
-			l += 0.12 * (1.0 - by / 7.0) - 0.1 * (1.0 if by == 7 else 0.0)
-			if (y / 8) % 2 == 0:                            # frise en zigzag peinte
-				var zz := 3 + (x % 4 if x % 8 < 4 else 3 - x % 4) / 2
-				if by == zz or by == zz + 1:
-					l -= 0.28
-			out[i] = _rp(cols, _q(clampf(l, 0.0, 1.0), x, y))
-	return _vers_image(S, out)
+			var by := y % 16
+			var l := 0.5 + (n_big[i] - 0.5) * 0.3 + (n_fin[i] - 0.5) * 0.12 + (n_cou[i] - 0.5) * 0.12
+			l += 0.14 * (1.0 - by / 15.0) - 0.12 * (1.0 if by >= 14 else 0.0)      # épaulement éclairé, pied sombre
+			if y % 5 == 0:
+				l -= 0.05                                                            # stries du tour
+			if (y / 16) % 2 == 0:                                                    # frise en zigzag, engobe sombre
+				var xm := x % 16
+				var zz := 5 + (xm if xm < 8 else 15 - xm) / 2
+				if by >= zz and by <= zz + 2:
+					l -= 0.3
+			if n_big[i] > 0.78 and by < 3:
+				l -= 0.14                                                            # coulure de glaçure
+			out[i] = _rq(cols, l, x, y)
+	return _fin(S, out)
 
+## Os (64 texels/m, tuile de 1 m) : fibres claires dans le sens de la hauteur, taches brunes de terre, fêlures à lèvre claire,
+## pores sombres, extrémités plus jaunes.
 static func os_image() -> Image:
-	var S := 32
-	var n_fin := _nmap(S, S / 2, S / 2, 8801)
+	var S := 64
+	var n_fin := _nmap(S, 20, 4, 8801)
 	var n_big := _nmap(S, 4, 4, 8802)
+	var n_pore := _nmap(S, S / 2, S / 2, 8803)
 	var rng := _rng(8800)
 	var cols := _cols(OSSE)
 	var out := PackedColorArray()
@@ -750,38 +791,60 @@ static func os_image() -> Image:
 	for y in S:
 		for x in S:
 			var i := y * S + x
-			var l := 0.58 + (n_big[i] - 0.5) * 0.4 + (n_fin[i] - 0.5) * 0.18
-			out[i] = _rp(cols, _q(clampf(l, 0.0, 1.0), x, y)).lerp(Color(0.55, 0.42, 0.25), _ss(0.7, 0.95, n_big[(i * 7) % (S * S)]) * 0.4)
-	for k in 5:                                             # fêlures
-		var x := rng.randi_range(0, 31)
-		var y := rng.randi_range(0, 28)
-		for j in 4:
-			out[(y + j) * S + posmod(x + (j / 2), S)] = _c(OSSE, 0)
-	return _vers_image(S, out)
+			var l := 0.6 + (n_big[i] - 0.5) * 0.36 + (n_fin[i] - 0.5) * 0.18
+			if n_pore[i] > 0.88:
+				l -= 0.25
+			var c := _rq(cols, l, x, y)
+			if n_big[(i * 7) % (S * S)] > 0.74:
+				c = c.lerp(Color(0.55, 0.42, 0.25), 0.4)                             # tache de terre
+			out[i] = c
+	for k in 8:                                                                       # fêlures : creux sombre + lèvre claire à gauche
+		var x := rng.randi_range(0, S - 1)
+		var y := rng.randi_range(0, S - 14)
+		for j in rng.randi_range(6, 12):
+			out[(y + j) * S + posmod(x + (j * 2) / 5, S)] = _c(OSSE, 0)
+			if j % 2 == 0:
+				out[(y + j) * S + posmod(x - 1 + (j * 2) / 5, S)] = _c(OSSE, 5)
+	return _fin(S, out)
 
+## Parchemin (64 texels/m, tuile de 1 m) : fibres de papier, taches d'eau, bords brunis et roussis, pli central, lignes
+## d'écriture à l'encre brune (mots de 3 à 9 texels, interlignes de 6), initiale enluminée en tête.
 static func parchemin_image() -> Image:
-	var S := 32
+	var S := 64
 	var rng := _rng(8900)
-	var n_fin := _nmap(S, S / 2, S / 2, 8901)
+	var n_fin := _nmap(S, S / 3, S / 3, 8901)
 	var n_big := _nmap(S, 3, 3, 8902)
+	var n_fib := _nmap(S, 14, 3, 8903)
 	var cols := _cols(PARCHEMIN)
 	var out := PackedColorArray()
 	out.resize(S * S)
 	for y in S:
 		for x in S:
 			var i := y * S + x
-			var l := 0.55 + (n_big[i] - 0.5) * 0.4 + (n_fin[i] - 0.5) * 0.12
-			if y < 2 or y > 29:
-				l -= 0.14                                   # bords brunis
-			out[i] = _rp(cols, _q(clampf(l, 0.0, 1.0), x, y))
-	for y in range(3, 30, 4):                               # lignes d'écriture
-		var x := 2
-		while x < 28:
-			var l := rng.randi_range(2, 5)
+			var l := 0.56 + (n_big[i] - 0.5) * 0.42 + (n_fin[i] - 0.5) * 0.1 + (n_fib[i] - 0.5) * 0.1
+			var bord := mini(mini(x, S - 1 - x), mini(y, S - 1 - y))
+			if bord < 6:
+				l -= 0.04 * (6 - bord)                                               # bords brunis puis roussis
+			if x == 32:
+				l -= 0.16                                                            # pli
+			elif x == 33:
+				l += 0.1
+			out[i] = _rq(cols, l, x, y)
+	var encre := _c(PARCHEMIN, 0).lerp(_c(PARCHEMIN, 1), 0.25)
+	for y in range(9, 56, 6):
+		var x := 7
+		while x < 57:
+			var l := rng.randi_range(3, 9)
 			for j in l:
-				out[y * S + x + j] = _c(PARCHEMIN, 0).lerp(_c(PARCHEMIN, 1), 0.3)
-			x += l + 1
-	return _vers_image(S, out)
+				if x + j < 57:
+					out[y * S + x + j] = encre
+					if rng.randf() < 0.45:
+						out[(y + 1) * S + x + j] = encre                              # jambage
+			x += l + 2
+	for y in 4:                                                                       # initiale enluminée : carré rouille et or
+		for x in 5:
+			out[(y + 3) * S + x + 7] = _c(ROUILLE, 2) if (x + y) % 2 == 0 else _c(OR, 3)
+	return _fin(S, out)
 
 # ------------------------------------------------------------------ toile d'araignée (alpha, un coin)
 ## 32x32 : rayons partant du coin (0,0), arcs en fils pendants ; fond transparent (découpe à 0,5).

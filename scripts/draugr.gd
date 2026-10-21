@@ -2,6 +2,8 @@ extends CharacterBody3D
 ## Draugr : mort-vivant nordique (modèles squelettes KayKit, animés).
 ## Il dort au sol ou monte la garde ; il se réveille, traque, frappe, titube, meurt.
 ## Le guerrier porte un bouclier et bloque parfois les coups légers de face.
+## Types « squelette » (épée) et « squelette_archer » (arc : variante visuelle, aucun système de tir) : ossements nordiques
+## (SqueletteGuerrier), plus rapides et plus fragiles aux coups puissants que les draugrs ; même squelette, mêmes animations.
 
 enum { DORT, REVEIL, GARDE, TRAQUE, ATTAQUE, TITUBE, MORT }
 
@@ -30,6 +32,11 @@ const ACCEL := 8.0  # m/s²
 const ROT_MAX := 6.0  # rad/s ; 10 pendant le geste d'attaque
 
 var type := "guerrier"
+var _os := false  # type « squelette* » (renseigné dans _ready)
+## Allures propres au type (le squelette est plus vif que le draugr, dont la marche est lente et raide).
+var _marche := MARCHE
+var _marche_proche := MARCHE_PROCHE
+var _course := COURSE
 var dort := false
 var joueur: CharacterBody3D
 var vie := 70.0
@@ -75,9 +82,17 @@ var _ragdoll: Ragdoll  # corps physique à la mort
 
 func _ready() -> void:
 	add_to_group("ennemis")
+	_os = type.begins_with("squelette")
 	if type == "sbire":
 		vie_max = 45.0
 		degats = 12.0
+	elif _os:
+		nom_affiche = "Squelette"
+		vie_max = 70.0
+		degats = 14.0
+		_marche = 1.05
+		_marche_proche = 1.5
+		_course = 4.3
 	if vie_imposee > 0.0:
 		vie_max = vie_imposee
 	if degats_imposes > 0.0:
@@ -105,6 +120,8 @@ func _ready() -> void:
 	app.merge(apparence, true)
 	if app.has("perso"):
 		modele = Personnage.creer(app["perso"])      # bandits vivants : personnage de base unifie (PersoDef)
+	elif _os:
+		modele = SqueletteGuerrier.creer({"arme": "arc" if type == "squelette_archer" else "epee"})
 	else:
 		modele = Humain.creer(app)
 	modele.scale = Vector3.ONE * echelle
@@ -112,7 +129,8 @@ func _ready() -> void:
 	for mi: MeshInstance3D in modele.find_children("*", "MeshInstance3D", true, false):
 		_mailles.append(mi)
 	var squelette: Skeleton3D = modele.find_child("Skeleton3D", true, false)
-	_armer(squelette)
+	if not _os:
+		_armer(squelette)  # le squelette porte son arme dans son modèle
 	_pieds = PiedsAuSol.equiper(modele, self) as PiedsAuSol
 	anim = modele.get_node("Animations")
 	_var = randf_range(0.94, 1.06)
@@ -231,7 +249,7 @@ func _physics_process(dt: float) -> void:
 			retour.y = 0.0
 			if retour.length() > 1.5:
 				dir = retour.normalized()
-				vitesse = MARCHE
+				vitesse = _marche
 				loco = "Walk"
 			else:
 				regard = false
@@ -243,12 +261,12 @@ func _physics_process(dt: float) -> void:
 			if joueur.mort or dist > ABANDON:
 				_changer(GARDE)
 			elif dist > PORTEE:
-				vitesse = COURSE if dist > 4.0 else MARCHE_PROCHE
+				vitesse = _course if dist > 4.0 else _marche_proche
 				loco = "Jog_Fwd" if dist > 4.0 else "Walk"
 			else:
 				_jouer("Sword_Idle")
 				if _recharge <= 0.0:
-					_attaque = ATTAQUES.pick_random()
+					_attaque = (["Sword_Attack"] if _os else ATTAQUES).pick_random()  # le squelette frappe à l’arme (pas de coup de poing : la lame traverserait la tête)
 					_coup_donne = false
 					_changer(ATTAQUE)
 					_jouer(_attaque, 0.1, true)
@@ -360,12 +378,14 @@ func recevoir_coup(quantite: float, origine_coup: Vector3, puissant: bool) -> St
 	var vers := origine_coup - global_position
 	vers.y = 0.0
 	var de_face := vers.normalized().dot(global_transform.basis.z) > 0.3
-	if type == "guerrier" and not puissant and de_face and etat in [TRAQUE] and randf() < 0.3:
+	if (type == "guerrier" or _os) and not puissant and de_face and etat in [TRAQUE] and randf() < 0.3:
 		_jouer("Hit_Chest", 0.05, true)
 		_changer(TITUBE)
 		Sons.jouer_a(self, ["impactPlate_medium_000", "impactPlate_medium_001"], global_position + Vector3.UP, 0.0)
 		Effets.eclats(self, global_position + Vector3(0, 1.1, 0) + vers.normalized() * 0.4, Color(3.0, 2.2, 0.8), 8, 2.5, true)
 		return "bloque"
+	if _os and puissant:
+		quantite *= 1.3  # des os secs : les coups puissants (contondants) les brisent
 	vie -= quantite
 	_eclair()
 	Effets.eclats(self, global_position + Vector3(0, 1.1, 0), Color(0.75, 0.72, 0.6), 18 if puissant else 10, 3.5)
@@ -416,8 +436,11 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false) 
 		_ragdoll.declencher(dir * force + Vector3.UP * force * 0.15, point, "Head" if haut else "spine_03", vitesse_avant)
 	else:
 		_jouer("Death01", 0.1, true)
-	Sons.jouer_a(self, ["mnstr5", "mnstr6"], global_position + Vector3.UP, 0.0, 0.1)
-	Effets.eclats(self, global_position + Vector3(0, 0.8, 0), Color(0.75, 0.72, 0.6), 30, 4.0)
+	if _os:
+		Sons.jouer_a(self, ["impactWood_heavy_000", "chop"], global_position + Vector3.UP, 4.0, 0.1)  # os qui s'entrechoquent
+	else:
+		Sons.jouer_a(self, ["mnstr5", "mnstr6"], global_position + Vector3.UP, 0.0, 0.1)
+	Effets.eclats(self, global_position + Vector3(0, 0.8, 0), Color(0.75, 0.72, 0.6), 44 if _os else 30, 4.0)
 	_laisser_butin()
 
 func _laisser_butin() -> void:
@@ -428,7 +451,7 @@ func _laisser_butin() -> void:
 	b.contenu = {"pieces": randi_range(4, 14), "os_draugr": randi_range(1, 2)}
 	if randf() < 0.5:
 		b.contenu["poussiere_tombe"] = 1
-	if type == "guerrier" and randf() < 0.4:
+	if (type == "guerrier" or _os) and randf() < 0.4:
 		b.contenu["lame_antique"] = 1
 	get_parent().add_child(b)
 	b.global_position = global_position + global_transform.basis.z * 0.6
