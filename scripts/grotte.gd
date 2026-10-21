@@ -33,7 +33,7 @@ const AO := [1.0, 0.92, 0.7, 0.8, 0.9, 0.95, 0.92, 0.82, 0.74, 0.7, 0.74, 0.82, 
 ## RELIEF (refonte 2026-10-21) : poids du déplacement par sommet d'anneau (0 = sol plat / raccord, 1 = paroi pleine).
 ## Sol central faiblement bosselé (verticalement), lisière du sol fixe (k 1, 17), pied de paroi à demi, parois et voûte entières.
 const POIDS := [0.14, 0.0, 0.45, 0.85, 1.0, 1.0, 1.0, 1.0, 0.9, 0.85, 0.9, 1.0, 1.0, 1.0, 1.0, 0.85, 0.45, 0.0]
-const FACETTE_PAROI := 0.36        # longueur visée d'une arête de facette sur les parois et la voûte (m) : 640x360
+const FACETTE_PAROI := 0.42        # longueur visée d'une arête de facette sur les parois et la voûte (m) : 640x360
 const FACETTE_SOL := 0.75          # idem sur le sol (le joueur le voit de près mais il reste presque plat)
 const NMAX_ARETE := 12             # découpage maximal d'une arête de coque
 
@@ -49,7 +49,8 @@ var levres: Array = []                    # lèvres de surplomb (local) : [posit
 var rebords: Array = []                   # dessus de corniches naturelles (local) : [position, normale] — givre, neige, os, urnes
 var _vus_levre := {}
 var _libres := {}                         # "id|0" / "id|1" : extrémité de branche libre (non raccordée) -> anneau sans relief
-var _idx := {}                            # cellule 2 m -> Array d'indices de triangles de la coque
+var _idx := {}                            # cellule 2 m -> Array d'indices de triangles de la coque (sols et voûtes)
+var _idx_v := {}                          # idem, parois (presque verticales) : rayons horizontaux (mur_en, accroches murales)
 var _t := 0.0
 var _flamme_pixel: MeshInstance3D
 var temps_ms := 0
@@ -614,7 +615,16 @@ static func _n_arete(p: Vector3, q: Vector3, hp: float, hq: float, cible: float)
 ## puis occlusion / masque corrigés par la normale lisse (dessus de corniche = givre, dessous de surplomb = ombre).
 const CASE_COQUE := 10.0
 var _coque_bufs := {}                    # "cx,cz|nom" -> { nom, v, u, c, h }
-var _nacc := {}                          # position -> somme des normales (pondérées par l'aire)
+var _nacc := {}                          # position -> indice dans _nsom
+var _nsom := PackedVector3Array()        # somme des normales (pondérées par l'aire) par position distincte
+
+func _idx_n(q: Vector3) -> int:
+	var i: int = _nacc.get(q, -1)
+	if i < 0:
+		i = _nsom.size()
+		_nsom.append(Vector3.ZERO)
+		_nacc[q] = i
+	return i
 var _coll_fine := PackedVector3Array()
 var nb_facettes_coque := 0
 
@@ -622,7 +632,7 @@ func _buf_coque(nom: String, c: Vector3) -> Dictionary:
 	var cle := "%d,%d|%s" % [floori(c.x / CASE_COQUE), floori(c.z / CASE_COQUE), nom]
 	if _coque_bufs.has(cle):
 		return _coque_bufs[cle]
-	var b := {"nom": nom, "v": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray(), "h": PackedFloat32Array()}
+	var b := {"nom": nom, "v": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray(), "h": PackedFloat32Array(), "i": PackedInt32Array()}
 	_coque_bufs[cle] = b
 	return b
 
@@ -649,8 +659,14 @@ func _tri_lisse(buf: Dictionary, ref: Vector3, pos: PackedVector3Array, col: Pac
 	u.append(uvs[i0]); u.append(uvs[i2]); u.append(uvs[i1])
 	cc.append(col[i0]); cc.append(col[i2]); cc.append(col[i1])
 	hh.append(hbs[i0]); hh.append(hbs[i2]); hh.append(hbs[i1])
-	for q: Vector3 in [a, b, c]:
-		_nacc[q] = _nacc.get(q, Vector3.ZERO) + g
+	var ix: PackedInt32Array = buf["i"]
+	var ia := _idx_n(a)
+	var ib := _idx_n(b)
+	var ic := _idx_n(c)
+	_nsom[ia] += g
+	_nsom[ib] += g
+	_nsom[ic] += g
+	ix.append(ia); ix.append(ic); ix.append(ib)
 	_coll_fine.append(a); _coll_fine.append(b); _coll_fine.append(c)
 	nb_facettes_coque += 1
 
@@ -663,24 +679,24 @@ func _finir_coque() -> void:
 			continue
 		var cc: PackedColorArray = b["c"]
 		var hh: PackedFloat32Array = b["h"]
+		var ix: PackedInt32Array = b["i"]
 		var nn := PackedVector3Array()
 		nn.resize(v.size())
 		for i in v.size():
-			var q := v[i]
-			var nrm: Vector3 = (_nacc[q] as Vector3).normalized()
+			var nrm: Vector3 = _nsom[ix[i]].normalized()
 			nn[i] = nrm
 			if hh[i] > 0.45:
 				var co := cc[i]
 				if nrm.y > 0.35:                 # dessus de corniche naturelle (arête haute) : masque relevé (givre / neige), plus clair
 					var k := smoothstep(0.35, 0.85, nrm.y)
 					co = Color(co.r * (1.0 + 0.12 * k), co.g * (1.0 + 0.12 * k), co.b * (1.0 + 0.12 * k), minf(co.a + 0.6 * k, 1.5))
-					if k > 0.5:
-						_relever(rebords, q, nrm, "r")
+					if k > 0.5 and i % 6 == 0:
+						_relever(rebords, v[i], nrm, "r")
 				elif nrm.y < -0.4:               # dessous de surplomb : ombre
 					var k2 := smoothstep(0.4, 0.85, -nrm.y)
 					co = Color(co.r * (1.0 - 0.25 * k2), co.g * (1.0 - 0.25 * k2), co.b * (1.0 - 0.25 * k2), co.a)
-					if k2 > 0.6 and hh[i] > 1.4:
-						_relever(levres, q, nrm, "l")
+					if k2 > 0.6 and hh[i] > 1.4 and i % 6 == 0:
+						_relever(levres, v[i], nrm, "l")
 				cc[i] = co
 		var arr := []
 		arr.resize(Mesh.ARRAY_MAX)
@@ -698,6 +714,7 @@ func _finir_coque() -> void:
 		add_child(mi)
 	_coque_bufs.clear()
 	_nacc.clear()
+	_nsom = PackedVector3Array()
 
 ## Garde au plus un point par case de 1,2 m (listes légères).
 func _relever(liste: Array, p: Vector3, n: Vector3, genre: String) -> void:
@@ -739,13 +756,16 @@ func construire() -> void:
 	etapes["anneaux"] = Time.get_ticks_msec() - t1
 	var tp := Time.get_ticks_msec()
 	_coque()
+	etapes["coque_fine"] = Time.get_ticks_msec() - tp
 	_caps()
 	var cl := decor.coll
 	cl.append_array(_coll_fine)
 	decor.coll = cl
 	_coll_fine = PackedVector3Array()
 	decor.nb_facettes += nb_facettes_coque
+	var tf := Time.get_ticks_msec()
 	_finir_coque()
+	etapes["coque_maillages"] = Time.get_ticks_msec() - tf
 	_indexer()
 	etapes["coque"] = Time.get_ticks_msec() - tp
 	tp = Time.get_ticks_msec()
@@ -930,6 +950,8 @@ func _indexer() -> void:
 		var a := c[t * 3]
 		var b := c[t * 3 + 1]
 		var d := c[t * 3 + 2]
+		var ng := (b - a).cross(d - a)
+		var dico := _idx_v if absf(ng.y) < 0.25 * ng.length() else _idx      # parois à part : _hauteurs ne les lit jamais
 		var x0 := floori(minf(a.x, minf(b.x, d.x)) / 2.0)
 		var x1 := floori(maxf(a.x, maxf(b.x, d.x)) / 2.0)
 		var z0 := floori(minf(a.z, minf(b.z, d.z)) / 2.0)
@@ -937,9 +959,9 @@ func _indexer() -> void:
 		for cx in range(x0, x1 + 1):
 			for cz in range(z0, z1 + 1):
 				var key := Vector2i(cx, cz)
-				if not _idx.has(key):
-					_idx[key] = []                  # un Array (référence) : un PackedInt32Array lu depuis le dictionnaire est une COPIE
-				(_idx[key] as Array).append(t)
+				if not dico.has(key):
+					dico[key] = []                  # un Array (référence) : un PackedInt32Array lu depuis le dictionnaire est une COPIE
+				(dico[key] as Array).append(t)
 
 ## Hauteurs de la coque au-dessus de (x, z) (repère local) : [plus bas, plus haut] parmi les facettes non verticales.
 func _hauteurs(x: float, z: float) -> Vector2:
@@ -983,12 +1005,64 @@ func plafond_en(id: String, s: float, lat: float) -> Vector3:
 	var h := _hauteurs(c.x, c.y)
 	return Vector3(c.x, h.y if h.y > -1e8 else y_net(b, s) + 4.0, c.y)
 
-## Point de la paroi à hauteur 0 (repère local), côté sign (+1 droite, -1 gauche).
+## Point de la paroi à hauteur 0 (repère local), côté sign (+1 droite, -1 gauche). La paroi bosselée est trouvée par un rayon
+## horizontal tiré de l'axe à 1,9 m du sol (repli : demi-largeur nominale).
 func mur_en(id: String, s: float, sign_: float) -> Vector3:
+	var R := droite(id, s) * sign_
+	var o := sol_en(id, s, 0.0) + Vector3(0, 1.9, 0)
+	var h := rayon(o, R, 30.0)
+	if not h.is_empty():
+		var q: Vector3 = h["p"]
+		return Vector3(q.x, 0, q.z) - R * 0.04
 	var dl := demi_l(id, s)
 	var w := (dl.y if sign_ > 0 else dl.x) * 0.97
 	var p := sol_en(id, s, sign_ * w)
-	return Vector3(p.x, 0, p.z) - droite(id, s) * sign_ * 0.04
+	return Vector3(p.x, 0, p.z) - R * 0.04
+
+## Rayon contre la coque (repère local, sans moteur physique : utilisable pendant la construction en fil). Renvoie {} ou
+## {"p": point, "n": normale côté galerie, "d": distance}.
+func rayon(o: Vector3, d: Vector3, lmax: float) -> Dictionary:
+	d = d.normalized()
+	var c := decor.coll
+	var vus := {}
+	var best := lmax
+	var res := {}
+	var t := 0.0
+	while t <= minf(best, lmax) + 2.0:
+		var q := o + d * t
+		var key := Vector2i(floori(q.x / 2.0), floori(q.z / 2.0))
+		for dico: Dictionary in [_idx, _idx_v]:
+			if not dico.has(key):
+				continue
+			for i: int in (dico[key] as Array):
+				if vus.has(i):
+					continue
+				vus[i] = true
+				var a := c[i * 3]
+				var e1 := c[i * 3 + 1] - a
+				var e2 := c[i * 3 + 2] - a
+				var pv := d.cross(e2)
+				var det := e1.dot(pv)
+				if absf(det) < 1e-9:
+					continue
+				var inv := 1.0 / det
+				var tv := o - a
+				var u := tv.dot(pv) * inv
+				if u < 0.0 or u > 1.0:
+					continue
+				var qv := tv.cross(e1)
+				var v := d.dot(qv) * inv
+				if v < 0.0 or u + v > 1.0:
+					continue
+				var tt := e2.dot(qv) * inv
+				if tt > 0.001 and tt < best:
+					best = tt
+					var n := e1.cross(e2).normalized()
+					if n.dot(d) > 0.0:
+						n = -n
+					res = {"p": o + d * tt, "n": n, "d": tt}
+		t += 1.0
+	return res
 
 ## Lacet (repère local) d'un personnage qui regarde dans le sens de la branche en s.
 func lacet_en(id: String, s: float) -> float:
@@ -1221,6 +1295,28 @@ func libre(id: String, s: float, lat: float, r: float) -> bool:
 	for z: Array in reserves:
 		if z[0] == id and s >= float(z[1]) - r and s <= float(z[2]) + r and lat >= float(z[3]) - r and lat <= float(z[4]) + r:
 			return false
+	return true
+
+## Vrai si un décor solide de rayon r en (s, lat) reste à distance des points du gameplay déclarés dans les zones de la branche
+## (ennemis et patrouilles, coffres, ressources, interactions, mécanismes, îlot) : les blocs et concrétions solides du relief.
+func loin_du_jeu(id: String, s: float, lat: float, r: float) -> bool:
+	if not libre(id, s, lat, r):
+		return false
+	for z: Dictionary in zones.values():
+		if z["branche"] != id:
+			continue
+		for cle in ["ennemis", "coffres", "ressources", "interactions", "meca"]:
+			for e: Dictionary in z.get(cle, []):
+				if Vector2(float(e["s"]) - s, float(e["lat"]) - lat).length() < r + 2.2:
+					return false
+				for q: Array in e.get("patrouille", []):
+					if Vector2(float(q[0]) - s, float(q[1]) - lat).length() < r + 1.6:
+						return false
+		var p: Dictionary = z.get("params", {})
+		if p.has("ilot_s"):
+			var ri := float(p.get("ilot_r", 3.0)) + 4.5
+			if Vector2(float(p["ilot_s"]) - s, float(p.get("ilot_lat", -9.0)) - lat).length() < ri + r:
+				return false
 	return true
 
 ## Vrai si s est hors des zones de jonction de la branche (pas de décor solide dans le pilier, ni dans l'évasement des confluents).
