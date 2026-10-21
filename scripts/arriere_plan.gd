@@ -535,6 +535,35 @@ func _haut_profil(a: float, d: Array, pics: Array) -> float:
 	return minf(h + 1.5, 60.0)
 
 
+# élévation (°) sous laquelle le plan peint est PLEIN à coup sûr (minorant de la crête de plans_peints.gdshader sur
+# ± 1 pan) : cette bande basse utilise une variante du shader sans `discard`, ce qui rend au GPU le test de profondeur
+# précoce (le plus gros des plans est caché par le monde : ses fragments ne sont alors plus calculés)
+func _bas_profil(a: float, d: Array, pics: Array) -> float:
+	var base := float(d[3])
+	var dent := float(d[4])
+	var b := base - 5.5
+	if int(d[1]) == 0:
+		for p in pics:
+			var m := 1e5
+			for k in 7:
+				var x := a + (float(k) - 3.0) * 0.25
+				var dd := absf(wrapf(x - float(p[0]), -180.0, 180.0))
+				var w := 1.5 * float(p[2]) * (1.0 - 0.35 * absf(float(p[3])))
+				var e := float(p[1]) * (1.0 - dd / w)
+				m = minf(m, e - 0.13 * maxf(e - base, 0.0) - 0.75 * dent)
+			b = maxf(b, m - 0.3)
+	return b
+
+
+var _sh_plein: Shader = null
+
+func _shader_plein() -> Shader:
+	if _sh_plein == null:
+		_sh_plein = Shader.new()
+		_sh_plein.code = SHADER_PLANS.code.replace("discard;", "")
+	return _sh_plein
+
+
 func _creer_plans() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
@@ -570,29 +599,40 @@ func _creer_plans() -> void:
 		# cylindre : 256 pans, du dessous de l'horizon jusqu'au-dessus du profil peint (bord haut qui épouse les pics,
 		# avec marge) : le ciel n'est pas recouvert de fragments rejetés (perf : 5 couches de surdessin évitées)
 		var pos := PackedVector3Array()
-		var idx := PackedInt32Array()
+		var idx_bas := PackedInt32Array()
+		var idx_haut := PackedInt32Array()
 		var bas := _y0 - 60.0
 		for i in 257:
 			var a := TAU * float(i) / 256.0
-			var haut := _y0 + r * tan(deg_to_rad(_haut_profil(rad_to_deg(a), d, pics)))
+			var e_haut := _haut_profil(rad_to_deg(a), d, pics)
+			var e_mi := clampf(_bas_profil(rad_to_deg(a), d, pics), -5.0, e_haut)
+			var haut := _y0 + r * tan(deg_to_rad(e_haut))
+			var mi_y := maxf(_y0 + r * tan(deg_to_rad(e_mi)), bas)
 			pos.append(Vector3(sin(a) * r, bas, cos(a) * r))
+			pos.append(Vector3(sin(a) * r, mi_y, cos(a) * r))
 			pos.append(Vector3(sin(a) * r, haut, cos(a) * r))
 		for i in 256:
-			var k := i * 2
-			idx.append_array([k, k + 1, k + 2, k + 2, k + 1, k + 3])
-		var tab := []
-		tab.resize(Mesh.ARRAY_MAX)
-		tab[Mesh.ARRAY_VERTEX] = pos
-		tab[Mesh.ARRAY_INDEX] = idx
+			var k := i * 3
+			idx_bas.append_array([k, k + 1, k + 3, k + 3, k + 1, k + 4])
+			idx_haut.append_array([k + 1, k + 2, k + 4, k + 4, k + 2, k + 5])
 		var mesh := ArrayMesh.new()
-		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, tab)
+		for idx in [idx_bas, idx_haut]:
+			var tab := []
+			tab.resize(Mesh.ARRAY_MAX)
+			tab[Mesh.ARRAY_VERTEX] = pos
+			tab[Mesh.ARRAY_INDEX] = idx
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, tab)
+		var m_plein := m.duplicate() as ShaderMaterial
+		m_plein.shader = _shader_plein()
 		mesh.custom_aabb = AABB(Vector3(-R_MAX, -200.0, -R_MAX), Vector3(2.0 * R_MAX, 2000.0, 2.0 * R_MAX))
 		var mi := MeshInstance3D.new()
 		mi.name = "plan_%d" % int(r)
 		mi.mesh = mesh
-		mi.material_override = m
+		mi.set_surface_override_material(0, m_plein)
+		mi.set_surface_override_material(1, m)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 		mi.extra_cull_margin = 16384.0
 		add_child(mi)
 		_plans.append(m)
+		_plans.append(m_plein)
