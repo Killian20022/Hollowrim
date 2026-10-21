@@ -1,6 +1,7 @@
 extends SceneTree
 ## Planches du Troll de givre à partir des captures en jeu (outils/poses_troll.txt, sorties x2 de 1280x720) :
 ##   godot --headless --path . --script res://outils/planche_troll.gd -- --captures=<dossier> --sortie=<dossier> --ref=<image de référence>
+##        [--passe1=<planche_ref__troll_... de la passe 1>] : ajoute la colonne « passe 1 » (référence | passe 1 | passe 2) et la planche de nuit.
 var cap := ""
 var sortie := ""
 
@@ -39,6 +40,18 @@ func _init() -> void:
 	cap = _arg("captures")
 	sortie = _arg("sortie")
 	DirAccess.make_dir_recursive_absolute(sortie)
+	var p1 := _arg("passe1")
+	if p1 != "":
+		var g2 := _grille(["p17_2m_face", "p17_2m_34", "p17_2m_dos", "p17_4m_face", "p17_4m_34", "p17_4m_dos", "p17_8m_face", "p17_8m_34", "p17_8m_dos"], 3, 560)
+		var ancien := Image.load_from_file(p1)
+		ancien.convert(Image.FORMAT_RGBA8)
+		var g1 := ancien.get_region(Rect2i(ancien.get_width() - g2.get_width(), 0, g2.get_width(), g2.get_height()))
+		var bande := Image.create(g1.get_width() + 24 + g2.get_width(), g2.get_height(), false, Image.FORMAT_RGBA8)
+		bande.fill(Color(0.9, 0.9, 0.9))
+		bande.blit_rect(g1, Rect2i(Vector2i.ZERO, g1.get_size()), Vector2i.ZERO)
+		bande.blit_rect(g2, Rect2i(Vector2i.ZERO, g2.get_size()), Vector2i(g1.get_width() + 24, 0))
+		_avec_ref(bande).save_png(sortie.path_join("planche_ref__passe1__passe2_face_34_dos_2_4_8m_entree_17h30.png"))
+		_grille(["nuit_4m_face", "nuit_4m_34", "nuit_tete_2m"], 3, 1000).save_png(sortie.path_join("planche_nuit_23h_4m_tete_2m.png"))
 	_avec_ref(_grille(["p17_2m_face", "p17_2m_34", "p17_2m_dos", "p17_4m_face", "p17_4m_34", "p17_4m_dos", "p17_8m_face", "p17_8m_34", "p17_8m_dos"], 3, 560)).save_png(sortie.path_join("planche_ref__troll_face_34_dos_2_4_8m_entree_17h30.png"))
 	_grille(["gros_tete_2m", "gros_main_2m", "gros_tete_1m", "gros_main_1m"], 2, 800).save_png(sortie.path_join("planche_gros_plans_tete_griffes_2m_1m.png"))
 	_grille(["an_idle", "an_marche_a", "an_marche_b", "an_course_a", "an_course_b", "an_attaque_a", "an_attaque_b", "an_coup", "an_mort_a", "an_mort_b"], 10, 420).save_png(sortie.path_join("planche_animations_idle_marche_course_attaque_coup_mort.png"))

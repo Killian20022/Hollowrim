@@ -31,7 +31,7 @@ static func _p(img: Image, x: int, y: int, c: Color) -> void:
 
 # ------------------------------------------------------------------ précalcul (outils/generer_troll.gd)
 const DOSSIER := "res://assets/personnages/troll"
-const VERSION := 4
+const VERSION := 5
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -97,7 +97,7 @@ static func peau() -> Image:
 				out.set_pixel(x, y, _c(PEAU, 3 + int(_h(x, y, 1300) * 1.6)))   # slip d'origine : peau moyenne (sous le pagne)
 				continue
 			# relief d'origine (muscles, creux) renforcé, marbrures larges, grain
-			var t := 0.58 + (l / lm - 1.0) * 1.55     # relief (pectoraux, abdominaux) bien marqué
+			var t := 0.64 + (l / lm - 1.0) * 2.0     # relief (pectoraux, abdominaux) bien marqué
 			t += (_n(x, y, n, n, 12, 12, 1301) - 0.5) * 0.16
 			t += (_n(x, y, n, n, 48, 48, 1302) - 0.5) * 0.08
 			# lèvres et joues (chroma rouge d'origine) : plus sombres, bleu-violet
@@ -206,10 +206,10 @@ static func accessoires() -> Image:
 			img.set_pixel(R_GUEULE.position.x + x, R_GUEULE.position.y + y, _c(GUEULE, ton))
 	for y in R_ARCADE.size.y:
 		for x in R_ARCADE.size.x:
-			var t := 0.35 + float(R_ARCADE.size.y - y) / R_ARCADE.size.y * 0.3 + (_h(x, y, 1323) - 0.5) * 0.12
+			var t := 0.5 + float(R_ARCADE.size.y - y) / R_ARCADE.size.y * 0.32 + (_h(x, y, 1323) - 0.5) * 0.12
 			var ton := clampi(int(t * PEAU.size()), 0, PEAU.size() - 1)
 			if y >= R_ARCADE.size.y - 2:
-				ton = 1                                  # dessous de l'arcade : ombre
+				ton = 3                                  # dessous de l'arcade : ombre (pas un trait noir de « visière »)
 			img.set_pixel(R_ARCADE.position.x + x, R_ARCADE.position.y + y, _c(PEAU, ton))
 	return img
 

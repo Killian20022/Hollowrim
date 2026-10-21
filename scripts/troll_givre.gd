@@ -20,7 +20,7 @@ class_name TrollGivre
 
 const ECHELLE := 1.6
 ## Densité globale des mèches (budget 7 500 triangles).
-const DENSITE := 0.7
+const DENSITE := 0.67
 
 ## Facteur sur la position de repos d'un os (= longueur du segment de son PARENT). Côtés gauche et droit (_l / _r).
 const POSITION := {
@@ -456,7 +456,8 @@ class Ctx:
 					return [150.0, 0.09, 0.14, 4, 7, 0]         # cuisse : poil plus court, gris
 				return []
 			"upperarm":
-				return [560.0, 0.15, 0.25, 0, 4, 1]             # bras entièrement fourrés, mèches pendantes
+				var pres := clampf(1.0 - absf(c.x - g_nouv[os_(nom)].origin.x) / 0.18, 0.0, 1.0)
+				return [560.0 + 500.0 * pres, 0.15 + 0.06 * pres, 0.25 + 0.08 * pres, 0, 4, 1]   # bras fourrés, deltoïde bien couvert             # bras entièrement fourrés, mèches pendantes
 			"lowerarm":
 				var axe2 := g_nouv[os_(nom)].origin
 				var t := clampf(absf(c.x - axe2.x) / 0.40, 0.0, 1.0)
@@ -586,8 +587,8 @@ class Ctx:
 		for i in 3:
 			var a: Vector3 = pts[i]
 			var b: Vector3 = pts[i + 1]
-			var haut := Vector3(0, 0.03, -0.012)
-			var avant := Vector3(0, -0.002, 0.03)
+			var haut := Vector3(0, 0.024, -0.012)
+			var avant := Vector3(0, -0.002, 0.022)
 			_quad(op, a + haut, b + haut, b + avant, a + avant, _uva(arc.position.x + i * 5, arc.position.y + 1), _uva(arc.position.x + i * 5 + 5, arc.position.y + 1),
 				_uva(arc.position.x + i * 5 + 5, arc.end.y - 3), _uva(arc.position.x + i * 5, arc.end.y - 3), [pw, pw, pw, pw], oy - Vector3(0, 0, 0.05))
 			_quad(op, a + avant, b + avant, b + Vector3(0, -0.016, 0.006), a + Vector3(0, -0.016, 0.006), _uva(arc.position.x + i * 5, arc.end.y - 2), _uva(arc.position.x + i * 5 + 5, arc.end.y - 2),
