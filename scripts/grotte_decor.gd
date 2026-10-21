@@ -43,8 +43,8 @@ const COQUES := {
 	"c_glacon_c": ["glacon", "", Color(1.12, 1.18, 1.22), Vector3(0.012, 0.02, 0.03), 0.16, 0.0, 0.0, 0.0],   # glace claire bleu-blanc (devant de la cascade)
 	"c_glacon": ["glacon", "", Color(0.78, 0.82, 0.86), Vector3(0.006, 0.009, 0.013), 0.06, 0.0, 0.0, 0.0],
 	# passe 2 kit : la cascade du kit (lisible à 28 m) et les terrasses givrées du lac
-	"c_cascade": ["glacon", "", Color(1.0, 1.05, 1.1), Vector3(0.02, 0.03, 0.045), 0.22, 0.0, 0.0, 0.0],
-	"c_cascade_c": ["glacon", "", Color(1.3, 1.36, 1.42), Vector3(0.04, 0.055, 0.075), 0.42, 0.0, 0.0, 0.0],
+	"c_cascade": ["glacon", "", Color(0.7, 0.76, 0.84), Vector3(0.006, 0.01, 0.018), 0.08, 0.0, 0.0, 0.0],      # fond et stries sombres
+	"c_cascade_c": ["glacon", "", Color(1.28, 1.34, 1.4), Vector3(0.016, 0.026, 0.04), 0.24, 0.0, 0.0, 0.0],      # colonnes claires (sans halo)
 	"c_terrasse": ["roche_givre", "", Color(1.12, 1.12, 1.15), Vector3(0.0, 0.0, 0.0), 0.0, 1.0, 0.0, 1.0],
 }
 
@@ -179,7 +179,7 @@ func mat(nom: String) -> Material:
 		if m is ShaderMaterial:
 			(m as ShaderMaterial).set_shader_parameter("crasse", 0.0)
 			if nom == "bois":
-				(m as ShaderMaterial).set_shader_parameter("teinte", Color(0.6, 0.55, 0.5))     # passe 2 kit : bois de mine sombre et brun (grottes_cryptes_6), pas orange vif
+				(m as ShaderMaterial).set_shader_parameter("teinte", Color(0.4, 0.35, 0.31))     # passe 2 kit : bois de mine brun sombre usé (grottes_cryptes_6), pas orange vif
 			if nom == "os":
 				(m as ShaderMaterial).set_shader_parameter("teinte", Color(0.5, 0.48, 0.45))     # os assombris (plus de taches blanches)     # pas de bande de crasse (calée sur le sol de la crypte)
 	_mats[nom_k] = m
