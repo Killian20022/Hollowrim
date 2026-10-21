@@ -16,6 +16,9 @@ MOTIF="${1:-}"
 # nom_du_test|arguments après « -- » (toujours au moins un, voir plus haut)
 TESTS=(
 	"test_quetes|--nouvelle"
+	"test_archer|--nouvelle"
+	"test_patrouille|--nouvelle"
+	"test_boss_phases|--nouvelle"
 	"test_vegetation_biome|--nouvelle"
 	"test_chemin_biome|--nouvelle --paisible"
 	"test_collisions_biome|--nouvelle"
