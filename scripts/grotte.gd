@@ -1343,7 +1343,7 @@ func libre(id: String, s: float, lat: float, r: float) -> bool:
 ## Vrai si un décor solide de rayon r en (s, lat) reste à distance des points du gameplay déclarés dans les zones de la branche
 ## (ennemis et patrouilles, coffres, ressources, interactions, mécanismes, îlot) : les blocs et concrétions solides du relief.
 func loin_du_jeu(id: String, s: float, lat: float, r: float) -> bool:
-	if not libre(id, s, lat, r):
+	if not libre(id, s, lat, r) or absf(lat) - r < 1.15:      # couloir central d'au moins 2,3 m (capsule + contournement)
 		return false
 	for z: Dictionary in zones.values():
 		if z["branche"] != id:

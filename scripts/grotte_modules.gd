@@ -159,7 +159,8 @@ static func pointes(g: Grotte, r: RandomNumberGenerator, id: String, s0: float, 
 					var q := g.sol_en(id, s + sin(a) * d, lat + cos(a) * d)
 					if absf(q.y - pb.y) < 0.5:
 						concretion(g, nm, q + Vector3(0, -0.05, 0), rr * r.randf_range(0.3, 0.55), hh * r.randf_range(0.2, 0.45), r.randi(), m)
-				if rr >= 0.2 and g.loin_du_jeu(id, s, lat, rr):
+				var w_c := dl.y if lat > 0.0 else dl.x
+				if rr >= 0.28 and absf(lat) > 0.62 * w_c and g.loin_du_jeu(id, s, lat, rr):     # près de la paroi seulement
 					g.decor.solide_rond(pb + Vector3(0, hh * 0.35, 0), rr * 0.8, hh * 0.7)
 		else:
 			if g.faille_f(g.br[id], s) > 0.02:
