@@ -3,7 +3,7 @@ extends SceneTree
 ##   -s res://outils/test_sauvegarde.gd -- ecrire   puis   -- verifier
 const SCENE := preload("res://scenes/foret_test.tscn")
 ## Fichier de TEST (le jeu l'utilise dès qu'il y a des arguments) : jamais la vraie partie.
-const FICHIER := "user://sauvegarde_test.json"
+var FICHIER: String = load("res://scripts/monde.gd").fichier_test()
 
 func _init() -> void:
 	_tester.call_deferred(OS.get_cmdline_user_args()[0])

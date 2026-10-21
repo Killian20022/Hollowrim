@@ -71,13 +71,15 @@ var depart_joueur := Vector3.ZERO
 var draugrs := {}  # identifiant → draugr
 var _minuterie_sauvegarde := 0.0
 const SAUVEGARDE_REELLE := "user://sauvegarde.json"
-const SAUVEGARDE_TEST := "user://sauvegarde_test.json"
 ## La vraie partie reste sur sauvegarde.json ; tout lancement avec arguments utilisateur (après « -- »),
-## en --script ou sans fenêtre (tests, captures, --nouvelle…) lit et écrit sauvegarde_test.json.
+## en --script ou sans fenêtre (tests, captures, --nouvelle…) lit et écrit sauvegarde_test_<dossier>.json :
+## un fichier par copie du projet, pour que les tests de deux worktrees lancés en même temps ne s'écrasent pas.
+static func fichier_test() -> String:
+	return "user://sauvegarde_test_%08x.json" % (hash(ProjectSettings.globalize_path("res://")) & 0xffffffff)
 static func fichier_sauvegarde() -> String:
 	var args := OS.get_cmdline_args()
 	if OS.get_cmdline_user_args().size() > 0 or "--script" in args or "-s" in args or DisplayServer.get_name() == "headless":
-		return SAUVEGARDE_TEST
+		return fichier_test()
 	return SAUVEGARDE_REELLE
 var _t := 0.0
 

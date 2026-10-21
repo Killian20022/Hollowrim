@@ -197,7 +197,7 @@ func _tester() -> void:
 	var py: float = d["joueur"]["position"][1]
 	_verif(py < -182.0, "sauvegardé dans la grotte (y = %.1f)" % py)
 	_verif(d["draugrs_morts"].has("bandit_4") and not d["draugrs_morts"].has("hrafn"), "le guetteur tué est dans la sauvegarde, pas les autres")
-	_verif(m.fichier_sauvegarde().ends_with("sauvegarde_test.json"), "fichier de test, pas la vraie partie")
+	_verif(m.fichier_sauvegarde().get_file().begins_with("sauvegarde_test"), "fichier de test, pas la vraie partie")
 	_verif(not m.tertre.dedans, "le tertre ne se croit pas dedans")
 	# 6. sortie
 	var sortie: Node3D = null

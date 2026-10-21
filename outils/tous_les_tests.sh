@@ -5,7 +5,7 @@
 #   une fenêtre : test_biome comparer), JOURNAUX=<dossier> (défaut captures/tests : un .log par test).
 # Verdict : code de sortie 0, aucune « SCRIPT ERROR » et aucun « ÉCHEC » (ni « ECHECS : n » avec n>0) dans la sortie.
 # --fixed-fps 60 : la simulation tourne aussi vite que possible (au lieu du temps réel : test_degats_sanctuaire > 240 s → ~55 s).
-# Tous les lancements portent des arguments (« -- … ») : le jeu écrit alors user://sauvegarde_test.json, jamais la vraie partie.
+# Tous les lancements portent des arguments (« -- … ») : le jeu écrit alors user://sauvegarde_test_<dossier>.json (un par worktree), jamais la vraie partie.
 # Code de sortie du script : nombre de tests en échec.
 set -u
 G="${GODOT:-/mnt/c/Users/lopezk19/Outils/godot/Godot_v4.7.2-stable_win64_console.exe}"
