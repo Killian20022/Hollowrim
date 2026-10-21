@@ -13,6 +13,7 @@ extends Node3D
 
 const SHADER := preload("res://shaders/arriere_plan.gdshader")
 const SHADER_PLANS := preload("res://shaders/plans_peints.gdshader")
+const SHADER_PEINTURE := preload("res://shaders/peinture_plans.gdshader")
 ## 4e passe : au-delà de ~600 m, le relief 3D est remplacé par 5 PLANS PEINTS (cylindres centrés sur la carte, image
 ## dessinée par plans_peints.gdshader). --lointain-3d rétablit l'ancien relief 3D lointain et le château 3D (A/B).
 var lointain_3d := OS.get_cmdline_user_args().has("--lointain-3d")
@@ -531,10 +532,11 @@ func _haut_profil(a: float, d: Array, pics: Array) -> float:
 			var w := 1.5 * float(p[2]) * (1.0 + 0.35 * absf(float(p[3])))
 			var f := maxf(1.0 - dd / w, 0.82 * (1.0 - maxf(dd - 0.42 * w, 0.0) / (0.3 * w)))   # pic, sous-sommet
 			f = maxf(f, 0.62 * (1.0 - maxf(dd - 0.45 * w, 0.0) / (0.55 * w)))                      # épaule
+			f = maxf(f, 0.9 * (1.0 - maxf(dd - 0.6 * w, 0.0) / (0.33 * w)))                      # sommets secondaires
 			h = maxf(h, float(p[1]) * f + 0.2 * maxf(float(p[1]) - float(d[3]), 1.0) + 0.8 * float(d[4]))
 	if int(d[1]) == 2 and absf(wrapf(a - CHATEAU_AZIMUT, -180.0, 180.0)) < 16.0:
 		h = maxf(h, CHATEAU_EL + 70.0 * CHATEAU_ECH / 6.0)
-	return minf(h + 0.5, 60.0)
+	return minf(h + (0.5 if int(d[1]) == 0 else 2.0), 60.0)   # forêts : cimes des sapins au-dessus de la crête
 
 
 # élévation (°) sous laquelle le plan peint est PLEIN à coup sûr (minorant de la crête de plans_peints.gdshader sur
@@ -543,7 +545,7 @@ func _haut_profil(a: float, d: Array, pics: Array) -> float:
 func _bas_profil(a: float, d: Array, pics: Array) -> float:
 	var base := float(d[3])
 	var dent := float(d[4])
-	var b := base - 5.5
+	var b := base - (5.5 if int(d[1]) == 0 else 6.2)
 	if int(d[1]) == 0:
 		for p in pics:
 			var m := 1e5
@@ -555,44 +557,6 @@ func _bas_profil(a: float, d: Array, pics: Array) -> float:
 				m = minf(m, e - 0.13 * maxf(e - base, 0.0) - 0.75 * dent)
 			b = maxf(b, m - 0.3)
 	return b
-
-
-# --- données par colonne des plans peints (7e passe, perf) : ce qui ne dépend que de l'azimut est calculé une fois ici
-# (mêmes formules que l'ancien shader : bruit de crête, éclats, dentelure du pied, sapins peints)
-static func _h11(x: float, g: float) -> float:
-	var v: float = sin(x * 127.1 + g * 31.7) * 43758.5453
-	return v - floor(v)
-
-static func _b1(x: float, pas: float, g: float) -> float:
-	var c: float = floor(x / pas)
-	var f: float = x / pas - c
-	f = f * f * (3.0 - 2.0 * f)
-	return lerpf(_h11(c, g), _h11(c + 1.0, g), f)
-
-static func _rid(x: float, pas: float, g: float) -> float:
-	var r: float = 1.0 - absf(2.0 * _b1(x, pas, g) - 1.0)
-	return r * r
-
-func _colonnes(d: Array) -> ImageTexture:
-	var g := float(d[5])
-	var dent := float(d[4])
-	var foret := int(d[1]) >= 1
-	var img := Image.create(2160, 1, false, Image.FORMAT_RGBAF)
-	for i in 2160:
-		var x := float(i - 1080) + 0.5
-		var nz: float = 0.10 * (_b1(x, 70.0, g) - 0.5) + 0.05 * (_b1(x, 23.0, g) - 0.5) - 0.04 * _rid(x + 11.0, 15.0, g) \
-			+ 0.05 * _rid(x, 9.0, g) + 0.02 * _rid(x + 5.0, 4.0, g) + 0.05 * floor(_b1(x, 17.0, g) * 3.0) / 3.0
-		var jz: float = dent * (0.9 * (_b1(x, 3.0, g) - 0.5) + 0.5 * (_h11(x, g) - 0.5))
-		var pied: float = dent * (0.6 * _b1(x, 9.0, g) + 0.4 * _b1(x, 3.0, g))
-		var sapin := 0.0
-		if foret:
-			var cell: float = floor(x / 5.0)
-			var larg: float = 4.0 + floor(_h11(cell, g) * 3.0)
-			var xx: float = x - cell * 5.0 - 2.5
-			var ht: float = (5.0 + _h11(cell + 7.0, g) * 7.0) / 6.0
-			sapin = ht * maxf(0.0, 1.0 - absf(xx) / (larg * 0.5 + 0.5))
-		img.set_pixel(i, 0, Color(nz, jz, pied, sapin))
-	return ImageTexture.create_from_image(img)
 
 
 var _sh_plein: Shader = null
@@ -618,15 +582,18 @@ func _creer_plans() -> void:
 		m.shader = SHADER_PLANS
 		m.set_shader_parameter("rayon", r)
 		m.set_shader_parameter("niveau0", _y0)
-		m.set_shader_parameter("genre", d[1])
 		m.set_shader_parameter("voile", d[2])
 		m.set_shader_parameter("base_el", d[3])
-		m.set_shader_parameter("dentelure", d[4])
-		m.set_shader_parameter("graine", d[5])
-		m.set_shader_parameter("colonnes", _colonnes(d))
-		m.set_shader_parameter("chateau_az", CHATEAU_AZIMUT)
-		m.set_shader_parameter("chateau_el", CHATEAU_EL)
-		m.set_shader_parameter("chateau_ech", CHATEAU_ECH)
+		# peinture (8e passe) : le plan est dessiné une fois dans une texture par peinture_plans.gdshader
+		var mp := ShaderMaterial.new()
+		mp.shader = SHADER_PEINTURE
+		mp.set_shader_parameter("genre", d[1])
+		mp.set_shader_parameter("base_el", d[3])
+		mp.set_shader_parameter("dentelure", d[4])
+		mp.set_shader_parameter("graine", d[5])
+		mp.set_shader_parameter("chateau_az", CHATEAU_AZIMUT)
+		mp.set_shader_parameter("chateau_el", CHATEAU_EL)
+		mp.set_shader_parameter("chateau_ech", CHATEAU_ECH)
 		# pics : ceux de la vue de l'entrée + des pics tirés au hasard sur le reste du tour (hors 0-100°)
 		var pics: Array = (d[6] as Array).duplicate()
 		if d[1] == 0:
@@ -640,8 +607,29 @@ func _creer_plans() -> void:
 			v.append(Vector4(float(p[0]), float(p[1]), float(p[2]), float(p[3])))
 		while v.size() < 16:
 			v.append(Vector4.ZERO)
-		m.set_shader_parameter("pics", v)
-		m.set_shader_parameter("nb_pics", pics.size())
+		mp.set_shader_parameter("pics", v)
+		mp.set_shader_parameter("nb_pics", pics.size())
+		var hauts := PackedFloat32Array()
+		var el_max := 0.0
+		for i in 257:
+			var hp := _haut_profil(360.0 * float(i) / 256.0, d, pics)
+			hauts.append(hp)
+			el_max = maxf(el_max, hp)
+		var nb_rangs := int(ceil((el_max + 6.0) * 6.0)) + 2
+		mp.set_shader_parameter("el0_t", -36.0)
+		var sv := SubViewport.new()
+		sv.size = Vector2i(2160, nb_rangs)
+		sv.transparent_bg = true
+		sv.disable_3d = true
+		sv.render_target_update_mode = SubViewport.UPDATE_ONCE
+		var toile := ColorRect.new()
+		toile.size = Vector2(2160, nb_rangs)
+		toile.material = mp
+		sv.add_child(toile)
+		add_child(sv)
+		m.set_shader_parameter("peinture", sv.get_texture())
+		m.set_shader_parameter("el0_t", -36.0)
+		m.set_shader_parameter("hauteur_t", nb_rangs)
 		# cylindre : 256 pans, du dessous de l'horizon jusqu'au-dessus du profil peint (bord haut qui épouse les pics,
 		# avec marge) : le ciel n'est pas recouvert de fragments rejetés (perf : 5 couches de surdessin évitées)
 		var pos := PackedVector3Array()
@@ -650,7 +638,7 @@ func _creer_plans() -> void:
 		var bas := _y0 - 60.0
 		for i in 257:
 			var a := TAU * float(i) / 256.0
-			var e_haut := _haut_profil(rad_to_deg(a), d, pics)
+			var e_haut := hauts[i]
 			var e_mi := clampf(_bas_profil(rad_to_deg(a), d, pics), -5.0, e_haut)
 			var haut := _y0 + r * tan(deg_to_rad(e_haut))
 			var mi_y := maxf(_y0 + r * tan(deg_to_rad(e_mi)), bas)
