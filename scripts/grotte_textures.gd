@@ -484,16 +484,19 @@ static func cristal_image() -> Image:
 ## joint sombre à droite, inclusions et fêlures obliques, quelques reflets. 64 x 64 texels (carré : chaîne de mipmaps complète).
 const R_CRISTAL_F := ["#05080f", "#09101c", "#0e182a", "#14223a", "#1a2b44", "#223853", "#2b4664", "#456c8f", "#80b0cf", "#c8e8f5"]   # corps bleu nuit, cyan pâle seulement en tête
 
-static func cristal_face_image() -> Image:
+## Grosses grappes éclairantes (4e passe, grottes_cryptes_6) : faces bleu vif, tête et arête blanc-cyan (jamais #ffffff).
+const R_CRISTAL_V := ["#0b1830", "#122c56", "#1a4482", "#2460ad", "#327fd0", "#4c9ce6", "#6fb9f2", "#96d2f7", "#bde6fa", "#dcf4fc"]
+
+static func cristal_face_image(vif := false) -> Image:
 	var W := 64
 	var H := 64
 	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
-	var R := _rampe(R_CRISTAL_F, 12)
+	var R := _rampe(R_CRISTAL_V if vif else R_CRISTAL_F, 12)
 	var onde := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.08, 64, 64, 2)
 	for y in H:
 		for x in W:
 			var v := 1.0 - float(y) / float(H - 1)            # 0 au pied, 1 à la pointe
-			var t := pow(v, 2.2) * 9.0 + 0.5
+			var t := (pow(v, 2.2) * 9.0 + 0.5) if not vif else (3.2 + v * 6.0)
 			t += (onde[(y % 64) * 64 + x] - 0.5) * 2.2
 			var fel := fposmod(float(x) * 0.7 + float(y) * 0.45, 13.0)
 			if fel < 0.8 and _hash_i(int((float(x) * 0.7 + float(y) * 0.45) / 13.0), 5) > 0.45:
@@ -675,6 +678,7 @@ static func image(nom: String) -> Image:
 		"piste": return piste_image()
 		"cristal": return cristal_image()
 		"cristal_f": return cristal_face_image()
+		"cristal_v": return cristal_face_image(true)
 		"planches": return planches_image()
 		"peau": return peau_image()
 		"paille": return paille_image()

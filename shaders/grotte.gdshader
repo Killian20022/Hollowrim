@@ -108,10 +108,13 @@ void fragment() {
 	if (givre > 0.0) {
 		vec4 gv = textureGrad(tex_givre, wp.xz * 0.5, dFdx(wp.xz) * 0.5, dFdy(wp.xz) * 0.5);
 		// pente forte (arêtes, corniches, têtes de rochers) : pleine part ; sol plat : plaques seulement
-		float part = smoothstep(0.22, 0.58, n.y) * (1.0 - 0.45 * smoothstep(0.88, 0.98, n.y)) * givre;
-		part *= mix(0.45, 1.0, clamp(COLOR.r, 0.0, 1.0)) * 0.7;   // jamais plein : la carte de givre découpe toujours en grain
-		// « arête haute » du relief (COLOR.a relevé sur les dessus de corniche, têtes de stalagmites) : givre franc au grain
-		part = max(part, clamp(COLOR.a - 0.3, 0.0, 1.0) * smoothstep(0.1, 0.45, n.y) * givre * 0.85);     // les reliefs exposés (occlusion claire) givrent plus que les creux
+		// 4e passe : plus de « confettis » sur les parois verticales ; seules les faces franchement horizontales (rebords,
+		// dessus de rochers, sol) prennent du givre, et en liseré sur l'arête haute (COLOR.a) plutôt qu'en plaques éparses
+		float plat = smoothstep(0.62, 0.86, n.y);
+		float part = plat * (1.0 - 0.5 * smoothstep(0.9, 0.98, n.y)) * givre;
+		part *= mix(0.3, 1.0, clamp(COLOR.r, 0.0, 1.0)) * 0.6;   // jamais plein : la carte de givre découpe toujours en grain
+		// « arête haute » du relief (COLOR.a relevé sur les dessus de corniche, têtes de stalagmites) : liseré franc
+		part = max(part, clamp(COLOR.a - 0.3, 0.0, 1.0) * smoothstep(0.5, 0.75, n.y) * givre * 0.95);
 		if (part > gv.a) {
 			c = gv.rgb;
 			amt = 1.0;

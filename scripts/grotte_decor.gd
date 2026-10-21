@@ -9,7 +9,7 @@ extends CrypteDecor
 const CASE_C := 10.0
 const PAINT_PARENT := ["bois", "fer", "lame", "os", "argile", "parchemin", "toile", "halo", "flamme"]
 const DOSSIER := "res://assets/grotte"
-const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "givre", "glacon", "cristal", "cristal_f", "planches", "peau", "paille", "or", "piste"]
+const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "givre", "glacon", "cristal", "cristal_f", "cristal_v", "planches", "peau", "paille", "or", "piste"]
 const PROPRES_PLATES := ["jour", "ciel", "rai", "flaque", "brume"]
 const GROTTE_SHADER := preload("res://shaders/grotte.gdshader")
 const AO_GAMMA := 1.0          # occlusion peinte accentuée : creux et pieds de paroi quasi noirs (références)
@@ -37,6 +37,8 @@ const COQUES := {
 	"c_cristal": ["cristal", "", Color(0.7, 0.76, 0.88), Vector3(0.0, 0.0, 0.0), 0.2, 0.0, 0.0, 0.0],
 	"c_or": ["or", "", Color(1, 1, 1), Vector3(0.05, 0.035, 0.0), 0.12, 0.0, 0.0, 0.0],
 	"c_cristal_f": ["cristal_f", "", Color(0.8, 0.84, 0.95), Vector3(0.0, 0.0, 0.0), 0.22, 0.0, 0.0, 0.0],   # prismes en grappes (UV par face)
+	"c_cristal_v": ["cristal_v", "", Color(0.95, 1.0, 1.05), Vector3(0.0, 0.0, 0.0), 0.55, 0.0, 0.0, 0.0],   # grosses grappes : faces bleu vif émissives
+	"c_cristal_c": ["cristal_v", "", Color(1.35, 1.45, 1.5), Vector3(0.02, 0.05, 0.07), 0.9, 0.0, 0.0, 0.0],   # cœur blanc-cyan des grosses grappes
 	"c_glacon": ["glacon", "", Color(0.78, 0.82, 0.86), Vector3(0.006, 0.009, 0.013), 0.06, 0.0, 0.0, 0.0],
 }
 
@@ -113,7 +115,7 @@ func mat(nom: String) -> Material:
 		sm.set_shader_parameter("tex_givre", _tex_g("givre"))
 		sm.set_shader_parameter("mouille", d[6])
 		sm.set_shader_parameter("triplan", d[7])
-		sm.set_shader_parameter("ao_gamma", AO_GAMMA if not nom in ["c_cristal", "c_cristal_f", "c_glacon"] else 1.0)
+		sm.set_shader_parameter("ao_gamma", AO_GAMMA if not nom in ["c_cristal", "c_cristal_f", "c_cristal_v", "c_cristal_c", "c_glacon"] else 1.0)
 		sm.set_shader_parameter("decoupe", 1.0 if nom == "c_piste" else 0.0)
 		if nom == "c_sol_neige":
 			sm.set_shader_parameter("echelle_sup", 0.5)     # neige du sol extérieur : tuile de 8 m (16 texels/m), même grain que dehors
@@ -364,7 +366,41 @@ func cristal(base: Vector3, r: float, l: float, graine: int, incl := 0.5, axe_bi
 		var rk := r * 0.5 * lerpf(0.3, 0.8, f) * rng.randf_range(0.8, 1.15)
 		_prisme_cristal(base + off - d * lk * 0.18, d, rk, lk, rng)
 
-func _prisme_cristal(base: Vector3, d: Vector3, r: float, l: float, rng: RandomNumberGenerator) -> void:
+## Grosse grappe éclairante (4e passe, grottes_cryptes_6) : 0,5 à 1,5 m, prismes bleu vif autour d'un cœur blanc-cyan,
+## lumière cyan locale qui bleuit la roche autour, halo additif au sol et contre la paroi. `axe` : direction moyenne de pousse.
+func grosse_grappe(base: Vector3, taille: float, graine: int, axe := Vector3.UP, eclaire := true) -> OmniLight3D:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = graine
+	var d0 := axe.normalized()
+	var u0 := d0.cross(Vector3.RIGHT if absf(d0.x) < 0.9 else Vector3.FORWARD).normalized()
+	var w0 := d0.cross(u0)
+	# cœur : 2-3 grands prismes clairs presque droits
+	for k in rng.randi_range(2, 3):
+		var a := rng.randf() * TAU
+		var d := (d0 + (u0 * cos(a) + w0 * sin(a)) * rng.randf_range(0.05, 0.25)).normalized()
+		var lk := taille * rng.randf_range(0.75, 1.0)
+		_prisme_cristal(base + (u0 * cos(a) + w0 * sin(a)) * taille * 0.05 - d * lk * 0.1, d, taille * rng.randf_range(0.09, 0.12), lk, rng, "c_cristal_c")
+	# couronne : prismes bleu vif qui s'ouvrent, beaucoup de petits
+	var n := 9 + int(taille * 6.0)
+	for k in n:
+		var a := TAU * (float(k) + rng.randf_range(-0.3, 0.3)) / float(n)
+		var ouv := rng.randf_range(0.3, 0.95)
+		var d := (d0 + (u0 * cos(a) + w0 * sin(a)) * ouv).normalized()
+		var f := pow(rng.randf(), 1.6)
+		var lk := taille * lerpf(0.18, 0.7, f)
+		var dist := taille * rng.randf_range(0.08, 0.3)
+		_prisme_cristal(base + (u0 * cos(a) + w0 * sin(a)) * dist - d * lk * 0.15, d, taille * lerpf(0.035, 0.085, f), lk, rng, "c_cristal_v")
+	carte("halo_f", base + Vector3(0, 0.04, 0), Vector3.UP, taille * 3.2, taille * 3.2)
+	if absf(d0.y) < 0.9:
+		carte("halo_f", base + d0 * taille * 0.45, Vector3(d0.x, 0.0, d0.z).normalized(), taille * 2.2, taille * 2.2)
+	if not eclaire:
+		return null
+	var l := lumiere(base + d0 * taille * 0.7, Color(0.45, 0.8, 1.0), 2.4, 5.5 + taille * 1.5, 1.3, false)
+	l.light_color = Color(0.45, 0.8, 1.0)
+	l.set_meta("grappe", true)                     # _retoucher_lumieres n'y touche pas
+	return l
+
+func _prisme_cristal(base: Vector3, d: Vector3, r: float, l: float, rng: RandomNumberGenerator, nom := "c_cristal_f") -> void:
 	var u := d.cross(Vector3.RIGHT if absf(d.x) < 0.9 else Vector3.FORWARD).normalized()
 	var w := d.cross(u)
 	var a0 := rng.randf() * TAU
@@ -383,9 +419,9 @@ func _prisme_cristal(base: Vector3, d: Vector3, r: float, l: float, rng: RandomN
 		var p1 := base + rb * r
 		var q0 := base + d * corps + ra * r1
 		var q1 := base + d * corps + rb * r1
-		facette("c_cristal_f", p0, p1, q1, axe, [pied, pied, haut_c], false, 2.0, false, [Vector2(0, 1), Vector2(1, 1), Vector2(1, 1.0 - v1)])
-		facette("c_cristal_f", p0, q1, q0, axe, [pied, haut_c, haut_c], false, 2.0, false, [Vector2(0, 1), Vector2(1, 1.0 - v1), Vector2(0, 1.0 - v1)])
-		facette("c_cristal_f", q0, q1, pointe_p, axe, [haut_c, haut_c, Color(1.25, 1.25, 1.25, 0.0)], false, 2.0, false, [Vector2(0, 1.0 - v1), Vector2(1, 1.0 - v1), Vector2(0.5, 0.0)])
+		facette(nom, p0, p1, q1, axe, [pied, pied, haut_c], false, 2.0, false, [Vector2(0, 1), Vector2(1, 1), Vector2(1, 1.0 - v1)])
+		facette(nom, p0, q1, q0, axe, [pied, haut_c, haut_c], false, 2.0, false, [Vector2(0, 1), Vector2(1, 1.0 - v1), Vector2(0, 1.0 - v1)])
+		facette(nom, q0, q1, pointe_p, axe, [haut_c, haut_c, Color(1.25, 1.25, 1.25, 0.0)], false, 2.0, false, [Vector2(0, 1.0 - v1), Vector2(1, 1.0 - v1), Vector2(0.5, 0.0)])
 
 # ------------------------------------------------------------------ outils de mobilier
 ## Prisme entre deux points (bûche, hampe, perche) ; UV en mètres, 32 texels/m.
@@ -876,6 +912,8 @@ func _retoucher_lumieres(g: Grotte) -> void:
 			l.append_array(pr["etais"])
 			etais[String(z["branche"])] = l
 	for l: OmniLight3D in toutes.duplicate():
+		if l.has_meta("grappe"):
+			continue
 		var col := l.light_color
 		var a_source := false                          # une flamme visible tout près (feu de camp, torche) : rien à changer
 		for f: Array in _flammes_def:
@@ -1176,31 +1214,40 @@ func _cascade(g: Grotte, id: String, s: float) -> void:
 	var T := g.tang(id, s)
 	var R := g.droite(id, s)
 	var y_bas := g.lac_y - 0.05
-	var lat_c := -dl.x * 0.7
+	# 4e passe : rideau dégagé de la paroi, déployé EN TRAVERS du fond (face au rivage), légèrement cintré
+	var lat_c := -dl.x * 0.5
 	for k in 17:
-		var ds := (float(k) - 8.0) * 0.34 + _hab_r.randf_range(-0.08, 0.08)
-		var lat := lat_c + absf(float(k) - 8.0) * 0.06
+		var ds := absf(float(k) - 8.0) * 0.07 + _hab_r.randf_range(-0.08, 0.08)
+		var lat := lat_c + (float(k) - 8.0) * 0.32
 		var top := g.plafond_en(id, s + ds, lat)
 		var base := g.sol_en(id, s + ds, lat)
 		var pied := Vector3(base.x, minf(y_bas, base.y - 0.1), base.z)     # toujours jusqu'à la glace (le pied s'enfonce dans la rive)
 		var h := top.y - pied.y - 0.2
 		if h < 1.5:
 			continue
-		var r := _hab_r.randf_range(0.2, 0.42) * (1.25 - absf(float(k) - 8.0) * 0.06)
+		var r := _hab_r.randf_range(0.14, 0.5) * (1.25 - absf(float(k) - 8.0) * 0.06)
+		if k % 3 == 1 or _hab_r.randf() < 0.2:            # orgues : certaines coulées s'arrêtent en grands glaçons (bord bas déchiqueté)
+			var lq := h * _hab_r.randf_range(0.45, 0.8)
+			pointe("c_glacon", top + Vector3(0, 0.1, 0) + R * 0.2, r * 1.5, -lq, _hab_r.randi(), 0.0, 6)
+			continue
 		var prof := [Vector2(r * 2.6, 0.0), Vector2(r * 1.6, h * 0.08), Vector2(r * 1.05, h * 0.3), Vector2(r * 0.8, h * 0.55), Vector2(r * 1.0, h * 0.8), Vector2(r * 1.7, h + 0.35)]
 		revolution("c_glacon", pied + R * 0.2, prof, 6, _hab_r.randi(), 0.3, 0.0, 0.85, 1.0, 1.0)
 	for k in 22:
-		var ds := _hab_r.randf_range(-3.2, 3.2)
-		var lat := lat_c * _hab_r.randf_range(0.65, 0.95)
+		var ds := _hab_r.randf_range(-0.6, 0.8)
+		var lat := lat_c + _hab_r.randf_range(-2.8, 2.8)
 		var top := g.plafond_en(id, s + ds, lat)
 		pointe("c_glacon", top + Vector3(0, 0.08, 0), _hab_r.randf_range(0.04, 0.1), -_hab_r.randf_range(0.3, 1.0), _hab_r.randi(), 0.0, 5)
-	var pied_c := g.sol_en(id, s, lat_c * 0.75)
+	var pied_c := g.sol_en(id, s, lat_c)
 	carte("halo_f", Vector3(pied_c.x, maxf(pied_c.y, g.lac_y) + 0.03, pied_c.z), Vector3.UP, 6.0, 6.0)
 	# jour bleuté qui tombe sur la cascade (lumière fixe, froide)
 	var top_c := g.plafond_en(id, s, lat_c * 0.7)
 	var lj := lumiere(Vector3(top_c.x, lerpf(pied_c.y, top_c.y, 0.65), top_c.z) - R * 1.2, JOUR_C, 2.2, 11.0, 1.2, false)
 	lj.light_color = JOUR_C
-	carte("halo_f", Vector3(top_c.x, lerpf(pied_c.y, top_c.y, 0.5), top_c.z) - R * 0.3, R, 4.0, 6.0)
+	# éclairage bleu de face (depuis le rivage) : la cascade se lit au fond
+	var face := g.sol_en(id, s - 3.5, lat_c)
+	var lb := lumiere(Vector3(face.x, maxf(face.y, g.lac_y) + 2.4, face.z), Color(0.5, 0.72, 1.0), 2.6, 9.0, 1.3, false)
+	lb.light_color = Color(0.5, 0.72, 1.0)
+	lb.set_meta("grappe", true)
 
 ## Glaçons pendus au plafond, par grappes : denses à l'entrée, au lac gelé et chez les cristaux, rares ailleurs, jamais au camp.
 ## Ils restent hors de portée de la tête (2,3 m de garde au sol, ou près des parois).
