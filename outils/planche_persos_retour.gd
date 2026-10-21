@@ -3,7 +3,7 @@ extends SceneTree
 ## du cycle), chaque personnage amené au même endroit de la place du village, même pose (Idle figé), caméra du joueur (FOV 72°).
 ## Fonctionne sur toutes les versions (avant 2ec1c7e, kit Personnage, retour Humain) : l'apparence du bandit est prise dans le code présent.
 ##   godot --path . --disable-vsync --script res://outils/planche_persos_retour.gd -- --nouvelle --paisible --sans-particules --res=640x360 \
-##        --sortie=<dossier absolu> [--heures=12,17.5] [--distances=2,4]
+##        --sortie=<dossier absolu> [--heures=12,17.5] [--distances=2,4] [--persos=hrafn,archer] (hrafn / archer : versions avec grotte_jeu.gd)
 ## Crépuscule : 17.5 depuis la refonte (cycle recalé), 15 avant (2ec1c7e^1 : clarté à mi-chemin entre 14 h et 16 h).
 ## Écrit <perso>_<heure>_<dist>m.png (640x360).
 const PERSOS := ["chef", "forgeron", "garde", "chasseuse", "volva", "ancienne", "bandit", "joueur"]
@@ -80,18 +80,32 @@ func _lancer() -> void:
 	cam.far = 900.0
 	monde.add_child(cam)
 	# bandit (même créature que le draugr), créé une fois, caché tant qu'il ne pose pas
-	var bandit: CharacterBody3D = monde.creer_draugr("sbire", spot + Vector3(0, -50, 0), cap, false, {"ident": "bandit_planche", "nom_affiche": "Bandit", "apparence": _apparence_bandit()})
-	bandit.set_physics_process(false)
-	bandit.visible = false
+	var liste := _arg("persos", ",".join(PERSOS)).split(",", false)
+	var ennemis := {}
+	for nom: String in liste:
+		if nom in ["bandit", "hrafn", "archer"]:
+			var app := _apparence_bandit()
+			if nom != "bandit":
+				var kit := "--persos-kit" in OS.get_cmdline_user_args()
+				var gj: GDScript = load("res://scripts/grotte_jeu.gd")
+				app = ({"perso": load("res://scripts/perso_def.gd").depuis(gj.HRAFN)} if kit else gj.apparence_humain(4)) if nom == "hrafn" \
+					else ({"perso": load("res://scripts/perso_defs.gd").bandit(3)} if kit else gj.apparence_humain(3))
+			var opts := {"ident": nom + "_planche", "nom_affiche": "Bandit", "apparence": app}
+			if nom == "archer":
+				opts["archer"] = true
+			var e: CharacterBody3D = monde.creer_draugr("sbire", spot + Vector3(0, -50, 0), cap, false, opts)
+			e.set_physics_process(false)
+			e.visible = false
+			ennemis[nom] = e
 	for p in get_nodes_in_group("villageois"):
 		p.set_physics_process(false)
 		p.set_process(false)
 	var heures := _arg("heures", "12,17.5").split(",", false)
 	var dists := _arg("distances", "2,4").split(",", false)
-	for nom: String in PERSOS:
+	for nom: String in liste:
 		var cible: Node3D
-		if nom == "bandit":
-			cible = bandit
+		if ennemis.has(nom):
+			cible = ennemis[nom]
 		elif nom == "joueur":
 			cible = joueur
 		else:
@@ -102,7 +116,8 @@ func _lancer() -> void:
 		var ancien := cible.global_transform
 		for p in get_nodes_in_group("villageois"):
 			p.visible = p == cible
-		bandit.visible = cible == bandit
+		for e: Node3D in ennemis.values():
+			e.visible = e == cible
 		cible.visible = true
 		var face := cap
 		if nom == "joueur":
@@ -128,6 +143,6 @@ func _lancer() -> void:
 				var f := "%s_%s_%sm.png" % [nom, h.replace(".", "h"), d]
 				img.save_png(sortie.path_join(f))
 				print("CAPTURE ", f, " ", img.get_width(), "x", img.get_height())
-		if nom != "joueur" and nom != "bandit":
+		if nom != "joueur" and not ennemis.has(nom):
 			cible.global_transform = ancien
 	quit(0)
