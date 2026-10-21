@@ -9,7 +9,7 @@ extends Node3D
 ## v = décalage latéral, positif à droite quand on regarde le village) ; la composition « entrée » est jitterée par
 ## la graine (variantes) et l'on peut habiller n'importe quel segment (`habiller`). RNG propre, `monde.rng` jamais touché.
 ##
-## Coût : tout est fusionné par matériau (dalles, pierre+neige, rondins, bouts, fer, verre, gravure) + MultiMesh pour
+## Coût : tout est fusionné par matériau (dalles, pierre+neige, stèle, rondins, bouts, fer, verre, flaques de lumière) + MultiMesh pour
 ## buissons/touffes/cailloux ; ~10 appels de dessin. Lumières : 2 OmniLight sans ombre, portée 6 m, distance_fade
 ## (au plus une visible avec les 2 torches de la porte) ; les autres lanternes sont émissives seulement.
 ## Collisions : poteaux, pierre levée et gros rochers seulement (formes simples, hors de la piste).
@@ -18,6 +18,10 @@ extends Node3D
 const PORTEE := 80.0                 # ≤ FIN_MAX + 5 (brouillard)
 const DEMI_LARGEUR := 1.3            # demi-largeur du dallage (m)
 const VILLAGE_RAYON := 22.0          # palissade (village.gd RAYON)
+## Palettes communes (DIRECTION_ARTISTIQUE §2) : dalles gris-brun (pierre froide réchauffée), granit « Pierre froide ».
+const PALETTE_DALLE := ["#3e3a3b", "#4d4747", "#5c5653", "#6c6560", "#7d766f", "#8e877f", "#a39b91"]
+const PALETTE_GRANIT := ["#1c1c1f", "#303035", "#3d434f", "#4c5566", "#5e6880", "#737e98", "#8a94ad"]
+const FLAQUE := Color(1.0, 0.52, 0.22)   # flaque de lumière des lanternes (additive)
 const COULEUR_LANTERNE := Color(1.0, 0.62, 0.32)   # préréglage « Lanterne » (DIRECTION_ARTISTIQUE §6)
 const VITRE_LANTERNE := Color("#fcb53a")
 
@@ -34,7 +38,9 @@ var _bois := BatiGeo.Maillage.new()
 var _bouts := BatiGeo.Maillage.new()
 var _fer := BatiGeo.Maillage.new()
 var _verre := BatiGeo.Maillage.new()
-var _gravure := BatiGeo.Maillage.new()
+var _stele := BatiGeo.Maillage.new()
+var _flaques := BatiGeo.Maillage.new()
+var _mat_flaque: StandardMaterial3D
 var _buissons: Array = []
 var _touffes: Array = []
 var _cailloux: Array = []
@@ -129,6 +135,8 @@ func _entree() -> void:
 	for b in [[6.1, -2.95], [3.7, -4.4], [4.5, 4.7], [2.6, 4.0], [6.4, 3.3], [1.2, -3.9], [8.0, -3.3], [10.4, 3.5], [12.6, -4.0], [16.2, 3.6], [6.9, -4.3], [4.3, 3.0]]:
 		_buisson(_p(_j(b[0], 0.2), _j(b[1] * cote, 0.15)), rng.randf_range(0.75, 1.15))
 	# sapins chargés de neige de part et d'autre, du premier plan jusqu'à la porte (la porte reste visible au bout)
+	# grands sapins du tout premier plan, à gauche et à droite : ils coupent le bord de l'image (pose commune)
+	_sapins([[4.6, -5.6, 1.45, true], [5.6, 5.1, 1.5, true], [1.8, -6.2, 1.6, true]], 0, 0.0, 0.0)
 	_sapins([[7.6, -6.6, 1.2], [3.0, -6.6, 1.0], [10.6, -5.6, 1.1], [14.0, -7.6, 1.3], [18.2, -5.4, 1.0], [22.0, -6.8, 1.2], [26.0, -5.6, 1.0], [30.0, -7.2, 1.1],
 			[6.4, 6.9, 1.15], [2.4, 7.4, 1.0], [11.2, 7.2, 1.2], [16.6, 6.3, 1.0], [21.0, 7.6, 1.3], [25.2, 5.8, 1.0], [29.2, 6.8, 1.2], [33.0, 5.8, 1.0]], 14, 2.0, longueur + 4.0)
 	_semer_bords(0.5, longueur - 1.5)
@@ -144,9 +152,9 @@ func _sapins(liste: Array, nb_remplir: int, u0: float, u1: float) -> void:
 	var lots: Array = [[], [], []]
 	var essais: Array = []
 	for t in liste:
-		essais.append([_j(t[0], 0.4), _j(t[1], 0.3), float(t[2])])
+		essais.append([_j(t[0], 0.2), _j(t[1], 0.2), float(t[2]), t.size() > 3])
 	for i in nb_remplir * 4:
-		essais.append([rng.randf_range(u0, u1), rng.randf_range(5.0, 13.0) * (1.0 if rng.randf() < 0.5 else -1.0), rng.randf_range(0.85, 1.3)])
+		essais.append([rng.randf_range(u0, u1), rng.randf_range(5.0, 13.0) * (1.0 if rng.randf() < 0.5 else -1.0), rng.randf_range(0.85, 1.3), false])
 	var remplis := 0
 	for k in essais.size():
 		var e: Array = essais[k]
@@ -157,11 +165,12 @@ func _sapins(liste: Array, nb_remplir: int, u0: float, u1: float) -> void:
 		if k >= liste.size() and remplis >= nb_remplir:
 			break
 		var p := _p(e[0], e[1])
-		if absf(e[1]) < 3.6 or p.distance_to(centre_village) < r_min or not _libre(p, 1.0):
+		var force: bool = e[3]   # premier plan : posé tel quel (coupe le bord de l'image), seulement hors piste
+		if absf(e[1]) < 3.6 or p.distance_to(centre_village) < r_min or (not force and not _libre(p, 1.0)):
 			continue
 		var serre := false
 		for q in pris:
-			if q.distance_to(p) < 2.6:
+			if q.distance_to(p) < 2.6 and not force:
 				serre = true
 				break
 		if serre:
@@ -277,28 +286,33 @@ static func _couper(poly: Array[Vector2], s: Vector2, n: Vector2, lim: float) ->
 ## Une dalle : dessus en éventail (léger bombé, bascule), flancs jusque sous le sol. Neige : le bas des flancs (alpha 0)
 ## remplit les joints ; certains bords du dessus sont poudrés (plus sur les bords de la piste qu'au milieu, piétiné).
 func _dalle(poly: Array[Vector2], c2: Vector2, centre_v: float) -> void:
-	var kt := rng.randf_range(0.82, 1.12)
-	var chaud := rng.randf_range(-0.03, 0.05)
-	var col_haut := Color(kt + chaud, kt, kt - chaud * 0.5, 1.0)
-	var col_flanc := Color(kt * 0.62, kt * 0.62, kt * 0.64, 1.0)
-	var col_pied := Color(0.9, 0.9, 0.95, 0.0)
-	var p_neige := 0.15 + 0.5 * smoothstep(0.3, 1.25, absf(c2.y - centre_v))
-	var bascule := Vector2(rng.randf_range(-0.025, 0.025), rng.randf_range(-0.025, 0.025))
-	var epais := rng.randf_range(0.025, 0.045)
+	# pierre gris-brun moyenne, plus claire au sommet ; ~15 % à moitié enfouies (un bord passe sous la neige du sol)
+	var kt := rng.randf_range(0.9, 1.15)
+	var chaud := rng.randf_range(-0.02, 0.06)
+	var col_haut := Color(kt * 1.12 + chaud, kt * 1.1, kt * 1.08 - chaud * 0.5, 1.0)
+	var col_bord := Color(kt * 0.92 + chaud, kt * 0.9, kt * 0.9, 1.0)
+	var col_flanc := Color(kt * 0.6, kt * 0.6, kt * 0.63, 1.0)
+	var col_pied := Color(0.88, 0.88, 0.93, 0.0)
+	var enfouie := rng.randf() < 0.15
+	var p_neige := 0.35 + 0.45 * smoothstep(0.3, 1.25, absf(c2.y - centre_v))
+	var pente := 0.07 if enfouie else 0.025
+	var bascule := Vector2(rng.randf_range(-1.0, 1.0), rng.randf_range(-1.0, 1.0)).normalized() * rng.randf_range(0.3, 1.0) * pente
+	var epais := rng.randf_range(-0.01, 0.01) if enfouie else rng.randf_range(0.025, 0.045)
 	var haut: Array[Vector3] = []
 	var bas: Array[Vector3] = []
 	var cols: Array[Color] = []
 	var y_moy := 0.0
 	for q in poly:
 		var w := _p(q.x, q.y)
-		var y := _sol(w) + epais + (q - c2).dot(bascule)
+		var y := _sol(w) + epais + (q - c2).dot(bascule) * 2.0
 		y_moy += y
 		haut.append(_l(w, y))
 		var d := (q - c2).normalized() * 0.035
 		var wb := _p(q.x + d.x, q.y + d.y)
 		bas.append(_l(wb, _sol(wb) - 0.03))
 		var t := rng.randf()
-		cols.append(Color(col_haut.r, col_haut.g, col_haut.b, 0.0 if t < p_neige * 0.3 else (0.3 if t < p_neige else 1.0)))
+		# liseré de neige sur le bord : alpha 0,3 (la neige mord ~30 % vers le centre), parfois plus
+		cols.append(Color(col_bord.r, col_bord.g, col_bord.b, 0.0 if t < p_neige * 0.25 else (0.3 if t < p_neige else 1.0)))
 	y_moy /= poly.size()
 	var cw := _p(c2.x, c2.y)
 	var ctr := _l(cw, y_moy + 0.012)
@@ -309,59 +323,69 @@ func _dalle(poly: Array[Vector2], c2: Vector2, centre_v: float) -> void:
 		_dalles.tri(haut[i], haut[i2], ctr, cols[i], cols[i2], col_haut, dessous)
 		_dalles.quad(bas[i], bas[i2], haut[i2], haut[i], col_pied, col_pied, col_flanc, col_flanc, ctr - Vector3(0, 0.03, 0))
 
-## Rocher arrondi coiffé d'une épaisse calotte de neige (débordante), posé sur la pente ; congère du côté opposé à la piste.
+## Rocher arrondi et bosselé (16 × 9 sommets, deux octaves de bruit) en granit gris-bleu, coiffé d'une calotte de neige
+## épaisse à bord irrégulier qui coule sur les flancs ; posé sur la pente ; congère du côté opposé à la piste.
 func _rocher(u: float, v: float, s: float) -> void:
 	var p := _p(u, v)
 	var y0 := _sol_bas(p, s * 0.35)
 	var n := FastNoiseLite.new()
 	n.seed = rng.randi()
-	n.frequency = 1.1
+	n.frequency = 1.0
 	var sx := s * 0.5 * rng.randf_range(0.85, 1.15)
 	var sz := s * 0.5 * rng.randf_range(0.7, 0.95)
 	var sy := s * 0.42 * rng.randf_range(0.8, 1.15)
 	var base := Basis(Vector3.UP, rng.randf() * TAU)
-	var S := 9
-	var R := 5
+	var S := 16
+	var R := 9
 	var anneaux: Array = []
-	var alphas: Array = []
-	for r in R:
-		var phi := lerpf(-0.32 * PI, 0.40 * PI, float(r) / (R - 1))
+	var cols: Array = []
+	for r in R + 1:
 		var ring := PackedVector3Array()
-		var al := PackedFloat32Array()
+		var cl := PackedColorArray()
+		var phi := lerpf(-0.3 * PI, 0.5 * PI, float(r) / R)
 		for k in S:
-			var a := TAU * k / S + r * 0.3
+			var a := TAU * k / S
 			var d := Vector3(cos(phi) * cos(a), sin(phi), cos(phi) * sin(a))
-			var f := 1.0 + n.get_noise_3dv(d * 2.0) * 0.32
+			if r == R:
+				d = Vector3(0.02 * cos(a), 1.0, 0.02 * sin(a)).normalized()
+			var f := 1.0 + n.get_noise_3dv(d * 1.6) * 0.26 + n.get_noise_3dv(d * 4.5 + Vector3(3, 1, 7)) * 0.07
 			var q := Vector3(d.x * sx, d.y * sy + sy * 0.3, d.z * sz) * f
 			if q.y < 0.0:
 				q.y *= 0.5
-			var neige := d.y + n.get_noise_3dv(d * 3.0 + Vector3(9, 9, 9)) * 0.3 > 0.42
-			if neige:   # calotte : gonflée et débordante
-				q += Vector3(d.x * 0.05, 0.06, d.z * 0.05) * s
+			# masque de neige : le haut, bord irrégulier qui descend en coulures sur les flancs
+			var m := d.y + n.get_noise_3dv(d * 2.4 + Vector3(9, 9, 9)) * 0.42 + n.get_noise_3dv(Vector3(cos(a) * 3.0, 0, sin(a) * 3.0)) * 0.18
+			var neige := m > 0.36
+			var ao := lerpf(0.42, 1.0, clampf((d.y + 0.6) / 1.4, 0.0, 1.0))
+			if neige:
+				var ep := smoothstep(0.36, 0.75, m)   # épaisseur : nulle au bord, ~9 % de la taille au sommet
+				q += (d * 0.6 + Vector3(0, 0.6, 0)) * ep * 0.11 * s
+				var kn := lerpf(0.8, 1.0, clampf(d.y, 0.0, 1.0)) * (0.94 + n.get_noise_3dv(d * 6.0) * 0.08)
+				cl.append(Color(kn, kn, kn * 1.02, 0.0))
+			else:
+				var kk := ao * (0.95 + n.get_noise_3dv(d * 5.0 + Vector3(1, 2, 3)) * 0.1)
+				cl.append(Color(kk, kk, kk * 1.03, 1.0))
 			ring.append(q)
-			al.append(0.0 if neige else 1.0)
 		anneaux.append(ring)
-		alphas.append(al)
-	var sommet := Vector3(0, sy * 1.3 + 0.07 * s, 0) + Vector3(n.get_noise_1d(5.0), 0, n.get_noise_1d(7.0)) * 0.1 * s
+		cols.append(cl)
 	var centre := Vector3(0, sy * 0.3, 0)
 	var xf := Transform3D(base, _l(p, y0 - 0.04 * s))
-	var col := func(r: int, al: float) -> Color:
-		var kk := lerpf(0.5, 1.0, float(r) / (R - 1))
-		return Color(kk, kk, kk * 1.02, al)
-	for r in R - 1:
+	for r in R:
 		var a: PackedVector3Array = anneaux[r]
 		var b: PackedVector3Array = anneaux[r + 1]
-		var aa: PackedFloat32Array = alphas[r]
-		var ab: PackedFloat32Array = alphas[r + 1]
+		var ca: PackedColorArray = cols[r]
+		var cb: PackedColorArray = cols[r + 1]
 		for k in S:
 			var k2 := (k + 1) % S
-			_pierre.tri(xf * a[k], xf * a[k2], xf * b[k2], col.call(r, aa[k]), col.call(r, aa[k2]), col.call(r + 1, ab[k2]), xf * centre)
-			_pierre.tri(xf * a[k], xf * b[k2], xf * b[k], col.call(r, aa[k]), col.call(r + 1, ab[k2]), col.call(r + 1, ab[k]), xf * centre)
-	var dernier: PackedVector3Array = anneaux[R - 1]
-	var neige_c := Color(1, 1, 1, 0.0)
+			_pierre.tri(xf * a[k], xf * a[k2], xf * b[k2], ca[k], ca[k2], cb[k2], xf * centre)
+			_pierre.tri(xf * a[k], xf * b[k2], xf * b[k], ca[k], cb[k2], cb[k], xf * centre)
+	var dernier: PackedVector3Array = anneaux[R]
+	var sommet := Vector3.ZERO
+	for q in dernier:
+		sommet += q / S
+	sommet.y += 0.01 * s
+	var cs: PackedColorArray = cols[R]
 	for k in S:
-		var k2 := (k + 1) % S
-		_pierre.tri(xf * dernier[k], xf * dernier[k2], xf * sommet, col.call(R - 1, 0.0), col.call(R - 1, 0.0), neige_c, xf * centre)
+		_pierre.tri(xf * dernier[k], xf * dernier[(k + 1) % S], xf * sommet, cs[k], cs[(k + 1) % S], cs[k], xf * centre)
 	# congère au pied, du côté opposé à la piste
 	var dehors := (droite * signf(v)).normalized()
 	var dir := dehors.rotated(rng.randf_range(-0.6, 0.6))
@@ -524,6 +548,7 @@ func _poteau_lanterne(u: float, v: float, bras: float, reelle: bool) -> void:
 		l.position = lc
 		add_child(l)
 		_lumieres.append([l, l.light_energy, rng.randf() * 10.0])
+	_flaque(Vector2(lc.x + origine.x, lc.z + origine.y), 2.3 if reelle else 1.7, 0.29 if reelle else 0.22)
 	# congère au pied, collision du poteau
 	_congere(p + axe * 0.1, droite, 0.75, 0.6, 0.16)
 	_occupe.append([p, 0.35])
@@ -580,27 +605,18 @@ func _barriere(pts: Array) -> void:
 			_touffe(pa.lerp(pb, rng.randf()) + Vector2(-d.y, d.x) * rng.randf_range(-0.4, 0.4), rng.randf_range(0.8, 1.2))
 
 ## Pierre levée sculptée d'entrelacs en losange, coiffée de neige, face gravée tournée vers `face` (x, z).
+## Gravure PEINTE dans la texture (brins en relief clairs, creux sombres, arêtes éclairées par le haut) : UV en projection
+## plane sur la face (faces ±Z planes, `plat`), matériau ps1_bati en `uv_maillage`. Plus de quad en alpha.
 func _pierre_levee(p: Vector2, face: Vector2) -> void:
 	var taille := Vector3(0.85, 2.3, 0.42)
 	var m := BatiGeo.pierre_levee(taille, 7000 + rng.randi() % 1000, true)
+	for i in m.v.size():
+		var q := m.v[i]
+		m.uv[i] = Vector2(clampf(q.x / taille.x + 0.5, 0.0, 1.0), clampf(0.5 - q.y / taille.y, 0.0, 1.0))
 	var y0 := _sol_bas(p, 0.4)
 	var b := Basis(Vector3.UP, atan2(face.x, face.y)) * Basis(Vector3.BACK, rng.randf_range(-0.03, 0.03))
 	var c := _l(p, y0 + taille.y * 0.5 - 0.22)
-	_ajouter(_pierre, m, Transform3D(b, c))
-	# gravure : quad plaqué sur la face +Z (et une plus petite au dos)
-	for cote in [1.0, -1.0]:
-		var zq: float = 0.226 * cote
-		var w := 0.5 if cote > 0.0 else 0.4
-		var hq := 1.42 if cote > 0.0 else 1.1
-		var yq := -0.08
-		var p0 := c + b * Vector3(-w * 0.5 * cote, yq - hq * 0.5, zq)
-		var p1 := c + b * Vector3(w * 0.5 * cote, yq - hq * 0.5, zq)
-		var p2 := c + b * Vector3(w * 0.5 * cote, yq + hq * 0.5, zq)
-		var p3 := c + b * Vector3(-w * 0.5 * cote, yq + hq * 0.5, zq)
-		var blanc := Color.WHITE
-		var ctr := c
-		_gravure.tri(p0, p1, p2, blanc, blanc, blanc, ctr, Vector2(0, 1), Vector2(1, 1), Vector2(1, 0))
-		_gravure.tri(p0, p2, p3, blanc, blanc, blanc, ctr, Vector2(0, 1), Vector2(1, 0), Vector2(0, 0))
+	_ajouter(_stele, m, Transform3D(b, c))
 	_congere(p - face * 0.15, face.orthogonal(), 1.3, 0.9, 0.24)
 	_occupe.append([p, 0.6])
 	var forme := CollisionShape3D.new()
@@ -611,6 +627,39 @@ func _pierre_levee(p: Vector2, face: Vector2) -> void:
 	_corps.add_child(forme)
 	for i in 3:
 		_touffe(p + face.rotated(rng.randf_range(-2.0, 2.0)) * rng.randf_range(0.5, 0.8), rng.randf_range(0.8, 1.2))
+
+## Flaque de lumière chaude au sol sous une lanterne : disque collé au relief (au-dessus des dalles), couleur de sommet
+## décroissante en paliers doux et bord bruité ; rendu additif, sans éclairage (un seul maillage pour toutes les flaques).
+func _flaque(c: Vector2, rayon: float, force: float) -> void:
+	var anneaux := 6
+	var S := 18
+	var prec: Array = []
+	var pc: Array = []
+	var ph := rng.randf() * TAU
+	var centre_bas := _l(c, _sol(c) - 1.0)
+	for r in anneaux + 1:
+		var t := float(r) / anneaux
+		var ring: Array = []
+		var cr: Array = []
+		for k in S:
+			var a := TAU * k / S
+			var jr := 1.0 + 0.12 * sin(a * 3.0 + ph) + 0.06 * sin(a * 7.0 + ph * 2.0)
+			var w := c + Vector2(cos(a), sin(a)) * rayon * t * jr
+			ring.append(_l(w, _sol(w) + 0.075))
+			var i := force * pow(1.0 - t, 1.8)
+			cr.append(Color(i, i, i, 1.0))
+		if r == 0:
+			ring = [ring[0]]
+			cr = [cr[0]]
+		if not prec.is_empty():
+			for k in S:
+				var k2 := (k + 1) % S
+				if prec.size() == 1:
+					_flaques.tri(prec[0], ring[k], ring[k2], pc[0], cr[k], cr[k2], centre_bas)
+				else:
+					_flaques.quad(prec[k], prec[k2], ring[k2], ring[k], pc[k], pc[k2], cr[k2], cr[k], centre_bas)
+		prec = ring
+		pc = cr
 
 func _buisson(p: Vector2, s: float) -> void:
 	_buissons.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.85, 1.15), s)), Vector3(p.x, _sol_bas(p, 0.3 * s) - 0.05, p.y)))
@@ -663,8 +712,19 @@ func _mesh(m: BatiGeo.Maillage, mat: Material, ombre: bool, nom: String) -> Mesh
 	return mi
 
 func _finaliser() -> void:
-	_mesh(_dalles, TexturesBati.m_pierre_brute_e(Color(0.9, 0.9, 0.95)), false, "Dalles")
-	_mesh(_pierre, TexturesPetites.m_roche_e(Color(0.95, 0.95, 1.0)), true, "PierreNeige")
+	var td: Array = texture_pierre(PALETTE_DALLE, 4100 + rng.randi() % 100, 5)
+	_mesh(_dalles, materiau_kit(td[0], td[1], 64.0, Color(1.14, 1.12, 1.1)), false, "Dalles")
+	var tg: Array = texture_pierre(PALETTE_GRANIT, 4300 + rng.randi() % 100, 7)
+	_mesh(_pierre, materiau_kit(tg[0], tg[1], 64.0, Color(0.74, 0.76, 0.82)), true, "PierreNeige")
+	_mesh(_stele, materiau_kit(texture_stele(4500 + rng.randi() % 100), TexturesBati.relief_neutre(), 64.0, Color(1.05, 1.05, 1.08), true), true, "Stele")
+	_mat_flaque = StandardMaterial3D.new()
+	_mat_flaque.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_mat_flaque.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	_mat_flaque.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_mat_flaque.vertex_color_use_as_albedo = true
+	_mat_flaque.albedo_color = FLAQUE
+	_mat_flaque.disable_receive_shadows = true
+	_mesh(_flaques, _mat_flaque, false, "Flaques")
 	var mr := TexturesBati.m_rondins_e(Color(0.95, 0.88, 0.8))
 	_mesh(_bois, mr, true, "Bois")
 	_mesh(_bouts, TexturesBati.m_bout_rondin(), true, "Bouts")
@@ -672,7 +732,6 @@ func _finaliser() -> void:
 	var mv := TexturesBati.m_fenetre()
 	mv.set_shader_parameter("emission", Color(VITRE_LANTERNE.r * 1.6, VITRE_LANTERNE.g * 1.6, VITRE_LANTERNE.b * 1.6))
 	_mesh(_verre, mv, false, "Verre")
-	_mesh(_gravure, materiau_gravure(), false, "Gravure")
 	var mb := SousBois.materiau_herbe(texture_buisson(rng.randi() % 10000), Color(1.05, 1.0, 1.0))
 	if not _buissons.is_empty():
 		for mmi in Instanciation.repartir(monde, mesh_buisson(mb), _buissons, {"portee": 50.0, "ombre": false}):
@@ -688,12 +747,12 @@ func _finaliser() -> void:
 		_dalles.v.size() / 3, _pierre.v.size() / 3, _nb_sapins, _buissons.size(), _touffes.size(), _cailloux.size(), _lumieres.size()])
 
 func _process(dt: float) -> void:
-	if _lumieres.is_empty():
-		return
 	_t += dt
 	var cyc = monde.get("cycle") if monde != null else null
 	var nuit := 1.0 - (float(cyc.clarte()) if cyc != null else 0.0)
 	var f := lerpf(0.35, 1.0, nuit)
+	if _mat_flaque != null:
+		_mat_flaque.albedo_color = FLAQUE * lerpf(0.12, 1.0, nuit) * (1.0 + sin(_t * 2.1) * 0.03)
 	for l in _lumieres:
 		var k: float = l[2]
 		(l[0] as OmniLight3D).light_energy = float(l[1]) * f * (1.0 + sin(_t * 2.1 + k) * 0.04 + sin(_t * 5.3 + k * 2.0) * 0.02)
@@ -787,55 +846,137 @@ static func texture_touffe_givree(graine: int) -> ImageTexture:
 					img.set_pixel(x, y + 1, gv[2])
 	return ImageTexture.create_from_image(img)
 
-## Gravure d'entrelacs en losange (texture 32 × 90 px : creux sombres, arêtes claires, transparent ailleurs).
-static func texture_gravure() -> ImageTexture:
-	var W := 32
-	var H := 90
-	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var creux := Color(0.16, 0.15, 0.17)
-	var arete := Color(0.62, 0.62, 0.66)
-	var cx := (W - 1) * 0.5
-	# bordure en torsade sur les deux bords
-	for y in H:
-		for x in [1, W - 2]:
-			if (y / 2) % 2 == 0:
-				img.set_pixel(x, y, creux)
-			elif (y % 4) == 1:
-				img.set_pixel(x, y, arete)
-	# losanges entrelacés : chaîne de losanges + losanges intérieurs, brins qui passent dessus/dessous
-	var hl := 22.0   # hauteur d'un losange
-	var n := int((H - 4) / hl)
-	var y0 := (H - n * hl) * 0.5
-	for i in n:
-		var cy := y0 + hl * (i + 0.5)
-		for y in H:
-			for x in W:
-				var dx := absf(x - cx)
-				var dy := absf(y - cy)
-				var e1 := dx / 12.5 + dy / (hl * 0.62)       # grand losange (déborde sur les voisins : entrelacs)
-				var e2 := dx / 6.0 + dy / (hl * 0.3)         # losange intérieur
-				var sur1 := absf(e1 - 1.0) < 0.075
-				var sur2 := absf(e2 - 1.0) < 0.13
-				var croise := (int(y) + i) % 6 < 3 and absf(dx - 6.0) < 1.5
-				if sur1 and not (croise and dy > hl * 0.35):
-					img.set_pixel(x, y, creux)
-					if y + 1 < H and img.get_pixel(x, y + 1).a < 0.5:
-						img.set_pixel(x, y + 1, arete)
-				elif sur2:
-					img.set_pixel(x, y, creux)
-		# point central
-		img.set_pixel(int(cx), int(cy), creux)
-		img.set_pixel(int(cx) + 1, int(cy), creux)
-	return ImageTexture.create_from_image(img)
-
-static func materiau_gravure() -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = texture_gravure()
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	m.alpha_scissor_threshold = 0.5
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	m.roughness = 1.0
-	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-	m.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT
+## Matériau ps1_bati sur une texture du kit (neige `neige_e` des extérieurs, fondu 64 → 32 texels/m entre 4 et 14 m).
+static func materiau_kit(tex: Texture2D, relief: Texture2D, texels: float, teinte := Color.WHITE, uv_maillage := false) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = TexturesBati.SHADER
+	m.set_shader_parameter("tex_base", tex)
+	m.set_shader_parameter("tex_relief", relief)
+	var nn := TexturesBati.charge("neige_e")
+	m.set_shader_parameter("tex_neige", nn[0])
+	m.set_shader_parameter("tex_neige_relief", nn[1])
+	m.set_shader_parameter("neige_propre", true)
+	m.set_shader_parameter("teinte", teinte)
+	m.set_shader_parameter("texels_par_m", texels)
+	m.set_shader_parameter("proche", Vector2(4.0, 14.0))
+	m.set_shader_parameter("relief", 0.8)
+	m.set_shader_parameter("uv_maillage", uv_maillage)
+	Palette._appliquer(m, Palette._ps1_actif)
+	Palette.materiaux.append(m)
 	return m
+
+## Pierre mouchetée tuilable (64 px) : bruit périodique 3 octaves quantifié dans `palette` (6-7 tons), moucheture en amas de
+## 2-3 px (clairs et sombres), arêtes de grain. Renvoie [albédo avec mips « vote de couleur », relief].
+static func texture_pierre(palette: Array, graine: int, periode := 6) -> Array:
+	var r := RandomNumberGenerator.new()
+	r.seed = graine
+	var T := 64
+	var img := Image.create(T, T, false, Image.FORMAT_RGBA8)
+	var hs := PackedFloat32Array()
+	hs.resize(T * T)
+	var cols: Array[Color] = []
+	for h in palette:
+		cols.append(Color(h))
+	for y in T:
+		for x in T:
+			var v := 0.0
+			var amp := 0.5
+			var per := periode
+			for o in 3:
+				v += Palette._valeur_periodique(float(x) / T * per, float(y) / T * per, per, graine * 10 + o) * amp
+				amp *= 0.5
+				per *= 2
+			v = v / 0.875 + (r.randf() - 0.5) * 0.12
+			hs[y * T + x] = v
+	# moucheture : amas de 2-3 px
+	for i in 150:
+		var x0 := r.randi() % T
+		var y0 := r.randi() % T
+		var dv := 0.22 if r.randf() < 0.5 else -0.25
+		for k in r.randi_range(2, 4):
+			var x := (x0 + (k % 2)) % T
+			var y := (y0 + (k / 2)) % T
+			hs[y * T + x] += dv
+	for y in T:
+		for x in T:
+			img.set_pixel(x, y, cols[clampi(int(hs[y * T + x] * cols.size()), 0, cols.size() - 1)])
+	return [PeintureBati.avec_mips(img), _relief_de(hs, T, T, 2.5)]
+
+## Relief (gradient de hauteur encodé en rg, 0,5 = plat) d'un champ de hauteurs périodique.
+static func _relief_de(hs: PackedFloat32Array, W: int, H: int, k: float) -> ImageTexture:
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	for y in H:
+		for x in W:
+			var gx := hs[y * W + (x + 1) % W] - hs[y * W + (x + W - 1) % W]
+			var gy := hs[((y + 1) % H) * W + x] - hs[((y + H - 1) % H) * W + x]
+			img.set_pixel(x, y, Color(clampf(0.5 + gx * k * 0.5, 0.0, 1.0), clampf(0.5 + gy * k * 0.5, 0.0, 1.0), 0.5, 1.0))
+	return PeintureBati.relief_mips(img)
+
+## Texture de la stèle (56 × 152 px pour 0,85 × 2,3 m) : granit moucheté, cadre gravé, deux brins entrelacés en zigzag qui
+## forment une chaîne de losanges (dessus/dessous alternés aux croisements), petits losanges au centre. Relief peint :
+## brins clairs à arête haute éclairée, creux quasi noirs, pied de brin plus sombre.
+static func texture_stele(graine: int) -> ImageTexture:
+	var W := 56
+	var H := 152
+	var base: Array = texture_pierre(PALETTE_GRANIT, graine)
+	var src: Image = (base[0] as ImageTexture).get_image()
+	src.clear_mipmaps()
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	for y in H:
+		for x in W:
+			img.set_pixel(x, y, src.get_pixel(x % 64, y % 64))
+	var creux := Color("#14161a")
+	var ombre := Color("#303035")
+	var brin := Color("#8a94ad")
+	var arete := Color("#a7adbf")
+	var brin_bas := Color("#626c86")
+	var cx := (W - 1) * 0.5
+	var y0 := 22
+	var y1 := 128
+	var x0 := 9
+	var x1 := W - 10
+	# cadre : creux de 1 px, arête claire dessous/à droite
+	for y in range(y0 - 3, y1 + 4):
+		for x in range(x0 - 3, x1 + 4):
+			var bord: bool = (x == x0 - 3 or x == x1 + 3 or y == y0 - 3 or y == y1 + 3)
+			if bord:
+				img.set_pixel(x, y, creux)
+				if x + 1 < W and (y == y0 - 3):
+					img.set_pixel(x, y + 1, arete)
+	var P := 35.0
+	# quatre brins : deux grands zigzags (chaîne de losanges) et deux petits décalés d'une demi-période (losanges intérieurs)
+	var brins := [[13.0, 0.0], [-13.0, 0.0], [6.0, 0.5], [-6.0, 0.5]]
+	for y in range(y0, y1 + 1):
+		var croisement := int(floor((y - y0) / (P * 0.5) + 0.5))
+		for x in range(x0, x1 + 1):
+			var meilleur := -1
+			var prio := -1
+			var xs := 0.0
+			var dmin := 99.0
+			var sillon := false
+			for bi in brins.size():
+				var A: float = brins[bi][0]
+				var t := absf(fposmod((y - y0) / P + float(brins[bi][1]), 1.0) - 0.5) * 4.0 - 1.0
+				var xb := cx + A * t
+				var corr := sqrt(1.0 + pow(4.0 * A / P, 2.0))
+				var d := absf(x - xb) / corr
+				var lim := 1.5 if absf(A) > 8.0 else 1.1
+				if d < lim:
+					var pr := (bi + croisement) % brins.size()
+					if pr > prio:
+						prio = pr
+						meilleur = bi
+						xs = xb
+						dmin = d / lim
+				elif d < lim + 1.1:
+					sillon = true
+			var c: Color
+			if meilleur >= 0:
+				c = arete if (x < xs and dmin > 0.45) else (brin_bas if (x > xs and dmin > 0.45) else brin)
+			elif sillon:
+				c = creux
+			else:
+				c = img.get_pixel(x, y).darkened(0.35)
+			img.set_pixel(x, y, c)
+	return PeintureBati.avec_mips(img)
+
