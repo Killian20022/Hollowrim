@@ -1,0 +1,23 @@
+# Passe 4 abords : maisons, rochers, dalles. Coordonnées calculées dans le repère du village (z local+ = côté entrée).
+# godot --path . --disable-vsync -- --captures=outils/poses_abords_passe4.txt --sortie=<dossier> --nouvelle --paisible --sans-mains --attente=200 --res=640x360
+entree_17h5 monde 21.80,19.82,-132.3,0.3 heure=17.5
+entree_22 monde 21.80,19.82,-132.3,0.3 heure=22
+entree_10 monde 21.80,19.82,-132.3,0.3 heure=10
+maisonG_17h5 monde 35.39,37.58,-77.6,4 heure=17.5
+maisonD_17h5 monde 40.10,32.40,139.7,4 heure=17.5
+halle_17h5 monde 38.89,36.70,-129.1,6 heure=17.5
+rochG_17h5 monde 20.46,21.30,-70.9,-8 heure=17.5
+rochD_17h5 monde 23.15,18.34,166.3,-8 heure=17.5
+dalles_17h5 monde 22.91,20.83,-132.3,-28 heure=17.5
+maisonG_22 monde 35.39,37.58,-77.6,4 heure=22
+maisonD_22 monde 40.10,32.40,139.7,4 heure=22
+halle_22 monde 38.89,36.70,-129.1,6 heure=22
+rochG_22 monde 20.46,21.30,-70.9,-8 heure=22
+rochD_22 monde 23.15,18.34,166.3,-8 heure=22
+dalles_22 monde 22.91,20.83,-132.3,-28 heure=22
+pignonD_17h5 monde 24.43,37.75,-132.3,6 heure=17.5
+pignonD_22 monde 24.43,37.75,-132.3,6 heure=22
+pignonG_17h5 monde 46.79,31.73,-104.0,6 heure=17.5
+pignonG_22 monde 46.79,31.73,-104.0,6 heure=22
+rochGc_17h5 monde 22.53,20.21,-76.0,-10 heure=17.5
+rochDc_17h5 monde 22.14,20.94,172.3,-10 heure=17.5

@@ -51,6 +51,11 @@ var _fumees: Array[StandardMaterial3D] = []
 var _vitres: Node3D
 const TEINTE_COLOMBAGE := Color(0.44, 0.4, 0.4)
 const LUEUR := Color(0.988, 0.71, 0.227)   # vitre émissive #fcb53a (DIRECTION_ARTISTIQUE §6, préréglage « lanterne »)
+## Passe 4 : halos chauds des fenêtres et matière commune des fumées (modulés par la nuit dans `_process`).
+var _mat_halo: StandardMaterial3D
+var _mat_fumee: StandardMaterial3D
+var _nuit_halo := -1.0
+var avec_habillage := not OS.get_cmdline_user_args().has("--sans-habillage-maisons")   # A/B de coût et d'aspect
 ## Le mobilier des intérieurs se construit dans UN fil de travail, hors de l'arbre (un `Interieur` temporaire reçoit lots, flammes
 ## et lumières), puis est posé par petites tâches de ≤ BUDGET_INT_US µs par image sur le fil principal : plus aucune image de
 ## 40-700 ms au chargement (les maisons sont invisibles de loin, le joueur démarre à plus de 13 m des portes).
@@ -170,6 +175,12 @@ func _process(dt: float) -> void:
 			if not _sans_refonte:
 				m_vitre_ext.set_shader_parameter("nuit", n)
 				_regler_lueurs(n)
+	if cyc != null and _mat_halo != null and _mat_fumee != null:
+		var nh: float = 1.0 - cyc.clarte()
+		if absf(nh - _nuit_halo) > 0.01:
+			_nuit_halo = nh
+			_mat_halo.albedo_color = Color(1.0, 0.6, 0.24) * lerpf(0.0, 1.0, smoothstep(0.1, 0.8, nh))
+			_mat_fumee.albedo_color = Color.WHITE.lerp(Color(0.5, 0.52, 0.62), smoothstep(0.1, 0.9, nh))
 	for f in _flammes:
 		var l: OmniLight3D = f[0]
 		var k: float = f[2]
@@ -482,48 +493,57 @@ func _feu(parent: Node3D, position_: Vector3, taille: float, energie: float, por
 	p.draw_pass_1 = q
 	parent.add_child(p)
 
+## Fumée de cheminée (passe 4) : petites bouffées en pixels (texture 10 × 10 à bord en paliers, filtrage nearest, aucun flou),
+## lentes et légères, qui grossissent peu, chauffées de rouge près de la bouche et grisées en montant, poussées par un vent doux.
 func _fumee(parent: Node3D, position_: Vector3) -> void:
 	if not _sans_refonte:
 		_fumee_pixels(parent, position_)
 		return
 	var p := GPUParticles3D.new()
-	p.amount = 14
-	p.lifetime = 7.0
-	p.preprocess = 7.0
+	p.amount = 16
+	p.lifetime = 10.0
+	p.preprocess = 10.0
 	p.position = position_
 	p.visibility_aabb = AABB(Vector3(-6, -1, -6), Vector3(12, 14, 12))
 	var pm := ParticleProcessMaterial.new()
 	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	pm.emission_sphere_radius = 0.2
+	pm.emission_sphere_radius = 0.14
 	pm.direction = Vector3.UP
-	pm.spread = 8.0
-	pm.initial_velocity_min = 0.5
-	pm.initial_velocity_max = 0.8
-	pm.gravity = Vector3(0.25, 0.05, 0.1)
-	pm.scale_min = 0.8
-	pm.scale_max = 1.3
+	pm.spread = 10.0
+	pm.initial_velocity_min = 0.3
+	pm.initial_velocity_max = 0.5
+	pm.gravity = Vector3(0.12, 0.03, 0.05)
+	pm.angle_min = 0.0
+	pm.angle_max = 360.0
+	pm.scale_min = 0.7
+	pm.scale_max = 1.2
 	var courbe := Curve.new()
-	courbe.add_point(Vector2(0, 0.4))
-	courbe.add_point(Vector2(1, 2.2))
+	courbe.add_point(Vector2(0, 0.55))
+	courbe.add_point(Vector2(1, 2.4))
 	var ct := CurveTexture.new()
 	ct.curve = courbe
 	pm.scale_curve = ct
 	var g := Gradient.new()
-	g.offsets = PackedFloat32Array([0.0, 0.2, 1.0])
-	g.colors = PackedColorArray([Color(0.22, 0.24, 0.3, 0.0), Color(0.22, 0.24, 0.3, 0.22), Color(0.16, 0.18, 0.24, 0.0)])
+	g.offsets = PackedFloat32Array([0.0, 0.12, 0.35, 0.8, 1.0])
+	g.colors = PackedColorArray([Color(0.95, 0.62, 0.4, 0.0), Color(0.9, 0.62, 0.48, 0.8), Color(0.66, 0.7, 0.8, 0.7), Color(0.55, 0.6, 0.72, 0.38), Color(0.45, 0.5, 0.62, 0.0)])
 	var gt := GradientTexture1D.new()
 	gt.gradient = g
 	pm.color_ramp = gt
 	p.process_material = pm
 	var q := QuadMesh.new()
-	q.size = Vector2(0.45, 0.45)
-	var mq := StandardMaterial3D.new()
-	mq.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mq.vertex_color_use_as_albedo = true
-	mq.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mq.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	q.material = mq
+	q.size = Vector2(0.26, 0.26)
+	if _mat_fumee == null:
+		_mat_fumee = StandardMaterial3D.new()
+		_mat_fumee.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_mat_fumee.vertex_color_use_as_albedo = true
+		_mat_fumee.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_mat_fumee.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		_mat_fumee.albedo_texture = _texture_bouffee()
+		_mat_fumee.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		_mat_fumee.disable_receive_shadows = true
+	q.material = _mat_fumee
 	p.draw_pass_1 = q
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(p)
 
 ## Bouffée de fumée 16 × 16 en pixels (filtrage au plus proche) : disque bosselé, alpha en 3 paliers (pas de dégradé
@@ -610,6 +630,18 @@ func _fumee_pixels(parent: Node3D, position_: Vector3, force := 1.0) -> void:
 	p.draw_pass_1 = q
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(p)
+## Bouffée de fumée en pixels : disque irrégulier de 10 × 10, alpha en trois paliers (cœur, bord, frange), blanc.
+static func _texture_bouffee() -> ImageTexture:
+	var n := 10
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var r := RandomNumberGenerator.new()
+	r.seed = 4242
+	for y in n:
+		for x in n:
+			var d := Vector2(x - (n - 1) * 0.5, y - (n - 1) * 0.5).length() / (n * 0.5) + (r.randf() - 0.5) * 0.28
+			var a := 1.0 if d < 0.45 else (0.55 if d < 0.7 else (0.22 if d < 0.92 else 0.0))
+			img.set_pixel(x, y, Color(1, 1, 1, a))
+	return ImageTexture.create_from_image(img)
 
 ## Pignon triangulaire plein (visible des deux côtés), dans le plan YZ.
 func _pignon(parent: Node3D, x: float, y0: float, demi_largeur: float, hauteur_: float) -> void:
@@ -899,6 +931,9 @@ func _pan(p: Node3D, Rp: Vector3, d: Vector3, Lx: float, graine: int, L_murs: fl
 		_ajouter(p, BatiGeo.dalle_neige_epaisse(Lx, Sl, graine, EPAISSEUR_NEIGE, 0.26, 0.2, trou).surface_get_arrays(0), xf, m_toit)
 	else:
 		_ajouter(p, BatiGeo.dalle_neige(Lx, Sl, graine, 0.22, 0.05, trou).surface_get_arrays(0), xf, m_toit)
+		# congères d'abords : seulement sur l'ancien bâti (la neige épaisse de la refonte les remplace)
+		if avec_habillage:
+			_neige_toit(p, xf, Lx, Sl, graine, trou)
 	if cornes:
 		for bout in [-1.0, 1.0]:
 			var rive := Transform3D(Basis(bx, nrm, t), Rp + bx * (bout * (Lx * 0.5 - 0.1)) + nrm * 0.02)
@@ -908,6 +943,33 @@ func _pan(p: Node3D, Rp: Vector3, d: Vector3, Lx: float, graine: int, L_murs: fl
 			else:
 				_boite(p, Vector3(0.14, 0.3, Sl + 0.5), rive * Transform3D(Basis(), Vector3(0, -0.02, Sl * 0.5 - 0.15)), m_poutres_h)
 	return xf
+
+## Passe 4 : neige qui tient sur un pan : congères en gros boudins posés sur la pente (volume, silhouette au faîte) et
+## bourrelet qui déborde à l'égout par tronçons irréguliers. Générateur local : aucun tirage partagé.
+func _neige_toit(p: Node3D, xf: Transform3D, Lx: float, Sl: float, graine: int, trou: Vector2) -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = graine * 131 + 17
+	var k := 0
+	for i in int(Lx / 1.6) + 2:
+		var x := r.randf_range(-Lx * 0.5 + 0.8, Lx * 0.5 - 0.8)
+		if trou != Vector2.ZERO and x > trou.x - 0.7 and x < trou.y + 0.7:
+			continue
+		var ts := r.randf_range(0.28, 0.9)
+		var lon := r.randf_range(0.7, 1.5)
+		var ray := r.randf_range(0.1, 0.17)
+		var roul := BatiGeo.rondin(lon, ray, graine * 17 + k, 0.03, 0, 0.0, 1.0)
+		var b := Basis(Vector3.UP, r.randf_range(-0.5, 0.5)) * Basis(Vector3.RIGHT, r.randf_range(-0.2, 0.2))
+		_ajouter(p, (roul[0] as BatiGeo.Maillage).arrays(), xf * Transform3D(b, Vector3(x, 0.19 + 0.06 * ts, Sl * ts)), m_neige)
+		k += 1
+	var x := -Lx * 0.5 + 0.3
+	while x < Lx * 0.5 - 0.5:
+		var lon := r.randf_range(0.8, 2.2)
+		lon = minf(lon, Lx * 0.5 - 0.3 - x)
+		if lon > 0.4:
+			var roul := BatiGeo.rondin(lon, r.randf_range(0.13, 0.2), graine * 19 + k, 0.04, 0, 0.0, 1.0)
+			_ajouter(p, (roul[0] as BatiGeo.Maillage).arrays(), xf * Transform3D(Basis(), Vector3(x + lon * 0.5, 0.1, Sl + 0.03)), m_neige)
+			k += 1
+		x += lon + r.randf_range(0.3, 1.2)
 
 ## Toit en deux pans (lot 5, 2e passe) : chevrons qui dépassent, planches dessous, dalle de neige à épaisseur et à
 ## bord irrégulier (tourbe sombre à la lèvre), faîtière en rondin dont les bouts sortent des pignons et rouleau
@@ -945,6 +1007,75 @@ func _toit(p: Node3D, L: float, W: float, y0: float, faite: float, graine: int, 
 		_ajouter(p, (roul[0] as BatiGeo.Maillage).arrays(), Transform3D(Basis(), Rp + Vector3((m[0] + m[1]) * 0.5, 0.2 if _sans_refonte else 0.38, 0)), m_neige)
 		k += 1
 	return Vector2(eave_z, bas_y)
+
+## Passe 4 : habillage visible par-dessus la palissade (purement visuel : ni collision, ni porte, ni intérieur).
+## Lucarne éclairée dans chaque pignon (la façade des longs pans est cachée par la palissade, les pignons ne le sont pas),
+## halos chauds en paliers autour de toutes les fenêtres (additifs, éteints le jour, modulés par la nuit).
+func _habiller_maison(p: Node3D, L: float, W: float, y0: float, faite: float, fen: Array, yf: float) -> void:
+	if _mat_halo == null:
+		_mat_halo = StandardMaterial3D.new()
+		_mat_halo.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_mat_halo.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		_mat_halo.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_mat_halo.albedo_texture = _texture_halo()
+		_mat_halo.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		_mat_halo.albedo_color = Color(0, 0, 0)
+		_mat_halo.disable_receive_shadows = true
+	var halos: Array = []   # [position, lacet, taille]
+	# lucarnes de pignon : vitrage émissif 0,56 × 0,5 m, cadre de bois, appui enneigé
+	var yl := y0 + faite * 0.36
+	# (la refonte bâti a déjà ses fenêtres de pignon : on ne double pas les lucarnes, seulement l'ancien bâti en reçoit)
+	for cote in ([] if not _sans_refonte else [-1.0, 1.0]):
+		var x: float = cote * (L * 0.5 + 0.17)
+		var lacet: float = cote * PI * 0.5
+		var mi := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2(0.56, 0.5)
+		mi.mesh = q
+		mi.material_override = m_fenetre
+		mi.transform = Transform3D(Basis(Vector3.UP, lacet), Vector3(x, yl, 0))
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		p.add_child(mi)
+		var xc: float = x + cote * 0.04
+		_boite(p, Vector3(0.1, 0.1, 0.78), Transform3D(Basis(), Vector3(xc, yl + 0.3, 0)), m_poutres_h)
+		_boite(p, Vector3(0.14, 0.09, 0.84), Transform3D(Basis(), Vector3(xc + cote * 0.02, yl - 0.29, 0)), m_poutres_h)
+		for fz in [-0.33, 0.33]:
+			_boite(p, Vector3(0.1, 0.5, 0.1), Transform3D(Basis(), Vector3(xc, yl, fz)), m_poutres_h)
+		_boite(p, Vector3(0.1, 0.5, 0.06), Transform3D(Basis(), Vector3(xc + cote * 0.01, yl, 0)), m_poutres_h)   # meneau
+		_boite(p, Vector3(0.2, 0.05, 0.8), Transform3D(Basis(), Vector3(xc + cote * 0.04, yl - 0.23, 0)), m_neige)   # neige sur l'appui
+		halos.append([Vector3(x + cote * 0.22, yl, 0), lacet, Vector2(1.7, 1.5)])
+	# halos des fenêtres des longs pans (vus de côté, ou à travers la porte de la palissade)
+	for x in fen:
+		for face in [1.0, -1.0]:
+			halos.append([Vector3(x, yf, face * (W * 0.5 + 0.3)), 0.0 if face > 0.0 else PI, Vector2(1.6, 1.3)])
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for h in halos:
+		var b := Basis(Vector3.UP, h[1])
+		var sz: Vector2 = h[2]
+		var c: Vector3 = h[0]
+		var pts := [Vector3(-sz.x, -sz.y, 0) * 0.5, Vector3(sz.x, -sz.y, 0) * 0.5, Vector3(sz.x, sz.y, 0) * 0.5, Vector3(-sz.x, sz.y, 0) * 0.5]
+		var uvs := [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)]
+		for k in [0, 1, 2, 0, 2, 3]:
+			st.set_uv(uvs[k])
+			st.add_vertex(c + b * pts[k])
+	var mh := MeshInstance3D.new()
+	mh.mesh = st.commit()
+	mh.material_override = _mat_halo
+	mh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.add_child(mh)
+
+## Halo de fenêtre : rectangle arrondi de 16 × 16 px, intensité en quatre paliers (aucun dégradé lisse), ambre.
+static func _texture_halo() -> ImageTexture:
+	var n := 16
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	for y in n:
+		for x in n:
+			var d := Vector2(x - (n - 1) * 0.5, y - (n - 1) * 0.5) / (n * 0.5)
+			var r := pow(pow(absf(d.x), 2.6) + pow(absf(d.y), 2.6), 1.0 / 2.6)
+			var i := 0.95 if r < 0.34 else (0.6 if r < 0.54 else (0.3 if r < 0.74 else (0.12 if r < 0.93 else 0.0)))
+			img.set_pixel(x, y, Color(i, i, i, 1.0))
+	return ImageTexture.create_from_image(img)
 
 ## Cheminée de pierre : fût en petits moellons, chaînages d'angle en gros blocs alternés, base évasée, chapeau
 ## enneigé qui déborde.
@@ -1215,6 +1346,8 @@ func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_m
 		for face in [1.0, -1.0]:
 			_fenetre_cadre(p, x, yf, face * (largeur * 0.5 + 0.17), face)
 			ib.fenetre_cadre(x, yf, face * (largeur * 0.5 + 0.17), face)
+	if avec_habillage:
+		_habiller_maison(p, longueur, largeur, y0, faite, fen, yf)
 	# torche murale à droite de la porte
 	_torche_murale(p, Vector3(1.25, 0.4 + 1.45, zf + 0.03), 1.0, cheffe)   # une vraie lumière à la porte de la halle (comme avant)
 	if cheffe:
@@ -1308,10 +1441,12 @@ func _banc(parent: Node3D, pos: Vector3, longueur: float) -> void:
 	for dx in [-0.42, 0.42]:
 		_boite(parent, Vector3(0.1, 0.5, 0.36), Transform3D(Basis(), pos + Vector3(dx * longueur * 0.5 / 0.42 * 0.8, 0.25, 0)), m_poutres)
 
+## Palissade. Visuel (refonte, passe 3 validée par l'utilisateur) : pieux BAS (~1,5 m visibles) taillés en pointe, bois sombre
+## usé, neige sur le haut des pointes, pour voir le village par-dessus. La COLLISION est inchangée : un cylindre de 3,6 m
+## (rayon 0,22) par pieu, même tracé. `--palissade-haute` : ancien visuel (A/B). Les tirages de `rng` sont conservés à
+## l'identique (2 par pieu) pour ne rien décaler dans la suite du village ; la géométrie neuve tire sur un générateur local.
 func _palissade() -> void:
-	if not _sans_refonte:
-		_palissade_pieux()
-		return
+	var haute := OS.get_cmdline_user_args().has("--palissade-haute")
 	var nombre := int(TAU * RAYON / 0.42)
 	var rondins := MultiMesh.new()
 	rondins.transform_format = MultiMesh.TRANSFORM_3D
@@ -1335,6 +1470,13 @@ func _palissade() -> void:
 	pointes.mesh = cone
 	var xf_r: Array[Transform3D] = []
 	var xf_p: Array[Transform3D] = []
+	# pieux bas : 4 variantes taillées, réparties au hasard (générateur local)
+	var loc := RandomNumberGenerator.new()
+	loc.seed = 70313
+	var variantes: Array[ArrayMesh] = []
+	for k in 4:
+		variantes.append(_pieu_taille(loc))
+	var xf_v: Array = [[], [], [], []]
 	var forme := CylinderShape3D.new()
 	forme.radius = 0.22
 	forme.height = 3.6
@@ -1347,74 +1489,108 @@ func _palissade() -> void:
 		var pos := Vector3(sin(a) * RAYON, 0, cos(a) * RAYON)
 		var h := rng.randf_range(3.2, 3.9)
 		var penche := Basis(Vector3(cos(a), 0, -sin(a)), rng.randf_range(-0.03, 0.03))
-		xf_r.append(Transform3D(penche.scaled(Vector3(1, h, 1)), pos + Vector3(0, h * 0.5 - 0.2, 0)))
-		xf_p.append(Transform3D(penche, pos + penche * Vector3(0, h - 0.2 + 0.27, 0)))
+		if haute:
+			xf_r.append(Transform3D(penche.scaled(Vector3(1, h, 1)), pos + Vector3(0, h * 0.5 - 0.2, 0)))
+			xf_p.append(Transform3D(penche, pos + penche * Vector3(0, h - 0.2 + 0.27, 0)))
+		else:
+			# hauteur 0,88-1,12 × la variante (~1,5 m), lacet libre, léger dévers ; jointifs : décalage radial infime
+			var sy := loc.randf_range(0.88, 1.12)
+			var b := Basis(Vector3.UP, loc.randf() * TAU)
+			b = Basis(Vector3(cos(a), 0, -sin(a)), loc.randf_range(-0.035, 0.035)) * Basis(Vector3(sin(a), 0, cos(a)), loc.randf_range(-0.02, 0.02)) * b
+			var pr := pos + Vector3(sin(a), 0, cos(a)) * loc.randf_range(-0.04, 0.04)
+			xf_v[loc.randi() % 4].append(Transform3D(b.scaled(Vector3(1, sy, 1)), pr))
 		var cs := CollisionShape3D.new()
 		cs.shape = forme
 		cs.position = pos + Vector3(0, 1.8, 0)
 		corps.add_child(cs)
-	rondins.instance_count = xf_r.size()
-	pointes.instance_count = xf_p.size()
-	for i in xf_r.size():
-		rondins.set_instance_transform(i, xf_r[i])
-		pointes.set_instance_transform(i, xf_p[i])
-	for mm in [rondins, pointes]:
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		add_child(mmi)
-	_liens_palissade(ouverture)
+	if haute:
+		rondins.instance_count = xf_r.size()
+		pointes.instance_count = xf_p.size()
+		for i in xf_r.size():
+			rondins.set_instance_transform(i, xf_r[i])
+			pointes.set_instance_transform(i, xf_p[i])
+		for mm in [rondins, pointes]:
+			var mmi := MultiMeshInstance3D.new()
+			mmi.multimesh = mm
+			add_child(mmi)
+	else:
+		for k in 4:
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.mesh = variantes[k]
+			mm.instance_count = xf_v[k].size()
+			for i in xf_v[k].size():
+				mm.set_instance_transform(i, xf_v[k][i])
+			var mmi := MultiMeshInstance3D.new()
+			mmi.name = "PieuxBas%d" % k
+			mmi.multimesh = mm
+			add_child(mmi)
+	_liens_palissade(ouverture, [1.0, 2.3] if haute else [0.42, 0.98])
 
-## Palissade de la refonte : pieux TAILLÉS en pointe (BatiGeo.pieu : 8 pans irréguliers, pointe à facettes désaxée,
-## neige sur les pointes), 8 variantes tournées au hasard ; mêmes
-## emplacements, hauteurs, inclinaisons et collisions que l'ancienne palissade (mêmes tirages du `rng` du village :
-## les accessoires tirés ensuite ne bougent pas). Fusionnés en un seul maillage (la palissade entoure le joueur : un
-## MultiMesh n'était pas mieux découpé par le moteur).
-func _palissade_pieux() -> void:
-	var nombre := int(TAU * RAYON / 0.42)
-	var m_pieux := TexturesBati.m_rondins_e(Color(1.18, 1.12, 1.08))
-	m_pieux.set_shader_parameter("saturation", 0.62)   # bois gris vieilli (palette commune « Bois gris »)
-	var variantes: Array = []
-	var hauts: Array[float] = []
-	var NV := 8
-	for k in NV:
-		var hv := lerpf(3.65, 4.45, float(k) / (NV - 1))
-		variantes.append(BatiGeo.pieu(hv, 0.185 + 0.012 * float(k % 3), 9100 + k * 37).arrays())
-		hauts.append(hv)
-	var r2 := RandomNumberGenerator.new()
-	r2.seed = 9177
-	var forme := CylinderShape3D.new()
-	forme.radius = 0.22
-	forme.height = 3.6
-	var ouverture := asin(DEMI_PORTE / RAYON)
-	for i in nombre:
-		var a := TAU * i / nombre
-		if absf(wrapf(a, -PI, PI)) < ouverture:
-			continue
-		var pos := Vector3(sin(a) * RAYON, 0, cos(a) * RAYON)
-		var h := rng.randf_range(3.2, 3.9)
-		var penche := Basis(Vector3(cos(a), 0, -sin(a)), rng.randf_range(-0.03, 0.03))
-		var cible := h + 0.5 + r2.randf_range(-0.12, 0.12)
-		var best := 0
-		for k in NV:
-			if absf(hauts[k] - cible) < absf(hauts[best] - cible):
-				best = k
-		var b := penche * Basis(Vector3.UP, r2.randf() * TAU)
-		b = b.scaled(Vector3(1.0, cible / hauts[best], 1.0))
-		var dr := Vector3(cos(a), 0, -sin(a)) * r2.randf_range(-0.03, 0.03) + Vector3(sin(a), 0, cos(a)) * r2.randf_range(-0.04, 0.04)
-		# tous les pieux dans UN maillage (lot du village) : 1 appel de dessin au lieu des 2 MultiMesh d'avant
-		_ajouter(self, variantes[best], Transform3D(b, pos + dr + Vector3(0, -0.2, 0)), m_pieux, false)
-		var cs := CollisionShape3D.new()
-		cs.shape = forme
-		cs.position = pos + Vector3(0, 1.8, 0)
-		corps.add_child(cs)
-	_liens_palissade(ouverture)
+## Pieu taillé à la hache : fût à 7 pans irréguliers (rayon ~0,17 m, de -0,3 à ~1,15 m), pointe à 4-5 facettes jusqu'à
+## ~1,55 m, pointe un peu décentrée. Couleur de sommet : rgb = usure/occlusion (pied et fentes sombres, arêtes de la taille
+## plus claires), alpha 0 = neige sur le haut de la pointe (bord irrégulier). Faces à plat (taille franche).
+func _pieu_taille(loc: RandomNumberGenerator) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_material(m_palissade)
+	var n := 7
+	var hf := loc.randf_range(1.08, 1.2)                # haut du fût (début de la taille)
+	var hp := hf + loc.randf_range(0.36, 0.46)           # sommet de la pointe
+	var r_bas: Array[float] = []
+	var r_haut: Array[float] = []
+	var ang: Array[float] = []
+	for k in n:
+		ang.append(TAU * (k + loc.randf_range(-0.2, 0.2)) / n)
+		var r := loc.randf_range(0.155, 0.19)
+		r_bas.append(r * 1.04)
+		r_haut.append(r * loc.randf_range(0.93, 1.0))
+	var pointe := Vector3(loc.randf_range(-0.04, 0.04), hp, loc.randf_range(-0.04, 0.04))
+	# taille : chaque pan du haut est biseauté à une hauteur différente (coups de hache), puis converge vers la pointe
+	var bis: Array[float] = []
+	for k in n:
+		bis.append(hf + loc.randf_range(-0.07, 0.05))
+	var neige_h := hp - loc.randf_range(0.25, 0.31)     # au-dessus : neige (lisible même à contre-jour)
+	var ombre_pied := Color(0.55, 0.52, 0.5, 1)
+	for k in n:
+		var k2 := (k + 1) % n
+		var d0 := Vector3(cos(ang[k]), 0, sin(ang[k]))
+		var d1 := Vector3(cos(ang[k2]), 0, sin(ang[k2]))
+		var a0 := d0 * r_bas[k] + Vector3(0, -0.3, 0)
+		var a1 := d1 * r_bas[k2] + Vector3(0, -0.3, 0)
+		var b0 := d0 * r_haut[k] + Vector3(0, bis[k], 0)
+		var b1 := d1 * r_haut[k2] + Vector3(0, bis[k2], 0)
+		var usure := loc.randf_range(0.78, 1.0)          # pans plus ou moins grisés par les intempéries
+		var ch := Color(usure, usure * 0.97, usure * 0.95, 1)
+		var cp := Color(ombre_pied.r * usure, ombre_pied.g * usure, ombre_pied.b * usure, 1)
+		_tri_plat(st, [a0, a1, b1], [cp, cp, ch])
+		_tri_plat(st, [a0, b1, b0], [cp, ch, ch])
+		# pointe : bois frais de la taille un peu plus clair ; neige au-dessus de neige_h (bord découpé par pan)
+		var clair := Color(minf(usure * 1.12, 1.15), usure * 1.05, usure * 0.98, 1)
+		var cb0 := clair
+		var cb1 := clair
+		var nh := neige_h + loc.randf_range(-0.05, 0.04)
+		var m0 := b0.lerp(pointe, clampf((nh - b0.y) / (pointe.y - b0.y), 0.12, 0.8))
+		var m1 := b1.lerp(pointe, clampf((nh + loc.randf_range(-0.04, 0.04) - b1.y) / (pointe.y - b1.y), 0.12, 0.8))
+		var blanc := Color(1, 1, 1, 0)
+		_tri_plat(st, [b0, b1, m1], [cb0, cb1, clair])
+		_tri_plat(st, [b0, m1, m0], [cb0, clair, clair])
+		_tri_plat(st, [m0, m1, pointe], [blanc, blanc, blanc])
+	return st.commit()
 
-## Liens de corde : deux rubans autour de la palissade (côté intérieur), à 1,0 m et 2,3 m ; coupés à la porte.
-func _liens_palissade(ouverture: float) -> void:
+func _tri_plat(st: SurfaceTool, p: Array, cols: Array) -> void:
+	var nrm: Vector3 = (p[2] - p[0]).cross(p[1] - p[0]).normalized()
+	for i in 3:
+		st.set_normal(nrm)
+		st.set_color(cols[i])
+		st.add_vertex(p[i])
+
+## Liens de corde : deux rubans autour de la palissade (côté intérieur), aux hauteurs données ; coupés à la porte.
+func _liens_palissade(ouverture: float, hauteurs: Array) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var pas := 96
-	for hy in [1.0, 2.3]:
+	for hy in hauteurs:
 		for i in pas:
 			var a0 := TAU * i / pas
 			var a1 := TAU * (i + 1) / pas
