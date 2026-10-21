@@ -9,6 +9,10 @@ class_name GuerrierTextures
 # palettes (sombre -> clair)
 const MAILLE := ["#14171e", "#252a35", "#3b4250", "#56606f", "#7c8696", "#b0b8c4"]
 const CUIR := ["#1a130e", "#2f2118", "#463325", "#614a34", "#7f6446", "#9e825e", "#b89d76"]   # 6 = arête usée, couture
+## cuir clair et chaud (baudrier, ceinture) : se détache du plastron et de la maille sous la lumière froide
+const CUIR_CLAIR := ["#24170e", "#4e3320", "#74502f", "#956b43", "#b38858", "#cca46f", "#dcbb88"]
+## métal clair (boucle, fibule) : gris chaud poli, reste clair sous la lumière froide du crépuscule
+const METAL_CLAIR := ["#2a2723", "#4a453f", "#6f685f", "#948c80", "#b7afa2", "#d4cdc0", "#ece7dc"]
 const CUIR_SOMBRE := ["#100c0b", "#1d1613", "#2c221c", "#3f3228", "#544537"]
 const FOUR := ["#1d1b19", "#38342f", "#575049", "#787066", "#9a9083", "#bab0a0"]   # gris-brun (référence), moins blanc
 const LAINE_BLEUE := ["#0f1422", "#1a2439", "#283855", "#384d74", "#4c6490", "#687fa8"]
@@ -22,6 +26,8 @@ const PEINT_BLEU := ["#141b2b", "#1f2b44", "#2c3d5e", "#3e5276", "#566c90"]
 const PEINT_CREME := ["#5c5546", "#807864", "#a39a84", "#c4bba3"]
 const FER := ["#0d0e12", "#1b1d23", "#2e313a", "#474b56", "#6c717d", "#9da2ac", "#c9ccd2"]
 const ROUILLE := ["#24150e", "#3d2416", "#5a3820"]
+## barbe : teinte des cheveux, plus rousse et plus sombre
+const BARBE := ["#1f150e", "#3a2618", "#573a24", "#764f30", "#946a40", "#b0855a"]
 const CHEVEUX := ["#211b15", "#3a3024", "#574836", "#76644a", "#9a8666"]   # passe 2 : un demi-ton plus clair (la tête se détache à 8 m)
 
 static var _cache := {}
@@ -124,6 +130,7 @@ static func tex(nom: String, args := []) -> ImageTexture:
 				"cheveux": img = cheveux()
 				"accessoires": img = accessoires()
 				"decoupes": img = decoupes()
+				"barbe": img = barbe()
 				_: push_error("GuerrierTextures : texture inconnue " + nom)
 			mips = mips_pixel(img)
 			sauver(cle, mips)
@@ -515,6 +522,7 @@ const R_OEIL := Rect2i(224, 32, 16, 8)
 const R_BAUD := Rect2i(240, 0, 16, 64)
 const R_DOS := Rect2i(128, 32, 64, 64)
 const R_ANNEAU := Rect2i(192, 64, 32, 32)
+const R_BOSSE := Rect2i(192, 96, 32, 32)
 const R_PLASTRON := Rect2i(0, 128, 136, 64)
 const R_CEINT := Rect2i(0, 192, 136, 16)
 const ATLAS := Vector2i(256, 256)
@@ -534,6 +542,7 @@ static func accessoires() -> Image:
 	_baudrier(img)
 	_dos_bouclier(img)
 	_anneau(img)
+	_bosse(img)
 	var pl := _plastron_atlas()
 	_copier(img, R_PLASTRON, pl, -PL_U0, PL_V0)
 	_ceinture_atlas(img)
@@ -635,14 +644,14 @@ static func _baudrier(img: Image) -> void:
 	var r := R_BAUD
 	for y in r.size.y:
 		for x in r.size.x:
-			var t := _ton_cuir(x, y, r.size.x, r.size.y, 0.30, 951) - 1      # cuir sombre : tranche sur le plastron clair
+			var t := _ton_cuir(x, y, r.size.x, r.size.y, 0.66, 951)      # cuir clair à bords sombres : tranche sur le plastron
 			if x == 0 or x == r.size.x - 1:
 				t = 0
 			elif x == 1 or x == r.size.x - 2:
 				t = 5 if _h(x, y, 952) > 0.3 else 6
 			elif (x == 3 or x == r.size.x - 4) and y % 3 != 0:
 				t = 6
-			_p(img, r.position.x + x, r.position.y + y, _c(CUIR, t))
+			_p(img, r.position.x + x, r.position.y + y, _c(CUIR_CLAIR, t))
 		if y % 16 == 8:
 			_rivet(img, r.position.x + 7, r.position.y + y)
 
@@ -658,7 +667,7 @@ static func _ceinture_atlas(img: Image) -> void:
 				t = 5 if _h(x, y, 962) > 0.3 else 6
 			elif (y == 3 or y == r.size.y - 4) and x % 4 < 2:
 				t = 6
-			_p(img, r.position.x + x, r.position.y + y, _c(CUIR, t))
+			_p(img, r.position.x + x, r.position.y + y, _c(CUIR_CLAIR, t))
 	for x in range(5, r.size.x, 9):
 		_rivet(img, r.position.x + x, r.position.y + 7)
 
@@ -679,7 +688,7 @@ static func _anneau(img: Image) -> void:
 				t = 1
 			elif y == 3 or y == 28:
 				t = 5 if lum > 0.0 else 3
-			img.set_pixel(r.position.x + x, r.position.y + y, _c(FER, clampi(t, 0, 6)))
+			img.set_pixel(r.position.x + x, r.position.y + y, _c(METAL_CLAIR, clampi(t + 1, 0, 6)))
 
 static func _fer(img: Image, r: Rect2i) -> void:
 	for y in r.size.y:
@@ -751,7 +760,37 @@ static func _tresse(img: Image) -> void:
 				t = 4
 			if x == 0 or x == 15:
 				t = 0
-			img.set_pixel(r.position.x + x, r.position.y + y, _c(CHEVEUX, t))
+			img.set_pixel(r.position.x + x, r.position.y + y, _c(BARBE, t + 1 if t > 0 else 0))
+
+## Dôme clair des disques ouvragés (boucle, fibule) : fer poli, reflet net en haut à gauche.
+static func _bosse(img: Image) -> void:
+	var r := R_BOSSE
+	for y in r.size.y:
+		for x in r.size.x:
+			var ang := TAU * (x + 0.5) / r.size.x
+			var lum := cos(ang - deg_to_rad(135.0))
+			var t := 4 + int(roundf(lum * 1.4))
+			if y < 6:
+				t = 5
+			if absf(wrapf(ang - deg_to_rad(135.0), -PI, PI)) < 0.5 and y > 4 and y < 18:
+				t = 6
+			if y > 26:
+				t = 2
+			img.set_pixel(r.position.x + x, r.position.y + y, _c(METAL_CLAIR, clampi(t, 0, 6)))
+
+## Barbe (32 x 64) : mèches peignées vers le bas (v = hauteur), racine plus sombre sous les joues, pointes plus claires,
+## sillons sombres entre les mèches ; pas de damier.
+static func barbe() -> Image:
+	var W := 32
+	var H := 64
+	var img := _img(W, H)
+	for y in H:
+		for x in W:
+			var meche := posmod(x + int(_h(x / 3, 0, 971) * 2.0), 3)
+			var l := 0.42 + 0.22 * float(y) / H + (_n(x, y, W, H, 8, 2, 972) - 0.5) * 0.35
+			l += 0.14 if meche == 1 else (-0.16 if meche == 0 else 0.0)
+			_p(img, x, y, _c(BARBE, _ton(l, 6, x, y, 973, 0.3)))
+	return img
 
 static func _dos_bouclier(img: Image) -> void:
 	var r := R_DOS

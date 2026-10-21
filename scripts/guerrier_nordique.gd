@@ -122,7 +122,7 @@ static func creer(options := {}) -> Node3D:
 	# allègement (budget passe 2 : ~7 000 triangles, 10 surfaces) :
 	#   - yeux Quaternius (544 triangles, 1 surface) remplacés par 2 cartes peintes dans l'atlas des accessoires ;
 	#   - peau sous les manches retirée ; MAINS décimées (regroupement de sommets 1,6 cm), visage gardé ;
-	#   - couches intérieures des cheveux et de la barbe retirées, puis mèches décimées (2,7 cm / 1,5 cm) ;
+	#   - couches intérieures des cheveux et de la barbe retirées, puis mèches décimées (cheveux 3,2 cm, barbe 8 mm) ; mains 2,7 cm, arrière du crâne 1,8 cm ;
 	#   - sourcils retirés (1-2 px à 2 m, ombrés par l'arcade).
 	var tete := sq.get_bone_global_rest(sq.find_bone("Head")).origin + Vector3(0, 0.07, 0)
 	var yeux := _centres_yeux(pieces.get("Eyes"))
@@ -130,18 +130,24 @@ static func creer(options := {}) -> Node3D:
 		pieces["Eyes"].visible = false
 	_filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return absf(c.x) < 0.19 or absf(c.x) > 0.69)
 	# mains : 2,2 cm ; arrière du crâne et nuque (sous les cheveux) : 1,6 cm ; visage intact
-	_decimer(pieces.get("peau"), func(p: Vector3) -> float: return 0.022 if absf(p.x) > 0.5 else (0.016 if p.z < 0.035 else 0.0))
+	_decimer(pieces.get("peau"), func(p: Vector3) -> float: return 0.027 if absf(p.x) > 0.5 else (0.018 if p.z < 0.035 else 0.0))
 	if pieces.has("Eyebrows"):
 		pieces["Eyebrows"].visible = false
 	for nom in ["Hair_Long", "Hair_Beard"]:
 		_filtrer(sq.get_node_or_null(nom), func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002)
-	_decimer(sq.get_node_or_null("Hair_Long"), func(p: Vector3) -> float: return 0.027)
-	_decimer(sq.get_node_or_null("Hair_Beard"), func(p: Vector3) -> float: return 0.015)
-	# cheveux et barbe : mèches Quaternius gardées, texture ramenée à la palette (64², au lieu de 2048²)
-	for nom in ["Hair_Long", "Hair_Beard"]:
-		var mi: MeshInstance3D = sq.get_node_or_null(nom)
-		if mi:
-			mi.material_override = materiau(_tex_cheveux(mi), true, false, true, "cheveux_" + nom)
+	_decimer(sq.get_node_or_null("Hair_Long"), func(p: Vector3) -> float: return 0.032)
+	_decimer(sq.get_node_or_null("Hair_Beard"), func(p: Vector3) -> float: return 0.008)
+	# cheveux : mèches Quaternius gardées, texture ramenée à la palette (64², au lieu de 2048²)
+	var mi_ch: MeshInstance3D = sq.get_node_or_null("Hair_Long")
+	if mi_ch:
+		mi_ch.material_override = materiau(_tex_cheveux(mi_ch), true, false, true, "cheveux_Hair_Long")
+	# barbe (passe 2) : décimation fine (8 mm ; à 1,5 cm elle se hérissait en pics), UV étalés sur une texture de mèches peignées vers
+	# le bas, teinte des cheveux en plus roux et plus sombre ; sans contour noir (ne se confond plus avec la fourrure du col)
+	var mi_b: MeshInstance3D = sq.get_node_or_null("Hair_Beard")
+	if mi_b:
+		_uv_barbe(mi_b)
+		mi_b.material_override = materiau(GuerrierTextures.tex("barbe"), true, false, false, "barbe")
+		(mi_b.material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.10, 0.09, 0.09))
 	_t("matieres", t0)
 	# -- pièces ajoutées
 	var plastron := _plastron(sq, pieces["tunique"])
@@ -168,12 +174,16 @@ static func creer(options := {}) -> Node3D:
 		pieces[nom].visible = false
 	acc.poitrine_libre = true
 	acc.fourrure_bord(pieces["mante"], 1.25, 1.43, 0.12, 0.20, 1.0, 1.7)       # frange des épaules (plus longue)
-	acc.fourrure_surface(pieces["mante"], 1.36, 1.60, 0.08, 0.14, 85)         # touffes sur le dessus et le dos (fournies)
-	acc.fourrure_bord(pieces["mante"], 1.52, 1.66, 0.05, 0.09, -0.6, 1.4)      # col (vers le haut)
+	acc.fourrure_surface(pieces["mante"], 1.36, 1.60, 0.08, 0.14, 70)         # touffes sur le dessus et le dos (fournies)
+	acc.col_libre = true
+	acc.fourrure_bord(pieces["mante"], 1.52, 1.66, 0.05, 0.09, -0.6, 1.4)      # col (vers le haut), dégagé sous la barbe
+	acc.col_libre = false
 	acc.poitrine_libre = false
 	acc.fourrure_bord(pieces["bottes"], 0.30, 0.45, 0.06, 0.09, 1.0, 1.6)      # revers des bottes
-	acc.boucle(Vector3(0.0, 0.988, 0.150), 0.056)
-	acc.fibule(plastron, Vector2(-0.115, 1.405))
+	acc.boucle(Vector3(0.0, 0.988, 0.152), 0.066)
+	acc.fibule(plastron, Vector2(-0.085, 1.37))
+	if chrono:
+		print("GUERRIER disques (boucle + fibule) : %d triangles" % ((acc.op["v"].size()) / 3))
 	acc.yeux(yeux)
 	acc.tresses()
 	plastron.visible = false
@@ -316,6 +326,29 @@ static func _centres_yeux(mi: MeshInstance3D) -> Array:
 
 ## Bouclier au bras : (hauteur au-dessus de l'avant-bras en m, inclinaison autour de X en °, rotation dans son plan en °).
 static var reglage_bouclier := Vector3(0.13, 15.0, -12.0)   # passe 2 : 0 cm de traversée en course et en sprint (passe 1 : 5,2 cm)
+
+## UV de la barbe étalés sur [0, 1]² ; v suit la hauteur (v = 0 en haut, 1 en bas) : les mèches de la texture tombent.
+static func _uv_barbe(mi: MeshInstance3D) -> void:
+	var a := mi.mesh.surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var uv := PackedVector2Array()
+	var lo := Vector2(1e9, 1e9)
+	var hi := Vector2(-1e9, -1e9)
+	for p in v:
+		# u = angle autour du menton (de gauche à droite), v = hauteur
+		var q := Vector2(atan2(p.x, p.z + 0.05), -p.y)
+		uv.append(q)
+		lo = lo.min(q)
+		hi = hi.max(q)
+	for i in uv.size():
+		uv[i] = (uv[i] - lo) / (hi - lo).max(Vector2(1e-4, 1e-4))
+	a[Mesh.ARRAY_TEX_UV] = uv
+	var nb := (a[Mesh.ARRAY_BONES] as PackedInt32Array).size() / v.size()
+	for k in [Mesh.ARRAY_TANGENT, Mesh.ARRAY_COLOR, Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_CUSTOM0, Mesh.ARRAY_CUSTOM1, Mesh.ARRAY_CUSTOM2, Mesh.ARRAY_CUSTOM3]:
+		a[k] = null
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if nb == 8 else 0)
+	mi.mesh = m
 
 static var chrono := false
 
@@ -632,8 +665,9 @@ class Accessoires:
 	## Devant de la poitrine laissé dégagé (baudrier, fibule, plastron lisibles comme sur la référence) : la fourrure
 	## reste sur les épaules, le haut du dos et le col.
 	var poitrine_libre := false
+	var col_libre := false
 	func _poitrine(p: Vector3) -> bool:
-		return poitrine_libre and p.z > 0.0 and absf(p.x) < 0.11 and p.y < 1.53
+		return (poitrine_libre and p.z > 0.0 and absf(p.x) < 0.11 and p.y < 1.53) or (col_libre and p.z > 0.0 and absf(p.x) < 0.10)
 
 	## Touffes posées sur la surface de `mi` (triangles entre y0 et y1) : cartes couchées, dirigées vers le bas et l'extérieur.
 	func fourrure_surface(mi: MeshInstance3D, y0: float, y1: float, lg0: float, lg1: float, nombre: int) -> void:
@@ -727,7 +761,7 @@ class Accessoires:
 	func baudrier(plastron: MeshInstance3D) -> void:
 		var a := plastron.mesh.surface_get_arrays(0)
 		var r := GuerrierTextures.R_BAUD
-		var demi := 0.026
+		var demi := 0.031
 		for devant: bool in [true, false]:
 			var depart := Vector2(-0.17, 1.455)
 			var arrivee := Vector2(0.185, 1.005)
@@ -771,7 +805,7 @@ class Accessoires:
 		if y.y < 0.0:
 			y = -y
 		var an := GuerrierTextures.R_ANNEAU
-		var u := GuerrierTextures.R_UMBO
+		var u := GuerrierTextures.R_BOSSE
 		var r1 := rayon * 0.62
 		var dedans := centre - n * 0.05
 		for i in cotes:
@@ -800,10 +834,11 @@ class Accessoires:
 	func fibule(plastron: MeshInstance3D, xy: Vector2) -> void:
 		var pr := _projeter(plastron, xy.x, xy.y, true)
 		if pr.is_empty():
+			push_warning("GuerrierNordique : fibule hors du plastron %s" % xy)
 			return
 		var a := plastron.mesh.surface_get_arrays(0)
 		var pw := _poids_proche(plastron, a, pr[0])
-		_disque(pr[0] + pr[1] * 0.012, pr[1], 0.034, [pw, pw, pw, pw])
+		_disque(pr[0] + pr[1] * 0.012, pr[1], 0.046, [pw, pw, pw, pw])
 
 	# ------------------------------------------------------------ yeux : cartes peintes (os Head)
 	func yeux(centres: Array) -> void:
@@ -822,10 +857,12 @@ class Accessoires:
 	func tresses() -> void:
 		var os_ := sq.find_bone("Head")
 		var r := GuerrierTextures.R_TRESSE
+		# tresse centrale du menton (barbe peignée en natte), anneau de fer au bout porté par la texture
+		_tube(op, Vector3(0.0, 1.575, 0.104), Vector3(0.0, 1.43, 0.122), 0.017, 0.010, 5, os_, r, 4)
 		for cote in [-1.0, 1.0]:
-			var haut := Vector3(0.022 * cote, 1.585, 0.098)
-			var bas := Vector3(0.030 * cote, 1.47, 0.115)
-			_tube(op, haut, bas, 0.012, 0.007, 4, os_, r)
+			var haut := Vector3(0.030 * cote, 1.585, 0.096)
+			var bas := Vector3(0.040 * cote, 1.475, 0.112)
+			_tube(op, haut, bas, 0.011, 0.007, 4, os_, r)
 			# tresse de tempe, devant l'oreille, jusqu'à la clavicule
 			_tube(op, Vector3(0.078 * cote, 1.70, 0.035), Vector3(0.088 * cote, 1.52, 0.05), 0.014, 0.008, 4, os_, r)
 

@@ -55,7 +55,7 @@ func _init() -> void:
 	p.save_png(sortie.path_join("planche_ref_draugr__passe1__passe2_face_34_dos_2_4_8m.png" if larg_p1 > 0 else "planche_ref_draugr__guerrier_face_34_dos_2_4_8m.png"))
 	# gros plans (passe 2) : visage et bouclier à 2 m (bande centrale) et à 1-1,3 m
 	if FileAccess.file_exists(cap.path_join("gros_visage_2m.png")):
-		_grille(["gros_visage_2m", "gros_bouclier_2m", "gros_visage_1m", "gros_bouclier_1m"], 4, 640).save_png(sortie.path_join("planche_gros_plans_visage_bouclier_2m_1m.png"))
+		_grille(["gros_visage_2m", "gros_bouclier_2m", "gros_torse_2m", "gros_visage_1m", "gros_bouclier_1m", "gros_torse_1m"], 3, 640).save_png(sortie.path_join("planche_gros_plans_visage_bouclier_torse_2m_1m.png"))
 		_grille(["p17_8m_face", "p17_8m_face_idle"], 2, 640).save_png(sortie.path_join("planche_silhouette_8m_garde_idle.png"))
 	# 2. animations
 	_grille(["an_idle", "an_garde", "an_marche_a", "an_marche_b", "an_course_a", "an_course_b", "an_attaque_a", "an_attaque_b", "an_coup", "an_mort_a", "an_mort_b"], 11, 360).save_png(sortie.path_join("planche_animations_idle_garde_marche_course_attaque_coup_mort.png"))
