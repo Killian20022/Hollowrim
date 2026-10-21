@@ -19,8 +19,8 @@ extends RefCounted
 
 const BUTIN := preload("res://scripts/butin.gd")
 const MAX_LUM := 9
-const AMBIANTE := Color(0.29, 0.32, 0.39)   # 2e passe : gris-bleu sombre (pierre anthracite) ; la chaleur ne vient que des flaques des lanternes
-const AMBIANTE_E := 5.0
+const AMBIANTE := Color(0.29, 0.3, 0.335)   # passe 2 kit : gris à peine froid (plus le bleu saturé uniforme) ; le chaud vient des lanternes, le froid des cristaux et du jour
+const AMBIANTE_E := 4.3
 const BRUME_C := Color(0.014, 0.017, 0.024)
 const DIST_APPARITION := 46.0
 

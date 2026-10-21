@@ -25,6 +25,7 @@ uniform float givre = 0.0;          // part de givre sur les faces hautes (0 = a
 uniform float mouille = 0.0;        // part de sol mouillé (0 = sec)
 uniform float ao_gamma = 1.0;       // contraste de l'occlusion peinte
 uniform float sol_plat = 1.0;       // 1 : faces très plates = sol (peu de givre) ; 0 : calotte de givre pleine (rochers du kit)
+uniform float modele = 0.0;         // passe 2 kit : modelé « éclairé d'en haut » (projection monde) : dessous et surplombs assombris, dessus éclaircis
 
 varying vec3 wp;
 varying vec3 wn;
@@ -132,6 +133,9 @@ void fragment() {
 		rough = mix(1.0, 0.22, w);
 	}
 	vec3 ao = pow(max(COLOR.rgb, vec3(0.0)), vec3(ao_gamma));
+	if (modele > 0.0) {
+		ao *= mix(1.0, mix(0.55, 1.14, smoothstep(-0.7, 0.8, n.y)), modele);
+	}
 	ALBEDO = c * ao * teinte.rgb;
 	EMISSION = emission + c * emis_tex;
 	ROUGHNESS = rough;
