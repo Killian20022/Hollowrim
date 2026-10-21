@@ -4,7 +4,7 @@ class_name TrollGivre
 ## « 14_02_00-6 »). Aucune IA : modèle, animations, matières.
 ##
 ## Choix : PAS de modèle Blender séparé. Le troll est le corps Quaternius (65 os, celui de Humain.creer) REMODELÉ par code :
-##   - squelette : positions de repos des os modifiées (épaules x1,45, bras x1,45, avant-bras x1,5, mains x1,3, cou rentré, bassin
+##   - squelette : positions de repos des os modifiées (épaules x1,45, bras x1,6, avant-bras x1,65, mains x1,3, cou rentré, bassin
 ##     élargi) ; les clips d'animations.glb n'animent que la ROTATION des os (et la position du bassin) : ils restent valables tels
 ##     quels sur ces nouvelles longueurs ;
 ##   - maillage : chaque sommet suit la peau d'os vers la nouvelle pose de repos, avec une ÉPAISSEUR par os (torse x1,55, avant-bras
@@ -23,8 +23,8 @@ const ECHELLE := 1.5
 ## Facteur sur la position de repos d'un os (= longueur du segment de son PARENT). Côtés gauche et droit (_l / _r).
 const POSITION := {
 	"upperarm": 1.45,       # largeur d'épaules (clavicule)
-	"lowerarm": 1.45,       # bras
-	"hand": 1.5,            # avant-bras
+	"lowerarm": 1.6,        # bras
+	"hand": 1.65,           # avant-bras
 	"index_01": 1.3, "middle_01": 1.3, "ring_01": 1.3, "pinky_01": 1.3, "thumb_01": 1.3,
 	"index_02": 1.25, "middle_02": 1.25, "ring_02": 1.25, "pinky_02": 1.25, "thumb_02": 1.25,
 	"index_03": 1.25, "middle_03": 1.25, "ring_03": 1.25, "pinky_03": 1.25, "thumb_03": 1.25,
@@ -38,18 +38,20 @@ const POSITION := {
 ## Épaisseur (x, z locaux de l'os) et longueur (y local) de la chair de chaque os.
 const CHAIR := {
 	"pelvis": [1.38, 1.0], "spine_01": [1.42, 1.0], "spine_02": [1.5, 1.0], "spine_03": [1.55, 1.0],
-	"clavicle": [1.5, 1.45], "upperarm": [1.62, 1.45], "lowerarm": [1.78, 1.5], "hand": [1.5, 1.3],
+	"clavicle": [1.5, 1.45], "upperarm": [1.62, 1.6], "lowerarm": [1.78, 1.65], "hand": [1.5, 1.3],
 	"index": [1.45, 1.25], "middle": [1.45, 1.25], "ring": [1.45, 1.25], "pinky": [1.45, 1.25], "thumb": [1.45, 1.25],
 	"neck_01": [1.75, 0.78], "Head": [1.34, 1.08],
 	"thigh": [1.5, 1.0], "calf": [1.5, 1.0], "foot": [1.45, 1.0], "ball": [1.4, 1.3],
 }
-## Posture voûtée : rotation (axe global au repos, degrés) ajoutée à chaque clé de rotation de l'os, dans toute la bibliothèque.
+## Posture voûtée : rotations ajoutées à chaque clé de rotation de l'os, dans toute la bibliothèque, autour d'axes du REPÈRE DU
+## MODÈLE (x = droite du troll, y = haut, z = avant) appliqués à la pose animée de l'os (pas à son repos) : [axe, degrés], cumulables.
 const VOUTE := {
-	"spine_01": [Vector3.RIGHT, 12.0], "spine_02": [Vector3.RIGHT, 12.0], "spine_03": [Vector3.RIGHT, 9.0],
-	"neck_01": [Vector3.RIGHT, -13.0], "Head": [Vector3.RIGHT, -15.0],
-	"clavicle_l": [Vector3.BACK, 10.0], "clavicle_r": [Vector3.BACK, -10.0],
-	"upperarm_l": [Vector3.BACK, 6.0], "upperarm_r": [Vector3.BACK, -6.0],
-	"thigh_l": [Vector3.BACK, 4.0], "thigh_r": [Vector3.BACK, -4.0],
+	"spine_01": [[Vector3.RIGHT, 15.0]], "spine_02": [[Vector3.RIGHT, 14.0]], "spine_03": [[Vector3.RIGHT, 10.0]],
+	"neck_01": [[Vector3.RIGHT, -16.0]], "Head": [[Vector3.RIGHT, -18.0]],
+	"clavicle_l": [[Vector3.BACK, 5.0]], "clavicle_r": [[Vector3.BACK, -5.0]],
+	# bras : un peu ramenés (les clavicules allongées et l'Idle d'origine les écartaient à 40°) mais écartés en garde, griffes dehors (référence), un peu en avant
+	"upperarm_l": [[Vector3.RIGHT, -8.0], [Vector3.BACK, -6.0]], "upperarm_r": [[Vector3.RIGHT, -8.0], [Vector3.BACK, 6.0]],
+	"thigh_l": [[Vector3.BACK, 4.0]], "thigh_r": [[Vector3.BACK, -4.0]],
 }
 
 static var _maillage: ArrayMesh
@@ -134,28 +136,43 @@ static func bibliotheque(sq: Skeleton3D) -> AnimationLibrary:
 	if _biblio != null:
 		return _biblio
 	_biblio = Humain.bibliotheque().duplicate(true)
-	var decal := {}
+	var ordre := []
 	for nom: String in VOUTE:
-		var o := sq.find_bone(nom)
-		var bg := sq.get_bone_global_rest(o).basis.orthonormalized()
-		var axe: Vector3 = VOUTE[nom][0]
-		var q := Quaternion(bg.inverse() * Basis(axe, deg_to_rad(VOUTE[nom][1])) * bg).normalized()
-		decal[nom] = q
+		ordre.append(sq.find_bone(nom))
+	ordre.sort()      # parents avant enfants (indices croissants dans ce squelette)
 	for an in _biblio.get_animation_list():
 		var a := _biblio.get_animation(an)
+		var pistes := {}
 		for t in a.get_track_count():
-			if a.track_get_type(t) != Animation.TYPE_ROTATION_3D:
+			if a.track_get_type(t) == Animation.TYPE_ROTATION_3D:
+				pistes[sq.find_bone(String(a.track_get_path(t)).get_slice(":", 1))] = t
+		for o: int in ordre:
+			if not pistes.has(o):
 				continue
-			var os_ := String(a.track_get_path(t)).get_slice(":", 1)
-			if not decal.has(os_):
-				continue
+			var t: int = pistes[o]
+			var r := Quaternion.IDENTITY
+			for d: Array in VOUTE[sq.get_bone_name(o)]:
+				r = Quaternion(d[0], deg_to_rad(d[1])) * r
+			# valeurs d'origine lues avant écriture (la rotation du parent, elle, inclut déjà ses propres décalages)
+			var cles := []
 			for k in a.track_get_key_count(t):
-				var q: Quaternion = a.track_get_key_value(t, k)
-				a.track_set_key_value(t, k, (q * decal[os_]).normalized())
+				cles.append([a.track_get_key_time(t, k), a.track_get_key_value(t, k)])
+			for k in cles.size():
+				var p := _rot_globale(sq, a, pistes, sq.get_bone_parent(o), cles[k][0])
+				var q: Quaternion = cles[k][1]
+				a.track_set_key_value(t, k, (p.inverse() * r * p * q).normalized())
 	if _biblio.has_animation("Punch_Cross"):
-		var att := _biblio.get_animation("Punch_Cross").duplicate(true) as Animation
-		_biblio.add_animation("Troll_Attaque", att)
+		_biblio.add_animation("Troll_Attaque", _biblio.get_animation("Punch_Cross").duplicate(true))
 	return _biblio
+
+## Rotation globale (repère du squelette) de l'os `o` au temps `tps` du clip (rotations seules : les positions n'y changent rien).
+static func _rot_globale(sq: Skeleton3D, a: Animation, pistes: Dictionary, o: int, tps: float) -> Quaternion:
+	var q := Quaternion.IDENTITY
+	while o >= 0:
+		var l: Quaternion = a.rotation_track_interpolate(pistes[o], tps) if pistes.has(o) else sq.get_bone_rest(o).basis.get_rotation_quaternion()
+		q = l * q
+		o = sq.get_bone_parent(o)
+	return q
 
 # ======================================================================================================== maillage
 ## Construit le maillage peau d'os (bind i = os i) : corps remodelé + fourrure + accessoires + yeux, et remplit _repos.
@@ -381,17 +398,17 @@ class Ctx:
 				return []                                       # poitrine nue
 			"spine_02", "spine_01":
 				if c.y < g_nouv[os_("pelvis")].origin.y + 0.10:
-					return [420.0, 0.18, 0.26, 3, 7, 0]         # haut du pagne (taille)
+					return [420.0, 0.14, 0.21, 3, 7, 0]         # haut du pagne (taille)
 				if c.z < -0.03:
 					return [200.0, 0.12, 0.18, 3, 7, 0]         # dos
 				return []
 			"pelvis":
 				if c.y > g_nouv[os_("pelvis")].origin.y - 0.05:
-					return [420.0, 0.18, 0.26, 3, 7, 0]         # pagne
+					return [420.0, 0.14, 0.21, 3, 7, 0]         # pagne
 				return []
 			"thigh":
 				if c.y > g_nouv[os_(nom)].origin.y - 0.10:
-					return [420.0, 0.18, 0.26, 3, 7, 0]         # pagne (haut des cuisses)
+					return [420.0, 0.14, 0.21, 3, 7, 0]         # pagne (haut des cuisses)
 				return []
 			"upperarm":
 				var axe := g_nouv[os_(nom)].origin

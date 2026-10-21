@@ -149,6 +149,7 @@ func _ready() -> void:
 	_villageois()
 	_chrono("villageois")
 	_guerrier_pilote()
+	_troll_pilote()
 	_tertre()
 	_chrono("tertre+crypte")
 	_grotte_acces()
@@ -580,6 +581,33 @@ func _pilote_animer(nom: String, t: float) -> void:
 	ap.play(nom)
 	ap.seek(ap.get_animation(nom).length * t, true)
 	ap.pause()
+
+## --troll-pilote[=x,z,lacet°] : Troll de givre (TrollGivre) à la place du guerrier pour les vues « pilote » (le guerrier, s'il est
+## demandé aussi, reste à sa place : planche d'échelle). --troll-anim=Nom (Idle par défaut). Vue grotte + option `troll=d` : le troll
+## est posé à d m devant la caméra, tourné vers elle. Aucun effet sans l'option.
+func _troll_pilote() -> void:
+	if not _arguments().has("troll-pilote"):
+		return
+	var p := PILOTE_DEFAUT
+	var a: String = _arguments()["troll-pilote"]
+	if a != "":
+		var f := a.split_floats(",")
+		p = Vector3(f[0], f[1], f[2] if f.size() > 2 else p.z)
+	pilote = TrollGivre.creer({})
+	add_child(pilote)
+	pilote.global_position = Vector3(p.x, hauteur(p.x, p.y), p.y)
+	pilote.rotation.y = deg_to_rad(p.z)
+	_pilote_animer(String(_arguments().get("troll-anim", "Idle")), 0.25)
+
+func _troll_grotte(d: float, anim: String) -> void:
+	var av := -joueur.global_basis.z
+	av.y = 0.0
+	var pos := joueur.global_position + av.normalized() * d
+	var r := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 2.0, pos + Vector3.DOWN * 4.0))
+	pilote.global_position = r["position"] if r else pos
+	pilote.rotation.y = atan2(-av.x, -av.z)   # face (+Z) tournée vers la caméra
+	var an := anim.split(":")
+	_pilote_animer(an[0], float(an[1]) if an.size() > 1 else 0.25)
 
 # --- le tertre ----------------------------------------------------------------------
 
@@ -1225,6 +1253,8 @@ func _lot_captures(fichier: String) -> void:
 			joueur.rotation.y = grotte.cap_monde(c[0]) + deg_to_rad(c[2])
 			joueur.tete.rotation.x = deg_to_rad(c[3])
 			joueur.velocity = Vector3.ZERO
+			if opt.has("troll") and pilote:
+				_troll_grotte(float(opt["troll"]), String(opt.get("anim", "Idle")))
 		else:
 			push_error("--captures : type inconnu « %s » (vue %s)" % [type, v["nom"]])
 			continue
