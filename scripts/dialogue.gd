@@ -162,7 +162,9 @@ func _plus_proche() -> Node3D:
 	var meilleur: Node3D = null
 	var d_min := INF
 	for p in _invites.duplicate():
-		if not is_instance_valid(p):
+		# une invite dont le nœud ne tourne plus (grotte refermée : process désactivé, hors de l'arbre) ne peut plus se retirer
+		# elle-même : sans ce nettoyage elle restait « fantôme » et E renvoyait devant la grotte depuis n'importe où
+		if not is_instance_valid(p) or not p.is_inside_tree() or not p.can_process():
 			_invites.erase(p)
 			continue
 		var d := joueur.global_position.distance_squared_to(p.global_position)
