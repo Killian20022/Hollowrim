@@ -138,6 +138,7 @@ func _ready() -> void:
 	Sol.appliquer(mat_terrain, self, arbres)
 	_chrono("carte de sol")
 	DetailsSol.creer(self)  # lot 3 : cailloux du sol (après la carte de sol)
+	if not _arguments().has("sans-abords"): AbordsVillage.creer(self)  # refonte : abords de l'entrée du village (avant le fil des intérieurs ; --sans-abords : A/B)
 	_village()
 	_chrono("village (bati)")
 	_feu_de_camp()
@@ -153,7 +154,6 @@ func _ready() -> void:
 	_grotte_acces()
 	_chrono("entree de la grotte")
 	AbordsTumulus.creer(self)  # lot F : abords du tertre (après sa création)
-	if not _arguments().has("sans-abords"): AbordsVillage.creer(self)  # refonte : abords de l'entrée du village (--sans-abords : A/B)
 	if _arguments().has("res"):  # essai de résolution interne (captures) : --res=640x360 ; ne change pas le défaut du projet
 		var wh := String(_arguments()["res"]).split("x")
 		get_window().content_scale_size = Vector2i(int(wh[0]), int(wh[1]))

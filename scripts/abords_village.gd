@@ -17,6 +17,7 @@ extends Node3D
 
 const PORTEE := 80.0                 # ≤ FIN_MAX + 5 (brouillard)
 const DEMI_LARGEUR := 1.3            # demi-largeur du dallage (m)
+const VILLAGE_RAYON := 22.0          # palissade (village.gd RAYON)
 const COULEUR_LANTERNE := Color(1.0, 0.62, 0.32)   # préréglage « Lanterne » (DIRECTION_ARTISTIQUE §6)
 const VITRE_LANTERNE := Color("#fcb53a")
 
@@ -41,6 +42,7 @@ var _occupe: Array = []                 # [Vector2, rayon] : pas de buisson ni d
 var _corps: StaticBody3D
 var _lumieres: Array = []               # [OmniLight3D, énergie, phase]
 var _t := 0.0
+var _nb_sapins := 0
 
 ## Habille l'entrée du village de `monde` (sentier feu → porte). `graine` = variante.
 static func creer(monde_: Node, graine := 0) -> AbordsVillage:
@@ -126,7 +128,68 @@ func _entree() -> void:
 	# buissons brun-rouge : quelques-uns placés (cadrage), d'autres semés le long des bords
 	for b in [[6.1, -2.95], [3.7, -4.4], [4.5, 4.7], [2.6, 4.0], [6.4, 3.3], [1.2, -3.9], [8.0, -3.3], [10.4, 3.5], [12.6, -4.0], [16.2, 3.6], [6.9, -4.3], [4.3, 3.0]]:
 		_buisson(_p(_j(b[0], 0.2), _j(b[1] * cote, 0.15)), rng.randf_range(0.75, 1.15))
+	# sapins chargés de neige de part et d'autre, du premier plan jusqu'à la porte (la porte reste visible au bout)
+	_sapins([[7.6, -6.6, 1.2], [3.0, -6.6, 1.0], [10.6, -5.6, 1.1], [14.0, -7.6, 1.3], [18.2, -5.4, 1.0], [22.0, -6.8, 1.2], [26.0, -5.6, 1.0], [30.0, -7.2, 1.1],
+			[6.4, 6.9, 1.15], [2.4, 7.4, 1.0], [11.2, 7.2, 1.2], [16.6, 6.3, 1.0], [21.0, 7.6, 1.3], [25.2, 5.8, 1.0], [29.2, 6.8, 1.2], [33.0, 5.8, 1.0]], 14, 2.0, longueur + 4.0)
 	_semer_bords(0.5, longueur - 1.5)
+
+## Sapins qui encadrent le sentier : les épicéas validés du lot 2 (API `Arbres`, mêmes graines et mêmes réglages de portée,
+## d'ombre et de silhouette lointaine que la forêt), une liste de cadrage [u, v, échelle] puis un remplissage au hasard.
+## Hors de la palissade, hors du dallage (|v| ≥ 3,6 m), loin des autres objets. Collision : le tronc (comme la forêt).
+## Ils ne sont pas ajoutés à `monde.arbres` (carte de sol et brume locale inchangées).
+func _sapins(liste: Array, nb_remplir: int, u0: float, u1: float) -> void:
+	var centre_village := Vector2(monde.VILLAGE.x, monde.VILLAGE.z)
+	var r_min: float = VILLAGE_RAYON + 2.2
+	var pris: Array[Vector2] = []
+	var lots: Array = [[], [], []]
+	var essais: Array = []
+	for t in liste:
+		essais.append([_j(t[0], 0.4), _j(t[1], 0.3), float(t[2])])
+	for i in nb_remplir * 4:
+		essais.append([rng.randf_range(u0, u1), rng.randf_range(5.0, 13.0) * (1.0 if rng.randf() < 0.5 else -1.0), rng.randf_range(0.85, 1.3)])
+	var remplis := 0
+	for k in essais.size():
+		var e: Array = essais[k]
+		var forme := rng.randi() % 3
+		var lacet := rng.randf() * TAU
+		var pench := rng.randf_range(-0.04, 0.04)
+		var sy := rng.randf_range(0.9, 1.2)
+		if k >= liste.size() and remplis >= nb_remplir:
+			break
+		var p := _p(e[0], e[1])
+		if absf(e[1]) < 3.6 or p.distance_to(centre_village) < r_min or not _libre(p, 1.0):
+			continue
+		var serre := false
+		for q in pris:
+			if q.distance_to(p) < 2.6:
+				serre = true
+				break
+		if serre:
+			continue
+		if k >= liste.size():
+			remplis += 1
+		pris.append(p)
+		var s: float = e[2]
+		var b := Basis(Vector3(1, 0, 0), pench) * Basis(Vector3.UP, lacet)
+		b = b.scaled(Vector3(s, s * sy, s))
+		lots[forme].append(Transform3D(b, Vector3(p.x, monde.hauteur(p.x, p.y) - 0.15, p.y)))
+		_occupe.append([p, 0.8])
+		var forme_col := CollisionShape3D.new()
+		var cyl := CylinderShape3D.new()
+		cyl.radius = 0.35
+		cyl.height = 4.0
+		forme_col.shape = cyl
+		forme_col.position = _l(p, monde.hauteur(p.x, p.y) + 2.0)
+		_corps.add_child(forme_col)
+	var mats := Arbres.materiaux_epicea()
+	var pp: float = Vegetation.PORTEE_PLEINE
+	for f in 3:
+		if lots[f].is_empty():
+			continue
+		Instanciation.repartir(monde, Arbres.epicea(f, 11 + f, mats), lots[f], {"portee": pp, "marge": 4.0, "ombre_proche": pp,
+			"lod_mesh": Arbres.epicea_lointain(f, 11 + f, mats), "ombre_mesh": Arbres.epicea_ombre(f, 11 + f, mats[0]),
+			"lod_debut": pp - 4.0, "lod_portee": Vegetation.PORTEE_LOD})
+		_nb_sapins += lots[f].size()
 
 ## Dallage en pierres irrégulières (cellules de Voronoï sur une grille décalée et bruitée, rétrécies d'un joint, coins
 ## rabotés) de u0 à u1 ; les dalles s'espacent vers u1 (le dallage se perd dans la neige). Bords de piste irréguliers :
@@ -621,8 +684,8 @@ func _finaliser() -> void:
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			mmi.set_meta("abords", "touffe")
 	DetailsSol.semer(monde, monde, _cailloux, rng.randi())
-	print("Abords du village : %d dalles (triangles), %d triangles de pierre/neige, %d buissons, %d touffes, %d cailloux, %d lumières" % [
-		_dalles.v.size() / 3, _pierre.v.size() / 3, _buissons.size(), _touffes.size(), _cailloux.size(), _lumieres.size()])
+	print("Abords du village : %d triangles de dalles, %d triangles de pierre/neige, %d sapins, %d buissons, %d touffes, %d cailloux, %d lumières" % [
+		_dalles.v.size() / 3, _pierre.v.size() / 3, _nb_sapins, _buissons.size(), _touffes.size(), _cailloux.size(), _lumieres.size()])
 
 func _process(dt: float) -> void:
 	if _lumieres.is_empty():
