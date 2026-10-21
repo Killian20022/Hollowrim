@@ -25,6 +25,7 @@ TESTS=(
 	"test_squelette_traversees|--nouvelle"
 	"test_grotte|--nouvelle"
 	"test_grotte_acces|--nouvelle"
+	"test_mecanismes|--nouvelle"
 	"test_degats_sanctuaire|--nouvelle"
 	"test_dragon|--nouvelle"
 	"test_dragon_monde|--nouvelle"
