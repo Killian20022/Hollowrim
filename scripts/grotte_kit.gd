@@ -38,6 +38,7 @@ var _mats := {}
 var nb_instances := 0
 var nb_solides := 0
 var nb_lum := 0
+var stats := {}                # famille de gabarit -> nombre d'instances
 var r := RandomNumberGenerator.new()
 
 func _init(g_: Grotte) -> void:
@@ -222,14 +223,15 @@ static func _g_pan(graine: int) -> Dictionary:
 	var n := rg.randi_range(3, 4)
 	var prof := 0.0
 	for k in n:
-		var W := rg.randf_range(0.9, 1.5) * (1.0 - 0.08 * k)
-		var Dp := rg.randf_range(0.45, 0.75)
-		var H := rg.randf_range(0.5, 0.9)
-		var m := _masse(graine * 13 + k, 2, Vector3(W, H * 0.6, Dp), 1.1, 0.75, 0.45)
+		var W := rg.randf_range(0.6, 1.4) * (1.0 - 0.06 * k)
+		var Dp := rg.randf_range(0.45, 0.95)
+		var H := rg.randf_range(0.45, 1.1)
+		var m := _masse(graine * 13 + k, 1, Vector3(W, H * 0.6, Dp), 1.7, 0.7, rg.randf_range(0.35, 0.7))
 		var Q: PackedVector3Array = m[0]
-		var off := Vector3(rg.randf_range(-0.35, 0.35), y + H * 0.42, Dp * 0.25 + float(n - k) * 0.1 * rg.randf_range(0.5, 1.5))
+		var off := Vector3(rg.randf_range(-0.5, 0.5), y + H * 0.42, Dp * 0.2 + float(n - k) * 0.1 * rg.randf_range(0.3, 1.6))
+		var tourne := Basis(Vector3.UP, rg.randf_range(-0.35, 0.35)) * Basis(Vector3.FORWARD, rg.randf_range(-0.2, 0.2))
 		for i in Q.size():
-			Q[i] += off
+			Q[i] = tourne * Q[i] + off
 		prof = maxf(prof, off.z + Dp)
 		var centre := off
 		_lisse(S, Q, m[1], centre, _couleurs_masse(Q, m[1], m[2], centre, graine + k, 1.0))
@@ -239,11 +241,9 @@ static func _g_pan(graine: int) -> Dictionary:
 	return G
 
 ## Concrétion tournée (stalagmite vers le haut, stalactite vers le bas), hauteur 1, rayon de pied `rb`, facettes plates.
-static func _concretion(S: Dictionary, graine: int, base: Vector3, rb: float, h: float, bas: bool, givre: bool, tronque := false) -> void:
+static func _concretion(S: Dictionary, graine: int, base: Vector3, rb: float, h: float, bas: bool, givre: bool, tronque := false, cotes := 7, nr := 9) -> void:
 	var rg := RandomNumberGenerator.new()
 	rg.seed = graine
-	var cotes := 7
-	var nr := 9
 	var sg := -1.0 if bas else 1.0
 	var phase := rg.randf() * TAU
 	var nb := rg.randf_range(2.5, 4.5)
@@ -313,11 +313,11 @@ static func _g_stalac(graine: int, rb: float, grappe: int) -> Dictionary:
 	rg.seed = graine
 	var G := {"surf": {}, "h": 1.0, "prof": 0.0}
 	var S := _S(G, "c_roche_nu")
-	_concretion(S, graine, Vector3(0, 0.12, 0), rb, 1.12, true, false)
+	_concretion(S, graine, Vector3(0, 0.12, 0), rb, 1.12, true, false, false, 6, 7)
 	for k in grappe:
 		var a := TAU * float(k) / float(maxi(grappe, 1)) + rg.randf_range(-0.4, 0.4)
 		var d := rb * rg.randf_range(1.2, 2.0)
-		_concretion(S, graine + 17 * (k + 1), Vector3(cos(a) * d, 0.1, sin(a) * d), rb * rg.randf_range(0.45, 0.7), rg.randf_range(0.35, 0.75), true, false)
+		_concretion(S, graine + 17 * (k + 1), Vector3(cos(a) * d, 0.1, sin(a) * d), rb * rg.randf_range(0.45, 0.7), rg.randf_range(0.35, 0.75), true, false, false, 5, 5)
 	return G
 
 ## Prisme de cristal hexagonal pointu (UV par face : la texture porte le dégradé et l'arête claire).
@@ -439,6 +439,8 @@ func _add(nom: String, pos: Vector3, lacet: float, ech: Vector3, incl := Basis()
 		_inst[cle] = []
 	(_inst[cle] as Array).append(Transform3D(b, pos))
 	nb_instances += 1
+	var fam := nom.get_slice("_", 0)
+	stats[fam] = int(stats.get(fam, 0)) + 1
 
 ## Base qui oriente l'axe +y du gabarit selon `axe` (grappes penchées vers le chemin).
 static func _vers(axe: Vector3) -> Basis:
@@ -504,7 +506,7 @@ func _reserver_pt(id: String, s: float, lat: float, rr: float, couloir := true) 
 	var p := _xz(g.sol_en(id, s, lat))
 	_occ.append([p, rr])
 	if couloir:
-		_seg.append([p, _xz(g.sol_en(id, s, 0.0)), 0.95])
+		_seg.append([p, _xz(g.sol_en(id, s, 0.0)), 0.7])
 
 ## Couloirs vers toutes les accroches du jeu de la branche (et l'îlot), disques autour des accessoires posés par les modules.
 func _reserver(id: String) -> void:
@@ -515,7 +517,7 @@ func _reserver(id: String) -> void:
 			continue
 		for cle in ["ennemis", "coffres", "ressources", "interactions", "meca"]:
 			for e: Dictionary in z.get(cle, []):
-				_reserver_pt(id, float(e["s"]), float(e["lat"]), 1.1)
+				_reserver_pt(id, float(e["s"]), float(e["lat"]), 0.9)
 				var pts: Array = e.get("patrouille", [])
 				for k in pts.size():
 					var q: Array = pts[k]
@@ -548,11 +550,31 @@ func libre(id: String, s: float, lat: float, rr: float, serre := 0.85) -> bool:
 			return false
 	return true
 
+## Place libre au fond d'un cul-de-sac : le chemin n'y passe plus (seuls comptent les couloirs des accroches et l'occupation).
+func _libre_fond(id: String, s: float, lat: float, rr: float) -> bool:
+	var p := _xz(g.sol_en(id, s, lat))
+	for e: Array in _seg:
+		if _d_seg(p, e[0], e[1]) < rr + float(e[2]):
+			return false
+	for o: Array in _occ:
+		if p.distance_to(o[0]) < (rr + float(o[1])) * 0.7:
+			return false
+	return true
+
 func _occuper(id: String, s: float, lat: float, rr: float) -> void:
 	_occ.append([_xz(g.sol_en(id, s, lat)), rr])
 
 ## Distance latérale de la paroi (côté `cote`) à la hauteur h au-dessus du sol de l'axe, et point/normale du mur.
+var _murs := {}
 func _mur(id: String, s: float, cote: float, h: float) -> Dictionary:
+	var cle := "%s|%d|%d|%d" % [id, roundi(s * 4.0), int(cote), roundi(h * 4.0)]
+	if _murs.has(cle):
+		return _murs[cle]
+	var res := _mur_calc(id, s, cote, h)
+	_murs[cle] = res
+	return res
+
+func _mur_calc(id: String, s: float, cote: float, h: float) -> Dictionary:
 	var R := g.droite(id, s) * cote
 	var o := g.sol_en(id, s, 0.0) + Vector3(0, h, 0)
 	var hit := g.rayon(o, R, 25.0)
@@ -575,11 +597,17 @@ func _bloc(id: String, s: float, lat: float, rr: float, solide := true, petit :=
 	var nom := ("caillou_%d" % r.randi_range(0, 2)) if petit else ("bloc_%d" % r.randi_range(0, 7))
 	var p := g.sol_en(id, s, lat)
 	var e := rr * r.randf_range(0.9, 1.1)
-	var eh := rr * r.randf_range(0.85, 1.25)
+	var eh := rr * r.randf_range(1.0, 1.5)
 	_add(nom, p + Vector3(0, -0.04 * rr, 0), r.randf() * TAU, Vector3(e, eh, rr))
 	_occuper(id, s, lat, rr)
+	var h_b: float = float(gab[nom]["h"]) * eh
 	if solide and rr >= 0.45:
-		_solide(p, rr * 0.78, float(gab[nom]["h"]) * eh * 0.85)
+		_solide(p, rr * 0.78, h_b * 0.85)
+	if not petit and rr > 0.6 and r.randf() < 0.45:          # amas : un bloc plus petit posé dessus, de travers
+		var a := r.randf() * TAU
+		var r2 := rr * r.randf_range(0.4, 0.6)
+		var q := p + Vector3(cos(a), 0, sin(a)) * rr * 0.35 + Vector3(0, h_b * 0.7, 0)
+		_add("bloc_%d" % r.randi_range(0, 7), q, r.randf() * TAU, Vector3(r2, r2 * r.randf_range(0.9, 1.3), r2), Basis(Vector3(cos(a), 0, sin(a)), r.randf_range(-0.4, 0.4)))
 
 func _stalagmite(id: String, s: float, lat: float, h: float, solide := true) -> float:
 	var k := r.randi_range(0, 3)
@@ -629,15 +657,27 @@ func _pan(id: String, s: float, cote: float, h: float, ech: float, au_sol: bool)
 	var nom := "pan_%d" % r.randi_range(0, 3)
 	var prof: float = float(gab[nom]["prof"]) * ech
 	var lat_w: float = m["lat"]
+	var lat_c := cote * (lat_w - prof * 0.45)
 	if au_sol:
-		var lat_c := cote * (lat_w - prof * 0.45)
 		if not libre(id, s, lat_c, ech * 0.75, 0.7):
 			return {}
 		_occuper(id, s, lat_c, ech * 0.8)
-	var p: Vector3 = m["p"] - n * 0.3 * ech
+	elif h < 4.8 and not g.libre(id, s, cote * (lat_w - prof), 0.3):      # au-dessus d'une corniche : la tête des archers reste libre
+		return {}
+	var p: Vector3 = m["p"] - n * 0.42 * ech
 	p.y = (g.sol_en(id, s, cote * (lat_w - 0.3)).y - 0.15) if au_sol else (g.sol_en(id, s, 0.0).y + h)
 	_add(nom, p, atan2(n.x, n.z), Vector3(ech * r.randf_range(0.9, 1.3), ech * r.randf_range(0.85, 1.15), ech))
 	return {"p": p, "n": n, "ech": ech, "prof": prof, "h": float(gab[nom]["h"]) * ech}
+
+## Habille un pan : frange de glaçons sous son bord (pans en hauteur), grappe de cristaux sur son rebord.
+func _garnir_pan(pn: Dictionary, cristaux: float, en_haut: bool) -> void:
+	var n: Vector3 = pn["n"]
+	var p: Vector3 = pn["p"]
+	if en_haut and r.randf() < 0.55:
+		_frange(p + n * float(pn["prof"]) * 0.7 + Vector3(0, 0.12, 0), n.cross(Vector3.UP), r.randf_range(0.8, 1.6), r.randf_range(0.6, 1.3))
+	if cristaux > 0.0 and r.randf() < (0.4 if en_haut else 0.5) * cristaux:
+		var top := p + n * float(pn["prof"]) * r.randf_range(0.3, 0.55) + Vector3(0, float(pn["h"]) * 0.8, 0)
+		_grappe(top, r.randf_range(0.4, 0.85), (n * 0.8 + Vector3.UP).normalized())
 
 # =================================================================== salle des cristaux (grottes_cryptes_6)
 func _salle_cristaux(z: Dictionary) -> void:
@@ -683,13 +723,13 @@ func _salle_cristaux(z: Dictionary) -> void:
 				_bloc(id, s + ds, lat + dlat, rr)
 	_habiller_parois(id, sa, sb, 1.0)
 	# 2. grappes moyennes et petites entre les blocs, près du chemin et contre les parois
-	for k in 70:
+	for k in 140:
 		var s := r.randf_range(sa, sb)
 		var cote := 1.0 if r.randf() < 0.5 else -1.0
 		var dl := g.demi_l(id, s)
 		var w := dl.y if cote > 0.0 else dl.x
 		var lat := cote * r.randf_range(1.45, w * 0.95)
-		var t := r.randf_range(0.35, 0.95) * (1.0 if absf(lat) > 2.2 else 0.7)
+		var t := r.randf_range(0.45, 1.3) * (1.0 if absf(lat) > 2.2 else 0.7)
 		if not libre(id, s, lat, t * 0.3, 0.6):
 			continue
 		var q := g.sol_en(id, s, lat)
@@ -697,7 +737,23 @@ func _salle_cristaux(z: Dictionary) -> void:
 		vers_axe.y = 0.0
 		_grappe(q - Vector3(0, 0.06, 0), t, (Vector3.UP * 1.5 + vers_axe.normalized()).normalized())
 		_occuper(id, s, lat, t * 0.3)
-	# 3. stalactites partout
+	# 3. fond de la salle (cul-de-sac) : amas de blocs, stalagmites et grappes en travers, hors du couloir du coffre
+	for k in 60:
+		var s := r.randf_range(L - 3.2, L - 0.6)
+		var dl := g.demi_l(id, s)
+		var lat := r.randf_range(-dl.x * 0.9, dl.y * 0.9)
+		var rr := r.randf_range(0.4, 1.1)
+		if not _libre_fond(id, s, lat, rr):
+			continue
+		var tirage := r.randf()
+		if tirage < 0.55:
+			_bloc(id, s, lat, rr)
+		elif tirage < 0.8:
+			_stalagmite(id, s, lat, r.randf_range(1.2, 3.0))
+		else:
+			_grappe(g.sol_en(id, s, lat) - Vector3(0, 0.05, 0), rr * 1.2, (Vector3.UP * 1.4 - g.tang(id, s)).normalized())
+			_occuper(id, s, lat, rr * 0.4)
+	# 4. stalactites partout
 	for k in 110:
 		var s := r.randf_range(sa, sb)
 		var dl := g.demi_l(id, s)
@@ -708,28 +764,27 @@ func _salle_cristaux(z: Dictionary) -> void:
 ## gros blocs à demi dans la paroi, blocs moyens, petits blocs au bord du chemin, stalagmites derrière, grappes posées sur les blocs.
 func _habiller_parois(id: String, sa: float, sb: float, cristaux: float, cotes := [-1.0, 1.0], lat_min_g := 0.0) -> void:
 	for cote: float in cotes:
-		# pans au sol, puis pans en hauteur (ressauts) qui cassent la paroi lisse
-		var s := sa + r.randf_range(0.0, 1.0)
+		# parement : colonnes de pans empilés du sol jusqu'à 5-6 m (ressauts continus qui cassent la paroi lisse)
+		var s := sa + r.randf_range(0.0, 0.8)
 		while s < sb:
 			var pn := _pan(id, s, cote, 0.0, r.randf_range(0.9, 1.5), true)
-			if not pn.is_empty() and cristaux > 0.0 and r.randf() < 0.5 * cristaux:
-				var top: Vector3 = (pn["p"] as Vector3) + (pn["n"] as Vector3) * float(pn["prof"]) * 0.45 + Vector3(0, float(pn["h"]) * 0.85, 0)
-				_grappe(top, r.randf_range(0.4, 0.8), ((pn["n"] as Vector3) * 0.8 + Vector3.UP).normalized())
-			s += r.randf_range(1.4, 2.4)
-		s = sa + r.randf_range(0.0, 1.5)
-		while s < sb:
-			var hh := r.randf_range(2.4, 5.0)
-			var pt := g.plafond_en(id, s, 0.0)
-			if pt.y - g.sol_en(id, s, 0.0).y > hh + 1.2:
-				var pn := _pan(id, s, cote, hh, r.randf_range(0.8, 1.4), false)
-				if not pn.is_empty():
-					var bord: Vector3 = (pn["p"] as Vector3) + (pn["n"] as Vector3) * float(pn["prof"]) * 0.75 + Vector3(0, 0.1, 0)
-					var lat_dir := (pn["n"] as Vector3).cross(Vector3.UP)
-					_frange(bord, lat_dir, r.randf_range(0.8, 1.6), r.randf_range(0.7, 1.4))
-					if cristaux > 0.0 and r.randf() < 0.45 * cristaux:
-						var top: Vector3 = (pn["p"] as Vector3) + (pn["n"] as Vector3) * float(pn["prof"]) * 0.4 + Vector3(0, float(pn["h"]) * 0.8, 0)
-						_grappe(top, r.randf_range(0.45, 0.85), ((pn["n"] as Vector3) + Vector3.UP * 0.6).normalized())
-			s += r.randf_range(1.6, 3.0)
+			var hh := r.randf_range(1.6, 2.4)
+			if not pn.is_empty():
+				hh = float(pn["h"]) * r.randf_range(0.7, 0.85)
+				_garnir_pan(pn, cristaux, false)
+			var m := _mur(id, s, cote, 1.0)
+			var lat_w: float = float(m.get("lat", 3.0))
+			var libre_h := g.plafond_en(id, s, cote * maxf(lat_w - 1.0, 0.5)).y - g.sol_en(id, s, 0.0).y
+			var etages := 0
+			while hh < minf(libre_h - 1.2, 6.5) and etages < 4:
+				var pn2 := _pan(id, s + r.randf_range(-0.35, 0.35), cote, hh, r.randf_range(0.8, 1.3), false)
+				if pn2.is_empty():
+					hh += 0.8
+				else:
+					_garnir_pan(pn2, cristaux, true)
+					hh += float(pn2["h"]) * r.randf_range(0.65, 0.85)
+				etages += 1
+			s += r.randf_range(1.2, 1.9)
 		# gros blocs au pied de la paroi (à moitié dedans)
 		s = sa + r.randf_range(0.0, 0.8)
 		while s < sb:
@@ -737,14 +792,14 @@ func _habiller_parois(id: String, sa: float, sb: float, cristaux: float, cotes :
 			if not m.is_empty():
 				var rr := r.randf_range(0.9, 1.7)
 				var lat := cote * (float(m["lat"]) - rr * 0.3)
-				if absf(lat) > lat_min_g and libre(id, s, lat, rr, 0.6):
+				if absf(lat) > lat_min_g and libre(id, s, lat, rr, 0.55):
 					_bloc(id, s, lat, rr)
 					if cristaux > 0.0 and r.randf() < 0.35 * cristaux:
 						var q := g.sol_en(id, s, lat - cote * rr * 0.3) + Vector3(0, rr * 0.9, 0)
 						_grappe(q, r.randf_range(0.4, 0.75), (Vector3.UP * 1.2 - g.droite(id, s) * cote).normalized())
-			s += r.randf_range(1.0, 1.8)
+			s += r.randf_range(0.6, 1.1)
 		# stalagmites entre les gros blocs et la paroi
-		for k in int((sb - sa) * 0.7):
+		for k in int((sb - sa) * 1.6):
 			var s2 := r.randf_range(sa, sb)
 			var m := _mur(id, s2, cote, 0.5)
 			if m.is_empty():
@@ -760,23 +815,23 @@ func _habiller_parois(id: String, sa: float, sb: float, cristaux: float, cotes :
 						if libre(id, s2 + sin(a) * d, lat + cos(a) * d, 0.25, 0.4):
 							_bloc(id, s2 + sin(a) * d, lat + cos(a) * d, r.randf_range(0.2, 0.4), false, true)
 		# blocs moyens dans la bande du milieu
-		for k in int((sb - sa) * 1.1):
+		for k in int((sb - sa) * 4.0):
 			var s2 := r.randf_range(sa, sb)
 			var dl := g.demi_l(id, s2)
 			var w := dl.y if cote > 0.0 else dl.x
-			var rr := r.randf_range(0.45, 1.0)
-			var lat := cote * r.randf_range(VOIE + rr + 0.1, maxf(w - 0.8, VOIE + rr + 0.2))
-			if absf(lat) > lat_min_g and libre(id, s2, lat, rr, 0.75):
+			var rr := r.randf_range(0.45, 1.15)
+			var lat := cote * r.randf_range(VOIE + rr * 0.8, maxf(w - 0.6, VOIE + rr + 0.2))
+			if absf(lat) > lat_min_g and libre(id, s2, lat, rr, 0.62):
 				_bloc(id, s2, lat, rr)
 				if cristaux > 0.0 and r.randf() < 0.3 * cristaux:
 					_grappe(g.sol_en(id, s2, lat) + Vector3(0, rr * 0.75, 0), r.randf_range(0.3, 0.6), (Vector3.UP * 1.3 - g.droite(id, s2) * cote).normalized())
 		# petits blocs au bord du chemin : le chemin « serpente » entre les masses
-		for k in int((sb - sa) * 1.6):
+		for k in int((sb - sa) * 4.0):
 			var s2 := r.randf_range(sa, sb)
-			var rr := r.randf_range(0.18, 0.45)
-			var lat := cote * r.randf_range(VOIE + rr, VOIE + rr + 0.9)
-			if absf(lat) > lat_min_g and libre(id, s2, lat, rr, 0.8):
-				_bloc(id, s2, lat, rr, false, true)
+			var rr := r.randf_range(0.18, 0.7)
+			var lat := cote * r.randf_range(VOIE + rr, VOIE + rr + 1.0)
+			if absf(lat) > lat_min_g and libre(id, s2, lat, rr, 0.75):
+				_bloc(id, s2, lat, rr, true, rr < 0.4)
 
 # =================================================================== caverne du lac (grottes_cryptes_5)
 func _salle_lac(z: Dictionary) -> void:
@@ -787,6 +842,15 @@ func _salle_lac(z: Dictionary) -> void:
 	_reserver(id)
 	for q in [[s0 + 1.5, 2.4], [s0 + 7.0, 2.0], [s0 + 13.0, 1.6]]:      # caisse, os, arme du module
 		_reserver_pt(id, float(q[0]), float(q[1]), 0.8, false)
+	for zz: Dictionary in g.zones.values():          # lanternes possibles (GrotteDecor._retoucher_lumieres : poteau contre la paroi)
+		var nl := int(zz.get("n_lum", 0))
+		if zz["branche"] != id or nl <= 0:
+			continue
+		for k in nl:
+			var sl := lerpf(float(zz["s"][0]), float(zz["s"][1]), (float(k) + 0.5) / float(nl))
+			var cote := 1.0 if k % 2 == 0 else -1.0
+			var dl := g.demi_l(id, sl)
+			_reserver_pt(id, sl, cote * maxf((dl.y if cote > 0.0 else dl.x) - 0.55, 0.9), 0.9, false)
 	for sl: float in [s0 + 7.0, s0 + 19.0, s0 + 29.0]:                   # lanternes de la rive (GrotteDecor._hab_lac)
 		var rv := GrotteModules._rive(g, id, sl)
 		if rv < 900.0:
@@ -795,8 +859,35 @@ func _salle_lac(z: Dictionary) -> void:
 	var sa := maxf(s0 + 0.5, 0.6)
 	var sb := minf(s1 - 0.3, L - 0.6)
 	_cascade(z)
+	# 2. terrasses givrées sur la rive : dalles en gradins vers la glace, franges de glaçons au rebord côté lac
+	var st := sa + 1.0
+	while st < sb - 2.0:
+		var rv := GrotteModules._rive(g, id, st)
+		if rv < 900.0:
+			var vers_lac := g.sol_en(id, st, rv - 3.0) - g.sol_en(id, st, rv)
+			vers_lac.y = 0.0
+			vers_lac = vers_lac.normalized()
+			for j in 3:
+				var lat := rv + 0.6 - float(j) * 1.1 + r.randf_range(-0.2, 0.2)
+				var rr := r.randf_range(0.8, 1.35) * (1.0 - 0.15 * j)
+				if not libre(id, st, lat, rr, 0.7):
+					continue
+				var q := g.sol_en(id, st, lat)
+				var y := maxf(q.y, g.lac_y) - 0.1
+				var nom := "dalle_%d" % r.randi_range(0, 2)
+				var eh := rr * r.randf_range(0.9, 1.3)
+				_add(nom, Vector3(q.x, y, q.z), r.randf() * TAU, Vector3(rr, eh, rr))
+				_occuper(id, st, lat, rr * 0.9)
+				var h_d: float = float(gab[nom]["h"]) * eh
+				if h_d > 0.33:
+					_solide(Vector3(q.x, y, q.z), rr * 0.8, h_d)
+				for f in r.randi_range(1, 2):
+					var dir := vers_lac.rotated(Vector3.UP, r.randf_range(-0.9, 0.9))
+					var bord := Vector3(q.x, y, q.z) + dir * rr * 0.92 + Vector3(0, h_d * 0.82, 0)
+					_frange(bord, dir.cross(Vector3.UP), r.randf_range(0.7, 1.3), minf(h_d * 1.4, 0.8))
+		st += r.randf_range(1.8, 3.0)
 	# 1. forêt de stalagmites étagée côté lac : trois plans (près, milieu, fond), chacune avec un amas de blocs au pied
-	var plans := [[2.4, 4.6, 1.6, 3.2, 14], [4.8, 8.2, 2.4, 4.8, 18], [8.5, 99.0, 3.5, 6.5, 22]]
+	var plans := [[2.4, 4.6, 1.6, 3.2, 16], [4.8, 8.2, 2.4, 4.8, 24], [8.5, 99.0, 3.5, 6.5, 30]]
 	for pl: Array in plans:
 		var faites := 0
 		for k in 220:
@@ -818,33 +909,6 @@ func _salle_lac(z: Dictionary) -> void:
 				var rr := r.randf_range(0.25, 0.7)
 				if libre(id, s + sin(a) * d, lat + cos(a) * d, rr, 0.45):
 					_bloc(id, s + sin(a) * d, lat + cos(a) * d, rr, rr > 0.5)
-	# 2. terrasses givrées sur la rive : dalles en gradins vers la glace, franges de glaçons au rebord côté lac
-	var s := sa + 1.0
-	while s < sb - 2.0:
-		var rv := GrotteModules._rive(g, id, s)
-		if rv < 900.0:
-			var vers_lac := g.sol_en(id, s, rv - 3.0) - g.sol_en(id, s, rv)
-			vers_lac.y = 0.0
-			vers_lac = vers_lac.normalized()
-			for j in 3:
-				var lat := rv + 0.6 - float(j) * 1.1 + r.randf_range(-0.2, 0.2)
-				var rr := r.randf_range(0.8, 1.35) * (1.0 - 0.15 * j)
-				if not libre(id, s, lat, rr, 0.7):
-					continue
-				var q := g.sol_en(id, s, lat)
-				var y := maxf(q.y, g.lac_y) - 0.1
-				var nom := "dalle_%d" % r.randi_range(0, 2)
-				var eh := rr * r.randf_range(0.9, 1.3)
-				_add(nom, Vector3(q.x, y, q.z), r.randf() * TAU, Vector3(rr, eh, rr))
-				_occuper(id, s, lat, rr * 0.9)
-				var h_d: float = float(gab[nom]["h"]) * eh
-				if h_d > 0.33:
-					_solide(Vector3(q.x, y, q.z), rr * 0.8, h_d)
-				for f in r.randi_range(1, 2):
-					var dir := vers_lac.rotated(Vector3.UP, r.randf_range(-0.9, 0.9))
-					var bord := Vector3(q.x, y, q.z) + dir * rr * 0.92 + Vector3(0, h_d * 0.82, 0)
-					_frange(bord, dir.cross(Vector3.UP), r.randf_range(0.7, 1.3), minf(h_d * 1.4, 0.8))
-		s += r.randf_range(1.8, 3.0)
 	# 3. parois des deux côtés (pas de cristaux ici), côté droit : la corniche est protégée par les réserves
 	_habiller_parois(id, sa, sb, 0.0)
 	# 4. gros blocs au premier plan, au bord du chemin (cadre des vues de la rive)
@@ -903,6 +967,7 @@ func _cascade(z: Dictionary) -> void:
 	var H := minf(((haut["p"] as Vector3).y - yb - 0.9) if not haut.is_empty() else 7.0, 8.0)
 	H = maxf(H, 3.5)
 	var y_top := yb + H
+	print("kit cascade : s_dep %.1f lat %.1f W0 %s n %s yb %.2f H %.2f sol %.2f lac %.2f plafond %s" % [s_dep, lat_c, W0, n, yb, H, o0.y, g.lac_y, str(haut.get("p", "-"))])
 	var t_res := 0.45          # ressaut à mi-hauteur
 	# point de la paroi à (décalage latéral u, hauteur y) ; repli : plan vertical par W0
 	var mur := func(u: float, y: float) -> Vector3:
@@ -926,15 +991,15 @@ func _cascade(z: Dictionary) -> void:
 	# colonnes : deux couches (fond c_glacon, devant c_glacon_c), éventail du haut (étroit) vers le bas (large)
 	for couche in 2:
 		var nom := "c_glacon" if couche == 0 else "c_glacon_c"
-		var nb := 11 if couche == 0 else 13
+		var nb := 15 if couche == 0 else 18
 		for j in nb:
-			var u_b := lerpf(-2.4, 2.4, (float(j) + r.randf_range(0.2, 0.8)) / float(nb))
-			var u_t := u_b * r.randf_range(0.38, 0.55)
-			var rad := r.randf_range(0.1, 0.26) * (1.0 if couche == 0 else 0.85)
+			var u_b := lerpf(-3.3, 3.3, (float(j) + r.randf_range(0.2, 0.8)) / float(nb))
+			var u_t := u_b * r.randf_range(0.4, 0.55)
+			var rad := r.randf_range(0.14, 0.32) * (1.0 if couche == 0 else 0.85)
 			var t_fin := 0.0
 			if couche == 1 and r.randf() < 0.4:           # orgue : s'arrête en grand glaçon
 				t_fin = r.randf_range(0.3, 0.7)
-			if absf(u_b) > 2.0 and r.randf() < 0.6:       # draperie de bord : plus courte
+			if absf(u_b) > 2.8 and r.randf() < 0.6:       # draperie de bord : plus courte
 				t_fin = maxf(t_fin, r.randf_range(0.45, 0.75))
 			var top_off := r.randf_range(-0.25, 0.2)
 			var pts: Array = []
@@ -1028,4 +1093,4 @@ func habiller() -> void:
 				if String(z.get("role", "")) == "combat":
 					_salle_lac(z)
 	_instancier()
-	print("kit grotte : %d instances, %d triangles, %d solides, %d lumières cyan, %d ms" % [nb_instances, nb_triangles(), nb_solides, nb_lum, Time.get_ticks_msec() - t0])
+	print("kit grotte : %d instances, %d triangles, %d solides, %d lumières cyan, %d ms %s" % [nb_instances, nb_triangles(), nb_solides, nb_lum, Time.get_ticks_msec() - t0, stats])
