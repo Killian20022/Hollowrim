@@ -114,7 +114,7 @@ static func creer(options := {}) -> Node3D:
 					var te: Variant = m.get_shader_parameter("teinte")
 					m2.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * Color(1.22, 1.16, 1.12))
 					m2.set_shader_parameter("appoint", Vector3(0.16, 0.15, 0.17))
-					m2.set_shader_parameter("contour_froid", Vector3(0.20, 0.25, 0.34))
+					m2.set_shader_parameter("contour_froid", Vector3(0.24, 0.29, 0.40))
 				Palette.materiaux.append(m2)
 				Palette._appliquer(m2, Palette._ps1_actif)
 				_mats[cle] = m2

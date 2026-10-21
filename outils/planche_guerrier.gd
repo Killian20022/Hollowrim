@@ -40,10 +40,23 @@ func _init() -> void:
 	var ref := Image.load_from_file(_arg("ref"))
 	ref.convert(Image.FORMAT_RGBA8)
 	ref.resize(int(ref.get_width() * float(g.get_height()) / ref.get_height()), g.get_height(), Image.INTERPOLATE_NEAREST)
-	var p := Image.create(ref.get_width() + g.get_width(), g.get_height(), false, Image.FORMAT_RGBA8)
+	# --passe1=<ancienne planche ref | grille> : la grille de la passe 1 (moitié droite) s'intercale (référence | passe 1 | passe 2)
+	var p1 := Image.new()
+	if _arg("passe1") != "":
+		var anc := Image.load_from_file(_arg("passe1"))
+		anc.convert(Image.FORMAT_RGBA8)
+		p1 = anc.get_region(Rect2i(anc.get_width() - g.get_width(), 0, g.get_width(), g.get_height()))
+	var larg_p1 := p1.get_width() if not p1.is_empty() else 0
+	var p := Image.create(ref.get_width() + larg_p1 + g.get_width(), g.get_height(), false, Image.FORMAT_RGBA8)
 	p.blit_rect(ref, Rect2i(Vector2i.ZERO, ref.get_size()), Vector2i.ZERO)
-	p.blit_rect(g, Rect2i(Vector2i.ZERO, g.get_size()), Vector2i(ref.get_width(), 0))
-	p.save_png(sortie.path_join("planche_ref_draugr__guerrier_face_34_dos_2_4_8m.png"))
+	if larg_p1 > 0:
+		p.blit_rect(p1, Rect2i(Vector2i.ZERO, p1.get_size()), Vector2i(ref.get_width(), 0))
+	p.blit_rect(g, Rect2i(Vector2i.ZERO, g.get_size()), Vector2i(ref.get_width() + larg_p1, 0))
+	p.save_png(sortie.path_join("planche_ref_draugr__passe1__passe2_face_34_dos_2_4_8m.png" if larg_p1 > 0 else "planche_ref_draugr__guerrier_face_34_dos_2_4_8m.png"))
+	# gros plans (passe 2) : visage et bouclier à 2 m (bande centrale) et à 1-1,3 m
+	if FileAccess.file_exists(cap.path_join("gros_visage_2m.png")):
+		_grille(["gros_visage_2m", "gros_bouclier_2m", "gros_visage_1m", "gros_bouclier_1m"], 4, 640).save_png(sortie.path_join("planche_gros_plans_visage_bouclier_2m_1m.png"))
+		_grille(["p17_8m_face", "p17_8m_face_idle"], 2, 640).save_png(sortie.path_join("planche_silhouette_8m_garde_idle.png"))
 	# 2. animations
 	_grille(["an_idle", "an_garde", "an_marche_a", "an_marche_b", "an_course_a", "an_course_b", "an_attaque_a", "an_attaque_b", "an_coup", "an_mort_a", "an_mort_b"], 11, 360).save_png(sortie.path_join("planche_animations_idle_garde_marche_course_attaque_coup_mort.png"))
 	# 3. ambiances

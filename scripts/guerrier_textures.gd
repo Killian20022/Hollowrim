@@ -16,13 +16,13 @@ const LAINE_GRISE := ["#17171c", "#25252b", "#35343a", "#47454a", "#5b585b"]
 const BANDE := ["#2c2a29", "#423e3a", "#57524b", "#6d675d"]   # bandes molletières (laine écrue)
 const BOIS := ["#16110d", "#271e17", "#3a2d22", "#4f3f30", "#665341", "#7f6a54"]
 ## bois du bouclier : brun-gris usé, délavé par la neige (sombre -> clair)
-const BOIS_GRIS := ["#1d1712", "#33291f", "#4a3d30", "#625142", "#7b6853", "#958169", "#ae9a7f"]
+const BOIS_GRIS := ["#1b1714", "#2f2822", "#443a31", "#5a4e42", "#716353", "#8a7b68", "#a39480"]
 const PEINT_DELAVE := ["#77736a", "#959083", "#b2ac9c", "#cbc4b1"]
 const PEINT_BLEU := ["#141b2b", "#1f2b44", "#2c3d5e", "#3e5276", "#566c90"]
 const PEINT_CREME := ["#5c5546", "#807864", "#a39a84", "#c4bba3"]
 const FER := ["#0d0e12", "#1b1d23", "#2e313a", "#474b56", "#6c717d", "#9da2ac", "#c9ccd2"]
 const ROUILLE := ["#24150e", "#3d2416", "#5a3820"]
-const CHEVEUX := ["#1b1712", "#33291f", "#4f412f", "#6e5c42", "#927e5c"]
+const CHEVEUX := ["#211b15", "#3a3024", "#574836", "#76644a", "#9a8666"]   # passe 2 : un demi-ton plus clair (la tête se détache à 8 m)
 
 static var _cache := {}
 
@@ -589,16 +589,13 @@ static func _face_bouclier(img: Image) -> void:
 			if dn < 2.5:
 				t = 1 if dn < 1.2 else 2
 			var c := _c(BOIS_GRIS, t)
-			# croix peinte délavée (bras de 13 texels), écaillée par grandes plaques
+			# croix peinte délavée (bras de 13 texels) : couche mince, presque entière (lisible à 4 m, pas de taches), qui
+			# laisse voir le fil du bois ; manque seulement le long des joints et en quelques griffures
 			var croix := absf(x - c0) < 6.5 or absf(y - c0) < 6.5
 			if croix and r < 0.9:
-				var usure := _n(x, y, n, n, 5, 5, 917) + _h(x / 3, y / 3, 916) * 0.18
-				if dj <= 2:
-					usure += 0.3
-				if usure < 0.68:
-					c = c.lerp(_c(PEINT_DELAVE, clampi(t - 1, 0, 3)), 0.8)
-				elif usure < 0.72:
-					c = _c(BOIS_GRIS, maxi(t - 1, 1))    # bord écaillé
+				var manque := dj <= 1 or (_n(x, y, n, n, 6, 6, 917) > 0.82 and _h(x, y, 916) > 0.4)
+				if not manque:
+					c = c.lerp(_c(PEINT_DELAVE, clampi(t - 1, 0, 3)), 0.58)
 			# crasse vers le bord, sous le cerclage
 			if r > 0.84:
 				c = c.darkened(0.18)

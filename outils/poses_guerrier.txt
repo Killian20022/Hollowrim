@@ -33,3 +33,10 @@ an_attaque_b pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Sword_Attack:0.6
 an_coup pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Hit_Chest:0.4
 an_mort_a pilote 3.2,-40,0.6 heure=17.5 sans-mains anim=Death01:0.5
 an_mort_b pilote 3.2,-40,0.4 heure=17.5 sans-mains anim=Death01:1.0
+# passe 2 : gros plans à 2 m et plus près (visage, bouclier), 17h30
+gros_visage_2m pilote 2,20,1.55 heure=17.5 sans-mains anim=Idle:0.3
+gros_visage_1m pilote 1.0,25,1.62 heure=17.5 sans-mains anim=Idle:0.3
+gros_bouclier_2m pilote 2,40,1.1 heure=17.5 sans-mains anim=Idle:0.3
+gros_bouclier_1m pilote 1.3,45,1.0 heure=17.5 sans-mains anim=Idle:0.3
+# passe 2 : 8 m de face en Idle (tête droite : silhouette tête-barbe-casque)
+p17_8m_face_idle pilote 8,0 heure=17.5 sans-mains anim=Idle:0.3

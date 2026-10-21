@@ -24,7 +24,7 @@ uniform float rehaut = 0.9;
 uniform vec3 appoint = vec3(0.035, 0.045, 0.07); // lumière propre froide (ciel) : la face à l'ombre ne tombe pas au noir
 // liseré froid propre au personnage (toutes heures, indépendant des lumières de la scène) : la silhouette se détache
 // du fond au crépuscule et de nuit. Large fondu (pas de palier qui scintille), proportionnel à l'albédo + un peu de constant.
-uniform vec3 contour_froid = vec3(0.10, 0.13, 0.20);
+uniform vec3 contour_froid = vec3(0.16, 0.21, 0.32);
 instance uniform float eclair = 0.0;
 
 varying vec3 uv_aff;
@@ -52,7 +52,7 @@ void fragment() {
 	ALBEDO = mix(ALBEDO, vec3(1.0, 0.85, 0.8), eclair);
 	float bord = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
 	EMISSION = emission + ALBEDO * appoint + vec3(0.6, 0.25, 0.2) * eclair
-		+ contour_froid * (ALBEDO * 1.5 + 0.06) * smoothstep(0.45, 0.85, bord);
+		+ contour_froid * (ALBEDO * 1.5 + 0.06) * smoothstep(0.40, 0.85, bord);
 	ROUGHNESS = 1.0;
 }
 
