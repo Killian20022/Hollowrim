@@ -556,7 +556,7 @@ func _pilastre(m: Dictionary, c: String, a: float, y: float, hp: float) -> void:
 	d.boite("mur1", P.call(0.0, y + hp - 0.3, 0.13), D.call(0.6, 0.14, 0.26), 0.0, false)
 	d.boite("mur0", P.call(0.0, y + hp - 0.11, 0.16), D.call(0.72, 0.22, 0.32), 0.0, false)
 	d.givre_dessus(P.call(0.0, y + hp, 0.16), Vector2(0.72, 0.3) if horiz else Vector2(0.3, 0.72), 0.04)
-	d.glacons_arete(P.call(-0.32, y + hp - 0.22, 0.31), P.call(0.32, y + hp - 0.22, 0.31), 2.2, 0.45)
+	d.glacons_arete(P.call(-0.32, y + hp - 0.22, 0.31), P.call(0.32, y + hp - 0.22, 0.31), 1.6, 0.45)
 	# panneau d'entrelacs sur la face avant du fût
 	var dr := Vector3(1, 0, 0) if horiz else Vector3(0, 0, 1)
 	var hpan := minf(1.5, hp - 1.4)
@@ -603,29 +603,31 @@ func _etageres(m: Dictionary, c: String, am: float, y: float, wb: float, h: floa
 	var lac := atan2(v.x, v.z)
 	var dr := Vector3(1, 0, 0) if horiz else Vector3(0, 0, 1)
 	var yy := 0.5
-	while yy < haut - 0.45:
+	var etages := 0
+	while yy < haut - 0.45 and etages < 2:
+		etages += 1
 		d.boite("mur1", P.call(0.0, y + yy, 0.14), D.call(w, 0.07, 0.28))
 		if r.randf() < 0.45:
 			d.givre_dessus(P.call(0.0, y + yy + 0.035, 0.15), Vector2(w, 0.26) if horiz else Vector2(0.26, w), 0.02)
-		if r.randf() < 0.55:
-			d.glacons_arete(P.call(-w * 0.5 + 0.1, y + yy - 0.04, 0.27), P.call(w * 0.5 - 0.1, y + yy - 0.04, 0.27), 1.6, 0.28)
+		if r.randf() < 0.4:
+			d.glacons_arete(P.call(-w * 0.5 + 0.1, y + yy - 0.04, 0.27), P.call(w * 0.5 - 0.1, y + yy - 0.04, 0.27), 1.3, 0.28)
 		var u := -w * 0.5 + 0.18
 		while u < w * 0.5 - 0.15:
 			var q: Vector3 = P.call(u, y + yy + 0.035, 0.13)
 			var t := r.randf()
 			if t < 0.38:
-				d.urne(q, r.randf_range(0.42, 0.62))
-				u += 0.34
+				d.urne(q, r.randf_range(0.42, 0.62), 6)
+				u += 0.42
 			elif t < 0.62:
 				d.crane(q, lac + r.randf_range(-0.5, 0.5))
-				u += 0.24
+				u += 0.32
 			elif t < 0.85:
 				for k in 3:
 					d.boite("os", q + dr * r.randf_range(-0.08, 0.08) + Vector3(0, 0.02 + 0.03 * k, 0), Vector3(0.3, 0.035, 0.035) if horiz else Vector3(0.035, 0.035, 0.3), r.randf_range(-0.25, 0.25))
-				u += 0.36
+				u += 0.44
 			else:
-				u += 0.22
-		yy += 0.62 + r.randf_range(-0.04, 0.06)
+				u += 0.3
+		yy += 0.8 + r.randf_range(-0.04, 0.06)
 	if r.randf() < 0.7:
 		var s := 1.0 if r.randf() < 0.5 else -1.0
 		d.toile(P.call(s * w * 0.5, y + haut, 0.02), dr * -s, v, r.randf_range(0.45, 0.7))

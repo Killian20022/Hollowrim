@@ -683,8 +683,8 @@ func _givre_mur(horizontal: bool, plan: float, signe: float, a0: float, a1: floa
 			var l := minf(rng_deco.randf_range(0.8, 2.2), a1 - a)
 			givre_dessus(pt.call(a + l * 0.5, yb + 0.12, 0.11), Vector2(l, 0.22) if horizontal else Vector2(0.22, l), 0.05)
 			a += l + rng_deco.randf_range(0.0, 0.6)
-		glacons_arete(pt.call(a0 + 0.1, yb - 0.12, 0.2), pt.call(a1 - 0.1, yb - 0.12, 0.2), 2.4 if gele else 1.4, 0.8 if gele else 0.55)
-	glacons_arete(pt.call(a0 + 0.3, y + h - 0.5, 0.2), pt.call(a1 - 0.3, y + h - 0.5, 0.2), 2.2 if gele else 1.3, 0.7 if gele else 0.5)
+		glacons_arete(pt.call(a0 + 0.1, yb - 0.12, 0.2), pt.call(a1 - 0.1, yb - 0.12, 0.2), 2.0 if gele else 1.0, 0.8 if gele else 0.55)
+	glacons_arete(pt.call(a0 + 0.3, y + h - 0.5, 0.2), pt.call(a1 - 0.3, y + h - 0.5, 0.2), 1.7 if gele else 0.9, 0.7 if gele else 0.5)
 	# lèvre du soubassement : givre en plaques discontinues (pas une ligne blanche continue)
 	var a := a0
 	while a < a1 - 0.3:
@@ -742,7 +742,7 @@ func _cadre_massif(horizontal: bool, plan: float, signe: float, ca: float, cb: f
 	boite("mur0", P.call(m, y + ho - 0.3, 0.16), D.call(l, 0.6, 0.32))
 	boite("mur1", P.call(m, y + ho - 0.3, 0.33), D.call(0.42, 0.72, 0.06))                   # clé
 	givre_dessus(P.call(m, y + ho, 0.16), Vector2(l, 0.32) if horizontal else Vector2(0.32, l), 0.05)
-	glacons_arete(P.call(ca - 0.6, y + ho - 0.62, 0.3), P.call(cb + 0.6, y + ho - 0.62, 0.3), 2.0 if not theme.is_empty() else 1.4, 0.4)
+	glacons_arete(P.call(ca - 0.6, y + ho - 0.62, 0.3), P.call(cb + 0.6, y + ho - 0.62, 0.3), 1.7 if not theme.is_empty() else 1.1, 0.4)
 
 # ------------------------------------------------------------------ structure : piliers, contreforts, poutres
 ## Pilier (refonte matière, références grottes_cryptes_2/3) : fût carré à arêtes abattues, socle mouluré givré, chapiteau à
@@ -814,6 +814,9 @@ func givre_dessus(centre: Vector3, taille: Vector2, deb := 0.04, lacet := 0.0) -
 
 ## Glaçon : cône effilé de glace (6 pans) pendu sous `haut`.
 func glacon_sous(haut: Vector3, longueur := 0.5, r := 0.06) -> void:
+	if est_crypte:       # crypte : glaçons très nombreux → cône allégé (4 pans, 2 tronçons : 48 sommets au lieu de 90)
+		tour("mur4", haut + Vector3(0, -longueur, 0), [Vector2(0.0, 0.0), Vector2(r * 0.6, longueur * 0.5), Vector2(r, longueur)], 4, rng_deco.randf() * 1.2, false)
+		return
 	tour("mur4", haut + Vector3(0, -longueur, 0), [Vector2(0.0, 0.0), Vector2(r * 0.4, longueur * 0.35), Vector2(r * 0.8, longueur * 0.75), Vector2(r, longueur)], 5, rng_deco.randf() * 1.2, false)
 
 ## Rangée de glaçons le long d'une arête horizontale (de `a` à `b`, à la hauteur de l'arête) ; `densite` = glaçons par mètre.
@@ -1004,12 +1007,12 @@ func bougie(pos: Vector3, avec_lumiere := true) -> void:
 	if avec_lumiere:
 		lumiere(pos + Vector3(0, 0.4, 0), FEU, 0.9, 4.0, 1.8)
 
-func urne(pos: Vector3, e := 1.0) -> void:
+func urne(pos: Vector3, e := 1.0, cotes := 8) -> void:
 	var prof := [Vector2(0.13, 0.0), Vector2(0.2, 0.08), Vector2(0.25, 0.22), Vector2(0.21, 0.4), Vector2(0.12, 0.5), Vector2(0.14, 0.56), Vector2(0.09, 0.56)]
 	var pe: Array = []
 	for p: Vector2 in prof:
 		pe.append(p * e)
-	tour("argile", pos, pe, 8, 0.0, false)
+	tour("argile", pos, pe, cotes, 0.0, false)
 
 func tonneau(pos: Vector3, e := 1.0) -> void:
 	var prof := [Vector2(0.3, 0.0), Vector2(0.37, 0.25), Vector2(0.4, 0.5), Vector2(0.37, 0.75), Vector2(0.3, 1.0)]
@@ -1051,6 +1054,15 @@ func crane(pos: Vector3, lacet := 0.0) -> void:
 	var prof := [Vector2(0.055, 0.0), Vector2(0.085, 0.05), Vector2(0.095, 0.11), Vector2(0.07, 0.17), Vector2(0.0, 0.19)]
 	tour("os", pos + Vector3(0, 0.035, 0), prof, 6, 0.0, true)
 	boite("os", pos + b * Vector3(0, 0.03, 0.05), Vector3(0.09, 0.05, 0.08), lacet)
+	if est_crypte:       # crypte (crânes par dizaines sur les étagères) : orbites et nez en simples faces avant
+		var av := b * Vector3(0, 0, 1)
+		var dx := b * Vector3(1, 0, 0)
+		for e: Array in [[-0.03, 0.11, 0.018, 0.02], [0.03, 0.11, 0.018, 0.02], [0.0, 0.075, 0.01, 0.015]]:
+			var c: Vector3 = pos + b * Vector3(float(e[0]), float(e[1]), 0.097)
+			var hx: float = e[2]
+			var hy: float = e[3]
+			quad("noir", c - dx * hx - Vector3(0, hy, 0), c + dx * hx - Vector3(0, hy, 0), c + dx * hx + Vector3(0, hy, 0), c - dx * hx + Vector3(0, hy, 0), av)
+		return
 	for sx in [-0.03, 0.03]:
 		boite("noir", pos + b * Vector3(sx, 0.11, 0.085), Vector3(0.036, 0.04, 0.02), lacet)
 	boite("noir", pos + b * Vector3(0, 0.075, 0.09), Vector3(0.02, 0.03, 0.02), lacet)
