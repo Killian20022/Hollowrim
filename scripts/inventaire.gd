@@ -13,6 +13,20 @@ const OBJETS := {
 	"amulette_eirik": {"nom": "Amulette d’Eirik", "poids": 0.2, "valeur": 0},
 	"epee_skarnholt": {"nom": "Épée de Skarnholt", "poids": 9.0, "valeur": 120},
 	"ecaille_dragon": {"nom": "Écaille de dragon", "poids": 2.0, "valeur": 80},
+	# donjons : objets de quête (valeur 0) et objets de valeur (pas de consommables)
+	"fragment_sceau_os": {"nom": "Fragment du sceau des Os", "poids": 0.6, "valeur": 0},
+	"fragment_sceau_givre": {"nom": "Fragment du sceau du Givre", "poids": 0.6, "valeur": 0},
+	"fragment_sceau_eau": {"nom": "Fragment du sceau de l’Eau", "poids": 0.6, "valeur": 0},
+	"cle_archives": {"nom": "Clé des archives", "poids": 0.2, "valeur": 0},
+	"minerai_fer": {"nom": "Minerai de fer", "poids": 3.0, "valeur": 12},
+	"minerai_argent": {"nom": "Minerai d’argent", "poids": 2.5, "valeur": 45},
+	"cristal_givre": {"nom": "Cristal de givre", "poids": 0.8, "valeur": 70},
+	"champignon_lumineux": {"nom": "Champignon lumineux", "poids": 0.1, "valeur": 8},
+	"relique_offrande": {"nom": "Relique d’offrande royale", "poids": 1.5, "valeur": 90},
+	"registre_hrafn": {"nom": "Registre de Hrafn", "poids": 0.8, "valeur": 0},
+	"journal_sigrun": {"nom": "Journal de Sigrun", "poids": 0.3, "valeur": 0},
+	"broche_sigrun": {"nom": "Broche de Sigrun", "poids": 0.1, "valeur": 0},
+	"hache_kolbeinn": {"nom": "Hache de Kolbeinn le Gelé", "poids": 7.0, "valeur": 200},
 }
 
 var pieces := 0

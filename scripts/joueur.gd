@@ -19,6 +19,15 @@ const COUT_COURSE := 12.0  # vigueur par seconde
 
 var vie := 100.0
 var vie_max := 100.0
+const VIE_BASE := 100.0
+const BONUS_BENEDICTION := 10.0
+
+## Bénédiction des ancêtres (choix « respecter les offrandes », quetes.gd) : +10 vie max permanents, jamais cumulés.
+func regler_benediction(active: bool, soigner := false) -> void:
+	vie_max = VIE_BASE + (BONUS_BENEDICTION if active else 0.0)
+	if soigner and active:
+		vie = minf(vie_max, vie + BONUS_BENEDICTION)
+	vie = minf(vie, vie_max)
 var vigueur := 100.0
 var vigueur_max := 100.0
 var mort := false

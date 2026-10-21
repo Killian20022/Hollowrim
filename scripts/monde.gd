@@ -619,7 +619,8 @@ func _sous_terre(dedans: bool) -> void:
 func _draugr(type: String, x: float, z: float, dort: bool, lacet := 0.0) -> CharacterBody3D:
 	return creer_draugr(type, Vector3(x, hauteur(x, z) + 0.05, z), lacet, dort)
 
-## Crée un draugr ; `options` règle ses propriétés (ident, echelle, vie_imposee, debout…).
+## Crée un draugr ; `options` règle ses propriétés (ident, echelle, vie_imposee, debout…) et les options de donjon documentées
+## en tête de draugr.gd : patrouille (Array[Vector3] monde), archer, poste, degats_tir, reveil_evt, boss ("svanhild"|"hrafn"|"jarl").
 func creer_draugr(type: String, position_: Vector3, lacet: float, dort: bool, options := {}) -> CharacterBody3D:
 	var d := CharacterBody3D.new()
 	d.set_script(DRAUGR)
@@ -627,7 +628,8 @@ func creer_draugr(type: String, position_: Vector3, lacet: float, dort: bool, op
 	d.dort = dort and not _arguments().has("reveiller")
 	d.joueur = joueur
 	d.hud = hud
-	d.ident = "%s_%d" % [type, draugrs.size()]
+	d.ident = options["boss"] if (options.has("boss") and not options.has("ident")) else "%s_%d" % [type, draugrs.size()]
+	d.quetes = quetes
 	for cle in options:
 		d.set(cle, options[cle])
 	draugrs[d.ident] = d
