@@ -218,8 +218,8 @@ void sky() {
 			// couleurs des nuages (linéaire) : dessous sombre, corps, bord éclairé, éclat ; nuit / crépuscule / jour couvert
 			vec3 c_sombre = palette(vec3(0.006, 0.009, 0.022), vec3(0.018, 0.019, 0.032), vec3(0.11, 0.13, 0.17));
 			vec3 c_corps = palette(vec3(0.016, 0.024, 0.050), vec3(0.042, 0.044, 0.068), vec3(0.22, 0.25, 0.31));
-			vec3 c_bord = palette(vec3(0.050, 0.068, 0.125), vec3(0.10, 0.10, 0.16), vec3(0.44, 0.48, 0.56));
-			vec3 c_eclat = palette(vec3(0.13, 0.15, 0.24), vec3(0.20, 0.17, 0.24), vec3(0.72, 0.74, 0.78));
+			vec3 c_bord = palette(vec3(0.050, 0.068, 0.125), vec3(0.085, 0.09, 0.15), vec3(0.44, 0.48, 0.56));
+			vec3 c_eclat = palette(vec3(0.13, 0.15, 0.24), vec3(0.16, 0.16, 0.24), vec3(0.72, 0.74, 0.78));
 			// au couchant, côté soleil : liserés orange près de l'horizon, roses plus haut
 			vec3 chaud = mix(vec3(0.62, 0.20, 0.24), vec3(1.00, 0.46, 0.14), clamp(az * az * (0.4 + 0.8 * pres_hz), 0.0, 1.0));
 			float k_chaud = crep * (0.2 + 0.8 * az * az);
@@ -268,8 +268,8 @@ void sky() {
 				c = mix(c, c_bord, smoothstep(0.30, 0.66, v));
 				c = mix(c, c_eclat, smoothstep(0.64, 1.0, v));
 				// liserés chauds du dessous côté soleil (couchant / aube), sur les bords et les touches éclairés
-				float lis = paliers(clamp(bord * 0.8 + touches * 0.5, 0.0, 1.0) * (1.0 - epais * 0.5), 4.0);
-				c = mix(c, chaud * (0.75 + 0.35 * pres_hz), k_chaud * lis * 0.9);
+				float lis = paliers(smoothstep(0.3, 0.95, bord * 1.1 + touches * 0.45) * (1.0 - epais * 0.4), 4.0);
+				c = mix(c, chaud * (0.85 + 0.4 * pres_hz), clamp(k_chaud * lis * az * 1.2, 0.0, 1.0));
 				// bord des nuages qui coiffent la bande dorée : liseré orange
 				float pres_trou = crep * (0.3 + 0.7 * az * az) * step(yc, y) * (1.0 - step(yc + ep * 2.0, y));
 				c = mix(c, vec3(0.80, 0.36, 0.12), pres_trou * (1.0 - epais) * 0.8);
