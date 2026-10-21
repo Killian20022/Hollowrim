@@ -1076,9 +1076,11 @@ func _capture() -> void:
 ## --attente= vaut pour la 1re vue ; les suivantes attendent --attente-suite= (20) images.
 ## Les PNG vont dans --sortie=<dossier> (ou à côté du fichier de poses), nommés <nom>.png.
 ## Ordre imposé : monde, puis scénarios, puis crypte, puis grotte (on ne ressort pas du sous-sol).
-## Les options globales (--paisible, --sans-particules, --sans-mains, --attente=) valent pour toutes les vues.
+## Les options globales (--paisible, --sans-particules, --sans-mains, --sans-hud, --attente=) valent pour toutes les vues.
 func _lot_captures(fichier: String) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if _arguments().has("sans-hud") and hud != null:
+		hud.visible = false     # captures de décor sans boussole ni jauges
 	var texte := FileAccess.get_file_as_string(fichier)
 	if texte == "":
 		push_error("--captures : fichier de poses introuvable ou vide : " + fichier)
