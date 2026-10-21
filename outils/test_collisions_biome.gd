@@ -29,14 +29,14 @@ func _tester() -> void:
 	var t: Node3D = m.tertre
 	var ty := t.position.y
 	var cx := t.position.x
-	var cz := t.position.z - 6.5
+	var cz := t.position.z - 15.0          # refonte crypte : butte reculée (z -15) et plus haute (échelle 0,6)
 	var h := _rayon(cx, cz, ty + 20.0, ty - 5.0)
-	var attendu := ty - 0.6 + 7.5 * 0.42
-	_verif(not h.is_empty() and absf(h["position"].y - attendu) < 0.15, "rayon vers le bas au centre du tumulus : %.2f (attendu %.2f ± 0,15, soit sol + 2,55)" % [h["position"].y if not h.is_empty() else NAN, attendu])
+	var attendu := ty - 0.6 + 7.5 * 0.6
+	_verif(not h.is_empty() and absf(h["position"].y - attendu) < 0.15, "rayon vers le bas au centre du tumulus : %.2f (attendu %.2f ± 0,15, soit sol + 3,9)" % [h["position"].y if not h.is_empty() else NAN, attendu])
 	_verif(h.has("shape") and (h["collider"] as Node).get_child(h["shape"]).shape is ConcavePolygonShape3D, "la forme touchée est une ConcavePolygonShape3D")
 	# l'ancien cylindre de 6,8 m (haut 3 m) aurait arrêté un rayon horizontal à 6,5 m du centre, à 0,5 m de haut
-	var hq := PhysicsRayQueryParameters3D.create(Vector3(cx, ty + 3.2, cz + 6.5), Vector3(cx, ty + 3.2, cz - 6.5))
-	_verif(m.get_world_3d().direct_space_state.intersect_ray(hq).is_empty(), "rien ne bloque un rayon horizontal à 3,2 m au-dessus du sol (plus de mur)")
+	var hq := PhysicsRayQueryParameters3D.create(Vector3(cx, ty + 4.3, cz + 6.5), Vector3(cx, ty + 4.3, cz - 6.5))
+	_verif(m.get_world_3d().direct_space_state.intersect_ray(hq).is_empty(), "rien ne bloque un rayon horizontal à 4,3 m au-dessus du sol (sommet de la butte : 3,9 m) (plus de mur)")
 	# marcheur : part du sud, monte sur la butte (x décalé de 3 m pour éviter la façade)
 	var w := CharacterBody3D.new()
 	var cap := CollisionShape3D.new()

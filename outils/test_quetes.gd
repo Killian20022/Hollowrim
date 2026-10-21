@@ -43,6 +43,11 @@ func _tester() -> void:
 	print("4. entrer, tirer le levier, fouiller Eirik")
 	t._passer(true)
 	await create_timer(1.5).timeout
+	# refonte crypte : si le donjon n'est pas encore bâti, l'écran reste noir et l'entrée se fait dès qu'il est prêt
+	var essais := 0
+	while not t.dedans and essais < 200:
+		await create_timer(0.1).timeout
+		essais += 1
 	print("   sous terre : ", t.dedans, " lune visible : ", m.cycle.lumiere.visible, " y=", snappedf(m.joueur.global_position.y, 0.1))
 	t._tirer_levier()
 	print("   ", t._fouiller_eirik().size(), " lignes de note ; quêtes : ", _etat())
