@@ -8,9 +8,9 @@ class_name TrollTextures
 ##   accessoires : griffes et crocs (ivoire jauni -> corne sombre à la racine), gueule, arcade (peau sombre).
 ##   yeux        : lueur bleue (centre presque blanc), matériau à émission propre.
 
-const PEAU := ["#18181f", "#23232c", "#2f2f3a", "#3c3c48", "#4a4a57", "#595866", "#696876", "#7b7a87", "#8f8e99"]   # gris-bleu sombre légèrement violacé (référence)
-const FOUR := ["#1b1917", "#38342f", "#5b5650", "#807a72", "#a49e95", "#c4bfb5", "#dedad1", "#f0ede6"]   # crème / gris CHAUD (la scène bleuit déjà)
-const GIVRE := Color("#f7f3ea")
+const PEAU := ["#1c1d23", "#282a32", "#363842", "#444752", "#535763", "#636775", "#747887", "#878a98", "#9b9eaa", "#b1b3bd"]   # gris bleuté (moins violet, plus clair : lisible à l'ombre)   # gris-bleu sombre légèrement violacé (référence)
+const FOUR := ["#1c1b19", "#393632", "#5c5853", "#827d76", "#a7a29a", "#c7c3bb", "#e0ddd6", "#f2f0eb"]   # crème / gris chaud, pointes presque neutres (pas « pêche » au couchant)
+const GIVRE := Color("#f6f6f3")
 const IVOIRE := ["#3a2e22", "#5c4a36", "#806a4e", "#a68f6c", "#c8b38c", "#e0d1ad", "#f2e8cf"]
 const GUEULE := ["#0e0708", "#1e0c0e", "#341418", "#4c1e22"]
 const SOURCE_PEAU := "res://assets/modeles/humains/T_Superhero_Male_Dark.png"
@@ -31,7 +31,7 @@ static func _p(img: Image, x: int, y: int, c: Color) -> void:
 
 # ------------------------------------------------------------------ précalcul (outils/generer_troll.gd)
 const DOSSIER := "res://assets/personnages/troll"
-const VERSION := 5
+const VERSION := 9
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -70,54 +70,240 @@ static func vider() -> void:
 	_cache.clear()
 
 # ------------------------------------------------------------------ peau (atlas du corps)
-const COTE := 512
+## Atlas 1024² (~230 texels/m sur le corps agrandi ; 512² n'en donnait que ~115).
+const COTE := 1024
+## Géométrie du corps au nouveau repos, fournie par TrollGivre._construire avant la première texture (peinture EN 3D) :
+## {"v", "n", "uv", "i" (indices), "four" (PackedByteArray par triangle : 0 nu, 1 fourrure), "rep" (repères : os -> position)}.
+static var geo := {}
 
+## Peinture de la peau : chaque triangle du corps est rastérisé dans l'atlas (avec 1,5 texel de marge contre les coutures) ;
+## pour chaque texel on connaît sa position 3D et sa normale au repos : le modelé (pectoraux, abdominaux, côtes, nombril, rides
+## du front, sillons du museau), les cicatrices et le sous-poil des zones fourrées sont peints dans l'espace du MODÈLE, pas de
+## l'atlas. Relief d'origine (T_Superhero) gardé en fond, adouci (le gain x2 de la passe 2 dessinait des traits noirs).
 static func peau() -> Image:
-	var img := Image.load_from_file(SOURCE_PEAU)
-	if img.is_compressed():
-		img.decompress()
-	img.convert(Image.FORMAT_RGBA8)
-	img.resize(COTE, COTE, Image.INTERPOLATE_LANCZOS)
+	var src := Image.load_from_file(SOURCE_PEAU)
+	if src.is_compressed():
+		src.decompress()
+	src.convert(Image.FORMAT_RGBA8)
+	src.resize(COTE, COTE, Image.INTERPOLATE_LANCZOS)
 	var n := COTE
+	var out := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	out.fill(_c(PEAU, 4))
+	if geo.is_empty():
+		push_error("TrollTextures.peau : géométrie absente (TrollGivre._construire doit passer avant)")
+		return out
+	var lum := PackedFloat32Array()
+	lum.resize(n * n)
 	var somme := 0.0
 	var nb := 0
-	for y in range(0, n, 2):
-		for x in range(0, n, 2):
-			var l := img.get_pixel(x, y).get_luminance()
-			if l > 0.35:
+	for y in n:
+		for x in n:
+			var l := src.get_pixel(x, y).get_luminance()
+			lum[y * n + x] = l
+			if l > 0.35 and (x + y) % 3 == 0:
 				somme += l
 				nb += 1
 	var lm := somme / maxi(nb, 1)
-	var out := Image.create(n, n, false, Image.FORMAT_RGBA8)
-	for y in n:
-		for x in n:
-			var c := img.get_pixel(x, y)
-			var l := c.get_luminance()
-			if l < 0.2 or (l < 0.34 and c.b > c.r):      # slip d'origine et sa ceinture (bleu sombre)
-				out.set_pixel(x, y, _c(PEAU, 3 + int(_h(x, y, 1300) * 1.6)))   # slip d'origine : peau moyenne (sous le pagne)
-				continue
-			# relief d'origine (muscles, creux) renforcé, marbrures larges, grain
-			var t := 0.64 + (l / lm - 1.0) * 2.0     # relief (pectoraux, abdominaux) bien marqué
-			t += (_n(x, y, n, n, 12, 12, 1301) - 0.5) * 0.16
-			t += (_n(x, y, n, n, 48, 48, 1302) - 0.5) * 0.08
-			# lèvres et joues (chroma rouge d'origine) : plus sombres, bleu-violet
-			var rouge := c.r - (c.g + c.b) * 0.5
-			if rouge > 0.16:
-				t -= 0.14
-			var ton := clampi(int(floorf(t * PEAU.size() + (_h(x, y, 1303) - 0.5) * 0.5)), 0, PEAU.size() - 1)
-			out.set_pixel(x, y, _c(PEAU, ton))
-	# poil ras : courts traits verticaux, un ton plus clair, liseré d'un ton plus sombre dessous (jamais de damier)
-	for k in 9000:
-		var x := int(_h(k, 0, 1304) * n)
-		var y := int(_h(k, 1, 1304) * n)
+	var bruit := FastNoiseLite.new()
+	bruit.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	bruit.seed = 1331
+	bruit.frequency = 9.0
+	var bruit2 := FastNoiseLite.new()
+	bruit2.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	bruit2.seed = 1332
+	bruit2.frequency = 40.0
+	var V: PackedVector3Array = geo["v"]
+	var N: PackedVector3Array = geo["n"]
+	var UV: PackedVector2Array = geo["uv"]
+	var I: PackedInt32Array = geo["i"]
+	var F: PackedByteArray = geo["four"]
+	var rep: Dictionary = geo["rep"]
+	var ctx := _Peintre.new(rep)
+	var fait := PackedByteArray()
+	fait.resize(n * n)
+	for t in range(0, I.size(), 3):
+		var a := UV[I[t]] * n
+		var b := UV[I[t + 1]] * n
+		var c := UV[I[t + 2]] * n
+		var aire := (b - a).cross(c - a)
+		if absf(aire) < 1e-6:
+			continue
+		var x0 := maxi(0, int(floorf(minf(a.x, minf(b.x, c.x)) - 2.0)))
+		var x1 := mini(n - 1, int(ceilf(maxf(a.x, maxf(b.x, c.x)) + 2.0)))
+		var y0 := maxi(0, int(floorf(minf(a.y, minf(b.y, c.y)) - 2.0)))
+		var y1 := mini(n - 1, int(ceilf(maxf(a.y, maxf(b.y, c.y)) + 2.0)))
+		var la := (c - b).length()
+		var lb := (a - c).length()
+		var lc := (b - a).length()
+		var fourre := F[t / 3] == 1
+		for y in range(y0, y1 + 1):
+			for x in range(x0, x1 + 1):
+				var q := Vector2(x + 0.5, y + 0.5)
+				var w0 := (c - b).cross(q - b) / aire
+				var w1 := (a - c).cross(q - c) / aire
+				var w2 := 1.0 - w0 - w1
+				# distance (texels) au bord, signée : marge de 1,5 texel hors du triangle
+				var dmin := minf(w0 * absf(aire) / maxf(la, 1e-4), minf(w1 * absf(aire) / maxf(lb, 1e-4), w2 * absf(aire) / maxf(lc, 1e-4)))
+				var dedans := dmin >= 0.0
+				if dmin < -1.5:
+					continue
+				var k := y * n + x
+				if fait[k] == 2 or (fait[k] == 1 and not dedans):
+					continue
+				w0 = clampf(w0, 0.0, 1.0)
+				w1 = clampf(w1, 0.0, 1.0)
+				w2 = clampf(w2, 0.0, 1.0)
+				var ws := maxf(w0 + w1 + w2, 1e-5)
+				var p := (V[I[t]] * w0 + V[I[t + 1]] * w1 + V[I[t + 2]] * w2) / ws
+				var nr := (N[I[t]] * w0 + N[I[t + 1]] * w1 + N[I[t + 2]] * w2).normalized()
+				# relief d'origine adouci + marbrures 3D
+				var tn := 0.60 + clampf(lum[k] / lm - 1.0, -0.5, 0.5) * 0.8
+				tn += bruit.get_noise_3dv(p) * 0.13 + bruit2.get_noise_3dv(p) * 0.07   # bosses musculaires + marbrures
+				tn += ctx.modele(p, nr)
+				var col: Color
+				if fourre:
+					col = _sous_poil(x, y, tn, p)
+				else:
+					var ton := clampi(int(floorf(tn * PEAU.size() + (_h(x, y, 1303) - 0.5) * 0.6)), 0, PEAU.size() - 1)
+					if _h(x, y, 1305) < 0.06:
+						ton = maxi(ton - 2, 0)                   # pores
+					col = _c(PEAU, ton)
+					var cic := ctx.cicatrice(p)
+					if cic > 0.0:
+						col = _c(PEAU, clampi(ton + (2 if cic > 0.5 else -1), 0, PEAU.size() - 1))
+					var pl := ctx.poil_torse(p, nr)
+					if pl > 0.0 and _h(x, y / 3, 1306) < pl:
+						col = _c(FOUR, 3 + int(_h(x, y, 1307) * 2.5))   # poils clairsemés du torse (traits verticaux courts)
+				out.set_pixel(x, y, col)
+				fait[k] = 2 if dedans else 1
+	# rides fines (traits courts courbes, plus sombres, liseré clair au-dessus) sur la peau nue seulement
+	for kk in 14000:
+		var x := int(_h(kk, 0, 1304) * n)
+		var y := int(_h(kk, 1, 1304) * n)
 		var c0 := out.get_pixel(x, y)
 		var i0 := _indice(c0)
-		var lg := 2 + int(_h(k, 2, 1304) * 3.0)
-		var sx := 1 if _h(k, 3, 1304) > 0.5 else 0
+		if absf(Color(PEAU[i0]).r - c0.r) > 0.02:
+			continue                                         # pas sur le sous-poil ni les poils
+		var lg := 3 + int(_h(kk, 2, 1304) * 4.0)
+		var courbe := (_h(kk, 3, 1304) - 0.5) * 0.8
 		for i in lg:
-			_p(out, x + (i / 2) * sx, y + i, _c(PEAU, mini(i0 + 1, PEAU.size() - 1)))
-		_p(out, x + (lg / 2) * sx, y + lg, _c(PEAU, maxi(i0 - 1, 0)))
+			var yy := y + int(roundf(courbe * (i - lg * 0.5) * (i - lg * 0.5) / lg))
+			_p(out, x + i, yy, _c(PEAU, maxi(i0 - 1, 0)))
+			_p(out, x + i, yy - 1, _c(PEAU, mini(i0 + 1, PEAU.size() - 1)))
 	return out
+
+## Sous-poil des zones fourrées (visible entre les mèches) : gris chaud sombre en courts brins verticaux, pas de peau bleue.
+static func _sous_poil(x: int, y: int, tn: float, p: Vector3) -> Color:
+	var brin := _h(x, 0, 1308)                          # colonne = un brin
+	var ton := 2 + int(brin * 2.2 + (tn - 0.6) * 3.0 + _h(x, y / 4, 1309) * 0.9)
+	return _c(FOUR, clampi(ton, 1, 4))
+
+## Modelé peint du troll dans l'espace du modèle (repères = positions d'os au nouveau repos).
+class _Peintre:
+	var rep: Dictionary
+	var cicatrices := []
+	func _init(r: Dictionary) -> void:
+		rep = r
+		var s3: Vector3 = rep["spine_03"]
+		var lp: float = rep["larg_torse"]
+		# trois griffures parallèles en travers du pectoral gauche, une longue sur le ventre, une sur chaque bras
+		for i in 3:
+			var o := Vector3(0.0, 0.03 * i, 0.0)
+			cicatrices.append([s3 + Vector3(lp * 0.15, 0.08, 0.2) + o, s3 + Vector3(lp * 0.75, -0.02, 0.2) + o, 0.0045])
+		cicatrices.append([s3 + Vector3(-lp * 0.55, -0.12, 0.2), s3 + Vector3(-lp * 0.05, -0.30, 0.2), 0.004])
+		var e: Vector3 = rep["upperarm_l"]
+		cicatrices.append([e + Vector3(0.10, 0.03, 0.2), e + Vector3(0.26, -0.03, 0.2), 0.004])
+		var d: Vector3 = rep["upperarm_r"]
+		cicatrices.append([d + Vector3(-0.08, -0.02, 0.2), d + Vector3(-0.22, 0.04, 0.2), 0.004])
+
+	## Ajout de clarté (-0,3..+0,2) : modelé éclairé par le haut (bosses claires dessus, ombres douces dessous).
+	func modele(p: Vector3, nr: Vector3) -> float:
+		var d := 0.0
+		var s1: Vector3 = rep["spine_01"]
+		var s2: Vector3 = rep["spine_02"]
+		var s3: Vector3 = rep["spine_03"]
+		var pv: Vector3 = rep["pelvis"]
+		var lp: float = rep["larg_torse"]
+		var tete: Vector3 = rep["Head"]
+		var ax := absf(p.x)
+		# ---- torse, face avant
+		if nr.z > 0.15 and p.y > pv.y - 0.02 and p.y < s3.y + 0.19 and ax < lp * 1.05:
+			var avant := smoothstep(0.15, 0.45, nr.z)
+			# pectoraux : deux masses ; dessus clair, sillon inférieur sombre et DOUX (pas de trait)
+			var yp := s3.y + 0.045
+			var e := Vector2((ax - lp * 0.45) / (lp * 0.44), (p.y - yp) / 0.095)
+			var r := e.length()
+			if r < 1.25:
+				var bosse := clampf(1.0 - r, 0.0, 1.0)
+				d += bosse * 0.18 * clampf(e.y + 0.6, 0.0, 1.0)            # haut des pectoraux éclairé
+				d -= smoothstep(0.6, 1.0, r) * smoothstep(1.3, 1.0, r) * 0.26 * clampf(-e.y * 1.4, 0.0, 1.0)   # sillon sous le pectoral (large, doux)
+			# sillon du sternum entre les pectoraux
+			if p.y > yp - 0.08:
+				d -= smoothstep(lp * 0.08, 0.0, ax) * 0.16
+			# abdominaux : ligne blanche + 3 rangées de blocs, chaque bloc clair en haut, sombre en bas
+			var y_haut := yp - 0.105
+			var y_bas := pv.y + 0.06
+			if p.y < y_haut and p.y > y_bas and ax < lp * 0.42:
+				var u := (y_haut - p.y) / (y_haut - y_bas) * 3.4
+				var f := u - floorf(u)
+				var bord_x := smoothstep(lp * 0.42, lp * 0.30, ax)
+				d += (0.11 - f * 0.22) * bord_x
+				d -= smoothstep(0.016, 0.0, ax) * 0.2                # ligne blanche
+				d -= smoothstep(0.12, 0.0, f) * 0.08 * bord_x
+			# obliques en V vers le pubis
+			var v_l := absf((ax - lp * 0.42) - (p.y - y_bas) * 0.9)
+			if p.y < y_haut and p.y > pv.y - 0.03 and ax > lp * 0.25:
+				d -= smoothstep(0.035, 0.0, v_l) * 0.16
+			# côtes et dentelés sur les flancs : sillons obliques
+			if ax > lp * 0.55 and p.y > s1.y and p.y < s3.y + 0.02:
+				var ph := (p.y + ax * 0.55) / 0.052
+				d -= smoothstep(0.55, 1.0, sin(ph * TAU) * 0.5 + 0.5) * 0.15 * smoothstep(lp * 0.55, lp * 0.75, ax)
+			# nombril
+			var nb := Vector2(p.x / 0.016, (p.y - (pv.y + 0.13)) / 0.012).length()
+			d -= smoothstep(1.0, 0.4, nb) * 0.22
+			d *= avant
+		# ---- tête : rides du front, rides du nez, sillons du museau
+		var q := p - tete
+		var oy: float = rep["yeux_y"] - tete.y
+		var k: float = rep["tete_k"]
+		if nr.z > 0.2 and absf(q.x) < 0.10 * k:
+			var fy := (q.y - oy) / k
+			if fy > 0.045 and fy < 0.10:
+				var onde := sin((fy - 0.045) / 0.017 * TAU + q.x * 40.0) * 0.5 + 0.5
+				d -= smoothstep(0.55, 1.0, onde) * 0.28
+				d += smoothstep(0.55, 1.0, 1.0 - onde) * 0.08
+			if fy > 0.012 and fy < 0.06 and absf(q.x) < 0.012 * k:
+				d -= 0.22                                            # plis verticaux entre les sourcils
+			# sillons naso-labiaux (du nez aux coins de la gueule)
+			var sl := absf(absf(q.x) / k - 0.03 - (oy - q.y) / k * 0.35)
+			if fy < -0.02 and fy > -0.08:
+				d -= smoothstep(0.008, 0.0, sl) * 0.24
+		return d
+
+	func cicatrice(p: Vector3) -> float:
+		for c: Array in cicatrices:
+			var a: Vector3 = c[0]
+			var b: Vector3 = c[1]
+			# distance dans le plan de face (x, y) : les cicatrices sont projetées sur le torse
+			var ab := Vector2(b.x - a.x, b.y - a.y)
+			var ap := Vector2(p.x - a.x, p.y - a.y)
+			var t := clampf(ap.dot(ab) / ab.length_squared(), 0.0, 1.0)
+			if p.z < a.z - 0.35:
+				continue
+			var dd := (ap - ab * t).length()
+			var r: float = c[2] * (1.0 - absf(t - 0.5) * 0.9)
+			if dd < r:
+				return 1.0
+			if dd < r + 0.004:
+				return 0.3
+		return 0.0
+
+	## Densité de poils peints sur le torse nu (sternum surtout).
+	func poil_torse(p: Vector3, nr: Vector3) -> float:
+		var s3: Vector3 = rep["spine_03"]
+		if nr.z < 0.2 or p.y < s3.y - 0.25 or p.y > s3.y + 0.2:
+			return 0.0
+		return smoothstep(0.09, 0.0, absf(p.x)) * 0.35 + 0.04
 
 static func _indice(c: Color) -> int:
 	var best := 0
@@ -131,48 +317,54 @@ static func _indice(c: Color) -> int:
 	return best
 
 # ------------------------------------------------------------------ mèches (cartes découpées)
-## Brin pointu de w texels de large à la racine, h texels de long, pente en texels par rangée, clarté de base `clair` (index FOUR).
-## Pas de liseré noir autour des cartes (c'est ce qui dessinait un damier de plaques à 1 m) : seulement un côté un ton plus sombre.
-static func _touffe(img: Image, x0: float, y0: int, w: int, h: int, pente: float, clair: int, givre: float, g: int) -> void:
+## Une carte = une TOUFFE (32 x 64 texels) : 6 à 9 brins partent de toute la largeur de la racine et CONVERGENT vers une ou
+## deux pointes, en se recourbant tous du même côté ; brin effilé (largeur 3 -> 1), racine sombre (sous-poil), milieu crème,
+## pointe claire givrée. Pas de liseré noir (damier de plaques à 1 m).
+const MW := 32
+const MH := 64
+static func _brin(img: Image, cel: int, xr: float, xt: float, h: int, courbe: float, w0: float, clair: int, givre: float, g: int) -> void:
 	for k in h:
 		var t := float(k) / maxf(1.0, h - 1)
-		var demi := w * 0.5 * (1.0 - pow(t, 1.15) * 0.97)
-		var cx := x0 + pente * k
-		var cel := int(floorf(x0 / 16.0)) * 16           # reste dans la case de sa variante
+		var cx := lerpf(xr, xt, smoothstep(0.35, 1.0, t)) + courbe * t * t
+		var demi := w0 * 0.5 * (1.0 - pow(t, 2.0) * 0.75)
 		var xa := maxi(int(floorf(cx - demi)), cel)
-		var xb := mini(int(ceilf(cx + demi)) - 1, cel + 15)
+		var xb := mini(int(ceilf(cx + demi)) - 1, cel + MW - 1)
 		for x in range(xa, xb + 1):
-			var ton := clair - 1 + int(t * 1.6 + _h(x, k, g) * 0.7)
-			if t < 0.18:
-				ton = clair - 2                          # racine dans l'ombre des touffes du dessus
-			if x == xa:
-				ton = clair + 1 if t > 0.12 else clair   # arête éclairée
+			var ton := clair - 2 + int(t * 2.4 + _h(x, k, g) * 0.8)
+			if x == xa and xb > xa:
+				ton += 1                                 # arête éclairée
 			elif x == xb and xb > xa + 1:
-				ton = clair - 2                          # côté ombré (un ton, pas un trait noir)
-			var col := _c(FOUR, ton)
-			if t > 0.7 and _h(x, k, g + 1) < givre:
-				col = GIVRE                              # pointe givrée
-			_p(img, x, y0 + k, col)
+				ton -= 1
+			var col := _c(FOUR, mini(ton, clair + 1))
+			if t > 0.72 and _h(x, k, g + 1) < givre:
+				col = GIVRE
+			_p(img, x, k, col)
 
-## 8 variantes de 16 x 32 : 0-2 crème givrée (crinière, barbe, bras), 3-5 crème grise, 6-7 gris chaud (cuisses, racines).
-## 4 à 5 brins fins par carte, longueurs très différentes : la pointe de la carte est déchiquetée, jamais un rectangle.
+## 8 touffes : 0-2 dessus clair givré (crinière, barbe, bras), 3-5 crème grise, 6-7 sous-poil gris chaud plus sombre.
 static func meches() -> Image:
-	var W := 128
-	var H := 32
-	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	var img := Image.create(MW * 8, MH, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
 	for v in 8:
-		var ox := v * 16
-		var clair := 6 if v < 3 else (5 if v < 6 else 4)
-		var givre := 0.4 if v < 3 else (0.22 if v < 6 else 0.08)
-		# masse de fond (plus sombre, courte) : bouche les trous entre les brins à la racine
-		_touffe(img, ox + 8.0, 0, 13, 14 + int(_h(v, 8, 1311) * 6.0), 0.0, clair - 1, 0.0, 1312 + v)
-		var n := 4 + (v % 2)
-		var larg := 14.0 / n
-		for i in n:
-			var cx := ox + 1.0 + larg * (i + 0.5) + (_h(i, v, 1316) - 0.5) * 1.5
-			var h := 15 + int(_h(i, v, 1313) * 17.0)
-			_touffe(img, cx, 0, int(larg) + 2, mini(h, H), (_h(i, v, 1314) - 0.5) * 0.25, clair if (i + v) % 2 == 0 else clair - 1, givre, 1315 + v * 7 + i)
+		var cel := v * MW
+		var clair := 6 if v < 3 else (5 if v < 6 else 3)
+		var givre := 0.45 if v < 3 else (0.2 if v < 6 else 0.05)
+		var courbe := (4.0 + _h(v, 1, 1317) * 5.0) * (1.0 if v % 2 == 0 else -1.0)
+		# deux pointes (touffe fendue) pour la moitié des variantes
+		var pointes := [cel + 16.0 + courbe * -0.3] if v % 3 != 1 else [cel + 11.0, cel + 21.0]
+		# masse sombre courte à la racine : bouche les trous entre les brins
+		var nbm := 7
+		for i in nbm:
+			var xr := cel + 3.0 + 26.0 * (i + 0.5) / nbm
+			_brin(img, cel, xr, lerpf(xr, cel + 16.0, 0.45), 32 + int(_h(i, v, 1318) * 14.0), courbe * 0.4, 5.5, clair - 1, 0.0, 1319 + v * 13 + i)
+		var nb := 6 + v % 4
+		for i in nb:
+			var xr := cel + 2.5 + 27.0 * (i + 0.5) / nb + (_h(i, v, 1316) - 0.5) * 2.0
+			var xt: float = pointes[0] if pointes.size() == 1 or xr < cel + 16.0 else pointes[1]
+			xt += (_h(i, v, 1320) - 0.5) * 3.0
+			var centre := 1.0 - absf(xr - (cel + 16.0)) / 16.0
+			var h := int(MH * (0.55 + 0.45 * centre) * (0.85 + _h(i, v, 1313) * 0.15))
+			var ton := clair if (i + v) % 3 != 0 else clair - 1
+			_brin(img, cel, xr, xt, mini(h, MH), courbe * (0.7 + _h(i, v, 1314) * 0.6), 4.0 + _h(i, v, 1321) * 1.6, ton, givre, 1315 + v * 7 + i)
 	return img
 
 # ------------------------------------------------------------------ accessoires (32 x 32)
@@ -206,10 +398,10 @@ static func accessoires() -> Image:
 			img.set_pixel(R_GUEULE.position.x + x, R_GUEULE.position.y + y, _c(GUEULE, ton))
 	for y in R_ARCADE.size.y:
 		for x in R_ARCADE.size.x:
-			var t := 0.5 + float(R_ARCADE.size.y - y) / R_ARCADE.size.y * 0.32 + (_h(x, y, 1323) - 0.5) * 0.12
+			var t := 0.58 + float(R_ARCADE.size.y - y) / R_ARCADE.size.y * 0.18 + (_h(x, y, 1323) - 0.5) * 0.12   # même peau que le front (pas de « visière »)
 			var ton := clampi(int(t * PEAU.size()), 0, PEAU.size() - 1)
 			if y >= R_ARCADE.size.y - 2:
-				ton = 3                                  # dessous de l'arcade : ombre (pas un trait noir de « visière »)
+				ton = 4                                  # dessous de l'arcade : ombre (pas un trait noir de « visière »)
 			img.set_pixel(R_ARCADE.position.x + x, R_ARCADE.position.y + y, _c(PEAU, ton))
 	return img
 

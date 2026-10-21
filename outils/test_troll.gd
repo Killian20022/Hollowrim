@@ -3,7 +3,7 @@ extends SceneTree
 ## budget (<= 9 000 triangles, <= 10 surfaces), toutes les surfaces au shader PS1 à accroche, taille (2,4-3,0 m en Idle, voûté),
 ## bras longs (bout des doigts sous le genou + 0,25 m en Idle), bibliothèque des PNJ intacte (la voûte est cuite dans une COPIE).
 ##   godot --headless --path . --script res://outils/test_troll.gd -- --nouvelle
-const ANIMS := ["Idle", "Walk", "Jog_Fwd", "Troll_Attaque", "Hit_Chest", "Death01"]
+const ANIMS := ["Idle", "Walk", "Jog_Fwd", "Troll_Attaque", "Troll_Griffes", "Hit_Chest", "Death01"]
 const BUDGET := 7500
 const SURFACES_MAX := 10
 var echecs := 0

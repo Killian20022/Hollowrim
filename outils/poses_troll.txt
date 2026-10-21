@@ -28,6 +28,8 @@ an_course_a pilote 4.5,-40,1.2 heure=17.5 sans-mains anim=Jog_Fwd:0.3
 an_course_b pilote 4.5,-40,1.2 heure=17.5 sans-mains anim=Jog_Fwd:0.8
 an_attaque_a pilote 4.5,-40,1.2 heure=17.5 sans-mains anim=Troll_Attaque:0.3
 an_attaque_b pilote 4.5,-40,1.2 heure=17.5 sans-mains anim=Troll_Attaque:0.5
+an_griffes_a pilote 4.5,-40,1.2 heure=17.5 sans-mains anim=Troll_Griffes:0.35
+an_griffes_b pilote 4.5,-40,1.2 heure=17.5 sans-mains anim=Troll_Griffes:0.55
 an_coup pilote 4.5,-40,1.2 heure=17.5 sans-mains anim=Hit_Chest:0.4
 an_mort_a pilote 4.5,-40,0.8 heure=17.5 sans-mains anim=Death01:0.5
 an_mort_b pilote 4.5,-40,0.5 heure=17.5 sans-mains anim=Death01:1.0
@@ -39,3 +41,7 @@ grotte_caverne grotte 37,2.5,0,-2 troll=3.5 anim=Troll_Attaque:0.35 sans-mains
 nuit_4m_face pilote 4,0,1.3 heure=23 sans-mains anim=Idle:0.3
 nuit_4m_34 pilote 4,-35,1.3 heure=23 sans-mains anim=Idle:0.3
 nuit_tete_2m pilote 2,15,1.95 heure=23 sans-mains anim=Idle:0.3
+# passe 3 : gros plans torse (2 m / 1 m) et pieds
+gros_torse_2m pilote 2,0,1.45 heure=17.5 sans-mains anim=Idle:0.3
+gros_torse_1m pilote 1.2,10,1.45 heure=17.5 sans-mains anim=Idle:0.3
+gros_pied_1m pilote 1.6,30,0.4 heure=17.5 sans-mains anim=Idle:0.3

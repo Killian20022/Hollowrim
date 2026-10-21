@@ -20,7 +20,10 @@ class_name TrollGivre
 
 const ECHELLE := 1.6
 ## Densité globale des mèches (budget 7 500 triangles).
-const DENSITE := 0.67
+const DENSITE := 0.53
+## Tête agrandie (passe 3 : elle était petite et enfouie) : facteur sur la chair de l'os Head ; les seuils du visage et de la
+## crinière sont exprimés dans le repère de la passe 2 (on divise par TK) et les accessoires du visage grandissent d'autant.
+const TK := 1.16
 
 ## Facteur sur la position de repos d'un os (= longueur du segment de son PARENT). Côtés gauche et droit (_l / _r).
 const POSITION := {
@@ -32,7 +35,7 @@ const POSITION := {
 	"index_03": 1.55, "middle_03": 1.55, "ring_03": 1.55, "pinky_03": 1.55, "thumb_03": 1.5,
 	"index_04_leaf": 1.4, "middle_04_leaf": 1.4, "ring_04_leaf": 1.4, "pinky_04_leaf": 1.4, "thumb_04_leaf": 1.4,
 	"neck_01": 0.62,        # cou rentré dans les épaules
-	"Head": 0.62,
+	"Head": 0.85,           # tête un peu sortie des épaules (passe 3)
 	"thigh": Vector3(1.4, 1.0, 1.0),    # bassin large (seulement en x)
 	"ball": 1.5,            # grands pieds
 	"ball_leaf": 1.4,
@@ -42,8 +45,8 @@ const CHAIR := {
 	"pelvis": [1.4, 1.0], "spine_01": [1.45, 1.0], "spine_02": [1.58, 1.0], "spine_03": [1.72, 1.0],
 	"clavicle": [1.9, 1.55], "upperarm": [1.85, 1.6], "lowerarm": [2.0, 1.7], "hand": [2.05, 1.7],
 	"index": [1.9, 1.55], "middle": [1.9, 1.55], "ring": [1.9, 1.55], "pinky": [1.9, 1.55], "thumb": [1.9, 1.5],
-	"neck_01": [2.15, 0.62], "Head": [1.36, 1.06],
-	"thigh": [1.62, 1.0], "calf": [1.6, 1.0], "foot": [1.75, 1.0], "ball": [1.75, 1.5],
+	"neck_01": [2.15, 0.62], "Head": [1.36 * TK, 1.06 * TK],
+	"thigh": [1.62, 1.0], "calf": [1.6, 1.0], "foot": [2.15, 1.0], "ball": [2.25, 1.55],   # pieds larges de troll
 }
 ## Posture voûtée : rotations ajoutées à chaque clé de rotation de l'os, dans toute la bibliothèque, autour d'axes du REPÈRE DU
 ## MODÈLE (x = droite du troll, y = haut, z = avant) appliqués à la pose animée de l'os (pas à son repos) : [axe, degrés], cumulables.
@@ -122,9 +125,12 @@ static func creer(options := {}) -> Node3D:
 	var mm := GuerrierNordique.materiau(TrollTextures.tex("meches"), true, true, false, "troll_meches")
 	mm.set_shader_parameter("ombre_froide", Vector3(0.50, 0.52, 0.62))   # ombre moins bleue : la fourrure reste crème au crépuscule
 	mm.set_shader_parameter("ombre_force", 0.55)
+	mm.set_shader_parameter("soleil_desat", 0.85)     # soleil couchant en grande partie ramené au gris : crème, pas « pêche »
 	mm.set_shader_parameter("contour_froid", Vector3(0.20, 0.21, 0.25))
 	mi.set_surface_override_material(1, mm)
-	mi.set_surface_override_material(2, GuerrierNordique.materiau(TrollTextures.tex("accessoires"), false, false, true, "troll_acc"))
+	var ma := GuerrierNordique.materiau(TrollTextures.tex("accessoires"), false, false, false, "troll_acc")
+	ma.next_pass = _contour()
+	mi.set_surface_override_material(2, ma)
 	mi.set_surface_override_material(3, _mat_yeux())
 	# taille de créature : l'Armature (parent du squelette) est agrandie ; la racine garde une échelle 1
 	(sq.get_parent() as Node3D).scale = Vector3.ONE * ECHELLE
@@ -134,8 +140,23 @@ static func creer(options := {}) -> Node3D:
 	racine.set_meta("troll_givre", true)
 	return racine
 
+## Contour du troll : coque reculée de 10 cm le long du rayon de vue (plus de traits dans les creux du corps).
+static func _contour() -> ShaderMaterial:
+	if not _mats.has("contour"):
+		var c := ShaderMaterial.new()
+		c.shader = preload("res://shaders/contour_troll.gdshader")
+		c.set_shader_parameter("epaisseur", 1.2)
+		c.set_shader_parameter("recul", 0.10)
+		Palette.materiaux.append(c)
+		Palette._appliquer(c, Palette._ps1_actif)
+		_mats["contour"] = c
+	return _mats["contour"]
+
 static func _mat_peau() -> ShaderMaterial:
-	var m := GuerrierNordique.materiau(TrollTextures.tex("peau"), false, false, true, "troll_peau")
+	var m := GuerrierNordique.materiau(TrollTextures.tex("peau"), false, false, false, "troll_peau")
+	m.next_pass = _contour()
+	m.set_shader_parameter("ombre_froide", Vector3(0.40, 0.46, 0.62))   # ombre propre moins bleue : le modelé peint reste lisible
+	m.set_shader_parameter("ombre_force", 0.85)
 	m.set_shader_parameter("appoint", Vector3(0.06, 0.07, 0.09))
 	m.set_shader_parameter("contour_froid", Vector3(0.22, 0.28, 0.40))
 	return m
@@ -200,6 +221,9 @@ static func bibliotheque(sq: Skeleton3D) -> AnimationLibrary:
 					a.track_set_key_value(t, k, (a.track_get_key_value(t, k) as Vector3) + bas)
 	if _biblio.has_animation("Punch_Cross"):
 		_biblio.add_animation("Troll_Attaque", _biblio.get_animation("Punch_Cross").duplicate(true))
+	# balayage de griffes : le coup d'épée large (Sword_Attack), déjà voûté, mains ouvertes en serres
+	if _biblio.has_animation("Sword_Attack"):
+		_biblio.add_animation("Troll_Griffes", _biblio.get_animation("Sword_Attack").duplicate(true))
 	return _biblio
 
 ## Part de la voûte appliquée à un clip : les courses penchent déjà le buste (sinon le troll courrait à l'horizontale).
@@ -254,6 +278,7 @@ static func _construire(sq: Skeleton3D, corps: MeshInstance3D) -> ArrayMesh:
 	ctx.g_nouv = g_nouv
 	ctx.deform = deform
 	ctx.corps(corps)
+	ctx.geo_peinture()
 	ctx.fourrure()
 	ctx.accessoires()
 	return ctx.assembler()
@@ -292,16 +317,19 @@ class Ctx:
 	## Remodelage du visage (nouveau repos) : arcade sourcilière avancée, bas du visage élargi et avancé (mâchoire prognathe).
 	func visage(p: Vector3) -> Vector3:
 		var tete := g_nouv[os_("Head")].origin
-		var q := p - tete
+		var q := (p - tete) / TrollGivre.TK
 		if q.z <= 0.02:
 			return p
 		var avant := smoothstep(0.02, 0.10, q.z)
 		var arc := exp(-pow((q.y - 0.125) / 0.025, 2.0)) * avant
-		q.z += arc * 0.022
+		q.z += arc * 0.024
 		var bas := smoothstep(0.09, 0.02, q.y) * avant
 		q.x *= 1.0 + bas * 0.22
-		q.z += bas * 0.018
-		return tete + q
+		q.z += bas * 0.026
+		# museau : bosse du nez et de la lèvre supérieure, avancée (passe 3 : museau plus marqué)
+		var mus := exp(-pow((q.y - 0.075) / 0.03, 2.0) - pow(q.x / 0.045, 2.0)) * avant
+		q.z += mus * 0.016
+		return tete + q * TrollGivre.TK
 
 	# ------------------------------------------------------------ corps
 	func corps(mi: MeshInstance3D) -> void:
@@ -408,6 +436,28 @@ class Ctx:
 			_quad(s, base + e0, base + e1, milieu + e1 * 0.55, milieu + e0 * 0.55, _uva(u0, vb), _uva(u1, vb), _uva(u1, vm), _uva(u0, vm), [pw, pw, pw, pw], base.lerp(pointe, 0.3) + courbe * 0.5)
 			_tri(s, [milieu + e0 * 0.55, milieu + e1 * 0.55, pointe], [_uva(u0, vm), _uva(u1, vm), _uva((u0 + u1) * 0.5, vp)], [pw, pw, pw], milieu)
 
+	## Géométrie du corps pour la peinture 3D de la peau (TrollTextures.peau) : positions/normales au nouveau repos, UV,
+	## triangle fourré ou nu (même découpe que la fourrure), repères anatomiques.
+	func geo_peinture() -> void:
+		var four := PackedByteArray()
+		four.resize(ci.size() / 3)
+		var lp := 0.0
+		var s3 := os_("spine_03")
+		for t in range(0, ci.size(), 3):
+			var p0 := cv[ci[t]]
+			var c := (p0 + cv[ci[t + 1]] + cv[ci[t + 2]]) / 3.0
+			var nf := (cv[ci[t + 2]] - p0).cross(cv[ci[t + 1]] - p0).normalized()
+			if nf.dot(cn[ci[t]] + cn[ci[t + 1]] + cn[ci[t + 2]]) < 0.0:
+				nf = -nf
+			var reg := region(dom[ci[t]], c, nf)
+			four[t / 3] = 1 if (not reg.is_empty() and reg[0] >= 200.0) else 0
+			if dom[ci[t]] == s3 and nf.z > 0.5:
+				lp = maxf(lp, absf(c.x))
+		var rp := {"larg_torse": lp, "tete_k": TrollGivre.TK, "yeux_y": (_centres_yeux()[0] as Vector3).y}
+		for b in ["spine_01", "spine_02", "spine_03", "pelvis", "Head", "upperarm_l", "upperarm_r"]:
+			rp[b] = g_nouv[os_(b)].origin
+		TrollTextures.geo = {"v": cv, "n": cn, "uv": cuv, "i": ci, "four": four, "rep": rp}
+
 	# ------------------------------------------------------------ fourrure en mèches
 	## Région de fourrure d'un triangle du corps (au nouveau repos) : [nombre de mèches par m², lg0, lg1, variante min, max, type]
 	## ou [] (peau nue). Types : 0 = pend (bas + dehors), 1 = suit le membre (vers l'enfant de l'os), 2 = se dresse (crinière du crâne).
@@ -417,16 +467,18 @@ class Ctx:
 		var tete := g_nouv[os_("Head")].origin
 		match f:
 			"Head":
-				var q := c - tete
-				if q.z > 0.035 and q.y < 0.17 and q.y > 0.025 and absf(q.x) < 0.095:
+				var q := (c - tete) / TrollGivre.TK
+				if q.z > 0.035 and q.y < 0.17 and q.y > 0.025 and absf(q.x) < 0.075:
 					return []                                   # visage nu
-				if absf(q.x) > 0.06 and q.y > 0.085 and q.y < 0.165 and q.z > -0.04 and q.z < 0.05:
+				if absf(q.x) > 0.06 and q.y > 0.095 and q.y < 0.165 and q.z > -0.03 and q.z < 0.04:
 					return []                                   # tour des oreilles
 				if q.z > 0.02 and q.y <= 0.025:
-					return [700.0, 0.12, 0.20, 0, 2, 0]         # barbe (pend sur le haut du poitrail)
+					return [700.0, 0.14, 0.24, 0, 2, 0]         # barbe (pend sur le haut du poitrail)
+				if absf(q.x) >= 0.06 and q.z > -0.03 and q.y < 0.11:
+					return [900.0, 0.18, 0.28, 0, 2, 4]         # favoris : la crinière ENCADRE le visage et tombe sur le poitrail
 				if q.y > 0.15:
-					return [900.0, 0.12, 0.19, 0, 2, 2]         # crâne : touffes rejetées en arrière, pointes givrées
-				return [950.0, 0.17, 0.27, 0, 2, 3]             # crinière (côtés, nuque) : longue, tombe sur les épaules
+					return [1250.0, 0.13, 0.21, 0, 2, 2]         # crâne : touffes rejetées en arrière, pointes givrées
+				return [950.0, 0.19, 0.30, 0, 2, 3]             # crinière (côtés, nuque) : longue, tombe sur les épaules
 			"neck_01":
 				if n.z > 0.1:
 					return []                                   # gorge nue (la barbe la couvre)
@@ -438,12 +490,16 @@ class Ctx:
 			"spine_03":
 				if n.z < -0.15 or (n.y > 0.6 and n.z < 0.3):
 					return [520.0, 0.17, 0.27, 1, 4, 3]         # haut du dos
-				return []                                       # poitrine nue
+				if absf(c.x) < 0.07 and c.y > g_nouv[os_("spine_03")].origin.y - 0.10:
+					return [160.0, 0.10, 0.17, 0, 2, 0]         # touffe du sternum (prolonge la barbe)
+				return [28.0, 0.05, 0.08, 3, 5, 0]              # poitrine : poils clairsemés
 			"spine_02", "spine_01":
 				if c.y < g_nouv[os_("pelvis")].origin.y + 0.13:
 					return [520.0, 0.13, 0.22, 3, 6, 0]         # ceinture de poils (taille)
 				if c.z < -0.02:
 					return [420.0, 0.15, 0.24, 2, 5, 3]         # dos
+				if absf(c.x) < 0.03:
+					return [90.0, 0.05, 0.08, 3, 5, 0]          # ligne de poils du nombril
 				return []                                       # ventre nu
 			"pelvis":
 				if c.y > g_nouv[os_("pelvis")].origin.y - 0.06:
@@ -522,38 +578,54 @@ class Ctx:
 					3:
 						# épaules, nuque, haut du dos : pend vers le bas, en dehors et en arrière, jamais sur la poitrine
 						var e3 := Vector3(ext.x, 0.0, minf(ext.z, 0.0) - 0.25).normalized()
-						dir = (Vector3.DOWN * 0.9 + e3 * 0.35 + nrm * 0.32).normalized()   # se détache de la peau : pas de « tuiles » couchées
+						dir = (Vector3.DOWN * 1.0 + e3 * 0.35 + nrm * (0.32 - 0.22 * maxf(nrm.y, 0.0))).normalized()   # se détache sans partir à l'horizontale
 					1:
 						var enfant := (g_nouv[mini(o + 1, g_nouv.size() - 1)].origin - g_nouv[o].origin).normalized()
 						dir = (enfant * 0.9 + nrm * 0.28).normalized()
 					2:
 						dir = (Vector3.UP * 0.12 + Vector3(0, 0, -0.8) + nrm * 0.55).normalized()
+					4:
+						# favoris : tombent le long des joues, un peu en avant et en dehors (encadrent le visage)
+						dir = (Vector3.DOWN * 0.85 + ext * 0.45 + Vector3(0, 0, 0.05) + nrm * 0.22).normalized()
 				var cote := dir.cross(nrm)
 				if cote.length() < 0.05:
 					cote = dir.cross(Vector3.FORWARD)
 				cote = cote.normalized()
-				var lg := lerpf(reg[1], reg[2], pow(_h(k), 0.7)) * (1.35 if _h(k + 5) < 0.18 else 1.0)   # quelques longues mèches dépassent
-				var larg := lerpf(0.09, 0.14, _h(k + 1))
+				# longueur : tirage + champ lent (plaques de poil plus long / plus court) ; quelques longues touffes dépassent
+				var champ := 0.8 + 0.45 * (sin(p.x * 23.0 + p.y * 7.0) * sin(p.z * 19.0 - p.y * 11.0) * 0.5 + 0.5)
+				var lg: float = lerpf(reg[1], reg[2], pow(_h(k), 0.7)) * champ * (1.3 if _h(k + 5) < 0.15 else 1.0)
+				var larg := lerpf(0.13, 0.20, _h(k + 1)) * clampf(lg / 0.12, 0.55, 1.0)
 				var variante := int(reg[3]) + int(_h(k + 2) * (int(reg[4]) - int(reg[3]) + 1))
-				_carte(p + nrm * 0.004 - dir * 0.015, cote, dir, larg, lg, mini(variante, 7), poids(i_proche), nrm)
+				if reg[0] >= 200.0 and _h(k + 7) < 0.2:
+					variante = 6 + int(_h(k + 8) * 2.0)               # sous-couche : touffe courte et sombre sous les autres
+					lg *= 0.6
+				var sens := 1.0 if _h(k + 9) < 0.5 else -1.0
+				_carte(p + nrm * 0.004 - dir * 0.015, cote, dir, larg, lg, mini(variante, 7), poids(i_proche), nrm, sens)
 				k += 3
 				nb += 1
 		if GuerrierNordique.chrono:
 			print("TROLL mèches : %d cartes" % nb)
 
-	func _carte(r: Vector3, cote: Vector3, dir: Vector3, larg: float, lg: float, variante: int, pw: Array, nrm: Vector3) -> void:
-		var g := r - cote * larg * 0.5
-		var d := r + cote * larg * 0.5
-		var u0 := (variante * 16.0 + 0.5) / 128.0
-		var u1 := (variante * 16.0 + 15.5) / 128.0
-		var bout := dir * lg
-		if lg < 0.19:
-			_quad(dec, g, d, d + bout, g + bout, Vector2(u0, 0.0), Vector2(u1, 0.0), Vector2(u1, 1.0), Vector2(u0, 1.0), [pw, pw, pw, pw], r - nrm * 0.1)
-			return
-		# longue mèche : 2 tronçons, le milieu s'écarte de la peau (volume, pas de « plumeau » plaqué)
-		var mid := dir * lg * 0.5 + nrm * 0.03
-		_quad(dec, g, d, d + mid, g + mid, Vector2(u0, 0.0), Vector2(u1, 0.0), Vector2(u1, 0.5), Vector2(u0, 0.5), [pw, pw, pw, pw], r - nrm * 0.1)
-		_quad(dec, g + mid, d + mid, d + bout, g + bout, Vector2(u0, 0.5), Vector2(u1, 0.5), Vector2(u1, 1.0), Vector2(u0, 1.0), [pw, pw, pw, pw], r - nrm * 0.1)
+	## Touffe : carte effilée (pointe à 70 % de la racine), 1 ou 2 tronçons qui se décollent de la peau puis se RECOURBENT
+	## (vers le bas et sur le côté `sens`) ; u = la case de 32 texels de la variante, v = 0 racine -> 1 pointe.
+	func _carte(r: Vector3, cote: Vector3, dir: Vector3, larg: float, lg: float, variante: int, pw: Array, nrm: Vector3, sens := 1.0) -> void:
+		var u0 := (variante * float(TrollTextures.MW) + 0.5) / (8.0 * TrollTextures.MW)
+		var u1 := (variante * float(TrollTextures.MW) + TrollTextures.MW - 0.5) / (8.0 * TrollTextures.MW)
+		var segs := 1 if lg < 0.11 else 2
+		var chute := (dir + Vector3.DOWN * 0.5 + cote * 0.6 * sens).normalized()
+		var dedans := r - nrm * 0.1
+		var a := r
+		for j in segs:
+			var t0 := float(j) / segs
+			var t1 := float(j + 1) / segs
+			var d := dir.lerp(chute, (t0 + t1) * 0.5).normalized()
+			if j == 0 and segs > 1:
+				d = (d + nrm * 0.3 * (1.0 - maxf(nrm.y, 0.0))).normalized()   # se décolle de la peau (pas sur le dessus des épaules)
+			var b := a + d * lg / segs
+			var w0 := larg * lerpf(1.0, 0.7, t0) * 0.5
+			var w1 := larg * lerpf(1.0, 0.7, t1) * 0.5
+			_quad(dec, a - cote * w0, a + cote * w0, b + cote * w1, b - cote * w1, Vector2(u0, t0), Vector2(u1, t0), Vector2(u1, t1), Vector2(u0, t1), [pw, pw, pw, pw], dedans)
+			a = b
 
 	# ------------------------------------------------------------ griffes, crocs, gueule, arcade, yeux
 	func accessoires() -> void:
@@ -571,10 +643,10 @@ class Ctx:
 			var ob := os_("ball_%s" % cote)
 			var bout_p := g_nouv[os_("ball_leaf_%s" % cote)].origin
 			for j in 4:
-				var dx := (j - 1.5) * 0.045 * (1.0 if cote == "l" else -1.0)
-				var base := bout_p + Vector3(dx, 0.03, -0.015)
-				var pointe := base + Vector3(dx * 0.5, -0.045, 0.10)
-				cone(op, base, pointe, 0.018, 4, rigide(ob), TrollTextures.R_GRIFFE, Vector3.UP * 0.016)
+				var dx := (j - 1.5) * 0.056 * (1.0 if cote == "l" else -1.0)
+				var base := bout_p + Vector3(dx, 0.03, -0.02)
+				var pointe := base + Vector3(dx * 0.45, -0.05, 0.12)
+				cone(op, base, pointe, 0.022, 4, rigide(ob), TrollTextures.R_GRIFFE, Vector3.UP * 0.02)
 		var hd := os_("Head")
 		var pw := rigide(hd)
 		var yeux := _centres_yeux()
@@ -587,35 +659,53 @@ class Ctx:
 		for i in 3:
 			var a: Vector3 = pts[i]
 			var b: Vector3 = pts[i + 1]
-			var haut := Vector3(0, 0.024, -0.012)
-			var avant := Vector3(0, -0.002, 0.022)
+			var haut := Vector3(0, 0.024, -0.012) * TrollGivre.TK
+			var avant := Vector3(0, -0.002, 0.022) * TrollGivre.TK
 			_quad(op, a + haut, b + haut, b + avant, a + avant, _uva(arc.position.x + i * 5, arc.position.y + 1), _uva(arc.position.x + i * 5 + 5, arc.position.y + 1),
 				_uva(arc.position.x + i * 5 + 5, arc.end.y - 3), _uva(arc.position.x + i * 5, arc.end.y - 3), [pw, pw, pw, pw], oy - Vector3(0, 0, 0.05))
-			_quad(op, a + avant, b + avant, b + Vector3(0, -0.016, 0.006), a + Vector3(0, -0.016, 0.006), _uva(arc.position.x + i * 5, arc.end.y - 2), _uva(arc.position.x + i * 5 + 5, arc.end.y - 2),
+			_quad(op, a + avant, b + avant, b + Vector3(0, -0.016, 0.006) * TrollGivre.TK, a + Vector3(0, -0.016, 0.006) * TrollGivre.TK, _uva(arc.position.x + i * 5, arc.end.y - 2), _uva(arc.position.x + i * 5 + 5, arc.end.y - 2),
 				_uva(arc.position.x + i * 5 + 5, arc.end.y - 0.5), _uva(arc.position.x + i * 5, arc.end.y - 0.5), [pw, pw, pw, pw], oy - Vector3(0, 0, 0.05))
 		# oreilles pointues : cônes de peau sur les côtés du crâne, vers le haut, le dehors et l'arrière (la crinière s'écarte autour)
 		for s: float in [-1.0, 1.0]:
 			var base_o := porter(Vector3(0.074 * s, 1.708, 0.005), hd)
-			cone(op, base_o, base_o + Vector3(0.085 * s, 0.05, -0.05), 0.026, 4, pw, arc)
+			cone(op, base_o, base_o + Vector3(0.085 * s, 0.05, -0.05) * TrollGivre.TK, 0.026 * TrollGivre.TK, 4, pw, arc)
 		# gueule grande ouverte (trapèze sombre devant la bouche), crocs du haut et défenses du bas
 		var m0 := porter(Vector3(-0.042, 1.648, 0.094), hd)
 		var m1 := porter(Vector3(0.042, 1.648, 0.094), hd)
 		var m2 := porter(Vector3(0.032, 1.596, 0.088), hd)
 		var m3 := porter(Vector3(-0.032, 1.596, 0.088), hd)
-		var fz := Vector3(0, 0, 0.008)
+		var fz := Vector3(0, 0, 0.008) * TrollGivre.TK
 		_quad(op, m0 + fz, m1 + fz, m2 + fz, m3 + fz, _uva(gq.position.x, gq.position.y), _uva(gq.end.x, gq.position.y), _uva(gq.end.x, gq.end.y), _uva(gq.position.x, gq.end.y), [pw, pw, pw, pw], (m0 + m2) * 0.5 - Vector3(0, 0, 0.05))
 		for s: float in [-1.0, 1.0]:
 			var hautc := porter(Vector3(0.028 * s, 1.649, 0.093), hd) + fz * 1.5
-			cone(op, hautc, hautc + Vector3(-0.002 * s, -0.042, 0.006), 0.011, 3, pw, cr)
+			var K := TrollGivre.TK
+			cone(op, hautc, hautc + Vector3(-0.002 * s, -0.042, 0.006) * K, 0.011 * K, 3, pw, cr)
 			var petit := porter(Vector3(0.011 * s, 1.649, 0.094), hd) + fz * 1.5
-			cone(op, petit, petit + Vector3(0, -0.02, 0.003), 0.006, 3, pw, cr)
+			cone(op, petit, petit + Vector3(0, -0.02, 0.003) * K, 0.006 * K, 3, pw, cr)
 			var basc := porter(Vector3(0.034 * s, 1.595, 0.088), hd) + fz * 1.5
-			cone(op, basc, basc + Vector3(0.006 * s, 0.05, 0.008), 0.013, 3, pw, cr)
+			cone(op, basc, basc + Vector3(0.006 * s, 0.05, 0.008) * K, 0.013 * K, 3, pw, cr)
+		# nez large et écrasé (passe 3) : pyramide de peau entre les yeux et la gueule, narines sombres dessous
+		var nz_h := porter(Vector3(0.0, 1.690, 0.094), hd)
+		var nz_p := porter(Vector3(0.0, 1.664, 0.104), hd) + Vector3(0, 0, 0.022) * TrollGivre.TK
+		var nz_g := porter(Vector3(-0.026, 1.656, 0.096), hd) + Vector3(0, 0, 0.006)
+		var nz_d := porter(Vector3(0.026, 1.656, 0.096), hd) + Vector3(0, 0, 0.006)
+		var nz_b := porter(Vector3(0.0, 1.655, 0.100), hd) + Vector3(0, 0, 0.010) * TrollGivre.TK
+		var nc := (nz_h + nz_b) * 0.5 - Vector3(0, 0, 0.04)
+		var ua := _uva(arc.position.x + 2, arc.position.y + 2)
+		var ub := _uva(arc.position.x + 12, arc.position.y + 2)
+		var uc := _uva(arc.position.x + 7, arc.position.y + 9)
+		_tri(op, [nz_h, nz_g, nz_p], [ua, ub, uc], [pw, pw, pw], nc)
+		_tri(op, [nz_h, nz_p, nz_d], [ua, uc, ub], [pw, pw, pw], nc)
+		var ga := _uva(gq.position.x + 4, gq.position.y + 6)
+		var gb := _uva(gq.position.x + 12, gq.position.y + 6)
+		var gc := _uva(gq.position.x + 8, gq.position.y + 9)
+		_tri(op, [nz_g, nz_b, nz_p], [ga, gc, gb], [pw, pw, pw], nc)
+		_tri(op, [nz_p, nz_b, nz_d], [gb, gc, ga], [pw, pw, pw], nc)
 		# yeux luisants : cartes dans les orbites, plus grandes (lisibles à 4 m)
 		for c: Vector3 in yeux:
 			var sx := signf(c.x)
-			var dx := Vector3(0.025, 0, 0.006 * -sx)
-			var dy := Vector3(0, 0.013, 0)
+			var dx := Vector3(0.025, 0, 0.006 * -sx) * TrollGivre.TK
+			var dy := Vector3(0, 0.013, 0) * TrollGivre.TK
 			var p := c + Vector3(0, -0.003, 0.004)
 			_quad(yx, p - dx - dy, p + dx - dy, p + dx + dy, p - dx + dy, Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0), [pw, pw, pw, pw], p - Vector3(0, 0, 0.05))
 
