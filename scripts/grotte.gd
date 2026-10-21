@@ -30,6 +30,12 @@ const Q := 0.32                    # hauteur d'une marche naturelle (m)
 const PILIER := 1.1                # demi-épaisseur maximale du pilier entre deux galeries (m)
 const ZONE_PINCE := 9.0            # longueur sur laquelle une jonction ouvre / ferme sa moitié intérieure (m)
 const AO := [1.0, 0.92, 0.7, 0.8, 0.9, 0.95, 0.92, 0.82, 0.74, 0.7, 0.74, 0.82, 0.92, 0.95, 0.9, 0.8, 0.7, 0.92]
+## RELIEF (refonte 2026-10-21) : poids du déplacement par sommet d'anneau (0 = sol plat / raccord, 1 = paroi pleine).
+## Sol central faiblement bosselé (verticalement), lisière du sol fixe (k 1, 17), pied de paroi à demi, parois et voûte entières.
+const POIDS := [0.14, 0.0, 0.45, 0.85, 1.0, 1.0, 1.0, 1.0, 0.9, 0.85, 0.9, 1.0, 1.0, 1.0, 1.0, 0.85, 0.45, 0.0]
+const FACETTE_PAROI := 0.36        # longueur visée d'une arête de facette sur les parois et la voûte (m) : 640x360
+const FACETTE_SOL := 0.75          # idem sur le sol (le joueur le voit de près mais il reste presque plat)
+const NMAX_ARETE := 12             # découpage maximal d'une arête de coque
 
 var def: Dictionary = {}
 var decor: GrotteDecor
@@ -37,7 +43,12 @@ var corps: StaticBody3D
 var joueur: Node
 var rng := RandomNumberGenerator.new()
 var _bruit := FastNoiseLite.new()
-var _fixes := {}
+var _b_rel := FastNoiseLite.new()        # relief 3D multi-échelle des parois (fbm 3 octaves)
+var _b_fis := FastNoiseLite.new()        # fissures (bruit « ridged » étiré verticalement)
+var levres: Array = []                    # lèvres de surplomb (local) : [position, normale] — accroches de glaçons (agent matière)
+var rebords: Array = []                   # dessus de corniches naturelles (local) : [position, normale] — givre, neige, os, urnes
+var _vus_levre := {}
+var _libres := {}                         # "id|0" / "id|1" : extrémité de branche libre (non raccordée) -> anneau sans relief
 var _idx := {}                            # cellule 2 m -> Array d'indices de triangles de la coque
 var _t := 0.0
 var _flamme_pixel: MeshInstance3D
@@ -282,7 +293,45 @@ func _anneau(b: Dictionary, s: float) -> Dictionary:
 	var pts: Array = []
 	for k in NB:
 		pts.append(P + R * float(a[k]) + Vector3.UP * float(bb[k]))
-	return {"s": s, "y": y0, "pts": pts, "R": R, "T": T, "h": h, "wl": wl, "wr": wr, "lam": lam, "kap": kap, "P": P, "b": b["id"], "forcee": false}
+	# attributs du relief par sommet : poids, direction « vers la roche », hauteur au-dessus du sol (voir _tri_fin)
+	var w_att: Array = []
+	var d_att: Array = []
+	var hb_att: Array = []
+	for k in NB:
+		var q: Vector3 = pts[k]
+		var hb := q.y - y0
+		var wk: float = POIDS[k]
+		if k != 0 and k != 9:
+			wk *= clampf((wr if k < 9 else wl) / 1.3, 0.04, 1.0)       # le relief s'éteint sur le nez d'un pilier
+		if k >= 7 and k <= 11:
+			wk *= clampf(1.0 - kap / 0.85, 0.0, 1.0)                    # bord de la faille de ciel (facettes « ciel » non découpées)
+		if lam > 0.0 and (k == 0 or k == 16):
+			wk *= 1.0 - lam                                             # la glace du lac reste plane
+		var dir := Vector3.DOWN
+		if k != 0 and k != 1 and k != 17:
+			var c := P + Vector3.UP * clampf(hb, 0.8, maxf(h * 0.6, 0.8))
+			dir = (q - c).normalized() if q.distance_to(c) > 0.05 else R * (1.0 if k < 9 else -1.0)
+		w_att.append(wk)
+		d_att.append(dir)
+		hb_att.append(hb)
+	return {"s": s, "y": y0, "pts": pts, "R": R, "T": T, "h": h, "wl": wl, "wr": wr, "lam": lam, "kap": kap, "P": P, "b": b["id"], "forcee": false,
+		"w": w_att, "dir": d_att, "hb": hb_att, "arc": _arc(pts)}
+
+## Abscisse curviligne |arc| de chaque sommet depuis le milieu du sol (k 0), de part et d'autre : coordonnée v des UV de la coque
+## (miroir au sommet de la voûte : continue partout ; le haut de la texture suit le haut de la paroi).
+static func _arc(pts: Array) -> PackedFloat32Array:
+	var r := PackedFloat32Array()
+	r.resize(NB)
+	r[0] = 0.0
+	var acc := 0.0
+	for k in range(1, 10):
+		acc += (pts[k] as Vector3).distance_to(pts[k - 1])
+		r[k] = acc
+	acc = 0.0
+	for k in range(17, 9, -1):
+		acc += (pts[k] as Vector3).distance_to(pts[(k + 1) % NB])
+		r[k] = acc
+	return r
 
 ## Anneau d'extrémité d'une branche raccordée à une jonction : la moitié extérieure est celle du parent (sommets partagés), la moitié
 ## intérieure est repliée sur le segment vertical (sol → plafond) du centre du parent : le nez du pilier.
@@ -294,11 +343,18 @@ func _forcer(b: Dictionary, fin: bool) -> Dictionary:
 	var p0: Vector3 = pts[0]
 	var p9: Vector3 = pts[9]
 	var interieur: Array = range(10, 18) if cote > 0.0 else range(1, 9)
+	var w_att: Array = (pr["w"] as Array).duplicate()
+	var hb_att: Array = (pr["hb"] as Array).duplicate()
 	for id: int in interieur:
 		var f := float(id - 9) / 9.0 if cote > 0.0 else float(9 - id) / 9.0
 		pts[id] = p9.lerp(p0, f)
+		w_att[id] = 0.0                     # nez du pilier : sommets communs aux deux branches enfants, sans relief
+		hb_att[id] = (pts[id] as Vector3).y - float(pr["y"])
 	var r: Dictionary = pr.duplicate()
 	r["pts"] = pts
+	r["w"] = w_att
+	r["hb"] = hb_att
+	r["arc"] = _arc(pts)
 	r["s"] = float(b["L"]) if fin else 0.0
 	r["forcee"] = true
 	r["b"] = b["id"]
@@ -403,7 +459,7 @@ func _matiere(b: Dictionary, s: float, n: Vector3, hrel: float, k: int, lam: flo
 		return ["c_sol_nu", 0.1, 1.0]
 	return ["c_roche_nu", 0.0, 1.0]
 
-func _tri_coque(a: Vector3, b: Vector3, c: Vector3, ka: int, kb: int, kc: int, ra: Dictionary, rb: Dictionary, k_seg: int, ref: Vector3, br_: Dictionary) -> void:
+func _tri_coque(a: Vector3, b: Vector3, c: Vector3, ka: int, kb: int, kc: int, ra: Dictionary, rb: Dictionary, k_seg: int, ref: Vector3, br_: Dictionary, att: Array) -> void:
 	var n := (b - a).cross(c - a).normalized()
 	var ct := (a + b + c) / 3.0
 	if n.dot(ref - ct) < 0.0:
@@ -429,56 +485,227 @@ func _tri_coque(a: Vector3, b: Vector3, c: Vector3, ka: int, kb: int, kc: int, r
 		decor.facette(nom, a, b, c, ref, [cl, cl, cl], true, 4.0, true)
 		return
 	var etroit := minf(float(ra["wl"]) + float(ra["wr"]), float(rb["wl"]) + float(rb["wr"]))
-	var cols: Array = []
+	var aos := PackedFloat32Array()
 	for k in [ka, kb, kc]:
 		var ao: float = AO[k] * (0.93 + 0.07 * GrotteDecor.hash2(float(k) * 3.7, s * 5.1 + float(ra["s"]))) * sombre
 		if etroit < 5.5:
 			ao *= 0.9
-		cols.append(GrotteDecor.col(ao, masque))
-	_subdiviser(nom, a, b, c, ref, cols, 1)      # niveau constant : deux niveaux différents côte à côte laisseraient des fissures (T)
+		aos.append(ao)
+	# attributs de relief des trois coins (a, b sur l'anneau ra ou rb selon l'appel : voir _coque)
+	_tri_fin(nom, a, b, c, ref, aos, masque, att[0], att[1], att[2], k_seg == 17 or k_seg == 0)
 
-## Relief méso : le triangle est coupé en 4 (facettes de 0,4 à 1,5 m) ; chaque milieu d'arête est déplacé d'un petit vecteur
-## qui ne dépend que de sa POSITION (deux triangles voisins déplacent donc le même point : aucune fissure). Le masque de
-## neige / glace / mousse reçoit aussi un bruit au milieu : taches nettes plutôt que blocs. Densité de texture : tuile de 2 m.
-func _subdiviser(nom: String, a: Vector3, b: Vector3, c: Vector3, ref: Vector3, cols: Array, niveau: int, amp := 1.0) -> void:
-	if niveau <= 0:
-		decor.facette(nom, a, b, c, ref, cols, true, TUILE_COQUE, true)
+## Bruit de relief (m) au point p : > 0 = creux (vers la roche), < 0 = saillie. hb = hauteur au-dessus du sol de l'anneau.
+## Échelles : masses (3,5 m), bosses (1 m), grain (0,4 m), strates horizontales en gradins (lèvre en surplomb + dessus de corniche),
+## fissures verticales profondes, renfoncements. Près du sol, les saillies sont bornées (le passage garde sa largeur).
+func relief(p: Vector3, hb: float) -> float:
+	var masse := _b_rel.get_noise_3d(p.x * 0.28, p.y * 0.34, p.z * 0.28)
+	var bosse := _b_fis.get_noise_3d(p.x * 0.95 + 31.0, p.y * 1.1, p.z * 0.95 - 17.0)
+	var zone := _b_fis.get_noise_3d(p.x * 0.12 - 40.0, p.y * 0.1, p.z * 0.12)
+	# strates : couches de 0,55 à 1 m, ondulées ; gradin = saillie franche en haut de couche, retrait juste au-dessus
+	var ep := 0.75 + 0.22 * bosse
+	var yy := (p.y + 0.9 * masse + 0.25 * bosse) / ep
+	var ph := yy - floorf(yy)
+	var force_str := smoothstep(-0.35, 0.3, -zone)
+	var strate := (0.16 - 0.32 * ph * ph) * force_str
+	# fissures : crêtes fines d'un bruit étiré verticalement (failles de 1 à 4 m de haut)
+	var fis := 1.0 - absf(_b_fis.get_noise_3d(p.x * 0.55 + 9.0, p.y * 0.16, p.z * 0.55))
+	var fissure := smoothstep(0.9, 0.985, fis) * 0.42
+	# renfoncements (alcôves, poches)
+	var poche := smoothstep(0.3, 0.7, zone) * 0.55
+	var f := 0.44 * masse + 0.14 * bosse + strate + fissure + poche
+	var lim := lerpf(0.05, 0.6, smoothstep(0.3, 2.3, hb))
+	return maxf(f, -lim)
+
+## Triangle de coque découpé finement et déplacé (relief). Chaque ARÊTE est coupée en n_e segments selon sa seule longueur, et les
+## points de bord ne dépendent que des deux extrémités de l'arête et de n_e : deux triangles voisins (même d'une autre branche, à une
+## jonction) produisent EXACTEMENT les mêmes points sur leur arête commune, donc aucune fissure. L'intérieur est une grille de pas
+## n = max(n_e) ; les points de bord de la grille sont ramenés sur le découpage de leur arête (triangles dégénérés ignorés).
+## Les attributs (poids, direction vers la roche, hauteur au-dessus du sol, occlusion) sont interpolés de la même façon.
+func _tri_fin(nom: String, A: Vector3, B: Vector3, C: Vector3, ref: Vector3, aos: PackedFloat32Array, masque: float, ta: Array, tb: Array, tc: Array, sol_: bool) -> void:
+	var cible := FACETTE_SOL if sol_ else FACETTE_PAROI
+	var wA: float = ta[0]
+	var wB: float = tb[0]
+	var wC: float = tc[0]
+	var dA: Vector3 = ta[1]
+	var dB: Vector3 = tb[1]
+	var dC: Vector3 = tc[1]
+	var hA: float = ta[2]
+	var hB: float = tb[2]
+	var hC: float = tc[2]
+	# découpage d'une arête : sa longueur et la hauteur de ses extrémités (voûtes hautes des grandes salles : facettes plus grandes)
+	var n_ab := _n_arete(A, B, hA, hB, cible)
+	var n_bc := _n_arete(B, C, hB, hC, cible)
+	var n_ca := _n_arete(C, A, hC, hA, cible)
+	var n := maxi(n_ab, maxi(n_bc, n_ca))
+	var uA: Vector2 = ta[3]
+	var uB: Vector2 = tb[3]
+	var uC: Vector2 = tc[3]
+	var pos := PackedVector3Array()
+	var col := PackedColorArray()
+	var uvs := PackedVector2Array()
+	var hbs := PackedFloat32Array()
+	var nf := float(n)
+	for i in n + 1:
+		for j in n + 1 - i:
+			# poids barycentriques (A, B, C) ; bord AB : j = 0 ; bord CA : i = 0 ; bord BC : i + j = n
+			var u: float
+			var v: float
+			var w: float
+			if j == 0:
+				var k := roundi(float(i) * n_ab / nf)
+				v = float(k) / n_ab
+				u = float(n_ab - k) / n_ab
+				w = 0.0
+			elif i == 0:
+				var k2 := roundi(float(j) * n_ca / nf)
+				w = float(k2) / n_ca
+				u = float(n_ca - k2) / n_ca
+				v = 0.0
+			elif i + j == n:
+				var k3 := roundi(float(j) * n_bc / nf)
+				w = float(k3) / n_bc
+				v = float(n_bc - k3) / n_bc
+				u = 0.0
+			else:
+				v = float(i) / nf
+				w = float(j) / nf
+				u = 1.0 - v - w
+			var p := A * u + B * v + C * w
+			var pw := wA * u + wB * v + wC * w
+			var hb := hA * u + hB * v + hC * w
+			var f := 0.0
+			if pw > 0.001:
+				var dir := (dA * u + dB * v + dC * w).normalized()
+				f = relief(p, hb) * pw
+				p += dir * f
+			var ao := aos[0] * u + aos[1] * v + aos[2] * w
+			ao *= 1.0 - 0.6 * smoothstep(0.02, 0.5, f) + 0.12 * smoothstep(0.0, 0.3, -f)   # creux sombres, saillies claires
+			var mk := masque
+			if mk > 0.01:
+				mk = clampf(mk + (GrotteDecor.hash2(p.x * 5.3, p.z * 4.1 + p.y * 2.0) - 0.5) * 0.4, 0.0, 1.5)
+			pos.append(p)
+			col.append(GrotteDecor.col(ao, mk))
+			uvs.append((uA * u + uB * v + uC * w) / TUILE_COQUE)
+			hbs.append(hb)
+	# triangles de la grille
+	var ligne := PackedInt32Array()
+	var acc := 0
+	for i in n + 1:
+		ligne.append(acc)
+		acc += n + 1 - i
+	var buf := _buf_coque(nom, (A + B + C) / 3.0)
+	for i in n:
+		for j in n - i:
+			var i0 := ligne[i] + j
+			var i1 := ligne[i + 1] + j
+			var i2 := i0 + 1
+			_tri_lisse(buf, ref, pos, col, uvs, hbs, i0, i1, i2)
+			if j < n - i - 1:
+				_tri_lisse(buf, ref, pos, col, uvs, hbs, i1, ligne[i + 1] + j + 1, i2)
+
+static func _n_arete(p: Vector3, q: Vector3, hp: float, hq: float, cible: float) -> int:
+	var c := cible * clampf(maxf(hp, hq) / 3.4, 1.0, 2.4)
+	return clampi(ceili(p.distance_to(q) / c), 1, NMAX_ARETE)
+
+# ------------------------------------------------------------------ coque lisse (normales par sommet)
+## La coque fine n'utilise pas GrotteDecor.facette (normale plate et UV par facette : la roche y paraissait « froissée », chaque petit
+## triangle éclairé et texturé à part). Ici : UV continus (s le long de la branche, |arc| autour de l'anneau), normales LISSES
+## (somme des normales des facettes qui partagent une position : les positions communes sont identiques au bit près, voir _tri_fin),
+## puis occlusion / masque corrigés par la normale lisse (dessus de corniche = givre, dessous de surplomb = ombre).
+const CASE_COQUE := 10.0
+var _coque_bufs := {}                    # "cx,cz|nom" -> { nom, v, u, c, h }
+var _nacc := {}                          # position -> somme des normales (pondérées par l'aire)
+var _coll_fine := PackedVector3Array()
+var nb_facettes_coque := 0
+
+func _buf_coque(nom: String, c: Vector3) -> Dictionary:
+	var cle := "%d,%d|%s" % [floori(c.x / CASE_COQUE), floori(c.z / CASE_COQUE), nom]
+	if _coque_bufs.has(cle):
+		return _coque_bufs[cle]
+	var b := {"nom": nom, "v": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray(), "h": PackedFloat32Array()}
+	_coque_bufs[cle] = b
+	return b
+
+func _tri_lisse(buf: Dictionary, ref: Vector3, pos: PackedVector3Array, col: PackedColorArray, uvs: PackedVector2Array, hbs: PackedFloat32Array, i0: int, i1: int, i2: int) -> void:
+	var a := pos[i0]
+	var b := pos[i1]
+	var c := pos[i2]
+	var g := (b - a).cross(c - a)
+	if g.length_squared() < 1e-10:
 		return
-	var m0 := _milieu(a, b, amp)
-	var m1 := _milieu(b, c, amp)
-	var m2 := _milieu(c, a, amp)
-	var c0: Color = cols[0]
-	var c1: Color = cols[1]
-	var c2: Color = cols[2]
-	var q0 := _couleur_milieu(c0, c1, a, b)
-	var q1 := _couleur_milieu(c1, c2, b, c)
-	var q2 := _couleur_milieu(c2, c0, c, a)
-	if niveau == 1:        # cas courant : les quatre sous-triangles sont posés directement (pas de récursion ni de tableaux)
-		decor.facette(nom, a, m0, m2, ref, [c0, q0, q2], true, TUILE_COQUE, true)
-		decor.facette(nom, m0, b, m1, ref, [q0, c1, q1], true, TUILE_COQUE, true)
-		decor.facette(nom, m2, m1, c, ref, [q2, q1, c2], true, TUILE_COQUE, true)
-		decor.facette(nom, m0, m1, m2, ref, [q0, q1, q2], true, TUILE_COQUE, true)
+	if g.dot(ref - (a + b + c) / 3.0) < 0.0:          # face visible vers l'intérieur de la galerie
+		var t := i1
+		i1 = i2
+		i2 = t
+		b = pos[i1]
+		c = pos[i2]
+		g = -g
+	var v: PackedVector3Array = buf["v"]
+	var u: PackedVector2Array = buf["u"]
+	var cc: PackedColorArray = buf["c"]
+	var hh: PackedFloat32Array = buf["h"]
+	# ordre d'enroulement du moteur (sens horaire vu de face) : a, c, b
+	v.append(a); v.append(c); v.append(b)
+	u.append(uvs[i0]); u.append(uvs[i2]); u.append(uvs[i1])
+	cc.append(col[i0]); cc.append(col[i2]); cc.append(col[i1])
+	hh.append(hbs[i0]); hh.append(hbs[i2]); hh.append(hbs[i1])
+	for q: Vector3 in [a, b, c]:
+		_nacc[q] = _nacc.get(q, Vector3.ZERO) + g
+	_coll_fine.append(a); _coll_fine.append(b); _coll_fine.append(c)
+	nb_facettes_coque += 1
+
+## Fin de la coque : normales lisses, correction d'occlusion et de masque par la normale, maillages, collision.
+func _finir_coque() -> void:
+	for cle: String in _coque_bufs:
+		var b: Dictionary = _coque_bufs[cle]
+		var v: PackedVector3Array = b["v"]
+		if v.is_empty():
+			continue
+		var cc: PackedColorArray = b["c"]
+		var hh: PackedFloat32Array = b["h"]
+		var nn := PackedVector3Array()
+		nn.resize(v.size())
+		for i in v.size():
+			var q := v[i]
+			var nrm: Vector3 = (_nacc[q] as Vector3).normalized()
+			nn[i] = nrm
+			if hh[i] > 0.45:
+				var co := cc[i]
+				if nrm.y > 0.35:                 # dessus de corniche naturelle (arête haute) : masque relevé (givre / neige), plus clair
+					var k := smoothstep(0.35, 0.85, nrm.y)
+					co = Color(co.r * (1.0 + 0.12 * k), co.g * (1.0 + 0.12 * k), co.b * (1.0 + 0.12 * k), minf(co.a + 0.6 * k, 1.5))
+					if k > 0.5:
+						_relever(rebords, q, nrm, "r")
+				elif nrm.y < -0.4:               # dessous de surplomb : ombre
+					var k2 := smoothstep(0.4, 0.85, -nrm.y)
+					co = Color(co.r * (1.0 - 0.25 * k2), co.g * (1.0 - 0.25 * k2), co.b * (1.0 - 0.25 * k2), co.a)
+					if k2 > 0.6 and hh[i] > 1.4:
+						_relever(levres, q, nrm, "l")
+				cc[i] = co
+		var arr := []
+		arr.resize(Mesh.ARRAY_MAX)
+		arr[Mesh.ARRAY_VERTEX] = v
+		arr[Mesh.ARRAY_NORMAL] = nn
+		arr[Mesh.ARRAY_TEX_UV] = b["u"]
+		arr[Mesh.ARRAY_COLOR] = cc
+		var m := ArrayMesh.new()
+		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+		var mi := MeshInstance3D.new()
+		mi.mesh = m
+		mi.material_override = decor.mat(b["nom"])
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.name = "CoqueFine_" + cle.replace("|", "_").replace(",", "_").replace("-", "m")
+		add_child(mi)
+	_coque_bufs.clear()
+	_nacc.clear()
+
+## Garde au plus un point par case de 1,2 m (listes légères).
+func _relever(liste: Array, p: Vector3, n: Vector3, genre: String) -> void:
+	var cle := "%s%d,%d,%d" % [genre, floori(p.x / 1.2), floori(p.y / 1.2), floori(p.z / 1.2)]
+	if _vus_levre.has(cle):
 		return
-	_subdiviser(nom, a, m0, m2, ref, [c0, q0, q2], niveau - 1, amp)
-	_subdiviser(nom, m0, b, m1, ref, [q0, c1, q1], niveau - 1, amp)
-	_subdiviser(nom, m2, m1, c, ref, [q2, q1, c2], niveau - 1, amp)
-	_subdiviser(nom, m0, m1, m2, ref, [q0, q1, q2], niveau - 1, amp)
-
-## Milieu d'arête déplacé (ne dépend que de la POSITION : les deux triangles voisins déplacent le même point).
-func _milieu(p: Vector3, q: Vector3, amp: float) -> Vector3:
-	var mid := (p + q) * 0.5
-	if _fixes.has(p) and _fixes.has(q):       # arête d'un anneau d'extrémité ou de jonction (raccord) : pas de déplacement
-		return mid
-	var l := p.distance_to(q)
-	var d := Vector3(GrotteDecor.hash2(mid.x * 3.1, mid.y * 1.7 + mid.z) - 0.5, GrotteDecor.hash2(mid.y * 2.3, mid.z * 1.9 + mid.x) - 0.5, GrotteDecor.hash2(mid.z * 2.9, mid.x * 1.3 + mid.y) - 0.5)
-	return mid + Vector3(d.x, d.y * 0.35, d.z) * (0.14 * minf(l, 2.4) * amp)
-
-## Couleur au milieu d'une arête (bruit au milieu : taches nettes de neige / glace / mousse plutôt que blocs).
-func _couleur_milieu(c0: Color, c1: Color, p: Vector3, q: Vector3) -> Color:
-	var mid := (p + q) * 0.5
-	var cm := c0.lerp(c1, 0.5)
-	cm.a = clampf(cm.a + (GrotteDecor.hash2(mid.x * 5.3, mid.z * 4.1 + mid.y * 2.0) - 0.5) * 0.5 * (1.0 if cm.a > 0.01 else 0.0), 0.0, 1.5)
-	return cm
+	_vus_levre[cle] = true
+	liste.append([p, n])
 
 # ------------------------------------------------------------------ construction
 func construire() -> void:
@@ -488,6 +715,18 @@ func construire() -> void:
 	_bruit.frequency = 1.0
 	_bruit.seed = int(def.get("bruit", 424))
 	lac_y = float(def.get("lac_y", -4.7))
+	_b_rel.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_b_rel.frequency = 1.0
+	_b_rel.fractal_type = FastNoiseLite.FRACTAL_FBM
+	_b_rel.fractal_octaves = 3
+	_b_rel.seed = int(def.get("bruit", 424)) + 101
+	_b_fis.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_b_fis.frequency = 1.0
+	_b_fis.fractal_type = FastNoiseLite.FRACTAL_NONE
+	_b_fis.seed = int(def.get("bruit", 424)) + 202
+	levres.clear()
+	rebords.clear()
+	_vus_levre.clear()
 	corps = StaticBody3D.new()
 	corps.name = "Corps"
 	add_child(corps)
@@ -501,6 +740,12 @@ func construire() -> void:
 	var tp := Time.get_ticks_msec()
 	_coque()
 	_caps()
+	var cl := decor.coll
+	cl.append_array(_coll_fine)
+	decor.coll = cl
+	_coll_fine = PackedVector3Array()
+	decor.nb_facettes += nb_facettes_coque
+	_finir_coque()
 	_indexer()
 	etapes["coque"] = Time.get_ticks_msec() - tp
 	tp = Time.get_ticks_msec()
@@ -537,6 +782,18 @@ func _preparer() -> void:
 			"bn": float(int(d.get("graine", 0))) * 37.1, "decalage": float(d.get("decalage", 0.0))}
 	for z: Dictionary in def.get("zones", []):
 		zones[z["id"]] = z
+	# extrémités libres : ni raccordées à un parent, ni reprises par une branche enfant
+	var pris := {}
+	for d: Dictionary in def["branches"]:
+		if d.has("pince_deb"):
+			pris["%s|1" % (d["pince_deb"] as Dictionary)["de"]] = true
+		if d.has("pince_fin"):
+			pris["%s|0" % (d["pince_fin"] as Dictionary)["vers"]] = true
+	for d: Dictionary in def["branches"]:
+		if not d.has("pince_deb") and not pris.has("%s|0" % d["id"]):
+			_libres["%s|0" % d["id"]] = true
+		if not d.has("pince_fin") and not pris.has("%s|1" % d["id"]):
+			_libres["%s|1" % d["id"]] = true
 
 func _batir(b: Dictionary) -> void:
 	var d: Dictionary = b["d"]
@@ -571,6 +828,14 @@ func _batir(b: Dictionary) -> void:
 			rings.append(_forcer(b, true))
 		else:
 			rings.append(_anneau(b, s))
+	# extrémité libre (bouche, fond en dôme) : l'anneau garde sa forme exacte (les bouchons ne sont pas découpés)
+	for fin in [0, 1]:
+		if _libres.has("%s|%d" % [b["id"], fin]):
+			var rr: Dictionary = rings[0 if fin == 0 else rings.size() - 1]
+			var zero: Array = []
+			zero.resize(NB)
+			zero.fill(0.0)
+			rr["w"] = zero
 	b["anneaux"] = rings
 	_anneaux.append_array(rings)
 
@@ -581,15 +846,6 @@ func _centroide(r: Dictionary) -> Vector3:
 	return c / float(NB)
 
 func _coque() -> void:
-	_fixes.clear()
-	for id: String in ordre:
-		var rings: Array = br[id]["anneaux"]
-		for r: Dictionary in [rings[0], rings[rings.size() - 1]]:
-			for p: Vector3 in r["pts"]:
-				_fixes[p] = true
-		for r: Dictionary in rings:             # sol (centre et pieds de paroi) : plat, il porte le chemin et le lac
-			for k in [0, 1, 17, 2, 16]:
-				_fixes[(r["pts"] as Array)[k]] = true
 	for id: String in ordre:
 		var b: Dictionary = br[id]
 		var rings: Array = b["anneaux"]
@@ -605,8 +861,14 @@ func _coque() -> void:
 				ref = _centroide(ra)
 			for k in NB:
 				var j := (k + 1) % NB
-				_tri_coque(pa[k], pa[j], pb[j], k, j, j, ra, rb, k, ref, b)
-				_tri_coque(pa[k], pb[j], pb[k], k, j, k, ra, rb, k, ref, b)
+				var ua := float(ra["s"]) + float(b["decalage"])
+				var ub := float(rb["s"]) + float(b["decalage"])
+				var tak := [ra["w"][k], ra["dir"][k], ra["hb"][k], Vector2(ua, ra["arc"][k])]
+				var taj := [ra["w"][j], ra["dir"][j], ra["hb"][j], Vector2(ua, ra["arc"][j])]
+				var tbj := [rb["w"][j], rb["dir"][j], rb["hb"][j], Vector2(ub, rb["arc"][j])]
+				var tbk := [rb["w"][k], rb["dir"][k], rb["hb"][k], Vector2(ub, rb["arc"][k])]
+				_tri_coque(pa[k], pa[j], pb[j], k, j, j, ra, rb, k, ref, b, [tak, taj, tbj])
+				_tri_coque(pa[k], pb[j], pb[k], k, j, k, ra, rb, k, ref, b, [tak, tbj, tbk])
 
 ## Extrémités libres : bouche ouverte sur le jour (carte sans éclairage découpée par la bouche rocheuse) ; fond en dôme de glace.
 func _caps() -> void:
