@@ -139,6 +139,7 @@ func module(m: Dictionary) -> void:
 	var type: String = m.get("type", "salle")
 	var th: Dictionary = THEMES[m.get("theme", "tombeau")]
 	d.rng.seed = int(m.get("graine", 1)) * 100003 + (id.hash() % 100000)
+	d.rng_deco.seed = int(m.get("graine", 1)) * 7919 + (id.hash() % 77777) + 1
 	var b := Basis(Vector3.UP, int(m.get("rot", 0)) * PI * 0.5)
 	if m.get("miroir", false):
 		b = b * Basis.from_scale(Vector3(-1, 1, 1))
@@ -323,7 +324,7 @@ func _jitter_derniere_lumiere(froid := false) -> void:
 	var l: OmniLight3D = d.toutes[d.toutes.size() - 1]
 	var k := alea(0.9, 1.12)
 	if not froid:
-		l.light_color = CrypteDecor.FEU.lerp(Color(1.0, 0.8, 0.45), alea(0.0, 0.45))
+		alea(0.0, 0.45)      # tirage conservé (même suite aléatoire) ; couleur : préréglage commun (DIRECTION_ARTISTIQUE §6), plus de teinte au hasard
 	l.light_energy *= k
 	for e: Array in d.lumieres:
 		if e[0] == l:
@@ -339,6 +340,7 @@ func _ambiance(m: Dictionary) -> void:
 	# lanes : de chaque porte au centre
 	for l: Array in _lanes:
 		l[1] = Vector2.ZERO
+	var nb_lum0 := d.toutes.size()
 	var lum: Dictionary = m.get("lum", {})
 	var nb_br: int = lum.get("braseros", 2)
 	var nb_ap: int = lum.get("appliques", 2)
@@ -392,6 +394,105 @@ func _ambiance(m: Dictionary) -> void:
 			_: d.os_tas(p, 4, 0.4)
 	if froid:
 		_deco_froid(m)
+	_ambiance_matiere(m, nb_lum0)
+
+## Refonte matière (références grottes_cryptes_2/3) : lustre de fer à bougies, statues encapuchonnées, sceau bleu, brume au sol.
+## RNG séparé (rng_deco) ; budget : 6 lumières au plus par salle (le lustre et le sceau n'ont de lumière que s'il en reste).
+func _ambiance_matiere(m: Dictionary, nb_lum0: int) -> void:
+	var dim: Vector2 = m["dim"]
+	var h := float(m.get("h", 3.0))
+	var y := float(m.get("y", 0.0))
+	var aire := dim.x * dim.y
+	var role: String = m.get("role", "")
+	var r := d.rng_deco
+	if h >= 3.6 and aire >= 36.0 and role != "arene":
+		var nl := d.toutes.size() - nb_lum0
+		var p := Vector3(r.randf_range(-0.6, 0.6), y + h, r.randf_range(-0.6, 0.6))
+		d.lustre(p, clampf(h - 2.9, 0.7, 4.0), 0.55 if aire < 90.0 else 0.75, nl < 6)
+		if aire >= 110.0:
+			for sx: float in [-1.0, 1.0]:
+				var q := Vector3(sx * dim.x * 0.26, y + h, r.randf_range(-dim.y * 0.2, dim.y * 0.2))
+				d.lustre(q, clampf(h - 3.2, 0.6, 4.0), 0.5, false)
+	# statues encapuchonnées contre les murs libres les plus longs (sans collision : collées au mur, hors passage)
+	if aire >= 50.0:
+		var cands: Array = []
+		for c in ["N", "S", "E", "O"]:
+			for sgm: Array in murs_libres(m, c, 0.8):
+				if sgm[1] - sgm[0] > 2.4:
+					cands.append([sgm[1] - sgm[0], c, (sgm[0] + sgm[1]) * 0.5])
+		cands.sort_custom(func(a: Array, b: Array) -> bool: return a[0] > b[0])
+		var ns := 0
+		for cd: Array in cands:
+			if ns >= (2 if aire >= 90.0 else 1):
+				break
+			var pm := plan_mur(m, cd[1])
+			var v: Vector3 = pm["vers"]
+			var p := pt_mur(m, cd[1], float(cd[2]) + r.randf_range(-0.5, 0.5), y, 0.5)
+			if not libre(m, p, 0.5, -0.9):
+				continue
+			d.statue(p, atan2(v.x, v.z), 1.05, "capuche", false, "mur1")
+			_reserves.append([Vector2(p.x, p.z), 0.8])
+			ns += 1
+	# sceau bleu sur un mur (accent froid), une salle sur deux
+	if r.randf() < 0.5:
+		var c: String = ["N", "S", "E", "O"][r.randi_range(0, 3)]
+		var lib := murs_libres(m, c, 0.6)
+		if not lib.is_empty():
+			var sgm: Array = lib[r.randi_range(0, lib.size() - 1)]
+			if sgm[1] - sgm[0] > 1.0:
+				var pm := plan_mur(m, c)
+				var p := pt_mur(m, c, (sgm[0] + sgm[1]) * 0.5, y + minf(h - 1.0, 2.0), 0.0)
+				d.sceau(p, pm["vers"], 0.6, d.toutes.size() - nb_lum0 < 6)
+	# brume au ras du sol
+	d.brume(Vector3(0, y, 0), Vector2(dim.x * 0.32, dim.y * 0.32), clampi(int(aire / 18.0), 3, 9))
+
+## Niche funéraire dans un mur (références : squelettes, crânes, urnes) : jambages, arc brisé, fond noir, tablette givrée.
+## `a` = position le long du mur (repère local), y = sol. Pas de collision (saillie ≤ 0,3 m, contre le mur).
+func niche_os(m: Dictionary, c: String, a: float, y: float) -> void:
+	var pm := plan_mur(m, c)
+	var v: Vector3 = pm["vers"]
+	var horiz: bool = pm["horiz"]
+	var r := d.rng_deco
+	var P := func(u: float, yy: float, ret: float) -> Vector3:
+		return pt_mur(m, c, a + u, yy, ret)
+	var lw_ := 0.95
+	var y0 := y + 0.62
+	var ys := y + 1.55
+	var f := 0.55
+	# fond noir (profondeur simulée), puis jambages et arc brisé en saillie
+	var b0: Vector3 = P.call(-lw_ * 0.5, y0, 0.012)
+	var b1: Vector3 = P.call(lw_ * 0.5, y0, 0.012)
+	var t1: Vector3 = P.call(lw_ * 0.5, ys, 0.012)
+	var t0: Vector3 = P.call(-lw_ * 0.5, ys, 0.012)
+	d.quad("noir", b0, b1, t1, t0, v)
+	d.quad("noir", t0, t1, P.call(0.0, ys + f, 0.012), P.call(0.0, ys + f, 0.012), v)
+	var dimj := Vector3(0.2, ys - y0 + 0.1, 0.16) if horiz else Vector3(0.16, ys - y0 + 0.1, 0.2)
+	for sx: float in [-1.0, 1.0]:
+		d.boite("mur1", P.call(sx * (lw_ * 0.5 + 0.1), (y0 + ys) * 0.5 - 0.05, 0.08), dimj)
+	var ca: Vector3 = P.call(0.0, 0.0, 0.08)
+	d.arc("mur0", "x" if horiz else "z", ca.x, ca.z, lw_, ys, f, 0.18, 0.16, 6)
+	# tablette en saillie, givre dessus, gravats d'os dessous
+	var dt := Vector3(lw_ + 0.5, 0.12, 0.3) if horiz else Vector3(0.3, 0.12, lw_ + 0.5)
+	d.boite("mur1", P.call(0.0, y0 - 0.06, 0.15), dt)
+	d.givre_dessus(P.call(0.0, y0, 0.16), Vector2(dt.x, dt.z), 0.03)
+	d.glacons_arete(P.call(-lw_ * 0.5 - 0.2, y0 - 0.12, 0.29), P.call(lw_ * 0.5 + 0.2, y0 - 0.12, 0.29), 1.2, 0.3)
+	var lac := atan2(v.x, v.z)
+	match r.randi_range(0, 2):
+		0:      # squelette couché : crâne + côtes + os longs
+			d.crane(P.call(-0.3, y0, 0.12), lac + r.randf_range(-0.6, 0.6))
+			for k in 4:
+				d.boite("os", P.call(-0.12 + k * 0.07, y0 + 0.02, 0.12), Vector3(0.025, 0.035, 0.16) if horiz else Vector3(0.16, 0.035, 0.025))
+			d.boite("os", P.call(0.22, y0 + 0.02, 0.1), Vector3(0.34, 0.035, 0.035) if horiz else Vector3(0.035, 0.035, 0.34))
+			d.boite("os", P.call(0.26, y0 + 0.02, 0.17), Vector3(0.3, 0.035, 0.035) if horiz else Vector3(0.035, 0.035, 0.3))
+		1:      # crâne et urne
+			d.crane(P.call(-0.22, y0, 0.12), lac + r.randf_range(-0.4, 0.4))
+			d.urne(P.call(0.22, y0, 0.12), 0.75)
+		_:      # deux urnes et un crâne
+			d.urne(P.call(-0.25, y0, 0.12), 0.7)
+			d.urne(P.call(0.25, y0, 0.12), 0.6)
+			d.crane(P.call(0.0, y0, 0.16), lac)
+	if r.randf() < 0.5:
+		d.toile(P.call(-lw_ * 0.5, ys + 0.2, 0.0), Vector3(1, 0, 0) if horiz else Vector3(0, 0, 1), v, 0.45)
 
 func _deco_froid(m: Dictionary) -> void:
 	var dim: Vector2 = m["dim"]
@@ -428,6 +529,29 @@ func _couloir(m: Dictionary) -> void:
 		d.applique(Vector3(pm["plan"], y, zz), pm["vers"], y + 2.0, 4.8, 1.6, true)
 		_jitter_derniere_lumiere(th == "glace")
 		sg = -sg
+	# refonte matière : niches funéraires entre les pilastres (squelettes, crânes, urnes), côté opposé à l'applique la plus proche
+	var zap: Array = []
+	var sg2 := sg if nb % 2 == 0 else -sg
+	for i in nb:
+		zap.append([lerpf(-L * 0.5 + 2.5, L * 0.5 - 2.5, (i + 0.5) / nb) if nb > 1 else 0.0, sg2])
+		sg2 = -sg2
+	var zn := -L * 0.5 + 4.0
+	while zn < L * 0.5 - 1.8:
+		for s: float in [-1.0, 1.0]:
+			var gene := false
+			for ap: Array in zap:
+				if absf(float(ap[0]) - zn) < 1.3 and float(ap[1]) == s:
+					gene = true
+			if not gene and d.rng_deco.randf() < 0.8:
+				niche_os(m, "E" if s > 0.0 else "O", zn, y)
+		zn += 4.0
+	z = -L * 0.5 + 2.0
+	while z < L * 0.5 - 1.5:
+		for s: float in [-1.0, 1.0]:
+			if d.rng_deco.randf() < 0.3:
+				var x0 := s * (dim.x * 0.5 - 0.6)
+				d.toile(Vector3(x0, y + h - 0.05, z + 0.25), Vector3(-s, 0, 0), Vector3(0, 0, 1), d.rng_deco.randf_range(0.5, 0.8))
+		z += 4.0
 	if m.get("detritus", true):
 		var t := -L * 0.5 + 2.5
 		while t < L * 0.5 - 1.5:
@@ -499,12 +623,17 @@ func _g_piliers(m: Dictionary, a: Dictionary) -> void:
 			for k in xs.size() - 1:
 				var ww: float = xs[k + 1] - xs[k] - w
 				if ww > 0.5:
-					d.arc("mur0", "x", (xs[k] + xs[k + 1]) * 0.5, z, ww, ys, minf(ww * 0.5, 1.2), 0.35, 0.5)
+					d.arc("mur0", "x", (xs[k] + xs[k + 1]) * 0.5, z, ww, ys, _fleche(ww, ys, y + h), 0.35, 0.5, 10)
 		for x: float in xs:
 			for k in zs.size() - 1:
 				var ww: float = zs[k + 1] - zs[k] - w
 				if ww > 0.5:
-					d.arc("mur0", "z", x, (zs[k] + zs[k + 1]) * 0.5, ww, ys, minf(ww * 0.5, 1.2), 0.35, 0.5)
+					d.arc("mur0", "z", x, (zs[k] + zs[k + 1]) * 0.5, ww, ys, _fleche(ww, ys, y + h), 0.35, 0.5, 10)
+
+## Flèche d'un arc entre piliers : ARC BRISÉ (références) dès que la hauteur le permet (flèche 0,62 x portée), sinon la plus
+## grande flèche qui tient sous le plafond.
+func _fleche(ww: float, ys: float, plafond: float) -> float:
+	return clampf(minf(ww * 0.62, plafond - ys - 0.4), 0.3, 2.4)
 
 ## Panneaux d'ossuaire sur les parties libres des murs choisis {murs: ["O","S"], y0, y1}
 func _g_panneaux_os(m: Dictionary, a: Dictionary) -> void:

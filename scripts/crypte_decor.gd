@@ -21,7 +21,18 @@ const TUILE := {
 	"toile": 1.0, "noir": 1.0, "halo": 1.0, "halo_f": 1.0, "rai": 1.0, "braise": 1.0,
 	# donjon (agrandissement) : pierre givrée / glace, ossuaire, or
 	"mur3": 4.0, "mur4": 4.0, "dalle3": 4.0, "dalle4": 4.0, "ossuaire": 4.0, "or": 0.5, "neige": 2.0,
+	"entrelacs": 1.0, "sceau": 1.0, "brume": 1.0,
 }
+## Refonte « crypte matière » (références grottes_cryptes_2/3) : feu plus orangé, ambiant écrasé dans les matériaux de la crypte
+## (ombres presque noires, la torche et les braseros gardent toute leur force). La grotte (GrotteDecor) garde les anciennes valeurs.
+## Préréglages de DIRECTION_ARTISTIQUE §6 (torche, brasero, bougie, rune) ; ambiant ramené vers « Ambiance donjon » (≈ x 0,45).
+const FEU_CRYPTE := Color(1.0, 0.56, 0.24)       # torche
+const FEU_BRASERO := Color(1.0, 0.52, 0.20)
+const FEU_BOUGIE := Color(1.0, 0.66, 0.36)
+const RUNE := Color(0.35, 0.80, 1.0)
+const AMBIANT_CRYPTE := 1.0
+const GAIN_LUMIERE := 1.7          # pierre plus sombre (rampe donjon) : les feux portent plus loin et plus fort
+const GRILLE_CRYPTE := 180.0      # accroche des sommets : H / 2 à 640 x 360 (DIRECTION_ARTISTIQUE §3)
 
 const CRYPTE_SHADER := preload("res://shaders/crypte.gdshader")
 const FLAMME_SHADER := preload("res://shaders/crypte_flamme.gdshader")
@@ -47,11 +58,16 @@ var niveau_a := 1.0
 ## repère de la crypte (translation, quarts de tour, miroir gauche/droite). Tout passe par quad(), solide(), lumiere(), flamme()… qui l'appliquent.
 var xf := Transform3D.IDENTITY
 
-const RELIEF := {"mur0": 0.75, "mur1": 0.75, "mur2": 0.75, "dalle0": 0.8, "dalle1": 0.8, "voute": 0.7, "bois": 0.8, "fer": 0.7, "gravure": 1.0,
+const RELIEF := {"entrelacs": 1.0, "mur0": 0.75, "mur1": 0.75, "mur2": 0.75, "dalle0": 0.8, "dalle1": 0.8, "voute": 0.7, "bois": 0.8, "fer": 0.7, "gravure": 1.0,
 	"mur3": 0.8, "mur4": 0.9, "dalle3": 0.8, "dalle4": 0.9, "ossuaire": 1.0}
 const AVEC_MIPS := ["mur0", "mur1", "mur2", "dalle0", "voute", "bois", "fer", "lame", "gravure", "argile", "os", "parchemin", "toile",
-	"mur3", "mur4", "dalle3", "dalle4", "ossuaire", "or", "neige"]
+	"mur3", "mur4", "dalle3", "dalle4", "ossuaire", "or", "neige", "entrelacs"]
 const SANS_MIPS := ["halo", "rai", "flamme"]
+
+var est_crypte := false   # vrai pour la crypte elle-même (pas pour GrotteDecor, qui hérite de cette classe)
+## RNG des détails ajoutés par la refonte matière (givre, glaçons, niches, lustres…) : séparé de `rng` pour ne pas déplacer
+## le décor existant (gravats à collision, statues) tiré après eux.
+var rng_deco := RandomNumberGenerator.new()
 
 var _taches := {}    # nom -> id de tâche ; les images sont peintes dans des fils d'exécution pendant que le plan se construit
 var _images := {}    # nom -> Image (tableau d'un seul élément par tâche : pas d'écriture concurrente dans un même conteneur)
@@ -60,6 +76,8 @@ func _init(parent: Node3D, solide: StaticBody3D, partage: CrypteDecor = null) ->
 	racine = parent
 	corps = solide
 	rng.seed = 7007
+	est_crypte = get_script() == CrypteDecor
+	rng_deco.seed = 4242
 	if partage != null:
 		# second décor (le donjon, bâti dans un fil d'exécution) : mêmes images, déjà peintes ; ses propres matériaux
 		partage.attendre_tout()
@@ -110,6 +128,22 @@ func mat(nom: String) -> Material:
 			s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			s.albedo_color = Color(1.0, 0.42, 0.1)
 			m = s
+		"sceau":
+			var s := StandardMaterial3D.new()        # runes et sceaux magiques : bleu froid lumineux (seul accent bleu saturé)
+			s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			s.albedo_color = Color(0.25, 0.82, 0.82)    # rampe « Runes cyan » (#3fd0d0)
+			m = s
+		"brume":
+			var s := StandardMaterial3D.new()        # nappes de brume au ras du sol : cartes additives très faibles
+			s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			s.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			s.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			s.albedo_texture = _texture("halo")
+			s.albedo_color = Color(0.16, 0.2, 0.26)
+			s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			s.cull_mode = BaseMaterial3D.CULL_DISABLED
+			s.disable_receive_shadows = true
+			m = s
 		"halo", "rai", "halo_f":
 			var s := StandardMaterial3D.new()
 			s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -147,6 +181,14 @@ func mat(nom: String) -> Material:
 				sm.set_shader_parameter("relief", RELIEF.get(nom, 1.0))
 			if nom == "fer" or nom == "lame":
 				sm.set_shader_parameter("crasse", 0.0)
+			if est_crypte:
+				sm.set_shader_parameter("ambiant", AMBIANT_CRYPTE)
+				sm.set_shader_parameter("grille", GRILLE_CRYPTE)
+				if nom == "neige":
+					sm.set_shader_parameter("emission", Vector3(0.0, 0.0, 0.0))
+					sm.set_shader_parameter("crasse", 0.0)
+				elif nom == "mur4":
+					sm.set_shader_parameter("emission", Vector3(0.012, 0.03, 0.05))
 			m = sm
 	_mats[nom] = m
 	return m
@@ -613,6 +655,40 @@ func _relief_mur(horizontal: bool, plan: float, signe: float, a0: float, a1: flo
 			var cen := rng.randf_range(a0 + 0.8, a1 - 0.8)
 			var rang := rng.randi_range(1, maxi(1, int(minf(h, 3.0) / 0.5) - 3))
 			dos.call(cen, rang * 0.5 + 0.25, rng.randf_range(0.7, 1.2), rng.randf_range(0.04, 0.09), 0.48, "mur1" if rng.randf() < 0.5 else "mur2")
+	if est_crypte:
+		_givre_mur(horizontal, plan, signe, a0, a1, y, h)
+
+## Refonte matière : givre sur les arêtes hautes et glaçons (références) ; RNG séparé (rng_deco) : le décor existant ne bouge pas.
+## - salles hautes (h >= 3,5) : bandeau mouluré en saillie à h - 1,1, croûte de givre dessus, glaçons dessous ;
+## - partout : glaçons sous les corbeaux de la corniche, givre sur la lèvre du soubassement.
+func _givre_mur(horizontal: bool, plan: float, signe: float, a0: float, a1: float, y: float, h: float) -> void:
+	if a1 - a0 < 0.6:
+		return
+	var gele := not theme.is_empty()                  # thèmes givre / glace : beaucoup plus de glace
+	var pt := func(a: float, yy: float, ret: float) -> Vector3:
+		return Vector3(a, yy, plan + signe * ret) if horizontal else Vector3(plan + signe * ret, yy, a)
+	var dim := func(lon: float, haut: float, ep: float) -> Vector3:
+		return Vector3(lon, haut, ep) if horizontal else Vector3(ep, haut, lon)
+	var lon := a1 - a0
+	var am := (a0 + a1) * 0.5
+	if h >= 3.5:
+		var yb := y + h - 1.1
+		boite("mur1", pt.call(am, yb - 0.06, 0.08), dim.call(lon, 0.12, 0.16), 0.0, false)
+		boite("mur0", pt.call(am, yb + 0.06, 0.11), dim.call(lon, 0.12, 0.22), 0.0, true)
+		var a := a0
+		while a < a1 - 0.2:
+			var l := minf(rng_deco.randf_range(0.8, 2.2), a1 - a)
+			givre_dessus(pt.call(a + l * 0.5, yb + 0.12, 0.11), Vector2(l, 0.22) if horizontal else Vector2(0.22, l), 0.05)
+			a += l + rng_deco.randf_range(0.0, 0.6)
+		glacons_arete(pt.call(a0 + 0.1, yb - 0.12, 0.2), pt.call(a1 - 0.1, yb - 0.12, 0.2), 1.6 if gele else 0.7, 0.7 if gele else 0.45)
+	glacons_arete(pt.call(a0 + 0.3, y + h - 0.5, 0.12), pt.call(a1 - 0.3, y + h - 0.5, 0.12), 1.2 if gele else 0.45, 0.6 if gele else 0.4)
+	# lèvre du soubassement : givre en plaques discontinues (pas une ligne blanche continue)
+	var a := a0
+	while a < a1 - 0.3:
+		var l := minf(rng_deco.randf_range(0.4, 1.3), a1 - a)
+		if rng_deco.randf() < (0.7 if gele else 0.2):
+			givre_dessus(pt.call(a + l * 0.5, y + 0.3, 0.13), Vector2(l, 0.1) if horizontal else Vector2(0.1, l), 0.02)
+		a += l + rng_deco.randf_range(0.1, 0.9)
 
 func _var_mur(base: String, i: int) -> String:
 	if base == "mur0":
@@ -635,20 +711,142 @@ func _cadre(horizontal: bool, plan: float, signe: float, ca: float, cb: float, h
 		boite("mur0", Vector3(m, y + ho - 0.2, p_in + signe * 0.03), Vector3(l, 0.4, 0.22))
 	else:
 		boite("mur0", Vector3(p_in + signe * 0.03, y + ho - 0.2, m), Vector3(0.22, 0.4, l))
+	if est_crypte:      # givre sur le linteau, glaçons courts sous son arête avant
+		var pf := p_in + signe * 0.03
+		givre_dessus(Vector3(m, y + ho, pf) if horizontal else Vector3(pf, y + ho, m), Vector2(l, 0.22) if horizontal else Vector2(0.22, l), 0.04)
+		var e0 := Vector3(ca - 0.4, y + ho - 0.4, pf + signe * 0.09) if horizontal else Vector3(pf + signe * 0.09, y + ho - 0.4, ca - 0.4)
+		var e1 := Vector3(cb + 0.4, y + ho - 0.4, pf + signe * 0.09) if horizontal else Vector3(pf + signe * 0.09, y + ho - 0.4, cb + 0.4)
+		glacons_arete(e0, e1, 1.4 if not theme.is_empty() else 0.8, 0.32)
 
 # ------------------------------------------------------------------ structure : piliers, contreforts, poutres
-## Pilier octogonal : fût à pans, base et chapiteau évasés. Collision = la boîte d'origine.
+## Pilier (refonte matière, références grottes_cryptes_2/3) : fût carré à arêtes abattues, socle mouluré givré, chapiteau à
+## ressauts, et sur chaque face un panneau d'ENTRELACS en losanges (un ou deux panneaux superposés selon la hauteur).
+## Collision = la boîte d'origine (largeur x h x largeur), inchangée.
 func pilier(x: float, z: float, h: float, largeur := 0.9, y := 0.0) -> void:
+	if not est_crypte:
+		_pilier_octo(x, z, h, largeur, y)
+		return
+	var w := largeur
+	var c := Vector3(x, 0, z)
+	var hs := 0.42                                     # socle
+	var hc := 0.62                                     # chapiteau
+	boite("mur1", c + Vector3(0, y + 0.13, 0), Vector3(w + 0.34, 0.26, w + 0.34), 0.0, true)
+	boite("mur0", c + Vector3(0, y + 0.33, 0), Vector3(w + 0.18, 0.16, w + 0.18), 0.0, true)
+	givre_dessus(c + Vector3(0, y + 0.26, 0), Vector2(w + 0.34, w + 0.34), 0.08)
+	# fût : noyau + quatre arêtes abattues (bandes en biais)
+	var y0 := y + hs
+	var y1 := y + h - hc
+	boite("mur0", c + Vector3(0, (y0 + y1) * 0.5, 0), Vector3(w - 0.02, y1 - y0, w - 0.02), 0.0, true)
+	var ch := 0.09
+	for k in 4:
+		var a := PI * 0.25 + k * PI * 0.5
+		boite("mur1", c + Vector3(cos(a), 0, sin(a)) * (w * 0.5 * 1.414 - ch * 0.45) + Vector3(0, (y0 + y1) * 0.5, 0), Vector3(ch * 1.414, y1 - y0, ch), -a + PI * 0.5, true)
+	# panneaux d'entrelacs sur les quatre faces, légèrement en relief, cadre de pierre autour
+	var hp := y1 - y0 - 0.24
+	var nb := 2 if hp > 2.2 else 1
+	var lp := w - 0.2
+	for f in 4:
+		var n := Vector3(0, 0, 1).rotated(Vector3.UP, f * PI * 0.5)
+		var dr := Vector3.UP.cross(n).normalized()
+		var plan := c + n * (w * 0.5 + 0.005)
+		for j in nb:
+			var ya := y0 + 0.12 + hp * j / nb + 0.04
+			var yb := y0 + 0.12 + hp * (j + 1) / nb - 0.04
+			var a := plan - dr * lp * 0.5 + Vector3(0, ya, 0)
+			var b := plan + dr * lp * 0.5 + Vector3(0, ya, 0)
+			quad("entrelacs", a, b, b + Vector3(0, yb - ya, 0), a + Vector3(0, yb - ya, 0), n, [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)])
+	# chapiteau : trois ressauts qui s'élargissent vers le haut, givre sur l'arête basse
+	boite("mur1", c + Vector3(0, y1 + 0.08, 0), Vector3(w + 0.1, 0.16, w + 0.1), 0.0, true)
+	boite("mur0", c + Vector3(0, y1 + 0.26, 0), Vector3(w + 0.24, 0.2, w + 0.24), 0.0, true)
+	boite("mur1", c + Vector3(0, y1 + 0.49, 0), Vector3(w + 0.38, 0.26, w + 0.38), 0.0, true)
+	solide(Vector3(x, y + h * 0.5, z), Vector3(largeur, h, largeur))
+
+## Ancien pilier octogonal (gardé pour GrotteDecor et toute sous-classe qui n'est pas la crypte).
+func _pilier_octo(x: float, z: float, h: float, largeur := 0.9, y := 0.0) -> void:
 	var r := largeur * 0.5 / cos(PI / 8.0)
 	var prof := [
 		Vector2(r * 1.32, y), Vector2(r * 1.32, y + 0.26), Vector2(r * 1.1, y + 0.36), Vector2(r, y + 0.52),
 		Vector2(r, y + h - 0.62), Vector2(r * 1.1, y + h - 0.5), Vector2(r * 1.32, y + h - 0.38), Vector2(r * 1.32, y + h),
 	]
 	tour("mur0", Vector3(x, 0, z), prof, 8, PI / 8.0)
-	# bague de pierre à mi-hauteur
 	var yb := y + h * 0.5
 	tour("mur1", Vector3(x, 0, z), [Vector2(r * 1.06, yb - 0.1), Vector2(r * 1.06, yb + 0.1)], 8, PI / 8.0, false)
 	solide(Vector3(x, y + h * 0.5, z), Vector3(largeur, h, largeur))
+
+# ------------------------------------------------------------------ givre, glaçons, toiles, brume, lustres (refonte matière)
+## Croûte de givre posée sur une surface horizontale (centre = dessus de la surface), bords déchiquetés : 2 à 3 plaques
+## de « neige » décalées, la plus petite un peu plus épaisse. `deb` = débord au-delà de la surface (lèvre qui pend).
+func givre_dessus(centre: Vector3, taille: Vector2, deb := 0.04, lacet := 0.0) -> void:
+	var nb := 2 + rng_deco.randi_range(0, 1)
+	for k in nb:
+		var sx := taille.x * rng_deco.randf_range(0.55, 1.0) + (deb if k == 0 else 0.0)
+		var sz := taille.y * rng_deco.randf_range(0.55, 1.0) + (deb if k == 0 else 0.0)
+		var ox := (taille.x + deb - sx) * rng_deco.randf_range(-0.5, 0.5)
+		var oz := (taille.y + deb - sz) * rng_deco.randf_range(-0.5, 0.5)
+		var ep := 0.04 + 0.025 * k
+		boite("neige", centre + Basis(Vector3.UP, lacet) * Vector3(ox, ep * 0.5, oz), Vector3(sx, ep, sz), lacet, true)
+
+## Glaçon : cône effilé de glace (6 pans) pendu sous `haut`.
+func glacon_sous(haut: Vector3, longueur := 0.5, r := 0.06) -> void:
+	tour("mur4", haut + Vector3(0, -longueur, 0), [Vector2(0.0, 0.0), Vector2(r * 0.4, longueur * 0.35), Vector2(r * 0.8, longueur * 0.75), Vector2(r, longueur)], 5, rng_deco.randf() * 1.2, false)
+
+## Rangée de glaçons le long d'une arête horizontale (de `a` à `b`, à la hauteur de l'arête) ; `densite` = glaçons par mètre.
+func glacons_arete(a: Vector3, b: Vector3, densite := 1.0, lmax := 0.55) -> void:
+	var l := a.distance_to(b)
+	var n := int(l * densite + rng_deco.randf())
+	for k in n:
+		var t := rng_deco.randf()
+		var lon := lmax * rng_deco.randf_range(0.25, 1.0)
+		glacon_sous(a.lerp(b, t), lon, 0.025 + lon * 0.08)
+		if rng_deco.randf() < 0.45:     # grappe : un ou deux petits à côté
+			glacon_sous(a.lerp(b, clampf(t + rng_deco.randf_range(-0.04, 0.04), 0.0, 1.0)), lon * 0.45, 0.02 + lon * 0.04)
+
+## Nappe de brume au ras du sol : quelques cartes additives horizontales qui se chevauchent (aucune particule).
+func brume(centre: Vector3, ext: Vector2, nombre := 5) -> void:
+	for k in nombre:
+		var p := centre + Vector3(rng_deco.randf_range(-ext.x, ext.x), 0.12 + 0.1 * rng_deco.randf(), rng_deco.randf_range(-ext.y, ext.y))
+		var w := rng_deco.randf_range(2.6, 4.6)
+		carte("brume", p, Vector3.UP, w, w * rng_deco.randf_range(0.6, 1.0))
+
+## Lustre de fer à bougies pendu à une chaîne : cercle de fer à 8 pans, bougies, flammes, halo ; une lumière courte si demandé.
+func lustre(plafond: Vector3, chute := 1.2, rayon := 0.55, avec_lumiere := true) -> void:
+	var c := plafond - Vector3(0, chute, 0)
+	chaine(plafond, c + Vector3(0, 0.55, 0))
+	for k in 3:
+		var a := TAU * k / 3.0
+		chaine(c + Vector3(0, 0.55, 0), c + Vector3(cos(a) * rayon * 0.92, 0.04, sin(a) * rayon * 0.92))
+	tour("fer", c, [Vector2(rayon, -0.04), Vector2(rayon, 0.04)], 8, PI / 8.0, false)
+	tour("fer", c, [Vector2(rayon * 0.82, 0.04), Vector2(rayon * 0.82, -0.04)], 8, PI / 8.0, false)
+	tour("fer", c - Vector3(0, 0.05, 0), [Vector2(0.0, -0.25), Vector2(0.06, -0.1), Vector2(0.03, 0.0)], 6, 0.0, false)     # pointe sous le cercle
+	for k in 6:
+		var a := TAU * (k + 0.5) / 6.0
+		var p := c + Vector3(cos(a) * rayon * 0.91, 0.04, sin(a) * rayon * 0.91)
+		tour("os", p, [Vector2(0.03, 0.0), Vector2(0.028, 0.1 + 0.05 * (k % 2))], 5, 0.0, true)       # bougie de suif
+		flamme(p + Vector3(0, 0.12 + 0.05 * (k % 2), 0), 0.55)
+	carte("halo", c + Vector3(0, 0.15, 0), Vector3.UP, 1.8, 1.8)
+	if avec_lumiere:
+		lumiere(c + Vector3(0, 0.3, 0), FEU_BOUGIE, 1.3, 6.0, 1.7)
+
+## Sceau runique : losange gravé dont les traits luisent en bleu (accent froid des références), sur un mur ; petite lumière bleue.
+func sceau(centre: Vector3, vers: Vector3, taille := 0.7, avec_lumiere := true) -> void:
+	var n := vers.normalized()
+	var dr: Vector3 = _axes(n)[0]
+	var p := centre + n * 0.02
+	var t := taille * 0.5
+	var ep := 0.035
+	for k in 4:                                   # losange extérieur, losange intérieur
+		var a0 := PI * 0.5 * k
+		var a1 := PI * 0.5 * (k + 1)
+		for r: float in [t, t * 0.55]:
+			var q0 := Vector2(cos(a0), sin(a0)) * r
+			var q1 := Vector2(cos(a1), sin(a1)) * r
+			var m := (q0 + q1) * 0.5
+			var dq := q1 - q0
+			_rect("sceau", p, dr, Vector3.UP, m.x, m.y, dq.length() + ep, ep, atan2(dq.y, dq.x), n)
+	_rect("sceau", p, dr, Vector3.UP, 0.0, 0.0, ep, taille * 0.9, 0.0, n)       # trait vertical (rune Is)
+	carte("halo_f", p + n * 0.05, n, taille * 2.6, taille * 2.6)
+	if avec_lumiere:
+		lumiere(p + n * 0.5, RUNE, 0.9, 5.0, 1.5, false)
 
 func contrefort(x: float, z: float, h: float, sens_x: float, sens_z: float, l := 0.7, p := 0.5) -> void:
 	# pilier engagé contre un mur : (sens_x, sens_z) = direction du mur vers la pièce
@@ -668,6 +866,8 @@ func poutre(x0: float, x1: float, y: float, z: float, ep := 0.3) -> void:
 func lumiere(pos: Vector3, couleur: Color, energie: float, portee: float, att := 1.7, vacille := true) -> OmniLight3D:
 	var l := OmniLight3D.new()
 	l.light_color = couleur
+	if est_crypte:
+		energie *= GAIN_LUMIERE
 	l.light_energy = energie
 	l.omni_range = portee
 	l.omni_attenuation = att
@@ -736,7 +936,7 @@ func applique(plan_mur: Vector3, vers: Vector3, haut := 2.1, portee := 5.0, ener
 	flamme(p + d * 0.32 + Vector3(0, 0.2, 0), 1.6)
 	carte("halo", p + d * 0.13 + Vector3(0, 0.3, 0), d, 1.4, 1.4)
 	if avec_lumiere:
-		lumiere(p + d * 0.5 + Vector3(0, 0.45, 0), FEU, energie, portee, 1.8)
+		lumiere(p + d * 0.5 + Vector3(0, 0.45, 0), FEU_CRYPTE if est_crypte else FEU, energie, portee * (1.35 if est_crypte else 1.0), 1.5 if est_crypte else 1.8)
 
 func brasero(pos: Vector3, froid := false) -> void:  # froid : lumière bleue (inutilisée dans la crypte actuelle)
 	var prof := [Vector2(0.36, 0.0), Vector2(0.32, 0.1), Vector2(0.24, 0.36), Vector2(0.26, 0.66), Vector2(0.44, 0.74), Vector2(0.5, 0.9), Vector2(0.42, 0.92)]
@@ -745,7 +945,7 @@ func brasero(pos: Vector3, froid := false) -> void:  # froid : lumière bleue (i
 	tour("braise", pos + Vector3(0, 0.84, 0), [Vector2(0.4, 0.0), Vector2(0.4, 0.0)], 8, PI / 8.0, true)
 	flamme(pos + Vector3(0, 0.9, 0), 1.7)
 	carte("halo", pos + Vector3(0, 0.02, 0), Vector3.UP, 3.4, 3.4)
-	lumiere(pos + Vector3(0, 1.4, 0), Color(0.45, 0.75, 1.0) if froid else FEU, 2.4, 5.8, 1.7)
+	lumiere(pos + Vector3(0, 1.4, 0), Color(0.45, 0.75, 1.0) if froid else (FEU_BRASERO if est_crypte else FEU), 2.4, 5.8 if not est_crypte else 8.5, 1.7 if not est_crypte else 1.4)
 
 # ------------------------------------------------------------------ mobilier (Méso)
 func sarcophage(pos: Vector3, taille: Vector3, lacet := 0.0, collision := true) -> void:
@@ -1053,6 +1253,14 @@ func statue(pos: Vector3, lacet := 0.0, e := 1.0, type := "guerrier", collision 
 				boite("or", base + Vector3(cos(a) * 0.12 * e, 1.52 * e, sin(a) * 0.12 * e), Vector3(0.03, 0.1 * e, 0.03))
 			boite("lame", base + b * Vector3(0, 0.5 * e, 0.3 * e), Vector3(0.06, 1.0 * e, 0.02), lacet)
 			boite("fer", base + b * Vector3(0, 0.98 * e, 0.3 * e), Vector3(0.34 * e, 0.05, 0.06), lacet)
+		"capuche":      # refonte matière : gardien encapuchonné (références), visage dans l'ombre, épée pointe en bas, givre aux épaules
+			tour(mat, base + Vector3(0, 1.1 * e, 0), [Vector2(0.27 * e, 0.0), Vector2(0.21 * e, 0.18 * e), Vector2(0.18 * e, 0.34 * e), Vector2(0.11 * e, 0.47 * e), Vector2(0.0, 0.54 * e)], 8, 0.0, false)
+			boite("noir", base + b * Vector3(0, 1.36 * e, 0.19 * e), Vector3(0.15 * e, 0.2 * e, 0.04), lacet)
+			boite("lame", base + b * Vector3(0, 0.52 * e, 0.3 * e), Vector3(0.06, 0.9 * e, 0.02), lacet)
+			boite("fer", base + b * Vector3(0, 0.99 * e, 0.3 * e), Vector3(0.3 * e, 0.05, 0.06), lacet)
+			boite(mat, base + b * Vector3(0, 1.05 * e, 0.28 * e), Vector3(0.22 * e, 0.11 * e, 0.11 * e), lacet)
+			if est_crypte:
+				givre_dessus(base + Vector3(0, 1.24 * e, 0), Vector2(0.7 * e, 0.28 * e), 0.02, lacet)
 		"ancetre":
 			boite(mat, base + b * Vector3(0, 1.36 * e, -0.02 * e), Vector3(0.3 * e, 0.3 * e, 0.3 * e), lacet)
 			boite(mat, base + b * Vector3(0, 0.82 * e, 0.2 * e), Vector3(0.22 * e, 0.1 * e, 0.12 * e), lacet)
