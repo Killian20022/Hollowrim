@@ -1,5 +1,11 @@
 # Personnages — fiche technique
 
+> **2026-10-21 — retour aux corps Humain (branche `refonte/persos_retour`)** : l'utilisateur préférait les anciens personnages. Villageois (garde Haldor compris),
+> bandits (archer, Hrafn) et corps du joueur sont de nouveau construits par `Humain.creer` (Quaternius) avec leurs apparences d'avant 2ec1c7e
+> (`villageois.gd` APPARENCES, `corps_joueur.gd` APPARENCE, `grotte_jeu.gd` TENUES). Le kit ci-dessous reste dans le dépôt, **désactivé** :
+> l'argument utilisateur `--persos-kit` (`Personnage.kit_actif()`) le remet partout. `test_persos_base` et les galeries appellent `Personnage.creer` directement.
+> Coût : ~13 000-15 000 triangles par personnage Humain contre ~1 200-2 500 pour le kit (`outils/compter_tris_persos.gd`).
+
 ## Vivants (humains : joueur, villageois, bandits) — branche `graphisme/persos-base`
 
 ### Les 3 points (décrits AVANT le code)
