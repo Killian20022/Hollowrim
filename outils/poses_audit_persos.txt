@@ -1,0 +1,8 @@
+# Audit personnages (refonte/persos_audit) : villageois de jour, draugrs / squelettes / Jarl dans la crypte. Lancer avec --res=640x360.
+place_jour scenario place heure=12
+forge_jour scenario forge heure=12
+draugr_4m crypte -18.23,-20.55,-68.8,-4 ouvre=s1,s2,s3,secret,herse
+draugr_2m crypte -16.36,-21.28,-68.8,-8 ouvre=s1,s2,s3,secret,herse
+squelettes_3m crypte -24.7,-19.9,85.9,-6 ouvre=s1,s2,s3,secret,herse
+jarl_4m crypte 49.8,-30,-90,-3 ouvre=s1,s2,s3,secret,herse
+jarl_8m crypte 45.8,-30,-90,-2 ouvre=s1,s2,s3,secret,herse
