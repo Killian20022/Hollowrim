@@ -385,7 +385,7 @@ static func dalle_neige_epaisse(Lx: float, Sl: float, graine: int, epaisseur := 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var nx := 2 * maxi(4, ceili(Lx / 0.9))   # double de la grille de `dalle_neige` : le trou à fumée (`trou_cases`) tombe sur ses arêtes
-	var ns := 5
+	var ns := 10   # 10 rangs (vagues) ; les 2 premiers = la 1re case de `dalle_neige` (trou à fumée)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var p1 := rng.randf() * TAU
@@ -400,6 +400,9 @@ static func dalle_neige_epaisse(Lx: float, Sl: float, graine: int, epaisseur := 
 		# corniches soufflées : crêtes obliques douces
 		y += maxf(0.0, sin(x * 0.9 + s * 2.3 + p3)) * 0.075 * (1.0 - absf(ts - 0.5) * 1.4)
 		y -= sag * 4.0 * tx * (1.0 - tx) * (1.0 - ts * 0.5)
+		# vagues de neige soufflée le long de la pente et grosses bosses (lisible de loin)
+		y += sin(s * 2.6 + x * 0.35 + p2) * 0.045 * smoothstep(0.05, 0.3, ts)
+		y += sin(x * 0.55 + p3 * 2.0) * sin(s * 1.1 + p1) * 0.05
 		return Vector3(x, y, s)
 	var grid: Array = []
 	for i in nx + 1:
@@ -408,9 +411,32 @@ static func dalle_neige_epaisse(Lx: float, Sl: float, graine: int, epaisseur := 
 		for j in ns + 1:
 			var p: Vector3 = haut.call(x, Sl * j / ns)
 			if j > 0 and j < ns and i > 0 and i < nx:
-				p.y += rng.randf_range(-0.03, 0.03)
+				p.y += rng.randf_range(-0.035, 0.035)
 			col.append(p)
 		grid.append(col)
+	# couleur du dessus : léger voile (creux un ton plus sombres) ; près de l'égout, des bords de bardeaux / tourbe
+	# percent la neige (alpha 1 = matière du toit) par petites plaques irrégulières
+	var cg: Array = []
+	for i in nx + 1:
+		var cc: Array = []
+		for j in ns + 1:
+			var k := rng.randf_range(0.86, 1.0)
+			cc.append(Color(k, k, k * 1.01, 0.0))
+		cg.append(cc)
+	# bords de bardeaux sous une neige mince : courtes marches (2 à 4 points) juste au-dessus du rouleau d'égout
+	var i_b := 1
+	while i_b < nx:
+		if rng.randf() < 0.28:
+			var run := rng.randi_range(2, 4)
+			for q in run:
+				if i_b + q < nx:
+					# neige mince sur un rang de bardeaux : marche en relief + ton plus sombre (le bois transparaît)
+					cg[i_b + q][ns - 1] = Color(0.7, 0.7, 0.74, 0.0)
+					var pg: Vector3 = grid[i_b + q][ns - 1]
+					grid[i_b + q][ns - 1] = pg + Vector3(0, 0.05, 0)
+			i_b += run + 2
+		else:
+			i_b += 2
 	var blanc := Color(1, 1, 1, 0.0)
 	var add := func(tri_: Array, cols: Array) -> void:
 		for k in 3:
@@ -418,7 +444,7 @@ static func dalle_neige_epaisse(Lx: float, Sl: float, graine: int, epaisseur := 
 			st.add_vertex(tri_[k])
 	for i in nx:
 		for j in ns:
-			if trou != Vector2.ZERO and j == 0:
+			if trou != Vector2.ZERO and j < 2:
 				var xc := -Lx * 0.5 + Lx * (i + 0.5) / nx
 				if xc > trou.x and xc < trou.y:
 					continue
@@ -426,8 +452,8 @@ static func dalle_neige_epaisse(Lx: float, Sl: float, graine: int, epaisseur := 
 			var b: Vector3 = grid[i + 1][j]
 			var c: Vector3 = grid[i + 1][j + 1]
 			var d: Vector3 = grid[i][j + 1]
-			add.call([a, b, d], [blanc, blanc, blanc])
-			add.call([b, c, d], [blanc, blanc, blanc])
+			add.call([a, b, d], [cg[i][j], cg[i + 1][j], cg[i][j + 1]])
+			add.call([b, c, d], [cg[i + 1][j], cg[i + 1][j + 1], cg[i][j + 1]])
 	# profil du rouleau débordant : 5 points depuis le bord du dessus (t) vers l'extérieur `o` puis sous la dalle
 	var ombre := [1.0, 1.0, 0.92, 0.74, 0.55]
 	var profil := func(t: Vector3, o: Vector3, ov: float, dr: float) -> Array:

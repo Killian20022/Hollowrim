@@ -560,40 +560,43 @@ static func _bouffee() -> ImageTexture:
 
 ## Fumée de cheminée légère (refonte bâti) : 22 bouffées en pixels qui montent, grossissent et dérivent avec le vent ;
 ## teinte réglée par l'heure (`_regler_lueurs`). Coût : une GPUParticles3D par cheminée (5 au village).
-func _fumee_pixels(parent: Node3D, position_: Vector3) -> void:
+func _fumee_pixels(parent: Node3D, position_: Vector3, force := 1.0) -> void:
 	var p := GPUParticles3D.new()
-	p.amount = 22
-	p.lifetime = 8.0
-	p.preprocess = 8.0
+	p.amount = int(26 * force)
+	p.lifetime = 12.0
+	p.preprocess = 12.0
 	p.position = position_
-	p.visibility_aabb = AABB(Vector3(-5, -1, -5), Vector3(14, 12, 14))
+	p.visibility_aabb = AABB(Vector3(-8, -1, -8), Vector3(22, 20, 22))
 	var pm := ParticleProcessMaterial.new()
 	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
 	pm.emission_sphere_radius = 0.12
 	pm.direction = Vector3.UP
 	pm.spread = 6.0
-	pm.initial_velocity_min = 0.35
-	pm.initial_velocity_max = 0.55
-	pm.gravity = Vector3(0.2, 0.03, 0.08)
+	pm.initial_velocity_min = 0.55
+	pm.initial_velocity_max = 0.8
+	pm.damping_min = 0.02
+	pm.damping_max = 0.05
+	pm.gravity = Vector3(0.22, 0.06, 0.09)   # panache qui monte haut puis se couche dans le vent
 	pm.angle_min = 0.0
 	pm.angle_max = 360.0
 	pm.scale_min = 0.8
 	pm.scale_max = 1.25
 	var courbe := Curve.new()
 	courbe.add_point(Vector2(0, 0.35))
-	courbe.add_point(Vector2(1, 2.6))
+	courbe.add_point(Vector2(0.4, 1.6))
+	courbe.add_point(Vector2(1, 3.4))
 	var ct := CurveTexture.new()
 	ct.curve = courbe
 	pm.scale_curve = ct
 	var g := Gradient.new()
-	g.offsets = PackedFloat32Array([0.0, 0.08, 0.55, 1.0])
-	g.colors = PackedColorArray([Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.5), Color(1, 1, 1, 0.26), Color(1, 1, 1, 0.0)])
+	g.offsets = PackedFloat32Array([0.0, 0.06, 0.5, 1.0])
+	g.colors = PackedColorArray([Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.62), Color(1, 1, 1, 0.38), Color(1, 1, 1, 0.0)])
 	var gt := GradientTexture1D.new()
 	gt.gradient = g
 	pm.color_ramp = gt
 	p.process_material = pm
 	var q := QuadMesh.new()
-	q.size = Vector2(0.55, 0.55)
+	q.size = Vector2(0.8, 0.8)
 	var mq := StandardMaterial3D.new()
 	mq.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mq.vertex_color_use_as_albedo = true
@@ -987,6 +990,21 @@ func _quad_x(p: Node3D, c: Vector3, larg: float, haut: float, cote: float, mat: 
 	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(0, 1), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1), Vector2(0, 0), Vector2(1, 0)])
 	_ajouter(_vitres, arrays, p.transform, mat, false)
 
+## Quad émissif tourné vers +Z·cote (fenêtre de la lanterne de la halle), même lot que les vitrages.
+func _quad_z(p: Node3D, c: Vector3, larg: float, haut: float, cote: float, mat: Material) -> void:
+	var dx := larg * 0.5 * cote
+	var a := c + Vector3(-dx, -haut * 0.5, 0)
+	var b := c + Vector3(dx, -haut * 0.5, 0)
+	var d := c + Vector3(dx, haut * 0.5, 0)
+	var e := c + Vector3(-dx, haut * 0.5, 0)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([a, d, b, a, e, d])   # ordre horaire vu du dehors
+	var n := Vector3(0, 0, cote)
+	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([n, n, n, n, n, n])
+	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(0, 1), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1), Vector2(0, 0), Vector2(1, 0)])
+	_ajouter(_vitres, arrays, p.transform, mat, false)
+
 ## Pignon nordique (image de référence) : colombages sombres en saillie sur les planches debout (entrait, poinçon,
 ## contrefiches, traverse), petite fenêtre à croisillons qui luit le soir, et au faîte les planches de rive qui se
 ## CROISENT et finissent en têtes de dragon sculptées (coiffées de neige).
@@ -1078,7 +1096,18 @@ func _lanterne_fumee(p: Node3D, trou: Vector2, W: float, y0: float, faite: float
 	var yr := ytop + 0.42
 	_pan(p, Vector3(xc, yr + 0.45, 0), Vector3(0, -0.5, zh + 0.3), lg + 0.5, graine + 4600, lg, false)
 	_pan(p, Vector3(xc, yr + 0.45, 0), Vector3(0, -0.5, -(zh + 0.3)), lg + 0.5, graine + 4601, lg, false)
-	_fumee(p, Vector3(xc, ytop + 0.25, 0))
+	if _sans_refonte:
+		_fumee(p, Vector3(xc, ytop + 0.25, 0))
+	else:
+		_fumee_pixels(p, Vector3(xc, ytop + 0.25, 0), 1.4)
+		# fenêtres chaudes sur les grandes faces de la lanterne (vues depuis la porte du village)
+		for cz in [-1.0, 1.0]:
+			for fx in [-lg * 0.25, lg * 0.25]:
+				var c := Vector3(xc + fx, ytop - 0.3, cz * (zh + 0.06))
+				_quad_z(p, c, 0.42, 0.34, cz, m_fen_pignon)
+				_boite(p, Vector3(0.52, 0.06, 0.08), Transform3D(Basis(), c + Vector3(0, 0.2, 0)), m_colombage)
+				_boite(p, Vector3(0.56, 0.06, 0.14), Transform3D(Basis(), c + Vector3(0, -0.2, cz * 0.03)), m_colombage)
+				_boite(p, Vector3(0.04, 0.34, 0.05), Transform3D(Basis(), c + Vector3(0, 0, cz * 0.01)), m_colombage)
 
 ## Lueur des fenêtres vues du dehors selon l'heure (`n` = 1 - clarté du ciel) : presque éteintes en plein jour,
 ## franches au crépuscule et la nuit (sources chaudes contre l'ambiance bleue, sans lumière dynamique).
@@ -1087,7 +1116,7 @@ func _regler_lueurs(n: float) -> void:
 	m_vitre_ext.set_shader_parameter("lueur", LUEUR * (0.7 * k))
 	m_fen_pignon.set_shader_parameter("emission", LUEUR * (1.15 * k))
 	m_fen_pignon.set_shader_parameter("teinte", Color(1, 1, 1) * lerpf(0.5, 1.0, k))
-	var cf := Color(0.78, 0.8, 0.86).lerp(Color(0.3, 0.33, 0.42), smoothstep(0.2, 0.8, n))
+	var cf := Color(0.84, 0.86, 0.92).lerp(Color(0.5, 0.56, 0.7), smoothstep(0.2, 0.8, n))
 	for mq in _fumees:
 		mq.albedo_color = cf
 
