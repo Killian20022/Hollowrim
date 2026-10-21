@@ -12,6 +12,21 @@ extends Node3D
 ## - Rien à moins de 150 m du centre ; invisible sous terre (monde._sous_terre).
 
 const SHADER := preload("res://shaders/arriere_plan.gdshader")
+const SHADER_PLANS := preload("res://shaders/plans_peints.gdshader")
+## 4e passe : au-delà de ~600 m, le relief 3D est remplacé par 5 PLANS PEINTS (cylindres centrés sur la carte, image
+## dessinée par plans_peints.gdshader). --lointain-3d rétablit l'ancien relief 3D lointain et le château 3D (A/B).
+var lointain_3d := OS.get_cmdline_user_args().has("--lointain-3d")
+## [rayon (m), genre (0 montagnes, 1 forêt, 2 forêt + château), voile, pied (°), dentelure (°), graine, pics visibles]
+## pics : [azimut °, sommet °, demi-largeur °, dissymétrie] ; vue de l'entrée : cap ≈ 48°, château à 24° (à droite).
+## La forêt 3D proche monte jusqu'à ~25-30° d'élévation depuis l'entrée : les sommets peints montent à 30-38°.
+const PLANS := [
+	[2400.0, 0, 0.58, 14.0, 0.35, 5.0, [[50.0, 38.0, 17.0, 0.2], [32.0, 33.0, 13.0, -0.3], [68.0, 32.0, 14.0, 0.4], [12.0, 28.0, 12.0, 0.0], [88.0, 27.0, 13.0, -0.2]]],
+	[1800.0, 0, 0.44, 12.0, 0.30, 11.0, [[43.0, 34.0, 11.0, -0.2], [58.0, 28.0, 9.0, 0.3], [26.0, 25.0, 9.5, 0.2], [78.0, 24.0, 10.0, -0.3]]],
+	[1300.0, 0, 0.32, 10.0, 0.25, 17.0, [[66.0, 24.0, 9.0, 0.3], [20.0, 21.0, 8.0, -0.2], [86.0, 20.0, 8.5, 0.0], [4.0, 18.0, 7.0, 0.3]]],
+	[900.0, 2, 0.24, 9.0, 0.6, 23.0, [[24.0, 13.5, 14.0, 0.0], [70.0, 11.0, 12.0, 0.2]]],
+	[650.0, 1, 0.16, 6.0, 0.8, 29.0, [[80.0, 8.0, 14.0, 0.0]]],
+]
+var _plans: Array[ShaderMaterial] = []
 const R_MIN := 150.0
 const R_MAX := 2500.0
 const LIGNES := 72        # rangées radiales (pas géométrique)
@@ -71,6 +86,8 @@ func _ready() -> void:
 	_n2.seed = 99
 	_n3.seed = 2718
 	_rng.seed = 31337
+	if not lointain_3d:
+		_creer_plans()
 	_actualiser()
 	_tache = WorkerThreadPool.add_task(_calculer, false, "arriere-plan")
 
@@ -114,11 +131,15 @@ func _actualiser() -> void:
 	var amb := e.ambient_light_color
 	_mat.set_shader_parameter("ambiant", Vector3(amb.r, amb.g, amb.b) * e.ambient_light_energy)
 	_mat.set_shader_parameter("jour", monde.cycle.clarte())
+	for m in _plans:
+		for nom in ["horizon", "horizon_chaud", "dir_astre", "crep", "haut", "dir_lum", "col_lum", "ambiant", "jour"]:
+			m.set_shader_parameter(nom, _mat.get_shader_parameter(nom))
 
 # --- construction des nœuds (fil principal) ------------------------------------------------------------------
 
 func _creer_noeuds() -> void:
-	for nom in ["collines", "montagnes", "lointain", "sapins", "chateau"]:
+	var noms := ["collines", "montagnes", "lointain", "sapins", "chateau"] if lointain_3d else ["collines", "montagnes", "sapins"]
+	for nom in noms:
 		var d: Dictionary = _res[nom]
 		var mesh := ArrayMesh.new()
 		var tab := []
@@ -229,7 +250,7 @@ func _calculer() -> void:
 			dens *= 0.55 + 0.45 * (_n3.get_noise_2d(p.x * 0.011, p.z * 0.011) * 0.5 + 0.5)
 			col[j * cols + i] = Color(dens, _rng.randf(), 0.0, 1.0)
 	_res["collines"] = _bande(pos, nor, col, COUPURES[0], COUPURES[1])
-	_res["montagnes"] = _bande(pos, nor, col, COUPURES[1], COUPURES[2])
+	_res["montagnes"] = _bande(pos, nor, col, COUPURES[1], COUPURES[2] if lointain_3d else 35)   # plans peints au-delà de ~600 m
 	_res["lointain"] = _bande(pos, nor, col, COUPURES[2], COUPURES[3])
 	_res["sapins"] = _sapins(pos, nor, col)
 	_res["chateau"] = _chateau()
@@ -280,7 +301,8 @@ func _sapins(pos: PackedVector3Array, nor: PackedVector3Array, col: PackedColorA
 	var lr := log(R_MAX / R_MIN)
 	while poses < NB_SAPINS and essais < NB_SAPINS * 14:
 		essais += 1
-		var r := R_SAPINS.x + (R_SAPINS.y - R_SAPINS.x) * pow(rng.randf(), 1.7)
+		var r_max := R_SAPINS.y if lointain_3d else 580.0   # au-delà : bandes de sapins peintes
+		var r := R_SAPINS.x + (r_max - R_SAPINS.x) * pow(rng.randf(), 1.7)
 		var a := rng.randf() * TAU
 		var e := _echant(pos, nor, col, log(r / R_MIN) / lr * (LIGNES - 1), a / TAU * COLONNES)
 		var nm0: Vector3 = e[1]
@@ -478,3 +500,66 @@ func _pont(p: PackedVector3Array, n: PackedVector3Array, c: PackedColorArray, a:
 		var e0 := base - dir * cos(t0) * rayon + Vector3.DOWN * (creux - sin(t0) * creux)
 		var e1 := base - dir * cos(t1) * rayon + Vector3.DOWN * (creux - sin(t1) * creux)
 		_quad(p, n, c, e0 + lat * larg * 0.5, e1 + lat * larg * 0.5, e1 - lat * larg * 0.5, e0 - lat * larg * 0.5, col)
+
+# --- plans peints (4e passe) ------------------------------------------------------------------------------------
+
+func _creer_plans() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	for d in PLANS:
+		var r: float = d[0]
+		var m := ShaderMaterial.new()
+		m.shader = SHADER_PLANS
+		m.set_shader_parameter("rayon", r)
+		m.set_shader_parameter("niveau0", _y0)
+		m.set_shader_parameter("genre", d[1])
+		m.set_shader_parameter("voile", d[2])
+		m.set_shader_parameter("base_el", d[3])
+		m.set_shader_parameter("dentelure", d[4])
+		m.set_shader_parameter("graine", d[5])
+		m.set_shader_parameter("chateau_az", CHATEAU_AZIMUT)
+		m.set_shader_parameter("chateau_el", 12.0)   # sur la butte peinte à 24°
+		m.set_shader_parameter("chateau_ech", 1.7)
+		# pics : ceux de la vue de l'entrée + des pics tirés au hasard sur le reste du tour (hors 0-100°)
+		var pics: Array = (d[6] as Array).duplicate()
+		if d[1] == 0:
+			var a := 110.0
+			while a < 350.0 and pics.size() < 16:
+				var e: float = (d[6][0][1] as float) * rng.randf_range(0.55, 0.9)
+				pics.append([a, e, rng.randf_range(7.0, 13.0), rng.randf_range(-0.4, 0.4)])
+				a += rng.randf_range(22.0, 38.0)
+		var v: Array[Vector4] = []
+		for p in pics:
+			v.append(Vector4(float(p[0]), float(p[1]), float(p[2]), float(p[3])))
+		while v.size() < 16:
+			v.append(Vector4.ZERO)
+		m.set_shader_parameter("pics", v)
+		m.set_shader_parameter("nb_pics", pics.size())
+		# cylindre : 256 pans, du dessous de l'horizon à 46° d'élévation
+		var pos := PackedVector3Array()
+		var idx := PackedInt32Array()
+		var bas := _y0 - 60.0
+		var haut := _y0 + r * tan(deg_to_rad(46.0))
+		for i in 257:
+			var a := TAU * float(i) / 256.0
+			pos.append(Vector3(sin(a) * r, bas, cos(a) * r))
+			pos.append(Vector3(sin(a) * r, haut, cos(a) * r))
+		for i in 256:
+			var k := i * 2
+			idx.append_array([k, k + 1, k + 2, k + 2, k + 1, k + 3])
+		var tab := []
+		tab.resize(Mesh.ARRAY_MAX)
+		tab[Mesh.ARRAY_VERTEX] = pos
+		tab[Mesh.ARRAY_INDEX] = idx
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, tab)
+		mesh.custom_aabb = AABB(Vector3(-R_MAX, -200.0, -R_MAX), Vector3(2.0 * R_MAX, 2000.0, 2.0 * R_MAX))
+		var mi := MeshInstance3D.new()
+		mi.name = "plan_%d" % int(r)
+		mi.mesh = mesh
+		mi.material_override = m
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		mi.extra_cull_margin = 16384.0
+		add_child(mi)
+		_plans.append(m)
