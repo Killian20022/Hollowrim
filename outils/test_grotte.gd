@@ -99,7 +99,7 @@ func _capsule(pere: Node3D) -> CharacterBody3D:
 	return capsule
 
 ## Fait marcher la capsule le long de `route` ; renvoie [arrivée atteinte, indice atteint, pente max].
-func _marcher(capsule: CharacterBody3D, route: Array[Vector3], libelle: String) -> bool:
+func _marcher(capsule: CharacterBody3D, route: Array[Vector3], libelle: String, strict := false) -> bool:
 	capsule.global_position = route[0]
 	capsule.velocity = Vector3.ZERO
 	for i in 6:
@@ -114,7 +114,7 @@ func _marcher(capsule: CharacterBody3D, route: Array[Vector3], libelle: String) 
 	var dt := 1.0 / float(Engine.physics_ticks_per_second)
 	while cible < route.size() and t < 200.0:
 		var p := capsule.global_position
-		if Vector2(p.x - route[cible].x, p.z - route[cible].z).length() < 0.6:
+		if Vector2(p.x - route[cible].x, p.z - route[cible].z).length() < (0.35 if strict else 0.6) and absf(p.y - route[cible].y) < (0.6 if strict else 0.9):
 			cible += 1
 			continue
 		var dir := Vector3(route[cible].x - p.x, 0, route[cible].z - p.z).normalized()
@@ -130,7 +130,10 @@ func _marcher(capsule: CharacterBody3D, route: Array[Vector3], libelle: String) 
 		depuis += dt
 		if depuis >= 2.0:
 			if capsule.global_position.distance_to(pos_ref) < 0.5:
-				print("   bloqué près de ", g.to_local(capsule.global_position), " (point ", cible, "/", route.size(), ")")
+				print("   bloqué près de ", g.to_local(capsule.global_position), " (point ", cible, "/", route.size(), ") vers ", g.to_local(route[cible]))
+				for ci in capsule.get_slide_collision_count():
+					var col := capsule.get_slide_collision(ci)
+					print("      contact normale ", col.get_normal(), " pos ", g.to_local(col.get_position()))
 				ok = false
 				break
 			pos_ref = capsule.global_position
@@ -151,7 +154,12 @@ func _lancer() -> void:
 	var t0 := Time.get_ticks_msec()
 	var pere := Node3D.new()
 	root.add_child(pere)
-	g = Grotte.creer(pere)
+	var def_g: Dictionary = {}
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--variante="):
+			def_g = GrotteDonnees.variante(GrotteDonnees.repaire_hrafn(), int(a.substr(11)))
+			print("variante %s de la grotte (graines, largeurs, reliefs, position monde)" % a.substr(11))
+	g = Grotte.creer(pere, null, def_g)
 	print("grotte construite en %d ms (%s), %d lumières, %d facettes, %d anneaux" % [Time.get_ticks_msec() - t0, g.etapes, g.nb_lumieres, g.decor.nb_facettes, g._anneaux.size()])
 	var tot := 0.0
 	for id: String in g.ordre:
@@ -275,23 +283,6 @@ func _lancer() -> void:
 		if vus.has(k):
 			vus_br[idb] = int(vus_br.get(idb, 0)) + 1
 	print("   nœuds par branche : ", par_br, " atteints : ", vus_br)
-	for sx in [10.25, 10.75, 11.25, 11.75, 12.25, 12.75]:
-		var lst := []
-		for k in _noeuds.size():
-			if _noeuds[k]["id"] == "B" and absf(_noeuds[k]["s"] - sx) < 0.01:
-				lst.append("%.1f/%.2f%s" % [_noeuds[k]["lat"], _noeuds[k]["p"].y + 220.0, "*" if vus.has(k) else ""])
-		print("   B s=%.2f : %s" % [sx, lst])
-	for id_dbg in ["T1", "B"]:
-		var smax_v := 0.0
-		var smin_nv := 999.0
-		for k in _noeuds.size():
-			if _noeuds[k]["id"] != id_dbg:
-				continue
-			if vus.has(k):
-				smax_v = maxf(smax_v, _noeuds[k]["s"])
-			else:
-				smin_nv = minf(smin_nv, _noeuds[k]["s"])
-		print("   %s : s max atteint %.1f ; s min non atteint %.1f" % [id_dbg, smax_v, smin_nv])
 	print("   graphe de marche : %d nœuds libres, %d atteints depuis l'entrée" % [nb_valides, vus.size()])
 	var nb_acc := 0
 	var nb_ok := 0
@@ -301,6 +292,17 @@ func _lancer() -> void:
 		if type == "coffre":
 			cible_loc = a["lieu"]
 		var but := g.to_global(cible_loc)
+		var dd: Dictionary = a["d"]
+		if dd.has("sur"):        # posé sur une corniche : accès vérifié par la marche explicite plus bas ; ici la position doit être sur la dalle
+			var cn: Dictionary = g.corniches[dd["sur"]]
+			var sur_ok: bool = absf((a["lieu"] as Vector3).y - float(cn["top"])) < 0.3 if type == "coffre" else absf((a["pos"] as Vector3).y - float(cn["top"]) - (0.7 if type == "ressource" else 0.05)) < 0.3
+			nb_acc += 1
+			if sur_ok:
+				nb_ok += 1
+			else:
+				print("ECHEC accroche %s : hors de la dalle %s" % [a["id"], dd["sur"]])
+				_echecs += 1
+			continue
 		var rayon := 1.2 if type == "ennemi" else 2.0
 		if type == "meca":
 			rayon = 3.0
@@ -314,22 +316,43 @@ func _lancer() -> void:
 	_verif(nb_ok == nb_acc, "points d'accroche atteignables à pied depuis l'entrée : %d / %d" % [nb_ok, nb_acc])
 	# 5 bis. trajets réels de la capsule vers les cibles « difficiles » (corniches, îlot, baie de l'éboulis, cache)
 	var capsule2 := _capsule(pere)
-	var difficiles := ["corniche", "bandit_archer_2", "bandit_archer_0", "ilot", "journal_sigrun", "mine_eboulis", "argent_rare", "registre_hrafn", "fond"]
+	# trajets explicites : corniches (pied de rampe -> axe de la dalle -> cible) et îlot (depuis le rivage)
+	for cid: String in g.corniches:
+		var cn: Dictionary = g.corniches[cid]
+		if not cn.has("rampe"):
+			continue
+		var idb: String = cn["b"]
+		var lr: float = cn["rampe_l"]
+		var lat_c: float = float(cn["lat"]) + float(cn["largeur"]) * 0.5
+		var s_foot: float = float(cn["s"]) - lr if cn["rampe"] == "debut" else float(cn["s"]) + float(cn["longueur"]) + lr
+		var s_top: float = float(cn["s"]) + 0.5 if cn["rampe"] == "debut" else float(cn["s"]) + float(cn["longueur"]) - 0.5
+		var pts: Array[Vector3] = []
+		var s_dep := clampf(s_foot + (-2.5 if cn["rampe"] == "debut" else 2.5), 0.8, g.longueur(idb) - 0.8)
+		var dl_dep := g.demi_l(idb, s_dep)
+		pts.append(g.to_global(g.sol_en(idb, s_dep, lat_c if dl_dep.y * 0.8 > lat_c + 0.3 else 0.0)) + Vector3(0, 0.1, 0))
+		pts.append(g.to_global(g.sol_en(idb, s_foot + (-0.8 if cn["rampe"] == "debut" else 0.8), lat_c)) + Vector3(0, 0.1, 0))
+		var nrp := int(absf(s_top - s_foot) / 0.5)
+		for k in nrp + 1:
+			var sk: float = lerpf(s_foot, s_top, float(k) / nrp)
+			var pk := g.sol_en(idb, sk, lat_c)
+			var haut_r := g.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(g.to_global(Vector3(pk.x, float(cn["top"]) + 1.3, pk.z)), g.to_global(Vector3(pk.x, float(cn["top"]) - 8.0, pk.z))))
+			if not haut_r.is_empty():
+				pk.y = g.to_local(haut_r["position"]).y
+			pts.append(g.to_global(pk) + Vector3(0, 0.1, 0))
+		var ok_c: bool = await _marcher(capsule2, pts, "corniche %s (rampe puis dalle)" % cid, true)
+		_verif(ok_c and capsule2.global_position.y > g.to_global(Vector3(0, float(cn["top"]) - 0.6, 0)).y, "corniche %s : la capsule est montée sur la dalle (y %.2f, dalle %.2f)" % [cid, g.to_local(capsule2.global_position).y, cn["top"]])
 	for a: Dictionary in g.accroches:
-		if not difficiles.has(String(a["id"])):
+		if String(a["id"]) != "journal_sigrun":
 			continue
-		var cible_loc: Vector3 = a["lieu"] if a["type"] == "coffre" else a["pos"]
-		var but := g.to_global(cible_loc)
-		var n := _plus_proche(vus, but, 2.0)
-		if n < 0:
+		var n_j := _plus_proche(vus, g.to_global(a["pos"]), 2.0)
+		if n_j < 0:
 			continue
-		var chemin := _chemin_vers(n)
-		var simple: Array[Vector3] = []
-		for k in range(0, chemin.size(), 2):
-			simple.append(chemin[k] + Vector3(0, 0.1, 0))
-		simple.append(chemin[chemin.size() - 1] + Vector3(0, 0.1, 0))
-		if simple.size() >= 2:
-			await _marcher(capsule2, simple, "vers %s (%.0f m)" % [a["id"], chemin.size() * 0.5])
+		var chemin_j := _chemin_vers(n_j)
+		var simple_j: Array[Vector3] = []
+		for k in range(0, chemin_j.size()):
+			simple_j.append(chemin_j[k] + Vector3(0, 0.1, 0))
+		var ok_i: bool = await _marcher(capsule2, simple_j, "îlot : du rivage au journal (%.0f m)" % (chemin_j.size() * 0.5), true)
+		_verif(ok_i, "l'îlot est praticable à pied")
 	var nb_cs := 0
 	for n in g.corps.get_children():
 		if n is CollisionShape3D:
@@ -346,7 +369,7 @@ var _hash := {}                           # cellule 0,5 m -> [indices]
 func _graphe_marche() -> void:
 	var ss := g.get_world_3d().direct_space_state
 	var forme := CapsuleShape3D.new()
-	forme.radius = 0.32
+	forme.radius = 0.4
 	forme.height = 1.8
 	_noeuds.clear()
 	_cle.clear()
@@ -363,7 +386,9 @@ func _graphe_marche() -> void:
 			while j <= j1:
 				var lat := float(j) * pas
 				var c := g.xz(id, s) + Vector2(g.droite(id, s).x, g.droite(id, s).z) * lat
-				var origines: Array = [g.sol_en(id, s, lat).y + 1.3]
+				var sol_ref := g.sol_en(id, s, lat).y
+				var origines: Array = [sol_ref + 1.3]
+				var sous_dalle := false
 				for cid: String in g.corniches:
 					var cn: Dictionary = g.corniches[cid]
 					if cn["b"] != id or not cn.has("rampe"):
@@ -371,13 +396,16 @@ func _graphe_marche() -> void:
 					var lr: float = cn["rampe_l"]
 					var u0: float = float(cn["s"]) - (lr if cn["rampe"] == "debut" else 0.0)
 					var u1: float = float(cn["s"]) + float(cn["longueur"]) + (lr if cn["rampe"] == "fin" else 0.0)
-					if s >= u0 and s <= u1 and lat >= float(cn["lat"]) - 0.1 and lat <= float(cn["lat"]) + float(cn["largeur"]) + 0.1:
+					if s >= u0 and s <= u1 and lat >= float(cn["lat"]) - 0.6 and lat <= float(cn["lat"]) + float(cn["largeur"]) + 0.6:
+						sous_dalle = true
+					# les nœuds de dalle restent à 0,55 m des bords (un chemin qui rase le flanc ne « monte » pas sur la rampe)
+					if s >= u0 and s <= u1 and lat >= float(cn["lat"]) + 0.55 and lat <= float(cn["lat"]) + float(cn["largeur"]) - 0.55:
 						origines.append(float(cn["top"]) + 1.3)
 				var niveau := 0
 				for y_dep: float in origines:
 					var de := g.to_global(Vector3(c.x, y_dep, c.y))
 					var r := ss.intersect_ray(PhysicsRayQueryParameters3D.create(de, de - Vector3(0, 14.0, 0)))
-					if not r.is_empty():
+					if not r.is_empty() and (niveau > 0 or not sous_dalle or absf(float((r["position"] as Vector3).y) - (g.global_position.y + sol_ref)) < 0.12):
 						var f: Vector3 = r["position"]
 						var q := PhysicsShapeQueryParameters3D.new()
 						q.shape = forme
@@ -385,7 +413,7 @@ func _graphe_marche() -> void:
 						q.collide_with_bodies = true
 						if ss.intersect_shape(q, 1).is_empty():
 							var idx := _noeuds.size()
-							_noeuds.append({"p": f, "id": id, "v": [], "s": s, "lat": lat})
+							_noeuds.append({"p": f, "id": id, "v": [], "s": s, "lat": lat, "niv": niveau})
 							_cle[Vector3i(_h_br(id) * 2 + niveau, i, j)] = idx
 							var hk := Vector2i(floori(f.x / pas), floori(f.z / pas))
 							if not _hash.has(hk):
@@ -403,8 +431,8 @@ func _graphe_marche() -> void:
 			if _cle.has(k2):
 				_lier(a, _cle[k2])
 	for hk: Vector2i in _hash:
-		for dx in [-1, 0, 1]:
-			for dz in [-1, 0, 1]:
+		for dx in [-2, -1, 0, 1, 2]:
+			for dz in [-2, -1, 0, 1, 2]:
 				var hk2 := Vector2i(hk.x + dx, hk.y + dz)
 				if not _hash.has(hk2):
 					continue
@@ -419,9 +447,9 @@ func _h_br(id: String) -> int:
 func _lier(a: int, b: int) -> void:
 	var pa: Vector3 = _noeuds[a]["p"]
 	var pb: Vector3 = _noeuds[b]["p"]
-	if absf(pa.y - pb.y) > 0.45:
+	if absf(pa.y - pb.y) > 0.33:       # pas de marche verticale : la capsule ne monte que les pentes
 		return
-	if Vector2(pa.x - pb.x, pa.z - pb.z).length() > 0.75:
+	if Vector2(pa.x - pb.x, pa.z - pb.z).length() > 1.1:       # 1,1 m : dernier nœud libre avant le pied d'une rampe (la capsule large du graphe y touche la pente)
 		return
 	(_noeuds[a]["v"] as Array).append(b)
 	(_noeuds[b]["v"] as Array).append(a)

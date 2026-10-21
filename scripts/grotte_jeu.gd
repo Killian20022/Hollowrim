@@ -190,9 +190,10 @@ func _meca(a: Dictionary) -> void:
 			var centre: Vector3 = (a["pos"] as Vector3) + Vector3(0, taille.y * 0.5, 0)
 			var ident := "%s_%s" % [prefixe, a["id"]]
 			var evt: String = d.get("evt", "")
+			var ctx := {"materiau": g.decor.mat("c_roche_nu")}       # le mur se fond dans la roche voisine
 			var m: Node3D = Mecanisme.mur_fragile(g, centre, taille, float(a["lacet"]), ident, func() -> void:
 				if evt != "":
-					acces.quetes.signaler(evt))
+					acces.quetes.signaler(evt), ctx)
 			_murs[a["id"]] = m
 
 # ------------------------------------------------------------------ ennemis

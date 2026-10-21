@@ -52,6 +52,8 @@ var accroches: Array = []                 # points d'accroche du gameplay (voir 
 var corniches := {}                       # id -> { "top": y, "b": branche, ... }
 var zones := {}                           # id -> données de la zone
 var projecteurs: Array = []
+var reserves: Array = []                  # zones de passage à garder libres de décor solide : [branche, s0, s1, lat0, lat1]
+const VOIE_LIBRE := 0.55                  # demi-largeur du couloir central réservé le long de chaque branche (m)
 
 ## Crée la grotte sous le monde. `parent` : le monde. `def_` : table de données (défaut : le repaire de Hrafn).
 static func creer(parent: Node3D, joueur_: Node = null, def_: Dictionary = {}) -> Grotte:
@@ -710,7 +712,8 @@ func sol_en(id: String, s: float, lat: float) -> Vector3:
 	var b: Dictionary = br[id]
 	var c := _xz(b, s) + Vector2(droite(id, s).x, droite(id, s).z) * lat
 	var h := _hauteurs(c.x, c.y)
-	return Vector3(c.x, h.x if h.x < 1e8 else y_net(b, s), c.y)
+	var yn := y_net(b, s)
+	return Vector3(c.x, h.x if (h.x < 1e8 and h.x < yn + 3.0) else yn, c.y)       # hors de la galerie (dans la roche) : pas de « sol » trouvé
 
 func plafond_en(id: String, s: float, lat: float) -> Vector3:
 	var b: Dictionary = br[id]
@@ -805,49 +808,75 @@ func _corniches_zone(z: Dictionary) -> void:
 			lr = minf(lr, s0 - 0.6)
 		else:
 			lr = minf(lr, Lb - 0.6 - (s0 + lg))
+		# la dalle reste sur le sol praticable : jamais plus loin que 0,9 de la demi-largeur (au-delà, la paroi monte)
+		var lat_max := 99.0
+		var u_c := s0 - lr if rampe == "debut" else s0
+		var u_fin := s0 + lg if rampe == "debut" else s0 + lg + lr
+		while u_c <= u_fin + 0.01:
+			var dlc := demi_l(id, clampf(u_c, 0.0, Lb))
+			lat_max = minf(lat_max, 0.9 * (dlc.y if lat0 > 0.0 else dlc.x))
+			u_c += 1.0
+		if lat0 > 0.0:
+			lar = minf(lar, lat_max - lat0)
 		if lr < haut * 2.0:
 			push_warning("corniche %s : rampe trop courte (%.1f m pour %.1f m de haut)" % [c["id"], lr, haut])
 		var top := sol_en(id, s0 + lg * 0.5, lat0 + lar * 0.5).y + haut
+		reserves.append([id, (s0 - lr - 2.5) if rampe == "debut" else s0, (s0 + lg) if rampe == "debut" else (s0 + lg + lr + 2.5), lat0 - 1.4, lat0 + lar + 0.4])
 		corniches[c["id"]] = {"b": id, "top": top, "s": s0, "lat": lat0, "longueur": lg, "largeur": lar, "haut": haut, "rampe": rampe, "rampe_l": lr}
-		# profil : [u, type] ; type 0 = pied sur le sol, 1 = dessus (altitude top), 2 = bas du front (sous le sol)
-		var prof: Array = []
+		# stations le long de la branche : t = fraction de hauteur (0 = pied de rampe sur le sol, 1 = dessus de la dalle)
+		var st: Array = []
+		var u0 := s0
+		var u1 := s0 + lg
 		if rampe == "debut":
-			prof = [[s0 - lr, 0], [s0, 1], [s0 + lg, 1], [s0 + lg, 2]]
+			var nr := maxi(2, ceili(lr / 1.5))
+			for k in nr:
+				st.append([s0 - lr + lr * float(k) / nr, float(k) / nr])
+			var np := maxi(1, ceili(lg / 2.5))
+			for k in np + 1:
+				st.append([s0 + lg * float(k) / np, 1.0])
 		else:
-			prof = [[s0, 2], [s0, 1], [s0 + lg, 1], [s0 + lg + lr, 0]]
-		var cotes: Array = []
-		for lat in [lat0, lat0 + lar]:
-			var ligne: Array = []
-			for p: Array in prof:
-				var bas := sol_en(id, float(p[0]), lat)
-				var y := bas.y
-				if int(p[1]) == 1:
-					y = top
-				elif int(p[1]) == 2:
-					y = bas.y - 0.25
-				ligne.append(Vector3(bas.x, y, bas.z))
-			cotes.append(ligne)
-		var A: Array = cotes[0]
-		var B: Array = cotes[1]
-		var centre: Vector3 = ((A[1] as Vector3) + (B[2] as Vector3)) * 0.5
+			var np2 := maxi(1, ceili(lg / 2.5))
+			for k in np2 + 1:
+				st.append([s0 + lg * float(k) / np2, 1.0])
+			var nr2 := maxi(2, ceili(lr / 1.5))
+			for k in range(1, nr2 + 1):
+				st.append([s0 + lg + lr * float(k) / nr2, 1.0 - float(k) / nr2])
+		var TL: Array = []
+		var TR: Array = []
+		var BL: Array = []
+		var BR: Array = []
+		for q: Array in st:
+			var u: float = q[0]
+			var t: float = q[1]
+			var pl := sol_en(id, u, lat0)
+			var pr := sol_en(id, u, lat0 + lar)
+			TL.append(Vector3(pl.x, pl.y + t * (top - pl.y), pl.z))
+			TR.append(Vector3(pr.x, pr.y + t * (top - pr.y), pr.z))
+			BL.append(Vector3(pl.x, pl.y - 0.25, pl.z))
+			BR.append(Vector3(pr.x, pr.y - 0.25, pr.z))
 		var R := droite(id, s0 + lg * 0.5)
 		var T := tang(id, s0 + lg * 0.5)
-		var ref_haut := centre + Vector3(0, 3.0, 0)
-		var cc := GrotteDecor.col(0.9, 0.0)
-		var cs := GrotteDecor.col(0.74, 0.0)
-		var nm := "c_strate_suie"
-		for i in 3:      # dessus, rampe, front : une bande par segment du profil
-			var ref := ref_haut
-			if i == (2 if rampe == "debut" else 0):
-				ref = centre + T * (lg * 0.5 + 2.0) * (1.0 if rampe == "debut" else -1.0)
-			var col_i := cc if i == 1 or i == (0 if rampe == "debut" else 2) else cs
-			decor.facette(nm, A[i], A[i + 1], B[i + 1], ref, [col_i, col_i, col_i], true, TUILE_COQUE, true)
-			decor.facette(nm, A[i], B[i + 1], B[i], ref, [col_i, col_i, col_i], true, TUILE_COQUE, true)
-		for flanc in 2:      # flancs (polygone du profil en deux triangles)
-			var Lg: Array = A if flanc == 0 else B
-			var ref_f := centre + R * (-3.0 if flanc == 0 else 3.0)
-			decor.facette(nm, Lg[0], Lg[1], Lg[2], ref_f, [cs, cc, cc], true, TUILE_COQUE, true)
-			decor.facette(nm, Lg[0], Lg[2], Lg[3], ref_f, [cs, cc, cs], true, TUILE_COQUE, true)
+		var sty := GrotteModules._style(self, id, s0 + lg * 0.5)
+		var nm := GrotteModules._roche(sty)
+		var mk := GrotteModules._masque(sty) * 0.8
+		var cc := GrotteDecor.col(0.9, mk)
+		var cs := GrotteDecor.col(0.74, mk)
+		for k in st.size() - 1:
+			var cen: Vector3 = ((TL[k] as Vector3) + (TR[k + 1] as Vector3)) * 0.5
+			decor.facette(nm, TL[k], TL[k + 1], TR[k + 1], cen + Vector3(0, 3.0, 0), [cc, cc, cc], true, TUILE_COQUE, true)
+			decor.facette(nm, TL[k], TR[k + 1], TR[k], cen + Vector3(0, 3.0, 0), [cc, cc, cc], true, TUILE_COQUE, true)
+			decor.facette(nm, TL[k], BL[k], BL[k + 1], cen - R * 3.0, [cs, cs, cs], true, TUILE_COQUE, true)
+			decor.facette(nm, TL[k], BL[k + 1], TL[k + 1], cen - R * 3.0, [cs, cs, cs], true, TUILE_COQUE, true)
+			decor.facette(nm, TR[k], TR[k + 1], BR[k + 1], cen + R * 3.0, [cs, cs, cs], true, TUILE_COQUE, true)
+			decor.facette(nm, TR[k], BR[k + 1], BR[k], cen + R * 3.0, [cs, cs, cs], true, TUILE_COQUE, true)
+		# front vertical (extrémité haute de la dalle)
+		var haut_k := 0 if rampe == "fin" else st.size() - 1
+		var sgn := -1.0 if rampe == "fin" else 1.0
+		var cf: Vector3 = ((TL[haut_k] as Vector3) + (TR[haut_k] as Vector3)) * 0.5
+		decor.facette(nm, TL[haut_k], TR[haut_k], BR[haut_k], cf + T * sgn * 3.0, [cs, cs, cs], true, TUILE_COQUE, true)
+		decor.facette(nm, TL[haut_k], BR[haut_k], BL[haut_k], cf + T * sgn * 3.0, [cs, cs, cs], true, TUILE_COQUE, true)
+		u0 = u0
+		u1 = u1
 
 ## Îlot : tronc de cône octogonal très évasé (pente ≈ 20°), praticable, posé sur le sol de la glace.
 func ilot(id: String, s: float, lat: float, r_haut: float, h: float) -> void:
@@ -875,9 +904,20 @@ func ilot(id: String, s: float, lat: float, r_haut: float, h: float) -> void:
 # ------------------------------------------------------------------ points d'accroche du gameplay
 ## Tout ce qui est posé dans le repère local de la grotte ; GrotteJeu crée les nœuds (ennemis, interactions, mécanismes).
 func _pos_zone(z: Dictionary, e: Dictionary) -> Vector3:
-	var p := sol_en(z["branche"], float(e["s"]), float(e["lat"]))
-	if e.has("sur") and corniches.has(e["sur"]):
-		p.y = float((corniches[e["sur"]] as Dictionary)["top"])
+	var lat := float(e["lat"])
+	var su := float(e["s"])
+	var haut := -1e9
+	if e.has("sur") and corniches.has(e["sur"]):          # sur une dalle : toujours sur la dalle, quelle que soit la variante de largeur
+		var cn: Dictionary = corniches[e["sur"]]
+		lat = clampf(lat, float(cn["lat"]) + 0.45, float(cn["lat"]) + float(cn["largeur"]) - 0.45)
+		su = clampf(su, float(cn["s"]) + 0.5, float(cn["s"]) + float(cn["longueur"]) - 0.5)
+		haut = float(cn["top"])
+	else:                                                   # jamais dans la paroi
+		var dl := demi_l(z["branche"], su)
+		lat = clampf(lat, -dl.x * 0.82, dl.y * 0.82)
+	var p := sol_en(z["branche"], su, lat)
+	if haut > -1e8:
+		p.y = haut
 	return p
 
 func _accroches_zone(z: Dictionary) -> void:
@@ -911,6 +951,25 @@ func _accroches_zone(z: Dictionary) -> void:
 		var l: Dictionary = z["lieu"]
 		var s_l: float = float(l.get("s", (float(z["s"][0]) + float(z["s"][1])) * 0.5))
 		accroches.append({"type": "lieu", "id": z["id"], "zone": z["id"], "pos": sol_en(id, s_l, float(l.get("lat", 0.0))), "d": l})
+
+## Vrai si un décor solide de rayon `r` posé en (s, lat) ne gêne ni le couloir central de la branche ni une zone réservée (rampes, accès).
+func libre(id: String, s: float, lat: float, r: float) -> bool:
+	if absf(lat) < VOIE_LIBRE + r or not hors_jonction(id, s):
+		return false
+	for z: Array in reserves:
+		if z[0] == id and s >= float(z[1]) - r and s <= float(z[2]) + r and lat >= float(z[3]) - r and lat <= float(z[4]) + r:
+			return false
+	return true
+
+## Vrai si s est hors des zones de jonction de la branche (pas de décor solide dans le pilier, ni dans l'évasement des confluents).
+func hors_jonction(id: String, s: float) -> bool:
+	var b: Dictionary = br[id]
+	var d: Dictionary = b["d"]
+	if d.has("pince_deb") and s < ZONE_PINCE:
+		return false
+	if d.has("pince_fin") and s > float(b["L"]) - ZONE_PINCE:
+		return false
+	return true
 
 ## Centre d'une zone (repère local), pour l'apparition des ennemis et les tests.
 func centre_zone(z: Dictionary) -> Vector3:

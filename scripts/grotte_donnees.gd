@@ -252,19 +252,19 @@ static func zones_hrafn() -> Array:
 		{"id": "lac_caverne", "branche": "B", "s": [11.7, 45.0], "theme": "lac", "role": "combat", "graine": 302, "densite": 1.0, "n_lum": 5,
 			"teinte": [Color(0.5, 0.72, 1.0), Color(0.56, 0.78, 1.0)],
 			"corniches": [
-				{"id": "corniche_lac", "s": 18.0, "lat": 3.8, "longueur": 16.0, "largeur": 2.8, "haut": 2.1, "rampe": "fin"},
+				{"id": "corniche_lac", "s": 23.0, "lat": 3.4, "longueur": 11.0, "largeur": 2.6, "haut": 2.1, "rampe": "fin"},
 			],
 			"ennemis": [
 				{"id": "bandit_8", "type": "sbire", "s": 17.0, "lat": 0.5, "tenue": 1, "nom": "Bandit", "patrouille": [[17.0, 0.5], [30.0, 1.5], [41.0, 0.5]]},
-				{"id": "bandit_archer_2", "type": "sbire", "archer": true, "s": 26.0, "lat": 5.0, "sur": "corniche_lac", "tenue": 3, "nom": "Archer bandit", "face": "centre"},
+				{"id": "bandit_archer_2", "type": "sbire", "archer": true, "s": 27.5, "lat": 4.6, "sur": "corniche_lac", "tenue": 3, "nom": "Archer bandit", "face": "centre"},
 			],
 			"ressources": [
-				{"id": "champi_b", "genre": "champignon_lumineux", "s": 19.5, "lat": 6.3, "n": 1},
+				{"id": "champi_b", "genre": "champignon_lumineux", "s": 25.0, "lat": 4.9, "sur": "corniche_lac", "n": 1},
 				{"id": "champi_c", "genre": "champignon_lumineux", "s": 40.5, "lat": 2.9, "n": 1},
 				{"id": "cristal_lac", "genre": "cristal_givre", "s": 41.5, "lat": -3.5, "n": 1},
 			],
 			"coffres": [
-				{"id": "corniche", "s": 32.0, "lat": 5.6, "lacet": 3.14, "sur": "corniche_lac", "nom": "Coffre sur la corniche", "butin": {"pieces": 70, "poussiere_tombe": 2}},
+				{"id": "corniche", "s": 32.0, "lat": 5.35, "lacet": 3.14, "sur": "corniche_lac", "nom": "Coffre sur la corniche", "butin": {"pieces": 70, "poussiere_tombe": 2}},
 			]},
 		{"id": "lac_ilot", "branche": "B", "s": [30.0, 40.0], "theme": "lac", "role": "recit", "graine": 303, "densite": 0.6, "n_lum": 1,
 			"params": {"ilot_s": 35.0, "ilot_lat": -9.0, "ilot_r": 3.1},
@@ -287,7 +287,7 @@ static func zones_hrafn() -> Array:
 		{"id": "camp", "branche": "T2", "s": [0.0, 17.0], "theme": "repaire", "role": "combat", "graine": 401, "densite": 1.0, "n_lum": 3,
 			"teinte": [Color(1.0, 0.54, 0.22), Color(1.0, 0.62, 0.3)],
 			"corniches": [
-				{"id": "corniche_camp", "s": 6.5, "lat": 3.8, "longueur": 6.0, "largeur": 2.2, "haut": 1.6, "rampe": "debut"},
+				{"id": "corniche_camp", "s": 6.5, "lat": 3.0, "longueur": 6.0, "largeur": 2.2, "haut": 1.6, "rampe": "debut"},
 			],
 			"lieu": {"evt": "lieu:camp_hrafn", "rayon": 9.0, "s": 8.0, "lat": 0.0},
 			"ennemis": [
@@ -295,8 +295,8 @@ static func zones_hrafn() -> Array:
 				{"id": "bandit_1", "type": "sbire", "s": 6.2, "lat": 2.6, "tenue": 1, "nom": "Bandit", "casque": "casque_nasal"},
 				{"id": "bandit_2", "type": "sbire", "s": 9.8, "lat": -2.4, "tenue": 2, "nom": "Bandit"},
 				{"id": "bandit_3", "type": "sbire", "s": 12.0, "lat": 1.6, "tenue": 3, "nom": "Bandit"},
-				{"id": "bandit_archer_0", "type": "sbire", "archer": true, "s": 8.5, "lat": 4.9, "sur": "corniche_camp", "tenue": 3, "nom": "Archer bandit", "face": "centre"},
-				{"id": "bandit_archer_1", "type": "sbire", "archer": true, "s": 11.5, "lat": 4.9, "sur": "corniche_camp", "tenue": 1, "nom": "Archer bandit", "face": "centre"},
+				{"id": "bandit_archer_0", "type": "sbire", "archer": true, "s": 8.5, "lat": 4.1, "sur": "corniche_camp", "tenue": 3, "nom": "Archer bandit", "face": "centre"},
+				{"id": "bandit_archer_1", "type": "sbire", "archer": true, "s": 11.5, "lat": 4.1, "sur": "corniche_camp", "tenue": 1, "nom": "Archer bandit", "face": "centre"},
 				{"id": "hrafn", "type": "guerrier", "boss": "hrafn", "s": 14.2, "lat": -0.2, "tenue": 4, "nom": "Hrafn, chef des bandits", "face": "entree"},
 			],
 			"coffres": [
@@ -330,3 +330,18 @@ static func zones_hrafn() -> Array:
 				{"id": "cache", "s": 16.5, "lat": -1.8, "lacet": 1.2, "nom": "Cachette de Hrafn", "butin": {"pieces": 200, "amulette_givre": 1, "lame_antique": 1}},
 			]},
 	]
+
+## Variante déterministe d'une table de grotte (kit) : mêmes branches, mêmes zones, mêmes accroches ; seules les GRAINES changent
+## (bruit des parois, largeurs et reliefs dans une plage plus large, détails de décor, teinte des lumières) et la position monde.
+## Les garanties (coque étanche, passages, accroches atteignables) doivent tenir pour toute variante : voir test_grotte.gd --variante=<k>.
+static func variante(def: Dictionary, k: int, pos_monde := Vector3(-300.0, -220.0, 260.0)) -> Dictionary:
+	var d: Dictionary = def.duplicate(true)
+	d["pos_monde"] = pos_monde
+	d["graine"] = int(d["graine"]) + k * 101
+	d["bruit"] = int(d["bruit"]) + k * 17
+	for b: Dictionary in d["branches"]:
+		b["graine"] = int(b["graine"]) + k * 29 + 1
+		b["variante"] = {"largeur": [0.9, 1.1], "relief": [0.8, 1.3]}
+	for z: Dictionary in d["zones"]:
+		z["graine"] = int(z["graine"]) + k * 13
+	return d
