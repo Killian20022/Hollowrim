@@ -108,7 +108,8 @@ void fragment() {
 	if (givre > 0.0) {
 		vec4 gv = textureGrad(tex_givre, wp.xz * 0.5, dFdx(wp.xz) * 0.5, dFdy(wp.xz) * 0.5);
 		// pente forte (arêtes, corniches, têtes de rochers) : pleine part ; sol plat : plaques seulement
-		float part = smoothstep(0.35, 0.75, n.y) * (1.0 - 0.5 * smoothstep(0.86, 0.98, n.y)) * givre;
+		float part = smoothstep(0.22, 0.58, n.y) * (1.0 - 0.45 * smoothstep(0.88, 0.98, n.y)) * givre;
+		part *= mix(0.45, 1.0, clamp(COLOR.r, 0.0, 1.0)) * 0.7;   // jamais plein : la carte de givre découpe toujours en grain     // les reliefs exposés (occlusion claire) givrent plus que les creux
 		if (part > gv.a) {
 			c = gv.rgb;
 			amt = 1.0;

@@ -19,9 +19,9 @@ extends RefCounted
 
 const BUTIN := preload("res://scripts/butin.gd")
 const MAX_LUM := 9
-const AMBIANTE := Color(0.34, 0.34, 0.37)   # gris presque neutre : à cette énergie, la teinte bleue de la DA rebleuirait toute la grotte
-const AMBIANTE_E := 2.6
-const BRUME_C := Color(0.018, 0.02, 0.026)
+const AMBIANTE := Color(0.29, 0.32, 0.39)   # 2e passe : gris-bleu sombre (pierre anthracite) ; la chaleur ne vient que des flaques des lanternes
+const AMBIANTE_E := 4.2
+const BRUME_C := Color(0.014, 0.017, 0.024)
 const DIST_APPARITION := 46.0
 
 ## Tenue du chef (les bandits ordinaires viennent de PersoDefs.bandit(k), k = indice « tenue » 0-3).

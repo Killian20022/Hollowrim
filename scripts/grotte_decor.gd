@@ -9,7 +9,7 @@ extends CrypteDecor
 const CASE_C := 10.0
 const PAINT_PARENT := ["bois", "fer", "lame", "os", "argile", "parchemin", "toile", "halo", "flamme"]
 const DOSSIER := "res://assets/grotte"
-const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "givre", "glacon", "cristal", "peau", "paille", "or", "piste"]
+const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "givre", "glacon", "cristal", "cristal_f", "planches", "peau", "paille", "or", "piste"]
 const PROPRES_PLATES := ["jour", "ciel", "rai", "flaque", "brume"]
 const GROTTE_SHADER := preload("res://shaders/grotte.gdshader")
 const AO_GAMMA := 1.0          # occlusion peinte accentuée : creux et pieds de paroi quasi noirs (références)
@@ -20,22 +20,23 @@ const AO_GAMMA := 1.0          # occlusion peinte accentuée : creux et pieds de
 ## et sol mouillé), plus de bleu saturé ; la glace superposée n'est plus qu'un vernis gris-bleu.
 const COQUES := {
 	"c_roche_neige": ["roche_givre", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.8, 0.0, 1.0],
-	"c_roche_mousse": ["roche", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.45, 0.0, 1.0],
-	"c_roche_glace": ["roche_b", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.7, 0.0, 1.0],
-	"c_roche_nu": ["roche", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.4, 0.0, 1.0],
+	"c_roche_mousse": ["roche", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.7, 0.0, 1.0],
+	"c_roche_glace": ["roche_b", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.85, 0.0, 1.0],
+	"c_roche_nu": ["roche", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.65, 0.0, 1.0],
 	"c_roche_mur": ["roche", "", Color(0.74, 0.73, 0.75), Vector3(0.0, 0.0, 0.0), 0.0, 0.4, 0.0, 1.0],   # mur fragile (boîte sans occlusion peinte)
-	"c_strate_mousse": ["strate", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.4, 0.0, 1.0],
+	"c_strate_mousse": ["strate", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.65, 0.0, 1.0],
 	"c_strate_glace": ["strate", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.75, 0.0, 1.0],
-	"c_strate_suie": ["strate", "", Color(0.92, 0.84, 0.78), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 1.0],
+	"c_strate_suie": ["strate", "", Color(0.8, 0.8, 0.82), Vector3(0.0, 0.0, 0.0), 0.0, 0.35, 0.0, 1.0],
 	"c_sol_neige": ["sol", "neige_sol", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.45, 0.0, 1.0],
 	"c_sol_mousse": ["sol", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.25, 1.0, 1.0],
 	"c_sol_glace": ["sol", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.5, 0.6, 1.0],
 	"c_sol_nu": ["sol", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.3, 0.8, 1.0],
-	"c_sol_camp": ["sol", "", Color(1.0, 0.9, 0.8), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.35, 1.0],
+	"c_sol_camp": ["sol", "", Color(0.95, 0.95, 0.97), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.35, 1.0],
 	"c_glace": ["glace", "", Color(1, 1, 1), Vector3(0.004, 0.008, 0.014), 0.0, 0.15, 1.0, 1.0],
 	"c_piste": ["piste", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 0.0],
 	"c_cristal": ["cristal", "", Color(0.7, 0.76, 0.88), Vector3(0.0, 0.0, 0.0), 0.2, 0.0, 0.0, 0.0],
 	"c_or": ["or", "", Color(1, 1, 1), Vector3(0.05, 0.035, 0.0), 0.12, 0.0, 0.0, 0.0],
+	"c_cristal_f": ["cristal_f", "", Color(0.9, 0.92, 1.0), Vector3(0.0, 0.0, 0.0), 0.35, 0.0, 0.0, 0.0],   # prismes en grappes (UV par face)
 	"c_glacon": ["glacon", "", Color(0.9, 0.95, 1.0), Vector3(0.012, 0.018, 0.026), 0.12, 0.0, 0.0, 0.0],
 }
 
@@ -112,7 +113,7 @@ func mat(nom: String) -> Material:
 		sm.set_shader_parameter("tex_givre", _tex_g("givre"))
 		sm.set_shader_parameter("mouille", d[6])
 		sm.set_shader_parameter("triplan", d[7])
-		sm.set_shader_parameter("ao_gamma", AO_GAMMA if nom != "c_cristal" and nom != "c_glacon" else 1.0)
+		sm.set_shader_parameter("ao_gamma", AO_GAMMA if not nom in ["c_cristal", "c_cristal_f", "c_glacon"] else 1.0)
 		sm.set_shader_parameter("decoupe", 1.0 if nom == "c_piste" else 0.0)
 		if nom == "c_sol_neige":
 			sm.set_shader_parameter("echelle_sup", 0.5)     # neige du sol extérieur : tuile de 8 m (16 texels/m), même grain que dehors
@@ -146,7 +147,7 @@ func mat(nom: String) -> Material:
 		s.cull_mode = BaseMaterial3D.CULL_DISABLED
 		s.disable_receive_shadows = true
 		m = s
-	elif nom == "peau" or nom == "paille" or nom == "or":
+	elif nom == "peau" or nom == "paille" or nom == "or" or nom == "planches":
 		var sm := ShaderMaterial.new()
 		sm.shader = CRYPTE_SHADER
 		sm.set_shader_parameter("tex_base", _tex_g(nom))
@@ -337,40 +338,66 @@ func caillou(nom: String, base: Vector3, r: float, h: float, graine: int, masque
 	for i in 4:
 		facette(nom, pts[i], pts[(i + 1) % 4], sommet, axe, [c0, c0, c1], false, 2.0)
 
-## Cristal : prisme hexagonal terminé par une pointe, incliné d'au plus `incl` radians.
+## Cristal (2e passe, d'après grottes_cryptes_6) : GRAPPE de prismes hexagonaux élancés et pointus, de tailles très variées
+## (un maître, beaucoup de petits), pieds enfoncés dans la roche. Chaque face reçoit ses UV (travers x long) : la texture
+## cristal_f porte le dégradé bleu nuit -> cyan, l'arête claire d'un texel et les fêlures. `r` et `l` : gabarit du maître.
 func cristal(base: Vector3, r: float, l: float, graine: int, incl := 0.5, axe_bias := Vector3.UP) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
-	var d := (axe_bias + Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)) * incl).normalized()
+	var d0 := (axe_bias + Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)) * incl * 0.6).normalized()
+	var u0 := d0.cross(Vector3.RIGHT if absf(d0.x) < 0.9 else Vector3.FORWARD).normalized()
+	var w0 := d0.cross(u0)
+	_prisme_cristal(base - d0 * l * 0.12, d0, r * 0.62, l, rng)
+	var n := 2 + int(clampf(l * 1.2, 0.0, 4.0)) + rng.randi_range(0, 1)
+	for k in n:
+		var a := rng.randf() * TAU
+		var dist := r * rng.randf_range(0.7, 2.4)
+		var off := (u0 * cos(a) + w0 * sin(a)) * dist
+		var ouv := rng.randf_range(0.25, 0.75)                     # les petits s'écartent du maître
+		var d := (d0 + (u0 * cos(a) + w0 * sin(a)) * ouv + Vector3(rng.randf_range(-0.15, 0.15), 0, rng.randf_range(-0.15, 0.15))).normalized()
+		var f := pow(rng.randf(), 1.8)                              # beaucoup de petits, quelques moyens
+		var lk := l * lerpf(0.14, 0.62, f)
+		var rk := r * 0.62 * lerpf(0.28, 0.75, f) * rng.randf_range(0.8, 1.15)
+		_prisme_cristal(base + off - d * lk * 0.18, d, rk, lk, rng)
+
+func _prisme_cristal(base: Vector3, d: Vector3, r: float, l: float, rng: RandomNumberGenerator) -> void:
 	var u := d.cross(Vector3.RIGHT if absf(d.x) < 0.9 else Vector3.FORWARD).normalized()
 	var w := d.cross(u)
 	var a0 := rng.randf() * TAU
-	var ring0: Array = []
-	var ring1: Array = []
-	var ring2: Array = []
-	for i in 6:
-		var a := a0 + TAU * i / 6.0
-		var rad := u * cos(a) + w * sin(a)
-		ring0.append(base + rad * r * (0.92 + rng.randf() * 0.16))
-		ring1.append(base + d * l * 0.68 + rad * r * (0.9 + rng.randf() * 0.2))
-		ring2.append(base + d * l * 0.9 + rad * r * 0.5)
-	var pointe_p := base + d * l
+	var corps := l * rng.randf_range(0.72, 0.82)
+	var pointe_p := base + d * l + (u * rng.randf_range(-0.2, 0.2) + w * rng.randf_range(-0.2, 0.2)) * r
+	var r1 := r * rng.randf_range(0.9, 1.05)
+	var v1 := corps / l
 	var axe := base + d * l * 0.5
-	var teinte := [Color(0.62, 0.78, 1.0), Color(0.7, 1.0, 1.0), Color(0.9, 0.78, 1.0), Color(0.78, 0.9, 1.0), Color(0.55, 0.7, 0.98)]
+	var pied := Color(0.45, 0.45, 0.5, 0.0)                         # pied sombre (dans la roche)
+	var haut_c := Color(1, 1, 1, 0.0)
 	for i in 6:
-		var j := (i + 1) % 6
-		var c0: Color = teinte[(i + graine) % 5]
-		c0.a = 0.0
-		var c1 := Color(1, 1, 1, 0.0)
-		facette("c_cristal", ring0[i], ring0[j], ring1[j], axe, [c0, c0, c1], false, 2.0)
-		facette("c_cristal", ring0[i], ring1[j], ring1[i], axe, [c0, c1, c1], false, 2.0)
-		facette("c_cristal", ring1[i], ring1[j], ring2[j], axe, [c1, c1, c1], false, 2.0)
-		facette("c_cristal", ring1[i], ring2[j], ring2[i], axe, [c1, c1, c1], false, 2.0)
-		facette("c_cristal", ring2[i], ring2[j], pointe_p, axe, [c1, c1, Color(1.2, 1.2, 1.2, 0.0)], false, 2.0)
+		var j := i + 1
+		var ra := u * cos(a0 + TAU * i / 6.0) + w * sin(a0 + TAU * i / 6.0)
+		var rb := u * cos(a0 + TAU * j / 6.0) + w * sin(a0 + TAU * j / 6.0)
+		var p0 := base + ra * r
+		var p1 := base + rb * r
+		var q0 := base + d * corps + ra * r1
+		var q1 := base + d * corps + rb * r1
+		facette("c_cristal_f", p0, p1, q1, axe, [pied, pied, haut_c], false, 2.0, false, [Vector2(0, 1), Vector2(1, 1), Vector2(1, 1.0 - v1)])
+		facette("c_cristal_f", p0, q1, q0, axe, [pied, haut_c, haut_c], false, 2.0, false, [Vector2(0, 1), Vector2(1, 1.0 - v1), Vector2(0, 1.0 - v1)])
+		facette("c_cristal_f", q0, q1, pointe_p, axe, [haut_c, haut_c, Color(1.25, 1.25, 1.25, 0.0)], false, 2.0, false, [Vector2(0, 1.0 - v1), Vector2(1, 1.0 - v1), Vector2(0.5, 0.0)])
 
 # ------------------------------------------------------------------ outils de mobilier
 ## Prisme entre deux points (bûche, hampe, perche) ; UV en mètres, 32 texels/m.
 func prisme(nom: String, a: Vector3, b: Vector3, r: float, cotes := 6, r_b := -1.0) -> void:
+	# 2e passe accessoires : les étais de GrotteModules.etai (bois, 8 côtés, r 0,15 / 0,17) et les roues de chariot (fer, 8 côtés,
+	# r 0,2) sont reconnus ici et redessinés plus massifs (grotte_modules.gd n'est pas dans ce lot)
+	if r_b < 0.0 and cotes == 8:
+		if nom == "bois" and (is_equal_approx(r, 0.15) or is_equal_approx(r, 0.17)):
+			_bois_etai(a, b, r)
+			return
+		if nom == "fer" and is_equal_approx(r, 0.2):
+			_roue(a, b)
+			return
+	_prisme(nom, a, b, r, cotes, r_b)
+
+func _prisme(nom: String, a: Vector3, b: Vector3, r: float, cotes := 6, r_b := -1.0) -> void:
 	var ax := (b - a)
 	var longueur := ax.length()
 	if longueur < 0.001:
@@ -460,15 +487,116 @@ func rai_oblique(haut: Vector3, bas: Vector3, largeur_haut: float, largeur_bas: 
 		quad("rai_g", a, b, c, e, n, [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)])
 
 # ------------------------------------------------------------------ mobilier du campement
+## Caisse (2e passe) : planches clouées (texture planches), montants d'angle, écharpe en diagonale sur les grandes faces,
+## cerclages de fer haut et bas avec rivets, équerres de fer aux coins. Collision : la boîte entière (inchangée).
 func caisse(pos: Vector3, taille := Vector3(0.7, 0.5, 0.5), lacet := 0.0) -> void:
 	var b := Basis(Vector3.UP, lacet)
-	boite("bois", pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
-	for dx in [-0.5, 0.5]:
-		boite("bois", pos + b * Vector3(dx * (taille.x - 0.06), taille.y * 0.5, 0), Vector3(0.06, taille.y + 0.02, taille.z + 0.02), lacet)
-	for dy in [0.07, taille.y - 0.07]:
-		boite("fer", pos + Vector3(0, dy, 0), Vector3(taille.x + 0.02, 0.035, taille.z + 0.02), lacet)
+	var tx := taille.x
+	var ty := taille.y
+	var tz := taille.z
+	boite("planches", pos + Vector3(0, ty * 0.5, 0), taille, lacet)
+	for dx: float in [-0.5, 0.5]:
+		for dz: float in [-0.5, 0.5]:
+			boite("bois", pos + b * Vector3(dx * (tx - 0.05), ty * 0.5, dz * (tz - 0.05)), Vector3(0.075, ty + 0.02, 0.075), lacet)
+	# écharpes : sur les deux grandes faces (normale ±z local)
+	var diag := Vector2(tx - 0.1, ty - 0.1)
+	var ang := atan2(diag.y, diag.x)
+	for sz: float in [-1.0, 1.0]:
+		var bb := b * Basis(Vector3.BACK, ang * sz)
+		boite_b("bois", pos + b * Vector3(0, ty * 0.5, sz * (tz * 0.5 + 0.012)), Vector3(diag.length(), 0.075, 0.025), bb)
+	for dy: float in [0.08, ty - 0.08]:
+		boite("fer", pos + Vector3(0, dy, 0), Vector3(tx + 0.03, 0.04, tz + 0.03), lacet)
+		for dx: float in [-0.32, 0.32]:
+			for sz: float in [-1.0, 1.0]:
+				boite("fer", pos + b * Vector3(dx * tx, dy, sz * (tz * 0.5 + 0.02)), Vector3(0.03, 0.03, 0.02), lacet)
+	for dx: float in [-0.5, 0.5]:
+		for dz: float in [-0.5, 0.5]:
+			boite("fer", pos + b * Vector3(dx * (tx + 0.01), ty - 0.06, dz * (tz + 0.01)), Vector3(0.09, 0.12, 0.09), lacet)
 	var s := b * Vector3(taille.x, 0, taille.z)
 	solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s.x), taille.y, absf(s.z)))
+
+## Benne de chariot (interceptée dans boite) : flancs de trois planches, fond, montants et bandes de fer rivetées.
+func _benne(c: Vector3, t: Vector3, lacet: float) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	var hx := t.x * 0.5
+	var hp := (t.y - 0.03) / 3.0
+	for sx: float in [-1.0, 1.0]:
+		for k in 3:
+			var y := -t.y * 0.5 + hp * (k + 0.5)
+			super.boite("planches", c + b * Vector3(sx * (hx - 0.03), y, 0), Vector3(0.05, hp - 0.012, t.z), lacet)
+		for z: float in [-0.68, 0.0, 0.68]:
+			super.boite("fer", c + b * Vector3(sx * (hx + 0.005), 0, z * t.z / 1.5), Vector3(0.03, t.y + 0.04, 0.07), lacet)
+			for y: float in [-0.17, 0.0, 0.17]:
+				super.boite("fer", c + b * Vector3(sx * (hx + 0.02), y, z * t.z / 1.5), Vector3(0.02, 0.025, 0.025), lacet)
+	super.boite("planches", c + b * Vector3(0, -t.y * 0.5 + 0.03, 0), Vector3(t.x - 0.08, 0.05, t.z - 0.04), lacet)
+	super.boite("noir", c + b * Vector3(0, -t.y * 0.5 + 0.06, 0), Vector3(t.x - 0.12, 0.01, t.z - 0.1), lacet)
+
+## Fond de benne (plaque de fer 1,0 x 0,55 x 0,05 du module) : trois planches et deux bandes de fer.
+func _fond_benne(c: Vector3, t: Vector3, lacet: float) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	var hp := t.y / 3.0
+	for k in 3:
+		super.boite("planches", c + b * Vector3(0, -t.y * 0.5 + hp * (k + 0.5), 0), Vector3(t.x - 0.06, hp - 0.012, t.z), lacet)
+	for sx: float in [-1.0, 1.0]:
+		super.boite("fer", c + b * Vector3(sx * (t.x * 0.5 - 0.03), 0, 0), Vector3(0.06, t.y + 0.04, t.z + 0.02), lacet)
+	super.boite("fer", c + b * Vector3(0, t.y * 0.5 - 0.04, 0), Vector3(t.x, 0.04, t.z + 0.02), lacet)
+
+## Bord de benne (plaque 1,0 x 0,04 x 1,56 du module) : quatre fers d'angle au lieu d'un couvercle plein.
+func _bord_benne(c: Vector3, t: Vector3, lacet: float) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	for sx: float in [-1.0, 1.0]:
+		super.boite("fer", c + b * Vector3(sx * (t.x * 0.5 - 0.03), 0, 0), Vector3(0.06, 0.05, t.z), lacet)
+	for sz: float in [-1.0, 1.0]:
+		super.boite("fer", c + b * Vector3(0, 0, sz * (t.z * 0.5 - 0.03)), Vector3(t.x, 0.05, 0.06), lacet)
+
+func boite(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0, sans_dessous := false, decal := Vector3.ZERO) -> void:
+	# pièces de GrotteModules.chariot reconnues à leur gabarit (grotte_modules.gd n'est pas dans ce lot)
+	if nom == "bois" and taille.is_equal_approx(Vector3(0.95, 0.5, 1.5)):
+		_benne(centre, taille, lacet)
+		return
+	if nom == "fer" and taille.is_equal_approx(Vector3(1.0, 0.55, 0.05)):
+		_fond_benne(centre, taille, lacet)
+		return
+	if nom == "fer" and taille.is_equal_approx(Vector3(1.0, 0.04, 1.56)):
+		_bord_benne(centre, taille, lacet)
+		return
+	super.boite(nom, centre, taille, lacet, sans_dessous, decal)
+
+## Roue de chariot : bandage de fer, jante de bois, moyeu et essieu.
+func _roue(a: Vector3, b: Vector3) -> void:
+	var d := (b - a).normalized()
+	var m := (a + b) * 0.5
+	_prisme("fer", m - d * 0.045, m + d * 0.045, 0.21, 10)
+	_prisme("bois", m - d * 0.055, m + d * 0.055, 0.16, 10)
+	_prisme("fer", m - d * 0.09, m + d * 0.09, 0.05, 6)
+	_prisme("fer", m - d * 0.2, m + d * 0.2, 0.022, 4)
+
+## Étai de mine massif (poteaux et chapeau de GrotteModules.etai) : bois équarri, frettes de fer, contrefiches sous le chapeau.
+var _poteaux: Array = []      # sommets des poteaux déjà posés (pour les contrefiches)
+func _bois_etai(a: Vector3, b: Vector3, r: float) -> void:
+	if is_equal_approx(r, 0.15):
+		_prisme("bois", a, b, 0.2, 4)
+		super.boite("fer", b - Vector3(0, 0.12, 0), Vector3(0.32, 0.06, 0.32))
+		super.boite("fer", a + Vector3(0, 0.45, 0), Vector3(0.32, 0.05, 0.32))
+		_poteaux.append(b)
+		return
+	_prisme("bois", a, b, 0.23, 4)
+	var R := (b - a).normalized()
+	for bout: Vector3 in [a + R * 0.3, b - R * 0.3]:
+		var haut: Vector3 = Vector3.ZERO
+		var ok := false
+		for p: Vector3 in _poteaux:
+			if p.distance_to(bout) < 0.25:
+				haut = p
+				ok = true
+		if not ok:
+			continue
+		var vers := (R if bout.distance_to(a) < bout.distance_to(b) else -R)
+		var bas := haut - Vector3(0, 0.95, 0) + vers * 0.12
+		var tete := haut + vers * 0.85 - Vector3(0, 0.16, 0)
+		_prisme("bois", bas, tete, 0.075, 4)
+		super.boite("fer", tete + Vector3(0, 0.02, 0), Vector3(0.14, 0.05, 0.14))
+		chaine(haut + vers * 0.5 - Vector3(0, 0.12, 0), haut + vers * 0.5 - Vector3(0, 0.5, 0))
 
 func coffre_ouvert(pos: Vector3, lacet := 0.0) -> void:
 	var b := Basis(Vector3.UP, lacet)
@@ -600,9 +728,12 @@ func finir() -> void:
 ##  - glaçons au plafond (denses à l'entrée, au lac, aux cristaux), toiles d'araignée dans les angles, chaînes, caisses et tonneaux
 ##    (mine, camp, cache), braseros du camp, cascade gelée vers le lac, nappes de brume au sol.
 const FROID_LAC := Color(0.62, 0.78, 0.86)
-const FROID_CRISTAL := Color(0.5, 0.68, 1.0)
+const FROID_CRISTAL := Color(0.6, 0.74, 1.0)
 const JOUR_C := Color(0.78, 0.86, 1.0)
 const LANTERNE_C := Color(1.0, 0.6, 0.28)
+const LANT_E := 6.0      # lanternes : énergie, portée, atténuation (2e passe : flaques chaudes locales, chute forte)
+const LANT_P := 8.0
+const LANT_A := 2.0
 
 var _hab_r := RandomNumberGenerator.new()
 
@@ -672,6 +803,9 @@ func _retoucher_lumieres(g: Grotte) -> void:
 				a_source = true
 				break
 		if a_source:
+			if col.r > col.b:                            # feu, torche : flaque chaude plus courte et plus franche
+				l.omni_range = minf(l.omni_range, 8.0)
+				l.omni_attenuation = maxf(l.omni_attenuation, 1.8)
 			continue
 		var sit := _situer(g, l.position)
 		var id: String = sit[0]
@@ -687,7 +821,7 @@ func _retoucher_lumieres(g: Grotte) -> void:
 		if th == "cristaux" and sty == "cristaux":
 			l.light_color = FROID_CRISTAL                # DA « cristal bleu » : accent court, pas d'éclairage d'ensemble
 			l.light_energy = 0.9
-			l.omni_range = 5.5
+			l.omni_range = 4.5
 			continue
 		if th == "lac" and sty == "glace" and col.b > col.g and _hab_r.randf() < 0.6:
 			l.light_color = FROID_LAC
@@ -695,9 +829,9 @@ func _retoucher_lumieres(g: Grotte) -> void:
 			continue
 		# lumière chaude : on lui donne une source visible
 		l.light_color = LANTERNE_C.lerp(Color(1.0, 0.5, 0.2), _hab_r.randf())
-		l.light_energy = maxf(l.light_energy, 2.5)
-		l.omni_range = maxf(l.omni_range, 10.0)
-		l.omni_attenuation = 1.3
+		l.light_energy = LANT_E                       # flaque locale : forte au pied, chute rapide (références)
+		l.omni_range = LANT_P
+		l.omni_attenuation = LANT_A
 		lumieres.append([l, l.light_energy, _hab_r.randf() * 10.0])
 		var proche_etai := -1.0
 		for se: float in etais.get(id, []):
@@ -829,7 +963,7 @@ func _hab_mine(g: Grotte, z: Dictionary) -> void:
 				break
 		if not deja:
 			var pl := _lanterne_etai(g, id, se, -cote if ke % 2 == 0 else cote)
-			lumiere(pl, LANTERNE_C, 2.2, 9.0, 1.3, true)
+			lumiere(pl, LANTERNE_C, LANT_E, LANT_P, LANT_A, true)
 		ke += 1
 	var s := s0 + 2.5
 	var k := 0
@@ -844,7 +978,7 @@ func _hab_mine(g: Grotte, z: Dictionary) -> void:
 			var lat := cote * maxf((dl.y if cote > 0.0 else dl.x) - 0.55, 0.9)
 			if g.libre(id, s, lat, 0.2):
 				var pl := poteau_lanterne(g.sol_en(id, s, lat), -g.droite(id, s) * cote, true)
-				lumiere(pl, LANTERNE_C, 2.2, 9.0, 1.3, true)
+				lumiere(pl, LANTERNE_C, LANT_E, LANT_P, LANT_A, true)
 		s += _hab_r.randf_range(3.5, 6.0)
 		k += 1
 
@@ -861,7 +995,7 @@ func _hab_camp(g: Grotte, z: Dictionary) -> void:
 		if g.libre(id, sb, latb, 0.5):
 			var pb := g.sol_en(id, sb, latb)
 			brasero_fer(pb, true)
-			lumiere(pb + Vector3(0, 1.4, 0), Color(1.0, 0.52, 0.2), 2.3, 9.0, 1.4, true)
+			lumiere(pb + Vector3(0, 1.4, 0), Color(1.0, 0.52, 0.2), LANT_E * 1.25, LANT_P + 1.5, LANT_A, true)
 	# chaînes pendues au plafond, crochets
 	var s := s0 + 3.0
 	var k := 0
@@ -984,33 +1118,35 @@ func _glacons(g: Grotte) -> void:
 			var dens := 0.0
 			match sty:
 				"neige":
-					dens = 0.95
+					dens = 1.0
 				"glace", "cristaux":
-					dens = 0.75
+					dens = 0.9
 				"camp":
 					dens = 0.0
 				"goulot":
-					dens = 0.25
+					dens = 0.5
 				_:
-					dens = 0.18
+					dens = 0.42
 			if g.faille_f(b, s) > 0.02:
 				dens = 0.0
 			if _hab_r.randf() < dens:
+				# frange : une rangée de glaçons serrés le long de la voûte, près de l'arête paroi / plafond, longueurs très variées
 				var dl := g.demi_l(id, s)
 				var cote := 1.0 if _hab_r.randf() < 0.5 else -1.0
 				var w := (dl.y if cote > 0.0 else dl.x)
-				var lat0 := cote * w * _hab_r.randf_range(0.35, 0.85)
-				var n := _hab_r.randi_range(2, 6)
+				var lat0 := cote * w * _hab_r.randf_range(0.5, 0.9)
+				var n := _hab_r.randi_range(4, 10)
+				var T := g.tang(id, s)
 				for k in n:
-					var lat := lat0 + _hab_r.randf_range(-0.5, 0.5)
-					var ss := s + _hab_r.randf_range(-0.4, 0.4)
+					var lat := lat0 + _hab_r.randf_range(-0.2, 0.2)
+					var ss := s + (float(k) - n * 0.5) * _hab_r.randf_range(0.12, 0.22)
 					var top := g.plafond_en(id, ss, lat)
 					var sol := g.sol_en(id, ss, lat)
 					var garde := top.y - sol.y
-					var l := _hab_r.randf_range(0.25, 1.1) * (1.0 if k % 3 != 0 else 0.5)
+					var l := _hab_r.randf_range(0.12, 0.5) if _hab_r.randf() < 0.65 else _hab_r.randf_range(0.6, 1.5)
 					if garde - l < 2.3 and absf(lat) < w * 0.7:
 						l = garde - 2.3
-					if l < 0.15 or garde < 1.0:
+					if l < 0.1 or garde < 1.0:
 						continue
-					pointe("c_glacon", top + Vector3(0, 0.1, 0), _hab_r.randf_range(0.03, 0.09) * (0.6 + l * 0.6), -l, _hab_r.randi(), 0.0, 5)
-			s += 0.8
+					pointe("c_glacon", top + Vector3(0, 0.1, 0) + T * 0.0, _hab_r.randf_range(0.025, 0.07) * (0.6 + l * 0.6), -l, _hab_r.randi(), 0.0, 5)
+			s += 0.7

@@ -14,11 +14,11 @@ const E := 2          # roche, strates, sol, givre : tuile de 256 px (2 m dans l
 const SG := S * E
 
 # bornes de rampe (sombre -> clair)
-const R_ROCHE := ["#0a0806", "#0f0b08", "#1d1919", "#2c2424", "#393130", "#4a3d34", "#5a4a3e", "#7a6452", "#a48a70"]   # DA « pierre de donjon », tons chauds modérés (les lanternes donnent l'orange)
-const R_ROCHE_GRIS := ["#070606", "#100e0d", "#1d1a19", "#2c2827", "#3b3532", "#4c4440", "#5f5650", "#7a6f66", "#9c8f83"]
-const R_ROCHE_FROID := ["#060607", "#0e0f12", "#1b1c20", "#29292e", "#38373b", "#4a4749", "#5e5a5a", "#7a7572", "#9b958f"]
-const R_BRUN := ["#080604", "#140f0a", "#211910", "#302419", "#423224", "#574331", "#6f5741", "#8a6f55"]
-const R_SOL := ["#050504", "#0c0b09", "#151310", "#1f1c17", "#2b2620", "#38322a", "#474036", "#5a5145", "#71665a"]
+const R_ROCHE := ["#050608", "#0a0c0f", "#121519", "#1b1e23", "#24282e", "#2e3239", "#393e46", "#4a5059", "#666d77"]   # 2e passe : anthracite froid légèrement bleuté (références : la chaleur ne vient que des lanternes)
+const R_ROCHE_GRIS := ["#060606", "#0d0d0e", "#161718", "#202123", "#2a2b2e", "#35373a", "#424448", "#55575c", "#717479"]
+const R_ROCHE_FROID := ["#050608", "#0b0d10", "#14161a", "#1d2024", "#272a2f", "#31353a", "#3d4147", "#4f5359", "#6b7076"]
+const R_BRUN := ["#070605", "#0f0e0c", "#191714", "#23201c", "#2d2a25", "#39352f", "#46413a", "#57514a"]   # brun éteint, presque gris
+const R_SOL := ["#040505", "#090a0b", "#111214", "#191b1e", "#222529", "#2c3034", "#383c41", "#474c52", "#5c6268"]
 const R_GIVRE := ["#464e62", "#55607b", "#697492", "#8089a6", "#98a1be", "#b6c0d6", "#cdd7ec"]   # DA « neige crépuscule » (jamais #ffffff)
 const R_NEIGE := ["#6a7f9e", "#8397b3", "#a0b2c9", "#bdcbdc", "#dce5ef", "#f6f9fc"]
 const R_GLACE := ["#06080b", "#0c1015", "#141a21", "#1d252f", "#28323e", "#36424f", "#4a5867", "#687a8a", "#93a5b3", "#c4d1da"]   # glace du lac : gris-bleu sombre, peu saturé
@@ -311,7 +311,7 @@ static func glace_image(superposee := false) -> Image:
 	var T := 256        # 128 texels/m (tuile de 2 m)
 	var img := Image.create(T, T, false, Image.FORMAT_RGBA8)
 	var R := _rampe(R_GLACE, 12)
-	var RG := _rampe(["#3e4249", "#4f545c", "#646a73", "#7c838c", "#969ca4", "#b1b6bc", "#c9cdd2"], 10)   # vernis de givre gris (la lumière froide fait le bleu)
+	var RG := _rampe(["#1e2023", "#2a2d31", "#363a3f", "#44484e", "#555a60", "#6c7177", "#8d9298"], 10)   # vernis de givre gris sombre (2e passe : la roche des cristaux reste anthracite, la lumière froide fait le bleu)
 	var profond := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.008, 81, T, 3)
 	var nuage := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.025, 86, T, 3)
 	var fissure := _champ(FastNoiseLite.TYPE_CELLULAR, 0.009, 82, T, 1, FastNoiseLite.FRACTAL_NONE, FastNoiseLite.RETURN_DISTANCE2_SUB)
@@ -478,6 +478,75 @@ static func cristal_image() -> Image:
 			img.set_pixel(x, y, R[clampi(roundi(t), 0, 11)])
 	return img
 
+# ------------------------------------------------------------------ face de cristal (prismes hexagonaux, UV par face)
+## u = travers de la face (0 -> 1), v = long du prisme (0 = pied, 1 = pointe ; l'image est retournée : y = 0 en haut = pointe).
+## Dégradé interne bleu nuit (pied, enfoncé dans la roche) -> cyan pâle (pointe), arête claire d'1 texel à gauche,
+## joint sombre à droite, inclusions et fêlures obliques, quelques reflets. 64 x 64 texels (carré : chaîne de mipmaps complète).
+const R_CRISTAL_F := ["#05080f", "#09101c", "#0e182a", "#14223a", "#1b2e4b", "#243d5f", "#2f4f77", "#4a7aa6", "#7fb0d4", "#b4d8ee"]   # corps bleu nuit, cyan pâle seulement en tête
+
+static func cristal_face_image() -> Image:
+	var W := 64
+	var H := 64
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	var R := _rampe(R_CRISTAL_F, 12)
+	var onde := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.08, 64, 64, 2)
+	for y in H:
+		for x in W:
+			var v := 1.0 - float(y) / float(H - 1)            # 0 au pied, 1 à la pointe
+			var t := pow(v, 2.2) * 9.0 + 0.5
+			t += (onde[(y % 64) * 64 + x] - 0.5) * 2.2
+			var fel := fposmod(float(x) * 0.7 + float(y) * 0.45, 13.0)
+			if fel < 0.8 and _hash_i(int((float(x) * 0.7 + float(y) * 0.45) / 13.0), 5) > 0.45:
+				t += 1.6                                          # fêlure interne claire (oblique, interrompue)
+			if x >= W - 2:
+				t = minf(t, 1.0)                                  # joint sombre
+			elif x <= 1:
+				t = maxf(t + 3.0, 8.0)                            # arête claire d'un texel
+			elif x <= 2:
+				t += 1.0
+			if _hash_i(x / 2, y / 2 + 37) > 0.992:
+				t = 11.0
+			img.set_pixel(x, y, R[clampi(roundi(t), 0, 11)])
+	return img
+
+# ------------------------------------------------------------------ planches de bois usées (caisses, chariots, étais)
+## Tuile 64 x 64 = 1 m (64 texels/m) : planches horizontales de 16 px (25 cm), joint sombre d'un texel, veinage, nœuds,
+## bords usés plus clairs, clous de fer aux deux bouts de chaque planche (tous les 50 cm), plaques de crasse.
+const R_PLANCHE := ["#0a0807", "#15110d", "#211a14", "#2d241b", "#3a2f24", "#483b2d", "#574837", "#685843", "#7c6a52"]
+
+static func planches_image() -> Image:
+	var T := 64
+	var img := Image.create(T, T, false, Image.FORMAT_RGBA8)
+	var R := _rampe(R_PLANCHE, 12)
+	var veine := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.06, 81, T, 3)
+	var crasse := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.05, 82, T, 2)
+	for y in T:
+		var pl := y / 16
+		var yy := y % 16
+		var base := 4.5 + _hash_i(pl, 3) * 2.5
+		for x in T:
+			var i := y * T + x
+			var t := base
+			t += sin((float(x) * 0.09 + veine[i] * 6.0 + float(yy) * 0.6) * 3.0) * 0.9      # veinage
+			t += (_hash_i(x, y + 11) - 0.5) * 0.9
+			if crasse[i] > 0.62:
+				t -= 1.6
+			if yy == 15:
+				t = 0.0                                                                      # joint
+			elif yy == 0 or yy == 14:
+				t += 1.4 if _hash_i(x / 3, pl + 40) > 0.35 else -0.5                         # arête usée
+			var xn := (x + pl * 9) % 32
+			if (xn == 3 or xn == 4) and (yy == 5 or yy == 6 or yy == 9 or yy == 10):
+				var c := Color("#5d6166") if (xn == 3 and (yy == 5 or yy == 9)) else Color("#22252a")
+				img.set_pixel(x, y, c)                                                       # clou de fer (tête 2x2, reflet en haut-gauche)
+				continue
+			var nx := x - int(_hash_i(pl, 9) * 60.0)
+			var ny := yy - 7
+			if nx * nx + ny * ny * 4 < 9 and _hash_i(pl, 13) > 0.4:
+				t = 1.5                                                                      # nœud
+			img.set_pixel(x, y, R[clampi(roundi(t), 0, 11)])
+	return img
+
 # ------------------------------------------------------------------ peau, paille, or
 static func peau_image() -> Image:
 	var T := 64   # 64 texels/m (tuile de 1 m)
@@ -603,6 +672,8 @@ static func image(nom: String) -> Image:
 		"brume": return brume_image()
 		"piste": return piste_image()
 		"cristal": return cristal_image()
+		"cristal_f": return cristal_face_image()
+		"planches": return planches_image()
 		"peau": return peau_image()
 		"paille": return paille_image()
 		"jour": return jour_image()
