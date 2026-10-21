@@ -21,6 +21,8 @@ const VILLAGE_RAYON := 22.0          # palissade (village.gd RAYON)
 ## Palettes communes (DIRECTION_ARTISTIQUE §2) : dalles gris-brun (pierre froide réchauffée), granit « Pierre froide ».
 const PALETTE_DALLE := ["#3e3a3b", "#4d4747", "#5c5653", "#6c6560", "#7d766f", "#8e877f", "#a39b91"]
 const PALETTE_GRANIT := ["#1c1c1f", "#303035", "#3d434f", "#4c5566", "#5e6880", "#737e98", "#8a94ad"]
+## Passe 4 : roche des abords brun-gris (granit mouchetée de brun, fissures), la teinte froide du sommet la refroidit à l'écran.
+const PALETTE_ROCHE := ["#1f1c1b", "#322e2c", "#443f3c", "#58524d", "#6d655f", "#847b73", "#9c928a"]
 const FLAQUE := Color(1.0, 0.52, 0.22)   # flaque de lumière des lanternes (additive)
 const COULEUR_LANTERNE := Color(1.0, 0.62, 0.32)   # préréglage « Lanterne » (DIRECTION_ARTISTIQUE §6)
 const VITRE_LANTERNE := Color("#fcb53a")
@@ -339,8 +341,18 @@ func _rocher(u: float, v: float, s: float) -> void:
 	var sz := s * 0.5 * rng.randf_range(0.7, 0.95)
 	var sy := s * 0.42 * rng.randf_range(0.8, 1.15)
 	var base := Basis(Vector3.UP, rng.randf() * TAU)
-	var S := 16
-	var R := 9
+	# passe 4 : bloc de granit à FACETTES (intersection de demi-espaces à arêtes adoucies) au lieu d'une boule bosselée ;
+	# plans tirés par un générateur privé (la graine du bruit) : le `rng` partagé n'est pas touché.
+	var S := 20
+	var R := 11
+	var pr := RandomNumberGenerator.new()
+	pr.seed = int(n.seed) * 7 + 13
+	var plans: Array[Vector4] = []   # (nx, ny, nz, distance)
+	for i in 11:
+		var ang := pr.randf() * TAU
+		var ny := pr.randf_range(-0.2, 0.95) if i < 6 else pr.randf_range(-0.35, 0.35)
+		var nr := sqrt(maxf(0.0, 1.0 - ny * ny))
+		plans.append(Vector4(cos(ang) * nr, ny, sin(ang) * nr, pr.randf_range(0.92, 1.12)))
 	var anneaux: Array = []
 	var cols: Array = []
 	for r in R + 1:
@@ -352,21 +364,36 @@ func _rocher(u: float, v: float, s: float) -> void:
 			var d := Vector3(cos(phi) * cos(a), sin(phi), cos(phi) * sin(a))
 			if r == R:
 				d = Vector3(0.02 * cos(a), 1.0, 0.02 * sin(a)).normalized()
-			var f := 1.0 + n.get_noise_3dv(d * 1.6) * 0.26 + n.get_noise_3dv(d * 4.5 + Vector3(3, 1, 7)) * 0.07
+			# rayon du polyèdre : norme -k douce des distances aux plans (arêtes vives mais non tranchantes)
+			var somme := 0.0
+			var domin := 0
+			var meilleur := 99.0
+			for pi in plans.size():
+				var pl := plans[pi]
+				var dn := d.x * pl.x + d.y * pl.y + d.z * pl.z
+				var x := pl.w / maxf(dn, 0.05)
+				somme += pow(x, -9.0)
+				if x < meilleur:
+					meilleur = x
+					domin = pi
+			var rf := pow(somme, -1.0 / 9.0)
+			var f := clampf(rf, 0.55, 1.3) * (1.0 + n.get_noise_3dv(d * 4.5 + Vector3(3, 1, 7)) * 0.05) * (1.0 + n.get_noise_3dv(d * 1.2) * 0.1)
 			var q := Vector3(d.x * sx, d.y * sy + sy * 0.3, d.z * sz) * f
 			if q.y < 0.0:
 				q.y *= 0.5
 			# masque de neige : le haut, bord irrégulier qui descend en coulures sur les flancs
 			var m := d.y + n.get_noise_3dv(d * 2.4 + Vector3(9, 9, 9)) * 0.42 + n.get_noise_3dv(Vector3(cos(a) * 3.0, 0, sin(a) * 3.0)) * 0.18
-			var neige := m > 0.47   # passe 3 : calotte resserrée sur le haut, flancs de granit sombre visibles
-			var ao := lerpf(0.42, 1.0, clampf((d.y + 0.6) / 1.4, 0.0, 1.0))
+			var neige := m > 0.56   # passe 4 : calotte plus petite, le granit fissuré se voit (passe 3 : 0,47)  ;  passe 3 : calotte resserrée sur le haut, flancs de granit sombre visibles
+			var ao := lerpf(0.55, 1.0, clampf((d.y + 0.6) / 1.4, 0.0, 1.0))
 			if neige:
-				var ep := smoothstep(0.47, 0.85, m)   # épaisseur : nulle au bord, ~12 % de la taille au sommet
+				var ep := smoothstep(0.56, 0.9, m)   # épaisseur : nulle au bord, ~12 % de la taille au sommet
 				q += (d * 0.6 + Vector3(0, 0.6, 0)) * ep * 0.145 * s
 				var kn := lerpf(0.8, 1.0, clampf(d.y, 0.0, 1.0)) * (0.94 + n.get_noise_3dv(d * 6.0) * 0.08)
 				cl.append(Color(kn, kn, kn * 1.02, 0.0))
 			else:
-				var kk := ao * (0.95 + n.get_noise_3dv(d * 5.0 + Vector3(1, 2, 3)) * 0.1)
+				# ton propre à chaque facette (granit non uniforme) + arêtes assombries (fissures de gel)
+				var ton := 1.0 + 0.32 * fposmod(sin(float(domin) * 12.9898 + n.seed) * 43758.5, 1.0)
+				var kk := ao * ton * (0.95 + n.get_noise_3dv(d * 5.0 + Vector3(1, 2, 3)) * 0.1)
 				cl.append(Color(kk, kk, kk * 1.03, 1.0))
 			ring.append(q)
 		anneaux.append(ring)
@@ -739,7 +766,7 @@ func _mesh(m: BatiGeo.Maillage, mat: Material, ombre: bool, nom: String) -> Mesh
 func _finaliser() -> void:
 	var td: Array = texture_pierre(PALETTE_DALLE, 4100 + rng.randi() % 100, 5)
 	_mesh(_dalles, materiau_kit(td[0], td[1], 64.0, Color(1.14, 1.12, 1.1)), false, "Dalles")
-	var tg: Array = texture_pierre(PALETTE_GRANIT, 4300 + rng.randi() % 100, 7)
+	var tg: Array = texture_pierre(PALETTE_ROCHE, 4300 + rng.randi() % 100, 7, 300, 4)   # passe 4 : brun-gris moucheté, fissures
 	# passe 3 : la teinte froide (0,74 ; 0,76 ; 0,82) ne s'applique plus qu'au granit (couleur de sommet) ; la neige
 	# (alpha 0) n'est plus grisée par elle : elle rejoint le blanc bleuté du sol au lieu d'un gris terne.
 	for i in _pierre.c.size():
@@ -900,7 +927,7 @@ static func materiau_kit(tex: Texture2D, relief: Texture2D, texels: float, teint
 
 ## Pierre mouchetée tuilable (64 px) : bruit périodique 3 octaves quantifié dans `palette` (6-7 tons), moucheture en amas de
 ## 2-3 px (clairs et sombres), arêtes de grain. Renvoie [albédo avec mips « vote de couleur », relief].
-static func texture_pierre(palette: Array, graine: int, periode := 6) -> Array:
+static func texture_pierre(palette: Array, graine: int, periode := 6, nb_moucheture := 150, nb_fissures := 0) -> Array:
 	var r := RandomNumberGenerator.new()
 	r.seed = graine
 	var T := 64
@@ -922,7 +949,7 @@ static func texture_pierre(palette: Array, graine: int, periode := 6) -> Array:
 			v = v / 0.875 + (r.randf() - 0.5) * 0.12
 			hs[y * T + x] = v
 	# moucheture : amas de 2-3 px
-	for i in 150:
+	for i in nb_moucheture:
 		var x0 := r.randi() % T
 		var y0 := r.randi() % T
 		var dv := 0.22 if r.randf() < 0.5 else -0.25
@@ -930,6 +957,19 @@ static func texture_pierre(palette: Array, graine: int, periode := 6) -> Array:
 			var x := (x0 + (k % 2)) % T
 			var y := (y0 + (k / 2)) % T
 			hs[y * T + x] += dv
+	# fissures (passe 4) : marches aléatoires de 20-40 px, creux de 1 px (ton le plus sombre) + lèvre claire d'un côté
+	for i in nb_fissures:
+		var fx := r.randf() * T
+		var fy := r.randf() * T
+		var dir := r.randf() * TAU
+		for k in r.randi_range(20, 40):
+			dir += r.randf_range(-0.55, 0.55)
+			fx += cos(dir)
+			fy += sin(dir)
+			var ix := posmod(int(fx), T)
+			var iy := posmod(int(fy), T)
+			hs[iy * T + ix] = -0.4
+			hs[iy * T + posmod(ix + 1, T)] += 0.18
 	for y in T:
 		for x in T:
 			img.set_pixel(x, y, cols[clampi(int(hs[y * T + x] * cols.size()), 0, cols.size() - 1)])
