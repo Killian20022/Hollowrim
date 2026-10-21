@@ -398,7 +398,7 @@ static func dalle_neige_epaisse(Lx: float, Sl: float, graine: int, epaisseur := 
 		var y := epaisseur * (0.72 + 0.18 * ts) + epaisseur * 0.22 * smoothstep(0.62, 1.0, ts)
 		y += (sin(x * 1.3 + s * 0.8 + p1) * 0.5 + sin(x * 2.9 - s * 1.7 + p2) * 0.3) * 0.035
 		# corniches soufflées : crêtes obliques douces
-		y += maxf(0.0, sin(x * 0.9 + s * 2.3 + p3)) * 0.05 * (1.0 - absf(ts - 0.5) * 1.4)
+		y += maxf(0.0, sin(x * 0.9 + s * 2.3 + p3)) * 0.075 * (1.0 - absf(ts - 0.5) * 1.4)
 		y -= sag * 4.0 * tx * (1.0 - tx) * (1.0 - ts * 0.5)
 		return Vector3(x, y, s)
 	var grid: Array = []
@@ -408,7 +408,7 @@ static func dalle_neige_epaisse(Lx: float, Sl: float, graine: int, epaisseur := 
 		for j in ns + 1:
 			var p: Vector3 = haut.call(x, Sl * j / ns)
 			if j > 0 and j < ns and i > 0 and i < nx:
-				p.y += rng.randf_range(-0.015, 0.015)
+				p.y += rng.randf_range(-0.03, 0.03)
 			col.append(p)
 		grid.append(col)
 	var blanc := Color(1, 1, 1, 0.0)
@@ -462,10 +462,11 @@ static func dalle_neige_epaisse(Lx: float, Sl: float, graine: int, epaisseur := 
 			pr.append(profil.call(grid[0 if cote < 0 else nx][j], Vector3(cote, 0, 0), ov, d2))
 		rives[cote] = pr
 		for j in ns:
+			# ordre gauche → droite vu du dehors (faces avant)
 			if cote < 0:
-				bande.call(pr[j + 1], pr[j])
-			else:
 				bande.call(pr[j], pr[j + 1])
+			else:
+				bande.call(pr[j + 1], pr[j])
 		# coin égout × rive : quart de rouleau (on relie le profil d'égout du bord au profil de rive du bas)
 		var pe: Array = egout[0 if cote < 0 else nx]
 		var prb: Array = pr[ns]
@@ -473,11 +474,11 @@ static func dalle_neige_epaisse(Lx: float, Sl: float, graine: int, epaisseur := 
 		for k in 5:
 			coin.append(Vector3(prb[k].x, (pe[k].y + prb[k].y) * 0.5 - 0.02, pe[k].z))
 		if cote < 0:
+			bande.call(prb, coin)
+			bande.call(coin, pe)
+		else:
 			bande.call(pe, coin)
 			bande.call(coin, prb)
-		else:
-			bande.call(coin, pe)
-			bande.call(prb, coin)
 	st.generate_normals()
 	return st.commit()
 

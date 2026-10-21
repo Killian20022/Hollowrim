@@ -1029,23 +1029,28 @@ func _pignon_decor(p: Node3D, cote: float, L: float, W: float, y0: float, faite:
 		var a := Rf - d * 0.15
 		var b := Rf + d * 0.85
 		_piece(p, a, b, Vector2(0.14, 0.22), m_colombage)
-		# cou qui s'enroule vers le dehors, puis la tête
-		var angles := [phi - deg_to_rad(28.0), phi - deg_to_rad(62.0)]
-		var pt := b
-		for k in angles.size():
-			var dd := Vector3(0, sin(angles[k]), -c * cos(angles[k]))
-			var q: Vector3 = pt + dd * 0.24
-			_piece(p, pt - dd * 0.03, q, Vector2(0.13, 0.2 - k * 0.02), m_colombage)
-			pt = q
-		var ah := deg_to_rad(r.randf_range(-12.0, 4.0))
-		var dh := Vector3(0, sin(ah), -c * cos(ah))
-		var up := Vector3(0, cos(ah), c * sin(ah))
-		var tete := pt + dh * 0.14
-		_piece(p, pt - dh * 0.04, pt + dh * 0.3, Vector2(0.14, 0.22), m_colombage)                       # crâne
-		_piece(p, pt + dh * 0.26 + up * 0.03, pt + dh * 0.5 + up * 0.0, Vector2(0.11, 0.12), m_colombage)  # museau
-		_piece(p, pt + dh * 0.12 - up * 0.1, pt + dh * 0.42 - up * 0.18, Vector2(0.09, 0.06), m_colombage) # mâchoire ouverte
-		_piece(p, tete + up * 0.1, tete + up * 0.24 - dh * 0.2, Vector2(0.05, 0.06), m_colombage)          # corne
-		_piece(p, tete + up * 0.12 + dh * 0.02, pt + up * 0.17 + dh * 0.32, Vector2(0.15, 0.05), m_neige)   # neige sur la tête
+		_dragon(p, b, phi, -c, r)
+
+## Tête de dragon sculptée (plan x = constante) : depuis `b`, le cou part à l'angle `phi` (au-dessus de l'horizontale,
+## vers z de signe `sens`), s'enroule vers l'horizontale, puis crâne, museau, mâchoire ouverte, corne, neige sur la tête.
+func _dragon(p: Node3D, b: Vector3, phi: float, sens: float, r: RandomNumberGenerator, t := 1.0) -> void:
+	var c := -sens
+	var angles := [phi - deg_to_rad(28.0), phi - deg_to_rad(62.0)]
+	var pt := b
+	for k in angles.size():
+		var dd := Vector3(0, sin(angles[k]), -c * cos(angles[k]))
+		var q: Vector3 = pt + dd * 0.24 * t
+		_piece(p, pt - dd * 0.03 * t, q, Vector2(0.13, 0.2 - k * 0.02) * t, m_colombage)
+		pt = q
+	var ah := deg_to_rad(r.randf_range(-12.0, 4.0))
+	var dh := Vector3(0, sin(ah), -c * cos(ah))
+	var up := Vector3(0, cos(ah), c * sin(ah))
+	var tete := pt + dh * 0.14 * t
+	_piece(p, pt - dh * 0.04 * t, pt + dh * 0.3 * t, Vector2(0.14, 0.22) * t, m_colombage)                           # crâne
+	_piece(p, pt + (dh * 0.26 + up * 0.03) * t, pt + dh * 0.5 * t, Vector2(0.11, 0.12) * t, m_colombage)             # museau
+	_piece(p, pt + (dh * 0.12 - up * 0.1) * t, pt + (dh * 0.42 - up * 0.18) * t, Vector2(0.09, 0.06) * t, m_colombage) # mâchoire ouverte
+	_piece(p, tete + up * 0.1 * t, tete + (up * 0.24 - dh * 0.2) * t, Vector2(0.05, 0.06) * t, m_colombage)          # corne
+	_piece(p, tete + (up * 0.12 + dh * 0.02) * t, pt + (up * 0.17 + dh * 0.32) * t, Vector2(0.15, 0.05) * t, m_neige) # neige sur la tête
 
 ## Lanterne de fumée de la halle : le toit raide enveloppe la gaine de l'intérieur (qui s'arrête à l'ancien faîte) ;
 ## une tourelle de planches debout l'enferme et la prolonge au-dessus du nouveau faîte, petit toit enneigé sur poteaux
@@ -1406,15 +1411,29 @@ func _porte() -> void:
 		# poteau octogonal sur un socle de pierre, tête de dragon sculptée au sommet
 		_bloc(p, Vector3(1.05, 0.55, 1.05), 4500 + int(x * 3.0), Vector3(x, 0.1, 0), m_brute, 0.1, 0.4, 0.2, 0.07)
 		_cylindre(p, 0.3, 0.34, 5.4, Transform3D(Basis(), Vector3(x, 2.5, 0)), m_poutres, 8, true)
-		_boite(p, Vector3(0.3, 0.3, 0.8), Transform3D(Basis(Vector3.RIGHT, -0.4), Vector3(x, 5.3, 0.35)), m_poutres_h)
-		_boite(p, Vector3(0.22, 0.22, 0.4), Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3(x, 5.45, 0.75)), m_poutres_h)
+		if _sans_refonte:
+			_boite(p, Vector3(0.3, 0.3, 0.8), Transform3D(Basis(Vector3.RIGHT, -0.4), Vector3(x, 5.3, 0.35)), m_poutres_h)
+			_boite(p, Vector3(0.22, 0.22, 0.4), Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3(x, 5.45, 0.75)), m_poutres_h)
+		else:
+			# tête de dragon sculptée au sommet du poteau, tournée vers les arrivants (+Z), neige sur la tête du poteau
+			var rd := RandomNumberGenerator.new()
+			rd.seed = 4520 + int(cote)
+			_piece(p, Vector3(x, 5.0, 0.0), Vector3(x, 5.55, 0.12), Vector2(0.26, 0.3), m_colombage)
+			_dragon(p, Vector3(x, 5.5, 0.12), deg_to_rad(70.0), 1.0, rd, 1.3)
+			_cylindre(p, 0.33, 0.36, 0.14, Transform3D(Basis(), Vector3(x, 5.24, 0)), m_neige, 8)
 		# contrefiche : jambe de force entre le poteau et la poutre
 		_boite(p, Vector3(0.16, 1.3, 0.16), Transform3D(Basis(Vector3.BACK, -cote * 0.75), Vector3(x - cote * 0.55, 4.2, 0)), m_poutres)
 		# torche fixée au poteau, côté intérieur
 		_boite(p, Vector3(0.07, 0.6, 0.07), Transform3D(Basis(Vector3.RIGHT, 0.35), Vector3(x - cote * 0.05, 2.5, -0.42)), m_ecorce)
 		_feu(p, Vector3(x - cote * 0.05, 2.9, -0.55), 0.8, 1.5, 9.0)
 	_boite(p, Vector3(DEMI_PORTE * 2 + 1.2, 0.42, 0.42), Transform3D(Basis(), Vector3(0, 4.7, 0)), m_poutres_h)
-	_boite(p, Vector3(DEMI_PORTE * 2 + 1.4, 0.22, 0.66), Transform3D(Basis(), Vector3(0, 5.0, 0)), m_neige)
+	if _sans_refonte:
+		_boite(p, Vector3(DEMI_PORTE * 2 + 1.4, 0.22, 0.66), Transform3D(Basis(), Vector3(0, 5.0, 0)), m_neige)
+	else:
+		# rouleau de neige épais et bosselé sur la poutre (déborde des deux côtés)
+		var roul := BatiGeo.rondin(DEMI_PORTE * 2 + 1.5, 0.26, 4530, 0.06, 0, 0.0, 1.0)
+		_ajouter(p, (roul[0] as BatiGeo.Maillage).arrays(), Transform3D(Basis().scaled(Vector3(1.0, 0.72, 1.35)), Vector3(0, 5.02, 0)), m_neige, false)
+		_ajouter(p, (roul[1] as BatiGeo.Maillage).arrays(), Transform3D(Basis().scaled(Vector3(1.0, 0.72, 1.35)), Vector3(0, 5.02, 0)), m_neige, false)
 
 ## Forge de Brodd (lot « kit intérieur » : fermée et enterable). Appentis de 5 × 4 m : quatre poteaux octogonaux, toit à
 ## une pente, mur de fond en pierre, murs latéraux de pierre sèche, façade de planches (double porte à deux vantaux,
