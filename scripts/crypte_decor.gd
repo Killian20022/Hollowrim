@@ -208,11 +208,22 @@ func _texture(nom: String) -> ImageTexture:
 	return _tex[nom]
 
 # ------------------------------------------------------------------ accumulateur de maillage
+## Index rapide (matière → case → tampon) : évite de formater une clé texte à chaque quad (le bâti du donjon en fait ~200 000).
+var _bufs_vite := {}
+
 func _buf(c: Vector3, nom: String) -> Dictionary:
-	var cle := "%d,%d,%d|%s" % [floori(c.x / CASE), floori(c.z / CASE), 1 if c.y < -3.0 else 0, nom]      # l'étage inférieur a ses propres maillages
-	if not _bufs.has(cle):
-		_bufs[cle] = {"nom": nom, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray()}
-	return _bufs[cle]
+	var k := Vector3i(floori(c.x / CASE), floori(c.z / CASE), 1 if c.y < -3.0 else 0)      # l'étage inférieur a ses propres maillages
+	var par_nom: Dictionary = _bufs_vite.get(nom, {})
+	if par_nom.is_empty():
+		_bufs_vite[nom] = par_nom
+	var b: Dictionary = par_nom.get(k, {})
+	if b.is_empty():
+		var cle := "%d,%d,%d|%s" % [k.x, k.y, k.z, nom]
+		if not _bufs.has(cle):
+			_bufs[cle] = {"nom": nom, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray()}
+		b = _bufs[cle]
+		par_nom[k] = b
+	return b
 
 func _uv(p: Vector3, n: Vector3, tuile: float) -> Vector2:
 	var a := n.abs()
@@ -247,6 +258,12 @@ func _tri(b: Dictionary, a: Vector3, bb: Vector3, c: Vector3, n: Vector3, ua: Ve
 
 ## Quad a-b-c-d (ordre de contour), normale n ; UV imposés ou calculés depuis les positions p_uv.
 func quad(nom_: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, uvs: Array = [], p_uv: Array = [], cols: Array = []) -> void:
+	if uvs.is_empty() and cols.is_empty():
+		if p_uv.is_empty():
+			_quad_p(nom_, a, b, c, d, n, a, b, c, d)
+		else:
+			_quad_p(nom_, a, b, c, d, n, p_uv[0], p_uv[1], p_uv[2], p_uv[3])
+		return
 	var nom: String = theme.get(nom_, nom_) if not theme.is_empty() else nom_
 	var t: float = TUILE.get(nom, 1.0)
 	var u: Array = uvs
@@ -266,6 +283,43 @@ func quad(nom_: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vecto
 	_tri(buf, a, b, c, n, u[0], u[1], u[2], cols[0], cols[1], cols[2])
 	_tri(buf, a, c, d, n, u[0], u[2], u[3], cols[0], cols[2], cols[3])
 
+## Chemin rapide de quad() (le plus fréquent : UV tirés des positions pa..pd, sommets blancs) : aucun tableau temporaire,
+## les deux triangles écrits d'un coup. Même résultat, sommet pour sommet, que quad().
+func _quad_p(nom_: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, pa: Vector3, pb: Vector3, pc: Vector3, pd: Vector3) -> void:
+	var nom: String = theme.get(nom_, nom_) if not theme.is_empty() else nom_
+	var t: float = TUILE.get(nom, 1.0)
+	var ua := _uv(pa, n, t)
+	var ub := _uv(pb, n, t)
+	var uc := _uv(pc, n, t)
+	var ud := _uv(pd, n, t)
+	if xf != Transform3D.IDENTITY:
+		a = xf * a
+		b = xf * b
+		c = xf * c
+		d = xf * d
+		n = xf.basis * n
+	var buf := _buf((a + b + c + d) * 0.25, nom)
+	var v: PackedVector3Array = buf["v"]
+	var nn: PackedVector3Array = buf["n"]
+	var uu: PackedVector2Array = buf["u"]
+	var co: PackedColorArray = buf["c"]
+	var w := Color(1, 1, 1, niveau_a)
+	if (b - a).cross(c - a).dot(n) > 0.0:
+		v.append(a); v.append(c); v.append(b)
+		uu.append(ua); uu.append(uc); uu.append(ub)
+	else:
+		v.append(a); v.append(b); v.append(c)
+		uu.append(ua); uu.append(ub); uu.append(uc)
+	if (c - a).cross(d - a).dot(n) > 0.0:
+		v.append(a); v.append(d); v.append(c)
+		uu.append(ua); uu.append(ud); uu.append(uc)
+	else:
+		v.append(a); v.append(c); v.append(d)
+		uu.append(ua); uu.append(uc); uu.append(ud)
+	for k in 6:
+		nn.append(n)
+		co.append(w)
+
 const _FACES := [
 	[Vector3.RIGHT, [Vector3(1, -1, -1), Vector3(1, -1, 1), Vector3(1, 1, 1), Vector3(1, 1, -1)]],
 	[Vector3.LEFT, [Vector3(-1, -1, 1), Vector3(-1, -1, -1), Vector3(-1, 1, -1), Vector3(-1, 1, 1)]],
@@ -284,12 +338,12 @@ func boite(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0, sans_des
 		if sans_dessous and n == Vector3.DOWN:
 			continue
 		var pts: Array = f[1]
-		var w: Array = []
-		var pu: Array = []
-		for p: Vector3 in pts:
-			w.append(centre + basis * (p * h))
-			pu.append(centre + p * h + decal)
-		quad(nom, w[0], w[1], w[2], w[3], basis * n, [], pu)
+		var p0: Vector3 = pts[0] * h
+		var p1: Vector3 = pts[1] * h
+		var p2: Vector3 = pts[2] * h
+		var p3: Vector3 = pts[3] * h
+		var cd := centre + decal
+		_quad_p(nom, centre + basis * p0, centre + basis * p1, centre + basis * p2, centre + basis * p3, basis * n, cd + p0, cd + p1, cd + p2, cd + p3)
 	_nb_pieces += 1
 
 ## Boîte autonome (pièces mobiles : herse, levier) : maillage propre, UV en mètres comme le reste.
@@ -1643,6 +1697,7 @@ func finir() -> void:
 		mi.name = "Decor_" + String(cle).replace("|", "_").replace(",", "_").replace("-", "m")
 		racine.add_child(mi)
 	_bufs.clear()
+	_bufs_vite.clear()
 	var par_case := {}
 	for f in _flammes_def:
 		var p: Vector3 = f[0]

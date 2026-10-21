@@ -65,6 +65,9 @@ func _plan() -> void:
 		["crypte_arene", func() -> void:
 			monde.tertre._passer(true)
 			await create_timer(1.4).timeout
+			while not monde.tertre.dedans:          # entrée asynchrone : écran noir jusqu'à ce que le donjon soit prêt (images comptées)
+				await create_timer(0.1).timeout
+			await create_timer(0.7).timeout
 			_poser(monde.tertre.crypte.to_global(Vector3(0, 0.1, -65.0)), monde.tertre.crypte.global_rotation.y, -3.0)],
 		["dans_grotte", func() -> void:
 			monde._aller_grotte("40,0,0,-3")],

@@ -42,6 +42,9 @@ var _cont: Node3D
 var _inter := {}                    # id -> interactif du donjon
 var _file_gardiens: Array = []
 const BUDGET_POSE_US := 1500        # pose étalée du donjon : ≤ 1,5 ms par image
+const BUDGET_POSE_NOIR_US := 8000   # pendant le fondu au noir de l'entrée (écran noir) : on pose plus vite, sans figer l'image
+var _entree_en_attente := false     # entrée demandée avant la fin du bâti : l'écran reste noir, les images continuent
+var _etapes_fin: Array = []         # fin de l'intégration (interactions, gardiens, un mécanisme par image, état) : Callables en file
 var _reste_donjon: Array = []       # enfants du donjon encore hors de l'arbre
 var _t_pose := 0
 var morts_charges: Array = []       # draugrs tués d'une partie chargée (posé par le monde) : on ne les refait pas
@@ -77,8 +80,11 @@ func _process(dt: float) -> void:
 	_t += dt
 	if _tache >= 0 and WorkerThreadPool.is_task_completed(_tache):
 		_integrer_donjon()
-	elif not _reste_donjon.is_empty():
-		_poser_donjon(BUDGET_POSE_US)
+	elif not _reste_donjon.is_empty() or not _etapes_fin.is_empty():
+		_poser_donjon(BUDGET_POSE_NOIR_US if _entree_en_attente else BUDGET_POSE_US)
+	elif _entree_en_attente and _tache < 0:
+		_entree_en_attente = false
+		_basculer(true)
 	if d != null and dedans:
 		d.vaciller(_t)
 		if d2 != null:
@@ -94,7 +100,7 @@ func _process(dt: float) -> void:
 		var cible := 3.6 if _anneau_rendu else 2.4 + sin(_t * 1.3) * 0.4
 		_lueur_tombe.light_energy = lerpf(_lueur_tombe.light_energy, cible, 1.0 - exp(-2.0 * dt))
 	# la mort de Svanhild ouvre la porte du tombeau (et lève le sceau de l'arène si l'on y est entré autrement)
-	if dedans and donjon != null and _tache < 0 and _reste_donjon.is_empty() and quetes.vus.has("tue:svanhild"):
+	if dedans and donjon != null and _donjon_pret() and quetes.vus.has("tue:svanhild"):
 		_porte_haut("tombe")
 		_porte_haut("arene")
 	# Svanhild se lève quand on approche du sarcophage avec l'anneau
@@ -208,6 +214,11 @@ func _exit_tree() -> void:
 		if is_instance_valid(c) and not c.is_inside_tree():
 			c.free()
 	_reste_donjon.clear()
+	_etapes_fin.clear()
+
+## Donjon bâti, posé et intégré (interactions, mécanismes, état) ?
+func _donjon_pret() -> bool:
+	return _tache < 0 and _reste_donjon.is_empty() and _etapes_fin.is_empty()
 
 ## À l'entrée dans la crypte : tout le donjon doit être là tout de suite (pose complète, sans budget).
 func attendre_donjon() -> void:
@@ -229,24 +240,36 @@ func _integrer_donjon() -> void:
 	crypte.add_child(_cont)
 	_poser_donjon(BUDGET_POSE_US)
 
+## budget_us = 0 : tout, tout de suite (entrée, tests, partie chargée sous terre) ; sinon pose par tranches, puis les étapes de
+## fin (interactions, gardiens, mécanismes un par image : un piège coûte jusqu'à ~85 ms à créer) sur les images suivantes.
 func _poser_donjon(budget_us: int) -> void:
-	if _reste_donjon.is_empty():
-		return
 	var debut := Time.get_ticks_usec()
-	while not _reste_donjon.is_empty():
-		_cont.add_child(_reste_donjon.pop_back())
-		if budget_us > 0 and Time.get_ticks_usec() - debut > budget_us:
+	if not _reste_donjon.is_empty():
+		while not _reste_donjon.is_empty():
+			_cont.add_child(_reste_donjon.pop_back())
+			if budget_us > 0 and Time.get_ticks_usec() - debut > budget_us:
+				return
+		_etapes_fin = _plan_fin()
+		if budget_us > 0:
 			return
-	_finir_donjon()
+	while not _etapes_fin.is_empty():
+		(_etapes_fin.pop_front() as Callable).call()
+		if budget_us > 0:
+			return
+
+func _plan_fin() -> Array:
+	var e: Array = [func() -> void:
+		for it in donjon.interactions:
+			_creer_interaction(it)
+		for g in donjon.gardiens:
+			_file_gardiens.append(g)]
+	for a in donjon.meca:
+		e.append(_poser_meca.bind(a))
+	e.append(_finir_donjon)
+	return e
 
 func _finir_donjon() -> void:
 	var t0 := _t_pose
-	for it in donjon.interactions:
-		_creer_interaction(it)
-	for g in donjon.gardiens:
-		_file_gardiens.append(g)
-	for a in donjon.meca:
-		_poser_meca(a)
 	_etat_donjon()
 	print("Donjon : intégré en %d ms (%d interactions, %d gardiens, %d mécanismes, %d lumières)" % [Time.get_ticks_msec() - t0, donjon.interactions.size(), donjon.gardiens.size(), donjon.meca.size(), d2.toutes.size()])
 
@@ -690,24 +713,36 @@ func _lever_svanhild() -> void:
 # --- passage dehors / dedans -----------------------------------------------------------
 
 func _passer(vers_dedans: bool) -> Array:
+	if _entree_en_attente:
+		return []
 	var t := create_tween()
 	t.tween_method(func(v: float) -> void: monde.post.set_shader_parameter("fondu", v), 0.0, 1.0, 0.5)
 	t.tween_callback(func() -> void:
-		if vers_dedans:
-			attendre_donjon()
-		dedans = vers_dedans
-		crypte.visible = vers_dedans
-		if vers_dedans:
-			joueur.global_position = crypte.to_global(Vector3(0, 0.1, 0.5))
-			joueur.rotation.y = crypte.global_rotation.y
-		else:
-			joueur.global_position = porte_dehors + Vector3(0, 0.2, 0)
-			joueur.rotation.y = orientation
-		joueur.velocity = Vector3.ZERO
-		entree.emit(vers_dedans))
-	t.tween_method(func(v: float) -> void: monde.post.set_shader_parameter("fondu", v), 1.0, 0.0, 0.6)
+		# donjon pas encore prêt (entrée juste après le chargement) : on ne fige plus l'image en attendant le fil ; l'écran reste
+		# noir, le fil finit, la pose et l'intégration se font par tranches (_process), puis on bascule exactement comme avant
+		if vers_dedans and not _donjon_pret():
+			_entree_en_attente = true
+			return
+		_basculer(vers_dedans))
 	Sons.jouer(self, ["doorOpen_1", "creak1"], -4.0)
 	return []
+
+## Bascule dehors / dedans (sous l'écran noir du fondu), puis retour de l'image.
+func _basculer(vers_dedans: bool) -> void:
+	if vers_dedans:
+		attendre_donjon()
+	dedans = vers_dedans
+	crypte.visible = vers_dedans
+	if vers_dedans:
+		joueur.global_position = crypte.to_global(Vector3(0, 0.1, 0.5))
+		joueur.rotation.y = crypte.global_rotation.y
+	else:
+		joueur.global_position = porte_dehors + Vector3(0, 0.2, 0)
+		joueur.rotation.y = orientation
+	joueur.velocity = Vector3.ZERO
+	entree.emit(vers_dedans)
+	var t := create_tween()
+	t.tween_method(func(v: float) -> void: monde.post.set_shader_parameter("fondu", v), 1.0, 0.0, 0.6)
 
 # --- briques --------------------------------------------------------------------------
 
