@@ -23,7 +23,7 @@ const TUILE := {
 	"mur3": 4.0, "mur4": 4.0, "dalle3": 4.0, "dalle4": 4.0, "ossuaire": 4.0, "or": 0.5, "neige": 2.0,
 	"entrelacs": 1.0, "sceau": 1.0, "brume": 1.0,
 	# crypte v2 : dalles irrégulières, pierre nue des modules Blender, givre en décalque
-	"dalle_v2": 4.0, "pierre_v2": 2.0, "givre_sol": 1.0, "flaque": 1.0,
+	"dalle_v2": 4.0, "pierre_v2": 2.0, "givre_sol": 1.0, "flaque": 1.0, "flaque_bord": 1.0, "flaque_reflet": 1.0,
 }
 ## Refonte « crypte matière » (références grottes_cryptes_2/3) : feu plus orangé, ambiant écrasé dans les matériaux de la crypte
 ## (ombres presque noires, la torche et les braseros gardent toute leur force). La grotte (GrotteDecor) garde les anciennes valeurs.
@@ -152,10 +152,10 @@ func mat(nom: String) -> Material:
 			s.cull_mode = BaseMaterial3D.CULL_DISABLED
 			s.disable_receive_shadows = true
 			m = s
-		"flaque":
+		"flaque", "flaque_bord", "flaque_reflet":
 			var s := StandardMaterial3D.new()        # PLACEHOLDER de l'eau (crypte v2) : l'eau stylisée viendra du système d'eau (branche eau/prototype)
 			s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			s.albedo_color = Color(0.035, 0.075, 0.12)
+			s.albedo_color = {"flaque": Color(0.05, 0.1, 0.16), "flaque_bord": Color(0.13, 0.17, 0.22), "flaque_reflet": Color(0.3, 0.42, 0.56)}[nom]
 			s.cull_mode = BaseMaterial3D.CULL_DISABLED
 			s.disable_receive_shadows = true
 			m = s
@@ -1849,14 +1849,25 @@ func flaque(centre: Vector3, rayon: float, graine := 1, forme := Vector2(1.0, 0.
 	eau_slots.append({"centre": xf * centre, "rayon": rayon})
 	var r := RandomNumberGenerator.new()
 	r.seed = graine * 977
-	var n := 12
-	var pts: Array = []
+	var n := 14
+	var rr: Array = []
 	for k in n:
-		var a := TAU * k / n
-		var rr := rayon * r.randf_range(0.72, 1.08)
-		pts.append(centre + Vector3(cos(a) * rr * forme.x, 0.012, sin(a) * rr * forme.y))
-	for k in n:
-		quad("flaque", centre + Vector3(0, 0.012, 0), pts[k], pts[(k + 1) % n], pts[(k + 1) % n], Vector3.UP)
+		rr.append(rayon * r.randf_range(0.7, 1.1))
+	# bord mouillé (anneau clair sous la surface), surface sombre, deux reflets en fines lignes (placeholder : l'eau stylisée viendra du système d'eau)
+	for couche: Array in [["flaque_bord", 1.14, 0.009], ["flaque", 1.0, 0.012]]:
+		var pts: Array = []
+		for k in n:
+			var a := TAU * k / n
+			pts.append(centre + Vector3(cos(a) * rr[k] * couche[1] * forme.x, couche[2], sin(a) * rr[k] * couche[1] * forme.y))
+		for k in n:
+			quad(couche[0], centre + Vector3(0, couche[2], 0), pts[k], pts[(k + 1) % n], pts[(k + 1) % n], Vector3.UP)
+	for k in 2:
+		var a := r.randf_range(-0.5, 0.5)
+		var c := centre + Vector3(r.randf_range(-0.3, 0.3) * rayon * forme.x, 0.016, r.randf_range(-0.3, 0.3) * rayon * forme.y)
+		var l := rayon * r.randf_range(0.3, 0.5)
+		var d := Vector3(cos(a), 0, sin(a)) * l * 0.5
+		var w := Vector3(-sin(a), 0, cos(a)) * 0.02
+		quad("flaque_reflet", c - d - w, c + d - w, c + d + w, c - d + w, Vector3.UP)
 
 func vaciller(t: float) -> void:
 	for l in lumieres:

@@ -200,7 +200,7 @@ def pilier_mur(nom, h, graine, larg=0.62, prof=0.34):
     while y < 0.32 + haut_fut - 0.05:
         hc = min(rg.uniform(0.34, 0.56), 0.32 + haut_fut - y)
         dl = rg.uniform(-0.015, 0.015)
-        M.boite((larg + rg.uniform(-0.03, 0.02), hc - 0.012, prof + rg.uniform(-0.03, 0.025)), Vector((dl, y + hc * 0.5, z0)), bev=0.022, jit=0.012, incl=(0, rg.uniform(-0.006, 0.006)))
+        M.boite((larg + rg.uniform(-0.03, 0.02), hc - 0.03, prof + rg.uniform(-0.03, 0.025)), Vector((dl, y + hc * 0.5, z0)), bev=0.032, jit=0.012, incl=(0, rg.uniform(-0.006, 0.006)))
         y += hc
     M.boite((larg + 0.08, 0.2, prof + 0.06), Vector((0, h - 0.4, z0 + 0.02)), bev=0.025, jit=0.01)
     M.boite((larg + 0.22, 0.18, prof + 0.16), Vector((0, h - 0.21, z0 + 0.06)), bev=0.03, jit=0.012)
@@ -237,7 +237,7 @@ def arche(nom, portee, fleche, graine, epaisseur=0.34, prof=0.5, bloc=None):
     bloc = bloc or (0.36 + 0.012 * portee)
 
     def vouss(cx, cy, R, t0, t1, miroir, cle):
-        gap = 0.004 / R
+        gap = 0.011 / R
         e_out = R + ep + rg.uniform(-0.02, 0.025)
         pts = []
         for r_ in (R, e_out):
@@ -251,7 +251,7 @@ def arche(nom, portee, fleche, graine, epaisseur=0.34, prof=0.5, bloc=None):
                         y += 0.03 if r_ == e_out else 0.0
                         z += 0.04 if z > 0 else 0.0
                     pts.append(Vector((x, y, z)))
-        M.coin(pts, bev=0.016, jit=0.005)
+        M.coin(pts, bev=0.03, jit=0.005)
 
     if f >= a:
         xc = (f * f - a * a) / (2 * a)           # la moitié droite a son centre en (-xc, 0)
@@ -299,7 +299,7 @@ def pan_mur(nom, larg, haut, graine, prof=0.22):
             if not tomb:
                 sail = rg.uniform(0.0, 0.075)
                 ep = prof - 0.04 + sail - rg.uniform(0.0, 0.03)
-                M.boite((w - 0.026, hc - 0.022, ep), Vector((x + w * 0.5, y + hc * 0.5, 0.04 + ep * 0.5)), bev=0.022, jit=0.012,
+                M.boite((w - 0.034, hc - 0.03, ep), Vector((x + w * 0.5, y + hc * 0.5, 0.04 + ep * 0.5)), bev=0.03, jit=0.012,
                         ton=rg.uniform(0.72, 1.0) * (0.93 if rg.random() < 0.15 else 1.0), incl=(rg.uniform(-0.01, 0.01), rg.uniform(-0.012, 0.012)))
             x += w
         y += hc

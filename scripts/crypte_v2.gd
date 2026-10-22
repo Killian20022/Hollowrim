@@ -30,6 +30,7 @@ const DEFAUTS := {
 	"eboulis": [],                 # [{"pos": Vector3, "mod": "eboulis_a", "lacet": float}]
 	"dalles": [],                  # [{"pos": Vector3, "mod": "dalles_a", "lacet": float}]
 	"flaques": [],                 # [{"pos": Vector3, "r": float}] : PLACEHOLDER, l'eau stylisée du système d'eau les remplacera
+	"bougies": [],                 # [Vector3] : grappes de 3 bougies de suif posées au sol (flammes sans lumière)
 	"givre": 6,                    # nombre de décalques de givre au sol (hors pied des murs)
 }
 
@@ -185,7 +186,12 @@ static func salle(k: DonjonKit, m: Dictionary) -> void:
 		var p := k.lw(s["pos"])
 		var vr: Vector3 = d.xf.basis.inverse() * (s["vers"] as Vector3)
 		d.banniere(Vector3(p.x, y + p.y, p.z) + vr * 0.27, vr, s.get("long", 2.4), s.get("larg", 0.95), s.get("couleur", Color(0.5, 0.07, 0.09)), "croix", s.get("usure", 1), Color(1.0, 0.78, 0.3))
+	for bp: Vector3 in v2["bougies"]:
+		var p := k.lw(bp)
+		for off: Vector3 in [Vector3(0, 0, 0), Vector3(0.14, 0, 0.09), Vector3(-0.1, 0, 0.13)]:
+			d.bougie(Vector3(p.x, y, p.z) + off, false)
 	_sol(k, m, v2, y)
+	d.poussiere(Vector3(0, y + h * 0.4, 0), Vector3(dim.x * 0.4, h * 0.35, dim.y * 0.4), 26)
 
 ## Éboulis, dalles soulevées, givre en décalques, flaques (placeholder).
 static func _sol(k: DonjonKit, m: Dictionary, v2: Dictionary, y: float) -> void:
@@ -285,6 +291,7 @@ static func couloir(k: DonjonKit, m: Dictionary) -> void:
 			if r.randf() < 0.6:
 				d.givre_decal(Vector3(s * (dim.x * 0.5 - 0.75), y, zg + r.randf_range(-0.4, 0.4)), Vector2(r.randf_range(0.5, 0.8), r.randf_range(0.8, 1.4)), r.randf_range(-0.3, 0.3))
 		zg += 1.4
+	d.poussiere(Vector3(0, y + h * 0.45, 0), Vector3(1.0, h * 0.4, L * 0.4), 18)
 	var zc := -L * 0.5 + 4.0
 	while zc < L * 0.5 - 1.5:
 		var hx := r.randf_range(-0.4, 0.4)
