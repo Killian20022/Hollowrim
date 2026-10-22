@@ -41,7 +41,7 @@ const RUNES := [
 static var _cache := {}
 
 const DOSSIER := "res://assets/personnages/mage"
-const VERSION := 7
+const VERSION := 8
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -358,7 +358,7 @@ static func _plastron_cuit(img: Image) -> void:
 				t = 2
 			img.set_pixel(R_PERLE.position.x + x, R_PERLE.position.y + y, _c(BRODERIE, t))
 
-const TON_ECAILLE := 1
+const TON_ECAILLE := 0
 
 static func _lire_bake(nom: String) -> Image:
 	var chemin := ProjectSettings.globalize_path("%s/%s" % [DOSSIER_BAKE, nom])

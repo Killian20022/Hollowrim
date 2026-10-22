@@ -111,6 +111,16 @@ func _lancer() -> void:
 			c += 1
 		pl.resize(W * 2, H, Image.INTERPOLATE_NEAREST)
 		pl.save_png(sortie + "/gros_%s.png" % lumiere)
+	elif mode == "visage":
+		_regler(lumiere)
+		_poser(n, "Idle", 0.25)
+		var pv := Image.create(W * 2, H, false, Image.FORMAT_RGBA8)
+		var cv := 0
+		for az: float in [0.0, 30.0]:
+			var img: Image = await _photo(az, 1.0, 1.62, 1.55)
+			pv.blit_rect(img, Rect2i(0, 0, W, H), Vector2i(cv * W, 0))
+			cv += 1
+		pv.save_png(sortie + "/visage_%s.png" % _arg("perso", "mage"))
 	elif mode == "anims":
 		_regler(lumiere)
 		var clips := [["Idle", 0.3], ["Walk", 0.25], ["Walk", 0.75], ["Jog_Fwd", 0.3], ["Sprint", 0.4], ["Spell_Simple_Enter", 0.6], ["Spell_Simple_Idle", 0.3], ["Spell_Simple_Shoot", 0.4], ["Hit_Chest", 0.4], ["Death01", 0.5], ["Death01", 1.0]]
@@ -166,6 +176,10 @@ func _construire(quoi: String) -> Node3D:
 		sv.add_child(d)
 		d.set_physics_process(false)
 		return d
+	if quoi == "volva" or quoi == "ancienne":
+		n = PnjNordique.creer(quoi)
+		sv.add_child(n)
+		return n
 	if quoi == "guerrier":
 		n = GuerrierNordique.creer({})
 	else:
