@@ -22,7 +22,9 @@ const FRENE := ["#1c140e", "#33251a", "#4b3726", "#654b34", "#7f6146", "#9a7a5a"
 
 # ------------------------------------------------------------------ précalcul (même contrat que GuerrierTextures)
 const DOSSIER := "res://assets/persos/gardien"
-const VERSION := 11
+const VERSION := 12
+## Masques de relief cuits (sources_blender/scripts/bake_persos.py) : bake_<texture>.png
+const BAKE := "res://sources_blender/bake/gardien"
 static var enregistrer := false
 static var _cache := {}
 
@@ -56,6 +58,7 @@ static func tex(nom: String) -> ImageTexture:
 				"pantalon": img = pantalon()
 				"brassards": img = brassards()
 				_: push_error("GardienTextures : texture inconnue " + nom)
+			img = BakeRelief.appliquer(img, "%s/bake_%s.png" % [BAKE, nom])   # relief cuit par Blender, quantifié dans la palette
 			mips = GuerrierTextures.mips_pixel(img)
 			sauver(nom, mips)
 		_cache[nom] = ImageTexture.create_from_image(mips)
