@@ -26,7 +26,7 @@ const TISSU_BLEU := ["#131314", "#1f2022", "#2e2f33", "#404247", "#55575d", "#6f
 const BANDE := ["#2e2a24", "#464037", "#5f574b", "#7a705f"]
 
 const DOSSIER := "res://assets/persos/draugr"
-const VERSION := 9
+const VERSION := 12
 static var enregistrer := false
 static var _cache := {}
 
@@ -83,6 +83,7 @@ static func tex(nom: String) -> ImageTexture:
 				"cheveux": img = cheveux()
 				"accessoires": img = accessoires()
 				"decoupes": img = decoupes()
+				"lambeaux": img = lambeaux()
 				_: push_error("DraugrTextures : texture inconnue " + nom)
 			mips = GuerrierTextures.mips_pixel(img)
 			sauver(nom, mips)
@@ -834,4 +835,85 @@ static func decoupes() -> Image:
 	img.blit_rect(m, Rect2i(Vector2i.ZERO, m.get_size()), GuerrierTextures.D_MECHES.position)
 	var lb := _lamb()
 	img.blit_rect(lb, Rect2i(Vector2i.ZERO, lb.get_size()), R_LAMB.position)
+	return img
+
+## Jupe et cape en lambeaux MODELÉS dans Blender (sources_blender/scripts/draugr_lambeaux.py) : relief CUIT (AO + courbure,
+## détail -> léger) lu dans lambeaux_bake.png (R = AO, G = courbure 0,5 neutre, B = distance au sommet / 1,2 m, A = 1 jupe /
+## 0,5 cape / 0 trou), QUANTIFIÉ ici dans les palettes du draugr (aplats 5-6 tons, creux sombres, arêtes claires, lisière
+## effilochée). 256 x 512 texels à 128 texels/m. Jamais de normal map.
+const BAKE_LAMBEAUX := "res://assets/persos/draugr/blender/lambeaux_bake.png"
+
+static func _flou(plan: PackedFloat32Array, w: int, h: int, alpha: PackedByteArray) -> PackedFloat32Array:
+	var r := PackedFloat32Array()
+	r.resize(w * h)
+	for y in h:
+		for x in w:
+			var somme := 0.0
+			var cnt := 0.0
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					var xx := x + dx
+					var yy := y + dy
+					if xx < 0 or yy < 0 or xx >= w or yy >= h or alpha[yy * w + xx] == 0:
+						continue
+					somme += plan[yy * w + xx]
+					cnt += 1.0
+			r[y * w + x] = somme / cnt if cnt > 0.0 else 0.5
+	return r
+
+static func lambeaux() -> Image:
+	var src := Image.load_from_file(ProjectSettings.globalize_path(BAKE_LAMBEAUX))
+	if src == null:
+		push_error("DraugrTextures : bake des lambeaux introuvable (" + BAKE_LAMBEAUX + ")")
+		return _img(8, 8, Color(0, 0, 0, 0))
+	src.convert(Image.FORMAT_RGBA8)
+	var W := src.get_width()
+	var H := src.get_height()
+	var al := PackedByteArray()
+	var ao := PackedFloat32Array()
+	var cu := PackedFloat32Array()
+	al.resize(W * H)
+	ao.resize(W * H)
+	cu.resize(W * H)
+	for y in H:
+		for x in W:
+			var c := src.get_pixel(x, y)
+			al[y * W + x] = 0 if c.a < 0.25 else (1 if c.a < 0.75 else 2)     # 0 trou, 1 cape, 2 jupe
+			ao[y * W + x] = c.r
+			cu[y * W + x] = c.g
+	var cu_f := _flou(cu, W, H, al)
+	var img := _img(W, H, Color(0, 0, 0, 0))
+	for y in H:
+		for x in W:
+			var k := al[y * W + x]
+			if k == 0:
+				continue
+			var c := src.get_pixel(x, y)
+			var t := c.b * 1.2                                # mètres depuis le sommet de la lanière
+			var jupe := k == 2
+			var pal: Array = TISSU_BLEU if jupe else TISSU
+			# tissu : plis verticaux + trame, puis relief cuit (creux de l'AO sombres, arêtes de la courbure claires)
+			var pli := _n(x, 0, W, 1, 40, 1, 2051)
+			var l := 0.62 + (pli - 0.5) * 0.30 + (_n(x, y, W, H, 14, 28, 2052) - 0.5) * 0.22 + (0.04 if ((x + y) & 3) < 2 else -0.03)
+			l += (ao[y * W + x] - 0.72) * 0.42
+			l += (cu_f[y * W + x] - 0.55) * 0.55
+			l -= minf(t, 0.5) * 0.12                          # le bas des lanières est plus sale
+			var ton := _ton(l, 6, x, y, 2053, 0.28)
+			var cc := _c(pal, ton)
+			if jupe and t < 0.026:
+				cc = _c(pal, 5 if t > 0.020 or _h(x, y, 2054) > 0.4 else 3)          # galon clair en haut
+			elif jupe and t < 0.048:
+				cc = _c(pal, 1)
+			# lisière effilochée : fil clair ou noirci sur le bord de découpe
+			var bord := false
+			for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var xx := x + d.x
+				var yy := y + d.y
+				if xx < 0 or yy < 0 or xx >= W or yy >= H or al[yy * W + xx] == 0:
+					bord = true
+			if bord and t > 0.05:
+				cc = _c(pal, 5 if _h(x, y, 2055) > 0.45 else 0)
+			elif t > 0.05 and ton >= 4 and _n(x, y, W, H, 9, 17, 2056) > 0.84:
+				cc = cc.lerp(GIVRE, 0.4)                      # givre dans les plis
+			img.set_pixel(x, y, Color(cc.r, cc.g, cc.b, 1.0))
 	return img

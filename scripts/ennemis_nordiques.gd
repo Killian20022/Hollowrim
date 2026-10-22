@@ -72,7 +72,9 @@ static func _draugr(rng: RandomNumberGenerator, archer: bool, type: String) -> N
 	if archer:
 		bouclier = ""
 		arme = "arc"
-	var n := DraugrNordique.creer({"bouclier": bouclier, "epee": arme == "epee"})
+	# environ 1 draugr sur 3 sans casque (crâne et cheveux funéraires visibles)
+	var sans_casque := rng.randf() < 0.34
+	var n := DraugrNordique.creer({"bouclier": bouclier, "epee": arme == "epee", "casque": not sans_casque})
 	var sq := _sq(n)
 	var teintes: Array[Color] = [Color(1, 1, 1), Color(0.86, 1.02, 0.9), Color(0.72, 0.7, 0.68), Color(0.88, 0.98, 1.12)]
 	_teinter_tout(n, teintes[etat])
@@ -80,12 +82,13 @@ static func _draugr(rng: RandomNumberGenerator, archer: bool, type: String) -> N
 		_poser_arme(sq, arme, rng)
 	elif arme == "arc":
 		_arc(sq)
-	n.set_meta("variante", "draugr_%s_%s_%s" % [["os_sec", "moisi", "cendre", "gele"][etat], arme, bouclier])
+	n.set_meta("variante", "draugr_%s_%s_%s%s" % [["os_sec", "moisi", "cendre", "gele"][etat], arme, bouclier, "_nu" if sans_casque else ""])
 	return n
 
 ## Chefs draugrs : couronne, givre, plus imposants (l'échelle ×1,1 est posée par draugr.gd / _regler_boss).
 static func _boss_draugr(boss: String, rng: RandomNumberGenerator) -> Node3D:
-	var n := DraugrNordique.creer({"bouclier": "bras" if boss == "jarl" else "", "epee": true})
+	# Svanhild est une reine : corps femme ; le jarl gelé reste un homme
+	var n := DraugrNordique.creer({"bouclier": "bras" if boss == "jarl" else "", "epee": true, "corps": "femme" if boss == "svanhild" else "homme"})
 	var sq := _sq(n)
 	if boss == "svanhild":
 		_teinter_tout(n, Color(0.82, 1.0, 1.28))
