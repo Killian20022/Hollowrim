@@ -453,7 +453,9 @@ func _matiere(b: Dictionary, s: float, n: Vector3, hrel: float, k: int, lam: flo
 		"neige":
 			var fade := 1.0 - _lisse(clampf((s - 7.0) / 10.5, 0.0, 1.0)) * 0.75
 			if sol_:
-				return ["c_sol_neige", 1.15 * fade + 0.1, 1.0]
+				# finitions : sol de l'entrée = chemin de dalles à plaques de neige ; couverture pleine à la bouche (raccord avec le dehors)
+				var couv := 0.26 + 0.9 * (1.0 - _lisse(clampf(s / 3.0, 0.0, 1.0)))
+				return ["c_sol_neige", couv * fade + 0.1, 1.0]
 			if plaf:
 				return ["c_roche_neige", 0.12 * fade, 1.0]
 			return ["c_roche_neige", clampf(0.2 + 0.85 * (n.y + 0.3), 0.0, 1.0) * fade, 1.0]
@@ -1180,6 +1182,10 @@ func _lumieres_structures() -> void:
 	for p: Vector3 in get_meta("v2_lanternes", []):
 		var l := decor.lumiere(p, GrotteDecor.LANTERNE_C, GrotteDecor.LANT_E * 0.6, GrotteDecor.LANT_P - 1.5, GrotteDecor.LANT_A, true)
 		l.set_meta("grappe", true)
+		nb_lumieres += 1
+	if has_meta("v2_ouverture"):      # finitions : ouverture claire de la voûte de la salle principale (lueur froide, éclaire les stalactites par le bas)
+		var lo := decor.lumiere((get_meta("v2_ouverture") as Vector3) - Vector3(0, 3.0, 0), Color(0.55, 0.74, 1.0), 2.6, 17.0, 1.3, false)
+		lo.set_meta("grappe", true)
 		nb_lumieres += 1
 	if has_meta("v2_autel"):
 		var l := decor.lumiere(get_meta("v2_autel"), Color(1.0, 0.6, 0.28), 7.0, 9.0, 1.5, true)

@@ -219,10 +219,34 @@ static func _pont(k: GrotteKit, z: Dictionary, lanternes: Array) -> void:
 		var bras: Vector3 = hook + Vector3(0, 0.3, 0) - T * 0.55
 		d.prisme("bois", hook + Vector3(0, 0.3, 0), bras, 0.035, 4)
 		lanternes.append(d.lanterne(bras, 0.3))
-	var bm: Vector3 = P.call(u0 + span * 0.45, 0.0, yd - 0.1)
-	_poutre(d, bm + Vector3(0, -1.3, 0) - R * 0.55, bm + Vector3(0, -1.3, 0) + R * 0.55, 0.06, 0.06)
-	d.boite("peau", bm + Vector3(0, -2.35, 0), Vector3(0.95, 2.1, 0.035), atan2(R.x, R.z) + PI * 0.5)
-	d.boite("peau", bm + Vector3(0, -3.55, 0), Vector3(0.55, 0.3, 0.035), atan2(R.x, R.z) + PI * 0.5)
+	# finitions : mât planté au milieu du tablier, traverse haute, bannière rouge sombre déchirée (deux faces) comme la planche
+	var ub := u0 + span * 0.45
+	var plaf := g.plafond_en(id, s, ub)
+	var yb := minf(plaf.y - 1.2, yd + 6.2)
+	var long_b := clampf(yb - yd - 1.0, 1.6, 3.6)
+	if yb - yd > 2.6:
+		var foot: Vector3 = P.call(ub, 0.0, yd)
+		d.prisme("bois", foot, Vector3(foot.x, yb + 0.35, foot.z), 0.11, 6, 0.08)
+		for sg: float in [-1.0, 1.0]:
+			d.prisme("bois", Vector3(foot.x, yd + 1.6, foot.z) + T * sg * 0.05, Vector3(foot.x, yd + 0.2, foot.z) + T * sg * 0.9, 0.05, 4)   # jambes de force
+		d.boite("fer", Vector3(foot.x, yb + 0.35, foot.z), Vector3(0.2, 0.06, 0.2))
+		for sg: float in [-1.0, 1.0]:
+			d.banniere(Vector3(foot.x, yb, foot.z) + T * 0.0, T * sg, long_b, 1.05, Color(0.5, 0.15, 0.13), "", 1)
+	# voûte lisible : stalactites en frange au-dessus du pont (jamais dans le gabarit du tablier ni du mât), ouverture claire en hauteur
+	var rs := RandomNumberGenerator.new()
+	rs.seed = 5521
+	for q in 16:
+		var sq := s + (rs.randf_range(1.8, 7.5) * (1.0 if rs.randf() < 0.5 else -1.0))
+		var lq := rs.randf_range(-dL * 0.9, dR * 0.9)
+		k._stalactite(id, sq, lq, rs.randf_range(1.2, 3.0), false)
+	var so := s + 3.2
+	var po := g.plafond_en(id, so, 0.0)
+	if po.y - yd > 7.0:
+		var o1 := po - Vector3(0, 0.25, 0)
+		d.quad("ciel", o1 + Vector3(-1.2, 0, -1.2), o1 + Vector3(1.2, 0, -1.2), o1 + Vector3(1.2, 0, 1.2), o1 + Vector3(-1.2, 0, 1.2), Vector3.DOWN,
+			[Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)])
+		d.rai_oblique(o1, Vector3(o1.x + 1.2, yd - 3.2, o1.z - 1.0), 2.4, 4.0)
+		g.set_meta("v2_ouverture", o1)
 	print("grotte v2 : pont de %.1f m à s=%.1f, tablier à %.1f m" % [span, s, h])
 
 # ------------------------------------------------------------------ arène : pieux et autel (vue 6)
@@ -246,16 +270,24 @@ static func _arene(k: GrotteKit, z: Dictionary) -> void:
 	var ps := Vector3.ZERO
 	var lat_a := 0.0
 	var s_a := sa
-	for ss: float in [s1 - 3.6, s1 - 4.4, s1 - 2.8, s1 - 5.2, sa, sa + 1.0, sa - 1.0]:      # d'abord le fond de la salle, mobilier du camp oblige
-		var m := k._mur(id, ss, -1.0, 0.6)
-		if m.is_empty():
-			continue
-		var la := -(float(m["lat"]) - 1.15)
-		if k.libre(id, ss, la, 1.0, 0.6):
+	# finitions : grand autel au fond gauche de l'arène, au milieu des pieux (le mobilier qui le masquait est écarté dans GrotteModules._repaire)
+	for c: Array in [[11.2, -4.1], [11.8, -4.1], [10.6, -4.2], [12.4, -4.1]]:
+		if g.libre(id, float(c[0]), float(c[1]), 1.7):
 			place = true
-			s_a = ss
-			lat_a = la
+			s_a = float(c[0])
+			lat_a = float(c[1])
 			break
+	if not place:
+		for ss: float in [s1 - 3.6, s1 - 4.4, s1 - 2.8, s1 - 5.2, sa, sa + 1.0, sa - 1.0]:      # repli : le long de la paroi gauche
+			var m := k._mur(id, ss, -1.0, 0.6)
+			if m.is_empty():
+				continue
+			var la := -(float(m["lat"]) - 1.15)
+			if k.libre(id, ss, la, 1.0, 0.6):
+				place = true
+				s_a = ss
+				lat_a = la
+				break
 	if place:
 		_autel(k, id, s_a, lat_a)
 	# 1. enceinte : rangées de pieux inégaux près des parois, reliés par une lisse
@@ -284,20 +316,43 @@ static func _autel(k: GrotteKit, id: String, s_a: float, lat_a: float) -> void:
 	var d: GrotteDecor = g.decor
 	var ps := g.sol_en(id, s_a, lat_a)
 	var lac := atan2(g.tang(id, s_a).x, g.tang(id, s_a).z)
-	var bz := Basis(Vector3.UP, lac)
-	k._add("dalle_0", ps + Vector3(0, -0.05, 0), lac, Vector3(1.5, 1.7, 1.2))
-	var h1: float = float(k.gab["dalle_0"]["h"]) * 1.7
-	k._add("dalle_1", ps + Vector3(0, h1 - 0.1, 0) + bz * Vector3(0.05, 0, 0), lac + 0.2, Vector3(1.15, 1.5, 0.95))
-	var h2: float = float(k.gab["dalle_1"]["h"]) * 1.5
-	k._add("bloc_2", ps + bz * Vector3(-1.05, 0, 0.3), lac + 1.0, Vector3(0.55, 0.9, 0.5))
-	k._add("bloc_5", ps + bz * Vector3(0.95, 0, -0.35), lac + 2.0, Vector3(0.45, 0.6, 0.45))
-	k._add("caillou_1", ps + bz * Vector3(0.4, 0, 1.0), lac, Vector3(0.35, 0.35, 0.35))
-	var top := ps + Vector3(0, h1 + h2 - 0.2, 0)
-	for q: Array in [[-0.35, 0.1, 0.9], [0.1, -0.15, 1.2], [0.4, 0.2, 0.7]]:
+	var face := g.droite(id, s_a)                                  # l'autel regarde vers l'axe de l'arène (côté opposé à la paroi)
+	face.y = 0.0
+	face = face.normalized() * (1.0 if lat_a < 0.0 else -1.0)
+	var yaw := atan2(-face.x, -face.z)                               # +z local = vers la paroi, -z local = vers la salle
+	var bz := Basis(Vector3.UP, yaw)
+	# estrade de pierre en ruine : deux gradins, massif en fer à cheval ouvert côté salle (planche vue 6), blocs éboulés ; boîtes
+	# légèrement désaxées (silhouette anguleuse, faces plates), matière roche de la grotte. DÉCOR SEUL.
+	var rs := RandomNumberGenerator.new()
+	rs.seed = 7353
+	var blocs: Array = [
+		[Vector3(0, 0.28, 0), Vector3(4.8, 0.56, 3.2), 0.03],                    # gradin bas
+		[Vector3(0, 0.84, 0.25), Vector3(3.7, 0.56, 2.4), -0.05],                # gradin haut
+		[Vector3(0, 1.85, 0.85), Vector3(2.9, 1.45, 0.75), 0.02],                # dossier
+		[Vector3(-1.45, 1.75, 0.2), Vector3(0.8, 1.25, 1.1), 0.1],               # flanc gauche
+		[Vector3(1.45, 1.6, 0.2), Vector3(0.8, 0.95, 1.1), -0.12],               # flanc droit (plus bas, brisé)
+		[Vector3(-1.45, 2.55, 0.25), Vector3(0.6, 0.45, 0.8), 0.35],             # chapiteau tombé
+		[Vector3(0.2, 2.75, 0.9), Vector3(1.3, 0.4, 0.6), -0.2],                 # linteau brisé
+		[Vector3(0.0, 1.25, -0.2), Vector3(1.5, 0.35, 0.9), 0.0],                # table d'offrande
+		[Vector3(-2.2, 0.2, -1.5), Vector3(0.9, 0.4, 0.7), 0.5],                 # éboulis devant
+		[Vector3(2.1, 0.17, -1.6), Vector3(0.7, 0.34, 0.6), -0.4],
+		[Vector3(0.9, 0.12, -2.0), Vector3(0.5, 0.24, 0.45), 0.9],
+	]
+	for bl: Array in blocs:
+		var sz: Vector3 = bl[1]
+		d.boite_b("c_strate_mousse", ps + bz * (bl[0] as Vector3) * 1.2, sz * 1.2, bz * Basis(Vector3.UP, float(bl[2])))
+	var top := ps + bz * Vector3(0, 1.74, -0.24)
+	var bas1 := ps + bz * Vector3(0, 1.34, -0.84)
+	var bas0 := ps + bz * Vector3(0, 0.67, -1.56)
+	for q: Array in [[-0.5, 0.0], [0.45, 0.1], [0.0, -0.25]]:
 		d.bougie(top + bz * Vector3(float(q[0]), 0, float(q[1])), false)
-	d.crane(top + bz * Vector3(-0.05, 0.0, 0.3), lac + 2.5)
-	g.set_meta("v2_autel", top + bz * Vector3(0.05, 0.25, 0.0))      # centre des bougies : sa lumière est posée par Grotte._lumieres_structures
-	k._occuper_fixe(id, s_a, lat_a, 1.4)
+	for q: Array in [[-1.2, 0.0], [1.2, 0.0], [-0.7, -0.35], [0.8, -0.4]]:
+		d.bougie(bas1 + bz * Vector3(float(q[0]), 0, float(q[1])), false)
+	for q: Array in [[-2.0, -0.2], [-1.3, -0.5], [1.4, -0.5], [2.0, -0.2], [0.0, -0.7]]:
+		d.bougie(bas0 + bz * Vector3(float(q[0]), 0, float(q[1])), false)
+	d.crane(top + bz * Vector3(-0.1, 0.0, 0.1), yaw + 2.5)
+	g.set_meta("v2_autel", bas1 + bz * Vector3(0.0, 0.8, -0.3))      # centre des bougies : sa lumière est posée par Grotte._lumieres_structures
+	k._occuper_fixe(id, s_a, lat_a, 2.2)
 	# demi-cercle de pieux devant l'autel (côté salle), reliés par une lisse
 	var rq := RandomNumberGenerator.new()
 	rq.seed = 7352
@@ -306,6 +361,9 @@ static func _autel(k: GrotteKit, id: String, s_a: float, lat_a: float) -> void:
 		var a := deg_to_rad(a_deg)
 		var sq := s_a + sin(a) * 2.0
 		var lq := lat_a + cos(a) * 2.0
+		if lat_a < -3.0:                                       # grand autel : arc de pieux côté arène, autour du gradin
+			sq = s_a - sin(a) * 3.3
+			lq = lat_a + cos(a) * 3.3
 		if not (k.libre(id, sq, lq, 0.3, 0.6) and g.libre(id, sq, lq, 0.3)):
 			prev = Vector3.ZERO
 			continue
