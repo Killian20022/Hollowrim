@@ -111,7 +111,7 @@ static func creer(options := {}) -> Node3D:
 	acc.poitrine_libre = true
 	acc.dos_libre = true
 	acc.fourrure_bord(pieces["mante"], 1.22, 1.42, 0.085, 0.145, 1.0, 1.7)
-	acc.fourrure_surface(pieces["mante"], 1.32, 1.56, 0.07, 0.115, 36)
+	acc.fourrure_surface(pieces["mante"], 1.32, 1.56, 0.07, 0.115, 26)
 	acc.dos_libre = false
 	acc.poitrine_libre = false
 	acc.fourrure_bord(pieces["bottes"], 0.30, 0.45, 0.06, 0.09, 1.0, 1.6)
