@@ -818,6 +818,56 @@ func _habiller(g: Grotte) -> void:
 				_hab_boyau(g, z)
 	_glacons(g)
 	_hab_relief(g)
+	_toiles_rares(g)
+
+## v2 : TOILES D'ARAIGNÉE TRÈS RARES (7 au plus dans toute la grotte, petites : 0,6 à 0,85 m), seulement dans des angles paroi / voûte
+## et près des étais : bouche, boyau, galerie de la mine (contre le dernier étai), chambre, camp (deux angles), cachette.
+## RNG à part : aucune autre pose n'est décalée.
+var nb_toiles := 0
+func _toiles_rares(g: Grotte) -> void:
+	var rt := RandomNumberGenerator.new()
+	rt.seed = 5531
+	for zid: String in g.zones:
+		var z: Dictionary = g.zones[zid]
+		var id: String = z["branche"]
+		var s0: float = z["s"][0]
+		var s1: float = z["s"][1]
+		var th := String(z.get("theme", ""))
+		var role := String(z.get("role", ""))
+		var cibles: Array = []        # [s, côté]
+		match th:
+			"entree":
+				cibles = [[s0 + 9.5, -1.0]]
+			"boyau":
+				cibles = [[s0 + 8.0, 1.0]]
+			"mine":
+				var etais: Array = (z.get("params", {}) as Dictionary).get("etais", [])
+				if role == "combat" and not etais.is_empty():
+					cibles = [[float(etais[etais.size() - 1]) + 0.8, 1.0]]
+				elif role == "ressources":
+					cibles = [[s0 + 7.0, -1.0]]
+			"repaire":
+				if role == "combat":
+					cibles = [[s0 + 2.5, -1.0], [s1 - 3.2, 1.0]]
+			"cache":
+				cibles = [[s0 + 10.0, -1.0]]
+		for c: Array in cibles:
+			if _toile_rare(g, id, float(c[0]), float(c[1]), rt.randf_range(0.6, 0.85), 1.0 if rt.randf() < 0.5 else -1.0):
+				nb_toiles += 1
+	print("grotte v2 : %d toiles d'araignée" % nb_toiles)
+
+func _toile_rare(g: Grotte, id: String, s: float, cote: float, l: float, sens: float) -> bool:
+	if not g.hors_jonction(id, s):
+		return false
+	var dl := g.demi_l(id, s)
+	var w := (dl.y if cote > 0.0 else dl.x)
+	var lat := cote * w * 0.82
+	var haut := g.plafond_en(id, s, lat)
+	var sol := g.sol_en(id, s, lat)
+	if haut.y - sol.y < 2.0:
+		return false
+	toile(Vector3(haut.x, haut.y - 0.15, haut.z), g.tang(id, s) * sens, -g.droite(id, s) * cote, l)
+	return true
 
 ## Accroches du relief (Grotte.levres / Grotte.rebords, lot « grotte relief ») :
 ##  - lèvres (dessous de surplomb) : franges de glaçons de longueurs variées, quelques toiles dans les zones sèches ;
@@ -842,9 +892,7 @@ func _hab_relief(g: Grotte) -> void:
 		var garde := p.y - sol.y
 		var au_passage := absf(float(sit[2])) < 1.2
 		if (th == "mine" or th == "boyau" or th == "cache") and _hab_r.randf() < 0.12:
-			var n2: Vector3 = e[1]
-			var t := Vector3(n2.z, 0, -n2.x).normalized() if Vector2(n2.x, n2.z).length() > 0.05 else g.tang(id, s)
-			toile(p - Vector3(0, 0.05, 0), t, (Vector3(n2.x, 0, n2.z).normalized() if Vector2(n2.x, n2.z).length() > 0.05 else Vector3.DOWN), _hab_r.randf_range(0.6, 1.1))
+			_hab_r.randf_range(0.6, 1.1)       # v2 : toiles TRÈS RARES (voir _toiles_rares) ; le tirage est gardé pour ne rien décaler
 			continue
 		var n := _hab_r.randi_range(2, 5)
 		for k in n:
@@ -1053,7 +1101,7 @@ func brasero_fer(pos: Vector3, avec_solide := true) -> void:
 		solide_rond(pos + Vector3(0, 0.5, 0), 0.42, 1.0)
 
 ## Toile d'araignée tendue dans l'angle paroi / plafond, côté `cote`.
-func _toile_angle(g: Grotte, id: String, s: float, cote: float, l := 1.0) -> void:
+func _toile_angle(g: Grotte, id: String, s: float, cote: float, l := 1.0, poser := false) -> void:
 	var dl := g.demi_l(id, s)
 	var w := (dl.y if cote > 0.0 else dl.x)
 	var lat := cote * w * 0.82
@@ -1064,7 +1112,9 @@ func _toile_angle(g: Grotte, id: String, s: float, cote: float, l := 1.0) -> voi
 	var coin := Vector3(haut.x, haut.y - 0.15, haut.z)
 	var T := g.tang(id, s)
 	var R := g.droite(id, s)
-	toile(coin, T * (1.0 if _hab_r.randf() < 0.5 else -1.0), -R * cote, l)
+	var sens := T * (1.0 if _hab_r.randf() < 0.5 else -1.0)      # v2 : le tirage est gardé, la toile n'est plus posée (voir _toiles_rares)
+	if poser:
+		toile(coin, sens, -R * cote, l)
 
 ## Caisse empilée (une ou deux) près de la paroi ; collision seulement si la place est libre.
 func _caisses(g: Grotte, id: String, s: float, cote: float, n := 2) -> void:

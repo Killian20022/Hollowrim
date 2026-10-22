@@ -20,6 +20,8 @@ extends RefCounted
 ## Option : --sans-kit-grotte coupe tout (retour au décor v6 des modules).
 
 const OPTION := "--sans-kit-grotte"
+const DAT_ROCHES := "res://assets/grotte/modules/roches_v2.dat"   # v2 : modules rocheux modélisés dans Blender (sources_blender/scripts/grotte_roches_v2.py ; le .glb du même dossier est l'export standard)
+const OPTION_CODE := "--roches-code"                               # force les gabarits générés par code (comparaison avant/après)
 const VOIE := 1.25            # demi-largeur du chemin gardée libre de tout le kit (m)
 const GARDE := 2.3            # hauteur libre minimale sous une stalactite au-dessus de la zone de marche
 const CASE := 10.0
@@ -34,6 +36,7 @@ var gab := {}                 # nom -> {"surf": {matière: tampon}, "h": hauteur
 var _inst := {}               # "nom|cx,cz" -> Array[Transform3D]
 var _occ: Array = []          # [Vector2 xz, rayon]
 var _seg: Array = []          # [Vector2 a, Vector2 b, rayon]
+var _fixes: Array = []        # v2 : places prises par les structures [id, Vector2 xz, rayon] : elles survivent à _reserver()
 var _mats := {}
 var nb_instances := 0
 var nb_solides := 0
@@ -196,7 +199,112 @@ static func _couleurs_masse(Q: PackedVector3Array, F: Array, D: PackedFloat32Arr
 		cols.append(Color(ao, ao * 0.99, ao * 1.02, 0.3 + fr * 0.95 if fr > 0.05 else 0.0))
 	return cols
 
+## v2 (pixel art marqué) : masse ANGULAIRE. Chaque sommet de l'icosphère reçoit son propre rayon (0,7 à 1,3) : arêtes vives,
+## facettes plates de tailles inégales, plus rien de « galet » arrondi. Même interface que _masse.
+static func _masse_ang(graine: int, sub: int, taille: Vector3, aplat_bas: float, aplat_haut: float) -> Array:
+	var rg := RandomNumberGenerator.new()
+	rg.seed = graine
+	var nz := _bruit(graine)
+	var ico := _ico(sub)
+	var P: Array = ico[0]
+	var Q := PackedVector3Array()
+	var D := PackedFloat32Array()
+	for v: Vector3 in P:
+		var d := 0.8 + 0.34 * rg.randf() + 0.14 * nz.get_noise_3dv(v * 1.1)
+		var p := v * d
+		if p.y < -aplat_bas:
+			p.y = -aplat_bas + (p.y + aplat_bas) * 0.1
+		if p.y > aplat_haut:
+			p.y = aplat_haut + (p.y - aplat_haut) * 0.35
+		Q.append(Vector3(p.x * taille.x, p.y * taille.y, p.z * taille.z))
+		D.append(d)
+	return [Q, ico[1], D]
+
+## Facettes PLATES : chaque face prend un ton parmi trois paliers selon son orientation (aplats nets, arête claire sur les faces
+## tournées vers la lumière), le givre ne se pose que sur les faces hautes. `neige` >= 0 : masque de neige forcé (congères).
+static func _facettes(S: Dictionary, Q: PackedVector3Array, F: Array, centre: Vector3, cols: PackedColorArray, graine: int, givre: float, neige := -1.0) -> void:
+	var rg := RandomNumberGenerator.new()
+	rg.seed = graine + 91
+	var lum := Vector3(0.35, 0.8, 0.45).normalized()
+	for f in F.size() / 3:
+		var ia: int = F[f * 3]
+		var ib: int = F[f * 3 + 1]
+		var ic: int = F[f * 3 + 2]
+		var a := Q[ia]
+		var b := Q[ib]
+		var c := Q[ic]
+		var n := (b - a).cross(c - a)
+		if n.length_squared() < 1e-12:
+			continue
+		n = n.normalized()
+		var mid := (a + b + c) / 3.0
+		var dehors := mid - centre
+		if n.dot(dehors) < 0.0:
+			n = -n
+		var lit := clampf(n.dot(lum) * 0.5 + 0.5, 0.0, 1.0)
+		var palier: float = [0.6, 0.8, 1.0][clampi(int(lit * 3.0 + rg.randf_range(-0.4, 0.4)), 0, 2)]
+		var al := 0.0
+		if neige >= 0.0:
+			al = neige
+		else:
+			var fr := smoothstep(0.45, 0.8, n.y) * givre * rg.randf_range(0.7, 1.15)
+			al = 0.3 + fr * 0.95 if fr > 0.05 else 0.0
+		var ca := Color(cols[ia].r * palier, cols[ia].g * palier, cols[ia].b * palier, al)
+		var cb := Color(cols[ib].r * palier, cols[ib].g * palier, cols[ib].b * palier, al)
+		var cc := Color(cols[ic].r * palier, cols[ic].g * palier, cols[ic].b * palier, al)
+		_tri(S, a, b, c, dehors, ca, cb, cc)
+
 static func _g_bloc(graine: int, sub: int, ecrase: float, etire: float, givre := 1.0, aplat_haut := 0.75, mat := "k_roche_neige") -> Dictionary:
+	var rg := RandomNumberGenerator.new()
+	rg.seed = graine
+	var m := _masse_ang(graine, maxi(sub - 1, 0), Vector3(etire, ecrase, 1.0), 0.3, aplat_haut)
+	var Q: PackedVector3Array = m[0]
+	var rot := rg.randf() * TAU
+	var rmax := 0.0
+	var ymin := INF
+	var ymax := -INF
+	for i in Q.size():
+		Q[i] = Q[i].rotated(Vector3.UP, rot)
+		rmax = maxf(rmax, Vector2(Q[i].x, Q[i].z).length())
+		ymin = minf(ymin, Q[i].y)
+		ymax = maxf(ymax, Q[i].y)
+	for i in Q.size():                      # emprise au sol : rayon 1 ; pied enfoncé de 6 cm
+		Q[i] = (Q[i] - Vector3(0, ymin, 0)) / rmax - Vector3(0, 0.06, 0)
+	var centre := Vector3(0, (ymax - ymin) / rmax * 0.4, 0)
+	var G := {"surf": {}, "h": (ymax - ymin) / rmax, "prof": 0.0}
+	_facettes(_S(G, mat), Q, m[1], centre, _couleurs_masse(Q, m[1], m[2], centre, graine, givre), graine, givre)
+	return G
+
+## Pan de paroi : 3-4 dalles bosselées empilées en gradins (les dessus forment des rebords givrés). +z = hors du mur.
+static func _g_pan(graine: int) -> Dictionary:
+	var rg := RandomNumberGenerator.new()
+	rg.seed = graine
+	var G := {"surf": {}, "h": 0.0, "prof": 0.0}
+	var S := _S(G, "k_roche_neige")
+	var y := 0.0
+	var n := rg.randi_range(3, 4)
+	var prof := 0.0
+	for k in n:
+		var W := rg.randf_range(0.6, 1.4) * (1.0 - 0.06 * k)
+		var Dp := rg.randf_range(0.45, 0.95)
+		var H := rg.randf_range(0.45, 1.1)
+		var m := _masse_ang(graine * 13 + k, 1, Vector3(W, H * 0.6, Dp), 0.7, rg.randf_range(0.35, 0.7))
+		var Q: PackedVector3Array = m[0]
+		var off := Vector3(rg.randf_range(-0.5, 0.5), y + H * 0.42, Dp * 0.2 + float(n - k) * 0.1 * rg.randf_range(0.3, 1.6))
+		var tourne := Basis(Vector3.UP, rg.randf_range(-0.35, 0.35)) * Basis(Vector3.FORWARD, rg.randf_range(-0.2, 0.2))
+		for i in Q.size():
+			Q[i] = tourne * Q[i] + off
+		prof = maxf(prof, off.z + Dp)
+		var centre := off
+		_facettes(S, Q, m[1], centre, _couleurs_masse(Q, m[1], m[2], centre, graine + k, 1.0), graine + k, 1.0)
+		y += H * rg.randf_range(0.62, 0.8)
+	G["h"] = y + 0.3
+	G["prof"] = prof
+	return G
+
+## ---- v1 (gabarits lisses d'origine), gardés UNIQUEMENT pour leurs dimensions : h et prof décident des solides et des places libres,
+## donc des collisions, qui ne doivent pas bouger avec la v2.
+static func _g_bloc_v1(graine: int, sub: int, ecrase: float, etire: float, givre := 1.0, aplat_haut := 0.75, mat := "k_roche_neige") -> Dictionary:
 	var rg := RandomNumberGenerator.new()
 	rg.seed = graine
 	var m := _masse(graine, sub, Vector3(etire, ecrase, 1.0), 1.0, 0.3, aplat_haut)
@@ -218,7 +326,7 @@ static func _g_bloc(graine: int, sub: int, ecrase: float, etire: float, givre :=
 	return G
 
 ## Pan de paroi : 3-4 dalles bosselées empilées en gradins (les dessus forment des rebords givrés). +z = hors du mur.
-static func _g_pan(graine: int) -> Dictionary:
+static func _g_pan_v1(graine: int) -> Dictionary:
 	var rg := RandomNumberGenerator.new()
 	rg.seed = graine
 	var G := {"surf": {}, "h": 0.0, "prof": 0.0}
@@ -245,7 +353,7 @@ static func _g_pan(graine: int) -> Dictionary:
 	return G
 
 ## Concrétion tournée (stalagmite vers le haut, stalactite vers le bas), hauteur 1, rayon de pied `rb`, facettes plates.
-static func _concretion(S: Dictionary, graine: int, base: Vector3, rb: float, h: float, bas: bool, givre: bool, tronque := false, cotes := 7, nr := 9) -> void:
+static func _concretion(S: Dictionary, graine: int, base: Vector3, rb: float, h: float, bas: bool, givre: bool, tronque := false, cotes := 5, nr := 6) -> void:
 	var rg := RandomNumberGenerator.new()
 	rg.seed = graine
 	var sg := -1.0 if bas else 1.0
@@ -269,7 +377,7 @@ static func _concretion(S: Dictionary, graine: int, base: Vector3, rb: float, h:
 			break
 		for i in cotes:
 			var a := a0 + TAU * (float(i) + rg.randf_range(-0.2, 0.2)) / float(cotes)
-			var rr := rad * rg.randf_range(0.82, 1.15)
+			var rr := rad * rg.randf_range(0.72, 1.2)
 			ring.append(c + Vector3(cos(a) * rr, rg.randf_range(-0.25, 0.25) * h / float(nr), sin(a) * rr))
 		anneaux.append(ring)
 	for k in nr - 1:
@@ -317,11 +425,11 @@ static func _g_stalac(graine: int, rb: float, grappe: int) -> Dictionary:
 	rg.seed = graine
 	var G := {"surf": {}, "h": 1.0, "prof": 0.0}
 	var S := _S(G, "c_roche_nu")
-	_concretion(S, graine, Vector3(0, 0.12, 0), rb, 1.12, true, false, false, 6, 7)
+	_concretion(S, graine, Vector3(0, 0.12, 0), rb, 1.12, true, false, false, 5, 5)
 	for k in grappe:
 		var a := TAU * float(k) / float(maxi(grappe, 1)) + rg.randf_range(-0.4, 0.4)
 		var d := rb * rg.randf_range(1.2, 2.0)
-		_concretion(S, graine + 17 * (k + 1), Vector3(cos(a) * d, 0.1, sin(a) * d), rb * rg.randf_range(0.45, 0.7), rg.randf_range(0.35, 0.75), true, false, false, 5, 5)
+		_concretion(S, graine + 17 * (k + 1), Vector3(cos(a) * d, 0.1, sin(a) * d), rb * rg.randf_range(0.45, 0.7), rg.randf_range(0.35, 0.75), true, false, false, 4, 4)
 	return G
 
 ## Prisme de cristal hexagonal pointu (UV par face : la texture porte le dégradé et l'arête claire).
@@ -369,6 +477,67 @@ static func _g_grappe(graine: int, eventail: float) -> Dictionary:
 		var lk := lerpf(0.2, 0.8, f)
 		var base := Vector3(sin(a) * rg.randf_range(0.05, 0.22), 0, rg.randf_range(-0.12, 0.12))
 		_prisme(Sv, base - d * lk * 0.15, d, lerpf(0.035, 0.085, f), lk, rg)
+	return G
+
+## v2 : aiguilles de glace (formations du lac, des couloirs) : 1 flèche + 1 à 3 satellites, prismes à 5 pans qui s'effilent en deux
+## étages, flèche légèrement penchée. Trois tons par face (aplats), pas de texture : la matière c_glacon_c donne le bleu-blanc.
+static func _g_pic(graine: int, n: int) -> Dictionary:
+	var rg := RandomNumberGenerator.new()
+	rg.seed = graine
+	var G := {"surf": {}, "h": 1.0, "prof": 0.0}
+	var S := _S(G, "c_glacon_c")
+	for k in n:
+		var a := rg.randf() * TAU
+		var dd := 0.0 if k == 0 else rg.randf_range(0.14, 0.3)
+		var base := Vector3(cos(a) * dd, -0.05, sin(a) * dd)
+		var h := 1.0 if k == 0 else rg.randf_range(0.35, 0.72)
+		var rad := 0.16 if k == 0 else rg.randf_range(0.075, 0.12)
+		var pen := Vector3(rg.randf_range(-0.1, 0.1), 0.0, rg.randf_range(-0.1, 0.1)) * h
+		var r0: Array = []
+		var r1: Array = []
+		var a0 := rg.randf() * TAU
+		for i in 5:
+			var ang := a0 + TAU * (float(i) + rg.randf_range(-0.18, 0.18)) / 5.0
+			var rr := rad * rg.randf_range(0.8, 1.2)
+			r0.append(base + Vector3(cos(ang) * rr, 0.0, sin(ang) * rr))
+			r1.append(base + Vector3(cos(ang) * rr * 0.7, h * 0.64, sin(ang) * rr * 0.7) + pen * 0.55)
+		var tip := base + Vector3(0.0, h, 0.0) + pen
+		for i in 5:
+			var j := (i + 1) % 5
+			var dh: Vector3 = ((r0[i] as Vector3) + (r0[j] as Vector3)) * 0.5 - base
+			dh.y = 0.0
+			var ton: float = [1.0, 0.82, 0.66][(i + k) % 3]
+			var c0 := Color(0.28 * ton, 0.34 * ton, 0.46 * ton, 0.0)     # pied bleu ardoise -> corps bleu glace #9fb8dc -> pointe claire
+			var c1 := Color(0.46 * ton, 0.58 * ton, 0.78 * ton, 0.0)
+			var c2 := Color(0.66 * ton, 0.8 * ton, 1.0 * ton, 0.0)
+			_tri(S, r0[i], r0[j], r1[j], dh, c0, c0, c1)
+			_tri(S, r0[i], r1[j], r1[i], dh, c0, c1, c1)
+			_tri(S, r1[i], r1[j], tip, dh + Vector3(0, 0.4, 0), c1, c1, c2)
+	return G
+
+## v2 : congère basse (neige poussée au bord du chemin) : dôme aplati à facettes, masque de neige plein, empreinte de rayon 1.
+static func _g_neige(graine: int) -> Dictionary:
+	var rg := RandomNumberGenerator.new()
+	rg.seed = graine
+	var m := _masse_ang(graine, 1, Vector3(1.0 + rg.randf() * 0.5, 0.2, 0.8 + rg.randf() * 0.3), 0.04, 0.5)
+	var Q: PackedVector3Array = m[0]
+	var rot := rg.randf() * TAU
+	var rmax := 0.0
+	var ymin := INF
+	var ymax := -INF
+	for i in Q.size():
+		Q[i] = Q[i].rotated(Vector3.UP, rot)
+		rmax = maxf(rmax, Vector2(Q[i].x, Q[i].z).length())
+		ymin = minf(ymin, Q[i].y)
+		ymax = maxf(ymax, Q[i].y)
+	var cols := PackedColorArray()
+	for i in Q.size():
+		var t := clampf((Q[i].y - ymin) / maxf(ymax - ymin, 0.01), 0.0, 1.0)
+		Q[i] = (Q[i] - Vector3(0, ymin, 0)) / rmax - Vector3(0, 0.03, 0)
+		var ao := lerpf(0.58, 0.8, t)                          # neige bleutée (#9aa6be de la planche), plus de blanc pur
+		cols.append(Color(ao * 0.82, ao * 0.9, ao * 1.02, 1.6))
+	var G := {"surf": {}, "h": (ymax - ymin) / rmax, "prof": 0.0}
+	_facettes(_S(G, "k_sol_neige"), Q, m[1], Vector3(0, 0.05, 0), cols, graine, 0.0, 1.6)
 	return G
 
 static func _g_frange(graine: int, n: int) -> Dictionary:
@@ -420,8 +589,71 @@ func _gabarits() -> void:
 	gab["grappe_0"] = _g_grappe(8301, 1.0)
 	gab["grappe_1"] = _g_grappe(8302, 0.75)
 	gab["grappe_2"] = _g_grappe(8303, 1.15)
+	for k in 3:
+		gab["pic_%d" % k] = _g_pic(8601 + k * 7, 2 + k)
+		gab["neige_%d" % k] = _g_neige(8701 + k * 11)
 	gab["frange_0"] = _g_frange(8401, 9)
 	gab["frange_1"] = _g_frange(8402, 12)
+	rg.seed = 52031                    # mêmes tirages qu'à l'origine : dimensions v1 de chaque gabarit
+	for k in 8:
+		gab["bloc_%d" % k]["dim_v1"] = _g_bloc_v1(7100 + k * 37, 2, rg.randf_range(0.55, 0.9), rg.randf_range(1.0, 1.5))
+	for k in 3:
+		gab["caillou_%d" % k]["dim_v1"] = _g_bloc_v1(7500 + k * 41, 1, rg.randf_range(0.5, 0.8), rg.randf_range(1.0, 1.4))
+	for k in 3:
+		gab["dalle_%d" % k]["dim_v1"] = _g_bloc_v1(7700 + k * 43, 2, rg.randf_range(0.26, 0.34), rg.randf_range(1.2, 1.6), 1.7, 0.35, "k_terrasse")
+	for k in 4:
+		gab["pan_%d" % k]["dim_v1"] = _g_pan_v1(7900 + k * 53)
+	for nom: String in gab:
+		if (gab[nom] as Dictionary).has("dim_v1"):
+			var dv: Dictionary = gab[nom]["dim_v1"]
+			gab[nom]["h"] = dv["h"]
+			gab[nom]["prof"] = dv["prof"]
+			(gab[nom] as Dictionary).erase("dim_v1")
+	if not OS.get_cmdline_user_args().has(OPTION_CODE):
+		_depuis_glb()
+
+## v2 : remplace blocs, cailloux, dalles et pans par les modules Blender (enveloppes convexes anguleuses, couleurs cuites).
+## Lecture du .dat écrit par le script Blender (FileAccess : sûr dans le fil de construction de la grotte ; relire le .glb ou ses
+## maillages bloque le fil quand le fil principal attend). Le .glb exporté au même moment reste l'asset de référence.
+## La matière reste celle du kit (shader de la grotte), donc aucun piège d'alpha 0 / tex_neige. Les dimensions h et prof restent
+## celles de la v1 (elles décident des solides, donc des collisions). Repli silencieux sur les gabarits par code si le fichier manque.
+func _depuis_glb() -> void:
+	var f := FileAccess.open(DAT_ROCHES, FileAccess.READ)
+	if f == null:
+		return
+	var lus := 0
+	var n := f.get_32()
+	for _m in n:
+		var nom := f.get_buffer(f.get_8()).get_string_from_utf8()
+		var nb := f.get_32()
+		var fl := f.get_buffer(nb * 28).to_float32_array()
+		if not gab.has(nom):
+			continue
+		var v := PackedVector3Array()
+		var nn := PackedVector3Array()
+		var cols := PackedColorArray()
+		var uu := PackedVector2Array()
+		var ii := PackedInt32Array()
+		v.resize(nb)
+		nn.resize(nb)
+		cols.resize(nb)
+		uu.resize(nb)
+		ii.resize(nb)
+		for q in nb:
+			var o := q * 7
+			v[q] = Vector3(fl[o], fl[o + 1], fl[o + 2])
+			cols[q] = Color(fl[o + 3], fl[o + 4], fl[o + 5], fl[o + 6])
+			ii[q] = q
+		for t in nb / 3:
+			var fn := (v[t * 3 + 1] - v[t * 3]).cross(v[t * 3 + 2] - v[t * 3]).normalized()
+			nn[t * 3] = fn
+			nn[t * 3 + 1] = fn
+			nn[t * 3 + 2] = fn
+		var G := {"surf": {}, "h": float(gab[nom]["h"]), "prof": float(gab[nom]["prof"])}
+		G["surf"]["k_terrasse" if nom.begins_with("dalle_") else "k_roche_neige"] = {"v": v, "n": nn, "c": cols, "u": uu, "i": ii}
+		gab[nom] = G
+		lus += 1
+	print("kit grotte : %d modules rocheux Blender lus (%s)" % [lus, DAT_ROCHES])
 
 # =================================================================== matières, instances
 func _mat(nom: String) -> Material:
@@ -511,6 +743,9 @@ func _reserver_pt(id: String, s: float, lat: float, rr: float, couloir := true) 
 func _reserver(id: String) -> void:
 	_occ.clear()
 	_seg.clear()
+	for f: Array in _fixes:
+		if f[0] == id:
+			_occ.append([f[1], f[2]])
 	for z: Dictionary in g.zones.values():
 		if z["branche"] != id:
 			continue
@@ -608,6 +843,11 @@ func _libre_fond(id: String, s: float, lat: float, rr: float) -> bool:
 func _occuper(id: String, s: float, lat: float, rr: float) -> void:
 	_occ.append([_xz(g.sol_en(id, s, lat)), rr])
 
+func _occuper_fixe(id: String, s: float, lat: float, rr: float) -> void:
+	var p := _xz(g.sol_en(id, s, lat))
+	_occ.append([p, rr])
+	_fixes.append([id, p, rr])
+
 ## Distance latérale de la paroi (côté `cote`) à la hauteur h au-dessus du sol de l'axe, et point/normale du mur.
 var _murs := {}
 func _mur(id: String, s: float, cote: float, h: float) -> Dictionary:
@@ -662,7 +902,12 @@ func _stalagmite(id: String, s: float, lat: float, h: float, solide := true) -> 
 	if h < 0.6:
 		return 0.0
 	var e := h * r.randf_range(0.85, 1.2)
-	_add(nom, p, r.randf() * TAU, Vector3(e, h, e))
+	var yaw := r.randf() * TAU
+	var sty := GrotteDecor._style_en(g, id, s)
+	if (sty == "glace" or sty == "cristaux") and GrotteDecor.hash2(p.x * 1.7, p.z * 2.3) < 0.4:
+		_add("pic_%d" % (k % 3), p, yaw, Vector3(e * 0.8, h, e * 0.8))      # v2 : aiguille de glace (formation) au lieu de la roche
+	else:
+		_add(nom, p, yaw, Vector3(e, h, e))
 	var rb: float = [0.15, 0.27, 0.2, 0.32][k] * e
 	_occuper(id, s, lat, rb * 1.3)
 	if solide and rb > 0.12:
@@ -1401,9 +1646,106 @@ func _tube(nom: String, pts: Array, rads: Array, cotes: int, ao_bas: float, ao_h
 	for i in cotes:
 		d.facette(nom, last[i], last[(i + 1) % cotes], tip, pl + Vector3(0, 0.3, 0), [cb, cb, cb], false, 1.0)
 
+# =================================================================== v2 : zones hors kit (entrée, boyau, mine, camp, cache…)
+## Habillage ANGULAIRE des zones que le kit ne traitait pas : pans au pied des parois, blocs bas (NON solides : aucune collision de
+## plus), congères et cailloux au bord du chemin, aiguilles de glace, quelques stalactites. Tout passe par `libre` (voie centrale,
+## couloirs vers les accroches du jeu, réserves). `dens` : multiplicateur (le camp est plus sobre : on y combat).
+func _generique(z: Dictionary) -> void:
+	var id: String = z["branche"]
+	var s0: float = z["s"][0]
+	var s1: float = z["s"][1]
+	var th := String(z.get("theme", ""))
+	r.seed = int(z.get("graine", 1)) * 71 + 5
+	_reserver(id)
+	var L := g.longueur(id)
+	var sa := maxf(s0, 0.6)
+	var sb := minf(s1, L - 0.6)
+	if sb - sa < 2.0:
+		return
+	var camp := th == "repaire"
+	var dens := 0.6 if camp else 1.0
+	var etais: Array = (z.get("params", {}) as Dictionary).get("etais", [])
+	var sty := GrotteDecor._style_en(g, id, (sa + sb) * 0.5)
+	var neige_p := 0.75 if sty == "neige" else (0.5 if (sty == "glace" or sty == "mousse") else (0.0 if camp else 0.32))
+	for cote: float in [-1.0, 1.0]:
+		# 1. ressauts de paroi au sol, et un étage en hauteur si la voûte le permet
+		var s := sa + r.randf_range(0.0, 1.0)
+		while s < sb:
+			if r.randf() < dens:
+				var pn := _pan(id, s, cote, 0.0, r.randf_range(0.8, 1.35), true)
+				if not pn.is_empty():
+					var hh := float(pn["h"]) * r.randf_range(0.7, 0.85)
+					var libre_h := g.plafond_en(id, s, cote * 1.0).y - g.sol_en(id, s, 0.0).y
+					if hh < libre_h - 1.6 and r.randf() < 0.6:
+						var pn2 := _pan(id, s + r.randf_range(-0.3, 0.3), cote, hh, r.randf_range(0.8, 1.2), false)
+						if not pn2.is_empty():
+							_garnir_pan(pn2, 0.0, true)
+			s += r.randf_range(1.4, 2.4)
+		# 2. blocs bas au pied de la paroi (décor seul)
+		s = sa + r.randf_range(0.0, 1.0)
+		while s < sb:
+			var m := _mur(id, s, cote, 0.5)
+			if not m.is_empty() and r.randf() < dens:
+				var rr := r.randf_range(0.5, 1.2)
+				var lat := cote * (float(m["lat"]) - rr * 0.3)
+				if libre(id, s, lat, rr, 0.6):
+					_bloc(id, s, lat, rr, false)
+			s += r.randf_range(0.9, 1.7)
+		# 3. bord du chemin : cailloux anguleux + congères (le chemin « enneigé » se lit par ses bordures)
+		s = sa + r.randf_range(0.0, 0.6)
+		while s < sb:
+			if g.hors_jonction(id, s):
+				var dl := g.demi_l(id, s)
+				var w := dl.y if cote > 0.0 else dl.x
+				if r.randf() < 0.55 * dens:
+					var rr := r.randf_range(0.16, 0.42)
+					var lat := cote * (VOIE + rr + r.randf_range(0.05, 0.5))
+					if absf(lat) < w - 0.4 and libre(id, s, lat, rr, 0.7):
+						_bloc(id, s, lat, rr, false, true)
+				if r.randf() < neige_p:
+					var rn := r.randf_range(0.45, 1.0)
+					var lat2 := cote * (VOIE + rn * 0.55 + r.randf_range(0.0, 0.7))
+					if absf(lat2) < w - 0.3 and libre(id, s, lat2, rn * 0.6, 0.5):
+						var q := g.sol_en(id, s, lat2)
+						_add("neige_%d" % r.randi_range(0, 2), q + Vector3(0, -0.03, 0), r.randf() * TAU, Vector3(rn, rn * r.randf_range(0.8, 1.3), rn))
+			s += r.randf_range(0.9, 1.8)
+		# 4. aiguilles de glace contre la paroi (couloirs froids seulement)
+		if sty == "neige" or sty == "glace" or sty == "strate":
+			for k in int((sb - sa) * (0.06 if sty == "strate" else 0.12)):
+				var s2 := r.randf_range(sa, sb)
+				var m := _mur(id, s2, cote, 0.5)
+				if m.is_empty():
+					continue
+				var lat := cote * (float(m["lat"]) - r.randf_range(0.5, 1.4))
+				var h := r.randf_range(0.9, 2.2)
+				if libre(id, s2, lat, h * 0.2, 0.7):
+					var p := g.sol_en(id, s2, lat)
+					if h > 0.72 * (g.plafond_en(id, s2, lat).y - p.y):
+						continue
+					_add("pic_%d" % r.randi_range(0, 2), p, r.randf() * TAU, Vector3(h * 0.8, h, h * 0.8))
+					_occuper(id, s2, lat, h * 0.22)
+	# 5. stalactites anguleuses (pas à travers un étai de mine)
+	for k in int((sb - sa) * 0.35 * dens):
+		var s3 := r.randf_range(sa, sb)
+		var proche := false
+		for se: float in etais:
+			if absf(se - s3) < 1.1:
+				proche = true
+		if proche:
+			continue
+		var dl := g.demi_l(id, s3)
+		var lat := r.randf_range(-dl.x * 0.92, dl.y * 0.92)
+		_stalactite(id, s3, lat, lerpf(0.5, 2.4, pow(r.randf(), 1.4)), absf(lat) < 2.4)
+
 # =================================================================== entrée
 func habiller() -> void:
 	var t0 := Time.get_ticks_msec()
+	GrotteStructures.poser(self)                       # v2 : structures en bois et autel d'abord (leurs places survivent à _reserver)
+	for z: Dictionary in g.def.get("zones", []):       # v2 : puis les zones hors kit (la salle du kit remet à zéro les réserves de sa branche)
+		var th := String(z.get("theme", ""))
+		if th == "cristaux" or (th == "lac" and String(z.get("role", "")) == "combat"):
+			continue
+		_generique(z)
 	for z: Dictionary in g.def.get("zones", []):
 		match String(z.get("theme", "")):
 			"cristaux":
