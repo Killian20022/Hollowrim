@@ -33,6 +33,7 @@ TESTS=(
 	"test_gel_exterieur|--nouvelle"
 	"test_grotte_acces|--nouvelle"
 	"test_grotte_jeu|--nouvelle"
+	"test_salle_active|--nouvelle"
 	"test_mecanismes|--nouvelle"
 	"test_degats_sanctuaire|--nouvelle"
 	"test_dragon|--nouvelle"
