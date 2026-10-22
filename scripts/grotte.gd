@@ -831,6 +831,24 @@ func construire() -> void:
 	corps.add_child(cs)
 	temps_ms = Time.get_ticks_msec() - t0
 
+## Portée de dessin sous terre : au-delà de ~30 m (bord le plus proche), la brume noie tout. Appliquée à chaque maillage du kit
+## (cases de 10 m) ; la portée est mesurée au centre de l'objet : on ajoute donc son demi-diamètre (borné) pour que le BORD proche reste
+## visible jusqu'à 30 m. Les très gros objets (> 60 m) ne sont jamais coupés.
+const PORTEE_DESSIN := 30.0
+
+## Fil principal seulement : get_aabb interroge le serveur de rendu (blocage garanti dans le fil de construction).
+func _ready() -> void:
+	_portee_dessin()
+
+func _portee_dessin() -> void:
+	for n in find_children("*", "GeometryInstance3D", true, false):
+		var g := n as GeometryInstance3D
+		var d := g.get_aabb().size.length() * 0.5
+		if d > 30.0:
+			continue
+		g.visibility_range_end = PORTEE_DESSIN + d
+		g.visibility_range_end_margin = 3.0
+
 func _preparer() -> void:
 	ordre = def["ordre"]
 	for d: Dictionary in def["branches"]:

@@ -184,6 +184,7 @@ func _construire_crypte() -> void:
 	_sarcophage_arene()
 	var t1 := Time.get_ticks_msec()
 	d.finir()
+	CrypteDonjon.limiter_portee(crypte)   # portée de dessin ~30 m
 	print("Crypte (lot 7a) : plan %d ms + finition %d ms = %d ms" % [t1 - t0, Time.get_ticks_msec() - t1, Time.get_ticks_msec() - t0])
 	# donjon : bâti en parallèle, hors de l'arbre ; intégré dès qu'il est prêt (au plus tard à l'entrée dans la crypte)
 	_cont = Node3D.new()
@@ -233,6 +234,7 @@ func _integrer_donjon() -> void:
 	WorkerThreadPool.wait_for_task_completion(_tache)
 	_tache = -1
 	_t_pose = Time.get_ticks_msec()
+	CrypteDonjon.limiter_portee(_cont)   # portée de dessin ~30 m (fil principal : get_aabb interroge le serveur de rendu, blocage dans un fil)
 	_reste_donjon = _cont.get_children()
 	for c in _reste_donjon:
 		_cont.remove_child(c)
