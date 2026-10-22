@@ -9,7 +9,7 @@ extends CrypteDecor
 const CASE_C := 10.0
 const PAINT_PARENT := ["bois", "fer", "lame", "os", "argile", "parchemin", "toile", "halo", "flamme"]
 const DOSSIER := "res://assets/grotte"
-const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "givre", "glacon", "cristal", "cristal_f", "cristal_v", "planches", "peau", "paille", "or", "piste", "bois"]
+const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "givre", "glacon", "pic", "dalles", "cristal", "cristal_f", "cristal_v", "planches", "peau", "paille", "or", "piste", "bois"]
 const PROPRES_PLATES := ["jour", "ciel", "rai", "flaque", "brume"]
 const GRAIN_MIPS := ["roche", "roche_b", "roche_givre", "strate", "sol"]   # passe 2 kit : mipmaps qui gardent le moucheté (GrotteTextures.mips_image)
 const GROTTE_SHADER := preload("res://shaders/grotte.gdshader")
@@ -28,7 +28,7 @@ const COQUES := {
 	"c_strate_mousse": ["strate", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 1.0],
 	"c_strate_glace": ["strate", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.75, 0.0, 1.0],
 	"c_strate_suie": ["strate", "", Color(0.8, 0.8, 0.82), Vector3(0.0, 0.0, 0.0), 0.0, 0.35, 0.0, 1.0],
-	"c_sol_neige": ["sol", "neige_sol", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.45, 0.0, 1.0],
+	"c_sol_neige": ["dalles", "neige_sol", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.45, 0.0, 1.0],
 	"c_sol_mousse": ["sol", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.25, 1.0, 1.0],
 	"c_sol_glace": ["sol", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.2, 0.6, 1.0],
 	"c_sol_nu": ["sol", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.3, 0.8, 1.0],
@@ -40,6 +40,7 @@ const COQUES := {
 	"c_cristal_f": ["cristal_f", "", Color(0.8, 0.84, 0.95), Vector3(0.0, 0.0, 0.0), 0.22, 0.0, 0.0, 0.0],   # prismes en grappes (UV par face)
 	"c_cristal_v": ["cristal_v", "", Color(0.78, 0.95, 1.22), Vector3(0.0, 0.0, 0.0), 0.7, 0.0, 0.0, 0.0],   # passe 2 kit : bleu plus vif (cœurs blancs : c_cristal_c)   # grosses grappes : faces bleu vif émissives
 	"c_cristal_c": ["cristal_v", "", Color(1.35, 1.45, 1.5), Vector3(0.02, 0.05, 0.07), 0.9, 0.0, 0.0, 0.0],   # cœur blanc-cyan des grosses grappes
+	"c_aiguille": ["pic", "", Color(0.9, 0.95, 1.0), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 1.0],   # finitions : aiguilles de glace texturées (projection monde)
 	"c_glacon_c": ["glacon", "", Color(1.12, 1.18, 1.22), Vector3(0.012, 0.02, 0.03), 0.16, 0.0, 0.0, 0.0],   # glace claire bleu-blanc (devant de la cascade)
 	"c_glacon": ["glacon", "", Color(0.78, 0.82, 0.86), Vector3(0.006, 0.009, 0.013), 0.06, 0.0, 0.0, 0.0],
 	# passe 2 kit : la cascade du kit (lisible à 28 m) et les terrasses givrées du lac
@@ -150,7 +151,7 @@ func mat(nom: String) -> Material:
 		sm.set_shader_parameter("tex_givre", _tex_g("givre"))
 		sm.set_shader_parameter("mouille", d[6])
 		sm.set_shader_parameter("triplan", d[7])
-		sm.set_shader_parameter("ao_gamma", AO_GAMMA if not nom in ["c_cristal", "c_cristal_f", "c_cristal_v", "c_cristal_c", "c_glacon", "c_glacon_c", "c_cascade", "c_cascade_c"] else 1.0)
+		sm.set_shader_parameter("ao_gamma", AO_GAMMA if not nom in ["c_cristal", "c_cristal_f", "c_cristal_v", "c_cristal_c", "c_glacon", "c_glacon_c", "c_cascade", "c_cascade_c", "c_aiguille"] else 1.0)
 		sm.set_shader_parameter("decoupe", 1.0 if nom == "c_piste" else 0.0)
 		if d[7] > 0.5:
 			sm.set_shader_parameter("modele", 1.0)

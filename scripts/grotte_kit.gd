@@ -485,7 +485,7 @@ static func _g_pic(graine: int, n: int) -> Dictionary:
 	var rg := RandomNumberGenerator.new()
 	rg.seed = graine
 	var G := {"surf": {}, "h": 1.0, "prof": 0.0}
-	var S := _S(G, "c_glacon_c")
+	var S := _S(G, "c_aiguille")
 	for k in n:
 		var a := rg.randf() * TAU
 		var dd := 0.0 if k == 0 else rg.randf_range(0.14, 0.3)
@@ -507,9 +507,9 @@ static func _g_pic(graine: int, n: int) -> Dictionary:
 			var dh: Vector3 = ((r0[i] as Vector3) + (r0[j] as Vector3)) * 0.5 - base
 			dh.y = 0.0
 			var ton: float = [1.0, 0.82, 0.66][(i + k) % 3]
-			var c0 := Color(0.28 * ton, 0.34 * ton, 0.46 * ton, 0.0)     # pied bleu ardoise -> corps bleu glace #9fb8dc -> pointe claire
-			var c1 := Color(0.46 * ton, 0.58 * ton, 0.78 * ton, 0.0)
-			var c2 := Color(0.66 * ton, 0.8 * ton, 1.0 * ton, 0.0)
+			var c0 := Color(0.5 * ton, 0.55 * ton, 0.66 * ton, 0.0)     # finitions : la texture (c_aiguille) porte les tons ; ici seulement pied sombre -> pointe
+			var c1 := Color(0.66 * ton, 0.74 * ton, 0.88 * ton, 0.0)
+			var c2 := Color(0.8 * ton, 0.9 * ton, 1.0 * ton, 0.0)
 			_tri(S, r0[i], r0[j], r1[j], dh, c0, c0, c1)
 			_tri(S, r0[i], r1[j], r1[i], dh, c0, c1, c1)
 			_tri(S, r1[i], r1[j], tip, dh + Vector3(0, 0.4, 0), c1, c1, c2)
