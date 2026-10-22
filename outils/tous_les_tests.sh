@@ -45,6 +45,7 @@ TESTS=(
 	"test_guerrier|--nouvelle"
 	"test_mage|--nouvelle"
 	"test_chasseresse|--nouvelle"
+	"test_chasseresse_homme|--nouvelle"
 	"test_gardien|--nouvelle"
 	"test_troll|--nouvelle"
 	"test_draugr|--nouvelle"
