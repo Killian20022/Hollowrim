@@ -523,7 +523,7 @@ func _entree() -> void:
 
 func _alcove() -> void:
 	d.salle(-11, -7, -23, -27, 3.0, [["est", -25.0, 3.0]], 0.0, "mur2")
-	var eirik := Humain.creer({"corps": "homme", "cheveux": "Hair_SimpleParted", "teinte_cheveux": Color(0.85, 0.55, 0.3), "peau": Color(0.75, 0.75, 0.8),
+	var eirik: Node3D = PnjNordique.creer("eirik") if not PnjNordique.ancien() else Humain.creer({"corps": "homme", "cheveux": "Hair_SimpleParted", "teinte_cheveux": Color(0.85, 0.55, 0.3), "peau": Color(0.75, 0.75, 0.8),
 		"tenue": {"tunique": Color(0.4, 0.5, 0.42), "pantalon": Color(0.6, 0.55, 0.5), "bottes": Color.WHITE, "ceinture": Color.WHITE, "mante": Color(0.9, 0.85, 0.8)}})
 	eirik.position = Vector3(-9.3, 0.02, -25.0)
 	eirik.rotation.y = 1.2
