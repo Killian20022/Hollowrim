@@ -60,7 +60,7 @@ func _tester() -> void:
 	# 2. le front de roche arrête un joueur : rayons horizontaux vers l'est à 0,5 / 1,5 / 3 m, à gauche et à droite de la voûte
 	for dz in [-6.0, -4.0, 4.0, 6.0]:
 		for h in [0.6, 1.6]:
-			var de := Vector3(o.x - 6.0, o.y + h, o.z + dz)
+			var de := Vector3(o.x - 6.0, o.y + h, o.z + dz + 0.013)   # décalage : un rayon exactement sur l'arête de deux triangles peut passer entre eux (Jolt)
 			var r := _rayon(de, de + Vector3(14.0, 0, 0), vivants)
 			_verif(not r.is_empty() and r["position"].x < o.x + 1.0, "front de roche à %.1f m du axe, h=%.1f : arrêté en x=%.2f" % [dz, h, r["position"].x if not r.is_empty() else 999.0])
 	# au centre : on entre dans le boyau (3 m) puis le bouchon arrête
