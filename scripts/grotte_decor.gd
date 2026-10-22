@@ -788,8 +788,8 @@ const FROID_LAC := Color(0.62, 0.78, 0.86)
 const FROID_CRISTAL := Color(0.6, 0.74, 1.0)
 const JOUR_C := Color(0.78, 0.86, 1.0)
 const LANTERNE_C := Color(1.0, 0.6, 0.28)
-const LANT_E := 7.0      # lanternes : énergie, portée, atténuation (2e passe : flaques chaudes locales, chute forte)
-const LANT_P := 8.0
+const LANT_E := 9.0      # lanternes : énergie, portée, atténuation (2e passe : flaques chaudes locales, chute forte)
+const LANT_P := 9.0
 const LANT_A := 2.0
 
 var _hab_r := RandomNumberGenerator.new()
