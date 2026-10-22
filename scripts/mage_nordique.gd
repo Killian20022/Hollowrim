@@ -157,9 +157,9 @@ static func creer(options := {}) -> Node3D:
 	# tissus noirs : lumière propre un peu plus forte que le guerrier (le côté à l'ombre garde ses plis et ses broderies au
 	# lieu de tomber en aplat noir) ; matériaux propres au mage
 	for m in [pieces["tunique"].material_override, pieces["mante"].material_override, mi_acc.get_surface_override_material(0), mi_acc.get_surface_override_material(1), jupe.mat]:
-		(m as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.10, 0.115, 0.15))
+		(m as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.12, 0.155, 0.23))
 	if pieces.has("capuche") and options.get("capuche", true):
-		(pieces["capuche"].material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.05, 0.055, 0.07))
+		(pieces["capuche"].material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.05, 0.06, 0.085))
 	racine.set_meta("mage_nordique", true)
 	return racine
 

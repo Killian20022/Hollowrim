@@ -11,13 +11,15 @@ class_name MageTextures
 const ROBE := ["#0d1219", "#171f2b", "#232f41", "#33445d", "#455f7e", "#5f809f", "#86a9c4"]
 ## broderies : fil bleu pâle glacé (les runes ressortent sur la robe noire, sans saturation « plastique »)
 const BRODERIE := ["#1f2a36", "#3f5a74", "#6f93b5", "#9dbfdc", "#c9e0f2"]
-const CAPUCHE := ["#08080a", "#0e0e11", "#151518", "#1d1d21", "#26262b", "#313136", "#3f3e44"]
+const CAPUCHE := ["#0a0d12", "#10151d", "#171f2a", "#202a38", "#2a3748", "#364659", "#475b73"]
 ## pèlerine de laine par-dessus la robe : gris anthracite un peu plus chaud que la robe (les deux couches se distinguent)
-const PELERINE := ["#101112", "#191a1c", "#232426", "#2e2f32", "#3a3b3f", "#49494d", "#5b5a5e"]
+const PELERINE := ["#10151c", "#19202a", "#232c39", "#2e3a4a", "#3b4a5e", "#4b5d74", "#60758f"]
 const BARBE := ["#2b2a2b", "#4a4849", "#6c6a6a", "#8f8d8b", "#b1aeaa", "#cfccc6"]
 const CRISTAL := ["#132447", "#1f3d75", "#2f5fb0", "#5a8fe0", "#9cc4f5", "#d6ebff"]
 ## orbe de glace : du bleu profond au blanc glacé (cœur), lumineux (surface émissive)
 const ORBE := ["#0a1d48", "#123a80", "#1d62bf", "#3a8ae4", "#62b0f4", "#9ad2ff"]
+## cotte d'écailles du plastron : acier bleui, du creux sombre au reflet froid
+const ECAILLE := ["#0a0f16", "#141d29", "#1f2c3d", "#2d3f55", "#41597a", "#5f7fa5", "#8fb3d3"]
 const RUNE_BOIS := ["#7d8fa6", "#a9bdd2", "#cfe0ee"]                          # entaille des runes : bois clair givré, un peu bleu
 
 ## Runes (futhark simplifié) en segments sur une grille 4 x 6 : [x0, y0, x1, y1] ; tracées en 1 texel.
@@ -39,7 +41,7 @@ const RUNES := [
 static var _cache := {}
 
 const DOSSIER := "res://assets/personnages/mage"
-const VERSION := 5
+const VERSION := 6
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -118,22 +120,52 @@ static func robe_haut() -> Image:
 			var l := _laine(x, y, W, H, 0.46, 1101)
 			var t := GuerrierTextures._ton(l, 6, x, y, 1104, 0.3)
 			_p(img, x, y, _c(ROBE, t))
+	_ecailles(img, W, 22, 92)
 	_bande_devant(img, W, 26, 88)
 	_poignet(img, W, H)
 	return img
+
+## Plastron en ÉCAILLES (reference : cotte brodee sur le torse) : rangees de 5 texels, ecailles rondes de 7 de large decalees d'une
+## demi-ecaille, bord haut eclaire, ombre portee sous la rangee du dessus, rivet au centre ; fondu sur les cotes (dx = +-17).
+static func _ecailles(img: Image, W: int, y0: int, y1: int) -> void:
+	for y in range(y0, y1):
+		var r := (y - y0) / 5
+		var dy := (y - y0) % 5
+		for dx in range(-17, 18):
+			var xo := dx + (3 if r % 2 == 1 else 0)
+			var cx := posmod(xo + 3, 7) - 3          # -3..3 : position dans l'ecaille
+			var haut := 0
+			# profil arrondi : le bas de l'ecaille descend au centre
+			var limite := 4 - int(absf(cx) * 0.7)
+			if dy > limite:
+				continue                              # laisse voir l'ecaille de la rangee suivante (peinte ensuite)
+			var l := 0.50 + (GuerrierTextures._n(dx + 40, y, 80, 128, 6, 6, 2401) - 0.5) * 0.35
+			if dy == 0:
+				haut = 2
+			elif dy == limite:
+				haut = -2
+			elif dy == 1:
+				haut = 1
+			var t := clampi(int(l * 4.0) + 1 + haut, 0, 6)
+			if dy == 2 and cx == 0:
+				t = 6                                  # rivet
+			var fond := absf(dx) > 15
+			if fond:
+				t = maxi(t - 2, 0)
+			_p(img, posmod(dx, W), y, _c(ECAILLE, t))
 
 ## Bande brodée verticale centrée sur x = 0 (repliée) : fond sombre, deux filets d'argent, chaîne de losanges de chaque côté
 ## (comme le plastron brodé de la référence), runes empilées au centre.
 static func _bande_devant(img: Image, W: int, y0: int, y1: int) -> void:
 	for y in range(y0, y1):
-		for dx in range(-10, 11):
+		for dx in range(-6, 7):
 			var x := posmod(dx, W)
 			var c := _c(ROBE, 1)
-			if absf(dx) == 10:
+			if absf(dx) == 6:
 				c = _c(BRODERIE, 2)
-			elif absf(dx) == 9:
+			elif absf(dx) == 5:
 				c = _c(ROBE, 0)
-			elif absf(dx) == 3:
+			elif absf(dx) == 4:
 				c = _c(BRODERIE, 1)
 			_p(img, x, y, c)
 	var k := 0
@@ -142,15 +174,6 @@ static func _bande_devant(img: Image, W: int, y0: int, y1: int) -> void:
 		_rune(img, k * 5 + 3, -2, y, _c(BRODERIE, 3), _c(ROBE, 0))
 		y += 9 + (k % 2)
 		k += 1
-	# chaîne de losanges creux (5 de haut, période 6) de part et d'autre
-	for cote in [-1, 1]:
-		var yy := y0 + 1
-		while yy + 5 <= y1:
-			for r in 5:
-				var demi := 2 - absi(r - 2)
-				for sgn in [-1, 1]:
-					_p(img, posmod(cote * 6 + sgn * demi, W), yy + r, _c(BRODERIE, 3 if sgn > 0 else 2))
-			yy += 6
 
 ## Entrelacs (tresse à deux brins) sur le rectangle (x0, y0, w, h) : les brins s'enlacent (dessus / dessous alternés), chacun cerné
 ## d'un trait sombre ; période 16 texels (divise 128 et 256 : le motif se referme sur le tour).
@@ -533,6 +556,13 @@ static func pelerine() -> Image:
 		for x in W:
 			var l := _laine(x, y, W, H, 0.45, 2201, 10)
 			var t := GuerrierTextures._ton(l, 6, x, y, 2205, 0.3)
+			# trame de la laine : un fil sur deux un peu plus sombre, plis marques en creux, couture de bordure en bas
+			if (y + x / 11) % 5 == 0 and GuerrierTextures._h(x, y, 2211) > 0.45:
+				t = maxi(t - 1, 0)
+			if GuerrierTextures._n(x, 0, W, 1, 6, 1, 2210) < 0.18:
+				t = maxi(t - 2, 0)
+			if y >= H - 3:
+				t = 0 if y == H - 1 else (5 if x % 4 < 2 else 2)
 			# neige accrochée aux plis : éclats clairs épars (la frange et les épaules en prennent le plus)
 			if GuerrierTextures._h(x, y, 2206) > 0.975:
 				_p(img, x, y, _c(BARBE, 1))

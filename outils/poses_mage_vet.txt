@@ -15,3 +15,6 @@ a_course2 pilote 3,-90,0.9 heure=17.5 sans-mains anim=Sprint:0.4
 a_sprint2 pilote 3,-90,0.9 heure=17.5 sans-mains anim=Sprint:0.8
 a_sort pilote 3,-40,0.9 heure=17.5 sans-mains anim=Spell_Simple_Shoot:0.3
 a_mort pilote 3,-40,0.6 heure=17.5 sans-mains anim=Death01:0.6
+n_jour pilote 2,0,1.0 heure=12 sans-mains anim=Idle:0.25
+n_nuit pilote 2,0,1.0 heure=22 sans-mains anim=Idle:0.25
+n_nuit_torse pilote 1.0,-20,1.35 heure=22 sans-mains anim=Idle:0.3
