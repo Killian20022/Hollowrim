@@ -1697,7 +1697,7 @@ func _generique(z: Dictionary) -> void:
 			if g.hors_jonction(id, s):
 				var dl := g.demi_l(id, s)
 				var w := dl.y if cote > 0.0 else dl.x
-				if r.randf() < 0.55 * dens:
+				if r.randf() < 0.38 * dens:
 					var rr := r.randf_range(0.16, 0.42)
 					var lat := cote * (VOIE + rr + r.randf_range(0.05, 0.5))
 					if absf(lat) < w - 0.4 and libre(id, s, lat, rr, 0.7):
@@ -1711,7 +1711,7 @@ func _generique(z: Dictionary) -> void:
 			s += r.randf_range(0.9, 1.8)
 		# 4. aiguilles de glace contre la paroi (couloirs froids seulement)
 		if sty == "neige" or sty == "glace" or sty == "strate":
-			for k in int((sb - sa) * (0.06 if sty == "strate" else 0.12)):
+			for k in int((sb - sa) * (0.04 if sty == "strate" else 0.08)):
 				var s2 := r.randf_range(sa, sb)
 				var m := _mur(id, s2, cote, 0.5)
 				if m.is_empty():

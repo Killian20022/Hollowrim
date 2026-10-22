@@ -93,6 +93,16 @@ func regler_bouche(pos: Vector3, rayon: float) -> void:
 			(m as ShaderMaterial).set_shader_parameter("bouche", _bouche)
 
 var _bouche := Vector4.ZERO
+var _lueurs: Array = [Vector4.ZERO, Vector4.ZERO, Vector4.ZERO]
+
+## Lueurs bleues de fond des grandes salles (uniform `lueurs`) : jusqu'à 3 sphères [xyz monde, rayon].
+func regler_lueurs(l: Array) -> void:
+	_lueurs = [Vector4.ZERO, Vector4.ZERO, Vector4.ZERO]
+	for i in mini(3, l.size()):
+		_lueurs[i] = l[i]
+	for m in _mats.values():
+		if m is ShaderMaterial and (m as ShaderMaterial).shader == GROTTE_SHADER:
+			(m as ShaderMaterial).set_shader_parameter("lueurs", _lueurs)
 
 func _tex_g(nom: String) -> ImageTexture:
 	if not _gtex.has(nom):
@@ -147,6 +157,7 @@ func mat(nom: String) -> Material:
 		if nom == "c_sol_neige":
 			sm.set_shader_parameter("echelle_sup", 0.5)     # neige du sol extérieur : tuile de 8 m (16 texels/m), même grain que dehors
 		sm.set_shader_parameter("bouche", _bouche)
+		sm.set_shader_parameter("lueurs", _lueurs)
 		m = sm
 	elif nom == "jour" or nom == "ciel":
 		var s := StandardMaterial3D.new()

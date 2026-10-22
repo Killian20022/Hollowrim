@@ -279,7 +279,7 @@ func tick(dt: float) -> void:
 		var d := l.global_position.distance_to(pj)
 		l.visible = false
 		if d < 26.0:
-			proches.append([d, l])
+			proches.append([d - float(l.get_meta("bonus", 0.0)), l])     # bonus : puits de jour, gardés dans le budget malgré la hauteur
 	proches.sort_custom(func(x: Array, y: Array) -> bool: return float(x[0]) < float(y[0]))
 	for i in mini(MAX_LUM, proches.size()):
 		(proches[i][1] as OmniLight3D).visible = true

@@ -669,7 +669,7 @@ static func flaque_image() -> Image:
 ## d'un texel, grappes de pixels 2x2 nettes (jamais de damier ni de bruit « camouflage »), palette de la planche.
 ## Toutes les matières projetées en monde sont des tuiles de TX x TX texels ; la DENSITÉ (texels par mètre) est réglée par
 ## `echelle` du shader (= DENSITE / TX tuiles par mètre).
-const VERSION := 2            # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés (GrotteDecor)
+const VERSION := 3            # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés (GrotteDecor)
 const TX := 128
 const DENSITE := 24.0         # texels par mètre (shaders/grotte.gdshader : echelle = DENSITE / TX)
 
@@ -677,7 +677,7 @@ const DENSITE := 24.0         # texels par mètre (shaders/grotte.gdshader : ech
 # #9fb8dc bleu glace, #9aa6be gris-bleu clair, #5a4c42 brun gris, #7a4a2e brun bois, #e0a070 orange chaud
 const P_ROCHE := ["#080c12", "#0f151d", "#141c26", "#1f2a3a", "#2a384c", "#34465e", "#46586f", "#5f7189"]            # ardoise bleu-nuit, 8 tons
 const P_ROCHE_F := ["#0b1018", "#141c26", "#202c3c", "#2c3d54", "#3a4c68", "#4d6283", "#6a80a2", "#8fa5c6"]          # roche froide (zones de glace)
-const P_BRUN := ["#0d0a09", "#1a1411", "#2a211c", "#3c3029", "#5a4c42", "#6e5d50", "#85735f", "#9e8c78"]              # brun gris (entrée, abords des torches)
+const P_BRUN := ["#0c0a0a", "#181513", "#272220", "#392f2d", "#554a46", "#675b57", "#7a6f6a", "#928880"]              # brun gris (entrée, abords des torches)
 const P_SOL := ["#0a0e14", "#141c26", "#1e2836", "#2a3646", "#3a4656", "#4a5870", "#5f6f8a", "#7a89a4"]              # dalles de chemin
 const P_NEIGE := ["#2a384c", "#34465e", "#4d6283", "#6a80a2", "#8296b4", "#9aa6be", "#aebfdc"]                      # neige froide de la grotte (jamais blanche)
 const P_GLACE2 := ["#141c26", "#22324a", "#34465e", "#4c6a92", "#6f93c0", "#9fb8dc", "#c4d8f0"]

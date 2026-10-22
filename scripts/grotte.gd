@@ -1178,11 +1178,11 @@ func _decorer() -> void:
 ## bougies). Flaques chaudes locales, sans ombre ; elles ne comptent dans l'affichage que dans le budget MAX_LUM (GrotteJeu.tick).
 func _lumieres_structures() -> void:
 	for p: Vector3 in get_meta("v2_lanternes", []):
-		var l := decor.lumiere(p, GrotteDecor.LANTERNE_C, GrotteDecor.LANT_E * 0.8, GrotteDecor.LANT_P, GrotteDecor.LANT_A, true)
+		var l := decor.lumiere(p, GrotteDecor.LANTERNE_C, GrotteDecor.LANT_E * 0.6, GrotteDecor.LANT_P - 1.5, GrotteDecor.LANT_A, true)
 		l.set_meta("grappe", true)
 		nb_lumieres += 1
 	if has_meta("v2_autel"):
-		var l := decor.lumiere(get_meta("v2_autel"), Color(1.0, 0.6, 0.28), 5.0, 8.0, 1.6, true)
+		var l := decor.lumiere(get_meta("v2_autel"), Color(1.0, 0.6, 0.28), 7.0, 9.0, 1.5, true)
 		l.set_meta("grappe", true)
 		nb_lumieres += 1
 
@@ -1190,15 +1190,22 @@ func _lumieres_structures() -> void:
 ## pour que le fond des salles luise comme sur la planche. Lumières « grappe » (non retouchées), sans ombre ; elles ne comptent
 ## dans le budget d'affichage que si elles sont parmi les MAX_LUM plus proches (GrotteJeu.tick).
 func _puits_de_jour() -> void:
+	var lueurs: Array = []
 	for z: Dictionary in def.get("zones", []):
 		if not ["camp", "lac_caverne", "mine_chambre"].has(String(z["id"])):
 			continue
 		var id: String = z["branche"]
 		var s := (float(z["s"][0]) + float(z["s"][1])) * 0.5
 		var pt := plafond_en(id, s, 0.0)
-		var l := decor.lumiere(pt - Vector3(0, 2.2, 0), Color(0.5, 0.7, 1.0), 2.0, 15.0, 1.3, false)
+		var l := decor.lumiere(pt - Vector3(0, 1.8, 0), Color(0.5, 0.72, 1.0), 3.0, 18.0, 1.3, false)
 		l.set_meta("grappe", true)
+		l.set_meta("bonus", 14.0)
+		# lueur de fond : portée par le shader (uniform `lueurs`), sans lumière de plus à afficher
+		var sf := float(z["s"][1]) - 1.5
+		var cf := transform * (plafond_en(id, sf, 0.0) - Vector3(0, 6.0, 0))
+		lueurs.append(Vector4(cf.x, cf.y, cf.z, 17.0))
 		nb_lumieres += 1
+	decor.regler_lueurs(lueurs)
 
 ## Dalle praticable (corniche) : profil extrudé (rampe puis plateau) posé sur le sol, collisions comprises. Le dessus est horizontal
 ## (altitude `top`), les pieds suivent le sol ; la rampe fait ≈ 17° (3,4 x la hauteur).

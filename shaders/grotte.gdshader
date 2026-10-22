@@ -22,6 +22,7 @@ uniform float decoupe = 0.0;        // 1 : l'alpha de tex_base est un seuil de b
 uniform float triplan = 0.0;        // 1 : projection monde
 uniform float echelle = 0.1875;       // tuiles par mètre (projection monde) : v2 : 128 texels / 5,33 m = 24 texels/m (GrotteTextures.DENSITE)
 uniform vec4 bouche = vec4(0.0);     // xyz : bouche de la grotte (monde), w : rayon de fondu (0 = aucun) : la neige rejoint celle du dehors sans couture
+uniform vec4 lueurs[3];             // lueurs de fond des grandes salles : xyz monde, w rayon (0 = éteinte) ; la roche proche prend un reflet bleu glacé
 uniform float par_m = 24.0;         // texels par mètre : le tirage de l'axe de projection se fait par texel (jonctions en pixels francs)
 uniform float givre = 0.0;          // part de givre sur les faces hautes (0 = aucun)
 uniform float mouille = 0.0;        // part de sol mouillé (0 = sec)
@@ -145,8 +146,16 @@ void fragment() {
 	}
 	// bouche : la neige de la grotte rejoint celle du dehors (même blanc froid) en gardant son motif de plaques
 	vec3 neige_dehors = vec3(0.80, 0.84, 0.92) * clamp(dot(c, vec3(0.333)) * 1.9, 0.55, 1.1);
+	float lueur = 0.0;
+	for (int i = 0; i < 3; i++) {
+		if (lueurs[i].w > 0.0) {
+			float q = 1.0 - smoothstep(0.0, lueurs[i].w, distance(wp, lueurs[i].xyz));
+			lueur = max(lueur, q * q);
+		}
+	}
+	vec3 reflet = vec3(0.30, 0.50, 0.95) * lueur * (0.25 + dot(c, vec3(0.333)) * 2.0) * mix(0.6, 1.0, ao.g) * 0.55;
 	ALBEDO = c * ao * teinte.rgb * (1.0 - fb);
-	EMISSION = emission + c * emis_tex + neige_dehors * fb * fb;
+	EMISSION = emission + c * emis_tex + neige_dehors * fb * fb + reflet;
 	ROUGHNESS = rough;
 	SPECULAR = spec;
 }
