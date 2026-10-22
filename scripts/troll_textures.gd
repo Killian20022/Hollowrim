@@ -32,7 +32,9 @@ static func _p(img: Image, x: int, y: int, c: Color) -> void:
 
 # ------------------------------------------------------------------ précalcul (outils/generer_troll.gd)
 const DOSSIER := "res://assets/personnages/troll"
-const VERSION := 13
+const VERSION := 14
+## Masques de relief cuits (sources_blender/scripts/bake_persos.py) : bake_<texture>.png
+const BAKE := "res://sources_blender/bake/troll"
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -62,6 +64,7 @@ static func tex(nom: String) -> ImageTexture:
 				"accessoires": img = accessoires()
 				"yeux": img = yeux()
 				_: push_error("TrollTextures : texture inconnue " + nom)
+			img = BakeRelief.appliquer(img, "%s/bake_%s.png" % [BAKE, nom])   # relief cuit par Blender, quantifié dans la palette
 			mips = GuerrierTextures.mips_pixel(img)
 			sauver(nom, mips)
 		_cache[nom] = ImageTexture.create_from_image(mips)
