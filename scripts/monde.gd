@@ -1375,7 +1375,7 @@ func _lot_captures(fichier: String) -> void:
 				var pos := pp + dir.normalized() * c[0]
 				if opt.has("decal"):     # décalage latéral de la caméra (m) : contrôle de scintillement
 					pos += dir.cross(Vector3.UP).normalized() * float(opt["decal"])
-				pos.y = hauteur(pos.x, pos.z) + 0.1
+				pos.y = (pp.y if opt.has("plat") else hauteur(pos.x, pos.z)) + 0.1 - float(opt.get("bas", "0"))     # plat : caméra à la hauteur des pieds (pente) ; bas=m : œil abaissé de m mètres (gros plans des jambes)
 				joueur.global_position = pos
 				var vers := pp - pos
 				joueur.rotation.y = atan2(-vers.x, -vers.z)

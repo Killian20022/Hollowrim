@@ -63,6 +63,7 @@ static func materiau(tex: Texture2D, double_face := true, decoupe := false, avec
 
 static func vider() -> void:
 	_mats.clear()
+	_tex_gants = null
 	_shaders.clear()
 	_contour = null
 	GuerrierTextures.vider()
@@ -84,16 +85,20 @@ static func creer(options := {}) -> Node3D:
 	for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", false, false):
 		pieces[String(mi.name)] = mi
 	# -- vêtements existants : matières du guerrier
-	_habiller(pieces["tunique"], materiau(GuerrierTextures.tex("mailles")))
+	_habiller(pieces["tunique"], materiau(GuerrierTextures.tex("mailles_g")))
 	# maille (finition) : ombre propre moins bleue que les autres matières (le fer brun-gris ne vire plus au bleu au crépuscule) ;
 	# le liseré froid (contour_froid) reste : reflets froids seulement sur les arêtes
-	var m_maille := materiau(GuerrierTextures.tex("mailles"))
+	var m_maille := materiau(GuerrierTextures.tex("mailles_g"))
 	m_maille.set_shader_parameter("ombre_froide", Vector3(0.34, 0.38, 0.50))
 	m_maille.set_shader_parameter("contour_froid", Vector3(0.13, 0.16, 0.24))
-	_habiller(pieces["pantalon"], materiau(GuerrierTextures.tex("pantalon")))
-	_habiller(pieces["bottes"], materiau(GuerrierTextures.tex("bottes")))
-	_habiller(pieces["brassards"], materiau(GuerrierTextures.tex("brassards")))
+	_habiller(pieces["pantalon"], materiau(GuerrierTextures.tex("pantalon_g")))
+	_habiller(pieces["bottes"], materiau(GuerrierTextures.tex("bottes_g")))
+	_habiller(pieces["brassards"], materiau(GuerrierTextures.tex("brassards_g")))
 	_habiller(pieces["mante"], materiau(GuerrierTextures.tex("mante")))
+	# fourrure crème : ombre propre beaucoup moins bleue (la fourrure paraissait gris-argent froid côté ombre), liseré froid discret
+	var m_mante := materiau(GuerrierTextures.tex("mante"))
+	m_mante.set_shader_parameter("ombre_froide", Vector3(0.62, 0.53, 0.50))
+	m_mante.set_shader_parameter("contour_froid", Vector3(0.13, 0.13, 0.15))
 	# sous-couche (corps entier rentré sous l'étoffe) : coupée par défaut (3 768 triangles), les pièces se recouvrent
 	var sc: MeshInstance3D = pieces.get("SuperHero_Male")
 	if sc and not options.get("sous_couche", false):
@@ -136,12 +141,13 @@ static func creer(options := {}) -> Node3D:
 	_filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return absf(c.x) < 0.19 or absf(c.x) > 0.69)
 	# mains : 2,2 cm ; arrière du crâne et nuque (sous les cheveux) : 1,6 cm ; visage intact
 	_decimer(pieces.get("peau"), func(p: Vector3) -> float: return 0.027 if absf(p.x) > 0.5 else (0.018 if p.z < 0.035 else 0.0))
+	_gants(pieces.get("peau"))
 	if pieces.has("Eyebrows"):
 		pieces["Eyebrows"].visible = false
 	for nom in ["Hair_Long", "Hair_Beard"]:
 		_filtrer(sq.get_node_or_null(nom), func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002)
-	_decimer(sq.get_node_or_null("Hair_Long"), func(p: Vector3) -> float: return 0.032)
-	_decimer(sq.get_node_or_null("Hair_Beard"), func(p: Vector3) -> float: return 0.008)
+	_decimer(sq.get_node_or_null("Hair_Long"), func(p: Vector3) -> float: return 0.040)
+	_decimer(sq.get_node_or_null("Hair_Beard"), func(p: Vector3) -> float: return 0.0105)
 	# cheveux : mèches Quaternius gardées, texture ramenée à la palette (64², au lieu de 2048²)
 	var mi_ch: MeshInstance3D = sq.get_node_or_null("Hair_Long")
 	if mi_ch:
@@ -158,6 +164,7 @@ static func creer(options := {}) -> Node3D:
 	var plastron := _plastron(sq, pieces["tunique"])
 	# mante ouverte en V sur le devant : la poitrine (plastron, baudrier, fibule) se lit comme sur la référence
 	_filtrer(pieces["mante"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.0 and absf(c.x) < 0.15 + (c.y - 1.30) * 0.25 and c.y < 1.53))
+	_uv_tunique(pieces["tunique"])
 	_t("plastron", t0)
 	var rest_skin := sq.create_skin_from_rest_transforms()
 	var acc := Accessoires.new(sq)
@@ -178,32 +185,123 @@ static func creer(options := {}) -> Node3D:
 	for nom in ["ceinture", "cape"]:
 		pieces[nom].visible = false
 	acc.poitrine_libre = true
+	_bilan(acc, "avant fourrure")
 	acc.fourrure_bord(pieces["mante"], 1.25, 1.43, 0.12, 0.20, 1.0, 1.7)       # frange des épaules (plus longue)
+	_bilan(acc, "frange des epaules")
 	acc.fourrure_surface(pieces["mante"], 1.36, 1.60, 0.08, 0.14, 70)         # touffes sur le dessus et le dos (fournies)
+	_bilan(acc, "touffes epaules")
 	acc.col_libre = true
 	acc.fourrure_bord(pieces["mante"], 1.52, 1.66, 0.05, 0.09, -0.6, 1.4)      # col (vers le haut), dégagé sous la barbe
 	acc.col_libre = false
 	acc.poitrine_libre = false
+	_bilan(acc, "col")
+	acc.fourrure_bord(pieces["tunique"], 0.55, 0.74, 0.05, 0.085, 1.0, 1.35)     # frange de fourrure de l'ourlet de la jupe
+	_bilan(acc, "frange de la jupe")
 	acc.fourrure_bord(pieces["bottes"], 0.30, 0.45, 0.06, 0.09, 1.0, 1.6)      # revers des bottes
+	_bilan(acc, "revers bottes")
 	acc.boucle(Vector3(0.0, 0.988, 0.152), 0.066)
 	acc.fibule(plastron, Vector2(-0.085, 1.37))
 	if chrono:
 		print("GUERRIER disques (boucle + fibule) : %d triangles" % ((acc.op["v"].size()) / 3))
 	acc.yeux(yeux)
 	acc.tresses()
+	acc.echarpe()
 	acc.meches_cheveux(sq.get_node_or_null("Hair_Long"))
+	_bilan(acc, "yeux+tresses+meches cheveux")
 	plastron.visible = false
 	var bouclier: String = options.get("bouclier", "bras")
 	if bouclier != "":
 		acc.bouclier(bouclier)
+	_bilan(acc, "bouclier")
 	if options.get("epee", true):
 		acc.epee()
+	_bilan(acc, "epee")
 	_t("accessoires (geometrie)", t0)
 	var mi_acc := acc.construire(rest_skin)
 	_t("accessoires (materiaux)", t0)
 	sq.add_child(mi_acc)
 	racine.set_meta("guerrier_nordique", true)
 	return racine
+
+## Gants de cuir brun : les îlots d'UV des mains (triangles à |x| > 0,5 de la peau) sont repeints en cuir dans une COPIE de l'atlas
+## de peau (le relief d'origine des doigts donne le ton), la teinte de peau du matériau est compensée. 0 triangle de plus.
+static var _tex_gants: ImageTexture
+
+static func _gants(mi: MeshInstance3D) -> void:
+	if mi == null:
+		return
+	var m := mi.get_surface_override_material(0) as ShaderMaterial
+	if m == null:
+		return
+	if _tex_gants == null:
+		var src := m.get_shader_parameter("tex_base") as Texture2D
+		var img := src.get_image()
+		img.convert(Image.FORMAT_RGBA8)
+		img.clear_mipmaps()
+		var orig := img.duplicate() as Image
+		var te: Variant = m.get_shader_parameter("teinte")
+		var teinte: Color = te if te is Color else Color.WHITE
+		var a := mi.mesh.surface_get_arrays(0)
+		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+		var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+		var W := float(img.get_width())
+		var H := float(img.get_height())
+		for t in range(0, idx.size(), 3):
+			var c3 := (v[idx[t]] + v[idx[t + 1]] + v[idx[t + 2]]) / 3.0
+			if absf(c3.x) < 0.5:
+				continue
+			var p0 := uv[idx[t]] * Vector2(W, H)
+			var p1 := uv[idx[t + 1]] * Vector2(W, H)
+			var p2 := uv[idx[t + 2]] * Vector2(W, H)
+			var d := (p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y)
+			if absf(d) < 1e-6:
+				continue
+			for py in range(int(floorf(minf(p0.y, minf(p1.y, p2.y)))) - 1, int(ceilf(maxf(p0.y, maxf(p1.y, p2.y)))) + 2):
+				for px in range(int(floorf(minf(p0.x, minf(p1.x, p2.x)))) - 1, int(ceilf(maxf(p0.x, maxf(p1.x, p2.x)))) + 2):
+					if px < 0 or py < 0 or px >= int(W) or py >= int(H):
+						continue
+					var q := Vector2(px + 0.5, py + 0.5)
+					var l1 := ((q.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (q.y - p0.y)) / d
+					var l2 := ((p1.x - p0.x) * (q.y - p0.y) - (q.x - p0.x) * (p1.y - p0.y)) / d
+					if l1 < -0.12 or l2 < -0.12 or l1 + l2 > 1.12:
+						continue
+					var lum := orig.get_pixel(px, py).get_luminance()
+					var ton := clampi(roundi((lum - 0.28) * 8.0), 0, 4) + 1
+					var c := GuerrierTextures._c(GuerrierTextures.CUIR, ton)
+					img.set_pixel(px, py, Color(minf(c.r / maxf(teinte.r, 0.3), 1.0), minf(c.g / maxf(teinte.g, 0.3), 1.0), minf(c.b / maxf(teinte.b, 0.3), 1.0)))
+		img.generate_mipmaps()
+		_tex_gants = ImageTexture.create_from_image(img)
+	m.set_shader_parameter("tex_base", _tex_gants)
+
+## UV de la tunique après le plastron : la JUPE (sommets sous y = 0,905) reçoit les lignes 128-175 de « mailles_g » (jupe de cuir
+## fourrée), le reste (torse, manches) garde ses UV d'origine ramenés dans les lignes 0-127 de la texture haute de 176.
+const JUPE_Y_HAUT := 0.905
+const JUPE_Y_BAS := 0.64
+
+static func _uv_tunique(mi: MeshInstance3D) -> void:
+	var a := mi.mesh.surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+	var nb: int = (a[Mesh.ARRAY_BONES] as PackedInt32Array).size() / v.size() if a[Mesh.ARRAY_BONES] != null else 4
+	var H := float(GuerrierTextures.TUN_H)
+	for i in v.size():
+		if v[i].y < JUPE_Y_HAUT and absf(v[i].x) < 0.4:
+			var t := clampf((JUPE_Y_HAUT - v[i].y) / (JUPE_Y_HAUT - JUPE_Y_BAS), 0.0, 1.0)
+			uv[i].y = (GuerrierTextures.JUPE_Y0 + t * GuerrierTextures.JUPE_H) / H
+		else:
+			uv[i].y = uv[i].y * 128.0 / H
+	a[Mesh.ARRAY_TEX_UV] = uv
+	for k in [Mesh.ARRAY_TANGENT, Mesh.ARRAY_COLOR, Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_CUSTOM0, Mesh.ARRAY_CUSTOM1, Mesh.ARRAY_CUSTOM2, Mesh.ARRAY_CUSTOM3]:
+		a[k] = null
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if nb == 8 else 0)
+	mi.mesh = m
+
+## Bilan chiffré (chrono) : triangles des 2 surfaces des accessoires à cette étape.
+static func _bilan(acc: Accessoires, etape: String) -> void:
+	if chrono:
+		print("GUERRIER bilan %-28s opaque=%d decoupe=%d" % [etape, acc.op["v"].size() / 3, acc.dec["v"].size() / 3])
 
 ## Garde les triangles de `mi` pour lesquels garder(centre, normale) est vrai (même peau d'os, mêmes sommets).
 static func _filtrer(mi: MeshInstance3D, garder: Callable) -> void:
@@ -872,6 +970,37 @@ class Accessoires:
 			# tresse de tempe, devant l'oreille, jusqu'à la clavicule
 			_tube(op, Vector3(0.078 * cote, 1.70, 0.035), Vector3(0.088 * cote, 1.52, 0.05), 0.014, 0.008, 4, os_, r)
 
+	# ------------------------------------------------------------ écharpe de laine bleue au col (référence : 14_01_55-1)
+	## Un tour épais (tore de 12 x 4 quads = 96 triangles) au bas du cou, qui retombe sur la poitrine sous le col de fourrure.
+	func echarpe() -> void:
+		var i_cou := sq.find_bone("neck_01")
+		var i_dos := sq.find_bone("spine_03")
+		var pw := [PackedInt32Array([i_cou, i_dos, 0, 0]), PackedFloat32Array([0.55, 0.45, 0.0, 0.0])]
+		var c := Vector3(0.0, 1.445, -0.012)
+		var rx := 0.140
+		var rz := 0.150
+		var rt := 0.034
+		var n := 12
+		var sec := 4
+		var R := GuerrierTextures.R_ECHARPE
+		for i in n:
+			var a0 := TAU * i / n
+			var a1 := TAU * (i + 1) / n
+			var d0 := Vector3(cos(a0), 0, sin(a0))
+			var d1 := Vector3(cos(a1), 0, sin(a1))
+			var m0 := c + Vector3(d0.x * rx, 0, d0.z * rz)
+			var m1 := c + Vector3(d1.x * rx, 0, d1.z * rz)
+			for j in sec:
+				var b0 := TAU * j / sec
+				var b1 := TAU * (j + 1) / sec
+				var p := [m0 + d0 * cos(b0) * rt + Vector3(0, sin(b0) * rt * 1.2, 0), m1 + d1 * cos(b0) * rt + Vector3(0, sin(b0) * rt * 1.2, 0),
+					m1 + d1 * cos(b1) * rt + Vector3(0, sin(b1) * rt * 1.2, 0), m0 + d0 * cos(b1) * rt + Vector3(0, sin(b1) * rt * 1.2, 0)]
+				var u0 := R.position.x + R.size.x * float(i) / n
+				var u1 := R.position.x + R.size.x * float(i + 1) / n
+				var v0 := R.position.y + R.size.y * float(j) / sec
+				var v1 := R.position.y + R.size.y * float(j + 1) / sec
+				_quad(op, p[0], p[1], p[2], p[3], _uva(u0, v0), _uva(u1, v0), _uva(u1, v1), _uva(u0, v1), [pw, pw, pw, pw], (m0 + m1) * 0.5)
+
 	# ------------------------------------------------------------ mèches de cheveux détachées (finition)
 	## Cartes découpées (atlas des découpes, D_CHEV) qui cassent la silhouette « casque » des cheveux : tempes (devant la
 	## tresse), derrière les oreilles, nuque. Chaque carte = 2 segments (4 triangles) qui s'écartent de la tête en descendant ;
@@ -1094,5 +1223,8 @@ class Accessoires:
 		if s_op >= 0:
 			mi.set_surface_override_material(s_op, GuerrierNordique.materiau(GuerrierTextures.tex("accessoires"), false, false, true))
 		if s_dec >= 0:
-			mi.set_surface_override_material(s_dec, GuerrierNordique.materiau(GuerrierTextures.tex("decoupes"), true, true, false))
+			var m_dec := GuerrierNordique.materiau(GuerrierTextures.tex("decoupes"), true, true, false)
+			m_dec.set_shader_parameter("ombre_froide", Vector3(0.60, 0.52, 0.50))     # mèches crème : ombre moins bleue ; la cape garde son bleu
+			m_dec.set_shader_parameter("contour_froid", Vector3(0.14, 0.15, 0.20))
+			mi.set_surface_override_material(s_dec, m_dec)
 		return mi

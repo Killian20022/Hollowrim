@@ -1,0 +1,21 @@
+# Passe vetements : 2 / 4 / 8 m, gros plans a 1 m, animations (17h30)
+p2_face pilote 2,0 heure=17.5 sans-mains anim=Idle:0.25
+p2_34 pilote 2,-35 heure=17.5 sans-mains anim=Idle:0.25
+p2_dos pilote 2,180 heure=17.5 sans-mains anim=Idle:0.25
+p4_face pilote 4,0 heure=17.5 sans-mains anim=Idle:0.25
+p4_34 pilote 4,-35 heure=17.5 sans-mains anim=Idle:0.25
+p4_dos pilote 4,180 heure=17.5 sans-mains anim=Idle:0.25
+p8_face pilote 8,0 heure=17.5 sans-mains anim=Idle:0.25
+p8_34 pilote 8,-35 heure=17.5 sans-mains anim=Idle:0.25
+p8_dos pilote 8,180 heure=17.5 sans-mains anim=Idle:0.25
+g_torse pilote 1.1,-15,1.3 heure=17.5 sans-mains anim=Idle:0.25
+g_ceinture pilote 1.0,-25,1.0 heure=17.5 sans-mains anim=Idle:0.25
+g_bas pilote 1.2,-30,0.62 heure=17.5 sans-mains anim=Idle:0.25
+g_bottes pilote 1.0,-30,0.3 heure=17.5 sans-mains anim=Idle:0.25
+g_dos pilote 1.1,160,1.15 heure=17.5 sans-mains anim=Idle:0.25
+a_walk pilote 3,-35 heure=17.5 sans-mains anim=Walk:0.25
+a_walk2 pilote 3,-35 heure=17.5 sans-mains anim=Walk:0.75
+a_sprint pilote 3,-35 heure=17.5 sans-mains anim=Sprint:0.4
+a_estoc pilote 3,-35 heure=17.5 sans-mains anim=Sword_Attack:0.5
+a_coup pilote 3,-35 heure=17.5 sans-mains anim=Hit_Chest:0.3
+a_garde pilote 3,-35 heure=17.5 sans-mains anim=Sword_Idle:0.3

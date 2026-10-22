@@ -20,7 +20,7 @@ class_name TrollGivre
 
 const ECHELLE := 1.6
 ## Densité globale des mèches (budget 7 500 triangles).
-const DENSITE := 0.34
+const DENSITE := 0.333
 ## Tête agrandie (passe 3 : elle était petite et enfouie) : facteur sur la chair de l'os Head ; les seuils du visage et de la
 ## crinière sont exprimés dans le repère de la passe 2 (on divise par TK) et les accessoires du visage grandissent d'autant.
 const TK := 1.16
@@ -532,46 +532,50 @@ class Ctx:
 				return [1400.0, 0.13, 0.20, 0, 4, 3]
 			"clavicle":
 				if n.z < 0.5:
-					return [1500.0, 0.13, 0.21, 0, 4, 3]        # manteau des épaules (dessus et dos)
+					return [2300.0, 0.15, 0.25, 0, 4, 3]        # manteau des épaules (dessus et dos), épais comme la référence
 				return []
 			"spine_03":
 				if n.z < -0.15 or (n.y > 0.6 and n.z < 0.3):
-					return [520.0, 0.12, 0.19, 2, 5, 3]         # haut du dos (prolonge la crinière)
+					return [900.0, 0.13, 0.22, 2, 5, 3]         # haut du dos (prolonge la crinière)
 				return [10.0, 0.04, 0.06, 3, 5, 0]              # poitrine NUE : quelques poils épars
 			"spine_02", "spine_01":
 				if c.y < g_nouv[os_("pelvis")].origin.y + 0.13:
 					return [520.0, 0.11, 0.18, 3, 6, 0]         # ceinture de poils (taille)
-				if c.z < -0.02 and c.y > g_nouv[os_("spine_02")].origin.y:
-					return [260.0, 0.10, 0.16, 3, 6, 3]         # milieu du dos, plus clairsemé
+				if c.z < -0.02:
+					return [520.0, 0.12, 0.20, 3, 6, 3]         # dos fourré (passe vêtements : plus de plaque de peau nue vue de dos)
 				return []                                       # ventre et bas du dos nus
 			"pelvis":
 				if c.y > g_nouv[os_("pelvis")].origin.y - 0.06:
-					return [650.0, 0.11, 0.18, 3, 6, 0]         # pagne de poils
+					return [900.0, 0.14, 0.24, 3, 6, 0]         # pagne de poils en mèches longues (référence : jupe effilochée)
 				return []
 			"thigh":
 				if c.y > g_nouv[os_(nom)].origin.y - 0.10:
-					return [600.0, 0.11, 0.18, 3, 6, 0]         # pagne (haut des cuisses)
+					return [850.0, 0.13, 0.22, 3, 6, 0]         # pagne (haut des cuisses)
+				if n.z < 0.0 or absf(c.x - g_nouv[os_(nom)].origin.x) > 0.10:
+					return [180.0, 0.09, 0.15, 3, 6, 0]         # arrière et côté de la cuisse : poil court (devant nu, comme la référence)
 				return []                                       # cuisse nue
 			"upperarm":
 				var pres := clampf(1.0 - absf(c.x - g_nouv[os_(nom)].origin.x) / 0.14, 0.0, 1.0)
 				if pres > 0.0 and n.y > -0.2:
-					return [1100.0 * pres, 0.12, 0.19, 0, 4, 3]  # haut de l'épaule seulement ; biceps et triceps nus
+					return [1500.0 * pres, 0.14, 0.22, 0, 4, 3]  # épaule fourrée
+				if n.z < 0.2 or absf(c.x) > absf(g_nouv[os_(nom)].origin.x) + 0.05:
+					return [330.0, 0.10, 0.17, 0, 4, 3]          # dos et dehors du bras : poil (biceps nu, modelé visible)
 				return []
 			"lowerarm":
 				var axe2 := g_nouv[os_(nom)].origin
 				var t := clampf(absf(c.x - axe2.x) / 0.40, 0.0, 1.0)
-				return [620.0 + 300.0 * t, 0.10, 0.15, 0, 5, 1]   # avant-bras : manchon de touffes denses
+				return [1100.0 + 500.0 * t, 0.13, 0.22, 0, 5, 1]   # avant-bras : gros manchon de mèches (référence : yéti)
 			"hand":
 				if n.y > 0.3 and absf(c.x - g_nouv[os_(nom)].origin.x) < 0.07:
-					return [380.0, 0.07, 0.11, 2, 5, 1]         # touffes du poignet
+					return [650.0, 0.09, 0.14, 2, 5, 1]         # touffes du poignet
 				return []
 			"calf":
 				var genou := g_nouv[os_(nom)].origin.y
 				var t2 := clampf((genou - c.y) / 0.45, 0.0, 1.0)
-				return [380.0 + 400.0 * t2, 0.10, 0.17, 2, 6, 0]   # mollet, guêtre de poils vers la cheville
+				return [650.0 + 450.0 * t2, 0.12, 0.21, 2, 6, 0]   # mollet : jambières de poils épaisses jusqu'à la cheville
 			"foot":
 				if n.y > 0.3 and c.z < g_nouv[os_(nom)].origin.z + 0.08:
-					return [320.0, 0.07, 0.12, 2, 6, 0]
+					return [300.0, 0.08, 0.14, 2, 6, 0]
 				return []
 		return []
 
