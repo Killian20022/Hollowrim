@@ -24,7 +24,7 @@ func _tester() -> void:
 	var t = m.tertre
 	var t0 := Time.get_ticks_msec()
 	t.attendre_donjon()
-	print("attente du donjon + modèles d'ennemis : %d ms (%d gabarits)" % [Time.get_ticks_msec() - t0, EnnemisNordiques.nb_gabarits()])
+	print("attente du donjon + modèles d'ennemis : %d ms (%d corps en cache)" % [Time.get_ticks_msec() - t0, EnnemisNordiques.nb_gabarits()])
 	for i in 5:
 		await physics_frame
 	var sa: SalleActive = t.salles

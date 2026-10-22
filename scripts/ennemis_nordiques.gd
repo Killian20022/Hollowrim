@@ -21,10 +21,12 @@ const OR_TERNE := ["#3a2c10", "#66501c", "#8e7330", "#b8993e"]
 static var _clones := {}
 static var _mat := {}
 static var _anciens := -1
-## Gabarits (modèles bâtis une fois par variante, hors de l'arbre) : creer() les duplique (≈ 8 ms) au lieu de refaire la chirurgie de
-## maillage (300-450 ms). Remplis par prechauffer() au chargement (fil d'exécution) ou à la demande par le premier creer().
+## Gabarits = CORPS des archétypes (DraugrNordique / GuerrierNordique / ChasseresseNordique avec leurs options de pièces : bouclier, casque, épée…),
+## bâtis une fois hors de l'arbre. creer() en duplique un (≈ 4 ms) au lieu de refaire la chirurgie de maillage (300-450 ms), puis applique les
+## retouches de la variante (teinte, arme, couronne…) sur la copie. Remplis par prechauffer() au chargement (fil d'exécution) ou à la demande.
 static var _modeles := {}
-static var _mx := Mutex.new()
+static var _mx := Mutex.new()              # protège le dictionnaire
+static var _bm := Mutex.new()              # un seul constructeur de corps à la fois (les archétypes ont des états statiques)
 
 static func anciens() -> bool:
 	if _anciens < 0:
@@ -69,9 +71,21 @@ static func spec_depuis_options(type: String, opts := {}) -> Dictionary:
 static func creer(spec := {}) -> Node3D:
 	if anciens():
 		return null
-	var gab := _gabarit(spec)
-	var n := gab.duplicate() as Node3D
-	_relier(gab, n)
+	var ch := _choix(spec)
+	var n: Node3D
+	match String(ch["t"]):
+		"hrafn":
+			n = _hrafn(ch)
+		"boss":
+			n = _boss_draugr(ch)
+		"barcher":
+			n = _bandit_archer(ch)
+		"bandit":
+			n = _bandit(ch)
+		_:
+			n = _draugr(ch)
+	n.set_meta("armes_nordiques", true)
+	n.set_meta("variante", String(n.get_meta("variante", "")))
 	return n
 
 ## Nombre de gabarits prêts (tests, mesures).
@@ -81,13 +95,14 @@ static func nb_gabarits() -> int:
 	_mx.unlock()
 	return r
 
-## Précalcul : bâtit (sans les ajouter à l'arbre) les gabarits de toutes les specs données. À lancer dans un fil d'exécution, au chargement
-## (FilVerrou en headless). Les variantes déjà prêtes ne sont pas refaites.
+## Précalcul : bâtit (sans les ajouter à l'arbre) les corps de toutes les specs données. À lancer dans un fil d'exécution, au chargement.
+## Les corps déjà prêts ne sont pas refaits.
 static func prechauffer(specs: Array) -> void:
 	if anciens():
 		return
 	for spec: Dictionary in specs:
-		_gabarit(spec)
+		var d := _def_corps(_choix(spec))
+		_gabarit(String(d[0]), d[1])
 
 ## Version pour WorkerThreadPool.add_task (fil d'exécution de chargement) : sérialisée par FilVerrou comme les autres fils qui bâtissent des maillages.
 static func prechauffer_fil(specs: Array) -> void:
@@ -140,37 +155,52 @@ static func _choix(spec: Dictionary) -> Dictionary:
 	# environ 1 draugr sur 3 sans casque (crâne et cheveux funéraires visibles)
 	return {"t": "draugr", "etat": etat, "arme": arme_d, "bouclier": bouclier_d, "sans_casque": rng.randf() < 0.34}
 
-static func _gabarit(spec: Dictionary) -> Node3D:
-	var ch := _choix(spec)
-	var cle := JSON.stringify(ch)
+## Corps (clé, fabrique) d'une variante.
+static func _def_corps(ch: Dictionary) -> Array:
+	match String(ch["t"]):
+		"hrafn":
+			return ["hrafn", func() -> Node3D: return GuerrierNordique.creer({"casque": true, "bouclier": "dos", "epee": true})]
+		"boss":
+			var b := String(ch["boss"])
+			return ["boss_" + b, func() -> Node3D: return DraugrNordique.creer({"bouclier": "bras" if b == "jarl" else "", "epee": true, "corps": "femme" if b == "svanhild" else "homme"})]
+		"barcher":
+			var h: bool = ch["homme"]
+			return ["archere_%s" % h, func() -> Node3D: return ChasseresseNordique.creer({"corps": "homme"} if h else {})]
+		"bandit":
+			var c: bool = ch["casque"]
+			var bo: String = ch["bouclier"]
+			return ["bandit_%s_%s" % [c, bo], func() -> Node3D: return GuerrierNordique.creer({"casque": c, "bouclier": bo, "epee": false})]
+	var bd: String = ch["bouclier"]
+	var ep: bool = ch["arme"] == "epee"
+	var ca: bool = not ch["sans_casque"]
+	return ["draugr_%s_%s_%s" % [bd, ep, ca], func() -> Node3D: return DraugrNordique.creer({"bouclier": bd, "epee": ep, "casque": ca})]
+
+## Gabarit de corps `cle` (bâti par `fab` s'il n'existe pas encore).
+static func _gabarit(cle: String, fab: Callable) -> Node3D:
 	_mx.lock()
 	var g: Node3D = _modeles.get(cle)
 	_mx.unlock()
 	if g != null:
 		return g
-	var n: Node3D
-	match String(ch["t"]):
-		"hrafn":
-			n = _hrafn()
-		"boss":
-			n = _boss_draugr(String(ch["boss"]))
-		"barcher":
-			n = _bandit_archer(ch)
-		"bandit":
-			n = _bandit(ch)
-		_:
-			n = _draugr(ch)
-	n.set_meta("armes_nordiques", true)
-	n.set_meta("variante", String(n.get_meta("variante", "")))
+	_bm.lock()
 	_mx.lock()
-	if _modeles.has(cle):
-		g = _modeles[cle]
-		n.free()
-	else:
-		_modeles[cle] = n
-		g = n
+	g = _modeles.get(cle)
 	_mx.unlock()
+	if g == null:
+		g = fab.call()
+		_mx.lock()
+		_modeles[cle] = g
+		_mx.unlock()
+	_bm.unlock()
 	return g
+
+## Copie du corps de la variante `ch` (neuve, hors de l'arbre).
+static func _corps(ch: Dictionary) -> Node3D:
+	var d := _def_corps(ch)
+	var gab := _gabarit(String(d[0]), d[1])
+	var n := gab.duplicate() as Node3D
+	_relier(gab, n)
+	return n
 
 ## Ce que duplicate() ne recopie pas : les variables de script du PoseArcher (archers bandits) et le signal qui échange les arcs.
 static func _relier(gab: Node3D, copie: Node3D) -> void:
@@ -205,7 +235,7 @@ static func _draugr(ch: Dictionary) -> Node3D:
 	var arme: String = ch["arme"]
 	var bouclier: String = ch["bouclier"]
 	var sans_casque: bool = ch["sans_casque"]
-	var n := DraugrNordique.creer({"bouclier": bouclier, "epee": arme == "epee", "casque": not sans_casque})
+	var n := _corps(ch)
 	var sq := _sq(n)
 	var teintes: Array[Color] = [Color(1, 1, 1), Color(0.86, 1.02, 0.9), Color(0.72, 0.7, 0.68), Color(0.88, 0.98, 1.12)]
 	_teinter_tout(n, teintes[etat])
@@ -217,9 +247,10 @@ static func _draugr(ch: Dictionary) -> Node3D:
 	return n
 
 ## Chefs draugrs : couronne, givre, plus imposants (l'échelle ×1,1 est posée par draugr.gd / _regler_boss).
-static func _boss_draugr(boss: String) -> Node3D:
+static func _boss_draugr(ch: Dictionary) -> Node3D:
 	# Svanhild est une reine : corps femme ; le jarl gelé reste un homme
-	var n := DraugrNordique.creer({"bouclier": "bras" if boss == "jarl" else "", "epee": true, "corps": "femme" if boss == "svanhild" else "homme"})
+	var boss := String(ch["boss"])
+	var n := _corps(ch)
 	var sq := _sq(n)
 	if boss == "svanhild":
 		_teinter_tout(n, Color(0.82, 1.0, 1.28))
@@ -243,8 +274,7 @@ const TENUES_BANDIT := [
 static func _bandit(ch: Dictionary) -> Node3D:
 	var casque: bool = ch["casque"]
 	var arme: String = ch["arme"]
-	var bouclier: String = ch["bouclier"]
-	var n := GuerrierNordique.creer({"casque": casque, "bouclier": bouclier, "epee": false})
+	var n := _corps(ch)
 	var sq := _sq(n)
 	var t: Dictionary = TENUES_BANDIT[int(ch["tenue"])]
 	_teinter_piece(sq, "tunique", t["tun"])
@@ -261,7 +291,7 @@ static func _bandit(ch: Dictionary) -> Node3D:
 
 static func _bandit_archer(ch: Dictionary) -> Node3D:
 	var homme: bool = ch["homme"]
-	var n := ChasseresseNordique.creer({"corps": "homme"} if homme else {})
+	var n := _corps(ch)
 	var sq := _sq(n)
 	var s: int = ch["s"]
 	var f: Color = [Color(1.5, 0.85, 0.12), Color(1.1, 0.8, 0.12), Color(1.7, 0.9, 0.12)][s]   # le jaque de la chasseresse tire sur le bleu : on le ramène au brun sombre
@@ -277,8 +307,8 @@ static func _bandit_archer(ch: Dictionary) -> Node3D:
 	return n
 
 ## Hrafn : chef bandit — GuerrierNordique casqué, mante de fourrure brune sombre, cape brune, lame à l'épée de l'archétype.
-static func _hrafn() -> Node3D:
-	var n := GuerrierNordique.creer({"casque": true, "bouclier": "dos", "epee": true})
+static func _hrafn(ch: Dictionary) -> Node3D:
+	var n := _corps(ch)
 	var sq := _sq(n)
 	_teinter_piece(sq, "tunique", Color(0.55, 0.46, 0.38))
 	_teinter_piece(sq, "pantalon", Color(0.55, 0.52, 0.52))
