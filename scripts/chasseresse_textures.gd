@@ -16,7 +16,7 @@ const TABARD := ["#171b22", "#222833", "#2f3744", "#3f4857", "#535d6c"]
 ## pantalon (passe 2) : laine brun sombre (référence), plus d'olive
 const LAINE_OLIVE := ["#14100c", "#1e1812", "#2a2119", "#372c21", "#45382b", "#554636"]
 ## fourrure (passe 2) : crème / beige chaud, pointes claires ; plus chaude que l'intuition (le crépuscule bleuit tout)
-const FOUR_CHAUD := ["#2e2318", "#5c4834", "#8a7254", "#b49c77", "#d7c09a", "#efe1c1"]
+const FOUR_CHAUD := ["#2e2318", "#5a4632", "#7f6a4b", "#a68e69", "#c6ae89", "#ddcaa5"]
 ## cuir de la capuche rabattue : brun moyen usé
 const CUIR_CAPUCHE := ["#1d140d", "#33241a", "#4b3626", "#644a34", "#7e6045", "#977758"]
 const BLOND := ["#33230f", "#553c1c", "#7a5a2c", "#9e7a3e", "#c09a55", "#dbb872"]
@@ -28,7 +28,7 @@ static var _cache := {}
 
 # ------------------------------------------------------------------ précalcul (comme GuerrierTextures)
 const DOSSIER := "res://assets/persos/chasseresse"
-const VERSION := 4
+const VERSION := 7
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -79,6 +79,9 @@ static func _c(pal: Array, i: int) -> Color:
 ## ourlet : bande de fourrure dentelée (la jupe à franges de la référence ; les mèches géométriques s'y ajoutent).
 const V_JUPE := 0.66
 
+static func dx_t(x: int, W: int) -> int:
+	return absi(x if x < W / 2 else x - W)
+
 static func jaque() -> Image:
 	var W := 256
 	var H := 128
@@ -89,21 +92,20 @@ static func jaque() -> Image:
 		for x in W:
 			var c: Color
 			if y < yj:
-				# écailles : rang de 4 texels, décalé de 2-3 texels un rang sur deux
-				var rang := y / 4
-				var cx := posmod(x + (rang & 1) * 3, 5)
-				var cy := y % 4
-				var t := 3
-				if cy == 3:
+				# écailles fines (passe vetements) : rang de 3 texels, cellules de 4, quinconce ; contraste doux (cuir brun sombre,
+				# la reference montre une cotte serree, pas de gros pavés)
+				var rang := y / 3
+				var cx := posmod(x + (rang & 1) * 2, 3)
+				var cy := y % 3
+				var t := 2
+				if cy == 2:
 					t = 1                                       # ombre sous l'écaille
-				elif cy == 0 and (cx == 1 or cx == 2):
-					t = 5                                       # dessus frotté
-				elif cx == 0 or cx == 4:
-					t = 2 if cy > 0 else 1                      # bords arrondis
-				elif cy == 2 and cx == 3:
-					t = 2
-				t += int(roundf((GuerrierTextures._n(x, y, W, H, 10, 4, 1101) - 0.5) * 2.0))
-				if GuerrierTextures._h(x, y, 1102) > 0.95:
+				elif cy == 0 and cx == 1:
+					t = 4                                       # dessus frotté
+				elif cx == 0:
+					t = 1
+				t += int(roundf((GuerrierTextures._n(x, y, W, H, 10, 4, 1101) - 0.5) * 1.6))
+				if GuerrierTextures._h(x, y, 1102) > 0.97:
 					t -= 1
 				c = _c(CUIR_E, clampi(t, 0, 6))
 			else:
@@ -116,6 +118,14 @@ static func jaque() -> Image:
 					t2 = 4
 				elif px == 3 and y % 3 != 0:
 					t2 = 6
+				# passe vetements : plis d'etoffe (ombre tous les 32 texels decales), salissure et boue vers l'ourlet, piqure de l'ourlet
+				if posmod(x + 7, 32) < 3 and vy > 6:
+					t2 -= 1
+				if vy < 24 and GuerrierTextures._n(x, y, W, H, 14, 5, 1115) > 0.62 - float(24 - vy) * 0.012:
+					t2 -= 1
+				if vy < 8:
+					t2 -= 1
+				t2 = clampi(t2, 0, 6)
 				c = GuerrierTextures._c(GuerrierTextures.CUIR, t2)
 				# tabard sarcelle au milieu du devant (|u| < 0,055) : pointe en V à l'ourlet
 				var dx := absi(x if x < W / 2 else x - W)
@@ -142,6 +152,8 @@ static func jaque() -> Image:
 				c = _c(FOUR_CHAUD, tf)
 			elif y >= yj and vy == bande:
 				c = GuerrierTextures._c(GuerrierTextures.CUIR, 0)
+			elif y >= yj and vy == bande + 3 and x % 3 != 0 and not (dx_t(x, W) < 14):
+				c = GuerrierTextures._c(GuerrierTextures.CUIR, 5)                  # piqure de l'ourlet
 			GuerrierTextures._p(img, x, y, c)
 	# couture de la taille (sous la ceinture) et piqûres de bord
 	for x in W:
@@ -222,6 +234,9 @@ static func accessoires() -> Image:
 	GuerrierTextures._anneau(img)
 	GuerrierTextures._bosse(img)
 	GuerrierTextures._ceinture_atlas(img)
+	_rouille(img)
+	_baudrier_sombre(img)
+	_ceinture_sombre(img)
 	_oeil(img)
 	_tresse(img)
 	_arc(img)
@@ -231,6 +246,78 @@ static func accessoires() -> Image:
 	_fourreau(img)
 	_capuche(img)
 	return img
+
+
+## Rouille brun-gris dans les creux du fer (anneau/boucle) : taches de bruit, plus denses vers le bas.
+static func _rouille(img: Image) -> void:
+	var r := GuerrierTextures.R_ANNEAU
+	for y in r.size.y:
+		for x in r.size.x:
+			var n := GuerrierTextures._n(x, y, r.size.x, r.size.y, 6, 6, 1301)
+			if n > 0.58 - float(y) * 0.004:
+				var c := img.get_pixel(r.position.x + x, r.position.y + y)
+				var rouille := Color("#6b4a36").lerp(Color("#4d4136"), GuerrierTextures._h(x, y, 1302))
+				img.set_pixel(r.position.x + x, r.position.y + y, c.lerp(rouille, 0.6 * c.get_luminance() + 0.2))
+
+## Baudrier (passe vetements) : cuir brun SOMBRE (la reference : sangle brun fonce, piquee, qui se detache du jaque sans etre beige),
+## bords sombres, piqure en pointilles, rivets, passant de cuir et grande boucle rectangulaire de fer poli au milieu (v 24-39).
+static func _baudrier_sombre(img: Image) -> void:
+	var r := GuerrierTextures.R_BAUD
+	for y in r.size.y:
+		for x in r.size.x:
+			var t := GuerrierTextures._ton_cuir(x, y, r.size.x, r.size.y, 0.40, 971) - 1
+			t = clampi(t, 0, 4)
+			if x == 0 or x == r.size.x - 1:
+				t = 0
+			elif x == 1 or x == r.size.x - 2:
+				t = 4 if GuerrierTextures._h(x, y, 972) > 0.4 else 3
+			elif (x == 3 or x == r.size.x - 4) and y % 4 < 2:
+				t = 5                                   # piqure en pointilles
+			img.set_pixel(r.position.x + x, r.position.y + y, GuerrierTextures._c(GuerrierTextures.CUIR, t))
+		if y % 16 == 6 and y < 20 or y % 16 == 6 and y > 44:
+			GuerrierTextures._rivet(img, r.position.x + 7, r.position.y + y)
+	# passant de cuir (v 44-47)
+	for y in range(44, 48):
+		for x in range(r.size.x):
+			var t2 := 1 if (y == 44 or y == 47) else 3
+			img.set_pixel(r.position.x + x, r.position.y + y, GuerrierTextures._c(GuerrierTextures.CUIR, t2))
+	# boucle rectangulaire : cadre 2 texels, ardillon, ombre portee
+	for y in range(24, 40):
+		for x in range(r.size.x):
+			var bord := x <= 1 or x >= r.size.x - 2 or y <= 25 or y >= 38
+			var c: Color
+			if bord:
+				var lum := 5 if (y <= 25 or x <= 1) else 3
+				c = GuerrierTextures._c(GuerrierTextures.METAL_CLAIR, lum)
+				if y == 24 or y == 39 or x == 0 or x == r.size.x - 1:
+					c = GuerrierTextures._c(GuerrierTextures.CUIR, 0)
+			else:
+				c = GuerrierTextures._c(GuerrierTextures.CUIR, 1)
+				if x >= 7 and x <= 8:
+					c = GuerrierTextures._c(GuerrierTextures.METAL_CLAIR, 4)       # ardillon
+			img.set_pixel(r.position.x + x, r.position.y + y, c)
+
+## Ceinture large (passe vetements) : cuir brun sombre epais, bords cousus, rivets, pattes de cuir verticales (passants) ;
+## la grande boucle est modelee (relief) sur le devant.
+static func _ceinture_sombre(img: Image) -> void:
+	var r := GuerrierTextures.R_CEINT
+	for y in r.size.y:
+		for x in r.size.x:
+			var t := clampi(GuerrierTextures._ton_cuir(x, y, r.size.x, r.size.y, 0.40, 981) - 1, 0, 4)
+			if y == 0 or y == r.size.y - 1:
+				t = 0
+			elif y == 1 or y == r.size.y - 2:
+				t = 4 if GuerrierTextures._h(x, y, 982) > 0.35 else 3
+			elif (y == 3 or y == r.size.y - 4) and x % 4 < 2:
+				t = 5
+			# passants : bande plus sombre de 4 texels toutes les 34 texels, bords clairs
+			var pm := posmod(x, 34)
+			if y > 1 and y < r.size.y - 2 and pm < 5:
+				t = 0 if pm == 0 or pm == 4 else 1
+			img.set_pixel(r.position.x + x, r.position.y + y, GuerrierTextures._c(GuerrierTextures.CUIR, t))
+	for x in range(12, r.size.x, 17):
+		if posmod(x, 34) > 6:
+			GuerrierTextures._rivet(img, r.position.x + x, r.position.y + 7)
 
 ## Œil (passe chasseresse) : blanc TERNE (le guerrier avait des yeux presque blancs), grand iris bleu-gris, pupille, paupière.
 static func _oeil(img: Image) -> void:
@@ -374,17 +461,35 @@ static func cape() -> Image:
 			var l := 0.42 + sg + (pli - 0.5) * 0.55 + (GuerrierTextures._n(x, y, W, H, 30, 10, 1192) - 0.5) * 0.12
 			l += 0.10 * smoothstep(90.0, 120.0, float(vy))
 			var c := _c(LAINE_VERTE, GuerrierTextures._ton(l, 6, x, y, 1193, 0.3))
-			# frise tissée (8 à 15 texels) : bande sombre, motif en grecque ocre délavé
-			if vy >= 8 and vy <= 15:
+			# frise (passe vetements) : ENTRELACS nordique (deux brins qui se croisent, dessus/dessous alternes) entre deux filets
+			if vy >= 7 and vy <= 16:
 				c = _c(LAINE_VERTE, 1)
-				var m := posmod(x, 8)
-				if (vy == 9 or vy == 14) or ((vy >= 10 and vy <= 13) and (m == 0 or (m < 4 and vy == 11))):
-					c = GuerrierTextures._c(GuerrierTextures.CUIR, 4).lerp(_c(LAINE_VERTE, 2), 0.35)
-			var coupe := int(GuerrierTextures._h(x / 2, 0, 1194) * 5.0) + int(GuerrierTextures._h(x, 1, 1195) * 3.0)
+				if vy == 7 or vy == 16:
+					c = GuerrierTextures._c(GuerrierTextures.CUIR, 3).lerp(_c(LAINE_VERTE, 2), 0.4)
+				else:
+					var ph := TAU * float(x) / 20.0
+					var ya := 11.5 + 2.6 * sin(ph)
+					var yb := 11.5 - 2.6 * sin(ph)
+					var da := absf(float(vy) - ya)
+					var db := absf(float(vy) - yb)
+					var dessus_a := cos(ph) > 0.0
+					var ocre := GuerrierTextures._c(GuerrierTextures.CUIR, 5).lerp(_c(LAINE_VERTE, 3), 0.25)
+					var ombre := GuerrierTextures._c(GuerrierTextures.CUIR, 2).lerp(_c(LAINE_VERTE, 1), 0.3)
+					if da < 1.0 and (dessus_a or db >= 1.0):
+						c = ocre if da < 0.6 else ombre
+					elif db < 1.0:
+						c = ocre if db < 0.6 else ombre
+			# ourlet effiloche : coupe irreguliere + fils plus longs
+			var coupe := int(GuerrierTextures._h(x / 2, 0, 1194) * 6.0) + int(GuerrierTextures._h(x, 1, 1195) * 4.0)
+			if posmod(x * 7 + 3, 11) == 0:
+				coupe = maxi(0, coupe - 5)                       # fil qui pend
 			if vy < coupe:
 				c = Color(0, 0, 0, 0)
 			elif vy < coupe + 1:
 				c = _c(LAINE_VERTE, 0)
+			# neige posee sur le haut (epaules) et prise dans les plis
+			elif vy > 108 and GuerrierTextures._n(x, y, W, H, 7, 4, 1196) > 0.74 + float(116 - mini(vy, 116)) * 0.03:
+				c = _c(LAINE_VERTE, 5).lerp(Color("#c9d3de"), 0.5)
 			_p(img, x, y, c)
 	return img
 
@@ -478,17 +583,16 @@ static func _touffe(img: Image, x0: int, y0: int, w: int, h: int, pente: float, 
 		var xa := int(floorf(cx - demi))
 		var xb := int(ceilf(cx + demi)) - 1
 		for x in range(xa, xb + 1):
-			var ton := clair - 1 + int(t * 2.2)
-			if t < 0.18:
-				ton = clair - 2
-			if x == xa:
-				ton = clair + 1 if t > 0.15 else clair
+			# touffe lisible (passe vetements) : ton plat, UN reflet cote lumiere, bord sombre, pointe claire
+			var ton := clair - 1
+			if x == xa or (x == xa + 1 and w >= 8 and t < 0.7):
+				ton = clair + 1                                     # reflet
 			if x == xb or (k == h - 1):
-				ton = 1
-			elif x == int(roundf(cx + demi * 0.25)) and t > 0.25 and t < 0.8:
-				ton = clair - 2
-			if k == h - 1 and x == int(roundf(cx)):
-				ton = clair + 1
+				ton = 2
+			elif t < 0.2:
+				ton = clair - 2                                     # racine ombree
+			if t > 0.88 and GuerrierTextures._h(x, k, 889) > 0.55:
+				ton = 5                                             # givre sur la pointe
 			_p(img, x, y0 + k, _c(FOUR_CHAUD, ton))
 
 ## Fourrure de la mante (même construction que GuerrierTextures.mante, palette chaude).
@@ -500,14 +604,14 @@ static func mante() -> Image:
 	var y := H - 12
 	while y > 50:
 		rangs.append(y)
-		y -= 6
+		y -= 8
 	for r in rangs.size():
 		var yr: int = rangs[r]
 		var x := int(GuerrierTextures._h(r, 0, 871) * 6.0)
 		var i := 0
 		while x < W + 6:
-			var w := 5 + int(GuerrierTextures._h(i, r, 872) * 3.0)
-			var h := 9 + int(GuerrierTextures._h(i, r, 873) * 5.0)
+			var w := 8 + int(GuerrierTextures._h(i, r, 872) * 4.0)
+			var h := 12 + int(GuerrierTextures._h(i, r, 873) * 5.0)
 			var clair := 3 + (1 if GuerrierTextures._h(i, r, 874) > 0.45 else 0)
 			_touffe(img, x, yr + int(GuerrierTextures._h(i, r, 875) * 3.0) - 1, w, h, (GuerrierTextures._h(i, r, 876) - 0.5) * 0.35, clair)
 			x += w - 1
@@ -521,7 +625,7 @@ static func meches() -> Image:
 	var img := GuerrierTextures._img(W, H, Color(0, 0, 0, 0))
 	for v in 4:
 		var ox := v * 16
-		var n := 2 + (v & 1)
+		var n := 1 + (v & 1)
 		var larg := 16.0 / n
 		for i in n:
 			var w := int(larg) + 2
@@ -540,6 +644,23 @@ static func bottes() -> Image:
 	var img := GuerrierTextures.bottes()
 	var W := img.get_width()
 	var H := img.get_height()
+	# passe vetements : deux sangles de cuir sombre qui ceinturent la tige (vy 18-21 et 34-37), boucle de fer sur le cote,
+	# bande de cuir cousue sous le revers, bout de botte use
+	for sv in [18, 34]:
+		for k in 4:
+			var y0: int = H - 1 - (sv + k)
+			for x in W:
+				var t := 2 if (k == 0) else (1 if k == 3 else 3)
+				if k == 1 and x % 4 < 2:
+					t = 4
+				_p(img, x, y0, GuerrierTextures._c(GuerrierTextures.CUIR, t))
+				if k == 0 or k == 3:
+					_p(img, x, y0, GuerrierTextures._c(GuerrierTextures.CUIR, 0 if k == 3 else 2))
+		for bx in [10, 74]:
+			for yy in 6:
+				for xx in 6:
+					var edge := yy == 0 or yy == 5 or xx == 0 or xx == 5
+					_p(img, bx + xx, H - 1 - (sv - 1 + yy), GuerrierTextures._c(GuerrierTextures.METAL_CLAIR, 4 if edge else 1))
 	for y in H:
 		var vy := H - 1 - y
 		if vy <= 50:
