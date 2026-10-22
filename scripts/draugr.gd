@@ -174,13 +174,16 @@ func _ready() -> void:
 	elif _os:
 		modele = SqueletteGuerrier.creer({"arme": "arc" if archer else "epee"})
 	else:
-		modele = Humain.creer(app)
+		# pnj/ennemis : archétypes nordiques + variante (EnnemisNordiques) ; --pnj-anciens = ancien corps Humain
+		modele = EnnemisNordiques.creer({"type": type, "archer": archer, "boss": boss, "ident": ident, "apparence": app})
+		if modele == null:
+			modele = Humain.creer(app)
 	modele.scale = Vector3.ONE * echelle
 	add_child(modele)
 	for mi: MeshInstance3D in modele.find_children("*", "MeshInstance3D", true, false):
 		_mailles.append(mi)
 	var squelette: Skeleton3D = modele.find_child("Skeleton3D", true, false)
-	if not _os:
+	if not _os and not modele.has_meta("armes_nordiques"):
 		if archer:
 			_armer_arc(squelette)
 		else:
@@ -585,6 +588,9 @@ func _voit(dt: float) -> bool:
 
 func _tirer() -> void:
 	var depart := global_position + Vector3(0, 1.4 * echelle, 0) + global_transform.basis.z * 0.5
+	var main := EnnemisNordiques.main_de_tir(modele)   # la flèche part de la main qui tient l'arc
+	if main != Vector3.INF and main.distance_to(global_position + Vector3(0, 1.2 * echelle, 0)) < 1.6:
+		depart = main + global_transform.basis.z * 0.15
 	var d := Projectile.cap_visee(depart, _tir_cible)
 	d = d.rotated(Vector3.UP, randf_range(-0.025, 0.025))
 	Projectile.tirer(get_parent(), depart, d, self, degats_tir, joueur)

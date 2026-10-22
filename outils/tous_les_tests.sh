@@ -48,6 +48,7 @@ TESTS=(
 	"test_gardien|--nouvelle"
 	"test_troll|--nouvelle"
 	"test_draugr|--nouvelle"
+	"test_ennemis_nordiques|--nouvelle"
 	"test_persos_tous|--persos-tous"
 	"test_interieurs|--nouvelle"
 	"test_primitives|"
