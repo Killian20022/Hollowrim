@@ -59,6 +59,12 @@ func _init() -> void:
 	for n in v2:
 		a.append(_img(ap, n, 420))
 	_ligne(a).save_png(so.path_join("1_ref_avant_apres_2m_face_34_dos.png"))
+	var e: Array = [ref]
+	for n in ["ey_face", "ey_34", "ey_dos"]:
+		e.append(_img(av, n, 420))
+	for n in ["ey_face", "ey_34", "ey_dos"]:
+		e.append(_img(ap, n, 420))
+	_ligne(e).save_png(so.path_join("1b_ref_avant_apres_hauteur_yeux.png"))
 	var gp := ["g1_torse", "g1_torse34", "g1_ceinture", "g1_ceinture34", "g1_jupe", "g1_jupe34", "g1_bottes", "g1_dos", "g1_dos34", "g1_col", "g1_bras"]
 	var lignes: Array = []
 	for i in range(0, gp.size(), 2):

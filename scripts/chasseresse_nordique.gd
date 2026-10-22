@@ -111,7 +111,9 @@ static func creer(options := {}) -> Node3D:
 	acc.poitrine_libre = true
 	acc.dos_libre = true
 	acc.fourrure_bord(pieces["mante"], 1.22, 1.42, 0.085, 0.145, 1.0, 1.7)
-	acc.fourrure_surface(pieces["mante"], 1.32, 1.56, 0.07, 0.115, 26)
+	acc.gros = 1.9
+	acc.fourrure_surface(pieces["mante"], 1.32, 1.56, 0.07, 0.115, 22)
+	acc.gros = 1.0
 	acc.dos_libre = false
 	acc.poitrine_libre = false
 	acc.fourrure_bord(pieces["bottes"], 0.30, 0.45, 0.06, 0.09, 1.0, 1.6)
@@ -394,6 +396,11 @@ class Acc extends GuerrierNordique.Accessoires:
 	var dos_libre := false
 	func _poitrine(p: Vector3) -> bool:
 		return super(p) or (dos_libre and p.z < 0.0 and absf(p.x) < 0.17 and p.y > 1.27)
+
+	## Mèches plus larges (touffes lisibles, passe vetements) : facteur sur la largeur des cartes du col.
+	var gros := 1.0
+	func _carte(mi: MeshInstance3D, a: Array, r: Vector3, cote: Vector3, dir: Vector3, larg: float, lg: float, variante: int, ext: Vector3) -> void:
+		super(mi, a, r, cote, dir, larg * gros, lg, variante, ext)
 
 	## Boucle de ceinture rectangulaire en relief (cadre de fer poli, ardillon) : os pelvis.
 	func boucle_rect(c: Vector3, dl := 0.046, dh := 0.036, ep := 0.011, pr := 0.016) -> void:

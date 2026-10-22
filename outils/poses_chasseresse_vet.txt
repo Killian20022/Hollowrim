@@ -29,3 +29,6 @@ an_tir pilote 3.2,-60,1.0 heure=17.5 sans-mains anim=Pistol_Shoot:0.2
 an_coup pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Hit_Chest:0.4
 an_mort_a pilote 3.2,-40,0.6 heure=17.5 sans-mains anim=Death01:0.5
 an_mort_b pilote 3.2,-40,0.4 heure=17.5 sans-mains anim=Death01:1.0
+ey_face pilote 2.6,0,1.2 heure=17.5 sans-mains anim=Idle:0.3
+ey_34 pilote 2.6,-35,1.2 heure=17.5 sans-mains anim=Idle:0.3
+ey_dos pilote 2.6,180,1.2 heure=17.5 sans-mains anim=Idle:0.3
