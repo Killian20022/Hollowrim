@@ -355,6 +355,7 @@ static func _visage_libre(sq: Skeleton3D, p: Dictionary) -> void:
 				mp.set_shader_parameter("appoint", Vector3(0.17, 0.145, 0.13))
 				_enreg(mp)
 				mi.material_override = mp
+		mi.owner = null
 		sq.add_child(mi)
 		mi.visible = true
 	frais.free()

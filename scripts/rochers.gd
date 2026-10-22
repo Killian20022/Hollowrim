@@ -48,7 +48,14 @@ static func creer(monde: Node) -> void:
 		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.5, 0.9), s * rng.randf_range(0.8, 1.2)))
 		if exclu_zone(monde, x, z) or GrotteAcces.exclu(x, z):
 			continue  # filtré APRÈS tous les tirages de ce rocher
-		parts[i % 4].append(Transform3D(b, Vector3(x, monde.hauteur(x, z) - s * 0.25, z)))
+		var sur_arbre := false
+		for t: Transform3D in monde.arbres:   # pas de rocher sur un tronc (les arbres sont déjà posés)
+			if Vector2(t.origin.x - x, t.origin.z - z).length() < s * 0.5 + 0.3:
+				sur_arbre = true
+				break
+		if sur_arbre:
+			continue
+		parts[i % 4].append(Transform3D(b, Vector3(x, monde.hauteur(x, z) - minf(s * 0.25, 0.45), z)))   # enfouissement plafonné (gros rochers : 1,1 m sinon)
 		echelles[i % 4].append(s)
 	var corps := StaticBody3D.new()
 	for g in 4:

@@ -117,7 +117,7 @@
           "id": "hrafn",
           "declencheur": "tue:hrafn",
           "objectif": "Reprendre le registre de Hrafn",
-          "journal": "Hrafn est tombé. Ses hommes ne volent plus personne. Reste à retrouver son registre, que Haldor réclame."
+          "journal": "Hrafn est tombé. Ses hommes ne volent plus personne. Reste à retrouver son registre, que Haldor réclame. Au fond du camp, une paroi fissurée sonne creux et laisse filer un courant d’air : un coup puissant pourrait la faire céder."
         },
         {
           "id": "registre",
@@ -318,7 +318,7 @@
       ],
       "repaire_hrafn:pendant": [
         "La vieille mine. Ils ont un guetteur à l’entrée : ne te montre pas sans regarder.",
-        "Hrafn garde son registre près de lui. Sans le registre, aucune preuve.",
+        "Hrafn garde son registre près de lui. Sans le registre, aucune preuve. Et les mineurs murent ce qu’ils veulent cacher : cherche une paroi qui sonne creux.",
         "Des archers sur les corniches, dit-on. Avance de couvert en couvert."
       ],
       "repaire_hrafn:fin": [
