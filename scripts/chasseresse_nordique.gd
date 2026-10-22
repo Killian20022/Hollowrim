@@ -111,7 +111,7 @@ static func creer(options := {}) -> Node3D:
 	acc.poitrine_libre = true
 	acc.dos_libre = true
 	acc.fourrure_bord(pieces["mante"], 1.22, 1.42, 0.085, 0.145, 1.0, 1.7)
-	acc.fourrure_surface(pieces["mante"], 1.32, 1.56, 0.07, 0.115, 70)
+	acc.fourrure_surface(pieces["mante"], 1.32, 1.56, 0.07, 0.115, 36)
 	acc.dos_libre = false
 	acc.poitrine_libre = false
 	acc.fourrure_bord(pieces["bottes"], 0.30, 0.45, 0.06, 0.09, 1.0, 1.6)
@@ -120,7 +120,7 @@ static func creer(options := {}) -> Node3D:
 	for p in (pieces["brassards"].mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array):
 		xin = minf(xin, absf(p.x))
 	acc.frange(pieces["brassards"], func(m: Vector3) -> bool: return absf(m.x) < xin + 0.03, 0.05, 0.075, Vector3.ZERO, 1.8)
-	acc.boucle(Vector3(0.0, 0.966, 0.122), 0.042)
+	acc.boucle_rect(Vector3(0.0, 0.966, 0.124))
 	acc.fibule_sur(pieces["mante"], pieces["tunique"], Vector2(-0.115, 1.40))
 	acc.yeux(yeux)
 	acc.tresses()
@@ -394,6 +394,17 @@ class Acc extends GuerrierNordique.Accessoires:
 	var dos_libre := false
 	func _poitrine(p: Vector3) -> bool:
 		return super(p) or (dos_libre and p.z < 0.0 and absf(p.x) < 0.17 and p.y > 1.27)
+
+	## Boucle de ceinture rectangulaire en relief (cadre de fer poli, ardillon) : os pelvis.
+	func boucle_rect(c: Vector3, dl := 0.046, dh := 0.036, ep := 0.011, pr := 0.016) -> void:
+		var tr := Transform3D(Basis(), c)
+		var os_ := sq.find_bone("pelvis")
+		var f := GuerrierTextures.R_ANNEAU
+		_boite(Vector3(-dl, dh - ep, -pr * 0.5), Vector3(dl, dh, pr * 0.5), tr, os_, f)
+		_boite(Vector3(-dl, -dh, -pr * 0.5), Vector3(dl, -dh + ep, pr * 0.5), tr, os_, f)
+		_boite(Vector3(-dl, -dh, -pr * 0.5), Vector3(-dl + ep, dh, pr * 0.5), tr, os_, f)
+		_boite(Vector3(dl - ep, -dh, -pr * 0.5), Vector3(dl, dh, pr * 0.5), tr, os_, f)
+		_boite(Vector3(-0.004, -dh + ep, -pr * 0.3), Vector3(0.004, dh - ep, pr * 0.7), tr, os_, f)
 
 	# ------------------------------------------------------------ capuche rabattue (cuir brun, bord de fourrure chaude)
 	## Capuche baissée : son ouverture fait le tour du cou (des clavicules au haut du dos), le sac de cuir repose à plat sur le
