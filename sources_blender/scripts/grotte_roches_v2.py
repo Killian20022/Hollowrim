@@ -6,13 +6,14 @@
 # Repère des gabarits = celui de GrotteKit (Godot : y haut, +z hors du mur pour les pans, empreinte au sol de rayon 1, pied enfoncé de 6 cm).
 # Le script calcule tout dans le repère Godot et convertit en Blender (x, -z, y) ; l'export glTF (Y haut) le remet à l'endroit.
 # Rejouable : graines fixes. GrotteKit relit le .glb (sinon repli sur les gabarits générés par code).
-import bpy, bmesh, math, os, random
+import bpy, bmesh, math, os, random, struct
 from mathutils import Vector
 
 ICI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(os.path.dirname(ICI))
 SORTIE = os.path.join(BASE, "assets", "grotte", "modules", "roches_v2.glb")
 BLEND = os.path.join(BASE, "sources_blender", "grotte_roches_v2.blend")
+DAT = os.path.join(BASE, "assets", "grotte", "modules", "roches_v2.dat")   # relu par GrotteKit (FileAccess : sûr dans le fil de construction)
 os.makedirs(os.path.dirname(SORTIE), exist_ok=True)
 
 LUM = Vector((0.35, 0.8, 0.45)).normalized()
@@ -97,7 +98,11 @@ def ajouter(objet_faces, verts, tris, graine, givre, centre, ymin, ymax, ao_bas=
         objet_faces.append((tri, n))
 
 
+DONNEES = {}
+
+
 def creer_objet(nom, faces):
+    DONNEES[nom] = [(tuple(p), tuple(c)) for tri, n in faces for p, c in tri]
     """faces : [(([(Vector godot, rgba)] x3), normale)] -> objet Blender (sommets non partagés = ombrage plat)."""
     me = bpy.data.meshes.new(nom)
     vs, fs, cols = [], [], []
@@ -179,6 +184,13 @@ def main():
     bpy.ops.export_scene.gltf(filepath=SORTIE, export_format='GLB', use_selection=True, export_apply=False,
                               export_normals=True, export_vertex_color='ACTIVE', export_active_vertex_color_when_no_material=True,
                               export_materials='NONE', export_yup=True)
+    with open(DAT, "wb") as f:                     # [u8 longueur][nom][u32 nb sommets][sommets : x y z r g b a en float32], 3 sommets par triangle
+        f.write(struct.pack("<I", len(DONNEES)))
+        for nom, verts in DONNEES.items():
+            nb = nom.encode()
+            f.write(struct.pack("<B", len(nb)) + nb + struct.pack("<I", len(verts)))
+            for p, c in verts:
+                f.write(struct.pack("<7f", p[0], p[1], p[2], c[0], c[1], c[2], c[3]))
     bpy.ops.wm.save_as_mainfile(filepath=BLEND)
     print("roches v2 :", len(objets), "objets ->", SORTIE)
 

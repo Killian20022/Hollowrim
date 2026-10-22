@@ -20,7 +20,7 @@ extends RefCounted
 ## Option : --sans-kit-grotte coupe tout (retour au décor v6 des modules).
 
 const OPTION := "--sans-kit-grotte"
-const GLB_ROCHES := "res://assets/grotte/modules/roches_v2.glb"   # v2 : modules rocheux modélisés dans Blender (sources_blender/scripts/grotte_roches_v2.py)
+const DAT_ROCHES := "res://assets/grotte/modules/roches_v2.dat"   # v2 : modules rocheux modélisés dans Blender (sources_blender/scripts/grotte_roches_v2.py ; le .glb du même dossier est l'export standard)
 const OPTION_CODE := "--roches-code"                               # force les gabarits générés par code (comparaison avant/après)
 const VOIE := 1.25            # demi-largeur du chemin gardée libre de tout le kit (m)
 const GARDE := 2.3            # hauteur libre minimale sous une stalactite au-dessus de la zone de marche
@@ -613,55 +613,47 @@ func _gabarits() -> void:
 		_depuis_glb()
 
 ## v2 : remplace blocs, cailloux, dalles et pans par les modules Blender (enveloppes convexes anguleuses, couleurs cuites).
-## Le .glb n'est lu que pour sa géométrie et ses couleurs de sommets : la matière reste celle du kit (shader de la grotte), donc
-## aucun piège d'alpha 0 / tex_neige. Repli silencieux sur les gabarits par code si le fichier manque.
+## Lecture du .dat écrit par le script Blender (FileAccess : sûr dans le fil de construction de la grotte ; relire le .glb ou ses
+## maillages bloque le fil quand le fil principal attend). Le .glb exporté au même moment reste l'asset de référence.
+## La matière reste celle du kit (shader de la grotte), donc aucun piège d'alpha 0 / tex_neige. Les dimensions h et prof restent
+## celles de la v1 (elles décident des solides, donc des collisions). Repli silencieux sur les gabarits par code si le fichier manque.
 func _depuis_glb() -> void:
-	if not ResourceLoader.exists(GLB_ROCHES):
+	var f := FileAccess.open(DAT_ROCHES, FileAccess.READ)
+	if f == null:
 		return
-	var ps := load(GLB_ROCHES) as PackedScene
-	if ps == null:
-		return
-	var racine := ps.instantiate()
 	var lus := 0
-	var pile: Array = [racine]
-	while not pile.is_empty():
-		var nd: Node = pile.pop_back()
-		pile.append_array(nd.get_children())
-		if not (nd is MeshInstance3D):
+	var n := f.get_32()
+	for _m in n:
+		var nom := f.get_buffer(f.get_8()).get_string_from_utf8()
+		var nb := f.get_32()
+		var fl := f.get_buffer(nb * 28).to_float32_array()
+		if not gab.has(nom):
 			continue
-		var nom := String(nd.name)
-		if not gab.has(nom) or not (nom.begins_with("bloc_") or nom.begins_with("caillou_") or nom.begins_with("dalle_") or nom.begins_with("pan_")):
-			continue
-		var mesh: Mesh = (nd as MeshInstance3D).mesh
-		var arr := mesh.surface_get_arrays(0)
-		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
-		var S := _tampon()
-		S["v"] = v
-		S["n"] = arr[Mesh.ARRAY_NORMAL]
+		var v := PackedVector3Array()
+		var nn := PackedVector3Array()
 		var cols := PackedColorArray()
-		if arr[Mesh.ARRAY_COLOR] != null:
-			cols = arr[Mesh.ARRAY_COLOR]
-		if cols.size() != v.size():
-			cols.resize(v.size())
-			cols.fill(Color(1, 1, 1, 0))
-		S["c"] = cols
 		var uu := PackedVector2Array()
-		uu.resize(v.size())
-		S["u"] = uu
-		if arr[Mesh.ARRAY_INDEX] != null:
-			S["i"] = arr[Mesh.ARRAY_INDEX]
-		else:
-			var ii := PackedInt32Array()
-			for q in v.size():
-				ii.append(q)
-			S["i"] = ii
-		# h et prof RESTENT ceux des gabarits par code : ils décident des solides (dalles > 33 cm, blocs…), donc des collisions, qui ne bougent pas
+		var ii := PackedInt32Array()
+		v.resize(nb)
+		nn.resize(nb)
+		cols.resize(nb)
+		uu.resize(nb)
+		ii.resize(nb)
+		for q in nb:
+			var o := q * 7
+			v[q] = Vector3(fl[o], fl[o + 1], fl[o + 2])
+			cols[q] = Color(fl[o + 3], fl[o + 4], fl[o + 5], fl[o + 6])
+			ii[q] = q
+		for t in nb / 3:
+			var fn := (v[t * 3 + 1] - v[t * 3]).cross(v[t * 3 + 2] - v[t * 3]).normalized()
+			nn[t * 3] = fn
+			nn[t * 3 + 1] = fn
+			nn[t * 3 + 2] = fn
 		var G := {"surf": {}, "h": float(gab[nom]["h"]), "prof": float(gab[nom]["prof"])}
-		G["surf"]["k_terrasse" if nom.begins_with("dalle_") else "k_roche_neige"] = S
+		G["surf"]["k_terrasse" if nom.begins_with("dalle_") else "k_roche_neige"] = {"v": v, "n": nn, "c": cols, "u": uu, "i": ii}
 		gab[nom] = G
 		lus += 1
-	racine.free()
-	print("kit grotte : %d modules rocheux Blender lus (%s)" % [lus, GLB_ROCHES])
+	print("kit grotte : %d modules rocheux Blender lus (%s)" % [lus, DAT_ROCHES])
 
 # =================================================================== matières, instances
 func _mat(nom: String) -> Material:
