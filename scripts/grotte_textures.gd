@@ -669,7 +669,7 @@ static func flaque_image() -> Image:
 ## d'un texel, grappes de pixels 2x2 nettes (jamais de damier ni de bruit « camouflage »), palette de la planche.
 ## Toutes les matières projetées en monde sont des tuiles de TX x TX texels ; la DENSITÉ (texels par mètre) est réglée par
 ## `echelle` du shader (= DENSITE / TX tuiles par mètre).
-const VERSION := 3            # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés (GrotteDecor)
+const VERSION := 4            # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés (GrotteDecor)
 const TX := 128
 const DENSITE := 24.0         # texels par mètre (shaders/grotte.gdshader : echelle = DENSITE / TX)
 
