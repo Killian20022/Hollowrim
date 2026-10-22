@@ -97,7 +97,7 @@ static func creer(options := {}) -> Node3D:
 	_habiller(pieces["mante"], materiau(GuerrierTextures.tex("mante")))
 	# fourrure crème : ombre propre beaucoup moins bleue (la fourrure paraissait gris-argent froid côté ombre), liseré froid discret
 	var m_mante := materiau(GuerrierTextures.tex("mante"))
-	m_mante.set_shader_parameter("ombre_froide", Vector3(0.52, 0.50, 0.58))
+	m_mante.set_shader_parameter("ombre_froide", Vector3(0.62, 0.53, 0.50))
 	m_mante.set_shader_parameter("contour_froid", Vector3(0.13, 0.13, 0.15))
 	# sous-couche (corps entier rentré sous l'étoffe) : coupée par défaut (3 768 triangles), les pièces se recouvrent
 	var sc: MeshInstance3D = pieces.get("SuperHero_Male")
@@ -1192,7 +1192,7 @@ class Accessoires:
 			mi.set_surface_override_material(s_op, GuerrierNordique.materiau(GuerrierTextures.tex("accessoires"), false, false, true))
 		if s_dec >= 0:
 			var m_dec := GuerrierNordique.materiau(GuerrierTextures.tex("decoupes"), true, true, false)
-			m_dec.set_shader_parameter("ombre_froide", Vector3(0.50, 0.49, 0.60))     # mèches crème : ombre moins bleue ; la cape garde son bleu
+			m_dec.set_shader_parameter("ombre_froide", Vector3(0.60, 0.52, 0.50))     # mèches crème : ombre moins bleue ; la cape garde son bleu
 			m_dec.set_shader_parameter("contour_froid", Vector3(0.14, 0.15, 0.20))
 			mi.set_surface_override_material(s_dec, m_dec)
 		return mi
