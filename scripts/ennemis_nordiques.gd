@@ -97,6 +97,14 @@ static func prechauffer_fil(specs: Array) -> void:
 	FilVerrou.rendre()
 	print("Ennemis : %d modèles préparés en %d ms (fil d'exécution)" % [nb_gabarits(), Time.get_ticks_msec() - t0])
 
+## Lance la préparation dans un fil d'exécution ; renvoie l'identifiant de la tâche, ou -1 s'il n'y a rien à lancer. Sans fenêtre (--headless : tests),
+## le serveur de rendu factice ne supporte pas deux fils qui créent des maillages en même temps (le monde se bâtit sur le fil principal pendant ce
+## temps) : pas de précalcul, les gabarits se bâtissent à la demande (et restent en cache).
+static func lancer_prechauffe(specs: Array) -> int:
+	if specs.is_empty() or anciens() or DisplayServer.get_name() == "headless":
+		return -1
+	return WorkerThreadPool.add_task(prechauffer_fil.bind(specs))
+
 ## Tirages aléatoires (graine = ident) d'une spec -> description complète de la variante (clé du gabarit). Même ordre de tirages qu'avant.
 static func _choix(spec: Dictionary) -> Dictionary:
 	var boss: String = spec.get("boss", "")

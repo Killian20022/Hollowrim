@@ -105,8 +105,7 @@ func _lancer_prechauffe() -> void:
 		var sp := EnnemisNordiques.spec_depuis_options(String(e.get("type", "sbire")) if boss == "" else "sbire", opts)
 		if not sp.is_empty():
 			specs.append(sp)
-	if not specs.is_empty():
-		_tache_en = WorkerThreadPool.add_task(EnnemisNordiques.prechauffer_fil.bind(specs))
+	_tache_en = EnnemisNordiques.lancer_prechauffe(specs)
 
 ## Modèles prêts ? (`attendre` : on bloque jusqu'à la fin du fil.)
 func _ennemis_prets(attendre := false) -> bool:

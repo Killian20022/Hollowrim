@@ -266,7 +266,7 @@ func _lancer_prechauffe() -> void:
 		if not sp.is_empty():
 			specs.append(sp)
 	specs.append(EnnemisNordiques.spec_depuis_options("guerrier", {"boss": "svanhild", "ident": "svanhild"}))
-	_tache_en = WorkerThreadPool.add_task(EnnemisNordiques.prechauffer_fil.bind(specs))
+	_tache_en = EnnemisNordiques.lancer_prechauffe(specs)
 
 ## Les modèles d'ennemis sont-ils prêts ? `attendre` : on attend le fil s'il tourne encore (sinon on interroge seulement).
 func _ennemis_prets(attendre := false) -> bool:
