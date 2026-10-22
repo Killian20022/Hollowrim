@@ -100,10 +100,10 @@ static func _boss_draugr(boss: String, rng: RandomNumberGenerator) -> Node3D:
 
 # ======================================================================================================== bandits
 const TENUES_BANDIT := [
-	{"tun": Color(0.62, 0.5, 0.4), "pan": Color(0.75, 0.62, 0.5), "bot": Color(0.7, 0.62, 0.55), "cape": Color(1.55, 1.0, 0.6), "ch": Color(0.55, 0.42, 0.3)},
-	{"tun": Color(0.5, 0.52, 0.5), "pan": Color(0.6, 0.55, 0.62), "bot": Color(0.6, 0.55, 0.5), "cape": Color(1.0, 0.95, 0.9), "ch": Color(0.8, 0.62, 0.4)},
-	{"tun": Color(0.7, 0.58, 0.42), "pan": Color(0.5, 0.48, 0.5), "bot": Color(0.55, 0.45, 0.38), "cape": Color(1.2, 0.8, 0.55), "ch": Color(0.35, 0.3, 0.26)},
-	{"tun": Color(0.45, 0.4, 0.38), "pan": Color(0.62, 0.52, 0.42), "bot": Color(0.5, 0.46, 0.44), "cape": Color(1.4, 0.9, 0.7), "ch": Color(0.7, 0.66, 0.6)},
+	{"tun": Color(0.62, 0.5, 0.4), "pan": Color(0.75, 0.62, 0.5), "bot": Color(0.7, 0.62, 0.55), "cape": Color(1.6, 1.0, 0.25), "ch": Color(0.55, 0.42, 0.3)},
+	{"tun": Color(0.5, 0.52, 0.5), "pan": Color(0.6, 0.55, 0.62), "bot": Color(0.6, 0.55, 0.5), "cape": Color(1.3, 1.0, 0.3), "ch": Color(0.8, 0.62, 0.4)},
+	{"tun": Color(0.7, 0.58, 0.42), "pan": Color(0.5, 0.48, 0.5), "bot": Color(0.55, 0.45, 0.38), "cape": Color(1.4, 0.85, 0.25), "ch": Color(0.35, 0.3, 0.26)},
+	{"tun": Color(0.45, 0.4, 0.38), "pan": Color(0.62, 0.52, 0.42), "bot": Color(0.5, 0.46, 0.44), "cape": Color(1.5, 0.95, 0.28), "ch": Color(0.7, 0.66, 0.6)},
 ]
 
 static func _bandit(rng: RandomNumberGenerator, app: Dictionary) -> Node3D:
@@ -150,7 +150,7 @@ static func _hrafn(rng: RandomNumberGenerator) -> Node3D:
 	_teinter_piece(sq, "mante", Color(0.7, 0.55, 0.42))
 	_teinter_piece(sq, "Hair_Long", Color(0.3, 0.27, 0.25))
 	_teinter_piece(sq, "Hair_Beard", Color(0.3, 0.27, 0.25))
-	_teinter_acc(sq, Color(0.8, 0.74, 0.68), Color(1.45, 0.85, 0.5))
+	_teinter_acc(sq, Color(0.8, 0.74, 0.68), Color(1.45, 0.85, 0.2))
 	n.set_meta("variante", "hrafn")
 	return n
 
