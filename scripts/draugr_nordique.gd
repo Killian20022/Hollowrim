@@ -154,7 +154,7 @@ static func creer(options := {}) -> Node3D:
 	# lambeaux : ptéruges et tabard (devant / derrière)
 	acc.lambeaux(pieces["pteruges"], pieces["tunique"])
 	acc.cape(pieces["mante"], pieces["tunique"])
-	acc.boucle(Vector3(0.0, 0.988, 0.152), 0.062)
+	acc.boucle(Vector3(0.0, 0.988, 0.152), 0.074)
 	acc.fibule(plastron, Vector2(-0.085, 1.37))
 	for nom in ["ceinture", "pteruges"]:
 		pieces[nom].visible = false
@@ -605,6 +605,15 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 				if q.y < 0.86:
 					q.y -= (0.86 - q.y) * 0.6
 				return q)
+		# seconde couche (jupe en lambeaux de la référence) : panneau plus bas et plus lâche, par-dessus, texture décalée
+		var panneau2 := func(p: Vector3) -> Vector2:
+			var u := clampf((p.x + 0.15) / 0.30, 0.0, 1.0) * R.size.x * 0.5 + (0.0 if p.z > 0.0 else R.size.x * 0.5)
+			return Vector2(R.position.x + fposmod(u + R.size.x * 0.31, R.size.x), R.position.y + clampf((0.93 - p.y) / 0.50, 0.0, 1.0) * R.size.y) / D
+		integrer_pos(tunique, dec, func(c: Vector3, n: Vector3) -> bool: return c.y < 0.93 and c.y > 0.55 and absf(c.x) < 0.17 and absf(n.z) > 0.5 and signf(n.z) == signf(c.z + 0.03),
+			panneau2, func(p: Vector3, n: Vector3) -> Vector3:
+				var q := p + n * 0.040
+				q.y -= (0.93 - q.y) * 0.35 + 0.04
+				return q)
 
 	# ------------------------------------------------------------ bouclier réduit
 	## Passe 2 : copie du bouclier du guerrier à l'échelle BOUCLIER_ECH (texture gris-noir fendue, cerclage rouillé).
@@ -718,14 +727,14 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 		var am := mante.mesh.surface_get_arrays(0)
 		var at := tunique.mesh.surface_get_arrays(0)
 		var rang := 0
-		for r in 2:
-			var n := 8 - r
+		for r in 3:
+			var n := 8 - r % 2 + (r / 2)
 			for i in n:
 				var xc := (-0.165 + 0.33 * (i + 0.5) / n) * (1.0 - r * 0.05)
 				var w := 0.38 / n * (1.0 + 0.25 * (_h(i + r * 9) - 0.5))
-				var y0 := 1.43 - r * 0.20
+				var y0 := 1.43 - r * 0.17
 				var lg := 0.34 + _h(i + r * 17) * 0.50 - r * 0.06
-				var z0 := -0.125 - r * 0.020
+				var z0 := -0.125 - r * 0.018
 				var ymid := y0 - lg * 0.62
 				var ytip := y0 - lg
 				var tip_dx := (_h(i + 40 + r) - 0.5) * 0.04
@@ -741,7 +750,15 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 				var v2 := (R.position.y + R.size.y) / D.y
 				var dentro := Vector3(xc, y0 - lg * 0.5, 0.0)
 				_quad(dec, pts[0], pts[1], pts[2], pts[3], Vector2(u0, v0), Vector2(u1, v0), Vector2(u1, v1), Vector2(u0, v1), [pw[0], pw[1], pw[2], pw[3]], dentro)
-				_tri(dec, [pts[3], pts[2], pts[4]], [Vector2(u0, v1), Vector2(u1, v1), Vector2((u0 + u1) * 0.5, v2)], [pw[3], pw[2], pw[4]], dentro)
+				var mid: Vector3 = (pts[3] + pts[2]) * 0.5
+				var ta := Vector3(xc - w * 0.26 + tip_dx, ytip + lg * 0.08 * _h(i + 70 + r), zb - 0.03)
+				var tb := Vector3(xc + w * 0.26 + tip_dx, ytip + lg * 0.20 * _h(i + 80 + r), zb - 0.03)
+				var pm := _poids_proche(tunique, at, mid) if mid.y <= 1.12 else _poids_proche(mante, am, mid)
+				var pa := _poids_proche(tunique, at, ta) if ta.y <= 1.12 else _poids_proche(mante, am, ta)
+				var pb := _poids_proche(tunique, at, tb) if tb.y <= 1.12 else _poids_proche(mante, am, tb)
+				var um := (u0 + u1) * 0.5
+				_tri(dec, [pts[3], mid, ta], [Vector2(u0, v1), Vector2(um, v1), Vector2(u0 + (u1 - u0) * 0.25, v2)], [pw[3], pm, pa], dentro)
+				_tri(dec, [mid, pts[2], tb], [Vector2(um, v1), Vector2(u1, v1), Vector2(u0 + (u1 - u0) * 0.75, v2)], [pm, pw[2], pb], dentro)
 
 	# ------------------------------------------------------------ assemblage (matériaux du draugr, lueur des yeux)
 	func construire(skin: Skin) -> MeshInstance3D:
