@@ -25,6 +25,8 @@ const PEAU := Color(0.95, 0.86, 0.82)
 const PRISE := GuerrierNordique.Accessoires.PRISE
 ## Tabard élargi (passe 2) : 0,33 m au lieu de 0,29 m, la bande bleue de la garde se lit de face et de dos à 8 m.
 const LARGEUR_TABARD := 1.15
+## Haut du tabard de face (m) : sous la ceinture (0,99 m), la poitrine reste à la cotte de mailles.
+const TABARD_HAUT := 1.03
 
 static var _mats := {}
 
@@ -41,7 +43,7 @@ static func vider() -> void:
 static func creer(options := {}) -> Node3D:
 	var C := Color.WHITE
 	var app := {"corps": "homme", "barbe": true, "cheveux": "Hair_Long", "teinte_cheveux": TEINTE_CHEVEUX, "peau": PEAU,
-		"tenue": {"tunique": C, "pantalon": C, "bottes": C, "ceinture": C, "brassards": C, "cape": C, "mante": C, "tablier": C, "epaulieres": C}}
+		"tenue": {"tunique": C, "pantalon": C, "bottes": C, "ceinture": C, "brassards": C, "cape": C, "mante": C, "tablier": C, "epaulieres": C, "gants": C}}
 	var racine := Humain.creer(app)
 	racine.name = "GardienNordique"
 	var sq := racine.find_child("Skeleton3D", true, false) as Skeleton3D
@@ -59,10 +61,14 @@ static func creer(options := {}) -> Node3D:
 		_bas_lance = _mesurer_poing(lib.get_animation("Idle"), sq) - 0.06
 	# -- matières
 	_habiller(pieces["tunique"], materiau(GardienTextures.tex("mailles")))
-	_habiller(pieces["pantalon"], materiau(GuerrierTextures.tex("pantalon")))
+	_habiller(pieces["pantalon"], materiau(GardienTextures.tex("pantalon")))
 	_habiller(pieces["bottes"], materiau(GardienTextures.tex("bottes")))
-	_habiller(pieces["brassards"], materiau(GuerrierTextures.tex("brassards")))
+	_habiller(pieces["brassards"], materiau(GardienTextures.tex("brassards")))
 	_habiller(pieces["mante"], materiau(GardienTextures.tex("mante")))
+	# passe vêtements : GANTS de cuir (référence) à la place des mains nues ; mains de peau retirées du maillage de peau
+	var avec_gants := pieces.has("gants")
+	if avec_gants:
+		GuerrierNordique._decimer(pieces["gants"], func(p: Vector3) -> float: return 0.024)
 	# passe 3 : le surcot cache le haut du pantalon et le bas de la cotte, le col couvre la mante : décimation de ces zones
 	GuerrierNordique._decimer(pieces["pantalon"], func(p: Vector3) -> float: return 0.045 if p.y > 0.60 else 0.0)
 	GuerrierNordique._decimer(pieces["tunique"], func(p: Vector3) -> float: return 0.045 if p.y < 1.0 else 0.0)
@@ -99,7 +105,7 @@ static func creer(options := {}) -> Node3D:
 	for nom in ["Eyes", "Eyebrows"]:
 		if pieces.has(nom):
 			pieces[nom].visible = false
-	GuerrierNordique._filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return absf(c.x) < 0.19 or absf(c.x) > 0.69)
+	GuerrierNordique._filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return absf(c.x) < 0.19 or (absf(c.x) > 0.69 and not avec_gants))
 	GuerrierNordique._decimer(pieces.get("peau"), func(p: Vector3) -> float: return 0.027 if absf(p.x) > 0.5 else (0.018 if p.z < 0.035 else 0.0))
 	var mi_ch: MeshInstance3D = sq.get_node_or_null("Hair_Long")
 	if mi_ch:
@@ -138,15 +144,27 @@ static func creer(options := {}) -> Node3D:
 		func(p: Vector3, n: Vector3) -> Vector3: return p + n * 0.022 + Vector3(signf(p.x) * 0.012, -0.012, 0.0) * clampf((absf(p.x) - 0.18) / 0.2, 0.0, 1.0))
 	# pèlerine (passe 2) : la cape du guerrier coupée aux hanches (rangée de 0,85 m), UV planaires vus de dos (emblème net)
 	var PE := GardienTextures.D_PELERINE
+	# passe vêtements 3 : la cape retombe jusqu'aux mollets (0,43 m) : 96 rangées à 128 texels/m jusqu'à 0,83 m, puis 32 rangées
+	# (80 texels/m) pour le bas
 	var uv_pelerine := func(_uv: Vector2, p: Vector3) -> Vector2:
-		return Vector2(PE.position.x + clampf((GardienTextures.PEL_X - p.x) * 128.0, 0.0, PE.size.x - 0.5), PE.position.y + clampf((GardienTextures.PEL_Y - p.y) * 128.0, 0.0, PE.size.y - 0.5)) / D
-	var aux_hanches := func(a: Vector3, b: Vector3, c: Vector3) -> bool: return maxf(a.y, maxf(b.y, c.y)) > 0.90
-	acc.copier(pieces["cape"], acc.dec, uv_pelerine, Callable(), aux_hanches)
+		var ty := (GardienTextures.PEL_Y - p.y) * 128.0
+		if ty > 96.0:
+			ty = 96.0 + (0.83 - p.y) * 80.0
+		return Vector2(PE.position.x + clampf((GardienTextures.PEL_X - p.x) * 128.0, 0.0, PE.size.x - 0.5), PE.position.y + clampf(ty, 0.0, PE.size.y - 0.5)) / D
+	var aux_hanches := func(a: Vector3, b: Vector3, c: Vector3) -> bool: return maxf(a.y, maxf(b.y, c.y)) > 0.50
+	# nappe ample : s'évase vers le bas et s'écarte du dos (les jambes passent devant)
+	var evaser := func(p: Vector3, _n: Vector3) -> Vector3:
+		var f := clampf((0.98 - p.y) / 0.5, 0.0, 1.0)
+		return Vector3(p.x * (1.0 + 0.5 * f), p.y, p.z - 0.05 * f)
+	acc.copier(pieces["cape"], acc.dec, uv_pelerine, evaser, aux_hanches)
 	# tabard : devant élargi (lisible à 8 m) + DOS (copie miroir posée sur le dos de la cotte et du pantalon, dépasse sous la pèlerine)
 	var T := GardienTextures.D_TABARD
 	var uv_tabard := func(uv: Vector2, _p: Vector3) -> Vector2:
 		return Vector2(T.position.x + clampf((uv.x + 0.0796) / 0.1592, 0.0, 1.0) * (T.size.x - 0.5), T.position.y + clampf((uv.y - 0.078) / 0.922, 0.0, 1.0) * (T.size.y - 0.5)) / D
-	acc.copier(pieces["tablier"], acc.dec, uv_tabard, func(p: Vector3, n: Vector3) -> Vector3: return Vector3(p.x * LARGEUR_TABARD, p.y, p.z) + n * 0.006)
+	# passe vêtements : le tabard ne couvre plus la poitrine (cotte de mailles et baudrier visibles comme sur la référence) :
+	# il part de la ceinture (triangles dont le point bas est sous 1,03 m)
+	var sous_ceinture := func(a: Vector3, b: Vector3, c: Vector3) -> bool: return minf(a.y, minf(b.y, c.y)) < TABARD_HAUT
+	acc.copier(pieces["tablier"], acc.dec, uv_tabard, func(p: Vector3, n: Vector3) -> Vector3: return Vector3(p.x * LARGEUR_TABARD, p.y, p.z) + n * 0.006, sous_ceinture)
 	var dos := {}
 	var sur_le_dos := func(p: Vector3, _n: Vector3) -> Vector3:
 		var cle := p.snapped(Vector3.ONE * 0.0005)
@@ -162,6 +180,12 @@ static func creer(options := {}) -> Node3D:
 	# seulement sous la pèlerine (au-dessus, il serait caché et se battrait avec elle)
 	var sous_pelerine := func(a: Vector3, b: Vector3, c: Vector3) -> bool: return minf(a.y, minf(b.y, c.y)) < 0.97
 	acc.copier(pieces["tablier"], acc.dec, uv_tabard, sur_le_dos, sous_pelerine, true)
+	if avec_gants:
+		# gants versés dans la surface des accessoires (budget de 10 surfaces) : cuir peint en (60,208,16,16)
+		var RG := GardienTextures.R_GANT
+		acc.integrer(pieces["gants"], acc.op, func(uv: Vector2) -> Vector2:
+			return Vector2(RG.position.x + clampf(uv.x, 0.0, 1.0) * (RG.size.x - 1.0) + 0.5, RG.position.y + clampf(uv.y, 0.0, 1.0) * (RG.size.y - 1.0) + 0.5) / A)
+		pieces["gants"].visible = false
 	for nom in ["ceinture", "cape", "tablier", "epaulieres"]:
 		pieces[nom].visible = false
 	acc.poitrine_libre = true
@@ -172,6 +196,9 @@ static func creer(options := {}) -> Node3D:
 	acc.fourrure_bord(pieces["bottes"], 0.30, 0.45, 0.06, 0.09, 1.0, 1.6)
 	acc.boucle(Vector3(0.0, 0.988, 0.176), 0.062)
 	acc.fibule(plastron, Vector2(-0.13, 1.38))
+	acc.fibule(plastron, Vector2(0.13, 1.40))
+	acc.baudrier_av(plastron)
+	acc.languette_et_bourse(pieces["tablier"])
 	acc.yeux(yeux)
 	acc.echarpe()
 	acc.surcot(pieces["pantalon"], pieces["tunique"])
@@ -347,6 +374,58 @@ class AccGardien extends GuerrierNordique.Accessoires:
 	func _uva(x: float, y: float) -> Vector2:
 		return Vector2(x / GuerrierTextures.ATLAS.x, y / GuerrierTextures.ATLAS.y)
 
+	# ------------------------------------------------------------ baudrier (passe vêtements)
+	## Sangle de cuir clair de l'épaule droite à la hanche gauche, DEVANT seulement (le dos est sous la pèlerine), posée sur le
+	## plastron de mailles ; une plaque de fer rivée au milieu de la poitrine.
+	func baudrier_av(plastron: MeshInstance3D) -> void:
+		var a := plastron.mesh.surface_get_arrays(0)
+		var r := GuerrierTextures.R_BAUD
+		var demi := 0.030
+		var depart := Vector2(-0.165, 1.455)
+		var arrivee := Vector2(0.185, 1.012)
+		var dir := (arrivee - depart).normalized()
+		var perp := Vector2(-dir.y, dir.x)
+		var nseg := 8
+		var prec: Array = []
+		for k in nseg + 1:
+			var c := depart.lerp(arrivee, float(k) / nseg)
+			var bords := []
+			for sg: float in [-1.0, 1.0]:
+				var q := c + perp * demi * sg
+				var pr := _projeter(plastron, q.x, q.y, true)
+				if pr.is_empty():
+					bords = []
+					break
+				bords.append(pr[0] + pr[1] * 0.009)
+			if bords.is_empty():
+				prec = []
+				continue
+			var vt: float = r.position.y + posmod(k * 7, 56)
+			if not prec.is_empty():
+				var v0: float = prec[2]
+				var v1 := v0 + 7.0
+				var pw0 := _poids_proche(plastron, a, prec[0])
+				var pw1 := _poids_proche(plastron, a, prec[1])
+				var pw2 := _poids_proche(plastron, a, bords[1])
+				var pw3 := _poids_proche(plastron, a, bords[0])
+				_quad(op, prec[0], prec[1], bords[1], bords[0], _uva(r.position.x + 0.5, v0), _uva(r.end.x - 0.5, v0),
+					_uva(r.end.x - 0.5, v1), _uva(r.position.x + 0.5, v1), [pw0, pw1, pw2, pw3], Vector3(c.x, c.y, -0.5))
+			prec = [bords[0], bords[1], vt]
+		# plaque de fer rivée au milieu (sur la sangle)
+		var m := depart.lerp(arrivee, 0.46)
+		var pm := _projeter(plastron, m.x, m.y, true)
+		if not pm.is_empty():
+			var p: Vector3 = pm[0] + pm[1] * 0.012
+			_boite_r(p + Vector3(-0.022, -0.026, -0.006), p + Vector3(0.022, 0.026, 0.008), sq.find_bone("spine_03"), GardienTextures.R_BANDEAU)
+
+	## Languette de la ceinture (pend sous la boucle) et petite bourse de cuir à la hanche droite (os pelvis).
+	func languette_et_bourse(tablier: MeshInstance3D) -> void:
+		var pelvis := sq.find_bone("pelvis")
+		var pr := _projeter(tablier, 0.05 / GardienNordique.LARGEUR_TABARD, 0.9, true)
+		var z: float = (pr[0].z if not pr.is_empty() else 0.15) + 0.016
+		_boite_r(Vector3(0.036, 0.80, z - 0.006), Vector3(0.066, 0.985, z + 0.008), pelvis, GuerrierTextures.R_CEINT)
+		_boite_r(Vector3(-0.305, 0.835, -0.035), Vector3(-0.235, 0.975, 0.085), pelvis, GardienTextures.R_SACOCHE)
+
 	# ------------------------------------------------------------ casque à plaques (os Head)
 	## Calotte de révolution un peu conique au-dessus de l'arcade (bord à 1,722 m), bandeau frontal rabattu, nasal, petite pointe.
 	func casque() -> void:
@@ -408,21 +487,23 @@ class AccGardien extends GuerrierNordique.Accessoires:
 
 	# ------------------------------------------------------------ écharpe de laine bleue au cou (neck_01 / spine_03)
 	func echarpe() -> void:
+		_tour_echarpe(1.505, 0.098, 0.112, 0.030, 12, 5)
+		# passe vêtements 3 : second tour, plus bas et plus large, qui retombe sur la poitrine (référence : écharpe nouée au col)
+		_tour_echarpe(1.445, 0.140, 0.150, 0.034, 12, 4)
+
+	func _tour_echarpe(cy: float, rx: float, rz: float, rt: float, n: int, sec: int) -> void:
 		var i_cou := sq.find_bone("neck_01")
 		var i_dos := sq.find_bone("spine_03")
 		var pw := [PackedInt32Array([i_cou, i_dos, 0, 0]), PackedFloat32Array([0.55, 0.45, 0.0, 0.0])]
-		var c := Vector3(0.0, 1.505, -0.012)
+		var c := Vector3(0.0, cy, -0.012)
 		var R := GardienTextures.R_LAINE
-		var n := 12
-		var sec := 5
-		var rt := 0.030
 		for i in n:
 			var a0 := TAU * i / n
 			var a1 := TAU * (i + 1) / n
 			var d0 := Vector3(cos(a0), 0, sin(a0))
 			var d1 := Vector3(cos(a1), 0, sin(a1))
-			var m0 := c + Vector3(d0.x * 0.098, 0, d0.z * 0.112)
-			var m1 := c + Vector3(d1.x * 0.098, 0, d1.z * 0.112)
+			var m0 := c + Vector3(d0.x * rx, 0, d0.z * rz)
+			var m1 := c + Vector3(d1.x * rx, 0, d1.z * rz)
 			for j in sec:
 				var b0 := TAU * j / sec
 				var b1 := TAU * (j + 1) / sec
@@ -494,6 +575,13 @@ class AccGardien extends GuerrierNordique.Accessoires:
 				var ext := Vector3(pm.x, 0.0, pm.z).normalized()
 				var tg := Vector3(-ext.z, 0.0, ext.x) * lado
 				_carte_col(pantalon, arr, pm + ext * 0.004, tg, (Vector3.DOWN * 0.9 + ext * 0.45).normalized(), 0.085, 0.085 + _h(k) * 0.03, (k + int(lado)) % 4, false)
+				# passe vêtements : seconde rangée de mèches, décalée d'un demi-segment et plus haute (ourlet de fourrure en deux épaisseurs)
+				if k < seg - 1:
+					var cz3 := cos(tb)
+					var pm2 := Vector3(lado * rb[0] * sin(tb), ys[ys.size() - 1] + 0.036, (rb[1] if cz3 > 0.0 else rb[2]) * cz3)
+					var ext2 := Vector3(pm2.x, 0.0, pm2.z).normalized()
+					var tg2 := Vector3(-ext2.z, 0.0, ext2.x) * lado
+					_carte_col(pantalon, arr, pm2 + ext2 * 0.006, tg2, (Vector3.DOWN * 0.9 + ext2 * 0.55).normalized(), 0.080, 0.095 + _h(k + 9) * 0.03, (k + 2 + int(lado)) % 4, false)
 
 	# ------------------------------------------------------------ gros col de fourrure crème (passe 3)
 	## Carte de mèche du col (D_COL), pliée en deux (la pointe retombe) : root, mi-longueur puis pointe ; `plie` = 4 triangles.
@@ -534,9 +622,9 @@ class AccGardien extends GuerrierNordique.Accessoires:
 		# [nombre, y, rx, rz, vers l'extérieur, vers le haut/bas (+ = haut), longueur, largeur, angle mort devant]
 		var couronnes := [
 			[16, 1.52, 0.105, 0.12, 0.60, 0.80, 0.17, 0.11, 0.35],
-			[22, 1.47, 0.160, 0.155, 0.95, -0.05, 0.24, 0.14, 0.40],
-			[26, 1.42, 0.230, 0.180, 0.95, -0.45, 0.22, 0.13, 0.55],
-			[28, 1.36, 0.300, 0.200, 0.90, -0.80, 0.18, 0.12, 0.90],
+			[22, 1.47, 0.160, 0.155, 0.95, -0.05, 0.20, 0.13, 0.40],
+			[26, 1.42, 0.230, 0.180, 0.95, -0.45, 0.19, 0.12, 0.55],
+			[28, 1.36, 0.300, 0.200, 0.90, -0.80, 0.15, 0.11, 0.90],
 		]
 		var n := 0
 		for cr: Array in couronnes:

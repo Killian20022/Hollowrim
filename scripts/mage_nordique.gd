@@ -125,11 +125,11 @@ static func creer(options := {}) -> Node3D:
 	_t("robe", t0)
 	acc.integrer(pieces["ceinture"], acc.op, func(uv: Vector2) -> Vector2:
 		return Vector2(uv.x * 256.0 + GuerrierTextures.PL_U0, clampf((uv.y - 0.698) / 0.302, 0.0, 1.0) * 15.6 + 0.2 + GuerrierTextures.R_CEINT.position.y) / A,
-		func(p: Vector3, n: Vector3) -> Vector3: return Vector3(p.x, 0.985 + (p.y - 0.985) * 1.3, p.z) + n * 0.030)
+		func(p: Vector3, n: Vector3) -> Vector3: return Vector3(p.x, 0.985 + (p.y - 0.985) * 1.6, p.z) + n * 0.030)
 	pieces["ceinture"].visible = false
 	# passe 2 : manches larges évasées à bord effiloché, frange effilochée de la pèlerine, col de fourrure au bas de la capuche
 	acc.manches(pieces["tunique"])
-	acc.frange_tissu(pieces["mante"], 1.10, 1.47, 0.09, 0.17)
+	acc.frange_tissu(pieces["mante"], 1.10, 1.47, 0.06, 0.24)
 	if pieces.has("capuche") and options.get("capuche", true):
 		acc.poitrine_libre = true
 		acc.fourrure_bord(pieces["capuche"], 1.44, 1.58, 0.06, 0.10, 0.7, 1.8)
@@ -140,6 +140,7 @@ static func creer(options := {}) -> Node3D:
 	acc.yeux_luisants(yeux)
 	acc.amulette(pieces["tunique"])
 	acc.pierre_ceinture()
+	acc.boucle_ceinture()
 	if options.get("baton", true):
 		acc.baton()
 	_t("accessoires (geometrie)", t0)
@@ -156,9 +157,9 @@ static func creer(options := {}) -> Node3D:
 	# tissus noirs : lumière propre un peu plus forte que le guerrier (le côté à l'ombre garde ses plis et ses broderies au
 	# lieu de tomber en aplat noir) ; matériaux propres au mage
 	for m in [pieces["tunique"].material_override, pieces["mante"].material_override, mi_acc.get_surface_override_material(0), mi_acc.get_surface_override_material(1), jupe.mat]:
-		(m as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.10, 0.115, 0.15))
+		(m as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.12, 0.155, 0.23))
 	if pieces.has("capuche") and options.get("capuche", true):
-		(pieces["capuche"].material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.05, 0.055, 0.07))
+		(pieces["capuche"].material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.05, 0.06, 0.085))
 	racine.set_meta("mage_nordique", true)
 	return racine
 
@@ -340,6 +341,29 @@ class Acc extends GuerrierNordique.Accessoires:
 		var c := l1 + n * 0.008 + Vector3(0, -0.032, 0)
 		var tr := Transform3D(Basis(cote, Vector3.UP, n), c)
 		_boite_region(Vector3(-0.0225, -0.03, -0.008), Vector3(0.0225, 0.03, 0.008), tr, poids, MageTextures.R_PIERRE)
+
+	## Boucle de ceinture (plaque de fer cerclée avec une pierre runique au centre) et deux pans de lanière qui pendent devant,
+	## comme la ceinture ouvragée de la référence. Poids du bassin (la jupe en dessous est repoussée plus loin que la plaque).
+	func boucle_ceinture() -> void:
+		# devant de la ceinture : secteur 0 de l'anneau haut de la jupe (la projection sur la tunique tombe dans le trou de la ceinture)
+		var poids := sq.find_bone("spine_01")
+		var haut: Vector3 = jupe[0][0]
+		var n := Vector3(0, 0.03, 1.0).normalized()
+		var c := Vector3(0.0, 0.985, haut.z + 0.014)
+		var cote := Vector3.UP.cross(n).normalized()
+		var tr := Transform3D(Basis(cote, Vector3.UP, n), c)
+		_boite_region(Vector3(-0.062, -0.036, -0.006), Vector3(0.062, 0.036, 0.006), tr, poids, GuerrierTextures.R_FER)
+		for sg in [-1.0, 1.0]:
+			_boite_region(Vector3(-0.011, -0.022, -0.004), Vector3(0.011, 0.022, 0.004), Transform3D(Basis(cote, Vector3.UP, n), c + cote * (0.050 * sg) + n * 0.007), poids, MageTextures.R_PIERRE)
+		var tr2 := Transform3D(Basis(cote, Vector3.UP, n), c + n * 0.007)
+		_boite_region(Vector3(-0.024, -0.024, -0.005), Vector3(0.024, 0.024, 0.005), tr2, poids, MageTextures.R_PIERRE)
+		# pans de lanière : deux rubans de cuir, l'un plus long, légèrement ouverts
+		for k in 2:
+			var s := -1.0 if k == 0 else 1.0
+			var l0 := c + cote * (0.012 * s) - Vector3(0, 0.024, 0) + n * 0.002
+			var l1 := l0 + Vector3(0, -(0.10 + 0.05 * k), 0) + cote * (0.012 * s) + n * 0.012
+			_quad(op, l0 - cote * 0.011, l0 + cote * 0.011, l1 + cote * 0.011, l1 - cote * 0.011,
+				_uva(32 + 2, 2), _uva(32 + 6, 2), _uva(32 + 6, 14), _uva(32 + 2, 14), poids, l0 - n * 0.1)
 
 	## Boîte texturée par une région entière (face avant = toute la région, tranches = bord de la région).
 	func _boite_region(a: Vector3, b: Vector3, tr: Transform3D, poids: Variant, r: Rect2i) -> void:

@@ -14,15 +14,15 @@ const MAILLE_FER := ["#151310", "#26231e", "#3a362f", "#524c43", "#736b5f", "#9b
 const FER_BRUN := ["#0f0e0d", "#1d1b19", "#302d29", "#47433d", "#666058", "#8d867b", "#b7b0a3"]
 const BLEU_JARL := ["#121620", "#1b2331", "#283244", "#36435a", "#475670", "#5d6c86"]   # bleu ardoise délavé (passe 2 : moins « plastique »)
 ## Fourrure crème chaude (passe 2) : remplace ton pour ton la palette gris-brun du guerrier, qui bleuissait au crépuscule.
-const FOUR_CHAUD := ["#251f18", "#463b2d", "#6b5c47", "#8f7e63", "#b3a083", "#d3c2a2"]
+const FOUR_CHAUD := ["#25221d", "#47423a", "#6e675a", "#938b79", "#b8b09b", "#d4ccb7"]
 const CREME := ["#4e4636", "#73694f", "#9a8f70", "#bdb291", "#d8cfae"]
 ## Col de fourrure (passe 3) : crème chaude plus claire que FOUR_CHAUD, pour rester crème sous la lumière froide du crépuscule.
-const COL_FOUR := ["#3a2f22", "#6b5a42", "#9a8765", "#c2b18c", "#e2d4b0", "#f2e8c8"]
+const COL_FOUR := ["#33302a", "#5f594c", "#8a8473", "#aea792", "#cdc7b2", "#e2ddc9"]   # gris-beige (référence), moins jaune
 const FRENE := ["#1c140e", "#33251a", "#4b3726", "#654b34", "#7f6146", "#9a7a5a"]
 
 # ------------------------------------------------------------------ précalcul (même contrat que GuerrierTextures)
 const DOSSIER := "res://assets/persos/gardien"
-const VERSION := 6
+const VERSION := 11
 static var enregistrer := false
 static var _cache := {}
 
@@ -52,7 +52,9 @@ static func tex(nom: String) -> ImageTexture:
 				"accessoires": img = accessoires()
 				"decoupes": img = decoupes()
 				"mante": img = mante_creme()
-				"bottes": img = _rechauffer(GuerrierTextures.bottes())
+				"bottes": img = bottes()
+				"pantalon": img = pantalon()
+				"brassards": img = brassards()
 				_: push_error("GardienTextures : texture inconnue " + nom)
 			mips = GuerrierTextures.mips_pixel(img)
 			sauver(nom, mips)
@@ -141,7 +143,77 @@ static func accessoires() -> Image:
 	_laine(img)
 	_epaulieres(img)
 	_surcot(img)
+	_plastron_mailles(img)
+	_sacoche(img)
+	_baudrier(img)
+	_gants(img)
 	return img
+
+## Baudrier de cuir brun usé (référence : sangle brune cousue qui barre la poitrine) : bords sombres, piqûres claires à 2 texels du
+## bord, trous de réglage, rivets, plaques frottées.
+static func _baudrier(img: Image) -> void:
+	var r := GuerrierTextures.R_BAUD
+	for y in r.size.y:
+		for x in r.size.x:
+			var t := GuerrierTextures._ton_cuir(x, y, r.size.x, r.size.y, 0.40, 3721)
+			if x <= 1 or x >= r.size.x - 2:
+				t = 0
+			elif x == 2 or x == r.size.x - 3:
+				t = 4 if _h(x, y, 3722) > 0.4 else 5            # arête usée
+			elif (x == 4 or x == r.size.x - 5) and y % 4 < 2:
+				t = 6                                          # piqûre
+			img.set_pixel(r.position.x + x, r.position.y + y, _c(GuerrierTextures.CUIR, t))
+		if y % 14 == 6:
+			var cx := r.position.x + r.size.x / 2 - 1
+			img.set_pixel(cx, r.position.y + y, _c(GuerrierTextures.CUIR, 0))         # trou de réglage
+			img.set_pixel(cx + 1, r.position.y + y, _c(GuerrierTextures.CUIR, 0))
+		if y % 28 == 20:
+			_rivet(img, r.position.x + r.size.x / 2 - 1, r.position.y + y)
+
+## Neige poudrée (fond de ciel bleuté) : tons du plus sombre au plus clair.
+const NEIGE := ["#7f8ba3", "#a3aec4", "#c6cfdf", "#e3e9f2"]
+
+## Bourse de cuir (fenêtre 28 x 10 de la région : x + 2..30, y + 4..14 de _boite) : rabat cousu, sangle verticale, rivet, bord sombre.
+const R_SACOCHE := Rect2i(24, 208, 32, 16)
+
+static func _sacoche(img: Image) -> void:
+	var r := R_SACOCHE
+	for y in r.size.y:
+		for x in r.size.x:
+			img.set_pixel(r.position.x + x, r.position.y + y, _c(GuerrierTextures.CUIR, GuerrierTextures._ton_cuir(x, y, r.size.x, r.size.y, 0.42, 3701)))
+	for x in range(2, 30):
+		img.set_pixel(r.position.x + x, r.position.y + 4, _c(GuerrierTextures.CUIR, 0))           # haut
+		img.set_pixel(r.position.x + x, r.position.y + 13, _c(GuerrierTextures.CUIR, 0))          # bas
+		img.set_pixel(r.position.x + x, r.position.y + 5, _c(GuerrierTextures.CUIR, 5))           # arête usée du rabat
+		if x % 3 != 2:
+			img.set_pixel(r.position.x + x, r.position.y + 7, _c(GuerrierTextures.CUIR, 6))       # couture du rabat
+		img.set_pixel(r.position.x + x, r.position.y + 8, _c(GuerrierTextures.CUIR, 1))           # ombre sous le rabat
+	for y in range(4, 14):
+		img.set_pixel(r.position.x + 2, r.position.y + y, _c(GuerrierTextures.CUIR, 0))
+		img.set_pixel(r.position.x + 29, r.position.y + y, _c(GuerrierTextures.CUIR, 0))
+		img.set_pixel(r.position.x + 15, r.position.y + y, _c(GuerrierTextures.CUIR, 0))          # sangle
+		img.set_pixel(r.position.x + 16, r.position.y + y, _c(GuerrierTextures.CUIR, 5))
+	_rivet(img, r.position.x + 15, r.position.y + 9)
+
+## Plastron de cuir du guerrier -> COTTE DE MAILLES (référence : poitrine de mailles brun-gris sous le baudrier). Dans la région
+## du plastron (mêmes UV que la tunique) : anneaux de la cotte, deux bandes de cuir cousu à rivets en haut (col) et en bas (ceinture).
+static func _plastron_mailles(img: Image) -> void:
+	var m := mailles()
+	var R := GuerrierTextures.R_PLASTRON
+	var y0 := int(0.22 * 128)
+	var y1 := int(0.66 * 128)
+	for y in R.size.y:
+		for x in R.size.x:
+			var sx := posmod(x - GuerrierTextures.PL_U0, 256)
+			var sy := clampi(y + GuerrierTextures.PL_V0, 0, 127)
+			if sy < y0 + 4 or sy > y1 - 4:
+				continue                                   # bandes de cuir du plastron gardées
+			var c := m.get_pixel(sx, sy)
+			# ombre sous le col, lumière sur le haut du buste (les anneaux restent nets, un ton seulement)
+			c = Color(minf(c.r * 1.22, 1.0), minf(c.g * 1.2, 1.0), minf(c.b * 1.15, 1.0), 1.0)    # mailles un cran plus claires (gris-brun lisible)
+			if sy < y0 + 8:
+				c = c.darkened(0.22)                        # ombre sous le col de fourrure
+			img.set_pixel(R.position.x + x, R.position.y + y, c)
 
 ## Surcot de cuir brun usé : panneaux cousus (jointure sombre + points clairs de part et d'autre), clous de fer sur la jointure,
 ## plis de cuir frotté, ourlet replié cousu en bas. Jamais de damier : grain et plaques de frottement.
@@ -180,6 +252,7 @@ static func _surcot(img: Image) -> void:
 	# clous de fer sur la jointure, tous les 12 texels
 	for y in [10, 22, 34]:
 		_rivet(img, r.position.x + 0, r.position.y + y)
+	GuerrierTextures._eraflures(img, Rect2i(r.position.x + 3, r.position.y + 6, W - 6, 32), 5, 3411)
 	# deux plis de cuir (traits sombres + rehaut) par tuile
 	for y in range(8, 38):
 		var x := 7 + int(2.0 * sin(y * 0.45))
@@ -352,6 +425,10 @@ static func _epaulieres(img: Image) -> void:
 			var c := _c(FER_BRUN, clampi(t, 0, 6))
 			if lame >= 3:
 				c = _c(GuerrierTextures.CUIR, 2 + (1 if x % 4 < 2 else 0))
+			elif yl <= 2 and _n(x, y, r.size.x, r.size.y, 10, 3, 3153) > 0.58 and _h(x, y, 3154) > 0.3:
+				c = _c(NEIGE, 1 + int(_h(x, y, 3155) * 2.0))     # neige accrochée au haut des lames
+			elif yl == 8 and _h(x, y, 3156) > 0.8:
+				c = _c(GuerrierTextures.ROUILLE, 1)                # rouille sous les rivets
 			img.set_pixel(r.position.x + x, r.position.y + y, c)
 		if y % 10 == 3:
 			for x in range(4, r.size.x - 2, 12):
@@ -372,6 +449,13 @@ static func decoupes() -> Image:
 	_rechauffer(img, GuerrierTextures.D_MECHES)
 	_pelerine(img)
 	_mechesCol(img)
+	_tabard(img)
+	return img
+
+## Tabard (passe vêtements) : de la ceinture (texel 42) aux franges, laine bleue sergée, galon crème de 4 texels sur les côtés
+## (fil sombre, points de broderie), PANNEAU central brodé d'une chaîne de losanges entrelacés crème (référence : bande ornée
+## des tabards de la garde), bande de chevrons, franges découpées ; crasse brune et poussière de neige vers l'ourlet.
+static func _tabard(img: Image) -> void:
 	var r := D_TABARD
 	var W := r.size.x
 	var H := r.size.y
@@ -383,47 +467,58 @@ static func decoupes() -> Image:
 			l += 0.08 * (1.0 - float(y) / H)
 			var t := clampi(int(floorf(l * 6.0 + (_h(x, y, 3203) - 0.5) * 0.3)), 0, 5)
 			var c := _c(BLEU_JARL, t)
-			# bordure crème (côtés) + filet sombre à l'intérieur
-			if x <= 1 or x >= W - 2:
-				c = _c(CREME, 3 if x == 0 or x == W - 1 else 2)
-			elif x == 2 or x == W - 3:
+			# galon crème sur les côtés (4 texels) : filet sombre dehors, deux rangs crème, filet sombre dedans, points de couture
+			if x == 0 or x == W - 1:
 				c = _c(BLEU_JARL, 0)
-			# bande de chevrons au-dessus des franges (y 78-85)
-			if y >= 78 and y <= 85 and x > 2 and x < W - 3:
-				var d := posmod(x + absi(y - 81) * 1, 6)
-				c = _c(CREME, 2 + (1 if d == 0 else 0)) if (d < 2) else _c(BLEU_JARL, 1)
-				if y == 78 or y == 85:
+			elif x <= 2 or x >= W - 3:
+				c = _c(CREME, 3 if (y % 4) < 2 else 2)
+			elif x == 3 or x == W - 4:
+				c = _c(BLEU_JARL, 0)
+			# panneau brodé central (x 11..28, y 44..76) : fond bleu plus sombre, filets crème, losanges entrelacés
+			if x >= 11 and x <= 28 and y >= 44 and y <= 76:
+				c = _c(BLEU_JARL, clampi(t - 1, 0, 3))
+				if x == 11 or x == 28 or y == 44 or y == 76:
+					c = _c(CREME, 2)
+				elif x == 12 or x == 27 or y == 45 or y == 75:
+					c = _c(BLEU_JARL, 0)
+				else:
+					var cy := posmod(y - 47, 8) - 4                 # cellule de 8 texels de haut
+					var dx := absi(x - 19) if x >= 19 else absi(x - 20)
+					var d := dx + absi(cy)
+					if d == 4 or (d == 3 and (x + y) % 2 == 0 and dx > 0):
+						c = _c(CREME, 3 if (x < 20) == (cy < 0) else 2)   # losange : deux demi-brins qui s'entrecroisent
+					elif d == 0 or (dx == 1 and cy == 0):
+						c = _c(CREME, 4)                               # nœud central
+					elif dx >= 7 and (cy == 0 or cy == -4):
+						c = _c(CREME, 1)                               # point aux bords
+			# bande de chevrons au-dessus des franges (y 79-86)
+			if y >= 79 and y <= 86 and x > 3 and x < W - 4:
+				var d2 := posmod(x + absi(y - 82), 6)
+				c = _c(CREME, 2 + (1 if d2 == 0 else 0)) if (d2 < 2) else _c(BLEU_JARL, 1)
+				if y == 79 or y == 86:
 					c = _c(CREME, 3)
-			# franges : dents irrégulières découpées (y 88-95)
-			if y >= 87:
-				var coupe := 87 + int(_h(x, 0, 3204) * 4.0) + (2 if x % 2 == 0 else 0)
+			# crasse et usure en bas : brun-gris sale, plus dense près de l'ourlet ; neige poudrée dans les plis
+			if y >= 58 and c.a > 0.0:
+				var sale := (float(y) - 58.0) / 38.0
+				if _n(x, y, W, H, 6, 8, 3207) < sale * 0.75 and _h(x, y, 3208) > 0.25:
+					c = c.lerp(_c(GuerrierTextures.CUIR, 1), 0.55)
+			if y >= 42 and y < 60 and _n(x, y, W, H, 4, 3, 3209) > 0.78 and _h(x, y, 3210) > 0.55 and x > 3 and x < W - 4:
+				c = _c(NEIGE, 1)
+			# franges : dents irrégulières découpées (y 88-95), pointes de fil crème
+			if y >= 88:
+				var coupe := 88 + int(_h(x, 0, 3204) * 4.0) + (2 if x % 2 == 0 else 0)
 				if y > coupe:
 					c = Color(0, 0, 0, 0)
 				elif x % 2 == 0:
 					c = _c(CREME, 1)
 			img.set_pixel(r.position.x + x, r.position.y + y, c)
-	# rune de la poitrine (centrée en x, y 8-30) : pal vertical + deux chevrons ouverts vers le bas
-	var cx := r.position.x + W / 2
-	for k in 23:
-		var yy := r.position.y + 8 + k
-		img.set_pixel(cx - 1, yy, _c(CREME, 3))
-		img.set_pixel(cx, yy, _c(CREME, 4))
-		img.set_pixel(cx + 1, yy, _c(BLEU_JARL, 0))
-	for cv in [0, 9]:
-		for k in 8:
-			var yy: int = r.position.y + 10 + cv + k
-			for sgn: int in [-1, 1]:
-				var xx: int = cx + sgn * (k + 1)
-				img.set_pixel(xx, yy, _c(CREME, 3))
-				img.set_pixel(xx, yy + 1, _c(BLEU_JARL, 0))
-	return img
 
 # ------------------------------------------------------------------ pèlerine de la garde (passe 2)
 ## La cape longue du guerrier devient une PÈLERINE aux couleurs de la garde qui s'arrête aux hanches (le tabard se voit dessous,
 ## de dos) : UV planaires vus de dos à 128 texels/m, x = (0,28 - x) * 128 (gauche de l'image = côté gauche vu de dos),
 ## y = (1,58 - y) * 128. Laine bleu ardoise, plis, EMBLÈME de la cité (étoile crème à 8 branches du bouclier, dans un anneau)
 ## centré à 1,10 m, galon crème doublé de filets sombres au-dessus de l'ourlet, ourlet effiloché découpé vers 0,87 m.
-const D_PELERINE := Rect2i(0, 0, 72, 96)
+const D_PELERINE := Rect2i(0, 0, 72, 128)
 const PEL_X := 0.28
 const PEL_Y := 1.58
 
@@ -475,8 +570,13 @@ static func _pelerine(img: Image) -> void:
 				else:
 					var d := posmod(x + absi(y - 82), 5)
 					c = _c(CREME, 2) if d < 2 else _c(BLEU_JARL, 1)
+			# neige accrochée aux épaules et aux plis du haut, crasse brune vers l'ourlet
+			if y < 14 and _n(x, y, W, H, 9, 5, 3306) > 0.52 + float(y) * 0.02 and _h(x, y, 3307) > 0.25:
+				c = _c(NEIGE, 1 + int(_h(x, y, 3308) * 2.5))
+			elif y > 60 and _n(x, y, W, H, 7, 6, 3309) < (float(y) - 60.0) / 40.0 * 0.7 and _h(x, y, 3310) > 0.3:
+				c = c.lerp(_c(GuerrierTextures.CUIR, 1), 0.5)
 			# ourlet effiloché : coupe irrégulière à partir de y 88 (le maillage s'arrête à 0,85 m, y 93)
-			var coupe := 88 + int(_h(x / 2, 0, 3304) * 3.0) + int(_h(x, 1, 3305) * 2.0)
+			var coupe := 121 + int(_h(x / 2, 0, 3304) * 3.0) + int(_h(x, 1, 3305) * 2.0)
 			if y > coupe:
 				c = Color(0, 0, 0, 0)
 			elif y == coupe:
@@ -530,3 +630,126 @@ static func mante_creme() -> Image:
 			t += int(roundf((_n(x, y, W, H, 6, 3, 3602) - 0.5) * 1.2))
 			img.set_pixel(x, y, _c(COL_FOUR, clampi(t, 1, 5)))
 	return img
+
+
+# ------------------------------------------------------------------ pantalon de laine (passe vêtements)
+## Large pantalon de laine gris sombre (référence : « braies » amples, plis aux genoux), SANS les bandes molletières du guerrier
+## (les bottes portent leurs lanières) : sergé fin, couture de côté piquée, plis (clairs sur la crête, sombres au creux),
+## genou usé, boue brun-gris sur le bas et neige poudrée sur le haut des bottes. v : 0 = ceinture, 127 = ourlet (comme le guerrier).
+const LAINE_CHAUDE := ["#161513", "#262522", "#383632", "#4a4743", "#5e5a54"]   # gris de laine naturelle, un peu chaud (référence : braies gris sombre)
+
+static func pantalon() -> Image:
+	var W := 256
+	var H := 128
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	for y in H:
+		var vy := H - 1 - y
+		for x in W:
+			var sg := 0.06 if ((x + y) & 3) < 2 else -0.05
+			var pli := _n(x, y, W, H, 14, 3, 831)
+			var l := 0.46 + sg + (pli - 0.5) * 0.42 + (_n(x, y, W, H, 40, 10, 836) - 0.5) * 0.10
+			var t := clampi(int(floorf(l * 5.0 + (_h(x, y, 832) - 0.5) * 0.35)), 0, 4)
+			var c := _c(LAINE_CHAUDE, t)
+			# couture de côté (x ~ 64 et 192) : fente sombre + piqûre claire
+			for xs: int in [64, 192]:
+				if x == xs:
+					c = _c(LAINE_CHAUDE, 0)
+				elif x == xs + 1 and vy % 3 != 0:
+					c = _c(GuerrierTextures.BANDE, 3)
+			# genou : zone usée, plus claire, et plis de tissu en chevrons
+			if vy >= 52 and vy <= 62 and _n(x, y, W, H, 12, 2, 837) > 0.5:
+				c = _c(LAINE_CHAUDE, clampi(t + 1, 0, 4))
+			# boue brun-gris sur le bas (35 cm), plus dense vers l'ourlet ; neige poudrée à l'ourlet
+			if vy < 36:
+				var sale := 1.0 - float(vy) / 36.0
+				if _n(x, y, W, H, 16, 6, 838) < sale * 0.9 and _h(x, y, 839) > 0.2:
+					c = c.lerp(_c(GuerrierTextures.CUIR_SOMBRE, 3), 0.6)
+			if vy < 6 and _h(x, y, 840) > 0.7:
+				c = _c(NEIGE, 0 + int(_h(x, y, 841) * 2.0))
+			img.set_pixel(x, y, c)
+	return img
+
+# ------------------------------------------------------------------ bottes : jambières de cuir bandées (passe vêtements)
+## Cuir brun à BANDES de lanière enroulées (7 texels de haut, bord haut sombre, bord bas éclairé, léger biais, couture piquée),
+## semelle sombre, boue sur le pied, revers de fourrure crème en haut de tige ; neige dans le revers.
+static func bottes() -> Image:
+	var W := 128
+	var H := 128
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	for y in H:
+		var vy := H - 1 - y
+		for x in W:
+			var c := _c(GuerrierTextures.CUIR, GuerrierTextures._ton_cuir(x, y, W, H, 0.37, 841))
+			if vy < 3:
+				c = _c(GuerrierTextures.CUIR_SOMBRE, 1 + (1 if vy == 2 else 0))
+			elif vy < 5:
+				c = _c(GuerrierTextures.CUIR, 0)
+			elif vy > 8 and vy < 48:
+				# bandes enroulées : période 7, biais d'un texel tous les 16 en x
+				var q := posmod(vy + (x >> 4), 7)
+				if q == 6:
+					c = _c(GuerrierTextures.CUIR_SOMBRE, 0)              # joint sombre entre deux tours
+				elif q == 5:
+					c = _c(GuerrierTextures.CUIR, 1)
+				elif q == 0:
+					c = _c(GuerrierTextures.CUIR, 5 + (1 if _h(x, y, 845) > 0.6 else 0))   # arête éclairée du tour
+				elif q == 3 and x % 4 < 2:
+					c = _c(GuerrierTextures.CUIR, 4)                    # piqûre
+				# boucle de sangle verticale à l'avant (x ~ 0 et 127)
+				if x < 3 or x > 124:
+					c = _c(GuerrierTextures.CUIR_CLAIR, 1 if (x == 0 or x == 127) else 3)
+			# boue sur le pied et la cheville
+			if vy >= 5 and vy < 18 and _n(x, y, W, H, 14, 5, 846) < (18.0 - vy) / 18.0 * 0.8:
+				c = c.lerp(_c(GuerrierTextures.CUIR_SOMBRE, 2), 0.6)
+			if vy < 7 and _h(x, y, 847) > 0.82:
+				c = _c(NEIGE, 1)
+			if vy > 50:
+				var f := _n(x, y, W, H, 32, 4, 844)
+				c = _c(FOUR_CHAUD, 2 + int(f * 3.0) + (1 if vy > 53 else 0))
+				if posmod(x * 7 + vy, 5) == 0:
+					c = _c(FOUR_CHAUD, 1)
+				if vy > 58 and _h(x, y, 848) > 0.86:
+					c = _c(NEIGE, 2)
+			img.set_pixel(x, y, c)
+	return img
+
+# ------------------------------------------------------------------ brassards : manchon de cuir et revers de fourrure
+## Cuir lacé (rainures et piqûres comme le guerrier) ; bande de fourrure crème aux deux bouts (revers de manche),
+## fil de fer rivé sous la fourrure.
+static func brassards() -> Image:
+	var img := GuerrierTextures.brassards()
+	var W := img.get_width()
+	var H := img.get_height()
+	for y in H:
+		var d := mini(y, H - 1 - y)
+		if d < 11:
+			for x in W:
+				if d < 3:
+					continue
+				if d == 10:
+					img.set_pixel(x, y, _c(GuerrierTextures.CUIR, 0))
+					continue
+				var f := _n(x, y, W, H, 24, 6, 3801)
+				var t := 2 + int(f * 3.0) + (1 if d > 7 else 0)
+				if posmod(x * 5 + d * 3, 5) == 0:
+					t -= 1
+				img.set_pixel(x, y, _c(FOUR_CHAUD, clampi(t, 1, 5)))
+	return img
+
+
+## Gants de cuir brun, 16 x 16 texels dans l'atlas des accessoires en (60,208) (UV du gant étirées sur la région : cuir usé uni,
+## coutures verticales piquées, arêtes claires).
+const R_GANT := Rect2i(60, 208, 16, 16)
+
+static func _gants(img: Image) -> void:
+	var r := R_GANT
+	for y in r.size.y:
+		for x in r.size.x:
+			var t := GuerrierTextures._ton_cuir(x, y, r.size.x, r.size.y, 0.40, 3901)
+			if x % 5 == 0:
+				t = 1
+			elif x % 5 == 1 and _h(x, y, 3902) > 0.4:
+				t = 5
+			elif x % 5 == 3 and y % 3 != 0:
+				t = 6
+			img.set_pixel(r.position.x + x, r.position.y + y, _c(GuerrierTextures.CUIR, t))

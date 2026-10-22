@@ -9,7 +9,7 @@ class_name TrollTextures
 ##   yeux        : lueur bleue (centre presque blanc), matériau à émission propre.
 
 const PEAU := ["#1c1d23", "#282a32", "#363842", "#444752", "#535763", "#636775", "#747887", "#878a98", "#9b9eaa", "#b1b3bd"]   # gris bleuté (moins violet, plus clair : lisible à l'ombre)   # gris-bleu sombre légèrement violacé (référence)
-const FOUR := ["#1c1b19", "#393632", "#5c5853", "#827d76", "#a7a29a", "#c7c3bb", "#e0ddd6", "#f2f0eb"]   # crème / gris chaud, pointes presque neutres (pas « pêche » au couchant)
+const FOUR := ["#17191f", "#32353e", "#575b68", "#7d8292", "#a1a6b5", "#c3c7d3", "#dcdfe8", "#f1f2f6"]   # gris-bleu givré comme la référence (passe vêtements : moins brun, pointes claires)
 const GIVRE := Color("#f6f6f3")
 const IVOIRE_CROC := ["#3a3630", "#6b655a", "#9a9384", "#c4bdab", "#ddd7c6", "#ece7da", "#f7f4ec"]   # crocs : ivoire neutre (le jaune virait orange au couchant)
 const IVOIRE := ["#3a2e22", "#5c4a36", "#806a4e", "#a68f6c", "#c8b38c", "#e0d1ad", "#f2e8cf"]
@@ -32,7 +32,7 @@ static func _p(img: Image, x: int, y: int, c: Color) -> void:
 
 # ------------------------------------------------------------------ précalcul (outils/generer_troll.gd)
 const DOSSIER := "res://assets/personnages/troll"
-const VERSION := 12
+const VERSION := 13
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -350,7 +350,7 @@ static func meches() -> Image:
 	for v in 8:
 		var cel := v * MW
 		var clair := 4 if v < 6 else 3       # crème / gris chaud ; plus de « glaçons » blancs
-		var givre := 0.06 if v < 3 else (0.02 if v < 6 else 0.0)
+		var givre := 0.14 if v < 3 else (0.05 if v < 6 else 0.0)   # neige accrochée aux pointes
 		var courbe := (4.0 + _h(v, 1, 1317) * 5.0) * (1.0 if v % 2 == 0 else -1.0)
 		# deux pointes (touffe fendue) pour la moitié des variantes
 		var pointes := [cel + 16.0 + courbe * -0.3] if v % 3 != 1 else [cel + 11.0, cel + 21.0]

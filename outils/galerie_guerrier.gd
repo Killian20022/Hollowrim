@@ -111,6 +111,24 @@ func _lancer() -> void:
 			c += 1
 		pl.resize(W * 2, H, Image.INTERPOLATE_NEAREST)
 		pl.save_png(sortie + "/gros_%s.png" % lumiere)
+	elif mode == "vet":
+		# passe vêtements : vues à 2 m (face, 3/4, dos), gros plans à 1 m, 4 m et 8 m ; une PNG par vue (640x360), crépuscule
+		_regler(lumiere)
+		_poser(n, "Idle", 0.3)
+		# [azimut°, distance m, hauteur caméra m, hauteur visée m, champ de vision°]
+		var vues := {
+			"2m_face": [0.0, 2.0, 1.6, 1.0, 72.0], "2m_34": [-35.0, 2.0, 1.6, 1.0, 72.0], "2m_dos": [180.0, 2.0, 1.6, 1.0, 72.0],
+			"4m_face": [0.0, 4.0, 1.6, 0.95, 72.0], "4m_34": [-35.0, 4.0, 1.6, 0.95, 72.0], "4m_dos": [180.0, 4.0, 1.6, 0.95, 72.0],
+			"8m_face": [0.0, 8.0, 1.6, 0.95, 72.0], "8m_34": [-35.0, 8.0, 1.6, 0.95, 72.0], "8m_dos": [180.0, 8.0, 1.6, 0.95, 72.0],
+			"gros_torse": [-20.0, 1.0, 1.45, 1.3, 42.0], "gros_ceinture": [-15.0, 1.0, 1.15, 0.95, 42.0], "gros_bas": [-25.0, 1.1, 0.9, 0.72, 42.0],
+			"gros_bottes": [-30.0, 1.0, 0.6, 0.3, 42.0], "gros_dos": [170.0, 1.1, 1.45, 1.2, 46.0], "gros_epaule": [-55.0, 1.0, 1.6, 1.42, 42.0],
+			"gros_bras": [40.0, 1.0, 1.3, 1.15, 42.0], "gros_cape_dos": [180.0, 1.2, 1.0, 0.75, 46.0], "gros_dos_haut": [160.0, 1.0, 1.7, 1.5, 42.0]}
+		for k: String in vues:
+			var v: Array = vues[k]
+			cam.fov = v[4]
+			var img: Image = await _photo(v[0], v[1], v[2], v[3])
+			img.save_png(sortie + "/%s.png" % k)
+		cam.fov = 72.0
 	elif mode == "anims":
 		_regler(lumiere)
 		var clips := [["Idle", 0.3], ["Walk", 0.25], ["Walk", 0.75], ["Jog_Fwd", 0.3], ["Sprint", 0.4], ["Sword_Idle", 0.3], ["Sword_Attack", 0.35], ["Sword_Attack", 0.6], ["Hit_Chest", 0.4], ["Death01", 0.5], ["Death01", 1.0]]

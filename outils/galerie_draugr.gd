@@ -120,6 +120,33 @@ func _lancer() -> void:
 		if _arg("x2", "") != "":
 			img.resize(W * 2, H * 2, Image.INTERPOLATE_NEAREST)
 		img.save_png(sortie + "/%s.png" % _arg("nom", "vue"))
+	elif mode == "vet":
+		# passe « vêtements » : 2 m face/3/4/dos (bande centrale x2), gros plans à ~1 m, 4 m et 8 m, en images séparées (--nom=avant|apres)
+		_regler(lumiere)
+		_poser(n, _arg("anim", "Sword_Idle"), 0.25)
+		var pre := _arg("nom", "apres")
+		var jeu := _arg("set", "tout")
+		var vues := {
+			"2m_face": [0.0, 2.0, 1.6, 1.0], "2m_34": [35.0, 2.0, 1.6, 1.0], "2m_dos": [180.0, 2.0, 1.6, 1.0],
+			"4m_face": [0.0, 4.0, 1.6, 0.95], "4m_34": [35.0, 4.0, 1.6, 0.95], "4m_dos": [180.0, 4.0, 1.6, 0.95],
+			"8m_face": [0.0, 8.0, 1.6, 0.95], "8m_34": [35.0, 8.0, 1.6, 0.95], "8m_dos": [180.0, 8.0, 1.6, 0.95],
+			"gp_torse": [15.0, 0.75, 1.4, 1.35], "gp_ceinture": [20.0, 0.8, 1.0, 0.95], "gp_bas": [-20.0, 0.9, 0.65, 0.6],
+			"gp_bottes": [30.0, 0.8, 0.45, 0.25], "gp_dos": [180.0, 0.85, 1.35, 1.25], "gp_epaule": [-45.0, 0.75, 1.5, 1.4]}
+		for k: String in vues:
+			var v: Array = vues[k]
+			if (jeu == "gp") != k.begins_with("gp") and jeu != "tout":
+				continue
+			var img: Image = await _photo(v[0], v[1], v[2], v[3])
+			if k.begins_with("2m"):
+				img = img.get_region(Rect2i(210, 0, 220, H))
+				img.resize(440, H * 2, Image.INTERPOLATE_NEAREST)
+			elif k.begins_with("gp"):
+				img = img.get_region(Rect2i(120, 68, 400, 225))
+				img.resize(1280, 720, Image.INTERPOLATE_NEAREST)
+			img.save_png(sortie + "/%s_%s.png" % [pre, k])
+	elif mode == "compose":
+		# planches : RÉFÉRENCE | AVANT | APRÈS (2 m), gros plans, 4/8 m  --avant=<dossier> --apres=<dossier> (dossier de sortie = --sortie)
+		_composer(sortie)
 	elif mode == "anims":
 		_regler(lumiere)
 		var clips := [["Idle", 0.3], ["Walk", 0.25], ["Walk", 0.75], ["Jog_Fwd", 0.3], ["Sprint", 0.4], ["Sword_Idle", 0.3], ["Sword_Attack", 0.35], ["Sword_Attack", 0.6], ["Hit_Chest", 0.4], ["Death01", 0.5], ["Death01", 1.0]]
@@ -162,6 +189,59 @@ func _lancer() -> void:
 		print("COUT perso=%s nombre=%d gpu=%.3f ms cpu=%.3f ms draw_calls=%d draw_calls_ombre=%d primitives=%d" % [_arg("perso", "draugr_nordique"), nb, gpu / 120.0, cpu / 120.0, dc, dco, pr])
 	print("GALERIE : ", sortie)
 	quit(0)
+
+## Rectangles de la référence (Image ChatGPT 14_01_59-5) correspondant aux gros plans
+const REF := "C:/Users/lopezk19/Downloads/Image ChatGPT 21 oct. 2026, 14_01_59-5.png"
+
+func _composer(sortie: String) -> void:
+	var ref := Image.load_from_file(REF)
+	ref.convert(Image.FORMAT_RGBA8)
+	var avant := _arg("avant", sortie)
+	var apres := _arg("apres", sortie)
+	# 2 m : référence | avant | après, x3 vues
+	var fig := ref.get_region(Rect2i(150, 230, 810, 1110))
+	fig.resize(525, 720, Image.INTERPOLATE_NEAREST)
+	var pl := Image.create(525 + 440 * 6, 720, false, Image.FORMAT_RGBA8)
+	pl.fill(Color(0.1, 0.1, 0.12))
+	pl.blit_rect(fig, Rect2i(0, 0, 525, 720), Vector2i(0, 0))
+	var x := 525
+	for v in ["2m_face", "2m_34", "2m_dos"]:
+		for dossier: String in [avant, apres]:
+			var f := "avant" if dossier == avant else "apres"
+			var im := Image.load_from_file("%s/%s_%s.png" % [dossier, f, v])
+			pl.blit_rect(im, Rect2i(0, 0, 440, 720), Vector2i(x, 0))
+			x += 440
+	pl.save_png(sortie + "/comparaison_2m.png")
+	# gros plans : ligne = référence | avant | après
+	var crops := {"gp_torse": Rect2i(290, 330, 440, 250), "gp_ceinture": Rect2i(330, 560, 400, 225), "gp_bas": Rect2i(330, 700, 400, 225),
+		"gp_bottes": Rect2i(190, 1000, 660, 330), "gp_dos": Rect2i(290, 330, 440, 250), "gp_epaule": Rect2i(290, 330, 440, 250)}
+	var noms := ["gp_torse", "gp_ceinture", "gp_bas", "gp_bottes", "gp_dos", "gp_epaule"]
+	var gp := Image.create(640 * 3, 360 * noms.size(), false, Image.FORMAT_RGBA8)
+	for i in noms.size():
+		var r := ref.get_region(crops[noms[i]])
+		r.resize(640, 360, Image.INTERPOLATE_NEAREST)
+		gp.blit_rect(r, Rect2i(0, 0, 640, 360), Vector2i(0, i * 360))
+		var col := 1
+		for dossier: String in [avant, apres]:
+			var f := "avant" if dossier == avant else "apres"
+			var im := Image.load_from_file("%s/%s_%s.png" % [dossier, f, noms[i]])
+			im.resize(640, 360, Image.INTERPOLATE_NEAREST)
+			gp.blit_rect(im, Rect2i(0, 0, 640, 360), Vector2i(640 * col, i * 360))
+			col += 1
+	gp.save_png(sortie + "/comparaison_gros_plans.png")
+	# 4 m et 8 m : avant | après, 3 vues
+	var d := Image.create(640 * 6, 360 * 2, false, Image.FORMAT_RGBA8)
+	var r2 := 0
+	for m in ["4m", "8m"]:
+		var c := 0
+		for v in ["face", "34", "dos"]:
+			for dossier: String in [avant, apres]:
+				var f := "avant" if dossier == avant else "apres"
+				var im := Image.load_from_file("%s/%s_%s_%s.png" % [dossier, f, m, v])
+				d.blit_rect(im, Rect2i(0, 0, 640, 360), Vector2i(c * 640, r2 * 360))
+				c += 1
+		r2 += 1
+	d.save_png(sortie + "/comparaison_4m_8m.png")
 
 func _construire(quoi: String) -> Node3D:
 	var n: Node3D
