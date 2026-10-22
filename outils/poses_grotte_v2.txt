@@ -1,0 +1,6 @@
+ref1_entree_face grotte 13.5,0.4,180,-3 sans-mains
+ref2_entree_34 grotte 13.8,1.8,150,-3 sans-mains
+ref3_salle_34 grotte 212.5,3,-30,4 sans-mains
+ref4_couloir_etroit grotte 114,0,0,-4 sans-mains
+ref5_couloir_34 grotte 122,1,-25,-4 sans-mains
+ref6_arene grotte 304,0,15,-6 sans-mains

@@ -85,10 +85,10 @@ static func _masque(sty: String) -> float:
 static func concretion(g: Grotte, nom: String, base: Vector3, r: float, h: float, graine: int, masque := 0.0, givre_tete := 0.4) -> void:
 	var rg := RandomNumberGenerator.new()
 	rg.seed = graine
-	var cotes := 8 if r > 0.22 else 6
+	var cotes := 6 if r > 0.22 else 5
 	var hh := absf(h)
 	var sg := signf(h)
-	var nr := clampi(int(hh / 0.32) + 3, 4, 11)
+	var nr := clampi(int(hh / 0.5) + 3, 4, 7)
 	var lean := Vector3(rg.randf_range(-1.0, 1.0), 0.0, rg.randf_range(-1.0, 1.0)) * hh * rg.randf_range(0.02, 0.08)
 	var phase := rg.randf() * TAU
 	var nb := rg.randf_range(2.0, 4.5)
