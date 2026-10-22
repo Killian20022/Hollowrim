@@ -57,6 +57,8 @@ func _init() -> void:
 		_avec_ref(bande).save_png(sortie.path_join("planche_ref__%s_face_34_dos_2_4_8m_entree_17h30.png" % noms))
 		_grille(["nuit_4m_face", "nuit_4m_34", "nuit_tete_2m"], 3, 1000).save_png(sortie.path_join("planche_nuit_23h_4m_tete_2m.png"))
 	_avec_ref(_grille(["p17_2m_face", "p17_2m_34", "p17_2m_dos", "p17_4m_face", "p17_4m_34", "p17_4m_dos", "p17_8m_face", "p17_8m_34", "p17_8m_dos"], 3, 560)).save_png(sortie.path_join("planche_ref__troll_face_34_dos_2_4_8m_entree_17h30.png"))
+	if _arg("vet") != "":
+		_grille(["vet_avant_bras", "vet_jambes", "vet_dos_1m", "vet_ceinture"], 2, 800).save_png(sortie.path_join("planche_gros_plans_vetements_1m.png"))
 	_grille(["gros_tete_2m", "gros_main_2m", "gros_tete_1m", "gros_main_1m"], 2, 800).save_png(sortie.path_join("planche_gros_plans_tete_griffes_2m_1m.png"))
 	if FileAccess.file_exists(cap.path_join("gros_torse_1m.png")):
 		_grille(["gros_torse_2m", "gros_torse_1m", "gros_pied_1m"], 3, 1000).save_png(sortie.path_join("planche_gros_plans_torse_2m_1m_pied_1m.png"))

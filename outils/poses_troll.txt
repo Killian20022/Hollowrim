@@ -45,3 +45,7 @@ nuit_tete_2m pilote 2,15,1.95 heure=23 sans-mains anim=Idle:0.3
 gros_torse_2m pilote 2,0,1.45 heure=17.5 sans-mains anim=Idle:0.3
 gros_torse_1m pilote 1.2,10,1.45 heure=17.5 sans-mains anim=Idle:0.3
 gros_pied_1m pilote 1.6,30,0.4 heure=17.5 sans-mains anim=Idle:0.3
+vet_avant_bras pilote 1.6,25,1.0 heure=17.5 sans-mains anim=Idle:0.3
+vet_jambes pilote 2.2,-30,0.7 heure=17.5 sans-mains anim=Idle:0.3
+vet_dos_1m pilote 1.5,180,1.5 heure=17.5 sans-mains anim=Idle:0.3
+vet_ceinture pilote 1.6,10,1.1 heure=17.5 sans-mains anim=Idle:0.3
