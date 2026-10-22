@@ -168,11 +168,17 @@ static func _bande_devant(img: Image, W: int, y0: int, y1: int) -> void:
 			elif absf(dx) == 4:
 				c = _c(BRODERIE, 1)
 			_p(img, x, y, c)
-	var k := 0
+	# chaine de perles claires au centre (reference : perles lumineuses sur le plastron) : losange de 3 texels tous les 5 rangs,
+	# fil sombre entre les perles ; les perles sont les texels les plus clairs de la robe (faible lueur via l'appoint)
 	var y := y0 + 2
-	while y + 7 < y1:
-		_rune(img, k * 5 + 3, -2, y, _c(BRODERIE, 3), _c(ROBE, 0))
-		y += 9 + (k % 2)
+	var k := 0
+	while y + 3 < y1:
+		var c := _c(BRODERIE, 4 if k % 3 != 1 else 3)
+		for pt in [Vector2i(0, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1), Vector2i(0, 2)]:
+			_p(img, posmod(pt.x, W), y + pt.y, c)
+		_p(img, 0, y + 3, _c(ROBE, 0))
+		_p(img, 0, y + 4, _c(BRODERIE, 1))
+		y += 5
 		k += 1
 
 ## Entrelacs (tresse à deux brins) sur le rectangle (x0, y0, w, h) : les brins s'enlacent (dessus / dessous alternés), chacun cerné
@@ -557,7 +563,7 @@ static func pelerine() -> Image:
 			var l := _laine(x, y, W, H, 0.45, 2201, 10)
 			var t := GuerrierTextures._ton(l, 6, x, y, 2205, 0.3)
 			# trame de la laine : un fil sur deux un peu plus sombre, plis marques en creux, couture de bordure en bas
-			if (y + x / 11) % 5 == 0 and GuerrierTextures._h(x, y, 2211) > 0.45:
+			if GuerrierTextures._n(x, y, W, H, 32, 32, 2212) < 0.30 and GuerrierTextures._h(x, y, 2211) > 0.5:
 				t = maxi(t - 1, 0)
 			if GuerrierTextures._n(x, 0, W, 1, 6, 1, 2210) < 0.18:
 				t = maxi(t - 2, 0)

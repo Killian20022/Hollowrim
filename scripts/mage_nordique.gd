@@ -129,7 +129,7 @@ static func creer(options := {}) -> Node3D:
 	pieces["ceinture"].visible = false
 	# passe 2 : manches larges évasées à bord effiloché, frange effilochée de la pèlerine, col de fourrure au bas de la capuche
 	acc.manches(pieces["tunique"])
-	acc.frange_tissu(pieces["mante"], 1.10, 1.47, 0.09, 0.17)
+	acc.frange_tissu(pieces["mante"], 1.10, 1.47, 0.06, 0.24)
 	if pieces.has("capuche") and options.get("capuche", true):
 		acc.poitrine_libre = true
 		acc.fourrure_bord(pieces["capuche"], 1.44, 1.58, 0.06, 0.10, 0.7, 1.8)
@@ -352,9 +352,11 @@ class Acc extends GuerrierNordique.Accessoires:
 		var c := Vector3(0.0, 0.985, haut.z + 0.014)
 		var cote := Vector3.UP.cross(n).normalized()
 		var tr := Transform3D(Basis(cote, Vector3.UP, n), c)
-		_boite_region(Vector3(-0.040, -0.030, -0.006), Vector3(0.040, 0.030, 0.006), tr, poids, GuerrierTextures.R_FER)
+		_boite_region(Vector3(-0.062, -0.036, -0.006), Vector3(0.062, 0.036, 0.006), tr, poids, GuerrierTextures.R_FER)
+		for sg in [-1.0, 1.0]:
+			_boite_region(Vector3(-0.011, -0.022, -0.004), Vector3(0.011, 0.022, 0.004), Transform3D(Basis(cote, Vector3.UP, n), c + cote * (0.050 * sg) + n * 0.007), poids, MageTextures.R_PIERRE)
 		var tr2 := Transform3D(Basis(cote, Vector3.UP, n), c + n * 0.007)
-		_boite_region(Vector3(-0.019, -0.019, -0.005), Vector3(0.019, 0.019, 0.005), tr2, poids, MageTextures.R_PIERRE)
+		_boite_region(Vector3(-0.024, -0.024, -0.005), Vector3(0.024, 0.024, 0.005), tr2, poids, MageTextures.R_PIERRE)
 		# pans de lanière : deux rubans de cuir, l'un plus long, légèrement ouverts
 		for k in 2:
 			var s := -1.0 if k == 0 else 1.0
