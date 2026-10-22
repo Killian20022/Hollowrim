@@ -24,6 +24,8 @@ const RAIDEUR := preload("res://scripts/draugr_raideur.gd")
 const BOUCLIER_ECH := 0.7    # passe 2 : bouclier à 70 % de la taille de la passe 1
 ## passe 2 : membres décharnés (facteur du rayon autour de l'axe de l'os ; 1 = inchangé)
 const MAIGREUR := {"upperarm_l": 0.66, "upperarm_r": 0.66, "lowerarm_l": 0.60, "lowerarm_r": 0.60, "thigh_l": 0.70, "thigh_r": 0.70, "calf_l": 0.62, "calf_r": 0.62}
+## Jupe et cape en lambeaux modelés dans Blender (sources_blender/scripts/draugr_lambeaux.py) ; vide = ancienne version par code
+const LAMBEAUX_BLENDER := "res://assets/persos/draugr/blender/lambeaux.glb"
 const APPOINT := Vector3(0.13, 0.12, 0.11)
 
 static var _shaders := {}
@@ -152,8 +154,11 @@ static func creer(options := {}) -> Node3D:
 	acc.poitrine_libre = false
 	acc.fourrure_bord(pieces["bottes"], 0.30, 0.45, 0.06, 0.10, 1.0, 1.6)
 	# lambeaux : ptéruges et tabard (devant / derrière)
-	acc.lambeaux(pieces["pteruges"], pieces["tunique"])
-	acc.cape(pieces["mante"], pieces["tunique"])
+	if LAMBEAUX_BLENDER.is_empty() or not ResourceLoader.exists(LAMBEAUX_BLENDER):
+		acc.lambeaux(pieces["pteruges"], pieces["tunique"])
+		acc.cape(pieces["mante"], pieces["tunique"])
+	else:
+		acc.lambeaux_blender(pieces["mante"], pieces["tunique"])
 	acc.boucle(Vector3(0.0, 0.988, 0.152), 0.074)
 	acc.fibule(plastron, Vector2(-0.085, 1.37))
 	for nom in ["ceinture", "pteruges"]:
@@ -273,6 +278,8 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 
 	## touffes de surface seulement dans le dos (la poitrine reste en mailles, médaillon et baudrier lisibles)
 	var dos_seul := false
+	## troisième surface : jupe et cape modelées (texture Blender), découpée, sans contour
+	var lam := {"v": PackedVector3Array(), "n": PackedVector3Array(), "uv": PackedVector2Array(), "b": PackedInt32Array(), "w": PackedFloat32Array()}
 
 	func _poitrine(p: Vector3) -> bool:
 		# poitrine dégagée plus large que le guerrier (pas de plastron de cuir : mailles, médaillon et baudrier à lire)
@@ -615,6 +622,47 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 				q.y -= (0.93 - q.y) * 0.35 + 0.04
 				return q)
 
+	# ------------------------------------------------------------ jupe et cape modelées dans Blender
+	static var _lamb_cache := {}
+
+	## Lit lambeaux.glb (pièces légères « lambeaux_jupe » et « lambeaux_cape », UV de lambeaux_bake.png) et les verse dans la
+	## troisième surface (lam), poids d'os copiés du sommet le plus proche de la mante (haut) ou de la tunique (bas).
+	func lambeaux_blender(mante: MeshInstance3D, tunique: MeshInstance3D) -> void:
+		if not _lamb_cache.has("arrays"):
+			var scene := (load(DraugrNordique.LAMBEAUX_BLENDER) as PackedScene).instantiate()
+			var res := []
+			for mi: MeshInstance3D in scene.find_children("*", "MeshInstance3D", true, false):
+				res.append([mi.mesh.surface_get_arrays(0), String(mi.name).contains("cape")])
+			scene.free()
+			_lamb_cache["arrays"] = res
+		var am := mante.mesh.surface_get_arrays(0)
+		var at := tunique.mesh.surface_get_arrays(0)
+		var cache := {}
+		for entree: Array in _lamb_cache["arrays"]:
+			var a: Array = entree[0]
+			var est_cape: bool = entree[1]
+			var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+			var uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+			var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX] if a[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+			if idx.is_empty():
+				idx.resize(v.size())
+				for i in v.size():
+					idx[i] = i
+			for t in range(0, idx.size(), 3):
+				var p: Array = [v[idx[t]], v[idx[t + 1]], v[idx[t + 2]]]
+				var uvs: Array = [uv[idx[t]], uv[idx[t + 1]], uv[idx[t + 2]]]
+				var pw: Array = []
+				for k in 3:
+					var key := idx[t + k]
+					var ck := Vector3i(((p[k] as Vector3) * 1000.0).round()) + Vector3i(0, 0, 100000 if est_cape else 0)
+					if not cache.has(ck):
+						# poids pris au NIVEAU D'ATTACHE de la lanière (hanches / épaules) : elle bouge d'un bloc, sans cisaillement
+						var q: Vector3 = p[k]
+						cache[ck] = _poids_proche(mante, am, Vector3(q.x, 1.30, q.z)) if est_cape else _poids_proche(tunique, at, Vector3(q.x * 0.8, 0.97, q.z))
+					pw.append(cache[ck])
+				var c: Vector3 = (p[0] + p[1] + p[2]) / 3.0
+				_tri(lam, p, uvs, pw, Vector3(0.0, c.y, -0.03))
+
 	# ------------------------------------------------------------ bouclier réduit
 	## Passe 2 : copie du bouclier du guerrier à l'échelle BOUCLIER_ECH (texture gris-noir fendue, cerclage rouillé).
 	func bouclier(ou: String) -> void:
@@ -765,7 +813,8 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 		var mesh := ArrayMesh.new()
 		var s_op := -1
 		var s_dec := -1
-		for s: Dictionary in [op, dec]:
+		var s_lam := -1
+		for s: Dictionary in [op, dec, lam]:
 			if s["v"].is_empty():
 				continue
 			var arr := []
@@ -786,8 +835,10 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 			if s == op:
 				s_op = mesh.get_surface_count() - 1
-			else:
+			elif s == dec:
 				s_dec = mesh.get_surface_count() - 1
+			else:
+				s_lam = mesh.get_surface_count() - 1
 		var mi := MeshInstance3D.new()
 		mi.name = "accessoires"
 		mi.mesh = mesh
@@ -797,4 +848,6 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 			mi.set_surface_override_material(s_op, DraugrNordique.materiau(DraugrTextures.tex("accessoires"), false, false, true))
 		if s_dec >= 0:
 			mi.set_surface_override_material(s_dec, DraugrNordique.materiau(DraugrTextures.tex("decoupes"), true, true, false))
+		if s_lam >= 0:
+			mi.set_surface_override_material(s_lam, DraugrNordique.materiau(DraugrTextures.tex("lambeaux"), true, true, false))
 		return mi
