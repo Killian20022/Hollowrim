@@ -1,0 +1,6 @@
+cr_oss_n crypte -21,-8,0,-5 ouvre=s1,s2,s3,secret,herse sans-mains
+cr_d1_bas crypte 21,-49,180,5,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+cr_lb2 crypte -8,-43,90,0,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+cr_rel_o crypte -24,-43,90,-5 ouvre=s1,s2,s3,secret,herse sans-mains
+cr_tresor crypte -37,-44,90,-5 ouvre=s1,s2,s3,secret,herse sans-mains
+cr_eirik crypte -7.8,-24.2,70,-25 ouvre=s1,s2,s3,secret,herse sans-mains
