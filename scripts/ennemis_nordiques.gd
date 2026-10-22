@@ -129,14 +129,14 @@ static func _bandit_archer(rng: RandomNumberGenerator) -> Node3D:
 	var n := ChasseresseNordique.creer({})
 	var sq := _sq(n)
 	var s := rng.randi() % 3
-	var f: Color = [Color(0.62, 0.58, 0.55), Color(0.5, 0.52, 0.5), Color(0.66, 0.55, 0.45)][s]
+	var f: Color = [Color(1.5, 0.85, 0.12), Color(1.1, 0.8, 0.12), Color(1.7, 0.9, 0.12)][s]   # le jaque de la chasseresse tire sur le bleu : on le ramène au brun sombre
 	_teinter_piece(sq, "tunique", f)
 	_teinter_piece(sq, "pantalon", f * Color(0.9, 0.9, 0.95))
 	_teinter_piece(sq, "bottes", Color(0.7, 0.62, 0.55))
 	_teinter_piece(sq, "brassards", Color(0.7, 0.62, 0.55))
 	_teinter_piece(sq, "mante", Color(0.8, 0.7, 0.6))
 	_teinter_piece(sq, "Hair_Long", [Color(0.4, 0.34, 0.3), Color(0.7, 0.5, 0.36), Color(0.28, 0.24, 0.22)][s])
-	_teinter_acc(sq, Color(0.66, 0.62, 0.58), Color(0.7, 0.66, 0.62))
+	_teinter_acc(sq, Color(1.0, 0.62, 0.1), Color(1.1, 0.62, 0.1))
 	n.set_meta("variante", "archer_bandit_%d" % s)
 	return n
 
