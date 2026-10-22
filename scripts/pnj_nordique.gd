@@ -136,11 +136,11 @@ static func _ancienne() -> Node3D:
 		barbe.visible = false
 	_visage_libre(sq, p)
 	_teinte_tex(p["mante"], 0, "ancienne_chale", {"col": Color.from_hsv(0.10, 0.12, 1.0), "v": 3.2})
-	_teinte_tex(p["tunique"], -1, "ancienne_robe", {"col": Color.from_hsv(0.09, 0.10, 1.0), "v": 1.0, "add": 0.30})
-	_teinte_tex(sq.get_node_or_null("jupe") as MeshInstance3D, 0, "ancienne_jupe", {"col": Color.from_hsv(0.09, 0.10, 1.0), "v": 1.0, "add": 0.30})
+	_teinte_tex(p["tunique"], -1, "ancienne_robe", {"col": Color.from_hsv(0.09, 0.10, 1.0), "v": 1.0, "add": 0.16})
+	_teinte_tex(sq.get_node_or_null("jupe") as MeshInstance3D, 0, "ancienne_jupe", {"col": Color.from_hsv(0.09, 0.10, 1.0), "v": 1.0, "add": 0.16})
 	if p.has("capuche"):
 		_teinte_tex(p["capuche"], 0, "ancienne_foulard", {"col": Color.from_hsv(0.09, 0.15, 1.0), "v": 3.2})
-	_teinte_tex(sq.get_node_or_null("accessoires") as MeshInstance3D, 0, "ancienne_atlas", {"col": Color.from_hsv(0.09, 0.10, 1.0), "v": 1.0, "add": 0.30})
+	_teinte_tex(sq.get_node_or_null("accessoires") as MeshInstance3D, 0, "ancienne_atlas", {"col": Color.from_hsv(0.09, 0.10, 1.0), "v": 1.0, "add": 0.16})
 	_canne(sq)
 	return n
 
