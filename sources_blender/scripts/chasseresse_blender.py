@@ -458,7 +458,7 @@ def peindre(res):
     def tone(nom, base_fn, pal):
         x, y, w, h = MOD[nom]
         ra, rc = ao[y:y + h, x:x + w], cav[y:y + h, x:x + w]
-        s_ao, s_hi, s_lo = np.percentile(ra, 20), np.percentile(rc, 86), np.percentile(rc, 12)
+        s_ao, s_hi, s_lo = np.percentile(ra, 30), np.percentile(rc, 80), np.percentile(rc, 18)
         for j in range(h):
             for i in range(w):
                 t = base_fn(i, j, w, h)
@@ -474,9 +474,11 @@ def peindre(res):
                     t -= 1
                 img[y + j, x + i, :3] = hexcol(pal, t)
     def tab(i, j, w, h):
-        if j < 2: return 5                                     # lèvre pliée, accrochée par la lumière
-        if j < 4.4: return 4                                   # revers
-        if j < 5.2: return 1                                   # ombre sous le revers
+        if j < 1: return 6                                     # arête de la lèvre pliée, accrochée par la lumière
+        if j < 2: return 5
+        if j < 3.6: return 4                                   # revers
+        if j < 4.6: return 5 if j < 4 else 3                   # tranche claire du revers
+        if j < 5.6: return 0                                   # creux sous le revers
         bord = min(i, w - 1 - i)
         if bord == 0: return 1
         if (bord == 2 and j > 6 and j % 3 < 2): return 5      # couture claire
@@ -487,8 +489,8 @@ def peindre(res):
         tone(n, tab, "cuir")
     def manch(i, j, w, h):
         if j < 2: return 3
-        if j < 4: return 4                                     # crête du pli
-        if j < 5: return 1
+        if j < 4: return 5                                     # crête du pli
+        if j < 5: return 0                                     # creux sous le pli
         # fourrure au bord libre : brins
         brin = (i + (j // 2)) % 3
         return 3 + (1 if brin == 0 else 0) + (1 if j > 7 else 0) - (1 if brin == 2 else 0)
