@@ -146,8 +146,8 @@ static func creer(options := {}) -> Node3D:
 		pieces["Eyebrows"].visible = false
 	for nom in ["Hair_Long", "Hair_Beard"]:
 		_filtrer(sq.get_node_or_null(nom), func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002)
-	_decimer(sq.get_node_or_null("Hair_Long"), func(p: Vector3) -> float: return 0.032)
-	_decimer(sq.get_node_or_null("Hair_Beard"), func(p: Vector3) -> float: return 0.008)
+	_decimer(sq.get_node_or_null("Hair_Long"), func(p: Vector3) -> float: return 0.040)
+	_decimer(sq.get_node_or_null("Hair_Beard"), func(p: Vector3) -> float: return 0.0105)
 	# cheveux : mèches Quaternius gardées, texture ramenée à la palette (64², au lieu de 2048²)
 	var mi_ch: MeshInstance3D = sq.get_node_or_null("Hair_Long")
 	if mi_ch:
@@ -205,6 +205,7 @@ static func creer(options := {}) -> Node3D:
 		print("GUERRIER disques (boucle + fibule) : %d triangles" % ((acc.op["v"].size()) / 3))
 	acc.yeux(yeux)
 	acc.tresses()
+	acc.echarpe()
 	acc.meches_cheveux(sq.get_node_or_null("Hair_Long"))
 	_bilan(acc, "yeux+tresses+meches cheveux")
 	plastron.visible = false
@@ -968,6 +969,37 @@ class Accessoires:
 			_tube(op, haut, bas, 0.011, 0.007, 4, os_, r)
 			# tresse de tempe, devant l'oreille, jusqu'à la clavicule
 			_tube(op, Vector3(0.078 * cote, 1.70, 0.035), Vector3(0.088 * cote, 1.52, 0.05), 0.014, 0.008, 4, os_, r)
+
+	# ------------------------------------------------------------ écharpe de laine bleue au col (référence : 14_01_55-1)
+	## Un tour épais (tore de 12 x 4 quads = 96 triangles) au bas du cou, qui retombe sur la poitrine sous le col de fourrure.
+	func echarpe() -> void:
+		var i_cou := sq.find_bone("neck_01")
+		var i_dos := sq.find_bone("spine_03")
+		var pw := [PackedInt32Array([i_cou, i_dos, 0, 0]), PackedFloat32Array([0.55, 0.45, 0.0, 0.0])]
+		var c := Vector3(0.0, 1.445, -0.012)
+		var rx := 0.140
+		var rz := 0.150
+		var rt := 0.034
+		var n := 12
+		var sec := 4
+		var R := GuerrierTextures.R_ECHARPE
+		for i in n:
+			var a0 := TAU * i / n
+			var a1 := TAU * (i + 1) / n
+			var d0 := Vector3(cos(a0), 0, sin(a0))
+			var d1 := Vector3(cos(a1), 0, sin(a1))
+			var m0 := c + Vector3(d0.x * rx, 0, d0.z * rz)
+			var m1 := c + Vector3(d1.x * rx, 0, d1.z * rz)
+			for j in sec:
+				var b0 := TAU * j / sec
+				var b1 := TAU * (j + 1) / sec
+				var p := [m0 + d0 * cos(b0) * rt + Vector3(0, sin(b0) * rt * 1.2, 0), m1 + d1 * cos(b0) * rt + Vector3(0, sin(b0) * rt * 1.2, 0),
+					m1 + d1 * cos(b1) * rt + Vector3(0, sin(b1) * rt * 1.2, 0), m0 + d0 * cos(b1) * rt + Vector3(0, sin(b1) * rt * 1.2, 0)]
+				var u0 := R.position.x + R.size.x * float(i) / n
+				var u1 := R.position.x + R.size.x * float(i + 1) / n
+				var v0 := R.position.y + R.size.y * float(j) / sec
+				var v1 := R.position.y + R.size.y * float(j + 1) / sec
+				_quad(op, p[0], p[1], p[2], p[3], _uva(u0, v0), _uva(u1, v0), _uva(u1, v1), _uva(u0, v1), [pw, pw, pw, pw], (m0 + m1) * 0.5)
 
 	# ------------------------------------------------------------ mèches de cheveux détachées (finition)
 	## Cartes découpées (atlas des découpes, D_CHEV) qui cassent la silhouette « casque » des cheveux : tempes (devant la

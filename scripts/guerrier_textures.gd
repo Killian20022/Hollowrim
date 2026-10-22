@@ -97,7 +97,7 @@ static func mips_pixel(img: Image) -> Image:
 ## Précalcul (outils/generer_guerrier.gd) : images mipmappées dans DOSSIER/<clé>.res ; VERSION à incrémenter après toute
 ## modification d'un dessin (un .res d'une autre version est ignoré : recalcul au lancement, jamais d'image fausse).
 const DOSSIER := "res://assets/personnages/guerrier"
-const VERSION := 5
+const VERSION := 6
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -513,28 +513,18 @@ static func cape() -> Image:
 			# neige poudrée sur les épaules (haut de la cape)
 			if vy > 108 and _n(x, y, W, H, 28, 8, 899) > 0.62 and _h(x, y, 900) > 0.45:
 				c = Color("#cdd4e0") if _h(x, y, 901) > 0.3 else Color("#8f99ad")
-			# bordure de laine sombre au-dessus de la broderie (lignes 11-14) et liserés
-			if vy >= 11 and vy <= 24:
-				c = _c(LAINE_BLEUE_G, 1)
-				if vy == 24 or vy == 11:
-					c = _c(BRODERIE, 2)
-				elif vy >= 14 and vy <= 22:
-					var e := _entrelacs(x, vy - 14, 9, 14)
-					if e >= 0:
-						c = _c(BRODERIE, e + (1 if vy < 18 and e == 3 else 0))
-					elif _h(x, y, 902) > 0.9:
-						c = _c(LAINE_BLEUE_G, 0)
-			# bordures verticales brodées le long des deux bords (7 texels, à 2 texels du bord)
-			var dl := x - bord.x
-			var dr := bord.y - x
-			var dm := minf(dl, dr)
-			if dm >= 1.0 and dm < 10.0 and vy > 24:
-				var a := int(dm) - 2
-				if dm < 2.0 or dm >= 9.0:
-					c = _c(BRODERIE, 1)
-				elif a >= 0 and a < 7:
-					var e := _entrelacs(y, a, 7, 12)
-					c = _c(BRODERIE, e) if e >= 0 else _c(LAINE_BLEUE_G, 1)
+			# plis verticaux : ombres marquées (creux) et arêtes éclairées, plus profondes vers le bas
+			var pf := _n(x, 0, W, 1, 12, 1, 903)
+			if pf < 0.34:
+				c = _c(LAINE_BLEUE_G, maxi(0, t - 2 + (1 if vy > 100 else 0)))
+			elif pf > 0.70 and vy > 14:
+				c = _c(LAINE_BLEUE_G, mini(5, t + 1))
+			# usure : bord de l'ourlet assombri et reprises claires
+			if vy >= 11 and vy <= 13 and _h(x, y, 902) > 0.55:
+				c = _c(LAINE_BLEUE_G, maxi(0, t - 1))
+			# neige accrochée en haut des plis et en frange sur l'ourlet
+			if vy < 22 and vy > 5 and _n(x, y, W, H, 18, 6, 904) > 0.66 and _h(x, y, 905) > 0.5:
+				c = Color("#aeb8cb") if _h(x, y, 906) > 0.35 else Color("#7d89a2")
 			# ourlet effiloché : coupe irrégulière (0 à 9 texels) + quelques fils pendants
 			var coupe := int(_h(x / 2, 0, 894) * 5.0) + int(_h(x, 1, 895) * 3.0)
 			if _h(x / 3, 2, 896) > 0.86:
@@ -584,6 +574,7 @@ const R_BAUD := Rect2i(240, 0, 16, 64)
 const R_DOS := Rect2i(128, 32, 64, 64)
 const R_ANNEAU := Rect2i(192, 64, 32, 32)
 const R_BOSSE := Rect2i(192, 96, 32, 32)
+const R_ECHARPE := Rect2i(208, 32, 16, 32)   # écharpe de laine bleue (u autour du cou, v autour du tore)
 const R_PLASTRON := Rect2i(0, 128, 136, 64)
 const R_CEINT := Rect2i(0, 192, 136, 16)
 const ATLAS := Vector2i(256, 256)
@@ -604,6 +595,7 @@ static func accessoires() -> Image:
 	_dos_bouclier(img)
 	_anneau(img)
 	_bosse(img)
+	_echarpe(img)
 	var pl := _plastron_atlas()
 	_copier(img, R_PLASTRON, pl, -PL_U0, PL_V0)
 	_ceinture_atlas(img)
@@ -738,6 +730,19 @@ static func _oeil(img: Image) -> void:
 				c = c.darkened(0.35)                     # ombre de la paupière
 			if y == 0:
 				c = Color("#2a1e1a")
+			img.set_pixel(r.position.x + x, r.position.y + y, c)
+
+## Écharpe : laine bleue tricotée, plis longitudinaux sombres, bord éclairé sur le dessus (v 0-15 dessus, 16-31 dessous).
+static func _echarpe(img: Image) -> void:
+	var r := R_ECHARPE
+	for y in r.size.y:
+		for x in r.size.x:
+			var pli := _n(x, 0, r.size.x, 1, 5, 1, 1401)
+			var l := 0.40 + (pli - 0.5) * 0.6 + (0.16 if y < 8 else (-0.14 if y > 20 else 0.0)) + (0.05 if (x + y) % 3 == 0 else 0.0)
+			var t := _ton(l, 6, x, y, 1402, 0.3)
+			var c := _c(LAINE_BLEUE_G, t)
+			if y > 0 and y < 5 and _n(x, y, r.size.x, r.size.y, 8, 4, 1403) > 0.6 and _h(x, y, 1404) > 0.4:
+				c = Color("#cdd4e0")                # neige poudrée sur le dessus
 			img.set_pixel(r.position.x + x, r.position.y + y, c)
 
 ## Baudrier : u en travers (0-15), v le long (se répète). Bords sombres, arêtes usées claires, piqûre, rivets.
@@ -1184,6 +1189,9 @@ static func bottes_g() -> Image:
 					c = _c(CUIR, 0)
 			else:
 				c = _c(FOUR_G, 1 + int(_n(x, y, W, H, 32, 4, 1307) * 2.0))
+			# plis assombris de la tige (cheville) et éraflures claires sur les arêtes
+			if vy >= 8 and vy < 40 and posmod(vy, 9) == 0 and _h(x, y, 1317) > 0.35:
+				c = c.darkened(0.3)
 			# neige sur la semelle et la pointe (v 0,94 - 1) et éraflures
 			if vy < 8 and vy > 1 and _n(x, y, W, H, 22, 3, 1308) > 0.55 and _h(x, y, 1309) > 0.4:
 				c = Color("#cfd6e2") if _h(x, y, 1310) > 0.3 else Color("#9aa3b6")
@@ -1197,6 +1205,11 @@ static func bottes_g() -> Image:
 		x2 += w - 1
 		i += 1
 	_eraflures(img, Rect2i(0, H - 12, W, 8), 14, 1316)
+	# neige accrochée au revers de fourrure et aux bandes
+	for y in range(H - 1 - 66, H - 1 - 36):
+		for x in W:
+			if _n(x, y, W, H, 20, 5, 1318) > 0.64 and _h(x, y, 1319) > 0.5:
+				img.set_pixel(x, y, Color("#cdd4e0") if _h(x, y, 1320) > 0.3 else Color("#9aa3b6"))
 	return img
 
 # ------------------------------------------------------------------ brassards / manchettes de poignet (128 x 64, lignes 50-63 visibles)

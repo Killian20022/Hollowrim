@@ -49,7 +49,7 @@ func _init() -> void:
 		for d in [avant, apres]:
 			var im := _ld("%s/%s.png" % [d, noms[i]])
 			# zoom x2 : découpe 640x360 autour du personnage (capture 1280x720), sans rééchantillonnage
-			var oy: int = {"v_torse_1m": 140, "v_ceinture_1m": 230, "v_bas_1m": 230, "v_bottes_1m": 190, "v_dos_1m": 150, "v_epaule_1m": 60, "v_bras_1m": 250}[noms[i]]
+			var oy: int = {"v_torse_1m": 140, "v_ceinture_1m": 230, "v_bas_1m": 230, "v_bottes_1m": 215, "v_dos_1m": 150, "v_epaule_1m": 60, "v_bras_1m": 250}[noms[i]]
 			im = im.get_region(Rect2i(320, oy, 640, 360))
 			gp.blit_rect(im, Rect2i(0, 0, 640, 360), Vector2i(640 * col, i * 360))
 			col += 1
