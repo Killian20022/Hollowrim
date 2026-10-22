@@ -97,7 +97,7 @@ static func mips_pixel(img: Image) -> Image:
 ## Précalcul (outils/generer_guerrier.gd) : images mipmappées dans DOSSIER/<clé>.res ; VERSION à incrémenter après toute
 ## modification d'un dessin (un .res d'une autre version est ignoré : recalcul au lancement, jamais d'image fausse).
 const DOSSIER := "res://assets/personnages/guerrier"
-const VERSION := 6
+const VERSION := 7
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -533,6 +533,8 @@ static func cape() -> Image:
 				c = Color(0, 0, 0, 0)
 			elif vy < coupe + 1:
 				c = _c(LAINE_BLEUE_G, 0)
+			# relief cuit (Blender) : creux des plis sombres, arêtes éclairées (région de la cape : x 56..167)
+			c = _decaler(c, _decalage(x - CAPE_U0, y, REL_CAPE))
 			_p(img, x, y, c)
 	return img
 
@@ -988,9 +990,49 @@ static func _entrelacs(s: int, a: int, larg: int, periode := 12) -> int:
 ## Lignes 0-127 : la cotte d'origine (UV de la tunique) ; l'avant-bras (v > 0,79) devient une manchette de cuir lacée sous un revers
 ## de fourrure ; lignes 128-175 : la JUPE (UV remappés par GuerrierNordique._uv_tunique) = manteau de cuir brun, panneau central de
 ## laine bleue bordé de fourrure sur un liseré de maille, ourlet de fourrure crème, boue en bas.
-const TUN_H := 176
+const TUN_H := 224
 const JUPE_Y0 := 128
 const JUPE_H := 48
+const TAB_Y0 := 176       # panneau (tabard) bleu / maille en pointe, centré en x = 128 (passe Blender)
+const TAB_H := 48
+
+# ------------------------------------------------------------------ relief cuit dans Blender (outils : sources_blender/scripts/guerrier_blender.py)
+## PNG 5 tons (valeur 0..200 par pas de 50 = décalage de ton -2..+2) : AO + courbure cuites (Cycles) du modèle détaillé.
+## Lignes : 0-47 jupe, 48-95 panneau, 96-223 cape (x 0-111), 224-287 brassards (x 0-127).
+const RELIEF := "res://assets/persos/guerrier/blender/relief_guerrier.png"
+const REL_JUPE := 0
+const REL_TAB := 48
+const REL_CAPE := 96
+const REL_BRAS := 224
+static var _relief: Image
+
+static func _relief_image() -> Image:
+	if _relief == null:
+		var t := load(RELIEF) as Texture2D
+		if t != null:
+			_relief = t.get_image()
+			_relief.decompress() if _relief.is_compressed() else null
+			_relief.convert(Image.FORMAT_L8)
+	return _relief
+
+## Décalage de ton (-2..+2) du texel (x, y) de la zone commençant à la ligne `l0` du PNG ; 0 si le relief est absent.
+static func _decalage(x: int, y: int, l0: int) -> int:
+	var im := _relief_image()
+	if im == null or x < 0 or l0 + y >= im.get_height() or x >= im.get_width():
+		return 0
+	return roundi(im.get_pixel(x, l0 + y).r * 255.0 / 50.0) - 2
+
+const _PALS_DECALAGE := [CUIR, FOUR_G, LAINE_BLEUE_G, MAILLE, CUIR_SOMBRE, FER, FOUR, LAINE_BLEUE]
+
+## Même matière, k tons plus loin dans sa palette (creux sombres / arêtes claires du relief cuit) ; couleur hors palette : éclaircie / assombrie.
+static func _decaler(c: Color, k: int) -> Color:
+	if k == 0 or c.a <= 0.0:
+		return c
+	for pal: Array in _PALS_DECALAGE:
+		for i in pal.size():
+			if _c(pal, i).is_equal_approx(c):
+				return _c(pal, clampi(i + k, 0, pal.size() - 1))
+	return c.lightened(0.12 * k) if k > 0 else c.darkened(-0.12 * k)
 
 static func mailles_g() -> Image:
 	var W := 256
@@ -1112,6 +1154,55 @@ static func _jupe(img: Image) -> void:
 		for r in range(36, R):
 			if _h(x, r, 1137) > 0.965:
 				_p(img, x, y0 + r, Color("#e9eef5"))
+	# relief cuit (Blender) : creux des plis et sous le bourrelet de fourrure, arêtes usées du cuir
+	for r in R:
+		for x in W:
+			var k := _decalage(x, r, REL_JUPE)
+			if k != 0:
+				_p(img, x, y0 + r, _decaler(img.get_pixel(x, y0 + r), k))
+	# usure du cuir : arêtes éclaircies le long des plis (rangée de piqûres), plaques frottées
+	for r in range(4, 33):
+		for x in W:
+			var sx := x if x < 128 else x - W
+			if absi(sx) > 28 and _h(x, r, 1141) > 0.992:
+				_p(img, x, y0 + r, _c(CUIR, 6))
+	_tabard(img)
+
+## Panneau (tabard) en pointe, ligne TAB_Y0.., x = 128 + dx : laine bleue au dessus, losange puis pointe de maille, bordure de fourrure
+## crème qui suit la pointe ; la largeur suit le maillage Blender (pleine jusqu'à 60 %, puis converge à 100 %).
+static func _tabard(img: Image) -> void:
+	var W := 256
+	var R := TAB_H
+	for r in R:
+		var t := float(r) / float(R - 1)
+		var wf := 1.0 if t <= 0.60 else maxf(0.0, 1.0 - (t - 0.60) / 0.40)
+		for x in W:
+			var dx := absi(x - 128)
+			var y := TAB_Y0 + r
+			var c := _c(FOUR_G, 1)
+			var bleu := 14.0 * wf
+			var bord := 17.0 * wf
+			if dx <= bord + 0.5:
+				if dx <= bleu:
+					var l := 0.46 + (_n(x, r, W, R, 36, 3, 1121) - 0.5) * 0.5 + (0.06 if ((x + r) & 3) < 2 else -0.04)
+					c = _c(LAINE_BLEUE_G, _ton(l, 5, x, r, 1122, 0.3))
+					# maille : losange au milieu puis pointe tout en bas (lisible au milieu du panneau)
+					var losange := r >= 12 and r < 36 and float(dx) <= 11.0 * (1.0 - absf(r - 24) / 12.0)
+					if losange or (r >= 36 and float(dx) <= bleu - 2.5):
+						c = _c(MAILLE, _anneau_ton(x, r) + 1)
+				else:
+					var tt := 3 + int(_n(x, r, W, R, 40, 8, 1123) * 2.0)
+					if (r + dx * 3) % 5 == 0:
+						tt -= 2
+					c = _c(FOUR_G, clampi(tt, 1, 5))
+				if dx >= int(bord):
+					c = _c(FOUR_G, 1)
+			_p(img, x, y, c)
+	for r in R:
+		for x in range(100, 156):
+			var k := _decalage(x, r, REL_TAB)
+			if k != 0:
+				_p(img, x, TAB_Y0 + r, _decaler(img.get_pixel(x, TAB_Y0 + r), k))
 
 # ------------------------------------------------------------------ pantalon de laine charbon (256 x 128, UV du lot 4)
 ## Visible : v 0,14 - 0,64 (genou -> haut des bottes), u dans +-0,16. Sergé fin, plis verticaux, plis de genou, usure, neige
@@ -1237,6 +1328,15 @@ static func brassards_g() -> Image:
 			if posmod(x - k * 2, 10) < 2:
 				_p(img, x, 55 + k, _c(CUIR, 6))
 				_p(img, x, 56 + k, _c(CUIR, 0))
+	# relief cuit (Blender) : rides du cuir creusées, arêtes usées éclaircies ; usure : plaques frottées et éraflures claires
+	for y in H:
+		for x in W:
+			var k := _decalage(x, y, REL_BRAS)
+			if y < 49 and _n(x, y, W, H, 8, 4, 1411) > 0.70 and _h(x, y, 1412) > 0.35:
+				k += 1                                      # plaque frottée
+			if k != 0:
+				_p(img, x, y, _decaler(img.get_pixel(x, y), k))
+	_eraflures(img, Rect2i(0, 0, W, 48), 14, 1413)
 	return img
 
 # ------------------------------------------------------------------ plastron de MAILLE (UV de la tunique) pour l'atlas des accessoires

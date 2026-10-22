@@ -10,7 +10,7 @@ class_name PnjNordique
 ##   ids : garde, forgeron, chasseuse, volva, ancienne, chef, eirik (+ garde_lance : Gardien à lance, pour alterner les gardes)
 
 const DOSSIER := "res://assets/pnj"
-const VERSION := 2
+const VERSION := 3
 static var enregistrer := false
 static var _cache := {}
 static var _ancien := -1
@@ -74,7 +74,7 @@ static func _garde_lance() -> Node3D:
 ## Brodd, le forgeron : aucune armure (pas de casque, de bouclier, d'épée, de cape ni de fourrure), tunique brune, tablier de cuir,
 ## brassards ; maillet de forge à la main.
 static func _forgeron() -> Node3D:
-	var n := GuerrierNordique.creer({"casque": false, "bouclier": "", "epee": false})
+	var n := GuerrierNordique.creer({"casque": false, "bouclier": "", "epee": false, "avant_bras_nus": true})
 	n.name = "PnjForgeron"
 	var sq := _sq(n)
 	var p := _pieces(sq)
@@ -83,7 +83,7 @@ static func _forgeron() -> Node3D:
 	if acc:
 		_filtrer_surface(acc, 1, func(_c: Vector3, _n: Vector3, _uv: Vector2) -> bool: return false)
 		# plastron cuir : on garde la ceinture et la boucle, retire les épaulettes de fourrure (y > 1,22) de l'atlas opaque
-		_filtrer_surface(acc, 0, func(c: Vector3, _n: Vector3, _uv: Vector2) -> bool: return c.y < 1.18 or c.y > 1.75)
+		_filtrer_surface(acc, 0, func(c: Vector3, _n: Vector3, _uv: Vector2) -> bool: return c.y < 1.04 or c.y > 1.75)
 	p["mante"].visible = false
 	# tunique de toile brune (le tissage du pantalon, teinté), bras couverts : manches de lin brun
 	_teinte_tex(p["tunique"], 0, "forgeron_tunique", {"col": Color.from_hsv(0.08, 0.55, 1.0), "v": 0.9})
