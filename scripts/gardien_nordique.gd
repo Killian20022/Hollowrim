@@ -144,10 +144,19 @@ static func creer(options := {}) -> Node3D:
 		func(p: Vector3, n: Vector3) -> Vector3: return p + n * 0.022 + Vector3(signf(p.x) * 0.012, -0.012, 0.0) * clampf((absf(p.x) - 0.18) / 0.2, 0.0, 1.0))
 	# pèlerine (passe 2) : la cape du guerrier coupée aux hanches (rangée de 0,85 m), UV planaires vus de dos (emblème net)
 	var PE := GardienTextures.D_PELERINE
+	# passe vêtements 3 : la cape retombe jusqu'aux mollets (0,43 m) : 96 rangées à 128 texels/m jusqu'à 0,83 m, puis 32 rangées
+	# (80 texels/m) pour le bas
 	var uv_pelerine := func(_uv: Vector2, p: Vector3) -> Vector2:
-		return Vector2(PE.position.x + clampf((GardienTextures.PEL_X - p.x) * 128.0, 0.0, PE.size.x - 0.5), PE.position.y + clampf((GardienTextures.PEL_Y - p.y) * 128.0, 0.0, PE.size.y - 0.5)) / D
-	var aux_hanches := func(a: Vector3, b: Vector3, c: Vector3) -> bool: return maxf(a.y, maxf(b.y, c.y)) > 0.90
-	acc.copier(pieces["cape"], acc.dec, uv_pelerine, Callable(), aux_hanches)
+		var ty := (GardienTextures.PEL_Y - p.y) * 128.0
+		if ty > 96.0:
+			ty = 96.0 + (0.83 - p.y) * 80.0
+		return Vector2(PE.position.x + clampf((GardienTextures.PEL_X - p.x) * 128.0, 0.0, PE.size.x - 0.5), PE.position.y + clampf(ty, 0.0, PE.size.y - 0.5)) / D
+	var aux_hanches := func(a: Vector3, b: Vector3, c: Vector3) -> bool: return maxf(a.y, maxf(b.y, c.y)) > 0.50
+	# nappe ample : s'évase vers le bas et s'écarte du dos (les jambes passent devant)
+	var evaser := func(p: Vector3, _n: Vector3) -> Vector3:
+		var f := clampf((0.98 - p.y) / 0.5, 0.0, 1.0)
+		return Vector3(p.x * (1.0 + 0.5 * f), p.y, p.z - 0.05 * f)
+	acc.copier(pieces["cape"], acc.dec, uv_pelerine, evaser, aux_hanches)
 	# tabard : devant élargi (lisible à 8 m) + DOS (copie miroir posée sur le dos de la cotte et du pantalon, dépasse sous la pèlerine)
 	var T := GardienTextures.D_TABARD
 	var uv_tabard := func(uv: Vector2, _p: Vector3) -> Vector2:
@@ -187,6 +196,7 @@ static func creer(options := {}) -> Node3D:
 	acc.fourrure_bord(pieces["bottes"], 0.30, 0.45, 0.06, 0.09, 1.0, 1.6)
 	acc.boucle(Vector3(0.0, 0.988, 0.176), 0.062)
 	acc.fibule(plastron, Vector2(-0.13, 1.38))
+	acc.fibule(plastron, Vector2(0.13, 1.40))
 	acc.baudrier_av(plastron)
 	acc.languette_et_bourse(pieces["tablier"])
 	acc.yeux(yeux)
@@ -477,21 +487,23 @@ class AccGardien extends GuerrierNordique.Accessoires:
 
 	# ------------------------------------------------------------ écharpe de laine bleue au cou (neck_01 / spine_03)
 	func echarpe() -> void:
+		_tour_echarpe(1.505, 0.098, 0.112, 0.030, 12, 5)
+		# passe vêtements 3 : second tour, plus bas et plus large, qui retombe sur la poitrine (référence : écharpe nouée au col)
+		_tour_echarpe(1.445, 0.140, 0.150, 0.034, 12, 4)
+
+	func _tour_echarpe(cy: float, rx: float, rz: float, rt: float, n: int, sec: int) -> void:
 		var i_cou := sq.find_bone("neck_01")
 		var i_dos := sq.find_bone("spine_03")
 		var pw := [PackedInt32Array([i_cou, i_dos, 0, 0]), PackedFloat32Array([0.55, 0.45, 0.0, 0.0])]
-		var c := Vector3(0.0, 1.505, -0.012)
+		var c := Vector3(0.0, cy, -0.012)
 		var R := GardienTextures.R_LAINE
-		var n := 12
-		var sec := 5
-		var rt := 0.030
 		for i in n:
 			var a0 := TAU * i / n
 			var a1 := TAU * (i + 1) / n
 			var d0 := Vector3(cos(a0), 0, sin(a0))
 			var d1 := Vector3(cos(a1), 0, sin(a1))
-			var m0 := c + Vector3(d0.x * 0.098, 0, d0.z * 0.112)
-			var m1 := c + Vector3(d1.x * 0.098, 0, d1.z * 0.112)
+			var m0 := c + Vector3(d0.x * rx, 0, d0.z * rz)
+			var m1 := c + Vector3(d1.x * rx, 0, d1.z * rz)
 			for j in sec:
 				var b0 := TAU * j / sec
 				var b1 := TAU * (j + 1) / sec
@@ -610,9 +622,9 @@ class AccGardien extends GuerrierNordique.Accessoires:
 		# [nombre, y, rx, rz, vers l'extérieur, vers le haut/bas (+ = haut), longueur, largeur, angle mort devant]
 		var couronnes := [
 			[16, 1.52, 0.105, 0.12, 0.60, 0.80, 0.17, 0.11, 0.35],
-			[22, 1.47, 0.160, 0.155, 0.95, -0.05, 0.24, 0.14, 0.40],
-			[26, 1.42, 0.230, 0.180, 0.95, -0.45, 0.22, 0.13, 0.55],
-			[28, 1.36, 0.300, 0.200, 0.90, -0.80, 0.18, 0.12, 0.90],
+			[22, 1.47, 0.160, 0.155, 0.95, -0.05, 0.20, 0.13, 0.40],
+			[26, 1.42, 0.230, 0.180, 0.95, -0.45, 0.19, 0.12, 0.55],
+			[28, 1.36, 0.300, 0.200, 0.90, -0.80, 0.15, 0.11, 0.90],
 		]
 		var n := 0
 		for cr: Array in couronnes:

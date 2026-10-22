@@ -1,6 +1,6 @@
 extends SceneTree
 ## Assemble les planches de la passe vetements du gardien (jetable).
-const R := "C:/Users/lopezk19/Desktop/Skyrim captures/refonte/persos/gardien/vetements/"
+const R := "C:/Users/lopezk19/Desktop/Skyrim captures/refonte/persos/gardien/vetements/final/"
 const REF := "C:/Users/lopezk19/Downloads/Image ChatGPT 21 oct. 2026, 14_01_58-4.png"
 func _init() -> void:
 	_go.call_deferred()
@@ -25,14 +25,14 @@ func _go() -> void:
 	for m in ["4", "8"]:
 		for c in 3:
 			var v: String = ["face", "34", "dos"][c]
-			_cell(d, _l(R + "avant/p%s_%s.png" % [m, v]), c * 427, r * 240, 427, 240)
-			_cell(d, _l(R + "apres3g/v_%sm_%s_crepuscule.png" % [m, v]), c * 427, (r + 1) * 240, 427, 240)
+			_cell(d, _l(R + "avant/v_%sm_%s_crepuscule.png" % [m, v]), c * 427, r * 240, 427, 240)
+			_cell(d, _l(R + "apres/v_%sm_%s_crepuscule.png" % [m, v]), c * 427, (r + 1) * 240, 427, 240)
 		r += 2
 	d.save_png(R + "planche_4m_8m_avant_apres.png")
 	var an := ["Walk_25", "Walk_75", "Sprint_40", "Sword_Idle_30", "Sword_Attack_35", "Sword_Attack_60", "Hit_Chest_40", "Death01_60"]
 	var a := Image.create(4 * 480, 2 * 270, false, Image.FORMAT_RGB8)
 	for i in an.size():
-		_cell(a, _l(R + "apres3g/a_%s_crepuscule.png" % an[i]), (i % 4) * 480, (i / 4) * 270, 480, 270)
+		_cell(a, _l(R + "apres/a_%s_crepuscule.png" % an[i]), (i % 4) * 480, (i / 4) * 270, 480, 270)
 	a.save_png(R + "planche_animations.png")
 	quit()
 func _planche(nom: String, rows: Array, ref: Image, w: int, h: int) -> void:
@@ -43,6 +43,6 @@ func _planche(nom: String, rows: Array, ref: Image, w: int, h: int) -> void:
 	for i in rows.size():
 		if has_ref:
 			_cell(im, ref, 0, i * h, rw, h)
-		_cell(im, _l(R + "avant/%s.png" % rows[i][0]), off, i * h, w, h)
-		_cell(im, _l(R + "apres3g/%s_crepuscule.png" % rows[i][1]), off + w, i * h, w, h)
+		_cell(im, _l(R + "avant/%s_crepuscule.png" % rows[i][1]), off, i * h, w, h)
+		_cell(im, _l(R + "apres/%s_crepuscule.png" % rows[i][1]), off + w, i * h, w, h)
 	im.save_png(R + nom)

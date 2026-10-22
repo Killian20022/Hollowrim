@@ -14,15 +14,15 @@ const MAILLE_FER := ["#151310", "#26231e", "#3a362f", "#524c43", "#736b5f", "#9b
 const FER_BRUN := ["#0f0e0d", "#1d1b19", "#302d29", "#47433d", "#666058", "#8d867b", "#b7b0a3"]
 const BLEU_JARL := ["#121620", "#1b2331", "#283244", "#36435a", "#475670", "#5d6c86"]   # bleu ardoise délavé (passe 2 : moins « plastique »)
 ## Fourrure crème chaude (passe 2) : remplace ton pour ton la palette gris-brun du guerrier, qui bleuissait au crépuscule.
-const FOUR_CHAUD := ["#251f18", "#463b2d", "#6b5c47", "#8f7e63", "#b3a083", "#d3c2a2"]
+const FOUR_CHAUD := ["#25221d", "#47423a", "#6e675a", "#938b79", "#b8b09b", "#d4ccb7"]
 const CREME := ["#4e4636", "#73694f", "#9a8f70", "#bdb291", "#d8cfae"]
 ## Col de fourrure (passe 3) : crème chaude plus claire que FOUR_CHAUD, pour rester crème sous la lumière froide du crépuscule.
-const COL_FOUR := ["#3a2f22", "#6b5a42", "#9a8765", "#c2b18c", "#e2d4b0", "#f2e8c8"]
+const COL_FOUR := ["#33302a", "#5f594c", "#8a8473", "#aea792", "#cdc7b2", "#e2ddc9"]   # gris-beige (référence), moins jaune
 const FRENE := ["#1c140e", "#33251a", "#4b3726", "#654b34", "#7f6146", "#9a7a5a"]
 
 # ------------------------------------------------------------------ précalcul (même contrat que GuerrierTextures)
 const DOSSIER := "res://assets/persos/gardien"
-const VERSION := 10
+const VERSION := 11
 static var enregistrer := false
 static var _cache := {}
 
@@ -518,7 +518,7 @@ static func _tabard(img: Image) -> void:
 ## de dos) : UV planaires vus de dos à 128 texels/m, x = (0,28 - x) * 128 (gauche de l'image = côté gauche vu de dos),
 ## y = (1,58 - y) * 128. Laine bleu ardoise, plis, EMBLÈME de la cité (étoile crème à 8 branches du bouclier, dans un anneau)
 ## centré à 1,10 m, galon crème doublé de filets sombres au-dessus de l'ourlet, ourlet effiloché découpé vers 0,87 m.
-const D_PELERINE := Rect2i(0, 0, 72, 96)
+const D_PELERINE := Rect2i(0, 0, 72, 128)
 const PEL_X := 0.28
 const PEL_Y := 1.58
 
@@ -576,7 +576,7 @@ static func _pelerine(img: Image) -> void:
 			elif y > 60 and _n(x, y, W, H, 7, 6, 3309) < (float(y) - 60.0) / 40.0 * 0.7 and _h(x, y, 3310) > 0.3:
 				c = c.lerp(_c(GuerrierTextures.CUIR, 1), 0.5)
 			# ourlet effiloché : coupe irrégulière à partir de y 88 (le maillage s'arrête à 0,85 m, y 93)
-			var coupe := 88 + int(_h(x / 2, 0, 3304) * 3.0) + int(_h(x, 1, 3305) * 2.0)
+			var coupe := 121 + int(_h(x / 2, 0, 3304) * 3.0) + int(_h(x, 1, 3305) * 2.0)
 			if y > coupe:
 				c = Color(0, 0, 0, 0)
 			elif y == coupe:
