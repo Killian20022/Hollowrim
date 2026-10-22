@@ -118,6 +118,7 @@ static func _volva() -> Node3D:
 	var barbe: MeshInstance3D = p.get("Hair_Beard")
 	if barbe:
 		barbe.visible = false
+	_visage_libre(sq, p)
 	_teinte_tex(p["mante"], 0, "volva_pelerine", {"col": Color.from_hsv(0.76, 0.40, 1.0), "v": 1.5})
 	if p.has("capuche"):
 		_teinte_tex(p["capuche"], 0, "volva_capuche", {"col": Color.from_hsv(0.76, 0.45, 1.0), "v": 1.5})
@@ -133,12 +134,13 @@ static func _ancienne() -> Node3D:
 	var barbe: MeshInstance3D = p.get("Hair_Beard")
 	if barbe:
 		barbe.visible = false
+	_visage_libre(sq, p)
 	_teinte_tex(p["mante"], 0, "ancienne_chale", {"col": Color.from_hsv(0.10, 0.12, 1.0), "v": 3.2})
-	_teinte_tex(p["tunique"], -1, "ancienne_robe", {"col": Color.from_hsv(0.09, 0.14, 1.0), "v": 3.0})
-	_teinte_tex(sq.get_node_or_null("jupe") as MeshInstance3D, -1, "ancienne_jupe", {"col": Color.from_hsv(0.09, 0.14, 1.0), "v": 3.0})
+	_teinte_tex(p["tunique"], -1, "ancienne_robe", {"col": Color.from_hsv(0.09, 0.10, 1.0), "v": 1.0, "add": 0.30})
+	_teinte_tex(sq.get_node_or_null("jupe") as MeshInstance3D, 0, "ancienne_jupe", {"col": Color.from_hsv(0.09, 0.10, 1.0), "v": 1.0, "add": 0.30})
 	if p.has("capuche"):
 		_teinte_tex(p["capuche"], 0, "ancienne_foulard", {"col": Color.from_hsv(0.09, 0.15, 1.0), "v": 3.2})
-	_teinte_tex(sq.get_node_or_null("accessoires") as MeshInstance3D, 0, "ancienne_atlas", {"col": Color.from_hsv(0.09, 0.12, 1.0), "v": 2.6})
+	_teinte_tex(sq.get_node_or_null("accessoires") as MeshInstance3D, 0, "ancienne_atlas", {"col": Color.from_hsv(0.09, 0.10, 1.0), "v": 1.0, "add": 0.30})
 	_canne(sq)
 	return n
 
@@ -266,13 +268,14 @@ static func _texture_teintee(src: Texture2D, cle: String, spec: Dictionary) -> I
 		img.convert(Image.FORMAT_RGBA8)
 		var col: Color = spec.get("col", Color.WHITE)
 		var vm: float = spec.get("v", 1.0)
+		var add: float = spec.get("add", 0.0)
 		var r: Rect2i = spec.get("rect", Rect2i(Vector2i.ZERO, img.get_size()))
 		for y in range(r.position.y, mini(r.end.y, img.get_height())):
 			for x in range(r.position.x, mini(r.end.x, img.get_width())):
 				var c := img.get_pixel(x, y)
 				if c.a < 0.05:
 					continue
-				var o := Color.from_hsv(col.h, col.s, clampf(c.v * vm, 0.0, 1.0))
+				var o := Color.from_hsv(col.h, col.s, clampf(c.v * vm + add, 0.0, 1.0))
 				o.a = c.a
 				img.set_pixel(x, y, o)
 		mips = GuerrierTextures.mips_pixel(img)
@@ -323,6 +326,37 @@ static func _filtrer_surface(mi: MeshInstance3D, s: int, garder: Callable) -> vo
 	mi.mesh = mesh
 	for j in mats.size():
 		mi.set_surface_override_material(j, mats[j])
+
+## Mage : le visage est un masque noir aux yeux luisants. Pour un PNJ à qui l'on parle : masque et yeux luisants retirés, vrai visage
+## (peau du visage + yeux d'un Humain neuf, même squelette, même repos) remis sous la capuche.
+static func _visage_libre(sq: Skeleton3D, p: Dictionary) -> void:
+	var acc: MeshInstance3D = sq.get_node_or_null("accessoires")
+	if acc:
+		for s in range(acc.mesh.get_surface_count() - 1, -1, -1):
+			_filtrer_surface(acc, s, func(c: Vector3, _n: Vector3, _uv: Vector2) -> bool:
+				return not (c.y > 1.60 and c.y < 1.82 and c.z > -0.02 and absf(c.x) < 0.11))
+	var frais := Humain.creer({"corps": "homme", "peau": GuerrierNordique.PEAU})
+	var sq2 := _sq(frais)
+	var matp := _materiau_de(p["peau"], -1)
+	for nom in ["peau", "Eyes"]:
+		var mi: MeshInstance3D = sq2.get_node_or_null(nom)
+		if mi == null:
+			continue
+		sq2.remove_child(mi)
+		if nom == "peau":
+			GuerrierNordique._filtrer(mi, func(c: Vector3, _n: Vector3) -> bool: return Mage_visage(c))
+			if matp:
+				var mp := matp.duplicate() as ShaderMaterial
+				mp.set_shader_parameter("teinte", Color(1.16, 0.95, 0.80))
+				mp.set_shader_parameter("appoint", Vector3(0.17, 0.145, 0.13))
+				_enreg(mp)
+				mi.material_override = mp
+		sq.add_child(mi)
+		mi.visible = true
+	frais.free()
+
+static func Mage_visage(c: Vector3) -> bool:
+	return c.y > 1.55 and c.y < 1.82 and absf(c.x) < 0.12
 
 # ======================================================================================================== accessoires tenus
 static func _boite(st: SurfaceTool, a: Vector3, b: Vector3, uv: Vector2) -> void:
