@@ -289,9 +289,9 @@ def construire_col():
     for idx, (p, n, z) in enumerate(choisis):
         rad = Vector((p.x, 0, p.z - 0.0)); rad = rad.normalized() if rad.length > 1e-4 else Vector((0, 0, 1))
         if z == "B":
-            d = (n * 0.3 + Vector((0, -0.85, 0)) + rad * 0.35).normalized()
+            d = (n * 0.3 + Vector((0, -0.85, 0)) + rad * 0.25).normalized()
         else:
-            d = (n + Vector((0, 0.15, 0)) + rad * 0.45).normalized()
+            d = (n * 0.55 + Vector((0, -0.45, 0)) + rad * 0.15).normalized()
         t1 = d.cross(Vector((0, 1, 0)))
         if t1.length < 0.1:
             t1 = d.cross(Vector((1, 0, 0)))
@@ -299,11 +299,11 @@ def construire_col():
         for b in range(2):
             ang = (-1 if b == 0 else 1) * math.radians(15)
             axe = (d * math.cos(ang) + t1 * math.sin(ang)).normalized()
-            lg = 0.07 + 0.035 * random.random() + (0.02 if z == "A" else 0)
+            lg = 0.05 + 0.025 * random.random() + (0.012 if z == "A" else 0)
             base = p + n * 0.004 + t1 * (0.012 * (1 if b else -1))
             tip = base + axe * lg + Vector((0, -0.012, 0))
             var = "touffe%d" % ((idx + b) % 3)
-            hb = 0.019
+            hb = 0.027
             c3 = [base + t1 * hb * math.cos(a) + t2 * hb * math.sin(a) for a in (0, 2.094, 4.189)]
             u = lambda fu, fv: module_uv(var, fu, fv)
             for k in range(3):
@@ -495,10 +495,10 @@ def peindre(res):
     tone("manch", manch, "four")
     def touffe(i, j, w, h):
         t = j / (h - 1)
-        if i == 0 or i == w - 1: return 1                       # bord sombre
-        if t < 0.25: return 5 if i in (2, 3) else 4              # pointe claire
-        if t > 0.8: return 1                                    # racine sombre
-        return 3 if i <= 2 else 2
+        if i == 0 or i == w - 1: return 2                       # bord
+        if t < 0.3: return 5 if i in (2, 3) else 4              # pointe claire
+        if t > 0.85: return 2                                   # racine
+        return 4 if i <= 2 else 3
     for n in ("touffe0", "touffe1", "touffe2"):
         tone(n, touffe, "four")
     def ourlet(i, j, w, h):

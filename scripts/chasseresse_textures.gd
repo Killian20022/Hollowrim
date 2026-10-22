@@ -28,7 +28,7 @@ static var _cache := {}
 
 # ------------------------------------------------------------------ précalcul (comme GuerrierTextures)
 const DOSSIER := "res://assets/persos/chasseresse"
-const VERSION := 8
+const VERSION := 9
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
