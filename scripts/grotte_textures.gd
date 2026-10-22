@@ -671,7 +671,7 @@ static func flaque_image() -> Image:
 ## `echelle` du shader (= DENSITE / TX tuiles par mètre).
 const VERSION := 2            # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés (GrotteDecor)
 const TX := 128
-const DENSITE := 32.0         # texels par mètre (shaders/grotte.gdshader : echelle = DENSITE / TX)
+const DENSITE := 24.0         # texels par mètre (shaders/grotte.gdshader : echelle = DENSITE / TX)
 
 # palette principale de la planche (relevée sur l'image) : #141c26 bleu-noir, #3a4656 ardoise, #34465e bleu ardoise,
 # #9fb8dc bleu glace, #9aa6be gris-bleu clair, #5a4c42 brun gris, #7a4a2e brun bois, #e0a070 orange chaud
@@ -679,7 +679,7 @@ const P_ROCHE := ["#080c12", "#0f151d", "#141c26", "#1f2a3a", "#2a384c", "#34465
 const P_ROCHE_F := ["#0b1018", "#141c26", "#202c3c", "#2c3d54", "#3a4c68", "#4d6283", "#6a80a2", "#8fa5c6"]          # roche froide (zones de glace)
 const P_BRUN := ["#0d0a09", "#1a1411", "#2a211c", "#3c3029", "#5a4c42", "#6e5d50", "#85735f", "#9e8c78"]              # brun gris (entrée, abords des torches)
 const P_SOL := ["#0a0e14", "#141c26", "#1e2836", "#2a3646", "#3a4656", "#4a5870", "#5f6f8a", "#7a89a4"]              # dalles de chemin
-const P_NEIGE := ["#34465e", "#46597a", "#5f7597", "#7c8fb0", "#9aa6be", "#b4c4de", "#cfdcee"]                      # neige froide de la grotte (jamais blanche)
+const P_NEIGE := ["#2a384c", "#34465e", "#4d6283", "#6a80a2", "#8296b4", "#9aa6be", "#aebfdc"]                      # neige froide de la grotte (jamais blanche)
 const P_GLACE2 := ["#141c26", "#22324a", "#34465e", "#4c6a92", "#6f93c0", "#9fb8dc", "#c4d8f0"]
 const P_BOIS := ["#120b07", "#22150d", "#3a2416", "#5a3a22", "#7a4a2e", "#98613c", "#b87c4c", "#e0a070"]            # bois de mine (brun #7a4a2e, éclats orange chaud)
 
@@ -827,9 +827,9 @@ static func strate_v2() -> Image:
 			var R: Array = P_BRUN if b[3] % 3 == 2 else P_ROCHE
 			var t: int = b[2]
 			if dans == 0:
-				t += 2
-			elif dans >= b[1] - 2:
-				t -= 2
+				t += 1
+			elif dans >= b[1] - 1:
+				t -= 1
 			var bloc := int(floorf(float(x) + 17.0 * b[3]) / (18.0 + 10.0 * _hash_i(b[3], 2)))
 			if posmod(x + 17 * b[3], 28) == 0 and dans > 0:
 				t -= 2                                                # joint vertical

@@ -20,8 +20,8 @@ uniform float emis_tex = 0.0;        // part de la texture réinjectée en émis
 uniform float echelle_sup = 1.0;
 uniform float decoupe = 0.0;        // 1 : l'alpha de tex_base est un seuil de bruit comparé au masque du sommet (piste, bords tramés)
 uniform float triplan = 0.0;        // 1 : projection monde
-uniform float echelle = 0.25;       // tuiles par mètre (projection monde) : v2 : 128 texels / 4 m = 32 texels/m (GrotteTextures.DENSITE)
-uniform float par_m = 32.0;         // texels par mètre : le tirage de l'axe de projection se fait par texel (jonctions en pixels francs)
+uniform float echelle = 0.1875;       // tuiles par mètre (projection monde) : v2 : 128 texels / 5,33 m = 24 texels/m (GrotteTextures.DENSITE)
+uniform float par_m = 24.0;         // texels par mètre : le tirage de l'axe de projection se fait par texel (jonctions en pixels francs)
 uniform float givre = 0.0;          // part de givre sur les faces hautes (0 = aucun)
 uniform float mouille = 0.0;        // part de sol mouillé (0 = sec)
 uniform float ao_gamma = 1.0;       // contraste de l'occlusion peinte
