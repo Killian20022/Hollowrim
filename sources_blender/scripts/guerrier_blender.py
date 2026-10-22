@@ -179,16 +179,26 @@ def jupe(N, hi, graine=7):
             if i == N // 2:
                 continue
             faces.append((idx[(r, i)], idx[(r, i + 1)], idx[(r + 1, i + 1)], idx[(r + 1, i)]))
-    # pointes de fourrure (1 par colonne)
+    # houppes de fourrure arrondies, groupees par 3 colonnes (longueur commune + petit ecart), bas de la houppe plus etroit que le haut
     r_last = len(ts) - 1
+    grp = 12 if hi else 3
+    long_g = {}
     for i in range(nc - 1):
         if i == N // 2:
             continue
-        th = 0.5 * (cols[i][0] + cols[i + 1][0])
-        lg = 0.050 + 0.035 * rnd.random()
-        p = pos_jupe(th, 0.93, extra=0.006 + 0.004 * rnd.random(), z_force=ZTOP - 0.93 * (ZTOP - ZHEM) - lg)
-        k = add(p, th, 0.93 + (1.0 - 0.93) * min(1.0, lg / 0.12), 0.6, cols[i][1])
-        faces.append((idx[(r_last, i)], idx[(r_last, i + 1)], k))
+        g = (i if i < N // 2 else i + 1) // grp
+        if g not in long_g:
+            long_g[g] = 0.040 + 0.030 * rnd.random()
+        lg = long_g[g] + 0.008 * (rnd.random() - 0.5)
+        t0, t1 = cols[i][0], cols[i + 1][0]
+        thl, thr = t0 + 0.22 * (t1 - t0), t1 - 0.22 * (t1 - t0)
+        zb = ZTOP - 0.93 * (ZTOP - ZHEM) - lg
+        pl = pos_jupe(thl, 0.93, extra=0.007, z_force=zb)
+        pr = pos_jupe(thr, 0.93, extra=0.007, z_force=zb)
+        tv = 0.93 + 0.07 * min(1.0, lg / 0.07)
+        kl = add(pl, thl, tv, 0.6, cols[i][1])
+        kr = add(pr, thr, tv, 0.6, cols[i][1])
+        faces.append((idx[(r_last, i)], idx[(r_last, i + 1)], kr, kl))
     o = objet("jupe_hi" if hi else "jupe", verts, faces, uvs, pw)
     orienter(o, lambda p: Vector((CX, CY, p.z)))
     return o

@@ -80,6 +80,10 @@ func _lancer() -> void:
 	if n:
 		_stats(n)
 	var lumiere := _arg("lumiere", "crepuscule")
+	for nom in _arg("cacher", "").split(",", false):
+		var cible := n.find_child(nom, true, false)
+		if cible is Node3D:
+			(cible as Node3D).visible = false
 	if mode == "planche":
 		_regler(lumiere)
 		var planche := Image.create(W * 3, H * 3, false, Image.FORMAT_RGBA8)
