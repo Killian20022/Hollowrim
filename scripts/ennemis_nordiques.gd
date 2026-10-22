@@ -218,6 +218,30 @@ static func _boite(st: SurfaceTool, c: Vector3, h: Vector3, rot := Basis.IDENTIT
 				st.set_uv(uvs[i])
 				st.add_vertex(p[i])
 
+## Coin de fer (tête de hache) : dos épais en x=0, tranchant fin en x=lg ; le tranchant (demi-hauteur h_tr) est plus long que le dos (h_dos).
+static func _coin(st: SurfaceTool, o: Vector3, lg: float, h_dos: float, h_tr: float, ep: float) -> void:
+	var P := [o + Vector3(0, -h_dos, -ep), o + Vector3(0, -h_dos, ep), o + Vector3(0, h_dos, ep), o + Vector3(0, h_dos, -ep),
+		o + Vector3(lg, -h_tr, 0), o + Vector3(lg, h_tr, 0)]
+	var T := [[0, 3, 2], [0, 2, 1], [0, 4, 5], [0, 5, 3], [1, 2, 5], [1, 5, 4], [0, 1, 4], [3, 5, 2]]
+	var c := o + Vector3(lg * 0.4, 0, 0)
+	for t: Array in T:
+		var a: Vector3 = P[t[0]]
+		var b: Vector3 = P[t[1]]
+		var d: Vector3 = P[t[2]]
+		var n := (b - a).cross(d - a).normalized()
+		if n.dot((a + b + d) / 3.0 - c) < 0.0:
+			var tmp := b
+			b = d
+			d = tmp
+			n = -n
+		st.set_normal(n)
+		st.set_uv(Vector2(0, 0))
+		st.add_vertex(a)
+		st.set_uv(Vector2(1, 0))
+		st.add_vertex(b)
+		st.set_uv(Vector2(1, 1))
+		st.add_vertex(d)
+
 static func _materiau(cle: String, pal: Array, em := Color.BLACK) -> ShaderMaterial:
 	if not _mat.has(cle):
 		var m := Palette.materiau(Palette.tex(cle, pal, 4, 0.7), Vector2(1, 3), Color.WHITE, true)
@@ -236,13 +260,15 @@ static func _arme_mesh(nom: String) -> ArrayMesh:
 	fer.begin(Mesh.PRIMITIVE_TRIANGLES)
 	match nom:
 		"hache":
-			_boite(bois, Vector3(0, 0.34, 0), Vector3(0.017, 0.40, 0.017))
-			_boite(fer, Vector3(0.075, 0.68, 0), Vector3(0.07, 0.085, 0.011))
-			_boite(fer, Vector3(0.16, 0.68, 0), Vector3(0.028, 0.115, 0.007))
-			_boite(fer, Vector3(-0.03, 0.66, 0), Vector3(0.03, 0.04, 0.016))
+			_boite(bois, Vector3(0, 0.34, 0), Vector3(0.016, 0.40, 0.016))
+			_boite(fer, Vector3(0, 0.755, 0), Vector3(0.012, 0.02, 0.012))      # pointe de manche
+			_coin(fer, Vector3(0.012, 0.68, 0), 0.15, 0.07, 0.15, 0.022)         # tranchant biseauté, plus long que le dos
+			_boite(fer, Vector3(-0.02, 0.68, 0), Vector3(0.022, 0.04, 0.02))     # talon
 		"masse":
 			_boite(bois, Vector3(0, 0.30, 0), Vector3(0.016, 0.34, 0.016))
-			_boite(fer, Vector3(0, 0.66, 0), Vector3(0.05, 0.075, 0.05))
+			for k in 4:
+				var r := Basis(Vector3.UP, k * PI / 4.0)
+				_boite(fer, Vector3(0, 0.67, 0), Vector3(0.012, 0.075, 0.045), r)
 			_boite(fer, Vector3(0, 0.75, 0), Vector3(0.012, 0.03, 0.012))
 		"epee_courte":
 			_boite(bois, Vector3(0, 0.05, 0), Vector3(0.017, 0.07, 0.017))

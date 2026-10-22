@@ -1,0 +1,18 @@
+# Vues en jeu des ennemis (pnj/ennemis) - plusieurs orientations/distances, on garde les meilleures
+couloir_draugrs crypte 25,-27,-150,-3 ouvre=s1,s2,s3,secret,herse
+jarl_0 crypte 49.5,-30,0,-3 ouvre=s1,s2,s3,secret,herse
+ossuaire_0 crypte -19,-15,0,-5 ouvre=s1,s2,s3,secret,herse
+serment_0 crypte 9,-72,0,-3 ouvre=s1,s2,s3,secret,herse
+jarl_90 crypte 49.5,-30,90,-3 ouvre=s1,s2,s3,secret,herse
+ossuaire_90 crypte -19,-15,90,-5 ouvre=s1,s2,s3,secret,herse
+serment_90 crypte 9,-72,90,-3 ouvre=s1,s2,s3,secret,herse
+jarl_180 crypte 49.5,-30,180,-3 ouvre=s1,s2,s3,secret,herse
+ossuaire_180 crypte -19,-15,180,-5 ouvre=s1,s2,s3,secret,herse
+serment_180 crypte 9,-72,180,-3 ouvre=s1,s2,s3,secret,herse
+jarl_-90 crypte 49.5,-30,-90,-3 ouvre=s1,s2,s3,secret,herse
+ossuaire_-90 crypte -19,-15,-90,-5 ouvre=s1,s2,s3,secret,herse
+serment_-90 crypte 9,-72,-90,-3 ouvre=s1,s2,s3,secret,herse
+grotte_s101 grotte 101,0,0,-4
+grotte_s104 grotte 104,0,0,-4
+grotte_s107 grotte 107,0,0,-4
+grotte_s110 grotte 110,0,0,-4
