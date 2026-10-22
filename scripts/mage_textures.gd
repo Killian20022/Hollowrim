@@ -41,7 +41,7 @@ const RUNES := [
 static var _cache := {}
 
 const DOSSIER := "res://assets/personnages/mage"
-const VERSION := 6
+const VERSION := 8
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -305,6 +305,12 @@ const R_JUPE := Rect2i(0, 256, 256, 128)
 const R_DOUBLURE := Rect2i(192, 128, 64, 32)
 const R_PANTALON := Rect2i(0, 384, 256, 128)
 const ATLAS := Vector2i(256, 512)
+## passe Blender : écailles du plastron CUITES (sources_blender/scripts/mage_pieces.py : AO + pointiness de l'écaille détaillée vers
+## l'écaille légère, 128 texels/m, indices de ton 0-6 dans bake_plastron.png) : 15 x 6 cases de 9 x 10 texels, une par écaille ;
+## perle : 4 x 4 texels. (Région libre : le plastron du guerrier n'est pas dessiné dans l'atlas du mage.)
+const R_PLASTRON := Rect2i(0, 128, 135, 60)
+const R_PERLE := Rect2i(140, 128, 4, 4)
+const DOSSIER_BAKE := "res://assets/personnages/mage"
 ## ombre du visage sous la capuche (quasi noire, très léger grain)
 const R_MASQUE := Rect2i(80, 0, 16, 16)
 
@@ -321,11 +327,47 @@ static func accessoires() -> Image:
 	_jupe(img)
 	_doublure(img)
 	_ceinture(img)
+	_plastron_cuit(img)
 	for y in R_MASQUE.size.y:
 		for x in R_MASQUE.size.x:
 			img.set_pixel(R_MASQUE.position.x + x, R_MASQUE.position.y + y, Color("#060608") if GuerrierTextures._h(x, y, 2401) > 0.3 else Color("#0b0b0e"))
 	var pa := GuerrierTextures.pantalon()
 	img.blit_rect(pa, Rect2i(Vector2i.ZERO, pa.get_size()), R_PANTALON.position)
+	return img
+
+## Écailles cuites (tons du PNG -> palette ECAILLE, un ton plus sombre : la cotte est bleuie et reste dans la masse sombre de la robe),
+## texels hors écaille = ton 0 ; perle = BRODERIE (perle claire, reflet en haut à gauche, creux en bas à droite).
+static func _plastron_cuit(img: Image) -> void:
+	var bake := _lire_bake("bake_plastron.png")
+	var r := R_PLASTRON
+	for y in r.size.y:
+		for x in r.size.x:
+			var t := 0
+			if bake != null:
+				var c := bake.get_pixel(x, y)
+				t = clampi(roundi(c.r * 6.0) - TON_ECAILLE, 0, 6) if c.a > 0.5 else 0
+			img.set_pixel(r.position.x + x, r.position.y + y, _c(ECAILLE, t))
+	for y in R_PERLE.size.y:
+		for x in R_PERLE.size.x:
+			var t := 3
+			if x + y == 0:
+				t = 4
+			elif x + y >= 5:
+				t = 1
+			elif x + y >= 4:
+				t = 2
+			img.set_pixel(R_PERLE.position.x + x, R_PERLE.position.y + y, _c(BRODERIE, t))
+
+const TON_ECAILLE := 0
+
+static func _lire_bake(nom: String) -> Image:
+	var chemin := ProjectSettings.globalize_path("%s/%s" % [DOSSIER_BAKE, nom])
+	if not FileAccess.file_exists(chemin):
+		push_warning("MageTextures : bake absent " + nom)
+		return null
+	var img := Image.load_from_file(chemin)
+	if img != null:
+		img.convert(Image.FORMAT_RGBA8)
 	return img
 
 ## Œil (16 x 8) : blanc GRIS (pas blanc pur : à l'ombre de la capuche il ne doit pas briller), iris bleu glacier, pupille,
@@ -505,7 +547,23 @@ static func decoupes() -> Image:
 				m.set_pixel(x, y, Color(c.r * MageNordique.TEINTE_COL.r, c.g * MageNordique.TEINTE_COL.g, c.b * MageNordique.TEINTE_COL.b, c.a))
 	img.blit_rect(m, Rect2i(Vector2i.ZERO, m.get_size()), GuerrierTextures.D_MECHES.position)
 	_effiloche(img, D_EFFILOCHE)
+	_frange_cuite(img)
 	return img
+
+## Dents de la frange de la pèlerine CUITES (bake_frange.png : 6 x 4 cases de 10 x 14 texels = variantes de dent x tirages), tons -> PELERINE
+## (un ton plus sombre) ; transparence hors du contour de la dent.
+const D_FRANGE := Rect2i(128, 64, 60, 56)
+
+static func _frange_cuite(img: Image) -> void:
+	var bake := _lire_bake("bake_frange.png")
+	if bake == null:
+		return
+	var r := D_FRANGE
+	for y in r.size.y:
+		for x in r.size.x:
+			var c := bake.get_pixel(x, y)
+			if c.a > 0.5:
+				img.set_pixel(r.position.x + x, r.position.y + y, _c(PELERINE, clampi(roundi(c.r * 6.0) - 1, 0, 6)))
 
 ## Région du tissu effiloché dans l'atlas des découpes (manches larges, franges de la pèlerine) : u autour / le long du bord,
 ## v du haut (0) au bord libre (1).
