@@ -36,35 +36,35 @@ func _tester() -> void:
 	_verif(vill.size() >= 5 and ext.size() >= 4, "monde de dehors présent (%d villageois, %d draugrs de dehors)" % [vill.size(), ext.size()])
 	var deja: Node = ext[0]
 	deja.process_mode = Node.PROCESS_MODE_DISABLED      # un ennemi déjà désactivé par ailleurs (paisible)
-	var x := m.VILLAGE.x + 3.0
-	var z := m.VILLAGE.z + 3.0
-	_verif(vill[0].is_physics_processing() and m.village.is_processing(), "avant : villageois et village actifs")
+	var x: float = m.VILLAGE.x + 3.0
+	var z: float = m.VILLAGE.z + 3.0
+	_verif(vill[0].can_process() and m.village.can_process(), "avant : villageois et village actifs")
 	_verif(_sol(x, z), "avant : le sol du village est solide")
 	m._sous_terre(true)
 	await _images(3)
 	var tous_geles := true
 	for v in vill:
-		tous_geles = tous_geles and not v.is_physics_processing()
+		tous_geles = tous_geles and not v.can_process()
 	_verif(tous_geles, "sous terre : tous les villageois sont gelés")
-	_verif(not m.village.is_processing(), "sous terre : le village est gelé")
+	_verif(not m.village.can_process(), "sous terre : le village est gelé")
 	var geles := 0
 	for d in ext:
-		if not d.is_physics_processing():
+		if not d.can_process():
 			geles += 1
 	_verif(geles == ext.size(), "sous terre : les %d draugrs de dehors sont gelés" % ext.size())
-	_verif(m.joueur.is_physics_processing(), "sous terre : le joueur n'est pas gelé")
-	_verif(m.tertre.is_processing(), "sous terre : le tertre tourne toujours")
+	_verif(m.joueur.can_process(), "sous terre : le joueur n'est pas gelé")
+	_verif(m.tertre.can_process(), "sous terre : le tertre tourne toujours")
 	_verif(_sol(x, z), "sous terre : la collision du sol du village est conservée")
 	_verif(_sol(0.0, 0.0), "sous terre : la collision du terrain est conservée")
 	m._sous_terre(false)
 	await _images(3)
 	var tous_vivants := true
 	for v in vill:
-		tous_vivants = tous_vivants and v.is_physics_processing()
-	_verif(tous_vivants and m.village.is_processing(), "dehors : villageois et village reprennent")
+		tous_vivants = tous_vivants and v.can_process()
+	_verif(tous_vivants and m.village.can_process(), "dehors : villageois et village reprennent")
 	var reveilles := 0
 	for d in ext:
-		if d != deja and d.is_physics_processing():
+		if d != deja and d.can_process():
 			reveilles += 1
 	_verif(reveilles == ext.size() - 1, "dehors : les draugrs de dehors reprennent")
 	_verif(deja.process_mode == Node.PROCESS_MODE_DISABLED, "dehors : l'ennemi déjà désactivé reste désactivé")

@@ -22,11 +22,22 @@ func construire() -> void:
 	for m: Dictionary in plan():
 		module(m)
 	verifier()
-	# portée de dessin ~30 m : au-delà, rien n'est dessiné (le brouillard noie déjà l'essentiel ; 70 m avant : tout le couloir depuis l'entrée)
-	for n in d.racine.get_children():
-		if n is GeometryInstance3D:
-			(n as GeometryInstance3D).visibility_range_end = 30.0 + minf((n as GeometryInstance3D).get_aabb().size.length() * 0.5, 30.0)   # mesuré au centre : bord proche visible jusqu'à 30 m
-			(n as GeometryInstance3D).visibility_range_end_margin = 3.0
+
+## Portée de dessin ~30 m (bord proche) pour tous les maillages d'une racine de crypte. À appeler APRÈS `CrypteDecor.finir()` (les
+## maillages fusionnés par case de 8 m n'existent pas avant : l'ancienne boucle de `construire()` ne voyait rien et la portée de 70 m
+## n'a jamais été appliquée). La portée se mesure au centre de l'objet : on ajoute son demi-diamètre (borné). Au-delà, la brume
+## (densité 0,028) noie déjà l'essentiel. Sans effet sur ce qui a déjà une portée.
+const PORTEE_DESSIN := 30.0
+static func limiter_portee(racine: Node) -> void:
+	for n in racine.find_children("*", "GeometryInstance3D", true, false):
+		var g := n as GeometryInstance3D
+		if g.visibility_range_end > 0.0:
+			continue
+		var d := g.get_aabb().size.length() * 0.5
+		if d > 30.0:
+			continue
+		g.visibility_range_end = PORTEE_DESSIN + d
+		g.visibility_range_end_margin = 3.0
 
 # ------------------------------------------------------------------ la table
 func _salle(id: String, o: Vector2, dim: Vector2, h: float, theme: String, role: String, graine: int, ouv: Array, plus := {}) -> Dictionary:

@@ -823,7 +823,6 @@ func construire() -> void:
 	decor.finir()
 	etapes["finir"] = Time.get_ticks_msec() - tp
 	_coque_solide(decor.coll)
-	_portee_dessin()
 	temps_ms = Time.get_ticks_msec() - t0
 
 ## Coque de collision DÉCOUPÉE en morceaux (cases de CASE_COLL m dans le plan XZ) au lieu d'un seul ConcavePolygonShape3D de ~144 k
@@ -859,6 +858,11 @@ var nb_morceaux_coque := 0
 ## (cases de 10 m) ; la portée est mesurée au centre de l'objet : on ajoute donc son demi-diamètre (borné) pour que le BORD proche reste
 ## visible jusqu'à 30 m. Les très gros objets (> 60 m) ne sont jamais coupés.
 const PORTEE_DESSIN := 30.0
+
+## Fil principal seulement : get_aabb interroge le serveur de rendu (blocage garanti dans le fil de construction).
+func _ready() -> void:
+	_portee_dessin()
+
 func _portee_dessin() -> void:
 	for n in find_children("*", "GeometryInstance3D", true, false):
 		var g := n as GeometryInstance3D
