@@ -212,8 +212,6 @@ static func _pont(k: GrotteKit, z: Dictionary, lanternes: Array) -> void:
 		_poutre(d, b0 - T * 0.15, b1 + T * 0.15, 0.2, 0.2)
 		d.boite("fer", b0, Vector3(0.22, 0.05, 0.22))
 		d.boite("fer", b1, Vector3(0.22, 0.05, 0.22))
-		if absf(ub) > 2.0 and k.libre(id, s, ub, 0.5, 0.5):
-			k._occuper_fixe(id, s, ub, 0.5)
 	# lanternes aux garde-corps (côté amont), bannière pendue au milieu
 	for fu: float in [u0 + span * 0.22, u0 + span * 0.68]:
 		var hook: Vector3 = P.call(fu, 0.98, yd + 1.05)
@@ -242,6 +240,25 @@ static func _arene(k: GrotteKit, z: Dictionary) -> void:
 	var s1: float = z["s"][1]
 	var rp := RandomNumberGenerator.new()
 	rp.seed = 7351
+	# 2. autel de pierre en ruine, adossé à la paroi de gauche, bougies éteintes sans lumière
+	var sa := (s0 + s1) * 0.5
+	var place := false
+	var ps := Vector3.ZERO
+	var lat_a := 0.0
+	var s_a := sa
+	for dec: float in [0.0, 1.0, -1.0, 2.0, -2.0, 3.0, -3.0]:
+		var ss := sa + dec
+		var m := k._mur(id, ss, -1.0, 0.6)
+		if m.is_empty():
+			continue
+		var la := -(float(m["lat"]) - 1.15)
+		if k.libre(id, ss, la, 1.0, 0.6):
+			place = true
+			s_a = ss
+			lat_a = la
+			break
+	if place:
+		_autel(k, id, s_a, lat_a)
 	# 1. enceinte : rangées de pieux inégaux près des parois, reliés par une lisse
 	for cote: float in [-1.0, 1.0]:
 		var prev := Vector3.ZERO
@@ -262,26 +279,11 @@ static func _arene(k: GrotteKit, z: Dictionary) -> void:
 			else:
 				prev = Vector3.ZERO
 			s += rp.randf_range(1.2, 1.9)
-	# 2. autel de pierre en ruine, adossé à la paroi de gauche, bougies éteintes sans lumière
-	var sa := (s0 + s1) * 0.5
-	var place := false
-	var ps := Vector3.ZERO
-	var lat_a := 0.0
-	var s_a := sa
-	for dec: float in [0.0, 1.0, -1.0, 2.0, -2.0, 3.0, -3.0]:
-		var ss := sa + dec
-		var m := k._mur(id, ss, -1.0, 0.6)
-		if m.is_empty():
-			continue
-		var la := -(float(m["lat"]) - 1.15)
-		if k.libre(id, ss, la, 1.0, 0.6):
-			place = true
-			s_a = ss
-			lat_a = la
-			break
-	if not place:
-		return
-	ps = g.sol_en(id, s_a, lat_a)
+
+static func _autel(k: GrotteKit, id: String, s_a: float, lat_a: float) -> void:
+	var g: Grotte = k.g
+	var d: GrotteDecor = g.decor
+	var ps := g.sol_en(id, s_a, lat_a)
 	var lac := atan2(g.tang(id, s_a).x, g.tang(id, s_a).z)
 	var bz := Basis(Vector3.UP, lac)
 	k._add("dalle_0", ps + Vector3(0, -0.05, 0), lac, Vector3(1.5, 1.7, 1.2))
@@ -296,4 +298,22 @@ static func _arene(k: GrotteKit, z: Dictionary) -> void:
 		d.bougie(top + bz * Vector3(float(q[0]), 0, float(q[1])), false)
 	d.crane(top + bz * Vector3(-0.05, 0.0, 0.3), lac + 2.5)
 	k._occuper_fixe(id, s_a, lat_a, 1.4)
+	# demi-cercle de pieux devant l'autel (côté salle), reliés par une lisse
+	var rq := RandomNumberGenerator.new()
+	rq.seed = 7352
+	var prev := Vector3.ZERO
+	for a_deg: float in [-75.0, -45.0, -15.0, 15.0, 45.0, 75.0]:
+		var a := deg_to_rad(a_deg)
+		var sq := s_a + sin(a) * 2.0
+		var lq := lat_a + cos(a) * 2.0
+		if not (k.libre(id, sq, lq, 0.3, 0.6) and g.libre(id, sq, lq, 0.3)):
+			prev = Vector3.ZERO
+			continue
+		var pq := g.sol_en(id, sq, lq)
+		var hq := rq.randf_range(1.5, 2.3)
+		_pieu(d, pq, hq, Vector3(rq.randf_range(-0.1, 0.1), 0.0, rq.randf_range(-0.1, 0.1)) * hq, rq.randf_range(0.1, 0.14))
+		k._occuper_fixe(id, sq, lq, 0.4)
+		if prev != Vector3.ZERO:
+			_poutre(d, prev + Vector3(0, 0.9, 0), pq + Vector3(0, 0.9, 0), 0.07, 0.07)
+		prev = pq
 	print("grotte v2 : autel de l'arène à s=%.1f lat=%.1f" % [s_a, lat_a])

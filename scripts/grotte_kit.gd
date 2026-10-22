@@ -302,6 +302,56 @@ static func _g_pan(graine: int) -> Dictionary:
 	G["prof"] = prof
 	return G
 
+## ---- v1 (gabarits lisses d'origine), gardés UNIQUEMENT pour leurs dimensions : h et prof décident des solides et des places libres,
+## donc des collisions, qui ne doivent pas bouger avec la v2.
+static func _g_bloc_v1(graine: int, sub: int, ecrase: float, etire: float, givre := 1.0, aplat_haut := 0.75, mat := "k_roche_neige") -> Dictionary:
+	var rg := RandomNumberGenerator.new()
+	rg.seed = graine
+	var m := _masse(graine, sub, Vector3(etire, ecrase, 1.0), 1.0, 0.3, aplat_haut)
+	var Q: PackedVector3Array = m[0]
+	var rot := rg.randf() * TAU
+	var rmax := 0.0
+	var ymin := INF
+	var ymax := -INF
+	for i in Q.size():
+		Q[i] = Q[i].rotated(Vector3.UP, rot)
+		rmax = maxf(rmax, Vector2(Q[i].x, Q[i].z).length())
+		ymin = minf(ymin, Q[i].y)
+		ymax = maxf(ymax, Q[i].y)
+	for i in Q.size():                      # emprise au sol : rayon 1 ; pied enfoncé de 6 cm
+		Q[i] = (Q[i] - Vector3(0, ymin, 0)) / rmax - Vector3(0, 0.06, 0)
+	var centre := Vector3(0, (ymax - ymin) / rmax * 0.4, 0)
+	var G := {"surf": {}, "h": (ymax - ymin) / rmax, "prof": 0.0}
+	_lisse(_S(G, mat), Q, m[1], centre, _couleurs_masse(Q, m[1], m[2], centre, graine, givre))
+	return G
+
+## Pan de paroi : 3-4 dalles bosselées empilées en gradins (les dessus forment des rebords givrés). +z = hors du mur.
+static func _g_pan_v1(graine: int) -> Dictionary:
+	var rg := RandomNumberGenerator.new()
+	rg.seed = graine
+	var G := {"surf": {}, "h": 0.0, "prof": 0.0}
+	var S := _S(G, "k_roche_neige")
+	var y := 0.0
+	var n := rg.randi_range(3, 4)
+	var prof := 0.0
+	for k in n:
+		var W := rg.randf_range(0.6, 1.4) * (1.0 - 0.06 * k)
+		var Dp := rg.randf_range(0.45, 0.95)
+		var H := rg.randf_range(0.45, 1.1)
+		var m := _masse(graine * 13 + k, 1, Vector3(W, H * 0.6, Dp), 1.7, 0.7, rg.randf_range(0.35, 0.7))
+		var Q: PackedVector3Array = m[0]
+		var off := Vector3(rg.randf_range(-0.5, 0.5), y + H * 0.42, Dp * 0.2 + float(n - k) * 0.1 * rg.randf_range(0.3, 1.6))
+		var tourne := Basis(Vector3.UP, rg.randf_range(-0.35, 0.35)) * Basis(Vector3.FORWARD, rg.randf_range(-0.2, 0.2))
+		for i in Q.size():
+			Q[i] = tourne * Q[i] + off
+		prof = maxf(prof, off.z + Dp)
+		var centre := off
+		_lisse(S, Q, m[1], centre, _couleurs_masse(Q, m[1], m[2], centre, graine + k, 1.0))
+		y += H * rg.randf_range(0.62, 0.8)
+	G["h"] = y + 0.3
+	G["prof"] = prof
+	return G
+
 ## Concrétion tournée (stalagmite vers le haut, stalactite vers le bas), hauteur 1, rayon de pied `rb`, facettes plates.
 static func _concretion(S: Dictionary, graine: int, base: Vector3, rb: float, h: float, bas: bool, givre: bool, tronque := false, cotes := 5, nr := 6) -> void:
 	var rg := RandomNumberGenerator.new()
@@ -457,9 +507,9 @@ static func _g_pic(graine: int, n: int) -> Dictionary:
 			var dh: Vector3 = ((r0[i] as Vector3) + (r0[j] as Vector3)) * 0.5 - base
 			dh.y = 0.0
 			var ton: float = [1.0, 0.82, 0.66][(i + k) % 3]
-			var c0 := Color(0.34 * ton, 0.42 * ton, 0.56 * ton, 0.0)     # pied bleu ardoise -> corps bleu glace #9fb8dc -> pointe claire
-			var c1 := Color(0.6 * ton, 0.74 * ton, 0.95 * ton, 0.0)
-			var c2 := Color(0.82 * ton, 0.95 * ton, 1.15 * ton, 0.0)
+			var c0 := Color(0.28 * ton, 0.34 * ton, 0.46 * ton, 0.0)     # pied bleu ardoise -> corps bleu glace #9fb8dc -> pointe claire
+			var c1 := Color(0.46 * ton, 0.58 * ton, 0.78 * ton, 0.0)
+			var c2 := Color(0.66 * ton, 0.8 * ton, 1.0 * ton, 0.0)
 			_tri(S, r0[i], r0[j], r1[j], dh, c0, c0, c1)
 			_tri(S, r0[i], r1[j], r1[i], dh, c0, c1, c1)
 			_tri(S, r1[i], r1[j], tip, dh + Vector3(0, 0.4, 0), c1, c1, c2)
@@ -544,6 +594,21 @@ func _gabarits() -> void:
 		gab["neige_%d" % k] = _g_neige(8701 + k * 11)
 	gab["frange_0"] = _g_frange(8401, 9)
 	gab["frange_1"] = _g_frange(8402, 12)
+	rg.seed = 52031                    # mêmes tirages qu'à l'origine : dimensions v1 de chaque gabarit
+	for k in 8:
+		gab["bloc_%d" % k]["dim_v1"] = _g_bloc_v1(7100 + k * 37, 2, rg.randf_range(0.55, 0.9), rg.randf_range(1.0, 1.5))
+	for k in 3:
+		gab["caillou_%d" % k]["dim_v1"] = _g_bloc_v1(7500 + k * 41, 1, rg.randf_range(0.5, 0.8), rg.randf_range(1.0, 1.4))
+	for k in 3:
+		gab["dalle_%d" % k]["dim_v1"] = _g_bloc_v1(7700 + k * 43, 2, rg.randf_range(0.26, 0.34), rg.randf_range(1.2, 1.6), 1.7, 0.35, "k_terrasse")
+	for k in 4:
+		gab["pan_%d" % k]["dim_v1"] = _g_pan_v1(7900 + k * 53)
+	for nom: String in gab:
+		if (gab[nom] as Dictionary).has("dim_v1"):
+			var dv: Dictionary = gab[nom]["dim_v1"]
+			gab[nom]["h"] = dv["h"]
+			gab[nom]["prof"] = dv["prof"]
+			(gab[nom] as Dictionary).erase("dim_v1")
 	if not OS.get_cmdline_user_args().has(OPTION_CODE):
 		_depuis_glb()
 
@@ -590,12 +655,8 @@ func _depuis_glb() -> void:
 			for q in v.size():
 				ii.append(q)
 			S["i"] = ii
-		var ymax := -INF
-		var zmax := -INF
-		for p in v:
-			ymax = maxf(ymax, p.y)
-			zmax = maxf(zmax, p.z)
-		var G := {"surf": {}, "h": ymax + (0.3 if nom.begins_with("pan_") else 0.06), "prof": zmax if nom.begins_with("pan_") else 0.0}
+		# h et prof RESTENT ceux des gabarits par code : ils décident des solides (dalles > 33 cm, blocs…), donc des collisions, qui ne bougent pas
+		var G := {"surf": {}, "h": float(gab[nom]["h"]), "prof": float(gab[nom]["prof"])}
 		G["surf"]["k_terrasse" if nom.begins_with("dalle_") else "k_roche_neige"] = S
 		gab[nom] = G
 		lus += 1
@@ -851,7 +912,7 @@ func _stalagmite(id: String, s: float, lat: float, h: float, solide := true) -> 
 	var e := h * r.randf_range(0.85, 1.2)
 	var yaw := r.randf() * TAU
 	var sty := GrotteDecor._style_en(g, id, s)
-	if (sty == "glace" or sty == "cristaux") and GrotteDecor.hash2(p.x * 1.7, p.z * 2.3) < 0.55:
+	if (sty == "glace" or sty == "cristaux") and GrotteDecor.hash2(p.x * 1.7, p.z * 2.3) < 0.4:
 		_add("pic_%d" % (k % 3), p, yaw, Vector3(e * 0.8, h, e * 0.8))      # v2 : aiguille de glace (formation) au lieu de la roche
 	else:
 		_add(nom, p, yaw, Vector3(e, h, e))
