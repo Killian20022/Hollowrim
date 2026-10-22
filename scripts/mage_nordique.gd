@@ -37,6 +37,8 @@ const SECTEURS := 20
 const Z_CENTRE := -0.03
 
 static var chrono := false
+## vrai quand les écailles Blender sont posées sur le devant (l'amulette se pose par-dessus)
+static var avec_plastron := true
 
 static func vider() -> void:
 	MageTextures.vider()
@@ -129,7 +131,11 @@ static func creer(options := {}) -> Node3D:
 	pieces["ceinture"].visible = false
 	# passe 2 : manches larges évasées à bord effiloché, frange effilochée de la pèlerine, col de fourrure au bas de la capuche
 	acc.manches(pieces["tunique"])
-	acc.frange_tissu(pieces["mante"], 1.10, 1.47, 0.06, 0.24)
+	# passe Blender : plastron d'écailles en relief + perles, frange effilochée en dents réelles (sources_blender/scripts/mage_pieces.py) ;
+	# sans le glb (ou avec {"blender": false}) : anciennes cartes de tissu
+	var blender: bool = options.get("blender", true) and acc.pieces_blender(pieces["tunique"], pieces["mante"])
+	if not blender:
+		acc.frange_tissu(pieces["mante"], 1.10, 1.47, 0.06, 0.24)
 	if pieces.has("capuche") and options.get("capuche", true):
 		acc.poitrine_libre = true
 		acc.fourrure_bord(pieces["capuche"], 1.44, 1.58, 0.06, 0.10, 0.7, 1.8)
@@ -141,6 +147,9 @@ static func creer(options := {}) -> Node3D:
 	acc.amulette(pieces["tunique"])
 	acc.pierre_ceinture()
 	acc.boucle_ceinture()
+	if blender:
+		# les écailles recouvrent le devant du torse : la tunique n'y est plus visible (triangles économisés)
+		GuerrierNordique._filtrer(pieces["tunique"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.0 and absf(c.x) < 0.135 and c.y > 1.09 and c.y < 1.40))
 	if options.get("baton", true):
 		acc.baton()
 	_t("accessoires (geometrie)", t0)
@@ -318,7 +327,7 @@ class Acc extends GuerrierNordique.Accessoires:
 			push_warning("MageNordique : amulette hors de la tunique")
 			return
 		var os_ := sq.find_bone("spine_03")
-		var c: Vector3 = pr[0] + pr[1] * 0.022
+		var c: Vector3 = pr[0] + pr[1] * (0.034 if MageNordique.avec_plastron else 0.022)
 		_disque_runique(c, pr[1], 0.036, os_)
 		for cote: float in [-1.0, 1.0]:
 			var haut := Vector3(0.075 * cote, 1.50, 0.035)
@@ -476,6 +485,84 @@ class Acc extends GuerrierNordique.Accessoires:
 							if w4[j] is int:
 								w4[j] = [PackedInt32Array([w4[j], 0, 0, 0]), PackedFloat32Array([1.0, 0, 0, 0])]
 					_quad(dec, pts[k][i], pts[k][i + 1], pts[k + 1][i + 1], pts[k + 1][i], Vector2(u0, v0 / D.y), Vector2(u1, v0 / D.y), Vector2(u1, v1 / D.y), Vector2(u0, v1 / D.y), w4, centre)
+
+	# ------------------------------------------------------------ pièces modelées dans Blender (plastron d'écailles, perles, frange)
+	const GLB_PIECES := "res://assets/persos/mage/blender/mage_pieces.glb"
+
+	## Charge le glb de sources_blender/scripts/mage_pieces.py : triangles versés tels quels (winding et normales du glb), UV ramenés
+	## dans les régions de l'atlas ; poids d'os COPIÉS du corps (sommet le plus proche de la tunique / de la mante), par morceau
+	## (une écaille, une perle, une dent = un bloc de triangles connexes, tous les sommets prennent les poids du même point : le morceau
+	## reste rigide). Plastron et perles -> surface opaque, frange -> surface découpée (double face).
+	func pieces_blender(tunique: MeshInstance3D, mante: MeshInstance3D) -> bool:
+		var ps := load(GLB_PIECES) as PackedScene
+		if ps == null:
+			push_warning("MageNordique : glb Blender absent, anciennes franges")
+			MageNordique.avec_plastron = false
+			return false
+		MageNordique.avec_plastron = true
+		var inst := ps.instantiate()
+		var at := tunique.mesh.surface_get_arrays(0)
+		var am := mante.mesh.surface_get_arrays(0)
+		var A := Vector2(MageTextures.ATLAS)
+		var D := Vector2(GuerrierTextures.DECOUPES)
+		for mi: MeshInstance3D in inst.find_children("*", "MeshInstance3D", true, false):
+			var nom := String(mi.name)
+			var arr := mi.mesh.surface_get_arrays(0)
+			var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var nr: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+			var uv: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV]
+			var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+			var tr: Transform3D = mi.transform
+			# blocs connexes (union-find sur les indices)
+			var pere := PackedInt32Array()
+			pere.resize(v.size())
+			for i in v.size():
+				pere[i] = i
+			for t in range(0, idx.size(), 3):
+				for k in [1, 2]:
+					var a := _racine(pere, idx[t])
+					var b := _racine(pere, idx[t + k])
+					if a != b:
+						pere[b] = a
+			var haut := {}
+			var somme := {}
+			var nbs := {}
+			for i in v.size():
+				var r := _racine(pere, i)
+				var p := tr * v[i]
+				somme[r] = somme.get(r, Vector3.ZERO) + p
+				nbs[r] = int(nbs.get(r, 0)) + 1
+				if not haut.has(r) or p.y > (haut[r] as Vector3).y:
+					haut[r] = p
+			var poids := {}
+			for r: int in somme:
+				if nom.begins_with("frange"):
+					poids[r] = _poids_proche(mante, am, haut[r])
+				else:
+					poids[r] = _poids_proche(tunique, at, (somme[r] as Vector3) / float(nbs[r]))
+			var s: Dictionary = dec if nom.begins_with("frange") else op
+			for i in idx:
+				var r := _racine(pere, i)
+				s["v"].append(tr * v[i])
+				s["n"].append((tr.basis * nr[i]).normalized())
+				var u: Vector2 = uv[i]
+				if nom.begins_with("frange"):
+					s["uv"].append((Vector2(MageTextures.D_FRANGE.position) + u * Vector2(MageTextures.D_FRANGE.size)) / D)
+				elif nom.begins_with("perles"):
+					s["uv"].append((Vector2(MageTextures.R_PERLE.position) + Vector2(1.5, 1.5)) / A)
+				else:
+					s["uv"].append((Vector2(MageTextures.R_PLASTRON.position) + u * Vector2(MageTextures.R_PLASTRON.size)) / A)
+				var pw: Array = poids[r]
+				s["b"].append_array(pw[0])
+				s["w"].append_array(pw[1])
+		inst.free()
+		return true
+
+	static func _racine(pere: PackedInt32Array, i: int) -> int:
+		while pere[i] != i:
+			pere[i] = pere[pere[i]]
+			i = pere[i]
+		return i
 
 	# ------------------------------------------------------------ frange effilochée de la pèlerine
 	## Une carte de tissu effiloché par bord libre BAS de `mi` (y entre y0 et y1, hors ouverture du devant), pendant vers le bas
