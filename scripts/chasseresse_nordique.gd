@@ -44,7 +44,8 @@ static func _t(etape: String, t0: int) -> void:
 # ======================================================================================================== fabrique
 static func creer(options := {}) -> Node3D:
 	var C := Color.WHITE
-	var app := {"corps": "femme", "cheveux": "Hair_Long", "teinte_cheveux": Color(0.85, 0.72, 0.5), "peau": PEAU,
+	var homme: bool = String(options.get("corps", "femme")) == "homme"      # variante corps homme (archers bandits) ; défaut = chasseresse
+	var app := {"corps": "homme" if homme else "femme", "cheveux": "Hair_Long", "teinte_cheveux": Color(0.85, 0.72, 0.5), "peau": PEAU,
 		"tenue": {"tunique": C, "pantalon": C, "bottes": C, "ceinture": C, "brassards": C, "cape": C, "mante": C}}
 	var t0 := Time.get_ticks_usec()
 	var racine := Humain.creer(app)
@@ -60,7 +61,7 @@ static func creer(options := {}) -> Node3D:
 	_habiller(pieces["bottes"], GuerrierNordique.materiau(ChasseresseTextures.tex("bottes")))
 	_habiller(pieces["brassards"], GuerrierNordique.materiau(ChasseresseTextures.tex("brassards")))
 	_habiller(pieces["mante"], GuerrierNordique.materiau(ChasseresseTextures.tex("mante")))
-	for nom in ["Superhero_Female", "SuperHero_Female"]:
+	for nom in ["Superhero_Female", "SuperHero_Female", "Superhero_Male", "SuperHero_Male"]:
 		if pieces.has(nom):
 			pieces[nom].visible = false
 	_peau(pieces)
@@ -83,14 +84,15 @@ static func creer(options := {}) -> Node3D:
 		mi_ch.material_override = GuerrierNordique.materiau(ChasseresseTextures.cheveux(src), true, false, true, "cheveux_chasseresse")
 	_t("matieres", t0)
 	# silhouette plus élancée (passe 2) : jupe et cuisses resserrées vers l'axe de chaque jambe, taille marquée
-	_deformer(pieces["tunique"], func(q: Vector3) -> Vector3:
-		var f := 1.0 - 0.10 * smoothstep(1.02, 0.80, q.y)
-		var t := 1.0 - 0.05 * smoothstep(1.10, 0.98, q.y) * smoothstep(0.86, 0.98, q.y)
-		return Vector3(q.x * f * t, q.y, q.z * (0.5 + 0.5 * f) * t))
-	_deformer(pieces["pantalon"], func(q: Vector3) -> Vector3:
-		var f := 1.0 - 0.09 * smoothstep(0.46, 0.62, q.y) * (1.0 - smoothstep(0.96, 1.05, q.y))
-		var cx := signf(q.x) * 0.095
-		return Vector3(cx + (q.x - cx) * f, q.y, q.z * f))
+	if not homme:
+		_deformer(pieces["tunique"], func(q: Vector3) -> Vector3:
+			var f := 1.0 - 0.10 * smoothstep(1.02, 0.80, q.y)
+			var t := 1.0 - 0.05 * smoothstep(1.10, 0.98, q.y) * smoothstep(0.86, 0.98, q.y)
+			return Vector3(q.x * f * t, q.y, q.z * (0.5 + 0.5 * f) * t))
+		_deformer(pieces["pantalon"], func(q: Vector3) -> Vector3:
+			var f := 1.0 - 0.09 * smoothstep(0.46, 0.62, q.y) * (1.0 - smoothstep(0.96, 1.05, q.y))
+			var cx := signf(q.x) * 0.095
+			return Vector3(cx + (q.x - cx) * f, q.y, q.z * f))
 	# col de fourrure ouvert en V sur le devant (baudrier, fibule et tresses se lisent)
 	GuerrierNordique._filtrer(pieces["mante"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.0 and absf(c.x) < 0.13 + (c.y - 1.28) * 0.3 and c.y < 1.47))
 	var rest_skin := sq.create_skin_from_rest_transforms()
@@ -117,15 +119,13 @@ static func creer(options := {}) -> Node3D:
 	acc.dos_libre = false
 	acc.poitrine_libre = false
 	acc.fourrure_bord(pieces["bottes"], 0.30, 0.45, 0.06, 0.09, 1.0, 1.6)
-	acc.frange(pieces["tunique"], func(m: Vector3) -> bool: return m.y < 0.72, 0.05, 0.08, Vector3.DOWN, 1.5)
-	var xin := 9.0
-	for p in (pieces["brassards"].mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array):
-		xin = minf(xin, absf(p.x))
-	acc.frange(pieces["brassards"], func(m: Vector3) -> bool: return absf(m.x) < xin + 0.03, 0.05, 0.075, Vector3.ZERO, 1.8)
+	# jupe (patrons de cuir à revers, frange de fourrure), manchettes retournées, ourlet de la cape, touffes du col : modelés dans Blender
+	acc.revers_blender(pieces, "homme_" if homme else "")
 	acc.boucle_rect(Vector3(0.0, 0.966, 0.124))
 	acc.fibule_sur(pieces["mante"], pieces["tunique"], Vector2(-0.115, 1.40))
 	acc.yeux(yeux)
-	acc.tresses()
+	if not homme:
+		acc.tresses()
 	acc.capuche()
 	if options.get("carquois", true):
 		acc.carquois()
@@ -391,6 +391,50 @@ class PoseArcher extends SkeletonModifier3D:
 ## Accessoires de la chasseresse : ceux du guerrier (mèches de fourrure, disques ouvragés, yeux, intégration à l'atlas) + arc,
 ## carquois et flèches, couteau, tresses blondes, frange, baudrier paramétré. Atlas : ChasseresseTextures (même disposition).
 class Acc extends GuerrierNordique.Accessoires:
+
+	## Pièces modélisées dans Blender (sources_blender/scripts/chasseresse_blender.py -> revers.glb) : patrons de cuir à revers de la
+	## jupe, manchettes retournées à bord de fourrure, ourlet roulé de la cape, touffes du col. Le glb n'a pas de poids : chaque
+	## sommet prend ceux du sommet le plus proche de la pièce habillée (tunique pour jupe et manches, cape, mante pour le col).
+	## Résultat mis en cache (mêmes os, mêmes pièces pour toutes les chasseresses).
+	static var _revers_cache := {}
+	func revers_blender(pieces: Dictionary, cle: String) -> void:
+		if not _revers_cache.has(cle):
+			_revers_cache[cle] = _revers_calculer(pieces, cle)
+		var c: Dictionary = _revers_cache[cle]
+		for k: String in ["v", "n", "uv", "b", "w"]:
+			op[k].append_array(c[k])
+
+	func _revers_calculer(pieces: Dictionary, cle: String) -> Dictionary:
+		var sortie := {"v": PackedVector3Array(), "n": PackedVector3Array(), "uv": PackedVector2Array(), "b": PackedInt32Array(), "w": PackedFloat32Array()}
+		var ps := load("res://assets/persos/chasseresse/blender/%srevers.glb" % cle) as PackedScene
+		if ps == null:
+			return sortie
+		var rac := ps.instantiate()
+		var source := {"jupe": pieces["tunique"], "manches": pieces["tunique"], "cape": pieces["cape"], "col": pieces["mante"]}
+		var cache_src := {}
+		for mi: MeshInstance3D in rac.find_children("*", "MeshInstance3D", true, false):
+			var src: MeshInstance3D = source.get(String(mi.name))
+			if src == null:
+				continue
+			var sa := src.mesh.surface_get_arrays(0)
+			var a := mi.mesh.surface_get_arrays(0)
+			var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+			var nrm: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+			var uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+			var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX] if a[Mesh.ARRAY_INDEX] != null else PackedInt32Array(range(v.size()))
+			for i in idx:
+				var pk := v[i].snapped(Vector3.ONE * 0.0002)
+				var kk := "%s|%s" % [mi.name, pk]
+				if not cache_src.has(kk):
+					cache_src[kk] = _poids_proche(src, sa, pk)
+				var pw: Array = cache_src[kk]
+				sortie["v"].append(v[i])
+				sortie["n"].append(nrm[i])
+				sortie["uv"].append(uv[i])
+				sortie["b"].append_array(pw[0])
+				sortie["w"].append_array(pw[1])
+		rac.free()
+		return sortie
 
 	## Haut du dos laissé sans touffes (la capuche rabattue s'y pose).
 	var dos_libre := false

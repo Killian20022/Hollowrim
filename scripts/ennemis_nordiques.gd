@@ -126,7 +126,8 @@ static func _bandit(rng: RandomNumberGenerator, app: Dictionary) -> Node3D:
 	return n
 
 static func _bandit_archer(rng: RandomNumberGenerator) -> Node3D:
-	var n := ChasseresseNordique.creer({})
+	var homme := rng.randf() < 0.5                      # environ la moitié des archers bandits sont des hommes (corps homme de l'archétype)
+	var n := ChasseresseNordique.creer({"corps": "homme"} if homme else {})
 	var sq := _sq(n)
 	var s := rng.randi() % 3
 	var f: Color = [Color(1.5, 0.85, 0.12), Color(1.1, 0.8, 0.12), Color(1.7, 0.9, 0.12)][s]   # le jaque de la chasseresse tire sur le bleu : on le ramène au brun sombre
@@ -138,6 +139,7 @@ static func _bandit_archer(rng: RandomNumberGenerator) -> Node3D:
 	_teinter_piece(sq, "Hair_Long", [Color(0.4, 0.34, 0.3), Color(0.7, 0.5, 0.36), Color(0.28, 0.24, 0.22)][s])
 	_teinter_acc(sq, Color(1.0, 0.62, 0.1), Color(1.1, 0.62, 0.1))
 	n.set_meta("variante", "archer_bandit_%d" % s)
+	n.set_meta("archer_homme", homme)
 	return n
 
 ## Hrafn : chef bandit — GuerrierNordique casqué, mante de fourrure brune sombre, cape brune, lame à l'épée de l'archétype.
