@@ -19,9 +19,10 @@ extends RefCounted
 
 const BUTIN := preload("res://scripts/butin.gd")
 const MAX_LUM := 9
-const AMBIANTE := Color(0.29, 0.3, 0.335)   # passe 2 kit : gris à peine froid (plus le bleu saturé uniforme) ; le chaud vient des lanternes, le froid des cristaux et du jour
-const AMBIANTE_E := 4.7
-const BRUME_C := Color(0.014, 0.017, 0.024)
+const AMBIANTE := Color(0.22, 0.30, 0.46)   # passe 2 kit : gris à peine froid (plus le bleu saturé uniforme) ; le chaud vient des lanternes, le froid des cristaux et du jour
+const AMBIANTE_E := 4.0
+const BRUME_C := Color(0.14, 0.24, 0.42)   # v2 : brume bleu glacé (le fond s'éclaire, le premier plan reste sombre)
+const BRUME_D := 0.022
 const DIST_APPARITION := 46.0
 
 ## Tenues des bandits (corps Humain) : [tenue, étoffes, coiffure, teinte des cheveux, barbe] ; indice 4 = Hrafn, le chef (casque nasal ;
@@ -324,6 +325,7 @@ func _ambiance() -> void:
 	env.ambient_light_color = AMBIANTE
 	env.ambient_light_energy = AMBIANTE_E
 	env.fog_light_color = BRUME_C
+	env.fog_density = BRUME_D
 
 ## Mort du joueur sous terre : ennemis retirés (ceux tués dans le fichier le restent), coffres dont la bourse n'a pas été ramassée refermés.
 func reinitialiser(sauves: Array) -> void:

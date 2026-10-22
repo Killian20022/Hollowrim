@@ -1170,6 +1170,21 @@ func _decorer() -> void:
 	if GrotteKit.actif():
 		kit = GrotteKit.new(self)
 		kit.habiller()
+	_puits_de_jour()
+
+## v2 (lot lumière) : un puits de jour bleu glacé au plafond des trois grandes salles (camp, caverne du lac, chambre de la mine),
+## pour que le fond des salles luise comme sur la planche. Lumières « grappe » (non retouchées), sans ombre ; elles ne comptent
+## dans le budget d'affichage que si elles sont parmi les MAX_LUM plus proches (GrotteJeu.tick).
+func _puits_de_jour() -> void:
+	for z: Dictionary in def.get("zones", []):
+		if not ["camp", "lac_caverne", "mine_chambre"].has(String(z["id"])):
+			continue
+		var id: String = z["branche"]
+		var s := (float(z["s"][0]) + float(z["s"][1])) * 0.5
+		var pt := plafond_en(id, s, 0.0)
+		var l := decor.lumiere(pt - Vector3(0, 2.2, 0), Color(0.5, 0.7, 1.0), 2.0, 15.0, 1.3, false)
+		l.set_meta("grappe", true)
+		nb_lumieres += 1
 
 ## Dalle praticable (corniche) : profil extrudé (rampe puis plateau) posé sur le sol, collisions comprises. Le dessus est horizontal
 ## (altitude `top`), les pieds suivent le sol ; la rampe fait ≈ 17° (3,4 x la hauteur).
@@ -1447,10 +1462,10 @@ func _process(dt: float) -> void:
 
 ## Réglages d'environnement propres à la grotte (après `_sous_terre(true)` du monde).
 func ambiance(env: Environment) -> void:
-	env.ambient_light_color = Color(0.5, 0.58, 0.72)
+	env.ambient_light_color = Color(0.5, 0.6, 0.8)
 	env.ambient_light_energy = 1.15
-	env.fog_light_color = Color(0.05, 0.08, 0.13)
-	env.fog_density = 0.012
+	env.fog_light_color = Color(0.10, 0.17, 0.30)
+	env.fog_density = 0.014
 
 ## Routes de test : pour chaque branche, des points du sol (monde) tous les 1 m (décalage latéral 0).
 func routes_test() -> Dictionary:
