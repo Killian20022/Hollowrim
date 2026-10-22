@@ -20,7 +20,7 @@ class_name TrollGivre
 
 const ECHELLE := 1.6
 ## Densité globale des mèches (budget 7 500 triangles).
-const DENSITE := 0.34
+const DENSITE := 0.333
 ## Tête agrandie (passe 3 : elle était petite et enfouie) : facteur sur la chair de l'os Head ; les seuils du visage et de la
 ## crinière sont exprimés dans le repère de la passe 2 (on divise par TK) et les accessoires du visage grandissent d'autant.
 const TK := 1.16
