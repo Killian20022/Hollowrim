@@ -40,6 +40,7 @@ TESTS=(
 	"test_ragdoll|--nouvelle"
 	"test_musique|--nouvelle"
 	"test_villageois|--nouvelle"
+	"test_pnj_village|--nouvelle"
 	"test_persos_base|--nouvelle"
 	"test_guerrier|--nouvelle"
 	"test_mage|--nouvelle"

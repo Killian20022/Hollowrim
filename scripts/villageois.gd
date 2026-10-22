@@ -143,7 +143,12 @@ func _ready() -> void:
 
 	var id: String = donnees.get("id", "")
 	# corps Humain (Quaternius) par défaut ; --persos-kit : personnage de base unifié (PersoDefs)
-	modele = Personnage.creer(PersoDefs.villageois(id)) if Personnage.kit_actif() else Humain.creer(APPARENCES.get(id, APPARENCES["chef"]))
+	if Personnage.kit_actif():
+		modele = Personnage.creer(PersoDefs.villageois(id))
+	elif not PnjNordique.ancien() and id in PnjNordique.IDS:
+		modele = PnjNordique.creer(id)
+	else:
+		modele = Humain.creer(APPARENCES.get(id, APPARENCES["chef"]))
 	add_child(modele)
 	anim = modele.get_node("Animations")
 	if points.is_empty():
