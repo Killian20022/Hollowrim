@@ -74,7 +74,7 @@ static func _garde_lance() -> Node3D:
 ## Brodd, le forgeron : aucune armure (pas de casque, de bouclier, d'épée, de cape ni de fourrure), tunique brune, tablier de cuir,
 ## brassards ; maillet de forge à la main.
 static func _forgeron() -> Node3D:
-	var n := GuerrierNordique.creer({"casque": false, "bouclier": "", "epee": false})
+	var n := GuerrierNordique.creer({"casque": false, "bouclier": "", "epee": false, "avant_bras_nus": true})
 	n.name = "PnjForgeron"
 	var sq := _sq(n)
 	var p := _pieces(sq)

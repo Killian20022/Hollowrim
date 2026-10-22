@@ -184,6 +184,10 @@ func _construire(quoi: String) -> Node3D:
 		sv.add_child(d)
 		d.set_physics_process(false)
 		return d
+	if quoi == "forgeron" or quoi == "garde" or quoi == "chef_bandit":
+		n = PnjNordique.creer(quoi) if quoi != "chef_bandit" else GuerrierNordique.creer({"casque": true, "bouclier": "dos", "epee": true})
+		sv.add_child(n)
+		return n
 	if quoi == "chasseresse":
 		n = ChasseresseNordique.creer({})
 		sv.add_child(n)

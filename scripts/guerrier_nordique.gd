@@ -66,7 +66,84 @@ static func vider() -> void:
 	_tex_gants = null
 	_shaders.clear()
 	_contour = null
+	if _bl.has("_racine"):
+		(_bl["_racine"] as Node).free()
+	_bl = {}
 	GuerrierTextures.vider()
+
+# ======================================================================================================== pièces Blender
+## Jupe de cuir (ourlet de fourrure modelé), panneau bleu/maille en pointe et cape à plis marqués, modélisés dans Blender
+## (sources_blender/scripts/guerrier_blender.py), skinnés sur les 65 os d'Humain. Absentes -> pièces générées par code (ancien rendu).
+const BLENDER := "res://assets/persos/guerrier/blender/guerrier_bl.glb"
+static var _bl: Dictionary = {}
+
+static func _pieces_blender() -> Dictionary:
+	if _bl.is_empty() and ResourceLoader.exists(BLENDER):
+		var ps := load(BLENDER) as PackedScene
+		if ps != null:
+			var racine := ps.instantiate()
+			for mi: MeshInstance3D in racine.find_children("*", "MeshInstance3D", true, false):
+				_bl[String(mi.name)] = mi
+			_bl["_racine"] = racine
+	return _bl
+
+## Ajoute au maillage `mi` (une surface, peau d'os) les triangles des `extras` (maillages glTF skinnés) : les indices d'os sont
+## convertis en os du squelette, la peau devient la peau de repos (bind i = os i). Le matériau de la surface est conservé.
+static func _ajouter(mi: MeshInstance3D, extras: Array, sq: Skeleton3D) -> void:
+	var a := mi.mesh.surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var nrm: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+	var uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+	var bones: PackedInt32Array = a[Mesh.ARRAY_BONES]
+	var w: PackedFloat32Array = a[Mesh.ARRAY_WEIGHTS]
+	var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+	var nb := bones.size() / v.size()
+	var cache := {}
+	for i in bones.size():
+		var b := bones[i]
+		if not cache.has(b):
+			cache[b] = maxi(0, _os_de_bind(mi.skin, sq, b))
+		bones[i] = cache[b]
+	for e: MeshInstance3D in extras:
+		var ea := e.mesh.surface_get_arrays(0)
+		var ev: PackedVector3Array = ea[Mesh.ARRAY_VERTEX]
+		var eb: PackedInt32Array = ea[Mesh.ARRAY_BONES]
+		var ew: PackedFloat32Array = ea[Mesh.ARRAY_WEIGHTS]
+		var ei: PackedInt32Array = ea[Mesh.ARRAY_INDEX]
+		var enb := eb.size() / ev.size()
+		var base := v.size()
+		v.append_array(ev)
+		nrm.append_array(ea[Mesh.ARRAY_NORMAL])
+		uv.append_array(ea[Mesh.ARRAY_TEX_UV])
+		var ec := {}
+		for i in ev.size():
+			for j in nb:
+				if j < enb:
+					var b := eb[i * enb + j]
+					if not ec.has(b):
+						ec[b] = maxi(0, _os_de_bind(e.skin, sq, b))
+					bones.append(ec[b] if ew[i * enb + j] > 0.0 else 0)
+					w.append(ew[i * enb + j])
+				else:
+					bones.append(0)
+					w.append(0.0)
+		for k in ei:
+			idx.append(k + base)
+	a[Mesh.ARRAY_VERTEX] = v
+	a[Mesh.ARRAY_NORMAL] = nrm
+	a[Mesh.ARRAY_TEX_UV] = uv
+	a[Mesh.ARRAY_BONES] = bones
+	a[Mesh.ARRAY_WEIGHTS] = w
+	a[Mesh.ARRAY_INDEX] = idx
+	for k in [Mesh.ARRAY_TANGENT, Mesh.ARRAY_COLOR, Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_CUSTOM0, Mesh.ARRAY_CUSTOM1, Mesh.ARRAY_CUSTOM2, Mesh.ARRAY_CUSTOM3]:
+		a[k] = null
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if nb == 8 else 0)
+	var mat := mi.get_surface_override_material(0)
+	mi.mesh = m
+	mi.skin = sq.create_skin_from_rest_transforms()
+	if mat:
+		mi.set_surface_override_material(0, mat)
 
 # ======================================================================================================== fabrique
 static func creer(options := {}) -> Node3D:
@@ -138,16 +215,33 @@ static func creer(options := {}) -> Node3D:
 	var yeux := _centres_yeux(pieces.get("Eyes"))
 	if pieces.has("Eyes"):
 		pieces["Eyes"].visible = false
-	_filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return absf(c.x) < 0.19 or absf(c.x) > 0.69)
+	# variante « avant-bras nus » (forgeron : manches retroussées au coude) : la peau des avant-bras est gardée, les gants restent aux mains
+	var nus: bool = options.get("avant_bras_nus", false)
+	var x_coude := 0.45
+	var x_main := 0.69
+	if nus:
+		x_coude = absf(sq.get_bone_global_rest(sq.find_bone("lowerarm_l")).origin.x)
+		x_main = absf(sq.get_bone_global_rest(sq.find_bone("hand_l")).origin.x) - 0.01
+	var x_peau := (x_coude + 0.02) if nus else 0.69
+	_filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return absf(c.x) < 0.19 or absf(c.x) > x_peau)
 	# mains : 2,2 cm ; arrière du crâne et nuque (sous les cheveux) : 1,6 cm ; visage intact
 	_decimer(pieces.get("peau"), func(p: Vector3) -> float: return 0.027 if absf(p.x) > 0.5 else (0.018 if p.z < 0.035 else 0.0))
-	_gants(pieces.get("peau"))
+	_gants(pieces.get("peau"), x_main if nus else 0.5)
+	if nus and sc != null:
+		# avant-bras nus : la peau d'Humain ne couvre que les mains ; les avant-bras viennent de la sous-couche (mêmes UV, même texture de peau)
+		var bras: MeshInstance3D = sc.duplicate()
+		sq.add_child(bras)
+		_filtrer(bras, func(c: Vector3, n: Vector3) -> bool: return absf(c.x) > x_coude + 0.012 and absf(c.x) < x_main + 0.03)
+		_decimer(bras, func(p: Vector3) -> float: return 0.016)
+		_ajouter(pieces["peau"], [bras], sq)
+		sq.remove_child(bras)
+		bras.free()
 	if pieces.has("Eyebrows"):
 		pieces["Eyebrows"].visible = false
 	for nom in ["Hair_Long", "Hair_Beard"]:
 		_filtrer(sq.get_node_or_null(nom), func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002)
 	_decimer(sq.get_node_or_null("Hair_Long"), func(p: Vector3) -> float: return 0.040)
-	_decimer(sq.get_node_or_null("Hair_Beard"), func(p: Vector3) -> float: return 0.0105)
+	_decimer(sq.get_node_or_null("Hair_Beard"), func(p: Vector3) -> float: return 0.0125)
 	# cheveux : mèches Quaternius gardées, texture ramenée à la palette (64², au lieu de 2048²)
 	var mi_ch: MeshInstance3D = sq.get_node_or_null("Hair_Long")
 	if mi_ch:
@@ -164,7 +258,18 @@ static func creer(options := {}) -> Node3D:
 	var plastron := _plastron(sq, pieces["tunique"])
 	# mante ouverte en V sur le devant : la poitrine (plastron, baudrier, fibule) se lit comme sur la référence
 	_filtrer(pieces["mante"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.0 and absf(c.x) < 0.15 + (c.y - 1.30) * 0.25 and c.y < 1.53))
+	var bl := _pieces_blender()
+	var avec_bl := bl.has("jupe") and bl.has("tabard")
+	if nus:
+		# manches retroussées : la tunique s'arrête au coude (revers ajouté plus bas), brassards retirés
+		_filtrer(pieces["tunique"], func(c: Vector3, n: Vector3) -> bool: return absf(c.x) < x_coude + 0.03)
+		pieces["brassards"].visible = false
+	if avec_bl:
+		# jupe de la tunique d'origine retirée : remplacée par la jupe et le panneau modelés dans Blender (même texture, mêmes lignes)
+		_filtrer(pieces["tunique"], func(c: Vector3, n: Vector3) -> bool: return not (c.y < JUPE_Y_HAUT and absf(c.x) < 0.4))
 	_uv_tunique(pieces["tunique"])
+	if avec_bl:
+		_ajouter(pieces["tunique"], [bl["jupe"], bl["tabard"]], sq)
 	_t("plastron", t0)
 	var rest_skin := sq.create_skin_from_rest_transforms()
 	var acc := Accessoires.new(sq)
@@ -180,7 +285,7 @@ static func creer(options := {}) -> Node3D:
 		return Vector2(uv.x * 256.0 + GuerrierTextures.PL_U0, clampf((uv.y - 0.698) / 0.302, 0.0, 1.0) * 15.6 + 0.2 + GuerrierTextures.R_CEINT.position.y) / A,
 		func(p: Vector3, n: Vector3) -> Vector3: return Vector3(p.x, 0.989 + (p.y - 0.989) * 1.55, p.z) + n * 0.006)
 	var D := Vector2(GuerrierTextures.DECOUPES)
-	acc.integrer(pieces["cape"], acc.dec, func(uv: Vector2) -> Vector2:
+	acc.integrer(bl["cape_bl"] if bl.has("cape_bl") else pieces["cape"], acc.dec, func(uv: Vector2) -> Vector2:
 		return Vector2(uv.x * 256.0 - GuerrierTextures.CAPE_U0, uv.y * 128.0) / D)
 	for nom in ["ceinture", "cape"]:
 		pieces[nom].visible = false
@@ -195,7 +300,8 @@ static func creer(options := {}) -> Node3D:
 	acc.col_libre = false
 	acc.poitrine_libre = false
 	_bilan(acc, "col")
-	acc.fourrure_bord(pieces["tunique"], 0.55, 0.74, 0.05, 0.085, 1.0, 1.35)     # frange de fourrure de l'ourlet de la jupe
+	if not avec_bl:
+		acc.fourrure_bord(pieces["tunique"], 0.55, 0.74, 0.05, 0.085, 1.0, 1.35)     # frange de fourrure de l'ourlet de la jupe (sinon modelée)
 	_bilan(acc, "frange de la jupe")
 	acc.fourrure_bord(pieces["bottes"], 0.30, 0.45, 0.06, 0.09, 1.0, 1.6)      # revers des bottes
 	_bilan(acc, "revers bottes")
@@ -205,6 +311,8 @@ static func creer(options := {}) -> Node3D:
 		print("GUERRIER disques (boucle + fibule) : %d triangles" % ((acc.op["v"].size()) / 3))
 	acc.yeux(yeux)
 	acc.tresses()
+	if nus:
+		acc.manches_retroussees()
 	acc.echarpe()
 	acc.meches_cheveux(sq.get_node_or_null("Hair_Long"))
 	_bilan(acc, "yeux+tresses+meches cheveux")
@@ -227,7 +335,7 @@ static func creer(options := {}) -> Node3D:
 ## de peau (le relief d'origine des doigts donne le ton), la teinte de peau du matériau est compensée. 0 triangle de plus.
 static var _tex_gants: ImageTexture
 
-static func _gants(mi: MeshInstance3D) -> void:
+static func _gants(mi: MeshInstance3D, seuil_x := 0.5) -> void:
 	if mi == null:
 		return
 	var m := mi.get_surface_override_material(0) as ShaderMaterial
@@ -958,6 +1066,15 @@ class Accessoires:
 				_uva(r.end.x if cote < 0 else r.position.x, r.position.y), _uva(r.position.x if cote < 0 else r.end.x, r.position.y), os_, p - Vector3(0, 0, 0.05))
 
 	# ------------------------------------------------------------ tresses de barbe (os Head)
+	## Revers épais des manches retroussées (avant-bras nus), au coude, cuir de l'atlas.
+	func manches_retroussees() -> void:
+		var r := GuerrierTextures.R_BAUD
+		for cote in ["l", "r"]:
+			var os_ := sq.find_bone("lowerarm_" + cote)
+			var coude := sq.get_bone_global_rest(os_).origin
+			var d := (sq.get_bone_global_rest(sq.find_bone("hand_" + cote)).origin - coude).normalized()
+			_tube(op, coude - d * 0.03, coude + d * 0.05, 0.074, 0.068, 8, os_, r, 2)
+
 	func tresses() -> void:
 		var os_ := sq.find_bone("Head")
 		var r := GuerrierTextures.R_TRESSE
