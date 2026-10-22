@@ -9,7 +9,7 @@ extends CrypteDecor
 const CASE_C := 10.0
 const PAINT_PARENT := ["bois", "fer", "lame", "os", "argile", "parchemin", "toile", "halo", "flamme"]
 const DOSSIER := "res://assets/grotte"
-const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "givre", "glacon", "cristal", "cristal_f", "cristal_v", "planches", "peau", "paille", "or", "piste"]
+const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "givre", "glacon", "cristal", "cristal_f", "cristal_v", "planches", "peau", "paille", "or", "piste", "bois"]
 const PROPRES_PLATES := ["jour", "ciel", "rai", "flaque", "brume"]
 const GRAIN_MIPS := ["roche", "roche_b", "roche_givre", "strate", "sol"]   # passe 2 kit : mipmaps qui gardent le moucheté (GrotteTextures.mips_image)
 const GROTTE_SHADER := preload("res://shaders/grotte.gdshader")
@@ -62,8 +62,9 @@ func _init(parent: Node3D, solide: StaticBody3D) -> void:
 		var cible: Array = [null]
 		_gimg[nom] = cible
 		var chemin := "%s/%s.res" % [DOSSIER, nom]
-		if ResourceLoader.exists(chemin):        # textures précalculées (outils/generer_grotte.gd)
-			cible[0] = load(chemin)
+		var pre: Image = load(chemin) if ResourceLoader.exists(chemin) else null     # textures précalculées (outils/generer_grotte.gd)
+		if pre != null and pre.get_meta("version", -1) == GrotteTextures.VERSION:
+			cible[0] = pre
 		else:                                     # repli : peintes à la volée dans un fil d'exécution
 			_gtaches[nom] = WorkerThreadPool.add_task(_peindre_g.bind(nom, cible))
 
@@ -77,7 +78,9 @@ func _peindre_g(nom: String, cible: Array) -> void:
 ## Image définitive d'une matière (avec mipmaps si besoin) : calculée ici, ou précalculée par outils/generer_grotte.gd.
 static func image_finale(nom: String) -> Image:
 	var img: Image = or_image() if nom == "or" else GrotteTextures.image(nom)
-	return GrotteTextures.mips_image(img, nom in GRAIN_MIPS) if nom in PROPRES_MIPS else img
+	img = GrotteTextures.mips_image(img, nom in GRAIN_MIPS) if nom in PROPRES_MIPS else img
+	img.set_meta("version", GrotteTextures.VERSION)
+	return img
 
 static func or_image() -> Image:
 	return CrypteTextures.or_image()   # même or martelé que la crypte (64 texels/m)
@@ -179,6 +182,7 @@ func mat(nom: String) -> Material:
 		if m is ShaderMaterial:
 			(m as ShaderMaterial).set_shader_parameter("crasse", 0.0)
 			if nom == "bois":
+				(m as ShaderMaterial).set_shader_parameter("tex_base", _tex_g("bois"))     # v2 : planches pixel art de la grotte (grotte_textures.gd)
 				(m as ShaderMaterial).set_shader_parameter("teinte", Color(0.4, 0.35, 0.31))     # passe 2 kit : bois de mine brun sombre usé (grottes_cryptes_6), pas orange vif
 			if nom == "os":
 				(m as ShaderMaterial).set_shader_parameter("teinte", Color(0.5, 0.48, 0.45))     # os assombris (plus de taches blanches)     # pas de bande de crasse (calée sur le sol de la crypte)
