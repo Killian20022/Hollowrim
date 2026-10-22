@@ -8,13 +8,13 @@ p17_4m_dos pilote 4,180 heure=17.5 sans-mains anim=Idle:0.3
 p17_8m_face pilote 8,0 heure=17.5 sans-mains anim=Idle:0.3
 p17_8m_34 pilote 8,-35 heure=17.5 sans-mains anim=Idle:0.3
 p17_8m_dos pilote 8,180 heure=17.5 sans-mains anim=Idle:0.3
-v_torse_1m pilote 1.1,-20,1.25 heure=17.5 sans-mains anim=Idle:0.3
-v_ceinture_1m pilote 1.0,-15,0.98 heure=17.5 sans-mains anim=Idle:0.3
-v_bas_1m pilote 1.1,-25,0.7 heure=17.5 sans-mains anim=Idle:0.3
-v_bottes_1m pilote 1.1,-30,0.35 heure=17.5 sans-mains anim=Idle:0.3
-v_dos_1m pilote 1.2,170,1.15 heure=17.5 sans-mains anim=Idle:0.3
-v_epaule_1m pilote 1.0,-60,1.4 heure=17.5 sans-mains anim=Idle:0.3
-v_bras_1m pilote 1.1,35,1.1 heure=17.5 sans-mains anim=Idle:0.3
+v_torse_1m pilote 1.1,-20,1.25 heure=17.5 sans-mains plat anim=Idle:0.3
+v_ceinture_1m pilote 1.0,-15,0.98 heure=17.5 sans-mains plat anim=Idle:0.3
+v_bas_1m pilote 1.5,-25,0.7 heure=17.5 sans-mains plat bas=0.7 anim=Idle:0.3
+v_bottes_1m pilote 1.5,-30,0.35 heure=17.5 sans-mains plat bas=0.9 anim=Idle:0.3
+v_dos_1m pilote 1.2,170,1.15 heure=17.5 sans-mains plat anim=Idle:0.3
+v_epaule_1m pilote 1.0,-60,1.4 heure=17.5 sans-mains plat anim=Idle:0.3
+v_bras_1m pilote 1.1,35,1.1 heure=17.5 sans-mains plat anim=Idle:0.3
 an_idle pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Idle:0.3
 an_garde pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Sword_Idle:0.3
 an_marche_a pilote 3.2,-40,0.9 heure=17.5 sans-mains anim=Walk:0.25
