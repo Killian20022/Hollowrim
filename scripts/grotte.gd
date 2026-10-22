@@ -1203,7 +1203,7 @@ func _puits_de_jour() -> void:
 		# lueur de fond : portée par le shader (uniform `lueurs`), sans lumière de plus à afficher
 		var sf := float(z["s"][1]) - 1.5
 		var cf := transform * (plafond_en(id, sf, 0.0) - Vector3(0, 6.0, 0))
-		lueurs.append(Vector4(cf.x, cf.y, cf.z, 17.0))
+		lueurs.append(Vector4(cf.x, cf.y, cf.z, 20.0))
 		nb_lumieres += 1
 	decor.regler_lueurs(lueurs)
 

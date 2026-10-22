@@ -153,7 +153,7 @@ void fragment() {
 			lueur = max(lueur, q * q);
 		}
 	}
-	vec3 reflet = vec3(0.30, 0.50, 0.95) * lueur * (0.25 + dot(c, vec3(0.333)) * 2.0) * mix(0.6, 1.0, ao.g) * 0.55;
+	vec3 reflet = vec3(0.30, 0.50, 0.95) * lueur * (0.25 + dot(c, vec3(0.333)) * 2.0) * mix(0.6, 1.0, ao.g) * 0.8;
 	ALBEDO = c * ao * teinte.rgb * (1.0 - fb);
 	EMISSION = emission + c * emis_tex + neige_dehors * fb * fb + reflet;
 	ROUGHNESS = rough;
