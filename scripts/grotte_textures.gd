@@ -664,29 +664,391 @@ static func flaque_image() -> Image:
 			img.set_pixel(x, y, Color(c.r, c.g, c.b, a))
 	return img
 
+# ================================================================== GROTTE V2 (2026-10-22) : pixel art marqué, matières simplifiées
+## D'après references/grotte_v2_planche.png : aplats de 2 à 3 tons par face, arêtes claires (haut-gauche) et sombres (bas-droite)
+## d'un texel, grappes de pixels 2x2 nettes (jamais de damier ni de bruit « camouflage »), palette de la planche.
+## Toutes les matières projetées en monde sont des tuiles de TX x TX texels ; la DENSITÉ (texels par mètre) est réglée par
+## `echelle` du shader (= DENSITE / TX tuiles par mètre).
+const VERSION := 2            # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés (GrotteDecor)
+const TX := 128
+const DENSITE := 32.0         # texels par mètre (shaders/grotte.gdshader : echelle = DENSITE / TX)
+
+# palette principale de la planche (relevée sur l'image) : #141c26 bleu-noir, #3a4656 ardoise, #34465e bleu ardoise,
+# #9fb8dc bleu glace, #9aa6be gris-bleu clair, #5a4c42 brun gris, #7a4a2e brun bois, #e0a070 orange chaud
+const P_ROCHE := ["#080c12", "#0f151d", "#141c26", "#1f2a3a", "#2a384c", "#34465e", "#46586f", "#5f7189"]            # ardoise bleu-nuit, 8 tons
+const P_ROCHE_F := ["#0b1018", "#141c26", "#202c3c", "#2c3d54", "#3a4c68", "#4d6283", "#6a80a2", "#8fa5c6"]          # roche froide (zones de glace)
+const P_BRUN := ["#0d0a09", "#1a1411", "#2a211c", "#3c3029", "#5a4c42", "#6e5d50", "#85735f", "#9e8c78"]              # brun gris (entrée, abords des torches)
+const P_SOL := ["#0a0e14", "#141c26", "#1e2836", "#2a3646", "#3a4656", "#4a5870", "#5f6f8a", "#7a89a4"]              # dalles de chemin
+const P_NEIGE := ["#34465e", "#46597a", "#5f7597", "#7c8fb0", "#9aa6be", "#b4c4de", "#cfdcee"]                      # neige froide de la grotte (jamais blanche)
+const P_GLACE2 := ["#141c26", "#22324a", "#34465e", "#4c6a92", "#6f93c0", "#9fb8dc", "#c4d8f0"]
+const P_BOIS := ["#120b07", "#22150d", "#3a2416", "#5a3a22", "#7a4a2e", "#98613c", "#b87c4c", "#e0a070"]            # bois de mine (brun #7a4a2e, éclats orange chaud)
+
+static func _ton8(R: Array, i: int) -> Color:
+	return Color(R[clampi(i, 0, R.size() - 1)])
+
+## Cellules de Voronoï tuilables : id (0..1), f1, f2 (texels), ox, oy (décalage au centre de la cellule la plus proche).
+static func _cellules(T: int, n: int, graine: int, jit := 0.7) -> Dictionary:
+	var cs := float(T) / n
+	var pts: Array[Vector2] = []
+	for gy in n:
+		for gx in n:
+			pts.append(Vector2((gx + 0.5 + (_hash_i(gx + graine, gy * 3 + 1) - 0.5) * jit) * cs, (gy + 0.5 + (_hash_i(gx * 5 + 2, gy + graine) - 0.5) * jit) * cs))
+	var id := PackedFloat32Array()
+	var f1 := PackedFloat32Array()
+	var f2 := PackedFloat32Array()
+	var ox := PackedFloat32Array()
+	var oy := PackedFloat32Array()
+	for a in [id, f1, f2, ox, oy]:
+		a.resize(T * T)
+	for y in T:
+		for x in T:
+			var gx0 := int(float(x) / cs)
+			var gy0 := int(float(y) / cs)
+			var b1 := 1e9
+			var b2 := 1e9
+			var best := Vector2.ZERO
+			var bi := 0
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					var gx := gx0 + dx
+					var gy := gy0 + dy
+					var p: Vector2 = pts[posmod(gy, n) * n + posmod(gx, n)]
+					p += Vector2(floorf(float(gx) / n) * T, floorf(float(gy) / n) * T)
+					var d := Vector2(float(x) + 0.5, float(y) + 0.5).distance_to(p)
+					if d < b1:
+						b2 = b1
+						b1 = d
+						best = p
+						bi = posmod(gy, n) * n + posmod(gx, n)
+					elif d < b2:
+						b2 = d
+			var k := y * T + x
+			id[k] = _hash_i(bi * 31 + graine, bi + 7)
+			f1[k] = b1
+			f2[k] = b2
+			ox[k] = float(x) + 0.5 - best.x
+			oy[k] = float(y) + 0.5 - best.y
+	return {"id": id, "f1": f1, "f2": f2, "ox": ox, "oy": oy}
+
+## Roche facettée : blocs anguleux d'un ton, chacun coupé en deux plans (face éclairée / face à l'ombre), arête claire d'un texel
+## en haut-gauche, arête sombre en bas-droite, grappes 2x2 plus claires ou plus sombres, rares éclats.
+## variante 0 = ardoise bleu-nuit, 1 = roche froide (glace), 2 = brun gris (entrée) avec éclats de givre.
+static func roche_v2(variante := 0) -> Image:
+	var T := TX
+	var img := Image.create(T, T, false, Image.FORMAT_RGBA8)
+	var RA: Array = P_ROCHE if variante == 0 else (P_ROCHE_F if variante == 1 else P_BRUN)
+	var RB: Array = P_BRUN if variante != 1 else P_ROCHE
+	var cel := _cellules(T, 6, 11 + variante * 5, 0.8)
+	var petit := _cellules(T, 13, 41 + variante * 5, 0.9)
+	var nuage := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.012, 202 + variante, T, 3)
+	var zone := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.01, 303 + variante, T, 2)
+	for y in T:
+		for x in T:
+			var i := y * T + x
+			var h: float = cel["id"][i]
+			var R: Array = RB if (variante == 0 and zone[i] > 0.66) or (variante == 2 and zone[i] > 0.45) else RA
+			var t := 2 + int(h * 2.99) + (1 if nuage[i] > 0.58 else 0) - (1 if nuage[i] < 0.38 else 0)
+			# plan secondaire : droite oblique propre à la cellule ; le côté éclairé passe d'un ton
+			var ang: float = h * 6.2832 * 7.0
+			var s: float = cel["ox"][i] * cos(ang) + cel["oy"][i] * sin(ang)
+			if s > 2.0 + 5.0 * _hash_i(int(h * 977.0), 3):
+				t += 1
+			# petites facettes (cailloux) : un ton d'écart par petite cellule
+			var hp: float = petit["id"][i]
+			if hp > 0.78:
+				t += 1
+			elif hp < 0.2:
+				t -= 1
+			var e: float = cel["f2"][i] - cel["f1"][i]
+			if e < 1.6:
+				t = t + 2 if (cel["ox"][i] + cel["oy"][i]) < 0.0 else t - 2
+			elif (petit["f2"][i] - petit["f1"][i]) < 1.0:
+				t -= 1 if (petit["ox"][i] + petit["oy"][i]) > 0.0 else 0
+			var g := _hash_i((x / 2) * 5 + 3, (y / 2) * 7 + variante)       # grappes de 2x2 texels
+			if g > 0.93:
+				t += 1
+			elif g < 0.045:
+				t -= 1
+			if g > 0.992:
+				t = R.size() - 1                                          # éclat clair 2x2
+			img.set_pixel(x, y, _ton8(R, t))
+	return img
+
+## Dalles de chemin : pavés de 0,3 à 0,5 m, un ton chacun, joint sombre d'un texel, lèvre claire en haut-gauche.
+static func sol_v2(variante := 0) -> Image:
+	var T := TX
+	var img := Image.create(T, T, false, Image.FORMAT_RGBA8)
+	var RA: Array = P_SOL
+	var RB: Array = P_BRUN
+	var cel := _cellules(T, 9, 71 + variante, 0.75)
+	var zone := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.012, 91, T, 2)
+	for y in T:
+		for x in T:
+			var i := y * T + x
+			var h: float = cel["id"][i]
+			var R: Array = RB if zone[i] > 0.78 else RA
+			var t := 2 + int(h * 1.99)
+			var e: float = cel["f2"][i] - cel["f1"][i]
+			if e < 1.3:
+				t = 1
+			elif e < 2.6 and (cel["ox"][i] + cel["oy"][i]) < 0.0:
+				t += 1
+			var g := _hash_i((x / 2) * 5 + 3, (y / 2) * 7 + 1)
+			if g > 0.95:
+				t += 1
+			elif g < 0.04:
+				t -= 1
+			img.set_pixel(x, y, _ton8(R, t))
+	return img
+
+## Strates : bancs horizontaux de 10 à 22 texels, un ton chacun, lèvre claire, ombre sous le banc, joints verticaux de blocs.
+static func strate_v2() -> Image:
+	var T := TX
+	var img := Image.create(T, T, false, Image.FORMAT_RGBA8)
+	var onde := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.01, 11, T, 2)
+	var bancs: Array = []
+	var y0 := 0
+	var k := 0
+	while y0 < T:
+		var e := mini(10 + int(_hash_i(k, 5) * 12.0), T - y0)
+		if T - y0 - e < 8:
+			e = T - y0
+		bancs.append([y0, e, 2 + int(_hash_i(k, 9) * 2.99), k])
+		y0 += e
+		k += 1
+	for y in T:
+		for x in T:
+			var yy := posmod(y + int((onde[y * T + x] - 0.5) * 8.0), T)
+			var b: Array = bancs[0]
+			for bb in bancs:
+				if yy >= bb[0] and yy < bb[0] + bb[1]:
+					b = bb
+			var dans: int = yy - b[0]
+			var R: Array = P_BRUN if b[3] % 3 == 2 else P_ROCHE
+			var t: int = b[2]
+			if dans == 0:
+				t += 2
+			elif dans >= b[1] - 2:
+				t -= 2
+			var bloc := int(floorf(float(x) + 17.0 * b[3]) / (18.0 + 10.0 * _hash_i(b[3], 2)))
+			if posmod(x + 17 * b[3], 28) == 0 and dans > 0:
+				t -= 2                                                # joint vertical
+			elif _hash_i(bloc, b[3]) > 0.6:
+				t += 1
+			var g := _hash_i((x / 2) * 5 + 3, (y / 2) * 7 + 5)
+			if g > 0.95:
+				t += 1
+			elif g < 0.04:
+				t -= 1
+			img.set_pixel(x, y, _ton8(R, t))
+	return img
+
+## Givre (superposé aux faces hautes) : croûte bleu-gris en plaques franches de 2 à 3 tons ; l'alpha est le seuil de recouvrement.
+static func givre_v2() -> Image:
+	var T := TX
+	var img := Image.create(T, T, false, Image.FORMAT_RGBA8)
+	var plaque := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.03, 71, T, 3)
+	var ton := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.06, 73, T, 2)
+	for y in T:
+		for x in T:
+			var i := y * T + x
+			var t := 3 + int(ton[i] * 3.0)
+			var g := _hash_i((x / 2) * 3 + 1, (y / 2) * 7 + 9)
+			if g > 0.94:
+				t += 1
+			elif g < 0.05:
+				t -= 1
+			var c := _ton8(P_NEIGE, t)
+			var a := clampf(0.2 + 0.7 * (1.0 - plaque[i]) + 0.35 * (_hash_i((x / 2) + 5, (y / 2)) - 0.5), 0.03, 0.97)
+			c.a = floorf(a * 12.0) / 12.0 + 0.01
+			img.set_pixel(x, y, c)
+	return img
+
+## Neige des chemins : bleu-gris froid (#9aa6be, #9fb8dc de la planche), amas arrondis de 3 tons, lèvre claire en haut-gauche,
+## ombre bleue en bas-droite. L'alpha est le seuil de recouvrement (sol : plaques ; mur : bandes).
+static func neige_v2(sol_ := false) -> Image:
+	var T := TX
+	var img := Image.create(T, T, false, Image.FORMAT_RGBA8)
+	var masse := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.022, 76, T, 3)
+	var mol := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.05, 77, T, 2)
+	var onde := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.012, 74, T, 2)
+	var h := PackedFloat32Array()
+	h.resize(T * T)
+	for i in h.size():
+		h[i] = masse[i] * 0.6 + mol[i] * 0.4
+	for y in T:
+		for x in T:
+			var i := y * T + x
+			var v := 0.5 + 0.3 * (mol[i] - 0.5) + _repoussoir(h, x, y, 2.0, T)
+			var t := 3 + int(clampf(v, 0.0, 0.999) * 3.0)
+			var g := _hash_i((x / 2) * 3 + 1, (y / 2) * 7 + 5)
+			if g > 0.97:
+				t += 1
+			var c := _ton8(P_NEIGE, t)
+			var a: float
+			if sol_:
+				a = clampf(0.08 + 0.95 * masse[i] - 0.1, 0.03, 0.97)
+			else:
+				a = _seuil_bancs(x, y, onde, mol, 3, T)
+			c.a = floorf(a * 12.0) / 12.0 + 0.01
+			img.set_pixel(x, y, c)
+	return img
+
+## Glace du lac et vernis de glace : plaques d'un ton bleu, fissures claires droites, lèvres claires.
+static func glace_v2(superposee := false) -> Image:
+	var T := TX
+	var img := Image.create(T, T, false, Image.FORMAT_RGBA8)
+	var cel := _cellules(T, 5, 81, 0.8)
+	var nuage := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.03, 86, T, 3)
+	for y in T:
+		for x in T:
+			var i := y * T + x
+			var h: float = cel["id"][i]
+			var t := 1 + int(h * 2.99) + (1 if nuage[i] > 0.6 else 0)
+			if superposee:
+				t += 1
+			var e: float = cel["f2"][i] - cel["f1"][i]
+			if e < 1.3:
+				t = t + 3 if (not superposee and h > 0.5) else t - 1       # fissures claires interrompues
+			elif e < 2.4 and (cel["ox"][i] + cel["oy"][i]) < 0.0:
+				t += 1
+			var g := _hash_i((x / 2) * 5 + 3, (y / 2) * 7 + 2)
+			if g > 0.96:
+				t += 1
+			var c := _ton8(P_GLACE2, t)
+			c.a = 1.0
+			if superposee:
+				c.a = floorf(clampf(0.4 + 0.7 * nuage[i] + 0.25 * (_hash_i(x / 2, y / 2 + 3) - 0.5), 0.03, 0.97) * 12.0) / 12.0 + 0.01
+			img.set_pixel(x, y, c)
+	return img
+
+## Glaçons et cascades : coulures verticales de 4 à 7 texels sur 4 tons bleu glace, filet clair à gauche.
+static func glacon_v2() -> Image:
+	var T := TX
+	var img := Image.create(T, T, false, Image.FORMAT_RGBA8)
+	var onde := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.02, 121, T, 2)
+	var R := ["#22324a", "#34465e", "#4c6a92", "#6f93c0", "#9fb8dc", "#cfe2f6"]
+	var x0 := 0.0
+	var larg := PackedFloat32Array()
+	while x0 < T:
+		var w := 4.0 + _hash_i(int(x0), 21) * 3.0
+		larg.append(w)
+		x0 += w
+	for y in T:
+		for x in T:
+			var u := float(x) + (onde[y * T + x] - 0.5) * 8.0
+			var acc := 0.0
+			var b := 0
+			for w in larg:
+				if u < acc + w:
+					break
+				acc += w
+				b += 1
+			var f := (u - acc) / larg[mini(b, larg.size() - 1)]
+			var t := 1 + int(_hash_i(posmod(b, 40), 7) * 3.99)
+			if f < 0.25:
+				t += 1
+			elif f > 0.8:
+				t -= 1
+			if _hash_i(x / 2, y / 2 + 5) > 0.985:
+				t = 5
+			img.set_pixel(x, y, Color(R[clampi(t, 0, 5)]))
+	return img
+
+## Piste de neige tassée (ruban UV : u le long, v en travers, 128 texels / 4 m = 32 texels/m) : pavés bleu ardoise sous la neige,
+## neige froide en plaques franches au centre, cailloux bruns sur les bords. L'alpha est un seuil de bruit (bords nets au texel).
+static func piste_v2() -> Image:
+	var T := TX
+	var img := Image.create(T, T, false, Image.FORMAT_RGBA8)
+	var cel := _cellules(T, 6, 301, 0.8)
+	var plaque := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.035, 303, T, 3)
+	var seuil := _champ(FastNoiseLite.TYPE_SIMPLEX, 0.5, 304, T, 1)
+	for y in T:
+		for x in T:
+			var i := y * T + x
+			var lat := absf(float(y - T / 2) / (T / 2.0))                   # 0 centre, 1 bord
+			var h: float = cel["id"][i]
+			var pave := 2 + int(h * 2.99)
+			var e: float = cel["f2"][i] - cel["f1"][i]
+			var c: Color
+			if plaque[i] > 0.42 - 0.25 * lat * 0.0 and lat < 0.8:
+				var t := 3 + int(h * 2.0)
+				if e < 1.4:
+					t -= 2                                                    # creux entre les plaques
+				elif e < 2.6 and (cel["ox"][i] + cel["oy"][i]) < 0.0:
+					t += 1
+				c = _ton8(P_NEIGE, t)
+			else:
+				var t := pave
+				if e < 1.3:
+					t = 0
+				elif e < 2.6 and (cel["ox"][i] + cel["oy"][i]) < 0.0:
+					t += 1
+				c = _ton8(P_SOL if lat < 0.8 else P_BRUN, t)
+			var g := _hash_i((x / 2) * 5 + 3, (y / 2) * 7 + 9)
+			if g > 0.97:
+				c = c.lightened(0.18)
+			elif g < 0.03:
+				c = c.darkened(0.25)
+			c.a = floorf(clampf(0.5 + 1.2 * (seuil[i] - 0.5) + 0.1 * (_hash_i(x, y) - 0.5), 0.04, 0.96) * 12.0) / 12.0 + 0.01
+			img.set_pixel(x, y, c)
+	return img
+
+## Planches de bois de mine (étais, caisses, tonneaux) : 64 texels = 1 m ; planches de 8 texels (12,5 cm), un ton chacun,
+## veine claire interrompue, joint sombre, arête haute claire (orange chaud de la planche), clous de 2 texels.
+static func bois_v2() -> Image:
+	var T := 64
+	var img := Image.create(T, T, false, Image.FORMAT_RGBA8)
+	for y in T:
+		var pl := y / 8
+		var yy := y % 8
+		var base := 3 + int(_hash_i(pl, 3) * 1.99)
+		for x in T:
+			var t := base
+			if yy == 7:
+				t = 0
+			elif yy == 0:
+				t = base + 2
+			elif yy == 1:
+				t = base + 1
+			var vx := (x + pl * 11) % 24
+			if vx < 5 and yy == 3 + (pl % 3):
+				t = base + 1                                               # veine claire
+			elif vx > 17 and yy == 5:
+				t = base - 1
+			if _hash_i(x / 2, y / 2 + 77) > 0.95:
+				t -= 1
+			var xn := (x + pl * 9) % 32
+			if (xn == 3 or xn == 4) and (yy == 3 or yy == 4):
+				img.set_pixel(x, y, Color("#22252a") if xn == 4 else Color("#5d6166"))
+				continue
+			img.set_pixel(x, y, _ton8(P_BOIS, t))
+	return img
+
 static func image(nom: String) -> Image:
 	match nom:
-		"roche": return roche_image(0)
-		"roche_b": return roche_image(1)
-		"roche_givre": return roche_image(2)
-		"strate": return strate_image()
-		"sol": return sol_image(0)
-		"givre": return givre_image()
-		"neige": return neige_image()
-		"neige_sol": return neige_image(true)
-		"glace": return glace_image(false)
-		"glace_sup": return glace_image(true)
-		"glacon": return glacon_image()
+		"roche": return roche_v2(0)
+		"roche_b": return roche_v2(1)
+		"roche_givre": return roche_v2(2)
+		"strate": return strate_v2()
+		"sol": return sol_v2(0)
+		"givre": return givre_v2()
+		"neige": return neige_v2()
+		"neige_sol": return neige_v2(true)
+		"glace": return glace_v2(false)
+		"glace_sup": return glace_v2(true)
+		"glacon": return glacon_v2()
 		"brume": return brume_image()
-		"piste": return piste_image()
+		"piste": return piste_v2()
 		"cristal": return cristal_image()
 		"cristal_f": return cristal_face_image()
 		"cristal_v": return cristal_face_image(true)
-		"planches": return planches_image()
+		"planches": return bois_v2()
+		"bois": return bois_v2()
 		"peau": return peau_image()
 		"paille": return paille_image()
 		"jour": return jour_image()
 		"ciel": return ciel_faille_image()
 		"rai": return rai_image()
 		"flaque": return flaque_image()
-	return roche_image(0)
+	return roche_v2(0)
