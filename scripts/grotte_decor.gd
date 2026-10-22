@@ -9,7 +9,7 @@ extends CrypteDecor
 const CASE_C := 10.0
 const PAINT_PARENT := ["bois", "fer", "lame", "os", "argile", "parchemin", "toile", "halo", "flamme"]
 const DOSSIER := "res://assets/grotte"
-const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "givre", "glacon", "cristal", "cristal_f", "cristal_v", "planches", "peau", "paille", "or", "piste"]
+const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "givre", "glacon", "cristal", "cristal_f", "cristal_v", "planches", "peau", "paille", "or", "piste", "bois"]
 const PROPRES_PLATES := ["jour", "ciel", "rai", "flaque", "brume"]
 const GRAIN_MIPS := ["roche", "roche_b", "roche_givre", "strate", "sol"]   # passe 2 kit : mipmaps qui gardent le moucheté (GrotteTextures.mips_image)
 const GROTTE_SHADER := preload("res://shaders/grotte.gdshader")
@@ -62,8 +62,9 @@ func _init(parent: Node3D, solide: StaticBody3D) -> void:
 		var cible: Array = [null]
 		_gimg[nom] = cible
 		var chemin := "%s/%s.res" % [DOSSIER, nom]
-		if ResourceLoader.exists(chemin):        # textures précalculées (outils/generer_grotte.gd)
-			cible[0] = load(chemin)
+		var pre: Image = load(chemin) if ResourceLoader.exists(chemin) else null     # textures précalculées (outils/generer_grotte.gd)
+		if pre != null and pre.get_meta("version", -1) == GrotteTextures.VERSION:
+			cible[0] = pre
 		else:                                     # repli : peintes à la volée dans un fil d'exécution
 			_gtaches[nom] = WorkerThreadPool.add_task(_peindre_g.bind(nom, cible))
 
@@ -77,10 +78,31 @@ func _peindre_g(nom: String, cible: Array) -> void:
 ## Image définitive d'une matière (avec mipmaps si besoin) : calculée ici, ou précalculée par outils/generer_grotte.gd.
 static func image_finale(nom: String) -> Image:
 	var img: Image = or_image() if nom == "or" else GrotteTextures.image(nom)
-	return GrotteTextures.mips_image(img, nom in GRAIN_MIPS) if nom in PROPRES_MIPS else img
+	img = GrotteTextures.mips_image(img, nom in GRAIN_MIPS) if nom in PROPRES_MIPS else img
+	img.set_meta("version", GrotteTextures.VERSION)
+	return img
 
 static func or_image() -> Image:
 	return CrypteTextures.or_image()   # même or martelé que la crypte (64 texels/m)
+
+## Fondu de la neige à la bouche (uniform `bouche` du shader) : position monde de la bouche et rayon ; appliqué à toutes les matières.
+func regler_bouche(pos: Vector3, rayon: float) -> void:
+	_bouche = Vector4(pos.x, pos.y, pos.z, rayon)
+	for m in _mats.values():
+		if m is ShaderMaterial and (m as ShaderMaterial).shader == GROTTE_SHADER:
+			(m as ShaderMaterial).set_shader_parameter("bouche", _bouche)
+
+var _bouche := Vector4.ZERO
+var _lueurs: Array = [Vector4.ZERO, Vector4.ZERO, Vector4.ZERO]
+
+## Lueurs bleues de fond des grandes salles (uniform `lueurs`) : jusqu'à 3 sphères [xyz monde, rayon].
+func regler_lueurs(l: Array) -> void:
+	_lueurs = [Vector4.ZERO, Vector4.ZERO, Vector4.ZERO]
+	for i in mini(3, l.size()):
+		_lueurs[i] = l[i]
+	for m in _mats.values():
+		if m is ShaderMaterial and (m as ShaderMaterial).shader == GROTTE_SHADER:
+			(m as ShaderMaterial).set_shader_parameter("lueurs", _lueurs)
 
 func _tex_g(nom: String) -> ImageTexture:
 	if not _gtex.has(nom):
@@ -134,6 +156,8 @@ func mat(nom: String) -> Material:
 			sm.set_shader_parameter("modele", 1.0)
 		if nom == "c_sol_neige":
 			sm.set_shader_parameter("echelle_sup", 0.5)     # neige du sol extérieur : tuile de 8 m (16 texels/m), même grain que dehors
+		sm.set_shader_parameter("bouche", _bouche)
+		sm.set_shader_parameter("lueurs", _lueurs)
 		m = sm
 	elif nom == "jour" or nom == "ciel":
 		var s := StandardMaterial3D.new()
@@ -179,6 +203,7 @@ func mat(nom: String) -> Material:
 		if m is ShaderMaterial:
 			(m as ShaderMaterial).set_shader_parameter("crasse", 0.0)
 			if nom == "bois":
+				(m as ShaderMaterial).set_shader_parameter("tex_base", _tex_g("bois"))     # v2 : planches pixel art de la grotte (grotte_textures.gd)
 				(m as ShaderMaterial).set_shader_parameter("teinte", Color(0.4, 0.35, 0.31))     # passe 2 kit : bois de mine brun sombre usé (grottes_cryptes_6), pas orange vif
 			if nom == "os":
 				(m as ShaderMaterial).set_shader_parameter("teinte", Color(0.5, 0.48, 0.45))     # os assombris (plus de taches blanches)     # pas de bande de crasse (calée sur le sol de la crypte)
@@ -788,8 +813,8 @@ const FROID_LAC := Color(0.62, 0.78, 0.86)
 const FROID_CRISTAL := Color(0.6, 0.74, 1.0)
 const JOUR_C := Color(0.78, 0.86, 1.0)
 const LANTERNE_C := Color(1.0, 0.6, 0.28)
-const LANT_E := 7.0      # lanternes : énergie, portée, atténuation (2e passe : flaques chaudes locales, chute forte)
-const LANT_P := 8.0
+const LANT_E := 9.0      # lanternes : énergie, portée, atténuation (2e passe : flaques chaudes locales, chute forte)
+const LANT_P := 9.0
 const LANT_A := 2.0
 
 var _hab_r := RandomNumberGenerator.new()
@@ -814,6 +839,56 @@ func _habiller(g: Grotte) -> void:
 				_hab_boyau(g, z)
 	_glacons(g)
 	_hab_relief(g)
+	_toiles_rares(g)
+
+## v2 : TOILES D'ARAIGNÉE TRÈS RARES (7 au plus dans toute la grotte, petites : 0,6 à 0,85 m), seulement dans des angles paroi / voûte
+## et près des étais : bouche, boyau, galerie de la mine (contre le dernier étai), chambre, camp (deux angles), cachette.
+## RNG à part : aucune autre pose n'est décalée.
+var nb_toiles := 0
+func _toiles_rares(g: Grotte) -> void:
+	var rt := RandomNumberGenerator.new()
+	rt.seed = 5531
+	for zid: String in g.zones:
+		var z: Dictionary = g.zones[zid]
+		var id: String = z["branche"]
+		var s0: float = z["s"][0]
+		var s1: float = z["s"][1]
+		var th := String(z.get("theme", ""))
+		var role := String(z.get("role", ""))
+		var cibles: Array = []        # [s, côté]
+		match th:
+			"entree":
+				cibles = [[s0 + 9.5, -1.0]]
+			"boyau":
+				cibles = [[s0 + 8.0, 1.0]]
+			"mine":
+				var etais: Array = (z.get("params", {}) as Dictionary).get("etais", [])
+				if role == "combat" and not etais.is_empty():
+					cibles = [[float(etais[etais.size() - 1]) + 0.8, 1.0]]
+				elif role == "ressources":
+					cibles = [[s0 + 7.0, -1.0]]
+			"repaire":
+				if role == "combat":
+					cibles = [[s0 + 2.5, -1.0], [s1 - 3.2, 1.0]]
+			"cache":
+				cibles = [[s0 + 10.0, -1.0]]
+		for c: Array in cibles:
+			if _toile_rare(g, id, float(c[0]), float(c[1]), rt.randf_range(0.6, 0.85), 1.0 if rt.randf() < 0.5 else -1.0):
+				nb_toiles += 1
+	print("grotte v2 : %d toiles d'araignée" % nb_toiles)
+
+func _toile_rare(g: Grotte, id: String, s: float, cote: float, l: float, sens: float) -> bool:
+	if not g.hors_jonction(id, s):
+		return false
+	var dl := g.demi_l(id, s)
+	var w := (dl.y if cote > 0.0 else dl.x)
+	var lat := cote * w * 0.82
+	var haut := g.plafond_en(id, s, lat)
+	var sol := g.sol_en(id, s, lat)
+	if haut.y - sol.y < 2.0:
+		return false
+	toile(Vector3(haut.x, haut.y - 0.15, haut.z), g.tang(id, s) * sens, -g.droite(id, s) * cote, l)
+	return true
 
 ## Accroches du relief (Grotte.levres / Grotte.rebords, lot « grotte relief ») :
 ##  - lèvres (dessous de surplomb) : franges de glaçons de longueurs variées, quelques toiles dans les zones sèches ;
@@ -838,9 +913,7 @@ func _hab_relief(g: Grotte) -> void:
 		var garde := p.y - sol.y
 		var au_passage := absf(float(sit[2])) < 1.2
 		if (th == "mine" or th == "boyau" or th == "cache") and _hab_r.randf() < 0.12:
-			var n2: Vector3 = e[1]
-			var t := Vector3(n2.z, 0, -n2.x).normalized() if Vector2(n2.x, n2.z).length() > 0.05 else g.tang(id, s)
-			toile(p - Vector3(0, 0.05, 0), t, (Vector3(n2.x, 0, n2.z).normalized() if Vector2(n2.x, n2.z).length() > 0.05 else Vector3.DOWN), _hab_r.randf_range(0.6, 1.1))
+			_hab_r.randf_range(0.6, 1.1)       # v2 : toiles TRÈS RARES (voir _toiles_rares) ; le tirage est gardé pour ne rien décaler
 			continue
 		var n := _hab_r.randi_range(2, 5)
 		for k in n:
@@ -1049,7 +1122,7 @@ func brasero_fer(pos: Vector3, avec_solide := true) -> void:
 		solide_rond(pos + Vector3(0, 0.5, 0), 0.42, 1.0)
 
 ## Toile d'araignée tendue dans l'angle paroi / plafond, côté `cote`.
-func _toile_angle(g: Grotte, id: String, s: float, cote: float, l := 1.0) -> void:
+func _toile_angle(g: Grotte, id: String, s: float, cote: float, l := 1.0, poser := false) -> void:
 	var dl := g.demi_l(id, s)
 	var w := (dl.y if cote > 0.0 else dl.x)
 	var lat := cote * w * 0.82
@@ -1060,7 +1133,9 @@ func _toile_angle(g: Grotte, id: String, s: float, cote: float, l := 1.0) -> voi
 	var coin := Vector3(haut.x, haut.y - 0.15, haut.z)
 	var T := g.tang(id, s)
 	var R := g.droite(id, s)
-	toile(coin, T * (1.0 if _hab_r.randf() < 0.5 else -1.0), -R * cote, l)
+	var sens := T * (1.0 if _hab_r.randf() < 0.5 else -1.0)      # v2 : le tirage est gardé, la toile n'est plus posée (voir _toiles_rares)
+	if poser:
+		toile(coin, sens, -R * cote, l)
 
 ## Caisse empilée (une ou deux) près de la paroi ; collision seulement si la place est libre.
 func _caisses(g: Grotte, id: String, s: float, cote: float, n := 2) -> void:

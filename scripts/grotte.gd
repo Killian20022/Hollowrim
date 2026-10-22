@@ -1170,6 +1170,42 @@ func _decorer() -> void:
 	if GrotteKit.actif():
 		kit = GrotteKit.new(self)
 		kit.habiller()
+	_lumieres_structures()
+	_puits_de_jour()
+	decor.regler_bouche(transform * sol_en(String(ordre[0]), 0.0, 0.0), 11.0)
+
+## Intégration v2 : lumières des structures de bois (méta `v2_lanternes` : portique + pont) et de l'autel de l'arène (méta `v2_autel`,
+## bougies). Flaques chaudes locales, sans ombre ; elles ne comptent dans l'affichage que dans le budget MAX_LUM (GrotteJeu.tick).
+func _lumieres_structures() -> void:
+	for p: Vector3 in get_meta("v2_lanternes", []):
+		var l := decor.lumiere(p, GrotteDecor.LANTERNE_C, GrotteDecor.LANT_E * 0.6, GrotteDecor.LANT_P - 1.5, GrotteDecor.LANT_A, true)
+		l.set_meta("grappe", true)
+		nb_lumieres += 1
+	if has_meta("v2_autel"):
+		var l := decor.lumiere(get_meta("v2_autel"), Color(1.0, 0.6, 0.28), 7.0, 9.0, 1.5, true)
+		l.set_meta("grappe", true)
+		nb_lumieres += 1
+
+## v2 (lot lumière) : un puits de jour bleu glacé au plafond des trois grandes salles (camp, caverne du lac, chambre de la mine),
+## pour que le fond des salles luise comme sur la planche. Lumières « grappe » (non retouchées), sans ombre ; elles ne comptent
+## dans le budget d'affichage que si elles sont parmi les MAX_LUM plus proches (GrotteJeu.tick).
+func _puits_de_jour() -> void:
+	var lueurs: Array = []
+	for z: Dictionary in def.get("zones", []):
+		if not ["camp", "lac_caverne", "mine_chambre"].has(String(z["id"])):
+			continue
+		var id: String = z["branche"]
+		var s := (float(z["s"][0]) + float(z["s"][1])) * 0.5
+		var pt := plafond_en(id, s, 0.0)
+		var l := decor.lumiere(pt - Vector3(0, 1.8, 0), Color(0.5, 0.72, 1.0), 3.0, 18.0, 1.3, false)
+		l.set_meta("grappe", true)
+		l.set_meta("bonus", 14.0)
+		# lueur de fond : portée par le shader (uniform `lueurs`), sans lumière de plus à afficher
+		var sf := float(z["s"][1]) - 1.5
+		var cf := transform * (plafond_en(id, sf, 0.0) - Vector3(0, 6.0, 0))
+		lueurs.append(Vector4(cf.x, cf.y, cf.z, 20.0))
+		nb_lumieres += 1
+	decor.regler_lueurs(lueurs)
 
 ## Dalle praticable (corniche) : profil extrudé (rampe puis plateau) posé sur le sol, collisions comprises. Le dessus est horizontal
 ## (altitude `top`), les pieds suivent le sol ; la rampe fait ≈ 17° (3,4 x la hauteur).
@@ -1447,10 +1483,10 @@ func _process(dt: float) -> void:
 
 ## Réglages d'environnement propres à la grotte (après `_sous_terre(true)` du monde).
 func ambiance(env: Environment) -> void:
-	env.ambient_light_color = Color(0.5, 0.58, 0.72)
+	env.ambient_light_color = Color(0.5, 0.6, 0.8)
 	env.ambient_light_energy = 1.15
-	env.fog_light_color = Color(0.05, 0.08, 0.13)
-	env.fog_density = 0.012
+	env.fog_light_color = Color(0.10, 0.17, 0.30)
+	env.fog_density = 0.014
 
 ## Routes de test : pour chaque branche, des points du sol (monde) tous les 1 m (décalage latéral 0).
 func routes_test() -> Dictionary:

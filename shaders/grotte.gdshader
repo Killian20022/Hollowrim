@@ -17,10 +17,13 @@ uniform vec4 teinte : source_color = vec4(1.0);
 uniform float grille = 180.0;      // accroche des sommets : H/2 à 640x360 (DA §3)
 uniform vec3 emission : source_color = vec3(0.0);
 uniform float emis_tex = 0.0;        // part de la texture réinjectée en émission (cristaux)
-uniform float echelle_sup = 0.77;
+uniform float echelle_sup = 1.0;
 uniform float decoupe = 0.0;        // 1 : l'alpha de tex_base est un seuil de bruit comparé au masque du sommet (piste, bords tramés)
 uniform float triplan = 0.0;        // 1 : projection monde
-uniform float echelle = 0.25;       // tuiles par mètre (projection monde) : 256 px / 4 m = 64 texels/m (DA §3)
+uniform float echelle = 0.1875;       // tuiles par mètre (projection monde) : v2 : 128 texels / 5,33 m = 24 texels/m (GrotteTextures.DENSITE)
+uniform vec4 bouche = vec4(0.0);     // xyz : bouche de la grotte (monde), w : rayon de fondu (0 = aucun) : la neige rejoint celle du dehors sans couture
+uniform vec4 lueurs[3];             // lueurs de fond des grandes salles : xyz monde, w rayon (0 = éteinte) ; la roche proche prend un reflet bleu glacé
+uniform float par_m = 24.0;         // texels par mètre : le tirage de l'axe de projection se fait par texel (jonctions en pixels francs)
 uniform float givre = 0.0;          // part de givre sur les faces hautes (0 = aucun)
 uniform float mouille = 0.0;        // part de sol mouillé (0 = sec)
 uniform float ao_gamma = 1.0;       // contraste de l'occlusion peinte
@@ -62,7 +65,7 @@ float bruit2(vec2 p) {
 vec4 proj(sampler2D t, vec3 p, vec3 n, float ech, vec2 dec) {
 	vec3 a = pow(abs(n), vec3(5.0));
 	a /= (a.x + a.y + a.z + 1e-5);
-	float r = h13(floor(p * 64.0));
+	float r = h13(floor(p * par_m));
 	vec3 px = dFdx(p) * ech;
 	vec3 py = dFdy(p) * ech;
 	vec2 uv;
@@ -104,11 +107,16 @@ void fragment() {
 	float amt = (COLOR.a - s.a) > 0.0 ? 1.0 : 0.0;
 	amt *= step(0.01, COLOR.a);
 	vec3 c = mix(b.rgb, s.rgb, amt);
+	float fb = 0.0;
+	if (bouche.w > 0.0 && amt > 0.5) {
+		fb = 1.0 - smoothstep(0.0, bouche.w, distance(wp.xz, bouche.xz));
+		fb *= fb;
+	}
 	float spec = 0.0;
 	float rough = 1.0;
 	// givre sur les faces hautes : la pente règle la part, la carte de givre (alpha = seuil) découpe au texel
 	if (givre > 0.0) {
-		vec4 gv = textureGrad(tex_givre, wp.xz * 0.5, dFdx(wp.xz) * 0.5, dFdy(wp.xz) * 0.5);
+		vec4 gv = textureGrad(tex_givre, wp.xz * echelle, dFdx(wp.xz) * echelle, dFdy(wp.xz) * echelle);
 		// pente forte (arêtes, corniches, têtes de rochers) : pleine part ; sol plat : plaques seulement
 		// 4e passe : plus de « confettis » sur les parois verticales ; seules les faces franchement horizontales (rebords,
 		// dessus de rochers, sol) prennent du givre, et en liseré sur l'arête haute (COLOR.a) plutôt qu'en plaques éparses
@@ -136,8 +144,18 @@ void fragment() {
 	if (modele > 0.0) {
 		ao *= mix(1.0, mix(0.55, 1.14, smoothstep(-0.7, 0.8, n.y)), modele);
 	}
-	ALBEDO = c * ao * teinte.rgb;
-	EMISSION = emission + c * emis_tex;
+	// bouche : la neige de la grotte rejoint celle du dehors (même blanc froid) en gardant son motif de plaques
+	vec3 neige_dehors = vec3(0.80, 0.84, 0.92) * clamp(dot(c, vec3(0.333)) * 1.9, 0.55, 1.1);
+	float lueur = 0.0;
+	for (int i = 0; i < 3; i++) {
+		if (lueurs[i].w > 0.0) {
+			float q = 1.0 - smoothstep(0.0, lueurs[i].w, distance(wp, lueurs[i].xyz));
+			lueur = max(lueur, q * q);
+		}
+	}
+	vec3 reflet = vec3(0.30, 0.50, 0.95) * lueur * (0.25 + dot(c, vec3(0.333)) * 2.0) * mix(0.6, 1.0, ao.g) * 0.8;
+	ALBEDO = c * ao * teinte.rgb * (1.0 - fb);
+	EMISSION = emission + c * emis_tex + neige_dehors * fb * fb + reflet;
 	ROUGHNESS = rough;
 	SPECULAR = spec;
 }

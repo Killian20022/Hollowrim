@@ -1,0 +1,5 @@
+# Mouvement : deux captures à 5 cm d'écart le long du parcours (mesure du scintillement)
+mvt_a grotte 20,0,0,-3 sans-mains
+mvt_b grotte 20.05,0,0,-3 sans-mains
+mvt_c grotte 304,0,15,-6 sans-mains
+mvt_d grotte 304.05,0,15,-6 sans-mains
