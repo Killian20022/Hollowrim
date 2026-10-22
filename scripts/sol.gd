@@ -158,7 +158,6 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 	var g0 := ZoneBiome.graine("sol")
 	var bruit_roche := _bruit(g0, 0.18, 2)
 	var bruit_clair := _bruit(g0 + 1, 0.35)
-	var bruit_masque := _bruit(g0 + 2, 0.1, 2)      # fondu de la couture : taches de 5-10 m
 	var bruit_tache := _bruit(g0 + 3, 0.9, 2)       # agglomérats d'aiguilles
 	var bruit_fin := _bruit(g0 + 4, 1.3, 2)         # seuil de tramage : grain de 0,5-1 m
 	var bruit_bosse := _bruit(g0 + 5, 0.5, 2)       # relief : bosses allongées dans le vent
@@ -166,10 +165,11 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 	var bruit_variante := _bruit(g0 + 7, 0.09, 2)   # plaques de variantes de tuiles
 	var bruit_herbe := _bruit(g0 + 8, 0.12, 2)      # herbes sèches en clairière
 
-	var i0 := maxi(0, int(floor((ZoneBiome.X0 - ORIGINE) / TEXEL)))
-	var i1 := mini(TAILLE - 1, int(ceil((ZoneBiome.X1 - ORIGINE) / TEXEL)))
-	var j0 := maxi(0, int(floor((ZoneBiome.Z0 - ORIGINE) / TEXEL)))
-	var j1 := mini(TAILLE - 1, int(ceil((ZoneBiome.Z1 - ORIGINE) / TEXEL)))
+	# C1 : la carte de sol couvre TOUTE la carte (sol v2 partout) ; plus de masque de zone ni de fondu tramé
+	var i0 := 0
+	var i1 := TAILLE - 1
+	var j0 := 0
+	var j1 := TAILLE - 1
 	var gi0 := i0 - (i0 % NOEUD) - 5 * NOEUD  # les nœuds tombent sur des centres de texels
 	var gj0 := j0 - (j0 % NOEUD) - 5 * NOEUD
 	var gw := (i1 - gi0) / NOEUD + 7
@@ -242,21 +242,13 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 	var stele := Vector2(monde.CERCLE.x, monde.CERCLE.z)
 	var porte := Vector2(monde.TUMULUS.x, monde.TUMULUS.z + 2.8)  # = tertre.porte_dehors
 
-	var xin0 := ZoneBiome.X0 + ZoneBiome.FONDU
-	var xin1 := ZoneBiome.X1 - ZoneBiome.FONDU
-	var zin0 := ZoneBiome.Z0 + ZoneBiome.FONDU
-	var zin1 := ZoneBiome.Z1 - ZoneBiome.FONDU
 	for j in range(j0, j1 + 1):
 		var z := ORIGINE + (j + 0.5) * TEXEL
 		for i in range(i0, i1 + 1):
 			var x := ORIGINE + (i + 0.5) * TEXEL
 			var b := clampf(lerpf(_alea(i, j, 2), 0.5 + 0.9 * bruit_fin.get_noise_2d(x, z), GRAIN), 0.0, 0.999)
-			var cur := x > xin0 and x < xin1 and z > zin0 and z < zin1  # cœur : masque = 1
-			var seuil := lerpf(_alea(i, j, 1), 0.5 + 0.5 * bruit_masque.get_noise_2d(x, z), MASQUE_BRUIT)
 			var k := j * TAILLE + i
 			dchemin[k] = INF
-			if not cur and ZoneBiome.masque(x, z) <= seuil:
-				continue  # tramage du masque : ce texel garde l'ancien rendu
 			actif[k] = 1
 			var u := float(i - gi0) / NOEUD
 			var v := float(j - gj0) / NOEUD
@@ -299,8 +291,6 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 	# sous les arbres : tapis irrégulier (agglomérat serré au pied, puis taches de plus en plus éparses)
 	for tr: Transform3D in arbres:
 		var p := tr.origin
-		if ZoneBiome.masque(p.x, p.z) <= 0.0:
-			continue
 		var s := tr.basis.get_scale().x
 		var ci := int((p.x - ORIGINE) / TEXEL)
 		var cj := int((p.z - ORIGINE) / TEXEL)
@@ -429,8 +419,6 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 	for o in obstacles:
 		var c: Vector2 = o[0]
 		var R: float = o[1]
-		if ZoneBiome.masque(c.x, c.y) <= 0.0:
-			continue
 		var amp := CONGERE * minf(R, 1.2)
 		var ci := int((c.x - ORIGINE) / TEXEL)
 		var cj := int((c.y - ORIGINE) / TEXEL)

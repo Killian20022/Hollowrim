@@ -7,6 +7,8 @@ class_name SolV2
 
 ## Rectangle témoin (x0, z0, x1, z1) autour du chemin feu → cercle.
 const RECT := Vector4(-22.0, -22.0, -8.0, -8.0)
+## C1 : le sol v2 (shader) couvre toute la carte ; RECT ne sert plus qu'à la zone témoin (touffes/rochers d'origine).
+const MONDE := Vector4(-119.5, -119.5, 119.5, 119.5)
 const DAT_ROCHES := "res://assets/modeles/roches_sol_v2.dat"
 const PORTEE := 45.0
 
@@ -26,7 +28,7 @@ static func appliquer(monde: Node) -> void:
 static func regler(monde: Node, oui: bool) -> void:
 	actif = oui
 	if monde.mat_terrain != null:
-		monde.mat_terrain.set_shader_parameter("sol2_rect", RECT if oui else Vector4(0, 0, 0, 0))
+		monde.mat_terrain.set_shader_parameter("sol2_rect", MONDE if oui else Vector4(0, 0, 0, 0))
 	if _decor != null:
 		_decor.visible = oui
 		for f in _corps:
@@ -47,6 +49,7 @@ static func creer(monde: Node) -> void:
 	_corps.clear()
 	var rochers := _poser_rochers(monde)
 	_poser_touffes(monde, rochers)
+	_poser_ailleurs(monde, rochers)
 	_decor.visible = actif
 
 ## Rochers de `roches_sol_v2.dat` : nom → ArrayMesh (facettes à plat, couleurs de sommets : AO + masque de neige).
@@ -265,3 +268,157 @@ static func _poser_touffes(monde: Node, rochers: Array) -> void:
 	for mmi in Instanciation.repartir(_decor, mesh, xfs, {"portee": 32.0, "ombre": false}):
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	print("SolV2 : %d touffes" % xfs.size())
+
+# --- C1 : le reste de la carte -------------------------------------------------------------------
+
+## Zone où `_poser_ailleurs` pose rochers et touffes (hors rectangle témoin). C1a : ouest (x < 0) et nord (z < 0) ;
+## C1b ajoute l'est et le sud en élargissant ce prédicat (le sol v2 du shader, lui, couvre déjà toute la carte).
+static func dans_region(x: float, z: float) -> bool:
+	return x < 0.0 or z < 0.0
+
+## Hors des zones à ne pas encombrer : village (refait par C7), seuil de la grotte, abords des chemins, bord de la carte.
+static func _libre_ailleurs(monde: Node, x: float, z: float, marge_chemin: float) -> bool:
+	if not dans_region(x, z) or dans_rect(x, z, -0.6):
+		return false
+	if Vector2(x, z).length() > 100.0:
+		return false   # pente du pourtour : pas de rochers posés dans les collines
+	if Vector2(x - monde.VILLAGE.x, z - monde.VILLAGE.z).length() < 46.0:
+		return false
+	if Vector2(x - 92.0, z + 27.0).length() < 14.0:   # seuil de la grotte (GrotteAcces.SITE)
+		return false
+	if Vegetation.exclu_decor(x, z) or monde._pres_du_chemin(x, z, marge_chemin):
+		return false
+	return monde.chemins.distance(x, z) >= marge_chemin
+
+## Index spatial (cellules de 4 m) des arbres et des rochers existants : [Vector2 centre, rayon].
+static func _obstacles_existants(monde: Node) -> Dictionary:
+	var g := {}
+	for a: Transform3D in monde.arbres:
+		_ajouter_obstacle(g, Vector2(a.origin.x, a.origin.z), 0.45 + 0.35 * a.basis.get_scale().x)
+	var arbres_zone: Array = monde.get_meta("arbres_zone") if monde.has_meta("arbres_zone") else []
+	for a in arbres_zone:
+		_ajouter_obstacle(g, Vector2(a["pos"].x, a["pos"].z), 0.45 + 0.35 * a["s"])
+	for nd in monde.get_children():
+		if nd is StaticBody3D:
+			for f in nd.get_children():
+				if f is CollisionShape3D and f.shape is ConvexPolygonShape3D:
+					var r := 0.0
+					for p in (f.shape as ConvexPolygonShape3D).points:
+						r = maxf(r, Vector2(p.x, p.z).length())
+					_ajouter_obstacle(g, Vector2(f.position.x, f.position.z), r)
+	return g
+
+static func _ajouter_obstacle(g: Dictionary, c: Vector2, r: float) -> void:
+	var k := Vector2i(floori(c.x / 4.0), floori(c.y / 4.0))
+	if not g.has(k):
+		g[k] = []
+	g[k].append([c, r])
+
+static func _bloque(g: Dictionary, x: float, z: float, r: float) -> bool:
+	var kx := floori(x / 4.0)
+	var kz := floori(z / 4.0)
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
+			var l = g.get(Vector2i(kx + dx, kz + dz))
+			if l == null:
+				continue
+			for o in l:
+				if Vector2(x, z).distance_to(o[0]) < o[1] + r:
+					return true
+	return false
+
+static func _pente(monde: Node, x: float, z: float) -> float:
+	var h: float = monde.hauteur(x, z)
+	return maxf(maxf(absf(monde.hauteur(x + 1.0, z) - h), absf(monde.hauteur(x - 1.0, z) - h)), maxf(absf(monde.hauteur(x, z + 1.0) - h), absf(monde.hauteur(x, z - 1.0) - h)))
+
+## Rochers v2 et touffes d'herbe sèche sur le reste de la région (amas par bruit, plus denses au bord des chemins).
+static func _poser_ailleurs(monde: Node, rochers_temoin: Array) -> void:
+	var obst := _obstacles_existants(monde)
+	var modeles := _charger_rochers()
+	var noms := ["roche_D", "roche_F", "roche_B"]
+	var xr: Array = []
+	var parts := {}
+	var pas_r := 5.5
+	var nb_gros := 0
+	var gx := -118.0
+	while gx < 118.0:
+		var gz := -118.0
+		while gz < 118.0:
+			var x := gx + ZoneBiome.alea_pos(gx, gz, 31) * pas_r
+			var z := gz + ZoneBiome.alea_pos(gx, gz, 32) * pas_r
+			gz += pas_r
+			if not _libre_ailleurs(monde, x, z, 1.6):
+				continue
+			var amas := ZoneBiome.alea_pos(floorf(x / 18.0), floorf(z / 18.0), 33)   # amas de 18 m : certains secteurs sans rien
+			if ZoneBiome.alea_pos(x, z, 34) > 0.18 + 0.55 * amas * amas:
+				continue
+			if _pente(monde, x, z) > 0.9:
+				continue
+			var u := ZoneBiome.alea_pos(x, z, 35)
+			var nom: String = noms[0] if u < 0.4 else (noms[1] if u < 0.75 else noms[2])
+			var s := 0.7 + 0.6 * ZoneBiome.alea_pos(x, z, 36)
+			var gros := ZoneBiome.alea_pos(x, z, 37) < 0.16 and amas > 0.4
+			if gros:
+				nom = ["roche_A", "roche_C", "roche_E"][int(ZoneBiome.alea_pos(x, z, 38) * 2.999)]
+				s = 0.95 + 0.4 * ZoneBiome.alea_pos(x, z, 39)
+			var rr := s * (1.0 if gros else 0.55)
+			if _bloque(obst, x, z, rr * 0.8):
+				continue
+			var yaw := ZoneBiome.alea_pos(x, z, 11) * TAU
+			var b := Basis(Vector3.UP, yaw).scaled(Vector3(s, s * (0.85 + 0.3 * ZoneBiome.alea_pos(x, z, 12)), s))
+			var xf := Transform3D(b, Vector3(x, monde.hauteur(x, z) - 0.05, z))
+			if not parts.has(nom):
+				parts[nom] = []
+			parts[nom].append(xf)
+			xr.append({"pos": Vector2(x, z), "r": rr})
+			_ajouter_obstacle(obst, Vector2(x, z), rr * 0.8)
+			if gros:
+				nb_gros += 1
+				var corps := StaticBody3D.new()
+				var pts := PackedVector3Array()
+				for p in (modeles[nom] as ArrayMesh).create_convex_shape().points:
+					pts.append(b * p)
+				var convexe := ConvexPolygonShape3D.new()
+				convexe.points = pts
+				var forme := CollisionShape3D.new()
+				forme.shape = convexe
+				forme.position = xf.origin
+				corps.add_child(forme)
+				_decor.add_child(corps)
+				_corps.append(forme)
+		gx += pas_r
+	for nom: String in parts:
+		for mmi in Instanciation.repartir(_decor, modeles[nom], parts[nom], {"portee": PORTEE, "marge": 4.0, "ombre": false}):
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	print("SolV2 : %d rochers et pierres ailleurs (dont %d avec collision)" % [xr.size(), nb_gros])
+	# touffes
+	var mat := SousBois.materiau_herbe(texture_touffe(78), Color(1.05, 1.0, 0.95))
+	var mesh := mesh_touffe(mat)
+	var xfs: Array = []
+	var pas := 1.7
+	var x0 := -118.0
+	while x0 < 118.0:
+		var z0 := -118.0
+		while z0 < 118.0:
+			var jx := x0 + (ZoneBiome.alea_pos(x0, z0, 41) - 0.5) * pas * 0.9
+			var jz := z0 + (ZoneBiome.alea_pos(x0, z0, 42) - 0.5) * pas * 0.9
+			z0 += pas
+			if not _libre_ailleurs(monde, jx, jz, 0.95):
+				continue
+			var d: float = monde.chemins.distance(jx, jz)
+			var amas := ZoneBiome.alea_pos(floorf(jx / 3.0), floorf(jz / 3.0), 43)
+			var gr := ZoneBiome.alea_pos(floorf(jx / 20.0), floorf(jz / 20.0), 44)   # grandes clairières d'herbe
+			var p := (0.03 + 0.20 * gr * gr) * (0.4 + amas)
+			if d < INF:
+				p += 0.35 * smoothstep(0.95, 1.7, d) * (1.0 - smoothstep(2.8, 5.0, d)) * (0.4 + amas)
+			if ZoneBiome.alea_pos(jx, jz, 45) > p or _pente(monde, jx, jz) > 1.1:
+				continue
+			if _bloque(obst, jx, jz, 0.35):
+				continue
+			var s := 0.42 + 0.42 * ZoneBiome.alea_pos(jx, jz, 46)
+			var yaw := ZoneBiome.alea_pos(jx, jz, 47) * TAU
+			xfs.append(SousBois._tf(jx, SousBois._bas(monde, jx, jz, 0.4) - 0.02, jz, yaw, s, 0.75 + 0.45 * ZoneBiome.alea_pos(jx, jz, 48)))
+		x0 += pas
+	for mmi in Instanciation.repartir(_decor, mesh, xfs, {"portee": 32.0, "ombre": false}):
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	print("SolV2 : %d touffes ailleurs" % xfs.size())

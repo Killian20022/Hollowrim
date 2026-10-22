@@ -268,8 +268,8 @@ void fragment() {
 	// dérivées calculées hors de toute branche (textureGrad plus bas)
 	vec2 ddx_sol = dFdx(pos_monde);
 	vec2 ddy_sol = dFdy(pos_monde);
-	vec2 zone_min = traces_rect.xy - 1.0;
-	vec2 zone_max = traces_rect.xy + traces_rect.zw / 32.0 + 1.0;
+	vec2 zone_min = carte_rect.xy;   // C1 : la carte de sol couvre toute la carte (240 m)
+	vec2 zone_max = carte_rect.xy + 1.0 / carte_rect.z;
 	// sol v2 : dans le rectangle activé et assez près (texel < 0,10 m d'empreinte), fondu en bruit vers l'ancien rendu
 	bool v2 = false;
 	float pxm = sqrt(abs(ddx_sol.x * ddy_sol.y - ddx_sol.y * ddy_sol.x));
