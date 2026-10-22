@@ -28,7 +28,7 @@ static var _cache := {}
 
 # ------------------------------------------------------------------ précalcul (comme GuerrierTextures)
 const DOSSIER := "res://assets/persos/chasseresse"
-const VERSION := 7
+const VERSION := 10
 static var enregistrer := false
 
 static func charger(cle: String) -> Image:
@@ -245,7 +245,19 @@ static func accessoires() -> Image:
 	_fut(img)
 	_fourreau(img)
 	_capuche(img)
+	_relief_blender(img)
 	return img
+
+## Feuille de relief cuit dans Blender (outils : sources_blender/scripts/chasseresse_blender.py, bake AO + cavité quantifiés dans les palettes)
+## : patrons de cuir de la jupe, manchettes, touffes de fourrure, ourlet de cape. 64 x 48 texels posés en (136, 128) de l'atlas.
+const R_BLENDER := Rect2i(136, 128, 64, 48)
+static func _relief_blender(img: Image) -> void:
+	var src := Image.load_from_file(ProjectSettings.globalize_path("res://assets/persos/chasseresse/blender/relief_bl.png"))
+	if src == null:
+		push_warning("relief_bl.png absent : revers de la chasseresse non peints")
+		return
+	src.convert(Image.FORMAT_RGBA8)
+	img.blit_rect(src, Rect2i(Vector2i.ZERO, src.get_size()), R_BLENDER.position)
 
 
 ## Rouille brun-gris dans les creux du fer (anneau/boucle) : taches de bruit, plus denses vers le bas.

@@ -72,7 +72,7 @@ func _lancer() -> void:
 	post.material = pmat
 	calque.add_child(post)
 	var t0 := Time.get_ticks_usec()
-	var n := _construire("chasseresse")
+	var n := _construire("archer_homme" if _arg("homme", "") != "" else "chasseresse")
 	print("CONSTRUCTION %.1f ms" % ((Time.get_ticks_usec() - t0) / 1000.0))
 	for i in 4:
 		await process_frame
@@ -85,6 +85,9 @@ func _lancer() -> void:
 		"g1_jupe": [0.0, 0.95, 0.75, 0.62], "g1_jupe34": [-40.0, 0.95, 0.75, 0.62],
 		"g1_bottes": [-20.0, 0.9, 0.45, 0.28], "g1_dos": [180.0, 1.0, 1.30, 1.15], "g1_dos34": [150.0, 1.0, 1.10, 0.95],
 		"g1_col": [-25.0, 0.7, 1.52, 1.42], "g1_bras": [-70.0, 0.9, 1.25, 1.15]}
+	if _arg("homme", "") != "":
+		vues = {"h2m_face": [0.0, 2.0, 1.45, 0.95], "h2m_34": [-35.0, 2.0, 1.45, 0.95], "h2m_dos": [180.0, 2.0, 1.45, 0.95],
+			"h1_torse34": [-35.0, 0.85, 1.40, 1.30], "h1_jupe34": [-40.0, 0.95, 0.75, 0.66], "h1_dos": [180.0, 1.0, 1.30, 1.18]}
 	for nom: String in vues:
 		var v: Array = vues[nom]
 		var img: Image = await _photo(v[0], v[1], v[2], v[3])
@@ -105,6 +108,16 @@ func _construire(quoi: String) -> Node3D:
 		sv.add_child(d)
 		d.set_physics_process(false)
 		return d
+	if quoi == "archer_homme":
+		# archer bandit à corps homme, teinté comme en jeu (EnnemisNordiques) : on cherche une identité qui tire un homme
+		for i in 40:
+			n = EnnemisNordiques.creer({"archer": true, "ident": "capt%d" % i, "apparence": {"tenue": {}, "draugr": false}})
+			if n != null and n.get_meta("archer_homme", false):
+				break
+			if n != null:
+				n.free()
+		sv.add_child(n)
+		return n
 	if quoi == "chasseresse":
 		n = ChasseresseNordique.creer({})
 		sv.add_child(n)
