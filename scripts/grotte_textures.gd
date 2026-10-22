@@ -1025,8 +1025,71 @@ static func bois_v2() -> Image:
 			img.set_pixel(x, y, _ton8(P_BOIS, t))
 	return img
 
+## Aiguilles de glace (finitions) : stries verticales de 5 à 9 texels, 3 tons bleu glace (#4c6a92 / #6f93c0 / #9fb8dc), arête claire
+## à gauche de chaque strie, joint sombre à droite, quelques fissures horizontales et éclats clairs. Jamais de blanc pur.
+static func pic_v2() -> Image:
+	var T := TX
+	var img := Image.create(T, T, false, Image.FORMAT_RGBA8)
+	var onde := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.018, 131, T, 2)
+	var R := ["#22324a", "#34465e", "#4c6a92", "#6f93c0", "#9fb8dc", "#c4d8f0"]
+	var larg := PackedFloat32Array()
+	var x0 := 0.0
+	while x0 < T:
+		var w := 5.0 + _hash_i(int(x0) + 3, 41) * 4.0
+		larg.append(w)
+		x0 += w
+	for y in T:
+		for x in T:
+			var u := float(x) + (onde[y * T + x] - 0.5) * 6.0
+			var acc := 0.0
+			var b := 0
+			for w in larg:
+				if u < acc + w:
+					break
+				acc += w
+				b += 1
+			b = mini(b, larg.size() - 1)
+			var f := (u - acc) / larg[b]
+			var t := 2 + int(_hash_i(posmod(b, 40), 17) * 1.99)              # 2 ou 3 : corps de la strie
+			if f < 0.22:
+				t += 1                                                         # arête claire
+			elif f > 0.86:
+				t = 1                                                          # joint sombre
+			if (y + b * 13) % 37 == 0 and f > 0.2 and f < 0.86:
+				t = maxi(t - 1, 1)                                             # fissure horizontale
+			if _hash_i(x / 2 + 9, y / 2 + 31) > 0.975 and f < 0.86:
+				t = 4                                                          # éclat clair
+			img.set_pixel(x, y, Color(R[clampi(t, 0, 5)]))
+	return img
+
+## Dalles du chemin d'entrée (finitions) : grandes dalles de pierre bleu ardoise (~0,9 m), 2-3 tons par dalle, joint sombre, arête
+## haute / gauche claire (#5f6f8a), éclats. Les plaques de neige viennent de la couche superposée (neige_sol) du shader.
+static func dalles_v2() -> Image:
+	var T := TX
+	var img := Image.create(T, T, false, Image.FORMAT_RGBA8)
+	var cel := _cellules(T, 6, 401, 0.55)
+	for y in T:
+		for x in T:
+			var i := y * T + x
+			var h: float = cel["id"][i]
+			var e: float = cel["f2"][i] - cel["f1"][i]
+			var t := 3 + int(h * 2.0)
+			if e < 1.6:
+				t = 0                                                          # joint
+			elif e < 3.2:
+				t = t + 1 if (cel["ox"][i] + cel["oy"][i]) < 0.0 else t - 1    # arête éclairée en haut / à gauche, ombrée en bas / à droite
+			var g := _hash_i((x / 2) * 5 + 7, (y / 2) * 3 + 13)
+			if g > 0.965:
+				t += 1
+			elif g < 0.035:
+				t -= 1
+			img.set_pixel(x, y, _ton8(P_SOL, t))
+	return img
+
 static func image(nom: String) -> Image:
 	match nom:
+		"pic": return pic_v2()
+		"dalles": return dalles_v2()
 		"roche": return roche_v2(0)
 		"roche_b": return roche_v2(1)
 		"roche_givre": return roche_v2(2)

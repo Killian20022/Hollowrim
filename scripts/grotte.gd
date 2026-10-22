@@ -453,7 +453,9 @@ func _matiere(b: Dictionary, s: float, n: Vector3, hrel: float, k: int, lam: flo
 		"neige":
 			var fade := 1.0 - _lisse(clampf((s - 7.0) / 10.5, 0.0, 1.0)) * 0.75
 			if sol_:
-				return ["c_sol_neige", 1.15 * fade + 0.1, 1.0]
+				# finitions : sol de l'entrée = chemin de dalles à plaques de neige ; couverture pleine à la bouche (raccord avec le dehors)
+				var couv := 0.5 + 0.7 * (1.0 - _lisse(clampf(s / 5.0, 0.0, 1.0)))
+				return ["c_sol_neige", couv * fade + 0.1, 1.0]
 			if plaf:
 				return ["c_roche_neige", 0.12 * fade, 1.0]
 			return ["c_roche_neige", clampf(0.2 + 0.85 * (n.y + 0.3), 0.0, 1.0) * fade, 1.0]
