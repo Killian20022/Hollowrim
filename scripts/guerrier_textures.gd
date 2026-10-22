@@ -9,7 +9,7 @@ class_name GuerrierTextures
 # palettes (sombre -> clair)
 ## maille (finition) : fer brun-gris, PAS gris-bleu (sous l'ombre froide et le liseré du shader, le gris-bleu virait au bleu franc
 ## au crépuscule). 0-4 = fer terni chaud, 5 = reflet froid réservé aux arêtes éclairées des anneaux.
-const MAILLE := ["#19140f", "#32291f", "#4c4135", "#685b4b", "#887a66", "#a4a7a8"]
+const MAILLE := ["#18151a", "#2e2a2d", "#474246", "#645f61", "#847f80", "#a8aaae"]
 const CUIR := ["#1a130e", "#2f2118", "#463325", "#614a34", "#7f6446", "#9e825e", "#b89d76"]   # 6 = arête usée, couture
 ## cuir clair et chaud (baudrier, ceinture) : se détache du plastron et de la maille sous la lumière froide
 const CUIR_CLAIR := ["#24170e", "#4e3320", "#74502f", "#956b43", "#b38858", "#cca46f", "#dcbb88"]
@@ -20,7 +20,7 @@ const FOUR := ["#231e18", "#433a2e", "#655846", "#8a7a63", "#ad9c80", "#ccbb9b"]
 const LAINE_BLEUE := ["#13161c", "#1f242e", "#2e3542", "#3f4858", "#545e6f", "#6e7787"]   # passe 3 : bleu-gris délavé, teint naturel usé (l'ancien bleu était trop saturé)
 ## passe vêtements : fourrure crème CHAude (racines brun-gris, pointes blanc crème) ; lainage bleu un peu plus franc (la référence est
 ## un bleu roi délavé, pas un gris ardoise) ; fil de broderie ocre des bordures de la cape
-const FOUR_G := ["#2e271d", "#554b3b", "#7e715b", "#a89a7e", "#cfc1a3", "#ece3cc"]
+const FOUR_G := ["#2e271d", "#554b3b", "#7a6e5a", "#a09378", "#c0b496", "#ddd3ba"]
 const LAINE_BLEUE_G := ["#0f1428", "#192140", "#25335a", "#344574", "#47598e", "#5f73a6"]
 const BRODERIE := ["#241a10", "#4d3a1d", "#7b5f2f", "#a98441", "#d1b062"]
 const LAINE_GRISE := ["#17171c", "#25252b", "#35343a", "#47454a", "#5b585b"]
