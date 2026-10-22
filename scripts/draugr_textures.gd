@@ -26,7 +26,7 @@ const TISSU_BLEU := ["#131314", "#1f2022", "#2e2f33", "#404247", "#55575d", "#6f
 const BANDE := ["#2e2a24", "#464037", "#5f574b", "#7a705f"]
 
 const DOSSIER := "res://assets/persos/draugr"
-const VERSION := 11
+const VERSION := 12
 static var enregistrer := false
 static var _cache := {}
 

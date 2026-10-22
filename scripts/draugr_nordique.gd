@@ -668,7 +668,7 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 					if not cache.has(ck):
 						# poids pris au NIVEAU D'ATTACHE de la lanière (hanches / épaules) : elle bouge d'un bloc, sans cisaillement
 						var q: Vector3 = p[k]
-						cache[ck] = _poids_proche(mante, am, Vector3(q.x, 1.30, q.z)) if est_cape else _poids_proche(tunique, at, Vector3(q.x * 0.8, 0.97, q.z))
+						cache[ck] = _poids_proche(mante, am, Vector3(q.x * 0.25, 1.30, q.z)) if est_cape else _poids_proche(tunique, at, Vector3(q.x * 0.3, 0.97, q.z))
 					pw.append(cache[ck])
 				var c: Vector3 = (p[0] + p[1] + p[2]) / 3.0
 				_tri(lam, p, uvs, pw, Vector3(0.0, c.y, -0.03))

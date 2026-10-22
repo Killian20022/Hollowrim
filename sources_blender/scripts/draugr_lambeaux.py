@@ -56,13 +56,13 @@ def make_cape(i, xc, hw, ytop, L, d, kind):
     s.nom = "%s%d" % (kind, i)
     s.kind = "cape"
     s.L = L
-    s.out = rng.uniform(0.0, 0.05)
+    s.out = rng.uniform(0.0, 0.015)
     s.sway = rng.uniform(-0.03, 0.03)
     def pos(u, t):
         k = t / L
         y = ytop - t * 0.985
-        x = xc + u * hw * (1 + 0.14 * k) + s.sway * k
-        z = -(0.222 + 0.11 * (1.42 - y) / 0.9 + d + s.out * (k ** 1.5)) + 0.55 * x * x
+        x = xc + u * hw * (1 + 0.06 * k) + s.sway * k
+        z = -(0.222 + 0.06 * (1.42 - y) / 0.9 + d + s.out * (k ** 1.5)) + 0.55 * x * x
         return Vector((x, y, z))
     s.pos = pos
     s.dir = lambda p: Vector((0, 0, -1))
