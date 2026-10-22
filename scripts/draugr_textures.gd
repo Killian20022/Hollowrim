@@ -9,7 +9,8 @@ class_name DraugrTextures
 
 
 # palettes (sombre -> clair)
-const MAILLE := ["#1f1c19", "#34302b", "#4b4640", "#645e56", "#7d766b", "#9c9a95"]   # brun-gris ferreux (chaud : la lumière de 17h30 le refroidit)
+const GIVRE := Color(0.72, 0.72, 0.70)   # givre neutre (jamais de blanc brûlé, pas de bleu)
+const MAILLE := ["#1e1d1b", "#32302d", "#484644", "#605d59", "#79756e", "#9a9893"]   # brun-gris ferreux (chaud : la lumière de 17h30 le refroidit)
 const ROUILLE := ["#261a12", "#3c2a1e", "#543b29", "#6c4e36"]   # rouille brun terne (orange vif = cuivre au soleil couchant)
 const FER := ["#14120f", "#29251f", "#3f3931", "#585046", "#776d5f", "#9c9180", "#c0b5a0"]
 const IVOIRE := ["#29241e", "#463e33", "#6a5f4f", "#8f826c", "#b2a58a", "#cec2a6"]
@@ -25,7 +26,7 @@ const TISSU_BLEU := ["#131314", "#1f2022", "#2e2f33", "#404247", "#55575d", "#6f
 const BANDE := ["#2e2a24", "#464037", "#5f574b", "#7a705f"]
 
 const DOSSIER := "res://assets/persos/draugr"
-const VERSION := 7
+const VERSION := 9
 static var enregistrer := false
 static var _cache := {}
 
@@ -282,7 +283,10 @@ static func _touffe(img: Image, x0: int, y0: int, w: int, h: int, pente: float, 
 				ton = clair - 2
 			if k == h - 1 and x == int(roundf(cx)):
 				ton = clair + 1
-			_p(img, x, y0 + k, _c(FOUR, ton))
+			var cf := _c(FOUR, ton)
+			if t > 0.55 and ton > 1 and _h(x, y0 + k, 1899) > 0.62:
+				cf = cf.lerp(GIVRE, 0.4)     # givre sur les pointes
+			_p(img, x, y0 + k, cf)
 
 static func mante() -> Image:
 	var W := 256
@@ -743,7 +747,7 @@ static func _tabard() -> Image:
 	var bornes := [0]
 	var i := 0
 	while bornes[-1] < W:
-		bornes.append(bornes[-1] + 7 + int(_h(i, 5, 2031) * 8.0))
+		bornes.append(bornes[-1] + 5 + int(_h(i, 5, 2031) * 6.0))
 		i += 1
 	for y in H:
 		for x in W:
@@ -770,8 +774,8 @@ static func _tabard() -> Image:
 			var x0: int = bornes[d]
 			var x1: int = bornes[d + 1]
 			var cxd := x0 + (x1 - x0) * (0.25 + 0.5 * _h(d, 1, 2032))
-			var court := _h(d, 0, 2033) < 0.28
-			var fin := int(H * ((0.52 + _h(d, 2, 2034) * 0.12) if court else (0.80 + _h(d, 2, 2034) * 0.19)))
+			var court := _h(d, 0, 2033) < 0.38
+			var fin := int(H * ((0.52 + _h(d, 2, 2034) * 0.12) if court else (0.74 + _h(d, 2, 2034) * 0.25)))
 			var prof := 40.0 if not court else 18.0
 			var t0 := clampf(float(y - (fin - prof)) / prof, 0.0, 1.0)     # 0 en haut de la dent, 1 à la pointe
 			var demi := (x1 - x0) * 0.5 * (1.0 - t0) + 0.4
@@ -784,7 +788,7 @@ static func _tabard() -> Image:
 			# trous : losanges et triangles (cellules de 26 x 22 texels, 45 % occupées)
 			var gx := x / 26
 			var gy := y / 22
-			if gy >= 1 and _h(gx, gy, 2035) < 0.45:
+			if gy >= 1 and _h(gx, gy, 2035) < 0.55:
 				var hx := gx * 26 + 6 + int(_h(gx, gy, 2036) * 14.0)
 				var hy := gy * 22 + 5 + int(_h(gx, gy, 2037) * 10.0)
 				var rr := 3 + int(_h(gx, gy, 2038) * 4.0)
@@ -795,6 +799,8 @@ static func _tabard() -> Image:
 					c = _c(TISSU_BLEU, 0)
 			if c.a > 0.0 and _n(x, y, W, H, 8, 8, 2017) > 0.72:
 				c = c.darkened(0.2)
+			if c.a > 0.0 and y > 17 and (_n(x, y, W, H, 10, 5, 2018) > 0.86 or (bas and ecart > demi - 2.4 and _h(x, y, 2019) > 0.6)):
+				c = c.lerp(GIVRE, 0.4)     # givre gris-blanc accroché aux plis et aux pointes
 			img.set_pixel(x, y, c)
 	return img
 
@@ -803,12 +809,20 @@ static func _lamb() -> Image:
 	var img := _img(32, 64, Color(0, 0, 0, 0))
 	for y in 64:
 		for x in 32:
-			var l := 0.45 - float(y) / 64.0 * 0.12 + (_n(x, y, 32, 64, 5, 8, 2041) - 0.5) * 0.4 + (0.05 if ((x + y) & 3) < 2 else -0.04)
+			var pli := _n(x, 0, 32, 1, 4, 1, 2044)     # plis verticaux
+			var l := 0.45 - float(y) / 64.0 * 0.14 + (pli - 0.5) * 0.45 + (_n(x, y, 32, 64, 5, 8, 2041) - 0.5) * 0.4 + (0.05 if ((x + y) & 3) < 2 else -0.04)
 			var c := _c(TISSU, _ton(l, 6, x, y, 2042, 0.3))
 			if posmod(x, 16) < 2 or posmod(x, 16) > 13:
 				c = _c(TISSU, 0)
-			if _n(x, y, 32, 64, 6, 10, 2043) > 0.80 and y > 8:
+			elif posmod(x, 16) == 2 or posmod(x, 16) == 13:
+				c = _c(TISSU, 1)     # couture
+			var rong := _n(x, y, 32, 64, 6, 10, 2043)
+			if rong > 0.72 and y > 6:
 				c = Color(0, 0, 0, 0)
+			elif rong > 0.67 and y > 6 and c.a > 0.0:
+				c = _c(TISSU, 5 if _h(x, y, 2045) > 0.5 else 0)     # bord de déchirure : fil clair ou noirci
+			elif c.a > 0.0 and y > 4 and _n(x, y, 32, 64, 7, 6, 2046) > 0.84:
+				c = c.lerp(GIVRE, 0.5)     # givre
 			img.set_pixel(x, y, c)
 	return img
 
