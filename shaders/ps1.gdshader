@@ -148,6 +148,11 @@ void s2_vor(vec2 p, float S, out float f1, out float f2, out vec2 cid, out vec2 
 	}
 }
 
+float s2_terre(vec2 p) {
+	vec4 w = s2_poids(p);
+	return max(w.y, 0.62 * w.x) + (s2_fbm(p * 5.0 + 11.0) - 0.5) * 0.9 + (bruit_sol(p * 19.0) - 0.5) * 0.2;
+}
+
 // matière du sol au centre de texel `p` : ton + rampe (SolTuiles), niveau (pour les lèvres/ombres), pente de pierre
 void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out vec2 pente) {
 	vec4 w = s2_poids(p);
@@ -160,7 +165,7 @@ void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out ve
 		float prof = terre - 0.5;                       // 0 au bord, ~0,3 au cœur
 		float m1 = s2_fbm(p * 6.0 + 3.7);
 		rampe = 3;
-		ton = clamp(1 + int(m1 * 3.4), 1, 3);
+		ton = clamp(2 + int(m1 * 2.6), 2, 4);
 		niv = 0;
 		bool pierre = false;
 		float f1;
@@ -169,28 +174,28 @@ void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out ve
 		vec2 ctr;
 		float S = 0.5;
 		s2_vor(p, S, f1, f2, cid, ctr);
-		float dens = 0.22 + 1.6 * prof;
+		float dens = 0.42 + 2.2 * prof;
 		if (hash_sol(cid + 7.7) >= dens) {
 			// pas de grosse pierre ici : petites pierres sur une maille plus fine
 			S = 0.21;
 			s2_vor(p, S, f1, f2, cid, ctr);
-			dens = 0.15 + 1.5 * prof;
+			dens = 0.30 + 2.0 * prof;
 			if (hash_sol(cid + 13.1) >= dens) f1 = 9.0;
 		}
 		float R = 0.36 + 0.24 * hash_sol(cid + 2.2);
-		if (f1 < R && (f2 - f1) > 0.06) {
+		if (f1 < R && (f2 - f1) > 0.09) {
 			pierre = true;
 			vec2 vv = (p - ctr) / (S * R);
 			float l = dot(vv, vec2(-0.7071, -0.7071));
 			rampe = 2;
-			ton = 1 + int(hash_sol(cid + 4.4) * 3.0);
+			ton = 2 + int(hash_sol(cid + 4.4) * 2.4);
 			if (l > 0.30) ton += 1;
 			else if (l < -0.45) ton -= 1;
 			ton = clamp(ton, 0, 4);
 			niv = 4;
 			pente = vv * clamp(f1 / R, 0.0, 1.0);
 			// calotte de neige sur le dessus de certaines pierres
-			if (hash_sol(cid + 9.9) < 0.38 && l > -0.15 && f1 < R * 0.8) {
+			if (hash_sol(cid + 9.9) < 0.20 && l > 0.05 && f1 < R * 0.7) {
 				rampe = 0;
 				ton = l > 0.35 ? 5 : 4;
 			}
@@ -202,7 +207,7 @@ void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out ve
 				rampe = 2;
 				ton = 2 + int(hash_sol(floor(p * 24.0) + 8.0) * 3.0);
 				niv = 1;
-			} else if (s2_fbm(p * 9.0 + 30.0) > 0.60 + prof * 1.4) {
+			} else if (s2_fbm(p * 9.0 + 30.0) > 0.70 + prof * 1.4) {
 				rampe = 0;                                   // neige mince dans la terre
 				ton = 3;
 				niv = 2;
@@ -294,16 +299,12 @@ void fragment() {
 		int niv;
 		vec2 pente;
 		s2_sol(pc, trace, ton, rampe, niv, pente);
-		int tn;
-		int rn;
-		int n_ul;
-		int n_lr;
-		vec2 pn;
-		s2_sol(pc + vec2(-pas, -pas), 0.0, tn, rn, n_ul, pn);
-		s2_sol(pc + vec2(pas, pas), 0.0, tn, rn, n_lr, pn);
+		// lèvre claire / ombre aux limites terre ↔ neige (champ de terre évalué au texel voisin en haut à gauche)
 		int lev = 0;
-		if (n_ul < niv) lev = 1;
-		else if (n_ul > niv || n_lr < niv) lev = -1;
+		bool terre_moi = s2_terre(pc) > 0.5;
+		bool terre_ul = s2_terre(pc + vec2(-pas, -pas)) > 0.5;
+		if (!terre_moi && terre_ul && rampe == 0) lev = 1;
+		else if (terre_moi && !terre_ul && niv <= 1) lev = -1;
 		ton = ton + lev;
 		if (rampe == 0) ton = max(ton, 1);
 		ton = clamp(ton, 0, 7);

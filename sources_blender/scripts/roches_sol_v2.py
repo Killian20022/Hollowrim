@@ -58,7 +58,7 @@ def rocher(nom, graine, taille, npts=34, aplat_bas=0.5, plat_haut=0.0, neige=1.0
     # neige : seuil de pente bruité, poussée vers l'extérieur
     for v in bm.verts:
         nz = v.normal.z
-        seuil = 0.50 + 0.30 * noise.noise(v.co * 3.1 + off)
+        seuil = 0.80 + 0.18 * noise.noise(v.co * 3.1 + off)
         if neige > 0 and nz > seuil and v.co.z > zmin + 0.3 * (zmax - zmin):
             v.co += v.normal * 0.025 * neige
     bm.normal_update()
@@ -73,7 +73,7 @@ def rocher(nom, graine, taille, npts=34, aplat_bas=0.5, plat_haut=0.0, neige=1.0
         for lo in f.loops:
             v = lo.vert
             nz = v.normal.z
-            seuil = 0.50 + 0.30 * noise.noise(Vector(v.co.x, v.co.y, v.co.z - dec) * 3.1 + off) if False else 0.50 + 0.30 * noise.noise((v.co - Vector((0, 0, dec))) * 3.1 + off)
+            seuil = 0.80 + 0.18 * noise.noise((v.co - Vector((0, 0, dec))) * 3.1 + off)
             neige_v = neige > 0 and nz > seuil and (v.co.z - dec) > zmin + 0.3 * (zmax - dec - zmin)
             h = (v.co.z + 0.06) / max(zmax + 0.06, 0.01)
             ao = 0.60 + 0.40 * smooth(0.0, 0.7, h)

@@ -1,0 +1,13 @@
+# paires à 5 cm pour le scintillement
+M_marche_avant_0 monde -9.6,-9.4,45,-8 heure=12 sol_v2=0
+M_marche_avant_1 monde -9.6354,-9.4354,45,-8 heure=12 sol_v2=0
+M_marche_apres_0 monde -9.6,-9.4,45,-8 heure=12 sol_v2=1
+M_marche_apres_1 monde -9.6354,-9.4354,45,-8 heure=12 sol_v2=1
+M_course_avant_0 monde -11.2,-11.0,45,-4 heure=12 sol_v2=0
+M_course_avant_1 monde -11.2354,-11.0354,45,-4 heure=12 sol_v2=0
+M_course_apres_0 monde -11.2,-11.0,45,-4 heure=12 sol_v2=1
+M_course_apres_1 monde -11.2354,-11.0354,45,-4 heure=12 sol_v2=1
+M_sol_avant_0 monde -13.0,-12.6,45,-70 heure=12 sol_v2=0
+M_sol_avant_1 monde -13.0354,-12.6354,45,-70 heure=12 sol_v2=0
+M_sol_apres_0 monde -13.0,-12.6,45,-70 heure=12 sol_v2=1
+M_sol_apres_1 monde -13.0354,-12.6354,45,-70 heure=12 sol_v2=1

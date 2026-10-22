@@ -227,7 +227,7 @@ static func mesh_touffe(materiau: Material) -> ArrayMesh:
 	return mesh
 
 static func _poser_touffes(monde: Node, rochers: Array) -> void:
-	var mat := SousBois.materiau_herbe(texture_touffe(77), Color(1.3, 1.25, 1.12))
+	var mat := SousBois.materiau_herbe(texture_touffe(77), Color(1.05, 1.0, 0.95))
 	var mesh := mesh_touffe(mat)
 	var arbres: Array = monde.get_meta("arbres_zone") if monde.has_meta("arbres_zone") else []
 	var xfs: Array = []
@@ -246,7 +246,7 @@ static func _poser_touffes(monde: Node, rochers: Array) -> void:
 				continue
 			# plus de touffes au bord du chemin (1-3 m), quelques-unes plus loin, par amas
 			var amas := ZoneBiome.alea_pos(floorf(jx / 3.0), floorf(jz / 3.0), 23)
-			var p := 0.16 + 0.55 * smoothstep(0.95, 1.7, d) * (1.0 - smoothstep(2.8, 5.0, d)) * (0.4 + amas)
+			var p := 0.10 + 0.50 * smoothstep(0.95, 1.7, d) * (1.0 - smoothstep(2.8, 5.0, d)) * (0.4 + amas)
 			if ZoneBiome.alea_pos(jx, jz, 24) > p:
 				continue
 			if SousBois._pres_d_un_arbre(arbres, jx, jz, 0.5):
@@ -258,9 +258,9 @@ static func _poser_touffes(monde: Node, rochers: Array) -> void:
 					break
 			if bloque:
 				continue
-			var s := 0.75 + 0.7 * ZoneBiome.alea_pos(jx, jz, 25)
+			var s := 0.42 + 0.42 * ZoneBiome.alea_pos(jx, jz, 25)
 			var yaw := ZoneBiome.alea_pos(jx, jz, 26) * TAU
-			xfs.append(SousBois._tf(jx, SousBois._bas(monde, jx, jz, 0.4) - 0.02, jz, yaw, s, 0.8 + 0.5 * ZoneBiome.alea_pos(jx, jz, 27)))
+			xfs.append(SousBois._tf(jx, SousBois._bas(monde, jx, jz, 0.4) - 0.02, jz, yaw, s, 0.75 + 0.45 * ZoneBiome.alea_pos(jx, jz, 27)))
 		x0 += pas
 	for mmi in Instanciation.repartir(_decor, mesh, xfs, {"portee": 32.0, "ombre": false}):
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

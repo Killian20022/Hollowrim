@@ -1,0 +1,4 @@
+R_T1 monde -8.2,-8,45,-6 heure=12 sol_v2=0
+R_T3 monde -14,-13.5,48,-50 heure=12 sol_v2=0
+R_T1v2 monde -8.2,-8,45,-6 heure=12 sol_v2=1
+R_T3v2 monde -14,-13.5,48,-50 heure=12 sol_v2=1
