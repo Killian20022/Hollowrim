@@ -166,7 +166,8 @@ static func salle(k: DonjonKit, m: Dictionary) -> void:
 	# --- données de la table
 	for s: Dictionary in v2["statues"]:
 		var p := k.lw(s["pos"])
-		d.modele("statue_capuche", Vector3(p.x, y, p.z), k.lw_lacet(s.get("lacet", 0.0)))
+		var lacs := k.lw_lacet(s.get("lacet", 0.0))
+		d.modele("statue_capuche", Vector3(p.x, y, p.z), lacs)
 		if s.get("collision", false):
 			d.solide(Vector3(p.x, y + 1.2, p.z), Vector3(0.9, 2.4, 0.9))
 	for s: Dictionary in v2["sarcophages"]:
