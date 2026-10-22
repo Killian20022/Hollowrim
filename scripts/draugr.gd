@@ -104,6 +104,8 @@ var _detour := 0.0             # durée restante d'un détour forcé (bloqué)
 var _dernier := Vector3.ZERO
 var _t_bloque := 0.0
 const BUTIN := preload("res://scripts/butin.gd")
+## Un ennemi immobile au sol ne relance move_and_slide() qu'à cette période (re-vérifie le sol sous ses pieds).
+const IMMO_PERIODE := 0.4
 
 var etat := GARDE
 var modele: Node3D
@@ -120,6 +122,9 @@ var _var := 1.0  # petite variation de rythme propre à chaque draugr
 var _vit := 0.0
 var _pieds: PiedsAuSol  # pieds posés sur le terrain (coupé tant qu'il dort ou se relève allongé)
 var _ragdoll: Ragdoll  # corps physique à la mort
+var _gele := false             # gelé par SalleActive (hors salle active) : process coupé et caché
+var _mode_avant := Node.PROCESS_MODE_INHERIT
+var _immo := 0.0               # durée depuis le dernier move_and_slide d'un ennemi immobile au sol
 
 func _ready() -> void:
 	add_to_group("ennemis")
@@ -158,17 +163,7 @@ func _ready() -> void:
 	forme.position.y = 0.9
 	add_child(forme)
 
-	var app := {"corps": "homme", "draugr": true, "tenue": {"tunique": Color(0.42, 0.38, 0.34), "ceinture": Color(0.6, 0.6, 0.6), "brassards": Color(0.65, 0.62, 0.6), "haillons": Color.WHITE}}
-	if type == "guerrier":
-		# lot 4 : cotte de mailles rouillée, épaulières, jupe de lanières, cape en lambeaux
-		app["tenue"]["mante"] = Color(0.5, 0.48, 0.45)
-		app["tenue"]["bottes"] = Color(0.6, 0.6, 0.6)
-		app["tenue"]["epaulieres"] = Color.WHITE
-		app["tenue"]["pteruges"] = Color.WHITE
-		app["tenue"]["cape_courte"] = Color.WHITE
-		app["etoffes"] = {"tunique": "mailles_rouille", "brassards": "draugr"}
-		app["casque"] = "casque_draugr"
-	app.merge(apparence, true)
+	var app := EnnemisNordiques.apparence_defaut(type, apparence)
 	if app.has("perso"):
 		modele = Personnage.creer(app["perso"])      # bandits vivants : personnage de base unifie (PersoDef)
 	elif _os:
@@ -193,6 +188,7 @@ func _ready() -> void:
 	_var = randf_range(0.94, 1.06)
 	origine = global_position
 	_pos_prec = global_position
+	_immo = randf() * IMMO_PERIODE   # phases différentes : les ennemis immobiles ne relancent pas move_and_slide la même image
 	if reveil_evt != "" and quetes != null and not quetes.vus.has(reveil_evt):
 		_attend = true
 		dort = true
@@ -301,6 +297,7 @@ func _plus_proche() -> int:
 func _sur_evenement(evt: String) -> void:
 	if _attend and evt == reveil_evt:
 		_attend = false
+		degeler()
 		if etat == DORT:
 			_changer(REVEIL)
 			_reveiller()
@@ -308,6 +305,7 @@ func _sur_evenement(evt: String) -> void:
 
 ## Un chef (ou un cri) met en alerte : les gardes et patrouilleurs se lancent à la poursuite.
 func alerter() -> void:
+	degeler()
 	if etat in [GARDE, PATROUILLE]:
 		_changer(TRAQUE)
 	elif etat == DORT and not _attend:
@@ -330,6 +328,31 @@ func vivant() -> bool:
 
 func en_combat() -> bool:
 	return etat in [TRAQUE, ATTAQUE, TITUBE, VISE, APPEL, ANNONCE, SOUFFLE]
+
+## --- gel hors salle active (SalleActive) -------------------------------------------------
+## Seuls les dormeurs, gardes et patrouilleurs peuvent être gelés : jamais un ennemi qui poursuit, frappe ou se relève.
+func peut_geler() -> bool:
+	return etat == DORT or etat == GARDE or etat == PATROUILLE
+
+func est_gele() -> bool:
+	return _gele
+
+## Process, physique, animation et modificateurs de squelette coupés (process_mode DISABLED) et corps caché. Les signaux restent actifs
+## (réveil par événement) : alerter(), _sur_evenement() et recevoir_coup() dégèlent d'eux-mêmes. La collision reste en place.
+func geler() -> void:
+	if _gele or etat == MORT or not peut_geler():
+		return
+	_gele = true
+	_mode_avant = process_mode
+	process_mode = Node.PROCESS_MODE_DISABLED
+	visible = false
+
+func degeler() -> void:
+	if not _gele:
+		return
+	_gele = false
+	process_mode = _mode_avant
+	visible = true
 
 func _jouer(nom: String, fondu := 0.15, forcer := false) -> void:
 	if _anim == nom and not forcer:
@@ -576,6 +599,12 @@ func _physics_process(dt: float) -> void:
 	_recul = _recul.lerp(Vector3.ZERO, 1.0 - exp(-6.0 * dt))
 	velocity.x = dir.x * _vit + _recul.x
 	velocity.z = dir.z * _vit + _recul.z
+	# Ennemi immobile au sol : pas de move_and_slide à chaque pas (le plus gros coût de physique contre la coque de la grotte) ; relancé
+	# toutes les IMMO_PERIODE s pour revérifier le sol, et tout de suite dès qu'il bouge, tombe ou est repoussé.
+	if absf(velocity.x) + absf(velocity.z) < 0.01 and velocity.y > -0.01 and is_on_floor() and _immo < IMMO_PERIODE:
+		_immo += dt
+		return
+	_immo = 0.0
 	move_and_slide()
 
 ## Ligne de vue vers le joueur, rafraîchie 5 fois par seconde.
@@ -751,6 +780,7 @@ func _eviter(dir: Vector3, dt: float) -> Vector3:
 func recevoir_coup(quantite: float, origine_coup: Vector3, puissant: bool) -> String:
 	if etat == MORT:
 		return ""
+	degeler()
 	if etat == DORT and _attend:
 		_attend = false
 	var vers := origine_coup - global_position
@@ -797,6 +827,7 @@ func _eclair() -> void:
 ## Mort : le corps passe de l'animation au ragdoll, projeté dans le sens du coup (de
 ## l'origine du coup vers lui) ; plus le coup est puissant, plus il chute loin.
 func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false) -> void:
+	degeler()
 	_changer(MORT)
 	if is_instance_valid(_cone):
 		_cone.queue_free()

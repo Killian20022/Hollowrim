@@ -438,8 +438,11 @@ func _process(dt: float) -> void:
 			quetes.signaler("lieu:grotte")
 	if _tache >= 0 and WorkerThreadPool.is_task_completed(_tache):
 		_integrer()
-	if dedans and jeu != null:
-		jeu.tick(dt)
+	if jeu != null:
+		if dedans:
+			jeu.tick(dt)
+		else:
+			jeu.surface(dt)       # joueur dehors : les ennemis de la grotte sont gelés
 
 ## Pose l'extérieur dans la scène (attend le fil s'il tourne encore).
 func attendre_exterieur() -> void:
@@ -483,6 +486,8 @@ func _poser(g: Grotte) -> void:
 
 ## Sortie du jeu pendant la construction : on attend le fil (sinon fuites de ressources).
 func _exit_tree() -> void:
+	if jeu != null:
+		jeu._ennemis_prets(true)       # fil de préparation des modèles d'ennemis
 	if _tache_ext >= 0:
 		WorkerThreadPool.wait_for_task_completion(_tache_ext)
 		_tache_ext = -1
