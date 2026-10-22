@@ -2,7 +2,7 @@ extends SceneTree
 ## Galerie du Mage nordique (copie de galerie_guerrier.gd) (itérations rapides hors du monde) : rendu 640x360, caméra du jeu (FOV 72°),
 ## lumière « crépuscule » (soleil bas orangé + ciel bleu) ou « nuit + torche », passe finale ps1_post.
 ##   godot --path . --script res://outils/galerie_mage.gd -- --sortie=<dossier absolu> [--mode=planche|anims|gros|cout]
-##        [--sans-capuche] [--perso=mage|guerrier|draugr|rien] [--lumiere=crepuscule|nuit|torche]
+##        [--sans-capuche] [--corps=femme] [--avant (sans les pièces Blender)] [--perso=mage|guerrier|draugr|rien] [--lumiere=crepuscule|nuit|torche]
 ## planche : 3 colonnes (face, 3/4, dos) x 3 lignes (2, 4, 8 m) ; anims : bande idle, marche, course, attaque, coup, mort (3/4, 3 m) ;
 ## gros : 2 m face/3/4 agrandi x2 ; stats : triangles, surfaces, passes.
 const W := 640
@@ -170,7 +170,7 @@ func _construire(quoi: String) -> Node3D:
 		n = GuerrierNordique.creer({})
 	else:
 		MageNordique.chrono = true
-		n = MageNordique.creer({"capuche": _arg("sans-capuche", "") == ""})
+		n = MageNordique.creer({"capuche": _arg("sans-capuche", "") == "", "corps": _arg("corps", "homme"), "blender": _arg("avant", "") == ""})
 	sv.add_child(n)
 	return n
 

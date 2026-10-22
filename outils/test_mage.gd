@@ -218,6 +218,37 @@ func _lancer() -> void:
 				var axe := (PiedsAuSol.pose_globale(sq, bd.os_) * bd.prise).basis.y
 				pire = maxf(pire, rad_to_deg(axe.angle_to(Vector3.UP)))
 			ok(pire < 3.0, "%s : bâton incliné de %.1f° au plus (< 3°)" % [clip, pire])
+	# --- variante CORPS FEMME (Sigrún, Grima) : mêmes contrats, budget, jupe, plastron Blender chargé
+	var gf := MageNordique.creer({"corps": "femme"})
+	root.add_child(gf)
+	var hf := Humain.creer({"corps": "femme", "tenue": {"tunique": Color.WHITE}})
+	root.add_child(hf)
+	var sqf := gf.find_child("Skeleton3D", true, false) as Skeleton3D
+	var sqhf := hf.find_child("Skeleton3D", true, false) as Skeleton3D
+	var memes_f := sqf.get_bone_count() == sqhf.get_bone_count()
+	for i in sqhf.get_bone_count():
+		memes_f = memes_f and sqf.get_bone_name(i) == sqhf.get_bone_name(i)
+	ok(memes_f, "femme : mêmes os qu'Humain.creer femme (%d)" % sqf.get_bone_count())
+	var tris_f := _tris(gf)
+	ok(tris_f <= BUDGET, "femme : %d triangles visibles (<= %d)" % [tris_f, BUDGET])
+	var surf_f := 0
+	for mi: MeshInstance3D in gf.find_children("*", "MeshInstance3D", true, false):
+		if mi.is_visible_in_tree():
+			surf_f += mi.mesh.get_surface_count()
+	ok(surf_f <= SURFACES_MAX, "femme : %d surfaces visibles (<= %d)" % [surf_f, SURFACES_MAX])
+	var gb := MageNordique.creer({"corps": "femme", "blender": false})
+	root.add_child(gb)
+	ok(tris_f > _tris(gb) - 200 and MageNordique.avec_plastron, "femme : écailles + frange Blender chargées (%d tris sans, %d avec)" % [_tris(gb), tris_f])
+	var apf := gf.get_node_or_null("Animations") as AnimationPlayer
+	ok(apf != null and apf.has_animation("Spell_Simple_Shoot") and apf.has_animation("Walk"), "femme : AnimationPlayer et clips")
+	var jf := sqf.get_node_or_null("jupe") as MageJupe
+	if jf:
+		for clip in ["Idle", "Walk", "Jog_Fwd"]:
+			var rf := _jupe_clip(sqf, apf, clip, jf)
+			ok(rf.x <= TRAVERSEE_JUPE_COURSE, "femme : %s jambes/jupe %.1f cm (<= %.0f)" % [clip, rf.x * 100.0, TRAVERSEE_JUPE_COURSE * 100.0])
+	var rdf := Ragdoll.equiper(gf) as Ragdoll
+	ok(rdf != null and rdf.os.size() == 16, "femme : ragdoll %d os" % (rdf.os.size() if rdf else 0))
+	gb.free()
 	var rd := Ragdoll.equiper(g) as Ragdoll
 	ok(rd != null and rd.os.size() == 16, "ragdoll : %d os physiques" % (rd.os.size() if rd else 0))
 	print("TEST MAGE : %s (%d échecs)" % ["OK" if echecs == 0 else "ÉCHEC", echecs])

@@ -6,7 +6,7 @@ func _init() -> void:
 		var r := Humain.creer({"corps": corps, "cheveux": "Hair_Long", "barbe": corps == "homme", "tenue": {"tunique": Color.WHITE, "pantalon": Color.WHITE, "bottes": Color.WHITE, "ceinture": Color.WHITE, "mante": Color.WHITE, "capuche": Color.WHITE}})
 		root.add_child(r)
 		var sq := r.find_child("Skeleton3D", true, false) as Skeleton3D
-		var s := corps + " :"
+		var s: String = corps + " :"
 		for os_ in ["pelvis", "spine_01", "spine_02", "spine_03", "neck_01", "Head", "upperarm_l", "lowerarm_l", "hand_l", "thigh_l", "calf_l", "foot_l"]:
 			var o := sq.get_bone_global_rest(sq.find_bone(os_)).origin
 			s += " %s=(%.3f,%.3f,%.3f)" % [os_, o.x, o.y, o.z]

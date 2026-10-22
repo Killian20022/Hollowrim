@@ -17,6 +17,9 @@ from mathutils.bvhtree import BVHTree
 _a = sys.argv[sys.argv.index("--") + 1:]
 SRC, OUT = _a[:2]
 BAKE = _a[2] if len(_a) > 2 else SRC
+FEMME = len(_a) > 3 and _a[3] == "femme"          # corps femme : mêmes pièces recalées sur son torse, sans nouvelle cuisson
+SUF = "_femme" if FEMME else ""
+K = (1.77 / 1.81) if FEMME else 1.0
 os.makedirs(BAKE, exist_ok=True)
 os.makedirs(OUT, exist_ok=True)
 rnd = random.Random(20261022)
@@ -46,9 +49,9 @@ def lire_obj(nom):
             f.append(tuple(int(q) - 1 for q in t[1:4]))
     return v, f
 
-TV, TF = lire_obj("mage_tunique.obj")
+TV, TF = lire_obj("mage_tunique%s.obj" % SUF)
 bvh_t = BVHTree.FromPolygons([tuple(v) for v in TV], TF)
-MV, MF = lire_obj("mage_mante.obj")
+MV, MF = lire_obj("mage_mante%s.obj" % SUF)
 
 def surface(x, y):
     """Point et normale du devant de la tunique en (x, y) (rayon de devant vers l'arrière)."""
@@ -81,7 +84,7 @@ def surface_lisse(x, y, e=0.03):
 # ------------------------------------------------------------------ plastron : écailles
 W_E, H_E = 0.056, 0.066
 PAS_X, PAS_Y = 0.052, 0.033
-Y_HAUT, Y_BAS = 1.435, 1.045
+Y_HAUT, Y_BAS = 1.435 * K, 1.045 * K
 X_MAX = 0.165
 ECART_PEAU = 0.008          # centre de l'écaille au-dessus de la tunique (épaisseur de la cotte)
 TILT = math.radians(15.0)
@@ -179,6 +182,7 @@ def ecaille_legere(bm, uvl, e, k, cases_px):
             continue
         # orientation : normale du triangle ~ n (repère Godot -> blender)
         nb = Vector(b(n))
+        f.normal_update()
         if f.normal.dot(nb) < 0:
             f.normal_flip()
             order = [l.vert for l in f.loops]
@@ -278,6 +282,7 @@ def perles_objets(pts):
         base = [bml.verts.new(cb + u * math.cos(a) * r + v * math.sin(a) * r - nb * r * 0.1) for a in (0, math.pi / 2, math.pi, 3 * math.pi / 2)]
         for i in range(4):
             f = bml.faces.new((base[i], base[(i + 1) % 4], apex))
+            f.normal_update()
             if f.normal.dot(nb) < 0:
                 f.normal_flip()
             for l in f.loops:
@@ -303,7 +308,7 @@ def bord_bas_mante():
             continue
         p0, p1 = MV[i0], MV[i1]
         m = (p0 + p1) / 2
-        if m.y < 1.10 or m.y > 1.47 or ct.y < m.y + 0.004 or (m.z > 0.03 and abs(m.x) < 0.10):
+        if m.y < 1.10 * K or m.y > 1.47 * K or ct.y < m.y + 0.004 or (m.z > 0.03 and abs(m.x) < 0.10):
             continue
         cote = p1 - p0
         lc = cote.length
@@ -372,6 +377,7 @@ def frange():
                     f = bml.faces.new((vs[0], vs[j], vs[j + 1]))
                 except ValueError:
                     continue
+                f.normal_update()
                 if f.normal.dot(Vector(b(ext))) < 0:
                     f.normal_flip()
                 for l in f.loops:
@@ -403,6 +409,7 @@ def banc_frange():
             uvs.append(uv_de(REG_F, tx, ty))
         for j in range(1, len(poly) - 1):
             f = low.faces.new((vs[0], vs[j], vs[j + 1]))
+            f.normal_update()
             if f.normal.dot(Vector((0, -1, 0))) > 0:
                 f.normal_flip()
             for l in f.loops:
@@ -410,6 +417,7 @@ def banc_frange():
         # détaillé
         hv = [high.verts.new(b(p)) for p in pts]
         fh = high.faces.new(hv)
+        fh.normal_update()
         if fh.normal.dot(Vector((0, -1, 0))) > 0:
             fh.normal_flip()
         geo = bmesh.ops.triangulate(high, faces=[fh])
@@ -592,49 +600,51 @@ def main():
     # perles
     pts = perles_objets(perles(None, None, ecs, None) if False else perles(None, None, ecs, None))
     bpy.context.scene.unit_settings.system = "METRIC"
-    # cuisson du plastron
-    res = cuire(low_p, high_p, REG_P, "plastron")
-    ao = reduire(res["AO"], SS)
-    pt = reduire(res["EMIT"], SS)
-    print("AO plastron: min %.2f moy %.2f max %.2f | pt: min %.2f moy %.2f max %.2f" % (ao.min(), ao.mean(), ao.max(), pt.min(), pt.mean(), pt.max()))
-    cont = tri_fan_ecaille()
-    polys = []
-    for k in range(len(ecs)):
-        polys.append([((a + W_E / 2) / W_E * (CELL_P[0] - 1.0) + 0.5, (-bb) / H_E * (CELL_P[1] - 1.0) + 0.5) for (a, bb) in cont])
-    masque = masque_poly(REG_P, CELL_P, GRID_P, polys)
-    tons = quantifier(ao, pt, masque, 11)
-    sauver_png(os.path.join(BAKE, "bake_plastron.png"), tons, masque)
-    apercu(os.path.join(SRC, "apercu_plastron.png"), tons, masque)
-    # frange : cuisson sur le banc
-    lowb, highb = banc_frange()
-    lo = objet("banc_low", lowb)
-    hi = objet("banc_high", highb)
-    for o in (hi,):
-        bpy.context.view_layer.objects.active = o
-        m = o.modifiers.new("sol", "SOLIDIFY")
-        m.thickness = 0.0025
-        m.offset = 1.0
-        dg = bpy.context.evaluated_depsgraph_get()
-        me = bpy.data.meshes.new_from_object(o.evaluated_get(dg))
-        o.modifiers.clear()
-        o.data = me
-    resf = cuire(lo, hi, REG_F, "frange", ray=0.02, cage=0.006)
-    aof, ptf = reduire(resf["AO"], SS), reduire(resf["EMIT"], SS)
-    polysf = []
-    for k in range(GRID_F[0] * GRID_F[1]):
-        polysf.append([((a + 0.5) * (CELL_F[0] - 1.0) + 0.5, (-bb) * (CELL_F[1] - 1.0) + 0.5) for (a, bb) in dent_poly(k % GRID_F[0])])
-    mf = masque_poly(REG_F, CELL_F, GRID_F, polysf)
-    tf = quantifier(aof, ptf, mf, 37, base=2.2, bord=False)
-    sauver_png(os.path.join(BAKE, "bake_frange.png"), tf, mf)
-    apercu(os.path.join(SRC, "apercu_frange.png"), tf, mf)
+    if not FEMME:
+        # cuisson du plastron
+        res = cuire(low_p, high_p, REG_P, "plastron")
+        ao = reduire(res["AO"], SS)
+        pt = reduire(res["EMIT"], SS)
+        print("AO plastron: min %.2f moy %.2f max %.2f | pt: min %.2f moy %.2f max %.2f" % (ao.min(), ao.mean(), ao.max(), pt.min(), pt.mean(), pt.max()))
+        cont = tri_fan_ecaille()
+        polys = []
+        for k in range(len(ecs)):
+            polys.append([((a + W_E / 2) / W_E * (CELL_P[0] - 1.0) + 0.5, (-bb) / H_E * (CELL_P[1] - 1.0) + 0.5) for (a, bb) in cont])
+        masque = masque_poly(REG_P, CELL_P, GRID_P, polys)
+        tons = quantifier(ao, pt, masque, 11)
+        sauver_png(os.path.join(BAKE, "bake_plastron.png"), tons, masque)
+        apercu(os.path.join(SRC, "apercu_plastron.png"), tons, masque)
+    if not FEMME:
+        # frange : cuisson sur le banc
+        lowb, highb = banc_frange()
+        lo = objet("banc_low", lowb)
+        hi = objet("banc_high", highb)
+        for o in (hi,):
+            bpy.context.view_layer.objects.active = o
+            m = o.modifiers.new("sol", "SOLIDIFY")
+            m.thickness = 0.0025
+            m.offset = 1.0
+            dg = bpy.context.evaluated_depsgraph_get()
+            me = bpy.data.meshes.new_from_object(o.evaluated_get(dg))
+            o.modifiers.clear()
+            o.data = me
+        resf = cuire(lo, hi, REG_F, "frange", ray=0.02, cage=0.006)
+        aof, ptf = reduire(resf["AO"], SS), reduire(resf["EMIT"], SS)
+        polysf = []
+        for k in range(GRID_F[0] * GRID_F[1]):
+            polysf.append([((a + 0.5) * (CELL_F[0] - 1.0) + 0.5, (-bb) * (CELL_F[1] - 1.0) + 0.5) for (a, bb) in dent_poly(k % GRID_F[0])])
+        mf = masque_poly(REG_F, CELL_F, GRID_F, polysf)
+        tf = quantifier(aof, ptf, mf, 37, base=2.2, bord=False)
+        sauver_png(os.path.join(BAKE, "bake_frange.png"), tf, mf)
+        apercu(os.path.join(SRC, "apercu_frange.png"), tf, mf)
     fr = frange()
     # export glb (léger seulement)
     bpy.ops.object.select_all(action="DESELECT")
     for o in (low_p, pts, fr):
         o.select_set(True)
     low_p.data.materials.clear()
-    bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, "mage_pieces.glb"), use_selection=True, export_format="GLB", export_yup=True, export_apply=False, export_materials="NONE" if False else "EXPORT")
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(SRC, "mage_pieces.blend"))
+    bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, "mage_pieces%s.glb" % SUF), use_selection=True, export_format="GLB", export_yup=True, export_apply=False, export_materials="NONE" if False else "EXPORT")
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(SRC, "mage_pieces%s.blend" % SUF))
     print("TRIS plastron", len(low_p.data.polygons), "perles", len(pts.data.polygons), "frange", len(fr.data.polygons))
 
 main()

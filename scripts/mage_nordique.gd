@@ -37,6 +37,8 @@ const SECTEURS := 20
 const Z_CENTRE := -0.03
 
 static var chrono := false
+## échelle verticale du corps (1 = homme ; corps femme d'Humain : 1,77 / 1,81) : tous les repères de hauteur du mage la suivent
+static var K := 1.0
 ## vrai quand les écailles Blender sont posées sur le devant (l'amulette se pose par-dessus)
 static var avec_plastron := true
 
@@ -49,7 +51,9 @@ static func creer(options := {}) -> Node3D:
 	var tenue := {"tunique": C, "pantalon": C, "bottes": C, "ceinture": C, "mante": C}
 	if options.get("capuche", true):
 		tenue["capuche"] = C
-	var app := {"corps": "homme", "barbe": true, "cheveux": "Hair_Long", "teinte_cheveux": TEINTE_BARBE, "peau": PEAU, "tenue": tenue}
+	var femme: bool = options.get("corps", "homme") == "femme"
+	K = (1.77 / 1.81) if femme else 1.0
+	var app := {"corps": "femme" if femme else "homme", "barbe": not femme, "cheveux": "Hair_Long", "teinte_cheveux": TEINTE_BARBE, "peau": PEAU, "tenue": tenue}
 	var t0 := Time.get_ticks_usec()
 	var racine := Humain.creer(app)
 	racine.name = "MageNordique"
@@ -64,25 +68,25 @@ static func creer(options := {}) -> Node3D:
 	# un peu évasée (elle couvre le haut des bras), ouverte au milieu du devant (amulette, bande brodée) ; frange effilochée plus bas
 	_habiller(pieces["mante"], GuerrierNordique.materiau(MageTextures.tex("pelerine"), true, false, true, "mage_pelerine"))
 	_deformer(pieces["mante"], func(p: Vector3) -> Vector3:
-		var t := clampf((1.50 - p.y) / 0.20, 0.0, 1.0)
+		var t := clampf(((1.50 * K) - p.y) / 0.20, 0.0, 1.0)
 		var r := Vector2(p.x, p.z + 0.02)
 		var e := r.normalized() * 0.035 * t
 		return Vector3(p.x + e.x, p.y - 0.07 * t, p.z + e.y))
-	GuerrierNordique._filtrer(pieces["mante"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.03 and absf(c.x) < 0.075 + maxf(0.0, 1.50 - c.y) * 0.25 and c.y < 1.52))
+	GuerrierNordique._filtrer(pieces["mante"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.03 and absf(c.x) < 0.075 + maxf(0.0, (1.50 * K) - c.y) * 0.25 and c.y < (1.52 * K)))
 	if pieces.has("capuche") and options.get("capuche", true):
 		_habiller(pieces["capuche"], GuerrierNordique.materiau(MageTextures.tex("capuche")))
 		# capuche ouverte devant (le pan qui couvrait le menton et le cou est retiré : la barbe sort de la capuche comme sur la
 		# référence), sommet relevé et tiré en arrière (léger pic), bord avant avancé au-dessus du front (visage dans l'ombre)
-		GuerrierNordique._filtrer(pieces["capuche"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > -0.01 and absf(c.x) < 0.105 + maxf(0.0, 1.58 - c.y) * 0.6 and c.y < 1.665))
+		GuerrierNordique._filtrer(pieces["capuche"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > -0.01 and absf(c.x) < 0.105 + maxf(0.0, (1.58 * K) - c.y) * 0.6 and c.y < (1.665 * K)))
 		_deformer(pieces["capuche"], func(p: Vector3) -> Vector3:
-			var t := smoothstep(1.74, 1.86, p.y) * smoothstep(0.06, -0.10, p.z)
-			var f := smoothstep(1.68, 1.78, p.y) * smoothstep(0.02, 0.10, p.z)
+			var t := smoothstep((1.74 * K), (1.86 * K), p.y) * smoothstep(0.06, -0.10, p.z)
+			var f := smoothstep((1.68 * K), (1.78 * K), p.y) * smoothstep(0.02, 0.10, p.z)
 			# passe 2 : capuche PROFONDE — tout l'avant (au-dessus de la bouche) avancé de 4 cm et élargi : le visage recule dans l'ombre
-			var a := smoothstep(1.58, 1.66, p.y) * smoothstep(-0.02, 0.08, p.z)
+			var a := smoothstep((1.58 * K), (1.66 * K), p.y) * smoothstep(-0.02, 0.08, p.z)
 			return p + Vector3(0, 0.045 * t, -0.035 * t) + Vector3(0, -0.012 * f, 0.022 * f) + Vector3(p.x * 0.18 * a, 0, 0.040 * a))
-	var sc: MeshInstance3D = pieces.get("SuperHero_Male")
-	if sc:
-		sc.visible = false
+	for nom_sc in ["SuperHero_Male", "Superhero_Female", "SuperHero_Female"]:
+		if pieces.has(nom_sc):
+			pieces[nom_sc].visible = false
 	_peau(pieces)
 	# allègement (même méthode que le guerrier) : yeux en cartes peintes, peau sous les manches retirée, mains décimées, sourcils retirés
 	var yeux := GuerrierNordique._centres_yeux(pieces.get("Eyes"))
@@ -99,7 +103,7 @@ static func creer(options := {}) -> Node3D:
 	if mi_b:
 		# passe 3 : barbe COURTE (x 1,15), rabattue contre la poitrine (aucune pointe en avant : fini le « bec » de masque de peste)
 		_deformer(mi_b, func(p: Vector3) -> Vector3:
-			var d := maxf(0.0, 1.635 - p.y)
+			var d := maxf(0.0, (1.635 * K) - p.y)
 			var t := d / 0.08
 			return Vector3(p.x * (1.0 - 0.10 * clampf(t, 0.0, 1.0)), 1.635 - d * 1.15, p.z - d * 0.35))
 		GuerrierNordique._uv_barbe(mi_b)
@@ -107,7 +111,7 @@ static func creer(options := {}) -> Node3D:
 		(mi_b.material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.06, 0.06, 0.07))
 		(mi_b.material_override as ShaderMaterial).set_shader_parameter("teinte", Color(0.62, 0.62, 0.64))
 	# la tunique s'arrête sous la ceinture (la jupe modelée prend le relais) ; le pantalon reste (vu sous la robe à la mort)
-	GuerrierNordique._filtrer(pieces["tunique"], func(c: Vector3, n: Vector3) -> bool: return c.y > 0.93)
+	GuerrierNordique._filtrer(pieces["tunique"], func(c: Vector3, n: Vector3) -> bool: return c.y > (0.93 * K))
 	_t("matieres", t0)
 	var rest_skin := sq.create_skin_from_rest_transforms()
 	var acc := Acc.new(sq)
@@ -127,18 +131,18 @@ static func creer(options := {}) -> Node3D:
 	_t("robe", t0)
 	acc.integrer(pieces["ceinture"], acc.op, func(uv: Vector2) -> Vector2:
 		return Vector2(uv.x * 256.0 + GuerrierTextures.PL_U0, clampf((uv.y - 0.698) / 0.302, 0.0, 1.0) * 15.6 + 0.2 + GuerrierTextures.R_CEINT.position.y) / A,
-		func(p: Vector3, n: Vector3) -> Vector3: return Vector3(p.x, 0.985 + (p.y - 0.985) * 1.6, p.z) + n * 0.030)
+		func(p: Vector3, n: Vector3) -> Vector3: return Vector3(p.x, (0.985 * K) + (p.y - (0.985 * K)) * 1.6, p.z) + n * 0.030)
 	pieces["ceinture"].visible = false
 	# passe 2 : manches larges évasées à bord effiloché, frange effilochée de la pèlerine, col de fourrure au bas de la capuche
 	acc.manches(pieces["tunique"])
 	# passe Blender : plastron d'écailles en relief + perles, frange effilochée en dents réelles (sources_blender/scripts/mage_pieces.py) ;
 	# sans le glb (ou avec {"blender": false}) : anciennes cartes de tissu
-	var blender: bool = options.get("blender", true) and acc.pieces_blender(pieces["tunique"], pieces["mante"])
+	var blender: bool = options.get("blender", true) and acc.pieces_blender(pieces["tunique"], pieces["mante"], femme)
 	if not blender:
 		acc.frange_tissu(pieces["mante"], 1.10, 1.47, 0.06, 0.24)
 	if pieces.has("capuche") and options.get("capuche", true):
 		acc.poitrine_libre = true
-		acc.fourrure_bord(pieces["capuche"], 1.44, 1.58, 0.06, 0.10, 0.7, 1.8)
+		acc.fourrure_bord(pieces["capuche"], (1.44 * K), (1.58 * K), 0.06, 0.10, 0.7, 1.8)
 		acc.poitrine_libre = false
 	# visage dans l'ombre de la capuche : la peau du visage (front -> lèvre) devient un masque quasi noir ; yeux bleus luisants
 	acc.masque(pieces["peau"])
@@ -149,7 +153,7 @@ static func creer(options := {}) -> Node3D:
 	acc.boucle_ceinture()
 	if blender:
 		# les écailles recouvrent le devant du torse : la tunique n'y est plus visible (triangles économisés)
-		GuerrierNordique._filtrer(pieces["tunique"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.0 and absf(c.x) < 0.135 and c.y > 1.09 and c.y < 1.40))
+		GuerrierNordique._filtrer(pieces["tunique"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.0 and absf(c.x) < 0.135 and c.y > (1.09 * K) and c.y < (1.40 * K)))
 	if options.get("baton", true):
 		acc.baton()
 	_t("accessoires (geometrie)", t0)
@@ -170,6 +174,7 @@ static func creer(options := {}) -> Node3D:
 	if pieces.has("capuche") and options.get("capuche", true):
 		(pieces["capuche"].material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.05, 0.06, 0.085))
 	racine.set_meta("mage_nordique", true)
+	racine.set_meta("corps", "femme" if femme else "homme")
 	return racine
 
 static func _t(etape: String, t0: int) -> void:
@@ -241,7 +246,7 @@ class Acc extends GuerrierNordique.Accessoires:
 
 	## Devant de la poitrine plus largement dégagé que sur le guerrier : la barbe, l'amulette et la bande brodée se lisent.
 	func _poitrine(p: Vector3) -> bool:
-		return poitrine_libre and p.z > 0.0 and absf(p.x) < 0.16 and p.y < 1.55
+		return poitrine_libre and p.z > 0.0 and absf(p.x) < 0.16 and p.y < (1.55 * MageNordique.K)
 
 	# ------------------------------------------------------------ jupe (points au repos ; maillage : MageJupe, recalculé à chaque image)
 	## Anneaux évasés (profil elliptique, rayon au moins 1,8 cm hors de la tunique et du pantalon mesurés au repos dans le même secteur).
@@ -322,7 +327,7 @@ class Acc extends GuerrierNordique.Accessoires:
 
 	## Pendentif : disque runique sur la poitrine (sous la barbe), cordon de cuir jusqu'au cou des deux côtés.
 	func amulette(tunique: MeshInstance3D) -> void:
-		var pr := _projeter(tunique, 0.0, 1.24, true)
+		var pr := _projeter(tunique, 0.0, 1.24 * MageNordique.K, true)
 		if pr.is_empty():
 			push_warning("MageNordique : amulette hors de la tunique")
 			return
@@ -330,14 +335,14 @@ class Acc extends GuerrierNordique.Accessoires:
 		var c: Vector3 = pr[0] + pr[1] * (0.034 if MageNordique.avec_plastron else 0.022)
 		_disque_runique(c, pr[1], 0.036, os_)
 		for cote: float in [-1.0, 1.0]:
-			var haut := Vector3(0.075 * cote, 1.50, 0.035)
+			var haut := Vector3(0.075 * cote, (1.50 * MageNordique.K), 0.035)
 			var bas := c + Vector3(0.022 * cote, 0.030, 0.004)
 			_tube(op, haut, bas, 0.0045, 0.0045, 3, os_, MageTextures.R_CORDON, 2)
 
 	## Pierre runique pendue à la ceinture, hanche gauche (suit la jupe : mêmes poids que la jupe à cet endroit).
 	func pierre_ceinture() -> void:
 		var a := deg_to_rad(48.0)
-		var base := Vector3(sin(a) * 0.205, 0.955, MageNordique.Z_CENTRE + cos(a) * 0.185)
+		var base := Vector3(sin(a) * 0.205, 0.955 * MageNordique.K, MageNordique.Z_CENTRE + cos(a) * 0.185)
 		var n := Vector3(sin(a), 0, cos(a))
 		var poids := sq.find_bone("pelvis")
 		# lanière
@@ -358,7 +363,7 @@ class Acc extends GuerrierNordique.Accessoires:
 		var poids := sq.find_bone("spine_01")
 		var haut: Vector3 = jupe[0][0]
 		var n := Vector3(0, 0.03, 1.0).normalized()
-		var c := Vector3(0.0, 0.985, haut.z + 0.014)
+		var c := Vector3(0.0, 0.985 * MageNordique.K, haut.z + 0.014)
 		var cote := Vector3.UP.cross(n).normalized()
 		var tr := Transform3D(Basis(cote, Vector3.UP, n), c)
 		_boite_region(Vector3(-0.062, -0.036, -0.006), Vector3(0.062, 0.036, 0.006), tr, poids, GuerrierTextures.R_FER)
@@ -393,7 +398,7 @@ class Acc extends GuerrierNordique.Accessoires:
 	# ------------------------------------------------------------ visage dans l'ombre, yeux luisants
 	## Triangle de la peau qui appartient au visage sous la capuche (du front à la lèvre supérieure ; la barbe couvre le reste).
 	static func est_visage(c: Vector3) -> bool:
-		return c.y > 1.612 and c.y < 1.80 and c.z > 0.015 and absf(c.x) < 0.088
+		return c.y > (1.612 * MageNordique.K) and c.y < (1.80 * MageNordique.K) and c.z > 0.015 and absf(c.x) < 0.088
 
 	## Copie les triangles du visage de la peau dans la surface opaque, texturés par R_MASQUE (quasi noir), gonflés de 2 mm.
 	func masque(peau: MeshInstance3D) -> void:
@@ -488,13 +493,14 @@ class Acc extends GuerrierNordique.Accessoires:
 
 	# ------------------------------------------------------------ pièces modelées dans Blender (plastron d'écailles, perles, frange)
 	const GLB_PIECES := "res://assets/persos/mage/blender/mage_pieces.glb"
+	const GLB_PIECES_FEMME := "res://assets/persos/mage/blender/mage_pieces_femme.glb"
 
 	## Charge le glb de sources_blender/scripts/mage_pieces.py : triangles versés tels quels (winding et normales du glb), UV ramenés
 	## dans les régions de l'atlas ; poids d'os COPIÉS du corps (sommet le plus proche de la tunique / de la mante), par morceau
 	## (une écaille, une perle, une dent = un bloc de triangles connexes, tous les sommets prennent les poids du même point : le morceau
 	## reste rigide). Plastron et perles -> surface opaque, frange -> surface découpée (double face).
-	func pieces_blender(tunique: MeshInstance3D, mante: MeshInstance3D) -> bool:
-		var ps := load(GLB_PIECES) as PackedScene
+	func pieces_blender(tunique: MeshInstance3D, mante: MeshInstance3D, femme := false) -> bool:
+		var ps := load(GLB_PIECES_FEMME if femme else GLB_PIECES) as PackedScene
 		if ps == null:
 			push_warning("MageNordique : glb Blender absent, anciennes franges")
 			MageNordique.avec_plastron = false

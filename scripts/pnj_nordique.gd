@@ -111,7 +111,7 @@ static func _chasseuse() -> Node3D:
 
 ## Sigrún, la völva : Mage sans barbe (robe grise, pèlerine), bâton à orbe gardé ; robe et capuche tirées vers le violet.
 static func _volva() -> Node3D:
-	var n := MageNordique.creer({"baton": true, "capuche": true})
+	var n := MageNordique.creer({"baton": true, "capuche": true, "corps": "femme"})
 	n.name = "PnjVolva"
 	var sq := _sq(n)
 	var p := _pieces(sq)
@@ -127,7 +127,7 @@ static func _volva() -> Node3D:
 ## Grima, l'ancienne : Mage sans orbe ni bâton magique ; capuche (foulard) et robe de laine grise claire, canne de marche, barbe blanche
 ## retirée.
 static func _ancienne() -> Node3D:
-	var n := MageNordique.creer({"baton": false, "capuche": true})
+	var n := MageNordique.creer({"baton": false, "capuche": true, "corps": "femme"})
 	n.name = "PnjAncienne"
 	var sq := _sq(n)
 	var p := _pieces(sq)
@@ -330,12 +330,15 @@ static func _filtrer_surface(mi: MeshInstance3D, s: int, garder: Callable) -> vo
 ## Mage : le visage est un masque noir aux yeux luisants. Pour un PNJ à qui l'on parle : masque et yeux luisants retirés, vrai visage
 ## (peau du visage + yeux d'un Humain neuf, même squelette, même repos) remis sous la capuche.
 static func _visage_libre(sq: Skeleton3D, p: Dictionary) -> void:
+	# corps femme (Sigrún, Grima) : repères de hauteur du mage à l'échelle MageNordique.K, visage d'un Humain femme
+	var k: float = MageNordique.K
+	var corps := "femme" if k < 1.0 else "homme"
 	var acc: MeshInstance3D = sq.get_node_or_null("accessoires")
 	if acc:
 		for s in range(acc.mesh.get_surface_count() - 1, -1, -1):
 			_filtrer_surface(acc, s, func(c: Vector3, _n: Vector3, _uv: Vector2) -> bool:
-				return not (c.y > 1.60 and c.y < 1.82 and c.z > -0.02 and absf(c.x) < 0.11))
-	var frais := Humain.creer({"corps": "homme", "peau": GuerrierNordique.PEAU})
+				return not (c.y > 1.60 * k and c.y < 1.82 * k and c.z > -0.02 and absf(c.x) < 0.11))
+	var frais := Humain.creer({"corps": corps, "peau": GuerrierNordique.PEAU})
 	var sq2 := _sq(frais)
 	var matp := _materiau_de(p["peau"], -1)
 	for nom in ["peau", "Eyes"]:
@@ -344,7 +347,8 @@ static func _visage_libre(sq: Skeleton3D, p: Dictionary) -> void:
 			continue
 		sq2.remove_child(mi)
 		if nom == "peau":
-			GuerrierNordique._filtrer(mi, func(c: Vector3, _n: Vector3) -> bool: return Mage_visage(c))
+			GuerrierNordique._filtrer(mi, func(c: Vector3, _n: Vector3) -> bool: return Mage_visage(c, k))
+			GuerrierNordique._decimer(mi, func(_p: Vector3) -> float: return 0.012)     # visage allégé (budget PNJ 8 000 triangles)
 			if matp:
 				var mp := matp.duplicate() as ShaderMaterial
 				mp.set_shader_parameter("teinte", Color(1.16, 0.95, 0.80))
@@ -355,8 +359,8 @@ static func _visage_libre(sq: Skeleton3D, p: Dictionary) -> void:
 		mi.visible = true
 	frais.free()
 
-static func Mage_visage(c: Vector3) -> bool:
-	return c.y > 1.55 and c.y < 1.82 and absf(c.x) < 0.12
+static func Mage_visage(c: Vector3, k := 1.0) -> bool:
+	return c.y > 1.55 * k and c.y < 1.82 * k and absf(c.x) < 0.12
 
 # ======================================================================================================== accessoires tenus
 static func _boite(st: SurfaceTool, a: Vector3, b: Vector3, uv: Vector2) -> void:
