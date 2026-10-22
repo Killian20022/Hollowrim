@@ -181,7 +181,8 @@ static func salle(k: DonjonKit, m: Dictionary) -> void:
 		for fp: Vector3 in d.modele("candelabre", Vector3(p.x, y, p.z), s.get("lacet", 0.0)):
 			d.flamme(fp, 0.5)
 		d.carte("halo", Vector3(p.x, y + 1.55, p.z), Vector3.UP, 1.1, 1.1)
-		d.lumiere(Vector3(p.x, y + 1.7, p.z), CrypteDecor.FEU_BOUGIE, 0.9, 5.0, 1.6)
+		if s.get("lumiere", false):  # budget : 7 lumières par salle, seuls les candélabres marqués éclairent
+			d.lumiere(Vector3(p.x, y + 1.7, p.z), CrypteDecor.FEU_BOUGIE, 0.9, 5.0, 1.6)
 	for s: Dictionary in v2["bannieres"]:
 		var p := k.lw(s["pos"])
 		var vr: Vector3 = d.xf.basis.inverse() * (s["vers"] as Vector3)
