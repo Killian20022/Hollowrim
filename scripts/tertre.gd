@@ -38,6 +38,8 @@ var d: CrypteDecor
 var d2: CrypteDecor                 # décor du donjon (fil d'exécution)
 var donjon: CrypteDonjon
 var _tache := -1
+var _tache_en := -1                 # fil de préparation des modèles d'ennemis (EnnemisNordiques.prechauffer_fil)
+var salles: SalleActive             # salle active du donjon : ennemis gelés / décor caché hors de la salle courante et de ses voisines
 var _cont: Node3D
 var _inter := {}                    # id -> interactif du donjon
 var _file_gardiens: Array = []
@@ -78,11 +80,15 @@ func _ready() -> void:
 
 func _process(dt: float) -> void:
 	_t += dt
+	if _tache_en >= 0 and WorkerThreadPool.is_task_completed(_tache_en):
+		_ennemis_prets(true)
+	if salles != null:
+		salles.pas(dt, dedans)
 	if _tache >= 0 and WorkerThreadPool.is_task_completed(_tache):
 		_integrer_donjon()
 	elif not _reste_donjon.is_empty() or not _etapes_fin.is_empty():
 		_poser_donjon(BUDGET_POSE_NOIR_US if _entree_en_attente else BUDGET_POSE_US)
-	elif _entree_en_attente and _tache < 0:
+	elif _entree_en_attente and _tache < 0 and _tache_en < 0:
 		_entree_en_attente = false
 		_basculer(true)
 	if d != null and dedans:
@@ -206,6 +212,10 @@ func _batir_donjon(dj: CrypteDonjon, decor: CrypteDecor) -> void:
 
 ## Sortie du jeu / fin d'un test pendant la construction : on attend le fil (sinon fuites de ressources).
 func _exit_tree() -> void:
+	if _tache_en >= 0:
+		WorkerThreadPool.wait_for_task_completion(_tache_en)
+		_tache_en = -1
+	EnnemisNordiques.vider()
 	if _tache >= 0:
 		WorkerThreadPool.wait_for_task_completion(_tache)
 		_tache = -1
@@ -219,12 +229,15 @@ func _exit_tree() -> void:
 
 ## Donjon bâti, posé et intégré (interactions, mécanismes, état) ?
 func _donjon_pret() -> bool:
-	return _tache < 0 and _reste_donjon.is_empty() and _etapes_fin.is_empty()
+	return _tache < 0 and _tache_en < 0 and _reste_donjon.is_empty() and _etapes_fin.is_empty()
 
 ## À l'entrée dans la crypte : tout le donjon doit être là tout de suite (pose complète, sans budget).
 func attendre_donjon() -> void:
 	_integrer_donjon()
 	_poser_donjon(0)
+	_ennemis_prets(true)          # modèles d'ennemis prêts avant d'entrer : plus aucune construction d'ennemi pendant le jeu
+	if salles != null:
+		salles.classer_tout()     # géométrie du donjon classée par salle avant d'entrer
 
 ## Le fil a fini : le nœud « Donjon » (≈ 1 100 enfants : lumières, murs, portes, flammes) entre dans l'arbre VIDE, puis ses enfants
 ## sont posés par tranches de BUDGET_POSE_US par image (poser les 1 356 nœuds d'un coup coûtait une image de ~40 ms en pleine marche).
@@ -233,6 +246,7 @@ func _integrer_donjon() -> void:
 		return
 	WorkerThreadPool.wait_for_task_completion(_tache)
 	_tache = -1
+	_lancer_prechauffe()
 	_t_pose = Time.get_ticks_msec()
 	CrypteDonjon.limiter_portee(_cont)   # portée de dessin ~30 m (fil principal : get_aabb interroge le serveur de rendu, blocage dans un fil)
 	_reste_donjon = _cont.get_children()
@@ -241,6 +255,30 @@ func _integrer_donjon() -> void:
 	_reste_donjon.reverse()          # pop_back = ordre d'origine
 	crypte.add_child(_cont)
 	_poser_donjon(BUDGET_POSE_US)
+
+## Modèles de tous les gardiens (une variante = un gabarit, dupliqué à l'apparition : ≈ 8 ms au lieu de 300-450 ms) préparés dans un fil.
+func _lancer_prechauffe() -> void:
+	if _tache_en >= 0 or EnnemisNordiques.anciens() or donjon == null:
+		return
+	var specs: Array = []
+	for g: Dictionary in donjon.gardiens:
+		var o: Dictionary = (g["extra"] as Dictionary).duplicate()
+		o["ident"] = g["ident"]
+		var sp := EnnemisNordiques.spec_depuis_options(String(g["type"]), o)
+		if not sp.is_empty():
+			specs.append(sp)
+	specs.append(EnnemisNordiques.spec_depuis_options("guerrier", {"boss": "svanhild", "ident": "svanhild"}))
+	_tache_en = EnnemisNordiques.lancer_prechauffe(specs)
+
+## Les modèles d'ennemis sont-ils prêts ? `attendre` : on attend le fil s'il tourne encore (sinon on interroge seulement).
+func _ennemis_prets(attendre := false) -> bool:
+	if _tache_en < 0:
+		return true
+	if attendre or WorkerThreadPool.is_task_completed(_tache_en):
+		WorkerThreadPool.wait_for_task_completion(_tache_en)
+		_tache_en = -1
+		return true
+	return false
 
 ## budget_us = 0 : tout, tout de suite (entrée, tests, partie chargée sous terre) ; sinon pose par tranches, puis les étapes de
 ## fin (interactions, gardiens, mécanismes un par image : un piège coûte jusqu'à ~85 ms à créer) sur les images suivantes.
@@ -271,9 +309,18 @@ func _plan_fin() -> Array:
 	return e
 
 func _finir_donjon() -> void:
+	_installer_salles()
 	var t0 := _t_pose
 	_etat_donjon()
 	print("Donjon : intégré en %d ms (%d interactions, %d gardiens, %d mécanismes, %d lumières)" % [Time.get_ticks_msec() - t0, donjon.interactions.size(), donjon.gardiens.size(), donjon.meca.size(), d2.toutes.size()])
+
+## Salle active : graphe des salles du donjon (modules et leurs portes), géométrie du donjon à masquer hors de la salle courante et voisines.
+func _installer_salles() -> void:
+	salles = SalleActive.depuis_donjon(donjon, crypte, joueur, get_tree())
+	var mobiles: Array = []
+	for id in donjon.portes:
+		mobiles.append(donjon.portes[id])
+	salles.classer(_cont, mobiles)
 
 ## Pièges et mécanismes du donjon (classes Piege et Mecanisme) : posés sous `crypte` ; leurs états sont dans quetes.vus (« meca:<ident>:… »).
 func _poser_meca(a: Dictionary) -> void:
@@ -467,6 +514,8 @@ func _gerer_zones() -> void:
 				zy = z["y"]
 		var c := crypte.to_global(Vector3(zr.get_center().x, zy, zr.get_center().y))
 		if absf(c.y - pj.y) < 8.0 and Vector2(c.x - pj.x, c.z - pj.z).length() < 34.0 + zr.size.length() * 0.25:
+			if not _ennemis_prets():
+				break              # modèles pas encore prêts (jamais en jeu normal : l'entrée les attend) : on réessaie au prochain passage
 			var extra: Dictionary = (g["extra"] as Dictionary).duplicate()
 			var si: String = extra.get("si", "")
 			if si != "" and not quetes.vus.has(si):          # gardiens conditionnés (ex. serment après un pillage) : restent en file
@@ -486,6 +535,8 @@ func _gerer_zones() -> void:
 				var dr: CharacterBody3D = monde.creer_draugr(g["type"], crypte.to_global(g["pos"] + Vector3(0, 0.05, 0)), g["lacet"], g["dort"], opts)
 				if monde._paisible():
 					dr.process_mode = Node.PROCESS_MODE_DISABLED
+				if salles != null:
+					salles.rafraichir(dedans)      # apparu hors de la salle active : gelé tout de suite
 			n += 1
 		else:
 			i += 1

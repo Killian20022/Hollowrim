@@ -21,6 +21,12 @@ const OR_TERNE := ["#3a2c10", "#66501c", "#8e7330", "#b8993e"]
 static var _clones := {}
 static var _mat := {}
 static var _anciens := -1
+## Gabarits = CORPS des archétypes (DraugrNordique / GuerrierNordique / ChasseresseNordique avec leurs options de pièces : bouclier, casque, épée…),
+## bâtis une fois hors de l'arbre. creer() en duplique un (≈ 4 ms) au lieu de refaire la chirurgie de maillage (300-450 ms), puis applique les
+## retouches de la variante (teinte, arme, couronne…) sur la copie. Remplis par prechauffer() au chargement (fil d'exécution) ou à la demande.
+static var _modeles := {}
+static var _mx := Mutex.new()              # protège le dictionnaire
+static var _bm := Mutex.new()              # un seul constructeur de corps à la fois (les archétypes ont des états statiques)
 
 static func anciens() -> bool:
 	if _anciens < 0:
@@ -30,65 +36,221 @@ static func anciens() -> bool:
 static func vider() -> void:
 	_clones.clear()
 	_mat.clear()
+	_mx.lock()
+	for k: String in _modeles:
+		if is_instance_valid(_modeles[k]):
+			(_modeles[k] as Node).free()
+	_modeles.clear()
+	_mx.unlock()
+
+## Apparence par défaut d'un draugr de type `type` (celle que draugr.gd passe à creer), surchargée par `apparence`.
+static func apparence_defaut(type: String, apparence := {}) -> Dictionary:
+	var app := {"corps": "homme", "draugr": true, "tenue": {"tunique": Color(0.42, 0.38, 0.34), "ceinture": Color(0.6, 0.6, 0.6), "brassards": Color(0.65, 0.62, 0.6), "haillons": Color.WHITE}}
+	if type == "guerrier":
+		# lot 4 : cotte de mailles rouillée, épaulières, jupe de lanières, cape en lambeaux
+		app["tenue"]["mante"] = Color(0.5, 0.48, 0.45)
+		app["tenue"]["bottes"] = Color(0.6, 0.6, 0.6)
+		app["tenue"]["epaulieres"] = Color.WHITE
+		app["tenue"]["pteruges"] = Color.WHITE
+		app["tenue"]["cape_courte"] = Color.WHITE
+		app["etoffes"] = {"tunique": "mailles_rouille", "brassards": "draugr"}
+		app["casque"] = "casque_draugr"
+	app.merge(apparence, true)
+	return app
+
+## Spec de creer() d'un ennemi créé par monde.creer_draugr(type, …, options) ; {} s'il ne passe pas par ce système (squelettes, personnages kit).
+static func spec_depuis_options(type: String, opts := {}) -> Dictionary:
+	var apparence: Dictionary = opts.get("apparence", {})
+	if type.begins_with("squelette") or apparence.has("perso"):
+		return {}
+	var boss: String = opts.get("boss", "")
+	var ident: String = opts.get("ident", boss)
+	return {"type": type, "archer": bool(opts.get("archer", false)), "boss": boss, "ident": ident, "apparence": apparence_defaut(type, apparence)}
 
 # ======================================================================================================== aiguillage
 static func creer(spec := {}) -> Node3D:
 	if anciens():
 		return null
+	var ch := _choix(spec)
+	var n: Node3D
+	match String(ch["t"]):
+		"hrafn":
+			n = _hrafn(ch)
+		"boss":
+			n = _boss_draugr(ch)
+		"barcher":
+			n = _bandit_archer(ch)
+		"bandit":
+			n = _bandit(ch)
+		_:
+			n = _draugr(ch)
+	n.set_meta("armes_nordiques", true)
+	n.set_meta("variante", String(n.get_meta("variante", "")))
+	return n
+
+## Nombre de gabarits prêts (tests, mesures).
+static func nb_gabarits() -> int:
+	_mx.lock()
+	var r := _modeles.size()
+	_mx.unlock()
+	return r
+
+## Précalcul : bâtit (sans les ajouter à l'arbre) les corps de toutes les specs données. À lancer dans un fil d'exécution, au chargement.
+## Les corps déjà prêts ne sont pas refaits.
+static func prechauffer(specs: Array) -> void:
+	if anciens():
+		return
+	for spec: Dictionary in specs:
+		var d := _def_corps(_choix(spec))
+		_gabarit(String(d[0]), d[1])
+
+## Version pour WorkerThreadPool.add_task (fil d'exécution de chargement) : sérialisée par FilVerrou comme les autres fils qui bâtissent des maillages.
+static func prechauffer_fil(specs: Array) -> void:
+	FilVerrou.prendre()
+	var t0 := Time.get_ticks_msec()
+	prechauffer(specs)
+	FilVerrou.rendre()
+	print("Ennemis : %d modèles préparés en %d ms (fil d'exécution)" % [nb_gabarits(), Time.get_ticks_msec() - t0])
+
+## Lance la préparation dans un fil d'exécution ; renvoie l'identifiant de la tâche, ou -1 s'il n'y a rien à lancer. Sans fenêtre (--headless : tests),
+## le serveur de rendu factice ne supporte pas deux fils qui créent des maillages en même temps (le monde se bâtit sur le fil principal pendant ce
+## temps) : pas de précalcul, les gabarits se bâtissent à la demande (et restent en cache).
+static func lancer_prechauffe(specs: Array) -> int:
+	if specs.is_empty() or anciens() or DisplayServer.get_name() == "headless":
+		return -1
+	return WorkerThreadPool.add_task(prechauffer_fil.bind(specs))
+
+## Tirages aléatoires (graine = ident) d'une spec -> description complète de la variante (clé du gabarit). Même ordre de tirages qu'avant.
+static func _choix(spec: Dictionary) -> Dictionary:
 	var boss: String = spec.get("boss", "")
 	var app: Dictionary = spec.get("apparence", {})
 	var rng := RandomNumberGenerator.new()
 	rng.seed = String(spec.get("ident", "")).hash()
 	var bandit: bool = app.has("tenue") and not bool(app.get("draugr", true))
-	var n: Node3D
 	if boss == "hrafn":
-		n = _hrafn(rng)
+		return {"t": "hrafn"}
 	elif boss == "svanhild" or boss == "jarl":
-		n = _boss_draugr(boss, rng)
+		return {"t": "boss", "boss": boss}
 	elif bandit and spec.get("archer", false):
-		n = _bandit_archer(rng)
+		var homme := rng.randf() < 0.5                      # environ la moitié des archers bandits sont des hommes (corps homme de l'archétype)
+		return {"t": "barcher", "homme": homme, "s": rng.randi() % 3}
 	elif bandit:
-		n = _bandit(rng, app)
-	else:
-		n = _draugr(rng, bool(spec.get("archer", false)), String(spec.get("type", "sbire")))
-	n.set_meta("armes_nordiques", true)
-	n.set_meta("variante", String(n.get_meta("variante", "")))
+		var casque := rng.randf() < 0.45 or String(app.get("casque", "")) != ""
+		var arme: String = ["hache", "epee", "hache", "masse"][rng.randi() % 4]
+		var bouclier: String = ["", "", "dos"][rng.randi() % 3]
+		return {"t": "bandit", "casque": casque, "arme": arme, "bouclier": bouclier, "tenue": rng.randi() % TENUES_BANDIT.size()}
+	var archer := bool(spec.get("archer", false))
+	var type := String(spec.get("type", "sbire"))
+	var etat := rng.randi() % 4
+	var arme_d := "epee"
+	var bouclier_d := "bras"
+	if type == "sbire":
+		bouclier_d = "" if rng.randf() < 0.7 else "dos"
+		arme_d = ["epee", "hache", "epee"][rng.randi() % 3] as String
+	elif rng.randf() < 0.3:
+		arme_d = "hache"
+	if archer:
+		bouclier_d = ""
+		arme_d = "arc"
+	# environ 1 draugr sur 3 sans casque (crâne et cheveux funéraires visibles)
+	return {"t": "draugr", "etat": etat, "arme": arme_d, "bouclier": bouclier_d, "sans_casque": rng.randf() < 0.34}
+
+## Corps (clé, fabrique) d'une variante.
+static func _def_corps(ch: Dictionary) -> Array:
+	match String(ch["t"]):
+		"hrafn":
+			return ["hrafn", func() -> Node3D: return GuerrierNordique.creer({"casque": true, "bouclier": "dos", "epee": true})]
+		"boss":
+			var b := String(ch["boss"])
+			return ["boss_" + b, func() -> Node3D: return DraugrNordique.creer({"bouclier": "bras" if b == "jarl" else "", "epee": true, "corps": "femme" if b == "svanhild" else "homme"})]
+		"barcher":
+			var h: bool = ch["homme"]
+			return ["archere_%s" % h, func() -> Node3D: return ChasseresseNordique.creer({"corps": "homme"} if h else {})]
+		"bandit":
+			var c: bool = ch["casque"]
+			var bo: String = ch["bouclier"]
+			return ["bandit_%s_%s" % [c, bo], func() -> Node3D: return GuerrierNordique.creer({"casque": c, "bouclier": bo, "epee": false})]
+	var bd: String = ch["bouclier"]
+	var ep: bool = ch["arme"] == "epee"
+	var ca: bool = not ch["sans_casque"]
+	return ["draugr_%s_%s_%s" % [bd, ep, ca], func() -> Node3D: return DraugrNordique.creer({"bouclier": bd, "epee": ep, "casque": ca})]
+
+## Gabarit de corps `cle` (bâti par `fab` s'il n'existe pas encore).
+static func _gabarit(cle: String, fab: Callable) -> Node3D:
+	_mx.lock()
+	var g: Node3D = _modeles.get(cle)
+	_mx.unlock()
+	if g != null:
+		return g
+	_bm.lock()
+	_mx.lock()
+	g = _modeles.get(cle)
+	_mx.unlock()
+	if g == null:
+		g = fab.call()
+		_mx.lock()
+		_modeles[cle] = g
+		_mx.unlock()
+	_bm.unlock()
+	return g
+
+## Copie du corps de la variante `ch` (neuve, hors de l'arbre).
+static func _corps(ch: Dictionary) -> Node3D:
+	var d := _def_corps(ch)
+	var gab := _gabarit(String(d[0]), d[1])
+	var n := gab.duplicate() as Node3D
+	_relier(gab, n)
 	return n
+
+## Ce que duplicate() ne recopie pas : les variables de script du PoseArcher (archers bandits) et le signal qui échange les arcs.
+static func _relier(gab: Node3D, copie: Node3D) -> void:
+	var sg := _sq(gab)
+	var sc := _sq(copie)
+	if sg == null or sc == null:
+		return
+	var mg := sg.get_node_or_null("PoseArcher")
+	var mc := sc.get_node_or_null("PoseArcher")
+	if mg == null or mc == null:
+		return
+	var ap := copie.get_node("Animations") as AnimationPlayer
+	mc.ap = ap
+	mc.os_ = mg.os_
+	mc.bande = mg.bande
+	mc.relache = mg.relache
+	mc.origines = mg.origines
+	mc.mi_porte = sc.get_node_or_null("arc_porte")
+	mc.mi_vise = sc.get_node_or_null("arc_vise")
+	mc.mi_relache = sc.get_node_or_null("arc_relache")
+	ap.current_animation_changed.connect(func(nom: StringName) -> void:
+		if is_instance_valid(mc):
+			mc.visibilites(String(nom), 0.0))
 
 static func _sq(n: Node3D) -> Skeleton3D:
 	return n.find_child("Skeleton3D", true, false) as Skeleton3D
 
 # ======================================================================================================== draugrs
 ## Draugr ordinaire : décomposition (teinte), bouclier ou non, arme (épée / hache / arc).
-static func _draugr(rng: RandomNumberGenerator, archer: bool, type: String) -> Node3D:
-	var etat := rng.randi() % 4
-	var arme := "epee"
-	var bouclier := "bras"
-	if type == "sbire":
-		bouclier = "" if rng.randf() < 0.7 else "dos"
-		arme = ["epee", "hache", "epee"][rng.randi() % 3] as String
-	elif rng.randf() < 0.3:
-		arme = "hache"
-	if archer:
-		bouclier = ""
-		arme = "arc"
-	# environ 1 draugr sur 3 sans casque (crâne et cheveux funéraires visibles)
-	var sans_casque := rng.randf() < 0.34
-	var n := DraugrNordique.creer({"bouclier": bouclier, "epee": arme == "epee", "casque": not sans_casque})
+static func _draugr(ch: Dictionary) -> Node3D:
+	var etat: int = ch["etat"]
+	var arme: String = ch["arme"]
+	var bouclier: String = ch["bouclier"]
+	var sans_casque: bool = ch["sans_casque"]
+	var n := _corps(ch)
 	var sq := _sq(n)
 	var teintes: Array[Color] = [Color(1, 1, 1), Color(0.86, 1.02, 0.9), Color(0.72, 0.7, 0.68), Color(0.88, 0.98, 1.12)]
 	_teinter_tout(n, teintes[etat])
 	if arme == "hache" or arme == "masse":
-		_poser_arme(sq, arme, rng)
+		_poser_arme(sq, arme)
 	elif arme == "arc":
 		_arc(sq)
 	n.set_meta("variante", "draugr_%s_%s_%s%s" % [["os_sec", "moisi", "cendre", "gele"][etat], arme, bouclier, "_nu" if sans_casque else ""])
 	return n
 
 ## Chefs draugrs : couronne, givre, plus imposants (l'échelle ×1,1 est posée par draugr.gd / _regler_boss).
-static func _boss_draugr(boss: String, rng: RandomNumberGenerator) -> Node3D:
+static func _boss_draugr(ch: Dictionary) -> Node3D:
 	# Svanhild est une reine : corps femme ; le jarl gelé reste un homme
-	var n := DraugrNordique.creer({"bouclier": "bras" if boss == "jarl" else "", "epee": true, "corps": "femme" if boss == "svanhild" else "homme"})
+	var boss := String(ch["boss"])
+	var n := _corps(ch)
 	var sq := _sq(n)
 	if boss == "svanhild":
 		_teinter_tout(n, Color(0.82, 1.0, 1.28))
@@ -109,13 +271,12 @@ const TENUES_BANDIT := [
 	{"tun": Color(0.45, 0.4, 0.38), "pan": Color(0.62, 0.52, 0.42), "bot": Color(0.5, 0.46, 0.44), "cape": Color(1.5, 0.95, 0.28), "ch": Color(0.7, 0.66, 0.6)},
 ]
 
-static func _bandit(rng: RandomNumberGenerator, app: Dictionary) -> Node3D:
-	var casque := rng.randf() < 0.45 or String(app.get("casque", "")) != ""
-	var arme: String = ["hache", "epee", "hache", "masse"][rng.randi() % 4]
-	var bouclier: String = ["", "", "dos"][rng.randi() % 3]
-	var n := GuerrierNordique.creer({"casque": casque, "bouclier": bouclier, "epee": false})
+static func _bandit(ch: Dictionary) -> Node3D:
+	var casque: bool = ch["casque"]
+	var arme: String = ch["arme"]
+	var n := _corps(ch)
 	var sq := _sq(n)
-	var t: Dictionary = TENUES_BANDIT[rng.randi() % TENUES_BANDIT.size()]
+	var t: Dictionary = TENUES_BANDIT[int(ch["tenue"])]
 	_teinter_piece(sq, "tunique", t["tun"])
 	_teinter_piece(sq, "pantalon", t["pan"])
 	_teinter_piece(sq, "bottes", t["bot"])
@@ -124,15 +285,15 @@ static func _bandit(rng: RandomNumberGenerator, app: Dictionary) -> Node3D:
 	_teinter_piece(sq, "Hair_Long", t["ch"])
 	_teinter_piece(sq, "Hair_Beard", t["ch"])
 	_teinter_acc(sq, Color(0.74, 0.68, 0.62), t["cape"])
-	_poser_arme(sq, arme, rng)
+	_poser_arme(sq, arme)
 	n.set_meta("variante", "bandit_%s_%s" % [arme, "casque" if casque else "tete_nue"])
 	return n
 
-static func _bandit_archer(rng: RandomNumberGenerator) -> Node3D:
-	var homme := rng.randf() < 0.5                      # environ la moitié des archers bandits sont des hommes (corps homme de l'archétype)
-	var n := ChasseresseNordique.creer({"corps": "homme"} if homme else {})
+static func _bandit_archer(ch: Dictionary) -> Node3D:
+	var homme: bool = ch["homme"]
+	var n := _corps(ch)
 	var sq := _sq(n)
-	var s := rng.randi() % 3
+	var s: int = ch["s"]
 	var f: Color = [Color(1.5, 0.85, 0.12), Color(1.1, 0.8, 0.12), Color(1.7, 0.9, 0.12)][s]   # le jaque de la chasseresse tire sur le bleu : on le ramène au brun sombre
 	_teinter_piece(sq, "tunique", f)
 	_teinter_piece(sq, "pantalon", f * Color(0.9, 0.9, 0.95))
@@ -146,8 +307,8 @@ static func _bandit_archer(rng: RandomNumberGenerator) -> Node3D:
 	return n
 
 ## Hrafn : chef bandit — GuerrierNordique casqué, mante de fourrure brune sombre, cape brune, lame à l'épée de l'archétype.
-static func _hrafn(rng: RandomNumberGenerator) -> Node3D:
-	var n := GuerrierNordique.creer({"casque": true, "bouclier": "dos", "epee": true})
+static func _hrafn(ch: Dictionary) -> Node3D:
+	var n := _corps(ch)
 	var sq := _sq(n)
 	_teinter_piece(sq, "tunique", Color(0.55, 0.46, 0.38))
 	_teinter_piece(sq, "pantalon", Color(0.55, 0.52, 0.52))
@@ -286,7 +447,7 @@ static func _arme_mesh(nom: String) -> ArrayMesh:
 	mesh.surface_set_material(1, _materiau("arme_fer", ROUILLE if nom != "epee_courte" else FER))
 	return mesh
 
-static func _poser_arme(sq: Skeleton3D, nom: String, rng: RandomNumberGenerator) -> void:
+static func _poser_arme(sq: Skeleton3D, nom: String) -> void:
 	var acc := BoneAttachment3D.new()
 	acc.name = "Arme"
 	acc.bone_name = "hand_r"
