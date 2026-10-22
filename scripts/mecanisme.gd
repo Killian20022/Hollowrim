@@ -557,10 +557,29 @@ class Mur extends Base:
 			m = sm
 		_mesh = Mecanisme.boite(self, taille, Vector3.ZERO, m)
 		_corps = Mecanisme.collision(self, Vector3.ZERO, taille)
+		if ctx.get("fissures", false):
+			_fissurer()
 		# courant d'air : un filet de poussière monte du pied du mur, de chaque côté
 		_poussiere = Mecanisme.particules(self, Vector3(0, -taille.y * 0.5 + 0.1, 0), Color(0.55, 0.53, 0.5), 10, 3.0, 0.18, Vector3.UP, 25.0, Vector3(taille.x * 0.4, 0.05, taille.z * 0.7), 0.025)
 		add_to_group("cassables")
 
+	## Indice visible (grotte) : fissures sombres en zigzag sur les deux faces, sans toucher à la collision ni à la solution.
+	func _fissurer() -> void:
+		var noir := Mecanisme.materiau(Palette.ROCHE, "meca_gravats", Vector2.ONE, Color(0.06, 0.06, 0.08))
+		var rng := RandomNumberGenerator.new()
+		rng.seed = ident.hash()
+		for face in [1.0, -1.0]:
+			for k in 3:
+				var x := (k - 1) * taille.x * 0.28 + rng.randf_range(-0.2, 0.2)
+				var y := taille.y * 0.5 - 0.15
+				for j in 7:
+					var ang := rng.randf_range(-0.5, 0.5)
+					var l := rng.randf_range(0.28, 0.5)
+					Mecanisme.boite(self, Vector3(0.05, l, 0.02), Vector3(x, y - l * 0.5, face * (taille.z * 0.5 + 0.012)), noir, Vector3(0, 0, ang))
+					x += sin(-ang) * l
+					y -= cos(ang) * l
+					if y < -taille.y * 0.5 + 0.1:
+						break
 	func est_casse() -> bool:
 		return casse
 

@@ -110,7 +110,7 @@ static func creer(monde: Node) -> void:
 			continue
 		if monde.chemins.distance(p.x, p.y) < 0.65 or p.length() < 2.0:
 			continue  # pas sur la piste ni dans le feu
-		var y := hauteur_maillage(monde, p.x, p.y) - s * 0.15
+		var y := minf(hauteur_maillage(monde, p.x, p.y), monde.hauteur(p.x, p.y)) - s * 0.15   # cuvette : le maillage dépasse le relief exact
 		parts[g].append(Transform3D(Basis(Vector3.UP, lacet).scaled(Vector3(s, s * sy, s)), Vector3(p.x, y, p.y)))
 	var total := 0
 	for g in 4:

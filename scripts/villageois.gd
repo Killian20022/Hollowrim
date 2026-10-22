@@ -250,6 +250,9 @@ func _activite(immediat := false) -> void:
 
 func _physics_process(dt: float) -> void:
 	_t += dt
+	_images_physique += 1
+	if not _points_filtres and _images_physique >= 3:
+		_filtrer_points()   # la physique du village est en place
 	if not is_on_floor():
 		velocity.y -= GRAVITE * dt
 	if joueur == null or not is_instance_valid(joueur):
@@ -359,6 +362,47 @@ func _variete(dt: float) -> void:
 	elif anim.has_animation(c):
 		_variete_fin = anim.get_animation(c).length if c == "Interact" else randf_range(2.5, 3.5)
 		_jouer(c, 0.25)
+
+var _points_filtres := false
+var _images_physique := 0
+var _capsule_promenade: CapsuleShape3D
+
+## Un point est libre si une capsule de 0,35 x 1,8 m y tient (hors autres corps vivants).
+func _libre(p: Vector3) -> bool:
+	var monde := get_parent()
+	var y: float = float(monde.hauteur(p.x, p.z)) if monde != null and monde.has_method("hauteur") else p.y
+	var qs := PhysicsShapeQueryParameters3D.new()
+	qs.shape = _capsule_promenade
+	qs.transform = Transform3D(Basis(), Vector3(p.x, y + 1.05, p.z))
+	for h in get_world_3d().direct_space_state.intersect_shape(qs, 8):
+		var c: Node = h["collider"]
+		if c is CharacterBody3D or (c.get_parent() == monde and c.get_child_count() > 8):
+			continue   # autres corps vivants et terrain (enfant direct du monde) : pas des obstacles
+		return false
+	return true
+
+func _segment_libre(a: Vector3, b: Vector3) -> bool:
+	var pas := maxi(int(Vector2(a.x - b.x, a.z - b.z).length() / 0.5), 1)
+	for i in pas + 1:
+		if not _libre(a.lerp(b, float(i) / pas)):
+			return false
+	return true
+
+## Une seule fois (la physique du village est alors en place) : ne garde que les points de promenade joignables en ligne droite
+## depuis le poste (et entre eux, dans l'ordre), sans traverser un mur ou un bâtiment.
+func _filtrer_points() -> void:
+	_points_filtres = true
+	if points.size() < 2:
+		return
+	_capsule_promenade = CapsuleShape3D.new()
+	_capsule_promenade.radius = 0.35
+	_capsule_promenade.height = 1.8
+	var gardes: Array = [points[0]]
+	for i in range(1, points.size()):
+		var q: Vector3 = points[i]
+		if _segment_libre(points[0], q) and _segment_libre(gardes[gardes.size() - 1], q):
+			gardes.append(q)
+	points = gardes
 
 func _t_poste(_dt: float) -> void:
 	if _t >= _prochaine_promenade and points.size() > 1:

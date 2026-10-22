@@ -16,6 +16,8 @@ const GRAVITE := 13.0
 const SENSIBILITE := 0.0022
 const LIMITE := 108.0  # bord du terrain jouable
 const COUT_COURSE := 12.0  # vigueur par seconde
+const CHUTE_DEHORS := 25.0   # filet anti-chute : sous le terrain de plus de 25 m (dehors)
+const CHUTE_SOUS_TERRE := -260.0   # sous terre (la grotte descend à -228,4 m)
 
 var vie := 100.0
 var vie_max := 100.0
@@ -166,6 +168,33 @@ func recevoir_coup(degats: float, origine: Vector3) -> String:
 		deces.emit()
 	return "touche"
 
+var _point_sur := Vector3.ZERO
+var _point_sur_valide := false
+var _t_point_sur := 0.0
+
+## Filet anti-chute : mémorise ~1 fois par seconde un point sûr (au sol) ; sous le seuil, retour à ce point sans pénalité.
+func _filet(dt: float) -> void:
+	var monde := get_parent()
+	if monde == null or not monde.has_method("hauteur"):
+		return
+	var p := global_position
+	# sous terre : drapeau du monde, ou profondeur (crypte -140, grotte -214 : toujours sous -100 ; un test peut y téléporter sans drapeau)
+	var sous_terre: bool = monde.get("_sous_terre_actif") == true or p.y < -100.0
+	var seuil: float = CHUTE_SOUS_TERRE if sous_terre else float(monde.hauteur(p.x, p.z)) - CHUTE_DEHORS
+	if p.y < seuil:
+		var cible: Vector3 = _point_sur if _point_sur_valide else Vector3(monde.get("depart_joueur"))
+		if cible == Vector3.ZERO:
+			return
+		global_position = cible + Vector3(0, 0.2, 0)
+		velocity = Vector3.ZERO
+		push_warning("Filet anti-chute : joueur ramené à %s" % cible)
+		return
+	_t_point_sur -= dt
+	if _t_point_sur <= 0.0 and is_on_floor() and not mort:
+		_t_point_sur = 1.0
+		_point_sur = p
+		_point_sur_valide = true
+
 func ressusciter(lieu: Vector3, lacet: float) -> void:
 	position = lieu
 	rotation.y = lacet
@@ -200,6 +229,7 @@ func _physics_process(dt: float) -> void:
 	move_and_slide()
 	position.x = clampf(position.x, -LIMITE, LIMITE)
 	position.z = clampf(position.z, -LIMITE, LIMITE)
+	_filet(dt)
 
 	# récupération
 	_repos_vigueur -= dt

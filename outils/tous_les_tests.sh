@@ -15,6 +15,7 @@ LOGS="${JOURNAUX:-$ICI/captures/tests}"; mkdir -p "$LOGS"
 MOTIF="${1:-}"
 # nom_du_test|arguments après « -- » (toujours au moins un, voir plus haut)
 TESTS=(
+	"test_filet|--nouvelle"
 	"test_quetes|--nouvelle"
 	"test_archer|--nouvelle"
 	"test_patrouille|--nouvelle"
