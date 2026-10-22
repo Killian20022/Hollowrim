@@ -771,7 +771,7 @@ static func _repaire(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: S
 	d.tour("fer", feu + Vector3(0, 0.7, 0), [Vector2(0.15, 0.0), Vector2(0.24, 0.1), Vector2(0.27, 0.26), Vector2(0.24, 0.34), Vector2(0.2, 0.36)], 8, 0.0, false)
 	d.prisme("fer", feu + Vector3(0, 1.25, 0), feu + Vector3(0, 1.0, 0), 0.01, 4)
 	g._l(id, feu_s, 0.4, 1.0, FEU_C, 4.6, 13.0, 1.4, true)
-	for c in [[4.6, -4.5], [8.2, -4.6], [11.8, -4.4]]:
+	for c in [[4.6, -4.5], [8.2, -4.6]]:      # finitions : 3e couchage retiré (masquait le grand autel)
 		d.couchage(_p(g, id, float(c[0]) + r.randf_range(-0.3, 0.3), float(c[1])), 1.57 + r.randf_range(-0.05, 0.05), r.randf() < 0.6)
 	# caisses empilées, tonneaux et sacs au fond droit
 	var base := _p(g, id, 14.6, 5.4)
@@ -782,7 +782,7 @@ static func _repaire(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: S
 		var q := _p(g, id, 13.0 + k * 1.1, 5.6)
 		d.tonneau(q, 1.0)
 		d.solide_rond(q + Vector3(0, 0.5, 0), 0.38, 1.0)
-	for c in [[3.0, -5.3], [6.0, -5.5], [12.5, -5.3], [13.0, 4.0], [1.5, 4.8]]:
+	for c in [[3.0, -5.3], [6.0, -5.5], [13.0, 4.0], [1.5, 4.8]]:
 		d.sac(_p(g, id, float(c[0]), float(c[1])), r.randf_range(0.9, 1.3))
 	# table, tabourets, bougie
 	var tp := _p(g, id, 3.0, -2.4)
@@ -796,8 +796,6 @@ static func _repaire(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: S
 	# butin et trophées
 	var cb := _p(g, id, 14.6, -3.6)
 	d.pieces(cb + Vector3(0.9, 0, 0.5), 18, 0.35)
-	d.pieces(_p(g, id, 13.4, -4.4), 12, 0.3)
-	d.urne(_p(g, id, 11.5, -5.3), 0.9)
 	d.trophee(_p(g, id, 1.0, -3.8), 1.9, 0.5)
 	d.trophee(_p(g, id, 1.0, 3.6), 1.7, -0.6)
 	d.os_tas(_p(g, id, 7.0, 1.8), 6, 0.6)

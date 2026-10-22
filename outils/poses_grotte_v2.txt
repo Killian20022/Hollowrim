@@ -3,8 +3,13 @@ ref2_entree_34 grotte 4.5,2.0,-30,-3 sans-mains
 ref3_salle_34 grotte 213,0.5,40,3 sans-mains
 ref4_couloir_etroit grotte 114,0,0,-4 sans-mains
 ref5_couloir_34 grotte 122,1,-25,-4 sans-mains
-ref6_arene grotte 304,1.5,25,-2 sans-mains
+ref6_arene grotte 306,2.5,48,-2 sans-mains
 ref6c_autel grotte 309,-1,15,-6 sans-mains
 mvt_a grotte 114,0,0,-4 sans-mains
 mvt_b grotte 114.05,0,0,-4 sans-mains
 ref1_ancien grotte 13.5,0.4,180,5 sans-mains
+ref6d_autel_axe grotte 305,0,0,-4 sans-mains
+ref3b_voute grotte 211.5,-1.5,0,14 sans-mains
+ref6e_autel grotte 305,0,-35,-3 sans-mains
+ref6f_autel_pres grotte 308.5,-0.5,65,0 sans-mains
+ref6g_autel_loin grotte 303,2,40,3 sans-mains
