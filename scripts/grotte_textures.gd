@@ -962,7 +962,7 @@ static func piste_v2() -> Image:
 	var img := Image.create(T, T, false, Image.FORMAT_RGBA8)
 	var cel := _cellules(T, 6, 301, 0.8)
 	var plaque := _champ(FastNoiseLite.TYPE_SIMPLEX_SMOOTH, 0.035, 303, T, 3)
-	var seuil := _champ(FastNoiseLite.TYPE_SIMPLEX, 0.5, 304, T, 1)
+	var seuil := _champ(FastNoiseLite.TYPE_SIMPLEX, 0.16, 304, T, 1)    # C2 : bruit large (lisière en grosses taches, plus de poussière de pixels)
 	for y in T:
 		for x in T:
 			var i := y * T + x
@@ -981,16 +981,15 @@ static func piste_v2() -> Image:
 			else:
 				var t := pave
 				if e < 1.3:
-					t = 0
+					t = 1            # C2 : joint sombre mais jamais noir (le noir + l'ombre des sapins faisaient un bruit de pixels)
 				elif e < 2.6 and (cel["ox"][i] + cel["oy"][i]) < 0.0:
 					t += 1
 				c = _ton8(P_SOL if lat < 0.8 else P_BRUN, t)
 			var g := _hash_i((x / 2) * 5 + 3, (y / 2) * 7 + 9)
 			if g > 0.97:
 				c = c.lightened(0.18)
-			elif g < 0.03:
-				c = c.darkened(0.25)
-			c.a = floorf(clampf(0.5 + 1.2 * (seuil[i] - 0.5) + 0.1 * (_hash_i(x, y) - 0.5), 0.04, 0.96) * 12.0) / 12.0 + 0.01
+			# C2 : seuil resserré (0,3-0,7) : lisière nette de quelques texels au lieu d'une large bande tramée
+			c.a = floorf(clampf(0.5 + 0.5 * (seuil[i] - 0.5), 0.3, 0.7) * 12.0) / 12.0 + 0.01
 			img.set_pixel(x, y, c)
 	return img
 

@@ -7,7 +7,13 @@ func _init() -> void:
 	var t0 := Time.get_ticks_msec()
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(GrotteDecor.DOSSIER))
 	var total := 0
+	var seul := ""      # --seul=nom : ne regénère qu'une texture
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--seul="):
+			seul = a.substr(7)
 	for nom: String in GrotteDecor.PROPRES_MIPS + GrotteDecor.PROPRES_PLATES:
+		if seul != "" and nom != seul:
+			continue
 		var img := GrotteDecor.image_finale(nom)
 		var chemin := "%s/%s.res" % [GrotteDecor.DOSSIER, nom]
 		var err := ResourceSaver.save(img, chemin, ResourceSaver.FLAG_COMPRESS)

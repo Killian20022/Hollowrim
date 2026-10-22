@@ -21,6 +21,7 @@ const AO_GAMMA := 1.35         # occlusion peinte accentuée : creux et pieds de
 ## et sol mouillé), plus de bleu saturé ; la glace superposée n'est plus qu'un vernis gris-bleu.
 const COQUES := {
 	"c_roche_neige": ["roche_givre", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.8, 0.0, 1.0],
+	"c_roche_bouche": ["roche_givre", "", Color(0.6, 0.72, 1.0), Vector3(0.0, 0.0, 0.0), 0.0, 0.8, 0.0, 1.0],   # C2 : front de roche de la bouche, froid comme l'intérieur (plus de brun dominant)
 	"c_roche_mousse": ["roche", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.7, 0.0, 1.0],
 	"c_roche_glace": ["roche_b", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.4, 0.0, 1.0],
 	"c_roche_nu": ["roche", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.65, 0.0, 1.0],
