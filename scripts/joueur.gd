@@ -169,7 +169,6 @@ func recevoir_coup(degats: float, origine: Vector3) -> String:
 	return "touche"
 
 var _point_sur := Vector3.ZERO
-var _point_sur_sous_terre := false
 var _point_sur_valide := false
 var _t_point_sur := 0.0
 
@@ -178,13 +177,12 @@ func _filet(dt: float) -> void:
 	var monde := get_parent()
 	if monde == null or not monde.has_method("hauteur"):
 		return
-	var sous_terre: bool = monde.get("_sous_terre_actif") == true
 	var p := global_position
+	# sous terre : drapeau du monde, ou profondeur (crypte -140, grotte -214 : toujours sous -100 ; un test peut y téléporter sans drapeau)
+	var sous_terre: bool = monde.get("_sous_terre_actif") == true or p.y < -100.0
 	var seuil: float = CHUTE_SOUS_TERRE if sous_terre else float(monde.hauteur(p.x, p.z)) - CHUTE_DEHORS
 	if p.y < seuil:
-		var cible: Vector3 = _point_sur if (_point_sur_valide and _point_sur_sous_terre == sous_terre) else Vector3.ZERO
-		if cible == Vector3.ZERO:
-			cible = monde.get("depart_joueur") if not sous_terre else _point_sur
+		var cible: Vector3 = _point_sur if _point_sur_valide else Vector3(monde.get("depart_joueur"))
 		if cible == Vector3.ZERO:
 			return
 		global_position = cible + Vector3(0, 0.2, 0)
@@ -195,7 +193,6 @@ func _filet(dt: float) -> void:
 	if _t_point_sur <= 0.0 and is_on_floor() and not mort:
 		_t_point_sur = 1.0
 		_point_sur = p
-		_point_sur_sous_terre = sous_terre
 		_point_sur_valide = true
 
 func ressusciter(lieu: Vector3, lacet: float) -> void:
