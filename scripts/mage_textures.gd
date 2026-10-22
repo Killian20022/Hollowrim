@@ -8,12 +8,12 @@ class_name MageTextures
 
 # palettes (sombre -> clair)
 ## passe vetements : robe bleu ardoise delavee comme la reference (tons moyens #2c3b52 / #3d5470, arete #7896b3) ; passe 2 : robe quasi noire, ardoise très sombre à peine froide (la passe 1 virait au bleu marine au crépuscule)
-const ROBE := ["#0c1018", "#151c28", "#1f2a3b", "#2c3b52", "#3d5470", "#56728f", "#7896b3"]
+const ROBE := ["#0d1219", "#171f2b", "#232f41", "#33445d", "#455f7e", "#5f809f", "#86a9c4"]
 ## broderies : fil bleu pâle glacé (les runes ressortent sur la robe noire, sans saturation « plastique »)
 const BRODERIE := ["#1f2a36", "#3f5a74", "#6f93b5", "#9dbfdc", "#c9e0f2"]
 const CAPUCHE := ["#08080a", "#0e0e11", "#151518", "#1d1d21", "#26262b", "#313136", "#3f3e44"]
 ## pèlerine de laine par-dessus la robe : gris anthracite un peu plus chaud que la robe (les deux couches se distinguent)
-const PELERINE := ["#121111", "#1b1a19", "#252321", "#302d2b", "#3c3835", "#4b4642", "#5d5752"]
+const PELERINE := ["#101112", "#191a1c", "#232426", "#2e2f32", "#3a3b3f", "#49494d", "#5b5a5e"]
 const BARBE := ["#2b2a2b", "#4a4849", "#6c6a6a", "#8f8d8b", "#b1aeaa", "#cfccc6"]
 const CRISTAL := ["#132447", "#1f3d75", "#2f5fb0", "#5a8fe0", "#9cc4f5", "#d6ebff"]
 ## orbe de glace : du bleu profond au blanc glacé (cœur), lumineux (surface émissive)
