@@ -15,7 +15,8 @@ class_name DraugrNordique
 ##   - cotte de mailles brun-gris ferreux rongée, ourlets déchirés (découpe) ; seconde couche de mailles sur la poitrine ;
 ##   - tabard et ptéruges de tissu cendré en lambeaux ; médaillon, baudrier et boucle ronde ; bandes molletières, revers fourrés ;
 ##   - bouclier rond en planches délavées (rune pâle, trous, morceau arraché) et épée rouillée ébréchée.
-##   DraugrNordique.creer({"bouclier": "bras" | "dos" | "", "epee": true}) -> Node3D (contrat de Humain.creer)
+##   DraugrNordique.creer({"bouclier": "bras" | "dos" | "", "epee": true, "corps": "homme" | "femme", "casque": true}) -> Node3D
+##   (contrat de Humain.creer). Variantes : "corps": "femme" (Svanhild), "casque": false (crâne et cheveux funéraires visibles).
 
 const SHADER := preload("res://shaders/ps1_draugr.gdshader")
 const LUEUR := Vector3(3.0, 5.4, 7.6)
@@ -68,7 +69,10 @@ static func vider() -> void:
 # ======================================================================================================== fabrique
 static func creer(options := {}) -> Node3D:
 	var C := Color.WHITE
-	var app := {"corps": "homme", "barbe": false, "cheveux": "Hair_Long", "teinte_cheveux": Color(0.8, 0.76, 0.7), "peau": TEINTE_CHAIR,
+	var femme: bool = options.get("corps", "homme") == "femme"
+	var casque: bool = options.get("casque", true)
+	AccDraugr.dy = -0.045 if femme else 0.0     # tête et cou du corps femme : 4,5 cm plus bas
+	var app := {"corps": "femme" if femme else "homme", "barbe": false, "cheveux": "Hair_Long", "teinte_cheveux": Color(0.8, 0.76, 0.7), "peau": TEINTE_CHAIR,
 		"tenue": {"tunique": C, "pantalon": C, "bottes": C, "ceinture": C, "brassards": C, "mante": C, "pteruges": C}}
 	var racine := Humain.creer(app)
 	racine.name = "DraugrNordique"
@@ -83,7 +87,9 @@ static func creer(options := {}) -> Node3D:
 	_habiller(pieces["mante"], materiau(DraugrTextures.tex("mante")))
 	for nom in ["tunique", "pantalon", "bottes", "brassards", "mante", "peau", "ceinture", "pteruges"]:
 		_maigrir(sq, pieces.get(nom))
-	var sc: MeshInstance3D = pieces.get("SuperHero_Male")
+	var sc: MeshInstance3D = pieces.get("SuperHero_Female") if femme else pieces.get("SuperHero_Male")
+	if sc == null:
+		sc = pieces.get("Superhero_Female")
 	if sc:
 		sc.visible = false
 	# peau : chair desséchée gris-brun (texture d'origine, teinte terne, très désaturée), appoint faible ; contour
@@ -116,7 +122,7 @@ static func creer(options := {}) -> Node3D:
 	var tete := sq.get_bone_global_rest(sq.find_bone("Head")).origin + Vector3(0, 0.07, 0)
 	var mi_ch: MeshInstance3D = sq.get_node_or_null("Hair_Long")
 	if mi_ch:
-		GuerrierNordique._filtrer(mi_ch, func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002 and not (c.z > 0.03 and c.y > 1.64) and not (c.z > 0.0 and c.y < 1.54))
+		GuerrierNordique._filtrer(mi_ch, func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002 and not (casque and c.z > 0.03 and c.y > 1.64 + AccDraugr.dy) and not (c.z > 0.0 and c.y < 1.54 + AccDraugr.dy))
 		GuerrierNordique._decimer(mi_ch, func(p: Vector3) -> float: return 0.03)
 		mi_ch.material_override = materiau(_tex_cheveux(mi_ch), true, false, true, "cheveux_draugr")
 	# -- pièces ajoutées
@@ -139,7 +145,8 @@ static func creer(options := {}) -> Node3D:
 	# masque-crâne (retiré de la peau), yeux luisants, casque
 	acc.masque(pe, yeux)
 	acc.yeux(yeux)
-	acc.casque(pe, mi_ch)
+	if casque:
+		acc.casque(pe, mi_ch)
 	# épaulières puis fourrure (frange sous les épaulières, touffes dans le dos, col)
 	acc.epaulieres(pieces["mante"])
 	acc.cotes(pe)
@@ -173,6 +180,7 @@ static func creer(options := {}) -> Node3D:
 	var rd: SkeletonModifier3D = RAIDEUR.new()
 	rd.name = "Raideur"
 	sq.add_child(rd)
+	AccDraugr.dy = 0.0
 	racine.set_meta("draugr_nordique", true)
 	return racine
 
@@ -331,7 +339,7 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 	const MASQUE_Y1 := 1.585
 
 	static func _dans_masque(c: Vector3) -> bool:
-		return c.y > MASQUE_Y1 and c.y < MASQUE_Y0 and c.z > 0.035 and absf(c.x) < MASQUE_X
+		return c.y > MASQUE_Y1 + dy and c.y < MASQUE_Y0 + dy and c.z > 0.035 and absf(c.x) < MASQUE_X
 
 	func masque(peau: MeshInstance3D, yeux: Array) -> void:
 		var R := DraugrTextures.R_CRANE
@@ -343,17 +351,17 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 				if d < 0.024:
 					q.z -= 0.006 * (1.0 - d / 0.024)
 			# nez aplati (cavité nasale peinte)
-			if absf(q.x) < 0.024 and q.y > 1.635 and q.y < 1.705:
+			if absf(q.x) < 0.024 and q.y > 1.635 + dy and q.y < 1.705 + dy:
 				q.z = minf(q.z, 0.094)
 			# joues creusées sous les pommettes
 			var ax := absf(q.x)
-			if ax > 0.035 and ax < 0.08 and q.y > 1.60 and q.y < 1.66:
-				var f := sin((ax - 0.035) / 0.045 * PI) * sin((q.y - 1.60) / 0.06 * PI)
+			if ax > 0.035 and ax < 0.08 and q.y > 1.60 + dy and q.y < 1.66 + dy:
+				var f := sin((ax - 0.035) / 0.045 * PI) * sin((q.y - 1.60 - dy) / 0.06 * PI)
 				q.z -= 0.007 * f
 				q.x *= 1.0 - 0.06 * f
 			return q
 		integrer_pos(peau, op, func(c: Vector3, n: Vector3) -> bool: return AccDraugr._dans_masque(c),
-			func(p: Vector3) -> Vector2: return _uvr(R, (p.x + MASQUE_X) / (2.0 * MASQUE_X), (MASQUE_Y0 - p.y) / (MASQUE_Y0 - MASQUE_Y1)), deforme)
+			func(p: Vector3) -> Vector2: return _uvr(R, (p.x + MASQUE_X) / (2.0 * MASQUE_X), (MASQUE_Y0 + dy - p.y) / (MASQUE_Y0 - MASQUE_Y1)), deforme)
 		GuerrierNordique._filtrer(peau, func(c: Vector3, n: Vector3) -> bool: return not AccDraugr._dans_masque(c))
 
 	# ------------------------------------------------------------ yeux luisants (os Head), dans les orbites creusées
@@ -383,14 +391,14 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 			if mi == null:
 				continue
 			for p: Vector3 in mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
-				if p.y > 1.66 and absf(p.x) < 0.2:
+				if p.y > 1.66 + dy and absf(p.x) < 0.2:
 					pts.append(p)
-		var C := Vector3(0.0, 1.70, -0.012)
-		var sommet := Vector3(0.0, 1.85, -0.012)
+		var C := Vector3(0.0, 1.70 + dy, -0.012)
+		var sommet := Vector3(0.0, 1.85 + dy, -0.012)
 		for p in pts:
 			sommet.y = maxf(sommet.y, p.y + 0.03)
 		# bord : y selon l'angle (0 = devant) ; rayon horizontal ajusté
-		var bord_y := func(th: float) -> float: return 1.728 - 0.035 * (0.5 - 0.5 * cos(th))
+		var bord_y := func(th: float) -> float: return 1.728 + dy - 0.035 * (0.5 - 0.5 * cos(th))
 		var anneau := []    # anneau[k][i] = point
 		for k in RANGS.size():
 			var ligne := []
@@ -469,7 +477,7 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 			_quad(op, p0 + n0 * 0.009, p1 + n1 * 0.009, p1 + lx, p0 + lx, _uva(F.position.x + 12, v0), _uva(F.position.x + 12, v1), _uva(F.position.x + 26, v1), _uva(F.position.x + 26, v0), os_, C)
 		# nasal : du bandeau au bout du nez (aplati), en léger biseau
 		var haut: Vector3 = anneau[0][0] + Vector3(0, 0.01, 0.004)
-		var bas := Vector3(0.0, 1.645, 0.104)
+		var bas := Vector3(0.0, 1.645 + dy, 0.104)
 		_boite_libre([haut + Vector3(-0.012, 0, 0), haut + Vector3(0.012, 0, 0), bas + Vector3(0.009, 0, 0), bas + Vector3(-0.009, 0, 0)], 0.007, os_, F)
 
 	## Plaque épaisse : contour avant a b c d (dans l'ordre), épaisseur vers l'arrière (-Z), 5 faces visibles.
@@ -561,7 +569,7 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 					_quad(op, pts[kx][ky], pts[kx + 1][ky], pts[kx + 1][ky + 1], pts[kx][ky + 1], os_u.call(0, 0, 1), os_u.call(1, 0, 1), os_u.call(1, 1, 1), os_u.call(0, 1, 1), os_, Vector3(0, 1.4, 0.0))
 		# côtes : bandes courbes, se courbant vers l'arrière
 		for k in 5:
-			var y0 := 1.44 - k * 0.05
+			var y0 := 1.44 + dy * 0.7 - k * 0.05
 			for sg: float in [-1.0, 1.0]:
 				var xs := [0.016, 0.050, 0.082, 0.110]
 				for s in 3:
@@ -575,16 +583,16 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 					_quad(op, Vector3(xa, ya + h, za), Vector3(xb, yb + h, zb), Vector3(xb, yb, zb), Vector3(xa, ya, za), os_u.call(0, 0, 0), os_u.call(1, 0, 0), os_u.call(1, 1, 0), os_u.call(0, 1, 0), os_, Vector3(xa, ya, za - 0.12))
 		# sternum
 		for s in 3:
-			var ya := 1.50 - s * 0.085
+			var ya := 1.50 + dy - s * 0.085
 			var yb := ya - 0.085
 			var za := _z_peau(peau, 0.0, ya) + 0.011
 			var zb := _z_peau(peau, 0.0, yb) + 0.011
 			_quad(op, Vector3(-0.011, ya, za), Vector3(0.011, ya, za), Vector3(0.011, yb, zb), Vector3(-0.011, yb, zb), os_u.call(0, 0, 0), os_u.call(1, 0, 0), os_u.call(1, 1, 0), os_u.call(0, 1, 0), os_, Vector3(0, ya, za - 0.12))
 		# clavicules : barres en V légèrement relevées vers les épaules
 		for sg: float in [-1.0, 1.0]:
-			var pa := Vector3(sg * 0.012, 1.52, _z_peau(peau, 0.0, 1.52) + 0.012)
-			var pb := Vector3(sg * 0.075, 1.545, _z_peau(peau, sg * 0.075, 1.54) + 0.014)
-			var pc := Vector3(sg * 0.140, 1.545, _z_peau(peau, sg * 0.13, 1.54) + 0.004)
+			var pa := Vector3(sg * 0.012, 1.52 + dy, _z_peau(peau, 0.0, 1.52 + dy) + 0.012)
+			var pb := Vector3(sg * 0.075, 1.545 + dy, _z_peau(peau, sg * 0.075, 1.54 + dy) + 0.014)
+			var pc := Vector3(sg * 0.140, 1.545 + dy, _z_peau(peau, sg * 0.13, 1.54 + dy) + 0.004)
 			for seg: Array in [[pa, pb], [pb, pc]]:
 				var a: Vector3 = seg[0]
 				var b: Vector3 = seg[1]
@@ -624,6 +632,8 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 
 	# ------------------------------------------------------------ jupe et cape modelées dans Blender
 	static var _lamb_cache := {}
+	## décalage vertical de la tête / du cou (corps femme : -0,045 m), posé par DraugrNordique.creer
+	static var dy := 0.0
 
 	## Lit lambeaux.glb (pièces légères « lambeaux_jupe » et « lambeaux_cape », UV de lambeaux_bake.png) et les verse dans la
 	## troisième surface (lam), poids d'os copiés du sommet le plus proche de la mante (haut) ou de la tunique (bas).

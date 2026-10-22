@@ -256,7 +256,7 @@ func _construire(quoi: String) -> Node3D:
 		d.set_physics_process(false)
 		return d
 	if quoi == "draugr_nordique":
-		n = DraugrNordique.creer({"bouclier": _arg("bouclier", "bras")})
+		n = DraugrNordique.creer({"bouclier": _arg("bouclier", "bras"), "corps": _arg("corps", "homme"), "casque": _arg("casque", "1") != "0"})
 		sv.add_child(n)
 		return n
 	var opts := {"casque": _arg("casque", "") != "", "bouclier": _arg("bouclier", "bras"), "sous_couche": _arg("sous-couche", "") != ""}
