@@ -822,14 +822,51 @@ func construire() -> void:
 			nb_lumieres += 1
 	decor.finir()
 	etapes["finir"] = Time.get_ticks_msec() - tp
-	var forme := ConcavePolygonShape3D.new()
-	forme.backface_collision = true
-	forme.set_faces(decor.coll)
-	var cs := CollisionShape3D.new()
-	cs.shape = forme
-	cs.name = "CoqueSolide"
-	corps.add_child(cs)
+	_coque_solide(decor.coll)
+	_portee_dessin()
 	temps_ms = Time.get_ticks_msec() - t0
+
+## Coque de collision DÉCOUPÉE en morceaux (cases de CASE_COLL m dans le plan XZ) au lieu d'un seul ConcavePolygonShape3D de ~144 k
+## triangles : chaque triangle va dans UN seul morceau (par son centre), donc exactement la même surface, sans trou ni doublon ;
+## une requête (pas de physique d'un ennemi, rayon, capsule du joueur) ne parcourt plus que les morceaux voisins.
+const CASE_COLL := 24.0
+func _coque_solide(faces: PackedVector3Array) -> void:
+	var cases := {}
+	for i in range(0, faces.size() - 2, 3):
+		var a := faces[i]
+		var b := faces[i + 1]
+		var c := faces[i + 2]
+		var ct := (a + b + c) / 3.0
+		var k := Vector2i(floori(ct.x / CASE_COLL), floori(ct.z / CASE_COLL))
+		var l: PackedVector3Array = cases.get(k, PackedVector3Array())
+		l.append(a)
+		l.append(b)
+		l.append(c)
+		cases[k] = l
+	for k: Vector2i in cases:
+		var forme := ConcavePolygonShape3D.new()
+		forme.backface_collision = true
+		forme.set_faces(cases[k])
+		var cs := CollisionShape3D.new()
+		cs.shape = forme
+		cs.name = "CoqueSolide_%d_%d" % [k.x, k.y]
+		corps.add_child(cs)
+	nb_morceaux_coque = cases.size()
+
+var nb_morceaux_coque := 0
+
+## Portée de dessin sous terre : au-delà de ~30 m (bord le plus proche), la brume noie tout. Appliquée à chaque maillage du kit
+## (cases de 10 m) ; la portée est mesurée au centre de l'objet : on ajoute donc son demi-diamètre (borné) pour que le BORD proche reste
+## visible jusqu'à 30 m. Les très gros objets (> 60 m) ne sont jamais coupés.
+const PORTEE_DESSIN := 30.0
+func _portee_dessin() -> void:
+	for n in find_children("*", "GeometryInstance3D", true, false):
+		var g := n as GeometryInstance3D
+		var d := g.get_aabb().size.length() * 0.5
+		if d > 30.0:
+			continue
+		g.visibility_range_end = PORTEE_DESSIN + d
+		g.visibility_range_end_margin = 3.0
 
 func _preparer() -> void:
 	ordre = def["ordre"]

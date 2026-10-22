@@ -822,6 +822,8 @@ func _dragon() -> void:
 		quetes.signaler("tue:dragon")
 		hud.avis("Le dragon de givre est vaincu"))
 	add_child(dragon)
+	if _sous_terre_actif:
+		_geler_exterieur(true)
 	hud.avis("Un rugissement fait trembler la forêt…")
 
 ## Sous terre : ni lune, ni neige, ni ciel ; une brume noire et froide.
@@ -840,6 +842,7 @@ func _sous_terre(dedans: bool) -> void:
 	_env.fog_mode = Environment.FOG_MODE_EXPONENTIAL if dedans else Environment.FOG_MODE_DEPTH
 	post.set_shader_parameter("tramage", 0.45 if dedans else 1.0)
 	post.set_shader_parameter("etal_mix", 0.45 if dedans else 1.0)  # lot 2 : étalonnage atténué sous terre
+	_geler_exterieur(dedans)
 	if dedans:
 		_env.ambient_light_color = Color(0.40, 0.45, 0.62)
 		_env.ambient_light_energy = 0.9
@@ -850,10 +853,56 @@ func _sous_terre(dedans: bool) -> void:
 	else:
 		cycle._process(0.0)
 
+## Monde extérieur GELÉ sous terre (village, abords, villageois, draugrs et dragon de dehors, interactifs de surface) : plus de
+## _process ni de physique pour eux (≈ -5 ms par image mesurés dans la crypte, -7 ms dans la grotte), mais leur COLLISION reste
+## (un corps désactivé par process_mode ne quitte pas le monde physique : le terrain, la grotte et la crypte restent solides).
+## Dégel à la sortie : les PNJ reprennent là où ils étaient. Seuls les nœuds en mode hérité sont touchés (les ennemis rendus
+## paisibles ou désactivés par ailleurs ne sont jamais réveillés ici). Un ennemi de dehors qui est en pleine poursuite n'est pas gelé
+## tout de suite (le HUD le compterait « en combat » pour toujours) : _process refait le tour une fois par seconde.
+var _gel_ext: Array = []
+var _gel_ext_t := 0.0
+
+func _geler_exterieur(geler: bool) -> void:
+	if not geler:
+		for n in _gel_ext:
+			if is_instance_valid(n):
+				n.process_mode = Node.PROCESS_MODE_INHERIT
+		_gel_ext.clear()
+		return
+	var cibles: Array = [village, dragon]
+	for c in get_children():
+		var sc: Script = c.get_script()
+		if sc != null and sc.resource_path.get_file() == "abords_village.gd":
+			cibles.append(c)
+	cibles.append_array(get_tree().get_nodes_in_group("villageois"))
+	for d: Node in draugrs.values():
+		if is_instance_valid(d) and d.has_meta("exterieur"):
+			cibles.append(d)
+	var dedans: Array = [tertre, tertre.crypte, grotte_acces, grotte_acces.grotte, grotte, village]
+	for c in find_children("*", "Node3D", true, false):    # interactifs et intérieurs de surface hors du village (feu, cercle…)
+		var sc: Script = c.get_script()
+		if sc != null and sc.resource_path.get_file() in ["interactif.gd", "interieur.gd"]:
+			var sous := false
+			for r in dedans:
+				if r != null and r.is_ancestor_of(c):
+					sous = true
+					break
+			if not sous:
+				cibles.append(c)
+	for n in cibles:
+		if n == null or not is_instance_valid(n) or n in _gel_ext or n.process_mode != Node.PROCESS_MODE_INHERIT:
+			continue
+		if n.has_method("en_combat") and n.en_combat():
+			continue
+		n.process_mode = Node.PROCESS_MODE_DISABLED
+		_gel_ext.append(n)
+
 # --- draugrs ---------------------------------------------------------------------
 
 func _draugr(type: String, x: float, z: float, dort: bool, lacet := 0.0) -> CharacterBody3D:
-	return creer_draugr(type, Vector3(x, hauteur(x, z) + 0.05, z), lacet, dort)
+	var d := creer_draugr(type, Vector3(x, hauteur(x, z) + 0.05, z), lacet, dort)
+	d.set_meta("exterieur", true)   # gelé sous terre (_geler_exterieur)
+	return d
 
 ## Crée un draugr ; `options` règle ses propriétés (ident, echelle, vie_imposee, debout…) et les options de donjon documentées
 ## en tête de draugr.gd : patrouille (Array[Vector3] monde), archer, poste, degats_tir, reveil_evt, boss ("svanhild"|"hrafn"|"jarl").
@@ -1050,6 +1099,11 @@ func charger() -> void:
 func _process(dt: float) -> void:
 	_t += dt
 	_brume_locale(dt)
+	if _sous_terre_actif:
+		_gel_ext_t += dt
+		if _gel_ext_t > 1.0:
+			_gel_ext_t = 0.0
+			_geler_exterieur(true)   # attrape les ennemis de dehors qui se sont calmés depuis l'entrée
 	if cycle != null and joueur != null and not _sous_terre_actif:
 		cycle.orienter_brume(-joueur.camera.global_transform.basis.z)  # lot 2 : brouillard chaud côté soleil couchant
 	neige.global_position = joueur.global_position + Vector3(0, 10, 0)

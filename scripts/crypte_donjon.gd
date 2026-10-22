@@ -22,11 +22,11 @@ func construire() -> void:
 	for m: Dictionary in plan():
 		module(m)
 	verifier()
-	# portée de dessin : au-delà, rien n'est dessiné (le brouillard noie déjà tout)
+	# portée de dessin ~30 m : au-delà, rien n'est dessiné (le brouillard noie déjà l'essentiel ; 70 m avant : tout le couloir depuis l'entrée)
 	for n in d.racine.get_children():
 		if n is GeometryInstance3D:
-			(n as GeometryInstance3D).visibility_range_end = 70.0
-			(n as GeometryInstance3D).visibility_range_end_margin = 4.0
+			(n as GeometryInstance3D).visibility_range_end = 30.0 + minf((n as GeometryInstance3D).get_aabb().size.length() * 0.5, 30.0)   # mesuré au centre : bord proche visible jusqu'à 30 m
+			(n as GeometryInstance3D).visibility_range_end_margin = 3.0
 
 # ------------------------------------------------------------------ la table
 func _salle(id: String, o: Vector2, dim: Vector2, h: float, theme: String, role: String, graine: int, ouv: Array, plus := {}) -> Dictionary:
