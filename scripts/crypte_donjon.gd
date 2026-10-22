@@ -18,6 +18,26 @@ const REVEIL_OS := "ramasse:fragment_sceau_os"       # événement de quête qui
 const REVEIL_GIVRE := "ramasse:fragment_sceau_givre"
 const REVEIL_EAU := "ramasse:fragment_sceau_eau"
 
+# ------------------------------------------------------------------ crypte v2 : tables de données (voir docs/DONJONS.md §13 et scripts/crypte_v2.gd)
+# Positions en repère de la CRYPTE (comme les accroches). Salle et couloir pilotes de la refonte graphique (références/crypte_v2_planche.png, vues 2/6 et 3).
+const V2_NICHES := {
+	"arche": "arche_2p0", "pilier": "pilier_mur_1p6", "naissance": 1.6,
+	"eboulis": [{"pos": Vector3(1.0, 0, -9.3), "mod": "eboulis_c", "lacet": 0.6}, {"pos": Vector3(-1.0, 0, -15.0), "mod": "eboulis_a", "lacet": 2.1}],
+	"dalles": [{"pos": Vector3(0.25, 0, -10.6), "mod": "dalles_a"}, {"pos": Vector3(-0.35, 0, -14.3), "mod": "dalles_b"}, {"pos": Vector3(0.4, 0, -17.0), "mod": "dalles_c"}],
+	"flaques": [{"pos": Vector3(-0.15, 0, -11.9), "r": 0.55, "graine": 3}],
+}
+const V2_RITUELLE := {
+	"piliers": [-6.2, -3.4, 3.4, 6.2], "pilier": "pilier_mur_3p2", "naissance": 3.2, "arche": "arche_10p7",
+	"statues": [{"pos": Vector3(-4.8, 0, -53.15), "lacet": 0.0}, {"pos": Vector3(4.8, 0, -53.15), "lacet": 0.0}],
+	"bannieres": [{"pos": Vector3(-4.8, 5.3, -53.7), "vers": Vector3(0, 0, 1), "long": 2.6}, {"pos": Vector3(4.8, 5.3, -53.7), "vers": Vector3(0, 0, 1), "long": 2.6}],
+	"sarcophages": [{"pos": Vector3(-5.75, 0, -47.5), "lacet": PI * 0.5}],
+	"candelabres": [{"pos": Vector3(-5.9, 0, -49.15)}, {"pos": Vector3(-5.9, 0, -45.85)}, {"pos": Vector3(5.9, 0, -49.5)}],
+	"eboulis": [{"pos": Vector3(5.7, 0, -46.9), "mod": "eboulis_b", "lacet": 0.4}, {"pos": Vector3(-5.9, 0, -53.0), "mod": "eboulis_a", "lacet": 1.1}, {"pos": Vector3(5.7, 0, -43.3), "mod": "eboulis_c", "lacet": 2.6}],
+	"dalles": [{"pos": Vector3(2.2, 0, -44.4), "mod": "dalles_a"}, {"pos": Vector3(-1.8, 0, -51.5), "mod": "dalles_b"}, {"pos": Vector3(3.4, 0, -49.2), "mod": "dalles_c"}],
+	"flaques": [{"pos": Vector3(-2.7, 0, -43.9), "r": 0.9, "graine": 1}, {"pos": Vector3(3.9, 0, -52.0), "r": 0.8, "graine": 2}],
+	"givre": 7,
+}
+
 func construire() -> void:
 	for m: Dictionary in plan():
 		module(m)
@@ -67,6 +87,7 @@ func plan() -> Array:
 	# vestibule (entrée), alcôve d'Eirik et couloir de la herse : bâtis par tertre.gd (pièces uniques : levier, herse, corps d'Eirik)
 	r.append(_cl("niches", Vector2(0, -12), 12.0, 0, 3.0, "tombeau", 3, "prep", "",
 		{"role": "combat", "extra": "_x_niches", "detritus": false, "lum": {"appliques": 2},
+		"v2": V2_NICHES,
 		"ouv": [["N", 0.0, 3.2, false, "prep"], ["S", 0.0, 3.2, false, ""], ["O", 3.0, 3.2, false, "s1"]],
 		"ennemis": [_e("cr_niches_1", "sbire", Vector3(0.85, 0, -13.0), -PI * 0.5, true, true), _e("cr_niches_2", "sbire", Vector3(-0.85, 0, -16.8), PI * 0.5, true, true)]}))
 	r.append(_salle("prep", Vector2(0, -25), Vector2(14, 14), 4.6, "tombeau", "combat", 5,
@@ -79,7 +100,7 @@ func plan() -> Array:
 	# salle rituelle (hub) : trois socles, porte scellée de l'arène, rituel interrompu
 	r.append(_salle("rituelle", Vector2(0, -48), Vector2(14, 12), 6.0, "tombeau", "enigme", 59,
 		[["S", 0.0, 3.2, false, ""], ["N", 0.0, 4.0, false, "antichambre"]],
-		{"lum": {"braseros": 1, "appliques": 2}, "extra": "_x_rituelle",
+		{"lum": {"braseros": 1, "appliques": 2}, "extra": "_x_rituelle", "v2": V2_RITUELLE,
 		"ennemis": [_e("cr_rituelle_1", "guerrier", Vector3(-2.7, 0, -52.0), 0.0, true, true), _e("cr_rituelle_2", "guerrier", Vector3(2.7, 0, -52.0), 0.0, true, true)],
 		"meca": [{"genre": "socles", "id": "socles_rituel", "positions": [Vector3(-4.4, 0, -45.0), Vector3(4.4, 0, -45.0), Vector3(0, 0, -51.4)], "objets": [FRAG_OS, FRAG_GIVRE, FRAG_EAU]}]}))
 	r.append(_salle("antichambre", Vector2(0, -58), Vector2(10, 8), 5.0, "tombeau", "repos", 61,
@@ -288,7 +309,10 @@ func _x_rituelle(_m: Dictionary) -> void:
 	d.tour("gravure", _l(0, -47.5, 0.9), [Vector2(1.7, 0.0), Vector2(1.4, 0.0)], 8, PI / 8.0, true)
 	d.solide(_l(0, -47.5, 0.45), Vector3(3.6, 0.9, 3.6))
 	d.lumiere(_l(0, -47.5, 1.6), Color(0.4, 0.8, 1.0), 1.5, 7.0, 1.5, false)
-	d.embleme("cercle", _l(0, -47.5, 0.02), Vector3.UP, 7.4)
+	if CrypteV2.actif(_m):
+		d.cercle_grave(_l(0, -47.5, 0.0), 2.55)      # crypte v2 : anneaux fins gravés (plus de grosses barres claires)
+	else:
+		d.embleme("cercle", _l(0, -47.5, 0.02), Vector3.UP, 7.4)
 	# plaques des sceaux au pied de chaque socle (os, givre, eau) : l'objectif se lit au sol
 	d.embleme("os", _l(-4.4, -46.4, 0.03), Vector3.UP, 1.1)
 	d.embleme("givre", _l(4.4, -46.4, 0.03), Vector3.UP, 1.1)
