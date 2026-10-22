@@ -534,8 +534,8 @@ static func _g_neige(graine: int) -> Dictionary:
 	for i in Q.size():
 		var t := clampf((Q[i].y - ymin) / maxf(ymax - ymin, 0.01), 0.0, 1.0)
 		Q[i] = (Q[i] - Vector3(0, ymin, 0)) / rmax - Vector3(0, 0.03, 0)
-		var ao := lerpf(0.78, 1.0, t)
-		cols.append(Color(ao, ao, ao * 1.02, 1.6))
+		var ao := lerpf(0.58, 0.8, t)                          # neige bleutée (#9aa6be de la planche), plus de blanc pur
+		cols.append(Color(ao * 0.82, ao * 0.9, ao * 1.02, 1.6))
 	var G := {"surf": {}, "h": (ymax - ymin) / rmax, "prof": 0.0}
 	_facettes(_S(G, "k_sol_neige"), Q, m[1], Vector3(0, 0.05, 0), cols, graine, 0.0, 1.6)
 	return G
@@ -1674,7 +1674,7 @@ func _generique(z: Dictionary) -> void:
 	var dens := 0.6 if camp else 1.0
 	var etais: Array = (z.get("params", {}) as Dictionary).get("etais", [])
 	var sty := GrotteDecor._style_en(g, id, (sa + sb) * 0.5)
-	var neige_p := 0.75 if sty == "neige" else (0.4 if (sty == "glace" or sty == "mousse") else (0.0 if camp else 0.22))
+	var neige_p := 0.75 if sty == "neige" else (0.5 if (sty == "glace" or sty == "mousse") else (0.0 if camp else 0.32))
 	for cote: float in [-1.0, 1.0]:
 		# 1. ressauts de paroi au sol, et un étage en hauteur si la voûte le permet
 		var s := sa + r.randf_range(0.0, 1.0)
@@ -1718,8 +1718,8 @@ func _generique(z: Dictionary) -> void:
 						_add("neige_%d" % r.randi_range(0, 2), q + Vector3(0, -0.03, 0), r.randf() * TAU, Vector3(rn, rn * r.randf_range(0.8, 1.3), rn))
 			s += r.randf_range(0.9, 1.8)
 		# 4. aiguilles de glace contre la paroi (couloirs froids seulement)
-		if sty == "neige" or sty == "glace":
-			for k in int((sb - sa) * 0.12):
+		if sty == "neige" or sty == "glace" or sty == "strate":
+			for k in int((sb - sa) * (0.06 if sty == "strate" else 0.12)):
 				var s2 := r.randf_range(sa, sb)
 				var m := _mur(id, s2, cote, 0.5)
 				if m.is_empty():

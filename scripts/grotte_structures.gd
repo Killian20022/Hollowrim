@@ -246,8 +246,7 @@ static func _arene(k: GrotteKit, z: Dictionary) -> void:
 	var ps := Vector3.ZERO
 	var lat_a := 0.0
 	var s_a := sa
-	for dec: float in [0.0, 1.0, -1.0, 2.0, -2.0, 3.0, -3.0]:
-		var ss := sa + dec
+	for ss: float in [s1 - 3.6, s1 - 4.4, s1 - 2.8, s1 - 5.2, sa, sa + 1.0, sa - 1.0]:      # d'abord le fond de la salle, mobilier du camp oblige
 		var m := k._mur(id, ss, -1.0, 0.6)
 		if m.is_empty():
 			continue
