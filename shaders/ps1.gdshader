@@ -38,6 +38,7 @@ uniform float relief_force = 2.0;
 uniform sampler2DArray sol_index2 : filter_nearest;
 uniform sampler2D sol_details2 : filter_nearest, repeat_enable;   // 160² (Scale2x des détails)
 uniform vec2 sol_proche = vec2(3.0, 11.0);
+uniform int sol_debug = 0;   // diagnostic du sol (--sol-debug=N) : 1 = grilles 0,25 m / 1/16 m, 2 = décalage de ton, 3 = texels par pixel
 instance uniform float eclair = 0.0; // flash quand l'objet est touché (par instance)
 #include "res://shaders/neige_tient.gdshaderinc"
 
@@ -88,6 +89,153 @@ float relief_au(vec2 p) {
 	return (texture(carte_relief, (p - carte_rect.xy) * carte_rect.z).g * 255.0 - 128.0) / 400.0;
 }
 
+
+// ---------------------------------------------------------------------------------------------
+// SOL V2 (extérieurs v2, zone témoin seulement : `sol2_rect` = x0, z0, x1, z1 ; zéro = désactivé)
+// Sol procédural ancré dans le monde, évalué au centre d'un texel dont la taille suit la distance
+// (1/48 m près des pieds, jusqu'à 1/6 m ; ~1,6 pixel d'écran par texel, à toute résolution) :
+// plus de gros carrés de 6 cm vus à 6 pixels. Neige à variations douces, terre, pierres de tailles
+// variées, gravier, plaques de neige, aiguilles ; transitions par seuils bruités (pas de tramage Bayer).
+// ---------------------------------------------------------------------------------------------
+uniform vec4 sol2_rect = vec4(0.0);
+uniform float sol2_fondu = 3.0;   // largeur (m) du fondu vers l'ancien rendu au bord du rectangle
+
+vec4 s2_ind(vec4 c) {
+	int b = int(c.b * 255.0 + 0.5);
+	if (b < 128) return vec4(0.0);
+	int m = clamp(int(c.r * 255.0 + 0.5) >> 4, 0, 7);
+	return vec4(float(m == 1 || m == 2), float(m == 2), float(m == 3), float(m == 7));
+}
+
+// poids (bilinéaires sur la carte 0,25 m) : x chemin (piétinée + terre), y terre, z aiguilles, w croûte
+vec4 s2_poids(vec2 p) {
+	vec2 t = (p - carte_rect.xy) * carte_rect.z * float(textureSize(carte_sol, 0).x) - 0.5;
+	ivec2 i0 = ivec2(floor(t));
+	vec2 f = fract(t);
+	vec4 a = s2_ind(texelFetch(carte_sol, i0, 0));
+	vec4 b = s2_ind(texelFetch(carte_sol, i0 + ivec2(1, 0), 0));
+	vec4 c = s2_ind(texelFetch(carte_sol, i0 + ivec2(0, 1), 0));
+	vec4 d = s2_ind(texelFetch(carte_sol, i0 + ivec2(1, 1), 0));
+	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+float s2_fbm(vec2 p) {
+	return 0.5 * bruit_sol(p) + 0.3 * bruit_sol(p * 2.03 + 7.1) + 0.2 * bruit_sol(p * 4.1 + 13.7);
+}
+
+// voronoï (3x3) à cellules de côté S : f1 / f2 en unités de cellule, id et centre (m) du plus proche
+void s2_vor(vec2 p, float S, out float f1, out float f2, out vec2 cid, out vec2 ctr) {
+	vec2 g = p / S;
+	vec2 gi = floor(g);
+	f1 = 1e9;
+	f2 = 1e9;
+	cid = gi;
+	ctr = p;
+	for (int j = -1; j <= 1; j++) {
+		for (int i = -1; i <= 1; i++) {
+			vec2 c = gi + vec2(float(i), float(j));
+			vec2 q = c + vec2(0.18) + 0.64 * vec2(hash_sol(c), hash_sol(c + 19.7));
+			float d = length(g - q);
+			if (d < f1) {
+				f2 = f1;
+				f1 = d;
+				cid = c;
+				ctr = q * S;
+			} else if (d < f2) {
+				f2 = d;
+			}
+		}
+	}
+}
+
+float s2_terre(vec2 p) {
+	vec4 w = s2_poids(p);
+	return max(w.y, 0.62 * w.x) + (s2_fbm(p * 5.0 + 11.0) - 0.5) * 0.9 + (bruit_sol(p * 19.0) - 0.5) * 0.2;
+}
+
+// matière du sol au centre de texel `p` : ton + rampe (SolTuiles), niveau (pour les lèvres/ombres), pente de pierre
+void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out vec2 pente) {
+	vec4 w = s2_poids(p);
+	pente = vec2(0.0);
+	float derive = s2_fbm(p * 0.8);
+	float ondes = bruit_sol(vec2(p.x * 7.0, p.y * 1.8) + 9.0);   // rides allongées dans le sens du vent (+z)
+	float v = 0.5 * derive + 0.3 * ondes + 0.2 * bruit_sol(p * 21.0 + 4.0);
+	float terre = max(w.y, 0.62 * w.x) + (s2_fbm(p * 5.0 + 11.0) - 0.5) * 0.9 + (bruit_sol(p * 19.0) - 0.5) * 0.2;
+	if (terre > 0.5) {
+		float prof = terre - 0.5;                       // 0 au bord, ~0,3 au cœur
+		float m1 = s2_fbm(p * 6.0 + 3.7);
+		rampe = 3;
+		ton = clamp(2 + int(m1 * 2.6), 2, 4);
+		niv = 0;
+		bool pierre = false;
+		float f1;
+		float f2;
+		vec2 cid;
+		vec2 ctr;
+		float S = 0.5;
+		s2_vor(p, S, f1, f2, cid, ctr);
+		float dens = 0.42 + 2.2 * prof;
+		if (hash_sol(cid + 7.7) >= dens) {
+			// pas de grosse pierre ici : petites pierres sur une maille plus fine
+			S = 0.21;
+			s2_vor(p, S, f1, f2, cid, ctr);
+			dens = 0.30 + 2.0 * prof;
+			if (hash_sol(cid + 13.1) >= dens) f1 = 9.0;
+		}
+		float R = 0.36 + 0.24 * hash_sol(cid + 2.2);
+		if (f1 < R && (f2 - f1) > 0.09) {
+			pierre = true;
+			vec2 vv = (p - ctr) / (S * R);
+			float l = dot(vv, vec2(-0.7071, -0.7071));
+			rampe = 2;
+			ton = 2 + int(hash_sol(cid + 4.4) * 2.4);
+			if (l > 0.30) ton += 1;
+			else if (l < -0.45) ton -= 1;
+			ton = clamp(ton, 0, 4);
+			niv = 4;
+			pente = vv * clamp(f1 / R, 0.0, 1.0);
+			// calotte de neige sur le dessus de certaines pierres
+			if (hash_sol(cid + 9.9) < 0.20 && l > 0.05 && f1 < R * 0.7) {
+				rampe = 0;
+				ton = l > 0.35 ? 5 : 4;
+			}
+		}
+		if (!pierre) {
+			float hp = hash_sol(floor(p * 24.0) + 5.0);      // gravier : texels de 4 cm, par plaques
+			float dg = 0.30 * smoothstep(0.30, 0.65, bruit_sol(p * 2.7 + 21.0));
+			if (hp < dg) {
+				rampe = 2;
+				ton = 2 + int(hash_sol(floor(p * 24.0) + 8.0) * 3.0);
+				niv = 1;
+			} else if (s2_fbm(p * 9.0 + 30.0) > 0.70 + prof * 1.4) {
+				rampe = 0;                                   // neige mince dans la terre
+				ton = 3;
+				niv = 2;
+			}
+		}
+	} else {
+		rampe = 0;
+		niv = 3;
+		ton = v < 0.43 ? 3 : (v > 0.60 ? 5 : 4);
+		float piet = w.x + (s2_fbm(p * 7.0 + 2.0) - 0.5) * 0.7;
+		if (piet > 0.55) {                                   // neige piétinée : plus grise, rides cassées
+			ton = ondes > 0.62 ? 2 : 3;
+			niv = 2;
+		} else if (terre > 0.36 && bruit_sol(p * 31.0) > 0.55) {
+			rampe = 2;                                       // gravier qui perce la neige
+			ton = 2 + int(bruit_sol(p * 13.0) * 2.0);
+			niv = 1;
+		}
+		if (w.z + (s2_fbm(p * 8.0 + 1.0) - 0.5) * 0.7 > 0.55) {
+			rampe = (bruit_sol(p * 17.0) > 0.78) ? 7 : 3;    // tapis d'aiguilles
+			ton = rampe == 7 ? 2 : 1 + int(bruit_sol(p * 12.0 + 6.0) * 2.5);
+			niv = 1;
+		}
+		if (rampe == 0 && ton == 4 && hash_sol(floor(p * 24.0) + 61.0) > 0.994) ton = 5;   // éclats isolés
+		if (rampe == 0 && trace != 0.0) ton += int(trace);
+	}
+}
+
 void vertex() {
 	VERTEX += NORMAL * gonfle;
 	vec2 uv = UV * uv_echelle;
@@ -122,7 +270,58 @@ void fragment() {
 	vec2 ddy_sol = dFdy(pos_monde);
 	vec2 zone_min = traces_rect.xy - 1.0;
 	vec2 zone_max = traces_rect.xy + traces_rect.zw / 32.0 + 1.0;
-	if (sol_carte && all(greaterThan(pos_monde, zone_min)) && all(lessThan(pos_monde, zone_max))) {
+	// sol v2 : dans le rectangle activé et assez près (texel < 0,10 m d'empreinte), fondu en bruit vers l'ancien rendu
+	bool v2 = false;
+	float pxm = sqrt(abs(ddx_sol.x * ddy_sol.y - ddx_sol.y * ddy_sol.x));
+	if (sol_carte && sol2_rect.z > sol2_rect.x && all(greaterThan(pos_monde, sol2_rect.xy)) && all(lessThan(pos_monde, sol2_rect.zw))) {
+		vec2 dr = min(pos_monde - sol2_rect.xy, sol2_rect.zw - pos_monde);
+		float wz = smoothstep(0.0, sol2_fondu, min(dr.x, dr.y)) * (1.0 - smoothstep(0.085, 0.115, pxm));
+		v2 = wz > hash_sol(floor(pos_monde * 24.0) + 3.1);
+		if (v2) {
+			int mm = int(texelFetch(carte_sol, ivec2(floor((pos_monde - carte_rect.xy) * carte_rect.z * float(textureSize(carte_sol, 0).x))), 0).r * 255.0 + 0.5) >> 4;
+			if (mm == 4 || mm == 5 || mm == 6) v2 = false;   // mousse, roche, glace : ancien rendu
+		}
+	}
+	if (v2) {
+		float lv = clamp(log2(max(pxm, 0.0001) * 1.6 * 48.0), 0.0, 3.0);
+		vec2 q0 = floor(pos_monde * 48.0);
+		float niveau_l = floor(lv) + (hash_sol(q0 + 41.7) < fract(lv) ? 1.0 : 0.0);
+		float pas = exp2(min(niveau_l, 3.0)) / 48.0;
+		vec2 pc = (floor(pos_monde / pas) + 0.5) * pas;
+		// empreintes (carte à 1/32 m)
+		float trace = 0.0;
+		ivec2 tq = ivec2(floor((pc - traces_rect.xy) * 32.0));
+		if (tq.x >= 0 && tq.y >= 0 && float(tq.x) < traces_rect.z && float(tq.y) < traces_rect.w) {
+			trace = clamp(float(int(texelFetch(sol_traces, tq, 0).r * 255.0 + 0.5) - 128), -2.0, 1.0);
+		}
+		int ton;
+		int rampe;
+		int niv;
+		vec2 pente;
+		s2_sol(pc, trace, ton, rampe, niv, pente);
+		// lèvre claire / ombre aux limites terre ↔ neige (champ de terre évalué au texel voisin en haut à gauche)
+		int lev = 0;
+		bool terre_moi = s2_terre(pc) > 0.5;
+		bool terre_ul = s2_terre(pc + vec2(-pas, -pas)) > 0.5;
+		if (!terre_moi && terre_ul && rampe == 0) lev = 1;
+		else if (terre_moi && !terre_ul && niv <= 1) lev = -1;
+		ton = ton + lev;
+		if (rampe == 0) ton = max(ton, 1);
+		ton = clamp(ton, 0, 7);
+		vec3 sol = texelFetch(sol_lut, ivec2(ton, rampe), 0).rgb;
+		if (rampe == 0) {   // variation douce et subtile de la neige : plaques plus froides / plus chaudes
+			float c = bruit_sol(pc * 0.35 + 5.0);
+			sol *= mix(vec3(0.965, 0.985, 1.03), vec3(1.03, 1.0, 0.97), c);
+		}
+		ALBEDO = sol * teinte.rgb;
+		macro_sol = 0.5;
+		float h0 = relief_au(pc);
+		float gx = (relief_au(pc + vec2(pas, 0.0)) - h0) / pas;
+		float gz = (relief_au(pc + vec2(0.0, pas)) - h0) / pas;
+		vec3 n = normalize(normalize(normale_monde) + vec3(-gx, 0.0, -gz) * relief_force + vec3(pente.x, 0.0, pente.y) * 0.45);
+		NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
+	}
+	if (!v2 && sol_carte && all(greaterThan(pos_monde, zone_min)) && all(lessThan(pos_monde, zone_max))) {
 		// zone témoin : tuiles pixel art 16 texels/m, UV monde non affines, alignées sur une grille
 		// de texels de sol (q). Hors du rectangle de la zone, rien n'est lu (coût nul).
 		vec2 q = floor(pos_monde * 16.0);
@@ -204,6 +403,19 @@ void fragment() {
 			// au loin (un texel de sol plus petit qu'un demi-pixel) : couleurs moyennées (mipmaps)
 			vec3 sol = texels_par_px < 1.6 ? proche : loin * (1.0 + 0.1 * float(creux));
 			ALBEDO = sol * teinte.rgb;
+			if (sol_debug == 1) {
+				float px = max(max(abs(ddx_sol.x), abs(ddx_sol.y)), max(abs(ddy_sol.x), abs(ddy_sol.y)));
+				vec2 f4 = fract(pos_monde * 4.0);
+				vec2 f16 = fract(pos_monde * 16.0);
+				if (min(f4.x, f4.y) < px * 4.0 * 1.2) ALBEDO = vec3(1.0, 0.0, 0.0);
+				else if (texels_par_px < 1.0 && min(f16.x, f16.y) < px * 16.0 * 1.2) ALBEDO = mix(ALBEDO, vec3(0.0, 0.8, 0.9), 0.7);
+			} else if (sol_debug == 2) {
+				float dt = float(clamp(creux + bord + trace, -2, 1));
+				ALBEDO = vec3(0.5 + 0.25 * dt) * vec3(dt < 0.0 ? 0.6 : 1.0, 0.5, dt > 0.0 ? 0.6 : 1.0);
+				if (dt == 0.0) ALBEDO = vec3(0.5);
+			} else if (sol_debug == 3) {
+				ALBEDO = vec3(clamp(texels_par_px / 4.0, 0.0, 1.0), clamp(1.0 - texels_par_px / 4.0, 0.0, 1.0), fin);
+			}
 			macro_sol = 0.5;
 			// relief fin (congères, cuvettes au pied des arbres, bosses) : normale perturbée,
 			// constante par texel de sol (facettes en pixels)
