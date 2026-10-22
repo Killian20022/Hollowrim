@@ -203,3 +203,53 @@ Limites : l'escalier n'est orienté que le long de Z (rot 0 ou 2) ; les pièces 
 `bash outils/tous_les_tests.sh` (dont `test_crypte` : remplissage de la crypte par une capsule — escaliers et rampes compris —, chaque salle, coffre, interaction, mécanisme et ennemi atteignable, aucun ennemi dans un mur,
 liaisons des modules, surface, lumières, portes fermées bloquantes, escaliers franchis par une capsule physique ; `test_crypte_mort` : réinitialisation à la mort, y compris les gardiens d'origine).
 Options de `test_crypte.gd` : `--plan` (zones, ennemis, interactions, mécanismes), `--carte [--bas]` (carte ASCII des cases atteintes).
+
+## 13. Crypte v2 : refonte graphique, salle rituelle + couloir des niches (2026-10-22, branche `crypte_v2/salle_couloir`)
+
+Référence : `references/crypte_v2_planche.png` (vues 2 « salle principale », 3 « couloir », 6 « salle de tombeau »), prompt `references/crypte_v2_prompt.md`.
+Pilotes : la salle `rituelle` (hub, vasque, socles, porte scellée de l'arène) et le couloir `niches`. Salles, ouvertures, collisions (sauf le sarcophage ajouté),
+interactions, ennemis, mécanismes et quêtes sont INCHANGÉS. Les autres modules ne sont pas touchés (extension après validation).
+
+### Activer le style v2 sur un module (table de données)
+
+Ajouter au dictionnaire du module dans `CrypteDonjon.plan()` une clé `"v2": {...}` (constantes `V2_NICHES`, `V2_RITUELLE` en tête de `crypte_donjon.gd`).
+Le kit (`DonjonKit.module`) remplace alors les dalles `dalle0` par `dalle_v2` (thème) et délègue l'habillage à `scripts/crypte_v2.gd` (`CrypteV2.salle` / `CrypteV2.couloir`).
+Les positions sont en repère de la crypte (comme les accroches) et converties en repère local. Champs (valeurs par défaut dans `CrypteV2.DEFAUTS`) :
+
+| champ | sens |
+|---|---|
+| `piliers` | salle : abscisses locales des piliers + arches le long des murs longs (ignorés devant une ouverture ou une applique). Couloir : un pilier/arche tous les 4 m, automatique |
+| `pilier`, `naissance`, `arche` | modules Blender du pilier et de l'arche, hauteur de naissance de l'arche (= hauteur du pilier) |
+| `panneaux`, `haut_panneau` | panneaux de maçonnerie en relief (0,22 m) sur tous les murs libres, jusqu'à `haut_panneau`, corniche au sommet |
+| `lustres` | lustres de fer (module `lustre_fer`) comme le décor de base (1 à 3 selon la surface) |
+| `statues`, `sarcophages`, `candelabres`, `bannieres` | `[{pos, lacet, ...}]` ; sarcophage : collision par défaut (boîte), statue : sans collision sauf `collision: true` ; bannière rouge à croix dorée (`CrypteDecor.banniere`, sujet `croix`) |
+| `eboulis`, `dalles` | `[{pos, mod, lacet}]` : tas de pierres et dalles soulevées |
+| `flaques` | `[{pos, r, graine}]` : **PLACEHOLDER d'eau** (polygone sombre plat, matière `flaque`). Emplacement réservé : `CrypteDecor.eau_slots` (centre + rayon) ; le système d'eau (branche eau/prototype) n'a qu'à lire cette liste ou remplacer `CrypteDecor.flaque()` |
+| `givre` | nombre de décalques de givre au sol (hors angles) |
+
+### Modules Blender (`sources_blender/scripts/crypte_modules_v2.py`)
+
+`blender.exe -b --python sources_blender/scripts/crypte_modules_v2.py` (rejouable, graines fixes) écrit `assets/crypte/modules/crypte_v2.dat` (lu par
+`CrypteDecor.modele()` via FileAccess : sûr dans le fil de construction), `crypte_v2.glb` (export de référence) et `sources_blender/crypte_modules_v2.blend`.
+Chaque module = pierre taillée par assises irrégulières (blocs aux arêtes abattues, sommets bougés, inclinés de quelques degrés), couleurs de sommet cuites
+(ton de chaque bloc x occlusion ambiante par rayons) ; objets nommés `module__matiere` (`pierre`, `fer`, `cire`, `bois`) et `module__pts` (points de flamme).
+Repère Godot, origine au pied, `+z` = face avant (vers la pièce). `CrypteDecor.modele(nom, pos, lacet, echelle, mats)` verse les triangles dans les tampons
+de matière existants (fusion par cellule de 8 m : aucun nœud en plus) avec UV triplanaires en mètres.
+
+| module | usage |
+|---|---|
+| `pilier_mur_1p6`, `_3p2`, `_6` | pilier engagé (saillie 0,34 m), socle à ressauts, assises, chapiteau |
+| `colonne_mur_3p2`, `_6` | demi-colonne à tambours (disponible, pas encore posée) |
+| `arche_2p0`, `arche_4p0`, `arche_10p7` | arc en voussoirs (portée, flèche) ; plein cintre ou surbaissé |
+| `pan_mur_a/b/c`, `pan_mur_haut` | panneaux de maçonnerie 1,8 / 2,6 / 3,4 m x 3 m (4,4 m) |
+| `eboulis_a/b/c`, `dalles_a/b/c` | tas de pierres, dalles soulevées |
+| `sarcophage`, `statue_capuche`, `candelabre`, `lustre_fer` | objets de la planche |
+| `marches_3p0` | volée de 4 marches usées (disponible pour les escaliers) |
+
+### Textures (`CrypteTextures`, `VERSION` inchangée = 13 ; seuls les nouveaux .res sont ajoutés)
+
+- `dalle_v2` : dalles IRRÉGULIÈRES (Voronoï à joints gauchis, ton/inclinaison/usure par dalle, fissures, éclats, graviers et givre dans les joints, poussière et plaques humides), 128 texels/m.
+- `pierre_v2` : pierre nue des modules (grain fin, strates, piqûres), 128 texels/m, sans joints.
+- `givre_sol` : décalque de givre au bord déchiqueté (alpha tout ou rien), remplace les plaques de neige rectangulaires du sol.
+- Régénérer : `godot --headless --path . --script res://outils/generer_crypte.gd -- --seulement=dalle_v2,pierre_v2,givre_sol` ; aperçu : `outils/previsu_textures_crypte_v2.gd`.
+- Pour changer le dessin d'une de ces textures après coup, régénérer ses .res (la VERSION n'a pas été bumpée pour ne pas réécrire les 40 autres fichiers).

@@ -463,8 +463,8 @@ class Socles extends Base:
 	var _lumieres: Array = []
 
 	func construire() -> void:
-		var pierre := mat(Palette.ROCHE, "meca_socle", Vector2(1, 1), Color(0.85, 0.88, 0.98))
-		var grave := mat(Palette.ACIER, "meca_socle_haut", Vector2(1, 1), Color(0.55, 0.6, 0.7))
+		var pierre := mat(Palette.ROCHE, "meca_socle", Vector2(3, 3), Color(0.8, 0.82, 0.88))
+		var grave := mat(Palette.ACIER, "meca_socle_haut", Vector2(2, 2), Color(0.55, 0.6, 0.7))
 		for i in positions.size():
 			var p: Vector3 = positions[i]
 			Mecanisme.boite(self, Vector3(0.9, 0.2, 0.9), p + Vector3(0, 0.1, 0), pierre)

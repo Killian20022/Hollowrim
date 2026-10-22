@@ -6,7 +6,14 @@ extends SceneTree
 func _init() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(CrypteTextures.DOSSIER))
 	var t0 := Time.get_ticks_msec()
+	# option : -- --seulement=dalle_v2,pierre_v2 ne régénère que ces textures (les autres .res restent octet pour octet)
+	var seul: PackedStringArray = []
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--seulement="):
+			seul = a.substr(12).split(",")
 	for nom: String in CrypteDecor.AVEC_MIPS + CrypteDecor.SANS_MIPS:
+		if not seul.is_empty() and not nom in seul:
+			continue
 		var p := CrypteTextures.paire(nom)
 		var a: Image = CrypteTextures.mips_image(p[0]) if nom in CrypteDecor.AVEC_MIPS else p[0]
 		a.set_meta("version", CrypteTextures.VERSION)

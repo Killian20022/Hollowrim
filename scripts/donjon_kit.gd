@@ -146,7 +146,7 @@ func module(m: Dictionary) -> void:
 		b = b * Basis.from_scale(Vector3(-1, 1, 1))
 	var o: Vector2 = m["o"]
 	d.xf = Transform3D(b, Vector3(o.x, 0.0, o.y))
-	d.theme = th["theme"]
+	d.theme = (th["theme"] as Dictionary).merged(CrypteV2.THEME, true) if CrypteV2.actif(m) else th["theme"]     # crypte v2 : dalles irrégulières
 	var y := float(m.get("y", 0.0))
 	d.niveau_a = 1.0 + y / 20.0
 	var dim: Vector2 = m["dim"]
@@ -188,7 +188,10 @@ func module(m: Dictionary) -> void:
 		d.salle(-dim.x * 0.5, dim.x * 0.5, -dim.y * 0.5, dim.y * 0.5, h, ouv_l, y, th["mur"])
 		zone(id, Vector3(-dim.x * 0.5, 0, -dim.y * 0.5), Vector3(dim.x * 0.5, 0, dim.y * 0.5), y)
 		if type == "couloir":
-			_couloir(m)
+			if CrypteV2.actif(m):
+				CrypteV2.couloir(self, m)
+			else:
+				_couloir(m)
 		else:
 			_ambiance(m)
 		for g: Array in m.get("garnitures", []):
@@ -375,7 +378,8 @@ func _ambiance(m: Dictionary) -> void:
 			break
 		var pm := plan_mur(m, cd[1])
 		var base: Vector3 = pt_mur(m, cd[1], cd[2], 0.0)
-		d.applique(Vector3(base.x, y, base.z), pm["vers"], y + minf(h - 1.2, 2.4), 5.0 + alea(-0.3, 0.8), 1.6 + alea(-0.15, 0.25), true)
+		var ret_v2: Vector3 = (pm["vers"] as Vector3) * 0.2 if CrypteV2.actif(m) else Vector3.ZERO      # crypte v2 : le panneau de maçonnerie avance de 22 cm
+		d.applique(Vector3(base.x, y, base.z) + ret_v2, pm["vers"], y + minf(h - 1.2, 2.4), 5.0 + alea(-0.3, 0.8), 1.6 + alea(-0.15, 0.25), true)
 		_jitter_derniere_lumiere(false)
 		_occ_mur.append([cd[1], float(cd[2]), 0.45])
 		k += 1
@@ -408,6 +412,10 @@ func _ambiance_matiere(m: Dictionary, _nb_lum0: int) -> void:
 	var aire := dim.x * dim.y
 	var role: String = m.get("role", "")
 	var r := d.rng_deco
+	if CrypteV2.actif(m):
+		CrypteV2.salle(self, m)       # piliers, arches, panneaux, lustres de fer, sol : voir scripts/crypte_v2.gd
+		d.brume(Vector3(0, y, 0), Vector2(dim.x * 0.3, dim.y * 0.3), clampi(int(aire / 14.0), 3, 10))
+		return
 	if h >= 3.6 and aire >= 36.0 and role != "arene":
 		var p := Vector3(r.randf_range(-0.6, 0.6), y + h, r.randf_range(-0.6, 0.6))
 		d.lustre(p, clampf(h - 2.9, 0.7, 4.0), 0.55 if aire < 90.0 else 0.75, false)   # budget : 7 lumières par salle (test_crypte)

@@ -22,6 +22,8 @@ const TUILE := {
 	# donjon (agrandissement) : pierre givrée / glace, ossuaire, or
 	"mur3": 4.0, "mur4": 4.0, "dalle3": 4.0, "dalle4": 4.0, "ossuaire": 4.0, "or": 0.5, "neige": 2.0,
 	"entrelacs": 1.0, "sceau": 1.0, "brume": 1.0,
+	# crypte v2 : dalles irrégulières, pierre nue des modules Blender, givre en décalque
+	"dalle_v2": 4.0, "pierre_v2": 2.0, "givre_sol": 1.0, "flaque": 1.0, "flaque_bord": 1.0, "flaque_reflet": 1.0,
 }
 ## Refonte « crypte matière » (références grottes_cryptes_2/3) : feu plus orangé, ambiant écrasé dans les matériaux de la crypte
 ## (ombres presque noires, la torche et les braseros gardent toute leur force). La grotte (GrotteDecor) garde les anciennes valeurs.
@@ -31,10 +33,12 @@ const FEU_CRYPTE := Color(1.0, 0.66, 0.36)       # torche
 const FEU_BRASERO := Color(1.0, 0.62, 0.32)
 ## Pierre de la crypte : léger filtre vert-neutre (coupe un peu le rouge du feu et le bleu de l'ambiant) → brun-gris froid hors des flaques.
 const TEINTE_PIERRE := Color(0.82, 0.97, 0.93)
-const PIERRE_NEUTRE := ["mur0", "mur1", "mur2", "mur3", "dalle0", "dalle1", "dalle3", "voute", "ossuaire", "gravure", "entrelacs"]
+const PIERRE_NEUTRE := ["mur0", "mur1", "mur2", "mur3", "dalle0", "dalle1", "dalle3", "voute", "ossuaire", "gravure", "entrelacs", "dalle_v2", "pierre_v2"]
 const FEU_BOUGIE := Color(1.0, 0.66, 0.36)
 const RUNE := Color(0.35, 0.80, 1.0)
 const AMBIANT_CRYPTE := 1.6
+const AMBIANT_V2 := 2.6              # crypte v2 : pierre des modules Blender et dalles irrégulières
+const TEINTE_PIERRE_V2 := Color(1.0, 1.12, 1.18)
 const GAIN_LUMIERE := 1.7          # pierre plus sombre (rampe donjon) : les feux portent plus loin et plus fort
 const GRILLE_CRYPTE := 180.0      # accroche des sommets : H / 2 à 640 x 360 (DIRECTION_ARTISTIQUE §3)
 
@@ -63,9 +67,9 @@ var niveau_a := 1.0
 var xf := Transform3D.IDENTITY
 
 const RELIEF := {"entrelacs": 1.0, "mur0": 0.75, "mur1": 0.75, "mur2": 0.75, "dalle0": 0.8, "dalle1": 0.8, "voute": 0.7, "bois": 0.8, "fer": 0.7, "gravure": 1.0,
-	"mur3": 0.8, "mur4": 0.9, "dalle3": 0.8, "dalle4": 0.9, "ossuaire": 1.0}
+	"mur3": 0.8, "mur4": 0.9, "dalle3": 0.8, "dalle4": 0.9, "ossuaire": 1.0, "dalle_v2": 0.85, "pierre_v2": 0.7}
 const AVEC_MIPS := ["mur0", "mur1", "mur2", "dalle0", "voute", "bois", "fer", "lame", "gravure", "argile", "os", "parchemin", "toile",
-	"mur3", "mur4", "dalle3", "dalle4", "ossuaire", "or", "neige", "entrelacs"]
+	"mur3", "mur4", "dalle3", "dalle4", "ossuaire", "or", "neige", "entrelacs", "dalle_v2", "pierre_v2", "givre_sol"]
 const SANS_MIPS := ["halo", "rai", "flamme"]
 
 var est_crypte := false   # vrai pour la crypte elle-même (pas pour GrotteDecor, qui hérite de cette classe)
@@ -148,6 +152,13 @@ func mat(nom: String) -> Material:
 			s.cull_mode = BaseMaterial3D.CULL_DISABLED
 			s.disable_receive_shadows = true
 			m = s
+		"flaque", "flaque_bord", "flaque_reflet":
+			var s := StandardMaterial3D.new()        # PLACEHOLDER de l'eau (crypte v2) : l'eau stylisée viendra du système d'eau (branche eau/prototype)
+			s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			s.albedo_color = {"flaque": Color(0.05, 0.1, 0.16), "flaque_bord": Color(0.13, 0.17, 0.22), "flaque_reflet": Color(0.3, 0.42, 0.56)}[nom]
+			s.cull_mode = BaseMaterial3D.CULL_DISABLED
+			s.disable_receive_shadows = true
+			m = s
 		"halo", "rai", "halo_f":
 			var s := StandardMaterial3D.new()
 			s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -170,6 +181,13 @@ func mat(nom: String) -> Material:
 				sm.set_shader_parameter("crasse", 0.0)
 				sm.set_shader_parameter("teinte", Color(0.7, 0.64, 0.58))
 			var sh := CRYPTE_SHADER
+			if nom == "givre_sol":
+				var s3 := Shader.new()
+				s3.code = CRYPTE_SHADER.code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_disabled, cull_disabled;")
+				sh = s3
+				sm.set_shader_parameter("decoupe", 0.5)
+				sm.set_shader_parameter("crasse", 0.0)
+				sm.set_shader_parameter("emission", Vector3(0.012, 0.02, 0.03))
 			if nom == "toile":
 				var s2 := Shader.new()
 				s2.code = CRYPTE_SHADER.code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_disabled, cull_disabled;")
@@ -195,6 +213,9 @@ func mat(nom: String) -> Material:
 					sm.set_shader_parameter("emission", Vector3(0.012, 0.03, 0.05))
 				if nom in PIERRE_NEUTRE:
 					sm.set_shader_parameter("teinte", TEINTE_PIERRE)
+				if nom == "pierre_v2" or nom == "dalle_v2":      # crypte v2 : plus de fond bleuté (planche : pierre lisible dans l'ombre)
+					sm.set_shader_parameter("ambiant", AMBIANT_V2)
+					sm.set_shader_parameter("teinte", TEINTE_PIERRE_V2)
 			m = sm
 	_mats[nom] = m
 	return m
@@ -1297,6 +1318,25 @@ func _rect(nom: String, c: Vector3, dr: Vector3, ha: Vector3, cx: float, cy: flo
 		pts.append(c + dr * (cx + lx * co - ly * s) + ha * (cy + lx * s + ly * co))
 	quad(nom, pts[0], pts[1], pts[2], pts[3], n, [], [], [col, col, col, col])
 
+## Cercle rituel GRAVÉ au sol (crypte v2) : anneaux fins de petits tronçons (72 par anneau) + 12 repères radiaux, à la place des douze grosses
+## barres de l'emblème « cercle » (les « gros carrés » clairs vus du sol). Teinte froide et sombre : la gravure se lit, elle ne brille pas.
+func cercle_grave(centre: Vector3, rayon: float, teinte := Color(0.46, 0.5, 0.58)) -> void:
+	var n := Vector3.UP
+	var dr: Vector3 = _axes(n)[0]
+	var ha: Vector3 = _axes(n)[1]
+	var c := centre + Vector3(0, 0.02, 0)
+	for anneau: Array in [[rayon, 0.07, 72], [rayon * 1.32, 0.045, 96], [rayon * 0.62, 0.035, 56]]:
+		var R: float = anneau[0]
+		var seg: int = anneau[2]
+		var long := TAU * R / seg * 1.12
+		for k in seg:
+			var a := TAU * k / seg
+			_rect("gravure", c, dr, ha, cos(a) * R, sin(a) * R, long, anneau[1], a + PI * 0.5, n, teinte)
+	for k in 12:
+		var a := TAU * k / 12.0
+		var R := rayon * 0.97
+		_rect("gravure", c, dr, ha, cos(a) * R * 1.16, sin(a) * R * 1.16, rayon * 0.34, 0.05, a, n, teinte)
+
 ## Barres [cx, cy, w, h, angle] d'un symbole sur [-0.5, 0.5] : sceaux (os, givre, eau), formes des énigmes, scènes des gravures.
 func _symbole(sujet: String) -> Array:
 	var r: Array = []
@@ -1444,7 +1484,7 @@ func statue(pos: Vector3, lacet := 0.0, e := 1.0, type := "guerrier", collision 
 		solide(pos + Vector3(0, 1.2, 0), Vector3(1.0, 2.4, 1.0))
 
 ## Bannière accrochée à une tringle : `haut` = point du mur (hauteur de la tringle), `vers` = normale vers la pièce, usure 0 intacte, 1 déchirée, 2 en lambeaux.
-func banniere(haut: Vector3, vers: Vector3, long := 1.7, larg := 0.75, couleur := Color(0.62, 0.3, 0.26), sujet := "", usure := 1) -> void:
+func banniere(haut: Vector3, vers: Vector3, long := 1.7, larg := 0.75, couleur := Color(0.62, 0.3, 0.26), sujet := "", usure := 1, teinte_embleme := Color(0.9, 0.85, 0.7)) -> void:
 	var n := vers.normalized()
 	var dr: Vector3 = _axes(n)[0]
 	var lacet := atan2(n.x, n.z)
@@ -1467,7 +1507,7 @@ func banniere(haut: Vector3, vers: Vector3, long := 1.7, larg := 0.75, couleur :
 			var inc := rng.randf_range(-0.05, 0.05)
 			quad("parchemin", ya + dr * x0, ya + dr * (x0 + lw * 0.9), yb + dr * (x0 + lw * 0.9 + inc), yb + dr * (x0 + inc), n, [], [], [teinte, teinte, Color(teinte.r * 0.8, teinte.g * 0.8, teinte.b * 0.8), Color(teinte.r * 0.8, teinte.g * 0.8, teinte.b * 0.8)])
 	if sujet != "":
-		embleme(sujet, p0 + n * 0.045 - Vector3(0, minf(haut_plein, long) * 0.32, 0), n, larg * 0.5, Color(0.9, 0.85, 0.7))
+		embleme(sujet, p0 + n * 0.045 - Vector3(0, minf(haut_plein, long) * 0.32, 0), n, larg * 0.5, teinte_embleme)
 
 ## Chaîne verticale (maillons alternés) du point `haut` au point `bas`.
 func chaine(haut: Vector3, bas: Vector3) -> void:
@@ -1710,6 +1750,125 @@ func boite_pleine_l(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0)
 
 # ------------------------------------------------------------------ vie et fin
 ## Lumières qui vacillent : trois fréquences + un tirage par pas de 1/12 s (le feu « saute » comme en pixel art).
+# ------------------------------------------------------------------ modules Blender (crypte v2)
+## Les modules de sources_blender/scripts/crypte_modules_v2.py sont lus dans crypte_v2.dat (FileAccess : sûr dans le fil de
+## construction ; un .glb relu ici bloquerait le fil) puis versés dans les MÊMES tampons que les quads (fusion par cellule de 8 m et par
+## matière : aucun nœud en plus). UV triplanaires en mètres (même densité de texels que les murs) ; couleurs de sommet = ton x occlusion cuits.
+const MODELES_DAT := "res://assets/crypte/modules/crypte_v2.dat"
+const MAT_MODELE := {"pierre": "pierre_v2", "fer": "fer", "cire": "os", "bois": "bois"}
+static var _modeles := {}            # "module__matiere" -> {"v": PackedVector3Array, "c": PackedColorArray}
+static var _modeles_de := {}         # module -> [matières]
+static var _modeles_verrou := Mutex.new()
+
+static func _charger_modeles() -> void:
+	_modeles_verrou.lock()
+	if _modeles.is_empty():
+		var f := FileAccess.open(MODELES_DAT, FileAccess.READ)
+		if f != null:
+			var n := f.get_32()
+			for _k in n:
+				var nom := f.get_buffer(f.get_8()).get_string_from_utf8()
+				var nb := f.get_32()
+				var fl := f.get_buffer(nb * 28).to_float32_array()
+				var v := PackedVector3Array()
+				var c := PackedColorArray()
+				v.resize(nb)
+				c.resize(nb)
+				for q in nb:
+					var o := q * 7
+					v[q] = Vector3(fl[o], fl[o + 1], fl[o + 2])
+					c[q] = Color(fl[o + 3], fl[o + 4], fl[o + 5], 1.0)
+				_modeles[nom] = {"v": v, "c": c}
+				var parts := nom.split("__")
+				if not _modeles_de.has(parts[0]):
+					_modeles_de[parts[0]] = []
+				(_modeles_de[parts[0]] as Array).append(parts[1])
+	_modeles_verrou.unlock()
+
+static func modele_existe(nom: String) -> bool:
+	_charger_modeles()
+	return _modeles_de.has(nom)
+
+## Pose un module Blender : pos (repère local du module en cours), lacet (autour de y), échelle ; `mats` remplace une matière
+## du module (ex. {"pierre": "mur1"}). Renvoie les points de flamme du module (déjà posés, mêmes repères que `pos`).
+func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats := {}) -> Array:
+	_charger_modeles()
+	var points: Array = []
+	if not _modeles_de.has(nom):
+		push_warning("module Blender introuvable : " + nom)
+		return points
+	var b := Basis(Vector3.UP, lacet) * Basis.from_scale(ech)
+	for mat: String in _modeles_de[nom]:
+		var data: Dictionary = _modeles["%s__%s" % [nom, mat]]
+		var v: PackedVector3Array = data["v"]
+		if mat == "pts":
+			for q in range(0, v.size(), 3):
+				points.append(pos + b * v[q])
+			continue
+		var cible: String = mats.get(mat, MAT_MODELE.get(mat, "mur0"))
+		var nom_mat: String = theme.get(cible, cible) if not theme.is_empty() else cible
+		var t: float = TUILE.get(nom_mat, 1.0)
+		var cc: PackedColorArray = data["c"]
+		for q in range(0, v.size(), 3):
+			var a := pos + b * v[q]
+			var bb := pos + b * v[q + 1]
+			var c := pos + b * v[q + 2]
+			var n := (bb - a).cross(c - a)
+			if n.length_squared() < 1e-12:
+				continue
+			n = n.normalized()
+			var ua := _uv(a, n, t)
+			var ub := _uv(bb, n, t)
+			var uc := _uv(c, n, t)
+			if xf != Transform3D.IDENTITY:
+				a = xf * a
+				bb = xf * bb
+				c = xf * c
+				n = xf.basis * n
+			_tri(_buf((a + bb + c) / 3.0, nom_mat), a, bb, c, n, ua, ub, uc, cc[q], cc[q + 1], cc[q + 2])
+	if xf != Transform3D.IDENTITY:
+		pass
+	return points
+
+## Givre au sol en décalque irrégulier (texture « givre_sol », alpha découpé) : remplace les plaques de neige du sol.
+func givre_decal(centre: Vector3, taille: Vector2, lacet := 0.0) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	var hx := taille.x * 0.5
+	var hz := taille.y * 0.5
+	var a := centre + b * Vector3(-hx, 0.007, -hz)
+	var bb := centre + b * Vector3(hx, 0.007, -hz)
+	var c := centre + b * Vector3(hx, 0.007, hz)
+	var d := centre + b * Vector3(-hx, 0.007, hz)
+	quad("givre_sol", a, bb, c, d, Vector3.UP)
+
+## Flaque PLACEHOLDER (polygone irrégulier plat, sombre) à l'emplacement d'une future eau : l'eau stylisée du système d'eau
+## (branche eau/prototype) la remplacera. Les emplacements sont aussi mémorisés dans `eau_slots` (centre, rayon, repère local).
+var eau_slots: Array = []
+
+func flaque(centre: Vector3, rayon: float, graine := 1, forme := Vector2(1.0, 0.75)) -> void:
+	eau_slots.append({"centre": xf * centre, "rayon": rayon})
+	var r := RandomNumberGenerator.new()
+	r.seed = graine * 977
+	var n := 14
+	var rr: Array = []
+	for k in n:
+		rr.append(rayon * r.randf_range(0.7, 1.1))
+	# bord mouillé (anneau clair sous la surface), surface sombre, deux reflets en fines lignes (placeholder : l'eau stylisée viendra du système d'eau)
+	for couche: Array in [["flaque_bord", 1.14, 0.009], ["flaque", 1.0, 0.012]]:
+		var pts: Array = []
+		for k in n:
+			var a := TAU * k / n
+			pts.append(centre + Vector3(cos(a) * rr[k] * couche[1] * forme.x, couche[2], sin(a) * rr[k] * couche[1] * forme.y))
+		for k in n:
+			quad(couche[0], centre + Vector3(0, couche[2], 0), pts[k], pts[(k + 1) % n], pts[(k + 1) % n], Vector3.UP)
+	for k in 2:
+		var a := r.randf_range(-0.5, 0.5)
+		var c := centre + Vector3(r.randf_range(-0.3, 0.3) * rayon * forme.x, 0.016, r.randf_range(-0.3, 0.3) * rayon * forme.y)
+		var l := rayon * r.randf_range(0.3, 0.5)
+		var d := Vector3(cos(a), 0, sin(a)) * l * 0.5
+		var w := Vector3(-sin(a), 0, cos(a)) * 0.02
+		quad("flaque_reflet", c - d - w, c + d - w, c + d + w, c - d + w, Vector3.UP)
+
 func vaciller(t: float) -> void:
 	for l in lumieres:
 		var ph: float = l[2]
