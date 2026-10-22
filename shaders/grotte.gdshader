@@ -21,6 +21,7 @@ uniform float echelle_sup = 1.0;
 uniform float decoupe = 0.0;        // 1 : l'alpha de tex_base est un seuil de bruit comparé au masque du sommet (piste, bords tramés)
 uniform float triplan = 0.0;        // 1 : projection monde
 uniform float echelle = 0.1875;       // tuiles par mètre (projection monde) : v2 : 128 texels / 5,33 m = 24 texels/m (GrotteTextures.DENSITE)
+uniform vec4 bouche = vec4(0.0);     // xyz : bouche de la grotte (monde), w : rayon de fondu (0 = aucun) : la neige rejoint celle du dehors sans couture
 uniform float par_m = 24.0;         // texels par mètre : le tirage de l'axe de projection se fait par texel (jonctions en pixels francs)
 uniform float givre = 0.0;          // part de givre sur les faces hautes (0 = aucun)
 uniform float mouille = 0.0;        // part de sol mouillé (0 = sec)
@@ -105,6 +106,11 @@ void fragment() {
 	float amt = (COLOR.a - s.a) > 0.0 ? 1.0 : 0.0;
 	amt *= step(0.01, COLOR.a);
 	vec3 c = mix(b.rgb, s.rgb, amt);
+	float fb = 0.0;
+	if (bouche.w > 0.0 && amt > 0.5) {
+		fb = 1.0 - smoothstep(0.0, bouche.w, distance(wp.xz, bouche.xz));
+		fb *= fb;
+	}
 	float spec = 0.0;
 	float rough = 1.0;
 	// givre sur les faces hautes : la pente règle la part, la carte de givre (alpha = seuil) découpe au texel
@@ -137,8 +143,10 @@ void fragment() {
 	if (modele > 0.0) {
 		ao *= mix(1.0, mix(0.55, 1.14, smoothstep(-0.7, 0.8, n.y)), modele);
 	}
-	ALBEDO = c * ao * teinte.rgb;
-	EMISSION = emission + c * emis_tex;
+	// bouche : la neige de la grotte rejoint celle du dehors (même blanc froid) en gardant son motif de plaques
+	vec3 neige_dehors = vec3(0.80, 0.84, 0.92) * clamp(dot(c, vec3(0.333)) * 1.9, 0.55, 1.1);
+	ALBEDO = c * ao * teinte.rgb * (1.0 - fb);
+	EMISSION = emission + c * emis_tex + neige_dehors * fb * fb;
 	ROUGHNESS = rough;
 	SPECULAR = spec;
 }

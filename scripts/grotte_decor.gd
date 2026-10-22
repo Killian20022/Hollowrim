@@ -85,6 +85,15 @@ static func image_finale(nom: String) -> Image:
 static func or_image() -> Image:
 	return CrypteTextures.or_image()   # même or martelé que la crypte (64 texels/m)
 
+## Fondu de la neige à la bouche (uniform `bouche` du shader) : position monde de la bouche et rayon ; appliqué à toutes les matières.
+func regler_bouche(pos: Vector3, rayon: float) -> void:
+	_bouche = Vector4(pos.x, pos.y, pos.z, rayon)
+	for m in _mats.values():
+		if m is ShaderMaterial and (m as ShaderMaterial).shader == GROTTE_SHADER:
+			(m as ShaderMaterial).set_shader_parameter("bouche", _bouche)
+
+var _bouche := Vector4.ZERO
+
 func _tex_g(nom: String) -> ImageTexture:
 	if not _gtex.has(nom):
 		if _gtaches.has(nom):
@@ -137,6 +146,7 @@ func mat(nom: String) -> Material:
 			sm.set_shader_parameter("modele", 1.0)
 		if nom == "c_sol_neige":
 			sm.set_shader_parameter("echelle_sup", 0.5)     # neige du sol extérieur : tuile de 8 m (16 texels/m), même grain que dehors
+		sm.set_shader_parameter("bouche", _bouche)
 		m = sm
 	elif nom == "jour" or nom == "ciel":
 		var s := StandardMaterial3D.new()

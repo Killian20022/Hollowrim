@@ -19,8 +19,8 @@ extends RefCounted
 
 const BUTIN := preload("res://scripts/butin.gd")
 const MAX_LUM := 9
-const AMBIANTE := Color(0.22, 0.30, 0.46)   # passe 2 kit : gris à peine froid (plus le bleu saturé uniforme) ; le chaud vient des lanternes, le froid des cristaux et du jour
-const AMBIANTE_E := 4.0
+const AMBIANTE := Color(0.26, 0.31, 0.40)   # passe 2 kit : gris à peine froid (plus le bleu saturé uniforme) ; le chaud vient des lanternes, le froid des cristaux et du jour
+const AMBIANTE_E := 3.5
 const BRUME_C := Color(0.14, 0.24, 0.42)   # v2 : brume bleu glacé (le fond s'éclaire, le premier plan reste sombre)
 const BRUME_D := 0.022
 const DIST_APPARITION := 46.0

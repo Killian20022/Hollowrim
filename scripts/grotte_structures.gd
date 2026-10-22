@@ -296,6 +296,7 @@ static func _autel(k: GrotteKit, id: String, s_a: float, lat_a: float) -> void:
 	for q: Array in [[-0.35, 0.1, 0.9], [0.1, -0.15, 1.2], [0.4, 0.2, 0.7]]:
 		d.bougie(top + bz * Vector3(float(q[0]), 0, float(q[1])), false)
 	d.crane(top + bz * Vector3(-0.05, 0.0, 0.3), lac + 2.5)
+	g.set_meta("v2_autel", top + bz * Vector3(0.05, 0.25, 0.0))      # centre des bougies : sa lumière est posée par Grotte._lumieres_structures
 	k._occuper_fixe(id, s_a, lat_a, 1.4)
 	# demi-cercle de pieux devant l'autel (côté salle), reliés par une lisse
 	var rq := RandomNumberGenerator.new()

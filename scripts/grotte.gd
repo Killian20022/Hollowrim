@@ -1170,7 +1170,21 @@ func _decorer() -> void:
 	if GrotteKit.actif():
 		kit = GrotteKit.new(self)
 		kit.habiller()
+	_lumieres_structures()
 	_puits_de_jour()
+	decor.regler_bouche(transform * sol_en(String(ordre[0]), 0.0, 0.0), 11.0)
+
+## Intégration v2 : lumières des structures de bois (méta `v2_lanternes` : portique + pont) et de l'autel de l'arène (méta `v2_autel`,
+## bougies). Flaques chaudes locales, sans ombre ; elles ne comptent dans l'affichage que dans le budget MAX_LUM (GrotteJeu.tick).
+func _lumieres_structures() -> void:
+	for p: Vector3 in get_meta("v2_lanternes", []):
+		var l := decor.lumiere(p, GrotteDecor.LANTERNE_C, GrotteDecor.LANT_E * 0.8, GrotteDecor.LANT_P, GrotteDecor.LANT_A, true)
+		l.set_meta("grappe", true)
+		nb_lumieres += 1
+	if has_meta("v2_autel"):
+		var l := decor.lumiere(get_meta("v2_autel"), Color(1.0, 0.6, 0.28), 5.0, 8.0, 1.6, true)
+		l.set_meta("grappe", true)
+		nb_lumieres += 1
 
 ## v2 (lot lumière) : un puits de jour bleu glacé au plafond des trois grandes salles (camp, caverne du lac, chambre de la mine),
 ## pour que le fond des salles luise comme sur la planche. Lumières « grappe » (non retouchées), sans ombre ; elles ne comptent
