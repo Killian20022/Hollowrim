@@ -22,7 +22,7 @@ const POSES := [
 	["tonneau_a", 49.4, 31.3, 20.0, 1.0], ["caisse_a", 49.5, 30.1, 35.0, 1.0], ["caisse_b", 53.6, 31.7, -10.0, 1.0],
 	["tonneau_b", 55.4, 35.4, 140.0, 1.0], ["tonneau_a", 54.7, 40.5, 0.0, 1.0], ["caisse_b", 50.4, 44.6, 25.0, 1.0],
 	["tonneau_a", 46.6, 54.2, 0.0, 1.0], ["tonneau_b", 47.3, 53.5, 70.0, 1.0], ["caisse_a", 41.3, 54.4, -20.0, 1.0],
-	["tonneau_a", 28.0, 53.3, 0.0, 1.0], ["caisse_b", 27.6, 52.2, 80.0, 1.0],
+	["tonneau_a", 28.3, 51.71, 0.0, 1.0], ["caisse_b", 27.25, 51.71, 0.0, 1.0],   # passe D : sortis du mur de la maison de pierre (25,5 ; 55,5), ruelle vers Grima
 	["tonneau_a", 39.3, 69.3, 0.0, 1.0], ["caisse_a", 38.9, 70.3, 15.0, 1.0], ["tonneau_b", 50.0, 79.2, 200.0, 1.0],
 	["charrette", 57.0, 26.5, 8.0, 1.0],
 	["tas_bois", 58.0, 51.6, 0.0, 1.0], ["tas_bois", 53.5, 88.5, 90.0, 1.0],
@@ -122,7 +122,9 @@ func _construire() -> void:
 	add_child(_corps)
 	var fusion := {}   # matière → SurfaceTool
 	var tris := 0
+	var num := 0
 	for pose: Array in POSES:
+		num += 1
 		var mod: String = pose[0]
 		var x: float = pose[1]
 		var z: float = pose[2]
@@ -175,6 +177,7 @@ func _construire() -> void:
 				_lumieres.append([l, l.light_energy, x])
 		for c: Array in COLLISIONS.get(mod, []):
 			var forme := CollisionShape3D.new()
+			forme.set_meta("objet", "%s#%d" % [mod, num])   # audit_interpenetrations : pièces d'un même module
 			if c[0] == "cyl":
 				var cy := CylinderShape3D.new()
 				cy.radius = c[1] * s

@@ -65,6 +65,8 @@ const CHEV_GRAVE := 0.5
 const ECH_MAX := 160              # sommets échantillonnés par objet
 
 var lieu := "grotte"
+const SURFACE := preload("res://outils/audit_surface.gd")
+var _monde: Node3D = null
 var args := {}
 var cas: Array = []               # {grav, cat, genre, id, p, mesure, txt}
 var objets: Array = []            # {src, genre, id, fam, v, aabb, xf, boite, solides, petit}
@@ -79,6 +81,8 @@ func _init() -> void:
 			args[kv[0]] = kv[1] if kv.size() > 1 else ""
 	lieu = String(args.get("lieu", "grotte"))
 	CrypteDecor.audit_actif = true
+	if lieu == "village" or lieu == "exterieur":
+		Instanciation.journal = []   # passe D : poses du décor MultiMesh relevées dès la construction (outils/audit_surface.gd)
 	if lieu == "crypte":
 		AUDIT_CRYPTE.preparer()      # journal des objets de la crypte (outils/audit_crypte.gd)
 	_go.call_deferred()
@@ -106,7 +110,11 @@ func _go() -> void:
 			quit(graves)
 			return
 		"village", "exterieur":
-			await _collecter_exterieur(m)
+			# passe D (branche D/passe_generale) : collecteur de surface dédié (collisions, décor MultiMesh, eau, chemins,
+			# bâtiments) à la place du collecteur générique par nœuds (maillages fusionnés du village : un nœud ≠ un objet)
+			terrain = TerrainPhysique.new(m, root.get_world_3d().direct_space_state)
+			_monde = m
+			cas = await SURFACE.new().lancer(self, m, lieu)
 		_:
 			print("lieu inconnu : %s (grotte|crypte|village|exterieur)" % lieu)
 			quit(2)
@@ -803,6 +811,9 @@ func _lieu_txt(p: Vector3) -> String:
 
 ## Poses de capture (format --captures) des pires cas : point de vue sur l'axe de la galerie, 2,5 à 5 m avant ou après l'objet, regard sur lui.
 func _ecrire_poses(chemin: String, nb: int) -> void:
+	if g == null and _monde != null:
+		SURFACE.ecrire_poses(_monde, cas, chemin, nb, String(args.get("filtre", "")))
+		return
 	if g == null:
 		return
 	var f := FileAccess.open(chemin, FileAccess.WRITE)

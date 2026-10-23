@@ -114,6 +114,7 @@ func _ready() -> void:
 	chemins = Chemins.new(self)
 	if ZoneBiome.actif:
 		h_tumulus = _hauteur_sans_tumulus(TUMULUS.x, TUMULUS.z)
+	_preparer_terrasses()   # passe D : après h_village / h_grotte / h_tumulus (les cibles en dépendent)
 
 	tex_neige = Palette.pailleter(Palette.texture(64, Palette.NEIGE, 3, 1, 0.12, rng), 0.012)
 	Palette.tex_neige = tex_neige
@@ -250,6 +251,9 @@ func _hauteur_sans_tumulus(x: float, z: float) -> float:
 	return h
 
 func hauteur(x: float, z: float) -> float:
+	return _terrasses_fermes(x, z, _hauteur_sans_fermes(x, z))
+
+func _hauteur_sans_fermes(x: float, z: float) -> float:
 	var m := ZoneBiome.masque(x, z)
 	if m <= 0.0 or chemins == null:
 		return GrotteAcces.aplani(x, z, _hauteur_ancienne(x, z), h_grotte)
@@ -257,6 +261,56 @@ func hauteur(x: float, z: float) -> float:
 	# tumulus : disque plat (r ≤ 8) à la hauteur du pied de la façade, raccord jusqu'à r 14
 	var r := Vector2(x - TUMULUS_DISQUE.x, z - TUMULUS_DISQUE.y).length()
 	return lerpf(h, lerpf(h_tumulus, h, smoothstep(8.0, 14.0, r)), m)
+
+## Passe D : terrasse sous la ferme A, la ferme B et la grange B (VillageBati.EXTERIEURS 0, 2, 3) : le bâtiment était posé à
+## mi-pente et s'enfonçait de 0,8 à 2,3 m côté amont (ferme B, granges). Plat sur l'emprise + 2,5 m, raccord sur 3,5 m ;
+## hauteur = celle que VillageBati choisissait déjà (milieu de la pente + 0,1 m) : le bâti ne bouge pas, le relief se range.
+const TERRASSE_MARGE := 2.5   # > 1 case du maillage (2 m) : les 9 points de pose de VillageBati.maison tombent sur du plat
+const TERRASSE_RACCORD := 3.5
+var _cibles_fermes := PackedFloat32Array()
+
+func _preparer_terrasses() -> void:
+	_cibles_fermes = PackedFloat32Array()
+	for k in 4:
+		var e: Array = VillageBati.EXTERIEURS[k]
+		var bas := Basis(Vector3.UP, deg_to_rad(float(e[4])))
+		var hmin := INF
+		var hmax := -INF
+		for sx in [-1.0, 0.0, 1.0]:
+			for sz in [-1.0, 0.0, 1.0]:
+				var c := Vector3(float(e[0]), 0, float(e[1])) + bas * Vector3(sx * (float(e[2]) * 0.5 + 0.3), 0, sz * (float(e[3]) * 0.5 + 0.3))
+				var hc := _hauteur_sans_fermes(c.x, c.z)
+				hmin = minf(hmin, hc)
+				hmax = maxf(hmax, hc)
+		_cibles_fermes.append(_hauteur_sans_fermes(float(e[0]), float(e[1])) if hmax - hmin < 0.3 else (hmin + hmax) * 0.5 + 0.1)
+	# grange A (4,7 m de pente sur l'emprise, à 1 m de la ferme A) : pas de terrasse — entre les deux plateaux, la marche de 2,8 m
+	# faisait un talus étiré ; elle garde son socle de pierre côté aval, la terrasse de la ferme A s'y raccorde
+	_cibles_fermes[1] = NAN
+
+func _terrasses_fermes(x: float, z: float, h: float) -> float:
+	if _cibles_fermes.is_empty():
+		return h
+	# bâtiment le plus proche (distance hors de son emprise) : entre deux voisins, la frontière passe au milieu
+	var k_min := -1
+	var d_min := INF
+	for k in 4:
+		if is_nan(_cibles_fermes[k]):
+			continue
+		var e: Array = VillageBati.EXTERIEURS[k]
+		var dx := x - float(e[0])
+		var dz := z - float(e[1])
+		if absf(dx) > 12.0 or absf(dz) > 12.0:
+			continue
+		var l := Vector2(dx, dz).rotated(deg_to_rad(float(e[4])))
+		var ex := maxf(absf(l.x) - float(e[2]) * 0.5, 0.0)
+		var ez := maxf(absf(l.y) - float(e[3]) * 0.5, 0.0)
+		var d := sqrt(ex * ex + ez * ez)
+		if d < d_min:
+			d_min = d
+			k_min = k
+	if k_min >= 0 and d_min < TERRASSE_MARGE + TERRASSE_RACCORD:
+		h = lerpf(_cibles_fermes[k_min], h, smoothstep(TERRASSE_MARGE, TERRASSE_MARGE + TERRASSE_RACCORD, d_min))
+	return h
 
 # --- ambiance ----------------------------------------------------------------
 

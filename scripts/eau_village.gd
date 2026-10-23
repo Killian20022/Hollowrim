@@ -511,6 +511,23 @@ func glace_lac(x: float, z: float) -> Vector2:
 		return Vector2(Eau.Variante.GLACE, 1.0)
 	return Vector2(Eau.Variante.BORDS_GELES, 0.85)
 
+## Hauteur du sol marchable du lac au sommet (x, z) : NAN hors du lac ; sous le relief (le terrain porte) sur la rive sèche
+## et dans l'eau libre peu profonde ; rampe lissée jusqu'à la glace (ou jusqu'au fond invisible de l'eau libre).
+func _sol_lac(x: float, z: float) -> float:
+	var k := _lk(x, z)
+	if k < 0 or _lac_masque[k] == 0:
+		return NAN
+	var h := hm(x, z)
+	var prof := LAC_NIVEAU - h
+	var libre := eau_libre(x, z)
+	var cible := LAC_NIVEAU - FOND_MARCHE if libre else LAC_NIVEAU
+	var pleine := FOND_MARCHE if libre else GLACE_PROF
+	if prof >= pleine:
+		return cible
+	if prof <= 0.0 or cible <= h:
+		return h - 0.03
+	return snappedf(h + (cible - h) * smoothstep(0.0, pleine, prof), 0.001)
+
 func _lac() -> void:
 	_masque_lac()
 	lac = Eau.creer(&"lac", LAC_RECT, LAC_NIVEAU, fond_lac, {"resolution": _lac_res, "variantes": glace_lac,
@@ -519,41 +536,53 @@ func _lac() -> void:
 	lac.name = "EauLac"
 	_relier_cycle(lac)
 	add_child(lac)
-	# sol marchable : glace (au niveau de l'eau) au large ; fond invisible (0,55 m sous l'eau) dans l'eau libre profonde
+	# sol marchable : glace (au niveau de l'eau) au large ; fond invisible (0,55 m sous l'eau) dans l'eau libre profonde.
+	# Passe D : entre ces sols et la rive, une RAMPE continue rejoint le relief (avant : marche de 0,75 m au bord de la glace,
+	# avec des pièges sans retour au pied des berges raides, ex. (17,4 ; 70,6) près du moulin). On s'enfonce au plus d'une
+	# vingtaine de centimètres dans la rive gelée.
 	var faces := PackedVector3Array()
 	var pas := 1.0
 	var nx := int(LAC_RECT.size.x / pas)
 	var nz := int(LAC_RECT.size.y / pas)
+	var ys := PackedFloat32Array()
+	ys.resize((nx + 1) * (nz + 1))
+	for j in nz + 1:
+		for i in nx + 1:
+			ys[j * (nx + 1) + i] = _sol_lac(LAC_RECT.position.x + i * pas, LAC_RECT.position.y + j * pas)
 	for j in nz:
 		var z0 := LAC_RECT.position.y + j * pas
 		var debut := -1
 		var y_debut := 0.0
 		for i in nx + 1:
-			var y := NAN
+			var plat := NAN    # cellule plate (glace ou fond) : fusionnée en bandes
+			var a0 := NAN
+			var b0 := NAN
+			var c0 := NAN
+			var d0 := NAN
 			if i < nx:
-				var x := LAC_RECT.position.x + (i + 0.5) * pas
-				var zc := z0 + 0.5 * pas
-				var kk := _lk(x, zc)
-				if kk >= 0 and _lac_masque[kk] == 1:
-					var prof := LAC_NIVEAU - _lac_hm[kk]
-					var libre := eau_libre(x, zc)
-					if libre and prof > FOND_MARCHE:
-						y = LAC_NIVEAU - FOND_MARCHE
-					elif not libre and prof > GLACE_PROF:
-						y = LAC_NIVEAU
-			# bandes horizontales de même hauteur fusionnées
-			if debut >= 0 and (is_nan(y) or y != y_debut):
+				a0 = ys[j * (nx + 1) + i]
+				b0 = ys[j * (nx + 1) + i + 1]
+				c0 = ys[(j + 1) * (nx + 1) + i + 1]
+				d0 = ys[(j + 1) * (nx + 1) + i]
+				if a0 == b0 and b0 == c0 and c0 == d0:
+					plat = a0
+			if debut >= 0 and (is_nan(plat) or plat != y_debut):
 				var xa := LAC_RECT.position.x + debut * pas
 				var xb := LAC_RECT.position.x + i * pas
-				var a := Vector3(xa, y_debut, z0)
-				var b := Vector3(xb, y_debut, z0)
-				var c := Vector3(xb, y_debut, z0 + pas)
-				var d := Vector3(xa, y_debut, z0 + pas)
-				faces.append_array([a, b, c, a, c, d])
+				faces.append_array([Vector3(xa, y_debut, z0), Vector3(xb, y_debut, z0), Vector3(xb, y_debut, z0 + pas),
+					Vector3(xa, y_debut, z0), Vector3(xb, y_debut, z0 + pas), Vector3(xa, y_debut, z0 + pas)])
 				debut = -1
-			if not is_nan(y) and debut < 0:
-				debut = i
-				y_debut = y
+			if not is_nan(plat):
+				if debut < 0:
+					debut = i
+					y_debut = plat
+			elif i < nx and not (is_nan(a0) or is_nan(b0) or is_nan(c0) or is_nan(d0)):
+				var x0 := LAC_RECT.position.x + i * pas
+				var pa := Vector3(x0, a0, z0)
+				var pb := Vector3(x0 + pas, b0, z0)
+				var pc := Vector3(x0 + pas, c0, z0 + pas)
+				var pd := Vector3(x0, d0, z0 + pas)
+				faces.append_array([pa, pb, pc, pa, pc, pd])
 	var forme := ConcavePolygonShape3D.new()
 	forme.backface_collision = true
 	forme.set_faces(faces)

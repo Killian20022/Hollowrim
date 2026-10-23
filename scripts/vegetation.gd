@@ -14,11 +14,12 @@ const NB_BUISSONS := 900
 static func creer(monde: Node) -> Array:
 	var foret := placer_foret(monde)
 	var buissons := placer_couvre_sol(monde)
-	_degager_grotte(foret, buissons)
+	_degager_grotte(foret, buissons, monde)
+	monde.set_meta("buissons", buissons)   # passe D : Rochers n'y pose pas de roche
 	return instancier(monde, foret, buissons)
 
 ## Dégage l'entrée de la grotte (disque, masse rocheuse, piste) et le village v2 (enceinte, rivière ; C7a) APRÈS le placement : le RNG et la forêt d'ailleurs ne changent pas.
-static func _degager_grotte(foret: Dictionary, buissons: Array[Transform3D]) -> void:
+static func _degager_grotte(foret: Dictionary, buissons: Array[Transform3D], monde: Node = null) -> void:
 	for lot: Array in foret["lots"]:
 		for i in range(lot.size() - 1, -1, -1):
 			var o: Vector3 = (lot[i] as Transform3D).origin
@@ -26,11 +27,15 @@ static func _degager_grotte(foret: Dictionary, buissons: Array[Transform3D]) -> 
 				lot.remove_at(i)
 			elif EauVillage.sous_le_lac(o.x, o.z, o.y + 0.25):   # C7c : lac fermé de la combe SO
 				lot.remove_at(i)
+			elif monde != null and Vector2(o.x, o.z).distance_to(Vector2(monde.TUMULUS.x, monde.TUMULUS.z - 15.0)) < PosesDecor.DOME_RAYON + 0.6:
+				lot.remove_at(i)   # passe D : pied enfoui sous la butte du tertre
 	for i in range(buissons.size() - 1, -1, -1):
 		var o: Vector3 = buissons[i].origin
 		if GrotteAcces.exclu(o.x, o.z) or ReliefVillage.exclu(o.x, o.z):
 			buissons.remove_at(i)
 		elif EauVillage.sous_le_lac(o.x, o.z, o.y + 0.25):   # C7c : lac fermé de la combe SO
+			buissons.remove_at(i)
+		elif PosesDecor.interdit(monde, o.x, o.z, "buisson"):   # passe D : chemin témoin, dôme et perron du tertre
 			buissons.remove_at(i)
 
 ## Positions puis formes : {"lots": [4 listes de Transform3D par forme]}.
@@ -59,7 +64,7 @@ static func placer_foret(monde: Node) -> Dictionary:
 		if grille.has(cle):
 			continue
 		grille[cle] = true
-		positions.append(Vector3(x, monde.hauteur(x, z) - 0.15, z))
+		positions.append(Vector3(x, minf(monde.hauteur(x, z), DetailsSol.hauteur_maillage(monde, x, z)) - 0.15, z))   # passe D : pied jamais au-dessus du maillage
 
 	var lots: Array = [[], [], [], []]
 	for p in positions:
@@ -94,7 +99,7 @@ static func placer_couvre_sol(monde: Node) -> Array[Transform3D]:
 			continue
 		var s := rng.randf_range(0.6, 1.4)
 		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.6, 1.0), s))
-		xfs.append(Transform3D(b, Vector3(x, monde.hauteur(x, z) - 0.25, z)))
+		xfs.append(Transform3D(b, Vector3(x, minf(monde.hauteur(x, z), DetailsSol.hauteur_maillage(monde, x, z)) - 0.25, z)))   # passe D : au plus bas du maillage
 	return xfs
 
 ## Crée matériaux, MultiMesh et colliders. Renvoie les transforms de tous les arbres.
@@ -121,6 +126,7 @@ static func instancier(monde: Node, foret: Dictionary, buissons: Array) -> Array
 	print("Lot 2 : textures et modèles d'arbres en %d ms" % ((Time.get_ticks_usec() - t0) / 1000))
 	var lots: Array = foret["lots"]
 	var corps := StaticBody3D.new()
+	corps.name = "CollisionsArbres"
 	var cylindre := CylinderShape3D.new()
 	cylindre.radius = 0.35
 	cylindre.height = 4.0
@@ -247,7 +253,8 @@ static func hauteur_moyenne_r12(monde: Node, x: float, z: float) -> float:
 ## Ancrage sur pente : le plus bas de 4 points à r = 0,35 × s, moins 0,12 m.
 static func ancrage(monde: Node, x: float, z: float, s: float) -> float:
 	var r := 0.35 * s
-	return minf(minf(monde.hauteur(x - r, z), monde.hauteur(x + r, z)), minf(monde.hauteur(x, z - r), monde.hauteur(x, z + r))) - 0.12
+	var h := minf(minf(monde.hauteur(x - r, z), monde.hauteur(x + r, z)), minf(monde.hauteur(x, z - r), monde.hauteur(x, z + r)))
+	return minf(h, DetailsSol.hauteur_maillage(monde, x, z)) - 0.12   # passe D : sur une bosse, le maillage passe sous le relief exact
 
 ## Pente locale (norme du gradient, sans unité).
 static func pente(monde: Node, x: float, z: float) -> float:
