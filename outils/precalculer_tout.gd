@@ -2,7 +2,7 @@ extends SceneTree
 ## Régénère TOUT ce qui est précalculé (textures et cartes) d'un seul coup, chaque générateur dans son propre Godot :
 ##   godot --headless --path . --script res://outils/precalculer_tout.gd
 ## Options (après `--`) :  --verifier   ne rien écrire : compare chaque précalcul au calcul direct (octet par octet)
-##                         seulement=a,b  ne lancer que ces étapes (arbres, ecorces, sol, crypte, grotte, bati, petites, carte_sol)
+##                         seulement=a,b  ne lancer que ces étapes (arbres, ecorces, sol, crypte, grotte, bati, petites, rues, carte_sol)
 ## RÈGLE : après toute modification d'un générateur (textures_arbres.gd, ecorces.gd, crypte_textures.gd, grotte_textures.gd,
 ## peinture_bati.gd, sol_tuiles.gd…), incrémenter sa constante VERSION (quand elle existe) puis relancer cet outil.
 ## La carte de sol (carte_sol.res) porte une signature de ses entrées : elle se périme toute seule dès que le relief, les
@@ -15,6 +15,7 @@ const ETAPES := {
 	"grotte": ["generer_grotte.gd", []],
 	"bati": ["cuire_bati.gd", []],
 	"petites": ["generer_petites.gd", []],
+	"rues": ["generer_rues_village.gd", ["--", "--nouvelle"]],     # C7a : géométrie du village v2 (suit le relief)
 	"carte_sol": ["generer_carte_sol.gd", ["--", "--nouvelle"]],   # en dernier : lit les autres précalculs
 }
 
@@ -30,7 +31,7 @@ func _init() -> void:
 	for nom: String in ETAPES:
 		if not seulement.is_empty() and not seulement.has(nom):
 			continue
-		if verifier and not ["carte_sol", "arbres", "ecorces"].has(nom):
+		if verifier and not ["carte_sol", "rues", "arbres", "ecorces"].has(nom):
 			echecs += _verifier_en_place(nom)
 			continue
 		var t := Time.get_ticks_msec()

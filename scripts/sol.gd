@@ -217,7 +217,7 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 		flux.append_array([tr.basis.x.x, tr.basis.x.y, tr.basis.x.z, tr.basis.y.x, tr.basis.y.y, tr.basis.y.z, tr.basis.z.x, tr.basis.z.y, tr.basis.z.z, tr.origin.x, tr.origin.y, tr.origin.z])
 	_sha(ctx, flux.to_byte_array())
 	_sha(ctx, var_to_bytes([arbres_zone, obstacles, monde.chemins.points, monde.chemins.debuts, monde.CERCLE, monde.TUMULUS, monde.VILLAGE]))
-	for chemin in ["res://scripts/sol.gd", "res://scripts/zone_biome.gd", "res://scripts/chemins.gd"]:
+	for chemin in ["res://scripts/sol.gd", "res://scripts/zone_biome.gd", "res://scripts/chemins.gd", "res://scripts/rues_village.gd"]:
 		_sha(ctx, _source(chemin))
 	var signature := ctx.finish().hex_encode()
 	if cache_mode == CACHE_LIRE and ResourceLoader.exists(CACHE_CARTE) and ResourceLoader.exists(CACHE_TRACES):
@@ -289,9 +289,12 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 				else:
 					var p := Vector2(x, z)
 					var dv := p.distance_to(av0 + avd * clampf((p - av0).dot(avd) / avl2, 0.0, 1.0))
+					var mv := RuesVillage.matiere_sol(x, z, t, TERRE, PIETINEE)   # C7a : sous les pavés du village, chemins de terre, champs
 					if dv < VILLAGE_TERRE + 0.3 * t:
 						mt = TERRE if dv < VILLAGE_TERRE - 0.3 + 0.25 * bruit_clair.get_noise_2d(x * 0.8, z * 0.8) + 0.3 * t else PIETINEE
 						dchemin[k] = dv
+					elif mv >= 0:
+						mt = mv
 					elif p.distance_to(stele) < RAYON_STELE + 0.8 * t or p.distance_to(porte) < RAYON_PORTE + 0.8 * t or p.length() < RAYON_FEU + 0.8 * t:
 						mt = PIETINEE
 					elif creux[k] < CROUTE_BOSSE + 0.02 * t or bruit_croute.get_noise_2d(x, z) > CROUTE_BRUIT + 0.15 * t:
