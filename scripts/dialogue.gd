@@ -8,7 +8,7 @@ extends Control
 const VITESSE_TEXTE := 45.0  # caractères par seconde
 const DIST_FERMETURE := 4.0
 const DUREE_SOUS_TITRE := 3.5
-const TAILLE_POLICE := 16
+const TAILLE_POLICE := Palette.TAILLE_POLICE   # taille native de la police pixel (voir Palette.police)
 const HAUT_BOITE := 58.0
 const BAS_BOITE := 18.0  # marge sous la boîte (et sous les sous-titres)
 const OR := Color("#e8a64a")

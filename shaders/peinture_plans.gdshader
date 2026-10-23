@@ -213,7 +213,7 @@ void fragment() {
 		}
 		crete -= creuse;
 		if (genre == 2) {
-			crete = min(crete, mix(crete, chateau_el + 0.4, 1.0 - smoothstep(9.0, 15.0, abs(wrapd(az - chateau_az)))));
+			crete = min(crete, mix(crete, chateau_el + 0.4, 1.0 - smoothstep(9.0, 15.0, abs(wrapd(az - chateau_az)) * 1.5 / chateau_ech)));
 		}
 		float trouve = 0.0;
 		vec3 n = vec3(0.0, 0.3, 0.95);
@@ -296,7 +296,7 @@ void fragment() {
 				float r_c = h21(vec2(floor(dx / 3.0), 3.0)) > 0.65 ? 0.55 : 0.6;
 				if (vire < hs * dent && h11(cell_s * 3.1 + floor(dy / 6.0)) > 0.3) {
 					r_c = 0.8;
-				} else if (h21(vec2(floor(dx / 5.0), floor(dy / 6.0))) > 0.8 && vire < 0.12) {
+				} else if (h21(vec2(floor(dx / 5.0), floor(dy / 6.0))) > 0.5 && vire < 0.17) {   // C6 : vires enneigées plus fréquentes
 					r_c = 0.95;
 				}
 				sortie = coder(0.75, nc, r_c);

@@ -88,14 +88,16 @@ void fragment() {
 	} else if (classe < 0.87) {
 		// château et falaise
 		if (t.r < 0.25) {
-			col = vec3(0.045, 0.048, 0.060) * (ambiant * 1.4 + col_lum * 0.25 * (0.4 + 0.6 * ton));
-			v_fact = 0.6;
+			// pierre du château (C6) : gris bleuté lisible, face au soleil nettement éclairée, sombre la nuit
+			col = vec3(0.085, 0.088, 0.105) * (ambiant * 1.1 + col_lum * 0.8 * (0.25 + 0.75 * ton));
+			v_fact = 0.3;
 		} else if (t.r < 0.5) {
 			col = neige_o * (ambiant * 1.3 + col_lum * 0.5);
 			v_fact = 0.6;
 		} else if (t.r < 0.7) {
-			col = vec3(0.034, 0.036, 0.046) * (ambiant * 1.1 + col_lum * 0.45 * (0.3 + 0.7 * ton)) * (t.r < 0.58 ? 0.65 : 1.0);
-			v_fact = 0.35;
+			// falaise (C6) : roche sombre en facettes (ombre / lumière), plus foncée que les murs pour qu'on lise le château dessus
+			col = vec3(0.034, 0.038, 0.050) * (ambiant * 1.1 + col_lum * 0.9 * (0.15 + 0.85 * ton)) * (t.r < 0.58 ? 0.7 : 1.0);
+			v_fact = 0.45;
 		} else if (t.r < 0.9) {
 			col = vec3(0.018, 0.032, 0.034) * (ambiant * 1.5 + col_lum * 0.2);
 			v_fact = 0.35;
@@ -105,7 +107,7 @@ void fragment() {
 		}
 	} else {
 		// fenêtre : chaude la nuit
-		col = mix(vec3(0.045, 0.048, 0.060) * (ambiant * 1.4), vec3(1.6, 0.9, 0.4), 0.95 * (1.0 - jour));
+		col = mix(vec3(0.045, 0.048, 0.060) * (ambiant * 1.4), vec3(1.6, 0.9, 0.4), 0.95 * (1.0 - 0.55 * jour));
 		v_fact = 0.18;
 	}
 

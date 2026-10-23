@@ -187,10 +187,17 @@ static func lueur(couleur: Color) -> StandardMaterial3D:
 	m.albedo_color = couleur
 	return m
 
-## Police pixel du jeu (Kenney Pixel, nette : ni lissage ni sous-pixel). Une copie par
-## appelant : la garder dans une variable statique fait planter Godot à la fermeture.
+## Police pixel du jeu, une seule pour le HUD, les quêtes, les dialogues et l'aide (C6) : « Kenney Pixel Nordique » =
+## Kenney Pixel dont les minuscules accentuées sont refaites. Dans l'original, é è ê à ç ù… sont des COPIES des
+## capitales (É È Ê…) : « quête », « brisés », « Épée » sautaient d'une hauteur de capitale au milieu des mots
+## (texte « sautillant » relevé par l'audit graphique). Régénérer :
+##   python3 -I outils/police_accents.py "assets/polices/Kenney Pixel.ttf" "assets/polices/Kenney Pixel Nordique.ttf"
+## Dessinée sur une grille de 16 px (1024 unités / 64) : à TAILLE_POLICE = 16, un pixel de police = un pixel logique.
+## Nette : ni lissage ni sous-pixel. Une copie par appelant : la garder dans une variable statique fait planter
+## Godot à la fermeture.
+const TAILLE_POLICE := 16
 static func police() -> FontFile:
-	var p := (load("res://assets/polices/Kenney Pixel.ttf") as FontFile).duplicate()
+	var p := (load("res://assets/polices/Kenney Pixel Nordique.ttf") as FontFile).duplicate()
 	p.antialiasing = TextServer.FONT_ANTIALIASING_NONE
 	p.hinting = TextServer.HINTING_NONE
 	p.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED

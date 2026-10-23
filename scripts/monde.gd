@@ -987,9 +987,10 @@ func _interface() -> void:
 	calque.add_child(rect)
 	aide = Label.new()
 	aide.text = "ZQSD : marcher   Maj : courir   Espace : sauter\nClic gauche : frapper (maintenir = coup puissant)\nClic droit : garde   T : torche   V : vue   P : effet PS1   Échap : souris"
-	aide.add_theme_font_size_override("font_size", 8)
+	aide.add_theme_font_override("font", Palette.police())   # même police pixel que le HUD (C6)
+	aide.add_theme_font_size_override("font_size", Palette.TAILLE_POLICE)
 	aide.add_theme_color_override("font_color", Color(0.85, 0.9, 1.0, 0.85))
-	aide.position = Vector2(6, 18)
+	aide.position = Vector2(6, 92)   # sous les avis (lignes de 12 px à partir de y = 46) : ils se chevauchaient au départ
 	hud = Control.new()
 	hud.set_script(HUD)
 	hud.joueur = joueur
