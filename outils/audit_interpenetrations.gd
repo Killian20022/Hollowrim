@@ -25,6 +25,7 @@ extends SceneTree
 ## flottant au-delà de 5 cm (grave 15 cm) ; paroi 5 cm (grave 12 cm ou 30 % du rayon) ; chevauchement 25 % des sommets (grave 50 %).
 
 const SCENE := "res://scenes/foret_test.tscn"
+const AUDIT_CRYPTE := preload("res://outils/audit_crypte.gd")
 
 # familles : comment juger un genre
 const OBJET := 0      # posé au sol, ne doit ni s'enfoncer, ni flotter, ni entrer dans la paroi ni dans un autre objet
@@ -78,6 +79,8 @@ func _init() -> void:
 			args[kv[0]] = kv[1] if kv.size() > 1 else ""
 	lieu = String(args.get("lieu", "grotte"))
 	CrypteDecor.audit_actif = true
+	if lieu == "crypte":
+		AUDIT_CRYPTE.preparer()      # journal des objets de la crypte (outils/audit_crypte.gd)
 	_go.call_deferred()
 
 func _attendre(n: int) -> void:
@@ -85,6 +88,10 @@ func _attendre(n: int) -> void:
 		await physics_frame
 
 func _go() -> void:
+	if args.has("planche"):      # planche des cas (crypte) : cas.txt + captures -> planche.png
+		AUDIT_CRYPTE.planche(String(args["planche"]), String(args.get("titre", "")), int(args.get("colonnes", "3")), int(args.get("largeur", "640")))
+		quit(0)
+		return
 	var t0 := Time.get_ticks_msec()
 	var m: Node3D = (load(SCENE) as PackedScene).instantiate()
 	m.set_meta("test", true)
@@ -94,7 +101,10 @@ func _go() -> void:
 		"grotte":
 			await _collecter_grotte(m)
 		"crypte":
-			await _collecter_crypte(m)
+			# crypte : audit dédié (journal des objets, boîtes orientées, collisions du décor, emprises) — outils/audit_crypte.gd
+			var graves: int = await AUDIT_CRYPTE.new().lancer(self, m, args)
+			quit(graves)
+			return
 		"village", "exterieur":
 			await _collecter_exterieur(m)
 		_:

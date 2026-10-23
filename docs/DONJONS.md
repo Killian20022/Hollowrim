@@ -294,3 +294,23 @@ le vestibule, l'alcôve d'Eirik et le couloir de la herse (bâtis par `tertre.gd
 - **Socles des sceaux (mécanisme du rituel)** : `_x_rituelle` verse `socle_v2` à l'encombrement du socle v1 ; `Mecanisme.socles` reçoit
   `ctx["socles_habilles"]` (posé par `tertre._poser_meca`) et ne crée plus que le creux, le fragment, sa lueur et la collision.
 - Perf (14 vues de la crypte, moyenne de 2 passes A / 3 passes B) : GPU +0,08 ms en moyenne, +0,31 ms au pire vs ed4a8b2.
+
+## 16. Interpénétrations de la crypte (lot D, 2026-10-23, branche `D/crypte_interpenetrations`)
+
+Demande : « faire attention à ce que des éléments ne se fondent pas dans le décor ». Outil : `outils/audit_interpenetrations.gd --lieu=crypte`
+(outil commun de la branche grotte ; la crypte délègue à `outils/audit_crypte.gd` : journal `CrypteDecor.j0/j1` des objets — bornes réelles
+des sommets en boîte orientée, grands modules découpés en cases de 1 m —, collisions du décor, flottants, doublons, gardiens, interactifs ;
+`--poses=f --vues=15`, `--detail`, `--planche=<dossier>`). Code de sortie = nombre de cas graves. Bilan : **419 graves / 183 moyens → 0 / 40**
+(même outil sur la base a542fe0 ; les moyens restants sont des contacts de 4 à 10 cm).
+
+Règles de pose ajoutées (le gameplay ne change pas : mêmes collisions, mécanismes, quêtes ; les accroches restent aux mêmes identifiants) :
+- `CrypteDecor.emprises` : chaque meuble/objet au sol note sa boîte (repère local du module) ; le mode auto v2 (`CrypteV2._libre`), le décor
+  différé et les gravats des fissures n'entrent plus dedans ; panneaux de maçonnerie et piliers engagés contournent ce qui est adossé au mur
+  (les coffres de la table sont réservés dès le début du module).
+- `CrypteDecor._ecarter` (`DonjonKit._ecart_murs`) : un meuble contre un mur est avancé pour que son dos soit à 0,22 m du plan (soubassement) ;
+  ce qui est posé dessus le suit (`_suivre`) ; le coffre de table et son interaction bougent ensemble.
+- `DonjonKit.differer` : détritus, braseros d'angle, gravats d'usure, fissures, congères et glaçons sont tirés à leur place habituelle mais
+  posés APRÈS le récit (un premier appel « muet » consomme les mêmes tirages : la suite du module ne change pas), déplacés vers la place libre
+  la plus proche (braseros : jamais omis), réduits (congères) ou omis.
+- Appliques v2 à 0,3 m du mur (sur les blocs des panneaux), bannières/boucliers/gravures avancés de 0,33 m ; statues auto à 0,72 m du mur.
+- Lumières de statue : refusées si un maillage de 8 m en verrait plus de 8 (`CrypteDecor.lumiere_possible`) ; `prep` : `lumieres_statue: false`.

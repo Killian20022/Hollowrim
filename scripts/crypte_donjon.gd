@@ -23,20 +23,21 @@ const REVEIL_EAU := "ramasse:fragment_sceau_eau"
 const V2_NICHES := {
 	"auto": false,
 	"arche": "arche_2p0", "pilier": "pilier_mur_1p6", "naissance": 1.6,
-	"eboulis": [{"pos": Vector3(1.0, 0, -9.3), "mod": "eboulis_c", "lacet": 0.6}, {"pos": Vector3(-1.0, 0, -15.0), "mod": "eboulis_a", "lacet": 2.1}],
-	"dalles": [{"pos": Vector3(0.25, 0, -10.6), "mod": "dalles_a"}, {"pos": Vector3(-0.35, 0, -14.3), "mod": "dalles_b"}, {"pos": Vector3(0.4, 0, -17.0), "mod": "dalles_c"}],
+	"eboulis": [{"pos": Vector3(1.0, 0, -8.2), "mod": "eboulis_c", "lacet": 0.6}],      # audit 2026-10-23 : l'éboulis « a » entrait dans la niche ouest
+	"dalles": [{"pos": Vector3(0.25, 0, -10.6), "mod": "dalles_a"}, {"pos": Vector3(-0.2, 0, -14.6), "mod": "dalles_b"}, {"pos": Vector3(0.0, 0, -17.4), "mod": "dalles_c"}],
+	"appliques": [{"cote": "E", "z": -10.25}, {"cote": "O", "z": -13.75}],      # hors des niches (la torche était plantée dans le cadre de la niche est)
 	"flaques": [{"pos": Vector3(-0.15, 0, -11.9), "r": 0.55, "graine": 3}],
 }
 const V2_RITUELLE := {
 	"auto": false,
 	"piliers": [-6.2, -3.4, 3.4, 6.2], "pilier": "pilier_mur_3p2", "naissance": 3.2, "arche": "arche_10p7",
-	"statues": [{"pos": Vector3(-4.8, 0, -53.15), "lacet": 0.0}, {"pos": Vector3(4.8, 0, -53.15), "lacet": 0.0}],
+	"statues": [{"pos": Vector3(-4.8, 0, -52.85), "lacet": 0.0}, {"pos": Vector3(4.8, 0, -52.85), "lacet": 0.0}],      # devant les panneaux (dos à 0,4 m du mur)
 	"bannieres": [{"pos": Vector3(-4.8, 5.3, -53.7), "vers": Vector3(0, 0, 1), "long": 2.6}, {"pos": Vector3(4.8, 5.3, -53.7), "vers": Vector3(0, 0, 1), "long": 2.6}],
 	"sarcophages": [{"pos": Vector3(-5.75, 0, -47.5), "lacet": PI * 0.5}],
-	"bougies": [Vector3(-4.95, 0, -45.3), Vector3(-4.95, 0, -49.7)],
+	"bougies": [Vector3(-5.35, 0, -45.6), Vector3(-4.95, 0, -49.7)],      # hors du socle des sceaux
 	"candelabres": [{"pos": Vector3(-5.9, 0, -45.85), "lumiere": true}, {"pos": Vector3(-3.55, 0, -52.3)}, {"pos": Vector3(3.55, 0, -52.3)}],
-	"eboulis": [{"pos": Vector3(5.7, 0, -46.9), "mod": "eboulis_b", "lacet": 0.4}, {"pos": Vector3(-5.9, 0, -53.0), "mod": "eboulis_a", "lacet": 1.1}, {"pos": Vector3(5.7, 0, -43.3), "mod": "eboulis_c", "lacet": 2.6}],
-	"dalles": [{"pos": Vector3(2.2, 0, -44.4), "mod": "dalles_a"}, {"pos": Vector3(-1.8, 0, -51.5), "mod": "dalles_b"}, {"pos": Vector3(3.4, 0, -49.2), "mod": "dalles_c"}],
+	"eboulis": [{"pos": Vector3(5.7, 0, -46.9), "mod": "eboulis_b", "lacet": 0.4}, {"pos": Vector3(-6.0, 0, -50.8), "mod": "eboulis_a", "lacet": 1.1}, {"pos": Vector3(5.7, 0, -43.3), "mod": "eboulis_c", "lacet": 2.6}],
+	"dalles": [{"pos": Vector3(2.2, 0, -44.4), "mod": "dalles_a"}, {"pos": Vector3(-1.8, 0, -51.5), "mod": "dalles_b"}, {"pos": Vector3(5.2, 0, -50.6), "mod": "dalles_c"}],
 	"flaques": [{"pos": Vector3(-2.7, 0, -43.9), "r": 0.9, "graine": 1}, {"pos": Vector3(3.9, 0, -52.0), "r": 0.8, "graine": 2}],
 	"givre": 7,
 }
@@ -49,6 +50,8 @@ const V2_SALLES := {
 	"g4": {"statues_auto": 0},
 	"lb2a": {"statues_auto": 0},
 	"antichambre": {"statues_auto": 0},
+	"arene": {"eviter_lustre": [Vector3(0, 0, -72.0)]},
+	"prep": {"lumieres_statue": false},      # sa statue (déplacée hors de la table d'embaumement) éclairait le sol des niches et de s1 : 9 lumières sur un maillage      # oculus du récit : le lustre central passe à côté
 }
 
 func construire() -> void:
@@ -136,7 +139,7 @@ func plan() -> Array:
 		{"lum": {"braseros": 0, "appliques": 0}, "extra": "_x_arene"}))
 	r.append(_salle("tombeau", Vector2(18, -72), Vector2(12, 12), 5.0, "tombeau", "recit", 71,
 		[["O", 0.0, 3.2, false, "arene"]],
-		{"lum": {"braseros": 2, "appliques": 2}, "extra": "_x_tombeau",
+		{"lum": {"braseros": 2, "appliques": 2}, "extra": "_x_tombeau", "sans_appliques": ["N", "S"],      # frise et bannière du récit
 		"ennemis": [_e("cr_serment_1", "guerrier", Vector3(14.6, 0, -75.4), PI * 0.5, true, true, serment),
 			_e("cr_serment_2", "guerrier", Vector3(14.6, 0, -68.6), PI * 0.5, true, true, serment),
 			_e("cr_serment_3", "guerrier", Vector3(19.0, 0, -77.0), 0.0, true, true, serment)]}))
@@ -207,7 +210,7 @@ func plan() -> Array:
 		[["N", 3.0, 3.2, false, "g2"], ["O", 2.0, 3.2, false, "s2"], ["E", 0.0, 2.4, true, "armurerie"]],
 		{"lum": {"braseros": 1, "appliques": 3}, "extra": "_x_quartiers",
 		"coffres": [{"id": "cof_quartiers", "pos": Vector3(15.9, 0, -7.9), "lacet": PI * 0.5, "butin": {"pieces": 55, "os_draugr": 1, "poussiere_tombe": 2}}],
-		"interactions": [_cle("journal_quartiers", Vector3(24.2, 0.9, -0.6), "Journal de la garde", "Lire le journal", "journal_gardien"),
+		"interactions": [_cle("journal_quartiers", Vector3(24.4, 0.9, -1.1), "Journal de la garde", "Lire le journal", "journal_gardien"),
 			_it("cach_quartiers", Vector3(19.5, 0.3, -1.4), "Planche disjointe", "Soulever la planche", "coffre", {"butin": {"pieces": 40, "amulette_givre": 1}, "coffre": Vector3(19.5, 0, -1.4)})],
 		"meca": [{"genre": "mur_fragile", "id": "mur_quartiers", "pos": Vector3(27.0, 1.5, -4.0), "taille": Vector3(0.6, 3.0, 2.4), "lacet": 0.0, "materiau": "mur0"}]}))
 	r.append(_salle("armurerie", Vector2(30, -4), Vector2(6, 6), 3.2, "tombeau", "tresor", 33,
@@ -317,18 +320,18 @@ func _x_prep(_m: Dictionary) -> void:
 	for k in 3:      # voie processionnelle gravée
 		d.boite("gravure", _l(0, -20.3 - k * 4.0, 0.015), Vector3(2.0, 0.03, 4.0), 0.0, true, Vector3(1.0, 0, 20.3 + k * 4.0))
 	# tables d'embaumement : obstacles du combat, hors des passages (porte de l'alcôve à l'ouest, levier à l'est)
-	d.table_embaumement(_l(-4.9, -28.2), 0.0, true)
-	d.table_embaumement(_l(4.9, -21.8), 0.0, false)
-	for k in 3:
-		d.tonneau(_l(6.2, -22.6 - k * 0.8), 0.9)
+	d.table_embaumement(_l(-5.6, -28.2), PI * 0.5, true)      # audit : le long du mur, hors des piliers de la salle
+	d.table_embaumement(_l(5.35, -21.8), 0.0, false)
+	for tp: Vector2 in [Vector2(6.2, -23.0), Vector2(5.45, -23.1), Vector2(6.15, -23.8)]:      # loin du levier de la herse
+		d.tonneau(_l(tp.x, tp.y), 0.9)
 	d.urne(_l(-6.2, -21.0), 1.0)
 	d.urne(_l(-6.2, -21.7), 0.8)
 	d.parchemins_epars(_l(-3.0, -27.0), 1.6, 6)
 	d.os_tas(_l(0.5, -23.5), 3, 0.5)
 	d.arme(_l(2.0, -22.8), 2.3)
 	d.crane(_l(-3.1, -29.4), 2.4)
-	d.chaine(_l(-5.2, -28.2, 4.4), _l(-5.2, -28.2, 3.4))
-	d.chaine(_l(-4.6, -28.2, 4.4), _l(-4.6, -28.2, 3.3))
+	d.chaine(_l(-5.6, -28.7, 4.4), _l(-5.6, -28.7, 3.4))
+	d.chaine(_l(-5.6, -27.7, 4.4), _l(-5.6, -27.7, 3.3))
 	d.banniere(_l(-6.55, -23.0, 3.4), Vector3(1, 0, 0), 1.9, 0.8, Color(0.5, 0.42, 0.34), "os", 1)
 
 func _x_rituelle(_m: Dictionary) -> void:
@@ -356,9 +359,10 @@ func _x_rituelle(_m: Dictionary) -> void:
 	d.embleme("givre", _l(4.4, -46.4, 0.03), Vector3.UP, 1.1)
 	d.embleme("eau", _l(0, -52.9, 0.03), Vector3.UP, 1.1)
 	# bannières des trois sceaux, déchirées
-	d.banniere(_l(-6.55, -44.5, 3.6), Vector3(1, 0, 0), 2.2, 0.9, Color(0.72, 0.62, 0.42), "os", 1)
-	d.banniere(_l(6.55, -44.5, 3.6), Vector3(-1, 0, 0), 2.2, 0.9, Color(0.45, 0.6, 0.82), "givre", 1)
-	d.banniere(_l(-6.55, -50.5, 3.6), Vector3(1, 0, 0), 2.2, 0.9, Color(0.3, 0.6, 0.55), "eau", 2)
+	var mb := 6.36 if d.v2 else 6.55      # v2 : devant les blocs des panneaux de maçonnerie
+	d.banniere(_l(-mb, -44.5, 3.6), Vector3(1, 0, 0), 2.2, 0.9, Color(0.72, 0.62, 0.42), "os", 1)
+	d.banniere(_l(mb, -44.5, 3.6), Vector3(-1, 0, 0), 2.2, 0.9, Color(0.45, 0.6, 0.82), "givre", 1)
+	d.banniere(_l(-mb, -50.5, 3.6), Vector3(1, 0, 0), 2.2, 0.9, Color(0.3, 0.6, 0.55), "eau", 2)
 	# porte de l'arène scellée : le cadre des trois sceaux sur sa face
 	porte_coulissante("arene", _l(0, -54.0), "z", 4.0)
 	d.frise(["os", "givre", "eau"], _l(0, -53.62, 1.6), Vector3(0, 0, 1), 0.8, 1.35)
@@ -367,7 +371,7 @@ func _x_rituelle(_m: Dictionary) -> void:
 	d.boite("mur0", _l(3.8, -50.4, 0.15), Vector3(0.5, 0.3, 0.5), 0.7)
 	d.os_tas(_l(-2.2, -49.5), 5, 0.6)
 	d.os_tas(_l(2.0, -44.0), 4, 0.5)
-	d.sac_dechire(_l(-3.2, -42.8), 1.0)
+	d.sac_dechire(_l(-4.8, -43.6), 1.0)      # hors du pilier engagé
 	d.chaine(_l(-1.4, -51.6, 5.9), _l(-1.4, -51.6, 3.4))
 	d.chaine(_l(1.4, -51.6, 5.9), _l(1.4, -51.6, 3.8))
 	d.arme(_l(0.5, -43.6), 2.0)
@@ -388,7 +392,7 @@ func _x_antichambre(_m: Dictionary) -> void:
 	d.banniere(_l(4.62, -59.5, 3.8), Vector3(-1, 0, 0), 2.4, 0.9, Color(0.4, 0.5, 0.78), "couronne", 2)
 	d.table(_l(-3.1, -55.0), 0.0)
 	d.bougie(_l(-3.1, -55.0, 0.8), false)
-	d.urne(_l(3.1, -61.1), 1.3)
+	d.urne(_l(1.8, -61.2), 1.3)      # à côté de la statue (elle y entrait)
 	d.os_tas(_l(0.6, -56.5), 2, 0.3)
 
 # ------------------------------------------------------------------ arène : pièce maîtresse (estrade, piliers, glace)
@@ -418,11 +422,17 @@ func _x_arene(_m: Dictionary) -> void:
 	for k in 16:
 		glacon(_l(alea(-11.0, 11.0), alea(-78.0, -63.0), 8.0), alea(0.7, 1.8), 0.14)
 	for c in [Vector2(-11.0, -79.0), Vector2(11.0, -79.0), Vector2(-11.0, -63.0), Vector2(11.0, -63.0)]:
-		congere(_l(c.x, c.y), alea(1.6, 2.3), alea(0.6, 0.9))
-	congere(_l(-5.0, -79.0), 1.2, 0.45)
-	congere(_l(6.5, -79.0), 1.4, 0.5)
-	d.urne(_l(-11.0, -65.0), 1.2)
-	d.urne(_l(11.0, -65.0), 1.2)
+		# audit : les congères d'angle avalaient piliers, urnes et braseros → plus petites au sud (braseros), réduites au nord (piliers)
+		# angles sud : braseros de l'entrée → pas de congère (tirages conservés : la suite du récit ne bouge pas)
+		var rc := alea(1.6, 2.3) * 0.72
+		var hc := alea(0.6, 0.9) * 0.9
+		d.muet = c.y > -70.0
+		congere(_l(c.x, c.y), rc, hc)
+		d.muet = false
+	congere(_l(-5.0, -79.0), 1.0, 0.42)
+	congere(_l(5.4, -79.0), 1.0, 0.45)
+	d.urne(_l(-11.0, -66.6), 1.2)
+	d.urne(_l(11.0, -66.6), 1.2)
 	d.os_tas(_l(-5.0, -63.5), 5, 0.6)
 	d.os_tas(_l(6.0, -77.0), 4, 0.6)
 	d.arme(_l(3.0, -63.5), 0.4)
@@ -432,9 +442,9 @@ func _x_arene(_m: Dictionary) -> void:
 	# lumière : braseros chauds aux coins de l'entrée, lampes froides à l'estrade
 	d.brasero(_l(-10.6, -63.4))
 	d.brasero(_l(10.6, -63.4))
-	d.brasero(_l(-5.6, -67.2))
-	d.brasero(_l(5.6, -67.2))
-	d.applique(_l(0, -79.7), Vector3(0, 0, 1), 3.0, 6.0, 1.6, true)
+	d.brasero(_l(-5.6, -66.75))      # devant le premier degré (il y entrait de 20 cm)
+	d.brasero(_l(5.6, -66.75))
+	d.applique(_l(0, -79.4 if d.v2 else -79.7), Vector3(0, 0, 1), 3.0, 6.0, 1.6, true)
 	d.oculus(_l(0, -72.0, 8.0), 2.0)
 	d.rai(_l(0, -72.0, 0.7), 7.2, 2.0)
 	d.flaque_froide(_l(0, -72.0, 0.62), 6.0)
@@ -449,7 +459,7 @@ func _x_arene(_m: Dictionary) -> void:
 # ------------------------------------------------------------------ tombeau : fresque, offrandes royales, choix moral
 func _x_tombeau(_m: Dictionary) -> void:
 	# fresque de Svanhild sur le mur du fond (nord) : la mer, la couronne, la hache, l'épée, le givre
-	d.frise(["navire", "couronne", "hache", "epee", "givre"], _l(18.0, -77.68, 2.3), Vector3(0, 0, 1), 1.25, 2.1)
+	d.frise(["navire", "couronne", "hache", "epee", "givre"], _l(18.0, -77.68, 2.3), Vector3(0, 0, 1), 1.1, 1.25)      # entre les deux statues (débordait sur elles)
 	# offrandes royales sur un autel le long du mur est : couronne, coupes, épée, or
 	d.autel(_l(22.9, -72.0), -PI * 0.5, 5.2)
 	d.tour("or", _l(22.9, -72.0, 1.0), [Vector2(0.24, 0.0), Vector2(0.28, 0.1), Vector2(0.26, 0.2), Vector2(0.3, 0.32)], 10, 0.0, false)
@@ -458,18 +468,18 @@ func _x_tombeau(_m: Dictionary) -> void:
 	d.tour("or", _l(22.9, -73.7, 1.0), [Vector2(0.07, 0.0), Vector2(0.11, 0.12), Vector2(0.14, 0.24)], 8, 0.0, false)
 	d.tour("or", _l(22.9, -70.3, 1.0), [Vector2(0.07, 0.0), Vector2(0.11, 0.12), Vector2(0.14, 0.24)], 8, 0.0, false)
 	d.arme(_l(22.7, -74.3), PI * 0.5)
-	or_tas(_l(21.6, -75.8), 0.8, 0.45)
-	or_tas(_l(21.6, -68.2), 0.7, 0.4)
+	or_tas(_l(20.9, -75.3), 0.8, 0.45)      # hors des statues d'angle
+	or_tas(_l(20.9, -68.7), 0.7, 0.4)
 	or_tas(_l(20.6, -72.0), 0.6, 0.3)
 	d.statue(_l(14.0, -66.8), PI * 0.5, 1.1, "ancetre", true, "mur1")
 	d.statue(_l(14.0, -77.2), PI * 0.5, 1.1, "ancetre", true, "mur1")
 	d.statue(_l(22.0, -66.8), -PI * 0.5, 1.1, "jarl", true, "mur1")
 	d.statue(_l(22.0, -77.2), -PI * 0.5, 1.1, "gardienne", true, "mur1")
-	d.banniere(_l(18.0, -66.3, 3.9), Vector3(0, 0, -1), 2.2, 0.9, Color(0.45, 0.5, 0.75), "couronne", 0)
+	d.banniere(_l(18.0, -66.3 - (0.34 if d.v2 else 0.0), 3.9), Vector3(0, 0, -1), 2.2, 0.9, Color(0.45, 0.5, 0.75), "couronne", 0)
 	d.tapis(_l(17.0, -72.0), Vector2(7.0, 2.2), 0.0, Color(0.34, 0.16, 0.18))
 	d.lumiere(_l(22.6, -72.0, 1.8), Color(1.0, 0.8, 0.45), 0.8, 4.5, 1.6, false)
-	d.bougie(_l(22.5, -69.3, 1.0), false)
-	d.bougie(_l(22.5, -74.8, 1.0), false)
+	d.bougie(_l(22.5, -69.7, 1.0), false)      # SUR l'autel (elles flottaient à côté)
+	d.bougie(_l(22.5, -74.3, 1.0), false)
 	# récit, choix moral : piller (beaucoup d'or, relique, gardiens du serment) ou respecter (bénédiction des ancêtres)
 	interaction("fresque_svanhild", _l(18.0, -77.0, 1.3), "Fresque de Svanhild", "Lire la fresque", "texte", {"cle": "fresque_svanhild"})
 	interaction("inscription_offrandes", _l(22.2, -72.0, 1.2), "Inscription des offrandes", "Lire l’inscription", "texte", {"cle": "inscription_offrandes"})
@@ -495,14 +505,14 @@ func _x_ossuaire(_m: Dictionary) -> void:
 	d.crane(_l(-21, -16, 1.6), 0.3)
 	d.tour("os", _l(-21, -16, 1.6), [Vector2(0.08, 0.0), Vector2(0.14, 0.18), Vector2(0.06, 0.4)], 6, 0.2, true)
 	d.lumiere(_l(-21, -16, 2.1), Color(0.88, 0.82, 0.62), 0.6, 4.0, 1.7, false)
-	d.urne(_l(-26.5, -7.4), 1.1)
-	d.urne(_l(-15.0, -7.4), 1.1)
+	d.urne(_l(-26.5, -8.1), 1.1)      # devant les sarcophages (elles y entraient)
+	d.urne(_l(-15.0, -8.1), 1.1)
 	d.etagere(_l(-13.8, -14.5), -PI * 0.5, 1.8, 2.0)
 	d.os_tas(_l(-18.0, -15.0), 5, 0.6)
 	d.os_tas(_l(-24.0, -17.5), 5, 0.6)
 	d.arme(_l(-19.0, -9.5), 1.0)
 	d.arme(_l(-23.0, -24.5), 4.2)
-	d.bougie(_l(-21.4, -17.2, 0.5), false)
+	d.bougie(_l(-21.0, -17.9, 0.5), false)      # sur le degré de l'autel, hors du monticule d'os
 	# les pillards de l'expédition sont passés par la porte de l'est : sac éventré, arme perdue
 	d.sac_dechire(_l(-14.8, -18.6), 0.6)
 	d.arme(_l(-15.6, -20.4), 2.8)
@@ -514,14 +524,14 @@ func _x_ossuaire_secret(_m: Dictionary) -> void:
 	d.sarcophage(_l(-32.0, -11.6), Vector3(2.2, 0.7, 0.9), 0.0)
 	or_tas(_l(-33.0, -14.0), 0.7, 0.35)
 	d.os_tas(_l(-31.0, -16.0), 4, 0.5)
-	d.urne(_l(-33.2, -12.2), 1.0)
+	d.urne(_l(-29.75, -12.9), 1.0)
 	d.crane(_l(-32.2, -15.0), 0.4)
-	d.bougie(_l(-33.0, -11.9, 0.8), false)
+	d.bougie(_l(-33.0, -12.0, 0.94 if d.v2 else 0.8), false)      # sur le couvercle du sarcophage v2
 
 func _x_galerie(_m: Dictionary) -> void:
 	# les trois gravures murales que les statues doivent regarder : couronne (nord), navire (est), hache (sud)
-	d.embleme("couronne", _l(-29.0, -50.68, 2.0), Vector3(0, 0, 1), 1.5)
-	d.embleme("navire", _l(-22.32, -43.0, 2.0), Vector3(-1, 0, 0), 1.5)
+	d.embleme("couronne", _l(-30.6, -50.68, 2.0), Vector3(0, 0, 1), 1.5)      # à côté des appliques (elles s'y plantaient)
+	d.embleme("navire", _l(-22.32, -44.7, 2.0), Vector3(-1, 0, 0), 1.5)
 	d.embleme("hache", _l(-32.0, -35.32, 2.0), Vector3(0, 0, -1), 1.5)
 	# plaque au sol près de chaque statue : le même symbole que le mur qu'elle doit regarder
 	d.embleme("couronne", _l(-33.0, -42.4, 0.03), Vector3.UP, 0.9)
@@ -532,7 +542,7 @@ func _x_galerie(_m: Dictionary) -> void:
 	d.statue(_l(-24.0, -49.8), 0.0, 1.15, "ancetre", true, "mur1")
 	d.statue(_l(-22.9, -39.2), -PI * 0.5, 1.15, "gardienne", true, "mur1")
 	d.statue(_l(-22.9, -46.6), -PI * 0.5, 1.15, "guerrier", true, "mur1")
-	d.sarcophage(_l(-35.2, -48.5), Vector3(2.2, 0.7, 0.9), PI * 0.5)
+	d.sarcophage(_l(-35.2, -47.4), Vector3(2.2, 0.7, 0.9), PI * 0.5)      # hors du coffre et de la statue de l'angle
 	d.sarcophage(_l(-35.2, -39.4), Vector3(2.2, 0.7, 0.9), PI * 0.5)
 	var sk := _l(-23.4, -35.9)
 	d.socle(sk, Vector3(0.7, 1.0, 0.7))
@@ -580,10 +590,13 @@ func _x_tresor(_m: Dictionary) -> void:
 # ------------------------------------------------------------------ aile est
 func _x_glaces(_m: Dictionary) -> void:
 	# dais de glace central et lampe
+	d.j0("estrade_glace")
 	d.tour("dalle4", _l(26.5, -26.0), [Vector2(2.5, 0.0), Vector2(2.5, 0.2), Vector2(2.0, 0.3), Vector2(1.1, 0.4)], 8, PI / 8.0, true)
+	d.j1()
+	d.emprise("estrade_glace", _l(26.5, -26.0), Vector2(2.5, 2.5), 0.0, 0.4)      # pas de flaque ni de détritus dessous
 	for k in 6:
 		var a := TAU * k / 6.0 + 0.3
-		stalagmite(_l(26.5 + cos(a) * 1.8, -26.0 + sin(a) * 1.8, 0.3), 0.7 + alea(0.0, 0.7), 0.16)
+		stalagmite(_l(26.5 + cos(a) * 1.35, -26.0 + sin(a) * 1.35, 0.38), 0.7 + alea(0.0, 0.7), 0.16)      # posées sur la pente de l'estrade
 	lampe_glace(_l(26.5, -26.0, 0.4), 1.4)
 	# les deux bouches de souffle dans le mur nord : cadres de pierre, givre au sol sur la zone balayée (contournable par le sud)
 	for x in [27.0, 31.0]:
@@ -599,7 +612,7 @@ func _x_glaces(_m: Dictionary) -> void:
 	d.tour("mur4", _l(33.2, -32.2, 1.14), [Vector2(0.1, 0.0), Vector2(0.16, 0.18), Vector2(0.08, 0.42), Vector2(0.0, 0.58)], 6, 0.3, false)
 	d.lumiere(_l(33.2, -32.2, 1.9), Color(0.55, 0.85, 1.0), 0.9, 4.0, 1.6, false)
 	d.embleme("givre", _l(34.38, -32.2, 1.9), Vector3(-1, 0, 0), 0.9)
-	congere(_l(34.0, -33.0), 1.3, 0.6)
+	congere(_l(34.1, -29.2), 1.1, 0.55)      # hors du socle du fragment
 	d.urne(_l(17.8, -32.5), 1.0)
 	d.os_tas(_l(33.5, -22.0), 4, 0.5)
 	d.arme(_l(19.5, -20.5), 0.8)
@@ -626,9 +639,9 @@ func _x_quartiers(_m: Dictionary) -> void:
 	d.bouclier_mural(_l(15.3, -4.0, 1.7), Vector3(1, 0, 0), 0.34, Color(0.55, 0.3, 0.25))
 	d.bouclier_mural(_l(15.3, -5.2, 1.7), Vector3(1, 0, 0), 0.34, Color(0.3, 0.38, 0.55))
 	d.bouclier_mural(_l(22.0, -8.7, 1.8), Vector3(0, 0, 1), 0.34, Color(0.5, 0.4, 0.3))
-	d.table(_l(24.2, -0.6), 0.0)
-	d.boite("parchemin", _l(24.2, -0.6, 0.82), Vector3(0.34, 0.012, 0.26), 0.4)
-	d.bougie(_l(24.5, -0.7, 0.8), false)
+	d.table(_l(24.4, -1.1), 0.0)      # hors du lit (le lit, écarté du mur, y entrait)
+	d.boite("parchemin", _l(24.4, -1.1, 0.82), Vector3(0.34, 0.012, 0.26), 0.4)
+	d.bougie(_l(24.7, -1.2, 0.8), false)
 	d.urne(_l(26.0, -8.0), 1.0)
 	d.tonneau(_l(16.2, -1.2), 0.9)
 	d.boite("bois", _l(19.5, -1.4, 0.02), Vector3(0.9, 0.02, 0.2), 0.1)     # la planche disjointe (cachette)
@@ -642,9 +655,9 @@ func _x_armurerie(_m: Dictionary) -> void:
 	d.ratelier_armes(_l(32.62, -5.2), -PI * 0.5, 1.4)
 	d.arme(_l(30.0, -2.4), 0.5)
 	d.arme(_l(29.0, -6.0), 2.1)
-	d.bouclier_mural(_l(30.0, -6.7, 1.8), Vector3(0, 0, 1), 0.34, Color(0.5, 0.35, 0.3))
+	d.bouclier_mural(_l(31.4, -6.7, 1.8), Vector3(0, 0, 1), 0.34, Color(0.5, 0.35, 0.3))
 	d.os_tas(_l(29.5, -4.0), 3, 0.4)
-	d.urne(_l(32.2, -6.4), 1.0)
+	d.urne(_l(28.0, -6.2), 1.0)      # plus dans le coffre
 
 func _x_trone(_m: Dictionary) -> void:
 	d.trone(_l(56.5, -30.0), -PI * 0.5, "mur4")
@@ -684,7 +697,7 @@ func _x_archives(_m: Dictionary) -> void:
 func _x_barricade(_m: Dictionary) -> void:
 	var y := BAS
 	# barricade de l'intérieur contre la porte, brèche à l'est ; les compagnons d'Eirik sont morts ici
-	d.barricade(_l(-14.0, -49.1, y), 0.0, 3.0, 1.3, 0.9)
+	d.barricade(_l(-14.0, -49.1, y), PI, 3.0, 1.3, -0.9)      # tonneau et table renversée côté salle (ils entraient dans le mur) ; même brèche
 	d.os_tas(_l(-16.0, -53.0, y), 5, 0.6)
 	d.os_tas(_l(-12.6, -54.2, y), 4, 0.5)
 	d.os_tas(_l(-15.0, -51.4, y), 4, 0.5)
@@ -725,7 +738,7 @@ func _x_cisterne(_m: Dictionary) -> void:
 		d.tonneau(_l(-35.0 + (k - 1.5) * 1.2, -36.8, y), 1.1)
 	d.os_tas(_l(-38.0, -43.0, y), 4, 0.6)
 	d.arme(_l(-33.0, -37.6, y), 2.0)
-	d.crane(_l(-36.0, -40.2, y + 0.5), 0.0)
+	d.crane(_l(-36.0, -41.0, y + 0.56), 0.0)      # sur la margelle du bassin (il flottait)
 	d.parchemins_epars(_l(-33.0, -48.0, y), 1.4, 5)
 
 func _x_chapelle(_m: Dictionary) -> void:
@@ -739,7 +752,7 @@ func _x_chapelle(_m: Dictionary) -> void:
 	d.banniere(_l(9.66, -48.0, y + 3.3), Vector3(-1, 0, 0), 2.0, 0.9, Color(0.3, 0.6, 0.55), "eau", 2)
 	d.statue(_l(3.3, -53.4, y), 0.0, 1.1, "ancetre", true, "mur1")
 	d.statue(_l(8.7, -53.4, y), 0.0, 1.1, "gardienne", true, "mur1")
-	d.bougie(_l(3.0, -44.5, y + 0.8), false)
+	d.bougie(_l(4.2, -43.7, y + 0.8), false)      # sur le banc (elle flottait)
 	d.os_tas(_l(5.5, -47.0, y), 2, 0.3)
 
 func _x_garde(_m: Dictionary) -> void:
@@ -751,6 +764,6 @@ func _x_garde(_m: Dictionary) -> void:
 	d.ratelier_armes(_l(16.62, -57.0, y), PI * 0.5, 1.8)
 	d.table(_l(18.5, -52.0, y), 0.0)
 	d.arme(_l(21.0, -50.0, y), 1.1)
-	d.os_tas(_l(24.0, -55.0, y), 4, 0.5)
+	d.os_tas(_l(23.4, -51.6, y), 4, 0.5)
 	d.sac_dechire(_l(26.0, -54.0, y), 0.8)
-	d.bouclier_mural(_l(22.0, -59.7, y + 1.9), Vector3(0, 0, 1), 0.34, Color(0.5, 0.4, 0.3))
+	d.bouclier_mural(_l(24.6, -59.7, y + 1.9), Vector3(0, 0, 1), 0.34, Color(0.5, 0.4, 0.3))      # pas sur l'applique

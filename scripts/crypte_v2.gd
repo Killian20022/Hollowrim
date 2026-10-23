@@ -118,7 +118,28 @@ static func _obstacles(k: DonjonKit, m: Dictionary, v2: Dictionary) -> Dictionar
 			(ob[w[0]] as Array).append([w[1], float(oc[1])])
 	for c: String in k._v2_obst:
 		(ob[c] as Array).append_array(k._v2_obst[c])
+	# audit des interpénétrations : meubles et objets adossés au mur (coffres, lits, tonneaux, sarcophages…) — ni panneau ni pilier
+	# engagé derrière eux (ils s'y enfonçaient de 10 à 70 cm)
+	for e: Array in k.d.emprises:
+		if e[4] in SANS_OBSTACLE:
+			continue
+		var pe: Vector3 = e[0]
+		var dm: Vector2 = e[1]
+		var bs := Basis(Vector3.UP, float(e[2]))
+		var ax: Vector3 = bs * Vector3.RIGHT
+		var az: Vector3 = bs * Vector3.BACK
+		for c: String in ["N", "S", "O", "E"]:
+			var pm := k.plan_mur(m, c)
+			var v: Vector3 = pm["vers"]
+			var dist: float = ((pe.z if pm["horiz"] else pe.x) - float(pm["plan"])) * (v.z if pm["horiz"] else v.x)
+			var hn := absf(v.dot(ax)) * dm.x + absf(v.dot(az)) * dm.y
+			if dist - hn < 0.6 and dist > -0.5:      # pilier engagé : 0,54 m de saillie à la base
+				var dr := Vector3(1, 0, 0) if pm["horiz"] else Vector3(0, 0, 1)
+				var hl := absf(dr.dot(ax)) * dm.x + absf(dr.dot(az)) * dm.y
+				(ob[c] as Array).append([pe.x if pm["horiz"] else pe.z, hl + 0.08])
 	return ob
+
+const SANS_OBSTACLE := ["bougie", "crane", "flaque", "os_tas", "crane_os", "arme", "eboulis_a", "eboulis_b", "eboulis_c", "dalles_a", "dalles_b", "dalles_c", "congere", "gravats", "parchemins_epars"]
 
 ## Décalage des objets accrochés au mur (bannières, boucliers, gravures, fissures) : devant les panneaux, sauf dans une ouverture.
 ## Appelé par CrypteDecor._saillie (lié au module : saillie.bind(k, m)).
@@ -195,6 +216,17 @@ static func salle(k: DonjonKit, m: Dictionary) -> void:
 		if dim.x * dim.y >= 110.0:
 			for sx: float in [-1.0, 1.0]:
 				centres.append(Vector3(sx * dim.x * 0.27, 0, r.randf_range(-dim.y * 0.18, dim.y * 0.18)))
+		var oculi: Array = []
+		for g: Array in m.get("garnitures", []):
+			if g[0] == "oculus":
+				oculi.append((g[1] as Dictionary).get("pos", k.mw(Vector3.ZERO)))
+		oculi.append_array(v2.get("eviter_lustre", []))
+		for pw: Vector3 in oculi:      # jamais sous un oculus (la chaîne traversait le cadre du jour)
+			var po := k.lw(pw)
+			for i in centres.size():
+				var c4: Vector3 = centres[i]
+				if Vector2(c4.x - po.x, c4.z - po.z).length() < 1.6:
+					centres[i] = c4 + Vector3(2.0 if c4.x >= po.x else -2.0, 0, 0)
 		for c3: Vector3 in centres:
 			lustre(d, Vector3(c3.x, y + h, c3.z), clampf(h - 3.0, 0.8, 3.2))
 	if not v2["auto"]:
@@ -228,7 +260,7 @@ static func _donnees(k: DonjonKit, m: Dictionary, v2: Dictionary, y: float) -> v
 	for s: Dictionary in v2["bannieres"]:
 		var p := k.lw(s["pos"])
 		var vr: Vector3 = d.xf.basis.inverse() * (s["vers"] as Vector3)
-		d.banniere(Vector3(p.x, y + p.y, p.z) + vr * 0.27, vr, s.get("long", 2.4), s.get("larg", 0.95), s.get("couleur", Color(0.5, 0.07, 0.09)), "croix", s.get("usure", 1), s.get("teinte", Color(1.0, 0.78, 0.3)))
+		d.banniere(Vector3(p.x, y + p.y, p.z) + vr * 0.34, vr, s.get("long", 2.4), s.get("larg", 0.95), s.get("couleur", Color(0.5, 0.07, 0.09)), "croix", s.get("usure", 1), s.get("teinte", Color(1.0, 0.78, 0.3)))
 	for bp: Vector3 in v2["bougies"]:
 		var p := k.lw(bp)
 		for off: Vector3 in [Vector3(0, 0, 0), Vector3(0.14, 0, 0.09), Vector3(-0.1, 0, 0.13)]:
@@ -306,19 +338,19 @@ static func _auto_contenu(k: DonjonKit, m: Dictionary, v2: Dictionary) -> void:
 		var a: float = cd[1]
 		var pm := k.plan_mur(m, c)
 		var vv: Vector3 = pm["vers"]
-		var p := k.pt_mur(m, c, a, y, 0.5)
-		if not _libre(k, m, p, 0.45, -0.9):
+		var p := k.pt_mur(m, c, a, y, 0.72)      # dos de la statue (0,45 m) devant le soubassement (0,2 m)
+		if not _libre(k, m, p, 0.45, -1.2):
 			continue
 		var dr: Vector3 = Vector3.UP.cross(vv).normalized()
 		var cote := 1.0 if r.randf() < 0.5 else -1.0
 		var pc := p + dr * cote * 0.85 - vv * 0.1
-		if not _libre(k, m, pc, 0.25, -0.9):
+		if not _libre(k, m, pc, 0.25, -1.2):
 			cote = -cote
 			pc = p + dr * cote * 0.85 - vv * 0.1
 		faites += 1
 		v2["statues"].append({"pos": k.mw(p), "lacet": k.mlacet(atan2(vv.x, vv.z))})
 		_ajoute_obst(k, c, a, 0.55)
-		if _libre(k, m, pc, 0.25, -0.9):
+		if _libre(k, m, pc, 0.25, -1.2):
 			v2["candelabres"].append({"pos": k.mw(pc)})
 			k._reserves.append([Vector2(pc.x, pc.z), 0.4])
 		k._reserves.append([Vector2(p.x, p.z), 0.8])
@@ -337,7 +369,7 @@ static func _auto_contenu(k: DonjonKit, m: Dictionary, v2: Dictionary) -> void:
 			var Lw := dim.x if pm["horiz"] else dim.y
 			var eb := i < n_eb
 			var p := k.pt_mur(m, c, r.randf_range(-Lw * 0.5 + 1.0, Lw * 0.5 - 1.0), y, r.randf_range(0.7, 1.1) if eb else r.randf_range(0.9, 1.8))
-			if _libre(k, m, p, 0.7 if eb else 0.45, -0.9):
+			if _libre(k, m, p, 1.0 if eb else 1.1, -1.3):      # rayon réel des modules (éboulis 0,9 à 1 m, dalles jusqu’à 0,93 m en biais)
 				var liste: Array = v2["eboulis"] if eb else v2["dalles"]
 				liste.append({"pos": k.mw(p), "mod": (["eboulis_a", "eboulis_b", "eboulis_c"] if eb else ["dalles_a", "dalles_b", "dalles_c"])[r.randi_range(0, 2)], "lacet": r.randf() * TAU})
 				k._reserves.append([Vector2(p.x, p.z), 0.9 if eb else 0.5])
@@ -346,7 +378,7 @@ static func _auto_contenu(k: DonjonKit, m: Dictionary, v2: Dictionary) -> void:
 		for essai in 10:
 			var p := Vector3(r.randf_range(-dim.x * 0.5 + 1.2, dim.x * 0.5 - 1.2), y, r.randf_range(-dim.y * 0.5 + 1.2, dim.y * 0.5 - 1.2))
 			var rf := r.randf_range(0.55, 0.95) * (1.25 if th == "eau" else 1.0)
-			if _libre(k, m, p, rf * 0.6, -0.4):
+			if _libre(k, m, p, rf * 1.05, -0.4):      # rayon réel de la flaque (elle passait sous socles et meubles)
 				v2["flaques"].append({"pos": k.mw(p), "r": rf, "graine": r.randi_range(1, 99)})
 				k._reserves.append([Vector2(p.x, p.z), rf])
 				break
@@ -356,18 +388,23 @@ static func _auto_contenu(k: DonjonKit, m: Dictionary, v2: Dictionary) -> void:
 		var c: String = ["N", "S", "E", "O"][r.randi_range(0, 3)]
 		var pm := k.plan_mur(m, c)
 		var Lw := dim.x if pm["horiz"] else dim.y
-		var p := k.pt_mur(m, c, r.randf_range(-Lw * 0.5 + 0.8, Lw * 0.5 - 0.8), y, r.randf_range(0.4, 0.62))
-		if not _libre(k, m, p, 0.25, -0.75):
+		var p := k.pt_mur(m, c, r.randf_range(-Lw * 0.5 + 0.8, Lw * 0.5 - 0.8), y, r.randf_range(0.4, 0.62) + 0.22)      # devant les panneaux (0,3 m)
+		if not _libre(k, m, p, 0.3, -1.0):
 			continue
 		var t := r.randf()
 		if t < 0.4:
 			d.urne(p, r.randf_range(0.7, 1.05))
 			if r.randf() < 0.5:
-				d.urne(p + Vector3(r.randf_range(-0.4, 0.4), 0, r.randf_range(-0.4, 0.4)), r.randf_range(0.5, 0.8))
+				var ou := Vector3(r.randf_range(-0.4, 0.4), 0, r.randf_range(-0.4, 0.4))
+				var dr2 := Vector3.UP.cross(pm["vers"] as Vector3)
+				ou = dr2 * (0.5 if ou.dot(dr2) >= 0.0 else -0.5)      # la petite urne À CÔTÉ de la grande, le long du mur (se chevauchaient)
+				d.urne(p + ou, r.randf_range(0.5, 0.8))
 		elif t < 0.75:
+			d.j0("crane_os")
 			d.crane(p, r.randf() * TAU)
 			for q in 3:
 				d.boite("os", p + Vector3(r.randf_range(-0.25, 0.25), 0.02, r.randf_range(-0.25, 0.25)), Vector3(0.3, 0.04, 0.04), r.randf() * TAU)
+			d.j1()
 		else:
 			for off: Vector3 in [Vector3(0, 0, 0), Vector3(0.13, 0, 0.08), Vector3(-0.09, 0, 0.12)]:
 				d.bougie(p + off, false)
@@ -387,8 +424,8 @@ static func _boites_sol(k: DonjonKit, m: Dictionary) -> Array:
 			continue
 		var t: Vector3 = (d.xf.basis.inverse() * (cs.shape as BoxShape3D).size).abs()
 		var c := k.lw(cs.position)
-		if maxf(t.x, t.z) > 4.6 or c.y - t.y * 0.5 > y + 2.5:
-			continue
+		if c.y - t.y * 0.5 > y + 2.5 or c.y + t.y * 0.5 <= y + 0.02:
+			continue      # plafonds et sols ; les grandes estrades (degrés de l'arène) comptent (audit 2026-10-23)
 		if absf(c.x) > dim.x * 0.5 - 0.3 or absf(c.z) > dim.y * 0.5 - 0.3:
 			continue
 		res.append(Rect2(c.x - t.x * 0.5, c.z - t.z * 0.5, t.x, t.z))
@@ -397,6 +434,8 @@ static func _boites_sol(k: DonjonKit, m: Dictionary) -> Array:
 ## libre() du kit + aucune boîte de collision du récit sous l'objet (rayon r).
 static func _libre(k: DonjonKit, m: Dictionary, p: Vector3, r: float, marge: float) -> bool:
 	if not k.libre(m, p, r, marge):
+		return false
+	if not k.d.emprise_libre(p, r, 0.05):      # rien DANS un objet déjà posé (récit, détritus, congères)
 		return false
 	for b: Rect2 in k._v2_boites:
 		if b.grow(r + 0.12).has_point(Vector2(p.x, p.z)):
@@ -463,7 +502,11 @@ static func finir(k: DonjonKit, m: Dictionary) -> void:
 		var murs: Array = ["N", "S"] if long_x else ["O", "E"]
 		var nb_b := 0
 		for c: String in murs:
-			var libres := _libres_mur(k, m, c, obst[c], 0.5)
+			var obs_b: Array = (obst[c] as Array).duplicate()
+			for oc: Array in k._occ_mur:      # pas de bannière sur une applique
+				if oc[0] == c:
+					obs_b.append([oc[1], float(oc[2]) + 0.35])
+			var libres := _libres_mur(k, m, c, obs_b, 0.5)
 			libres.sort_custom(func(a: Array, b: Array) -> bool: return (a[1] - a[0]) > (b[1] - b[0]))
 			if libres.is_empty() or libres[0][1] - libres[0][0] < 1.4:
 				continue
@@ -487,7 +530,7 @@ static func finir(k: DonjonKit, m: Dictionary) -> void:
 		for l: OmniLight3D in d.toutes:
 			if l.position.distance_to(lw_) < l.omni_range + 5.0:
 				voisines += 1
-		if voisines >= 6:
+		if voisines >= 6 or not d.lumiere_possible(lw_, 3.8) or not v2.get("lumieres_statue", true):      # ni plus de 8 lumières sur un maillage de 8 m (sol voisin compris)
 			continue
 		d.lumiere(lp, CrypteDecor.FEU_BOUGIE, 0.7, 3.8, 1.5)
 		allumees += 1
@@ -527,11 +570,13 @@ static func _sol(k: DonjonKit, m: Dictionary, v2: Dictionary, y: float) -> void:
 
 ## Lustre de fer posé à la voûte : chaîne, cercle à bougies (module Blender), flammes, halo.
 static func lustre(d: CrypteDecor, plafond: Vector3, chute: float) -> void:
+	d.j0("lustre_v2")
 	var c := plafond - Vector3(0, chute, 0)
 	d.chaine(plafond, c + Vector3(0, 0.55, 0))
 	for fp: Vector3 in d.modele("lustre_fer", c):
 		d.flamme(fp, 0.55)
 	d.carte("halo", c + Vector3(0, 0.15, 0), Vector3.UP, 1.8, 1.8)
+	d.j1()
 
 # ------------------------------------------------------------------ COULOIR
 ## Couloir (axe long = z local, 3,2 m de large, plafond 3 m) : arches en voussoirs sur piliers engagés tous les 4 m, panneaux de
@@ -580,6 +625,9 @@ static func couloir(k: DonjonKit, m: Dictionary) -> void:
 				_panneaux(k, m, c, s[0], s[1], y, h)
 	# appliques : au milieu des travées, jamais dans une ouverture
 	var nb: int = m.get("lum", {}).get("appliques", maxi(1, int((L - 2.0) / 8.0) + (1 if L > 7.0 else 0)))
+	var imposees: Array = v2.get("appliques", [])      # table : [{cote, z (repère crypte)}] (couloir des niches : hors des niches)
+	if not imposees.is_empty():
+		nb = imposees.size()
 	var sg := 1.0 if d.rng.randf() < 0.5 else -1.0
 	for i in nb:
 		var zz := lerpf(-L * 0.5 + 2.5, L * 0.5 - 2.5, (i + 0.5) / nb) if nb > 1 else 0.0
@@ -587,8 +635,11 @@ static func couloir(k: DonjonKit, m: Dictionary) -> void:
 		for ou: Array in m.get("ouv", []):
 			if ou[0] == cote and absf(zz - float(ou[1])) < float(ou[2]) * 0.5 + 0.5:
 				cote = "O" if cote == "E" else "E"
+		if not imposees.is_empty():
+			cote = imposees[i]["cote"]
+			zz = k.lw(Vector3(0, 0, float(imposees[i]["z"]))).z
 		var pm := k.plan_mur(m, cote)
-		d.applique(Vector3(pm["plan"], y, zz) + (pm["vers"] as Vector3) * 0.2, pm["vers"], y + 2.0, 4.8, 1.6, true)
+		d.applique(Vector3(pm["plan"], y, zz) + (pm["vers"] as Vector3) * 0.3, pm["vers"], y + 2.0, 4.8, 1.6, true)      # sur les blocs du panneau
 		k._jitter_derniere_lumiere(th == "glace")
 		sg = -sg
 	# auto : éboulis / dalles soulevées au bord, une flaque (emplacement d'eau) si le couloir est assez long
@@ -602,12 +653,31 @@ static func couloir(k: DonjonKit, m: Dictionary) -> void:
 			var t := r.randf()
 			var sx := 1.0 if r.randf() < 0.5 else -1.0
 			var p := Vector3(sx * (dim.x * 0.5 - 0.75), y, zz + r.randf_range(-0.5, 0.5))
+			var lac := r.randf() * TAU if t < 0.22 else 0.0
+			var md: String = ["dalles_a", "dalles_b", "dalles_c"][r.randi_range(0, 2)] if (t >= 0.22 and t < 0.5) else ""
+			# audit : ni contre un pilier engagé ou une niche, ni sur une accroche (gardien, coffre), ni dans un objet du récit
+			var place := true
+			for ob: Array in obst["E" if sx > 0.0 else "O"]:
+				if absf(float(ob[0]) - p.z) < float(ob[1]) + 0.75:
+					place = false
+			for rv: Array in k._reserves:
+				if Vector2(p.x, p.z).distance_to(rv[0]) < 0.7 + float(rv[1]) * 0.6:
+					place = false
+			if not d.emprise_libre(p, 0.7, 0.05):
+				place = false
+			if not place:
+				continue
 			if t < 0.22:
-				v2["eboulis"].append({"pos": k.mw(p), "mod": "eboulis_c", "lacet": r.randf() * TAU})
+				v2["eboulis"].append({"pos": k.mw(p), "mod": "eboulis_c", "lacet": lac})
 			elif t < 0.5:
-				v2["dalles"].append({"pos": k.mw(p + Vector3(-sx * 0.4, 0, 0)), "mod": ["dalles_a", "dalles_b", "dalles_c"][r.randi_range(0, 2)]})
+				v2["dalles"].append({"pos": k.mw(p + Vector3(-sx * 0.4, 0, 0)), "mod": md})
 		if L >= 7.0:
-			v2["flaques"].append({"pos": k.mw(Vector3(r.randf_range(-0.4, 0.4), y, r.randf_range(-L * 0.3, L * 0.3))), "r": r.randf_range(0.45, 0.65), "graine": r.randi_range(1, 99)})
+			var fx := r.randf_range(-0.4, 0.4) * 0.0      # dans l'axe : à ±0,4 m elle passait sous les piliers engagés
+			var pf := Vector3(fx, y, r.randf_range(-L * 0.3, L * 0.3))
+			var rf := r.randf_range(0.45, 0.6)
+			var gf := r.randi_range(1, 99)
+			if d.emprise_libre(pf, rf, 0.05):      # ni sous un coffre ni sous un objet du récit
+				v2["flaques"].append({"pos": k.mw(pf), "r": rf, "graine": gf})
 		if th == "givre" or th == "glace":
 			v2["givre"] = 12
 	# éboulis et dalles soulevées au pied des murs, givre, flaque (placeholder), toiles, chaînes
@@ -639,7 +709,14 @@ static func couloir(k: DonjonKit, m: Dictionary) -> void:
 	if m.get("detritus", true):
 		var t := -L * 0.5 + 2.5
 		while t < L * 0.5 - 1.5:
-			d.os_tas(Vector3(k.alea(-0.9, 0.9), y, t), 3, 0.3)
+			var po := Vector3(k.alea(-0.9, 0.9) * 0.45, y, t)      # au milieu : plus dans les piliers engagés
+			var libre_os := d.emprise_libre(po, 0.45, 0.05)
+			for rv: Array in k._reserves:
+				if Vector2(po.x, po.z).distance_to(rv[0]) < 0.45 + float(rv[1]) * 0.6:
+					libre_os = false
+			d.muet = not libre_os      # occupé (indice de dalle, os du récit) : tirages faits, rien posé
+			d.os_tas(po, 3, 0.3)
+			d.muet = false
 			t += 4.0
 	if th == "givre" or th == "glace":
 		var kk := maxi(1, int(L / 4.0))
@@ -700,6 +777,12 @@ static func piece_tertre(d: CrypteDecor, id: String, x0: float, x1: float, z0: f
 	for oc: Array in d.occupations:      # objets plaqués au mur par tertre.gd (repère de la crypte) -> repère local
 		occ.append([(oc[0] as Vector3) - centre, oc[1]])
 	d.occupations = occ
+	var emp_tertre := d.emprises
+	d.emprises = []
+	for e: Array in emp_tertre:      # emprises de tertre.gd (repère de la crypte) -> repère local de la pièce
+		var e2 := e.duplicate()
+		e2[0] = (e[0] as Vector3) - centre
+		d.emprises.append(e2)
 	var v2 := reglages(m)
 	if t.get("arches", false) or not (v2["piliers"] as Array).is_empty() or v2["panneaux"]:
 		v2["haut_panneau"] = minf(float(v2["haut_panneau"]), h - 0.35)
@@ -709,6 +792,11 @@ static func piece_tertre(d: CrypteDecor, id: String, x0: float, x1: float, z0: f
 	_donnees(k, m, v2, 0.0)
 	d.poussiere(Vector3(0, h * 0.4, 0), Vector3(dim.x * 0.4, h * 0.35, dim.y * 0.4), 18)
 	d.occupations = []
+	for i in range(emp_tertre.size(), d.emprises.size()):      # ce que la table de la pièce a posé rejoint les emprises du tertre
+		var e3: Array = d.emprises[i]
+		e3[0] = (e3[0] as Vector3) + centre
+		emp_tertre.append(e3)
+	d.emprises = emp_tertre
 	if t.get("chaines", false):
 		var r := d.rng_deco
 		var long_x := dim.x >= dim.y
