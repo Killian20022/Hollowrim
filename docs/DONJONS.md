@@ -257,7 +257,7 @@ de matière existants (fusion par cellule de 8 m : aucun nœud en plus) avec UV 
 ## 14. Crypte v2 dans TOUTES les salles (lot C4, 2026-10-23, branche `C/crypte_v2`)
 
 Référence : `references/crypte_v2_planche.png` + `references/crypte_v2_prompt.md`. Les 31 modules du kit (salles, couloirs, escaliers) sont en v2 ;
-le vestibule, l'alcôve d'Eirik et le couloir de la herse (bâtis par `tertre.gd`) restent en v1. `-- --crypte-v1` rend toujours l'ancienne crypte (captures « avant »).
+le vestibule, l'alcôve d'Eirik et le couloir de la herse (bâtis par `tertre.gd`) sont passés en v2 au lot C4b (§15). `-- --crypte-v1` rend toujours l'ancienne crypte (captures « avant »).
 
 - **Activation** : `CrypteDonjon.plan()` ajoute `"v2": {}` (ou `V2_SALLES[id]`) à chaque module sans table. Les deux pilotes validés gardent leur table
   avec `"auto": false` (rien de neuf n'y est placé, à part la vasque v2 et la pierre plus claire des statues).
@@ -283,3 +283,14 @@ le vestibule, l'alcôve d'Eirik et le couloir de la herse (bâtis par `tertre.gd
   répartis triangle par triangle dans les cases de 8 m (sinon l'AABB d'un maillage grossit et touche plus de 8 lumières).
 - **Outils** : `outils/sonde_crypte_v2.gd` (sans fenêtre) : ce que le mode auto a posé par salle, la liste des emplacements d'eau,
   `--zone=<id>` (lumières comptées par test_crypte), `--maillage=<nom>` (lumières qui touchent un maillage).
+
+## 15. Crypte v2 : fin du lot (C4b, 2026-10-23, branche `C/crypte_v2_fin`)
+
+- **Pièces de `tertre.gd`** : `CrypteV2.tertre_debut(d)` + `CrypteV2.piece_tertre(d, id, x0, x1, z0, z1, hauteur, ouvertures, table)` habillent
+  vestibule, alcôve d'Eirik et couloir de la herse en mode pilote (table explicite, comme la salle rituelle) ; collisions, interactions, lumières inchangées.
+- **Statues** : `statue()` de type `ancetre/capuche/gardienne` → module sculpté `statue_capuche` (même collision) ; matière `statue_v2` avec
+  « lueur » d'hémisphère du shader (`lueur_haut` / `lueur_bas`, `CrypteDecor.LUEUR_STATUE_*`) : modelé lisible SANS lumière de plus.
+- **Sarcophages** : module `sarcophage` sculpté, `sarcophage_svanhild` pour le tombeau de l'arène (même collision) ; `socle()` → `socle_v2`.
+- **Socles des sceaux (mécanisme du rituel)** : `_x_rituelle` verse `socle_v2` à l'encombrement du socle v1 ; `Mecanisme.socles` reçoit
+  `ctx["socles_habilles"]` (posé par `tertre._poser_meca`) et ne crée plus que le creux, le fragment, sa lueur et la collision.
+- Perf (14 vues de la crypte, moyenne de 2 passes A / 3 passes B) : GPU +0,08 ms en moyenne, +0,31 ms au pire vs ed4a8b2.
