@@ -7,6 +7,10 @@ extends Node
 const FICHIER := "user://fenetre.cfg"
 
 func _init() -> void:
+	# --hors-ecran (ajouté par godot_slot.sh aux lancements des agents) : la fenêtre rend
+	# normalement mais hors de l'écran, pour ne jamais rester figée devant l'utilisateur
+	if OS.get_cmdline_user_args().has("--hors-ecran") and DisplayServer.get_name() != "headless":
+		DisplayServer.window_set_position(Vector2i(-32000, -32000))
 	# lecture en tâche de fond des modèles d'humains pendant que la scène se compile (voir Prechargement)
 	if not OS.get_cmdline_args().has("--script") and not OS.get_cmdline_args().has("-s"):
 		Prechargement.lancer()
