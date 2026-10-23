@@ -53,10 +53,13 @@ func _tester() -> void:
 	for x: float in [44.0, 42.6, 45.4]:
 		for courir: bool in [false, true]:
 			var mode := "course" if courir else "marche"
-			var r: Dictionary = await _trajet(x, 63.5, 84.0, courir)
+			# C7 fusion : le pont de C7c (z 57..66, 3,2 m de large) prolonge le pied de la 1re volée : on part des marches (z 67) ;
+			# la tour-clocher de C7b (z 85..90) ferme le haut de la rue : arrivée testée sur T3 dès z 83,5
+			var zb := 67.0
+			var r: Dictionary = await _trajet(x, zb, 83.5, courir)
 			_verif(r["arrive"] and absf((r["p"] as Vector3).y - h3) < 0.6, "montée x=%.1f (%s) : arrivée z=%.1f y=%.2f (terrasse %.2f) en %.1f s" % [x, mode, r["p"].z, r["p"].y, h3, r["t"]])
 			_verif(r["sous"] > -0.7, "montée x=%.1f (%s) : jamais sous le terrain (min %.2f m)" % [x, mode, r["sous"]])
-			var d: Dictionary = await _trajet(x, 84.0, 63.5, courir)
+			var d: Dictionary = await _trajet(x, 83.5, zb, courir)
 			_verif(d["arrive"], "descente x=%.1f (%s) : arrivée z=%.1f y=%.2f en %.1f s" % [x, mode, d["p"].z, d["p"].y, d["t"]])
 			_verif(d["sous"] > -0.7, "descente x=%.1f (%s) : jamais sous le terrain (min %.2f m)" % [x, mode, d["sous"]])
 	print("ECHECS : %d" % _echecs)
