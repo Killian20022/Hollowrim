@@ -28,7 +28,7 @@
       "role": "Forgeron",
       "modele": "Barbarian",
       "lieu": "forge",
-      "cap": 0,
+      "cap": 132.3,
       "interpellations": ["Ça chauffe ici. Recule.", "Du fer, pas de discours.", "Tu as de bons bras ?"],
       "lignes": [
         "Brodd. Forgeron. Ne touche pas aux lames, elles sont plus polies que moi.",

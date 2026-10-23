@@ -1,0 +1,14 @@
+# C7b : bâtiments, tour, moulins, palissade (plan docs/PLAN_VILLAGE_V2.md). Mêmes poses AVANT (C/village_plan) / APRÈS.
+# E = entrée SO (vue 1), P = place (vue 2), R = rue en pente (vue 3), F = forge (vue 5), X = fermes (vue 6), N = porte N
+E1 monde 18.8,17.1,228,-6 heure=17
+P1 monde 42,29.5,180,-2 heure=17
+R1 monde 44,55.5,180,8 heure=17
+R2 monde 39.5,64.8,197,4 heure=17
+F1 monde 35.5,40.5,63,-6 heure=17
+X1 monde 75,40,277,-2 heure=17
+N1 monde 54,6,180,-4 heure=17
+M1 monde 80,36,290,6 heure=17
+V0 monde 70,97,28,-12 heure=17
+E1j monde 18.8,17.1,228,-6 heure=12
+P1j monde 42,29.5,180,-2 heure=12
+R1j monde 44,55.5,180,8 heure=12

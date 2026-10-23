@@ -69,6 +69,15 @@ var _a_poser: Array[Callable] = []       # petites tâches de pose (fil principa
 var _nb_poses := 0
 var prets := false           # vrai quand tous les intérieurs sont construits et posés
 signal interieurs_prets
+## Village v2 (C7b) : monde (relief), emprises des bâtiments (replacement sûr au chargement), pieux et grilles de la palissade
+## prolongée (tests), ailes du moulin à vent (animées).
+var _monde: Node
+var emprises: Array = []                 # [Node3D pivot, Vector2 demi-emprise, Vector2 décalage local, Interieur ou null]
+var pieux_v2: Array[Vector3] = []        # pieds des pieux (monde)
+var grilles_v2: Array = []               # [Vector3 pied (monde), niveau d'eau] : pieux fins des 2 grilles d'eau
+var ailes_moulin: Node3D
+const PORTES_V2 := [1, 3, 6]             # indices de ReliefVillage.PALISSADE : porte SO (inchangée), N, E
+const GRILLES_V2 := [9, 15]              # grille E (65 ; 61,5) et grille O (19,5 ; 61,5)
 
 func _ready() -> void:
 	rng.seed = 99
@@ -107,39 +116,47 @@ func _ready() -> void:
 		m_vitre_ext = (mats_int["vitre"] as ShaderMaterial).duplicate()
 		Palette.materiaux.append(m_vitre_ext)
 	Chrono.marque("  village : matières intérieur")
-	_palissade()
+	# Village v2 (lot C7b, plan docs/PLAN_VILLAGE_V2.md) : tout est placé en coordonnées MONDE (x est, z sud) ; le nœud du
+	# village garde son repère (porte SO en local (0, 0, RAYON), tournée vers le feu) et le sol du plateau (y local 0).
+	_monde = get_parent()
+	_palissade_v2()
 	_porte()
-	Chrono.marque("  village : palissade+porte")
-	_maison(Vector3(0, 0, -12), 0.0, 14.0, 7.0, 2.2, 3.2, "halle")        # longue maison de la cheffe
-	_maison(Vector3(-11.5, 0, -3), PI * 0.5, 8.0, 5.5, 2.0, 2.4, "sigrun")      # la voyante
-	_maison(Vector3(11.5, 0, 7.5), -PI * 0.5, 8.0, 5.5, 2.0, 2.4, "chasseurs") # famille de chasseurs
-	_maison(Vector3(-9.5, 0, 13.0), PI * 0.62, 7.0, 5.0, 1.9, 2.2, "grima")    # la doyenne
+	_porte_v2(ReliefVillage.PALISSADE[PORTES_V2[1]], PI)          # porte N (vers la grotte)
+	_porte_v2(ReliefVillage.PALISSADE[PORTES_V2[2]], PI * 0.5)    # porte E (vers les fermes)
+	Chrono.marque("  village : palissade+portes")
+	# les 5 intérieurs sans chargement, déplacés (mobilier inchangé : même repère local)
+	var y0 := global_position.y
+	var halle := _maison_monde(44.0, 21.0, 0.0, 14.0, 7.0, 2.2, 3.2, "halle")              # longue maison de la cheffe, porte au sud sur la place
+	_maison_monde(59.5, 47.0, PI, 8.0, 5.5, 2.0, 2.4, "sigrun")                              # la voyante, porte au nord
+	_maison_monde(63.0, 29.0, -PI * 0.5, 8.0, 5.5, 2.0, 2.4, "chasseurs")                   # famille de chasseurs, porte à l'ouest
+	_maison_monde(28.0, 47.0, PI * 0.5, 7.0, 5.0, 1.9, 2.2, "grima")                         # la doyenne, porte à l'est sur la place
 	Chrono.marque("  village : 4 maisons")
-	_forge(Vector3(-12.5, 0, 6.0))
+	var forge := _forge(_repere(27.0, 36.0, PI * 0.5, y0).origin, PI * 0.5 - rotation.y)   # forge ouverte à l'est sur la rue principale
+	VillageBati.forge_ouverte(self, forge)
 	Chrono.marque("  village : forge")
-	_puits(Vector3(4.5, 0, 1.5))
-	_brasero(Vector3(-2.5, 0, -2.5))
-	_enclos(Vector3(11.5, 0, -6.5))
-	_accessoires()
-	Chrono.marque("  village : puits/enclos/accessoires")
+	var enclos := _enclos(_repere(66.5, 41.3, -PI * 0.5, y0).origin, -PI * 0.5 - rotation.y)  # enclos et séchoirs d'Ylva, ouverts à l'ouest
+	# (puits, brasero de la place, tonneaux, caisses et tas de bois : lot C7a, scripts/mobilier_village.gd)
+	VillageBati.construire(self)
+	Chrono.marque("  village : bâti v2 (façades, tour, moulins, fermes)")
 	_finaliser()
 	Chrono.marque("  village : maillages fusionnés")
 	_lancer_fil()
 
 	var postes := {
-		"longue_maison": Vector3(1.2, 0, -7.4),
-		"forge": Vector3(-12.45, 0.0, 5.70),   # repère de la forge (local 0,30 ; 0,05) : à genoux à 65 cm de l'enclume (local -0,35 ; 0,05), face à elle
-		"puits": Vector3(6.0, 0, 2.6),
-		"place": Vector3(-1.2, 0, -0.4),
-		"enclos": Vector3(9.0, 0, -3.0),
-		"porte": Vector3(2.2, 0, RAYON - 2.4),
+		"longue_maison": halle.to_global(Vector3(1.2, 0, 4.6)),     # devant la porte de la halle (même repère qu'avant)
+		"forge": forge.to_global(Vector3(0.30, 0.0, 0.05)),          # repère de la forge : à genoux à 65 cm de l'enclume (local -0,35 ; 0,05)
+		"puits": Vector3(44.6, y0, 39.6),
+		"place": Vector3(39.5, y0, 42.0),
+		"enclos": enclos.to_global(Vector3(-2.5, 0, 3.5)),
+		"porte": to_global(Vector3(2.2, 0, RAYON - 2.4)),            # 2,4 m à l'intérieur de la porte SO (inchangé)
 	}
 	for nom in postes:
-		lieux[nom] = to_global(postes[nom])
+		lieux[nom] = postes[nom]
 		if nom != "forge":
 			promenade.append(lieux[nom])   # personne d'autre ne se promène dans la forge
-	for p in [Vector3(0, 0, 6), Vector3(-5, 0, 3), Vector3(6, 0, -5), Vector3(-4, 0, -7)]:
-		promenade.append(to_global(p))
+	# promenade sur le plateau seulement (aucun point sur les escaliers ni hors de l'enceinte) : pont, quai, moulin, place
+	for p: Vector2 in [Vector2(44, 55), Vector2(34, 57.6), Vector2(30, 57), Vector2(40, 33), Vector2(48.5, 40.5), Vector2(38, 44.5)]:
+		promenade.append(Vector3(p.x, y0, p.y))
 
 ## Pose les objets « porte » (touche E) des bâtiments ; appelé par le monde quand joueur et dialogue existent.
 func activer_interieurs(joueur: CharacterBody3D, dialogue: Control) -> void:
@@ -155,6 +172,8 @@ func interieur(id: String) -> Interieur:
 
 func _process(dt: float) -> void:
 	_t += dt
+	if ailes_moulin != null:
+		ailes_moulin.rotation.z -= dt * 0.42   # ailes du moulin à vent : un tour toutes les ~15 s
 	if _chauffe_images >= 0:
 		if _chauffe_images == 0:
 			_prechauffer()
@@ -209,6 +228,12 @@ func _ajouter(parent: Node3D, arrays: Array, xf: Transform3D, mat: Material, ao_
 	var sombre := mat == m_colombage and m_colombage != null
 	if sombre:
 		mat = m_poutres_h
+	var xf_lot := xf
+	if parent.has_meta("fusion"):
+		# pivot d'un groupe fusionné : la pièce est exprimée dans le repère du groupe (l'occlusion au pied reste au pivot)
+		var g: Node3D = parent.get_meta("fusion")
+		xf_lot = g.transform.affine_inverse() * parent.transform * xf
+		parent = g
 	var cle := "%d|%d" % [parent.get_instance_id(), mat.get_instance_id()]
 	if not _lots.has(cle):
 		_lots[cle] = {"parent": parent, "mat": mat, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray(), "i": PackedInt32Array()}
@@ -228,8 +253,8 @@ func _ajouter(parent: Node3D, arrays: Array, xf: Transform3D, mat: Material, ao_
 	var pivot_y := 0.0   # le pivot du bâtiment est posé au sol : y local = hauteur au-dessus du sol
 	for k in verts.size():
 		var pw := xf * verts[k]
-		v.append(pw)
-		n.append((xf.basis * norms[k]).normalized())
+		v.append(xf_lot * verts[k])
+		n.append((xf_lot.basis * norms[k]).normalized())
 		uvs.append(uv_src[k] if k < uv_src.size() else Vector2.ZERO)
 		var c := c_src[k] if k < c_src.size() else Color.WHITE
 		if sombre:
@@ -448,6 +473,78 @@ func _pivot(position_: Vector3, lacet: float) -> Node3D:
 	n.rotation.y = lacet
 	add_child(n)
 	return n
+
+# --- village v2 : repères monde, groupes fusionnés, emprises ---------------------------------------------------
+
+## Hauteur du sol EXACT (maillage du terrain) en (x, z) monde.
+func h_sol(x: float, z: float) -> float:
+	if _monde != null and _monde.has_method("hauteur") and "TAILLE" in _monde:
+		return DetailsSol.hauteur_maillage(_monde, x, z)
+	return global_position.y
+
+## Repère LOCAL (au village) d'un objet posé en (x, y, z) monde, tourné de `lacet` (monde ; 0 = +Z local vers le sud).
+func _repere(x: float, z: float, lacet: float, y := NAN) -> Transform3D:
+	var yy := h_sol(x, z) if is_nan(y) else y
+	return global_transform.affine_inverse() * Transform3D(Basis(Vector3.UP, lacet), Vector3(x, yy, z))
+
+## Pivot d'un bâtiment en coordonnées monde. Avec `fusion`, ses pièces rejoignent les lots du groupe (un maillage par
+## matière pour tout le groupe : quelques appels de dessin pour 6 façades) ; collisions, fumées et vitrages restent à lui.
+func pivot_monde(x: float, z: float, lacet: float, y := NAN, fusion: Node3D = null) -> Node3D:
+	var n := Node3D.new()
+	n.transform = _repere(x, z, lacet, y)
+	add_child(n)
+	if fusion != null:
+		n.set_meta("fusion", fusion)
+	return n
+
+func groupe_fusion(nom: String) -> Node3D:
+	var g := Node3D.new()
+	g.name = nom
+	add_child(g)
+	return g
+
+## Emprise au sol d'un bâtiment (repère du pivot) : sert au replacement sûr au chargement.
+func _emprise(p: Node3D, demi: Vector2, decalage := Vector2.ZERO, ip: Interieur = null) -> void:
+	emprises.append([p, demi, decalage, ip])
+
+## Vrai si (x, z) monde est libre : ni dans l'eau, ni dans un bâtiment (marge `m`), ni sur la palissade.
+func point_libre(x: float, z: float, m := 0.5) -> bool:
+	if not is_nan(ReliefVillage.niveau_eau(x, z)):
+		return false
+	if absf(ReliefVillage.distance_palissade(x, z)) < m + 0.3:
+		return false
+	for e in emprises:
+		var l: Vector3 = (e[0] as Node3D).global_transform.affine_inverse() * Vector3(x, (e[0] as Node3D).global_position.y, z)
+		var d: Vector2 = e[1]
+		var c: Vector2 = e[2]
+		if absf(l.x - c.x) < d.x + m and absf(l.z - c.y) < d.y + m:
+			return false
+	return true
+
+## Replacement sûr au chargement d'une sauvegarde (les joueurs ont pu sauver dans l'ancien village) : une position dans un
+## bâtiment (hors de la pièce d'un intérieur), dans l'eau, sur la palissade ou sous le sol est ramenée au point libre le plus
+## proche (spirale de 0,5 m), posée sur le sol. Sous terre (crypte, grotte) et loin du village : inchangée.
+func position_sure(p: Vector3) -> Vector3:
+	if p.y < -100.0 or not ReliefVillage.BOITE.grow(10.0).has_point(Vector2(p.x, p.z)):
+		return p
+	for e in emprises:
+		var ip: Interieur = e[3]
+		if ip != null and ip.dedans(ip.to_local(p), -0.3):
+			var l := ip.to_local(p)
+			return ip.to_global(Vector3(l.x, ip.sol_y + 0.1, l.z))   # dans la pièce d'un intérieur : on y reste, sur le plancher
+	var h := h_sol(p.x, p.z)
+	if point_libre(p.x, p.z):
+		return Vector3(p.x, maxf(p.y, h + 0.1), p.z)
+	for r in range(1, 80):
+		var rr := r * 0.5
+		var n := maxi(8, int(TAU * rr / 0.5))
+		for k in n:
+			var a := TAU * k / n
+			var x := p.x + cos(a) * rr
+			var z := p.z + sin(a) * rr
+			if point_libre(x, z, 0.7):
+				return Vector3(x, h_sol(x, z) + 0.15, z)
+	return Vector3(p.x, h + 0.15, p.z)
 
 func _feu(parent: Node3D, position_: Vector3, taille: float, energie: float, portee: float) -> void:
 	var l := OmniLight3D.new()
@@ -1271,7 +1368,7 @@ func _fenetres_de(longueur: float) -> Array:
 ## Lot « kit intérieur » : la maison est CREUSE et ENTERABLE (murs de rondins vus des deux côtés, plancher, plafond sous
 ## charpente, porte sur charnière, fenêtres ouvertes aux carreaux translucides) ; l'intérieur (`Interieur` + `Interieurs`)
 ## dépend de `id` : halle (longue maison), sigrun, chasseurs, grima.
-func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_murs: float, faite: float, id: String) -> void:
+func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_murs: float, faite: float, id: String) -> Node3D:
 	var cheffe := id == "halle"
 	var p := _pivot(centre, lacet)
 	p.name = "Maison_" + id
@@ -1363,6 +1460,12 @@ func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_m
 		ib.coque(id)
 		ib.contenu(id)
 		ib.finir())
+	_emprise(p, Vector2(longueur * 0.5 + 0.3, largeur * 0.5 + 0.3), Vector2.ZERO, ip)
+	return p
+
+## Maison enterable posée en coordonnées MONDE (x, z) sur le plateau, `lacet` monde (0 = porte vers +Z/sud).
+func _maison_monde(x: float, z: float, lacet: float, longueur: float, largeur: float, h_murs: float, faite: float, id: String) -> Node3D:
+	return _maison(_repere(x, z, lacet, global_position.y).origin, lacet - rotation.y, longueur, largeur, h_murs, faite, id)
 
 ## Vantail de porte sur charnière : planches debout, deux bandes de fer cloutées, anneau. `pos` = axe de la charnière.
 func _vantail(parent: Node3D, pos: Vector3, larg: float, haut: float, cote := 1.0) -> Node3D:
@@ -1441,36 +1544,14 @@ func _banc(parent: Node3D, pos: Vector3, longueur: float) -> void:
 	for dx in [-0.42, 0.42]:
 		_boite(parent, Vector3(0.1, 0.5, 0.36), Transform3D(Basis(), pos + Vector3(dx * longueur * 0.5 / 0.42 * 0.8, 0.25, 0)), m_poutres)
 
-## Palissade. Visuel (refonte, passe 3 validée par l'utilisateur) : pieux BAS (~1,5 m visibles) taillés en pointe, bois sombre
-## usé, neige sur le haut des pointes, pour voir le village par-dessus. La COLLISION est inchangée : un cylindre de 3,6 m
-## (rayon 0,22) par pieu, même tracé. `--palissade-haute` : ancien visuel (A/B). Les tirages de `rng` sont conservés à
-## l'identique (2 par pieu) pour ne rien décaler dans la suite du village ; la géométrie neuve tire sur un générateur local.
-func _palissade() -> void:
-	var haute := OS.get_cmdline_user_args().has("--palissade-haute")
-	var nombre := int(TAU * RAYON / 0.42)
-	var rondins := MultiMesh.new()
-	rondins.transform_format = MultiMesh.TRANSFORM_3D
-	var c := CylinderMesh.new()
-	c.top_radius = 0.17
-	c.bottom_radius = 0.19
-	c.height = 1.0
-	c.radial_segments = 6
-	c.rings = 1
-	c.material = m_palissade
-	rondins.mesh = c
-	var pointes := MultiMesh.new()
-	pointes.transform_format = MultiMesh.TRANSFORM_3D
-	var cone := CylinderMesh.new()
-	cone.top_radius = 0.0
-	cone.bottom_radius = 0.17
-	cone.height = 0.55
-	cone.radial_segments = 6
-	cone.rings = 1
-	cone.material = m_palissade
-	pointes.mesh = cone
-	var xf_r: Array[Transform3D] = []
-	var xf_p: Array[Transform3D] = []
-	# pieux bas : 4 variantes taillées, réparties au hasard (générateur local)
+## Palissade prolongée (C7b, plan v2 : 228 m, ReliefVillage.PALISSADE) : pieux BAS taillés (visuel validé, passe 3 : ~1,5 m,
+## pointe enneigée) qui SUIVENT LE TERRAIN un par un (la haute rue et la tour sont dans l'enceinte) ; 3 portes (SO inchangée,
+## N, E) et 2 grilles d'eau là où passe la rivière. COLLISION de chaque pieu inchangée : un cylindre de 3,6 m (rayon 0,22)
+## centré à 1,8 m au-dessus du sol du pieu. Grilles : pieux fins (rayon 0,08) tous les 0,42 m, plantés dans le lit, 3 lisses,
+## collision en cylindres de rayon 0,15 sur 3,6 m depuis le fond (l'eau passe, pas le joueur).
+func _palissade_v2() -> void:
+	var pts: Array = ReliefVillage.PALISSADE
+	var n := pts.size()
 	var loc := RandomNumberGenerator.new()
 	loc.seed = 70313
 	var variantes: Array[ArrayMesh] = []
@@ -1480,52 +1561,163 @@ func _palissade() -> void:
 	var forme := CylinderShape3D.new()
 	forme.radius = 0.22
 	forme.height = 3.6
-	var ouverture := asin(DEMI_PORTE / RAYON)
-	for i in nombre:
-		var a := TAU * i / nombre
-		# angle 0 = +Z (la porte)
-		if absf(wrapf(a, -PI, PI)) < ouverture:
-			continue
-		var pos := Vector3(sin(a) * RAYON, 0, cos(a) * RAYON)
-		var h := rng.randf_range(3.2, 3.9)
-		var penche := Basis(Vector3(cos(a), 0, -sin(a)), rng.randf_range(-0.03, 0.03))
-		if haute:
-			xf_r.append(Transform3D(penche.scaled(Vector3(1, h, 1)), pos + Vector3(0, h * 0.5 - 0.2, 0)))
-			xf_p.append(Transform3D(penche, pos + penche * Vector3(0, h - 0.2 + 0.27, 0)))
-		else:
-			# hauteur 0,88-1,12 × la variante (~1,5 m), lacet libre, léger dévers ; jointifs : décalage radial infime
+	var forme_g := CylinderShape3D.new()
+	forme_g.radius = 0.15
+	forme_g.height = 3.6
+	var inv := global_transform.affine_inverse()
+	var portes: Array[Vector2] = []
+	for i in PORTES_V2:
+		portes.append(pts[i])
+	var grilles: Array[Vector2] = []
+	for i in GRILLES_V2:
+		grilles.append(pts[i])
+	var rangs: Array = []      # suites de pieux contigus (pieds monde) : liens de corde
+	var rang: Array = []
+	var rang_g: Array = []     # suite de pieux de grille
+	for i in n:
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[(i + 1) % n]
+		var nb := maxi(1, roundi(a.distance_to(b) / 0.42))
+		var dir := (b - a).normalized()
+		for k in nb:
+			var q := a.lerp(b, float(k) / nb)
+			var porte := false
+			for g in portes:
+				if q.distance_to(g) < 2.45:
+					porte = true
+			var grille := false
+			for g in grilles:
+				if q.distance_to(g) < 7.0:
+					var r := ReliefVillage.riviere(q.x, q.y)
+					if not r.is_empty() and float(r["distance"]) < float(r["demi_largeur"]) + 0.35:
+						grille = true
+			if porte or grille:
+				if rang.size() > 1:
+					rangs.append(rang)
+				rang = []
+			if porte:
+				continue
+			if grille:
+				var eau: float = ReliefVillage.riviere(q.x, q.y)["eau"]
+				var fond := h_sol(q.x, q.y)
+				grilles_v2.append([Vector3(q.x, fond, q.y), eau])
+				rang_g.append([Vector3(q.x, fond, q.y), eau, dir])
+				var csg := CollisionShape3D.new()
+				csg.shape = forme_g
+				csg.position = inv * Vector3(q.x, fond + 1.8 - 0.2, q.y)
+				corps.add_child(csg)
+				continue
+			if rang_g.size() > 0:
+				_grille_eau(rang_g)
+				rang_g = []
+			var y := h_sol(q.x, q.y)
+			var pw := Vector3(q.x, y, q.y)
+			pieux_v2.append(pw)
+			rang.append(pw)
+			# hauteur 0,88-1,12 × la variante (~1,5 m), lacet libre, léger dévers (générateur local)
+			var ang := atan2(dir.x, dir.y)
 			var sy := loc.randf_range(0.88, 1.12)
-			var b := Basis(Vector3.UP, loc.randf() * TAU)
-			b = Basis(Vector3(cos(a), 0, -sin(a)), loc.randf_range(-0.035, 0.035)) * Basis(Vector3(sin(a), 0, cos(a)), loc.randf_range(-0.02, 0.02)) * b
-			var pr := pos + Vector3(sin(a), 0, cos(a)) * loc.randf_range(-0.04, 0.04)
-			xf_v[loc.randi() % 4].append(Transform3D(b.scaled(Vector3(1, sy, 1)), pr))
-		var cs := CollisionShape3D.new()
-		cs.shape = forme
-		cs.position = pos + Vector3(0, 1.8, 0)
-		corps.add_child(cs)
-	if haute:
-		rondins.instance_count = xf_r.size()
-		pointes.instance_count = xf_p.size()
-		for i in xf_r.size():
-			rondins.set_instance_transform(i, xf_r[i])
-			pointes.set_instance_transform(i, xf_p[i])
-		for mm in [rondins, pointes]:
-			var mmi := MultiMeshInstance3D.new()
-			mmi.multimesh = mm
-			add_child(mmi)
-	else:
-		for k in 4:
-			var mm := MultiMesh.new()
-			mm.transform_format = MultiMesh.TRANSFORM_3D
-			mm.mesh = variantes[k]
-			mm.instance_count = xf_v[k].size()
-			for i in xf_v[k].size():
-				mm.set_instance_transform(i, xf_v[k][i])
-			var mmi := MultiMeshInstance3D.new()
-			mmi.name = "PieuxBas%d" % k
-			mmi.multimesh = mm
-			add_child(mmi)
-	_liens_palissade(ouverture, [1.0, 2.3] if haute else [0.42, 0.98])
+			var bw := Basis(Vector3.UP, loc.randf() * TAU)
+			bw = Basis(Vector3(cos(ang), 0, -sin(ang)), loc.randf_range(-0.035, 0.035)) * Basis(Vector3(sin(ang), 0, cos(ang)), loc.randf_range(-0.02, 0.02)) * bw
+			bw = bw.scaled(Vector3(1, sy, 1))
+			var jit := Vector3(-dir.y, 0, dir.x) * loc.randf_range(-0.04, 0.04)
+			xf_v[loc.randi() % 4].append(Transform3D(inv.basis * bw, inv * (pw + jit)))
+			var cs := CollisionShape3D.new()
+			cs.shape = forme
+			cs.position = inv * (pw + Vector3(0, 1.8, 0))
+			corps.add_child(cs)
+	if rang_g.size() > 0:
+		_grille_eau(rang_g)
+	if rang.size() > 1:
+		rangs.append(rang)
+	# la palissade est fermée : le dernier rang rejoint le premier s'il n'y a ni porte ni grille entre eux
+	if rangs.size() > 1 and (rangs[0][0] as Vector3).distance_to(rangs[-1][-1]) < 0.6:
+		var dernier: Array = rangs.pop_back()
+		dernier.append_array(rangs[0])
+		rangs[0] = dernier
+	for k in 4:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = variantes[k]
+		mm.instance_count = xf_v[k].size()
+		for i in xf_v[k].size():
+			mm.set_instance_transform(i, xf_v[k][i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.name = "PieuxBas%d" % k
+		mmi.multimesh = mm
+		add_child(mmi)
+	_liens_v2(rangs, [0.42, 0.98])
+
+## Grille d'eau : pieux fins plantés dans le lit, trois lisses (bas, milieu, haut) qui suivent la grille, pointes enneigées.
+func _grille_eau(rang: Array) -> void:
+	var p := _pivot(Vector3.ZERO, 0.0)
+	p.name = "GrilleEau"
+	var inv := global_transform.affine_inverse()
+	var r := RandomNumberGenerator.new()
+	r.seed = 6100 + rang.size()
+	var haut_max := -INF
+	for e in rang:
+		haut_max = maxf(haut_max, float(e[1]) + 1.3)
+	for e in rang:
+		var pied: Vector3 = e[0]
+		var h := haut_max - pied.y + 0.5
+		var c := inv * (pied + Vector3(0, h * 0.5 - 0.5, 0))
+		_cylindre(p, 0.075, 0.09, h, Transform3D(Basis(Vector3.UP, r.randf() * TAU), c), m_palissade, 6)
+		_cylindre(p, 0.0, 0.075, 0.22, Transform3D(Basis(), inv * (pied + Vector3(0, h - 0.5 + 0.11, 0))), m_neige, 6)
+	# lisses : d'un bout à l'autre de la grille, à 3 hauteurs fixes au-dessus de l'eau la plus haute
+	var a: Vector3 = rang[0][0]
+	var b: Vector3 = rang[-1][0]
+	for dy in [-0.9, -0.15, 0.55]:
+		var ya: float = haut_max + dy
+		var pa := Vector3(a.x, ya, a.z)
+		var pb := Vector3(b.x, ya, b.z)
+		var lg := pa.distance_to(pb) + 0.4
+		var d := (pb - pa).normalized()
+		var ang := atan2(d.x, d.z)
+		_boite(p, Vector3(0.11, 0.13, lg), inv * Transform3D(Basis(Vector3.UP, ang), (pa + pb) * 0.5), m_poutres_h)
+		if dy > 0.5:
+			_boite(p, Vector3(0.16, 0.06, lg), inv * Transform3D(Basis(Vector3.UP, ang), (pa + pb) * 0.5 + Vector3(0, 0.09, 0)), m_neige)
+	# deux gros poteaux d'about (sur les berges)
+	for e in [rang[0], rang[-1]]:
+		var pied: Vector3 = e[0]
+		var dd: Vector3 = (b - a).normalized() * (-0.45 if e == rang[0] else 0.45)
+		var q := pied + Vector3(dd.x, 0, dd.z)
+		var yq := h_sol(q.x, q.z)
+		var h := haut_max + 0.9 - yq
+		_cylindre(p, 0.2, 0.22, h, Transform3D(Basis(), inv * Vector3(q.x, yq + h * 0.5 - 0.3, q.z)), m_palissade, 7)
+
+## Liens de corde (côté intérieur) d'un pieu au suivant, à hauteur constante au-dessus du pied de chaque pieu.
+func _liens_v2(rangs: Array, hauteurs: Array) -> void:
+	var inv := global_transform.affine_inverse()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for rg in rangs:
+		for i in rg.size() - 1:
+			var a: Vector3 = rg[i]
+			var b: Vector3 = rg[i + 1]
+			if a.distance_to(b) > 1.2:
+				continue
+			var d := (b - a)
+			d.y = 0.0
+			d = d.normalized()
+			var nrm := Vector3(-d.z, 0, d.x)
+			var m := (a + b) * 0.5
+			if not ReliefVillage.dans_enceinte(m.x + nrm.x * 0.6, m.z + nrm.z * 0.6):
+				nrm = -nrm
+			for hy in hauteurs:
+				var p0: Vector3 = inv * (a + nrm * 0.2 + Vector3(0, hy, 0))
+				var p1: Vector3 = inv * (b + nrm * 0.2 + Vector3(0, hy, 0))
+				var dv := Vector3(0, 0.07, 0)
+				var nl: Vector3 = inv.basis * nrm
+				for tri in [[p0 - dv, p1 - dv, p1 + dv], [p0 - dv, p1 + dv, p0 + dv]]:
+					for v: Vector3 in tri:
+						st.set_normal(nl)
+						st.add_vertex(v)
+	var mi := MeshInstance3D.new()
+	mi.name = "LiensPalissade"
+	mi.mesh = st.commit()
+	mi.material_override = m_foin
+	add_child(mi)
 
 ## Pieu taillé à la hache : fût à 7 pans irréguliers (rayon ~0,17 m, de -0,3 à ~1,15 m), pointe à 4-5 facettes jusqu'à
 ## ~1,55 m, pointe un peu décentrée. Couleur de sommet : rgb = usure/occlusion (pied et fentes sombres, arêtes de la taille
@@ -1585,32 +1777,16 @@ func _tri_plat(st: SurfaceTool, p: Array, cols: Array) -> void:
 		st.set_color(cols[i])
 		st.add_vertex(p[i])
 
-## Liens de corde : deux rubans autour de la palissade (côté intérieur), aux hauteurs données ; coupés à la porte.
-func _liens_palissade(ouverture: float, hauteurs: Array) -> void:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var pas := 96
-	for hy in hauteurs:
-		for i in pas:
-			var a0 := TAU * i / pas
-			var a1 := TAU * (i + 1) / pas
-			if absf(wrapf(a0, -PI, PI)) < ouverture or absf(wrapf(a1, -PI, PI)) < ouverture:
-				continue
-			var r := RAYON - 0.2
-			var p0 := Vector3(sin(a0) * r, hy, cos(a0) * r)
-			var p1 := Vector3(sin(a1) * r, hy, cos(a1) * r)
-			var d := Vector3(0, 0.07, 0)
-			for tri in [[p0 - d, p1 - d, p1 + d], [p0 - d, p1 + d, p0 + d]]:
-				for v: Vector3 in tri:
-					st.set_normal(Vector3(-v.x, 0, -v.z).normalized())
-					st.add_vertex(v)
-	var mi := MeshInstance3D.new()
-	mi.mesh = st.commit()
-	mi.material_override = m_foin
-	add_child(mi)
-
 func _porte() -> void:
-	var p := _pivot(Vector3(0, 0, RAYON), 0.0)
+	_porte_en(_pivot(Vector3(0, 0, RAYON), 0.0), true)
+
+## Portes N et E de la palissade prolongée (C7b) : même modèle que la porte SO, sans torches (lanterne émissive à la poutre).
+func _porte_v2(c: Vector2, lacet: float) -> void:
+	var p := pivot_monde(c.x, c.y, lacet, h_sol(c.x, c.y))
+	p.name = "Porte_%d" % roundi(c.x)
+	_porte_en(p, false)
+
+func _porte_en(p: Node3D, torches: bool) -> void:
 	for cote in [-1.0, 1.0]:
 		var x: float = cote * (DEMI_PORTE + 0.15)
 		# poteau octogonal sur un socle de pierre, tête de dragon sculptée au sommet
@@ -1628,9 +1804,12 @@ func _porte() -> void:
 			_cylindre(p, 0.33, 0.36, 0.14, Transform3D(Basis(), Vector3(x, 5.24, 0)), m_neige, 8)
 		# contrefiche : jambe de force entre le poteau et la poutre
 		_boite(p, Vector3(0.16, 1.3, 0.16), Transform3D(Basis(Vector3.BACK, -cote * 0.75), Vector3(x - cote * 0.55, 4.2, 0)), m_poutres)
-		# torche fixée au poteau, côté intérieur
-		_boite(p, Vector3(0.07, 0.6, 0.07), Transform3D(Basis(Vector3.RIGHT, 0.35), Vector3(x - cote * 0.05, 2.5, -0.42)), m_ecorce)
-		_feu(p, Vector3(x - cote * 0.05, 2.9, -0.55), 0.8, 1.5, 9.0)
+		if torches:
+			# torche fixée au poteau, côté intérieur
+			_boite(p, Vector3(0.07, 0.6, 0.07), Transform3D(Basis(Vector3.RIGHT, 0.35), Vector3(x - cote * 0.05, 2.5, -0.42)), m_ecorce)
+			_feu(p, Vector3(x - cote * 0.05, 2.9, -0.55), 0.8, 1.5, 9.0)
+	if not torches:
+		VillageBati.lanterne(self, p, Vector3(0, 4.49, 0.32), 0.0)   # lanterne pendue sous la poutre, côté dehors
 	_boite(p, Vector3(DEMI_PORTE * 2 + 1.2, 0.42, 0.42), Transform3D(Basis(), Vector3(0, 4.7, 0)), m_poutres_h)
 	if _sans_refonte:
 		_boite(p, Vector3(DEMI_PORTE * 2 + 1.4, 0.22, 0.66), Transform3D(Basis(), Vector3(0, 5.0, 0)), m_neige)
@@ -1644,8 +1823,8 @@ func _porte() -> void:
 ## une pente, mur de fond en pierre, murs latéraux de pierre sèche, façade de planches (double porte à deux vantaux,
 ## fenêtre à volet relevé). Foyer, enclume, soufflet, bac de trempe, réserves : `InterieurForge`.
 ## Repère local : -Z = le fond (foyer), +Z = la façade ; le sol est au niveau du village (y = 0), sans marche.
-func _forge(centre: Vector3) -> void:
-	var p := _pivot(centre, PI * 0.5)
+func _forge(centre: Vector3, lacet := PI * 0.5) -> Node3D:
+	var p := _pivot(centre, lacet)
 	p.name = "Forge"
 	var ip := Interieur.new()
 	ip.name = "Interieur"
@@ -1719,6 +1898,8 @@ func _forge(centre: Vector3) -> void:
 		ib.fenetre_cadre(-1.4, (fe[2] + fe[3]) * 0.5, 1.72, 1.0, 0.5, (fe[3] - fe[2]) * 0.5)
 		ib.contenu("forge")
 		ib.finir())
+	_emprise(p, Vector2(2.6, 2.6), Vector2(0, -0.3), ip)
+	return p
 
 func _puits(centre: Vector3) -> void:
 	var p := _pivot(centre, 0.3)
@@ -1756,8 +1937,8 @@ func _brasero(centre: Vector3) -> void:
 	for i in 3:
 		_boite(p, Vector3(0.44, 0.22, 0.44), Transform3D(Basis(Vector3.UP, i * 0.6), Vector3(1.6, 1.4 + i * 0.85, -0.6)), m_poutres_h)
 
-func _enclos(centre: Vector3) -> void:
-	var p := _pivot(centre, 0.0)
+func _enclos(centre: Vector3, lacet := 0.0) -> Node3D:
+	var p := _pivot(centre, lacet)
 	var demi := Vector2(3.5, 2.5)
 	for x in range(-7, 8):
 		for z in [-demi.y, demi.y]:
@@ -1790,6 +1971,7 @@ func _enclos(centre: Vector3) -> void:
 	_boite(p, Vector3(2.6, 0.1, 0.1), Transform3D(Basis(), Vector3(0, 1.95, demi.y + 2.2)), m_poutres_h)
 	for x in [-0.6, 0.6]:
 		_boite(p, Vector3(0.9, 1.2, 0.04), Transform3D(Basis(Vector3.FORWARD, x * 0.1), Vector3(x, 1.3, demi.y + 2.2)), m_cuir)
+	return p
 
 func _tonneau(parent: Node3D, pos: Vector3) -> void:
 	_cylindre(parent, 0.3, 0.3, 0.8, Transform3D(Basis(), pos + Vector3(0, 0.4, 0)), m_poutres, 8, true)
