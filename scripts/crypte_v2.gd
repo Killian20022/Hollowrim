@@ -118,7 +118,28 @@ static func _obstacles(k: DonjonKit, m: Dictionary, v2: Dictionary) -> Dictionar
 			(ob[w[0]] as Array).append([w[1], float(oc[1])])
 	for c: String in k._v2_obst:
 		(ob[c] as Array).append_array(k._v2_obst[c])
+	# audit des interpénétrations : meubles et objets adossés au mur (coffres, lits, tonneaux, sarcophages…) — ni panneau ni pilier
+	# engagé derrière eux (ils s'y enfonçaient de 10 à 70 cm)
+	for e: Array in k.d.emprises:
+		if e[4] in SANS_OBSTACLE:
+			continue
+		var pe: Vector3 = e[0]
+		var dm: Vector2 = e[1]
+		var bs := Basis(Vector3.UP, float(e[2]))
+		var ax: Vector3 = bs * Vector3.RIGHT
+		var az: Vector3 = bs * Vector3.BACK
+		for c: String in ["N", "S", "O", "E"]:
+			var pm := k.plan_mur(m, c)
+			var v: Vector3 = pm["vers"]
+			var dist: float = ((pe.z if pm["horiz"] else pe.x) - float(pm["plan"])) * (v.z if pm["horiz"] else v.x)
+			var hn := absf(v.dot(ax)) * dm.x + absf(v.dot(az)) * dm.y
+			if dist - hn < 0.42 and dist > -0.5:
+				var dr := Vector3(1, 0, 0) if pm["horiz"] else Vector3(0, 0, 1)
+				var hl := absf(dr.dot(ax)) * dm.x + absf(dr.dot(az)) * dm.y
+				(ob[c] as Array).append([pe.x if pm["horiz"] else pe.z, hl + 0.08])
 	return ob
+
+const SANS_OBSTACLE := ["bougie", "crane", "flaque", "os_tas", "crane_os", "arme", "eboulis_a", "eboulis_b", "eboulis_c", "dalles_a", "dalles_b", "dalles_c", "congere", "gravats", "parchemins_epars"]
 
 ## Décalage des objets accrochés au mur (bannières, boucliers, gravures, fissures) : devant les panneaux, sauf dans une ouverture.
 ## Appelé par CrypteDecor._saillie (lié au module : saillie.bind(k, m)).
@@ -306,19 +327,19 @@ static func _auto_contenu(k: DonjonKit, m: Dictionary, v2: Dictionary) -> void:
 		var a: float = cd[1]
 		var pm := k.plan_mur(m, c)
 		var vv: Vector3 = pm["vers"]
-		var p := k.pt_mur(m, c, a, y, 0.5)
-		if not _libre(k, m, p, 0.45, -0.9):
+		var p := k.pt_mur(m, c, a, y, 0.72)      # dos de la statue (0,45 m) devant le soubassement (0,2 m)
+		if not _libre(k, m, p, 0.45, -1.2):
 			continue
 		var dr: Vector3 = Vector3.UP.cross(vv).normalized()
 		var cote := 1.0 if r.randf() < 0.5 else -1.0
 		var pc := p + dr * cote * 0.85 - vv * 0.1
-		if not _libre(k, m, pc, 0.25, -0.9):
+		if not _libre(k, m, pc, 0.25, -1.2):
 			cote = -cote
 			pc = p + dr * cote * 0.85 - vv * 0.1
 		faites += 1
 		v2["statues"].append({"pos": k.mw(p), "lacet": k.mlacet(atan2(vv.x, vv.z))})
 		_ajoute_obst(k, c, a, 0.55)
-		if _libre(k, m, pc, 0.25, -0.9):
+		if _libre(k, m, pc, 0.25, -1.2):
 			v2["candelabres"].append({"pos": k.mw(pc)})
 			k._reserves.append([Vector2(pc.x, pc.z), 0.4])
 		k._reserves.append([Vector2(p.x, p.z), 0.8])
@@ -356,8 +377,8 @@ static func _auto_contenu(k: DonjonKit, m: Dictionary, v2: Dictionary) -> void:
 		var c: String = ["N", "S", "E", "O"][r.randi_range(0, 3)]
 		var pm := k.plan_mur(m, c)
 		var Lw := dim.x if pm["horiz"] else dim.y
-		var p := k.pt_mur(m, c, r.randf_range(-Lw * 0.5 + 0.8, Lw * 0.5 - 0.8), y, r.randf_range(0.4, 0.62))
-		if not _libre(k, m, p, 0.25, -0.75):
+		var p := k.pt_mur(m, c, r.randf_range(-Lw * 0.5 + 0.8, Lw * 0.5 - 0.8), y, r.randf_range(0.4, 0.62) + 0.22)      # devant les panneaux (0,3 m)
+		if not _libre(k, m, p, 0.3, -1.0):
 			continue
 		var t := r.randf()
 		if t < 0.4:
@@ -399,6 +420,8 @@ static func _boites_sol(k: DonjonKit, m: Dictionary) -> Array:
 ## libre() du kit + aucune boîte de collision du récit sous l'objet (rayon r).
 static func _libre(k: DonjonKit, m: Dictionary, p: Vector3, r: float, marge: float) -> bool:
 	if not k.libre(m, p, r, marge):
+		return false
+	if not k.d.emprise_libre(p, r, 0.05):      # rien DANS un objet déjà posé (récit, détritus, congères)
 		return false
 	for b: Rect2 in k._v2_boites:
 		if b.grow(r + 0.12).has_point(Vector2(p.x, p.z)):
@@ -465,7 +488,11 @@ static func finir(k: DonjonKit, m: Dictionary) -> void:
 		var murs: Array = ["N", "S"] if long_x else ["O", "E"]
 		var nb_b := 0
 		for c: String in murs:
-			var libres := _libres_mur(k, m, c, obst[c], 0.5)
+			var obs_b: Array = (obst[c] as Array).duplicate()
+			for oc: Array in k._occ_mur:      # pas de bannière sur une applique
+				if oc[0] == c:
+					obs_b.append([oc[1], float(oc[2]) + 0.35])
+			var libres := _libres_mur(k, m, c, obs_b, 0.5)
 			libres.sort_custom(func(a: Array, b: Array) -> bool: return (a[1] - a[0]) > (b[1] - b[0]))
 			if libres.is_empty() or libres[0][1] - libres[0][0] < 1.4:
 				continue
@@ -592,7 +619,7 @@ static func couloir(k: DonjonKit, m: Dictionary) -> void:
 			if ou[0] == cote and absf(zz - float(ou[1])) < float(ou[2]) * 0.5 + 0.5:
 				cote = "O" if cote == "E" else "E"
 		var pm := k.plan_mur(m, cote)
-		d.applique(Vector3(pm["plan"], y, zz) + (pm["vers"] as Vector3) * 0.2, pm["vers"], y + 2.0, 4.8, 1.6, true)
+		d.applique(Vector3(pm["plan"], y, zz) + (pm["vers"] as Vector3) * 0.3, pm["vers"], y + 2.0, 4.8, 1.6, true)      # sur les blocs du panneau
 		k._jitter_derniere_lumiere(th == "glace")
 		sg = -sg
 	# auto : éboulis / dalles soulevées au bord, une flaque (emplacement d'eau) si le couloir est assez long
@@ -704,6 +731,12 @@ static func piece_tertre(d: CrypteDecor, id: String, x0: float, x1: float, z0: f
 	for oc: Array in d.occupations:      # objets plaqués au mur par tertre.gd (repère de la crypte) -> repère local
 		occ.append([(oc[0] as Vector3) - centre, oc[1]])
 	d.occupations = occ
+	var emp_tertre := d.emprises
+	d.emprises = []
+	for e: Array in emp_tertre:      # emprises de tertre.gd (repère de la crypte) -> repère local de la pièce
+		var e2 := e.duplicate()
+		e2[0] = (e[0] as Vector3) - centre
+		d.emprises.append(e2)
 	var v2 := reglages(m)
 	if t.get("arches", false) or not (v2["piliers"] as Array).is_empty() or v2["panneaux"]:
 		v2["haut_panneau"] = minf(float(v2["haut_panneau"]), h - 0.35)
@@ -713,6 +746,11 @@ static func piece_tertre(d: CrypteDecor, id: String, x0: float, x1: float, z0: f
 	_donnees(k, m, v2, 0.0)
 	d.poussiere(Vector3(0, h * 0.4, 0), Vector3(dim.x * 0.4, h * 0.35, dim.y * 0.4), 18)
 	d.occupations = []
+	for i in range(emp_tertre.size(), d.emprises.size()):      # ce que la table de la pièce a posé rejoint les emprises du tertre
+		var e3: Array = d.emprises[i]
+		e3[0] = (e3[0] as Vector3) + centre
+		emp_tertre.append(e3)
+	d.emprises = emp_tertre
 	if t.get("chaines", false):
 		var r := d.rng_deco
 		var long_x := dim.x >= dim.y

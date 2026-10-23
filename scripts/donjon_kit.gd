@@ -47,10 +47,80 @@ var _v2_ban0 := 0                # bannières déjà posées au début du module
 var _n_lum0 := 0                 # lumières déjà posées au début du module
 var _n_corps0 := 0               # collisions déjà posées au début du module (CrypteV2._boites_sol)
 var _v2_boites: Array = []       # boîtes de collision du module en cours (repère local, Rect2 en x,z)
+var _differes: Array = []       # décor tiré AVANT le récit (détritus, congères, glaçons) : émis après lui, là où la place est libre
 var v2_stats: Dictionary = {}    # id -> {statues, candelabres, lumieres_statue, piliers, bannieres, flaques} (outils/sonde_crypte_v2.gd)
 
 func _init(decor: CrypteDecor) -> void:
 	d = decor
+
+# ------------------------------------------------------------------ décor différé (audit des interpénétrations, 2026-10-23)
+## Diffère un décor tiré au hasard avant le récit de la salle : `fn(decalage: Vector3, echelle: float)` est appelé une première fois
+## EN SILENCE (d.muet) pour consommer ses tirages aléatoires ICI (la suite du module, gravats et collisions compris, ne bouge pas),
+## puis pour de bon après le récit (_emettre_differes), avec les mêmes tirages, déplacé ou réduit si sa place est prise.
+## genre : "sol" (détritus : déplacé de proche en proche, sinon omis), "amas" (congère d'angle : réduite sur place, sinon omise),
+## "plafond" (glaçon : omis s'il tombe dans un pilier).
+func differer(pos: Vector3, r: float, fn: Callable, genre := "sol") -> void:
+	var st := d.rng.state
+	var st2 := d.rng_deco.state
+	d.muet = true
+	fn.call(Vector3.ZERO, 1.0)
+	d.muet = false
+	_differes.append([pos, r, fn, st, st2, genre])
+
+func _emettre_differes(m: Dictionary) -> void:
+	if _differes.is_empty():
+		return
+	var boites := CrypteV2._boites_sol(self, m)
+	var liste := _differes
+	_differes = []
+	for e: Array in liste:
+		var p: Vector3 = e[0]
+		var r: float = e[1]
+		var genre: String = e[5]
+		var dp := Vector3.ZERO
+		var ech := 1.0
+		var ok := _place_differee(m, p, r, boites, genre)
+		if not ok and genre == "sol":
+			for k in 16:
+				var ang := k * 2.39996
+				var q := p + Vector3(cos(ang), 0.0, sin(ang)) * (r + 0.3 + 0.2 * (k / 4))
+				if _place_differee(m, q, r, boites, genre):
+					dp = q - p
+					ok = true
+					break
+		elif not ok and genre == "amas":
+			for f: float in [0.7, 0.5]:
+				if _place_differee(m, p, r * f, boites, genre):
+					ech = f
+					ok = true
+					break
+		if not ok:
+			continue
+		var sv := d.rng.state
+		var sv2 := d.rng_deco.state
+		d.rng.state = e[3]
+		d.rng_deco.state = e[4]
+		(e[2] as Callable).call(dp, ech)
+		d.rng.state = sv
+		d.rng_deco.state = sv2
+		if genre != "plafond":
+			_reserves.append([Vector2(p.x + dp.x, p.z + dp.z), r * ech])
+
+func _place_differee(m: Dictionary, p: Vector3, r: float, boites: Array, genre: String) -> bool:
+	var dim: Vector2 = m["dim"]
+	var q := Vector2(p.x, p.z)
+	var rr := r * (0.7 if genre == "amas" else 1.0)       # congère : seule la partie dans la pièce compte (adossée aux murs)
+	for b: Rect2 in boites:
+		if b.grow(rr + 0.05).has_point(q):
+			return false
+	if genre == "plafond":
+		return true
+	if genre == "sol" and (absf(p.x) > dim.x * 0.5 - 0.3 - 0.32 - r or absf(p.z) > dim.y * 0.5 - 0.3 - 0.32 - r):
+		return false      # hors du soubassement et des panneaux de maçonnerie (saillie <= 0,32 m)
+	for rv: Array in _reserves:
+		if q.distance_to(rv[0]) < rr + float(rv[1]) * 0.6:
+			return false
+	return d.emprise_libre(p, rr, 0.05)
 
 # ------------------------------------------------------------------ repères
 func mw(v: Vector3) -> Vector3:
@@ -169,6 +239,7 @@ func module(m: Dictionary) -> void:
 	_n_corps0 = d.corps.get_child_count()
 	_v2_boites = []
 	_occ_mur = []
+	_differes = []
 	if CrypteV2.auto(m) and type != "escalier":
 		d.saillie_cb = CrypteV2.saillie.bind(self, m)      # bannières, boucliers, gravures : devant les panneaux de maçonnerie
 	var y := float(m.get("y", 0.0))
@@ -224,6 +295,7 @@ func module(m: Dictionary) -> void:
 			_usure(m)
 		if m.has("extra"):
 			call(m["extra"], m)
+		_emettre_differes(m)
 		if v2_actif:
 			CrypteV2.finir(self, m)      # mode auto : piliers, panneaux, bannières, lumières de statue (après le récit de la salle)
 	# accroches de la table : écrites en repère de la CRYPTE (monde), converties ici en repère local (donc suivent rotation et miroir)
@@ -409,7 +481,7 @@ func _ambiance(m: Dictionary) -> void:
 			break
 		var pm := plan_mur(m, cd[1])
 		var base: Vector3 = pt_mur(m, cd[1], cd[2], 0.0)
-		var ret_v2: Vector3 = (pm["vers"] as Vector3) * 0.2 if CrypteV2.actif(m) else Vector3.ZERO      # crypte v2 : le panneau de maçonnerie avance de 22 cm
+		var ret_v2: Vector3 = (pm["vers"] as Vector3) * 0.3 if CrypteV2.actif(m) else Vector3.ZERO      # crypte v2 : sur les blocs du panneau de maçonnerie (saillie <= 0,3 m)
 		d.applique(Vector3(base.x, y, base.z) + ret_v2, pm["vers"], y + minf(h - 1.2, 2.4), 5.0 + alea(-0.3, 0.8), 1.6 + alea(-0.15, 0.25), true)
 		_jitter_derniere_lumiere(false)
 		_occ_mur.append([cd[1], float(cd[2]), 0.45])
@@ -424,15 +496,20 @@ func _ambiance(m: Dictionary) -> void:
 	var nbm := clampi(int(aire / 60.0), 2, 7)
 	for i in nbm:
 		var p := Vector3(alea(-dim.x * 0.5 + 1.0, dim.x * 0.5 - 1.0), y, alea(-dim.y * 0.5 + 1.0, dim.y * 0.5 - 1.0))
-		match d.rng.randi_range(0, 4):
-			0: d.os_tas(p, 3, 0.3)
-			1: d.arme(p, d.rng.randf() * TAU)
-			2: d.urne(p, alea(0.8, 1.1))
-			3: d.crane(p, d.rng.randf() * TAU)
-			_: d.os_tas(p, 4, 0.4)
+		var choix := d.rng.randi_range(0, 4)
+		# audit des interpénétrations : posés au hasard AVANT le récit, ils tombaient dans les meubles, les statues, les coffres → différés
+		differer(p, [0.45, 0.55, 0.3, 0.12, 0.55][choix], _detritus.bind(choix, p))
 	if froid:
 		_deco_froid(m)
 	_ambiance_matiere(m, nb_lum0)
+
+func _detritus(dp: Vector3, _e: float, choix: int, p: Vector3) -> void:
+	match choix:
+		0: d.os_tas(p + dp, 3, 0.3)
+		1: d.arme(p + dp, d.rng.randf() * TAU)
+		2: d.urne(p + dp, alea(0.8, 1.1))
+		3: d.crane(p + dp, d.rng.randf() * TAU)
+		_: d.os_tas(p + dp, 4, 0.4)
 
 ## Refonte matière (références grottes_cryptes_2/3) : lustre de fer à bougies, statues encapuchonnées, sceau bleu, brume au sol.
 ## RNG séparé (rng_deco) ; budget : 6 lumières au plus par salle (le lustre et le sceau n'ont de lumière que s'il en reste).
@@ -786,11 +863,18 @@ func _deco_froid(m: Dictionary) -> void:
 	var y := float(m.get("y", 0.0))
 	var n := clampi(int(dim.x * dim.y / 18.0), 2, 14)
 	for i in n:
-		glacon(Vector3(alea(-dim.x * 0.5 + 0.8, dim.x * 0.5 - 0.8), y + h, alea(-dim.y * 0.5 + 0.8, dim.y * 0.5 - 0.8)), alea(0.45, 1.2), alea(0.1, 0.14))
+		var pg := Vector3(alea(-dim.x * 0.5 + 0.8, dim.x * 0.5 - 0.8), y + h, alea(-dim.y * 0.5 + 0.8, dim.y * 0.5 - 0.8))
+		var lg := alea(0.45, 1.2)
+		var rg := alea(0.1, 0.14)
+		differer(Vector3(pg.x, y, pg.z), rg + 0.05, func(dp: Vector3, _e: float) -> void: glacon(pg + dp, lg, rg), "plafond")      # pas dans un pilier
 	if dim.x > 6.0 and dim.y > 6.0:
 		for cn: Array in [[-1, -1], [1, -1], [1, 1], [-1, 1]]:
 			if d.rng.randf() < 0.6:
-				congere(Vector3(cn[0] * (dim.x * 0.5 - 1.0), y, cn[1] * (dim.y * 0.5 - 1.0)), alea(1.2, 1.8), alea(0.5, 0.75))
+				var pc := Vector3(cn[0] * (dim.x * 0.5 - 1.0), y, cn[1] * (dim.y * 0.5 - 1.0))
+				var rc := alea(1.2, 1.8)
+				var hc := alea(0.5, 0.75)
+				# congère adossée à l'angle : jamais sur un coffre, un brasero, une statue, une accroche (réduite, sinon omise)
+				differer(pc, rc, func(dp: Vector3, e: float) -> void: congere(pc + dp, rc * e, hc * maxf(e, 0.7)), "amas")
 
 ## Couloir : arcs sur pilastres tous les 4 m, appliques alternées, détritus ; axe long = z local.
 func _couloir(m: Dictionary) -> void:
