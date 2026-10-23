@@ -55,7 +55,10 @@ var _lac_h := 0
 var _mats := {}
 
 ## Vrai si (x, z), de sol à `h` m, est sous le lac (ou sur sa rive immédiate) : forêt, rochers et touffes ne s'y posent pas.
+## Le pied de la cascade du moulin (6 m autour de LAC_ARRIVEE) reste dégagé lui aussi (un sapin y masquait la chute).
 static func sous_le_lac(x: float, z: float, h: float) -> bool:
+	if Vector2(x, z).distance_to(LAC_ARRIVEE) < 6.0:
+		return true
 	return LAC_RECT.has_point(Vector2(x, z)) and h < LAC_NIVEAU + 0.35
 
 static func creer(monde_: Node) -> EauVillage:
