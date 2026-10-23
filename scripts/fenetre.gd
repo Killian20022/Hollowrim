@@ -5,17 +5,20 @@ extends Node
 ## Le choix est retenu dans user://fenetre.cfg et rétabli au lancement.
 
 const FICHIER := "user://fenetre.cfg"
+const HORS_ECRAN := Vector2i(-32000, -32000)
 
 func _init() -> void:
 	# --hors-ecran (ajouté par godot_slot.sh aux lancements des agents) : la fenêtre rend
 	# normalement mais hors de l'écran, pour ne jamais rester figée devant l'utilisateur
 	if OS.get_cmdline_user_args().has("--hors-ecran") and DisplayServer.get_name() != "headless":
-		DisplayServer.window_set_position(Vector2i(-32000, -32000))
+		DisplayServer.window_set_position(HORS_ECRAN)
 	# lecture en tâche de fond des modèles d'humains pendant que la scène se compile (voir Prechargement)
 	if not OS.get_cmdline_args().has("--script") and not OS.get_cmdline_args().has("-s"):
 		Prechargement.lancer()
 
 func _ready() -> void:
+	if OS.get_cmdline_user_args().has("--hors-ecran") and DisplayServer.get_name() != "headless":
+		_tenir_hors_ecran()
 	# ni en headless ni pendant les captures/tests (leurs images doivent rester comparables)
 	if DisplayServer.get_name() == "headless" or OS.get_cmdline_user_args().size() > 0:
 		return
@@ -37,3 +40,11 @@ func basculer() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("fenetre", "plein_ecran", plein)
 	cfg.save(FICHIER)
+
+## Godot recentre la fenêtre après les autoloads (taille imposée par window_*_override) :
+## on la renvoie hors écran pendant les premières images.
+func _tenir_hors_ecran() -> void:
+	for i in 120:
+		if DisplayServer.window_get_position() != HORS_ECRAN:
+			DisplayServer.window_set_position(HORS_ECRAN)
+		await get_tree().process_frame
