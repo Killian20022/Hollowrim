@@ -105,6 +105,10 @@ func _demarrer() -> void:
 		print("AUDIT entrée crypte (_basculer) : %.1f ms" % ((Time.get_ticks_usec() - t1) / 1000.0))
 		m._sous_terre(true)
 	else:
+		var tt2 := Time.get_ticks_msec()
+		while m.grotte_acces.grotte == null and Time.get_ticks_msec() - tt2 < 60000:
+			await process_frame
+		print("AUDIT grotte prête (fil de fond + pose) après %d ms de jeu" % (Time.get_ticks_msec() - tt2))
 		var t1 := Time.get_ticks_usec()
 		m.grotte = m.grotte_acces.obtenir()
 		print("AUDIT grotte obtenir (construction si pas prête) : %.1f ms" % ((Time.get_ticks_usec() - t1) / 1000.0))

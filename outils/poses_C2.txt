@@ -1,0 +1,10 @@
+# Lot C2 : bouche de grotte
+b_loin monde 72,-27,-90,-4 heure=17.5 sans-mains
+b_12m monde 80,-27,-90,-6 heure=17.5 sans-mains
+b_5m monde 87,-27,-90,-8 heure=17.5 sans-mains
+b_34 monde 84,-33,-60,-8 heure=17.5 sans-mains
+b_midi monde 80,-27,-90,-6 heure=12 sans-mains
+b_nuit monde 84,-27,-90,-6 sans-mains
+d_entree grotte 3,0,0,-8 sans-mains
+d_retour grotte 11,0,180,0 sans-mains
+d_pente grotte 9,0,0,-6 sans-mains

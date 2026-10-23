@@ -27,6 +27,7 @@ const R_FONDU := 14.0                         # fin du raccord avec le relief
 const ARRIVEE_S := 5.0                        # abscisse d'arrivée dans la grotte (pente d'entrée)
 const SORTIE_S := 1.9                         # abscisse de l'interactif de sortie
 const SEUIL_Y := -182.0                       # au-dessous : sauvegardé dans la grotte (la crypte est à -140)
+const DELAI_PREPARATION := 6.0                # secondes après l'arrivée dans le monde : la grotte se construit en fond même loin
 const DEPART_FIL := 85.0                      # le fil de construction part quand le joueur est à moins de 85 m
 
 var monde: Node3D
@@ -94,7 +95,7 @@ func _toit(xl: float, zl: float) -> float:
 	return maxf(terr, pr)
 
 ## Triangle de roche : normale tournée vers `ref`, neige sur les faces qui regardent le haut, AO peinte par sommet.
-func _roche(a: Vector3, b: Vector3, c: Vector3, ref: Vector3, ao: Array, nom := "c_roche_neige", neige := 1.0) -> void:
+func _roche(a: Vector3, b: Vector3, c: Vector3, ref: Vector3, ao: Array, nom := "c_roche_bouche", neige := 1.0) -> void:
 	var n := (b - a).cross(c - a).normalized()
 	var ct := (a + b + c) / 3.0
 	if n.dot(ref - ct) < 0.0:
@@ -339,6 +340,31 @@ func _signes_des_bandits() -> void:
 	decor.solide_rond(e + Vector3(0, 1.5, 0), 0.07, 3.0)
 	# brasero allumé : repère de nuit, rayon court
 	_brasero(_sol(3.0, 4.6))
+	_portique()
+
+## C2 : portique de bois à la bouche (poteaux, linteau, jambes de force) et lanterne chaude pendue au linteau, comme la planche
+## grotte_v2 (vues 1-2) : la bouche se lit de loin par sa lueur orange au milieu des roches froides, et la lumière se prolonge dedans.
+func _portique() -> void:
+	var zp := 1.3
+	var xg := -3.0
+	var xd := 3.0
+	var h := 3.5
+	var pg := _sol(xg, zp)
+	var pd := _sol(xd, zp)
+	decor.prisme("bois", pg + Vector3(0, -0.2, 0), pg + Vector3(0, h, 0), 0.15, 6)
+	decor.prisme("bois", pd + Vector3(0, -0.2, 0), pd + Vector3(0, h, 0), 0.15, 6)
+	decor.solide_rond(pg + Vector3(0, 1.5, 0), 0.17, 3.0)
+	decor.solide_rond(pd + Vector3(0, 1.5, 0), 0.17, 3.0)
+	var yl := maxf(pg.y, pd.y) + h - 0.1
+	decor.prisme("bois", Vector3(xg - 0.35, yl, zp), Vector3(xd + 0.35, yl, zp), 0.13, 6)
+	for s: float in [-1.0, 1.0]:
+		var p := pg if s < 0.0 else pd
+		decor.prisme("bois", p + Vector3(0, h - 0.9, 0), Vector3(p.x - s * 0.9, yl - 0.05, zp), 0.07, 5)
+		decor.boite("fer", Vector3(p.x, yl, zp), Vector3(0.34, 0.05, 0.3))
+	var lx := 1.7
+	var ch := decor.lanterne(Vector3(lx, yl - 0.1, zp + 0.1), 0.45)
+	decor.lumiere(ch + Vector3(0.0, 0.0, 1.0), CrypteDecor.FEU, 2.2, 9.0, 1.5)
+	decor.lumiere(Vector3(0.0, 1.4, -1.0), CrypteDecor.FEU, 1.0, 5.0, 1.5)
 
 ## Brasero de fer sur trois pieds (le « mur0 » du brasero de la crypte n'existe pas dans la grotte) : cuve de fer, braises, flamme, lueur.
 func _brasero(pos: Vector3) -> void:
@@ -374,7 +400,7 @@ func _ruban_piste() -> void:
 			var xl := zw - SITE.y
 			var zl := SITE.x - x
 			var p := _sol(xl, zl) + Vector3(0, 0.07, 0)
-			var masque := (1.0 - absf(float(j)) / 3.0) * (0.92 + 0.16 * GrotteDecor.hash2(x * 1.9, float(j) * 3.1)) * fin_o
+			var masque := clampf((3.0 - absf(float(j))) * 0.75, 0.0, 1.0) * (0.92 + 0.16 * GrotteDecor.hash2(x * 1.9, float(j) * 3.1)) * fin_o
 			ligne.append([p, Vector2((SITE.x - x) / 4.0, lat / 4.0 + 0.5), GrotteDecor.col(1.0, clampf(masque, 0.0, 1.0))])
 		lignes.append(ligne)
 	for i in n:
@@ -432,7 +458,8 @@ func _process(dt: float) -> void:
 	if not dedans:
 		if d < 60.0:
 			decor.vaciller(_t)
-		if d < DEPART_FIL and _tache < 0 and grotte == null:
+		# Construite en avance : dès que l'extérieur est posé et que le jeu a fini de charger (délai), ou plus tôt si on s'approche.
+		if _tache < 0 and grotte == null and (d < DEPART_FIL or _t > DELAI_PREPARATION):
 			_lancer_fil()
 		if d < 10.0 and quetes != null:
 			quetes.signaler("lieu:grotte")
