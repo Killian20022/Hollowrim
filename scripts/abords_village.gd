@@ -51,6 +51,9 @@ var _corps: StaticBody3D
 var _lumieres: Array = []               # [OmniLight3D, énergie, phase]
 var _t := 0.0
 var _nb_sapins := 0
+## C1b : maille des pavés (m, le long / en travers du sentier) ; 0,7 × 0,74 avant (grandes dalles plates)
+var dalle_su := 0.5
+var dalle_sv := 0.5
 
 ## Habille l'entrée du village de `monde` (sentier feu → porte). `graine` = variante.
 static func creer(monde_: Node, graine := 0) -> AbordsVillage:
@@ -216,8 +219,8 @@ func _dalles_segment(u0: float, u1: float) -> void:
 	var sites: Array[Vector2] = []
 	var joints := PackedFloat32Array()
 	var grille := {}
-	var su := 0.7
-	var sv := 0.74
+	var su := dalle_su
+	var sv := dalle_sv
 	var rang := 0
 	var u := u0
 	while u < u1 + su:
@@ -230,7 +233,7 @@ func _dalles_segment(u0: float, u1: float) -> void:
 				grille[cle] = []
 			grille[cle].append(sites.size())
 			sites.append(s)
-			joints.append(rng.randf_range(0.035, 0.065))
+			joints.append(rng.randf_range(0.03, 0.055))
 			v += sv * rng.randf_range(0.85, 1.2)
 		u += su * rng.randf_range(0.85, 1.15)
 		rang += 1
@@ -292,19 +295,27 @@ static func _couper(poly: Array[Vector2], s: Vector2, n: Vector2, lim: float) ->
 ## Une dalle : dessus en éventail (léger bombé, bascule), flancs jusque sous le sol. Neige : le bas des flancs (alpha 0)
 ## remplit les joints ; certains bords du dessus sont poudrés (plus sur les bords de la piste qu'au milieu, piétiné).
 func _dalle(poly: Array[Vector2], c2: Vector2, centre_v: float) -> void:
-	# pierre gris-brun moyenne, plus claire au sommet ; ~15 % à moitié enfouies (un bord passe sous la neige du sol)
-	var kt := rng.randf_range(0.9, 1.15)
-	var chaud := rng.randf_range(-0.02, 0.06)
-	var col_haut := Color(kt * 1.12 + chaud, kt * 1.1, kt * 1.08 - chaud * 0.5, 1.0)
-	var col_bord := Color(kt * 0.92 + chaud, kt * 0.9, kt * 0.9, 1.0)
-	var col_flanc := Color(kt * 0.6, kt * 0.6, kt * 0.63, 1.0)
+	# C1b (référence exterieurs_v2 vue 1) : pavé gris-bleu (parfois gris-brun), bombé (anneau intérieur + sommet : facettes
+	# éclairées / à l'ombre), bord plus sombre, liseré de neige ; ~15 % à moitié enfouis (un bord passe sous la neige du sol)
+	var kt := rng.randf_range(0.82, 1.1)
+	var chaud := rng.randf() < 0.25
+	var tc := Vector3(1.07, 1.0, 0.9) if chaud else Vector3(0.93, 0.97, 1.05)
+	var col_sommet := Color(kt * 1.12 * tc.x, kt * 1.12 * tc.y, kt * 1.12 * tc.z, 1.0)
+	var col_haut := Color(kt * tc.x, kt * tc.y, kt * tc.z, 1.0)
+	var col_bord := Color(kt * 0.74 * tc.x, kt * 0.74 * tc.y, kt * 0.76 * tc.z, 1.0)
+	var col_flanc := Color(kt * 0.5, kt * 0.5, kt * 0.54, 1.0)
 	var col_pied := Color(0.88, 0.88, 0.93, 0.0)
 	var enfouie := rng.randf() < 0.15
-	var p_neige := 0.35 + 0.45 * smoothstep(0.3, 1.25, absf(c2.y - centre_v))
+	var p_neige := 0.22 + 0.45 * smoothstep(0.3, 1.25, absf(c2.y - centre_v))
 	var pente := 0.07 if enfouie else 0.025
 	var bascule := Vector2(rng.randf_range(-1.0, 1.0), rng.randf_range(-1.0, 1.0)).normalized() * rng.randf_range(0.3, 1.0) * pente
-	var epais := rng.randf_range(-0.01, 0.01) if enfouie else rng.randf_range(0.025, 0.045)
+	var epais := rng.randf_range(-0.01, 0.01) if enfouie else rng.randf_range(0.02, 0.035)
+	var rayon := 0.0
+	for q in poly:
+		rayon = maxf(rayon, q.distance_to(c2))
+	var bombe := clampf(rayon * rng.randf_range(0.07, 0.12), 0.012, 0.04)
 	var haut: Array[Vector3] = []
+	var mil: Array[Vector3] = []
 	var bas: Array[Vector3] = []
 	var cols: Array[Color] = []
 	var y_moy := 0.0
@@ -313,6 +324,9 @@ func _dalle(poly: Array[Vector2], c2: Vector2, centre_v: float) -> void:
 		var y := _sol(w) + epais + (q - c2).dot(bascule) * 2.0
 		y_moy += y
 		haut.append(_l(w, y))
+		var qm := c2.lerp(q, 0.6)
+		var wm := _p(qm.x, qm.y)
+		mil.append(_l(wm, _sol(wm) + epais + (qm - c2).dot(bascule) * 2.0 + bombe))
 		var d := (q - c2).normalized() * 0.035
 		var wb := _p(q.x + d.x, q.y + d.y)
 		bas.append(_l(wb, _sol(wb) - 0.03))
@@ -321,12 +335,15 @@ func _dalle(poly: Array[Vector2], c2: Vector2, centre_v: float) -> void:
 		cols.append(Color(col_bord.r, col_bord.g, col_bord.b, 0.0 if t < p_neige * 0.25 else (0.3 if t < p_neige else 1.0)))
 	y_moy /= poly.size()
 	var cw := _p(c2.x, c2.y)
-	var ctr := _l(cw, y_moy + 0.012)
+	var ctr := _l(cw, y_moy + bombe * 1.35)
 	var dessous := ctr - Vector3(0, 1.0, 0)
 	var n := poly.size()
 	for i in n:
 		var i2 := (i + 1) % n
-		_dalles.tri(haut[i], haut[i2], ctr, cols[i], cols[i2], col_haut, dessous)
+		var ch := col_haut if cols[i].a > 0.5 else Color(col_haut.r, col_haut.g, col_haut.b, 0.6)
+		var ch2 := col_haut if cols[i2].a > 0.5 else Color(col_haut.r, col_haut.g, col_haut.b, 0.6)
+		_dalles.quad(haut[i], haut[i2], mil[i2], mil[i], cols[i], cols[i2], ch2, ch, dessous)
+		_dalles.tri(mil[i], mil[i2], ctr, col_haut, col_haut, col_sommet, dessous)
 		_dalles.quad(bas[i], bas[i2], haut[i2], haut[i], col_pied, col_pied, col_flanc, col_flanc, ctr - Vector3(0, 0.03, 0))
 
 ## Rocher arrondi et bosselé (16 × 9 sommets, deux octaves de bruit) en granit gris-bleu, coiffé d'une calotte de neige
@@ -764,8 +781,7 @@ func _mesh(m: BatiGeo.Maillage, mat: Material, ombre: bool, nom: String) -> Mesh
 	return mi
 
 func _finaliser() -> void:
-	var td: Array = texture_pierre(PALETTE_DALLE, 4100 + rng.randi() % 100, 5)
-	_mesh(_dalles, materiau_kit(td[0], td[1], 64.0, Color(1.14, 1.12, 1.1)), false, "Dalles")
+	_mesh(_dalles, materiau_dalles(rng), false, "Dalles")
 	var tg: Array = texture_pierre(PALETTE_ROCHE, 4300 + rng.randi() % 100, 7, 300, 4)   # passe 4 : brun-gris moucheté, fissures
 	# passe 3 : la teinte froide (0,74 ; 0,76 ; 0,82) ne s'applique plus qu'au granit (couleur de sommet) ; la neige
 	# (alpha 0) n'est plus grisée par elle : elle rejoint le blanc bleuté du sol au lieu d'un gris terne.
@@ -907,6 +923,16 @@ static func texture_touffe_givree(graine: int) -> ImageTexture:
 	return ImageTexture.create_from_image(img)
 
 ## Matériau ps1_bati sur une texture du kit (neige `neige_e` des extérieurs, fondu 64 → 32 texels/m entre 4 et 14 m).
+## C1b : matériau des pavés (gris-bleu froid à moucheture discrète, référence exterieurs_v2 vue 1) ; la « neige qui tient »
+## n'y pose que quelques plaques (le kit dessine déjà le liseré de neige des bords).
+const PALETTE_PAVE := ["#30343c", "#3d424b", "#4a5059", "#575d66", "#646a73", "#737982", "#858a92"]
+const NEIGE_DALLES := 0.16
+static func materiau_dalles(r: RandomNumberGenerator) -> ShaderMaterial:
+	var td: Array = texture_pierre(PALETTE_PAVE, 4100 + r.randi() % 100, 4, 50)
+	var m := materiau_kit(td[0], td[1], 64.0, Color(1.3, 1.3, 1.3))
+	m.set_shader_parameter("neige_tient", NEIGE_DALLES)
+	return m
+
 static func materiau_kit(tex: Texture2D, relief: Texture2D, texels: float, teinte := Color.WHITE, uv_maillage := false) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = TexturesBati.SHADER

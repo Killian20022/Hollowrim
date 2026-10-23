@@ -165,6 +165,7 @@ func _ready() -> void:
 	_grotte_acces()
 	_chrono("entree de la grotte")
 	AbordsTumulus.creer(self)  # lot F : abords du tertre (après sa création)
+	Dallage.poser(self)  # C1b : sentiers en dalles hors zone témoin + dalles du village moins enneigées
 	if _arguments().has("res"):  # résolution interne : 640x360 par défaut (project.godot) ; --res=480x270 pour comparer
 		var wh := String(_arguments()["res"]).split("x")
 		get_window().content_scale_size = Vector2i(int(wh[0]), int(wh[1]))
@@ -1409,6 +1410,7 @@ func _lot_captures(fichier: String) -> void:
 			SolV2.regler(self, String(opt.get("sol_v2", "1" if SolV2.actif_defaut else "0")) == "1")
 			mat_terrain.set_shader_parameter("sol_debug", int(opt.get("sol_debug", _arguments().get("sol-debug", "0"))))  # diagnostic du sol
 			mat_terrain.set_shader_parameter("sol_carte", String(opt.get("sol_avant", "0")) != "1")  # C1 : sol_avant=1 = rendu d'avant la généralisation (hors zone témoin)
+			Dallage.regler(self, String(opt.get("dallage", "1")) == "1")  # C1b : dallage=0 = sans les dalles
 			if opt.has("heure"):
 				cycle.heure = float(opt["heure"])
 				cycle._process(0.0)
