@@ -218,8 +218,7 @@ func _hauteur_ancienne(x: float, z: float) -> float:
 	# clairière du feu et clairière du cercle aplanies
 	h = lerpf(h_centre, h, smoothstep(RAYON_CLAIRIERE, RAYON_CLAIRIERE + 14.0, Vector2(x, z).length()))
 	h = lerpf(h_cercle, h, smoothstep(9.0, 26.0, Vector2(x - CERCLE.x, z - CERCLE.z).length()))
-	h = lerpf(h_village, h, smoothstep(25.0, 38.0, Vector2(x - VILLAGE.x, z - VILLAGE.z).length()))
-	return h
+	return ReliefVillage.aplani(x, z, h, h_village)  # C7a : enceinte, terrasses et lit de la rivière (remplace le disque r 25)
 
 ## Relief de la zone sans chemin ni tumulus : plateaux du feu et du cercle à bords bruités (lot C).
 func hauteur_sans_chemin(x: float, z: float) -> float:
@@ -231,7 +230,7 @@ func hauteur_sans_chemin(x: float, z: float) -> float:
 	h = lerpf(h_centre, h, smoothstep(RAYON_CLAIRIERE, RAYON_CLAIRIERE + 14.0, d_feu))
 	var d_cercle := chemins.distance_bruitee(x, z, Vector2(x - CERCLE.x, z - CERCLE.z).length(), m)
 	h = lerpf(h_cercle, h, smoothstep(9.0, 26.0, d_cercle))
-	return lerpf(h_village, h, smoothstep(25.0, 38.0, Vector2(x - VILLAGE.x, z - VILLAGE.z).length()))
+	return ReliefVillage.aplani(x, z, h, h_village)
 
 ## Avec chemins (profil lissé sur 4 m + ornière) mais sans l'aplanissement du tumulus.
 func _hauteur_sans_tumulus(x: float, z: float) -> float:

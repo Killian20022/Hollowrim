@@ -46,7 +46,7 @@ static func creer(monde: Node) -> void:
 			continue
 		var s := rng.randf_range(0.4, 2.2) * (2.0 if rng.randf() < 0.12 else 1.0)
 		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.5, 0.9), s * rng.randf_range(0.8, 1.2)))
-		if exclu_zone(monde, x, z) or GrotteAcces.exclu(x, z):
+		if exclu_zone(monde, x, z) or GrotteAcces.exclu(x, z) or ReliefVillage.exclu(x, z):
 			continue  # filtré APRÈS tous les tirages de ce rocher
 		var sur_arbre := false
 		for t: Transform3D in monde.arbres:   # pas de rocher sur un tronc (les arbres sont déjà posés)
