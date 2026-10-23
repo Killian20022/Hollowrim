@@ -29,6 +29,7 @@ const ORNIERE_DIST := 0.35    # m de l'axe : les deux ornières
 const ORNIERE_LARGE := 0.2    # demi-largeur des ornières (m)
 const ORNIERE_PART := 0.5     # part de terre au cœur d'une ornière
 const PLAQUE_PART := 0.25     # part de terre dans les plaques (bruit_clair > 0,5)
+const VILLAGE_TERRE := 1.45   # C1b : demi-largeur de terre/piétinée sous les pavés du sentier du village (dalles : 1,3 ± 0,25)
 const RAYON_STELE := 3.5      # neige piétinée autour de la stèle (bande tramée 0,8 m)
 const RAYON_PORTE := 3.0      # devant la porte du tertre
 const RAYON_FEU := 5.0        # plateau du feu
@@ -215,8 +216,8 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 	for tr: Transform3D in arbres:
 		flux.append_array([tr.basis.x.x, tr.basis.x.y, tr.basis.x.z, tr.basis.y.x, tr.basis.y.y, tr.basis.y.z, tr.basis.z.x, tr.basis.z.y, tr.basis.z.z, tr.origin.x, tr.origin.y, tr.origin.z])
 	_sha(ctx, flux.to_byte_array())
-	_sha(ctx, var_to_bytes([arbres_zone, obstacles, monde.chemins.points, monde.chemins.debuts, monde.CERCLE, monde.TUMULUS]))
-	for chemin in ["res://scripts/sol.gd", "res://scripts/zone_biome.gd", "res://scripts/chemins.gd"]:
+	_sha(ctx, var_to_bytes([arbres_zone, obstacles, monde.chemins.points, monde.chemins.debuts, monde.CERCLE, monde.TUMULUS, monde.VILLAGE]))
+	for chemin in ["res://scripts/sol.gd", "res://scripts/zone_biome.gd", "res://scripts/chemins.gd", "res://scripts/rues_village.gd"]:
 		_sha(ctx, _source(chemin))
 	var signature := ctx.finish().hex_encode()
 	if cache_mode == CACHE_LIRE and ResourceLoader.exists(CACHE_CARTE) and ResourceLoader.exists(CACHE_TRACES):
@@ -239,6 +240,12 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 	dchemin.resize(TAILLE * TAILLE)
 
 	var chemins = monde.chemins
+	# C1b : sentier feu → porte du village (dalles 3D d'AbordsVillage) : terre et neige piétinée sous les pavés,
+	# pour que les joints soient de terre (référence exterieurs_v2 vue 1) et non de neige
+	var axe_v: PackedVector2Array = Chemins.axe_village(monde)
+	var av0 := axe_v[0]
+	var avd := axe_v[1] - axe_v[0]
+	var avl2 := avd.length_squared()
 	var stele := Vector2(monde.CERCLE.x, monde.CERCLE.z)
 	var porte := Vector2(monde.TUMULUS.x, monde.TUMULUS.z + 2.8)  # = tertre.porte_dehors
 
@@ -281,7 +288,14 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 						mt = TERRE
 				else:
 					var p := Vector2(x, z)
-					if p.distance_to(stele) < RAYON_STELE + 0.8 * t or p.distance_to(porte) < RAYON_PORTE + 0.8 * t or p.length() < RAYON_FEU + 0.8 * t:
+					var dv := p.distance_to(av0 + avd * clampf((p - av0).dot(avd) / avl2, 0.0, 1.0))
+					var mv := RuesVillage.matiere_sol(x, z, t, TERRE, PIETINEE)   # C7a : sous les pavés du village, chemins de terre, champs
+					if dv < VILLAGE_TERRE + 0.3 * t:
+						mt = TERRE if dv < VILLAGE_TERRE - 0.3 + 0.25 * bruit_clair.get_noise_2d(x * 0.8, z * 0.8) + 0.3 * t else PIETINEE
+						dchemin[k] = dv
+					elif mv >= 0:
+						mt = mv
+					elif p.distance_to(stele) < RAYON_STELE + 0.8 * t or p.distance_to(porte) < RAYON_PORTE + 0.8 * t or p.length() < RAYON_FEU + 0.8 * t:
 						mt = PIETINEE
 					elif creux[k] < CROUTE_BOSSE + 0.02 * t or bruit_croute.get_noise_2d(x, z) > CROUTE_BRUIT + 0.15 * t:
 						mt = CROUTE

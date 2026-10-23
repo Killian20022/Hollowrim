@@ -17,16 +17,16 @@ static func creer(monde: Node) -> Array:
 	_degager_grotte(foret, buissons)
 	return instancier(monde, foret, buissons)
 
-## Dégage l'entrée de la grotte (disque, masse rocheuse, piste) APRÈS le placement : le RNG et la forêt d'ailleurs ne changent pas.
+## Dégage l'entrée de la grotte (disque, masse rocheuse, piste) et le village v2 (enceinte, rivière ; C7a) APRÈS le placement : le RNG et la forêt d'ailleurs ne changent pas.
 static func _degager_grotte(foret: Dictionary, buissons: Array[Transform3D]) -> void:
 	for lot: Array in foret["lots"]:
 		for i in range(lot.size() - 1, -1, -1):
 			var o: Vector3 = (lot[i] as Transform3D).origin
-			if GrotteAcces.exclu(o.x, o.z):
+			if GrotteAcces.exclu(o.x, o.z) or ReliefVillage.exclu(o.x, o.z):
 				lot.remove_at(i)
 	for i in range(buissons.size() - 1, -1, -1):
 		var o: Vector3 = buissons[i].origin
-		if GrotteAcces.exclu(o.x, o.z):
+		if GrotteAcces.exclu(o.x, o.z) or ReliefVillage.exclu(o.x, o.z):
 			buissons.remove_at(i)
 
 ## Positions puis formes : {"lots": [4 listes de Transform3D par forme]}.

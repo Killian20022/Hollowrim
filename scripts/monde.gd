@@ -143,6 +143,9 @@ func _ready() -> void:
 	_chrono("carte de sol")
 	DetailsSol.creer(self)  # lot 3 : cailloux du sol (après la carte de sol)
 	if not _arguments().has("sans-abords"): AbordsVillage.creer(self)  # refonte : abords de l'entrée du village (avant le fil des intérieurs ; --sans-abords : A/B)
+	if not _arguments().has("sans-rues"):  # C7a : pavés, escaliers, murs, champs, mobilier du village v2 (--sans-rues : A/B)
+		RuesVillage.creer(self)
+		MobilierVillage.creer(self)
 	_village()
 	_chrono("village (bati)")
 	_feu_de_camp()
@@ -165,6 +168,7 @@ func _ready() -> void:
 	_grotte_acces()
 	_chrono("entree de la grotte")
 	AbordsTumulus.creer(self)  # lot F : abords du tertre (après sa création)
+	Dallage.poser(self)  # C1b : sentiers en dalles hors zone témoin + dalles du village moins enneigées
 	if _arguments().has("res"):  # résolution interne : 640x360 par défaut (project.godot) ; --res=480x270 pour comparer
 		var wh := String(_arguments()["res"]).split("x")
 		get_window().content_scale_size = Vector2i(int(wh[0]), int(wh[1]))
@@ -218,8 +222,7 @@ func _hauteur_ancienne(x: float, z: float) -> float:
 	# clairière du feu et clairière du cercle aplanies
 	h = lerpf(h_centre, h, smoothstep(RAYON_CLAIRIERE, RAYON_CLAIRIERE + 14.0, Vector2(x, z).length()))
 	h = lerpf(h_cercle, h, smoothstep(9.0, 26.0, Vector2(x - CERCLE.x, z - CERCLE.z).length()))
-	h = lerpf(h_village, h, smoothstep(25.0, 38.0, Vector2(x - VILLAGE.x, z - VILLAGE.z).length()))
-	return h
+	return ReliefVillage.aplani(x, z, h, h_village)  # C7a : enceinte, terrasses et lit de la rivière (remplace le disque r 25)
 
 ## Relief de la zone sans chemin ni tumulus : plateaux du feu et du cercle à bords bruités (lot C).
 func hauteur_sans_chemin(x: float, z: float) -> float:
@@ -231,7 +234,7 @@ func hauteur_sans_chemin(x: float, z: float) -> float:
 	h = lerpf(h_centre, h, smoothstep(RAYON_CLAIRIERE, RAYON_CLAIRIERE + 14.0, d_feu))
 	var d_cercle := chemins.distance_bruitee(x, z, Vector2(x - CERCLE.x, z - CERCLE.z).length(), m)
 	h = lerpf(h_cercle, h, smoothstep(9.0, 26.0, d_cercle))
-	return lerpf(h_village, h, smoothstep(25.0, 38.0, Vector2(x - VILLAGE.x, z - VILLAGE.z).length()))
+	return ReliefVillage.aplani(x, z, h, h_village)
 
 ## Avec chemins (profil lissé sur 4 m + ornière) mais sans l'aplanissement du tumulus.
 func _hauteur_sans_tumulus(x: float, z: float) -> float:
@@ -1410,6 +1413,7 @@ func _lot_captures(fichier: String) -> void:
 			SolV2.regler(self, String(opt.get("sol_v2", "1" if SolV2.actif_defaut else "0")) == "1")
 			mat_terrain.set_shader_parameter("sol_debug", int(opt.get("sol_debug", _arguments().get("sol-debug", "0"))))  # diagnostic du sol
 			mat_terrain.set_shader_parameter("sol_carte", String(opt.get("sol_avant", "0")) != "1")  # C1 : sol_avant=1 = rendu d'avant la généralisation (hors zone témoin)
+			Dallage.regler(self, String(opt.get("dallage", "1")) == "1")  # C1b : dallage=0 = sans les dalles
 			if opt.has("heure"):
 				cycle.heure = float(opt["heure"])
 				cycle._process(0.0)
