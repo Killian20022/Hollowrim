@@ -53,12 +53,14 @@ static func _sol_pied(g: Grotte, p: Vector3) -> float:
 	return maxf(p.y, g.lac_y)
 
 static func _caisse(d: GrotteDecor, pos: Vector3, t: Vector3, lacet: float) -> void:
+	d.objet_debut("caisse")
 	d.boite("planches", pos + Vector3(0, t.y * 0.5, 0), t, lacet)
 	var b := Basis(Vector3.UP, lacet)
 	for dx: float in [-0.5, 0.5]:
 		for dz: float in [-0.5, 0.5]:
 			d.boite("bois", pos + b * Vector3(dx * (t.x - 0.04), t.y * 0.5, dz * (t.z - 0.04)), Vector3(0.06, t.y + 0.02, 0.06), lacet)
 	d.boite("fer", pos + Vector3(0, t.y - 0.04, 0), Vector3(t.x + 0.02, 0.03, t.z + 0.02), lacet)
+	d.objet_fin()
 
 ## Tonneaux (et une caisse) au pied de la paroi, hors voie : cherche une place libre autour de `s`.
 static func _tonneaux(k: GrotteKit, z: Dictionary, s: float, cote: float, n: int) -> void:
@@ -89,11 +91,13 @@ static func _tonneaux(k: GrotteKit, z: Dictionary, s: float, cote: float, n: int
 
 # ------------------------------------------------------------------ portique d'entrée (vues 1 et 2)
 static func _portique(k: GrotteKit, z: Dictionary, lanternes: Array) -> void:
+	k.g.decor.objet_debut("portique")
 	var g: Grotte = k.g
 	var d: GrotteDecor = g.decor
 	var id: String = z["branche"]
 	var s := minf(float(z["s"][1]) - 4.5, 9.6)
 	if not g.hors_jonction(id, s):
+		k.g.decor.objet_fin()
 		return
 	var dl := g.demi_l(id, s)
 	var la := -(dl.x - 0.55)
@@ -103,6 +107,7 @@ static func _portique(k: GrotteKit, z: Dictionary, lanternes: Array) -> void:
 	var plaf := minf(g.plafond_en(id, s, la).y, g.plafond_en(id, s, lb).y)
 	var haut := minf(minf(pa.y, pb.y) + 3.4, plaf - 0.3)
 	if haut - maxf(pa.y, pb.y) < 2.5:
+		k.g.decor.objet_fin()
 		return
 	var R := g.droite(id, s)
 	R.y = 0.0
@@ -127,24 +132,29 @@ static func _portique(k: GrotteKit, z: Dictionary, lanternes: Array) -> void:
 	lanternes.append(d.lanterne(bras, 0.34))
 	k._occuper_fixe(id, s, la, 0.5)
 	k._occuper_fixe(id, s, lb, 0.5)
+	k.g.decor.objet_fin()
 
 # ------------------------------------------------------------------ pont de la salle principale (vue 3)
 static func _pont(k: GrotteKit, z: Dictionary, lanternes: Array) -> void:
+	k.g.decor.objet_debut("pont")
 	var g: Grotte = k.g
 	var d: GrotteDecor = g.decor
 	var id: String = z["branche"]
 	var s := float(z["s"][0]) + 6.8
 	if s > float(z["s"][1]) - 4.0:
+		k.g.decor.objet_fin()
 		return
 	var o := g.sol_en(id, s, 0.0)
 	var h := ECHELLE_PONT
 	var mr := k._mur(id, s, 1.0, h)
 	var ml := k._mur(id, s, -1.0, h)
 	if mr.is_empty() or ml.is_empty():
+		k.g.decor.objet_fin()
 		return
 	var dR: float = float(mr["lat"]) + 0.35         # le tablier entre un peu dans la roche aux deux bouts
 	var dL: float = float(ml["lat"]) + 0.35
 	if dR + dL < 6.0 or dR + dL > 40.0:
+		k.g.decor.objet_fin()
 		return
 	var R := g.droite(id, s)
 	R.y = 0.0
@@ -154,6 +164,7 @@ static func _pont(k: GrotteKit, z: Dictionary, lanternes: Array) -> void:
 	T = T.normalized()
 	var yd := o.y + h
 	var P := func(u: float, t: float, y: float) -> Vector3:
+		k.g.decor.objet_fin()
 		return Vector3(o.x, 0.0, o.z) + R * u + T * t + Vector3(0, y, 0)
 	var u0 := -dL
 	var u1 := dR
@@ -248,12 +259,15 @@ static func _pont(k: GrotteKit, z: Dictionary, lanternes: Array) -> void:
 		d.rai_oblique(o1, Vector3(o1.x + 1.2, yd - 3.2, o1.z - 1.0), 2.4, 4.0)
 		g.set_meta("v2_ouverture", o1)
 	print("grotte v2 : pont de %.1f m à s=%.1f, tablier à %.1f m" % [span, s, h])
+	k.g.decor.objet_fin()
 
 # ------------------------------------------------------------------ arène : pieux et autel (vue 6)
 static func _pieu(d: GrotteDecor, p: Vector3, h: float, pen: Vector3, r: float) -> Vector3:
+	d.objet_debut("pieu")
 	var tete := p + pen + Vector3(0, h, 0)
 	d.prisme("bois", p - Vector3(0, 0.25, 0), tete, r, 5, 0.012)
 	d.boite("paille", p + pen * 0.55 + Vector3(0, h * 0.55, 0), Vector3(r * 2.3, 0.07, r * 2.3), 0.3)
+	d.objet_fin()
 	return tete
 
 static func _arene(k: GrotteKit, z: Dictionary) -> void:
@@ -312,6 +326,7 @@ static func _arene(k: GrotteKit, z: Dictionary) -> void:
 			s += rp.randf_range(1.2, 1.9)
 
 static func _autel(k: GrotteKit, id: String, s_a: float, lat_a: float) -> void:
+	k.g.decor.objet_debut("autel")
 	var g: Grotte = k.g
 	var d: GrotteDecor = g.decor
 	var ps := g.sol_en(id, s_a, lat_a)
@@ -375,3 +390,4 @@ static func _autel(k: GrotteKit, id: String, s_a: float, lat_a: float) -> void:
 			_poutre(d, prev + Vector3(0, 0.9, 0), pq + Vector3(0, 0.9, 0), 0.07, 0.07)
 		prev = pq
 	print("grotte v2 : autel de l'arène à s=%.1f lat=%.1f" % [s_a, lat_a])
+	k.g.decor.objet_fin()
