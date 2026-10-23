@@ -95,6 +95,40 @@ var est_crypte := false   # vrai pour la crypte elle-même (pas pour GrotteDecor
 ## le décor existant (gravats à collision, statues) tiré après eux.
 var rng_deco := RandomNumberGenerator.new()
 
+# ------------------------------------------------------------------ registre d'audit (outils/audit_interpenetrations.gd)
+## Rempli SEULEMENT quand `CrypteDecor.audit_actif` est vrai (l'outil d'audit le pose avant de bâtir le lieu) : tout ce qui est écrit
+## entre objet_debut(genre, id) et objet_fin() forme un objet (sommets + solides) ; les appels imbriqués se fondent dans l'objet le
+## plus extérieur. Hors audit : un test d'entier par triangle, rien d'autre (rendu et collisions inchangés).
+static var audit_actif := false
+var objets_audit: Array = []          # {"genre", "id", "v": PackedVector3Array (triangles, repère du lieu), "solides": Array[AABB]}
+var _obj_n := 0                       # profondeur d'imbrication (0 = aucun objet ouvert)
+var _obj_genre := ""
+var _obj_id := ""
+var _obj_v := PackedVector3Array()
+var _obj_s: Array = []
+
+func objet_debut(genre: String, id := "") -> void:
+	if not audit_actif:
+		return
+	if _obj_n == 0:
+		_obj_genre = genre
+		_obj_id = id
+		_obj_v = PackedVector3Array()
+		_obj_s = []
+	_obj_n += 1
+
+func objet_fin() -> void:
+	if _obj_n == 0:
+		return
+	_obj_n -= 1
+	if _obj_n == 0 and (not _obj_v.is_empty() or not _obj_s.is_empty()):
+		objets_audit.append({"genre": _obj_genre, "id": _obj_id, "v": _obj_v, "solides": _obj_s})
+		_obj_v = PackedVector3Array()
+		_obj_s = []
+
+func _audit_solide(centre: Vector3, taille: Vector3) -> void:
+	_obj_s.append(AABB(centre - taille * 0.5, taille))
+
 var _taches := {}    # nom -> id de tâche ; les images sont peintes dans des fils d'exécution pendant que le plan se construit
 var _images := {}    # nom -> Image (tableau d'un seul élément par tâche : pas d'écriture concurrente dans un même conteneur)
 
@@ -144,6 +178,7 @@ func emprise_libre(p: Vector3, r: float, marge := 0.05, sauf: Array = []) -> boo
 	return true
 
 func j0(type: String, lacet := 0.0) -> void:
+	objet_debut(type)      # registre commun de l'outil d'audit (branche grotte)
 	if not journal_actif or muet:
 		return
 	_j_prof += 1
@@ -159,6 +194,7 @@ func j0(type: String, lacet := 0.0) -> void:
 	_j_cases = {}
 
 func j1() -> void:
+	objet_fin()
 	if not journal_actif or muet or _j_prof <= 0:
 		return
 	_j_prof -= 1
@@ -400,6 +436,8 @@ func _tri(b: Dictionary, a: Vector3, bb: Vector3, c: Vector3, n: Vector3, ua: Ve
 	var nn: PackedVector3Array = b["n"]
 	var uu: PackedVector2Array = b["u"]
 	var co: PackedColorArray = b["c"]
+	if _obj_n > 0:
+		_obj_v.append(a); _obj_v.append(bb); _obj_v.append(c)
 	if niveau_a != 1.0:
 		ca.a *= niveau_a
 		cb.a *= niveau_a
@@ -464,6 +502,8 @@ func _quad_p(nom_: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Ve
 		n = xf.basis * n
 	if _j_prof > 0 and not nom in SANS_BORNES:
 		_jp(a); _jp(b); _jp(c); _jp(d)
+	if _obj_n > 0:
+		_obj_v.append(a); _obj_v.append(b); _obj_v.append(c); _obj_v.append(a); _obj_v.append(c); _obj_v.append(d)
 	var buf := _buf((a + b + c + d) * 0.25, nom)
 	var v: PackedVector3Array = buf["v"]
 	var nn: PackedVector3Array = buf["n"]
@@ -553,6 +593,8 @@ func solide(centre: Vector3, taille: Vector3) -> void:
 	cs.shape = bs
 	cs.position = xf * centre
 	corps.add_child(cs)
+	if _obj_n > 0:
+		_audit_solide(cs.position, bs.size)
 
 ## Boîte visible ET solide (collision identique à l'ancienne _boite).
 func boite_pleine(nom: String, centre: Vector3, taille: Vector3) -> void:
@@ -1282,7 +1324,10 @@ func carte(nom: String, centre: Vector3, normale: Vector3, w: float, h: float) -
 	var b := centre + droite * w * 0.5 - haut * h * 0.5
 	var c := centre + droite * w * 0.5 + haut * h * 0.5
 	var d := centre - droite * w * 0.5 + haut * h * 0.5
+	var n_obj := _obj_n          # carte (halo, rai, flaque) : décalque sans volume, hors du registre d'audit
+	_obj_n = 0
 	quad(nom, a, b, c, d, n, [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)])
+	_obj_n = n_obj
 
 ## Applique murale : platine, bras, coupelle, torche goudronnée, flamme, halo net sur le mur, lumière courte.
 func applique(plan_mur: Vector3, vers: Vector3, haut := 2.1, portee := 5.0, energie := 1.9, avec_lumiere := true) -> void:
