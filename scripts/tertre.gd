@@ -577,13 +577,13 @@ func _entree() -> void:
 			d.poutre(-2.7, 2.7, 3.45, z)
 		for p: Array in [[-2.7, 2.4], [-2.7, 0.8], [2.7, 2.4], [2.7, 0.8], [-2.7, -1.4], [-2.7, -4.6], [2.7, -4.6]]:
 			d.pilastre_mur(Vector3(p[0], 0, p[1]), Vector3(-signf(p[0]), 0, 0), 2.7)
-	d.brasero(Vector3(-2.3, 0, -5.2))
-	d.brasero(Vector3(2.3, 0, -5.2))
-	var ret := 0.2 if v2 else 0.0      # v2 : l'applique avance devant le panneau de maçonnerie
+	d.brasero(Vector3(-2.0, 0, -4.95) if v2 else Vector3(-2.3, 0, -5.2))      # v2 : hors du soubassement (audit des interpénétrations)
+	d.brasero(Vector3(2.0, 0, -4.95) if v2 else Vector3(2.3, 0, -5.2))
+	var ret := 0.3 if v2 else 0.0      # v2 : l'applique avance sur les blocs du panneau de maçonnerie
 	d.applique(Vector3(-2.7 + ret, 0, 0.0), Vector3(1, 0, 0), 2.1, 5.0, 1.7)
 	d.applique(Vector3(2.7 - ret, 0, 0.0), Vector3(-1, 0, 0), 2.1, 5.0, 1.7)
 	d.urne(Vector3(-2.2, 0, -3.4), 1.0)
-	d.urne(Vector3(2.15, 0, -4.4), 0.8)
+	d.urne(Vector3(0.9, 0, -5.0) if v2 else Vector3(2.15, 0, -4.4), 0.8)
 	d.os_tas(Vector3(-1.4, 0, -0.3) if v2 else Vector3(-1.9, 0, 2.7), 3, 0.3)
 	d.arme(Vector3(-1.4, 0, -1.4), 0.6)
 	_toiles([[-2.7, 3.7, 1, -1], [2.7, 3.7, -1, -1], [-2.7, -5.7, 1, 1], [2.7, -5.7, -1, 1]], 3.6)
@@ -592,13 +592,12 @@ func _entree() -> void:
 	_interactif(crypte, Vector3(-2.2, 1.4, -2.9), "Fresque des trois sceaux", "Examiner la fresque", func() -> Array: return quetes.texte("fresque_sceaux"))
 	# C4b : habillage v2 (planche vue 1 « entrée » : statues encapuchonnées de part et d'autre de l'escalier, bougies à leur pied)
 	CrypteV2.piece_tertre(d, "vestibule", -3, 3, 4, -6, 3.6, [["nord", 0.0, 3.2], ["est", -2.0, 3.2]], {
-		"arches": true, "piliers": [3.3, 1.8, -3.6],
+		"arches": true, "piliers": [1.8, -3.6],      # plus de pilier à 3,3 : il entrait dans les statues
 		"statues": [{"pos": Vector3(-2.12, 0, 2.95), "lacet": PI}, {"pos": Vector3(2.12, 0, 2.95), "lacet": PI}],
 		"bougies": [Vector3(-2.0, 0, 2.2), Vector3(1.95, 0, 2.2)],
-		"eboulis": [{"pos": Vector3(2.05, 0, 1.55), "mod": "eboulis_c", "lacet": 0.7}],
-		"dalles": [{"pos": Vector3(-1.1, 0, -4.7), "mod": "dalles_b", "lacet": 0.4}, {"pos": Vector3(1.0, 0, 0.5), "mod": "dalles_a", "lacet": 2.1}],
+		"dalles": [{"pos": Vector3(-0.6, 0, -3.7), "mod": "dalles_b", "lacet": 0.4}, {"pos": Vector3(1.0, 0, 0.5), "mod": "dalles_a", "lacet": 2.1}],
 		"flaques": [{"pos": Vector3(0.8, 0, -2.7), "r": 0.6, "graine": 11}],
-		"reserves": [[Vector3(-2.7, 0, -2.9), 1.55]],      # fresque des trois sceaux : mur nu
+		"reserves": [[Vector3(-2.7, 0, -2.9), 1.55], [Vector3(-2.7, 0, 2.95), 0.6], [Vector3(2.7, 0, 2.95), 0.6]],      # fresque : mur nu ; statues : pas de panneau derrière
 		"givre": 6})
 
 func _alcove() -> void:
@@ -615,18 +614,16 @@ func _alcove() -> void:
 	ap.seek(ap.get_animation("Death01").length - 0.05, true)
 	ap.pause()
 	_interactif(crypte, Vector3(-9.3, 0.6, -25.0), "Note d’Eirik", "Fouiller le corps d’Eirik", _fouiller_eirik, Callable(), true)
-	d.coffre(Vector3(-10.2, 0, -26.4), 0.0)
+	d.coffre(Vector3(-10.2, 0, -26.18 if v2 else -26.4), 0.0)      # v2 : dos devant le soubassement
 	d.table(Vector3(-9.0, 0, -23.75), 0.0)
 	d.bougie(Vector3(-9.35, 0.795, -23.8))      # la chandelle d'Eirik
-	d.etagere(Vector3(-8.5, 0, -26.53), 0.0, 1.7, 2.0)
-	d.applique(Vector3(-10.5 if v2 else -10.7, 0, -25.0), Vector3(1, 0, 0), 2.1, 4.2, 1.2)
+	d.etagere(Vector3(-8.5, 0, -26.31 if v2 else -26.53), 0.0, 1.7, 2.0)
+	d.applique(Vector3(-10.4 if v2 else -10.7, 0, -25.0), Vector3(1, 0, 0), 2.1, 4.2, 1.2)
 	d.arme(Vector3(-8.2, 0, -24.9), 2.6)
-	d.os_tas(Vector3(-10.2, 0, -24.0), 2, 0.25)
+	d.os_tas(Vector3(-10.0, 0, -24.4) if v2 else Vector3(-10.2, 0, -24.0), 2, 0.2 if v2 else 0.25)
 	_toiles([[-10.7, -23.3, 1, -1], [-7.3, -26.7, -1, 1]], 3.0)
 	CrypteV2.piece_tertre(d, "alcove_eirik", -11, -7, -23, -27, 3.0, [["est", -25.0, 3.0]], {
-		"bougies": [Vector3(-7.75, 0, -23.65)],
-		"eboulis": [{"pos": Vector3(-10.25, 0, -25.9), "mod": "eboulis_c", "lacet": 1.9}],
-		"dalles": [{"pos": Vector3(-9.0, 0, -25.6), "mod": "dalles_c", "lacet": 0.8}],
+		"bougies": [Vector3(-7.75, 0, -23.65)],      # (éboulis et dalle retirés : ils entraient dans le coffre et sous le corps d'Eirik)
 		"reserves": [[Vector3(-9.0, 0, -23.3), 0.95], [Vector3(-10.2, 0, -26.7), 0.6]],      # table et coffre contre les murs
 		"givre": 4})
 
@@ -663,11 +660,11 @@ func _couloir_herse() -> void:
 	manche.rotation = Vector3(0, 0, 0.5)
 	_manche = manche
 	_interactif(crypte, Vector3(6.3, 1.1, -25.0), "Levier", "Tirer le levier", _tirer_levier, func() -> bool: return not _herse_ouverte)
-	d.applique(Vector3(1.1 if v2 else 1.3, 0, -37.5), Vector3(-1, 0, 0), 1.9, 4.5, 1.5)
-	d.os_tas(Vector3(-0.8, 0, -34.7), 4, 0.35)
+	d.applique(Vector3(1.0 if v2 else 1.3, 0, -37.5), Vector3(-1, 0, 0), 1.9, 4.5, 1.5)
+	d.os_tas(Vector3(-0.3, 0, -35.9) if v2 else Vector3(-0.8, 0, -34.7), 4, 0.35)      # v2 : hors du pilier engagé
 	d.arme(Vector3(0.5, 0, -39.0), 1.0)
-	d.urne(Vector3(-1.0, 0, -41.2), 0.9)
-	d.urne(Vector3(1.0, 0, -41.0), 0.8)
+	d.urne(Vector3(-0.75 if v2 else -1.0, 0, -41.2), 0.9)
+	d.urne(Vector3(0.75 if v2 else 1.0, 0, -41.0), 0.8)
 	_toiles([[-1.3, -32.3, 1, -1], [1.3, -41.7, -1, 1]], 3.2)
 	CrypteV2.piece_tertre(d, "couloir_herse", -1.6, 1.6, -32, -42, 3.2, [["sud", 0.0, 3.2], ["nord", 0.0, 3.2]], {
 		"arches": true, "piliers": [2.6, -2.4], "chaines": true,

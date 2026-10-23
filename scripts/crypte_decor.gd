@@ -153,6 +153,27 @@ var _j_cases := {}           # grands modules Blender (arches, degrés, panneaux
 var emprises: Array = []        # [Vector3 centre (y = sol), Vector2 demi, lacet, haut, type]
 var muet := false               # vrai : les primitives tirent leurs nombres mais n'émettent rien (DonjonKit.differer)
 
+var murs_cb := Callable()       # (pos locale, demi-tailles, lacet) -> décalage : écarte un meuble du soubassement (DonjonKit._ecart_murs)
+
+var _poussees: Array = []       # [position d'origine, décalage, demi-tailles, lacet] des meubles écartés du mur (module en cours)
+
+## Petit objet posé SUR un meuble écarté du mur (bougie sur un autel, crâne sur une table…) : suit le meuble.
+func _suivre(pos: Vector3) -> Vector3:
+	for e: Array in _poussees:
+		var o: Vector3 = e[0]
+		if pos.y > o.y + 0.2 and pos.y < o.y + 2.5 and dist_emprise([o, (e[2] as Vector2) + Vector2(0.08, 0.08), e[3]], pos) <= 0.0:
+			return pos + (e[1] as Vector3)
+	return pos
+
+## Meuble posé contre un mur : avancé juste assez pour que son dos ne rentre pas dans le soubassement ni dans le mur (audit 2026-10-23).
+func _ecarter(pos: Vector3, demi: Vector2, lacet := 0.0) -> Vector3:
+	if muet or not murs_cb.is_valid():
+		return pos
+	var dec: Vector3 = murs_cb.call(pos, demi, lacet)
+	if dec != Vector3.ZERO:
+		_poussees.append([pos, dec, demi, lacet])
+	return pos + dec
+
 func emprise(type: String, pos: Vector3, demi: Vector2, lacet := 0.0, haut := 1.0) -> void:
 	if muet:
 		return
@@ -1264,6 +1285,10 @@ func poutre(x0: float, x1: float, y: float, z: float, ep := 0.3) -> void:
 
 # ------------------------------------------------------------------ lumière
 func lumiere(pos: Vector3, couleur: Color, energie: float, portee: float, att := 1.7, vacille := true) -> OmniLight3D:
+	if muet:
+		if vacille:
+			rng.randf()      # même tirage qu'une lumière posée
+		return null
 	var l := OmniLight3D.new()
 	l.light_color = couleur
 	if est_crypte:
@@ -1348,6 +1373,7 @@ func applique(plan_mur: Vector3, vers: Vector3, haut := 2.1, portee := 5.0, ener
 
 func brasero(pos: Vector3, froid := false) -> void:  # froid : lumière bleue (inutilisée dans la crypte actuelle)
 	j0("brasero")
+	pos = _ecarter(pos, Vector2(0.47, 0.47))
 	emprise("brasero", pos, Vector2(0.47, 0.47), 0.0, 0.92)
 	var prof := [Vector2(0.36, 0.0), Vector2(0.32, 0.1), Vector2(0.24, 0.36), Vector2(0.26, 0.66), Vector2(0.44, 0.74), Vector2(0.5, 0.9), Vector2(0.42, 0.92)]
 	tour("mur0", pos, prof, 8, PI / 8.0, false)
@@ -1361,6 +1387,7 @@ func brasero(pos: Vector3, froid := false) -> void:  # froid : lumière bleue (i
 # ------------------------------------------------------------------ mobilier (Méso)
 func sarcophage(pos: Vector3, taille: Vector3, lacet := 0.0, collision := true) -> void:
 	j0("sarcophage", lacet)
+	pos = _ecarter(pos, Vector2(taille.x * 0.55, taille.z * 0.73) if v2 else Vector2(taille.x * 0.5 + 0.1, taille.z * 0.5 + 0.1), lacet)      # v2 : module sculpté plus large que la boîte
 	emprise("sarcophage", pos, Vector2(taille.x * 0.5 + 0.1, taille.z * 0.5 + 0.1), lacet, taille.y + 0.3)
 	if v2:      # crypte v2 : sarcophage sculpté (module Blender, 2,18 x 1,1 x 0,92 m) mis à la taille demandée ; MÊME collision
 		modele("sarcophage", pos, lacet, Vector3(taille.x / 2.18, (taille.y + 0.24) / 1.1, taille.z / 0.92))
@@ -1382,6 +1409,7 @@ func sarcophage(pos: Vector3, taille: Vector3, lacet := 0.0, collision := true) 
 
 func coffre(pos: Vector3, lacet := 0.0, collision := true) -> void:
 	j0("coffre", lacet)
+	pos = _ecarter(pos, Vector2(0.47, 0.3), lacet)
 	emprise("coffre", pos, Vector2(0.47, 0.3), lacet, 0.64)
 	var b := Basis(Vector3.UP, lacet)
 	boite("bois", pos + Vector3(0, 0.22, 0), Vector3(0.9, 0.44, 0.56), lacet)
@@ -1398,6 +1426,7 @@ func coffre(pos: Vector3, lacet := 0.0, collision := true) -> void:
 
 func bougie(pos: Vector3, avec_lumiere := true) -> void:
 	j0("bougie")
+	pos = _suivre(pos)
 	emprise("bougie", pos, Vector2(0.06, 0.06), 0.0, 0.14)
 	tour("os", pos, [Vector2(0.03, 0.0), Vector2(0.026, 0.14)], 6, 0.0, true)
 	tour("fer", pos, [Vector2(0.06, 0.0), Vector2(0.06, 0.012)], 6, 0.0, true)
@@ -1408,6 +1437,8 @@ func bougie(pos: Vector3, avec_lumiere := true) -> void:
 
 func urne(pos: Vector3, e := 1.0, cotes := 8) -> void:
 	j0("urne")
+	pos = _suivre(pos)
+	pos = _ecarter(pos, Vector2(0.26, 0.26) * e)
 	emprise("urne", pos, Vector2(0.26, 0.26) * e, 0.0, 0.56 * e)
 	var prof := [Vector2(0.13, 0.0), Vector2(0.2, 0.08), Vector2(0.25, 0.22), Vector2(0.21, 0.4), Vector2(0.12, 0.5), Vector2(0.14, 0.56), Vector2(0.09, 0.56)]
 	var pe: Array = []
@@ -1420,6 +1451,7 @@ func urne(pos: Vector3, e := 1.0, cotes := 8) -> void:
 
 func tonneau(pos: Vector3, e := 1.0) -> void:
 	j0("tonneau")
+	pos = _ecarter(pos, Vector2(0.4, 0.4) * e)
 	emprise("tonneau", pos, Vector2(0.4, 0.4) * e, 0.0, e)
 	var prof := [Vector2(0.3, 0.0), Vector2(0.37, 0.25), Vector2(0.4, 0.5), Vector2(0.37, 0.75), Vector2(0.3, 1.0)]
 	var pe: Array = []
@@ -1433,6 +1465,7 @@ func tonneau(pos: Vector3, e := 1.0) -> void:
 
 func table(pos: Vector3, lacet := 0.0) -> void:
 	j0("table", lacet)
+	pos = _ecarter(pos, Vector2(0.55, 0.33), lacet)
 	emprise("table", pos, Vector2(0.55, 0.33), lacet, 0.8)
 	var b := Basis(Vector3.UP, lacet)
 	boite("bois", pos + Vector3(0, 0.76, 0), Vector3(1.1, 0.07, 0.65), lacet)
@@ -1447,6 +1480,7 @@ func table(pos: Vector3, lacet := 0.0) -> void:
 
 func etagere(pos: Vector3, lacet: float, largeur := 1.8, haut := 2.0) -> void:
 	j0("etagere", lacet)
+	pos = _ecarter(pos, Vector2(largeur * 0.5 + 0.04, 0.17), lacet)
 	emprise("etagere", pos, Vector2(largeur * 0.5 + 0.04, 0.17), lacet, haut)
 	occupations.append([pos, largeur * 0.5 + 0.15])
 	var b := Basis(Vector3.UP, lacet)
@@ -1465,6 +1499,7 @@ func etagere(pos: Vector3, lacet: float, largeur := 1.8, haut := 2.0) -> void:
 # ------------------------------------------------------------------ petits objets (Micro)
 func crane(pos: Vector3, lacet := 0.0) -> void:
 	j0("crane", lacet)
+	pos = _suivre(pos)
 	emprise("crane", pos, Vector2(0.1, 0.1), 0.0, 0.22)
 	var b := Basis(Vector3.UP, lacet)
 	var prof := [Vector2(0.055, 0.0), Vector2(0.085, 0.05), Vector2(0.095, 0.11), Vector2(0.07, 0.17), Vector2(0.0, 0.19)]
@@ -1689,7 +1724,7 @@ func _symbole(sujet: String) -> Array:
 func embleme(sujet: String, centre: Vector3, vers: Vector3, taille := 0.9, teinte := Color(0.95, 0.88, 0.7)) -> void:
 	j0("embleme", atan2(vers.x, vers.z))
 	var n := vers.normalized()
-	centre += _saillie(centre, n, 0.3)
+	centre += _saillie(centre, n, 0.33)
 	var ax := _axes(n)
 	var dr: Vector3 = ax[0]
 	var ha: Vector3 = ax[1]
@@ -1702,7 +1737,7 @@ func embleme(sujet: String, centre: Vector3, vers: Vector3, taille := 0.9, teint
 func frise(sujets: Array, centre: Vector3, vers: Vector3, taille := 0.9, pas := 1.2, teinte := Color(0.95, 0.88, 0.7)) -> void:
 	j0("frise", atan2(vers.x, vers.z))
 	var n := vers.normalized()
-	centre += _saillie(centre, n, 0.3)
+	centre += _saillie(centre, n, 0.33)
 	var cb := saillie_cb
 	saillie_cb = Callable()      # les emblèmes de la frise suivent son cadre (déjà avancé)
 	var dr: Vector3 = _axes(n)[0]
@@ -1738,6 +1773,7 @@ func socle(pos: Vector3, taille := Vector3(0.9, 0.9, 0.9), lacet := 0.0, mat := 
 ## ancetre (capuche, mains jointes), gardienne (voile).
 func statue(pos: Vector3, lacet := 0.0, e := 1.0, type := "guerrier", collision := true, mat := "mur1") -> void:
 	j0("statue", lacet)
+	pos = _ecarter(pos, Vector2(0.53, 0.53), lacet)
 	emprise("statue", pos, Vector2(0.53, 0.53), lacet, 2.6)
 	if v2 and mat in ["mur0", "mur1", "mur2"]:
 		mat = "statue_v2"       # crypte v2 : statues un peu plus claires que les murs (sans lumière de plus)
@@ -1796,7 +1832,7 @@ func statue(pos: Vector3, lacet := 0.0, e := 1.0, type := "guerrier", collision 
 func banniere(haut: Vector3, vers: Vector3, long := 1.7, larg := 0.75, couleur := Color(0.62, 0.3, 0.26), sujet := "", usure := 1, teinte_embleme := Color(0.9, 0.85, 0.7)) -> void:
 	j0("banniere", atan2(vers.x, vers.z))
 	var n := vers.normalized()
-	haut += _saillie(haut, n, 0.24)
+	haut += _saillie(haut, n, 0.33)      # devant les blocs des panneaux v2 (saillie jusqu'à 0,3 m)
 	nb_bannieres += 1
 	var cb := saillie_cb
 	saillie_cb = Callable()
@@ -1838,6 +1874,7 @@ func chaine(haut: Vector3, bas: Vector3) -> void:
 ## Table d'embaumement : dalle de pierre sur deux piliers, rigole, bandelettes, bol d'huiles ; `corps` : dépouille enveloppée dessus.
 func table_embaumement(pos: Vector3, lacet := 0.0, corps := false) -> void:
 	j0("table_embaumement", lacet)
+	pos = _ecarter(pos, Vector2(1.2, 0.44), lacet)
 	emprise("table_embaumement", pos, Vector2(1.2, 0.44), lacet, 1.17)
 	var b := Basis(Vector3.UP, lacet)
 	boite("mur1", pos + Vector3(0, 0.88, 0), Vector3(2.1, 0.14, 0.86), lacet)
@@ -1884,6 +1921,7 @@ func barricade(pos: Vector3, lacet := 0.0, largeur := 3.0, trou := 1.3, decal :=
 ## Lit de caserne : cadre de bois, paillasse, couverture (teinte) ; collision.
 func lit(pos: Vector3, lacet := 0.0, teinte := Color(0.5, 0.4, 0.36)) -> void:
 	j0("lit", lacet)
+	pos = _ecarter(pos, Vector2(1.0, 0.45), lacet)
 	emprise("lit", pos, Vector2(1.0, 0.45), lacet, 0.8)
 	var b := Basis(Vector3.UP, lacet)
 	for sz in [-0.4, 0.4]:
@@ -1900,6 +1938,7 @@ func lit(pos: Vector3, lacet := 0.0, teinte := Color(0.5, 0.4, 0.36)) -> void:
 ## Râtelier d'armes contre un mur (dos vers -Z local) : épées, lances, haches.
 func ratelier_armes(pos: Vector3, lacet := 0.0, largeur := 1.8) -> void:
 	j0("ratelier_armes", lacet)
+	pos = _ecarter(pos + Basis(Vector3.UP, lacet) * Vector3(0, 0, 0.05), Vector2(largeur * 0.5 + 0.04, 0.15), lacet) - Basis(Vector3.UP, lacet) * Vector3(0, 0, 0.05)
 	emprise("ratelier_armes", pos + Basis(Vector3.UP, lacet) * Vector3(0, 0, 0.05), Vector2(largeur * 0.5 + 0.04, 0.15), lacet, 2.0)
 	occupations.append([pos, largeur * 0.5 + 0.15])
 	var b := Basis(Vector3.UP, lacet)
@@ -1929,7 +1968,7 @@ func ratelier_armes(pos: Vector3, lacet := 0.0, largeur := 1.8) -> void:
 func bouclier_mural(centre: Vector3, vers: Vector3, rayon := 0.32, teinte := Color(0.6, 0.4, 0.3)) -> void:
 	j0("bouclier_mural", atan2(vers.x, vers.z))
 	var n := vers.normalized()
-	centre += _saillie(centre, n, 0.28)
+	centre += _saillie(centre, n, 0.33)
 	var ax := _axes(n)
 	_rect("bois", centre + n * 0.03, ax[0], ax[1], 0.0, 0.0, rayon * 2.0, rayon * 2.0, 0.0, n, teinte)
 	_rect("bois", centre + n * 0.032, ax[0], ax[1], 0.0, 0.0, rayon * 2.0, rayon * 2.0, PI * 0.25, n, teinte)
@@ -1940,6 +1979,7 @@ func bouclier_mural(centre: Vector3, vers: Vector3, rayon := 0.32, teinte := Col
 ## Autel de chapelle : massif de pierre, nappe, dessus gravé, deux bougies sans lumière.
 func autel(pos: Vector3, lacet := 0.0, largeur := 2.0) -> void:
 	j0("autel", lacet)
+	pos = _ecarter(pos, Vector2(largeur * 0.5 + 0.08, 0.53), lacet)
 	emprise("autel", pos, Vector2(largeur * 0.5 + 0.08, 0.53), lacet, 1.14)
 	var b := Basis(Vector3.UP, lacet)
 	boite("mur1", pos + Vector3(0, 0.45, 0), Vector3(largeur, 0.9, 0.9), lacet)
@@ -1985,6 +2025,7 @@ func parchemins_epars(centre: Vector3, rayon: float, n := 12) -> void:
 ## Étagère renversée (cadre couché et rayons obliques) : décor d'archives en ruine.
 func etagere_renversee(pos: Vector3, lacet := 0.0, largeur := 1.8) -> void:
 	j0("etagere_renversee", lacet)
+	pos = _ecarter(pos, Vector2(largeur * 0.5, 0.41), lacet)
 	emprise("etagere_renversee", pos, Vector2(largeur * 0.5, 0.41), lacet, 0.8)
 	var b := Basis(Vector3.UP, lacet)
 	boite("bois", pos + b * Vector3(0, 0.07, 0), Vector3(largeur, 0.1, 0.8), lacet, false)
@@ -2011,7 +2052,7 @@ func gravats(pos: Vector3, r := 1.0, h := 0.7, avec_collision := true, mat := "m
 	j1()
 
 ## Fissures noires qui courent sur un mur (mur fragile : on les voit, et la poussière au pied).
-func fissures(centre: Vector3, vers: Vector3, larg := 2.0, haut := 2.6, n := 3, sol := 0.0) -> void:
+func fissures(centre: Vector3, vers: Vector3, larg := 2.0, haut := 2.6, n := 3, sol := 0.0, avec_gravats := true) -> void:
 	var nv := vers.normalized()
 	centre += _saillie(centre, nv, 0.27)
 	var ax := _axes(nv)
@@ -2026,7 +2067,11 @@ func fissures(centre: Vector3, vers: Vector3, larg := 2.0, haut := 2.6, n := 3, 
 			y -= l * 0.55
 			if y < 0.1:
 				break
-	gravats(Vector3(centre.x, sol, centre.z) + nv * 0.5, 0.35, 0.18, false, "mur1")      # au pied du mur, au sol de l'étage (était y = 0 : gravats en l'air à l'étage −6)
+	var pg := Vector3(centre.x, sol, centre.z) + nv * 0.5
+	var m0 := muet
+	muet = m0 or not avec_gravats or not emprise_libre(pg, 0.35, 0.05)      # pas dans un sarcophage, un trône… (tirages faits quand même : la suite ne bouge pas)
+	gravats(pg, 0.35, 0.18, false, "mur1")
+	muet = m0      # au pied du mur, au sol de l'étage (était y = 0 : gravats en l'air à l'étage −6)
 
 ## Dalle de pression fendue : cadre de fissures autour (la dalle elle-même est celle du piège) ; os et fléchette brisée devant.
 func dalle_fendue(pos: Vector3, lacet := 0.0) -> void:
@@ -2040,6 +2085,7 @@ func dalle_fendue(pos: Vector3, lacet := 0.0) -> void:
 ## Sarcophage au couvercle poussé de côté (pillage) : la cuve noire apparaît.
 func sarcophage_pille(pos: Vector3, taille: Vector3, lacet := 0.0) -> void:
 	j0("sarcophage_pille", lacet)
+	pos = _ecarter(pos, Vector2(taille.x * 0.5 + 0.3, taille.z * 0.5 + 0.5), lacet)      # couvercle poussé de travers
 	emprise("sarcophage_pille", pos, Vector2(taille.x * 0.5 + 0.3, taille.z * 0.5 + 0.15), lacet, taille.y + 0.2)
 	var b := Basis(Vector3.UP, lacet)
 	boite("mur0", pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
@@ -2064,6 +2110,7 @@ func sac_dechire(pos: Vector3, lacet := 0.0) -> void:
 
 func coffre_force(pos: Vector3, lacet := 0.0) -> void:
 	j0("coffre_force", lacet)
+	pos = _ecarter(pos, Vector2(0.47, 0.3), lacet)
 	emprise("coffre_force", pos, Vector2(0.47, 0.3), lacet, 0.9)
 	var b := Basis(Vector3.UP, lacet)
 	boite("bois", pos + Vector3(0, 0.22, 0), Vector3(0.9, 0.44, 0.56), lacet)

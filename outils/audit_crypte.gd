@@ -66,6 +66,9 @@ func lancer(tree: SceneTree, m: Node3D, args: Dictionary) -> int:
 		await tree.physics_frame
 	var t0 := Time.get_ticks_msec()
 	_collecter(m.tertre)
+	if m.tertre.d2 == null or m.tertre.d2.journal.is_empty():
+		push_error("audit crypte : donjon non bâti (erreur de script ?) — audit impossible")
+		return 999
 	if _arg("tailles") != "":
 		var vu := {}
 		for o: Dictionary in objets:
@@ -127,6 +130,9 @@ func _collecter(tr: Node) -> void:
 		if cs.disabled or cs.shape == null or _sous_perso(cs):
 			continue
 		var t := crypte.global_transform.affine_inverse() * cs.global_transform
+		var bx := t.basis.x.normalized()
+		if absf(bx.y) > 0.05 or absf(t.basis.y.normalized().y) < 0.95:
+			continue      # rampe inclinée (escaliers, estrades) : sa boîte alignée engloberait toute la cage
 		var h := Vector3.ZERO
 		if cs.shape is BoxShape3D:
 			h = (cs.shape as BoxShape3D).size * 0.5
@@ -311,7 +317,8 @@ func _controler(tr: Node) -> void:
 				if genre in ["solide", "meca"] or (genre == "mur" and pe[0] > 0.15):
 					var g := _grav(pe[0])
 					if g != "":
-						_ajoute(g, pe[0], o, t, "dans %s de %.2f m" % [_nom_boite(genre), pe[0]])
+						var info2 := (" [boîte %s ±%s / objet %s ±%s]" % [str(b["c"]), str(b["h"]), str(o["c"]), str(o["h"])]) if _arg("detail") != "" else ""
+						_ajoute(g, pe[0], o, t, "dans %s de %.2f m" % [_nom_boite(genre), pe[0]] + info2)
 				continue
 			if genre == "plafond" or (t in AMAS and genre in ["mur", "sol"]):
 				continue
@@ -320,7 +327,8 @@ func _controler(tr: Node) -> void:
 				continue
 			var g := _grav(p, SEUIL_GRAVE * (1.5 if ep else 1.0))
 			if g != "":
-				_ajoute(g, p * (1.5 if genre == "mur" else 1.0), o, t, ("enfoncé de %.2f m dans le sol" % p) if genre == "sol" else ("dans %s de %.2f m" % [_nom_boite(genre), p]))
+				var info := (" [boîte %s ±%s]" % [str(b["c"]), str(b["h"])]) if _arg("detail") != "" else ""
+				_ajoute(g, p * (1.5 if genre == "mur" else 1.0), o, t, (("enfoncé de %.2f m dans le sol" % p) if genre == "sol" else ("dans %s de %.2f m" % [_nom_boite(genre), p])) + info)
 		if cat == "decal":
 			# flaque sous un objet ou une structure visible
 			if t == "flaque":
@@ -362,10 +370,12 @@ func _controler(tr: Node) -> void:
 				_ajoute("GRAVE", 1.0, o, t, "DOUBLON (même objet au même endroit)")
 				continue
 			var ep2 := ep or qt in EPARS
+			if (t in PETITS and qt in HOTES and float(o["ymin"]) > float(q["ymin"]) + 0.3) or (qt in PETITS and t in HOTES and float(q["ymin"]) > float(o["ymin"]) + 0.3):
+				continue      # petit objet posé SUR un meuble (bougie sur l'autel, crâne sur le socle)
 			var p: float = pe[0]
 			if qc == "structure" and qt == "relief_mur" and float(o["ymin"]) > float(q["ymax"]) - 0.02:
 				continue
-			if qc == "structure" and t in AMAS and (qt == "relief_mur" or qt.begins_with("pan_mur") or qt.begins_with("pilier_mur")):
+			if qc == "structure" and t in AMAS and (qt == "relief_mur" or qt == "panneau_os" or qt.begins_with("pan_mur") or qt.begins_with("pilier_mur")):
 				continue
 			var g := _grav(p, SEUIL_GRAVE * (1.6 if ep2 else 1.0), SEUIL_MOYEN * (1.5 if ep2 else 1.0))
 			if cat == "mural":
@@ -454,7 +464,8 @@ func _interactifs(tr: Node) -> void:
 			if q["cat"] in ["decal", "plafond", "structure"] or qt in ["chaine", "toile"]:
 				continue
 			var cq: Vector3 = q["c"]
-			var hote := (qt in HOTES and contient_xz(q, p, 0.45)) or Vector2(cq.x - p.x, cq.z - p.z).length() < 0.2
+			var hote := (qt in HOTES and contient_xz(q, p, 0.45)) or Vector2(cq.x - p.x, cq.z - p.z).length() < 0.2 \
+				or (qt in ["os_tas", "crane", "crane_os", "sac_dechire"] and contient_xz(q, p, 0.1))      # restes du corps fouillé = l'interactif lui-même
 			if hote:
 				continue
 			var dxz := dist_xz(q, p)
@@ -465,8 +476,8 @@ func _interactifs(tr: Node) -> void:
 			var haut_ok := float(q["ymax"]) >= p.y - 0.5      # objet qui monte à hauteur du point d'interaction
 			if dxz < 0.08 and haut_ok:
 				_ajoute("GRAVE", 0.9, I, "interactif « %s »" % nom, "recouvert par %s" % qt, 1.6)
-			elif not (float(q["ymax"]) >= p.y - 0.8):
-				continue
+			elif not (float(q["ymax"]) >= p.y - 0.8) or float(q["ymin"]) > sol_y + 0.15:
+				continue      # seul le fouillis AU SOL encombre (une bougie posée sur la même table est un accessoire)
 			elif dxz < 0.35 and qt in PETITS:
 				_ajoute("GRAVE", 0.5, I, "interactif « %s »" % nom, "encombré par %s à %.2f m" % [qt, dxz], 1.6)
 			elif dxz < 0.6 and qt in PETITS:
