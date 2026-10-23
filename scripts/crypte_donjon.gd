@@ -41,6 +41,16 @@ const V2_RITUELLE := {
 	"givre": 7,
 }
 
+## Réglages v2 des salles en mode auto (le reste est déduit de la forme de la salle) : pas de statue de plus là où le récit en a déjà
+## (tombeau, trône, chapelle, antichambre) ni dans la galerie des statues (l'énigme doit rester lisible).
+const V2_SALLES := {
+	"reliquaires": {"statues_auto": 0},
+	"tombeau": {"statues_auto": 0},
+	"g4": {"statues_auto": 0},
+	"lb2a": {"statues_auto": 0},
+	"antichambre": {"statues_auto": 0},
+}
+
 func construire() -> void:
 	for m: Dictionary in plan():
 		module(m)
@@ -273,7 +283,7 @@ func plan() -> Array:
 	# crypte v2 (lot C4, 2026-10-23) : TOUTES les salles en style v2 ; sans table propre = mode auto (scripts/crypte_v2.gd)
 	for mm: Dictionary in r:
 		if not mm.has("v2"):
-			mm["v2"] = {}
+			mm["v2"] = (V2_SALLES.get(mm["id"], {}) as Dictionary).duplicate(true)
 	return r
 
 # ------------------------------------------------------------------ outils des récits (coordonnées de la crypte -> repère du module)

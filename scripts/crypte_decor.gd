@@ -1881,7 +1881,12 @@ func _modele_cache(cle_mat: String, alpha: float, miroir: bool) -> Dictionary:
 				ov.append(a); ov.append(c); ov.append(b)
 				oc.append(ca); oc.append(c3); oc.append(cb)
 			on.append(n); on.append(n); on.append(n)
-		r = {"v": ov, "n": on, "c": oc}
+		var bmin := Vector3(INF, INF, INF)
+		var bmax := -bmin
+		for q in v.size():
+			bmin = bmin.min(v[q])
+			bmax = bmax.max(v[q])
+		r = {"v": ov, "n": on, "c": oc, "taille": (bmax - bmin) if v.size() > 0 else Vector3.ZERO}
 		_cache_modeles[cle] = r
 	_modeles_verrou.unlock()
 	return r
@@ -1932,6 +1937,23 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 				uv[q] = Vector2(p0.x, -p0.y) * inv
 				uv[q + 1] = Vector2(p1.x, -p1.y) * inv
 				uv[q + 2] = Vector2(p2.x, -p2.y) * inv
+		var tl: Vector3 = (cm["taille"] as Vector3) * ech.abs()
+		if maxf(tl.x, maxf(tl.y, tl.z)) > 3.0:
+			# grand module (arches, degrés, panneaux larges) : triangle par triangle dans la case de 8 m de son centre, comme les quads —
+			# un seul tampon élargirait l'AABB du maillage et lui ferait toucher plus de 8 lumières (limite du rendu mobile)
+			var cc2: PackedColorArray = cm["c"]
+			for q in range(0, nb, 3):
+				var bt := _buf((wv[q] + wv[q + 1] + wv[q + 2]) / 3.0, nom_mat)
+				var tv: PackedVector3Array = bt["v"]
+				var tn: PackedVector3Array = bt["n"]
+				var tu: PackedVector2Array = bt["u"]
+				var tc: PackedColorArray = bt["c"]
+				for j in 3:
+					tv.append(wv[q + j])
+					tn.append(wn[q + j])
+					tu.append(uv[q + j])
+					tc.append(cc2[q + j])
+			continue
 		var bf := _buf(centre, nom_mat)
 		var bv: PackedVector3Array = bf["v"]
 		var bn: PackedVector3Array = bf["n"]

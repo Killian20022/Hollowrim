@@ -546,7 +546,12 @@ def plateforme_octo(nom, graine, paliers, bassin=None):
 def _estrade(M, sx, sy, sz, y0=0.0, dalle=0.95):
     """Massif rectangulaire (centré, du sol y0 à y0 + sy) : parement de blocs en assises sur les 4 faces, dalles irrégulières dessus, bordure."""
     rg = M.rg
-    M.boite((sx - 0.3, sy - 0.02, sz - 0.3), Vector((0, y0 + sy * 0.5 - 0.01, 0)), bev=0.0, jit=0.0, ton=0.3)       # noyau (caché)
+    # noyau caché (bouche les joints), en morceaux de 1,5 m au plus : un grand triangle élargirait l'AABB du maillage de sa case
+    ix0, iz0 = sx - 0.3, sz - 0.3
+    nx0, nz0 = max(1, math.ceil(ix0 / 1.5)), max(1, math.ceil(iz0 / 1.5))
+    for i in range(nx0):
+        for k in range(nz0):
+            M.boite((ix0 / nx0, sy - 0.02, iz0 / nz0), Vector((-ix0 * 0.5 + ix0 * (i + 0.5) / nx0, y0 + sy * 0.5 - 0.01, -iz0 * 0.5 + iz0 * (k + 0.5) / nz0)), bev=0.0, jit=0.0, ton=0.3)
     nb_assises = max(1, int(round((sy - 0.1) / 0.42)))
     ha = (sy - 0.1) / nb_assises
     for face in range(4):

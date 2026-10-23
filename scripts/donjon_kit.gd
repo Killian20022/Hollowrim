@@ -45,6 +45,9 @@ var _v2_lum: Array = []          # lumières de candélabre à allumer si le bud
 var _v2_reglages: Dictionary = {}
 var _v2_ban0 := 0                # bannières déjà posées au début du module
 var _n_lum0 := 0                 # lumières déjà posées au début du module
+var _n_corps0 := 0               # collisions déjà posées au début du module (CrypteV2._boites_sol)
+var _v2_boites: Array = []       # boîtes de collision du module en cours (repère local, Rect2 en x,z)
+var v2_stats: Dictionary = {}    # id -> {statues, candelabres, lumieres_statue, piliers, bannieres, flaques} (outils/sonde_crypte_v2.gd)
 
 func _init(decor: CrypteDecor) -> void:
 	d = decor
@@ -162,6 +165,8 @@ func module(m: Dictionary) -> void:
 	_v2_reglages = {}
 	_v2_ban0 = d.nb_bannieres
 	_n_lum0 = d.toutes.size()
+	_n_corps0 = d.corps.get_child_count()
+	_v2_boites = []
 	_occ_mur = []
 	if CrypteV2.auto(m) and type != "escalier":
 		d.saillie_cb = CrypteV2.saillie.bind(self, m)      # bannières, boucliers, gravures : devant les panneaux de maçonnerie
