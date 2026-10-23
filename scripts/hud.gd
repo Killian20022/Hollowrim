@@ -17,7 +17,7 @@ const VIGUEUR := [Color("#5fc27f"), Color("#2f8a56"), Color("#1f5a3a")]
 const FOND := Color("#0b0f1a")
 const PARCHEMIN := Color("#e8e0c8")
 const OR := Color("#e8a64a")
-const TAILLE_POLICE := 16
+const TAILLE_POLICE := Palette.TAILLE_POLICE   # taille native de la police pixel (voir Palette.police)
 const PX_PAR_DEGRE := 0.8  # 150 px de bandeau ≈ 190° visibles
 const MARGE := 16.0  # marge des barres sur les bords
 
