@@ -24,9 +24,13 @@ static func _degager_grotte(foret: Dictionary, buissons: Array[Transform3D]) -> 
 			var o: Vector3 = (lot[i] as Transform3D).origin
 			if GrotteAcces.exclu(o.x, o.z) or ReliefVillage.exclu(o.x, o.z):
 				lot.remove_at(i)
+			elif EauVillage.sous_le_lac(o.x, o.z, o.y + 0.25):   # C7c : lac fermé de la combe SO
+				lot.remove_at(i)
 	for i in range(buissons.size() - 1, -1, -1):
 		var o: Vector3 = buissons[i].origin
 		if GrotteAcces.exclu(o.x, o.z) or ReliefVillage.exclu(o.x, o.z):
+			buissons.remove_at(i)
+		elif EauVillage.sous_le_lac(o.x, o.z, o.y + 0.25):   # C7c : lac fermé de la combe SO
 			buissons.remove_at(i)
 
 ## Positions puis formes : {"lots": [4 listes de Transform3D par forme]}.

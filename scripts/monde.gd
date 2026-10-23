@@ -148,6 +148,8 @@ func _ready() -> void:
 		MobilierVillage.creer(self)
 	_village()
 	_chrono("village (bati)")
+	EauVillage.creer(self)  # C7c : rivière, pont, quai, moulin à eau, lac fermé (--sans-eau-village : rien n'est posé, A/B)
+	_chrono("eau du village")
 	_feu_de_camp()
 	_joueur()
 	_chrono("joueur")
@@ -1424,7 +1426,7 @@ func _lot_captures(fichier: String) -> void:
 			# refonte « nuages » : temps_ciel=S fige la dérive des nuages à S secondes (planches reproductibles, bandes de mouvement)
 			_ciel.set_shader_parameter("temps_force", float(opt.get("temps_ciel", "-1")))
 			if type == "monde":
-				joueur.global_position = Vector3(c[0], hauteur(c[0], c[1]) + 0.1, c[1])
+				joueur.global_position = Vector3(c[0], (float(opt["y"]) if opt.has("y") else hauteur(c[0], c[1])) + 0.1, c[1])  # y=m : pieds posés sur un ouvrage (pont, quai)
 				joueur.rotation.y = deg_to_rad(c[2])
 				joueur.tete.rotation.x = deg_to_rad(c[3]) if c.size() > 3 else 0.0
 				joueur.velocity = Vector3.ZERO
