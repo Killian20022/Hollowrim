@@ -203,3 +203,83 @@ Limites : l'escalier n'est orienté que le long de Z (rot 0 ou 2) ; les pièces 
 `bash outils/tous_les_tests.sh` (dont `test_crypte` : remplissage de la crypte par une capsule — escaliers et rampes compris —, chaque salle, coffre, interaction, mécanisme et ennemi atteignable, aucun ennemi dans un mur,
 liaisons des modules, surface, lumières, portes fermées bloquantes, escaliers franchis par une capsule physique ; `test_crypte_mort` : réinitialisation à la mort, y compris les gardiens d'origine).
 Options de `test_crypte.gd` : `--plan` (zones, ennemis, interactions, mécanismes), `--carte [--bas]` (carte ASCII des cases atteintes).
+
+## 13. Crypte v2 : refonte graphique, salle rituelle + couloir des niches (2026-10-22, branche `crypte_v2/salle_couloir`)
+
+Référence : `references/crypte_v2_planche.png` (vues 2 « salle principale », 3 « couloir », 6 « salle de tombeau »), prompt `references/crypte_v2_prompt.md`.
+Pilotes : la salle `rituelle` (hub, vasque, socles, porte scellée de l'arène) et le couloir `niches`. Salles, ouvertures, collisions (sauf le sarcophage ajouté),
+interactions, ennemis, mécanismes et quêtes sont INCHANGÉS. Les autres modules ne sont pas touchés (extension après validation).
+
+### Activer le style v2 sur un module (table de données)
+
+Ajouter au dictionnaire du module dans `CrypteDonjon.plan()` une clé `"v2": {...}` (constantes `V2_NICHES`, `V2_RITUELLE` en tête de `crypte_donjon.gd`).
+Le kit (`DonjonKit.module`) remplace alors les dalles `dalle0` par `dalle_v2` (thème) et délègue l'habillage à `scripts/crypte_v2.gd` (`CrypteV2.salle` / `CrypteV2.couloir`).
+Les positions sont en repère de la crypte (comme les accroches) et converties en repère local. Champs (valeurs par défaut dans `CrypteV2.DEFAUTS`) :
+
+| champ | sens |
+|---|---|
+| `piliers` | salle : abscisses locales des piliers + arches le long des murs longs (ignorés devant une ouverture ou une applique). Couloir : un pilier/arche tous les 4 m, automatique |
+| `pilier`, `naissance`, `arche` | modules Blender du pilier et de l'arche, hauteur de naissance de l'arche (= hauteur du pilier) |
+| `panneaux`, `haut_panneau` | panneaux de maçonnerie en relief (0,22 m) sur tous les murs libres, jusqu'à `haut_panneau`, corniche au sommet |
+| `lustres` | lustres de fer (module `lustre_fer`) comme le décor de base (1 à 3 selon la surface) |
+| `statues`, `sarcophages`, `candelabres`, `bannieres` | `[{pos, lacet, ...}]` ; sarcophage : collision par défaut (boîte), statue : sans collision sauf `collision: true` ; bannière rouge à croix dorée (`CrypteDecor.banniere`, sujet `croix`) |
+| `eboulis`, `dalles` | `[{pos, mod, lacet}]` : tas de pierres et dalles soulevées |
+| `flaques` | `[{pos, r, graine}]` : **PLACEHOLDER d'eau** (polygone sombre plat, matière `flaque`). Emplacement réservé : `CrypteDecor.eau_slots` (centre + rayon) ; le système d'eau (branche eau/prototype) n'a qu'à lire cette liste ou remplacer `CrypteDecor.flaque()` |
+| `givre` | nombre de décalques de givre au sol (hors angles) |
+
+### Modules Blender (`sources_blender/scripts/crypte_modules_v2.py`)
+
+`blender.exe -b --python sources_blender/scripts/crypte_modules_v2.py` (rejouable, graines fixes) écrit `assets/crypte/modules/crypte_v2.dat` (lu par
+`CrypteDecor.modele()` via FileAccess : sûr dans le fil de construction), `crypte_v2.glb` (export de référence) et `sources_blender/crypte_modules_v2.blend`.
+Chaque module = pierre taillée par assises irrégulières (blocs aux arêtes abattues, sommets bougés, inclinés de quelques degrés), couleurs de sommet cuites
+(ton de chaque bloc x occlusion ambiante par rayons) ; objets nommés `module__matiere` (`pierre`, `fer`, `cire`, `bois`) et `module__pts` (points de flamme).
+Repère Godot, origine au pied, `+z` = face avant (vers la pièce). `CrypteDecor.modele(nom, pos, lacet, echelle, mats)` verse les triangles dans les tampons
+de matière existants (fusion par cellule de 8 m : aucun nœud en plus) avec UV triplanaires en mètres.
+
+| module | usage |
+|---|---|
+| `pilier_mur_1p6`, `_3p2`, `_6` | pilier engagé (saillie 0,34 m), socle à ressauts, assises, chapiteau |
+| `colonne_mur_3p2`, `_6` | demi-colonne à tambours (disponible, pas encore posée) |
+| `arche_2p0`, `arche_4p0`, `arche_10p7` | arc en voussoirs (portée, flèche) ; plein cintre ou surbaissé |
+| `pan_mur_a/b/c`, `pan_mur_haut` | panneaux de maçonnerie 1,8 / 2,6 / 3,4 m x 3 m (4,4 m) |
+| `eboulis_a/b/c`, `dalles_a/b/c` | tas de pierres, dalles soulevées |
+| `sarcophage`, `statue_capuche`, `candelabre`, `lustre_fer` | objets de la planche |
+| `marches_3p0` | volée de 4 marches usées (disponible pour les escaliers) |
+
+### Textures (`CrypteTextures`, `VERSION` inchangée = 13 ; seuls les nouveaux .res sont ajoutés)
+
+- `dalle_v2` : dalles IRRÉGULIÈRES (Voronoï à joints gauchis, ton/inclinaison/usure par dalle, fissures, éclats, graviers et givre dans les joints, poussière et plaques humides), 128 texels/m.
+- `pierre_v2` : pierre nue des modules (grain fin, strates, piqûres), 128 texels/m, sans joints.
+- `givre_sol` : décalque de givre au bord déchiqueté (alpha tout ou rien), remplace les plaques de neige rectangulaires du sol.
+- Régénérer : `godot --headless --path . --script res://outils/generer_crypte.gd -- --seulement=dalle_v2,pierre_v2,givre_sol` ; aperçu : `outils/previsu_textures_crypte_v2.gd`.
+- Pour changer le dessin d'une de ces textures après coup, régénérer ses .res (la VERSION n'a pas été bumpée pour ne pas réécrire les 40 autres fichiers).
+
+## 14. Crypte v2 dans TOUTES les salles (lot C4, 2026-10-23, branche `C/crypte_v2`)
+
+Référence : `references/crypte_v2_planche.png` + `references/crypte_v2_prompt.md`. Les 31 modules du kit (salles, couloirs, escaliers) sont en v2 ;
+le vestibule, l'alcôve d'Eirik et le couloir de la herse (bâtis par `tertre.gd`) restent en v1. `-- --crypte-v1` rend toujours l'ancienne crypte (captures « avant »).
+
+- **Activation** : `CrypteDonjon.plan()` ajoute `"v2": {}` (ou `V2_SALLES[id]`) à chaque module sans table. Les deux pilotes validés gardent leur table
+  avec `"auto": false` (rien de neuf n'y est placé, à part la vasque v2 et la pierre plus claire des statues).
+- **Mode auto** (`CrypteV2.salle` puis `CrypteV2.finir`, appelé par `DonjonKit.module()` APRÈS le récit `_x_*` et les garnitures) :
+  statues encapuchonnées contre les murs (nombre selon la surface, `statues_auto` pour forcer) avec candélabre et bougies ; éboulis, dalles soulevées,
+  flaques ; urnes, crânes, bougies au pied des murs ; givre (plus dans les salles froides) ; piliers engagés + arche mise à la portée sur les murs
+  longs (sauf salles à piliers isolés et salles de plus de 16,5 m de large) ; panneaux de maçonnerie autour de tout ce qui est plaqué au mur ;
+  bannières rouges à croix (bleues dans les salles froides) si le récit n'en pose aucune.
+  Le placement évite passages, accroches (ennemis, coffres, interactions, mécanismes) ET les boîtes de collision posées par le récit (`_boites_sol`).
+- **Objets plaqués au mur** : `CrypteDecor.occupations` (râteliers, étagères, panneaux d'os) → pas de panneau derrière ; `saillie_cb` avance
+  bannières, boucliers, gravures, frises et fissures devant les panneaux (jamais dans une ouverture). Murs fragiles, bouches de souffle et de
+  fléchettes (table `meca`) et `v2.reserves` gardent leur mur nu.
+- **Primitives v2** (quand `CrypteDecor.v2`) : `pilier()` → `pilier_libre_5/8`, `arc()` → `arche_*` étirée, `sarcophage()` → module sculpté,
+  `statue()` → pierre `statue_v2` ; `_g_estrade` → `estrade_3x4` ; vasque du rituel → `vasque_rituel`, autel des Os → `autel_octo`,
+  degrés de l'arène → `degres_arene` ; escaliers : piliers engagés sous les arcs. TOUTES les collisions restent les boîtes d'avant.
+- **Statues mieux éclairées** sans dépasser le budget : matière `statue_v2` (ambiant ×4,4 au lieu de ×2,6, teinte plus claire) ; et une lumière
+  basse (0,5 m, devant le socle) seulement si la salle a moins de 6 lumières et si aucun maillage voisin n'en voit déjà 6 (test_crypte : 7 par
+  salle, 8 par maillage).
+- **Emplacements d'eau (lot C5)** : `tertre.eau_slots()` → `[{centre (repère crypte), rayon, module, genre, taille}]`, genres `flaque`
+  (placeholder sombre posé), `vasque` (bassin du rituel, surface à 0,74 m), `bassin` (citerne lb3, `taille` = intérieur), `flaque_froide`
+  (sous les oculus et sur l'estrade de l'arène). Le système d'eau remplace `CrypteDecor.flaque()` ou lit cette liste.
+- **Perf de construction** : `CrypteDecor.modele()` cache les triangles par module et les transforme en bloc ; les modules de plus de 3 m sont
+  répartis triangle par triangle dans les cases de 8 m (sinon l'AABB d'un maillage grossit et touche plus de 8 lumières).
+- **Outils** : `outils/sonde_crypte_v2.gd` (sans fenêtre) : ce que le mode auto a posé par salle, la liste des emplacements d'eau,
+  `--zone=<id>` (lumières comptées par test_crypte), `--maillage=<nom>` (lumières qui touchent un maillage).

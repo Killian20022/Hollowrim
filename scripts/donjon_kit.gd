@@ -39,6 +39,15 @@ var _m: Dictionary = {}          # module en cours
 var _lanes: Array = []           # segments [a, b] (repère local) qui doivent rester libres
 var _reserves: Array = []        # points locaux (rayon) à ne pas encombrer
 var _occ_mur: Array = []         # refonte matière : [côté, position le long du mur, demi-largeur] déjà pris (appliques, sceaux)
+# crypte v2, mode auto (scripts/crypte_v2.gd) : état du module en cours entre la 1re passe (CrypteV2.salle) et la 2e (CrypteV2.finir)
+var _v2_obst: Dictionary = {}    # côté -> [[abscisse, demi-largeur]] : statues auto (les panneaux et piliers les contournent)
+var _v2_lum: Array = []          # lumières de candélabre à allumer si le budget de la salle le permet
+var _v2_reglages: Dictionary = {}
+var _v2_ban0 := 0                # bannières déjà posées au début du module
+var _n_lum0 := 0                 # lumières déjà posées au début du module
+var _n_corps0 := 0               # collisions déjà posées au début du module (CrypteV2._boites_sol)
+var _v2_boites: Array = []       # boîtes de collision du module en cours (repère local, Rect2 en x,z)
+var v2_stats: Dictionary = {}    # id -> {statues, candelabres, lumieres_statue, piliers, bannieres, flaques} (outils/sonde_crypte_v2.gd)
 
 func _init(decor: CrypteDecor) -> void:
 	d = decor
@@ -146,7 +155,21 @@ func module(m: Dictionary) -> void:
 		b = b * Basis.from_scale(Vector3(-1, 1, 1))
 	var o: Vector2 = m["o"]
 	d.xf = Transform3D(b, Vector3(o.x, 0.0, o.y))
-	d.theme = th["theme"]
+	var v2_actif := CrypteV2.actif(m)
+	d.theme = (th["theme"] as Dictionary).merged(CrypteV2.THEME, true) if v2_actif else th["theme"]     # crypte v2 : dalles irrégulières
+	d.v2 = v2_actif
+	d.module_id = id
+	d.occupations = []
+	_v2_obst = {}
+	_v2_lum = []
+	_v2_reglages = {}
+	_v2_ban0 = d.nb_bannieres
+	_n_lum0 = d.toutes.size()
+	_n_corps0 = d.corps.get_child_count()
+	_v2_boites = []
+	_occ_mur = []
+	if CrypteV2.auto(m) and type != "escalier":
+		d.saillie_cb = CrypteV2.saillie.bind(self, m)      # bannières, boucliers, gravures : devant les panneaux de maçonnerie
 	var y := float(m.get("y", 0.0))
 	d.niveau_a = 1.0 + y / 20.0
 	var dim: Vector2 = m["dim"]
@@ -188,7 +211,10 @@ func module(m: Dictionary) -> void:
 		d.salle(-dim.x * 0.5, dim.x * 0.5, -dim.y * 0.5, dim.y * 0.5, h, ouv_l, y, th["mur"])
 		zone(id, Vector3(-dim.x * 0.5, 0, -dim.y * 0.5), Vector3(dim.x * 0.5, 0, dim.y * 0.5), y)
 		if type == "couloir":
-			_couloir(m)
+			if CrypteV2.actif(m):
+				CrypteV2.couloir(self, m)
+			else:
+				_couloir(m)
 		else:
 			_ambiance(m)
 		for g: Array in m.get("garnitures", []):
@@ -197,6 +223,8 @@ func module(m: Dictionary) -> void:
 			_usure(m)
 		if m.has("extra"):
 			call(m["extra"], m)
+		if v2_actif:
+			CrypteV2.finir(self, m)      # mode auto : piliers, panneaux, bannières, lumières de statue (après le récit de la salle)
 	# accroches de la table : écrites en repère de la CRYPTE (monde), converties ici en repère local (donc suivent rotation et miroir)
 	for e: Dictionary in m.get("ennemis", []):
 		_ennemi(m, e)
@@ -230,6 +258,10 @@ func module(m: Dictionary) -> void:
 	d.xf = Transform3D.IDENTITY
 	d.theme = {}
 	d.niveau_a = 1.0
+	d.v2 = false
+	d.module_id = ""
+	d.saillie_cb = Callable()
+	d.occupations = []
 	_m = {}
 
 ## Arguments de garniture : les positions (clés « pos » et « pts », écrites en repère de la crypte) passent en repère local ; le reste (tailles, nombres) est inchangé.
@@ -375,7 +407,8 @@ func _ambiance(m: Dictionary) -> void:
 			break
 		var pm := plan_mur(m, cd[1])
 		var base: Vector3 = pt_mur(m, cd[1], cd[2], 0.0)
-		d.applique(Vector3(base.x, y, base.z), pm["vers"], y + minf(h - 1.2, 2.4), 5.0 + alea(-0.3, 0.8), 1.6 + alea(-0.15, 0.25), true)
+		var ret_v2: Vector3 = (pm["vers"] as Vector3) * 0.2 if CrypteV2.actif(m) else Vector3.ZERO      # crypte v2 : le panneau de maçonnerie avance de 22 cm
+		d.applique(Vector3(base.x, y, base.z) + ret_v2, pm["vers"], y + minf(h - 1.2, 2.4), 5.0 + alea(-0.3, 0.8), 1.6 + alea(-0.15, 0.25), true)
 		_jitter_derniere_lumiere(false)
 		_occ_mur.append([cd[1], float(cd[2]), 0.45])
 		k += 1
@@ -408,6 +441,10 @@ func _ambiance_matiere(m: Dictionary, _nb_lum0: int) -> void:
 	var aire := dim.x * dim.y
 	var role: String = m.get("role", "")
 	var r := d.rng_deco
+	if CrypteV2.actif(m):
+		CrypteV2.salle(self, m)       # piliers, arches, panneaux, lustres de fer, sol : voir scripts/crypte_v2.gd
+		d.brume(Vector3(0, y, 0), Vector2(dim.x * 0.3, dim.y * 0.3), clampi(int(aire / 14.0), 3, 10))
+		return
 	if h >= 3.6 and aire >= 36.0 and role != "arene":
 		var p := Vector3(r.randf_range(-0.6, 0.6), y + h, r.randf_range(-0.6, 0.6))
 		d.lustre(p, clampf(h - 2.9, 0.7, 4.0), 0.55 if aire < 90.0 else 0.75, false)   # budget : 7 lumières par salle (test_crypte)
@@ -902,6 +939,7 @@ func _g_panneaux_os(m: Dictionary, a: Dictionary) -> void:
 				continue
 			var a0: float = s[0] + 0.3
 			var a1: float = minf(s[1] - 0.3, a0 + a.get("long", 9.0))
+			d.occupations.append([pt_mur(m, c, (a0 + a1) * 0.5, y), (a1 - a0) * 0.5 + 0.35])      # crypte v2 : pas de panneau de maçonnerie dessus
 			panneau_os("x" if pm["horiz"] else "z", float(pm["plan"]) - sg * 0.0, a0, a1, y + 0.8, y + 2.8, sg)
 
 ## Rangée de sarcophages contre un mur {cote, n, taille, pille: [indices]}
@@ -933,8 +971,12 @@ func _g_estrade(m: Dictionary, a: Dictionary) -> void:
 	var p: Vector3 = a["pos"]
 	var t: Vector3 = a["taille"]
 	var mat: String = a.get("mat", "mur1")
-	d.boite_pleine(mat, Vector3(p.x, p.y + t.y * 0.5, p.z), t)
-	d.boite("mur0", Vector3(p.x, p.y + t.y + 0.03, p.z), Vector3(t.x + 0.1, 0.06, t.z + 0.1))
+	if d.v2:      # crypte v2 : massif en blocs taillés (module Blender « estrade_3x4 » mis à la taille), MÊME collision
+		d.solide(Vector3(p.x, p.y + t.y * 0.5, p.z), t)
+		d.modele("estrade_3x4", p, 0.0, Vector3(t.x / 3.2, t.y / 0.9, t.z / 4.0))
+	else:
+		d.boite_pleine(mat, Vector3(p.x, p.y + t.y * 0.5, p.z), t)
+		d.boite("mur0", Vector3(p.x, p.y + t.y + 0.03, p.z), Vector3(t.x + 0.1, 0.06, t.z + 0.1))
 	var cote: String = a.get("rampe", "E")
 	var dir := Vector3(1, 0, 0)
 	var larg := t.z
@@ -1068,7 +1110,12 @@ func escalier(x0: float, x1: float, z_haut: float, z_bas: float, y_haut: float, 
 	while k < longueur - 1.0:
 		var z := z1 + sens * k
 		d.niveau_a = 1.0 + (sol.call(z) as float) / 20.0
-		d.arc("mur0", "x", (x0 + x1) * 0.5, z, x1 - x0 - 0.6, sol.call(z) + 1.4, 1.3, 0.3, 0.4)
+		if d.v2:      # crypte v2 (vue 5 « escalier descendant ») : piliers engagés sous chaque arc
+			d.arc("mur0", "x", (x0 + x1) * 0.5, z, x1 - x0 - 0.6 - 0.64, sol.call(z) + 1.4, 1.2, 0.3, 0.4)
+			for sx: float in [-1.0, 1.0]:
+				d.modele("pilier_mur_1p6", Vector3((xa if sx < 0.0 else xb), sol.call(z), z), PI * 0.5 * -sx, Vector3(1, 1.4 / 1.62, 1))
+		else:
+			d.arc("mur0", "x", (x0 + x1) * 0.5, z, x1 - x0 - 0.6, sol.call(z) + 1.4, 1.3, 0.3, 0.4)
 		k += 4.0
 	d.niveau_a = 1.0
 	var dy := y_bas - y_haut

@@ -22,6 +22,8 @@ const TUILE := {
 	# donjon (agrandissement) : pierre givrée / glace, ossuaire, or
 	"mur3": 4.0, "mur4": 4.0, "dalle3": 4.0, "dalle4": 4.0, "ossuaire": 4.0, "or": 0.5, "neige": 2.0,
 	"entrelacs": 1.0, "sceau": 1.0, "brume": 1.0,
+	# crypte v2 : dalles irrégulières, pierre nue des modules Blender, givre en décalque
+	"dalle_v2": 4.0, "pierre_v2": 2.0, "statue_v2": 2.0, "givre_sol": 1.0, "flaque": 1.0, "flaque_bord": 1.0, "flaque_reflet": 1.0,
 }
 ## Refonte « crypte matière » (références grottes_cryptes_2/3) : feu plus orangé, ambiant écrasé dans les matériaux de la crypte
 ## (ombres presque noires, la torche et les braseros gardent toute leur force). La grotte (GrotteDecor) garde les anciennes valeurs.
@@ -31,10 +33,18 @@ const FEU_CRYPTE := Color(1.0, 0.66, 0.36)       # torche
 const FEU_BRASERO := Color(1.0, 0.62, 0.32)
 ## Pierre de la crypte : léger filtre vert-neutre (coupe un peu le rouge du feu et le bleu de l'ambiant) → brun-gris froid hors des flaques.
 const TEINTE_PIERRE := Color(0.82, 0.97, 0.93)
-const PIERRE_NEUTRE := ["mur0", "mur1", "mur2", "mur3", "dalle0", "dalle1", "dalle3", "voute", "ossuaire", "gravure", "entrelacs"]
+const PIERRE_NEUTRE := ["mur0", "mur1", "mur2", "mur3", "dalle0", "dalle1", "dalle3", "voute", "ossuaire", "gravure", "entrelacs", "dalle_v2", "pierre_v2"]
 const FEU_BOUGIE := Color(1.0, 0.66, 0.36)
 const RUNE := Color(0.35, 0.80, 1.0)
 const AMBIANT_CRYPTE := 1.6
+const AMBIANT_V2 := 2.6              # crypte v2 : pierre des modules Blender et dalles irrégulières
+const TEINTE_PIERRE_V2 := Color(1.0, 1.12, 1.18)
+## C4 (2026-10-23) : statues un peu mieux éclairées SANS lumière de plus (budget : 7 par salle, 8 par maillage) : leur pierre reçoit
+## plus d'ambiant (la silhouette se détache dans l'ombre bleue) et une teinte un peu plus claire et chaude que les murs.
+const AMBIANT_STATUE := 4.4
+const TEINTE_STATUE := Color(1.12, 1.16, 1.18)
+## Matières qui réutilisent la texture d'une autre (même dessin, réglages d'éclairage différents).
+const ALIAS_TEXTURE := {"statue_v2": "pierre_v2"}
 const GAIN_LUMIERE := 1.7          # pierre plus sombre (rampe donjon) : les feux portent plus loin et plus fort
 const GRILLE_CRYPTE := 180.0      # accroche des sommets : H / 2 à 640 x 360 (DIRECTION_ARTISTIQUE §3)
 
@@ -63,11 +73,17 @@ var niveau_a := 1.0
 var xf := Transform3D.IDENTITY
 
 const RELIEF := {"entrelacs": 1.0, "mur0": 0.75, "mur1": 0.75, "mur2": 0.75, "dalle0": 0.8, "dalle1": 0.8, "voute": 0.7, "bois": 0.8, "fer": 0.7, "gravure": 1.0,
-	"mur3": 0.8, "mur4": 0.9, "dalle3": 0.8, "dalle4": 0.9, "ossuaire": 1.0}
+	"mur3": 0.8, "mur4": 0.9, "dalle3": 0.8, "dalle4": 0.9, "ossuaire": 1.0, "dalle_v2": 0.85, "pierre_v2": 0.7, "statue_v2": 0.7}
 const AVEC_MIPS := ["mur0", "mur1", "mur2", "dalle0", "voute", "bois", "fer", "lame", "gravure", "argile", "os", "parchemin", "toile",
-	"mur3", "mur4", "dalle3", "dalle4", "ossuaire", "or", "neige", "entrelacs"]
+	"mur3", "mur4", "dalle3", "dalle4", "ossuaire", "or", "neige", "entrelacs", "dalle_v2", "pierre_v2", "statue_v2", "givre_sol"]
 const SANS_MIPS := ["halo", "rai", "flamme"]
 
+## Crypte v2 (C4) : réglages du module en cours, posés par DonjonKit.module() (remis à zéro après chaque module).
+var v2 := false                 # le module en cours est en style v2 : pilier, arc, sarcophage, statue passent par les modules Blender
+var module_id := ""             # identifiant du module en cours (étiquette des emplacements d'eau)
+var saillie_cb := Callable()    # (point local, normale) -> décalage : les objets accrochés au mur avancent devant les panneaux de maçonnerie
+var nb_bannieres := 0           # bannières posées (le kit v2 n'en ajoute pas dans une salle qui en a déjà)
+var occupations: Array = []     # [point local, demi-largeur] : objets plaqués au mur (râteliers, étagères, panneaux d'os) que les panneaux v2 évitent
 var est_crypte := false   # vrai pour la crypte elle-même (pas pour GrotteDecor, qui hérite de cette classe)
 ## RNG des détails ajoutés par la refonte matière (givre, glaçons, niches, lustres…) : séparé de `rng` pour ne pas déplacer
 ## le décor existant (gravats à collision, statues) tiré après eux.
@@ -148,6 +164,13 @@ func mat(nom: String) -> Material:
 			s.cull_mode = BaseMaterial3D.CULL_DISABLED
 			s.disable_receive_shadows = true
 			m = s
+		"flaque", "flaque_bord", "flaque_reflet":
+			var s := StandardMaterial3D.new()        # PLACEHOLDER de l'eau (crypte v2) : l'eau stylisée viendra du système d'eau (branche eau/prototype)
+			s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			s.albedo_color = {"flaque": Color(0.05, 0.1, 0.16), "flaque_bord": Color(0.13, 0.17, 0.22), "flaque_reflet": Color(0.3, 0.42, 0.56)}[nom]
+			s.cull_mode = BaseMaterial3D.CULL_DISABLED
+			s.disable_receive_shadows = true
+			m = s
 		"halo", "rai", "halo_f":
 			var s := StandardMaterial3D.new()
 			s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -170,6 +193,13 @@ func mat(nom: String) -> Material:
 				sm.set_shader_parameter("crasse", 0.0)
 				sm.set_shader_parameter("teinte", Color(0.7, 0.64, 0.58))
 			var sh := CRYPTE_SHADER
+			if nom == "givre_sol":
+				var s3 := Shader.new()
+				s3.code = CRYPTE_SHADER.code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_disabled, cull_disabled;")
+				sh = s3
+				sm.set_shader_parameter("decoupe", 0.5)
+				sm.set_shader_parameter("crasse", 0.0)
+				sm.set_shader_parameter("emission", Vector3(0.012, 0.02, 0.03))
 			if nom == "toile":
 				var s2 := Shader.new()
 				s2.code = CRYPTE_SHADER.code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_disabled, cull_disabled;")
@@ -178,8 +208,9 @@ func mat(nom: String) -> Material:
 				sm.set_shader_parameter("crasse", 0.0)
 				sm.set_shader_parameter("emission", Vector3(0.06, 0.08, 0.1))
 			sm.shader = sh
-			sm.set_shader_parameter("tex_base", _texture(nom))
-			var nm := _pentes(nom)
+			var nom_tex: String = ALIAS_TEXTURE.get(nom, nom)
+			sm.set_shader_parameter("tex_base", _texture(nom_tex))
+			var nm := _pentes(nom_tex)
 			if nm != null:
 				sm.set_shader_parameter("tex_nm", nm)
 				sm.set_shader_parameter("relief", RELIEF.get(nom, 1.0))
@@ -195,6 +226,12 @@ func mat(nom: String) -> Material:
 					sm.set_shader_parameter("emission", Vector3(0.012, 0.03, 0.05))
 				if nom in PIERRE_NEUTRE:
 					sm.set_shader_parameter("teinte", TEINTE_PIERRE)
+				if nom == "pierre_v2" or nom == "dalle_v2":      # crypte v2 : plus de fond bleuté (planche : pierre lisible dans l'ombre)
+					sm.set_shader_parameter("ambiant", AMBIANT_V2)
+					sm.set_shader_parameter("teinte", TEINTE_PIERRE_V2)
+				elif nom == "statue_v2":
+					sm.set_shader_parameter("ambiant", AMBIANT_STATUE)
+					sm.set_shader_parameter("teinte", TEINTE_STATUE)
 			m = sm
 	_mats[nom] = m
 	return m
@@ -436,6 +473,10 @@ func tour(nom: String, base: Vector3, profil: Array, cotes := 8, decal := -1.0, 
 ## Arche (rib) : `plan` "x" = l'arche franchit un vide le long de X (extrudée le long de Z), "z" = l'inverse.
 ## Largeur libre w, naissance à la hauteur ys, flèche f (sommet à ys+f) ; brisée si f >= w/2, sinon segmentaire.
 func arc(nom: String, plan: String, cx: float, cz: float, w: float, ys: float, f: float, ep := 0.32, prof := 0.45, seg := 8) -> void:
+	if v2:      # crypte v2 : arc en voussoirs (module Blender) étiré à la portée et à la flèche demandées
+		var g: Array = ["arche_2p0", 2.0, 1.0] if w <= 3.0 else (["arche_4p0", 4.0, 2.2] if w <= 7.0 else ["arche_10p7", 10.7, 2.3])
+		modele(g[0], Vector3(cx, ys, cz), 0.0 if plan == "x" else PI * 0.5, Vector3(w / float(g[1]), f / float(g[2]), clampf(prof / 0.5, 0.7, 1.3)))
+		return
 	var t: float = TUILE.get(nom, 1.0)
 	var intr: Array = []     # Vector2(u, y) de gauche à droite
 	var extr: Array = []
@@ -854,6 +895,13 @@ func pilastre_mur(pied: Vector3, vers: Vector3, hp: float) -> void:
 ## ressauts, et sur chaque face un panneau d'ENTRELACS en losanges (un ou deux panneaux superposés selon la hauteur).
 ## Collision = la boîte d'origine (largeur x h x largeur), inchangée.
 func pilier(x: float, z: float, h: float, largeur := 0.9, y := 0.0) -> void:
+	if v2:      # crypte v2 : pilier isolé en assises de blocs (module Blender), MÊME collision
+		var base := "pilier_libre_8" if h > 6.5 else "pilier_libre_5"
+		var bh := 8.0 if h > 6.5 else 5.0
+		var bw := 1.2 if h > 6.5 else 1.0
+		modele(base, Vector3(x, y, z), 0.0, Vector3(largeur / bw, h / bh, largeur / bw))
+		solide(Vector3(x, y + h * 0.5, z), Vector3(largeur, h, largeur))
+		return
 	if not est_crypte:
 		_pilier_octo(x, z, h, largeur, y)
 		return
@@ -1112,6 +1160,13 @@ func brasero(pos: Vector3, froid := false) -> void:  # froid : lumière bleue (i
 
 # ------------------------------------------------------------------ mobilier (Méso)
 func sarcophage(pos: Vector3, taille: Vector3, lacet := 0.0, collision := true) -> void:
+	if v2:      # crypte v2 : sarcophage sculpté (module Blender, 2,18 x 1,1 x 0,92 m) mis à la taille demandée ; MÊME collision
+		modele("sarcophage", pos, lacet, Vector3(taille.x / 2.18, (taille.y + 0.24) / 1.1, taille.z / 0.92))
+		if collision:
+			var bv := Basis(Vector3.UP, lacet)
+			var sv := bv * Vector3(taille.x, 0, taille.z)
+			solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(sv.x), taille.y, absf(sv.z)))
+		return
 	boite("mur0", pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
 	boite("gravure", pos + Vector3(0, taille.y + 0.07, 0), Vector3(taille.x + 0.1, 0.14, taille.z + 0.1), lacet)
 	boite("gravure", pos + Vector3(0, taille.y + 0.19, 0), Vector3(taille.x - 0.22, 0.1, taille.z - 0.3), lacet)
@@ -1172,6 +1227,7 @@ func table(pos: Vector3, lacet := 0.0) -> void:
 	tour("fer", pos + b * Vector3(0.36, 0.795, 0.14), [Vector2(0.07, 0.0), Vector2(0.085, 0.01), Vector2(0.05, 0.016)], 8, 0.0, false)
 
 func etagere(pos: Vector3, lacet: float, largeur := 1.8, haut := 2.0) -> void:
+	occupations.append([pos, largeur * 0.5 + 0.15])
 	var b := Basis(Vector3.UP, lacet)
 	for sx in [-largeur * 0.5, largeur * 0.5]:
 		boite("bois", pos + b * Vector3(sx, haut * 0.5, 0), Vector3(0.07, haut, 0.34), lacet)
@@ -1239,6 +1295,8 @@ func rai(pos_bas: Vector3, haut: float, largeur := 1.4) -> void:
 
 ## Flaque de lumière froide au sol sous un rai.
 func flaque_froide(pos: Vector3, diametre := 3.0) -> void:
+	if v2:
+		eau_slot(pos, diametre * 0.5, "flaque_froide")
 	carte("halo_f", pos + Vector3(0, 0.02, 0), Vector3.UP, diametre, diametre)
 
 func oculus(pos: Vector3, cote := 1.6) -> void:
@@ -1296,6 +1354,25 @@ func _rect(nom: String, c: Vector3, dr: Vector3, ha: Vector3, cx: float, cy: flo
 		var ly := k.y * h * 0.5
 		pts.append(c + dr * (cx + lx * co - ly * s) + ha * (cy + lx * s + ly * co))
 	quad(nom, pts[0], pts[1], pts[2], pts[3], n, [], [], [col, col, col, col])
+
+## Cercle rituel GRAVÉ au sol (crypte v2) : anneaux fins de petits tronçons (72 par anneau) + 12 repères radiaux, à la place des douze grosses
+## barres de l'emblème « cercle » (les « gros carrés » clairs vus du sol). Teinte froide et sombre : la gravure se lit, elle ne brille pas.
+func cercle_grave(centre: Vector3, rayon: float, teinte := Color(0.46, 0.5, 0.58)) -> void:
+	var n := Vector3.UP
+	var dr: Vector3 = _axes(n)[0]
+	var ha: Vector3 = _axes(n)[1]
+	var c := centre + Vector3(0, 0.02, 0)
+	for anneau: Array in [[rayon, 0.07, 72], [rayon * 1.32, 0.045, 96], [rayon * 0.62, 0.035, 56]]:
+		var R: float = anneau[0]
+		var seg: int = anneau[2]
+		var long := TAU * R / seg * 1.12
+		for k in seg:
+			var a := TAU * k / seg
+			_rect("gravure", c, dr, ha, cos(a) * R, sin(a) * R, long, anneau[1], a + PI * 0.5, n, teinte)
+	for k in 12:
+		var a := TAU * k / 12.0
+		var R := rayon * 0.97
+		_rect("gravure", c, dr, ha, cos(a) * R * 1.16, sin(a) * R * 1.16, rayon * 0.34, 0.05, a, n, teinte)
 
 ## Barres [cx, cy, w, h, angle] d'un symbole sur [-0.5, 0.5] : sceaux (os, givre, eau), formes des énigmes, scènes des gravures.
 func _symbole(sujet: String) -> Array:
@@ -1369,6 +1446,7 @@ func _symbole(sujet: String) -> Array:
 ## Emblème gravé : plaque de pierre sombre et symbole clair en relief (matière « os », teintable). `vers` = normale du plan (mur, ou UP pour le sol).
 func embleme(sujet: String, centre: Vector3, vers: Vector3, taille := 0.9, teinte := Color(0.95, 0.88, 0.7)) -> void:
 	var n := vers.normalized()
+	centre += _saillie(centre, n, 0.3)
 	var ax := _axes(n)
 	var dr: Vector3 = ax[0]
 	var ha: Vector3 = ax[1]
@@ -1379,6 +1457,9 @@ func embleme(sujet: String, centre: Vector3, vers: Vector3, taille := 0.9, teint
 ## Bas-relief : plusieurs symboles sur une frise (liste de sujets) ; sert aux fresques et aux gravures murales.
 func frise(sujets: Array, centre: Vector3, vers: Vector3, taille := 0.9, pas := 1.2, teinte := Color(0.95, 0.88, 0.7)) -> void:
 	var n := vers.normalized()
+	centre += _saillie(centre, n, 0.3)
+	var cb := saillie_cb
+	saillie_cb = Callable()      # les emblèmes de la frise suivent son cadre (déjà avancé)
 	var dr: Vector3 = _axes(n)[0]
 	var x0 := -(sujets.size() - 1) * pas * 0.5
 	for i in sujets.size():
@@ -1387,6 +1468,7 @@ func frise(sujets: Array, centre: Vector3, vers: Vector3, taille := 0.9, pas := 
 	var ha: Vector3 = _axes(n)[1]
 	var l := (sujets.size() - 1) * pas + taille * 1.5
 	_rect("mur0", centre + n * 0.006, dr, ha, 0.0, 0.0, l, taille * 1.5, 0.0, n, Color(0.7, 0.7, 0.78))
+	saillie_cb = cb
 
 ## Socle de pierre (collision). `taille` = largeur x hauteur x profondeur.
 func socle(pos: Vector3, taille := Vector3(0.9, 0.9, 0.9), lacet := 0.0, mat := "mur1") -> void:
@@ -1400,6 +1482,8 @@ func socle(pos: Vector3, taille := Vector3(0.9, 0.9, 0.9), lacet := 0.0, mat := 
 ## Statue de pierre sur socle (visage vers +Z local, tourné de `lacet`). type : guerrier (casque, lance, bouclier), jarl (couronne, épée plantée),
 ## ancetre (capuche, mains jointes), gardienne (voile).
 func statue(pos: Vector3, lacet := 0.0, e := 1.0, type := "guerrier", collision := true, mat := "mur1") -> void:
+	if v2 and mat in ["mur0", "mur1", "mur2"]:
+		mat = "statue_v2"       # crypte v2 : statues un peu plus claires que les murs (sans lumière de plus)
 	var b := Basis(Vector3.UP, lacet)
 	var h0 := 0.5                                          # socle
 	boite(mat, pos + Vector3(0, h0 * 0.5, 0), Vector3(0.95, h0, 0.95), lacet)
@@ -1444,8 +1528,12 @@ func statue(pos: Vector3, lacet := 0.0, e := 1.0, type := "guerrier", collision 
 		solide(pos + Vector3(0, 1.2, 0), Vector3(1.0, 2.4, 1.0))
 
 ## Bannière accrochée à une tringle : `haut` = point du mur (hauteur de la tringle), `vers` = normale vers la pièce, usure 0 intacte, 1 déchirée, 2 en lambeaux.
-func banniere(haut: Vector3, vers: Vector3, long := 1.7, larg := 0.75, couleur := Color(0.62, 0.3, 0.26), sujet := "", usure := 1) -> void:
+func banniere(haut: Vector3, vers: Vector3, long := 1.7, larg := 0.75, couleur := Color(0.62, 0.3, 0.26), sujet := "", usure := 1, teinte_embleme := Color(0.9, 0.85, 0.7)) -> void:
 	var n := vers.normalized()
+	haut += _saillie(haut, n, 0.24)
+	nb_bannieres += 1
+	var cb := saillie_cb
+	saillie_cb = Callable()
 	var dr: Vector3 = _axes(n)[0]
 	var lacet := atan2(n.x, n.z)
 	boite("bois", haut + n * 0.1, Vector3(larg + 0.24, 0.05, 0.05), lacet)
@@ -1467,7 +1555,8 @@ func banniere(haut: Vector3, vers: Vector3, long := 1.7, larg := 0.75, couleur :
 			var inc := rng.randf_range(-0.05, 0.05)
 			quad("parchemin", ya + dr * x0, ya + dr * (x0 + lw * 0.9), yb + dr * (x0 + lw * 0.9 + inc), yb + dr * (x0 + inc), n, [], [], [teinte, teinte, Color(teinte.r * 0.8, teinte.g * 0.8, teinte.b * 0.8), Color(teinte.r * 0.8, teinte.g * 0.8, teinte.b * 0.8)])
 	if sujet != "":
-		embleme(sujet, p0 + n * 0.045 - Vector3(0, minf(haut_plein, long) * 0.32, 0), n, larg * 0.5, Color(0.9, 0.85, 0.7))
+		embleme(sujet, p0 + n * 0.045 - Vector3(0, minf(haut_plein, long) * 0.32, 0), n, larg * 0.5, teinte_embleme)
+	saillie_cb = cb
 
 ## Chaîne verticale (maillons alternés) du point `haut` au point `bas`.
 func chaine(haut: Vector3, bas: Vector3) -> void:
@@ -1532,6 +1621,7 @@ func lit(pos: Vector3, lacet := 0.0, teinte := Color(0.5, 0.4, 0.36)) -> void:
 
 ## Râtelier d'armes contre un mur (dos vers -Z local) : épées, lances, haches.
 func ratelier_armes(pos: Vector3, lacet := 0.0, largeur := 1.8) -> void:
+	occupations.append([pos, largeur * 0.5 + 0.15])
 	var b := Basis(Vector3.UP, lacet)
 	boite("bois", pos + b * Vector3(0, 0.95, 0), Vector3(largeur, 1.5, 0.05), lacet)
 	for y in [0.55, 1.3]:
@@ -1557,6 +1647,7 @@ func ratelier_armes(pos: Vector3, lacet := 0.0, largeur := 1.8) -> void:
 ## Bouclier rond accroché au mur (octogone de bois cerclé de fer).
 func bouclier_mural(centre: Vector3, vers: Vector3, rayon := 0.32, teinte := Color(0.6, 0.4, 0.3)) -> void:
 	var n := vers.normalized()
+	centre += _saillie(centre, n, 0.28)
 	var ax := _axes(n)
 	_rect("bois", centre + n * 0.03, ax[0], ax[1], 0.0, 0.0, rayon * 2.0, rayon * 2.0, 0.0, n, teinte)
 	_rect("bois", centre + n * 0.032, ax[0], ax[1], 0.0, 0.0, rayon * 2.0, rayon * 2.0, PI * 0.25, n, teinte)
@@ -1578,6 +1669,7 @@ func autel(pos: Vector3, lacet := 0.0, largeur := 2.0) -> void:
 ## Bassin : margelle de pierre (collision, h de haut) et surface noire en retrait.
 func bassin(centre: Vector3, w: float, p: float, h := 0.5) -> void:
 	var e := 0.4
+	eau_slot(centre + Vector3(0, h - 0.12, 0), minf(w, p) * 0.5 - e, "bassin", Vector2(w - 2.0 * e, p - 2.0 * e))
 	boite_pleine("mur1", centre + Vector3(0, h * 0.5, -(p * 0.5 - e * 0.5)), Vector3(w, h, e))
 	boite_pleine("mur1", centre + Vector3(0, h * 0.5, (p * 0.5 - e * 0.5)), Vector3(w, h, e))
 	boite_pleine("mur1", centre + Vector3(-(w * 0.5 - e * 0.5), h * 0.5, 0), Vector3(e, h, p - 2.0 * e))
@@ -1624,6 +1716,7 @@ func gravats(pos: Vector3, r := 1.0, h := 0.7, avec_collision := true, mat := "m
 ## Fissures noires qui courent sur un mur (mur fragile : on les voit, et la poussière au pied).
 func fissures(centre: Vector3, vers: Vector3, larg := 2.0, haut := 2.6, n := 3) -> void:
 	var nv := vers.normalized()
+	centre += _saillie(centre, nv, 0.27)
 	var ax := _axes(nv)
 	for k in n:
 		var x := -larg * 0.35 + k * larg * 0.35 + rng.randf_range(-0.1, 0.1)
@@ -1710,6 +1803,222 @@ func boite_pleine_l(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0)
 
 # ------------------------------------------------------------------ vie et fin
 ## Lumières qui vacillent : trois fréquences + un tirage par pas de 1/12 s (le feu « saute » comme en pixel art).
+# ------------------------------------------------------------------ modules Blender (crypte v2)
+## Les modules de sources_blender/scripts/crypte_modules_v2.py sont lus dans crypte_v2.dat (FileAccess : sûr dans le fil de
+## construction ; un .glb relu ici bloquerait le fil) puis versés dans les MÊMES tampons que les quads (fusion par cellule de 8 m et par
+## matière : aucun nœud en plus). UV triplanaires en mètres (même densité de texels que les murs) ; couleurs de sommet = ton x occlusion cuits.
+const MODELES_DAT := "res://assets/crypte/modules/crypte_v2.dat"
+const MAT_MODELE := {"pierre": "pierre_v2", "fer": "fer", "cire": "os", "bois": "bois"}
+static var _modeles := {}            # "module__matiere" -> {"v": PackedVector3Array, "c": PackedColorArray}
+static var _modeles_de := {}         # module -> [matières]
+static var _modeles_verrou := Mutex.new()
+
+static func _charger_modeles() -> void:
+	_modeles_verrou.lock()
+	if _modeles.is_empty():
+		var f := FileAccess.open(MODELES_DAT, FileAccess.READ)
+		if f != null:
+			var n := f.get_32()
+			for _k in n:
+				var nom := f.get_buffer(f.get_8()).get_string_from_utf8()
+				var nb := f.get_32()
+				var fl := f.get_buffer(nb * 28).to_float32_array()
+				var v := PackedVector3Array()
+				var c := PackedColorArray()
+				v.resize(nb)
+				c.resize(nb)
+				for q in nb:
+					var o := q * 7
+					v[q] = Vector3(fl[o], fl[o + 1], fl[o + 2])
+					c[q] = Color(fl[o + 3], fl[o + 4], fl[o + 5], 1.0)
+				_modeles[nom] = {"v": v, "c": c}
+				var parts := nom.split("__")
+				if not _modeles_de.has(parts[0]):
+					_modeles_de[parts[0]] = []
+				(_modeles_de[parts[0]] as Array).append(parts[1])
+	_modeles_verrou.unlock()
+
+static func modele_existe(nom: String) -> bool:
+	_charger_modeles()
+	return _modeles_de.has(nom)
+
+## Pose un module Blender : pos (repère local du module en cours), lacet (autour de y), échelle ; `mats` remplace une matière
+## du module (ex. {"pierre": "mur1"}). Renvoie les points de flamme du module (déjà posés, mêmes repères que `pos`).
+## C4 (2026-10-23) : version rapide (les ~300 000 triangles de la crypte entière) : sommets dans l'ordre de Godot et normales cuits une
+## fois par module (_modele_cache), transformés en bloc (Transform3D * PackedVector3Array), un seul tampon par pose (case de 8 m du
+## point de pose), UV triplanaires en mètres calculés dans le repère de la crypte.
+static var _cache_modeles := {}      # "module__matiere|alpha|miroir" -> {"v", "n", "c"} (sommets a, c, b ; normale répétée 3 fois)
+
+func _modele_cache(cle_mat: String, alpha: float, miroir: bool) -> Dictionary:
+	var cle := "%s|%.3f|%d" % [cle_mat, alpha, 1 if miroir else 0]
+	_modeles_verrou.lock()
+	var r: Dictionary = _cache_modeles.get(cle, {})
+	if r.is_empty():
+		var data: Dictionary = _modeles[cle_mat]
+		var v: PackedVector3Array = data["v"]
+		var cc: PackedColorArray = data["c"]
+		var ov := PackedVector3Array()
+		var on := PackedVector3Array()
+		var oc := PackedColorArray()
+		for q in range(0, v.size(), 3):
+			var a := v[q]
+			var b := v[q + 1]
+			var c := v[q + 2]
+			var n := (b - a).cross(c - a)
+			if n.length_squared() < 1e-12:
+				continue
+			n = n.normalized()
+			var ca := cc[q]
+			var cb := cc[q + 1]
+			var c3 := cc[q + 2]
+			ca.a = alpha
+			cb.a = alpha
+			c3.a = alpha
+			if miroir:      # la pose inverse l'orientation : ordre a, b, c
+				ov.append(a); ov.append(b); ov.append(c)
+				oc.append(ca); oc.append(cb); oc.append(c3)
+			else:           # face avant = sens horaire (comme _tri)
+				ov.append(a); ov.append(c); ov.append(b)
+				oc.append(ca); oc.append(c3); oc.append(cb)
+			on.append(n); on.append(n); on.append(n)
+		var bmin := Vector3(INF, INF, INF)
+		var bmax := -bmin
+		for q in v.size():
+			bmin = bmin.min(v[q])
+			bmax = bmax.max(v[q])
+		r = {"v": ov, "n": on, "c": oc, "taille": (bmax - bmin) if v.size() > 0 else Vector3.ZERO}
+		_cache_modeles[cle] = r
+	_modeles_verrou.unlock()
+	return r
+
+func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats := {}) -> Array:
+	_charger_modeles()
+	var points: Array = []
+	if not _modeles_de.has(nom):
+		push_warning("module Blender introuvable : " + nom)
+		return points
+	var b := Basis(Vector3.UP, lacet) * Basis.from_scale(ech)
+	var T := xf * Transform3D(b, pos)
+	var TN := Transform3D(T.basis.inverse().transposed(), Vector3.ZERO)
+	var miroir := T.basis.determinant() < 0.0
+	var centre := T.origin
+	for mat: String in _modeles_de[nom]:
+		if mat == "pts":
+			var v: PackedVector3Array = (_modeles["%s__pts" % nom] as Dictionary)["v"]
+			for q in range(0, v.size(), 3):
+				points.append(pos + b * v[q])
+			continue
+		var cible: String = mats.get(mat, MAT_MODELE.get(mat, "mur0"))
+		var nom_mat: String = theme.get(cible, cible) if not theme.is_empty() else cible
+		var inv := 1.0 / float(TUILE.get(nom_mat, 1.0))
+		var cm := _modele_cache("%s__%s" % [nom, mat], niveau_a, miroir)
+		var wv: PackedVector3Array = T * (cm["v"] as PackedVector3Array)
+		var wn: PackedVector3Array = TN * (cm["n"] as PackedVector3Array)
+		var nb := wv.size()
+		var uv := PackedVector2Array()
+		uv.resize(nb)
+		for q in range(0, nb, 3):
+			var nq := wn[q]
+			var ax := absf(nq.x)
+			var ay := absf(nq.y)
+			var az := absf(nq.z)
+			var p0 := wv[q]
+			var p1 := wv[q + 1]
+			var p2 := wv[q + 2]
+			if ay >= ax and ay >= az:
+				uv[q] = Vector2(p0.x, p0.z) * inv
+				uv[q + 1] = Vector2(p1.x, p1.z) * inv
+				uv[q + 2] = Vector2(p2.x, p2.z) * inv
+			elif ax >= az:
+				uv[q] = Vector2(p0.z, -p0.y) * inv
+				uv[q + 1] = Vector2(p1.z, -p1.y) * inv
+				uv[q + 2] = Vector2(p2.z, -p2.y) * inv
+			else:
+				uv[q] = Vector2(p0.x, -p0.y) * inv
+				uv[q + 1] = Vector2(p1.x, -p1.y) * inv
+				uv[q + 2] = Vector2(p2.x, -p2.y) * inv
+		var tl: Vector3 = (cm["taille"] as Vector3) * ech.abs()
+		if maxf(tl.x, maxf(tl.y, tl.z)) > 3.0:
+			# grand module (arches, degrés, panneaux larges) : triangle par triangle dans la case de 8 m de son centre, comme les quads —
+			# un seul tampon élargirait l'AABB du maillage et lui ferait toucher plus de 8 lumières (limite du rendu mobile)
+			var cc2: PackedColorArray = cm["c"]
+			for q in range(0, nb, 3):
+				var bt := _buf((wv[q] + wv[q + 1] + wv[q + 2]) / 3.0, nom_mat)
+				var tv: PackedVector3Array = bt["v"]
+				var tn: PackedVector3Array = bt["n"]
+				var tu: PackedVector2Array = bt["u"]
+				var tc: PackedColorArray = bt["c"]
+				for j in 3:
+					tv.append(wv[q + j])
+					tn.append(wn[q + j])
+					tu.append(uv[q + j])
+					tc.append(cc2[q + j])
+			continue
+		var bf := _buf(centre, nom_mat)
+		var bv: PackedVector3Array = bf["v"]
+		var bn: PackedVector3Array = bf["n"]
+		var bu: PackedVector2Array = bf["u"]
+		var bc: PackedColorArray = bf["c"]
+		bv.append_array(wv)
+		bn.append_array(wn)
+		bu.append_array(uv)
+		bc.append_array(cm["c"])
+	return points
+
+## Givre au sol en décalque irrégulier (texture « givre_sol », alpha découpé) : remplace les plaques de neige du sol.
+func givre_decal(centre: Vector3, taille: Vector2, lacet := 0.0) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	var hx := taille.x * 0.5
+	var hz := taille.y * 0.5
+	var a := centre + b * Vector3(-hx, 0.007, -hz)
+	var bb := centre + b * Vector3(hx, 0.007, -hz)
+	var c := centre + b * Vector3(hx, 0.007, hz)
+	var d := centre + b * Vector3(-hx, 0.007, hz)
+	quad("givre_sol", a, bb, c, d, Vector3.UP)
+
+## Flaque PLACEHOLDER (polygone irrégulier plat, sombre) à l'emplacement d'une future eau : l'eau stylisée du système d'eau
+## (branche eau/prototype) la remplacera. Les emplacements sont aussi mémorisés dans `eau_slots` (centre, rayon, repère local).
+## C4 : chaque emplacement = {centre (repère de la crypte), rayon, module (identifiant de salle), genre ("flaque" | "vasque" | "bassin" |
+## "flaque_froide"), taille (Vector2, bassins rectangulaires : largeur x profondeur EN REPÈRE DE LA CRYPTE)}. Lu par tertre.eau_slots().
+var eau_slots: Array = []
+
+func eau_slot(centre: Vector3, rayon: float, genre := "flaque", taille := Vector2.ZERO) -> void:
+	var t := taille
+	if taille != Vector2.ZERO and xf != Transform3D.IDENTITY:
+		var tt := (xf.basis * Vector3(taille.x, 0, taille.y)).abs()
+		t = Vector2(tt.x, tt.z)
+	eau_slots.append({"centre": xf * centre, "rayon": rayon, "module": module_id, "genre": genre, "taille": t})
+
+## Décalage d'un objet accroché au mur (crypte v2 : devant les panneaux de maçonnerie) ; zéro hors v2 ou loin d'un mur.
+func _saillie(p: Vector3, n: Vector3, avance: float) -> Vector3:
+	if not saillie_cb.is_valid() or absf(n.y) > 0.5:
+		return Vector3.ZERO
+	return saillie_cb.call(p, n, avance)
+
+func flaque(centre: Vector3, rayon: float, graine := 1, forme := Vector2(1.0, 0.75)) -> void:
+	eau_slot(centre, rayon, "flaque")
+	var r := RandomNumberGenerator.new()
+	r.seed = graine * 977
+	var n := 14
+	var rr: Array = []
+	for k in n:
+		rr.append(rayon * r.randf_range(0.7, 1.1))
+	# bord mouillé (anneau clair sous la surface), surface sombre, deux reflets en fines lignes (placeholder : l'eau stylisée viendra du système d'eau)
+	for couche: Array in [["flaque_bord", 1.14, 0.009], ["flaque", 1.0, 0.012]]:
+		var pts: Array = []
+		for k in n:
+			var a := TAU * k / n
+			pts.append(centre + Vector3(cos(a) * rr[k] * couche[1] * forme.x, couche[2], sin(a) * rr[k] * couche[1] * forme.y))
+		for k in n:
+			quad(couche[0], centre + Vector3(0, couche[2], 0), pts[k], pts[(k + 1) % n], pts[(k + 1) % n], Vector3.UP)
+	for k in 2:
+		var a := r.randf_range(-0.5, 0.5)
+		var c := centre + Vector3(r.randf_range(-0.3, 0.3) * rayon * forme.x, 0.016, r.randf_range(-0.3, 0.3) * rayon * forme.y)
+		var l := rayon * r.randf_range(0.3, 0.5)
+		var d := Vector3(cos(a), 0, sin(a)) * l * 0.5
+		var w := Vector3(-sin(a), 0, cos(a)) * 0.02
+		quad("flaque_reflet", c - d - w, c + d - w, c + d + w, c - d + w, Vector3.UP)
+
 func vaciller(t: float) -> void:
 	for l in lumieres:
 		var ph: float = l[2]

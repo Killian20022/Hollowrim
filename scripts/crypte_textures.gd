@@ -1107,6 +1107,207 @@ static func poussiere_image() -> Image:
 	img.fill(Color(0.8, 0.88, 1.0, 1.0))
 	return img
 
+
+# ------------------------------------------------------------------ crypte v2 (2026-10-22, réf. references/crypte_v2_planche.png)
+## Dalles de sol IRRÉGULIÈRES (planche : « pierre usée / fissurée / terre-gravier ») : cellules de Voronoï aux bords gauchis (joints
+## étroits et sinueux, plus de rectangles alignés), chaque dalle a son ton, son inclinaison et son usure ; fissures qui la traversent,
+## éclats aux arêtes, graviers et givre dans les joints, voiles de poussière et plaques humides en macro-taches. 128 texels/m, tuile de 4 m.
+static func dalle_v2_paire() -> Array:
+	var S := 64 * K * EM
+	var graine := 8800
+	var rng := _rng(graine)
+	var GR := 5                                    # 5 x 5 sites par tuile : dalles de 0,6 à 1,1 m
+	var cel := float(S) / GR
+	var sites: Array = []
+	var tons: Array = []
+	var teintes: Array = []
+	var pentes: Array = []
+	var haut: Array = []
+	var fiss: Array = []
+	for j in GR:
+		for i in GR:
+			sites.append(Vector2((i + 0.5 + rng.randf_range(-0.36, 0.36)) * cel, (j + 0.5 + rng.randf_range(-0.36, 0.36)) * cel))
+			tons.append(rng.randf_range(0.5, 0.8) - (0.1 if rng.randf() < 0.15 else 0.0))
+			teintes.append(clampf(0.45 * pow(rng.randf(), 2.0) + (0.25 if rng.randf() < 0.12 else 0.0), 0.0, 1.0))
+			pentes.append(Vector2(rng.randf_range(-1.0, 1.0), rng.randf_range(-1.0, 1.0)) * 0.0045)
+			haut.append(rng.randf_range(-0.2, 0.6))
+			fiss.append([rng.randf() < 0.42, rng.randf() * PI, rng.randf_range(-0.28, 0.28) * cel, rng.randf() < 0.4])
+	var n_fin := _nmap(S, S / 3, S / 3, graine + 1, true)
+	var n_gr := _nmap(S, S / 12, S / 12, graine + 2)
+	var n_wx := _nmap(S, S / 24, S / 24, graine + 3)
+	var n_wy := _nmap(S, S / 24, S / 24, graine + 4)
+	var n_mac := _nmap(S, 5, 5, graine + 9)
+	var n_mac2 := _nmap(S, 9, 9, graine + 10)
+	var n_mou := _nmap(S, S / 2, S / 2, graine + 11, true)
+	var n_big := _nmap(S, 4, 4, graine + 5)
+	var froid := _cols(PIERRE_FROID)
+	var chaud := _cols(PIERRE_CHAUD)
+	var giv := _cols(GIVRE)
+	var H := PackedFloat32Array()
+	H.resize(S * S)
+	var cols := PackedColorArray()
+	cols.resize(S * S)
+	var J := 1.9
+	var BIS := 5.0
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var gx := x + (n_wx[i] - 0.5) * 9.0                   # gauchissement des joints
+			var gy := y + (n_wy[i] - 0.5) * 9.0
+			var ci := int(floorf(gx / cel))
+			var cj := int(floorf(gy / cel))
+			var d1 := 1.0e9
+			var d2 := 1.0e9
+			var k1 := 0
+			var k2 := 0
+			var p1 := Vector2.ZERO
+			var p2 := Vector2.ZERO
+			for dj in range(-1, 2):
+				for di in range(-1, 2):
+					var ii := posmod(ci + di, GR)
+					var jj := posmod(cj + dj, GR)
+					var q: Vector2 = sites[jj * GR + ii]
+					q += Vector2(floorf(float(ci + di) / GR) * S, floorf(float(cj + dj) / GR) * S) if (ci + di < 0 or ci + di >= GR or cj + dj < 0 or cj + dj >= GR) else Vector2.ZERO
+					var dd := (Vector2(gx, gy) - q).length_squared()
+					if dd < d1:
+						d2 = d1
+						k2 = k1
+						p2 = p1
+						d1 = dd
+						k1 = jj * GR + ii
+						p1 = q
+					elif dd < d2:
+						d2 = dd
+						k2 = jj * GR + ii
+						p2 = q
+			var sep := maxf((p2 - p1).length(), 1.0)
+			var de := (d2 - d1) / (2.0 * sep)                      # distance au joint (médiatrice)
+			if n_mou[i] > 0.86 and de < J + 4.0:
+				de -= 2.2                                            # éclat à l'arête
+			var rel := Vector2(gx, gy) - p1
+			var fl: Array = fiss[k1]
+			var crack := 9.9
+			if fl[0]:
+				var nrm := Vector2(cos(fl[1]), sin(fl[1]))
+				var tg := Vector2(-nrm.y, nrm.x)
+				var t_ := rel.dot(tg)
+				if absf(t_) < cel * 0.46:
+					crack = absf(rel.dot(nrm) - fl[2] + sin(t_ * 0.09 + k1) * 2.2 + (n_gr[i] - 0.5) * 4.0)
+			var ton: float = tons[k1]
+			var tt: float = teintes[k1]
+			var hh := -1.0
+			var l := 0.05
+			if de >= J:
+				var e := clampf((de - J) / BIS, 0.0, 1.0)
+				var usure := _ss(0.45, 0.75, n_mac[i])
+				var prof := floorf((e - 0.0) * 3.0 + 0.5) / 3.0
+				hh = prof * 0.6 + haut[k1] + (pentes[k1] as Vector2).dot(rel) + (n_gr[i] - 0.5) * 0.6 - usure * 0.35 * (1.0 - e * 0.5)
+				l = ton + (n_gr[i] - 0.5) * 0.2 + (n_fin[i] - 0.5) * 0.16 + (1.0 - e) * -0.09 * (1.0 if de < J + 2.0 else 0.6) + (usure - 0.4) * 0.08
+				var dirv := (p1 - p2).normalized()                  # biseau peint : lumière haut-gauche
+				l += dirv.dot(Vector2(-0.7, -0.7)) * 0.2 * (1.0 - e)
+				var gk := float(((x * 92837111) ^ (y * 689287499)) & 4095) / 4095.0
+				l += (gk - 0.5) * 0.09 + (floorf(n_fin[i] * 3.0) / 3.0 - 0.33) * 0.12
+				if n_fin[(i + 7919) % (S * S)] > 0.9:
+					l -= 0.12                                       # piqûres
+				if n_fin[(i + 100003) % (S * S)] > 0.94:
+					l += 0.08
+			if crack < 1.15 + n_fin[i] * 1.2:
+				hh = -0.8
+				l = 0.07
+			H[i] = hh
+			var lq := _q(clampf(l, 0.0, 1.0), x, y, 0.5)
+			var c: Color = (_rp(froid, lq) as Color).lerp(_rp(chaud, lq), clampf(tt * 1.5 + 0.1, 0.0, 1.0))
+			if de >= J:
+				# poussière claire en macro-taches ; plaques humides plus sombres et bleutées
+				var pz := _ss(0.55, 0.85, n_mac2[i]) * 0.45
+				var pg := c.get_luminance()
+				c = c.lerp(Color(pg * 1.05, pg * 1.08, pg * 1.12), pz)
+				var hum := _ss(0.74, 0.86, n_big[i])
+				if hum > 0.0:
+					c = c.lerp(Color(c.r * 0.6, c.g * 0.72, c.b * 0.92), hum * 0.4)
+			else:
+				# joint : terre sombre, graviers clairs, grains de givre
+				var hj := float(((x * 73856093) ^ (y * 19349663)) & 1023) / 1023.0
+				if hj < 0.07:
+					c = c.lerp(Color(0.34, 0.29, 0.23), 0.8)
+				elif hj > 0.97:
+					c = c.lerp(_rp(giv, 0.5 + hj * 0.4), 0.5)
+			if de < J + 2.5 and de >= J:
+				var hg := float(((x * 37139213) ^ (y * 51299581)) & 1023) / 1023.0
+				if hg < 0.04:
+					c = c.lerp(_rp(giv, 0.55 + hg * 5.0), 0.5)
+			cols[i] = c
+	return [_vers_image(S, cols), _pentes(H, S, 0.9)]
+
+## Pierre de taille NUE (tuile de 2 m = 256 px) pour les blocs des modules Blender : grain fin, strates, piqûres, lichen rare ;
+## aucun joint (la géométrie les fournit). Le ton de chaque bloc et l'occlusion viennent des couleurs de sommet.
+static func pierre_v2_paire() -> Array:
+	var S := 256
+	var graine := 8830
+	var n_fin := _nmap(S, S / 3, S / 3, graine + 1, true)
+	var n_gr := _nmap(S, S / 12, S / 12, graine + 2)
+	var n_mac := _nmap(S, 4, 4, graine + 3)
+	var n_str := _nmap(S, 3, S / 5, graine + 4)
+	var n_mou := _nmap(S, S / 2, S / 2, graine + 5, true)
+	var n_li := _nmap(S, 6, 6, graine + 6)
+	var froid := _cols(PIERRE_FROID)
+	var chaud := _cols(PIERRE_CHAUD)
+	var mou := _cols(MOUSSE)
+	var H := PackedFloat32Array()
+	H.resize(S * S)
+	var cols := PackedColorArray()
+	cols.resize(S * S)
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var l := 0.62 + (n_gr[i] - 0.5) * 0.22 + (n_mac[i] - 0.5) * 0.2 + (floorf(n_fin[i] * 4.0) / 4.0 - 0.4) * 0.16 + (n_str[i] - 0.5) * 0.12
+			var g1 := float(((x * 92837111) ^ (y * 689287499)) & 4095) / 4095.0
+			var h := (n_gr[i] - 0.5) * 0.5 + (floorf(n_fin[i] * 4.0) / 4.0 - 0.4) * 0.7
+			if n_mou[i] < 0.1 and g1 < 0.8:
+				l -= 0.18
+				h -= 0.5
+			elif n_mou[i] > 0.92:
+				l += 0.09
+			H[i] = h
+			var lq := _q(clampf(l, 0.0, 1.0), x, y, 0.45)
+			var c: Color = (_rp(froid, lq) as Color).lerp(_rp(chaud, lq), clampf(0.35 + (n_mac[i] - 0.5) * 0.9 + (g1 - 0.5) * 0.3, 0.0, 1.0))
+			var lich := _ss(0.86, 0.93, n_li[i]) * (0.5 if g1 < 0.8 else 0.15)
+			if lich > 0.0:
+				c = c.lerp(_rp(mou, 0.2 + lq * 0.6), lich * 0.7)
+			cols[i] = c
+	return [_vers_image(S, cols), _pentes(H, S, 0.7)]
+
+## Croûte de givre au sol en DÉCALQUE (tuile de 1 m = 128 px) : bords déchiquetés au pixel, grains isolés autour ; remplace les dalles de neige
+## (rectangles blancs posés sur le sol) par des taches irrégulières qui épousent les joints. Alpha tout ou rien (découpe).
+static func givre_sol_image() -> Image:
+	var S := 128
+	var graine := 8860
+	var n_a := _nmap(S, 6, 6, graine)
+	var n_b := _nmap(S, 14, 14, graine + 1)
+	var n_c := _nmap(S, S / 3, S / 3, graine + 2, true)
+	var n_d := _nmap(S, 3, 3, graine + 3)
+	var giv := _cols(GIVRE)
+	var d := PackedByteArray()
+	d.resize(S * S * 4)
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var f := n_a[i] * 0.55 + n_b[i] * 0.3 + n_c[i] * 0.15
+			var seuil := 0.62 + (n_d[i] - 0.5) * 0.12
+			var h := float(((x * 73856093) ^ (y * 19349663)) & 1023) / 1023.0
+			var dedans := f > seuil
+			var grain := f > seuil - 0.07 and h < 0.22
+			var o := i * 4
+			if dedans or grain:
+				var l := 0.62 + (f - seuil) * 2.6 + (h - 0.5) * 0.3
+				var c: Color = _rp(giv, _q(clampf(l, 0.0, 1.0), x, y, 0.5))
+				c = c.lerp(Color(0.8, 0.9, 0.96), 0.35)
+				d[o] = int(c.r * 255.0)
+				d[o + 1] = int(c.g * 255.0)
+				d[o + 2] = int(c.b * 255.0)
+				d[o + 3] = 255
+	return Image.create_from_data(S, S, false, Image.FORMAT_RGBA8, d)
+
 # ------------------------------------------------------------------ accès (le cache vit dans CrypteDecor)
 static func tex(nom: String) -> ImageTexture:
 	return _mips(image(nom))
@@ -1122,6 +1323,8 @@ static func paire(nom: String) -> Array:
 		"dalle3": return dalle_paire(3)
 		"dalle4": return dalle_paire(4)
 		"ossuaire": return ossuaire_paire()
+		"dalle_v2": return dalle_v2_paire()
+		"pierre_v2": return pierre_v2_paire()
 		"dalle0": return dalle_paire(0)
 		"dalle1": return dalle_paire(1)
 		"voute": return voute_paire()
@@ -1133,8 +1336,9 @@ static func paire(nom: String) -> Array:
 
 static func image(nom: String) -> Image:
 	match nom:
-		"mur0", "mur1", "mur2", "mur3", "mur4", "dalle0", "dalle1", "dalle3", "dalle4", "voute", "bois", "fer", "gravure", "ossuaire", "entrelacs":
+		"mur0", "mur1", "mur2", "mur3", "mur4", "dalle0", "dalle1", "dalle3", "dalle4", "dalle_v2", "pierre_v2", "voute", "bois", "fer", "gravure", "ossuaire", "entrelacs":
 			return paire(nom)[0]
+		"givre_sol": return givre_sol_image()
 		"or": return or_image()
 		"neige": return neige_image()
 		"lame": return lame_image()

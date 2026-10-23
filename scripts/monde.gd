@@ -1495,6 +1495,21 @@ func _lot_captures(fichier: String) -> void:
 			await _scenario(String(v["coords"]))
 		for i in 3:
 			await get_tree().process_frame
+		if _arguments().has("mesure-rendu"):
+			# --mesure-rendu : coût de rendu moyen (60 images) de la vue, ligne « RENDU nom gpu cpu appels primitives » (perf avant/après)
+			var vp := get_viewport().get_viewport_rid()
+			RenderingServer.viewport_set_measure_render_time(vp, true)
+			for i in 20:
+				await RenderingServer.frame_post_draw
+			var g_ms := 0.0
+			var c_ms := 0.0
+			for i in 60:
+				await RenderingServer.frame_post_draw
+				g_ms += RenderingServer.viewport_get_measured_render_time_gpu(vp)
+				c_ms += RenderingServer.viewport_get_measured_render_time_cpu(vp)
+			var appels := RenderingServer.viewport_get_render_info(vp, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME)
+			var prims := RenderingServer.viewport_get_render_info(vp, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, RenderingServer.VIEWPORT_RENDER_INFO_PRIMITIVES_IN_FRAME)
+			print("RENDU %s gpu=%.3f ms cpu=%.3f ms appels=%d primitives=%d" % [v["nom"], g_ms / 60.0, c_ms / 60.0, appels, prims])
 		var img := get_viewport().get_texture().get_image()
 		img.resize(img.get_width() * 2, img.get_height() * 2, Image.INTERPOLATE_NEAREST)
 		img.save_png(sortie.path_join(String(v["nom"]) + ".png"))
