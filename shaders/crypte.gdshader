@@ -20,6 +20,9 @@ uniform float relief = 0.0;          // 0 = pas de carte de pentes
 uniform vec3 emission : source_color = vec3(0.0);
 uniform float decoupe = 0.0;         // > 0 : découpe alpha (toiles), double face utile
 uniform float ambiant = 1.0;         // < 1 : n'assombrit QUE la lumière ambiante (sortie AO) ; torches et braseros intacts
+// C4b : lueur d'hémisphère sans lumière (statues) : froide vers le haut, tiède vers le bas, x albédo ; 0 = inactive
+uniform vec3 lueur_haut = vec3(0.0);
+uniform vec3 lueur_bas = vec3(0.0);
 instance uniform float eclair = 0.0;
 
 varying vec3 pos_m;
@@ -61,7 +64,10 @@ void fragment() {
 	c *= mix(1.0, pied, crasse * mur);
 	c = mix(c, vec3(1.0, 0.85, 0.8), eclair);
 	ALBEDO = c;
-	EMISSION = emission;
+	vec3 nh = nw;
+	if (relief > 0.0) nh = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	float hemi = nh.y * 0.5 + 0.5;
+	EMISSION = emission + c * mix(lueur_bas, lueur_haut, hemi * hemi);
 	ROUGHNESS = 1.0;
 	AO = ambiant;
 	AO_LIGHT_AFFECT = 0.0;
