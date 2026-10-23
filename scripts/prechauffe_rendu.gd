@@ -48,6 +48,13 @@ func _ready() -> void:
 	add_child(_vp)
 	_cam.current = true
 
+## Arrêt immédiat, sans toucher à la visibilité du lieu (le joueur l'ouvre).
+func annuler() -> void:
+	fini = true
+	if _vp != null:
+		_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	queue_free()
+
 func _exit_tree() -> void:
 	if soleil != null and is_instance_valid(soleil):
 		soleil.layers = _couches_soleil

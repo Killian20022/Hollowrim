@@ -567,6 +567,9 @@ func _interactif_sortie() -> void:
 func montrer(oui: bool) -> void:
 	obtenir()
 	dedans = oui
+	if prechauffe != null and is_instance_valid(prechauffe):
+		prechauffe.annuler()   # sinon son recachage de fin masquerait la grotte que le joueur vient d'ouvrir
+	prechauffe = null
 	grotte.visible = oui
 	grotte.process_mode = Node.PROCESS_MODE_INHERIT if oui else Node.PROCESS_MODE_DISABLED
 
