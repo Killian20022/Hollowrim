@@ -17,9 +17,11 @@ const CHEMINS := [
 ]
 static var _lance := false
 
-## `--sans-prechargement` : désactivé (comparaisons de mesure avant/après).
+## `--sans-prechargement` : désactivé (comparaisons de mesure avant/après). Désactivé aussi en --headless (tests) : le serveur de rendu
+## factice ne supporte pas qu'un fil de chargement crée des maillages pendant que le fil principal en crée (voir FilVerrou) — sous charge,
+## la lecture des glb chevauchait SolV2._charger_rochers (st.commit) : « Initializing already initialized RID » (test_grotte_jeu).
 static func lancer() -> void:
-	if _lance or OS.get_cmdline_user_args().has("--sans-prechargement"):
+	if _lance or OS.get_cmdline_user_args().has("--sans-prechargement") or DisplayServer.get_name() == "headless":
 		return
 	_lance = true
 	for chemin: String in (CHEMINS_KIT + CHEMINS if Personnage.kit_actif() else CHEMINS):
