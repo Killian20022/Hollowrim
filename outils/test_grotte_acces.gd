@@ -184,7 +184,7 @@ func _tester() -> void:
 	bn.recevoir_coup(999.0, bn.global_position + Vector3(1, 0, 0), true)
 	_verif(m.cycle.process_mode == Node.PROCESS_MODE_DISABLED and not m.neige.visible and not m.cycle.lumiere.visible, "cycle coupé, neige et lune éteintes sous terre")
 	_verif(env.background_mode == Environment.BG_COLOR, "ciel remplacé par la couleur noire")
-	_verif(absf(env.fog_density - GrotteJeu.BRUME_D) < 0.001, "ambiance de la grotte (brume %.3f)" % env.fog_density)
+	_verif(env.fog_mode == Environment.FOG_MODE_DEPTH and absf(env.fog_depth_end - BrumePortee.FIN) < 0.01 and env.fog_density > 0.99, "ambiance de la grotte (brume en profondeur pleine à %.0f m)" % env.fog_depth_end)
 	_verif(m.post.get_shader_parameter("fondu") < 0.05, "fondu terminé")
 	# on marche : le sol est sous les pieds
 	await physics_frame

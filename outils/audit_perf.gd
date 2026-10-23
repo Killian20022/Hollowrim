@@ -100,6 +100,7 @@ func _demarrer() -> void:
 		while not m.tertre._donjon_pret() and Time.get_ticks_msec() - tt < 60000:
 			await process_frame
 		print("AUDIT donjon prêt (fil + pose en tranches) après %d ms de jeu" % (Time.get_ticks_msec() - tt))
+		await _laisser_passer()
 		var t1 := Time.get_ticks_usec()
 		m.tertre._basculer(true)
 		print("AUDIT entrée crypte (_basculer) : %.1f ms" % ((Time.get_ticks_usec() - t1) / 1000.0))
@@ -109,6 +110,7 @@ func _demarrer() -> void:
 		while m.grotte_acces.grotte == null and Time.get_ticks_msec() - tt2 < 60000:
 			await process_frame
 		print("AUDIT grotte prête (fil de fond + pose) après %d ms de jeu" % (Time.get_ticks_msec() - tt2))
+		await _laisser_passer()
 		var t1 := Time.get_ticks_usec()
 		m.grotte = m.grotte_acces.obtenir()
 		print("AUDIT grotte obtenir (construction si pas prête) : %.1f ms" % ((Time.get_ticks_usec() - t1) / 1000.0))
@@ -117,13 +119,50 @@ func _demarrer() -> void:
 		m.grotte.ambiance(m._env)
 	_appliquer_exp()
 	_preparer_parcours()
+	if _arg("exp-prech") != "":
+		m.grotte.visible = false
+		var pr := PrechauffeRendu.lancer(m.grotte, m.grotte_acces, m.grotte_acces._points_prechauffe(), m.cycle.lumiere if _arg("exp-prech") == "sun" else null)
+		while not pr.fini:
+			await process_frame
+		m.grotte.visible = true
+		await process_frame
+		print("AUDIT diag préchauffe sous terre : pipelines surface %d spec %d" % [int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SURFACE)), int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SPECIALIZATION))])
+	if _arg("exp-cam") != "":
+		await _diag_camera()
 	# 1 s d'arrêt à l'entrée : mesure des premières images (compilation, pose différée)
+	var n_en := 0
+	for e in get_nodes_in_group("ennemis"):
+		if e is Node3D and (e as Node3D).global_position.y < -100.0 and (e as Node3D).is_visible_in_tree():
+			n_en += 1
+	print("AUDIT ennemis visibles sous terre avant entrée : ", n_en)
+	print("AUDIT avant entrée : pipelines mesh %d surface %d draw %d spec %d" % [int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_MESH)), int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SURFACE)),
+		int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_DRAW)), int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SPECIALIZATION))])
 	phase = "entree"
 	rec = _neuf("entree")
 	var p0: Vector3 = tron[0][1][0]
 	m.joueur.global_position = p0
 	t_attente = 0.0
 	prec_us = Time.get_ticks_usec()
+
+## --delai=<s> : temps de jeu laissé entre « lieu prêt » et l'entrée (le préchauffage des shaders part à ce moment-là, comme en partie réelle).
+func _laisser_passer() -> void:
+	var d := float(_arg("delai", "0"))
+	var t := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t < d * 1000.0:
+		await process_frame
+
+## Diagnostic : la vraie caméra du joueur est posée 3 images à l'entrée de la grotte (état d'entrée déjà appliqué sauf le sous-terre), puis remise.
+func _diag_camera() -> void:
+	var cam: Camera3D = m.joueur.camera
+	var avant := cam.global_transform
+	var l: Array = tron[0][1]
+	var t0 := Transform3D(Basis.looking_at(l[10] - l[0], Vector3.UP), l[0] + Vector3(0, 1.6, 0))
+	for k in 4:
+		cam.global_transform = t0
+		await process_frame
+		await process_frame
+		print("AUDIT diag caméra %d : pipelines surface %d spec %d" % [k, int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SURFACE)), int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SPECIALIZATION))])
+	cam.global_transform = avant
 
 func _preparer_parcours() -> void:
 	tron.clear()
@@ -175,6 +214,16 @@ func _process(dt: float) -> bool:
 		skip -= 1
 		pires.append([0.0, "", Vector3.ZERO, 0.0, 0.0, 0])
 	elif phase == "entree" or phase == "marche":
+		if phase == "entree" and rec["n"] < 3:
+			var n2 := 0
+			for e in get_nodes_in_group("ennemis"):
+				if e is Node3D and (e as Node3D).global_position.y < -100.0 and (e as Node3D).is_visible_in_tree():
+					n2 += 1
+			print("AUDIT ennemis visibles sous terre : ", n2, " position joueur ", j.global_position)
+		if phase == "entree" and rec["n"] < 6:
+			print("AUDIT image %d après l'entrée : %.1f ms (cpu %.1f gpu %.1f) A=%.1f B=%.1f C=%.1f | pipelines mesh %d surface %d draw %d spec %d" % [rec["n"], d_ms, cpu, gpu, _a, _b, _c,
+				int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_MESH)), int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SURFACE)),
+				int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_DRAW)), int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SPECIALIZATION))])
 		rec["dt"].append(d_ms)
 		rec["cpu"] += cpu
 		rec["gpu"] += gpu

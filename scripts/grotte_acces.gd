@@ -502,11 +502,30 @@ func _integrer() -> void:
 	_poser(_g_fil)
 	_g_fil = null
 
+var prechauffe: PrechauffeRendu
+
+## Points de vue du préchauffage : l'entrée, puis un point tous les 22 m le long de chaque branche (caméra à hauteur d'yeux, vers l'avant).
+func _points_prechauffe() -> Array:
+	var res: Array = []
+	var routes: Dictionary = grotte.routes_test()
+	for id: String in routes:
+		var l: Array = routes[id]
+		var k := 0
+		while k < l.size() - 2:
+			var a: Vector3 = l[k] + Vector3(0, 1.6, 0)
+			var b: Vector3 = l[mini(k + 6, l.size() - 1)] + Vector3(0, 1.4, 0)
+			if a.distance_to(b) > 0.5:
+				res.append(Transform3D(Basis.looking_at(b - a, Vector3.UP), a))
+			k += 22
+	return res
+
 func _poser(g: Grotte) -> void:
 	grotte = g
 	grotte.visible = false
 	grotte.process_mode = Node.PROCESS_MODE_DISABLED
 	monde.add_child(grotte)
+	if not OS.get_cmdline_user_args().has("--sans-prechauffe"):
+		prechauffe = PrechauffeRendu.lancer(grotte, self, _points_prechauffe(), monde.cycle.lumiere)   # pipelines compilés avant l'entrée (1re image ~80-130 ms sinon)
 	jeu = GrotteJeu.new()
 	jeu.installer(self, grotte)
 	_interactif_sortie()
@@ -548,6 +567,9 @@ func _interactif_sortie() -> void:
 func montrer(oui: bool) -> void:
 	obtenir()
 	dedans = oui
+	if prechauffe != null and is_instance_valid(prechauffe):
+		prechauffe.annuler()   # sinon son recachage de fin masquerait la grotte que le joueur vient d'ouvrir
+	prechauffe = null
 	grotte.visible = oui
 	grotte.process_mode = Node.PROCESS_MODE_INHERIT if oui else Node.PROCESS_MODE_DISABLED
 
