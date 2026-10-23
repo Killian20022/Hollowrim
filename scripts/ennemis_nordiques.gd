@@ -42,6 +42,7 @@ static func vider() -> void:
 			(_modeles[k] as Node).free()
 	_modeles.clear()
 	_mx.unlock()
+	SqueletteGuerrier.vider()
 
 ## Apparence par défaut d'un draugr de type `type` (celle que draugr.gd passe à creer), surchargée par `apparence`.
 static func apparence_defaut(type: String, apparence := {}) -> Dictionary:
@@ -58,10 +59,13 @@ static func apparence_defaut(type: String, apparence := {}) -> Dictionary:
 	app.merge(apparence, true)
 	return app
 
-## Spec de creer() d'un ennemi créé par monde.creer_draugr(type, …, options) ; {} s'il ne passe pas par ce système (squelettes, personnages kit).
+## Spec de creer() d'un ennemi créé par monde.creer_draugr(type, …, options) ; {} s'il ne passe pas par ce système (personnages kit).
+## Squelettes : spec { "type", "archer", "ident", "variante" } (gabarits SqueletteGuerrier préconstruits par prechauffer).
 static func spec_depuis_options(type: String, opts := {}) -> Dictionary:
 	var apparence: Dictionary = opts.get("apparence", {})
-	if type.begins_with("squelette") or apparence.has("perso"):
+	if type.begins_with("squelette"):
+		return {"type": type, "archer": bool(opts.get("archer", false)), "ident": String(opts.get("ident", "")), "variante": String(opts.get("variante", ""))}
+	if apparence.has("perso"):
 		return {}
 	var boss: String = opts.get("boss", "")
 	var ident: String = opts.get("ident", boss)
@@ -101,6 +105,9 @@ static func prechauffer(specs: Array) -> void:
 	if anciens():
 		return
 	for spec: Dictionary in specs:
+		if String(spec.get("type", "")).begins_with("squelette"):
+			SqueletteGuerrier.prechauffer()     # les 3 variantes (épée, arc, hache) : les squelettes appelés en combat aussi
+			continue
 		var d := _def_corps(_choix(spec))
 		_gabarit(String(d[0]), d[1])
 
@@ -227,6 +234,23 @@ static func _relier(gab: Node3D, copie: Node3D) -> void:
 
 static func _sq(n: Node3D) -> Skeleton3D:
 	return n.find_child("Skeleton3D", true, false) as Skeleton3D
+
+# ======================================================================================================== squelettes
+## Squelette nordique (draugr.gd, types « squelette* ») : copie d'un gabarit SqueletteGuerrier. Arme : imposée (« variante »), arc pour
+## les archers, sinon tirée de l'identifiant (graine fixe : même squelette à chaque partie) — 1 sur 3 en sbire à la hache, crâne nu.
+## Indépendant de --pnj-anciens (les squelettes n'ont pas d'ancien corps).
+static func squelette(spec := {}) -> Node3D:
+	return SqueletteGuerrier.modele(arme_squelette(spec))
+
+static func arme_squelette(spec: Dictionary) -> String:
+	var v := String(spec.get("variante", ""))
+	if SqueletteGuerrier.PIECES.has(v):
+		return v
+	if bool(spec.get("archer", false)) or String(spec.get("type", "")) == "squelette_archer":
+		return "arc"
+	var rng := RandomNumberGenerator.new()
+	rng.seed = String(spec.get("ident", "")).hash()
+	return "hache" if rng.randf() < 0.34 else "epee"
 
 # ======================================================================================================== draugrs
 ## Draugr ordinaire : décomposition (teinte), bouclier ou non, arme (épée / hache / arc).
@@ -467,22 +491,12 @@ static func _poser_arme(sq: Skeleton3D, nom: String) -> void:
 
 ## Arc en main (draugr archer) : le maillage « arc » du squelette-guerrier, même rig, repris sur le squelette humain.
 static func _arc(sq: Skeleton3D) -> void:
-	var src: Node3D = SqueletteGuerrier.creer({"arme": "arc"})
-	var arc: MeshInstance3D = null
-	for mi: MeshInstance3D in src.find_children("*", "MeshInstance3D", true, false):
-		if String(mi.name) == "arc":
-			arc = mi
-	if arc != null:
-		var copie := MeshInstance3D.new()
-		copie.mesh = arc.mesh
-		copie.skin = arc.skin
-		copie.name = "arc"
-		sq.add_child(copie)
-		copie.skeleton = NodePath("..")
-		var bois := _materiau("arc_bois", BOIS)
-		for s in copie.mesh.get_surface_count():
-			copie.set_surface_override_material(s, bois)
-	src.free()
+	var copie := SqueletteGuerrier.arc()
+	sq.add_child(copie)
+	copie.skeleton = NodePath("..")
+	var bois := _materiau("arc_bois", BOIS)
+	for s in copie.mesh.get_surface_count():
+		copie.set_surface_override_material(s, bois)
 
 # ======================================================================================================== boss
 ## Couronne posée sur le casque (os Head) : givre = pointes fines et hautes ; cornes = diadème + deux cornes.

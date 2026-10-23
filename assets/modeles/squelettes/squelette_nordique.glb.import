@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://p18xcyjarebd"
-path="res://.godot/imported/squelette_guerrier.glb-c215c08a12966cf2b30c5828c300b3ab.scn"
+uid="uid://dsl05josga2jt"
+path="res://.godot/imported/squelette_nordique.glb-54852b3d852b0c548ce2cd6438711df5.scn"
 
 [deps]
 
-source_file="res://assets/modeles/squelettes/squelette_guerrier.glb"
-dest_files=["res://.godot/imported/squelette_guerrier.glb-c215c08a12966cf2b30c5828c300b3ab.scn"]
+source_file="res://assets/modeles/squelettes/squelette_nordique.glb"
+dest_files=["res://.godot/imported/squelette_nordique.glb-54852b3d852b0c548ce2cd6438711df5.scn"]
 
 [params]
 

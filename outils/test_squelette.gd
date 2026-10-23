@@ -5,7 +5,7 @@ extends SceneTree
 ##   godot --headless --path . --script res://outils/test_squelette.gd -- --nouvelle
 const SCENE := preload("res://scenes/foret_test.tscn")
 const OS_MESURES := ["pelvis", "spine_03", "Head", "hand_l", "hand_r", "foot_l", "foot_r", "calf_l", "calf_r"]
-const BUDGET := Vector2i(450, 600)   # triangles : corps + casque + bouclier + arme visible
+const BUDGET := Vector2i(4000, 7500)   # triangles visibles (variante complète) ; draugr : 7 500 au plus
 
 var m: Node3D
 var _echecs := 0
