@@ -55,11 +55,17 @@ static func creer(monde: Node) -> void:
 			if Vector2(t.origin.x - x, t.origin.z - z).length() < s * 0.5 + 0.3:
 				sur_arbre = true
 				break
+		if not sur_arbre:   # passe D : ni sur un buisson du couvre-sol (il traversait la roche)
+			for t: Transform3D in monde.get_meta("buissons", []):
+				if Vector2(t.origin.x - x, t.origin.z - z).length() < s * 0.5 + 0.4:
+					sur_arbre = true
+					break
 		if sur_arbre:
 			continue
 		parts[i % 4].append(Transform3D(b, Vector3(x, monde.hauteur(x, z) - minf(s * 0.25, 0.45), z)))   # enfouissement plafonné (gros rochers : 1,1 m sinon)
 		echelles[i % 4].append(s)
 	var corps := StaticBody3D.new()
+	corps.name = "CollisionsRochers"
 	for g in 4:
 		var points_modele: PackedVector3Array = modeles[g].create_convex_shape().points
 		for k in parts[g].size():

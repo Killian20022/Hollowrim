@@ -7,6 +7,11 @@ class_name Instanciation
 ## Côté d'une cellule, en mètres.
 const CELLULE := 20.0
 
+## Journal des poses (outils/audit_interpenetrations.gd) : null en jeu (aucun coût) ; un Array → chaque appel de `repartir`
+## y ajoute {"mesh", "xfs", "source" (fichier:ligne de l'appelant), "principal"} pour contrôler les poses sans fenêtre
+## (les MultiMesh sont vides en --headless).
+static var journal = null
+
 ## Crée les MultiMeshInstance3D d'un mesh sous `parent` et les renvoie.
 ## Réglages :
 ##   "ombre"        bool, vrai par défaut : le mesh projette des ombres.
@@ -25,6 +30,10 @@ static func repartir(parent: Node, mesh: Mesh, transforms: Array, reglages := {}
 	var marge: float = reglages.get("marge", 10.0)
 	var ombre_proche: float = reglages.get("ombre_proche", 0.0)
 	var ombre: bool = reglages.get("ombre", true)
+	if journal != null:
+		var pile := get_stack()
+		var src := "%s:%d" % [String(pile[1]["source"]).get_file(), int(pile[1]["line"])] if pile.size() > 1 else "?"
+		(journal as Array).append({"mesh": mesh, "xfs": transforms.duplicate(), "source": reglages.get("nom", src), "parent": String(parent.name), "principal": reglages.get("principal", true)})
 	# regroupement par cellule (l'ordre d'insertion reste celui des transforms)
 	var cellules := {}
 	for t: Transform3D in transforms:

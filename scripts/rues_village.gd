@@ -717,6 +717,7 @@ func _finaliser_rues() -> void:
 	_mat_flaque = mat.call("Flaques")
 	_mesh(_flaques, _mat_flaque, false, "Flaques")
 	set_process(false)   # les flaques sont réglées par AbordsVillage (même matière)
+	_touffes = PosesDecor.filtrer(monde, _touffes, "touffe")   # passe D : règles de pose
 	if not _touffes.is_empty():
 		var mesh_t: Mesh = null
 		for n in monde.get_children():

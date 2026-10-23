@@ -125,6 +125,11 @@ static func _poser_rochers(monde: Node) -> Array:
 			if Vector2(x, z).distance_to(q["pos"]) < 0.5 * (q["r"] + 0.6 * c[3]) + 0.35:
 				trop_pres = true
 				break
+		if not trop_pres:   # passe D : pas de rocher sur une souche ou une branche du sous-bois (elle le traversait)
+			for t: Transform3D in monde.get_meta("sous_bois_gros", []):
+				if Vector2(x, z).distance_to(Vector2(t.origin.x, t.origin.z)) < 0.55 * float(c[3]) + 0.5:
+					trop_pres = true
+					break
 		if trop_pres:
 			continue
 		var s: float = c[3]
@@ -265,6 +270,7 @@ static func _poser_touffes(monde: Node, rochers: Array) -> void:
 			var yaw := ZoneBiome.alea_pos(jx, jz, 26) * TAU
 			xfs.append(SousBois._tf(jx, SousBois._bas(monde, jx, jz, 0.4) - 0.02, jz, yaw, s, 0.75 + 0.45 * ZoneBiome.alea_pos(jx, jz, 27)))
 		x0 += pas
+	xfs = PosesDecor.filtrer(monde, xfs, "touffe")   # passe D : règles de pose
 	for mmi in Instanciation.repartir(_decor, mesh, xfs, {"portee": 32.0, "ombre": false}):
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	print("SolV2 : %d touffes" % xfs.size())
@@ -423,6 +429,7 @@ static func _poser_ailleurs(monde: Node, rochers_temoin: Array) -> void:
 			var yaw := ZoneBiome.alea_pos(jx, jz, 47) * TAU
 			xfs.append(SousBois._tf(jx, SousBois._bas(monde, jx, jz, 0.4) - 0.02, jz, yaw, s, 0.75 + 0.45 * ZoneBiome.alea_pos(jx, jz, 48)))
 		x0 += pas
+	xfs = PosesDecor.filtrer(monde, xfs, "touffe")   # passe D : règles de pose
 	for mmi in Instanciation.repartir(_decor, mesh, xfs, {"portee": 32.0, "ombre": false}):
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	print("SolV2 : %d touffes ailleurs" % xfs.size())

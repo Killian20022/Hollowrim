@@ -114,6 +114,7 @@ static func creer(monde: Node) -> void:
 		parts[g].append(Transform3D(Basis(Vector3.UP, lacet).scaled(Vector3(s, s * sy, s)), Vector3(p.x, y, p.y)))
 	var total := 0
 	for g in 4:
+		parts[g] = PosesDecor.filtrer(monde, parts[g], "caillou")   # passe D : pas dans le perron du tertre ni dans l'eau
 		if parts[g].is_empty():
 			continue
 		total += parts[g].size()

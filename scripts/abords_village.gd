@@ -809,6 +809,9 @@ func _finaliser() -> void:
 	mv.set_shader_parameter("emission", Color(VITRE_LANTERNE.r * 1.6, VITRE_LANTERNE.g * 1.6, VITRE_LANTERNE.b * 1.6))
 	_mesh(_verre, mv, false, "Verre")
 	var mb := SousBois.materiau_herbe(texture_buisson(rng.randi() % 10000), Color(1.05, 1.0, 1.0))
+	_buissons = PosesDecor.filtrer(monde, _buissons, "buisson")   # passe D : règles de pose (après les tirages)
+	_touffes = PosesDecor.filtrer(monde, _touffes, "touffe_haute")   # grandes touffes givrées (≈ 1 m) : hors de la bande du sentier
+	_cailloux = PosesDecor.filtrer_points(monde, _cailloux, "caillou")
 	if not _buissons.is_empty():
 		for mmi in Instanciation.repartir(monde, mesh_buisson(mb), _buissons, {"portee": 50.0, "ombre": false}):
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

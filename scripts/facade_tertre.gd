@@ -272,7 +272,20 @@ static func _monumental(parent: Node3D, corps: StaticBody3D, m_facade: Material,
 			_ajoute(pierre, b, Transform3D(Basis(), Vector3(xs + w * 0.5, top - (top + 0.6) * 0.5, (z0 + z1) * 0.5)))
 			xs += w
 			im += 1
-		_collision(corps, Vector3(3.8, top + 0.6, z1 - z0), Vector3(0, top - (top + 0.6) * 0.5, (z0 + z1) * 0.5))
+		if top >= 0.45:   # plate-forme haute : boîte ; les deux marches de 15 cm : rampe (ci-dessous)
+			_collision(corps, Vector3(3.8, top + 0.6, z1 - z0), Vector3(0, top - (top + 0.6) * 0.5, (z0 + z1) * 0.5))
+	# 8 a) passe D : collision des deux marches = RAMPE INVISIBLE (comme les escaliers du village) du bas des marches (z 2,6, au sol)
+	# au bord de la plate-forme (z 0,9, à 0,45 m) : 15° ; avec deux boîtes de 15 cm le joueur butait au pied (capsule : ~10 cm franchis).
+	var lr := Vector2(1.7, 0.45)
+	var ang := atan2(lr.y, lr.x)
+	var nrm := Vector3(0, cos(ang), sin(ang))
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(3.8, 0.6, lr.length())
+	var rampe := CollisionShape3D.new()
+	rampe.name = "RampePerron"
+	rampe.shape = bs
+	rampe.transform = Transform3D(Basis(Vector3.RIGHT, ang), Vector3(0, 0.225, 1.75) - nrm * 0.3)
+	corps.add_child(rampe)
 	# 8 b) chemin de dalles posé au ras de la neige, du bas des marches vers le cercle (visuel seul, 4 cm)
 	var zd := 2.7
 	var idl := 0

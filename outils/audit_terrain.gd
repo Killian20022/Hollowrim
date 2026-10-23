@@ -32,6 +32,7 @@ func _lancer() -> void:
 		quit(1)
 		return
 	var vivants: Array[RID] = [terrain.get_rid()]
+	var eau: Node = m.get_node_or_null("EauVillage")
 	for n in m.find_children("*", "CharacterBody3D", true, false):
 		vivants.append((n as CharacterBody3D).get_rid())
 	var N := 2 * DEMI + 1
@@ -77,11 +78,26 @@ func _lancer() -> void:
 				trous[Vector2i(i, j)] = true
 				yt[k] = h
 				continue
+			if absf(y_t - h) > 0.5:
+				ecarts[Vector2i(i, j)] = true
+			# passe D : sol marchable posé sur le relief (rampes invisibles, perron, marches, glace et fond du lac) : on y marche
+			var y_sol := y_t
+			var qr := PhysicsRayQueryParameters3D.create(Vector3(x, y_t + 0.6, z), Vector3(x, y_t - 0.05, z))
+			qr.exclude = vivants
+			var rs := ss.intersect_ray(qr)
+			if not rs.is_empty():
+				var nr: Vector3 = rs["normal"]
+				var dy: float = (rs["position"] as Vector3).y - y_t
+				if nr.y >= 0.7 and (nr.y < 0.995 or dy <= 0.12):   # rampe inclinée, ou sol mince affleurant (pas une caisse)
+					y_sol = maxf(y_t, (rs["position"] as Vector3).y)
+			if eau != null and eau.dans_lac(x, z):
+				var yl: float = eau._sol_lac(x, z)
+				if not is_nan(yl):
+					y_sol = maxf(y_sol, yl)
+			y_t = y_sol
 			yt[k] = y_t
 			y_min = minf(y_min, y_t)
 			y_max = maxf(y_max, y_t)
-			if absf(y_t - h) > 0.5:
-				ecarts[Vector2i(i, j)] = true
 			# capsule posée sur le sol (hors terrain, exclu) : un autre corps la gêne-t-il ?
 			qs.transform = Transform3D(Basis(), Vector3(x, y_t + 0.15 + 0.9, z))
 			var gene := ss.intersect_shape(qs, 4)
