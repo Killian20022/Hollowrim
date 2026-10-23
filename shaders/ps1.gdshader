@@ -119,6 +119,23 @@ vec4 s2_poids(vec2 p) {
 	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
+// poids bilinéaires (carte 0,25 m) des matières roche (x), mousse (y), glace (z)
+vec3 s2_m3(vec4 c) {
+	int m = int(c.r * 255.0 + 0.5) >> 4;
+	return vec3(float(m == 5), float(m == 4), float(m == 6));
+}
+vec3 s2_rmg(vec2 p) {
+	float n = float(textureSize(carte_sol, 0).x);
+	vec2 t = (p - carte_rect.xy) * carte_rect.z * n - 0.5;
+	ivec2 i0 = clamp(ivec2(floor(t)), ivec2(0), ivec2(int(n) - 2));
+	vec2 f = clamp(t - vec2(i0), 0.0, 1.0);
+	vec3 a = s2_m3(texelFetch(carte_sol, i0, 0));
+	vec3 b = s2_m3(texelFetch(carte_sol, i0 + ivec2(1, 0), 0));
+	vec3 c = s2_m3(texelFetch(carte_sol, i0 + ivec2(0, 1), 0));
+	vec3 d = s2_m3(texelFetch(carte_sol, i0 + ivec2(1, 1), 0));
+	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
 float s2_fbm(vec2 p) {
 	return 0.5 * bruit_sol(p) + 0.3 * bruit_sol(p * 2.03 + 7.1) + 0.2 * bruit_sol(p * 4.1 + 13.7);
 }
@@ -159,37 +176,47 @@ void s2_roche(vec2 p, out int ton, out int rampe, out int niv, out vec2 pente) {
 	float f2;
 	vec2 cid;
 	vec2 ctr;
-	float S = 0.85;
-	s2_vor(p, S, f1, f2, cid, ctr);
-	vec2 vv = (p - ctr) / (S * 0.55);
+	float S = 0.9;
+	// dalles irrégulières : maille déformée par un bruit (pas de losanges réguliers), étirée en strates
+	vec2 q = p + 0.45 * vec2(s2_fbm(p * 0.9 + 41.0) - 0.5, s2_fbm(p * 0.9 + 57.0) - 0.5);
+	q = vec2(q.x * 0.8 + q.y * 0.35, q.y * 1.25);
+	s2_vor(q, S, f1, f2, cid, ctr);
+	vec2 vv = (q - ctr) / (S * 0.55);
 	float l = dot(vv, vec2(-0.7071, -0.7071));
+	float bord = smoothstep(0.32, 0.55, f1);                                    // arrondi seulement près du bord de la dalle
 	rampe = 2;
 	niv = 4;
-	ton = 1 + int(hash_sol(cid + 3.3) * 2.6);
-	if (l > 0.35) ton += 1;
-	else if (l < -0.5) ton -= 1;
-	if (bruit_sol(vec2(p.x * 1.6, p.y * 9.0) + 17.0) > 0.80) ton -= 1;          // strates
-	if (hash_sol(floor(p * 24.0) + 77.0) > 0.94) ton += 1;                       // grain, lichens
-	bool joint = (f2 - f1) < 0.07;
+	float m = s2_fbm(p * 3.1 + float(int(hash_sol(cid) * 7.0)));                // grain de la pierre, propre à chaque dalle
+	ton = 1 + int(hash_sol(cid + 3.3) * 1.8 + m * 1.6);
+	if (bord > 0.5 && l > 0.25) ton += 1;                                        // lèvre éclairée
+	else if (bord > 0.5 && l < -0.35) ton -= 1;                                  // lèvre à l'ombre
+	if (bruit_sol(vec2(q.x * 1.4, q.y * 8.0) + 17.0) > 0.82) ton -= 1;          // strates
+	if (hash_sol(floor(p * 24.0) + 77.0) > 0.95) ton += 1;                       // grain, lichens
+	bool joint = (f2 - f1) < 0.06 + 0.04 * bruit_sol(p * 6.0);
 	if (joint) ton = 0;
 	float n = s2_fbm(p * 2.2 + 5.0);
-	if (n > (joint ? 0.52 : 0.64) && l > -0.35) {                                // neige dans les replats et les joints
+	if (n > (joint ? 0.50 : 0.63) && (l > -0.35 || bord < 0.5)) {               // neige dans les replats et les joints
 		rampe = 0;
-		ton = joint ? 2 : (n > 0.74 ? 4 : 3);
+		ton = joint ? 2 : (n > 0.73 ? 4 : 3);
 		niv = 3;
 	}
 	ton = clamp(ton, 0, 5);
-	pente = vv * clamp(f1 / 0.6, 0.0, 1.0);
+	pente = vv * 0.45 * bord;
 }
 
 void s2_mousse(vec2 p, out int ton, out int rampe, out int niv, out vec2 pente) {
+	// herbes sèches et lichen sous la neige (vert éteint, pas d'aplat saturé), poches de neige
 	pente = vec2(0.0);
-	rampe = 4;
 	niv = 1;
 	float m = s2_fbm(p * 4.0 + 2.0);
-	ton = 1 + int(m * 3.0);
-	if (hash_sol(floor(p * 24.0) + 12.0) < 0.12) ton += 1;
-	if (s2_fbm(p * 5.0 + 40.0) > 0.64) {
+	rampe = 5;
+	ton = 1 + int(m * 2.6);
+	float h = hash_sol(floor(p * 24.0) + 12.0);
+	if (s2_fbm(p * 7.0 + 60.0) > 0.58 || h < 0.10) {
+		rampe = 4;                                                               // lichen gris-vert
+		ton = 3 + int(h < 0.05);
+	}
+	if (s2_fbm(p * 3.2 + 40.0) + (bruit_sol(p * 15.0) - 0.5) * 0.25 > 0.52) {
 		rampe = 0;
 		ton = bruit_sol(p * 14.0) > 0.6 ? 4 : 3;
 		niv = 3;
@@ -213,12 +240,12 @@ void s2_glace(vec2 p, out int ton, out int rampe, out int niv, out vec2 pente) {
 
 // matière du sol au centre de texel `p` : ton + rampe (SolTuiles), niveau (pour les lèvres/ombres), pente de pierre
 void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out vec2 pente) {
-	// matière dominante (carte 0,25 m, bords ondulés par un bruit de 0,4 m : pas de marches)
-	vec2 pw = p + 0.4 * vec2(s2_fbm(p * 1.7 + 3.0) - 0.5, s2_fbm(p * 1.7 + 23.0) - 0.5);
-	int mm = int(texelFetch(carte_sol, ivec2(clamp(floor((pw - carte_rect.xy) * carte_rect.z * float(textureSize(carte_sol, 0).x)), vec2(0.0), vec2(float(textureSize(carte_sol, 0).x) - 1.0))), 0).r * 255.0 + 0.5) >> 4;
-	if (mm == 5) { s2_roche(p, ton, rampe, niv, pente); return; }
-	if (mm == 4) { s2_mousse(p, ton, rampe, niv, pente); return; }
-	if (mm == 6) { s2_glace(p, ton, rampe, niv, pente); return; }
+	// matière dominante : roche / mousse / glace pondérées en bilinéaire sur la carte 0,25 m, seuil bruité (bords organiques, pas de marches)
+	vec3 rmg = s2_rmg(p);
+	float nb = (s2_fbm(p * 2.3 + 3.0) - 0.5) * 0.55 + (bruit_sol(p * 9.0 + 1.0) - 0.5) * 0.18;
+	if (rmg.x + nb > 0.5 && rmg.x >= rmg.y && rmg.x >= rmg.z) { s2_roche(p, ton, rampe, niv, pente); return; }
+	if (rmg.y + nb > 0.5 && rmg.y >= rmg.z) { s2_mousse(p, ton, rampe, niv, pente); return; }
+	if (rmg.z + nb * 0.6 > 0.5) { s2_glace(p, ton, rampe, niv, pente); return; }
 	vec4 w = s2_poids(p);
 	pente = vec2(0.0);
 	float derive = s2_fbm(p * 0.8);
