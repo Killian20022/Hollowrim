@@ -465,11 +465,15 @@ class Socles extends Base:
 	func construire() -> void:
 		var pierre := mat(Palette.ROCHE, "meca_socle", Vector2(3, 3), Color(0.8, 0.82, 0.88))
 		var grave := mat(Palette.ACIER, "meca_socle_haut", Vector2(2, 2), Color(0.55, 0.6, 0.7))
+		# ctx « socles_habilles » : le décor a déjà versé le socle (crypte v2 : module Blender « socle_v2 », même encombrement) ;
+		# on ne garde ici que le creux, le fragment, sa lueur et la collision (inchangée).
+		var habille := bool(ctx.get("socles_habilles", false))
 		for i in positions.size():
 			var p: Vector3 = positions[i]
-			Mecanisme.boite(self, Vector3(0.9, 0.2, 0.9), p + Vector3(0, 0.1, 0), pierre)
-			Mecanisme.boite(self, Vector3(0.62, 0.8, 0.62), p + Vector3(0, 0.6, 0), pierre)
-			Mecanisme.boite(self, Vector3(0.82, 0.14, 0.82), p + Vector3(0, 1.07, 0), grave)
+			if not habille:
+				Mecanisme.boite(self, Vector3(0.9, 0.2, 0.9), p + Vector3(0, 0.1, 0), pierre)
+				Mecanisme.boite(self, Vector3(0.62, 0.8, 0.62), p + Vector3(0, 0.6, 0), pierre)
+				Mecanisme.boite(self, Vector3(0.82, 0.14, 0.82), p + Vector3(0, 1.07, 0), grave)
 			Mecanisme.boite(self, Vector3(0.28, 0.03, 0.28), p + Vector3(0, 1.16, 0), Palette.lueur(Color(0.05, 0.05, 0.07)))   # creux du fragment
 			Mecanisme.collision(self, p + Vector3(0, 0.6, 0), Vector3(0.9, 1.2, 0.9))
 			var f := Node3D.new()

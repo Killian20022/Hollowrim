@@ -336,6 +336,12 @@ func _x_rituelle(_m: Dictionary) -> void:
 	if d.v2:      # crypte v2 : vasque en blocs taillés, margelle et bassin (emplacement d'eau pour le lot eau)
 		d.modele("vasque_rituel", _l(0, -47.5), 0.0)
 		d.eau_slot(_l(0, -47.5, 0.74), 1.15, "vasque")
+		# C4b : socles des trois sceaux en blocs taillés (module « socle_v2 » à l'encombrement du socle v1 : 0,9 m, 1,14 m de haut) ;
+		# Mecanisme.socles ne pose alors que le creux, le fragment et la collision (ctx « socles_habilles », tertre._poser_meca)
+		for a in (_m.get("meca", []) as Array):
+			if a.get("genre", "") == "socles":
+				for sp: Vector3 in a["positions"]:
+					d.modele("socle_v2", _l(sp.x, sp.z), 0.0, Vector3(0.78, 1.14, 0.78))
 	else:
 		d.tour("mur0", _l(0, -47.5), [Vector2(2.2, 0.0), Vector2(2.2, 0.4), Vector2(1.7, 0.4), Vector2(1.7, 0.9)], 8, PI / 8.0, true)
 		d.tour("gravure", _l(0, -47.5, 0.9), [Vector2(1.7, 0.0), Vector2(1.4, 0.0)], 8, PI / 8.0, true)

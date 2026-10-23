@@ -353,6 +353,7 @@ func _poser_meca(a: Dictionary) -> void:
 		"braseros":
 			Mecanisme.braseros(crypte, a["positions"], a["ordre"], id, Callable(), ctx)
 		"socles":
+			ctx["socles_habilles"] = CrypteV2.tertre_actif()      # C4b : socles en module v2 versés par CrypteDonjon._x_rituelle (même collision)
 			Mecanisme.socles(crypte, a["positions"], a["objets"], id, _ouvrir_arene, ctx)
 		"mur_fragile":
 			ctx["materiau"] = d.mat(a.get("materiau", "mur0"))      # même pierre que le mur voisin
