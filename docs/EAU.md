@@ -41,3 +41,10 @@ Analyse : `outils/carte_eau.gd` -> `Desktop\Skyrim captures\refonte\eau\prototyp
 2. **Rivière de l'ouest** : préréglage `riviere` ; descend du rebord ouest (-95,-29, h 19,6) -> (-85,-19, h 11,4) -> (-75,-9, h 3,1) -> (-75,1) -> (-71,11) -> (-67,21, h -0,2) ; ~21 m de dénivelé. **Cascade naturelle** entre (-85,-19) et (-75,-9) ; la rivière finit dans le lac. À 70 m du feu, 112 m du village, 54 m du tumulus.
 3. **Ruisseau (option)** : préréglage `ruisseau`, drainage le plus net hors cuvettes en (-29, 21) (bassin versant ~1,1 ha), alimente le lac par le nord ; doit s'arrêter à la limite de la zone témoin.
 Limites : le relief devra être creusé (lit, berges) par le système de terrain ; le sol sous l'eau (carte de sol v2) est à coordonner avec l'agent concerné ; aucune nage ni gameplay.
+
+## Implantation dans le village (C7c, branche C/village_eau)
+`scripts/eau_village.gd` (EauVillage, posé par monde.gd) : source-cascade (89 ; 57) → ruisseau → gué → rivière → pont en arche (44 ; 61,5) → quai → roue et seuil du moulin → petite cascade → lac fermé (-0,8 m, 3 241 m², gelé au large, eau libre à plaques devant l'arrivée). Ne touche aucun bord (lac x -66..18, z 5..85).
+- PIÈGE glTF : un objet Blender nommé `*_Col` est renommé par l'importeur (suffixe `_col`) : `Pont_Col` arrive en `Pont` (corrigé dans `_collision_maillage`).
+- Vérifs : `outils/sonde_c7c_sorties.gd` (vrai joueur : 25 départs lit/lac/glace, 0 coincé ; 4/4 traversées du pont), `outils/sonde_eau_village.gd` (0 débordement), audits terrain/bords.
+- Scintillement (`outils/scintil_c7c.gd`, masque eau = APRÈS ≠ AVANT) : lac 10,8 % (jour) / 13,7 % (crépuscule) ; vues de rivière 26-34 %, masque incluant la maçonnerie du pont et le quai.
+- Coût GPU (médiane, `mesure_perf.gd`, A/B `--sans-eau-village`, 3 séries propres) : pont +0,75..0,92 ms, quai/moulin +0,71 ms, vue sur le lac +1,19..1,31 ms ; CPU +0..0,4 ms. Couper les reflets d'écran sur la glace ne change rien (essai non gardé).
