@@ -43,8 +43,48 @@ func basculer() -> void:
 
 ## Godot recentre la fenêtre après les autoloads (taille imposée par window_*_override) :
 ## on la renvoie hors écran pendant les premières images.
+## Ensuite, un clic sur l'icône de la barre des tâches l'amène au centre de l'écran (pour voir où en est
+## la capture) ; dès qu'on clique ailleurs, elle repart hors écran.
 func _tenir_hors_ecran() -> void:
 	for i in 120:
 		if DisplayServer.window_get_position() != HORS_ECRAN:
 			DisplayServer.window_set_position(HORS_ECRAN)
 		await get_tree().process_frame
+	# On regarde 3 fois par seconde (les signaux focus_entered/exited ne suffisent pas). Seul un passage
+	# inactive → active compte, et pas pendant les 15 premières secondes : au lancement Windows active
+	# la fenêtre tout seul, sans qu'on l'ait demandée.
+	# Réduite (1er clic sur l'icône d'une fenêtre déjà active), elle ne dessinerait plus (capture bloquée)
+	# → on la rouvre aussitôt, à l'écran.
+	_etait_active = DisplayServer.window_is_focused()
+	_debut_surveillance = Time.get_ticks_msec()
+	var t := Timer.new()
+	t.wait_time = 0.3
+	t.ignore_time_scale = true   # les captures figent le temps
+	t.process_mode = Node.PROCESS_MODE_ALWAYS
+	t.timeout.connect(_surveiller)
+	add_child(t)
+	t.start()
+
+var _etait_active := false
+var _montree := false
+var _debut_surveillance := 0
+
+func _surveiller() -> void:
+	var active := DisplayServer.window_is_focused()
+	if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_MINIMIZED:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+		_montrer()
+	elif active and not _etait_active and not _montree:
+		if Time.get_ticks_msec() > _debut_surveillance + 15000:
+			_montrer()
+		else:
+			print("Fenêtre : activée toute seule au lancement, reste hors écran")
+	elif not active and _montree:
+		DisplayServer.window_set_position(HORS_ECRAN)
+		_montree = false
+	_etait_active = active
+
+func _montrer() -> void:
+	_montree = true
+	var ecran := DisplayServer.screen_get_usable_rect(DisplayServer.get_primary_screen())
+	DisplayServer.window_set_position(ecran.position + (ecran.size - DisplayServer.window_get_size()) / 2)
