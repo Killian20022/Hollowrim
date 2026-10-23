@@ -31,7 +31,7 @@ const PLANS := [
 	# (7e passe, perf) l'ancien plan de forêt à 650 m est fondu dans celui à 900 m : la forêt proche le couvrait
 ]
 const CHATEAU_EL := 10.5     # élévation peinte du pied de la falaise du château (°)
-const CHATEAU_ECH := 1.5    # taille du château peint
+const CHATEAU_ECH := 2.2    # taille du château peint (C6 : 1,5 -> 2,2, ~1,5 fois plus grand)
 var _plans: Array[ShaderMaterial] = []
 const R_MIN := 150.0
 const R_MAX := 2500.0
@@ -534,7 +534,7 @@ func _haut_profil(a: float, d: Array, pics: Array) -> float:
 			f = maxf(f, 0.62 * (1.0 - maxf(dd - 0.45 * w, 0.0) / (0.55 * w)))                      # épaule
 			f = maxf(f, 0.9 * (1.0 - maxf(dd - 0.6 * w, 0.0) / (0.33 * w)))                      # sommets secondaires
 			h = maxf(h, float(p[1]) * f + 0.2 * maxf(float(p[1]) - float(d[3]), 1.0) + 0.8 * float(d[4]))
-	if int(d[1]) == 2 and absf(wrapf(a - CHATEAU_AZIMUT, -180.0, 180.0)) < 16.0:
+	if int(d[1]) == 2 and absf(wrapf(a - CHATEAU_AZIMUT, -180.0, 180.0)) < 20.0:
 		h = maxf(h, CHATEAU_EL + 70.0 * CHATEAU_ECH / 6.0)
 	return minf(h + (0.5 if int(d[1]) == 0 else 2.0), 60.0)   # forêts : cimes des sapins au-dessus de la crête
 

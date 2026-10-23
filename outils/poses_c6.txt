@@ -1,0 +1,6 @@
+# C6 : château lointain (vue tumulus vers le château) + police du HUD (--hud-demo)
+ch_17h5 monde -35.8,-43,204,3 heure=17.5 sans-mains
+ch_12 monde -35.8,-43,204,3 heure=12 sans-mains
+ch_21 monde -35.8,-43,204,3 heure=21 sans-mains
+ch_17h5_large monde 21.80,19.82,204,3 heure=17.5 sans-mains
+dialogue scenario dialogue
