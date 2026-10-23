@@ -817,7 +817,7 @@ func _dragon() -> void:
 	dragon.set_script(DRAGON)
 	dragon.joueur = joueur
 	dragon.hud = hud
-	dragon.centre = Vector3(VILLAGE.x, h_village, VILLAGE.z)
+	dragon.centre = Vector3(46.0, h_village, 50.0)   # C7b : centre du village v2 (plan §8)
 	dragon.hauteur_sol = hauteur
 	if _paisible():
 		dragon.process_mode = Node.PROCESS_MODE_DISABLED  # --paisible : dragon figé
@@ -1080,6 +1080,7 @@ func charger() -> void:
 	var p: Array = j.get("position", [])
 	if p.size() == 3:
 		joueur.position = Vector3(p[0], p[1] + 0.2, p[2])
+		joueur.position = village.position_sure(joueur.position)   # C7b : sauvé dans l'ancien village (bâtiment, rivière, sous le sol) → point sûr
 	joueur.rotation.y = float(j.get("lacet", joueur.rotation.y))
 	joueur.vie = float(j.get("vie", joueur.vie_max))
 	joueur.vigueur = float(j.get("vigueur", joueur.vigueur_max))

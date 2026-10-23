@@ -42,7 +42,8 @@ func situation() -> String:
 		return "combat"
 	if (monde.tertre != null and monde.tertre.dedans) or (monde.grotte_acces != null and monde.grotte_acces.dedans):
 		return "crypte"        # la même musique de cavernes sert à la grotte
-	if Vector2(j.global_position.x - monde.VILLAGE.x, j.global_position.z - monde.VILLAGE.z).length() < RAYON_VILLAGE:
+	if Vector2(j.global_position.x - monde.VILLAGE.x, j.global_position.z - monde.VILLAGE.z).length() < RAYON_VILLAGE \
+			or ReliefVillage.dans_enceinte(j.global_position.x, j.global_position.z, 6.0):   # C7b : toute l'enceinte v2 (haute rue, tour)
 		return "village"
 	return "foret"
 
