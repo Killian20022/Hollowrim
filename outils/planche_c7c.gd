@@ -33,7 +33,7 @@ func _init() -> void:
 	var cascade := ref.get_region(Rect2i(440, 878, 78, 95))
 	var gelee := ref.get_region(Rect2i(355, 878, 78, 95))
 	var quai := ref.get_region(Rect2i(522, 878, 80, 95))
-	var vues := {"SOURCE": cascade, "CASC_MOULIN": cascade, "LAC": gelee, "LAC_LARGE": gelee, "QUAI": quai}
+	var vues := {"SOURCE_J": cascade, "CASC_MOULIN_J": cascade, "LAC_LARGE_J": gelee, "LAC_LARGE_C": gelee, "ROUE_J": quai, "ROUE_C": quai}
 	var recap: Array[Image] = []
 	for pose in a[4].split(","):
 		var av := Image.load_from_file(a[0] + "/" + pose + ".png")

@@ -2,7 +2,7 @@ extends SceneTree
 ## C7c : le VRAI joueur ne reste coincé ni dans le lit de la rivière ni dans le lac (eau libre, glace, pied de la cascade du moulin).
 ## Pour chaque point de départ, 8 caps, course + sauts ; succès d'un cap = le joueur finit hors de l'eau (sol au-dessus du niveau
 ## d'eau + 0,2 m, ou sur un ouvrage) sans passer sous le terrain. Un point est « coincé » si AUCUN cap n'en sort.
-##   godot --headless --path . --script res://outils/sonde_c7c_sorties.gd -- --nouvelle --paisible
+##   godot --headless --fixed-fps 60 --path . --script res://outils/sonde_c7c_sorties.gd -- --nouvelle --paisible --sans-ancien-village [--pont]
 const SCENE := preload("res://scenes/foret_test.tscn")
 var m: Node3D
 
@@ -36,6 +36,8 @@ func _lancer() -> void:
 			["sous le quai", Vector2(33, 59.5), 4.0], ["bassin source", Vector2(86.5, 58), 4.0], ["glace -20;44", Vector2(-20, 44), 30.0],
 			["glace 0;60", Vector2(0, 60), 20.0], ["glace -40;30", Vector2(-40, 30), 25.0]]:
 		departs.append(e)
+	if OS.get_cmdline_user_args().has("--pont"):
+		departs.clear()   # --pont : seulement les traversées du pont
 	j.set_physics_process(true)
 	Input.action_press("course")
 	Input.action_press("avant")
@@ -73,7 +75,35 @@ func _lancer() -> void:
 		if ok == 0:
 			coinces += 1
 		print("%-22s (%.1f;%.1f) : %d/8 caps sortent de l'eau%s%s" % [d[0], p.x, p.y, ok, details, "  <-- COINCÉ" if ok == 0 else ""])
+	# traversées du pont (marche et course, dans les deux sens) et du quai : jamais sous le tablier ni dans l'eau
+	var rates := 0
+	for t in [["pont N→S course", Vector2(44, 54.5), 180.0, true, 66.5], ["pont S→N course", Vector2(44, 68.5), 0.0, true, 56.5],
+			["pont N→S marche", Vector2(44, 54.5), 180.0, false, 66.5], ["pont S→N marche", Vector2(44, 68.5), 0.0, false, 56.5]]:
+		if not t[3]:
+			Input.action_release("course")
+		else:
+			Input.action_press("course")
+		Input.action_press("avant")
+		var p0: Vector2 = t[1]
+		j.global_position = Vector3(p0.x, m.hauteur(p0.x, p0.y) + 0.3, p0.y)
+		j.velocity = Vector3.ZERO
+		j.rotation.y = deg_to_rad(t[2])
+		var ymin := INF
+		for f in 600:
+			j.vigueur = j.vigueur_max
+			await physics_frame
+			var g := j.global_position
+			if g.z > 58.5 and g.z < 64.5:
+				ymin = minf(ymin, g.y)
+			if (t[2] == 180.0 and g.z > t[4]) or (t[2] == 0.0 and g.z < t[4]):
+				break
+		var g := j.global_position
+		var arrive: bool = (t[2] == 180.0 and g.z > t[4]) or (t[2] == 0.0 and g.z < t[4])
+		var ok: bool = arrive and ymin > 3.4
+		if not ok:
+			rates += 1
+		print("%-18s : arrivé %s, y mini sur le pont %.2f, fin %s %s" % [t[0], arrive, ymin, g, "" if ok else "<-- RATÉ"])
 	Input.action_release("avant")
 	Input.action_release("course")
-	print("SORTIES C7c : %d départs, %d coincé(s), %d passage(s) sous le sol" % [departs.size(), coinces, sous_sol])
-	quit(0 if coinces == 0 and sous_sol == 0 else 1)
+	print("SORTIES C7c : %d départs, %d coincé(s), %d passage(s) sous le sol ; traversées du pont ratées : %d" % [departs.size(), coinces, sous_sol, rates])
+	quit(0 if coinces == 0 and sous_sol == 0 and rates == 0 else 1)

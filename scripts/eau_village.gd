@@ -64,7 +64,9 @@ static func sous_le_lac(x: float, z: float, h: float) -> bool:
 static func creer(monde_: Node) -> EauVillage:
 	var args: Dictionary = monde_.call("_arguments")
 	if args.has("sans-ancien-village") and monde_.get("village") != null:
-		monde_.village.visible = false   # captures C7c seulement : l'ancienne palissade (avant C7b) coupe la rivière
+		monde_.village.visible = false   # captures/sondes C7c seulement : l'ancienne palissade (avant C7b) coupe la rivière et le pont
+		for c in monde_.village.find_children("*", "CollisionObject3D", true, false):
+			(c as CollisionObject3D).collision_layer = 0   # … et la traversée du pont (sonde_c7c_sorties)
 	if args.has("sans-eau-village"):
 		return null
 	var e := EauVillage.new()
@@ -160,7 +162,11 @@ func _piece(modele: Node, nom: String, parent: Node3D, mat: String, xf := Transf
 
 func _collision_maillage(modele: Node, nom: String, xf: Transform3D) -> void:
 	var src := modele.find_child(nom, true, false) as MeshInstance3D
+	if src == null and nom.ends_with("_Col"):
+		# l'importeur glTF lit le suffixe « _col » (nodes/use_name_suffixes) : « Pont_Col » arrive renommé « Pont »
+		src = modele.find_child(nom.trim_suffix("_Col"), true, false) as MeshInstance3D
 	if src == null:
+		push_error("EauVillage : collision « %s » absente de %s" % [nom, MODELE])
 		return
 	var forme := src.mesh.create_trimesh_shape()
 	forme.backface_collision = true
