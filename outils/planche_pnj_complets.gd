@@ -22,19 +22,6 @@ func _arg(nom: String, defaut: String) -> String:
 			return a.substr(nom.length() + 3)
 	return defaut
 
-## Archétype de référence de chaque PNJ (mêmes options que le PNJ : armes, corps ; rien de retouché).
-static func archetype_de(id: String) -> Node3D:
-	match id:
-		"garde": return GuerrierNordique.creer({"casque": true, "bouclier": "bras", "epee": true})
-		"garde_lance": return GardienNordique.creer({"bouclier": "dos", "lance": true})
-		"forgeron": return GuerrierNordique.creer({"casque": false, "bouclier": "", "epee": false, "avant_bras_nus": true})
-		"chasseuse": return ChasseresseNordique.creer({})
-		"volva": return MageNordique.creer({"baton": true, "capuche": true, "corps": "femme"})
-		"ancienne": return MageNordique.creer({"baton": false, "capuche": true, "corps": "femme"})
-		"chef": return ChasseresseNordique.creer({"arc": false, "carquois": false, "couteau": false})
-		"eirik": return GuerrierNordique.creer({"casque": false, "bouclier": "", "epee": false})
-	return null
-
 func _lancer() -> void:
 	var sortie := _arg("sortie", ProjectSettings.globalize_path("res://captures/pnj"))
 	DirAccess.make_dir_recursive_absolute(sortie)
@@ -87,7 +74,7 @@ func _lancer() -> void:
 	for id: String in ids:
 		for col in 2:
 			var t0 := Time.get_ticks_usec()
-			var n: Node3D = archetype_de(id) if col == 0 else PnjNordique.creer(id)
+			var n: Node3D = PnjNordique.archetype_seul(id) if col == 0 else PnjNordique.creer(id)
 			if n == null:
 				continue
 			var ms := (Time.get_ticks_usec() - t0) / 1000.0

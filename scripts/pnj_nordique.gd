@@ -46,6 +46,20 @@ static func creer(id: String) -> Node3D:
 	n.set_meta("pnj_nordique", id)
 	return n
 
+## L'archétype ENTIER de chaque PNJ, sans aucune retouche (options d'armes / de corps seulement) : base de chaque variante ci-dessous,
+## référence du test (test_pnj_village : le PNJ garde toutes les pièces de son archétype) et de la planche (outils/planche_pnj_complets.gd).
+static func archetype_seul(id: String) -> Node3D:
+	match id:
+		"garde": return GuerrierNordique.creer({"casque": true, "bouclier": "bras", "epee": true})
+		"garde_lance": return GardienNordique.creer({"bouclier": "dos", "lance": true})
+		"forgeron": return GuerrierNordique.creer({"casque": false, "bouclier": "", "epee": false, "avant_bras_nus": true})
+		"chasseuse": return ChasseresseNordique.creer({})
+		"volva": return MageNordique.creer({"baton": true, "capuche": true, "corps": "femme"})
+		"ancienne": return MageNordique.creer({"baton": false, "capuche": true, "corps": "femme"})
+		"chef": return ChasseresseNordique.creer({"arc": false, "carquois": false, "couteau": false})
+		"eirik": return GuerrierNordique.creer({"casque": false, "bouclier": "", "epee": false})
+	return null
+
 static func _sq(n: Node3D) -> Skeleton3D:
 	return n.find_child("Skeleton3D", true, false) as Skeleton3D
 
@@ -58,7 +72,7 @@ static func _pieces(sq: Skeleton3D) -> Dictionary:
 # -------------------------------------------------------------------------------------------------------- variantes
 ## Haldor, garde de la porte : casque à nasal, mailles, épée et bouclier au bras ; la cape et le bouclier prennent le rouge du jarl.
 static func _garde() -> Node3D:
-	var n := GuerrierNordique.creer({"casque": true, "bouclier": "bras", "epee": true})
+	var n := archetype_seul("garde")
 	n.name = "PnjGarde"
 	var sq := _sq(n)
 	var p := _pieces(sq)
@@ -69,14 +83,14 @@ static func _garde() -> Node3D:
 
 ## Second garde (alternance) : Gardien à lance et bouclier dans le dos, même rouge de cape que le premier.
 static func _garde_lance() -> Node3D:
-	var n := GardienNordique.creer({"bouclier": "dos", "lance": true})
+	var n := archetype_seul("garde_lance")
 	n.name = "PnjGardeLance"
 	return n
 
 ## Brodd, le forgeron : le Guerrier ENTIER, variante avant-bras nus (manches retroussées), sans casque, bouclier ni épée ; seule la cape
 ## est ôtée (accessoire : la fourrure des épaules, le plastron et la mante restent) ; barbe brune, maillet de forge.
 static func _forgeron() -> Node3D:
-	var n := GuerrierNordique.creer({"casque": false, "bouclier": "", "epee": false, "avant_bras_nus": true})
+	var n := archetype_seul("forgeron")
 	n.name = "PnjForgeron"
 	var sq := _sq(n)
 	var p := _pieces(sq)
@@ -88,7 +102,7 @@ static func _forgeron() -> Node3D:
 
 ## Ylva, la chasseuse : la Chasseresse ENTIÈRE (arc porté, carquois, couteau), étoffes de l'archétype ; cheveux roux.
 static func _chasseuse() -> Node3D:
-	var n := ChasseresseNordique.creer({})
+	var n := archetype_seul("chasseuse")
 	n.name = "PnjChasseuse"
 	var p := _pieces(_sq(n))
 	_teinte_poil(p.get("Hair_Long"), Color(1.15, 0.62, 0.42))
@@ -97,7 +111,7 @@ static func _chasseuse() -> Node3D:
 ## Sigrún, la völva : le Mage ENTIER en corps femme (capuche profonde, visage dans l'ombre aux yeux luisants, pèlerine, écailles, robe,
 ## bâton à orbe) ; seule variante : les bleus de TOUTE la tenue tournés vers le violet (valeurs et tissage gardés, haut et bas assortis).
 static func _volva() -> Node3D:
-	var n := MageNordique.creer({"baton": true, "capuche": true, "corps": "femme"})
+	var n := archetype_seul("volva")
 	n.name = "PnjVolva"
 	_teinte_bande(_sq(n), "volva", {"bande": Vector2(0.48, 0.80), "dh": 0.07, "sm": 0.85, "smin": 0.05})
 	return n
@@ -105,7 +119,7 @@ static func _volva() -> Node3D:
 ## Grima, l'ancienne : le Mage ENTIER en corps femme, sans bâton à orbe ; laines délavées (bleus de toute la tenue désaturés vers le
 ## gris, valeurs gardées) ; canne de marche.
 static func _ancienne() -> Node3D:
-	var n := MageNordique.creer({"baton": false, "capuche": true, "corps": "femme"})
+	var n := archetype_seul("ancienne")
 	n.name = "PnjAncienne"
 	var sq := _sq(n)
 	_teinte_bande(sq, "ancienne", {"bande": Vector2(0.48, 0.80), "dh": 0.0, "sm": 0.3, "smin": 0.05})
@@ -114,7 +128,7 @@ static func _ancienne() -> Node3D:
 
 ## Gunnhild, la cheffe : la Chasseresse ENTIÈRE sans arc, carquois ni couteau ; cheveux blond clair.
 static func _chef() -> Node3D:
-	var n := ChasseresseNordique.creer({"arc": false, "carquois": false, "couteau": false})
+	var n := archetype_seul("chef")
 	n.name = "PnjChef"
 	var p := _pieces(_sq(n))
 	_teinte_poil(p.get("Hair_Long"), Color(1.1, 0.95, 0.70))
@@ -123,7 +137,7 @@ static func _chef() -> Node3D:
 ## Eirik, l'explorateur mort de la crypte : le Guerrier ENTIER sans casque, bouclier ni épée (elle gît au sol) ; bleus de la tenue tournés
 ## vers le vert (valeurs gardées), cheveux cuivrés, teint cireux.
 static func _eirik() -> Node3D:
-	var n := GuerrierNordique.creer({"casque": false, "bouclier": "", "epee": false})
+	var n := archetype_seul("eirik")
 	n.name = "PnjEirik"
 	var sq := _sq(n)
 	var p := _pieces(sq)
@@ -153,8 +167,11 @@ static func _teinte_tex(mi: MeshInstance3D, s: int, cle: String, spec: Dictionar
 	var src := m.get_shader_parameter("tex_base") as Texture2D
 	if src == null:
 		return
+	var t := _texture_teintee(src, cle, spec)
+	if t == null:
+		return     # rien à teinter : matériau de l'archétype gardé
 	var m2 := m.duplicate() as ShaderMaterial
-	m2.set_shader_parameter("tex_base", _texture_teintee(src, cle, spec))
+	m2.set_shader_parameter("tex_base", t)
 	_enreg(m2)
 	_poser_materiau(mi, s, m2)
 
@@ -162,6 +179,7 @@ static func _teinte_tex(mi: MeshInstance3D, s: int, cle: String, spec: Dictionar
 ## est dans spec.bande (et saturés) changent : teinte + dh, saturation x sm, valeur intacte. La tenue de l'archétype reste entière et
 ## assortie (haut et bas ensemble), cuirs, fourrures et métaux gardent leurs couleurs.
 static func _teinte_bande(sq: Skeleton3D, prefixe: String, spec: Dictionary) -> void:
+	var cles := {}     # texture source -> clé (l'atlas partagé par la jupe et les accessoires du mage n'est teinté qu'une fois)
 	for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", true, false):
 		var nom := String(mi.name)
 		if mi.mesh == null or not mi.visible or nom == "peau" or nom == "Eyes" or nom.begins_with("Hair") or nom == "Eyebrows":
@@ -170,7 +188,10 @@ static func _teinte_bande(sq: Skeleton3D, prefixe: String, spec: Dictionary) -> 
 			var m := _materiau_de(mi, s)
 			if m == null or m.shader == null or m.shader.resource_path.get_file() == "mage_orbe.gdshader":
 				continue
-			_teinte_tex(mi, s, "%s_%s_%d" % [prefixe, nom, s], spec)
+			var src: Variant = m.get_shader_parameter("tex_base")
+			if not cles.has(src):
+				cles[src] = "%s_%s_%d" % [prefixe, nom, s]
+			_teinte_tex(mi, s, cles[src], spec)
 
 static func _multiplier(mi: MeshInstance3D, s: int, c: Color) -> void:
 	var m := _materiau_de(mi, s)
@@ -247,6 +268,7 @@ static func _texture_teintee(src: Texture2D, cle: String, spec: Dictionary) -> I
 		var vm: float = spec.get("v", 1.0)
 		var add: float = spec.get("add", 0.0)
 		var r: Rect2i = spec.get("rect", Rect2i(Vector2i.ZERO, img.get_size()))
+		var nb := 0
 		for y in range(r.position.y, mini(r.end.y, img.get_height())):
 			for x in range(r.position.x, mini(r.end.x, img.get_width())):
 				var c := img.get_pixel(x, y)
@@ -262,12 +284,18 @@ static func _texture_teintee(src: Texture2D, cle: String, spec: Dictionary) -> I
 					o = Color.from_hsv(col.h, col.s, clampf(c.v * vm + add, 0.0, 1.0))
 				o.a = c.a
 				img.set_pixel(x, y, o)
-		mips = GuerrierTextures.mips_pixel(img)
+				nb += 1
+		if nb == 0:
+			# aucun texel dans la bande (bottes, cuirs) : la texture de l'archétype reste, marqueur d'une image 1x1 enregistré
+			mips = Image.create(1, 1, false, Image.FORMAT_RGBA8)
+			mips.set_meta("identique", true)
+		else:
+			mips = GuerrierTextures.mips_pixel(img)
 		if enregistrer:
 			DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DOSSIER))
 			mips.set_meta("version", VERSION)
 			ResourceSaver.save(mips, _chemin(cle), ResourceSaver.FLAG_COMPRESS)
-	_cache[cle] = ImageTexture.create_from_image(mips)
+	_cache[cle] = null if mips.get_meta("identique", false) else ImageTexture.create_from_image(mips)
 	return _cache[cle]
 
 # ======================================================================================================== géométrie
