@@ -213,11 +213,11 @@ func _batir_donjon(dj: CrypteDonjon, decor: CrypteDecor) -> void:
 ## Sortie du jeu / fin d'un test pendant la construction : on attend le fil (sinon fuites de ressources).
 func _exit_tree() -> void:
 	if _tache_en >= 0:
-		WorkerThreadPool.wait_for_task_completion(_tache_en)
+		_attendre_fil(_tache_en)
 		_tache_en = -1
 	EnnemisNordiques.vider()
 	if _tache >= 0:
-		WorkerThreadPool.wait_for_task_completion(_tache)
+		_attendre_fil(_tache)
 		_tache = -1
 		if _cont != null and is_instance_valid(_cont) and not _cont.is_inside_tree():
 			_cont.free()
@@ -226,6 +226,18 @@ func _exit_tree() -> void:
 			c.free()
 	_reste_donjon.clear()
 	_etapes_fin.clear()
+
+## Attente d'un fil d'exécution SANS interblocage. Le fil de préparation des ennemis (EnnemisNordiques.prechauffer_fil) fait des appels
+## au serveur de rendu qui attendent une réponse (surface_get_arrays, get_image…) ; avec une fenêtre (modèle de fil « safe »), ces appels
+## passent par la file de commandes que SEUL le fil principal vide. Un WorkerThreadPool.wait_for_task_completion nu sur le fil principal
+## l'empêchait de la vider : interblocage à l'entrée synchrone de la crypte (captures --captures/--scenario : rien après « Donjon :
+## intégré », fenêtre figée) et à la fermeture du jeu pendant la préparation. On vide donc la file en attendant (force_sync).
+func _attendre_fil(tache: int) -> void:
+	if DisplayServer.get_name() != "headless":
+		while not WorkerThreadPool.is_task_completed(tache):
+			RenderingServer.force_sync()
+			OS.delay_usec(500)
+	WorkerThreadPool.wait_for_task_completion(tache)
 
 ## Donjon bâti, posé et intégré (interactions, mécanismes, état) ?
 func _donjon_pret() -> bool:
@@ -244,7 +256,7 @@ func attendre_donjon() -> void:
 func _integrer_donjon() -> void:
 	if _tache < 0:
 		return
-	WorkerThreadPool.wait_for_task_completion(_tache)
+	_attendre_fil(_tache)
 	_tache = -1
 	_lancer_prechauffe()
 	_t_pose = Time.get_ticks_msec()
@@ -275,7 +287,7 @@ func _ennemis_prets(attendre := false) -> bool:
 	if _tache_en < 0:
 		return true
 	if attendre or WorkerThreadPool.is_task_completed(_tache_en):
-		WorkerThreadPool.wait_for_task_completion(_tache_en)
+		_attendre_fil(_tache_en)
 		_tache_en = -1
 		return true
 	return false
