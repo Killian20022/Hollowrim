@@ -61,6 +61,7 @@ var saturation := 0.3
 var vie_imposee := 0.0
 var degats_imposes := 0.0
 var debout := false  # endormi debout (niches) plutôt qu'allongé
+var variante := ""  # squelettes : arme imposée (« epee », « arc », « hache ») ; vide = tirée de l'identifiant
 var ident := ""  # pour la sauvegarde (les draugrs tués restent morts)
 var hud: Control
 var quetes: Node  # posé par monde.creer_draugr (événements de réveil)
@@ -167,7 +168,7 @@ func _ready() -> void:
 	if app.has("perso"):
 		modele = Personnage.creer(app["perso"])      # bandits vivants : personnage de base unifie (PersoDef)
 	elif _os:
-		modele = SqueletteGuerrier.creer({"arme": "arc" if archer else "epee"})
+		modele = EnnemisNordiques.squelette({"type": type, "archer": archer, "ident": ident, "variante": variante})   # copie d'un gabarit préconstruit
 	else:
 		# pnj/ennemis : archétypes nordiques + variante (EnnemisNordiques) ; --pnj-anciens = ancien corps Humain
 		modele = EnnemisNordiques.creer({"type": type, "archer": archer, "boss": boss, "ident": ident, "apparence": app})
@@ -263,18 +264,9 @@ func _regler_boss() -> void:
 
 ## Arc du bandit archer : le maillage « arc » du squelette (même rig) est repris sur le squelette humain.
 func _armer_arc(squelette: Skeleton3D) -> void:
-	var src: Node3D = SqueletteGuerrier.creer({"arme": "arc"})
-	var arc: MeshInstance3D = null
-	for mi: MeshInstance3D in src.find_children("*", "MeshInstance3D", true, false):
-		if String(mi.name) == "arc":
-			arc = mi
-	if arc == null or squelette == null:
-		src.free()
+	if squelette == null:
 		return
-	var copie := MeshInstance3D.new()
-	copie.mesh = arc.mesh
-	copie.skin = arc.skin
-	copie.name = "arc"
+	var copie := SqueletteGuerrier.arc()
 	squelette.add_child(copie)
 	copie.skeleton = NodePath("..")
 	var bois := Palette.materiau(Palette.tex("bois_arc", ["#2a1c10", "#3b2a18", "#4f3a22", "#5e4a30"], 4, 0.7), Vector2(1, 3))
@@ -282,7 +274,6 @@ func _armer_arc(squelette: Skeleton3D) -> void:
 	for s in copie.mesh.get_surface_count():
 		copie.set_surface_override_material(s, bois)
 	_mailles.append(copie)
-	src.free()
 
 func _plus_proche() -> int:
 	var best := 0
