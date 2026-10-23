@@ -459,6 +459,152 @@ def marches(nom, larg, nb, graine, contre=0.17, giron=0.36):
     return M
 
 
+def pilier_libre(nom, h, graine, larg=1.0):
+    """Pilier ISOLÉ (C4, 2026-10-23) : socle à deux ressauts, fût en assises de deux blocs croisés d'une assise à l'autre
+    (joints alternés), chapiteau à trois ressauts. Centré sur l'origine, hauteur totale h. La collision reste celle du kit (boîte)."""
+    M = Module(nom, graine)
+    rg = M.rg
+    w = larg
+    M.boite((w + 0.36, 0.26, w + 0.36), Vector((0, 0.13, 0)), bev=0.03, jit=0.012)
+    M.boite((w + 0.18, 0.16, w + 0.18), Vector((0, 0.34, 0)), bev=0.025, jit=0.01)
+    y = 0.42
+    fin = h - 0.62
+    rang = 0
+    while y < fin - 0.05:
+        hc = min(rg.uniform(0.34, 0.56), fin - y)
+        if fin - y - hc < 0.18:
+            hc = fin - y
+        cut = rg.uniform(-0.12, 0.12) * w
+        for s_ in (-1, 1):
+            a0 = -w * 0.5 if s_ < 0 else cut
+            a1 = cut if s_ < 0 else w * 0.5
+            lw = a1 - a0 - 0.02
+            c = (a0 + a1) * 0.5
+            dims = (lw, hc - 0.025, w + rg.uniform(-0.03, 0.015)) if rang % 2 == 0 else (w + rg.uniform(-0.03, 0.015), hc - 0.025, lw)
+            pos = Vector((c, y + hc * 0.5, 0)) if rang % 2 == 0 else Vector((0, y + hc * 0.5, c))
+            M.boite(dims, pos, bev=0.035, jit=0.012, ton=rg.uniform(0.74, 1.0), incl=(rg.uniform(-0.005, 0.005), rg.uniform(-0.005, 0.005)))
+        y += hc
+        rang += 1
+    M.boite((w + 0.1, 0.16, w + 0.1), Vector((0, fin + 0.08, 0)), bev=0.025, jit=0.01)
+    M.boite((w + 0.24, 0.2, w + 0.24), Vector((0, fin + 0.26, 0)), bev=0.03, jit=0.012)
+    M.boite((w + 0.38, 0.26, w + 0.38), Vector((0, fin + 0.49, 0)), bev=0.03, jit=0.012)
+    return M
+
+
+def _octo(r, a):
+    """Sommet d'octogone de rayon r (sommets à pi/8 + k pi/4, comme CrypteDecor.tour(..., 8, PI / 8))."""
+    return Vector((math.cos(a) * r, 0, math.sin(a) * r))
+
+
+def _anneau_octo(M, r_ext, r_int, y0, y1, ton=None, segs=8):
+    """Anneau octogonal de blocs (8 voussoirs à plat) entre les apothèmes r_int et r_ext, de y0 à y1."""
+    rg = M.rg
+    for k in range(segs):
+        a0 = math.tau * k / segs + math.pi / 8 + 0.012
+        a1 = math.tau * (k + 1) / segs + math.pi / 8 - 0.012
+        yt = y1 + rg.uniform(-0.012, 0.008)
+        pts = []
+        for a in (a0, a1):
+            for r in (r_ext, r_int):
+                q = _octo(r, a)
+                pts.append(Vector((q.x, y0, q.z)))
+                pts.append(Vector((q.x, yt, q.z)))
+        M.coin(pts, bev=0.025, jit=0.006, ton=ton if ton is not None else rg.uniform(0.74, 1.0))
+
+
+def plateforme_octo(nom, graine, paliers, bassin=None):
+    """Plate-forme octogonale à degrés (vasque du rituel, autel des Os) : chaque palier (apothème, y0, y1) = 8 blocs taillés ;
+    dessus du dernier palier en dalles rayonnantes, ou BASSIN (margelle, fond sombre, emplacement d'eau) si `bassin` = (r_int, haut_margelle, fond)."""
+    M = Module(nom, graine)
+    rg = M.rg
+    for i, (r, y0, y1) in enumerate(paliers):
+        r_in = paliers[i + 1][0] - 0.12 if i + 1 < len(paliers) else (bassin[0] if bassin else r * 0.45)
+        _anneau_octo(M, r, max(0.05, r_in), y0, y1)
+    r, y0, y1 = paliers[-1]
+    if bassin:
+        ri, hm, fond = bassin
+        _anneau_octo(M, ri + 0.05, ri - 0.22, y1 - 0.05, y1 + hm, None)          # margelle
+        pts = []
+        for k in range(8):
+            q = _octo(ri - 0.2, math.tau * k / 8 + math.pi / 8)
+            pts.append(Vector((q.x, fond - 0.1, q.z)))
+            pts.append(Vector((q.x, fond, q.z)))
+        M.coin(pts, bev=0.0, jit=0.0, ton=0.35)                                       # fond du bassin (l'eau du lot C5 viendra dessus)
+    else:
+        ri = r * 0.45
+        for k in range(8):                                                             # dalles rayonnantes du dessus
+            a0 = math.tau * k / 8 + math.pi / 8 + 0.02
+            a1 = math.tau * (k + 1) / 8 + math.pi / 8 - 0.02
+            pts = [Vector((0, y1 - 0.08, 0)), Vector((0, y1, 0))]
+            for a in (a0, a1):
+                q = _octo(ri + 0.04, a)
+                pts += [Vector((q.x, y1 - 0.08, q.z)), Vector((q.x, y1 + rg.uniform(-0.01, 0.006), q.z))]
+            M.coin(pts, bev=0.012, jit=0.004)
+    return M
+
+
+def _estrade(M, sx, sy, sz, y0=0.0, dalle=0.95):
+    """Massif rectangulaire (centré, du sol y0 à y0 + sy) : parement de blocs en assises sur les 4 faces, dalles irrégulières dessus, bordure."""
+    rg = M.rg
+    M.boite((sx - 0.3, sy - 0.02, sz - 0.3), Vector((0, y0 + sy * 0.5 - 0.01, 0)), bev=0.0, jit=0.0, ton=0.3)       # noyau (caché)
+    nb_assises = max(1, int(round((sy - 0.1) / 0.42)))
+    ha = (sy - 0.1) / nb_assises
+    for face in range(4):
+        L = sx if face < 2 else sz
+        sgn = 1 if face % 2 == 0 else -1
+        for j in range(nb_assises):
+            x = -L * 0.5 + (rg.uniform(0.0, 0.3) if j % 2 else 0.0)
+            while x < L * 0.5 - 0.05:
+                w = rg.choice([0.45, 0.6, 0.75, 0.9])
+                if x + w > L * 0.5 - 0.2:
+                    w = L * 0.5 - x
+                c = x + w * 0.5
+                yc = y0 + j * ha + ha * 0.5
+                if face < 2:
+                    M.boite((w - 0.025, ha - 0.025, 0.3), Vector((c, yc, sgn * (sz * 0.5 - 0.15))), bev=0.025, jit=0.01, ton=rg.uniform(0.72, 1.0))
+                else:
+                    M.boite((0.3, ha - 0.025, w - 0.025), Vector((sgn * (sx * 0.5 - 0.15), yc, c)), bev=0.025, jit=0.01, ton=rg.uniform(0.72, 1.0))
+                x += w
+    # dessus : bordure de 0,3 m débordante puis dalles irrégulières
+    yt = y0 + sy
+    for face in range(4):
+        L = sx + 0.08 if face < 2 else sz - 0.52
+        sgn = 1 if face % 2 == 0 else -1
+        x = -L * 0.5
+        while x < L * 0.5 - 0.05:
+            w = min(rg.choice([0.6, 0.8, 1.0]), L * 0.5 - x)
+            c = x + w * 0.5
+            if face < 2:
+                M.boite((w - 0.02, 0.1, 0.34), Vector((c, yt - 0.05, sgn * (sz * 0.5 - 0.13))), bev=0.022, jit=0.008, ton=rg.uniform(0.78, 1.0))
+            else:
+                M.boite((0.34, 0.1, w - 0.02), Vector((sgn * (sx * 0.5 - 0.13), yt - 0.05, c)), bev=0.022, jit=0.008, ton=rg.uniform(0.78, 1.0))
+            x += w
+    ix, iz = sx - 0.6, sz - 0.6
+    nx = max(1, int(round(ix / dalle)))
+    nz = max(1, int(round(iz / dalle)))
+    for i in range(nx):
+        for k in range(nz):
+            cx = -ix * 0.5 + ix * (i + 0.5) / nx + rg.uniform(-0.03, 0.03)
+            cz = -iz * 0.5 + iz * (k + 0.5) / nz + rg.uniform(-0.03, 0.03)
+            M.boite((ix / nx - 0.03, 0.08, iz / nz - 0.03), Vector((cx, yt - 0.04 + rg.uniform(-0.008, 0.006), cz)), yaw=rg.uniform(-0.02, 0.02), bev=0.016, jit=0.006, ton=rg.uniform(0.74, 1.0))
+
+
+def estrade(nom, graine, sx, sy, sz, y0=0.0):
+    M = Module(nom, graine)
+    _estrade(M, sx, sy, sz, y0)
+    return M
+
+
+def degres(nom, graine, paliers):
+    """Estrade à degrés (arène) : paliers (largeur x, hauteur, profondeur z) empilés depuis le sol."""
+    M = Module(nom, graine)
+    y = 0.0
+    for (sx, sy, sz) in paliers:
+        _estrade(M, sx, sy, sz, y, dalle=1.7)
+        y += sy
+    return M
+
+
 def piece_fer_chaine(nom, graine):
     M = Module(nom, graine)
     return M
@@ -487,6 +633,13 @@ def construire():
     mods.append(candelabre("candelabre", 191, 3))
     mods.append(lustre("lustre_fer", 201))
     mods.append(marches("marches_3p0", 3.0, 4, 211))
+    # C4 (2026-10-23) : généralisation à toutes les salles — piliers isolés, vasque, autel, estrades
+    mods.append(pilier_libre("pilier_libre_5", 5.0, 221, 1.0))
+    mods.append(pilier_libre("pilier_libre_8", 8.0, 222, 1.2))
+    mods.append(plateforme_octo("vasque_rituel", 231, [(2.2, 0.0, 0.4), (1.7, 0.4, 0.9)], bassin=(1.4, 0.1, 0.72)))
+    mods.append(plateforme_octo("autel_octo", 232, [(2.6, 0.0, 0.25), (2.0, 0.25, 0.5)]))
+    mods.append(estrade("estrade_3x4", 241, 3.2, 0.9, 4.0))
+    mods.append(degres("degres_arene", 242, [(11.0, 0.2, 9.0), (8.0, 0.2, 7.0), (5.4, 0.2, 5.6)]))
     return mods
 
 

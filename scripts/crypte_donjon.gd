@@ -21,12 +21,14 @@ const REVEIL_EAU := "ramasse:fragment_sceau_eau"
 # ------------------------------------------------------------------ crypte v2 : tables de données (voir docs/DONJONS.md §13 et scripts/crypte_v2.gd)
 # Positions en repère de la CRYPTE (comme les accroches). Salle et couloir pilotes de la refonte graphique (références/crypte_v2_planche.png, vues 2/6 et 3).
 const V2_NICHES := {
+	"auto": false,
 	"arche": "arche_2p0", "pilier": "pilier_mur_1p6", "naissance": 1.6,
 	"eboulis": [{"pos": Vector3(1.0, 0, -9.3), "mod": "eboulis_c", "lacet": 0.6}, {"pos": Vector3(-1.0, 0, -15.0), "mod": "eboulis_a", "lacet": 2.1}],
 	"dalles": [{"pos": Vector3(0.25, 0, -10.6), "mod": "dalles_a"}, {"pos": Vector3(-0.35, 0, -14.3), "mod": "dalles_b"}, {"pos": Vector3(0.4, 0, -17.0), "mod": "dalles_c"}],
 	"flaques": [{"pos": Vector3(-0.15, 0, -11.9), "r": 0.55, "graine": 3}],
 }
 const V2_RITUELLE := {
+	"auto": false,
 	"piliers": [-6.2, -3.4, 3.4, 6.2], "pilier": "pilier_mur_3p2", "naissance": 3.2, "arche": "arche_10p7",
 	"statues": [{"pos": Vector3(-4.8, 0, -53.15), "lacet": 0.0}, {"pos": Vector3(4.8, 0, -53.15), "lacet": 0.0}],
 	"bannieres": [{"pos": Vector3(-4.8, 5.3, -53.7), "vers": Vector3(0, 0, 1), "long": 2.6}, {"pos": Vector3(4.8, 5.3, -53.7), "vers": Vector3(0, 0, 1), "long": 2.6}],
@@ -268,6 +270,10 @@ func plan() -> Array:
 			_e("cr_lb1_arch", "squelette_archer", Vector3(22.0, B, -58.8), 0.0, true, true, {"archer": true})],
 		"coffres": [{"id": "cof_lb1", "pos": Vector3(27.1, B, -58.6), "lacet": -PI * 0.5, "butin": {"pieces": 52, "lame_antique": 1}},
 			{"id": "cof_lb1b", "pos": Vector3(27.1, B, -56.3), "lacet": -PI * 0.5, "nom": "Coffre de la garde", "butin": {"pieces": 80, "amulette_givre": 1, "relique_offrande": 1}}]}))
+	# crypte v2 (lot C4, 2026-10-23) : TOUTES les salles en style v2 ; sans table propre = mode auto (scripts/crypte_v2.gd)
+	for mm: Dictionary in r:
+		if not mm.has("v2"):
+			mm["v2"] = {}
 	return r
 
 # ------------------------------------------------------------------ outils des récits (coordonnées de la crypte -> repère du module)
@@ -317,8 +323,12 @@ func _x_prep(_m: Dictionary) -> void:
 
 func _x_rituelle(_m: Dictionary) -> void:
 	# vasque centrale et cercle du rituel gravé au sol
-	d.tour("mur0", _l(0, -47.5), [Vector2(2.2, 0.0), Vector2(2.2, 0.4), Vector2(1.7, 0.4), Vector2(1.7, 0.9)], 8, PI / 8.0, true)
-	d.tour("gravure", _l(0, -47.5, 0.9), [Vector2(1.7, 0.0), Vector2(1.4, 0.0)], 8, PI / 8.0, true)
+	if d.v2:      # crypte v2 : vasque en blocs taillés, margelle et bassin (emplacement d'eau pour le lot eau)
+		d.modele("vasque_rituel", _l(0, -47.5), 0.0)
+		d.eau_slot(_l(0, -47.5, 0.74), 1.15, "vasque")
+	else:
+		d.tour("mur0", _l(0, -47.5), [Vector2(2.2, 0.0), Vector2(2.2, 0.4), Vector2(1.7, 0.4), Vector2(1.7, 0.9)], 8, PI / 8.0, true)
+		d.tour("gravure", _l(0, -47.5, 0.9), [Vector2(1.7, 0.0), Vector2(1.4, 0.0)], 8, PI / 8.0, true)
 	d.solide(_l(0, -47.5, 0.45), Vector3(3.6, 0.9, 3.6))
 	d.lumiere(_l(0, -47.5, 1.6), Color(0.4, 0.8, 1.0), 1.5, 7.0, 1.5, false)
 	if CrypteV2.actif(_m):
@@ -377,9 +387,15 @@ func _x_arene(_m: Dictionary) -> void:
 		d.arc("mur0", "z", _l(x, 0).x, _l(0, -69.0).z, 4.8, 6.2, 1.2, 0.4, 0.6)
 		d.arc("mur0", "z", _l(x, 0).x, _l(0, -74.75).z, 4.3, 6.2, 1.2, 0.4, 0.6)
 	# estrade à trois degrés de 0,2 m ; le sarcophage est posé par tertre.gd
-	d.boite_pleine("dalle0", _l(0, -72.0, 0.1), Vector3(11.0, 0.2, 9.0))
-	d.boite_pleine("dalle0", _l(0, -72.0, 0.3), Vector3(8.0, 0.2, 7.0))
-	d.boite_pleine("dalle0", _l(0, -72.0, 0.5), Vector3(5.4, 0.2, 5.6))
+	if d.v2:      # crypte v2 : degrés en blocs taillés (module Blender), MÊMES collisions
+		d.solide(_l(0, -72.0, 0.1), Vector3(11.0, 0.2, 9.0))
+		d.solide(_l(0, -72.0, 0.3), Vector3(8.0, 0.2, 7.0))
+		d.solide(_l(0, -72.0, 0.5), Vector3(5.4, 0.2, 5.6))
+		d.modele("degres_arene", _l(0, -72.0), 0.0)
+	else:
+		d.boite_pleine("dalle0", _l(0, -72.0, 0.1), Vector3(11.0, 0.2, 9.0))
+		d.boite_pleine("dalle0", _l(0, -72.0, 0.3), Vector3(8.0, 0.2, 7.0))
+		d.boite_pleine("dalle0", _l(0, -72.0, 0.5), Vector3(5.4, 0.2, 5.6))
 	for k in 12:
 		var a := TAU * k / 12.0
 		stalagmite(_l(cos(a) * 7.2, -72.0 + sin(a) * 5.8), alea(0.5, 1.1), 0.14)
@@ -455,7 +471,10 @@ func _x_s1(_m: Dictionary) -> void:
 
 func _x_ossuaire(_m: Dictionary) -> void:
 	# autel d'os central, où repose le fragment du sceau des Os
-	d.tour("dalle0", _l(-21, -16), [Vector2(2.6, 0.0), Vector2(2.6, 0.25), Vector2(2.0, 0.25), Vector2(2.0, 0.5)], 8, PI / 8.0, true)
+	if d.v2:      # crypte v2 : autel octogonal à deux degrés en blocs taillés
+		d.modele("autel_octo", _l(-21, -16), 0.0)
+	else:
+		d.tour("dalle0", _l(-21, -16), [Vector2(2.6, 0.0), Vector2(2.6, 0.25), Vector2(2.0, 0.25), Vector2(2.0, 0.5)], 8, PI / 8.0, true)
 	os_monticule(_l(-21, -16, 0.5), 1.5, 1.1)
 	d.crane(_l(-21, -16, 1.6), 0.3)
 	d.tour("os", _l(-21, -16, 1.6), [Vector2(0.08, 0.0), Vector2(0.14, 0.18), Vector2(0.06, 0.4)], 6, 0.2, true)
