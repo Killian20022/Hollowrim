@@ -83,6 +83,7 @@ static func _masque(sty: String) -> float:
 ## Concrétion (stalagmite si h > 0, stalactite si h < 0) : profil en gouttes (bourrelets de coulée), pied évasé qui se fond dans le
 ## sol, légère inclinaison, 6 à 8 côtés, 4 à 11 anneaux selon la hauteur. Stalagmite : tête givrée (masque croissant vers la pointe).
 static func concretion(g: Grotte, nom: String, base: Vector3, r: float, h: float, graine: int, masque := 0.0, givre_tete := 0.4) -> void:
+	g.decor.objet_debut("stalagmite" if h > 0.0 else "stalactite")
 	var rg := RandomNumberGenerator.new()
 	rg.seed = graine
 	var cotes := 6 if r > 0.22 else 5
@@ -127,6 +128,7 @@ static func concretion(g: Grotte, nom: String, base: Vector3, r: float, h: float
 				var B: Array = anneaux[k + 1]
 				g.decor.facette(nom, A[i], A[j], B[j], ref, [c0, c0, c1], false, 2.0)
 				g.decor.facette(nom, A[i], B[j], B[i], ref, [c0, c1, c1], false, 2.0)
+	g.decor.objet_fin()
 
 ## Pointes (stalactites au plafond ou stalagmites au sol) : n tirages, hors du passage central si `ecart` > 0. Les grandes
 ## stalagmites (≥ 1,1 m) sont entourées de 2 ou 3 petites et deviennent solides si elles ne gênent aucun passage ; une stalagmite
@@ -209,6 +211,7 @@ static func nez_piliers(g: Grotte) -> void:
 			g.decor.solide_rond(P + T * sens * 0.3 + Vector3(0, 1.0, 0), 0.4, 2.0)
 
 static func _masse_nez(g: Grotte, nom: String, P: Vector3, T: Vector3, haut: float, graine: int, masque: float) -> void:
+	g.decor.objet_debut("nez")
 	var rg := RandomNumberGenerator.new()
 	rg.seed = graine
 	var R := T.cross(Vector3.UP).normalized()
@@ -241,6 +244,7 @@ static func _masse_nez(g: Grotte, nom: String, P: Vector3, T: Vector3, haut: flo
 			var j := (i + 1) % cotes
 			g.decor.facette(nom, A[i], A[j], B[j], ref, [c0, c0, c1], false, 2.0)
 			g.decor.facette(nom, A[i], B[j], B[i], ref, [c0, c1, c1], false, 2.0)
+	g.decor.objet_fin()
 
 ## Éboulis au pied des parois : amas de 3 à 7 blocs anguleux, en partie enterrés, contre la paroi (sans collision : on les longe).
 static func eboulis_pied(g: Grotte, r: RandomNumberGenerator, id: String, s0: float, s1: float, n: int, nom := "") -> void:
@@ -300,6 +304,7 @@ static func rochers(g: Grotte, r: RandomNumberGenerator, id: String, s0: float, 
 		g.decor.rocher(nom if nom != "" else _roche(sty), _p(g, id, s, lat_r), rr, hh, r.randi(), _masque(sty), solide, 6)
 
 static func etai(g: Grotte, id: String, s: float) -> void:
+	g.decor.objet_debut("etai")
 	var dl := g.demi_l(id, s)
 	var w1 := dl.x - 0.25
 	var w2 := dl.y - 0.25
@@ -314,6 +319,7 @@ static func etai(g: Grotte, id: String, s: float) -> void:
 	d.prisme("bois", pa + Vector3(0, haut - pa.y, 0) - R * 0.3, pb + Vector3(0, haut - pb.y, 0) + R * 0.3, 0.17, 8)
 	d.solide_rond(pa + Vector3(0, 1.0, 0), 0.15, 2.4)
 	d.solide_rond(pb + Vector3(0, 1.0, 0), 0.15, 2.4)
+	g.decor.objet_fin()
 
 ## Rails de mine (deux fers + traverses) le long de la branche, à `lat0` de l'axe ; sans collision (on marche dessus).
 static func rails(g: Grotte, id: String, s0: float, s1: float, lat0: float) -> void:
@@ -332,6 +338,7 @@ static func rails(g: Grotte, id: String, s0: float, s1: float, lat0: float) -> v
 		s = s2
 
 static func chariot(g: Grotte, id: String, s: float, lat: float, r: RandomNumberGenerator, charge := 0) -> void:
+	g.decor.objet_debut("chariot")
 	var dl := g.demi_l(id, s)
 	if absf(lat) > (dl.y if lat > 0.0 else dl.x) - 1.3:          # trop près de la paroi (variante étroite) : le chariot se range au pied de la paroi, sans bloquer
 		lat = signf(lat) * ((dl.y if lat > 0.0 else dl.x) - 1.3)
@@ -356,20 +363,25 @@ static func chariot(g: Grotte, id: String, s: float, lat: float, r: RandomNumber
 		d.rocher("c_roche_nu", p + Vector3(0, 0.78, 0), 0.5, 0.3, r.randi(), 0.0, false, 6)
 		d.boite("lame", p + Vector3(-0.1, 1.0, -0.05), Vector3(0.3, 0.08, 0.22), r.randf() * TAU)
 	d.solide_rond(p + Vector3(0, 0.55, 0), 0.62, 1.1)
+	g.decor.objet_fin()
 
 ## Champignons lumineux : n pieds de hauteurs variées, chapeaux émissifs (matière cristal), sans collision.
 static func champignons(g: Grotte, r: RandomNumberGenerator, p: Vector3, n: int) -> void:
+	g.decor.objet_debut("champignons")
 	for k in n:
 		var q := p + Vector3(r.randf_range(-0.45, 0.45), 0.0, r.randf_range(-0.45, 0.45))
 		var hs := r.randf_range(0.14, 0.4)
 		var rc := r.randf_range(0.08, 0.17)
 		g.decor.tour("os", q, [Vector2(0.03, 0.0), Vector2(0.022, hs)], 5, 0.0, false)
 		g.decor.revolution("c_cristal", q + Vector3(0, hs, 0), [Vector2(rc, 0.0), Vector2(rc * 1.05, 0.03), Vector2(rc * 0.7, 0.07), Vector2(0.0, 0.095)], 7, r.randi(), 0.2, 0.0, 0.85, 1.0, 1.0)
+	g.decor.objet_fin()
 
 ## Amas de cristaux de glace.
 static func cristaux(g: Grotte, r: RandomNumberGenerator, p: Vector3, n: int, taille := 1.0) -> void:
+	g.decor.objet_debut("cristaux")
 	for j in n:
 		g.decor.cristal(p + Vector3(r.randf_range(-0.5, 0.5), -0.08, r.randf_range(-0.5, 0.5)), r.randf_range(0.1, 0.3) * taille, r.randf_range(0.7, 2.2) * taille, r.randi(), 0.6)
+	g.decor.objet_fin()
 
 # ------------------------------------------------------------------ props des points d'accroche
 static func prop_ressource(g: Grotte, res: Dictionary, p: Vector3, z: Dictionary) -> void:

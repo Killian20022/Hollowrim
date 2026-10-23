@@ -1395,15 +1395,21 @@ func _accroches_zone(z: Dictionary) -> void:
 		accroches.append({"type": "ennemi", "id": e["id"], "zone": z["id"], "pos": p + Vector3(0, 0.05, 0), "lacet": lac, "d": e, "patrouille": pat})
 	for c: Dictionary in z.get("coffres", []):
 		var p := _pos_zone(z, c)
+		decor.objet_debut("coffre", c["id"])
 		decor.coffre(p, float(c.get("lacet", 0.0)))
+		decor.objet_fin()
 		accroches.append({"type": "coffre", "id": c["id"], "zone": z["id"], "pos": p + Vector3(0, 0.8, 0), "lieu": p, "d": c})
 	for r: Dictionary in z.get("ressources", []):
 		var p := _pos_zone(z, r)
+		decor.objet_debut("ressource", r["id"])
 		GrotteModules.prop_ressource(self, r, p, z)
+		decor.objet_fin()
 		accroches.append({"type": "ressource", "id": r["id"], "zone": z["id"], "pos": p + Vector3(0, 0.7, 0), "d": r})
 	for i: Dictionary in z.get("interactions", []):
 		var p := _pos_zone(z, i)
+		decor.objet_debut("interaction", i["id"])
 		GrotteModules.prop_interaction(self, i, p, z)
+		decor.objet_fin()
 		accroches.append({"type": "interaction", "id": i["id"], "zone": z["id"], "pos": p + Vector3(0, 0.6, 0), "d": i})
 	for m: Dictionary in z.get("meca", []):
 		var p := sol_en(id, float(m["s"]), float(m["lat"]))

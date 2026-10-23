@@ -274,8 +274,14 @@ func facette(nom: String, a: Vector3, b: Vector3, c: Vector3, ref: Vector3, cols
 	else:
 		uu.append(uvs[0]); uu.append(uvs[k1]); uu.append(uvs[k2])
 	cc.append(cols[0]); cc.append(cols[k1]); cc.append(cols[k2])
-	if collision:
-		coll.append(a); coll.append(b); coll.append(c)
+	if _obj_n > 0:
+		_obj_v.append(a); _obj_v.append(b); _obj_v.append(c)
+	if collision:          # orientées comme la coque : (b - a) x (c - a) vers le côté visible (lu par l'audit ; sans effet physique, double face)
+		coll.append(a)
+		if geo.dot(n) > 0.0:
+			coll.append(b); coll.append(c)
+		else:
+			coll.append(c); coll.append(b)
 	nb_facettes += 1
 
 ## UV dans le plan de la facette (mètres / tuile) : densité de texels uniforme quelle que soit la pente (la projection sur un
@@ -332,15 +338,18 @@ func revolution(nom: String, base: Vector3, profil: Array, cotes: int, graine: i
 
 ## Stalagmite (vers le haut) ou stalactite (vers le bas) ; `sommet` = point d'attache pour une stalactite.
 func pointe(nom: String, base: Vector3, r: float, h: float, graine: int, masque := 0.0, cotes := 6) -> void:
+	objet_debut("stalagmite" if h > 0.0 else "stalactite")
 	var s := 1.0 if h > 0.0 else -1.0
 	var hh := absf(h)
 	var profil := [Vector2(r, 0.0), Vector2(r * 0.62, s * hh * 0.4), Vector2(r * 0.26, s * hh * 0.78), Vector2(0.0, s * hh)]
 	if r > 0.3:
 		profil = [Vector2(r, 0.0), Vector2(r * 0.8, s * hh * 0.18), Vector2(r * 0.52, s * hh * 0.5), Vector2(r * 0.24, s * hh * 0.82), Vector2(0.0, s * hh)]
 	revolution(nom, base, profil, cotes if r > 0.3 else 5, graine, 0.38, masque, 0.55, 1.0)
+	objet_fin()
 
 ## Colonne : stalagmite et stalactite soudées (y_bas -> y_haut), taille de la taille r_mid.
 func colonne(nom: String, x: float, z: float, y_bas: float, y_haut: float, r: float, graine: int, masque := 0.0) -> void:
+	objet_debut("colonne")
 	var h := y_haut - y_bas
 	var profil := [Vector2(r * 1.7, 0.0), Vector2(r * 1.15, h * 0.12), Vector2(r * 0.8, h * 0.36), Vector2(r * 0.62, h * 0.52), Vector2(r * 0.85, h * 0.72), Vector2(r * 1.25, h * 0.92), Vector2(r * 1.8, h + 0.3)]
 	revolution(nom, Vector3(x, y_bas, z), profil, 7, graine, 0.3, masque, 0.55, 0.7)
@@ -352,9 +361,13 @@ func colonne(nom: String, x: float, z: float, y_bas: float, y_haut: float, r: fl
 	cs.shape = cyl
 	cs.position = Vector3(x, y_bas + h * 0.5, z)
 	corps.add_child(cs)
+	if _obj_n > 0:
+		_audit_solide(cs.position, Vector3(r * 1.9, h, r * 1.9))
+	objet_fin()
 
 ## Rocher bas, à facettes (éboulis, blocs sur la glace, congères sous la neige quand masque est grand).
 func rocher(nom: String, base: Vector3, r: float, h: float, graine: int, masque := 0.0, collision := true, cotes := 6) -> void:
+	objet_debut("rocher")
 	var profil := [Vector2(r, -h * 0.12), Vector2(r * 1.02, h * 0.38), Vector2(r * 0.72, h * 0.82), Vector2(r * 0.3, h), Vector2(0.0, h * 1.02)]
 	revolution(nom, base, profil, cotes, graine, 0.5, masque, 0.62, 1.0, 3.0)
 	if collision and r > 0.45:
@@ -365,14 +378,20 @@ func rocher(nom: String, base: Vector3, r: float, h: float, graine: int, masque 
 		cs.shape = cyl
 		cs.position = base + Vector3(0, h * 0.45, 0)
 		corps.add_child(cs)
+		if _obj_n > 0:
+			_audit_solide(cs.position, Vector3(r * 1.6, h * 0.9, r * 1.6))
+	objet_fin()
 
 ## Congère : monticule bas de neige soufflée (crête de vent), sans collision (haut ≤ 0,5 m : on le traverse comme une neige molle).
 func congere(base: Vector3, r: float, h: float, graine: int) -> void:
+	objet_debut("congere")
 	var profil := [Vector2(r, -0.06), Vector2(r * 0.93, h * 0.42), Vector2(r * 0.66, h * 0.82), Vector2(r * 0.3, h), Vector2(0.0, h * 1.02)]
 	revolution("c_sol_neige", base, profil, 9, graine, 0.34, 1.6, 0.8, 1.0, 4.0)
+	objet_fin()
 
 ## Caillou : pyramide irrégulière à 4 faces (micro-détail du sol, 4 triangles).
 func caillou(nom: String, base: Vector3, r: float, h: float, graine: int, masque := 0.0) -> void:
+	objet_debut("caillou")
 	var rg := RandomNumberGenerator.new()
 	rg.seed = graine
 	var a0 := rg.randf() * TAU
@@ -387,11 +406,13 @@ func caillou(nom: String, base: Vector3, r: float, h: float, graine: int, masque
 	var c1 := col(1.0, masque)
 	for i in 4:
 		facette(nom, pts[i], pts[(i + 1) % 4], sommet, axe, [c0, c0, c1], false, 2.0)
+	objet_fin()
 
 ## Cristal (2e passe, d'après grottes_cryptes_6) : GRAPPE de prismes hexagonaux élancés et pointus, de tailles très variées
 ## (un maître, beaucoup de petits), pieds enfoncés dans la roche. Chaque face reçoit ses UV (travers x long) : la texture
 ## cristal_f porte le dégradé bleu nuit -> cyan, l'arête claire d'un texel et les fêlures. `r` et `l` : gabarit du maître.
 func cristal(base: Vector3, r: float, l: float, graine: int, incl := 0.5, axe_bias := Vector3.UP) -> void:
+	objet_debut("cristal")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var d0 := (axe_bias + Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)) * incl * 0.6).normalized()
@@ -409,10 +430,12 @@ func cristal(base: Vector3, r: float, l: float, graine: int, incl := 0.5, axe_bi
 		var lk := l * lerpf(0.14, 0.62, f)
 		var rk := r * 0.5 * lerpf(0.3, 0.8, f) * rng.randf_range(0.8, 1.15)
 		_prisme_cristal(base + off - d * lk * 0.18, d, rk, lk, rng)
+	objet_fin()
 
 ## Grosse grappe éclairante (4e passe, grottes_cryptes_6) : 0,5 à 1,5 m, prismes bleu vif autour d'un cœur blanc-cyan,
 ## lumière cyan locale qui bleuit la roche autour, halo additif au sol et contre la paroi. `axe` : direction moyenne de pousse.
 func grosse_grappe(base: Vector3, taille: float, graine: int, axe := Vector3.UP, eclaire := true) -> OmniLight3D:
+	objet_debut("grappe")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var d0 := axe.normalized()
@@ -438,10 +461,12 @@ func grosse_grappe(base: Vector3, taille: float, graine: int, axe := Vector3.UP,
 	if absf(d0.y) < 0.9:
 		carte("halo_f", base + d0 * taille * 0.45, Vector3(d0.x, 0.0, d0.z).normalized(), taille * 2.2, taille * 2.2)
 	if not eclaire:
+		objet_fin()
 		return null
 	var l := lumiere(base + d0 * taille * 0.7, Color(0.45, 0.8, 1.0), 3.0, 6.0 + taille * 1.8, 1.2, false)
 	l.light_color = Color(0.45, 0.8, 1.0)
 	l.set_meta("grappe", true)                     # _retoucher_lumieres n'y touche pas
+	objet_fin()
 	return l
 
 func _prisme_cristal(base: Vector3, d: Vector3, r: float, l: float, rng: RandomNumberGenerator, nom := "c_cristal_f") -> void:
@@ -540,6 +565,8 @@ func solide_rond(centre: Vector3, rayon: float, haut: float) -> void:
 	cs.shape = cyl
 	cs.position = centre
 	corps.add_child(cs)
+	if _obj_n > 0:
+		_audit_solide(centre, Vector3(rayon * 2.0, haut, rayon * 2.0))
 
 func projecteur(pos: Vector3, cible: Vector3, couleur: Color, energie: float, portee: float, angle: float) -> SpotLight3D:
 	var l := SpotLight3D.new()
@@ -574,6 +601,7 @@ func rai_oblique(haut: Vector3, bas: Vector3, largeur_haut: float, largeur_bas: 
 ## Caisse (2e passe) : planches clouées (texture planches), montants d'angle, écharpe en diagonale sur les grandes faces,
 ## cerclages de fer haut et bas avec rivets, équerres de fer aux coins. Collision : la boîte entière (inchangée).
 func caisse(pos: Vector3, taille := Vector3(0.7, 0.5, 0.5), lacet := 0.0) -> void:
+	objet_debut("caisse")
 	var b := Basis(Vector3.UP, lacet)
 	var tx := taille.x
 	var ty := taille.y
@@ -598,6 +626,7 @@ func caisse(pos: Vector3, taille := Vector3(0.7, 0.5, 0.5), lacet := 0.0) -> voi
 			boite("fer", pos + b * Vector3(dx * (tx + 0.01), ty - 0.06, dz * (tz + 0.01)), Vector3(0.09, 0.12, 0.09), lacet)
 	var s := b * Vector3(taille.x, 0, taille.z)
 	solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s.x), taille.y, absf(s.z)))
+	objet_fin()
 
 ## Benne de chariot (interceptée dans boite) : flancs de trois planches, fond, montants et bandes de fer rivetées.
 func _benne(c: Vector3, t: Vector3, lacet: float) -> void:
@@ -683,6 +712,7 @@ func _bois_etai(a: Vector3, b: Vector3, r: float) -> void:
 		chaine(haut + vers * 0.5 - Vector3(0, 0.12, 0), haut + vers * 0.5 - Vector3(0, 0.5, 0))
 
 func coffre_ouvert(pos: Vector3, lacet := 0.0) -> void:
+	objet_debut("coffre_ouvert")
 	var b := Basis(Vector3.UP, lacet)
 	boite("bois", pos + Vector3(0, 0.22, 0), Vector3(0.9, 0.44, 0.56), lacet)
 	boite("fer", pos + Vector3(0, 0.02, 0), Vector3(0.94, 0.05, 0.6), lacet)
@@ -701,28 +731,36 @@ func coffre_ouvert(pos: Vector3, lacet := 0.0) -> void:
 		boite("or", pos + b * Vector3(px, 0.43 + 0.04 * (1.0 - absf(px) * 2.0), pz), Vector3(0.07, 0.025, 0.07), rng.randf() * TAU)
 	var sz := b * Vector3(0.9, 0, 0.56)
 	solide(pos + Vector3(0, 0.3, 0), Vector3(absf(sz.x), 0.6, absf(sz.z)))
+	objet_fin()
 
 func pieces(pos: Vector3, n: int, rayon: float) -> void:
+	objet_debut("pieces")
 	for k in n:
 		var a := rng.randf() * TAU
 		var d := rng.randf() * rayon
 		boite("or", pos + Vector3(cos(a) * d, 0.012 + 0.02 * float(k % 3) * (1.0 - d / rayon), sin(a) * d), Vector3(0.06, 0.02, 0.06), rng.randf() * TAU)
+	objet_fin()
 
 func sac(pos: Vector3, e := 1.0) -> void:
+	objet_debut("sac")
 	var prof := [Vector2(0.2, 0.0), Vector2(0.26, 0.12), Vector2(0.24, 0.3), Vector2(0.14, 0.44), Vector2(0.06, 0.5), Vector2(0.1, 0.56)]
 	var pe: Array = []
 	for p: Vector2 in prof:
 		pe.append(p * e)
 	tour("paille", pos, pe, 6, 0.3, true)
 	tour("fer", pos + Vector3(0, 0.42 * e, 0), [Vector2(0.075 * e, 0.0), Vector2(0.075 * e, 0.03 * e)], 6, 0.3, false)
+	objet_fin()
 
 func tabouret(pos: Vector3) -> void:
+	objet_debut("tabouret")
 	boite("bois", pos + Vector3(0, 0.42, 0), Vector3(0.34, 0.06, 0.34), 0.3)
 	for sx in [-0.12, 0.12]:
 		for sz in [-0.12, 0.12]:
 			boite("bois", pos + Vector3(sx, 0.2, sz), Vector3(0.05, 0.4, 0.05), 0.0)
+	objet_fin()
 
 func couchage(pos: Vector3, lacet := 0.0, peau_col := true) -> void:
+	objet_debut("couchage")
 	var b := Basis(Vector3.UP, lacet)
 	# châlit de bois sur 4 pieds (plateau à 0,3 m), paillasse, paille, fourrures, oreiller : haut de 0,55 m
 	for sx in [-0.44, 0.44]:
@@ -738,8 +776,10 @@ func couchage(pos: Vector3, lacet := 0.0, peau_col := true) -> void:
 	boite("paille" if peau_col else "peau", pos + b * Vector3(0.0, 0.54, -0.76), Vector3(0.46, 0.14, 0.3), lacet)   # oreiller
 	var s := b * Vector3(1.0, 0, 2.0)
 	solide(pos + Vector3(0, 0.3, 0), Vector3(absf(s.x), 0.6, absf(s.z)))
+	objet_fin()
 
 func ratelier(pos: Vector3, lacet := 0.0) -> void:
+	objet_debut("ratelier")
 	var b := Basis(Vector3.UP, lacet)
 	for sx in [-0.8, 0.8]:
 		boite("bois", pos + b * Vector3(sx, 0.7, 0), Vector3(0.1, 1.4, 0.1), lacet)
@@ -757,13 +797,17 @@ func ratelier(pos: Vector3, lacet := 0.0) -> void:
 			boite_b("fer", tete - Vector3(0, 0.2, 0), Vector3(0.22, 0.035, 0.035), b)
 			prisme("bois", tete - Vector3(0, 0.2, 0), tete + Vector3(0, 0.05, 0), 0.016, 5)
 	solide(pos + Vector3(0, 0.75, 0), Vector3(1.8, 1.5, 0.5) if absf(cos(lacet)) > 0.7 else Vector3(0.5, 1.5, 1.8))
+	objet_fin()
 
 func trophee(pos: Vector3, hauteur := 1.6, lacet := 0.0) -> void:
+	objet_debut("trophee")
 	prisme("bois", pos, pos + Vector3(0.03, hauteur, 0), 0.04, 5)
 	crane(pos + Vector3(0.03, hauteur - 0.01, 0), lacet)
 	solide_rond(pos + Vector3(0, hauteur * 0.5, 0), 0.08, hauteur)
+	objet_fin()
 
 func feu_camp(pos: Vector3) -> void:
+	objet_debut("feu_camp")
 	for k in 9:
 		var a := TAU * k / 9.0 + 0.2
 		rocher("c_roche_nu", pos + Vector3(cos(a) * 0.62, 0.0, sin(a) * 0.62), 0.17, 0.2, 400 + k, 0.0, false, 5)
@@ -775,6 +819,7 @@ func feu_camp(pos: Vector3) -> void:
 	flamme(pos + Vector3(0.12, 0.2, 0.08), 1.4)
 	carte("halo", pos + Vector3(0, 0.03, 0), Vector3.UP, 3.6, 3.6)
 	solide_rond(pos + Vector3(0, 0.15, 0), 0.7, 0.3)
+	objet_fin()
 
 # ------------------------------------------------------------------ fin : coque colorée
 func finir() -> void:
@@ -880,7 +925,9 @@ func _toiles_rares(g: Grotte) -> void:
 	print("grotte v2 : %d toiles d'araignée" % nb_toiles)
 
 func _toile_rare(g: Grotte, id: String, s: float, cote: float, l: float, sens: float) -> bool:
+	objet_debut("toile")
 	if not g.hors_jonction(id, s):
+		objet_fin()
 		return false
 	var dl := g.demi_l(id, s)
 	var w := (dl.y if cote > 0.0 else dl.x)
@@ -888,8 +935,10 @@ func _toile_rare(g: Grotte, id: String, s: float, cote: float, l: float, sens: f
 	var haut := g.plafond_en(id, s, lat)
 	var sol := g.sol_en(id, s, lat)
 	if haut.y - sol.y < 2.0:
+		objet_fin()
 		return false
 	toile(Vector3(haut.x, haut.y - 0.15, haut.z), g.tang(id, s) * sens, -g.droite(id, s) * cote, l)
+	objet_fin()
 	return true
 
 ## Accroches du relief (Grotte.levres / Grotte.rebords, lot « grotte relief ») :
@@ -1066,6 +1115,7 @@ func _retoucher_lumieres(g: Grotte) -> void:
 # ------------------------------------------------------------------ pièces d'accessoires
 ## Lanterne de fer suspendue (crochet en `haut`) : chaînette, chapeau, cage à 4 montants, flamme, halo. Rend le centre de la flamme.
 func lanterne(haut: Vector3, chaine_l := 0.18) -> Vector3:
+	objet_debut("lanterne")
 	var c := haut - Vector3(0, chaine_l, 0)
 	if chaine_l > 0.02:
 		chaine(haut, c)
@@ -1081,10 +1131,12 @@ func lanterne(haut: Vector3, chaine_l := 0.18) -> Vector3:
 	flamme(f, 0.75)
 	carte("halo", f + Vector3(0, 0.1, 0), Vector3(0, 0, 1), 0.9, 0.9)
 	carte("halo", f + Vector3(0, 0.1, 0), Vector3(1, 0, 0), 0.9, 0.9)
+	objet_fin()
 	return f + Vector3(0, 0.12, 0)
 
 ## Poteau de bois planté au sol, potence et lanterne pendue côté galerie (`vers` = vers le centre). Rend la position de la lumière.
 func poteau_lanterne(pied: Vector3, vers: Vector3, avec_solide := false) -> Vector3:
+	objet_debut("poteau_lanterne")
 	var d := Vector3(vers.x, 0, vers.z).normalized()
 	var h := 2.35
 	prisme("bois", pied + Vector3(0, -0.1, 0), pied + Vector3(0, h, 0), 0.085, 6)
@@ -1095,7 +1147,9 @@ func poteau_lanterne(pied: Vector3, vers: Vector3, avec_solide := false) -> Vect
 		boite("paille", pied + Vector3(0, 0.25 + 0.06 * k, 0), Vector3(0.2, 0.035, 0.2), 0.4 * k)
 	if avec_solide:
 		solide_rond(pied + Vector3(0, 1.1, 0), 0.1, 2.2)
-	return lanterne(pied + Vector3(0, h - 0.16, 0) + d * 0.58, 0.16)
+	var lp := lanterne(pied + Vector3(0, h - 0.16, 0) + d * 0.58, 0.16)
+	objet_fin()
+	return lp
 
 ## Lanterne pendue à la traverse d'un étai de mine (côté `cote`). Rend la position de la lumière.
 func _lanterne_etai(g: Grotte, id: String, s: float, cote: float) -> Vector3:
@@ -1111,6 +1165,7 @@ func _lanterne_etai(g: Grotte, id: String, s: float, cote: float) -> Vector3:
 
 ## Brasero de fer forgé : trépied, vasque, braises, grande flamme, halo au sol.
 func brasero_fer(pos: Vector3, avec_solide := true) -> void:
+	objet_debut("brasero")
 	for k in 3:
 		var a := TAU * k / 3.0 + 0.3
 		prisme("fer", pos + Vector3(cos(a) * 0.36, 0.0, sin(a) * 0.36), pos + Vector3(cos(a) * 0.16, 0.72, sin(a) * 0.16), 0.03, 4)
@@ -1122,15 +1177,18 @@ func brasero_fer(pos: Vector3, avec_solide := true) -> void:
 	carte("halo", pos + Vector3(0, 0.03, 0), Vector3.UP, 3.2, 3.2)
 	if avec_solide:
 		solide_rond(pos + Vector3(0, 0.5, 0), 0.42, 1.0)
+	objet_fin()
 
 ## Toile d'araignée tendue dans l'angle paroi / plafond, côté `cote`.
 func _toile_angle(g: Grotte, id: String, s: float, cote: float, l := 1.0, poser := false) -> void:
+	objet_debut("toile")
 	var dl := g.demi_l(id, s)
 	var w := (dl.y if cote > 0.0 else dl.x)
 	var lat := cote * w * 0.82
 	var haut := g.plafond_en(id, s, lat)
 	var sol := g.sol_en(id, s, lat)
 	if haut.y - sol.y < 2.0:
+		objet_fin()
 		return
 	var coin := Vector3(haut.x, haut.y - 0.15, haut.z)
 	var T := g.tang(id, s)
@@ -1138,6 +1196,7 @@ func _toile_angle(g: Grotte, id: String, s: float, cote: float, l := 1.0, poser 
 	var sens := T * (1.0 if _hab_r.randf() < 0.5 else -1.0)      # v2 : le tirage est gardé, la toile n'est plus posée (voir _toiles_rares)
 	if poser:
 		toile(coin, sens, -R * cote, l)
+	objet_fin()
 
 ## Caisse empilée (une ou deux) près de la paroi ; collision seulement si la place est libre.
 func _caisses(g: Grotte, id: String, s: float, cote: float, n := 2) -> void:
@@ -1295,15 +1354,18 @@ func _hab_cristaux(g: Grotte, z: Dictionary) -> void:
 
 ## Nappe de brume : deux cartes horizontales décalées (tons en paliers, bords rongés), sans collision.
 func _nappe(c: Vector3, taille: float) -> void:
+	objet_debut("nappe")
 	var a := _hab_r.randf() * TAU
 	var u := Vector3(cos(a), 0, sin(a)) * taille * 0.5
 	var v := Vector3(-sin(a), 0, cos(a)) * taille * 0.5
 	quad("brume_g", c - u - v, c + u - v, c + u + v, c - u + v, Vector3.UP, [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)])
 	var c2 := c + Vector3(0, 0.22, 0) + u * 0.3
 	quad("brume_g", c2 - v * 0.8 - u * 0.7, c2 + u * 0.7 - v * 0.8, c2 + u * 0.7 + v * 0.8, c2 - u * 0.7 + v * 0.8, Vector3.UP, [Vector2(1, 0), Vector2(0, 0), Vector2(0, 1), Vector2(1, 1)])
+	objet_fin()
 
 ## Cascade gelée : rideau de colonnes de glace du haut de la paroi (côté lac, à gauche) jusqu'à la glace, pied évasé.
 func _cascade(g: Grotte, id: String, s: float) -> void:
+	objet_debut("cascade")
 	# 5e passe : colonnes de glace irrégulières de largeurs variées, en trois couches (fond sombre -> devant bleu-blanc),
 	# sommet sous un ressaut de roche, pied élargi en cônes de glace ; déployée en travers du fond, face au rivage
 	var dl := g.demi_l(id, s)
@@ -1371,6 +1433,7 @@ func _cascade(g: Grotte, id: String, s: float) -> void:
 	var lb := lumiere(Vector3(face.x, maxf(face.y, g.lac_y) + 2.4, face.z), Color(0.5, 0.72, 1.0), 2.6, 9.0, 1.3, false)
 	lb.light_color = Color(0.5, 0.72, 1.0)
 	lb.set_meta("grappe", true)
+	objet_fin()
 
 ## Glaçons pendus au plafond, par grappes : denses à l'entrée, au lac gelé et chez les cristaux, rares ailleurs, jamais au camp.
 ## Ils restent hors de portée de la tête (2,3 m de garde au sol, ou près des parois).
