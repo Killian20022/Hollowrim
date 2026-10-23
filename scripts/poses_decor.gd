@@ -19,6 +19,8 @@ static func interdit(monde: Node, x: float, z: float, sorte: String) -> bool:
 		return true
 	if absf(x - t.x) < 2.6 + r and z - t.z > -1.2 - r and z - t.z < 7.5 + r:
 		return true
+	if absf(x - t.x) < 8.5 + r and z - t.z > -7.6 - r and z - t.z < -0.8 + r:   # massifs de la façade monumentale
+		return true
 	# pavés du village
 	if Geometry2D.is_point_in_polygon(p, PackedVector2Array(RuesVillage.PLACE)) or RuesVillage._d_polygone(p, RuesVillage.PLACE) < 0.3:
 		return true
@@ -47,11 +49,18 @@ static func interdit(monde: Node, x: float, z: float, sorte: String) -> bool:
 		return true
 	return false
 
-## Copie filtrée d'une liste de Transform3D (ordre conservé).
-static func filtrer(monde: Node, xfs: Array, sorte: String) -> Array:
+## Copie filtrée d'une liste de Transform3D (ordre conservé). `mesh` (facultatif) : une touffe de plus de 0,9 m de large
+## une fois mise à l'échelle compte comme « touffe_haute » (elle déborde sur la bande roulée).
+static func filtrer(monde: Node, xfs: Array, sorte: String, mesh: Mesh = null) -> Array:
 	var res: Array = []
+	var taille := mesh.get_aabb().size if mesh != null else Vector3.ZERO
 	for t: Transform3D in xfs:
-		if not interdit(monde, t.origin.x, t.origin.z, sorte):
+		var s := sorte
+		if sorte == "touffe" and taille != Vector3.ZERO:
+			var sc := t.basis.get_scale()
+			if maxf(taille.x * sc.x, taille.z * sc.z) > 0.9:
+				s = "touffe_haute"
+		if not interdit(monde, t.origin.x, t.origin.z, s):
 			res.append(t)
 	return res
 

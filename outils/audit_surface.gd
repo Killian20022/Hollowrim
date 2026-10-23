@@ -232,7 +232,10 @@ func _controler_formes() -> void:
 			_ajout("flottant", grav, c, "%s : base %.2f m au-dessus de tout appui (forme %s %.1f×%.1f×%.1f)" % [f.nom, ecart, f.noeud.shape.get_class(), b.size.x, b.size.y, b.size.z])
 		# --- enfoncé dans le relief (petits objets dehors)
 		var structure := f.corps.name in ["CollisionsRues", "CollisionsArbres", "CollisionsRochers"] or f.corps.get_parent() is Node and f.corps.get_parent().name == "SolV2Decor"
-		if not dans_bat and not structure and (f.groupe != "" or b.size.y < 1.6):
+		# enfoncé : mobilier (étiqueté) et petits objets du village (piles, tas de bois) ; les pierres (abords, composition,
+		# gué) sont enfoncées à dessein
+		var objet_village: bool = f.groupe != "" or (m.village != null and f.corps.get_parent() == m.village and b.size.y < 1.6)
+		if not dans_bat and not structure and objet_village:
 			var enf := h_rel - bas
 			var part := enf / maxf(b.size.y, 0.01)
 			if enf > 0.12 and part > 0.4 and bas > h_rel - 3.0:
@@ -272,10 +275,14 @@ func _controler_formes() -> void:
 
 # ------------------------------------------------------------------ décor (MultiMesh)
 
-func _sorte(e: Dictionary, b: AABB) -> String:
+func _sorte(e: Dictionary, b: AABB, t := Transform3D()) -> String:
 	var src := String(e.get("source", "?"))
 	var h := b.size.y
 	var larg := maxf(b.size.x, b.size.z)
+	if e.has("mesh"):   # largeur sans l'effet de la rotation sur la boîte (même mesure que PosesDecor.filtrer)
+		var bl: AABB = (e["mesh"] as Mesh).get_aabb()
+		var sc := t.basis.get_scale()
+		larg = maxf(bl.size.x * sc.x, bl.size.z * sc.z)
 	if h > 3.0:
 		return "arbre"
 	if src.begins_with("details_sol"):
@@ -305,7 +312,7 @@ func _controler_decor() -> void:
 				continue
 			n += 1
 			var b := t * bl
-			var sorte := _sorte(e, b)
+			var sorte := _sorte(e, b, t)
 			var cle := "%s/%s" % [e["source"], sorte]
 			sources[cle] = int(sources.get(cle, 0)) + 1
 			var hc := hm(p.x, p.z)
@@ -359,6 +366,10 @@ func _controler_decor() -> void:
 					_ajout("sur_chemin", "grave", p, "%s sur le chemin « %s » (axe témoin à %.2f m, encombrement %.2f, h %.2f)" % [nom, ch, dch, rayon, b.size.y])
 				elif ch in ["place", "rue", "palier", "escalier"]:
 					_ajout("sur_chemin", "moyen", p, "%s dans les pavés (%s)" % [nom, ch])
+			# sous la butte du tertre (collision concave : les requêtes de point ne la voient pas)
+			var dome := Vector2(m.TUMULUS.x + PosesDecor.DOME_DECALAGE.x, m.TUMULUS.z + PosesDecor.DOME_DECALAGE.z)
+			if lieu == "exterieur" and Vector2(p.x, p.z).distance_to(dome) < PosesDecor.DOME_RAYON - 0.2:
+				_ajout("dans_collision", "grave" if sorte in GROS else "moyen", p, "%s enfoui sous la butte du tertre" % nom)
 			# dans un bâtiment
 			var bat := _batiment(p.x, p.z)
 			if bat != "":
@@ -400,8 +411,8 @@ func _controler_maillages() -> void:
 			continue
 		var b := mi.global_transform * mi.mesh.get_aabb()
 		var c := b.get_center()
-		if not _dans_zone(c.x, c.z, c.y) or maxf(b.size.x, b.size.z) > 6.0:
-			continue
+		if not _dans_zone(c.x, c.z, c.y) or maxf(b.size.x, b.size.z) > 6.0 or minf(b.size.x, minf(b.size.y, b.size.z)) < 0.02 or mi.get_parent() is MeshInstance3D:
+			continue   # cartes plates (runes) et pièces portées par un autre maillage
 		n += 1
 		var bas := b.position.y
 		var hmin := INF
@@ -452,6 +463,35 @@ func lancer(arbre: SceneTree, monde: Node3D, lieu_: String) -> Array:
 	Instanciation.journal = null
 	return cas
 
+## Point de vue dégagé sur `p` (m du sol) : 8 directions × 2 distances, œil à 1,6 m du sol, hors collision, vue non coupée.
+## Renvoie "x,z,lacet,tangage" (format des vues « monde »).
+static func vue_vers(monde: Node3D, p: Vector3, dist := 3.5) -> String:
+	var ss := monde.get_world_3d().direct_space_state
+	var meilleur := ""
+	var score_max := -INF
+	for dd: float in [dist, dist * 1.6]:
+		for k in 8:
+			var a := TAU * k / 8.0 + 0.4
+			var o := Vector2(p.x + cos(a) * dd, p.z + sin(a) * dd)
+			var y_o: float = monde.hauteur(o.x, o.y) + 1.6
+			var oeil := Vector3(o.x, y_o, o.y)
+			var qp := PhysicsPointQueryParameters3D.new()
+			qp.position = oeil
+			if not ss.intersect_point(qp, 1).is_empty():
+				continue
+			var cible := p + Vector3(0, 0.25, 0)
+			var q := PhysicsRayQueryParameters3D.create(oeil, cible)
+			var r := ss.intersect_ray(q)
+			var degage := r.is_empty() or (r["position"] as Vector3).distance_to(cible) < 0.6
+			var score := (10.0 if degage else 0.0) - absf(y_o - p.y - 1.6) - dd * 0.2
+			if score > score_max:
+				score_max = score
+				var d := Vector2(p.x, p.z) - o
+				var lacet := rad_to_deg(atan2(-d.x, -d.y))
+				var tangage := rad_to_deg(atan2(cible.y - y_o, d.length()))
+				meilleur = "%.1f,%.1f,%.0f,%.0f" % [o.x, o.y, lacet, tangage]
+	return meilleur
+
 ## Poses de capture (format --captures, vues « monde » de jour) des `nb` pires cas : 4 m au sud-est, regard sur l'objet.
 static func ecrire_poses(monde: Node3D, liste: Array, chemin: String, nb: int, filtre := "") -> void:
 	var f := FileAccess.open(chemin, FileAccess.WRITE)
@@ -472,10 +512,5 @@ static func ecrire_poses(monde: Node3D, liste: Array, chemin: String, nb: int, f
 		if deja:
 			continue
 		pris.append(p)
-		var oeil := Vector2(p.x + 2.8, p.z + 2.8)
-		var d := Vector2(p.x, p.z) - oeil
-		var lacet := rad_to_deg(atan2(-d.x, -d.y))
-		var y_oeil: float = monde.hauteur(oeil.x, oeil.y) + 1.6
-		var tangage := rad_to_deg(atan2(p.y + 0.3 - y_oeil, d.length()))
-		f.store_line("cas%02d_%s monde %.1f,%.1f,%.0f,%.0f heure=12" % [k, String(c["cat"]), oeil.x, oeil.y, lacet, tangage])
+		f.store_line("cas%02d_%s monde %s heure=12" % [k, String(c["cat"]), vue_vers(monde, p)])
 		k += 1

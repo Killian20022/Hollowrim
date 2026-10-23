@@ -270,7 +270,7 @@ static func _poser_touffes(monde: Node, rochers: Array) -> void:
 			var yaw := ZoneBiome.alea_pos(jx, jz, 26) * TAU
 			xfs.append(SousBois._tf(jx, SousBois._bas(monde, jx, jz, 0.4) - 0.02, jz, yaw, s, 0.75 + 0.45 * ZoneBiome.alea_pos(jx, jz, 27)))
 		x0 += pas
-	xfs = PosesDecor.filtrer(monde, xfs, "touffe")   # passe D : règles de pose
+	xfs = PosesDecor.filtrer(monde, xfs, "touffe", mesh)   # passe D : règles de pose
 	for mmi in Instanciation.repartir(_decor, mesh, xfs, {"portee": 32.0, "ombre": false}):
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	print("SolV2 : %d touffes" % xfs.size())
@@ -429,7 +429,7 @@ static func _poser_ailleurs(monde: Node, rochers_temoin: Array) -> void:
 			var yaw := ZoneBiome.alea_pos(jx, jz, 47) * TAU
 			xfs.append(SousBois._tf(jx, SousBois._bas(monde, jx, jz, 0.4) - 0.02, jz, yaw, s, 0.75 + 0.45 * ZoneBiome.alea_pos(jx, jz, 48)))
 		x0 += pas
-	xfs = PosesDecor.filtrer(monde, xfs, "touffe")   # passe D : règles de pose
+	xfs = PosesDecor.filtrer(monde, xfs, "touffe", mesh)   # passe D : règles de pose
 	for mmi in Instanciation.repartir(_decor, mesh, xfs, {"portee": 32.0, "ombre": false}):
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	print("SolV2 : %d touffes ailleurs" % xfs.size())

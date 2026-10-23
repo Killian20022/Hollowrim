@@ -1,0 +1,9 @@
+# Passe D : vérifications (fermes en terrasse, quai, tache blanche au pied de la halle)
+quai_est monde 36.5,55.8,-156,-30 heure=12
+quai_ouest monde 30.0,55.5,160,-25 heure=12
+ferme_fb monde 61,-3,180,-8 heure=12
+grange_88 monde 81,22,-111,-8 heure=12
+grange_68 monde 66,0,-166,-10 heure=12
+ferme_a monde 79.5,32,0,-6 heure=12
+patch_halle monde 35,24.5,-19,-30 heure=12
+patch_halle2 monde 33.5,20,-123,-25 heure=12

@@ -64,7 +64,7 @@ static func placer_foret(monde: Node) -> Dictionary:
 		if grille.has(cle):
 			continue
 		grille[cle] = true
-		positions.append(Vector3(x, monde.hauteur(x, z) - 0.15, z))
+		positions.append(Vector3(x, minf(monde.hauteur(x, z), DetailsSol.hauteur_maillage(monde, x, z)) - 0.15, z))   # passe D : pied jamais au-dessus du maillage
 
 	var lots: Array = [[], [], [], []]
 	for p in positions:
@@ -99,7 +99,7 @@ static func placer_couvre_sol(monde: Node) -> Array[Transform3D]:
 			continue
 		var s := rng.randf_range(0.6, 1.4)
 		var b := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * rng.randf_range(0.6, 1.0), s))
-		xfs.append(Transform3D(b, Vector3(x, monde.hauteur(x, z) - 0.25, z)))
+		xfs.append(Transform3D(b, Vector3(x, minf(monde.hauteur(x, z), DetailsSol.hauteur_maillage(monde, x, z)) - 0.25, z)))   # passe D : au plus bas du maillage
 	return xfs
 
 ## Crée matériaux, MultiMesh et colliders. Renvoie les transforms de tous les arbres.
@@ -253,7 +253,8 @@ static func hauteur_moyenne_r12(monde: Node, x: float, z: float) -> float:
 ## Ancrage sur pente : le plus bas de 4 points à r = 0,35 × s, moins 0,12 m.
 static func ancrage(monde: Node, x: float, z: float, s: float) -> float:
 	var r := 0.35 * s
-	return minf(minf(monde.hauteur(x - r, z), monde.hauteur(x + r, z)), minf(monde.hauteur(x, z - r), monde.hauteur(x, z + r))) - 0.12
+	var h := minf(minf(monde.hauteur(x - r, z), monde.hauteur(x + r, z)), minf(monde.hauteur(x, z - r), monde.hauteur(x, z + r)))
+	return minf(h, DetailsSol.hauteur_maillage(monde, x, z)) - 0.12   # passe D : sur une bosse, le maillage passe sous le relief exact
 
 ## Pente locale (norme du gradient, sans unité).
 static func pente(monde: Node, x: float, z: float) -> float:

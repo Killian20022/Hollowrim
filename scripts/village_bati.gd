@@ -58,10 +58,14 @@ static func construire(v) -> void:
 	tour(v, haut, 45.0, 87.0)
 	# fermes et granges (hors enceinte, sur la pente : socle de pierre côté bas)
 	var e: Array = EXTERIEURS
-	maison(v, ext, e[0][0], e[0][1], deg_to_rad(e[0][4]), {"L": 9.0, "W": 6.0, "h": 2.0, "style": "rondins", "pente": 42.0, "dragons": true, "cheminee": 2.2, "fumee": true, "bois": true})
-	maison(v, ext, e[1][0], e[1][1], deg_to_rad(e[1][4]), {"L": 7.0, "W": 5.0, "h": 2.7, "style": "grange", "pente": 50.0})
-	maison(v, ext, e[2][0], e[2][1], deg_to_rad(e[2][4]), {"L": 8.0, "W": 5.0, "h": 2.2, "style": "pierre", "porte": "-X", "pente": 47.0, "cheminee": 2.6, "fumee": true, "fenetres": [["+Z", -1.5], ["+Z", 1.5], ["-Z", 0.0]], "bois": true})
-	maison(v, ext, e[3][0], e[3][1], deg_to_rad(e[3][4]), {"L": 6.0, "W": 5.0, "h": 2.4, "style": "grange", "porte": "+X", "pente": 54.0})
+	var cib: PackedFloat32Array = v._monde._cibles_fermes if v._monde != null and "_cibles_fermes" in v._monde else PackedFloat32Array()
+	var ty := func(k: int) -> Dictionary: return {"y": cib[k]} if k < cib.size() else {}
+	maison(v, ext, e[0][0], e[0][1], deg_to_rad(e[0][4]), ty.call(0).merged({"L": 9.0, "W": 6.0, "h": 2.0, "style": "rondins", "pente": 42.0, "dragons": true, "cheminee": 2.2, "fumee": true, "bois": true,
+		"bois_pos": Vector3(-5.05, 0, -0.6)}))   # passe D : tas de bois côté ouest (à l'est il tombait dans le talus de la grange A)
+	maison(v, ext, e[1][0], e[1][1], deg_to_rad(e[1][4]), ty.call(1).merged({"L": 7.0, "W": 5.0, "h": 2.7, "style": "grange", "pente": 50.0}))
+	maison(v, ext, e[2][0], e[2][1], deg_to_rad(e[2][4]), ty.call(2).merged({"L": 8.0, "W": 5.0, "h": 2.2, "style": "pierre", "porte": "-X", "pente": 47.0, "cheminee": 2.6, "fumee": true, "fenetres": [["+Z", -1.5], ["+Z", 1.5], ["-Z", 0.0]], "bois": true,
+		"bois_pos": Vector3(-4.55, 0, -1.0)}))   # passe D : tas de bois côté ouest (à l'est il traversait la grange B)
+	maison(v, ext, e[3][0], e[3][1], deg_to_rad(e[3][4]), ty.call(3).merged({"L": 6.0, "W": 5.0, "h": 2.4, "style": "grange", "porte": "+X", "pente": 54.0}))
 	moulin_vent(v, ext, e[4][0], e[4][1])
 
 # --- repères et petites pièces ------------------------------------------------------------------------------
@@ -204,6 +208,8 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 			hmin = minf(hmin, hc)
 			hmax = maxf(hmax, hc)
 	var y: float = v.h_sol(x, z) if hmax - hmin < 0.3 else (hmin + hmax) * 0.5 + 0.1
+	if o.has("y"):
+		y = o["y"]   # passe D : fermes hors enceinte posées sur leur terrasse (monde._terrasses_fermes)
 	var p: Node3D = v.pivot_monde(x, z, lacet, y, g)
 	p.name = "Bati_%s_%d_%d" % [style, roundi(x), roundi(z)]
 	var socle := hmin - y
@@ -309,7 +315,7 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 		var pe := cporte + nporte * 0.0 + Vector3(0, 2.2, 0) + (Vector3(1.0, 0, 0) if absf(nporte.z) > 0.5 else Vector3(0, 0, 1.0))
 		enseigne(v, p, pe, nporte, o["enseigne"])
 	if o.get("bois", false):
-		tas_de_bois(v, p, Vector3(L * 0.5 + 0.55, 0, -0.6), PI * 0.5, 2.2)
+		tas_de_bois(v, p, o.get("bois_pos", Vector3(L * 0.5 + 0.55, 0, -0.6)), PI * 0.5, 2.2)
 	# collision : le corps du bâtiment (socle compris)
 	var bas_c := minf(socle, 0.0) - 0.3
 	var haut_c := y0 + faite * 0.6

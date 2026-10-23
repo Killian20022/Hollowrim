@@ -180,6 +180,10 @@ func _sapins(liste: Array, nb_remplir: int, u0: float, u1: float, ombre := true)
 			if q.distance_to(p) < 2.6 and not force:
 				serre = true
 				break
+		for t: Transform3D in monde.arbres:   # passe D : pas dans le tronc d'un arbre de la forêt (deux troncs imbriqués)
+			if Vector2(t.origin.x - p.x, t.origin.z - p.y).length() < 1.3:
+				serre = true
+				break
 		if serre:
 			continue
 		if k >= liste.size():

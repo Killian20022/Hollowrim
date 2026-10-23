@@ -156,7 +156,9 @@ static func materiau_herbe(tex: Texture2D, teinte := Color.WHITE) -> ShaderMater
 ## Le plus bas de 4 points autour de (x, z) à rayon r.
 static func _bas(monde: Node, x: float, z: float, r: float) -> float:
 	var h := minf(minf(monde.hauteur(x - r, z), monde.hauteur(x + r, z)), minf(monde.hauteur(x, z - r), monde.hauteur(x, z + r)))
-	return minf(h, DetailsSol.hauteur_maillage(monde, x, z))   # passe D : sur une bosse, le maillage (cases de 2 m) passe sous le relief exact
+	for d: Vector2 in [Vector2.ZERO, Vector2(r, 0), Vector2(-r, 0), Vector2(0, r), Vector2(0, -r)]:   # passe D : sur une bosse, le maillage
+		h = minf(h, DetailsSol.hauteur_maillage(monde, x + d.x, z + d.y))                              # (cases de 2 m) passe sous le relief exact
+	return h
 
 ## Position hors exclusions de décor et du cône de vue ? (dans la zone, hors axe du chemin à `marge` m)
 static func _libre(monde: Node, x: float, z: float, marge_chemin: float) -> bool:
@@ -298,7 +300,7 @@ static func creer(monde: Node) -> void:
 	print("Sous-bois : %d souches, %d branches, %d touffes, %d semis (%d rochers de zone)" % [souches.size(), branches.size(), touffes.size(), semis.size(), rochers.size()])
 
 static func _poser(monde: Node, genre: String, mesh: Mesh, xfs0: Array, portee: float) -> void:
-	var xfs := PosesDecor.filtrer(monde, xfs0, genre)   # passe D : règles de pose (après les tirages)
+	var xfs := PosesDecor.filtrer(monde, xfs0, genre, mesh)   # passe D : règles de pose (après les tirages)
 	if genre == "souche" or genre == "branche":
 		var l: Array = monde.get_meta("sous_bois_gros", [])
 		l.append_array(xfs)

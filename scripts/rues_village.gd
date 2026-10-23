@@ -717,7 +717,6 @@ func _finaliser_rues() -> void:
 	_mat_flaque = mat.call("Flaques")
 	_mesh(_flaques, _mat_flaque, false, "Flaques")
 	set_process(false)   # les flaques sont réglées par AbordsVillage (même matière)
-	_touffes = PosesDecor.filtrer(monde, _touffes, "touffe")   # passe D : règles de pose
 	if not _touffes.is_empty():
 		var mesh_t: Mesh = null
 		for n in monde.get_children():
@@ -726,5 +725,6 @@ func _finaliser_rues() -> void:
 				break
 		if mesh_t == null:
 			mesh_t = SousBois.mesh_touffe(SousBois.materiau_herbe(texture_touffe_givree(rng.randi() % 10000), Color(0.92, 0.86, 0.82)))
+		_touffes = PosesDecor.filtrer(monde, _touffes, "touffe", mesh_t)   # passe D : règles de pose
 		for mmi in Instanciation.repartir(monde, mesh_t, _touffes, {"portee": 35.0, "ombre": false}):
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
