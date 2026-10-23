@@ -124,6 +124,19 @@ vec3 s2_m3(vec4 c) {
 	int m = int(c.r * 255.0 + 0.5) >> 4;
 	return vec3(float(m == 5), float(m == 4), float(m == 6));
 }
+// les deux jeux de poids en une seule lecture des 4 texels (C1 : économie de 4 lectures par pixel)
+void s2_carte4(vec2 p, out vec4 w, out vec3 rmg) {
+	float n = float(textureSize(carte_sol, 0).x);
+	vec2 t = (p - carte_rect.xy) * carte_rect.z * n - 0.5;
+	ivec2 i0 = clamp(ivec2(floor(t)), ivec2(0), ivec2(int(n) - 2));
+	vec2 f = clamp(t - vec2(i0), 0.0, 1.0);
+	vec4 ca = texelFetch(carte_sol, i0, 0);
+	vec4 cb = texelFetch(carte_sol, i0 + ivec2(1, 0), 0);
+	vec4 cc = texelFetch(carte_sol, i0 + ivec2(0, 1), 0);
+	vec4 cd = texelFetch(carte_sol, i0 + ivec2(1, 1), 0);
+	w = mix(mix(s2_ind(ca), s2_ind(cb), f.x), mix(s2_ind(cc), s2_ind(cd), f.x), f.y);
+	rmg = mix(mix(s2_m3(ca), s2_m3(cb), f.x), mix(s2_m3(cc), s2_m3(cd), f.x), f.y);
+}
 vec3 s2_rmg(vec2 p) {
 	float n = float(textureSize(carte_sol, 0).x);
 	vec2 t = (p - carte_rect.xy) * carte_rect.z * n - 0.5;
@@ -239,19 +252,26 @@ void s2_glace(vec2 p, out int ton, out int rampe, out int niv, out vec2 pente) {
 }
 
 // matière du sol au centre de texel `p` : ton + rampe (SolTuiles), niveau (pour les lèvres/ombres), pente de pierre
-void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out vec2 pente) {
+void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out vec2 pente, out float terre_o, out float wt) {
+	terre_o = 0.0;
+	wt = 0.0;
 	// matière dominante : roche / mousse / glace pondérées en bilinéaire sur la carte 0,25 m, seuil bruité (bords organiques, pas de marches)
-	vec3 rmg = s2_rmg(p);
-	float nb = (s2_fbm(p * 2.3 + 3.0) - 0.5) * 0.55 + (bruit_sol(p * 9.0 + 1.0) - 0.5) * 0.18;
+	vec4 w;
+	vec3 rmg;
+	s2_carte4(p, w, rmg);
+	float rmax = max(rmg.x, max(rmg.y, rmg.z));
+	float nb = rmax > 0.0 ? (s2_fbm(p * 2.3 + 3.0) - 0.5) * 0.55 + (bruit_sol(p * 9.0 + 1.0) - 0.5) * 0.18 : 0.0;
 	if (rmg.x + nb > 0.5 && rmg.x >= rmg.y && rmg.x >= rmg.z) { s2_roche(p, ton, rampe, niv, pente); return; }
 	if (rmg.y + nb > 0.5 && rmg.y >= rmg.z) { s2_mousse(p, ton, rampe, niv, pente); return; }
 	if (rmg.z + nb * 0.6 > 0.5) { s2_glace(p, ton, rampe, niv, pente); return; }
-	vec4 w = s2_poids(p);
 	pente = vec2(0.0);
 	float derive = s2_fbm(p * 0.8);
 	float ondes = bruit_sol(vec2(p.x * 7.0, p.y * 1.8) + 9.0);   // rides allongées dans le sens du vent (+z)
 	float v = 0.5 * derive + 0.3 * ondes + 0.2 * bruit_sol(p * 21.0 + 4.0);
-	float terre = max(w.y, 0.62 * w.x) + (s2_fbm(p * 5.0 + 11.0) - 0.5) * 0.9 + (bruit_sol(p * 19.0) - 0.5) * 0.2;
+	float tb = max(w.y, 0.62 * w.x);
+	float terre = tb > 0.0 ? tb + (s2_fbm(p * 5.0 + 11.0) - 0.5) * 0.9 + (bruit_sol(p * 19.0) - 0.5) * 0.2 : -0.5;   // loin des chemins : pas de bruit à évaluer
+	terre_o = terre;
+	wt = max(w.y, w.x);
 	if (terre > 0.5) {
 		float prof = terre - 0.5;                       // 0 au bord, ~0,3 au cœur
 		float m1 = s2_fbm(p * 6.0 + 3.7);
@@ -308,7 +328,7 @@ void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out ve
 		rampe = 0;
 		niv = 3;
 		ton = v < 0.43 ? 3 : (v > 0.60 ? 5 : 4);
-		float piet = w.x + (s2_fbm(p * 7.0 + 2.0) - 0.5) * 0.7;
+		float piet = w.x > 0.0 ? w.x + (s2_fbm(p * 7.0 + 2.0) - 0.5) * 0.7 : 0.0;
 		if (piet > 0.55) {                                   // neige piétinée : plus grise, rides cassées
 			ton = ondes > 0.62 ? 2 : 3;
 			niv = 2;
@@ -317,7 +337,7 @@ void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out ve
 			ton = 2 + int(bruit_sol(p * 13.0) * 2.0);
 			niv = 1;
 		}
-		if (w.z + (s2_fbm(p * 8.0 + 1.0) - 0.5) * 0.7 > 0.55) {
+		if (w.z > 0.2 && w.z + (s2_fbm(p * 8.0 + 1.0) - 0.5) * 0.7 > 0.55) {
 			rampe = (bruit_sol(p * 17.0) > 0.78) ? 7 : 3;    // tapis d'aiguilles
 			ton = rampe == 7 ? 2 : 1 + int(bruit_sol(p * 12.0 + 6.0) * 2.5);
 			niv = 1;
@@ -385,11 +405,14 @@ void fragment() {
 		int rampe;
 		int niv;
 		vec2 pente;
-		s2_sol(pc, trace, ton, rampe, niv, pente);
+		float terre_c;
+		float wt;
+		s2_sol(pc, trace, ton, rampe, niv, pente, terre_c, wt);
 		// lèvre claire / ombre aux limites terre ↔ neige (champ de terre évalué au texel voisin en haut à gauche)
+		// C1 : voisin évalué seulement près d'un chemin (poids de terre non nul) ; roche/mousse/glace : pas de lèvre
 		int lev = 0;
-		bool terre_moi = s2_terre(pc) > 0.5;
-		bool terre_ul = s2_terre(pc + vec2(-pas, -pas)) > 0.5;
+		bool terre_moi = terre_c > 0.5;
+		bool terre_ul = wt > 0.0 ? s2_terre(pc + vec2(-pas, -pas)) > 0.5 : false;
 		if (!terre_moi && terre_ul && rampe == 0) lev = 1;
 		else if (terre_moi && !terre_ul && niv <= 1) lev = -1;
 		ton = ton + lev;
@@ -440,10 +463,12 @@ void fragment() {
 			int creux = (b & 7) - 4;
 			// bord dessiné : lèvre claire côté haut, ombre côté bas (4 voisins, au pas courant)
 			int nv = NIVEAU[m];
-			int n0 = niveau_de(carte_au(pc + vec2(pas, 0.0), fin));
-			int n1 = niveau_de(carte_au(pc - vec2(pas, 0.0), fin));
-			int n2 = niveau_de(carte_au(pc + vec2(0.0, pas), fin));
-			int n3 = niveau_de(carte_au(pc - vec2(0.0, pas), fin));
+			// C1 : au loin (texel < 1,6 px, couleurs moyennées par mipmaps), ni voisins ni détails : seul `loin` est affiché
+			bool pres = texels_par_px < 1.6;
+			int n0 = pres ? niveau_de(carte_au(pc + vec2(pas, 0.0), fin)) : nv;
+			int n1 = pres ? niveau_de(carte_au(pc - vec2(pas, 0.0), fin)) : nv;
+			int n2 = pres ? niveau_de(carte_au(pc + vec2(0.0, pas), fin)) : nv;
+			int n3 = pres ? niveau_de(carte_au(pc - vec2(0.0, pas), fin)) : nv;
 			int plus_haut = int(n0 > nv) + int(n1 > nv) + int(n2 > nv) + int(n3 > nv);
 			int plus_bas = int(n0 < nv) + int(n1 < nv) + int(n2 < nv) + int(n3 < nv);
 			int bord = plus_haut > 0 ? -1 : (plus_bas > 0 ? 1 : 0);
@@ -468,8 +493,9 @@ void fragment() {
 				rampe = 0;
 			}
 			// détails épars (période 5 m) selon la densité de la carte
-			vec3 d;
-			if (fin > 0.5) {
+			vec3 d = vec3(0.0);
+			if (!pres) {
+			} else if (fin > 0.5) {
 				d = texelFetch(sol_details2, ivec2(mod(qf + vec2(26.0, 114.0), 160.0)), 0).rgb;
 			} else {
 				d = texelFetch(sol_details, ivec2(mod(q + vec2(13.0, 57.0), 80.0)), 0).rgb;
