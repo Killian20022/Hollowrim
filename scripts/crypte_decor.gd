@@ -43,6 +43,12 @@ const TEINTE_PIERRE_V2 := Color(1.0, 1.12, 1.18)
 ## plus d'ambiant (la silhouette se détache dans l'ombre bleue) et une teinte un peu plus claire et chaude que les murs.
 const AMBIANT_STATUE := 4.4
 const TEINTE_STATUE := Color(1.12, 1.16, 1.18)
+## C4b (2026-10-23) : les statues restaient des silhouettes sombres là où le budget de lumières ne laisse pas de spot. Leur pierre reçoit
+## une « lueur » d'hémisphère calculée dans le shader (aucune lumière, quelques instructions) : froide d'en haut (le bleu de la crypte
+## sur la capuche et les épaules), tiède d'en bas (reflet des bougies du socle), modulée par l'albédo et l'occlusion cuite → plis et
+## capuche se lisent dans l'ombre, comme sur la planche (vues 1, 4, 6).
+const LUEUR_STATUE_HAUT := Vector3(0.11, 0.14, 0.2)
+const LUEUR_STATUE_BAS := Vector3(0.05, 0.028, 0.012)
 ## Matières qui réutilisent la texture d'une autre (même dessin, réglages d'éclairage différents).
 const ALIAS_TEXTURE := {"statue_v2": "pierre_v2"}
 const GAIN_LUMIERE := 1.7          # pierre plus sombre (rampe donjon) : les feux portent plus loin et plus fort
@@ -232,6 +238,8 @@ func mat(nom: String) -> Material:
 				elif nom == "statue_v2":
 					sm.set_shader_parameter("ambiant", AMBIANT_STATUE)
 					sm.set_shader_parameter("teinte", TEINTE_STATUE)
+					sm.set_shader_parameter("lueur_haut", LUEUR_STATUE_HAUT)     # C4b : modelé lisible sans lumière (voir LUEUR_STATUE_HAUT)
+					sm.set_shader_parameter("lueur_bas", LUEUR_STATUE_BAS)
 			m = sm
 	_mats[nom] = m
 	return m
@@ -1473,6 +1481,11 @@ func frise(sujets: Array, centre: Vector3, vers: Vector3, taille := 0.9, pas := 
 ## Socle de pierre (collision). `taille` = largeur x hauteur x profondeur.
 func socle(pos: Vector3, taille := Vector3(0.9, 0.9, 0.9), lacet := 0.0, mat := "mur1") -> void:
 	var b := Basis(Vector3.UP, lacet)
+	if v2 and mat in ["mur0", "mur1", "mur2"]:      # C4b : socle en blocs taillés (module « socle_v2 » mis à la taille), MÊME collision
+		modele("socle_v2", pos, lacet, Vector3(taille.x + 0.02, taille.y + 0.08, taille.z + 0.02))
+		var s2 := b * Vector3(taille.x + 0.12, 0, taille.z + 0.12)
+		solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s2.x), taille.y + 0.08, absf(s2.z)))
+		return
 	boite(mat, pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
 	boite("mur0", pos + Vector3(0, taille.y + 0.04, 0), Vector3(taille.x + 0.12, 0.08, taille.z + 0.12), lacet)
 	boite("mur0", pos + Vector3(0, 0.07, 0), Vector3(taille.x + 0.1, 0.14, taille.z + 0.1), lacet)
@@ -1484,6 +1497,12 @@ func socle(pos: Vector3, taille := Vector3(0.9, 0.9, 0.9), lacet := 0.0, mat := 
 func statue(pos: Vector3, lacet := 0.0, e := 1.0, type := "guerrier", collision := true, mat := "mur1") -> void:
 	if v2 and mat in ["mur0", "mur1", "mur2"]:
 		mat = "statue_v2"       # crypte v2 : statues un peu plus claires que les murs (sans lumière de plus)
+		if type in ["ancetre", "capuche", "gardienne"]:
+			# C4b : gardiens encapuchonnés / voilés = module sculpté « statue_capuche » (plis, capuche, givre), même hauteur ; MÊME collision
+			modele("statue_capuche", pos, lacet, Vector3.ONE * clampf(e * 0.83, 0.75, 1.2), {"pierre": "statue_v2"})
+			if collision:
+				solide(pos + Vector3(0, 1.2, 0), Vector3(1.0, 2.4, 1.0))
+			return
 	var b := Basis(Vector3.UP, lacet)
 	var h0 := 0.5                                          # socle
 	boite(mat, pos + Vector3(0, h0 * 0.5, 0), Vector3(0.95, h0, 0.95), lacet)
@@ -1808,7 +1827,7 @@ func boite_pleine_l(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0)
 ## construction ; un .glb relu ici bloquerait le fil) puis versés dans les MÊMES tampons que les quads (fusion par cellule de 8 m et par
 ## matière : aucun nœud en plus). UV triplanaires en mètres (même densité de texels que les murs) ; couleurs de sommet = ton x occlusion cuits.
 const MODELES_DAT := "res://assets/crypte/modules/crypte_v2.dat"
-const MAT_MODELE := {"pierre": "pierre_v2", "fer": "fer", "cire": "os", "bois": "bois"}
+const MAT_MODELE := {"pierre": "pierre_v2", "fer": "fer", "cire": "os", "bois": "bois", "givre": "neige", "gravure": "gravure"}      # C4b : givre en plaques, inscriptions
 static var _modeles := {}            # "module__matiere" -> {"v": PackedVector3Array, "c": PackedColorArray}
 static var _modeles_de := {}         # module -> [matières]
 static var _modeles_verrou := Mutex.new()

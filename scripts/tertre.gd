@@ -564,34 +564,53 @@ func _toiles(coins: Array, haut: float) -> void:
 		d.toile(Vector3(c[0], haut, c[1]), Vector3(c[2], 0, 0), Vector3(0, 0, c[3]))
 
 func _entree() -> void:
+	var v2 := CrypteV2.tertre_actif()      # C4b : vestibule en crypte v2 (dalles irrégulières, piliers et arches, panneaux, statues)
+	CrypteV2.tertre_debut(d)
 	d.salle(-3, 3, 4, -6, 3.6, [["nord", 0.0, 3.2], ["est", -2.0, 3.2]], 0.0, "mur0")
 	# escalier qui remonte vers la sortie (décor, contre le mur sud) et passage sombre au-dessus
-	for i in 4:
-		d.boite("dalle0", Vector3(0, 0.15 * (4 - i), 3.4 - i * 0.6), Vector3(3.0, 0.3 * (4 - i), 0.6))
+	if v2:
+		d.modele("marches_3p0", Vector3(0, 0, 3.4), 0.0, Vector3(1.0, 1.2 / 0.68, 0.6 / 0.36))
+	else:
+		for i in 4:
+			d.boite("dalle0", Vector3(0, 0.15 * (4 - i), 3.4 - i * 0.6), Vector3(3.0, 0.3 * (4 - i), 0.6))
 	d.quad("noir", Vector3(-1.0, 1.2, 3.69), Vector3(1.0, 1.2, 3.69), Vector3(1.0, 3.0, 3.69), Vector3(-1.0, 3.0, 3.69), Vector3(0, 0, -1))
 	d.boite("mur0", Vector3(-1.2, 2.1, 3.62), Vector3(0.4, 1.8, 0.16))
 	d.boite("mur0", Vector3(1.2, 2.1, 3.62), Vector3(0.4, 1.8, 0.16))
 	d.boite("mur0", Vector3(0, 3.1, 3.62), Vector3(2.8, 0.4, 0.16))
 	_interactif(crypte, Vector3(0, 1.6, 1.5), "Sortie", "Sortir du tertre", func() -> Array: return _passer(false))
 	# doubleaux de pierre (CrypteDecor.poutre dans la crypte) retombant sur des pilastres sculptés (décor seul, sans collision)
-	for z in [2.4, 0.8, -1.4, -4.6]:
-		d.poutre(-2.7, 2.7, 3.45, z)
-	for p: Array in [[-2.7, 2.4], [-2.7, 0.8], [2.7, 2.4], [2.7, 0.8], [-2.7, -1.4], [-2.7, -4.6], [2.7, -4.6]]:
-		d.pilastre_mur(Vector3(p[0], 0, p[1]), Vector3(-signf(p[0]), 0, 0), 2.7)
+	if not v2:      # v2 : piliers engagés et arches en voussoirs (CrypteV2.piece_tertre ci-dessous)
+		for z in [2.4, 0.8, -1.4, -4.6]:
+			d.poutre(-2.7, 2.7, 3.45, z)
+		for p: Array in [[-2.7, 2.4], [-2.7, 0.8], [2.7, 2.4], [2.7, 0.8], [-2.7, -1.4], [-2.7, -4.6], [2.7, -4.6]]:
+			d.pilastre_mur(Vector3(p[0], 0, p[1]), Vector3(-signf(p[0]), 0, 0), 2.7)
 	d.brasero(Vector3(-2.3, 0, -5.2))
 	d.brasero(Vector3(2.3, 0, -5.2))
-	d.applique(Vector3(-2.7, 0, 0.0), Vector3(1, 0, 0), 2.1, 5.0, 1.7)
-	d.applique(Vector3(2.7, 0, 0.0), Vector3(-1, 0, 0), 2.1, 5.0, 1.7)
+	var ret := 0.2 if v2 else 0.0      # v2 : l'applique avance devant le panneau de maçonnerie
+	d.applique(Vector3(-2.7 + ret, 0, 0.0), Vector3(1, 0, 0), 2.1, 5.0, 1.7)
+	d.applique(Vector3(2.7 - ret, 0, 0.0), Vector3(-1, 0, 0), 2.1, 5.0, 1.7)
 	d.urne(Vector3(-2.2, 0, -3.4), 1.0)
 	d.urne(Vector3(2.15, 0, -4.4), 0.8)
-	d.os_tas(Vector3(-1.9, 0, 2.7), 3, 0.3)
+	d.os_tas(Vector3(-1.4, 0, -0.3) if v2 else Vector3(-1.9, 0, 2.7), 3, 0.3)
 	d.arme(Vector3(-1.4, 0, -1.4), 0.6)
 	_toiles([[-2.7, 3.7, 1, -1], [2.7, 3.7, -1, -1], [-2.7, -5.7, 1, 1], [2.7, -5.7, -1, 1]], 3.6)
 	# fresque des trois sceaux (Os, Givre, Eau) sur le mur ouest : l'objectif de la crypte se lit dès l'entrée
 	d.frise(["os", "givre", "eau"], Vector3(-2.68, 1.85, -2.9), Vector3(1, 0, 0), 0.8, 1.15)
 	_interactif(crypte, Vector3(-2.2, 1.4, -2.9), "Fresque des trois sceaux", "Examiner la fresque", func() -> Array: return quetes.texte("fresque_sceaux"))
+	# C4b : habillage v2 (planche vue 1 « entrée » : statues encapuchonnées de part et d'autre de l'escalier, bougies à leur pied)
+	CrypteV2.piece_tertre(d, "vestibule", -3, 3, 4, -6, 3.6, [["nord", 0.0, 3.2], ["est", -2.0, 3.2]], {
+		"arches": true, "piliers": [3.3, 1.8, -3.6],
+		"statues": [{"pos": Vector3(-2.12, 0, 2.95), "lacet": PI}, {"pos": Vector3(2.12, 0, 2.95), "lacet": PI}],
+		"bougies": [Vector3(-2.0, 0, 2.2), Vector3(1.95, 0, 2.2)],
+		"eboulis": [{"pos": Vector3(2.05, 0, 1.55), "mod": "eboulis_c", "lacet": 0.7}],
+		"dalles": [{"pos": Vector3(-1.1, 0, -4.7), "mod": "dalles_b", "lacet": 0.4}, {"pos": Vector3(1.0, 0, 0.5), "mod": "dalles_a", "lacet": 2.1}],
+		"flaques": [{"pos": Vector3(0.8, 0, -2.7), "r": 0.6, "graine": 11}],
+		"reserves": [[Vector3(-2.7, 0, -2.9), 1.55]],      # fresque des trois sceaux : mur nu
+		"givre": 6})
 
 func _alcove() -> void:
+	var v2 := CrypteV2.tertre_actif()      # C4b : alcôve en crypte v2
+	CrypteV2.tertre_debut(d)
 	d.salle(-11, -7, -23, -27, 3.0, [["est", -25.0, 3.0]], 0.0, "mur2")
 	var eirik: Node3D = PnjNordique.creer("eirik") if not PnjNordique.ancien() else Humain.creer({"corps": "homme", "cheveux": "Hair_SimpleParted", "teinte_cheveux": Color(0.85, 0.55, 0.3), "peau": Color(0.75, 0.75, 0.8),
 		"tenue": {"tunique": Color(0.4, 0.5, 0.42), "pantalon": Color(0.6, 0.55, 0.5), "bottes": Color.WHITE, "ceinture": Color.WHITE, "mante": Color(0.9, 0.85, 0.8)}})
@@ -607,17 +626,26 @@ func _alcove() -> void:
 	d.table(Vector3(-9.0, 0, -23.75), 0.0)
 	d.bougie(Vector3(-9.35, 0.795, -23.8))      # la chandelle d'Eirik
 	d.etagere(Vector3(-8.5, 0, -26.53), 0.0, 1.7, 2.0)
-	d.applique(Vector3(-10.7, 0, -25.0), Vector3(1, 0, 0), 2.1, 4.2, 1.2)
+	d.applique(Vector3(-10.5 if v2 else -10.7, 0, -25.0), Vector3(1, 0, 0), 2.1, 4.2, 1.2)
 	d.arme(Vector3(-8.2, 0, -24.9), 2.6)
 	d.os_tas(Vector3(-10.2, 0, -24.0), 2, 0.25)
 	_toiles([[-10.7, -23.3, 1, -1], [-7.3, -26.7, -1, 1]], 3.0)
+	CrypteV2.piece_tertre(d, "alcove_eirik", -11, -7, -23, -27, 3.0, [["est", -25.0, 3.0]], {
+		"bougies": [Vector3(-7.75, 0, -23.65)],
+		"eboulis": [{"pos": Vector3(-10.25, 0, -25.9), "mod": "eboulis_c", "lacet": 1.9}],
+		"dalles": [{"pos": Vector3(-9.0, 0, -25.6), "mod": "dalles_c", "lacet": 0.8}],
+		"reserves": [[Vector3(-9.0, 0, -23.3), 0.95], [Vector3(-10.2, 0, -26.7), 0.6]],      # table et coffre contre les murs
+		"givre": 4})
 
 func _couloir_herse() -> void:
+	var v2 := CrypteV2.tertre_actif()      # C4b : couloir de la herse en crypte v2 (planche vue 3 « couloir »)
+	CrypteV2.tertre_debut(d)
 	d.salle(-1.6, 1.6, -32, -42, 3.2, [["sud", 0.0, 3.2], ["nord", 0.0, 3.2]], 0.0, "mur2")
-	for z in [-34.5, -36.5, -38.5, -40.5]:
-		d.poutre(-1.3, 1.3, 3.05, z)
-	for p: Array in [[-1.3, -34.5], [1.3, -34.5], [-1.3, -36.5], [-1.3, -38.5], [-1.3, -40.5], [1.3, -40.5]]:
-		d.pilastre_mur(Vector3(p[0], 0, p[1]), Vector3(-signf(p[0]), 0, 0), 2.3)
+	if not v2:
+		for z in [-34.5, -36.5, -38.5, -40.5]:
+			d.poutre(-1.3, 1.3, 3.05, z)
+		for p: Array in [[-1.3, -34.5], [1.3, -34.5], [-1.3, -36.5], [-1.3, -38.5], [-1.3, -40.5], [1.3, -40.5]]:
+			d.pilastre_mur(Vector3(p[0], 0, p[1]), Vector3(-signf(p[0]), 0, 0), 2.3)
 	herse = Node3D.new()
 	herse.position = Vector3(0, 0, -33.0)
 	crypte.add_child(herse)
@@ -642,20 +670,42 @@ func _couloir_herse() -> void:
 	manche.rotation = Vector3(0, 0, 0.5)
 	_manche = manche
 	_interactif(crypte, Vector3(6.3, 1.1, -25.0), "Levier", "Tirer le levier", _tirer_levier, func() -> bool: return not _herse_ouverte)
-	d.applique(Vector3(1.3, 0, -37.5), Vector3(-1, 0, 0), 1.9, 4.5, 1.5)
+	d.applique(Vector3(1.1 if v2 else 1.3, 0, -37.5), Vector3(-1, 0, 0), 1.9, 4.5, 1.5)
 	d.os_tas(Vector3(-0.8, 0, -34.7), 4, 0.35)
 	d.arme(Vector3(0.5, 0, -39.0), 1.0)
 	d.urne(Vector3(-1.0, 0, -41.2), 0.9)
 	d.urne(Vector3(1.0, 0, -41.0), 0.8)
 	_toiles([[-1.3, -32.3, 1, -1], [1.3, -41.7, -1, 1]], 3.2)
+	CrypteV2.piece_tertre(d, "couloir_herse", -1.6, 1.6, -32, -42, 3.2, [["sud", 0.0, 3.2], ["nord", 0.0, 3.2]], {
+		"arches": true, "piliers": [2.6, -2.4], "chaines": true,
+		"eboulis": [{"pos": Vector3(-1.0, 0, -37.7), "mod": "eboulis_c", "lacet": 2.4}],
+		"dalles": [{"pos": Vector3(0.85, 0, -35.7), "mod": "dalles_a", "lacet": 0.3}],
+		"flaques": [{"pos": Vector3(-0.25, 0, -36.3), "r": 0.5, "graine": 23}],
+		"givre": 6})
 
 ## Sarcophage de Svanhild, dans l'arène (les degrés de l'estrade sont dans le donjon) : mêmes formes que l'ancien tombeau.
 func _sarcophage_arene() -> void:
 	var o := Vector3(0, 0.2, 0)         # dessus du troisième degré = 0,6 ; l'ancien socle était à 0,4
-	d.boite_pleine("mur0", Vector3(0, 0.9, -72.0) + o, Vector3(1.6, 1.0, 3.0))
-	d.boite("mur1", Vector3(0, 0.52, -72.0) + o + Vector3(0, 0, 0), Vector3(1.9, 0.24, 3.3))
-	d.boite("gravure", Vector3(0, 1.48, -72.0) + o, Vector3(1.8, 0.18, 3.2))
-	_boite(crypte, Vector3(1.0, 0.04, 2.2), Transform3D(Basis(), Vector3(0, 1.78, -72.0)), Palette.lueur(Color(0.4, 1.1, 1.6)))
+	var y_lueur := 1.78
+	if CrypteV2.tertre_actif():
+		# C4b : sarcophage sculpté (module Blender « sarcophage_svanhild » : socle à ressauts, cuve à pilastres et panneaux, bandeau
+		# d'inscription, couvercle à deux degrés, givre) ; MÊME collision que l'ancien massif
+		d.solide(Vector3(0, 0.9, -72.0) + o, Vector3(1.6, 1.0, 3.0))
+		d.modele("sarcophage_svanhild", Vector3(0, 0.6, -72.0), PI * 0.5)
+		y_lueur = 1.71
+		# planche vue 6 : bougies et candélabres (flammes sans lumière : budget inchangé) autour du tombeau, accents chauds dans le bleu
+		for c: Vector3 in [Vector3(-1.35, 0.6, -70.4), Vector3(1.4, 0.6, -70.7), Vector3(-1.4, 0.6, -73.6), Vector3(1.35, 0.6, -73.3)]:
+			for off: Vector3 in [Vector3.ZERO, Vector3(0.14, 0, 0.09), Vector3(-0.1, 0, 0.13)]:
+				d.bougie(c + off, false)
+		for c: Vector3 in [Vector3(-2.0, 0.6, -71.2), Vector3(2.0, 0.6, -72.8)]:
+			for fp: Vector3 in d.modele("candelabre", c, 0.0):
+				d.flamme(fp, 0.5)
+			d.carte("halo", c + Vector3(0, 1.55, 0), Vector3.UP, 1.1, 1.1)
+	else:
+		d.boite_pleine("mur0", Vector3(0, 0.9, -72.0) + o, Vector3(1.6, 1.0, 3.0))
+		d.boite("mur1", Vector3(0, 0.52, -72.0) + o + Vector3(0, 0, 0), Vector3(1.9, 0.24, 3.3))
+		d.boite("gravure", Vector3(0, 1.48, -72.0) + o, Vector3(1.8, 0.18, 3.2))
+	_boite(crypte, Vector3(1.0, 0.04, 2.2), Transform3D(Basis(), Vector3(0, y_lueur, -72.0)), Palette.lueur(Color(0.4, 1.1, 1.6)))
 	_lueur_tombe = OmniLight3D.new()
 	_lueur_tombe.light_color = Color(0.4, 0.8, 1.0)
 	_lueur_tombe.light_energy = 2.4          # lot 7a (2e passe) : source froide propre, basse, qui rase les flancs du sarcophage

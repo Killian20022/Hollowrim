@@ -646,3 +646,80 @@ static func couloir(k: DonjonKit, m: Dictionary) -> void:
 		for i in kk:
 			k.glacon(Vector3(k.alea(-0.7, 0.7), y + h, lerpf(-L * 0.5 + 1.5, L * 0.5 - 1.5, (i + 0.5) / kk)), k.alea(0.5, 0.9), 0.12)
 		k.souffle(Vector3(0, y + 1.0, 0), Vector3(0.9, 0.8, L * 0.5 - 1.0), Vector3(0, 0, -1), clampi(int(L * 2.5), 10, 30))
+
+# ------------------------------------------------------------------ PIÈCES DU TERTRE (C4b)
+## Vestibule, alcôve d'Eirik et couloir de la herse : pièces uniques bâties par tertre.gd (hors kit). C4b (2026-10-23) les passe en v2
+## avec le mode « pilote » (table explicite, `auto: false`) : rien n'est tiré au hasard près des interactions (fresque, corps d'Eirik,
+## levier, herse). Collisions, interactions et lumières de tertre.gd INCHANGÉES ; seul l'habillage s'ajoute.
+## Usage (tertre.gd) : `CrypteV2.tertre_debut(d)` avant `d.salle(...)` (dalles irrégulières), puis le récit de la pièce, puis
+## `CrypteV2.piece_tertre(d, id, x0, x1, z0, z1, h, ouvertures, table)` (mêmes arguments que d.salle + table v2), qui remet tout à zéro.
+
+static func tertre_actif() -> bool:
+	return not OS.get_cmdline_user_args().has("--crypte-v1")
+
+static func tertre_debut(d: CrypteDecor) -> void:
+	if tertre_actif():
+		d.theme = THEME
+		d.v2 = true
+
+## Gabarit d'arche (module, portée, flèche, épaisseur) et hauteur de naissance pour une pièce de largeur `court` et de hauteur `h`
+## (même calcul que le mode auto de finir()).
+static func _gabarit(court: float, h: float) -> Dictionary:
+	var portee := court - 0.6 - 0.68
+	var gab: Array = ["arche_2p0", 2.0, 1.0, 0.3] if portee <= 3.0 else (["arche_4p0", 4.0, 2.2, 0.36] if portee <= 7.0 else ["arche_10p7", 10.7, 2.3, 0.44])
+	var sx: float = portee / float(gab[1])
+	var montee: float = float(gab[2]) * (sx if float(gab[1]) < 10.0 else minf(sx, 1.15))
+	var nais := clampf(h - montee - float(gab[3]) - 0.25, 1.6, 3.4)
+	if nais + montee + float(gab[3]) > h - 0.1:
+		montee = h - 0.1 - float(gab[3]) - nais
+	var h_pil := 1.62 if nais < 2.4 else 3.2
+	return {"pilier": "pilier_mur_1p6" if nais < 2.4 else "pilier_mur_3p2", "ech_pilier": Vector3(1, nais / h_pil, 1), "naissance": nais,
+		"arche": gab[0] if montee >= 0.6 else "", "ech_arche": Vector3(sx, montee / float(gab[2]), 1.0)}
+
+static func piece_tertre(d: CrypteDecor, id: String, x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Array, table: Dictionary) -> void:
+	if not tertre_actif():
+		return
+	var centre := Vector3((x0 + x1) * 0.5, 0.0, (z0 + z1) * 0.5)
+	var dim := Vector2(absf(x1 - x0), absf(z1 - z0))
+	var cotes := {"nord": "N", "sud": "S", "ouest": "O", "est": "E"}
+	var ouv: Array = []
+	for o: Array in ouvertures:
+		var c: String = cotes[o[0]]
+		ouv.append([c, float(o[1]) - (centre.x if c == "N" or c == "S" else centre.z), float(o[2])])
+	var t := table.duplicate(true)
+	t["auto"] = false
+	if t.get("arches", false):
+		t.merge(_gabarit(minf(dim.x, dim.y), h), false)
+	var m := {"id": id, "type": "salle", "dim": dim, "h": h, "y": 0.0, "ouv": ouv, "theme": "tombeau", "v2": t}
+	var k := DonjonKit.new(d)
+	d.xf = Transform3D(Basis(), centre)
+	d.theme = THEME
+	d.v2 = true
+	d.module_id = id
+	var occ: Array = []
+	for oc: Array in d.occupations:      # objets plaqués au mur par tertre.gd (repère de la crypte) -> repère local
+		occ.append([(oc[0] as Vector3) - centre, oc[1]])
+	d.occupations = occ
+	var v2 := reglages(m)
+	if t.get("arches", false) or not (v2["piliers"] as Array).is_empty() or v2["panneaux"]:
+		v2["haut_panneau"] = minf(float(v2["haut_panneau"]), h - 0.35)
+		_piliers_panneaux(k, m, v2, _obstacles(k, m, v2))      # contourne ouvertures, réserves (fresque, appliques) et objets plaqués
+	if v2["lustres"] and h >= 3.6 and dim.x * dim.y >= 36.0:
+		lustre(d, Vector3(0, h, 0), clampf(h - 3.0, 0.8, 3.2))
+	_donnees(k, m, v2, 0.0)
+	d.poussiere(Vector3(0, h * 0.4, 0), Vector3(dim.x * 0.4, h * 0.35, dim.y * 0.4), 18)
+	d.occupations = []
+	if t.get("chaines", false):
+		var r := d.rng_deco
+		var long_x := dim.x >= dim.y
+		var L := dim.x if long_x else dim.y
+		var zc := -L * 0.5 + 2.0
+		while zc < L * 0.5 - 1.5:
+			var hx := r.randf_range(-0.4, 0.4)
+			var p := Vector3(zc, 0, hx) if long_x else Vector3(hx, 0, zc)
+			d.chaine(p + Vector3(0, h, 0), p + Vector3(0, h - r.randf_range(0.5, 0.9), 0))
+			zc += 3.0
+	d.xf = Transform3D.IDENTITY
+	d.theme = {}
+	d.v2 = false
+	d.module_id = ""
