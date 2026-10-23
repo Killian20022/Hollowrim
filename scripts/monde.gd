@@ -262,7 +262,7 @@ func _hauteur_sans_fermes(x: float, z: float) -> float:
 	var r := Vector2(x - TUMULUS_DISQUE.x, z - TUMULUS_DISQUE.y).length()
 	return lerpf(h, lerpf(h_tumulus, h, smoothstep(8.0, 14.0, r)), m)
 
-## Passe D : terrasse sous chaque ferme et grange hors enceinte (VillageBati.EXTERIEURS 0-3) : le bâtiment était posé à
+## Passe D : terrasse sous la ferme A, la ferme B et la grange B (VillageBati.EXTERIEURS 0, 2, 3) : le bâtiment était posé à
 ## mi-pente et s'enfonçait de 0,8 à 2,3 m côté amont (ferme B, granges). Plat sur l'emprise + 2,5 m, raccord sur 3,5 m ;
 ## hauteur = celle que VillageBati choisissait déjà (milieu de la pente + 0,1 m) : le bâti ne bouge pas, le relief se range.
 const TERRASSE_MARGE := 2.5   # > 1 case du maillage (2 m) : les 9 points de pose de VillageBati.maison tombent sur du plat
@@ -283,6 +283,9 @@ func _preparer_terrasses() -> void:
 				hmin = minf(hmin, hc)
 				hmax = maxf(hmax, hc)
 		_cibles_fermes.append(_hauteur_sans_fermes(float(e[0]), float(e[1])) if hmax - hmin < 0.3 else (hmin + hmax) * 0.5 + 0.1)
+	# grange A (4,7 m de pente sur l'emprise, à 1 m de la ferme A) : pas de terrasse — entre les deux plateaux, la marche de 2,8 m
+	# faisait un talus étiré ; elle garde son socle de pierre côté aval, la terrasse de la ferme A s'y raccorde
+	_cibles_fermes[1] = NAN
 
 func _terrasses_fermes(x: float, z: float, h: float) -> float:
 	if _cibles_fermes.is_empty():
@@ -291,6 +294,8 @@ func _terrasses_fermes(x: float, z: float, h: float) -> float:
 	var k_min := -1
 	var d_min := INF
 	for k in 4:
+		if is_nan(_cibles_fermes[k]):
+			continue
 		var e: Array = VillageBati.EXTERIEURS[k]
 		var dx := x - float(e[0])
 		var dz := z - float(e[1])

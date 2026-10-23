@@ -59,7 +59,7 @@ static func construire(v) -> void:
 	# fermes et granges (hors enceinte, sur la pente : socle de pierre côté bas)
 	var e: Array = EXTERIEURS
 	var cib: PackedFloat32Array = v._monde._cibles_fermes if v._monde != null and "_cibles_fermes" in v._monde else PackedFloat32Array()
-	var ty := func(k: int) -> Dictionary: return {"y": cib[k]} if k < cib.size() else {}
+	var ty := func(k: int) -> Dictionary: return {"y": cib[k]} if k < cib.size() and not is_nan(cib[k]) else {}
 	maison(v, ext, e[0][0], e[0][1], deg_to_rad(e[0][4]), ty.call(0).merged({"L": 9.0, "W": 6.0, "h": 2.0, "style": "rondins", "pente": 42.0, "dragons": true, "cheminee": 2.2, "fumee": true, "bois": true,
 		"bois_pos": Vector3(-5.05, 0, -0.6)}))   # passe D : tas de bois côté ouest (à l'est il tombait dans le talus de la grange A)
 	maison(v, ext, e[1][0], e[1][1], deg_to_rad(e[1][4]), ty.call(1).merged({"L": 7.0, "W": 5.0, "h": 2.7, "style": "grange", "pente": 50.0}))
