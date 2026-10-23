@@ -451,7 +451,7 @@ func _pave(poly: Array[Vector2], c2: Vector2, e: float) -> void:
 
 func _escaliers(h0: float) -> void:
 	var nb := 10
-	var demi := 1.8
+	var demi := 1.8   # rampes : voir plus bas (pied prolongé sous le sol)
 	for vi in ReliefVillage.VOLEES.size():
 		var v: Array = ReliefVillage.VOLEES[vi]
 		var z0: float = v[0]
@@ -477,6 +477,9 @@ func _escaliers(h0: float) -> void:
 		var a := Vector3(ReliefVillage.ESCALIER_X, ha, z0 - giron * 0.5)
 		var b := Vector3(ReliefVillage.ESCALIER_X, hb, z1 - giron * 0.5)
 		var axe3 := (b - a).normalized()                       # (0, sy, sz), sz > 0
+		# le pied de la rampe plonge sous le sol devant la 1re marche (sinon son bout forme une marche de 0,2 à 0,4 m que
+		# le CharacterBody ne franchit pas : au pied de la 1re volée, la berge du lit de la rivière est plus basse que le plateau)
+		a -= axe3 * 1.4
 		var haut_n := Vector3(0.0, axe3.z, -axe3.y)            # normale du plan de la rampe (y > 0)
 		var bs := Basis(Vector3.RIGHT, haut_n, axe3)
 		var ep := 0.4
