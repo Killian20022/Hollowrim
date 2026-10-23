@@ -268,10 +268,11 @@ void sky() {
 			float m_astre = LIGHT0_ENABLED ? max(dot(d, LIGHT0_DIRECTION), 0.0) : 0.0;
 
 			// couleurs (linéaire) : dessous ombré, corps, flanc éclairé, éclat ; nuit (lune) / crépuscule / jour
-			vec3 c_sombre = palette(vec3(0.010, 0.014, 0.028), vec3(0.020, 0.019, 0.030), vec3(0.15, 0.17, 0.23));
-			vec3 c_corps = palette(vec3(0.018, 0.025, 0.048), vec3(0.045, 0.042, 0.060), vec3(0.28, 0.31, 0.38));
-			vec3 c_bord = palette(vec3(0.036, 0.048, 0.085), vec3(0.090, 0.082, 0.110), vec3(0.50, 0.53, 0.60));
-			vec3 c_eclat = palette(vec3(0.070, 0.088, 0.140), vec3(0.17, 0.15, 0.18), vec3(0.80, 0.81, 0.84));
+			// (lot C3 : jour éclairci, nuages blancs à dessous gris-bleu comme la planche exterieurs_v2 ; nuit et crépuscule inchangés)
+			vec3 c_sombre = palette(vec3(0.010, 0.014, 0.028), vec3(0.020, 0.019, 0.030), vec3(0.24, 0.28, 0.37));
+			vec3 c_corps = palette(vec3(0.018, 0.025, 0.048), vec3(0.045, 0.042, 0.060), vec3(0.42, 0.46, 0.56));
+			vec3 c_bord = palette(vec3(0.036, 0.048, 0.085), vec3(0.090, 0.082, 0.110), vec3(0.64, 0.67, 0.74));
+			vec3 c_eclat = palette(vec3(0.070, 0.088, 0.140), vec3(0.17, 0.15, 0.18), vec3(0.92, 0.91, 0.90));
 			// au couchant / à l'aube, côté soleil : liserés orange et or (or près de l'horizon), pas de rose
 			vec3 chaud = mix(vec3(0.90, 0.36, 0.10), vec3(1.00, 0.62, 0.22), clamp(az * (0.3 + 0.9 * pres_hz), 0.0, 1.0));
 			float k_chaud = crep * (0.25 + 0.75 * az * az);
