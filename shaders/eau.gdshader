@@ -56,6 +56,7 @@ uniform float ciel_chaleur = 0.0;
 uniform sampler2D carte_glace : filter_nearest, repeat_disable;
 uniform float glace_bord = 0.7;        // largeur max de la glace de rive (m)
 uniform float glace_plaques = 0.62;    // densité max des plaques
+uniform float glace_ton_plaques = 0.0; // 0 = taches de bruit (prototype) ; 1 = ton par grandes plaques de Voronoï (grands lacs gelés, sans carrés)
 uniform float affine = 0.0;            // ignoré (gardé pour Palette.regler_ps1)
 uniform vec3 g_clair : source_color = vec3(0.90, 0.95, 1.0);
 uniform vec3 g_moyen : source_color = vec3(0.64, 0.78, 0.90);
@@ -262,7 +263,13 @@ void fragment() {
 		float g_x = glace_en(g_mode, gl.g, pc - vec2(cell, 0.0), d, f, turb, T, rb.r);
 		float g_z = glace_en(g_mode, gl.g, pc - vec2(0.0, cell), d, f, turb, T, rb.r);
 		float champ_g = rl.r * 0.55 + rl.g * 0.45;
-		float t_g = 0.42 + (rl.b - 0.5) * 0.9 + (1.0 - exp(-d * 1.2)) * 0.35;
+		float tache = rl.b;
+		if (glace_ton_plaques > 0.0) {
+			vec3 vp = voro(pc * 0.42);
+			tache = mix(rl.b, vp.z, glace_ton_plaques);
+			champ_g = mix(champ_g, 0.25 + 0.5 * vp.z, glace_ton_plaques);
+		}
+		float t_g = 0.42 + (tache - 0.5) * 0.9 + (1.0 - exp(-d * 1.2)) * 0.35;
 		col_glace = t_g > 0.80 ? g_sombre : (t_g > 0.50 ? g_moyen : g_clair);
 		if (voro(pc * 1.6).y < 0.045 && g_mode != 4) col_glace = g_fente;
 		if (champ_g > 0.66) col_glace = g_clair;

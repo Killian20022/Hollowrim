@@ -10,7 +10,9 @@ extends Node3D
 ## - options    : "variante" (Eau.Variante), "courant" (Callable(x, z) -> Vector2, m/s relatifs à `vitesse`), "turbulences"
 ##                (Array de [Vector2 centre, rayon, force 0..1] : pied de cascade, rapides), "brume" (bool), "params" (Dictionary
 ##                de paramètres du shader qui écrasent le préréglage), "resolution" (cases de carte par mètre, 4 par défaut),
-##                "variantes" (Callable(x, z) -> Vector2(variante, intensité 0..1) : glace qui change le long du cours d'eau).
+##                "variantes" (Callable(x, z) -> Vector2(variante, intensité 0..1) : glace qui change le long du cours d'eau),
+##                "niveau_cb" (Callable(x, z) -> float : surface EN PENTE qui suit un cours d'eau ; `niveau` sert alors de repère),
+##                "pas_maille" (m, 2 par défaut : carreaux du maillage ; 1 m pour une surface en pente qui doit coller au lit).
 ## La profondeur, le courant et les turbulences sont précalculés UNE fois dans une texture (RGBA8) : le shader ne devine rien à l'écran.
 
 enum Variante { LIQUIDE, PARTIELLE, GLACE, BORDS_GELES, PLAQUES }
@@ -75,6 +77,8 @@ var _res := 4.0
 var _cw := 0
 var _ch := 0
 var _t_ciel := 0.0
+var _niveau_cb := Callable()
+var _pas := PAS_MAILLE
 
 # --- création ----------------------------------------------------------------------------
 
@@ -139,6 +143,8 @@ func construire(zone: Rect2, niveau_m: float, hauteur: Callable, options := {}) 
 	var courant: Callable = options.get("courant", Callable())
 	var turbs: Array = options.get("turbulences", [])
 	var var_cb: Callable = options.get("variantes", Callable())
+	_niveau_cb = options.get("niveau_cb", Callable())
+	_pas = float(options.get("pas_maille", PAS_MAILLE))
 	var img := Image.create(_cw, _ch, false, Image.FORMAT_RGBA8)
 	_gel = Image.create(_cw, _ch, false, Image.FORMAT_RG8)
 	_prof.resize(_cw * _ch)
@@ -147,7 +153,7 @@ func construire(zone: Rect2, niveau_m: float, hauteur: Callable, options := {}) 
 		var z := zone.position.y + (j + 0.5) * pas
 		for i in _cw:
 			var x := zone.position.x + (i + 0.5) * pas
-			var d := niveau - float(hauteur.call(x, z))
+			var d := (float(_niveau_cb.call(x, z)) if _niveau_cb.is_valid() else niveau) - float(hauteur.call(x, z))
 			_prof[j * _cw + i] = d
 			var fl := Vector2.ZERO
 			if d > 0.0 and courant.is_valid():
@@ -197,21 +203,21 @@ func _maillage() -> void:
 		surface.queue_free()
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var nx := ceili(region.size.x / PAS_MAILLE)
-	var nz := ceili(region.size.y / PAS_MAILLE)
+	var nx := ceili(region.size.x / _pas)
+	var nz := ceili(region.size.y / _pas)
 	var n_carreaux := 0
 	for cj in nz:
 		for ci in nx:
-			var x0 := region.position.x + ci * PAS_MAILLE
-			var z0 := region.position.y + cj * PAS_MAILLE
-			if not _a_de_l_eau(x0, z0, PAS_MAILLE):
+			var x0 := region.position.x + ci * _pas
+			var z0 := region.position.y + cj * _pas
+			if not _a_de_l_eau(x0, z0, _pas):
 				continue
-			var x1 := minf(x0 + PAS_MAILLE, region.end.x)
-			var z1 := minf(z0 + PAS_MAILLE, region.end.y)
-			var a := Vector3(x0, 0, z0)
-			var b := Vector3(x1, 0, z0)
-			var c := Vector3(x0, 0, z1)
-			var dd := Vector3(x1, 0, z1)
+			var x1 := minf(x0 + _pas, region.end.x)
+			var z1 := minf(z0 + _pas, region.end.y)
+			var a := Vector3(x0, _y_surface(x0, z0), z0)
+			var b := Vector3(x1, _y_surface(x1, z0), z0)
+			var c := Vector3(x0, _y_surface(x0, z1), z1)
+			var dd := Vector3(x1, _y_surface(x1, z1), z1)
 			for p in [a, b, c, b, dd, c]:
 				st.set_normal(Vector3.UP)
 				st.add_vertex(p)
@@ -223,6 +229,10 @@ func _maillage() -> void:
 	surface.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	surface.position.y = niveau
 	add_child(surface)
+
+## Hauteur locale (au-dessus de `niveau`) du sommet de surface : 0 pour une eau plate.
+func _y_surface(x: float, z: float) -> float:
+	return float(_niveau_cb.call(x, z)) - niveau if _niveau_cb.is_valid() else 0.0
 
 func _a_de_l_eau(x0: float, z0: float, w: float) -> bool:
 	var i0 := clampi(floori((x0 - region.position.x) * _res) - 1, 0, _cw - 1)
