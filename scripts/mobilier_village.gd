@@ -9,7 +9,7 @@ extends Node3D
 const DAT := "res://assets/modeles/mobilier_village.dat"
 const ACCROCHE_TISSU := Vector3(0.55, 3.72, 0.0)   # haut du tissu dans le repère du mât (rapport Blender)
 const BRAISES_Y := 1.05
-const PORTEE := 75.0
+const PORTEE := 55.0
 
 ## [module, x, z, lacet° (0 = l'avant regarde le nord, -Z), échelle]
 const POSES := [
@@ -164,12 +164,12 @@ func _construire() -> void:
 				var l := OmniLight3D.new()
 				l.light_color = Color(1.0, 0.55, 0.22)
 				l.light_energy = 2.2
-				l.omni_range = 10.0
+				l.omni_range = 8.0
 				l.omni_attenuation = 1.3
 				l.shadow_enabled = false
 				l.distance_fade_enabled = true
-				l.distance_fade_begin = 24.0
-				l.distance_fade_length = 8.0
+				l.distance_fade_begin = 12.0
+				l.distance_fade_length = 6.0
 				l.position = haut + Vector3(0, 0.35, 0)
 				add_child(l)
 				_lumieres.append([l, l.light_energy, x])

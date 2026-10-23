@@ -16,7 +16,7 @@ extends AbordsVillage
 
 const PAVE := 0.46          # pas moyen des pavés (m) ; la taille varie par plaques (0,75 à 1,3 ×)
 const TUILE := 16.0         # côté des tuiles de pavés (m)
-const PORTEE_PAVES := 70.0
+const PORTEE_PAVES := 50.0   # perf (C7a) : au-delà, la carte de sol peint déjà terre et neige piétinée sous les pavés
 
 ## Place principale (polygone du plan).
 const PLACE := [Vector2(31, 28), Vector2(52, 27.5), Vector2(56, 33), Vector2(55, 45), Vector2(46, 48.5), Vector2(33, 46.5), Vector2(30, 38)]
