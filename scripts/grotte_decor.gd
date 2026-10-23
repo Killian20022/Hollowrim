@@ -619,6 +619,8 @@ const PENTE_MAX := 0.21            # 12° : inclinaison maximale d'un objet pos�
 const ANCRAGE := 0.015             # le point le plus haut du sol sous l'objet entre de 1,5 cm dans sa base
 const MARGE_PAROI := 0.05
 var empreintes: Array = []         # [Vector3 pied, rayon, haut]
+var _grille_emp := {}              # case de 2 m -> empreintes qui la touchent (recherches locales)
+var _grille_kit := {}
 var apparitions: Array = []        # pieds des ennemis (Grotte._accroches_zone) : rien ne se pose dessus
 var regles_pose := not OS.get_cmdline_user_args().has("--ancienne-pose")
 var _poses_faites := {}            # sortie déjà calculée -> résultat (un objet reposé au même endroit ne bouge plus)
@@ -628,7 +630,7 @@ var _kit_emp_n := -1
 func _g() -> Grotte:
 	return racine as Grotte if racine is Grotte else null
 
-func pose_objet(p: Vector3, hx: float, hz: float, lacet: float, h: float, mode: int, decal_max := 0.5, monte := 0.45) -> Dictionary:
+func pose_objet(p: Vector3, hx: float, hz: float, lacet: float, h: float, mode: int, decal_max := 0.5, monte := 0.45, loin := false) -> Dictionary:
 	var g := _g()
 	if g == null or not regles_pose:
 		return {"p": p, "b": Basis(), "ok": true}
@@ -643,15 +645,19 @@ func pose_objet(p: Vector3, hx: float, hz: float, lacet: float, h: float, mode: 
 			return {"p": p, "b": Basis(), "ok": true}     # menu objet en hauteur sur un support inconnu (bougies de l'autel) : laissé tel quel
 	_monte = monte
 	var r_emp := (hx + hz) * 0.5
+	_axe_min = VOIE_POSE + r_emp                                  # un objet DÉPLACÉ ne va jamais dans le chemin
+	var axe_p := _dist_axe(g, p)
 	# 1. place demandée, écartée des parois : gardée si le sol est assez régulier et la place libre
 	var q0 := _ecarter_parois(g, p, hx, hz, B, h)
 	var e0 := _evaluer(g, q0, hx, hz, B, h, mode, support, r_emp)
+	if not e0.is_empty() and _dist_axe(g, q0) < minf(axe_p, _axe_min) - 0.05:      # place prévue : gardée si elle ne se rapproche pas
+		e0 = {}
 	var best := {}
 	if not e0.is_empty() and float(e0["ecart"]) < 0.05 and float(e0["chev"]) < 0.01:
 		best = e0
 	else:
 		best = _chercher(g, p, q0, e0, hx, hz, B, h, mode, support, r_emp, decal_max)
-		if best.is_empty():                   # rien d'acceptable tout près (dans la roche, sur un rebord) : on cherche plus loin
+		if best.is_empty() and (monte > 1.0 or loin):   # accroche du jeu ou pièce maîtresse (coffre, ressource…) sans place tout près : on cherche plus loin ; un objet de décor est retiré
 			best = _chercher(g, p, q0, {}, hx, hz, B, h, mode, support, r_emp, decal_max * 2.5 + 0.3)
 	var ok := not best.is_empty()
 	if best.is_empty():
@@ -662,6 +668,41 @@ func pose_objet(p: Vector3, hx: float, hz: float, lacet: float, h: float, mode: 
 	return best
 
 var _monte := 0.45
+const VOIE_POSE := 1.0              # demi-largeur du chemin central qu'un objet déplacé ne doit pas envahir
+var _axe_min := 0.0
+var _grille_axe := {}               # case de 2 m -> points de l'axe des branches (sol, tous les 0,5 m)
+func _dist_axe(g: Grotte, q: Vector3) -> float:
+	if _grille_axe.is_empty():
+		var pts := PackedVector2Array()
+		var bouts: Array = []                  # [branche, point] : débuts et fins d'axe (les trajets sautent d'une branche à l'autre)
+		for id: String in g.ordre:
+			var s := 0.0
+			while s <= g.longueur(id):
+				pts.append(g.xz(id, s))
+				s += 0.5
+			bouts.append([id, g.xz(id, 1.0)])
+			bouts.append([id, g.xz(id, g.longueur(id) - 1.5)])
+		for i in bouts.size():                 # raccords entre bouts voisins de branches différentes
+			for j in range(i + 1, bouts.size()):
+				var a: Vector2 = bouts[i][1]
+				var b: Vector2 = bouts[j][1]
+				if bouts[i][0] != bouts[j][0] and a.distance_to(b) < 9.0:
+					for k in int(a.distance_to(b) / 0.5) + 1:
+						pts.append(a.lerp(b, k * 0.5 / maxf(a.distance_to(b), 0.01)))
+		for a: Vector2 in pts:
+			var k := Vector2i(floori(a.x / 2.0), floori(a.y / 2.0))
+			if not _grille_axe.has(k):
+				_grille_axe[k] = PackedVector2Array()
+			var l: PackedVector2Array = _grille_axe[k]
+			l.append(a)
+			_grille_axe[k] = l
+	var best := 99.0
+	var c := Vector2i(floori(q.x / 2.0), floori(q.z / 2.0))
+	for dx in range(-2, 3):
+		for dz in range(-2, 3):
+			for a: Vector2 in _grille_axe.get(c + Vector2i(dx, dz), PackedVector2Array()):
+				best = minf(best, a.distance_to(Vector2(q.x, q.z)))
+	return best
 func _chercher(g: Grotte, p: Vector3, q0: Vector3, e0: Dictionary, hx: float, hz: float, B: Basis, h: float, mode: int, support: float, r_emp: float, decal_max: float) -> Dictionary:
 	var best := {}
 	if true:
@@ -675,6 +716,8 @@ func _chercher(g: Grotte, p: Vector3, q0: Vector3, e0: Dictionary, hx: float, hz
 			for k in 8:
 				var a := TAU * k / 8.0 + rr
 				var q := q0 + Vector3(cos(a), 0.0, sin(a)) * rr
+				if _dist_axe(g, q) < _axe_min - 0.05:
+					continue                         # vers le chemin : refusé (le passage reste libre)
 				var ev := _evaluer(g, q, hx, hz, B, h, mode, support, r_emp)
 				if not ev.is_empty():
 					cands.append([float(ev["cout"]) + rr * 0.5, q])
@@ -685,7 +728,7 @@ func _chercher(g: Grotte, p: Vector3, q0: Vector3, e0: Dictionary, hx: float, hz
 			if Vector2(q.x - p.x, q.z - p.z).length() > decal_max + 0.35:
 				continue
 			var ev := _evaluer(g, q, hx, hz, B, h, mode, support, r_emp)
-			if ev.is_empty() or float(ev["chev"]) > 0.04:      # encore dans un objet ou une roche : refusé
+			if ev.is_empty() or float(ev["chev"]) > 0.04 or _dist_axe(g, q) < _axe_min - 0.05:      # dans un objet, une roche, le chemin : refusé
 				continue
 			var cout: float = float(ev["cout"]) + Vector2(q.x - p.x, q.z - p.z).length() * 0.5
 			if cout < best_cout:
@@ -703,7 +746,7 @@ func _evaluer(g: Grotte, q: Vector3, hx: float, hz: float, B: Basis, h: float, m
 
 ## Dessus d'un objet déjà posé sous p (caisse sur caisse) : son altitude, ou -1e9.
 func _support(p: Vector3, r: float) -> float:
-	for e: Array in empreintes:
+	for e: Array in _emp_pres(_grille_emp, p, r):
 		var c: Vector3 = e[0]
 		var top: float = c.y + float(e[2])
 		if Vector2(c.x - p.x, c.z - p.z).length() < float(e[1]) * 0.8 and p.y > top - 0.15 and p.y < top + 0.25:
@@ -714,12 +757,12 @@ func _support(p: Vector3, r: float) -> float:
 func _ecarter_parois(g: Grotte, q: Vector3, hx: float, hz: float, B: Basis, h: float) -> Vector3:
 	for _passe in 2:
 		var pousse := Vector3.ZERO
-		for hh: float in [minf(0.15, h * 0.5), maxf(h * 0.5, 0.15), maxf(h * 0.85, 0.2)]:
+		for hh: float in ([maxf(h * 0.6, 0.06)] if h < 0.4 else [0.15, h * 0.5, h * 0.85]):
 			for k in 8:
 				var a := TAU * k / 8.0
 				var d := Vector3(cos(a), 0.0, sin(a))
 				var ext := absf(d.dot(B.x)) * hx + absf(d.dot(B.z)) * hz
-				var hit := g.rayon(q + Vector3(0, hh, 0), d, ext + 0.6)
+				var hit := g.rayon_court(q + Vector3(0, hh, 0), d, ext + 0.4)
 				if hit.is_empty() or absf((hit["n"] as Vector3).y) > 0.7:
 					continue
 				var deficit := ext + MARGE_PAROI - float(hit["d"])
@@ -733,7 +776,10 @@ func _ecarter_parois(g: Grotte, q: Vector3, hx: float, hz: float, B: Basis, h: f
 ## Sol sous l'empreinte (centre, 4 coins, 4 milieux de côté) : altitude du pied, inclinaison et écart restant (vide sous l'objet).
 func _sol_empreinte(g: Grotte, q: Vector3, hx: float, hz: float, B: Basis, mode: int, support: float, h := 0.5) -> Dictionary:
 	var pts: Array = []
-	for u: Vector2 in [Vector2.ZERO, Vector2(1, 1), Vector2(1, -1), Vector2(-1, 1), Vector2(-1, -1), Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
+	var motif: Array = [Vector2.ZERO, Vector2(1, 1), Vector2(1, -1), Vector2(-1, 1), Vector2(-1, -1), Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]
+	if maxf(hx, hz) < 0.15:
+		motif = [Vector2.ZERO, Vector2(1, 1), Vector2(-1, -1)]          # menu objet : trois points suffisent
+	for u: Vector2 in motif:
 		var o: Vector3 = B.x * (u.x * hx * 0.95) + B.z * (u.y * hz * 0.95)
 		var y := support
 		if support < -1e8:
@@ -789,12 +835,13 @@ func _sol_empreinte(g: Grotte, q: Vector3, hx: float, hz: float, B: Basis, mode:
 ## Recouvrement (m) d'une empreinte de rayon r et de hauteur h en q avec les objets posés et les roches du kit.
 func _chevauche(q: Vector3, r: float, h: float) -> float:
 	var pire := 0.0
-	for e: Array in empreintes:
+	for e: Array in _emp_pres(_grille_emp, q, r):
 		var c: Vector3 = e[0]
 		if c.y > q.y + h - 0.03 or c.y + float(e[2]) < q.y + 0.03:
 			continue
 		pire = maxf(pire, r + float(e[1]) - Vector2(c.x - q.x, c.z - q.z).length())
-	for e: Array in _empreintes_kit():
+	_empreintes_kit()
+	for e: Array in _emp_pres(_grille_kit, q, r):
 		var c: Vector3 = e[0]
 		if c.y > q.y + h - 0.03 or c.y + float(e[2]) < q.y + 0.03:
 			continue
@@ -813,6 +860,7 @@ func _empreintes_kit() -> Array:
 		return _kit_emp
 	_kit_emp_n = g.kit.nb_instances
 	_kit_emp = []
+	_grille_kit = {}
 	var boites := {}
 	for cle: String in g.kit._inst:
 		var nom := cle.get_slice("|", 0)
@@ -832,7 +880,9 @@ func _empreintes_kit() -> Array:
 		for xf: Transform3D in g.kit._inst[cle]:
 			var bw: AABB = xf * bl
 			var kr := 0.5 if fam in ["neige", "dalle"] else 0.4                     # tas de neige et terrasses : ronds et plats
-			_kit_emp.append([Vector3(bw.get_center().x, bw.position.y, bw.get_center().z), kr * minf(bw.size.x, bw.size.z), bw.size.y])
+			var ek := [Vector3(bw.get_center().x, bw.position.y, bw.get_center().z), kr * minf(bw.size.x, bw.size.z), bw.size.y]
+			_kit_emp.append(ek)
+			_emp_ajouter(_grille_kit, ek)
 	return _kit_emp
 
 ## Vrai si p est à moins de r (à l'horizontale, 1,5 m en hauteur) d'un point d'apparition d'ennemi.
@@ -852,7 +902,37 @@ func place_libre(p: Vector3, r: float, h := 1.0) -> bool:
 
 func _empreinte(p: Vector3, r: float, h: float) -> void:
 	if _g() != null and regles_pose:
+		_emp_ajouter(_grille_emp, [p, r, h])
 		empreintes.append([p, r, h])
+
+static func _emp_ajouter(grille: Dictionary, e: Array) -> void:
+	var c: Vector3 = e[0]
+	var r: float = e[1]
+	for cx in range(floori((c.x - r) / 2.0), floori((c.x + r) / 2.0) + 1):
+		for cz in range(floori((c.z - r) / 2.0), floori((c.z + r) / 2.0) + 1):
+			var k := Vector2i(cx, cz)
+			if not grille.has(k):
+				grille[k] = []
+			(grille[k] as Array).append(e)
+
+## Empreintes qui touchent le disque (q, r) (sans doublon).
+static func _emp_pres(grille: Dictionary, q: Vector3, r: float) -> Array:
+	var res: Array = []
+	var x0 := floori((q.x - r) / 2.0)
+	var x1 := floori((q.x + r) / 2.0)
+	var z0 := floori((q.z - r) / 2.0)
+	var z1 := floori((q.z + r) / 2.0)
+	if x0 == x1 and z0 == z1:
+		return grille.get(Vector2i(x0, z0), [])
+	var vus := {}
+	for cx in range(x0, x1 + 1):
+		for cz in range(z0, z1 + 1):
+			for e: Array in grille.get(Vector2i(cx, cz), []):
+				var id_e := e.hash()
+				if not vus.has(id_e):
+					vus[id_e] = true
+					res.append(e)
+	return res
 
 ## Roche seule (rocher, stalagmite) : rien si elle tomberait dans un objet déjà posé ou sur un point d'apparition ; sinon son empreinte
 ## est gardée (les objets posés ensuite l'évitent). Les roches qui font partie d'un objet (pierres du feu, minerai) ne sont pas jugées.
@@ -861,12 +941,13 @@ func roche_libre(base: Vector3, r: float, h: float) -> bool:
 		return true
 	if _chevauche_objets(base, r, h) > 0.04 or pres_apparition(base, r * 0.8 + 0.3):
 		return false
-	empreintes.append([base, r, h])
+	_emp_ajouter(_grille_emp, [base, r, h, true])
+	empreintes.append([base, r, h, true])        # 4e champ : roche (le kit ne s'en écarte pas : son tracé ne bouge pas pour elles)
 	return true
 
 func _chevauche_objets(q: Vector3, r: float, h: float) -> float:
 	var pire := 0.0
-	for e: Array in empreintes:
+	for e: Array in _emp_pres(_grille_emp, q, r):
 		var c: Vector3 = e[0]
 		if c.y > q.y + h - 0.03 or c.y + float(e[2]) < q.y + 0.03:
 			continue
@@ -1008,7 +1089,9 @@ func os_tas(pos: Vector3, n := 4, rayon := 0.4) -> void:
 	super.os_tas(pose_objet(pos, rayon * 0.7, rayon * 0.7, 0.0, 0.15, PETIT, 0.3)["p"], n, rayon)
 
 func bougie(pos: Vector3, avec_lumiere := true) -> void:
-	super.bougie(pose_objet(pos, 0.035, 0.035, 0.0, 0.14, PETIT, 0.15)["p"], avec_lumiere)
+	var pz := pose_objet(pos, 0.035, 0.035, 0.0, 0.14, PETIT, 0.25)
+	if pz["ok"]:                               # lot D : pas de bougie enfouie dans un rebord ou sous un surplomb
+		super.bougie(pz["p"], avec_lumiere)
 
 ## Roue de chariot : bandage de fer, jante de bois, moyeu et essieu.
 func _roue(a: Vector3, b: Vector3) -> void:
@@ -1581,7 +1664,7 @@ func _poser_poteau(g: Grotte, id: String, s: float, cote: float, solide := false
 		if sp.x < -1e8 or sp.y < lant.y + 0.7:
 			continue
 		var vh := Vector3(vers.x, 0, vers.z).normalized()
-		if not g.rayon(q + Vector3(0, 2.0, 0), vh, 0.85).is_empty() or not g.rayon(q + Vector3(0, 1.0, 0), vh, 0.85).is_empty():
+		if not g.rayon_court(q + Vector3(0, 2.0, 0), vh, 0.85).is_empty() or not g.rayon_court(q + Vector3(0, 1.0, 0), vh, 0.85).is_empty():
 			continue                               # la potence et la lanterne ne rentrent pas dans la paroi d'en face
 		return poteau_lanterne(q, vers, solide and g.libre(id, ss, lat, 0.2))
 	for ds: float in [0.0, 1.0, -1.0, 2.0, -2.0, 3.0, -3.0, 4.5, -4.5, 6.0, -6.0, 7.5, -7.5, 9.0, -9.0]:     # repli : lanterne pendue à la voûte

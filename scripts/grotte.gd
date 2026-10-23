@@ -1056,9 +1056,69 @@ func _hauteurs(x: float, z: float) -> Vector2:
 ## corniches / îlots, lues dans decor.coll au fur et à mesure qu'elles s'ajoutent) la plus haute sous y_ref. -1e9 si aucune.
 ## Les triangles de decor.coll sont orientés (b - a) x (c - a) vers le côté visible (coque : vers la galerie).
 var _idx_o := {}                 # case de 1 m -> PackedInt32Array (triangles de decor.coll)
+var _ny_o := PackedFloat32Array()   # composante verticale de la normale (côté visible) de chaque triangle
 var _idx_o_n := 0
 func sol_objet(x: float, z: float, y_ref: float) -> float:
 	return sol_et_plafond(x, z, y_ref).x
+
+## Rayon COURT contre la coque et les dalles (decor.coll, index 3D de 1 m tenu à jour) : règles de pose (parois proches d'un objet).
+## Bien plus rapide que `rayon` (seules les facettes des cases traversées, à la bonne hauteur). {} ou {"p", "n" (vers l'origine), "d"}.
+var _idx_3 := {}
+var _idx_3_n := 0
+func rayon_court(o: Vector3, d: Vector3, lmax: float) -> Dictionary:
+	var c := decor.coll
+	var n := c.size() / 3
+	if n > _idx_3_n:
+		for t in range(_idx_3_n, n):
+			var a := c[t * 3]
+			var b := c[t * 3 + 1]
+			var e := c[t * 3 + 2]
+			var mn := a.min(b).min(e)
+			var mx := a.max(b).max(e)
+			for cx in range(floori(mn.x), floori(mx.x) + 1):
+				for cy in range(floori(mn.y), floori(mx.y) + 1):
+					for cz in range(floori(mn.z), floori(mx.z) + 1):
+						var k := Vector3i(cx, cy, cz)
+						var l: PackedInt32Array = _idx_3.get(k, PackedInt32Array())
+						l.append(t)
+						_idx_3[k] = l
+		_idx_3_n = n
+	d = d.normalized()
+	var vus := {}
+	var best := lmax
+	var res := {}
+	var tt := 0.0
+	while tt <= lmax + 0.26:
+		var q := o + d * minf(tt, lmax)
+		var k := Vector3i(floori(q.x), floori(q.y), floori(q.z))
+		if not vus.has(k):
+			vus[k] = true
+			for i: int in _idx_3.get(k, PackedInt32Array()):
+				var a := c[i * 3]
+				var e1 := c[i * 3 + 1] - a
+				var e2 := c[i * 3 + 2] - a
+				var pv := d.cross(e2)
+				var det := e1.dot(pv)
+				if absf(det) < 1e-9:
+					continue
+				var inv := 1.0 / det
+				var tv := o - a
+				var u := tv.dot(pv) * inv
+				if u < 0.0 or u > 1.0:
+					continue
+				var qv := tv.cross(e1)
+				var v := d.dot(qv) * inv
+				if v < 0.0 or u + v > 1.0:
+					continue
+				var th := e2.dot(qv) * inv
+				if th > 0.001 and th < best:
+					best = th
+					var nn := e1.cross(e2).normalized()
+					if nn.dot(d) > 0.0:
+						nn = -nn
+					res = {"p": o + d * th, "n": nn, "d": th}
+		tt += 0.25
+	return res
 
 ## [sol, plafond] : sol comme sol_objet ; plafond = surface la plus basse au-dessus de ce sol, quelle que soit son orientation (voûte,
 ## surplomb, ventre d'une paroi, flanc d'une corniche) (1e9 si aucune). plafond - sol = hauteur libre au-dessus du point.
@@ -1066,10 +1126,15 @@ func sol_et_plafond(x: float, z: float, y_ref: float) -> Vector2:
 	var c := decor.coll
 	var n := c.size() / 3
 	if n > _idx_o_n:
+		_ny_o.resize(n)
 		for t in range(_idx_o_n, n):
 			var a := c[t * 3]
 			var b := c[t * 3 + 1]
 			var d := c[t * 3 + 2]
+			var ng0 := (b - a).cross(d - a)
+			_ny_o[t] = ng0.y / maxf(ng0.length(), 1e-12)
+			if absf(_ny_o[t]) < 0.02:
+				continue                                 # paroi verticale : jamais coupée par une verticale
 			for cx in range(floori(minf(a.x, minf(b.x, d.x))), floori(maxf(a.x, maxf(b.x, d.x))) + 1):
 				for cz in range(floori(minf(a.z, minf(b.z, d.z))), floori(maxf(a.z, maxf(b.z, d.z))) + 1):
 					var k := Vector2i(cx, cz)
@@ -1083,10 +1148,7 @@ func sol_et_plafond(x: float, z: float, y_ref: float) -> Vector2:
 		var a := c[t * 3]
 		var b := c[t * 3 + 1]
 		var d := c[t * 3 + 2]
-		var ng := (b - a).cross(d - a)
-		var vers_bas := ng.y < 0.3 * ng.length()           # tout ce qui n'est pas un sol : obstacle au-dessus du sol trouvé
-		if absf(ng.y) < 0.02 * ng.length():
-			continue
+		var vers_bas := _ny_o[t] < 0.3                       # tout ce qui n'est pas un sol : obstacle au-dessus du sol trouvé
 		var den := (b.z - d.z) * (a.x - d.x) + (d.x - b.x) * (a.z - d.z)
 		if absf(den) < 1e-12:
 			continue

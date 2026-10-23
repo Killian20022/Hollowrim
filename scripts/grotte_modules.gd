@@ -555,7 +555,7 @@ static func _entree(g: Grotte, z: Dictionary, r: RandomNumberGenerator) -> void:
 	d.arme(_p(g, id, 11.0, 1.9) + Vector3(0, 0.02, 0), 0.8)
 	d.caisse(_p(g, id, 9.5, -2.6), Vector3(0.8, 0.55, 0.55), 0.5)
 	# poste du guetteur : table, tabouret, bougie (contre la paroi droite)
-	var tp: Vector3 = d.pose_objet(_p(g, id, 10.0, 2.5), 0.55, 0.33, 0.3, 0.8, GrotteDecor.DROIT)["p"]
+	var tp: Vector3 = d.pose_objet(_p(g, id, 10.0, 2.5), 0.55, 0.33, 0.3, 0.8, GrotteDecor.DROIT, 0.5, 0.45, true)["p"]
 	d.table(tp, 0.3)
 	d.tabouret(tp + Vector3(-0.7, 0, 0.6))
 	d.bougie(tp + Vector3(0.3, 0.8, 0.05))
@@ -638,7 +638,7 @@ static func _mine(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: Stri
 			d.caisse(_p(g, id, s0 + 11.0, 2.3), Vector3(0.8, 0.5, 0.5), 0.15)
 		"ressources":
 			# poste des mineurs-bandits : table, tabourets, lit de camp, caisses, sacs de minerai, râtelier de pioches
-			var tb: Vector3 = d.pose_objet(_p(g, id, s0 + 4.0, -1.2), 0.55, 0.33, 0.4, 0.8, GrotteDecor.DROIT)["p"]
+			var tb: Vector3 = d.pose_objet(_p(g, id, s0 + 4.0, -1.2), 0.55, 0.33, 0.4, 0.8, GrotteDecor.DROIT, 0.5, 0.45, true)["p"]
 			d.table(tb, 0.4)
 			d.tabouret(tb + Vector3(-0.8, 0, 0.6))
 			d.tabouret(tb + Vector3(0.8, 0, -0.5))
@@ -838,7 +838,7 @@ static func _repaire(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: S
 	for c in [[3.0, -5.3], [6.0, -5.5], [13.0, 4.0], [1.5, 4.8]]:
 		d.sac(_p(g, id, float(c[0]), float(c[1])), r.randf_range(0.9, 1.3))
 	# table, tabourets, bougie
-	var tp: Vector3 = d.pose_objet(_p(g, id, 3.0, -2.4), 0.55, 0.33, 0.4, 0.8, GrotteDecor.DROIT)["p"]
+	var tp: Vector3 = d.pose_objet(_p(g, id, 3.0, -2.4), 0.55, 0.33, 0.4, 0.8, GrotteDecor.DROIT, 0.5, 0.45, true)["p"]
 	d.table(tp, 0.4)
 	d.tabouret(tp + Vector3(-0.8, 0, 0.6))
 	d.tabouret(tp + Vector3(0.8, 0, -0.5))

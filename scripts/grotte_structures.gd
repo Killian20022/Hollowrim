@@ -434,13 +434,9 @@ static func _autel_libre(g: Grotte, id: String, s_a: float, lat_a: float, e: flo
 			var q := ps + bz * Vector3(x, 0, z)
 			var sp := g.sol_et_plafond(q.x, q.z, ps.y + 0.8)
 			if sp.x < -1e8 or absf(sp.x - ps.y) > 0.3 or sp.y - sp.x < 3.0:
-				if OS.get_cmdline_user_args().has("--debug-autel"):
-					print("AUTEL e=%.2f s=%.1f lat=%.1f : sol/plafond %s (pied %.2f) en %.1f,%.1f" % [e, s_a, lat_a, sp, ps.y, x, z])
 				return false
 			q.y = sp.x
 			if d._chevauche(q, 0.3, 1.5) > 0.02:
-				if OS.get_cmdline_user_args().has("--debug-autel"):
-					print("AUTEL e=%.2f s=%.1f lat=%.1f : objet en %.1f,%.1f" % [e, s_a, lat_a, x, z])
 				return false
 			z += 0.5
 		x += 0.5

@@ -746,19 +746,20 @@ func _reserver(id: String) -> void:
 	_occ.clear()
 	_seg.clear()
 	if g.decor.regles_pose:                # lot D : objets du décor déjà posés (caisses, couchages, poteaux…) : le kit les contourne
-		if not _axe.has(id):
-			var pts := PackedVector2Array()
+		if not _axe.has(id):                   # boîte de la branche (axe élargi de 16 m)
+			var bb := Rect2(g.xz(id, 0.0), Vector2.ZERO)
 			var s_ := 0.0
 			while s_ <= g.longueur(id):
-				pts.append(g.xz(id, s_))
-				s_ += 4.0
-			_axe[id] = pts
+				bb = bb.expand(g.xz(id, s_))
+				s_ += 2.0
+			_axe[id] = bb.grow(16.0)
+		var bbr: Rect2 = _axe[id]
 		for e: Array in g.decor.empreintes:     # seulement ceux de la branche (le test de place est linéaire en nombre de places prises)
+			if e.size() > 3:
+				continue                        # roches seules : le kit ne s'en écarte pas (son tracé reste celui d'avant pour elles)
 			var q := _xz(e[0])
-			for a: Vector2 in (_axe[id] as PackedVector2Array):
-				if q.distance_to(a) < 16.0:
-					_occ.append([q, float(e[1]) + 0.1])
-					break
+			if bbr.has_point(q):
+				_occ.append([q, float(e[1]) + 0.1])
 	for f: Array in _fixes:
 		if f[0] == id:
 			_occ.append([f[1], f[2]])
