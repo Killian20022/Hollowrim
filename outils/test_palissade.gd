@@ -4,7 +4,8 @@ extends SceneTree
 ## hauteur 3,6) centré 1,8 m au-dessus du pied de chaque pieu, qui suit le terrain. Vérifie :
 ##   1. une forme par pieu, au bon endroit, mêmes dimensions ; > 450 pieux ; longueur ≈ 228 m ;
 ##   2. rayons horizontaux de l'extérieur vers l'intérieur, tout le long (hors portes), de 0,3 à 3,4 m au-dessus du sol :
-##      tous arrêtés ; aux 2 grilles d'eau, de 0,3 m au-dessus de l'eau à 3 m au-dessus du fond : tous arrêtés ;
+##      tous arrêtés (comptés depuis le pied le plus bas des pieux voisins) ; aux 2 grilles d'eau, de 0,3 m au-dessus de
+##      l'eau à 3 m au-dessus du fond, une sphère de 0,25 m lancée à travers : toutes arrêtées ;
 ##   3. un marcheur (capsule du joueur) qui fonce vers l'intérieur en sautant sans arrêt, en 16+ points du pourtour et dans le
 ##      lit de la rivière devant chaque grille : ne passe jamais ;
 ##   4. les 3 portes (SO, N, E) se franchissent ;
@@ -82,18 +83,31 @@ func _tester() -> void:
 	var n := pts.size()
 
 	# 1. formes de collision : un cylindre r 0,22 × h 3,6 à 1,8 m au-dessus du pied de chaque pieu
+	# rangées par case de 0,5 m (recherche du plus proche dans les 9 cases voisines : pas d'erreur d'arrondi sur la clé)
 	var formes := {}
 	for cs in (v.corps as StaticBody3D).get_children():
 		if cs is CollisionShape3D and cs.shape is CylinderShape3D:
 			var g: Vector3 = (v.corps as Node3D).global_transform * (cs as CollisionShape3D).position
-			formes[Vector2i(roundi(g.x * 20.0), roundi(g.z * 20.0))] = [cs, g]
+			var kc := Vector2i(floori(g.x * 2.0), floori(g.z * 2.0))
+			if not formes.has(kc):
+				formes[kc] = []
+			formes[kc].append([cs, g])
 	var pieux: Array = v.pieux_v2
 	var bons := 0
 	for p: Vector3 in pieux:
-		var k := Vector2i(roundi(p.x * 20.0), roundi(p.z * 20.0))
-		if formes.has(k):
-			var s: CylinderShape3D = (formes[k][0] as CollisionShape3D).shape
-			var g: Vector3 = formes[k][1]
+		var k := Vector2i(floori(p.x * 2.0), floori(p.z * 2.0))
+		var pres: Array = []
+		var dmin := 0.02
+		for dx in [-1, 0, 1]:
+			for dz in [-1, 0, 1]:
+				for f in formes.get(k + Vector2i(dx, dz), []):
+					var dd := Vector2((f[1] as Vector3).x - p.x, (f[1] as Vector3).z - p.z).length()
+					if dd < dmin:
+						dmin = dd
+						pres = f
+		if not pres.is_empty():
+			var s: CylinderShape3D = (pres[0] as CollisionShape3D).shape
+			var g: Vector3 = pres[1]
 			if is_equal_approx(s.radius, 0.22) and is_equal_approx(s.height, 3.6) and absf(g.y - (p.y + 1.8)) < 0.01:
 				bons += 1
 	var long := 0.0
@@ -124,17 +138,39 @@ func _tester() -> void:
 			var r := ReliefVillage.riviere(q.x, q.y)
 			var grille: bool = _pres(q, VILLAGE_GD.GRILLES_V2, 7.0) and not r.is_empty() and float(r["distance"]) < float(r["demi_largeur"]) + 0.35
 			var sol: float = DetailsSol.hauteur_maillage(m, q.x, q.y)
-			var hauteurs := [0.3, 1.0, 1.8, 2.6, 3.4]
+			# sur une marche du terrain (murs de terrasse de la haute rue), la palissade suit le pied le plus BAS des pieux
+			# voisins : les hauteurs hautes se comptent depuis lui (un pieu plus haut d'un cran ne couvre pas 3,4 m au-dessus du bas)
+			var bas := sol
+			for p: Vector3 in pieux:
+				if absf(p.x - q.x) < 0.5 and absf(p.z - q.y) < 0.5 and Vector2(p.x - q.x, p.z - q.y).length() < 0.45:
+					bas = minf(bas, p.y)
+			var hauteurs := [0.3, 1.0, 1.8, 2.6 + bas - sol, 3.4 + bas - sol]
 			if grille:
 				var eau: float = r["eau"]
 				hauteurs = [eau - sol + 0.3, eau - sol + 1.0, 2.2, 3.0]
 			for hy in hauteurs:
 				var o := Vector3(q.x - dd.x, sol + hy, q.y - dd.y)
 				var f := Vector3(q.x + dd.x, sol + hy, q.y + dd.y)
+				n_r += 1
+				if grille:
+					# grille d'eau : l'eau passe entre les pieux fins (jour de 0,12 m) → on lance une sphère de 0,25 m
+					# (le joueur est une capsule de 0,4 m de rayon) au lieu d'un rayon
+					var sp := SphereShape3D.new()
+					sp.radius = 0.25
+					var qs := PhysicsShapeQueryParameters3D.new()
+					qs.shape = sp
+					qs.transform = Transform3D(Basis(), o)
+					qs.motion = f - o
+					qs.collide_with_areas = false
+					var fr := esp.cast_motion(qs)
+					if fr[0] < 1.0:
+						n_tou += 1
+					elif rates.size() < 6:
+						rates.append("(%.1f;%.1f) h %.1f grille" % [q.x, q.y, hy])
+					continue
 				var qq := PhysicsRayQueryParameters3D.create(o, f)
 				qq.collide_with_areas = false
 				var h := esp.intersect_ray(qq)
-				n_r += 1
 				if not h.is_empty() and h["collider"] == v.corps:
 					n_tou += 1
 				elif rates.size() < 6:
