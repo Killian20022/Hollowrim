@@ -153,8 +153,72 @@ float s2_terre(vec2 p) {
 	return max(w.y, 0.62 * w.x) + (s2_fbm(p * 5.0 + 11.0) - 0.5) * 0.9 + (bruit_sol(p * 19.0) - 0.5) * 0.2;
 }
 
+// C1 : roche (dalles en strates, joints sombres, neige dans les replats), mousse (coussins, poches de neige), glace (lisse, reflets en bandes)
+void s2_roche(vec2 p, out int ton, out int rampe, out int niv, out vec2 pente) {
+	float f1;
+	float f2;
+	vec2 cid;
+	vec2 ctr;
+	float S = 0.85;
+	s2_vor(p, S, f1, f2, cid, ctr);
+	vec2 vv = (p - ctr) / (S * 0.55);
+	float l = dot(vv, vec2(-0.7071, -0.7071));
+	rampe = 2;
+	niv = 4;
+	ton = 1 + int(hash_sol(cid + 3.3) * 2.6);
+	if (l > 0.35) ton += 1;
+	else if (l < -0.5) ton -= 1;
+	if (bruit_sol(vec2(p.x * 1.6, p.y * 9.0) + 17.0) > 0.80) ton -= 1;          // strates
+	if (hash_sol(floor(p * 24.0) + 77.0) > 0.94) ton += 1;                       // grain, lichens
+	bool joint = (f2 - f1) < 0.07;
+	if (joint) ton = 0;
+	float n = s2_fbm(p * 2.2 + 5.0);
+	if (n > (joint ? 0.52 : 0.64) && l > -0.35) {                                // neige dans les replats et les joints
+		rampe = 0;
+		ton = joint ? 2 : (n > 0.74 ? 4 : 3);
+		niv = 3;
+	}
+	ton = clamp(ton, 0, 5);
+	pente = vv * clamp(f1 / 0.6, 0.0, 1.0);
+}
+
+void s2_mousse(vec2 p, out int ton, out int rampe, out int niv, out vec2 pente) {
+	pente = vec2(0.0);
+	rampe = 4;
+	niv = 1;
+	float m = s2_fbm(p * 4.0 + 2.0);
+	ton = 1 + int(m * 3.0);
+	if (hash_sol(floor(p * 24.0) + 12.0) < 0.12) ton += 1;
+	if (s2_fbm(p * 5.0 + 40.0) > 0.64) {
+		rampe = 0;
+		ton = bruit_sol(p * 14.0) > 0.6 ? 4 : 3;
+		niv = 3;
+	}
+	ton = clamp(ton, 0, 5);
+}
+
+void s2_glace(vec2 p, out int ton, out int rampe, out int niv, out vec2 pente) {
+	pente = vec2(0.0);
+	rampe = 1;
+	niv = 3;
+	ton = 2;
+	if (bruit_sol(vec2(p.x * 0.9, p.y * 7.0) + 3.0) > 0.72) ton = 3;            // reflets en bandes
+	float f1;
+	float f2;
+	vec2 cid;
+	vec2 ctr;
+	s2_vor(p, 1.4, f1, f2, cid, ctr);
+	if ((f2 - f1) < 0.03) ton = 1;                                              // fissures fines
+}
+
 // matière du sol au centre de texel `p` : ton + rampe (SolTuiles), niveau (pour les lèvres/ombres), pente de pierre
 void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out vec2 pente) {
+	// matière dominante (carte 0,25 m, bords ondulés par un bruit de 0,4 m : pas de marches)
+	vec2 pw = p + 0.4 * vec2(s2_fbm(p * 1.7 + 3.0) - 0.5, s2_fbm(p * 1.7 + 23.0) - 0.5);
+	int mm = int(texelFetch(carte_sol, ivec2(clamp(floor((pw - carte_rect.xy) * carte_rect.z * float(textureSize(carte_sol, 0).x)), vec2(0.0), vec2(float(textureSize(carte_sol, 0).x) - 1.0))), 0).r * 255.0 + 0.5) >> 4;
+	if (mm == 5) { s2_roche(p, ton, rampe, niv, pente); return; }
+	if (mm == 4) { s2_mousse(p, ton, rampe, niv, pente); return; }
+	if (mm == 6) { s2_glace(p, ton, rampe, niv, pente); return; }
 	vec4 w = s2_poids(p);
 	pente = vec2(0.0);
 	float derive = s2_fbm(p * 0.8);
@@ -277,10 +341,6 @@ void fragment() {
 		vec2 dr = min(pos_monde - sol2_rect.xy, sol2_rect.zw - pos_monde);
 		float wz = smoothstep(0.0, sol2_fondu, min(dr.x, dr.y)) * (1.0 - smoothstep(0.085, 0.115, pxm));
 		v2 = wz > hash_sol(floor(pos_monde * 24.0) + 3.1);
-		if (v2) {
-			int mm = int(texelFetch(carte_sol, ivec2(floor((pos_monde - carte_rect.xy) * carte_rect.z * float(textureSize(carte_sol, 0).x))), 0).r * 255.0 + 0.5) >> 4;
-			if (mm == 4 || mm == 5 || mm == 6) v2 = false;   // mousse, roche, glace : ancien rendu
-		}
 	}
 	if (v2) {
 		float lv = clamp(log2(max(pxm, 0.0001) * 1.6 * 48.0), 0.0, 3.0);

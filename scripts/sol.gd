@@ -329,7 +329,9 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 			var z := ORIGINE + (j + 0.5) * TEXEL
 			var s := lerpf(_alea(i, j, 4), 0.5 + 0.9 * bruit_fin.get_noise_2d(x - 40.0, z), GRAIN)
 			# glace : seuil lisse (aucun bruit blanc) → quelques grandes plaques, seulement dans les creux
-			if creux[k] > GLACE_CREUX - 0.06 * bruit_croute.get_noise_2d(x * 1.5, z * 1.5) and absf(nz[k]) < 0.15 and dchemin[k] > 4.0:
+			# C1 : hors zone témoin, la glace est rare (seulement les vraies cuvettes)
+			var seuil_glace := GLACE_CREUX if ZoneBiome.masque(x, z) > 0.0 else GLACE_CREUX * 2.2
+			if creux[k] > seuil_glace - 0.06 * bruit_croute.get_noise_2d(x * 1.5, z * 1.5) and absf(nz[k]) < 0.15 and dchemin[k] > 4.0:
 				mat[k] = GLACE
 				continue
 			if s >= MOUSSE_PART:

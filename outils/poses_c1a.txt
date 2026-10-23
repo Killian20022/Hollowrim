@@ -1,0 +1,17 @@
+# C1a : sol v2 partout (ouest / nord). AVANT = sol_avant=1 (rendu d'avant, hors zone témoin) ; APRES = rendu courant
+O1_avant monde -62,-8,300,-12 heure=12 sol_avant=1
+O1_apres monde -62,-8,300,-12 heure=12
+O2_avant monde -80,25,250,-10 heure=12 sol_avant=1
+O2_apres monde -80,25,250,-10 heure=12
+O3_avant monde -45,45,200,-12 heure=12 sol_avant=1
+O3_apres monde -45,45,200,-12 heure=12
+N1_avant monde -20,-75,10,-12 heure=12 sol_avant=1
+N1_apres monde -20,-75,10,-12 heure=12
+N2_avant monde -60,-85,330,-10 heure=12 sol_avant=1
+N2_apres monde -60,-85,330,-10 heure=12
+N3_avant monde 25,-60,30,-12 heure=12 sol_avant=1
+N3_apres monde 25,-60,30,-12 heure=12
+O1c_avant monde -62,-8,300,-12 heure=17 sol_avant=1
+O1c_apres monde -62,-8,300,-12 heure=17
+N1c_avant monde -20,-75,10,-12 heure=17 sol_avant=1
+N1c_apres monde -20,-75,10,-12 heure=17
