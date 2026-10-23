@@ -86,18 +86,20 @@ Coût mesuré (`outils/mesure_ressorts.gd`, 12 volvas qui marchent, 4 chaînes c
 - **Méso (2-8 m)** : cage thoracique à 6 pans (fentes intercostales peintes, sternum saillant), bassin en 3 blocs (sacrum + 2 ailes iliaques), crâne facetté avec orbites et narine en pyramides creuses réelles, mâchoire séparée, nasal du casque ; chaque os long = prisme à 4 pans évasé aux deux bouts (condyles) qui recouvre l'articulation voisine (aucun trou au pliage).
 - **Micro (< 2 m)** : atlas 256² à DENSITE_PERSO = 32 texels/m, un îlot par face ; os ivoire -> brun (taches, dessous des os plus sombres, poussière vers le bas), arêtes éclaircies d'un texel sur les grandes faces, fer rouillé par plaques, bouclier peint écaillé (secteurs rouges), dents du maxillaire, lueur froide dans les orbites (matériau non éclairé très sombre bleuté, surface 1).
 
-### Budget
-- Triangles (tout compris) : **552** corps + casque + bouclier ; +38 épée = **590** ; +44 arc = **596** (cible 450-600). Détail : crâne 32, face 50, mâchoire 20, casque 42, cage 44, bassin 36, os longs 8 (28 ou 20 chacun), mains 24, pieds 24, clavicules 24, cou 12, lombes 12, bouclier 38.
-- Os : 25 = RIG18 (root + 18 déformants) + `spine_02` + 4 feuilles sans poids (`ball_l/r`, `middle_01_l/r`, exigées par `scripts/ragdoll.gd`). Plafond 26 respecté ; aucun os secondaire à ressort (pas d'étoffe sur un squelette).
-- Skinning rigide : 1 os, poids 1,0 par sommet (pièces rigides, adapté au vertex snapping). Bouclier -> `lowerarm_l`, arme -> `hand_r` (repère de la prise de l'épée du joueur, `draugr.gd: prise`).
-- Texture : 1 atlas 256x256 (~16 % utilisé à 32 texels/m : marge pour 64 texels/m), palette 15 bits, rampes de 8 tons, tramage par bruit de valeur (jamais Bayer). Matériau : `ps1.gdshader` via `Humain.shader_perso` (mipmaps plus proche voisin). 2 surfaces : 0 = atlas, 1 = orbites.
-- Mémoire/perf : 1 matériau partagé par tous les squelettes (cache statique), 1 draw call par surface.
+### Refonte D/squelettes (2026-10-23) : au niveau du draugr
+Remplace le modèle low-poly ci-dessus (macro/méso/micro gardés comme intention ; l'ancien a été supprimé).
+- Modèle : crâne en 13 sections (plan facial, orbites et nez creusés, coupe d'orbite à alpha 0 = lueur du shader draugr), mâchoire entrouverte, vertèbres une à une, 10 paires de côtes + sternum, clavicules, omoplates, bassin (sacrum, ailes iliaques, trou obturateur), os longs épaissis ×1,3 pour la lecture à 8 m, mains en poing, pieds à 5 rayons.
+- Équipement : lambeaux (ceinture, pagne troué, reste de cape, brassard), casque spangenhelm rouillé de travers, capuche en lambeaux, bouclier de planches ébréché (secteurs arrachés, bord de fer, umbo), épée ébréchée, hache barbue, arc, carquois + baudrier.
+- Variantes (`SqueletteGuerrier.PIECES`) : `epee` guerrier (casque, bouclier, épée) ≈6 570 tris ; `arc` archer (capuche, carquois, arc) ≈6 060 ; `hache` sbire (crâne nu) ≈5 700. Budget de `test_squelette` : 4 000-7 500. Variante tirée par `EnnemisNordiques.arme_squelette` (archer -> arc, sinon 34 % hache selon l'identifiant ; option `variante` pour forcer).
+- Texture : atlas 512² (≈160 texels/m) bake Cycles (AO, cavité, classes) puis peinture numpy (rampes quantifiées, bruit de valeur, palette 15 bits, jamais Bayer) ; mipmaps pixel art précalculées dans `squelette_nordique.res` (méta `version` = `SqueletteGuerrier.VERSION`).
+- Matériaux : ceux du draugr (`DraugrNordique.materiau`, shader ps1_draugr + contour) ; os saturation 0,6 (pas d'ivoire saumon sous la torche) ; étoffes double face découpées. Même rig que les humains (25 os) : animations `Humain.bibliotheque()` et Ragdoll inchangés.
+- Jeu : 3 gabarits préconstruits (`EnnemisNordiques.prechauffer` -> `SqueletteGuerrier.prechauffer`), chaque squelette = `duplicate` ; aucune construction pendant le jeu.
+- Perf (crypte, 6 ennemis visibles, même caméra, `outils/mesure_squelettes.gd`) : 6 squelettes +0,51 ms GPU (draugrs +0,66 ; ancien squelette +0,15) ; création 1,9 ms/squelette (draugr 4,3).
 
 ### Fichiers
-- `sources_blender/scripts/squelette_guerrier.py` : génère squelette (depuis `homme_vetu_lot1.glb`, mêmes os et pose de repos -> animations et ragdoll inchangés), maillages, UV, atlas, export. Rejouable : `outils/blender.sh` (puis `godot --headless --import`, puis `outils/generer_squelette.gd`).
-- `assets/modeles/squelettes/squelette_guerrier.glb` (maillages `squelette`, `epee`, `arc`), `sources_blender/squelette_guerrier_atlas.png`, `assets/personnages/squelette_guerrier.res` (précalcul, repli sur le PNG).
-- `scripts/squelette_guerrier.gd` (`SqueletteGuerrier.creer({"arme": "epee"|"arc"})`), `scripts/draugr.gd` (types `squelette`, `squelette_archer`).
-- Outils : `galerie_squelette.gd` (fixe / anim 8 images / jour-nuit), `galerie_trous.gd` (personas `squelette_epee|arc`), `test_squelette.gd`, `test_squelette_traversees.gd`, `analyse_prise.gd`.
+- `sources_blender/scripts/squelette_nordique.py` (options `--apercu=`, `--sans-bake`) -> `assets/modeles/squelettes/squelette_nordique.glb` + `sources_blender/squelette_nordique_atlas.png`. Rejouable : `outils/blender.sh`, puis `godot --headless --import`, puis `outils/generer_squelette.gd`.
+- `scripts/squelette_guerrier.gd` (`creer`, `modele(arme)`, `prechauffer`, `arc()` partagé avec les archers humains/draugrs), `scripts/draugr.gd`, `scripts/ennemis_nordiques.gd`.
+- Outils : `planche_squelettes.gd` (planche crypte à la torche, ennemis figés), `mesure_squelettes.gd`, `test_squelette.gd`, `test_squelette_traversees.gd`.
 
 ### Comportement
 70 PV, marche 1,05 m/s (draugr 0,85), course 4,3 m/s (3,4), 14 dégâts ; coups puissants x1,3 (os secs, « contondant » simplifié : le jeu n'a pas d'arme contondante) ; bouclier : mêmes parades que le guerrier ; frappe uniquement `Sword_Attack` (le coup de poing ferait traverser la tête par la lame) ; mort = ragdoll existant (tas d'os < 0,35 m, étalement < 1 m), sons d'os (`impactWood_heavy`, `chop`), butin d'os de draugr. L'archer est une variante VISUELLE : aucun système de tir n'existe, il frappe à l'arc.
@@ -106,7 +108,6 @@ Coût mesuré (`outils/mesure_ressorts.gd`, 12 volvas qui marchent, 4 chaînes c
 1. Dans une zone : `gardien("zone", "squelette"` ou `"squelette_archer", pos, lacet, dort, debout, "cr_zone_xxx")` ; passer un identifiant fixe (dernier argument) pour ne pas décaler les identifiants numérotés déjà sauvegardés.
 2. Hors crypte : `monde.creer_draugr("squelette", pos, lacet, dort)`.
 3. Changer le modèle : modifier le script Blender, `outils/blender.sh`, import Godot, `outils/generer_squelette.gd` (incrémenter `SqueletteGuerrier.VERSION`), `test_squelette.gd` + `test_squelette_traversees.gd`.
-4. Changer la densité : `DENSITE_PERSO` dans le script Blender ET dans `squelette_guerrier.gd` (la valeur est cuite dans les UV).
 
 ### Vérifications
 Voir le journal dans `docs/MISSION_GRAPHISME.md` (lot « squelette guerrier »).
