@@ -229,8 +229,8 @@ func _ajouter(parent: Node3D, arrays: Array, xf: Transform3D, mat: Material, ao_
 	if sombre:
 		mat = m_poutres_h
 	var xf_lot := xf
-	if parent.has_meta("fusion"):
-		# pivot d'un groupe fusionné : la pièce est exprimée dans le repère du groupe (l'occlusion au pied reste au pivot)
+	if parent.has_meta("fusion") and mat != m_brute:
+		# pivot d'un groupe fusionné (sauf les moellons chanfreinés, gardés par bâtiment : voir _finaliser) : la pièce est exprimée dans le repère du groupe (l'occlusion au pied reste au pivot)
 		var g: Node3D = parent.get_meta("fusion")
 		xf_lot = g.transform.affine_inverse() * parent.transform * xf
 		parent = g
@@ -292,6 +292,15 @@ func _finaliser() -> void:
 		mi.material_override = lot["mat"]
 		if (lot["parent"] as Node3D).get_parent() is Interieur or lot["parent"] == _vitres:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF   # l'intérieur ne projette rien (coût de l'ombre du soleil)
+		elif (lot["parent"] as Node3D).has_meta("fusion"):
+			# bâti v2 (C7b) : moellons chanfreinés d'UN bâtiment (la moitié des triangles du bâti) : sans ombre propre (posés
+			# sur des murs pleins qui la projettent), masqués au-delà de 70 m (les murs restent : brume, silhouette inchangée)
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.visibility_range_end = 70.0
+		elif (lot["parent"] as Node3D).has_meta("groupe_v2") and lot["mat"] in [m_glace, m_fer]:
+			# bâti v2 (C7b) : glaçons et ferrures plaqués sur des murs pleins
+			# qui projettent déjà l'ombre → pas d'ombre propre (perf : passes d'ombre du soleil)
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		(lot["parent"] as Node3D).add_child(mi)
 	_lots.clear()
 	_arrays_cache.clear()
@@ -500,6 +509,7 @@ func pivot_monde(x: float, z: float, lacet: float, y := NAN, fusion: Node3D = nu
 func groupe_fusion(nom: String) -> Node3D:
 	var g := Node3D.new()
 	g.name = nom
+	g.set_meta("groupe_v2", true)
 	add_child(g)
 	return g
 
