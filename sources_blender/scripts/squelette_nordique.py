@@ -332,7 +332,7 @@ for k in range(10):
             pts.append(V(x, y, z))
         pts[0] = V(sg * 0.014, c0.y + 0.006, z0 + 0.004)
         h = [0.006, 0.008, 0.009, 0.0095, 0.0095, 0.0085]
-        tube(S, pts, [(hh, 0.0042) for hh in h], 4, bone, "os", up=(0, 0, 1))
+        tube(S, pts, [(hh * 1.15, 0.0050) for hh in h], 4, bone, "os", up=(0, 0, 1))
 # sternum (manubrium + corps + xiphoïde)
 st = [V(0, -0.098, 1.478), V(0, -0.108, 1.430), V(0, -0.114, 1.360), V(0, -0.112, 1.300), V(0, -0.104, 1.272)]
 tube(S, st, [(0.0055, 0.024), (0.005, 0.018), (0.005, 0.016), (0.005, 0.013), (0.004, 0.005)], 4, "spine_03", "os", up=(0, 1, 0))
@@ -384,56 +384,68 @@ for sg in (1, -1):
 
 print('TRI bassin', len(S.f))
 # ---------------------------------------------------------------- membres
+# os des membres épaissis (EP) : lisibles à 8 m en 480x270 (un vrai fémur de 2,5 cm y fait moins d'un pixel)
+EP = 1.30
+def _ep(prof):
+    if isinstance(prof, list):
+        return [_ep(x) for x in prof]
+    if isinstance(prof, tuple):
+        return tuple(x * EP for x in prof)
+    return prof * EP
+def tubeE(o, path, prof, *a, **k):
+    return tube(o, path, _ep(prof), *a, **k)
+def ellipsoidE(o, c, r, *a, **k):
+    return ellipsoid(o, c, tuple(x * 1.15 for x in r), *a, **k)
 def os_long(path, rayons, bone, sides=6, up=(0, 1, 0)):
-    tube(S, path, rayons, sides, bone, "os", up=up)
+    tubeE(S, path, rayons, sides, bone, "os", up=up)
 
 for sg, c in ((1, "l"), (-1, "r")):
     th = "thigh_" + c; ca = "calf_" + c; ft = "foot_" + c
     # fémur : tête, col, grand trochanter, diaphyse arquée, condyles, rotule
-    ellipsoid(S, V(sg * 0.100, 0.036, 0.972), (0.022, 0.022, 0.022), 6, 4, th, "os")
+    ellipsoidE(S, V(sg * 0.100, 0.036, 0.972), (0.022, 0.022, 0.022), 6, 4, th, "os")
     os_long([V(sg * 0.104, 0.036, 0.968), V(sg * 0.140, 0.036, 0.940)], [0.012, 0.015], th, 6, up=(0, 1, 0))
-    ellipsoid(S, V(sg * 0.150, 0.046, 0.952), (0.014, 0.016, 0.022), 5, 3, th, "os")
+    ellipsoidE(S, V(sg * 0.150, 0.046, 0.952), (0.014, 0.016, 0.022), 5, 3, th, "os")
     fe = bez([V(sg * 0.142, 0.034, 0.935), V(sg * 0.134, 0.026, 0.800), V(sg * 0.124, 0.024, 0.680), V(sg * 0.116, 0.034, 0.590)], 6)
     os_long(fe, [0.019, 0.015, 0.014, 0.0145, 0.017, 0.021], th, 6)
-    ellipsoid(S, V(sg * 0.1143, 0.044, 0.560), (0.034, 0.028, 0.020), 6, 4, th, "os")
-    ellipsoid(S, V(sg * 0.1143, 0.010, 0.556), (0.017, 0.008, 0.021), 5, 3, th, "os")
+    ellipsoidE(S, V(sg * 0.1143, 0.044, 0.560), (0.034, 0.028, 0.020), 6, 4, th, "os")
+    ellipsoidE(S, V(sg * 0.1143, 0.010, 0.556), (0.017, 0.008, 0.021), 5, 3, th, "os")
     # tibia (plateau, diaphyse triangulaire, malléole), péroné
-    ellipsoid(S, V(sg * 0.1143, 0.040, 0.528), (0.034, 0.028, 0.013), 6, 3, ca, "os")
+    ellipsoidE(S, V(sg * 0.1143, 0.040, 0.528), (0.034, 0.028, 0.013), 6, 3, ca, "os")
     tri = [(math.cos(a), math.sin(a) * (0.75 if i % 2 else 1.0)) for i, a in enumerate([2 * math.pi * (k + 0.5) / 6 for k in range(6)])]
     ti = bez([V(sg * 0.1143, 0.040, 0.520), V(sg * 0.112, 0.048, 0.400), V(sg * 0.110, 0.064, 0.250), V(sg * 0.110, 0.082, 0.105)], 6)
-    tube(S, ti, [0.020, 0.0155, 0.0135, 0.013, 0.014, 0.018], 6, ca, "os", up=(0, -1, 0), shape=tri)
-    ellipsoid(S, V(sg * 0.098, 0.086, 0.094), (0.008, 0.012, 0.016), 5, 3, ca, "os")
+    tubeE(S, ti, [0.020, 0.0155, 0.0135, 0.013, 0.014, 0.018], 6, ca, "os", up=(0, -1, 0), shape=tri)
+    ellipsoidE(S, V(sg * 0.098, 0.086, 0.094), (0.008, 0.012, 0.016), 5, 3, ca, "os")
     pe = [V(sg * 0.140, 0.052, 0.505), V(sg * 0.142, 0.060, 0.350), V(sg * 0.138, 0.080, 0.180), V(sg * 0.134, 0.090, 0.088)]
-    tube(S, pe, [0.0085, 0.006, 0.0055, 0.0095], 4, ca, "os", up=(0, 1, 0))
+    tubeE(S, pe, [0.0085, 0.006, 0.0055, 0.0095], 4, ca, "os", up=(0, 1, 0))
     # pied : talus, calcanéum, tarse, 5 rayons (métatarse + orteils)
-    ellipsoid(S, V(sg * 0.1143, 0.082, 0.064), (0.020, 0.026, 0.014), 6, 4, ft, "os")
-    tube(S, [V(sg * 0.1143, 0.135, 0.030), V(sg * 0.1143, 0.100, 0.035), V(sg * 0.1143, 0.070, 0.042)], [0.016, 0.019, 0.016], 6, ft, "os", up=(0, 0, 1))
-    ellipsoid(S, V(sg * 0.118, 0.025, 0.045), (0.032, 0.032, 0.015), 6, 4, ft, "os")
+    ellipsoidE(S, V(sg * 0.1143, 0.082, 0.064), (0.020, 0.026, 0.014), 6, 4, ft, "os")
+    tubeE(S, [V(sg * 0.1143, 0.135, 0.030), V(sg * 0.1143, 0.100, 0.035), V(sg * 0.1143, 0.070, 0.042)], [0.016, 0.019, 0.016], 6, ft, "os", up=(0, 0, 1))
+    ellipsoidE(S, V(sg * 0.118, 0.025, 0.045), (0.032, 0.032, 0.015), 6, 4, ft, "os")
     for i in range(5):
         x = sg * (0.092 + i * 0.0135)
         L = [0.0, 0.006, 0.010, 0.016, 0.024][i]
         mt = [V(x * 0.98 + sg * 0.004, 0.005, 0.042), V(x, -0.050 + L * 0.7, 0.020), V(x, -0.098 + L * 1.4, 0.010)]
-        tube(S, mt, [0.0075 if i == 0 else 0.0052, 0.0068 if i == 0 else 0.0048, 0.0045 if i == 0 else 0.0032], 4, ft, "os", up=(0, 0, 1))
+        tubeE(S, mt, [0.0075 if i == 0 else 0.0052, 0.0068 if i == 0 else 0.0048, 0.0045 if i == 0 else 0.0032], 4, ft, "os", up=(0, 0, 1))
     # humérus
     ua = "upperarm_" + c; la = "lowerarm_" + c; ha = "hand_" + c
-    ellipsoid(S, V(sg * 0.214, 0.068, 1.458), (0.022, 0.024, 0.024), 6, 4, ua, "os")
+    ellipsoidE(S, V(sg * 0.214, 0.068, 1.458), (0.022, 0.024, 0.024), 6, 4, ua, "os")
     hu = bez([V(sg * 0.228, 0.068, 1.456), V(sg * 0.300, 0.068, 1.457), V(sg * 0.380, 0.070, 1.456), V(sg * 0.440, 0.073, 1.455)], 6)
     os_long(hu, [0.018, 0.014, 0.012, 0.012, 0.014, 0.017], ua, 6, up=(0, 0, 1))
-    ellipsoid(S, V(sg * 0.452, 0.073, 1.4555), (0.014, 0.028, 0.015), 6, 4, ua, "os")
+    ellipsoidE(S, V(sg * 0.452, 0.073, 1.4555), (0.014, 0.028, 0.015), 6, 4, ua, "os")
     # cubitus (olécrane en arrière) et radius
     ul = [V(sg * 0.448, 0.092, 1.458), V(sg * 0.475, 0.086, 1.456), V(sg * 0.590, 0.080, 1.452), V(sg * 0.700, 0.076, 1.447)]
-    tube(S, ul, [0.012, 0.0105, 0.0075, 0.0085], 5, la, "os", up=(0, 0, 1))
+    tubeE(S, ul, [0.012, 0.0105, 0.0075, 0.0085], 5, la, "os", up=(0, 0, 1))
     ra = [V(sg * 0.468, 0.058, 1.460), V(sg * 0.580, 0.054, 1.458), V(sg * 0.690, 0.052, 1.455), V(sg * 0.705, 0.052, 1.455)]
-    tube(S, ra, [0.0085, 0.0075, 0.0120, 0.0125], 5, la, "os", up=(0, 0, 1))
+    tubeE(S, ra, [0.0085, 0.0075, 0.0120, 0.0125], 5, la, "os", up=(0, 0, 1))
     # main en poing (autour de la poignée de l'arme / de la sangle du bouclier) : carpe + 4 doigts + pouce
-    ellipsoid(S, V(sg * 0.726, 0.064, 1.453), (0.017, 0.028, 0.010), 6, 4, ha, "os")
+    ellipsoidE(S, V(sg * 0.726, 0.064, 1.453), (0.017, 0.028, 0.010), 6, 4, ha, "os")
     for i in range(4):
         y = 0.040 + i * 0.0165
         r = [0.0058, 0.0054, 0.0048, 0.0038]
         dg = [V(sg * 0.738, y + 0.002, 1.456), V(sg * 0.815, y, 1.468), V(sg * 0.870, y, 1.458), V(sg * 0.856, y, 1.426)]
-        tube(S, dg, r, 4, ha, "os", up=(0, 1, 0))
+        tube(S, dg, [x * 1.1 for x in r], 4, ha, "os", up=(0, 1, 0))
     po = [V(sg * 0.735, 0.034, 1.448), V(sg * 0.770, 0.020, 1.432), V(sg * 0.810, 0.022, 1.424), V(sg * 0.838, 0.030, 1.426)]
-    tube(S, po, [0.0065, 0.0058, 0.005, 0.0042], 4, ha, "os", up=(0, 0, 1))
+    tube(S, po, [0.0070, 0.0062, 0.0054, 0.0045], 4, ha, "os", up=(0, 0, 1))
 
 print('TRI membres', len(S.f))
 # ============================================================================ 4. équipement
@@ -865,9 +877,9 @@ if not SANS_BAKE:
         return cov & (cls == CID[nom])
     # --- os : ivoire patiné, taches brunes, crasse dans les creux, poussière vers le bas, fêlures
     k = m("os")
-    ton = 0.50 + eclair + (L - 0.80) * 1.05 + (n1 - 0.5) * 0.30 + (n2 - 0.5) * 0.18 + arete * 0.22 - creux * 0.22
+    ton = 0.45 + eclair + (L - 0.80) * 1.05 + (n1 - 0.5) * 0.30 + (n2 - 0.5) * 0.18 + arete * 0.22 - creux * 0.22
     ton -= 0.16 * np.clip((0.55 - Pp[..., 2]) / 0.5, 0, 1)             # bas des jambes plus sales
-    tache = (fbm(Pp, 1.0 / 0.05, 7) + 0.25 * (n3 - 0.5)) > 0.60
+    tache = (fbm(Pp, 1.0 / 0.03, 7) + 0.20 * (n3 - 0.5)) > 0.66
     crasse = ((L < 0.55) | (creux > 0.6)) & (n2 > 0.40)
     fel = (np.abs(fbm(Pp, 1.0 / 0.035, 9) - 0.5) < 0.012) & (arete < 0.5)
     c = quant("ivoire", np.clip(ton, 0, 1), jit)

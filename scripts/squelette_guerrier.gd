@@ -17,7 +17,7 @@ const GLB := preload("res://assets/modeles/squelettes/squelette_nordique.glb")
 const DOSSIER := "res://assets/personnages"
 const RES := "res://assets/personnages/squelette_nordique.res"
 const PNG := "res://sources_blender/squelette_nordique_atlas.png"
-const VERSION := 2
+const VERSION := 3
 ## Maillages visibles par variante (les autres sont cachés : ils ne coûtent rien au rendu)
 const PIECES := {
 	"epee": ["squelette", "lambeaux", "casque", "bouclier", "epee"],
@@ -26,6 +26,7 @@ const PIECES := {
 }
 ## Étoffes : double face, texels découpés (trous)
 const ETOFFES := ["lambeaux", "capuche"]
+const SATURATION_OS := 0.6
 
 static var _tex: ImageTexture
 static var _mat_os: ShaderMaterial
@@ -51,6 +52,8 @@ static func materiaux() -> void:
 	_tex = ImageTexture.create_from_image(image())
 	_mat_os = DraugrNordique.materiau(_tex, false, false, true, "squelette_os")
 	_mat_etoffe = DraugrNordique.materiau(_tex, true, true, true, "squelette_etoffe")
+	# os : saturation réduite (sous la torche orangée, l'ivoire ne vire pas au saumon) ; même réglage que la chair du draugr, moins fort
+	_mat_os.set_shader_parameter("saturation", SATURATION_OS)
 
 ## Construction complète (instance du glb + matériaux + animations). Préférer modele() en jeu.
 static func creer(options := {}) -> Node3D:

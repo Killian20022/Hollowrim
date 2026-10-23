@@ -4,7 +4,7 @@ extends SceneTree
 ##   godot --path . --script res://outils/planche_squelettes.gd -- --nouvelle --paisible --sortie=C:/.../dossier
 ##     [--types=guerrier,squelette,squelette_archer,squelette:hache] [--anim=Sword_Idle:0.3] [--mesure]
 ## Écrit <sortie>/<vue>.png (480x270 agrandi x2) et planche.png (grille des vues). --mesure : coût de rendu (gpu/cpu ms, appels) avec et sans les ennemis.
-const ORIGINE := Vector3(0.0, 0.0, -29.0)   # repère crypte : salle des piliers, rang des ennemis
+const ORIGINE := Vector3(0.0, 0.0, -26.5)   # devant le puits de lumière central   # repère crypte : salle des piliers, rang des ennemis
 var m: Node3D
 var vues := []
 
@@ -55,7 +55,17 @@ func _lancer() -> void:
 		d.anim.play(an[0])
 		d.anim.seek(d.anim.current_animation_length * float(an[1]), true)
 		d.anim.pause()
+		# figé : ni IA (il se réveillerait quand la caméra s'approche) ni avance de l'animation (SalleActive peut remettre process_mode)
+		d.set_physics_process(false)
+		d.set_process(false)
+		d.anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	var j = m.joueur
+	# torche : visuels (flamme, halo) cachés et lumière figée ; la LUMIÈRE reste (mains figées après 30 images)
+	j.mains.process_mode = Node.PROCESS_MODE_DISABLED
+	for f in j.mains.flammes:
+		f.visible = false
+	for n: Node3D in j.mains._visuels_torche:
+		n.visible = false
 	var sortie := _arg("sortie", ProjectSettings.globalize_path("res://captures/planche_squelettes"))
 	DirAccess.make_dir_recursive_absolute(sortie)
 	# vues : [nom, distance, décalage latéral, hauteur visée, lacet du rang (°)]
@@ -63,32 +73,41 @@ func _lancer() -> void:
 	if types.size() > 3:
 		liste[0][1] = 3.2
 		liste[1][1] = 3.2
+	# gros plans (1 m) des types demandés en --gros=i,j (rang dans --types)
+	for g in _arg("gros", "").split(",", false):
+		var gi := int(g)
+		liste.append(["gros_%d" % gi, 1.1, (gi - (types.size() - 1) * 0.5) * ecart, 1.4, 20.0, gi])
 	var images: Array[Image] = []
 	for v in liste:
-		for d: CharacterBody3D in ennemis:
-			d.rotation.y = c.global_rotation.y + deg_to_rad(v[4])
+		for k in ennemis.size():
+			var d: CharacterBody3D = ennemis[k]
+			d.modele.rotation.y = deg_to_rad(v[4])
+			d.visible = v.size() < 6 or k == v[5]     # gros plan : les voisins sont cachés
 		var cible: Vector3 = c.to_global(ORIGINE + Vector3(v[2], 0, 0))
-		var pos: Vector3 = c.to_global(ORIGINE + Vector3(v[2], 0.1, v[1]))
+		var lat := 1.3 if String(v[0]) == "loin_8m" else 0.0    # 8 m : de biais, le puits de lumière central ne masque pas le rang
+		var pos: Vector3 = c.to_global(ORIGINE + Vector3(v[2] + lat, 0.1, sqrt(v[1] * v[1] - lat * lat)))
 		j.global_position = pos
 		j.velocity = Vector3.ZERO
-		j.rotation.y = c.global_rotation.y
+		var vers := cible - pos
+		j.rotation.y = atan2(-vers.x, -vers.z)
 		var oeil := pos.y + 1.62
-		j.tete.rotation.x = atan2(cible.y + v[3] - oeil, v[1])
+		j.tete.rotation.x = atan2(cible.y + v[3] - oeil, Vector2(vers.x, vers.z).length())
 		await _attendre(120 if images.is_empty() else 25)
 		var img := root.get_viewport().get_texture().get_image()
 		img.resize(img.get_width() * 2, img.get_height() * 2, Image.INTERPOLATE_NEAREST)
 		img.save_png(sortie.path_join(String(v[0]) + ".png"))
 		images.append(img)
-		print("CAPTURE ", v[0])
+		print("CAPTURE ", v[0], " cam=", c.to_local(j.camera.global_position), " ennemis=", ennemis.map(func(e): return c.to_local(e.modele.global_position)), " anim=", ennemis.map(func(e): return [e.anim.current_animation, snappedf(e.anim.current_animation_position, 0.01), e.etat]))
 	if OS.get_cmdline_user_args().has("--mesure"):
 		await _mesurer("avec", ennemis.size())
 		for d: CharacterBody3D in ennemis:
 			d.visible = false
 		await _mesurer("sans", 0)
-	# planche 2 x 2
+	# planche 2 colonnes
 	var w := images[0].get_width()
 	var h := images[0].get_height()
-	var pl := Image.create(w * 2 + 8, h * 2 + 8, false, images[0].get_format())
+	var lignes := (images.size() + 1) / 2
+	var pl := Image.create(w * 2 + 8, h * lignes + 8 * (lignes - 1), false, images[0].get_format())
 	pl.fill(Color(0.1, 0.1, 0.1))
 	for k in images.size():
 		pl.blit_rect(images[k], Rect2i(0, 0, w, h), Vector2i((k % 2) * (w + 8), (k / 2) * (h + 8)))
