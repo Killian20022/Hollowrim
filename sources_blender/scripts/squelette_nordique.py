@@ -463,9 +463,9 @@ cein = [V(0.162 * math.sin(a), 0.004 - 0.100 * math.cos(a), 1.075 + 0.012 * math
 tube(L_, cein, (0.017, 0.005), 4, "pelvis", "cuir", up=(0, 0, 1), loop=True)
 boite(L_, V(0.03, -0.100, 1.075), 0.016, 0.004, 0.019, "pelvis", "fer")
 # pagne avant / arrière, bords en dents de scie, trous
-def jupe(x0, x1, ytop, ztop, zbas, ncol, nlig, arriere, graine):
+def jupe(x0, x1, ytop, ztop, zbas, ncol, nlig, arriere, graine, ampl=0.09, p_trou=0.10):
     r = random.Random(graine)
-    dents = [r.uniform(0.0, 0.09) for _ in range(ncol + 1)]
+    dents = [r.uniform(0.0, ampl) * (1.0 if c % 2 else 0.35) for c in range(ncol + 1)]
     grille = []
     for l in range(nlig + 1):
         t = l / nlig
@@ -478,9 +478,9 @@ def jupe(x0, x1, ytop, ztop, zbas, ncol, nlig, arriere, graine):
             y = ytop + (1 if arriere else -1) * (0.020 * t * t + pli + 0.008 * t)
             row.append(V(x, y, z))
         grille.append(row)
-    trous = lambda l, c: l > 0 and r.random() < 0.10
+    trous = lambda l, c: l > 0 and r.random() < p_trou
     nappe(L_, grille, poids_jupe, "tissu", trous)
-jupe(-0.085, 0.090, -0.100, 1.065, 0.770, 5, 4, False, 3)
+jupe(-0.060, 0.058, -0.100, 1.065, 0.885, 5, 3, False, 3, 0.10, 0.22)   # pagne avant : petit et déchiqueté (passe 2)
 jupe(0.105, -0.100, 0.106, 1.068, 0.700, 6, 4, True, 7)
 for sg in (1, -1):
     jupe(sg * 0.158, sg * 0.164, -0.030, 1.066, 0.850, 1, 3, False, 13 + sg)
@@ -748,7 +748,8 @@ def hexc(h):
 def rampe(*hs):
     return np.stack([hexc(h) for h in hs])
 RAMPES = {
-    "ivoire": rampe("#1b1713", "#2b251e", "#433a2f", "#5f5444", "#7d705b", "#998b71", "#b3a588", "#cbbf9f", "#ddd3b6"),
+    "ivoire": rampe("#15130f", "#1f1c17", "#2a2620", "#37322a", "#454036", "#554f43", "#666051", "#78715f", "#8b836e", "#9c947d"),
+    "osgris": rampe("#141413", "#1e1d1b", "#292825", "#363431", "#44423d", "#53504a", "#635f58", "#736f66"),
     "tache": rampe("#1c1712", "#2e261c", "#433727", "#5a4a34", "#6f5c41", "#84704f"),
     "crasse": rampe("#141310", "#1f1d18", "#2c2a22", "#3a372c"),
     "dent": rampe("#2a241b", "#5e5442", "#958667", "#bdb08c", "#d8cda9"),
@@ -877,12 +878,16 @@ if not SANS_BAKE:
         return cov & (cls == CID[nom])
     # --- os : ivoire patiné, taches brunes, crasse dans les creux, poussière vers le bas, fêlures
     k = m("os")
-    ton = 0.45 + eclair + (L - 0.80) * 1.05 + (n1 - 0.5) * 0.30 + (n2 - 0.5) * 0.18 + arete * 0.22 - creux * 0.22
-    ton -= 0.16 * np.clip((0.55 - Pp[..., 2]) / 0.5, 0, 1)             # bas des jambes plus sales
-    tache = (fbm(Pp, 1.0 / 0.03, 7) + 0.20 * (n3 - 0.5)) > 0.66
-    crasse = ((L < 0.55) | (creux > 0.6)) & (n2 > 0.40)
+    # passe 2 : plus sombre, creux (orbites, entre les côtes, articulations, bassin) cuits fort, bouts des os (arêtes, épiphyses) plus clairs
+    ton = 0.40 + eclair + (L - 0.80) * 1.55 + (n1 - 0.5) * 0.30 + (n2 - 0.5) * 0.16 + arete * 0.30 - creux * 0.34
+    ton -= 0.18 * np.clip((0.55 - Pp[..., 2]) / 0.5, 0, 1)             # bas des jambes plus sales
+    ton -= 0.12 * np.clip((0.78 - L) / 0.25, 0, 1)                     # ombre de contact
+    gris = fbm(Pp, 1.0 / 0.09, 21) > 0.52                              # patine grise (poussière, salpêtre) par plaques
+    tache = (fbm(Pp, 1.0 / 0.03, 7) + 0.20 * (n3 - 0.5)) > 0.60
+    crasse = ((L < 0.62) | (creux > 0.5)) & (n2 > 0.34)
     fel = (np.abs(fbm(Pp, 1.0 / 0.035, 9) - 0.5) < 0.012) & (arete < 0.5)
     c = quant("ivoire", np.clip(ton, 0, 1), jit)
+    c = np.where(gris[..., None], quant("osgris", np.clip(ton, 0, 1), jit), c)
     c = np.where(tache[..., None], quant("tache", np.clip(ton * 1.05, 0, 1), jit), c)
     c = np.where(crasse[..., None], quant("crasse", np.clip(ton * 1.4, 0, 1), jit), c)
     c = np.where(fel[..., None], RAMPES["tache"][1], c)
@@ -891,7 +896,7 @@ if not SANS_BAKE:
     k = m("dent")
     ang = np.arctan2(Pp[..., 0], -(Pp[..., 1] - 0.02))
     inter = (np.abs(((ang / 0.14) % 1.0) - 0.5) > 0.40) | (np.abs(Nn[..., 2]) > 0.75)
-    ton = 0.62 + (L - 0.85) * 1.2 + (n2 - 0.5) * 0.3
+    ton = 0.48 + (L - 0.85) * 1.3 + (n2 - 0.5) * 0.3
     c = quant("dent", np.clip(ton, 0, 1), jit)
     c = np.where(inter[..., None], RAMPES["crasse"][0], c)
     cass = (bruit(Pp, 1.0 / 0.008, 12) > 0.80)

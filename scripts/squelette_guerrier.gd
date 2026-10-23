@@ -17,7 +17,7 @@ const GLB := preload("res://assets/modeles/squelettes/squelette_nordique.glb")
 const DOSSIER := "res://assets/personnages"
 const RES := "res://assets/personnages/squelette_nordique.res"
 const PNG := "res://sources_blender/squelette_nordique_atlas.png"
-const VERSION := 3
+const VERSION := 4
 ## Maillages visibles par variante (les autres sont cachés : ils ne coûtent rien au rendu)
 const PIECES := {
 	"epee": ["squelette", "lambeaux", "casque", "bouclier", "epee"],
