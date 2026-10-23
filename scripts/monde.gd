@@ -854,6 +854,7 @@ func _sous_terre(dedans: bool) -> void:
 		_env.fog_density = 0.028
 		_env.fog_height_density = 0.0
 		_env.fog_sky_affect = 1.0
+		BrumePortee.appliquer(_env, 4.0, 1.0)   # crypte : brume pleine à la portée de dessin (30 m)
 	else:
 		cycle._process(0.0)
 

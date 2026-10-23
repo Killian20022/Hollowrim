@@ -370,6 +370,7 @@ func _ambiance() -> void:
 	env.ambient_light_energy = AMBIANTE_E
 	env.fog_light_color = BRUME_C
 	env.fog_density = BRUME_D
+	BrumePortee.appliquer(env, 8.0, 1.6)   # brume pleine à la portée de dessin (30 m) : la coupure ne se voit plus
 
 ## Mort du joueur sous terre : ennemis retirés (ceux tués dans le fichier le restent), coffres dont la bourse n'a pas été ramassée refermés.
 func reinitialiser(sauves: Array) -> void:

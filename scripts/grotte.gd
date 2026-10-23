@@ -1511,6 +1511,7 @@ func ambiance(env: Environment) -> void:
 	env.ambient_light_energy = 1.15
 	env.fog_light_color = Color(0.10, 0.17, 0.30)
 	env.fog_density = 0.014
+	BrumePortee.appliquer(env, 8.0, 1.6)
 
 ## Routes de test : pour chaque branche, des points du sol (monde) tous les 1 m (décalage latéral 0).
 func routes_test() -> Dictionary:
