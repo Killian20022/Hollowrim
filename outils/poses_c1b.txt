@@ -1,0 +1,16 @@
+# C1b : est/sud + chemins en pavés. AVANT = code de C1a (worktree au commit 7b8a658), APRES = ce lot ; mêmes poses
+# V = sentier feu -> village (pavés du kit), T = sentier témoin hors rectangle (cercle / tertre), E/S = est / sud (poses de sonde_poses_c1b.gd)
+# p = regard vers le sol, c = crépuscule ; TEMOIN = rectangle témoin (doit être identique)
+V1 monde 18.8,17.1,228,-12 heure=12
+V1p monde 18.8,17.1,228,-38 heure=12
+V3 monde 22,20,48,-12 heure=12
+V1c monde 18.8,17.1,228,-12 heure=17
+T1 monde -24,-22.5,51,-12 heure=12
+T1p monde -25,-23,51,-38 heure=12
+T2 monde -34,-37,26,-12 heure=12
+E1 monde 76,-32,90,-12 heure=12
+E2 monde 68,-64,0,-12 heure=12
+S1 monde -36,56,315,-12 heure=12
+S2 monde -24,76,45,-12 heure=12
+S3 monde 8,84,180,-12 heure=12
+TEMOIN monde -8.2,-8,45,-6 heure=12

@@ -272,9 +272,9 @@ static func _poser_touffes(monde: Node, rochers: Array) -> void:
 # --- C1 : le reste de la carte -------------------------------------------------------------------
 
 ## Zone où `_poser_ailleurs` pose rochers et touffes (hors rectangle témoin). C1a : ouest (x < 0) et nord (z < 0) ;
-## C1b ajoute l'est et le sud en élargissant ce prédicat (le sol v2 du shader, lui, couvre déjà toute la carte).
-static func dans_region(x: float, z: float) -> bool:
-	return x < 0.0 or z < 0.0
+## C1b : toute la carte (est et sud compris) ; `_libre_ailleurs` exclut toujours le village (refait par C7) et le seuil de la grotte.
+static func dans_region(_x: float, _z: float) -> bool:
+	return true
 
 ## Hors des zones à ne pas encombrer : village (refait par C7), seuil de la grotte, abords des chemins, bord de la carte.
 static func _libre_ailleurs(monde: Node, x: float, z: float, marge_chemin: float) -> bool:
