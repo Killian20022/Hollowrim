@@ -833,22 +833,28 @@ func _sol_empreinte(g: Grotte, q: Vector3, hx: float, hz: float, B: Basis, mode:
 	return {"y": c, "b": bas, "ecart": ecart}
 
 ## Recouvrement (m) d'une empreinte de rayon r et de hauteur h en q avec les objets posés et les roches du kit.
-func _chevauche(q: Vector3, r: float, h: float) -> float:
+func _chevauche(q: Vector3, r: float, h: float, avec_apparitions := true) -> float:
 	var pire := 0.0
 	for e: Array in _emp_pres(_grille_emp, q, r):
 		var c: Vector3 = e[0]
 		if c.y > q.y + h - 0.03 or c.y + float(e[2]) < q.y + 0.03:
 			continue
-		pire = maxf(pire, r + float(e[1]) - Vector2(c.x - q.x, c.z - q.z).length())
+		var re: float = e[1]
+		if e.size() > 3:                       # roche seule : bords bas et irréguliers, on ne compte que son cœur ; menus objets : ignorée
+			if r < 0.15 or float(e[2]) < 0.15:
+				continue
+			re *= 0.75
+		pire = maxf(pire, r + re - Vector2(c.x - q.x, c.z - q.z).length())
 	_empreintes_kit()
 	for e: Array in _emp_pres(_grille_kit, q, r):
 		var c: Vector3 = e[0]
 		if c.y > q.y + h - 0.03 or c.y + float(e[2]) < q.y + 0.03:
 			continue
 		pire = maxf(pire, r + float(e[1]) - Vector2(c.x - q.x, c.z - q.z).length())
-	for a: Vector3 in apparitions:
-		if absf(a.y - q.y) < 1.5:
-			pire = maxf(pire, r + 0.4 - Vector2(a.x - q.x, a.z - q.z).length())
+	if avec_apparitions:
+		for a: Vector3 in apparitions:
+			if absf(a.y - q.y) < 1.5:
+				pire = maxf(pire, r + 0.4 - Vector2(a.x - q.x, a.z - q.z).length())
 	return maxf(pire, 0.0)
 
 ## Empreintes des roches du kit (blocs, stalagmites, aiguilles, pans, neige) : cercle inscrit dans la boîte de chaque instance.
@@ -948,6 +954,8 @@ func roche_libre(base: Vector3, r: float, h: float) -> bool:
 func _chevauche_objets(q: Vector3, r: float, h: float) -> float:
 	var pire := 0.0
 	for e: Array in _emp_pres(_grille_emp, q, r):
+		if e.size() > 3:
+			continue                               # roche contre roche : amas et éboulis voulus
 		var c: Vector3 = e[0]
 		if c.y > q.y + h - 0.03 or c.y + float(e[2]) < q.y + 0.03:
 			continue
@@ -967,7 +975,7 @@ func _incliner(pz: Dictionary) -> Transform3D:
 
 func caisse(pos: Vector3, taille := Vector3(0.7, 0.5, 0.5), lacet := 0.0) -> void:
 	objet_debut("caisse")
-	var pz := pose_objet(pos, taille.x * 0.5, taille.z * 0.5, lacet, taille.y, INCLINE)
+	var pz := pose_objet(pos, taille.x * 0.5, taille.z * 0.5, lacet, taille.y, INCLINE, 0.5, 0.45, true)
 	pos = pz["p"]
 	var x0 := _incliner(pz)
 	if not pz["ok"]:          # lot D : aucune place sûre (roche, objet) : objet retiré
@@ -1058,7 +1066,7 @@ func coffre(pos: Vector3, lacet := 0.0, collision := true) -> void:
 	_empreinte(pz["p"], 0.45, 0.64)
 
 func tonneau(pos: Vector3, e := 1.0) -> void:
-	var pz := pose_objet(pos, 0.38 * e, 0.38 * e, 0.0, e, INCLINE)
+	var pz := pose_objet(pos, 0.38 * e, 0.38 * e, 0.0, e, INCLINE, 0.5, 0.45, true)
 	if not pz["ok"]:
 		return
 	var x0 := _incliner(pz)
@@ -1170,7 +1178,7 @@ func pieces(pos: Vector3, n: int, rayon: float) -> void:
 
 func sac(pos: Vector3, e := 1.0) -> void:
 	objet_debut("sac")
-	var pz := pose_objet(pos, 0.25 * e, 0.25 * e, 0.0, 0.56 * e, INCLINE)
+	var pz := pose_objet(pos, 0.25 * e, 0.25 * e, 0.0, 0.56 * e, INCLINE, 0.5, 0.45, true)
 	pos = pz["p"]
 	var x0 := _incliner(pz)
 	if not pz["ok"]:          # lot D : aucune place sûre (roche, objet) : objet retiré
@@ -1206,7 +1214,7 @@ func tabouret(pos: Vector3) -> void:
 
 func couchage(pos: Vector3, lacet := 0.0, peau_col := true) -> void:
 	objet_debut("couchage")
-	var pz := pose_objet(pos, 0.5, 1.0, lacet, 0.65, INCLINE)
+	var pz := pose_objet(pos, 0.5, 1.0, lacet, 0.65, INCLINE, 0.5, 0.45, true)
 	pos = pz["p"]
 	var x0 := _incliner(pz)
 	if not pz["ok"]:          # lot D : aucune place sûre (roche, objet) : objet retiré
@@ -1709,7 +1717,7 @@ var _etais_pris := {}
 ## Brasero de fer forgé : trépied, vasque, braises, grande flamme, halo au sol.
 func brasero_fer(pos: Vector3, avec_solide := true) -> Vector3:
 	objet_debut("brasero")
-	var pz := pose_objet(pos, 0.4, 0.4, 0.0, 1.0, DROIT)
+	var pz := pose_objet(pos, 0.4, 0.4, 0.0, 1.0, DROIT, 0.5, 0.45, true)
 	pos = pz["p"]
 	var x0 := _incliner(pz)
 	if not pz["ok"]:          # lot D : aucune place sûre (roche, objet) : objet retiré

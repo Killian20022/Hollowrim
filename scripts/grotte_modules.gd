@@ -829,7 +829,7 @@ static func _repaire(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: S
 	d.caisse(base + Vector3(1.0, 0, 0.1), Vector3(0.7, 0.5, 0.5), -0.2)
 	d.caisse(base + Vector3(0.1, 0.6, 0), Vector3(0.7, 0.5, 0.5), 0.35)
 	for k in 3:
-		var pq := d.pose_objet(_p(g, id, 13.0 + k * 1.1, 5.6), 0.38, 0.38, 0.0, 1.0, GrotteDecor.INCLINE)
+		var pq := d.pose_objet(_p(g, id, 13.0 + k * 1.1, 5.6), 0.38, 0.38, 0.0, 1.0, GrotteDecor.INCLINE, 0.5, 0.45, true)
 		if not pq["ok"]:
 			continue
 		var q: Vector3 = pq["p"]

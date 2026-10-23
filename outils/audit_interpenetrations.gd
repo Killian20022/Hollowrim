@@ -118,6 +118,14 @@ func _go() -> void:
 		for o: Dictionary in objets:
 			if (o["aabb"] as AABB).grow(0.3).has_point(pq):
 				print("SONDE objet %s %s %s aabb=%s solides=%s" % [o["src"], o["genre"], o["id"], o["aabb"], o["solides"]])
+				var pire := 0.0
+				var vp := Vector3.ZERO
+				for v: Vector3 in (o["v"] as PackedVector3Array):
+					var e := _ecart_sol(v, o, (o["aabb"] as AABB).size.y + 0.25)
+					if not is_nan(e) and -e > pire:
+						pire = -e
+						vp = v
+				print("SONDE   sommet le plus enfoui : %s (%.2f m), colonne %s" % [vp, pire, terrain.colonne(vp.x, vp.z)])
 	_verifier_objets()
 	_verifier_chevauchements()
 	var t1 := Time.get_ticks_msec()
@@ -745,6 +753,15 @@ func _rapport() -> int:
 		for i in 3:
 			tot[i] += parcat[k][i]
 	print("TOTAL %s : grave %d  moyen %d  leger %d  (%d objets)" % [lieu, tot[2], tot[1], tot[0], objets.size()])
+	var pg := {}
+	for o: Dictionary in objets:
+		pg[o["genre"]] = int(pg.get(o["genre"], 0)) + 1
+	var cles := pg.keys()
+	cles.sort()
+	var txt := ""
+	for k in cles:
+		txt += "%s %d, " % [k, pg[k]]
+	print("OBJETS par genre : ", txt)
 	return tot[2]
 
 ## Repère lisible (grotte) : branche, abscisse globale et décalage latéral (format des poses de capture).

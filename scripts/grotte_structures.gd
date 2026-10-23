@@ -346,7 +346,7 @@ static func _arene(k: GrotteKit, z: Dictionary) -> void:
 			var dl := g.demi_l(id, s)
 			var w := dl.y if cote > 0.0 else dl.x
 			var lat := cote * (w - rp.randf_range(0.85, 1.25))
-			if k.libre(id, s, lat, 0.3, 0.6) and g.libre(id, s, lat, 0.3):
+			if k.libre(id, s, lat, 0.3, 0.6) and g.libre(id, s, lat, 0.3) and d.place_libre(g.sol_en(id, s, lat), 0.15, 2.0):
 				var p := g.sol_en(id, s, lat)
 				var h := rp.randf_range(1.5, 2.7)
 				var pen := Vector3(rp.randf_range(-0.12, 0.12), 0.0, rp.randf_range(-0.12, 0.12)) * h
@@ -375,10 +375,10 @@ static func reserver_autel(g: Grotte) -> void:
 		for cle in ["coffres", "ressources", "interactions"]:
 			for c: Dictionary in z.get(cle, []):
 				coffres.append(g.sol_en(id, float(c["s"]), float(c["lat"])))
-		for e: float in [1.05, 0.9, 0.78]:
+		for ss0: float in [11.5, 11.0, 12.0, 10.5, 12.5, 10.0, 13.0, 9.5, 8.5, 7.5, 6.5, 5.5, 4.5]:     # la place d'origine d'abord, plus petit au besoin
 			for cote: float in [-1.0, 1.0]:
-				for ss: float in [11.5, 11.0, 12.0, 10.5, 12.5, 10.0, 13.0, 9.5, 8.5, 7.5, 6.5, 5.5, 4.5]:
-					ss = s0 + ss
+				for e: float in [1.05, 0.9, 0.78]:
+					var ss := s0 + ss0
 					if ss > s1 - 2.5:
 						continue
 					var dmin := 99.0
@@ -388,7 +388,7 @@ static func reserver_autel(g: Grotte) -> void:
 							dmin = minf(dmin, float(hit["d"]))
 					if dmin > 90.0:
 						continue
-					var la := cote * (dmin - 1.6 * e - 0.35)
+					var la := cote * (dmin - 1.6 * e - 0.6)
 					if absf(la) < 1.6 or not g.libre(id, ss, la, 1.0) or not _autel_libre(g, id, ss, la, e):
 						continue
 					var ps := g.sol_en(id, ss, la)
@@ -403,10 +403,10 @@ static func reserver_autel(g: Grotte) -> void:
 					face = face.normalized() * (1.0 if la < 0.0 else -1.0)
 					var bz := Basis(Vector3.UP, atan2(-face.x, -face.z))
 					var ymax := -1e9
-					var xx := -2.4 * e
-					while xx <= 2.4 * e + 0.01:
+					var xx := -2.8 * e
+					while xx <= 2.8 * e + 0.01:
 						var zz := -2.5 * e                                    # éboulis devant compris
-						while zz <= 1.6 * e + 0.01:
+						while zz <= 1.9 * e + 0.01:
 							var q := ps + bz * Vector3(xx, 0, zz)
 							ymax = maxf(ymax, g.sol_objet(q.x, q.z, ps.y + 0.8))
 							zz += 0.25
@@ -426,7 +426,7 @@ static func _autel_libre(g: Grotte, id: String, s_a: float, lat_a: float, e: flo
 	face = face.normalized() * (1.0 if lat_a < 0.0 else -1.0)
 	var bz := Basis(Vector3.UP, atan2(-face.x, -face.z))
 	var hx := 2.4 * e
-	var hz := 1.6 * e
+	var hz := 1.9 * e
 	var x := -hx
 	while x <= hx + 0.01:
 		var z := -hz
@@ -436,7 +436,7 @@ static func _autel_libre(g: Grotte, id: String, s_a: float, lat_a: float, e: flo
 			if sp.x < -1e8 or absf(sp.x - ps.y) > 0.3 or sp.y - sp.x < 3.0:
 				return false
 			q.y = sp.x
-			if d._chevauche(q, 0.3, 1.5) > 0.02:
+			if d._chevauche(q, 0.3, 1.5, false) > 0.02 or (z >= -1.6 * e and d.pres_apparition(q, 0.45)):     # un ennemi peut se tenir au pied des gradins
 				return false
 			z += 0.5
 		x += 0.5
@@ -505,7 +505,7 @@ static func _autel(k: GrotteKit, id: String, s_a: float, lat_a: float, e := 1.2)
 			var sg := 1.0 if lat_a < 0.0 else -1.0
 			sq = s_a - sin(a) * 3.3 * f
 			lq = lat_a + sg * cos(a) * 3.3 * f
-		if not (k.libre(id, sq, lq, 0.3, 0.6) and g.libre(id, sq, lq, 0.3)):
+		if not (k.libre(id, sq, lq, 0.3, 0.6) and g.libre(id, sq, lq, 0.3) and d.place_libre(g.sol_en(id, sq, lq), 0.15, 2.0)):
 			prev = Vector3.ZERO
 			continue
 		var pq := g.sol_en(id, sq, lq)

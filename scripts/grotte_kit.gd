@@ -1755,7 +1755,7 @@ func _generique(z: Dictionary) -> void:
 				if r.randf() < neige_p:
 					var rn := r.randf_range(0.45, 1.0)
 					var lat2 := cote * (VOIE + rn * 0.55 + r.randf_range(0.0, 0.7))
-					if absf(lat2) < w - 0.3 and libre(id, s, lat2, rn * 0.6, 0.75 if g.decor.regles_pose else 0.5):
+					if absf(lat2) < w - 0.3 and libre(id, s, lat2, rn * 0.6, 0.5):
 						var q := g.sol_en(id, s, lat2)
 						_add("neige_%d" % r.randi_range(0, 2), q + Vector3(0, -0.03, 0), r.randf() * TAU, Vector3(rn, rn * r.randf_range(0.8, 1.3), rn))
 			s += r.randf_range(0.9, 1.8)
