@@ -365,9 +365,11 @@ static func _auto_contenu(k: DonjonKit, m: Dictionary, v2: Dictionary) -> void:
 			if r.randf() < 0.5:
 				d.urne(p + Vector3(r.randf_range(-0.4, 0.4), 0, r.randf_range(-0.4, 0.4)), r.randf_range(0.5, 0.8))
 		elif t < 0.75:
+			d.j0("crane_os")
 			d.crane(p, r.randf() * TAU)
 			for q in 3:
 				d.boite("os", p + Vector3(r.randf_range(-0.25, 0.25), 0.02, r.randf_range(-0.25, 0.25)), Vector3(0.3, 0.04, 0.04), r.randf() * TAU)
+			d.j1()
 		else:
 			for off: Vector3 in [Vector3(0, 0, 0), Vector3(0.13, 0, 0.08), Vector3(-0.09, 0, 0.12)]:
 				d.bougie(p + off, false)
@@ -527,11 +529,13 @@ static func _sol(k: DonjonKit, m: Dictionary, v2: Dictionary, y: float) -> void:
 
 ## Lustre de fer posé à la voûte : chaîne, cercle à bougies (module Blender), flammes, halo.
 static func lustre(d: CrypteDecor, plafond: Vector3, chute: float) -> void:
+	d.j0("lustre_v2")
 	var c := plafond - Vector3(0, chute, 0)
 	d.chaine(plafond, c + Vector3(0, 0.55, 0))
 	for fp: Vector3 in d.modele("lustre_fer", c):
 		d.flamme(fp, 0.55)
 	d.carte("halo", c + Vector3(0, 0.15, 0), Vector3.UP, 1.8, 1.8)
+	d.j1()
 
 # ------------------------------------------------------------------ COULOIR
 ## Couloir (axe long = z local, 3,2 m de large, plafond 3 m) : arches en voussoirs sur piliers engagés tous les 4 m, panneaux de

@@ -160,6 +160,7 @@ func module(m: Dictionary) -> void:
 	d.v2 = v2_actif
 	d.module_id = id
 	d.occupations = []
+	d.emprises = []
 	_v2_obst = {}
 	_v2_lum = []
 	_v2_reglages = {}
@@ -262,6 +263,7 @@ func module(m: Dictionary) -> void:
 	d.module_id = ""
 	d.saillie_cb = Callable()
 	d.occupations = []
+	d.emprises = []
 	_m = {}
 
 ## Arguments de garniture : les positions (clés « pos » et « pts », écrites en repère de la crypte) passent en repère local ; le reste (tailles, nombres) est inchangé.
@@ -721,15 +723,18 @@ func _densite_sol(m: Dictionary) -> void:
 			if r.randf() < 0.5:
 				d.urne(p + Vector3(r.randf_range(-0.4, 0.4), 0, r.randf_range(-0.4, 0.4)) * Vector3(1, 0, 1), r.randf_range(0.5, 0.8))
 		elif t < 0.75:
+			d.j0("crane_os")
 			d.crane(p, r.randf() * TAU)
 			for k in 3:
 				d.boite("os", p + Vector3(r.randf_range(-0.25, 0.25), 0.02, r.randf_range(-0.25, 0.25)), Vector3(0.3, 0.04, 0.04), r.randf() * TAU)
+			d.j1()
 		else:
 			d.givre_dessus(p, Vector2(0.9, 0.5), 0.015, r.randf() * TAU)
 
 ## Niche funéraire dans un mur (références : squelettes, crânes, urnes) : jambages, arc brisé, fond noir, tablette givrée.
 ## `a` = position le long du mur (repère local), y = sol. Pas de collision (saillie ≤ 0,3 m, contre le mur).
 func niche_os(m: Dictionary, c: String, a: float, y: float, lw_ := 0.95) -> void:
+	d.j0("niche_os")
 	var pm := plan_mur(m, c)
 	var v: Vector3 = pm["vers"]
 	var horiz: bool = pm["horiz"]
@@ -773,6 +778,7 @@ func niche_os(m: Dictionary, c: String, a: float, y: float, lw_ := 0.95) -> void
 			d.crane(P.call(0.0, y0, 0.16), lac)
 	if r.randf() < 0.5:
 		d.toile(P.call(-lw_ * 0.5, ys + 0.2, 0.0), Vector3(1, 0, 0) if horiz else Vector3(0, 0, 1), v, 0.45)
+	d.j1()
 
 func _deco_froid(m: Dictionary) -> void:
 	var dim: Vector2 = m["dim"]
@@ -885,7 +891,7 @@ func _usure(m: Dictionary) -> void:
 			var s: Array = lib[d.rng.randi_range(0, lib.size() - 1)]
 			var pm := plan_mur(m, c)
 			var base := pt_mur(m, c, (s[0] + s[1]) * 0.5, 0.0)
-			d.fissures(Vector3(base.x, y + 1.3, base.z), pm["vers"], 1.8, 2.4, 2)
+			d.fissures(Vector3(base.x, y + 1.3, base.z), pm["vers"], 1.8, 2.4, 2, y)
 
 # ------------------------------------------------------------------ garnitures génériques (appelées par la table)
 ## Piliers {pts: [positions]} (grille régulière : les arcs relient les voisins) ; `saute` : indices omis (variation de la graine).
@@ -1208,18 +1214,26 @@ func souffle(centre: Vector3, ext: Vector3, dir: Vector3, nombre := 36) -> void:
 	d.racine.add_child(p)
 
 func glacon(pos_plafond: Vector3, longueur := 0.8, r := 0.12) -> void:
+	d.j0("glacon")
 	d.tour("mur4", pos_plafond + Vector3(0, -longueur, 0), [Vector2(0.0, 0.0), Vector2(r * 0.5, longueur * 0.4), Vector2(r * 0.85, longueur * 0.8), Vector2(r, longueur)], 6, 0.3, false)
+	d.j1()
 
 func congere(pos: Vector3, r := 1.8, h := 0.7) -> void:
+	d.j0("congere")
+	d.emprise("congere", pos, Vector2(r, r), 0.0, h)
 	d.tour("neige", pos, [Vector2(r, 0.0), Vector2(r * 0.82, h * 0.45), Vector2(r * 0.45, h * 0.85), Vector2(r * 0.12, h)], 7, 0.2, true)
 	for k in 3:
 		var a := d.rng.randf() * TAU
 		var rr := r * d.rng.randf_range(0.6, 0.9)
 		var rs := r * d.rng.randf_range(0.35, 0.55)
 		d.tour("neige", pos + Vector3(cos(a) * rr, 0, sin(a) * rr), [Vector2(rs, 0.0), Vector2(rs * 0.7, h * 0.4), Vector2(rs * 0.2, h * 0.65)], 6, 0.3, true)
+	d.j1()
 
 func stalagmite(pos: Vector3, haut := 0.7, r := 0.16) -> void:
+	d.j0("stalagmite")
+	d.emprise("stalagmite", pos, Vector2(r, r), 0.0, haut)
 	d.tour("mur4", pos, [Vector2(r, 0.0), Vector2(r * 0.55, haut * 0.55), Vector2(0.0, haut)], 5, 0.3, false)
+	d.j1()
 
 func lampe_glace(pos: Vector3, e := 1.3) -> void:
 	d.flaque_froide(Vector3(pos.x, pos.y, pos.z), 3.2)
@@ -1227,14 +1241,19 @@ func lampe_glace(pos: Vector3, e := 1.3) -> void:
 	stalagmite(pos, 0.9, 0.2)
 
 func os_monticule(pos: Vector3, r := 0.9, h := 0.6) -> void:
+	d.j0("os_monticule")
+	d.emprise("os_monticule", pos, Vector2(r * 1.1, r * 1.1), 0.0, h)
 	d.tour("os", pos, [Vector2(r, 0.0), Vector2(r * 0.85, h * 0.4), Vector2(r * 0.5, h * 0.8), Vector2(r * 0.18, h)], 8, 0.2, true)
 	for k in 7:
 		var a := d.rng.randf() * TAU
 		var rr := d.rng.randf() * r * 0.8
 		d.crane(pos + Vector3(cos(a) * rr, h * (1.0 - rr / r) * 0.75, sin(a) * rr), d.rng.randf() * TAU)
 	d.os_tas(pos + Vector3(r * 0.9, 0, 0.2), 4, 0.3)
+	d.j1()
 
 func or_tas(pos: Vector3, r := 0.6, h := 0.3) -> void:
+	d.j0("or_tas")
+	d.emprise("or_tas", pos, Vector2(r * 1.4, r * 1.4), 0.0, h)
 	d.tour("or", pos, [Vector2(r, 0.0), Vector2(r * 0.75, h * 0.55), Vector2(r * 0.4, h * 0.92), Vector2(r * 0.12, h)], 7, 0.1, true)
 	for k in 4:
 		var a := d.rng.randf() * TAU
@@ -1244,9 +1263,11 @@ func or_tas(pos: Vector3, r := 0.6, h := 0.3) -> void:
 	for k in 6:
 		var a := d.rng.randf() * TAU
 		d.boite("or", pos + Vector3(cos(a), 0.012, sin(a)) * r * d.rng.randf_range(1.0, 1.6), Vector3(0.07, 0.02, 0.07), d.rng.randf() * TAU)
+	d.j1()
 
 ## Panneau d'ossuaire (texture de niches) plaqué sur un mur, avec cadre ; axe "x" : mur le long de X (z fixe), "z" : le long de Z.
 func panneau_os(axe: String, fixe: float, a0: float, a1: float, y0: float, y1: float, signe: float) -> void:
+	d.j0("panneau_os")
 	var f := fixe + signe * 0.11
 	var pts := d._pas(a0, a1, 4.0)
 	for i in pts.size() - 1:
@@ -1268,9 +1289,11 @@ func panneau_os(axe: String, fixe: float, a0: float, a1: float, y0: float, y1: f
 		d.boite("mur0", Vector3(fc, y0 - 0.1, (a0 + a1) * 0.5), Vector3(ep, 0.2, a1 - a0 + 0.4))
 		for u in [a0 - 0.1, a1 + 0.1]:
 			d.boite("mur0", Vector3(fc, (y0 + y1) * 0.5, u), Vector3(ep, y1 - y0 + 0.4, ep))
+	d.j1()
 
 ## Niche à gardien (encadrement épais, tablette, crâne, urne) sur un mur : x_plan = plan du mur, vers_x = sens vers la pièce.
 func niche(x_plan: float, z: float, vers_x: float) -> void:
+	d.j0("niche")
 	var x := x_plan + vers_x * 0.08
 	d.boite("mur0", Vector3(x, 1.1, z - 0.7), Vector3(0.16, 2.2, 0.24))
 	d.boite("mur0", Vector3(x, 1.1, z + 0.7), Vector3(0.16, 2.2, 0.24))
@@ -1279,6 +1302,7 @@ func niche(x_plan: float, z: float, vers_x: float) -> void:
 	d.crane(Vector3(x_plan + vers_x * 0.15, 1.0, z - 0.25), atan2(vers_x, 0.0))
 	d.urne(Vector3(x_plan + vers_x * 0.15, 1.0, z + 0.3), 0.7)
 	d.os_tas(Vector3(x_plan + vers_x * 0.45, 0.0, z), 2, 0.3)
+	d.j1()
 
 # ------------------------------------------------------------------ vérifications (liaisons, accroches dans la salle)
 ## Chaque ouverture qui nomme un module relié doit coïncider avec celle de ce module (position et largeur).
