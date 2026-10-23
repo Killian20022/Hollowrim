@@ -54,12 +54,17 @@ static func _sol_pied(g: Grotte, p: Vector3) -> float:
 
 static func _caisse(d: GrotteDecor, pos: Vector3, t: Vector3, lacet: float) -> void:
 	d.objet_debut("caisse")
+	var pz := d.pose_objet(pos, t.x * 0.5, t.z * 0.5, lacet, t.y, GrotteDecor.INCLINE)      # lot D : collée au sol, inclinée, hors paroi
+	pos = pz["p"]
+	var x0 := d._incliner(pz)
 	d.boite("planches", pos + Vector3(0, t.y * 0.5, 0), t, lacet)
 	var b := Basis(Vector3.UP, lacet)
 	for dx: float in [-0.5, 0.5]:
 		for dz: float in [-0.5, 0.5]:
 			d.boite("bois", pos + b * Vector3(dx * (t.x - 0.04), t.y * 0.5, dz * (t.z - 0.04)), Vector3(0.06, t.y + 0.02, 0.06), lacet)
 	d.boite("fer", pos + Vector3(0, t.y - 0.04, 0), Vector3(t.x + 0.02, 0.03, t.z + 0.02), lacet)
+	d.xf = x0
+	d._empreinte(pos, (t.x + t.z) * 0.25, t.y)
 	d.objet_fin()
 
 ## Tonneaux (et une caisse) au pied de la paroi, hors voie : cherche une place libre autour de `s`.
@@ -286,24 +291,53 @@ static func _arene(k: GrotteKit, z: Dictionary) -> void:
 	var s_a := sa
 	# finitions : grand autel au fond gauche de l'arène, au milieu des pieux (le mobilier qui le masquait est écarté dans GrotteModules._repaire)
 	for c: Array in [[11.2, -4.1], [11.8, -4.1], [10.6, -4.2], [12.4, -4.1]]:
-		if g.libre(id, float(c[0]), float(c[1]), 1.7):
+		if g.libre(id, float(c[0]), float(c[1]), 1.7) and d.place_libre(g.sol_en(id, float(c[0]), float(c[1])), 2.4, 1.5):    # lot D : ni mobilier ni apparition sous l'estrade
 			place = true
 			s_a = float(c[0])
 			lat_a = float(c[1])
 			break
-	if not place:
+	var e_a := 1.2
+	if g.has_meta("autel_place"):                     # lot D : place réservée avant le mobilier du camp (Grotte._decorer)
+		var ap: Array = g.get_meta("autel_place")
+		place = true
+		s_a = float(ap[0])
+		lat_a = float(ap[1])
+		e_a = float(ap[2])
+		g.set_meta("autel_y", float(ap[3]))
+	elif d.regles_pose:          # lot D : l'estrade entière (rectangle) sur une place libre : ni mobilier, ni coffre, ni apparition, ni paroi
+		place = false
+		for e: float in [1.2, 1.05, 0.9, 0.78]:
+			for cote: float in [-1.0, 1.0]:
+				var ss := s0 + 3.0
+				while ss < s1 - 2.5 and not place:
+					var m := k._mur(id, ss, cote, 0.6)
+					if not m.is_empty():
+						var la := cote * (float(m["lat"]) - 1.6 * e - 0.25)
+						if g.libre(id, ss, la, 1.0) and _autel_libre(g, id, ss, la, e):
+							place = true
+							s_a = ss
+							lat_a = la
+							e_a = e
+					ss += 0.5
+				if place:
+					break
+			if place:
+				break
+	if not place and not d.regles_pose:
 		for ss: float in [s1 - 3.6, s1 - 4.4, s1 - 2.8, s1 - 5.2, sa, sa + 1.0, sa - 1.0]:      # repli : le long de la paroi gauche
 			var m := k._mur(id, ss, -1.0, 0.6)
 			if m.is_empty():
 				continue
 			var la := -(float(m["lat"]) - 1.15)
-			if k.libre(id, ss, la, 1.0, 0.6):
+			if k.libre(id, ss, la, 1.0, 0.6) and d.place_libre(g.sol_en(id, ss, la), 2.4, 1.5):
 				place = true
 				s_a = ss
 				lat_a = la
 				break
 	if place:
-		_autel(k, id, s_a, lat_a)
+		_autel(k, id, s_a, lat_a, e_a)
+	else:
+		push_warning("grotte v2 : pas de place libre pour l'autel de l'arène")
 	# 1. enceinte : rangées de pieux inégaux près des parois, reliés par une lisse
 	for cote: float in [-1.0, 1.0]:
 		var prev := Vector3.ZERO
@@ -325,11 +359,100 @@ static func _arene(k: GrotteKit, z: Dictionary) -> void:
 				prev = Vector3.ZERO
 			s += rp.randf_range(1.2, 1.9)
 
-static func _autel(k: GrotteKit, id: String, s_a: float, lat_a: float) -> void:
+## Lot D : place de l'autel de l'arène choisie AVANT le mobilier et les roches du camp (sinon les roches contre la paroi et le mobilier
+## ne lui laissent aucune place sans chevauchement) : contre une paroi, hors des apparitions et des coffres, sol plat sous toute l'estrade.
+## Réservée par une empreinte (le mobilier, les roches et le kit la contournent) et rangée dans la méta `autel_place` [s, lat, échelle].
+static func reserver_autel(g: Grotte) -> void:
+	if not g.decor.regles_pose:
+		return
+	for z: Dictionary in g.def.get("zones", []):
+		if String(z.get("theme", "")) != "repaire" or String(z.get("role", "")) != "combat":
+			continue
+		var id: String = z["branche"]
+		var s0: float = z["s"][0]
+		var s1: float = z["s"][1]
+		var coffres: Array = []
+		for cle in ["coffres", "ressources", "interactions"]:
+			for c: Dictionary in z.get(cle, []):
+				coffres.append(g.sol_en(id, float(c["s"]), float(c["lat"])))
+		for e: float in [1.05, 0.9, 0.78]:
+			for cote: float in [-1.0, 1.0]:
+				for ss: float in [11.5, 11.0, 12.0, 10.5, 12.5, 10.0, 13.0, 9.5, 8.5, 7.5, 6.5, 5.5, 4.5]:
+					ss = s0 + ss
+					if ss > s1 - 2.5:
+						continue
+					var dmin := 99.0
+					for hh: float in [0.6, 1.5, 2.4 * e + 0.3]:          # paroi la plus proche sur toute la hauteur du dossier
+						var hit := g.rayon(g.sol_en(id, ss, 0.0) + Vector3(0, hh, 0), g.droite(id, ss) * cote, 15.0)
+						if not hit.is_empty():
+							dmin = minf(dmin, float(hit["d"]))
+					if dmin > 90.0:
+						continue
+					var la := cote * (dmin - 1.6 * e - 0.35)
+					if absf(la) < 1.6 or not g.libre(id, ss, la, 1.0) or not _autel_libre(g, id, ss, la, e):
+						continue
+					var ps := g.sol_en(id, ss, la)
+					var loin := true
+					for c: Vector3 in coffres:
+						if Vector2(c.x - ps.x, c.z - ps.z).length() < 2.4 * e + 0.8:
+							loin = false
+					if not loin:
+						continue
+					var face := g.droite(id, ss)
+					face.y = 0.0
+					face = face.normalized() * (1.0 if la < 0.0 else -1.0)
+					var bz := Basis(Vector3.UP, atan2(-face.x, -face.z))
+					var ymax := -1e9
+					var xx := -2.4 * e
+					while xx <= 2.4 * e + 0.01:
+						var zz := -2.5 * e                                    # éboulis devant compris
+						while zz <= 1.6 * e + 0.01:
+							var q := ps + bz * Vector3(xx, 0, zz)
+							ymax = maxf(ymax, g.sol_objet(q.x, q.z, ps.y + 0.8))
+							zz += 0.25
+						xx += 0.25
+					g.set_meta("autel_place", [ss, la, e, ymax - 0.05])           # pied : point le plus haut du sol - 5 cm (rien d'enfoui)
+					for xr: float in [-1.6, 0.0, 1.6]:                              # trois cercles couvrent le rectangle de l'estrade
+						g.decor._empreinte(ps + bz * Vector3(xr * e, 0, 0), 1.75 * e, 2.6 * e)
+					return
+
+## Lot D : vrai si l'estrade de l'autel (échelle e) tient en (s, lat) : sol de la galerie sous tout le rectangle, 3 m libres au-dessus, aucun
+## objet posé, aucune roche du kit, aucun point d'apparition (grille de points tous les 0,5 m).
+static func _autel_libre(g: Grotte, id: String, s_a: float, lat_a: float, e: float) -> bool:
+	var d := g.decor
+	var ps := g.sol_en(id, s_a, lat_a)
+	var face := g.droite(id, s_a)
+	face.y = 0.0
+	face = face.normalized() * (1.0 if lat_a < 0.0 else -1.0)
+	var bz := Basis(Vector3.UP, atan2(-face.x, -face.z))
+	var hx := 2.4 * e
+	var hz := 1.6 * e
+	var x := -hx
+	while x <= hx + 0.01:
+		var z := -hz
+		while z <= hz + 0.01:
+			var q := ps + bz * Vector3(x, 0, z)
+			var sp := g.sol_et_plafond(q.x, q.z, ps.y + 0.8)
+			if sp.x < -1e8 or absf(sp.x - ps.y) > 0.3 or sp.y - sp.x < 3.0:
+				if OS.get_cmdline_user_args().has("--debug-autel"):
+					print("AUTEL e=%.2f s=%.1f lat=%.1f : sol/plafond %s (pied %.2f) en %.1f,%.1f" % [e, s_a, lat_a, sp, ps.y, x, z])
+				return false
+			q.y = sp.x
+			if d._chevauche(q, 0.3, 1.5) > 0.02:
+				if OS.get_cmdline_user_args().has("--debug-autel"):
+					print("AUTEL e=%.2f s=%.1f lat=%.1f : objet en %.1f,%.1f" % [e, s_a, lat_a, x, z])
+				return false
+			z += 0.5
+		x += 0.5
+	return true
+
+static func _autel(k: GrotteKit, id: String, s_a: float, lat_a: float, e := 1.2) -> void:
 	k.g.decor.objet_debut("autel")
 	var g: Grotte = k.g
 	var d: GrotteDecor = g.decor
 	var ps := g.sol_en(id, s_a, lat_a)
+	if g.has_meta("autel_y"):
+		ps.y = float(g.get_meta("autel_y"))
 	var lac := atan2(g.tang(id, s_a).x, g.tang(id, s_a).z)
 	var face := g.droite(id, s_a)                                  # l'autel regarde vers l'axe de l'arène (côté opposé à la paroi)
 	face.y = 0.0
@@ -355,19 +478,25 @@ static func _autel(k: GrotteKit, id: String, s_a: float, lat_a: float) -> void:
 	]
 	for bl: Array in blocs:
 		var sz: Vector3 = bl[1]
-		d.boite_b("c_strate_mousse", ps + bz * (bl[0] as Vector3) * 1.2, sz * 1.2, bz * Basis(Vector3.UP, float(bl[2])))
-	var top := ps + bz * Vector3(0, 1.74, -0.24)
-	var bas1 := ps + bz * Vector3(0, 1.34, -0.84)
-	var bas0 := ps + bz * Vector3(0, 0.67, -1.56)
+		d.boite_b("c_strate_mousse", ps + bz * (bl[0] as Vector3) * e, sz * e, bz * Basis(Vector3.UP, float(bl[2])))
+	var f := e / 1.2
+	var top := ps + bz * Vector3(0, 1.74, -0.24) * f
+	var bas1 := ps + bz * Vector3(0, 1.34, -0.84) * f
+	var bas0 := ps + bz * Vector3(0, 0.67, -1.56) * f
 	for q: Array in [[-0.5, 0.0], [0.45, 0.1], [0.0, -0.25]]:
-		d.bougie(top + bz * Vector3(float(q[0]), 0, float(q[1])), false)
+		d.bougie(top + bz * Vector3(float(q[0]), 0, float(q[1])) * f, false)
 	for q: Array in [[-1.2, 0.0], [1.2, 0.0], [-0.7, -0.35], [0.8, -0.4]]:
-		d.bougie(bas1 + bz * Vector3(float(q[0]), 0, float(q[1])), false)
+		d.bougie(bas1 + bz * Vector3(float(q[0]), 0, float(q[1])) * f, false)
 	for q: Array in [[-2.0, -0.2], [-1.3, -0.5], [1.4, -0.5], [2.0, -0.2], [0.0, -0.7]]:
-		d.bougie(bas0 + bz * Vector3(float(q[0]), 0, float(q[1])), false)
-	d.crane(top + bz * Vector3(-0.1, 0.0, 0.1), yaw + 2.5)
+		d.bougie(bas0 + bz * Vector3(float(q[0]), 0, float(q[1])) * f, false)
+	d._prof_pose += 1
+	d.crane(top + bz * Vector3(-0.1, 0.0, 0.1) * f, yaw + 2.5)
+	d._prof_pose -= 1
 	g.set_meta("v2_autel", bas1 + bz * Vector3(0.0, 0.8, -0.3))      # centre des bougies : sa lumière est posée par Grotte._lumieres_structures
-	k._occuper_fixe(id, s_a, lat_a, 2.2)
+	k._occuper_fixe(id, s_a, lat_a, 2.2 * f)
+	d._empreinte(ps, 2.0 * e, 2.6 * e)
+	k.g.decor.objet_fin()                                   # l'estrade est un objet ; les pieux (plantés) en sont d'autres
+	k.g.decor.objet_debut("pieux")
 	# demi-cercle de pieux devant l'autel (côté salle), reliés par une lisse
 	var rq := RandomNumberGenerator.new()
 	rq.seed = 7352
@@ -376,9 +505,10 @@ static func _autel(k: GrotteKit, id: String, s_a: float, lat_a: float) -> void:
 		var a := deg_to_rad(a_deg)
 		var sq := s_a + sin(a) * 2.0
 		var lq := lat_a + cos(a) * 2.0
-		if lat_a < -3.0:                                       # grand autel : arc de pieux côté arène, autour du gradin
-			sq = s_a - sin(a) * 3.3
-			lq = lat_a + cos(a) * 3.3
+		if lat_a < -3.0 or e != 1.2:                           # grand autel : arc de pieux côté arène, autour du gradin
+			var sg := 1.0 if lat_a < 0.0 else -1.0
+			sq = s_a - sin(a) * 3.3 * f
+			lq = lat_a + sg * cos(a) * 3.3 * f
 		if not (k.libre(id, sq, lq, 0.3, 0.6) and g.libre(id, sq, lq, 0.3)):
 			prev = Vector3.ZERO
 			continue

@@ -45,7 +45,9 @@ const GENRES := {
 	"stalactite": MUR, "stalac": MUR, "frange": MUR, "pan": MUR, "nez": MUR, "toile": MUR, "banniere": MUR, "applique": MUR, "lanterne": MUR,
 	"lustre": MUR,
 	"pont": IGNORE, "cascade": IGNORE, "nappe": IGNORE,
+	"ressource_cristal_givre": PLANTE, "ressource_champignon_lumineux": PLANTE, "ressource_minerai_fer": OBJET, "ressource_minerai_argent": OBJET,
 }
+const ATTACHES := [["etai", "lanterne"], ["poteau_lanterne", "lanterne"]]     # pièces accrochées l'une à l'autre par construction
 const PETITS := ["os", "arme", "crane", "pieces", "bougie"]            # menus objets posés en tas : chevauchements entre eux permis
 const IMPORTANTS_MUR := ["lanterne", "toile", "banniere", "applique"]  # accroches jugées aussi contre la paroi (lanterne) / la roche
 
@@ -105,6 +107,14 @@ func _go() -> void:
 		var q := String(args["sonde"]).split_floats(",")
 		var pq := Vector3(q[0], q[1], q[2])
 		print("SONDE colonne ", terrain.colonne(pq.x, pq.z))
+		if g != null:
+			print("SONDE sol_et_plafond ", g.sol_et_plafond(pq.x, pq.z, pq.y + 0.45), " hauteurs ", g._hauteurs(pq.x, pq.z))
+			for e: Array in g.decor.empreintes:
+				if Vector2((e[0] as Vector3).x - pq.x, (e[0] as Vector3).z - pq.z).length() < 1.5:
+					print("SONDE empreinte ", e)
+			for e: Array in g.decor._empreintes_kit():
+				if Vector2((e[0] as Vector3).x - pq.x, (e[0] as Vector3).z - pq.z).length() < 1.5:
+					print("SONDE empreinte kit ", e)
 		for o: Dictionary in objets:
 			if (o["aabb"] as AABB).grow(0.3).has_point(pq):
 				print("SONDE objet %s %s %s aabb=%s solides=%s" % [o["src"], o["genre"], o["id"], o["aabb"], o["solides"]])
@@ -125,6 +135,7 @@ func _collecter_grotte(m: Node3D) -> void:
 	a.montrer(true)
 	m._aller_grotte("4,0,0,0")
 	await _attendre(30)
+	print("GROTTE construite en %d ms : %s" % [g.temps_ms, g.etapes])
 	terrain = TerrainTris.new(g.decor.coll)
 	for id: String in g.ordre:
 		var pts := PackedVector3Array()
@@ -306,10 +317,10 @@ func _ecart_sol(p: Vector3, soi: Dictionary, h_max := 1.0) -> float:
 			if p.x >= b.position.x and p.x <= b.end.x and p.z >= b.position.z and p.z <= b.end.z and b.end.y <= p.y + 0.001 and b.end.y > dessous:
 				dessous = b.end.y
 				ny_dessous = 1.0
-	if dessous > -1e8 and ny_dessous > 0.0:
-		return p.y - dessous
 	if dessus < 1e8 and ny_dessus > 0.5 and dessus - p.y <= h_max:     # sous un sol presque plat : enfoui (plus profond que l'objet
 		return p.y - dessus                                              # n'est haut : hors de la galerie, affaire de paroi)
+	if dessous > -1e8 and ny_dessous > 0.0:
+		return p.y - dessous
 	return NAN
 
 var _grille_sup := {}
@@ -371,7 +382,9 @@ func _verifier_objets() -> void:
 			_cas(2, "paroi", genre, o["id"], c, 1.0, "aucun sol sous l'objet (hors de la galerie)")
 			continue
 		if flot > FLOT_M and fam != MUR:
-			if not _pose_sur_objet(o, grille):
+			if fam == ROCHE and (float(_pen_paroi(o, c, h)[0]) > 0.02 or terrain.dedans_roche(c) or _touche_paroi(o)):
+				pass                                 # roche scellée dans la paroi (ressaut de la cascade, éboulis accroché) : pas en l'air
+			elif not _pose_sur_objet(o, grille):
 				var gr := 2 if flot > FLOT_GRAVE_M else 1
 				if fam == ROCHE and h < 0.25:
 					gr = mini(gr, 1)
@@ -394,35 +407,46 @@ func _verifier_objets() -> void:
 
 ## Pénétration dans la paroi : rayons horizontaux depuis l'axe de l'objet (3 hauteurs x 8 directions) contre l'étendue de ses sommets.
 func _paroi(o: Dictionary, c: Vector3, h: float) -> void:
-	var ab: AABB = o["aabb"]
-	var v: PackedVector3Array = o["v"]
-	var pire := 0.0
-	var rmax := 0.0
-	for f: float in [0.2, 0.5, 0.85]:
-		var y := ab.position.y + maxf(h * f, 0.08)
-		var bande := maxf(h * 0.2, 0.06)
-		for k in 8:
-			var a := TAU * k / 8.0
-			var d := Vector3(cos(a), 0.0, sin(a))
-			var ext := 0.0
-			for p in v:
-				if absf(p.y - y) <= bande:
-					ext = maxf(ext, (p - c).dot(d))
-			if ext <= 0.0:
-				continue
-			rmax = maxf(rmax, ext)
-			var hit: Dictionary = terrain.rayon(Vector3(c.x, y, c.z), d, ext + 0.5)
-			if hit.is_empty() or absf((hit["n"] as Vector3).y) > 0.7:
-				continue
-			if not hit["avant"]:
-				pire = maxf(pire, ext)
-				continue
-			pire = maxf(pire, ext - float(hit["t"]))
+	var pr := _pen_paroi(o, c, h)
+	var pire: float = pr[0]
+	var rmax: float = pr[1]
 	if pire > PAROI_M:
 		var gr := 2 if (pire > PAROI_GRAVE_M or pire > 0.3 * rmax) else 1
 		if o["petit"]:
 			gr = mini(gr, 1)
 		_cas(gr, "paroi", o["genre"], o["id"], c, pire, "entre de %.0f cm dans la paroi" % (pire * 100.0))
+
+## Vrai si un sommet de l'objet est dans la roche (roche scellée dans une paroi).
+func _touche_paroi(o: Dictionary) -> bool:
+	var v: PackedVector3Array = o["v"]
+	var pas := maxi(1, v.size() / 24)
+	for i in range(0, v.size(), pas):
+		if terrain.dedans_roche(v[i]):
+			return true
+	return false
+
+## Pénétration dans la paroi, sommet par sommet : segment horizontal de l'axe de l'objet (même hauteur) jusqu'au sommet ; s'il traverse
+## une paroi (face vue de l'intérieur, pente > 45°), la longueur au-delà est enfoncée dans la roche. Rend [pire, rayon de l'objet].
+func _pen_paroi(o: Dictionary, c: Vector3, h: float) -> Array:
+	var ab: AABB = o["aabb"]
+	var v: PackedVector3Array = o["v"]
+	var pire := 0.0
+	var rmax := 0.0
+	var y_max := ab.position.y + h * (0.7 if o["genre"] in ["etai", "portique"] else 1.01)     # chapeau d'étai scellé dans la roche : voulu
+	for p in v:
+		if p.y < ab.position.y + minf(0.04, h * 0.2) or p.y > y_max:
+			continue
+		var orig := Vector3(c.x, p.y, c.z)
+		var d := p - orig
+		var l := d.length()
+		if l < 0.02:
+			continue
+		rmax = maxf(rmax, l)
+		var hit: Dictionary = terrain.rayon(orig, d, l)
+		if hit.is_empty() or absf((hit["n"] as Vector3).y) > 0.7 or not hit["avant"]:
+			continue
+		pire = maxf(pire, l - float(hit["t"]))
+	return [pire, rmax]
 
 # --- chevauchements
 func _grille_objets() -> Dictionary:
@@ -503,6 +527,8 @@ func _verifier_chevauchements() -> void:
 				continue
 			vus[cle] = true
 			if not (o["aabb"] as AABB).intersects(q["aabb"]):
+				continue
+			if [o["genre"], q["genre"]] in ATTACHES or [q["genre"], o["genre"]] in ATTACHES:
 				continue
 			var cm := _commun(o, q)
 			var f: float = cm[0]
