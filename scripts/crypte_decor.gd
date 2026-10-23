@@ -131,7 +131,7 @@ func _peindre(nom: String, cible: Array) -> void:
 
 func _attendre(nom: String) -> void:
 	if _taches.has(nom):
-		WorkerThreadPool.wait_for_task_completion(_taches[nom])
+		FilVerrou.attendre(_taches[nom])
 		_taches.erase(nom)
 
 func attendre_tout() -> void:
@@ -1329,7 +1329,7 @@ func poussiere(centre: Vector3, ext: Vector3, nombre := 28) -> void:
 	pm.initial_velocity_min = 0.02
 	pm.initial_velocity_max = 0.08
 	pm.gravity = Vector3.ZERO
-	p.process_material = pm
+	FilVerrou.sur_fil_principal(p, &"set_process_material", [pm])   # matériaux neufs : compilés sur le fil principal (voir FilVerrou.sur_fil_principal)
 	var q := QuadMesh.new()
 	q.size = Vector2(0.022, 0.022)
 	var mq := StandardMaterial3D.new()
@@ -1338,7 +1338,7 @@ func poussiere(centre: Vector3, ext: Vector3, nombre := 28) -> void:
 	mq.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mq.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	q.material = mq
-	p.draw_pass_1 = q
+	FilVerrou.sur_fil_principal(p, &"set_draw_pass_mesh", [0, q])
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	racine.add_child(p)
 

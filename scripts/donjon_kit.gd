@@ -1194,7 +1194,7 @@ func souffle(centre: Vector3, ext: Vector3, dir: Vector3, nombre := 36) -> void:
 	pm.initial_velocity_min = 0.25
 	pm.initial_velocity_max = 0.6
 	pm.gravity = Vector3(0, -0.02, 0)
-	p.process_material = pm
+	FilVerrou.sur_fil_principal(p, &"set_process_material", [pm])   # matériaux neufs : compilés sur le fil principal (voir FilVerrou.sur_fil_principal)
 	var q := QuadMesh.new()
 	q.size = Vector2(0.07, 0.07)
 	var mq := StandardMaterial3D.new()
@@ -1203,7 +1203,7 @@ func souffle(centre: Vector3, ext: Vector3, dir: Vector3, nombre := 36) -> void:
 	mq.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mq.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	q.material = mq
-	p.draw_pass_1 = q
+	FilVerrou.sur_fil_principal(p, &"set_draw_pass_mesh", [0, q])
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	d.racine.add_child(p)
 

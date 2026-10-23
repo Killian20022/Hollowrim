@@ -16,3 +16,34 @@ static func prendre() -> void:
 static func rendre() -> void:
 	if _actif:
 		_m.unlock()
+
+## Vrai si on est sur le fil principal (celui qui vide la file de commandes du serveur de rendu et dessine les images).
+static func fil_principal() -> bool:
+	return OS.get_thread_caller_id() == OS.get_main_thread_id()
+
+## Attente d'une tâche du WorkerThreadPool SANS interblocage (reprend l'ancien Tertre._attendre_fil, commit c5cc4e3). Un fil de
+## construction fait des appels au serveur de rendu qui attendent une réponse (surface_get_arrays, get_image, get_aabb…) ; avec une
+## fenêtre, ces appels passent par la file de commandes que SEUL le fil principal vide. Un wait_for_task_completion nu sur le fil
+## principal l'empêchait de la vider : interblocage. Sur le fil principal avec fenêtre, on vide donc la file en attendant (force_sync) ;
+## dans un fil de travail (ou en --headless, serveur factice synchrone), attente nue.
+static func attendre(tache: int) -> void:
+	if tache < 0:
+		return
+	if fil_principal() and DisplayServer.get_name() != "headless":
+		while not WorkerThreadPool.is_task_completed(tache):
+			RenderingServer.force_sync()
+			OS.delay_usec(500)
+	WorkerThreadPool.wait_for_task_completion(tache)
+
+## Appel réservé au fil principal : tout de suite si on y est, sinon différé (call_deferred, ignoré si l'objet a été libéré entre-temps).
+## Sert aux affectations qui compilent un shader de matériau intégré (StandardMaterial3D / ParticleProcessMaterial neufs : get_rid →
+## _update_shader → compilation par tâches de groupe du WorkerThreadPool). Faite depuis un fil de construction pendant le chargement
+## (réserve de fils pleine : donjon, peintures de textures, préparation des ennemis), cette compilation interbloquait le moteur : fil de
+## la grotte figé dans `draw_pass_1 = …` (neige soufflée), fil principal figé avant le dessin de l'image, jeu gelé (bug du 2026-10-23,
+## sauvegarde près de l'entrée de la grotte). Sur le fil principal, le matériau se compile dans BaseMaterial3D.flush_changes, sans risque.
+static func sur_fil_principal(o: Object, methode: StringName, args: Array = []) -> void:
+	if fil_principal():
+		o.callv(methode, args)
+	else:
+		o.callv("call_deferred", [methode] + args)
+

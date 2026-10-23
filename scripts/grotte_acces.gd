@@ -475,7 +475,7 @@ func _process(dt: float) -> void:
 func attendre_exterieur() -> void:
 	if _tache_ext < 0:
 		return
-	WorkerThreadPool.wait_for_task_completion(_tache_ext)
+	FilVerrou.attendre(_tache_ext)
 	_tache_ext = -1
 	add_child(_cont)
 	pret = true
@@ -497,7 +497,7 @@ func _batir(g: Grotte) -> void:
 func _integrer() -> void:
 	if _tache < 0:
 		return
-	WorkerThreadPool.wait_for_task_completion(_tache)
+	FilVerrou.attendre(_tache)
 	_tache = -1
 	_poser(_g_fil)
 	_g_fil = null
@@ -535,12 +535,12 @@ func _exit_tree() -> void:
 	if jeu != null:
 		jeu._ennemis_prets(true)       # fil de préparation des modèles d'ennemis
 	if _tache_ext >= 0:
-		WorkerThreadPool.wait_for_task_completion(_tache_ext)
+		FilVerrou.attendre(_tache_ext)
 		_tache_ext = -1
 		if _cont != null and is_instance_valid(_cont) and not _cont.is_inside_tree():
 			_cont.free()
 	if _tache >= 0:
-		WorkerThreadPool.wait_for_task_completion(_tache)
+		FilVerrou.attendre(_tache)
 		_tache = -1
 		if _g_fil != null and is_instance_valid(_g_fil) and not _g_fil.is_inside_tree():
 			_g_fil.free()

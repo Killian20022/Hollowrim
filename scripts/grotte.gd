@@ -1485,7 +1485,7 @@ func _neige_soufflee() -> void:
 	pm.turbulence_enabled = true
 	pm.turbulence_noise_strength = 0.8
 	pm.turbulence_noise_scale = 2.0
-	p.process_material = pm
+	FilVerrou.sur_fil_principal(p, &"set_process_material", [pm])   # matériaux neufs : compilés sur le fil principal (voir FilVerrou.sur_fil_principal)
 	var q := QuadMesh.new()
 	q.size = Vector2(0.05, 0.05)
 	var mq := StandardMaterial3D.new()
@@ -1495,7 +1495,7 @@ func _neige_soufflee() -> void:
 	mq.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	mq.disable_fog = true
 	q.material = mq
-	p.draw_pass_1 = q
+	FilVerrou.sur_fil_principal(p, &"set_draw_pass_mesh", [0, q])
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(p)
 

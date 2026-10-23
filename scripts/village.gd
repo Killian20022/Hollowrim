@@ -380,7 +380,7 @@ func _poser_interieurs() -> void:
 	if Chrono.actif:
 		print("CHRONO pose interieurs : %.2f ms (reste %d taches, %d faits, %d poses)" % [(Time.get_ticks_usec() - debut) / 1000.0, _a_poser.size(), _faits.size(), _nb_poses])
 	if _nb_poses == _jobs.size() and _a_poser.is_empty():
-		WorkerThreadPool.wait_for_task_completion(_fil)
+		FilVerrou.attendre(_fil)
 		_fil = -1
 		prets = true
 		interieurs_prets.emit()
@@ -473,7 +473,7 @@ func _prechauffer() -> void:
 
 func _exit_tree() -> void:
 	if _fil >= 0:
-		WorkerThreadPool.wait_for_task_completion(_fil)
+		FilVerrou.attendre(_fil)
 		_fil = -1
 
 func _pivot(position_: Vector3, lacet: float) -> Node3D:

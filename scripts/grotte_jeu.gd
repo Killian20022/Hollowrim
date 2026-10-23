@@ -112,7 +112,7 @@ func _ennemis_prets(attendre := false) -> bool:
 	if _tache_en < 0:
 		return true
 	if attendre or WorkerThreadPool.is_task_completed(_tache_en):
-		WorkerThreadPool.wait_for_task_completion(_tache_en)
+		FilVerrou.attendre(_tache_en)
 		_tache_en = -1
 		return true
 	return false

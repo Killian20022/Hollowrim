@@ -99,12 +99,12 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	if _tache >= 0 and not _fini:
-		WorkerThreadPool.wait_for_task_completion(_tache)
+		FilVerrou.attendre(_tache)
 
 func _process(_dt: float) -> void:
 	if not _fini:
 		if _tache >= 0 and WorkerThreadPool.is_task_completed(_tache):
-			WorkerThreadPool.wait_for_task_completion(_tache)
+			FilVerrou.attendre(_tache)
 			_fini = true
 			_creer_noeuds()
 		return

@@ -109,7 +109,7 @@ func regler_lueurs(l: Array) -> void:
 func _tex_g(nom: String) -> ImageTexture:
 	if not _gtex.has(nom):
 		if _gtaches.has(nom):
-			WorkerThreadPool.wait_for_task_completion(_gtaches[nom])
+			FilVerrou.attendre(_gtaches[nom])
 			_gtaches.erase(nom)
 		_gtex[nom] = ImageTexture.create_from_image((_gimg[nom] as Array)[0])
 	return _gtex[nom]
@@ -117,7 +117,7 @@ func _tex_g(nom: String) -> ImageTexture:
 func attendre_tout() -> void:
 	super.attendre_tout()
 	for nom in _gtaches.keys():
-		WorkerThreadPool.wait_for_task_completion(_gtaches[nom])
+		FilVerrou.attendre(_gtaches[nom])
 		_gtaches.erase(nom)
 
 # ------------------------------------------------------------------ matériaux propres
