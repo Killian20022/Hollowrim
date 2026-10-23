@@ -24,6 +24,7 @@ TESTS=(
 	"test_chemin_biome|--nouvelle --paisible"
 	"test_collisions_biome|--nouvelle"
 	"test_palissade|--nouvelle"
+	"test_escaliers_village|--nouvelle --paisible"
 	"test_crypte|--nouvelle"
 	"test_crypte_mort|--nouvelle"
 	"test_squelette|--nouvelle"
