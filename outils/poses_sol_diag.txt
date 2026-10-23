@@ -1,0 +1,9 @@
+# diagnostic du sol : mêmes caméras (jour), modes de débogage
+d_bas_0 monde -22,-21.5,48,-45 heure=12
+d_bas_1 monde -22,-21.5,48,-45 heure=12 sol_debug=1
+d_bas_2 monde -22,-21.5,48,-45 heure=12 sol_debug=2
+d_bas_3 monde -22,-21.5,48,-45 heure=12 sol_debug=3
+d_mid_0 monde -10,-9,45,-12 heure=12
+d_mid_1 monde -10,-9,45,-12 heure=12 sol_debug=1
+d_mid_2 monde -10,-9,45,-12 heure=12 sol_debug=2
+d_mid_3 monde -10,-9,45,-12 heure=12 sol_debug=3

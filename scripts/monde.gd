@@ -133,9 +133,13 @@ func _ready() -> void:
 	_chrono("arbres (placement+modeles+MultiMesh)")
 	Rochers.creer(self)
 	SousBois.creer(self)  # lot E : après les rochers (touffes collées aux pierres)
+	SolV2.creer(self)  # extérieurs v2 : touffes et rochers de la portion témoin
 	CercleRunique.creer(self)
 	_chrono("rochers+sous-bois+cercle")
 	Sol.appliquer(mat_terrain, self, arbres)
+	SolV2.appliquer(self)
+	if _arguments().has("sol-debug"):
+		mat_terrain.set_shader_parameter("sol_debug", int(_arguments()["sol-debug"]))
 	_chrono("carte de sol")
 	DetailsSol.creer(self)  # lot 3 : cailloux du sol (après la carte de sol)
 	if not _arguments().has("sans-abords"): AbordsVillage.creer(self)  # refonte : abords de l'entrée du village (avant le fil des intérieurs ; --sans-abords : A/B)
@@ -1402,6 +1406,9 @@ func _lot_captures(fichier: String) -> void:
 			if dessous != "":
 				push_error("--captures : vue monde/scénario « %s » après le sous-sol, ignorée" % v["nom"])
 				continue
+			SolV2.regler(self, String(opt.get("sol_v2", "1" if SolV2.actif_defaut else "0")) == "1")
+			mat_terrain.set_shader_parameter("sol_debug", int(opt.get("sol_debug", _arguments().get("sol-debug", "0"))))  # diagnostic du sol
+			mat_terrain.set_shader_parameter("sol_carte", String(opt.get("sol_avant", "0")) != "1")  # C1 : sol_avant=1 = rendu d'avant la généralisation (hors zone témoin)
 			if opt.has("heure"):
 				cycle.heure = float(opt["heure"])
 				cycle._process(0.0)

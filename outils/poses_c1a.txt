@@ -1,0 +1,24 @@
+# C1a : sol v2 partout (ouest / nord). AVANT = sol_avant=1 (rendu d'avant, hors zone témoin) ; APRES = rendu courant
+# poses choisies par outils/sonde_poses_c1a.gd (dégagées, roche + neige + mousse en vue) ; p = regard vers le sol, c = crépuscule
+O1_avant monde -82,34,270,-12 heure=12 sol_avant=1
+O1_apres monde -82,34,270,-12 heure=12
+O2_avant monde -98,14,180,-12 heure=12 sol_avant=1
+O2_apres monde -98,14,180,-12 heure=12
+O3_avant monde -74,-22,90,-12 heure=12 sol_avant=1
+O3_apres monde -74,-22,90,-12 heure=12
+N1_avant monde -46,-86,270,-12 heure=12 sol_avant=1
+N1_apres monde -46,-86,270,-12 heure=12
+N2_avant monde -18,-74,0,-12 heure=12 sol_avant=1
+N2_apres monde -18,-74,0,-12 heure=12
+N3_avant monde 30,-82,315,-12 heure=12 sol_avant=1
+N3_apres monde 30,-82,315,-12 heure=12
+O1p_avant monde -82,34,270,-38 heure=12 sol_avant=1
+O1p_apres monde -82,34,270,-38 heure=12
+N2p_avant monde -18,-74,0,-38 heure=12 sol_avant=1
+N2p_apres monde -18,-74,0,-38 heure=12
+O1c_avant monde -82,34,270,-12 heure=17 sol_avant=1
+O1c_apres monde -82,34,270,-12 heure=17
+N1c_avant monde -46,-86,270,-12 heure=17 sol_avant=1
+N1c_apres monde -46,-86,270,-12 heure=17
+T1_apres monde -8.2,-8,45,-6 heure=12
+T3_apres monde -14,-13.5,48,-50 heure=12

@@ -1,0 +1,17 @@
+# sol v2 : captures AVANT (sol_v2=0) / APRES (sol_v2=1), mêmes caméras, jour (12h) et crépuscule (17h)
+T1_jour_avant monde -8.2,-8,45,-6 heure=12 sol_v2=0
+T1_jour_apres monde -8.2,-8,45,-6 heure=12 sol_v2=1
+T2_jour_avant monde -12,-11,50,-25 heure=12 sol_v2=0
+T2_jour_apres monde -12,-11,50,-25 heure=12 sol_v2=1
+T3_jour_avant monde -14,-13.5,48,-50 heure=12 sol_v2=0
+T3_jour_apres monde -14,-13.5,48,-50 heure=12 sol_v2=1
+T4_jour_avant monde -19.5,-14.5,225,-12 heure=12 sol_v2=0
+T4_jour_apres monde -19.5,-14.5,225,-12 heure=12 sol_v2=1
+T1_crep_avant monde -8.2,-8,45,-6 heure=17 sol_v2=0
+T1_crep_apres monde -8.2,-8,45,-6 heure=17 sol_v2=1
+T2_crep_avant monde -12,-11,50,-25 heure=17 sol_v2=0
+T2_crep_apres monde -12,-11,50,-25 heure=17 sol_v2=1
+T3_crep_avant monde -14,-13.5,48,-50 heure=17 sol_v2=0
+T3_crep_apres monde -14,-13.5,48,-50 heure=17 sol_v2=1
+T4_crep_avant monde -19.5,-14.5,225,-12 heure=17 sol_v2=0
+T4_crep_apres monde -19.5,-14.5,225,-12 heure=17 sol_v2=1
