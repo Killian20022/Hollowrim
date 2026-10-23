@@ -43,6 +43,7 @@ var nb_solides := 0
 var nb_lum := 0
 var stats := {}                # famille de gabarit -> nombre d'instances
 var _cadres: Array = []        # passe 2 : poutres des étais de mine [Vector2 a, Vector2 b] (xz) : les stalactites les évitent
+var fini := false               # lot D : vrai quand toutes les instances sont posées (les objets posés après les évitent)
 var nb_lanternes := 0          # passe 2 : lanternes posées par le kit (vraies lumières + lueurs seules)
 var nb_lum_chaudes := 0        # passe 2 : dont vraies lumières
 const LANT_C := Color(1.0, 0.56, 0.24)
@@ -740,9 +741,25 @@ func _reserver_pt(id: String, s: float, lat: float, rr: float, couloir := true) 
 		_seg.append([p, _xz(g.sol_en(id, s, 0.0)), 0.7])
 
 ## Couloirs vers toutes les accroches du jeu de la branche (et l'îlot), disques autour des accessoires posés par les modules.
+var _axe := {}
 func _reserver(id: String) -> void:
 	_occ.clear()
 	_seg.clear()
+	if g.decor.regles_pose:                # lot D : objets du décor déjà posés (caisses, couchages, poteaux…) : le kit les contourne
+		if not _axe.has(id):                   # boîte de la branche (axe élargi de 16 m)
+			var bb := Rect2(g.xz(id, 0.0), Vector2.ZERO)
+			var s_ := 0.0
+			while s_ <= g.longueur(id):
+				bb = bb.expand(g.xz(id, s_))
+				s_ += 2.0
+			_axe[id] = bb.grow(16.0)
+		var bbr: Rect2 = _axe[id]
+		for e: Array in g.decor.empreintes:     # seulement ceux de la branche (le test de place est linéaire en nombre de places prises)
+			if e.size() > 3:
+				continue                        # roches seules : le kit ne s'en écarte pas (son tracé reste celui d'avant pour elles)
+			var q := _xz(e[0])
+			if bbr.has_point(q):
+				_occ.append([q, float(e[1]) + 0.1])
 	for f: Array in _fixes:
 		if f[0] == id:
 			_occ.append([f[1], f[2]])
@@ -882,7 +899,16 @@ func _bloc(id: String, s: float, lat: float, rr: float, solide := true, petit :=
 	var p := g.sol_en(id, s, lat)
 	var e := rr * r.randf_range(0.9, 1.1)
 	var eh := rr * r.randf_range(1.0, 1.5)
-	_add(nom, p + Vector3(0, -0.04 * rr, 0), r.randf() * TAU, Vector3(e, eh, rr))
+	var lac_b := r.randf() * TAU
+	if g.decor.regles_pose:                     # lot D : posé sur le vrai sol (dalles comprises) s'il est plus bas que sol_en
+		var fo := g.sol_objet(p.x, p.z, p.y + 0.3)
+		if fo > -1e8 and p.y - fo > 0.04:
+			p.y = fo
+	if g.decor.regles_pose and g._hauteurs(p.x, p.z).x > 1e8:      # lot D : hors de la galerie (dans la roche) : rien, mêmes tirages
+		if not petit and rr > 0.6 and r.randf() < 0.45:
+			r.randf(); r.randf_range(0.4, 0.6); r.randi_range(0, 7); r.randf(); r.randf_range(0.9, 1.3); r.randf_range(-0.4, 0.4)
+		return
+	_add(nom, p + Vector3(0, -0.04 * rr, 0), lac_b, Vector3(e, eh, rr))
 	_occuper(id, s, lat, rr)
 	var h_b: float = float(gab[nom]["h"]) * eh
 	if solide and rr >= 0.45:
@@ -890,8 +916,21 @@ func _bloc(id: String, s: float, lat: float, rr: float, solide := true, petit :=
 	if not petit and rr > 0.6 and r.randf() < 0.45:          # amas : un bloc plus petit posé dessus, de travers
 		var a := r.randf() * TAU
 		var r2 := rr * r.randf_range(0.4, 0.6)
-		var q := p + Vector3(cos(a), 0, sin(a)) * rr * 0.35 + Vector3(0, h_b * 0.7, 0)
+		var h_pose := h_b * 0.7
+		if g.decor.regles_pose:                    # lot D : posé sur le dessus RÉEL du bloc (module Blender plus bas que les cotes v1)
+			h_pose = _haut_reel(nom) * eh * 0.85 - 0.04 * rr
+		var q := p + Vector3(cos(a), 0, sin(a)) * rr * 0.35 + Vector3(0, h_pose, 0)
 		_add("bloc_%d" % r.randi_range(0, 7), q, r.randf() * TAU, Vector3(r2, r2 * r.randf_range(0.9, 1.3), r2), Basis(Vector3(cos(a), 0, sin(a)), r.randf_range(-0.4, 0.4)))
+
+var _hauts := {}
+func _haut_reel(nom: String) -> float:
+	if not _hauts.has(nom):
+		var mx := 0.0
+		for mt: String in gab[nom]["surf"]:
+			for v: Vector3 in (gab[nom]["surf"][mt]["v"] as PackedVector3Array):
+				mx = maxf(mx, v.y)
+		_hauts[nom] = mx
+	return _hauts[nom]
 
 func _stalagmite(id: String, s: float, lat: float, h: float, solide := true) -> float:
 	var k := r.randi_range(0, 3)
@@ -935,6 +974,9 @@ func _stalactite(id: String, s: float, lat: float, lmax: float, marche := true) 
 func _grappe(p: Vector3, taille: float, axe: Vector3, lacet := -999.0) -> void:
 	var b := _vers(axe)
 	var la := r.randf() * TAU if lacet < -900.0 else lacet
+	if g.decor.regles_pose and g.decor._chevauche_objets(p, taille * 0.45, taille) > 0.03:     # lot D : pas de cristaux dans un objet posé
+		r.randi_range(0, 2)
+		return
 	# le plan de l'éventail (xy du gabarit) tourne autour de l'axe de pousse
 	_add("grappe_%d" % r.randi_range(0, 2), p, 0.0, Vector3.ONE * taille, b * Basis(Vector3.UP, la))
 
@@ -1263,8 +1305,12 @@ func _lanternes_lac(id: String, sa: float, sb: float) -> void:
 			continue
 		var pied := g.sol_en(id, sl, lat)
 		var vers := g.sol_en(id, sl, 0.0) - pied
+		var pz := d.pose_objet(pied, 0.12, 0.12, 0.0, 2.35, GrotteDecor.PLANTE)      # lot D : la place prise est celle du poteau posé
+		if not pz["ok"]:
+			continue
+		pied = pz["p"]
 		var f := d.poteau_lanterne(pied, vers, false)
-		_occuper(id, sl, lat, 0.3)
+		_occ.append([_xz(pied), 0.35])
 		nb_lanternes += 1
 		if faites == 0:
 			var l := d.lumiere(f, LANT_C, 4.5, 9.0, 1.4, true)
@@ -1349,6 +1395,10 @@ func _mine_cristaux(id: String, s0: float, L: float) -> void:
 		var cote := -1.0 if k % 2 == 0 else 1.0
 		var t_side := ta if cote < 0.0 else tb
 		var croc := t_side - R * cote * 0.62 - Vector3(0, 0.24, 0)
+		if d.regles_pose and d._chevauche(croc - Vector3(0, 1.0, 0), 0.15, 0.75) > 0.03:      # lot D : nez de pilier, pan : l'autre côté
+			cote = -cote
+			t_side = ta if cote < 0.0 else tb
+			croc = t_side - R * cote * 0.62 - Vector3(0, 0.24, 0)
 		var f := d.lanterne(croc, 0.32)
 		nb_lanternes += 1
 		if k < 3:
@@ -1753,5 +1803,6 @@ func habiller() -> void:
 			"lac":
 				if String(z.get("role", "")) == "combat":
 					_salle_lac(z)
+	fini = true
 	_instancier()
 	print("kit grotte : %d instances, %d triangles, %d solides, %d lumières cyan, %d lanternes (%d lumières chaudes), %d ms %s" % [nb_instances, nb_triangles(), nb_solides, nb_lum, nb_lanternes, nb_lum_chaudes, Time.get_ticks_msec() - t0, stats])

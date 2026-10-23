@@ -274,8 +274,14 @@ func facette(nom: String, a: Vector3, b: Vector3, c: Vector3, ref: Vector3, cols
 	else:
 		uu.append(uvs[0]); uu.append(uvs[k1]); uu.append(uvs[k2])
 	cc.append(cols[0]); cc.append(cols[k1]); cc.append(cols[k2])
-	if collision:
-		coll.append(a); coll.append(b); coll.append(c)
+	if _obj_n > 0:
+		_obj_v.append(a); _obj_v.append(b); _obj_v.append(c)
+	if collision:          # orientées comme la coque : (b - a) x (c - a) vers le côté visible (lu par l'audit ; sans effet physique, double face)
+		coll.append(a)
+		if geo.dot(n) > 0.0:
+			coll.append(b); coll.append(c)
+		else:
+			coll.append(c); coll.append(b)
 	nb_facettes += 1
 
 ## UV dans le plan de la facette (mètres / tuile) : densité de texels uniforme quelle que soit la pente (la projection sur un
@@ -332,15 +338,18 @@ func revolution(nom: String, base: Vector3, profil: Array, cotes: int, graine: i
 
 ## Stalagmite (vers le haut) ou stalactite (vers le bas) ; `sommet` = point d'attache pour une stalactite.
 func pointe(nom: String, base: Vector3, r: float, h: float, graine: int, masque := 0.0, cotes := 6) -> void:
+	objet_debut("stalagmite" if h > 0.0 else "stalactite")
 	var s := 1.0 if h > 0.0 else -1.0
 	var hh := absf(h)
 	var profil := [Vector2(r, 0.0), Vector2(r * 0.62, s * hh * 0.4), Vector2(r * 0.26, s * hh * 0.78), Vector2(0.0, s * hh)]
 	if r > 0.3:
 		profil = [Vector2(r, 0.0), Vector2(r * 0.8, s * hh * 0.18), Vector2(r * 0.52, s * hh * 0.5), Vector2(r * 0.24, s * hh * 0.82), Vector2(0.0, s * hh)]
 	revolution(nom, base, profil, cotes if r > 0.3 else 5, graine, 0.38, masque, 0.55, 1.0)
+	objet_fin()
 
 ## Colonne : stalagmite et stalactite soudées (y_bas -> y_haut), taille de la taille r_mid.
 func colonne(nom: String, x: float, z: float, y_bas: float, y_haut: float, r: float, graine: int, masque := 0.0) -> void:
+	objet_debut("colonne")
 	var h := y_haut - y_bas
 	var profil := [Vector2(r * 1.7, 0.0), Vector2(r * 1.15, h * 0.12), Vector2(r * 0.8, h * 0.36), Vector2(r * 0.62, h * 0.52), Vector2(r * 0.85, h * 0.72), Vector2(r * 1.25, h * 0.92), Vector2(r * 1.8, h + 0.3)]
 	revolution(nom, Vector3(x, y_bas, z), profil, 7, graine, 0.3, masque, 0.55, 0.7)
@@ -352,9 +361,20 @@ func colonne(nom: String, x: float, z: float, y_bas: float, y_haut: float, r: fl
 	cs.shape = cyl
 	cs.position = Vector3(x, y_bas + h * 0.5, z)
 	corps.add_child(cs)
+	if _obj_n > 0:
+		_audit_solide(cs.position, Vector3(r * 1.9, h, r * 1.9))
+	objet_fin()
 
 ## Rocher bas, à facettes (éboulis, blocs sur la glace, congères sous la neige quand masque est grand).
 func rocher(nom: String, base: Vector3, r: float, h: float, graine: int, masque := 0.0, collision := true, cotes := 6) -> void:
+	objet_debut("rocher")
+	if regles_pose and _prof_pose == 0 and _g() != null:      # lot D : rocher seul : pas en l'air au-dessus du vrai sol
+		var fo := _g().sol_objet(base.x, base.z, base.y + 0.3)
+		if fo > -1e8 and base.y - fo > 0.04:
+			base.y = fo - 0.05
+	if not roche_libre(base, r * 0.8, h):        # lot D : pas de rocher dans un objet déjà posé
+		objet_fin()
+		return
 	var profil := [Vector2(r, -h * 0.12), Vector2(r * 1.02, h * 0.38), Vector2(r * 0.72, h * 0.82), Vector2(r * 0.3, h), Vector2(0.0, h * 1.02)]
 	revolution(nom, base, profil, cotes, graine, 0.5, masque, 0.62, 1.0, 3.0)
 	if collision and r > 0.45:
@@ -365,14 +385,20 @@ func rocher(nom: String, base: Vector3, r: float, h: float, graine: int, masque 
 		cs.shape = cyl
 		cs.position = base + Vector3(0, h * 0.45, 0)
 		corps.add_child(cs)
+		if _obj_n > 0:
+			_audit_solide(cs.position, Vector3(r * 1.6, h * 0.9, r * 1.6))
+	objet_fin()
 
 ## Congère : monticule bas de neige soufflée (crête de vent), sans collision (haut ≤ 0,5 m : on le traverse comme une neige molle).
 func congere(base: Vector3, r: float, h: float, graine: int) -> void:
+	objet_debut("congere")
 	var profil := [Vector2(r, -0.06), Vector2(r * 0.93, h * 0.42), Vector2(r * 0.66, h * 0.82), Vector2(r * 0.3, h), Vector2(0.0, h * 1.02)]
 	revolution("c_sol_neige", base, profil, 9, graine, 0.34, 1.6, 0.8, 1.0, 4.0)
+	objet_fin()
 
 ## Caillou : pyramide irrégulière à 4 faces (micro-détail du sol, 4 triangles).
 func caillou(nom: String, base: Vector3, r: float, h: float, graine: int, masque := 0.0) -> void:
+	objet_debut("caillou")
 	var rg := RandomNumberGenerator.new()
 	rg.seed = graine
 	var a0 := rg.randf() * TAU
@@ -387,11 +413,13 @@ func caillou(nom: String, base: Vector3, r: float, h: float, graine: int, masque
 	var c1 := col(1.0, masque)
 	for i in 4:
 		facette(nom, pts[i], pts[(i + 1) % 4], sommet, axe, [c0, c0, c1], false, 2.0)
+	objet_fin()
 
 ## Cristal (2e passe, d'après grottes_cryptes_6) : GRAPPE de prismes hexagonaux élancés et pointus, de tailles très variées
 ## (un maître, beaucoup de petits), pieds enfoncés dans la roche. Chaque face reçoit ses UV (travers x long) : la texture
 ## cristal_f porte le dégradé bleu nuit -> cyan, l'arête claire d'un texel et les fêlures. `r` et `l` : gabarit du maître.
 func cristal(base: Vector3, r: float, l: float, graine: int, incl := 0.5, axe_bias := Vector3.UP) -> void:
+	objet_debut("cristal")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var d0 := (axe_bias + Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)) * incl * 0.6).normalized()
@@ -409,10 +437,12 @@ func cristal(base: Vector3, r: float, l: float, graine: int, incl := 0.5, axe_bi
 		var lk := l * lerpf(0.14, 0.62, f)
 		var rk := r * 0.5 * lerpf(0.3, 0.8, f) * rng.randf_range(0.8, 1.15)
 		_prisme_cristal(base + off - d * lk * 0.18, d, rk, lk, rng)
+	objet_fin()
 
 ## Grosse grappe éclairante (4e passe, grottes_cryptes_6) : 0,5 à 1,5 m, prismes bleu vif autour d'un cœur blanc-cyan,
 ## lumière cyan locale qui bleuit la roche autour, halo additif au sol et contre la paroi. `axe` : direction moyenne de pousse.
 func grosse_grappe(base: Vector3, taille: float, graine: int, axe := Vector3.UP, eclaire := true) -> OmniLight3D:
+	objet_debut("grappe")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var d0 := axe.normalized()
@@ -438,10 +468,12 @@ func grosse_grappe(base: Vector3, taille: float, graine: int, axe := Vector3.UP,
 	if absf(d0.y) < 0.9:
 		carte("halo_f", base + d0 * taille * 0.45, Vector3(d0.x, 0.0, d0.z).normalized(), taille * 2.2, taille * 2.2)
 	if not eclaire:
+		objet_fin()
 		return null
 	var l := lumiere(base + d0 * taille * 0.7, Color(0.45, 0.8, 1.0), 3.0, 6.0 + taille * 1.8, 1.2, false)
 	l.light_color = Color(0.45, 0.8, 1.0)
 	l.set_meta("grappe", true)                     # _retoucher_lumieres n'y touche pas
+	objet_fin()
 	return l
 
 func _prisme_cristal(base: Vector3, d: Vector3, r: float, l: float, rng: RandomNumberGenerator, nom := "c_cristal_f") -> void:
@@ -540,6 +572,8 @@ func solide_rond(centre: Vector3, rayon: float, haut: float) -> void:
 	cs.shape = cyl
 	cs.position = centre
 	corps.add_child(cs)
+	if _obj_n > 0:
+		_audit_solide(centre, Vector3(rayon * 2.0, haut, rayon * 2.0))
 
 func projecteur(pos: Vector3, cible: Vector3, couleur: Color, energie: float, portee: float, angle: float) -> SpotLight3D:
 	var l := SpotLight3D.new()
@@ -573,7 +607,381 @@ func rai_oblique(haut: Vector3, bas: Vector3, largeur_haut: float, largeur_bas: 
 # ------------------------------------------------------------------ mobilier du campement
 ## Caisse (2e passe) : planches clouées (texture planches), montants d'angle, écharpe en diagonale sur les grandes faces,
 ## cerclages de fer haut et bas avec rivets, équerres de fer aux coins. Collision : la boîte entière (inchangée).
+# ------------------------------------------------------------------ règles de pose (lot D : aucun objet ne se fond dans le décor)
+## Tout objet posé au sol passe par pose_objet : écarté des parois selon son empreinte (rectangle demi-côtés hx, hz tourné de `lacet`),
+## collé au sol (Grotte.sol_objet : coque ET dalles des corniches), incliné sur la pente (12° au plus) ou gardé droit (pieds, trépieds),
+## planté (poteaux), et décalé s'il chevauche un objet déjà posé ou une roche du kit ; il laisse ensuite son empreinte (`empreintes`)
+## que le kit, les cailloux et les objets suivants évitent. Un objet posé SUR un autre (caisse empilée) garde le dessus de l'autre pour sol ;
+## un objet en hauteur sur un support inconnu (bougies de l'autel) n'est pas touché. Inactif hors de la grotte et avec --ancienne-pose.
+## Contrôle : outils/audit_interpenetrations.gd.
+enum { INCLINE, DROIT, PLANTE, PETIT }
+const PENTE_MAX := 0.21            # 12° : inclinaison maximale d'un objet posé
+const ANCRAGE := 0.015             # le point le plus haut du sol sous l'objet entre de 1,5 cm dans sa base
+const MARGE_PAROI := 0.05
+var empreintes: Array = []         # [Vector3 pied, rayon, haut]
+var _grille_emp := {}              # case de 2 m -> empreintes qui la touchent (recherches locales)
+var _grille_kit := {}
+var apparitions: Array = []        # pieds des ennemis (Grotte._accroches_zone) : rien ne se pose dessus
+var regles_pose := not OS.get_cmdline_user_args().has("--ancienne-pose")
+var _poses_faites := {}            # sortie déjà calculée -> résultat (un objet reposé au même endroit ne bouge plus)
+var _kit_emp: Array = []
+var _kit_emp_n := -1
+
+func _g() -> Grotte:
+	return racine as Grotte if racine is Grotte else null
+
+func pose_objet(p: Vector3, hx: float, hz: float, lacet: float, h: float, mode: int, decal_max := 0.5, monte := 0.45, loin := false) -> Dictionary:
+	var g := _g()
+	if g == null or not regles_pose:
+		return {"p": p, "b": Basis(), "ok": true}
+	var cle := Vector3i(roundi(p.x * 1000.0), roundi(p.y * 1000.0), roundi(p.z * 1000.0))
+	if _poses_faites.has(cle):
+		return _poses_faites[cle]
+	var B := Basis(Vector3.UP, lacet)
+	var support := _support(p, maxf(hx, hz))
+	if support < -1e8 and mode == PETIT:
+		var f0 := g.sol_objet(p.x, p.z, p.y + 0.45)
+		if f0 > -1e8 and p.y - f0 > 0.3:
+			return {"p": p, "b": Basis(), "ok": true}     # menu objet en hauteur sur un support inconnu (bougies de l'autel) : laissé tel quel
+	_monte = monte
+	var r_emp := (hx + hz) * 0.5
+	_axe_min = VOIE_POSE + r_emp                                  # un objet DÉPLACÉ ne va jamais dans le chemin
+	var axe_p := _dist_axe(g, p)
+	# 1. place demandée, écartée des parois : gardée si le sol est assez régulier et la place libre
+	var q0 := _ecarter_parois(g, p, hx, hz, B, h)
+	var e0 := _evaluer(g, q0, hx, hz, B, h, mode, support, r_emp)
+	if not e0.is_empty() and _dist_axe(g, q0) < minf(axe_p, _axe_min) - 0.05:      # place prévue : gardée si elle ne se rapproche pas
+		e0 = {}
+	var best := {}
+	if not e0.is_empty() and float(e0["ecart"]) < 0.05 and float(e0["chev"]) < 0.01:
+		best = e0
+	else:
+		best = _chercher(g, p, q0, e0, hx, hz, B, h, mode, support, r_emp, decal_max)
+		if best.is_empty() and (monte > 1.0 or loin):   # accroche du jeu ou pièce maîtresse (coffre, ressource…) sans place tout près : on cherche plus loin ; un objet de décor est retiré
+			best = _chercher(g, p, q0, {}, hx, hz, B, h, mode, support, r_emp, decal_max * 2.5 + 0.3)
+	var ok := not best.is_empty()
+	if best.is_empty():
+		best = {"p": p, "b": Basis()}
+	best = {"p": best["p"], "b": best["b"], "ok": ok}
+	var bp: Vector3 = best["p"]
+	_poses_faites[Vector3i(roundi(bp.x * 1000.0), roundi(bp.y * 1000.0), roundi(bp.z * 1000.0))] = best
+	return best
+
+var _monte := 0.45
+const VOIE_POSE := 1.0              # demi-largeur du chemin central qu'un objet déplacé ne doit pas envahir
+var _axe_min := 0.0
+var _grille_axe := {}               # case de 2 m -> points de l'axe des branches (sol, tous les 0,5 m)
+func _dist_axe(g: Grotte, q: Vector3) -> float:
+	if _grille_axe.is_empty():
+		var pts := PackedVector2Array()
+		var bouts: Array = []                  # [branche, point] : débuts et fins d'axe (les trajets sautent d'une branche à l'autre)
+		for id: String in g.ordre:
+			var s := 0.0
+			while s <= g.longueur(id):
+				pts.append(g.xz(id, s))
+				s += 0.5
+			bouts.append([id, g.xz(id, 1.0)])
+			bouts.append([id, g.xz(id, g.longueur(id) - 1.5)])
+		for i in bouts.size():                 # raccords entre bouts voisins de branches différentes
+			for j in range(i + 1, bouts.size()):
+				var a: Vector2 = bouts[i][1]
+				var b: Vector2 = bouts[j][1]
+				if bouts[i][0] != bouts[j][0] and a.distance_to(b) < 9.0:
+					for k in int(a.distance_to(b) / 0.5) + 1:
+						pts.append(a.lerp(b, k * 0.5 / maxf(a.distance_to(b), 0.01)))
+		for a: Vector2 in pts:
+			var k := Vector2i(floori(a.x / 2.0), floori(a.y / 2.0))
+			if not _grille_axe.has(k):
+				_grille_axe[k] = PackedVector2Array()
+			var l: PackedVector2Array = _grille_axe[k]
+			l.append(a)
+			_grille_axe[k] = l
+	var best := 99.0
+	var c := Vector2i(floori(q.x / 2.0), floori(q.z / 2.0))
+	for dx in range(-2, 3):
+		for dz in range(-2, 3):
+			for a: Vector2 in _grille_axe.get(c + Vector2i(dx, dz), PackedVector2Array()):
+				best = minf(best, a.distance_to(Vector2(q.x, q.z)))
+	return best
+func _chercher(g: Grotte, p: Vector3, q0: Vector3, e0: Dictionary, hx: float, hz: float, B: Basis, h: float, mode: int, support: float, r_emp: float, decal_max: float) -> Dictionary:
+	var best := {}
+	if true:
+		# 2. sinon : places voisines classées sans les parois (sol + recouvrement), puis les trois meilleures écartées des parois
+		var cands: Array = []
+		if not e0.is_empty():
+			cands.append([float(e0["cout"]), q0])
+		for rr: float in [0.2, 0.4, 0.65, 0.9, 1.2, 1.6]:
+			if rr > decal_max + 0.01:
+				break
+			for k in 8:
+				var a := TAU * k / 8.0 + rr
+				var q := q0 + Vector3(cos(a), 0.0, sin(a)) * rr
+				if _dist_axe(g, q) < _axe_min - 0.05:
+					continue                         # vers le chemin : refusé (le passage reste libre)
+				var ev := _evaluer(g, q, hx, hz, B, h, mode, support, r_emp)
+				if not ev.is_empty():
+					cands.append([float(ev["cout"]) + rr * 0.5, q])
+		cands.sort_custom(func(x: Array, y: Array) -> bool: return x[0] < y[0])
+		var best_cout := INF
+		for i in mini(3, cands.size()):
+			var q := _ecarter_parois(g, cands[i][1], hx, hz, B, h)
+			if Vector2(q.x - p.x, q.z - p.z).length() > decal_max + 0.35:
+				continue
+			var ev := _evaluer(g, q, hx, hz, B, h, mode, support, r_emp)
+			if ev.is_empty() or float(ev["chev"]) > 0.04 or _dist_axe(g, q) < _axe_min - 0.05:      # dans un objet, une roche, le chemin : refusé
+				continue
+			var cout: float = float(ev["cout"]) + Vector2(q.x - p.x, q.z - p.z).length() * 0.5
+			if cout < best_cout:
+				best_cout = cout
+				best = ev
+	return best
+
+func _evaluer(g: Grotte, q: Vector3, hx: float, hz: float, B: Basis, h: float, mode: int, support: float, r_emp: float) -> Dictionary:
+	var so := _sol_empreinte(g, q, hx, hz, B, mode, support, h)
+	if so.is_empty():
+		return {}
+	q.y = so["y"]
+	var chev := _chevauche(q, r_emp, h)
+	return {"p": q, "b": so["b"], "ecart": so["ecart"], "chev": chev, "cout": float(so["ecart"]) * 4.0 + chev * 6.0}
+
+## Dessus d'un objet déjà posé sous p (caisse sur caisse) : son altitude, ou -1e9.
+func _support(p: Vector3, r: float) -> float:
+	for e: Array in _emp_pres(_grille_emp, p, r):
+		var c: Vector3 = e[0]
+		var top: float = c.y + float(e[2])
+		if Vector2(c.x - p.x, c.z - p.z).length() < float(e[1]) * 0.8 and p.y > top - 0.15 and p.y < top + 0.25:
+			return top
+	return -1e9
+
+## Écarte de la paroi : rayons horizontaux (8 directions, pied et haut de l'objet) contre l'étendue de l'empreinte dans chaque direction.
+func _ecarter_parois(g: Grotte, q: Vector3, hx: float, hz: float, B: Basis, h: float) -> Vector3:
+	for _passe in 2:
+		var pousse := Vector3.ZERO
+		for hh: float in ([maxf(h * 0.6, 0.06)] if h < 0.4 else [0.15, h * 0.5, h * 0.85]):
+			for k in 8:
+				var a := TAU * k / 8.0
+				var d := Vector3(cos(a), 0.0, sin(a))
+				var ext := absf(d.dot(B.x)) * hx + absf(d.dot(B.z)) * hz
+				var hit := g.rayon_court(q + Vector3(0, hh, 0), d, ext + 0.4)
+				if hit.is_empty() or absf((hit["n"] as Vector3).y) > 0.7:
+					continue
+				var deficit := ext + MARGE_PAROI - float(hit["d"])
+				if deficit > 0.0:
+					pousse -= d * deficit * 0.6
+		if pousse.length() < 0.005:
+			break
+		q += pousse
+	return q
+
+## Sol sous l'empreinte (centre, 4 coins, 4 milieux de côté) : altitude du pied, inclinaison et écart restant (vide sous l'objet).
+func _sol_empreinte(g: Grotte, q: Vector3, hx: float, hz: float, B: Basis, mode: int, support: float, h := 0.5) -> Dictionary:
+	var pts: Array = []
+	var motif: Array = [Vector2.ZERO, Vector2(1, 1), Vector2(1, -1), Vector2(-1, 1), Vector2(-1, -1), Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]
+	if maxf(hx, hz) < 0.15:
+		motif = [Vector2.ZERO, Vector2(1, 1), Vector2(-1, -1)]          # menu objet : trois points suffisent
+	for u: Vector2 in motif:
+		var o: Vector3 = B.x * (u.x * hx * 0.95) + B.z * (u.y * hz * 0.95)
+		var y := support
+		if support < -1e8:
+			var sp := g.sol_et_plafond(q.x + o.x, q.z + o.z, q.y + _monte)
+			y = sp.x
+			if y < -1e8 or sp.y - y < h * 0.95 + 0.02:      # pas de sol, ou surplomb / ventre de paroi au-dessus : refusé
+				return {}
+		pts.append(Vector3(o.x, y, o.z))
+	var ymax := -1e9
+	var ymin := 1e9
+	for v: Vector3 in pts:
+		ymax = maxf(ymax, v.y)
+		ymin = minf(ymin, v.y)
+	if mode == PLANTE:
+		return {"y": ymin, "b": Basis(), "ecart": 0.0}
+	if mode != INCLINE or ymax - ymin < 0.02:
+		return {"y": ymax - ANCRAGE, "b": Basis(), "ecart": ymax - ANCRAGE - ymin}
+	# plan des moindres carrés y = a x + b z + c (repère centré)
+	var sxx := 0.0
+	var szz := 0.0
+	var sxz := 0.0
+	var sxy := 0.0
+	var szy := 0.0
+	var sy := 0.0
+	for v: Vector3 in pts:
+		sxx += v.x * v.x
+		szz += v.z * v.z
+		sxz += v.x * v.z
+		sxy += v.x * v.y
+		szy += v.z * v.y
+		sy += v.y
+	var det := sxx * szz - sxz * sxz
+	var n := Vector3.UP
+	if absf(det) > 1e-9:
+		var a := (sxy * szz - szy * sxz) / det
+		var b := (szy * sxx - sxy * sxz) / det
+		n = Vector3(-a, 1.0, -b).normalized()
+	var ang := acos(clampf(n.y, -1.0, 1.0))
+	var bas := Basis()
+	if ang > 0.002:
+		var axe := Vector3.UP.cross(n).normalized()
+		bas = Basis(axe, minf(ang, PENTE_MAX))
+	var nn := bas * Vector3.UP
+	var c := -1e9
+	for v: Vector3 in pts:
+		c = maxf(c, v.y + (nn.x * v.x + nn.z * v.z) / nn.y)
+	c -= ANCRAGE
+	var ecart := 0.0
+	for v: Vector3 in pts:
+		ecart = maxf(ecart, c - (nn.x * v.x + nn.z * v.z) / nn.y - v.y)
+	return {"y": c, "b": bas, "ecart": ecart}
+
+## Recouvrement (m) d'une empreinte de rayon r et de hauteur h en q avec les objets posés et les roches du kit.
+func _chevauche(q: Vector3, r: float, h: float, avec_apparitions := true) -> float:
+	var pire := 0.0
+	for e: Array in _emp_pres(_grille_emp, q, r):
+		var c: Vector3 = e[0]
+		if c.y > q.y + h - 0.03 or c.y + float(e[2]) < q.y + 0.03:
+			continue
+		var re: float = e[1]
+		if e.size() > 3:                       # roche seule : bords bas et irréguliers, on ne compte que son cœur ; menus objets : ignorée
+			if r < 0.15 or float(e[2]) < 0.15:
+				continue
+			re *= 0.75
+		pire = maxf(pire, r + re - Vector2(c.x - q.x, c.z - q.z).length())
+	_empreintes_kit()
+	for e: Array in _emp_pres(_grille_kit, q, r):
+		var c: Vector3 = e[0]
+		if c.y > q.y + h - 0.03 or c.y + float(e[2]) < q.y + 0.03:
+			continue
+		pire = maxf(pire, r + float(e[1]) - Vector2(c.x - q.x, c.z - q.z).length())
+	if avec_apparitions:
+		for a: Vector3 in apparitions:
+			if absf(a.y - q.y) < 1.5:
+				pire = maxf(pire, r + 0.4 - Vector2(a.x - q.x, a.z - q.z).length())
+	return maxf(pire, 0.0)
+
+## Empreintes des roches du kit (blocs, stalagmites, aiguilles, pans, neige) : cercle inscrit dans la boîte de chaque instance.
+func _empreintes_kit() -> Array:
+	var g := _g()
+	if g == null or g.kit == null:
+		return []
+	if g.kit.nb_instances == _kit_emp_n:
+		return _kit_emp
+	_kit_emp_n = g.kit.nb_instances
+	_kit_emp = []
+	_grille_kit = {}
+	var boites := {}
+	for cle: String in g.kit._inst:
+		var nom := cle.get_slice("|", 0)
+		var fam := nom.get_slice("_", 0)
+		if not fam in ["bloc", "stalag", "pic", "pan", "neige", "dalle", "caillou"]:
+			continue
+		if not boites.has(nom):
+			var mn := Vector3(INF, INF, INF)
+			var mx := -mn
+			var G: Dictionary = g.kit.gab[nom]
+			for mt: String in G["surf"]:
+				for v: Vector3 in (G["surf"][mt]["v"] as PackedVector3Array):
+					mn = mn.min(v)
+					mx = mx.max(v)
+			boites[nom] = AABB(mn, mx - mn)
+		var bl: AABB = boites[nom]
+		for xf: Transform3D in g.kit._inst[cle]:
+			var bw: AABB = xf * bl
+			var kr := 0.5 if fam in ["neige", "dalle"] else 0.4                     # tas de neige et terrasses : ronds et plats
+			var ek := [Vector3(bw.get_center().x, bw.position.y, bw.get_center().z), kr * minf(bw.size.x, bw.size.z), bw.size.y]
+			_kit_emp.append(ek)
+			_emp_ajouter(_grille_kit, ek)
+	return _kit_emp
+
+## Vrai si p est à moins de r (à l'horizontale, 1,5 m en hauteur) d'un point d'apparition d'ennemi.
+func pres_apparition(p: Vector3, r: float) -> bool:
+	if not regles_pose:
+		return false
+	for a: Vector3 in apparitions:
+		if absf(a.y - p.y) < 1.5 and Vector2(a.x - p.x, a.z - p.z).length() < r:
+			return true
+	return false
+
+## Place libre pour un objet de rayon r : aucun objet posé, aucune roche du kit, aucun point d'apparition dans le cercle.
+func place_libre(p: Vector3, r: float, h := 1.0) -> bool:
+	if not regles_pose:
+		return true
+	return _chevauche(p, r, h) < 0.05 and not pres_apparition(p, r + 0.4)
+
+func _empreinte(p: Vector3, r: float, h: float) -> void:
+	if _g() != null and regles_pose:
+		_emp_ajouter(_grille_emp, [p, r, h])
+		empreintes.append([p, r, h])
+
+static func _emp_ajouter(grille: Dictionary, e: Array) -> void:
+	var c: Vector3 = e[0]
+	var r: float = e[1]
+	for cx in range(floori((c.x - r) / 2.0), floori((c.x + r) / 2.0) + 1):
+		for cz in range(floori((c.z - r) / 2.0), floori((c.z + r) / 2.0) + 1):
+			var k := Vector2i(cx, cz)
+			if not grille.has(k):
+				grille[k] = []
+			(grille[k] as Array).append(e)
+
+## Empreintes qui touchent le disque (q, r) (sans doublon).
+static func _emp_pres(grille: Dictionary, q: Vector3, r: float) -> Array:
+	var res: Array = []
+	var x0 := floori((q.x - r) / 2.0)
+	var x1 := floori((q.x + r) / 2.0)
+	var z0 := floori((q.z - r) / 2.0)
+	var z1 := floori((q.z + r) / 2.0)
+	if x0 == x1 and z0 == z1:
+		return grille.get(Vector2i(x0, z0), [])
+	var vus := {}
+	for cx in range(x0, x1 + 1):
+		for cz in range(z0, z1 + 1):
+			for e: Array in grille.get(Vector2i(cx, cz), []):
+				var id_e := e.hash()
+				if not vus.has(id_e):
+					vus[id_e] = true
+					res.append(e)
+	return res
+
+## Roche seule (rocher, stalagmite) : rien si elle tomberait dans un objet déjà posé ou sur un point d'apparition ; sinon son empreinte
+## est gardée (les objets posés ensuite l'évitent). Les roches qui font partie d'un objet (pierres du feu, minerai) ne sont pas jugées.
+func roche_libre(base: Vector3, r: float, h: float) -> bool:
+	if _g() == null or not regles_pose or _prof_pose > 0:
+		return true
+	if _chevauche_objets(base, r, h) > 0.04 or pres_apparition(base, r * 0.8 + 0.3):
+		return false
+	_emp_ajouter(_grille_emp, [base, r, h, true])
+	empreintes.append([base, r, h, true])        # 4e champ : roche (le kit ne s'en écarte pas : son tracé ne bouge pas pour elles)
+	return true
+
+func _chevauche_objets(q: Vector3, r: float, h: float) -> float:
+	var pire := 0.0
+	for e: Array in _emp_pres(_grille_emp, q, r):
+		if e.size() > 3:
+			continue                               # roche contre roche : amas et éboulis voulus
+		var c: Vector3 = e[0]
+		if c.y > q.y + h - 0.03 or c.y + float(e[2]) < q.y + 0.03:
+			continue
+		pire = maxf(pire, r + float(e[1]) - Vector2(c.x - q.x, c.z - q.z).length())
+	return pire
+
+var _prof_pose := 0         # > 0 : on dessine les pièces d'un objet (ses roches ne sont pas des roches « seules »)
+
+## Incline les pièces de l'objet autour de son pied (transformation `xf` appliquée par quad/tour/solide) ; rend l'ancienne `xf`.
+func _incliner(pz: Dictionary) -> Transform3D:
+	var x0 := xf
+	var b: Basis = pz["b"]
+	if b != Basis():
+		var q: Vector3 = pz["p"]
+		xf = Transform3D(b, q) * Transform3D(Basis(), -q)
+	return x0
+
 func caisse(pos: Vector3, taille := Vector3(0.7, 0.5, 0.5), lacet := 0.0) -> void:
+	objet_debut("caisse")
+	var pz := pose_objet(pos, taille.x * 0.5, taille.z * 0.5, lacet, taille.y, INCLINE, 0.5, 0.45, true)
+	pos = pz["p"]
+	var x0 := _incliner(pz)
+	if not pz["ok"]:          # lot D : aucune place sûre (roche, objet) : objet retiré
+		xf = x0
+		objet_fin()
+		return
 	var b := Basis(Vector3.UP, lacet)
 	var tx := taille.x
 	var ty := taille.y
@@ -598,6 +1006,9 @@ func caisse(pos: Vector3, taille := Vector3(0.7, 0.5, 0.5), lacet := 0.0) -> voi
 			boite("fer", pos + b * Vector3(dx * (tx + 0.01), ty - 0.06, dz * (tz + 0.01)), Vector3(0.09, 0.12, 0.09), lacet)
 	var s := b * Vector3(taille.x, 0, taille.z)
 	solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s.x), taille.y, absf(s.z)))
+	xf = x0
+	_empreinte(pos, (taille.x + taille.z) * 0.25, taille.y)
+	objet_fin()
 
 ## Benne de chariot (interceptée dans boite) : flancs de trois planches, fond, montants et bandes de fer rivetées.
 func _benne(c: Vector3, t: Vector3, lacet: float) -> void:
@@ -646,6 +1057,50 @@ func boite(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0, sans_des
 		return
 	super.boite(nom, centre, taille, lacet, sans_dessous, decal)
 
+# ------------------------------------------------------------------ pièces de CrypteDecor posées par les règles de pose
+func coffre(pos: Vector3, lacet := 0.0, collision := true) -> void:
+	var pz := pose_objet(pos, 0.47, 0.3, lacet, 0.64, INCLINE, 0.35)
+	var x0 := _incliner(pz)
+	super.coffre(pz["p"], lacet, collision)
+	xf = x0
+	_empreinte(pz["p"], 0.45, 0.64)
+
+func tonneau(pos: Vector3, e := 1.0) -> void:
+	var pz := pose_objet(pos, 0.38 * e, 0.38 * e, 0.0, e, INCLINE, 0.5, 0.45, true)
+	if not pz["ok"]:
+		return
+	var x0 := _incliner(pz)
+	super.tonneau(pz["p"], e)
+	xf = x0
+	_empreinte(pz["p"], 0.38 * e, e)
+
+func table(pos: Vector3, lacet := 0.0) -> void:
+	var pz := pose_objet(pos, 0.55, 0.33, lacet, 0.8, DROIT)
+	super.table(pz["p"], lacet)
+	_empreinte(pz["p"], 0.45, 0.8)
+
+func urne(pos: Vector3, e := 1.0, cotes := 8) -> void:
+	var pz := pose_objet(pos, 0.25 * e, 0.25 * e, 0.0, 0.6 * e, DROIT)
+	super.urne(pz["p"], e, cotes)
+	_empreinte(pz["p"], 0.25 * e, 0.6 * e)
+
+func arme(pos: Vector3, lacet := 0.0) -> void:
+	var pz := pose_objet(pos, 0.5, 0.12, lacet, 0.04, INCLINE, 0.3)
+	var x0 := _incliner(pz)
+	super.arme(pz["p"], lacet)
+	xf = x0
+
+func crane(pos: Vector3, lacet := 0.0) -> void:
+	super.crane(pose_objet(pos, 0.1, 0.12, lacet, 0.18, PETIT, 0.2)["p"], lacet)
+
+func os_tas(pos: Vector3, n := 4, rayon := 0.4) -> void:
+	super.os_tas(pose_objet(pos, rayon * 0.7, rayon * 0.7, 0.0, 0.15, PETIT, 0.3)["p"], n, rayon)
+
+func bougie(pos: Vector3, avec_lumiere := true) -> void:
+	var pz := pose_objet(pos, 0.035, 0.035, 0.0, 0.14, PETIT, 0.25)
+	if pz["ok"]:                               # lot D : pas de bougie enfouie dans un rebord ou sous un surplomb
+		super.bougie(pz["p"], avec_lumiere)
+
 ## Roue de chariot : bandage de fer, jante de bois, moyeu et essieu.
 func _roue(a: Vector3, b: Vector3) -> void:
 	var d := (b - a).normalized()
@@ -683,6 +1138,14 @@ func _bois_etai(a: Vector3, b: Vector3, r: float) -> void:
 		chaine(haut + vers * 0.5 - Vector3(0, 0.12, 0), haut + vers * 0.5 - Vector3(0, 0.5, 0))
 
 func coffre_ouvert(pos: Vector3, lacet := 0.0) -> void:
+	objet_debut("coffre_ouvert")
+	var pose := pose_objet(pos, 0.47, 0.3, lacet, 0.6, INCLINE)
+	pos = pose["p"]
+	var x0 := _incliner(pose)
+	if not pose["ok"]:          # lot D : aucune place sûre (roche, objet) : objet retiré
+		xf = x0
+		objet_fin()
+		return
 	var b := Basis(Vector3.UP, lacet)
 	boite("bois", pos + Vector3(0, 0.22, 0), Vector3(0.9, 0.44, 0.56), lacet)
 	boite("fer", pos + Vector3(0, 0.02, 0), Vector3(0.94, 0.05, 0.6), lacet)
@@ -701,28 +1164,63 @@ func coffre_ouvert(pos: Vector3, lacet := 0.0) -> void:
 		boite("or", pos + b * Vector3(px, 0.43 + 0.04 * (1.0 - absf(px) * 2.0), pz), Vector3(0.07, 0.025, 0.07), rng.randf() * TAU)
 	var sz := b * Vector3(0.9, 0, 0.56)
 	solide(pos + Vector3(0, 0.3, 0), Vector3(absf(sz.x), 0.6, absf(sz.z)))
+	xf = x0
+	_empreinte(pos, 0.4, 0.6)
+	objet_fin()
 
 func pieces(pos: Vector3, n: int, rayon: float) -> void:
+	objet_debut("pieces")
 	for k in n:
 		var a := rng.randf() * TAU
 		var d := rng.randf() * rayon
 		boite("or", pos + Vector3(cos(a) * d, 0.012 + 0.02 * float(k % 3) * (1.0 - d / rayon), sin(a) * d), Vector3(0.06, 0.02, 0.06), rng.randf() * TAU)
+	objet_fin()
 
 func sac(pos: Vector3, e := 1.0) -> void:
+	objet_debut("sac")
+	var pz := pose_objet(pos, 0.25 * e, 0.25 * e, 0.0, 0.56 * e, INCLINE, 0.5, 0.45, true)
+	pos = pz["p"]
+	var x0 := _incliner(pz)
+	if not pz["ok"]:          # lot D : aucune place sûre (roche, objet) : objet retiré
+		xf = x0
+		objet_fin()
+		return
 	var prof := [Vector2(0.2, 0.0), Vector2(0.26, 0.12), Vector2(0.24, 0.3), Vector2(0.14, 0.44), Vector2(0.06, 0.5), Vector2(0.1, 0.56)]
 	var pe: Array = []
 	for p: Vector2 in prof:
 		pe.append(p * e)
 	tour("paille", pos, pe, 6, 0.3, true)
 	tour("fer", pos + Vector3(0, 0.42 * e, 0), [Vector2(0.075 * e, 0.0), Vector2(0.075 * e, 0.03 * e)], 6, 0.3, false)
+	xf = x0
+	_empreinte(pos, 0.25 * e, 0.56 * e)
+	objet_fin()
 
 func tabouret(pos: Vector3) -> void:
+	objet_debut("tabouret")
+	var pz := pose_objet(pos, 0.19, 0.19, 0.3, 0.45, DROIT)
+	pos = pz["p"]
+	var x0 := _incliner(pz)
+	if not pz["ok"]:          # lot D : aucune place sûre (roche, objet) : objet retiré
+		xf = x0
+		objet_fin()
+		return
 	boite("bois", pos + Vector3(0, 0.42, 0), Vector3(0.34, 0.06, 0.34), 0.3)
 	for sx in [-0.12, 0.12]:
 		for sz in [-0.12, 0.12]:
 			boite("bois", pos + Vector3(sx, 0.2, sz), Vector3(0.05, 0.4, 0.05), 0.0)
+	xf = x0
+	_empreinte(pos, 0.2, 0.45)
+	objet_fin()
 
 func couchage(pos: Vector3, lacet := 0.0, peau_col := true) -> void:
+	objet_debut("couchage")
+	var pz := pose_objet(pos, 0.5, 1.0, lacet, 0.65, INCLINE, 0.5, 0.45, true)
+	pos = pz["p"]
+	var x0 := _incliner(pz)
+	if not pz["ok"]:          # lot D : aucune place sûre (roche, objet) : objet retiré
+		xf = x0
+		objet_fin()
+		return
 	var b := Basis(Vector3.UP, lacet)
 	# châlit de bois sur 4 pieds (plateau à 0,3 m), paillasse, paille, fourrures, oreiller : haut de 0,55 m
 	for sx in [-0.44, 0.44]:
@@ -738,8 +1236,19 @@ func couchage(pos: Vector3, lacet := 0.0, peau_col := true) -> void:
 	boite("paille" if peau_col else "peau", pos + b * Vector3(0.0, 0.54, -0.76), Vector3(0.46, 0.14, 0.3), lacet)   # oreiller
 	var s := b * Vector3(1.0, 0, 2.0)
 	solide(pos + Vector3(0, 0.3, 0), Vector3(absf(s.x), 0.6, absf(s.z)))
+	xf = x0
+	_empreinte(pos, 0.7, 0.65)
+	objet_fin()
 
 func ratelier(pos: Vector3, lacet := 0.0) -> void:
+	objet_debut("ratelier")
+	var pz := pose_objet(pos, 0.85, 0.3, lacet, 1.8, DROIT)
+	pos = pz["p"]
+	var x0 := _incliner(pz)
+	if not pz["ok"]:          # lot D : aucune place sûre (roche, objet) : objet retiré
+		xf = x0
+		objet_fin()
+		return
 	var b := Basis(Vector3.UP, lacet)
 	for sx in [-0.8, 0.8]:
 		boite("bois", pos + b * Vector3(sx, 0.7, 0), Vector3(0.1, 1.4, 0.1), lacet)
@@ -757,13 +1266,32 @@ func ratelier(pos: Vector3, lacet := 0.0) -> void:
 			boite_b("fer", tete - Vector3(0, 0.2, 0), Vector3(0.22, 0.035, 0.035), b)
 			prisme("bois", tete - Vector3(0, 0.2, 0), tete + Vector3(0, 0.05, 0), 0.016, 5)
 	solide(pos + Vector3(0, 0.75, 0), Vector3(1.8, 1.5, 0.5) if absf(cos(lacet)) > 0.7 else Vector3(0.5, 1.5, 1.8))
+	xf = x0
+	_empreinte(pos, 0.45, 1.8)
+	objet_fin()
 
 func trophee(pos: Vector3, hauteur := 1.6, lacet := 0.0) -> void:
+	objet_debut("trophee")
+	var pz := pose_objet(pos, 0.08, 0.08, lacet, hauteur, PLANTE)
+	pos = pz["p"]
+	var x0 := _incliner(pz)
+	if not pz["ok"]:
+		xf = x0
+		objet_fin()
+		return
 	prisme("bois", pos, pos + Vector3(0.03, hauteur, 0), 0.04, 5)
 	crane(pos + Vector3(0.03, hauteur - 0.01, 0), lacet)
 	solide_rond(pos + Vector3(0, hauteur * 0.5, 0), 0.08, hauteur)
+	xf = x0
+	_empreinte(pos, 0.1, hauteur)
+	objet_fin()
 
 func feu_camp(pos: Vector3) -> void:
+	objet_debut("feu_camp")
+	var pz := pose_objet(pos, 0.75, 0.75, 0.0, 0.3, DROIT)
+	pos = pz["p"]
+	var x0 := _incliner(pz)
+	_prof_pose += 1
 	for k in 9:
 		var a := TAU * k / 9.0 + 0.2
 		rocher("c_roche_nu", pos + Vector3(cos(a) * 0.62, 0.0, sin(a) * 0.62), 0.17, 0.2, 400 + k, 0.0, false, 5)
@@ -775,11 +1303,16 @@ func feu_camp(pos: Vector3) -> void:
 	flamme(pos + Vector3(0.12, 0.2, 0.08), 1.4)
 	carte("halo", pos + Vector3(0, 0.03, 0), Vector3.UP, 3.6, 3.6)
 	solide_rond(pos + Vector3(0, 0.15, 0), 0.7, 0.3)
+	_prof_pose -= 1
+	xf = x0
+	_empreinte(pos, 0.75, 0.3)
+	objet_fin()
 
 # ------------------------------------------------------------------ fin : coque colorée
 func finir() -> void:
 	if racine is Grotte:
 		_habiller(racine as Grotte)
+		(racine as Grotte).poser_cailloux()
 	super.finir()
 	for cle in _coq:
 		var b: Dictionary = _coq[cle]
@@ -880,7 +1413,9 @@ func _toiles_rares(g: Grotte) -> void:
 	print("grotte v2 : %d toiles d'araignée" % nb_toiles)
 
 func _toile_rare(g: Grotte, id: String, s: float, cote: float, l: float, sens: float) -> bool:
+	objet_debut("toile")
 	if not g.hors_jonction(id, s):
+		objet_fin()
 		return false
 	var dl := g.demi_l(id, s)
 	var w := (dl.y if cote > 0.0 else dl.x)
@@ -888,8 +1423,10 @@ func _toile_rare(g: Grotte, id: String, s: float, cote: float, l: float, sens: f
 	var haut := g.plafond_en(id, s, lat)
 	var sol := g.sol_en(id, s, lat)
 	if haut.y - sol.y < 2.0:
+		objet_fin()
 		return false
 	toile(Vector3(haut.x, haut.y - 0.15, haut.z), g.tang(id, s) * sens, -g.droite(id, s) * cote, l)
+	objet_fin()
 	return true
 
 ## Accroches du relief (Grotte.levres / Grotte.rebords, lot « grotte relief ») :
@@ -1049,23 +1586,23 @@ func _retoucher_lumieres(g: Grotte) -> void:
 				proche_etai = se
 		if proche_etai >= 0.0:
 			l.position = _lanterne_etai(g, id, proche_etai, 1.0 if fmod(proche_etai, 2.0) < 1.0 else -1.0)
+			if l.position == Vector3.INF:
+				l.position = _poser_poteau(g, id, s, 1.0 if float(sit[2]) >= 0.0 else -1.0)
 		elif th == "repaire":
 			var dl := g.demi_l(id, s)
 			var cote := 1.0 if float(sit[2]) >= 0.0 else -1.0
 			var lat := cote * (dl.y if cote > 0.0 else dl.x) * 0.72
 			var p := g.sol_en(id, s, lat)
-			brasero_fer(p, g.libre(id, s, lat, 0.45))
-			l.position = p + Vector3(0, 1.3, 0)
+			var pbr := brasero_fer(p, g.libre(id, s, lat, 0.45))
+			l.position = pbr + Vector3(0, 1.3, 0) if pbr != Vector3.INF else _poser_poteau(g, id, s, cote)
 		else:
-			var dl := g.demi_l(id, s)
 			var cote := 1.0 if float(sit[2]) >= 0.0 else -1.0
-			var lat := cote * maxf((dl.y if cote > 0.0 else dl.x) - 0.55, 0.9)
-			var p := g.sol_en(id, s, lat)
-			l.position = poteau_lanterne(p, -g.droite(id, s) * cote, g.libre(id, s, lat, 0.2))
+			l.position = _poser_poteau(g, id, s, cote)
 
 # ------------------------------------------------------------------ pièces d'accessoires
 ## Lanterne de fer suspendue (crochet en `haut`) : chaînette, chapeau, cage à 4 montants, flamme, halo. Rend le centre de la flamme.
 func lanterne(haut: Vector3, chaine_l := 0.18) -> Vector3:
+	objet_debut("lanterne")
 	var c := haut - Vector3(0, chaine_l, 0)
 	if chaine_l > 0.02:
 		chaine(haut, c)
@@ -1081,10 +1618,15 @@ func lanterne(haut: Vector3, chaine_l := 0.18) -> Vector3:
 	flamme(f, 0.75)
 	carte("halo", f + Vector3(0, 0.1, 0), Vector3(0, 0, 1), 0.9, 0.9)
 	carte("halo", f + Vector3(0, 0.1, 0), Vector3(1, 0, 0), 0.9, 0.9)
+	objet_fin()
 	return f + Vector3(0, 0.12, 0)
 
 ## Poteau de bois planté au sol, potence et lanterne pendue côté galerie (`vers` = vers le centre). Rend la position de la lumière.
 func poteau_lanterne(pied: Vector3, vers: Vector3, avec_solide := false) -> Vector3:
+	objet_debut("poteau_lanterne")
+	var pz := pose_objet(pied, 0.12, 0.12, 0.0, 2.35, PLANTE)
+	pied = pz["p"]
+	var x0 := _incliner(pz)
 	var d := Vector3(vers.x, 0, vers.z).normalized()
 	var h := 2.35
 	prisme("bois", pied + Vector3(0, -0.1, 0), pied + Vector3(0, h, 0), 0.085, 6)
@@ -1095,7 +1637,56 @@ func poteau_lanterne(pied: Vector3, vers: Vector3, avec_solide := false) -> Vect
 		boite("paille", pied + Vector3(0, 0.25 + 0.06 * k, 0), Vector3(0.2, 0.035, 0.2), 0.4 * k)
 	if avec_solide:
 		solide_rond(pied + Vector3(0, 1.1, 0), 0.1, 2.2)
-	return lanterne(pied + Vector3(0, h - 0.16, 0) + d * 0.58, 0.16)
+	var lp := lanterne(pied + Vector3(0, h - 0.16, 0) + d * 0.58, 0.16)
+	xf = x0
+	_empreinte(pied, 0.15, 2.35)
+	objet_fin()
+	return lp
+
+## Lot D : poteau à lanterne sur une place sûre près de (s, côté) : hors des jonctions (piliers), sol de la galerie, poteau et lanterne
+## hors de la roche (Grotte.sol_et_plafond), écarté des parois et des objets (pose_objet). Repli : lanterne pendue à la voûte.
+## Rend la position de la lumière. `lat_impose` : décalage voulu (rive du lac), sinon au pied de la paroi du côté `cote`.
+func _poser_poteau(g: Grotte, id: String, s: float, cote: float, solide := false, lat_impose := 999.0) -> Vector3:
+	var L := g.longueur(id)
+	for essai in 18:
+		var ds: float = [0.0, 0.8, -0.8, 1.6, -1.6, 2.4, -2.4, 3.2, -3.2][essai % 9]
+		if essai >= 9:
+			if lat_impose < 900.0:
+				break
+			cote = -cote                         # l'autre paroi
+		var ss := s + ds
+		if ss < 0.6 or ss > L - 0.6 or not g.hors_jonction(id, ss):
+			continue
+		var dl := g.demi_l(id, ss)
+		var lat := lat_impose if lat_impose < 900.0 else cote * maxf((dl.y if cote > 0.0 else dl.x) - 0.55, 0.9)
+		var p := g.sol_en(id, ss, lat)
+		if g._hauteurs(p.x, p.z).x > 1e8:
+			continue
+		var pz := pose_objet(p, 0.12, 0.12, 0.0, 2.35, PLANTE, 0.5)
+		if not pz["ok"]:
+			continue
+		var q: Vector3 = pz["p"]
+		var vers := -g.droite(id, ss) * cote
+		var lant := q + Vector3(0, 2.35 - 0.16 - 0.5, 0) + Vector3(vers.x, 0, vers.z).normalized() * 0.58
+		var sp := g.sol_et_plafond(lant.x, lant.z, lant.y)
+		if sp.x < -1e8 or sp.y < lant.y + 0.7:
+			continue
+		var vh := Vector3(vers.x, 0, vers.z).normalized()
+		if not g.rayon_court(q + Vector3(0, 2.0, 0), vh, 0.85).is_empty() or not g.rayon_court(q + Vector3(0, 1.0, 0), vh, 0.85).is_empty():
+			continue                               # la potence et la lanterne ne rentrent pas dans la paroi d'en face
+		return poteau_lanterne(q, vers, solide and g.libre(id, ss, lat, 0.2))
+	for ds: float in [0.0, 1.0, -1.0, 2.0, -2.0, 3.0, -3.0, 4.5, -4.5, 6.0, -6.0, 7.5, -7.5, 9.0, -9.0]:     # repli : lanterne pendue à la voûte
+		var ss := clampf(s + ds, 0.6, L - 0.6)
+		if not g.hors_jonction(id, ss):
+			continue
+		var c := g.plafond_en(id, ss, 0.0)
+		var sol := g.sol_en(id, ss, 0.0)
+		var chaine_l := clampf(c.y - sol.y - 2.6, 0.2, 1.5)
+		var f := c - Vector3(0, 0.05 + chaine_l + 0.3, 0)
+		if c.y - sol.y > 2.9 and _chevauche(Vector3(c.x, f.y - 0.3, c.z), 0.25, c.y - f.y + 0.3) < 0.01:
+			return lanterne(c - Vector3(0, 0.05, 0), chaine_l)
+	var c0 := g.plafond_en(id, s, 0.0)
+	return lanterne(c0 - Vector3(0, 0.05, 0), clampf(c0.y - g.sol_en(id, s, 0.0).y - 2.6, 0.2, 1.5))
 
 ## Lanterne pendue à la traverse d'un étai de mine (côté `cote`). Rend la position de la lumière.
 func _lanterne_etai(g: Grotte, id: String, s: float, cote: float) -> Vector3:
@@ -1105,12 +1696,34 @@ func _lanterne_etai(g: Grotte, id: String, s: float, cote: float) -> Vector3:
 	var pa := g.sol_en(id, s, -(dl.x - 0.25))
 	var pb := g.sol_en(id, s, dl.y - 0.25)
 	var haut := minf(pa.y, pb.y) + h - 0.55 - 0.17
-	var p := g.sol_en(id, s, cote * maxf(w - 0.55, 0.6))
 	var T := g.tang(id, s)
+	var cle := "%s|%d" % [id, roundi(s * 10.0)]
+	if regles_pose and _etais_pris.has(cle + "|%d" % int(cote)):        # lot D : ce côté de l'étai porte déjà une lanterne : l'autre côté
+		cote = -cote
+	var lat_l := cote * maxf(w - 0.55, 0.6)
+	if regles_pose:
+		_etais_pris[cle + "|%d" % int(cote)] = true
+		for k in 4:                                  # pas dans un pan de paroi du kit : on rapproche la lanterne de l'axe
+			var pk := g.sol_en(id, s, lat_l)
+			if _chevauche(Vector3(pk.x, haut - 0.75, pk.z) + T * 0.2, 0.14, 0.75) < 0.02:
+				break
+			lat_l -= cote * 0.3
+	var p := g.sol_en(id, s, lat_l)
+	if regles_pose and _chevauche(Vector3(p.x, haut - 0.75, p.z) + T * 0.2, 0.14, 0.75) > 0.05:
+		return Vector3.INF                        # lot D : pas de place hors de la roche sur cet étai (nez de pilier, pan) : pas de lanterne
 	return lanterne(Vector3(p.x, haut, p.z) + T * 0.2, 0.3)
+var _etais_pris := {}
 
 ## Brasero de fer forgé : trépied, vasque, braises, grande flamme, halo au sol.
-func brasero_fer(pos: Vector3, avec_solide := true) -> void:
+func brasero_fer(pos: Vector3, avec_solide := true) -> Vector3:
+	objet_debut("brasero")
+	var pz := pose_objet(pos, 0.4, 0.4, 0.0, 1.0, DROIT, 0.5, 0.45, true)
+	pos = pz["p"]
+	var x0 := _incliner(pz)
+	if not pz["ok"]:          # lot D : aucune place sûre (roche, objet) : objet retiré
+		xf = x0
+		objet_fin()
+		return Vector3.INF
 	for k in 3:
 		var a := TAU * k / 3.0 + 0.3
 		prisme("fer", pos + Vector3(cos(a) * 0.36, 0.0, sin(a) * 0.36), pos + Vector3(cos(a) * 0.16, 0.72, sin(a) * 0.16), 0.03, 4)
@@ -1122,15 +1735,21 @@ func brasero_fer(pos: Vector3, avec_solide := true) -> void:
 	carte("halo", pos + Vector3(0, 0.03, 0), Vector3.UP, 3.2, 3.2)
 	if avec_solide:
 		solide_rond(pos + Vector3(0, 0.5, 0), 0.42, 1.0)
+	xf = x0
+	_empreinte(pos, 0.42, 1.0)
+	objet_fin()
+	return pos
 
 ## Toile d'araignée tendue dans l'angle paroi / plafond, côté `cote`.
 func _toile_angle(g: Grotte, id: String, s: float, cote: float, l := 1.0, poser := false) -> void:
+	objet_debut("toile")
 	var dl := g.demi_l(id, s)
 	var w := (dl.y if cote > 0.0 else dl.x)
 	var lat := cote * w * 0.82
 	var haut := g.plafond_en(id, s, lat)
 	var sol := g.sol_en(id, s, lat)
 	if haut.y - sol.y < 2.0:
+		objet_fin()
 		return
 	var coin := Vector3(haut.x, haut.y - 0.15, haut.z)
 	var T := g.tang(id, s)
@@ -1138,6 +1757,7 @@ func _toile_angle(g: Grotte, id: String, s: float, cote: float, l := 1.0, poser 
 	var sens := T * (1.0 if _hab_r.randf() < 0.5 else -1.0)      # v2 : le tirage est gardé, la toile n'est plus posée (voir _toiles_rares)
 	if poser:
 		toile(coin, sens, -R * cote, l)
+	objet_fin()
 
 ## Caisse empilée (une ou deux) près de la paroi ; collision seulement si la place est libre.
 func _caisses(g: Grotte, id: String, s: float, cote: float, n := 2) -> void:
@@ -1175,7 +1795,8 @@ func _hab_mine(g: Grotte, z: Dictionary) -> void:
 				break
 		if not deja:
 			var pl := _lanterne_etai(g, id, se, -cote if ke % 2 == 0 else cote)
-			lumiere(pl, LANTERNE_C, LANT_E, LANT_P, LANT_A, true)
+			if pl != Vector3.INF:
+				lumiere(pl, LANTERNE_C, LANT_E, LANT_P, LANT_A, true)
 		ke += 1
 	var s := s0 + 2.5
 	var k := 0
@@ -1189,7 +1810,7 @@ func _hab_mine(g: Grotte, z: Dictionary) -> void:
 			var dl := g.demi_l(id, s)
 			var lat := cote * maxf((dl.y if cote > 0.0 else dl.x) - 0.55, 0.9)
 			if g.libre(id, s, lat, 0.2):
-				var pl := poteau_lanterne(g.sol_en(id, s, lat), -g.droite(id, s) * cote, true)
+				var pl := _poser_poteau(g, id, s, cote, true)
 				lumiere(pl, LANTERNE_C, LANT_E, LANT_P, LANT_A, true)
 		s += _hab_r.randf_range(3.5, 6.0)
 		k += 1
@@ -1206,8 +1827,9 @@ func _hab_camp(g: Grotte, z: Dictionary) -> void:
 		var latb := cote * (dlb.y if cote > 0.0 else dlb.x) * 0.7
 		if g.libre(id, sb, latb, 0.5):
 			var pb := g.sol_en(id, sb, latb)
-			brasero_fer(pb, true)
-			lumiere(pb + Vector3(0, 1.4, 0), Color(1.0, 0.52, 0.2), LANT_E * 1.25, LANT_P + 1.5, LANT_A, true)
+			pb = brasero_fer(pb, true)
+			if pb != Vector3.INF:
+				lumiere(pb + Vector3(0, 1.4, 0), Color(1.0, 0.52, 0.2), LANT_E * 1.25, LANT_P + 1.5, LANT_A, true)
 	# chaînes pendues au plafond, crochets
 	var s := s0 + 3.0
 	var k := 0
@@ -1270,7 +1892,7 @@ func _hab_lac(g: Grotte, z: Dictionary) -> void:
 				continue
 			var lat := rv + 0.9
 			if g.libre(id, sl, lat, 0.2):
-				var pl := poteau_lanterne(g.sol_en(id, sl, lat), -g.droite(id, sl), true)
+				var pl := _poser_poteau(g, id, sl, 1.0, true, lat)
 				lumiere(pl, LANTERNE_C, LANT_E, LANT_P + 1.0, LANT_A, true)
 	# brume : cartes horizontales au ras du sol / de la glace
 	var s := s0 + 2.0
@@ -1295,15 +1917,18 @@ func _hab_cristaux(g: Grotte, z: Dictionary) -> void:
 
 ## Nappe de brume : deux cartes horizontales décalées (tons en paliers, bords rongés), sans collision.
 func _nappe(c: Vector3, taille: float) -> void:
+	objet_debut("nappe")
 	var a := _hab_r.randf() * TAU
 	var u := Vector3(cos(a), 0, sin(a)) * taille * 0.5
 	var v := Vector3(-sin(a), 0, cos(a)) * taille * 0.5
 	quad("brume_g", c - u - v, c + u - v, c + u + v, c - u + v, Vector3.UP, [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)])
 	var c2 := c + Vector3(0, 0.22, 0) + u * 0.3
 	quad("brume_g", c2 - v * 0.8 - u * 0.7, c2 + u * 0.7 - v * 0.8, c2 + u * 0.7 + v * 0.8, c2 - u * 0.7 + v * 0.8, Vector3.UP, [Vector2(1, 0), Vector2(0, 0), Vector2(0, 1), Vector2(1, 1)])
+	objet_fin()
 
 ## Cascade gelée : rideau de colonnes de glace du haut de la paroi (côté lac, à gauche) jusqu'à la glace, pied évasé.
 func _cascade(g: Grotte, id: String, s: float) -> void:
+	objet_debut("cascade")
 	# 5e passe : colonnes de glace irrégulières de largeurs variées, en trois couches (fond sombre -> devant bleu-blanc),
 	# sommet sous un ressaut de roche, pied élargi en cônes de glace ; déployée en travers du fond, face au rivage
 	var dl := g.demi_l(id, s)
@@ -1371,6 +1996,7 @@ func _cascade(g: Grotte, id: String, s: float) -> void:
 	var lb := lumiere(Vector3(face.x, maxf(face.y, g.lac_y) + 2.4, face.z), Color(0.5, 0.72, 1.0), 2.6, 9.0, 1.3, false)
 	lb.light_color = Color(0.5, 0.72, 1.0)
 	lb.set_meta("grappe", true)
+	objet_fin()
 
 ## Glaçons pendus au plafond, par grappes : denses à l'entrée, au lac gelé et chez les cristaux, rares ailleurs, jamais au camp.
 ## Ils restent hors de portée de la tête (2,3 m de garde au sol, ou près des parois).

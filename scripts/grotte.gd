@@ -1052,6 +1052,127 @@ func _hauteurs(x: float, z: float) -> Vector2:
 		haut = maxf(haut, y)
 	return Vector2(bas, haut)
 
+## Sol sous (x, z) pour POSER UN OBJET (règles de pose, GrotteDecor.pose_objet) : surface tournée vers le haut (coque ET dalles des
+## corniches / îlots, lues dans decor.coll au fur et à mesure qu'elles s'ajoutent) la plus haute sous y_ref. -1e9 si aucune.
+## Les triangles de decor.coll sont orientés (b - a) x (c - a) vers le côté visible (coque : vers la galerie).
+var _idx_o := {}                 # case de 1 m -> PackedInt32Array (triangles de decor.coll)
+var _ny_o := PackedFloat32Array()   # composante verticale de la normale (côté visible) de chaque triangle
+var _idx_o_n := 0
+func sol_objet(x: float, z: float, y_ref: float) -> float:
+	return sol_et_plafond(x, z, y_ref).x
+
+## Rayon COURT contre la coque et les dalles (decor.coll, index 3D de 1 m tenu à jour) : règles de pose (parois proches d'un objet).
+## Bien plus rapide que `rayon` (seules les facettes des cases traversées, à la bonne hauteur). {} ou {"p", "n" (vers l'origine), "d"}.
+var _idx_3 := {}
+var _idx_3_n := 0
+func rayon_court(o: Vector3, d: Vector3, lmax: float) -> Dictionary:
+	var c := decor.coll
+	var n := c.size() / 3
+	if n > _idx_3_n:
+		for t in range(_idx_3_n, n):
+			var a := c[t * 3]
+			var b := c[t * 3 + 1]
+			var e := c[t * 3 + 2]
+			var mn := a.min(b).min(e)
+			var mx := a.max(b).max(e)
+			for cx in range(floori(mn.x), floori(mx.x) + 1):
+				for cy in range(floori(mn.y), floori(mx.y) + 1):
+					for cz in range(floori(mn.z), floori(mx.z) + 1):
+						var k := Vector3i(cx, cy, cz)
+						var l: PackedInt32Array = _idx_3.get(k, PackedInt32Array())
+						l.append(t)
+						_idx_3[k] = l
+		_idx_3_n = n
+	d = d.normalized()
+	var vus := {}
+	var best := lmax
+	var res := {}
+	var tt := 0.0
+	while tt <= lmax + 0.26:
+		var q := o + d * minf(tt, lmax)
+		var k := Vector3i(floori(q.x), floori(q.y), floori(q.z))
+		if not vus.has(k):
+			vus[k] = true
+			for i: int in _idx_3.get(k, PackedInt32Array()):
+				var a := c[i * 3]
+				var e1 := c[i * 3 + 1] - a
+				var e2 := c[i * 3 + 2] - a
+				var pv := d.cross(e2)
+				var det := e1.dot(pv)
+				if absf(det) < 1e-9:
+					continue
+				var inv := 1.0 / det
+				var tv := o - a
+				var u := tv.dot(pv) * inv
+				if u < 0.0 or u > 1.0:
+					continue
+				var qv := tv.cross(e1)
+				var v := d.dot(qv) * inv
+				if v < 0.0 or u + v > 1.0:
+					continue
+				var th := e2.dot(qv) * inv
+				if th > 0.001 and th < best:
+					best = th
+					var nn := e1.cross(e2).normalized()
+					if nn.dot(d) > 0.0:
+						nn = -nn
+					res = {"p": o + d * th, "n": nn, "d": th}
+		tt += 0.25
+	return res
+
+## [sol, plafond] : sol comme sol_objet ; plafond = surface la plus basse au-dessus de ce sol, quelle que soit son orientation (voûte,
+## surplomb, ventre d'une paroi, flanc d'une corniche) (1e9 si aucune). plafond - sol = hauteur libre au-dessus du point.
+func sol_et_plafond(x: float, z: float, y_ref: float) -> Vector2:
+	var c := decor.coll
+	var n := c.size() / 3
+	if n > _idx_o_n:
+		_ny_o.resize(n)
+		for t in range(_idx_o_n, n):
+			var a := c[t * 3]
+			var b := c[t * 3 + 1]
+			var d := c[t * 3 + 2]
+			var ng0 := (b - a).cross(d - a)
+			_ny_o[t] = ng0.y / maxf(ng0.length(), 1e-12)
+			if absf(_ny_o[t]) < 0.02:
+				continue                                 # paroi verticale : jamais coupée par une verticale
+			for cx in range(floori(minf(a.x, minf(b.x, d.x))), floori(maxf(a.x, maxf(b.x, d.x))) + 1):
+				for cz in range(floori(minf(a.z, minf(b.z, d.z))), floori(maxf(a.z, maxf(b.z, d.z))) + 1):
+					var k := Vector2i(cx, cz)
+					var l: PackedInt32Array = _idx_o.get(k, PackedInt32Array())
+					l.append(t)
+					_idx_o[k] = l
+		_idx_o_n = n
+	var best := -1e9
+	var bas: Array = []                    # surfaces tournées vers le bas traversées par la verticale
+	for t: int in _idx_o.get(Vector2i(floori(x), floori(z)), PackedInt32Array()):
+		var a := c[t * 3]
+		var b := c[t * 3 + 1]
+		var d := c[t * 3 + 2]
+		var vers_bas := _ny_o[t] < 0.3                       # tout ce qui n'est pas un sol : obstacle au-dessus du sol trouvé
+		var den := (b.z - d.z) * (a.x - d.x) + (d.x - b.x) * (a.z - d.z)
+		if absf(den) < 1e-12:
+			continue
+		var l1 := ((b.z - d.z) * (x - d.x) + (d.x - b.x) * (z - d.z)) / den
+		var l2 := ((d.z - a.z) * (x - d.x) + (a.x - d.x) * (z - d.z)) / den
+		var l3 := 1.0 - l1 - l2
+		if l1 < -1e-5 or l2 < -1e-5 or l3 < -1e-5:
+			continue
+		var y := l1 * a.y + l2 * b.y + l3 * d.y
+		if vers_bas or y > y_ref:
+			bas.append(y if vers_bas else -y - 1e6)     # surface tournée vers le haut au-dessus : codée à part (dessous d'une dalle)
+		elif y > best:
+			best = y
+	var plaf := 1e9
+	var dessous_dalle := false
+	for yc: float in bas:
+		var y := yc if yc > -5e5 else -(yc + 1e6)
+		if y > best + 0.005 and y < plaf:
+			plaf = y
+			dessous_dalle = yc <= -5e5
+	if dessous_dalle:                       # la première surface au-dessus regarde vers le haut : on est DANS une dalle (hauteur libre nulle)
+		plaf = best
+	return Vector2(best, plaf)
+
 ## Point du sol (repère local) à l'abscisse s de la branche `id` et au décalage latéral lat (+ = droite).
 func sol_en(id: String, s: float, lat: float) -> Vector3:
 	var b: Dictionary = br[id]
@@ -1176,13 +1297,41 @@ func _cailloux() -> void:
 				nom = "c_roche_neige"
 			elif sty == "glace" or sty == "cristaux":
 				nom = "c_roche_glace"
-			decor.caillou(nom, sol_en(id, s, lat), _r(0.05, 0.2), _r(0.04, 0.16), rng.randi(), 0.7 if sty == "neige" else 0.4)
+			var q := sol_en(id, s, lat)
+			var rc := _r(0.05, 0.2)
+			var hc := _r(0.04, 0.16)
+			var gc := rng.randi()
+			var mc := 0.7 if sty == "neige" else 0.4
+			if decor.regles_pose:
+				_cailloux_diff.append([nom, q, rc, hc, gc, mc])      # lot D : posés à la fin, hors des objets (voir poser_cailloux)
+			else:
+				decor.caillou(nom, q, rc, hc, gc, mc)
+
+## Lot D : cailloux tirés au début (même suite aléatoire) mais posés après tout le décor, sauf sous / dans un objet, une roche du kit ou
+## un point d'apparition ; recalés au sol (dalles comprises).
+var _cailloux_diff: Array = []
+func poser_cailloux() -> void:
+	for c: Array in _cailloux_diff:
+		var q: Vector3 = c[1]
+		var rc: float = c[2]
+		if decor._chevauche(q, rc + 0.06, float(c[3]) + 0.05) > 0.0 or decor.pres_apparition(q, rc + 0.35):
+			continue
+		var y := sol_objet(q.x, q.z, q.y + 0.3)
+		if y > -1e8:
+			q.y = y
+		decor.caillou(c[0], q, rc, c[3], c[4], c[5])
+	_cailloux_diff.clear()
 
 func _decorer() -> void:
 	_cailloux()
 	GrotteModules.nez_piliers(self)
 	for z: Dictionary in def.get("zones", []):
 		_corniches_zone(z)
+	for z: Dictionary in def.get("zones", []):          # lot D : pieds des ennemis connus avant le décor (rien ne se pose dessus)
+		for e: Dictionary in z.get("ennemis", []):
+			decor.apparitions.append(_pos_zone(z, e))
+	if GrotteKit.actif():
+		GrotteStructures.reserver_autel(self)
 	for z: Dictionary in def.get("zones", []):
 		GrotteModules.poser(self, z)
 		_accroches_zone(z)
@@ -1394,16 +1543,31 @@ func _accroches_zone(z: Dictionary) -> void:
 			pat.append(sol_en(id, float(q[0]), float(q[1])))
 		accroches.append({"type": "ennemi", "id": e["id"], "zone": z["id"], "pos": p + Vector3(0, 0.05, 0), "lacet": lac, "d": e, "patrouille": pat})
 	for c: Dictionary in z.get("coffres", []):
-		var p := _pos_zone(z, c)
+		var p: Vector3 = _poser_accroche(z, c, 0.47, 0.3, float(c.get("lacet", 0.0)), 1.1, GrotteDecor.INCLINE)
+		decor.objet_debut("coffre", c["id"])
 		decor.coffre(p, float(c.get("lacet", 0.0)))
+		decor.objet_fin()
 		accroches.append({"type": "coffre", "id": c["id"], "zone": z["id"], "pos": p + Vector3(0, 0.8, 0), "lieu": p, "d": c})
 	for r: Dictionary in z.get("ressources", []):
-		var p := _pos_zone(z, r)
+		var gr := String(r["genre"])
+		var mine := gr.begins_with("minerai")
+		var p: Vector3 = _poser_accroche(z, r, 0.5 if mine else 0.45, 0.5 if mine else 0.45, 0.0, 1.1, GrotteDecor.DROIT)     # 1,1 m libres : le point d'interaction (+0,7 m) reste dans la galerie
+		decor.objet_debut("ressource_" + gr, r["id"])
+		decor._prof_pose += 1
 		GrotteModules.prop_ressource(self, r, p, z)
+		decor._prof_pose -= 1
+		decor.objet_fin()
+		decor._empreinte(p, 0.5, 0.6)
 		accroches.append({"type": "ressource", "id": r["id"], "zone": z["id"], "pos": p + Vector3(0, 0.7, 0), "d": r})
 	for i: Dictionary in z.get("interactions", []):
-		var p := _pos_zone(z, i)
+		var reg := String(i.get("prop", "")) == "registre"
+		var p: Vector3 = _poser_accroche(z, i, 0.55 if reg else 0.42, 0.33 if reg else 0.42, 0.2 if reg else 0.0, 1.1, GrotteDecor.DROIT)
+		decor.objet_debut("interaction", i["id"])
+		decor._prof_pose += 1
 		GrotteModules.prop_interaction(self, i, p, z)
+		decor._prof_pose -= 1
+		decor.objet_fin()
+		decor._empreinte(p, 0.45, 0.8 if reg else 0.4)
 		accroches.append({"type": "interaction", "id": i["id"], "zone": z["id"], "pos": p + Vector3(0, 0.6, 0), "d": i})
 	for m: Dictionary in z.get("meca", []):
 		var p := sol_en(id, float(m["s"]), float(m["lat"]))
@@ -1412,6 +1576,23 @@ func _accroches_zone(z: Dictionary) -> void:
 		var l: Dictionary = z["lieu"]
 		var s_l: float = float(l.get("s", (float(z["s"][0]) + float(z["s"][1])) * 0.5))
 		accroches.append({"type": "lieu", "id": z["id"], "zone": z["id"], "pos": sol_en(id, s_l, float(l.get("lat", 0.0))), "d": l})
+
+## Lot D : place d'un coffre, d'une ressource ou d'une interaction : pose_objet à l'endroit prévu par les données ; si rien n'y convient
+## (hors de la galerie, plafond trop bas pour le point d'interaction), on glisse le long de la branche et vers l'axe.
+func _poser_accroche(z: Dictionary, e: Dictionary, hx: float, hz: float, lacet: float, h: float, mode: int) -> Vector3:
+	var p0 := _pos_zone(z, e)
+	var pz := decor.pose_objet(p0, hx, hz, lacet, h, mode, 0.35, 1.3)
+	if pz["ok"] or e.has("sur"):
+		return pz["p"]
+	var id: String = z["branche"]
+	for d: Array in [[0.0, 0.6], [1.0, 1.0], [-1.0, 1.0], [1.0, 0.6], [-1.0, 0.6], [2.0, 0.8], [-2.0, 0.8], [3.0, 0.6], [-3.0, 0.6], [0.0, 0.2]]:
+		var s := clampf(float(e["s"]) + float(d[0]), 0.5, longueur(id) - 0.5)
+		var dl := demi_l(id, s)
+		var lat := clampf(float(e["lat"]) * float(d[1]), -dl.x * 0.82, dl.y * 0.82)
+		var q := decor.pose_objet(sol_en(id, s, lat), hx, hz, lacet, h, mode, 0.35, 1.3)
+		if q["ok"]:
+			return q["p"]
+	return pz["p"]
 
 ## Vrai si un décor solide de rayon `r` posé en (s, lat) ne gêne ni le couloir central de la branche ni une zone réservée (rampes, accès).
 func libre(id: String, s: float, lat: float, r: float) -> bool:
