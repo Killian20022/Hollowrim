@@ -483,16 +483,18 @@ func _escaliers(h0: float) -> void:
 ## Une dalle de marche, boîte de (x0, ybas, z0) à (x1, yhaut, z1) ; nez légèrement arrondi, neige vers les bouts (bord = 1).
 func _marche(mn: Vector3, mx: Vector3, bord: float) -> void:
 	var cg := (mn + mx) * 0.5
-	var neige := bord > 0.7 and rng.randf() < 0.6
+	# neige tassée au fond du giron (contre la contremarche suivante), surtout vers les bouts ; milieu piétiné
+	var neige := rng.randf() < (0.85 if bord > 0.6 else 0.35)
 	var ao_h := Color(1.0, 1.0, 1.0, 0.0 if neige else 1.0)
-	var ao_n := Color(0.95, 0.95, 0.95, 1.0)
-	var ao_b := Color(0.42, 0.42, 0.46, 1.0)
+	var ao_n := Color(0.97, 0.97, 0.97, 1.0)
+	var ao_gf := Color(0.97, 0.97, 0.97, 0.0 if neige and bord > 0.75 else 1.0)   # avant du giron : bouts entièrement enneigés
+	var ao_b := Color(0.58, 0.58, 0.62, 1.0)
 	var j := func() -> float: return rng.randf_range(-0.012, 0.012)
 	var p := [
 		Vector3(mn.x, mn.y, mn.z), Vector3(mx.x, mn.y, mn.z), Vector3(mx.x, mn.y, mx.z), Vector3(mn.x, mn.y, mx.z),
 		Vector3(mn.x, mx.y + j.call(), mn.z + 0.02), Vector3(mx.x, mx.y + j.call(), mn.z + 0.02), Vector3(mx.x, mx.y + j.call(), mx.z), Vector3(mn.x, mx.y + j.call(), mx.z)]
 	var nez := [Vector3(mn.x, mx.y - 0.05, mn.z), Vector3(mx.x, mx.y - 0.05, mn.z)]
-	_marches.quad(p[4], p[5], p[6], p[7], ao_n, ao_n, ao_h, ao_h, cg - Vector3(0, 1, 0))          # giron
+	_marches.quad(p[4], p[5], p[6], p[7], ao_gf, ao_gf, ao_h, ao_h, cg - Vector3(0, 1, 0))          # giron
 	_marches.quad(p[0], p[1], nez[1], nez[0], ao_b, ao_b, ao_n, ao_n, cg)                       # contremarche
 	_marches.quad(nez[0], nez[1], p[5], p[4], ao_n, ao_n, ao_n, ao_n, cg)                       # nez chanfreiné
 	_marches.quad(p[0], p[3], p[7], p[4], ao_b, ao_b, ao_n, ao_n, cg)                           # bouts
@@ -540,39 +542,31 @@ func _murs_soutenement(h0: float) -> void:
 func _mur(x0: float, x1: float, zb: float, zh: float, h_bas: float, h_haut: float) -> void:
 	var n := maxi(1, ceili((x1 - x0) / 0.7))
 	var bas := h_bas - 0.35
-	var prev_top := h_haut + 0.02
+	var av := zb - 0.02
+	var hf := h_haut + 0.02                       # haut de la face, CONSTANT : une seule face pour tout le mur
+	var zf := av + (hf - bas) * 0.04              # fruit de 4 % : le haut recule
+	var neige := Color(1, 1, 1, 0.0)
+	var ao_t := Color(1.0, 1.0, 1.0, 1.0)
+	var ao_p := Color(0.82, 0.82, 0.86, 1.0)
+	var cm := Vector3((x0 + x1) * 0.5, (bas + hf) * 0.5, (zb + zh) * 0.5)
+	# face avant d'un seul tenant (les tronçons séparés laissaient des fentes avec l'accrochage des sommets du shader ps1)
+	_murs.quad(Vector3(x0, bas, av), Vector3(x1, bas, av), Vector3(x1, hf, zf), Vector3(x0, hf, zf), ao_p, ao_p, ao_t, ao_t, cm)
+	for xe: float in [x0, x1]:
+		_murs.quad(Vector3(xe, bas, av), Vector3(xe, hf, zf), Vector3(xe, hf, zh + 0.05), Vector3(xe, bas, zh + 0.05), ao_p, ao_t, ao_t, ao_p, cm)
+	# chaperon de pierres inégales posé sur la face (un peu en surplomb, enneigé)
 	for i in n:
-		var xa := lerpf(x0, x1, float(i) / n)
-		var xb := lerpf(x0, x1, float(i + 1) / n)
-		var top := h_haut + rng.randf_range(0.0, 0.06)   # chaperon de pierres inégales
-		var av := zb - 0.02                               # face continue (pas de fente entre deux tronçons)
-		var neige := Color(1, 1, 1, 0.0)
-		var ao_t := Color(1.0, 1.0, 1.0, 1.0)
-		var ao_p := Color(0.82, 0.82, 0.86, 1.0)
-		var c := Vector3((xa + xb) * 0.5, (bas + top) * 0.5, (zb + zh) * 0.5)
-		# face avant (fruit de 4 % : le haut recule)
-		var f0 := Vector3(xa, bas, av)
-		var f1 := Vector3(xb, bas, av)
-		var f2 := Vector3(xb, top, av + (top - bas) * 0.04)
-		var f3 := Vector3(xa, top, av + (top - bas) * 0.04)
-		_murs.quad(f0, f1, f2, f3, ao_p, ao_p, ao_t, ao_t, c)
-		# dessus (chaperon enneigé), un peu en surplomb
-		var t0 := Vector3(xa, top, f3.z - 0.06)
-		var t1 := Vector3(xb, top, f2.z - 0.06)
+		var xa := lerpf(x0, x1, float(i) / n) - (0.0 if i == 0 else 0.01)
+		var xb := lerpf(x0, x1, float(i + 1) / n) + (0.0 if i == n - 1 else 0.01)
+		var top := hf + rng.randf_range(0.01, 0.07)
+		var c := Vector3((xa + xb) * 0.5, top - 0.5, (zb + zh) * 0.5)
+		var t0 := Vector3(xa, top, zf - 0.06)
+		var t1 := Vector3(xb, top, zf - 0.06)
 		var t2 := Vector3(xb, top, zh + 0.05)
 		var t3 := Vector3(xa, top, zh + 0.05)
-		_murs.quad(t0, t1, t2, t3, neige, neige, neige, neige, c - Vector3(0, 2, 0))
-		_murs.quad(f3, f2, t1, t0, neige, neige, neige, neige, c)
-		if i == 0 or i == n - 1:
-			var xe := xa if i == 0 else xb
-			_murs.quad(Vector3(xe, bas, av), Vector3(xe, top, f3.z), Vector3(xe, top, zh + 0.05), Vector3(xe, bas, zh + 0.05), ao_p, ao_t, ao_t, ao_p, c)
-		elif absf(top - prev_top) > 0.005:
-			# petit ressaut entre deux pierres du chaperon
-			var xe := xa
-			var hm := maxf(top, prev_top)
-			var hn := minf(top, prev_top)
-			_murs.quad(Vector3(xe, hn, f3.z - 0.06), Vector3(xe, hm, f3.z - 0.06), Vector3(xe, hm, zh + 0.05), Vector3(xe, hn, zh + 0.05), ao_t, ao_t, ao_t, ao_t, c + Vector3(0, 0, 0) if top > prev_top else c - Vector3(1, 0, 0))
-		prev_top = top
+		_murs.quad(t0, t1, t2, t3, neige, neige, neige, neige, c)
+		_murs.quad(Vector3(xa, hf - 0.04, zf - 0.06), Vector3(xb, hf - 0.04, zf - 0.06), t1, t0, ao_t, ao_t, neige, neige, c)
+		for xe: float in [xa, xb]:
+			_murs.quad(Vector3(xe, hf - 0.04, zf - 0.06), t0 if xe == xa else t1, t3 if xe == xa else t2, Vector3(xe, hf - 0.04, zh + 0.05), ao_t, neige, neige, ao_t, c)
 	var forme := CollisionShape3D.new()
 	var bx := BoxShape3D.new()
 	bx.size = Vector3(x1 - x0, h_haut + 0.03 - bas, zh - zb + 0.02)
@@ -691,7 +685,7 @@ func _finaliser_rues() -> void:
 		var mi := _mesh(_tuiles[cle], mat_paves, false, "Paves_%d_%d" % [cle.x, cle.y])
 		if mi != null:
 			mi.visibility_range_end = PORTEE_PAVES
-	_mesh(_marches, TexturesBati.m_pierre_fine_e(Color(0.92, 0.94, 1.0)), true, "Marches")
+	_mesh(_marches, TexturesBati.m_pierre_fine_e(Color(1.22, 1.24, 1.32)), true, "Marches")   # pierre claire usée (vue 3 de la planche)
 	var mur := _mesh(_murs, TexturesBati.m_pierre_seche_e(Color(1.5, 1.52, 1.6)), true, "MursSoutenement")
 	if mur != null:
 		mur.visibility_range_end = 0.0   # visibles de loin (haute rue vue de toute la cuvette)

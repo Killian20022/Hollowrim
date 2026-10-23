@@ -1,8 +1,11 @@
 # C7a : 3 zones du village v2, même angle et même lumière avant/après (midi = heure=12, crépuscule = heure=17.5)
-# place : depuis l'entrée de la rue principale, vers le puits ; rue : du pied du pont vers la haute rue ; entree : sentier → porte SO
+# place : depuis l'entrée de la rue principale, vers le puits ; rue : du pied du pont vers la haute rue ;
+# pente : au pied de l'escalier, vers la haute rue (rue en pente) ; entree : sentier → porte SO
 place_midi monde 35,30,221,-8 heure=12
 place_crep monde 35,30,221,-8 heure=17.5
 rue_midi monde 42,51,188,6 heure=12
 rue_crep monde 42,51,188,6 heure=17.5
+pente_midi monde 44,63,180,10 heure=12
+pente_crep monde 44,63,180,10 heure=17.5
 entree_midi monde 19,17.5,228,-4 heure=12
 entree_crep monde 19,17.5,228,-4 heure=17.5
