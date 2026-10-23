@@ -1,0 +1,13 @@
+# C7b : vues de contrôle (jour) — grilles d'eau, portes N/E, façades, tour, fermes, moulin à vent
+G1 monde 61,58,229,-8 heure=12
+G2 monde 25,59.5,128,-10 heure=12
+H2 monde 48,50,228,0 heure=12
+T1 monde 39,82.5,233,16 heure=12
+H5 monde 42.5,81.5,72,0 heure=12
+MV monde 86,16,288,12 heure=12
+FA monde 76,32,315,0 heure=12
+FB monde 55,-2,232,-2 heure=12
+PE monde 81,36,90,0 heure=12
+PS monde 58,70,120,-4 heure=12
+VH monde 41,89.5,0,-14 heure=12
+H6 monde 52,24,95,0 heure=12

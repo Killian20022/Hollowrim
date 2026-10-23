@@ -1,0 +1,7 @@
+# C7b : poses de mesure de perf (mesure_vues.gd), mêmes poses en base (a1af5bf) et après
+W0 monde 2.5,8.5,16,4 heure=17 attente=400
+P1 monde 42,29.5,180,-2 heure=17 attente=240
+R1 monde 44,55.5,180,8 heure=17 attente=240
+E1 monde 18.8,17.1,228,-6 heure=17 attente=240
+PE monde 32,30,-125,0 heure=17 attente=240
+V0 monde 70,97,28,-12 heure=17 attente=240

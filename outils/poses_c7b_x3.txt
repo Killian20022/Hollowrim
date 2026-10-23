@@ -1,0 +1,5 @@
+E1j monde 18.8,17.1,228,-6 heure=12
+R1j monde 44,55.5,180,8 heure=12
+X3 monde 82,37,330,6 heure=17
+X3j monde 82,37,330,6 heure=12
+TT monde 45,58,180,22 heure=12

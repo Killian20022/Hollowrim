@@ -163,6 +163,8 @@ static func dans_enceinte(x: float, z: float, marge := 0.0) -> bool:
 ## Zone à dégager d'arbres et de rochers : enceinte + 1,5 m et lit de la rivière + 2 m (jusqu'au lac).
 static func exclu(x: float, z: float) -> bool:
 	if RuesVillage.exclu(x, z): return true   # C7a phase 2 : champs et chemins de terre
+	if VillageBati.exclu(x, z):
+		return true   # C7b : fermes, granges et moulin à vent hors enceinte
 	if not BOITE.has_point(Vector2(x, z)):
 		return false
 	if distance_palissade(x, z) < 1.5:
