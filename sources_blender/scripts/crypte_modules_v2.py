@@ -20,7 +20,8 @@ DAT = os.path.join(DOSSIER, "crypte_v2.dat")
 GLB = os.path.join(DOSSIER, "crypte_v2.glb")
 BLEND = os.path.join(BASE, "sources_blender", "crypte_modules_v2.blend")
 
-TEINTE = {"pierre": (1.0, 0.98, 0.95), "fer": (0.85, 0.88, 0.95), "cire": (1.0, 0.96, 0.85), "bois": (1.0, 0.95, 0.9)}
+TEINTE = {"pierre": (1.0, 0.98, 0.95), "fer": (0.85, 0.88, 0.95), "cire": (1.0, 0.96, 0.85), "bois": (1.0, 0.95, 0.9),
+          "givre": (0.92, 0.97, 1.0), "gravure": (1.0, 0.98, 0.95)}      # C4b : givre en plaques (matière « neige »), inscriptions (« gravure »)
 
 
 def B(v):   # Godot -> Blender
@@ -341,44 +342,166 @@ def dalles_brisees(nom, graine, n=3):
     return M
 
 
+def _givre_eclat(M, c, r, ep=0.012):
+    """Éclat de givre plat et IRRÉGULIER (5 à 7 sommets sur un cercle déformé) : pas de rectangle (pas de « gros carrés »)."""
+    rg = M.rg
+    n = rg.randint(5, 7)
+    pts = []
+    for k in range(n):
+        a = math.tau * (k + rg.uniform(-0.3, 0.3)) / n
+        rr = r * rg.uniform(0.45, 1.0)
+        q = Vector((c.x + math.cos(a) * rr, c.y, c.z + math.sin(a) * rr * rg.uniform(0.5, 0.9)))
+        pts.append(q)
+        pts.append(q + Vector((0, ep, 0)))
+    M.coin(pts, "givre", bev=0.0, jit=0.0, ton=rg.uniform(0.5, 0.72))
+
+
+def _givre_plaques(M, x0, x1, z0, z1, y, n, ep=0.012, taille=(0.12, 0.34)):
+    """Givre en petits éclats irréguliers posés à plat (matière « givre » -> neige de la crypte, ton bas : pas de tache saturée)."""
+    rg = M.rg
+    for _ in range(n * 2):
+        r = rg.uniform(taille[0], taille[1]) * 0.32
+        x = rg.uniform(x0 + r, x1 - r) if x1 - x0 > 2 * r else (x0 + x1) * 0.5
+        z = rg.uniform(z0 + r, z1 - r) if z1 - z0 > 2 * r else (z0 + z1) * 0.5
+        _givre_eclat(M, Vector((x, y, z)), r, ep)
+
+
+def _sarco(M, L, W, H, cuve=0.56, inscription=True, croix=True):
+    """Sarcophage sculpté (C4b, planche vue 6 et « objets ») : long axe x, face avant +z, hauteur H (dessus du couvercle).
+    Socle à deux ressauts, cuve à pilastres d'angle et panneaux encadrés (croix et rosaces en relief), bandeau d'inscription,
+    corniche, couvercle à deux degrés chanfreinés avec croix fleuronnée, givre sur les arêtes hautes, éclats."""
+    rg = M.rg
+    # socle à ressauts
+    M.boite((L + 0.18, 0.1, W + 0.16), Vector((0, 0.05, 0)), bev=0.03, jit=0.01, ton=0.78)
+    M.boite((L + 0.08, 0.08, W + 0.07), Vector((0, 0.14, 0)), bev=0.025, jit=0.008, ton=0.86)
+    y0 = 0.18
+    hc = H * cuve
+    y1 = y0 + hc
+    # noyau de la cuve (en retrait : les panneaux et pilastres avancent)
+    M.boite((L - 0.06, hc, W - 0.06), Vector((0, y0 + hc * 0.5, 0)), bev=0.01, jit=0.004, ton=0.62)
+    # pilastres d'angle
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            M.boite((0.16, hc, 0.16), Vector((sx * (L * 0.5 - 0.07), y0 + hc * 0.5, sz * (W * 0.5 - 0.07))), bev=0.025, jit=0.006, ton=rg.uniform(0.9, 1.0))
+    # panneaux encadrés, faces longues
+    n = max(2, int(round((L - 0.3) / 0.75)))
+    pw = (L - 0.32) / n
+    for sz in (-1, 1):
+        for k in range(n):
+            x = -L * 0.5 + 0.16 + pw * (k + 0.5)
+            zc = sz * (W * 0.5 - 0.01)
+            yp = y0 + hc * 0.42
+            hp = hc * 0.56
+            # cadre : 4 baguettes
+            M.boite((pw - 0.06, 0.05, 0.05), Vector((x, yp + hp * 0.5, zc)), bev=0.012, jit=0.003, ton=0.98)
+            M.boite((pw - 0.06, 0.05, 0.05), Vector((x, yp - hp * 0.5, zc)), bev=0.012, jit=0.003, ton=0.9)
+            for sx in (-1, 1):
+                M.boite((0.05, hp, 0.05), Vector((x + sx * (pw * 0.5 - 0.055), yp, zc)), bev=0.012, jit=0.003, ton=0.95)
+            # fond du panneau (en creux, plus sombre) et motif en relief
+            M.boite((pw - 0.14, hp - 0.06, 0.02), Vector((x, yp, zc - sz * 0.005)), bev=0.0, jit=0.002, ton=0.5)
+            if sz > 0 and k == n // 2 and n % 2 == 1 or (sz > 0 and n % 2 == 0 and k in (n // 2 - 1, n // 2)):
+                # croix en relief au centre de la face avant
+                M.boite((0.06, hp * 0.7, 0.05), Vector((x, yp, zc + 0.012)), bev=0.012, jit=0.002, ton=1.0)
+                M.boite((min(0.36, pw * 0.55), 0.06, 0.05), Vector((x, yp + hp * 0.12, zc + 0.012)), bev=0.012, jit=0.002, ton=1.0)
+            else:
+                # rosace : losange de 4 pétales
+                for a in range(4):
+                    ang = a * math.pi * 0.5 + math.pi * 0.25
+                    M.boite((0.07, 0.07, 0.04), Vector((x + math.cos(ang) * 0.06, yp + math.sin(ang) * 0.06, zc + 0.01)), yaw=0.0, incl=(0, 0), bev=0.014, jit=0.002, ton=0.97)
+                M.boite((0.06, 0.06, 0.05), Vector((x, yp, zc + 0.016)), bev=0.014, jit=0.002, ton=1.0)
+    # panneaux des petits côtés : croix simple en relief
+    for sx in (-1, 1):
+        xc = sx * (L * 0.5 - 0.01)
+        M.boite((0.05, hc * 0.56, W - 0.38), Vector((xc, y0 + hc * 0.42, 0)), bev=0.012, jit=0.003, ton=0.55)
+        M.boite((0.05, hc * 0.42, 0.06), Vector((xc + sx * 0.012, y0 + hc * 0.42, 0)), bev=0.012, jit=0.002, ton=1.0)
+        M.boite((0.05, 0.06, min(0.3, W * 0.4)), Vector((xc + sx * 0.012, y0 + hc * 0.5, 0)), bev=0.012, jit=0.002, ton=1.0)
+    # bandeau d'inscription (face avant, haut de la cuve) puis corniche
+    if inscription:
+        M.boite((L - 0.4, hc * 0.16, 0.03), Vector((0, y1 - hc * 0.1, W * 0.5 + 0.005)), "gravure", bev=0.006, jit=0.002, ton=0.9)
+    M.boite((L + 0.04, 0.06, W + 0.04), Vector((0, y1 + 0.03, 0)), bev=0.022, jit=0.006, ton=0.95)
+    # couvercle à deux degrés (légèrement déplacé), chanfrein (fruit) et croix fleuronnée
+    yl = y1 + 0.06
+    hl = H - yl
+    dec = Vector((0.05, 0, 0.02))
+    M.boite((L + 0.1, hl * 0.42, W + 0.1), Vector((0, yl + hl * 0.21, 0)) + dec, yaw=0.02, bev=0.035, jit=0.008, ton=0.92)
+    M.boite((L - 0.04, hl * 0.4, W - 0.1), Vector((0, yl + hl * 0.42 + hl * 0.2, 0)) + dec, yaw=0.02, bev=0.03, jit=0.008, ton=0.97, haut_ratio=0.9)
+    yt = yl + hl * 0.82
+    lc = L * 0.62
+    if not croix:       # Svanhild : dessus nu (la plaque runique lumineuse de tertre.gd s'y pose)
+        _givre_plaques(M, -L * 0.5, L * 0.5, -W * 0.5, W * 0.5, yl + hl * 0.42, max(3, int(L * 2.2)), taille=(0.12, 0.3))
+        M.boite((0.2, 0.12, 0.16), Vector((-L * 0.5 + 0.05, 0.06, W * 0.5 + 0.17)), yaw=0.6, incl=(0.2, 0.15), bev=0.02, jit=0.02, ton=0.8)
+        return
+    M.boite((lc, 0.06, 0.1), Vector((0, yt + 0.03, 0)) + dec, yaw=0.02, bev=0.014, jit=0.002, ton=1.0)
+    M.boite((0.1, 0.06, min(0.5, W * 0.5)), Vector((-lc * 0.22, yt + 0.03, 0)) + dec, yaw=0.02, bev=0.014, jit=0.002, ton=1.0)
+    for e in (-1, 1):       # fleurons aux bouts de la croix
+        M.boite((0.12, 0.06, 0.16), Vector((e * lc * 0.5, yt + 0.03, 0)) + dec, yaw=0.02 + math.pi * 0.25, bev=0.016, jit=0.002, ton=1.0)
+    # givre sur le couvercle et sur le socle (arêtes hautes claires de la planche)
+    _givre_plaques(M, -L * 0.5, L * 0.5, -W * 0.5, W * 0.5, yl + hl * 0.42, max(3, int(L * 2.2)), taille=(0.12, 0.3))
+    _givre_plaques(M, -L * 0.45, L * 0.45, -W * 0.3, W * 0.3, yt, max(2, int(L * 1.4)), taille=(0.1, 0.24))
+    _givre_plaques(M, -L * 0.5, L * 0.5, W * 0.5 - 0.02, W * 0.5 + 0.05, 0.18, max(2, int(L * 1.5)), taille=(0.08, 0.2))
+    # éclat au coin et fragments tombés
+    M.boite((0.2, 0.12, 0.16), Vector((-L * 0.5 + 0.05, 0.06, W * 0.5 + 0.17)), yaw=0.6, incl=(0.2, 0.15), bev=0.02, jit=0.02, ton=0.8)
+    M.boite((0.12, 0.08, 0.1), Vector((L * 0.45, 0.04, W * 0.5 + 0.22)), yaw=1.9, incl=(0.1, 0.3), bev=0.015, jit=0.015, ton=0.85)
+
+
 def sarcophage(nom, graine):
-    """Sarcophage de pierre (long axe x, face avant +z) : socle à ressauts, cuve à panneaux, couvercle à croix en relief, légèrement décalé."""
+    """Sarcophage de pierre (2,18 x 0,92 m, 1,08 m ; mêmes encombrements que la v2 de C4 : collisions inchangées)."""
+    M = Module(nom, graine)
+    _sarco(M, 2.18, 0.92, 1.06)
+    return M
+
+
+def sarcophage_svanhild(nom, graine):
+    """Sarcophage de Svanhild (arène) : 3,2 x 1,8 m, 1,16 m de haut, long axe x (posé tourné d'un quart de tour)."""
+    M = Module(nom, graine)
+    _sarco(M, 3.2, 1.8, 1.16, cuve=0.5, croix=False)
+    return M
+
+
+def socle_v2(nom, graine):
+    """Socle de 1 x 1 x 1 m (mis à la taille par CrypteDecor.socle) : plinthe à ressaut, fût en deux assises de blocs, corniche."""
     M = Module(nom, graine)
     rg = M.rg
-    M.boite((2.34, 0.14, 1.06), Vector((0, 0.07, 0)), bev=0.03, jit=0.01)
-    M.boite((2.18, 0.6, 0.92), Vector((0, 0.44, 0)), bev=0.035, jit=0.01)
-    for k in range(3):                          # panneaux en relief sur la face avant
-        x = (k - 1) * 0.66
-        M.boite((0.5, 0.36, 0.04), Vector((x, 0.45, 0.47)), bev=0.012, jit=0.003, ton=0.95)
-        M.boite((0.32, 0.2, 0.05), Vector((x, 0.47, 0.49)), bev=0.01, jit=0.002, ton=0.78)
-    M.boite((2.26, 0.2, 1.0), Vector((0.07, 0.84, 0.03)), yaw=0.025, bev=0.04, jit=0.012, ton=0.92)
-    M.boite((2.0, 0.1, 0.62), Vector((0.07, 1.0, 0.03)), yaw=0.025, bev=0.03, jit=0.008, ton=0.95)
-    M.boite((1.3, 0.05, 0.1), Vector((0.07, 1.075, 0.03)), yaw=0.025, bev=0.012, jit=0.002, ton=1.0)      # croix : montant
-    M.boite((0.1, 0.05, 0.44), Vector((-0.2, 1.075, 0.03)), yaw=0.025, bev=0.012, jit=0.002, ton=1.0)     # croix : traverse
-    # éclat au coin et fragment tombé
-    M.boite((0.2, 0.12, 0.16), Vector((-1.05, 0.06, 0.62)), yaw=0.6, incl=(0.2, 0.15), bev=0.02, jit=0.02, ton=0.8)
-    M.boite((0.12, 0.08, 0.1), Vector((0.95, 0.04, 0.7)), yaw=1.9, incl=(0.1, 0.3), bev=0.015, jit=0.015, ton=0.85)
+    M.boite((1.12, 0.12, 1.12), Vector((0, 0.06, 0)), bev=0.03, jit=0.008, ton=0.8)
+    M.boite((1.04, 0.08, 1.04), Vector((0, 0.16, 0)), bev=0.02, jit=0.006, ton=0.88)
+    y = 0.2
+    for j, hc in enumerate((0.38, 0.34)):
+        cut = rg.uniform(-0.15, 0.15)
+        for s_ in (-1, 1):
+            a0, a1 = (-0.5, cut) if s_ < 0 else (cut, 0.5)
+            lw = a1 - a0 - 0.02
+            c = (a0 + a1) * 0.5
+            dims = (lw, hc - 0.02, 0.98) if j % 2 == 0 else (0.98, hc - 0.02, lw)
+            pos = Vector((c, y + hc * 0.5, 0)) if j % 2 == 0 else Vector((0, y + hc * 0.5, c))
+            M.boite(dims, pos, bev=0.03, jit=0.01, ton=rg.uniform(0.76, 1.0))
+        y += hc
+    M.boite((1.06, 0.1, 1.06), Vector((0, y + 0.05, 0)), bev=0.025, jit=0.006, ton=0.92)
+    M.boite((1.14, 0.08, 1.14), Vector((0, 0.96, 0)), bev=0.025, jit=0.006, ton=0.98)
+    _givre_plaques(M, -0.55, 0.55, -0.55, 0.55, 1.0, 3, taille=(0.12, 0.3))
     return M
 
 
 def statue_capuche(nom, graine):
-    """Gardien encapuchonné en prière : socle, robe à plis, bras croisés, capuche, visage dans l'ombre, mains jointes. Hauteur 2,45 m, face avant +z."""
+    """Gardien encapuchonné en prière (C4b : plis profonds, manteau, capuche ample, givre aux épaules) : socle, robe, bras croisés,
+    mains jointes, visage dans l'ombre. Hauteur 2,45 m, face avant +z."""
     M = Module(nom, graine)
     rg = M.rg
-    M.boite((0.86, 0.14, 0.86), Vector((0, 0.07, 0)), bev=0.03, jit=0.01)
-    M.boite((0.72, 0.4, 0.72), Vector((0, 0.34, 0)), bev=0.03, jit=0.01)
-    M.boite((0.8, 0.1, 0.8), Vector((0, 0.59, 0)), bev=0.025, jit=0.008)
-    # robe : anneaux de plis (révolution à rayon modulé)
+    M.boite((0.88, 0.14, 0.88), Vector((0, 0.07, 0)), bev=0.03, jit=0.01, ton=0.78)
+    M.boite((0.72, 0.4, 0.72), Vector((0, 0.34, 0)), bev=0.03, jit=0.01, ton=0.84)
+    M.boite((0.8, 0.1, 0.8), Vector((0, 0.59, 0)), bev=0.025, jit=0.008, ton=0.9)
+    M.boite((0.4, 0.09, 0.03), Vector((0, 0.36, 0.37)), "gravure", bev=0.005, jit=0.002, ton=0.9)       # plaque gravée du socle
     base = 0.64
-    prof = [(0.0, 0.34), (0.35, 0.3), (0.8, 0.255), (1.15, 0.235), (1.32, 0.3), (1.42, 0.22)]
-    n = 14
+    # robe : révolution à rayon modulé, plis profonds et réguliers (lisibles de loin), ourlet évasé
+    prof = [(0.0, 0.36), (0.12, 0.33), (0.4, 0.3), (0.7, 0.27), (0.95, 0.25), (1.15, 0.245), (1.3, 0.3), (1.42, 0.22)]
+    n = 20
     anneaux = []
     for (yy, r) in prof:
         ring = []
+        f = 1.0 if yy < 1.2 else 0.4
         for k in range(n):
             a = math.tau * k / n
-            pli = 1.0 + 0.09 * math.sin(a * 5 + yy * 2.0) + 0.05 * math.sin(a * 9 - yy)
-            ring.append(Vector((math.cos(a) * r * pli, base + yy, math.sin(a) * r * pli * 0.9)))
+            pli = 1.0 + f * (0.13 * math.sin(a * 7 + 0.3) + 0.04 * math.sin(a * 13 - yy * 3.0))
+            ring.append(Vector((math.cos(a) * r * pli, base + yy, math.sin(a) * r * pli * 0.86)))
         anneaux.append(ring)
     bm = bmesh.new()
     vv = [[bm.verts.new(B(p)) for p in ring] for ring in anneaux]
@@ -386,17 +509,26 @@ def statue_capuche(nom, graine):
         for k in range(n):
             bm.faces.new((vv[i][k], vv[i][(k + 1) % n], vv[i + 1][(k + 1) % n], vv[i + 1][k]))
     bm.faces.new(vv[-1][::-1])
-    M._emettre(bm, "pierre", 0.9)
-    # épaules et manteau (bloc incliné), bras croisés devant
-    M.boite((0.7, 0.2, 0.42), Vector((0, base + 1.32, 0)), bev=0.07, jit=0.014, ton=0.95)
-    M.boite((0.22, 0.52, 0.2), Vector((-0.2, base + 0.98, 0.17)), incl=(-0.55, 0.0), yaw=0.3, bev=0.04, jit=0.01, ton=1.0)
-    M.boite((0.22, 0.52, 0.2), Vector((0.2, base + 0.98, 0.17)), incl=(-0.55, 0.0), yaw=-0.3, bev=0.04, jit=0.01, ton=1.0)
-    M.boite((0.22, 0.14, 0.16), Vector((0, base + 0.82, 0.31)), bev=0.04, jit=0.01, ton=1.0)      # mains jointes
-    # capuche : volume + bec en avant, ouverture sombre
-    M.sphere(0.2, Vector((0, base + 1.62, -0.01)), ech=(1.0, 1.25, 1.1), seg=10, ton=0.95, jit=0.01)
-    M.boite((0.28, 0.12, 0.3), Vector((0, base + 1.84, -0.02)), incl=(0.45, 0.0), bev=0.04, jit=0.01, ton=0.95)       # pointe
-    M.boite((0.16, 0.24, 0.06), Vector((0, base + 1.6, 0.16)), bev=0.03, jit=0.003, ton=0.07)                             # visage dans l'ombre
-    M.boite((0.34, 0.1, 0.08), Vector((0, base + 1.5, 0.15)), bev=0.03, jit=0.006, ton=1.0)                                # bord du col
+    M._emettre(bm, "pierre", 0.88)
+    # manteau tombant dans le dos (plaque inclinée), épaules, bras croisés, mains jointes
+    M.boite((0.62, 1.2, 0.1), Vector((0, base + 0.78, -0.24)), incl=(0.1, 0.0), bev=0.04, jit=0.012, ton=0.8)
+    M.boite((0.72, 0.2, 0.44), Vector((0, base + 1.32, 0)), bev=0.07, jit=0.014, ton=1.0)
+    M.boite((0.22, 0.54, 0.21), Vector((-0.2, base + 0.98, 0.18)), incl=(-0.55, 0.0), yaw=0.3, bev=0.04, jit=0.01, ton=1.0)
+    M.boite((0.22, 0.54, 0.21), Vector((0.2, base + 0.98, 0.18)), incl=(-0.55, 0.0), yaw=-0.3, bev=0.04, jit=0.01, ton=1.0)
+    M.boite((0.24, 0.12, 0.08), Vector((0, base + 1.08, 0.3)), bev=0.03, jit=0.006, ton=0.7)       # pli des manches (ombre)
+    M.boite((0.22, 0.15, 0.17), Vector((0, base + 0.82, 0.32)), bev=0.04, jit=0.01, ton=1.0)      # mains jointes
+    M.boite((0.06, 0.5, 0.05), Vector((0, base + 0.5, 0.3)), bev=0.015, jit=0.006, ton=0.72)      # pan de la robe sous les mains (creux)
+    # capuche ample : volume, bec, ouverture très sombre, bords épais
+    M.sphere(0.22, Vector((0, base + 1.62, -0.02)), ech=(1.0, 1.22, 1.12), seg=12, ton=0.97, jit=0.01)
+    M.boite((0.3, 0.13, 0.32), Vector((0, base + 1.85, -0.03)), incl=(0.45, 0.0), bev=0.04, jit=0.01, ton=0.97)
+    M.boite((0.17, 0.26, 0.06), Vector((0, base + 1.59, 0.17)), bev=0.03, jit=0.003, ton=0.05)
+    for sx in (-1, 1):
+        M.boite((0.06, 0.32, 0.1), Vector((sx * 0.12, base + 1.6, 0.16)), yaw=sx * -0.25, bev=0.02, jit=0.004, ton=1.0)
+    M.boite((0.36, 0.1, 0.09), Vector((0, base + 1.48, 0.16)), bev=0.03, jit=0.006, ton=1.0)
+    # givre posé sur les épaules, le haut de la capuche et le socle
+    _givre_plaques(M, -0.34, 0.34, -0.18, 0.18, base + 1.42, 4, ep=0.016, taille=(0.08, 0.2))
+    _givre_plaques(M, -0.12, 0.12, -0.12, 0.08, base + 1.86, 2, ep=0.014, taille=(0.07, 0.14))
+    _givre_plaques(M, -0.4, 0.4, -0.4, 0.4, 0.64, 3, ep=0.014, taille=(0.1, 0.24))
     return M
 
 
@@ -496,34 +628,68 @@ def _octo(r, a):
     return Vector((math.cos(a) * r, 0, math.sin(a) * r))
 
 
-def _anneau_octo(M, r_ext, r_int, y0, y1, ton=None, segs=8):
-    """Anneau octogonal de blocs (8 voussoirs à plat) entre les apothèmes r_int et r_ext, de y0 à y1."""
+def _anneau_octo(M, r_ext, r_int, y0, y1, ton=None, segs=8, par_cote=1, decal=0.0):
+    """Anneau octogonal de blocs entre les apothèmes r_int et r_ext, de y0 à y1. C4b : chaque côté coupé en `par_cote` blocs
+    (joints décalés de `decal` bloc d'une assise à l'autre), joints de 1,5 cm, dessus légèrement inégal."""
     rg = M.rg
-    for k in range(segs):
-        a0 = math.tau * k / segs + math.pi / 8 + 0.012
-        a1 = math.tau * (k + 1) / segs + math.pi / 8 - 0.012
-        yt = y1 + rg.uniform(-0.012, 0.008)
+    nb = segs * par_cote
+    for k in range(nb):
+        g = 0.016 / max(0.3, r_ext)
+        a0 = math.tau * (k + decal) / nb + math.pi / 8 + g
+        a1 = math.tau * (k + 1 + decal) / nb + math.pi / 8 - g
+        yt = y1 + rg.uniform(-0.014, 0.006)
         pts = []
-        for a in (a0, a1):
+        # le bloc suit l'octogone (côtés droits) ; un bloc à cheval sur un angle prend aussi le sommet de l'angle
+        angs = [a0]
+        c = math.ceil((a0 - math.pi / 8) / (math.tau / 8))
+        while math.tau * c / 8 + math.pi / 8 < a1:
+            angs.append(math.tau * c / 8 + math.pi / 8)
+            c += 1
+        angs.append(a1)
+        for a in angs:
+            cote = math.floor((a - math.pi / 8) / (math.tau / 8) + 1e-6)
+            c0 = math.tau * cote / 8 + math.pi / 8
             for r in (r_ext, r_int):
-                q = _octo(r, a)
+                p0 = _octo(r, c0)
+                p1 = _octo(r, c0 + math.tau / 8)
+                t = (a - c0) / (math.tau / 8)
+                q = p0.lerp(p1, min(1.0, max(0.0, t)))
                 pts.append(Vector((q.x, y0, q.z)))
                 pts.append(Vector((q.x, yt, q.z)))
-        M.coin(pts, bev=0.025, jit=0.006, ton=ton if ton is not None else rg.uniform(0.74, 1.0))
+        M.coin(pts, bev=0.022, jit=0.006, ton=ton if ton is not None else rg.uniform(0.7, 1.0))
+
+
+def _palier_octo(M, r, r_in, y0, y1):
+    """Palier octogonal en assises de petits blocs (comme la maçonnerie des murs de la planche) + chaperon débordant."""
+    rg = M.rg
+    h = y1 - y0 - 0.07
+    nas = max(1, int(round(h / 0.21)))
+    ha = h / nas
+    pc = max(2, int(round(r * 2 * math.tan(math.pi / 8) / 0.55)))
+    for j in range(nas):
+        _anneau_octo(M, r - 0.02, max(0.05, r_in), y0 + j * ha, y0 + (j + 1) * ha - 0.012, par_cote=pc, decal=0.5 * (j % 2))
+    # chaperon : dalles débordantes de 4 cm, arête claire
+    _anneau_octo(M, r + 0.04, max(0.05, r - 0.34), y1 - 0.07, y1, par_cote=max(2, pc - 1), decal=0.25, ton=None)
 
 
 def plateforme_octo(nom, graine, paliers, bassin=None):
-    """Plate-forme octogonale à degrés (vasque du rituel, autel des Os) : chaque palier (apothème, y0, y1) = 8 blocs taillés ;
-    dessus du dernier palier en dalles rayonnantes, ou BASSIN (margelle, fond sombre, emplacement d'eau) si `bassin` = (r_int, haut_margelle, fond)."""
+    """Plate-forme octogonale à degrés (vasque du rituel, autel des Os). C4b : paliers en assises de petits blocs à joints décalés,
+    chaperons débordants, margelle en blocs, dessus en dalles rayonnantes sur deux couronnes, givre sur les arêtes ; ou BASSIN
+    (margelle, fond sombre, emplacement d'eau) si `bassin` = (r_int, haut_margelle, fond)."""
     M = Module(nom, graine)
     rg = M.rg
     for i, (r, y0, y1) in enumerate(paliers):
         r_in = paliers[i + 1][0] - 0.12 if i + 1 < len(paliers) else (bassin[0] if bassin else r * 0.45)
-        _anneau_octo(M, r, max(0.05, r_in), y0, y1)
+        _palier_octo(M, r, r_in, y0, y1)
+        # givre sur le chaperon (quelques plaques le long du bord)
+        for k in range(9):
+            a = rg.uniform(0, math.tau)
+            q = _octo(r - 0.13, a)
+            _givre_eclat(M, Vector((q.x, y1, q.z)), rg.uniform(0.04, 0.09))
     r, y0, y1 = paliers[-1]
     if bassin:
         ri, hm, fond = bassin
-        _anneau_octo(M, ri + 0.05, ri - 0.22, y1 - 0.05, y1 + hm, None)          # margelle
+        _anneau_octo(M, ri + 0.05, ri - 0.22, y1 - 0.05, y1 + hm, par_cote=3, decal=0.0)          # margelle
         pts = []
         for k in range(8):
             q = _octo(ri - 0.2, math.tau * k / 8 + math.pi / 8)
@@ -532,12 +698,13 @@ def plateforme_octo(nom, graine, paliers, bassin=None):
         M.coin(pts, bev=0.0, jit=0.0, ton=0.35)                                       # fond du bassin (l'eau du lot C5 viendra dessus)
     else:
         ri = r * 0.45
-        for k in range(8):                                                             # dalles rayonnantes du dessus
+        _anneau_octo(M, r - 0.3, ri + 0.04, y1 - 0.08, y1, par_cote=2, decal=0.0)      # couronne extérieure de dalles
+        for k in range(8):                                                             # dalles rayonnantes du centre
             a0 = math.tau * k / 8 + math.pi / 8 + 0.02
             a1 = math.tau * (k + 1) / 8 + math.pi / 8 - 0.02
             pts = [Vector((0, y1 - 0.08, 0)), Vector((0, y1, 0))]
             for a in (a0, a1):
-                q = _octo(ri + 0.04, a)
+                q = _octo(ri, a)
                 pts += [Vector((q.x, y1 - 0.08, q.z)), Vector((q.x, y1 + rg.uniform(-0.01, 0.006), q.z))]
             M.coin(pts, bev=0.012, jit=0.004)
     return M
@@ -584,14 +751,36 @@ def _estrade(M, sx, sy, sz, y0=0.0, dalle=0.95):
             else:
                 M.boite((0.34, 0.1, w - 0.02), Vector((sgn * (sx * 0.5 - 0.13), yt - 0.05, c)), bev=0.022, jit=0.008, ton=rg.uniform(0.78, 1.0))
             x += w
+    # C4b : dalles en rangs de largeurs variées (joints décalés d'un rang à l'autre, comme le sol de la planche), quelques fissurées
     ix, iz = sx - 0.6, sz - 0.6
-    nx = max(1, int(round(ix / dalle)))
     nz = max(1, int(round(iz / dalle)))
-    for i in range(nx):
-        for k in range(nz):
-            cx = -ix * 0.5 + ix * (i + 0.5) / nx + rg.uniform(-0.03, 0.03)
-            cz = -iz * 0.5 + iz * (k + 0.5) / nz + rg.uniform(-0.03, 0.03)
-            M.boite((ix / nx - 0.03, 0.08, iz / nz - 0.03), Vector((cx, yt - 0.04 + rg.uniform(-0.008, 0.006), cz)), yaw=rg.uniform(-0.02, 0.02), bev=0.016, jit=0.006, ton=rg.uniform(0.74, 1.0))
+    for k in range(nz):
+        z0 = -iz * 0.5 + iz * k / nz
+        z1 = -iz * 0.5 + iz * (k + 1) / nz
+        x = -ix * 0.5
+        while x < ix * 0.5 - 0.05:
+            w = min(dalle * rg.choice([0.6, 0.8, 1.0, 1.25]), ix * 0.5 - x)
+            if ix * 0.5 - x - w < 0.3:
+                w = ix * 0.5 - x
+            cx = x + w * 0.5
+            cz = (z0 + z1) * 0.5
+            ton = rg.uniform(0.7, 1.0)
+            yy = yt - 0.04 + rg.uniform(-0.01, 0.006)
+            if rg.random() < 0.12 and w > 0.5:      # dalle fendue en deux morceaux
+                f = rg.uniform(0.35, 0.65)
+                M.boite((w * f - 0.03, 0.08, z1 - z0 - 0.03), Vector((x + w * f * 0.5, yy, cz)), yaw=rg.uniform(-0.03, 0.03), bev=0.016, jit=0.008, ton=ton)
+                M.boite((w * (1 - f) - 0.03, 0.08, z1 - z0 - 0.03), Vector((x + w * f + w * (1 - f) * 0.5, yy - 0.008, cz)), yaw=rg.uniform(-0.03, 0.03), bev=0.016, jit=0.008, ton=ton * 0.92)
+            else:
+                M.boite((w - 0.03, 0.08, z1 - z0 - 0.03), Vector((cx, yy, cz)), yaw=rg.uniform(-0.015, 0.015), bev=0.016, jit=0.006, ton=ton)
+            x += w
+    # givre en plaques le long de la bordure
+    for face in range(4):
+        L = sx if face < 2 else sz
+        sgn = 1 if face % 2 == 0 else -1
+        for _ in range(max(3, int(L / 0.8))):
+            a = rg.uniform(-L * 0.47, L * 0.47)
+            p = Vector((a, yt, sgn * (sz * 0.5 - 0.1))) if face < 2 else Vector((sgn * (sx * 0.5 - 0.1), yt, a))
+            _givre_eclat(M, p, rg.uniform(0.04, 0.1))
 
 
 def estrade(nom, graine, sx, sy, sz, y0=0.0):
@@ -605,7 +794,7 @@ def degres(nom, graine, paliers):
     M = Module(nom, graine)
     y = 0.0
     for (sx, sy, sz) in paliers:
-        _estrade(M, sx, sy, sz, y, dalle=1.7)
+        _estrade(M, sx, sy, sz, y, dalle=0.9)
         y += sy
     return M
 
@@ -645,6 +834,9 @@ def construire():
     mods.append(plateforme_octo("autel_octo", 232, [(2.6, 0.0, 0.25), (2.0, 0.25, 0.5)]))
     mods.append(estrade("estrade_3x4", 241, 3.2, 0.9, 4.0))
     mods.append(degres("degres_arene", 242, [(11.0, 0.2, 9.0), (8.0, 0.2, 7.0), (5.4, 0.2, 5.6)]))
+    # C4b (2026-10-23) : sarcophage de Svanhild, socle des primitives v1
+    mods.append(sarcophage_svanhild("sarcophage_svanhild", 172))
+    mods.append(socle_v2("socle_v2", 251))
     return mods
 
 
