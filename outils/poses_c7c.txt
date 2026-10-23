@@ -1,0 +1,15 @@
+# C7c : rivière du village, pont, quai, moulin à eau, source, gué, lac. AVANT = même code avec --sans-eau-village (lit sec de C7a).
+# lacet 0 = vers -Z (nord), 90 = ouest, 180 = sud, 270 = est ; y=m : pieds sur un ouvrage (AVANT : même hauteur, dans le vide).
+R4 monde 11,66.5,300,4 y=-1.35 heure=17
+R4_JOUR monde 11,66.5,300,4 y=-1.35 heure=12
+PONT_DESSUS monde 44,60,90,-8 y=4.4 heure=12
+QUAI_DESSUS monde 36.5,58.4,262,-4 y=3.35 heure=12
+PONT_RIVE monde 36,57.8,250,-5 heure=12
+QUAI monde 33,56,200,-18 heure=12
+ROUE monde 26.5,64.4,35,-4 heure=12
+CASC_MOULIN monde 13,64,305,8 y=-1.35 heure=12
+SOURCE monde 81.5,61,293,6 heure=12
+GUE monde 74.5,55.5,223,-14 heure=12
+LAC monde 17,58,100,-6 heure=12
+LAC_LARGE monde 5,30,119,-6 heure=12
+PONT_NUIT monde 36.5,58.4,262,-4 y=3.35
