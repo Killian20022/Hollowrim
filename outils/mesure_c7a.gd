@@ -61,7 +61,7 @@ func _plan() -> void:
 	# --variantes : à chaque poste, même processus, on masque tour à tour une partie (A/B sans bruit de machine entre lancements)
 	var variantes := OS.get_cmdline_user_args().has("--variantes")
 	for r in 2:
-		for p in [["place", 35.0, 30.0, 221.0, -8.0], ["pente", 44.0, 63.0, 180.0, 10.0], ["haute_rue", 46.0, 86.0, 0.0, -12.0], ["entree", 19.0, 17.5, 228.0, -4.0], ["champs", 70.0, 36.0, 270.0, -10.0]]:
+		for p in [["place", 35.0, 30.0, 221.0, -8.0], ["pente", 44.0, 63.0, 180.0, 10.0], ["haute_rue", 46.0, 86.0, 0.0, -12.0], ["entree", 19.0, 17.5, 228.0, -4.0], ["champs", 70.0, 36.0, 270.0, -10.0], ["lac", 21.5, 64.5, 100.0, -9.0]]:
 			if not variantes:
 				file.append(_pose("%s_%d" % [p[0], r], p[1], p[2], p[3], p[4]))
 				continue

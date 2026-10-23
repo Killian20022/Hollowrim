@@ -1,0 +1,8 @@
+place_midi monde 35,30,221,-8 heure=12
+P1j monde 42,29.5,180,-2 heure=12
+POCHE_HAUT monde 52,12,0,-35 y=24 heure=12
+POCHE_HAUT2 monde 75,45,270,-30 y=22 heure=12
+PONT_J monde 37.5,58.6,245,-6 y=3.35 heure=12
+QUAI_MOULIN_J monde 36,65.5,60,-7 heure=12
+ROUE_J monde 26.5,64.4,35,-4 heure=12
+LAC_VUE_J monde 21.5,64.5,100,-9 heure=12
