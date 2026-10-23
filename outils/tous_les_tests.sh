@@ -66,12 +66,13 @@ for t in "${TESTS[@]}"; do
 	nom="${t%%|*}"; args="${t#*|}"
 	[[ -n "$MOTIF" && "$nom" != *"$MOTIF"* ]] && continue
 	d0=$SECONDS; sortie="$LOGS/$nom.log"; note=""
+	DELAI="${TEMPS_MAX:-240}"; [[ "$nom" == "test_degats_sanctuaire" && -z "${TEMPS_MAX:-}" ]] && DELAI=600   # ~245 s seul, davantage sur machine chargee
 	RAPIDE="--fixed-fps 60"; REEL=0; [[ " $TEMPS_REEL " == *" $nom "* ]] && { RAPIDE=""; REEL=1; }
 	for essai in 1 2; do
 		: > "$sortie"; rc=0
 		IFS=';' read -ra ETAPES <<< "$args"   # une étape = un lancement (test_sauvegarde en a deux)
 		for etape in "${ETAPES[@]}"; do
-			timeout "${TEMPS_MAX:-240}" "$G" --headless $RAPIDE --path "$P" --script "res://outils/$nom.gd" -- $etape >> "$sortie" 2>&1
+			timeout "$DELAI" "$G" --headless $RAPIDE --path "$P" --script "res://outils/$nom.gd" -- $etape >> "$sortie" 2>&1
 			r=$?; [[ $r -ne 0 ]] && rc=$r
 		done
 		if [[ $rc -eq 0 ]] && ! grep -qE "SCRIPT ERROR|ÉCHEC|ECHEC([^S]|$)|ECHECS *: *[1-9]" "$sortie"; then ok=1; else ok=0; fi
