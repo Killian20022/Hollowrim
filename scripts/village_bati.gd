@@ -19,7 +19,14 @@ const EXTERIEURS := [
 const PENTE := 53.0
 const RELEVE := 0.3
 
+## Champs enneigés du plan (F1, F2 à l'est, F3 au nord ; sillons et clôtures : lot C7a) : dégagés d'arbres (+1 m) pour que la
+## vue 6 (fermes, moulin à vent) se lise comme sur la planche, au lieu d'une forêt.
+const CHAMPS := [Rect2(76.0, 27.0, 15.0, 13.5), Rect2(75.0, 40.5, 12.0, 10.5), Rect2(56.0, -12.0, 15.0, 10.0)]
+
 static func exclu(x: float, z: float) -> bool:
+	for c: Rect2 in CHAMPS:
+		if c.has_point(Vector2(x, z)):
+			return true
 	for e in EXTERIEURS:
 		var l := Vector2(x - float(e[0]), z - float(e[1])).rotated(deg_to_rad(float(e[4])))
 		if absf(l.x) < float(e[2]) * 0.5 + 2.5 and absf(l.y) < float(e[3]) * 0.5 + 2.5:
@@ -467,7 +474,7 @@ static func forge_ouverte(v, p: Node3D) -> void:
 
 ## Tour-clocher de pierre sur T3 (non visitable) : socle, fût en deux étages à cordons, chaînages d'angle, porte au nord,
 ## meurtrières (deux éclairées le soir), beffroi ouvert sur 4 côtés avec la cloche, flèche raide d'essentes sombres à arêtes
-## enneigées, épi de fer. Sommet ≈ 31,6 m (T3 à 12 m).
+## enneigées, épi de fer. Sommet ≈ 33,6 m (T3 à 12 m).
 static func tour(v, g: Node3D, x: float, z: float) -> void:
 	var p: Node3D = v.pivot_monde(x, z, PI, NAN, g)   # +Z local = nord (la porte regarde la haute rue)
 	p.name = "TourClocher"
@@ -535,7 +542,7 @@ static func tour(v, g: Node3D, x: float, z: float) -> void:
 	v._boite(p, Vector3(sb + 0.4, 0.26, sb + 0.4), Transform3D(Basis(), Vector3(0, yb + hb + 0.1, 0)), v.m_brute)
 	# flèche : pyramide d'essentes (bois sombre), arêtes et pied enneigés, épi de fer
 	var y_f := yb + hb + 0.22
-	var hf := 4.6
+	var hf := 6.4   # flèche élancée comme sur la planche (vue d'en bas, 4,6 m paraissait plate)
 	_fleche(v, p, sb + 0.5, y_f, hf)
 	v._cylindre(p, 0.03, 0.04, 1.1, Transform3D(Basis(), Vector3(0, y_f + hf + 0.85, 0)), v.m_fer, 6)
 	v._boite(p, Vector3(0.5, 0.05, 0.05), Transform3D(Basis(), Vector3(0, y_f + hf + 1.0, 0)), v.m_fer)
