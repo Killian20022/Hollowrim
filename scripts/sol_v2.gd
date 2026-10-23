@@ -284,6 +284,8 @@ static func _libre_ailleurs(monde: Node, x: float, z: float, marge_chemin: float
 		return false   # pente du pourtour : pas de rochers posés dans les collines
 	if Vector2(x - monde.VILLAGE.x, z - monde.VILLAGE.z).length() < 46.0:
 		return false
+	if ReliefVillage.exclu(x, z):   # C7a : enceinte du village v2 (haute rue, T3) et lit de la rivière
+		return false
 	if Vector2(x - 92.0, z + 27.0).length() < 14.0:   # seuil de la grotte (GrotteAcces.SITE)
 		return false
 	if Vegetation.exclu_decor(x, z) or monde._pres_du_chemin(x, z, marge_chemin):
