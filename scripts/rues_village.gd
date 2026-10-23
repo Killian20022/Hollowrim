@@ -17,6 +17,7 @@ extends AbordsVillage
 const PAVE := 0.46          # pas moyen des pavés (m) ; la taille varie par plaques (0,75 à 1,3 ×)
 const TUILE := 16.0         # côté des tuiles de pavés (m)
 const PORTEE_PAVES := 50.0   # perf (C7a) : au-delà, la carte de sol peint déjà terre et neige piétinée sous les pavés
+const PORTEE_FLANCS := 20.0  # perf : au-delà, version « loin » des tuiles (dessus seuls, sans les flancs : 1/3 des triangles)
 
 ## Place principale (polygone du plan).
 const PLACE := [Vector2(31, 28), Vector2(52, 27.5), Vector2(56, 33), Vector2(55, 45), Vector2(46, 48.5), Vector2(33, 46.5), Vector2(30, 38)]
@@ -53,7 +54,8 @@ const LANTERNES := [
 	[30.6, 30.6, Vector2(0.6, -0.8)],                                  # rue principale
 ]
 
-var _tuiles := {}           # Vector2i → BatiGeo.Maillage (pavés)
+var _tuiles := {}           # Vector2i → BatiGeo.Maillage (pavés, dessus + flancs)
+var _tuiles_loin := {}      # Vector2i → BatiGeo.Maillage (pavés, dessus seuls, au-delà de PORTEE_FLANCS)
 var _marches := BatiGeo.Maillage.new()
 var _murs := BatiGeo.Maillage.new()
 var _sillons := BatiGeo.Maillage.new()
@@ -109,7 +111,7 @@ func _sol(p: Vector2) -> float:
 ## Précalcul (SOCLE §6) : géométrie, collisions et touffes sont lues dans CACHE si la signature des entrées (sources, relief
 ## échantillonné) n'a pas changé ; sinon recalculées (≈ 1 s). `outils/generer_rues_village.gd` écrit / vérifie le fichier.
 const CACHE := "res://assets/modeles/rues_village.cache"
-const CACHE_VERSION := 1
+const CACHE_VERSION := 2
 enum { CACHE_LIRE, CACHE_ECRIRE, CACHE_VERIFIER }
 static var cache_mode := CACHE_LIRE
 static var cache_statut := ""   # "lu", "ecrit", "identique", "DIFFERENT", "perime", "absent"
@@ -176,6 +178,8 @@ func _maillages() -> Dictionary:
 	var m := {"marches": _marches, "murs": _murs, "sillons": _sillons, "bois": _bois, "bouts": _bouts, "fer": _fer, "verre": _verre, "pierre": _pierre, "flaques": _flaques}
 	for cle: Vector2i in _tuiles:
 		m["paves_%d_%d" % [cle.x, cle.y]] = _tuiles[cle]
+	for cle: Vector2i in _tuiles_loin:
+		m["loin_%d_%d" % [cle.x, cle.y]] = _tuiles_loin[cle]
 	return m
 
 func _exporter(sig: String) -> Dictionary:
@@ -199,10 +203,10 @@ func _restaurer(d: Dictionary) -> void:
 	var geo: Dictionary = d["geo"]
 	for nom: String in geo:
 		var mm: BatiGeo.Maillage
-		if nom.begins_with("paves_"):
+		if nom.begins_with("paves_") or nom.begins_with("loin_"):
 			var k := nom.split("_")
 			mm = BatiGeo.Maillage.new()
-			_tuiles[Vector2i(int(k[1]), int(k[2]))] = mm
+			(_tuiles if k[0] == "paves" else _tuiles_loin)[Vector2i(int(k[1]), int(k[2]))] = mm
 		else:
 			mm = _maillages()[nom]
 		var a: Array = geo[nom]
@@ -399,6 +403,9 @@ func _pave(poly: Array[Vector2], c2: Vector2, e: float) -> void:
 	if not _tuiles.has(cle):
 		_tuiles[cle] = BatiGeo.Maillage.new()
 	var m: BatiGeo.Maillage = _tuiles[cle]
+	if not _tuiles_loin.has(cle):
+		_tuiles_loin[cle] = BatiGeo.Maillage.new()
+	var ml: BatiGeo.Maillage = _tuiles_loin[cle]
 	var kt := rng.randf_range(0.74, 1.14) * (0.84 if rng.randf() < 0.18 else 1.0)   # quelques pierres plus sombres (usées, humides)
 	var chaud := rng.randf() < 0.25
 	var tc := Vector3(1.07, 1.0, 0.9) if chaud else Vector3(0.93, 0.97, 1.05)
@@ -436,6 +443,7 @@ func _pave(poly: Array[Vector2], c2: Vector2, e: float) -> void:
 	for i in n:
 		var i2 := (i + 1) % n
 		m.tri(haut[i], haut[i2], ctr, cols[i], cols[i2], col_sommet, dessous)
+		ml.tri(haut[i], haut[i2], ctr, cols[i], cols[i2], col_sommet, dessous)
 		m.quad(bas[i], bas[i2], haut[i2], haut[i], col_pied, col_pied, col_flanc, col_flanc, ctr - Vector3(0, 0.03, 0))
 	_nb_paves += 1
 
@@ -684,7 +692,11 @@ func _finaliser_rues() -> void:
 	for cle: Vector2i in _tuiles:
 		var mi := _mesh(_tuiles[cle], mat_paves, false, "Paves_%d_%d" % [cle.x, cle.y])
 		if mi != null:
-			mi.visibility_range_end = PORTEE_PAVES
+			mi.visibility_range_end = PORTEE_FLANCS
+		var ml := _mesh(_tuiles_loin.get(cle, BatiGeo.Maillage.new()), mat_paves, false, "PavesLoin_%d_%d" % [cle.x, cle.y])
+		if ml != null:
+			ml.visibility_range_begin = PORTEE_FLANCS
+			ml.visibility_range_end = PORTEE_PAVES
 	_mesh(_marches, TexturesBati.m_pierre_fine_e(Color(1.22, 1.24, 1.32)), true, "Marches")   # pierre claire usée (vue 3 de la planche)
 	var mur := _mesh(_murs, TexturesBati.m_pierre_seche_e(Color(1.5, 1.52, 1.6)), true, "MursSoutenement")
 	if mur != null:

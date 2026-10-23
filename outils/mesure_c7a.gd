@@ -58,13 +58,45 @@ func _pose(nom: String, x: float, z: float, lacet: float, tang: float) -> Array:
 
 func _plan() -> void:
 	file = [["demarrage", func() -> void: pass]]
+	# --variantes : à chaque poste, même processus, on masque tour à tour une partie (A/B sans bruit de machine entre lancements)
+	var variantes := OS.get_cmdline_user_args().has("--variantes")
 	for r in 2:
 		for p in [["place", 35.0, 30.0, 221.0, -8.0], ["pente", 44.0, 63.0, 180.0, 10.0], ["haute_rue", 46.0, 86.0, 0.0, -12.0], ["entree", 19.0, 17.5, 228.0, -4.0], ["champs", 70.0, 36.0, 270.0, -10.0]]:
-			file.append(_pose("%s_%d" % [p[0], r], p[1], p[2], p[3], p[4]))
-	file.append(["marche_entree_place", Vector2(20, 18), Vector2(42, 34), 4.0, 228.0, -8.0])
-	file.append(["marche_place_pont", Vector2(44, 36), Vector2(44, 56), 4.0, 180.0, -8.0])
+			if not variantes:
+				file.append(_pose("%s_%d" % [p[0], r], p[1], p[2], p[3], p[4]))
+				continue
+			for v in ["tout", "sans_c7a", "sans_paves", "sans_murs", "sans_mobilier", "sans_lumiere", "tout"]:
+				var pose: Array = _pose("%s_%d_%s" % [p[0], r, v], p[1], p[2], p[3], p[4])
+				var placer: Callable = pose[1]
+				var vv: String = v
+				file.append([pose[0], func() -> void:
+					placer.call()
+					_variante(vv)])
+	if variantes:
+		file.append(["fin_variantes", func() -> void: _variante("tout")])
+		return
 	if not sel.is_empty():
 		file = file.filter(func(e: Array) -> bool: return e[0] in sel)
+
+func _variante(v: String) -> void:
+	var rv: Node = monde.get_node_or_null("RuesVillage")
+	var mv: Node = monde.get_node_or_null("MobilierVillage")
+	for n in [rv, mv]:
+		if n != null:
+			n.visible = v != "sans_c7a"
+	if rv != null and v != "sans_c7a":
+		for c in rv.get_children():
+			if c is GeometryInstance3D:
+				var nom := String(c.name)
+				var est_pave := nom.begins_with("Paves")
+				var est_mur := nom in ["MursSoutenement", "Marches"]
+				c.visible = not ((v == "sans_paves" and est_pave) or (v == "sans_murs" and est_mur))
+	if mv != null and v != "sans_c7a":
+		for c in mv.get_children():
+			if c is GeometryInstance3D:
+				c.visible = v != "sans_mobilier"
+			elif c is OmniLight3D:
+				c.visible = v != "sans_lumiere"
 
 func _process(_dt: float) -> bool:
 	var now := Time.get_ticks_usec()
