@@ -74,7 +74,7 @@ vec4 carte_au(vec2 p, float fin) {
 	vec2 j = vec2(bruit_sol(p * 2.24), bruit_sol(p * 2.24 + 31.7)) - 0.5;
 	vec2 bloc = floor(p * mix(8.0, 16.0, fin));
 	vec2 g = vec2(hash_sol(bloc), hash_sol(bloc + 9.1)) - 0.5;
-	vec2 j2 = vec2(bruit_sol(p * 7.0 + 5.3), bruit_sol(p * 7.0 + 17.9)) - 0.5;
+	vec2 j2 = fin > 0.0 ? vec2(bruit_sol(p * 7.0 + 5.3), bruit_sol(p * 7.0 + 17.9)) - 0.5 : vec2(0.0);
 	vec2 pp = p + j * 0.34 + g * mix(0.09, 0.05, fin) + j2 * 0.10 * fin;
 	return texture(carte_sol, (pp - carte_rect.xy) * carte_rect.z);
 }
@@ -191,7 +191,7 @@ void s2_roche(vec2 p, out int ton, out int rampe, out int niv, out vec2 pente) {
 	vec2 ctr;
 	float S = 0.9;
 	// dalles irrégulières : maille déformée par un bruit (pas de losanges réguliers), étirée en strates
-	vec2 q = p + 0.45 * vec2(s2_fbm(p * 0.9 + 41.0) - 0.5, s2_fbm(p * 0.9 + 57.0) - 0.5);
+	vec2 q = p + 0.7 * vec2(bruit_sol(p * 0.9 + 41.0) - 0.5, bruit_sol(p * 0.9 + 57.0) - 0.5);
 	q = vec2(q.x * 0.8 + q.y * 0.35, q.y * 1.25);
 	s2_vor(q, S, f1, f2, cid, ctr);
 	vec2 vv = (q - ctr) / (S * 0.55);
@@ -199,7 +199,7 @@ void s2_roche(vec2 p, out int ton, out int rampe, out int niv, out vec2 pente) {
 	float bord = smoothstep(0.32, 0.55, f1);                                    // arrondi seulement près du bord de la dalle
 	rampe = 2;
 	niv = 4;
-	float m = s2_fbm(p * 3.1 + float(int(hash_sol(cid) * 7.0)));                // grain de la pierre, propre à chaque dalle
+	float m = bruit_sol(p * 3.1 + float(int(hash_sol(cid) * 7.0)));                // grain de la pierre, propre à chaque dalle
 	ton = 1 + int(hash_sol(cid + 3.3) * 1.8 + m * 1.6);
 	if (bord > 0.5 && l > 0.25) ton += 1;                                        // lèvre éclairée
 	else if (bord > 0.5 && l < -0.35) ton -= 1;                                  // lèvre à l'ombre
@@ -439,8 +439,11 @@ void fragment() {
 		float texels_par_px = max(dq.x, dq.y);
 		// près du joueur : texels de 1/32 m ; le fondu est tramé par texel de 1/16 m (bruit lisse + grain)
 		float dist = length(VERTEX);
-		float seuil_fin = 0.3 * bruit_sol(q * 0.07) + 0.25 * bruit_sol(q * 0.21) + 0.45 * hash_sol(q + 71.3);
-		float fin = (smoothstep(sol_proche.y, sol_proche.x, dist) > seuil_fin) ? 1.0 : 0.0;
+		float fin = 0.0;
+		if (dist < sol_proche.y) {   // au-delà, jamais de texels fins : bruit du seuil inutile
+			float seuil_fin = 0.3 * bruit_sol(q * 0.07) + 0.25 * bruit_sol(q * 0.21) + 0.45 * hash_sol(q + 71.3);
+			fin = (smoothstep(sol_proche.y, sol_proche.x, dist) > seuil_fin) ? 1.0 : 0.0;
+		}
 		float pas = fin > 0.5 ? 1.0 / 32.0 : 1.0 / 16.0;
 		vec2 qf = floor(pos_monde / pas);
 		vec2 pc = (qf + 0.5) * pas;
