@@ -23,11 +23,17 @@ const NUIT := {
 	"ambiant": Color(0.34, 0.41, 0.60), "ambiant_e": 0.52, "froid": Color(0.04, 0.07, 0.15), "fin": 62.0, "expo": 1.1,
 	"haut": Color(0.008, 0.014, 0.04), "glow": 0.88,
 }
-## Jour : ciel couvert gris-bleu froid (pas un aplat pâle : le contraste vient du soleil bas chaud et des ombres bleues).
+## Jour (lot C3 « midi », réf. references/exterieurs_v2_planche.png, vues de jour) : ciel d'hiver dégagé bleu franc,
+## brume pâle bleu ciel (plus lavande), ombres bleues nettes ; le contraste vient d'un soleil bas presque blanc.
+## (avant C3 : ambiant (0.52, 0.58, 0.72)×0.5, froid (0.50, 0.56, 0.66), fin 55, haut (0.22, 0.29, 0.42) : midi plat et lavande)
+## « fin » ≤ 60 : × 1,25 sur les crêtes reste sous FIN_MAX.
 const JOUR := {
-	"ambiant": Color(0.52, 0.58, 0.72), "ambiant_e": 0.5, "froid": Color(0.50, 0.56, 0.66), "fin": 55.0, "expo": 1.0,
-	"haut": Color(0.22, 0.29, 0.42), "glow": 1.3,
+	"ambiant": Color(0.50, 0.60, 0.80), "ambiant_e": 0.68, "froid": Color(0.62, 0.72, 0.86), "fin": 60.0, "expo": 1.05,
+	"haut": Color(0.24, 0.37, 0.60), "glow": 1.3,
 }
+## Soleil de midi (pondéré par la clarte du jour, donc sans effet à l'aube ni au crépuscule) : plus fort, presque blanc.
+const SOLEIL_MIDI := {"couleur": Color(1.0, 0.95, 0.87), "energie": 1.6}
+const SOLEIL_BAS := {"couleur": Color(1.0, 0.88, 0.76), "energie": 1.2}
 ## Crépuscule : horizon violet-gris, côté soleil rose-ocre (la bande dorée est dessinée par le ciel), zénith bleu nuit.
 const CREPUSCULE := {
 	"ambiant": Color(0.40, 0.43, 0.60), "ambiant_e": 0.44, "froid": Color(0.22, 0.25, 0.34), "chaud": Color(0.62, 0.44, 0.34),
@@ -36,7 +42,7 @@ const CREPUSCULE := {
 ## Étalonnage (post-traitement, voir ps1_post.gdshader) : multiplicateurs appliqués aux ombres / aux hautes lumières.
 const ETAL := {
 	"nuit": {"ombre": Color(0.93, 0.97, 1.08), "clair": Color(1.0, 1.0, 1.01), "sat": 0.72, "contraste": 0.32},
-	"jour": {"ombre": Color(0.92, 0.96, 1.08), "clair": Color(1.05, 1.01, 0.95), "sat": 0.76, "contraste": 0.40},
+	"jour": {"ombre": Color(0.90, 0.97, 1.07), "clair": Color(1.03, 1.02, 0.99), "sat": 0.84, "contraste": 0.46},
 	"crep": {"ombre": Color(0.90, 0.94, 1.10), "clair": Color(1.08, 1.0, 0.90), "sat": 0.78, "contraste": 0.52},
 }
 
@@ -137,8 +143,11 @@ func _process(_dt: float) -> void:
 	if est_soleil:
 		vers_astre = Vector3(soleil_h.x, haut_soleil, soleil_h.y).normalized()
 		# le jour couvert est doux ; la lumière rasante du couchant est plus forte et dorée
-		energie = e_soleil * lerpf(1.2, 1.8, crep)
-		lumiere.light_color = Color(1.0, 0.88, 0.76).lerp(Color(1.0, 0.60, 0.32), crep)
+		# C3 : vers midi (j → 1) le soleil blanchit et se renforce ; aube et crépuscule (j ≈ 0) inchangés
+		var e_jour := lerpf(SOLEIL_BAS["energie"], SOLEIL_MIDI["energie"], j)
+		var c_jour: Color = SOLEIL_BAS["couleur"].lerp(SOLEIL_MIDI["couleur"], j)
+		energie = e_soleil * lerpf(e_jour, 1.8, crep)
+		lumiere.light_color = c_jour.lerp(Color(1.0, 0.60, 0.32), crep)
 		_dir_h = soleil_h
 	else:
 		var a := 0.44 + (fmod(h + 12.0, 24.0) - 12.0) * 0.03
