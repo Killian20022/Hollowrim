@@ -10,6 +10,14 @@ func _tester() -> void:
 	root.add_child(m)
 	for i in 10:
 		await process_frame
+	# les fils de construction (crypte, modèles d'ennemis, grotte) doivent être finis : le dragon refait son maillage d'aile à chaque image
+	# et un crash moteur (signal 11 dans dragon.gd _poser_aile) est survenu quand cela tombait pendant la construction en fil d'exécution (suite complète, 3 Godot actifs)
+	var t_att := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t_att < 120000 and not (m.tertre._donjon_pret() and m.grotte_acces.grotte != null):
+		await process_frame
+	print("constructions en fil finies après ", Time.get_ticks_msec() - t_att, " ms")
+	for i in 5:
+		await process_frame
 	m.quetes.etat["anneau_givre"] = 5
 	m.quetes.signaler("parle:chef")
 	await process_frame
