@@ -369,7 +369,7 @@ static func _auto_contenu(k: DonjonKit, m: Dictionary, v2: Dictionary) -> void:
 			var Lw := dim.x if pm["horiz"] else dim.y
 			var eb := i < n_eb
 			var p := k.pt_mur(m, c, r.randf_range(-Lw * 0.5 + 1.0, Lw * 0.5 - 1.0), y, r.randf_range(0.7, 1.1) if eb else r.randf_range(0.9, 1.8))
-			if _libre(k, m, p, 1.0 if eb else 0.8, -1.3):      # rayon réel des modules (éboulis 0,9 à 1 m, dalles 0,8 m)
+			if _libre(k, m, p, 1.0 if eb else 1.1, -1.3):      # rayon réel des modules (éboulis 0,9 à 1 m, dalles jusqu’à 0,93 m en biais)
 				var liste: Array = v2["eboulis"] if eb else v2["dalles"]
 				liste.append({"pos": k.mw(p), "mod": (["eboulis_a", "eboulis_b", "eboulis_c"] if eb else ["dalles_a", "dalles_b", "dalles_c"])[r.randi_range(0, 2)], "lacet": r.randf() * TAU})
 				k._reserves.append([Vector2(p.x, p.z), 0.9 if eb else 0.5])
@@ -530,7 +530,7 @@ static func finir(k: DonjonKit, m: Dictionary) -> void:
 		for l: OmniLight3D in d.toutes:
 			if l.position.distance_to(lw_) < l.omni_range + 5.0:
 				voisines += 1
-		if voisines >= 6:
+		if voisines >= 6 or not d.lumiere_possible(lw_, 3.8) or not v2.get("lumieres_statue", true):      # ni plus de 8 lumières sur un maillage de 8 m (sol voisin compris)
 			continue
 		d.lumiere(lp, CrypteDecor.FEU_BOUGIE, 0.7, 3.8, 1.5)
 		allumees += 1

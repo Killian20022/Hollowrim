@@ -617,10 +617,8 @@ static func _texte(img: Image, x: int, y: int, s: String, ech: int, col: Color) 
 				if (int(gl[ry]) >> (4 - rx)) & 1:
 					img.fill_rect(Rect2i(cx + rx * ech, y + ry * ech, ech, ech), col)
 		cx += 6 * ech
-		if cx > img.get_width() - 6 * ech:
-			break
 
-static func planche(dossier: String, titre: String) -> void:
+static func planche(dossier: String, titre: String, cols := 3, lc := 640) -> void:
 	var f := FileAccess.open(dossier.path_join("cas.txt"), FileAccess.READ)
 	if f == null:
 		push_error("planche : cas.txt introuvable dans " + dossier)
@@ -637,8 +635,6 @@ static func planche(dossier: String, titre: String) -> void:
 		vues.append([im, l.get_slice("|", 1)])
 	if vues.is_empty():
 		return
-	var lc := 640
-	var cols := 3
 	var hb := 34
 	var im0: Image = vues[0][0]
 	var hc := int(float(im0.get_height()) * lc / im0.get_width())
@@ -655,8 +651,9 @@ static func planche(dossier: String, titre: String) -> void:
 		var y := ht + (i / cols) * (hc + hb)
 		out.blit_rect(im, Rect2i(Vector2i.ZERO, im.get_size()), Vector2i(x, y + hb))
 		var lib: String = vues[i][1]
-		_texte(out, x + 6, y + 4, lib.substr(0, 52), 2, Color(0.95, 0.85, 0.55))
-		if lib.length() > 52:
-			_texte(out, x + 6, y + 19, lib.substr(52, 52), 2, Color(0.85, 0.85, 0.85))
+		var nc := maxi(10, (lc - 12) / 12)      # caractères par ligne (police 5x7 x2)
+		_texte(out, x + 6, y + 4, lib.substr(0, nc), 2, Color(0.95, 0.85, 0.55))
+		if lib.length() > nc:
+			_texte(out, x + 6, y + 19, lib.substr(nc, nc), 2, Color(0.85, 0.85, 0.85))
 	out.save_png(dossier.path_join("planche.png"))
 	print("PLANCHE : %s (%d vues)" % [dossier.path_join("planche.png"), vues.size()])

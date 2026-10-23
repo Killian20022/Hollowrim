@@ -151,6 +151,7 @@ var _j_cases := {}           # grands modules Blender (arches, degrés, panneaux
 ## y note sa boîte (centre, demi-tailles x/z dans son repère, lacet, haut). Sert à ne rien poser DANS un objet déjà là (décor tiré au
 ## hasard, éléments v2), et aux panneaux / piliers engagés v2 qui contournent ce qui est adossé au mur (audit des interpénétrations).
 var emprises: Array = []        # [Vector3 centre (y = sol), Vector2 demi, lacet, haut, type]
+var voisin: CrypteDecor = null  # décor partagé (le donjon voit les lumières du tertre : limite de 8 par maillage)
 var muet := false               # vrai : les primitives tirent leurs nombres mais n'émettent rien (DonjonKit.differer)
 
 var murs_cb := Callable()       # (pos locale, demi-tailles, lacet) -> décalage : écarte un meuble du soubassement (DonjonKit._ecart_murs)
@@ -173,6 +174,28 @@ func _ecarter(pos: Vector3, demi: Vector2, lacet := 0.0) -> Vector3:
 	if dec != Vector3.ZERO:
 		_poussees.append([pos, dec, demi, lacet])
 	return pos + dec
+
+## Ajouter une lumière (repère de la crypte, portée R) garde-t-il chaque maillage de 8 m qu'elle touche à 8 lumières au plus ?
+## (les maillages fusionnés sont découpés en cases de 8 m, comme _buf ; test_crypte vérifie la même règle)
+func lumiere_possible(p: Vector3, R: float, maxi_ := 8) -> bool:
+	var toutes_l: Array = toutes.duplicate()
+	if voisin != null:
+		toutes_l.append_array(voisin.toutes)
+	for cx in range(floori((p.x - R) / CASE), floori((p.x + R) / CASE) + 1):
+		for cz in range(floori((p.z - R) / CASE), floori((p.z + R) / CASE) + 1):
+			var cell := AABB(Vector3(cx * CASE, p.y - 3.0, cz * CASE), Vector3(CASE, 6.0, CASE))
+			var q := Vector3(clampf(p.x, cell.position.x, cell.end.x), p.y, clampf(p.z, cell.position.z, cell.end.z))
+			if q.distance_to(p) > R:
+				continue
+			var n := 1
+			for l: OmniLight3D in toutes_l:
+				var lp := l.position
+				var ql := Vector3(clampf(lp.x, cell.position.x, cell.end.x), clampf(lp.y, cell.position.y, cell.end.y), clampf(lp.z, cell.position.z, cell.end.z))
+				if ql.distance_to(lp) <= l.omni_range:
+					n += 1
+			if n > maxi_:
+				return false
+	return true
 
 func emprise(type: String, pos: Vector3, demi: Vector2, lacet := 0.0, haut := 1.0) -> void:
 	if muet:
@@ -266,6 +289,7 @@ func _init(parent: Node3D, solide: StaticBody3D, partage: CrypteDecor = null) ->
 	rng.seed = 7007
 	est_crypte = get_script() == CrypteDecor
 	rng_deco.seed = 4242
+	voisin = partage
 	if partage != null:
 		# second décor (le donjon, bâti dans un fil d'exécution) : mêmes images, déjà peintes ; ses propres matériaux
 		partage.attendre_tout()

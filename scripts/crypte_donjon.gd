@@ -25,7 +25,7 @@ const V2_NICHES := {
 	"arche": "arche_2p0", "pilier": "pilier_mur_1p6", "naissance": 1.6,
 	"eboulis": [{"pos": Vector3(1.0, 0, -8.2), "mod": "eboulis_c", "lacet": 0.6}],      # audit 2026-10-23 : l'éboulis « a » entrait dans la niche ouest
 	"dalles": [{"pos": Vector3(0.25, 0, -10.6), "mod": "dalles_a"}, {"pos": Vector3(-0.2, 0, -14.6), "mod": "dalles_b"}, {"pos": Vector3(0.0, 0, -17.4), "mod": "dalles_c"}],
-	"appliques": [{"cote": "E", "z": -9.0}, {"cote": "O", "z": -13.4}],      # hors des niches (la torche était plantée dans le cadre de la niche est)
+	"appliques": [{"cote": "E", "z": -10.25}, {"cote": "O", "z": -13.75}],      # hors des niches (la torche était plantée dans le cadre de la niche est)
 	"flaques": [{"pos": Vector3(-0.15, 0, -11.9), "r": 0.55, "graine": 3}],
 }
 const V2_RITUELLE := {
@@ -50,7 +50,8 @@ const V2_SALLES := {
 	"g4": {"statues_auto": 0},
 	"lb2a": {"statues_auto": 0},
 	"antichambre": {"statues_auto": 0},
-	"arene": {"eviter_lustre": [Vector3(0, 0, -72.0)]},      # oculus du récit : le lustre central passe à côté
+	"arene": {"eviter_lustre": [Vector3(0, 0, -72.0)]},
+	"prep": {"lumieres_statue": false},      # sa statue (déplacée hors de la table d'embaumement) éclairait le sol des niches et de s1 : 9 lumières sur un maillage      # oculus du récit : le lustre central passe à côté
 }
 
 func construire() -> void:
@@ -422,8 +423,12 @@ func _x_arene(_m: Dictionary) -> void:
 		glacon(_l(alea(-11.0, 11.0), alea(-78.0, -63.0), 8.0), alea(0.7, 1.8), 0.14)
 	for c in [Vector2(-11.0, -79.0), Vector2(11.0, -79.0), Vector2(-11.0, -63.0), Vector2(11.0, -63.0)]:
 		# audit : les congères d'angle avalaient piliers, urnes et braseros → plus petites au sud (braseros), réduites au nord (piliers)
-		var rc := alea(1.6, 2.3) * (0.4 if c.y > -70.0 else 0.72)
-		congere(_l(c.x, c.y), rc, alea(0.6, 0.9) * (0.75 if c.y > -70.0 else 0.9))
+		# angles sud : braseros de l'entrée → pas de congère (tirages conservés : la suite du récit ne bouge pas)
+		var rc := alea(1.6, 2.3) * 0.72
+		var hc := alea(0.6, 0.9) * 0.9
+		d.muet = c.y > -70.0
+		congere(_l(c.x, c.y), rc, hc)
+		d.muet = false
 	congere(_l(-5.0, -79.0), 1.0, 0.42)
 	congere(_l(5.4, -79.0), 1.0, 0.45)
 	d.urne(_l(-11.0, -66.6), 1.2)
@@ -435,8 +440,8 @@ func _x_arene(_m: Dictionary) -> void:
 	d.crane(_l(-3.0, -66.0), 0.5)
 	d.crane(_l(4.0, -66.5), 2.0)
 	# lumière : braseros chauds aux coins de l'entrée, lampes froides à l'estrade
-	d.brasero(_l(-9.8, -64.4))
-	d.brasero(_l(9.8, -64.4))
+	d.brasero(_l(-10.6, -63.4))
+	d.brasero(_l(10.6, -63.4))
 	d.brasero(_l(-5.6, -66.75))      # devant le premier degré (il y entrait de 20 cm)
 	d.brasero(_l(5.6, -66.75))
 	d.applique(_l(0, -79.4 if d.v2 else -79.7), Vector3(0, 0, 1), 3.0, 6.0, 1.6, true)

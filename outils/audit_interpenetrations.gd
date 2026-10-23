@@ -87,7 +87,7 @@ func _attendre(n: int) -> void:
 
 func _go() -> void:
 	if args.has("planche"):      # planche des cas (crypte) : cas.txt + captures -> planche.png
-		AUDIT_CRYPTE.planche(String(args["planche"]), String(args.get("titre", "")))
+		AUDIT_CRYPTE.planche(String(args["planche"]), String(args.get("titre", "")), int(args.get("colonnes", "3")), int(args.get("largeur", "640")))
 		quit(0)
 		return
 	var t0 := Time.get_ticks_msec()
