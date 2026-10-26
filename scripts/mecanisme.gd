@@ -67,11 +67,61 @@ static func restaurer_tout(racine: Node) -> void:
 static func materiau(palette: Array, nom: String, echelle := Vector2.ONE, teinte := Color.WHITE) -> ShaderMaterial:
 	return Palette.materiau(Palette.tex(nom, palette, 4, 0.45), echelle, teinte)
 
-## Texture de pierre (ou autre palette) traversée de fissures noires (marches aléatoires, jamais de damier).
+## Texture de pierre (ou autre palette) traversée de fissures noires (marches aléatoires, jamais de damier). Mise en cache (Palette._cache) :
+## elle coûtait 45-90 ms de peinture sur le fil principal pour CHAQUE dalle à fléchettes posée pendant la marche (pics du 1er passage).
 static func texture_fissures(palette: Array, graine: int, nombre := 6, taille := 64) -> ImageTexture:
+	var cle := _cle_fissures(palette, graine, nombre, taille)
+	var t := Palette.en_cache(cle) as ImageTexture
+	if t == null:
+		var img := Palette.prendre_image(cle)
+		t = ImageTexture.create_from_image(img if img != null else _image_fissures(palette, graine, nombre, taille))
+		Palette.ranger(cle, t)
+	return t
+
+static func _cle_fissures(palette: Array, graine: int, nombre: int, taille: int) -> String:
+	return "fissures|%d|%d|%d|%d" % [palette.hash(), graine, nombre, taille]
+
+## Fil de construction : image de texture_fissures peinte d'avance (aucun appel au serveur de rendu).
+static func _peindre_fissures(palette: Array, graine: int, nombre := 6, taille := 64) -> void:
+	var cle := _cle_fissures(palette, graine, nombre, taille)
+	if Palette.en_cache(cle) == null and not Palette.a_image(cle):
+		Palette.ranger_image(cle, _image_fissures(palette, graine, nombre, taille))
+
+## Peint d'avance (dans le fil de construction du donjon ou de la grotte) les textures des mécanismes de `meca` : textures nommées des
+## matériaux (Palette.tex) et pierres fissurées propres à chaque mécanisme. Sans elles, la pose des mécanismes (un par image pendant la
+## marche, juste après le chargement) peignait ces textures sur le fil principal : images de 50-170 ms. Format des entrées :
+## {"genre", "id", ["materiau"]} (CrypteDonjon.meca). Images seulement : ni scène, ni matériau, ni texture (aucun appel au serveur de
+## rendu depuis le fil) ; les textures sont faites à la pose, sur le fil principal, à partir de ces images (quelques dixièmes de ms).
+static func peindre_textures(meca: Array) -> void:
+	var noms := {"meca_gravats": Palette.ROCHE, "piege_fleche": Palette.ACIER, "piege_fleche_bois": Palette.PLANCHES}
+	for a: Dictionary in meca:
+		var id := String(a.get("id", ""))
+		match String(a.get("genre", "")):
+			"dalle_flechettes":
+				_peindre_fissures(Palette.ROCHE, 900 + id.hash() % 500, 4)
+				noms["piege_os"] = Palette.OSSEMENT
+				noms["piege_plaque"] = Palette.ACIER
+			"souffle_givre":
+				noms["souffle_bouche"] = Palette.ROCHE
+				noms["souffle_glace"] = Palette.NEIGE
+			"statues":
+				noms["meca_statue"] = Palette.ROCHE
+			"braseros":
+				noms["meca_brasero"] = Palette.ROCHE
+				noms["meca_fer"] = Palette.ACIER
+			"socles":
+				noms["meca_socle"] = Palette.ROCHE
+				noms["meca_socle_haut"] = Palette.ACIER
+			"mur_fragile":
+				if not a.has("materiau"):
+					_peindre_fissures(Palette.ROCHE, 4242 + id.hash() % 1000, 7)
+	for nom: String in noms:
+		Palette.peindre_tex(nom, noms[nom], 4, 0.45)
+
+static func _image_fissures(palette: Array, graine: int, nombre := 6, taille := 64) -> Image:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
-	var img := Palette.texture(taille, palette, 4, graine, 0.45).get_image()
+	var img := Palette.image(taille, palette, 4, graine, 0.45)
 	img.convert(Image.FORMAT_RGBA8)
 	img.clear_mipmaps()
 	var sombre := Color("#07080b")
@@ -91,7 +141,7 @@ static func texture_fissures(palette: Array, graine: int, nombre := 6, taille :=
 				img.set_pixel(px if px >= 0 else px + taille, py if py >= 0 else py + taille, sombre)
 				if rng.randf() < 0.05 and branches.size() < 4:
 					branches.append([q, ang + rng.randf_range(-1.0, 1.0), 8 + rng.randi() % 8])
-	return ImageTexture.create_from_image(img)
+	return img
 
 static func boite(parent: Node3D, taille: Vector3, pos: Vector3, mat: Material, rot := Vector3.ZERO) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()

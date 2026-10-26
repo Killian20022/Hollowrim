@@ -212,6 +212,7 @@ func _batir_donjon(dj: CrypteDonjon, decor: CrypteDecor) -> void:
 	var t0 := Time.get_ticks_msec()
 	dj.construire()
 	decor.finir()
+	Mecanisme.peindre_textures(dj.meca)     # textures des mécanismes peintes ici, pas pendant leur pose (une par image) en pleine marche
 	FilVerrou.rendre()
 	print("Donjon : bâti en %d ms (fil d'exécution)" % (Time.get_ticks_msec() - t0))
 
