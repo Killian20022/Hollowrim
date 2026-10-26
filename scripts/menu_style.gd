@@ -392,3 +392,16 @@ static func _icone_case(cote: int, cochee: bool) -> ImageTexture:
 				if d < m * 0.55:
 					img.set_pixel(x, y, LUEUR.lerp(Color.WHITE, 0.2 * (1.0 - d / (m * 0.55))))
 	return ImageTexture.create_from_image(img)
+
+## Flou très large et lisse d'une image (fond de l'écran de chargement, bandes latérales du titre) : moyennes successives (shrink_x2,
+## sans crénelage) jusqu'à ~26 px de large, puis agrandissement bicubique en deux temps jusqu'à 512 px.
+static func flouter(img: Image) -> void:
+	img.clear_mipmaps()
+	if img.is_compressed():
+		img.decompress()
+	img.convert(Image.FORMAT_RGB8)
+	while img.get_width() > 40:
+		img.shrink_x2()
+	var h := maxi(1, roundi(256.0 * img.get_height() / img.get_width()))
+	img.resize(256, h, Image.INTERPOLATE_CUBIC)
+	img.resize(512, h * 2, Image.INTERPOLATE_CUBIC)

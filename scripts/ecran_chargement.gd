@@ -62,6 +62,7 @@ var _debut := 0
 # mesure : images rendues pendant l'entrée du monde et plus long écart entre deux images (écran « figé »)
 var _images := 0
 var _pire_ecart := 0
+var _pire_etape := ""
 var _derniere_image := 0
 var _capture_faite := false
 
@@ -80,8 +81,7 @@ func _ready() -> void:
 	# souvenir flou du paysage du titre (image réduite à 48 px de large puis agrandie : rien qu'une lueur de couleurs)
 	_fond_flou = TextureRect.new()
 	var img: Image = (load("res://assets/ui/titre_reference.jpg") as Texture2D).get_image()
-	img.resize(48, 27, Image.INTERPOLATE_BILINEAR)
-	img.resize(512, 288, Image.INTERPOLATE_CUBIC)   # flou lisse même sans filtrage linéaire
+	MenuStyle.flouter(img)
 	_fond_flou.texture = ImageTexture.create_from_image(img)
 	_fond_flou.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_fond_flou.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
@@ -226,8 +226,9 @@ func _process(dt: float) -> void:
 				_entrer_monde(ps)
 		"monde":
 			var maintenant := Time.get_ticks_msec()
-			if _derniere_image > 0:
-				_pire_ecart = maxi(_pire_ecart, maintenant - _derniere_image)
+			if _derniere_image > 0 and maintenant - _derniere_image > _pire_ecart:
+				_pire_ecart = maintenant - _derniere_image
+				_pire_etape = Jeu.etape_chargement.strip_edges()
 			_derniere_image = maintenant
 			_images += 1
 			if not _capture_faite and _images == 12:
@@ -263,7 +264,7 @@ func _entrer_monde(ps: PackedScene) -> void:
 
 func _finir() -> void:
 	_phase = "fin"
-	print("Chargement : monde prêt en %.1f s, %d images pendant l'entrée du monde, plus long écart %d ms" % [(Time.get_ticks_msec() - _debut) / 1000.0, _images, _pire_ecart])
+	print("Chargement : monde prêt en %.1f s, %d images pendant l'entrée du monde, plus long écart %d ms (jusqu'à « %s »)" % [(Time.get_ticks_msec() - _debut) / 1000.0, _images, _pire_ecart, _pire_etape])
 	_cible = 1.0
 	Jeu.chargement_etale = false
 	var tw := create_tween()

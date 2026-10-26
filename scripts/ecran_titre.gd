@@ -120,8 +120,7 @@ func _construire() -> void:
 	# bandes latérales (écrans plus larges que l'image : ultra-large) : l'image très floutée et assombrie
 	_fond_bandes = TextureRect.new()
 	var img_flou := fond_tex.get_image()
-	img_flou.resize(64, 36, Image.INTERPOLATE_BILINEAR)
-	img_flou.resize(512, 288, Image.INTERPOLATE_CUBIC)   # flou lisse même sans filtrage linéaire
+	MenuStyle.flouter(img_flou)
 	_fond_bandes.texture = ImageTexture.create_from_image(img_flou)
 	_fond_bandes.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	_fond_bandes.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
