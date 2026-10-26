@@ -77,6 +77,16 @@ func _ready() -> void:
 	crypte.add_child(corps)
 	_construire_crypte()
 	crypte.visible = false      # tant qu'on est dehors, ni rendu ni lumières (le décor reste solide)
+	quetes.evenement.connect(_sur_evenement)
+
+## La mort de Svanhild ouvre la porte du tombeau (et lève le sceau de l'arène si l'on y est entré autrement) : UNE fois, à l'événement.
+## (Avant : interrogé à chaque image dans _process → tween + joueur.secousse relancés sans fin, écran qui tremble à l'infini.)
+## Donjon pas encore intégré, ou partie chargée après sa mort : _etat_donjon() ouvre les portes instantanément, sans secousse.
+func _sur_evenement(evt: String) -> void:
+	if evt != "tue:svanhild" or donjon == null or not _donjon_pret():
+		return
+	_porte_haut("tombe")
+	_porte_haut("arene")
 
 func _process(dt: float) -> void:
 	_t += dt
@@ -105,10 +115,6 @@ func _process(dt: float) -> void:
 	if _lueur_tombe:
 		var cible := 3.6 if _anneau_rendu else 2.4 + sin(_t * 1.3) * 0.4
 		_lueur_tombe.light_energy = lerpf(_lueur_tombe.light_energy, cible, 1.0 - exp(-2.0 * dt))
-	# la mort de Svanhild ouvre la porte du tombeau (et lève le sceau de l'arène si l'on y est entré autrement)
-	if dedans and donjon != null and _donjon_pret() and quetes.vus.has("tue:svanhild"):
-		_porte_haut("tombe")
-		_porte_haut("arene")
 	# Svanhild se lève quand on approche du sarcophage avec l'anneau
 	if dedans and not _svanhild_levee and joueur.inventaire.a("anneau_givre"):
 		if joueur.global_position.distance_to(crypte.to_global(SARCO)) < 8.0:
@@ -376,6 +382,9 @@ func _porte_haut(id: String, instant := false) -> void:
 	if instant or Mecanisme.restauration:
 		p.position.y = 3.2
 		return
+	if p.has_meta("en_ouverture"):
+		return       # déjà en train de monter (ex. « tue:svanhild » signalé deux fois) : pas de second tween ni de secousse
+	p.set_meta("en_ouverture", true)
 	var t := create_tween()
 	t.tween_property(p, "position:y", 3.2, 2.2).set_trans(Tween.TRANS_SINE)
 	Sons.jouer_a(self, ["impactMetal_heavy_000", "doorOpen_1"], p.global_position, 2.0)
@@ -747,7 +756,10 @@ func restaurer(herse_ouverte: bool) -> void:
 		for it in crypte.get_children():
 			if it.get("verbe") == "Fouiller le corps d’Eirik":
 				it.actif = false
-	# l'état du donjon (portes, coffres, mécanismes) est rendu à son intégration : _finir_donjon()
+	# l'état du donjon (portes, coffres, mécanismes) est rendu à son intégration : _finir_donjon() — ou tout de suite s'il est déjà là
+	# (portes de Svanhild ouvertes instantanément, sans secousse : plus d'interrogation par image dans _process)
+	if donjon != null and _donjon_pret():
+		_etat_donjon()
 	# partie sauvegardée sous terre
 	if joueur.global_position.y < PROFONDEUR * 0.5 and joueur.global_position.y > GrotteAcces.SEUIL_Y:   # plus bas : la grotte (y ≈ -220)
 		attendre_donjon()

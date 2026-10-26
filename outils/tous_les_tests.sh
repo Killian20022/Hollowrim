@@ -27,6 +27,7 @@ TESTS=(
 	"test_escaliers_village|--nouvelle --paisible"
 	"test_crypte|--nouvelle"
 	"test_crypte_mort|--nouvelle"
+	"test_secousse_boss|--nouvelle"
 	"test_squelette|--nouvelle"
 	"test_squelette_traversees|--nouvelle"
 	"test_grotte|--nouvelle"
