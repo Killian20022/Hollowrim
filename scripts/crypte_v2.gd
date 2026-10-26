@@ -252,7 +252,7 @@ static func _donnees(k: DonjonKit, m: Dictionary, v2: Dictionary, y: float) -> v
 			d.solide(Vector3(p.x, y + 0.5, p.z), Vector3(absf(b.x) + 0.2, 1.0, absf(b.z) + 0.2))
 	for s: Dictionary in v2["candelabres"]:
 		var p := k.lw(s["pos"])
-		for fp: Vector3 in d.modele("candelabre", Vector3(p.x, y, p.z), s.get("lacet", 0.0)):
+		for fp: Vector3 in ObjLuminaires.candelabre(d, Vector3(p.x, y, p.z), s.get("lacet", 0.0)):     # lot L8 : module « candelabre_l8 »
 			d.flamme(fp, 0.5)
 		d.carte("halo", Vector3(p.x, y + 1.55, p.z), Vector3.UP, 1.1, 1.1)
 		if s.get("lumiere", false):  # budget : 7 lumières par salle, seuls les candélabres marqués éclairent
@@ -568,15 +568,9 @@ static func _sol(k: DonjonKit, m: Dictionary, v2: Dictionary, y: float) -> void:
 		var p := k.pt_mur(m, c, r.randf_range(-Lw * 0.5 + 1.2, Lw * 0.5 - 1.2), y, r.randf_range(0.5, 0.9))
 		d.givre_decal(p, Vector2(r.randf_range(0.8, 1.5), r.randf_range(0.6, 1.1)), r.randf() * TAU)
 
-## Lustre de fer posé à la voûte : chaîne, cercle à bougies (module Blender), flammes, halo.
+## Lustre de fer posé à la voûte : chaîne, couronne à cierges (lot L8 : module « lustre_l8 », ObjLuminaires), flammes, halo.
 static func lustre(d: CrypteDecor, plafond: Vector3, chute: float) -> void:
-	d.j0("lustre_v2")
-	var c := plafond - Vector3(0, chute, 0)
-	d.chaine(plafond, c + Vector3(0, 0.55, 0))
-	for fp: Vector3 in d.modele("lustre_fer", c):
-		d.flamme(fp, 0.55)
-	d.carte("halo", c + Vector3(0, 0.15, 0), Vector3.UP, 1.8, 1.8)
-	d.j1()
+	ObjLuminaires.lustre_v2(d, plafond, chute)
 
 # ------------------------------------------------------------------ COULOIR
 ## Couloir (axe long = z local, 3,2 m de large, plafond 3 m) : arches en voussoirs sur piliers engagés tous les 4 m, panneaux de

@@ -702,7 +702,7 @@ func _sarcophage_arene() -> void:
 			for off: Vector3 in [Vector3.ZERO, Vector3(0.14, 0, 0.09), Vector3(-0.1, 0, 0.13)]:
 				d.bougie(c + off, false)
 		for c: Vector3 in [Vector3(-2.0, 0.6, -71.2), Vector3(2.0, 0.6, -72.8)]:
-			for fp: Vector3 in d.modele("candelabre", c, 0.0):
+			for fp: Vector3 in ObjLuminaires.candelabre(d, c, 0.0):     # lot L8 : module « candelabre_l8 », même emprise
 				d.flamme(fp, 0.5)
 			d.carte("halo", c + Vector3(0, 1.55, 0), Vector3.UP, 1.1, 1.1)
 	else:

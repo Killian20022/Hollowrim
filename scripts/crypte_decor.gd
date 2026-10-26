@@ -1247,26 +1247,9 @@ func brume(centre: Vector3, ext: Vector2, nombre := 5) -> void:
 		var w := rng_deco.randf_range(2.6, 4.6)
 		carte("brume", p, Vector3.UP, w, w * rng_deco.randf_range(0.6, 1.0))
 
-## Lustre de fer à bougies pendu à une chaîne : cercle de fer à 8 pans, bougies, flammes, halo ; une lumière courte si demandé.
+## Lustre de fer à bougies pendu à une chaîne (lot L8 : module « lustre_l8_6 », ObjLuminaires) ; une lumière courte si demandé.
 func lustre(plafond: Vector3, chute := 1.2, rayon := 0.55, avec_lumiere := true) -> void:
-	j0("lustre")
-	var c := plafond - Vector3(0, chute, 0)
-	chaine(plafond, c + Vector3(0, 0.55, 0))
-	for k in 3:
-		var a := TAU * k / 3.0
-		chaine(c + Vector3(0, 0.55, 0), c + Vector3(cos(a) * rayon * 0.92, 0.04, sin(a) * rayon * 0.92))
-	tour("fer", c, [Vector2(rayon, -0.04), Vector2(rayon, 0.04)], 8, PI / 8.0, false)
-	tour("fer", c, [Vector2(rayon * 0.82, 0.04), Vector2(rayon * 0.82, -0.04)], 8, PI / 8.0, false)
-	tour("fer", c - Vector3(0, 0.05, 0), [Vector2(0.0, -0.25), Vector2(0.06, -0.1), Vector2(0.03, 0.0)], 6, 0.0, false)     # pointe sous le cercle
-	for k in 6:
-		var a := TAU * (k + 0.5) / 6.0
-		var p := c + Vector3(cos(a) * rayon * 0.91, 0.04, sin(a) * rayon * 0.91)
-		tour("os", p, [Vector2(0.03, 0.0), Vector2(0.028, 0.1 + 0.05 * (k % 2))], 5, 0.0, true)       # bougie de suif
-		flamme(p + Vector3(0, 0.12 + 0.05 * (k % 2), 0), 0.55)
-	carte("halo", c + Vector3(0, 0.15, 0), Vector3.UP, 1.8, 1.8)
-	if avec_lumiere:
-		lumiere(c + Vector3(0, 0.3, 0), FEU_BOUGIE, 1.3, 6.0, 1.7)
-	j1()
+	ObjLuminaires.lustre(self, plafond, chute, rayon, avec_lumiere)
 
 ## Sceau runique : losange gravé dont les traits luisent en bleu (accent froid des références), sur un mur ; petite lumière bleue.
 func sceau(centre: Vector3, vers: Vector3, taille := 0.7, avec_lumiere := true, portee := 5.0) -> void:
@@ -1394,35 +1377,12 @@ func carte(nom: String, centre: Vector3, normale: Vector3, w: float, h: float) -
 	quad(nom, a, b, c, d, n, [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)])
 	_obj_n = n_obj
 
-## Applique murale : platine, bras, coupelle, torche goudronnée, flamme, halo net sur le mur, lumière courte.
+## Applique murale (lot L8 : module « applique_fer », ObjLuminaires) : flamme, halo net sur le mur, lumière courte.
 func applique(plan_mur: Vector3, vers: Vector3, haut := 2.1, portee := 5.0, energie := 1.9, avec_lumiere := true) -> void:
-	j0("applique", atan2(vers.x, vers.z))
-	var d := vers.normalized()
-	var lacet := atan2(d.x, d.z)
-	var p := Vector3(plan_mur.x, haut, plan_mur.z)
-	boite("fer", p + d * 0.03, Vector3(0.16, 0.36, 0.06), lacet)
-	boite("fer", p + d * 0.17 - Vector3(0, 0.06, 0), Vector3(0.05, 0.05, 0.32), lacet)
-	tour("fer", p + d * 0.32 - Vector3(0, 0.1, 0), [Vector2(0.05, 0.0), Vector2(0.075, 0.12)], 6, -1.0, false)
-	tour("bois", p + d * 0.32 - Vector3(0, 0.08, 0), [Vector2(0.03, 0.0), Vector2(0.035, 0.3)], 6, -1.0, true)
-	tour("bois", p + d * 0.32 + Vector3(0, 0.12, 0), [Vector2(0.045, 0.0), Vector2(0.062, 0.1)], 6, -1.0, false)
-	flamme(p + d * 0.32 + Vector3(0, 0.2, 0), 1.6)
-	carte("halo", p + d * 0.13 + Vector3(0, 0.3, 0), d, 1.4, 1.4)
-	if avec_lumiere:
-		lumiere(p + d * 0.5 + Vector3(0, 0.45, 0), FEU_CRYPTE if est_crypte else FEU, energie, portee, 1.5 if est_crypte else 1.8)
-	j1()
+	ObjLuminaires.applique(self, plan_mur, vers, haut, portee, energie, avec_lumiere)
 
 func brasero(pos: Vector3, froid := false) -> void:  # froid : lumière bleue (inutilisée dans la crypte actuelle)
-	j0("brasero")
-	pos = _ecarter(pos, Vector2(0.47, 0.47))
-	emprise("brasero", pos, Vector2(0.47, 0.47), 0.0, 0.92)
-	var prof := [Vector2(0.36, 0.0), Vector2(0.32, 0.1), Vector2(0.24, 0.36), Vector2(0.26, 0.66), Vector2(0.44, 0.74), Vector2(0.5, 0.9), Vector2(0.42, 0.92)]
-	tour("mur0", pos, prof, 8, PI / 8.0, false)
-	tour("fer", pos + Vector3(0, 0.0, 0), [Vector2(0.505, 0.78), Vector2(0.505, 0.9)], 8, PI / 8.0, false)   # cerclage
-	tour("braise", pos + Vector3(0, 0.84, 0), [Vector2(0.4, 0.0), Vector2(0.4, 0.0)], 8, PI / 8.0, true)
-	flamme(pos + Vector3(0, 0.9, 0), 1.7)
-	carte("halo", pos + Vector3(0, 0.02, 0), Vector3.UP, 3.4, 3.4)
-	lumiere(pos + Vector3(0, 1.4, 0), Color(0.45, 0.75, 1.0) if froid else (FEU_BRASERO if est_crypte else FEU), 2.4, 5.8, 1.7 if not est_crypte else 1.4)
-	j1()
+	ObjLuminaires.brasero(self, pos, froid)
 
 # ------------------------------------------------------------------ mobilier (Méso)
 func sarcophage(pos: Vector3, taille: Vector3, lacet := 0.0, collision := true) -> void:
@@ -1678,15 +1638,9 @@ func statue(pos: Vector3, lacet := 0.0, e := 1.0, type := "guerrier", collision 
 func banniere(haut: Vector3, vers: Vector3, long := 1.7, larg := 0.75, couleur := Color(0.62, 0.3, 0.26), sujet := "", usure := 1, teinte_embleme := Color(0.9, 0.85, 0.7)) -> void:
 	ObjMobilierBois.banniere(self, haut, vers, long, larg, couleur, sujet, usure, teinte_embleme)
 
-## Chaîne verticale (maillons alternés) du point `haut` au point `bas`.
+## Chaîne verticale (lot L8 : maillons ovales ouverts, ObjLuminaires) du point `haut` au point `bas`.
 func chaine(haut: Vector3, bas: Vector3) -> void:
-	j0("chaine")
-	var l := haut.distance_to(bas)
-	var nb := maxi(2, int(l / 0.1))
-	for i in nb:
-		var p := haut.lerp(bas, (i + 0.5) / nb)
-		boite("fer", p, Vector3(0.06, 0.12, 0.025) if i % 2 == 0 else Vector3(0.025, 0.12, 0.06))
-	j1()
+	ObjLuminaires.chaine(self, haut, bas)
 
 ## Table d'embaumement : dalle de pierre sur deux piliers, rigole, bandelettes, bol d'huiles ; `corps` : dépouille enveloppée dessus.
 func table_embaumement(pos: Vector3, lacet := 0.0, corps := false) -> void:
