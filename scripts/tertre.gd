@@ -712,7 +712,7 @@ func _sarcophage_arene() -> void:
 	_lueur_tombe.omni_attenuation = 1.4
 	_lueur_tombe.position = Vector3(0, 2.3, -69.6)
 	crypte.add_child(_lueur_tombe)
-	d.toutes.append(_lueur_tombe)
+	d.ajouter_lumiere(_lueur_tombe)
 	_givre(Vector3(0, 1.8, -72.0))
 	var pos := SARCO + Vector3(0, 1.6, 1.9)
 	_interactif(crypte, pos, "Inscription", "Lire l’inscription", func() -> Array: return quetes.texte("inscription_tombe"), func() -> bool: return not _peut_rendre())

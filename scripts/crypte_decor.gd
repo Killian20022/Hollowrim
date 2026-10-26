@@ -67,6 +67,7 @@ var _bufs := {}
 var _fait := {}
 var lumieres: Array = []       # [OmniLight3D, énergie, phase]
 var toutes: Array = []         # toutes les OmniLight3D du décor (allumées selon la position du joueur, voir tertre.gd)
+var pos_lum: Dictionary = {}   # OmniLight3D -> [position, portée] notées à la pose (lumiere_possible les lit depuis le fil du donjon sans toucher aux nœuds déjà dans l'arbre)
 var _flammes_def: Array = []    # [position, échelle, phase] : fusionnées en MultiMesh par cellule dans finir()
 var _nb_pieces := 0
 ## Donjon : remplace une matière par une autre dans quad() (« mur0 » -> « mur4 » : tout un décor passe en glace d'un coup).
@@ -189,9 +190,12 @@ func lumiere_possible(p: Vector3, R: float, maxi_ := 8) -> bool:
 				continue
 			var n := 1
 			for l: OmniLight3D in toutes_l:
-				var lp := l.position
+				# position et portée notées à la pose : les lumières du voisin (tertre) sont dans l'arbre, illisibles depuis le fil du donjon
+				var info: Array = pos_lum.get(l, voisin.pos_lum.get(l, []) if voisin != null else [])
+				var lp: Vector3 = info[0] if not info.is_empty() else l.position
+				var portee: float = info[1] if not info.is_empty() else l.omni_range
 				var ql := Vector3(clampf(lp.x, cell.position.x, cell.end.x), clampf(lp.y, cell.position.y, cell.end.y), clampf(lp.z, cell.position.z, cell.end.z))
-				if ql.distance_to(lp) <= l.omni_range:
+				if ql.distance_to(lp) <= portee:
 					n += 1
 			if n > maxi_:
 				return false
@@ -1325,11 +1329,16 @@ func lumiere(pos: Vector3, couleur: Color, energie: float, portee: float, att :=
 	l.distance_fade_begin = 20.0
 	l.distance_fade_length = 6.0
 	l.position = xf * pos
+	ajouter_lumiere(l)     # avant add_child : position lue hors de l'arbre
 	racine.add_child(l)
-	toutes.append(l)
 	if vacille:
 		lumieres.append([l, energie, rng.randf() * 10.0])
 	return l
+
+## Inscrit une OmniLight3D dans `toutes` en notant sa position et sa portée (à appeler AVANT qu'un fil ne lise le décor).
+func ajouter_lumiere(l: OmniLight3D) -> void:
+	toutes.append(l)
+	pos_lum[l] = [l.position, l.omni_range]
 
 ## Flamme en sprite pixel art (fusionnée en MultiMesh par cellule dans finir()) ; `echelle` 1 = torche, 1,7 = brasero.
 func flamme(pos: Vector3, echelle := 1.0) -> void:
