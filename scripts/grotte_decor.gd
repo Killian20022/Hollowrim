@@ -978,7 +978,7 @@ func _incliner(pz: Dictionary) -> Transform3D:
 ## FileAccess (sûr dans le fil de construction : aucun .glb, aucune matière neuve) et versé dans les tables de modules de
 ## CrypteDecor, puis posé par modele() : fondu dans les mêmes tampons par case (aucun nœud de plus), UV triplanaires en mètres.
 ## Les objets gardent pose_objet, solide et _empreinte d'avant : seul le visuel change.
-const OBJETS_DAT := "res://assets/grotte/modules/grotte_objets.dat"
+const OBJETS_GROTTE_DAT := "res://assets/grotte/modules/grotte_objets.dat"
 ## matières des modules -> matières de la grotte (« pierre » / « roche » : roche nue du kit, sans givre en plaque sur les dessus, et roche
 ## givrée de la coque ; toutes déjà employées par la grotte)
 const MAT_OBJETS := {"bois": "bois", "planches": "planches", "fer": "fer", "lame": "lame", "os": "os", "peau": "peau", "paille": "paille",
@@ -990,9 +990,9 @@ static func _charger_objets() -> void:
 	_modeles_verrou.lock()
 	if not _objets_lus:
 		_objets_lus = true
-		var f := FileAccess.open(OBJETS_DAT, FileAccess.READ)
+		var f := FileAccess.open(OBJETS_GROTTE_DAT, FileAccess.READ)
 		if f == null:
-			push_error("GrotteDecor : %s introuvable" % OBJETS_DAT)
+			push_error("GrotteDecor : %s introuvable" % OBJETS_GROTTE_DAT)
 		else:
 			var n := f.get_32()
 			for _k in n:
