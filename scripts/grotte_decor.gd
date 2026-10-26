@@ -1613,26 +1613,13 @@ func _retoucher_lumieres(g: Grotte) -> void:
 			l.position = _poser_poteau(g, id, s, cote)
 
 # ------------------------------------------------------------------ pièces d'accessoires
-## Lanterne de fer suspendue (crochet en `haut`) : chaînette, chapeau, cage à 4 montants, flamme, halo. Rend le centre de la flamme.
+## Lanterne de fer suspendue (crochet en `haut`) : chaînette, anneau, chapeau à 6 pans, cadre, vitres de corne, bougie (lot L8 :
+## module « lanterne_fer », ObjLuminaires), flamme, halo. Rend le centre de la flamme (inchangé).
 func lanterne(haut: Vector3, chaine_l := 0.18) -> Vector3:
 	objet_debut("lanterne")
-	var c := haut - Vector3(0, chaine_l, 0)
-	if chaine_l > 0.02:
-		chaine(haut, c)
-	tour("fer", c - Vector3(0, 0.07, 0), [Vector2(0.13, 0.0), Vector2(0.03, 0.07)], 6, 0.0, true)      # chapeau
-	var bas := c - Vector3(0, 0.36, 0)
-	tour("fer", bas, [Vector2(0.11, 0.0), Vector2(0.11, 0.025)], 6, 0.0, true)                         # fond
-	for k in 4:
-		var a := TAU * k / 4.0 + 0.4
-		var o := Vector3(cos(a) * 0.1, 0, sin(a) * 0.1)
-		boite("fer", bas + o + Vector3(0, 0.15, 0), Vector3(0.022, 0.29, 0.022))
-	boite("fer", bas + Vector3(0, 0.15, 0), Vector3(0.21, 0.018, 0.21))                               # cerclage
-	var f := bas + Vector3(0, 0.06, 0)
-	flamme(f, 0.75)
-	carte("halo", f + Vector3(0, 0.1, 0), Vector3(0, 0, 1), 0.9, 0.9)
-	carte("halo", f + Vector3(0, 0.1, 0), Vector3(1, 0, 0), 0.9, 0.9)
+	var f := ObjLuminaires.lanterne(self, haut, chaine_l)
 	objet_fin()
-	return f + Vector3(0, 0.12, 0)
+	return f
 
 ## Poteau de bois planté au sol, potence et lanterne pendue côté galerie (`vers` = vers le centre). Rend la position de la lumière.
 func poteau_lanterne(pied: Vector3, vers: Vector3, avec_solide := false) -> Vector3:
@@ -1646,6 +1633,9 @@ func poteau_lanterne(pied: Vector3, vers: Vector3, avec_solide := false) -> Vect
 	prisme("bois", pied + Vector3(0, h - 0.12, 0) - d * 0.08, pied + Vector3(0, h - 0.12, 0) + d * 0.62, 0.05, 5)
 	prisme("bois", pied + Vector3(0, h - 0.62, 0), pied + Vector3(0, h - 0.16, 0) + d * 0.4, 0.035, 5)    # jambe de force
 	boite("fer", pied + Vector3(0, h - 0.12, 0) + d * 0.58, Vector3(0.05, 0.06, 0.05))
+	for y: float in [h - 0.2, h - 0.6]:                                                                   # L8 : frettes de fer (potence, jambe de force)
+		boite("fer", pied + Vector3(0, y, 0), Vector3(0.19, 0.035, 0.19))
+	boite("fer", pied + Vector3(0, h - 0.12, 0) + d * 0.3, Vector3(0.11, 0.03, 0.11), atan2(d.x, d.z))
 	for k in 3:                                                                                           # cordage autour du pied
 		boite("paille", pied + Vector3(0, 0.25 + 0.06 * k, 0), Vector3(0.2, 0.035, 0.2), 0.4 * k)
 	if avec_solide:
@@ -1727,7 +1717,7 @@ func _lanterne_etai(g: Grotte, id: String, s: float, cote: float) -> Vector3:
 	return lanterne(Vector3(p.x, haut, p.z) + T * 0.2, 0.3)
 var _etais_pris := {}
 
-## Brasero de fer forgé : trépied, vasque, braises, grande flamme, halo au sol.
+## Brasero de fer forgé : trépied, vasque (lot L8 : module « brasero_trepied »), braises, grande flamme, halo au sol.
 func brasero_fer(pos: Vector3, avec_solide := true) -> Vector3:
 	objet_debut("brasero")
 	var pz := pose_objet(pos, 0.4, 0.4, 0.0, 1.0, DROIT, 0.5, 0.45, true)
@@ -1737,11 +1727,7 @@ func brasero_fer(pos: Vector3, avec_solide := true) -> Vector3:
 		xf = x0
 		objet_fin()
 		return Vector3.INF
-	for k in 3:
-		var a := TAU * k / 3.0 + 0.3
-		prisme("fer", pos + Vector3(cos(a) * 0.36, 0.0, sin(a) * 0.36), pos + Vector3(cos(a) * 0.16, 0.72, sin(a) * 0.16), 0.03, 4)
-	tour("fer", pos + Vector3(0, 0.68, 0), [Vector2(0.14, 0.0), Vector2(0.36, 0.1), Vector2(0.44, 0.24), Vector2(0.4, 0.26)], 8, 0.0, true)
-	boite("fer", pos + Vector3(0, 0.84, 0), Vector3(0.9, 0.03, 0.05), 0.3)
+	ObjLuminaires.brasero_fer(self, pos)       # L8 : trépied à pieds enroulés, cerclage, vasque rivetée (module « brasero_trepied »)
 	tour("braise", pos + Vector3(0, 0.9, 0), [Vector2(0.36, 0.0), Vector2(0.3, 0.04)], 8, 0.0, true)
 	flamme(pos + Vector3(0, 0.92, 0), 1.8)
 	flamme(pos + Vector3(0.1, 0.92, 0.06), 1.2)
