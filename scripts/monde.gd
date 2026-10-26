@@ -180,7 +180,7 @@ func _ready() -> void:
 		_ciel.set_shader_parameter("angle_pixel", deg_to_rad(72.0) / maxf(float(wh[1]), 1.0))  # nuages : finesse max du détail
 	if not _arguments().has("capture"):
 		_musique()
-	if not _arguments().has("capture") and not _arguments().has("nouvelle") and not _arguments().has("persos-tous"):
+	if not _arguments().has("capture") and not _arguments().has("nouvelle") and not _arguments().has("persos-tous") and not Jeu.nouvelle_partie:
 		charger()
 	if not _arguments().has("capture"):
 		_audio()
@@ -1112,7 +1112,7 @@ func _interface() -> void:
 	rect.material = post
 	calque.add_child(rect)
 	aide = Label.new()
-	aide.text = "ZQSD : marcher   Maj : courir   Espace : sauter\nClic gauche : frapper (maintenir = coup puissant)\nClic droit : garde   T : torche   V : vue   P : effet PS1   Échap : souris"
+	aide.text = "ZQSD : marcher   Maj : courir   Espace : sauter\nClic gauche : frapper (maintenir = coup puissant)\nClic droit : garde   T : torche   V : vue   Tab : sac   Échap : menu"
 	aide.add_theme_font_override("font", Palette.police())   # même police pixel que le HUD (C6)
 	aide.add_theme_font_size_override("font_size", Palette.TAILLE_POLICE)
 	aide.add_theme_color_override("font_color", Color(0.85, 0.9, 1.0, 0.85))
@@ -1123,6 +1123,10 @@ func _interface() -> void:
 	hud.lieux = [[Vector3(CERCLE.x, 0, CERCLE.z), Color("#6fd8ff")], [Vector3.ZERO, Color("#e8a64a")]]
 	calque.add_child(hud)
 	calque.add_child(aide)
+	var pause := CanvasLayer.new()   # menu pause (Échap) : scripts/menu_pause.gd
+	pause.set_script(preload("res://scripts/menu_pause.gd"))
+	pause.monde = self
+	add_child(pause)
 	if _arguments().has("capture"):
 		aide.visible = false
 	if _arguments().has("sans-ps1"):
@@ -1137,7 +1141,8 @@ func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo:
 		match e.physical_keycode:
 			KEY_P:
-				_basculer_ps1()
+				if OS.is_debug_build():   # bascule de l'effet PS1 : outil de développement, absent du jeu exporté
+					_basculer_ps1()
 			KEY_F5:
 				sauvegarder()
 				hud.avis("Partie sauvegardée")
@@ -1145,8 +1150,7 @@ func _unhandled_input(e: InputEvent) -> void:
 				# on relance le jeu plutôt que la scène : recréer le monde dans le même
 				# processus fait planter Godot (modèles importés rechargés en double)
 				if FileAccess.file_exists(fichier_sauvegarde()):
-					OS.set_restart_on_exit(true, OS.get_cmdline_args())
-					get_tree().quit()
+					Jeu.relancer("continuer")   # l'écran titre du processus relancé charge aussitôt la partie
 
 func _exit_tree() -> void:
 	Palette.vider()
@@ -1194,6 +1198,8 @@ func sauvegarder() -> void:
 	}
 	var f := FileAccess.open(fichier_sauvegarde(), FileAccess.WRITE)
 	f.store_string(JSON.stringify(donnees, "\t"))
+	f.close()
+	Jeu.copie_secours(fichier_sauvegarde())   # copie de secours (dossier choisi dans les options ; échec = simple avertissement)
 
 func charger() -> void:
 	if not FileAccess.file_exists(fichier_sauvegarde()):

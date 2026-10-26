@@ -2,9 +2,8 @@ extends Node
 ## Plein écran : F11 ou Alt+Entrée bascule entre fenêtre et plein écran.
 ## Le rendu interne (480x270 ou 640x360) est agrandi d'un facteur entier (×4 / ×3 en 1920×1080 : pixels nets) ;
 ## l'interface suit avec EchelleUi.
-## Le choix est retenu dans user://fenetre.cfg et rétabli au lancement.
-
-const FICHIER := "user://fenetre.cfg"
+## Le choix est retenu dans user://options.cfg (Jeu, section « affichage ») et rétabli au lancement ;
+## le menu Options passe aussi par basculer() / regler_plein_ecran().
 const HORS_ECRAN := Vector2i(-32000, -32000)
 
 func _init() -> void:
@@ -22,8 +21,7 @@ func _ready() -> void:
 	# ni en headless ni pendant les captures/tests (leurs images doivent rester comparables)
 	if DisplayServer.get_name() == "headless" or OS.get_cmdline_user_args().size() > 0:
 		return
-	var cfg := ConfigFile.new()
-	if cfg.load(FICHIER) == OK and cfg.get_value("fenetre", "plein_ecran", false):
+	if Jeu.option("affichage", "plein_ecran"):
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -35,11 +33,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func basculer() -> void:
-	var plein := DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_FULLSCREEN
+	regler_plein_ecran(DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_FULLSCREEN)
+
+func regler_plein_ecran(plein: bool) -> void:
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if plein else DisplayServer.WINDOW_MODE_WINDOWED)
-	var cfg := ConfigFile.new()
-	cfg.set_value("fenetre", "plein_ecran", plein)
-	cfg.save(FICHIER)
+	Jeu.regler("affichage", "plein_ecran", plein)
+	plein_ecran_change.emit(plein)
+
+signal plein_ecran_change(plein: bool)
 
 ## Godot recentre la fenêtre après les autoloads (taille imposée par window_*_override) :
 ## on la renvoie hors écran pendant les premières images.

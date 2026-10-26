@@ -123,8 +123,9 @@ func _actions() -> void:
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not mort and not en_dialogue:
 		# screen_relative : non réduit par l'agrandissement du rendu 480x270
-		rotate_y(-e.screen_relative.x * SENSIBILITE)
-		tete.rotation.x = clampf(tete.rotation.x - e.screen_relative.y * SENSIBILITE, -1.45, 1.45)
+		var k := SENSIBILITE * Jeu.sensibilite   # options du joueur (menu Options)
+		rotate_y(-e.screen_relative.x * k)
+		tete.rotation.x = clampf(tete.rotation.x - e.screen_relative.y * k * (-1.0 if Jeu.inverser_y else 1.0), -1.45, 1.45)
 	elif e is InputEventMouseButton and e.pressed:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_V:
