@@ -31,7 +31,7 @@ static func socle(dcr: CrypteDecor, pos: Vector3, taille := Vector3(0.9, 0.9, 0.
 	dcr.j0("socle", lacet)
 	dcr.emprise("socle", pos, Vector2(taille.x * 0.5 + 0.06, taille.z * 0.5 + 0.06), lacet, taille.y + 0.1)
 	var b := Basis(Vector3.UP, lacet)
-	if dcr.v2 and mat in ["mur0", "mur1", "mur2"]:      # C4b : socle en blocs taillés (module « socle_v2 » mis à la taille), MÊME collision
+	if dcr.v2 and mat in ["mur0", "mur1", "mur2", "mur4"]:      # C4b : socle en blocs taillés (L4 : la glace « mur4 » aussi) (module « socle_v2 » mis à la taille), MÊME collision
 		dcr.modele("socle_v2", pos, lacet, Vector3(taille.x + 0.02, taille.y + 0.08, taille.z + 0.02))
 		var s2 := b * Vector3(taille.x + 0.12, 0, taille.z + 0.12)
 		dcr.solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s2.x), taille.y + 0.08, absf(s2.z)))
@@ -50,8 +50,15 @@ static func statue(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, e := 1.0, type 
 	dcr.j0("statue", lacet)
 	pos = dcr._ecarter(pos, Vector2(0.53, 0.53), lacet)
 	dcr.emprise("statue", pos, Vector2(0.53, 0.53), lacet, 2.6)
-	if dcr.v2 and mat in ["mur0", "mur1", "mur2"]:
-		mat = "statue_v2"       # crypte v2 : statues un peu plus claires que les murs (sans lumière de plus)
+	if dcr.v2 and mat in ["mur0", "mur1", "mur2", "mur4"]:
+		mat = "statue_v2"       # crypte v2 : statues un peu plus claires que les murs (sans lumière de plus) ; L4 : g4 (glace) en pierre aussi
+		if type in ["guerrier", "jarl"] and CrypteDecor.modele_existe("statue_" + type):
+			# L4 (2026-10-26) : guerrier (casque, bouclier rond, lance) et jarl (couronne, épée plantée) sculptés, givre ; MÊME collision
+			dcr.modele("statue_" + type, pos, lacet, Vector3.ONE * clampf(e * 0.9, 0.85, 1.08), {"pierre": "statue_v2"})
+			if collision:
+				dcr.solide(pos + Vector3(0, 1.2, 0), Vector3(1.0, 2.4, 1.0))
+			dcr.j1()
+			return
 		if type in ["ancetre", "capuche", "gardienne"]:
 			# C4b : gardiens encapuchonnés / voilés = module sculpté « statue_capuche » (plis, capuche, givre), même hauteur ; MÊME collision
 			dcr.modele("statue_capuche", pos, lacet, Vector3.ONE * clampf(e * 0.83, 0.75, 1.2), {"pierre": "statue_v2"})
@@ -109,10 +116,16 @@ static func autel(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, largeur := 2.0) 
 	pos = dcr._ecarter(pos, Vector2(largeur * 0.5 + 0.08, 0.53), lacet)
 	dcr.emprise("autel", pos, Vector2(largeur * 0.5 + 0.08, 0.53), lacet, 1.14)
 	var b := Basis(Vector3.UP, lacet)
-	dcr.boite("mur1", pos + Vector3(0, 0.45, 0), Vector3(largeur, 0.9, 0.9), lacet)
-	dcr.boite("mur0", pos + Vector3(0, 0.94, 0), Vector3(largeur + 0.16, 0.1, 1.06), lacet)
-	dcr.boite("lin", pos + Vector3(0, 0.995, 0), Vector3(largeur * 0.6, 0.012, 0.9), lacet, false, Vector3.ZERO)      # nappe de lin
-	dcr.boite("gravure", pos + b * Vector3(0, 0.45, 0.455), Vector3(largeur * 0.7, 0.5, 0.012), lacet)
+	if dcr.v2 and CrypteDecor.modele_existe("autel_2p4"):
+		# L4 (2026-10-26) : massif en blocs assisés, pilastres, panneau d'inscription, table débordante givrée (module à la largeur) ; MÊME collision
+		var lm := 2.4 if largeur < 3.8 else 5.2
+		dcr.modele("autel_2p4" if largeur < 3.8 else "autel_5p2", pos, lacet, Vector3(largeur / lm, 1.0, 1.0))
+		dcr.boite("lin", pos + Vector3(0, 1.004, 0), Vector3(largeur * 0.6, 0.012, 0.9), lacet, false, Vector3.ZERO)      # nappe de lin
+	else:
+		dcr.boite("mur1", pos + Vector3(0, 0.45, 0), Vector3(largeur, 0.9, 0.9), lacet)
+		dcr.boite("mur0", pos + Vector3(0, 0.94, 0), Vector3(largeur + 0.16, 0.1, 1.06), lacet)
+		dcr.boite("lin", pos + Vector3(0, 0.995, 0), Vector3(largeur * 0.6, 0.012, 0.9), lacet, false, Vector3.ZERO)      # nappe de lin
+		dcr.boite("gravure", pos + b * Vector3(0, 0.45, 0.455), Vector3(largeur * 0.7, 0.5, 0.012), lacet)
 	for sx in [-0.7, 0.7]:
 		dcr.bougie(pos + b * Vector3(sx * largeur * 0.5, 1.0, 0.0), false)
 	var s := b * Vector3(largeur + 0.16, 0, 1.06)
@@ -125,6 +138,17 @@ static func bassin(dcr: CrypteDecor, centre: Vector3, w: float, p: float, h := 0
 	dcr.emprise("bassin", centre, Vector2(w * 0.5, p * 0.5), 0.0, h)
 	var e := 0.4
 	dcr.eau_slot(centre + Vector3(0, h - 0.12, 0), minf(w, p) * 0.5 - e, "bassin", Vector2(w - 2.0 * e, p - 2.0 * e))
+	if dcr.v2 and CrypteDecor.modele_existe("bassin_margelle"):
+		# L4 (2026-10-26) : murets en blocs assisés, chaperon débordant, givre et glaçons (module 5 x 4,4 x 0,5 m mis à la taille) ; MÊMES collisions
+		dcr.modele("bassin_margelle", centre, 0.0, Vector3(w / 5.0, h / 0.5, p / 4.4))
+		dcr.solide(centre + Vector3(0, h * 0.5, -(p * 0.5 - e * 0.5)), Vector3(w, h, e))
+		dcr.solide(centre + Vector3(0, h * 0.5, (p * 0.5 - e * 0.5)), Vector3(w, h, e))
+		dcr.solide(centre + Vector3(-(w * 0.5 - e * 0.5), h * 0.5, 0), Vector3(e, h, p - 2.0 * e))
+		dcr.solide(centre + Vector3(w * 0.5 - e * 0.5, h * 0.5, 0), Vector3(e, h, p - 2.0 * e))
+		dcr.quad("noir", centre + Vector3(-w * 0.5 + e, h - 0.12, -p * 0.5 + e), centre + Vector3(w * 0.5 - e, h - 0.12, -p * 0.5 + e), centre + Vector3(w * 0.5 - e, h - 0.12, p * 0.5 - e), centre + Vector3(-w * 0.5 + e, h - 0.12, p * 0.5 - e), Vector3.UP)
+		dcr.solide(centre + Vector3(0, h * 0.5, 0), Vector3(w - 0.2, h, p - 0.2))
+		dcr.j1()
+		return
 	dcr.boite_pleine("mur1", centre + Vector3(0, h * 0.5, -(p * 0.5 - e * 0.5)), Vector3(w, h, e))
 	dcr.boite_pleine("mur1", centre + Vector3(0, h * 0.5, (p * 0.5 - e * 0.5)), Vector3(w, h, e))
 	dcr.boite_pleine("mur1", centre + Vector3(-(w * 0.5 - e * 0.5), h * 0.5, 0), Vector3(e, h, p - 2.0 * e))
@@ -142,17 +166,22 @@ static func table_embaumement(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, corp
 	pos = dcr._ecarter(pos, Vector2(1.2, 0.44), lacet)
 	dcr.emprise("table_embaumement", pos, Vector2(1.2, 0.44), lacet, 1.17)
 	var b := Basis(Vector3.UP, lacet)
-	dcr.boite("mur1", pos + Vector3(0, 0.88, 0), Vector3(2.1, 0.14, 0.86), lacet)
-	for sx in [-0.7, 0.7]:
-		dcr.boite("mur0", pos + b * Vector3(sx, 0.4, 0), Vector3(0.34, 0.8, 0.7), lacet)
-	dcr.boite("mur0", pos + Vector3(0, 0.28, 0), Vector3(1.2, 0.12, 0.5), lacet)
-	dcr.boite("gravure", pos + Vector3(0, 0.962, 0), Vector3(1.7, 0.012, 0.36), lacet)
+	var v2_ := dcr.v2 and CrypteDecor.modele_existe("table_embaumement")
+	if v2_:      # L4 (2026-10-26) : piliers moulurés, dalle à rebords et rigole d'écoulement, bec, givre (module) ; MÊME collision
+		dcr.modele("table_embaumement", pos, lacet)
+	else:
+		dcr.boite("mur1", pos + Vector3(0, 0.88, 0), Vector3(2.1, 0.14, 0.86), lacet)
+		for sx in [-0.7, 0.7]:
+			dcr.boite("mur0", pos + b * Vector3(sx, 0.4, 0), Vector3(0.34, 0.8, 0.7), lacet)
+		dcr.boite("mur0", pos + Vector3(0, 0.28, 0), Vector3(1.2, 0.12, 0.5), lacet)
+		dcr.boite("gravure", pos + Vector3(0, 0.962, 0), Vector3(1.7, 0.012, 0.36), lacet)
 	for k in 3:
 		dcr.boite("lin", pos + b * Vector3(-0.5 + k * 0.5, 0.55, 0.45), Vector3(0.1, 0.5, 0.012), lacet)      # bandelettes
 	dcr.tour("fer", pos + b * Vector3(1.2, 0, 0.1), [Vector2(0.14, 0.0), Vector2(0.16, 0.1), Vector2(0.1, 0.2)], 8, 0.0, false)
 	if corps:
-		dcr.boite("lin", pos + Vector3(0, 1.06, 0), Vector3(1.55, 0.17, 0.46), lacet, false)      # linceul
-		dcr.boite("os", pos + b * Vector3(-0.85, 1.08, 0), Vector3(0.2, 0.18, 0.2), lacet)
+		var dy := -0.05 if v2_ else 0.0      # v2 : posé sur les rebords de la dalle (dessus à 0,925 m)
+		dcr.boite("lin", pos + Vector3(0, 1.06 + dy, 0), Vector3(1.55, 0.17, 0.46), lacet, false)      # linceul
+		dcr.boite("os", pos + b * Vector3(-0.85, 1.08 + dy, 0), Vector3(0.2, 0.18, 0.2), lacet)
 	var s := b * Vector3(2.1, 0, 0.86)
 	dcr.solide(pos + Vector3(0, 0.5, 0), Vector3(absf(s.x), 1.0, absf(s.z)))
 	dcr.j1()
@@ -163,6 +192,13 @@ static func sarcophage_pille(dcr: CrypteDecor, pos: Vector3, taille: Vector3, la
 	pos = dcr._ecarter(pos, Vector2(taille.x * 0.5 + 0.3, taille.z * 0.5 + 0.5), lacet)      # couvercle poussé de travers
 	dcr.emprise("sarcophage_pille", pos, Vector2(taille.x * 0.5 + 0.3, taille.z * 0.5 + 0.15), lacet, taille.y + 0.2)
 	var b := Basis(Vector3.UP, lacet)
+	if dcr.v2 and CrypteDecor.modele_existe("sarcophage_pille"):
+		# L4 (2026-10-26) : cuve sculptée ouverte (fond noir, gravats), couvercle brisé repoussé, fragment appuyé, pied-de-biche ; MÊME collision
+		dcr.modele("sarcophage_pille", pos, lacet, Vector3(taille.x / 2.2, taille.y / 0.7, taille.z / 0.9), {"noir": "noir"})
+		var s2 := b * Vector3(taille.x + 0.6, 0, taille.z + 0.3)
+		dcr.solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s2.x), taille.y, absf(s2.z)))
+		dcr.j1()
+		return
 	dcr.boite("mur0", pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
 	dcr.boite("mur1", pos + Vector3(0, 0.07, 0), Vector3(taille.x + 0.14, 0.14, taille.z + 0.14), lacet)
 	dcr.boite("noir", pos + Vector3(0, taille.y + 0.005, 0), Vector3(taille.x - 0.3, 0.01, taille.z - 0.3), lacet)
