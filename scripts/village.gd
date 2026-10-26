@@ -94,11 +94,13 @@ func _ready() -> void:
 	m_ame = TexturesBati.m_planches_e(Color(0.3, 0.29, 0.32))             # fond sombre derrière les rondins (joints)
 	m_neige = TexturesBati.m_neige_toit_e()
 	m_toit = TexturesBati.m_tourbe_e()                                    # toits : alpha 0 = neige, 1 = tourbe sombre
-	m_roche = TexturesBati.m_pierre_seche_e(Color(1.3, 1.28, 1.32))
+	# E/pierre_chaude : murs des maisons en pierre, tour-clocher, murets de la forge et socle du moulin en pierre CHAUDE (était
+	# pierre_seche_e gris-bleu (1.3, 1.28, 1.32)), cohérente avec les soutènements (pierre_mur_e (1.62, 1.47, 1.3)) et les soubassements
+	m_roche = TexturesBati.materiau_e("pierre_maison_e", Color(1.58, 1.45, 1.3))
 	m_soubassement = TexturesBati.m_pierre_mur_e(Color(1.5, 1.38, 1.24))
 	m_brute_soub = TexturesBati.m_pierre_brute_e(Color(1.32, 1.2, 1.06))
-	m_brute = TexturesBati.m_pierre_brute_e(Color(1.18, 1.16, 1.2))
-	m_pierre_fine = TexturesBati.m_pierre_fine_e(Color(1.25, 1.23, 1.27))
+	m_brute = TexturesBati.m_pierre_brute_e(Color(1.56, 1.36, 1.08))      # chaînages, linteaux, cordons : teinte chaude (base roche bleutée → compensée) (était (1.18, 1.16, 1.2))
+	m_pierre_fine = TexturesBati.m_pierre_fine_e(Color(1.4, 1.3, 1.18))   # socle de la tour, fûts de cheminée : teinte chaude (était (1.25, 1.23, 1.27))
 	m_fer = TexturesBati.m_fer_e(Color(0.8, 0.82, 0.9))
 	m_foin = TexturesBati.m_foin_e(Color(0.85, 0.85, 0.8))
 	m_cuir = TexturesBati.m_cuir_e(Color(1.3, 1.15, 1.0))

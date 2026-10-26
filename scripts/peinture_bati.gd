@@ -1077,6 +1077,9 @@ static func fabriques() -> Dictionary:
 	base["pierre_seche_e"] = func() -> Array: return _net(mur_pierre(5111, 512, 256, 16, 28, 30, 68, 0.12, 6.0, 2))
 	# murs de soutènement (D/neige_murs) : pierre chaude, assises de 0,22 à 0,7 m, pierres de 0,35 à 1,6 m, rangs inclinés
 	base["pierre_mur_e"] = func() -> Array: return _net(mur_pierre(5119, 512, 256, 14, 44, 22, 104, 0.10, 7.0, 2, true, 0.45))
+	# murs des maisons en pierre, tour, murets, pont (E/pierre_chaude) : même pierre chaude que les soutènements, assises
+	# plus régulières de maçonnerie (0,25 à 0,44 m, pierres de 0,45 à 1,1 m, rangs peu inclinés)
+	base["pierre_maison_e"] = func() -> Array: return _net(mur_pierre(5121, 512, 256, 16, 28, 28, 70, 0.10, 6.0, 2, true, 0.12))
 	base["pierre_fine_e"] = func() -> Array: return _net(mur_pierre(5113, 512, 256, 12, 20, 18, 40, 0.06, 4.0, 2))
 	base["pierre_brute_e"] = func() -> Array: return _net(roche(5217, 256, 3, 0.4, 0.2, 2))
 	base["planches_v_e"] = func() -> Array: return _net(planches(5311, 256, 256, false, 2, 0.3))

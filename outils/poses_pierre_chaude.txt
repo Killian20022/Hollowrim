@@ -1,0 +1,14 @@
+# E/pierre_chaude : murs des maisons en pierre, tour-clocher, murets de la forge, puits ; AVANT = 488feb4
+# PFX = avant|apres (sed), _jour = midi (heure=12), _nuit = crépuscule (heure=17.5) : noms lus par outils/planche.gd
+PFX_maison_jour monde 47,77,-90,0 heure=12
+PFX_maison_nuit monde 47,77,-90,0 heure=17.5
+PFX_moulin_jour monde 32.5,55.5,90,-6 heure=12
+PFX_moulin_nuit monde 32.5,55.5,90,-6 heure=17.5
+PFX_tour_jour monde 52,95,40,15 heure=12
+PFX_tour_nuit monde 52,95,40,15 heure=17.5
+PFX_forge_jour monde 35,41,58,-5 heure=12
+PFX_forge_nuit monde 35,41,58,-5 heure=17.5
+PFX_place_jour monde 48,44,45,-6 heure=12
+PFX_place_nuit monde 48,44,45,-6 heure=17.5
+PFX_rue_jour monde 44,40,180,8 heure=12
+PFX_rue_nuit monde 44,40,180,8 heure=17.5

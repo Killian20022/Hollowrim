@@ -59,8 +59,9 @@ static func creer(monde_: Node) -> MobilierVillage:
 
 static func _materiau(nom: String) -> Material:
 	match nom:
-		"pierre_brute": return TexturesBati.m_pierre_brute_e(Color(0.9, 0.92, 0.98))
-		"pierre_fine": return TexturesBati.m_pierre_fine_e(Color(0.92, 0.94, 1.0))
+		# E/pierre_chaude : margelle du puits, socle du brasero en pierre chaude comme le bâti (étaient gris-bleu (0.9, 0.92, 0.98), (0.92, 0.94, 1.0))
+		"pierre_brute": return TexturesBati.m_pierre_brute_e(Color(1.0, 0.95, 0.86))
+		"pierre_fine": return TexturesBati.m_pierre_fine_e(Color(1.03, 0.97, 0.88))
 		"planches_h": return TexturesBati.m_planches_e(Color(0.85, 0.8, 0.75))
 		"planches_v": return TexturesBati.m_bois_debout_e(Color(0.85, 0.8, 0.75))
 		"fer": return TexturesBati.m_fer_e(Color(0.7, 0.7, 0.75))

@@ -132,7 +132,7 @@ func _mat(nom: String) -> Material:
 	if not _mats.has(nom):
 		var m: Material
 		match nom:
-			"maconnerie": m = TexturesBati.m_pierre_seche_e(Color(1.3, 1.27, 1.26))
+			"maconnerie": m = TexturesBati.materiau_e("pierre_maison_e", Color(1.5, 1.38, 1.24))   # pont : pierre chaude des maisons (E/pierre_chaude)
 			"taille": m = TexturesBati.m_pierre_fine_e(Color(1.32, 1.29, 1.27))
 			"dalles": m = TexturesBati.m_pierre_fine_e(Color(1.1, 1.08, 1.08))
 			"roche": m = TexturesBati.m_roche()
