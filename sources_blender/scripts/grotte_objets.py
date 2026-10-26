@@ -24,7 +24,7 @@ BUDGET = {"g_sac": 330, "g_couchage": 520, "g_tabouret": 260, "g_ratelier": 600,
 DONNEES = {}      # "module__matiere" -> [(Vector Blender, (r, g, b, a))]
 X, Y, Z = Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))
 TAU = 2 * math.pi
-JUTE = (0.66, 0.5, 0.36)        # toile de sac : matière « paille » teintée brun (la « toile » de la crypte ressort blanche et tachée ici)
+JUTE = (0.92, 0.72, 0.46)        # toile de sac : matière « paille » teintée brun (la « toile » de la crypte ressort blanche et tachée ici)
 LIN = (0.92, 0.84, 0.7)
 
 
@@ -264,6 +264,7 @@ class Module:
         self.hs = hs
         self.off = V(graine * 0.311, graine * 0.173, graine * 0.071)
         self.parts = []
+        self.teintes = {}
 
     def j(self, s):
         return self.rg.uniform(-s, s)
@@ -287,6 +288,8 @@ class Module:
             k *= 0.9 + 0.1 * noise.noise(p * 5.3 + self.off)
         k = max(0.1, min(1.0, k))
         t = part["teinte"]
+        if part["mat"] in self.teintes:      # teinte de matière propre au module (ex. pierre chaude de l'autel)
+            t = tuple(a * b for a, b in zip(t, self.teintes[part["mat"]]))
         return (k * t[0], k * t[1], k * t[2], 1.0)
 
     def compiler(self):
