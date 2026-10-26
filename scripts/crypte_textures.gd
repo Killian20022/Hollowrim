@@ -12,7 +12,7 @@ class_name CrypteTextures
 
 const CLEAR := Color(0, 0, 0, 0)
 const DOSSIER := "res://assets/crypte"   # textures précalculées par outils/generer_crypte.gd
-const VERSION := 13                      # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
+const VERSION := 14                      # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
 const E := 2   # facteur de finesse de la pierre proche (murs, dalles, voûte, ossuaire) : 2 = 64 texels/m (tuiles de 256 px pour 4 m)
 ## Murs et ossuaire : 128 texels/m (tuile de 512 px), car le joueur les frôle (< 1 m) ; dalles et voûte restent à 64.
 const EM := 4   # refonte matière, 2e passe : 128 texels/m pour murs et dalles (vus à 1-2 m) avec micro-détail (moucheture, arêtes ébréchées)
@@ -40,6 +40,10 @@ const GIVRE := ["#29354a", "#2f4866", "#33577f", "#41709a", "#4f86ae", "#6ba3c1"
 const GLACE := ["#122233", "#1a3550", "#254d6c", "#33688a", "#4585a8", "#5ea2c2", "#7fbed6", "#a4d6e6", "#c8e9f2", "#e8f7fb"]      # donjon : glace épaisse sur la pierre
 const OR := ["#3d2a08", "#6e4d10", "#a8791c", "#d9a830", "#f6d56a", "#fff1b0"]
 const TOILE := ["#8d9db0", "#b5c4d3"]
+## Tissus (L0 objets) : laine écrue non teinte (bible, rampe « Ecru », assombrie pour la crypte), lin clair, toile de sac brune.
+const LAINE := ["#221e1b", "#36312c", "#4d463e", "#665d52", "#81776a", "#9d9283", "#b9ae9f", "#d2c7b0"]
+const LIN := ["#2f2b25", "#4a453c", "#686152", "#877e6c", "#a69c87", "#c1b79f", "#dbd0b6", "#ebe2c9"]
+const JUTE := ["#1a140d", "#2c2216", "#413322", "#57462f", "#6e5a3d", "#86704d", "#9e8860", "#b49d72"]
 const FLAMME := ["#4a1008", "#a8330c", "#f0801a", "#ffcb52", "#fff3c4"]
 const NIVEAUX := 18.0
 
@@ -972,6 +976,106 @@ static func os_image() -> Image:
 ## Parchemin (64 texels/m, tuile de 1 m) : fibres de papier, taches d'eau, bords brunis et roussis, pli central, lignes
 ## d'écriture à l'encre brune (mots de 3 à 9 texels, interlignes de 6), initiale enluminée en tête.
 static func parchemin_image() -> Image:
+	return _parchemin_image()
+
+# ------------------------------------------------------------------ tissus (L0 objets : paillasses, couvertures, tapis, nappes, sacs, bannières)
+## Laine tissée en sergé (64 texels/m, tuile de 1 m) : fils de 2 texels (chaîne et trame d'épaisseurs inégales), côtes diagonales
+## du sergé, flammes de trame plus épaisses, feutrage et bouloches en grandes taches, quelques fibres claires. Écru moyen : la teinte
+## de l'objet (couleurs de sommet du tapis, des bannières) s'y multiplie comme sur l'ancien parchemin (même luminosité moyenne).
+static func laine_image() -> Image:
+	var S := 64
+	var rng := _rng(9100)
+	var n_big := _nmap(S, 4, 4, 9101)
+	var n_fin := _nmap(S, S / 4, S / 4, 9102)
+	var n_flamme := _nmap(S, 3, S / 2, 9103)
+	var chaine := PackedFloat32Array()
+	var trame := PackedFloat32Array()
+	for k in S / 2:
+		chaine.append(rng.randf_range(-0.06, 0.06))
+		trame.append(rng.randf_range(-0.06, 0.06))
+	var cols := _cols(LAINE)
+	var cote := [0.06, 0.025, -0.025, -0.07]
+	var out := PackedColorArray()
+	out.resize(S * S)
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var l := 0.6 + (n_big[i] - 0.5) * 0.3 + (n_fin[i] - 0.5) * 0.1
+			l += cote[posmod(x / 2 + y / 2, 4)] + chaine[x / 2] * 0.6 + trame[y / 2] * 0.6
+			if n_flamme[i] > 0.78:
+				l += 0.07                                                            # flamme de trame (fil plus épais)
+			out[i] = _rq(cols, l, x, y)
+	for k in 10:                                                                      # fibres claires qui dépassent (2 à 4 texels)
+		var x := rng.randi_range(0, S - 1)
+		var y := rng.randi_range(0, S - 1)
+		for j in rng.randi_range(2, 4):
+			out[posmod(y + j / 2, S) * S + posmod(x + j, S)] = _c(LAINE, 6)
+	return _fin(S, out)
+
+## Lin (64 texels/m, tuile de 1 m) : toile fine et claire, fils de chaîne et de trame en traînées irrégulières (pas de damier),
+## boutons de fil (nœuds plus épais), plis doux en grandes ondes, légère salissure. Nappes d'autel, bandelettes, linceul.
+static func lin_image() -> Image:
+	var S := 64
+	var rng := _rng(9200)
+	var n_big := _nmap(S, 3, 5, 9201)
+	var n_fin := _nmap(S, S / 3, S / 3, 9202)
+	var n_noeud := _nmap(S, S / 2, S / 4, 9203)
+	var chaine := PackedFloat32Array()
+	var trame := PackedFloat32Array()
+	for k in S:
+		chaine.append(rng.randf_range(-0.05, 0.05))
+		trame.append(rng.randf_range(-0.04, 0.04))
+	var cols := _cols(LIN)
+	var out := PackedColorArray()
+	out.resize(S * S)
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var l := 0.52 + (n_big[i] - 0.5) * 0.26 + (n_fin[i] - 0.5) * 0.08 + chaine[x] + trame[y]
+			l += sin((y + n_big[i] * 10.0) * TAU / 21.0) * 0.04                       # plis doux
+			if n_noeud[i] > 0.83:
+				l += 0.08                                                            # bouton de fil
+			out[i] = _rq(cols, l, x, y)
+	return _fin(S, out)
+
+## Toile de sac / paillasse (64 texels/m, tuile de 1 m) : grosse toile de jute brune, fils de 4 texels bombés (clair au milieu,
+## sombre aux bords) qui passent dessus/dessous en alternance (armure toile à grande échelle), jours sombres aux croisements,
+## brins de paille clairs et taches de crasse.
+static func jute_image() -> Image:
+	var S := 64
+	var rng := _rng(9300)
+	var n_big := _nmap(S, 4, 4, 9301)
+	var n_fin := _nmap(S, S / 2, S / 2, 9302)
+	var fil := PackedFloat32Array()
+	for k in S / 4 * 2:
+		fil.append(rng.randf_range(-0.07, 0.07))
+	var cols := _cols(JUTE)
+	var out := PackedColorArray()
+	out.resize(S * S)
+	for y in S:
+		for x in S:
+			var i := y * S + x
+			var cx := x / 4
+			var cy := y / 4
+			var dessus_h := (cx + cy) % 2 == 0              # fil de trame (horizontal) dessus, sinon fil de chaîne
+			var t := float(y % 4 if dessus_h else x % 4)      # position dans l'épaisseur du fil (0..3)
+			var bombe := 1.0 - absf(t - 1.5) / 1.5           # 0 au bord, 1 au milieu
+			var l := 0.5 + bombe * 0.13 + (n_big[i] - 0.5) * 0.3 + (n_fin[i] - 0.5) * 0.12
+			l += fil[cy] if dessus_h else fil[S / 4 + cx]
+			var u := x % 4
+			var v := y % 4
+			if (u == 0 or u == 3) and (v == 0 or v == 3):
+				l -= 0.1                                                             # jour entre les fils
+			out[i] = _rq(cols, l, x, y)
+	for k in 5:                                                                       # brins de paille (paillasse) : traits clairs obliques
+		var x := rng.randi_range(0, S - 1)
+		var y := rng.randi_range(0, S - 1)
+		var dx := rng.randi_range(-1, 1)
+		for j in rng.randi_range(4, 8):
+			out[posmod(y + j, S) * S + posmod(x + (j * dx) / 2, S)] = Color("#a8925f")
+	return _fin(S, out)
+
+static func _parchemin_image() -> Image:
 	var S := 64
 	var rng := _rng(8900)
 	var n_fin := _nmap(S, S / 3, S / 3, 8901)
@@ -1345,6 +1449,9 @@ static func image(nom: String) -> Image:
 		"argile": return argile_image()
 		"os": return os_image()
 		"parchemin": return parchemin_image()
+		"laine": return laine_image()
+		"lin": return lin_image()
+		"jute": return jute_image()
 		"toile": return toile_image()
 		"flamme": return flamme_atlas_image()
 		"halo": return halo_image()
