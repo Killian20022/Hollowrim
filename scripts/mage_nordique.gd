@@ -14,6 +14,9 @@ class_name MageNordique
 ## Signature : lancement de sort avec les clips Spell_Simple_* (Enter / Idle / Shoot / Exit : main GAUCHE tendue, le bâton
 ## reste dans la droite).
 ##   MageNordique.creer({"baton": true, "capuche": true}) -> Node3D
+## Options des PNJ (D/pnj_village_v2, völva / ancienne) : "visage": true = vrai visage sous la capuche (peau éclairée, yeux peints,
+## capuche moins profonde, bord relevé) au lieu de l'ombre + yeux luisants ; "peau": Color. Rides, sourcils et cheveux sous la
+## capuche sont peints dans la peau par PnjNordique._vieillir.
 ## Contrat identique à Humain.creer (nœud racine -> Skeleton3D + AnimationPlayer « Animations », mêmes os) : Ragdoll.equiper,
 ## PiedsAuSol.equiper marchent tels quels. Aucun PNJ modifié (nouvelle fabrique).
 
@@ -52,8 +55,10 @@ static func creer(options := {}) -> Node3D:
 	if options.get("capuche", true):
 		tenue["capuche"] = C
 	var femme: bool = options.get("corps", "homme") == "femme"
+	var visage: bool = options.get("visage", false)
 	K = (1.77 / 1.81) if femme else 1.0
-	var app := {"corps": "femme" if femme else "homme", "barbe": not femme, "cheveux": "Hair_Long", "teinte_cheveux": TEINTE_BARBE, "peau": PEAU, "tenue": tenue}
+	var app := {"corps": "femme" if femme else "homme", "barbe": not femme, "cheveux": "Hair_Long", "teinte_cheveux": TEINTE_BARBE,
+		"peau": options.get("peau", PEAU), "tenue": tenue}
 	var t0 := Time.get_ticks_usec()
 	var racine := Humain.creer(app)
 	racine.name = "MageNordique"
@@ -77,17 +82,24 @@ static func creer(options := {}) -> Node3D:
 		_habiller(pieces["capuche"], GuerrierNordique.materiau(MageTextures.tex("capuche")))
 		# capuche ouverte devant (le pan qui couvrait le menton et le cou est retiré : la barbe sort de la capuche comme sur la
 		# référence), sommet relevé et tiré en arrière (léger pic), bord avant avancé au-dessus du front (visage dans l'ombre)
-		GuerrierNordique._filtrer(pieces["capuche"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > -0.01 and absf(c.x) < 0.105 + maxf(0.0, (1.58 * K) - c.y) * 0.6 and c.y < (1.665 * K)))
+		# visage montré : ouverture remontée jusqu'au haut du front (le pan qui restait devant le front faisait une plaque noire)
+		var haut_ouv := (1.745 if visage else 1.665) * K
+		GuerrierNordique._filtrer(pieces["capuche"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > -0.01 and absf(c.x) < 0.105 + maxf(0.0, (1.58 * K) - c.y) * 0.6 and c.y < haut_ouv))
+		# visage montré : capuche moins profonde (le bord avance de 1,2 cm au lieu de 4) et moins élargie, le visage reçoit la lumière
+		var prof := 0.012 if visage else 0.040
+		var larg := 0.06 if visage else 0.18
 		_deformer(pieces["capuche"], func(p: Vector3) -> Vector3:
 			var t := smoothstep((1.74 * K), (1.86 * K), p.y) * smoothstep(0.06, -0.10, p.z)
 			var f := smoothstep((1.68 * K), (1.78 * K), p.y) * smoothstep(0.02, 0.10, p.z)
 			# passe 2 : capuche PROFONDE — tout l'avant (au-dessus de la bouche) avancé de 4 cm et élargi : le visage recule dans l'ombre
 			var a := smoothstep((1.58 * K), (1.66 * K), p.y) * smoothstep(-0.02, 0.08, p.z)
-			return p + Vector3(0, 0.045 * t, -0.035 * t) + Vector3(0, -0.012 * f, 0.022 * f) + Vector3(p.x * 0.18 * a, 0, 0.040 * a))
+			# visage montré : le bord du capuchon remonte de 1,8 cm au lieu de descendre (le front et les sourcils se lisent)
+			var fy := 0.018 if visage else -0.012
+			return p + Vector3(0, 0.045 * t, -0.035 * t) + Vector3(0, fy * f, 0.022 * f) + Vector3(p.x * larg * a, 0, prof * a))
 	for nom_sc in ["SuperHero_Male", "Superhero_Female", "SuperHero_Female"]:
 		if pieces.has(nom_sc):
 			pieces[nom_sc].visible = false
-	_peau(pieces)
+	_peau(pieces, visage)
 	# allègement (même méthode que le guerrier) : yeux en cartes peintes, peau sous les manches retirée, mains décimées, sourcils retirés
 	var yeux := GuerrierNordique._centres_yeux(pieces.get("Eyes"))
 	if pieces.has("Eyes"):
@@ -95,7 +107,7 @@ static func creer(options := {}) -> Node3D:
 	GuerrierNordique._filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return absf(c.x) < 0.19 or absf(c.x) > 0.69)
 	GuerrierNordique._decimer(pieces.get("peau"), func(p: Vector3) -> float: return 0.027 if absf(p.x) > 0.5 else (0.018 if p.z < 0.035 else 0.0))
 	if pieces.has("Eyebrows"):
-		pieces["Eyebrows"].visible = false
+		pieces["Eyebrows"].visible = false     # 1 480 triangles : les sourcils des PNJ âgés sont peints dans la peau (PnjNordique._vieillir)
 	var tete := sq.get_bone_global_rest(sq.find_bone("Head")).origin + Vector3(0, 0.07, 0)
 	GuerrierNordique._filtrer(sq.get_node_or_null("Hair_Beard"), func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002)
 	GuerrierNordique._decimer(sq.get_node_or_null("Hair_Beard"), func(p: Vector3) -> float: return 0.008)
@@ -141,13 +153,25 @@ static func creer(options := {}) -> Node3D:
 	if not blender:
 		acc.frange_tissu(pieces["mante"], 1.10, 1.47, 0.06, 0.24)
 	if pieces.has("capuche") and options.get("capuche", true):
+		# col de fourrure au bas de la capuche ; visage montré (corps femme, sans barbe) : les mèches dressées se lisaient comme des
+		# dents de part et d'autre du menton, le col est couché (bas = 0,15 : il retombe sur la pèlerine) et plus court
 		acc.poitrine_libre = true
-		acc.fourrure_bord(pieces["capuche"], (1.44 * K), (1.58 * K), 0.06, 0.10, 0.7, 1.8)
+		if visage:
+			acc.fourrure_bord(pieces["capuche"], (1.44 * K), (1.53 * K), 0.04, 0.06, 0.15, 1.4)
+			# bordure courte de fourrure sur le bord du capuchon (au-dessus du front) : cache l'arête dentelée de l'ouverture
+			acc.fourrure_bord(pieces["capuche"], (1.66 * K), (1.85 * K), 0.022, 0.032, 0.35, 1.3)
+		else:
+			acc.fourrure_bord(pieces["capuche"], (1.44 * K), (1.58 * K), 0.06, 0.10, 0.7, 1.8)
 		acc.poitrine_libre = false
-	# visage dans l'ombre de la capuche : la peau du visage (front -> lèvre) devient un masque quasi noir ; yeux bleus luisants
-	acc.masque(pieces["peau"])
-	GuerrierNordique._filtrer(pieces["peau"], func(c: Vector3, n: Vector3) -> bool: return not Acc.est_visage(c))
-	acc.yeux_luisants(yeux)
+	if visage:
+		# vrai visage : yeux peints (cartes de l'atlas), plus petits que ceux du guerrier (yeux plissés de l'âge : la carte entière
+		# se lisait comme un fard bleu), peau du visage gardée
+		acc.yeux_plisses(yeux)
+	else:
+		# visage dans l'ombre de la capuche : la peau du visage (front -> lèvre) devient un masque quasi noir ; yeux bleus luisants
+		acc.masque(pieces["peau"])
+		GuerrierNordique._filtrer(pieces["peau"], func(c: Vector3, n: Vector3) -> bool: return not Acc.est_visage(c))
+		acc.yeux_luisants(yeux)
 	acc.amulette(pieces["tunique"])
 	acc.pierre_ceinture()
 	acc.boucle_ceinture()
@@ -172,8 +196,10 @@ static func creer(options := {}) -> Node3D:
 	for m in [pieces["tunique"].material_override, pieces["mante"].material_override, mi_acc.get_surface_override_material(0), mi_acc.get_surface_override_material(1), jupe.mat]:
 		(m as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.12, 0.155, 0.23))
 	if pieces.has("capuche") and options.get("capuche", true):
-		(pieces["capuche"].material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.05, 0.06, 0.085))
+		# visage montré : intérieur du capuchon moins noir (on le voit autour du visage)
+		(pieces["capuche"].material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.09, 0.10, 0.13) if visage else Vector3(0.05, 0.06, 0.085))
 	racine.set_meta("mage_nordique", true)
+	racine.set_meta("visage", visage)
 	racine.set_meta("corps", "femme" if femme else "homme")
 	return racine
 
@@ -199,11 +225,12 @@ static func _habiller(mi: MeshInstance3D, m: ShaderMaterial) -> void:
 	mi.visible = true
 	mi.material_override = m
 
+
 ## Peau et sourcils au shader du guerrier (copie de la branche peau de GuerrierNordique.creer) : peau moins éclaircie que celle
 ## du guerrier (le visage reste dans l'ombre de la capuche, comme sur la référence), appoint froid plus faible.
 static var _mats := {}
 
-static func _peau(pieces: Dictionary) -> void:
+static func _peau(pieces: Dictionary, visage := false) -> void:
 	for nom in ["peau", "Eyebrows"]:
 		var mi: MeshInstance3D = pieces.get(nom)
 		if mi == null:
@@ -212,13 +239,21 @@ static func _peau(pieces: Dictionary) -> void:
 			var m := mi.get_surface_override_material(s) as ShaderMaterial
 			if m == null:
 				continue
-			var cle := "mage_peau_%s_%d" % [nom, s]
+			var cle := "mage_peau_%s_%d%s" % [nom, s, "_visage" if visage else ""]
 			if not _mats.has(cle):
 				var m2 := ShaderMaterial.new()
 				m2.shader = GuerrierNordique.shader(nom == "Eyebrows")
 				for p in ["tex_base", "teinte", "emission", "saturation"]:
 					m2.set_shader_parameter(p, m.get_shader_parameter(p))
-				if nom == "peau":
+				if nom == "peau" and visage:
+					# visage montré (PNJ) : réglages de peau du guerrier (docs/PIPELINE_PERSOS.md §3) ; appoint un peu plus fort, le
+					# visage reste lisible dans l'ombre portée de la capuche
+					m2.next_pass = GuerrierNordique.contour()
+					var te2: Variant = m.get_shader_parameter("teinte")
+					m2.set_shader_parameter("teinte", (te2 if te2 is Color else Color.WHITE) * Color(1.24, 1.13, 1.01))
+					m2.set_shader_parameter("appoint", Vector3(0.20, 0.175, 0.16))
+					m2.set_shader_parameter("contour_froid", Vector3(0.22, 0.25, 0.34))
+				elif nom == "peau":
 					m2.next_pass = GuerrierNordique.contour()
 					var te: Variant = m.get_shader_parameter("teinte")
 					m2.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * Color(0.86, 0.84, 0.86))
@@ -429,6 +464,20 @@ class Acc extends GuerrierNordique.Accessoires:
 					wo[j] = w[i * nb + j]
 				op["b"].append_array(PackedInt32Array(bo))
 				op["w"].append_array(PackedFloat32Array(wo))
+
+	## Yeux peints du visage montré : cartes R_OEIL de l'atlas du mage (blanc gris, iris glacier), 2 cm x 0,9 cm, posées au ras de
+	## l'œil (même pose que GuerrierNordique.Accessoires.yeux).
+	func yeux_plisses(centres: Array) -> void:
+		var os_ := sq.find_bone("Head")
+		var r := GuerrierTextures.R_OEIL
+		for c: Vector3 in centres:
+			var cote := signf(c.x)
+			var p := Vector3(c.x, c.y - 0.0005, c.z - 0.003)
+			var dx := Vector3(0.0100, 0, 0.0035 * cote * -1.0)
+			var dy := Vector3(0, 0.0045, 0)
+			_quad(op, p - dx - dy, p + dx - dy, p + dx + dy, p - dx + dy,
+				_uva(r.position.x if cote < 0 else r.end.x, r.end.y), _uva(r.end.x if cote < 0 else r.position.x, r.end.y),
+				_uva(r.end.x if cote < 0 else r.position.x, r.position.y), _uva(r.position.x if cote < 0 else r.end.x, r.position.y), os_, p - Vector3(0, 0, 0.05))
 
 	## Deux fentes bleues luisantes (surface lumineuse) devant le masque, à la place des yeux.
 	func yeux_luisants(centres: Array) -> void:

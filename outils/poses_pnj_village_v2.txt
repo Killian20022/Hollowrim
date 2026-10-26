@@ -1,0 +1,49 @@
+# PNJ du village en jeu (D/pnj_village_v2) : `nom pnj d,az°,cible_y id=<id>` ; face, 3/4, profil, de près ; midi et crépuscule
+volva_midi_face pnj 3.0,0,1.0 id=volva heure=12 sans-mains
+volva_midi_34 pnj 2.6,40,1.1 id=volva heure=12 sans-mains
+volva_midi_profil pnj 2.6,90,1.1 id=volva heure=12 sans-mains
+volva_midi_pres pnj 1.3,20,1.5 id=volva heure=12 sans-mains bas=0.25
+ancienne_midi_face pnj 3.0,0,1.0 id=ancienne heure=12 sans-mains
+ancienne_midi_34 pnj 2.6,40,1.1 id=ancienne heure=12 sans-mains
+ancienne_midi_profil pnj 2.6,90,1.1 id=ancienne heure=12 sans-mains
+ancienne_midi_pres pnj 1.3,20,1.5 id=ancienne heure=12 sans-mains bas=0.25
+chef_midi_face pnj 3.0,0,1.0 id=chef heure=12 sans-mains
+chef_midi_34 pnj 2.6,40,1.1 id=chef heure=12 sans-mains
+chef_midi_profil pnj 2.6,90,1.1 id=chef heure=12 sans-mains
+chef_midi_pres pnj 1.3,20,1.5 id=chef heure=12 sans-mains bas=0.25
+forgeron_midi_face pnj 3.0,0,1.0 id=forgeron heure=12 sans-mains
+forgeron_midi_34 pnj 2.6,40,1.1 id=forgeron heure=12 sans-mains
+forgeron_midi_profil pnj 2.6,90,1.1 id=forgeron heure=12 sans-mains
+forgeron_midi_pres pnj 1.3,20,1.5 id=forgeron heure=12 sans-mains bas=0.25
+chasseuse_midi_face pnj 3.0,0,1.0 id=chasseuse heure=12 sans-mains
+chasseuse_midi_34 pnj 2.6,40,1.1 id=chasseuse heure=12 sans-mains
+chasseuse_midi_profil pnj 2.6,90,1.1 id=chasseuse heure=12 sans-mains
+chasseuse_midi_pres pnj 1.3,20,1.5 id=chasseuse heure=12 sans-mains bas=0.25
+garde_midi_face pnj 3.0,0,1.0 id=garde heure=12 sans-mains
+garde_midi_34 pnj 2.6,40,1.1 id=garde heure=12 sans-mains
+garde_midi_profil pnj 2.6,90,1.1 id=garde heure=12 sans-mains
+garde_midi_pres pnj 1.3,20,1.5 id=garde heure=12 sans-mains bas=0.25
+volva_crep_face pnj 3.0,0,1.0 id=volva heure=17.5 sans-mains
+volva_crep_34 pnj 2.6,40,1.1 id=volva heure=17.5 sans-mains
+volva_crep_profil pnj 2.6,90,1.1 id=volva heure=17.5 sans-mains
+volva_crep_pres pnj 1.3,20,1.5 id=volva heure=17.5 sans-mains bas=0.25
+ancienne_crep_face pnj 3.0,0,1.0 id=ancienne heure=17.5 sans-mains
+ancienne_crep_34 pnj 2.6,40,1.1 id=ancienne heure=17.5 sans-mains
+ancienne_crep_profil pnj 2.6,90,1.1 id=ancienne heure=17.5 sans-mains
+ancienne_crep_pres pnj 1.3,20,1.5 id=ancienne heure=17.5 sans-mains bas=0.25
+chef_crep_face pnj 3.0,0,1.0 id=chef heure=17.5 sans-mains
+chef_crep_34 pnj 2.6,40,1.1 id=chef heure=17.5 sans-mains
+chef_crep_profil pnj 2.6,90,1.1 id=chef heure=17.5 sans-mains
+chef_crep_pres pnj 1.3,20,1.5 id=chef heure=17.5 sans-mains bas=0.25
+forgeron_crep_face pnj 3.0,0,1.0 id=forgeron heure=17.5 sans-mains
+forgeron_crep_34 pnj 2.6,40,1.1 id=forgeron heure=17.5 sans-mains
+forgeron_crep_profil pnj 2.6,90,1.1 id=forgeron heure=17.5 sans-mains
+forgeron_crep_pres pnj 1.3,20,1.5 id=forgeron heure=17.5 sans-mains bas=0.25
+chasseuse_crep_face pnj 3.0,0,1.0 id=chasseuse heure=17.5 sans-mains
+chasseuse_crep_34 pnj 2.6,40,1.1 id=chasseuse heure=17.5 sans-mains
+chasseuse_crep_profil pnj 2.6,90,1.1 id=chasseuse heure=17.5 sans-mains
+chasseuse_crep_pres pnj 1.3,20,1.5 id=chasseuse heure=17.5 sans-mains bas=0.25
+garde_crep_face pnj 3.0,0,1.0 id=garde heure=17.5 sans-mains
+garde_crep_34 pnj 2.6,40,1.1 id=garde heure=17.5 sans-mains
+garde_crep_profil pnj 2.6,90,1.1 id=garde heure=17.5 sans-mains
+garde_crep_pres pnj 1.3,20,1.5 id=garde heure=17.5 sans-mains bas=0.25
