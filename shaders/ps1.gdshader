@@ -252,9 +252,11 @@ void s2_glace(vec2 p, out int ton, out int rampe, out int niv, out vec2 pente) {
 }
 
 // matière du sol au centre de texel `p` : ton + rampe (SolTuiles), niveau (pour les lèvres/ombres), pente de pierre
-void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out vec2 pente, out float terre_o, out float wt) {
+// `tf` >= 0 : ton CONTINU de la neige (mélange de deux tons voisins de la rampe) ; < 0 : ton entier `ton`.
+void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out vec2 pente, out float terre_o, out float wt, out float tf) {
 	terre_o = 0.0;
 	wt = 0.0;
+	tf = -1.0;
 	// matière dominante : roche / mousse / glace pondérées en bilinéaire sur la carte 0,25 m, seuil bruité (bords organiques, pas de marches)
 	vec4 w;
 	vec3 rmg;
@@ -327,23 +329,34 @@ void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out ve
 	} else {
 		rampe = 0;
 		niv = 3;
-		ton = v < 0.43 ? 3 : (v > 0.60 ? 5 : 4);
+		// neige v3 (D/neige_murs) : plus de trois aplats 3/4/5 à seuils (taches « camouflage » de près) ; ton continu
+		// entre 3,75 et 4,9 (le ton 3, bleu, reste aux creux, à la neige piétinée et aux ombres) + grain fin par texel
+		// (bruit blanc de ±0,15 ton, pas de tramage ordonné) + bruit lisse moyen
+		float grain = hash_sol(floor(p * 48.0) + 17.3) - 0.5;
+		tf = 3.75 + 1.15 * smoothstep(0.28, 0.76, v) + grain * 0.3 + (bruit_sol(p * 9.0 + 2.0) - 0.5) * 0.3;
+		ton = int(tf + 0.5);
 		float piet = w.x > 0.0 ? w.x + (s2_fbm(p * 7.0 + 2.0) - 0.5) * 0.7 : 0.0;
-		if (piet > 0.55) {                                   // neige piétinée : plus grise, rides cassées
-			ton = ondes > 0.62 ? 2 : 3;
+		if (piet > 0.55) {                                   // neige piétinée : plus grise, rides cassées (continues aussi)
+			tf = 2.55 + 0.9 * smoothstep(0.30, 0.80, 1.0 - ondes) + grain * 0.25;
+			ton = int(tf + 0.5);
 			niv = 2;
 		} else if (terre > 0.36 && bruit_sol(p * 31.0) > 0.55) {
 			rampe = 2;                                       // gravier qui perce la neige
 			ton = 2 + int(bruit_sol(p * 13.0) * 2.0);
 			niv = 1;
+			tf = -1.0;
 		}
 		if (w.z > 0.2 && w.z + (s2_fbm(p * 8.0 + 1.0) - 0.5) * 0.7 > 0.55) {
 			rampe = (bruit_sol(p * 17.0) > 0.78) ? 7 : 3;    // tapis d'aiguilles
 			ton = rampe == 7 ? 2 : 1 + int(bruit_sol(p * 12.0 + 6.0) * 2.5);
 			niv = 1;
+			tf = -1.0;
 		}
-		if (rampe == 0 && ton == 4 && hash_sol(floor(p * 24.0) + 61.0) > 0.994) ton = 5;   // éclats isolés
-		if (rampe == 0 && trace != 0.0) ton += int(trace);
+		if (tf >= 0.0 && niv == 3 && hash_sol(floor(p * 24.0) + 61.0) > 0.994) tf = 5.0;   // éclats isolés
+		if (rampe == 0 && trace != 0.0) {
+			ton += int(trace);
+			tf += trace;
+		}
 	}
 }
 
@@ -407,7 +420,8 @@ void fragment() {
 		vec2 pente;
 		float terre_c;
 		float wt;
-		s2_sol(pc, trace, ton, rampe, niv, pente, terre_c, wt);
+		float tf;
+		s2_sol(pc, trace, ton, rampe, niv, pente, terre_c, wt, tf);
 		// lèvre claire / ombre aux limites terre ↔ neige (champ de terre évalué au texel voisin en haut à gauche)
 		// C1 : voisin évalué seulement près d'un chemin (poids de terre non nul) ; roche/mousse/glace : pas de lèvre
 		int lev = 0;
@@ -419,6 +433,18 @@ void fragment() {
 		if (rampe == 0) ton = max(ton, 1);
 		ton = clamp(ton, 0, 7);
 		vec3 sol = texelFetch(sol_lut, ivec2(ton, rampe), 0).rgb;
+		vec2 congere = vec2(0.0);
+		if (tf >= 0.0) {    // neige à ton continu : mélange des deux tons voisins (pas d'aplat à bord net)
+			tf = clamp(tf + float(lev), 1.0, 5.0);
+			int t0 = int(tf);
+			sol = mix(texelFetch(sol_lut, ivec2(t0, 0), 0).rgb, texelFetch(sol_lut, ivec2(min(t0 + 1, 5), 0), 0).rgb, tf - float(t0));
+			// congères douces : petites ondulations allongées dans le sens du vent (+z), pente seulement (éclairage)
+			vec2 cg = vec2(pc.x * 0.6, pc.y * 1.7);
+			float c0 = bruit_sol(cg + 3.0) + 0.35 * bruit_sol(cg * 2.6 + 8.0);
+			float cx = bruit_sol(cg + vec2(0.06, 0.0) + 3.0) + 0.35 * bruit_sol((cg + vec2(0.06, 0.0)) * 2.6 + 8.0);
+			float cz = bruit_sol(cg + vec2(0.0, 0.17) + 3.0) + 0.35 * bruit_sol((cg + vec2(0.0, 0.17)) * 2.6 + 8.0);
+			congere = vec2(cx - c0, cz - c0) * 1.6;
+		}
 		if (rampe == 0) {   // variation douce et subtile de la neige : plaques plus froides / plus chaudes
 			float c = bruit_sol(pc * 0.35 + 5.0);
 			sol *= mix(vec3(0.965, 0.985, 1.03), vec3(1.03, 1.0, 0.97), c);
@@ -428,7 +454,7 @@ void fragment() {
 		float h0 = relief_au(pc);
 		float gx = (relief_au(pc + vec2(pas, 0.0)) - h0) / pas;
 		float gz = (relief_au(pc + vec2(0.0, pas)) - h0) / pas;
-		vec3 n = normalize(normalize(normale_monde) + vec3(-gx, 0.0, -gz) * relief_force + vec3(pente.x, 0.0, pente.y) * 0.45);
+		vec3 n = normalize(normalize(normale_monde) + vec3(-gx, 0.0, -gz) * relief_force + vec3(pente.x, 0.0, pente.y) * 0.45 - vec3(congere.x, 0.0, congere.y));
 		NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	}
 	if (!v2 && sol_carte && all(greaterThan(pos_monde, zone_min)) && all(lessThan(pos_monde, zone_max))) {
