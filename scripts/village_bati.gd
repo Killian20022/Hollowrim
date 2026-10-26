@@ -460,20 +460,20 @@ static func forge_ouverte(v, p: Node3D) -> void:
 	v._boite(p, Vector3(5.9, 0.2, 0.24), Transform3D(Basis(), Vector3(0, 2.94, 1.95)), v.m_poutres_h)
 	v._pan(p, Vector3(0, 3.12, 1.55), Vector3(0, -0.5, 3.1), 6.4, 4790, 5.8, true, Vector2.ZERO, true)
 	enseigne(v, p, Vector3(2.75, 2.35, zf + 0.1), Vector3.BACK, "enclume")
-	# poste de travail dehors, côté gauche (la porte est à droite : x 0,55 .. 2,15)
-	v._cylindre(p, 0.3, 0.34, 0.62, Transform3D(Basis(), Vector3(-1.5, 0.31, 3.2)), v.m_ecorce, 8, true)
-	v._boite(p, Vector3(0.62, 0.16, 0.24), Transform3D(Basis(Vector3.UP, 0.3), Vector3(-1.5, 0.72, 3.2)), v.m_fer)
-	v._boite(p, Vector3(0.3, 0.12, 0.18), Transform3D(Basis(Vector3.UP, 0.3), Vector3(-1.5, 0.6, 3.2)), v.m_fer)
-	v._boite(p, Vector3(0.24, 0.06, 0.12), Transform3D(Basis(Vector3.UP, 0.3), Vector3(-1.84, 0.76, 3.1)), v.m_fer)
-	# foyer de plein air : socle de pierre, braises, flamme (sans lumière dynamique)
-	v._bloc(p, Vector3(1.0, 0.7, 0.9), 4720, Vector3(-2.15, 0.35, 2.4), v.m_brute, 0.0, 0.0, 0.18, 0.06, true)
-	v._boite(p, Vector3(0.6, 0.06, 0.5), Transform3D(Basis(Vector3.UP, 0.2), Vector3(-2.15, 0.73, 2.4)), v.m_braises)
+	# poste de travail dehors, côté gauche (la porte est à droite : x 0,55 .. 2,15). Lot L7 : modules Blender (mobilier_village.py :
+	# forge_billot, forge_foyer, forge_meule, tonneau_c) fondus avec le bâti (MobilierVillage.poser_dans) ; collisions d'avant inchangées.
+	MobilierVillage.poser_dans(v, p, "forge_billot", Transform3D(Basis(Vector3.UP, 0.3), Vector3(-1.5, 0, 3.2)))
+	var billot := CylinderShape3D.new()
+	billot.radius = 0.34
+	billot.height = 0.62
+	v._collision(p, billot, Transform3D(Basis(), Vector3(-1.5, 0.31, 3.2)), Vector3.ZERO)
+	# foyer de plein air : murets de moellons, braises, flamme (sans lumière dynamique)
+	MobilierVillage.poser_dans(v, p, "forge_foyer", Transform3D(Basis(), Vector3(-2.15, 0, 2.4)))
+	v._collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(-2.15, 0.35, 2.4)), Vector3(1.0, 0.7, 0.9))
 	Torche.flamme_fixe(p, Vector3(-2.15, 0.82, 2.4), 1.6, 2.0)
 	v._tonneau(p, Vector3(-0.6, 0, 3.75))
-	# meule sur son bâti
-	v._cylindre(p, 0.42, 0.42, 0.14, Transform3D(Basis(Vector3.FORWARD, PI * 0.5), Vector3(-2.2, 0.75, 3.75)), v.m_brute, 10)
-	for dz in [-0.2, 0.2]:
-		v._boite(p, Vector3(0.08, 0.75, 0.08), Transform3D(Basis(), Vector3(-2.2, 0.37, 3.75 + dz)), v.m_poutres)
+	# meule à aiguiser sur ses chevalets
+	MobilierVillage.poser_dans(v, p, "forge_meule", Transform3D(Basis(), Vector3(-2.2, 0, 3.75)))
 	v._collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(-2.2, 0.55, 3.75)), Vector3(0.9, 1.1, 0.6))
 
 # --- tour-clocher ----------------------------------------------------------------------------------------------

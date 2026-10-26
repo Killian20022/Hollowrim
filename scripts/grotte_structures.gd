@@ -455,26 +455,11 @@ static func _autel(k: GrotteKit, id: String, s_a: float, lat_a: float, e := 1.2)
 	face = face.normalized() * (1.0 if lat_a < 0.0 else -1.0)
 	var yaw := atan2(-face.x, -face.z)                               # +z local = vers la paroi, -z local = vers la salle
 	var bz := Basis(Vector3.UP, yaw)
-	# estrade de pierre en ruine : deux gradins, massif en fer à cheval ouvert côté salle (planche vue 6), blocs éboulés ; boîtes
-	# légèrement désaxées (silhouette anguleuse, faces plates), matière roche de la grotte. DÉCOR SEUL.
-	var rs := RandomNumberGenerator.new()
-	rs.seed = 7353
-	var blocs: Array = [
-		[Vector3(0, 0.28, 0), Vector3(4.8, 0.56, 3.2), 0.03],                    # gradin bas
-		[Vector3(0, 0.84, 0.25), Vector3(3.7, 0.56, 2.4), -0.05],                # gradin haut
-		[Vector3(0, 1.85, 0.85), Vector3(2.9, 1.45, 0.75), 0.02],                # dossier
-		[Vector3(-1.45, 1.75, 0.2), Vector3(0.8, 1.25, 1.1), 0.1],               # flanc gauche
-		[Vector3(1.45, 1.6, 0.2), Vector3(0.8, 0.95, 1.1), -0.12],               # flanc droit (plus bas, brisé)
-		[Vector3(-1.45, 2.55, 0.25), Vector3(0.6, 0.45, 0.8), 0.35],             # chapiteau tombé
-		[Vector3(0.2, 2.75, 0.9), Vector3(1.3, 0.4, 0.6), -0.2],                 # linteau brisé
-		[Vector3(0.0, 1.25, -0.2), Vector3(1.5, 0.35, 0.9), 0.0],                # table d'offrande
-		[Vector3(-2.2, 0.2, -1.5), Vector3(0.9, 0.4, 0.7), 0.5],                 # éboulis devant
-		[Vector3(2.1, 0.17, -1.6), Vector3(0.7, 0.34, 0.6), -0.4],
-		[Vector3(0.9, 0.12, -2.0), Vector3(0.5, 0.24, 0.45), 0.9],
-	]
-	for bl: Array in blocs:
-		var sz: Vector3 = bl[1]
-		d.boite_b("c_strate_mousse", ps + bz * (bl[0] as Vector3) * e, sz * e, bz * Basis(Vector3.UP, float(bl[2])))
+	# estrade de pierre en ruine (lot L5 : module Blender g_autel, sources_blender/scripts/grotte_objets.py) : gradins de dalles
+	# appareillées, stèle runique brisée à entrelacs, piliers rompus, chapiteau et linteau tombés, table d'offrande sur deux dés,
+	# éboulis devant ; mêmes volumes et mêmes hauteurs de dessus que les 11 blocs d'avant (bougies), roche nue de la coque.
+	# DÉCOR SEUL (aucun solide, comme avant).
+	d.objet("g_autel", ps, yaw, Vector3.ONE * e)
 	var f := e / 1.2
 	var top := ps + bz * Vector3(0, 1.74, -0.24) * f
 	var bas1 := ps + bz * Vector3(0, 1.34, -0.84) * f

@@ -537,59 +537,23 @@ func _terrain() -> void:
 
 func _feu_de_camp() -> void:
 	var sol := Vector3(0, h_centre, 0)
-	var m_bois := Palette.materiau(tex_ecorce, Vector2(1, 2))
-	var m_pierre := TexturesBati.m_roche()   # lot 5
-	var buche := CylinderMesh.new()
-	buche.top_radius = 0.08
-	buche.bottom_radius = 0.1
-	buche.height = 1.1
-	buche.radial_segments = 6
-	buche.rings = 1
-	for i in 5:
-		var a := TAU * i / 5.0
-		var mi := MeshInstance3D.new()
-		mi.mesh = buche
-		mi.material_override = m_bois
-		var b := Basis(Vector3(-sin(a), 0, cos(a)), 0.55)
-		mi.transform = Transform3D(b, sol + Vector3(cos(a) * 0.25, 0.42, sin(a) * 0.25))
-		add_child(mi)
-	var caillou := SphereMesh.new()
-	caillou.radius = 0.16
-	caillou.height = 0.22
-	caillou.radial_segments = 6
-	caillou.rings = 3
-	for i in 9:
-		var a := TAU * i / 9.0
-		var mi := MeshInstance3D.new()
-		mi.mesh = caillou
-		mi.material_override = m_pierre
-		mi.position = sol + Vector3(cos(a) * 0.62, 0.04, sin(a) * 0.62)
-		mi.rotation.y = a
-		add_child(mi)
-	# deux troncs couchés pour s'asseoir
-	var banc := CylinderMesh.new()
-	banc.top_radius = 0.22
-	banc.bottom_radius = 0.24
-	banc.height = 2.4
-	banc.radial_segments = 7
-	banc.rings = 1
+	# lot L7 : couronne de pierres, bûches en tipi noircies, lit de braises et deux troncs-bancs en modules Blender
+	# (mobilier_village.py : feu_camp, tronc_banc), fusionnés par matière (3 maillages au lieu de 16 nœuds) ; collisions d'avant.
+	var poses: Array = [["feu_camp", Transform3D(Basis(), sol)]]
 	var corps := StaticBody3D.new()
 	add_child(corps)
 	for a in [0.4, 2.6]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = banc
-		mi.material_override = m_bois
 		# couché (axe X), tangent au cercle autour du feu
-		var b := Basis(Vector3.UP, -a + PI * 0.5) * Basis(Vector3(0, 0, 1), PI * 0.5)
-		mi.transform = Transform3D(b, sol + Vector3(cos(a) * 2.6, 0.18, sin(a) * 2.6))
-		add_child(mi)
+		var xf_banc := Transform3D(Basis(Vector3.UP, -a + PI * 0.5) * Basis(Vector3(0, 0, 1), PI * 0.5), sol + Vector3(cos(a) * 2.6, 0.18, sin(a) * 2.6))
+		poses.append(["tronc_banc", Transform3D(Basis(Vector3.UP, -a + PI * 0.5), sol + Vector3(cos(a) * 2.6, -0.03, sin(a) * 2.6))])
 		var forme := CollisionShape3D.new()
 		var cyl := CylinderShape3D.new()
 		cyl.radius = 0.23
 		cyl.height = 2.4
 		forme.shape = cyl
-		forme.transform = mi.transform
+		forme.transform = xf_banc
 		corps.add_child(forme)
+	add_child(MobilierVillage.noeud_modules(poses, "FeuDeCamp"))
 
 	feu_lumiere = OmniLight3D.new()
 	feu_lumiere.light_color = Color(1.0, 0.55, 0.22)

@@ -368,11 +368,7 @@ func _portique() -> void:
 
 ## Brasero de fer sur trois pieds (le « mur0 » du brasero de la crypte n'existe pas dans la grotte) : cuve de fer, braises, flamme, lueur.
 func _brasero(pos: Vector3) -> void:
-	for k in 3:
-		var a := TAU * k / 3.0 + 0.4
-		decor.prisme("fer", pos + Vector3(cos(a) * 0.3, 0.0, sin(a) * 0.3), pos + Vector3(cos(a) * 0.12, 0.62, sin(a) * 0.12), 0.035, 5)
-	decor.tour("fer", pos + Vector3(0, 0.6, 0), [Vector2(0.18, 0.0), Vector2(0.4, 0.12), Vector2(0.46, 0.3), Vector2(0.4, 0.3)], 8, PI / 8.0, false)
-	decor.tour("braise", pos + Vector3(0, 0.84, 0), [Vector2(0.38, 0.0), Vector2(0.38, 0.0)], 8, PI / 8.0, true)
+	decor.objet("g_brasero", pos)     # lot L5 : trépied forgé, cerclage, cuve rivetée à bord roulé, braises (module g_brasero)
 	decor.flamme(pos + Vector3(0, 0.9, 0), 1.7)
 	decor.carte("halo", pos + Vector3(0, 0.03, 0), Vector3.UP, 3.4, 3.4)
 	decor.lumiere(pos + Vector3(0, 1.5, 0), CrypteDecor.FEU, 2.6, 6.5, 1.7)
