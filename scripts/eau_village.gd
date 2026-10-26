@@ -73,7 +73,7 @@ static func creer(monde_: Node) -> EauVillage:
 	e.name = "EauVillage"
 	e.monde = monde_
 	monde_.add_child(e)
-	e._construire()
+	await e._construire()
 	return e
 
 func _construire() -> void:
@@ -92,11 +92,18 @@ func _construire() -> void:
 	var detail := ""
 	for e: Array in etapes:
 		var t := Time.get_ticks_usec()
-		(e[1] as Callable).call()
+		await (e[1] as Callable).call()
 		detail += " %s %d" % [e[0], (Time.get_ticks_usec() - t) / 1000]
+		await _souffle()
 	modele.free()
 	print("EauVillage étapes (ms) :", detail)
 	print("EauVillage : %d ms (ruisseau %.0f m², rivière %.0f m², lac %.0f m²)" % [(Time.get_ticks_usec() - t0) / 1000, ruisseau.surface_m2(), riviere.surface_m2(), lac.surface_m2()])
+
+## Chargement étalé (Monde._souffle) : une image entre deux étapes ; sans effet hors de l'écran de chargement (tests, outils).
+## Les durées par étape (journal) n'incluent pas ces images ; le total, si.
+func _souffle() -> void:
+	if monde != null and monde.has_method("_souffle"):
+		await monde._souffle()
 
 func _process(dt: float) -> void:
 	if roue != null:
@@ -564,12 +571,14 @@ func _sol_lac(x: float, z: float) -> float:
 
 func _lac() -> void:
 	_masque_lac()
+	await _souffle()
 	lac = Eau.creer(&"lac", LAC_RECT, LAC_NIVEAU, fond_lac, {"resolution": _lac_res, "variantes": glace_lac,
 		"params": {"glace_ton_plaques": 1.0},
 		"brume_zone": Rect2(LAC_ARRIVEE.x - 14.0, LAC_ARRIVEE.y - 10.0, 16.0, 20.0)})
 	lac.name = "EauLac"
 	_relier_cycle(lac)
 	add_child(lac)
+	await _souffle()   # chargement étalé : surface du lac posée, la glace marchable ensuite (≈ 0,2 s chacune)
 	# sol marchable : glace (au niveau de l'eau) au large ; fond invisible (0,55 m sous l'eau) dans l'eau libre profonde.
 	# Passe D : entre ces sols et la rive, une RAMPE continue rejoint le relief (avant : marche de 0,75 m au bord de la glace,
 	# avec des pièges sans retour au pied des berges raides, ex. (17,4 ; 70,6) près du moulin). On s'enfonce au plus d'une
@@ -583,6 +592,8 @@ func _lac() -> void:
 	for j in nz + 1:
 		for i in nx + 1:
 			ys[j * (nx + 1) + i] = _sol_lac(LAC_RECT.position.x + i * pas, LAC_RECT.position.y + j * pas)
+		if j % 16 == 15:
+			await _souffle()
 	for j in nz:
 		var z0 := LAC_RECT.position.y + j * pas
 		var debut := -1

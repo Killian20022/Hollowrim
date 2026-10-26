@@ -37,9 +37,12 @@ static func creer(monde: Node) -> void:
 		var mesh := rocher_mesh(40 + g)
 		mesh.surface_set_material(0, m)
 		modeles.append(mesh)
+	var souffle := monde.has_method("_souffle")   # chargement étalé : une image de temps en temps (sans effet hors chargement)
+	if souffle: await monde._souffle()
 	var parts: Array[Array] = [[], [], [], []]
 	var echelles: Array[Array] = [[], [], [], []]
 	for i in NB_ROCHERS:
+		if souffle and i % 32 == 31: await monde._souffle()   # avant les tirages du rocher : suite de `rng` inchangée
 		var x := rng.randf_range(-112.0, 112.0)
 		var z := rng.randf_range(-112.0, 112.0)
 		if Vector2(x, z).length() < clairiere or Vector2(x - village.x, z - village.z).length() < 28.0 or monde._pres_du_chemin(x, z, 2.0):
@@ -64,6 +67,7 @@ static func creer(monde: Node) -> void:
 			continue
 		parts[i % 4].append(Transform3D(b, Vector3(x, monde.hauteur(x, z) - minf(s * 0.25, 0.45), z)))   # enfouissement plafonné (gros rochers : 1,1 m sinon)
 		echelles[i % 4].append(s)
+	if souffle: await monde._souffle()
 	var corps := StaticBody3D.new()
 	corps.name = "CollisionsRochers"
 	for g in 4:

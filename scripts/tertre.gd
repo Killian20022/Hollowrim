@@ -62,6 +62,16 @@ var m_poutre: ShaderMaterial
 var m_fer: ShaderMaterial
 var m_neige: ShaderMaterial
 
+## Vrai quand _ready a tout bâti (chargement étalé : _ready rend la main entre ses étapes, voir `_souffle`).
+var bati := false
+signal bati_fini
+
+## Chargement étalé (Monde._souffle) : une image entre deux pièces de la crypte ; sans effet hors de l'écran de chargement
+## (tests, outils : _ready reste d'un seul bloc). Tout reste sur le fil principal, dans le même ordre.
+func _souffle() -> void:
+	if monde != null and monde.has_method("_souffle"):
+		await monde._souffle()
+
 func _ready() -> void:
 	m_pierre = Palette.materiau(Palette.tex("pierre_crypte", ["#1c1f26", "#272b34", "#323743", "#3f4553"], 4, 0.5), Vector2(2, 2))
 	m_dalle = Palette.materiau(Palette.tex("dalle", ["#15171c", "#1e2128", "#282c35", "#333844"], 2, 0.35), Vector2(4, 4))
@@ -69,15 +79,18 @@ func _ready() -> void:
 	m_fer = Palette.materiau(Palette.tex("acier", Palette.ACIER, 4, 0.3), Vector2.ONE, Color(0.4, 0.42, 0.5))
 	m_neige = Palette.materiau(Palette.tex_neige, Vector2(4, 4))
 	_tumulus()
+	await _souffle()
 	crypte = Node3D.new()
 	# sous le cercle runique, dans les limites de la carte (±108 m)
 	crypte.position = Vector3(global_position.x, PROFONDEUR, global_position.z + 25.0)
 	monde.add_child(crypte)
 	corps = StaticBody3D.new()
 	crypte.add_child(corps)
-	_construire_crypte()
+	await _construire_crypte()
 	crypte.visible = false      # tant qu'on est dehors, ni rendu ni lumières (le décor reste solide)
 	quetes.evenement.connect(_sur_evenement)
+	bati = true
+	bati_fini.emit()
 
 ## La mort de Svanhild ouvre la porte du tombeau (et lève le sceau de l'arène si l'on y est entré autrement) : UNE fois, à l'événement.
 ## (Avant : interrogé à chaque image dans _process → tween + joueur.secousse relancés sans fin, écran qui tremble à l'infini.)
@@ -191,9 +204,13 @@ func _construire_crypte() -> void:
 	var t0 := Time.get_ticks_msec()
 	d = CrypteDecor.new(crypte, corps)
 	_entree()
+	await _souffle()
 	_alcove()
+	await _souffle()
 	_couloir_herse()
+	await _souffle()
 	_sarcophage_arene()
+	await _souffle()   # chargement étalé : les durées du journal ci-dessous comptent alors aussi ces images
 	var t1 := Time.get_ticks_msec()
 	d.finir()
 	CrypteDonjon.limiter_portee(crypte)   # portée de dessin ~30 m

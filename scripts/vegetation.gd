@@ -13,10 +13,12 @@ const NB_BUISSONS := 900
 ## Place toute la végétation, puis l'instancie. Renvoie les transforms des arbres.
 static func creer(monde: Node) -> Array:
 	var foret := placer_foret(monde)
+	if monde.has_method("_souffle"): await monde._souffle()   # chargement étalé : une image entre deux étapes (sans effet sinon)
 	var buissons := placer_couvre_sol(monde)
 	_degager_grotte(foret, buissons, monde)
 	monde.set_meta("buissons", buissons)   # passe D : Rochers n'y pose pas de roche
-	return instancier(monde, foret, buissons)
+	if monde.has_method("_souffle"): await monde._souffle()
+	return await instancier(monde, foret, buissons)
 
 ## Dégage l'entrée de la grotte (disque, masse rocheuse, piste) et le village v2 (enceinte, rivière ; C7a) APRÈS le placement : le RNG et la forêt d'ailleurs ne changent pas.
 static func _degager_grotte(foret: Dictionary, buissons: Array[Transform3D], monde: Node = null) -> void:
@@ -112,18 +114,22 @@ static func instancier(monde: Node, foret: Dictionary, buissons: Array) -> Array
 	# trois formes d'épicéa et des arbres morts, chacun dans son MultiMesh
 	# lot 2 : épicéas en cartes de rameaux pixel art (tronc + rameaux, matériaux partagés)
 	var t0 := Time.get_ticks_usec()
+	var souffle := monde.has_method("_souffle")   # chargement étalé : une image entre deux groupes (sans effet hors chargement)
 	var mats_ep := Arbres.materiaux_epicea()
 	var mort := Arbres.arbre_mort(14)
 	var pin := Arbres.pin(31, Arbres.materiaux_essence("pin"))
 	var bouleau := Arbres.bouleau(41, Arbres.materiaux_essence("bouleau"))
 	# formes : 0-2 épicéas, 3 arbre mort, 4 pin sylvestre, 5 bouleau (4 et 5 : zone témoin seulement)
 	var modeles: Array[Mesh] = [Arbres.epicea(0, 11, mats_ep), Arbres.epicea(1, 12, mats_ep), Arbres.epicea(2, 13, mats_ep), mort, pin, bouleau]
+	if souffle: await monde._souffle()
 	# silhouettes simplifiées pour la vue lointaine (au-delà de la portée du mesh complet)
 	var lointains: Array[Mesh] = [Arbres.epicea_lointain(0, 11, mats_ep), Arbres.epicea_lointain(1, 12, mats_ep), Arbres.epicea_lointain(2, 13, mats_ep), Arbres.arbre_mort(14, [], true), Arbres.pin(31, Arbres.materiaux_essence("pin"), true), Arbres.bouleau(41, Arbres.materiaux_essence("bouleau"), true)]
+	if souffle: await monde._souffle()
 	# lot 2 : silhouettes d'ombre opaques des épicéas (les cartes en alpha coûtent cher en passe d'ombre)
 	var ombres: Array[Mesh] = [Arbres.epicea_ombre(0, 11, mats_ep[0]), Arbres.epicea_ombre(1, 12, mats_ep[0]), Arbres.epicea_ombre(2, 13, mats_ep[0]), mort, pin, bouleau]
 	var variantes: Array[Mesh] = [Arbres.epicea(0, 111, mats_ep), Arbres.epicea(1, 112, mats_ep)]
 	print("Lot 2 : textures et modèles d'arbres en %d ms" % ((Time.get_ticks_usec() - t0) / 1000))
+	if souffle: await monde._souffle()
 	var lots: Array = foret["lots"]
 	var corps := StaticBody3D.new()
 	corps.name = "CollisionsArbres"
@@ -168,6 +174,7 @@ static func instancier(monde: Node, foret: Dictionary, buissons: Array) -> Array
 			Instanciation.repartir(monde, variantes[i], lot_b, {"portee": PORTEE_PLEINE, "marge": 4.0, "ombre": false})
 		else:
 			Instanciation.repartir(monde, modeles[i], lots[i], reglages)
+		if souffle: await monde._souffle()
 	monde.add_child(corps)
 	Instanciation.repartir(monde, Arbres.buisson(21, mats), buissons, {"ombre": false, "portee": PORTEE_PLEINE, "marge": 4.0})
 	return arbres

@@ -64,6 +64,8 @@ var _images := 0
 var _pire_ecart := 0
 var _pire_etape := ""
 var _derniere_image := 0
+var _etape_image := ""     # étape affichée à l'image précédente (début de l'écart)
+var _gels: PackedStringArray = []   # écarts de plus de 0,3 s : « durée (de l'étape A à l'étape B) »
 var _capture_faite := false
 
 func _ready() -> void:
@@ -229,7 +231,10 @@ func _process(dt: float) -> void:
 			if _derniere_image > 0 and maintenant - _derniere_image > _pire_ecart:
 				_pire_ecart = maintenant - _derniere_image
 				_pire_etape = Jeu.etape_chargement.strip_edges()
+			if _derniere_image > 0 and maintenant - _derniere_image > 300:
+				_gels.append("%d ms (%s → %s)" % [maintenant - _derniere_image, _etape_image, Jeu.etape_chargement.strip_edges()])
 			_derniere_image = maintenant
+			_etape_image = Jeu.etape_chargement.strip_edges()
 			_images += 1
 			if not _capture_faite and _images == 12:
 				_capture_faite = true
@@ -265,6 +270,8 @@ func _entrer_monde(ps: PackedScene) -> void:
 func _finir() -> void:
 	_phase = "fin"
 	print("Chargement : monde prêt en %.1f s, %d images pendant l'entrée du monde, plus long écart %d ms (jusqu'à « %s »)" % [(Time.get_ticks_msec() - _debut) / 1000.0, _images, _pire_ecart, _pire_etape])
+	if not _gels.is_empty():
+		print("Chargement : %d écarts de plus de 0,3 s : %s" % [_gels.size(), " ; ".join(_gels)])
 	_cible = 1.0
 	Jeu.chargement_etale = false
 	var tw := create_tween()

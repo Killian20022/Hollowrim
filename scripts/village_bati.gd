@@ -45,27 +45,39 @@ static func construire(v) -> void:
 	# H1 : maison de rondins au bord de la place (porte au nord), pignons à têtes de dragon, cheminée qui fume
 	maison(v, bas, 36.0, 53.0, PI, {"L": 7.0, "W": 5.0, "h": 2.3, "style": "rondins", "dragons": true, "cheminee": 1.2, "fumee": true, "torche": true})
 	# H2 : rez de pierre, étage à colombages en encorbellement (vue « bâtiments modules » n° 2), porte au nord
+	await v._souffle()   # chargement étalé : une image entre deux bâtiments
 	maison(v, bas, 54.0, 55.5, PI, {"L": 6.0, "W": 4.5, "h": 2.0, "style": "colombage", "pente": 56.0, "cheminee": -1.6, "fumee": false, "enseigne": "chope"})
 	# H6 : grenier sur pierres levées (stabbur), étage en surplomb, escalier détaché
+	await v._souffle()   # chargement étalé : une image entre deux bâtiments
 	maison(v, bas, 60.0, 20.5, deg_to_rad(-30.0), {"L": 6.0, "W": 4.2, "h": 1.8, "style": "grenier", "pente": 58.0})
 	# maison du moulin à eau (porte à l'est ; mur sud plein sur la berge : l'arbre de la roue y entre, lot C7c)
+	await v._souffle()   # chargement étalé : une image entre deux bâtiments
 	maison(v, bas, 25.5, 55.5, PI * 0.5, {"L": 6.0, "W": 6.0, "h": 2.6, "style": "pierre", "pente": 50.0, "fenetres": [["+Z", 1.6], ["+X", 0.0], ["-Z", 0.8]], "enseigne": "roue", "cheminee": 1.8, "fumee": false})
 	# haute rue : H3 (T1, planches, porte sur le pignon est vers l'escalier, appentis à bois), H4 (T2, pierre, porte ouest),
 	# H5 (T3, rondins, porche, porte au nord vers la vue)
+	await v._souffle()   # chargement étalé : une image entre deux bâtiments
 	maison(v, haut, 35.5, 71.0, 0.0, {"L": 6.0, "W": 5.0, "h": 2.2, "style": "planches", "porte": "+X", "pente": 48.0, "appentis": true, "fenetres": [["-Z", -1.2], ["-Z", 1.3], ["+Z", 0.0]]})
+	await v._souffle()   # chargement étalé : une image entre deux bâtiments
 	maison(v, haut, 54.0, 77.0, 0.0, {"L": 6.0, "W": 5.0, "h": 2.5, "style": "pierre", "porte": "-X", "pente": 45.0, "cheminee": 2.2, "fumee": true, "fenetres": [["-Z", -1.0], ["-Z", 1.2], ["+Z", 0.5]]})
+	await v._souffle()   # chargement étalé : une image entre deux bâtiments
 	maison(v, haut, 36.0, 85.0, PI, {"L": 6.0, "W": 5.0, "h": 2.3, "style": "rondins", "porche": true, "pente": 58.0, "cheminee": -1.0, "fumee": false})
+	await v._souffle()   # chargement étalé : une image entre deux bâtiments
 	tour(v, haut, 45.0, 87.0)
 	# fermes et granges (hors enceinte, sur la pente : socle de pierre côté bas)
 	var e: Array = EXTERIEURS
 	var cib: PackedFloat32Array = v._monde._cibles_fermes if v._monde != null and "_cibles_fermes" in v._monde else PackedFloat32Array()
 	var ty := func(k: int) -> Dictionary: return {"y": cib[k]} if k < cib.size() and not is_nan(cib[k]) else {}
+	await v._souffle()   # chargement étalé : une image entre deux bâtiments
 	maison(v, ext, e[0][0], e[0][1], deg_to_rad(e[0][4]), ty.call(0).merged({"L": 9.0, "W": 6.0, "h": 2.0, "style": "rondins", "pente": 42.0, "dragons": true, "cheminee": 2.2, "fumee": true, "bois": true,
 		"bois_pos": Vector3(-5.05, 0, -0.6)}))   # passe D : tas de bois côté ouest (à l'est il tombait dans le talus de la grange A)
+	await v._souffle()   # chargement étalé : une image entre deux bâtiments
 	maison(v, ext, e[1][0], e[1][1], deg_to_rad(e[1][4]), ty.call(1).merged({"L": 7.0, "W": 5.0, "h": 2.7, "style": "grange", "pente": 50.0}))
+	await v._souffle()   # chargement étalé : une image entre deux bâtiments
 	maison(v, ext, e[2][0], e[2][1], deg_to_rad(e[2][4]), ty.call(2).merged({"L": 8.0, "W": 5.0, "h": 2.2, "style": "pierre", "porte": "-X", "pente": 47.0, "cheminee": 2.6, "fumee": true, "fenetres": [["+Z", -1.5], ["+Z", 1.5], ["-Z", 0.0]], "bois": true,
 		"bois_pos": Vector3(-4.55, 0, -1.0)}))   # passe D : tas de bois côté ouest (à l'est il traversait la grange B)
+	await v._souffle()   # chargement étalé : une image entre deux bâtiments
 	maison(v, ext, e[3][0], e[3][1], deg_to_rad(e[3][4]), ty.call(3).merged({"L": 6.0, "W": 5.0, "h": 2.4, "style": "grange", "porte": "+X", "pente": 54.0}))
+	await v._souffle()   # chargement étalé : une image entre deux bâtiments
 	moulin_vent(v, ext, e[4][0], e[4][1])
 
 # --- repères et petites pièces ------------------------------------------------------------------------------

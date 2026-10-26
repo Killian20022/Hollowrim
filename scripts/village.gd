@@ -81,7 +81,12 @@ var ailes_moulin: Node3D
 const PORTES_V2 := [1, 3, 6]             # indices de ReliefVillage.PALISSADE : porte SO (inchangée), N, E
 const GRILLES_V2 := [9, 15]              # grille E (65 ; 61,5) et grille O (19,5 ; 61,5)
 
+## Vrai quand _ready a tout bâti (chargement étalé : _ready rend la main entre ses étapes, voir `_souffle`).
+var bati := false
+signal bati_fini
+
 func _ready() -> void:
+	_monde = get_parent()   # avant tout : `_souffle` passe par le monde (VillageBati lit aussi v._monde)
 	rng.seed = 99
 	corps = StaticBody3D.new()
 	add_child(corps)
@@ -116,34 +121,42 @@ func _ready() -> void:
 	_vitres.name = "Vitrages"
 
 	Chrono.marque("  village : matières bâti")
+	await _souffle()
 	mats_int = Interieurs.materiaux()
 	m_vitre_ext = mats_int["vitre"]
 	if not _sans_refonte:
 		m_vitre_ext = (mats_int["vitre"] as ShaderMaterial).duplicate()
 		Palette.materiaux.append(m_vitre_ext)
 	Chrono.marque("  village : matières intérieur")
+	await _souffle()
 	# Village v2 (lot C7b, plan docs/PLAN_VILLAGE_V2.md) : tout est placé en coordonnées MONDE (x est, z sud) ; le nœud du
 	# village garde son repère (porte SO en local (0, 0, RAYON), tournée vers le feu) et le sol du plateau (y local 0).
-	_monde = get_parent()
 	_palissade_v2()
 	_porte()
 	_porte_v2(ReliefVillage.PALISSADE[PORTES_V2[1]], PI)          # porte N (vers la grotte)
 	_porte_v2(ReliefVillage.PALISSADE[PORTES_V2[2]], PI * 0.5)    # porte E (vers les fermes)
 	Chrono.marque("  village : palissade+portes")
+	await _souffle()
 	# les 5 intérieurs sans chargement, déplacés (mobilier inchangé : même repère local)
 	var y0 := global_position.y
 	var halle := _maison_monde(44.0, 21.0, 0.0, 14.0, 7.0, 2.2, 3.2, "halle")              # longue maison de la cheffe, porte au sud sur la place
+	await _souffle()
 	_maison_monde(59.5, 47.0, PI, 8.0, 5.5, 2.0, 2.4, "sigrun")                              # la voyante, porte au nord
+	await _souffle()
 	_maison_monde(63.0, 29.0, -PI * 0.5, 8.0, 5.5, 2.0, 2.4, "chasseurs")                   # famille de chasseurs, porte à l'ouest
+	await _souffle()
 	_maison_monde(28.0, 47.0, PI * 0.5, 7.0, 5.0, 1.9, 2.2, "grima")                         # la doyenne, porte à l'est sur la place
 	Chrono.marque("  village : 4 maisons")
+	await _souffle()
 	var forge := _forge(_repere(27.0, 36.0, PI * 0.5, y0).origin, PI * 0.5 - rotation.y)   # forge ouverte à l'est sur la rue principale
 	VillageBati.forge_ouverte(self, forge)
 	Chrono.marque("  village : forge")
+	await _souffle()
 	var enclos := _enclos(_repere(66.5, 41.3, -PI * 0.5, y0).origin, -PI * 0.5 - rotation.y)  # enclos et séchoirs d'Ylva, ouverts à l'ouest
 	# (puits, brasero de la place, tonneaux, caisses et tas de bois : lot C7a, scripts/mobilier_village.gd)
-	VillageBati.construire(self)
+	await VillageBati.construire(self)
 	Chrono.marque("  village : bâti v2 (façades, tour, moulins, fermes)")
+	await _souffle()
 	_finaliser()
 	Chrono.marque("  village : maillages fusionnés")
 	_lancer_fil()
@@ -163,6 +176,15 @@ func _ready() -> void:
 	# promenade sur le plateau seulement (aucun point sur les escaliers ni hors de l'enceinte) : pont, quai, moulin, place
 	for p: Vector2 in [Vector2(44, 55), Vector2(34, 57.6), Vector2(30, 57), Vector2(40, 33), Vector2(48.5, 40.5), Vector2(38, 44.5)]:
 		promenade.append(Vector3(p.x, y0, p.y))
+	bati = true
+	bati_fini.emit()
+
+## Chargement étalé (Monde._souffle) : rend une image entre deux étapes du bâti pour que l'écran de chargement reste animé.
+## Hors chargement étalé (tests, outils), ne rend pas la main : _ready reste d'un seul bloc. Rien ne part dans un fil ici
+## (matériaux, maillages et nœuds créés sur le fil principal, dans le même ordre : rendu identique).
+func _souffle() -> void:
+	if _monde != null and _monde.has_method("_souffle"):
+		await _monde._souffle()
 
 ## Pose les objets « porte » (touche E) des bâtiments ; appelé par le monde quand joueur et dialogue existent.
 func activer_interieurs(joueur: CharacterBody3D, dialogue: Control) -> void:

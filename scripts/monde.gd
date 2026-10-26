@@ -137,19 +137,19 @@ func _ready() -> void:
 		add_child(arriere_plan)
 	_chrono("  arriere-plan")
 	await _souffle()
-	_terrain()
+	await _terrain()
 	_chrono("terrain")
 	await _souffle()
-	arbres = Vegetation.creer(self)
+	arbres = await Vegetation.creer(self)
 	_chrono("arbres (placement+modeles+MultiMesh)")
 	await _souffle()
-	Rochers.creer(self)
+	await Rochers.creer(self)
 	_chrono("  rochers")
 	await _souffle()
 	SousBois.creer(self)  # lot E : après les rochers (touffes collées aux pierres)
 	_chrono("  sous-bois")
 	await _souffle()
-	SolV2.creer(self)  # extérieurs v2 : touffes et rochers de la portion témoin
+	await SolV2.creer(self)  # extérieurs v2 : touffes et rochers de la portion témoin
 	_chrono("  sol v2 (touffes, rochers)")
 	await _souffle()
 	CercleRunique.creer(self)
@@ -164,7 +164,7 @@ func _ready() -> void:
 	DetailsSol.creer(self)  # lot 3 : cailloux du sol (après la carte de sol)
 	_chrono("details du sol")
 	await _souffle()
-	if not _arguments().has("sans-abords"): AbordsVillage.creer(self)  # refonte : abords de l'entrée du village (avant le fil des intérieurs ; --sans-abords : A/B)
+	if not _arguments().has("sans-abords"): await AbordsVillage.creer(self)  # refonte : abords de l'entrée du village (avant le fil des intérieurs ; --sans-abords : A/B)
 	_chrono("abords du village")
 	await _souffle()
 	if not _arguments().has("sans-rues"):  # C7a : pavés, escaliers, murs, champs, mobilier du village v2 (--sans-rues : A/B)
@@ -174,17 +174,19 @@ func _ready() -> void:
 		MobilierVillage.creer(self)
 		_chrono("mobilier du village")
 		await _souffle()
-	_village()
+	await _village()
 	_chrono("village (bati)")
 	await _souffle()
-	EauVillage.creer(self)  # C7c : rivière, pont, quai, moulin à eau, lac fermé (--sans-eau-village : rien n'est posé, A/B)
+	await EauVillage.creer(self)  # C7c : rivière, pont, quai, moulin à eau, lac fermé (--sans-eau-village : rien n'est posé, A/B)
 	_chrono("eau du village")
 	await _souffle()
 	_feu_de_camp()
+	await _souffle()
 	_joueur()
 	_chrono("joueur")
 	await _souffle()
 	_neige()
+	await _souffle()
 	_interface()
 	_chrono("neige+interface")
 	await _souffle()
@@ -199,19 +201,25 @@ func _ready() -> void:
 	_guerrier_pilote()
 	_mage_pilote()
 	_chasseresse_pilote()
+	await _souffle()
 	_gardien_pilote()
 	_troll_pilote()
 	_draugr_pilote()
+	await _souffle()
 	_persos_tous()
-	_tertre()
+	await _souffle()
+	await _tertre()
 	_chrono("tertre+crypte")
 	await _souffle()
 	_grotte_acces()
 	_chrono("entree de la grotte")
 	await _souffle()
 	_temoins_shaders = Piege.temoins_shaders()   # shaders des pièges compilés ici (pendant le chargement), pas à leur pose en pleine marche
+	await _souffle()
 	AbordsTumulus.creer(self)  # lot F : abords du tertre (après sa création)
-	Dallage.poser(self)  # C1b : sentiers en dalles hors zone témoin + dalles du village moins enneigées
+	await _souffle()
+	await Dallage.poser(self)  # C1b : sentiers en dalles hors zone témoin + dalles du village moins enneigées
+	await _souffle()
 	if _arguments().has("res"):  # résolution interne : 640x360 par défaut (project.godot) ; --res=480x270 pour comparer
 		var wh := String(_arguments()["res"]).split("x")
 		get_window().content_scale_size = Vector2i(int(wh[0]), int(wh[1]))
@@ -222,6 +230,7 @@ func _ready() -> void:
 		charger()
 	if not _arguments().has("capture"):
 		_audio()
+	await _souffle()
 	_cacher_particules()
 	_cacher_particules()
 	_rendre_paisible()
@@ -308,6 +317,8 @@ func _village() -> void:
 	var vers_feu := -Vector2(VILLAGE.x, VILLAGE.z).normalized()
 	village.rotation.y = atan2(vers_feu.x, vers_feu.y)
 	add_child(village)
+	if not village.get("bati"):   # chargement étalé : le _ready du village rend la main entre ses bâtiments (Village._souffle)
+		await Signal(village, "bati_fini")
 
 ## Relief d'avant le biome (identique au bit près) : seule référence hors de la zone témoin.
 func _hauteur_ancienne(x: float, z: float) -> float:
@@ -481,7 +492,10 @@ func _terrain() -> void:
 			var h := hauteur(i * pas - demi, j * pas - demi)
 			hs[j * n + i] = h
 			h64[j * n + i] = h
+		if j % 16 == 15:
+			await _souffle()
 	hauteurs_maillage = h64
+	await _souffle()   # chargement étalé : une image après les hauteurs, puis entre les morceaux (sans effet hors chargement)
 
 	var m := Palette.materiau(tex_roche)
 	m.set_shader_parameter("uv_monde", true)
@@ -532,6 +546,7 @@ func _terrain() -> void:
 			var forme := CollisionShape3D.new()
 			forme.shape = mesh.create_trimesh_shape()
 			corps.add_child(forme)
+			await _souffle()
 
 # --- feu de camp ---------------------------------------------------------------
 
@@ -946,6 +961,8 @@ func _tertre() -> void:
 	tertre.porte_dehors = tertre.position + Vector3(0, 0, 2.8)
 	tertre.orientation = PI  # en sortant, on regarde vers le cercle, au sud
 	add_child(tertre)
+	if not tertre.get("bati"):   # chargement étalé : le _ready du tertre rend la main entre les pièces de la crypte
+		await Signal(tertre, "bati_fini")
 	tertre.entree.connect(_sous_terre)
 	# le sommeil de Svanhild rescellé, un dragon de givre vient tourner au-dessus du hameau
 	quetes.change.connect(func() -> void:
