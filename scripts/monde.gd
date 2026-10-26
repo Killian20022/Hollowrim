@@ -188,7 +188,7 @@ func _ready() -> void:
 	_cacher_particules()
 	_rendre_paisible()
 	_capture()
-	_prechauffer_surface()
+	_prechauffer_rendu()
 	Chrono.total()
 	_aller_crypte()
 	_aller_interieur()
@@ -205,48 +205,31 @@ const VUES_CRYPTE_Z := [-0.5, -10.0, -22.0, -35.0, -48.0, -60.0, -71.0]
 const VUES_PRECHAUFFE := [[Vector2(2.5, 8.5), 8], [Vector2(19.0, 17.5), 4], [Vector2(35.0, 30.0), 4], [Vector2(39.5, 42.0), 8],
 	[Vector2(60.0, -20.0), 4], [Vector2(84.0, -27.0), 4]]
 
-## Préchauffage du rendu de dehors PENDANT le chargement (avant la 1re image) : la caméra du joueur est posée à tour de rôle aux points de
-## VUES_PRECHAUFFE et chaque vue est dessinée tout de suite (force_draw, sans affichage). Ce qu'on regarde pour la 1re fois coûtait sinon
-## sur le fil principal (pipelines, jeux d'uniformes des matériaux, envois au GPU) : 1re image de marche ~130-200 ms et place du village
-## saccadée au 1er passage. Puis même chose dans la crypte (VUES_CRYPTE_Z). Coût : environ une seconde de chargement. Rien en --headless
-## ni en capture (--sans-prechauffe : A/B).
-func _prechauffer_surface() -> void:
-	if DisplayServer.get_name() == "headless" or _arguments().has("capture") or _arguments().has("sans-prechauffe") or joueur == null:
+## Préchauffage du rendu de dehors et de la crypte dès la fin du chargement (PrechauffeRendu, une vue par image dans un SubViewport
+## minuscule qui partage le monde) : dehors, la caméra passe par les points de VUES_PRECHAUFFE ; la crypte (décor du tertre ; le donjon,
+## bâti plus tard, emploie les mêmes shaders) est montrée le temps de ses vues, avec l'environnement de dessous et sans soleil. Ce qu'on
+## regarde pour la 1re fois coûtait sinon sur le fil principal au moment où on le regarde (pipelines, jeux d'uniformes des matériaux,
+## envois au GPU) : 1re image de marche ~130-200 ms, place du village saccadée au 1er passage. Coût : ~50 images un peu plus lourdes
+## pendant la 1re seconde. Rien en --headless ni en capture (--sans-prechauffe : A/B).
+## NB : un essai par RenderingServer.force_draw pendant le chargement laissait des jeux d'uniformes périmés
+## (« Parameter "uniform_set" is null » à chaque image dans la crypte) : ne pas y revenir.
+func _prechauffer_rendu() -> void:
+	if DisplayServer.get_name() == "headless" or _arguments().has("capture") or _arguments().has("sans-prechauffe"):
 		return
-	var cam: Camera3D = joueur.camera
-	if cam == null or not cam.is_inside_tree():
-		return
-	var t0 := Time.get_ticks_msec()
-	var rid := cam.get_camera_rid()
-	var n := 0
+	var pts: Array = []
 	for v: Array in VUES_PRECHAUFFE:
 		var p: Vector2 = v[0]
 		var y := hauteur(p.x, p.y) + 1.6
 		for k in int(v[1]):
-			RenderingServer.camera_set_transform(rid, Transform3D(Basis(Vector3.UP, TAU * k / float(v[1])), Vector3(p.x, y, p.y)))
-			RenderingServer.force_draw(false)
-			n += 1
-	# crypte (décor du tertre ; le donjon, bâti plus tard, emploie les mêmes shaders) : montrée le temps de ces vues, avec l'environnement
-	# de dessous (brume exponentielle, fond uni, sans soleil = les variantes de pipelines de l'intérieur)
-	var t1 := Time.get_ticks_msec()
-	var nc := 0
+			pts.append(Transform3D(Basis(Vector3.UP, TAU * k / float(v[1])), Vector3(p.x, y, p.y)))
+	PrechauffeRendu.lancer(null, self, pts, null, null, 0.0)
 	if tertre != null and tertre.crypte != null and not tertre.dedans:
 		var cr: Node3D = tertre.crypte
-		var soleil_vu: bool = cycle.lumiere.visible
-		cr.visible = true
-		cycle.lumiere.visible = false
-		var e_cam := env_prechauffe()     # gardé en vie jusqu'à la fin des vues
-		RenderingServer.camera_set_environment(rid, e_cam.get_rid())
+		var pc: Array = []
 		for z: float in VUES_CRYPTE_Z:
 			for lacet: float in [0.0, PI]:
-				RenderingServer.camera_set_transform(rid, cr.global_transform * Transform3D(Basis(Vector3.UP, lacet), Vector3(0.0, 1.6, z)))
-				RenderingServer.force_draw(false)
-				nc += 1
-		cr.visible = false
-		cycle.lumiere.visible = soleil_vu
-		RenderingServer.camera_set_environment(rid, cam.environment.get_rid() if cam.environment != null else RID())
-	RenderingServer.camera_set_transform(rid, cam.global_transform)
-	print("Prechauffage du rendu : %d vues de dehors en %d ms, %d vues de la crypte en %d ms" % [n, t1 - t0, nc, Time.get_ticks_msec() - t1])
+				pc.append(cr.global_transform * Transform3D(Basis(Vector3.UP, lacet), Vector3(0.0, 1.6, z)))
+		PrechauffeRendu.lancer(cr, self, pc, cycle.lumiere, env_prechauffe(), 0.0)
 
 # --- relief ---------------------------------------------------------------
 
