@@ -1,0 +1,14 @@
+# D/neige_murs : neige v2 de près (2-3 m, regard vers le sol) et à 20 m ; murs de soutènement de la haute rue (de près, à 10 et 20 m)
+# midi = heure=12, crépuscule = heure=17.5 ; même fichier pour AVANT (eefd579) et APRÈS
+neige_pres_midi monde -82,34,270,-40 heure=12
+neige_pres_crep monde -82,34,270,-40 heure=17.5
+neige_pres2_midi monde -18,-74,0,-35 heure=12
+neige_pres2_crep monde -18,-74,0,-35 heure=17.5
+neige_20m_midi monde -82,34,270,-6 heure=12
+neige_20m_crep monde -82,34,270,-6 heure=17.5
+mur_pres_midi monde 34,63.5,180,4 heure=12
+mur_pres_crep monde 34,63.5,180,4 heure=17.5
+mur_10m_midi monde 54,57,190,6 heure=12
+mur_10m_crep monde 54,57,190,6 heure=17.5
+mur_20m_midi monde 44,46,180,7 heure=12
+mur_20m_crep monde 44,46,180,7 heure=17.5
