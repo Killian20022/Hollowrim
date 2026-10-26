@@ -46,6 +46,7 @@ const RIVIERE := [
 	[86.5, 58.0, 2.2, 12.5], [80.0, 59.0, 1.5, 9.66], [74.0, 60.0, 1.75, 6.8], [68.0, 61.0, 2.0, 3.8],
 	[65.0, 61.5, 2.25, 3.05], [60.0, 61.5, 2.5, 3.0], [50.0, 61.5, 2.5, 2.89], [44.0, 61.5, 2.5, 2.82],
 	[34.0, 61.0, 2.5, 2.71], [24.0, 61.0, 2.4, 2.6], [22.0, 61.0, 2.0, 2.6], [18.0, 61.0, 2.0, -0.8], [12.0, 61.0, 2.0, -0.8]]
+const EAU_BIEF := 2.6         # niveau du bief au-dessus du seuil du moulin (RIVIERE[9..10]) : plancher des berges dans l'enceinte
 const PROFONDEUR := 0.6       # fond du lit sous l'eau
 const RIVE := 0.8             # largeur de la rive (fond → niveau de l'eau)
 const PENTE_BERGE := 0.9      # berge au-dessus de l'eau (m par m)
@@ -104,6 +105,11 @@ static func lit(x: float, z: float) -> float:
 		return eau - PROFONDEUR
 	if d <= hw:
 		return eau - PROFONDEUR * (hw - d) / RIVE
+	# piège du moulin (2026-10-26) : entre x 22 et 18 le niveau descend (linéairement) du bief (2,6) au lac (-0,8) ; DANS
+	# l'enceinte, une berge comptée depuis le niveau du lac creusait une fosse en entonnoir (pentes de 51°) entre la palissade
+	# ouest et la maison du moulin, d'où le joueur ne ressortait plus. Dans l'enceinte, la berge part donc au moins du bief.
+	if eau < EAU_BIEF and dans_enceinte(x, z):
+		eau = EAU_BIEF
 	return eau + (d - hw) * PENTE_BERGE
 
 ## Point de la rivière le plus proche : {distance, demi_largeur, eau, abscisse (m depuis le bassin), direction (Vector2 aval)}.
