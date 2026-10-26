@@ -152,6 +152,7 @@ var _j_cases := {}           # grands modules Blender (arches, degrés, panneaux
 ## hasard, éléments v2), et aux panneaux / piliers engagés v2 qui contournent ce qui est adossé au mur (audit des interpénétrations).
 var emprises: Array = []        # [Vector3 centre (y = sol), Vector2 demi, lacet, haut, type]
 var voisin: CrypteDecor = null  # décor partagé (le donjon voit les lumières du tertre : limite de 8 par maillage)
+var _lum_voisin: Array = []      # [position, portée] des lumières du voisin, relevées sur le fil principal (lumiere_possible)
 var muet := false               # vrai : les primitives tirent leurs nombres mais n'émettent rien (DonjonKit.differer)
 
 var murs_cb := Callable()       # (pos locale, demi-tailles, lacet) -> décalage : écarte un meuble du soubassement (DonjonKit._ecart_murs)
@@ -178,9 +179,12 @@ func _ecarter(pos: Vector3, demi: Vector2, lacet := 0.0) -> Vector3:
 ## Ajouter une lumière (repère de la crypte, portée R) garde-t-il chaque maillage de 8 m qu'elle touche à 8 lumières au plus ?
 ## (les maillages fusionnés sont découpés en cases de 8 m, comme _buf ; test_crypte vérifie la même règle)
 func lumiere_possible(p: Vector3, R: float, maxi_ := 8) -> bool:
-	var toutes_l: Array = toutes.duplicate()
-	if voisin != null:
-		toutes_l.append_array(voisin.toutes)
+	# lumières du voisin (décor du tertre, déjà dans l'arbre) : relevé figé au constructeur. Lire leur position ici, dans le fil du donjon,
+	# levait « get_position() … main thread » pour chaque lumière et renvoyait (0, 0, 0) : le budget ignorait ces lumières.
+	var toutes_l: Array = []
+	for l: OmniLight3D in toutes:
+		toutes_l.append([l.position, l.omni_range])
+	toutes_l.append_array(_lum_voisin)
 	for cx in range(floori((p.x - R) / CASE), floori((p.x + R) / CASE) + 1):
 		for cz in range(floori((p.z - R) / CASE), floori((p.z + R) / CASE) + 1):
 			var cell := AABB(Vector3(cx * CASE, p.y - 3.0, cz * CASE), Vector3(CASE, 6.0, CASE))
@@ -188,10 +192,10 @@ func lumiere_possible(p: Vector3, R: float, maxi_ := 8) -> bool:
 			if q.distance_to(p) > R:
 				continue
 			var n := 1
-			for l: OmniLight3D in toutes_l:
-				var lp := l.position
+			for l: Array in toutes_l:
+				var lp: Vector3 = l[0]
 				var ql := Vector3(clampf(lp.x, cell.position.x, cell.end.x), clampf(lp.y, cell.position.y, cell.end.y), clampf(lp.z, cell.position.z, cell.end.z))
-				if ql.distance_to(lp) <= l.omni_range:
+				if ql.distance_to(lp) <= float(l[1]):
 					n += 1
 			if n > maxi_:
 				return false
@@ -291,6 +295,8 @@ func _init(parent: Node3D, solide: StaticBody3D, partage: CrypteDecor = null) ->
 	rng_deco.seed = 4242
 	voisin = partage
 	if partage != null:
+		for l: OmniLight3D in partage.toutes:          # fil principal : relevé des lumières du voisin pour lumiere_possible (fil du donjon)
+			_lum_voisin.append([l.position, l.omni_range])
 		# second décor (le donjon, bâti dans un fil d'exécution) : mêmes images, déjà peintes ; ses propres matériaux
 		partage.attendre_tout()
 		_images = partage._images
