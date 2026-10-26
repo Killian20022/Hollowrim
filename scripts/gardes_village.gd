@@ -149,6 +149,36 @@ static func creer_modele(g: Dictionary) -> Node3D:
 	n.scale = Vector3(h * l, h, h * l)
 	return n
 
+## Torche de garde (Torche du joueur) tenue dans la main gauche (os hand_l) ; null sans cet os. Lumière sans ombre, plus douce que celle
+## du joueur, éteinte au-delà de 30 m (fondu natif de Godot).
+static func equiper_torche(modele: Node3D) -> Node3D:
+	var sq: Skeleton3D = modele.find_child("Skeleton3D", true, false)
+	if sq == null or sq.find_bone("hand_l") < 0:
+		return null
+	var acc := BoneAttachment3D.new()
+	acc.bone_name = "hand_l"
+	sq.add_child(acc)
+	var t3 := Node3D.new()
+	t3.name = "TorcheGarde"
+	acc.add_child(t3)
+	var t := Torche.construire(t3)
+	var lum: OmniLight3D = t["lumiere"]
+	lum.light_energy = 1.2
+	lum.omni_range = 8.0
+	lum.distance_fade_enabled = true
+	lum.distance_fade_begin = 24.0
+	lum.distance_fade_length = 6.0
+	for p: GPUParticles3D in t["flamme"]:
+		p.emitting = true
+	return t3
+
+## Cale la torche dans la pose courante (bras le long du corps) : manche vertical, penché de 18° vers l'avant, poing en bas.
+static func caler_torche(t3: Node3D, modele: Node3D) -> void:
+	var acc := t3.get_parent() as Node3D
+	var voulu := Transform3D(modele.global_basis.orthonormalized() * Basis(Vector3.RIGHT, deg_to_rad(18.0)), acc.global_position)
+	t3.transform = acc.global_transform.affine_inverse() * voulu
+	t3.position = t3.basis * Vector3(0, -0.04, 0.02)
+
 ## Matériau `m` dupliqué avec la teinte `c` (partagé entre gardes de même variante : clé).
 static func _mat_teinte(m: Material, cle: String, c: Color) -> Material:
 	if not (m is ShaderMaterial):

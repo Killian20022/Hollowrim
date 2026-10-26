@@ -195,3 +195,14 @@ entrée SO) + marche/course, planches dans `Desktop\Skyrim captures\refonte\C\C7
 7. **Le centre du village se déplace vers le sud** (de (44;40) à ≈ (46;50)) mais la porte SO, le sentier du feu et
    l'arrivée du joueur ne bougent pas ; la place est presque à l'emplacement de l'ancienne.
 8. **Nouveau chemin village → grotte** par une porte N (aujourd'hui on y va à travers bois).
+
+## 12. Garde du village (lot D/gardes_village, 2026-10-26)
+- Module à part : `scripts/gardes_village.gd` (création, LOD, alertes, torches), `scripts/garde_village.gd` (un garde), `data/gardes.json`
+  (postes, rondes, répliques). Branché par 2 lignes dans `monde._villageois()` ; `--sans-gardes` pour les mesures A/B. Apparence des PNJ inchangée.
+- 15 gardes : Haldor (villageois.json, inchangé) + 14 : 2 par porte (SO : Haldor + so ; N : n_o, n_e ; E : e_n, e_s), 2 au porche de la
+  longue maison (halle_o, halle_e), 1 au pied de la tour + 1 vigie dans le beffroi, 5 rondes (rue/escaliers jusqu'à la haute rue, nord,
+  palissade est, palissade ouest, tour de la place). Plan : `outils/carte_gardes.gd` (contrôle aussi que chaque segment de ronde est libre).
+- Pièges relevés : le porche de la longue maison (z 25-28,5) a un plancher surélevé (marche infranchissable pour un CharacterBody) ; un
+  obstacle à (47,5-48,3 ; 47-47,5) sur la place. Les rondes passent à côté.
+- Nuit (19 h - 6 h 30) : les rondes portent une torche (main gauche, bouclier au dos), lumière sans ombre éteinte au-delà de 30 m.
+- Test : `outils/test_gardes_village.gd` (dans tous_les_tests.sh).

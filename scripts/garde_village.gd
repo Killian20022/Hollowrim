@@ -190,31 +190,12 @@ func regler_torche(nuit: bool) -> void:
 	if _torche == null:
 		if not veut:
 			return
-		var sq: Skeleton3D = modele.find_child("Skeleton3D", true, false)
-		if sq == null or sq.find_bone("hand_l") < 0:
+		_torche = GardesVillage.equiper_torche(modele)
+		if _torche == null:
 			return
-		var acc := BoneAttachment3D.new()
-		acc.bone_name = "hand_l"
-		sq.add_child(acc)
-		_torche = Node3D.new()
-		_torche.name = "TorcheGarde"
-		acc.add_child(_torche)
-		var t := Torche.construire(_torche)
-		var lum: OmniLight3D = t["lumiere"]
-		lum.light_energy = 1.2
-		lum.omni_range = 8.0
-		lum.distance_fade_enabled = true
-		lum.distance_fade_begin = 24.0
-		lum.distance_fade_length = 6.0
-		for p: GPUParticles3D in t["flamme"]:
-			p.emitting = true
 	_torche.visible = veut
 	if veut and not _torche_calee:
-		# calage dans la pose courante (bras le long du corps) : manche vertical, un peu penché vers l'avant, poing en bas
-		var acc := _torche.get_parent() as Node3D
-		var voulu := Transform3D(modele.global_basis.orthonormalized() * Basis(Vector3.RIGHT, deg_to_rad(18.0)), acc.global_position)
-		_torche.transform = acc.global_transform.affine_inverse() * voulu
-		_torche.position = _torche.basis * Vector3(0, -0.04, 0.02)
+		GardesVillage.caler_torche(_torche, modele)
 		_torche_calee = true
 
 func porte_torche() -> bool:
