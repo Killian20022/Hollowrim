@@ -48,8 +48,10 @@ static func creer(monde: Node) -> void:
 	monde.add_child(_decor)
 	_corps.clear()
 	var rochers := _poser_rochers(monde)
+	if monde.has_method("_souffle"): await monde._souffle()   # chargement étalé : une image entre deux poses (sans effet sinon)
 	_poser_touffes(monde, rochers)
-	_poser_ailleurs(monde, rochers)
+	if monde.has_method("_souffle"): await monde._souffle()
+	await _poser_ailleurs(monde, rochers)
 	_decor.visible = actif
 
 ## Rochers de `roches_sol_v2.dat` : nom → ArrayMesh (facettes à plat, couleurs de sommets : AO + masque de neige).
@@ -397,10 +399,12 @@ static func _poser_ailleurs(monde: Node, rochers_temoin: Array) -> void:
 				_decor.add_child(corps)
 				_corps.append(forme)
 		gx += pas_r
+		if monde.has_method("_souffle"): await monde._souffle()   # chargement étalé (positions tirées par hachage : ordre sans effet)
 	for nom: String in parts:
 		for mmi in Instanciation.repartir(_decor, modeles[nom], parts[nom], {"portee": PORTEE, "marge": 4.0, "ombre": false}):
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	print("SolV2 : %d rochers et pierres ailleurs (dont %d avec collision)" % [xr.size(), nb_gros])
+	if monde.has_method("_souffle"): await monde._souffle()
 	# touffes
 	var mat := SousBois.materiau_herbe(texture_touffe(78), Color(1.05, 1.0, 0.95))
 	var mesh := mesh_touffe(mat)
@@ -429,6 +433,8 @@ static func _poser_ailleurs(monde: Node, rochers_temoin: Array) -> void:
 			var yaw := ZoneBiome.alea_pos(jx, jz, 47) * TAU
 			xfs.append(SousBois._tf(jx, SousBois._bas(monde, jx, jz, 0.4) - 0.02, jz, yaw, s, 0.75 + 0.45 * ZoneBiome.alea_pos(jx, jz, 48)))
 		x0 += pas
+		if monde.has_method("_souffle"): await monde._souffle()
+	if monde.has_method("_souffle"): await monde._souffle()
 	xfs = PosesDecor.filtrer(monde, xfs, "touffe", mesh)   # passe D : règles de pose
 	for mmi in Instanciation.repartir(_decor, mesh, xfs, {"portee": 32.0, "ombre": false}):
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

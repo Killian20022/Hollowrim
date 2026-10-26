@@ -60,6 +60,7 @@ static func poser(monde_: Node) -> void:
 		d._dalles_segment(u0, u1 + 7.5)   # +7,5 m : la raréfaction du kit (7 derniers mètres) tombe hors du tronçon
 		d._finaliser_dalles()
 		_noeuds.append(d)
+		if monde_.has_method("_souffle"): await monde_._souffle()   # chargement étalé : une image entre deux sentiers (sans effet sinon)
 	regler(monde_, true)
 
 ## Montre / cache les dalles des sentiers (option de pose `dallage=0`).

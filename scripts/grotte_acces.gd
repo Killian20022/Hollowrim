@@ -460,7 +460,9 @@ func _process(dt: float) -> void:
 		if d < 10.0 and quetes != null:
 			quetes.signaler("lieu:grotte")
 	if _tache >= 0 and WorkerThreadPool.is_task_completed(_tache):
-		_integrer()
+		_integrer(true)
+	elif not _pose_restante.is_empty():
+		_pose_restante.pop_front().call()             # intégration étalée : une étape par image (voir _poser)
 	elif not _coque_a_poser.is_empty():
 		grotte.add_child(_coque_a_poser.pop_back())    # un morceau de coque solide par image (forme Jolt construite à l'entrée dans le monde)
 	if jeu != null:
@@ -499,12 +501,14 @@ func _batir(g: Grotte) -> void:
 	Mecanisme.peindre_textures(meca)      # textures des mécanismes peintes ici, pas à l'intégration (fil principal)
 	FilVerrou.rendre()
 
-func _integrer() -> void:
+## `etale` : seule la pose dans l'arbre se fait tout de suite, préchauffage et gameplay suivent aux images suivantes (_process) ;
+## sinon (obtenir(), tests, captures) tout est posé d'un coup.
+func _integrer(etale := false) -> void:
 	if _tache < 0:
 		return
 	FilVerrou.attendre(_tache)
 	_tache = -1
-	_poser(_g_fil)
+	_poser(_g_fil, etale)
 	_g_fil = null
 
 var prechauffe: PrechauffeRendu
@@ -516,21 +520,36 @@ func _poser_coque() -> void:
 		grotte.add_child(_coque_a_poser.pop_back())
 
 ## Points de vue du préchauffage : l'entrée, puis un point tous les 22 m le long de chaque branche (caméra à hauteur d'yeux, vers l'avant).
+## Mêmes points que si l'on parcourait `grotte.routes_test()` (un point par mètre, s = 1 + k), mais seuls ceux qui servent sont
+## calculés (≈ 2 sur 22) : 25-30 ms de moins dans l'image de l'intégration.
 func _points_prechauffe() -> Array:
 	var res: Array = []
-	var routes: Dictionary = grotte.routes_test()
-	for id: String in routes:
-		var l: Array = routes[id]
+	for id: String in grotte.ordre:
+		var L: float = grotte.br[id]["L"]
+		var n := 0                     # nombre de points de routes_test() sur la branche
+		var s := 1.0
+		while s < L - 1.5:
+			n += 1
+			s += 1.0
 		var k := 0
-		while k < l.size() - 2:
-			var a: Vector3 = l[k] + Vector3(0, 1.6, 0)
-			var b: Vector3 = l[mini(k + 6, l.size() - 1)] + Vector3(0, 1.4, 0)
+		while k < n - 2:
+			var a: Vector3 = _point_route(id, k) + Vector3(0, 1.6, 0)
+			var b: Vector3 = _point_route(id, mini(k + 6, n - 1)) + Vector3(0, 1.4, 0)
 			if a.distance_to(b) > 0.5:
 				res.append(Transform3D(Basis.looking_at(b - a, Vector3.UP), a))
 			k += 22
 	return res
 
-func _poser(g: Grotte) -> void:
+## k-ième point de `grotte.routes_test()[id]` (abscisse s = 1 + k), au bit près.
+func _point_route(id: String, k: int) -> Vector3:
+	return grotte.to_global(grotte.sol_en(id, 1.0 + k, 0.0)) + Vector3(0, 0.1, 0)
+
+var _pose_restante: Array[Callable] = []   # étapes de l'intégration pas encore faites (une par image, _process)
+
+## Intégration de la grotte construite en fil, en trois étapes (pic de 60 à 90 ms en une seule image avant, 6 s après l'arrivée) :
+## pose dans l'arbre, puis préchauffage du rendu, puis gameplay (GrotteJeu) et sortie. `etale` : les deux dernières attendent
+## les images suivantes (_process) ; obtenir() termine tout ce qui reste.
+func _poser(g: Grotte, etale := false) -> void:
 	grotte = g
 	grotte.visible = false
 	grotte.process_mode = Node.PROCESS_MODE_DISABLED
@@ -544,10 +563,21 @@ func _poser(g: Grotte) -> void:
 		grotte.remove_child(b)
 	_coque_a_poser.reverse()           # pop_back = ordre d'origine
 	monde.add_child(grotte)
+	_pose_restante = [_poser_prechauffe, _poser_jeu]
+	if not etale:
+		_finir_pose()
+
+func _finir_pose() -> void:
+	while not _pose_restante.is_empty():
+		_pose_restante.pop_front().call()
+
+func _poser_prechauffe() -> void:
 	if not OS.get_cmdline_user_args().has("--sans-prechauffe"):
 		var e: Environment = monde.env_prechauffe()
 		grotte.ambiance(e)
 		prechauffe = PrechauffeRendu.lancer(grotte, self, _points_prechauffe(), monde.cycle.lumiere, e)   # pipelines compilés avant l'entrée (1re image ~80-130 ms sinon)
+
+func _poser_jeu() -> void:
 	jeu = GrotteJeu.new()
 	jeu.installer(self, grotte)
 	_interactif_sortie()
@@ -571,10 +601,12 @@ func _exit_tree() -> void:
 		if is_instance_valid(b) and not b.is_inside_tree():
 			b.free()
 	_coque_a_poser.clear()
+	_pose_restante.clear()
 
 ## La grotte construite (attend le fil s'il tourne, la construit tout de suite sinon).
 func obtenir() -> Grotte:
 	if grotte != null:
+		_finir_pose()
 		_poser_coque()
 		return grotte
 	if _tache >= 0:

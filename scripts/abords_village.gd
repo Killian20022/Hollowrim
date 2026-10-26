@@ -66,9 +66,16 @@ static func creer(monde_: Node, graine := 0) -> AbordsVillage:
 	monde_.add_child(a)
 	a._corps = StaticBody3D.new()
 	a.add_child(a._corps)
-	a._entree()
+	await a._entree()
+	await a._souffle()
 	a._finaliser()
 	return a
+
+## Chargement étalé (Monde._souffle) : une image entre deux groupes d'objets ; sans effet hors de l'écran de chargement.
+## L'ordre des tirages de `rng` ne change pas : même placement.
+func _souffle() -> void:
+	if monde != null and monde.has_method("_souffle"):
+		await monde._souffle()
 
 func _repere(porte: Vector2, exterieur: Vector2) -> void:
 	origine = porte
@@ -120,6 +127,7 @@ func _j(x: float, a: float) -> float:
 func _entree() -> void:
 	var cote := 1.0 if rng.randf() < 0.85 else -1.0   # variante miroir (rare : la vue de référence a la lanterne à gauche)
 	_dalles_segment(-1.6, longueur - 1.0)
+	await _souffle()
 	# poteaux à lanterne : A au premier plan (vraie lumière), B près de la porte (émissive), C plus bas sur le sentier (vraie lumière)
 	_poteau_lanterne(_j(4.8, 0.2), -2.3 * cote, cote, true)
 	_poteau_lanterne(_j(1.9, 0.15), 2.8 * cote, -cote, false)
@@ -132,6 +140,7 @@ func _entree() -> void:
 	# pierre levée sculptée, face tournée vers ceux qui arrivent
 	var ps := Vector2(_j(3.6, 0.15), 3.3 * cote)
 	_pierre_levee(_p(ps.x, ps.y), (axe * 1.0 - droite * cote * 0.8).normalized())
+	await _souffle()
 	# rochers coiffés de neige [u, v, taille]
 	for r in [[5.1, -3.45, 1.4], [6.8, -5.3, 1.6], [2.9, -5.0, 0.8], [5.0, 3.65, 1.35], [7.0, 5.2, 1.0], [1.9, 4.8, 0.75],
 			[11.0, -3.5, 0.9], [14.2, -4.9, 1.3], [9.4, 4.4, 0.7], [19.6, 3.9, 1.1], [23.0, -3.4, 0.8], [27.5, 3.6, 1.0]]:
@@ -139,13 +148,16 @@ func _entree() -> void:
 	# buissons brun-rouge : quelques-uns placés (cadrage), d'autres semés le long des bords
 	for b in [[6.1, -2.95], [3.7, -4.4], [4.5, 4.7], [2.6, 4.0], [6.4, 3.3], [1.2, -3.9], [8.0, -3.3], [10.4, 3.5], [12.6, -4.0], [16.2, 3.6], [6.9, -4.3], [4.3, 3.0]]:
 		_buisson(_p(_j(b[0], 0.2), _j(b[1] * cote, 0.15)), rng.randf_range(0.75, 1.15))
+	await _souffle()
 	# sapins chargés de neige de part et d'autre, du premier plan jusqu'à la porte (la porte reste visible au bout)
 	var avec_sapins := not OS.get_cmdline_user_args().has("--sans-sapins-abords")   # A/B de coût
 	# grands sapins du tout premier plan, à gauche et à droite : ils coupent le bord de l'image (pose commune)
 	if avec_sapins: _sapins([[4.6, -5.6, 1.45, true], [5.6, 5.1, 1.5, true]], 0, 0.0, 0.0, false)   # sans ombre (coût : ils couvrent l'écran)
 	if avec_sapins: _sapins([[7.6, -6.6, 1.2], [3.0, -6.6, 1.0], [10.6, -5.6, 1.1], [14.0, -7.6, 1.3], [18.2, -5.4, 1.0], [22.0, -6.8, 1.2], [26.0, -5.6, 1.0], [30.0, -7.2, 1.1],
 			[6.4, 6.9, 1.15], [2.4, 7.4, 1.0], [11.2, 7.2, 1.2], [16.6, 6.3, 1.0], [21.0, 7.6, 1.3], [25.2, 5.8, 1.0], [29.2, 6.8, 1.2], [33.0, 5.8, 1.0]], 6, 2.0, longueur + 4.0)
+	await _souffle()
 	_semer_bords(0.5, longueur - 1.5)
+	await _souffle()
 	_semer_premier_plan()
 
 ## Sapins qui encadrent le sentier : les épicéas validés du lot 2 (API `Arbres`, mêmes graines et mêmes réglages de portée,
