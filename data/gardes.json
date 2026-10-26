@@ -1,0 +1,72 @@
+{
+  "village": "Skarnholt",
+  "note": "Gardes du village (scripts/gardes_village.gd). Coordonnées monde (x est, z sud). type : poste (pos, cap en degrés, 0 = vers +Z/sud), ronde (route, boucle), vigie (beffroi de la tour). Haldor (data/villageois.json, id garde) tient la porte SO avec garde_so.",
+  "interpellations": [
+    "Les mains loin de ta lame, voyageur.",
+    "Skarnholt dort tranquille tant qu’on veille.",
+    "Encore un qui marche sans casque. Ta tête, ton affaire.",
+    "Si tu vois un mort qui marche, crie. Fort.",
+    "Le jarl paie en bière tiède. On veille quand même.",
+    "Circule. Ou parle. Mais ne reste pas planté là.",
+    "Gare aux marches de la haute rue. Le givre les rend traîtres.",
+    "Un jour, je serai sergent. Haldor dit que non.",
+    "Brodd a encore affûté ma lance. Elle coupe mieux que ses mots.",
+    "Pas de vol, pas de bagarre, pas de feu dans les granges. C’est tout.",
+    "Je compte les pieux de la palissade. Il en manque jamais. C’est bon signe.",
+    "Tu sens ça ? La neige de demain."
+  ],
+  "nuit": [
+    "Il fait noir comme dans un tertre. Reste près des feux.",
+    "La nuit, on compte les pas. Les tiens, je les entends.",
+    "Ne traîne pas dehors. Les lueurs vertes reviennent la nuit.",
+    "Si tu dors, dors. Nous, on regarde la forêt."
+  ],
+  "apres": [
+    "Bon. Je retourne à ma ronde.",
+    "Reste à l’abri des murs, étranger.",
+    "Va. Et ne fais pas sonner la cloche pour rien.",
+    "Rien à signaler. Et c’est très bien comme ça.",
+    "Je t’ai à l’œil. Gentiment, mais à l’œil."
+  ],
+  "alerte": [
+    "Aux armes ! Ça entre !",
+    "À moi, la garde !",
+    "Derrière la lance, vite !",
+    "Par les dieux ! Ils sont dans les murs !"
+  ],
+  "gardes": [
+    {"id": "so", "type": "poste", "pos": [27.3, 28.8], "cap": -130, "poil": 1, "peau": 0, "taille": 1.02, "largeur": 1.03,
+     "lignes": ["Haldor tient la porte, moi je tiens Haldor. Il s’endort debout, parfois.", "Le sentier mène au feu de camp, puis au cercle de pierres. N’y va pas de nuit."]},
+    {"id": "n_o", "type": "poste", "pos": [52.3, 16.5], "cap": -178, "poil": 3, "peau": 1, "taille": 0.98, "largeur": 1.0,
+     "lignes": ["La porte nord ouvre sur le chemin de la grotte.", "On dit que des brigands y ont fait leur nid. Si tu y vas, garde un œil dans ton dos."]},
+    {"id": "n_e", "type": "poste", "pos": [56.0, 17.8], "cap": -178, "poil": 2, "peau": 2, "taille": 1.04, "largeur": 1.05,
+     "lignes": ["Personne n’entre par le nord sans que je le voie.", "Sauf les chèvres. Les chèvres passent où elles veulent."]},
+    {"id": "e_n", "type": "poste", "pos": [71.3, 33.2], "cap": 95, "poil": 4, "peau": 3, "taille": 0.96, "largeur": 1.06,
+     "lignes": ["Par là, les fermes et le moulin à vent.", "Les vaches ne mordent pas. Les fermiers, parfois, quand on piétine leurs champs."]},
+    {"id": "e_s", "type": "poste", "pos": [72.3, 39.5], "cap": 95, "poil": 0, "peau": 0, "rase": true, "taille": 0.97, "largeur": 0.95,
+     "lignes": ["Ma première garde d’hiver. Ne dis pas à Haldor que j’ai froid aux pieds.", "Il le sait déjà, de toute façon. Il sait tout."]},
+    {"id": "halle_o", "type": "poste", "pos": [40.0, 26.0], "cap": 0, "poil": 5, "peau": 1, "taille": 1.05, "largeur": 1.04,
+     "lignes": ["La cheffe Gunnhild est dans la longue maison. Entre, si tu as une bonne raison.", "Et essuie tes bottes. Elle déteste la neige sur les dalles."]},
+    {"id": "halle_e", "type": "poste", "pos": [48.5, 26.0], "cap": 0, "poil": 1, "peau": 3, "taille": 1.0, "largeur": 0.98,
+     "lignes": ["Je garde la porte de la cheffe. C’est un honneur, paraît-il.", "Un honneur qui ne réchauffe pas les orteils."]},
+    {"id": "tour", "type": "poste", "pos": [48.2, 84.0], "cap": 180, "poil": 3, "peau": 2, "taille": 1.03, "largeur": 1.0,
+     "lignes": ["La tour est fermée. La cloche, c’est pour le feu, les loups et les morts.", "Prie pour n’entendre que la première."]},
+    {"id": "vigie", "type": "vigie", "pos": [45.0, 85.5], "beffroi": [0.0, 1.45], "cap": 180, "poil": 4, "peau": 0, "taille": 1.0, "largeur": 1.0,
+     "lignes": ["D’ici, on voit jusqu’au lac."]},
+    {"id": "ronde_rue", "type": "ronde", "boucle": false, "poil": 2, "peau": 1, "taille": 1.01, "largeur": 1.02,
+     "route": [[44.2, 49.8], [44.2, 57.2], [44.2, 66.8], [44.2, 75.0], [44.2, 83.8], [41.8, 83.8], [40.2, 86.2]],
+     "lignes": ["Je monte et je descends cette rue toute la journée. Mes mollets sont les plus solides du hameau.", "La haute rue domine tout. Si quelque chose bouge au sud, on le voit d’ici."]},
+    {"id": "ronde_nord", "type": "ronde", "boucle": false, "poil": 0, "peau": 2, "taille": 0.99, "largeur": 1.0,
+     "route": [[31.8, 26.8], [39.8, 30.8], [42.2, 29.2], [50.8, 29.2], [52.8, 28.2], [54.2, 18.8]],
+     "lignes": ["Ronde du nord. De la porte du feu à la porte du nord, et retour.", "Trente pas, une halte, trente pas. Le métier rentre par les pieds."]},
+    {"id": "ronde_est", "type": "ronde", "boucle": false, "poil": 5, "peau": 0, "taille": 1.04, "largeur": 1.06,
+     "route": [[59.2, 15.8], [62.8, 17.8], [64.8, 19.2], [67.8, 23.2], [69.8, 27.2], [69.8, 34.8], [70.2, 35.2]],
+     "lignes": ["Je longe la palissade de l’est. Les loups la reniflent, parfois.", "Ils n’entrent pas. Ils savent que je suis là. Enfin, j’aime le croire."]},
+    {"id": "ronde_ouest", "type": "ronde", "boucle": false, "poil": 1, "peau": 1, "rase": true, "taille": 0.95, "largeur": 0.96,
+     "route": [[30.8, 31.2], [23.8, 32.8], [21.8, 38.2], [19.2, 46.2], [19.8, 56.8]],
+     "lignes": ["Côté lac, la palissade est basse. Je passe souvent.", "Si tu tombes à l’eau, ne compte pas sur moi. Je ne sais pas nager."]},
+    {"id": "ronde_place", "type": "ronde", "boucle": true, "poil": 3, "peau": 3, "taille": 1.02, "largeur": 1.0,
+     "route": [[37.8, 33.2], [49.8, 33.8], [51.2, 38.2], [48.2, 46.8], [41.8, 46.8], [39.8, 47.8], [35.8, 40.2], [33.8, 37.8]],
+     "lignes": ["Je fais le tour de la place. Les étals, le puits, les bancs. Rien ne m’échappe.", "Sauf les commérages de Grima. Ceux-là, personne ne les arrête."]}
+  ]
+}
