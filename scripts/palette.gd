@@ -48,6 +48,10 @@ static func _valeur_periodique(x: float, y: float, p: int, g: int) -> float:
 
 ## Texture tuilable : bruit périodique sur 3 octaves, quantifié dans la palette.
 static func texture(taille: int, palette: Array, periode: int, graine: int, grain: float, rng: RandomNumberGenerator = null) -> ImageTexture:
+	return ImageTexture.create_from_image(image(taille, palette, periode, graine, grain, rng))
+
+## L'image de `texture`, sans texture : aucun appel au serveur de rendu (sûr dans un fil de construction).
+static func image(taille: int, palette: Array, periode: int, graine: int, grain: float, rng: RandomNumberGenerator = null) -> Image:
 	if rng == null:
 		# graine fixe propre à la texture : grain reproductible, indépendant de l'ordre de création
 		rng = RandomNumberGenerator.new()
@@ -67,7 +71,7 @@ static func texture(taille: int, palette: Array, periode: int, graine: int, grai
 				per *= 2
 			v = v / 0.875 + (rng.randf() - 0.5) * grain
 			img.set_pixel(x, y, couleurs[clampi(int(v * couleurs.size()), 0, couleurs.size() - 1)])
-	return ImageTexture.create_from_image(img)
+	return img
 
 ## Comme `texture`, avec mipmaps (sol du lot D : filtre nearest_mipmap, moins de scintillement
 ## au loin). `rng` est OBLIGATOIRE et propre à l'appelant : le RNG statique partagé change
@@ -123,10 +127,57 @@ static func _pailleter_img(img: Image, rr: RandomNumberGenerator, part: float) -
 				img.set_pixel(x, y, Color("#b9c5da"))
 
 ## Texture mise en cache par nom (pour les objets créés après le monde).
+## Fil principal. Si l'image a été peinte d'avance dans un fil de construction (peindre_tex / ranger_image : textures des mécanismes du
+## donjon et de la grotte), il ne reste qu'à en faire une texture (envoi d'une image 32x32 au GPU).
 static func tex(nom: String, palette: Array, periode := 4, grain := 0.4) -> ImageTexture:
-	if not _cache.has(nom):
-		_cache[nom] = texture(32, palette, periode, nom.hash() & 0xff, grain)
-	return _cache[nom]
+	var t := en_cache(nom) as ImageTexture
+	if t == null:
+		var img := prendre_image(nom)
+		t = ImageTexture.create_from_image(img if img != null else image(32, palette, periode, nom.hash() & 0xff, grain))
+		ranger(nom, t)
+	return t
+
+## Fil principal : range une texture dans le cache (sous verrou : des fils le lisent).
+static func ranger(nom: String, t: Texture2D) -> void:
+	_verrou.lock()
+	_cache[nom] = t
+	_verrou.unlock()
+
+## Fil de construction : peint l'image de tex(nom, …) d'avance (aucun appel au serveur de rendu ; les attentes de réponse du serveur
+## depuis un fil interbloquent le chargement en --headless).
+static func peindre_tex(nom: String, palette: Array, periode := 4, grain := 0.4) -> void:
+	if en_cache(nom) == null and not a_image(nom):
+		ranger_image(nom, image(32, palette, periode, nom.hash() & 0xff, grain))
+
+static var _verrou := Mutex.new()
+static var _images_peintes := {}     # nom -> Image peinte dans un fil, en attente de sa texture (fil principal)
+
+static func ranger_image(nom: String, img: Image) -> void:
+	_verrou.lock()
+	if not _images_peintes.has(nom):
+		_images_peintes[nom] = img
+	_verrou.unlock()
+
+static func a_image(nom: String) -> bool:
+	_verrou.lock()
+	var oui := _images_peintes.has(nom)
+	_verrou.unlock()
+	return oui
+
+## Image peinte d'avance pour `nom` (retirée de l'attente), null sinon.
+static func prendre_image(nom: String) -> Image:
+	_verrou.lock()
+	var img: Image = _images_peintes.get(nom)
+	_images_peintes.erase(nom)
+	_verrou.unlock()
+	return img
+
+## Texture déjà rangée sous `nom` (null sinon). Le cache n'est écrit que sur le fil principal ; lu sous verrou pour les fils.
+static func en_cache(nom: String) -> Texture2D:
+	_verrou.lock()
+	var t: Texture2D = _cache.get(nom)
+	_verrou.unlock()
+	return t
 
 static var _ps1_double: Shader
 
@@ -208,7 +259,10 @@ static func police() -> FontFile:
 ## seraient sinon libérées après l'arrêt du moteur de rendu (plantage à la fermeture).
 static func vider() -> void:
 	materiaux.clear()
+	_verrou.lock()
 	_cache.clear()
+	_images_peintes.clear()
+	_verrou.unlock()
 	_conversions.clear()
 	tex_neige = null
 	_ps1_double = null

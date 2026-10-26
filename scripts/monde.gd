@@ -54,6 +54,7 @@ var mat_terrain: ShaderMaterial
 var dragon: CharacterBody3D = null
 var dragon_vaincu := false
 var _env: Environment
+var _temoins_shaders: Array = []      # matériaux témoins gardés en vie : leurs shaders intégrés restent compilés (Piege.temoins_shaders)
 var _ciel: ShaderMaterial
 
 var tex_neige: ImageTexture
@@ -170,6 +171,7 @@ func _ready() -> void:
 	_chrono("tertre+crypte")
 	_grotte_acces()
 	_chrono("entree de la grotte")
+	_temoins_shaders = Piege.temoins_shaders()   # shaders des pièges compilés ici (pendant le chargement), pas à leur pose en pleine marche
 	AbordsTumulus.creer(self)  # lot F : abords du tertre (après sa création)
 	Dallage.poser(self)  # C1b : sentiers en dalles hors zone témoin + dalles du village moins enneigées
 	if _arguments().has("res"):  # résolution interne : 640x360 par défaut (project.godot) ; --res=480x270 pour comparer
@@ -186,6 +188,7 @@ func _ready() -> void:
 	_cacher_particules()
 	_rendre_paisible()
 	_capture()
+	_prechauffer_rendu()
 	Chrono.total()
 	_aller_crypte()
 	_aller_interieur()
@@ -194,6 +197,39 @@ func _ready() -> void:
 
 func _chrono(etape: String) -> void:
 	Chrono.marque(etape)
+
+## Points de vue du préchauffage de dehors : [point (x, z), nombre de directions] — le feu de camp (départ), le sentier et la place du
+## village, le chemin de la grotte.
+## Préchauffage de la crypte : points de l'axe principal (repère de la crypte, z de l'entrée à l'arène), regard vers l'avant et l'arrière.
+const VUES_CRYPTE_Z := [-0.5, -10.0, -22.0, -35.0, -48.0, -60.0, -71.0]
+const VUES_PRECHAUFFE := [[Vector2(2.5, 8.5), 8], [Vector2(19.0, 17.5), 4], [Vector2(35.0, 30.0), 4], [Vector2(39.5, 42.0), 8],
+	[Vector2(60.0, -20.0), 4], [Vector2(84.0, -27.0), 4]]
+
+## Préchauffage du rendu de dehors et de la crypte dès la fin du chargement (PrechauffeRendu, une vue par image dans un SubViewport
+## minuscule qui partage le monde) : dehors, la caméra passe par les points de VUES_PRECHAUFFE ; la crypte (décor du tertre ; le donjon,
+## bâti plus tard, emploie les mêmes shaders) est montrée le temps de ses vues, avec l'environnement de dessous et sans soleil. Ce qu'on
+## regarde pour la 1re fois coûtait sinon sur le fil principal au moment où on le regarde (pipelines, jeux d'uniformes des matériaux,
+## envois au GPU) : 1re image de marche ~130-200 ms, place du village saccadée au 1er passage. Coût : ~50 images un peu plus lourdes
+## pendant la 1re seconde. Rien en --headless ni en capture (--sans-prechauffe : A/B).
+## NB : un essai par RenderingServer.force_draw pendant le chargement laissait des jeux d'uniformes périmés
+## (« Parameter "uniform_set" is null » à chaque image dans la crypte) : ne pas y revenir.
+func _prechauffer_rendu() -> void:
+	if DisplayServer.get_name() == "headless" or _arguments().has("capture") or _arguments().has("sans-prechauffe"):
+		return
+	var pts: Array = []
+	for v: Array in VUES_PRECHAUFFE:
+		var p: Vector2 = v[0]
+		var y := hauteur(p.x, p.y) + 1.6
+		for k in int(v[1]):
+			pts.append(Transform3D(Basis(Vector3.UP, TAU * k / float(v[1])), Vector3(p.x, y, p.y)))
+	PrechauffeRendu.lancer(null, self, pts, null, null, 0.0)
+	if tertre != null and tertre.crypte != null and not tertre.dedans:
+		var cr: Node3D = tertre.crypte
+		var pc: Array = []
+		for z: float in VUES_CRYPTE_Z:
+			for lacet: float in [0.0, PI]:
+				pc.append(cr.global_transform * Transform3D(Basis(Vector3.UP, lacet), Vector3(0.0, 1.6, z)))
+		PrechauffeRendu.lancer(cr, self, pc, cycle.lumiere, env_prechauffe(), 0.0)
 
 # --- relief ---------------------------------------------------------------
 
@@ -909,24 +945,43 @@ func _sous_terre(dedans: bool) -> void:
 	post.set_shader_parameter("etal_mix", 0.45 if dedans else 1.0)  # lot 2 : étalonnage atténué sous terre
 	_geler_exterieur(dedans)
 	if dedans:
-		_env.ambient_light_color = Color(0.40, 0.45, 0.62)
-		_env.ambient_light_energy = 0.9
-		_env.fog_light_color = Color(0.03, 0.045, 0.08)
-		_env.fog_density = 0.028
-		_env.fog_height_density = 0.0
-		_env.fog_sky_affect = 1.0
-		BrumePortee.appliquer(_env, 4.0, 1.0)   # crypte : brume pleine à la portée de dessin (30 m)
+		env_sous_terre(_env)
 	else:
 		cycle._process(0.0)
+
+## Réglages d'environnement sous terre (crypte ; la grotte y ajoute Grotte.ambiance). Aussi appliqué à une COPIE de l'environnement
+## pour la caméra du préchauffage (PrechauffeRendu) : brume exponentielle, fond uni et pas de soleil = autres variantes de pipelines
+## que dehors ; préchauffer avec l'environnement de dehors laissait 24 pipelines à compiler à la 1re image dans la grotte.
+static func env_sous_terre(e: Environment) -> void:
+	e.background_mode = Environment.BG_COLOR
+	e.background_color = Color(0.0, 0.0, 0.0)
+	e.glow_enabled = false
+	e.fog_mode = Environment.FOG_MODE_EXPONENTIAL
+	e.ambient_light_color = Color(0.40, 0.45, 0.62)
+	e.ambient_light_energy = 0.9
+	e.fog_light_color = Color(0.03, 0.045, 0.08)
+	e.fog_density = 0.028
+	e.fog_height_density = 0.0
+	e.fog_sky_affect = 1.0
+	BrumePortee.appliquer(e, 4.0, 1.0)   # crypte : brume pleine à la portée de dessin (30 m)
+
+## Copie de l'environnement de jeu réglée comme sous terre (préchauffage des lieux cachés).
+func env_prechauffe() -> Environment:
+	var e: Environment = _env.duplicate()
+	env_sous_terre(e)
+	return e
 
 ## Monde extérieur GELÉ sous terre (village, abords, villageois, draugrs et dragon de dehors, interactifs de surface) : plus de
 ## _process ni de physique pour eux (≈ -5 ms par image mesurés dans la crypte, -7 ms dans la grotte), mais leur COLLISION reste
 ## (un corps désactivé par process_mode ne quitte pas le monde physique : le terrain, la grotte et la crypte restent solides).
 ## Dégel à la sortie : les PNJ reprennent là où ils étaient. Seuls les nœuds en mode hérité sont touchés (les ennemis rendus
 ## paisibles ou désactivés par ailleurs ne sont jamais réveillés ici). Un ennemi de dehors qui est en pleine poursuite n'est pas gelé
-## tout de suite (le HUD le compterait « en combat » pour toujours) : _process refait le tour une fois par seconde.
+## tout de suite (le HUD le compterait « en combat » pour toujours) : il est mis de côté (_gel_attente) et _process retente de le geler
+## une fois par seconde. Ce nouvel essai ne refait PAS le tour du monde : le parcours complet (find_children sur tout l'arbre) coûtait
+## ~35 ms et donnait sous terre une saccade régulière, une image par seconde.
 var _gel_ext: Array = []
 var _gel_ext_t := 0.0
+var _gel_attente: Array = []
 
 func _geler_exterieur(geler: bool) -> void:
 	if not geler:
@@ -934,6 +989,7 @@ func _geler_exterieur(geler: bool) -> void:
 			if is_instance_valid(n):
 				n.process_mode = Node.PROCESS_MODE_INHERIT
 		_gel_ext.clear()
+		_gel_attente.clear()
 		return
 	var cibles: Array = [village, dragon]
 	for c in get_children():
@@ -955,11 +1011,19 @@ func _geler_exterieur(geler: bool) -> void:
 					break
 			if not sous:
 				cibles.append(c)
+	_geler_liste(cibles)
+
+## Gèle les nœuds de `cibles` (mode hérité seulement) ; ceux qui sont en combat attendent dans _gel_attente.
+func _geler_liste(cibles: Array) -> void:
 	for n in cibles:
 		if n == null or not is_instance_valid(n) or n in _gel_ext or n.process_mode != Node.PROCESS_MODE_INHERIT:
+			_gel_attente.erase(n)
 			continue
 		if n.has_method("en_combat") and n.en_combat():
+			if not n in _gel_attente:
+				_gel_attente.append(n)
 			continue
+		_gel_attente.erase(n)
 		n.process_mode = Node.PROCESS_MODE_DISABLED
 		_gel_ext.append(n)
 
@@ -1171,7 +1235,8 @@ func _process(dt: float) -> void:
 		_gel_ext_t += dt
 		if _gel_ext_t > 1.0:
 			_gel_ext_t = 0.0
-			_geler_exterieur(true)   # attrape les ennemis de dehors qui se sont calmés depuis l'entrée
+			if not _gel_attente.is_empty():
+				_geler_liste(_gel_attente.duplicate())   # attrape les ennemis de dehors qui se sont calmés depuis l'entrée
 	if cycle != null and joueur != null and not _sous_terre_actif:
 		cycle.orienter_brume(-joueur.camera.global_transform.basis.z)  # lot 2 : brouillard chaud côté soleil couchant
 	neige.global_position = joueur.global_position + Vector3(0, 10, 0)

@@ -822,14 +822,70 @@ func construire() -> void:
 			nb_lumieres += 1
 	decor.finir()
 	etapes["finir"] = Time.get_ticks_msec() - tp
-	var forme := ConcavePolygonShape3D.new()
-	forme.backface_collision = true
-	forme.set_faces(decor.coll)
-	var cs := CollisionShape3D.new()
-	cs.shape = forme
-	cs.name = "CoqueSolide"
-	corps.add_child(cs)
+	tp = Time.get_ticks_msec()
+	_coque_en_morceaux()
+	etapes["coque_solide"] = Time.get_ticks_msec() - tp
 	temps_ms = Time.get_ticks_msec() - t0
+
+## Coque solide (trimesh de ~145 000 triangles) découpée en MORCEAUX_X x MORCEAUX_Z corps statiques « CoqueSolide_k » à triangles égaux,
+## frères de `corps`. Jolt construit la forme d'un corps quand il entre dans le monde physique, sur le fil principal : d'un seul tenant,
+## c'était 200-350 ms d'image figée en pleine marche (intégration de la grotte). En morceaux, GrotteAcces les pose un par image
+## (~3-6 ms chacun au calme). Chaque triangle reste entier dans un seul morceau : la surface solide est exactement la même.
+const MORCEAUX_X := 8
+const MORCEAUX_Z := 8
+var coque_corps: Array[StaticBody3D] = []
+
+func _coque_en_morceaux() -> void:
+	var f := decor.coll
+	var nt := f.size() / 3
+	coque_corps.clear()
+	if nt == 0:
+		return
+	# tri par x du centre (clé entière + indice dans un flottant 64 bits : tri natif), tranches à effectifs égaux, puis idem en z
+	var cles := PackedFloat64Array()
+	cles.resize(nt)
+	for t in nt:
+		var c := f[t * 3] + f[t * 3 + 1] + f[t * 3 + 2]
+		cles[t] = floorf(c.x * 33.3 + 100000.0) * 1000000.0 + t
+	cles.sort()
+	var par_x := ceili(float(nt) / MORCEAUX_X)
+	for i in MORCEAUX_X:
+		var debut := i * par_x
+		var fin := mini(nt, debut + par_x)
+		if debut >= fin:
+			break
+		var cz := PackedFloat64Array()
+		cz.resize(fin - debut)
+		for k in range(debut, fin):
+			var t := int(fmod(cles[k], 1000000.0))
+			var c := f[t * 3] + f[t * 3 + 1] + f[t * 3 + 2]
+			cz[k - debut] = floorf(c.z * 33.3 + 100000.0) * 1000000.0 + t
+		cz.sort()
+		var par_z := ceili(float(cz.size()) / MORCEAUX_Z)
+		for j in MORCEAUX_Z:
+			var d2 := j * par_z
+			var f2 := mini(cz.size(), d2 + par_z)
+			if d2 >= f2:
+				break
+			var faces := PackedVector3Array()
+			faces.resize((f2 - d2) * 3)
+			for k in range(d2, f2):
+				var t := int(fmod(cz[k], 1000000.0))
+				var o := (k - d2) * 3
+				faces[o] = f[t * 3]
+				faces[o + 1] = f[t * 3 + 1]
+				faces[o + 2] = f[t * 3 + 2]
+			var forme := ConcavePolygonShape3D.new()
+			forme.backface_collision = true
+			forme.set_faces(faces)
+			var cs := CollisionShape3D.new()
+			cs.shape = forme
+			cs.name = "CoqueSolide"
+			var b := StaticBody3D.new()
+			b.name = "CoqueSolide_%d" % coque_corps.size()
+			b.add_child(cs)
+			add_child(b)
+			coque_corps.append(b)
 
 ## Portée de dessin sous terre : au-delà de ~30 m (bord le plus proche), la brume noie tout. Appliquée à chaque maillage du kit
 ## (cases de 10 m) ; la portée est mesurée au centre de l'objet : on ajoute donc son demi-diamètre (borné) pour que le BORD proche reste

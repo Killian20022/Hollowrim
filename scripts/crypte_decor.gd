@@ -192,8 +192,10 @@ func lumiere_possible(p: Vector3, R: float, maxi_ := 8) -> bool:
 			for l: OmniLight3D in toutes_l:
 				# position et portée notées à la pose : les lumières du voisin (tertre) sont dans l'arbre, illisibles depuis le fil du donjon
 				var info: Array = pos_lum.get(l, voisin.pos_lum.get(l, []) if voisin != null else [])
-				var lp: Vector3 = info[0] if not info.is_empty() else l.position
-				var portee: float = info[1] if not info.is_empty() else l.omni_range
+				if info.is_empty():
+					continue     # toute lumière passe par ajouter_lumiere : jamais de lecture de nœud ici (fil du donjon)
+				var lp: Vector3 = info[0]
+				var portee: float = info[1]
 				var ql := Vector3(clampf(lp.x, cell.position.x, cell.end.x), clampf(lp.y, cell.position.y, cell.end.y), clampf(lp.z, cell.position.z, cell.end.z))
 				if ql.distance_to(lp) <= portee:
 					n += 1

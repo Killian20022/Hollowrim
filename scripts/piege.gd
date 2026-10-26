@@ -36,6 +36,19 @@ static func souffle_givre(parent: Node, pos: Vector3, dir: Vector3, longueur: fl
 	n.periode = maxf(periode, 3.0)
 	return Mecanisme._poser(n, parent, ident, ctx)
 
+## Matériaux TÉMOINS des pièges, créés pendant le chargement et gardés par le monde (Monde._temoins_shaders) : un StandardMaterial3D
+## compile son shader intégré à sa première affectation, et le partage avec tous les matériaux de mêmes réglages tant que l'un d'eux vit.
+## Sans témoin, le 1er souffle de givre posé (pose du donjon par tranches, en pleine marche juste après le chargement) compilait ses
+## deux shaders sur le fil principal : image de ~100-130 ms. Fil principal seulement (compilation à get_rid ou à la fin de l'image).
+static func temoins_shaders() -> Array:
+	var res: Array = []
+	var givre := Souffle.mat_givre_nu()
+	givre.albedo_texture = Palette.tex("souffle_glace", Palette.NEIGE, 4, 0.45)
+	for m: StandardMaterial3D in [Souffle.mat_brume(), givre]:
+		m.get_rid()
+		res.append(m)
+	return res
+
 # ------------------------------------------------------------------ fléchette
 class Fleche extends Node3D:
 	var vitesse := 18.0
@@ -220,12 +233,7 @@ class Souffle extends Mecanisme.Base:
 		_brume = MeshInstance3D.new()
 		var bm := BoxMesh.new()
 		bm.size = Vector3(largeur, 1.9, longueur)
-		var mb := StandardMaterial3D.new()
-		mb.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mb.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mb.albedo_color = Color(0.75, 0.9, 1.0, 0.16)
-		mb.cull_mode = BaseMaterial3D.CULL_DISABLED
-		bm.material = mb
+		bm.material = Souffle.mat_brume()
 		_brume.mesh = bm
 		_brume.position = Vector3(pos.x, sol + 0.95, pos.z) + dir * longueur * 0.5
 		_brume.rotation.y = lacet
@@ -257,8 +265,21 @@ class Souffle extends Mecanisme.Base:
 					img.set_pixel(x, y, Color(0.8 + rng.randf() * 0.2, 0.9 + rng.randf() * 0.1, 1.0, clampf(a * 1.3, 0.0, 0.85)))
 				else:
 					img.set_pixel(x, y, Color(1, 1, 1, 0))
-		var m := StandardMaterial3D.new()
+		var m := Souffle.mat_givre_nu()
 		m.albedo_texture = ImageTexture.create_from_image(img)
+		return m
+
+	## Matériaux du souffle sans leur texture : mêmes réglages = même shader intégré (voir Piege.temoins_shaders).
+	static func mat_brume() -> StandardMaterial3D:
+		var mb := StandardMaterial3D.new()
+		mb.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mb.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mb.albedo_color = Color(0.75, 0.9, 1.0, 0.16)
+		mb.cull_mode = BaseMaterial3D.CULL_DISABLED
+		return mb
+
+	static func mat_givre_nu() -> StandardMaterial3D:
+		var m := StandardMaterial3D.new()
 		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		m.roughness = 1.0

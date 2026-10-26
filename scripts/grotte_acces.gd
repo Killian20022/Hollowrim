@@ -465,6 +465,8 @@ func _process(dt: float) -> void:
 			quetes.signaler("lieu:grotte")
 	if _tache >= 0 and WorkerThreadPool.is_task_completed(_tache):
 		_integrer()
+	elif not _coque_a_poser.is_empty():
+		grotte.add_child(_coque_a_poser.pop_back())    # un morceau de coque solide par image (forme Jolt construite à l'entrée dans le monde)
 	if jeu != null:
 		if dedans:
 			jeu.tick(dt)
@@ -492,6 +494,13 @@ func _lancer_fil() -> void:
 func _batir(g: Grotte) -> void:
 	FilVerrou.prendre()
 	g.construire()
+	var meca: Array = []
+	for a: Dictionary in g.accroches:
+		if String(a.get("type", "")) == "meca":
+			var d: Dictionary = (a["d"] as Dictionary).duplicate()
+			d["materiau"] = true          # GrotteJeu._meca : murs dans la roche voisine (pas de pierre fissurée propre)
+			meca.append(d)
+	Mecanisme.peindre_textures(meca)      # textures des mécanismes peintes ici, pas à l'intégration (fil principal)
 	FilVerrou.rendre()
 
 func _integrer() -> void:
@@ -503,6 +512,12 @@ func _integrer() -> void:
 	_g_fil = null
 
 var prechauffe: PrechauffeRendu
+var _coque_a_poser: Array = []         # morceaux de coque solide pas encore dans l'arbre (posés un par image)
+
+## Tous les morceaux de coque solide tout de suite (entrée, obtenir() synchrone des tests et des captures).
+func _poser_coque() -> void:
+	while not _coque_a_poser.is_empty():
+		grotte.add_child(_coque_a_poser.pop_back())
 
 ## Points de vue du préchauffage : l'entrée, puis un point tous les 22 m le long de chaque branche (caméra à hauteur d'yeux, vers l'avant).
 func _points_prechauffe() -> Array:
@@ -523,9 +538,20 @@ func _poser(g: Grotte) -> void:
 	grotte = g
 	grotte.visible = false
 	grotte.process_mode = Node.PROCESS_MODE_DISABLED
+	# Corps statiques : gardés dans le monde physique pendant que la grotte est gelée (mode REMOVE par défaut : chaque bascule de
+	# process_mode les retirait / remettait dans Jolt, 200-250 ms d'image figée à l'entrée et autant à la sortie ; ils sont à 200 m
+	# sous le sol, rien de dehors ne les touche). Les morceaux de la coque solide (Grotte.coque_corps) entrent un par image (_process).
+	for b in grotte.find_children("*", "StaticBody3D", true, false):
+		(b as StaticBody3D).disable_mode = CollisionObject3D.DISABLE_MODE_KEEP_ACTIVE
+	_coque_a_poser = grotte.coque_corps.duplicate()
+	for b in _coque_a_poser:
+		grotte.remove_child(b)
+	_coque_a_poser.reverse()           # pop_back = ordre d'origine
 	monde.add_child(grotte)
 	if not OS.get_cmdline_user_args().has("--sans-prechauffe"):
-		prechauffe = PrechauffeRendu.lancer(grotte, self, _points_prechauffe(), monde.cycle.lumiere)   # pipelines compilés avant l'entrée (1re image ~80-130 ms sinon)
+		var e: Environment = monde.env_prechauffe()
+		grotte.ambiance(e)
+		prechauffe = PrechauffeRendu.lancer(grotte, self, _points_prechauffe(), monde.cycle.lumiere, e)   # pipelines compilés avant l'entrée (1re image ~80-130 ms sinon)
 	jeu = GrotteJeu.new()
 	jeu.installer(self, grotte)
 	_interactif_sortie()
@@ -545,10 +571,15 @@ func _exit_tree() -> void:
 		if _g_fil != null and is_instance_valid(_g_fil) and not _g_fil.is_inside_tree():
 			_g_fil.free()
 		_g_fil = null
+	for b in _coque_a_poser:
+		if is_instance_valid(b) and not b.is_inside_tree():
+			b.free()
+	_coque_a_poser.clear()
 
 ## La grotte construite (attend le fil s'il tourne, la construit tout de suite sinon).
 func obtenir() -> Grotte:
 	if grotte != null:
+		_poser_coque()
 		return grotte
 	if _tache >= 0:
 		_integrer()
@@ -556,6 +587,7 @@ func obtenir() -> Grotte:
 		var g := _creer_grotte()
 		g.construire()
 		_poser(g)
+	_poser_coque()
 	return grotte
 
 func _interactif_sortie() -> void:
