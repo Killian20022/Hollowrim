@@ -129,16 +129,21 @@ func _ready() -> void:
 
 	_environnement()
 	_lune()
+	_chrono("  environnement+lune")
 	if not _arguments().has("sans-arriere-plan"):  # --sans-arriere-plan : mesures A/B de performance
 		arriere_plan = ArrierePlan.creer(self)
 		add_child(arriere_plan)
+	_chrono("  arriere-plan")
 	_terrain()
 	_chrono("terrain")
 	arbres = Vegetation.creer(self)
 	_chrono("arbres (placement+modeles+MultiMesh)")
 	Rochers.creer(self)
+	_chrono("  rochers")
 	SousBois.creer(self)  # lot E : après les rochers (touffes collées aux pierres)
+	_chrono("  sous-bois")
 	SolV2.creer(self)  # extérieurs v2 : touffes et rochers de la portion témoin
+	_chrono("  sol v2 (touffes, rochers)")
 	CercleRunique.creer(self)
 	_chrono("rochers+sous-bois+cercle")
 	Sol.appliquer(mat_terrain, self, arbres)
@@ -169,6 +174,8 @@ func _ready() -> void:
 	_chrono("draugrs du cercle")
 	_villageois()
 	_chrono("villageois")
+	if Chrono.actif:   # corps d'archétypes relus du cache disque (CachePersos) / bâtis puis rangés ; dernier corps non rangé et pourquoi
+		print("CHRONO cache des corps : %d lus, %d écrits%s" % [CachePersos.lus, CachePersos.ecrits, (" ; refus : " + CachePersos.refus) if CachePersos.refus != "" else ""])
 	_guerrier_pilote()
 	_mage_pilote()
 	_chasseresse_pilote()

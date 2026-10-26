@@ -41,6 +41,16 @@ static func vider() -> void:
 
 # ======================================================================================================== fabrique
 static func creer(options := {}) -> Node3D:
+	var c := CachePersos.lire("gardien", "res://scripts/gardien_nordique.gd", options, [])   # corps déjà bâti (cache disque, voir cache_persos.gd)
+	if c != null:
+		if _lib == null:
+			_lib = (c.get_node("Animations") as AnimationPlayer).get_animation_library("")   # clips à la lance partagés avec les Gardiens bâtis ensuite
+		return c
+	c = _creer(options)
+	CachePersos.ecrire("gardien", "res://scripts/gardien_nordique.gd", options, c, [])
+	return c
+
+static func _creer(options := {}) -> Node3D:
 	var C := Color.WHITE
 	var app := {"corps": "homme", "barbe": true, "cheveux": "Hair_Long", "teinte_cheveux": TEINTE_CHEVEUX, "peau": PEAU,
 		"tenue": {"tunique": C, "pantalon": C, "bottes": C, "ceinture": C, "brassards": C, "cape": C, "mante": C, "tablier": C, "epaulieres": C, "gants": C}}

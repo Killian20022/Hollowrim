@@ -68,6 +68,14 @@ static func vider() -> void:
 
 # ======================================================================================================== fabrique
 static func creer(options := {}) -> Node3D:
+	var c := CachePersos.lire("draugr", "res://scripts/draugr_nordique.gd", options, [])   # corps déjà bâti (cache disque, voir cache_persos.gd)
+	if c != null:
+		return c
+	c = _creer(options)
+	CachePersos.ecrire("draugr", "res://scripts/draugr_nordique.gd", options, c, [])
+	return c
+
+static func _creer(options := {}) -> Node3D:
 	var C := Color.WHITE
 	var femme: bool = options.get("corps", "homme") == "femme"
 	var casque: bool = options.get("casque", true)
