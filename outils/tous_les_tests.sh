@@ -60,6 +60,7 @@ TESTS=(
 	"test_persos_tous|--persos-tous"
 	"test_interieurs|--nouvelle"
 	"test_primitives|"
+	"test_sortie|--nouvelle"   # sortie Hollowrim : migration, copie de secours, options (dossiers temporaires)
 	"test_sauvegarde|ecrire;verifier"   # deux processus à la suite
 )
 # tests dont le résultat dépend du pas de physique : lancés en temps réel (test_ragdoll : OK aussi en --fixed-fps depuis la correction du signe des limites de charnière, 10/10 sous charge ; gardé en temps réel par prudence)
@@ -90,6 +91,11 @@ if [[ -n "${AVEC_FENETRE:-}" && ( -z "$MOTIF" || "test_biome" == *"$MOTIF"* ) ]]
 	timeout 300 "$G" --path "$P" --resolution 160x90 --script res://outils/test_biome.gd -- comparer captures/biome/ref_ancien_fenetre.sig --sans-zone --sans-cles > "$sortie" 2>&1
 	if grep -q "^OK" "$sortie" && ! grep -qE "DIFF|ERREUR|SCRIPT ERROR" "$sortie"; then s="OK    "; nok=$((nok+1)); else s="ÉCHEC "; nko=$((nko+1)); fi
 	RES+=("$s test_biome (fenêtre, $((SECONDS-d0)) s)")
+fi
+if [[ -n "${AVEC_FENETRE:-}" && ( -z "$MOTIF" || "test_menus" == *"$MOTIF"* ) ]]; then
+	d0=$SECONDS   # titre → nouvelle partie → pause → sauvegarde (+ copie de secours) → continuer → restaurer (4 lancements à fenêtre)
+	if bash "$ICI/outils/test_menus.sh" > "$LOGS/test_menus.log" 2>&1; then s="OK    "; nok=$((nok+1)); else s="ÉCHEC "; nko=$((nko+1)); fi
+	RES+=("$s test_menus (fenêtre, $((SECONDS-d0)) s)")
 fi
 echo "== Résumé des tests sans fenêtre"
 printf '%s\n' "${RES[@]}"

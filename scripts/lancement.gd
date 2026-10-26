@@ -8,9 +8,11 @@ const MUSIQUE := preload("res://scripts/musique.gd")
 func _init() -> void:
 	if Jeu.mode_outil():
 		return
-	var copies := Jeu.migrer(Jeu.dossier_ancien(), OS.get_user_data_dir())
-	if not copies.is_empty():
-		print("%s : sauvegarde reprise de l'ancien dossier (%s)" % [Jeu.nom(), ", ".join(copies)])
+	# test des menus (--test-titre=…) : aucune migration, les vrais fichiers du joueur ne sont jamais lus ni copiés
+	if Jeu.test_titre() == "":
+		var copies := Jeu.migrer(Jeu.dossier_ancien(), OS.get_user_data_dir())
+		if not copies.is_empty():
+			print("%s : sauvegarde reprise de l'ancien dossier (%s)" % [Jeu.nom(), ", ".join(copies)])
 	Jeu.charger_options()
 
 func _ready() -> void:

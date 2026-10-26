@@ -24,8 +24,9 @@ lancer() {   # $1 = étape
 	else
 		GODOT_TIMEOUT=300 bash "$SLOT" "$G" --path "$P" -- "--test-titre=$1" "--test-titre-sortie=$SORTIE" "--test-titre-secours=$SECOURS" >> "$JOURNAL" 2>&1
 	fi
-	echo "étape $1 : $((SECONDS - t0)) s" | tee -a "$JOURNAL"
+	echo "étape ${1%%:*} : $((SECONDS - t0)) s" | tee -a "$JOURNAL"
 }
+lancer "captures:$SORTIE"   # écran titre, options, crédits
 lancer nouvelle
 lancer continuer
 lancer restaurer

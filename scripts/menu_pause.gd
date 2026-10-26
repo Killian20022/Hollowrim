@@ -115,14 +115,18 @@ func _sauvegarder() -> void:
 	monde.sauvegarder()
 	_avis.text = "Partie sauvegardée" + ("" if Jeu.avertissement_secours == "" else " (copie de secours impossible)")
 
-func _retour_titre() -> void:
-	if monde != null:
+## Sauvegarde automatique en quittant la partie, sauf si le joueur est mort (on garderait une partie perdue).
+func _sauver_en_partant() -> void:
+	var j := _joueur()
+	if monde != null and not (j != null and j.get("mort")):
 		monde.sauvegarder()
+
+func _retour_titre() -> void:
+	_sauver_en_partant()
 	Jeu.relancer("")
 
 func _quitter() -> void:
-	if monde != null:
-		monde.sauvegarder()
+	_sauver_en_partant()
 	get_tree().quit()
 
 ## Échap / Start : ouvre ou ferme. Pendant un dialogue, Échap reste au dialogue (il le ferme).
