@@ -30,6 +30,11 @@ var _flammes: Array = []          # [pos, échelle, phase]
 var _halos: Array = []            # [centre, normale, w, h, couleur]
 var _mats_statiques := {}
 
+## Lot L6 : modules Blender du mobilier (sources_blender/scripts/mobilier_interieur.py → .dat, lu en bytes_to_var : aucun .glb,
+## aucun matériau neuf dans le fil). {module: [[matière, arrays], …]} ; chargé une fois, au premier intérieur bâti.
+const DAT_MOBILIER := "res://assets/modeles/mobilier_interieur.dat"
+static var _mods: Dictionary = {}
+
 static var _atlas: ImageTexture
 static var _halo: ImageTexture
 static var _rai: ImageTexture
@@ -47,7 +52,7 @@ static func _m(nom: String, teinte := Color.WHITE, texels := 32.0, relief := 0.8
 ## Toutes les matières d'intérieur (une fois par village).
 static func materiaux() -> Dictionary:
 	# os et parchemin : peints pour la crypte (images à mipmaps), réutilisés tels quels
-	for nom in ["os", "parchemin"]:
+	for nom in ["os", "parchemin", "argile"]:
 		if not TexturesBati._cache.has(nom):
 			var img: Image = ResourceLoader.load("res://assets/crypte/%s.res" % nom)
 			TexturesBati._cache[nom] = [ImageTexture.create_from_image(img), TexturesBati.relief_neutre()]
@@ -71,6 +76,8 @@ static func materiaux() -> Dictionary:
 	d["cuir"] = _m("cuir", Color(1.2, 1.08, 0.95))
 	d["foin"] = _m("foin", Color(0.9, 0.9, 0.82))
 	d["herbe"] = _m("foin", Color(0.55, 0.78, 0.45))
+	d["jute"] = _m("foin", Color(0.78, 0.66, 0.5), 64.0, 0.7)          # toile de sac (lot L6)
+	d["argile"] = _m("argile", Color(1.05, 0.95, 0.9), 64.0, 0.4)      # cruches et bols tournés (lot L6)
 	d["peau"] = _m("peau", Color(0.95, 0.85, 0.78), 64.0)
 	d["peau_claire"] = _m("peau", Color(1.25, 1.15, 1.05), 64.0)
 	d["peau_sombre"] = _m("peau", Color(0.55, 0.48, 0.46), 64.0)
@@ -256,6 +263,55 @@ func peau_murale(centre: Vector3, lacet: float, w: float, h: float, mat := "peau
 	for sx in [-1.0, 1.0]:
 		bx(centre + droite * sx * (w * 0.5 + 0.02) + n * 0.04, Vector3(0.04, h + 0.08, 0.04), "bois_sombre", lacet)
 
+# ------------------------------------------------------------------------------------------------ modules Blender (lot L6)
+
+static func _modules() -> Dictionary:
+	if _mods.is_empty():
+		var brut = bytes_to_var(FileAccess.get_file_as_bytes(DAT_MOBILIER))
+		if not brut is Dictionary:
+			push_error("Interieurs : %s illisible" % DAT_MOBILIER)
+			return _mods
+		var res := {}
+		for cle: String in brut:
+			if cle.begins_with("_"):
+				continue
+			var d: Array = brut[cle]
+			var arrays := []
+			arrays.resize(Mesh.ARRAY_MAX)
+			arrays[Mesh.ARRAY_VERTEX] = d[0]
+			arrays[Mesh.ARRAY_NORMAL] = d[1]
+			arrays[Mesh.ARRAY_COLOR] = d[2]
+			arrays[Mesh.ARRAY_INDEX] = d[3]
+			var mc := cle.split("/")
+			if not res.has(mc[0]):
+				res[mc[0]] = []
+			(res[mc[0]] as Array).append([mc[1], arrays])
+		_mods = res
+	return _mods
+
+## Pose un module Blender : `xf` dans le repère de la pièce ; `mats` remplace les matières génériques (PEAU, MAT, BOUCLIER).
+func modele_xf(nom: String, xf: Transform3D, mats := {}) -> void:
+	var mods := _modules()
+	if not mods.has(nom):
+		push_error("Interieurs : module %s absent de %s" % [nom, DAT_MOBILIER])
+		return
+	for e: Array in mods[nom]:
+		var mat: String = mats.get(e[0], e[0])
+		v._ajouter(_p(), e[1], xf, M[mat])
+
+## Module posé en `pos`, tourné de `lacet`, mis à l'échelle `ech` (dans son repère : X largeur, Y hauteur, Z profondeur).
+func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats := {}) -> void:
+	modele_xf(nom, Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(ech), pos), mats)
+
+## Variante tirée de la position (stable d'un lancement à l'autre) : "a", "b" ou "c".
+static func variante(pos: Vector3, n: int, sel := 0) -> String:
+	var h := absi(int(floorf(pos.x * 7.31 + pos.z * 13.17 + pos.y * 3.7)) + sel)
+	return "abc"[h % n]
+
+## Lacet de variété tiré de la position (petits objets ronds).
+static func lacet_libre(pos: Vector3) -> float:
+	return fposmod(pos.x * 4.1 + pos.z * 2.7, TAU)
+
 # ------------------------------------------------------------------------------------------------ feu et lumière
 
 func flamme(pos: Vector3, echelle := 1.0) -> void:
@@ -411,58 +467,65 @@ func poteaux_angle() -> void:
 func _sol(pos: Vector3) -> Vector3:
 	return Vector3(pos.x, ip.sol_y, pos.z) if pos.y < 0.2 else pos
 
-## Table sur tréteaux (long le long de X pour lacet 0).
+## Table sur tréteaux (long le long de X pour lacet 0) : plateau de planches, tréteaux, entretoise (modules L6).
 func table(pos: Vector3, long: float, larg: float, lacet := 0.0, haut := 0.78, solide_ := true) -> void:
 	pos = _sol(pos)
 	var b := Basis(Vector3.UP, lacet)
-	bx(pos + Vector3(0, haut - 0.05, 0), Vector3(long, 0.1, larg), "bois", lacet, solide_)
+	if solide_:
+		solide(pos + Vector3(0, haut - 0.05, 0), Vector3(long, 0.1, larg), lacet)
+	var va := variante(pos, 2)
+	modele("table_plateau_" + va, pos + Vector3(0, haut, 0), lacet, Vector3(long / 2.0, 1.0, larg / 0.8))
 	var n := maxi(2, int(long / 1.4) + 1)
 	for i in n:
 		var dx := -long * 0.5 + 0.25 + (long - 0.5) * float(i) / (n - 1)
-		for sz in [-1.0, 1.0]:
-			bx(pos + b * Vector3(dx, (haut - 0.1) * 0.5, sz * (larg * 0.5 - 0.1)), Vector3(0.1, haut - 0.1, 0.09), "bois_v", lacet)
-		bx(pos + b * Vector3(dx, 0.2, 0), Vector3(0.07, 0.07, larg - 0.18), "bois_sombre", lacet)
-	bx(pos + Vector3(0, 0.2, 0), Vector3(long - 0.5, 0.06, 0.08), "bois_sombre", lacet)
+		modele("table_treteau_" + va, pos + b * Vector3(dx, 0, 0), lacet, Vector3(1.0, (haut - 0.1) / 0.68, larg / 0.8))
+	modele("table_entretoise", pos + Vector3(0, 0.2, 0), lacet, Vector3(long - 0.5, 1.0, 1.0))
 
 func banc(pos: Vector3, long: float, lacet := 0.0, haut := 0.46, prof := 0.34, solide_ := true) -> void:
 	pos = _sol(pos)
 	var b := Basis(Vector3.UP, lacet)
-	bx(pos + Vector3(0, haut - 0.04, 0), Vector3(long, 0.08, prof), "bois", lacet, solide_)
+	if solide_:
+		solide(pos + Vector3(0, haut - 0.04, 0), Vector3(long, 0.08, prof), lacet)
+	modele("banc_assise_" + variante(pos, 2), pos + Vector3(0, haut, 0), lacet, Vector3(long / 2.0, 1.0, prof / 0.34))
 	for sx in [-1.0, 1.0]:
-		bx(pos + b * Vector3(sx * (long * 0.5 - 0.25), (haut - 0.08) * 0.5, 0), Vector3(0.09, haut - 0.08, prof - 0.06), "bois_v", lacet)
+		modele("banc_pied", pos + b * Vector3(sx * (long * 0.5 - 0.25), 0, 0), lacet, Vector3(1.0, (haut - 0.08) / 0.38, (prof - 0.06) / 0.28))
 
 func tabouret(pos: Vector3, haut := 0.45) -> void:
 	pos = _sol(pos)
-	cyl(pos + Vector3(0, haut - 0.03, 0), 0.19, 0.06, "bois", 8)
-	for k in 3:
-		var a := TAU * k / 3.0 + 0.3
-		bx(pos + Vector3(sin(a) * 0.1, (haut - 0.06) * 0.5, cos(a) * 0.1), Vector3(0.05, haut - 0.06, 0.05), "bois_v", a)
+	modele("tabouret_" + variante(pos, 2), pos, lacet_libre(pos), Vector3(1.0, haut / 0.45, 1.0))
 	solide_cyl(pos + Vector3(0, haut * 0.5, 0), 0.2, haut)
 
-## Coffre ferré : caisse, couvercle bombé, sangles, serrure.
-func coffre(pos: Vector3, lacet := 0.0, taille := Vector3(0.9, 0.46, 0.55), ouvert := false) -> void:
-	var b := Basis(Vector3.UP, lacet)
-	var w := taille.x
-	var h := taille.y
-	var d := taille.z
-	bx(pos + Vector3(0, h * 0.5, 0), Vector3(w, h, d), "bois_v", lacet, true)
-	bx(pos + Vector3(0, h + 0.06, 0), Vector3(w + 0.02, 0.12, d - 0.04), "bois", lacet)
-	bx(pos + Vector3(0, h + 0.14, 0), Vector3(w - 0.04, 0.06, d - 0.16), "bois", lacet)
-	for sx in [-1.0, 1.0]:
-		bx(pos + b * Vector3(sx * w * 0.34, h * 0.5 + 0.07, 0), Vector3(0.09, h + 0.18, d + 0.03), "fer", lacet)
-	bx(pos + b * Vector3(0, h * 0.8, d * 0.5 + 0.015), Vector3(0.1, 0.13, 0.03), "fer_noir", lacet)
-	bx(pos + Vector3(0, 0.03, 0), Vector3(w + 0.04, 0.06, d + 0.04), "fer_noir", lacet)
+## Coffre ferré : caisse de planches, couvercle bombé / plat / en bâtière, ferrures, serrure (modules L6).
+func coffre(pos: Vector3, lacet := 0.0, taille := Vector3(0.9, 0.46, 0.55), _ouvert := false) -> void:
+	solide(pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
+	modele("coffre_" + variante(pos, 3), pos, lacet, taille / Vector3(0.9, 0.46, 0.55))
 
+## Tonneau de douelles cerclé ; la variante à cannelle tourne sa cannelle vers le centre de la pièce.
 func tonneau(pos: Vector3, h := 0.9, r := 0.34, solide_ := true) -> void:
 	pos = _sol(pos)
-	cyl(pos + Vector3(0, h * 0.5, 0), r, h, "bois_v", 8, solide_, r * 0.84)
-	cyl(pos + Vector3(0, h * 0.5, 0), r * 1.02, h * 0.55, "bois_v", 8, false, r * 1.02)
-	for y in [0.14, 0.34, 0.66, 0.86]:
-		var f := 1.0 - 0.16 * pow(absf(y - 0.5) * 2.0, 1.4) * (r / r)
-		cyl(pos + Vector3(0, h * y, 0), r * (0.84 + 0.18 * (1.0 - pow(absf(y - 0.5) * 2.0, 2.0))) * 1.02, 0.045, "fer", 8)
-	cyl(pos + Vector3(0, h - 0.005, 0), r * 0.82, 0.02, "bois", 8)
+	if solide_:
+		solide_cyl(pos + Vector3(0, h * 0.5, 0), r, h)
+	var va := variante(pos, 3)
+	var lac := atan2(-pos.x, -pos.z) if va == "b" else lacet_libre(pos)
+	modele("tonneau_" + va, pos, lac, Vector3(r / 0.34, h / 0.9, r / 0.34))
 
 func etagere(pos: Vector3, lacet: float, larg: float, haut: float, niveaux := 3, prof := 0.32) -> void:
+	if niveaux != 4:
+		_etagere_boites(pos, lacet, larg, haut, niveaux, prof)
+		return
+	pos = _sol(pos)
+	modele("etagere_" + variante(pos, 2), pos, lacet, Vector3(larg / 1.5, haut / 2.0, prof / 0.3))
+	solide(pos + Vector3(0, haut * 0.5, 0), Vector3(larg, haut, prof), lacet)
+
+## Lit : montants, chevets, paillasse, couverture de peau drapée, coussin (modules L6). Tête vers -X local.
+func lit(pos: Vector3, lacet: float, long := 1.95, larg := 0.95, peau_mat := "peau", etat := 0) -> void:
+	var b := Basis(Vector3.UP, lacet)
+	solide(pos + Vector3(0, 0.3, 0), Vector3(long, 0.12, larg), lacet)
+	modele("lit_" + variante(pos, 2), pos, lacet, Vector3(long / 2.0, 1.0, larg / 1.0), {"PEAU": peau_mat})
+	if etat == 1:   # défait
+		modele("fourrure_froissee", pos + b * Vector3(0.25, 0.0, 0.1), lacet + 0.3, Vector3.ONE, {"PEAU": peau_mat})
+
+func _etagere_boites(pos: Vector3, lacet: float, larg: float, haut: float, niveaux := 3, prof := 0.32) -> void:
 	pos = _sol(pos)
 	var b := Basis(Vector3.UP, lacet)
 	for sx in [-1.0, 1.0]:
@@ -473,40 +536,11 @@ func etagere(pos: Vector3, lacet: float, larg: float, haut: float, niveaux := 3,
 	bx(pos + b * Vector3(0, haut * 0.5, -prof * 0.5 + 0.015), Vector3(larg - 0.08, haut - 0.1, 0.02), "bois_sombre", lacet)
 	solide(pos + Vector3(0, haut * 0.5, 0), Vector3(larg, haut, prof), lacet)
 
-## Lit : cadre, paillasse de foin, couverture de peau, oreiller. `tete` : sens de la tête (lacet).
-func lit(pos: Vector3, lacet: float, long := 1.95, larg := 0.95, peau_mat := "peau", etat := 0) -> void:
-	var b := Basis(Vector3.UP, lacet)
-	bx(pos + Vector3(0, 0.3, 0), Vector3(long, 0.12, larg), "bois", lacet, true)
-	for sx in [-1.0, 1.0]:
-		bx(pos + b * Vector3(sx * (long * 0.5 - 0.06), 0.46, 0), Vector3(0.1, 0.6, larg + 0.08), "bois_v", lacet)
-		for sz in [-1.0, 1.0]:
-			bx(pos + b * Vector3(sx * (long * 0.5 - 0.06), 0.15, sz * (larg * 0.5 - 0.02)), Vector3(0.1, 0.3, 0.1), "bois_v", lacet)
-	for sz in [-1.0, 1.0]:
-		bx(pos + b * Vector3(0, 0.42, sz * (larg * 0.5 + 0.02)), Vector3(long, 0.18, 0.06), "bois", lacet)
-	bx(pos + Vector3(0, 0.45, 0), Vector3(long - 0.2, 0.14, larg - 0.1), "foin", lacet)
-	bx(pos + b * Vector3(0.1, 0.55, 0), Vector3(long - 0.55, 0.07, larg - 0.08), peau_mat, lacet)
-	bx(pos + b * Vector3(-long * 0.5 + 0.35, 0.58, 0), Vector3(0.42, 0.12, larg - 0.3), "cuir", lacet, false, Vector3(0, 0, 0.08))
-	if etat == 1:   # défait
-		bx(pos + b * Vector3(0.25, 0.6, 0.1), Vector3(0.7, 0.1, 0.5), peau_mat, lacet + 0.3, false, Vector3(0.12, 0, 0.05))
-
 func bouclier(pos: Vector3, lacet: float, rayon := 0.36, mat := "bouclier_r") -> void:
-	var b := Basis(Vector3.UP, lacet) * Basis(Vector3.RIGHT, PI * 0.5)
-	var n := Basis(Vector3.UP, lacet) * Vector3.BACK
-	v._cylindre(_p(), rayon, rayon, 0.06, Transform3D(b, pos + n * 0.03), M[mat], 8)
-	v._cylindre(_p(), rayon + 0.02, rayon + 0.02, 0.04, Transform3D(b, pos + n * 0.045), M["fer"], 8)
-	v._cylindre(_p(), rayon * 0.8, rayon * 0.8, 0.05, Transform3D(b, pos + n * 0.065), M[mat], 8)
-	v._cylindre(_p(), 0.085, 0.1, 0.1, Transform3D(b, pos + n * 0.1), M["fer"], 8)
-	# croisillon de fer
-	bx(pos + n * 0.08, Vector3(rayon * 1.6, 0.045, 0.02), "fer", lacet)
-	bx(pos + n * 0.08, Vector3(0.045, rayon * 1.6, 0.02), "fer", lacet)
+	modele("bouclier_" + variante(pos, 2), pos, lacet, Vector3.ONE * (rayon / 0.36), {"BOUCLIER": mat})
 
 func crane(pos: Vector3, lacet := 0.0, e := 1.0) -> void:
-	var b := Basis(Vector3.UP, lacet)
-	bx(pos + Vector3(0, 0.06 * e, 0), Vector3(0.13, 0.11, 0.15) * e, "os", lacet)
-	bx(pos + b * Vector3(0, 0.0, 0.07 * e), Vector3(0.09, 0.07, 0.07) * e, "os", lacet)
-	bx(pos + b * Vector3(0, -0.035 * e, 0.05 * e), Vector3(0.08, 0.035, 0.09) * e, "os", lacet)
-	for sx in [-1.0, 1.0]:
-		bx(pos + b * Vector3(sx * 0.035 * e, 0.065 * e, 0.075 * e), Vector3(0.035, 0.035, 0.02) * e, "noir", lacet)
+	modele("crane", pos + Vector3(0, -0.05 * e, 0), lacet, Vector3.ONE * e)
 
 ## Ramure de cerf accrochée au mur (`lacet` = direction vers la pièce).
 func ramure(pos: Vector3, lacet: float, e := 1.0) -> void:
@@ -521,21 +555,15 @@ func ramure(pos: Vector3, lacet: float, e := 1.0) -> void:
 			bx(base + b * Vector3(sx * (0.2 + k * 0.045) * e, (0.32 + k * 0.07) * e, 0.05 * e), Vector3(0.028, 0.22, 0.028) * e, "os", lacet, false, Vector3(0.5, 0, -sx * 0.15))
 
 func hache(pos: Vector3, lacet: float, inclin := 0.0, e := 1.0) -> void:
-	var b := Basis(Vector3.UP, lacet)
-	bx(pos, Vector3(0.045, 0.82, 0.045) * e, "bois", lacet, false, Vector3(0, 0, inclin))
-	var tete := pos + b * Basis(Vector3.BACK, inclin) * Vector3(0.0, 0.3 * e, 0.0)
-	bx(tete + b * Vector3(0.0, 0.0, 0.06 * e), Vector3(0.06, 0.2, 0.16) * e, "fer", lacet, false, Vector3(0, 0, inclin))
+	modele_xf("hache", Transform3D(Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, inclin) * Basis.from_scale(Vector3.ONE * e), pos))
 
 func epee(pos: Vector3, lacet: float, inclin := 0.0, e := 1.0) -> void:
-	var b := Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, inclin)
-	bx(pos, Vector3(0.05, 0.85, 0.014) * e, "etain", lacet, false, Vector3(0, 0, inclin))
-	bx(pos + b * Vector3(0, -0.42 * e, 0), Vector3(0.22, 0.035, 0.035) * e, "fer_noir", lacet, false, Vector3(0, 0, inclin))
-	bx(pos + b * Vector3(0, -0.52 * e, 0), Vector3(0.04, 0.14, 0.04) * e, "cuir", lacet, false, Vector3(0, 0, inclin))
+	modele_xf("epee", Transform3D(Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, inclin) * Basis.from_scale(Vector3.ONE * e), pos))
 
 func lance(pos: Vector3, lacet: float, inclin := 0.0, long := 1.9) -> void:
 	var b := Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, inclin)
-	bx(pos, Vector3(0.035, long, 0.035), "bois", lacet, false, Vector3(0, 0, inclin))
-	bx(pos + b * Vector3(0, long * 0.5 + 0.12, 0), Vector3(0.07, 0.26, 0.015), "etain", lacet, false, Vector3(0, 0, inclin))
+	modele_xf("lance_hampe", Transform3D(b * Basis.from_scale(Vector3(1.0, long, 1.0)), pos))
+	modele_xf("lance_fer", Transform3D(b, pos + b * Vector3(0, long * 0.5, 0)))
 
 func arc(pos: Vector3, lacet: float, e := 1.0) -> void:
 	var b := Basis(Vector3.UP, lacet)
@@ -587,31 +615,25 @@ func balance(pos: Vector3) -> void:
 	cyl(pos + Vector3(0, 0.005, 0), 0.04, 0.01, "fer", 6)
 
 func assiette(pos: Vector3, mat := "etain") -> void:
-	cyl(pos + Vector3(0, 0.012, 0), 0.11, 0.024, mat, 8, false, 0.08)
+	modele("assiette", pos, 0.0, Vector3.ONE, {"MAT": mat})
 
 func chope(pos: Vector3, mat := "bois") -> void:
-	cyl(pos + Vector3(0, 0.07, 0), 0.05, 0.14, mat, 8, false, 0.042)
-	cyl(pos + Vector3(0, 0.02, 0), 0.045, 0.012, "fer", 8)
+	modele("chope_" + variante(pos, 2), pos, lacet_libre(pos), Vector3.ONE, {"MAT": mat})
 
 func chaudron(pos: Vector3, r := 0.3) -> void:
-	cyl(pos + Vector3(0, r * 0.6, 0), r, r * 1.1, "fer_noir", 8, false, r * 0.72)
-	cyl(pos + Vector3(0, r * 1.15, 0), r * 1.05, 0.045, "fer", 8)
-	cyl(pos + Vector3(0, r * 1.12, 0), r * 0.85, 0.03, "noir", 8)
-	cyl_h(pos + Vector3(0, r * 1.45, 0), 0.012, r * 2.0, "fer", 0.0, 4)
+	modele("chaudron", pos, lacet_libre(pos), Vector3.ONE * (r / 0.3))
 
 func bol(pos: Vector3) -> void:
-	cyl(pos + Vector3(0, 0.04, 0), 0.09, 0.08, "terre", 8, false, 0.06)
+	modele("bol", pos, lacet_libre(pos))
 
 func cruche(pos: Vector3, h := 0.3) -> void:
-	cyl(pos + Vector3(0, h * 0.4, 0), h * 0.45, h * 0.8, "bois_sombre", 8, false, h * 0.3)
-	cyl(pos + Vector3(0, h * 0.88, 0), h * 0.16, h * 0.28, "bois_sombre", 6, false, h * 0.2)
+	modele("cruche_" + variante(pos, 2), pos, lacet_libre(pos), Vector3.ONE * (h / 0.3))
 
 func livre(pos: Vector3, lacet := 0.0) -> void:
-	bx(pos + Vector3(0, 0.03, 0), Vector3(0.2, 0.05, 0.28), "cuir", lacet)
-	bx(pos + Vector3(0.0, 0.03, 0.0), Vector3(0.18, 0.04, 0.26), "parchemin", lacet)
+	modele("livre", pos, lacet)
 
 func parchemin(pos: Vector3, lacet := 0.0) -> void:
-	cyl_h(pos + Vector3(0, 0.03, 0), 0.025, 0.26, "parchemin", lacet, 6)
+	modele("parchemin", pos, lacet)
 
 ## Peau posée au sol (y = 0 : sur le plancher).
 func peau_sol(pos: Vector3, taille: Vector2, lacet := 0.0, mat := "peau") -> void:
@@ -627,9 +649,8 @@ func paille(pos: Vector3, taille: Vector2) -> void:
 
 func sac(pos: Vector3, graine := 0.0, h := 0.5) -> void:
 	var lac := graine * 1.7
-	bx(pos + Vector3(0, h * 0.5, 0), Vector3(0.42, h, 0.3), "foin", lac, true, Vector3(0, 0, 0.05))
-	bx(pos + Vector3(0, h * 0.5 + h * 0.02, 0), Vector3(0.38, h * 0.9, 0.34), "cuir", lac + 0.2)
-	cyl(pos + Vector3(0, h + 0.03, 0), 0.07, 0.08, "foin", 6, false, 0.045)
+	v._collision(_p(), BoxShape3D.new(), Transform3D(Basis.from_euler(Vector3(0, lac, 0.05)), pos + Vector3(0, h * 0.5, 0)), Vector3(0.42, h, 0.3))
+	modele("sac_" + "abc"[int(absf(graine) * 3.0) % 3], pos, lac, Vector3(1.0, h / 0.5, 1.0))
 
 func os_sol(pos: Vector3, lacet := 0.0) -> void:
 	bx(pos + Vector3(0, 0.02, 0), Vector3(0.2, 0.035, 0.045), "os", lacet)

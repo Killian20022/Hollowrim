@@ -150,29 +150,18 @@ static func _foyer(b: Interieurs, xh: float) -> void:
 	b.cyl(Vector3(xh + 1.2, b.y0 + 0.6, 0), 0.02, 2.4, "fer_noir", 4)
 	b.chaudron(Vector3(xh + 1.2, F + 0.62, 0), 0.28)
 
+## Estrade de planches à deux marches et haut-siège sculpté de la cheffe (modules Blender L6 : estrade_halle, trone_halle) ;
+## collisions inchangées (marches, assise, bloc du dossier).
 static func _estrade(b: Interieurs) -> void:
 	var F := Interieurs.F
-	var z0 := -3.35
-	# deux marches de bois sur toute la largeur de l'estrade
-	b.bx(Vector3(0, F + 0.11, -2.65), Vector3(3.1, 0.22, 1.3), "bois", 0.0, true)
-	b.bx(Vector3(0, F + 0.05, -1.85), Vector3(3.1, 0.1, 0.34), "bois", 0.0, true)
-	b.bx(Vector3(0, F + 0.225, -2.65), Vector3(3.1, 0.015, 1.3), "bois_clair")
+	b.solide(Vector3(0, F + 0.11, -2.65), Vector3(3.1, 0.22, 1.3))
+	b.solide(Vector3(0, F + 0.05, -1.85), Vector3(3.1, 0.1, 0.34))
+	b.modele("estrade_halle", Vector3(0, F, -2.65))
 	# peau d'ours devant le trône
 	b.peau_sol(Vector3(0, F + 0.23, -2.45), Vector2(1.5, 1.1), 0.0, "peau_sombre")
-	# trône : assise, dossier haut en planches debout, deux poteaux sculptés, accoudoirs, peau sur le siège
 	var y := F + 0.22
-	b.bx(Vector3(0, y + 0.45, -2.95), Vector3(0.78, 0.1, 0.66), "bois_clair", 0.0, true)
-	b.bx(Vector3(0, y + 0.22, -2.95), Vector3(0.7, 0.34, 0.58), "bois_v")
-	b.bx(Vector3(0, y + 1.2, -3.24), Vector3(0.78, 1.5, 0.1), "bois_clair")
-	b.bx(Vector3(0, y + 2.0, -3.24), Vector3(0.62, 0.16, 0.12), "bois_clair")
-	for sx in [-1.0, 1.0]:
-		b.poteau(Vector3(sx * 0.46, 0, -3.18), 0.08, y + 2.15, "bois_clair", false, y)
-		b.bx(Vector3(sx * 0.46, y + 2.28, -3.1), Vector3(0.14, 0.14, 0.34), "bois_clair", 0.0, false, Vector3(-0.35, 0, 0))   # tête de dragon
-		b.bx(Vector3(sx * 0.46, y + 2.2, -2.92), Vector3(0.09, 0.09, 0.22), "bois_clair", 0.0, false, Vector3(0.25, 0, 0))
-		b.bx(Vector3(sx * 0.44, y + 0.72, -2.92), Vector3(0.1, 0.07, 0.56), "bois_clair")        # accoudoir
-		b.bx(Vector3(sx * 0.44, y + 0.6, -2.7), Vector3(0.08, 0.26, 0.08), "bois_clair")
-	b.bx(Vector3(0, y + 0.53, -2.95), Vector3(0.6, 0.06, 0.52), "peau_claire")
-	b.bx(Vector3(0, y + 1.0, -3.17), Vector3(0.52, 0.5, 0.05), "peau_claire", 0.0, false, Vector3(-0.1, 0, 0))
+	b.solide(Vector3(0, y + 0.45, -2.95), Vector3(0.78, 0.1, 0.66))
+	b.modele("trone_halle", Vector3(0, y, -2.95))
 	b.solide(Vector3(0, y + 1.2, -3.1), Vector3(1.0, 2.4, 0.5))
 
 static func _couvert(b: Interieurs, cx: float, cz: float, long: float) -> void:

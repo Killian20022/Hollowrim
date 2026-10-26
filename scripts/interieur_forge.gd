@@ -93,43 +93,23 @@ static func _foyer(b: Interieurs) -> void:
 	b.bx(Vector3(xh - 0.9, 0.5, zh + 0.68), Vector3(0.18, 0.22, 0.03), "fer_noir", 0.0, false, Vector3(0, 0, 0.12))
 	b.solide(Vector3(xh, 1.0, zh + 0.1), Vector3(1.9, 2.0, 1.2))
 
+## Billot cerclé et enclume à bigorne (module L6 « enclume ») ; collisions inchangées.
 static func _enclume(b: Interieurs, pos: Vector3) -> void:
-	b.cyl(pos + Vector3(0, 0.3, 0), 0.25, 0.6, "rondin_sombre", 8, true, 0.28)
-	b.cyl(pos + Vector3(0, 0.12, 0), 0.31, 0.04, "fer_noir", 8)
-	b.bx(pos + Vector3(0, 0.67, 0), Vector3(0.36, 0.14, 0.56), "fer")
-	b.bx(pos + Vector3(0, 0.79, 0), Vector3(0.2, 0.12, 0.34), "fer")
-	b.bx(pos + Vector3(0, 0.93, 0), Vector3(0.36, 0.14, 0.62), "fer_noir")
-	b.bx(pos + Vector3(0, 0.935, 0), Vector3(0.34, 0.12, 0.6), "etain")
-	b.bx(pos + Vector3(0, 0.915, 0.4), Vector3(0.15, 0.1, 0.24), "fer", 0.0, false, Vector3(0.1, 0, 0))
-	b.bx(pos + Vector3(0, 0.89, 0.56), Vector3(0.08, 0.07, 0.16), "fer", 0.0, false, Vector3(0.2, 0, 0))
-	# barre chauffée à blanc posée dessus, marteau à côté
-	b.bx(pos + Vector3(0.02, 1.01, 0.0), Vector3(0.05, 0.03, 0.55), "braises", 0.2)
-	b.bx(pos + Vector3(0.4, 0.06, 0.15), Vector3(0.05, 0.04, 0.5), "bois", 0.3)
+	b.solide_cyl(pos + Vector3(0, 0.3, 0), 0.28, 0.6)
+	b.modele("enclume", pos)
+	b.bx(pos + Vector3(0.4, 0.06, 0.15), Vector3(0.05, 0.04, 0.5), "bois", 0.3)        # marteau au pied du billot
 	b.bx(pos + Vector3(0.4, 0.07, 0.38), Vector3(0.09, 0.09, 0.14), "fer", 0.3)
 	b.solide(pos + Vector3(0, 0.5, 0), Vector3(0.6, 1.0, 0.8))
 
+## Soufflet sur tréteau : planches en poire, cuir plissé, buse vers le foyer (-x) (module L6 « soufflet »).
 static func _soufflet(b: Interieurs, pos: Vector3) -> void:
-	# tréteau, deux planches en V, flanc de cuir plissé, buse de fer vers le foyer (-x), manche de bois (+x)
-	b.bx(pos + Vector3(0.0, 0.3, 0), Vector3(0.7, 0.6, 0.12), "bois_v", 0.0, true)
-	b.bx(pos + Vector3(0, 0.66, 0), Vector3(0.75, 0.05, 0.4), "bois", 0.0, false, Vector3(0, 0, 0.0))
-	b.bx(pos + Vector3(0, 0.86, 0), Vector3(0.75, 0.05, 0.4), "bois", 0.0, false, Vector3(0, 0, 0.12))
-	for k in 3:
-		b.bx(pos + Vector3(0.04, 0.72 + k * 0.05, 0.19 - 0.0), Vector3(0.66 - k * 0.0, 0.05, 0.03), "cuir")
-		b.bx(pos + Vector3(0.04, 0.72 + k * 0.05, -0.19), Vector3(0.66, 0.05, 0.03), "cuir")
-	b.bx(pos + Vector3(0.0, 0.76, 0.0), Vector3(0.6, 0.16, 0.36), "cuir")
-	b.cyl_h(pos + Vector3(-0.5, 0.7, 0), 0.04, 0.35, "fer_noir", 0.0, 6)
-	b.cyl(pos + Vector3(0.5, 1.0, 0), 0.025, 0.55, "bois", 6, false, 0.025, Basis(Vector3.BACK, -0.25))
+	b.solide(pos + Vector3(0.0, 0.3, 0), Vector3(0.7, 0.6, 0.12))
+	b.modele("soufflet", pos)
 
+## Bac de trempe de planches cerclé, eau noire, tenailles (module L6 « bac_trempe ») ; seau à côté.
 static func _bac_trempe(b: Interieurs, pos: Vector3) -> void:
-	# bac de planches cerclé de fer, eau noire à 7 cm du bord ; tenailles qui trempent
-	b.bx(pos + Vector3(0, 0.22, 0), Vector3(0.55, 0.44, 1.1), "bois_v", 0.0, true)
-	b.bx(pos + Vector3(0, 0.425, 0), Vector3(0.45, 0.02, 1.0), "eau")
-	for z in [-0.4, 0.4]:
-		b.bx(pos + Vector3(0, 0.22, z), Vector3(0.6, 0.12, 0.05), "fer")
-	for z in [-0.58, 0.58]:
-		b.bx(pos + Vector3(0, 0.46, z * 0.97), Vector3(0.6, 0.06, 0.06), "bois_sombre")
-	b.bx(pos + Vector3(-0.0, 0.3, 0.2), Vector3(0.03, 0.4, 0.03), "fer_noir", 0.5, false, Vector3(0.0, 0, 0.3))
-	b.bx(pos + Vector3(0.1, 0.3, 0.2), Vector3(0.03, 0.4, 0.03), "fer_noir", 0.0, false, Vector3(0.0, 0, -0.3))
+	b.solide(pos + Vector3(0, 0.22, 0), Vector3(0.55, 0.44, 1.1))
+	b.modele("bac_trempe", pos)
 	b.cyl(pos + Vector3(0.0, 0.47, -0.5), 0.07, 0.1, "bois", 8, false, 0.06)      # seau
 
 static func _charbon(b: Interieurs, pos: Vector3) -> void:
@@ -158,14 +138,13 @@ static func _etabli(b: Interieurs, pos: Vector3) -> void:
 	b.bougie(pos + Vector3(-0.7, y, 0.05), 0.12)
 	b.tabouret(pos + Vector3(-0.1, 0, 0.75))
 
+## Meule de grès sur bâti, manivelle, auge (module L6 « meule ») ; collisions inchangées.
 static func _meule(b: Interieurs, pos: Vector3) -> void:
-	for k in 2:
-		b.bx(pos + Vector3(0.0, 0.25, -0.22 + k * 0.44), Vector3(0.1, 0.5, 0.08), "bois_v", 0.0, false, Vector3(0, 0, 0.0))
-	b.bx(pos + Vector3(0, 0.5, 0.0), Vector3(0.1, 0.05, 0.6), "bois")
-	b.cyl_h(pos + Vector3(0, 0.62, 0), 0.31, 0.12, "brute", PI * 0.5, 8, true)
-	b.cyl_h(pos + Vector3(0, 0.62, 0), 0.04, 0.5, "fer_noir", PI * 0.5, 6)
-	b.bx(pos + Vector3(0.0, 0.2, 0.0), Vector3(0.34, 0.08, 0.3), "bois_v")                           # auge d'eau
-	b.bx(pos + Vector3(0.0, 0.88, 0.3), Vector3(0.06, 0.08, 0.16), "bois", 0.0, false, Vector3(0, 0, 0))
+	var f := CylinderShape3D.new()
+	f.radius = 0.31
+	f.height = 0.12
+	b.v._collision(b.ip.racine, f, Transform3D(Basis(Vector3.UP, PI * 0.5) * Basis(Vector3.BACK, PI * 0.5), pos + Vector3(0, 0.62, 0)), Vector3.ZERO)
+	b.modele("meule", pos)
 	b.solide(pos + Vector3(0, 0.45, 0), Vector3(0.5, 0.9, 0.7))
 
 static func _outils(b: Interieurs, pos: Vector3, lacet: float) -> void:
