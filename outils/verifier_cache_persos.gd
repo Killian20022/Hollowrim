@@ -14,8 +14,14 @@ const CORPS := {
 	"chasseresse_chef": ["chasseresse", {"arc": false, "carquois": false, "couteau": false}],
 	"draugr_bras": ["draugr", {"bouclier": "bras", "epee": true, "casque": true}],
 	"draugr_nu": ["draugr", {"bouclier": "", "epee": false, "casque": false}],
+	"pnj_chef": ["pnj", {"id": "chef"}],
+	"pnj_forgeron": ["pnj", {"id": "forgeron"}],
+	"pnj_garde": ["pnj", {"id": "garde"}],
+	"pnj_garde_lance": ["pnj", {"id": "garde_lance"}],
+	"pnj_eirik": ["pnj", {"id": "eirik"}],
 }
 var ecarts: Array = []
+var defauts := 0   # paramètres null d'un côté, égaux au défaut de l'uniforme de l'autre (même rendu)
 func _initialize() -> void:
 	_lancer.call_deferred()
 func _fab(a: String, o: Dictionary) -> Node3D:
@@ -23,6 +29,7 @@ func _fab(a: String, o: Dictionary) -> Node3D:
 		"guerrier": return GuerrierNordique.creer(o)
 		"gardien": return GardienNordique.creer(o)
 		"chasseresse": return ChasseresseNordique.creer(o)
+		"pnj": return PnjNordique.creer(o["id"])
 	return DraugrNordique.creer(o)
 func _lancer() -> void:
 	var differents := 0
@@ -54,7 +61,7 @@ func _lancer() -> void:
 		if not ecarts.is_empty():
 			differents += 1
 		premier.free(); bati.free(); lu.free()
-	print("CACHE bilan : %d corps différents sur %d" % [differents, CORPS.size()])
+	print("CACHE bilan : %d corps différents sur %d (%d paramètres null d'un côté = défaut de l'uniforme de l'autre)" % [differents, CORPS.size(), defauts])
 	quit(differents)
 
 ## Chemin sans les numéros des noms automatiques (@BoneAttachment3D@3 : compteur global du moteur, diffère entre deux constructions).
@@ -168,12 +175,46 @@ func _cmp_mat(ch: String, a: Material, b: Material) -> void:
 		for u: Dictionary in sa.shader.get_shader_uniform_list():
 			var va: Variant = sa.get_shader_parameter(u["name"])
 			var vb: Variant = sb.get_shader_parameter(u["name"])
-			if not _egal(va, vb): _e(ch, "paramètre " + u["name"], va, vb)
+			if not _egal(va, vb):
+				# null = valeur par défaut de l'uniforme : un vrai rendu inscrit parfois ces défauts dans la matière bâtie (en listant ses
+				# propriétés), la matière relue les laisse à null ; même rendu si la valeur posée EST le défaut
+				var defaut: Variant = RenderingServer.shader_get_parameter_default(sa.shader.get_rid(), u["name"])
+				if (va == null and typeof(vb) == typeof(defaut) and _meme_valeur(vb, defaut)) or (vb == null and typeof(va) == typeof(defaut) and _meme_valeur(va, defaut)):
+					defauts += 1
+					if defauts <= 3:
+						print("    (défaut) %s %s : %s %s / %s %s, défaut %s %s" % [ch, u["name"], va, type_string(typeof(va)), vb, type_string(typeof(vb)), defaut, type_string(typeof(defaut))])
+				else:
+					_e(ch, "paramètre " + u["name"], va, vb)
 	else:
 		for p: Dictionary in a.get_property_list():
 			if p["usage"] & PROPERTY_USAGE_STORAGE and p["name"] != "resource_name" and p["name"] != "resource_path" and p["name"] != "next_pass":
 				if not _egal(a.get(p["name"]), b.get(p["name"])): _e(ch, p["name"], a.get(p["name"]), b.get(p["name"]))
 	_cmp_mat(ch + " >next", a.next_pass, b.next_pass)
+
+## Même valeur numérique (Color / Vector3 / Vector4 / float comparés composante par composante, à 1e-6 près).
+func _meme_valeur(a: Variant, b: Variant) -> bool:
+	if a == null or b == null:
+		return a == b
+	var la := _composantes(a)
+	var lb := _composantes(b)
+	if la.is_empty() or lb.is_empty():
+		return _egal(a, b)
+	var n := mini(la.size(), lb.size())
+	if absi(la.size() - lb.size()) > 1:
+		return false
+	for i in n:
+		if absf(la[i] - lb[i]) > 1e-6:
+			return false
+	return la.size() == lb.size() or (la.size() > n and is_equal_approx(la[n], 1.0)) or (lb.size() > n and is_equal_approx(lb[n], 1.0))
+
+func _composantes(v: Variant) -> Array:
+	match typeof(v):
+		TYPE_FLOAT, TYPE_INT, TYPE_BOOL: return [float(v)]
+		TYPE_VECTOR2: return [v.x, v.y]
+		TYPE_VECTOR3: return [v.x, v.y, v.z]
+		TYPE_VECTOR4: return [v.x, v.y, v.z, v.w]
+		TYPE_COLOR: return [v.r, v.g, v.b, v.a]
+	return []
 
 func _egal(a: Variant, b: Variant) -> bool:
 	if typeof(a) != typeof(b): return false

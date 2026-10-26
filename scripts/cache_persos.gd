@@ -8,7 +8,7 @@ class_name CachePersos
 ## SÛRETÉ (jamais de corps faux, au pire le calcul d'avant) :
 ## - Signature SHA-256 du code qui bâtit le corps : le script de l'archétype et TOUS les scripts qu'il nomme (fermeture des class_name
 ##   et des chemins res:// cités), les .gdshader cités (contenu), les autres fichiers cités (taille + date), les dossiers cités
-##   par un chemin calculé (liste nom + taille), la version de Godot et VERSION ci-dessous. Signature différente = cache ignoré,
+##   par un chemin calculé (liste nom + taille + date), la version de Godot et VERSION ci-dessous (jeu exporté : + exécutable et .pck). Signature différente = cache ignoré,
 ##   corps rebâti puis réécrit. Clé du fichier = archétype + options (triées) + réglages statiques passés par l'archétype.
 ## - Pas de cache pour un corps qu'on ne sait pas restituer à l'identique : nœud scripté dont le script n'est pas un fichier ou dont
 ##   une variable tient un objet, connexion de signal, méta qui tient un objet autre qu'une ressource.
@@ -23,7 +23,7 @@ class_name CachePersos
 ## `--sans-cache-persos` (argument utilisateur) : ni lecture ni écriture (mesures A/B, comparaisons).
 ## Outil : outils/verifier_cache_persos.gd (corps relu == corps bâti, maillage par maillage, matière par matière).
 
-const VERSION := 1
+const VERSION := 2
 static var actif := not OS.get_cmdline_user_args().has("--sans-cache-persos")
 static var lus := 0          # mesures
 static var ecrits := 0
@@ -32,6 +32,8 @@ static var _mx := Mutex.new()
 static var _dossier := ""
 static var _signatures := {}     # archétype -> signature
 static var _classes := {}        # class_name -> chemin du script
+static var _re_classes: RegEx = null   # \b(Classe1|Classe2|…)\b
+static var _deps := {}           # chemin d'un script -> fichiers qu'il cite
 static var _empreintes := {}     # chemin -> octets d'empreinte (mémo, plusieurs archétypes partagent des scripts)
 static var _scenes := {}         # chemin du fichier -> PackedScene lue (plusieurs copies d'un même corps)
 static var _bibs := {}           # description -> AnimationLibrary recomposée (partagée entre copies)
@@ -373,9 +375,12 @@ static func _ranger_shaders(noeuds: Array[Node]) -> bool:
 	for c: Node in noeuds:
 		for m: Material in _matieres(c):
 			var sm := m as ShaderMaterial
-			if sm == null or sm.shader == null or sm.shader.resource_path != "":
+			if sm == null or sm.shader == null:
 				continue
 			var p := _chemin_shader(sm.shader)
+			if sm.shader.resource_path != "" and sm.shader.resource_path != p:
+				continue      # shader d'un fichier du projet : cité tel quel
+			# (un shader amorcé a déjà son chemin mais pas forcément son fichier : il est écrit ici)
 			if not FileAccess.file_exists(p):
 				DirAccess.make_dir_recursive_absolute(p.get_base_dir())
 				if ResourceSaver.save(sm.shader, p) != OK:
@@ -395,9 +400,8 @@ static func _signature(archetype: String, script_archetype: String) -> String:
 		var ctx := HashingContext.new()
 		ctx.start(HashingContext.HASH_SHA256)
 		ctx.update(var_to_bytes([VERSION, Engine.get_version_info()["string"], archetype]))
-		var re_cls := RegEx.create_from_string("\\b[A-Z][A-Za-z0-9_]+\\b")
-		var re_res := RegEx.create_from_string("res://[^\"'%]+")
-		# fermeture : chaque script trouvé est relu pour y chercher d'autres noms de classes et chemins
+		# fermeture : chaque script trouvé est relu pour y chercher d'autres noms de classes et chemins (dépendances mémorisées par
+		# fichier : les archétypes partagent la plupart de leurs scripts)
 		var vus := {}
 		var a_voir: Array = [script_archetype]
 		while not a_voir.is_empty():
@@ -405,17 +409,15 @@ static func _signature(archetype: String, script_archetype: String) -> String:
 			if vus.has(ch):
 				continue
 			vus[ch] = true
-			if not ch.ends_with(".gd"):
-				continue
-			var src := FileAccess.get_file_as_string(ch)
-			for m: RegExMatch in re_cls.search_all(src):
-				var p: String = _classes.get(m.get_string(), "")
-				if p != "" and not vus.has(p):
-					a_voir.append(p)
-			for m: RegExMatch in re_res.search_all(src):
-				var p := m.get_string()
+			for p: String in _dependances(ch):
 				if not vus.has(p):
 					a_voir.append(p)
+		if not OS.has_feature("editor"):
+			# jeu exporté : les scripts sont en jetons binaires (pas relus ci-dessus) ; l'exécutable et son paquet changent à chaque version
+			var exe := OS.get_executable_path()
+			for f: String in [exe, exe.get_basename() + ".pck"]:
+				if FileAccess.file_exists(f):
+					ctx.update(var_to_bytes([f.get_file(), FileAccess.get_size(f), FileAccess.get_modified_time(f)]))
 		var ordre := vus.keys()
 		ordre.sort()
 		for ch: String in ordre:
@@ -427,6 +429,46 @@ static func _signature(archetype: String, script_archetype: String) -> String:
 		_signatures[archetype] = sig
 	_mx.unlock()
 	return sig
+
+## Classes nommées et chemins res:// cités par un script (recherche de texte : un faux positif ajoute seulement un fichier à la signature).
+static func _dependances(ch: String) -> Array:
+	if _deps.has(ch):
+		return _deps[ch]
+	var l: Array = []
+	# cache_persos.gd lui-même : compté (contenu) mais pas suivi (il nomme tous les archétypes)
+	if ch.ends_with(".gd") and FileAccess.file_exists(ch) and ch != (CachePersos as Script).resource_path:
+		var src := _sans_commentaires(FileAccess.get_file_as_string(ch))
+		if _re_classes == null:
+			_re_classes = RegEx.create_from_string("\\b(%s)\\b" % "|".join(PackedStringArray(_classes.keys())))
+		for m: RegExMatch in _re_classes.search_all(src):
+			var p: String = _classes[m.get_string()]
+			if not l.has(p):
+				l.append(p)
+		var i := src.find("res://")
+		while i >= 0:
+			var j := i + 6
+			while j < src.length() and not (src[j] in ["\"", "'", "%", "\n"]):
+				j += 1
+			l.append(src.substr(i, j - i))
+			i = src.find("res://", j)
+	_deps[ch] = l
+	return l
+
+## Source sans ses commentaires (« # » en début de ligne ou après un blanc, suivi d'un blanc ou d'un autre « # » ; les couleurs
+## "#1c150e" restent) : les commentaires citent beaucoup d'autres scripts, qui n'entrent pas dans la construction.
+static func _sans_commentaires(src: String) -> String:
+	var lignes := src.split("\n")
+	for i in lignes.size():
+		var l := lignes[i]
+		var k := l.find("#")
+		while k >= 0:
+			var avant := l.unicode_at(k - 1) if k > 0 else 32
+			var apres := l.unicode_at(k + 1) if k + 1 < l.length() else 32
+			if (avant == 32 or avant == 9) and (apres == 32 or apres == 35 or apres == 9):
+				lignes[i] = l.substr(0, k)
+				break
+			k = l.find("#", k + 1)
+	return "\n".join(lignes)
 
 ## Empreinte d'un fichier cité : contenu (scripts, shaders, petits fichiers), sinon taille + date ; dossier : liste nom + taille.
 static func _empreinte(ch: String) -> PackedByteArray:
@@ -450,7 +492,7 @@ static func _empreinte(ch: String) -> PackedByteArray:
 		if DirAccess.dir_exists_absolute(dossier):
 			var l: Array = []
 			for f in DirAccess.get_files_at(dossier):
-				l.append([f, FileAccess.get_size(dossier.path_join(f))])
+				l.append([f, FileAccess.get_size(dossier.path_join(f)), FileAccess.get_modified_time(dossier.path_join(f))])
 			b = var_to_bytes(l)
 	_empreintes[ch] = b
 	return b
