@@ -157,7 +157,9 @@ func _ready() -> void:
 	_chrono("joueur")
 	_neige()
 	_interface()
+	_chrono("neige+interface")
 	_draugrs()
+	_chrono("draugrs du cercle")
 	_villageois()
 	_chrono("villageois")
 	_guerrier_pilote()
@@ -652,7 +654,9 @@ func _villageois() -> void:
 		v.position = poste + Vector3(0, 0.05, 0)
 		add_child(v)
 	if not _arguments().has("sans-gardes"):   # D/gardes_village : la garde du village (data/gardes.json) ; --sans-gardes : A/B
+		_chrono("  villageois : PNJ")
 		GardesVillage.peupler(self)
+		_chrono("  villageois : gardes")
 
 # --- guerrier pilote (refonte des personnages) ------------------------------------
 

@@ -58,8 +58,28 @@ static func bibliotheque() -> AnimationLibrary:
 		source.free()
 	return _bibliotheque
 
+## Scènes importées (corps ~16 Mo, cheveux, casques, bouclier) gardées en mémoire : `load(x).instantiate()` seul relâchait la
+## PackedScene aussitôt (le nœud créé ne la retient pas) et le personnage suivant relisait tout le fichier (corps : 0,6-1 s ; une
+## coupe de cheveux : 0,2-0,6 s), à chaque PNJ quand le préchargement (Prechargement, coupé en --headless) ne la retenait pas.
+## Mêmes fichiers, même importeur : aucun effet sur le rendu. Lecture seule une fois remplie ; verrou : les archétypes se
+## construisent aussi dans des fils (EnnemisNordiques.prechauffer_fil).
+static var _scenes := {}
+static var _scenes_mx := Mutex.new()
+
+static func scene(chemin: String) -> PackedScene:
+	_scenes_mx.lock()
+	var ps: PackedScene = _scenes.get(chemin)
+	_scenes_mx.unlock()
+	if ps == null:
+		ps = load(chemin) as PackedScene
+		if ps != null:
+			_scenes_mx.lock()
+			_scenes[chemin] = ps
+			_scenes_mx.unlock()
+	return ps
+
 static func creer(options: Dictionary) -> Node3D:
-	var racine: Node3D = load(CORPS[options.get("corps", "homme")]).instantiate()
+	var racine: Node3D = scene(CORPS[options.get("corps", "homme")]).instantiate()
 	var squelette: Skeleton3D = racine.find_child("Skeleton3D", true, false)
 	var draugr: bool = options.get("draugr", false)
 	var tenue: Dictionary = options.get("tenue", {})
@@ -176,7 +196,7 @@ static func _accrocher(squelette: Skeleton3D, os: String, chemin: String, repere
 	var accroche := BoneAttachment3D.new()
 	accroche.bone_name = os
 	squelette.add_child(accroche)
-	var piece: Node3D = load(chemin).instantiate()
+	var piece: Node3D = scene(chemin).instantiate()
 	piece.transform = squelette.get_bone_global_rest(squelette.find_bone(os)).affine_inverse() * repere
 	accroche.add_child(piece)
 	for mi: MeshInstance3D in piece.find_children("*", "MeshInstance3D", true, false):
@@ -205,7 +225,7 @@ static func _corriger_neige(squelette: Skeleton3D) -> void:
 
 ## Coupe de cheveux ou barbe : maillage d'un autre fichier, rattaché à notre squelette.
 static func _greffer(squelette: Skeleton3D, nom: String, teinte: Color) -> void:
-	var source: Node = load("res://assets/modeles/humains/cheveux/%s.gltf" % nom).instantiate()
+	var source: Node = scene("res://assets/modeles/humains/cheveux/%s.gltf" % nom).instantiate()
 	var mi := source.find_child(nom, true, false) as MeshInstance3D
 	if mi == null:
 		mi = source.find_children("*", "MeshInstance3D", true, false)[0]
@@ -222,6 +242,9 @@ static func _greffer(squelette: Skeleton3D, nom: String, teinte: Color) -> void:
 
 static func vider() -> void:
 	_bibliotheque = null
+	_scenes_mx.lock()
+	_scenes.clear()
+	_scenes_mx.unlock()
 	_mats_peau.clear()
 	_shaders_perso.clear()
 	PersonnagesTextures.vider()
