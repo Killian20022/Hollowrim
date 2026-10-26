@@ -48,8 +48,8 @@ static func lit(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, teinte := Color(0.
 	for sx in [-0.95, 0.95]:
 		dcr.boite("bois", pos + b * Vector3(sx, 0.22, 0), Vector3(0.08, 0.44, 0.88), lacet)
 	dcr.boite("bois", pos + b * Vector3(-0.95, 0.5, 0), Vector3(0.08, 0.6, 0.88), lacet)
-	dcr.boite("parchemin", pos + Vector3(0, 0.4, 0), Vector3(1.8, 0.12, 0.78), lacet, false, Vector3.ZERO)
-	dcr.boite("parchemin", pos + b * Vector3(0.3, 0.47, 0), Vector3(1.1, 0.05, 0.8), lacet)
+	dcr.boite("jute", pos + Vector3(0, 0.4, 0), Vector3(1.8, 0.12, 0.78), lacet, false, Vector3.ZERO)      # paillasse : toile de sac
+	dcr.boite("laine", pos + b * Vector3(0.3, 0.47, 0), Vector3(1.1, 0.05, 0.8), lacet)      # couverture de laine
 	var s := b * Vector3(2.0, 0, 0.9)
 	dcr.solide(pos + Vector3(0, 0.3, 0), Vector3(absf(s.x), 0.6, absf(s.z)))
 	dcr.j1()
@@ -125,13 +125,13 @@ static func barricade(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, largeur := 3
 static func tapis(dcr: CrypteDecor, centre: Vector3, taille: Vector2, lacet := 0.0, teinte := Color(0.5, 0.2, 0.2)) -> void:
 	dcr.j0("tapis", lacet)
 	var b := Basis(Vector3.UP, lacet)
-	dcr.boite("parchemin", centre + Vector3(0, 0.008, 0), Vector3(taille.x, 0.012, taille.y), lacet, true)
+	dcr.boite("laine", centre + Vector3(0, 0.008, 0), Vector3(taille.x, 0.012, taille.y), lacet, true)
 	var c := Color(teinte.r, teinte.g, teinte.b)
 	var a := b * Vector3(-taille.x * 0.5, 0, -taille.y * 0.5)
 	var bb := b * Vector3(taille.x * 0.5, 0, -taille.y * 0.5)
 	var cc := b * Vector3(taille.x * 0.5, 0, taille.y * 0.5)
 	var dd := b * Vector3(-taille.x * 0.5, 0, taille.y * 0.5)
-	dcr.quad("parchemin", centre + a + Vector3(0, 0.015, 0), centre + bb + Vector3(0, 0.015, 0), centre + cc + Vector3(0, 0.015, 0), centre + dd + Vector3(0, 0.015, 0), Vector3.UP, [], [], [c, c, c, c])
+	dcr.quad("laine", centre + a + Vector3(0, 0.015, 0), centre + bb + Vector3(0, 0.015, 0), centre + cc + Vector3(0, 0.015, 0), centre + dd + Vector3(0, 0.015, 0), Vector3.UP, [], [], [c, c, c, c])
 	for sz in [-1.0, 1.0]:
 		dcr.boite("or", centre + b * Vector3(0, 0.017, sz * (taille.y * 0.5 - 0.1)), Vector3(taille.x, 0.004, 0.05), lacet)
 	dcr.j1()
@@ -153,7 +153,7 @@ static func banniere(dcr: CrypteDecor, haut: Vector3, vers: Vector3, long := 1.7
 	var haut_plein := long * (1.0 if usure == 0 else 0.42)
 	var p0 := haut + n * 0.07
 	# partie haute pleine
-	dcr.quad("parchemin", p0 - dr * larg * 0.5, p0 + dr * larg * 0.5, p0 + dr * larg * 0.5 - Vector3(0, haut_plein, 0) + n * 0.03, p0 - dr * larg * 0.5 - Vector3(0, haut_plein, 0) + n * 0.03, n, [], [], [teinte, teinte, teinte, teinte])
+	dcr.quad("laine", p0 - dr * larg * 0.5, p0 + dr * larg * 0.5, p0 + dr * larg * 0.5 - Vector3(0, haut_plein, 0) + n * 0.03, p0 - dr * larg * 0.5 - Vector3(0, haut_plein, 0) + n * 0.03, n, [], [], [teinte, teinte, teinte, teinte])
 	if usure > 0:
 		var nb := 3 if usure == 1 else 2
 		var lw := larg / nb
@@ -163,7 +163,7 @@ static func banniere(dcr: CrypteDecor, haut: Vector3, vers: Vector3, long := 1.7
 			var ya := p0 - Vector3(0, haut_plein, 0) + n * 0.03
 			var yb := p0 - Vector3(0, lon, 0) + n * (0.03 + dcr.rng.randf() * 0.05)
 			var inc := dcr.rng.randf_range(-0.05, 0.05)
-			dcr.quad("parchemin", ya + dr * x0, ya + dr * (x0 + lw * 0.9), yb + dr * (x0 + lw * 0.9 + inc), yb + dr * (x0 + inc), n, [], [], [teinte, teinte, Color(teinte.r * 0.8, teinte.g * 0.8, teinte.b * 0.8), Color(teinte.r * 0.8, teinte.g * 0.8, teinte.b * 0.8)])
+			dcr.quad("laine", ya + dr * x0, ya + dr * (x0 + lw * 0.9), yb + dr * (x0 + lw * 0.9 + inc), yb + dr * (x0 + inc), n, [], [], [teinte, teinte, Color(teinte.r * 0.8, teinte.g * 0.8, teinte.b * 0.8), Color(teinte.r * 0.8, teinte.g * 0.8, teinte.b * 0.8)])
 	if sujet != "":
 		dcr.embleme(sujet, p0 + n * 0.045 - Vector3(0, minf(haut_plein, long) * 0.32, 0), n, larg * 0.5, teinte_embleme)
 	dcr.saillie_cb = cb

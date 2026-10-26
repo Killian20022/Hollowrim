@@ -4,7 +4,8 @@ extends RefCounted
 ##
 ## Principes (règles de l'utilisateur + bible) :
 ## - grille de 1, 2 et 4 m ; les surfaces sont des quads par morceaux de 4 m au plus ; UV = position en mètres
-##   divisée par la taille de tuile → densité de texels UNIFORME (16 texels/m pour la pierre, 32 pour bois/fer/objets) ;
+##   divisée par la taille de tuile → densité de texels UNIFORME (mesurée le 2026-10-26 : 128 texels/m murs, dalles et pierre v2, 64 pour la
+##   voûte et pour tous les objets — bois, fer, lame, gravure, argile, os, parchemin, tissus laine/lin/jute — comme les maisons C7b) ;
 ## - le maillage est fusionné par cellule de 8 m et par matériau : peu d'appels de dessin, culling par cellule, et
 ##   moins de 8 lumières par objet (limite du renderer mobile) ;
 ## - aucune collision n'est ajoutée au passage du joueur : les collisions d'origine (sol, plafond, murs, linteaux,
@@ -17,7 +18,7 @@ const FEU := Color(1.0, 0.56, 0.24)
 
 const TUILE := {
 	"mur0": 4.0, "mur1": 4.0, "mur2": 4.0, "dalle0": 4.0, "dalle1": 4.0, "voute": 4.0,
-	"bois": 2.0, "fer": 1.0, "lame": 1.0, "gravure": 2.0, "argile": 1.0, "os": 1.0, "parchemin": 1.0,
+	"bois": 2.0, "fer": 1.0, "lame": 1.0, "gravure": 2.0, "argile": 1.0, "os": 1.0, "parchemin": 1.0, "laine": 1.0, "lin": 1.0, "jute": 1.0,
 	"toile": 1.0, "noir": 1.0, "halo": 1.0, "halo_f": 1.0, "rai": 1.0, "braise": 1.0,
 	# donjon (agrandissement) : pierre givrée / glace, ossuaire, or
 	"mur3": 4.0, "mur4": 4.0, "dalle3": 4.0, "dalle4": 4.0, "ossuaire": 4.0, "or": 0.5, "neige": 2.0,
@@ -81,7 +82,7 @@ var xf := Transform3D.IDENTITY
 
 const RELIEF := {"entrelacs": 1.0, "mur0": 0.75, "mur1": 0.75, "mur2": 0.75, "dalle0": 0.8, "dalle1": 0.8, "voute": 0.7, "bois": 0.8, "fer": 0.7, "gravure": 1.0,
 	"mur3": 0.8, "mur4": 0.9, "dalle3": 0.8, "dalle4": 0.9, "ossuaire": 1.0, "dalle_v2": 0.85, "pierre_v2": 0.7, "statue_v2": 0.7}
-const AVEC_MIPS := ["mur0", "mur1", "mur2", "dalle0", "voute", "bois", "fer", "lame", "gravure", "argile", "os", "parchemin", "toile",
+const AVEC_MIPS := ["mur0", "mur1", "mur2", "dalle0", "voute", "bois", "fer", "lame", "gravure", "argile", "os", "parchemin", "toile", "laine", "lin", "jute",
 	"mur3", "mur4", "dalle3", "dalle4", "ossuaire", "or", "neige", "entrelacs", "dalle_v2", "pierre_v2", "statue_v2", "givre_sol"]
 const SANS_MIPS := ["halo", "rai", "flamme"]
 

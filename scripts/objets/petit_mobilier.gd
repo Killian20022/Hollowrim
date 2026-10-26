@@ -138,8 +138,8 @@ static func gravats(dcr: CrypteDecor, pos: Vector3, r := 1.0, h := 0.7, avec_col
 static func sac_dechire(dcr: CrypteDecor, pos: Vector3, lacet := 0.0) -> void:
 	dcr.j0("sac_dechire")
 	dcr.emprise("sac_dechire", pos, Vector2(0.45, 0.35), 0.0, 0.2)
-	dcr.boite("parchemin", pos + Vector3(0, 0.1, 0), Vector3(0.5, 0.2, 0.34), lacet + 0.3, false, Vector3.ZERO)
-	dcr.boite("parchemin", pos + Vector3(0.18, 0.025, 0.2), Vector3(0.45, 0.02, 0.3), lacet - 0.5)
+	dcr.boite("jute", pos + Vector3(0, 0.1, 0), Vector3(0.5, 0.2, 0.34), lacet + 0.3, false, Vector3.ZERO)
+	dcr.boite("jute", pos + Vector3(0.18, 0.025, 0.2), Vector3(0.45, 0.02, 0.3), lacet - 0.5)
 	for k in 7:
 		dcr.boite("or", pos + Vector3(dcr.rng.randf_range(-0.4, 0.5), 0.012, dcr.rng.randf_range(-0.3, 0.5)), Vector3(0.05, 0.015, 0.05), dcr.rng.randf() * TAU)
 	dcr.boite("fer", pos + Vector3(0.5, 0.02, -0.1), Vector3(0.12, 0.04, 0.12), dcr.rng.randf() * TAU)

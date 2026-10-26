@@ -111,7 +111,7 @@ static func autel(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, largeur := 2.0) 
 	var b := Basis(Vector3.UP, lacet)
 	dcr.boite("mur1", pos + Vector3(0, 0.45, 0), Vector3(largeur, 0.9, 0.9), lacet)
 	dcr.boite("mur0", pos + Vector3(0, 0.94, 0), Vector3(largeur + 0.16, 0.1, 1.06), lacet)
-	dcr.boite("parchemin", pos + Vector3(0, 0.995, 0), Vector3(largeur * 0.6, 0.012, 0.9), lacet, false, Vector3.ZERO)
+	dcr.boite("lin", pos + Vector3(0, 0.995, 0), Vector3(largeur * 0.6, 0.012, 0.9), lacet, false, Vector3.ZERO)      # nappe de lin
 	dcr.boite("gravure", pos + b * Vector3(0, 0.45, 0.455), Vector3(largeur * 0.7, 0.5, 0.012), lacet)
 	for sx in [-0.7, 0.7]:
 		dcr.bougie(pos + b * Vector3(sx * largeur * 0.5, 1.0, 0.0), false)
@@ -148,10 +148,10 @@ static func table_embaumement(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, corp
 	dcr.boite("mur0", pos + Vector3(0, 0.28, 0), Vector3(1.2, 0.12, 0.5), lacet)
 	dcr.boite("gravure", pos + Vector3(0, 0.962, 0), Vector3(1.7, 0.012, 0.36), lacet)
 	for k in 3:
-		dcr.boite("parchemin", pos + b * Vector3(-0.5 + k * 0.5, 0.55, 0.45), Vector3(0.1, 0.5, 0.012), lacet)
+		dcr.boite("lin", pos + b * Vector3(-0.5 + k * 0.5, 0.55, 0.45), Vector3(0.1, 0.5, 0.012), lacet)      # bandelettes
 	dcr.tour("fer", pos + b * Vector3(1.2, 0, 0.1), [Vector2(0.14, 0.0), Vector2(0.16, 0.1), Vector2(0.1, 0.2)], 8, 0.0, false)
 	if corps:
-		dcr.boite("parchemin", pos + Vector3(0, 1.06, 0), Vector3(1.55, 0.17, 0.46), lacet, false)
+		dcr.boite("lin", pos + Vector3(0, 1.06, 0), Vector3(1.55, 0.17, 0.46), lacet, false)      # linceul
 		dcr.boite("os", pos + b * Vector3(-0.85, 1.08, 0), Vector3(0.2, 0.18, 0.2), lacet)
 	var s := b * Vector3(2.1, 0, 0.86)
 	dcr.solide(pos + Vector3(0, 0.5, 0), Vector3(absf(s.x), 1.0, absf(s.z)))
