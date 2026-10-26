@@ -12,7 +12,7 @@ class_name PnjNordique
 ##   ids : garde, forgeron, chasseuse, volva, ancienne, chef, eirik (+ garde_lance : Gardien à lance, pour alterner les gardes)
 
 const DOSSIER := "res://assets/pnj"
-const VERSION := 8
+const VERSION := 9
 static var enregistrer := false
 static var _cache := {}
 static var _ancien := -1
