@@ -76,7 +76,7 @@ func _joueur() -> Node:
 	return monde.get("joueur") if monde != null else null
 
 func ouvrir() -> void:
-	if ouvert:
+	if ouvert or (monde != null and monde.get("pret") == false):   # pas pendant le chargement étalé (écran de chargement du titre)
 		return
 	var hud: Node = monde.get("hud") if monde != null else null
 	if hud != null and hud.get("panneau_ouvert"):
@@ -168,6 +168,10 @@ func _test(etape: String) -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--test-titre-attente="):
 			attente = float(a.substr(21))
+	while monde != null and monde.get("pret") == false:   # chargement étalé (écran de chargement) : le compte commence monde prêt
+		await get_tree().process_frame
+	while get_tree().paused:
+		await get_tree().process_frame
 	await get_tree().create_timer(attente).timeout
 	var j := _joueur()
 	if etape == "relance":

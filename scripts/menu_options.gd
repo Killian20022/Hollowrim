@@ -6,6 +6,10 @@ extends PanelContainer
 signal ferme
 
 var joueur: Node = null
+## Écran titre (menu principal en haute définition) : thème runique (MenuStyle.theme_titre) et tailles fixes multipliées par
+## `echelle` (pixels de l'image de référence au lieu de l'écran logique 640x360). Par défaut (menu pause) : thème pixel, ×1.
+var theme_impose: Theme = null
+var echelle := 1.0
 var _premier: Control
 var _touches: Control
 var _reglages: Control
@@ -31,20 +35,25 @@ const TOUCHES := [
 ]
 
 func _ready() -> void:
-	theme = MenuStyle.theme()
-	custom_minimum_size = Vector2(380, 0)
+	theme = theme_impose if theme_impose != null else MenuStyle.theme()
+	custom_minimum_size = Vector2(380, 0) * echelle
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	var pile := VBoxContainer.new()
-	pile.add_theme_constant_override("separation", 2)
+	pile.add_theme_constant_override("separation", roundi(2 * echelle))
 	add_child(pile)
 	var titre := MenuStyle.etiquette("Options", MenuStyle.OR)
+	if theme_impose != null:   # titre de panneau du menu principal : capitales gravées, givre
+		titre.text = "OPTIONS"
+		titre.add_theme_font_override("font", MenuStyle.police_capitales(600))
+		titre.add_theme_font_size_override("font_size", 34)
+		titre.add_theme_color_override("font_color", MenuStyle.GIVRE)
 	titre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	pile.add_child(titre)
 
 	var g := GridContainer.new()
 	g.columns = 3
-	g.add_theme_constant_override("h_separation", 8)
-	g.add_theme_constant_override("v_separation", 1)
+	g.add_theme_constant_override("h_separation", roundi(8 * echelle))
+	g.add_theme_constant_override("v_separation", roundi(1 * echelle))
 	_reglages = g
 	pile.add_child(g)
 	_case_plein = _case(g, "Plein écran", Jeu.option("affichage", "plein_ecran"), func(v: bool) -> void:
@@ -80,7 +89,7 @@ func _ready() -> void:
 	_secours = MenuStyle.etiquette("", MenuStyle.GRIS)
 	_secours.clip_text = true
 	_secours.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_secours.custom_minimum_size = Vector2(360, 0)
+	_secours.custom_minimum_size = Vector2(360, 0) * echelle
 	_reglages_bas = _secours
 	pile.add_child(_secours)
 	_maj_secours()
@@ -88,10 +97,10 @@ func _ready() -> void:
 	# rappel des touches (remplace la grille tant qu'il est ouvert)
 	var t := GridContainer.new()
 	t.columns = 2
-	t.add_theme_constant_override("h_separation", 12)
-	t.add_theme_constant_override("v_separation", -2)
+	t.add_theme_constant_override("h_separation", roundi(12 * echelle))
+	t.add_theme_constant_override("v_separation", -2 if theme_impose == null else 0)
 	for l: Array in TOUCHES:
-		t.add_child(MenuStyle.etiquette(l[0], MenuStyle.OR))
+		t.add_child(MenuStyle.etiquette(l[0], MenuStyle.OR if theme_impose == null else MenuStyle.LUEUR.lerp(MenuStyle.GIVRE, 0.35)))
 		t.add_child(MenuStyle.etiquette(l[1]))
 	t.visible = false
 	_touches = t
@@ -99,7 +108,7 @@ func _ready() -> void:
 
 	var bas := HBoxContainer.new()
 	bas.alignment = BoxContainer.ALIGNMENT_CENTER
-	bas.add_theme_constant_override("separation", 16)
+	bas.add_theme_constant_override("separation", roundi(16 * echelle))
 	pile.add_child(bas)
 	var b_touches := MenuStyle.bouton("Touches", func() -> void: _basculer_touches())
 	var b_retour := MenuStyle.bouton("Retour", func() -> void: fermer())
@@ -188,12 +197,12 @@ func _curseur(g: GridContainer, texte: String, mini: float, maxi: float, pas: fl
 	s.max_value = maxi
 	s.step = pas
 	s.value = valeur
-	s.custom_minimum_size = Vector2(140, 14)
+	s.custom_minimum_size = Vector2(140, 14) * echelle
 	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	s.focus_mode = Control.FOCUS_ALL
 	s.mouse_entered.connect(func() -> void: s.grab_focus())
 	var l := MenuStyle.etiquette(format % roundi(valeur), MenuStyle.RUNE)
-	l.custom_minimum_size = Vector2(44, 0)
+	l.custom_minimum_size = Vector2(44, 0) * echelle
 	s.value_changed.connect(func(v: float) -> void:
 		l.text = format % roundi(v)
 		quand.call(v))

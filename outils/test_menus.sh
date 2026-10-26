@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Test des menus en vrai (fenêtre hors écran, via godot_slot.sh) : écran titre → Nouvelle partie → monde → menu pause
 # (captures) → Sauvegarder (+ copie de secours) → Quitter, puis relance → Continuer → la partie chargée est celle sauvegardée,
-# puis relance → sauvegarde locale corrompue → « Restaurer la copie de secours » → Continuer.
+# puis relance → sauvegarde locale corrompue → Charger → copie de secours restaurée → Continuer ; enfin parcours au clavier sans
+# sauvegarde (Continuer grisé et hors parcours, focus initial, Bas/Haut, Échap, Entrée ; la sauvegarde de test est remise après).
+# Le monde entre par l'écran de chargement animé (chargement étalé, EcranChargement) comme dans le vrai jeu.
 # Copies de secours : dossier TEMPORAIRE captures/test_secours/<horodatage> (--test-titre-secours), jamais un dossier du joueur.
 #   bash outils/test_menus.sh [dossier_captures]            projet (éditeur Godot)
 #   EXE=/mnt/c/.../Hollowrim.exe bash outils/test_menus.sh   jeu exporté (journal lu dans %APPDATA%\Hollowrim\logs\godot.log)
@@ -33,6 +35,7 @@ lancer "captures:$SORTIE"   # écran titre, options, crédits
 lancer nouvelle
 lancer continuer
 lancer restaurer
+lancer clavier
 # « Retour au titre » : le processus se relance lui-même (détaché) ; le nouveau écrit test_relance.ok dans le dossier des données
 OK_RELANCE="/mnt/c/Users/$USER/AppData/Roaming/Hollowrim/test_relance.ok"; rm -f "$OK_RELANCE"
 lancer relance
@@ -49,6 +52,7 @@ grep -q "TEST MENUS : sauvegarde écrite" "$JOURNAL" || ko=1
 [[ $(grep -c "TEST MENUS : continuer OK" "$JOURNAL") -ge 2 ]] || ko=1
 grep -q "TEST MENUS : copie de secours OK" "$JOURNAL" || ko=1
 grep -q "TEST MENUS : restaurer OK" "$JOURNAL" || ko=1
+grep -q "TEST MENUS : clavier OK" "$JOURNAL" || ko=1
 grep -q "TEST MENUS : relance OK (retour" "$JOURNAL" || ko=1
 grep -q "ÉCHEC" "$JOURNAL" && ko=1
 [[ $ko = 0 ]] && echo "TEST MENUS : OK" || echo "TEST MENUS : ÉCHEC (journal : $JOURNAL)"

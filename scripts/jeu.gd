@@ -248,18 +248,51 @@ static func sauvegarde_valide(fichier := "") -> bool:
 ## Restaure la copie de secours valide la plus récente à la place de la sauvegarde locale ; une sauvegarde locale
 ## illisible est gardée à côté (« .corrompue »), jamais effacée. Renvoie true si une copie a été restaurée.
 static func restaurer_secours(dossier := "") -> bool:
-	var locale: String = load("res://scripts/monde.gd").fichier_sauvegarde()
 	var copies := copies_secours(dossier)
 	for i in range(copies.size() - 1, -1, -1):
-		if not sauvegarde_valide(copies[i]):
-			continue
-		var abs_locale := ProjectSettings.globalize_path(locale)
-		if FileAccess.file_exists(abs_locale):
-			_copier_atomique(abs_locale, abs_locale + ".corrompue")
-		if _copier_atomique(copies[i], abs_locale) == OK:
-			print("Copie de secours restaurée : ", copies[i])
+		if restaurer_copie(copies[i]):
 			return true
 	return false
+
+## Restaure UNE copie de secours (panneau « Charger » de l'écran titre) à la place de la sauvegarde locale. La sauvegarde locale
+## n'est jamais effacée : gardée à côté en « .corrompue » si elle est illisible, en « .avant_restauration » sinon.
+static func restaurer_copie(copie: String) -> bool:
+	if not sauvegarde_valide(copie):
+		return false
+	var abs_locale := ProjectSettings.globalize_path(load("res://scripts/monde.gd").fichier_sauvegarde())
+	if FileAccess.file_exists(abs_locale):
+		_copier_atomique(abs_locale, abs_locale + (".avant_restauration" if sauvegarde_valide(abs_locale) else ".corrompue"))
+	if _copier_atomique(copie, abs_locale) == OK:
+		print("Copie de secours restaurée : ", copie)
+		return true
+	return false
+
+## Résumé d'une sauvegarde pour le panneau « Charger » : {date (texte), heure (heure du jeu, -1 si absente), pieces, vie} ;
+## {} si le fichier est absent ou illisible.
+static func resume_sauvegarde(fichier := "") -> Dictionary:
+	if fichier == "":
+		fichier = load("res://scripts/monde.gd").fichier_sauvegarde()
+	if not sauvegarde_valide(fichier):
+		return {}
+	var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(fichier))
+	var t := Time.get_datetime_dict_from_unix_time(FileAccess.get_modified_time(fichier) + int(Time.get_time_zone_from_system().get("bias", 0)) * 60)
+	var inv: Variant = d.get("inventaire", {})
+	var j: Variant = d.get("joueur", {})
+	return {
+		"date": "%02d/%02d/%04d à %02dh%02d" % [t.day, t.month, t.year, t.hour, t.minute],
+		"heure": float(d.get("heure", -1.0)),
+		"pieces": int(inv.get("pieces", 0)) if inv is Dictionary else 0,
+		"vie": float(j.get("vie", 0.0)) if j is Dictionary else 0.0,
+	}
+
+# --- chargement étalé (écran titre → écran de chargement) ------------------------------
+
+## Vrai pendant que l'écran de chargement de l'écran titre fait entrer le monde : Monde._ready rend alors une image entre ses étapes
+## (l'écran de chargement reste animé). Faux partout ailleurs (tests, outils, captures) : chargement d'un bloc, comme avant.
+static var chargement_etale := false
+## Étapes de Monde._ready franchies (Monde._chrono) et nom de la dernière : avancement de l'écran de chargement.
+static var etapes_chargement := 0
+static var etape_chargement := ""
 
 # --- relance du processus -------------------------------------------------------------
 

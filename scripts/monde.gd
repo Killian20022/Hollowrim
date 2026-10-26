@@ -126,54 +126,74 @@ func _ready() -> void:
 	tex_aiguilles = Palette.texture(32, Palette.AIGUILLES, 8, 3, 0.7, rng)
 	tex_ecorce = Palette.texture(32, Palette.ECORCE, 4, 4, 0.4, rng)
 	_chrono("textures de base")
+	await _souffle()
 
 	_environnement()
 	_lune()
 	_chrono("  environnement+lune")
+	await _souffle()
 	if not _arguments().has("sans-arriere-plan"):  # --sans-arriere-plan : mesures A/B de performance
 		arriere_plan = ArrierePlan.creer(self)
 		add_child(arriere_plan)
 	_chrono("  arriere-plan")
+	await _souffle()
 	_terrain()
 	_chrono("terrain")
+	await _souffle()
 	arbres = Vegetation.creer(self)
 	_chrono("arbres (placement+modeles+MultiMesh)")
+	await _souffle()
 	Rochers.creer(self)
 	_chrono("  rochers")
+	await _souffle()
 	SousBois.creer(self)  # lot E : après les rochers (touffes collées aux pierres)
 	_chrono("  sous-bois")
+	await _souffle()
 	SolV2.creer(self)  # extérieurs v2 : touffes et rochers de la portion témoin
 	_chrono("  sol v2 (touffes, rochers)")
+	await _souffle()
 	CercleRunique.creer(self)
 	_chrono("rochers+sous-bois+cercle")
+	await _souffle()
 	Sol.appliquer(mat_terrain, self, arbres)
 	SolV2.appliquer(self)
 	if _arguments().has("sol-debug"):
 		mat_terrain.set_shader_parameter("sol_debug", int(_arguments()["sol-debug"]))
 	_chrono("carte de sol")
+	await _souffle()
 	DetailsSol.creer(self)  # lot 3 : cailloux du sol (après la carte de sol)
 	_chrono("details du sol")
+	await _souffle()
 	if not _arguments().has("sans-abords"): AbordsVillage.creer(self)  # refonte : abords de l'entrée du village (avant le fil des intérieurs ; --sans-abords : A/B)
 	_chrono("abords du village")
+	await _souffle()
 	if not _arguments().has("sans-rues"):  # C7a : pavés, escaliers, murs, champs, mobilier du village v2 (--sans-rues : A/B)
 		RuesVillage.creer(self)
 		_chrono("rues du village")
+		await _souffle()
 		MobilierVillage.creer(self)
 		_chrono("mobilier du village")
+		await _souffle()
 	_village()
 	_chrono("village (bati)")
+	await _souffle()
 	EauVillage.creer(self)  # C7c : rivière, pont, quai, moulin à eau, lac fermé (--sans-eau-village : rien n'est posé, A/B)
 	_chrono("eau du village")
+	await _souffle()
 	_feu_de_camp()
 	_joueur()
 	_chrono("joueur")
+	await _souffle()
 	_neige()
 	_interface()
 	_chrono("neige+interface")
-	_draugrs()
+	await _souffle()
+	await _draugrs()
 	_chrono("draugrs du cercle")
-	_villageois()
+	await _souffle()
+	await _villageois()
 	_chrono("villageois")
+	await _souffle()
 	if Chrono.actif:   # corps d'archétypes relus du cache disque (CachePersos) / bâtis puis rangés ; dernier corps non rangé et pourquoi
 		print("CHRONO cache des corps : %d lus, %d à écrire en sortant%s" % [CachePersos.lus, CachePersos.en_attente(), (" ; refus : " + CachePersos.refus) if CachePersos.refus != "" else ""])
 	_guerrier_pilote()
@@ -185,8 +205,10 @@ func _ready() -> void:
 	_persos_tous()
 	_tertre()
 	_chrono("tertre+crypte")
+	await _souffle()
 	_grotte_acces()
 	_chrono("entree de la grotte")
+	await _souffle()
 	_temoins_shaders = Piege.temoins_shaders()   # shaders des pièges compilés ici (pendant le chargement), pas à leur pose en pleine marche
 	AbordsTumulus.creer(self)  # lot F : abords du tertre (après sa création)
 	Dallage.poser(self)  # C1b : sentiers en dalles hors zone témoin + dalles du village moins enneigées
@@ -206,6 +228,7 @@ func _ready() -> void:
 	_capture()
 	_prechauffer_rendu()
 	Chrono.total()
+	pret = true
 	_aller_crypte()
 	_aller_interieur()
 	if _arguments().has("grotte") and not _arguments().has("capture"):
@@ -213,6 +236,21 @@ func _ready() -> void:
 
 func _chrono(etape: String) -> void:
 	Chrono.marque(etape)
+	Jeu.etapes_chargement += 1
+	Jeu.etape_chargement = etape
+
+## Vrai à la fin de _ready (monde entièrement bâti) : l'écran de chargement de l'écran titre attend ce moment.
+var pret := false
+var _dernier_souffle := 0
+
+## Chargement étalé (Jeu.chargement_etale, posé par l'écran de chargement de l'écran titre) : rend une image entre deux étapes de
+## _ready (au plus toutes les 40 ms) pour que l'écran de chargement continue de s'animer. Sinon (tests, outils, captures) ne fait
+## rien et _ready reste d'un seul bloc. Images normales de la boucle principale (PAS RenderingServer.force_draw : voir _prechauffer_rendu).
+func _souffle() -> void:
+	if not Jeu.chargement_etale or Time.get_ticks_msec() - _dernier_souffle < 40:
+		return
+	await get_tree().process_frame
+	_dernier_souffle = Time.get_ticks_msec()
 
 ## Points de vue du préchauffage de dehors : [point (x, z), nombre de directions] — le feu de camp (départ), le sentier et la place du
 ## village, le chemin de la grotte.
@@ -672,6 +710,7 @@ func _villageois() -> void:
 		v.points = points
 		v.position = poste + Vector3(0, 0.05, 0)
 		add_child(v)
+		await _souffle()
 	if not _arguments().has("sans-gardes"):   # D/gardes_village : la garde du village (data/gardes.json) ; --sans-gardes : A/B
 		_chrono("  villageois : PNJ")
 		GardesVillage.peupler(self)
@@ -1080,9 +1119,13 @@ func creer_draugr(type: String, position_: Vector3, lacet: float, dort: bool, op
 func _draugrs() -> void:
 	# trois gardiens endormis au cercle de pierres, un guerrier debout à l'entrée
 	_draugr("guerrier", CERCLE.x + 2.6, CERCLE.z + 1.2, true, 2.0)
+	await _souffle()
 	_draugr("sbire", CERCLE.x - 2.2, CERCLE.z + 2.6, true, -0.6)
+	await _souffle()
 	_draugr("sbire", CERCLE.x + 0.6, CERCLE.z - 3.0, true, 3.4)
+	await _souffle()
 	_draugr("guerrier", CERCLE.x + 9.0, CERCLE.z + 9.0, false, 0.8)
+	await _souffle()
 	# un rôdeur dans la forêt, entre le feu et le cercle
 	sbire = _draugr("sbire", -16.0, -15.0, false, 0.6)
 
