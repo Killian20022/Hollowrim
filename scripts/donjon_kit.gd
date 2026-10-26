@@ -1398,7 +1398,7 @@ func lampe_glace(pos: Vector3, e := 1.3) -> void:
 func os_monticule(pos: Vector3, r := 0.9, h := 0.6) -> void:
 	d.j0("os_monticule")
 	d.emprise("os_monticule", pos, Vector2(r * 1.1, r * 1.1), 0.0, h)
-	d.tour("os", pos, [Vector2(r, 0.0), Vector2(r * 0.85, h * 0.4), Vector2(r * 0.5, h * 0.8), Vector2(r * 0.18, h)], 8, 0.2, true)
+	d.modele("os_monticule", pos, 0.2, Vector3(r / 0.9, h / 0.6, r / 0.9), {}, false)      # lot L2 : module Blender (os couchés sur un noyau sombre)
 	for k in 7:
 		var a := d.rng.randf() * TAU
 		var rr := d.rng.randf() * r * 0.8
@@ -1409,12 +1409,12 @@ func os_monticule(pos: Vector3, r := 0.9, h := 0.6) -> void:
 func or_tas(pos: Vector3, r := 0.6, h := 0.3) -> void:
 	d.j0("or_tas")
 	d.emprise("or_tas", pos, Vector2(r * 1.4, r * 1.4), 0.0, h)
-	d.tour("or", pos, [Vector2(r, 0.0), Vector2(r * 0.75, h * 0.55), Vector2(r * 0.4, h * 0.92), Vector2(r * 0.12, h)], 7, 0.1, true)
+	# lot L2 : monceau de pièces en module Blender (coupe, couronne ou plat selon la position) ; tirages de l'ancienne version gardés
+	d.modele("or_tas_" + ObjPetitMobilier.variante(d, pos), pos, ObjPetitMobilier.lacet_pos(d, pos), Vector3(r / 0.6, h / 0.3, r / 0.6), {}, false)
 	for k in 4:
-		var a := d.rng.randf() * TAU
-		var rr := r * d.rng.randf_range(0.7, 1.1)
-		var rs := r * d.rng.randf_range(0.3, 0.5)
-		d.tour("or", pos + Vector3(cos(a) * rr, 0, sin(a) * rr), [Vector2(rs, 0.0), Vector2(rs * 0.6, h * 0.5), Vector2(rs * 0.15, h * 0.7)], 5, 0.4, true)
+		d.rng.randf()
+		d.rng.randf_range(0.7, 1.1)
+		d.rng.randf_range(0.3, 0.5)
 	for k in 6:
 		var a := d.rng.randf() * TAU
 		d.boite("or", pos + Vector3(cos(a), 0.012, sin(a)) * r * d.rng.randf_range(1.0, 1.6), Vector3(0.07, 0.02, 0.07), d.rng.randf() * TAU)
