@@ -173,10 +173,34 @@ static func sarcophage_pille(dcr: CrypteDecor, pos: Vector3, taille: Vector3, la
 	dcr.j1()
 
 ## Trône (estrade à deux degrés, siège, haut dossier, accoudoirs) ; collision. `mat` : « mur4 » pour la glace.
+## L4 (2026-10-26), crypte v2 : estrade « estrade_trone » à trois marches lisibles (plus profonde que large : 2,9 x 3,4 m) et trône
+## sculpté « trone_jarl » (pierre runique givrée, têtes de dragon, couronne, fourrure) posé au fond ; collision = les trois marches,
+## l'assise et le dossier (boîtes alignées : quarts de tour seulement) ; lumière basse et froide devant le trône (budget lumiere_possible).
 static func trone(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, mat := "mur1") -> void:
 	dcr.j0("trone", lacet)
-	dcr.emprise("trone", pos, Vector2(1.8, 1.5), lacet, 3.1)
 	var b := Basis(Vector3.UP, lacet)
+	if dcr.v2 and CrypteDecor.modele_existe("trone_jarl"):
+		pos = dcr._ecarter(pos + b * Vector3(0, 0, -0.2), Vector2(1.47, 1.72), lacet) - b * Vector3(0, 0, -0.2)      # dos de l'estrade contre le mur
+		dcr.emprise("trone", pos + b * Vector3(0, 0, -0.2), Vector2(1.47, 1.72), lacet, 3.35)
+		dcr.modele("estrade_trone", pos, lacet)
+		dcr.modele("trone_jarl", pos + b * Vector3(0, 0.6, -0.85), lacet, Vector3.ONE, {"pierre": "statue_v2", "fourrure": "laine"})      # pierre des statues : plus claire que le mur derrière
+		for m: Array in [[2.9, 0.0, 1.5], [2.4, 0.2, 1.05], [2.0, 0.4, 0.6]]:      # [largeur, bas, avant] ; dos commun en z = -1,9
+			_solide_l(dcr, pos + b * Vector3(0, m[1] + 0.1, (m[2] - 1.9) * 0.5), Vector3(m[0], 0.2, m[2] + 1.9), lacet)
+		_solide_l(dcr, pos + b * Vector3(0, 0.88, -0.87), Vector3(1.5, 0.56, 0.96), lacet)      # assise et accoudoirs
+		_solide_l(dcr, pos + b * Vector3(0, 2.15, -1.27), Vector3(1.5, 3.1, 0.32), lacet)       # dossier
+		# lumière basse et froide : éclaire les marches, l'assise et le dossier par en dessous, détache le Jarl en contre-jour depuis l'entrée
+		var lp := pos + b * Vector3(0, 1.0, 0.95)
+		var posee := false
+		for r: float in [5.0, 4.0]:
+			if dcr.lumiere_possible(dcr.xf * lp, r):
+				dcr.lumiere(lp, Color(0.42, 0.66, 1.0), 1.8, r, 0.9, false)
+				posee = true
+				break
+		if not posee and not dcr.muet:
+			push_warning("trône : lumière froide hors budget (8 lumières par maillage de 8 m), non posée")
+		dcr.j1()
+		return
+	dcr.emprise("trone", pos, Vector2(1.8, 1.5), lacet, 3.1)
 	dcr.boite_pleine_l(mat, pos + Vector3(0, 0.15, 0), Vector3(3.6, 0.3, 3.0), lacet)
 	dcr.boite_pleine_l(mat, pos + Vector3(0, 0.4, -0.2), Vector3(2.6, 0.2, 2.2), lacet)
 	dcr.boite_pleine_l(mat, pos + b * Vector3(0, 0.85, -0.2), Vector3(1.3, 0.7, 1.2), lacet)
@@ -186,3 +210,8 @@ static func trone(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, mat := "mur1") -
 	for k in 3:
 		dcr.boite(mat, pos + b * Vector3((k - 1) * 0.45, 2.85, -0.7), Vector3(0.16, 0.5, 0.2), lacet)
 	dcr.j1()
+
+## Collision d'une boîte tournée d'un quart de tour (alignée sur les axes, comme boite_pleine_l), sans géométrie.
+static func _solide_l(dcr: CrypteDecor, centre: Vector3, taille: Vector3, lacet: float) -> void:
+	var s := Basis(Vector3.UP, lacet) * taille
+	dcr.solide(centre, Vector3(absf(s.x), taille.y, absf(s.z)))

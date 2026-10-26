@@ -21,7 +21,7 @@ GLB = os.path.join(DOSSIER, "crypte_v2.glb")
 BLEND = os.path.join(BASE, "sources_blender", "crypte_modules_v2.blend")
 
 TEINTE = {"pierre": (1.0, 0.98, 0.95), "fer": (0.85, 0.88, 0.95), "cire": (1.0, 0.96, 0.85), "bois": (1.0, 0.95, 0.9),
-          "givre": (0.92, 0.97, 1.0), "gravure": (1.0, 0.98, 0.95)}      # C4b : givre en plaques (matière « neige »), inscriptions (« gravure »)
+          "givre": (0.92, 0.97, 1.0), "gravure": (1.0, 0.98, 0.95), "fourrure": (1.0, 0.95, 0.86), "noir": (1.0, 1.0, 1.0)}      # C4b : givre en plaques (matière « neige »), inscriptions (« gravure »)
 
 
 def B(v):   # Godot -> Blender
@@ -906,6 +906,284 @@ def brasero_v2(nom, graine):
     return M
 
 
+# ======================================================================= L4 objets (2026-10-26) : trône du Jarl
+def _decaler(M, i0, d):
+    """Décale de d (repère Godot) les triangles émis depuis l'indice i0."""
+    M.tris[i0:] = [(m, tuple(p + d for p in ps), t) for (m, ps, t) in M.tris[i0:]]
+
+
+def _pyramide(M, base_c, r, pointe, mat="pierre", ton=None, cotes=4, rot=0.0):
+    """Pointe (corne, fleuron, dent de couronne) : base polygonale horizontale de rayon r en base_c, sommet en `pointe`."""
+    pts = [base_c + Vector((math.cos(rot + math.tau * k / cotes) * r, 0, math.sin(rot + math.tau * k / cotes) * r)) for k in range(cotes)]
+    M.coin(pts + [pointe], mat, bev=0.0, ton=ton)
+
+
+def _anneau_vertical(M, c, r_ext, r_int, ep, segs=12, mat="pierre", ton=0.95, a0=0.0, a1=math.tau):
+    """Anneau dans le plan xy (face vers +z), centré en c, épaisseur ep en z : tronçons convexes."""
+    for k in range(segs):
+        u0 = a0 + (a1 - a0) * k / segs
+        u1 = a0 + (a1 - a0) * (k + 1) / segs
+        pts = []
+        for u in (u0, u1):
+            for r in (r_ext, r_int):
+                for dz in (-ep * 0.5, ep * 0.5):
+                    pts.append(c + Vector((math.cos(u) * r, math.sin(u) * r, dz)))
+        M.coin(pts, mat, bev=0.0, ton=ton)
+
+
+def _disque_vertical(M, c, r, ep, segs=16, mat="pierre", ton=0.9):
+    pts = []
+    for k in range(segs):
+        u = math.tau * k / segs
+        for dz in (-ep * 0.5, ep * 0.5):
+            pts.append(c + Vector((math.cos(u) * r, math.sin(u) * r, dz)))
+    M.coin(pts, mat, bev=0.006, ton=ton)
+
+
+def _glacons(M, x0, x1, y, z, n, long=(0.05, 0.16)):
+    """Petits glaçons pendus sous une arête (cônes à 4 pans, pointe en bas)."""
+    rg = M.rg
+    for _ in range(n):
+        h = rg.uniform(*long)
+        x = rg.uniform(x0, x1)
+        M.cylindre(0.0, rg.uniform(0.012, 0.024), h, Vector((x, y - h, z + rg.uniform(-0.01, 0.01))), 4, "givre", jit=0.0, ton=rg.uniform(0.55, 0.75), rot=rg.uniform(0, 1))
+
+
+def _revolution(M, base, prof, n=18, plis=(7, 0.12), aplat=0.86, ton=0.9, haut_plis=None, mat="pierre", cx=0.0, cz=0.0):
+    """Corps de révolution à rayon modulé (robes, cottes) : prof = [(y, r)], plis = (fréquence, amplitude)."""
+    anneaux = []
+    for (yy, r) in prof:
+        ring = []
+        f = 1.0 if haut_plis is None or yy < haut_plis else 0.35
+        for k in range(n):
+            a = math.tau * k / n
+            pli = 1.0 + f * (plis[1] * math.sin(a * plis[0] + 0.3) + 0.03 * math.sin(a * 13 - yy * 3.0))
+            ring.append(Vector((cx + math.cos(a) * r * pli, base + yy, cz + math.sin(a) * r * pli * aplat)))
+        anneaux.append(ring)
+    bm = bmesh.new()
+    vv = [[bm.verts.new(B(p)) for p in ring] for ring in anneaux]
+    for i in range(len(vv) - 1):
+        for k in range(n):
+            bm.faces.new((vv[i][k], vv[i][(k + 1) % n], vv[i + 1][(k + 1) % n], vv[i + 1][k]))
+    bm.faces.new(vv[-1][::-1])
+    bm.faces.new(vv[0])
+    M._emettre(bm, mat, ton)
+
+
+def _tete_dragon(M, p, sens, ech=1.0, mat="pierre"):
+    """Tête de dragon sculptée au sommet d'un montant : cou qui se cambre, crâne, mâchoires ouvertes vers `sens` (x, z unitaire),
+    crocs, yeux creusés, cornes rabattues, crête. p = pied du cou."""
+    d = Vector((sens[0], 0, sens[1])).normalized()
+    lat = Vector((-d.z, 0, d.x))
+    e = ech
+    yaw = math.atan2(d.x, d.z)
+    c0 = p
+    c1 = p + Vector((0, 0.16 * e, 0)) + d * 0.02 * e
+    c2 = c1 + Vector((0, 0.1 * e, 0)) + d * 0.07 * e
+    M.barre(c0, c1, 0.07 * e, "pierre", 0.9)
+    M.barre(c1, c2, 0.062 * e, "pierre", 0.95)
+    for k, cc in enumerate((c1, c2)):      # écailles du cou (collerettes)
+        M.boite((0.17 * e, 0.035 * e, 0.17 * e), cc - Vector((0, 0.02 * e, 0)), yaw=yaw + 0.785, bev=0.01, jit=0.004, ton=0.8)
+    t = c2 + d * 0.06 * e + Vector((0, 0.03 * e, 0))
+    M.boite((0.15 * e, 0.12 * e, 0.17 * e), t, yaw=yaw, incl=(0.15, 0.0), bev=0.03 * e, jit=0.006, ton=1.0)      # crâne
+    M.coin([t + d * 0.06 * e + lat * 0.06 * e + Vector((0, 0.03 * e, 0)), t + d * 0.06 * e - lat * 0.06 * e + Vector((0, 0.03 * e, 0)),
+            t + d * 0.06 * e + lat * 0.055 * e - Vector((0, 0.0, 0)), t + d * 0.06 * e - lat * 0.055 * e,
+            t + d * 0.27 * e + lat * 0.03 * e + Vector((0, 0.015 * e, 0)), t + d * 0.27 * e - lat * 0.03 * e + Vector((0, 0.015 * e, 0)),
+            t + d * 0.27 * e + lat * 0.028 * e - Vector((0, 0.02 * e, 0)), t + d * 0.27 * e - lat * 0.028 * e - Vector((0, 0.02 * e, 0))],
+           "pierre", bev=0.008, ton=0.98)      # mâchoire haute (museau)
+    m0 = t + d * 0.05 * e - Vector((0, 0.05 * e, 0))
+    M.coin([m0 + lat * 0.05 * e, m0 - lat * 0.05 * e, m0 + lat * 0.045 * e - Vector((0, 0.03 * e, 0)), m0 - lat * 0.045 * e - Vector((0, 0.03 * e, 0)),
+            m0 + d * 0.19 * e + lat * 0.022 * e - Vector((0, 0.07 * e, 0)), m0 + d * 0.19 * e - lat * 0.022 * e - Vector((0, 0.07 * e, 0)),
+            m0 + d * 0.19 * e + lat * 0.02 * e - Vector((0, 0.09 * e, 0)), m0 + d * 0.19 * e - lat * 0.02 * e - Vector((0, 0.09 * e, 0))],
+           "pierre", bev=0.006, ton=0.85)      # mâchoire basse ouverte
+    M.boite((0.07 * e, 0.05 * e, 0.12 * e), t + d * 0.15 * e - Vector((0, 0.04 * e, 0)), "gravure", yaw=yaw, incl=(0.3, 0), bev=0.0, jit=0.0, ton=0.25)      # gueule (ombre)
+    for s in (-1, 1):
+        _pyramide(M, t + d * 0.24 * e + lat * s * 0.022 * e - Vector((0, 0.005 * e, 0)), 0.01 * e, t + d * 0.235 * e + lat * s * 0.022 * e - Vector((0, 0.05 * e, 0)), "pierre", 1.0, 3)      # crocs
+        M.boite((0.03 * e, 0.02 * e, 0.035 * e), t + d * 0.06 * e + lat * s * 0.075 * e + Vector((0, 0.025 * e, 0)), "gravure", yaw=yaw, bev=0.0, jit=0.0, ton=0.2)      # yeux
+        _pyramide(M, t - d * 0.04 * e + lat * s * 0.05 * e + Vector((0, 0.05 * e, 0)), 0.025 * e, t - d * 0.2 * e + lat * s * 0.09 * e + Vector((0, 0.12 * e, 0)), "pierre", 0.92, 4)      # cornes
+    for k in range(3):      # crête dorsale
+        q = t - d * (0.08 + 0.08 * k) * e + Vector((0, (0.07 - 0.06 * k) * e, 0))
+        _pyramide(M, q, 0.02 * e, q + Vector((0, 0.07 * e, 0)) - d * 0.04 * e, "pierre", 0.9, 3)
+    return t
+
+
+def trone_jarl(nom, graine):
+    """Trône du Jarl (salle g4) en pierre runique ancienne et givrée. Origine = dessus de l'estrade, centre de l'assise ; face +z.
+    Assise à panneau d'entrelacs, accoudoirs à têtes de dragon, haut dossier à montants runiques, médaillon à nœud, fronton à couronne
+    et têtes de dragon, fourrure écrue jetée sur l'assise, givre en plaques et glaçons. Emprise 1,56 x 1,2 m, hauteur 3,3 m."""
+    M = Module(nom, graine)
+    rg = M.rg
+    # plinthe et assise
+    M.boite((1.5, 0.1, 1.16), Vector((0, 0.05, -0.04)), bev=0.03, jit=0.008, ton=0.76)
+    M.boite((1.22, 0.36, 0.9), Vector((0, 0.28, -0.02)), bev=0.02, jit=0.006, ton=0.66)
+    zf = 0.44
+    for yy in (0.14, 0.44):      # cadre du panneau avant
+        M.boite((1.12, 0.05, 0.05), Vector((0, yy, zf)), bev=0.012, jit=0.003, ton=0.98)
+    for sx in (-1, 1):
+        M.boite((0.07, 0.35, 0.06), Vector((sx * 0.53, 0.29, zf)), bev=0.014, jit=0.003, ton=0.96)
+    M.boite((0.98, 0.25, 0.02), Vector((0, 0.29, zf - 0.012)), bev=0.0, jit=0.002, ton=0.42)      # fond en creux
+    # entrelacs : deux rubans en zigzag qui se croisent (lecture « nœud » à distance)
+    n = 6
+    for s in (-1, 1):
+        for k in range(n):
+            x0 = -0.46 + 0.92 * k / n
+            x1 = -0.46 + 0.92 * (k + 1) / n
+            ya = 0.2 if (k % 2 == 0) == (s > 0) else 0.38
+            yb = 0.38 if ya == 0.2 else 0.2
+            M.barre(Vector((x0, ya, zf + 0.005)), Vector((x1, yb, zf + 0.005)), 0.017, "pierre", 0.95 if s > 0 else 0.85)
+    # dalle d'assise débordante, bande runique sur la tranche avant
+    M.boite((1.32, 0.08, 1.0), Vector((0, 0.5, 0.0)), bev=0.03, jit=0.006, ton=0.93)
+    M.boite((1.0, 0.035, 0.02), Vector((0, 0.5, 0.505)), "gravure", bev=0.0, jit=0.0, ton=0.8)
+    # fourrure écrue jetée sur l'assise, retombant devant en deux pans au bord irrégulier
+    M.boite((0.98, 0.04, 0.78), Vector((0.02, 0.56, 0.0)), "fourrure", yaw=0.03, bev=0.018, jit=0.012, ton=0.6)
+    M.boite((0.52, 0.26, 0.04), Vector((-0.2, 0.43, 0.53)), "fourrure", yaw=0.05, incl=(0.12, 0.0), bev=0.016, jit=0.014, ton=0.52)
+    M.boite((0.46, 0.2, 0.04), Vector((0.24, 0.46, 0.535)), "fourrure", yaw=-0.04, incl=(0.1, 0.0), bev=0.016, jit=0.014, ton=0.56)
+    # accoudoirs : flancs pleins à panneau, lisse, tête de dragon en bout
+    for sx in (-1, 1):
+        x = sx * 0.66
+        M.boite((0.18, 0.72, 0.96), Vector((x, 0.42, -0.02)), bev=0.025, jit=0.006, ton=0.84)
+        M.boite((0.02, 0.4, 0.62), Vector((x + sx * 0.09, 0.42, 0.0)), "gravure", bev=0.0, jit=0.0, ton=0.55)      # panneau runique du flanc
+        for k in range(3):
+            M.boite((0.03, 0.09, 0.03), Vector((x + sx * 0.1, 0.32 + k * 0.09, -0.12 + k * 0.12)), bev=0.006, jit=0.002, ton=1.0)
+        M.boite((0.24, 0.08, 1.06), Vector((x, 0.82, 0.0)), bev=0.028, jit=0.006, ton=0.96)
+        _tete_dragon(M, Vector((x, 0.82, 0.46)), (0.0, 1.0), ech=0.7)
+        _givre_plaques(M, x - 0.1, x + 0.1, -0.45, 0.4, 0.86, 2, ep=0.012, taille=(0.08, 0.18))
+        _glacons(M, x - 0.1, x + 0.1, 0.78, 0.53, 3)
+    # dossier : dalle centrale encadrée, deux rubans d'entrelacs, montants runiques, médaillon haut (visible au-dessus du Jarl depuis l'entrée)
+    zd = -0.42
+    H = 2.7
+    M.boite((1.1, H - 0.56, 0.2), Vector((0, (0.56 + H) * 0.5, zd)), bev=0.025, jit=0.006, ton=0.8, haut_ratio=0.96)
+    zf = zd + 0.11
+    M.boite((1.0, 0.07, 0.05), Vector((0, H - 0.12, zf)), bev=0.014, jit=0.003, ton=1.0)
+    M.boite((1.0, 0.07, 0.05), Vector((0, 0.86, zf)), bev=0.014, jit=0.003, ton=0.95)
+    for sx in (-1, 1):
+        M.boite((0.06, H - 1.04, 0.05), Vector((sx * 0.47, (0.86 + H - 0.12) * 0.5, zf)), bev=0.014, jit=0.003, ton=0.98)
+        n = 7      # ruban d'entrelacs vertical (deux brins croisés)
+        for sb in (-1, 1):
+            for k in range(n):
+                y0_ = 0.95 + (H - 1.95) * k / n
+                y1_ = 0.95 + (H - 1.95) * (k + 1) / n
+                xa = sx * 0.36 + (0.06 if (k % 2 == 0) == (sb > 0) else -0.06)
+                xb = sx * 0.36 + (-0.06 if xa > sx * 0.36 else 0.06)
+                M.barre(Vector((xa, y0_, zf)), Vector((xb, y1_, zf)), 0.016, "pierre", 1.0 if sb > 0 else 0.88)
+    for sx in (-1, 1):
+        x = sx * 0.64
+        M.boite((0.22, H - 0.05, 0.26), Vector((x, (H - 0.05) * 0.5 + 0.05, zd)), bev=0.03, jit=0.008, ton=0.92)
+        for yy in (0.62, 1.3, 1.98, H - 0.02):      # bagues
+            M.boite((0.27, 0.07, 0.31), Vector((x, yy, zd)), bev=0.016, jit=0.004, ton=1.0)
+        for yy in (0.96, 1.64, 2.32):      # runes : traits gravés sur la face avant du montant
+            M.boite((0.1, 0.4, 0.015), Vector((x, yy, zd + 0.131)), "gravure", bev=0.0, jit=0.0, ton=0.5)
+        _tete_dragon(M, Vector((x, H + 0.02, zd)), (sx * 0.55, 0.84), ech=1.15)
+    M.boite((0.9, 0.06, 0.02), Vector((0, 0.78, zd + 0.11)), "gravure", bev=0.0, jit=0.0, ton=0.7)      # frise runique basse
+    # médaillon : anneau, croix à bras recourbés (nœud), bouton central
+    c = Vector((0, H - 0.6, zd + 0.13))
+    _anneau_vertical(M, c, 0.36, 0.29, 0.07, 16, "pierre", 1.0)
+    _anneau_vertical(M, c + Vector((0, 0, -0.01)), 0.29, 0.07, 0.03, 12, "gravure", 0.4)      # fond sombre du médaillon
+    for k in range(4):
+        a = math.tau * k / 4 + math.pi / 4
+        dd = Vector((math.cos(a), math.sin(a), 0))
+        pe = Vector((-math.sin(a), math.cos(a), 0))
+        M.barre(c + dd * 0.06 + Vector((0, 0, 0.02)), c + dd * 0.22 + Vector((0, 0, 0.02)), 0.022, "pierre", 1.0)
+        _anneau_vertical(M, c + dd * 0.2 + pe * 0.04 + Vector((0, 0, 0.02)), 0.075, 0.045, 0.035, 6, "pierre", 0.95, a + math.pi * 0.5, a + math.pi * 1.6)
+    _disque_vertical(M, c + Vector((0, 0, 0.03)), 0.07, 0.05, 10, "pierre", 1.0)
+    # fronton : deux rampants qui se rejoignent au-dessus de la dalle, couronne à cinq fleurons
+    for sx in (-1, 1):
+        M.boite((0.7, 0.11, 0.24), Vector((sx * 0.29, H + 0.08, zd)), incl=(0.0, -sx * 0.32), bev=0.022, jit=0.005, ton=0.98)
+    M.boite((0.66, 0.12, 0.22), Vector((0, H + 0.2, zd + 0.02)), bev=0.022, jit=0.004, ton=1.0)      # bandeau de couronne
+    for k in range(5):
+        x = (k - 2) * 0.15
+        hk = 0.2 + (0.16 if k == 2 else (0.07 if k in (1, 3) else 0.0))
+        _pyramide(M, Vector((x, H + 0.26, zd + 0.02)), 0.055, Vector((x, H + 0.26 + hk, zd + 0.02)), "pierre", 1.0, 4, rot=math.pi / 4)
+        M.boite((0.045, 0.045, 0.03), Vector((x, H + 0.2, zd + 0.135)), "gravure", bev=0.0, jit=0.0, ton=0.35)      # gemmes creusées
+    # givre : assise, dossier, couronne ; glaçons sous la lisse du fronton et la dalle d'assise
+    _givre_plaques(M, -0.6, 0.6, -0.32, -0.12, 0.6, 3, ep=0.012, taille=(0.1, 0.24))
+    _givre_plaques(M, -0.3, 0.3, zd - 0.08, zd + 0.12, H + 0.265, 2, ep=0.014, taille=(0.08, 0.18))
+    _givre_plaques(M, -0.75, 0.75, -0.1, 0.12, 0.06, 4, ep=0.012, taille=(0.1, 0.26))
+    for sx in (-1, 1):
+        _givre_plaques(M, sx * 0.64 - 0.12, sx * 0.64 + 0.12, zd - 0.14, zd + 0.14, H + 0.02, 1, ep=0.014, taille=(0.1, 0.2))
+        for k in range(3):      # givre sur les rampants (suit la pente)
+            t_ = 0.2 + 0.25 * k
+            _givre_eclat(M, Vector((sx * (0.6 - t_ * 0.9), H + 0.14 + t_ * 0.3, zd + rg.uniform(-0.06, 0.06))), rg.uniform(0.05, 0.08), 0.014)
+    _glacons(M, -0.55, 0.55, 0.46, 0.5, 5)
+    _glacons(M, -0.45, 0.45, H - 0.16, zd + 0.14, 5, long=(0.04, 0.1))
+    return M
+
+
+def _marche(M, sx, h, z0, z1, y0, couv=None, dalle=0.62):
+    """Marche de l'estrade : massif x ∈ ±sx/2, z ∈ [z0, z1] (avant = z1), de y0 à y0 + h. Contremarche de blocs (avant et côtés),
+    nez débordant en dalles chanfreinées, dalles seulement sur la partie VISIBLE (couv = (demi-largeur, z avant) de la marche du dessus)."""
+    rg = M.rg
+    yt = y0 + h
+    ix, iz = sx - 0.4, (z1 - z0) - 0.3
+    nx0, nz0 = max(1, math.ceil(ix / 1.4)), max(1, math.ceil(iz / 1.4))
+    for i in range(nx0):
+        for k in range(nz0):
+            M.boite((ix / nx0, h - 0.03, iz / nz0), Vector((-ix * 0.5 + ix * (i + 0.5) / nx0, y0 + (h - 0.03) * 0.5, z0 + iz * (k + 0.5) / nz0)), bev=0.0, jit=0.0, ton=0.3)
+    hr = h - 0.09
+    # contremarche avant
+    x = -sx * 0.5
+    while x < sx * 0.5 - 0.05:
+        w = min(rg.choice([0.42, 0.55, 0.7]), sx * 0.5 - x)
+        if sx * 0.5 - x - w < 0.18:
+            w = sx * 0.5 - x
+        M.boite((w - 0.02, hr, 0.2), Vector((x + w * 0.5, y0 + hr * 0.5, z1 - 0.12)), bev=0.018, jit=0.006, ton=rg.uniform(0.55, 0.75))
+        x += w
+    # contremarches des côtés
+    for sg in (-1, 1):
+        z = z0
+        while z < z1 - 0.2:
+            w = min(rg.choice([0.5, 0.65, 0.8]), z1 - 0.2 - z)
+            M.boite((0.2, hr, w - 0.02), Vector((sg * (sx * 0.5 - 0.12), y0 + hr * 0.5, z + w * 0.5)), bev=0.018, jit=0.006, ton=rg.uniform(0.55, 0.75))
+            z += w
+    # nez : dalles débordantes (3 cm) à l'avant et sur les côtés ; arête claire
+    x = -sx * 0.5 - 0.03
+    while x < sx * 0.5 + 0.03 - 0.05:
+        w = min(rg.choice([0.55, 0.7, 0.85]), sx * 0.5 + 0.03 - x)
+        if sx * 0.5 + 0.03 - x - w < 0.25:
+            w = sx * 0.5 + 0.03 - x
+        M.boite((w - 0.02, 0.09, 0.34), Vector((x + w * 0.5, yt - 0.045, z1 - 0.14)), bev=0.025, jit=0.005, ton=rg.uniform(0.88, 1.0))
+        x += w
+    for sg in (-1, 1):
+        z = z0
+        while z < z1 - 0.32:
+            w = min(rg.choice([0.6, 0.8]), z1 - 0.31 - z)
+            M.boite((0.3, 0.09, w - 0.02), Vector((sg * (sx * 0.5 - 0.12), yt - 0.045, z + w * 0.5)), bev=0.022, jit=0.005, ton=rg.uniform(0.82, 0.98))
+            z += w
+    # dalles du giron (partie visible seulement)
+    gx0, gx1, gz0, gz1 = -sx * 0.5 + 0.27, sx * 0.5 - 0.27, z0, z1 - 0.31
+    nz = max(1, int(round((gz1 - gz0) / dalle)))
+    for k in range(nz):
+        za = gz0 + (gz1 - gz0) * k / nz
+        zb = gz0 + (gz1 - gz0) * (k + 1) / nz
+        x = gx0
+        while x < gx1 - 0.05:
+            w = min(dalle * rg.choice([0.7, 1.0, 1.3]), gx1 - x)
+            if gx1 - x - w < 0.2:
+                w = gx1 - x
+            cx, cz = x + w * 0.5, (za + zb) * 0.5
+            x += w
+            if couv is not None and abs(cx) + w * 0.5 < couv[0] - 0.02 and zb < couv[1] - 0.02:
+                continue      # entièrement sous la marche du dessus
+            M.boite((w - 0.025, 0.07, zb - za - 0.025), Vector((cx, yt - 0.035 + rg.uniform(-0.006, 0.004), cz)), yaw=rg.uniform(-0.015, 0.015), bev=0.014, jit=0.005, ton=rg.uniform(0.66, 0.92))
+    # givre le long du nez
+    for _ in range(max(3, int(sx / 0.6))):
+        _givre_eclat(M, Vector((rg.uniform(-sx * 0.46, sx * 0.46), yt, z1 - rg.uniform(0.05, 0.25))), rg.uniform(0.04, 0.09))
+
+
+def estrade_trone(nom, graine):
+    """Estrade du trône du Jarl : trois marches lisibles (0,2 m de contremarche, girons de 0,45 m), plus profonde que large ;
+    origine au sol sous le centre de l'assise, avant +z. Massifs : 2,9 x 3,4 / 2,4 x 2,95 / 2,0 x 2,5 m, dos commun en z = -1,9."""
+    M = Module(nom, graine)
+    marches_ = [(2.9, 1.5), (2.4, 1.05), (2.0, 0.6)]
+    for i, (sx, z1) in enumerate(marches_):
+        couv = (marches_[i + 1][0] * 0.5, marches_[i + 1][1]) if i + 1 < len(marches_) else None
+        _marche(M, sx, 0.2, -1.9, z1, 0.2 * i, couv)
+    # frise runique sur la contremarche haute, rosaces de givre au pied
+    M.boite((1.3, 0.06, 0.02), Vector((0, 0.5, 0.6 - 0.015)), "gravure", bev=0.0, jit=0.0, ton=0.6)
+    M.boite((1.0, 0.05, 0.02), Vector((0, 0.3, 1.05 - 0.015)), "gravure", bev=0.0, jit=0.0, ton=0.6)
+    return M
+
+
 # ======================================================================= table des modules exportés
 def construire():
     mods = []
@@ -943,6 +1221,9 @@ def construire():
     mods.append(socle_pivot("socle_pivot", 261))
     mods.append(statue_guide("statue_guide", 262))
     mods.append(brasero_v2("brasero_v2", 271))
+    # L4 objets (2026-10-26) : trône du Jarl et son estrade
+    mods.append(trone_jarl("trone_jarl", 281))
+    mods.append(estrade_trone("estrade_trone", 282))
     return mods
 
 
