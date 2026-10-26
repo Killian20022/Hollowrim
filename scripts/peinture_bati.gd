@@ -23,6 +23,8 @@ const BAYER := [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
 const K_PIERRE := ["#12141d", "#1e2230", "#2c3145", "#3f455c", "#565c73", "#6f758a", "#8a8d9e", "#a3a5af", "#bbbab9"]
 const K_PIERRE_CH := ["#16141a", "#242024", "#383037", "#4f434a", "#67595d", "#826f6d", "#9d8b85", "#b7a89f"]
 const K_PIERRE_VERT := ["#11161a", "#1c2429", "#2b373b", "#3f4e4f", "#566763", "#6f8077", "#8c9a8d", "#a7b0a2"]
+## grès / granite chaud (murs de soutènement du village, D/neige_murs) : gris-brun ocré, référence village_v2_planche
+const K_PIERRE_OCRE := ["#16120f", "#28201a", "#3c3127", "#544435", "#6d5a47", "#87725c", "#a08b74", "#b8a48c", "#cdbca6"]
 const K_LICHEN := ["#10191a", "#1c2a27", "#2c3f35", "#43584a", "#5d7260", "#7a8d76", "#97a88f"]
 const K_LICHEN_ROUX := ["#2a1e20", "#43302a", "#5e402c", "#7d5733", "#9a7040", "#b58a55", "#cba66f"]
 const K_NEIGE := ["#3a4469", "#4a557f", "#5d6a95", "#6877a3", "#7b8bb3", "#8898bf", "#99a9cb", "#aab8d6", "#bcc8e1", "#cdd7ec", "#e0e6f2", "#f0eff4"]
@@ -260,7 +262,8 @@ static func _sstep(a: float, b: float, v: float) -> float:
 ## joints creux et irréguliers, éclats facettés, lumière rasante + ombres + occlusion, teinte et clarté propres à
 ## chaque pierre, dégradé haut clair / bas sombre dans chaque pierre, coulures, lichen gris-vert et orangé,
 ## calottes de neige sur les replats, neige dans les joints. Tuile 256 × 128 texels = 8 × 4 m à 32 texels/m.
-static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, wmin := 15, wmax := 34, part_neige := 0.3, rayon := 3.0, e := 1) -> Array:
+## `chaud` : palette gris-brun/ocre (quelques pierres froides seulement) ; `incl` : inclinaison max des assises.
+static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, wmin := 15, wmax := 34, part_neige := 0.3, rayon := 3.0, e := 1, chaud := false, incl := 0.2) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var assises := _decouper(rng, h, hmin, hmax)
@@ -300,7 +303,7 @@ static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, w
 				break
 		prec = st
 		starts.append(st)
-		tilt.append(rng.randf_range(-0.2, 0.2))
+		tilt.append(rng.randf_range(-incl, incl))
 		base_id.append(total)
 		total += larg.size()
 	# attributs par pierre
@@ -397,9 +400,9 @@ static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, w
 		for i in w * h:
 			if hf[i] > 0.0 and dist[i] < 1.7 * e:
 				lev[i] = 1.0 if vfr[i] < 0.5 else -1.0
-	var coul_a := rampe(K_PIERRE)
-	var coul_b := rampe(K_PIERRE_CH)
-	var coul_c := rampe(K_PIERRE_VERT)
+	var coul_a := rampe(K_PIERRE_CH if chaud else K_PIERRE)
+	var coul_b := rampe(K_PIERRE_OCRE if chaud else K_PIERRE_CH)
+	var coul_c := rampe(K_PIERRE if chaud else K_PIERRE_VERT)
 	var coul_l := rampe(K_LICHEN)
 	var coul_r := rampe(K_LICHEN_ROUX)
 	var coul_n := rampe(K_NEIGE)
@@ -428,7 +431,15 @@ static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, w
 			var t := tint[id]
 			var col: Color
 			var ix := ton_e(L, x, y, e, N, graine)
-			if t < 0.45:
+			if chaud:
+				# surtout gris-brun et ocre, une pierre sur huit plus froide (gris bleuté)
+				if t < 0.5:
+					col = coul_a[ix].lerp(coul_b[ix], t / 0.5)
+				elif t < 0.875:
+					col = coul_b[ix].lerp(coul_a[ix], (t - 0.5) / 0.375 * 0.5)
+				else:
+					col = coul_a[ix].lerp(coul_c[ix], 0.55)
+			elif t < 0.45:
 				col = coul_a[ix].lerp(coul_b[ix], t / 0.45 * 0.6)
 			elif t < 0.8:
 				col = coul_a[ix].lerp(coul_c[ix], (t - 0.45) / 0.35 * 0.7)
@@ -436,7 +447,7 @@ static func mur_pierre(graine: int, w := 256, h := 128, hmin := 9, hmax := 15, w
 				col = coul_b[ix].lerp(coul_c[ix], 0.35)
 			# lichen
 			var m := lk[i] + (lk2[i] - 0.5) * 0.2 + (lich[id] - 0.5) * 0.28
-			if not joint and m > 0.73 and neige[i] < 0.5 and lit[i] > 0.3:
+			if not joint and m > (0.86 if chaud else 0.73) and neige[i] < 0.5 and lit[i] > 0.3:   # chaud : lichen rare (pas de taches)
 				col = coul_l[ton_e(L * 0.95 + 0.06, x, y, e, N, graine)] if lk2[i] < 0.72 else coul_r[ton_e(L * 0.95 + 0.04, x, y, e, N, graine)]
 			if neige[i] > 0.5:
 				var ln := 0.82 + (lit[i] - 0.5) * 0.7 - (vloc[i] / maxf(neige_d[id], float(e))) * 0.22 - omb[i] * 0.1
@@ -1064,6 +1075,8 @@ static func fabriques() -> Dictionary:
 	# dimensions en mètres), tramage par bruit, nettoyage des texels isolés. Les anciennes (32 texels/m) restent pour
 	# les rochers, le tertre, l'intérieur (fer, cuir, foin) qui les lisent encore.
 	base["pierre_seche_e"] = func() -> Array: return _net(mur_pierre(5111, 512, 256, 16, 28, 30, 68, 0.12, 6.0, 2))
+	# murs de soutènement (D/neige_murs) : pierre chaude, assises de 0,22 à 0,7 m, pierres de 0,35 à 1,6 m, rangs inclinés
+	base["pierre_mur_e"] = func() -> Array: return _net(mur_pierre(5119, 512, 256, 14, 44, 22, 104, 0.10, 7.0, 2, true, 0.45))
 	base["pierre_fine_e"] = func() -> Array: return _net(mur_pierre(5113, 512, 256, 12, 20, 18, 40, 0.06, 4.0, 2))
 	base["pierre_brute_e"] = func() -> Array: return _net(roche(5217, 256, 3, 0.4, 0.2, 2))
 	base["planches_v_e"] = func() -> Array: return _net(planches(5311, 256, 256, false, 2, 0.3))

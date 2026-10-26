@@ -558,7 +558,7 @@ func _mur(x0: float, x1: float, zb: float, zh: float, h_bas: float, h_haut: floa
 	var zf := av + (hf - bas) * 0.04              # fruit de 4 % : le haut recule
 	var neige := Color(1, 1, 1, 0.0)
 	var ao_t := Color(1.0, 1.0, 1.0, 1.0)
-	var ao_p := Color(0.82, 0.82, 0.86, 1.0)
+	var ao_p := Color(0.84, 0.82, 0.8, 1.0)
 	var cm := Vector3((x0 + x1) * 0.5, (bas + hf) * 0.5, (zb + zh) * 0.5)
 	# face avant d'un seul tenant (les tronçons séparés laissaient des fentes avec l'accrochage des sommets du shader ps1)
 	_murs.quad(Vector3(x0, bas, av), Vector3(x1, bas, av), Vector3(x1, hf, zf), Vector3(x0, hf, zf), ao_p, ao_p, ao_t, ao_t, cm)
@@ -600,7 +600,7 @@ func _joue(x0: float, x1: float, z0: float, z1: float, cote: float, h0: float) -
 	var xc: float = ReliefVillage.ESCALIER_X
 	var n := maxi(1, ceili((z1 - z0) / 0.5))
 	var ao_t := Color(1.0, 1.0, 1.0, 1.0)
-	var ao_p := Color(0.82, 0.82, 0.86, 1.0)
+	var ao_p := Color(0.84, 0.82, 0.8, 1.0)
 	var neige := Color(1, 1, 1, 0.0)
 	var x_couloir := xc + cote * ReliefVillage.ESCALIER_DEMI
 	var x_bande := xc + cote * (ReliefVillage.ESCALIER_DEMI + ReliefVillage.ESCALIER_JOUE)
@@ -701,7 +701,9 @@ func _finaliser_rues() -> void:
 			ml.visibility_range_begin = PORTEE_FLANCS
 			ml.visibility_range_end = PORTEE_PAVES
 	_mesh(_marches, TexturesBati.m_pierre_fine_e(Color(1.22, 1.24, 1.32)), true, "Marches")   # pierre claire usée (vue 3 de la planche)
-	var mur := _mesh(_murs, TexturesBati.m_pierre_seche_e(Color(1.5, 1.52, 1.6)), true, "MursSoutenement")
+	# D/neige_murs : pierre chaude à assises irrégulières (référence village_v2, cohérente avec les maisons C7b) au lieu
+	# de la pierre sèche gris-bleu à rangs réguliers ; teinte légèrement chaude pour tenir sous la lumière froide du ciel
+	var mur := _mesh(_murs, TexturesBati.m_pierre_mur_e(Color(1.62, 1.47, 1.3)), true, "MursSoutenement")
 	if mur != null:
 		mur.visibility_range_end = 0.0   # visibles de loin (haute rue vue de toute la cuvette)
 	_mesh(_sillons, TexturesBati.m_neige_toit_e(), false, "Sillons")

@@ -140,6 +140,10 @@ static func materiau_e(nom: String, teinte := Color.WHITE, force_relief := 0.8) 
 static func m_pierre_seche_e(teinte := Color.WHITE) -> ShaderMaterial:
 	return materiau_e("pierre_seche_e", teinte)
 
+## Murs de soutènement du village (D/neige_murs) : pierre chaude à assises irrégulières.
+static func m_pierre_mur_e(teinte := Color.WHITE) -> ShaderMaterial:
+	return materiau_e("pierre_mur_e", teinte)
+
 static func m_pierre_fine_e(teinte := Color.WHITE) -> ShaderMaterial:
 	return materiau_e("pierre_fine_e", teinte)
 
