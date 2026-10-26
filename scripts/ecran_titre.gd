@@ -18,8 +18,13 @@ const OPTIONS := preload("res://scripts/menu_options.gd")
 const CHARGEMENT := preload("res://scripts/ecran_chargement.gd")
 const AUDIO := preload("res://scripts/menu_audio.gd")
 const LOGO_SHADER := preload("res://shaders/menu_ui/logo_apparition.gdshader")
+const LOGO_GIVRE := preload("res://shaders/menu_ui/logo_givre.gdshader")
 const FOND_REPLI := "res://assets/ui/titre_reference.jpg"
 const DECOR := "res://scenes/menu_decor/menu_decor.tscn"
+## Décor : peinture de 1920x1080 (nœud « Cadre », mis à l'échelle par le décor) ; logo peint détouré posé en LOGO_DECOR.
+const DECOR_TAILLE := Vector2(1920, 1080)
+const LOGO_DECOR_TEX := "res://textures/menu_decor/logo_peint.png"
+const LOGO_DECOR := Rect2(562, 9, 832, 334)
 
 ## Auteur affiché dans les crédits (à changer ici).
 const AUTEUR := "lopezk19"
@@ -39,7 +44,8 @@ const LIBELLES := ["Continuer", "Nouvelle partie", "Charger", "Options", "Quitte
 var mode_test := false
 
 var _plan: Control
-var _decor: Node
+var _decor: Control       # décor animé (MenuDecor), plein écran sous l'interface ; null : repli sur l'image fixe
+var _fond_repli: TextureRect
 var _fond_bandes: TextureRect
 var _logo: TextureRect
 var _lueur: TextureRect
@@ -129,16 +135,25 @@ func _construire() -> void:
 	_fond_bandes.modulate = Color(0.42, 0.44, 0.52)
 	add_child(_fond_bandes)
 
+	_decor = _creer_decor()
+	if _decor != null:
+		add_child(_decor)
 	_plan = Control.new()
 	_plan.size = IMG
 	_plan.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_plan)
-	_decor = _creer_decor(fond_tex)
-	_plan.add_child(_decor)
-	if not _decor_anime():
+	if _decor == null:
+		_fond_repli = TextureRect.new()
+		_fond_repli.name = "FondRepli"
+		_fond_repli.texture = fond_tex
+		_fond_repli.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_fond_repli.stretch_mode = TextureRect.STRETCH_SCALE
+		_fond_repli.size = IMG
+		_fond_repli.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_plan.add_child(_fond_repli)
 		_neige = _neige_repli()
 		_plan.add_child(_neige)
-	_logo = _creer_logo(fond_tex)
+	_logo = _creer_logo(fond_tex) if _decor == null else _creer_logo_decor()
 	_plan.add_child(_logo)
 	_lueur = _creer_lueur()
 	_plan.add_child(_lueur)
@@ -235,28 +250,47 @@ func _construire() -> void:
 	_audio = AUDIO.new()
 	add_child(_audio)
 
-## Décor animé de l'autre chantier s'il existe (chargé par chemin), sinon l'image de référence fixe.
-func _creer_decor(fond_tex: Texture2D) -> Node:
-	if ResourceLoader.exists(DECOR):
-		var ps: PackedScene = load(DECOR)
-		if ps != null:
-			var d := ps.instantiate()
-			if d is Control:
-				(d as Control).position = Vector2.ZERO
-				(d as Control).size = IMG
-				(d as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
-			return d
-	var t := TextureRect.new()
-	t.name = "FondRepli"
-	t.texture = fond_tex
-	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	t.stretch_mode = TextureRect.STRETCH_SCALE
-	t.size = IMG
-	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return t
+## Décor animé (scenes/menu_decor, chargé par chemin) : Control plein écran qui cadre lui-même la peinture (« cover ») ;
+## l'interface suit son nœud « Cadre » (voir _placer). null si la scène manque : repli sur l'image fixe.
+func _creer_decor() -> Control:
+	if not ResourceLoader.exists(DECOR):
+		return null
+	var ps: PackedScene = load(DECOR)
+	var d: Node = ps.instantiate() if ps != null else null
+	if not (d is Control) or d.get_node_or_null("Cadre") == null:
+		if d != null:
+			d.free()
+		push_warning("Décor du menu inutilisable, repli sur l'image fixe : " + DECOR)
+		return null
+	# écrans plus étroits que 16:9 (16:10, 4:3) : on rogne surtout à droite, pour garder la colonne de boutons loin du bord gauche
+	var anc: Variant = d.get("ancrage")
+	if anc is Vector2:
+		d.set("ancrage", Vector2(0.28, (anc as Vector2).y))
+	(d as Control).set_anchors_preset(Control.PRESET_FULL_RECT)
+	(d as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return d
 
 func _decor_anime() -> bool:
-	return _decor != null and _decor.name != "FondRepli"
+	return _decor != null
+
+## Logo du décor (détouré) pour l'apparition : posé exactement sur celui du décor, qui est masqué le temps de l'apparition.
+func _creer_logo_decor() -> TextureRect:
+	var k := IMG.x / DECOR_TAILLE.x
+	var l := TextureRect.new()
+	l.name = "LogoApparition"
+	l.texture = load(LOGO_DECOR_TEX) if ResourceLoader.exists(LOGO_DECOR_TEX) else null
+	l.expand_mode = TextureRect.EXPAND_IGNORE_SIZE   # AVANT size : sinon la taille minimale (texture 832x334) l'emporte
+	l.stretch_mode = TextureRect.STRETCH_SCALE
+	l.position = LOGO_DECOR.position * k
+	l.size = LOGO_DECOR.size * k
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var m := ShaderMaterial.new()
+	m.shader = LOGO_GIVRE
+	m.set_shader_parameter("centre", (Vector2(964, 172) - LOGO_DECOR.position) / LOGO_DECOR.size)
+	m.set_shader_parameter("aspect", LOGO_DECOR.size.x / LOGO_DECOR.size.y)
+	m.set_shader_parameter("progres", 0.0)
+	l.material = m
+	return l
 
 func _neige_repli() -> CPUParticles2D:
 	var p := CPUParticles2D.new()
@@ -285,10 +319,10 @@ func _creer_logo(fond_tex: Texture2D) -> TextureRect:
 	var l := TextureRect.new()
 	l.name = "LogoApparition"
 	l.texture = ImageTexture.create_from_image(img)
-	l.position = LOGO.position
-	l.size = LOGO.size
 	l.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	l.stretch_mode = TextureRect.STRETCH_SCALE
+	l.position = LOGO.position
+	l.size = LOGO.size
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var m := ShaderMaterial.new()
 	m.shader = LOGO_SHADER
@@ -315,11 +349,11 @@ func _creer_lueur() -> TextureRect:
 	var t := TextureRect.new()
 	t.name = "LueurCristal"
 	t.texture = gt
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.stretch_mode = TextureRect.STRETCH_SCALE
 	t.size = Vector2(190, 190)
 	t.position = CRISTAL - t.size * 0.5
 	t.pivot_offset = t.size * 0.5
-	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	t.stretch_mode = TextureRect.STRETCH_SCALE
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var mat := CanvasItemMaterial.new()
 	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
@@ -331,6 +365,15 @@ func _creer_lueur() -> TextureRect:
 
 ## Rectangle de l'image à l'écran : couvre l'écran, mais sans rogner plus de 14 % de la hauteur ni 20 % de la largeur
 ## (ultra-large : bandes latérales floutées ; 16:10 : rognage surtout à droite, loin des boutons ; haut gardé pour le logo).
+## Rectangle de l'image avec le décor animé pour un écran `v` (même calcul que MenuDecor._cadrer : « cover » × marge, ancrage).
+func rect_image_decor(v: Vector2) -> Rect2:
+	if _decor == null:
+		return rect_image(v)
+	var marge: float = _decor.get("marge")
+	var ancrage: Vector2 = _decor.get("ancrage")
+	var sd := maxf(v.x / DECOR_TAILLE.x, v.y / DECOR_TAILLE.y) * marge
+	return Rect2((v - DECOR_TAILLE * sd) * ancrage, IMG * sd * DECOR_TAILLE.x / IMG.x)
+
 static func rect_image(v: Vector2) -> Rect2:
 	var s := maxf(v.x / IMG.x, v.y / IMG.y)
 	s = minf(s, minf(v.y / (IMG.y * 0.86), v.x / (IMG.x * 0.80)))
@@ -341,6 +384,9 @@ static func rect_image(v: Vector2) -> Rect2:
 func _placer() -> void:
 	var v := get_viewport().get_visible_rect().size
 	_rect = rect_image(v)
+	var cadre := _decor.get_node("Cadre") as Control if _decor != null else null
+	if cadre != null:   # l'interface suit le cadrage du décor (peinture 1920x1080 → image de référence 1672x941)
+		_rect = Rect2(cadre.position, IMG * cadre.scale.x * DECOR_TAILLE.x / IMG.x)
 	var s := _rect.size.x / IMG.x
 	_plan.position = _rect.position
 	_plan.scale = Vector2(s, s)
@@ -385,10 +431,14 @@ func _intro() -> void:
 	var tw := create_tween()
 	tw.tween_property(_noir, "modulate:a", 0.0, 1.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	var m := _logo.material as ShaderMaterial
+	if _decor != null and _decor.has_method("set_logo_peint") and _logo.texture != null:
+		_decor.call("set_logo_peint", false)   # le logo du décor reprend la main à la fin de l'apparition
 	var tl := create_tween()
 	tl.tween_interval(0.7)
 	tl.tween_method(func(v: float) -> void: m.set_shader_parameter("progres", v), 0.0, 1.0, 2.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tl.tween_callback(func() -> void:
+		if _decor != null and _decor.has_method("set_logo_peint"):
+			_decor.call("set_logo_peint", true)
 		_logo.visible = false
 		_pulser())
 	for i in _boutons.size():
@@ -406,7 +456,7 @@ func _intro() -> void:
 ## Pulsation du cristal : celle du décor s'il en a une, sinon la lueur additive.
 func _pulser() -> void:
 	if _decor != null and _decor.has_method("pulse_cristal"):
-		_decor.call("pulse_cristal")
+		_decor.call("pulse_cristal", 0.9)
 		return
 	var tw := create_tween().set_parallel(true)
 	_lueur.scale = Vector2(0.7, 0.7)
@@ -416,6 +466,10 @@ func _pulser() -> void:
 
 func _process(dt: float) -> void:
 	_t += dt
+	if _decor != null:
+		var cadre := _decor.get_node("Cadre") as Control
+		if cadre.position != _rect.position or not is_equal_approx(cadre.scale.x * DECOR_TAILLE.x, _rect.size.x):
+			_placer()
 	if _t >= _prochain_pulse and not _demarre:
 		_prochain_pulse = _t + randf_range(6.0, 8.0)
 		_pulser()
@@ -462,6 +516,8 @@ func _valider(b: BoutonRunique, action: Callable) -> void:
 		return
 	_occupe = true
 	_audio.jouer("validation")
+	if _decor != null and _decor.has_method("pulse_cristal"):
+		_decor.call("pulse_cristal", 1.0)
 	await b.valider()
 	_occupe = false
 	action.call()
@@ -871,7 +927,9 @@ func _images(n: int) -> void:
 
 ## Captures : repos, survol, Continuer grisé, panneaux, écran de chargement (démo), puis plusieurs tailles de fenêtre.
 func _captures(dossier: String) -> void:
-	await get_tree().create_timer(3.6).timeout   # fin de l'apparition
+	await get_tree().create_timer(0.9).timeout   # milieu de l'apparition (logo qui se cristallise, boutons qui glissent)
+	await capture(dossier.path_join("titre_apparition.png"))
+	await get_tree().create_timer(2.8).timeout   # fin de l'apparition
 	await capture(dossier.path_join("titre.png"))
 	_b_nouvelle.grab_focus()
 	await get_tree().create_timer(0.4).timeout
