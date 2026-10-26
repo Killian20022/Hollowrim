@@ -175,7 +175,7 @@ func _ready() -> void:
 	_villageois()
 	_chrono("villageois")
 	if Chrono.actif:   # corps d'archétypes relus du cache disque (CachePersos) / bâtis puis rangés ; dernier corps non rangé et pourquoi
-		print("CHRONO cache des corps : %d lus, %d écrits%s" % [CachePersos.lus, CachePersos.ecrits, (" ; refus : " + CachePersos.refus) if CachePersos.refus != "" else ""])
+		print("CHRONO cache des corps : %d lus, %d à écrire en sortant%s" % [CachePersos.lus, CachePersos.en_attente(), (" ; refus : " + CachePersos.refus) if CachePersos.refus != "" else ""])
 	_guerrier_pilote()
 	_mage_pilote()
 	_chasseresse_pilote()
@@ -1172,6 +1172,7 @@ func _unhandled_input(e: InputEvent) -> void:
 					get_tree().quit()
 
 func _exit_tree() -> void:
+	CachePersos.ecrire_en_attente()   # corps bâtis pendant le chargement, rangés pour les lancements suivants (différé : cache_persos.gd)
 	Palette.vider()
 	TexturesBati.vider()
 	Humain.vider()

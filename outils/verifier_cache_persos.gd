@@ -32,6 +32,7 @@ func _fab(a: String, o: Dictionary) -> Node3D:
 		"pnj": return PnjNordique.creer(o["id"])
 	return DraugrNordique.creer(o)
 func _lancer() -> void:
+	CachePersos.ecriture_immediate = true
 	var differents := 0
 	for nom: String in CORPS:
 		var a: String = CORPS[nom][0]

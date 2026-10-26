@@ -17,6 +17,8 @@ class_name CachePersos
 ##   d'animations PARTAGÉE (Humain.bibliotheque(), clips propres de l'archétype rangés à part), matières réinscrites dans
 ##   Palette.materiaux (bascule PS1). Shaders bâtis par le code : fichiers à part cités par chemin, résolus vers les instances
 ##   vivantes (GuerrierNordique.shader…) : ni compilation ni pipelines en double.
+## - Écriture DIFFÉRÉE : ecrire() empaquette (~5 ms) et ecrire_en_attente() sauvegarde à la sortie du monde (sinon le 1er lancement,
+##   sans cache, payait ~0,1-0,15 s de relecture du serveur de rendu par corps, ~1,5 s de plus que sans cache).
 ## - Écriture : seulement sur le fil principal (sauvegarder une ImageTexture lit l'image du serveur de rendu : jamais dans un fil),
 ##   dans un fichier temporaire renommé ensuite (deux Godot du même worktree ne lisent jamais un fichier à moitié écrit).
 ##   Lecture : aussi dans les fils (gabarits d'EnnemisNordiques.prechauffer_fil) ; rien n'y touche à l'arbre de scène.
@@ -38,6 +40,8 @@ static var _empreintes := {}     # chemin -> octets d'empreinte (mémo, plusieur
 static var _scenes := {}         # chemin du fichier -> PackedScene lue (plusieurs copies d'un même corps)
 static var _bibs := {}           # description -> AnimationLibrary recomposée (partagée entre copies)
 static var _shaders_amorces := false
+static var _a_ecrire: Array = []   # corps empaquetés, écrits par ecrire_en_attente() (hors du chargement)
+static var ecriture_immediate := false   # outils : écrire dans ecrire() même
 static var _noms_uniformes := {}  # Shader -> noms de ses uniformes
 
 ## Corps relu du cache, ou null (absent, périmé, désactivé). `script_archetype` = chemin du script de l'archétype (signature),
@@ -113,10 +117,44 @@ static func ecrire(archetype: String, script_archetype: String, options: Diction
 		refus = "empaquetage : erreur %d" % err
 		return
 	ps.set_meta("signature", _signature(archetype, script_archetype))
+	# shaders au moment de l'empaquetage (la bascule PS1 peut en changer avant l'écriture différée : corps alors abandonné)
+	var shaders: Array = []
+	for e: Array in etat["params"]:
+		shaders.append([e[0], (e[0] as ShaderMaterial).shader])
+	_mx.lock()
+	for e: Dictionary in _a_ecrire:
+		if e["chemin"] == chemin:      # même corps déjà empaqueté (plusieurs copies bâties avant l'écriture)
+			_mx.unlock()
+			return
+	_a_ecrire.append({"ps": ps, "chemin": chemin, "params": etat["params"], "shaders": shaders})
+	_mx.unlock()
+	if ecriture_immediate:
+		ecrire_en_attente()
+
+## Écrit les corps empaquetés par ecrire() (fil principal). Différé hors du chargement : sauvegarder un corps relit ses textures
+## peintes et ses maillages du serveur de rendu (~100-150 ms par corps avec un vrai rendu, ~1,5 s pour les 13 corps du village :
+## le 1er lancement aurait été PLUS LENT qu'avant le cache). Appelé à la sortie du monde (monde.gd, _exit_tree), ou tout de suite
+## si `ecriture_immediate` (outils).
+static func ecrire_en_attente() -> void:
+	if not FilVerrou.fil_principal():
+		return
+	_mx.lock()
+	var l := _a_ecrire.duplicate()
+	_a_ecrire.clear()
+	_mx.unlock()
+	for e: Dictionary in l:
+		_ecrire_fichier(e)
+
+static func _ecrire_fichier(e: Dictionary) -> void:
+	for x: Array in e["shaders"]:
+		if (x[0] as ShaderMaterial).shader != x[1]:
+			refus = "shader changé avant l'écriture (bascule PS1 ?)"
+			return
+	var chemin: String = e["chemin"]
 	DirAccess.make_dir_recursive_absolute(_dossier_cache())
 	var tmp := chemin.get_basename() + ".%d.tmp.scn" % OS.get_process_id()     # l'extension choisit le format : .scn = binaire
-	var err_s := ResourceSaver.save(ps, tmp, ResourceSaver.FLAG_COMPRESS)
-	_reposer(etat["params"])      # la sauvegarde a listé les propriétés des matières vivantes (voir _etat)
+	var err_s := ResourceSaver.save(e["ps"], tmp, ResourceSaver.FLAG_COMPRESS)
+	_reposer(e["params"])      # la sauvegarde a listé les propriétés des matières vivantes (voir _etat)
 	if err_s != OK:
 		refus = "écriture %s : erreur %d" % [tmp, err_s]
 		return
@@ -127,6 +165,10 @@ static func ecrire(archetype: String, script_archetype: String, options: Diction
 	_mx.lock()
 	ecrits += 1
 	_mx.unlock()
+
+## Corps empaquetés pas encore écrits.
+static func en_attente() -> int:
+	return _a_ecrire.size()
 
 # ------------------------------------------------------------------------------------------------------------------- interne
 ## Un dossier par worktree, et un à part sans fenêtre : les textures peintes d'après les images importées ne sortent pas
