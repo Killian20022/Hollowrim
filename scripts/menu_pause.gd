@@ -59,7 +59,7 @@ func _ready() -> void:
 	_centrer(_options)
 	if not Jeu.mode_outil():
 		Jeu.appliquer_camera(_joueur())   # champ de vision choisi dans les options
-	if Jeu.test_titre() in ["nouvelle", "continuer", "restaurer"]:
+	if Jeu.test_titre() in ["nouvelle", "continuer", "restaurer", "relance"]:
 		_test.call_deferred(Jeu.test_titre())
 
 ## Centre un panneau déjà ajouté : il passe dans un CenterContainer plein écran (suit sa taille quand son contenu change).
@@ -157,13 +157,25 @@ func _input(e: InputEvent) -> void:
 # --- test automatique (outils/test_menus.sh : --test-titre=nouvelle|continuer [--test-titre-sortie=<dossier>]) -------------
 ## nouvelle : pause → captures (pause, options) → Sauvegarder → Quitter.  continuer : vérifie que la partie chargée est celle
 ## du fichier (position du joueur) puis quitte sans sauvegarder.
+const TEMOIN_RELANCE := "user://test_relance.tmp"
+
 func _test(etape: String) -> void:
 	var sortie := ""
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--test-titre-sortie="):
 			sortie = a.substr(20)
-	await get_tree().create_timer(6.0).timeout
+	var attente := 6.0   # --test-titre-attente=<s> : quitter plus tard (fils de chargement en arrière-plan terminés)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--test-titre-attente="):
+			attente = float(a.substr(21))
+	await get_tree().create_timer(attente).timeout
 	var j := _joueur()
+	if etape == "relance":
+		# « Retour au titre » : relance du processus ; le nouveau processus (écran titre) trouve le témoin et conclut
+		FileAccess.open(TEMOIN_RELANCE, FileAccess.WRITE).store_string("1")
+		print("TEST MENUS : retour au titre demandé")
+		_retour_titre()
+		return
 	print("TEST MENUS : monde chargé (%s), joueur en %s" % [etape, j.global_position])
 	if etape == "nouvelle":
 		ouvrir()

@@ -308,6 +308,15 @@ func _test(etape: String) -> void:
 		get_tree().quit()
 	elif etape == "nouvelle":
 		_lancer(true)
+	elif etape == "relance":
+		# 1er passage : on entre en partie (le menu pause demandera « Retour au titre ») ; 2e passage (processus relancé) : verdict
+		if FileAccess.file_exists("user://test_relance.tmp"):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_relance.tmp"))
+			print("TEST MENUS : relance OK (écran titre revenu dans un nouveau processus)")
+			FileAccess.open("user://test_relance.ok", FileAccess.WRITE).store_string("relance OK")   # lu par test_menus.sh
+			get_tree().quit()
+		else:
+			_lancer(false)
 	elif etape == "continuer":
 		if _b_continuer.disabled:
 			print("TEST MENUS : ÉCHEC (Continuer grisé alors qu'une sauvegarde est attendue)")

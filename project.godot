@@ -14,6 +14,7 @@ config/name="Hollowrim"
 config/description="Hollowrim : action-RPG nordique au rendu PS1 (tranche verticale)."
 config/version="0.1.0"
 run/main_scene="res://scenes/ecran_titre.tscn"
+run/flush_stdout_on_print=true
 config/use_custom_user_dir=true
 config/custom_user_dir_name="Hollowrim"
 config/features=PackedStringArray("4.7", "Mobile")

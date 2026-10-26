@@ -270,7 +270,12 @@ static func relancer(action := "") -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("relance", "action", action)
 	cfg.save(_fichier_relance())
-	OS.set_restart_on_exit(true, OS.get_cmdline_args())
+	# get_cmdline_args() n'inclut pas les arguments utilisateur (après « -- ») : on les remet (--hors-ecran, tests…)
+	var args := OS.get_cmdline_args()
+	if not OS.get_cmdline_user_args().is_empty():
+		args.append("--")
+		args.append_array(OS.get_cmdline_user_args())
+	OS.set_restart_on_exit(true, args)
 	var arbre := Engine.get_main_loop() as SceneTree
 	arbre.paused = false
 	arbre.quit()
