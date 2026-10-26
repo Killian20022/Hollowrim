@@ -1,0 +1,16 @@
+# Correctifs lac + horizon (branche correctifs/lac_horizon) : tirets sombres sur la glace du lac, bande blanche sous l'arrière-plan.
+# Chaque vue à midi (_J) et au crépuscule (_C).
+LAC_VUE_J monde 21.5,64.5,100,-9 heure=12 sans-mains
+LAC_VUE_C monde 21.5,64.5,100,-9 heure=17 sans-mains
+LAC_LARGE_J monde -20,44,247,-3 y=-0.8 heure=12 sans-mains
+LAC_LARGE_C monde -20,44,247,-3 y=-0.8 heure=17 sans-mains
+LAC_GLACE_J monde -10,50,250,-25 y=-0.8 heure=12 sans-mains
+LAC_GLACE_C monde -10,50,250,-25 y=-0.8 heure=17 sans-mains
+LAC_RIVE_J monde 10,30,230,-8 heure=12 sans-mains
+LAC_RIVE_C monde 10,30,230,-8 heure=17 sans-mains
+HOR_ENTREE_J monde 21.80,19.82,-132.3,0.3 heure=12 sans-mains
+HOR_ENTREE_C monde 21.80,19.82,-132.3,0.3 heure=17 sans-mains
+HOR_COTE_J monde 47.4,37.7,-57,0 heure=12 sans-mains
+HOR_COTE_C monde 47.4,37.7,-57,0 heure=17 sans-mains
+HOR_LISIERE_J monde -4,-3,135,1 heure=12 sans-mains
+HOR_LISIERE_C monde -4,-3,135,1 heure=17 sans-mains

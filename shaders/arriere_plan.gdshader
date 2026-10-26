@@ -132,9 +132,15 @@ void fragment() {
 	// brume claire noie le pied de chaque plan (vallées) : les silhouettes se détachent l'une derrière l'autre.
 	float couche = smoothstep(380.0, 520.0, dist) + smoothstep(900.0, 1150.0, dist);
 	float hd = mix(0.18, 0.48, couche * 0.5) + 0.27 * smoothstep(1150.0, 2400.0, dist);  // le plan le plus lointain est le plus pâle
-	float pied = 30.0 + 45.0 * couche;   // hauteur de la nappe, plus haute au loin
-	float hb = (1.0 - smoothstep(pied * 0.25, pied, alt + (nb - 0.5) * 18.0)) * 0.85;
-	float haze = 1.0 - (1.0 - hd) * (1.0 - hb);
+	// RACCORD AU SOL (correctif lac_horizon) : le brouillard du monde est TOTAL dès ~60 m (cycle.fin_brume) ; le relief
+	// lointain commence à 150 m, 22 m au moins au-dessus du village. L'ancienne nappe (85 % au plus, bord à 7-30 m
+	// d'altitude) laissait la forêt sombre posée net sur la bande de monde noyée : l'arrière-plan « flottait » sur une
+	// bande blanche. Le pied de chaque plan est maintenant dans la brume du monde (couleur exacte, 100 %) et en sort
+	// progressivement sur une cinquantaine de mètres de dénivelé : aucun bord.
+	float pied0 = 18.0 + 22.0 * couche;
+	float pied1 = pied0 + 55.0 + 35.0 * couche;
+	float hb = 1.0 - smoothstep(pied0, pied1, alt + (nb - 0.5) * 8.0);
+	float haze = hd;
 	if (cat > 1.5) {
 		haze *= (cat > 4.5) ? 0.25 : 0.45;  // château et falaise : silhouette sombre sur le ciel ; fenêtres nettes
 	}
@@ -145,7 +151,8 @@ void fragment() {
 	vec3 brume = mix(hz, haut, 0.18 * smoothstep(10.0, 160.0, alt));
 	// crépuscule : seulement les cimes enneigées côté couchant se dorent
 	float cime = smoothstep(60.0, 150.0, alt) * ((cat > 1.5 && cat < 4.5) ? 0.0 : 1.0);  // pas sur le château
-	col += neige * cime * crep * az * az * (0.3 + 0.7 * diff) * vec3(0.55, 0.36, 0.17) * (1.0 - haze);
+	col += neige * cime * crep * az * az * (0.3 + 0.7 * diff) * vec3(0.55, 0.36, 0.17) * (1.0 - haze) * (1.0 - hb);
 	col = mix(col, brume, haze);
+	col = mix(col, hz, hb);   // pied : couleur du brouillard du monde (= horizon dans cette direction)
 	ALBEDO = col;
 }
