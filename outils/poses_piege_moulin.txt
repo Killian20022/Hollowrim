@@ -1,0 +1,5 @@
+# Piège du moulin (2026-10-26) : la fosse entre la palissade ouest et la maison du moulin, au sud de la grille d'eau
+joueur_coince monde 18.09,57.28,33.5,-10 y=1.03 heure=12
+plateau_vers_fosse monde 21.5,52.5,147.5,-28 heure=12
+haut_fosse monde 25,49,145,-42 y=8.5 heure=12
+lac_vers_grille monde 11,55.5,240,-8 heure=12

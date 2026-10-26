@@ -5,7 +5,7 @@ extends SceneTree
 ##    de collision la plus haute (rayon vertical) et sa pente. Graphe ORIENTÉ entre cases voisines (8 voisins) :
 ##    - descendre : toujours permis (on tombe ou on glisse) ;
 ##    - monter : seulement vers une case où l'on tient debout (pente ≤ PENTE_MAX) depuis une case où l'on tient debout,
-##      de MONTEE m au plus (pente marchable ou petit saut) ;
+##      de MONTEE m au plus (pente marchable ou petit saut) ; depuis une pente trop raide, de 0,2 m au plus ;
 ##    - jamais à travers un obstacle : deux sphères de 0,3 m lancées de A vers B (genoux et poitrine, au-dessus du plus haut des
 ##      deux sols ; le terrain lui-même est jugé par les hauteurs). Une case où la sphère ne tient pas (pieu, mur) est exclue.
 ##    Graines : le bord de la boîte (le monde continue au-delà) + la place du village. Poche = case atteignable depuis les
@@ -139,8 +139,10 @@ func _tester() -> void:
 				var hb := hs[b]
 				var diag := v.x != 0 and v.y != 0
 				var montee := MONTEE * (1.4142 if diag else 1.0)
-				var a_vers_b := hb <= ha + 0.02 or (debout[a] == 1 and debout[b] == 1 and hb - ha <= montee)
-				var b_vers_a := ha <= hb + 0.02 or (debout[a] == 1 and debout[b] == 1 and ha - hb <= montee)
+				# depuis une pente trop raide, on ressort encore vers une case marchable à peine plus haute (≤ 0,2 m : le bas
+				# arrondi de la capsule l'atteint déjà) — sinon chaque creux de quelques cm sur un talus ferait une « poche »
+				var a_vers_b := hb <= ha + 0.02 or (debout[b] == 1 and hb - ha <= (montee if debout[a] == 1 else 0.2))
+				var b_vers_a := ha <= hb + 0.02 or (debout[a] == 1 and ha - hb <= (montee if debout[b] == 1 else 0.2))
 				if not a_vers_b and not b_vers_a:
 					continue
 				var pa := _xz(i, j)
@@ -253,7 +255,15 @@ func _tester() -> void:
 		if (c as Node).has_meta("couche"):
 			(c as CollisionObject3D).collision_layer = (c as Node).get_meta("couche")
 	await physics_frame
-	var r: Dictionary = await _rejoindre([Vector2(18.6, 53.0), Vector2(24.0, 50.5), Vector2(34.0, 44.0), PLACE])
+	# itinéraire = plus court chemin du graphe (case de départ → place), un point tous les ~2 m
+	var dep: Vector3 = m.village.position_sure(COINCE + Vector3(0, 0.2, 0))
+	var chemin := _chemin(_case(dep.x, dep.z), _case(PLACE.x, PLACE.y))
+	var points: Array = []
+	for i in range(0, chemin.size(), 4):
+		points.append(_xz(chemin[i] % nx, chemin[i] / nx))
+	points.append(PLACE)
+	print("itinéraire du graphe : %d cases, %d points de passage" % [chemin.size(), points.size()])
+	var r: Dictionary = await _rejoindre(points)
 	_verif(r["ok"], "vrai joueur depuis (%.2f ; %.2f ; %.2f) : place du village atteinte %s en %.1f s, fin %s" % [COINCE.x, COINCE.y, COINCE.z, r["ok"], r["t"], r["p"]])
 	print("ECHECS : %d" % _echecs)
 	quit(_echecs)
@@ -309,11 +319,42 @@ func _carte(mn: Vector2, mx: Vector2, poche: PackedByteArray, avant: PackedByteA
 		print(s)
 		z -= PAS
 
+## Plus court chemin (en cases) de `a` à `b` dans le graphe orienté ; vide si aucun.
+func _chemin(a: int, b: int) -> Array[int]:
+	var parent := PackedInt32Array()
+	parent.resize(nx * nz)
+	parent.fill(-1)
+	parent[a] = a
+	var file := PackedInt32Array([a])
+	var t := 0
+	while t < file.size() and parent[b] == -1:
+		var c := file[t]
+		t += 1
+		for kv in 8:
+			if (adj[c] & (1 << kv)) == 0:
+				continue
+			var v: Vector2i = VOIS[kv]
+			var d := (c / nx + v.y) * nx + c % nx + v.x
+			if parent[d] == -1:
+				parent[d] = c
+				file.append(d)
+	var res: Array[int] = []
+	if parent[b] == -1:
+		return res
+	var c := b
+	while c != a:
+		res.push_front(c)
+		c = parent[c]
+	res.push_front(a)
+	return res
+
 ## Le vrai joueur court de point en point (cap recalculé à chaque image, sauts réguliers).
 func _rejoindre(points: Array) -> Dictionary:
 	var j: CharacterBody3D = m.joueur
 	j.set_physics_process(true)
-	j.global_position = COINCE + Vector3(0, 0.05, 0)
+	# comme monde.charger() : position sauvée + 0,2 m, puis village.position_sure (sous le sol → posé dessus)
+	j.global_position = m.village.position_sure(COINCE + Vector3(0, 0.2, 0))
+	print("départ du vrai joueur (chargement de la sauvegarde) : %s" % j.global_position)
 	j.velocity = Vector3.ZERO
 	for i in 5:
 		await physics_frame
@@ -322,13 +363,18 @@ func _rejoindre(points: Array) -> Dictionary:
 	var t := 0.0
 	var idx := 0
 	var f := 0
-	while t < 30.0 and idx < points.size():
+	var t_pt := 0.0
+	while t < 60.0 and idx < points.size():
 		var p := j.global_position
 		var cible: Vector2 = points[idx]
 		var d := cible - Vector2(p.x, p.z)
-		if d.length() < 1.2:
+		if d.length() < 0.8:
 			idx += 1
+			t_pt = 0.0
 			continue
+		if t_pt > 8.0:
+			print("  bloqué en %s devant le point %d/%d %s" % [p, idx, points.size(), cible])
+			break
 		j.rotation.y = atan2(-d.x, -d.y)   # avant = −Z du joueur
 		f += 1
 		if f % 45 == 30:
@@ -338,6 +384,7 @@ func _rejoindre(points: Array) -> Dictionary:
 		j.set("vigueur", 1000.0)
 		await physics_frame
 		t += 1.0 / 60.0
+		t_pt += 1.0 / 60.0
 	Input.action_release("avant")
 	Input.action_release("course")
 	Input.action_release("saut")

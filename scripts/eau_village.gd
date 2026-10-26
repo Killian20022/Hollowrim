@@ -356,6 +356,7 @@ func _moulin(modele: Node) -> void:
 	_piece(modele, "Seuil_Taille", self, "taille", xf)
 	_piece(modele, "Seuil_Roches", self, "roche_mouillee", xf, false)
 	_collision_maillage(modele, "Seuil_Taille", xf)
+	_comble_pied_seuil()
 	cascade_moulin = Cascade.creer(LEVRE_MOULIN.y - LAC_NIVEAU, 4.0)
 	cascade_moulin.name = "CascadeMoulin"
 	cascade_moulin.transform = xf
@@ -380,6 +381,39 @@ func _moulin(modele: Node) -> void:
 	cs.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.5), ROUE)
 	corps.add_child(cs)
 	_boite(ROUE + Vector3(0.0, -1.05, 0.72), Vector3(1.3, 2.4, 0.3))   # chevalet du palier
+
+## Piège du moulin (2026-10-26) : entre la grille d'eau ouest (palissade) et la lèvre du seuil restait un réduit de ~0,5 à
+## 1,6 m de large, fond du lit à -0,5 m, fermé par la grille, le seuil (2,6 m plus haut) et la berge : on y tombait (depuis le
+## seuil ou la berge) sans pouvoir en ressortir. Comblé par un prisme de collision invisible arasé au dessus du seuil : on y
+## marche au niveau de la crête et l'on repart par le seuil et le bief. Sommets : la grille (décalée de 0,1 m vers l'intérieur)
+## et la lèvre (x 19,75) ; le flanc sud est noyé dans la berge.
+func _comble_pied_seuil() -> void:
+	var g: Vector2 = ReliefVillage.PALISSADE[15]                  # grille O (19,5 ; 61,5)
+	var so: Vector2 = ReliefVillage.PALISSADE[16]                 # palissade vers le sud-ouest
+	var ne: Vector2 = ReliefVillage.PALISSADE[14]                 # palissade vers le nord-est
+	var d_so := (so - g).normalized()
+	var d_ne := (ne - g).normalized()
+	var n_so := Vector2(-d_so.y, d_so.x)
+	n_so = n_so if ReliefVillage.dans_enceinte(g.x + n_so.x + d_so.x, g.y + n_so.y + d_so.y) else -n_so
+	var n_ne := Vector2(-d_ne.y, d_ne.x)
+	n_ne = n_ne if ReliefVillage.dans_enceinte(g.x + n_ne.x + d_ne.x, g.y + n_ne.y + d_ne.y) else -n_ne
+	var xl := LEVRE_MOULIN.x
+	var z_sud := 58.3
+	var p1 := g + d_so * ((z_sud - g.y) / d_so.y) + n_so * 0.1      # grille, côté berge sud
+	var p2 := g + (n_so + n_ne).normalized() * 0.1                  # angle de la grille
+	var p3 := g + n_ne * 0.1 + d_ne * ((xl - g.x - n_ne.x * 0.1) / d_ne.x)   # grille nord-est sur la lèvre
+	var bas := -2.0
+	var haut := LEVRE_MOULIN.y - SEUIL_DESSUS                      # crête du seuil (2,15)
+	var pts := PackedVector3Array()
+	for q: Vector2 in [p1, p2, p3, Vector2(xl, p3.y), Vector2(xl, z_sud)]:
+		pts.append(Vector3(q.x, bas, q.y))
+		pts.append(Vector3(q.x, haut, q.y))
+	var forme := ConvexPolygonShape3D.new()
+	forme.points = pts
+	var cs := CollisionShape3D.new()
+	cs.name = "Col_PiedSeuil"
+	cs.shape = forme
+	corps.add_child(cs)
 
 # ------------------------------------------------------------------ pont de pierre en arche
 
