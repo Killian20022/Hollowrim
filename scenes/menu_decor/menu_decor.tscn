@@ -1,0 +1,289 @@
+[gd_scene load_steps=30 format=3]
+
+[ext_resource type="Script" path="res://scripts/menu_decor/menu_decor.gd" id="1_script"]
+[ext_resource type="Shader" path="res://shaders/menu_decor/decor.gdshader" id="2_shader"]
+[ext_resource type="Texture2D" path="res://textures/menu_decor/fond_sans_logo.png" id="3_fond"]
+[ext_resource type="Texture2D" path="res://textures/menu_decor/masques_a.png" id="4_ma"]
+[ext_resource type="Texture2D" path="res://textures/menu_decor/masques_b.png" id="5_mb"]
+[ext_resource type="Texture2D" path="res://textures/menu_decor/masques_c.png" id="6_mc"]
+[ext_resource type="Texture2D" path="res://textures/menu_decor/bruit.png" id="7_bruit"]
+[ext_resource type="Texture2D" path="res://textures/menu_decor/logo_peint.png" id="8_logo"]
+[ext_resource type="Texture2D" path="res://textures/menu_decor/cristal_halo.png" id="9_halo"]
+[ext_resource type="Texture2D" path="res://textures/menu_decor/flocon.png" id="10_flocon"]
+[ext_resource type="Texture2D" path="res://textures/menu_decor/flocon_flou.png" id="11_flou"]
+[ext_resource type="Texture2D" path="res://textures/menu_decor/fumee.png" id="12_fumee"]
+
+[sub_resource type="ShaderMaterial" id="mat_fond"]
+shader = ExtResource("2_shader")
+shader_parameter/masques_a = ExtResource("4_ma")
+shader_parameter/masques_b = ExtResource("5_mb")
+shader_parameter/masques_c = ExtResource("6_mc")
+shader_parameter/bruit = ExtResource("7_bruit")
+shader_parameter/decalage_px = Vector2(0, 0)
+shader_parameter/logo_peint = 1.0
+shader_parameter/force = 1.0
+shader_parameter/force_eau = 1.0
+shader_parameter/force_lumieres = 1.0
+shader_parameter/force_brume = 1.0
+shader_parameter/force_sapins = 1.0
+
+[sub_resource type="CanvasItemMaterial" id="mat_additif"]
+blend_mode = 1
+
+[sub_resource type="Gradient" id="grad_neige"]
+offsets = PackedFloat32Array(0, 0.08, 0.85, 1)
+colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="gtex_neige"]
+gradient = SubResource("grad_neige")
+
+[sub_resource type="ParticleProcessMaterial" id="pm_neige_loin"]
+particle_flag_disable_z = true
+emission_shape = 3
+emission_box_extents = Vector3(1250, 30, 1)
+direction = Vector3(0.18, 1, 0)
+spread = 10.0
+initial_velocity_min = 38.0
+initial_velocity_max = 62.0
+gravity = Vector3(0, 2, 0)
+scale_min = 0.1
+scale_max = 0.2
+color = Color(0.86, 0.9, 1, 0.55)
+color_ramp = SubResource("gtex_neige")
+
+[sub_resource type="ParticleProcessMaterial" id="pm_neige_milieu"]
+particle_flag_disable_z = true
+emission_shape = 3
+emission_box_extents = Vector3(1250, 30, 1)
+direction = Vector3(0.22, 1, 0)
+spread = 12.0
+initial_velocity_min = 75.0
+initial_velocity_max = 115.0
+gravity = Vector3(0, 4, 0)
+scale_min = 0.22
+scale_max = 0.38
+color = Color(0.9, 0.93, 1, 0.75)
+color_ramp = SubResource("gtex_neige")
+
+[sub_resource type="ParticleProcessMaterial" id="pm_neige_pres"]
+particle_flag_disable_z = true
+emission_shape = 3
+emission_box_extents = Vector3(1300, 30, 1)
+direction = Vector3(0.28, 1, 0)
+spread = 14.0
+initial_velocity_min = 150.0
+initial_velocity_max = 220.0
+gravity = Vector3(0, 6, 0)
+scale_min = 0.3
+scale_max = 0.62
+color = Color(0.92, 0.95, 1, 0.5)
+color_ramp = SubResource("gtex_neige")
+
+[sub_resource type="Gradient" id="grad_fumee"]
+offsets = PackedFloat32Array(0, 0.2, 0.6, 1)
+colors = PackedColorArray(0.55, 0.58, 0.66, 0, 0.55, 0.58, 0.66, 0.16, 0.5, 0.53, 0.62, 0.1, 0.45, 0.48, 0.58, 0)
+
+[sub_resource type="GradientTexture1D" id="gtex_fumee"]
+gradient = SubResource("grad_fumee")
+
+[sub_resource type="Curve" id="courbe_fumee"]
+_data = [Vector2(0, 0.35), 0.0, 1.2, 0, 0, Vector2(1, 1), 0.4, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="ctex_fumee"]
+curve = SubResource("courbe_fumee")
+
+[sub_resource type="ParticleProcessMaterial" id="pm_fumee"]
+particle_flag_disable_z = true
+emission_shape = 1
+emission_sphere_radius = 4.0
+direction = Vector3(0.15, -1, 0)
+spread = 8.0
+initial_velocity_min = 9.0
+initial_velocity_max = 14.0
+gravity = Vector3(2.5, -0.6, 0)
+angle_min = -180.0
+angle_max = 180.0
+angular_velocity_min = -6.0
+angular_velocity_max = 6.0
+scale_min = 0.55
+scale_max = 0.8
+scale_curve = SubResource("ctex_fumee")
+color_ramp = SubResource("gtex_fumee")
+
+[sub_resource type="Gradient" id="grad_braise"]
+offsets = PackedFloat32Array(0, 0.15, 0.7, 1)
+colors = PackedColorArray(1, 0.75, 0.35, 0, 1, 0.7, 0.3, 1, 1, 0.42, 0.12, 0.7, 0.8, 0.25, 0.05, 0)
+
+[sub_resource type="GradientTexture1D" id="gtex_braise"]
+gradient = SubResource("grad_braise")
+
+[sub_resource type="ParticleProcessMaterial" id="pm_braises"]
+particle_flag_disable_z = true
+emission_shape = 1
+emission_sphere_radius = 14.0
+direction = Vector3(0.1, -1, 0)
+spread = 25.0
+initial_velocity_min = 22.0
+initial_velocity_max = 48.0
+gravity = Vector3(3, -6, 0)
+damping_min = 4.0
+damping_max = 8.0
+scale_min = 0.06
+scale_max = 0.11
+color_ramp = SubResource("gtex_braise")
+
+[sub_resource type="ParticleProcessMaterial" id="pm_braises_lanterne"]
+particle_flag_disable_z = true
+emission_shape = 1
+emission_sphere_radius = 6.0
+direction = Vector3(0, -1, 0)
+spread = 30.0
+initial_velocity_min = 8.0
+initial_velocity_max = 18.0
+gravity = Vector3(2, -3, 0)
+damping_min = 2.0
+damping_max = 4.0
+scale_min = 0.04
+scale_max = 0.07
+color_ramp = SubResource("gtex_braise")
+
+[node name="MenuDecor" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="Cadre" type="Control" parent="."]
+texture_filter = 4
+clip_contents = false
+layout_mode = 0
+offset_right = 1920.0
+offset_bottom = 1080.0
+mouse_filter = 2
+
+[node name="Fond" type="TextureRect" parent="Cadre"]
+material = SubResource("mat_fond")
+layout_mode = 0
+offset_right = 1920.0
+offset_bottom = 1080.0
+mouse_filter = 2
+texture = ExtResource("3_fond")
+expand_mode = 1
+
+[node name="Fumees" type="Node2D" parent="Cadre"]
+
+[node name="FumeeVillage" type="GPUParticles2D" parent="Cadre/Fumees"]
+position = Vector2(982, 572)
+amount = 9
+local_coords = true
+process_material = SubResource("pm_fumee")
+texture = ExtResource("12_fumee")
+lifetime = 11.0
+preprocess = 11.0
+visibility_rect = Rect2(-200, -400, 400, 450)
+
+[node name="FumeeTour" type="GPUParticles2D" parent="Cadre/Fumees"]
+position = Vector2(1023, 546)
+amount = 8
+local_coords = true
+process_material = SubResource("pm_fumee")
+texture = ExtResource("12_fumee")
+lifetime = 10.0
+preprocess = 10.0
+visibility_rect = Rect2(-200, -400, 400, 450)
+
+[node name="FumeeHameau" type="GPUParticles2D" parent="Cadre/Fumees"]
+position = Vector2(641, 518)
+amount = 8
+local_coords = true
+process_material = SubResource("pm_fumee")
+texture = ExtResource("12_fumee")
+lifetime = 10.0
+preprocess = 10.0
+visibility_rect = Rect2(-200, -400, 400, 450)
+
+[node name="LogoPeint" type="TextureRect" parent="Cadre"]
+layout_mode = 0
+offset_left = 562.0
+offset_top = 9.0
+offset_right = 1394.0
+offset_bottom = 343.0
+mouse_filter = 2
+texture = ExtResource("8_logo")
+expand_mode = 1
+
+[node name="HaloCristal" type="Sprite2D" parent="Cadre"]
+material = SubResource("mat_additif")
+modulate = Color(1, 1, 1, 0.3)
+position = Vector2(964.2, 171.6)
+texture = ExtResource("9_halo")
+
+[node name="Braises" type="Node2D" parent="Cadre"]
+
+[node name="BraisesBrasero" type="GPUParticles2D" parent="Cadre/Braises"]
+material = SubResource("mat_additif")
+position = Vector2(597, 862)
+amount = 14
+local_coords = true
+process_material = SubResource("pm_braises")
+texture = ExtResource("10_flocon")
+lifetime = 2.6
+preprocess = 2.6
+visibility_rect = Rect2(-150, -250, 300, 300)
+
+[node name="BraisesLanterne" type="GPUParticles2D" parent="Cadre/Braises"]
+material = SubResource("mat_additif")
+position = Vector2(448, 250)
+amount = 3
+local_coords = true
+process_material = SubResource("pm_braises_lanterne")
+texture = ExtResource("10_flocon")
+lifetime = 2.0
+preprocess = 2.0
+visibility_rect = Rect2(-100, -150, 200, 200)
+
+[node name="NeigeLoin" type="GPUParticles2D" parent="Cadre"]
+position = Vector2(960, -40)
+amount = 260
+local_coords = true
+process_material = SubResource("pm_neige_loin")
+texture = ExtResource("10_flocon")
+lifetime = 22.0
+preprocess = 22.0
+visibility_rect = Rect2(-1500, -100, 3000, 1300)
+
+[node name="NeigeMilieu" type="GPUParticles2D" parent="Cadre"]
+position = Vector2(960, -40)
+amount = 110
+local_coords = true
+process_material = SubResource("pm_neige_milieu")
+texture = ExtResource("10_flocon")
+lifetime = 12.0
+preprocess = 12.0
+visibility_rect = Rect2(-1500, -100, 3000, 1300)
+
+[node name="NeigePres" type="GPUParticles2D" parent="Cadre"]
+position = Vector2(960, -60)
+amount = 22
+local_coords = true
+process_material = SubResource("pm_neige_pres")
+texture = ExtResource("11_flou")
+lifetime = 7.0
+preprocess = 7.0
+visibility_rect = Rect2(-1500, -100, 3000, 1300)
+
+[node name="Fondu" type="ColorRect" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0)
