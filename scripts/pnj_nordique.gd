@@ -98,24 +98,31 @@ static func _garde_lance() -> Node3D:
 	return n
 
 ## Brodd, le forgeron : le Guerrier ENTIER, variante avant-bras nus (manches retroussées), sans casque, bouclier ni épée ; seule la cape
-## est ôtée (accessoire : la fourrure des épaules, le plastron et la mante restent) ; barbe brune, maillet de forge.
+## est ôtée (accessoire : la fourrure des épaules, le plastron et la mante restent) ; barbe, cheveux et nattes brun foncé, tenue
+## tournée vers le cuir brun, maillet de forge.
 static func _forgeron() -> Node3D:
 	var n := archetype_seul("forgeron")
 	n.name = "PnjForgeron"
 	var sq := _sq(n)
 	var p := _pieces(sq)
 	_sans_cape(sq)
-	_teinte_poil(p.get("Hair_Beard"), Color(0.55, 0.38, 0.24))
-	_teinte_poil(p.get("Hair_Long"), Color(0.55, 0.38, 0.24))
+	# variante nette d'Haldor (même Guerrier) : barbe et cheveux brun très foncé (Haldor : roux), bleus de la tenue tournés vers le
+	# cuir brun (col, tabard : l'homme de la forge, sans le bleu de la garde)
+	_teinte_poil(p.get("Hair_Beard"), Color(0.36, 0.27, 0.21))
+	_teinte_poil(p.get("Hair_Long"), Color(0.36, 0.27, 0.21))
+	_teinte_bande(sq, "forgeron", {"bande": Vector2(0.48, 0.80), "dh": -0.55, "sm": 0.45, "vm": 0.95})
+	_tresses_teinte(sq, "forgeron_tresses", Color.from_hsv(0.07, 0.40, 1.0), 0.50)
 	_maillet(sq)
 	return n
 
-## Ylva, la chasseuse : la Chasseresse ENTIÈRE (arc porté, carquois, couteau), étoffes de l'archétype ; cheveux roux.
+## Ylva, la chasseuse : la Chasseresse ENTIÈRE (arc porté, carquois, couteau), étoffes de l'archétype ; cheveux et nattes roux.
 static func _chasseuse() -> Node3D:
 	var n := archetype_seul("chasseuse")
 	n.name = "PnjChasseuse"
 	var p := _pieces(_sq(n))
 	_teinte_poil(p.get("Hair_Long"), Color(1.15, 0.62, 0.42))
+	# les deux nattes (accessoires) restaient blondes sous des cheveux roux
+	_tresses_teinte(_sq(n), "chasseuse_tresses", Color.from_hsv(0.045, 0.62, 1.0), 1.0)
 	return n
 
 ## Sigrún, la völva : le Mage ENTIER en corps femme (capuche profonde, visage dans l'ombre aux yeux luisants, pèlerine, écailles, robe,
@@ -142,12 +149,20 @@ static func _ancienne() -> Node3D:
 	_canne(sq)
 	return n
 
-## Gunnhild, la cheffe : la Chasseresse ENTIÈRE sans arc, carquois ni couteau ; cheveux blond clair.
+## Gunnhild, la cheffe : la Chasseresse ENTIÈRE sans arc, carquois ni couteau ; cheveux et nattes gris cendré, tenue lie-de-vin.
 static func _chef() -> Node3D:
 	var n := archetype_seul("chef")
 	n.name = "PnjChef"
-	var p := _pieces(_sq(n))
-	_teinte_poil(p.get("Hair_Long"), Color(1.1, 0.95, 0.70))
+	var sq := _sq(n)
+	var p := _pieces(sq)
+	# variante nette d'Ylva (même Chasseresse) : femme mûre, cheveux et nattes blond cendré grisonnant, bleus de la tenue tournés
+	# vers le lie-de-vin (la cheffe ; ni le violet de la völva ni le rouge vif de la garde)
+	# le multiplicateur « teinte » ne désature pas le blond doré : la texture des cheveux est elle-même repeinte en cendré
+	_teinte_tex(p.get("Hair_Long"), -1, "chef_cheveux", {"col": Color.from_hsv(0.09, 0.14, 1.0), "v": 0.72})
+	_teinte_poil(p.get("Hair_Long"), Color(1.0, 1.0, 1.0))
+	_tresses_teinte(sq, "chef_tresses", Color.from_hsv(0.09, 0.14, 1.0), 0.65)
+	# smin bas : la cape de la chasseresse est un bleu ardoise très désaturé
+	_teinte_bande(sq, "chef", {"bande": Vector2(0.48, 0.80), "dh": 0.38, "sm": 1.5, "smin": 0.03, "vm": 0.92})
 	return n
 
 ## Eirik, l'explorateur mort de la crypte : le Guerrier ENTIER sans casque, bouclier ni épée (elle gît au sol) ; bleus de la tenue tournés
@@ -432,6 +447,16 @@ static func _cape_teinte(sq: Skeleton3D, cle: String, col: Color, v: float) -> v
 		var m := _materiau_de(acc, s)
 		if m != null and m.get_shader_parameter("decoupe") == true:
 			_teinte_tex(acc, s, cle, {"col": col, "v": v, "rect": GuerrierTextures.D_CAPE})
+
+## Nattes de la chasseresse (zone R_TRESSE de l'atlas opaque des accessoires) teintes comme les cheveux.
+static func _tresses_teinte(sq: Skeleton3D, cle: String, col: Color, v: float) -> void:
+	var acc: MeshInstance3D = sq.get_node_or_null("accessoires")
+	if acc == null:
+		return
+	for s in acc.mesh.get_surface_count():
+		var m := _materiau_de(acc, s)
+		if m != null and m.get_shader_parameter("decoupe") != true and m.get_shader_parameter("tex_base") != null:
+			_teinte_tex(acc, s, "%s_%d" % [cle, s], {"col": col, "v": v, "rect": GuerrierTextures.R_TRESSE})
 
 static func _enreg(m: ShaderMaterial) -> void:
 	Palette.materiaux.append(m)
