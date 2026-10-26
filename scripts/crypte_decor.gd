@@ -1800,27 +1800,34 @@ static var _modeles_verrou := Mutex.new()
 static func _charger_modeles() -> void:
 	_modeles_verrou.lock()
 	if _modeles.is_empty():
-		var f := FileAccess.open(MODELES_DAT, FileAccess.READ)
-		if f != null:
-			var n := f.get_32()
-			for _k in n:
-				var nom := f.get_buffer(f.get_8()).get_string_from_utf8()
-				var nb := f.get_32()
-				var fl := f.get_buffer(nb * 28).to_float32_array()
-				var v := PackedVector3Array()
-				var c := PackedColorArray()
-				v.resize(nb)
-				c.resize(nb)
-				for q in nb:
-					var o := q * 7
-					v[q] = Vector3(fl[o], fl[o + 1], fl[o + 2])
-					c[q] = Color(fl[o + 3], fl[o + 4], fl[o + 5], 1.0)
-				_modeles[nom] = {"v": v, "c": c}
-				var parts := nom.split("__")
-				if not _modeles_de.has(parts[0]):
-					_modeles_de[parts[0]] = []
-				(_modeles_de[parts[0]] as Array).append(parts[1])
+		for chemin: String in [MODELES_DAT, OBJETS_DAT]:
+			_lire_dat(chemin)
 	_modeles_verrou.unlock()
+
+## Lots L2/L3 objets : mobilier de la crypte et de la grotte (sources_blender/scripts/objets_donjon.py), même format que crypte_v2.dat.
+const OBJETS_DAT := "res://assets/crypte/modules/objets_donjon.dat"
+
+static func _lire_dat(chemin: String) -> void:
+	var f := FileAccess.open(chemin, FileAccess.READ)
+	if f != null:
+		var n := f.get_32()
+		for _k in n:
+			var nom := f.get_buffer(f.get_8()).get_string_from_utf8()
+			var nb := f.get_32()
+			var fl := f.get_buffer(nb * 28).to_float32_array()
+			var v := PackedVector3Array()
+			var c := PackedColorArray()
+			v.resize(nb)
+			c.resize(nb)
+			for q in nb:
+				var o := q * 7
+				v[q] = Vector3(fl[o], fl[o + 1], fl[o + 2])
+				c[q] = Color(fl[o + 3], fl[o + 4], fl[o + 5], 1.0)
+			_modeles[nom] = {"v": v, "c": c}
+			var parts := nom.split("__")
+			if not _modeles_de.has(parts[0]):
+				_modeles_de[parts[0]] = []
+			(_modeles_de[parts[0]] as Array).append(parts[1])
 
 static func modele_existe(nom: String) -> bool:
 	_charger_modeles()
@@ -1882,7 +1889,10 @@ static func _est_structure(nom: String) -> bool:
 			return true
 	return false
 
-func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats := {}) -> Array:
+## Lots L2/L3 : une matière absente de MAT_MODELE garde son nom si c'est une matière du décor (bois, os, argile…) ; mats["@<matière>"] =
+## Color teinte les sommets de cette matière du module (bannières, boucliers peints) ; emp = false : pas d'emprise propre (l'objet qui
+## pose le module a déjà la sienne : os, crânes, mobilier).
+func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats := {}, emp := true) -> Array:
 	if muet:
 		return []
 	j0(nom, lacet)
@@ -1905,10 +1915,16 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 			for q in range(0, v.size(), 3):
 				points.append(pos + b * v[q])
 			continue
-		var cible: String = mats.get(mat, MAT_MODELE.get(mat, "mur0"))
+		var cible: String = mats.get(mat, MAT_MODELE.get(mat, mat if TUILE.has(mat) else "mur0"))
 		var nom_mat: String = theme.get(cible, cible) if not theme.is_empty() else cible
 		var inv := 1.0 / float(TUILE.get(nom_mat, 1.0))
 		var cm := _modele_cache("%s__%s" % [nom, mat], niveau_a, miroir)
+		var cols: PackedColorArray = cm["c"]
+		if mats.has("@" + mat):
+			var te: Color = mats["@" + mat]
+			cols = cols.duplicate()
+			for q in cols.size():
+				cols[q] = Color(cols[q].r * te.r, cols[q].g * te.g, cols[q].b * te.b, cols[q].a)
 		if cm.has("bmin"):
 			e_min = e_min.min(cm["bmin"])
 			e_max = e_max.max(cm["bmax"])
@@ -1919,6 +1935,8 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 		elif _j_prof > 0:
 			for q in wv.size():
 				_jp(wv[q])
+		if _obj_n > 0:      # registre d'audit (outils/audit_interpenetrations.gd) : les sommets du module comptent dans l'objet ouvert
+			_obj_v.append_array(wv)
 		var wn: PackedVector3Array = TN * (cm["n"] as PackedVector3Array)
 		var nb := wv.size()
 		var uv := PackedVector2Array()
@@ -1947,7 +1965,7 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 		if maxf(tl.x, maxf(tl.y, tl.z)) > 3.0:
 			# grand module (arches, degrés, panneaux larges) : triangle par triangle dans la case de 8 m de son centre, comme les quads —
 			# un seul tampon élargirait l'AABB du maillage et lui ferait toucher plus de 8 lumières (limite du rendu mobile)
-			var cc2: PackedColorArray = cm["c"]
+			var cc2: PackedColorArray = cols
 			for q in range(0, nb, 3):
 				var bt := _buf((wv[q] + wv[q + 1] + wv[q + 2]) / 3.0, nom_mat)
 				var tv: PackedVector3Array = bt["v"]
@@ -1968,8 +1986,8 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 		bv.append_array(wv)
 		bn.append_array(wn)
 		bu.append_array(uv)
-		bc.append_array(cm["c"])
-	if e_min.x != INF and not _est_structure(nom):
+		bc.append_array(cols)
+	if emp and e_min.x != INF and not _est_structure(nom):
 		var ec := ((e_min + e_max) * 0.5) * ech
 		var ce := pos + Basis(Vector3.UP, lacet) * Vector3(ec.x, 0.0, ec.z)
 		emprise(nom, ce, Vector2(absf((e_max.x - e_min.x) * ech.x), absf((e_max.z - e_min.z) * ech.z)) * 0.5, lacet, (e_max.y - e_min.y) * ech.y)
