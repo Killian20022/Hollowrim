@@ -25,6 +25,9 @@ uniform vec3 appoint = vec3(0.035, 0.045, 0.07); // lumière propre froide (ciel
 // liseré froid propre au personnage (toutes heures, indépendant des lumières de la scène) : la silhouette se détache
 // du fond au crépuscule et de nuit. Large fondu (pas de palier qui scintille), proportionnel à l'albédo + un peu de constant.
 uniform vec3 contour_froid = vec3(0.16, 0.21, 0.32);
+// part de lumière retirée sur une face d'un matériau double face (intérieur d'une capuche vu autour du visage) : > 0 = faces
+// ARRIÈRE, < 0 = faces AVANT (maillages Quaternius à l'enroulement inversé : la capuche montre ses faces arrière dehors) ; 0 = inchangé
+uniform float dos_sombre = 0.0;
 instance uniform float eclair = 0.0;
 
 varying vec3 uv_aff;
@@ -49,6 +52,9 @@ void fragment() {
 	}
 	ALBEDO = c.rgb * COLOR.rgb * teinte.rgb;
 	ALBEDO = mix(vec3(dot(ALBEDO, vec3(0.3, 0.59, 0.11))), ALBEDO, saturation);
+	if (dos_sombre > 0.0 && !FRONT_FACING || dos_sombre < 0.0 && FRONT_FACING) {
+		ALBEDO *= 1.0 - abs(dos_sombre);
+	}
 	ALBEDO = mix(ALBEDO, vec3(1.0, 0.85, 0.8), eclair);
 	float bord = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
 	EMISSION = emission + ALBEDO * appoint + vec3(0.6, 0.25, 0.2) * eclair

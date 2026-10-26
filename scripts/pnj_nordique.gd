@@ -22,8 +22,8 @@ static var _ancien := -1
 const SORCIERS_VISAGE := true
 ## Peau et cheveux des sorcières (visage montré) : Sigrún, la völva (teint pâle et froid, cheveux gris argent) ; Grima, l'ancienne (teint
 ## plus rose et tanné, cheveux blancs).
-const PEAU_VOLVA := Color(0.80, 0.74, 0.74)
-const PEAU_ANCIENNE := Color(0.86, 0.74, 0.68)
+const PEAU_VOLVA := Color(0.84, 0.79, 0.80)
+const PEAU_ANCIENNE := Color(0.90, 0.80, 0.76)
 const CHEVEUX_VOLVA := Color(0.62, 0.62, 0.66)
 const CHEVEUX_ANCIENNE := Color(0.86, 0.85, 0.82)
 
@@ -301,6 +301,11 @@ static func _ride(q: Vector3, oe: Vector3, spec: Dictionary) -> float:
 		d = minf(d, -0.12 * age) if d <= 0.0 else d     # arête claire du pli, côté joue
 	if s2 < 0.0014:
 		d = maxf(d, 0.45 * age)
+	# orbites creusées (lisibles de loin : le regard s'enfonce sous l'arcade) : anneau sombre autour de l'œil, plus fort dessous
+	var orb := Vector2((x - ex) / 0.021, (y + 0.002) / 0.014)
+	var lo := orb.length()
+	if lo < 1.0 and lo > 0.55:
+		d = maxf(d, 0.12 * age * (1.0 if y < 0.0 else 0.4))
 	# joues creusées sous la pommette (zone pleine, deux paliers nets)
 	var cr: float = spec.get("creux", 0.0)
 	var jc := Vector2((x - (ex + 0.008)) / 0.020, (y + 0.050) / 0.018)
@@ -386,9 +391,11 @@ static func _peindre_age(img: Image, peau: MeshInstance3D, yeux: Array, spec: Di
 					img.set_pixel(k.x, k.y, (spec.get("sourcils", Color(0.62, 0.60, 0.58)) as Color))
 					continue
 				# teint âgé : un peu désaturé partout sur le visage
-				col = col.lerp(Color(col.get_luminance(), col.get_luminance(), col.get_luminance()), 0.18)
+				# (pâli et refroidi : la peau tannée de l'atlas se lisait orange, jeune, sous la lumière froide)
+				var lum := col.get_luminance()
+				col = col.lerp(Color(lum * 1.10, lum * 1.02, lum * 1.00), float(spec.get("pale", 0.45)))
 				if d > 0.0:
-					col = Color(col.r * (1.0 - d * 0.70), col.g * (1.0 - d * 0.78), col.b * (1.0 - d * 0.76))
+					col = Color(col.r * (1.0 - d * 0.80), col.g * (1.0 - d * 0.88), col.b * (1.0 - d * 0.84))
 				elif d < 0.0:
 					col = col.lerp(Color(1.0, 0.95, 0.90), -d)
 				col.a = 1.0

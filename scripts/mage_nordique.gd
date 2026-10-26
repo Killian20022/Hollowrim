@@ -83,8 +83,11 @@ static func creer(options := {}) -> Node3D:
 		# capuche ouverte devant (le pan qui couvrait le menton et le cou est retiré : la barbe sort de la capuche comme sur la
 		# référence), sommet relevé et tiré en arrière (léger pic), bord avant avancé au-dessus du front (visage dans l'ombre)
 		# visage montré : ouverture remontée jusqu'au haut du front (le pan qui restait devant le front faisait une plaque noire)
-		var haut_ouv := (1.745 if visage else 1.665) * K
-		GuerrierNordique._filtrer(pieces["capuche"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > -0.01 and absf(c.x) < 0.105 + maxf(0.0, (1.58 * K) - c.y) * 0.6 and c.y < haut_ouv))
+		# visage montré : le capuchon d'origine a déjà son ouverture, plus étroite en haut (|x| < 7 cm entre 1,68 et 1,71 m) : elle
+		# faisait une ENCOCHE sombre au milieu du front ; la découpe monte jusqu'au bord du capuchon, à pleine largeur (bord droit)
+		var haut_ouv := (1.705 if visage else 1.665) * K
+		var demi_ouv := 0.112 if visage else 0.105
+		GuerrierNordique._filtrer(pieces["capuche"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > -0.01 and absf(c.x) < demi_ouv + maxf(0.0, (1.58 * K) - c.y) * 0.6 and c.y < haut_ouv))
 		# visage montré : capuche moins profonde (le bord avance de 1,2 cm au lieu de 4) et moins élargie, le visage reçoit la lumière
 		var prof := 0.012 if visage else 0.040
 		var larg := 0.06 if visage else 0.18
@@ -96,6 +99,12 @@ static func creer(options := {}) -> Node3D:
 			# visage montré : le bord du capuchon remonte de 1,8 cm au lieu de descendre (le front et les sourcils se lisent)
 			var fy := 0.018 if visage else -0.012
 			return p + Vector3(0, 0.045 * t, -0.035 * t) + Vector3(0, fy * f, 0.022 * f) + Vector3(p.x * larg * a, 0, prof * a))
+		# visage montré : les petits trous du capuchon (bord du front, invisibles dans l'ombre de la capuche profonde) se lisaient
+		# comme des carrés noirs sur le front ; ils sont rebouchés (l'ouverture du visage, grande, reste)
+		if visage:
+			var nb_trous := _boucher_trous(pieces["capuche"], 0.30)
+			if OS.is_debug_build() and nb_trous > 0:
+				print("MageNordique : %d trou(s) de capuche rebouché(s)" % nb_trous)
 	for nom_sc in ["SuperHero_Male", "Superhero_Female", "SuperHero_Female"]:
 		if pieces.has(nom_sc):
 			pieces[nom_sc].visible = false
@@ -158,8 +167,6 @@ static func creer(options := {}) -> Node3D:
 		acc.poitrine_libre = true
 		if visage:
 			acc.fourrure_bord(pieces["capuche"], (1.44 * K), (1.53 * K), 0.04, 0.06, 0.15, 1.4)
-			# bordure courte de fourrure sur le bord du capuchon (au-dessus du front) : cache l'arête dentelée de l'ouverture
-			acc.fourrure_bord(pieces["capuche"], (1.66 * K), (1.85 * K), 0.022, 0.032, 0.35, 1.3)
 		else:
 			acc.fourrure_bord(pieces["capuche"], (1.44 * K), (1.58 * K), 0.06, 0.10, 0.7, 1.8)
 		acc.poitrine_libre = false
@@ -196,8 +203,20 @@ static func creer(options := {}) -> Node3D:
 	for m in [pieces["tunique"].material_override, pieces["mante"].material_override, mi_acc.get_surface_override_material(0), mi_acc.get_surface_override_material(1), jupe.mat]:
 		(m as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.12, 0.155, 0.23))
 	if pieces.has("capuche") and options.get("capuche", true):
-		# visage montré : intérieur du capuchon moins noir (on le voit autour du visage)
-		(pieces["capuche"].material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.09, 0.10, 0.13) if visage else Vector3(0.05, 0.06, 0.085))
+		if visage:
+			# visage montré : matériau propre (celui du Mage archétype est partagé) ; l'INTÉRIEUR du capuchon (faces arrière) est
+			# assombri : vu de chaque côté du visage, il se lisait comme une vitre claire
+			var mc := (pieces["capuche"].material_override as ShaderMaterial).duplicate() as ShaderMaterial
+			mc.set_shader_parameter("appoint", Vector3(0.07, 0.08, 0.11))
+			mc.set_shader_parameter("dos_sombre", DOS_SOMBRE)
+			# pas de contour sur le capuchon : la coque inversée de son INTÉRIEUR ressortait devant le front (carré noir au milieu du
+			# front, pans noirs de chaque côté du visage) ; la silhouette garde le contour de la pèlerine et de la robe
+			mc.next_pass = null
+			Palette.materiaux.append(mc)
+			Palette._appliquer(mc, Palette._ps1_actif)
+			pieces["capuche"].material_override = mc
+		else:
+			(pieces["capuche"].material_override as ShaderMaterial).set_shader_parameter("appoint", Vector3(0.05, 0.06, 0.085))
 	racine.set_meta("mage_nordique", true)
 	racine.set_meta("visage", visage)
 	racine.set_meta("corps", "femme" if femme else "homme")
@@ -221,6 +240,68 @@ static func _deformer(mi: MeshInstance3D, f: Callable) -> void:
 	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if nb == 8 else 0)
 	mi.mesh = m
 
+## Rebouche les trous d'un maillage (boucles d'arêtes libres de périmètre < max_perim m) par un éventail de triangles qui reprend
+## les sommets du bord (UV, poids d'os et normales gardés : même matériau, même peau). Sommets soudés par position (coutures UV).
+## Renvoie le nombre de trous rebouchés.
+static func _boucher_trous(mi: MeshInstance3D, max_perim: float) -> int:
+	var a := mi.mesh.surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+	var soude := PackedInt32Array()
+	soude.resize(v.size())
+	var par_pos := {}
+	for i in v.size():
+		var k := Vector3i((v[i] * 20000.0).round())
+		if not par_pos.has(k):
+			par_pos[k] = i
+		soude[i] = par_pos[k]
+	# arêtes orientées : une arête libre n'a pas sa jumelle (dans un sens ou l'autre)
+	var nb := {}
+	for t in range(0, idx.size(), 3):
+		for e in 3:
+			var i0 := soude[idx[t + e]]
+			var i1 := soude[idx[t + (e + 1) % 3]]
+			var cle := Vector2i(mini(i0, i1), maxi(i0, i1))
+			nb[cle] = int(nb.get(cle, 0)) + 1
+	var suivant := {}
+	for t in range(0, idx.size(), 3):
+		for e in 3:
+			var i0 := soude[idx[t + e]]
+			var i1 := soude[idx[t + (e + 1) % 3]]
+			if int(nb[Vector2i(mini(i0, i1), maxi(i0, i1))]) == 1:
+				suivant[i0] = i1
+	var vu := {}
+	var ajout := PackedInt32Array()
+	var trous := 0
+	for depart: int in suivant.keys():
+		if vu.has(depart):
+			continue
+		var boucle: Array[int] = []
+		var cur := depart
+		var perim := 0.0
+		while not vu.has(cur) and suivant.has(cur) and boucle.size() < 400:
+			vu[cur] = true
+			boucle.append(cur)
+			perim += v[cur].distance_to(v[suivant[cur]])
+			cur = suivant[cur]
+		if cur != depart or boucle.size() < 3 or perim > max_perim:
+			continue
+		trous += 1
+		# éventail autour du premier sommet, sens inverse du bord (même orientation que les triangles voisins)
+		for j in range(1, boucle.size() - 1):
+			ajout.append_array([boucle[0], boucle[j + 1], boucle[j]])
+	if trous == 0:
+		return 0
+	idx.append_array(ajout)
+	a[Mesh.ARRAY_INDEX] = idx
+	var nbo := (a[Mesh.ARRAY_BONES] as PackedInt32Array).size() / v.size()
+	for k in [Mesh.ARRAY_TANGENT, Mesh.ARRAY_COLOR, Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_CUSTOM0, Mesh.ARRAY_CUSTOM1, Mesh.ARRAY_CUSTOM2, Mesh.ARRAY_CUSTOM3]:
+		a[k] = null
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if nbo == 8 else 0)
+	mi.mesh = m
+	return trous
+
 static func _habiller(mi: MeshInstance3D, m: ShaderMaterial) -> void:
 	mi.visible = true
 	mi.material_override = m
@@ -229,6 +310,9 @@ static func _habiller(mi: MeshInstance3D, m: ShaderMaterial) -> void:
 ## Peau et sourcils au shader du guerrier (copie de la branche peau de GuerrierNordique.creer) : peau moins éclaircie que celle
 ## du guerrier (le visage reste dans l'ombre de la capuche, comme sur la référence), appoint froid plus faible.
 static var _mats := {}
+## Visage montré : part de lumière retirée à l'intérieur du capuchon (ps1_perso.gdshader « dos_sombre » ; négatif : la capuche
+## Quaternius a l'enroulement inversé, son intérieur est fait de faces AVANT).
+const DOS_SOMBRE := -0.75
 
 static func _peau(pieces: Dictionary, visage := false) -> void:
 	for nom in ["peau", "Eyebrows"]:
@@ -250,7 +334,7 @@ static func _peau(pieces: Dictionary, visage := false) -> void:
 					# visage reste lisible dans l'ombre portée de la capuche
 					m2.next_pass = GuerrierNordique.contour()
 					var te2: Variant = m.get_shader_parameter("teinte")
-					m2.set_shader_parameter("teinte", (te2 if te2 is Color else Color.WHITE) * Color(1.24, 1.13, 1.01))
+					m2.set_shader_parameter("teinte", (te2 if te2 is Color else Color.WHITE) * Color(1.12, 1.06, 1.03))
 					m2.set_shader_parameter("appoint", Vector3(0.20, 0.175, 0.16))
 					m2.set_shader_parameter("contour_froid", Vector3(0.22, 0.25, 0.34))
 				elif nom == "peau":

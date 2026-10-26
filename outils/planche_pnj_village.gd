@@ -2,6 +2,7 @@ extends SceneTree
 ## [D/pnj_village_v2] Planche d'un PNJ du village (PnjNordique.creer) en studio, rendu PS1 : 2 lignes (MIDI : soleil haut blanc ;
 ## CRÉPUSCULE : soleil bas orangé + ciel froid) x 4 vues (face 3 m, 3/4 2,5 m, profil 2,5 m, visage de près 0,9 m).
 ##   godot --path . --script res://outils/planche_pnj_village.gd -- --sortie=<dossier absolu> [--ids=volva,ancienne] [--nom=apres]
+##   [--cacher=Hair_Long,capuche] [--modele=archetype]
 ## Une image par PNJ : <sortie>/<id>_<nom>.png (tuiles 320 x 427, rendu interne 240 x 320 agrandi x 4/3 au plus proche).
 ## Imprime triangles, surfaces et temps de création de chaque PNJ.
 const W := 240
@@ -73,6 +74,11 @@ func _lancer() -> void:
 		var n: Node3D = PnjNordique.archetype_seul(id) if _arg("modele", "pnj") == "archetype" else PnjNordique.creer(id)
 		var ms := (Time.get_ticks_usec() - t0) / 1000.0
 		print("PLANCHE %s : %.0f ms, %d triangles, %d surfaces" % [id, ms, _tris(n), _surfaces(n)])
+		# --cacher=Hair_Long,capuche : pièces masquées (diagnostic d'un raccord)
+		for nom_c: String in _arg("cacher", "").split(",", false):
+			var pc := n.find_child(nom_c, true, false) as Node3D
+			if pc != null:
+				pc.visible = false
 		sv.add_child(n)
 		_poser(n, "Idle", 0.25)
 		var planche := Image.create(TW * 4 + 6, TH * 2 + 2, false, Image.FORMAT_RGBA8)
