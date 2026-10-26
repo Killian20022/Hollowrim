@@ -12,10 +12,20 @@ class_name PnjNordique
 ##   ids : garde, forgeron, chasseuse, volva, ancienne, chef, eirik (+ garde_lance : Gardien à lance, pour alterner les gardes)
 
 const DOSSIER := "res://assets/pnj"
-const VERSION := 7
+const VERSION := 9
 static var enregistrer := false
 static var _cache := {}
 static var _ancien := -1
+
+## Sorciers du village (völva, ancienne) : vrai visage âgé sous la capuche (D/pnj_village_v2, 2026-10-26) ; false = l'ombre + les
+## yeux luisants du Mage archétype (visage caché).
+const SORCIERS_VISAGE := true
+## Peau et cheveux des sorcières (visage montré) : Sigrún, la völva (teint pâle et froid, cheveux gris argent) ; Grima, l'ancienne (teint
+## plus rose et tanné, cheveux blancs).
+const PEAU_VOLVA := Color(0.84, 0.79, 0.80)
+const PEAU_ANCIENNE := Color(0.90, 0.80, 0.76)
+const CHEVEUX_VOLVA := Color(0.62, 0.62, 0.66)
+const CHEVEUX_ANCIENNE := Color(0.86, 0.85, 0.82)
 
 const IDS := ["garde", "garde_lance", "forgeron", "chasseuse", "volva", "ancienne", "chef", "eirik"]
 
@@ -54,8 +64,8 @@ static func archetype_seul(id: String) -> Node3D:
 		"garde_lance": return GardienNordique.creer({"bouclier": "dos", "lance": true})
 		"forgeron": return GuerrierNordique.creer({"casque": false, "bouclier": "", "epee": false, "avant_bras_nus": true})
 		"chasseuse": return ChasseresseNordique.creer({})
-		"volva": return MageNordique.creer({"baton": true, "capuche": true, "corps": "femme"})
-		"ancienne": return MageNordique.creer({"baton": false, "capuche": true, "corps": "femme"})
+		"volva": return MageNordique.creer({"baton": true, "capuche": true, "corps": "femme", "visage": SORCIERS_VISAGE, "peau": PEAU_VOLVA})
+		"ancienne": return MageNordique.creer({"baton": false, "capuche": true, "corps": "femme", "visage": SORCIERS_VISAGE, "peau": PEAU_ANCIENNE})
 		"chef": return ChasseresseNordique.creer({"arc": false, "carquois": false, "couteau": false})
 		"eirik": return GuerrierNordique.creer({"casque": false, "bouclier": "", "epee": false})
 	return null
@@ -88,24 +98,31 @@ static func _garde_lance() -> Node3D:
 	return n
 
 ## Brodd, le forgeron : le Guerrier ENTIER, variante avant-bras nus (manches retroussées), sans casque, bouclier ni épée ; seule la cape
-## est ôtée (accessoire : la fourrure des épaules, le plastron et la mante restent) ; barbe brune, maillet de forge.
+## est ôtée (accessoire : la fourrure des épaules, le plastron et la mante restent) ; barbe, cheveux et nattes brun foncé, tenue
+## tournée vers le cuir brun, maillet de forge.
 static func _forgeron() -> Node3D:
 	var n := archetype_seul("forgeron")
 	n.name = "PnjForgeron"
 	var sq := _sq(n)
 	var p := _pieces(sq)
 	_sans_cape(sq)
-	_teinte_poil(p.get("Hair_Beard"), Color(0.55, 0.38, 0.24))
-	_teinte_poil(p.get("Hair_Long"), Color(0.55, 0.38, 0.24))
+	# variante nette d'Haldor (même Guerrier) : barbe et cheveux brun très foncé (Haldor : roux), bleus de la tenue tournés vers le
+	# cuir brun (col, tabard : l'homme de la forge, sans le bleu de la garde)
+	_teinte_poil(p.get("Hair_Beard"), Color(0.36, 0.27, 0.21))
+	_teinte_poil(p.get("Hair_Long"), Color(0.36, 0.27, 0.21))
+	_teinte_bande(sq, "forgeron", {"bande": Vector2(0.48, 0.80), "dh": -0.55, "sm": 0.45, "vm": 0.95})
+	_tresses_teinte(sq, "forgeron_tresses", Color.from_hsv(0.07, 0.40, 1.0), 0.50)
 	_maillet(sq)
 	return n
 
-## Ylva, la chasseuse : la Chasseresse ENTIÈRE (arc porté, carquois, couteau), étoffes de l'archétype ; cheveux roux.
+## Ylva, la chasseuse : la Chasseresse ENTIÈRE (arc porté, carquois, couteau), étoffes de l'archétype ; cheveux et nattes roux.
 static func _chasseuse() -> Node3D:
 	var n := archetype_seul("chasseuse")
 	n.name = "PnjChasseuse"
 	var p := _pieces(_sq(n))
 	_teinte_poil(p.get("Hair_Long"), Color(1.15, 0.62, 0.42))
+	# les deux nattes (accessoires) restaient blondes sous des cheveux roux
+	_tresses_teinte(_sq(n), "chasseuse_tresses", Color.from_hsv(0.045, 0.62, 1.0), 1.0)
 	return n
 
 ## Sigrún, la völva : le Mage ENTIER en corps femme (capuche profonde, visage dans l'ombre aux yeux luisants, pèlerine, écailles, robe,
@@ -113,7 +130,9 @@ static func _chasseuse() -> Node3D:
 static func _volva() -> Node3D:
 	var n := archetype_seul("volva")
 	n.name = "PnjVolva"
-	_teinte_bande(_sq(n), "volva", {"bande": Vector2(0.48, 0.80), "dh": 0.07, "sm": 0.85, "smin": 0.05})
+	if SORCIERS_VISAGE:
+		_vieillir(_sq(n), "volva_peau", {"age": 0.75, "creux": 0.9, "taches": 0.3, "sourcils": Color(0.50, 0.50, 0.53), "cheveux": CHEVEUX_VOLVA})
+	_teinte_bande(_sq(n), "volva", {"bande": Vector2(0.48, 0.80), "dh": 0.14, "sm": 0.6, "smin": 0.05})
 	return n
 
 ## Grima, l'ancienne : le Mage ENTIER en corps femme, sans bâton à orbe ; laines délavées (bleus de toute la tenue désaturés vers le
@@ -122,16 +141,28 @@ static func _ancienne() -> Node3D:
 	var n := archetype_seul("ancienne")
 	n.name = "PnjAncienne"
 	var sq := _sq(n)
-	_teinte_bande(sq, "ancienne", {"bande": Vector2(0.48, 0.80), "dh": 0.0, "sm": 0.3, "smin": 0.05})
+	if SORCIERS_VISAGE:
+		_vieillir(sq, "ancienne_peau", {"age": 1.0, "creux": 0.6, "taches": 1.0, "sourcils": Color(0.80, 0.78, 0.74), "cheveux": CHEVEUX_ANCIENNE})
+	_teinte_bande(sq, "ancienne", {"bande": Vector2(0.48, 0.80), "dh": -0.52, "sm": 0.35, "smin": 0.05, "vm": 1.15})
+	# foulard de lin écru (la capuche) : silhouette claire, elle ne se confond plus avec la völva
+	_teinte_tex(_pieces(sq).get("capuche"), -1, "ancienne_foulard", {"col": Color.from_hsv(0.09, 0.22, 1.0), "v": 1.9, "add": 0.06})
 	_canne(sq)
 	return n
 
-## Gunnhild, la cheffe : la Chasseresse ENTIÈRE sans arc, carquois ni couteau ; cheveux blond clair.
+## Gunnhild, la cheffe : la Chasseresse ENTIÈRE sans arc, carquois ni couteau ; cheveux et nattes gris cendré, tenue lie-de-vin.
 static func _chef() -> Node3D:
 	var n := archetype_seul("chef")
 	n.name = "PnjChef"
-	var p := _pieces(_sq(n))
-	_teinte_poil(p.get("Hair_Long"), Color(1.1, 0.95, 0.70))
+	var sq := _sq(n)
+	var p := _pieces(sq)
+	# variante nette d'Ylva (même Chasseresse) : femme mûre, cheveux et nattes blond cendré grisonnant, bleus de la tenue tournés
+	# vers le lie-de-vin (la cheffe ; ni le violet de la völva ni le rouge vif de la garde)
+	# le multiplicateur « teinte » ne désature pas le blond doré : la texture des cheveux est elle-même repeinte en cendré
+	_teinte_tex(p.get("Hair_Long"), -1, "chef_cheveux", {"col": Color.from_hsv(0.09, 0.14, 1.0), "v": 0.72})
+	_teinte_poil(p.get("Hair_Long"), Color(1.0, 1.0, 1.0))
+	_tresses_teinte(sq, "chef_tresses", Color.from_hsv(0.09, 0.14, 1.0), 0.65)
+	# smin bas : la cape de la chasseresse est un bleu ardoise très désaturé
+	_teinte_bande(sq, "chef", {"bande": Vector2(0.48, 0.80), "dh": 0.38, "sm": 1.5, "smin": 0.03, "vm": 0.92})
 	return n
 
 ## Eirik, l'explorateur mort de la crypte : le Guerrier ENTIER sans casque, bouclier ni épée (elle gît au sol) ; bleus de la tenue tournés
@@ -193,6 +224,198 @@ static func _teinte_bande(sq: Skeleton3D, prefixe: String, spec: Dictionary) -> 
 				cles[src] = "%s_%s_%d" % [prefixe, nom, s]
 			_teinte_tex(mi, s, cles[src], spec)
 
+## Visage âgé, peint dans la texture de peau (sans géométrie ni surface de plus) : chaque triangle du visage (repos) est rastérisé
+## dans l'atlas, la position 3D de chaque texel donne rides du front, pattes d'oie, poches sous les yeux, sillons nez-bouche,
+## plis d'amertume, joues creusées et taches de vieillesse (spec : "age" 0..1 force des rides, "creux" joues, "taches").
+## Repères : centres des yeux (maillage Eyes, caché). Image précalculée comme les teintes (assets/pnj/<clé>.res).
+static func _vieillir(sq: Skeleton3D, cle: String, spec: Dictionary) -> void:
+	var peau: MeshInstance3D = sq.get_node_or_null("peau")
+	if peau == null or peau.mesh == null:
+		return
+	var m := _materiau_de(peau, 0)
+	if m == null:
+		return
+	var src := m.get_shader_parameter("tex_base") as Texture2D
+	if src == null:
+		return
+	var t: ImageTexture = null
+	if _cache.has(cle):
+		t = _cache[cle]
+	else:
+		var mips: Image = null
+		if ResourceLoader.exists(_chemin(cle)):
+			var im := ResourceLoader.load(_chemin(cle)) as Image
+			if im != null and im.get_meta("version", -1) == VERSION:
+				mips = im
+		if mips == null:
+			var img := src.get_image().duplicate() as Image
+			if img.is_compressed():
+				img.decompress()
+			img.clear_mipmaps()
+			img.convert(Image.FORMAT_RGBA8)
+			_peindre_age(img, peau, GuerrierNordique._centres_yeux(sq.get_node_or_null("Eyes")), spec)
+
+			mips = GuerrierTextures.mips_pixel(img)
+			if enregistrer:
+				DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DOSSIER))
+				mips.set_meta("version", VERSION)
+				ResourceSaver.save(mips, _chemin(cle), ResourceSaver.FLAG_COMPRESS)
+		t = ImageTexture.create_from_image(mips)
+		_cache[cle] = t
+	var m2 := m.duplicate() as ShaderMaterial
+	m2.set_shader_parameter("tex_base", t)
+	_enreg(m2)
+	_poser_materiau(peau, 0, m2)
+
+## Distance du point p (x, y) au segment a-b (plan du visage).
+static func _dseg(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab := b - a
+	var h := clampf((p - a).dot(ab) / ab.length_squared(), 0.0, 1.0)
+	return (p - a - ab * h).length()
+
+## Assombrissement (0..1) du texel en q (repère du modèle) : somme des marques de l'âge, en traits nets (seuils, pas de dégradé
+## qui scintille) ; < 0 = éclaircissement (arête du pli, pommette).
+static func _ride(q: Vector3, oe: Vector3, spec: Dictionary) -> float:
+	var age: float = spec.get("age", 1.0)
+	var x := absf(q.x)
+	var ex := absf(oe.x)
+	var y := q.y - oe.y     # 0 = hauteur des yeux
+	var p := Vector2(x, y)
+	var d := 0.0
+	# front : 3 rides horizontales légèrement ondulées, au-dessus des sourcils
+	if y > 0.030 and y < 0.075 and x < 0.050:
+		var yy := y + 0.0025 * sin(x * 140.0)
+		for k in 3:
+			if absf(yy - (0.040 + 0.0105 * k)) < 0.0013 + 0.0004 * (2 - k):
+				d = maxf(d, 0.55 * age * (1.0 - x / 0.06))
+	# entre les sourcils : deux plis verticaux
+	if absf(x - 0.007) < 0.0012 and y > 0.012 and y < 0.030:
+		d = maxf(d, 0.45 * age)
+	# pattes d'oie : 3 rayons depuis le coin extérieur de l'œil
+	var coin := Vector2(ex + 0.016, 0.0)
+	var r := p - coin
+	if r.x > 0.0 and r.length() < 0.018:
+		var ang := atan2(r.y, r.x)
+		for a0 in [-0.45, 0.0, 0.45]:
+			if absf(ang - a0) < 0.10:
+				d = maxf(d, 0.5 * age)
+	# poches sous les yeux : arc sombre + arête claire dessous
+	var dx := (x - ex) / 0.016
+	if absf(dx) < 1.0:
+		var arc := -0.010 - 0.004 * (1.0 - dx * dx)
+		if absf(y - arc) < 0.0013:
+			d = maxf(d, 0.5 * age)
+		elif absf(y - (arc - 0.003)) < 0.0012:
+			d = minf(d, -0.15 * age) if d <= 0.0 else d
+	# sillons nez-bouche (aile du nez -> coin de la bouche) et plis d'amertume (coin de la bouche -> menton)
+	var s1 := _dseg(p, Vector2(0.020, -0.040), Vector2(0.033, -0.072))
+	var s2 := _dseg(p, Vector2(0.031, -0.080), Vector2(0.036, -0.098))
+	if s1 < 0.0016:
+		d = maxf(d, 0.6 * age)
+	elif s1 < 0.0040 and x > 0.027 + (-0.040 - y) * 0.35:
+		d = minf(d, -0.12 * age) if d <= 0.0 else d     # arête claire du pli, côté joue
+	if s2 < 0.0014:
+		d = maxf(d, 0.45 * age)
+	# orbites creusées (lisibles de loin : le regard s'enfonce sous l'arcade) : anneau sombre autour de l'œil, plus fort dessous
+	var orb := Vector2((x - ex) / 0.021, (y + 0.002) / 0.014)
+	var lo := orb.length()
+	if lo < 1.0 and lo > 0.55:
+		d = maxf(d, 0.12 * age * (1.0 if y < 0.0 else 0.4))
+	# joues creusées sous la pommette (zone pleine, deux paliers nets)
+	var cr: float = spec.get("creux", 0.0)
+	var jc := Vector2((x - (ex + 0.008)) / 0.020, (y + 0.050) / 0.018)
+	var lj := jc.length()
+	if lj < 1.0:
+		d = maxf(d, cr * (0.30 if lj < 0.6 else 0.16))
+	# pommette éclairée au-dessus du creux
+	elif cr > 0.0 and absf(x - ex - 0.010) < 0.012 and y > -0.030 and y < -0.020:
+		d = minf(d, -0.10 * cr) if d <= 0.0 else d
+	return d
+
+## Sourcils peints (les sourcils Quaternius coûtent 1 480 triangles) : arc de 2,6 cm au-dessus de chaque œil, clairsemé (âge) ;
+## renvoie l'opacité 0..1 du poil au point q.
+static func _sourcil(q: Vector3, oe: Vector3, k: Vector2i) -> float:
+	var ex := absf(oe.x)
+	var dx := (absf(q.x) - ex + 0.002) / 0.015
+	if absf(dx) > 1.0:
+		return 0.0
+	var arc := 0.017 + 0.004 * (1.0 - dx * dx) - 0.002 * dx
+	var e := 0.0024 * (1.0 - 0.45 * maxf(0.0, dx))
+	if absf(q.y - oe.y - arc) > e:
+		return 0.0
+	return 1.0 if GuerrierTextures._h(k.x, k.y, 3307) > 0.25 else 0.0
+
+static func _peindre_age(img: Image, peau: MeshInstance3D, yeux: Array, spec: Dictionary) -> void:
+	var a := peau.mesh.surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+	var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+	var W := img.get_width()
+	var H := img.get_height()
+	var oe: Vector3 = yeux[0]
+	var taches: float = spec.get("taches", 0.0)
+	var fait := {}
+	for t in range(0, idx.size(), 3):
+		var p0 := v[idx[t]]
+		var p1 := v[idx[t + 1]]
+		var p2 := v[idx[t + 2]]
+		var cen := (p0 + p1 + p2) / 3.0
+		# visage seulement : devant de la tête, du menton au sommet du crâne (cheveux peints sous la capuche)
+		if cen.z < -0.03 or cen.y < oe.y - 0.13 or cen.y > oe.y + 0.16 or absf(cen.x) > 0.095:
+			continue
+		var u0 := uv[idx[t]] * Vector2(W, H)
+		var u1 := uv[idx[t + 1]] * Vector2(W, H)
+		var u2 := uv[idx[t + 2]] * Vector2(W, H)
+		var den := (u1.y - u2.y) * (u0.x - u2.x) + (u2.x - u1.x) * (u0.y - u2.y)
+		if absf(den) < 1e-6:
+			continue
+		for ty in range(int(floor(minf(u0.y, minf(u1.y, u2.y)))), int(ceil(maxf(u0.y, maxf(u1.y, u2.y)))) + 1):
+			for tx in range(int(floor(minf(u0.x, minf(u1.x, u2.x)))), int(ceil(maxf(u0.x, maxf(u1.x, u2.x)))) + 1):
+				var c := Vector2(tx + 0.5, ty + 0.5)
+				var l0 := ((u1.y - u2.y) * (c.x - u2.x) + (u2.x - u1.x) * (c.y - u2.y)) / den
+				var l1 := ((u2.y - u0.y) * (c.x - u2.x) + (u0.x - u2.x) * (c.y - u2.y)) / den
+				var l2 := 1.0 - l0 - l1
+				if l0 < -0.02 or l1 < -0.02 or l2 < -0.02:
+					continue
+				var k := Vector2i(posmod(tx, W), posmod(ty, H))
+				if fait.has(k):
+					continue
+				fait[k] = true
+				var q := p0 * l0 + p1 * l1 + p2 * l2
+				var d := _ride(q, oe, spec)
+				# taches de vieillesse (tempes, front, pommettes) : bruit à seuil net
+				if taches > 0.0 and GuerrierTextures._h(k.x, k.y, 3301) > 1.0 - 0.025 * taches and (q.y > oe.y + 0.02 or absf(q.x) > 0.04):
+					d = maxf(d, 0.28)
+				var col := img.get_pixel(k.x, k.y)
+				# cheveux sous la capuche : au-dessus de la lisière (arrondie, golfes aux tempes), mèches peignées en arrière (raie au
+				# milieu), gris / blancs ; le cuir chevelu sombre de la texture d'origine ne se voit plus quand le capuchon est relevé
+				var xs := absf(q.x)
+				var lisiere := oe.y + 0.048 + 0.006 * (xs / 0.05) * (xs / 0.05) - 0.012 * smoothstep(0.045, 0.075, xs)
+				if q.y > lisiere or (q.z < 0.04 and q.y > oe.y + 0.01):
+					var ch: Color = spec.get("cheveux", Color(0.75, 0.74, 0.72))
+					var raie := xs < 0.0025 and q.y > lisiere + 0.004
+					var brin := GuerrierTextures._n(int(q.x * 900.0) + 512, int(q.y * 120.0) + 512, 1024, 1024, 128, 16, 3311)
+					var f := 0.62 if raie else (0.80 if brin < 0.35 else (1.0 if brin < 0.75 else 1.12))
+					img.set_pixel(k.x, k.y, Color(minf(ch.r * f, 1.0), minf(ch.g * f, 1.0), minf(ch.b * f, 1.0)))
+					continue
+				# fard bleu de la texture d'origine (corps femme) sur les paupières : repeint en peau, ombre de paupière brune
+				if absf(q.y - oe.y) < 0.016 and absf(xs - absf(oe.x)) < 0.022 and col.b > col.r * 0.95:
+					var lp := col.get_luminance()
+					col = Color(lp * 1.12, lp * 0.92, lp * 0.82)
+				if _sourcil(q, oe, k) > 0.0:
+					img.set_pixel(k.x, k.y, (spec.get("sourcils", Color(0.62, 0.60, 0.58)) as Color))
+					continue
+				# teint âgé : un peu désaturé partout sur le visage
+				# (pâli et refroidi : la peau tannée de l'atlas se lisait orange, jeune, sous la lumière froide)
+				var lum := col.get_luminance()
+				col = col.lerp(Color(lum * 1.10, lum * 1.02, lum * 1.00), float(spec.get("pale", 0.45)))
+				if d > 0.0:
+					col = Color(col.r * (1.0 - d * 0.80), col.g * (1.0 - d * 0.88), col.b * (1.0 - d * 0.84))
+				elif d < 0.0:
+					col = col.lerp(Color(1.0, 0.95, 0.90), -d)
+				col.a = 1.0
+				img.set_pixel(k.x, k.y, col)
+
 static func _multiplier(mi: MeshInstance3D, s: int, c: Color) -> void:
 	var m := _materiau_de(mi, s)
 	if m == null:
@@ -224,6 +447,16 @@ static func _cape_teinte(sq: Skeleton3D, cle: String, col: Color, v: float) -> v
 		var m := _materiau_de(acc, s)
 		if m != null and m.get_shader_parameter("decoupe") == true:
 			_teinte_tex(acc, s, cle, {"col": col, "v": v, "rect": GuerrierTextures.D_CAPE})
+
+## Nattes de la chasseresse (zone R_TRESSE de l'atlas opaque des accessoires) teintes comme les cheveux.
+static func _tresses_teinte(sq: Skeleton3D, cle: String, col: Color, v: float) -> void:
+	var acc: MeshInstance3D = sq.get_node_or_null("accessoires")
+	if acc == null:
+		return
+	for s in acc.mesh.get_surface_count():
+		var m := _materiau_de(acc, s)
+		if m != null and m.get_shader_parameter("decoupe") != true and m.get_shader_parameter("tex_base") != null:
+			_teinte_tex(acc, s, "%s_%d" % [cle, s], {"col": col, "v": v, "rect": GuerrierTextures.R_TRESSE})
 
 static func _enreg(m: ShaderMaterial) -> void:
 	Palette.materiaux.append(m)
@@ -279,7 +512,7 @@ static func _texture_teintee(src: Texture2D, cle: String, spec: Dictionary) -> I
 					var b: Vector2 = spec["bande"]
 					if c.s < float(spec.get("smin", 0.12)) or c.h < b.x or c.h > b.y:
 						continue
-					o = Color.from_hsv(fposmod(c.h + float(spec.get("dh", 0.0)), 1.0), clampf(c.s * float(spec.get("sm", 1.0)), 0.0, 1.0), c.v)
+					o = Color.from_hsv(fposmod(c.h + float(spec.get("dh", 0.0)), 1.0), clampf(c.s * float(spec.get("sm", 1.0)), 0.0, 1.0), clampf(c.v * float(spec.get("vm", 1.0)), 0.0, 1.0))
 				else:
 					o = Color.from_hsv(col.h, col.s, clampf(c.v * vm + add, 0.0, 1.0))
 				o.a = c.a

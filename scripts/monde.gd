@@ -1435,7 +1435,7 @@ func _lot_captures(fichier: String) -> void:
 		return
 	var sortie: String = _arguments().get("sortie", fichier.get_base_dir())
 	DirAccess.make_dir_recursive_absolute(sortie)
-	var rang := {"monde": 0, "interieur": 0, "pilote": 0, "scenario": 1, "crypte": 2, "grotte": 3}
+	var rang := {"monde": 0, "interieur": 0, "pilote": 0, "pnj": 0, "scenario": 1, "crypte": 2, "grotte": 3}
 	var vues: Array = []
 	for ligne in texte.split("\n"):
 		var m := ligne.strip_edges().split(" ", false)
@@ -1466,7 +1466,7 @@ func _lot_captures(fichier: String) -> void:
 		var c := PackedFloat64Array()
 		if type != "scenario":
 			c = String(v["coords"]).split_floats(",")
-		if type == "monde" or type == "scenario" or type == "interieur" or type == "pilote":
+		if type == "monde" or type == "scenario" or type == "interieur" or type == "pilote" or type == "pnj":
 			if dessous != "":
 				push_error("--captures : vue monde/scénario « %s » après le sous-sol, ignorée" % v["nom"])
 				continue
@@ -1508,6 +1508,36 @@ func _lot_captures(fichier: String) -> void:
 				var oeil_y := pos.y + 1.62
 				var cible_y := pp.y + (c[2] if c.size() > 2 else 1.0)
 				joueur.tete.rotation.x = atan2(cible_y - oeil_y, Vector2(vers.x, vers.z).length())
+				joueur.velocity = Vector3.ZERO
+				_brume_locale(0.0, true)
+			elif type == "pnj":
+				# villageois du jeu : `nom pnj d,az°[,cible_y] id=volva [anim=Clip:t]` (caméra à d m de lui, az 0 = de face) ; il est figé à
+				# son poste (physique coupée), son animation d'activité continue (ou anim=Clip:t pour une pose figée)
+				var cible_v: Node3D = null
+				for pv in get_tree().get_nodes_in_group("villageois"):
+					if pv.donnees.get("id") == String(opt.get("id", "volva")):
+						cible_v = pv
+				if cible_v == null:
+					push_error("--captures : vue « pnj » : villageois introuvable " + String(opt.get("id", "")))
+					continue
+				cible_v.set_physics_process(false)
+				cible_v.velocity = Vector3.ZERO
+				if opt.has("anim"):
+					var an2 := String(opt["anim"]).split(":")
+					var ap2: AnimationPlayer = cible_v.anim
+					if ap2 != null and ap2.has_animation(an2[0]):
+						ap2.play(an2[0])
+						ap2.seek(ap2.get_animation(an2[0]).length * (float(an2[1]) if an2.size() > 1 else 0.25), true)
+						ap2.pause()
+				var pv2 := cible_v.global_position
+				var dir2 := cible_v.global_basis.z.rotated(Vector3.UP, deg_to_rad(c[1]))
+				dir2.y = 0.0
+				var pos2 := pv2 + dir2.normalized() * c[0]
+				pos2.y = hauteur(pos2.x, pos2.z) + 0.1 - float(opt.get("bas", "0"))
+				joueur.global_position = pos2
+				var vers2 := pv2 - pos2
+				joueur.rotation.y = atan2(-vers2.x, -vers2.z)
+				joueur.tete.rotation.x = atan2(pv2.y + (c[2] if c.size() > 2 else 1.0) - (pos2.y + 1.62), Vector2(vers2.x, vers2.z).length())
 				joueur.velocity = Vector3.ZERO
 				_brume_locale(0.0, true)
 			elif type == "interieur":
