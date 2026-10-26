@@ -49,6 +49,7 @@ const OPTIONS_DEFAUT := {
 	"affichage": {"plein_ecran": false, "champ_vision": 72.0},
 	"son": {"general": 1.0, "musique": 0.8, "effets": 1.0},
 	"commandes": {"sensibilite": 1.0, "inverser_y": false},
+	"sauvegarde": {"dossier_secours": ""},   # "" = copie de secours désactivée
 }
 static var options := {}
 ## Choisi à l'écran titre : vrai = « Nouvelle partie » (le monde ne lit pas la sauvegarde, comme --nouvelle).
@@ -151,6 +152,114 @@ static func migrer(ancien: String, neuf: String) -> PackedStringArray:
 
 static func dossier_ancien() -> String:
 	return OS.get_config_dir().path_join(ANCIEN_DOSSIER)   # Windows : %APPDATA%
+
+# --- copie de secours (dossier choisi par le joueur : Google Drive, OneDrive, clé USB…) ----------------------------
+
+const SECOURS_GARDEES := 10
+## Message du dernier échec de copie ("" si la dernière a réussi) : affiché discrètement par le menu pause.
+static var avertissement_secours := ""
+
+## Dossier de la copie de secours ("" = désactivée). Test : --test-titre-secours=<dossier> (jamais enregistré).
+## En mode outil (tests, captures) : désactivée, pour ne jamais mêler une sauvegarde de test aux copies du joueur.
+static func dossier_secours() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--test-titre-secours="):
+			return a.substr(21)
+	if mode_outil():
+		return ""
+	return str(option("sauvegarde", "dossier_secours"))
+
+static func _prefixe_secours() -> String:
+	return nom() + "_sauvegarde_"
+
+## Après chaque sauvegarde réussie (Monde.sauvegarder) : copie horodatée de la partie (+ options.cfg) dans le dossier de
+## secours, écrite en .tmp puis renommée (jamais de fichier à moitié écrit), en gardant les SECOURS_GARDEES dernières.
+## Un échec ne lève rien : avertissement dans la console + avertissement_secours ; la sauvegarde locale n'en dépend pas.
+static func copie_secours(fichier: String, dossier := "") -> bool:
+	if dossier == "":
+		dossier = dossier_secours()
+	if dossier == "":
+		return true
+	avertissement_secours = ""
+	if not DirAccess.dir_exists_absolute(dossier) and DirAccess.make_dir_recursive_absolute(dossier) != OK:
+		return _echec_secours("dossier inaccessible : " + dossier)
+	var horodatage := Time.get_datetime_string_from_system(false, true).replace(":", "-").replace(" ", "_")
+	var err := _copier_atomique(ProjectSettings.globalize_path(fichier), dossier.path_join("%s%s.json" % [_prefixe_secours(), horodatage]))
+	if err != OK:
+		return _echec_secours("copie impossible (%s) vers %s" % [error_string(err), dossier])
+	if FileAccess.file_exists(FICHIER_OPTIONS):
+		_copier_atomique(ProjectSettings.globalize_path(FICHIER_OPTIONS), dossier.path_join("%soptions_%s.cfg" % [nom() + "_", horodatage]))
+	_elaguer(dossier, _prefixe_secours(), ".json")
+	_elaguer(dossier, nom() + "_options_", ".cfg")
+	return true
+
+static func _echec_secours(message: String) -> bool:
+	avertissement_secours = message
+	push_warning("Copie de secours : " + message)
+	return false
+
+static func _copier_atomique(src: String, dst: String) -> Error:
+	if not FileAccess.file_exists(src):
+		return ERR_FILE_NOT_FOUND
+	var donnees := FileAccess.get_file_as_bytes(src)
+	if donnees.is_empty():
+		return FileAccess.get_open_error() if FileAccess.get_open_error() != OK else ERR_FILE_CORRUPT
+	var tmp := dst + ".tmp"
+	var f := FileAccess.open(tmp, FileAccess.WRITE)
+	if f == null:
+		return FileAccess.get_open_error()
+	f.store_buffer(donnees)
+	f.close()
+	if FileAccess.file_exists(dst):
+		DirAccess.remove_absolute(dst)
+	return DirAccess.rename_absolute(tmp, dst)
+
+## Copies de secours (chemins absolus), de la plus ancienne à la plus récente (l'horodatage se trie comme du texte).
+static func copies_secours(dossier := "") -> PackedStringArray:
+	if dossier == "":
+		dossier = dossier_secours()
+	var res := PackedStringArray()
+	if dossier == "" or not DirAccess.dir_exists_absolute(dossier):
+		return res
+	for f in DirAccess.get_files_at(dossier):
+		if f.begins_with(_prefixe_secours()) and f.ends_with(".json"):
+			res.append(dossier.path_join(f))
+	res.sort()
+	return res
+
+## Ne supprime que nos propres copies (préfixe Hollowrim_…), les plus anciennes au-delà de SECOURS_GARDEES.
+static func _elaguer(dossier: String, prefixe: String, suffixe: String) -> void:
+	var liste := PackedStringArray()
+	for f in DirAccess.get_files_at(dossier):
+		if f.begins_with(prefixe) and f.ends_with(suffixe):
+			liste.append(f)
+	liste.sort()
+	for i in maxi(0, liste.size() - SECOURS_GARDEES):
+		DirAccess.remove_absolute(dossier.path_join(liste[i]))
+
+static func sauvegarde_valide(fichier := "") -> bool:
+	if fichier == "":
+		fichier = load("res://scripts/monde.gd").fichier_sauvegarde()
+	if not FileAccess.file_exists(fichier):
+		return false
+	var j := JSON.new()   # instance : une sauvegarde illisible ne remplit pas la console d'erreurs
+	return j.parse(FileAccess.get_file_as_string(fichier)) == OK and j.data is Dictionary
+
+## Restaure la copie de secours valide la plus récente à la place de la sauvegarde locale ; une sauvegarde locale
+## illisible est gardée à côté (« .corrompue »), jamais effacée. Renvoie true si une copie a été restaurée.
+static func restaurer_secours(dossier := "") -> bool:
+	var locale: String = load("res://scripts/monde.gd").fichier_sauvegarde()
+	var copies := copies_secours(dossier)
+	for i in range(copies.size() - 1, -1, -1):
+		if not sauvegarde_valide(copies[i]):
+			continue
+		var abs_locale := ProjectSettings.globalize_path(locale)
+		if FileAccess.file_exists(abs_locale):
+			_copier_atomique(abs_locale, abs_locale + ".corrompue")
+		if _copier_atomique(copies[i], abs_locale) == OK:
+			print("Copie de secours restaurée : ", copies[i])
+			return true
+	return false
 
 # --- relance du processus -------------------------------------------------------------
 

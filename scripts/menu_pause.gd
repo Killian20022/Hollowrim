@@ -59,6 +59,8 @@ func _ready() -> void:
 	_centrer(_options)
 	if not Jeu.mode_outil():
 		Jeu.appliquer_camera(_joueur())   # champ de vision choisi dans les options
+	if Jeu.test_titre() in ["nouvelle", "continuer", "restaurer"]:
+		_test.call_deferred(Jeu.test_titre())
 
 ## Centre un panneau déjà ajouté : il passe dans un CenterContainer plein écran (suit sa taille quand son contenu change).
 func _centrer(c: Control) -> void:
@@ -111,7 +113,7 @@ func _sauvegarder() -> void:
 		_avis.text = "Impossible : vous êtes mort"
 		return
 	monde.sauvegarder()
-	_avis.text = "Partie sauvegardée"
+	_avis.text = "Partie sauvegardée" + ("" if Jeu.avertissement_secours == "" else " (copie de secours impossible)")
 
 func _retour_titre() -> void:
 	if monde != null:
@@ -147,3 +149,49 @@ func _input(e: InputEvent) -> void:
 	var k := e as InputEventKey
 	if k.physical_keycode in [KEY_TAB, KEY_E, KEY_F5, KEY_F9, KEY_P, KEY_T, KEY_V]:
 		get_viewport().set_input_as_handled()
+
+# --- test automatique (outils/test_menus.sh : --test-titre=nouvelle|continuer [--test-titre-sortie=<dossier>]) -------------
+## nouvelle : pause → captures (pause, options) → Sauvegarder → Quitter.  continuer : vérifie que la partie chargée est celle
+## du fichier (position du joueur) puis quitte sans sauvegarder.
+func _test(etape: String) -> void:
+	var sortie := ""
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--test-titre-sortie="):
+			sortie = a.substr(20)
+	await get_tree().create_timer(6.0).timeout
+	var j := _joueur()
+	print("TEST MENUS : monde chargé (%s), joueur en %s" % [etape, j.global_position])
+	if etape == "nouvelle":
+		ouvrir()
+		await get_tree().create_timer(0.6).timeout
+		await _capture(sortie, "pause.png")
+		_ouvrir_options()
+		await get_tree().create_timer(0.6).timeout
+		await _capture(sortie, "options_pause.png")
+		_options.fermer()
+		var fichier: String = monde.fichier_sauvegarde()
+		# état reconnaissable, vérifié par l'étape « continuer »
+		j.global_position = Vector3(6.0, monde.hauteur(6.0, 12.0) + 0.1, 12.0)
+		j.inventaire.pieces = 42
+		_sauvegarder()
+		print("TEST MENUS : sauvegarde %s (%s)" % ["écrite" if FileAccess.file_exists(fichier) else "ABSENTE — ÉCHEC", fichier])
+		var copies := Jeu.copies_secours()
+		print("TEST MENUS : copie de secours %s (%d dans %s)" % ["OK" if copies.size() > 0 else "ABSENTE — ÉCHEC", copies.size(), Jeu.dossier_secours()])
+		await get_tree().create_timer(0.3).timeout
+		_quitter()
+	elif etape == "continuer" or etape == "restaurer":
+		var d = JSON.parse_string(FileAccess.get_file_as_string(monde.fichier_sauvegarde()))
+		var p: Array = d["joueur"]["position"]
+		var ecart := Vector3(p[0], p[1], p[2]).distance_to(j.global_position)
+		var ok: bool = ecart < 1.5 and Vector2(j.global_position.x, j.global_position.z).distance_to(Vector2(6, 12)) < 1.5 and j.inventaire.pieces == 42
+		print("TEST MENUS : continuer %s (écart à la position sauvegardée %.2f m, pièces %d)" % ["OK" if ok else "ÉCHEC", ecart, j.inventaire.pieces])
+		get_tree().quit()
+
+func _capture(dossier: String, nom: String) -> void:
+	if dossier == "":
+		return
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	DirAccess.make_dir_recursive_absolute(dossier)
+	img.save_png(dossier.path_join(nom))
+	print("TEST MENUS : capture ", dossier.path_join(nom))

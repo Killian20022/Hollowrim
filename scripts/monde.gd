@@ -1198,6 +1198,8 @@ func sauvegarder() -> void:
 	}
 	var f := FileAccess.open(fichier_sauvegarde(), FileAccess.WRITE)
 	f.store_string(JSON.stringify(donnees, "\t"))
+	f.close()
+	Jeu.copie_secours(fichier_sauvegarde())   # copie de secours (dossier choisi dans les options ; échec = simple avertissement)
 
 func charger() -> void:
 	if not FileAccess.file_exists(fichier_sauvegarde()):

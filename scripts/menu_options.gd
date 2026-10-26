@@ -10,6 +10,9 @@ var _premier: Control
 var _touches: Control
 var _reglages: Control
 var _case_plein: CheckButton
+var _secours: Label
+var _reglages_bas: Control
+var _dialogue: FileDialog
 
 const TOUCHES := [
 	["ZQSD / flèches", "se déplacer"],
@@ -45,7 +48,9 @@ func _ready() -> void:
 	_reglages = g
 	pile.add_child(g)
 	_case_plein = _case(g, "Plein écran", Jeu.option("affichage", "plein_ecran"), func(v: bool) -> void:
-		Fenetre.regler_plein_ecran(v))
+		var f := _fenetre()
+		if f != null:
+			f.regler_plein_ecran(v))
 	_premier = _case_plein
 	_curseur(g, "Champ de vision", 60, 90, 1, Jeu.option("affichage", "champ_vision"), "%d°", func(v: float) -> void:
 		Jeu.regler("affichage", "champ_vision", v)
@@ -60,6 +65,25 @@ func _ready() -> void:
 		Jeu.regler("commandes", "sensibilite", v / 100.0))
 	_case(g, "Inverser l'axe Y", Jeu.option("commandes", "inverser_y"), func(v: bool) -> void:
 		Jeu.regler("commandes", "inverser_y", v))
+	# copie de secours de la sauvegarde dans un dossier choisi (Google Drive, OneDrive…)
+	g.add_child(MenuStyle.etiquette("Copie de secours"))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 0)
+	var b_choisir := MenuStyle.bouton("Choisir…", _choisir_dossier)
+	var b_couper := MenuStyle.bouton("Désactiver", func() -> void:
+		Jeu.regler("sauvegarde", "dossier_secours", "")
+		_maj_secours())
+	h.add_child(b_choisir)
+	h.add_child(b_couper)
+	g.add_child(h)
+	g.add_child(Control.new())
+	_secours = MenuStyle.etiquette("", MenuStyle.GRIS)
+	_secours.clip_text = true
+	_secours.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_secours.custom_minimum_size = Vector2(360, 0)
+	_reglages_bas = _secours
+	pile.add_child(_secours)
+	_maj_secours()
 
 	# rappel des touches (remplace la grille tant qu'il est ouvert)
 	var t := GridContainer.new()
@@ -81,12 +105,20 @@ func _ready() -> void:
 	var b_retour := MenuStyle.bouton("Retour", func() -> void: fermer())
 	bas.add_child(b_touches)
 	bas.add_child(b_retour)
-	Fenetre.plein_ecran_change.connect(func(v: bool) -> void: _case_plein.set_pressed_no_signal(v))
+	if _fenetre() != null:
+		_fenetre().plein_ecran_change.connect(func(v: bool) -> void: _case_plein.set_pressed_no_signal(v))
+
+## Autoload Fenetre (scripts/fenetre.gd) cherché à l'exécution : son nom global n'existe pas encore quand un test
+## (--script) compile le monde, qui précharge ce script via le menu pause.
+func _fenetre() -> Node:
+	return get_node_or_null("/root/Fenetre")
 
 func ouvrir() -> void:
 	visible = true
 	_touches.visible = false
 	_reglages.visible = true
+	_reglages_bas.visible = true
+	_maj_secours()
 	_case_plein.set_pressed_no_signal(DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN)
 	_premier.grab_focus.call_deferred()
 
@@ -97,8 +129,38 @@ func fermer() -> void:
 func _basculer_touches() -> void:
 	_touches.visible = not _touches.visible
 	_reglages.visible = not _touches.visible
+	_reglages_bas.visible = _reglages.visible
 	if _reglages.visible:
 		_premier.grab_focus.call_deferred()
+
+func _maj_secours() -> void:
+	var d: String = Jeu.dossier_secours()
+	_secours.text = ("Copies dans : " + d) if d != "" else "Copie de secours désactivée (ex. un dossier Google Drive ou OneDrive)"
+	_secours.tooltip_text = d
+
+## Sélecteur de dossier natif de Windows (repli : sélecteur de Godot) ; le choix est enregistré dans options.cfg et
+## une première copie est faite tout de suite s'il existe déjà une partie.
+func _choisir_dossier() -> void:
+	if _dialogue == null:
+		_dialogue = FileDialog.new()
+		_dialogue.file_mode = FileDialog.FILE_MODE_OPEN_DIR
+		_dialogue.access = FileDialog.ACCESS_FILESYSTEM
+		_dialogue.use_native_dialog = true
+		_dialogue.title = "Dossier des copies de secours"
+		_dialogue.process_mode = Node.PROCESS_MODE_ALWAYS
+		_dialogue.dir_selected.connect(func(d: String) -> void:
+			Jeu.regler("sauvegarde", "dossier_secours", d)
+			var f: String = load("res://scripts/monde.gd").fichier_sauvegarde()
+			if FileAccess.file_exists(f):
+				Jeu.copie_secours(f)
+			_maj_secours()
+			if Jeu.avertissement_secours != "":
+				_secours.text = "Copie impossible : " + Jeu.avertissement_secours)
+		add_child(_dialogue)
+	var actuel: String = Jeu.dossier_secours()
+	if actuel != "":
+		_dialogue.current_dir = actuel
+	_dialogue.popup_centered(Vector2i(560, 320))
 
 func _unhandled_input(e: InputEvent) -> void:
 	if visible and (e.is_action_pressed("ui_cancel") or (e is InputEventKey and e.pressed and e.physical_keycode == KEY_ESCAPE)):

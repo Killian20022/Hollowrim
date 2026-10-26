@@ -15,6 +15,7 @@ const AUTEUR := "lopezk19"
 var _menu: VBoxContainer
 var _boutons: Array = []
 var _b_continuer: Button
+var _b_restaurer: Button
 var _options: PanelContainer
 var _credits: PanelContainer
 var _confirmation: PanelContainer
@@ -33,7 +34,7 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	_construire()
 	# F9 ou « Charger » d'une partie précédente : relancé pour charger aussitôt
-	if Jeu.lire_relance() == "continuer" and Jeu.sauvegarde_existe():
+	if Jeu.lire_relance() == "continuer" and Jeu.sauvegarde_valide():
 		_lancer(false)
 		return
 	_menu_principal()
@@ -86,11 +87,13 @@ func _construire() -> void:
 	_boutons = [
 		MenuStyle.bouton("Nouvelle partie", _nouvelle),
 		MenuStyle.bouton("Continuer", func() -> void: _lancer(false)),
+		MenuStyle.bouton("Restaurer la copie de secours", _restaurer),
 		MenuStyle.bouton("Options", _ouvrir_options),
 		MenuStyle.bouton("Crédits", _ouvrir_credits),
 		MenuStyle.bouton("Quitter", func() -> void: get_tree().quit()),
 	]
 	_b_continuer = _boutons[1]
+	_b_restaurer = _boutons[2]
 	for b: Button in _boutons:
 		b.custom_minimum_size = Vector2(170, 0)
 		_menu.add_child(b)
@@ -164,13 +167,22 @@ func _menu_principal() -> void:
 	_credits.visible = false
 	_confirmation.visible = false
 	_menu.visible = true
-	_b_continuer.disabled = not Jeu.sauvegarde_existe()
+	_b_continuer.disabled = not Jeu.sauvegarde_valide()
 	_b_continuer.focus_mode = Control.FOCUS_NONE if _b_continuer.disabled else Control.FOCUS_ALL
+	# sauvegarde locale absente ou illisible alors qu'une copie de secours existe : on propose de la restaurer
+	_b_restaurer.visible = _b_continuer.disabled and not Jeu.copies_secours().is_empty()
 	MenuStyle.chainer(_boutons)
 	(_boutons[0] if _b_continuer.disabled else _b_continuer).grab_focus.call_deferred()
 
+func _restaurer() -> void:
+	if Jeu.restaurer_secours():
+		_menu_principal()
+	else:
+		_b_restaurer.text = "Aucune copie lisible"
+		_b_restaurer.disabled = true
+
 func _nouvelle() -> void:
-	if Jeu.sauvegarde_existe():
+	if Jeu.sauvegarde_valide():
 		_menu.visible = false
 		_confirmation.visible = true
 		_confirmation.get_meta("non").grab_focus.call_deferred()
@@ -299,6 +311,24 @@ func _test(etape: String) -> void:
 	elif etape == "continuer":
 		if _b_continuer.disabled:
 			print("TEST MENUS : ÉCHEC (Continuer grisé alors qu'une sauvegarde est attendue)")
+			get_tree().quit(1)
+			return
+		_b_continuer.pressed.emit()
+	elif etape == "restaurer":
+		# sauvegarde locale rendue illisible : « Restaurer » doit apparaître, remettre la copie, puis « Continuer »
+		var f: String = load("res://scripts/monde.gd").fichier_sauvegarde()
+		var fa := FileAccess.open(f, FileAccess.WRITE)
+		fa.store_string("{ corrompue")
+		fa.close()
+		_menu_principal()
+		print("TEST MENUS : sauvegarde corrompue, continuer %s, restaurer %s" % ["grisé" if _b_continuer.disabled else "ACTIF", "visible" if _b_restaurer.visible else "ABSENT"])
+		if not _b_restaurer.visible or not _b_continuer.disabled:
+			print("TEST MENUS : ÉCHEC (restauration non proposée)")
+			get_tree().quit(1)
+			return
+		_b_restaurer.pressed.emit()
+		print("TEST MENUS : restaurer %s" % ("OK" if not _b_continuer.disabled else "ÉCHEC"))
+		if _b_continuer.disabled:
 			get_tree().quit(1)
 			return
 		_b_continuer.pressed.emit()
