@@ -51,6 +51,9 @@ var tertre: Node3D
 var chemins: Chemins
 var arbres: Array = []  # transforms de tous les arbres (pour Sol)
 var mat_terrain: ShaderMaterial
+## Hauteurs des nœuds du maillage du terrain ((CASES + 1)², rangée par rangée), calculées une fois par _terrain() : relues par
+## DetailsSol.hauteur_maillage (dallages, abords, rues, mobilier, sous-bois…) au lieu de rappeler hauteur() (4 appels par point).
+var hauteurs_maillage := PackedFloat64Array()
 var dragon: CharacterBody3D = null
 var dragon_vaincu := false
 var _env: Environment
@@ -144,10 +147,14 @@ func _ready() -> void:
 		mat_terrain.set_shader_parameter("sol_debug", int(_arguments()["sol-debug"]))
 	_chrono("carte de sol")
 	DetailsSol.creer(self)  # lot 3 : cailloux du sol (après la carte de sol)
+	_chrono("details du sol")
 	if not _arguments().has("sans-abords"): AbordsVillage.creer(self)  # refonte : abords de l'entrée du village (avant le fil des intérieurs ; --sans-abords : A/B)
+	_chrono("abords du village")
 	if not _arguments().has("sans-rues"):  # C7a : pavés, escaliers, murs, champs, mobilier du village v2 (--sans-rues : A/B)
 		RuesVillage.creer(self)
+		_chrono("rues du village")
 		MobilierVillage.creer(self)
+		_chrono("mobilier du village")
 	_village()
 	_chrono("village (bati)")
 	EauVillage.creer(self)  # C7c : rivière, pont, quai, moulin à eau, lac fermé (--sans-eau-village : rien n'est posé, A/B)
@@ -422,9 +429,14 @@ func _terrain() -> void:
 	var demi := TAILLE * 0.5
 	var hs := PackedFloat32Array()
 	hs.resize(n * n)
+	var h64 := PackedFloat64Array()   # mêmes hauteurs en double précision (hauteur() renvoie un float 64 bits) : DetailsSol.hauteur_maillage
+	h64.resize(n * n)
 	for j in n:
 		for i in n:
-			hs[j * n + i] = hauteur(i * pas - demi, j * pas - demi)
+			var h := hauteur(i * pas - demi, j * pas - demi)
+			hs[j * n + i] = h
+			h64[j * n + i] = h
+	hauteurs_maillage = h64
 
 	var m := Palette.materiau(tex_roche)
 	m.set_shader_parameter("uv_monde", true)
