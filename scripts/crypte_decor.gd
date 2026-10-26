@@ -2374,6 +2374,46 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 	j1()
 	return points
 
+## D/crypte_restes (2026-10-26) : module Blender en MeshInstance3D AUTONOME, pour les pièces des mécanismes (statue qui pivote,
+## brasero qui s'allume) qui ne peuvent pas être fondues dans les tampons du décor. Une surface par matière (matériaux de la crypte,
+## mat()), UV triplanaires calculées dans le repère du module (la pierre tourne avec la pièce). Ni emprise ni journal : la collision
+## reste celle du mécanisme. `mats` comme modele() (ex. {"pierre": "statue_v2"}).
+func maillage_modele(nom: String, ech := Vector3.ONE, mats := {}) -> MeshInstance3D:
+	_charger_modeles()
+	if not _modeles_de.has(nom):
+		push_warning("module Blender introuvable : " + nom)
+		return null
+	var am := ArrayMesh.new()
+	var T := Transform3D(Basis.from_scale(ech), Vector3.ZERO)
+	var TN := Transform3D(T.basis.inverse().transposed(), Vector3.ZERO)
+	var miroir := T.basis.determinant() < 0.0
+	for m: String in _modeles_de[nom]:
+		if m == "pts":
+			continue
+		var cible: String = mats.get(m, MAT_MODELE.get(m, "mur0"))
+		var nom_mat: String = theme.get(cible, cible) if not theme.is_empty() else cible
+		var inv := 1.0 / float(TUILE.get(nom_mat, 1.0))
+		var cm := _modele_cache("%s__%s" % [nom, m], 1.0, miroir)
+		var wv: PackedVector3Array = T * (cm["v"] as PackedVector3Array)
+		var wn: PackedVector3Array = TN * (cm["n"] as PackedVector3Array)
+		var uv := PackedVector2Array()
+		uv.resize(wv.size())
+		for q in wv.size():
+			uv[q] = _uv(wv[q], wn[q - q % 3], 1.0) * inv
+		var arr := []
+		arr.resize(Mesh.ARRAY_MAX)
+		arr[Mesh.ARRAY_VERTEX] = wv
+		arr[Mesh.ARRAY_NORMAL] = wn
+		arr[Mesh.ARRAY_TEX_UV] = uv
+		arr[Mesh.ARRAY_COLOR] = cm["c"]
+		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+		am.surface_set_material(am.get_surface_count() - 1, mat(nom_mat))
+	var mi := MeshInstance3D.new()
+	mi.mesh = am
+	mi.name = nom
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mi
+
 ## Givre au sol en décalque irrégulier (texture « givre_sol », alpha découpé) : remplace les plaques de neige du sol.
 func givre_decal(centre: Vector3, taille: Vector2, lacet := 0.0) -> void:
 	j0("givre_decal", lacet)

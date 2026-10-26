@@ -268,13 +268,22 @@ class Statues extends Base:
 		var pierre := mat(Palette.ROCHE, "meca_statue", Vector2(1, 1), Color(0.9, 0.92, 1.0))
 		var pierre_s := mat(Palette.ROCHE, "meca_statue", Vector2(1, 2), Color(0.72, 0.74, 0.8))
 		var rune := Palette.lueur(Color(0.5, 0.85, 1.0))
+		var hab: CrypteDecor = ctx.get("habillage", null)
 		for i in positions.size():
 			var p: Vector3 = positions[i]
-			Mecanisme.boite(self, Vector3(1.0, 0.3, 1.0), p + Vector3(0, 0.15, 0), pierre_s)
 			Mecanisme.collision(self, p + Vector3(0, 1.0, 0), Vector3(0.9, 2.0, 0.9))
 			var piv := Node3D.new()
 			piv.position = p + Vector3(0, 0.3, 0)
 			add_child(piv)
+			_pivots.append(piv)
+			var k0: int = (int(solution[i]) + 1 + (i % 3)) % 4        # jamais la bonne orientation au départ
+			_depart.append(k0)
+			etat.append(k0)
+			_angles.append(-k0 * PI / 2.0)
+			piv.rotation.y = _angles[i]
+			if hab != null and _habiller(hab, piv, p, rune):
+				continue
+			Mecanisme.boite(self, Vector3(1.0, 0.3, 1.0), p + Vector3(0, 0.15, 0), pierre_s)
 			Mecanisme.cylindre(piv, 0.34, 0.26, 0.9, Vector3(0, 0.45, 0), pierre)               # corps
 			Mecanisme.boite(piv, Vector3(0.78, 0.2, 0.34), Vector3(0, 0.98, 0), pierre)          # épaules
 			Mecanisme.cylindre(piv, 0.17, 0.17, 0.3, Vector3(0, 1.23, 0), pierre)                # tête casquée
@@ -282,12 +291,22 @@ class Statues extends Base:
 			Mecanisme.boite(piv, Vector3(0.16, 0.16, 0.66), Vector3(0.0, 0.98, -0.5), pierre)    # bras tendu : il montre la direction
 			Mecanisme.boite(piv, Vector3(0.1, 0.1, 0.06), Vector3(0, 0.98, -0.85), pierre_s)     # main/pointe
 			Mecanisme.boite(piv, Vector3(0.1, 0.03, 0.1), Vector3(0, 1.3, -0.15), rune)          # petite rune sur le front : repère du devant
-			_pivots.append(piv)
-			var k0: int = (int(solution[i]) + 1 + (i % 3)) % 4        # jamais la bonne orientation au départ
-			_depart.append(k0)
-			etat.append(k0)
-			_angles.append(-k0 * PI / 2.0)
-			piv.rotation.y = _angles[i]
+
+	## D/crypte_restes (2026-10-26), crypte v2 (ctx « habillage » = CrypteDecor, posé par tertre._poser_meca) : socle fixe « socle_pivot »
+	## (rainure, crans des quatre directions) et ancêtre « statue_guide » (capuche ouverte et bras tendu vers l'avant, flèche gravée
+	## sur le plateau). Le module regarde +Z : il est tourné d'un demi-tour dans le pivot, dont l'avant est -Z (Statues.direction(k)).
+	## Pivot, orientations, solution, collision : inchangés. Renvoie faux si un module manque (on retombe sur la statue v1).
+	func _habiller(hab: CrypteDecor, piv: Node3D, p: Vector3, rune: Material) -> bool:
+		var socle := hab.maillage_modele("socle_pivot", Vector3(1.0 / 1.1, 1.0, 1.0 / 1.1))
+		var corps := hab.maillage_modele("statue_guide", Vector3.ONE, {"pierre": "statue_v2"})
+		if socle == null or corps == null:
+			return false
+		socle.position = p
+		add_child(socle)
+		corps.rotation.y = PI
+		piv.add_child(corps)
+		Mecanisme.boite(piv, Vector3(0.09, 0.025, 0.03), Vector3(0, 1.79, -0.205), rune)      # rune au front de la capuche : repère du visage
+		return true
 
 	func _interactions() -> void:
 		for i in positions.size():
@@ -368,12 +387,20 @@ class Braseros extends Base:
 		var fer := mat(Palette.ACIER, "meca_fer", Vector2(1, 1), Color(0.6, 0.62, 0.68))
 		_mat_braise_eteinte = Palette.lueur(Color(0.1, 0.08, 0.08))
 		_mat_braise_vive = Palette.lueur(Color(1.0, 0.45, 0.12))
+		# D/crypte_restes (2026-10-26), crypte v2 (ctx « habillage ») : corps du brasero = module « brasero_v2 » (plinthe en blocs, fût
+		# octogonal, vasque de fer à griffes) ; braises, flamme, lumière, collision et interaction : inchangées.
+		var hab: CrypteDecor = ctx.get("habillage", null)
 		for i in positions.size():
 			var p: Vector3 = positions[i]
-			Mecanisme.cylindre(self, 0.34, 0.28, 0.14, p + Vector3(0, 0.07, 0), pierre)
-			Mecanisme.cylindre(self, 0.11, 0.14, 0.7, p + Vector3(0, 0.49, 0), pierre)
-			Mecanisme.cylindre(self, 0.22, 0.42, 0.3, p + Vector3(0, 0.99, 0), fer)               # vasque
-			Mecanisme.cylindre(self, 0.44, 0.44, 0.06, p + Vector3(0, 1.12, 0), fer)             # rebord
+			var corps := hab.maillage_modele("brasero_v2") if hab != null else null
+			if corps != null:
+				corps.position = p
+				add_child(corps)
+			else:
+				Mecanisme.cylindre(self, 0.34, 0.28, 0.14, p + Vector3(0, 0.07, 0), pierre)
+				Mecanisme.cylindre(self, 0.11, 0.14, 0.7, p + Vector3(0, 0.49, 0), pierre)
+				Mecanisme.cylindre(self, 0.22, 0.42, 0.3, p + Vector3(0, 0.99, 0), fer)               # vasque
+				Mecanisme.cylindre(self, 0.44, 0.44, 0.06, p + Vector3(0, 1.12, 0), fer)             # rebord
 			var br := Mecanisme.cylindre(self, 0.36, 0.36, 0.04, p + Vector3(0, 1.1, 0), Palette.lueur(Color.BLACK))
 			br.material_override = _mat_braise_eteinte
 			_braises.append(br)
