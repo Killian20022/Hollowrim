@@ -347,8 +347,12 @@ func _poser_meca(a: Dictionary) -> void:
 		"souffle_givre":
 			Piege.souffle_givre(crypte, a["pos"], a["dir"], a["longueur"], a["periode"], id, ctx)
 		"statues":
+			if CrypteV2.tertre_actif():
+				ctx["habillage"] = d      # D/crypte_restes : statues à orienter en modules v2 (socle_pivot + statue_guide), même pivot et collision
 			Mecanisme.statues(crypte, a["positions"], a["solution"], id, _ouvrir_secret, ctx)
 		"braseros":
+			if CrypteV2.tertre_actif():
+				ctx["habillage"] = d      # D/crypte_restes : braseros de la citerne en module v2 (brasero_v2), mêmes braises/lumières/collision
 			Mecanisme.braseros(crypte, a["positions"], a["ordre"], id, Callable(), ctx)
 		"socles":
 			ctx["socles_habilles"] = CrypteV2.tertre_actif()      # C4b : socles en module v2 versés par CrypteDonjon._x_rituelle (même collision)

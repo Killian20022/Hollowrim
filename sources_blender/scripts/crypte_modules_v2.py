@@ -804,6 +804,108 @@ def piece_fer_chaine(nom, graine):
     return M
 
 
+# ------------------------------------------------------------------ D/crypte_restes : mécanismes de la galerie et de la citerne
+def socle_pivot(nom, graine):
+    """Socle FIXE des statues à orienter (Mecanisme.Statues, encombrement v1 : 1 x 0,3 x 1 m) : plinthe, assise de blocs, dalle
+    de dessus creusée d'une rainure circulaire (la statue y tourne) et quatre crans gravés aux points cardinaux."""
+    M = Module(nom, graine)
+    rg = M.rg
+    M.boite((1.1, 0.08, 1.1), Vector((0, 0.04, 0)), bev=0.025, jit=0.008, ton=0.78)
+    cut = rg.uniform(-0.12, 0.12)
+    for s_ in (-1, 1):
+        a0, a1 = (-0.49, cut) if s_ < 0 else (cut, 0.49)
+        M.boite((a1 - a0 - 0.02, 0.15, 0.98), Vector(((a0 + a1) * 0.5, 0.155, 0)), bev=0.03, jit=0.01, ton=rg.uniform(0.78, 0.98))
+    M.boite((1.04, 0.07, 1.04), Vector((0, 0.265, 0)), bev=0.02, jit=0.005, ton=0.94)
+    M.cylindre(0.47, 0.47, 0.012, Vector((0, 0.296, 0)), 16, "gravure", ton=0.35, jit=0.0)      # rainure sombre où tourne le plateau
+    for k in range(4):      # crans des quatre directions (nord, est, sud, ouest du repère du module)
+        a = k * math.pi / 2
+        d = Vector((math.sin(a), 0, -math.cos(a)))
+        M.boite((0.08, 0.014, 0.05), Vector((0, 0.302, 0)) + d * 0.5, "gravure", yaw=-a, bev=0.0, jit=0.0, ton=0.4)
+    _givre_plaques(M, -0.52, 0.52, -0.52, 0.52, 0.3, 2, taille=(0.1, 0.22))
+    return M
+
+
+def statue_guide(nom, graine):
+    """Ancêtre de pierre qui MONTRE une direction (statue à orienter de la galerie) : plateau tournant cranté (flèche gravée vers
+    l'avant), robe à plis, manteau, capuche ouverte sur l'avant (visage dans l'ombre), bras droit tendu vers l'avant (index), main
+    gauche sur la poitrine. Origine = dessus du socle fixe (0,3 m) ; hauteur 1,72 m ; face avant +z (le regard et le bras)."""
+    M = Module(nom, graine)
+    rg = M.rg
+    M.cylindre(0.44, 0.44, 0.07, Vector((0, 0.0, 0)), 16, ton=0.86, jit=0.003)      # plateau tournant
+    M.coin([Vector((0, 0.07, 0.43)), Vector((-0.09, 0.07, 0.27)), Vector((0.09, 0.07, 0.27)),
+            Vector((0, 0.082, 0.43)), Vector((-0.09, 0.082, 0.27)), Vector((0.09, 0.082, 0.27))], "gravure", bev=0.0, ton=0.3)      # flèche
+    M.boite((0.56, 0.2, 0.56), Vector((0, 0.17, 0)), bev=0.03, jit=0.008, ton=0.82)
+    M.boite((0.62, 0.06, 0.62), Vector((0, 0.3, 0)), bev=0.02, jit=0.006, ton=0.9)
+    base = 0.33
+    prof = [(0.0, 0.3), (0.1, 0.28), (0.35, 0.26), (0.6, 0.24), (0.82, 0.22), (0.98, 0.215), (1.08, 0.26), (1.18, 0.19)]
+    n = 18
+    anneaux = []
+    for (yy, r) in prof:
+        ring = []
+        f = 1.0 if yy < 1.0 else 0.4
+        for k in range(n):
+            a = math.tau * k / n
+            pli = 1.0 + f * (0.12 * math.sin(a * 6 + 0.5) + 0.04 * math.sin(a * 11 - yy * 3.0))
+            ring.append(Vector((math.cos(a) * r * pli, base + yy, math.sin(a) * r * pli * 0.88)))
+        anneaux.append(ring)
+    bm = bmesh.new()
+    vv = [[bm.verts.new(B(p)) for p in ring] for ring in anneaux]
+    for i in range(len(vv) - 1):
+        for k in range(n):
+            bm.faces.new((vv[i][k], vv[i][(k + 1) % n], vv[i + 1][(k + 1) % n], vv[i + 1][k]))
+    bm.faces.new(vv[-1][::-1])
+    M._emettre(bm, "pierre", 0.9)
+    # manteau dans le dos, ceinture, épaules
+    M.boite((0.56, 1.0, 0.09), Vector((0, base + 0.62, -0.22)), incl=(0.08, 0.0), bev=0.035, jit=0.01, ton=0.8)
+    M.boite((0.5, 0.06, 0.42), Vector((0, base + 0.66, 0.0)), bev=0.02, jit=0.006, ton=0.72)
+    M.boite((0.64, 0.18, 0.4), Vector((0, base + 1.1, 0)), bev=0.06, jit=0.012, ton=1.0)
+    # bras droit tendu vers l'avant (le geste qui donne la direction) : épaule, bras, avant-bras, main, index ; manche pendante
+    M.boite((0.17, 0.17, 0.2), Vector((-0.27, base + 1.08, 0.04)), bev=0.04, jit=0.008, ton=1.0)
+    M.boite((0.15, 0.15, 0.36), Vector((-0.27, base + 1.07, 0.26)), incl=(0.06, 0.0), bev=0.04, jit=0.008, ton=0.98)
+    M.boite((0.13, 0.13, 0.22), Vector((-0.27, base + 1.05, 0.52)), bev=0.035, jit=0.006, ton=1.0)
+    M.boite((0.18, 0.2, 0.2), Vector((-0.27, base + 0.95, 0.34)), incl=(-0.25, 0.0), bev=0.04, jit=0.01, ton=0.85)      # manche
+    M.boite((0.1, 0.11, 0.1), Vector((-0.27, base + 1.05, 0.67)), bev=0.025, jit=0.004, ton=1.0)      # main
+    M.boite((0.035, 0.035, 0.12), Vector((-0.27, base + 1.07, 0.77)), bev=0.008, jit=0.002, ton=1.0)      # index tendu
+    # bras gauche replié, main sur la poitrine
+    M.boite((0.17, 0.42, 0.18), Vector((0.26, base + 0.9, 0.06)), incl=(-0.2, 0.0), bev=0.04, jit=0.008, ton=0.98)
+    M.boite((0.3, 0.12, 0.13), Vector((0.12, base + 0.9, 0.22)), yaw=0.35, bev=0.035, jit=0.006, ton=1.0)
+    # tête encapuchonnée : volume, ouverture très sombre vers l'avant, bords épais, pointe
+    M.sphere(0.19, Vector((0, base + 1.36, -0.01)), ech=(1.0, 1.2, 1.1), seg=12, ton=0.97, jit=0.008)
+    M.boite((0.26, 0.11, 0.28), Vector((0, base + 1.56, -0.03)), incl=(0.45, 0.0), bev=0.035, jit=0.008, ton=0.97)
+    M.boite((0.15, 0.22, 0.05), Vector((0, base + 1.33, 0.16)), bev=0.025, jit=0.003, ton=0.05)      # visage dans l'ombre
+    for sx in (-1, 1):
+        M.boite((0.05, 0.28, 0.09), Vector((sx * 0.105, base + 1.34, 0.15)), yaw=sx * -0.25, bev=0.018, jit=0.004, ton=1.0)
+    M.boite((0.3, 0.08, 0.08), Vector((0, base + 1.23, 0.15)), bev=0.025, jit=0.005, ton=1.0)
+    M.boite((0.16, 0.05, 0.07), Vector((0, base + 1.47, 0.16)), bev=0.015, jit=0.003, ton=1.0)      # front de la capuche
+    _givre_plaques(M, -0.3, 0.3, -0.16, 0.16, base + 1.19, 3, ep=0.014, taille=(0.07, 0.18))
+    _givre_plaques(M, -0.3, 0.3, 0.05, 0.4, 0.07, 2, ep=0.012, taille=(0.08, 0.16))
+    return M
+
+
+def brasero_v2(nom, graine):
+    """Brasero de la citerne (Mecanisme.Braseros, encombrement v1 : 0,7 m, vasque à 1,1 m) : plinthe carrée en blocs, fût octogonal
+    en deux tambours, chapiteau, vasque de fer évasée tenue par quatre griffes, rebord cerclé. Les braises (matière changeante),
+    la flamme et la lumière restent posées par le mécanisme (braises à 1,1 m, flamme à 1,14 m)."""
+    M = Module(nom, graine)
+    rg = M.rg
+    M.boite((0.7, 0.1, 0.7), Vector((0, 0.05, 0)), bev=0.025, jit=0.008, ton=0.78)
+    M.boite((0.58, 0.1, 0.58), Vector((0, 0.15, 0)), yaw=math.pi / 4 * 0.0, bev=0.025, jit=0.008, ton=0.86)
+    M.cylindre(0.2, 0.18, 0.28, Vector((0, 0.2, 0)), 8, bev=0.02, jit=0.006, ton=rg.uniform(0.8, 0.95), rot=math.pi / 8)
+    M.cylindre(0.18, 0.16, 0.26, Vector((0, 0.49, 0)), 8, bev=0.02, jit=0.006, ton=rg.uniform(0.82, 0.98), rot=math.pi / 8)
+    M.boite((0.4, 0.08, 0.4), Vector((0, 0.79, 0)), bev=0.02, jit=0.006, ton=0.92)      # chapiteau
+    M.cylindre(0.2, 0.2, 0.04, Vector((0, 0.83, 0)), 8, "fer", ton=0.5, jit=0.002)
+    # vasque : tronc de cône de fer, rebord épais
+    M.cylindre(0.2, 0.4, 0.24, Vector((0, 0.86, 0)), 12, "fer", ton=0.62, jit=0.003)
+    M.tore_polygonal(0.42, 0.045, Vector((0, 1.11, 0)), 12, "fer", 0.72, haut=0.05)
+    for k in range(4):      # griffes de fer qui tiennent la vasque
+        a = math.tau * k / 4 + math.pi / 4
+        d = Vector((math.cos(a), 0, math.sin(a)))
+        M.barre(d * 0.17 + Vector((0, 0.8, 0)), d * 0.44 + Vector((0, 1.12, 0)), 0.018, "fer", 0.5)
+        M.boite((0.05, 0.08, 0.05), d * 0.45 + Vector((0, 1.15, 0)), "fer", yaw=-a, bev=0.008, jit=0.002, ton=0.6)
+    _givre_plaques(M, -0.36, 0.36, -0.36, 0.36, 0.1, 2, taille=(0.08, 0.18))
+    return M
+
+
 # ======================================================================= table des modules exportés
 def construire():
     mods = []
@@ -837,6 +939,10 @@ def construire():
     # C4b (2026-10-23) : sarcophage de Svanhild, socle des primitives v1
     mods.append(sarcophage_svanhild("sarcophage_svanhild", 172))
     mods.append(socle_v2("socle_v2", 251))
+    # D/crypte_restes (2026-10-26) : statues à orienter de la galerie, braseros de la citerne (mécanismes restés en v1)
+    mods.append(socle_pivot("socle_pivot", 261))
+    mods.append(statue_guide("statue_guide", 262))
+    mods.append(brasero_v2("brasero_v2", 271))
     return mods
 
 
