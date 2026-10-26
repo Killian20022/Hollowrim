@@ -96,8 +96,16 @@ Remplace le modèle low-poly ci-dessus (macro/méso/micro gardés comme intentio
 - Jeu : 3 gabarits préconstruits (`EnnemisNordiques.prechauffer` -> `SqueletteGuerrier.prechauffer`), chaque squelette = `duplicate` ; aucune construction pendant le jeu.
 - Perf (crypte, 6 ennemis visibles, même caméra, `outils/mesure_squelettes.gd`) : 6 squelettes +0,43 ms GPU (draugrs +0,55 ; ancien squelette +0,15) ; création 1,9 ms/squelette (draugr 4,3).
 
+### Crâne refait (E/crane_squelette, 2026-10-26)
+Corps validé, inchangé ; seul le crâne (os Head) est refait, dans la même enveloppe (casque, capuche et volume « tete » de `test_squelette_traversees` inchangés).
+- Voûte + face : champ de distance signé (voûte, occiput, base temporale, masque facial qui s'étrécit vers le maxillaire, arcades sourcilières, pommettes, arcades zygomatiques ; tempes légèrement creusées, orbites en entonnoir 42 x 38 mm et 36 mm de fond, cavité nasale en cœur inversé) -> « surface nets » au pas de 2,5 mm -> décimation symétrique à ≈750 triangles. Parois des orbites et du nez en classe `orbite` (noir) ; lueur froide (alpha 0) gardée au fond des orbites.
+- Bouche : mandibule distincte (loft à profil arrondi, menton, branches montantes, condyles, coronoïdes) entrouverte de 9° autour du pivot de l'ancienne ; 2 x 10 dents en prismes (incisives étroites, molaires larges) devant une plaque sombre (fond de la bouche). Tout reste sur l'os Head (il n'y a pas d'os de mâchoire).
+- Budget : +257 triangles sur le maillage « squelette » (5 295 -> 5 552) ; variantes guerrier 6 812, archer 6 304, sbire 5 938 (budget 4 000-7 500). Atlas recuit (VERSION 6).
+- Les crânes décoratifs de la crypte (`scripts/objets/petit_mobilier.gd`, `crane()`) sont un AUTRE modèle (procédural Godot) : non touchés.
+- Vérification visuelle : `outils/planche_crane.gd` (gros plans face / trois quarts / profil / regard du joueur cadrés sur l'os Head, casque et capuche, rang à 3, 5 et 8 m, torche réelle de la crypte).
+
 ### Fichiers
-- `sources_blender/scripts/squelette_nordique.py` (options `--apercu=`, `--sans-bake`) -> `assets/modeles/squelettes/squelette_nordique.glb` + `sources_blender/squelette_nordique_atlas.png`. Rejouable : `outils/blender.sh`, puis `godot --headless --import`, puis `outils/generer_squelette.gd`.
+- `sources_blender/scripts/squelette_nordique.py` (options `--apercu=`, `--sans-bake`) -> `assets/modeles/squelettes/squelette_nordique.glb` + `sources_blender/squelette_nordique_atlas.png`. Rejouable : `outils/blender.sh` (rejoue le script du worktree courant ; options transmises au script), puis `godot --headless --import`, puis `outils/generer_squelette.gd`.
 - `scripts/squelette_guerrier.gd` (`creer`, `modele(arme)`, `prechauffer`, `arc()` partagé avec les archers humains/draugrs), `scripts/draugr.gd`, `scripts/ennemis_nordiques.gd`.
 - Outils : `planche_squelettes.gd` (planche crypte à la torche, ennemis figés), `mesure_squelettes.gd`, `test_squelette.gd`, `test_squelette_traversees.gd`.
 

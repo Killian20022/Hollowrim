@@ -1,6 +1,6 @@
 class_name SqueletteGuerrier
-## Squelette nordique (refonte D/squelettes, au niveau du draugr) : ossements modelés dans Blender (crâne en sections avec orbites
-## creusées et mâchoire entrouverte, colonne vertèbre par vertèbre, 20 côtes + sternum, clavicules et omoplates, bassin à ailes
+## Squelette nordique (refonte D/squelettes, au niveau du draugr) : ossements modelés dans Blender (crâne anatomique E/crane_squelette :
+## orbites profondes et sombres, cavité nasale en cœur inversé, pommettes, tempes creusées, mandibule distincte entrouverte, dents une à une ; colonne vertèbre par vertèbre, 20 côtes + sternum, clavicules et omoplates, bassin à ailes
 ## iliaques, fémur/tibia/péroné, humérus/radius/cubitus, mains en poing, pieds à 5 rayons) + restes d'équipement nordique
 ## (casque à nasal rouillé, capuche et cape en lambeaux, pagne, ceinture, brassard, bouclier de planches ébréché, épée ébréchée,
 ## hache barbue, arc, carquois).
@@ -23,7 +23,7 @@ const RES_NU := "res://assets/personnages/squelette_nordique_nu.res"
 const PNG_NU := "res://sources_blender/squelette_nordique_atlas_nu.png"
 ## Variantes à crâne nu (atlas _nu)
 const CRANE_NU := ["hache"]
-const VERSION := 5
+const VERSION := 6
 ## Maillages visibles par variante (les autres sont cachés : ils ne coûtent rien au rendu)
 const PIECES := {
 	"epee": ["squelette", "lambeaux", "casque", "bouclier", "epee"],
