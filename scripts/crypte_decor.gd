@@ -536,15 +536,18 @@ func quad(nom_: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vecto
 
 ## Chemin rapide de quad() (le plus fréquent : UV tirés des positions pa..pd, sommets blancs) : aucun tableau temporaire,
 ## les deux triangles écrits d'un coup. Même résultat, sommet pour sommet, que quad().
-func _quad_p(nom_: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, pa: Vector3, pb: Vector3, pc: Vector3, pd: Vector3) -> void:
+## `n_uv` : normale qui choisit la projection des UV, dans le MÊME repère que pa..pd (boîte tournée : normale non tournée) ;
+## par défaut `n` (UV tirés des positions posées).
+func _quad_p(nom_: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, pa: Vector3, pb: Vector3, pc: Vector3, pd: Vector3, n_uv := Vector3.ZERO) -> void:
 	if muet:
 		return
 	var nom: String = theme.get(nom_, nom_) if not theme.is_empty() else nom_
 	var t: float = TUILE.get(nom, 1.0)
-	var ua := _uv(pa, n, t)
-	var ub := _uv(pb, n, t)
-	var uc := _uv(pc, n, t)
-	var ud := _uv(pd, n, t)
+	var np := n if n_uv == Vector3.ZERO else n_uv
+	var ua := _uv(pa, np, t)
+	var ub := _uv(pb, np, t)
+	var uc := _uv(pc, np, t)
+	var ud := _uv(pd, np, t)
 	if xf != Transform3D.IDENTITY:
 		a = xf * a
 		b = xf * b
@@ -586,7 +589,8 @@ const _FACES := [
 	[Vector3.FORWARD, [Vector3(1, -1, -1), Vector3(1, 1, -1), Vector3(-1, 1, -1), Vector3(-1, -1, -1)]],
 ]
 
-## Boîte pleine (6 faces) ; `faces` : masque des faces à produire (par défaut toutes) ; UV = position en mètres.
+## Boîte pleine (6 faces) ; UV = position en mètres dans le repère de la boîte (points NON tournés + `decal`), projection choisie
+## avec la normale NON tournée (L0 2026-10-26 : la normale tournée étirait la texture en stries au-delà de ±45° de lacet : trône, coffres, lits…).
 func boite(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0, sans_dessous := false, decal := Vector3.ZERO) -> void:
 	var h := taille * 0.5
 	var basis := Basis(Vector3.UP, lacet)
@@ -600,7 +604,7 @@ func boite(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0, sans_des
 		var p2: Vector3 = pts[2] * h
 		var p3: Vector3 = pts[3] * h
 		var cd := centre + decal
-		_quad_p(nom, centre + basis * p0, centre + basis * p1, centre + basis * p2, centre + basis * p3, basis * n, cd + p0, cd + p1, cd + p2, cd + p3)
+		_quad_p(nom, centre + basis * p0, centre + basis * p1, centre + basis * p2, centre + basis * p3, basis * n, cd + p0, cd + p1, cd + p2, cd + p3, n)
 	_nb_pieces += 1
 
 ## Boîte autonome (pièces mobiles : herse, levier) : maillage propre, UV en mètres comme le reste.
