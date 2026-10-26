@@ -973,6 +973,66 @@ func _incliner(pz: Dictionary) -> Transform3D:
 		xf = Transform3D(b, q) * Transform3D(Basis(), -q)
 	return x0
 
+# ------------------------------------------------------------------ modules Blender du camp (lot L5)
+## sources_blender/scripts/grotte_objets.py → assets/grotte/modules/grotte_objets.dat (même format que crypte_v2.dat) : lu en
+## FileAccess (sûr dans le fil de construction : aucun .glb, aucune matière neuve) et versé dans les tables de modules de
+## CrypteDecor, puis posé par modele() : fondu dans les mêmes tampons par case (aucun nœud de plus), UV triplanaires en mètres.
+## Les objets gardent pose_objet, solide et _empreinte d'avant : seul le visuel change.
+const OBJETS_DAT := "res://assets/grotte/modules/grotte_objets.dat"
+## matières des modules -> matières de la grotte (« pierre » / « roche » : roche nue du kit, sans givre en plaque sur les dessus, et roche
+## givrée de la coque ; toutes déjà employées par la grotte)
+const MAT_OBJETS := {"bois": "bois", "planches": "planches", "fer": "fer", "lame": "lame", "os": "os", "peau": "peau", "paille": "paille",
+	"or": "or", "toile": "toile", "braise": "braise", "noir": "noir", "pierre": "k_roche_nu", "roche": "c_roche_mousse"}
+static var _objets_lus := false
+
+static func _charger_objets() -> void:
+	_charger_modeles()          # d'abord crypte_v2.dat (CrypteDecor ne relit ses tables que si elles sont vides)
+	_modeles_verrou.lock()
+	if not _objets_lus:
+		_objets_lus = true
+		var f := FileAccess.open(OBJETS_DAT, FileAccess.READ)
+		if f == null:
+			push_error("GrotteDecor : %s introuvable" % OBJETS_DAT)
+		else:
+			var n := f.get_32()
+			for _k in n:
+				var nom := f.get_buffer(f.get_8()).get_string_from_utf8()
+				var nb := f.get_32()
+				var fl := f.get_buffer(nb * 28).to_float32_array()
+				var v := PackedVector3Array()
+				var c := PackedColorArray()
+				v.resize(nb)
+				c.resize(nb)
+				for q in nb:
+					var o := q * 7
+					v[q] = Vector3(fl[o], fl[o + 1], fl[o + 2])
+					c[q] = Color(fl[o + 3], fl[o + 4], fl[o + 5], 1.0)
+				_modeles[nom] = {"v": v, "c": c}
+				var parts := nom.split("__")
+				if not _modeles_de.has(parts[0]):
+					_modeles_de[parts[0]] = []
+				(_modeles_de[parts[0]] as Array).append(parts[1])
+	_modeles_verrou.unlock()
+
+## Pose un module du camp (repère du module : x largeur, y haut, z profondeur ; origine au sol, au centre de l'emprise).
+func objet(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE) -> void:
+	_charger_objets()
+	modele(nom, pos, lacet, ech, MAT_OBJETS)
+	if _obj_n > 0 and not muet and _modeles_de.has(nom):
+		# registre d'audit (outils/audit_interpenetrations.gd) : modele() ne passe pas par quad(), on y verse ses triangles
+		var T := xf * Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(ech), pos)
+		for mat: String in _modeles_de[nom]:
+			if mat != "pts":
+				_obj_v.append_array(T * ((_modeles["%s__%s" % [nom, mat]] as Dictionary)["v"] as PackedVector3Array))
+
+## Variante tirée de la position (stable d'un lancement à l'autre, ne consomme pas `rng`) : "a", "b" ou "c".
+static func variante(pos: Vector3, n: int) -> String:
+	return "abc"[absi(int(floorf(pos.x * 7.31 + pos.z * 13.17 + pos.y * 3.7))) % n]
+
+## Lacet de variété tiré de la position (objets ronds).
+static func lacet_libre(pos: Vector3) -> float:
+	return fposmod(pos.x * 4.1 + pos.z * 2.7, TAU)
+
 func caisse(pos: Vector3, taille := Vector3(0.7, 0.5, 0.5), lacet := 0.0) -> void:
 	objet_debut("caisse")
 	var pz := pose_objet(pos, taille.x * 0.5, taille.z * 0.5, lacet, taille.y, INCLINE, 0.5, 0.45, true)
@@ -983,27 +1043,8 @@ func caisse(pos: Vector3, taille := Vector3(0.7, 0.5, 0.5), lacet := 0.0) -> voi
 		objet_fin()
 		return
 	var b := Basis(Vector3.UP, lacet)
-	var tx := taille.x
-	var ty := taille.y
-	var tz := taille.z
-	boite("planches", pos + Vector3(0, ty * 0.5, 0), taille, lacet)
-	for dx: float in [-0.5, 0.5]:
-		for dz: float in [-0.5, 0.5]:
-			boite("bois", pos + b * Vector3(dx * (tx - 0.05), ty * 0.5, dz * (tz - 0.05)), Vector3(0.075, ty + 0.02, 0.075), lacet)
-	# écharpes : sur les deux grandes faces (normale ±z local)
-	var diag := Vector2(tx - 0.1, ty - 0.1)
-	var ang := atan2(diag.y, diag.x)
-	for sz: float in [-1.0, 1.0]:
-		var bb := b * Basis(Vector3.BACK, ang * sz)
-		boite_b("bois", pos + b * Vector3(0, ty * 0.5, sz * (tz * 0.5 + 0.012)), Vector3(diag.length(), 0.075, 0.025), bb)
-	for dy: float in [0.08, ty - 0.08]:
-		boite("fer", pos + Vector3(0, dy, 0), Vector3(tx + 0.03, 0.04, tz + 0.03), lacet)
-		for dx: float in [-0.32, 0.32]:
-			for sz: float in [-1.0, 1.0]:
-				boite("fer", pos + b * Vector3(dx * tx, dy, sz * (tz * 0.5 + 0.02)), Vector3(0.03, 0.03, 0.02), lacet)
-	for dx: float in [-0.5, 0.5]:
-		for dz: float in [-0.5, 0.5]:
-			boite("fer", pos + b * Vector3(dx * (tx + 0.01), ty - 0.06, dz * (tz + 0.01)), Vector3(0.09, 0.12, 0.09), lacet)
+	# L5 : module Blender (planches jointives, montants, écharpes, cercles et cornières de fer, couvercle), étiré à la taille demandée
+	objet("g_caisse_" + variante(pos, 2), pos, lacet, taille / Vector3(0.7, 0.5, 0.5))
 	var s := b * Vector3(taille.x, 0, taille.z)
 	solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s.x), taille.y, absf(s.z)))
 	xf = x0
@@ -1170,10 +1211,12 @@ func coffre_ouvert(pos: Vector3, lacet := 0.0) -> void:
 
 func pieces(pos: Vector3, n: int, rayon: float) -> void:
 	objet_debut("pieces")
-	for k in n:
-		var a := rng.randf() * TAU
-		var d := rng.randf() * rayon
-		boite("or", pos + Vector3(cos(a) * d, 0.012 + 0.02 * float(k % 3) * (1.0 - d / rayon), sin(a) * d), Vector3(0.06, 0.02, 0.06), rng.randf() * TAU)
+	# L5 : tas, piles et pièces éparses (module) ; les tirages de `rng` d'avant sont gardés (le décor tiré ensuite ne bouge pas)
+	for _k in n:
+		rng.randf()
+		rng.randf()
+		rng.randf()
+	objet("g_pieces_" + variante(pos, 2), pos, lacet_libre(pos), Vector3(rayon / 0.3, 1.0, rayon / 0.3))
 	objet_fin()
 
 func sac(pos: Vector3, e := 1.0) -> void:
@@ -1185,12 +1228,7 @@ func sac(pos: Vector3, e := 1.0) -> void:
 		xf = x0
 		objet_fin()
 		return
-	var prof := [Vector2(0.2, 0.0), Vector2(0.26, 0.12), Vector2(0.24, 0.3), Vector2(0.14, 0.44), Vector2(0.06, 0.5), Vector2(0.1, 0.56)]
-	var pe: Array = []
-	for p: Vector2 in prof:
-		pe.append(p * e)
-	tour("paille", pos, pe, 6, 0.3, true)
-	tour("fer", pos + Vector3(0, 0.42 * e, 0), [Vector2(0.075 * e, 0.0), Vector2(0.075 * e, 0.03 * e)], 6, 0.3, false)
+	objet("g_sac_" + variante(pos, 3), pos, lacet_libre(pos), Vector3.ONE * e)     # L5 : sac de jute noué (module)
 	xf = x0
 	_empreinte(pos, 0.25 * e, 0.56 * e)
 	objet_fin()
@@ -1204,10 +1242,7 @@ func tabouret(pos: Vector3) -> void:
 		xf = x0
 		objet_fin()
 		return
-	boite("bois", pos + Vector3(0, 0.42, 0), Vector3(0.34, 0.06, 0.34), 0.3)
-	for sx in [-0.12, 0.12]:
-		for sz in [-0.12, 0.12]:
-			boite("bois", pos + Vector3(sx, 0.2, sz), Vector3(0.05, 0.4, 0.05), 0.0)
+	objet("g_tabouret_" + variante(pos, 2), pos, 0.3)     # L5 : rondelle sur 3 pieds ou planches sur 4 pieds (module)
 	xf = x0
 	_empreinte(pos, 0.2, 0.45)
 	objet_fin()
@@ -1222,18 +1257,8 @@ func couchage(pos: Vector3, lacet := 0.0, peau_col := true) -> void:
 		objet_fin()
 		return
 	var b := Basis(Vector3.UP, lacet)
-	# châlit de bois sur 4 pieds (plateau à 0,3 m), paillasse, paille, fourrures, oreiller : haut de 0,55 m
-	for sx in [-0.44, 0.44]:
-		for sz in [-0.9, 0.9]:
-			boite("bois", pos + b * Vector3(sx, 0.15, sz), Vector3(0.09, 0.3, 0.09), lacet)
-	boite("bois", pos + b * Vector3(0, 0.31, 0), Vector3(1.0, 0.07, 2.0), lacet)
-	boite("bois", pos + b * Vector3(-0.47, 0.37, 0), Vector3(0.06, 0.1, 2.0), lacet)
-	boite("bois", pos + b * Vector3(0.47, 0.37, 0), Vector3(0.06, 0.1, 2.0), lacet)
-	boite("peau", pos + b * Vector3(0, 0.41, 0), Vector3(0.88, 0.14, 1.9), lacet)                 # paillasse
-	boite("paille", pos + b * Vector3(0, 0.49, 0.35), Vector3(0.82, 0.03, 1.2), lacet)           # paille qui déborde
-	boite("peau", pos + b * Vector3(0.02, 0.53, 0.32), Vector3(0.8, 0.07, 1.1), lacet + 0.04)    # couverture de fourrure
-	boite("peau", pos + b * Vector3(-0.1, 0.6, -0.1), Vector3(0.5, 0.08, 0.34), lacet + 0.5)     # fourrure roulée
-	boite("paille" if peau_col else "peau", pos + b * Vector3(0.0, 0.54, -0.76), Vector3(0.46, 0.14, 0.3), lacet)   # oreiller
+	# L5 : châlit sur 4 pieds, longerons, planches, paillasse de toile, fourrure drapée et roulée, oreiller (module ; tête vers -z)
+	objet("g_couchage_a" if peau_col else "g_couchage_b", pos, lacet)
 	var s := b * Vector3(1.0, 0, 2.0)
 	solide(pos + Vector3(0, 0.3, 0), Vector3(absf(s.x), 0.6, absf(s.z)))
 	xf = x0
@@ -1249,22 +1274,10 @@ func ratelier(pos: Vector3, lacet := 0.0) -> void:
 		xf = x0
 		objet_fin()
 		return
-	var b := Basis(Vector3.UP, lacet)
-	for sx in [-0.8, 0.8]:
-		boite("bois", pos + b * Vector3(sx, 0.7, 0), Vector3(0.1, 1.4, 0.1), lacet)
-	boite("bois", pos + b * Vector3(0, 1.15, 0), Vector3(1.7, 0.08, 0.08), lacet)
-	boite("bois", pos + b * Vector3(0, 0.45, 0), Vector3(1.7, 0.08, 0.08), lacet)
-	for k in 6:
-		var x := -0.62 + k * 0.25
-		var pied := pos + b * Vector3(x, 0.02, 0.28)
-		var tete := pos + b * Vector3(x + rng.randf_range(-0.04, 0.04), 1.55 + (0.25 if k % 3 == 0 else 0.0), 0.04)
-		if k % 3 == 0:        # lance : hampe de bois, fer de lance
-			prisme("bois", pied, tete, 0.018, 5)
-			prisme("lame", tete - (tete - pied).normalized() * 0.04, tete + (tete - pied).normalized() * 0.2, 0.03, 4, 0.004)
-		else:                  # épée : lame de fer, garde, poignée
-			prisme("lame", pied, tete - Vector3(0, 0.2, 0), 0.022, 4, 0.016)
-			boite_b("fer", tete - Vector3(0, 0.2, 0), Vector3(0.22, 0.035, 0.035), b)
-			prisme("bois", tete - Vector3(0, 0.2, 0), tete + Vector3(0, 0.05, 0), 0.016, 5)
+	# L5 : montants sur patins, traverses, peigne, auge ; 2 lances et 4 épées (module). Tirages de `rng` d'avant gardés.
+	for _k in 6:
+		rng.randf_range(-0.04, 0.04)
+	objet("g_ratelier", pos, lacet)
 	solide(pos + Vector3(0, 0.75, 0), Vector3(1.8, 1.5, 0.5) if absf(cos(lacet)) > 0.7 else Vector3(0.5, 1.5, 1.8))
 	xf = x0
 	_empreinte(pos, 0.45, 1.8)
@@ -1279,8 +1292,8 @@ func trophee(pos: Vector3, hauteur := 1.6, lacet := 0.0) -> void:
 		xf = x0
 		objet_fin()
 		return
-	prisme("bois", pos, pos + Vector3(0.03, hauteur, 0), 0.04, 5)
-	crane(pos + Vector3(0.03, hauteur - 0.01, 0), lacet)
+	objet("g_trophee", pos, lacet, Vector3(1.0, hauteur / 1.6, 1.0))     # L5 : pique ligaturée, lanières, os pendus (module)
+	crane(pos + Basis(Vector3.UP, lacet) * Vector3(0.03, hauteur - 0.01, 0), lacet)
 	solide_rond(pos + Vector3(0, hauteur * 0.5, 0), 0.08, hauteur)
 	xf = x0
 	_empreinte(pos, 0.1, hauteur)
