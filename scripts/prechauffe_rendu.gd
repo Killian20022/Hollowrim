@@ -12,6 +12,7 @@ const PAUSE := 0.25            # secondes entre deux points
 var racine: Node3D             # le lieu (grotte / crypte) : visible pendant le préchauffage
 var points: Array = []         # Transform3D monde : caméra à chaque étape
 var soleil: Light3D            # le soleil : exclu de la caméra de préchauffage (sous terre il est éteint = autre variante de shader)
+var env: Environment           # environnement du lieu (sous terre : brume, fond, ambiance) ; null = celui du monde
 var fini := false
 var _couches_soleil := 1
 var rendus := 0
@@ -21,12 +22,13 @@ var _attente := 0.0
 var _i := 0
 
 ## `hote` : nœud de l'arbre qui accueille le SubViewport ; `points` : Array de Transform3D (monde).
-static func lancer(lieu: Node3D, hote: Node, pts: Array, sol: Light3D = null) -> PrechauffeRendu:
+static func lancer(lieu: Node3D, hote: Node, pts: Array, sol: Light3D = null, env_: Environment = null) -> PrechauffeRendu:
 	var p := PrechauffeRendu.new()
 	p.name = "PrechauffeRendu"
 	p.racine = lieu
 	p.points = pts
 	p.soleil = sol
+	p.env = env_
 	hote.add_child(p)
 	return p
 
@@ -40,6 +42,8 @@ func _ready() -> void:
 	_cam.fov = 72.0
 	_cam.near = 0.05
 	_cam.far = 90.0
+	if env != null:
+		_cam.environment = env                    # variantes de shaders du lieu (brume exponentielle, fond uni) et non celles de dehors
 	if soleil != null:
 		_couches_soleil = soleil.layers
 		soleil.layers = 1 << 19                   # couche 20 : vue par la caméra du joueur (toutes couches), pas par la nôtre
