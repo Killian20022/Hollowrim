@@ -75,7 +75,7 @@ static var temps_ms := 0.0
 # est identique, sinon repli sur le calcul. outils/precalculer_tout.gd régénère le fichier (mode ECRIRE).
 const CACHE_CARTE := "res://assets/sol/carte_sol.res"
 const CACHE_TRACES := "res://assets/sol/carte_traces.res"
-const CACHE_VERSION := 1   # à incrémenter si le FORMAT du cache change (le code de sol.gd est déjà dans la signature)
+const CACHE_VERSION := 2   # à incrémenter si le FORMAT du cache change (le code de sol.gd est déjà dans la signature)
 enum { CACHE_LIRE, CACHE_ECRIRE, CACHE_VERIFIER }
 static var cache_mode := CACHE_LIRE
 static var cache_statut := ""   # "lu", "ecrit", "identique", "DIFFERENT", "perime", "absent" (pour les mesures)
@@ -130,7 +130,7 @@ static func appliquer(mat_terrain: ShaderMaterial, monde: Node, arbres: Array) -
 	mat_terrain.set_shader_parameter("traces_rect", Vector4(TRACES_ORIGINE.x, TRACES_ORIGINE.y, TRACES_W, TRACES_H))
 	mat_terrain.set_shader_parameter("sol_carte", true)
 	temps_ms = (Time.get_ticks_usec() - t0) / 1000.0
-	print("Sol : carte de sol calculée en %.0f ms" % temps_ms)
+	print("Sol : carte de sol %s en %.0f ms" % ["lue (cache)" if cache_statut == "lu" else "calculée (cache %s)" % cache_statut, temps_ms])
 
 ## Obstacles qui retiennent la neige : [Vector2 centre, rayon (m)].
 static func _obstacles(monde: Node, arbres_zone: Array) -> Array:
@@ -154,6 +154,16 @@ static func _obstacles(monde: Node, arbres_zone: Array) -> Array:
 			break  # la liste est copiée sur chaque cellule : une seule suffit
 	return l
 
+## Hauteurs du relief aux nœuds de la grille fine de la carte (NOEUD texels, centres de texels).
+static func _grille_hauteurs(monde: Node, gi0: int, gj0: int, gw: int, gh: int) -> PackedFloat32Array:
+	var h := PackedFloat32Array()
+	h.resize(gw * gh)
+	for gj in gh:
+		var z := ORIGINE + (gj0 + NOEUD * gj + 0.5) * TEXEL
+		for gi in gw:
+			h[gj * gw + gi] = monde.hauteur(ORIGINE + (gi0 + NOEUD * gi + 0.5) * TEXEL, z)
+	return h
+
 static func _calculer(monde: Node, arbres: Array) -> Array:
 	_chrono("début")
 	var g0 := ZoneBiome.graine("sol")
@@ -175,12 +185,40 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 	var gj0 := j0 - (j0 % NOEUD) - 5 * NOEUD
 	var gw := (i1 - gi0) / NOEUD + 7
 	var gh := (j1 - gj0) / NOEUD + 7
+	var arbres_zone: Array = monde.get_meta("arbres_zone") if monde.has_meta("arbres_zone") else []
+	var obstacles := _obstacles(monde, arbres_zone)
+	var ctx := HashingContext.new()
+	ctx.start(HashingContext.HASH_SHA256)
+	_sha(ctx, PackedInt32Array([CACHE_VERSION, TAILLE, gw, gh]).to_byte_array())
+	# relief : les hauteurs des nœuds du maillage du terrain (déjà calculées par monde._terrain, 121², au bit près) ; sans elles, la
+	# grille fine. Avant (CACHE_VERSION 1) : la grille fine 251² (63 000 appels à hauteur(), ~0,4 à 0,7 s à CHAQUE lancement, cache lu
+	# ou non) et la présence des chemins (déduite des chemins, déjà signés plus bas) : calculées maintenant seulement si le cache
+	# est périmé. Un relief qui change déplace des nœuds du maillage : la signature change.
+	var hm: Variant = monde.get("hauteurs_maillage")
 	var h := PackedFloat32Array()
-	h.resize(gw * gh)
-	for gj in gh:
-		var z := ORIGINE + (gj0 + NOEUD * gj + 0.5) * TEXEL
-		for gi in gw:
-			h[gj * gw + gi] = monde.hauteur(ORIGINE + (gi0 + NOEUD * gi + 0.5) * TEXEL, z)
+	if hm is PackedFloat64Array and not (hm as PackedFloat64Array).is_empty():
+		_sha(ctx, (hm as PackedFloat64Array).to_byte_array())
+	else:
+		h = _grille_hauteurs(monde, gi0, gj0, gw, gh)
+		_sha(ctx, h.to_byte_array())
+	var flux := PackedFloat32Array()
+	for tr: Transform3D in arbres:
+		flux.append_array([tr.basis.x.x, tr.basis.x.y, tr.basis.x.z, tr.basis.y.x, tr.basis.y.y, tr.basis.y.z, tr.basis.z.x, tr.basis.z.y, tr.basis.z.z, tr.origin.x, tr.origin.y, tr.origin.z])
+	_sha(ctx, flux.to_byte_array())
+	_sha(ctx, var_to_bytes([arbres_zone, obstacles, monde.chemins.points, monde.chemins.debuts, monde.CERCLE, monde.TUMULUS, monde.VILLAGE]))
+	for chemin in ["res://scripts/sol.gd", "res://scripts/zone_biome.gd", "res://scripts/chemins.gd", "res://scripts/rues_village.gd"]:
+		_sha(ctx, _source(chemin))
+	var signature := ctx.finish().hex_encode()
+	if cache_mode == CACHE_LIRE and ResourceLoader.exists(CACHE_CARTE) and ResourceLoader.exists(CACHE_TRACES):
+		var c1 := ResourceLoader.load(CACHE_CARTE) as Image
+		var c2 := ResourceLoader.load(CACHE_TRACES) as Image
+		if c1 != null and c2 != null and c1.get_meta("signature", "") == signature and c2.get_meta("signature", "") == signature:
+			cache_statut = "lu"
+			_chrono("cache lu")
+			return [c1, c2]
+	cache_statut = "perime" if cache_mode == CACHE_LIRE else cache_statut
+	if h.is_empty():
+		h = _grille_hauteurs(monde, gi0, gj0, gw, gh)
 	var g_ny := PackedFloat32Array()
 	var g_nz := PackedFloat32Array()
 	var g_cr := PackedFloat32Array()
@@ -205,29 +243,6 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 			g_cr[gk] = (h[gk - 4] + h[gk + 4] + h[gk - 4 * gw] + h[gk + 4 * gw]) * 0.25 - h[gk]
 
 	_chrono("grille")
-	var arbres_zone: Array = monde.get_meta("arbres_zone") if monde.has_meta("arbres_zone") else []
-	var obstacles := _obstacles(monde, arbres_zone)
-	var ctx := HashingContext.new()
-	ctx.start(HashingContext.HASH_SHA256)
-	_sha(ctx, PackedInt32Array([CACHE_VERSION, TAILLE, gw, gh]).to_byte_array())
-	_sha(ctx, h.to_byte_array())
-	_sha(ctx, g_pres)
-	var flux := PackedFloat32Array()
-	for tr: Transform3D in arbres:
-		flux.append_array([tr.basis.x.x, tr.basis.x.y, tr.basis.x.z, tr.basis.y.x, tr.basis.y.y, tr.basis.y.z, tr.basis.z.x, tr.basis.z.y, tr.basis.z.z, tr.origin.x, tr.origin.y, tr.origin.z])
-	_sha(ctx, flux.to_byte_array())
-	_sha(ctx, var_to_bytes([arbres_zone, obstacles, monde.chemins.points, monde.chemins.debuts, monde.CERCLE, monde.TUMULUS, monde.VILLAGE]))
-	for chemin in ["res://scripts/sol.gd", "res://scripts/zone_biome.gd", "res://scripts/chemins.gd", "res://scripts/rues_village.gd"]:
-		_sha(ctx, _source(chemin))
-	var signature := ctx.finish().hex_encode()
-	if cache_mode == CACHE_LIRE and ResourceLoader.exists(CACHE_CARTE) and ResourceLoader.exists(CACHE_TRACES):
-		var c1 := ResourceLoader.load(CACHE_CARTE) as Image
-		var c2 := ResourceLoader.load(CACHE_TRACES) as Image
-		if c1 != null and c2 != null and c1.get_meta("signature", "") == signature and c2.get_meta("signature", "") == signature:
-			cache_statut = "lu"
-			_chrono("cache lu")
-			return [c1, c2]
-	cache_statut = "perime" if cache_mode == CACHE_LIRE else cache_statut
 	var mat := PackedByteArray()
 	mat.resize(TAILLE * TAILLE)      # matière (0 = neige)
 	var actif := PackedByteArray()

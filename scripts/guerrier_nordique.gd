@@ -147,6 +147,14 @@ static func _ajouter(mi: MeshInstance3D, extras: Array, sq: Skeleton3D) -> void:
 
 # ======================================================================================================== fabrique
 static func creer(options := {}) -> Node3D:
+	var c := CachePersos.lire("guerrier", "res://scripts/guerrier_nordique.gd", options, [reglage_bouclier])   # corps déjà bâti (cache disque, voir cache_persos.gd)
+	if c != null:
+		return c
+	c = _creer(options)
+	CachePersos.ecrire("guerrier", "res://scripts/guerrier_nordique.gd", options, c, [reglage_bouclier])
+	return c
+
+static func _creer(options := {}) -> Node3D:
 	var C := Color.WHITE
 	var app := {"corps": "homme", "barbe": true, "cheveux": "Hair_Long", "teinte_cheveux": TEINTE_CHEVEUX, "peau": PEAU,
 		"tenue": {"tunique": C, "pantalon": C, "bottes": C, "ceinture": C, "brassards": C, "cape": C, "mante": C}}

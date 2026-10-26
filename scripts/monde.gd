@@ -51,6 +51,9 @@ var tertre: Node3D
 var chemins: Chemins
 var arbres: Array = []  # transforms de tous les arbres (pour Sol)
 var mat_terrain: ShaderMaterial
+## Hauteurs des nœuds du maillage du terrain ((CASES + 1)², rangée par rangée), calculées une fois par _terrain() : relues par
+## DetailsSol.hauteur_maillage (dallages, abords, rues, mobilier, sous-bois…) au lieu de rappeler hauteur() (4 appels par point).
+var hauteurs_maillage := PackedFloat64Array()
 var dragon: CharacterBody3D = null
 var dragon_vaincu := false
 var _env: Environment
@@ -126,16 +129,21 @@ func _ready() -> void:
 
 	_environnement()
 	_lune()
+	_chrono("  environnement+lune")
 	if not _arguments().has("sans-arriere-plan"):  # --sans-arriere-plan : mesures A/B de performance
 		arriere_plan = ArrierePlan.creer(self)
 		add_child(arriere_plan)
+	_chrono("  arriere-plan")
 	_terrain()
 	_chrono("terrain")
 	arbres = Vegetation.creer(self)
 	_chrono("arbres (placement+modeles+MultiMesh)")
 	Rochers.creer(self)
+	_chrono("  rochers")
 	SousBois.creer(self)  # lot E : après les rochers (touffes collées aux pierres)
+	_chrono("  sous-bois")
 	SolV2.creer(self)  # extérieurs v2 : touffes et rochers de la portion témoin
+	_chrono("  sol v2 (touffes, rochers)")
 	CercleRunique.creer(self)
 	_chrono("rochers+sous-bois+cercle")
 	Sol.appliquer(mat_terrain, self, arbres)
@@ -144,10 +152,14 @@ func _ready() -> void:
 		mat_terrain.set_shader_parameter("sol_debug", int(_arguments()["sol-debug"]))
 	_chrono("carte de sol")
 	DetailsSol.creer(self)  # lot 3 : cailloux du sol (après la carte de sol)
+	_chrono("details du sol")
 	if not _arguments().has("sans-abords"): AbordsVillage.creer(self)  # refonte : abords de l'entrée du village (avant le fil des intérieurs ; --sans-abords : A/B)
+	_chrono("abords du village")
 	if not _arguments().has("sans-rues"):  # C7a : pavés, escaliers, murs, champs, mobilier du village v2 (--sans-rues : A/B)
 		RuesVillage.creer(self)
+		_chrono("rues du village")
 		MobilierVillage.creer(self)
+		_chrono("mobilier du village")
 	_village()
 	_chrono("village (bati)")
 	EauVillage.creer(self)  # C7c : rivière, pont, quai, moulin à eau, lac fermé (--sans-eau-village : rien n'est posé, A/B)
@@ -157,9 +169,13 @@ func _ready() -> void:
 	_chrono("joueur")
 	_neige()
 	_interface()
+	_chrono("neige+interface")
 	_draugrs()
+	_chrono("draugrs du cercle")
 	_villageois()
 	_chrono("villageois")
+	if Chrono.actif:   # corps d'archétypes relus du cache disque (CachePersos) / bâtis puis rangés ; dernier corps non rangé et pourquoi
+		print("CHRONO cache des corps : %d lus, %d à écrire en sortant%s" % [CachePersos.lus, CachePersos.en_attente(), (" ; refus : " + CachePersos.refus) if CachePersos.refus != "" else ""])
 	_guerrier_pilote()
 	_mage_pilote()
 	_chasseresse_pilote()
@@ -420,9 +436,14 @@ func _terrain() -> void:
 	var demi := TAILLE * 0.5
 	var hs := PackedFloat32Array()
 	hs.resize(n * n)
+	var h64 := PackedFloat64Array()   # mêmes hauteurs en double précision (hauteur() renvoie un float 64 bits) : DetailsSol.hauteur_maillage
+	h64.resize(n * n)
 	for j in n:
 		for i in n:
-			hs[j * n + i] = hauteur(i * pas - demi, j * pas - demi)
+			var h := hauteur(i * pas - demi, j * pas - demi)
+			hs[j * n + i] = h
+			h64[j * n + i] = h
+	hauteurs_maillage = h64
 
 	var m := Palette.materiau(tex_roche)
 	m.set_shader_parameter("uv_monde", true)
@@ -652,7 +673,9 @@ func _villageois() -> void:
 		v.position = poste + Vector3(0, 0.05, 0)
 		add_child(v)
 	if not _arguments().has("sans-gardes"):   # D/gardes_village : la garde du village (data/gardes.json) ; --sans-gardes : A/B
+		_chrono("  villageois : PNJ")
 		GardesVillage.peupler(self)
+		_chrono("  villageois : gardes")
 
 # --- guerrier pilote (refonte des personnages) ------------------------------------
 
@@ -1153,6 +1176,7 @@ func _unhandled_input(e: InputEvent) -> void:
 					Jeu.relancer("continuer")   # l'écran titre du processus relancé charge aussitôt la partie
 
 func _exit_tree() -> void:
+	CachePersos.ecrire_en_attente()   # corps bâtis pendant le chargement, rangés pour les lancements suivants (différé : cache_persos.gd)
 	Palette.vider()
 	TexturesBati.vider()
 	Humain.vider()

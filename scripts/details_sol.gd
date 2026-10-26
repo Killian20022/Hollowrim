@@ -55,6 +55,17 @@ static func hauteur_maillage(monde: Node, x: float, z: float) -> float:
 	var j := floori(v)
 	var fu := u - i
 	var fv := v - j
+	# nœuds du maillage déjà calculés par monde._terrain() (mêmes hauteurs, au bit près : mêmes appels hauteur(i * pas - demi, …)) ;
+	# repli sur le calcul hors du terrain ou avant sa construction. Gain : les abords du village faisaient ~40 000 appels (≈ 1 s).
+	var hs: Variant = monde.get("hauteurs_maillage")
+	var cases: int = monde.CASES
+	if hs is PackedFloat64Array and (hs as PackedFloat64Array).size() == (cases + 1) * (cases + 1) and i >= 0 and j >= 0 and i < cases and j < cases:
+		var t: PackedFloat64Array = hs
+		var k := j * (cases + 1) + i
+		if fu + fv <= 1.0:
+			return t[k] + (t[k + 1] - t[k]) * fu + (t[k + cases + 1] - t[k]) * fv
+		var hd2 := t[k + cases + 2]
+		return hd2 + (t[k + cases + 1] - hd2) * (1.0 - fu) + (t[k + 1] - hd2) * (1.0 - fv)
 	var x0 := i * pas - demi
 	var z0 := j * pas - demi
 	var ha: float = monde.hauteur(x0, z0)

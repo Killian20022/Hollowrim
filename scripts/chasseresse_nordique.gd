@@ -43,6 +43,14 @@ static func _t(etape: String, t0: int) -> void:
 
 # ======================================================================================================== fabrique
 static func creer(options := {}) -> Node3D:
+	var c := CachePersos.lire("chasseresse", "res://scripts/chasseresse_nordique.gd", options, [])   # corps déjà bâti (cache disque, voir cache_persos.gd)
+	if c != null:
+		return c
+	c = _creer(options)
+	CachePersos.ecrire("chasseresse", "res://scripts/chasseresse_nordique.gd", options, c, [])
+	return c
+
+static func _creer(options := {}) -> Node3D:
 	var C := Color.WHITE
 	var homme: bool = String(options.get("corps", "femme")) == "homme"      # variante corps homme (archers bandits) ; défaut = chasseresse
 	var app := {"corps": "homme" if homme else "femme", "cheveux": "Hair_Long", "teinte_cheveux": Color(0.85, 0.72, 0.5), "peau": PEAU,

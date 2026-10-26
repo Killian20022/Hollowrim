@@ -40,6 +40,14 @@ static func vider() -> void:
 
 # ======================================================================================================== fabrique
 static func creer(id: String) -> Node3D:
+	var c := CachePersos.lire("pnj_" + id, "res://scripts/pnj_nordique.gd", {})   # PNJ déjà bâti et teint (cache disque, cache_persos.gd)
+	if c != null:
+		return c
+	c = _creer(id)
+	CachePersos.ecrire("pnj_" + id, "res://scripts/pnj_nordique.gd", {}, c)
+	return c
+
+static func _creer(id: String) -> Node3D:
 	var n: Node3D
 	match id:
 		"garde": n = _garde()
