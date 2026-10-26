@@ -769,7 +769,13 @@ static func _lac(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: Strin
 			for k in 3:                                      # les restes de l'expédition : os, sacs, outils, couchage de fortune
 				var a := TAU * (float(k) + r.randf()) / 3.0
 				var q := Vector3(c.x + cos(a) * rr * 0.55, top, c.z + sin(a) * rr * 0.55)
-				d.os_tas(q, 4, 0.4)
+				var sur_coffre := false      # fusion D : le coffre de l'îlot est posé après le récit ; l'os_tas ne se fond pas dedans (audit)
+				for cf: Dictionary in z.get("coffres", []):
+					var pc := _p(g, id, float(cf["s"]), float(cf["lat"]))
+					if Vector2(pc.x - q.x, pc.z - q.z).length() < 1.3:
+						sur_coffre = true
+				if not sur_coffre:
+					d.os_tas(q, 4, 0.4)
 				d.sac(q + Vector3(0.5, 0, 0.3), 1.0)
 			d.arme(Vector3(c.x + 0.8, top + 0.02, c.z - 1.0), r.randf() * TAU)
 			d.arme(Vector3(c.x - 1.1, top + 0.02, c.z + 0.6), r.randf() * TAU)
