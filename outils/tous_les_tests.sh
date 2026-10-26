@@ -25,6 +25,7 @@ TESTS=(
 	"test_collisions_biome|--nouvelle"
 	"test_palissade|--nouvelle"
 	"test_escaliers_village|--nouvelle --paisible"
+	"test_accessibilite_village|--nouvelle --paisible"   # aucune poche fermée autour du village (piège du moulin, 2026-10-26)
 	"test_crypte|--nouvelle"
 	"test_crypte_mort|--nouvelle"
 	"test_secousse_boss|--nouvelle"

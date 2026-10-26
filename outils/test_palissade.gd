@@ -147,7 +147,10 @@ func _tester() -> void:
 			var hauteurs := [0.3, 1.0, 1.8, 2.6 + bas - sol, 3.4 + bas - sol]
 			if grille:
 				var eau: float = r["eau"]
-				hauteurs = [eau - sol + 0.3, eau - sol + 1.0, 2.2, 3.0]
+				# pieux de bout de grille plantés sur la berge (sol au-dessus de l'eau) : hauteurs comptées depuis le sol, sinon la
+				# sphère passe SOUS la berge (piège du moulin, 2026-10-26 : la berge intérieure comblée monte à 3,5 m)
+				var bas_g := maxf(eau - sol, 0.0)
+				hauteurs = [bas_g + 0.3, bas_g + 1.0, maxf(2.2, bas_g + 1.8), maxf(3.0, bas_g + 2.6)]
 			for hy in hauteurs:
 				var o := Vector3(q.x - dd.x, sol + hy, q.y - dd.y)
 				var f := Vector3(q.x + dd.x, sol + hy, q.y + dd.y)
