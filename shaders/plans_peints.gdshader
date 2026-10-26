@@ -119,5 +119,8 @@ void fragment() {
 	float bas_j = jour * (1.0 - smoothstep(base_el, base_el + 6.0, el));
 	float v = clamp(voile * mix(1.0, 0.55, jour) + (0.35 * pied + 0.35 * bas_j) * (1.0 - voile) + 0.25 * prof_f, 0.0, 0.95);
 	hz = mix(hz, hz * vec3(0.72, 0.88, 1.25), bas_j);
-	ALBEDO = mix(col, hz, v * v_fact);
+	// raccord (correctif lac_horizon) : le pied du plan se fond TOUT À FAIT dans la brume du monde (là où la vallée le
+	// laisse voir au-dessus du sol noyé), sinon un bord sombre « flotte » sur la bande de brouillard
+	float raccord = 1.0 - smoothstep(base_el - 1.0, base_el + 3.5, el);
+	ALBEDO = mix(mix(col, hz, v * v_fact), mix(horizon, horizon_chaud, crep * k), raccord);
 }
