@@ -328,6 +328,9 @@ static func sortie_directe() -> bool:
 ## Quitter le jeu (menus, fermeture de la fenêtre) : voir sortie_directe().
 static func quitter(code := 0) -> void:
 	if sortie_directe():
+		# corps bâtis pendant le chargement : rangés AVANT la sortie directe (Monde._exit_tree, qui le fait d'habitude, n'est pas
+		# appelé ici : en jouant puis en quittant par le menu, le jeu exporté ne rangeait jamais ses corps et les rebâtissait au lancement suivant)
+		CachePersos.ecrire_en_attente()
 		OS.kill(OS.get_process_id())
 		return
 	(Engine.get_main_loop() as SceneTree).quit(code)
