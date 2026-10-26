@@ -60,7 +60,10 @@ func _tester() -> void:
 	await _images(3)
 	var tous_vivants := true
 	for v in vill:
-		tous_vivants = tous_vivants and v.can_process()
+		# un garde du village loin du joueur est en sommeil de LOD (garde_village.regler_lod : lod 2 = process désactivé) : pas un oubli du dégel
+		if not v.can_process() and not (v.is_in_group("gardes_village") and int(v.get("lod")) == 2):
+			print("  pas repris : %s (%s, mode %d)" % [v.name, v.get_path(), v.process_mode])
+			tous_vivants = false
 	_verif(tous_vivants and m.village.can_process(), "dehors : villageois et village reprennent")
 	var reveilles := 0
 	for d in ext:
