@@ -12,12 +12,18 @@ class_name SqueletteGuerrier
 ##   SqueletteGuerrier.creer({"arme": "epee" | "arc" | "hache", "casque": bool}) -> Node3D (Skeleton3D + AnimationPlayer « Animations »)
 ##   SqueletteGuerrier.modele(arme)  -> copie (duplicate) d'un gabarit préconstruit (jeu : aucune construction après le chargement)
 ## Variantes : guerrier (« epee » : casque, bouclier, épée), archer (« arc » : capuche, carquois, arc), sbire (« hache » : crâne nu, hache).
+## Le sbire a son propre atlas (« _nu » : ossements cuits sans casque ni capuche ; avec l'atlas commun, la voûte du crâne, cuite dans
+## l'ombre des couvre-chefs, sortait noire/brune = un bonnet). Même UV, même maillage : seule la texture change (2 matériaux de plus).
 
 const GLB := preload("res://assets/modeles/squelettes/squelette_nordique.glb")
 const DOSSIER := "res://assets/personnages"
 const RES := "res://assets/personnages/squelette_nordique.res"
 const PNG := "res://sources_blender/squelette_nordique_atlas.png"
-const VERSION := 4
+const RES_NU := "res://assets/personnages/squelette_nordique_nu.res"
+const PNG_NU := "res://sources_blender/squelette_nordique_atlas_nu.png"
+## Variantes à crâne nu (atlas _nu)
+const CRANE_NU := ["hache"]
+const VERSION := 5
 ## Maillages visibles par variante (les autres sont cachés : ils ne coûtent rien au rendu)
 const PIECES := {
 	"epee": ["squelette", "lambeaux", "casque", "bouclier", "epee"],
@@ -31,18 +37,22 @@ const SATURATION_OS := 0.6
 static var _tex: ImageTexture
 static var _mat_os: ShaderMaterial
 static var _mat_etoffe: ShaderMaterial
+static var _tex_nu: ImageTexture
+static var _mat_os_nu: ShaderMaterial
+static var _mat_etoffe_nu: ShaderMaterial
 static var _gabarits := {}
 static var _mx := Mutex.new()
 static var _arc_mesh: Mesh
 static var _arc_skin: Skin
 
 ## Atlas mipmappé (précalcul .res ; repli : PNG + mipmaps calculées, ~1 s)
-static func image() -> Image:
-	if ResourceLoader.exists(RES):
-		var a := ResourceLoader.load(RES) as Image
+static func image(nu := false) -> Image:
+	var res := RES_NU if nu else RES
+	if ResourceLoader.exists(res):
+		var a := ResourceLoader.load(res) as Image
 		if a != null and a.get_meta("version", -1) == VERSION and a.has_mipmaps():
 			return a
-	var p := Image.load_from_file(ProjectSettings.globalize_path(PNG))
+	var p := Image.load_from_file(ProjectSettings.globalize_path(PNG_NU if nu else PNG))
 	p.convert(Image.FORMAT_RGBA8)
 	return GuerrierTextures.mips_pixel(p)
 
@@ -54,6 +64,10 @@ static func materiaux() -> void:
 	_mat_etoffe = DraugrNordique.materiau(_tex, true, true, true, "squelette_etoffe")
 	# os : saturation réduite (sous la torche orangée, l'ivoire ne vire pas au saumon) ; même réglage que la chair du draugr, moins fort
 	_mat_os.set_shader_parameter("saturation", SATURATION_OS)
+	_tex_nu = ImageTexture.create_from_image(image(true))
+	_mat_os_nu = DraugrNordique.materiau(_tex_nu, false, false, true, "squelette_os_nu")
+	_mat_etoffe_nu = DraugrNordique.materiau(_tex_nu, true, true, true, "squelette_etoffe_nu")
+	_mat_os_nu.set_shader_parameter("saturation", SATURATION_OS)
 
 ## Construction complète (instance du glb + matériaux + animations). Préférer modele() en jeu.
 static func creer(options := {}) -> Node3D:
@@ -69,10 +83,11 @@ static func creer(options := {}) -> Node3D:
 	var racine: Node3D = GLB.instantiate()
 	racine.name = "SqueletteNordique"
 	var sq: Skeleton3D = racine.find_child("Skeleton3D", true, false)
+	var nu := CRANE_NU.has(arme)
 	for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", false, false):
 		var nom := String(mi.name)
 		mi.visible = visibles.has(nom)
-		var m := _mat_etoffe if ETOFFES.has(nom) else _mat_os
+		var m := (_mat_etoffe_nu if nu else _mat_etoffe) if ETOFFES.has(nom) else (_mat_os_nu if nu else _mat_os)
 		for s in mi.mesh.get_surface_count():
 			mi.set_surface_override_material(s, m)
 	var ap := AnimationPlayer.new()
@@ -128,5 +143,8 @@ static func vider() -> void:
 	_tex = null
 	_mat_os = null
 	_mat_etoffe = null
+	_tex_nu = null
+	_mat_os_nu = null
+	_mat_etoffe_nu = null
 	_arc_mesh = null
 	_arc_skin = null

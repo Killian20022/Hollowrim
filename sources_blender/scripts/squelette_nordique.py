@@ -2,6 +2,7 @@
 #   blender.exe -b --python squelette_nordique.py -- [--apercu=<dossier>] [--sans-bake]
 # Écrit : assets/modeles/squelettes/squelette_nordique.glb  (maillages : squelette, lambeaux, casque, capuche, bouclier, epee, hache, arc, carquois)
 #         sources_blender/squelette_nordique_atlas.png      (atlas RGBA : bake Cycles AO + cavité + arêtes + position/normale -> peinture quantifiée)
+#         sources_blender/squelette_nordique_atlas_nu.png   (même atlas, ossements cuits sans casque ni capuche : sbire à la hache, crâne nu)
 # Rig = celui de homme_vetu_lot1.glb réduit à RIG18 + 4 feuilles (mêmes os, même pose de repos que les humains) : animations et ragdoll inchangés.
 # Skinning rigide (1 os par sommet) pour les os ; les étoffes pendantes mêlent bassin et cuisses.
 # Repère Blender : x = gauche du perso (os *_l), -y = devant, z = haut.
@@ -15,6 +16,7 @@ SRC = os.path.join(BASE, "sources_blender", "homme_vetu_lot1.glb")
 RIG18 = os.path.join(BASE, "sources_blender", "rig18.txt")
 OUT_GLB = os.path.join(BASE, "assets", "modeles", "squelettes", "squelette_nordique.glb")
 OUT_PNG = os.path.join(BASE, "sources_blender", "squelette_nordique_atlas.png")
+OUT_PNG_NU = os.path.join(BASE, "sources_blender", "squelette_nordique_atlas_nu.png")   # variante hache (crâne nu)
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 APERCU = next((a.split("=", 1)[1] for a in ARGS if a.startswith("--apercu=")), "")
 SANS_BAKE = "--sans-bake" in ARGS
@@ -849,6 +851,18 @@ def cuire_tout():
     passe("ao_l", ao.outputs["AO"], 24)
     ao.inputs["Distance"].default_value = 0.02
     passe("ao_p", ao.outputs["AO"], 24)
+    # crâne nu (sbire à la hache) : ossements, étoffes, armes recuits SANS casque ni capuche ; fusion par l'indice d'objet
+    couvre = ("casque", "capuche")
+    oi = nt.nodes.new("ShaderNodeObjectInfo")
+    dv = nt.nodes.new("ShaderNodeMath"); dv.operation = "DIVIDE"; dv.inputs[1].default_value = 16.0
+    nt.links.new(oi.outputs["Object Index"], dv.inputs[0])
+    for n_, ob in objets.items():
+        ob.pass_index = 2 if n_ in couvre else 1
+    passe("idx", dv.outputs["Value"], 1)
+    ao.inputs["Distance"].default_value = 0.10
+    passe("ao_l_nu", ao.outputs["AO"], 24, cacher=couvre)
+    ao.inputs["Distance"].default_value = 0.02
+    passe("ao_p_nu", ao.outputs["AO"], 24, cacher=couvre)
     return res
 
 if not SANS_BAKE:
@@ -865,116 +879,124 @@ if not SANS_BAKE:
     Nn = R_["nrm"][SUPER // 2::SUPER, SUPER // 2::SUPER, :3]
     ao_l = red(R_["ao_l"][..., 0]); ao_p = red(R_["ao_p"][..., 0]); ar = red(R_["arete"][..., 0]); lu = red(R_["lueur"][..., 0])
     print("pointiness p5/50/95 :", np.percentile(ar[cov], [5, 50, 95]).round(3), " ao_l moy %.2f ao_p moy %.2f" % (ao_l[cov].mean(), ao_p[cov].mean()))
-    img = np.zeros((ATLAS, ATLAS, 3), dtype=np.float32)
-    alpha = np.ones((ATLAS, ATLAS), dtype=np.float32)
-    jit = (bruit(Pp, 1.0 / 0.0045, 41) - 0.5) * 0.75 + (bruit(Pp, 1.0 / 0.011, 43) - 0.5) * 0.35
-    L = 0.45 * ao_l + 0.55 * ao_p
-    arete = np.clip((ar - 0.515) / 0.05, 0, 1)
-    creux = np.clip((0.48 - ar) / 0.05, 0, 1)
-    haut = Nn[..., 2]
-    eclair = 0.10 * haut - 0.04 * np.abs(Nn[..., 1])
-    n1 = fbm(Pp, 1.0 / 0.06, 1); n2 = fbm(Pp, 1.0 / 0.018, 2); n3 = bruit(Pp, 1.0 / 0.20, 3)
-    def m(nom):
-        return cov & (cls == CID[nom])
-    # --- os : ivoire patiné, taches brunes, crasse dans les creux, poussière vers le bas, fêlures
-    k = m("os")
-    # passe 2 : plus sombre, creux (orbites, entre les côtes, articulations, bassin) cuits fort, bouts des os (arêtes, épiphyses) plus clairs
-    ton = 0.40 + eclair + (L - 0.80) * 1.55 + (n1 - 0.5) * 0.30 + (n2 - 0.5) * 0.16 + arete * 0.30 - creux * 0.34
-    ton -= 0.18 * np.clip((0.55 - Pp[..., 2]) / 0.5, 0, 1)             # bas des jambes plus sales
-    ton -= 0.12 * np.clip((0.78 - L) / 0.25, 0, 1)                     # ombre de contact
-    gris = fbm(Pp, 1.0 / 0.09, 21) > 0.52                              # patine grise (poussière, salpêtre) par plaques
-    tache = (fbm(Pp, 1.0 / 0.03, 7) + 0.20 * (n3 - 0.5)) > 0.60
-    crasse = ((L < 0.62) | (creux > 0.5)) & (n2 > 0.34)
-    fel = (np.abs(fbm(Pp, 1.0 / 0.035, 9) - 0.5) < 0.012) & (arete < 0.5)
-    c = quant("ivoire", np.clip(ton, 0, 1), jit)
-    c = np.where(gris[..., None], quant("osgris", np.clip(ton, 0, 1), jit), c)
-    c = np.where(tache[..., None], quant("tache", np.clip(ton * 1.05, 0, 1), jit), c)
-    c = np.where(crasse[..., None], quant("crasse", np.clip(ton * 1.4, 0, 1), jit), c)
-    c = np.where(fel[..., None], RAMPES["tache"][1], c)
-    img[k] = c[k]
-    # --- dents : alternance dent / interstice le long de l'arcade
-    k = m("dent")
-    ang = np.arctan2(Pp[..., 0], -(Pp[..., 1] - 0.02))
-    inter = (np.abs(((ang / 0.14) % 1.0) - 0.5) > 0.40) | (np.abs(Nn[..., 2]) > 0.75)
-    ton = 0.48 + (L - 0.85) * 1.3 + (n2 - 0.5) * 0.3
-    c = quant("dent", np.clip(ton, 0, 1), jit)
-    c = np.where(inter[..., None], RAMPES["crasse"][0], c)
-    cass = (bruit(Pp, 1.0 / 0.008, 12) > 0.80)
-    c = np.where(cass[..., None], RAMPES["crasse"][1], c)
-    img[k] = c[k]
-    # --- orbites, cavité nasale, œil
-    img[m("orbite")] = ORBITE
-    k = m("oeil")
-    img[k] = np.where((lu[k] < 0.5)[..., None], OEIL, ORBITE * 1.5)
-    # --- fer rouillé : plaques de rouille, arêtes usées claires, rivets
-    k = m("fer")
-    ton = 0.45 + eclair * 1.3 + (L - 0.8) * 1.1 + arete * 0.35 + (n2 - 0.5) * 0.25
-    rou = (fbm(Pp, 1.0 / 0.035, 21) * 0.7 + n2 * 0.3) > 0.52
-    c = np.where(rou[..., None], quant("rouille", np.clip(ton * 0.95 + (n1 - 0.5) * 0.3, 0, 1), jit), quant("fer", np.clip(ton, 0, 1), jit))
-    # rivets du casque (bande du front et arêtes)
-    dk = Pp - np.array([0.0, 0.018, 1.736])
-    angk = np.arctan2(dk[..., 0], -dk[..., 1])
-    riv = (np.abs(dk[..., 2] - 0.004) < 0.007) & (np.abs(((angk / (2 * np.pi / 18)) % 1.0) - 0.5) < 0.10) & (np.linalg.norm(dk, axis=-1) < 0.13)
-    c = np.where(riv[..., None], RAMPES["fer"][5], c)
-    img[k] = c[k]
-    # --- cuir : craquelé, bords usés
-    k = m("cuir")
-    ton = 0.48 + eclair + (L - 0.8) * 1.1 + arete * 0.28 + (n2 - 0.5) * 0.35
-    cr = np.abs(fbm(Pp, 1.0 / 0.012, 25) - 0.5) < 0.03
-    c = quant("cuir", np.clip(ton - cr * 0.25, 0, 1), jit)
-    img[k] = c[k]
-    # --- étoffe : laine cendrée pourrie, fil vertical, saleté, trous (alpha)
-    k = m("tissu")
-    fil = bruit(Pp * np.array([1.0, 1.0, 0.15]), 1.0 / 0.006, 31)
-    ton = 0.46 + eclair * 0.6 + (L - 0.8) * 1.0 + (n1 - 0.5) * 0.45 + (fil - 0.5) * 0.25
-    ton -= 0.18 * np.clip((1.0 - Pp[..., 2]) / 0.3, 0, 1) * (Pp[..., 2] < 1.0)
-    c = quant("tissu", np.clip(ton, 0, 1), jit)
-    img[k] = c[k]
-    trou = k & (fbm(Pp, 1.0 / 0.03, 33) > 0.66)
-    alpha[trou] = 0.0
-    # --- bois (revers du bouclier, manche, arc, flèches) et face peinte du bouclier
-    for nom in ("bois", "bois_peint"):
-        k = m(nom)
-        rel = Pp - np.array([SC.x, SC.y, SC.z])
-        pl = np.floor((rel[..., 0] + 0.4) / 0.066)
-        grain = bruit(Pp * np.array([3.0, 3.0, 0.25]), 1.0 / 0.01, 51 + pl * 0.0)
-        joint = np.abs(((rel[..., 0] + 0.4) / 0.066) % 1.0 - 0.5) > 0.44
-        ton = 0.45 + eclair + (L - 0.8) * 1.0 + (grain - 0.5) * 0.4 + ((pl % 3) - 1) * 0.07 + arete * 0.2
-        c = quant("bois", np.clip(ton, 0, 1), jit)
-        if nom == "bois_peint":
-            r_ = np.hypot(rel[..., 0], rel[..., 2])
-            a_ = np.arctan2(rel[..., 2], rel[..., 0])
-            secteur = (np.floor((a_ + np.pi) / (np.pi / 4)) % 2) == 0
-            ecaille = fbm(Pp, 1.0 / 0.025, 55) > 0.50
-            peint = secteur & ~ecaille & (r_ > 0.055)
-            c = np.where(peint[..., None], quant("peint", np.clip(ton * 0.95, 0, 1), jit), c)
-            c = np.where((joint & (r_ > 0.05))[..., None], RAMPES["bois"][0], c)
+    # 2 atlas (D/crane_sbire) : <OUT_PNG> = cuisson de toujours (guerrier, archer : rendu validé, casque et capuche autour du crâne) ;
+    # <OUT_PNG_NU> = sbire à la hache, crâne NU : les ossements et étoffes recuits SANS casque ni capuche (sinon la voûte du crâne,
+    # dans l'ombre des couvre-chefs, sort noire/crasse = « bonnet brun » sous la torche). Les texels casque/capuche y restent ceux du 1er.
+    gid = np.floor(R_["idx"][SUPER // 2::SUPER, SUPER // 2::SUPER, 0] * 16.0 + 0.5).astype(int)
+    ao_l_nu = np.where(gid == 1, red(R_["ao_l_nu"][..., 0]), ao_l)
+    ao_p_nu = np.where(gid == 1, red(R_["ao_p_nu"][..., 0]), ao_p)
+    print("ao crane nu : ao_l moy %.2f -> %.2f" % (ao_l[cov & (gid == 1)].mean(), ao_l_nu[cov & (gid == 1)].mean()))
+    for chemin, ao_l, ao_p in ((OUT_PNG, ao_l, ao_p), (OUT_PNG_NU, ao_l_nu, ao_p_nu)):
+        img = np.zeros((ATLAS, ATLAS, 3), dtype=np.float32)
+        alpha = np.ones((ATLAS, ATLAS), dtype=np.float32)
+        jit = (bruit(Pp, 1.0 / 0.0045, 41) - 0.5) * 0.75 + (bruit(Pp, 1.0 / 0.011, 43) - 0.5) * 0.35
+        L = 0.45 * ao_l + 0.55 * ao_p
+        arete = np.clip((ar - 0.515) / 0.05, 0, 1)
+        creux = np.clip((0.48 - ar) / 0.05, 0, 1)
+        haut = Nn[..., 2]
+        eclair = 0.10 * haut - 0.04 * np.abs(Nn[..., 1])
+        n1 = fbm(Pp, 1.0 / 0.06, 1); n2 = fbm(Pp, 1.0 / 0.018, 2); n3 = bruit(Pp, 1.0 / 0.20, 3)
+        def m(nom):
+            return cov & (cls == CID[nom])
+        # --- os : ivoire patiné, taches brunes, crasse dans les creux, poussière vers le bas, fêlures
+        k = m("os")
+        # passe 2 : plus sombre, creux (orbites, entre les côtes, articulations, bassin) cuits fort, bouts des os (arêtes, épiphyses) plus clairs
+        ton = 0.40 + eclair + (L - 0.80) * 1.55 + (n1 - 0.5) * 0.30 + (n2 - 0.5) * 0.16 + arete * 0.30 - creux * 0.34
+        ton -= 0.18 * np.clip((0.55 - Pp[..., 2]) / 0.5, 0, 1)             # bas des jambes plus sales
+        ton -= 0.12 * np.clip((0.78 - L) / 0.25, 0, 1)                     # ombre de contact
+        gris = fbm(Pp, 1.0 / 0.09, 21) > 0.52                              # patine grise (poussière, salpêtre) par plaques
+        tache = (fbm(Pp, 1.0 / 0.03, 7) + 0.20 * (n3 - 0.5)) > 0.60
+        crasse = ((L < 0.62) | (creux > 0.5)) & (n2 > 0.34)
+        fel = (np.abs(fbm(Pp, 1.0 / 0.035, 9) - 0.5) < 0.012) & (arete < 0.5)
+        c = quant("ivoire", np.clip(ton, 0, 1), jit)
+        c = np.where(gris[..., None], quant("osgris", np.clip(ton, 0, 1), jit), c)
+        c = np.where(tache[..., None], quant("tache", np.clip(ton * 1.05, 0, 1), jit), c)
+        c = np.where(crasse[..., None], quant("crasse", np.clip(ton * 1.4, 0, 1), jit), c)
+        c = np.where(fel[..., None], RAMPES["tache"][1], c)
         img[k] = c[k]
-    for nom, rp in (("corde", "corde"), ("plume", "plume")):
-        k = m(nom)
-        img[k] = quant(rp, np.clip(0.5 + (L - 0.8) + (n2 - 0.5) * 0.4, 0, 1), jit)[k]
-    # dilatation des couleurs dans les marges (mipmaps sans franges noires)
-    remp = cov.copy()
-    for it in range(12):
-        nouv = np.zeros_like(remp)
-        acc = np.zeros_like(img); cnt = np.zeros(remp.shape, dtype=np.float32)
-        for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
-            sh = np.roll(np.roll(remp, dy, 0), dx, 1)
-            shc = np.roll(np.roll(img, dy, 0), dx, 1)
-            acc += shc * sh[..., None]; cnt += sh
-        nouv = (~remp) & (cnt > 0)
-        img[nouv] = acc[nouv] / cnt[nouv][..., None]
-        remp |= nouv
-    q = np.round(img * 31.0) / 31.0                              # palette 15 bits
-    rgba = np.ones((ATLAS, ATLAS, 4), dtype=np.float32)
-    rgba[..., :3] = q
-    rgba[..., 3] = alpha
-    pim = bpy.data.images.new("squelette_nordique_atlas", ATLAS, ATLAS, alpha=True)
-    pim.pixels.foreach_set(rgba[::-1].ravel())
-    pim.filepath_raw = OUT_PNG
-    pim.file_format = 'PNG'
-    pim.save()
-    print("ATLAS ecrit", OUT_PNG, " couverture %.0f %%" % (cov.mean() * 100))
+        # --- dents : alternance dent / interstice le long de l'arcade
+        k = m("dent")
+        ang = np.arctan2(Pp[..., 0], -(Pp[..., 1] - 0.02))
+        inter = (np.abs(((ang / 0.14) % 1.0) - 0.5) > 0.40) | (np.abs(Nn[..., 2]) > 0.75)
+        ton = 0.48 + (L - 0.85) * 1.3 + (n2 - 0.5) * 0.3
+        c = quant("dent", np.clip(ton, 0, 1), jit)
+        c = np.where(inter[..., None], RAMPES["crasse"][0], c)
+        cass = (bruit(Pp, 1.0 / 0.008, 12) > 0.80)
+        c = np.where(cass[..., None], RAMPES["crasse"][1], c)
+        img[k] = c[k]
+        # --- orbites, cavité nasale, œil
+        img[m("orbite")] = ORBITE
+        k = m("oeil")
+        img[k] = np.where((lu[k] < 0.5)[..., None], OEIL, ORBITE * 1.5)
+        # --- fer rouillé : plaques de rouille, arêtes usées claires, rivets
+        k = m("fer")
+        ton = 0.45 + eclair * 1.3 + (L - 0.8) * 1.1 + arete * 0.35 + (n2 - 0.5) * 0.25
+        rou = (fbm(Pp, 1.0 / 0.035, 21) * 0.7 + n2 * 0.3) > 0.52
+        c = np.where(rou[..., None], quant("rouille", np.clip(ton * 0.95 + (n1 - 0.5) * 0.3, 0, 1), jit), quant("fer", np.clip(ton, 0, 1), jit))
+        # rivets du casque (bande du front et arêtes)
+        dk = Pp - np.array([0.0, 0.018, 1.736])
+        angk = np.arctan2(dk[..., 0], -dk[..., 1])
+        riv = (np.abs(dk[..., 2] - 0.004) < 0.007) & (np.abs(((angk / (2 * np.pi / 18)) % 1.0) - 0.5) < 0.10) & (np.linalg.norm(dk, axis=-1) < 0.13)
+        c = np.where(riv[..., None], RAMPES["fer"][5], c)
+        img[k] = c[k]
+        # --- cuir : craquelé, bords usés
+        k = m("cuir")
+        ton = 0.48 + eclair + (L - 0.8) * 1.1 + arete * 0.28 + (n2 - 0.5) * 0.35
+        cr = np.abs(fbm(Pp, 1.0 / 0.012, 25) - 0.5) < 0.03
+        c = quant("cuir", np.clip(ton - cr * 0.25, 0, 1), jit)
+        img[k] = c[k]
+        # --- étoffe : laine cendrée pourrie, fil vertical, saleté, trous (alpha)
+        k = m("tissu")
+        fil = bruit(Pp * np.array([1.0, 1.0, 0.15]), 1.0 / 0.006, 31)
+        ton = 0.46 + eclair * 0.6 + (L - 0.8) * 1.0 + (n1 - 0.5) * 0.45 + (fil - 0.5) * 0.25
+        ton -= 0.18 * np.clip((1.0 - Pp[..., 2]) / 0.3, 0, 1) * (Pp[..., 2] < 1.0)
+        c = quant("tissu", np.clip(ton, 0, 1), jit)
+        img[k] = c[k]
+        trou = k & (fbm(Pp, 1.0 / 0.03, 33) > 0.66)
+        alpha[trou] = 0.0
+        # --- bois (revers du bouclier, manche, arc, flèches) et face peinte du bouclier
+        for nom in ("bois", "bois_peint"):
+            k = m(nom)
+            rel = Pp - np.array([SC.x, SC.y, SC.z])
+            pl = np.floor((rel[..., 0] + 0.4) / 0.066)
+            grain = bruit(Pp * np.array([3.0, 3.0, 0.25]), 1.0 / 0.01, 51 + pl * 0.0)
+            joint = np.abs(((rel[..., 0] + 0.4) / 0.066) % 1.0 - 0.5) > 0.44
+            ton = 0.45 + eclair + (L - 0.8) * 1.0 + (grain - 0.5) * 0.4 + ((pl % 3) - 1) * 0.07 + arete * 0.2
+            c = quant("bois", np.clip(ton, 0, 1), jit)
+            if nom == "bois_peint":
+                r_ = np.hypot(rel[..., 0], rel[..., 2])
+                a_ = np.arctan2(rel[..., 2], rel[..., 0])
+                secteur = (np.floor((a_ + np.pi) / (np.pi / 4)) % 2) == 0
+                ecaille = fbm(Pp, 1.0 / 0.025, 55) > 0.50
+                peint = secteur & ~ecaille & (r_ > 0.055)
+                c = np.where(peint[..., None], quant("peint", np.clip(ton * 0.95, 0, 1), jit), c)
+                c = np.where((joint & (r_ > 0.05))[..., None], RAMPES["bois"][0], c)
+            img[k] = c[k]
+        for nom, rp in (("corde", "corde"), ("plume", "plume")):
+            k = m(nom)
+            img[k] = quant(rp, np.clip(0.5 + (L - 0.8) + (n2 - 0.5) * 0.4, 0, 1), jit)[k]
+        # dilatation des couleurs dans les marges (mipmaps sans franges noires)
+        remp = cov.copy()
+        for it in range(12):
+            nouv = np.zeros_like(remp)
+            acc = np.zeros_like(img); cnt = np.zeros(remp.shape, dtype=np.float32)
+            for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+                sh = np.roll(np.roll(remp, dy, 0), dx, 1)
+                shc = np.roll(np.roll(img, dy, 0), dx, 1)
+                acc += shc * sh[..., None]; cnt += sh
+            nouv = (~remp) & (cnt > 0)
+            img[nouv] = acc[nouv] / cnt[nouv][..., None]
+            remp |= nouv
+        q = np.round(img * 31.0) / 31.0                              # palette 15 bits
+        rgba = np.ones((ATLAS, ATLAS, 4), dtype=np.float32)
+        rgba[..., :3] = q
+        rgba[..., 3] = alpha
+        pim = bpy.data.images.new("squelette_nordique_atlas", ATLAS, ATLAS, alpha=True)
+        pim.pixels.foreach_set(rgba[::-1].ravel())
+        pim.filepath_raw = chemin
+        pim.file_format = 'PNG'
+        pim.save()
+        print("ATLAS ecrit", chemin, " couverture %.0f %%" % (cov.mean() * 100))
 
 # ============================================================================ 8. export
 mat_os = bpy.data.materials.new("squelette_os")
@@ -1011,7 +1033,9 @@ if APERCU:
     sc.display.shading.light = "STUDIO"
     sc.display.shading.color_type = "TEXTURE" if os.path.exists(OUT_PNG) else "SINGLE"
     sc.render.resolution_x = 640; sc.render.resolution_y = 900
-    timg = bpy.data.images.load(OUT_PNG) if os.path.exists(OUT_PNG) else None
+    montre_ = next((a.split("=", 1)[1] for a in ARGS if a.startswith("--montrer=")), "")
+    png_ = OUT_PNG_NU if "hache" in montre_.split(",") and os.path.exists(OUT_PNG_NU) else OUT_PNG
+    timg = bpy.data.images.load(png_) if os.path.exists(png_) else None
     mt = bpy.data.materials.new("apercu"); mt.use_nodes = True
     if timg:
         tn = mt.node_tree.nodes.new("ShaderNodeTexImage"); tn.image = timg; tn.interpolation = "Closest"
