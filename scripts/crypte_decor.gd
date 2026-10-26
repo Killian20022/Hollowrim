@@ -1421,161 +1421,35 @@ func brasero(pos: Vector3, froid := false) -> void:  # froid : lumière bleue (i
 
 # ------------------------------------------------------------------ mobilier (Méso)
 func sarcophage(pos: Vector3, taille: Vector3, lacet := 0.0, collision := true) -> void:
-	j0("sarcophage", lacet)
-	pos = _ecarter(pos, Vector2(taille.x * 0.55, taille.z * 0.73) if v2 else Vector2(taille.x * 0.5 + 0.1, taille.z * 0.5 + 0.1), lacet)      # v2 : module sculpté plus large que la boîte
-	emprise("sarcophage", pos, Vector2(taille.x * 0.5 + 0.1, taille.z * 0.5 + 0.1), lacet, taille.y + 0.3)
-	if v2:      # crypte v2 : sarcophage sculpté (module Blender, 2,18 x 1,1 x 0,92 m) mis à la taille demandée ; MÊME collision
-		modele("sarcophage", pos, lacet, Vector3(taille.x / 2.18, (taille.y + 0.24) / 1.1, taille.z / 0.92))
-		if collision:
-			var bv := Basis(Vector3.UP, lacet)
-			var sv := bv * Vector3(taille.x, 0, taille.z)
-			solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(sv.x), taille.y, absf(sv.z)))
-		j1()
-		return
-	boite("mur0", pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
-	boite("gravure", pos + Vector3(0, taille.y + 0.07, 0), Vector3(taille.x + 0.1, 0.14, taille.z + 0.1), lacet)
-	boite("gravure", pos + Vector3(0, taille.y + 0.19, 0), Vector3(taille.x - 0.22, 0.1, taille.z - 0.3), lacet)
-	boite("mur1", pos + Vector3(0, 0.07, 0), Vector3(taille.x + 0.14, 0.14, taille.z + 0.14), lacet)
-	if collision:
-		var b := Basis(Vector3.UP, lacet)
-		var s := b * Vector3(taille.x, 0, taille.z)
-		solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s.x), taille.y, absf(s.z)))
-	j1()
+	ObjPierreStatuaire.sarcophage(self, pos, taille, lacet, collision)
 
 func coffre(pos: Vector3, lacet := 0.0, collision := true) -> void:
-	j0("coffre", lacet)
-	pos = _ecarter(pos, Vector2(0.47, 0.3), lacet)
-	emprise("coffre", pos, Vector2(0.47, 0.3), lacet, 0.64)
-	var b := Basis(Vector3.UP, lacet)
-	boite("bois", pos + Vector3(0, 0.22, 0), Vector3(0.9, 0.44, 0.56), lacet)
-	boite("bois", pos + Vector3(0, 0.5, 0), Vector3(0.9, 0.12, 0.5), lacet)
-	boite("bois", pos + Vector3(0, 0.58, 0), Vector3(0.9, 0.06, 0.38), lacet)
-	for dx in [-0.3, 0.3]:
-		boite("fer", pos + b * Vector3(dx, 0.31, 0), Vector3(0.09, 0.64, 0.6), lacet)
-	boite("fer", pos + b * Vector3(0, 0.44, 0.285), Vector3(0.12, 0.14, 0.03), lacet)
-	boite("fer", pos + Vector3(0, 0.02, 0), Vector3(0.94, 0.05, 0.6), lacet)
-	if collision:
-		var s := b * Vector3(0.9, 0, 0.56)
-		solide(pos + Vector3(0, 0.3, 0), Vector3(absf(s.x), 0.6, absf(s.z)))
-	j1()
+	ObjPetitMobilier.coffre(self, pos, lacet, collision)
 
 func bougie(pos: Vector3, avec_lumiere := true) -> void:
-	j0("bougie")
-	pos = _suivre(pos)
-	emprise("bougie", pos, Vector2(0.06, 0.06), 0.0, 0.14)
-	tour("os", pos, [Vector2(0.03, 0.0), Vector2(0.026, 0.14)], 6, 0.0, true)
-	tour("fer", pos, [Vector2(0.06, 0.0), Vector2(0.06, 0.012)], 6, 0.0, true)
-	flamme(pos + Vector3(0, 0.14, 0), 0.4)
-	if avec_lumiere:
-		lumiere(pos + Vector3(0, 0.4, 0), FEU, 0.9, 4.0, 1.8)
-	j1()
+	ObjPetitMobilier.bougie(self, pos, avec_lumiere)
 
 func urne(pos: Vector3, e := 1.0, cotes := 8) -> void:
-	j0("urne")
-	pos = _suivre(pos)
-	pos = _ecarter(pos, Vector2(0.26, 0.26) * e)
-	emprise("urne", pos, Vector2(0.26, 0.26) * e, 0.0, 0.56 * e)
-	var prof := [Vector2(0.13, 0.0), Vector2(0.2, 0.08), Vector2(0.25, 0.22), Vector2(0.21, 0.4), Vector2(0.12, 0.5), Vector2(0.14, 0.56), Vector2(0.09, 0.56)]
-	var pe: Array = []
-	for p: Vector2 in prof:
-		pe.append(p * e)
-	tour("argile", pos, pe, cotes, 0.0, false)
-	if est_crypte and e >= 0.45:      # 4e passe : bandeau d'entrelacs gravé sur la panse (références : urnes ornées des niches)
-		tour("entrelacs", pos + Vector3(0, 0.15 * e, 0), [Vector2(0.244 * e, 0.0), Vector2(0.256 * e, 0.07 * e), Vector2(0.244 * e, 0.14 * e)], cotes, 0.0, false)
-	j1()
+	ObjPetitMobilier.urne(self, pos, e, cotes)
 
 func tonneau(pos: Vector3, e := 1.0) -> void:
-	j0("tonneau")
-	pos = _ecarter(pos, Vector2(0.4, 0.4) * e)
-	emprise("tonneau", pos, Vector2(0.4, 0.4) * e, 0.0, e)
-	var prof := [Vector2(0.3, 0.0), Vector2(0.37, 0.25), Vector2(0.4, 0.5), Vector2(0.37, 0.75), Vector2(0.3, 1.0)]
-	var pe: Array = []
-	for p: Vector2 in prof:
-		pe.append(p * e)
-	tour("bois", pos, pe, 8, 0.0, true)
-	for y in [0.16, 0.84]:
-		var r: float = (0.34 if y < 0.5 else 0.34) * e + 0.012
-		tour("fer", pos + Vector3(0, y * e, 0), [Vector2(r, -0.03 * e), Vector2(r, 0.03 * e)], 8, 0.0, false)
-	j1()
+	ObjPetitMobilier.tonneau(self, pos, e)
 
 func table(pos: Vector3, lacet := 0.0) -> void:
-	j0("table", lacet)
-	pos = _ecarter(pos, Vector2(0.55, 0.33), lacet)
-	emprise("table", pos, Vector2(0.55, 0.33), lacet, 0.8)
-	var b := Basis(Vector3.UP, lacet)
-	boite("bois", pos + Vector3(0, 0.76, 0), Vector3(1.1, 0.07, 0.65), lacet)
-	for sx in [-0.5, 0.5]:
-		for sz in [-0.27, 0.27]:
-			boite("bois", pos + b * Vector3(sx, 0.36, sz), Vector3(0.07, 0.72, 0.07), lacet)
-	boite("bois", pos + Vector3(0, 0.22, 0), Vector3(0.95, 0.05, 0.05), lacet)
-	boite("parchemin", pos + b * Vector3(-0.25, 0.8, 0.05), Vector3(0.3, 0.012, 0.22), lacet + 0.2)
-	tour("fer", pos + b * Vector3(0.28, 0.795, -0.08), [Vector2(0.1, 0.0), Vector2(0.12, 0.012), Vector2(0.07, 0.02)], 8, 0.0, false)
-	tour("fer", pos + b * Vector3(0.36, 0.795, 0.14), [Vector2(0.07, 0.0), Vector2(0.085, 0.01), Vector2(0.05, 0.016)], 8, 0.0, false)
-	j1()
+	ObjPetitMobilier.table(self, pos, lacet)
 
 func etagere(pos: Vector3, lacet: float, largeur := 1.8, haut := 2.0) -> void:
-	j0("etagere", lacet)
-	pos = _ecarter(pos, Vector2(largeur * 0.5 + 0.04, 0.17), lacet)
-	emprise("etagere", pos, Vector2(largeur * 0.5 + 0.04, 0.17), lacet, haut)
-	occupations.append([pos, largeur * 0.5 + 0.15])
-	var b := Basis(Vector3.UP, lacet)
-	for sx in [-largeur * 0.5, largeur * 0.5]:
-		boite("bois", pos + b * Vector3(sx, haut * 0.5, 0), Vector3(0.07, haut, 0.34), lacet)
-	for y in [0.05, 0.7, 1.35, haut - 0.03]:
-		boite("bois", pos + Vector3(0, y, 0), Vector3(largeur, 0.05, 0.34), lacet)
-	boite("bois", pos + b * Vector3(0, haut * 0.5, -0.15), Vector3(largeur, haut, 0.03), lacet)
-	for k in 7:        # rouleaux et grimoires posés
-		var x := -largeur * 0.4 + k * (largeur * 0.8 / 6.0)
-		var yy: float = [0.075, 0.725, 1.375][k % 3]
-		boite("parchemin" if k % 2 == 0 else "bois", pos + b * Vector3(x, yy + 0.09, 0.0), Vector3(0.16, 0.2 if k % 2 else 0.14, 0.22), lacet)
-	urne(pos + b * Vector3(largeur * 0.3, 0.0, 0.0) + Vector3(0, 1.38, 0), 0.5)
-	j1()
+	ObjMobilierBois.etagere(self, pos, lacet, largeur, haut)
 
 # ------------------------------------------------------------------ petits objets (Micro)
 func crane(pos: Vector3, lacet := 0.0) -> void:
-	j0("crane", lacet)
-	pos = _suivre(pos)
-	emprise("crane", pos, Vector2(0.1, 0.1), 0.0, 0.22)
-	var b := Basis(Vector3.UP, lacet)
-	var prof := [Vector2(0.055, 0.0), Vector2(0.085, 0.05), Vector2(0.095, 0.11), Vector2(0.07, 0.17), Vector2(0.0, 0.19)]
-	tour("os", pos + Vector3(0, 0.035, 0), prof, 6, 0.0, true)
-	boite("os", pos + b * Vector3(0, 0.03, 0.05), Vector3(0.09, 0.05, 0.08), lacet)
-	if est_crypte:       # crypte (crânes par dizaines sur les étagères) : orbites et nez en simples faces avant
-		var av := b * Vector3(0, 0, 1)
-		var dx := b * Vector3(1, 0, 0)
-		for e: Array in [[-0.03, 0.11, 0.018, 0.02], [0.03, 0.11, 0.018, 0.02], [0.0, 0.075, 0.01, 0.015]]:
-			var c: Vector3 = pos + b * Vector3(float(e[0]), float(e[1]), 0.097)
-			var hx: float = e[2]
-			var hy: float = e[3]
-			quad("noir", c - dx * hx - Vector3(0, hy, 0), c + dx * hx - Vector3(0, hy, 0), c + dx * hx + Vector3(0, hy, 0), c - dx * hx + Vector3(0, hy, 0), av)
-		j1()
-		return
-	for sx in [-0.03, 0.03]:
-		boite("noir", pos + b * Vector3(sx, 0.11, 0.085), Vector3(0.036, 0.04, 0.02), lacet)
-	boite("noir", pos + b * Vector3(0, 0.075, 0.09), Vector3(0.02, 0.03, 0.02), lacet)
-	j1()
+	ObjPetitMobilier.crane(self, pos, lacet)
 
 func os_tas(pos: Vector3, n := 4, rayon := 0.4) -> void:
-	j0("os_tas")
-	emprise("os_tas", pos, Vector2(rayon + 0.15, rayon + 0.15), 0.0, 0.2)
-	for k in n:
-		var a := rng.randf() * TAU
-		var d := rng.randf() * rayon
-		var l := rng.randf_range(0.2, 0.36)
-		boite("os", pos + Vector3(cos(a) * d, 0.02 + 0.02 * (k % 2), sin(a) * d), Vector3(l, 0.04, 0.04), rng.randf() * TAU)
-		boite("os", pos + Vector3(cos(a) * d, 0.03, sin(a) * d), Vector3(0.07, 0.05, 0.07), rng.randf() * TAU)
-	crane(pos + Vector3(rng.randf_range(-0.1, 0.1), 0.0, rng.randf_range(-0.1, 0.1)), rng.randf() * TAU)
-	j1()
+	ObjPetitMobilier.os_tas(self, pos, n, rayon)
 
 func arme(pos: Vector3, lacet := 0.0) -> void:
-	j0("arme", lacet)
-	emprise("arme", pos, Vector2(0.5, 0.12), lacet, 0.04)
-	var b := Basis(Vector3.UP, lacet)
-	boite("lame", pos + Vector3(0, 0.013, 0) + b * Vector3(0.45, 0, 0), Vector3(0.82, 0.014, 0.075), lacet)
-	boite("fer", pos + Vector3(0, 0.018, 0) + b * Vector3(0.03, 0, 0), Vector3(0.05, 0.03, 0.24), lacet)
-	boite("bois", pos + Vector3(0, 0.014, 0) - b * Vector3(0.1, 0, 0), Vector3(0.18, 0.03, 0.03), lacet)
-	boite("fer", pos + Vector3(0, 0.02, 0) - b * Vector3(0.21, 0, 0), Vector3(0.05, 0.04, 0.05), lacet)
-	j1()
+	ObjPetitMobilier.arme(self, pos, lacet)
 
 func toile(coin: Vector3, a: Vector3, b: Vector3, l := 1.1) -> void:
 	j0("toile")
@@ -1788,113 +1662,16 @@ func frise(sujets: Array, centre: Vector3, vers: Vector3, taille := 0.9, pas := 
 
 ## Socle de pierre (collision). `taille` = largeur x hauteur x profondeur.
 func socle(pos: Vector3, taille := Vector3(0.9, 0.9, 0.9), lacet := 0.0, mat := "mur1") -> void:
-	j0("socle", lacet)
-	emprise("socle", pos, Vector2(taille.x * 0.5 + 0.06, taille.z * 0.5 + 0.06), lacet, taille.y + 0.1)
-	var b := Basis(Vector3.UP, lacet)
-	if v2 and mat in ["mur0", "mur1", "mur2"]:      # C4b : socle en blocs taillés (module « socle_v2 » mis à la taille), MÊME collision
-		modele("socle_v2", pos, lacet, Vector3(taille.x + 0.02, taille.y + 0.08, taille.z + 0.02))
-		var s2 := b * Vector3(taille.x + 0.12, 0, taille.z + 0.12)
-		solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s2.x), taille.y + 0.08, absf(s2.z)))
-		j1()
-		return
-	boite(mat, pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
-	boite("mur0", pos + Vector3(0, taille.y + 0.04, 0), Vector3(taille.x + 0.12, 0.08, taille.z + 0.12), lacet)
-	boite("mur0", pos + Vector3(0, 0.07, 0), Vector3(taille.x + 0.1, 0.14, taille.z + 0.1), lacet)
-	var s := b * Vector3(taille.x + 0.12, 0, taille.z + 0.12)
-	solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s.x), taille.y + 0.08, absf(s.z)))
-	j1()
+	ObjPierreStatuaire.socle(self, pos, taille, lacet, mat)
 
 ## Statue de pierre sur socle (visage vers +Z local, tourné de `lacet`). type : guerrier (casque, lance, bouclier), jarl (couronne, épée plantée),
 ## ancetre (capuche, mains jointes), gardienne (voile).
 func statue(pos: Vector3, lacet := 0.0, e := 1.0, type := "guerrier", collision := true, mat := "mur1") -> void:
-	j0("statue", lacet)
-	pos = _ecarter(pos, Vector2(0.53, 0.53), lacet)
-	emprise("statue", pos, Vector2(0.53, 0.53), lacet, 2.6)
-	if v2 and mat in ["mur0", "mur1", "mur2"]:
-		mat = "statue_v2"       # crypte v2 : statues un peu plus claires que les murs (sans lumière de plus)
-		if type in ["ancetre", "capuche", "gardienne"]:
-			# C4b : gardiens encapuchonnés / voilés = module sculpté « statue_capuche » (plis, capuche, givre), même hauteur ; MÊME collision
-			modele("statue_capuche", pos, lacet, Vector3.ONE * clampf(e * 0.83, 0.75, 1.2), {"pierre": "statue_v2"})
-			if collision:
-				solide(pos + Vector3(0, 1.2, 0), Vector3(1.0, 2.4, 1.0))
-			j1()
-			return
-	var b := Basis(Vector3.UP, lacet)
-	var h0 := 0.5                                          # socle
-	boite(mat, pos + Vector3(0, h0 * 0.5, 0), Vector3(0.95, h0, 0.95), lacet)
-	boite("mur0", pos + Vector3(0, h0 + 0.04, 0), Vector3(1.05, 0.08, 1.05), lacet)
-	boite("mur0", pos + Vector3(0, 0.07, 0), Vector3(1.05, 0.14, 1.05), lacet)
-	var base := pos + Vector3(0, h0 + 0.08, 0)
-	# robe : fût qui s'évase (profil de révolution), épaules, tête
-	tour(mat, base, [Vector2(0.34 * e, 0.0), Vector2(0.3 * e, 0.5 * e), Vector2(0.24 * e, 1.0 * e), Vector2(0.3 * e, 1.18 * e), Vector2(0.14 * e, 1.28 * e)], 8, 0.0, true)
-	boite(mat, base + b * Vector3(0, 1.16 * e, 0), Vector3(0.74 * e, 0.16 * e, 0.3 * e), lacet)
-	tour(mat, base + Vector3(0, 1.26 * e, 0), [Vector2(0.09 * e, 0.0), Vector2(0.12 * e, 0.1 * e), Vector2(0.115 * e, 0.24 * e), Vector2(0.06 * e, 0.3 * e)], 8, 0.0, true)
-	boite(mat, base + b * Vector3(0, 1.38 * e, 0.12 * e), Vector3(0.04 * e, 0.09 * e, 0.06 * e), lacet)                 # nez : donne le sens du regard
-	for sx in [-1.0, 1.0]:
-		boite(mat, base + b * Vector3(sx * 0.36 * e, 0.92 * e, 0.0), Vector3(0.12 * e, 0.5 * e, 0.14 * e), lacet)       # bras
-	match type:
-		"guerrier":
-			tour("mur0", base + Vector3(0, 1.4 * e, 0), [Vector2(0.135 * e, 0.0), Vector2(0.13 * e, 0.1 * e), Vector2(0.0, 0.2 * e)], 8, 0.0, false)
-			boite("bois", base + b * Vector3(0.4 * e, 1.0 * e, 0.1 * e), Vector3(0.05, 1.9 * e, 0.05), lacet)
-			boite("lame", base + b * Vector3(0.4 * e, 2.02 * e, 0.1 * e), Vector3(0.06, 0.22 * e, 0.015), lacet)
-			boite("mur0", base + b * Vector3(-0.36 * e, 0.95 * e, 0.16 * e), Vector3(0.42 * e, 0.5 * e, 0.07), lacet)
-			boite("fer", base + b * Vector3(-0.36 * e, 0.95 * e, 0.205 * e), Vector3(0.12 * e, 0.12 * e, 0.04), lacet)
-		"jarl":
-			tour("or", base + Vector3(0, 1.4 * e, 0), [Vector2(0.125 * e, 0.0), Vector2(0.135 * e, 0.08 * e)], 6, 0.0, false)
-			for k in 5:
-				var a := TAU * k / 5.0
-				boite("or", base + Vector3(cos(a) * 0.12 * e, 1.52 * e, sin(a) * 0.12 * e), Vector3(0.03, 0.1 * e, 0.03))
-			boite("lame", base + b * Vector3(0, 0.5 * e, 0.3 * e), Vector3(0.06, 1.0 * e, 0.02), lacet)
-			boite("fer", base + b * Vector3(0, 0.98 * e, 0.3 * e), Vector3(0.34 * e, 0.05, 0.06), lacet)
-		"capuche":      # refonte matière : gardien encapuchonné (références), visage dans l'ombre, épée pointe en bas, givre aux épaules
-			tour(mat, base + Vector3(0, 1.1 * e, 0), [Vector2(0.27 * e, 0.0), Vector2(0.21 * e, 0.18 * e), Vector2(0.18 * e, 0.34 * e), Vector2(0.11 * e, 0.47 * e), Vector2(0.0, 0.54 * e)], 8, 0.0, false)
-			boite("noir", base + b * Vector3(0, 1.36 * e, 0.19 * e), Vector3(0.15 * e, 0.2 * e, 0.04), lacet)
-			boite("lame", base + b * Vector3(0, 0.52 * e, 0.3 * e), Vector3(0.06, 0.9 * e, 0.02), lacet)
-			boite("fer", base + b * Vector3(0, 0.99 * e, 0.3 * e), Vector3(0.3 * e, 0.05, 0.06), lacet)
-			boite(mat, base + b * Vector3(0, 1.05 * e, 0.28 * e), Vector3(0.22 * e, 0.11 * e, 0.11 * e), lacet)
-			if est_crypte:
-				givre_dessus(base + Vector3(0, 1.24 * e, 0), Vector2(0.7 * e, 0.28 * e), 0.02, lacet)
-		"ancetre":
-			boite(mat, base + b * Vector3(0, 1.36 * e, -0.02 * e), Vector3(0.3 * e, 0.3 * e, 0.3 * e), lacet)
-			boite(mat, base + b * Vector3(0, 0.82 * e, 0.2 * e), Vector3(0.22 * e, 0.1 * e, 0.12 * e), lacet)
-		_:
-			boite(mat, base + b * Vector3(0, 1.2 * e, -0.02 * e), Vector3(0.34 * e, 0.5 * e, 0.28 * e), lacet)
-	if collision:
-		solide(pos + Vector3(0, 1.2, 0), Vector3(1.0, 2.4, 1.0))
-	j1()
+	ObjPierreStatuaire.statue(self, pos, lacet, e, type, collision, mat)
 
 ## Bannière accrochée à une tringle : `haut` = point du mur (hauteur de la tringle), `vers` = normale vers la pièce, usure 0 intacte, 1 déchirée, 2 en lambeaux.
 func banniere(haut: Vector3, vers: Vector3, long := 1.7, larg := 0.75, couleur := Color(0.62, 0.3, 0.26), sujet := "", usure := 1, teinte_embleme := Color(0.9, 0.85, 0.7)) -> void:
-	j0("banniere", atan2(vers.x, vers.z))
-	var n := vers.normalized()
-	haut += _saillie(haut, n, 0.33)      # devant les blocs des panneaux v2 (saillie jusqu'à 0,3 m)
-	nb_bannieres += 1
-	var cb := saillie_cb
-	saillie_cb = Callable()
-	var dr: Vector3 = _axes(n)[0]
-	var lacet := atan2(n.x, n.z)
-	boite("bois", haut + n * 0.1, Vector3(larg + 0.24, 0.05, 0.05), lacet)
-	boite("fer", haut + n * 0.1 + dr * (larg * 0.5 + 0.13), Vector3(0.06, 0.07, 0.07), lacet)
-	boite("fer", haut + n * 0.1 - dr * (larg * 0.5 + 0.13), Vector3(0.06, 0.07, 0.07), lacet)
-	var teinte := Color(couleur.r, couleur.g, couleur.b)
-	var haut_plein := long * (1.0 if usure == 0 else 0.42)
-	var p0 := haut + n * 0.07
-	# partie haute pleine
-	quad("parchemin", p0 - dr * larg * 0.5, p0 + dr * larg * 0.5, p0 + dr * larg * 0.5 - Vector3(0, haut_plein, 0) + n * 0.03, p0 - dr * larg * 0.5 - Vector3(0, haut_plein, 0) + n * 0.03, n, [], [], [teinte, teinte, teinte, teinte])
-	if usure > 0:
-		var nb := 3 if usure == 1 else 2
-		var lw := larg / nb
-		for k in nb:
-			var lon := long * rng.randf_range(0.5, 0.85) if usure == 1 else long * rng.randf_range(0.5, 0.65)
-			var x0 := -larg * 0.5 + k * lw
-			var ya := p0 - Vector3(0, haut_plein, 0) + n * 0.03
-			var yb := p0 - Vector3(0, lon, 0) + n * (0.03 + rng.randf() * 0.05)
-			var inc := rng.randf_range(-0.05, 0.05)
-			quad("parchemin", ya + dr * x0, ya + dr * (x0 + lw * 0.9), yb + dr * (x0 + lw * 0.9 + inc), yb + dr * (x0 + inc), n, [], [], [teinte, teinte, Color(teinte.r * 0.8, teinte.g * 0.8, teinte.b * 0.8), Color(teinte.r * 0.8, teinte.g * 0.8, teinte.b * 0.8)])
-	if sujet != "":
-		embleme(sujet, p0 + n * 0.045 - Vector3(0, minf(haut_plein, long) * 0.32, 0), n, larg * 0.5, teinte_embleme)
-	saillie_cb = cb
-	j1()
+	ObjMobilierBois.banniere(self, haut, vers, long, larg, couleur, sujet, usure, teinte_embleme)
 
 ## Chaîne verticale (maillons alternés) du point `haut` au point `bas`.
 func chaine(haut: Vector3, bas: Vector3) -> void:
@@ -1908,183 +1685,44 @@ func chaine(haut: Vector3, bas: Vector3) -> void:
 
 ## Table d'embaumement : dalle de pierre sur deux piliers, rigole, bandelettes, bol d'huiles ; `corps` : dépouille enveloppée dessus.
 func table_embaumement(pos: Vector3, lacet := 0.0, corps := false) -> void:
-	j0("table_embaumement", lacet)
-	pos = _ecarter(pos, Vector2(1.2, 0.44), lacet)
-	emprise("table_embaumement", pos, Vector2(1.2, 0.44), lacet, 1.17)
-	var b := Basis(Vector3.UP, lacet)
-	boite("mur1", pos + Vector3(0, 0.88, 0), Vector3(2.1, 0.14, 0.86), lacet)
-	for sx in [-0.7, 0.7]:
-		boite("mur0", pos + b * Vector3(sx, 0.4, 0), Vector3(0.34, 0.8, 0.7), lacet)
-	boite("mur0", pos + Vector3(0, 0.28, 0), Vector3(1.2, 0.12, 0.5), lacet)
-	boite("gravure", pos + Vector3(0, 0.962, 0), Vector3(1.7, 0.012, 0.36), lacet)
-	for k in 3:
-		boite("parchemin", pos + b * Vector3(-0.5 + k * 0.5, 0.55, 0.45), Vector3(0.1, 0.5, 0.012), lacet)
-	tour("fer", pos + b * Vector3(1.2, 0, 0.1), [Vector2(0.14, 0.0), Vector2(0.16, 0.1), Vector2(0.1, 0.2)], 8, 0.0, false)
-	if corps:
-		boite("parchemin", pos + Vector3(0, 1.06, 0), Vector3(1.55, 0.17, 0.46), lacet, false)
-		boite("os", pos + b * Vector3(-0.85, 1.08, 0), Vector3(0.2, 0.18, 0.2), lacet)
-	var s := b * Vector3(2.1, 0, 0.86)
-	solide(pos + Vector3(0, 0.5, 0), Vector3(absf(s.x), 1.0, absf(s.z)))
-	j1()
+	ObjPierreStatuaire.table_embaumement(self, pos, lacet, corps)
 
 ## Barricade de planches, tonneaux et table renversée en travers d'un passage (largeur `largeur`) ; `trou` > 0 : brèche de cette largeur,
 ## décalée de `decal` le long du passage (jamais bloquée : les deux blocs de collision laissent la brèche libre).
 func barricade(pos: Vector3, lacet := 0.0, largeur := 3.0, trou := 1.3, decal := 0.0) -> void:
-	j0("barricade", lacet)
-	emprise("barricade", pos, Vector2(largeur * 0.5, 0.64), lacet, 1.7)
-	var b := Basis(Vector3.UP, lacet)
-	var g0 := decal - trou * 0.5
-	var g1 := decal + trou * 0.5
-	for seg in [[-largeur * 0.5, g0], [g1, largeur * 0.5]]:
-		var a: float = seg[0]
-		var z: float = seg[1]
-		if z - a < 0.1:
-			continue
-		var m := (a + z) * 0.5
-		solide(pos + b * Vector3(m, 0.8, 0), (b * Vector3(z - a, 1.6, 0.5)).abs())
-		for k in 5:
-			boite("bois", pos + b * Vector3(m + rng.randf_range(-0.1, 0.1), 0.2 + k * 0.32, rng.randf_range(-0.1, 0.1)), Vector3(z - a + rng.randf_range(-0.1, 0.1), 0.15, 0.06), lacet + rng.randf_range(-0.07, 0.07))
-		boite("bois", pos + b * Vector3(a + 0.1, 0.8, 0.12), Vector3(0.1, 1.7, 0.1), lacet)
-		boite("bois", pos + b * Vector3(z - 0.1, 0.8, 0.12), Vector3(0.1, 1.7, 0.1), lacet)
-	tonneau(pos + b * Vector3(-largeur * 0.5 + 0.35, 0, 0.5), 0.9)
-	boite("bois", pos + b * Vector3(largeur * 0.5 - 0.7, 0.5, 0.55), Vector3(1.0, 0.07, 0.65), lacet + 0.3)       # table renversée
-	boite("bois", pos + b * Vector3(largeur * 0.5 - 0.7, 0.28, 0.55), Vector3(0.07, 0.5, 0.07), lacet + 0.3)
-	for k in 3:       # planches tombées devant
-		boite("bois", pos + b * Vector3(rng.randf_range(-largeur * 0.4, largeur * 0.4), 0.04, rng.randf_range(0.4, 1.0)), Vector3(1.2, 0.05, 0.14), lacet + rng.randf_range(-0.6, 0.6))
-	j1()
+	ObjMobilierBois.barricade(self, pos, lacet, largeur, trou, decal)
 
 ## Lit de caserne : cadre de bois, paillasse, couverture (teinte) ; collision.
 func lit(pos: Vector3, lacet := 0.0, teinte := Color(0.5, 0.4, 0.36)) -> void:
-	j0("lit", lacet)
-	pos = _ecarter(pos, Vector2(1.0, 0.45), lacet)
-	emprise("lit", pos, Vector2(1.0, 0.45), lacet, 0.8)
-	var b := Basis(Vector3.UP, lacet)
-	for sz in [-0.4, 0.4]:
-		boite("bois", pos + b * Vector3(0, 0.3, sz), Vector3(1.95, 0.1, 0.07), lacet)
-	for sx in [-0.95, 0.95]:
-		boite("bois", pos + b * Vector3(sx, 0.22, 0), Vector3(0.08, 0.44, 0.88), lacet)
-	boite("bois", pos + b * Vector3(-0.95, 0.5, 0), Vector3(0.08, 0.6, 0.88), lacet)
-	boite("parchemin", pos + Vector3(0, 0.4, 0), Vector3(1.8, 0.12, 0.78), lacet, false, Vector3.ZERO)
-	boite("parchemin", pos + b * Vector3(0.3, 0.47, 0), Vector3(1.1, 0.05, 0.8), lacet)
-	var s := b * Vector3(2.0, 0, 0.9)
-	solide(pos + Vector3(0, 0.3, 0), Vector3(absf(s.x), 0.6, absf(s.z)))
-	j1()
+	ObjMobilierBois.lit(self, pos, lacet, teinte)
 
 ## Râtelier d'armes contre un mur (dos vers -Z local) : épées, lances, haches.
 func ratelier_armes(pos: Vector3, lacet := 0.0, largeur := 1.8) -> void:
-	j0("ratelier_armes", lacet)
-	pos = _ecarter(pos + Basis(Vector3.UP, lacet) * Vector3(0, 0, 0.05), Vector2(largeur * 0.5 + 0.04, 0.15), lacet) - Basis(Vector3.UP, lacet) * Vector3(0, 0, 0.05)
-	emprise("ratelier_armes", pos + Basis(Vector3.UP, lacet) * Vector3(0, 0, 0.05), Vector2(largeur * 0.5 + 0.04, 0.15), lacet, 2.0)
-	occupations.append([pos, largeur * 0.5 + 0.15])
-	var b := Basis(Vector3.UP, lacet)
-	boite("bois", pos + b * Vector3(0, 0.95, 0), Vector3(largeur, 1.5, 0.05), lacet)
-	for y in [0.55, 1.3]:
-		boite("bois", pos + b * Vector3(0, y, 0.1), Vector3(largeur, 0.06, 0.1), lacet)
-	for sx in [-largeur * 0.5, largeur * 0.5]:
-		boite("bois", pos + b * Vector3(sx, 0.9, 0.04), Vector3(0.08, 1.8, 0.1), lacet)
-	var n := int(largeur / 0.3)
-	for k in n:
-		var x := -largeur * 0.5 + 0.2 + k * (largeur - 0.4) / maxf(1.0, n - 1.0)
-		match k % 3:
-			0:
-				boite("lame", pos + b * Vector3(x, 1.0, 0.13), Vector3(0.06, 0.95, 0.015), lacet)
-				boite("fer", pos + b * Vector3(x, 0.52, 0.13), Vector3(0.2, 0.04, 0.04), lacet)
-			1:
-				boite("bois", pos + b * Vector3(x, 1.0, 0.13), Vector3(0.04, 1.7, 0.04), lacet)
-				boite("lame", pos + b * Vector3(x, 1.9, 0.13), Vector3(0.07, 0.22, 0.015), lacet)
-			_:
-				boite("bois", pos + b * Vector3(x, 0.95, 0.13), Vector3(0.04, 1.2, 0.04), lacet)
-				boite("fer", pos + b * Vector3(x + 0.07, 1.45, 0.13), Vector3(0.2, 0.22, 0.02), lacet)
-	var s := b * Vector3(largeur, 0, 0.3)
-	solide(pos + b * Vector3(0, 0.9, 0.05), Vector3(absf(s.x), 1.8, maxf(0.3, absf(s.z))))
-	j1()
+	ObjMobilierBois.ratelier_armes(self, pos, lacet, largeur)
 
 ## Bouclier rond accroché au mur (octogone de bois cerclé de fer).
 func bouclier_mural(centre: Vector3, vers: Vector3, rayon := 0.32, teinte := Color(0.6, 0.4, 0.3)) -> void:
-	j0("bouclier_mural", atan2(vers.x, vers.z))
-	var n := vers.normalized()
-	centre += _saillie(centre, n, 0.33)
-	var ax := _axes(n)
-	_rect("bois", centre + n * 0.03, ax[0], ax[1], 0.0, 0.0, rayon * 2.0, rayon * 2.0, 0.0, n, teinte)
-	_rect("bois", centre + n * 0.032, ax[0], ax[1], 0.0, 0.0, rayon * 2.0, rayon * 2.0, PI * 0.25, n, teinte)
-	_rect("fer", centre + n * 0.045, ax[0], ax[1], 0.0, 0.0, rayon * 0.5, rayon * 0.5, PI * 0.25, n)
-	_rect("fer", centre + n * 0.04, ax[0], ax[1], 0.0, 0.0, rayon * 2.1, 0.04, 0.0, n)
-	j1()
+	ObjMobilierBois.bouclier_mural(self, centre, vers, rayon, teinte)
 
 ## Autel de chapelle : massif de pierre, nappe, dessus gravé, deux bougies sans lumière.
 func autel(pos: Vector3, lacet := 0.0, largeur := 2.0) -> void:
-	j0("autel", lacet)
-	pos = _ecarter(pos, Vector2(largeur * 0.5 + 0.08, 0.53), lacet)
-	emprise("autel", pos, Vector2(largeur * 0.5 + 0.08, 0.53), lacet, 1.14)
-	var b := Basis(Vector3.UP, lacet)
-	boite("mur1", pos + Vector3(0, 0.45, 0), Vector3(largeur, 0.9, 0.9), lacet)
-	boite("mur0", pos + Vector3(0, 0.94, 0), Vector3(largeur + 0.16, 0.1, 1.06), lacet)
-	boite("parchemin", pos + Vector3(0, 0.995, 0), Vector3(largeur * 0.6, 0.012, 0.9), lacet, false, Vector3.ZERO)
-	boite("gravure", pos + b * Vector3(0, 0.45, 0.455), Vector3(largeur * 0.7, 0.5, 0.012), lacet)
-	for sx in [-0.7, 0.7]:
-		bougie(pos + b * Vector3(sx * largeur * 0.5, 1.0, 0.0), false)
-	var s := b * Vector3(largeur + 0.16, 0, 1.06)
-	solide(pos + Vector3(0, 0.5, 0), Vector3(absf(s.x), 1.0, absf(s.z)))
-	j1()
+	ObjPierreStatuaire.autel(self, pos, lacet, largeur)
 
 ## Bassin : margelle de pierre (collision, h de haut) et surface noire en retrait.
 func bassin(centre: Vector3, w: float, p: float, h := 0.5) -> void:
-	j0("bassin")
-	emprise("bassin", centre, Vector2(w * 0.5, p * 0.5), 0.0, h)
-	var e := 0.4
-	eau_slot(centre + Vector3(0, h - 0.12, 0), minf(w, p) * 0.5 - e, "bassin", Vector2(w - 2.0 * e, p - 2.0 * e))
-	boite_pleine("mur1", centre + Vector3(0, h * 0.5, -(p * 0.5 - e * 0.5)), Vector3(w, h, e))
-	boite_pleine("mur1", centre + Vector3(0, h * 0.5, (p * 0.5 - e * 0.5)), Vector3(w, h, e))
-	boite_pleine("mur1", centre + Vector3(-(w * 0.5 - e * 0.5), h * 0.5, 0), Vector3(e, h, p - 2.0 * e))
-	boite_pleine("mur1", centre + Vector3(w * 0.5 - e * 0.5, h * 0.5, 0), Vector3(e, h, p - 2.0 * e))
-	for sg in [-1.0, 1.0]:
-		boite("mur0", centre + Vector3(0, h + 0.03, sg * (p * 0.5 - 0.03)), Vector3(w + 0.1, 0.06, 0.1))
-		boite("mur0", centre + Vector3(sg * (w * 0.5 - 0.03), h + 0.03, 0), Vector3(0.1, 0.06, p + 0.1))
-	quad("noir", centre + Vector3(-w * 0.5 + e, h - 0.12, -p * 0.5 + e), centre + Vector3(w * 0.5 - e, h - 0.12, -p * 0.5 + e), centre + Vector3(w * 0.5 - e, h - 0.12, p * 0.5 - e), centre + Vector3(-w * 0.5 + e, h - 0.12, p * 0.5 - e), Vector3.UP)
-	solide(centre + Vector3(0, h * 0.5, 0), Vector3(w - 0.2, h, p - 0.2))
-	j1()
+	ObjPierreStatuaire.bassin(self, centre, w, p, h)
 
 ## Parchemins, feuillets et livres éparpillés au sol (archives pillées).
 func parchemins_epars(centre: Vector3, rayon: float, n := 12) -> void:
-	j0("parchemins_epars")
-	for k in n:
-		var a := rng.randf() * TAU
-		var r := sqrt(rng.randf()) * rayon
-		var p := centre + Vector3(cos(a) * r, 0.01 + 0.004 * (k % 3), sin(a) * r)
-		if k % 4 == 0:
-			boite("bois", p + Vector3(0, 0.03, 0), Vector3(0.2, 0.06, 0.28), rng.randf() * TAU)
-		else:
-			boite("parchemin", p, Vector3(rng.randf_range(0.2, 0.34), 0.01, rng.randf_range(0.14, 0.24)), rng.randf() * TAU)
-	j1()
+	ObjPetitMobilier.parchemins_epars(self, centre, rayon, n)
 
 ## Étagère renversée (cadre couché et rayons obliques) : décor d'archives en ruine.
 func etagere_renversee(pos: Vector3, lacet := 0.0, largeur := 1.8) -> void:
-	j0("etagere_renversee", lacet)
-	pos = _ecarter(pos, Vector2(largeur * 0.5, 0.41), lacet)
-	emprise("etagere_renversee", pos, Vector2(largeur * 0.5, 0.41), lacet, 0.8)
-	var b := Basis(Vector3.UP, lacet)
-	boite("bois", pos + b * Vector3(0, 0.07, 0), Vector3(largeur, 0.1, 0.8), lacet, false)
-	for k in 4:
-		boite("bois", pos + b * Vector3(0, 0.14 + k * 0.01, -0.3 + k * 0.2), Vector3(largeur, 0.05, 0.06), lacet + 0.05)
-	for sx in [-largeur * 0.5, largeur * 0.5]:
-		boite("bois", pos + b * Vector3(sx, 0.4, 0.38), Vector3(0.07, 0.8, 0.07), lacet + 0.1)
-	var s := b * Vector3(largeur, 0, 0.8)
-	solide(pos + Vector3(0, 0.25, 0), Vector3(absf(s.x), 0.5, absf(s.z)))
-	j1()
+	ObjMobilierBois.etagere_renversee(self, pos, lacet, largeur)
 
 ## Tas de gravats (roche effondrée) : cône irrégulier et blocs ; collision facultative.
 func gravats(pos: Vector3, r := 1.0, h := 0.7, avec_collision := true, mat := "mur2") -> void:
-	j0("gravats")
-	emprise("gravats", pos, Vector2(r, r), 0.0, h)
-	tour(mat, pos, [Vector2(r, 0.0), Vector2(r * 0.8, h * 0.45), Vector2(r * 0.42, h * 0.85), Vector2(r * 0.12, h)], 7, 0.3, true)
-	for k in 5:
-		var a := rng.randf() * TAU
-		var rr := r * rng.randf_range(0.55, 1.05)
-		var t := rng.randf_range(0.18, 0.4)
-		boite(mat if k % 2 == 0 else "mur1", pos + Vector3(cos(a) * rr, t * 0.4, sin(a) * rr), Vector3(t * 1.4, t * 0.8, t), rng.randf() * TAU)
-	if avec_collision:
-		solide(pos + Vector3(0, h * 0.4, 0), Vector3(r * 1.5, h * 0.8, r * 1.5))
-	j1()
+	ObjPetitMobilier.gravats(self, pos, r, h, avec_collision, mat)
 
 ## Fissures noires qui courent sur un mur (mur fragile : on les voit, et la poussière au pied).
 func fissures(centre: Vector3, vers: Vector3, larg := 2.0, haut := 2.6, n := 3, sol := 0.0, avec_gravats := true) -> void:
@@ -2119,74 +1757,22 @@ func dalle_fendue(pos: Vector3, lacet := 0.0) -> void:
 
 ## Sarcophage au couvercle poussé de côté (pillage) : la cuve noire apparaît.
 func sarcophage_pille(pos: Vector3, taille: Vector3, lacet := 0.0) -> void:
-	j0("sarcophage_pille", lacet)
-	pos = _ecarter(pos, Vector2(taille.x * 0.5 + 0.3, taille.z * 0.5 + 0.5), lacet)      # couvercle poussé de travers
-	emprise("sarcophage_pille", pos, Vector2(taille.x * 0.5 + 0.3, taille.z * 0.5 + 0.15), lacet, taille.y + 0.2)
-	var b := Basis(Vector3.UP, lacet)
-	boite("mur0", pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
-	boite("mur1", pos + Vector3(0, 0.07, 0), Vector3(taille.x + 0.14, 0.14, taille.z + 0.14), lacet)
-	boite("noir", pos + Vector3(0, taille.y + 0.005, 0), Vector3(taille.x - 0.3, 0.01, taille.z - 0.3), lacet)
-	boite("gravure", pos + b * Vector3(taille.x * 0.28, taille.y + 0.14, 0.26), Vector3(taille.x * 0.8, 0.16, taille.z + 0.04), lacet + 0.25)
-	boite("fer", pos + b * Vector3(-taille.x * 0.5 - 0.15, 0.04, 0.5), Vector3(0.7, 0.03, 0.04), lacet + 0.5)       # pied-de-biche
-	var s := b * Vector3(taille.x + 0.6, 0, taille.z + 0.3)
-	solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s.x), taille.y, absf(s.z)))
-	j1()
+	ObjPierreStatuaire.sarcophage_pille(self, pos, taille, lacet)
 
 ## Sac de pillard éventré (étoffe, pièces, os) et coffre forcé (couvercle dressé derrière, serrure arrachée).
 func sac_dechire(pos: Vector3, lacet := 0.0) -> void:
-	j0("sac_dechire")
-	emprise("sac_dechire", pos, Vector2(0.45, 0.35), 0.0, 0.2)
-	boite("parchemin", pos + Vector3(0, 0.1, 0), Vector3(0.5, 0.2, 0.34), lacet + 0.3, false, Vector3.ZERO)
-	boite("parchemin", pos + Vector3(0.18, 0.025, 0.2), Vector3(0.45, 0.02, 0.3), lacet - 0.5)
-	for k in 7:
-		boite("or", pos + Vector3(rng.randf_range(-0.4, 0.5), 0.012, rng.randf_range(-0.3, 0.5)), Vector3(0.05, 0.015, 0.05), rng.randf() * TAU)
-	boite("fer", pos + Vector3(0.5, 0.02, -0.1), Vector3(0.12, 0.04, 0.12), rng.randf() * TAU)
-	j1()
+	ObjPetitMobilier.sac_dechire(self, pos, lacet)
 
 func coffre_force(pos: Vector3, lacet := 0.0) -> void:
-	j0("coffre_force", lacet)
-	pos = _ecarter(pos, Vector2(0.47, 0.3), lacet)
-	emprise("coffre_force", pos, Vector2(0.47, 0.3), lacet, 0.9)
-	var b := Basis(Vector3.UP, lacet)
-	boite("bois", pos + Vector3(0, 0.22, 0), Vector3(0.9, 0.44, 0.56), lacet)
-	boite("noir", pos + Vector3(0, 0.445, 0), Vector3(0.78, 0.01, 0.44), lacet)
-	boite("bois", pos + b * Vector3(0, 0.62, -0.3), Vector3(0.9, 0.5, 0.06), lacet + 0.12)
-	for dx in [-0.3, 0.3]:
-		boite("fer", pos + b * Vector3(dx, 0.31, 0), Vector3(0.09, 0.64, 0.6), lacet)
-	solide(pos + Vector3(0, 0.3, 0), (b * Vector3(0.9, 0.6, 0.56)).abs())
-	for k in 5:
-		boite("or", pos + b * Vector3(rng.randf_range(-0.5, 0.5), 0.012, rng.randf_range(0.35, 0.8)), Vector3(0.05, 0.015, 0.05), rng.randf() * TAU)
-	j1()
+	ObjPetitMobilier.coffre_force(self, pos, lacet)
 
 ## Tapis processionnel (étoffe teintée, deux liserés) posé au sol.
 func tapis(centre: Vector3, taille: Vector2, lacet := 0.0, teinte := Color(0.5, 0.2, 0.2)) -> void:
-	j0("tapis", lacet)
-	var b := Basis(Vector3.UP, lacet)
-	boite("parchemin", centre + Vector3(0, 0.008, 0), Vector3(taille.x, 0.012, taille.y), lacet, true)
-	var c := Color(teinte.r, teinte.g, teinte.b)
-	var a := b * Vector3(-taille.x * 0.5, 0, -taille.y * 0.5)
-	var bb := b * Vector3(taille.x * 0.5, 0, -taille.y * 0.5)
-	var cc := b * Vector3(taille.x * 0.5, 0, taille.y * 0.5)
-	var dd := b * Vector3(-taille.x * 0.5, 0, taille.y * 0.5)
-	quad("parchemin", centre + a + Vector3(0, 0.015, 0), centre + bb + Vector3(0, 0.015, 0), centre + cc + Vector3(0, 0.015, 0), centre + dd + Vector3(0, 0.015, 0), Vector3.UP, [], [], [c, c, c, c])
-	for sz in [-1.0, 1.0]:
-		boite("or", centre + b * Vector3(0, 0.017, sz * (taille.y * 0.5 - 0.1)), Vector3(taille.x, 0.004, 0.05), lacet)
-	j1()
+	ObjMobilierBois.tapis(self, centre, taille, lacet, teinte)
 
 ## Trône (estrade à deux degrés, siège, haut dossier, accoudoirs) ; collision. `mat` : « mur4 » pour la glace.
 func trone(pos: Vector3, lacet := 0.0, mat := "mur1") -> void:
-	j0("trone", lacet)
-	emprise("trone", pos, Vector2(1.8, 1.5), lacet, 3.1)
-	var b := Basis(Vector3.UP, lacet)
-	boite_pleine_l(mat, pos + Vector3(0, 0.15, 0), Vector3(3.6, 0.3, 3.0), lacet)
-	boite_pleine_l(mat, pos + Vector3(0, 0.4, -0.2), Vector3(2.6, 0.2, 2.2), lacet)
-	boite_pleine_l(mat, pos + b * Vector3(0, 0.85, -0.2), Vector3(1.3, 0.7, 1.2), lacet)
-	boite(mat, pos + b * Vector3(0, 1.7, -0.7), Vector3(1.4, 2.0, 0.28), lacet)
-	for sx in [-0.75, 0.75]:
-		boite(mat, pos + b * Vector3(sx, 1.35, -0.2), Vector3(0.2, 0.5, 1.1), lacet)
-	for k in 3:
-		boite(mat, pos + b * Vector3((k - 1) * 0.45, 2.85, -0.7), Vector3(0.16, 0.5, 0.2), lacet)
-	j1()
+	ObjPierreStatuaire.trone(self, pos, lacet, mat)
 
 ## Boîte pleine tournée : visible et solide (la collision reste alignée sur les axes : quarts de tour seulement).
 func boite_pleine_l(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0) -> void:
