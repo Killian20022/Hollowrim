@@ -24,6 +24,8 @@ var m_rondins: ShaderMaterial
 var m_bout: ShaderMaterial
 var m_ame: ShaderMaterial
 var m_roche: ShaderMaterial
+var m_soubassement: ShaderMaterial    # D/neige_murs : remplissage des soubassements et socles (pierre chaude des murs de soutènement)
+var m_brute_soub: ShaderMaterial      # pierres brutes en saillie des soubassements, teinte chaude
 var m_brute: ShaderMaterial
 var m_pierre_fine: ShaderMaterial
 var m_fer: ShaderMaterial
@@ -93,6 +95,8 @@ func _ready() -> void:
 	m_neige = TexturesBati.m_neige_toit_e()
 	m_toit = TexturesBati.m_tourbe_e()                                    # toits : alpha 0 = neige, 1 = tourbe sombre
 	m_roche = TexturesBati.m_pierre_seche_e(Color(1.3, 1.28, 1.32))
+	m_soubassement = TexturesBati.m_pierre_mur_e(Color(1.5, 1.38, 1.24))
+	m_brute_soub = TexturesBati.m_pierre_brute_e(Color(1.32, 1.2, 1.06))
 	m_brute = TexturesBati.m_pierre_brute_e(Color(1.18, 1.16, 1.2))
 	m_pierre_fine = TexturesBati.m_pierre_fine_e(Color(1.25, 1.23, 1.27))
 	m_fer = TexturesBati.m_fer_e(Color(0.8, 0.82, 0.9))
@@ -888,7 +892,7 @@ func _rondin(parent: Node3D, pos: Vector3, lacet: float, longueur: float, rayon:
 func _soubassement(p: Node3D, L: float, W: float, graine: int) -> void:
 	var r := RandomNumberGenerator.new()
 	r.seed = graine
-	_boite(p, Vector3(L + 0.42, 0.75, W + 0.42), Transform3D(Basis(), Vector3(0, 0.025, 0)), m_pierre_fine)
+	_boite(p, Vector3(L + 0.42, 0.75, W + 0.42), Transform3D(Basis(), Vector3(0, 0.025, 0)), m_soubassement)
 	for cote in 4:
 		var horiz := cote < 2
 		var sgn := -1.0 if cote % 2 == 0 else 1.0
@@ -908,7 +912,7 @@ func _soubassement(p: Node3D, L: float, W: float, graine: int) -> void:
 			var ext := demi + 0.15 + saillie - prof * 0.5 + 0.05
 			var pos := Vector3(a, haut - hh * 0.5, sgn * ext) if horiz else Vector3(sgn * ext, haut - hh * 0.5, a)
 			var taille := Vector3(lg, hh, prof) if horiz else Vector3(prof, hh, lg)
-			_bloc(p, taille, r.randi(), pos, m_brute, 0.0, 0.22, 0.2, 0.08)
+			_bloc(p, taille, r.randi(), pos, m_brute_soub, 0.0, 0.22, 0.2, 0.08)
 
 ## Hauteur d'une rangée de rondins (lit k) et rangées traversées par les fenêtres.
 const LITS_FENETRE := [4, 5]

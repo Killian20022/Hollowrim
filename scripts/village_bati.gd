@@ -214,7 +214,7 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	p.name = "Bati_%s_%d_%d" % [style, roundi(x), roundi(z)]
 	var socle := hmin - y
 	if socle < -0.15:
-		v._boite(p, Vector3(L + 0.55, 0.75 - socle, W + 0.55), Transform3D(Basis(), Vector3(0, (socle - 0.35 + 0.4) * 0.5, 0)), v.m_roche)
+		v._boite(p, Vector3(L + 0.55, 0.75 - socle, W + 0.55), Transform3D(Basis(), Vector3(0, (socle - 0.35 + 0.4) * 0.5, 0)), v.m_soubassement)
 		var r := RandomNumberGenerator.new()
 		r.seed = graine + 3
 		for sx in [-1.0, 1.0]:
