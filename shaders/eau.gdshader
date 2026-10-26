@@ -271,8 +271,19 @@ void fragment() {
 		}
 		float t_g = 0.42 + (tache - 0.5) * 0.9 + (1.0 - exp(-d * 1.2)) * 0.35;
 		col_glace = t_g > 0.80 ? g_sombre : (t_g > 0.50 ? g_moyen : g_clair);
-		if (voro(pc * 1.6).y < 0.045 && g_mode != 4) col_glace = g_fente;
 		if (champ_g > 0.66) col_glace = g_clair;
+		// fentes (correctif lac_horizon) : bords de Voronoï tracés EN TEXELS — un texel est sur la fente si son voisin x ou z
+		// tombe dans une autre cellule → traits continus d'un texel. L'ancien seuil F2-F1 < 0,045 donnait une fente de
+		// ~1,5 cm, plus fine qu'un texel (6 cm), et les taches claires (champ_g) la coupaient encore : TIRETS sombres épars.
+		// Une arête sur trois seulement (réseau clairsemé), proches seulement (lod ≤ 1 : au-delà, cellules trop petites).
+		if (g_mode != 4 && lod < 1.5) {
+			float id0 = voro(pc * 1.6).z;
+			float idx = voro((pc - vec2(cell, 0.0)) * 1.6).z;
+			float idz = voro((pc - vec2(0.0, cell)) * 1.6).z;
+			bool fx = idx != id0 && fract((id0 + idx) * 13.71) < 0.34;
+			bool fz = idz != id0 && fract((id0 + idz) * 13.71) < 0.34;
+			if (fx || fz) col_glace = mix(g_sombre, g_fente, 0.4);
+		}
 		if (glace > 0.5 && (g_x < 0.5 || g_z < 0.5)) col_glace = g_clair;
 	}
 
