@@ -615,6 +615,8 @@ func _villageois() -> void:
 		v.points = points
 		v.position = poste + Vector3(0, 0.05, 0)
 		add_child(v)
+	if not _arguments().has("sans-gardes"):   # D/gardes_village : la garde du village (data/gardes.json) ; --sans-gardes : A/B
+		GardesVillage.peupler(self)
 
 # --- guerrier pilote (refonte des personnages) ------------------------------------
 

@@ -34,7 +34,7 @@ func _process(_dt: float) -> bool:
 	if p.distance_to(pos_prec) > 0.3:
 		pos_prec = p
 		depuis = 0
-		vues.append({"pos": p, "n": 0, "gpu": 0.0, "cpu": 0.0, "appels": 0.0, "prims": 0.0, "pire": 0.0})
+		vues.append({"pos": p, "n": 0, "gpu": 0.0, "cpu": 0.0, "appels": 0.0, "prims": 0.0, "pire": 0.0, "proc": 0.0})
 		return false
 	depuis += 1
 	if depuis < IGNORER or vues.is_empty():
@@ -47,6 +47,7 @@ func _process(_dt: float) -> bool:
 	v["cpu"] += RenderingServer.viewport_get_measured_render_time_cpu(rid)
 	v["appels"] += Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
 	v["prims"] += Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
+	v["proc"] += (Performance.get_monitor(Performance.TIME_PROCESS) + Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)) * 1000.0
 	return false
 
 func _finalize() -> void:
@@ -55,7 +56,7 @@ func _finalize() -> void:
 		if v["n"] < 10:
 			continue
 		var n: float = v["n"]
-		print("VUE %d pos=(%.1f,%.1f,%.1f) gpu_ms=%.2f gpu_pire=%.2f cpu_ms=%.2f appels=%d primitives=%d images=%d taille=%s" % [
+		print("VUE %d pos=(%.1f,%.1f,%.1f) gpu_ms=%.2f gpu_pire=%.2f cpu_ms=%.2f appels=%d primitives=%d images=%d taille=%s proc_ms=%.2f" % [
 			i, v["pos"].x, v["pos"].y, v["pos"].z, v["gpu"] / n, v["pire"], v["cpu"] / n, v["appels"] / n, v["prims"] / n, n,
-			taille])
+			taille, v["proc"] / n])
 		i += 1
