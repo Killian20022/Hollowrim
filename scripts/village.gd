@@ -1953,46 +1953,43 @@ func _brasero(centre: Vector3) -> void:
 	for i in 3:
 		_boite(p, Vector3(0.44, 0.22, 0.44), Transform3D(Basis(Vector3.UP, i * 0.6), Vector3(1.6, 1.4 + i * 0.85, -0.6)), m_poutres_h)
 
+## Lot L7 : pieux, lisses, meules de foin et séchoir en modules Blender (mobilier_village.py) fondus avec le bâti ; mêmes positions et
+## mêmes collisions qu'avant (lisses basses solides, pieux et meules sans collision).
 func _enclos(centre: Vector3, lacet := 0.0) -> Node3D:
 	var p := _pivot(centre, lacet)
 	var demi := Vector2(3.5, 2.5)
+	var r := RandomNumberGenerator.new()
+	r.seed = 6610
 	for x in range(-7, 8):
 		for z in [-demi.y, demi.y]:
 			if x % 2 == 0 and not (z > 0 and absi(x) < 2):
-				_poteau(p, Vector3(x * 0.5, 0, z), 0.08, 1.2, m_poutres)
+				MobilierVillage.poser_dans(self, p, "enclos_poteau", Transform3D(Basis(Vector3.UP, r.randf() * TAU), Vector3(x * 0.5, 0, z)))
 	for z in range(-5, 6):
 		for x in [-demi.x, demi.x]:
 			if z % 2 == 0:
-				_poteau(p, Vector3(x, 0, z * 0.5), 0.08, 1.2, m_poutres)
+				MobilierVillage.poser_dans(self, p, "enclos_poteau", Transform3D(Basis(Vector3.UP, r.randf() * TAU), Vector3(x, 0, z * 0.5)))
 	for y in [0.5, 1.0]:
-		_boite(p, Vector3(demi.x * 2, 0.1, 0.1), Transform3D(Basis(), Vector3(0, y, -demi.y)), m_poutres_h, y < 0.6)
-		_boite(p, Vector3(0.1, 0.1, demi.y * 2), Transform3D(Basis(), Vector3(-demi.x, y, 0)), m_poutres_h, y < 0.6)
-		_boite(p, Vector3(0.1, 0.1, demi.y * 2), Transform3D(Basis(), Vector3(demi.x, y, 0)), m_poutres_h, y < 0.6)
+		var lisses := [[Vector3(0, y, -demi.y), demi.x * 2, 0.0], [Vector3(-demi.x, y, 0), demi.y * 2, PI * 0.5], [Vector3(demi.x, y, 0), demi.y * 2, PI * 0.5]]
 		for cote in [-1.0, 1.0]:
-			_boite(p, Vector3(2.2, 0.1, 0.1), Transform3D(Basis(), Vector3(cote * 2.4, y, demi.y)), m_poutres_h, y < 0.6)
+			lisses.append([Vector3(cote * 2.4, y, demi.y), 2.2, 0.0])
+		for l: Array in lisses:
+			var b := Basis(Vector3.UP, float(l[2]))
+			MobilierVillage.poser_dans(self, p, "enclos_lisse", Transform3D(b * Basis.from_scale(Vector3(float(l[1]), 1.0, 1.0)), l[0]))
+			if y < 0.6:
+				_collision(p, BoxShape3D.new(), Transform3D(Basis(), l[0]), Vector3(float(l[1]), 0.1, 0.1) if l[2] == 0.0 else Vector3(0.1, 0.1, float(l[1])))
 	# meules de foin et séchoir à peaux
 	for pos in [Vector3(-2.0, 0, -1.2), Vector3(-0.6, 0, -1.6), Vector3(1.8, 0, -1.0)]:
-		var mi := MeshInstance3D.new()
-		var s := SphereMesh.new()
-		s.radius = 0.8
-		s.height = 1.1
-		s.radial_segments = 8
-		s.rings = 4
-		mi.mesh = s
-		mi.material_override = m_foin
-		mi.position = pos + Vector3(0, 0.35, 0)
-		p.add_child(mi)
-	for x in [-1.2, 1.2]:
-		_poteau(p, Vector3(x, 0, demi.y + 2.2), 0.07, 2.0, m_poutres)
-	_boite(p, Vector3(2.6, 0.1, 0.1), Transform3D(Basis(), Vector3(0, 1.95, demi.y + 2.2)), m_poutres_h)
-	for x in [-0.6, 0.6]:
-		_boite(p, Vector3(0.9, 1.2, 0.04), Transform3D(Basis(Vector3.FORWARD, x * 0.1), Vector3(x, 1.3, demi.y + 2.2)), m_cuir)
+		MobilierVillage.poser_dans(self, p, "meule_foin", Transform3D(Basis(Vector3.UP, pos.x * 1.3), pos))
+	MobilierVillage.poser_dans(self, p, "sechoir_peaux", Transform3D(Basis(), Vector3(0, 0, demi.y + 2.2)))
 	return p
 
+## Tonneau cerclé (module tonneau_c de mobilier_village.py, lot L7) ; même collision qu'avant (cylindre r 0,3 x 0,8).
 func _tonneau(parent: Node3D, pos: Vector3) -> void:
-	_cylindre(parent, 0.3, 0.3, 0.8, Transform3D(Basis(), pos + Vector3(0, 0.4, 0)), m_poutres, 8, true)
-	for y in [0.15, 0.65]:
-		_cylindre(parent, 0.315, 0.315, 0.05, Transform3D(Basis(), pos + Vector3(0, y, 0)), m_fer, 8)
+	MobilierVillage.poser_dans(self, parent, "tonneau_c", Transform3D(Basis(Vector3.UP, pos.x * 2.1), pos))
+	var forme := CylinderShape3D.new()
+	forme.radius = 0.3
+	forme.height = 0.8
+	_collision(parent, forme, Transform3D(Basis(), pos + Vector3(0, 0.4, 0)), Vector3.ZERO)
 
 func _accessoires() -> void:
 	var racine := _pivot(Vector3.ZERO, 0.0)

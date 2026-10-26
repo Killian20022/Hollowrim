@@ -6,6 +6,10 @@
 # Couleurs de sommets : rgb = occlusion peinte (pied et dessous sombres), a = 0 là où la neige recouvre.
 # Chaque module : origine au sol au centre de l'emprise, face avant vers +Y Blender (= -Z Godot), mètres réels, normales plates.
 # « banniere_tissu » a son origine au point d'accroche (haut centre du tissu) pour le balancement en jeu.
+# Lot L7 (2026-10-26) : bois plus clair (occlusion de base relevée), cerclages et ferrures sur tonneaux et caisses, neige sur les
+# dessus, nouveaux petits modules de densité (tonneau_c, caisse_c, sacs) et modules du poste de forge, de l'enclos d'Ylva et du feu
+# de camp du cercle (forge_billot, forge_foyer, forge_meule, enclos_poteau, enclos_lisse, meule_foin, sechoir_peaux, feu_camp,
+# tronc_banc), posés par village_bati.gd / village.gd / monde.gd (MobilierVillage.poser_dans / noeud_modules).
 import bpy, math, os, random, struct, sys
 from mathutils import Vector, Matrix, Euler, noise
 
@@ -16,8 +20,10 @@ DAT = os.path.join(BASE, "assets", "modeles", "mobilier_village.dat")
 BLEND = os.path.join(BASE, "sources_blender", "mobilier_village.blend")
 CAPT = os.path.join(BASE, "captures", "mobilier")
 MATIERES = ("pierre_brute", "pierre_fine", "planches_h", "planches_v", "fer", "cuir", "tenture_rouge", "peau", "foin", "braises")
-BUDGET = {"puits": 1800, "etal": 1500, "banniere": 500, "brasero": 500, "banc": 250, "tonneau_a": 300, "tonneau_b": 300,
-          "caisse_a": 150, "caisse_b": 150, "charrette": 1300, "tas_bois": 900}
+BUDGET = {"puits": 1800, "etal": 1500, "banniere": 500, "brasero": 500, "banc": 300, "tonneau_a": 400, "tonneau_b": 400,
+          "caisse_a": 300, "caisse_b": 300, "charrette": 1300, "tas_bois": 900, "tonneau_c": 400, "caisse_c": 250, "sacs": 400,
+          "forge_billot": 400, "forge_foyer": 420, "forge_meule": 400, "enclos_poteau": 40, "enclos_lisse": 30, "meule_foin": 320,
+          "sechoir_peaux": 400, "feu_camp": 600, "tronc_banc": 260}
 DONNEES = {}      # "module/matiere" -> [(Vector Blender, (r, g, b, a))]
 ORIGINES = {}     # entrée -> décalage de l'origine dans le repère du module parent (Blender)
 X, Y, Z = Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1))
@@ -186,7 +192,7 @@ class Module:
         if part["rgb"] is not None:
             r, g, b = part["rgb"]
         else:
-            ao = 0.55 + 0.45 * smooth(0.0, self.hs, w.z)
+            ao = 0.68 + 0.32 * smooth(0.0, self.hs, w.z)     # L7 : bois plus clair (était 0,55 + 0,45)
             if n.z < -0.5:
                 ao *= 0.8
             elif n.z > 0.5:
@@ -513,6 +519,9 @@ def banc():
     for x in (-0.62, 0.64):
         m.add("planches_v", cyl(V(x, m.j(0.02), 0), V(x + m.j(0.02), m.j(0.02), 0.37), 0.14, 6, rot=rg.uniform(0, 1), jit=0.012,
                                 rg=rg, caps=(False, False)), neige=False)
+    for x in (-0.62, 0.64):     # L7 : équerres de fer sous l'assise
+        for sy in (-1, 1):
+            m.add("fer", box(V(x, sy * 0.17, 0.3), 0.06, 0.012, 0.08), neige=False)
     m.add("planches_h", box(V(-0.18, m.j(0.02), 0.45), 1.2, 0.27, 0.03, rz=0.03, jit=0.012, rg=rg, omit=("bas",)), a=0.0)
     m.add("planches_h", box(V(0.62, 0.02, 0.45), 0.35, 0.22, 0.025, rz=-0.2, jit=0.01, rg=rg, omit=("bas",)), a=0.0)
     return m
@@ -542,12 +551,17 @@ def tonneau(nom, graine, R, H, ouvert):
     m.add("planches_h", disque(V(0, 0, zf), prof(1) - 0.024, n), seuil=-0.6 if not ouvert else 9, ao=1.0 if not ouvert else 0.45)
     m.add("planches_v", disque(V(0, 0, 0.0), prof(0), n, z_up=False), neige=False)
     # cercles de fer
-    cercles = (0.07, 0.86) if ouvert else (0.07, 0.84, 0.46)
+    # L7 : cerclages plus nombreux, plus larges et saillants (lisibles à distance de jeu), rivets sur les deux cercles de tête
+    cercles = (0.06, 0.3, 0.86) if ouvert else (0.06, 0.26, 0.66, 0.86)
     for i, t in enumerate(cercles):
-        h = 0.045
-        r = prof(t + 0.03) + 0.008
-        q = ("ext", "haut") if i < 2 else ("ext",)
-        m.add("fer", secteur(r - 0.012, r + 0.004, t * H, t * H + h, 0.13, 0.13 + TAU, n, ferme=True, quoi=q))
+        h = 0.055
+        r = prof(t + 0.03) + 0.012
+        m.add("fer", secteur(r - 0.014, r + 0.006, t * H, t * H + h, 0.13, 0.13 + TAU, n, ferme=True, quoi=("ext", "haut")))
+        if i in (0, len(cercles) - 1):
+            for k in range(3):
+                an = 0.4 + TAU * k / 3
+                c = V(math.cos(an) * (r + 0.008), math.sin(an) * (r + 0.008), t * H + h / 2)
+                m.add("fer", box(c, 0.022, 0.022, 0.022, rz=an, omit=("bas", "haut")), ao=0.8)
     if not ouvert:
         # neige posée sur le couvercle
         m.add("planches_h", disque(V(0.02, -0.01, zf + 0.035), prof(1) - 0.045, n, rot=0.2, jit=0.02, rg=rg), a=0.0)
@@ -583,6 +597,18 @@ def caisse(nom, graine, sx, sy, sz, coins_fer):
             for z0 in (0.0, sz - e):
                 c = R @ V(0, cy * (sy / 2 + 0.006), z0)
                 m.add("planches_h", box(c, sx - 2 * e, 0.025, e, rz=rz, jit=0.004, rg=rg, omit=("bas",)), seuil=-0.3)
+    # L7 : cerclages de fer (deux bandes sur la caisse simple, une bande médiane sur la caisse à coins ferrés) et planches marquées
+    for z0 in ((0.12, sz - 0.16) if not coins_fer else (sz * 0.45,)):
+        m.add("fer", box(R @ V(0, 0, z0), sx + 0.03, sy + 0.03, 0.04, rz=rz, omit=("bas", "haut")), seuil=0.3)
+        for cx in (-1, 1):
+            for cy in (-1, 1):
+                c = R @ V(cx * (sx / 2 + 0.017), cy * sy * 0.3, z0 + 0.02)
+                m.add("fer", box(c - V(0, 0, 0.01), 0.012, 0.025, 0.02, rz=rz, omit=("bas", "haut")), neige=False, ao=0.8)
+    for k in (1, 2):
+        zj = sz * k / 3
+        for cy in (-1, 1):
+            m.add("planches_h", box(R @ V(0, cy * (sy / 2 + 0.002), zj - 0.004), sx - 0.12, 0.004, 0.008, rz=rz, omit=("bas", "haut")),
+                  neige=False, ao=0.45)
     m.add("planches_h", box(R @ V(m.j(0.03), m.j(0.03), sz + 0.005), sx * 0.82, sy * 0.78, 0.035, rz=rz + m.j(0.1), jit=0.015,
                             rg=rg, omit=("bas",)), a=0.0)
     return m
@@ -690,6 +716,235 @@ def tas_bois():
     U = V(1.82, 0, 0)
     Vv = V(0, 0.86, 0.86 * 0.27)
     m.add("planches_h", box_frame(o, U, Vv, U.cross(Vv).normalized() * 0.045, jit=0.02, rg=rg), a=0.0)
+    return m
+
+
+# ------------------------------------------------------------------------------------------------ L7 : petits modules de densité
+def sacs():
+    """Trois sacs de cuir/toile tassés l'un contre l'autre (emprise 0,9 x 0,6), un debout noué, neige sur les dessus."""
+    m = Module("sacs", 1010, hs=0.6)
+    rg = m.rg
+    for (x, y, h, r, rz, couche) in ((-0.22, 0.02, 0.55, 0.22, 0.2, False), (0.2, -0.05, 0.5, 0.21, -0.4, False), (0.05, 0.2, 0.3, 0.2, 1.2, True)):
+        if couche:
+            d = V(math.cos(rz), math.sin(rz), 0) * 0.5
+            c = V(x, y, r * 0.75)
+            m.add("cuir", cyl(c - d / 2, c + d / 2, r, 7, ts=(0, 0.5, 1), rfn=lambda t: 0.7 + 0.35 * math.sin(math.pi * t), ech=(1.0, 0.75),
+                              jit=0.015, rg=rg, rot=0.4), seuil=0.3, teinte=(1.0, 0.95, 0.85))
+        else:
+            prof = (0.0, 0.25, 0.7, 0.9, 1.0)
+            rr = {0.0: 0.85, 0.25: 1.0, 0.7: 0.85, 0.9: 0.35, 1.0: 0.5}
+            m.add("cuir", cyl(V(x, y, 0), V(x, y, h), r, 7, ts=prof, rfn=lambda t: rr[t], jit=0.014, rg=rg, rot=rz), seuil=0.0,
+                  teinte=(1.0, 0.95, 0.85))
+            m.add("planches_v", secteur(r * 0.36, r * 0.42, h * 0.86, h * 0.9, 0, TAU, 6, ferme=True, c=V(x, y, 0), quoi=("ext",)), neige=False,
+                  ao=0.6)
+    return m
+
+
+# ------------------------------------------------------------------------------------------------ L7 : poste de forge dehors
+def forge_billot():
+    """Billot de chêne (r 0,30-0,34, h 0,62) cerclé de fer, enclume à bigorne sur le billot, marteau posé, pince appuyée.
+    Repère : origine au pied du billot, enclume dans l'axe X (corne vers -X)."""
+    m = Module("forge_billot", 1101, hs=0.9)
+    rg = m.rg
+    m.add("planches_v", cyl(V(0, 0, 0), V(0, 0, 0.62), 0.34, 9, r2=0.3, ts=(0.0, 0.5, 1.0), jit=0.012, rg=rg, caps=(False, False)), neige=False)
+    m.add("planches_h", disque(V(0, 0, 0.62), 0.3, 9, jit=0.01, rg=rg), neige=False, teinte=(1.0, 0.92, 0.78))
+    m.add("fer", secteur(0.33, 0.345, 0.08, 0.13, 0, TAU, 9, ferme=True, quoi=("ext", "haut")))
+    # enclume : pied évasé, table, bigorne, talon
+    z = 0.62
+    m.add("fer", box(V(0, 0, z), 0.3, 0.2, 0.05, rz=0.0), neige=False)
+    m.add("fer", box(V(0, 0, z + 0.05), 0.16, 0.12, 0.08), neige=False, ao=0.8)
+    m.add("fer", box(V(0.02, 0, z + 0.13), 0.4, 0.16, 0.09), seuil=0.5)
+    m.add("fer", cyl(V(-0.18, 0, z + 0.175), V(-0.36, 0, z + 0.19), 0.045, 6, r2=0.008), neige=False)
+    m.add("fer", box(V(0.27, 0, z + 0.15), 0.1, 0.11, 0.06), neige=False)
+    # marteau posé sur la table, pince appuyée contre le billot
+    m.add("planches_h", cyl(V(0.05, -0.02, z + 0.24), V(0.22, -0.2, z + 0.24), 0.014, 5), neige=False)
+    m.add("fer", box(V(0.04, 0.0, z + 0.22), 0.05, 0.1, 0.045, rz=-0.8), neige=False)
+    for dx in (-0.015, 0.015):
+        m.add("fer", beam(V(0.34 + dx, -0.12, 0.0), V(0.29 + dx * 3, -0.08, 0.55), 0.015, 0.012, up=Y), neige=False)
+    return m
+
+
+def forge_foyer():
+    """Foyer de plein air 1,0 x 0,7 x 0,9 : murets de moellons, margelle de pierre, lit de braises en creux, grille de fer."""
+    m = Module("forge_foyer", 1102, hs=0.7)
+    rg = m.rg
+    W, D, H = 1.0, 0.9, 0.7
+    # assises de moellons (3 rangs), faces irrégulières
+    for rang in range(3):
+        z0 = rang * 0.2
+        dec = 0.12 * (rang % 2)
+        for sy in (-1, 1):
+            x = -W / 2
+            while x < W / 2 - 0.05:
+                lg = min(rg.uniform(0.24, 0.34), W / 2 - x)
+                m.add("pierre_brute", box(V(x + lg / 2 + dec * 0.0, sy * (D / 2 - 0.08), z0), lg - 0.02, 0.16, 0.19, rz=m.j(0.04), jit=0.012, rg=rg,
+                                          omit=("bas",)), seuil=0.4, ao=rg.uniform(0.8, 1.0))
+                x += lg
+        for sx in (-1, 1):
+            m.add("pierre_brute", box(V(sx * (W / 2 - 0.08), 0, z0), 0.16, D - 0.34, 0.19, rz=m.j(0.04), jit=0.012, rg=rg, omit=("bas",)),
+                  seuil=0.4, ao=rg.uniform(0.8, 1.0))
+    # margelle : dalles posées en couronne
+    for sy in (-1, 1):
+        m.add("pierre_brute", box(V(m.j(0.02), sy * (D / 2 - 0.1), 0.6), W, 0.2, 0.1, rz=m.j(0.03), jit=0.015, rg=rg), seuil=-0.2)
+    for sx in (-1, 1):
+        m.add("pierre_brute", box(V(sx * (W / 2 - 0.1), 0, 0.6), 0.2, D - 0.4, 0.1, rz=m.j(0.03), jit=0.015, rg=rg), seuil=-0.2)
+    # lit de braises en creux + charbon
+    br = []
+    n = 8
+    ring = [V(math.cos(TAU * k / n) * 0.3, math.sin(TAU * k / n) * 0.24, 0.66 + m.j(0.01)) for k in range(n)]
+    top = V(0.0, 0.0, 0.74)
+    for k in range(n):
+        br.append([ring[k], ring[(k + 1) % n], top])
+    m.add("braises", br, neige=False, ao=lambda w, nn: 0.75 + 0.25 * noise.noise(w * 9.0))
+    m.add("fer", box(V(0, 0, 0.555), W - 0.36, D - 0.36, 0.1, omit=("haut",)), neige=False, ao=0.25)     # fond sombre du creuset
+    for k in range(4):
+        x = -0.24 + k * 0.16
+        m.add("fer", beam(V(x, -0.26, 0.7), V(x, 0.26, 0.7), 0.02, 0.02), neige=False)
+    return m
+
+
+def forge_meule():
+    """Meule à aiguiser r 0,42 (axe X) sur bâti de deux chevalets, manivelle, auge d'eau dessous."""
+    m = Module("forge_meule", 1103, hs=1.1)
+    rg = m.rg
+    zc = 0.75
+    Mx = X.to_track_quat('Z', 'Y').to_matrix()
+    m.add("pierre_fine", secteur(0.05, 0.42, -0.07, 0.07, 0.1, 0.1 + TAU, 12, ferme=True, M=Mx, c=V(0, 0, zc), jit=0.006, rg=rg,
+                                 quoi=("ext", "haut", "bas")), seuil=0.4)
+    m.add("planches_h", cyl(V(-0.42, 0, zc), V(0.36, 0, zc), 0.03, 6), neige=False)
+    m.add("fer", beam(V(-0.42, 0, zc), V(-0.42, 0, zc - 0.18), 0.03, 0.03, up=Y), neige=False)
+    m.add("planches_h", cyl(V(-0.42, 0, zc - 0.18), V(-0.56, 0, zc - 0.18), 0.02, 5), neige=False)
+    for sx in (-1, 1):       # chevalets en A
+        x = sx * 0.2
+        for sy in (-1, 1):
+            m.add("planches_v", beam(V(x, sy * 0.24, 0.0), V(x, 0.0, zc + 0.04), 0.06, 0.06, up=X, jit=0.004, rg=rg), seuil=0.0)
+        m.add("planches_h", beam(V(x, -0.2, 0.25), V(x, 0.2, 0.25), 0.05, 0.05), neige=False)
+        m.add("fer", box(V(x, 0, zc - 0.03), 0.08, 0.08, 0.06), neige=False)
+    # auge d'eau sous la meule
+    m.add("planches_h", box(V(0, 0, 0.0), 0.3, 0.5, 0.22, omit=("haut", "bas")), neige=False)
+    m.add("fer", disque(V(0, 0, 0.18), 0.14, 6), rgb=(0.15, 0.17, 0.2), neige=False)
+    return m
+
+
+# ------------------------------------------------------------------------------------------------ L7 : enclos d'Ylva
+def enclos_poteau():
+    """Pieu fendu r 0,08 x h 1,2, tête taillée en biseau, neige sur le biseau."""
+    m = Module("enclos_poteau", 1201, hs=1.2)
+    rg = m.rg
+    m.add("planches_v", cyl(V(0, 0, 0), V(m.j(0.01), m.j(0.01), 1.12), 0.08, 6, r2=0.07, jit=0.008, rg=rg, caps=(False, False)), neige=False)
+    pts = [V(math.cos(TAU * k / 6) * 0.07, math.sin(TAU * k / 6) * 0.07, 1.12) for k in range(6)]
+    tip = V(0.02, 0.0, 1.22)
+    m.add("planches_v", [[pts[k], pts[(k + 1) % 6], tip] for k in range(6)], seuil=-0.6)
+    return m
+
+
+def enclos_lisse():
+    """Lisse refendue de 1,0 m (étirée en X par le jeu), section 0,1 x 0,08, légère flèche, neige sur le dessus."""
+    m = Module("enclos_lisse", 1202, hs=1.2)
+    m.add("planches_h", cyl(V(-0.5, 0, 0), V(0.5, 0, 0), 0.055, 5, rot=0.3, ts=(0.0, 0.5, 1.0), rfn=lambda t: 1.0, caps=(True, True)), seuil=-0.3)
+    return m
+
+
+def meule_foin():
+    """Meule de foin r 0,8 x h 1,1 autour d'une perche, jupe ébouriffée, chapeau de neige."""
+    m = Module("meule_foin", 1203, hs=1.1)
+    rg = m.rg
+    prof = [(0.72, -0.05), (0.8, 0.12), (0.78, 0.4), (0.62, 0.72), (0.36, 0.96), (0.1, 1.1), (0.0, 1.12)]
+    n = 10
+    rings = []
+    for (r, z) in prof:
+        rings.append([V(math.cos(TAU * k / n + 0.1 * z) * (r + rg.uniform(-0.04, 0.04)), math.sin(TAU * k / n + 0.1 * z) * (r + rg.uniform(-0.04, 0.04)), z)
+                      for k in range(n)])
+    faces = []
+    for i in range(len(rings) - 1):
+        for k in range(n):
+            k1 = (k + 1) % n
+            if i == len(rings) - 2:
+                faces.append([rings[i][k], rings[i][k1], rings[i + 1][0] * 0 + V(0, 0, prof[-1][1])])
+            else:
+                faces.append([rings[i][k], rings[i][k1], rings[i + 1][k1], rings[i + 1][k]])
+    m.add("foin", faces, nzmin=0.45, seuil=-0.1)
+    # jupe ébouriffée : mèches pendantes autour de la base
+    for k in range(14):
+        an = TAU * k / 14 + rg.uniform(-0.1, 0.1)
+        d = V(math.cos(an), math.sin(an), 0)
+        t = V(-d.y, d.x, 0)
+        p0 = d * 0.79 + V(0, 0, 0.3)
+        m.add("foin", [[p0 - t * 0.1, p0 + t * 0.1, d * 0.86 + V(0, 0, 0.02) + t * rg.uniform(-0.04, 0.04)]], neige=False, ao=0.8)
+    m.add("planches_v", cyl(V(0, 0, 1.0), V(0.02, 0.01, 1.45), 0.035, 5, r2=0.02), neige=False)
+    return m
+
+
+def sechoir_peaux():
+    """Séchoir : deux perches (x ±1,2, h 2,0), traverse à 1,95, deux peaux tendues sur cadres laçés, os de ramure au faîte.
+    Repère : traverse le long de X, peaux face +Y Blender."""
+    m = Module("sechoir_peaux", 1204, hs=2.0)
+    rg = m.rg
+    for sx in (-1, 1):
+        m.add("planches_v", cyl(V(sx * 1.2, 0, 0), V(sx * 1.2 + m.j(0.02), m.j(0.02), 2.05), 0.07, 6, r2=0.055, jit=0.006, rg=rg, caps=(False, True)),
+              seuil=-0.3)
+    m.add("planches_h", beam(V(-1.32, 0, 1.95), V(1.32, 0, 1.96), 0.1, 0.1, jit=0.006, rg=rg), seuil=-0.2)
+    for x in (-0.6, 0.6):
+        # cadre de perches
+        c = V(x, 0.03, 1.3)
+        for (a, b) in ((V(-0.47, 0, 0.62), V(0.47, 0, 0.62)), (V(-0.47, 0, -0.62), V(0.47, 0, -0.62)), (V(-0.45, 0, -0.66), V(-0.45, 0, 0.66)), (V(0.45, 0, -0.66), V(0.45, 0, 0.66))):
+            m.add("planches_v", cyl(c + a, c + b, 0.02, 4), neige=False)
+        # peau tendue (contour irrégulier) et laçage
+        pts = []
+        for k in range(10):
+            an = TAU * k / 10
+            pts.append(c + V(math.cos(an) * 0.38 * (1 + 0.12 * math.sin(an * 3)), 0.0, math.sin(an) * 0.55 * (1 + 0.08 * math.cos(an * 2))))
+        f = orient(pts, -Y)
+        m.add("cuir", [f, list(reversed([p + V(0, 0.006, 0) for p in f]))], neige=False, teinte=(1.0, 0.92, 0.8) if x < 0 else (0.85, 0.75, 0.65))
+        for k in range(0, 10, 2):
+            p = pts[k]
+            q = c + (p - c) * 1.22
+            m.add("cuir", beam(p, q, 0.008, 0.008, up=Y), neige=False, ao=0.6)
+        m.add("planches_h", beam(c + V(0, 0, 0.62), V(x, 0.0, 1.95), 0.025, 0.025, up=Y), neige=False)
+    return m
+
+
+# ------------------------------------------------------------------------------------------------ L7 : feu de camp du cercle
+def feu_camp():
+    """Foyer du cercle : 9 pierres en couronne (r 0,62), 5 bûches en tipi (convergent à 0,8 m), lit de braises et cendres."""
+    m = Module("feu_camp", 1301, hs=0.9)
+    rg = m.rg
+    for k in range(9):
+        an = TAU * k / 9
+        c = V(math.cos(an) * 0.62, math.sin(an) * 0.62, -0.04)
+        m.add("pierre_brute", box(c, rg.uniform(0.24, 0.3), rg.uniform(0.2, 0.26), rg.uniform(0.16, 0.22), rz=an + m.j(0.3), jit=0.035, rg=rg,
+                                  omit=("bas",)), seuil=-0.2, ao=rg.uniform(0.75, 0.95))
+    for k in range(5):
+        an = TAU * k / 5 + 0.3
+        d = V(math.cos(an), math.sin(an), 0)
+        a = d * 0.52 + V(0, 0, 0.0)
+        b = d * 0.05 + V(0, 0, 0.82)
+        m.add("planches_v", cyl(a, b, 0.09, 6, r2=0.07, rot=rg.uniform(0, 1), jit=0.008, rg=rg, caps=(True, False)), neige=False,
+              ao=lambda w, n: 1.0 - 0.6 * smooth(0.2, 0.7, w.z))          # bûches noircies vers le haut
+        m.add("braises", disque(b, 0.07, 6, M=(b - a).to_track_quat('Z', 'Y').to_matrix()), neige=False, ao=0.7)
+    br = []
+    n = 9
+    ring = [V(math.cos(TAU * k / n) * 0.42, math.sin(TAU * k / n) * 0.42, 0.02 + m.j(0.01)) for k in range(n)]
+    ring2 = [V(math.cos(TAU * (k + 0.5) / n) * 0.2, math.sin(TAU * (k + 0.5) / n) * 0.2, 0.07 + m.j(0.015)) for k in range(n)]
+    top = V(0, 0, 0.1)
+    for k in range(n):
+        k1 = (k + 1) % n
+        br += [[ring[k], ring[k1], ring2[k]], [ring[k1], ring2[k1], ring2[k]], [ring2[k], ring2[k1], top]]
+    m.add("braises", br, neige=False, ao=lambda w, nn: 0.6 + 0.4 * noise.noise(w * 7.0))
+    return m
+
+
+def tronc_banc():
+    """Tronc couché r 0,23 x 2,4 (axe X) : écorce, deux moignons de branches, bouts sciés clairs, neige sur le dessus."""
+    m = Module("tronc_banc", 1302, hs=0.46)
+    rg = m.rg
+    c = V(0, 0, 0.21)
+    f = cyl(c - X * 1.2, c + X * 1.2, 0.235, 8, r2=0.215, rot=0.2, ts=(0.0, 0.33, 0.66, 1.0), jit=0.012, rg=rg)
+    m.add("planches_v", f[:-2], seuil=-0.25, nzmin=0.55)
+    m.add("planches_h", f[-2:], neige=False, teinte=(1.0, 0.92, 0.78), ao=1.0)
+    for (x, an) in ((-0.5, 0.6), (0.7, 2.3)):
+        b = c + V(x, math.cos(an) * 0.2, math.sin(an) * 0.2)
+        m.add("planches_v", cyl(b, b + V(0.05, math.cos(an) * 0.14, math.sin(an) * 0.14), 0.045, 5, r2=0.03), neige=False)
     return m
 
 
@@ -819,7 +1074,11 @@ def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     mods = [puits(), etal(), banniere(), brasero(), banc(), tonneau("tonneau_a", 606, 0.3, 0.85, False),
             tonneau("tonneau_b", 617, 0.25, 0.7, True), caisse("caisse_a", 707, 0.6, 0.6, 0.6, False),
-            caisse("caisse_b", 717, 0.8, 0.6, 0.55, True), charrette(), tas_bois()]
+            caisse("caisse_b", 717, 0.8, 0.6, 0.55, True), charrette(), tas_bois(),
+            # L7
+            tonneau("tonneau_c", 627, 0.3, 0.8, False), caisse("caisse_c", 727, 0.45, 0.4, 0.4, False), sacs(),
+            forge_billot(), forge_foyer(), forge_meule(), enclos_poteau(), enclos_lisse(), meule_foin(), sechoir_peaux(),
+            feu_camp(), tronc_banc()]
     for m in mods:
         m.compiler()
     # tissu de la bannière : origine au point d'accroche
