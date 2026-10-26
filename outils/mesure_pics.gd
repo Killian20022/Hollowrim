@@ -36,6 +36,13 @@ func _arg(n: String, defaut := "") -> String:
 			return a.substr(n.length() + 3)
 	return defaut
 
+## Détail des compilations de pipelines : surface (à la création des instances, en fond), spécialisation, dessin (bloquante), maillage, canevas.
+func _pip_detail() -> PackedInt32Array:
+	return PackedInt32Array([int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SURFACE)), int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SPECIALIZATION)),
+		int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_DRAW)), int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_MESH)), int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_CANVAS))])
+
+var _pd_prec := PackedInt32Array([0, 0, 0, 0, 0])
+
 func _pipelines() -> int:
 	return int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SURFACE) + Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SPECIALIZATION)
 		+ Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_DRAW) + Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_MESH)
@@ -168,10 +175,12 @@ func _grotte() -> void:
 	await _marcher([Vector2(3, 9), Vector2(60, -20), Vector2(84, -27)], 6.0, _sol_monde)
 	_clore()
 	var t := Time.get_ticks_msec()
+	nom = "attente_grotte"       # immobile devant l'entrée : intégration de la grotte (pose de la coque solide, préchauffage)
 	while ga.grotte == null and Time.get_ticks_msec() - t < 30000:
 		await process_frame
 	print("PICS grotte prete ; prechauffe en cours=%s (attente %d ms)" % [ga.prechauffe != null and is_instance_valid(ga.prechauffe) and not ga.prechauffe.fini, Time.get_ticks_msec() - t])
 	await _attendre(float(_arg("delai", "6")))
+	_clore()
 	print("PICS prechauffe finie=%s" % [ga.prechauffe == null or not is_instance_valid(ga.prechauffe) or ga.prechauffe.fini])
 	nom = "entree_grotte"
 	ga._passer(true)
@@ -222,6 +231,9 @@ func _process(_dt: float) -> bool:
 	var pip := _pipelines()
 	var dp := pip - pip_prec
 	pip_prec = pip
+	var pd := _pip_detail()
+	var det := "s%d/sp%d/d%d/m%d/c%d" % [pd[0] - _pd_prec[0], pd[1] - _pd_prec[1], pd[2] - _pd_prec[2], pd[3] - _pd_prec[3], pd[4] - _pd_prec[4]]
+	_pd_prec = pd
 	if nom == "":
 		return false
 	dts.append(ms)
@@ -229,7 +241,7 @@ func _process(_dt: float) -> bool:
 		var jp: Vector3 = m.joueur.global_position if m != null and m.joueur != null else Vector3.ZERO
 		if cible == "crypte" and m.tertre.dedans:
 			jp = m.tertre.crypte.to_local(jp)
-		print("PIC %6.1f ms [%s] t=%.1f s A=%.1f B=%.1f C=%.1f pipelines+%d fils=%s | joueur (%.1f, %.1f, %.1f) gpu=%.1f" % [ms, nom, (Time.get_ticks_msec() - t0) / 1000.0, _a, _b, _c, dp, _fils(), jp.x, jp.y, jp.z,
+		print("PIC %6.1f ms [%s] t=%.1f s A=%.1f B=%.1f C=%.1f pipelines+%d (%s) fils=%s | joueur (%.1f, %.1f, %.1f) gpu=%.1f" % [ms, nom, (Time.get_ticks_msec() - t0) / 1000.0, _a, _b, _c, dp, det, _fils(), jp.x, jp.y, jp.z,
 			RenderingServer.viewport_get_measured_render_time_gpu(rid)])
 	return false
 
