@@ -10,6 +10,7 @@ extends Node
 ## Apparence : la livrée validée du Gardien (casque à nasal, mailles, tabard et cape bleus du jarl, lance, bouclier rond) sur TOUS les
 ## gardes ; seules changent la teinte de la barbe et des cheveux, celle de la peau, la barbe (rasée chez deux jeunes) et la carrure
 ## (taille 0,95 à 1,05, largeur ±4 %). Bouclier au bras aux postes, dans le dos en ronde. Aucune pièce d'un autre modèle.
+## Nuit (19 h – 6 h 30) : les gardes de ronde allument une torche (main gauche ; lumière sans ombre, éteinte au-delà de 30 m).
 ## Performances : complet à moins de 22 m (IK des pieds, suivi de tête, ombre portée), allégé jusqu'à 90 m, endormi au-delà
 ## (caché, process coupé) ; gelés sous terre avec les villageois (groupe « villageois »).
 
@@ -190,11 +191,13 @@ func _process(dt: float) -> void:
 	if _t_lod <= 0.0:
 		_t_lod = PAS_LOD
 		var pj := joueur.global_position
+		var nuit := de_nuit()
 		for g: Node3D in gardes:
 			if not is_instance_valid(g):
 				continue
 			var d := pj.distance_to(g.global_position)
 			g.regler_lod(0 if d < DIST_COMPLET else (1 if d < DIST_ALLEGE else 2))
+			g.regler_torche(nuit)
 	_t_alerte -= dt
 	if _t_alerte <= 0.0:
 		_t_alerte = PAS_ALERTE
@@ -213,7 +216,10 @@ func _alertes() -> void:
 		if ReliefVillage.dans_enceinte(p.x, p.z, 6.0):
 			menaces.append(n3)
 	for g: Node3D in gardes:
-		if not is_instance_valid(g) or g.lod == 2:
+		if not is_instance_valid(g):
+			continue
+		if g.lod == 2:
+			g.alerter(null)
 			continue
 		var proche: Node3D = null
 		var dmin := DIST_ALERTE

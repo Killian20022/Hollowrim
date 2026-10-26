@@ -57,7 +57,7 @@
      "route": [[44.2, 49.8], [44.2, 57.2], [44.2, 66.8], [44.2, 75.0], [44.2, 83.8], [41.8, 83.8], [40.2, 86.2]],
      "lignes": ["Je monte et je descends cette rue toute la journée. Mes mollets sont les plus solides du hameau.", "La haute rue domine tout. Si quelque chose bouge au sud, on le voit d’ici."]},
     {"id": "ronde_nord", "type": "ronde", "boucle": false, "poil": 0, "peau": 2, "taille": 0.99, "largeur": 1.0,
-     "route": [[31.8, 26.8], [39.8, 30.8], [42.2, 29.2], [50.8, 29.2], [52.8, 28.2], [54.2, 18.8]],
+     "route": [[31.8, 26.8], [39.8, 30.8], [42.2, 29.4], [50.8, 29.4], [52.8, 28.2], [54.2, 18.8]],
      "lignes": ["Ronde du nord. De la porte du feu à la porte du nord, et retour.", "Trente pas, une halte, trente pas. Le métier rentre par les pieds."]},
     {"id": "ronde_est", "type": "ronde", "boucle": false, "poil": 5, "peau": 0, "taille": 1.04, "largeur": 1.06,
      "route": [[59.2, 15.8], [62.8, 17.8], [64.8, 19.2], [67.8, 23.2], [69.8, 27.2], [69.8, 34.8], [70.2, 35.2]],
@@ -66,7 +66,7 @@
      "route": [[30.8, 31.2], [23.8, 32.8], [21.8, 38.2], [19.2, 46.2], [19.8, 56.8]],
      "lignes": ["Côté lac, la palissade est basse. Je passe souvent.", "Si tu tombes à l’eau, ne compte pas sur moi. Je ne sais pas nager."]},
     {"id": "ronde_place", "type": "ronde", "boucle": true, "poil": 3, "peau": 3, "taille": 1.02, "largeur": 1.0,
-     "route": [[37.8, 33.2], [49.8, 33.8], [51.2, 38.2], [48.2, 46.8], [41.8, 46.8], [39.8, 47.8], [35.8, 40.2], [33.8, 37.8]],
+     "route": [[37.8, 33.2], [49.8, 33.8], [51.2, 38.2], [48.6, 43.0], [48.8, 46.0], [41.8, 46.8], [39.8, 47.8], [35.8, 40.2], [33.8, 37.8]],
      "lignes": ["Je fais le tour de la place. Les étals, le puits, les bancs. Rien ne m’échappe.", "Sauf les commérages de Grima. Ceux-là, personne ne les arrête."]}
   ]
 }
