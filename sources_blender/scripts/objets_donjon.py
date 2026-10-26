@@ -587,8 +587,272 @@ def os_monticule():
     return M
 
 
-# ======================================================================= L3 : mobilier de bois et tissus de la crypte (lot suivant)
-L3 = []
+# ======================================================================= L3 : mobilier de bois et tissus de la crypte
+def etagere_cadre(var):
+    """Bâti d'étagère 1,8 x 2,0 x 0,34 (mis à la taille), dos vers -z : montants, 4 rayons, dos de planches ; b : corniche et pieds."""
+    M = Module("etagere_cadre_" + var, 2000 + ord(var))
+    rg = M.rg
+    for sx in (-1, 1):
+        M.add("bois", boite_ch(V(sx * 0.9, 1.0, 0), (0.07, 2.0, 0.34), 0.012), 0.85)
+    for y in (0.05, 0.7, 1.35, 1.97):
+        M.add("bois", boite(V(0, y, 0), (1.76, 0.05, 0.33)), rg.uniform(0.82, 0.98))
+        M.add("bois", boite(V(0, y - 0.035, 0.155), (1.76, 0.03, 0.025)), 0.6)
+    for i in range(5):
+        x = -0.88 + 0.176 + i * 0.352
+        M.add("bois", boite(V(x + rg.uniform(-0.004, 0.004), 1.0, -0.155), (0.345, 1.96, 0.022)), rg.uniform(0.55, 0.75))
+    if var == "b":
+        M.add("bois", boite_ch(V(0, 2.03, 0.01), (1.9, 0.06, 0.36), 0.012), 0.8)
+        for sx in (-1, 1):
+            M.add("bois", boite(V(sx * 0.9, 0.04, 0.0), (0.1, 0.08, 0.34)), 0.6)
+            M.add("fer", boite(V(sx * 0.9, 1.0, 0.172), (0.05, 0.08, 0.008)), 0.55)
+    else:
+        M.add("bois", boite(V(0, 2.0, -0.135), (1.76, 0.1, 0.03)), 0.7)
+    return M
+
+
+def etagere_contenu(var):
+    """Garniture d'étagère (mêmes cotes que le bâti) : livres debout, couchés, rouleaux, coffret ; place libre pour l'urne (x 0,4 à 0,7, 3e rayon)."""
+    M = Module("etagere_contenu_" + var, 2100 + ord(var), sol=False)
+    rg = M.rg
+    for rang, y in enumerate((0.075, 0.725, 1.375)):
+        x = -0.84
+        fin = 0.36 if rang == 2 else 0.84
+        while x < fin:
+            choix = rg.random()
+            if x + 0.33 > fin:
+                choix = 0.0             # fin de rayon : seulement des livres debout
+            if choix < 0.55:            # rangée de livres debout
+                for _ in range(rg.randint(3, 6)):
+                    w = rg.uniform(0.035, 0.065)
+                    h = rg.uniform(0.17, 0.27)
+                    if x + w > fin:
+                        break
+                    inc = rg.uniform(-0.05, 0.05)
+                    M.add("bois", boite(V(x + w / 2, y + h / 2, 0.02), (w, h, rg.uniform(0.16, 0.22)), Rz(inc)), rg.uniform(0.45, 0.8))
+                    if rg.random() < 0.25:
+                        M.add("parchemin", [[V(x + w * 0.15, y + 0.01, 0.131), V(x + w * 0.85, y + 0.01, 0.131), V(x + w * 0.85, y + h * 0.9, 0.131), V(x + w * 0.15, y + h * 0.9, 0.131)]], 0.75)
+                    x += w + 0.004
+                x += rg.uniform(0.03, 0.08)
+            elif choix < 0.75:          # pile de livres couchés
+                yy = y
+                for _ in range(rg.randint(2, 4)):
+                    h = rg.uniform(0.035, 0.06)
+                    M.add("bois", boite(V(x + 0.11, yy + h / 2, 0.02), (0.2, h, 0.15), Ry(rg.uniform(-0.2, 0.2))), rg.uniform(0.45, 0.8))
+                    yy += h
+                x += 0.26
+            elif choix < 0.92:          # rouleaux
+                for k in range(rg.randint(2, 3)):
+                    zc = -0.06 + k * 0.07
+                    M.add("parchemin", cylindre(V(x, y + 0.03 + (0.05 if k == 2 else 0), zc), V(x + 0.26, y + 0.03 + (0.05 if k == 2 else 0), zc), 0.028, 5), rg.uniform(0.8, 1.0))
+                x += 0.32
+            else:                       # coffret ferré
+                M.add("bois", boite_ch(V(x + 0.1, y + 0.06, 0.0), (0.2, 0.12, 0.14), 0.008), 0.7)
+                M.add("fer", boite(V(x + 0.1, y + 0.08, 0.071), (0.04, 0.05, 0.006)), 0.6)
+                x += 0.26
+    return M
+
+
+def etagere_couchee(var):
+    """Étagère renversée sur le dos (1,8 x 0,8, h 0,42) : flancs couchés, rayons brisés, livres tombés devant."""
+    M = Module("etagere_couchee_" + var, 2200 + ord(var))
+    rg = M.rg
+    M.add("bois", boite(V(0, 0.03, -0.05), (1.76, 0.03, 0.68)), 0.55)        # dos de planches (dessous)
+    for i in range(5):
+        M.add("bois", boite(V(-0.7 + i * 0.35, 0.05, -0.05 + rg.uniform(-0.01, 0.01)), (0.33, 0.012, 0.68), Ry(rg.uniform(-0.02, 0.02))), rg.uniform(0.6, 0.8))
+    for sx in (-1, 1):
+        M.add("bois", boite_ch(V(sx * 0.9, 0.2, -0.05), (0.07, 0.34, 0.72), 0.01, Rz(sx * 0.12)), 0.8)
+    for k, z in enumerate((-0.32, 0.0, 0.3)):
+        if k == 1 and var == "b":       # rayon cassé : deux moitiés de travers
+            M.add("bois", boite(V(-0.45, 0.22, z), (0.85, 0.04, 0.05), Rz(0.25)), 0.85)
+            M.add("bois", boite(V(0.48, 0.12, z + 0.05), (0.8, 0.04, 0.05), Rz(-0.18) @ Ry(0.15)), 0.85)
+        else:
+            M.add("bois", boite(V(0, 0.2, z), (1.76, 0.33, 0.05), Rx(0.08 * (k - 1))), rg.uniform(0.75, 0.95))
+    for k in range(5):
+        an = rg.uniform(-0.6, 0.6)
+        M.add("bois", boite(V(rg.uniform(-0.7, 0.7), 0.02 + 0.01 * k, rg.uniform(0.26, 0.31)), (0.2, 0.04, 0.14), Ry(an) @ Rx(rg.uniform(-0.15, 0.15))), rg.uniform(0.45, 0.75))
+    return M
+
+
+def lit(var):
+    """Lit de caserne 2,0 x 0,9 (tête vers -x, 0,8 m), paillasse de jute, couverture de laine drapée."""
+    M = Module("lit_" + var, 2300 + ord(var))
+    rg = M.rg
+    for sz in (-1, 1):
+        M.add("bois", boite_ch(V(0, 0.3, sz * 0.41), (1.86, 0.11, 0.07), 0.01), 0.85)
+        for sx, h in ((-0.95, 0.8), (0.95, 0.52)):
+            M.add("bois", boite_ch(V(sx, h / 2, sz * 0.41), (0.09, h, 0.09), 0.012), 0.8)
+            if var == "b":
+                M.add("bois", hull([V(sx + a * 0.035, h, sz * 0.41 + b * 0.035) for a in (-1, 1) for b in (-1, 1)] + [V(sx, h + 0.08, sz * 0.41)]), 0.8)
+    for i, y in enumerate((0.42, 0.56, 0.7)):         # tête
+        M.add("bois", boite(V(-0.95, y, 0), (0.05, 0.12, 0.74)), rg.uniform(0.7, 0.9))
+    M.add("bois", boite(V(0.95, 0.42, 0), (0.05, 0.16, 0.74)), 0.8)
+    for x in (-0.6, 0.0, 0.6):
+        M.add("bois", boite(V(x, 0.33, 0), (0.08, 0.04, 0.76)), 0.6)
+    M.add("jute", boite_ch(V(0, 0.4, 0), (1.8, 0.12, 0.76), 0.04), 0.9)        # paillasse
+    M.add("jute", boite_ch(V(-0.74, 0.49, 0), (0.28, 0.08, 0.5), 0.035, Ry(rg.uniform(-0.15, 0.15))), 0.95)      # traversin
+    x0, x1 = (-0.3, 0.88) if var == "a" else (-0.1, 0.9)
+    zs = [-0.47, -0.43, -0.3, 0.0, 0.3, 0.43, 0.47]
+    ys = [0.3, 0.44, 0.475, 0.485, 0.475, 0.44, 0.3]
+    nu = 5
+    P = [[V(x0 + (x1 - x0) * i / nu + (rg.uniform(-0.02, 0.02) if 0 < j < 6 else 0), ys[j] + (rg.uniform(0, 0.02) if 1 < j < 5 else 0) - (0.04 if j in (0, 6) and i % 2 else 0), zs[j]) for j in range(7)] for i in range(nu + 1)]
+    for i in range(nu):
+        for j in range(6):
+            q = [P[i][j], P[i + 1][j], P[i + 1][j + 1], P[i][j + 1]]
+            zc = (zs[j] + zs[j + 1]) / 2
+            M.add("laine", [orienter(q, V(0, 0.4, zc))], 0.92 - 0.12 * (j in (0, 5)))
+    for i in (0, nu):                   # tranches de la couverture (épaisseur)
+        for j in range(6):
+            a, b = P[i][j], P[i][j + 1]
+            q = [a, b, b - V(0, 0.015, 0), a - V(0, 0.015, 0)]
+            M.add("laine", [orienter(q, V(-1 if i == 0 else 1, 0, 0))], 0.6)
+    if var == "b":                      # couverture roulée au pied
+        M.add("laine", cylindre(V(0.82, 0.53, -0.3), V(0.82, 0.53, 0.3), 0.06, 6), 0.75)
+    return M
+
+
+def ratelier_cadre(var):
+    """Râtelier mural 1,8 x 2,0 (mis à la taille), dos contre le mur (z = 0) : dos de planches, traverses entaillées, montants."""
+    M = Module("ratelier_cadre_" + var, 2400 + ord(var))
+    rg = M.rg
+    for i in range(6):
+        M.add("bois", boite(V(-0.75 + i * 0.3 + rg.uniform(-0.004, 0.004), 0.95, 0.0), (0.29, 1.5, 0.04)), rg.uniform(0.55, 0.75))
+    for y in (0.55, 1.3):
+        M.add("bois", boite_ch(V(0, y, 0.09), (1.74, 0.06, 0.1), 0.008), 0.85)
+        if y > 1:
+            for k in range(6):
+                M.add("bois", boite(V(-0.7 + k * 0.28, y + 0.04, 0.12), (0.03, 0.03, 0.06)), 0.7)
+    for sx in (-1, 1):
+        M.add("bois", boite_ch(V(sx * 0.9, 0.9, 0.04), (0.08, 1.8, 0.1), 0.012), 0.85)
+        M.add("fer", boite(V(sx * 0.86, 1.3, 0.141), (0.1, 0.07, 0.006)), 0.55)
+        M.add("fer", boite(V(sx * 0.86, 0.55, 0.141), (0.1, 0.07, 0.006)), 0.55)
+    if var == "b":
+        M.add("bois", boite_ch(V(0, 1.82, 0.03), (1.86, 0.07, 0.12), 0.012), 0.8)
+    return M
+
+
+def arme_v(var):
+    """Arme dressée au râtelier (origine au sol sous l'arme) : a : épée pointe en haut, b : lance, c : hache."""
+    M = Module("arme_v_" + var, 2500 + ord(var), sol=False)
+    if var == "a":
+        M.add("lame", hull([V(s * 0.03, 0.54, t * 0.008) for s in (-1, 1) for t in (-1, 1)] + [V(s * 0.026, 1.36, t * 0.008) for s in (-1, 1) for t in (-1, 1)] + [V(0, 1.48, 0)]), 0.95)
+        M.add("fer", boite_ch(V(0, 0.52, 0), (0.2, 0.035, 0.04), 0.008), 0.65)
+        M.add("bois", cylindre(V(0, 0.36, 0), V(0, 0.5, 0), 0.016, 6), 0.7)
+        M.add("fer", hull([V(a * 0.026, 0.34 + b * 0.022, c * 0.02) for a in (-1, 1) for b in (-1, 1) for c in (-1, 1)]), 0.7)
+    elif var == "b":
+        M.add("bois", cylindre(V(0, 0.15, 0), V(0, 1.8, 0), 0.02, 6), 0.75)
+        M.add("lame", hull([V(s * 0.035, 1.82, t * 0.008) for s in (-1, 1) for t in (-1, 1)] + [V(0, 2.01, 0), V(0, 1.76, 0)]), 0.95)
+        M.add("fer", cylindre(V(0, 1.72, 0), V(0, 1.82, 0), 0.025, 6), 0.6)
+    else:
+        M.add("bois", cylindre(V(0, 0.35, 0), V(0, 1.55, 0), 0.02, 6), 0.75)
+        M.add("lame", hull([V(0.02, 1.4, t * 0.012) for t in (-1, 1)] + [V(0.02, 1.52, t * 0.012) for t in (-1, 1)] +
+                           [V(0.17, 1.33, t * 0.005) for t in (-1, 1)] + [V(0.17, 1.57, t * 0.005) for t in (-1, 1)]), 0.9)
+        M.add("fer", boite(V(0, 1.46, 0), (0.05, 0.12, 0.04)), 0.6)
+    return M
+
+
+def _clip_x(poly, x0, x1):
+    def clip(pts, x, garde):
+        out = []
+        for i in range(len(pts)):
+            a, b = pts[i], pts[(i + 1) % len(pts)]
+            ia, ib = garde(a[0]), garde(b[0])
+            if ia:
+                out.append(a)
+            if ia != ib:
+                t = (x - a[0]) / (b[0] - a[0])
+                out.append((x, a[1] + (b[1] - a[1]) * t))
+        return out
+    p = clip(poly, x0, lambda v: v >= x0)
+    return clip(p, x1, lambda v: v <= x1) if p else []
+
+
+def bouclier(var):
+    """Bouclier rond r 0,32 accroché au mur (dos à z = 0, face +z, origine au centre) : planches (« peint » teinté à la pose), cerclage, umbo."""
+    M = Module("bouclier_" + var, 2600 + ord(var), sol=False)
+    rg = M.rg
+    n = 16
+    cercle = [(math.cos(TAU * k / n) * 0.31, math.sin(TAU * k / n) * 0.31) for k in range(n)]
+    nb = 5
+    for i in range(nb):
+        x0, x1 = -0.31 + i * 0.124, -0.31 + (i + 1) * 0.124
+        pl = _clip_x(cercle, x0 + 0.002, x1 - 0.002)
+        if len(pl) < 3:
+            continue
+        mat = "peint" if (var != "b" or i % 2 == 0) else "bois"
+        if var == "c" and i == 4:
+            mat = "bois"
+        zf = 0.035 + rg.uniform(-0.002, 0.002)
+        av = [V(x, y, zf) for x, y in pl]
+        ar = [V(x, y, 0.012) for x, y in pl]
+        ton = rg.uniform(0.75, 0.95)
+        M.add(mat, [orienter(av, V(0, 0, 1))], ton)
+        for k in range(len(pl)):
+            a, b = av[k], av[(k + 1) % len(pl)]
+            c2, d = ar[(k + 1) % len(pl)], ar[k]
+            mid = (a + b) / 2
+            M.add(mat, [orienter([a, b, c2, d], V(mid.x, mid.y, 0))], ton * 0.7)
+    if var != "c":                      # cerclage de fer
+        for k in range(12):
+            a0, a1 = TAU * k / 12, TAU * (k + 1) / 12
+            pts = [V(math.cos(a) * r, math.sin(a) * r, z) for a in (a0, a1) for r in (0.29, 0.325) for z in (0.03, 0.045)]
+            M.add("fer", hull(pts), 0.6)
+    M.rev("fer", [(0.075, 0.034), (0.072, 0.05), (0.05, 0.072), (0.02, 0.082), (0.0, 0.083)], 8, R=Rx(math.pi / 2), ton=0.75)
+    for k in range(6):
+        a = TAU * k / 6 + 0.3
+        c = V(math.cos(a) * 0.2, math.sin(a) * 0.2, 0.036)
+        M.add("fer", hull([c + V(s * 0.01, t * 0.01, 0) for s in (-1, 1) for t in (-1, 1)] + [c + V(0, 0, 0.01)]), 0.8)
+    return M
+
+
+def planche(var):
+    """Planche de barricade 1,0 x 0,15 x 0,06 (centrée, étirée à la pose) : bouts éclatés, clous."""
+    M = Module("planche_" + var, 2700 + ord(var), sol=False)
+    rg = M.rg
+    pts = []
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            for sz in (-1, 1):
+                pts.append(V(sx * (0.5 - (rg.uniform(0, 0.06) if sy > 0 else rg.uniform(0, 0.02))), sy * 0.075, sz * 0.03))
+    if var == "c":
+        pts.append(V(0.53, 0.0, 0.0))
+    M.add("bois", hull(pts), rg.uniform(0.75, 0.95))
+    for sx in (-0.42, 0.42):
+        M.add("fer", boite(V(sx, 0.0, 0.031), (0.016, 0.016, 0.004)), 0.5)
+    return M
+
+
+def poteau():
+    M = Module("poteau", 2800, sol=False)
+    rg = M.rg
+    M.add("bois", hull([V(sx * 0.05, -0.85, sz * 0.05) for sx in (-1, 1) for sz in (-1, 1)] + [V(sx * 0.048, 0.76, sz * 0.048) for sx in (-1, 1) for sz in (-1, 1)] + [V(0.01, 0.85, 0.0)]), 0.8)
+    return M
+
+
+def tringle(var):
+    """Tringle de bannière (longueur 0,99, centrée, étirée à la pose) : hampe ronde, pommeaux de fer, deux pattes vers le mur (-z)."""
+    M = Module("tringle_" + var, 2900 + ord(var), sol=False)
+    M.add("bois", cylindre(V(-0.47, 0, 0), V(0.47, 0, 0), 0.022, 6), 0.8)
+    for sx in (-1, 1):
+        if var == "a":
+            M.add("fer", hull([V(sx * 0.47, 0, 0) + V(sx * a * 0.05, b * 0.03, c * 0.03) for a in (0, 0.6) for b in (-1, 1) for c in (-1, 1)] + [V(sx * 0.53, 0, 0)]), 0.7)
+        else:
+            M.add("fer", cylindre(V(sx * 0.47, 0, 0), V(sx * 0.5, 0, 0), 0.03, 6), 0.6)
+            M.add("fer", hull([V(sx * 0.5, b * 0.02, c * 0.02) for b in (-1, 1) for c in (-1, 1)] + [V(sx * 0.535, 0, 0)]), 0.7)
+        M.add("fer", poutre(V(sx * 0.4, 0, 0), V(sx * 0.4, 0.0, -0.1), 0.02, 0.03), 0.55)
+    return M
+
+
+def _l3():
+    mods = []
+    for v in "ab":
+        mods += [etagere_cadre(v), etagere_couchee(v), lit(v), ratelier_cadre(v), tringle(v)]
+    for v in "abc":
+        mods += [etagere_contenu(v), arme_v(v), bouclier(v), planche(v)]
+    mods.append(poteau())
+    return mods
+
+
+L3 = [_l3]
 
 
 def construire():

@@ -1796,10 +1796,14 @@ const MAT_MODELE := {"pierre": "pierre_v2", "fer": "fer", "cire": "os", "bois": 
 static var _modeles := {}            # "module__matiere" -> {"v": PackedVector3Array, "c": PackedColorArray}
 static var _modeles_de := {}         # module -> [matières]
 static var _modeles_verrou := Mutex.new()
+## Drapeau (et non `_modeles.is_empty()`) : d'autres décors peuvent verser leurs propres modules dans _modeles / _modeles_de
+## (GrotteDecor.objet, grotte_objets.dat) avant ou après ce premier chargement sans l'empêcher ni être effacés.
+static var _modeles_charges := false
 
 static func _charger_modeles() -> void:
 	_modeles_verrou.lock()
-	if _modeles.is_empty():
+	if not _modeles_charges:
+		_modeles_charges = true
 		for chemin: String in [MODELES_DAT, OBJETS_DAT]:
 			_lire_dat(chemin)
 	_modeles_verrou.unlock()
