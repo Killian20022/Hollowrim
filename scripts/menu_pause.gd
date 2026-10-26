@@ -127,7 +127,7 @@ func _retour_titre() -> void:
 
 func _quitter() -> void:
 	_sauver_en_partant()
-	get_tree().quit()
+	Jeu.quitter()
 
 ## Échap / Start : ouvre ou ferme. Pendant un dialogue, Échap reste au dialogue (il le ferme).
 func _unhandled_input(e: InputEvent) -> void:
@@ -201,7 +201,7 @@ func _test(etape: String) -> void:
 		var ecart := Vector3(p[0], p[1], p[2]).distance_to(j.global_position)
 		var ok: bool = ecart < 1.5 and Vector2(j.global_position.x, j.global_position.z).distance_to(Vector2(6, 12)) < 1.5 and j.inventaire.pieces == 42
 		print("TEST MENUS : continuer %s (écart à la position sauvegardée %.2f m, pièces %d)" % ["OK" if ok else "ÉCHEC", ecart, j.inventaire.pieces])
-		get_tree().quit()
+		Jeu.quitter()
 
 func _capture(dossier: String, nom: String) -> void:
 	if dossier == "":

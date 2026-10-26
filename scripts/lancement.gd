@@ -18,6 +18,8 @@ func _init() -> void:
 func _ready() -> void:
 	if Jeu.mode_outil():
 		return
+	if Jeu.sortie_directe():
+		get_tree().auto_accept_quit = false   # croix de la fenêtre / Alt+F4 : sortie directe (voir Jeu.sortie_directe)
 	Jeu.creer_bus()
 	Jeu.appliquer_son()
 	get_tree().node_added.connect(_noeud_ajoute)
@@ -30,3 +32,11 @@ func _noeud_ajoute(n: Node) -> void:
 		return
 	var p := n.get_parent()
 	n.set("bus", &"Musique" if p != null and p.get_script() == MUSIQUE else &"Effets")
+
+## Fermeture de la fenêtre (jeu exporté) : la notification atteint aussi le monde, qui sauvegarde ; on sort ensuite.
+func _notification(quoi: int) -> void:
+	if quoi == NOTIFICATION_WM_CLOSE_REQUEST and Jeu.sortie_directe() and not get_tree().auto_accept_quit:
+		_sortir.call_deferred()
+
+func _sortir() -> void:
+	Jeu.quitter()

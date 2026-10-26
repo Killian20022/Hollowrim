@@ -275,10 +275,29 @@ static func relancer(action := "") -> void:
 	if not OS.get_cmdline_user_args().is_empty():
 		args.append("--")
 		args.append_array(OS.get_cmdline_user_args())
+	if sortie_directe():
+		OS.create_process(OS.get_executable_path(), args)   # nouveau processus détaché, puis fin directe de celui-ci
+		quitter()
+		return
 	OS.set_restart_on_exit(true, args)
 	var arbre := Engine.get_main_loop() as SceneTree
 	arbre.paused = false
 	arbre.quit()
+
+## Jeu exporté (modèle « release ») : le nettoyage du moteur à la sortie PLANTE une fois le monde chargé (Windows 0xC0000374
+## corruption du tas, ou 0xC0000005 ; mesuré le 2026-10-26 sur Hollowrim 0.1.0, que l'on quitte 6 s ou 45 s après le chargement ;
+## l'éditeur et le modèle « debug » sortent proprement). Le plantage empêchait aussi la relance (« Retour au titre »).
+## Tout étant déjà écrit (sauvegarde, options : fichiers fermés), le processus se termine donc directement (code 0).
+## En développement (éditeur, build debug) : sortie normale, pour garder les avertissements de fuites.
+static func sortie_directe() -> bool:
+	return not OS.is_debug_build()
+
+## Quitter le jeu (menus, fermeture de la fenêtre) : voir sortie_directe().
+static func quitter(code := 0) -> void:
+	if sortie_directe():
+		OS.kill(OS.get_process_id())
+		return
+	(Engine.get_main_loop() as SceneTree).quit(code)
 
 ## Lit l'action laissée par relancer() et la consomme (une seule fois).
 static func lire_relance() -> String:

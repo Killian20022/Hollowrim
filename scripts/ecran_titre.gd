@@ -90,7 +90,7 @@ func _construire() -> void:
 		MenuStyle.bouton("Restaurer la copie de secours", _restaurer),
 		MenuStyle.bouton("Options", _ouvrir_options),
 		MenuStyle.bouton("Crédits", _ouvrir_credits),
-		MenuStyle.bouton("Quitter", func() -> void: get_tree().quit()),
+		MenuStyle.bouton("Quitter", func() -> void: Jeu.quitter()),
 	]
 	_b_continuer = _boutons[1]
 	_b_restaurer = _boutons[2]
