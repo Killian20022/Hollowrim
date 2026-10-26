@@ -803,6 +803,7 @@ func _test(etape: String) -> void:
 func verifier_clavier() -> bool:
 	var f: String = load("res://scripts/monde.gd").fichier_sauvegarde()
 	var garde := FileAccess.get_file_as_bytes(f) if FileAccess.file_exists(f) else PackedByteArray()
+	var garde_valide := Jeu.sauvegarde_valide(f)
 	if FileAccess.file_exists(f):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(f))
 	_menu_principal()
@@ -841,7 +842,7 @@ func verifier_clavier() -> bool:
 		fa.close()
 	_menu_principal()
 	await _images(2)
-	if garde.size() > 0 and (_b_continuer.disabled or _focus_texte() != "Continuer"):
+	if garde_valide and (_b_continuer.disabled or _focus_texte() != "Continuer"):
 		echecs.append("sauvegarde remise : Continuer %s, focus %s" % ["grisé" if _b_continuer.disabled else "actif", _focus_texte()])
 	for e in echecs:
 		print("TEST MENUS : ÉCHEC clavier : ", e)

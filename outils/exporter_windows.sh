@@ -65,7 +65,7 @@ SAUVEGARDES
 - Copie de secours (facultative) : Options > Copie de secours > Choisir... puis un dossier,
   par exemple « G:\\Mon Drive\\$NOM » (Google Drive) ou un dossier OneDrive.
   À chaque sauvegarde, une copie datée y est écrite (les 10 dernières sont gardées).
-  Si la sauvegarde locale est perdue ou abîmée, l'écran titre propose « Restaurer la copie de secours ».
+  Si la sauvegarde locale est perdue ou abîmée : écran titre > Charger > « Restaurer la copie du … ».
 
 CRÉDITS
 Voir CREDITS.txt.
@@ -76,8 +76,10 @@ EOF
 	echo "Conception, programmation, modèles du joueur : lopezk19 (avec l'aide de Claude, Anthropic)."
 	echo "Moteur : Godot Engine 4.7 (godotengine.org), licence MIT - (c) 2014-présent Godot Engine contributors, (c) 2007-2014 Juan Linietsky, Ariel Manzur."
 	echo "Police : Kenney Pixel (kenney.nl), CC0 1.0 ; variante « Kenney Pixel Nordique » (accents ajoutés pour le jeu)."
+	echo "Polices du menu principal : Alegreya et Cinzel, SIL Open Font License 1.1 (texte complet ci-dessous)."
 	echo
 	sed -e 's/^#\+ *//' -e 's/\*\*//g' "$ICI/assets/LICENCES.md"
+	for ofl in "$ICI"/assets/polices/OFL_*.txt; do echo; echo "----- $(basename "$ofl" .txt) -----"; cat "$ofl"; done
 } > "$BUILD/CREDITS.txt"
 sed -i 's/$/\r/' "$BUILD/LISEZMOI.txt" "$BUILD/CREDITS.txt"
 

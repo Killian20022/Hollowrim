@@ -59,6 +59,11 @@ var _i_citation := 0
 var _phase := ""          # "", "scene", "monde", "fin"
 var _monde: Node
 var _debut := 0
+# mesure : images rendues pendant l'entrée du monde et plus long écart entre deux images (écran « figé »)
+var _images := 0
+var _pire_ecart := 0
+var _derniere_image := 0
+var _capture_faite := false
 
 func _ready() -> void:
 	layer = 100
@@ -220,6 +225,14 @@ func _process(dt: float) -> void:
 					return
 				_entrer_monde(ps)
 		"monde":
+			var maintenant := Time.get_ticks_msec()
+			if _derniere_image > 0:
+				_pire_ecart = maxi(_pire_ecart, maintenant - _derniere_image)
+			_derniere_image = maintenant
+			_images += 1
+			if not _capture_faite and _images == 12:
+				_capture_faite = true
+				_capture_test()
 			_cible = 0.25 + 0.73 * clampf(float(Jeu.etapes_chargement) / ETAPES_MONDE, 0.0, 1.0)
 			_etape.text = _libelle(Jeu.etape_chargement)
 			if is_instance_valid(_monde) and _monde.get("pret") == true and Time.get_ticks_msec() - _debut > DUREE_MINI * 1000.0:
@@ -250,6 +263,7 @@ func _entrer_monde(ps: PackedScene) -> void:
 
 func _finir() -> void:
 	_phase = "fin"
+	print("Chargement : monde prêt en %.1f s, %d images pendant l'entrée du monde, plus long écart %d ms" % [(Time.get_ticks_msec() - _debut) / 1000.0, _images, _pire_ecart])
 	_cible = 1.0
 	Jeu.chargement_etale = false
 	var tw := create_tween()
@@ -275,6 +289,15 @@ func _finir() -> void:
 	await tw2.finished
 	termine.emit()
 	queue_free()
+
+## Test des menus (--test-titre-sortie=<dossier>) : une capture de l'écran de chargement pendant le vrai chargement.
+func _capture_test() -> void:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--test-titre-sortie="):
+			await RenderingServer.frame_post_draw
+			var chemin := a.substr(20).path_join("chargement_reel.png")
+			get_viewport().get_texture().get_image().save_png(chemin)
+			print("TEST MENUS : capture ", chemin)
 
 func _montrer_citation(fondu: bool) -> void:
 	var c: Array = CITATIONS[_i_citation]
