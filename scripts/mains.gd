@@ -596,7 +596,7 @@ func _unhandled_input(e: InputEvent) -> void:
 	if magie != null and magie.intercepter(e):
 		return
 	if e is InputEventMouseMotion:
-		passifs.souris(e.screen_relative)
+		passifs.souris(e.screen_relative * Jeu.sensibilite)   # inertie selon l'angle tourné, pas selon les pixels
 		noter_souris(e.screen_relative)
 	elif e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
 		if e.pressed:
@@ -762,12 +762,27 @@ func _lancer_phase_active() -> void:
 		_duree_recup /= LENTEUR_AFFAIBLI
 	joueur.depenser(cout)
 	trace.commencer()
+	_accompagner_camera()
 	trainee.couper()
 	_t_trainee = 0.0
 	_echantillon_trainee(_couche() * _pose_active(0.0), 0.0)
 	_cam_prec_ok = false
 	# fouetté de lame (pack de combat, catégories lame/) : lourd pour le coup lourd et la contre-attaque
 	RetourImpact.son(self, "fouette_lourd" if _lourd or _contre else "fouette_leger", (get_parent() as Node3D).global_position, -1.0 if _lourd or _contre else -4.0)
+
+## Accompagnement minime de la vue au début de la frappe (CameraCorps.accompagner, ≤ 0,4°) : dans le sens de la lame à
+## l'écran, d'un côté (cotes[0]) à l'autre (cotes[1]) ; un geste qui finit au centre (vertical) descend.
+func _accompagner_camera() -> void:
+	if not ("camera_corps" in joueur):
+		return
+	var c: Array = _geste.get("cotes", [0, 0])
+	var dir := Vector2(float(c[1]) - float(c[0]), 0.0)   # côtés : 1 droite, -1 gauche, 0 centre
+	if int(c[0]) == 0 and int(c[1]) == 0:
+		dir = Vector2(0, -0.4)   # estoc : la vue pousse à peine vers l'avant (léger tangage vers le haut)
+	elif int(c[1]) == 0:
+		dir = Vector2(-0.3 * float(c[0]), 1.0)   # vertical : la lame descend
+	var force := float(_geste.get("force", 1.0)) * (1.4 if _lourd or _contre else 1.0) * (0.6 if _affaibli else 1.0)
+	joueur.camera_corps.accompagner(dir.normalized() * minf(dir.length(), 1.0), force)
 
 func _finir_geste() -> void:
 	if _geste.has("tassement") and "tassement" in joueur:
@@ -906,9 +921,9 @@ func avancer(dt: float) -> void:
 				combat.changer(EtatCombat.REPOS)
 
 	# animations passives (respiration, marche, sprint, saut, inertie) : couche additive par-dessus le clip
-	passifs.amplitude = 0.35 if bool(Jeu.option("affichage", "reduire_mouvements")) else 1.0
+	passifs.amplitude = float(CameraCorps.facteurs()["arme"])   # option « Balancement de l'arme » (« Réduire les mouvements » : ≤ 0,35)
 	var locale := joueur.global_transform.basis.inverse() * Vector3(joueur.velocity.x, joueur.velocity.y, joueur.velocity.z)
-	passifs.avancer(dt, locale, joueur.is_on_floor(), combat.calme() or combat.defense())
+	passifs.avancer(dt, locale, joueur.is_on_floor(), combat.calme() or combat.defense(), joueur.global_position.y)
 	var couche := _couche()
 	if _pose_figee != "":
 		var c := _clip_pose(_pose_figee)

@@ -66,6 +66,13 @@ func _ready() -> void:
 		Jeu.appliquer_camera(joueur))
 	_case(g, "Réduire les mouvements", Jeu.option("affichage", "reduire_mouvements"), func(v: bool) -> void:
 		Jeu.regler("affichage", "reduire_mouvements", v))
+	# caméra / corps (CameraCorps, MouvementsPassifs) : 100 % par défaut ; « Réduire les mouvements » les plafonne
+	_curseur(g, "Balancement de l'arme", 0, 100, 5, Jeu.option("affichage", "balancement_arme") * 100.0, "%d %%", func(v: float) -> void:
+		Jeu.regler("affichage", "balancement_arme", v / 100.0))
+	_curseur(g, "Mouvement de tête", 0, 100, 5, Jeu.option("affichage", "mouvement_tete") * 100.0, "%d %%", func(v: float) -> void:
+		Jeu.regler("affichage", "mouvement_tete", v / 100.0))
+	_curseur(g, "Secousses", 0, 100, 5, Jeu.option("affichage", "secousses") * 100.0, "%d %%", func(v: float) -> void:
+		Jeu.regler("affichage", "secousses", v / 100.0))
 	_curseur(g, "Volume général", 0, 100, 5, Jeu.option("son", "general") * 100.0, "%d %%", func(v: float) -> void:
 		Jeu.regler("son", "general", v / 100.0))
 	_curseur(g, "Musique", 0, 100, 5, Jeu.option("son", "musique") * 100.0, "%d %%", func(v: float) -> void:

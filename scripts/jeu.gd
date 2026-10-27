@@ -46,7 +46,8 @@ static func test_titre() -> String:
 # --- options ------------------------------------------------------------------------
 
 const OPTIONS_DEFAUT := {
-	"affichage": {"plein_ecran": false, "champ_vision": 72.0, "reduire_mouvements": false},   # réduire : bras et tête bougent moins (mal des transports)
+	"affichage": {"plein_ecran": false, "champ_vision": 72.0, "reduire_mouvements": false,
+		"balancement_arme": 1.0, "mouvement_tete": 1.0, "secousses": 1.0},   # réduire : tout plafonné au minimum (mal des transports, CameraCorps.facteurs) ; curseurs 0..1 : bras/arme (MouvementsPassifs), tête (balancement, saut, attaques), secousses (impacts, coups reçus)
 	"son": {"general": 1.0, "musique": 0.8, "effets": 1.0},
 	"commandes": {"sensibilite": 1.0, "inverser_y": false},
 	"sauvegarde": {"dossier_secours": ""},   # "" = copie de secours désactivée
