@@ -39,7 +39,11 @@ var _xf := {"gauche": Transform3D(), "droite": Transform3D()}
 var _xf_ok := {"gauche": false, "droite": false}
 var _repere_main := {"gauche": Basis(), "droite": Basis()}
 var _doigts_repos := {}
+## Modèle du bouclier tenu (celui de mains.gd, bouclier_nordique.glb) : gardé ici pour l'ancienne interface (tests).
 var _bouclier: Node3D
+## Influence de l'IK du bras droit quand un sort occupe la main droite : monte et retombe en fondu (pas de saut entre
+## le clip de l'épée et la pose d'incantation).
+var _infl_d := 0.0
 var _aura := {"gauche": 0.0, "droite": 0.0}
 var _ecole_aura := {"gauche": "", "droite": ""}
 var _arme_enchantee: Node3D
@@ -578,9 +582,7 @@ func _preparer_os() -> void:
 func _pose_voulue(m: String) -> Dictionary:
 	var cat := eq.categorie(m)
 	var o := eq.autre(m)
-	if cat == "bouclier":
-		return PosesIncantation.pose("bouclier_garde" if mains.bloque else "bouclier", m)
-	if cat != "sort":
+	if cat != "sort":   # bouclier : posé par mains.gd (GestesBouclier), comme la torche
 		return {}
 	var i: Incantation = inc[m]
 	var s := eq.sort(m)
@@ -608,16 +610,21 @@ func _poser_mains(dt: float) -> void:
 		var o = _orient[m]
 		var pivot: Node3D = mains.get("pivot_torche" if m == "gauche" else "pivot_epee")
 		if m == "droite":
+			_infl_d = lerpf(_infl_d, 0.0 if p.is_empty() else 1.0, 1.0 - exp(-14.0 * dt))
+			if p.is_empty() and _infl_d < 0.01:
+				_infl_d = 0.0
 			if ik_d != null:
-				ik_d.active = not p.is_empty()
+				ik_d.active = _infl_d > 0.0
+				ik_d.influence = _infl_d
 				var couche = mains.get("_couche_passive")
-				if ik_d.active and couche != null:
+				if ik_d.active and couche != null and not p.is_empty():
 					couche.decalage = Transform3D()   # passifs déjà dans la cible (dec ci-dessous) : pas de double couche
 			if o != null:
-				o.active = not p.is_empty()
+				o.active = _infl_d > 0.0
+				o.influence = _infl_d
 		if p.is_empty():
 			_xf_ok[m] = false
-			if o != null:
+			if o != null and not (m == "droite" and _infl_d > 0.0):
 				o.angle_min = -1.0
 				o.angle_max = -1.0
 				o.flexion_max = deg_to_rad(55.0)
@@ -628,15 +635,17 @@ func _poser_mains(dt: float) -> void:
 		pa = (pa - dg * pa.dot(dg)).normalized()
 		var voulu: Basis = Basis(dg, pa.cross(dg).normalized(), pa) * _repere_main[m].inverse()
 		var xf := Transform3D(voulu.orthonormalized(), p["pos"])
+		var passifs = mains.get("passifs")
+		var dec: Transform3D = passifs.decalage_g if m == "gauche" else passifs.decalage_d
+		var prise: Transform3D = mains.get("PRISE_G" if m == "gauche" else "PRISE_D")
 		if not _xf_ok[m]:
-			_xf[m] = xf
+			# la main part de là où elle est (torche, bouclier, épée) : pas de saut à la prise en main
+			_xf[m] = dec.affine_inverse() * pivot.transform * prise.affine_inverse()
+			_xf[m] = Transform3D(_xf[m].basis.orthonormalized(), _xf[m].origin)
 			_xf_ok[m] = true
 		var k := 1.0 - exp(-16.0 * dt)
 		var a: Transform3D = _xf[m]
 		_xf[m] = Transform3D(Basis(a.basis.get_rotation_quaternion().slerp(xf.basis.get_rotation_quaternion(), k)), a.origin.lerp(xf.origin, k))
-		var passifs = mains.get("passifs")
-		var dec: Transform3D = passifs.decalage_g if m == "gauche" else passifs.decalage_d
-		var prise: Transform3D = mains.get("PRISE_G" if m == "gauche" else "PRISE_D")
 		pivot.transform = dec * _xf[m] * prise
 		if o != null:
 			o.angle_min = 0.0
@@ -645,7 +654,7 @@ func _poser_mains(dt: float) -> void:
 		var coude: Node3D = mains.get("_coude_g" if m == "gauche" else "_coude_d")
 		coude.position = Vector3(-0.75 if m == "gauche" else 0.75, -0.55, 0.25)
 		_poser_doigts(sq, m, float(p["fermeture"]))
-	# objets de la main gauche : torche seulement si c'est elle ; bouclier dessiné ici (pas de modèle .glb)
+	# objets de la main gauche : torche seulement si c'est elle ; le bouclier (modèle et visibilité) est géré par mains.gd
 	var porte: Node3D = mains.get("porte_torche")
 	if porte != null:
 		porte.visible = eq.categorie("gauche") == "torche"
@@ -660,46 +669,6 @@ func _poser_doigts(sq: Skeleton3D, m: String, fermeture: float) -> void:
 		var q: Quaternion = _doigts_repos[i]
 		sq.set_bone_pose_rotation(i, q.slerp(poings.get(i, q), clampf(fermeture, 0.0, 1.0)))
 
-func _afficher_bouclier(oui: bool) -> void:
-	if not oui:
-		if _bouclier != null:
-			_bouclier.visible = false
-		return
-	if _bouclier == null:
-		var accroche: Node3D = mains.get("_accroche_g")
-		_bouclier = Node3D.new()
-		_bouclier.name = "Bouclier"
-		accroche.add_child(_bouclier)
-		var bois := MeshInstance3D.new()
-		var c := CylinderMesh.new()
-		c.top_radius = 0.3
-		c.bottom_radius = 0.3
-		c.height = 0.035
-		c.radial_segments = 14
-		c.rings = 1
-		bois.mesh = c
-		var mb := StandardMaterial3D.new()
-		mb.albedo_color = Color(0.36, 0.24, 0.14)
-		bois.material_override = mb
-		_bouclier.add_child(bois)
-		var umbo := MeshInstance3D.new()
-		var sp := SphereMesh.new()
-		sp.radius = 0.07
-		sp.height = 0.07
-		sp.radial_segments = 8
-		sp.rings = 3
-		umbo.mesh = sp
-		var mu := StandardMaterial3D.new()
-		mu.albedo_color = Color(0.55, 0.56, 0.6)
-		mu.metallic = 0.8
-		umbo.material_override = mu
-		umbo.position = Vector3(0, 0.02, 0)
-		_bouclier.add_child(umbo)
-	_bouclier.visible = true
-	# disque tourné vers l'avant (face au coup), centré devant le poing : repère voulu dans l'espace des mains, ramené dans
-	# celui de la main (le bouclier ne dépend pas de l'orientation du poignet)
-	var garde: bool = mains.bloque
-	var normale := Vector3(0.25, 0.05, -1.0).normalized() if garde else Vector3(0.55, 0.15, -1.0).normalized()
-	var haut := (Vector3.UP - normale * normale.dot(Vector3.UP)).normalized()
-	var voulu := Transform3D(Basis(haut.cross(-normale).normalized(), -normale, -haut).orthonormalized(), (_xf["gauche"] as Transform3D).origin + normale * 0.07)
-	_bouclier.transform = (_xf["gauche"] as Transform3D).affine_inverse() * voulu
+func _afficher_bouclier(_oui: bool) -> void:
+	# le vrai bouclier (bouclier_nordique.glb) est installé et posé par mains.gd ; on garde sa référence (ancienne interface)
+	_bouclier = mains.get("_modele_gauche")

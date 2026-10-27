@@ -63,15 +63,16 @@ func peut_garder() -> bool:
 func en_parade() -> bool:
 	return temps_garde < fenetre
 
-## Le coup venu de `origine` est-il dans le cône de garde du joueur ?
-static func couvre(joueur: Node3D, origine: Vector3) -> bool:
+## Le coup venu de `origine` est-il dans le cône de garde du joueur ? `angle` : ouverture du cône (degrés ; le bouclier
+## couvre plus large, DonneesArme.angle_garde).
+static func couvre(joueur: Node3D, origine: Vector3, angle := ANGLE_DEFENSE) -> bool:
 	var vers := origine - joueur.global_position
 	vers.y = 0.0
 	if vers.length() < 0.01:
 		return true
 	var face := -joueur.global_transform.basis.z
 	face.y = 0.0
-	return vers.normalized().dot(face.normalized()) >= cos(deg_to_rad(ANGLE_DEFENSE * 0.5))
+	return vers.normalized().dot(face.normalized()) >= cos(deg_to_rad(angle * 0.5))
 
 ## Coup reçu en garde levée et couverte. Renvoie {issue: "parade" | "bloque" | "brisee", degats: dégâts qui passent,
 ## cout: endurance dépensée}. `vigueur` : endurance actuelle ; `reduction_competence` : Competences.reduction_parade().

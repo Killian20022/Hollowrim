@@ -5,17 +5,27 @@
 [resource]
 script = ExtResource("1_arme")
 id = "bouclier"
-nom = "Bouclier rond"
+nom = "Bouclier rond nordique"
 categorie = 3
+modele = "res://assets/modeles/armes/bouclier_nordique.glb"
 milieu_poignee = 0.0
-repos_poignee = Vector3(0.44, -0.28, -0.55)
-repos_lame = Vector3(0.1, 0.95, -0.2)
-repos_fil = Vector3(-0.2, 0, -1)
-repos_coude = Vector3(1, -0.3, 0.1)
+habillage = "bouclier"
+reperes_du_modele = false
+repos_poignee = Vector3(0.42, -0.36, -0.5)
+repos_lame = Vector3(-0.1, 1, 0.22)
+repos_fil = Vector3(-1, 0.1, -0.22)
+repos_coude = Vector3(0.9, -0.45, 0.05)
 profil = "torche"
 degats_leger = 0.0
 degats_lourd = 0.0
 multi_cibles = 0
 reduction_garde = 0.95
-cout_garde = 0.6
+type_degats = "contondant"
+materiau_impact = "bois"
 poids = 3.0
+cout_garde = 0.6
+angle_garde = 170.0
+recul_garde = 2.2
+posture_parade = 0.8
+son_garde = "bois"
+description = "Planches peintes, cerclage et umbo de fer. Garde au clic droit : bloc frontal large (170°), 95 % absorbés, endurance x0,6 ; parade parfaite = coup de bouclier qui brise la posture."
