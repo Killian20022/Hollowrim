@@ -52,7 +52,7 @@ const MAX_PARTICULES := 3000
 const MAX_EMETTEURS := 64
 ## Couche fine (détail des sorts Moyen / Élevé) : particules plus petites et plus nombreuses, couches en plus
 ## (PresetsMagie.FIN) ; plafonds relevés en conséquence (coût mesuré : docs/MAGIE_EFFETS.md).
-const MAX_PARTICULES_FIN := 6000
+const MAX_PARTICULES_FIN := 4500
 const MAX_EMETTEURS_FIN := 110
 const MAX_LUMIERES := 4
 const MAX_ECLAIRS := 20

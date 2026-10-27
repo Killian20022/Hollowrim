@@ -133,7 +133,7 @@ résolution plus fine que le monde, qui reste en 640x360.
   - Auras de main, boules, bouffées d'impact, gerbe sur la cible : `magie_aura` (flammes montantes, givre tournant, filaments de plasma, vortex).
   - Particules : réglages `PresetsMagie.FIN` (nombre, taille, étirement) et émetteurs compagnons `R_FIN` (étincelles, flammèches, poudre, cristaux) ; traînées étirées dans le sens du mouvement ; taille plafonnée à 0,2 × le plafond rétro × échelle.
   - Éclairs : un niveau de subdivision de plus et des brindilles ; cœur 0,75 / halo 1,25 de la largeur rétro × échelle.
-  - Plafonds propres : `MAX_PARTICULES_FIN` 6 000, `MAX_EMETTEURS_FIN` 110.
+  - Plafonds propres : `MAX_PARTICULES_FIN` 4 500, `MAX_EMETTEURS_FIN` 110 (6 000 essayé : +3,5 ms par image en double jet, au-delà du budget de +2 ms).
 - **Mise au point (galerie) :** `--sans-particules`, `--sans-procedural`, `--sans-post`, `--sans-flux`, `--sans-aura`, plan `vide`.
 - **Planches :** `bash outils/planches_magie_detail.sh [crypte|dehors]` → `captures/magie_detail/planches/planche_<ecole>.png`. Par ligne : référence | zoom ×2 de l'après, puis avant | après pour la main, le jet, l'impact.
 - **Coût :** voir le tableau « Détail des sorts » de la section Coût.
@@ -182,6 +182,14 @@ godot --path . res://scenes/galerie_magie.tscn -- --lieu=crypte|dehors --vue=fps
 
 - La référence sans effet varie d'une séance à l'autre selon la charge du PC (5,2 ms lors de la première mesure). Les écarts comptent plus que les valeurs absolues.
 - Mesure sans fenêtre : 0,63 ms par image, en CPU seul.
+
+### Détail des sorts (mesure du 2026-10-27, `outils/perf_magie_crypte.gd`, vraie crypte, double jet de flammes, fenêtre hors écran, PC chargé par d'autres Godot)
+
+| Détail | Temps d'image, double jet (moyenne de 3) | GPU, double jet | Particules |
+|---|---|---|---|
+| Rétro | 8,87 ms | 1,91 ms | ~3 000 (plafond rétro) |
+| Élevé, plafond 4 500 (retenu) | 8,96 ms (+0,1) | 3,55 ms (+1,6 : fenêtre 2,86 + couche 0,69) | 4 500 |
+| Élevé, plafond 6 000 (écarté) | 13,74 ms (+3,6, moyenne de 4) | 4,10 ms (+1,8) | ~5 600 |
 
 ## Test
 
