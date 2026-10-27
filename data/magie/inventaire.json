@@ -9,7 +9,14 @@
 		{"id": "vide"},
 		{"id": "epee"},
 		{"id": "torche"},
-		{"id": "bouclier"}
+		{"id": "bouclier"},
+		{"id": "epee_or"},
+		{"id": "epee_rubis"},
+		{"id": "epee_verre"},
+		{"id": "epee_obsidienne"},
+		{"id": "epee_skarnholt"}
 	],
+	"_tout_disponible": "PÉRIODE DE TEST (demande utilisateur 2026-10-27) : true = les 5 épées sans condition et tous les sorts de data/sorts/ connus, même avec une ancienne sauvegarde. Repasser à false (et remettre des conditions `inventaire`) quand le butin existera.",
+	"tout_disponible": true,
 	"ordre_ecoles": ["feu", "glace", "electricite", "tenebres", "soin", "protection"]
 }

@@ -429,6 +429,12 @@ func importer(d: Dictionary) -> void:
 		for s in d["sorts_connus"]:
 			if sort_par_id(String(s)) != null:
 				sorts_connus.append(String(s))
+		if catalogue.get("tout_disponible", false):   # période de test : tous les sorts restent connus
+			for f in DirAccess.get_files_at("res://data/sorts/"):
+				var id := f.trim_suffix(".remap").trim_suffix(".tres")
+				if (f.ends_with(".tres") or f.ends_with(".tres.remap")) and not sorts_connus.has(id):
+					sorts_connus.append(id)
+			sorts_connus.sort()
 	if d.get("raccourcis") is Array:
 		importer_raccourcis(d["raccourcis"])
 	# la droite d'abord (enchantement, deux mains), puis la gauche
