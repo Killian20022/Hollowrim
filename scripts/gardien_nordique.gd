@@ -50,31 +50,40 @@ static func creer(options := {}) -> Node3D:
 	CachePersos.ecrire("gardien", "res://scripts/gardien_nordique.gd", options, c, [])
 	return c
 
+## Textures du gardien, ou celles du héros joueur (HerosSkarnholt : mêmes dessins, couleurs et métaux du héros).
+static func _tex(nom: String, heros: bool) -> ImageTexture:
+	return HerosSkarnholt.tex(nom) if heros else GardienTextures.tex(nom)
+
+## options : "bouclier", "lance" ; "heros" = variante du JOUEUR (HerosSkarnholt.creer) : animations d'épée d'origine (pas de clips à
+## la lance), textures du héros, pièces en plus (AccHeros) ; "casque" (héros seulement, vrai par défaut).
 static func _creer(options := {}) -> Node3D:
+	var heros: bool = options.get("heros", false)
+	var casque: bool = options.get("casque", true) or not heros
 	var C := Color.WHITE
 	var app := {"corps": "homme", "barbe": true, "cheveux": "Hair_Long", "teinte_cheveux": TEINTE_CHEVEUX, "peau": PEAU,
 		"tenue": {"tunique": C, "pantalon": C, "bottes": C, "ceinture": C, "brassards": C, "cape": C, "mante": C, "tablier": C, "epaulieres": C, "gants": C}}
 	var racine := Humain.creer(app)
-	racine.name = "GardienNordique"
+	racine.name = "HerosSkarnholt" if heros else "GardienNordique"
 	var sq := racine.find_child("Skeleton3D", true, false) as Skeleton3D
 	var ap := racine.get_node("Animations") as AnimationPlayer
 	var pieces := {}
 	for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", false, false):
 		pieces[String(mi.name)] = mi
-	# -- animations à la lance (calculées une fois, partagées entre gardiens)
-	var lib := _bibliotheque(ap, sq)
-	ap.stop()
-	sq.reset_bone_poses()
-	ap.remove_animation_library("")
-	ap.add_animation_library("", lib)
-	if _bas_lance < 0.0:
-		_bas_lance = _mesurer_poing(lib.get_animation("Idle"), sq) - 0.06
+	# -- animations à la lance (calculées une fois, partagées entre gardiens) ; le héros garde celles d'Humain (épée)
+	if not heros:
+		var lib := _bibliotheque(ap, sq)
+		ap.stop()
+		sq.reset_bone_poses()
+		ap.remove_animation_library("")
+		ap.add_animation_library("", lib)
+		if _bas_lance < 0.0:
+			_bas_lance = _mesurer_poing(lib.get_animation("Idle"), sq) - 0.06
 	# -- matières
-	_habiller(pieces["tunique"], materiau(GardienTextures.tex("mailles")))
-	_habiller(pieces["pantalon"], materiau(GardienTextures.tex("pantalon")))
-	_habiller(pieces["bottes"], materiau(GardienTextures.tex("bottes")))
-	_habiller(pieces["brassards"], materiau(GardienTextures.tex("brassards")))
-	_habiller(pieces["mante"], materiau(GardienTextures.tex("mante")))
+	_habiller(pieces["tunique"], materiau(_tex("mailles", heros)))
+	_habiller(pieces["pantalon"], materiau(_tex("pantalon", heros)))
+	_habiller(pieces["bottes"], materiau(_tex("bottes", heros)))
+	_habiller(pieces["brassards"], materiau(_tex("brassards", heros)))
+	_habiller(pieces["mante"], materiau(_tex("mante", heros)))
 	# passe vêtements : GANTS de cuir (référence) à la place des mains nues ; mains de peau retirées du maillage de peau
 	var avec_gants := pieces.has("gants")
 	if avec_gants:
@@ -120,24 +129,29 @@ static func _creer(options := {}) -> Node3D:
 	var mi_ch: MeshInstance3D = sq.get_node_or_null("Hair_Long")
 	if mi_ch:
 		mi_ch.visible = true    # Humain.creer cache les cheveux sous un casque ; le nôtre est modelé ici
-		GuerrierNordique._filtrer(mi_ch, func(c: Vector3, n: Vector3) -> bool: return c.y < 1.712 and c.z < 0.03 and n.dot(c - tete) > -0.002)
-		GuerrierNordique._decimer(mi_ch, func(p: Vector3) -> float: return 0.03)
-		var mc := materiau(GuerrierNordique._tex_cheveux(mi_ch), true, false, true, "gardien_cheveux")
-		mc.set_shader_parameter("teinte", Color(0.78, 0.62, 0.48))
+		if casque:
+			GuerrierNordique._filtrer(mi_ch, func(c: Vector3, n: Vector3) -> bool: return c.y < 1.712 and c.z < 0.03 and n.dot(c - tete) > -0.002)
+			GuerrierNordique._decimer(mi_ch, func(p: Vector3) -> float: return 0.03)
+		else:
+			# héros tête nue : toute la chevelure (couches intérieures retirées, comme le guerrier)
+			GuerrierNordique._filtrer(mi_ch, func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002)
+			GuerrierNordique._decimer(mi_ch, func(p: Vector3) -> float: return 0.04)
+		var mc := materiau(GuerrierNordique._tex_cheveux(mi_ch), true, false, true, "heros_cheveux" if heros else "gardien_cheveux")
+		mc.set_shader_parameter("teinte", HerosSkarnholt.TEINTE_CHEVEUX if heros else Color(0.78, 0.62, 0.48))
 		mi_ch.material_override = mc
 	var mi_b: MeshInstance3D = sq.get_node_or_null("Hair_Beard")
 	if mi_b:
 		GuerrierNordique._filtrer(mi_b, func(c: Vector3, n: Vector3) -> bool: return n.dot(c - tete) > -0.002)
 		GuerrierNordique._decimer(mi_b, func(p: Vector3) -> float: return 0.011)
 		GuerrierNordique._uv_barbe(mi_b)
-		var mb := materiau(GuerrierTextures.tex("barbe"), true, false, false, "gardien_barbe")
-		mb.set_shader_parameter("teinte", Color(0.70, 0.56, 0.46))
+		var mb := materiau(GuerrierTextures.tex("barbe"), true, false, false, "heros_barbe" if heros else "gardien_barbe")
+		mb.set_shader_parameter("teinte", HerosSkarnholt.TEINTE_BARBE if heros else Color(0.70, 0.56, 0.46))
 		mb.set_shader_parameter("appoint", Vector3(0.10, 0.09, 0.09))
 		mi_b.material_override = mb
 	# -- pièces versées dans les 2 surfaces de l'atlas (même budget de surfaces que le guerrier)
 	var plastron := GuerrierNordique._plastron(sq, pieces["tunique"])
 	GuerrierNordique._filtrer(pieces["mante"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.0 and absf(c.x) < 0.15 + (c.y - 1.30) * 0.25 and c.y < 1.53))
-	var acc := AccGardien.new(sq)
+	var acc: AccGardien = HerosSkarnholt.AccHeros.new(sq) if heros else AccGardien.new(sq)
 	var A := Vector2(GuerrierTextures.ATLAS)
 	var D := Vector2(GuerrierTextures.DECOUPES)
 	acc.integrer(plastron, acc.op, func(uv: Vector2) -> Vector2:
@@ -151,7 +165,7 @@ static func _creer(options := {}) -> Node3D:
 	var EP := GardienTextures.R_EPAUL
 	acc.integrer(pieces["epaulieres"], acc.op, func(uv: Vector2) -> Vector2:
 		return Vector2(EP.position.x + clampf((uv.x + 0.198) / 0.396, 0.0, 1.0) * (EP.size.x - 0.5), EP.position.y + clampf((uv.y - 0.17) / 0.23, 0.0, 1.0) * (EP.size.y - 0.5)) / A,
-		func(p: Vector3, n: Vector3) -> Vector3: return p + n * 0.022 + Vector3(signf(p.x) * 0.012, -0.012, 0.0) * clampf((absf(p.x) - 0.18) / 0.2, 0.0, 1.0))
+		func(p: Vector3, n: Vector3) -> Vector3: return p + n * (0.030 if heros else 0.022) + Vector3(signf(p.x) * 0.012, -0.012, 0.0) * clampf((absf(p.x) - 0.18) / 0.2, 0.0, 1.0))
 	# pèlerine (passe 2) : la cape du guerrier coupée aux hanches (rangée de 0,85 m), UV planaires vus de dos (emblème net)
 	var PE := GardienTextures.D_PELERINE
 	# passe vêtements 3 : la cape retombe jusqu'aux mollets (0,43 m) : 96 rangées à 128 texels/m jusqu'à 0,83 m, puis 32 rangées
@@ -194,7 +208,8 @@ static func _creer(options := {}) -> Node3D:
 		# gants versés dans la surface des accessoires (budget de 10 surfaces) : cuir peint en (60,208,16,16)
 		var RG := GardienTextures.R_GANT
 		acc.integrer(pieces["gants"], acc.op, func(uv: Vector2) -> Vector2:
-			return Vector2(RG.position.x + clampf(uv.x, 0.0, 1.0) * (RG.size.x - 1.0) + 0.5, RG.position.y + clampf(uv.y, 0.0, 1.0) * (RG.size.y - 1.0) + 0.5) / A)
+			return Vector2(RG.position.x + clampf(uv.x, 0.0, 1.0) * (RG.size.x - 1.0) + 0.5, RG.position.y + clampf(uv.y, 0.0, 1.0) * (RG.size.y - 1.0) + 0.5) / A,
+			(func(p: Vector3, n: Vector3) -> Vector3: return p + n * 0.006) if heros else Callable())    # héros : gants plus épais
 		pieces["gants"].visible = false
 	for nom in ["ceinture", "cape", "tablier", "epaulieres"]:
 		pieces[nom].visible = false
@@ -207,21 +222,26 @@ static func _creer(options := {}) -> Node3D:
 	acc.boucle(Vector3(0.0, 0.988, 0.176), 0.062)
 	acc.fibule(plastron, Vector2(-0.13, 1.38))
 	acc.fibule(plastron, Vector2(0.13, 1.40))
-	acc.baudrier_av(plastron)
+	if heros:
+		(acc as HerosSkarnholt.AccHeros).equiper(pieces, plastron, casque)    # plaques, épaulières doublées, camail, poignets fourrés
+	else:
+		acc.baudrier_av(plastron)
 	acc.languette_et_bourse(pieces["tablier"])
 	acc.yeux(yeux)
-	acc.echarpe()
+	if not (heros and casque):
+		acc.echarpe()      # le héros casqué porte un camail de mailles à la place de l'écharpe
 	acc.surcot(pieces["pantalon"], pieces["tunique"])
-	acc.casque()
+	if casque:
+		acc.casque()
 	plastron.visible = false
-	var bouclier: String = options.get("bouclier", "bras")
+	var bouclier: String = options.get("bouclier", "" if heros else "bras")
 	if bouclier != "":
 		acc.bouclier(bouclier)
-	if options.get("lance", true):
+	if options.get("lance", not heros):
 		acc.lance(_bas_lance)
 	var mi_acc := acc.construire(sq.create_skin_from_rest_transforms())
 	sq.add_child(mi_acc)
-	racine.set_meta("gardien_nordique", true)
+	racine.set_meta("heros_skarnholt" if heros else "gardien_nordique", true)
 	return racine
 
 static func _habiller(mi: MeshInstance3D, m: ShaderMaterial) -> void:
@@ -383,6 +403,10 @@ class AccGardien extends GuerrierNordique.Accessoires:
 				s["w"].append_array(PackedFloat32Array(wo))
 	func _uva(x: float, y: float) -> Vector2:
 		return Vector2(x / GuerrierTextures.ATLAS.x, y / GuerrierTextures.ATLAS.y)
+
+	## Atlas des accessoires / des découpes (surchargé par le héros).
+	func _tex_atlas(nom: String) -> ImageTexture:
+		return GardienTextures.tex(nom)
 
 	# ------------------------------------------------------------ baudrier (passe vêtements)
 	## Sangle de cuir clair de l'épaule droite à la hanche gauche, DEVANT seulement (le dos est sous la pèlerine), posée sur le
@@ -625,6 +649,10 @@ class AccGardien extends GuerrierNordique.Accessoires:
 
 	## Trois couronnes de mèches autour du cou et sur les épaules, racines accrochées à la surface de la mante (sommet le plus
 	## proche) : dressée autour du cou, retombant sur les épaules, retombée basse. Devant dégagé (menton, fibule).
+	## Fourrure du col plus fournie (héros : 1,25 = mèches plus longues et plus larges).
+	var col_ample := 1.0
+	## Angle mort devant élargi (rad, héros : le plastron de lames reste visible).
+	var col_devant := 0.0
 	func col(mante: MeshInstance3D) -> void:
 		var a := mante.mesh.surface_get_arrays(0)
 		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
@@ -643,7 +671,7 @@ class AccGardien extends GuerrierNordique.Accessoires:
 				var th := TAU * (float(i) + 0.5 * (n % 2)) / nb
 				var cz := cos(th)
 				var ext := Vector3(sin(th), 0.0, cz)
-				if cz > 0.0 and absf(sin(th)) < sin(float(cr[8])):
+				if cz > 0.0 and absf(sin(th)) < sin(minf(float(cr[8]) + col_devant, 1.45)):
 					continue
 				var p := Vector3(sin(th) * cr[2], cr[1], cos(th) * cr[3] - 0.012)
 				# accrochage : sommet de mante le plus proche
@@ -658,7 +686,7 @@ class AccGardien extends GuerrierNordique.Accessoires:
 				var dir := (ext * float(cr[4]) + Vector3.UP * float(cr[5])).normalized()
 				var cote := ext.cross(Vector3.UP).normalized()
 				var rd := 0.82 + _h(n) * 0.36
-				_carte_col(mante, a, root, cote, dir, float(cr[7]) * (0.9 + _h(n + 1) * 0.3), float(cr[6]) * rd, (n + i) % 4)
+				_carte_col(mante, a, root, cote, dir, float(cr[7]) * (0.9 + _h(n + 1) * 0.3) * col_ample, float(cr[6]) * rd * col_ample, (n + i) % 4)
 				n += 1
 
 	# ------------------------------------------------------------ lance (main droite)
@@ -706,8 +734,8 @@ class AccGardien extends GuerrierNordique.Accessoires:
 			if d["v"].is_empty():
 				continue
 			if d == op:
-				mi.set_surface_override_material(s, GuerrierNordique.materiau(GardienTextures.tex("accessoires"), false, false, true))
+				mi.set_surface_override_material(s, GuerrierNordique.materiau(_tex_atlas("accessoires"), false, false, true))
 			else:
-				mi.set_surface_override_material(s, GuerrierNordique.materiau(GardienTextures.tex("decoupes"), true, true, false))
+				mi.set_surface_override_material(s, GuerrierNordique.materiau(_tex_atlas("decoupes"), true, true, false))
 			s += 1
 		return mi

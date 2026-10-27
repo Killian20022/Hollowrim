@@ -142,6 +142,8 @@ func _materiaux_equipement() -> Dictionary:
 		# peau des bras et des mains sous l'étoffe (bras_fps.glb) : bouche les fissures manche/brassard/gant
 		"sous_couche": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(3, 3), Color(0.8, 0.72, 0.68)),
 	}
+	# bras du héros assortis à son corps (HerosSkarnholt) : manches de mailles d'acier, brassards, gants de cuir sombre, revers de fourrure
+	_mats.merge(HerosSkarnholt.materiaux_fps(), true)
 	# les fichiers exportés de Blender portent des couleurs de sommet d'alpha nul, que le
 	# shader lirait comme « neige » : la texture de neige devient la texture de base
 	for m: ShaderMaterial in _mats.values():

@@ -11,6 +11,7 @@ const CORPS := {
 	"guerrier_eirik": ["guerrier", {"casque": false, "bouclier": "", "epee": false}],
 	"gardien_dos": ["gardien", {"bouclier": "dos", "lance": true}],
 	"gardien_bras": ["gardien", {"bouclier": "bras", "lance": true}],
+	"heros": ["heros", {}],
 	"chasseresse_chef": ["chasseresse", {"arc": false, "carquois": false, "couteau": false}],
 	"draugr_bras": ["draugr", {"bouclier": "bras", "epee": true, "casque": true}],
 	"draugr_nu": ["draugr", {"bouclier": "", "epee": false, "casque": false}],
@@ -28,6 +29,7 @@ func _fab(a: String, o: Dictionary) -> Node3D:
 	match a:
 		"guerrier": return GuerrierNordique.creer(o)
 		"gardien": return GardienNordique.creer(o)
+		"heros": return HerosSkarnholt.creer(o)
 		"chasseresse": return ChasseresseNordique.creer(o)
 		"pnj": return PnjNordique.creer(o["id"])
 	return DraugrNordique.creer(o)

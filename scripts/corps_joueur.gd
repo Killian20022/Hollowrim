@@ -46,7 +46,8 @@ func _ready() -> void:
 		if a.begins_with("--anim="):
 			_debug = a.substr(7)  # captures : --anim=Nom:temps fige une image d'animation
 
-## Tenue du joueur (corps Humain) : tunique bleue, mante grise, cuirs.
+## Ancienne tenue du joueur (corps Humain : tunique bleue, mante grise, cuirs), avant le héros « garde amélioré » (HerosSkarnholt) ;
+## gardée pour les outils de comparaison (outils/compter_tris_persos.gd).
 const APPARENCE := {
 	"corps": "homme",
 	"tenue": {
@@ -59,8 +60,9 @@ const APPARENCE := {
 
 ## Construit (ou reconstruit, à la résurrection) le modèle vêtu, ses accessoires et ses pieds.
 func _creer_modele() -> void:
-	# corps Humain (Quaternius) par défaut ; --persos-kit : personnage de base unifié (PersoDefs.joueur)
-	modele = Personnage.creer(PersoDefs.joueur()) if Personnage.kit_actif() else Humain.creer(APPARENCE)
+	# héros « garde de Skarnholt amélioré » (HerosSkarnholt, base GardienNordique, cache disque des corps) ; --persos-kit : personnage de
+	# base unifié (PersoDefs.joueur). Équipement (bouclier, casque) : options de HerosSkarnholt.creer.
+	modele = Personnage.creer(PersoDefs.joueur()) if Personnage.kit_actif() else HerosSkarnholt.creer({})
 	modele.rotation.y = PI  # le modèle regarde +Z, le joueur -Z
 	add_child(modele)
 	var squelette: Skeleton3D = modele.find_child("Skeleton3D", true, false)
