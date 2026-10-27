@@ -113,11 +113,14 @@ var _id_modele_gauche := ""
 ## La garde brisée en cours a frappé le bouclier (le bras droit garde l'épée au repos).
 var _brisee_bouclier := false
 ## Changement d'objet de la main gauche (torche ↔ sort ↔ bouclier ↔ vide) : la cible de la main et le pôle du coude
-## rejoignent la nouvelle pose par un ressort pendant TRANSITION_G s (aucun saut d'une image à l'autre).
-const TRANSITION_G := 0.6
+## passent de la pose affichée au moment du changement à la nouvelle pose en TRANSITION_G s, sur une courbe en S (vitesse
+## nulle au départ et à l'arrivée : aucun saut d'une image à l'autre).
+const TRANSITION_G := 0.35
 var _t_transition_g := 9.0
 var _g_lisse := Transform3D()
 var _coude_g_lisse := Vector3.ZERO
+var _g_depart := Transform3D()
+var _coude_g_depart := Vector3.ZERO
 var _g_lisse_ok := false
 
 var _geste := {}
@@ -411,6 +414,8 @@ func _sur_equipement(main: String) -> void:
 		Sons.jouer(self, ["cloth1", "cloth2"], -8.0)
 		_installer_gauche()
 		_t_transition_g = 0.0
+		_g_depart = _g_lisse
+		_coude_g_depart = _coude_g_lisse
 
 ## Bouclier tenu en main gauche (et sorti) : la garde se lève au bouclier.
 func garde_bouclier() -> bool:
@@ -1303,6 +1308,8 @@ func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictiona
 ## brisée = bouclier rabattu, même titubement et même garde impossible qu'à l'épée.
 func _defendre_bouclier(r: Dictionary, g: DonneesArme, origine: Vector3) -> void:
 	var point := pivot_torche.global_transform * Vector3(0.09, 0.0, 0.0)   # face du bouclier, près de l'umbo
+	# éclats un peu en avant de la face (là où l'arme adverse frappe) : collés au bouclier, ils boucheraient la vue
+	var fx := point - (get_parent() as Node3D).global_transform.basis.z * 0.35
 	var son := g.son_garde if g.son_garde != "" else "metal_blocage"
 	var vers := origine - joueur.global_position
 	vers.y = 0.0
@@ -1314,8 +1321,8 @@ func _defendre_bouclier(r: Dictionary, g: DonneesArme, origine: Vector3) -> void
 			_encaisse = 0.0
 			RetourImpact.son(self, son, point, 4.0, 0.92)
 			RetourImpact.son(self, "parade_parfaite", point, -4.0, 0.8)
-			Effets.eclats(self, point, Color(0.62, 0.46, 0.3), 12, 2.6, false)   # échardes
-			Effets.eclats(self, point, Color(3.2, 2.6, 1.2), 8, 3.0, true)      # étincelles de l'umbo
+			Effets.eclats(self, fx, Color(0.3, 0.21, 0.12), 6, 2.6, false)   # échardes
+			Effets.eclats(self, fx, Color(3.2, 2.6, 1.2), 10, 3.0, true)     # étincelles de l'umbo
 			if RetourImpact.temps_actif():
 				Effets.arret_image(get_tree(), 0.06)
 			joueur.secousse = maxf(joueur.secousse, 0.2)
@@ -1324,14 +1331,14 @@ func _defendre_bouclier(r: Dictionary, g: DonneesArme, origine: Vector3) -> void
 			_encaisse = DUREE_ENCAISSE
 			RetourImpact.son(self, son, point, 1.0)
 			RetourImpact.son(self, "metal_blocage", point, -10.0, 0.85)
-			Effets.eclats(self, point, Color(0.55, 0.4, 0.26), 8, 2.0, false)
+			Effets.eclats(self, fx, Color(0.3, 0.21, 0.12), 4, 2.0, false)
 			joueur.secousse = maxf(joueur.secousse, 0.28)
 			joueur._recul = recul
 		"brisee":
 			bouclier.declencher("brisee")
 			RetourImpact.son(self, son, point, 5.0, 0.75)
 			RetourImpact.son(self, "metal_blocage", point, -2.0, 0.7)
-			Effets.eclats(self, point, Color(0.55, 0.4, 0.26), 14, 2.8, false)
+			Effets.eclats(self, fx, Color(0.3, 0.21, 0.12), 8, 2.8, false)
 			joueur.secousse = maxf(joueur.secousse, 0.55)
 			joueur._recul = recul * 1.6
 			_pose_fin = _pose_courante
@@ -1610,16 +1617,16 @@ func _poser_bouclier(dt: float) -> void:
 	for fl in flammes:
 		fl.emitting = false
 
-## Transition d'objet de la main gauche : ressort sur la cible de la main (et le pôle du coude) pendant TRANSITION_G s
-## après un changement, quel que soit celui qui pose la main (torche / bouclier ici, sorts dans MainSort).
+## Transition d'objet de la main gauche : de la pose affichée au changement vers la nouvelle pose (courbe en S) pendant
+## TRANSITION_G s, quel que soit celui qui pose la main (torche / bouclier ici, sorts dans MainSort).
 func _lisser_gauche(dt: float) -> void:
 	_t_transition_g += dt
 	var cible := pivot_torche.transform
 	var coude := _coude_g.position
 	if _g_lisse_ok and _t_transition_g < TRANSITION_G:
-		var k := 1.0 - exp(-12.0 * dt)
-		_g_lisse = GestesBouclier.melange(_g_lisse, cible, k)
-		_coude_g_lisse = _coude_g_lisse.lerp(coude, k)
+		var w := smoothstep(0.0, TRANSITION_G, _t_transition_g)
+		_g_lisse = GestesBouclier.melange(_g_depart, cible, w)
+		_coude_g_lisse = _coude_g_depart.lerp(coude, w)
 		pivot_torche.transform = _g_lisse
 		_coude_g.position = _coude_g_lisse
 	else:

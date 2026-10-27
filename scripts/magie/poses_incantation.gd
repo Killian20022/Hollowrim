@@ -6,8 +6,10 @@ class_name PosesIncantation
 ## MainSort (main_sort.gd) interpole vers la pose voulue (ressort) et pose les os de la main par IK + orientation.
 
 const POSES := {
-	# main levée au repos, sort prêt (lueur dans la paume), doigts à demi refermés
-	"repos": {"pos": Vector3(-0.25, -0.25, -0.40), "paume": Vector3(0.30, 0.25, -1.0), "doigts": Vector3(0.10, 1.0, -0.15), "fermeture": 0.38},
+	# repos, sort prêt : main basse à gauche (à la place de la torche de la tenue validée, references/combat_epee/
+	# tenue_epee_droite_1100.jpg), paume tournée vers le haut et vers le centre — l'aura brûle dans la paume, visible, sans
+	# masquer le centre de l'écran ni croiser le bras de l'épée ; doigts détendus
+	"repos": {"pos": Vector3(-0.32, -0.31, -0.42), "paume": Vector3(0.45, 0.85, 0.15), "doigts": Vector3(0.12, 0.35, -1.0), "fermeture": 0.32},
 	# incantation : la main monte et s'ouvre
 	"incante": {"pos": Vector3(-0.22, -0.20, -0.45), "paume": Vector3(0.22, 0.05, -1.0), "doigts": Vector3(0.05, 1.0, -0.30), "fermeture": 0.18},
 	# charge « paume » (jet, zone) : main ramenée, doigts en griffe, énergie qui s'accumule

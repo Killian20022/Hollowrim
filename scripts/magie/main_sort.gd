@@ -44,6 +44,9 @@ var _bouclier: Node3D
 ## Influence de l'IK du bras droit quand un sort occupe la main droite : monte et retombe en fondu (pas de saut entre
 ## le clip de l'épée et la pose d'incantation).
 var _infl_d := 0.0
+var _infl_d_lin := 0.0
+## Durée du fondu de l'IK droite (s).
+const FONDU_IK_D := 0.3
 var _aura := {"gauche": 0.0, "droite": 0.0}
 var _ecole_aura := {"gauche": "", "droite": ""}
 var _arme_enchantee: Node3D
@@ -610,9 +613,8 @@ func _poser_mains(dt: float) -> void:
 		var o = _orient[m]
 		var pivot: Node3D = mains.get("pivot_torche" if m == "gauche" else "pivot_epee")
 		if m == "droite":
-			_infl_d = lerpf(_infl_d, 0.0 if p.is_empty() else 1.0, 1.0 - exp(-14.0 * dt))
-			if p.is_empty() and _infl_d < 0.01:
-				_infl_d = 0.0
+			_infl_d_lin = move_toward(_infl_d_lin, 0.0 if p.is_empty() else 1.0, dt / FONDU_IK_D)
+			_infl_d = smoothstep(0.0, 1.0, _infl_d_lin)   # courbe en S : pas d'à-coup au début ni à la fin du fondu
 			if ik_d != null:
 				ik_d.active = _infl_d > 0.0
 				ik_d.influence = _infl_d

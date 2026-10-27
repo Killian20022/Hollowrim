@@ -133,6 +133,26 @@ Valeurs dans `scripts/combat/defense_joueur.gd` (garde, parade, contre) et `gest
 - L'attaquant reçoit « parade » : le draugr appelle `combat.subir_parade()` (posture − 45 %, fenêtre `apres_parade`
   1,4 s, étourdi si la posture tombe à 0) et titube 0,7 s : il est **ouvert**.
 
+### Garde au bouclier (main gauche, 2026-10-27, branche gameplay/bouclier)
+- Objet de la main gauche défini par DONNÉES : `data/armes/bouclier.tres` (catégorie BOUCLIER, modèle
+  `assets/modeles/armes/bouclier_nordique.glb`, source `sources_blender/scripts/bouclier_nordique.py`, habillé par
+  `scripts/objets/bouclier_nordique.gd` : planches peintes en tourbillon rouge / ocre usé, cerclage et umbo de fer, 548
+  triangles, face 128 x 128). Champs de garde de DonneesArme (groupe « Garde ») : `angle_garde` (épée 120°, bouclier
+  170°), `recul_garde` (bouclier 2,2 m/s), `posture_parade` (épée 0,45, bouclier 0,8), `son_garde` (« bois »).
+- Gestes à part des clips du bras droit : `scripts/combat/gestes_bouclier.gd` (repos = pose de la .tres, garde, impact,
+  coup, brisee, attaque = contrepoids des coups, sprint), posés par IK sur la main gauche (`mains._poser_bouclier`).
+- Clic droit tenu : le bouclier se lève devant, à gauche du centre, bord haut sous la ligne des yeux ; l'épée reste au
+  repos (pas de clip « garde »). Bloc : 95 % absorbés, endurance × 0,6, recul du joueur, sons bois + fer de l'umbo,
+  geste d'impact. Parade parfaite (même fenêtre) : **coup de bouclier** poussé en avant ; l'attaquant perd 80 % de sa
+  posture (`CombatEnnemi.part_parade`, posée par `mains.defendre` juste avant son `subir_parade`). Garde brisée : même
+  titubement et même garde impossible qu'à l'épée, mais c'est le bouclier qui est rabattu.
+- Garde baissée : l'épée attaque et enchaîne son combo normalement (mêmes durées, même départ dans l'image de l'appui).
+- Changement d'objet de la main gauche (torche ↔ sort ↔ bouclier ↔ vide) : cible de la main et pôle du coude passent de
+  la pose affichée à la nouvelle en 0,35 s sur une courbe en S (`mains._lisser_gauche`) ; l'IK droite des sorts entre et
+  sort en fondu 0,3 s (`MainSort._infl_d`). Plus grand déplacement d'une main en une image (test_bouclier) : avant
+  0,13-0,27 m, après ≤ 0,03 m à gauche, 0,08 m à droite (dont le geste « dégainer » existant).
+- Vérification : `outils/test_bouclier.gd` (37 vérifications), planches `outils/captures_bouclier.gd`.
+
 ### Contre-attaque
 - Fenêtre de **0,6 s** après une parade parfaite (`FENETRE_CONTRE`) : un clic (depuis la garde, ou garde relâchée) lance
   le geste « contre » (diagonale haut-gauche → bas-droite, plus ample, préparation courte 0,06 s, frappe 0,09 s, tassement

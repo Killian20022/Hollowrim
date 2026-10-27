@@ -65,7 +65,7 @@ sorts du système de magie), `monde.gd` (sauvegarde « magie »).
 - Arme à deux mains : occupe les deux ; équiper la gauche range l'arme (la droite redevient vide).
 - **Clic droit = garde** si : bouclier à gauche (toute main droite) ; vide ou torche à gauche ET arme à droite ; arme à
   deux mains. Sinon clic droit = main gauche (sort). Avec bouclier, c'est le bouclier qui pare (`reduction_garde` 0,95,
-  coût × 0,6 ; `data/armes/bouclier.tres`, modèle provisoire dessiné par MainSort).
+  coût × 0,6, cône 170° ; `data/armes/bouclier.tres`, vrai modèle et gestes posés par mains.gd : docs/COMBAT.md, « Garde au bouclier »).
 - Enchantement : exige une arme dans l'autre main.
 - Deux sorts différents à la fois : chaque main paie son sort ; deux canalisations ensemble × 1,15 ; régénération de mana
   arrêtée tant qu'une main incante ; incompatibles : soin + drain de vie.
@@ -169,7 +169,8 @@ Comportement inchangé (distance 7-13 m, téléport, fragile, mort marquée) ; l
 Poses (repère caméra, main gauche ; la droite en miroir) : repos (main levée, lueur dans la paume), incante (la main
 monte et s'ouvre), charge (griffe) / poing (boule, lance), lance (bras tendu), canalise (doigts écartés), levée (zone :
 paume au ciel puis frappée vers le sol), soi (soin, protection), lame (enchantement), écartée (l'épée frappe : la main du sort
-s'écarte en contrepoids), double (mains rapprochées), bouclier / garde au bouclier. Appliquées APRÈS la pose de l'épée par
+s'écarte en contrepoids), double (mains rapprochées) ; repos recalé le 2026-10-27 sur la tenue validée (main basse à gauche, paume
+vers le haut, aura visible ; le bouclier n'est plus une pose de sort : GestesBouclier). Appliquées APRÈS la pose de l'épée par
 mains.gd : cible d'IK de la main (`pivot_torche` / `pivot_epee`), orientation libre du poignet pendant l'incantation, coude
 écarté, doigts mélangés entre la pose de repos du squelette (ouverte) et le poing (`mains._doigts`). Ressort de 16 /s,
 tremblement léger en canalisation et à pleine charge. Le geste de l'épée (clés, rig, bras_fps.glb) n'est jamais modifié.
@@ -206,5 +207,5 @@ d'abord : enchantement et deux mains). Les 18 sorts sont connus d'office (pas en
 - 3e personne : aucune animation de sort (le corps garde ses animations d'épée / torche).
 - Pas d'inventaire graphique des mains (raccourcis + API `magie.equiper`) ; HUD et sélection rapide = agent effets.
 - La corruption n'affaiblit pas encore les coups DE l'ennemi (elle augmente les dégâts reçus).
-- Bouclier sans modèle (disque provisoire) ; pas d'arme à deux mains dans les données (gérée par les règles, testée).
+- Pas d'arme à deux mains dans les données (gérée par les règles, testée). Bouclier : vrai modèle depuis 2026-10-27.
 - Équilibrage complet (phase 6) à faire en jeu.
