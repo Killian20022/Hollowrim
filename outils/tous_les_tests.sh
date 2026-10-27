@@ -61,6 +61,7 @@ TESTS=(
 	"test_persos_tous|--persos-tous"
 	"test_interieurs|--nouvelle"
 	"test_primitives|"
+	"test_epees_longues|--nouvelle"   # 5 épées longues : nœuds prise/garde/pointe, repère, échelle, matériaux
 	"test_menu_titre|--nouvelle"   # menu principal : Continuer grisé sans sauvegarde valide, parcours au clavier, mise en page
 	"test_sortie|--nouvelle"   # sortie Hollowrim : migration, copie de secours, options (dossiers temporaires)
 	"test_sauvegarde|ecrire;verifier"   # deux processus à la suite
