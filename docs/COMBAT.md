@@ -2,8 +2,10 @@
 
 Référence visuelle : `references/combat_epee/planche_combat_epee_1100.jpg` ; cahier des charges : `references/combat_epee/prompt_utilisateur.md`.
 État : phase 1 (pose FPS + animations passives), phase 2 minimale (léger / lourd / tracé de lame / réactions existantes),
-phase 4 (directions, enchaînements) ; passe 4 : coups conçus en espace écran + traînée de lame (voir plus bas).
-Les phases 3 à 6 (défense complète, combos riches, variantes, polish) s'appuient sur la même architecture.
+phase 4 (directions, enchaînements) ; passe 4 : coups conçus en espace écran + traînée de lame (voir plus bas) ;
+**phase 3 (branche integration/H)** : branchement sur le système de dégâts/gore (docs/DEGATS.md), garde orientée, garde
+brisée, parade parfaite, contre-attaque, finishers lancés par le joueur (section « Défense, contre-attaque, finishers »).
+Les phases 5 et 6 (variantes, polish) s'appuient sur la même architecture.
 
 ## Lancer
 
@@ -11,6 +13,9 @@ Les phases 3 à 6 (défense complète, combos riches, variantes, polish) s'appui
 |---|---|
 | Scène de test (jouable) | `$G --path "$W" res://scenes/test_combat.tscn -- [--nuit] [--draugr=actif\|fige\|aucun] [--debug-combat]` |
 | Test automatique | `bash outils/tous_les_tests.sh test_combat_epee` (≈ 6 s, sans fenêtre) |
+| Test de la défense | `bash outils/tous_les_tests.sh test_defense` (garde, garde brisée, anti-spam, parade sur vraie attaque de draugr, contre, finisher) |
+| Planches défense | `... --script res://outils/captures_defense.gd -- --sortie="$W\captures\combat_defense" [--poses]` |
+| Film défense | idem avec `--write-movie "$W\captures\combat_defense\video\defense_parade_contre_finisher.avi" --fixed-fps 30` et `-- --film` |
 | Planches | `bash /tmp/godot_slot.sh $G --path "$W" --script res://outils/captures_combat_epee.gd -- --sortie="$W\captures\combat_epee\scene"` |
 | Film | idem avec `--write-movie "$W\captures\combat_epee\video\combat_epee.avi" --fixed-fps 30` avant `--script`, et `-- --film` |
 | Mesures des coups (planches) | `-- --mesures [--gestes=diag_gd,horizontale,estoc] [--arme=epee_rubis] [--nuit] --sortie=...\coups_ecran` (lignes MESURE / RESUME) |
@@ -28,15 +33,17 @@ T = torche ; **F3 = débogage** (tracé de lame, état de combat, endurance, cha
 | `donnees_arme.gd` (`DonneesArme`, « WeaponData ») | Resource : modèle (.glb) + habillage + point de prise, pose de repos (poignée, lame, tranchant, pôle du coude), dégâts, vitesse, poids, coûts, réduction en garde, tracé de lame (garde → pointe + allonge), profil d'animation. Une `.tres` par objet dans `data/armes/`. |
 | `equipement.gd` (`Equipement`) | Main droite / main gauche séparées ; deux mains = main gauche libérée ; T sort / range l'objet gauche ; l'épée de Skarnholt remplace l'épée de métal quand elle est dans l'inventaire. |
 | `entrees_combat.gd` (`EntreesCombat`) | Entrées horodatées, durée d'appui, mémoire d'entrée (input buffer, 0,35 s), garde (bouton ou imposée). |
-| `etat_combat.gd` (`EtatCombat`) | Machine à états : Idle, Moving, LightAttack, HeavyCharge, HeavyAttack, Blocking, Parrying, Staggered, Recovery, Equip ; table des transitions autorisées. |
+| `etat_combat.gd` (`EtatCombat`) | Machine à états : Idle, Moving, LightAttack, HeavyCharge, HeavyAttack, Blocking, Parrying, Staggered, Recovery, Equip, **Counter, Finisher** (phase 3 : table `TRANSITIONS_PHASE3` à part) ; table des transitions autorisées. |
+| `defense_joueur.gd` (`DefenseJoueur`) | Phase 3 : cône de garde, coût et réduction selon l'arme, garde brisée, fenêtre de parade parfaite (anti-spam), fenêtre de contre-attaque. Logique pure, tous les réglages en constantes. |
+| `gestes_defense.gd` (`GestesDefense`) | Phase 3 : gestes « contre », « finisher_taille », « finisher_sol » (clés écran) et poses garde / encaisse / parade / garde brisée, À PART des profils d'attaque ; durées du finisher. |
 | `profils_animation.gd` (`ProfilsAnimation`) | Gestes d'attaque (préparation, phase active à trois poses, récupération, fenêtre de dégâts), poses de charge / garde / sprint. Mêmes fonctions pour l'image et pour le tracé. |
 | `trace_lame.gd` (`TraceLame`) | Détection par tracé de lame à pas fixe (rayons radiaux depuis l'œil + rayons latéraux). |
 | `trainee_lame.gd` (`TraineeLame`) | Traînée de lame pixel (ruban garde → pointe, 0,1 s, `shaders/trainee_lame.gdshader`). |
 | `degats_combat.gd` (`DegatsCombat`) | Calcul des dégâts, appel de `recevoir_coup` (avec `info` si la cible l'accepte), zone touchée. |
-| `retour_coups.gd` (`RetourCoups`) | Arrêt sur image, secousse, étincelles et son sur les murs, signal discret de pleine charge. |
+| `retour_coups.gd` (`RetourCoups`) | Étincelles et son sur les murs, signal discret de pleine charge ; coups qui portent sur une cible SANS CombatEnnemi (dragon…) → profils d'impact (`RetourImpact.jouer`). |
 | `mouvements_passifs.gd` (`MouvementsPassifs`) | Respiration, marche, sprint, saut / atterrissage, inertie de la caméra, arrêt brutal (ressorts à pas fixe). |
 | `debogage_combat.gd` | Dessin du tracé et texte d'état (F3). |
-| `mannequin.gd` | Mannequin d'entraînement de la scène de test (encaisse, vacille, affiche les dégâts). |
+| `mannequin.gd` (`Mannequin`) | UN mannequin pour les deux scènes de test (test_combat, test_degats) : CombatEnnemi (posture, réaction, finisher : la tête s'envole et repousse), chiffres de dégâts, journal `coups`, signal `touche`, groupe `cibles_combat`. |
 
 `scripts/mains.gd` orchestre (entrées → machine à états → poses → IK des bras → tracé). Son interface d'avant reste :
 `etat` (ancien enum, lu par `corps_joueur.gd`), `bloque`, `temps_garde`, `torche_sortie`, `_puissant`, `attaquer()`,
@@ -54,8 +61,12 @@ Recovery --clic mémorisé (après 0,06 s)--> LightAttack (geste suivant du comb
 Idle/Moving/Recovery(> 0,12 s) --clic droit--> Parrying (0,3 s) --> Blocking --relâché--> Idle
 LightAttack/HeavyAttack --lame arrêtée (mur, bouclier, cassable qui tient)--> Staggered (0,30 s) --> Idle
 Idle/Moving --changement d'arme--> Equip (0,45 s) --> Idle
+Blocking/Parrying --coup bloqué sans assez d'endurance--> Staggered (garde brisée, 0,45 s) --> Idle (garde impossible 1 s)
+Blocking/Parrying/Idle/Moving/Recovery --clic dans la fenêtre de contre (0,6 s après une parade parfaite)--> Counter --> Recovery
+Idle/Moving/Recovery/Blocking/Parrying --clic, cible achevable devant--> Finisher (élan + coup) --> Recovery
 ```
-Pas d'attaque en garde (l'appui mémorisé est effacé) ; toute attaque passe par Recovery (pas d'attaque infinie).
+Pas d'attaque normale en garde (l'appui mémorisé est effacé, sauf contre-attaque ou finisher) ; toute attaque passe par
+Recovery (pas d'attaque infinie).
 
 ## Valeurs (épée en métal, vitesse 1)
 
@@ -92,12 +103,73 @@ Multiplicateurs communs : compétence Épée (+0,6 × progression), trophée.
   réponse), mais dégâts × 0,5, gestes ralentis (× 1/0,75), jamais « puissant » (pas de titubement forcé), stagger × 0,5.
   Même règle pour le lourd. L'endurance tombe à 0 (jamais négative).
 - Garde : coût par coup bloqué = dégâts × 1,1 × (réduction de la compétence Parade) × `cout_garde` ; parade : × 0,3.
+- **Endurance insuffisante en garde = GARDE BRISÉE** (choix documenté, phase 3) : voir ci-dessous.
+- Finisher : coût d'un coup léger ; contre-attaque : coût d'un coup léger (payé au lancement de la frappe).
 
-### Garde et parade (inchangées sur le fond, phase 3 à venir)
-- Garde = clic droit tenu ; angle : l'attaquant doit être devant (produit scalaire > 0,3).
-- Parade : coup reçu dans les 0,3 s après la levée de la garde (`FENETRE_PARADE`) → aucun dégât, coût × 0,3.
-- Blocage : `1 − reduction_garde` des dégâts passent (15 % avec l'épée de métal).
-- Impact encaissé : pose « encaisse » 0,18 s, la garde reste levée. Vitesse de marche × 0,5 en garde ; pas de sprint.
+## Défense, contre-attaque, finishers (phase 3)
+Valeurs dans `scripts/combat/defense_joueur.gd` (garde, parade, contre) et `gestes_defense.gd` (gestes, finisher).
+
+### Garde orientée
+- Clic droit tenu. La garde couvre un **cône de 120°** devant le joueur (`ANGLE_DEFENSE`) : un coup venu de plus de 60°
+  du regard (côté, dos) passe entièrement (test : 45° bloqué, 75° et dos touchés).
+- Coup bloqué : `1 − reduction_garde` des dégâts passent (métal 85 % → 15 % ; or 80 %, verre 75 %, obsidienne 90 %) ×
+  réduction de la compétence Parade ; coût d'endurance dégâts × 1,1 × compétence × `cout_garde`. Un coup bloqué ne tue
+  pas (la vie reste ≥ 1). Son `metal_blocage` (pack CC0), étincelles, pose « encaisse » 0,18 s, secousse 0,35.
+- Pas d'attaque normale en garde ; vitesse de marche × 0,5, pas de sprint.
+- **Garde brisée** : si l'endurance ne suffit pas à payer le coup bloqué, la garde cède : 50 % des dégâts passent
+  (`PART_BRISEE`, joués comme un coup reçu : recul, Hit_Chest en 3e personne), l'endurance tombe à 0, le joueur titube
+  0,45 s (état Staggered, épée rabattue en bas à droite), **garde impossible 1 s** (`GARDE_IMPOSSIBLE`) même bouton tenu.
+
+### Parade parfaite
+- Coup reçu dans les **0,18 s** qui suivent la levée de la garde (`FENETRE_PARADE`) → aucun dégât, coût × 0,3.
+- **Anti-spam** : chaque levée moins de 0,9 s après la précédente réduit la fenêtre de 0,045 s (0,18 → 0,135 → 0,09 →
+  0,045, plancher 0,04) ; une levée après 0,9 s de calme retrouve la fenêtre entière.
+- Retour : tintement clair `parade_parfaite` (distinct du blocage), gerbe d'étincelles, coup de poignet de la lame vers
+  l'extérieur (pose « parade » 0,14 s), arrêt sur image 0,06 s.
+- L'attaquant reçoit « parade » : le draugr appelle `combat.subir_parade()` (posture − 45 %, fenêtre `apres_parade`
+  1,4 s, étourdi si la posture tombe à 0) et titube 0,7 s : il est **ouvert**.
+
+### Contre-attaque
+- Fenêtre de **0,6 s** après une parade parfaite (`FENETRE_CONTRE`) : un clic (depuis la garde, ou garde relâchée) lance
+  le geste « contre » (diagonale haut-gauche → bas-droite, plus ample, préparation courte 0,06 s, frappe 0,09 s, tassement
+  de caméra) au lieu d'un coup léger. Fouetté lourd.
+- `attaque = "contre"` : dégâts de base légers × `force` 1,4 du geste, puis × 1,3 (CalculDegats) ; stagger de contre
+  34 (× déséquilibre de l'arme) ; profil d'impact lourd. **Pas de critique automatique** : critique seulement selon les
+  règles (tête au coup non léger, cible étourdie ou au sol).
+- La contre-attaque dépense l'ouverture `apres_parade` de la cible touchée : le finisher ne suit que si **la posture
+  casse** (cible étourdie) ou selon les autres catégories (vie basse, au sol). Test : la contre brise la posture d'un
+  draugr guerrier paré → finisher « etourdi » au clic suivant.
+
+### Finishers lancés par le joueur
+- À chaque clic (léger ou lourd), `mains._chercher_finisher()` cherche une cible (groupes `ennemis` et `cibles_combat`)
+  dont `finisher_possible(joueur)` renvoie une catégorie (portée 2,6 m, hauteur, état : CombatEnnemi), **devant la
+  caméra** (cône ± 50°), le joueur **de face ou de côté** par rapport à elle (pas dans son dos, > 140°), sans mur entre
+  les deux. Sinon, coup normal.
+- Séquence FPS courte (`GestesDefense.FINISHER`, total 0,72 s ≤ 0,8 s) : élan 0,26 s vers la pose armée (ralenti léger
+  × 0,7), **verrou bref de la caméra** sur le cou (lacet du joueur + tangage de la tête, ressort 14 /s) pendant l'élan et
+  le coup, coup 0,12 s (traînée de lame, tassement) ; à mi-coup `subir_finisher(catégorie, info)` (info : point = cou,
+  direction de la lame, zone tête, attaque « finisher », arme, origine, `puissant` si arme ≥ 2,4 kg) ; suivi 0,34 s en
+  récupération. La cible joue sa mort spéciale (décapitation : tête en corps rigide, jet de sang ; coup de grâce au sol)
+  et le profil d'impact « finisher » (arrêt 0,2 s, secousse, voile rouge, ralenti 0,45 s).
+- Gestes : `finisher_taille` (coupe horizontale de droite à gauche à travers le centre de l'écran, là où le verrou met
+  le cou) pour toutes les catégories de taille ; `finisher_sol` (abattu vertical) pour « sol ». Le finisher PROVISOIRE
+  de `draugr.recevoir_coup` (et du mannequin) est retiré : seul le joueur déclenche un finisher.
+
+### Retours d'impact : une seule source
+Arrêt sur image, secousse et voile rouge d'un coup qui porte viennent des profils d'impact de degats_gore
+(`ProfilImpact` : léger, moyen, lourd, critique, finisher), joués par la cible (CombatEnnemi) selon le profil calculé.
+`RetourCoups` ne s'en sert plus que pour les cibles sans CombatEnnemi (dragon, cassables) ; `RetourCoups.arret_actif` /
+`RetourImpact.arret_actif` coupent arrêts et ralentis (tests).
+
+### Sons (pack CC0 `audio_combat_cc0`, copié dans assets/sons/combat/, crédits assets/LICENCES.md)
+`RetourImpact.son` : `fouette_leger` (coups légers), `fouette_lourd` (lourd, contre, finisher), `metal_blocage`,
+`parade_parfaite`, `degainer` / `rengainer` (préchargés, pas encore branchés sur l'équipement). Gain par fichier mesuré
+(moyenne ramenée vers −19 dB) ; non écoutés à l'oreille.
+
+### 3e personne
+Contre et finisher passent par l'ancien état ARMER puis FRAPPE (`Sword_Attack` joué par corps_joueur.gd, vitesse du coup
+lourd) ; garde : image de garde de `Sword_Attack` ; garde brisée : `Hit_Chest` (coup reçu). Pas d'animation dédiée
+(parade, finisher) dans la bibliothèque.
 
 ## Tracé de lame (détection)
 - Échantillons à **pas fixe de 1/240 s** du temps du geste (indépendant des images par seconde). La pose de chaque
@@ -120,12 +192,13 @@ Multiplicateurs communs : compétence Épée (+0,6 × progression), trophée.
 `recevoir_coup(degats, origine, puissant, info := {})` ; le 4e paramètre n'est passé que si la cible l'accepte.
 `info` : `type` ("tranchant"), `point`, `direction` (mouvement de la lame au contact), `normale`, `zone`
 ("tete" > 83 % de la hauteur, "jambes" < 45 %, "bras" sur les côtés, sinon "torse"), `attaque` ("legere" / "lourde" /
-"chargee_max" / "contre" plus tard), `arme` (id), `stagger` (léger 0,3 ; lourd 0,7 × (1 + charge × 0,5)), `collider`,
-plus `affaibli`, `charge`, `instant`.
+"chargee_max" / "contre"), `arme` (id), `stagger` (dans l'unité des postures ennemies, `DegatsCombat.stagger` : léger 12,
+lourd 28 × (1 + charge × 0,5) soit 42 à pleine charge, contre 34, × déséquilibre de l'arme / celui de l'épée de métal),
+`collider`, plus `affaibli`, `charge`, `instant`. Transmis à CHAQUE touche du tracé de lame.
 
 ## Retours (RetourCoups)
-Arrêt sur image 0,05 s (léger) / 0,10 s (lourd) ; secousse 0,22 / 0,45 ; mur 0,18 ; bloqué 0,3. `RetourCoups.arret_actif`
-coupe l'arrêt sur image (tests). Les ennemis jouent leur son de chair et leurs éclats eux-mêmes.
+Coups qui portent : profils d'impact (voir « Retours d'impact : une seule source ») ; mur 0,18 ; bloqué 0,3.
+`RetourCoups.arret_actif` coupe l'arrêt sur image (tests). Les ennemis jouent leur son de chair et leurs éclats eux-mêmes.
 
 ## Animations passives (MouvementsPassifs)
 Ressorts amortis (raideur 110, amortissement 0,5, plus lents pour une arme lourde) intégrés à 240 Hz. Respiration
@@ -213,8 +286,10 @@ vertical léger 0,06 → 85 % ; estoc 0,06 → 80 % ; lourd 0,08 → 80 %. Un ap
 3e personne : seule l'animation `Sword_Attack` existe pour l'épée ; l'estoc joue `Punch_Jab` (poussée droit devant).
 
 ## Limites connues / suite
-- Phase 3 : garde orientée par le tracé de l'arme ennemie, parade parfaite avec déséquilibre ennemi, contre-attaque
-  (`attaque = "contre"`), garde brisée quand l'endurance tombe à 0.
+- Phase 3 (fait, integration/H) : la garde est orientée par la position de l'attaquant (cône de 120°), pas encore par le
+  tracé de son arme ; seuls les draugrs (et squelettes, bandits : draugr.gd) réagissent à la parade (`subir_parade`) ;
+  projectiles et pièges sont bloqués / parés sans déséquilibre. Pas d'animation 3e personne dédiée à la parade ni au
+  finisher. Sons de garde non écoutés à l'oreille.
 - Phase 4 (reste) : annulation de la récupération par la garde, gestes 3e personne par direction (animations à créer).
 - Phase 5 : équilibrage des 4 variantes, lueurs (rubis, verre), effets d'enchantement.
 - Phase 6 : sons d'impact par matériau, caméra, optimisation.

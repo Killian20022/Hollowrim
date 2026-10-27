@@ -23,7 +23,7 @@ const GESTES := {
 	# le centre de l'écran — là où la caméra verrouillée a mis le cou de la cible — et finit à gauche
 	"finisher_taille": {
 		"armer": {"g": Vector2(0.55, -0.35), "z": 0.75, "t": Vector2(1.12, 0.3)},
-		"milieu": {"g": Vector2(0.05, -0.32), "z": 0.55, "t": Vector2(-0.25, 0.32)},
+		"milieu": {"g": Vector2(0.25, -0.3), "z": 0.55, "t": Vector2(-0.38, 0.02)},
 		"fin": {"g": Vector2(-0.4, -0.45), "z": 0.75, "t": Vector2(-1.1, 0.08)},
 		"suivi": {"g": Vector2(-0.48, -0.52), "z": 0.8, "t": Vector2(-1.1, -0.15)},
 		"acceleration": 2.6,
