@@ -34,6 +34,7 @@ static func _g() -> GestionMagie:
 ## inutile de rappeler chaque image si rien ne change. Suit `main` (repère du viewmodel) sans retard.
 static func aura_main(main: Node3D, ecole: String, intensite: float) -> void:
 	_compter("aura_main")
+	SonsMagie.aura(main, ecole, intensite)
 	if muet:
 		return
 	_g().aura_main(main, ecole, intensite)
@@ -43,6 +44,7 @@ static func aura_main(main: Node3D, ecole: String, intensite: float) -> void:
 ## 0,2 s après le dernier appel. Part de `origine` (suivie), vers `direction`, sur `portee` m, `largeur` m au bout.
 static func jet(ecole: String, origine: Node3D, direction: Vector3, portee: float, largeur: float, actif: bool) -> void:
 	_compter("jet")
+	SonsMagie.jet(ecole, origine, actif)
 	if muet:
 		return
 	_g().jet(ecole, origine, direction, portee, largeur, actif)
@@ -60,6 +62,7 @@ static func projectile_visuel(ecole: String, forme: String) -> Node3D:
 ## `force` ~1 (0,3 à 3) règle taille et densité.
 static func impact(ecole: String, position: Vector3, normale: Vector3, force: float) -> void:
 	_compter("impact")
+	SonsMagie.impact(ecole, position, force)
 	if muet:
 		return
 	_g().impact(ecole, position, normale, force)
@@ -68,6 +71,7 @@ static func impact(ecole: String, position: Vector3, normale: Vector3, force: fl
 ## explosion obscure (épines), cercle de soin, cercle de protection. Dure `duree` s.
 static func zone(ecole: String, position: Vector3, rayon: float, duree: float) -> void:
 	_compter("zone")
+	SonsMagie.zone(ecole, position, rayon)
 	if muet:
 		return
 	_g().zone(ecole, position, rayon, duree)
@@ -75,6 +79,7 @@ static func zone(ecole: String, position: Vector3, rayon: float, duree: float) -
 ## Chaîne d'éclairs entre des points (0,45 s, redessinée toutes les 0,05 s). `ecole` "tenebres" = arcs violets.
 static func chaine(ecole: String, points: Array[Vector3]) -> void:
 	_compter("chaine")
+	SonsMagie.chaine(ecole, points)
 	if muet:
 		return
 	_g().chaine(ecole, points)
@@ -91,6 +96,7 @@ static func statut_cible(cible: Node3D, statut: String, duree: float) -> void:
 ## le modèle et sa texture restent visibles. La lame = moitié la plus longue de la boîte du modèle, loin de l'origine.
 static func enchant_arme(arme: Node3D, ecole: String, actif: bool) -> void:
 	_compter("enchant_arme")
+	SonsMagie.enchant(ecole, arme.global_position if arme != null and arme.is_inside_tree() else Vector3.ZERO, actif)
 	if muet:
 		return
 	_g().enchant_arme(arme, ecole, actif)
@@ -99,6 +105,7 @@ static func enchant_arme(arme: Node3D, ecole: String, actif: bool) -> void:
 ## "flammes_obscures", "arcs_violets".
 static func reaction(nom: String, position: Vector3, rayon: float) -> void:
 	_compter("reaction")
+	SonsMagie.reaction(nom, position)
 	if muet:
 		return
 	_g().reaction(nom, position, rayon)
@@ -108,6 +115,7 @@ static func reaction(nom: String, position: Vector3, rayon: float) -> void:
 ## arc électrique, foyer de flammes).
 static func double(ecole: String, actif: bool) -> void:
 	_compter("double")
+	SonsMagie.double(ecole, actif)
 	if muet:
 		return
 	_g().double(ecole, actif)
@@ -123,4 +131,5 @@ static func stats() -> Dictionary:
 	return _g().stats()
 
 static func tout_arreter() -> void:
+	SonsMagie.tout_arreter()
 	_g().tout_arreter()

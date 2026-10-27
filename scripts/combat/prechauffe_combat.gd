@@ -23,6 +23,7 @@ static func caches() -> void:
 		for v in 3:
 			Sang.texture(sorte, v)
 	RetourImpact.precharger()
+	SonsMagie.precharger()
 	for n: String in ProfilImpact.NOMS:
 		ProfilImpact.de(n)
 	# matériaux partagés des effets (caches statiques de Sang / Effets / Decapitation) : leurs shaders (particules, matériaux

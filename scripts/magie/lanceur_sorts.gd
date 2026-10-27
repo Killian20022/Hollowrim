@@ -183,6 +183,7 @@ func bonus_apres_sort(cible: Node, fenetre: float, bonus: float) -> float:
 func lancer(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, charge := 1.0) -> Dictionary:
 	var k := facteur_charge(s, charge)
 	var depart := paume.global_position if paume != null else oeil
+	SonsMagie.lancement(s.ecole, depart, k)
 	match s.portee_mode:
 		DonneesSort.Portee.PROJECTILE:
 			return _projectiles(s, depart, oeil, avant, k)
