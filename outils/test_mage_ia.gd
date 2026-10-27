@@ -97,7 +97,9 @@ func _tester() -> void:
 		var ps := _projectiles()
 		if not ps.is_empty():
 			vu_proj = true
-			lumiere = lumiere or ps[0].find_children("*", "OmniLight3D", true, false).size() > 0
+			# lumière propre (bouchon) ou demande au pool de lumières de GestionMagie (vrais visuels, magie/effets)
+			lumiere = lumiere or ps[0].find_children("*", "OmniLight3D", true, false).size() > 0 \
+				or (GestionMagie.instance != null and int(EffetsMagie.stats().get("projectiles", 0)) > 0 and int(EffetsMagie.stats().get("demandes_lumiere", 0)) > 0)
 		if j.coups_recus > c0:
 			break
 		await physics_frame
