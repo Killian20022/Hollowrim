@@ -248,6 +248,12 @@ Les clips n'animent QUE les os droits ; la main gauche est indépendante. Torche
 `hand_l`) porte `porte_torche` avec la prise `PRISE_G` ; le bras gauche suit la cible IK `pivot_torche` (TwoBoneIK3D,
 seule IK restante, réglée par `MouvementsPassifs` et l'écartement pendant les coups). Un sort tenu en main gauche se
 branche sur `_accroche_g` (ou remplace la cible `pivot_torche`) sans toucher aux clips d'épée.
+Branché (fusion integration/combat_magie) : `mains.magie` (`scripts/magie/main_sort.gd`, docs/MAGIE.md) est le seul
+crochet — entrées interceptées dans `_unhandled_input`, garde par `magie.garde_tenue()`, `magie.avancer(dt)` APRÈS la pose
+de l'épée, arme de garde `magie.arme_de_garde(arme)` dans `defendre`. Main gauche : la magie pose `pivot_torche` (IK).
+Main droite qui incante : `_ik_d` (TwoBoneIK3D sur le bras droit, ÉTEINTE par défaut) est allumée par MainSort tant
+qu'un sort occupe la main droite (avec l'orienteur `_orient_d` ; la couche passive est alors mise à zéro, déjà incluse
+dans la cible) ; dès que l'épée revient, l'IK s'éteint et les clips reprennent le bras.
 
 ## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)

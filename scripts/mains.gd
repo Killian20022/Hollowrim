@@ -177,6 +177,9 @@ var _cible_d: Node3D
 var _coude_d: Node3D
 var _coude_g: Node3D
 var _orient_d: SkeletonModifier3D
+## IK du bras DROIT, INACTIVE par défaut (les clips pilotent ce bras) : seule la magie l'allume quand la main droite
+## incante (main_sort.gd, _poser_mains), pour poser la main sur pivot_epee par-dessus le clip.
+var _ik_d: TwoBoneIK3D
 var _modele_arme_d: Node3D
 ## Matériau de la lame tenue (teinte, lueur de charge) et segment tranchant lu dans le modèle.
 var _lame: ShaderMaterial
@@ -441,6 +444,16 @@ func _bras() -> void:
 	ik.set_end_bone_name(0, "hand_l")
 	ik.set_target_node(0, ik.get_path_to(cible_g))
 	ik.set_pole_node(0, ik.get_path_to(coude_g))
+	# IK droite de secours, éteinte : n'agit que lorsqu'un sort occupe la main droite (MainSort l'active)
+	_ik_d = TwoBoneIK3D.new()
+	_sq.add_child(_ik_d)
+	_ik_d.set_setting_count(1)
+	_ik_d.set_root_bone_name(0, "upperarm_r")
+	_ik_d.set_middle_bone_name(0, "lowerarm_r")
+	_ik_d.set_end_bone_name(0, "hand_r")
+	_ik_d.set_target_node(0, _ik_d.get_path_to(cible_d))
+	_ik_d.set_pole_node(0, _ik_d.get_path_to(coude_d))
+	_ik_d.active = false
 	for i in 2:
 		var o := SkeletonModifier3D.new()
 		o.set_script(ORIENTATION)

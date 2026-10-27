@@ -602,10 +602,19 @@ func _poser_mains(dt: float) -> void:
 	var sq: Skeleton3D = mains.get("_sq")
 	if sq == null:
 		return
+	var ik_d = mains.get("_ik_d")   # bras droit : clips à images clés, sauf quand un sort l'occupe (IK allumée ici)
 	for m in MAINS:
 		var p := _pose_voulue(m)
 		var o = _orient[m]
 		var pivot: Node3D = mains.get("pivot_torche" if m == "gauche" else "pivot_epee")
+		if m == "droite":
+			if ik_d != null:
+				ik_d.active = not p.is_empty()
+				var couche = mains.get("_couche_passive")
+				if ik_d.active and couche != null:
+					couche.decalage = Transform3D()   # passifs déjà dans la cible (dec ci-dessous) : pas de double couche
+			if o != null:
+				o.active = not p.is_empty()
 		if p.is_empty():
 			_xf_ok[m] = false
 			if o != null:
