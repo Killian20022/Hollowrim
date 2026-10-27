@@ -33,9 +33,12 @@ enum Categorie { VIDE, EPEE, TORCHE, BOUCLIER, SORT }
 @export_group("Pose FPS de repos")
 ## Repère caméra (+X droite, +Y haut, -Z devant) : position de la poignée, direction de la lame, côté du tranchant.
 ## Main gauche : le côté X est mis en miroir automatiquement.
-@export var repos_poignee := Vector3(0.34, -0.30, -0.44)
-@export var repos_lame := Vector3(-0.147, 0.913, -0.38)
-@export var repos_fil := Vector3(-0.55, 0.0, -1.0)
+@export var repos_poignee := Vector3(0.32, -0.28, -0.45)
+@export var repos_lame := Vector3(-0.05, 0.86, -0.51)
+@export var repos_fil := Vector3(-0.3, 0.0, -1.0)
+## Pôle du coude (IK, repère caméra) : écarté et à peine plus bas que la main, l'avant-bras reste presque horizontal et
+## le poignet peut incliner la lame vers l'avant (orientation_main.gd borne la déviation à 35°).
+@export var repos_coude := Vector3(1.0, -0.3, 0.1)
 ## Profil d'animation (ProfilsAnimation) : gestes d'attaque, de garde, de sprint.
 @export var profil := "epee_longue"
 

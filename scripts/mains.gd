@@ -121,6 +121,9 @@ var _sq: Skeleton3D
 var _accroche_d: BoneAttachment3D
 var _accroche_g: BoneAttachment3D
 var _cible_d: Node3D
+## Pôles des coudes (IK) : leur position règle l'axe de l'avant-bras, donc l'inclinaison possible de l'arme.
+var _coude_d: Node3D
+var _coude_g: Node3D
 var _orient_d: SkeletonModifier3D
 var _modele_arme_d: Node3D
 ## Matériau de la lame tenue (teinte, lueur de charge) et segment tranchant lu dans le modèle.
@@ -237,6 +240,9 @@ func _installer_arme() -> void:
 		_modele_arme_d = null
 	PRISE_D = _calculer_prise("r", arme.milieu_poignee)
 	_cible_d.transform = PRISE_D.affine_inverse()
+	_coude_d.position = arme.repos_coude
+	var g_coude := equipement.gauche_rangee.repos_coude
+	_coude_g.position = Vector3(-g_coude.x, g_coude.y, g_coude.z)
 	_orient_d.prise = PRISE_D
 	_lame = _acier
 	_garde_lame = arme.garde
@@ -326,6 +332,8 @@ func _bras() -> void:
 	var coude_g := Node3D.new()
 	add_child(coude_g)
 	coude_g.position = Vector3(-0.8, -0.9, -0.1)
+	_coude_d = coude_d
+	_coude_g = coude_g
 	var ik := TwoBoneIK3D.new()
 	_sq.add_child(ik)
 	ik.set_setting_count(2)
