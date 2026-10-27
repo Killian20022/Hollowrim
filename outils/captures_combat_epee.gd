@@ -3,6 +3,9 @@ extends SceneTree
 ##   godot --path . --script res://outils/captures_combat_epee.gd -- --sortie=<dossier> [--film]
 ## Planches (une image par séquence, vignettes côte à côte) : coups légers enchaînés, coup lourd chargé, rebond sur le
 ## mur avec le tracé de lame, marche / sprint / saut (animations passives), repos jour et nuit.
+## --mesures : coups en espace écran image par image (60 i/s), avec en surimpression les mesures de chaque image
+## (% de lame visible, angle lame / rayon de visée, couverture main + bras droit, écart avant-bras / poignée à l'écran) ;
+## planches <sortie>/coup_<n>_<geste>.png et tableau min / max imprimé (lignes MESURE / RESUME).
 ## --film : scénario joué en continu pour Movie Maker (ajouter --write-movie <fichier.avi> --fixed-fps 30 avant « -- ») :
 ## combo sur le mannequin, coup lourd, puis combat contre le draugr.
 
@@ -83,6 +86,10 @@ func _go() -> void:
 		return
 	if _arg("coups") != "":
 		await _coups_image_par_image()
+		quit()
+		return
+	if _arg("mesures") != "":
+		await _coups_mesures()
 		quit()
 		return
 	if _arg("film-coups") != "":
@@ -338,3 +345,222 @@ func _film_coups(ralenti: float) -> void:
 		mains.entrees.relacher()
 		await create_timer(1.0).timeout
 	Engine.time_scale = 1.0
+
+
+# --- mesures des coups en espace écran -------------------------------------------------------------------------------
+
+const SEUIL_LAME := 70.0
+const SEUIL_ANGLE := 50.0
+const SEUIL_BRAS := 15.0
+const SEUIL_POIGNET := 15.0
+var _mat_masque: ShaderMaterial
+
+var _mat_vert: ShaderMaterial
+
+func _masque_mat(vert := false) -> ShaderMaterial:
+	if _mat_masque == null:
+		for k in 2:
+			var sh := Shader.new()
+			sh.code = "shader_type spatial; render_mode unshaded, fog_disabled, cull_disabled; void fragment() { ALBEDO = vec3(%s); }" % ["1.0, 0.0, 1.0", "0.0, 1.0, 0.0"][k]
+			var m := ShaderMaterial.new()
+			m.shader = sh
+			if k == 0:
+				_mat_masque = m
+			else:
+				_mat_vert = m
+	return _mat_vert if vert else _mat_masque
+
+var _attaches := {}
+
+## Position monde d'un os APRÈS les modificateurs (IK) : lue sur un BoneAttachment3D (get_bone_global_pose rend la
+## pose sans les modificateurs en dehors de leur passe).
+func _os_global(sq: Skeleton3D, nom: String) -> Vector3:
+	if not _attaches.has(nom) or not is_instance_valid(_attaches[nom]):
+		var b := BoneAttachment3D.new()
+		b.bone_name = nom
+		sq.add_child(b)
+		_attaches[nom] = b
+	return (_attaches[nom] as Node3D).global_position
+
+## Mesures de l'image courante : [lame %, angle °, bras %, poignet °, garde écran, pointe écran].
+func _mesurer_image() -> Array:
+	var cam: Camera3D = j.camera
+	var vp := root.get_viewport()
+	var taille := vp.get_visible_rect().size
+	# masque : bras en magenta plat, torche écartée (on mesure la main et le bras DROITS), HUD masqué
+	var mailles: Array = mains.bras.find_children("*", "MeshInstance3D", true, false).filter(func(mi: Node) -> bool:
+		return not mains._accroche_d.is_ancestor_of(mi) and not mains._accroche_g.is_ancestor_of(mi))
+	for mi: MeshInstance3D in mailles:
+		mi.material_override = _masque_mat()
+	# torche (et main gauche) en vert : elle peut cacher la lame, elle ne compte pas dans la couverture du bras droit
+	var vertes: Array = mains._accroche_g.find_children("*", "GeometryInstance3D", true, false)
+	var mats_torche := []
+	for gi: GeometryInstance3D in vertes:
+		mats_torche.append(gi.material_override)
+		gi.material_override = _masque_mat(true)
+	s.hud.visible = false
+	var calques := s.find_children("*", "CanvasLayer", true, false)
+	for c: CanvasLayer in calques:
+		c.visible = false
+	mains.trainee.visible = false
+	await process_frame
+	await process_frame
+	var masque := await _image()   # occultation : bras (magenta) et torche (vert)
+	# couverture du bras droit seul : main gauche et torche écartées hors champ
+	var torche_avant: Transform3D = mains.pivot_torche.transform
+	mains.pivot_torche.transform = Transform3D(Basis(), Vector3(-3.0, -3.0, 0.5))
+	await process_frame
+	await process_frame
+	var masque_d := await _image()
+	mains.pivot_torche.transform = torche_avant
+	for mi: MeshInstance3D in mailles:
+		mi.material_override = null
+	for k in vertes.size():
+		(vertes[k] as GeometryInstance3D).material_override = mats_torche[k]
+	s.hud.visible = true
+	for c: CanvasLayer in calques:
+		c.visible = true
+	mains.trainee.visible = true
+	await process_frame   # l'IK reprend la torche à sa place avant l'image normale
+	await process_frame
+	masque_d.convert(Image.FORMAT_RGBA8)
+	masque.convert(Image.FORMAT_RGBA8)
+	var w := masque.get_width()
+	var h := masque.get_height()
+	var ech := Vector2(w, h) / taille
+	var nb := 0
+	for y in range(0, h, 2):
+		for x in range(0, w, 2):
+			var c := masque_d.get_pixel(x, y)
+			if c.r > 0.6 and c.b > 0.6 and c.g < 0.35:
+				nb += 1
+	var bras_pc := 100.0 * nb / float((w / 2) * (h / 2))
+	# lame affichée (modèle tenu par l'os de la main)
+	var xf: Transform3D = mains._modele_arme_d.global_transform
+	var g: Vector3 = xf * mains._garde_lame
+	var t: Vector3 = xf * mains._pointe_lame
+	var vus := 0
+	var n := 24
+	for i in n + 1:
+		var p := g.lerp(t, float(i) / n)
+		if cam.is_position_behind(p):
+			continue
+		var e := cam.unproject_position(p)
+		if e.x < 0 or e.y < 0 or e.x >= taille.x or e.y >= taille.y:
+			continue
+		var c := masque.get_pixel(clampi(int(e.x * ech.x), 0, w - 1), clampi(int(e.y * ech.y), 0, h - 1))
+		if (c.r > 0.6 and c.b > 0.6 and c.g < 0.35) or (c.g > 0.6 and c.r < 0.35 and c.b < 0.35):
+			continue   # cachée par la main / le bras droit ou par la torche
+		vus += 1
+	var lame_pc := 100.0 * vus / float(n + 1)
+	var dir := (t - g).normalized()
+	var visee := ((g + t) * 0.5 - cam.global_position).normalized()
+	var angle := rad_to_deg(acos(clampf(absf(dir.dot(visee)), 0.0, 1.0)))
+	# avant-bras / poignée à l'écran
+	var sq: Skeleton3D = mains._sq
+	var main := _os_global(sq, "hand_r")
+	var coude := _os_global(sq, "lowerarm_r")
+	var f := (main - coude).normalized()
+	var f2 := cam.unproject_position(main + f * 0.03) - cam.unproject_position(main)
+	var b2 := cam.unproject_position(t) - cam.unproject_position(g)
+	var poignet := rad_to_deg(absf(f2.angle_to(b2))) if f2.length() > 0.01 and b2.length() > 0.01 else 0.0
+	return [lame_pc, angle, bras_pc, poignet, cam.unproject_position(g) / taille, cam.unproject_position(t) / taille]
+
+func _coups_mesures() -> void:
+	await _monter({"draugr": "aucun", "sans-aide": ""})
+	print("BRAS épaule %s, bras %.3f, avant-bras %.3f" % [mains._bras_base * mains._epaule_bras, mains._l_bras, mains._l_avant_bras])
+	for nom in ["hand_r", "lowerarm_r", "upperarm_r", "hand_l"]:
+		_os_global(mains._sq, nom)
+	mains.pas_manuel = true
+	mains.passifs.amplitude = 0.0
+	s.placer_joueur(Vector3(0, 0, 0.2), 0.0)
+	var calque := CanvasLayer.new()
+	calque.layer = 60
+	s.add_child(calque)
+	var l := Label.new()
+	l.add_theme_font_override("font", Palette.police())
+	l.add_theme_font_size_override("font_size", 34)
+	l.add_theme_color_override("font_outline_color", Color.BLACK)
+	l.add_theme_constant_override("outline_size", 6)
+	l.position = Vector2(8, 262)
+	calque.add_child(l)
+	var arme_id := _arg("arme", "")
+	if arme_id != "":
+		mains.equipement.equiper("droite", load("res://data/armes/%s.tres" % arme_id))
+		await _pas(0.6)
+	await _pas(0.6)
+	var dossier := sortie
+	var resume := []
+	for n in 4:
+		var lourd := n == 3
+		if lourd:
+			await _pas(0.9)
+		mains.entrees.appuyer()
+		var vues := []
+		var i := 0
+		var geste := ""
+		var fini := false
+		var mins := [1e9, 1e9, 1e9, 1e9]
+		var maxs := [-1e9, -1e9, -1e9, -1e9]
+		var viol := 0
+		while not fini and i < 220:
+			i += 1
+			mains.avancer(DT)
+			if lourd and i == 50:
+				mains.entrees.relacher()
+			elif not lourd and i == 2:
+				mains.entrees.relacher()
+			var e: int = mains.combat.etat
+			var etape := ""
+			if e == EtatCombat.CHARGE_LOURDE:
+				if i != 49:
+					continue
+				etape = "charge"
+			elif e == EtatCombat.ATTAQUE_LEGERE or e == EtatCombat.ATTAQUE_LOURDE:
+				geste = mains._geste_nom
+				etape = "frappe" if mains._actif_lance else ("tenue" if mains._t_geste >= mains._duree_prep else "armer")
+				if lourd and e == EtatCombat.ATTAQUE_LEGERE:
+					continue
+			elif e == EtatCombat.RECUPERATION:
+				etape = "suivi" if mains.combat.t < mains._duree_suivi else "retour"
+				var fen: Array = mains._geste.get("enchainement", [0.05, 0.9])
+				if etape == "retour" and (n < 2 or lourd) and mains.combat.t >= float(fen[0]) + 0.05:
+					fini = true
+				if (n == 2 or lourd) and mains.combat.t > 0.2:
+					fini = true
+			else:
+				continue
+			await process_frame
+			await process_frame
+			var m: Array = await _mesurer_image()
+			var actif := etape == "frappe"
+			var mauvais: bool = actif and (m[0] < SEUIL_LAME or m[1] < SEUIL_ANGLE or m[2] > SEUIL_BRAS or m[3] > SEUIL_POIGNET)
+			if actif:
+				for k in 4:
+					mins[k] = minf(mins[k], m[k])
+					maxs[k] = maxf(maxs[k], m[k])
+				if mauvais:
+					viol += 1
+			l.add_theme_color_override("font_color", Color(1, 0.35, 0.3) if mauvais else (Color(1, 0.95, 0.5) if actif else Color(0.85, 0.85, 0.85)))
+			l.text = "C%d %s #%02d %s %dms\nlame %d%%  angle %d  bras %.1f%%  poignet %d" % [n + 1, geste, vues.size() + 1, etape, roundi(i * DT * 1000.0), roundi(m[0]), roundi(m[1]), m[2], roundi(m[3])]
+			print("MESURE C%d %-15s #%02d %-7s lame %5.1f%% angle %4.1f bras %5.2f%% poignet %4.1f garde %s pointe %s | torche %s main_g %s | visé %.0f, épaule→main %.2f" % [n + 1, geste, vues.size() + 1, etape, m[0], m[1], m[2], m[3], (m[4] as Vector2).snapped(Vector2.ONE * 0.01), (m[5] as Vector2).snapped(Vector2.ONE * 0.01), mains.pivot_torche.transform.origin.snapped(Vector3.ONE * 0.01), (mains.global_transform.affine_inverse() * _os_global(mains._sq, "hand_l")).snapped(Vector3.ONE * 0.01), mains.ecart_coude, ((mains.pivot_epee.transform * mains.PRISE_D.affine_inverse()).origin).distance_to(mains._bras_base * mains._epaule_bras) / (mains._l_bras + mains._l_avant_bras)])
+			var inv: Transform3D = mains.global_transform.affine_inverse()
+			print("   coude réel %s visé %s | main réelle %s visée %s | épaule réelle %s" % [(inv * _os_global(mains._sq, "lowerarm_r")).snapped(Vector3.ONE * 0.01), mains.coude_vise.snapped(Vector3.ONE * 0.01), (inv * _os_global(mains._sq, "hand_r")).snapped(Vector3.ONE * 0.01), (mains.pivot_epee.transform * mains.PRISE_D.affine_inverse()).origin.snapped(Vector3.ONE * 0.01), (inv * _os_global(mains._sq, "upperarm_r")).snapped(Vector3.ONE * 0.01)])
+			var img := await _image()
+			vues.append(img)
+		var nom := "coup_%d_%s" % [n + 1, geste]
+		var w := 384
+		var h := 216
+		var images := vues.slice(0, 20)
+		var p := Image.create(w * 5, h * ceili(images.size() / 5.0), false, Image.FORMAT_RGBA8)
+		for k in images.size():
+			var im: Image = images[k]
+			im.convert(Image.FORMAT_RGBA8)
+			im.resize(w, h, Image.INTERPOLATE_BILINEAR)
+			p.blit_rect(im, Rect2i(0, 0, w, h), Vector2i((k % 5) * w, (k / 5) * h))
+		p.save_png(dossier.path_join(nom + ".png"))
+		var ligne := "RESUME C%d %-15s images %d | frappe : lame %.0f-%.0f %% | angle %.0f-%.0f | bras %.1f-%.1f %% | poignet %.0f-%.0f | violations %d" % [n + 1, geste, images.size(), mins[0], maxs[0], mins[1], maxs[1], mins[2], maxs[2], mins[3], maxs[3], viol]
+		resume.append(ligne)
+		print("PLANCHE ", nom, " ", images.size(), " images")
+	for r in resume:
+		print(r)

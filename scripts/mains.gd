@@ -99,11 +99,17 @@ var _duree_prep := 0.1
 var _duree_tenue := 0.0       # pose armée tenue, lisible (2-3 images)
 var _duree_suivi := 0.07      # dépassement après B, au début de la récupération
 var _pose_suivi := Transform3D()
-## Poignet RIGIDE pendant les coups : la lame fait un angle fixe avec l'avant-bras (elle le prolonge, cassée de
-## ANGLE_COUP), à ± DEVIATION_COUP près ; le tranchant ne tourne pas de plus de FLEXION_COUP autour de la lame.
+## Coups conçus EN ESPACE ÉCRAN (passe 4, docs/COMBAT.md) : pendant les coups, la main suit EXACTEMENT la pose du geste
+## (poignet libre, orientation_main sans borne) et le coude est placé à chaque image pour que l'avant-bras prolonge la
+## poignée À L'ÉCRAN (_pole_ecran) : aucune cassure de poignet visible, quelle que soit l'orientation 3D.
+## Anciennes constantes du poignet rigide (passe 3), gardées pour les outils.
 const ANGLE_COUP := 40.0
 const DEVIATION_COUP := 15.0
 const FLEXION_COUP := 15.0
+## Allonge maximale du bras (part de épaule → main) : au-delà, l'épaule DROITE glisse vers la main (os upperarm_r
+## déplacé, hors écran ; le bras gauche ne bouge pas).
+## (0,85 : le coude reste plié, l'avant-bras peut s'aligner sur la poignée à l'écran).
+const ALLONGE_BRAS := 0.85
 var _duree_active := 0.17
 var _duree_recup := 0.3
 var _t_trace := 0.0          # temps de phase active déjà échantillonné par le tracé
@@ -153,6 +159,22 @@ var flammes: Array[GPUParticles3D] = []
 var _visuels_torche: Array = []   # sprite de flamme et halo (lot 6)
 var _halo_mat: ShaderMaterial
 var _scint := 0.0
+## Traînée de lame pixel (TraineeLame) et suivi de son échantillonnage à pas fixe.
+var trainee: TraineeLame
+var _t_trainee := 0.0
+## Bras : repère de base, épaule droite (repère du nœud bras), longueurs du bras et de l'avant-bras, angle du coude
+## autour de l'axe épaule → main (continuité d'une image à l'autre).
+var _bras_base := Transform3D()
+var _epaule_bras := Vector3.ZERO
+var _l_bras := 0.3
+var _l_avant_bras := 0.27
+var _angle_coude := 0.0
+var _decalage_bras := Vector3.ZERO
+var _os_epaule := -1
+var _repos_epaule := Vector3.ZERO
+## Dernier écart (degrés) entre avant-bras et poignée à l'écran visé par _pole_ecran (outils de mesure).
+var ecart_coude := 0.0
+var coude_vise := Vector3.ZERO
 
 func _ready() -> void:
 	arme = equipement.main_droite
@@ -173,6 +195,9 @@ func _ready() -> void:
 	_accroche_g.add_child(porte_torche)
 	porte_torche.transform = PRISE_G
 	_torche()
+	trainee = TraineeLame.new()
+	add_child(trainee)
+	trainee.couleurs(arme.couleur_trainee, arme.couleur_trainee_coeur)
 	Jeu.option("affichage", "reduire_mouvements")   # charge les options si besoin
 	combat.change.connect(_sur_changement_etat)
 
@@ -283,6 +308,8 @@ func _installer_arme() -> void:
 			if g != Vector3.INF and p != Vector3.INF and g.distance_to(p) > 0.1:
 				_garde_lame = g
 				_pointe_lame = p
+	if trainee != null:
+		trainee.couleurs(arme.couleur_trainee, arme.couleur_trainee_coeur)
 	if _lame != null:
 		if arme.teinte.a > 0.0:
 			_lame.set_shader_parameter("teinte", arme.teinte)
@@ -334,6 +361,20 @@ func _bras() -> void:
 	var yeux := tete + Vector3(0, 0.07, 0.1)
 	var tour := Basis(Vector3.UP, PI)
 	bras.transform = Transform3D(tour, -(tour * yeux) + Vector3(0, -0.1, -0.24))
+	_bras_base = bras.transform
+	var rel := Transform3D()
+	var n: Node = _sq
+	while n != null and n != bras:
+		rel = (n as Node3D).transform * rel
+		n = n.get_parent()
+	var os_e := rel * _sq.get_bone_global_rest(_sq.find_bone("upperarm_r")).origin
+	var os_c := rel * _sq.get_bone_global_rest(_sq.find_bone("lowerarm_r")).origin
+	var os_m := rel * _sq.get_bone_global_rest(_sq.find_bone("hand_r")).origin
+	_epaule_bras = os_e
+	_os_epaule = _sq.find_bone("upperarm_r")
+	_repos_epaule = _sq.get_bone_rest(_os_epaule).origin
+	_l_bras = os_e.distance_to(os_c)
+	_l_avant_bras = os_c.distance_to(os_m)
 	_poings()
 	PRISE_D = _calculer_prise("r", MILIEU_POIGNEE)
 	PRISE_G = _calculer_prise("l", 0.0)
@@ -618,10 +659,15 @@ func _lancer_phase_active() -> void:
 		_duree_recup /= LENTEUR_AFFAIBLI
 	joueur.depenser(cout)
 	trace.commencer()
+	trainee.couper()
+	_t_trainee = 0.0
+	_echantillon_trainee(passifs.decalage_d * _pose_active(0.0), 0.0)
 	_cam_prec_ok = false
 	Sons.jouer(self, ["swing", "swing2", "swing3"], -2.0 if _lourd else -5.0, 0.12)
 
 func _finir_geste() -> void:
+	if _geste.has("tassement") and "tassement" in joueur:
+		joueur.tassement = maxf(joueur.tassement, float(_geste["tassement"]) * (0.6 if _affaibli else 1.0))
 	_pose_fin = _pose_courante
 	_pose_suivi = ProfilsAnimation.pose_cle(_geste, "suivi")
 	_combo += 1
@@ -632,6 +678,7 @@ func _finir_geste() -> void:
 
 ## La lame est arrêtée (mur, bouclier, cassable qui tient) : rebond, petite ouverture.
 func _rebondir() -> void:
+	trainee.couper()
 	_pose_fin = _pose_courante
 	_pose_suivi = _pose_courante
 	_cote_fin = 0
@@ -707,6 +754,14 @@ func avancer(dt: float) -> void:
 			if combat.t < _duree_suivi and _issue_arret != "arret":
 				var ks := combat.t / _duree_suivi
 				_pose_courante = _pose_fin.interpolate_with(_pose_suivi, 1.0 - (1.0 - ks) * (1.0 - ks))
+				# traînée du suivi, échantillonnée à pas fixe entre l'image précédente et celle-ci
+				var t0 := maxf(combat.t - dt, 0.0)
+				var nb := maxi(1, ceili((combat.t - t0) / TraceLame.PAS))
+				for i in nb:
+					var ti := t0 + (combat.t - t0) * float(i + 1) / float(nb)
+					var ki := ti / _duree_suivi
+					var pose_i := _pose_fin.interpolate_with(_pose_suivi, 1.0 - (1.0 - ki) * (1.0 - ki))
+					_echantillon_trainee(passifs.decalage_d * pose_i, combat.t - ti)
 			else:
 				_pose_courante = _pose_suivi.interpolate_with(_pose_repos(), k * k * (3.0 - 2.0 * k))
 			en_geste = true
@@ -736,7 +791,6 @@ func avancer(dt: float) -> void:
 				combat.changer(EtatCombat.REPOS)
 	if not en_geste:
 		_pose_courante = _pose_courante.interpolate_with(cible, 1.0 - exp(-raideur * dt))
-	_poser_coude(dt)
 
 	# animations passives (respiration, marche, sprint, saut, inertie)
 	passifs.amplitude = 0.35 if bool(Jeu.option("affichage", "reduire_mouvements")) else 1.0
@@ -747,6 +801,8 @@ func avancer(dt: float) -> void:
 		pivot_epee.transform = _pose_courante
 	else:
 		pivot_epee.transform = passifs.decalage_d * _pose_courante
+	_poser_coude(dt)
+	trainee.avancer(dt)
 
 	# pendant une conversation, on baisse les armes
 	_baisse = lerpf(_baisse, 0.45 if joueur.en_dialogue else 0.0, 1.0 - exp(-6.0 * dt))
@@ -755,38 +811,97 @@ func avancer(dt: float) -> void:
 	_cam_prec = _transform_monde()
 	_cam_prec_ok = true
 
-## Pôle du coude et raideur du poignet selon l'état : pendant les coups, le coude suit les clés du geste (exact pendant
-## la frappe, pour que l'image suive le tracé) et le poignet est RIGIDE (±15°) ; au repos, réglages de l'arme.
+## Pôle du coude, poignet et allonge du bras selon l'état. Pendant les coups (préparation, frappe, suivi, charge,
+## rebond) : main EXACTEMENT sur la pose (poignet sans borne), coude placé par _pole_ecran (avant-bras dans le
+## prolongement de la poignée à l'écran) ; exact pendant la frappe (l'image suit le tracé), lissé ailleurs. Au repos :
+## réglages de l'arme (plan perpendiculaire à l'avant-bras ± déviation).
 func _poser_coude(dt: float) -> void:
 	var cible := arme.repos_coude
-	var dev := arme.deviation_poignet
+	var coup := false
 	var exact := false
 	match combat.etat:
-		EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE:
-			dev = DEVIATION_COUP
-			if _actif_lance:
-				cible = ProfilsAnimation.coude_actif(_geste, _s_actif(clampf(_t_actif_prec, 0.0, _duree_active)))
-				exact = true
-			else:
-				cible = ProfilsAnimation.coude_cle(_geste, "armer")
-		EtatCombat.CHARGE_LOURDE:
-			dev = DEVIATION_COUP
-			cible = ProfilsAnimation.coude_cle(ProfilsAnimation.geste(arme.profil, _profil()["lourd"]), "armer")
+		EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE, EtatCombat.CHARGE_LOURDE, EtatCombat.DESEQUILIBRE:
+			coup = true
+			exact = _actif_lance and combat.attaque()
 		EtatCombat.RECUPERATION:
-			dev = DEVIATION_COUP
-			if combat.t < _duree_suivi:
-				cible = ProfilsAnimation.coude_cle(_geste, "suivi")
-		EtatCombat.DESEQUILIBRE:
-			dev = DEVIATION_COUP
-	_coude_d.position = cible if exact else _coude_d.position.lerp(cible, 1.0 - exp(-25.0 * dt))
-	# repos : plan perpendiculaire à l'avant-bras ± déviation de l'arme ; coups : cône rigide autour de ANGLE_COUP
-	var coup := dev == DEVIATION_COUP
-	var amin := deg_to_rad(ANGLE_COUP - DEVIATION_COUP) if coup else deg_to_rad(90.0 - dev)
-	var amax := deg_to_rad(ANGLE_COUP + DEVIATION_COUP) if coup else deg_to_rad(90.0 + dev)
-	var k := 1.0 - exp(-20.0 * dt)
-	_orient_d.angle_min = lerpf(_orient_d.angle_min, amin, k)
-	_orient_d.angle_max = lerpf(_orient_d.angle_max, amax, k)
-	_orient_d.flexion_max = lerpf(_orient_d.flexion_max, deg_to_rad(FLEXION_COUP if coup else 55.0), k)
+			coup = combat.t < _duree_suivi + 0.5 * (_duree_recup - _duree_suivi)
+			exact = combat.t < _duree_suivi
+	var k := 1.0 - exp(-25.0 * dt)
+	# allonge : si la main est hors de portée, tout le bras glisse vers elle (l'épaule est hors écran)
+	var main := (pivot_epee.transform * PRISE_D.affine_inverse()).origin
+	var epaule := _bras_base * _epaule_bras
+	var portee_bras := (_l_bras + _l_avant_bras) * ALLONGE_BRAS
+	var dec := Vector3.ZERO
+	if coup and main.distance_to(epaule) > portee_bras:
+		dec = (main - epaule).normalized() * (main.distance_to(epaule) - portee_bras)
+	_decalage_bras = dec if exact else _decalage_bras.lerp(dec, k)
+	_glisser_epaule(_decalage_bras)
+	if coup:
+		cible = _pole_ecran(pivot_epee.transform, epaule + _decalage_bras)
+	_coude_d.position = cible if exact else _coude_d.position.lerp(cible, k)
+	var amin := 0.0 if coup else deg_to_rad(90.0 - arme.deviation_poignet)
+	var amax := PI if coup else deg_to_rad(90.0 + arme.deviation_poignet)
+	var kp := 1.0 if exact else 1.0 - exp(-20.0 * dt)
+	_orient_d.angle_min = lerpf(_orient_d.angle_min, amin, kp)
+	_orient_d.angle_max = lerpf(_orient_d.angle_max, amax, kp)
+	_orient_d.flexion_max = lerpf(_orient_d.flexion_max, PI if coup else deg_to_rad(55.0), kp)
+
+## Déplace l'épaule droite (os upperarm_r, racine de l'IK) de `dec` (repère des mains).
+func _glisser_epaule(dec: Vector3) -> void:
+	var v := (_sq.global_transform.basis.inverse() * (global_transform.basis * dec))
+	var parent := _sq.get_bone_parent(_os_epaule)
+	if parent >= 0:
+		v = _sq.get_bone_global_rest(parent).basis.inverse() * v
+	_sq.set_bone_pose_position(_os_epaule, _repos_epaule + v)
+
+## Pôle du coude (repère des mains) qui met l'avant-bras dans le PROLONGEMENT DE LA POIGNÉE À L'ÉCRAN : le coude est
+## choisi sur son cercle (épaule, main et longueurs fixées) de sorte que sa projection tombe sur la droite écran
+## garde → pointe, du côté opposé à la pointe (plan caméra-main-pointe). Pénalités : coude au-dessus de l'épaule,
+## saut d'une image à l'autre. Renvoie un point au-delà du coude, dans la direction où il doit plier.
+func _pole_ecran(pivot: Transform3D, epaule: Vector3) -> Vector3:
+	var oeil := transform.affine_inverse() * Vector3.ZERO
+	var h := (pivot * PRISE_D.affine_inverse()).origin
+	var t := pivot * _pointe_lame
+	var l1 := _l_bras
+	var l2 := _l_avant_bras
+	var d := clampf(h.distance_to(epaule), absf(l1 - l2) + 0.01, l1 + l2 - 0.002)
+	var n := (h - epaule).normalized()
+	var a := (l1 * l1 - l2 * l2 + d * d) / (2.0 * d)
+	var r := sqrt(maxf(l1 * l1 - a * a, 1e-6))
+	var centre := epaule + n * a
+	var u := n.cross(Vector3.UP)
+	if u.length_squared() < 1e-6:
+		u = n.cross(Vector3.RIGHT)
+	u = u.normalized()
+	var v := n.cross(u)
+	var hc := h - oeil
+	var b2 := _proj(t - oeil) - _proj(hc)
+	var meilleur := 1e9
+	var choix := _angle_coude
+	var ecart_choix := 0.0
+	for i in 72:
+		var al := TAU * i / 72.0
+		var e := centre + (u * cos(al) + v * sin(al)) * r
+		var f := (h - e).normalized()
+		var f2 := _proj(hc + f * 0.03) - _proj(hc)
+		var ecart := absf(f2.angle_to(b2)) if f2.length_squared() > 1e-10 and b2.length_squared() > 1e-10 else PI
+		var score := ecart
+		score += maxf(0.0, e.y - epaule.y - 0.25) * 6.0          # coude levé bien au-dessus de l'épaule : peu naturel
+		score += maxf(0.0, h.x - e.x - 0.05) * 2.0               # coude passé à gauche de la main (bras retourné)
+		score += absf(angle_difference(al, _angle_coude)) * 0.08  # continuité
+		if score < meilleur:
+			meilleur = score
+			choix = al
+			ecart_choix = ecart
+	_angle_coude = choix
+	ecart_coude = rad_to_deg(ecart_choix)
+	var coude := centre + (u * cos(choix) + v * sin(choix)) * r
+	coude_vise = coude
+	return coude + (coude - centre).normalized() * 0.3
+
+static func _proj(p: Vector3) -> Vector2:
+	var z := minf(p.z, -0.01)
+	return Vector2(p.x / -z, p.y / -z)
 
 ## Réglage immédiat du poignet (installation de l'arme, outils).
 func regler_poignet(coup: bool) -> void:
@@ -817,6 +932,11 @@ func _avancer_geste(dt: float) -> void:
 	_t_actif_prec = t_actif
 	_pose_courante = _pose_active(t_actif)
 	var arret := _tracer(t_prec, t_actif)
+	# traînée : échantillons à pas fixe jusqu'à l'instant courant (ou l'arrêt de la lame)
+	var t_fin_trainee := arret if arret >= 0.0 else t_actif
+	while _t_trainee + TraceLame.PAS <= t_fin_trainee + 1e-9:
+		_t_trainee += TraceLame.PAS
+		_echantillon_trainee(passifs.decalage_d * _pose_active(_t_trainee), t_actif - _t_trainee)
 	if arret >= 0.0:
 		_pose_courante = _pose_active(arret)
 		if _issue_arret == "arret":
@@ -826,6 +946,10 @@ func _avancer_geste(dt: float) -> void:
 		return
 	if t_actif >= _duree_active:
 		_finir_geste()
+
+## Échantillon de la traînée : garde et pointe de la lame pour une pose (repère des mains), daté de `retard` s.
+func _echantillon_trainee(pose: Transform3D, retard: float) -> void:
+	trainee.ajouter(pose * _garde_lame, pose * _pointe_lame, retard)
 
 func _pose_active(t_actif: float) -> Transform3D:
 	return ProfilsAnimation.pose_active(_geste, _s_actif(t_actif))
@@ -849,7 +973,7 @@ func _tracer(t0: float, t1: float) -> float:
 	var espace := get_world_3d().direct_space_state
 	var exclus: Array[RID] = [joueur.get_rid()]
 	var points_arme := arme.points_lame(_garde_lame, _pointe_lame)
-	var oeil := (get_parent() as Node3D).global_position
+	var oeil_local := transform.affine_inverse() * Vector3.ZERO   # œil (caméra) dans le repère des mains
 	var max_cibles := maxi(arme.multi_cibles, 1)
 	var k := int(ceil(maxf(_t_trace, debut) / TraceLame.PAS - 1e-6))
 	while true:
@@ -859,17 +983,31 @@ func _tracer(t0: float, t1: float) -> float:
 		_t_trace = ts + 1e-6
 		k += 1
 		var f := 1.0 if t1 <= t0 else clampf((ts - t0) / (t1 - t0), 0.0, 1.0)
-		var xf := monde_avant.interpolate_with(monde_now, f) * passifs.decalage_d * _pose_active(ts)
-		var pts := PackedVector3Array()
-		for p in points_arme:
-			pts.append(xf * p)
+		var monde := monde_avant.interpolate_with(monde_now, f)
+		var xf := monde * passifs.decalage_d * _pose_active(ts)
+		var oeil := monde * oeil_local
+		var pts := _points_jeu(xf, points_arme, oeil)
 		_instant_impact = ts
-		for e in trace.echantillonner(espace, pts, oeil, exclus, max_cibles):
+		for e in trace.echantillonner(espace, pts, oeil, exclus, max_cibles, true):
 			var issue := _resoudre_impact(e)
 			if issue != "":
 				_issue_arret = issue
 				return ts
 	return -1.0
+
+## Points de jeu du tracé (monde) : chaque point de la lame VUE À L'ÉCRAN (garde → pointe) est projeté le long de son
+## rayon de visée jusqu'à la portée de l'arme — la lame balaie l'écran en travers à 0,5-1 m de l'œil : ce qu'elle
+## couvre à l'écran, dans la portée, est touché (cohérent avec l'image, indépendant des images par seconde). Le premier
+## point (garde) reste à portee_garde : les rayons latéraux près de la main ne fouillent pas le décor lointain.
+func _points_jeu(xf: Transform3D, _points_arme: PackedVector3Array, oeil: Vector3) -> PackedVector3Array:
+	var pts := PackedVector3Array()
+	var nb := maxi(arme.points_trace, 7)
+	for i in nb:
+		var p := xf * _garde_lame.lerp(_pointe_lame, float(i) / float(nb - 1))
+		var dist := arme.portee_garde if i == 0 else arme.portee
+		var v := p - oeil
+		pts.append(oeil + v.normalized() * maxf(dist, v.length()))
+	return pts
 
 ## Applique un événement du tracé ; renvoie "" (la lame continue), "rebond" (mur, bouclier, cassable qui tient) ou
 ## "arret" (sol : la lame s'y arrête, le geste se termine sans rebond).
@@ -926,12 +1064,12 @@ func _poser_torche(dt: float) -> void:
 	if bloque:
 		baisse = 0.14
 	if combat.attaque() or combat.etat == EtatCombat.RECUPERATION:
-		baisse = 0.04
+		baisse = 0.3   # contrepoids : la torche s'abaisse et s'écarte, la lame balaie l'écran devant elle
 	if not torche_sortie:
 		baisse = 0.5
 	_baisse_torche = lerpf(_baisse_torche, baisse, 1.0 - exp(-8.0 * dt))
 	var p := _pose_torche()
-	p.origin += Vector3(0.0, -_baisse_torche, _baisse_torche * 0.2)
+	p.origin += Vector3(-minf(_baisse_torche, 0.3) * 0.5, -_baisse_torche, _baisse_torche * 0.2)
 	pivot_torche.transform = passifs.decalage_g * p
 	var allumee := torche_sortie or _baisse_torche < 0.36
 	for fl in flammes:

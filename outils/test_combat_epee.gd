@@ -187,6 +187,24 @@ func _tester() -> void:
 	_verif(mains._geste_nom == "diag_dg", "après le repos, le combo repart de diag_dg (%s)" % mains._geste_nom)
 	await _simuler(0.8, 1.0 / 60.0)
 
+	# --- 2 ter. coups en espace écran : le mannequin à 1,5 m et à 2 m est touché par chacun des 3 coups du combo
+	print("-- portée (mannequin à 1,5 et 2 m)")
+	for dist in [1.5, 2.0]:
+		await _reset(Vector3(0, 0, s.POS_MANNEQUIN.z + dist), 0.0)
+		var n_av: int = s.mannequin.coups.size()
+		var vus := []
+		for c in 3:
+			mains.entrees.appuyer()
+			for k in 3:
+				mains.avancer(1.0 / 60.0)
+			mains.entrees.relacher()
+			var n_c: int = s.mannequin.coups.size()
+			for k in 24:
+				mains.avancer(1.0 / 60.0)
+			vus.append("%s:%d" % [mains._geste_nom, s.mannequin.coups.size() - n_c])
+		_verif(s.mannequin.coups.size() - n_av == 3, "mannequin à %.1f m : 3 coups, 3 touches %s" % [dist, vus])
+		await _simuler(0.8, 1.0 / 60.0)
+
 	# --- 3. mur : la lame s'arrête sur la face
 	print("-- mur")
 	await _reset(Vector3(-1.9, 0, 1.0), 90.0)   # face à -X, mur à 1,15 m

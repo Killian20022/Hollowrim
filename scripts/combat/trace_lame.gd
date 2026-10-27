@@ -47,10 +47,41 @@ static func cible_de(objet: Object) -> Node:
 
 ## Un échantillon de la lame (points monde, garde → bout). Renvoie les événements :
 ## {type: "cible" | "mur" | "sol" | "cassable", point, normale, objet, collider, direction (mouvement de la lame), indice}.
-func echantillonner(espace: PhysicsDirectSpaceState3D, points: PackedVector3Array, oeil: Vector3, exclus: Array[RID], max_cibles: int) -> Array:
+## `radial` (coups en espace écran, mains._points_jeu) : avant les rayons latéraux, un rayon de l'œil vers chaque point
+## (la lame vue à l'écran, prolongée à la portée) : le premier obstacle sur la ligne de visée est touché — un mur
+## devant la cible l'arrête toujours, et les points de jeu suivants ne sont jamais derrière le décor.
+func echantillonner(espace: PhysicsDirectSpaceState3D, points: PackedVector3Array, oeil: Vector3, exclus: Array[RID], max_cibles: int, radial := false) -> Array:
 	var evts := []
 	if arretee:
 		return evts
+	if radial:
+		for i in points.size():
+			var q := PhysicsRayQueryParameters3D.create(oeil, points[i], MASQUE, exclus)
+			var r := espace.intersect_ray(q)
+			rayons += 1
+			if r.is_empty():
+				continue
+			var cible := cible_de(r["collider"])
+			var mouvement := (points[i] - _prec[i]).normalized() if _prec.size() == points.size() and points[i] != _prec[i] else (points[i] - oeil).normalized()
+			if cible == null or cible.is_in_group("cassables"):
+				var type := "cassable" if cible != null else ("sol" if (r["normal"] as Vector3).y > SOL_NORMALE else "mur")
+				evts.append({"type": type, "point": r["position"], "normale": r["normal"], "objet": cible if cible else r["collider"], "collider": r["collider"], "direction": mouvement, "indice": i})
+				arretee = true
+				break
+			var id := cible.get_instance_id()
+			if touches.has(id) or nb_cibles >= max_cibles:
+				continue
+			if cible.has_method("vivant") and not cible.vivant():
+				continue
+			touches[id] = true
+			nb_cibles += 1
+			evts.append({"type": "cible", "point": r["position"], "normale": r["normal"], "objet": cible, "collider": r["collider"], "direction": mouvement, "indice": i})
+		if arretee:
+			if garder_debug:
+				for e in evts:
+					debug_impacts.append(e["point"])
+			_prec = points
+			return evts
 	if _prec.size() != points.size():
 		_prec = points
 		return evts

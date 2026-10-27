@@ -35,6 +35,8 @@ var vigueur_max := 100.0
 var mort := false
 var en_dialogue := false  # posé par la boîte de dialogue : ni marche ni combat
 var secousse := 0.0
+## Tassement de la caméra (coup 3, coup lourd : mains.gd) : 1 → 0 en ~0,18 s, la vue plonge un instant puis revient.
+var tassement := 0.0
 var ennemi_vise: Node = null
 ## Dernier coup subi (pour la chute du corps à la mort) : origine de l'attaquant et dégâts.
 var origine_dernier_coup := Vector3.ZERO
@@ -262,6 +264,9 @@ func _physics_process(dt: float) -> void:
 	camera.h_offset = _bruit_secousse.get_noise_2d(_t * 40.0, 0.0) * s * 0.08
 	camera.v_offset = _bruit_secousse.get_noise_2d(0.0, _t * 40.0) * s * 0.08
 	camera.rotation.z = _bruit_secousse.get_noise_2d(_t * 30.0, 50.0) * s * 0.06
+	if tassement > 0.0:
+		tassement = maxf(0.0, tassement - dt * 5.5)
+		camera.v_offset -= sin(minf(tassement, 1.0) * PI) * 0.035 * (0.4 if bool(Jeu.option("affichage", "reduire_mouvements")) else 1.0)
 	var cam_tp: Camera3D = camera_tp.camera
 	cam_tp.h_offset = camera.h_offset
 	cam_tp.v_offset = camera.v_offset
