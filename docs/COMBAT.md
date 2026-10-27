@@ -238,7 +238,8 @@ geste des bras ; au repos elle est immobile (0).
   avec l'image et reprennent sans saut ; l'option « Arrêt sur image » n'est pas modifiée.
 
 ### Options (menu Options, user://options.cfg, section affichage)
-`balancement_arme`, `mouvement_tete`, `secousses` (0..1, curseurs 0-100 %, défaut 100 %). **Réduire les mouvements**
+`balancement_arme`, `mouvement_tete`, `secousses` (0..1, curseurs 0-100 %, défaut 100 %), dans le sous-panneau **Caméra**
+(bouton en bas du panneau Options, comme « Touches » : trois lignes de plus débordaient du panneau de l'écran titre). **Réduire les mouvements**
 plafonne : arme ≤ 35 %, tête ≤ 25 %, secousses (et tassement) ≤ 30 % (`CameraCorps.facteurs()`) ; un curseur plus bas
 reste plus bas. À 0 % chaque canal est réellement coupé (vérifié par le test).
 

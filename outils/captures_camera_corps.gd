@@ -83,7 +83,34 @@ func _attendre(n: int) -> void:
 	for i in n:
 		await physics_frame
 
+## --options=<dossier> : captures du panneau Options (thème pixel du menu pause), grille principale puis sous-panneau
+## « Caméra » (rien n'est enregistré : aucun curseur n'est touché).
+func _options(dossier: String) -> void:
+	var m := PanelContainer.new()
+	m.set_script(preload("res://scripts/menu_options.gd"))
+	var fond := ColorRect.new()
+	fond.color = Color(0.1, 0.11, 0.14)
+	fond.size = Vector2(640, 360)
+	root.add_child(fond)
+	root.add_child(m)
+	for i in 10:
+		await process_frame
+		m.position = ((Vector2(640, 360) - m.size) * 0.5).floor()
+	await RenderingServer.frame_post_draw
+	root.get_viewport().get_texture().get_image().save_png(dossier.path_join("options_grille.png"))
+	m.call("_basculer_camera")
+	for i in 5:
+		await process_frame
+		m.reset_size()
+		m.position = ((Vector2(640, 360) - m.size) * 0.5).floor()
+	await RenderingServer.frame_post_draw
+	root.get_viewport().get_texture().get_image().save_png(dossier.path_join("options_camera.png"))
+	quit()
+
 func _go() -> void:
+	if _arg("options") != "":
+		await _options(_arg("options"))
+		return
 	# options en mémoire seulement
 	Jeu.option("affichage", "reduire_mouvements")
 	Jeu.options["affichage"]["balancement_arme"] = float(_arg("arme", "1"))

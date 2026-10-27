@@ -12,6 +12,10 @@ var theme_impose: Theme = null
 var echelle := 1.0
 var _premier: Control
 var _touches: Control
+## Sous-panneau « Caméra » (balancement de l'arme, mouvement de tête, secousses) : remplace la grille tant qu'il est ouvert
+## (trois lignes de plus débordaient du panneau de l'écran titre).
+var _camera: Control
+var _premier_camera: Control
 var _reglages: Control
 var _case_plein: CheckButton
 var _secours: Label
@@ -66,13 +70,6 @@ func _ready() -> void:
 		Jeu.appliquer_camera(joueur))
 	_case(g, "Réduire les mouvements", Jeu.option("affichage", "reduire_mouvements"), func(v: bool) -> void:
 		Jeu.regler("affichage", "reduire_mouvements", v))
-	# caméra / corps (CameraCorps, MouvementsPassifs) : 100 % par défaut ; « Réduire les mouvements » les plafonne
-	_curseur(g, "Balancement de l'arme", 0, 100, 5, Jeu.option("affichage", "balancement_arme") * 100.0, "%d %%", func(v: float) -> void:
-		Jeu.regler("affichage", "balancement_arme", v / 100.0))
-	_curseur(g, "Mouvement de tête", 0, 100, 5, Jeu.option("affichage", "mouvement_tete") * 100.0, "%d %%", func(v: float) -> void:
-		Jeu.regler("affichage", "mouvement_tete", v / 100.0))
-	_curseur(g, "Secousses", 0, 100, 5, Jeu.option("affichage", "secousses") * 100.0, "%d %%", func(v: float) -> void:
-		Jeu.regler("affichage", "secousses", v / 100.0))
 	_curseur(g, "Volume général", 0, 100, 5, Jeu.option("son", "general") * 100.0, "%d %%", func(v: float) -> void:
 		Jeu.regler("son", "general", v / 100.0))
 	_curseur(g, "Musique", 0, 100, 5, Jeu.option("son", "musique") * 100.0, "%d %%", func(v: float) -> void:
@@ -109,6 +106,25 @@ func _ready() -> void:
 	pile.add_child(_secours)
 	_maj_secours()
 
+	# caméra / corps (CameraCorps, MouvementsPassifs) : 100 % par défaut ; « Réduire les mouvements » les plafonne
+	var gc := GridContainer.new()
+	gc.columns = 3
+	gc.add_theme_constant_override("h_separation", roundi(8 * echelle))
+	gc.add_theme_constant_override("v_separation", roundi(1 * echelle))
+	_premier_camera = _curseur(gc, "Balancement de l'arme", 0, 100, 5, Jeu.option("affichage", "balancement_arme") * 100.0, "%d %%", func(v: float) -> void:
+		Jeu.regler("affichage", "balancement_arme", v / 100.0))
+	_curseur(gc, "Mouvement de tête", 0, 100, 5, Jeu.option("affichage", "mouvement_tete") * 100.0, "%d %%", func(v: float) -> void:
+		Jeu.regler("affichage", "mouvement_tete", v / 100.0))
+	_curseur(gc, "Secousses", 0, 100, 5, Jeu.option("affichage", "secousses") * 100.0, "%d %%", func(v: float) -> void:
+		Jeu.regler("affichage", "secousses", v / 100.0))
+	var note := MenuStyle.etiquette("« Réduire les mouvements » les plafonne tous.", MenuStyle.GRIS)
+	var pc := VBoxContainer.new()
+	pc.add_child(gc)
+	pc.add_child(note)
+	pc.visible = false
+	_camera = pc
+	pile.add_child(pc)
+
 	# rappel des touches (remplace la grille tant qu'il est ouvert)
 	var t := GridContainer.new()
 	t.columns = 2
@@ -125,8 +141,10 @@ func _ready() -> void:
 	bas.alignment = BoxContainer.ALIGNMENT_CENTER
 	bas.add_theme_constant_override("separation", roundi(16 * echelle))
 	pile.add_child(bas)
+	var b_camera := MenuStyle.bouton("Caméra", func() -> void: _basculer_camera())
 	var b_touches := MenuStyle.bouton("Touches", func() -> void: _basculer_touches())
 	var b_retour := MenuStyle.bouton("Retour", func() -> void: fermer())
+	bas.add_child(b_camera)
 	bas.add_child(b_touches)
 	bas.add_child(b_retour)
 	if _fenetre() != null:
@@ -140,6 +158,7 @@ func _fenetre() -> Node:
 func ouvrir() -> void:
 	visible = true
 	_touches.visible = false
+	_camera.visible = false
 	_reglages.visible = true
 	_reglages_bas.visible = true
 	_maj_secours()
@@ -150,8 +169,19 @@ func fermer() -> void:
 	visible = false
 	ferme.emit()
 
+func _basculer_camera() -> void:
+	_camera.visible = not _camera.visible
+	_touches.visible = false
+	_reglages.visible = not _camera.visible
+	_reglages_bas.visible = _reglages.visible
+	if _camera.visible:
+		_premier_camera.grab_focus.call_deferred()
+	else:
+		_premier.grab_focus.call_deferred()
+
 func _basculer_touches() -> void:
 	_touches.visible = not _touches.visible
+	_camera.visible = false
 	_reglages.visible = not _touches.visible
 	_reglages_bas.visible = _reglages.visible
 	if _reglages.visible:
@@ -191,6 +221,8 @@ func _unhandled_input(e: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		if _touches.visible:
 			_basculer_touches()
+		elif _camera.visible:
+			_basculer_camera()
 		else:
 			fermer()
 
