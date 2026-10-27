@@ -18,6 +18,13 @@ appelle `EffetsMagie`. Références : `references/magie/prompt_magie.md` et les 
 | `shaders/magie_teinte.gdshader` | teinte d'écran discrète (halo additif de la couleur de l'école sur les bords) pendant les jets |
 | `scripts/magie/galerie_magie.gd`, `scenes/galerie_magie.tscn` | galerie de validation |
 | `outils/test_effets_magie.gd` | test sans fenêtre |
+| `scripts/magie/couche_magie.gd` | `CoucheMagie` : couche fine des sorts (option « Détail des sorts ») |
+| `scripts/magie/profondeur_magie.gd` | `ProfondeurMagie` (CompositorEffect) : copie la profondeur du monde pour l'occlusion de la couche fine |
+| `shaders/magie_occ.gdshaderinc`, `magie_compose.gdshader` | occlusion par la profondeur du monde ; pose de la couche sur le monde |
+| `shaders/magie_flux.gdshader`, `magie_aura.gdshader`, `magie_bruit.gdshaderinc` | jets, auras, boules et bouffées procéduraux au pixel (couche fine) |
+| `shaders/magie_coeur*.gdshader*` | cœurs lumineux de la couche fine |
+| `outils/perf_magie_crypte.gd` | mesure dans la vraie crypte (double jet de flammes) |
+| `outils/planches_magie_detail.sh` | planches avant / après face aux références |
 
 ## Contrat
 
@@ -104,6 +111,33 @@ Au-delà d'un plafond, l'effet est refusé et compté dans `stats().refus`.
   - Électricité : arcs de 3 px très ramifiés, éclat de paume, chaîne qui se propage saut par saut (0,06 s par saut).
   - Feu : grosse boule à 3 sphères, traînée, braises, explosion qui projette des braises.
 
+## Détail des sorts : couche fine (2026-10-27)
+
+Retour de l'utilisateur sur la passe précédente : « trop de gros pixels ». Les sorts sont maintenant dessinés à une
+résolution plus fine que le monde, qui reste en 640x360.
+
+- **Option** (`Options > Affichage > Détail des sorts`, clé `affichage.detail_sorts`) :
+  - Élevé (2, par défaut) : un pixel de magie = un pixel de l'écran (1/2 pixel du monde en 1280x720, 1/3 en 1080p, au plus 1/4).
+  - Moyen (1) : un pixel de magie = 1/2 pixel du monde.
+  - Rétro (0) : rendu d'avant, tout en 640x360, couche éteinte.
+  - Argument de mise au point : `--detail-sorts=retro|moyen|eleve`. Les outils (`--script`) sont en rétro par défaut ; la galerie impose Élevé.
+- **Architecture :**
+  - La fenêtre passe en `CONTENT_SCALE_MODE_CANVAS_ITEMS` (seulement si elle était en VIEWPORT : titre et chargement intacts) et sa 3D est rendue à 1/k en `SCALING_3D_MODE_NEAREST`. Le décor est identique au rendu rétro (écart moyen 0,011/255).
+  - Les visuels de `GestionMagie` portent le calque de rendu 19 (`CoucheMagie.CALQUE`, posé par `node_added`). La caméra du monde l'exclut ; un SubViewport (`transparent_bg`, HDR) qui partage `world_3d` le dessine, sa caméra étant recalée sur celle du joueur à `frame_pre_draw`.
+  - Pose sur le monde : TextureRect dans un CanvasLayer 0, sous `ps1_post` (CanvasLayer 1) ; la magie est donc étalonnée et réduite en 15 bits comme le reste. Les additifs sont écrits en `blend_premul_alpha` avec ALPHA = 0 (équivaut à `blend_add` sur le monde).
+  - Occlusion : `ProfondeurMagie` (CompositorEffect, `POST_TRANSPARENT` car `POST_OPAQUE` n'est jamais appelé en Mobile) copie la profondeur 640x360 dans une texture R32F ; `magie_occ.gdshaderinc` reprojette avec la vue de l'image précédente.
+  - Globales de shader (`project.godot`) : `magie_prof`, `magie_vue_prec`, `magie_occ`, `magie_pas`, `magie_echelle` (pixels de magie par pixel du monde).
+  - Veille : le SubViewport s'arrête 0,5 s après le dernier visuel. Préchauffe : `amorcer()` dessine 4 images invisibles pendant la vitrine du chargement.
+- **Effets multi-couches (couche fine seulement) :**
+  - Jets : ruban procédural `magie_flux` (bruit fractal en pixels du monde, paliers de couleurs francs, bords rongés), particules par-dessus.
+  - Auras de main, boules, bouffées d'impact, gerbe sur la cible : `magie_aura` (flammes montantes, givre tournant, filaments de plasma, vortex).
+  - Particules : réglages `PresetsMagie.FIN` (nombre, taille, étirement) et émetteurs compagnons `R_FIN` (étincelles, flammèches, poudre, cristaux) ; traînées étirées dans le sens du mouvement ; taille plafonnée à 0,2 × le plafond rétro × échelle.
+  - Éclairs : un niveau de subdivision de plus et des brindilles ; cœur 0,75 / halo 1,25 de la largeur rétro × échelle.
+  - Plafonds propres : `MAX_PARTICULES_FIN` 6 000, `MAX_EMETTEURS_FIN` 110.
+- **Mise au point (galerie) :** `--sans-particules`, `--sans-procedural`, `--sans-post`, `--sans-flux`, `--sans-aura`, plan `vide`.
+- **Planches :** `bash outils/planches_magie_detail.sh [crypte|dehors]` → `captures/magie_detail/planches/planche_<ecole>.png`. Par ligne : référence | zoom ×2 de l'après, puis avant | après pour la main, le jet, l'impact.
+- **Coût :** voir le tableau « Détail des sorts » de la section Coût.
+
 ## Choix de style
 
 - **Particules carrées :**
@@ -175,3 +209,9 @@ Voir `scripts/hud_combat.gd`. Le contrat de données est décrit en tête de fic
 - **Couche additive :** elle suppose des `MeshInstance3D`, donc pas de skinning particulier. Un maillage qui porte déjà un `material_overlay` est laissé tel quel, sans voile.
 - **Projectiles :** pas de collision, c'est la logique qui décide de l'impact.
 - **Pose de la main :** la pose de main ouverte de la galerie est propre à la galerie. Le geste de lancer en jeu reste à faire dans `mains.gd`, hors périmètre.
+- **Couche fine :**
+  - Surcoût GPU d'environ 1 ms même sans sort, dû à la fenêtre en CANVAS_ITEMS (post-traitement à la résolution de l'écran). Le temps d'image n'en souffre pas sur la machine de test, limitée par le CPU.
+  - Occlusion reprojetée avec une image de retard : un objet mobile qui passe devant un sort peut laisser déborder un pixel pendant une image.
+  - Renderer Compatibility (pas de RenderingDevice) et mode sans fenêtre : retour automatique au rendu rétro.
+  - Les voiles (`material_overlay`) restent dans le rendu du monde, en 640x360.
+  - Il reste quelques carrés de taille moyenne dans le corps des particules (traînée de la boule de feu surtout).
