@@ -39,10 +39,10 @@ const PROFILS := {
 			},
 			# coup 2 : repart de bas-gauche, lame à plat, la pointe balaie HORIZONTALEMENT de gauche à droite (poitrine)
 			"horizontale_gd": {
-				"armer": {"g": Vector2(-0.38, -0.6), "z": 0.69, "t": Vector2(-1.08, 0.44)},
+				"armer": {"g": Vector2(-0.36, -0.6), "z": 0.77, "t": Vector2(-0.98, 0.26)},
 				"milieu": {"g": Vector2(0.0, -0.68), "z": 0.55, "t": Vector2(0.0, 0.92)},
-				"fin": {"g": Vector2(0.38, -0.6), "z": 0.69, "t": Vector2(1.08, 0.44)},
-				"suivi": {"g": Vector2(0.47, -0.64), "z": 0.75, "t": Vector2(1.07, -0.15)},
+				"fin": {"g": Vector2(0.36, -0.6), "z": 0.77, "t": Vector2(0.98, 0.26)},
+				"suivi": {"g": Vector2(0.45, -0.64), "z": 0.8, "t": Vector2(1.07, -0.12)},
 				"preparation": 0.11, "tenue": 0.04, "active": 0.09, "acceleration": 2.2, "suivi_duree": 0.07, "recuperation": 0.30,
 				"fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.04, 0.9], "force": 1.0,
 			},

@@ -1,7 +1,8 @@
 # Combat à l'épée (vue FPS) — règles, valeurs, architecture
 
 Référence visuelle : `references/combat_epee/planche_combat_epee_1100.jpg` ; cahier des charges : `references/combat_epee/prompt_utilisateur.md`.
-État : phase 1 (pose FPS + animations passives) et phase 2 minimale (léger / lourd / tracé de lame / réactions existantes).
+État : phase 1 (pose FPS + animations passives), phase 2 minimale (léger / lourd / tracé de lame / réactions existantes),
+phase 4 (directions, enchaînements) ; passe 4 : coups conçus en espace écran + traînée de lame (voir plus bas).
 Les phases 3 à 6 (défense complète, combos riches, variantes, polish) s'appuient sur la même architecture.
 
 ## Lancer
@@ -12,6 +13,9 @@ Les phases 3 à 6 (défense complète, combos riches, variantes, polish) s'appui
 | Test automatique | `bash outils/tous_les_tests.sh test_combat_epee` (≈ 6 s, sans fenêtre) |
 | Planches | `bash /tmp/godot_slot.sh $G --path "$W" --script res://outils/captures_combat_epee.gd -- --sortie="$W\captures\combat_epee\scene"` |
 | Film | idem avec `--write-movie "$W\captures\combat_epee\video\combat_epee.avi" --fixed-fps 30` avant `--script`, et `-- --film` |
+| Mesures des coups (planches) | `-- --mesures [--gestes=diag_gd,horizontale,estoc] [--arme=epee_rubis] [--nuit] --sortie=...\coups_ecran` (lignes MESURE / RESUME) |
+| Films des coups | `--write-movie ...\coups_ecran_reel.avi --fixed-fps 60 ... -- --film-coups [--ralenti=0.25]` |
+| Vérif image = tracé | `--headless ... --script res://outils/regler_gestes.gd` (écart lame affichée / pose, alignement avant-bras) |
 | Pose de repos dans le village | `--captures="$W\outils\poses_combat_epee.txt"` (voir SOCLE_TECHNIQUE §6.1) |
 
 En jeu : clic gauche court = coup léger, maintenu = charge puis coup lourd au relâchement ; clic droit = garde ;
@@ -26,7 +30,8 @@ T = torche ; **F3 = débogage** (tracé de lame, état de combat, endurance, cha
 | `entrees_combat.gd` (`EntreesCombat`) | Entrées horodatées, durée d'appui, mémoire d'entrée (input buffer, 0,35 s), garde (bouton ou imposée). |
 | `etat_combat.gd` (`EtatCombat`) | Machine à états : Idle, Moving, LightAttack, HeavyCharge, HeavyAttack, Blocking, Parrying, Staggered, Recovery, Equip ; table des transitions autorisées. |
 | `profils_animation.gd` (`ProfilsAnimation`) | Gestes d'attaque (préparation, phase active à trois poses, récupération, fenêtre de dégâts), poses de charge / garde / sprint. Mêmes fonctions pour l'image et pour le tracé. |
-| `trace_lame.gd` (`TraceLame`) | Détection par tracé de lame à pas fixe. |
+| `trace_lame.gd` (`TraceLame`) | Détection par tracé de lame à pas fixe (rayons radiaux depuis l'œil + rayons latéraux). |
+| `trainee_lame.gd` (`TraineeLame`) | Traînée de lame pixel (ruban garde → pointe, 0,1 s, `shaders/trainee_lame.gdshader`). |
 | `degats_combat.gd` (`DegatsCombat`) | Calcul des dégâts, appel de `recevoir_coup` (avec `info` si la cible l'accepte), zone touchée. |
 | `retour_coups.gd` (`RetourCoups`) | Arrêt sur image, secousse, étincelles et son sur les murs, signal discret de pleine charge. |
 | `mouvements_passifs.gd` (`MouvementsPassifs`) | Respiration, marche, sprint, saut / atterrissage, inertie de la caméra, arrêt brutal (ressorts à pas fixe). |
@@ -54,13 +59,14 @@ Pas d'attaque en garde (l'appui mémorisé est effacé) ; toute attaque passe pa
 
 ## Valeurs (épée en métal, vitesse 1)
 
-| Geste | Préparation | Phase active | Récupération | Fenêtre de dégâts (part de la phase active) |
-|---|---|---|---|---|
-| Léger 1 : diagonale droite → gauche | 0,10 s | 0,17 s | 0,30 s | 10 % → 92 % |
-| Léger 2 : diagonale gauche → droite (revers) | 0,12 s | 0,17 s | 0,30 s | 10 % → 92 % |
-| Léger 3 : horizontal | 0,13 s | 0,19 s | 0,34 s | 10 % → 92 % |
-| Lourd : vertical | 0,06 s (après la charge) | 0,24 s | 0,46 s | 8 % → 94 % |
+| Geste | Préparation | Tenue | Frappe | Suivi | Récupération (suivi compris) | Dégâts |
+|---|---|---|---|---|---|---|
+| Léger 1 : diagonale haut-droite → bas-gauche | 0,10 s | 0,04 | 0,09 (ease-in ×2,6) | 0,07 | 0,30 | ×1 |
+| Léger 2 : horizontal gauche → droite | 0,11 s | 0,04 | 0,09 (×2,2) | 0,07 | 0,30 | ×1 |
+| Léger 3 : vertical haut → bas | 0,12 s | 0,05 | 0,10 (×3,0) | 0,08 | 0,34 | ×1,25 + tassement caméra |
+| Lourd : grand arc (après la charge) | 0,06 s | — | 0,14 (×2,8) | 0,10 | 0,46 | ×1 (+charge) + tassement |
 
+La lame blesse sur toute la frappe (fenêtre 0 → 100 %, estoc 25 → 100 %).
 Durées divisées par `vitesse` de l'arme. Combo : 1 → 2 → 3 → 1 ; il repart de 1 après 0,9 s sans coup.
 Charge : seuil 0,28 s d'appui, plafond atteint 0,9 s plus tard ; dégâts lourds × (1 → 1,3) selon la charge ;
 à pleine charge : tintement discret, reflet sur la lame, léger tremblement.
@@ -94,10 +100,15 @@ Multiplicateurs communs : compétence Épée (+0,6 × progression), trophée.
 - Impact encaissé : pose « encaisse » 0,18 s, la garde reste levée. Vitesse de marche × 0,5 en garde ; pas de sprint.
 
 ## Tracé de lame (détection)
-- Échantillons à **pas fixe de 1/240 s** du temps du geste (indépendant des images par seconde) ; entre deux échantillons,
-  un rayon par point de la lame (5 points de la garde à la pointe + allonge). La pose de chaque échantillon est calculée
-  par la même fonction que l'image (Bézier + slerp), la caméra est interpolée entre deux images.
-- Allonge de jeu : 0,33 m au-delà de la pointe (épées longues) ; portée effective ≈ 1,9 m depuis l'œil, celle des draugrs.
+- Échantillons à **pas fixe de 1/240 s** du temps du geste (indépendant des images par seconde). La pose de chaque
+  échantillon est calculée par la même fonction que l'image (Bézier + slerp), la caméra est interpolée entre deux images.
+- **Tracé projeté (passe 4)** : la lame balaie l'écran EN TRAVERS à 0,5-0,9 m de l'œil ; chacun des 7 points de la lame
+  vue (garde → pointe) est projeté le long de son rayon de visée jusqu'à `portee` (2,0 m ; la garde à `portee_garde`
+  0,6 m). Par échantillon : un rayon œil → point (le premier obstacle sur la ligne de visée est touché : un mur devant la
+  cible l'arrête toujours) puis un rayon latéral entre deux échantillons successifs de chaque point. Ce que la lame couvre
+  à l'écran, dans la portée, est touché ; `outils/regler_gestes.gd` vérifie que la lame affichée = la pose du tracé (0°).
+- Portée : 2,0 m depuis l'œil (mannequin touché par les 3 coups à 1,5 et à 2 m, test) ; `allonge` n'est plus utilisée
+  par les coups légers / lourds (elle reste dans `points_lame` pour d'autres usages).
 - Une seule touche par cible et par coup ; au plus `multi_cibles` (2) cibles par coup.
 - Mur / décor : la lame s'arrête au point touché, étincelles + son, rebond (Staggered). Sol (normale verticale > 0,6) :
   la lame s'y arrête sans rebond. Cible vue à travers un mur : c'est le mur qui est touché. Ragdolls (calque 16) ignorés.
@@ -134,30 +145,49 @@ Teinte de la lame : la lame métal de la planche reçoit une copie de matériau 
 reflet bleu restant vient de l'environnement (lumière ambiante bleue 0,32 ; 0,4 ; 0,62 sur une texture claire), voulu
 pour la neige.
 
-## Coups authorés et poignet rigide (passe 3)
-- **Poignet rigide pendant les coups** (préparation, frappe, suivi, rebond) : la lame fait un angle fixe de 40° ± 15° avec
-  l'avant-bras (elle le prolonge), le tranchant ne tourne pas de plus de ±15° autour de la lame (`orientation_main.gd`,
-  `angle_min/angle_max`, réglés par `mains._poser_coude`). Le mouvement vient de l'épaule et du coude : chaque clé porte
-  son pôle de coude.
-- **Quatre clés par geste** (A = armer, milieu, B = fin, suivi) : [poignée, lame, pôle du coude, tranchant naturel]. Les
-  lames et tranchants sont ceux que le bras produit réellement avec le poignet rigide : `outils/regler_gestes.gd` cherche
-  le pôle du coude (un par geste, un autre pour A si besoin), lit la lame obtenue et l'imprime prête à coller ;
-  `-- --verifier` mesure l'écart image / tracé le long de l'arc (actuellement ≤ 21°, et seulement en début d'arc, avant
-  la zone de touche).
-- Orientation entre clés : slerp A → milieu → B (passe exactement par le milieu), tranchant gardé du même côté d'une clé
-  à l'autre (lame à deux tranchants) : pas de rotation de la lame sur elle-même.
-- **Rythme** : préparation (ease-out) → tenue de A (2-4 images, lisible) → frappe A → B accélérée (`acceleration`) →
-  suivi qui dépasse B → retour. Combo de base à l'arrêt :
+## Coups conçus en espace écran (passe 4)
+Constat de la passe 3 : des gestes pensés comme un vrai bras qui frappe VERS la cible (en profondeur) montrent la lame
+en bout et le poing énorme. Un viewmodel FPS (Skyrim, Mordhau, Chivalry) fait balayer la lame EN TRAVERS de l'écran.
+- **Clés écran** (`profils_animation.gd`) : pour chaque clé (armer, milieu, fin, suivi) : `g` position écran de la garde
+  (x, y normalisés −1…1), `z` profondeur de la garde (0,55-0,8 m), `t` position écran de la pointe ; la profondeur de la
+  pointe découle de la longueur de lame (0,87 m, racine la plus lointaine). La main se déduit de la garde.
+- **Règle de conception** (mesurée, voir plus bas) : la main reste dans la moitié basse / le bord droit, la lame reste
+  LEVÉE (pointe vers le haut ou le côté) et balaie l'écran comme un essuie-glace ; une lame pointée vers le bas ou vers
+  un bord latéral (rayons très obliques à 104° de champ horizontal) fuirait en profondeur. Les clés ont été résolues avec
+  un petit solveur hors moteur (angle visé avec le rayon du milieu de lame, part visible), puis vérifiées dans Godot.
+- **Bras** : pendant les coups, la main suit EXACTEMENT la pose (orientation_main sans borne) ; `mains._pole_ecran`
+  choisit le coude sur son cercle (épaule, main, longueurs) pour que l'avant-bras PROLONGE LA POIGNÉE À L'ÉCRAN (plan
+  caméra-main-pointe) : pas de poignet cassé visible. Si la main est hors de portée (bras de 0,5 m), l'épaule droite
+  (os `upperarm_r`, hors écran) glisse vers elle ; le bras gauche ne bouge pas. Torche : abaissée de 0,30 m et écartée
+  pendant les coups (contrepoids, la lame passe devant).
+- **Tranchant** : il suit la tangente de l'arc de la pointe (le tranchant mène), transporté d'une clé à l'autre sans
+  rotation de la lame sur elle-même.
+- **Rythme** : préparation (ease-out) → tenue lisible (2-3 images) → frappe 0,09-0,10 s, ease-in fort → suivi
+  0,07-0,08 s qui dépasse B → retour ~0,22 s ou coup suivant (fenêtres de combo et mémoire d'entrée inchangées).
+- **Coup 3** : ×1,25, un peu plus lent ; **tassement caméra** (`joueur.tassement`, v_offset −3,5 cm en ~0,18 s, ×0,4
+  avec « Réduire les mouvements ») à la fin de la frappe ; aussi sur le coup lourd.
+- **Traînée** (`TraineeLame`) : ruban entre l'historique garde → pointe, échantillonné à 1/240 s pendant la frappe et le
+  suivi, en croissant sur le dernier tiers de la lame ; 4 paliers d'opacité, 3 tons (pas de dégradé, pas de tramage),
+  sommets accrochés à la grille 270 lignes comme le shader ps1, unshaded / alpha (compatible Web) ; s'efface en 0,1 s.
+  Couleur par arme (`couleur_trainee`, `couleur_trainee_coeur`) : acier bleu-blanc, or, rubis, verre vert, obsidienne
+  rouge sombre.
 
-| Coup | Trajectoire | Prép. | Tenue | Frappe | Accél. | Suivi | Récup. | Dégâts |
-|---|---|---|---|---|---|---|---|---|
-| 1 diag_dg | haut-droite → bas-gauche | 0,09 | 0,04 | 0,13 | 2,4 | 0,07 | 0,30 | ×1 |
-| 2 horizontale_gd | gauche → droite, lame à plat, poitrine | 0,10 | 0,05 | 0,15 | 1,8 | 0,08 | 0,32 | ×1 |
-| 3 verticale_l | levée au-dessus de la tête → bas devant | 0,13 | 0,06 | 0,14 | 3,0 | 0,08 | 0,36 | ×1,25 |
-| Lourd verticale | armé derrière l'épaule → bas devant | 0,06 | — | 0,20 | 2,6 | 0,10 | 0,46 | ×1 (+charge) |
+### Contraintes et mesures (`captures_combat_epee.gd -- --mesures`)
+Mesurées à chaque image de la frappe : lame visible ≥ 70 % (dans le cadre, non cachée par la main, le bras ou le manche
+de la torche — flamme et halo transparents non comptés), angle lame / rayon de visée du milieu de lame ≥ 50°, main + bras
+DROITS ≤ 15 % de l'écran (masque magenta, torche écartée), écart avant-bras / poignée à l'écran ≤ 15°, et « fil » :
+angle tranchant / mouvement de la pointe (0 = le tranchant mène). Épée de métal, combo à l'arrêt :
 
-Preuves : `outils/captures_combat_epee.gd -- --coups` (planches image par image numérotées),
-`-- --film-coups [--ralenti=0.25]` avec `--write-movie` (vidéos).
+| Coup | Lame visible | Angle visée | Main + bras | Avant-bras / poignée | Fil / mouvement | Violations |
+|---|---|---|---|---|---|---|
+| 1 diag_dg | 76-100 % | 54-61° | 4,3-5,1 % | 2-5° | ≤ 11° | 0 |
+| 2 horizontale_gd | 96-100 % | 57-60° | 1,2-2,5 % | 5-7° | ≤ 12° | 0 |
+| 3 verticale_l | 84-100 % | 53-58° | 7,2-11,7 % | 3-6° | ≤ 28° | 0 |
+| Lourd verticale | 76-100 % | 54-61° | 4,1-5,4 % | 2-7° | ≤ 6° | 0 |
+| diag_gd / horizontale / estoc | 80-100 % | 53-61° | ≤ 9,1 % | ≤ 11° | ≤ 13° (estoc : poussée dans l'axe) | 0 |
+
+Planches : `captures/combat_epee/coups_ecran/coup_<n>_<geste>.png`, `geste_<nom>.png`, `armes/<arme>/` ; films :
+`captures/combat_epee/video/coups_ecran_reel.mp4`, `coups_ecran_ralenti_x025.mp4`.
 
 ## Directions et enchaînements (phase 4)
 Choix du geste léger à l'appui (`mains._choisir_geste`), par priorité :
@@ -168,14 +198,17 @@ Choix du geste léger à l'appui (`mains._choisir_geste`), par priorité :
 Continuité : chaque geste a un côté de départ et d'arrivée ; dans un enchaînement, un geste du combo qui partirait du
 mauvais côté est remplacé par son miroir, un geste contextuel répété alterne de sens (pas de côté : droite-gauche-droite),
 et la préparation est raccourcie ×0,75 quand la lame est déjà du bon côté.
+Les gestes contextuels suivent les mêmes règles écran : `diag_gd` (revers) a ses propres clés (main partie de l'épaule
+gauche, finit en bas à droite, lame levée — un miroir du coup 1 tordrait le bras droit), `horizontale` est le miroir de
+`horizontale_gd`, l'estoc pousse la main de la hanche droite vers le centre, lame à ≥ 50° du regard.
 Fenêtres de combo par geste (début en s, fin en part de la récupération) : diagonales et horizontales 0,05 → 90 % ;
 vertical léger 0,06 → 85 % ; estoc 0,06 → 80 % ; lourd 0,08 → 80 %. Un appui hors fenêtre relance le combo au geste 1.
 
-| Geste | Préparation | Active | Récupération |
-|---|---|---|---|
-| horizontale_gd (revers) | 0,14 | 0,19 | 0,34 |
-| verticale_l (en avançant) | 0,12 | 0,18 | 0,32 |
-| estoc (en reculant, dégâts de 25 % à 100 % du geste) | 0,12 | 0,15 | 0,30 |
+| Geste | Préparation | Tenue | Frappe | Suivi | Récupération |
+|---|---|---|---|---|---|
+| diag_gd (revers) | 0,11 | 0,04 | 0,09 | 0,07 | 0,30 |
+| horizontale (droite → gauche) | 0,11 | 0,04 | 0,09 | 0,07 | 0,30 |
+| estoc (en reculant, dégâts de 25 % à 100 % de la frappe) | 0,11 | 0,04 | 0,10 | 0,05 | 0,30 |
 
 3e personne : seule l'animation `Sword_Attack` existe pour l'épée ; l'estoc joue `Punch_Jab` (poussée droit devant).
 
@@ -184,4 +217,8 @@ vertical léger 0,06 → 85 % ; estoc 0,06 → 80 % ; lourd 0,08 → 80 %. Un ap
   (`attaque = "contre"`), garde brisée quand l'endurance tombe à 0.
 - Phase 4 (reste) : annulation de la récupération par la garde, gestes 3e personne par direction (animations à créer).
 - Phase 5 : équilibrage des 4 variantes, lueurs (rubis, verre), effets d'enchantement.
-- Phase 6 : sons d'impact par matériau, traînée de lame pixel, caméra, optimisation.
+- Phase 6 : sons d'impact par matériau, caméra, optimisation.
+- Coups en espace écran : l'armé du coup 1 a la main au bord droit à mi-hauteur (pas tout en haut) et l'armé du coup 3 au
+  centre-haut, pas au-dessus de la tête : une main plus haute ferait sortir la lame (0,87 m) par le haut de l'écran. La
+  frappe ne dure que 5-6 images à 60 i/s (rythme demandé) ; la traînée porte la lecture du mouvement. En 3e personne,
+  rien ne change (animation `Sword_Attack`).

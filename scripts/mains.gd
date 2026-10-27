@@ -1067,7 +1067,8 @@ func _poser_torche(dt: float) -> void:
 		baisse = 0.3   # contrepoids : la torche s'abaisse et s'écarte, la lame balaie l'écran devant elle
 	if not torche_sortie:
 		baisse = 0.5
-	_baisse_torche = lerpf(_baisse_torche, baisse, 1.0 - exp(-8.0 * dt))
+	# l'abaissement de combat est vif (la torche dégage avant que la lame ne passe), le retour plus doux
+	_baisse_torche = lerpf(_baisse_torche, baisse, 1.0 - exp(-(18.0 if baisse > _baisse_torche and baisse < 0.5 else 8.0) * dt))
 	var p := _pose_torche()
 	p.origin += Vector3(-minf(_baisse_torche, 0.3) * 0.5, -_baisse_torche, _baisse_torche * 0.2)
 	pivot_torche.transform = passifs.decalage_g * p

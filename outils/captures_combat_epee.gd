@@ -371,6 +371,7 @@ func _masque_mat(vert := false) -> ShaderMaterial:
 	return _mat_vert if vert else _mat_masque
 
 var _attaches := {}
+var _pointe_prec := Vector3.INF
 
 ## Position monde d'un os APRÈS les modificateurs (IK) : lue sur un BoneAttachment3D (get_bone_global_pose rend la
 ## pose sans les modificateurs en dehors de leur passe).
@@ -393,11 +394,17 @@ func _mesurer_image() -> Array:
 	for mi: MeshInstance3D in mailles:
 		mi.material_override = _masque_mat()
 	# torche (et main gauche) en vert : elle peut cacher la lame, elle ne compte pas dans la couverture du bras droit
-	var vertes: Array = mains._accroche_g.find_children("*", "GeometryInstance3D", true, false)
+	# (flamme et halo sont des cartes à fond transparent, les étincelles des points : masqués, pas comptés)
+	var cartes: Array = mains._visuels_torche + mains.flammes
+	var vertes: Array = mains._accroche_g.find_children("*", "GeometryInstance3D", true, false).filter(func(gi: Node) -> bool: return not gi in cartes)
 	var mats_torche := []
 	for gi: GeometryInstance3D in vertes:
 		mats_torche.append(gi.material_override)
 		gi.material_override = _masque_mat(true)
+	var vis_cartes := []
+	for c: Node3D in cartes:
+		vis_cartes.append(c.visible)
+		c.visible = false
 	s.hud.visible = false
 	var calques := s.find_children("*", "CanvasLayer", true, false)
 	for c: CanvasLayer in calques:
@@ -417,6 +424,8 @@ func _mesurer_image() -> Array:
 		mi.material_override = null
 	for k in vertes.size():
 		(vertes[k] as GeometryInstance3D).material_override = mats_torche[k]
+	for k in cartes.size():
+		(cartes[k] as Node3D).visible = vis_cartes[k]
 	s.hud.visible = true
 	for c: CanvasLayer in calques:
 		c.visible = true
@@ -464,10 +473,23 @@ func _mesurer_image() -> Array:
 	var f2 := cam.unproject_position(main + f * 0.03) - cam.unproject_position(main)
 	var b2 := cam.unproject_position(t) - cam.unproject_position(g)
 	var poignet := rad_to_deg(absf(f2.angle_to(b2))) if f2.length() > 0.01 and b2.length() > 0.01 else 0.0
-	return [lame_pc, angle, bras_pc, poignet, cam.unproject_position(g) / taille, cam.unproject_position(t) / taille]
+	# tranchant devant : angle entre le fil de la lame (X du modèle) et le mouvement de la pointe, tous deux pris
+	# perpendiculairement à la lame (lame à deux tranchants : replié sur 0-90°)
+	var fil := -1.0
+	if _pointe_prec != Vector3.INF and t.distance_to(_pointe_prec) > 0.004:
+		var mv := (t - _pointe_prec)
+		mv = (mv - dir * mv.dot(dir)).normalized()
+		var x := xf.basis.x.normalized()
+		x = (x - dir * x.dot(dir)).normalized()
+		fil = rad_to_deg(acos(clampf(absf(x.dot(mv)), 0.0, 1.0)))
+	_pointe_prec = t
+	return [lame_pc, angle, bras_pc, poignet, cam.unproject_position(g) / taille, cam.unproject_position(t) / taille, fil]
 
 func _coups_mesures() -> void:
-	await _monter({"draugr": "aucun", "sans-aide": ""})
+	var opts := {"draugr": "aucun", "sans-aide": ""}
+	if _arg("nuit") != "":
+		opts["nuit"] = ""
+	await _monter(opts)
 	print("BRAS épaule %s, bras %.3f, avant-bras %.3f" % [mains._bras_base * mains._epaule_bras, mains._l_bras, mains._l_avant_bras])
 	for nom in ["hand_r", "lowerarm_r", "upperarm_r", "hand_l"]:
 		_os_global(mains._sq, nom)
@@ -507,6 +529,7 @@ func _coups_mesures() -> void:
 		var mins := [1e9, 1e9, 1e9, 1e9]
 		var maxs := [-1e9, -1e9, -1e9, -1e9]
 		var viol := 0
+		var fil_max := 0.0
 		while not fini and i < 220:
 			i += 1
 			mains.avancer(DT)
@@ -549,7 +572,9 @@ func _coups_mesures() -> void:
 				if mauvais:
 					viol += 1
 			l.add_theme_color_override("font_color", Color(1, 0.35, 0.3) if mauvais else (Color(1, 0.95, 0.5) if actif else Color(0.85, 0.85, 0.85)))
-			l.text = "C%d %s #%02d %s %dms\nlame %d%%  angle %d  bras %.1f%%  poignet %d" % [n + 1, geste, vues.size() + 1, etape, roundi(i * DT * 1000.0), roundi(m[0]), roundi(m[1]), m[2], roundi(m[3])]
+			l.text = "C%d %s #%02d %s %dms\nlame %d%%  angle %d  bras %.1f%%  poignet %d  fil %s" % [n + 1, geste, vues.size() + 1, etape, roundi(i * DT * 1000.0), roundi(m[0]), roundi(m[1]), m[2], roundi(m[3]), "-" if m[6] < 0.0 else str(roundi(m[6]))]
+			if actif and m[6] >= 0.0:
+				fil_max = maxf(fil_max, m[6])
 			print("MESURE C%d %-15s #%02d %-7s lame %5.1f%% angle %4.1f bras %5.2f%% poignet %4.1f garde %s pointe %s | torche %s main_g %s | visé %.0f, épaule→main %.2f" % [n + 1, geste, vues.size() + 1, etape, m[0], m[1], m[2], m[3], (m[4] as Vector2).snapped(Vector2.ONE * 0.01), (m[5] as Vector2).snapped(Vector2.ONE * 0.01), mains.pivot_torche.transform.origin.snapped(Vector3.ONE * 0.01), (mains.global_transform.affine_inverse() * _os_global(mains._sq, "hand_l")).snapped(Vector3.ONE * 0.01), mains.ecart_coude, ((mains.pivot_epee.transform * mains.PRISE_D.affine_inverse()).origin).distance_to(mains._bras_base * mains._epaule_bras) / (mains._l_bras + mains._l_avant_bras)])
 			var inv: Transform3D = mains.global_transform.affine_inverse()
 			print("   coude réel %s visé %s | main réelle %s visée %s | épaule réelle %s" % [(inv * _os_global(mains._sq, "lowerarm_r")).snapped(Vector3.ONE * 0.01), mains.coude_vise.snapped(Vector3.ONE * 0.01), (inv * _os_global(mains._sq, "hand_r")).snapped(Vector3.ONE * 0.01), (mains.pivot_epee.transform * mains.PRISE_D.affine_inverse()).origin.snapped(Vector3.ONE * 0.01), (inv * _os_global(mains._sq, "upperarm_r")).snapped(Vector3.ONE * 0.01)])
@@ -566,7 +591,7 @@ func _coups_mesures() -> void:
 			im.resize(w, h, Image.INTERPOLATE_BILINEAR)
 			p.blit_rect(im, Rect2i(0, 0, w, h), Vector2i((k % 5) * w, (k / 5) * h))
 		p.save_png(dossier.path_join(nom + ".png"))
-		var ligne := "RESUME C%d %-15s images %d | frappe : lame %.0f-%.0f %% | angle %.0f-%.0f | bras %.1f-%.1f %% | poignet %.0f-%.0f | violations %d" % [n + 1, geste, images.size(), mins[0], maxs[0], mins[1], maxs[1], mins[2], maxs[2], mins[3], maxs[3], viol]
+		var ligne := "RESUME C%d %-15s images %d | frappe : lame %.0f-%.0f %% | angle %.0f-%.0f | bras %.1f-%.1f %% | poignet %.0f-%.0f | fil/mouvement max %.0f | violations %d" % [n + 1, geste, images.size(), mins[0], maxs[0], mins[1], maxs[1], mins[2], maxs[2], mins[3], maxs[3], fil_max, viol]
 		resume.append(ligne)
 		print("PLANCHE ", nom, " ", images.size(), " images")
 	for r in resume:
