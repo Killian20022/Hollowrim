@@ -27,6 +27,7 @@ et l'interface sont faits sur `magie/effets` (contrat `EffetsMagie` plus bas) ; 
 | les deux boutons | fenêtre 0,15 s | **double incantation** si les deux mains tiennent LE MÊME sort |
 | `raccourci_1` … `raccourci_0` | touches 1-0 | équipe les deux mains (data/magie/raccourcis.json) |
 | T | — | sortir / ranger la torche (inchangé) |
+| `inventaire` | I | écran d'inventaire des deux mains (jeu en pause), voir plus bas |
 
 Le joueur sait toujours pourquoi une action est refusée : signal `joueur.action_refusee(main, raison)` et `magie.refus[main]`
 (« Pas assez de mana. », « Recharge : 2.4 s », « Il faut une épée dans l'autre main… », « Incantation interrompue. »,
@@ -57,6 +58,21 @@ protection dans `recevoir_coup`), `equipement.gd` (l'inventaire ne remet plus l'
 `profil_cible.gd` (résistances électricité / ténèbres), `ennemi_base.gd` + `draugr.gd` (gel : vitesse × facteur),
 `troll_givre_ia.gd` (peur du feu, choc atténué, brûlure = pas de régénération), `mage_nordique_ia.gd` (choc interrompt ;
 sorts du système de magie), `monde.gd` (sauvegarde « magie »).
+
+## Inventaire des deux mains (touche I)
+
+`scripts/inventaire_mains.gd` (`InventaireMains`, CanvasLayer ajouté par `monde.gd` et `test_combat.gd`), jeu en **pause**.
+Catégories Armes / Sorts / Divers (A/E en AZERTY = touches physiques Q/E, LB/RB) ; aperçu des deux mains en haut ; liste
+des objets possédés (icônes `IconesCombat`) ; fiche (dégâts, coût en mana, vitesse, effet, recharge) qui dit d'avance,
+pour chaque main, si l'objet peut y aller et sinon pourquoi. **Clic gauche / Entrée / D / A manette = main droite ;
+clic droit / G / X manette = main gauche** ; refus et conséquences (« Occupe les deux mains : la main gauche sera
+libérée. », « L'arme à deux mains sera rangée. ») dans le bandeau. **Raccourcis** : un chiffre 1-0 (ou clic sur une case)
+range les deux mains ACTUELLES dans ce raccourci ; clic droit = le vider (la touche ne change plus rien). Les raccourcis
+sont sauvegardés (`magie.raccourcis` dans la sauvegarde ; data/magie/raccourcis.json = valeurs de départ).
+Données : `data/magie/inventaire.json` (catégories par genre, objets équipables avec condition `inventaire` facultative,
+ordre des écoles) ; API `EquipementMains.objets_possedes / fiche / essai / assigner_raccourci / vider_raccourci`,
+`objets_supplementaires` (objets ajoutés à l'exécution), `objet(id)` lit aussi toute DonneesArme de `data/armes/<id>.tres`.
+Test : `bash outils/tous_les_tests.sh test_inventaire_mains`.
 
 ## Règles des deux mains (`data/magie/regles_mains.json`)
 

@@ -71,7 +71,7 @@ func _construire() -> void:
 	_racine.visible = false
 	add_child(_racine)
 	var voile := ColorRect.new()
-	voile.color = Color(MenuStyle.FOND, 0.6)
+	voile.color = Color(MenuStyle.FOND, 0.82)   # le HUD (objectif, barre) ne doit pas transparaître dans le panneau
 	voile.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_racine.add_child(voile)
 	var centre := CenterContainer.new()
