@@ -4,6 +4,7 @@ extends Node3D
 ## un mur pour les collisions de la lame, éclairage clair, débogage (F3 : tracé de lame, état de combat, endurance).
 ## Lancement (fenêtre) :
 ##   godot --path <projet> res://scenes/test_combat.tscn -- [--nuit] [--draugr=actif|fige|aucun] [--debug-combat]
+##        [--sans-zone] [--zone-draugr=fige|actif|aucun]   (zone de collisions à 12 m à droite : ZoneCollisions)
 ## Par défaut le draugr est actif (il traque et frappe) ; « fige » le laisse debout sans IA (cible immobile).
 ## Test automatique sans fenêtre : outils/test_combat_epee.gd (même scène).
 
@@ -19,11 +20,15 @@ const POS_DRAUGR := Vector3(3.2, 0.0, -3.6)
 ## Mur : face tournée vers +X (à 3,05 m à gauche du point de départ : hors de portée des coups contre le mannequin).
 const POS_MUR := Vector3(-3.2, 1.3, 1.0)
 const TAILLE_MUR := Vector3(0.3, 2.6, 3.0)
+## Zone de collisions (ZoneCollisions : murs fins, coin, porte, cibles serrées, poteau, draugrs) : à 12 m à droite.
+## Présente en jeu (scène lancée à la main) sauf --sans-zone ; un script (test, capture) la demande par options["zone"].
+const POS_ZONE := Vector3(12.0, 0.0, 0.0)
 
 var joueur: CharacterBody3D
 var mannequin: StaticBody3D
 var draugr: CharacterBody3D
 var mur: StaticBody3D
+var zone: ZoneCollisions
 var hud: Control
 var soleil: DirectionalLight3D
 var env: Environment
@@ -55,6 +60,12 @@ func _ready() -> void:
 	var mode_draugr: String = a.get("draugr", "actif")
 	if mode_draugr != "aucun":
 		draugr = creer_draugr(POS_DRAUGR, mode_draugr == "fige")
+	if a.has("zone") or (options.is_empty() and not a.has("sans-zone")):
+		zone = ZoneCollisions.new()
+		zone.joueur = joueur
+		zone.mode_draugr = String(a.get("zone-draugr", "fige"))
+		zone.position = POS_ZONE
+		add_child(zone)
 
 func creer_draugr(p: Vector3, fige: bool) -> CharacterBody3D:
 	var d := CharacterBody3D.new()

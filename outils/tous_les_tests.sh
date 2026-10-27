@@ -67,6 +67,7 @@ TESTS=(
 	"test_primitives|"
 	"test_epees_longues|--nouvelle"   # 5 épées longues : nœuds prise/garde/pointe, repère, échelle, matériaux
 	"test_combat_epee|--nouvelle"   # combat à l'épée : tracé de lame identique à 30/60/144 i/s, mur, draugr, garde, endurance (scenes/test_combat.tscn)
+	"test_collisions_lame|--nouvelle"   # collisions de la lame dans la zone de test (ZoneCollisions) : murs fins, coin, porte, serrés, poteau, 20/30/60/144 i/s
 	"test_magie|--nouvelle"   # magie et deux mains : compatibilité, mana, 12 sorts + soin + protection, double, réactions, interruption, épée + magie, enchantement, sauvegarde (docs/MAGIE.md)
 	"test_effets_magie|--nouvelle"   # visuels de la magie (EffetsMagie / GestionMagie) : contrat, plafonds, retour au pool (docs/MAGIE_EFFETS.md)
 	"test_hud_combat|--nouvelle"   # HUD de combat : vie/mana/endurance, mains, recharges, double, statuts, raccourcis, icônes
