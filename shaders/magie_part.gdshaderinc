@@ -11,7 +11,7 @@ void vertex() {
 	float s = length(MODEL_MATRIX[0].xyz);
 	vec2 vp = VIEWPORT_SIZE;
 	float w = max(centre.w, 0.0001);
-	float px = s * PROJECTION_MATRIX[1][1] / w * vp.y * 0.5;
+	float px = s * abs(PROJECTION_MATRIX[1][1]) / w * vp.y * 0.5;   // abs : axe Y retourné sous Vulkan
 	px = clamp(floor(px + 0.5), 1.0, taille_max);
 	if (s < 0.000001) {
 		px = 0.0;
@@ -27,6 +27,9 @@ void fragment() {
 	if (a <= 0.0) {
 		discard;
 	}
-	ALBEDO = COLOR.rgb * eclat;
+	// la couleur des particules (rampe) arrive en sRVB : la passer en linéaire (sinon les rouges sombres virent au rose)
+	vec3 c = COLOR.rgb;
+	c = mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, step(c, vec3(0.04045)));
+	ALBEDO = c * eclat;
 	ALPHA = clamp(a, 0.0, 1.0);
 }

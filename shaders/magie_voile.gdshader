@@ -13,8 +13,9 @@ uniform float force = 0.6;
 uniform float grille = 135.0;
 uniform float gonfle = 0.006;
 uniform int motif = 0;
-uniform float cases = 24.0;     // cases du motif par mètre (repère de l'objet)
+uniform float cases = 64.0;     // cases du motif par mètre (repère de l'objet)
 uniform vec3 axe = vec3(0.0, 1.0, 0.0);
+uniform float fond = 0.0;       // teinte additive de fond sur tout le modèle (gel bleuté, lame enchantée)
 
 varying vec3 p_obj;
 varying vec3 n_vue;
@@ -42,10 +43,12 @@ void fragment() {
 	float h = dot(p_obj, axe);
 	float k = 0.0;
 	if (motif == 1) {
-		float n = h3(q + vec3(0.0, floor(-TIME * 10.0 + h * 2.0), 0.0));
-		float f = step(0.62, n);
-		a = max(a * 0.6, f);
-		k = step(0.86, n);
+		// flammèches : courtes colonnes de cases qui montent le long de l'axe
+		float col = h3(vec3(q.x, 0.0, q.z) + 7.0);
+		float n = h3(vec3(q.x, floor(h * cases * 0.5 - TIME * 9.0 + col * 5.0), q.z));
+		float f = step(0.8, n);
+		a = max(a * 0.7, f * 0.9);
+		k = step(0.94, n);
 	} else if (motif == 2) {
 		float n = h3(q);
 		float sc = step(0.9, fract(n * 7.0 + TIME * 0.5));
@@ -60,6 +63,7 @@ void fragment() {
 		float n = h3(floor(p_obj * cases * 0.5 + vec3(0.0, -TIME * 1.5, 0.0)));
 		a = max(a * 0.7, step(0.7, n) * 0.6);
 	}
+	a = max(a, fond);
 	a *= force;
 	a = ceil(a * 3.0 - 0.05) / 3.0;
 	if (a <= 0.0) {

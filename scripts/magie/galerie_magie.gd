@@ -25,6 +25,13 @@ const PLANS := [
 	["double_feu", 2.4, 1.4], ["double_glace", 2.4, 0.45], ["double_electricite", 2.4, 1.2], ["double_tenebres", 2.4, 1.2],
 ]
 
+## Angles d'Euler (°) candidats de la main gauche (--balayage).
+const BALAYAGE := [[15, -80, -15], [-60, -80, -15], [-60, -60, 0], [-80, -90, 0], [60, -80, -15], [0, -80, -80],
+	[0, -80, 80], [-40, -120, -30], [-40, -40, 30], [30, -150, 0], [-90, 0, 0], [0, 0, -90]]
+## Pose retenue (main gauche en incantation) : angles d'Euler (°) et position dans le repère des mains.
+const POSE_EULER := Vector3(-40, -120, -30)
+const POSE_POS := Vector3(-0.34, -0.2, -0.42)
+
 var lieu := "crypte"
 var vue := "fps"
 var joueur: CharacterBody3D
@@ -62,6 +69,11 @@ func _ready() -> void:
 	for p in PLANS:
 		if filtre == "" or filtre.split(",").has(p[0]):
 			_plans.append(p)
+	if _arg("balayage") != "":
+		# réglage de la pose de la main gauche : une capture par jeu d'angles (outil de mise au point)
+		_plans.clear()
+		for k in BALAYAGE.size():
+			_plans.append(["pose_%d" % k, 1.0, 0.8])
 	_decor()
 	joueur = CharacterBody3D.new()
 	joueur.set_script(JOUEUR)
@@ -69,10 +81,10 @@ func _ready() -> void:
 	joueur.global_position = Vector3(0, 0.05, 0)
 	mains = joueur.mains
 	obs = Camera3D.new()
-	obs.fov = 60.0
+	obs.fov = 66.0
 	add_child(obs)
-	obs.position = Vector3(4.6, 1.7, -2.4)
-	obs.look_at(Vector3(-0.2, 1.1, -3.2))
+	obs.position = Vector3(5.2, 1.6, -5.0)
+	obs.look_at(Vector3(-0.3, 1.0, -2.6))
 	for i in 3:
 		var d := DraugrNordique.creer({})
 		add_child(d)
@@ -116,7 +128,7 @@ func _decor() -> void:
 		_bloc(Vector3(14, 5, 0.6), Vector3(0, 2.5, -12.5), mur, Vector2(7, 3))
 		_bloc(Vector3(0.6, 5, 18), Vector3(-6.5, 2.5, -4), mur, Vector2(9, 3))
 		_bloc(Vector3(0.6, 5, 18), Vector3(6.5, 2.5, -4), mur, Vector2(9, 3))
-		for z in [-2.0, -8.0]:
+		for z in [1.5, -8.0]:
 			for x in [-4.0, 4.0]:
 				_bloc(Vector3(0.8, 4.0, 0.8), Vector3(x, 2.0, z), mur, Vector2(1, 3))
 		for p: Vector3 in [Vector3(-6.0, 2.2, -6.0), Vector3(6.0, 2.2, -9.0)]:
@@ -200,8 +212,12 @@ func _poser_main_gauche() -> void:
 	if nom.begins_with("enchant") or nom == "statuts":
 		avance = 0.0
 	var repos: Transform3D = mains.pivot_torche.transform
-	var b := Basis.from_euler(Vector3(deg_to_rad(15), deg_to_rad(-80), deg_to_rad(-15)))
-	var lance := Transform3D(b, Vector3(-0.2, -0.17, -0.5))
+	var e := POSE_EULER
+	if nom.begins_with("pose_"):
+		var a: Array = BALAYAGE[int(nom.trim_prefix("pose_"))]
+		e = Vector3(a[0], a[1], a[2])
+	var b := Basis.from_euler(e * (PI / 180.0))
+	var lance := Transform3D(b, POSE_POS)
 	mains.pivot_torche.transform = repos.interpolate_with(lance, avance)
 
 # ---------------------------------------------------------------- déroulé
@@ -217,6 +233,8 @@ func _process(dt: float) -> void:
 		_debut(_plans[0][0])
 	_t += dt
 	var p: Array = _plans[_i]
+	if String(p[0]).begins_with("pose_"):
+		EffetsMagie.aura_main(paume_g, "feu", 1.0)
 	_pendant(p[0], _t)
 	if dossier != "" and not _capture_faite and _t >= float(p[2]):
 		_capture_faite = true
@@ -244,7 +262,7 @@ func _capturer(nom: String) -> void:
 	var img := get_viewport().get_texture().get_image()
 	DirAccess.make_dir_recursive_absolute(dossier)
 	img.save_png(dossier.path_join(nom + ".png"))
-	print("CAPTURE ", nom)
+	print("CAPTURE ", nom, " ", EffetsMagie.stats())
 
 func _vise(i := 1) -> Vector3:
 	return cibles[clampi(i, 0, cibles.size() - 1)].global_position + Vector3.UP * 1.1

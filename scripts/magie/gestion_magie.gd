@@ -227,7 +227,7 @@ func emettre(nom: String, parent: Node, xf: Transform3D, persistant := false, k_
 		p.material_override = _mat_cristal(String(d.get("pal", "glace")))
 	else:
 		p.draw_pass_1 = _quad
-		p.material_override = _mat_part(bool(d.get("add", true)), float(d.get("cap", 6.0)), float(d.get("eclat", 1.5)))
+		p.material_override = _mat_part(bool(d.get("add", false)), float(d.get("cap", 6.0)), float(d.get("eclat", 1.3)))
 	var ext := 2.0 if p.local_coords else 14.0
 	p.visibility_aabb = AABB(Vector3.ONE * -ext, Vector3.ONE * ext * 2.0)
 	var cible: Node = parent if parent != null else self
@@ -395,7 +395,7 @@ func _mat_part(add: bool, cap: float, eclat: float) -> ShaderMaterial:
 		var m := ShaderMaterial.new()
 		m.shader = SH_ADD if add else SH_MIX
 		m.set_shader_parameter("taille_max", cap)
-		m.set_shader_parameter("eclat", eclat if add else 1.0)
+		m.set_shader_parameter("eclat", eclat)
 		_mats[cle] = m
 	return _mats[cle]
 
@@ -905,7 +905,7 @@ func _gen_aura_arcs(a: Dictionary) -> Array:
 	var n := 2 + int(i * 3.0) + (2 if dbl else 0)
 	for _k in n:
 		var o := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized() * 0.015
-		var b := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.6, 1), rng.randf_range(-1, 1)).normalized() * rng.randf_range(0.045, 0.09) * (1.0 + 0.4 * i)
+		var b := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.6, 1), rng.randf_range(-1, 1)).normalized() * rng.randf_range(0.06, 0.12) * (1.0 + 0.4 * i)
 		traits.append([foudre(o, b, 0.018, 3), 2.0 if dbl else 1.0, 1.0])
 	return traits
 
@@ -948,7 +948,7 @@ func _maj_auras() -> void:
 			scint = 0.6 + 0.8 * rng.randf()
 		elif a.ecole == "feu":
 			scint = 0.9 + 0.2 * sin(horloge * 23.0) * sin(horloge * 7.0)
-		lumiere("aura%d" % id, ancre.position, c, (0.5 + 1.3 * i) * scint * (1.5 if dbl else 1.0), 3.0 + 2.5 * i, 2.0 + i)
+		lumiere("aura%d" % id, ancre.position, c, (0.8 + 2.0 * i) * scint * (1.5 if dbl else 1.0), 3.5 + 2.5 * i, 2.0 + i)
 
 # ====================================================================== jets canalisés
 
@@ -979,7 +979,7 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 		"dir": Vector3.FORWARD, "vu": horloge, "fin_pos": Vector3.ZERO, "touche": false, "normale": Vector3.UP, "t_bout": 0.0, "t_rayon": -1.0,
 		"suit_bout": [], "bouclier": {}}
 	var kl := 1.7 if dbl else 1.0
-	var ecart := clampf(rad_to_deg(atan2(largeur * 0.5 * kl, maxf(portee, 0.5))), 3.0, 30.0)
+	var ecart := clampf(rad_to_deg(atan2(largeur * 0.5 * kl, maxf(portee, 0.5))) * 1.4, 5.0, 30.0)
 	var kn := 1.8 if dbl else 1.0
 	match ecole:
 		"feu", "glace", "soin":
@@ -1130,7 +1130,7 @@ func projectile_visuel(ecole: String, forme: String) -> Node3D:
 			mi.mesh = _mesh_eclat
 			mi.material_override = _mat_cristal(cp)
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			mi.scale = (Vector3(1.6, 1.6, 1.3) if lance else Vector3(0.7, 0.7, 0.55)) * k
+			mi.scale = (Vector3(2.6, 2.6, 2.2) if lance else Vector3(1.1, 1.1, 0.95)) * k
 			visuel.add_child(mi)
 			if lance:
 				# cristaux latéraux en couronne vers l'arrière (lance de givre massive)
@@ -1143,8 +1143,9 @@ func projectile_visuel(ecole: String, forme: String) -> Node3D:
 					s.transform = Transform3D(Basis.from_euler(Vector3(sin(a) * 0.5, cos(a) * 0.5, 0)).scaled(Vector3(0.5, 0.5, 0.6) * k), Vector3(cos(a) * 0.12, sin(a) * 0.12, 0.25) * k)
 					visuel.add_child(s)
 		"trait":
-			_boule(visuel, 0.07 * k, _mat_coeur(Color(pal[2]).darkened(0.6), false, 1.0))
-			_boule(visuel, 0.13 * k, _mat_coeur(Color(pal[1], 0.55), true, 1.3))
+			_boule(visuel, 0.1 * k, _mat_coeur(Color(pal[2]).darkened(0.7), false, 1.0))
+			_boule(visuel, 0.2 * k, _mat_coeur(Color(pal[1], 0.6), true, 1.6))
+			_boule(visuel, 0.3 * k, _mat_coeur(Color(pal[2], 0.3), true, 1.2))
 			if ecole == "tenebres":
 				coeur.append(emettre("ten_coeur", visuel, Transform3D.IDENTITY, true))
 		_:   # "boule", "orbe"
@@ -1327,8 +1328,8 @@ func zone(ecole: String, position: Vector3, rayon: float, duree: float) -> void:
 				var dist := r * sqrt(rng.randf_range(0.04, 1.0))
 				var off := Vector3(cos(a), 0, sin(a)) * dist
 				var axe := (Vector3.UP + off.normalized() * rng.randf_range(0.1, 1.0) + Vector3(rng.randf_range(-0.3, 0.3), 0, rng.randf_range(-0.3, 0.3))).normalized()
-				var h := rng.randf_range(0.5, 1.6) * kz
-				pic("tenebres", position + off, axe, h * rng.randf_range(0.1, 0.18), h, rng.randf() * 0.25, 0.12, horloge + d - 0.3)
+				var h := rng.randf_range(0.8, 2.2) * kz
+				pic("tenebres", position + off, axe, h * rng.randf_range(0.1, 0.16), h, rng.randf() * 0.25, 0.12, horloge + d - 0.3)
 		"soin":
 			disque(position, Vector3.UP, r, r, d, {"couleur": "#b8d060", "coeur": "#fff4c0", "anneau": 0.92, "epaisseur": 0.05, "remplissage": 0.15, "runes": 0.9, "texels": 64.0, "tourne": 0.05}, false, false, 0.3)
 			var p := emettre("soin_sol", null, base, true, kz, -1.0, _pm("soin_sol", PresetsMagie.R["soin_sol"], {"r": rq}))
@@ -1438,7 +1439,7 @@ func statut_cible(cible: Node3D, statut: String, duree: float) -> void:
 			s.emit.append(p)
 	var voile: Array = {"gel": [1, "#5f9fe8", "#e8f6ff", 0.7, 2], "choc": [3, "#7a7af0", "#f0f2ff", 0.8, 3], "corruption": [4, "#5a1a8a", "#d08aff", 0.6, 0], "brulure": [1, "#b3341f", "#fcb53a", 0.45, 1]}.get(statut, [])
 	if not voile.is_empty():
-		s.voiles = _voiler(cible, voile[0], Color(voile[1]), Color(voile[2]), voile[3], Vector3.UP)
+		s.voiles = _voiler(cible, voile[0], Color(voile[1]), Color(voile[2]), voile[3], Vector3.UP, 0.4 if statut == "gel" else 0.0)
 	if statut == "choc":
 		s.eclair = eclair(null, "electricite", 1.0, -1.0, 0.08, _gen_choc.bind(s))
 	_statuts[cle] = s
@@ -1480,7 +1481,7 @@ func _maj_statuts() -> void:
 
 ## Pose la couche additive magie_voile sur les maillages de `n` (seulement ceux sans material_overlay) ; renvoie
 ## [[maillage, ancien overlay]] pour la retirer.
-func _voiler(n: Node3D, motif: int, couleur: Color, coeur: Color, force: float, axe: Vector3) -> Array:
+func _voiler(n: Node3D, motif: int, couleur: Color, coeur: Color, force: float, axe: Vector3, fond := 0.0) -> Array:
 	var res: Array = []
 	var liste := n.find_children("*", "MeshInstance3D", true, false)
 	if n is MeshInstance3D:
@@ -1495,10 +1496,11 @@ func _voiler(n: Node3D, motif: int, couleur: Color, coeur: Color, force: float, 
 		m.set_shader_parameter("coeur", coeur)
 		m.set_shader_parameter("force", force)
 		m.set_shader_parameter("motif", motif)
+		m.set_shader_parameter("fond", fond)
 		var g := _grille_de(mi)
 		m.set_shader_parameter("grille", g)
 		var echelle := mi.global_basis.get_scale().x
-		m.set_shader_parameter("cases", 24.0 / maxf(echelle, 0.0001))
+		m.set_shader_parameter("cases", 64.0 / maxf(echelle, 0.0001))
 		m.set_shader_parameter("gonfle", 0.006 / maxf(echelle, 0.0001))
 		var axe_local := (mi.global_basis.inverse() * (n.global_basis * axe)).normalized()
 		m.set_shader_parameter("axe", axe_local)
@@ -1570,8 +1572,8 @@ func enchant_arme(arme: Node3D, ecole: String, actif: bool) -> void:
 		var p := emettre(nom, null, Transform3D(arme.global_basis.orthonormalized(), arme.global_transform * centre), true, 1.0, -1.0, pm)
 		if p != null:
 			e.emit.append(p)
-	var voile: Array = {"feu": [1, "#ec6a1f", "#fff0a8", 0.55], "glace": [2, "#5f9fe8", "#e8f6ff", 0.6], "electricite": [3, "#7a7af0", "#f0f2ff", 0.8], "tenebres": [4, "#7a2ad0", "#d08aff", 0.6], "soin": [0, "#b8d060", "#fff4c0", 0.5], "protection": [0, "#7ab0d8", "#eaf8ff", 0.5]}[ecole]
-	e.voiles = _voiler(arme, voile[0], Color(voile[1]), Color(voile[2]), voile[3], e.axe)
+	var voile: Array = {"feu": [1, "#ec6a1f", "#fff0a8", 0.75], "glace": [2, "#5f9fe8", "#e8f6ff", 0.6], "electricite": [3, "#7a7af0", "#f0f2ff", 0.8], "tenebres": [4, "#7a2ad0", "#d08aff", 0.6], "soin": [0, "#b8d060", "#fff4c0", 0.5], "protection": [0, "#7ab0d8", "#eaf8ff", 0.5]}[ecole]
+	e.voiles = _voiler(arme, voile[0], Color(voile[1]), Color(voile[2]), voile[3], e.axe, 0.4)
 	if ecole == "electricite":
 		e.eclair = eclair(null, "electricite", 1.0, -1.0, 0.06, _gen_lame_arcs.bind(e))
 	_enchants[id] = e
@@ -1614,8 +1616,8 @@ func _maj_enchants() -> void:
 		for p in e.emit:
 			if is_instance_valid(p):
 				p.transform = xf
-		if e.ecole == "feu":
-			lumiere("enchant%d" % id, xf.origin, LUMIERE.feu, 0.9 + 0.2 * sin(horloge * 21.0), 2.5, 1.5)
+		var scint := 1.0 + (0.2 * sin(horloge * 21.0) if e.ecole == "feu" else (0.5 * rng.randf() - 0.25 if e.ecole == "electricite" else 0.0))
+		lumiere("enchant%d" % id, xf.origin, LUMIERE[e.ecole], 1.1 * scint, 2.8, 1.5)
 
 # ====================================================================== réactions entre écoles
 
@@ -1653,7 +1655,7 @@ func reaction(nom: String, position: Vector3, rayon: float) -> void:
 				var a := rng.randf() * TAU
 				var off := Vector3(cos(a), 0, sin(a)) * r * sqrt(rng.randf_range(0.05, 1.0))
 				var axe := (Vector3.UP + off.normalized() * rng.randf_range(0.2, 0.8)).normalized()
-				var h := rng.randf_range(0.4, 1.2) * kz
+				var h := rng.randf_range(0.7, 1.7) * kz
 				pic("corrompu", position + off, axe, h * rng.randf_range(0.15, 0.25), h, rng.randf() * 0.2, 0.15, horloge + 2.2)
 			lumiere("corrompu%d" % rng.randi(), position + Vector3.UP * 0.6, Color(0.7, 0.45, 1.0), 5.0, r * 2.0 + 2.0, 7.0, 0.8)
 		"flammes_obscures":
