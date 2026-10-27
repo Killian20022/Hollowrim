@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="DonneesArme" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/donnees_arme.gd" id="1_arme"]
+
+[resource]
+script = ExtResource("1_arme")
+id = "epee_verre"
+nom = "Épée en verre"
+categorie = 1
+modele = "res://assets/modeles/armes/epees/verre.glb"
+milieu_poignee = 0.03
+habillage = "epees_longues"
+materiau_lame = "verre"
+repos_poignee = Vector3(0.27, -0.24, -0.34)
+repos_lame = Vector3(-0.3, 0.7, -0.65)
+repos_fil = Vector3(-0.9, 0, -0.6)
+repos_coude = Vector3(0.7, 0.1, 0.4)
+deviation_poignet = 40.0
+profil = "epee_longue"
+degats_leger = 22.4
+degats_lourd = 54.4
+bonus_charge_max = 1.3
+multi_cibles = 2
+reduction_garde = 0.75
+materiau_impact = "metal"
+vitesse = 1.3
+poids = 1.1
+cout_leger = 6.0
+cout_lourd = 20.0
+cout_garde = 1.0
+garde = Vector3(0, 0.096, 0)
+pointe = Vector3(0, 0.955, 0)
+allonge = 0.33
+points_trace = 5
+couleur_trainee = Color(0.2, 0.8, 0.45, 1)
+couleur_trainee_coeur = Color(0.7, 1, 0.78, 1)

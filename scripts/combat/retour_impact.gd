@@ -7,14 +7,20 @@ class_name RetourImpact
 
 ## Coupe tout retour d'écran (tests sans fenêtre).
 static var muet := false
+## Arrêt sur image et ralenti actifs (false : tests à pas fixe ; RetourCoups.arret_actif, ancien réglage, coupe aussi).
+static var arret_actif := true
+
+static func temps_actif() -> bool:
+	return arret_actif and RetourCoups.arret_actif
 
 static func jouer(n: Node, p: ProfilImpact, joueur: Node) -> void:
 	if n == null or not n.is_inside_tree() or p == null:
 		return
 	var arbre := n.get_tree()
-	if p.arret > 0.0:
+	var temps := temps_actif()
+	if p.arret > 0.0 and temps:
 		Effets.arret_image(arbre, p.arret)
-	if p.ralenti > 0.0:
+	if p.ralenti > 0.0 and temps:
 		_ralenti_apres(arbre, p)
 	if joueur != null and is_instance_valid(joueur) and "secousse" in joueur:
 		joueur.secousse = maxf(float(joueur.secousse), p.secousse)
@@ -64,8 +70,48 @@ const BANQUE := {
 	"draugr_mort": ["combat/voix/draugr_mort_01", "combat/voix/draugr_mort_02", "combat/voix/draugr_mort_03", "combat/voix/draugr_mort_04", "combat/voix/draugr_mort_05", "combat/voix/draugr_mort_06"],
 	"douleur": ["combat/voix/douleur_01", "combat/voix/douleur_02", "combat/voix/douleur_03", "combat/voix/douleur_04", "combat/voix/douleur_05", "combat/voix/douleur_06"],
 	"coup_de_grace": ["combat/signaux/coup_de_grace_01", "combat/signaux/coup_de_grace_02", "combat/signaux/coup_de_grace_03", "combat/signaux/coup_de_grace_04"],
+	# lame du joueur (branche integration/H) : fouettés de l'épée, dégainer / rengainer, blocage lame contre lame, parade parfaite
+	"fouette_leger": ["combat/lame/fouette_leger_01", "combat/lame/fouette_leger_02", "combat/lame/fouette_leger_03", "combat/lame/fouette_leger_04", "combat/lame/fouette_leger_05"],
+	"fouette_lourd": ["combat/lame/fouette_lourd_01", "combat/lame/fouette_lourd_02", "combat/lame/fouette_lourd_03", "combat/lame/fouette_lourd_04", "combat/lame/fouette_lourd_05"],
+	"degainer": ["combat/lame/degainer_01", "combat/lame/degainer_02", "combat/lame/degainer_03", "combat/lame/degainer_04", "combat/lame/degainer_05", "combat/lame/degainer_06"],
+	"rengainer": ["combat/lame/rengainer_01", "combat/lame/rengainer_02", "combat/lame/rengainer_03", "combat/lame/rengainer_04", "combat/lame/rengainer_05"],
+	"metal_blocage": ["combat/impacts/metal_blocage_01", "combat/impacts/metal_blocage_02", "combat/impacts/metal_blocage_03", "combat/impacts/metal_blocage_04", "combat/impacts/metal_blocage_05", "combat/impacts/metal_blocage_06"],
+	"parade_parfaite": ["combat/impacts/parade_parfaite_01", "combat/impacts/parade_parfaite_02", "combat/impacts/parade_parfaite_03", "combat/impacts/parade_parfaite_04", "combat/impacts/parade_parfaite_05", "combat/impacts/parade_parfaite_06"],
 }
 const GAIN := {
+	"combat/lame/degainer_01": -0.8,
+	"combat/lame/degainer_02": 2.4,
+	"combat/lame/degainer_03": 0.4,
+	"combat/lame/degainer_04": 1.8,
+	"combat/lame/degainer_05": -0.3,
+	"combat/lame/degainer_06": 6.0,
+	"combat/lame/fouette_leger_01": 3.3,
+	"combat/lame/fouette_leger_02": 3.5,
+	"combat/lame/fouette_leger_03": 0.3,
+	"combat/lame/fouette_leger_04": 3.1,
+	"combat/lame/fouette_leger_05": 1.7,
+	"combat/lame/fouette_lourd_01": 5.0,
+	"combat/lame/fouette_lourd_02": 4.9,
+	"combat/lame/fouette_lourd_03": 6.0,
+	"combat/lame/fouette_lourd_04": 3.9,
+	"combat/lame/fouette_lourd_05": 2.9,
+	"combat/lame/rengainer_01": 5.3,
+	"combat/lame/rengainer_02": 6.0,
+	"combat/lame/rengainer_03": 2.3,
+	"combat/lame/rengainer_04": 0.1,
+	"combat/lame/rengainer_05": -0.1,
+	"combat/impacts/metal_blocage_01": -0.3,
+	"combat/impacts/metal_blocage_02": 0.9,
+	"combat/impacts/metal_blocage_03": 1.5,
+	"combat/impacts/metal_blocage_04": 3.7,
+	"combat/impacts/metal_blocage_05": 1.1,
+	"combat/impacts/metal_blocage_06": 3.5,
+	"combat/impacts/parade_parfaite_01": -1.0,
+	"combat/impacts/parade_parfaite_02": -3.9,
+	"combat/impacts/parade_parfaite_03": 4.4,
+	"combat/impacts/parade_parfaite_04": 1.8,
+	"combat/impacts/parade_parfaite_05": 0.6,
+	"combat/impacts/parade_parfaite_06": 6.0,
 	"combat/gore/chute_corps_neige_01": 0.5,
 	"combat/gore/chute_corps_neige_02": -0.6,
 	"combat/gore/chute_corps_neige_03": -0.7,

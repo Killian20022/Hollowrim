@@ -50,7 +50,7 @@ Fond de l'écran titre (assets/ui/titre_reference.jpg) : image de référence fo
 
 ## Combat : impacts, gore, voix, signaux (pack OpenGameArt + Kenney, tous CC0 ; vérifié le 2026-10-27, détail fichier par fichier dans audio_combat_cc0/CREDITS_AUDIO.md)
 
-Copiés dans assets/sons/combat/ (branche combat/degats_gore : côté ennemi). Conversion : Ogg Vorbis mono 44,1 kHz, crête -3 dBFS (signaux -14 dBFS).
+Copiés dans assets/sons/combat/ (branche combat/degats_gore : côté ennemi ; lame/, metal_blocage, parade_parfaite : branche integration/H, côté joueur). Conversion : Ogg Vorbis mono 44,1 kHz, crête -3 dBFS (signaux -14 dBFS).
 
 | Fichiers | Origine (pack : fichiers) | Auteur | Licence |
 |---|---|---|---|
@@ -76,3 +76,11 @@ Copiés dans assets/sons/combat/ (branche combat/degats_gore : côté ennemi). C
 | sons/combat/voix/draugr_grognement_05..06 | Zomby SFX pack (opengameart.org/content/zomby-sfx-pack) | saturn91 | CC0 |
 | sons/combat/voix/douleur_01..06 | Grunts, male death and pain (opengameart.org/content/grunts-male-death-and-pain) | thebardofblasphemy | CC0 |
 | sons/combat/signaux/coup_de_grace_01..04 | Impact Sounds 1.0 : impactBell_heavy_000..003 (filtrés) | Kenney | CC0 |
+| sons/combat/lame/fouette_leger_01..04, fouette_lourd_01..05 | 20 Sword Sound Effects (opengameart.org/content/20-sword-sound-effects-attacks-and-clashes) : sword.1..10 | StarNinjas | CC0 |
+| sons/combat/lame/fouette_leger_05, degainer_01..05, rengainer_03..05 | RPG Sound Pack : battle/swing, sword-unsheathe (rengainer : à l'envers) | artisticdude | CC0 |
+| sons/combat/lame/degainer_06, rengainer_01..02 | Fantasy Sound Effects (opengameart.org/content/fantasy-sound-effects-tinysized-sfx) : seax-(un)sheathe | vehicle | CC0 |
+| sons/combat/impacts/metal_blocage_01..05 | 20 Sword Sound Effects : sword_clash.1..5 | StarNinjas | CC0 |
+| sons/combat/impacts/metal_blocage_06 | Impact Sounds 1.0 : impactMetal_heavy_000 | Kenney | CC0 |
+| sons/combat/impacts/parade_parfaite_01 | RPG Sound Pack : inventory/metal-ringing (passe-haut 500 Hz) | artisticdude | CC0 |
+| sons/combat/impacts/parade_parfaite_02..05 | Metal Impact Sounds : bing1, clink1_0, clink2, clink3 (passe-haut 500 Hz) | bmaczero | CC0 |
+| sons/combat/impacts/parade_parfaite_06 | Medieval SFX: weapon impacts (opengameart.org/content/medieval-sound-effects-weapon-impacts) : Blade on Blade (passe-haut 500 Hz) | medicinestorm | CC0 |

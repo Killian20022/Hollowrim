@@ -200,7 +200,15 @@ func frapper(c: Node, attaque := "legere", zone := "", avec_info := true) -> Str
 			"point": (c as Node3D).global_position + Vector3(0, h, 0) - vers * 0.22, "normale": -vers}
 		if zone != "":
 			info["zone"] = zone
-	var r: String = c.recevoir_coup(base, o, lourd, info)
+	# le pilote joue le rôle du joueur (mains._tenter_finisher) : une cible achevable reçoit le finisher au coup lourd
+	var r := ""
+	var cat: String = c.finisher_possible(joueur) if lourd and c.has_method("finisher_possible") else ""
+	if cat != "":
+		var fi := info.duplicate()
+		fi["origine"] = o
+		r = c.subir_finisher(cat, fi)
+	else:
+		r = c.recevoir_coup(base, o, lourd, info)
 	var cr: Variant = c.get("combat")
 	var reac := ""
 	if cr is CombatEnnemi:

@@ -64,6 +64,8 @@ func _ready() -> void:
 	_curseur(g, "Champ de vision", 60, 90, 1, Jeu.option("affichage", "champ_vision"), "%d°", func(v: float) -> void:
 		Jeu.regler("affichage", "champ_vision", v)
 		Jeu.appliquer_camera(joueur))
+	_case(g, "Réduire les mouvements", Jeu.option("affichage", "reduire_mouvements"), func(v: bool) -> void:
+		Jeu.regler("affichage", "reduire_mouvements", v))
 	_curseur(g, "Volume général", 0, 100, 5, Jeu.option("son", "general") * 100.0, "%d %%", func(v: float) -> void:
 		Jeu.regler("son", "general", v / 100.0))
 	_curseur(g, "Musique", 0, 100, 5, Jeu.option("son", "musique") * 100.0, "%d %%", func(v: float) -> void:

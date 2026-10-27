@@ -91,10 +91,10 @@ Morts spéciales : toutes les catégories de taille → **décapitation** (draug
 tête/casque en corps rigide, cou replié, bouchon de chair, jet pulsé ~2,6 s qui goutte, giclée, son de décapitation) ;
 `sol` → coup de grâce (le corps est cloué au sol, flaque). Gore désactivé : même finisher, sans décapitation ni sang.
 
-**Version provisoire jouable** (en attendant l'animation FPS) : dans `draugr.recevoir_coup`, un coup lourd (`puissant` ou
-`attaque` lourde/chargée/contre) sur une cible pour laquelle `finisher_possible` renvoie une catégorie déclenche `subir_finisher`.
-Après fusion, l'épée FPS appellera elle-même `finisher_possible` (pour proposer / lancer l'animation) puis `subir_finisher` au
-moment de l'impact ; on pourra alors retirer le déclenchement provisoire (3 lignes, commentées « finisher PROVISOIRE »).
+**Branché (integration/H)** : le déclenchement provisoire de `draugr.recevoir_coup` (et du mannequin) est RETIRÉ. C'est l'épée
+du joueur qui appelle `finisher_possible` à chaque clic puis, après une courte séquence FPS (élan, verrou caméra, coup ≤ 0,8 s),
+`subir_finisher(categorie, info)` au moment de l'impact (mains._tenter_finisher, docs/COMBAT.md « Finishers lancés par le
+joueur »). Les tests (test_degats, scene_test_degats) jouent le rôle du joueur de la même façon.
 
 ## Morts variées (CombatEnnemi.type_mort)
 

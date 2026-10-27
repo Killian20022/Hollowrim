@@ -13,6 +13,11 @@ var cible: Node3D          ## repère voulu pour la main (objet tenu × prise⁻
 var prise := Transform3D() ## repère de l'objet dans la main
 var deviation_max := deg_to_rad(35.0)
 var flexion_max := deg_to_rad(55.0)
+## Angle permis entre l'axe de l'objet et l'avant-bras (rad). Négatif : déduit de deviation_max (plan perpendiculaire
+## à ± deviation_max, comportement d'origine). Les coups d'épée (mains.gd) imposent un cône étroit autour d'un angle
+## fixe : POIGNET RIGIDE, l'épée prolonge l'avant-bras.
+var angle_min := -1.0
+var angle_max := -1.0
 
 func _globale(sq: Skeleton3D, i: int) -> Transform3D:
 	var t := Transform3D()
@@ -35,11 +40,17 @@ func _process_modification_with_delta(_dt: float) -> void:
 	# objet tel que voulu par la pose
 	var objet := (sq.global_transform.affine_inverse() * cible.global_transform * prise).basis.orthonormalized()
 	var a := objet.y.normalized()
-	# inclinaison latérale bornée
-	var s := a.dot(f)
-	if absf(s) > sin(deviation_max):
-		var plan := (a - f * s).normalized()
-		a = (plan * cos(deviation_max) + f * signf(s) * sin(deviation_max)).normalized()
+	# inclinaison bornée : angle objet / avant-bras dans [amin, amax]
+	var amin := angle_min if angle_min >= 0.0 else PI * 0.5 - deviation_max
+	var amax := angle_max if angle_max >= 0.0 else PI * 0.5 + deviation_max
+	var alpha := acos(clampf(a.dot(f), -1.0, 1.0))
+	if alpha < amin or alpha > amax:
+		var plan := a - f * a.dot(f)
+		if plan.length_squared() < 1e-8:
+			plan = f.cross(Vector3.UP) if absf(f.y) < 0.9 else f.cross(Vector3.RIGHT)
+		plan = plan.normalized()
+		var ac := clampf(alpha, amin, amax)
+		a = (f * cos(ac) + plan * sin(ac)).normalized()
 	# jointures dans le prolongement de l'avant-bras, flexion bornée vers la pose voulue
 	var neutre := (f - a * a.dot(f)).normalized()
 	var voulu := (objet.x - a * a.dot(objet.x)).normalized()

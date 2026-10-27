@@ -35,6 +35,8 @@ var vigueur_max := 100.0
 var mort := false
 var en_dialogue := false  # posé par la boîte de dialogue : ni marche ni combat
 var secousse := 0.0
+## Tassement de la caméra (coup 3, coup lourd : mains.gd) : 1 → 0 en ~0,18 s, la vue plonge un instant puis revient.
+var tassement := 0.0
 var ennemi_vise: Node = null
 ## Dernier coup subi (pour la chute du corps à la mort) : origine de l'attaquant et dégâts.
 var origine_dernier_coup := Vector3.ZERO
@@ -144,18 +146,16 @@ func recevoir_coup(degats: float, origine: Vector3) -> String:
 		return ""
 	var vers := origine - global_position
 	vers.y = 0.0
-	var face := -global_transform.basis.z
-	if mains.bloque and vers.normalized().dot(Vector3(face.x, 0, face.z).normalized()) > 0.3 and vigueur > 0.0:
-		var parade: bool = mains.temps_garde < 0.3
-		var reduction := competences.reduction_parade()
-		depenser(degats * (0.3 if parade else 1.1) * reduction)
-		vie -= 0.0 if parade else degats * 0.15 * reduction
+	# garde (phase 3, mains.defendre / DefenseJoueur) : cône de 120° devant, réduction et coût selon l'arme tenue, parade
+	# parfaite dans la fenêtre (anti-spam), garde brisée quand l'endurance ne suffit plus (une partie du coup passe)
+	var g: Dictionary = mains.defendre(degats, origine)
+	if not g.is_empty():
+		var parade: bool = g["issue"] == "parade"
 		competences.pratiquer("parade", 0.6 + degats * 0.08 + (0.6 if parade else 0.0))
-		secousse = maxf(secousse, 0.2 if parade else 0.35)
-		mains.encaisser()
-		Sons.jouer(self, ["impactMetal_heavy_000", "impactMetal_heavy_001", "impactMetal_heavy_002"], -1.0)
-		Effets.eclats(self, mains.pivot_epee.global_position, Color(3.0, 2.2, 0.8), 10, 2.5, true)
-		return "parade" if parade else "bloque"
+		if g["issue"] != "brisee":
+			vie = maxf(minf(vie, 1.0), vie - float(g["degats"]))   # un coup bloqué ne tue pas
+			return String(g["issue"])
+		degats = float(g["degats"])
 	vie -= degats
 	origine_dernier_coup = origine
 	degats_dernier_coup = degats
@@ -248,7 +248,7 @@ func _physics_process(dt: float) -> void:
 			_dernier_pas = n
 			Sons.jouer(self, ["footstep_snow_000", "footstep_snow_001", "footstep_snow_002", "footstep_snow_003", "footstep_snow_004"], -12.0 if not court else -8.0, 0.1)
 	var amplitude := clampf(vitesse_sol / COURSE, 0.0, 1.0)
-	var bob := Vector3(cos(_pas) * 0.035, absf(sin(_pas)) * 0.06, 0.0) * amplitude
+	var bob := Vector3(cos(_pas) * 0.035, absf(sin(_pas)) * 0.06, 0.0) * amplitude * (0.4 if bool(Jeu.option("affichage", "reduire_mouvements")) else 1.0)   # option « Réduire les mouvements »
 	if mort:
 		# on s'effondre
 		bob = Vector3(0, -1.2, 0)
@@ -261,6 +261,9 @@ func _physics_process(dt: float) -> void:
 	camera.h_offset = _bruit_secousse.get_noise_2d(_t * 40.0, 0.0) * s * 0.08
 	camera.v_offset = _bruit_secousse.get_noise_2d(0.0, _t * 40.0) * s * 0.08
 	camera.rotation.z = _bruit_secousse.get_noise_2d(_t * 30.0, 50.0) * s * 0.06
+	if tassement > 0.0:
+		tassement = maxf(0.0, tassement - dt * 5.5)
+		camera.v_offset -= sin(minf(tassement, 1.0) * PI) * 0.035 * (0.4 if bool(Jeu.option("affichage", "reduire_mouvements")) else 1.0)
 	var cam_tp: Camera3D = camera_tp.camera
 	cam_tp.h_offset = camera.h_offset
 	cam_tp.v_offset = camera.v_offset

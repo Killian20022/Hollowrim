@@ -1,56 +1,152 @@
 extends Node3D
-## Mains du joueur (enfant de la caméra) : épée à droite, torche à gauche.
-## Clic gauche : coup léger (les coups alternent droite/gauche). Maintenir : coup puissant.
-## Clic droit maintenu : garde (une garde levée juste avant l'impact = parade).
-## T : sortir / ranger la torche.
+## Mains du joueur (enfant de la caméra) : arme de la main droite, objet de la main gauche (torche).
+## Clic gauche court : coup léger (combo de directions). Maintenir : charge puis coup lourd au relâchement.
+## Clic droit maintenu : garde (une garde levée juste avant l'impact = parade). T : sortir / ranger la torche.
+## F3 (ou --debug-combat) : débogage (tracé de lame, état de combat, endurance).
+##
+## Architecture du combat (scripts/combat/, règles et valeurs : docs/COMBAT.md) :
+##   EntreesCombat     entrées horodatées + mémoire d'entrée          EtatCombat     machine à états (Idle … Equip)
+##   Equipement        main droite / main gauche (DonneesArme)        DonneesArme    stats, modèle, prise, pose de repos
+##   ProfilsAnimation  gestes d'attaque, poses de garde / sprint      MouvementsPassifs  respiration, marche, sprint, saut…
+##   TraceLame         détection par tracé de lame (pas fixe)         DegatsCombat   calcul et application des dégâts
+##   RetourCoups       sons, étincelles, arrêt sur image, secousse
+## Ce script orchestre : il lit les entrées, fait avancer la machine à états, pose les mains (IK) et lance le tracé.
+## L'interface publique d'avant est conservée : etat (ancien enum, lu par corps_joueur.gd), bloque, temps_garde,
+## torche_sortie, _puissant, attaquer(), encaisser(), pivot_epee, pivot_torche, porte_torche, _accroche_d/_g.
 
-
-const EPEE_NORDIQUE := preload("res://assets/modeles/joueur/epee_nordique.glb")
 const BRAS := preload("res://assets/modeles/joueur/bras_fps.glb")
 const ORIENTATION := preload("res://scripts/orientation_main.gd")
-## Milieu de la poignée de l'épée le long de la lame (pommeau sous 0,005, garde au-dessus
-## de 0,075) : l'index touche la garde, l'auriculaire mord sur le pommeau, à la viking.
+const DEBOGAGE := preload("res://scripts/combat/debogage_combat.gd")
+## Milieu de la poignée de l'épée de départ (désormais lu dans DonneesArme.milieu_poignee).
 const MILIEU_POIGNEE := 0.03
-const POS_TORCHE := Vector3(-0.34, -0.44, -0.62)
 
+## Ancien état des mains, toujours exposé (corps_joueur.gd, tests) : dérivé de la machine à états.
 enum { REPOS, ARMER, CHARGE, FRAPPE, RETOUR, GARDE, ENCAISSE }
 
-const DEGATS_LEGER := 14.0
-const DEGATS_PUISSANT := 34.0
-const COUT_LEGER := 8.0
-const COUT_PUISSANT := 26.0
-const SEUIL_CHARGE := 0.28  # durée d'appui au-delà de laquelle le coup devient puissant
-
-# poses de l'épée, à la manière de Skyrim (repère caméra : +X droite, +Y haut, -Z devant) :
-# [position de la poignée, direction de la lame, côté du tranchant]. Coup de droite à gauche :
-# armé au-dessus de l'épaule droite, tranchant en avant, la lame balaie devant soi et finit
-# en bas à gauche. Le coup inverse utilise la pose miroir.
-const POSES := {
-	"repos": [Vector3(0.26, -0.30, -0.56), Vector3(-0.22, 0.82, -0.55), Vector3(-0.3, 0.0, -1.0)],
-	"armer": [Vector3(0.36, -0.12, -0.58), Vector3(0.45, 0.85, 0.28), Vector3(0.28, 0.0, -0.45)],
-	"charge": [Vector3(0.40, -0.06, -0.52), Vector3(0.45, 0.85, 0.36), Vector3(0.36, 0.0, -0.45)],
-	"frappe": [Vector3(-0.16, -0.30, -0.60), Vector3(-0.85, -0.12, -0.50), Vector3(-0.50, 0.0, 0.85)],
-	"garde": [Vector3(0.10, -0.20, -0.50), Vector3(-0.85, 0.42, -0.25), Vector3(0.0, 0.5, -1.0)],
-	"encaisse": [Vector3(0.14, -0.13, -0.42), Vector3(-0.85, 0.52, -0.08), Vector3(0.0, 0.5, -1.0)],
-}
+## Durée d'appui au-delà de laquelle le coup devient lourd (s).
+const SEUIL_CHARGE := 0.28
+## Durée de charge (au-delà du seuil) pour atteindre le plafond (s).
+const CHARGE_MAX := 0.9
+## Fenêtre de parade parfaite (s) : réglée dans DefenseJoueur (anti-spam compris) ; gardée ici pour l'ancienne interface.
+const FENETRE_PARADE := DefenseJoueur.FENETRE_PARADE
+## Fenêtre de combo par défaut (un geste sans « enchainement ») : début (s) et fin (part de la récupération).
+const DELAI_COMBO := 0.06
+## Mouvement de souris récent (pixels, oubli exponentiel ~0,1 s) au-delà duquel il choisit la direction du coup.
+const SEUIL_SOURIS := 40.0
+## Vitesses locales du joueur (m/s) qui choisissent la direction : de côté → horizontal, en avant → vertical,
+## en arrière → estoc.
+const SEUIL_COTE := 1.2
+const SEUIL_AVANT := 1.5
+const SEUIL_RECUL := 1.2
+const DUREE_ENCAISSE := 0.18
+const DUREE_REBOND := 0.30
+## Coup affaibli (endurance insuffisante) : gestes ralentis de ce facteur.
+const LENTEUR_AFFAIBLI := 0.75
 
 var joueur: CharacterBody3D
-var bloque := false
-var temps_garde := 0.0
-var torche_sortie := true
+var combat := EtatCombat.new()
+var entrees := EntreesCombat.new()
+var equipement := Equipement.new()
+var passifs := MouvementsPassifs.new()
+var trace := TraceLame.new()
+## Arme de la main droite (raccourci de equipement.main_droite).
+var arme: DonneesArme
+## Défense (phase 3) : garde orientée, garde brisée, parade parfaite, fenêtre de contre-attaque (scripts/combat/defense_joueur.gd).
+var defense := DefenseJoueur.new()
+## Temps depuis la levée de la garde (ancienne interface : lu / remis à zéro par les tests).
+var temps_garde: float:
+	get:
+		return defense.temps_garde
+	set(v):
+		defense.temps_garde = v
+## Tests : _process ne fait plus rien, le test appelle avancer(dt) lui-même (pas de temps imposé).
+var pas_manuel := false
+var debug_combat := false
 
-var etat := REPOS
-var _t := 0.0
-var _appui := -1.0
-var _sens := 1.0
+## Garde levée (garde, parade, impact encaissé) : lu par joueur.gd.
+var bloque: bool:
+	get:
+		return combat.etat in [EtatCombat.GARDE, EtatCombat.PARADE]
+var torche_sortie: bool:
+	get:
+		return equipement.gauche_sortie()
+	set(v):
+		if v != equipement.gauche_sortie():
+			equipement.basculer_gauche()
+## Ancien état (REPOS, ARMER, CHARGE, FRAPPE, RETOUR, GARDE, ENCAISSE). Écrire GARDE impose une garde d'une image
+## (tests de parade), REPOS la relâche.
+var etat: int:
+	get:
+		return _etat_ancien()
+	set(v):
+		if v == GARDE or v == ENCAISSE:
+			entrees.forcer_garde(0.05)
+			if not combat.defense():
+				combat.forcer(EtatCombat.PARADE)
+				temps_garde = 0.0
+		elif v == REPOS:
+			entrees.forcer_garde(0.0)
+			combat.forcer(EtatCombat.REPOS)
+## Coup en cours lourd (lu par corps_joueur.gd pour la vitesse de l'animation 3e personne).
 var _puissant := false
-var _touche_faite := false
-var _depuis_coup := 9.0
+
+var _geste := {}
+var _geste_nom := ""
+var _combo := 0
+## Côté où le dernier coup a fini (+1 droite, -1 gauche, 0 centre) et dernier geste : continuité des enchaînements.
+var _cote_fin := 0
+var _geste_prec := ""
+var _souris_recente := Vector2.ZERO
+var _lourd := false
+var _affaibli := false
+var _charge := 0.0
+var _charge_signalee := false
+var _t_geste := 0.0          # temps dans le geste (préparation + phase active), arrêté pendant l'attente du relâchement
+var _duree_prep := 0.1
+var _duree_tenue := 0.0       # pose armée tenue, lisible (2-3 images)
+var _duree_suivi := 0.07      # dépassement après B, au début de la récupération
+var _pose_suivi := Transform3D()
+## Coups conçus EN ESPACE ÉCRAN (passe 4, docs/COMBAT.md) : pendant les coups, la main suit EXACTEMENT la pose du geste
+## (poignet libre, orientation_main sans borne) et le coude est placé à chaque image pour que l'avant-bras prolonge la
+## poignée À L'ÉCRAN (_pole_ecran) : aucune cassure de poignet visible, quelle que soit l'orientation 3D.
+## Anciennes constantes du poignet rigide (passe 3), gardées pour les outils.
+const ANGLE_COUP := 40.0
+const DEVIATION_COUP := 15.0
+const FLEXION_COUP := 15.0
+## Allonge maximale du bras (part de épaule → main) : au-delà, l'épaule DROITE glisse vers la main (os upperarm_r
+## déplacé, hors écran ; le bras gauche ne bouge pas).
+## (0,85 : le coude reste plié, l'avant-bras peut s'aligner sur la poignée à l'écran).
+const ALLONGE_BRAS := 0.85
+var _duree_active := 0.17
+var _duree_recup := 0.3
+var _t_trace := 0.0          # temps de phase active déjà échantillonné par le tracé
+var _actif_lance := false    # phase active commencée (endurance payée, tracé lancé)
+var _t_actif_prec := 0.0
+var _issue_arret := ""
+var _instant_impact := 0.0
 var _depart := Transform3D()
-var _balance := Vector2.ZERO
-var _respiration := 0.0
+var _pose_courante := Transform3D()
+var _pose_fin := Transform3D()
+var _depuis_coup := 9.0
+var _encaisse := 0.0
+var _cam_prec := Transform3D()
+var _cam_prec_ok := false
 var _pose_figee := ""
 var _baisse := 0.0
+var _baisse_torche := 0.0
+var _respiration := 0.0
+var _debogage: Node
+# phase 3 : contre-attaque, garde brisée, parade parfaite, finisher
+var _contre := false            # le geste en cours est une contre-attaque (attaque « contre »)
+var _titube_garde := false      # le déséquilibre en cours vient d'une garde brisée (pas d'un rebond de lame)
+var _parade_eclat := 0.0        # s restantes du geste de parade parfaite (la lame chasse l'arme adverse)
+var _fin_cible: Node3D
+var _fin_cat := ""
+var _fin_geste := {}
+var _fin_t := 0.0
+var _fin_frappe := false
+## Dernier finisher lancé par le joueur : {cible, categorie, resultat} (débogage, tests).
+var dernier_finisher := {}
 ## Prises de l'épée et de la torche dans les mains (repère des os hand_r / hand_l),
 ## calculées sur le poing fermé (voir _calculer_prise).
 var PRISE_D := Transform3D()
@@ -65,36 +161,70 @@ var bras: Node3D
 var _sq: Skeleton3D
 var _accroche_d: BoneAttachment3D
 var _accroche_g: BoneAttachment3D
+var _cible_d: Node3D
+## Pôles des coudes (IK) : leur position règle l'axe de l'avant-bras, donc l'inclinaison possible de l'arme.
+var _coude_d: Node3D
+var _coude_g: Node3D
+var _orient_d: SkeletonModifier3D
+var _modele_arme_d: Node3D
+## Matériau de la lame tenue (teinte, lueur de charge) et segment tranchant lu dans le modèle.
+var _lame: ShaderMaterial
+var _garde_lame := Vector3(0, 0.1, 0)
+var _pointe_lame := Vector3(0, 0.84, 0)
 var _doigts := {}
 var torche_lumiere: OmniLight3D
 var flammes: Array[GPUParticles3D] = []
 var _visuels_torche: Array = []   # sprite de flamme et halo (lot 6)
 var _halo_mat: ShaderMaterial
 var _scint := 0.0
+## Traînée de lame pixel (TraineeLame) et suivi de son échantillonnage à pas fixe.
+var trainee: TraineeLame
+var _t_trainee := 0.0
+## Bras : repère de base, épaule droite (repère du nœud bras), longueurs du bras et de l'avant-bras, angle du coude
+## autour de l'axe épaule → main (continuité d'une image à l'autre).
+var _bras_base := Transform3D()
+var _epaule_bras := Vector3.ZERO
+var _l_bras := 0.3
+var _l_avant_bras := 0.27
+var _angle_coude := 0.0
+var _decalage_bras := Vector3.ZERO
+var _os_epaule := -1
+var _repos_epaule := Vector3.ZERO
+## Dernier écart (degrés) entre avant-bras et poignée à l'écran visé par _pole_ecran (outils de mesure).
+var ecart_coude := 0.0
+var coude_vise := Vector3.ZERO
 
 func _ready() -> void:
+	arme = equipement.main_droite
 	# les pivots ne portent plus rien : ce sont les cibles que les mains suivent (IK)
 	pivot_epee = Node3D.new()
 	add_child(pivot_epee)
-	pivot_epee.transform = _pose("repos")
-	_depart = pivot_epee.transform
+	_pose_courante = _pose_repos()
+	pivot_epee.transform = _pose_courante
 	pivot_torche = Node3D.new()
-	pivot_torche.position = POS_TORCHE
-	pivot_torche.rotation_degrees = Vector3(-14, 0, -12)
 	add_child(pivot_torche)
+	pivot_torche.transform = _pose_torche()
 	_bras()
-	var epee := _modele_epee()
-	_accroche_d.add_child(epee)
-	epee.transform = PRISE_D
-	joueur.inventaire.change.connect(_teinte_epee)
+	equipement.change.connect(_sur_equipement)
+	joueur.inventaire.change.connect(func() -> void: equipement.choisir_selon_inventaire(joueur.inventaire))
+	equipement.choisir_selon_inventaire(joueur.inventaire)
+	_installer_arme()
 	porte_torche = Node3D.new()
 	_accroche_g.add_child(porte_torche)
 	porte_torche.transform = PRISE_G
 	_torche()
+	trainee = TraineeLame.new()
+	add_child(trainee)
+	trainee.couleurs(arme.couleur_trainee, arme.couleur_trainee_coeur)
+	Jeu.option("affichage", "reduire_mouvements")   # charge les options si besoin
+	combat.change.connect(_sur_changement_etat)
+	RetourImpact.precharger()   # sons de lame, de blocage et de parade (pack de combat)
 
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--mains="):
 			_pose_figee = a.substr(8)
+		elif a == "--debug-combat":
+			basculer_debogage(true)
 
 ## Lame : acier, gorge centrale plus sombre, tranchants clairs (u = travers, v = longueur).
 func _texture_lame() -> ImageTexture:
@@ -163,10 +293,78 @@ func _habiller(racine: Node) -> void:
 			if mats.has(nom):
 				mi.set_surface_override_material(s, mats[nom])
 
-func _modele_epee() -> Node3D:
-	var e: Node3D = EPEE_NORDIQUE.instantiate()
-	_habiller(e)
-	return e
+## Modèle de l'arme de la main droite, chargé depuis sa DonneesArme (chemin du modèle + point de prise) : changer
+## d'épée = changer de ressource. La prise, la cible de l'IK et l'orientation du poignet suivent le milieu de poignée.
+func _installer_arme() -> void:
+	arme = equipement.main_droite
+	passifs.poids = maxf(arme.poids, 0.5)
+	if is_instance_valid(_modele_arme_d):
+		_modele_arme_d.queue_free()
+		_modele_arme_d = null
+	PRISE_D = _calculer_prise("r", arme.milieu_poignee)
+	_cible_d.transform = PRISE_D.affine_inverse()
+	_coude_d.position = arme.repos_coude
+	_orient_d.deviation_max = deg_to_rad(arme.deviation_poignet)
+	regler_poignet(false)
+	var g_coude := equipement.gauche_rangee.repos_coude
+	_coude_g.position = Vector3(-g_coude.x, g_coude.y, g_coude.z)
+	_orient_d.prise = PRISE_D
+	_lame = _acier
+	_garde_lame = arme.garde
+	_pointe_lame = arme.pointe
+	if arme.modele != "" and ResourceLoader.exists(arme.modele):
+		var scene: PackedScene = load(arme.modele)
+		_modele_arme_d = scene.instantiate()
+		if arme.habillage == "epees_longues":
+			EpeesLongues.habiller(_modele_arme_d)
+			_lame = _copie_lame(_modele_arme_d, EpeesLongues.materiaux().get(arme.materiau_lame))
+		else:
+			_habiller(_modele_arme_d)
+		_accroche_d.add_child(_modele_arme_d)
+		_accroche_d.move_child(_modele_arme_d, 0)
+		_modele_arme_d.transform = PRISE_D
+		if arme.reperes_du_modele:
+			var g := _repere(_modele_arme_d, "garde")
+			var p := _repere(_modele_arme_d, "pointe")
+			if g != Vector3.INF and p != Vector3.INF and g.distance_to(p) > 0.1:
+				_garde_lame = g
+				_pointe_lame = p
+	if trainee != null:
+		trainee.couleurs(arme.couleur_trainee, arme.couleur_trainee_coeur)
+	if _lame != null:
+		if arme.teinte.a > 0.0:
+			_lame.set_shader_parameter("teinte", arme.teinte)
+		_lame.set_shader_parameter("emission", arme.emission)
+
+## Copie du matériau de lame posée sur l'arme du joueur (teinte, lueur de charge sans toucher aux autres épées).
+func _copie_lame(racine: Node, partage: Material) -> ShaderMaterial:
+	if partage == null:
+		return null
+	var copie := partage.duplicate() as ShaderMaterial
+	for mi: MeshInstance3D in racine.find_children("*", "MeshInstance3D", true, false):
+		for k in mi.mesh.get_surface_count():
+			if mi.get_surface_override_material(k) == partage:
+				mi.set_surface_override_material(k, copie)
+	return copie
+
+## Position d'un nœud vide du modèle dans son repère (avant l'entrée dans l'arbre), INF s'il n'existe pas.
+func _repere(racine: Node3D, nom: String) -> Vector3:
+	var n := racine.find_child(nom, true, false) as Node3D
+	if n == null:
+		return Vector3.INF
+	var t := Transform3D()
+	while n != null and n != racine:
+		t = n.transform * t
+		n = n.get_parent() as Node3D
+	return t.origin
+
+func _sur_equipement(main: String) -> void:
+	if main == "droite":
+		_installer_arme()
+		if combat.calme():
+			combat.changer(EtatCombat.EQUIPER)
+	else:
+		Sons.jouer(self, ["cloth1", "cloth2"], -8.0)
 
 ## Vrais bras : manches, brassards et gants du corps du joueur, sur son squelette, placés
 ## pour que les yeux du squelette soient la caméra. L'IK à deux os (épaule, coude) amène
@@ -184,6 +382,20 @@ func _bras() -> void:
 	var yeux := tete + Vector3(0, 0.07, 0.1)
 	var tour := Basis(Vector3.UP, PI)
 	bras.transform = Transform3D(tour, -(tour * yeux) + Vector3(0, -0.1, -0.24))
+	_bras_base = bras.transform
+	var rel := Transform3D()
+	var n: Node = _sq
+	while n != null and n != bras:
+		rel = (n as Node3D).transform * rel
+		n = n.get_parent()
+	var os_e := rel * _sq.get_bone_global_rest(_sq.find_bone("upperarm_r")).origin
+	var os_c := rel * _sq.get_bone_global_rest(_sq.find_bone("lowerarm_r")).origin
+	var os_m := rel * _sq.get_bone_global_rest(_sq.find_bone("hand_r")).origin
+	_epaule_bras = os_e
+	_os_epaule = _sq.find_bone("upperarm_r")
+	_repos_epaule = _sq.get_bone_rest(_os_epaule).origin
+	_l_bras = os_e.distance_to(os_c)
+	_l_avant_bras = os_c.distance_to(os_m)
 	_poings()
 	PRISE_D = _calculer_prise("r", MILIEU_POIGNEE)
 	PRISE_G = _calculer_prise("l", 0.0)
@@ -191,6 +403,7 @@ func _bras() -> void:
 	var cible_d := Node3D.new()
 	pivot_epee.add_child(cible_d)
 	cible_d.transform = PRISE_D.affine_inverse()
+	_cible_d = cible_d
 	var cible_g := Node3D.new()
 	pivot_torche.add_child(cible_g)
 	cible_g.transform = PRISE_G.affine_inverse()
@@ -200,6 +413,8 @@ func _bras() -> void:
 	var coude_g := Node3D.new()
 	add_child(coude_g)
 	coude_g.position = Vector3(-0.8, -0.9, -0.1)
+	_coude_d = coude_d
+	_coude_g = coude_g
 	var ik := TwoBoneIK3D.new()
 	_sq.add_child(ik)
 	ik.set_setting_count(2)
@@ -217,6 +432,8 @@ func _bras() -> void:
 		o.cible = [cible_d, cible_g][i]
 		o.prise = [PRISE_D, PRISE_G][i]
 		_sq.add_child(o)
+		if i == 0:
+			_orient_d = o
 	_accroche_d = BoneAttachment3D.new()
 	_accroche_d.bone_name = "hand_r"
 	_sq.add_child(_accroche_d)
@@ -276,11 +493,6 @@ func _reposer_doigts() -> void:
 	for i in _doigts:
 		_sq.set_bone_pose_rotation(i, _doigts[i])
 
-func _teinte_epee() -> void:
-	if _acier != null and joueur.inventaire.a("epee_skarnholt"):
-		_acier.set_shader_parameter("teinte", Color(1.15, 1.05, 0.85))
-		_acier.set_shader_parameter("emission", Color(0.05, 0.04, 0.02))
-
 func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, ua: Vector2, ub: Vector2, uc: Vector2) -> void:
 	st.set_uv(ua); st.add_vertex(a)
 	st.set_uv(ub); st.add_vertex(b)
@@ -293,142 +505,849 @@ func _torche() -> void:
 	_visuels_torche = t["visuels"]
 	_halo_mat = t["halo_mat"]
 
+
+# --- poses ------------------------------------------------------------------------------
+
+func _profil() -> Dictionary:
+	return ProfilsAnimation.profil(arme.profil)
+
+func _pose_repos() -> Transform3D:
+	var a: DonneesArme = arme if arme != null else equipement.main_droite
+	return ProfilsAnimation.transform_pose([a.repos_poignee, a.repos_lame, a.repos_fil])
+
+## Torche (ou objet de la main gauche) : pose de repos de sa DonneesArme, en miroir côté gauche.
+func _pose_torche() -> Transform3D:
+	var g: DonneesArme = equipement.gauche_rangee
+	return ProfilsAnimation.transform_pose([g.repos_poignee, g.repos_lame, g.repos_fil], -1.0)
+
+## Pose nommée (outils de réglage, --mains=nom) : repos, armer, charge, frappe, garde, encaisse, sprint.
 func _pose(nom: String, sens := 1.0) -> Transform3D:
-	var p: Vector3 = POSES[nom][0]
-	var lame: Vector3 = POSES[nom][1]
-	var fil: Vector3 = POSES[nom][2]
-	if sens < 0.0:
-		p.x = -p.x
-		lame.x = -lame.x
-		fil.x = -fil.x
-	# repère de l'épée : +Y le long de la lame, +X vers le tranchant
-	var y := lame.normalized()
-	var x := (fil - y * fil.dot(y)).normalized()
-	return Transform3D(Basis(x, y, x.cross(y)), p)
+	var p := _profil()
+	match nom:
+		"repos":
+			return _pose_repos()
+		"armer", "frappe", "milieu", "suivi":
+			var g := ProfilsAnimation.geste(arme.profil, p["combo"][0])
+			return ProfilsAnimation.pose_cle(g, {"armer": "armer", "frappe": "fin", "milieu": "milieu", "suivi": "suivi"}[nom])
+		"charge":
+			return ProfilsAnimation.pose_cle(ProfilsAnimation.geste(arme.profil, p["lourd"]), "armer")
+	return ProfilsAnimation.transform_pose(p.get(nom, p["garde"]), sens)
+
+# --- entrées ----------------------------------------------------------------------------
+
+func _peut_agir() -> bool:
+	return joueur != null and not joueur.mort and not joueur.en_dialogue
 
 func _unhandled_input(e: InputEvent) -> void:
-	if joueur == null or joueur.mort or joueur.en_dialogue or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+	if not _peut_agir() or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
 	if e is InputEventMouseMotion:
-		_balance += Vector2(e.screen_relative.x, e.screen_relative.y) * 0.00035
-		_balance = _balance.limit_length(0.05)
+		passifs.souris(e.screen_relative)
+		noter_souris(e.screen_relative)
 	elif e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
-		if e.pressed and etat in [REPOS, RETOUR] and not bloque:
-			_appui = 0.0
-			_changer(ARMER)
-		elif not e.pressed and _appui >= 0.0:
-			_puissant = _appui >= SEUIL_CHARGE
-			_appui = -1.0
-			if etat in [ARMER, CHARGE]:
-				_lancer_coup()
+		if e.pressed:
+			entrees.appuyer()
+		else:
+			entrees.relacher()
 	elif e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_T:
-		torche_sortie = not torche_sortie
-		Sons.jouer(self, ["cloth1", "cloth2"], -8.0)
+		equipement.basculer_gauche()
+	elif e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_F3:
+		basculer_debogage(not debug_combat)
 
+## Pour les tests automatiques et les scripts de scène : un coup complet sans souris.
 func attaquer(puissant := false) -> void:
-	## Pour les tests automatiques : un coup complet sans souris.
-	_puissant = puissant
-	_changer(ARMER)
+	entrees.appuyer()
 	await get_tree().create_timer(0.35 if puissant else 0.09).timeout
-	_lancer_coup()
+	entrees.relacher()
 
-func _lancer_coup() -> void:
-	var cout := COUT_PUISSANT if _puissant else COUT_LEGER
-	if joueur.vigueur <= 0.0:
-		_puissant = false
-	joueur.depenser(cout)
-	Sons.jouer(self, ["swing", "swing2", "swing3"], -2.0 if _puissant else -5.0, 0.12)
-	_changer(FRAPPE)
-
-func _changer(nouvel: int) -> void:
-	etat = nouvel
-	_t = 0.0
-	_depart = pivot_epee.transform
-	if nouvel == FRAPPE:
-		_touche_faite = false
-
+## Appelé par joueur.recevoir_coup quand la garde encaisse un coup.
 func encaisser() -> void:
-	_changer(ENCAISSE)
+	_encaisse = DUREE_ENCAISSE
+
+func basculer_debogage(actif: bool) -> void:
+	debug_combat = actif
+	trace.garder_debug = actif
+	if actif and _debogage == null:
+		_debogage = DEBOGAGE.new()
+		_debogage.mains = self
+		add_child(_debogage)
+	if _debogage != null:
+		_debogage.montrer(actif)
+
+# --- machine à états --------------------------------------------------------------------
+
+func _etat_ancien() -> int:
+	match combat.etat:
+		EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE, EtatCombat.CONTRE:
+			return ARMER if _t_geste < _duree_prep + _duree_tenue else FRAPPE
+		EtatCombat.FINISHER:
+			return ARMER if _fin_t < GestesDefense.FINISHER["elan"] else FRAPPE
+		EtatCombat.CHARGE_LOURDE:
+			return CHARGE
+		EtatCombat.RECUPERATION:
+			return RETOUR
+		EtatCombat.GARDE, EtatCombat.PARADE:
+			return ENCAISSE if _encaisse > 0.0 else GARDE
+		EtatCombat.DESEQUILIBRE:
+			return ENCAISSE
+	return REPOS
+
+func _sur_changement_etat(_ancien: int, nouveau: int) -> void:
+	if nouveau in [EtatCombat.PARADE, EtatCombat.REPOS, EtatCombat.MOUVEMENT]:
+		_encaisse = 0.0
+	_depart = _pose_courante
+
+## Mouvement de souris (pixels d'écran) : lu pour choisir la direction du prochain coup.
+func noter_souris(d: Vector2) -> void:
+	_souris_recente += d
+
+## Direction du coup léger selon le contexte (phase 4) : souris balayée → horizontal dans son sens, souris tirée vers
+## le bas → vertical ; sinon déplacement : de côté → horizontal dans le sens du pas, en avant → vertical, en arrière →
+## estoc ; à l'arrêt → combo 1-2-3 du profil. Renvoie [geste, contextuel].
+func _choisir_geste() -> Array:
+	var p := _profil()
+	var gestes: Dictionary = p["gestes"]
+	var loc := joueur.global_transform.basis.inverse() * joueur.velocity
+	var sx := _souris_recente.x
+	var sy := _souris_recente.y
+	var choix := ""
+	if absf(sx) > SEUIL_SOURIS and absf(sx) > absf(sy) * 1.5:
+		choix = "horizontale_gd" if sx > 0.0 else "horizontale"
+	elif sy > SEUIL_SOURIS and sy > absf(sx) * 1.5:
+		choix = "verticale_l"
+	elif absf(loc.x) > SEUIL_COTE and absf(loc.x) > absf(loc.z):
+		choix = "horizontale_gd" if loc.x > 0.0 else "horizontale"
+	elif loc.z < -SEUIL_AVANT:
+		choix = "verticale_l"
+	elif loc.z > SEUIL_RECUL:
+		choix = "estoc"
+	if choix != "" and gestes.has(choix):
+		return [choix, true]
+	var combo: Array = p["combo"]
+	return [combo[_combo % combo.size()], false]
+
+## Démarre un coup (léger d'abord : il deviendra lourd si le bouton reste tenu au-delà du seuil). `enchaine` : l'appui
+## tombe dans la fenêtre de combo du coup précédent (le combo continue, le geste repart du côté où l'autre a fini).
+func _commencer_attaque(enchaine := false) -> void:
+	if not arme.est_arme():
+		return
+	# phase 3 : juste après une parade parfaite → contre-attaque (elle consomme l'ouverture « apres_parade » de la cible
+	# touchée : le finisher ne suit que si la posture casse) ; sinon un ennemi ouvert à portée → finisher
+	if defense.contre > 0.0 and _commencer_contre():
+		return
+	if _tenter_finisher():
+		return
+	if not enchaine:
+		_combo = 0
+		_cote_fin = 0
+		_geste_prec = ""
+	if not combat.changer(EtatCombat.ATTAQUE_LEGERE):
+		return
+	var c := _choisir_geste()
+	var nom: String = c[0]
+	var depart := int(ProfilsAnimation.geste(arme.profil, nom).get("cotes", [0, 0])[0])
+	# continuité : un geste qui partirait du côté opposé à la fin du précédent est remplacé par son miroir (combo à
+	# l'arrêt), ou un geste contextuel répété alterne de sens (pas de côté prolongé : gauche-droite-gauche…)
+	if enchaine and _cote_fin != 0 and depart != 0 and depart != _cote_fin and ProfilsAnimation.MIROIRS.has(nom):
+		if not c[1] or nom == _geste_prec:
+			nom = ProfilsAnimation.MIROIRS[nom]
+			depart = -depart
+	_geste_nom = nom
+	_preparer_geste(false)
+	if enchaine and depart != 0 and depart == _cote_fin:
+		_duree_prep *= 0.75   # la lame est déjà du bon côté : transition plus courte
+
+func _preparer_geste(lourd: bool) -> void:
+	_lourd = lourd
+	_puissant = lourd
+	_contre = false
+	_geste = GestesDefense.geste(_geste_nom) if GestesDefense.GESTES.has(_geste_nom) else ProfilsAnimation.geste(arme.profil, _geste_nom)
+	_t_geste = 0.0
+	_t_trace = 0.0
+	_actif_lance = false
+	_issue_arret = ""
+	_affaibli = false
+	_charge_signalee = false
+	if not lourd:
+		_charge = 0.0
+	var v := maxf(arme.vitesse, 0.1)
+	_duree_prep = float(_geste["preparation"]) / v
+	_duree_active = float(_geste["active"]) / v
+	_duree_recup = float(_geste["recuperation"]) / v
+	_duree_tenue = float(_geste.get("tenue", 0.0)) / v
+	_duree_suivi = float(_geste.get("suivi_duree", 0.0)) / v
+	_depart = _pose_courante
+
+## Lancement de la phase active : on paie l'endurance ici. Pas assez d'endurance = coup AFFAIBLI (dégâts ×0,5,
+## geste ralenti, jamais puissant) — le coup part toujours, le joueur n'est jamais bloqué sans réponse.
+func _lancer_phase_active() -> void:
+	var cout := arme.cout_lourd if _lourd else arme.cout_leger
+	_affaibli = joueur.vigueur < cout
+	if _affaibli:
+		_puissant = false
+		_duree_active /= LENTEUR_AFFAIBLI
+		_duree_recup /= LENTEUR_AFFAIBLI
+	joueur.depenser(cout)
+	trace.commencer()
+	trainee.couper()
+	_t_trainee = 0.0
+	_echantillon_trainee(passifs.decalage_d * _pose_active(0.0), 0.0)
+	_cam_prec_ok = false
+	# fouetté de lame (pack de combat, catégories lame/) : lourd pour le coup lourd et la contre-attaque
+	RetourImpact.son(self, "fouette_lourd" if _lourd or _contre else "fouette_leger", (get_parent() as Node3D).global_position, -1.0 if _lourd or _contre else -4.0)
+
+func _finir_geste() -> void:
+	if _geste.has("tassement") and "tassement" in joueur:
+		joueur.tassement = maxf(joueur.tassement, float(_geste["tassement"]) * (0.6 if _affaibli else 1.0))
+	_pose_fin = _pose_courante
+	_pose_suivi = ProfilsAnimation.pose_cle(_geste, "suivi")
+	_combo += 1
+	_cote_fin = int(_geste.get("cotes", [0, 0])[1])
+	_geste_prec = _geste_nom
+	_depuis_coup = 0.0
+	combat.changer(EtatCombat.RECUPERATION)
+
+## La lame est arrêtée (mur, bouclier, cassable qui tient) : rebond, petite ouverture.
+func _rebondir() -> void:
+	trainee.couper()
+	_pose_fin = _pose_courante
+	_pose_suivi = _pose_courante
+	_cote_fin = 0
+	_depuis_coup = 0.0
+	combat.changer(EtatCombat.DESEQUILIBRE)
 
 func _process(dt: float) -> void:
-	if joueur == null:
+	if joueur == null or pas_manuel:
 		return
+	avancer(dt)
+
+## Une image de combat (dt en s de jeu). Appelée par _process, ou par un test à pas imposé (pas_manuel).
+func avancer(dt: float) -> void:
 	_reposer_doigts()
-	_t += dt
-	_depuis_coup += dt
 	_respiration += dt
-	if _appui >= 0.0:
-		_appui += dt
-	if _pose_figee != "":
-		pivot_epee.transform = _pose(_pose_figee, 1.0)
-		etat = -1
+	_depuis_coup += dt
+	entrees.garde_tenue = Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) and _peut_agir()
+	if not _peut_agir():
+		entrees.attaque_tenue = false
+		entrees.tampon = -1.0
+	entrees.avancer(dt)
+	combat.avancer(dt)
+	defense.avancer(dt)
+	_parade_eclat = maxf(0.0, _parade_eclat - dt)
+	_souris_recente *= exp(-10.0 * dt)
+	_encaisse = maxf(0.0, _encaisse - dt)
 
-	var veut_garde: bool = Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) and not joueur.mort
-	if veut_garde and etat == REPOS:
-		_changer(GARDE)
-		temps_garde = 0.0
-	bloque = etat in [GARDE, ENCAISSE]
-	if bloque:
-		temps_garde += dt
-
-	var cible := _pose("repos")
-	var vitesse := 10.0
-	match etat:
-		ARMER:
-			cible = _pose("armer", _sens)
-			vitesse = 22.0
-			if _appui >= SEUIL_CHARGE:
-				_changer(CHARGE)
-		CHARGE:
-			cible = _pose("charge", _sens)
-			vitesse = 6.0
-		FRAPPE:
-			var duree := 0.2 if _puissant else 0.15
-			var k := clampf(_t / duree, 0.0, 1.0)
-			pivot_epee.transform = _depart.interpolate_with(_pose("frappe", _sens), ease(k, 0.45))
-			if not _touche_faite and k >= 0.45:
-				_touche_faite = true
-				_tester_coup()
+	var veut_garde: bool = entrees.veut_garde() and not joueur.mort and defense.peut_garder()
+	var plat := Vector3(joueur.velocity.x, 0.0, joueur.velocity.z)
+	var vitesse_sol := plat.length()
+	var cible := _pose_repos()
+	var raideur := 10.0
+	var en_geste := false
+	match combat.etat:
+		EtatCombat.REPOS, EtatCombat.MOUVEMENT:
+			combat.changer(EtatCombat.MOUVEMENT if vitesse_sol > 0.4 else EtatCombat.REPOS)
+			if veut_garde:
+				entrees.tampon = -1.0
+				if combat.changer(EtatCombat.PARADE):
+					defense.lever()
+			elif entrees.consommer():
+				_commencer_attaque()
+			if combat.calme():
+				cible = cible.interpolate_with(ProfilsAnimation.transform_pose(_profil()["sprint"]), passifs.sprint)
+		EtatCombat.PARADE, EtatCombat.GARDE:
+			# pas d'attaque normale en garde : seulement la contre-attaque (après une parade parfaite) ou un finisher
+			if entrees.tampon >= 0.0 and (defense.contre > 0.0 or not _chercher_finisher().is_empty()):
+				entrees.consommer()
+				_commencer_attaque()
+			else:
+				entrees.tampon = -1.0
+			if combat.defense():
+				cible = GestesDefense.pose("parade" if _parade_eclat > 0.0 else ("encaisse" if _encaisse > 0.0 else "garde"))
+				raideur = 30.0 if _parade_eclat > 0.0 else (25.0 if _encaisse > 0.0 else 18.0)
+				if not veut_garde:
+					combat.changer(EtatCombat.REPOS)
+				elif combat.etat == EtatCombat.PARADE and not defense.en_parade():
+					combat.changer(EtatCombat.GARDE)
+			else:
+				en_geste = true   # la contre-attaque ou le finisher vient de partir : sa pose est déjà posée
+		EtatCombat.CONTRE:
+			en_geste = true
+			_avancer_geste(dt)
+		EtatCombat.FINISHER:
+			en_geste = true
+			_avancer_finisher(dt)
+		EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE:
+			en_geste = true
+			_avancer_geste(dt)
+		EtatCombat.CHARGE_LOURDE:
+			cible = ProfilsAnimation.pose_cle(ProfilsAnimation.geste(arme.profil, _profil()["lourd"]), "armer")
+			raideur = 7.0
+			if entrees.attaque_tenue:
+				_charge = clampf((entrees.duree_appui() - SEUIL_CHARGE) / CHARGE_MAX, 0.0, 1.0)
+			if _charge >= 1.0 and not _charge_signalee:
+				_charge_signalee = true
+				RetourCoups.charge_max(self, _lame, arme.emission)
+			# tremblement discret à pleine charge
+			if _charge >= 1.0:
+				cible.origin += Vector3(sin(_respiration * 47.0), cos(_respiration * 53.0), 0.0) * 0.0025 * passifs.amplitude
+			if not entrees.attaque_tenue:
+				combat.changer(EtatCombat.ATTAQUE_LOURDE)
+				_geste_nom = _profil()["lourd"]
+				_preparer_geste(true)
+		EtatCombat.RECUPERATION:
+			# suivi bref qui dépasse B (l'élan), puis retour au repos
+			var k := clampf((combat.t - _duree_suivi) / maxf(_duree_recup - _duree_suivi, 0.01), 0.0, 1.0)
+			if combat.t < _duree_suivi and _issue_arret != "arret":
+				var ks := combat.t / _duree_suivi
+				_pose_courante = _pose_fin.interpolate_with(_pose_suivi, 1.0 - (1.0 - ks) * (1.0 - ks))
+				# traînée du suivi, échantillonnée à pas fixe entre l'image précédente et celle-ci
+				var t0 := maxf(combat.t - dt, 0.0)
+				var nb := maxi(1, ceili((combat.t - t0) / TraceLame.PAS))
+				for i in nb:
+					var ti := t0 + (combat.t - t0) * float(i + 1) / float(nb)
+					var ki := ti / _duree_suivi
+					var pose_i := _pose_fin.interpolate_with(_pose_suivi, 1.0 - (1.0 - ki) * (1.0 - ki))
+					_echantillon_trainee(passifs.decalage_d * pose_i, combat.t - ti)
+			else:
+				_pose_courante = _pose_suivi.interpolate_with(_pose_repos(), k * k * (3.0 - 2.0 * k))
+			en_geste = true
+			var fen: Array = _geste.get("enchainement", [DELAI_COMBO, 1.0])
+			if combat.t >= float(fen[0]) and entrees.consommer():
+				_commencer_attaque(combat.t <= float(fen[1]) * _duree_recup)
+			elif veut_garde and combat.t > 0.12:
+				if combat.changer(EtatCombat.PARADE):
+					defense.lever()
+			elif k >= 1.0:
+				combat.changer(EtatCombat.REPOS)
+		EtatCombat.DESEQUILIBRE when _titube_garde:
+			# garde brisée : l'épée est rabattue en bas à droite, le joueur titube, puis la lame revient au repos
+			var k := clampf(combat.t / DefenseJoueur.TITUBE, 0.0, 1.0)
+			_pose_courante = _pose_fin.interpolate_with(GestesDefense.pose("garde_brisee"), sin(minf(k * 3.0, 1.0) * PI * 0.5))
+			_pose_courante = _pose_courante.interpolate_with(_pose_repos(), smoothstep(0.55, 1.0, k))
+			en_geste = true
 			if k >= 1.0:
-				_changer(RETOUR)
-				_sens = -_sens
-				_depuis_coup = 0.0
-		RETOUR:
-			vitesse = 9.0
-			if _t > 0.3:
-				_changer(REPOS)
-				if _depuis_coup > 0.9:
-					_sens = 1.0
-		GARDE:
-			cible = _pose("garde")
-			vitesse = 18.0
-			if not veut_garde:
-				_changer(REPOS)
-		ENCAISSE:
-			cible = _pose("encaisse")
-			vitesse = 25.0
-			if _t > 0.18:
-				_changer(GARDE if veut_garde else REPOS)
-	if etat != FRAPPE and _pose_figee == "":
-		pivot_epee.transform = pivot_epee.transform.interpolate_with(cible, 1.0 - exp(-vitesse * dt))
+				_titube_garde = false
+				combat.changer(EtatCombat.REPOS)
+		EtatCombat.DESEQUILIBRE:
+			# rebond : la main recule un peu dans le sens inverse du coup, puis revient au repos
+			var k := clampf(combat.t / DUREE_REBOND, 0.0, 1.0)
+			var recul := _pose_fin
+			recul.origin += (Vector3(0.0, -0.03, 0.08) + (_pose_repos().origin - _pose_fin.origin) * 0.3) * sin(minf(k * 2.0, 1.0) * PI * 0.5)
+			_pose_courante = recul.interpolate_with(_pose_repos(), smoothstep(0.35, 1.0, k))
+			en_geste = true
+			if k >= 1.0:
+				combat.changer(EtatCombat.REPOS)
+		EtatCombat.EQUIPER:
+			# l'arme passe sous l'écran puis remonte
+			var k := clampf(combat.t / 0.45, 0.0, 1.0)
+			cible.origin.y -= sin(k * PI) * 0.35
+			raideur = 30.0
+			if k >= 1.0:
+				combat.changer(EtatCombat.REPOS)
+	if not en_geste:
+		_pose_courante = _pose_courante.interpolate_with(cible, 1.0 - exp(-raideur * dt))
 
-	# inertie de la souris et respiration
-	_balance = _balance.lerp(Vector2.ZERO, 1.0 - exp(-6.0 * dt))
-	var souffle := sin(_respiration * 1.6) * 0.006
+	# animations passives (respiration, marche, sprint, saut, inertie)
+	passifs.amplitude = 0.35 if bool(Jeu.option("affichage", "reduire_mouvements")) else 1.0
+	var locale := joueur.global_transform.basis.inverse() * Vector3(joueur.velocity.x, joueur.velocity.y, joueur.velocity.z)
+	passifs.avancer(dt, locale, joueur.is_on_floor(), combat.calme() or combat.defense())
+	if _pose_figee != "":
+		_pose_courante = _pose(_pose_figee, 1.0)
+		pivot_epee.transform = _pose_courante
+	else:
+		pivot_epee.transform = passifs.decalage_d * _pose_courante
+	_poser_coude(dt)
+	trainee.avancer(dt)
+
 	# pendant une conversation, on baisse les armes
 	_baisse = lerpf(_baisse, 0.45 if joueur.en_dialogue else 0.0, 1.0 - exp(-6.0 * dt))
-	position = Vector3(-_balance.x, _balance.y + souffle - _baisse, 0.0)
+	position = Vector3(0.0, -_baisse, 0.0)
+	_poser_torche(dt)
+	_cam_prec = _transform_monde()
+	_cam_prec_ok = true
 
-	# torche : baissée pendant la garde, rangée avec T
-	var y_torche := -0.44
+## Pôle du coude, poignet et allonge du bras selon l'état. Pendant les coups (préparation, frappe, suivi, charge,
+## rebond) : main EXACTEMENT sur la pose (poignet sans borne), coude placé par _pole_ecran (avant-bras dans le
+## prolongement de la poignée à l'écran) ; exact pendant la frappe (l'image suit le tracé), lissé ailleurs. Au repos :
+## réglages de l'arme (plan perpendiculaire à l'avant-bras ± déviation).
+func _poser_coude(dt: float) -> void:
+	var cible := arme.repos_coude
+	var coup := false
+	var exact := false
+	match combat.etat:
+		EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE, EtatCombat.CHARGE_LOURDE, EtatCombat.DESEQUILIBRE, EtatCombat.CONTRE:
+			coup = true
+			exact = _actif_lance and combat.attaque()
+		EtatCombat.FINISHER:
+			# finisher (GestesDefense) : même placement du coude que les coups, exact pendant le coup
+			coup = true
+			exact = _fin_t >= float(GestesDefense.FINISHER["elan"])
+		EtatCombat.RECUPERATION:
+			coup = combat.t < _duree_suivi + 0.5 * (_duree_recup - _duree_suivi)
+			exact = combat.t < _duree_suivi
+	var k := 1.0 - exp(-25.0 * dt)
+	# allonge : si la main est hors de portée, tout le bras glisse vers elle (l'épaule est hors écran)
+	var main := (pivot_epee.transform * PRISE_D.affine_inverse()).origin
+	var epaule := _bras_base * _epaule_bras
+	var portee_bras := (_l_bras + _l_avant_bras) * ALLONGE_BRAS
+	var dec := Vector3.ZERO
+	if coup and main.distance_to(epaule) > portee_bras:
+		dec = (main - epaule).normalized() * (main.distance_to(epaule) - portee_bras)
+	_decalage_bras = dec if exact else _decalage_bras.lerp(dec, k)
+	_glisser_epaule(_decalage_bras)
+	if coup:
+		cible = _pole_ecran(pivot_epee.transform, epaule + _decalage_bras)
+	_coude_d.position = cible if exact else _coude_d.position.lerp(cible, k)
+	var amin := 0.0 if coup else deg_to_rad(90.0 - arme.deviation_poignet)
+	var amax := PI if coup else deg_to_rad(90.0 + arme.deviation_poignet)
+	var kp := 1.0 if exact else 1.0 - exp(-20.0 * dt)
+	_orient_d.angle_min = lerpf(_orient_d.angle_min, amin, kp)
+	_orient_d.angle_max = lerpf(_orient_d.angle_max, amax, kp)
+	_orient_d.flexion_max = lerpf(_orient_d.flexion_max, PI if coup else deg_to_rad(55.0), kp)
+
+## Déplace l'épaule droite (os upperarm_r, racine de l'IK) de `dec` (repère des mains).
+func _glisser_epaule(dec: Vector3) -> void:
+	var v := (_sq.global_transform.basis.inverse() * (global_transform.basis * dec))
+	var parent := _sq.get_bone_parent(_os_epaule)
+	if parent >= 0:
+		v = _sq.get_bone_global_rest(parent).basis.inverse() * v
+	_sq.set_bone_pose_position(_os_epaule, _repos_epaule + v)
+
+## Pôle du coude (repère des mains) qui met l'avant-bras dans le PROLONGEMENT DE LA POIGNÉE À L'ÉCRAN : le coude est
+## choisi sur son cercle (épaule, main et longueurs fixées) de sorte que sa projection tombe sur la droite écran
+## garde → pointe, du côté opposé à la pointe (plan caméra-main-pointe). Pénalités : coude au-dessus de l'épaule,
+## saut d'une image à l'autre. Renvoie un point au-delà du coude, dans la direction où il doit plier.
+func _pole_ecran(pivot: Transform3D, epaule: Vector3) -> Vector3:
+	var oeil := transform.affine_inverse() * Vector3.ZERO
+	var h := (pivot * PRISE_D.affine_inverse()).origin
+	var t := pivot * _pointe_lame
+	var l1 := _l_bras
+	var l2 := _l_avant_bras
+	var d := clampf(h.distance_to(epaule), absf(l1 - l2) + 0.01, l1 + l2 - 0.002)
+	var n := (h - epaule).normalized()
+	var a := (l1 * l1 - l2 * l2 + d * d) / (2.0 * d)
+	var r := sqrt(maxf(l1 * l1 - a * a, 1e-6))
+	var centre := epaule + n * a
+	var u := n.cross(Vector3.UP)
+	if u.length_squared() < 1e-6:
+		u = n.cross(Vector3.RIGHT)
+	u = u.normalized()
+	var v := n.cross(u)
+	var hc := h - oeil
+	var b2 := _proj(t - oeil) - _proj(hc)
+	var meilleur := 1e9
+	var choix := _angle_coude
+	var ecart_choix := 0.0
+	for i in 72:
+		var al := TAU * i / 72.0
+		var e := centre + (u * cos(al) + v * sin(al)) * r
+		var f := (h - e).normalized()
+		var f2 := _proj(hc + f * 0.03) - _proj(hc)
+		var ecart := absf(f2.angle_to(b2)) if f2.length_squared() > 1e-10 and b2.length_squared() > 1e-10 else PI
+		var score := ecart
+		score += maxf(0.0, e.y - epaule.y - 0.25) * 6.0          # coude levé bien au-dessus de l'épaule : peu naturel
+		score += maxf(0.0, h.x - e.x - 0.05) * 0.6               # coude passé à gauche de la main (bras retourné)
+		score += absf(angle_difference(al, _angle_coude)) * 0.08  # continuité
+		if score < meilleur:
+			meilleur = score
+			choix = al
+			ecart_choix = ecart
+	_angle_coude = choix
+	ecart_coude = rad_to_deg(ecart_choix)
+	var coude := centre + (u * cos(choix) + v * sin(choix)) * r
+	coude_vise = coude
+	return coude + (coude - centre).normalized() * 0.3
+
+static func _proj(p: Vector3) -> Vector2:
+	var z := minf(p.z, -0.01)
+	return Vector2(p.x / -z, p.y / -z)
+
+## Réglage immédiat du poignet (installation de l'arme, outils).
+func regler_poignet(coup: bool) -> void:
+	_orient_d.angle_min = deg_to_rad(ANGLE_COUP - DEVIATION_COUP) if coup else deg_to_rad(90.0 - arme.deviation_poignet)
+	_orient_d.angle_max = deg_to_rad(ANGLE_COUP + DEVIATION_COUP) if coup else deg_to_rad(90.0 + arme.deviation_poignet)
+	_orient_d.flexion_max = deg_to_rad(FLEXION_COUP if coup else 55.0)
+
+## Préparation (vers la pose armée), attente du relâchement (le coup peut devenir lourd), phase active avec tracé.
+func _avancer_geste(dt: float) -> void:
+	var tenu := combat.etat == EtatCombat.ATTAQUE_LEGERE and entrees.attaque_tenue
+	if tenu and entrees.duree_appui() >= SEUIL_CHARGE:
+		combat.changer(EtatCombat.CHARGE_LOURDE)
+		return
+	var fin_prep := _duree_prep + _duree_tenue
+	_t_geste = minf(_t_geste + dt, fin_prep) if tenu else _t_geste + dt
+	if not _actif_lance:
+		if _t_geste < fin_prep or tenu:
+			# préparation vers A, puis A tenue un court instant (lisible) ; bouton encore tenu : la lame reste armée
+			# jusqu'au relâchement ou au seuil de charge
+			var k := clampf(_t_geste / maxf(_duree_prep, 0.001), 0.0, 1.0)
+			_pose_courante = _depart.interpolate_with(ProfilsAnimation.pose_cle(_geste, "armer"), 1.0 - (1.0 - k) * (1.0 - k) * (1.0 - k))
+			return
+		_actif_lance = true
+		_t_actif_prec = 0.0
+		_lancer_phase_active()
+	var t_actif := minf(_t_geste - fin_prep, _duree_active)
+	var t_prec := _t_actif_prec
+	_t_actif_prec = t_actif
+	_pose_courante = _pose_active(t_actif)
+	var arret := _tracer(t_prec, t_actif)
+	# traînée : échantillons à pas fixe jusqu'à l'instant courant (ou l'arrêt de la lame)
+	var t_fin_trainee := arret if arret >= 0.0 else t_actif
+	while _t_trainee + TraceLame.PAS <= t_fin_trainee + 1e-9:
+		_t_trainee += TraceLame.PAS
+		_echantillon_trainee(passifs.decalage_d * _pose_active(_t_trainee), t_actif - _t_trainee)
+	if arret >= 0.0:
+		_pose_courante = _pose_active(arret)
+		if _issue_arret == "arret":
+			_finir_geste()
+		else:
+			_rebondir()
+		return
+	if t_actif >= _duree_active:
+		_finir_geste()
+
+## Échantillon de la traînée : garde et pointe de la lame pour une pose (repère des mains), daté de `retard` s.
+func _echantillon_trainee(pose: Transform3D, retard: float) -> void:
+	trainee.ajouter(pose * _garde_lame, pose * _pointe_lame, retard)
+
+func _pose_active(t_actif: float) -> Transform3D:
+	return ProfilsAnimation.pose_active(_geste, _s_actif(t_actif))
+
+## Avancement sur l'arc A → B au temps t de la frappe (courbe d'accélération du geste).
+func _s_actif(t_actif: float) -> float:
+	return ProfilsAnimation.courbe_active(t_actif / _duree_active, float(_geste.get("acceleration", 2.0)))
+
+func _transform_monde() -> Transform3D:
+	return (get_parent() as Node3D).global_transform * transform
+
+## Tracé de lame entre t0 et t1 (temps de phase active), à pas FIXE TraceLame.PAS : les échantillons tombent aux
+## mêmes instants du geste quelle que soit la durée de l'image. Renvoie l'instant d'arrêt de la lame (mur, sol,
+## bouclier, cassable ; _issue_arret dit lequel) ou -1.
+func _tracer(t0: float, t1: float) -> float:
+	var fen: Array = _geste["fenetre"]
+	var debut := float(fen[0]) * _duree_active
+	var fin := float(fen[1]) * _duree_active
+	var monde_now := _transform_monde()
+	var monde_avant := _cam_prec if _cam_prec_ok else monde_now
+	var espace := get_world_3d().direct_space_state
+	var exclus: Array[RID] = [joueur.get_rid()]
+	var points_arme := arme.points_lame(_garde_lame, _pointe_lame)
+	var oeil_local := transform.affine_inverse() * Vector3.ZERO   # œil (caméra) dans le repère des mains
+	var max_cibles := maxi(arme.multi_cibles, 1)
+	var k := int(ceil(maxf(_t_trace, debut) / TraceLame.PAS - 1e-6))
+	while true:
+		var ts := k * TraceLame.PAS
+		if ts > minf(t1, fin) + 1e-9:
+			break
+		_t_trace = ts + 1e-6
+		k += 1
+		var f := 1.0 if t1 <= t0 else clampf((ts - t0) / (t1 - t0), 0.0, 1.0)
+		var monde := monde_avant.interpolate_with(monde_now, f)
+		var xf := monde * passifs.decalage_d * _pose_active(ts)
+		var oeil := monde * oeil_local
+		var pts := _points_jeu(xf, points_arme, oeil)
+		_instant_impact = ts
+		for e in trace.echantillonner(espace, pts, oeil, exclus, max_cibles, true):
+			var issue := _resoudre_impact(e)
+			if issue != "":
+				_issue_arret = issue
+				return ts
+	return -1.0
+
+## Points de jeu du tracé (monde) : chaque point de la lame VUE À L'ÉCRAN (garde → pointe) est projeté le long de son
+## rayon de visée jusqu'à la portée de l'arme — la lame balaie l'écran en travers à 0,5-1 m de l'œil : ce qu'elle
+## couvre à l'écran, dans la portée, est touché (cohérent avec l'image, indépendant des images par seconde). Le premier
+## point (garde) reste à portee_garde : les rayons latéraux près de la main ne fouillent pas le décor lointain.
+func _points_jeu(xf: Transform3D, _points_arme: PackedVector3Array, oeil: Vector3) -> PackedVector3Array:
+	var pts := PackedVector3Array()
+	var nb := maxi(arme.points_trace, 7)
+	for i in nb:
+		var p := xf * _garde_lame.lerp(_pointe_lame, float(i) / float(nb - 1))
+		var dist := arme.portee_garde if i == 0 else arme.portee
+		var v := p - oeil
+		pts.append(oeil + v.normalized() * maxf(dist, v.length()))
+	return pts
+
+## Applique un événement du tracé ; renvoie "" (la lame continue), "rebond" (mur, bouclier, cassable qui tient) ou
+## "arret" (sol : la lame s'y arrête, le geste se termine sans rebond).
+func _resoudre_impact(e: Dictionary) -> String:
+	match e["type"]:
+		"cible":
+			var cible: Node = e["objet"]
+			var degats := DegatsCombat.calculer(arme, _lourd, _charge, _affaibli, joueur.competences.multiplicateur_degats(), equipement.bonus_trophee(joueur.inventaire)) * float(_geste.get("force", 1.0))
+			var r := DegatsCombat.appliquer(cible, degats, joueur.global_position, _puissant, _info_coup(e))
+			if cible.is_in_group("ennemis") or cible.is_in_group("cibles_combat"):
+				joueur.ennemi_vise = cible   # barre de vie de la cible (HUD)
+			# arrêt sur image / secousse / voile rouge : UNE source, les profils d'impact (ProfilImpact). Les cibles équipées
+			# d'un CombatEnnemi (draugrs, mannequin) les jouent elles-mêmes avec le profil calculé ; les autres (dragon…) ici.
+			var gere: bool = cible.get("combat") is CombatEnnemi
+			if gere and _contre:
+				(cible.get("combat") as CombatEnnemi).fenetre_parade = 0.0   # l'ouverture de la parade est dépensée par la contre-attaque
+			if r == "touche" or r == "tue":
+				joueur.competences.pratiquer("epee", 1.8 if _lourd or _contre else 1.0)
+				if not gere:
+					RetourCoups.touche(joueur, _lourd or _contre)
+			elif r == "bloque":
+				if not gere:
+					RetourCoups.bloque(joueur)
+				trace.arretee = true
+				return "rebond"
+		"cassable":
+			var c: Node = e["objet"]
+			var cede: bool = c.has_method("frapper") and c.frapper(_puissant, joueur.global_position)
+			if cede:
+				RetourCoups.touche(joueur, true)
+			else:
+				RetourCoups.mur(joueur, e["point"], e["normale"], arme.materiau_impact)
+				return "rebond"
+		"mur":
+			RetourCoups.mur(joueur, e["point"], e["normale"], arme.materiau_impact)
+			return "rebond"
+		"sol":
+			RetourCoups.mur(joueur, e["point"], e["normale"], "bois" if arme.materiau_impact == "bois" else arme.materiau_impact)
+			return "arret"
+	return ""
+
+## Informations du coup transmises à la cible (contrat commun avec combat/degats_gore, voir DegatsCombat).
+func _info_coup(e: Dictionary) -> Dictionary:
+	var attaque := "legere"
+	if _lourd:
+		attaque = "chargee_max" if _charge >= 1.0 else "lourde"
+	elif _contre:
+		attaque = "contre"
+	var stagger := DegatsCombat.stagger(arme, attaque, _charge)
+	if _affaibli:
+		stagger *= DegatsCombat.AFFAIBLI
+	return {
+		"type": arme.type_degats, "point": e["point"], "direction": e["direction"], "normale": e["normale"],
+		"zone": DegatsCombat.zone(e["objet"] as Node3D, e["point"]), "attaque": attaque, "arme": arme.id,
+		"stagger": stagger, "collider": e["collider"], "affaibli": _affaibli, "charge": _charge,
+		"instant": _instant_impact,   # temps de phase active de l'impact (s), sur la grille du tracé
+	}
+
+# --- phase 3 : défense, contre-attaque, finishers -----------------------------------------------
+
+## Coup reçu par le joueur (appelé par joueur.recevoir_coup) : garde levée ET attaquant dans le cône de garde → parade
+## parfaite, blocage ou garde brisée (DefenseJoueur). Renvoie {} si la garde ne joue pas (dos, garde baissée), sinon
+## {issue, degats (qui passent), cout}. Sons et étincelles distincts ; l'endurance est dépensée ici.
+func defendre(degats: float, origine: Vector3) -> Dictionary:
+	if not bloque or not DefenseJoueur.couvre(joueur, origine):
+		return {}
+	var r := defense.encaisser(degats, joueur.vigueur, arme, joueur.competences.reduction_parade(), origine)
+	joueur.depenser(float(r["cout"]))
+	var point := pivot_epee.global_position + (get_parent() as Node3D).global_transform.basis * Vector3(-0.25, 0.12, -0.15)
+	match String(r["issue"]):
+		"parade":
+			# parade parfaite : tintement clair (parade_parfaite), gerbe d'étincelles, la lame chasse l'arme adverse ;
+			# l'attaquant est déséquilibré (draugr : combat.subir_parade() sur le retour « parade ») ; fenêtre de contre-attaque
+			_parade_eclat = 0.14
+			_encaisse = 0.0
+			RetourImpact.son(self, "parade_parfaite", point, 2.0)
+			Effets.eclats(self, point, Color(3.2, 2.6, 1.2), 18, 3.2, true)
+			if RetourImpact.temps_actif():
+				Effets.arret_image(get_tree(), 0.06)
+			joueur.secousse = maxf(joueur.secousse, 0.18)
+		"bloque":
+			_encaisse = DUREE_ENCAISSE
+			RetourImpact.son(self, "metal_blocage", point, 0.0)
+			Effets.eclats(self, point, Color(3.0, 2.2, 0.8), 9, 2.4, true)
+			joueur.secousse = maxf(joueur.secousse, 0.35)
+		"brisee":
+			# garde brisée : choc plus sourd, l'épée est rabattue, le joueur titube ; garde impossible ~1 s
+			RetourImpact.son(self, "metal_blocage", point, 3.0, 0.8)
+			Effets.eclats(self, point, Color(3.0, 2.0, 0.7), 12, 2.8, true)
+			joueur.secousse = maxf(joueur.secousse, 0.55)
+			_pose_fin = _pose_courante
+			_titube_garde = true
+			_encaisse = 0.0
+			combat.forcer(EtatCombat.DESEQUILIBRE)
+	return r
+
+## Contre-attaque (fenêtre DefenseJoueur.FENETRE_CONTRE après une parade parfaite) : geste « contre » (GestesDefense),
+## attaque « contre » (CalculDegats : dégâts × 1,3, stagger de contre, profil d'impact lourd ; critique seulement selon
+## les règles habituelles, pas automatique). Renvoie faux si la machine à états refuse.
+func _commencer_contre() -> bool:
+	if not combat.changer(EtatCombat.CONTRE):
+		return false
+	defense.contre = 0.0
+	_geste_nom = "contre"
+	_preparer_geste(false)
+	_contre = true
+	_combo = 0
+	_cote_fin = 0
+	return true
+
+## Cible achevable devant le joueur : {cible, categorie} ou {}. Conditions : finisher_possible(joueur) non vide (portée,
+## hauteur, état — CombatEnnemi), cible devant la caméra (cône ±50°), joueur de face ou de côté par rapport à elle (pas
+## dans son dos), rien entre les deux (rayon sur le décor).
+const PORTEE_FINISHER := 2.6
+const CONE_FINISHER := 50.0
+func _chercher_finisher() -> Dictionary:
+	if joueur == null or arme == null or not arme.est_arme():
+		return {}
+	var cam := get_parent() as Node3D
+	var avant := -cam.global_transform.basis.z
+	avant.y = 0.0
+	avant = avant.normalized()
+	var meilleur := {}
+	var d_min := INF
+	for groupe in ["ennemis", "cibles_combat"]:
+		for n in get_tree().get_nodes_in_group(groupe):
+			if not (n is Node3D) or not n.has_method("finisher_possible") or not n.has_method("subir_finisher"):
+				continue
+			if n.has_method("vivant") and not n.vivant():
+				continue
+			var c := n as Node3D
+			var v := c.global_position - joueur.global_position
+			v.y = 0.0
+			var d := v.length()
+			if d > PORTEE_FINISHER or d >= d_min:
+				continue
+			if d > 0.3 and v.normalized().dot(avant) < cos(deg_to_rad(CONE_FINISHER)):
+				continue
+			var face := c.global_transform.basis.z
+			if d > 0.3 and absf(Vector2(face.x, face.z).angle_to(Vector2(-v.x, -v.z))) > deg_to_rad(140.0):
+				continue   # dans le dos de la cible
+			var cat := String(n.finisher_possible(joueur))
+			if cat == "":
+				continue
+			var q := PhysicsRayQueryParameters3D.create(cam.global_position, c.global_position + Vector3(0, 1.1, 0), 1, [joueur.get_rid()])
+			var h := get_world_3d().direct_space_state.intersect_ray(q)
+			if not h.is_empty() and h["collider"] != c and cam.global_position.distance_to(h["position"]) < d - 0.45:
+				continue   # un mur entre les deux
+			meilleur = {"cible": c, "categorie": cat}
+			d_min = d
+	return meilleur
+
+## Lance un finisher si une cible est achevable (appelé au clic, léger ou lourd). Séquence FPS courte et paramétrable
+## (GestesDefense.FINISHER, ≤ 0,8 s) : élan avec ralenti léger et caméra verrouillée sur la cible, coup, suivi.
+func _tenter_finisher() -> bool:
+	var f := _chercher_finisher()
+	if f.is_empty() or not combat.changer(EtatCombat.FINISHER):
+		return false
+	_fin_cible = f["cible"]
+	_fin_cat = f["categorie"]
+	_fin_geste = GestesDefense.geste(GestesDefense.geste_finisher(_fin_cat))
+	_fin_t = 0.0
+	_fin_frappe = false
+	_depart = _pose_courante
+	_contre = false
+	_lourd = true
+	_puissant = true
+	_geste_nom = "finisher"
+	entrees.attaque_tenue = false   # le bouton tenu ne charge pas un coup lourd après le finisher
+	entrees.tampon = -1.0
+	joueur.depenser(arme.cout_leger)
+	if RetourImpact.temps_actif():
+		Effets.ralenti(get_tree(), GestesDefense.FINISHER_RALENTI, float(GestesDefense.FINISHER["elan"]) / GestesDefense.FINISHER_RALENTI)
+	RetourImpact.son(self, "fouette_lourd", (get_parent() as Node3D).global_position, 1.0, 0.92)
+	return true
+
+## Point visé par le finisher : le cou (finisher de taille) ou le buste au sol (coup de grâce).
+func _point_finisher() -> Vector3:
+	var c := _fin_cible
+	var cb: Variant = c.get("combat")
+	var h: float = (cb as CombatEnnemi).hauteur if cb is CombatEnnemi else 1.8
+	if _fin_cat == "sol":
+		return c.global_position + Vector3(0, 0.25, 0)
+	return c.global_position + Vector3(0, h * 0.84, 0)
+
+func _avancer_finisher(dt: float) -> void:
+	var e := GestesDefense.FINISHER
+	var elan := float(e["elan"])
+	var coup := float(e["coup"])
+	_fin_t += dt
+	var valide := is_instance_valid(_fin_cible) and _fin_cible.is_inside_tree()
+	if valide and not _fin_frappe:
+		_verrouiller_camera(dt)
+	if _fin_t < elan:
+		var k := _fin_t / elan
+		_pose_courante = _depart.interpolate_with(ProfilsAnimation.pose_cle(_fin_geste, "armer"), 1.0 - pow(1.0 - k, 3.0))
+		return
+	var s := ProfilsAnimation.courbe_active((_fin_t - elan) / coup, float(_fin_geste.get("acceleration", 2.4)))
+	_pose_courante = ProfilsAnimation.pose_active(_fin_geste, s)
+	# traînée de lame du coup, échantillonnée à pas fixe (comme les coups)
+	if _fin_t - dt < elan:
+		trainee.couper()
+		_t_trainee = 0.0
+	var t_coup := minf(_fin_t - elan, coup)
+	while _t_trainee + TraceLame.PAS <= t_coup + 1e-9:
+		_t_trainee += TraceLame.PAS
+		var si := ProfilsAnimation.courbe_active(_t_trainee / coup, float(_fin_geste.get("acceleration", 2.4)))
+		_echantillon_trainee(passifs.decalage_d * ProfilsAnimation.pose_active(_fin_geste, si), t_coup - _t_trainee)
+	if not _fin_frappe and s >= 0.5:
+		_frapper_finisher()
+		if "tassement" in joueur:
+			joueur.tassement = maxf(joueur.tassement, 1.0)
+	if _fin_t >= elan + coup:
+		if not _fin_frappe:
+			_frapper_finisher()
+		# suivi et retour au repos : la récupération habituelle (sans fenêtre de combo avant 0,12 s)
+		_geste = _fin_geste.duplicate()
+		_geste["enchainement"] = [0.12, 0.9]
+		_pose_fin = _pose_courante
+		_pose_suivi = ProfilsAnimation.pose_cle(_fin_geste, "suivi")
+		_duree_suivi = 0.1
+		_duree_recup = float(e["suivi"])
+		_issue_arret = ""
+		_depuis_coup = 0.0
+		_combo = 0
+		_cote_fin = 0
+		combat.changer(EtatCombat.RECUPERATION)
+
+## Verrou bref de la caméra : le regard (lacet du joueur, tangage de la tête) rejoint vite le point visé.
+func _verrouiller_camera(dt: float) -> void:
+	var cam := get_parent() as Node3D
+	var v := _point_finisher() - cam.global_position
+	var plat := Vector2(v.x, v.z).length()
+	if plat < 0.05:
+		return
+	var k := 1.0 - exp(-GestesDefense.FINISHER_VERROU * dt)
+	joueur.rotation.y = lerp_angle(joueur.rotation.y, atan2(-v.x, -v.z), k)
+	if "tete" in joueur and joueur.tete != null:
+		joueur.tete.rotation.x = lerpf(joueur.tete.rotation.x, clampf(atan2(v.y, plat), -1.2, 0.6), k)
+
+## Impact du finisher : subir_finisher(catégorie, info) — la cible joue sa mort spéciale (décapitation, coup de grâce) et
+## le profil d'impact « finisher » (arrêt, secousse, voile rouge, ralenti).
+func _frapper_finisher() -> void:
+	_fin_frappe = true
+	if not is_instance_valid(_fin_cible) or (_fin_cible.has_method("vivant") and not _fin_cible.vivant()):
+		return
+	var cam := get_parent() as Node3D
+	var b := cam.global_transform.basis
+	var g := _fin_geste
+	var dir := b * (ProfilsAnimation._pointe(g["fin"]) - ProfilsAnimation._pointe(g["armer"]))
+	var point := _point_finisher()
+	var vers := point - joueur.global_position
+	vers.y = 0.0
+	var info := {
+		"type": arme.type_degats, "point": point, "direction": dir.normalized(), "normale": -vers.normalized(),
+		"zone": "torse" if _fin_cat == "sol" else "tete", "attaque": "finisher", "arme": arme.id, "stagger": 999.0,
+		"collider": _fin_cible, "origine": joueur.global_position, "puissant": arme.poids >= 2.4,
+	}
+	var r := String(_fin_cible.subir_finisher(_fin_cat, info))
+	dernier_finisher = {"cible": _fin_cible, "categorie": _fin_cat, "resultat": r}
+	joueur.competences.pratiquer("epee", 2.5)
+	joueur.ennemi_vise = _fin_cible
+
+## Torche : pose de repos (miroir), suit les animations passives ; baissée pendant la garde, rangée avec T, recule
+## un peu pendant les coups (contrepoids).
+func _poser_torche(dt: float) -> void:
+	var baisse := 0.0
 	if bloque:
-		y_torche = -0.58
+		baisse = 0.14
+	if combat.attaque() or combat.etat == EtatCombat.RECUPERATION:
+		baisse = 0.3   # contrepoids : la torche s'abaisse et s'écarte, la lame balaie l'écran devant elle
 	if not torche_sortie:
-		y_torche = -0.95
-	pivot_torche.position.y = lerpf(pivot_torche.position.y, y_torche, 1.0 - exp(-8.0 * dt))
-	var allumee := torche_sortie or pivot_torche.position.y > -0.8
-	for f in flammes:
-		f.emitting = allumee
+		baisse = 0.5
+	# l'abaissement de combat est vif (la torche dégage avant que la lame ne passe), le retour plus doux
+	_baisse_torche = lerpf(_baisse_torche, baisse, 1.0 - exp(-(18.0 if baisse > _baisse_torche and baisse < 0.5 else 8.0) * dt))
+	var p := _pose_torche()
+	p.origin += Vector3(-minf(_baisse_torche, 0.3) * 0.5, -_baisse_torche, _baisse_torche * 0.2)
+	pivot_torche.transform = passifs.decalage_g * p
+	var allumee := torche_sortie or _baisse_torche < 0.36
+	for fl in flammes:
+		fl.emitting = allumee
 	for n: Node3D in _visuels_torche:
 		n.visible = allumee
 	torche_lumiere.visible = allumee
@@ -437,60 +1356,3 @@ func _process(dt: float) -> void:
 	var scint := fposmod(sin(palier * 12.9898) * 43758.5453, 1.0)
 	torche_lumiere.light_energy = 1.4 + sin(_respiration * 13.0) * 0.12 + sin(_respiration * 29.0) * 0.08 + scint * 0.14
 	_halo_mat.set_shader_parameter("intensite", 0.65 + (torche_lumiere.light_energy - 1.4) * 0.7)
-
-## Multiplicateur des armes uniques portées (épée de Skarnholt ×1,35 ; hache de Kolbeinn ×1,25 ; pas de cumul).
-func _bonus_arme() -> float:
-	var b := 1.0
-	if joueur.inventaire.a("epee_skarnholt"):
-		b = 1.35
-	if joueur.inventaire.a("hache_kolbeinn"):
-		b = maxf(b, 1.25)
-	return b
-
-func _tester_coup() -> void:
-	var cam := get_parent() as Node3D
-	var origine := cam.global_position
-	var face := -cam.global_transform.basis.z
-	var face_plate := Vector2(face.x, face.z).normalized()
-	var portee := 2.7 if _puissant else 2.3
-	var resultat := ""
-	for e in get_tree().get_nodes_in_group("ennemis"):
-		if not e.vivant():
-			continue
-		var cible_coup: Vector3 = e.point_impact() if e.has_method("point_impact") else e.global_position + Vector3(0, 1.0, 0)
-		var v: Vector3 = cible_coup - origine
-		var d := v.length()
-		if d > portee + 0.4:
-			continue
-		if d > 0.9 and Vector2(v.x, v.z).normalized().dot(face_plate) < 0.5:
-			continue
-		var base := DEGATS_PUISSANT if _puissant else DEGATS_LEGER
-		base *= _bonus_arme()
-		var r: String = e.recevoir_coup(base * joueur.competences.multiplicateur_degats(), joueur.global_position, _puissant)
-		if r == "touche" or r == "tue":
-			joueur.competences.pratiquer("epee", 1.8 if _puissant else 1.0)
-		joueur.ennemi_vise = e
-		if r == "bloque" and resultat == "":
-			resultat = "bloque"
-		elif r != "bloque":
-			resultat = "touche"
-	# éléments cassables (mur fragile…) : groupe « cassables », méthode frapper(puissant, origine) ; ne change rien pour les ennemis
-	for c in get_tree().get_nodes_in_group("cassables"):
-		if not is_instance_valid(c) or not c.has_method("frapper"):
-			continue
-		# point du cassable le plus proche des yeux (méthode facultative : sinon son origine)
-		var centre: Vector3 = c.point_proche(origine) if c.has_method("point_proche") else c.global_position
-		var vc: Vector3 = centre - origine
-		if vc.length() > portee + 0.3:
-			continue
-		if vc.length() > 0.9 and Vector2(vc.x, vc.z).normalized().dot(face_plate) < 0.5:
-			continue
-		if c.frapper(_puissant, joueur.global_position) and resultat == "":
-			resultat = "touche"
-	if resultat == "touche":
-		Effets.arret_image(get_tree(), 0.11 if _puissant else 0.06)
-		joueur.secousse = maxf(joueur.secousse, 0.5 if _puissant else 0.25)
-	elif resultat == "bloque":
-		# l'épée rebondit sur le bouclier
-		_changer(ENCAISSE)
-		joueur.secousse = maxf(joueur.secousse, 0.3)

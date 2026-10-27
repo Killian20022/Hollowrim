@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DonneesArme" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/donnees_arme.gd" id="1_arme"]
+
+[resource]
+script = ExtResource("1_arme")
+id = "main_vide"
+nom = "Main vide"
+categorie = 0
+profil = "main_vide"
+degats_leger = 0.0
+degats_lourd = 0.0
+multi_cibles = 0
+reduction_garde = 0.0
+poids = 0.0

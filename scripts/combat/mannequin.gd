@@ -3,14 +3,23 @@ extends StaticBody3D
 ## Mannequin d'entraînement : poteau, sac de paille, bras de bois et tête en sac. Il ne meurt jamais : chaque coup est mesuré
 ## (dégâts, total, posture, réaction, finisher disponible) avec le même calcul que les ennemis (CombatEnnemi, profil « mannequin »).
 ## Il oscille dans le sens du coup (ressort), se couvre d'entailles (copeaux), et sa posture se brise : un coup lourd en posture
-## brisée déclenche le finisher (la tête vole, elle repousse après 3 s). Groupe « ennemis » : l'épée du joueur le frappe comme un ennemi.
+## brisée ouvre la fenêtre de finisher, que le JOUEUR déclenche (mains.gd : finisher_possible puis subir_finisher ; la tête vole, elle repousse
+## après 3 s). Sert aux deux scènes de test (test_combat : épée FPS ; test_degats : pilote automatique).
+## Groupe « cibles_combat » (reconnu par TraceLame / mains.gd) : pas dans « ennemis », pour ne pas être compté par l'IA, la musique
+## ou les salles. Journal `coups` : {degats, puissant, temps (ms), point, info} ; signal `touche` ; extension noter_impact (DegatsCombat).
+
+signal touche(degats: float, puissant: bool)
 
 var joueur: Node3D
 var vie := 100.0
 var vie_max := 100.0
 var nom_affiche := "Mannequin"
 var total := 0.0
-var coups := 0
+## Journal des coups reçus : {degats (envoyés par l'attaquant), degats_finaux (après calcul), puissant, temps (ms), point, info, reaction}.
+var coups: Array[Dictionary] = []
+## Chiffre de dégâts pixel au point touché (en plus des flottants de CombatEnnemi.debug).
+var chiffres := true
+var _point := Vector3.ZERO
 var dernier := 0.0
 var combat: CombatEnnemi
 var pivot: Node3D
@@ -21,7 +30,7 @@ var _t := 0.0
 var _etiquette: Label3D
 
 func _ready() -> void:
-	add_to_group("ennemis")
+	add_to_group("cibles_combat")
 	var cs := CollisionShape3D.new()
 	var cyl := CylinderShape3D.new()
 	cyl.radius = 0.3
@@ -91,22 +100,54 @@ func en_combat() -> bool:
 func point_impact() -> Vector3:
 	return global_position + Vector3(0, 1.2, 0)
 
+## Point et sens de la lame notés par DegatsCombat juste avant recevoir_coup (coups sans `info`).
+func noter_impact(point: Vector3, direction: Vector3) -> void:
+	_point = point
+	_v += Vector2(direction.x, direction.z).normalized() * 0.3
+
 func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, info: Dictionary = {}) -> String:
+	if not info.has("point") and _point != Vector3.ZERO:
+		info = info.duplicate()
+		info["point"] = _point
+	_point = Vector3.ZERO
 	var r := combat.analyser(quantite, origine_coup, puissant, info, {"de_face": true, "peut_bloquer": false, "hauteur_visee": CombatEnnemi.hauteur_visee(joueur, self)})
-	if String(r["info"]["attaque"]) in ["lourde", "chargee_max", "contre"] and joueur != null:
-		var cat := finisher_possible(joueur)
-		if cat != "":
-			return subir_finisher(cat, r["info"])
 	dernier = float(r["degats"])
 	total += dernier
-	coups += 1
+	var p: Vector3 = r["info"].get("point", point_impact())
+	coups.append({"degats": quantite, "degats_finaux": dernier, "puissant": puissant, "temps": Time.get_ticks_msec(), "point": p, "info": r["info"],
+		"reaction": r["reaction"]})
 	combat.effets_impact(r, joueur)
 	var d: Vector3 = r["info"]["direction"]
 	var f := {"leger": 0.5, "moyen": 0.8, "lourd": 1.3, "recul": 1.7, "chute": 1.6, "etourdi": 1.5}
 	_v += Vector2(d.x, d.z).normalized() * float(f.get(r["reaction"], 0.6))
 	if r["reaction"] == "etourdi" and combat.etourdi <= 0.0:
 		combat.briser_posture()
+	if chiffres and not CombatEnnemi.debug:
+		_chiffre(p, dernier, puissant)
+	touche.emit(quantite, puissant)
 	return "touche"
+
+## Chiffre de dégâts pixel qui monte et s'efface.
+func _chiffre(p: Vector3, degats: float, puissant: bool) -> void:
+	var l := Label3D.new()
+	l.text = str(roundi(degats))
+	l.font = Palette.police()
+	l.font_size = 32 if puissant else 22
+	l.pixel_size = 0.004
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.no_depth_test = true
+	l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	l.modulate = Color(1.0, 0.55, 0.2) if puissant else Color(1.0, 0.92, 0.6)
+	l.outline_size = 6
+	l.outline_modulate = Color(0.08, 0.04, 0.02)
+	var scene := get_tree().current_scene
+	(scene if scene else get_tree().root).add_child(l)
+	l.global_position = p + Vector3(0, 0.1, 0)
+	var t := l.create_tween()
+	t.set_parallel(true)
+	t.tween_property(l, "global_position", l.global_position + Vector3(0, 0.6, 0), 0.9)
+	t.tween_property(l, "modulate:a", 0.0, 0.9).set_delay(0.35)
+	t.chain().tween_callback(l.queue_free)
 
 func finisher_possible(j: Node3D) -> String:
 	if tete == null or not tete.visible:
@@ -116,6 +157,7 @@ func finisher_possible(j: Node3D) -> String:
 ## Finisher sur le mannequin : la tête de toile s'envole (copie en corps rigide), puis repousse.
 func subir_finisher(categorie: String, info: Dictionary = {}) -> String:
 	var o: Vector3 = info.get("origine", joueur.global_position if joueur else global_position + Vector3.BACK)
+	coups.append({"degats": 0.0, "puissant": true, "temps": Time.get_ticks_msec(), "point": tete.global_position, "info": {"attaque": "finisher", "finisher": categorie}})
 	var i := CalculDegats.completer(info, self, 100.0, o, true, combat.hauteur)
 	i["attaque"] = "finisher"
 	var r := {"info": i, "degats": 0.0, "stagger": 0.0, "critique": true, "impact": "finisher", "reaction": "finisher", "finisher": categorie}
@@ -173,6 +215,6 @@ func _process(dt: float) -> void:
 	else:
 		pivot.basis = Basis()
 	var fin := finisher_possible(joueur) if joueur else ""
-	_etiquette.text = "MANNEQUIN  dernier %d  total %d  coups %d\nposture %d%%  %s%s" % [roundi(dernier), roundi(total), coups, roundi(combat.ratio_posture() * 100.0),
+	_etiquette.text = "MANNEQUIN  dernier %d  total %d  coups %d\nposture %d%%  %s%s" % [roundi(dernier), roundi(total), coups.size(), roundi(combat.ratio_posture() * 100.0),
 		"ETOURDI " if combat.etourdi > 0.0 else "", ("FINISHER: " + fin) if fin != "" else ""]
 	_etiquette.modulate = Color(1.0, 0.85, 0.3) if fin != "" else Color(0.9, 0.92, 1.0)
