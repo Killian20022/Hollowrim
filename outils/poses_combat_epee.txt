@@ -1,0 +1,4 @@
+# Combat à l'épée (phase 1) : pose FPS de repos, épée + torche, de jour et de nuit (rue du village).
+repos_jour monde 42,29.5,180,-2 heure=12
+repos_nuit monde 42,29.5,180,-2 heure=22
+repos_entree_jour monde 18.8,17.1,228,-6 heure=12

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="DonneesArme" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/donnees_arme.gd" id="1_arme"]
+
+[resource]
+script = ExtResource("1_arme")
+id = "torche"
+nom = "Torche"
+categorie = 2
+milieu_poignee = 0.0
+repos_poignee = Vector3(0.436, -0.31, -0.45)
+repos_lame = Vector3(0.18, 0.8, -0.57)
+repos_fil = Vector3(-1, 0, -0.3)
+profil = "torche"
+degats_leger = 0.0
+degats_lourd = 0.0
+multi_cibles = 0
+reduction_garde = 0.0
+poids = 0.8

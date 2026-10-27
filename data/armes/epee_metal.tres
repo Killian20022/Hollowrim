@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="DonneesArme" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/donnees_arme.gd" id="1_arme"]
+
+[resource]
+script = ExtResource("1_arme")
+id = "epee_metal"
+nom = "Épée en métal"
+categorie = 1
+modele = "res://assets/modeles/joueur/epee_nordique.glb"
+milieu_poignee = 0.03
+teinte = Color(1.3, 1.3, 1.38, 1)
+repos_poignee = Vector3(0.34, -0.3, -0.44)
+repos_lame = Vector3(-0.147, 0.913, -0.38)
+repos_fil = Vector3(-0.55, 0, -1)
+profil = "epee_longue"
+degats_leger = 14.0
+degats_lourd = 34.0
+bonus_charge_max = 1.3
+multi_cibles = 2
+reduction_garde = 0.85
+materiau_impact = "metal"
+vitesse = 1.0
+poids = 1.6
+cout_leger = 8.0
+cout_lourd = 26.0
+cout_garde = 1.0
+garde = Vector3(0, 0.1, 0)
+pointe = Vector3(0, 0.84, 0)
+allonge = 0.45
+points_trace = 5

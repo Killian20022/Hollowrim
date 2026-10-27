@@ -146,10 +146,11 @@ func recevoir_coup(degats: float, origine: Vector3) -> String:
 	vers.y = 0.0
 	var face := -global_transform.basis.z
 	if mains.bloque and vers.normalized().dot(Vector3(face.x, 0, face.z).normalized()) > 0.3 and vigueur > 0.0:
-		var parade: bool = mains.temps_garde < 0.3
+		var parade: bool = mains.temps_garde < mains.FENETRE_PARADE
 		var reduction := competences.reduction_parade()
-		depenser(degats * (0.3 if parade else 1.1) * reduction)
-		vie -= 0.0 if parade else degats * 0.15 * reduction
+		var arme: DonneesArme = mains.arme   # réduction en garde et coût par coup bloqué : stats de l'arme tenue (docs/COMBAT.md)
+		depenser(degats * (0.3 if parade else 1.1) * reduction * arme.cout_garde)
+		vie -= 0.0 if parade else degats * (1.0 - arme.reduction_garde) * reduction
 		competences.pratiquer("parade", 0.6 + degats * 0.08 + (0.6 if parade else 0.0))
 		secousse = maxf(secousse, 0.2 if parade else 0.35)
 		mains.encaisser()
@@ -248,7 +249,7 @@ func _physics_process(dt: float) -> void:
 			_dernier_pas = n
 			Sons.jouer(self, ["footstep_snow_000", "footstep_snow_001", "footstep_snow_002", "footstep_snow_003", "footstep_snow_004"], -12.0 if not court else -8.0, 0.1)
 	var amplitude := clampf(vitesse_sol / COURSE, 0.0, 1.0)
-	var bob := Vector3(cos(_pas) * 0.035, absf(sin(_pas)) * 0.06, 0.0) * amplitude
+	var bob := Vector3(cos(_pas) * 0.035, absf(sin(_pas)) * 0.06, 0.0) * amplitude * (0.4 if bool(Jeu.option("affichage", "reduire_mouvements")) else 1.0)   # option « Réduire les mouvements »
 	if mort:
 		# on s'effondre
 		bob = Vector3(0, -1.2, 0)
