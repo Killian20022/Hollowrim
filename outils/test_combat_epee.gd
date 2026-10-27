@@ -299,6 +299,7 @@ func _tester() -> void:
 	_verif(not dernier.is_empty() and absf(float(dernier["degats"]) - 7.0) < 0.05, "sans endurance : coup affaibli (%s dégâts au lieu de 14)" % [dernier.get("degats", "aucun")])
 	print("   transitions refusées par la machine à états : %d" % mains.combat.refus)
 
+	await _annulation()
 	await _finishers()
 
 	print("RESULTAT : ", "OK" if _ok else "ECHEC")
@@ -346,6 +347,42 @@ func _geometrie_combo() -> void:
 				var p0: Transform3D = cam_mains * mains.anim.pose_arme(clip, t0)
 				var p1: Transform3D = cam_mains * mains.anim.pose_arme(clip, t1)
 				_verif((p1.origin - p0.origin).z < -0.1, "coup 3 : estoc, le poing pousse vers l'avant (%.2f m)" % (p1.origin - p0.origin).z)
+
+## Règle d'annulation (P5) : la garde demandée pendant la PRÉPARATION d'une attaque légère la coupe (parade levée,
+## aucune touche) ; une fois la lame active, le coup va au bout (la garde n'est prise qu'en récupération).
+func _annulation() -> void:
+	print("-- annulation par la garde")
+	await _reset(s.POS_MANNEQUIN + Vector3(0, 0, 1.6), 0.0)
+	var n0: int = mains.annulations
+	var touches := [0]
+	var f := func(_d: float, _p: bool) -> void: touches[0] += 1
+	s.mannequin.touche.connect(f)
+	mains.entrees.appuyer()
+	await _simuler(0.05, 1.0 / 60.0)
+	mains.entrees.relacher()
+	var prep: bool = mains.combat.etat == EtatCombat.ATTAQUE_LEGERE and not mains._actif_lance
+	mains.entrees.forcer_garde(0.5)
+	await _simuler(1.0 / 60.0, 1.0 / 60.0)
+	_verif(prep and mains.combat.defense() and mains.annulations == n0 + 1, "garde pendant la préparation : attaque annulée, garde levée en 1 image (état %s)" % mains.combat.nom())
+	await _simuler(0.6, 1.0 / 60.0)
+	_verif(touches[0] == 0, "attaque annulée : aucune touche (%d)" % touches[0])
+	mains.entrees.forcer_garde(0.0)
+	await _reset(s.POS_MANNEQUIN + Vector3(0, 0, 1.6), 0.0)
+	mains.entrees.appuyer()
+	await _simuler(0.05, 1.0 / 60.0)
+	mains.entrees.relacher()
+	var k := 0
+	while not mains._actif_lance and k < 60:
+		await _simuler(1.0 / 60.0, 1.0 / 60.0)
+		k += 1
+	mains.entrees.forcer_garde(0.3)
+	await _simuler(1.0 / 60.0, 1.0 / 60.0)
+	_verif(mains.combat.attaque(), "lame active : la garde n'annule pas le coup (état %s)" % mains.combat.nom())
+	await _simuler(0.8, 1.0 / 60.0)
+	_verif(touches[0] >= 1, "coup mené au bout : le mannequin est touché (%d)" % touches[0])
+	mains.entrees.forcer_garde(0.0)
+	s.mannequin.touche.disconnect(f)
+	await _simuler(0.6, 1.0 / 60.0)
 
 ## Finishers multiples : type choisi selon le contexte, cible alignée (la lame DANS le corps au contact), épée plantée tenue
 ## (cible vivante et figée pendant la tenue), retrait puis mort ; décapitation ; plongé au sol ; dos.

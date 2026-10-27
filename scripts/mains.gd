@@ -166,6 +166,8 @@ var _fin_tangage := 0.0
 var _fin_tient := false         # la cible tient le finisher (preparer_finisher) : alignée, figée, étapes jouées
 ## Type de finisher imposé (tests, captures) ; "" = choisi selon le contexte.
 var finisher_force := ""
+## Attaques légères annulées par la garde pendant leur préparation (débogage, tests).
+var annulations := 0
 ## Dernier finisher lancé par le joueur : {cible, categorie, resultat} (débogage, tests).
 var dernier_finisher := {}
 ## Prises de l'épée et de la torche dans les mains (repère des os hand_r / hand_l),
@@ -984,6 +986,14 @@ func _avancer_geste(dt: float) -> void:
 	var fin_prep := _duree_prep + _duree_tenue
 	_t_geste = minf(_t_geste + dt, fin_prep) if tenu else _t_geste + dt
 	if not _actif_lance:
+		# annulation : la garde demandée pendant la préparation d'une attaque légère (lame pas encore active) la coupe
+		if combat.etat == EtatCombat.ATTAQUE_LEGERE and entrees.veut_garde() and not joueur.mort and defense.peut_garder():
+			entrees.tampon = -1.0
+			_combo = 0
+			if combat.changer(EtatCombat.PARADE):
+				defense.lever()
+				annulations += 1
+				return
 		if _t_geste < fin_prep or tenu:
 			# préparation vers A, puis A tenue un court instant (lisible) ; bouton encore tenu : la lame reste armée
 			# jusqu'au relâchement ou au seuil de charge
