@@ -10,7 +10,7 @@ const GESTES := {
 	# contre-attaque après une parade parfaite : la lame part de la garde (à gauche, haute) et fend en diagonale vers le bas à
 	# droite, bras tendu, plus ample et plus rapide qu'un coup léger (préparation courte : l'épée est déjà levée)
 	"contre": {
-		"armer": [Vector3(-0.32, 0.06, -0.26), Vector3(-0.38, 0.78, 0.5), Vector3(0.05, -0.4, 0.65), Vector3(-0.82, 0.04, -0.57)],
+		"armer": [Vector3(-0.16, 0.04, -0.42), Vector3(-0.3, 0.82, 0.48), Vector3(0.05, -0.4, 0.65), Vector3(-0.82, 0.04, -0.57)],
 		"milieu": [Vector3(-0.06, -0.13, -0.56), Vector3(0.38, 0.4, -0.83), Vector3(0.05, -0.4, 0.65), Vector3(-0.93, 0.26, -0.28)],
 		"fin": [Vector3(0.16, -0.4, -0.42), Vector3(0.78, -0.48, -0.4), Vector3(0.05, -0.4, 0.65), Vector3(0.01, 0.72, -0.7)],
 		"suivi": [Vector3(0.24, -0.48, -0.32), Vector3(0.74, -0.32, -0.6), Vector3(0.05, -0.4, 0.65), Vector3(-0.13, 0.85, -0.51)],
@@ -20,7 +20,7 @@ const GESTES := {
 	# finisher de taille (décapitation) : élan large derrière l'épaule droite, coupe horizontale à hauteur du cou, de droite à
 	# gauche ; la caméra est verrouillée sur le cou de la cible pendant l'élan et le coup
 	"finisher_taille": {
-		"armer": [Vector3(0.26, -0.1, -0.2), Vector3(0.92, 0.28, 0.28), Vector3(0.05, -0.65, 0.95), Vector3(0.13, 0.16, -0.98)],
+		"armer": [Vector3(0.3, -0.1, -0.32), Vector3(0.92, 0.28, 0.28), Vector3(0.05, -0.65, 0.95), Vector3(0.13, 0.16, -0.98)],
 		"milieu": [Vector3(-0.06, -0.1, -0.54), Vector3(-0.04, 0.02, -1.0), Vector3(0.05, -0.65, 0.95), Vector3(-0.91, 0.42, 0.04)],
 		"fin": [Vector3(-0.38, -0.14, -0.38), Vector3(-0.93, 0.05, 0.36), Vector3(0.05, -0.65, 0.95), Vector3(-0.36, 0.09, -0.93)],
 		"suivi": [Vector3(-0.46, -0.2, -0.26), Vector3(-0.8, -0.05, 0.6), Vector3(0.05, -0.65, 0.95), Vector3(-0.58, 0.09, -0.81)],
@@ -39,11 +39,11 @@ const GESTES := {
 ## Poses tenues [poignée, lame, tranchant]. Garde : épée EN TRAVERS devant la poitrine (poing bas à droite, pointe à gauche
 ## un peu plus haute, tranchant vers l'ennemi), assez basse pour laisser le centre de l'écran libre.
 const POSES := {
-	"garde": [Vector3(0.14, -0.27, -0.46), Vector3(-0.88, 0.30, -0.36), Vector3(0.0, 0.45, -1.0)],
+	"garde": [Vector3(0.22, -0.22, -0.42), Vector3(-0.78, 0.5, -0.36), Vector3(0.0, 0.35, -1.0)],
 	# coup bloqué : la lame recule vers le joueur et remonte sous le choc
-	"encaisse": [Vector3(0.17, -0.22, -0.38), Vector3(-0.86, 0.44, -0.2), Vector3(0.0, 0.5, -1.0)],
+	"encaisse": [Vector3(0.24, -0.18, -0.36), Vector3(-0.76, 0.58, -0.25), Vector3(0.0, 0.4, -1.0)],
 	# parade parfaite : la lame chasse l'arme ennemie vers l'extérieur et le haut (bref coup de poignet)
-	"parade": [Vector3(0.2, -0.17, -0.44), Vector3(-0.66, 0.68, -0.32), Vector3(0.1, 0.4, -1.0)],
+	"parade": [Vector3(0.25, -0.14, -0.42), Vector3(-0.55, 0.78, -0.3), Vector3(0.1, 0.35, -1.0)],
 	# garde brisée : l'épée est rabattue en bas à droite, pointe vers le sol devant
 	"garde_brisee": [Vector3(0.32, -0.42, -0.3), Vector3(-0.32, 0.22, -0.92), Vector3(-0.9, 0.0, -0.4)],
 }

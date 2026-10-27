@@ -44,6 +44,7 @@ func _reset(pos: Vector3, lacet: float) -> void:
 	mains._combo = 0
 	mains._depuis_coup = 9.0
 	mains._pose_courante = mains._pose_repos()
+	mains.defense = DefenseJoueur.new()   # pas de fenêtre de contre-attaque laissée par une parade précédente
 	# mannequin (CombatEnnemi depuis la fusion combat/degats_gore) : posture neuve, sinon une posture brisée par la suite
 	# précédente ouvrirait un finisher au premier clic de la suivante
 	var mc: CombatEnnemi = s.mannequin.combat
