@@ -31,6 +31,13 @@ func _plafonds(etape: String) -> void:
 	verifier(s.statuts <= GestionMagie.MAX_STATUTS, "%s : statuts %d <= %d" % [etape, s.statuts, GestionMagie.MAX_STATUTS])
 	verifier(s.pics <= GestionMagie.MAX_PICS * 3, "%s : pics %d <= %d" % [etape, s.pics, GestionMagie.MAX_PICS * 3])
 
+func _plafonds_fins(etape: String) -> void:
+	var s := EffetsMagie.stats()
+	verifier(s.particules <= GestionMagie.MAX_PARTICULES_FIN, "%s : particules %d <= %d" % [etape, s.particules, GestionMagie.MAX_PARTICULES_FIN])
+	verifier(s.emetteurs <= GestionMagie.MAX_EMETTEURS_FIN, "%s : émetteurs %d <= %d" % [etape, s.emetteurs, GestionMagie.MAX_EMETTEURS_FIN])
+	verifier(s.lumieres <= GestionMagie.MAX_LUMIERES, "%s : lumières %d <= %d" % [etape, s.lumieres, GestionMagie.MAX_LUMIERES])
+	verifier(s.bouffees <= 12, "%s : boules procédurales %d <= 12" % [etape, s.bouffees])
+
 func _cible(pos: Vector3) -> Node3D:
 	var c := Node3D.new()
 	var mi := MeshInstance3D.new()
@@ -200,5 +207,53 @@ func _lancer() -> void:
 			if (mi as MeshInstance3D).material_overlay != null:
 				voilees += 1
 	verifier(voilees == 0 and lame.material_overlay == null, "couches additives retirées")
+
+	# --- couche fine (« Détail des sorts » Moyen / Élevé) : réglages fins, couches compagnes, flux et auras procéduraux.
+	# Sans fenêtre il n'y a pas de couche (SubViewport) : on force ses réglages pour vérifier plafonds et extinction.
+	print("  couche fine (réglages forcés)")
+	GestionMagie.forcer_fin = true
+	for c in cibles:
+		c.add_to_group("cibles_magie")
+	var fins: Array[Node3D] = []
+	for ecole in EffetsMagie.ECOLES:
+		EffetsMagie.aura_main(main_g, ecole, 1.0)
+		EffetsMagie.double(ecole, true)
+		EffetsMagie.aura_main(main_d, ecole, 1.0)
+		for k in 8:
+			EffetsMagie.jet(ecole, main_g, (cibles[2].global_position + Vector3.UP - main_g.global_position).normalized(), 9.0, 1.2, true)
+			await process_frame
+		for forme in EffetsMagie.FORMES:
+			var p := EffetsMagie.projectile_visuel(ecole, forme)
+			monde.add_child(p)
+			p.position = Vector3(0, 1.5, -1)
+			fins.append(p)
+		EffetsMagie.impact(ecole, Vector3(0, 0, -3), Vector3.UP, 1.5)
+		EffetsMagie.zone(ecole, Vector3(0, 0, -5), 2.5, 1.0)
+		EffetsMagie.statut_cible(cibles[0], "brulure", 1.0)
+		await _images(3)
+		_plafonds_fins("couche fine, " + ecole)
+	s = EffetsMagie.stats()
+	verifier(s.proceduraux > 0, "couche fine : flux, auras et boules procéduraux créés (%d)" % s.proceduraux)
+	verifier(s.particules > GestionMagie.MAX_PARTICULES * 0.5, "couche fine : particules fines nombreuses (%d)" % s.particules)
+	for ecole in EffetsMagie.ECOLES:
+		EffetsMagie.double(ecole, false)
+	EffetsMagie.aura_main(main_g, "feu", 0.0)
+	EffetsMagie.aura_main(main_d, "feu", 0.0)
+	EffetsMagie.jet("feu", main_g, Vector3.FORWARD, 9.0, 1.2, false)
+	for p in fins:
+		p.queue_free()
+	t_fin = Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t_fin < 8000:
+		await process_frame
+		s = EffetsMagie.stats()
+		if s.emetteurs == 0 and s.proceduraux == 0 and s.bouffees == 0 and s.eclairs == 0 and s.disques == 0:
+			break
+	await _images(3)
+	s = EffetsMagie.stats()
+	print("  couche fine, après extinction : ", s)
+	verifier(s.emetteurs == 0 and s.particules == 0, "couche fine, extinction : plus d'émetteur ni de particule (%d / %d)" % [s.emetteurs, s.particules])
+	verifier(s.proceduraux == 0 and s.bouffees == 0, "couche fine, extinction : plus de flux, d'aura ni de boule procédurale (%d / %d)" % [s.proceduraux, s.bouffees])
+	verifier(s.auras == 0 and s.jets == 0 and s.projectiles == 0, "couche fine, extinction : aucun effet persistant")
+	GestionMagie.forcer_fin = false
 	print("test_effets_magie : ", "TOUT OK" if echecs == 0 else "ECHECS : %d" % echecs)
 	quit(0 if echecs == 0 else 1)

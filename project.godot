@@ -49,6 +49,26 @@ textures/decals/filter=0
 limits/global_shader_variables/buffer_size=262144
 
 [shader_globals]
+magie_prof={
+"type": "sampler2D",
+"value": ""
+}
+magie_vue_prec={
+"type": "mat4",
+"value": Projection(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+}
+magie_occ={
+"type": "float",
+"value": 0.0
+}
+magie_pas={
+"type": "float",
+"value": 1.0
+}
+magie_echelle={
+"type": "float",
+"value": 1.0
+}
 
 neige_objets={
 "type": "float",

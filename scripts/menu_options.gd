@@ -70,6 +70,10 @@ func _ready() -> void:
 		Jeu.appliquer_camera(joueur))
 	_case(g, "Réduire les mouvements", Jeu.option("affichage", "reduire_mouvements"), func(v: bool) -> void:
 		Jeu.regler("affichage", "reduire_mouvements", v))
+	# détail des sorts : couche fine de la magie (pixels plus petits que le monde) ; Rétro = tout en 640x360 comme avant
+	_choix(g, "Détail des sorts", ["Rétro", "Moyen", "Élevé"], int(Jeu.option("affichage", "detail_sorts")), func(v: int) -> void:
+		Jeu.regler("affichage", "detail_sorts", v)
+		GestionMagie.regler_detail(v))
 	_curseur(g, "Volume général", 0, 100, 5, Jeu.option("son", "general") * 100.0, "%d %%", func(v: float) -> void:
 		Jeu.regler("son", "general", v / 100.0))
 	_curseur(g, "Musique", 0, 100, 5, Jeu.option("son", "musique") * 100.0, "%d %%", func(v: float) -> void:

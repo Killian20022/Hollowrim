@@ -5,6 +5,8 @@
 shader_type spatial;
 render_mode unshaded, cull_back, depth_draw_opaque;
 
+#include "res://shaders/magie_occ.gdshaderinc"
+global uniform float magie_echelle;
 uniform vec4 c_ombre : source_color = vec4(0.11, 0.17, 0.35, 1.0);
 uniform vec4 c_milieu : source_color = vec4(0.18, 0.37, 0.72, 1.0);
 uniform vec4 c_clair : source_color = vec4(0.37, 0.62, 0.91, 1.0);
@@ -28,13 +30,16 @@ void vertex() {
 	f_fonte = multimesh ? INSTANCE_CUSTOM.x : fonte;
 	vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	if (grille > 0.0) {
-		vec2 g = vec2(grille * VIEWPORT_SIZE.x / VIEWPORT_SIZE.y, grille);
+		vec2 g = vec2(grille * VIEWPORT_SIZE.x / VIEWPORT_SIZE.y, grille) * magie_echelle;
 		clip.xy = round(clip.xy / clip.w * g) / g * clip.w;
 	}
 	POSITION = clip;
 }
 
 void fragment() {
+	if (magie_cachee(SCREEN_UV, FRAGCOORD.z, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX)) {
+		discard;
+	}
 	if (f_fonte > 0.0 && hash3(floor(p_obj * 10.0)) < f_fonte) {
 		discard;
 	}

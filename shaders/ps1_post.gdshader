@@ -16,6 +16,9 @@ uniform vec3 etal_clair = vec3(1.06, 1.01, 0.93);
 uniform float etal_sat = 0.92;
 uniform float etal_contraste = 0.35;
 uniform float etal_mix = 1.0;
+// taille du pixel du MONDE en pixels de l'écran : 1 d'habitude (fenêtre en 640x360) ; k quand la couche fine de la magie
+// est active (scripts/magie/couche_magie.gd : fenêtre à la résolution de l'écran, monde agrandi ×k) → grain identique
+global uniform float magie_pas;
 
 // bruit de gradient entrelacé (Jimenez) : grain fin sans motif en damier, stable d'une image à l'autre
 float bruit_ign(vec2 p) {
@@ -39,7 +42,8 @@ vec3 etalonner(vec3 c) {
 
 void fragment() {
 	vec3 c = etalonner(texture(ecran, SCREEN_UV).rgb);
-	vec2 v = SCREEN_UV - 0.5;
+	// vignette et voiles calculés au centre du pixel du MONDE (identiques au rendu 640x360 quand la couche fine est active)
+	vec2 v = (floor(FRAGCOORD.xy / magie_pas) + 0.5) * magie_pas * SCREEN_PIXEL_SIZE - 0.5;
 	c *= 1.0 - dot(v, v) * vignette;
 	c = mix(c, vec3(0.45, 0.02, 0.02), degat * smoothstep(0.05, 0.5, dot(v, v) * 2.0));
 	// éclat rouge : l'image vire au sang (les clairs gardent leur lecture), bords plus marqués
@@ -49,7 +53,7 @@ void fragment() {
 	if (actif) {
 		// Lot 7 : le tramage 15 bits reste (il casse les bandes des dégradés : brume, ciel), mais il s'efface sur
 		// les arêtes franches (bords d'arbres, silhouettes sur l'aurore) où le grain crépitait.
-		vec2 px = SCREEN_PIXEL_SIZE;
+		vec2 px = SCREEN_PIXEL_SIZE * magie_pas;
 		float l0 = dot(texture(ecran, SCREEN_UV).rgb, vec3(0.3, 0.55, 0.15));
 		float ec = 0.0;
 		ec = max(ec, abs(dot(texture(ecran, SCREEN_UV + vec2(px.x, 0.0)).rgb, vec3(0.3, 0.55, 0.15)) - l0));
@@ -57,7 +61,7 @@ void fragment() {
 		ec = max(ec, abs(dot(texture(ecran, SCREEN_UV + vec2(0.0, px.y)).rgb, vec3(0.3, 0.55, 0.15)) - l0));
 		ec = max(ec, abs(dot(texture(ecran, SCREEN_UV - vec2(0.0, px.y)).rgb, vec3(0.3, 0.55, 0.15)) - l0));
 		float force = tramage * mix(1.0, 0.3, smoothstep(0.04, 0.16, ec));
-		float b = bruit_ign(FRAGCOORD.xy) - 0.5;
+		float b = bruit_ign(floor(FRAGCOORD.xy / magie_pas) + 0.5) - 0.5;
 		c = floor(c * (niveaux - 1.0) + 0.5 + b * force) / (niveaux - 1.0);
 	}
 	COLOR = vec4(clamp(c, 0.0, 1.0), 1.0);
