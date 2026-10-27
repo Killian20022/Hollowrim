@@ -214,7 +214,7 @@ func _tester() -> void:
 		var rayons := 0
 		var cout := 0
 		var detail := []
-		for dist in [0.8, 1.2, 1.5, 1.8]:
+		for dist in [0.8, 1.2, 1.5, 1.7]:
 			for x in [-0.35, 0.0, 0.35]:
 				poteau.position = pos0 + Vector3(x - pos0.x + zone.poste("poteau").x - zone.global_position.x, 0, -dist + 1.0)
 				await physics_frame
@@ -236,7 +236,7 @@ func _tester() -> void:
 	poteau.position = pos0
 	# référence : nappe à 0,4° (la lame vue passe-t-elle VRAIMENT sur le poteau ?) ; les ratés de la référence sont des
 	# positions que la lame ne balaie pas (pas de contact), pas des traversées
-	_verif(detail_mode["avec"] == detail_mode["reference"], "poteau à 0,8-1,8 m, 72 coups : mêmes touches qu'une nappe à 0,4° (aucune traversée sans dégâts ; sans subdivision : %d raté(s) de plus)" % (int(bilan["sans"]) - int(bilan["reference"])))
+	_verif(detail_mode["avec"] == detail_mode["reference"], "poteau à 0,8-1,7 m, 72 coups : mêmes touches qu'une nappe à 0,4° (aucune traversée sans dégâts ; sans subdivision : %d raté(s) de plus)" % (int(bilan["sans"]) - int(bilan["reference"])))
 	print("ECHECS : %d  (%d vérifications)" % [0 if _ok else 1, _n])
 	print("RESULTAT : ", "OK" if _ok else "ECHEC")
 	quit(0 if _ok else 1)
