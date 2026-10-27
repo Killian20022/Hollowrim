@@ -64,7 +64,7 @@ H_SUIVI = dict(H_FIN, nom="H_suivi", poing=E(-0.3, -0.48, 0.55), lame=(-0.85, -0
 # --- diagonale revers haut-gauche -> bas-droite (miroir de A dans un enchaînement ; base de la contre-attaque) -------
 R_ARME = dict(nom="R_arme", poing=E(-0.25, -0.05, 0.5), lame=(-0.7, 0.65, -0.2), mouvement=(0.6, -0.7, 0), coude=(0.3, -1, -0.4), clav=(28, 10), epaule=(-0.10, 0.03, -0.09))
 R_TENSION = dict(R_ARME, nom="R_tension", poing=E(-0.3, 0.0, 0.49), lame=(-0.78, 0.55, -0.2))
-R_MILIEU = dict(nom="R_milieu", poing=E(0.12, -0.32, 0.6), lame=(0.1, 0.97, -0.2), mouvement=(0.6, -0.8, 0), coude=(0.5, -1, -0.1), clav=(16, 4), epaule=(-0.04, 0.01, -0.05), interp="passe")
+R_MILIEU = dict(nom="R_milieu", poing=E(0.12, -0.32, 0.6), lame=(0.05, 0.8, -0.6), mouvement=(0.6, -0.8, 0), coude=(0.5, -1, -0.1), clav=(16, 4), epaule=(-0.04, 0.01, -0.05), interp="passe")
 R_FIN = dict(nom="R_fin", poing=E(0.48, -0.55, 0.55), lame=(0.85, 0.3, -0.3), mouvement=(0.6, -0.5, 0.3), coude=(1, -1, 0.2), clav=(6, 0))
 R_SUIVI = dict(R_FIN, nom="R_suivi", poing=E(0.56, -0.62, 0.53), lame=(0.85, 0.1, -0.4))
 
