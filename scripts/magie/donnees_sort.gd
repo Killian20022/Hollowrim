@@ -83,6 +83,9 @@ enum Portee { PROJECTILE, JET, CHAINE, ZONE_VISEE, ZONE_SOI, SOI }
 @export var cone := 120.0
 ## Attire les cibles vers le centre (vortex de l'explosion obscure), m/s.
 @export var attraction := 0.0
+## Sort d'ennemi qui vise le joueur : part qui traverse sa garde (« se pare mal »), mana volé (ténèbres).
+@export var imparable := 0.0
+@export var vol_mana := 0.0
 ## Enchantement : durée (s), dégâts ajoutés à chaque coup d'épée, statut appliqué par la lame.
 @export var duree_enchant := 0.0
 @export var degats_enchant := 0.0

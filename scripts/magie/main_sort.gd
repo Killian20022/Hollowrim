@@ -681,8 +681,10 @@ func _afficher_bouclier(oui: bool) -> void:
 		umbo.position = Vector3(0, 0.02, 0)
 		_bouclier.add_child(umbo)
 	_bouclier.visible = true
-	# disque face à la paume (normale du disque = direction de la paume), centré un peu devant elle
-	var r: Basis = _repere_main["gauche"]
-	var paume_n := r.z
-	var haut := r.x
-	_bouclier.transform = Transform3D(Basis(haut.cross(paume_n).normalized(), paume_n, -haut).orthonormalized(), paume_n * 0.06)
+	# disque tourné vers l'avant (face au coup), centré devant le poing : repère voulu dans l'espace des mains, ramené dans
+	# celui de la main (le bouclier ne dépend pas de l'orientation du poignet)
+	var garde: bool = mains.bloque
+	var normale := Vector3(0.25, 0.05, -1.0).normalized() if garde else Vector3(0.55, 0.15, -1.0).normalized()
+	var haut := (Vector3.UP - normale * normale.dot(Vector3.UP)).normalized()
+	var voulu := Transform3D(Basis(haut.cross(-normale).normalized(), -normale, -haut).orthonormalized(), (_xf["gauche"] as Transform3D).origin + normale * 0.07)
+	_bouclier.transform = (_xf["gauche"] as Transform3D).affine_inverse() * voulu

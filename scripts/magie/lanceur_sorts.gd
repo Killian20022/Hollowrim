@@ -148,13 +148,18 @@ func frapper(cible: Node, quantite: float, s: DonneesSort, point: Vector3, direc
 	var origine := lanceur.global_position if lanceur != null else point - direction
 	var res := ""
 	if vise == "joueur":
-		var opt := {"type": s.type_degats, "recul": 1.5 if continu else 3.0}
+		# statuts sur le JOUEUR : gel = ralentissement (joueur.ralentir), choc = secousse, corruption = mana volé
+		var opt := {"type": s.type_degats, "recul": 1.5 if continu else 2.5}
+		if s.imparable > 0.0:
+			opt["imparable"] = s.imparable
 		match s.statut:
 			"gel":
 				opt["ralenti"] = Vector2(s.duree_statut, 1.0 - clampf(s.puissance_statut, 0.0, 0.8))
 			"choc":
 				opt["secousse"] = 0.6
 		res = String(cible.recevoir_coup(quantite, origine, opt))
+		if res == "touche" and s.vol_mana > 0.0 and cible.get("mana") != null:
+			cible.set("mana", maxf(0.0, float(cible.get("mana")) - s.vol_mana))
 	else:
 		var st := s.stagger if stagger < 0.0 else stagger
 		var info := {"type": s.type_degats, "ecole": s.ecole, "attaque": "sort", "sort": s.id, "stagger": st, "point": point,
@@ -197,7 +202,7 @@ func lancer(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, charge
 func _projectiles(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3, k: float) -> Dictionary:
 	var v := viser(oeil, avant, PORTEE_PROJECTILE)
 	var dir: Vector3 = (Vector3(v["point"]) - depart).normalized()
-	var parent := lanceur.get_tree().current_scene if lanceur.get_tree().current_scene != null else lanceur.get_parent()
+	var parent := lanceur.get_parent()
 	var n := maxi(1, s.nombre)
 	var tirs := []
 	for i in n:
@@ -210,6 +215,7 @@ func _projectiles(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3
 		var rappel := func(cible: Node, point: Vector3, normale: Vector3) -> void: _impact_projectile(s, k, cible, point, normale, d)
 		var exclus: Array = [lanceur] if vise == "ennemis" else [lanceur]
 		var p := ProjectileSort.tirer_sort(parent, depart, d, s.vitesse, visuel, rappel, exclus, s.traverse)
+		p.genre = {"glace": "givre", "feu": "feu", "electricite": "foudre", "tenebres": "ombre"}.get(s.ecole, "sort")
 		p.vise = vise
 		p.cible_joueur = cible_joueur
 		tirs.append(p)
@@ -262,6 +268,10 @@ func _chaine(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3, k: 
 	EffetsMagie.chaine(s.ecole, points)
 	return {"genre": "chaine", "cibles": touchees}
 
+## Zone posée à un point choisi par l'appelant (sort de zone télégraphié du mage ennemi).
+func zone_en(s: DonneesSort, centre: Vector3, k := 1.0) -> Dictionary:
+	return _zone(s, centre, k)
+
 func _zone(s: DonneesSort, centre: Vector3, k: float) -> Dictionary:
 	EffetsMagie.zone(s.ecole, centre, s.rayon, maxf(s.duree_zone, 0.6))
 	var touchees := []
@@ -272,14 +282,19 @@ func _zone(s: DonneesSort, centre: Vector3, k: float) -> Dictionary:
 		z.intervalle = s.intervalle_zone
 		z.attraction = s.attraction
 		z.rappel = func(c: Node) -> void: frapper(c, s.degats * k, s, Elements._centre(c), Elements._centre(c) - centre, true, s.stagger * k)
-		lanceur.get_tree().current_scene.add_child(z) if lanceur.get_tree().current_scene != null else lanceur.get_parent().add_child(z)
+		lanceur.get_parent().add_child(z)
 		z.global_position = centre
 		return {"genre": "zone", "zone": z}
 	if s.attraction > 0.0:
 		ZoneMagie.attirer(centre, s.rayon * 1.6, s.attraction * 2.0)
 	if vise == "joueur":
-		if cible_joueur != null and cible_joueur.global_position.distance_to(centre) <= s.rayon:
-			frapper(cible_joueur, s.degats * k, s, cible_joueur.global_position, cible_joueur.global_position - centre)
+		if cible_joueur != null and not bool(cible_joueur.get("mort")):
+			var rel := cible_joueur.global_position - centre
+			var dy := absf(rel.y)
+			rel.y = 0.0
+			if rel.length() <= s.rayon + 0.2 and dy < 1.6:
+				frapper(cible_joueur, s.degats * k, s, cible_joueur.global_position, cible_joueur.global_position - centre)
+				touchees.append(cible_joueur)
 		return {"genre": "zone", "cibles": touchees}
 	for c in Elements.cibles_dans(centre, s.rayon):
 		touchees.append(c)

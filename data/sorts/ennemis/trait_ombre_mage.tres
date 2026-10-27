@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_sort"]
+
+[resource]
+script = ExtResource("1_sort")
+id = "trait_ombre_mage"
+nom = "Trait d'ombre (mage nordique)"
+ecole = "tenebres"
+description = "Trait violet un peu plus rapide (15 m/s) : dégâts de ténèbres et 12 de mana volés."
+cout = 0.0
+incantation = 0.95
+recuperation = 0.5
+degats = 11.0
+type_degats = "tenebres"
+statut = "corruption"
+duree_statut = 3.0
+puissance_statut = 0.15
+stagger = 8.0
+vitesse = 15.0
+forme = "trait"
+vol_mana = 12.0
+double = {}

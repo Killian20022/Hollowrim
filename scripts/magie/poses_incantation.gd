@@ -29,8 +29,8 @@ const POSES := {
 	# l'épée frappe : la main qui tient le sort s'écarte et descend (contrepoids), sans se mettre dans la trajectoire
 	"ecartee": {"pos": Vector3(-0.34, -0.38, -0.36), "paume": Vector3(0.35, 0.35, -0.9), "doigts": Vector3(0.10, 1.0, 0.0), "fermeture": 0.45},
 	# bouclier : repos (bas à gauche) et garde (devant, face au coup)
-	"bouclier": {"pos": Vector3(-0.30, -0.32, -0.36), "paume": Vector3(0.9, 0.0, -0.4), "doigts": Vector3(0.0, 1.0, 0.0), "fermeture": 0.85},
-	"bouclier_garde": {"pos": Vector3(-0.13, -0.20, -0.36), "paume": Vector3(1.0, 0.0, -0.15), "doigts": Vector3(0.0, 1.0, 0.1), "fermeture": 0.85},
+	"bouclier": {"pos": Vector3(-0.36, -0.40, -0.46), "paume": Vector3(0.9, 0.0, -0.4), "doigts": Vector3(0.0, 1.0, 0.0), "fermeture": 0.85},
+	"bouclier_garde": {"pos": Vector3(-0.17, -0.24, -0.44), "paume": Vector3(1.0, 0.0, -0.15), "doigts": Vector3(0.0, 1.0, 0.1), "fermeture": 0.85},
 }
 
 ## Double incantation : les deux mains se rapprochent du centre (décalage en X vers l'axe, pour la main gauche).

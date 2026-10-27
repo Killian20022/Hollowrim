@@ -6,9 +6,12 @@ extends EnnemiBase
 ## Comportement :
 ##   - garde ses distances (7-13 m) : recule face au joueur (marche à reculons), se décale de côté, se rapproche pour retrouver la
 ##     ligne de vue (raycast, 5 fois par seconde) ; contourne les obstacles comme les bandits (EnnemiBase._eviter).
-##   - TRAIT DE GIVRE (Projectile.tirer_givre) : orbe qui grossit dans la main gauche ~0,9 s (lueur, bourdonnement), visée figée
-##     0,25 s avant le tir ; trait lent (11 m/s), évitable d'un pas de côté ; dégâts de glace + ralentissement du joueur 1,8 s.
-##   - SORT DE ZONE : disque d'alerte sous les pieds du joueur (1,4 s), puis pics de glace : dégâts + ralentissement 2,5 s.
+##   - SORTS : ceux du SYSTÈME DE MAGIE du joueur (DonneesSort de data/sorts/ennemis/, lancés par LanceurSorts, mêmes
+##     dégâts / statuts / visuels EffetsMagie ; docs/MAGIE.md « Mage ennemi »). Aura dans la main gauche ~0,9 s (EffetsMagie.aura_main),
+##     visée figée 0,25 s avant le tir :
+##     TRAIT DE GIVRE (trait_givre_mage) : lent (11 m/s), évitable d'un pas de côté ; dégâts de glace + ralentissement 1,8 s ;
+##     TRAIT D'OMBRE (trait_ombre_mage, un tir sur trois) : 15 m/s, ténèbres, vole 12 de mana.
+##   - SORT DE ZONE (pics_givre_mage) : disque d'alerte sous les pieds du joueur (1,4 s), puis zone : dégâts + ralentissement 2,5 s.
 ##   - TÉLÉPORT COURT quand le joueur colle (< 2,6 m) : tourbillon de givre 0,35 s, il réapparaît à 7-9 m (sol, ligne de vue).
 ##   - corps à corps faible (coup de bâton) si le joueur le colle et que le téléport se recharge.
 ## Réactions : un coup moyen (même léger : seuil 7) interrompt le sort et le fait tituber ; coup lourd aux jambes = renversé
@@ -52,6 +55,13 @@ var _releve := false
 var _coince := 0.0
 var _pos_prec := Vector3.ZERO
 var tirs := 0                    # traits lancés (tests)
+var ombres := 0                  # dont traits d'ombre
+## Système de magie (docs/MAGIE.md) : mêmes sorts et même exécution que le joueur, camp visé « joueur ».
+var lanceur_sorts: LanceurSorts
+var sort_givre: DonneesSort = preload("res://data/sorts/ennemis/trait_givre_mage.tres")
+var sort_ombre: DonneesSort = preload("res://data/sorts/ennemis/trait_ombre_mage.tres")
+var sort_zone: DonneesSort = preload("res://data/sorts/ennemis/pics_givre_mage.tres")
+var _sort_courant: DonneesSort
 var teleports := 0
 var zones := 0
 
@@ -63,6 +73,12 @@ func _ready() -> void:
 	_equiper(mod, ProfilCible.pour("mage_nordique"), 0.36, 1.8)
 	if degats_imposes > 0.0:
 		degats_givre = degats_imposes
+	# copies propres à ce mage (dégâts imposés par monde.creer_ennemi / les tests)
+	sort_givre = sort_givre.duplicate() as DonneesSort
+	sort_givre.degats = degats_givre
+	sort_zone = sort_zone.duplicate() as DonneesSort
+	sort_zone.degats = degats_zone
+	lanceur_sorts = LanceurSorts.new(self, "joueur")
 	_preparer_orbe()
 	_pos_prec = global_position
 	_cote_pas = 1.0 if randf() < 0.5 else -1.0
@@ -94,6 +110,7 @@ func _preparer_orbe() -> void:
 	_main_g.name = "MainSort"
 	_main_g.bone_name = "hand_l"
 	sq.add_child(_main_g)
+	return   # magie : l'orbe est l'aura d'EffetsMagie (même visuel que le joueur)
 	_orbe = MeshInstance3D.new()
 	var s := SphereMesh.new()
 	s.radius = 0.09
@@ -114,6 +131,9 @@ func _preparer_orbe() -> void:
 	_main_g.add_child(_orbe_lueur)
 
 func _orbe_montrer(k: float) -> void:
+	if _main_g != null and is_instance_valid(_main_g):
+		var ecole := _sort_courant.ecole if _sort_courant != null and etat == INCANTE else "glace"
+		EffetsMagie.aura_main(_main_g, ecole, clampf(k, 0.0, 1.0))
 	if _orbe == null:
 		return
 	_orbe.visible = k > 0.0
@@ -298,6 +318,7 @@ func _ia(dt: float) -> void:
 func _lancer_trait() -> void:
 	_coup_donne = false
 	_changer(INCANTE)
+	_sort_courant = sort_ombre if tirs % 3 == 2 else sort_givre   # un tir sur trois : trait d'ombre
 	_jouer("Spell_Simple_Enter", 0.1, true)
 	_cible_tir = joueur.global_position + Vector3(0, 1.15, 0)
 	Sons.jouer_a(self, ["cloth1", "cloth2"], global_position + Vector3.UP * 1.4, -2.0, 0.1)
@@ -307,7 +328,10 @@ func _tirer() -> void:
 	_jouer("Spell_Simple_Shoot", 0.05, true)
 	var depart := _main_gauche() + global_transform.basis.z * 0.25
 	var d := (_cible_tir - depart).normalized()
-	Projectile.tirer_givre(get_parent(), depart, d, self, degats_givre, joueur)
+	lanceur_sorts.cible_joueur = joueur
+	lanceur_sorts.lancer(_sort_courant if _sort_courant != null else sort_givre, null, depart, d)
+	if _sort_courant == sort_ombre:
+		ombres += 1
 	tirs += 1
 	_orbe_montrer(0.0)
 	Effets.eclats(self, depart, COULEUR, 10, 2.0, true)
@@ -328,17 +352,14 @@ func _declencher_zone() -> void:
 	if is_instance_valid(_alerte):
 		_effacer_telegraphe(_alerte, 0.25)
 	_alerte = null
-	_pics_glace(_centre_zone, RAYON_ZONE * 0.95, 12, 1.1)
 	Effets.eclats(self, _centre_zone + Vector3(0, 0.3, 0), COULEUR, 24, 4.0, true)
 	Effets.eclats(self, _centre_zone + Vector3(0, 0.2, 0), Color(0.9, 0.94, 1.0), 16, 3.0)
 	Sons.jouer_a(self, ["impactPlate_medium_000", "impactPlate_medium_001"], _centre_zone, 2.0, 0.1)
 	if joueur.get("mort") == true:
 		return
-	var rel := joueur.global_position - _centre_zone
-	var dy := absf(rel.y)
-	rel.y = 0.0
-	if rel.length() <= RAYON_ZONE + 0.2 and dy < 1.6:
-		joueur.recevoir_coup(degats_zone, _centre_zone + Vector3(0, 0, 0.01), {"imparable": 0.5, "ralenti": Vector2(2.5, 0.5), "recul": 2.0})
+	# système de magie : zone de glace (dégâts, 50 % traversent la garde, ralentissement), visuel EffetsMagie.zone
+	lanceur_sorts.cible_joueur = joueur
+	lanceur_sorts.zone_en(sort_zone, _centre_zone)
 
 func _lancer_teleport() -> void:
 	_coup_donne = false
