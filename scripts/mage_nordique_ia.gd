@@ -69,7 +69,7 @@ func _ready() -> void:
 	nom_affiche = "Mage nordique"
 	vie_max = 70.0
 	degats = 6.0           # bâton : corps à corps faible
-	var mod := MageNordique.creer({})
+	var mod := EnnemisNordiques.modele_ia("mage_nordique", ident)     # bâti d'avance par le fil de préchauffage (crypte, grotte), sinon ici
 	_equiper(mod, ProfilCible.pour("mage_nordique"), 0.36, 1.8)
 	if degats_imposes > 0.0:
 		degats_givre = degats_imposes

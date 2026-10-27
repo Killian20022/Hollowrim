@@ -897,7 +897,14 @@ func _ready() -> void:
 	_portee_dessin()
 
 func _portee_dessin() -> void:
-	for n in find_children("*", "GeometryInstance3D", true, false):
+	portee_dessin_de(self)
+
+## Portée de dessin de `racine` et de ses descendants (GrotteAcces._poser_enfants : enfants posés par tranches après le _ready).
+func portee_dessin_de(racine: Node) -> void:
+	var liste := racine.find_children("*", "GeometryInstance3D", true, false)
+	if racine is GeometryInstance3D:
+		liste.append(racine)
+	for n in liste:
 		var g := n as GeometryInstance3D
 		var d := g.get_aabb().size.length() * 0.5
 		if d > 30.0:

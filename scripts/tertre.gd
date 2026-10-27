@@ -122,6 +122,11 @@ func _process(dt: float) -> void:
 		if _pas_zone <= 0.0:
 			_pas_zone = 0.25
 			_gerer_zones()
+		elif _tache_en < 0:
+			_preparer_gardiens(MARGE_PREPARATION, 1, joueur.global_position)
+	elif d != null and _tache_en < 0 and _donjon_pret() and joueur.global_position.distance_to(porte_dehors) < 30.0:
+		# dehors, devant la porte : copies des gardiens de l'entrée faites d'avance (une par image), plus rien sous l'écran noir
+		_preparer_gardiens(0.0, 1, crypte.to_global(Vector3(0, 0.1, 0.5)))
 	_flamme_main()
 	if not dedans and joueur.global_position.distance_to(porte_dehors) < 9.0:
 		quetes.signaler("lieu:tertre")
@@ -296,7 +301,10 @@ func _lancer_prechauffe() -> void:
 	var specs: Array = []
 	for g: Dictionary in donjon.gardiens:
 		if (g["extra"] as Dictionary).has("ia"):
-			continue          # ennemi EnnemiBase (troll, mage) : modèle propre, pas de gabarit EnnemisNordiques
+			# ennemi EnnemiBase (troll, mage) : pas de gabarit EnnemisNordiques ; son modèle propre et son script sont préparés d'avance
+			var ia := String(g["extra"]["ia"])
+			specs.append(EnnemisNordiques.spec_ia(ia, String(g["ident"]), String(monde.SCRIPTS_IA[ia])))
+			continue
 		var o: Dictionary = (g["extra"] as Dictionary).duplicate()
 		o["ident"] = g["ident"]
 		var sp := EnnemisNordiques.spec_depuis_options(String(g["type"]), o)
@@ -549,14 +557,7 @@ func _gerer_zones() -> void:
 	var i := 0
 	while i < _file_gardiens.size() and n < 2:
 		var g: Dictionary = _file_gardiens[i]
-		var zr: Rect2 = Rect2()
-		var zy := 0.0
-		for z in donjon.zones:
-			if z["nom"] == g["zone"]:
-				zr = z["rect"]
-				zy = z["y"]
-		var c := crypte.to_global(Vector3(zr.get_center().x, zy, zr.get_center().y))
-		if absf(c.y - pj.y) < 8.0 and Vector2(c.x - pj.x, c.z - pj.z).length() < 34.0 + zr.size.length() * 0.25:
+		if _zone_proche(g, pj, 0.0):
 			if not _ennemis_prets():
 				break              # modèles pas encore prêts (jamais en jeu normal : l'entrée les attend) : on réessaie au prochain passage
 			var extra: Dictionary = (g["extra"] as Dictionary).duplicate()
@@ -564,6 +565,12 @@ func _gerer_zones() -> void:
 			if si != "" and not quetes.vus.has(si):          # gardiens conditionnés (ex. serment après un pillage) : restent en file
 				i += 1
 				continue
+			# pics d'apparition : un ennemi dont la copie n'est pas prête (ou à IA propre) coûte 6-15 ms : seul dans son passage
+			var leger := EnnemisNordiques.est_prepare(String(g["ident"])) or String(g["type"]).begins_with("squelette") or morts_charges.has(g["ident"])
+			if not leger:
+				if n > 0:
+					break
+				n = 1
 			extra.erase("si")
 			_file_gardiens.remove_at(i)
 			if not morts_charges.has(g["ident"]) and extra.has("ia"):
@@ -593,6 +600,49 @@ func _gerer_zones() -> void:
 			n += 1
 		else:
 			i += 1
+
+## Le gardien `g` est-il assez près pour apparaître (zone à moins de 34 m + quart de sa diagonale, même étage) ? `marge` : en plus.
+func _zone_proche(g: Dictionary, pj: Vector3, marge: float) -> bool:
+	var zr: Rect2 = Rect2()
+	var zy := 0.0
+	for z in donjon.zones:
+		if z["nom"] == g["zone"]:
+			zr = z["rect"]
+			zy = z["y"]
+	var c := crypte.to_global(Vector3(zr.get_center().x, zy, zr.get_center().y))
+	return absf(c.y - pj.y) < 8.0 + marge * 0.25 and Vector2(c.x - pj.x, c.z - pj.z).length() < 34.0 + zr.size.length() * 0.25 + marge
+
+## Pics d'apparition (2026-10-27) : la copie du modèle des prochains gardiens (zone à moins de `marge` m de plus que la distance
+## d'apparition) est faite d'avance, au plus `max_n` par appel (une par image en jeu ; toutes sous l'écran noir de l'entrée).
+const MARGE_PREPARATION := 20.0
+var _prep_repos := 0.0
+func _preparer_gardiens(marge: float, max_n: int, pj: Vector3) -> void:
+	if donjon == null or _tache_en >= 0:
+		return
+	if max_n == 1:
+		# en jeu : rien à faire au dernier passage -> on ne reparcourt la file que toutes les 0,25 s
+		_prep_repos -= get_process_delta_time()
+		if _prep_repos > 0.0:
+			return
+		_prep_repos = 0.25
+	var faits := 0
+	for g: Dictionary in _file_gardiens:
+		var id := String(g["ident"])
+		var extra: Dictionary = g["extra"]
+		if extra.has("ia") or morts_charges.has(id) or EnnemisNordiques.est_prepare(id) or String(g["type"]).begins_with("squelette"):
+			continue
+		if extra.has("si") and not quetes.vus.has(String(extra["si"])):
+			continue
+		if not _zone_proche(g, pj, marge):
+			continue
+		var o: Dictionary = extra.duplicate()
+		o.erase("si")
+		o["ident"] = id
+		if EnnemisNordiques.preparer(EnnemisNordiques.spec_depuis_options(String(g["type"]), o)):
+			faits += 1
+			if faits >= max_n:
+				_prep_repos = 0.0          # il en reste peut-être : la suivante à l'image suivante
+				return
 
 func _toiles(coins: Array, haut: float) -> void:
 	# coins : [x, z, vers_x, vers_z] (directions le long des deux murs qui forment le coin)
@@ -898,11 +948,18 @@ func _basculer(vers_dedans: bool) -> void:
 	if vers_dedans:
 		joueur.global_position = crypte.to_global(Vector3(0, 0.1, 0.5))
 		joueur.rotation.y = crypte.global_rotation.y
+		_preparer_gardiens(0.0, 64, joueur.global_position)      # sous l'écran noir : ce qui n'a pas été fait devant la porte
 	else:
 		joueur.global_position = porte_dehors + Vector3(0, 0.2, 0)
 		joueur.rotation.y = orientation
 	joueur.velocity = Vector3.ZERO
 	entree.emit(vers_dedans)
+	if vers_dedans:
+		# toujours sous l'écran noir : 1er passage des zones (lumières de la salle, gel des salles, gardiens tout proches) ; il coûtait
+		# 20-40 ms dans la 1re image visible (1er rafraîchissement des salles, bascule de toutes les lumières, 2 apparitions)
+		for k in 3:
+			_gerer_zones()
+		_pas_zone = 0.25
 	var t := create_tween()
 	t.tween_method(func(v: float) -> void: monde.post.set_shader_parameter("fondu", v), 1.0, 0.0, 0.6)
 

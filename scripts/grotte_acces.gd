@@ -562,12 +562,38 @@ func _poser(g: Grotte, etale := false) -> void:
 	for b in _coque_a_poser:
 		grotte.remove_child(b)
 	_coque_a_poser.reverse()           # pop_back = ordre d'origine
-	monde.add_child(grotte)
 	_pose_restante = [_poser_prechauffe, _poser_jeu]
+	if etale:
+		# pics (2026-10-27) : l'ajout d'un seul coup des ~1 500 nœuds de la grotte (maillages de coque, décor) coûtait 60-150 ms dans
+		# une image de jeu (souvent pendant un combat dans la crypte, ~30 s après le chargement). La grotte entre vide, puis ses enfants
+		# par tranches de BUDGET_POSE_US par image, avant le préchauffage et le gameplay.
+		_enfants_a_poser = grotte.get_children()
+		for c in _enfants_a_poser:
+			grotte.remove_child(c)
+		_enfants_a_poser.reverse()     # pop_back = ordre d'origine
+		_pose_restante.push_front(_poser_enfants)
+	monde.add_child(grotte)
 	if not etale:
 		_finir_pose()
 
+const BUDGET_POSE_US := 2000
+var _enfants_a_poser: Array = []
+
+## Une tranche d'enfants de la grotte (BUDGET_POSE_US) ; se remet en tête de la file tant qu'il en reste. budget 0 : tout.
+func _poser_enfants(budget_us := BUDGET_POSE_US) -> void:
+	var t0 := Time.get_ticks_usec()
+	while not _enfants_a_poser.is_empty():
+		var c: Node = _enfants_a_poser.pop_back()
+		grotte.add_child(c)
+		grotte.portee_dessin_de(c)      # le _ready de la grotte (entrée vide) n'a pas vu cet enfant
+		if budget_us > 0 and Time.get_ticks_usec() - t0 > budget_us:
+			break
+	if not _enfants_a_poser.is_empty():
+		_pose_restante.push_front(_poser_enfants)
+
 func _finir_pose() -> void:
+	_poser_enfants(0)
+	_pose_restante.erase(_poser_enfants)
 	while not _pose_restante.is_empty():
 		_pose_restante.pop_front().call()
 
@@ -597,10 +623,11 @@ func _exit_tree() -> void:
 		if _g_fil != null and is_instance_valid(_g_fil) and not _g_fil.is_inside_tree():
 			_g_fil.free()
 		_g_fil = null
-	for b in _coque_a_poser:
+	for b in _coque_a_poser + _enfants_a_poser:
 		if is_instance_valid(b) and not b.is_inside_tree():
 			b.free()
 	_coque_a_poser.clear()
+	_enfants_a_poser.clear()
 	_pose_restante.clear()
 
 ## La grotte construite (attend le fil s'il tourne, la construit tout de suite sinon).
@@ -647,6 +674,8 @@ func _passer(vers_dedans: bool) -> Array:
 			joueur.rotation.y = orientation
 		joueur.tete.rotation.x = 0.0
 		joueur.velocity = Vector3.ZERO
+		if vers_dedans and jeu != null and jeu._ennemis_prets():
+			jeu._preparer_ennemis(64)      # sous l'écran noir : copies des ennemis qui apparaissent dans la 1re seconde
 		entree.emit(vers_dedans))
 	t.tween_method(func(v: float) -> void: monde.post.set_shader_parameter("fondu", v), 1.0, 0.0, 0.6)
 	Sons.jouer(self, ["doorOpen_1", "creak1"], -4.0)
