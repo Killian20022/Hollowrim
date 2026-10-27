@@ -21,6 +21,16 @@ var _case_plein: CheckButton
 var _secours: Label
 var _reglages_bas: Control
 var _dialogue: FileDialog
+## Hauteur maximale du panneau (pixels du panneau, avant l'échelle du parent) ; 0 = hauteur de la fenêtre moins une marge.
+## Au-delà, les réglages défilent (molette, barre, focus clavier) ; titre, ligne de la copie de secours et boutons du bas
+## restent toujours visibles (le panneau de l'écran titre débordait en 1280x720 : Touches / Retour / Caméra coupés).
+var hauteur_max := 0.0:
+	set(v):
+		hauteur_max = v
+		if is_node_ready():
+			_ajuster()
+var _defile: ScrollContainer
+var _contenu: VBoxContainer
 
 const TOUCHES := [
 	["ZQSD / flèches", "se déplacer"],
@@ -59,7 +69,17 @@ func _ready() -> void:
 	g.add_theme_constant_override("h_separation", roundi(8 * echelle))
 	g.add_theme_constant_override("v_separation", roundi(1 * echelle))
 	_reglages = g
-	pile.add_child(g)
+	# réglages, sous-panneau Caméra et rappel des touches : dans une zone qui défile si le panneau ne tient pas en hauteur
+	_defile = ScrollContainer.new()
+	_defile.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_defile.follow_focus = true
+	_defile.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	pile.add_child(_defile)
+	_contenu = VBoxContainer.new()
+	_contenu.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_contenu.add_theme_constant_override("separation", 0)
+	_defile.add_child(_contenu)
+	_contenu.add_child(g)
 	_case_plein = _case(g, "Plein écran", Jeu.option("affichage", "plein_ecran"), func(v: bool) -> void:
 		var f := _fenetre()
 		if f != null:
@@ -127,7 +147,7 @@ func _ready() -> void:
 	pc.add_child(note)
 	pc.visible = false
 	_camera = pc
-	pile.add_child(pc)
+	_contenu.add_child(pc)
 
 	# rappel des touches (remplace la grille tant qu'il est ouvert)
 	var t := GridContainer.new()
@@ -139,7 +159,7 @@ func _ready() -> void:
 		t.add_child(MenuStyle.etiquette(l[1]))
 	t.visible = false
 	_touches = t
-	pile.add_child(t)
+	_contenu.add_child(t)
 
 	var bas := HBoxContainer.new()
 	bas.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -153,6 +173,37 @@ func _ready() -> void:
 	bas.add_child(b_retour)
 	if _fenetre() != null:
 		_fenetre().plein_ecran_change.connect(func(v: bool) -> void: _case_plein.set_pressed_no_signal(v))
+	get_viewport().size_changed.connect(func() -> void: _ajuster.call_deferred())
+	_ajuster.call_deferred()
+
+## Hauteur disponible (pixels du panneau) : hauteur_max, sinon la fenêtre (à l'échelle du parent) moins une marge.
+func _hauteur_dispo() -> float:
+	if hauteur_max > 0.0:
+		return hauteur_max
+	var e := get_global_transform().get_scale().y
+	return get_viewport_rect().size.y / maxf(e, 0.01) - 8.0 * echelle
+
+## Zone des réglages : sa hauteur suit le contenu affiché (grille, Caméra ou Touches), plafonnée pour que le panneau entier
+## tienne dans _hauteur_dispo() ; au-delà, elle défile.
+func _ajuster() -> void:
+	if _defile == null:
+		return
+	var contenu := _contenu.get_combined_minimum_size().y
+	# hauteur du reste du panneau (titre, copie de secours, boutons, marges), calculée enfant par enfant : le cache de taille
+	# minimale du panneau n'est pas encore à jour quand on vient de changer celle de la zone qui défile
+	var pile := _defile.get_parent() as BoxContainer
+	var autres := get_theme_stylebox("panel").get_minimum_size().y if has_theme_stylebox("panel") else 0.0
+	var n := 0
+	for c in pile.get_children():
+		if c is Control and (c as Control).visible:
+			n += 1
+			if c != _defile:
+				autres += (c as Control).get_combined_minimum_size().y
+	autres += pile.get_theme_constant("separation") * maxi(n - 1, 0)
+	var dispo := _hauteur_dispo() - autres
+	_defile.custom_minimum_size.y = minf(contenu, maxf(dispo, 60.0 * echelle))
+	_defile.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if contenu > _defile.custom_minimum_size.y + 0.5 else ScrollContainer.SCROLL_MODE_DISABLED
+	reset_size()
 
 ## Autoload Fenetre (scripts/fenetre.gd) cherché à l'exécution : son nom global n'existe pas encore quand un test
 ## (--script) compile le monde, qui précharge ce script via le menu pause.
@@ -167,6 +218,8 @@ func ouvrir() -> void:
 	_reglages_bas.visible = true
 	_maj_secours()
 	_case_plein.set_pressed_no_signal(DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN)
+	_defile.scroll_vertical = 0
+	_ajuster()
 	_premier.grab_focus.call_deferred()
 
 func fermer() -> void:
@@ -178,6 +231,8 @@ func _basculer_camera() -> void:
 	_touches.visible = false
 	_reglages.visible = not _camera.visible
 	_reglages_bas.visible = _reglages.visible
+	_defile.scroll_vertical = 0
+	_ajuster()
 	if _camera.visible:
 		_premier_camera.grab_focus.call_deferred()
 	else:
@@ -188,6 +243,8 @@ func _basculer_touches() -> void:
 	_camera.visible = false
 	_reglages.visible = not _touches.visible
 	_reglages_bas.visible = _reglages.visible
+	_defile.scroll_vertical = 0
+	_ajuster()
 	if _reglages.visible:
 		_premier.grab_focus.call_deferred()
 

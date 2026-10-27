@@ -12,7 +12,7 @@ extends Control
 ## native (content_scale DISABLED) et l'écran de chargement rétablit l'échelle du jeu (640x360 agrandi) avant de montrer le monde.
 ## Le monde (Jeu.SCENE_JEU) n'est chargé qu'une fois par processus : revenir au titre ou recommencer passe par Jeu.relancer().
 ## Mode outil (tests, captures, arguments d'agents : Jeu.mode_outil) : on passe tout droit au monde, sans rien afficher.
-## Test des menus : --test-titre=nouvelle|continuer|restaurer|relance|clavier|captures:<dossier> (outils/test_menus.sh).
+## Test des menus : --test-titre=nouvelle|continuer|restaurer|relance|clavier|captures:<dossier>|options:<dossier> (outils/test_menus.sh).
 
 const OPTIONS := preload("res://scripts/menu_options.gd")
 const CHARGEMENT := preload("res://scripts/ecran_chargement.gd")
@@ -394,8 +394,22 @@ func _placer() -> void:
 	# partie visible de l'image (en pixels de l'image) : le pied s'y cale en bas à droite
 	var vis := Rect2(-_rect.position / s, v / s).intersection(Rect2(Vector2.ZERO, IMG))
 	_pied.position = vis.end - Vector2(_pied.size.x + 26, 34)
+	# zone des panneaux : sous le logo, jusqu'au bas de la partie VISIBLE de l'image (ultra-large : le bas est rogné) ;
+	# le panneau Options s'y plafonne (ses réglages défilent au-delà) : titre, Caméra, Touches et Retour toujours visibles
+	var haut := ZONE_PANNEAUX.position.y - 10.0
+	var bas := minf(vis.end.y - 12.0, IMG.y - 12.0)
+	var hauteur := maxf(bas - haut, 200.0)
+	_options.hauteur_max = hauteur   # AVANT la taille de la zone : un conteneur ne descend pas sous la taille de son contenu
+	_panneaux.position = Vector2(ZONE_PANNEAUX.position.x, haut)
+	_panneaux.size = Vector2(ZONE_PANNEAUX.size.x, hauteur)
+	_ajuster_zone.call_deferred(hauteur)
 	_b_credits.reset_size()
 	_b_credits.position = Vector2(vis.end.x - _b_credits.size.x - 18, _pied.position.y - _b_credits.size.y - 2)
+
+## Zone des panneaux recalée après le rétrécissement du panneau Options (sinon elle reste à l'ancienne taille du contenu).
+func _ajuster_zone(hauteur: float) -> void:
+	await get_tree().process_frame
+	_panneaux.size = Vector2(ZONE_PANNEAUX.size.x, hauteur)
 
 func _dessiner_rail() -> void:
 	var haut := BOUTON_POS.y - 22.0
@@ -807,6 +821,9 @@ func _test(etape: String) -> void:
 	if etape.begins_with("captures:"):
 		await _captures(etape.substr(9))
 		get_tree().quit()
+	elif etape.begins_with("options:"):
+		await _captures_options(etape.substr(8))
+		get_tree().quit()
 	elif etape == "nouvelle":
 		_lancer(true)
 	elif etape == "relance":
@@ -924,6 +941,29 @@ func _touche(action: String) -> void:
 func _images(n: int) -> void:
 	for i in n:
 		await get_tree().process_frame
+
+## Panneau Options seul, à plusieurs tailles de fenêtre (vérifie qu'il tient en hauteur), grille principale puis
+## sous-panneaux Caméra et Touches : options_<L>x<H>[_camera|_touches].png ; ligne OPTIONS … DEPASSE si une partie
+## du panneau sort de la fenêtre. (Le plein écran n'est pas essayé : la fenêtre de capture est hors écran.)
+func _captures_options(dossier: String) -> void:
+	await get_tree().create_timer(3.5).timeout
+	for taille: Vector2i in [Vector2i(1280, 720), Vector2i(1366, 768), Vector2i(1600, 900), Vector2i(1920, 1080), Vector2i(2560, 1080)]:
+		DisplayServer.window_set_size(taille)
+		await get_tree().create_timer(0.8).timeout
+		for vue: String in ["", "_camera", "_touches"]:
+			_menu_principal()
+			_ouvrir_options()
+			if vue == "_camera":
+				_options._basculer_camera()
+			elif vue == "_touches":
+				_options._basculer_touches()
+			await get_tree().create_timer(0.5).timeout
+			var reel := get_viewport().get_visible_rect().size
+			var r := _options.get_global_rect()
+			var dans := Rect2(Vector2.ZERO, reel).grow(0.5).encloses(r)
+			print("OPTIONS %dx%d%s : panneau %s, fenêtre %s %s" % [int(reel.x), int(reel.y), vue, r, reel, "OK" if dans else "DEPASSE"])
+			await capture(dossier.path_join("options_%dx%d%s.png" % [int(reel.x), int(reel.y), vue]))
+	_options.fermer()
 
 ## Captures : repos, survol, Continuer grisé, panneaux, écran de chargement (démo), puis plusieurs tailles de fenêtre.
 func _captures(dossier: String) -> void:
