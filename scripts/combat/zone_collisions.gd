@@ -34,6 +34,10 @@ func poste(nom: String) -> Vector3:
 func _ready() -> void:
 	_roche = Palette.materiau(Palette.tex("roche", Palette.ROCHE, 4, 0.5), Vector2(2, 2))
 	_bois = Palette.materiau(Palette.tex("bois_mannequin", ["#2a1c10", "#3b2a18", "#4f3a22", "#5e4a30"], 4, 0.6), Vector2(1, 3))
+	# sol propre à la zone (elle déborde du sol de la scène de test)
+	var long := ECART * POSTES.size() + 6.0
+	var sol := _boite("", Vector3(0, -0.5, -long * 0.5 + 4.0), Vector3(10.0, 1.0, long), Palette.materiau(Palette.tex("neige_pietinee", Palette.NEIGE_PIETINEE, 4, 0.5), Vector2(5, long * 0.5)), true)
+	sol.name = "SolZone"
 	for nom in POSTES:
 		var o := Vector3(0, 0, -ECART * POSTES.find(nom))
 		cibles[nom] = []
