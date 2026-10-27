@@ -751,6 +751,11 @@ func _preparer_geste(lourd: bool) -> void:
 	_duree_active = (float(_m["fin_frappe"]) - float(_m["frappe"])) / v
 	_duree_suivi = (float(_m["suivi"]) - float(_m["fin_frappe"])) / v
 	_duree_recup = (float(_m["fin"]) - float(_m["fin_frappe"])) / v
+	# profil de l'arme (docs/COMBAT.md, « Profils des 5 épées ») : préparation et récupération propres, en plus de la vitesse
+	_duree_prep *= maxf(arme.preparation, 0.1)
+	_duree_tenue *= maxf(arme.preparation, 0.1)
+	_duree_suivi *= maxf(arme.recuperation, 0.1)
+	_duree_recup *= maxf(arme.recuperation, 0.1)
 	_depart = _pose_courante
 	# fondu court depuis la pose affichée, terminé avant la frappe (l'image = le tracé pendant la phase active).
 	# Réactivité (docs/COMBAT_LATENCE.md) : si le clip part de la pose affichée (coup lancé depuis le repos, pointe à moins
@@ -789,7 +794,9 @@ func _lancer_phase_active() -> void:
 	_echantillon_trainee(_couche() * _pose_active(0.0), 0.0)
 	_cam_prec_ok = false
 	# fouetté de lame (pack de combat, catégories lame/) : lourd pour le coup lourd et la contre-attaque
-	RetourImpact.son(self, "fouette_lourd" if _lourd or _contre else "fouette_leger", (get_parent() as Node3D).global_position, -1.0 if _lourd or _contre else -4.0)
+	var fort := _lourd or _contre
+	var son := (arme.son_fouette_lourd if arme.son_fouette_lourd != "" else "fouette_lourd") if fort else (arme.son_fouette if arme.son_fouette != "" else "fouette_leger")
+	RetourImpact.son(self, son, (get_parent() as Node3D).global_position, -1.0 if fort else -4.0, arme.hauteur_son)
 
 func _finir_geste() -> void:
 	if _geste.has("tassement") and "tassement" in joueur:
@@ -1093,7 +1100,9 @@ func _resoudre_impact(e: Dictionary) -> String:
 		"cible":
 			var cible: Node = e["objet"]
 			var degats := DegatsCombat.calculer(arme, _lourd, _charge, _affaibli, joueur.competences.multiplicateur_degats(), equipement.bonus_trophee(joueur.inventaire)) * float(_geste.get("force", 1.0))
-			var r := DegatsCombat.appliquer(cible, degats, joueur.global_position, _puissant, _info_coup(e))
+			var info := _info_coup(e)
+			degats += _element(cible, info)
+			var r := DegatsCombat.appliquer(cible, degats, joueur.global_position, _puissant, info)
 			if cible.is_in_group("ennemis") or cible.is_in_group("cibles_combat"):
 				joueur.ennemi_vise = cible   # barre de vie de la cible (HUD)
 			# arrêt sur image / secousse / voile rouge : UNE source, les profils d'impact (ProfilImpact). Les cibles équipées
@@ -1125,6 +1134,19 @@ func _resoudre_impact(e: Dictionary) -> String:
 			RetourCoups.mur(joueur, e["point"], e["normale"], "bois" if arme.materiau_impact == "bois" else arme.materiau_impact)
 			return "arret"
 	return ""
+
+## Effet élémentaire de la lame (DonneesArme.element) : ajoute à `info` le statut à poser (Elements.apres_coup le pose si
+## le coup porte) et renvoie les dégâts de l'élément (× résistance de la cible, × 0,5 si le coup est affaibli). Une lame
+## enchantée par la magie remplace ce statut (Elements.avant_coup écrit le sien par-dessus).
+func _element(cible: Node, info: Dictionary) -> float:
+	if arme.element == "" or (arme.element_lourd_seulement and not (_lourd or _contre)):
+		return 0.0
+	info["statut"] = arme.element
+	info["duree_statut"] = arme.element_duree
+	info["puissance_statut"] = arme.element_puissance
+	info["element_arme"] = arme.element_type
+	var d := arme.element_degats * (Elements.resistance(cible, arme.element_type) if arme.element_type != "" else 1.0)
+	return d * (DegatsCombat.AFFAIBLI if _affaibli else 1.0)
 
 ## Informations du coup transmises à la cible (contrat commun avec combat/degats_gore, voir DegatsCombat).
 func _info_coup(e: Dictionary) -> Dictionary:

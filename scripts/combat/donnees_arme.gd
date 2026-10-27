@@ -74,6 +74,29 @@ enum Categorie { VIDE, EPEE, TORCHE, BOUCLIER, SORT }
 ## Multiplicateur de la vigueur dépensée par coup bloqué.
 @export var cout_garde := 1.0
 
+@export_group("Profil de jeu")
+## Profil de gameplay (docs/COMBAT.md, « Profils des 5 épées ») : le MATÉRIAU ne fixe rien tout seul, chaque valeur se
+## règle ici. Une ligne de description pour l'équilibrage et le HUD.
+@export_multiline var description := ""
+## Multiplicateur de la durée de préparation (armé + tension tenue) des coups, en plus de `vitesse` : < 1 part plus vite.
+@export var preparation := 1.0
+## Multiplicateur de la récupération (suivi + retour en garde) : > 1 laisse le joueur plus longtemps ouvert.
+@export var recuperation := 1.0
+## Effet élémentaire de la lame (sans sort) : statut posé à la cible quand le coup porte (« brulure », « gel », « choc »,
+## « corruption », voir Statuts) et dégâts de l'élément ajoutés (× résistance de la cible au type `element_type` :
+## « feu », « glace », « electricite », « tenebres »). Vide : aucun. Une lame enchantée (magie) remplace ce statut.
+@export var element := ""
+@export var element_type := ""
+@export var element_degats := 0.0
+@export var element_duree := 3.0
+@export var element_puissance := 1.0
+## L'effet élémentaire seulement sur les coups lourds (et la contre-attaque).
+@export var element_lourd_seulement := false
+## Sons des fouettés (catégories de RetourImpact.BANQUE ; vide = « fouette_leger » / « fouette_lourd ») et hauteur (1 = normale).
+@export var son_fouette := ""
+@export var son_fouette_lourd := ""
+@export var hauteur_son := 1.0
+
 @export_group("Tracé de lame")
 ## Segment tranchant dans le repère de l'objet : de la garde à la pointe.
 @export var garde := Vector3(0, 0.10, 0)
