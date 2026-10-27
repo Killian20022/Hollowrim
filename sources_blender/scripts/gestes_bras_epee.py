@@ -54,10 +54,10 @@ B_FIN = dict(nom="B_fin", poing=E(0.45, -0.35, 0.58), lame=(0.85, 0.2, -0.45), m
 B_SUIVI = dict(B_FIN, nom="B_suivi", poing=E(0.55, -0.38, 0.56), lame=(0.88, 0.1, -0.4), mouvement=(0.6, 0.1, 0.5))
 
 # --- coup léger C : vertical par-dessus (épée levée au-dessus de la tête, descend à travers le centre) ----------------
-C_ARME = dict(nom="C_arme", poing=E(0.7, 0.55, 0.5), lame=(-0.3, 0.85, -0.2), roulis=TRANCHE, coude=(1, -0.6, 0.0), clav=(0, 22), epaule=(0, 0.05, 0.0))
-C_TENSION = dict(C_ARME, nom="C_tension", poing=E(0.72, 0.62, 0.49), lame=(-0.25, 0.9, -0.1))
-C_ENTREE = dict(nom="C_entree", poing=E(0.35, 0.22, 0.55), lame=(-0.2, 0.65, -0.75), mouvement=(-0.1, -1, -0.3), coude=(0.8, -1, 0.0), clav=(8, 16), epaule=(-0.02, 0.04, -0.04), interp="passe")
-C_MILIEU = dict(nom="C_milieu", poing=E(0.2, -0.1, 0.6), lame=(-0.25, 0.35, -0.9), mouvement=(-0.1, -1, 0), coude=(0.6, -1, 0.0), clav=(16, 8), epaule=(-0.04, 0.02, -0.07), interp="passe")
+C_ARME = dict(nom="C_arme", poing=E(0.6, 0.3, 0.56), lame=(-0.3, 0.9, 0.05), roulis=TRANCHE, coude=(1, -0.6, 0.0), clav=(0, 12), epaule=(0, 0.05, 0.0))
+C_TENSION = dict(C_ARME, nom="C_tension", poing=E(0.62, 0.36, 0.55), lame=(-0.25, 0.92, 0.12))
+C_ENTREE = dict(nom="C_entree", poing=E(0.35, 0.22, 0.55), lame=(-0.6, 0.5, -0.6), mouvement=(-0.1, -1, -0.3), coude=(0.8, -1, 0.0), clav=(8, 16), epaule=(-0.02, 0.04, -0.04), interp="passe")
+C_MILIEU = dict(nom="C_milieu", poing=E(0.2, -0.1, 0.6), lame=(-0.75, 0.1, -0.65), mouvement=(-0.1, -1, 0), coude=(0.6, -1, 0.0), clav=(16, 8), epaule=(-0.04, 0.02, -0.07), interp="passe")
 C_FIN = dict(nom="C_fin", poing=E(0.08, -0.45, 0.58), lame=(-0.15, -0.55, -0.8), mouvement=(-0.1, -0.8, 0.4), coude=(0.4, -1, 0.0), clav=(22, 0), epaule=(-0.07, 0.0, -0.09))
 C_SUIVI = dict(C_FIN, nom="C_suivi", poing=E(0.04, -0.55, 0.56), lame=(-0.1, -0.75, -0.6), mouvement=(-0.2, -0.6, 0.7))
 
@@ -94,8 +94,8 @@ P_MILIEU = dict(nom="P_milieu", poing=E(0.15, -0.22, 0.6), lame=(-0.85, 0.1, -0.
 P_FIN = dict(nom="P_fin", poing=E(-0.25, -0.35, 0.56), lame=(-0.9, -0.15, -0.25), mouvement=(-0.8, -0.3, 0.4), coude=(0.3, -1, -0.2), clav=(30, 0), epaule=(-0.12, 0.02, -0.11), torsion=-80)
 P_SUIVI = dict(P_FIN, nom="P_suivi", poing=E(-0.35, -0.45, 0.55), lame=(-0.8, -0.35, -0.2))
 # en avançant : vertical puissant par-dessus
-V_ARME = dict(C_ARME, nom="V_arme", poing=E(0.52, 0.6, 0.45), clav=(-4, 26), epaule=(0, 0.06, 0.0))
-V_TENSION = dict(V_ARME, nom="V_tension", poing=E(0.52, 0.7, 0.44), lame=(-0.05, 0.9, 0.1))
+V_ARME = dict(C_ARME, nom="V_arme", poing=E(0.62, 0.4, 0.52), clav=(-4, 16), epaule=(0, 0.06, 0.0))
+V_TENSION = dict(V_ARME, nom="V_tension", poing=E(0.62, 0.48, 0.51), lame=(-0.05, 0.9, 0.1))
 # de côté vers la droite : balayage gauche -> droite (armé à gauche)
 G_ARME = dict(nom="G_arme", poing=E(-0.34, -0.42, 0.52), lame=(-0.85, 0.45, -0.2), mouvement=(1, 0, 0), coude=(0.3, -1, -0.3), clav=(30, 4), epaule=(-0.12, 0.02, -0.10))
 G_TENSION = dict(G_ARME, nom="G_tension", poing=E(-0.4, -0.44, 0.51), lame=(-0.9, 0.35, -0.2))

@@ -267,6 +267,7 @@ func _cote_a_cote(nom: String, jeu: Image) -> void:
 	p.blit_rect(a, Rect2i(0, 0, 960, 540), Vector2i.ZERO)
 	p.blit_rect(ref, Rect2i(0, 0, 960, 540), Vector2i(960, 0))
 	p.save_png(sortie.path_join(nom + ".png"))
+	a.save_png(sortie.path_join(nom.replace("_tenue_reference", "") + "_jeu.png"))
 
 func _armes() -> void:
 	var images := []

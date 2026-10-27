@@ -206,6 +206,11 @@ static func materiaux_fps() -> Dictionary:
 		"brassards": Palette.materiau(tex("brassards"), Vector2(1, 1), Color.WHITE, true),
 		"gants": Palette.materiau(tex("fps_gant"), Vector2(2, 1), Color(0.74, 0.70, 0.68), true),
 		"fourrure": Palette.materiau(tex("fps_fourrure"), Vector2(2, 1), Color(1.08, 1.05, 1.0), true),
+		# brassard d'avant-bras (sources_blender/scripts/brassards_skarnholt.py) : coque de cuir sombre, sangles plus
+		# sombres, lames et rivets en « fer » (mains.gd), revers de fourrure gris-brun au coude et au poignet
+		"brassard_cuir": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(2, 3), Color(0.52, 0.43, 0.38), true),
+		"sangle": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(4, 1), Color(0.34, 0.27, 0.23), true),
+		"fourrure_sombre": Palette.materiau(tex("fps_fourrure"), Vector2(3, 1), Color(0.6, 0.53, 0.47), true),
 	}
 
 # ======================================================================================================== pièces du héros
