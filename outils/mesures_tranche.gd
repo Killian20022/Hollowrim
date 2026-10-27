@@ -132,7 +132,42 @@ func _mesure() -> Dictionary:
 	var fk: Transform3D = mains.global_transform * mains.anim.pose_arme(mains.anim.clip, mains.anim.t)
 	var af: Transform3D = mains.global_transform * mains.anim.pose_affichee()
 	r["ecart_fk"] = _px(_ecran(fk * mains._pointe_lame), _ecran(af * mains._pointe_lame))
+	r["larg"] = _largeur_apparente(gd, pd)
 	return r
+
+## Largeur apparente de la lame (px sur 480x270) à mi-longueur : sommets de la maille « lame » pris entre 40 et 55 %
+## de la lame, projetés, étendue perpendiculaire à la lame vue à l'écran (tranche + plat en biais + épaisseur).
+var _sommets_lame := {}
+func _largeur_apparente(gd: Vector2, pd: Vector2) -> float:
+	var mi: MeshInstance3D = null
+	for n in mains._modele_arme_d.find_children("*", "MeshInstance3D", true, false):
+		if String(n.name).begins_with("lame"):
+			mi = n
+			break
+	if mi == null:
+		return -1.0
+	if not _sommets_lame.has(mi.mesh):
+		var g: Vector3 = mains._garde_lame
+		var t: Vector3 = mains._pointe_lame
+		var pts := PackedVector3Array()
+		var loc: Transform3D = mains._modele_arme_d.global_transform.affine_inverse() * mi.global_transform
+		for k in mi.mesh.get_surface_count():
+			for v: Vector3 in mi.mesh.surface_get_arrays(k)[Mesh.ARRAY_VERTEX]:
+				var q: Vector3 = loc * v
+				var f: float = (q - g).dot(t - g) / (t - g).length_squared()
+				if f > 0.40 and f < 0.55:
+					pts.append(q)
+		_sommets_lame[mi.mesh] = pts
+	var dir := ((pd - gd) * Vector2(240, 135)).normalized()
+	var perp := Vector2(-dir.y, dir.x)
+	var lo := INF
+	var hi := -INF
+	var xf: Transform3D = mains._modele_arme_d.global_transform
+	for q: Vector3 in _sommets_lame[mi.mesh]:
+		var e := _ecran(xf * q) * Vector2(240, 135)
+		lo = minf(lo, e.dot(perp))
+		hi = maxf(hi, e.dot(perp))
+	return hi - lo if hi > lo else -1.0
 
 func _etape() -> String:
 	match mains.combat.etat:
@@ -167,7 +202,7 @@ func _vue(seq: String, n: int, ms: float, images: Array) -> void:
 	var geste: String = mains._geste_nom if mains.combat.etat not in [EtatCombat.REPOS, EtatCombat.MOUVEMENT] else seq
 	var et := _etape()
 	_cumul(seq, et, m)
-	print("MESURE %s #%02d %-13s %-7s %4dms clip %-14s t=%.3f plat %4.1f part %3d%% vert %5.1f poings d %s g %s fil %5.1f garde %s pointe %s trainee pointe %5.1fpx milieu %5.1fpx fk %5.1fpx" % [seq, n, geste, et, roundi(ms), mains.anim.clip, mains.anim.t, m["plat"], roundi(100.0 * m["part"]), m["vert"], (m["poing_d"] as Vector2).snapped(Vector2.ONE * 0.01), (m["poing_g"] as Vector2).snapped(Vector2.ONE * 0.01), m["fil"], (m["garde"] as Vector2).snapped(Vector2.ONE * 0.01), (m["pointe"] as Vector2).snapped(Vector2.ONE * 0.01), m["ecart_pointe"], m["ecart_milieu"], m["ecart_fk"]])
+	print("MESURE %s #%02d %-13s %-7s %4dms clip %-14s t=%.3f plat %4.1f part %3d%% vert %5.1f poings d %s g %s fil %5.1f garde %s pointe %s trainee pointe %5.1fpx milieu %5.1fpx fk %5.1fpx larg %4.1fpx" % [seq, n, geste, et, roundi(ms), mains.anim.clip, mains.anim.t, m["plat"], roundi(100.0 * m["part"]), m["vert"], (m["poing_d"] as Vector2).snapped(Vector2.ONE * 0.01), (m["poing_g"] as Vector2).snapped(Vector2.ONE * 0.01), m["fil"], (m["garde"] as Vector2).snapped(Vector2.ONE * 0.01), (m["pointe"] as Vector2).snapped(Vector2.ONE * 0.01), m["ecart_pointe"], m["ecart_milieu"], m["ecart_fk"], m["larg"]])
 	if images_on:
 		l.text = "%s #%02d %s %s %dms\nplat/oeil %d deg (plat %d%%) vert %d%s" % [seq, n, geste, et, roundi(ms), roundi(m["plat"]), roundi(100.0 * m["part"]), roundi(m["vert"]), (" fil %d" % roundi(m["fil"])) if m["fil"] >= 0.0 else ""]
 		await RenderingServer.frame_post_draw
