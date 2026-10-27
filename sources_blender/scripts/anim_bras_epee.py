@@ -186,7 +186,7 @@ def _cout(W, cle, kfr):
     c = math.degrees(y.angle(lame))
     if "mouvement" in cle:          # le tranchant mène : la normale du plat est perpendiculaire au mouvement
         mv = Vector(cle["mouvement"]).normalized()
-        c += 0.6 * math.degrees(math.asin(min(1.0, abs(z.dot(mv)))))
+        c += 0.3 * math.degrees(math.asin(min(1.0, abs(z.dot(mv)))))
     else:                           # pose tenue : angle du plat avec la direction de l'œil
         milieu = W.translation.to_3d() + y * 0.5
         plat = math.degrees(math.acos(min(1.0, abs(z.dot((-milieu).normalized())))))
@@ -194,7 +194,7 @@ def _cout(W, cle, kfr):
     k, f, r = kfr
     c += 0.03 * (abs(k - cle.get("torsion", 0)) + abs(f) + abs(r))
     if PREC[0] is not None:          # continuité avec la clé précédente (pas de retournement de l'avant-bras)
-        c += 0.08 * (abs(k - PREC[0][0]) + 0.5 * abs(f - PREC[0][1]) + 0.5 * abs(r - PREC[0][2]))
+        c += 0.03 * (abs(k - PREC[0][0]) + 0.5 * abs(f - PREC[0][1]) + 0.5 * abs(r - PREC[0][2]))
     return c
 
 
@@ -228,27 +228,57 @@ def poser(cle, cote="r"):
     poing_b = B_DE_CAM @ Vector(cle["poing"])
     Hrot = None
     best = None
+    indice0 = Vector(cle.get("coude", (1.0, -1.0, 0.2)))
+    fixe = "k" in cle
+    # le coude peut tourner autour de l'axe épaule -> poignet (± 90° de l'indication) : le solveur choisit la position du
+    # coude qui rend la lame voulue atteignable, en préférant l'indication et la continuité avec la clé précédente
+    phis = [0] if (fixe or cle.get("coude_fixe")) else list(range(-90, 91, 15))
+    phi_best = 0
     for it in range(3):
         decal = (Hrot @ centre_poing) if Hrot is not None else (B_DE_CAM.to_3x3() @ Vector((0.03, -0.06, 0.07)))
-        coude, d2, Rl0, allonge = _bras_deux_os(s, poing_b - decal, cle.get("coude", (1.0, -1.0, 0.2)))
+        poignet = poing_b - decal
+        ep_cam = CAM_DE_B @ ua.head
+        n_cam = ((CAM_DE_B @ poignet) - ep_cam).normalized()
+        best = None
+        for phi in (phis if it == 0 else [phi_best]):
+            ind = Matrix.Rotation(math.radians(phi), 3, n_cam) @ indice0
+            coude, d2, Rl0, allonge = _bras_deux_os(s, poignet, ind)
+            coude_cam = CAM_DE_B @ coude
+            pen = 0.05 * abs(phi) + max(0.0, coude_cam.y - ep_cam.y - 0.05) * 100.0
+            if PREC[0] is not None and len(PREC[0]) > 3:
+                pen += 0.03 * abs(phi - PREC[0][3])
+            def evalue(k, f, r):
+                Hr = _poignet(s, Rl0, k, f, r)
+                H = Matrix.Translation(poing_b - Hr @ centre_poing) @ Hr.to_4x4()
+                W = CAM_DE_B @ H @ prise
+                return _cout(W, cle, (k, f, r)) + pen, Hr
+            if fixe:
+                grille = ([cle["k"]], [cle["f"]], [cle["r"]])
+            elif it == 0:
+                grille = (range(LIM_TORSION[0], LIM_TORSION[1] + 1, 20), range(LIM_FLEXION[0], LIM_FLEXION[1] + 1, 20), range(LIM_INCL[0], LIM_INCL[1] + 1, 10))
+            else:
+                grille = (range(LIM_TORSION[0], LIM_TORSION[1] + 1, 10), range(LIM_FLEXION[0], LIM_FLEXION[1] + 1, 10), range(LIM_INCL[0], LIM_INCL[1] + 1, 5))
+            for k in grille[0]:
+                for f in grille[1]:
+                    for r in grille[2]:
+                        c, Hr = evalue(k, f, r)
+                        if best is None or c < best[0]:
+                            best = (c, k, f, r, Hr, phi)
+        phi_best = best[5]
+        ind = Matrix.Rotation(math.radians(phi_best), 3, n_cam) @ indice0
+        coude, d2, Rl0, allonge = _bras_deux_os(s, poignet, ind)
+        coude_cam = CAM_DE_B @ coude
+        pen = 0.05 * abs(phi_best) + max(0.0, coude_cam.y - ep_cam.y - 0.05) * 100.0
+        if PREC[0] is not None and len(PREC[0]) > 3:
+            pen += 0.03 * abs(phi_best - PREC[0][3])
         def evalue(k, f, r):
             Hr = _poignet(s, Rl0, k, f, r)
             H = Matrix.Translation(poing_b - Hr @ centre_poing) @ Hr.to_4x4()
             W = CAM_DE_B @ H @ prise
-            return _cout(W, cle, (k, f, r)), Hr
-        pas = [(range(LIM_TORSION[0], LIM_TORSION[1] + 1, 10), range(LIM_FLEXION[0], LIM_FLEXION[1] + 1, 10), range(LIM_INCL[0], LIM_INCL[1] + 1, 5))]
-        if "k" in cle:
-            pas = [([cle["k"]], [cle["f"]], [cle["r"]])]
-        best = None
-        for k in pas[0][0]:
-            for f in pas[0][1]:
-                for r in pas[0][2]:
-                    c, Hr = evalue(k, f, r)
-                    if best is None or c < best[0]:
-                        best = (c, k, f, r, Hr)
+            return _cout(W, cle, (k, f, r)) + pen, Hr
         # affinage
-        for _ in range(0 if "k" in cle else 2):
-            c0, k0, f0, r0, _h = best
+        for _ in range(0 if fixe or it < 2 else 2):
+            c0, k0, f0, r0, _h, _p = best
             for k in range(k0 - 8, k0 + 9, 2):
                 for f in range(f0 - 8, f0 + 9, 2):
                     for r in range(r0 - 4, r0 + 5, 1):
@@ -256,10 +286,10 @@ def poser(cle, cote="r"):
                             continue
                         c, Hr = evalue(k, f, r)
                         if c < best[0]:
-                            best = (c, k, f, r, Hr)
+                            best = (c, k, f, r, Hr, phi_best)
         Hrot = best[4]
-    c, k, f, r, Hrot = best
-    PREC[0] = (k, f, r)
+    c, k, f, r, Hrot, phi_best = best
+    PREC[0] = (k, f, r, phi_best)
     signe = 1.0 if s == "r" else -1.0
     Rl = Matrix.Rotation(math.radians(k * signe), 3, d2) @ Rl0
     la.matrix = Matrix.Translation(coude) @ Rl.to_4x4()
@@ -268,7 +298,7 @@ def poser(cle, cote="r"):
     maj()
     W = CAM_DE_B @ ha.matrix @ prise
     erreur = math.degrees(W.col[1].to_3d().normalized().angle(Vector(cle["lame"]).normalized()))
-    RAPPORT.append((cle.get("nom", "?"), round(allonge, 2), k, f, r, round(erreur, 1), round(c, 1)))
+    RAPPORT.append((cle.get("nom", "?"), round(allonge, 2), k, f, r, round(erreur, 1), round(c, 1), phi_best))
     return dict(allonge=allonge, torsion=k, flexion=f, inclinaison=r, erreur_lame=erreur)
 
 
@@ -462,8 +492,34 @@ def mesures_cam():
     return ecr(g), ecr(p), round(plat)
 
 
+def explorer(noms):
+    """Lames atteignables pour la position de poing / coude de clés nommées : torsion k × inclinaison r × flexion f."""
+    import gestes_bras_epee as G
+    tv = math.tan(math.radians(D["fov"]) / 2)
+    th = tv * 16 / 9
+    for nom in noms:
+        base = getattr(G, nom)
+        print("EXPLORER", nom, "poing", tuple(round(v, 2) for v in base["poing"]))
+        for k in (-80, -40, 0, 40, 84):
+            for f in (-40, 0, 40):
+                for r in (-35, 0, 20):
+                    c = dict(base, k=k, f=f, r=r)
+                    poser(c)
+                    W = CAM_DE_B @ A.pose.bones["hand_r"].matrix @ PRISE_D
+                    y = (W.to_3x3() @ Vector((0, 1, 0))).normalized()
+                    p = W @ POINTE
+                    g = W @ GARDE
+                    e = lambda v: "(%.2f,%.2f)" % (v.x / -v.z / th, v.y / -v.z / tv) if v.z < -0.01 else "(derr)"
+                    z = (W.to_3x3() @ Vector((0, 0, 1))).normalized()
+                    plat = math.degrees(math.acos(min(1, abs(z.dot((-(g + p) * 0.5).normalized())))))
+                    print("  k%4d f%4d r%4d  lame (%.2f,%.2f,%.2f) garde %s pointe %s plat %d" % (k, f, r, y.x, y.y, y.z, e(g), e(p), plat))
+
+
 def main():
     poings()
+    if "explorer" in ARGS:
+        explorer(ARGS["explorer"].split(","))
+        return
     if "rendu" not in ARGS:
         poser_torche()
     clips = ARGS.get("clips", "")
