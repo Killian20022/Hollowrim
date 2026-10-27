@@ -38,6 +38,8 @@ func equiper(main: String, donnees: DonneesArme) -> void:
 ## Arme de la main droite selon l'inventaire : l'épée de Skarnholt (quête) remplace l'épée de métal. La hache de
 ## Kolbeinn n'a pas de modèle tenu : elle reste un trophée qui renforce l'arme portée (bonus_trophee).
 func choisir_selon_inventaire(inventaire: Inventaire) -> void:
+	if main_droite != EPEE_METAL and main_droite != EPEE_SKARNHOLT:
+		return   # sort, main vide ou autre arme choisis par le joueur (magie : EquipementMains) : on n'y touche pas
 	equiper("droite", EPEE_SKARNHOLT if inventaire.a("epee_skarnholt") else EPEE_METAL)
 
 ## Multiplicateur des trophées (ancien _bonus_arme de mains.gd, inchangé pour la hache de Kolbeinn ; l'épée de

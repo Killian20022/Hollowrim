@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_52wgq"]
+
+[resource]
+script = ExtResource("1_52wgq")
+id = "explosion_incendiaire"
+nom = "Explosion incendiaire"
+type = 3
+portee_mode = 3
+description = "Embrase le sol au point visé (charger pour plus de force)."
+cout = 42.0
+cout_charge_min = 1.0
+incantation = 0.2
+temps_charge = 1.0
+recuperation = 0.5
+recharge = 4.0
+degats = 38.0
+statut = "brulure"
+duree_statut = 4.0
+puissance_statut = 6.0
+stagger = 30.0
+portee = 14.0
+rayon = 3.0
+double = {
+"cout": 2.3,
+"degats": 2.0,
+"duree_statut": 1.5,
+"rayon": 1.5,
+"stagger": 1.5
+}
+profil = "levee"

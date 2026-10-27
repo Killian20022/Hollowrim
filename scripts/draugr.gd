@@ -630,8 +630,11 @@ func _physics_process(dt: float) -> void:
 		if loco != "":
 			_jouer("Sword_Idle")
 	_recul = _recul.lerp(Vector3.ZERO, 1.0 - exp(-6.0 * dt))
-	velocity.x = dir.x * _vit + _recul.x
-	velocity.z = dir.z * _vit + _recul.z
+	var fv := Statuts.facteur_vitesse(self)   # magie : gel (docs/MAGIE.md)
+	if fv < 1.0 and loco != "" and _vit > 0.01:   # la marche vient d'être réglée : jamais cumulé d'une image à l'autre
+		anim.speed_scale *= fv
+	velocity.x = dir.x * _vit * fv + _recul.x
+	velocity.z = dir.z * _vit * fv + _recul.z
 	# Ennemi immobile au sol : pas de move_and_slide à chaque pas (le plus gros coût de physique contre la coque de la grotte) ; relancé
 	# toutes les IMMO_PERIODE s pour revérifier le sol, et tout de suite dès qu'il bouge, tombe ou est repoussé.
 	if absf(velocity.x) + absf(velocity.z) < 0.01 and velocity.y > -0.01 and is_on_floor() and _immo < IMMO_PERIODE:

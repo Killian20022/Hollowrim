@@ -1260,6 +1260,7 @@ func sauvegarder() -> void:
 		"herse": tertre._herse_ouverte,
 		"dragon_vaincu": dragon_vaincu,
 		"inventaire": joueur.inventaire.exporter(),
+		"magie": joueur.mains.magie.exporter() if joueur.mains.get("magie") != null else {},   # mains, sorts connus, mana (docs/MAGIE.md)
 		"draugrs_morts": morts,
 		"villageois_parles": parles,
 	}
@@ -1286,6 +1287,8 @@ func charger() -> void:
 	cycle.heure = float(d.get("heure", cycle.heure))
 	joueur.competences.importer(d.get("competences", {}))
 	joueur.inventaire.importer(d.get("inventaire", {}))
+	if joueur.mains.get("magie") != null:
+		joueur.mains.magie.importer(d.get("magie", {}))
 	dragon_vaincu = bool(d.get("dragon_vaincu", false))
 	quetes.importer(d.get("quetes", {}))
 	tertre.restaurer(bool(d.get("herse", false)))

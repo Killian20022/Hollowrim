@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_njvm8"]
+
+[resource]
+script = ExtResource("1_njvm8")
+id = "drain_vie"
+nom = "Drain de vie"
+ecole = "tenebres"
+type = 1
+portee_mode = 1
+description = "Aspire la vie de la cible et vous soigne."
+cout_par_seconde = 11.0
+degats = 13.0
+type_degats = "tenebres"
+statut = "corruption"
+puissance_statut = 0.1
+stagger = 4.0
+portee = 8.0
+largeur = 0.6
+distance_rebond = 4.0
+attenuation_rebond = 0.7
+drain = 0.6
+double = {
+"cout": 2.2,
+"degats": 1.9,
+"drain": 1.3,
+"duree_statut": 1.6,
+"portee": 1.2,
+"rebonds_plus": 1
+}
+seuil_interruption = 10.0

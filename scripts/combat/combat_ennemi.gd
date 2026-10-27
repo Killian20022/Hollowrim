@@ -191,14 +191,19 @@ func effets_impact(r: Dictionary, joueur: Node) -> void:
 	var point: Vector3 = i["point"]
 	var dir: Vector3 = i["direction"]
 	var armure := (profil.armure >= 2.0 or profil.armure_part >= 0.06) and String(i["zone"]) in ["torse", "bras"]
+	var part_sang := 0.25 if bool(i.get("continu", false)) else (0.6 if i.has("ecole") else 1.0)   # magie : moins de sang
 	if profil.sang and Sang.actif():
-		Sang.giclee(corps, point, dir, p.sang, profil.couleur_sang)
+		Sang.giclee(corps, point, dir, p.sang * part_sang, profil.couleur_sang)
 	else:
 		Sang.eclats_matiere(corps, point, dir, p.sang * 0.8, profil.couleur_sang if not profil.sang else Color(0.45, 0.42, 0.38))
 	if armure:
 		Effets.eclats(corps, point - dir * 0.05, Color(3.0, 2.2, 0.8), 6, 2.5, true)   # étincelles sur les mailles
 	var taille := 0.32 if p.nom == "leger" else (0.4 if p.nom == "moyen" else 0.5)
-	Plaies.ajouter(modele, point, i["normale"], dir, taille, profil.couleur_sang, profil.matiere)
+	# magie (docs/MAGIE.md) : un tic de sort canalisé ne laisse ni plaie ni arrêt sur image ; un sort élémentaire ne taille pas
+	if bool(i.get("continu", false)):
+		return
+	if String(i.get("type", "tranchant")) in ["tranchant", "contondant"]:
+		Plaies.ajouter(modele, point, i["normale"], dir, taille, profil.couleur_sang, profil.matiere)
 	RetourImpact.son_impact(corps, profil.matiere, p, point, armure)
 	if r["reaction"] in ["moyen", "lourd", "recul", "chute"] and randf() < 0.6:
 		RetourImpact.cri(corps, "douleur", point, profil.matiere, profil.mort_vivant)

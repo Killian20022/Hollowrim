@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_rcims"]
+
+[resource]
+script = ExtResource("1_rcims")
+id = "eclat_glace"
+nom = "Éclat de glace"
+ecole = "glace"
+description = "Trois éclats rapides ; ralentit."
+cout = 8.0
+recuperation = 0.22
+recharge = 0.3
+degats = 8.0
+type_degats = "glace"
+statut = "gel"
+duree_statut = 2.5
+puissance_statut = 0.25
+stagger = 5.0
+vitesse = 34.0
+forme = "eclat"
+nombre = 3
+ecart = 4.0
+double = {
+"cout": 2.2,
+"degats": 1.6,
+"duree_statut": 1.4,
+"nombre_plus": 3,
+"puissance_statut": 1.6,
+"stagger": 1.5
+}

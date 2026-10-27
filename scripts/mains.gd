@@ -89,6 +89,9 @@ var etat: int:
 			combat.forcer(EtatCombat.REPOS)
 ## Coup en cours lourd (lu par corps_joueur.gd pour la vitesse de l'animation 3e personne).
 var _puissant := false
+## Magie et deux mains (scripts/magie/main_sort.gd, docs/MAGIE.md) : SEUL point d'accroche — entrées interceptées avant
+## l'épée, garde selon les règles des deux mains, pose des mains qui incantent appliquée après celle de l'épée.
+var magie: Node
 
 var _geste := {}
 var _geste_nom := ""
@@ -219,6 +222,9 @@ func _ready() -> void:
 	Jeu.option("affichage", "reduire_mouvements")   # charge les options si besoin
 	combat.change.connect(_sur_changement_etat)
 	RetourImpact.precharger()   # sons de lame, de blocage et de parade (pack de combat)
+	magie = preload("res://scripts/magie/main_sort.gd").new()
+	magie.mains = self
+	add_child(magie)
 
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--mains="):
@@ -541,6 +547,8 @@ func _peut_agir() -> bool:
 func _unhandled_input(e: InputEvent) -> void:
 	if not _peut_agir() or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
+	if magie != null and magie.intercepter(e):
+		return
 	if e is InputEventMouseMotion:
 		passifs.souris(e.screen_relative)
 		noter_souris(e.screen_relative)
@@ -726,7 +734,7 @@ func avancer(dt: float) -> void:
 	_reposer_doigts()
 	_respiration += dt
 	_depuis_coup += dt
-	entrees.garde_tenue = Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) and _peut_agir()
+	entrees.garde_tenue = (magie.garde_tenue() if magie != null else Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)) and _peut_agir()
 	if not _peut_agir():
 		entrees.attaque_tenue = false
 		entrees.tampon = -1.0
@@ -863,6 +871,8 @@ func avancer(dt: float) -> void:
 	_baisse = lerpf(_baisse, 0.45 if joueur.en_dialogue else 0.0, 1.0 - exp(-6.0 * dt))
 	position = Vector3(0.0, -_baisse, 0.0)
 	_poser_torche(dt)
+	if magie != null:
+		magie.avancer(dt)
 	_cam_prec = _transform_monde()
 	_cam_prec_ok = true
 
@@ -1133,7 +1143,7 @@ func _info_coup(e: Dictionary) -> Dictionary:
 func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictionary:
 	if not bloque or not DefenseJoueur.couvre(joueur, origine):
 		return {}
-	var r := defense.encaisser(degats, joueur.vigueur, arme, joueur.competences.reduction_parade(), origine, sans_parade)
+	var r := defense.encaisser(degats, joueur.vigueur, magie.arme_de_garde(arme) if magie != null else arme, joueur.competences.reduction_parade(), origine, sans_parade)
 	joueur.depenser(float(r["cout"]))
 	var point := pivot_epee.global_position + (get_parent() as Node3D).global_transform.basis * Vector3(-0.25, 0.12, -0.15)
 	match String(r["issue"]):

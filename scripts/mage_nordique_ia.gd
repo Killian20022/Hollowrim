@@ -444,6 +444,13 @@ func _reagir(r: Dictionary, vers: Vector3) -> void:
 				_interrompre()
 				_tituber(recul * 0.8, 0.32)
 
+## Magie (docs/MAGIE.md) : choc électrique — interrompt toujours l'incantation du mage.
+func subir_choc(duree: float) -> void:
+	if est_mort or etat == ETOURDI:
+		return
+	_interrompre()
+	_tituber(Vector3.ZERO, duree)
+
 func _tituber(recul: Vector3, duree: float) -> void:
 	_recul = recul
 	_duree_titube = duree

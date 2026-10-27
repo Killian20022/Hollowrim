@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="DonneesArme" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/donnees_arme.gd" id="1_arme"]
+
+[resource]
+script = ExtResource("1_arme")
+id = "bouclier"
+nom = "Bouclier rond"
+categorie = 3
+milieu_poignee = 0.0
+repos_poignee = Vector3(0.3, -0.24, -0.36)
+repos_lame = Vector3(0.1, 0.95, -0.2)
+repos_fil = Vector3(-0.2, 0, -1)
+repos_coude = Vector3(1, -0.3, 0.1)
+profil = "torche"
+degats_leger = 0.0
+degats_lourd = 0.0
+multi_cibles = 0
+reduction_garde = 0.95
+cout_garde = 0.6
+poids = 3.0

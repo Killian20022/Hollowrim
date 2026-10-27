@@ -1,0 +1,15 @@
+{
+	"_doc": "Touches 1 à 0 : équipe les deux mains d'un coup (gauche / droite). Objets : vide, epee (épée selon l'inventaire), torche, bouclier, ou l'id d'un sort (data/sorts/). Reconfigurable ; une main absente du raccourci n'est pas changée.",
+	"raccourcis": [
+		{"touche": "1", "gauche": "torche", "droite": "epee", "nom": "Explorateur"},
+		{"touche": "2", "gauche": "jet_flammes", "droite": "epee", "nom": "Guerrier-mage (feu)"},
+		{"touche": "3", "gauche": "jet_flammes", "droite": "jet_flammes", "nom": "Pyromancien"},
+		{"touche": "4", "gauche": "lance_givre", "droite": "chaine_eclairs", "nom": "Élémentaire"},
+		{"touche": "5", "gauche": "drain_vie", "droite": "boule_feu", "nom": "Hybride"},
+		{"touche": "6", "gauche": "bouclier", "droite": "epee", "nom": "Défensif"},
+		{"touche": "7", "gauche": "vide", "droite": "epee", "nom": "Bretteur"},
+		{"touche": "8", "gauche": "vide", "droite": "chaine_eclairs", "nom": "Mage à une main"},
+		{"touche": "9", "gauche": "soin", "droite": "trait_ombre", "nom": "Mage de survie"},
+		{"touche": "0", "gauche": "protection", "droite": "epee", "nom": "Garde arcanique"}
+	]
+}

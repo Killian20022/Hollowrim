@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_w64o0"]
+
+[resource]
+script = ExtResource("1_w64o0")
+id = "lance_givre"
+nom = "Lance de givre"
+ecole = "glace"
+type = 2
+description = "Maintenir pour charger ; transperce une cible."
+cout = 26.0
+temps_charge = 0.9
+recuperation = 0.4
+recharge = 0.8
+degats = 40.0
+type_degats = "glace"
+statut = "gel"
+puissance_statut = 0.45
+stagger = 26.0
+vitesse = 30.0
+forme = "lance"
+traverse = 1
+double = {
+"cout": 2.4,
+"degats": 2.1,
+"duree_statut": 1.4,
+"ecart": 1.0,
+"nombre_plus": 2,
+"puissance_statut": 1.5,
+"stagger": 1.6,
+"traverse_plus": 2
+}
+profil = "poing"

@@ -224,8 +224,11 @@ func _bouger(dt: float, dir: Vector3, vitesse: float, loco: String, face: Vector
 			if loco != "" or repos != "":
 				_jouer(repos if repos != "" else "Idle")
 	_recul = _recul.lerp(Vector3.ZERO, 1.0 - exp(-6.0 * dt))
-	velocity.x = dir.x * _vit + _recul.x
-	velocity.z = dir.z * _vit + _recul.z
+	var fv := Statuts.facteur_vitesse(self)   # magie : gel (docs/MAGIE.md)
+	if fv < 1.0 and loco != "" and _vit > 0.01:   # la marche vient d'être réglée : jamais cumulé d'une image à l'autre
+		anim.speed_scale *= fv
+	velocity.x = dir.x * _vit * fv + _recul.x
+	velocity.z = dir.z * _vit * fv + _recul.z
 	if absf(velocity.x) + absf(velocity.z) < 0.01 and velocity.y > -0.01 and is_on_floor() and _immo < IMMO_PERIODE:
 		_immo += dt
 		return

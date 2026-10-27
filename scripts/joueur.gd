@@ -4,6 +4,11 @@ extends CharacterBody3D
 
 signal touche(degats: float)
 signal deces
+## Magie (scripts/magie/, docs/MAGIE.md) — contrat avec le HUD (agent effets) : contenu des deux mains (Dictionary :
+## genre "sort" / "arme" / "bouclier" / "torche" / "vide", id, nom, ecole, type, cout…) à chaque changement.
+signal etat_mains_change(gauche: Dictionary, droite: Dictionary)
+## Action refusée (main "gauche" / "droite", raison lisible : « Pas assez de mana », « Recharge », …).
+signal action_refusee(main: String, raison: String)
 
 const MAINS := preload("res://scripts/mains.gd")
 const CORPS := preload("res://scripts/corps_joueur.gd")
@@ -32,6 +37,26 @@ func regler_benediction(active: bool, soigner := false) -> void:
 	vie = minf(vie, vie_max)
 var vigueur := 100.0
 var vigueur_max := 100.0
+## Mana (magie) : payé par les sorts, régénéré REGEN_MANA/s après DELAI_MANA s sans dépense ni incantation.
+var mana := 100.0
+var mana_max := 100.0
+const REGEN_MANA := 7.0
+const DELAI_MANA := 1.2
+var _repos_mana := 0.0
+## Lus par le HUD (agent effets) : charge 0..1 de chaque main, recharges {id_sort: s restantes}, effets actifs du
+## joueur [{nom, duree, ecole}] (protection, enchantement, lenteur…). Tenus par mains.magie (MainSort).
+var charge_gauche: float:
+	get:
+		return mains.magie.charge("gauche") if mains != null and mains.get("magie") != null else 0.0
+var charge_droite: float:
+	get:
+		return mains.magie.charge("droite") if mains != null and mains.get("magie") != null else 0.0
+var recharges: Dictionary:
+	get:
+		return mains.magie.recharges if mains != null and mains.get("magie") != null else {}
+var statuts_actifs: Array:
+	get:
+		return mains.magie.statuts_actifs() if mains != null and mains.get("magie") != null else []
 var mort := false
 var en_dialogue := false  # posé par la boîte de dialogue : ni marche ni combat
 var secousse := 0.0
@@ -138,6 +163,26 @@ func _unhandled_input(e: InputEvent) -> void:
 	elif e is InputEventKey and e.pressed and e.physical_keycode == KEY_ESCAPE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
+## Paie `quantite` de mana si possible (sinon rien n'est retiré) ; la régénération reprend DELAI_MANA s après.
+func depenser_mana(quantite: float) -> bool:
+	if quantite <= 0.0:
+		return true
+	if mana + 0.001 < quantite:
+		return false
+	mana = maxf(0.0, mana - quantite)
+	_repos_mana = DELAI_MANA
+	return true
+
+## Retient la régénération de mana (incantation en cours).
+func retenir_mana() -> void:
+	_repos_mana = maxf(_repos_mana, DELAI_MANA)
+
+## Soin (sort de soin, drain, combo « moisson »).
+func soigner(quantite: float) -> void:
+	if mort or quantite <= 0.0:
+		return
+	vie = minf(vie_max, vie + quantite)
+
 ## Retire de la vigueur ; la récupération reprend une seconde après.
 func depenser(quantite: float) -> void:
 	vigueur = maxf(0.0, vigueur - quantite)
@@ -152,6 +197,12 @@ func recevoir_coup(degats: float, origine: Vector3, options := {}) -> String:
 		return ""
 	var vers := origine - global_position
 	vers.y = 0.0
+	# magie : protection (sort canalisé de face) — absorbe une part du coup contre du mana ; un coup encaissé peut couper
+	# une incantation (MainSort._sur_touche, signal touche)
+	if mains.get("magie") != null:
+		degats = mains.magie.absorber(degats, origine, options)
+		if degats <= 0.0:
+			return "bloque"
 	# garde (phase 3, mains.defendre / DefenseJoueur) : cône de 120° devant, réduction et coût selon l'arme tenue, parade
 	# parfaite dans la fenêtre (anti-spam), garde brisée quand l'endurance ne suffit plus (une partie du coup passe).
 	# Coup « imparable » (troll de givre, mage nordique) : pas de parade parfaite possible, et une part du coup traverse la garde.
@@ -234,6 +285,7 @@ func ressusciter(lieu: Vector3, lacet: float) -> void:
 	velocity = Vector3.ZERO
 	vie = vie_max
 	vigueur = vigueur_max
+	mana = mana_max
 	mort = false
 
 func _physics_process(dt: float) -> void:
@@ -274,6 +326,9 @@ func _physics_process(dt: float) -> void:
 		vigueur = minf(vigueur_max, vigueur + 22.0 * dt)
 	if not mort:
 		vie = minf(vie_max, vie + 0.8 * dt)
+	_repos_mana -= dt
+	if _repos_mana <= 0.0 and not mort:
+		mana = minf(mana_max, mana + REGEN_MANA * dt)
 
 	# pas dans la neige
 	var vitesse_sol := Vector2(velocity.x, velocity.z).length()
