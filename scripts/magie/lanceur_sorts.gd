@@ -69,7 +69,8 @@ static func facteur_charge(s: DonneesSort, charge: float) -> float:
 # ------------------------------------------------------------------ visée
 
 ## Point visé depuis `oeil` le long de `avant` (premier obstacle, ou cible proche du réticule : aide à la visée).
-func viser(oeil: Vector3, avant: Vector3, portee: float) -> Dictionary:
+## `couloir` > 0 (zones visées) : une cible à moins de `couloir` m de la ligne de visée, avant l'obstacle, est visée.
+func viser(oeil: Vector3, avant: Vector3, portee: float, couloir := 0.0) -> Dictionary:
 	var res := {"point": oeil + avant * portee, "normale": -avant, "cible": null, "decor": false}
 	var monde := _monde()
 	if monde != null:
@@ -91,6 +92,16 @@ func viser(oeil: Vector3, avant: Vector3, portee: float) -> Dictionary:
 				res["point"] = centre
 				res["normale"] = -avant
 				res["decor"] = false
+		if couloir > 0.0 and res["cible"] == null:
+			var plus_pres := oeil.distance_to(res["point"]) + 0.6
+			for c in Elements.cibles_dans(oeil, portee):
+				var rel := Elements._centre(c) - oeil
+				var t := rel.dot(avant)
+				if t > 0.5 and t < plus_pres and (rel - avant * t).length() <= couloir and not _mur_entre(oeil, Elements._centre(c)):
+					plus_pres = t
+					res["cible"] = c
+					res["point"] = Elements._centre(c)
+					res["decor"] = false
 	return res
 
 func _monde() -> PhysicsDirectSpaceState3D:
@@ -173,7 +184,7 @@ func lancer(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, charge
 		DonneesSort.Portee.CHAINE:
 			return _chaine(s, depart, oeil, avant, k, s.rebonds)
 		DonneesSort.Portee.ZONE_VISEE:
-			var v := viser(oeil, avant, s.portee)
+			var v := viser(oeil, avant, s.portee, 1.6)
 			return _zone(s, _au_sol(v["point"]), k)
 		DonneesSort.Portee.ZONE_SOI:
 			return _zone(s, _au_sol(lanceur.global_position), k)
