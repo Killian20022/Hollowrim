@@ -268,9 +268,12 @@ Le bras droit est joué par de **vraies animations à images clés** ; plus aucu
   recul, plongée d'équipement et tremblement de charge par-dessus le clip.
 - **Prise au repos (tenue « tranche », 2026-10-27)** : épée DROITE d'après `references/combat_epee/tenue_epee_droite_1100.jpg`
   — lame à 12° de la verticale de l'écran (pointe vers le centre), pointe au bord haut, poing droit (0,52 ; −0,73), poing
-  gauche / torche (−0,60 ; −0,78) ; **plat à 79° de l'œil** (0 = plat face caméra, 90 = tranche : on voit le fil, le plat
-  ≈ 19 % de sa largeur), poignet FIXÉ dans la clé REPOS (k, f, r, phi : même pose au bout de chaque clip). Cible
-  `TRANCHE = 78` pour toutes les poses tenues (repos, sprint, garde `poids_roulis`, armés) ; identique pour les 5 épées.
+  gauche / torche (−0,60 ; −0,78) ; **plat à 71° de l'œil** (0 = plat face caméra, 90 = tranche ; le plat ≈ 32 % de sa largeur
+  — 79° / 19 % avant le retour « tourne un tout petit peu plus l'épée », 2026-10-27), poignet FIXÉ dans la clé REPOS
+  (k=52, f=-11, r=-32, phi=0 : même pose au bout de chaque clip ; trouvé avec `anim_bras_epee.py -- --explorer=REPOS
+  --grille=…`). Cible `TRANCHE_TENUE = 71` pour les poses tenues (repos, sprint, garde brisée, retours B / V3 / P2 ; garde
+  `TRANCHE_TENUE + 4` avec `poids_roulis` : plat obtenu 71-75°, lame à <1° de la direction voulue) ; les armés et frappes
+  gardent `TRANCHE = 78` (trajectoires inchangées). Identique pour les 5 épées.
   Mesures et planches : `outils/mesures_tranche.gd` (voir plus bas), `captures/tranche_trainee/`.
 - **Bras** : brassards d'avant-bras façon Skarnholt (`sources_blender/scripts/brassards_skarnholt.py`, part de
   `sources_blender/bras_fps_lot6.glb`) : coque de cuir à facettes, canon de trois lames de fer rivetées, deux sangles à
