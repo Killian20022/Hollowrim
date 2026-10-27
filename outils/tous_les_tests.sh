@@ -28,6 +28,7 @@ TESTS=(
 	"test_accessibilite_village|--nouvelle --paisible"   # aucune poche fermée autour du village (piège du moulin, 2026-10-26)
 	"test_crypte|--nouvelle"
 	"test_crypte_mort|--nouvelle"
+	"test_crypte_combat|--nouvelle"   # combats enchaînés dans la crypte : sons WAV, caches d'effets, arrêt sur image bref, cadavres (bug « ça rame quand je frappe »)
 	"test_secousse_boss|--nouvelle"
 	"test_squelette|--nouvelle"
 	"test_squelette_traversees|--nouvelle"

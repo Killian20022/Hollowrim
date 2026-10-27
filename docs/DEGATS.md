@@ -128,7 +128,21 @@ même image. Temps d'image moyen : 3,1 ms → 3,9 ms (froid) / 4,0 → 5,4 ms (p
 Pic unique dans l'image des 5 finishers simultanés : 79 ms à froid (première compilation des matériaux d'effets), 49 ms préchauffé
 (5 × copie de tête + ragdoll + sons) — pendant l'arrêt sur image du finisher (0,2 s), donc peu visible ; un finisher réel est
 unique (≈ 10 ms). Correctifs déjà faits : sons de combat préchargés en tâche de fond, au plus 6 sons de combat par image.
-À faire si besoin : préchauffer les matériaux d'effets dans `prechauffe_rendu.gd` (supprime le surcoût « à froid »).
+**Crypte, 2026-10-27 (« ça rame quand je frappe », Iris Xe)** — mesuré dans la vraie crypte (`outils/repro_crypte_combat.gd`,
+alterné avant/après) : 1er coup 120-195 ms dans l'appel → 2-3 ms ; coup léger suivant ~4-10 ms → ~2 ms ; finisher sur draugr
+80-195 ms → 10-20 ms ; gel par coup léger ~70 ms → 0-7 ms. Causes et correctifs :
+- sons Ogg Vorbis : ~1,9 ms de fil principal par lecture (2 à 4 par coup) → copies `.wav` (QOA), lues avant les `.ogg` ;
+- 1re giclée / 1er éclat / 1re décapitation : shaders de particules et textures peintes → `PrechauffeCombat` (caches au
+  chargement + vitrine d'effets rendue hors écran dehors et sous terre par `PrechauffeRendu`) ; matériaux partagés (caches
+  statiques de `Sang`, `Effets`, `Decapitation.mat_bouchon`, `Sang.pm_jet`) : un matériau neuf par effet faisait recompiler le
+  shader dès que le précédent avait disparu ;
+- `rendering/limits/global_shader_variables/buffer_size` = 262144 (le décor + les gardiens dépassaient 65536 : « Too many
+  instances using shader instance variables » à chaque apparition, plus d'éclair sur les ennemis) ;
+- arrêt sur image : option **Arrêt sur image** (`Jeu.option("combat", "arret_image")`) 0 désactivé, **1 bref (défaut)** :
+  ralenti ×0,2 au lieu du gel ×0,03, durées ÷2, rien sous 40 ms (coups légers, coups moyens — tous les coups légers sur un
+  squelette — parade), ralenti de finisher ×0,6 à ×0,5 ; 2 appuyé = valeurs du tableau. Garde-fous dans `Effets` (demande échue
+  ignorée, 1,5 s au plus, `Effets.reinitialiser_temps()` à la mort du joueur).
+Test : `bash outils/tous_les_tests.sh test_crypte_combat`.
 
 ## Débogage et validation
 

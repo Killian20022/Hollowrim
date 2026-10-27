@@ -221,7 +221,7 @@ static func _chemin(nom: String) -> String:
 	if _chemins.has(nom):
 		return _chemins[nom]
 	var trouve := ""
-	for ext in [".ogg", ".wav"]:
+	for ext in [".wav", ".ogg"]:   # .wav d'abord : lecture ~100x moins chère (une lecture Ogg Vorbis coûte ~2 ms de fil principal à son départ)
 		var c: String = "res://assets/sons/" + nom + ext
 		if ResourceLoader.exists(c):
 			trouve = c

@@ -6,7 +6,7 @@ static var _cache := {}
 static func flux(nom: String) -> AudioStream:
 	if not _cache.has(nom):
 		var trouve: AudioStream = null
-		for ext in [".ogg", ".wav"]:
+		for ext in [".wav", ".ogg"]:   # .wav d'abord : lecture ~100x moins chère (une lecture Ogg Vorbis coûte ~2 ms de fil principal à son départ)
 			var chemin: String = "res://assets/sons/" + nom + ext
 			if ResourceLoader.exists(chemin):
 				trouve = load(chemin)

@@ -50,7 +50,7 @@ const OPTIONS_DEFAUT := {
 	"son": {"general": 1.0, "musique": 0.8, "effets": 1.0},
 	"commandes": {"sensibilite": 1.0, "inverser_y": false},
 	"sauvegarde": {"dossier_secours": ""},   # "" = copie de secours désactivée
-	"combat": {"gore": 2},   # sang et gore : 2 complet (défaut), 1 réduit, 0 désactivé (scripts/combat/sang.gd)
+	"combat": {"gore": 2, "arret_image": 1},   # sang et gore : 2 complet (défaut), 1 réduit, 0 désactivé (scripts/combat/sang.gd) ; arrêt sur image des coups : 0 désactivé, 1 bref (défaut), 2 appuyé (scripts/effets.gd)
 }
 static var options := {}
 ## Choisi à l'écran titre : vrai = « Nouvelle partie » (le monde ne lit pas la sauvegarde, comme --nouvelle).

@@ -47,7 +47,13 @@ func _ready() -> void:
 	if env != null:
 		_cam.environment = env                    # variantes de shaders du lieu (brume exponentielle, fond uni) et non celles de dehors
 	if soleil != null:
-		_couches_soleil = soleil.layers
+		# plusieurs préchauffages peuvent tourner en même temps (crypte + effets de combat) : les couches d'origine du soleil sont
+		# gardées UNE fois et rendues quand le dernier s'arrête (sinon le second remettait les couches modifiées par le premier)
+		var id := soleil.get_instance_id()
+		if not _soleil_refs.has(id):
+			_soleil_refs[id] = [soleil.layers, 0]
+		_soleil_refs[id][1] += 1
+		_couches_soleil = int(_soleil_refs[id][0])
 		soleil.layers = 1 << 19                   # couche 20 : vue par la caméra du joueur (toutes couches), pas par la nôtre
 		_cam.cull_mask = 0xFFFFF & ~(1 << 19)
 	_vp.add_child(_cam)
@@ -61,9 +67,17 @@ func annuler() -> void:
 		_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	queue_free()
 
+static var _soleil_refs := {}     # id du soleil -> [couches d'origine, préchauffages en cours]
+
 func _exit_tree() -> void:
 	if soleil != null and is_instance_valid(soleil):
-		soleil.layers = _couches_soleil
+		var id := soleil.get_instance_id()
+		var e: Array = _soleil_refs.get(id, [_couches_soleil, 1])
+		e[1] -= 1
+		if e[1] <= 0:
+			soleil.layers = int(e[0])
+			_soleil_refs.erase(id)
+		soleil = null
 
 func _process(dt: float) -> void:
 	if fini:

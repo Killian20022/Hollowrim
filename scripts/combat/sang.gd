@@ -47,6 +47,14 @@ static func eclats_matiere(n: Node, point: Vector3, direction: Vector3, intensit
 	var dir := direction.normalized() if direction.length() > 0.01 else Vector3.UP
 	_burst(n, point, (dir + Vector3.UP * 0.5).normalized(), clampi(int(14.0 * intensite), 4, 70), 45.0, 1.2, 4.0 * sqrt(intensite), couleur * 0.85, Vector3(0.022, 0.022, 0.022), false)
 
+## Une giclée = un GPUParticles3D éphémère. Ses ressources (matériau de processus, rampe de couleur, cube) sont PARTAGÉES
+## (caches par réglage) : en créer de neuves à chaque coup coûtait des allocations et un envoi de texture par giclée. La direction
+## n'est pas dans le matériau : c'est l'orientation du nœud (la vitesse initiale suit le repère de l'émetteur, la gravité reste
+## celle du monde : local_coords = false).
+static var _pm_cache := {}
+static var _cube_cache := {}
+static var _rampe: GradientTexture1D
+
 static func _burst(n: Node, point: Vector3, dir: Vector3, nombre: int, ecart: float, vmin: float, vmax: float, couleur: Color, taille: Vector3, aligne := true) -> void:
 	var p := GPUParticles3D.new()
 	p.one_shot = true
@@ -56,35 +64,59 @@ static func _burst(n: Node, point: Vector3, dir: Vector3, nombre: int, ecart: fl
 	p.local_coords = false
 	p.visibility_aabb = AABB(Vector3(-5, -5, -5), Vector3(10, 10, 10))
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.process_material = _pm_giclee(ecart, vmin, vmax, aligne)
+	p.draw_pass_1 = _cube(taille, couleur)
+	var scene := n.get_tree().current_scene
+	(scene if scene else n.get_tree().root).add_child(p)
+	p.global_transform = Transform3D(_vers(dir), point)
+	p.emitting = true
+	p.finished.connect(p.queue_free)
+
+## Base dont le +Y pointe vers `dir`.
+static func _vers(dir: Vector3) -> Basis:
+	var y := dir.normalized() if dir.length() > 0.001 else Vector3.UP
+	var x := y.cross(Vector3.FORWARD if absf(y.z) < 0.9 else Vector3.RIGHT).normalized()
+	return Basis(x, y, x.cross(y))
+
+static func _pm_giclee(ecart: float, vmin: float, vmax: float, aligne: bool) -> ParticleProcessMaterial:
+	var cle := "%d|%.1f|%.1f|%s" % [roundi(ecart), vmin, vmax, aligne]
+	if _pm_cache.has(cle):
+		return _pm_cache[cle]
 	var pm := ParticleProcessMaterial.new()
-	pm.direction = dir
+	pm.direction = Vector3.UP
 	pm.spread = ecart
-	pm.initial_velocity_min = vmin
-	pm.initial_velocity_max = vmax
+	pm.initial_velocity_min = snappedf(vmin, 0.1)
+	pm.initial_velocity_max = snappedf(vmax, 0.1)
 	pm.gravity = Vector3(0, -11.0, 0)
 	pm.scale_min = 0.6
 	pm.scale_max = 1.5
 	pm.particle_flag_align_y = aligne
 	pm.color = Color.WHITE
-	var g := Gradient.new()
-	g.set_color(0, Color(1.25, 1.25, 1.25))
-	g.set_color(1, Color(0.6, 0.6, 0.6))
-	var gt := GradientTexture1D.new()
-	gt.gradient = g
-	pm.color_initial_ramp = gt
-	p.process_material = pm
-	var b := BoxMesh.new()
-	b.size = taille
-	b.material = _mat_particule(couleur)
-	p.draw_pass_1 = b
-	var scene := n.get_tree().current_scene
-	(scene if scene else n.get_tree().root).add_child(p)
-	p.global_position = point
-	p.emitting = true
-	p.finished.connect(p.queue_free)
+	if _rampe == null:
+		var g := Gradient.new()
+		g.set_color(0, Color(1.25, 1.25, 1.25))
+		g.set_color(1, Color(0.6, 0.6, 0.6))
+		_rampe = GradientTexture1D.new()
+		_rampe.gradient = g
+	pm.color_initial_ramp = _rampe
+	if _pm_cache.size() > 64:
+		_pm_cache.clear()
+	_pm_cache[cle] = pm
+	return pm
+
+static func _cube(taille: Vector3, couleur: Color) -> BoxMesh:
+	var cle := "%s|%s" % [taille, couleur]
+	if not _cube_cache.has(cle):
+		var b := BoxMesh.new()
+		b.size = taille
+		b.material = _mat_particule(couleur)
+		if _cube_cache.size() > 64:
+			_cube_cache.clear()
+		_cube_cache[cle] = b
+	return _cube_cache[cle]
 
 static func _mat_particule(c: Color) -> StandardMaterial3D:
-	var cle := c.to_html()
+	var cle := str(c)
 	if not _mat_part.has(cle):
 		var m := StandardMaterial3D.new()
 		m.vertex_color_use_as_albedo = true
@@ -142,6 +174,22 @@ static func sol_sous(n: Node3D, pos: Vector3, haut := 0.6, bas := 3.0) -> Dictio
 
 # ------------------------------------------------------------------ jets (cou tranché)
 
+## Matériau de processus des jets, partagé (un neuf par jet : ~12 ms de shader recompilé au premier jet suivant).
+static var _pm_jets := {}
+static func pm_jet(niv: int) -> ParticleProcessMaterial:
+	if not _pm_jets.has(niv):
+		var pm := ParticleProcessMaterial.new()
+		pm.direction = Vector3.UP
+		pm.spread = 10.0
+		pm.initial_velocity_min = 2.2
+		pm.initial_velocity_max = 4.2 if niv == 2 else 2.8
+		pm.gravity = Vector3(0, -11.0, 0)
+		pm.scale_min = 0.7
+		pm.scale_max = 1.6
+		pm.particle_flag_align_y = true
+		_pm_jets[niv] = pm
+	return _pm_jets[niv]
+
 ## Jet pulsé (battements) attaché à `attache` (ex. BoneAttachment3D du cou) ; +Y local de `local` = sens du jet.
 static func jet(attache: Node3D, local: Transform3D, couleur: Color, duree := 2.4) -> GPUParticles3D:
 	var niv := niveau()
@@ -154,20 +202,8 @@ static func jet(attache: Node3D, local: Transform3D, couleur: Color, duree := 2.
 	p.local_coords = false
 	p.visibility_aabb = AABB(Vector3(-4, -4, -4), Vector3(8, 8, 8))
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var pm := ParticleProcessMaterial.new()
-	pm.direction = Vector3.UP
-	pm.spread = 10.0
-	pm.initial_velocity_min = 2.2
-	pm.initial_velocity_max = 4.2 if niv == 2 else 2.8
-	pm.gravity = Vector3(0, -11.0, 0)
-	pm.scale_min = 0.7
-	pm.scale_max = 1.6
-	pm.particle_flag_align_y = true
-	p.process_material = pm
-	var b := BoxMesh.new()
-	b.size = Vector3(0.03, 0.08, 0.03)
-	b.material = _mat_particule(couleur)
-	p.draw_pass_1 = b
+	p.process_material = pm_jet(niv)
+	p.draw_pass_1 = _cube(Vector3(0.03, 0.08, 0.03), couleur)
 	attache.add_child(p)
 	p.transform = local
 	p.emitting = true

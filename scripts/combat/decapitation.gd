@@ -175,14 +175,23 @@ static func _bouchon(parent: Node3D, t: Transform3D, c: Color, rayon: float) -> 
 	cy.radial_segments = 8
 	cy.rings = 1
 	mi.mesh = cy
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = Sang.texture("flaque", 1)
-	m.albedo_color = c
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	m.roughness = 0.3
-	mi.material_override = m
+	mi.material_override = mat_bouchon(c)
 	parent.add_child(mi)
 	mi.transform = t
+
+## Matériau des bouchons de cou, partagé par couleur (un matériau neuf par coupe coûtait ~25 ms : shader recompilé dès que le
+## dernier matériau du même genre avait disparu).
+static var _mats_bouchon := {}
+static func mat_bouchon(c: Color) -> StandardMaterial3D:
+	var cle := str(c)
+	if not _mats_bouchon.has(cle):
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = Sang.texture("flaque", 1)
+		m.albedo_color = c
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		m.roughness = 0.3
+		_mats_bouchon[cle] = m
+	return _mats_bouchon[cle]
 
 ## Gouttes et traces quand la tête roule (au plus 5 traces).
 static func _gouttes_tete(rb: RigidBody3D, couleur: Color) -> void:
