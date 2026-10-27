@@ -82,6 +82,17 @@ enum Categorie { VIDE, EPEE, TORCHE, BOUCLIER, SORT }
 @export var allonge := 0.45
 ## Points échantillonnés le long du segment (garde → pointe + allonge).
 @export var points_trace := 5
+## Portée de jeu depuis l'œil (m) : les coups sont dessinés EN ESPACE ÉCRAN (la lame balaie l'écran en travers, à
+## 0,5-1 m de la caméra) ; le tracé projette chaque point de la lame vu à l'écran le long de son rayon de visée, de
+## `portee_garde` (garde) à `portee` (pointe) : ce que la lame couvre à l'écran, dans la portée, est touché.
+@export var portee := 2.0
+@export var portee_garde := 0.6
+
+@export_group("Traînée de lame")
+## Couleur de la traînée pixel (ruban garde → pointe pendant la frappe) ; `couleur_trainee_coeur` : le bord vif côté
+## pointe. Blanc acier, or, rubis, verre, obsidienne.
+@export var couleur_trainee := Color(0.5, 0.64, 0.9)
+@export var couleur_trainee_coeur := Color(0.94, 0.97, 1.0)
 
 func est_arme() -> bool:
 	return categorie == Categorie.EPEE

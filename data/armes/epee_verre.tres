@@ -32,3 +32,5 @@ garde = Vector3(0, 0.096, 0)
 pointe = Vector3(0, 0.955, 0)
 allonge = 0.33
 points_trace = 5
+couleur_trainee = Color(0.2, 0.8, 0.45, 1)
+couleur_trainee_coeur = Color(0.7, 1, 0.78, 1)

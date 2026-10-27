@@ -2,36 +2,38 @@ class_name GestesDefense
 ## Gestes et poses de la phase 3 (défense, contre-attaque, finishers) en vue FPS, À PART des profils d'attaque
 ## (ProfilsAnimation.PROFILS : coups légers / lourds et pose de repos, réglés sur une autre branche) : ce fichier ne
 ## dépend pas de leurs clés, on peut refaire les coups sans toucher à la défense et inversement.
-## Même format que ProfilsAnimation : gestes à quatre clés [poignée, lame, pôle du coude, tranchant] (repère caméra :
-## +X droite, +Y haut, -Z devant) jouées par ProfilsAnimation.pose_cle / pose_active ; poses tenues [poignée, lame, tranchant].
+## Même approche que les coups (ProfilsAnimation, passe 4) : gestes CONÇUS EN ESPACE ÉCRAN, quatre clés {g : garde à
+## l'écran (x -1 → +1, y -1 → +1), z : profondeur de la garde (m), t : pointe à l'écran} résolues par
+## ProfilsAnimation.cle_ecran ; la lame balaie EN TRAVERS de l'écran (jamais vue en bout), le tranchant suit l'arc, le
+## coude est placé à chaque image par mains._pole_ecran (pas de poignet cassé). Poses tenues [poignée, lame, tranchant].
 ## Durées pour une arme de vitesse 1 (DonneesArme.vitesse les divise, sauf les finishers : durée fixe, ≤ 0,8 s).
 
 const GESTES := {
-	# contre-attaque après une parade parfaite : la lame part de la garde (à gauche, haute) et fend en diagonale vers le bas à
-	# droite, bras tendu, plus ample et plus rapide qu'un coup léger (préparation courte : l'épée est déjà levée)
+	# contre-attaque après une parade parfaite : la lame part de la garde (haut gauche) et fend en grande diagonale jusqu'en
+	# bas à droite, plus ample et plus rapide qu'un coup léger (préparation courte : l'épée est déjà levée)
 	"contre": {
-		"armer": [Vector3(-0.16, 0.04, -0.42), Vector3(-0.3, 0.82, 0.48), Vector3(0.05, -0.4, 0.65), Vector3(-0.82, 0.04, -0.57)],
-		"milieu": [Vector3(-0.06, -0.13, -0.56), Vector3(0.38, 0.4, -0.83), Vector3(0.05, -0.4, 0.65), Vector3(-0.93, 0.26, -0.28)],
-		"fin": [Vector3(0.16, -0.4, -0.42), Vector3(0.78, -0.48, -0.4), Vector3(0.05, -0.4, 0.65), Vector3(0.01, 0.72, -0.7)],
-		"suivi": [Vector3(0.24, -0.48, -0.32), Vector3(0.74, -0.32, -0.6), Vector3(0.05, -0.4, 0.65), Vector3(-0.13, 0.85, -0.51)],
-		"preparation": 0.06, "tenue": 0.03, "active": 0.12, "acceleration": 2.8, "suivi_duree": 0.10, "recuperation": 0.34,
-		"fenetre": [0.06, 1.0], "cotes": [-1, 1], "enchainement": [0.08, 0.8], "force": 1.4,
+		"armer": {"g": Vector2(-0.5, -0.05), "z": 0.7, "t": Vector2(-0.55, 1.15)},
+		"milieu": {"g": Vector2(-0.02, -0.4), "z": 0.56, "t": Vector2(0.45, 1.05)},
+		"fin": {"g": Vector2(0.34, -0.7), "z": 0.6, "t": Vector2(1.05, 0.35)},
+		"suivi": {"g": Vector2(0.4, -0.76), "z": 0.63, "t": Vector2(1.08, 0.1)},
+		"preparation": 0.06, "tenue": 0.03, "active": 0.09, "acceleration": 2.8, "suivi_duree": 0.09, "recuperation": 0.34,
+		"fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.08, 0.8], "force": 1.4, "tassement": 0.6,
 	},
-	# finisher de taille (décapitation) : élan large derrière l'épaule droite, coupe horizontale à hauteur du cou, de droite à
-	# gauche ; la caméra est verrouillée sur le cou de la cible pendant l'élan et le coup
+	# finisher de taille (décapitation) : élan à droite, lame dressée vers l'extérieur, puis coupe HORIZONTALE qui traverse
+	# le centre de l'écran — là où la caméra verrouillée a mis le cou de la cible — et finit à gauche
 	"finisher_taille": {
-		"armer": [Vector3(0.3, -0.1, -0.32), Vector3(0.92, 0.28, 0.28), Vector3(0.05, -0.65, 0.95), Vector3(0.13, 0.16, -0.98)],
-		"milieu": [Vector3(-0.06, -0.1, -0.54), Vector3(-0.04, 0.02, -1.0), Vector3(0.05, -0.65, 0.95), Vector3(-0.91, 0.42, 0.04)],
-		"fin": [Vector3(-0.38, -0.14, -0.38), Vector3(-0.93, 0.05, 0.36), Vector3(0.05, -0.65, 0.95), Vector3(-0.36, 0.09, -0.93)],
-		"suivi": [Vector3(-0.46, -0.2, -0.26), Vector3(-0.8, -0.05, 0.6), Vector3(0.05, -0.65, 0.95), Vector3(-0.58, 0.09, -0.81)],
+		"armer": {"g": Vector2(0.55, -0.35), "z": 0.75, "t": Vector2(1.12, 0.3)},
+		"milieu": {"g": Vector2(0.05, -0.32), "z": 0.55, "t": Vector2(-0.25, 0.32)},
+		"fin": {"g": Vector2(-0.4, -0.45), "z": 0.75, "t": Vector2(-1.1, 0.08)},
+		"suivi": {"g": Vector2(-0.48, -0.52), "z": 0.8, "t": Vector2(-1.1, -0.15)},
 		"acceleration": 2.6,
 	},
-	# finisher au sol (coup de grâce) : épée levée haut, abattue vers le corps à terre
+	# finisher au sol (coup de grâce) : épée levée haut, abattue verticalement à travers le centre sur le corps à terre
 	"finisher_sol": {
-		"armer": [Vector3(0.24, 0.12, -0.2), Vector3(0.2, 0.5, 0.84), Vector3(0.35, 0.0, -0.4), Vector3(0.03, 0.92, -0.39)],
-		"milieu": [Vector3(0.08, -0.06, -0.52), Vector3(-0.05, 0.1, -0.99), Vector3(0.05, -0.4, -0.25), Vector3(-0.22, 0.95, 0.2)],
-		"fin": [Vector3(0.02, -0.44, -0.46), Vector3(-0.06, -0.7, -0.71), Vector3(0.05, -0.4, -0.25), Vector3(0.04, 0.68, -0.73)],
-		"suivi": [Vector3(0.0, -0.5, -0.4), Vector3(-0.06, -0.85, -0.52), Vector3(0.05, -0.4, -0.25), Vector3(0.25, 0.27, -0.93)],
+		"armer": {"g": Vector2(0.25, 0.02), "z": 0.73, "t": Vector2(0.02, 1.15)},
+		"milieu": {"g": Vector2(0.14, -0.24), "z": 0.64, "t": Vector2(-0.68, 0.1)},
+		"fin": {"g": Vector2(0.06, -0.74), "z": 0.55, "t": Vector2(-0.85, -0.02)},
+		"suivi": {"g": Vector2(0.03, -0.8), "z": 0.55, "t": Vector2(-0.78, -0.06)},
 		"acceleration": 2.2,
 	},
 }
@@ -55,8 +57,16 @@ const FINISHER_RALENTI := 0.7
 ## Vitesse de verrouillage de la caméra sur la cible (1/s) et part de la séquence pendant laquelle il dure (élan + coup).
 const FINISHER_VERROU := 14.0
 
+static var _cache := {}
+
+## Geste résolu (clés écran → [poignée, lame, pôle]) au format de ProfilsAnimation.pose_cle / pose_active.
 static func geste(nom: String) -> Dictionary:
-	return GESTES[nom]
+	if not _cache.has(nom):
+		var r: Dictionary = GESTES[nom].duplicate()
+		for k in ProfilsAnimation.CLES:
+			r[k] = ProfilsAnimation.cle_ecran(r[k])
+		_cache[nom] = r
+	return _cache[nom]
 
 static func pose(nom: String) -> Transform3D:
 	return ProfilsAnimation.transform_pose(POSES[nom])

@@ -6,82 +6,87 @@ class_name ProfilsAnimation
 ## Les durées sont en secondes pour une arme de vitesse 1 (DonneesArme.vitesse les divise).
 ## Les mêmes fonctions servent à l'image affichée ET au tracé de lame : ce que l'on voit est ce qui touche.
 
-## Gestes d'attaque : quatre CLÉS par geste (armer = A, milieu, fin = B, suivi = dépassement après B), chacune
-## [position de la poignée, direction de la lame, pôle du coude] (repère caméra). Le tranchant n'est PAS authoré : il suit
-## la TANGENTE de l'arc décrit par la pointe (tranchant devant, aucune rotation de la lame sur elle-même) ; le pôle du coude
-## est animé avec la main pour que l'avant-bras porte la lame : POIGNET RIGIDE (déviation bornée à ±15° pendant les coups,
-## mains.gd), le mouvement vient de l'épaule et du coude. Pôles réglés par outils/regler_gestes.gd (écart image / tracé).
+## Gestes d'attaque CONÇUS EN ESPACE ÉCRAN (passe 4) : un viewmodel FPS (Skyrim, Mordhau, Chivalry) fait balayer la
+## lame EN TRAVERS de l'écran, jamais vers la cible en profondeur (elle serait vue en bout). Quatre CLÉS par geste
+## (armer = A, milieu, fin = B, suivi = dépassement après B), chacune un dictionnaire écran :
+##   g : position ÉCRAN de la garde (coordonnées normalisées : x -1 gauche → +1 droite, y -1 bas → +1 haut) ;
+##   z : profondeur de la garde devant la caméra (m) ;
+##   t : position ÉCRAN de la pointe (même repère) ; sa profondeur découle de la longueur de la lame (0,87 m).
+## Garde et pointe dans l'écran = lame entière visible ; écartées à l'écran = lame vue de travers (angle avec le
+## rayon de visée ≥ 50°, mesuré par l'outil).
+## La main se déduit de la garde ; le tranchant suit la TANGENTE de l'arc décrit par la pointe (le tranchant mène, la
+## lame ne tourne pas sur elle-même) ; le coude est placé à chaque image pour que l'avant-bras prolonge la poignée À
+## L'ÉCRAN (mains._pole_ecran) : pas de poignet cassé visible. Mesures : outils/captures_combat_epee.gd -- --mesures.
 ## Rythme d'un coup : préparation (vers A) → tenue (A lisible, 2-3 images) → frappe A → B très rapide (courbe d'accélération
-## `acceleration`) → suivi bref qui dépasse B (`suivi`, s) → retour au repos ou coup suivant.
+## `acceleration`) → suivi bref qui dépasse B (`suivi_duree`, s) → retour au repos ou coup suivant.
 ## « cotes » = [côté de départ, côté d'arrivée] (+1 droite, -1 gauche, 0 centre) ; « enchainement » = fenêtre de combo
 ## [début (s), fin (part de la récupération)] ; « force » = multiplicateur de dégâts du geste ; « fenetre » = part de la
-## frappe où la lame blesse.
+## frappe où la lame blesse ; « tassement » = petit tassement de la caméra à la fin de la frappe (coup 3, lourd).
 const PROFILS := {
 	"epee_longue": {
-		# enchaînement de base à l'arrêt : 1 diagonale → 2 horizontal (revers) → 3 vertical (le plus fort)
+		# enchaînement de base à l'arrêt : 1 diagonale → 2 horizontal → 3 vertical (le plus fort)
 		"combo": ["diag_dg", "horizontale_gd", "verticale_l"],
 		"lourd": "verticale",
 		"gestes": {
-			# coup 1 : diagonale haut-droite → bas-gauche, armée au-dessus de l'épaule droite
+			# coup 1 : armé en haut à droite, la lame balaie en DIAGONALE à travers le centre jusqu'en bas à gauche
 			"diag_dg": {
-				"armer": [Vector3(0.34, -0.02, -0.34), Vector3(0.67, 0.67, -0.32), Vector3(0.2, -0.4, 0.4), Vector3(-0.33, -0.11, -0.94)],
-				"milieu": [Vector3(0.1, -0.14, -0.5), Vector3(-0.2, 0.0, -0.98), Vector3(0.05, -0.4, 0.4), Vector3(0.75, 0.64, -0.15)],
-				"fin": [Vector3(-0.12, -0.38, -0.4), Vector3(-0.77, -0.48, -0.42), Vector3(0.05, -0.4, 0.4), Vector3(0.14, 0.52, -0.84)],
-				"suivi": [Vector3(-0.18, -0.45, -0.32), Vector3(-0.62, -0.78, -0.1), Vector3(0.05, -0.4, 0.4), Vector3(-0.41, 0.43, -0.8)],
-				"preparation": 0.09, "tenue": 0.04, "active": 0.13, "acceleration": 2.4, "suivi_duree": 0.07, "recuperation": 0.30,
-				"fenetre": [0.08, 1.0], "cotes": [1, -1], "enchainement": [0.04, 0.9], "force": 1.0,
+				"armer": {"g": Vector2(0.6, -0.1), "z": 0.63, "t": Vector2(0.38, 1.15)},
+				"milieu": {"g": Vector2(0.2, -0.4), "z": 0.55, "t": Vector2(-0.34, 1.07)},
+				"fin": {"g": Vector2(-0.22, -0.72), "z": 0.69, "t": Vector2(-1.11, -0.09)},
+				"suivi": {"g": Vector2(-0.28, -0.74), "z": 0.72, "t": Vector2(-0.98, -0.28)},
+				"preparation": 0.10, "tenue": 0.04, "active": 0.09, "acceleration": 2.6, "suivi_duree": 0.07, "recuperation": 0.30,
+				"fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.04, 0.9], "force": 1.0,
 			},
-			# coup 2 : horizontal gauche → droite (revers), lame à plat à hauteur de poitrine ; repart d'où le 1 a fini
+			# coup 2 : repart de bas-gauche, lame à plat, la pointe balaie HORIZONTALEMENT de gauche à droite (poitrine)
 			"horizontale_gd": {
-				"armer": [Vector3(-0.2, -0.14, -0.4), Vector3(-0.99, 0.08, 0.1), Vector3(0.05, 0.15, -0.55), Vector3(-0.05, 0.52, -0.85)],
-				"milieu": [Vector3(0.08, -0.16, -0.52), Vector3(0.25, 0.03, -0.97), Vector3(0.05, 0.15, -0.55), Vector3(-0.85, 0.49, -0.2)],
-				"fin": [Vector3(0.36, -0.18, -0.4), Vector3(0.99, 0.0, 0.1), Vector3(0.05, 0.15, -0.55), Vector3(0.1, 0.09, -0.99)],
-				"suivi": [Vector3(0.42, -0.2, -0.32), Vector3(0.86, -0.05, 0.51), Vector3(0.05, 0.15, -0.55), Vector3(0.51, -0.01, -0.86)],
-				"preparation": 0.10, "tenue": 0.05, "active": 0.15, "acceleration": 1.8, "suivi_duree": 0.08, "recuperation": 0.32,
-				"fenetre": [0.08, 1.0], "cotes": [-1, 1], "enchainement": [0.04, 0.9], "force": 1.0,
+				"armer": {"g": Vector2(-0.36, -0.6), "z": 0.77, "t": Vector2(-0.98, 0.26)},
+				"milieu": {"g": Vector2(0.0, -0.68), "z": 0.55, "t": Vector2(0.0, 0.92)},
+				"fin": {"g": Vector2(0.36, -0.6), "z": 0.77, "t": Vector2(0.98, 0.26)},
+				"suivi": {"g": Vector2(0.45, -0.64), "z": 0.8, "t": Vector2(1.07, -0.12)},
+				"preparation": 0.11, "tenue": 0.04, "active": 0.09, "acceleration": 2.2, "suivi_duree": 0.07, "recuperation": 0.30,
+				"fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.04, 0.9], "force": 1.0,
 			},
-			# coup 3 : vertical, épée levée au-dessus de la tête, frappe droite au centre, finit basse devant (le plus fort)
+			# coup 3 : armé haut (main en haut, un peu à droite du centre, lame dressée), frappe VERTICALE de haut en bas à
+			# travers le centre, finit basse ; le plus fort, un peu plus lent, tassement de la caméra à l'impact
 			"verticale_l": {
-				"armer": [Vector3(0.18, 0.1, -0.36), Vector3(0.11, 0.89, 0.45), Vector3(0.2, -0.8, -0.4), Vector3(-0.2, 0.46, -0.86)],
-				"milieu": [Vector3(0.08, -0.04, -0.52), Vector3(0.0, 0.3, -0.95), Vector3(0.2, -0.25, 0.95), Vector3(-0.42, 0.87, 0.27)],
-				"fin": [Vector3(0.06, -0.32, -0.5), Vector3(0.0, -0.55, -0.83), Vector3(0.2, -0.25, 0.95), Vector3(-0.06, 0.83, -0.55)],
-				"suivi": [Vector3(0.06, -0.4, -0.44), Vector3(0.0, -0.8, -0.6), Vector3(0.2, -0.25, 0.95), Vector3(0.27, 0.58, -0.77)],
-				"preparation": 0.13, "tenue": 0.06, "active": 0.14, "acceleration": 3.0, "suivi_duree": 0.08, "recuperation": 0.36,
-				"fenetre": [0.08, 1.0], "cotes": [1, 0], "enchainement": [0.06, 0.85], "force": 1.25,
+				"armer": {"g": Vector2(0.25, 0.0), "z": 0.73, "t": Vector2(0.0, 1.15)},
+				"milieu": {"g": Vector2(0.14, -0.24), "z": 0.64, "t": Vector2(-0.71, 0.08)},
+				"fin": {"g": Vector2(0.06, -0.74), "z": 0.55, "t": Vector2(-0.85, -0.02)},
+				"suivi": {"g": Vector2(0.03, -0.8), "z": 0.55, "t": Vector2(-0.78, -0.06)},
+				"preparation": 0.12, "tenue": 0.05, "active": 0.10, "acceleration": 3.0, "suivi_duree": 0.08, "recuperation": 0.34,
+				"fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.06, 0.85], "force": 1.25, "tassement": 1.0,
 			},
-			# variantes contextuelles : diagonale revers (miroir du coup 1), horizontal droite → gauche (miroir du coup 2)
+			# variantes contextuelles : diagonale revers (main partie de l'épaule gauche, finit en bas à droite, lame toujours
+			# levée : un vrai miroir du coup 1 tordrait le bras droit), horizontal droite → gauche (miroir du coup 2)
 			"diag_gd": {
-				"armer": [Vector3(-0.3, 0.02, -0.25), Vector3(-0.35, 0.75, 0.55), Vector3(0.05, -0.4, 0.65), Vector3(-0.82, 0.04, -0.57)],
-				"milieu": [Vector3(-0.08, -0.15, -0.5), Vector3(0.36, 0.42, -0.83), Vector3(0.05, -0.4, 0.65), Vector3(-0.93, 0.26, -0.28)],
-				"fin": [Vector3(0.12, -0.38, -0.4), Vector3(0.76, -0.46, -0.46), Vector3(0.05, -0.4, 0.65), Vector3(0.01, 0.72, -0.7)],
-				"suivi": [Vector3(0.18, -0.45, -0.32), Vector3(0.73, -0.27, -0.63), Vector3(0.05, -0.4, 0.65), Vector3(-0.13, 0.85, -0.51)],
-				"preparation": 0.11, "tenue": 0.04, "active": 0.13, "acceleration": 2.4, "suivi_duree": 0.07, "recuperation": 0.30,
-				"fenetre": [0.08, 1.0], "cotes": [-1, 1], "enchainement": [0.04, 0.9], "force": 1.0},
-			"horizontale": {
-				"armer": [Vector3(0.15, -0.22, -0.32), Vector3(0.97, 0.17, 0.16), Vector3(0.05, -0.65, 0.95), Vector3(0.13, 0.16, -0.98)],
-				"milieu": [Vector3(-0.08, -0.2, -0.52), Vector3(-0.04, 0.0, -1.0), Vector3(0.05, -0.65, 0.95), Vector3(-0.91, 0.42, 0.04)],
-				"fin": [Vector3(-0.36, -0.22, -0.38), Vector3(-0.93, 0.05, 0.36), Vector3(0.05, -0.65, 0.95), Vector3(-0.36, 0.09, -0.93)],
-				"suivi": [Vector3(-0.42, -0.24, -0.28), Vector3(-0.82, 0.01, 0.58), Vector3(0.05, -0.65, 0.95), Vector3(-0.58, 0.09, -0.81)],
-				"preparation": 0.10, "tenue": 0.05, "active": 0.15, "acceleration": 1.8, "suivi_duree": 0.08, "recuperation": 0.32,
-				"fenetre": [0.08, 1.0], "cotes": [1, -1], "enchainement": [0.04, 0.9], "force": 1.0},
-			# estoc (en reculant) : la lame part de la hanche et pique droit devant (tranchant imposé : l'arc est rectiligne)
+				"armer": {"g": Vector2(-0.42, -0.12), "z": 0.67, "t": Vector2(-0.29, 1.15)},
+				"milieu": {"g": Vector2(-0.05, -0.42), "z": 0.59, "t": Vector2(0.32, 1.14)},
+				"fin": {"g": Vector2(0.28, -0.68), "z": 0.55, "t": Vector2(0.61, 0.91)},
+				"suivi": {"g": Vector2(0.35, -0.74), "z": 0.55, "t": Vector2(0.76, 0.72)},
+				"preparation": 0.11, "tenue": 0.04, "active": 0.09, "acceleration": 2.6, "suivi_duree": 0.07, "recuperation": 0.30,
+				"fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.04, 0.9], "force": 1.0},
+			"horizontale": {"miroir": "horizontale_gd",
+				"preparation": 0.11, "tenue": 0.04, "active": 0.09, "acceleration": 2.2, "suivi_duree": 0.07, "recuperation": 0.30,
+				"fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.04, 0.9], "force": 1.0},
+			# estoc (en reculant) : la main part de la hanche droite et pique vers le centre en s'enfonçant ; la lame garde son
+			# angle à l'écran (≥ 50° avec le rayon de visée : jamais vue en bout), tranchant à plat (fil imposé)
 			"estoc": {
-				"armer": [Vector3(0.24, -0.3, -0.22), Vector3(-0.04, 0.18, -0.98), Vector3(0.5, -0.4, 0.65), Vector3(-1.0, -0.04, 0.03)],
-				"milieu": [Vector3(0.14, -0.22, -0.52), Vector3(0.01, 0.1, -1.0), Vector3(0.5, -0.4, 0.65), Vector3(-1.0, 0.02, -0.01)],
-				"fin": [Vector3(0.08, -0.2, -0.62), Vector3(0.06, -0.25, -0.97), Vector3(0.5, -0.4, 0.65), Vector3(-0.34, 0.9, -0.25)],
-				"suivi": [Vector3(0.08, -0.21, -0.65), Vector3(0.06, -0.27, -0.96), Vector3(0.5, -0.4, 0.65), Vector3(-0.35, 0.89, -0.28)],
-				"fil": Vector3(-1.0, 0.0, 0.0),
-				"preparation": 0.11, "tenue": 0.04, "active": 0.12, "acceleration": 2.0, "suivi_duree": 0.05, "recuperation": 0.30,
+				"armer": {"g": Vector2(0.5, -0.62), "z": 0.55, "t": Vector2(-0.06, 0.21)},
+				"milieu": {"g": Vector2(0.34, -0.5), "z": 0.55, "t": Vector2(-0.24, 0.36)},
+				"fin": {"g": Vector2(0.24, -0.42), "z": 0.56, "t": Vector2(-0.37, 0.5)},
+				"suivi": {"g": Vector2(0.22, -0.4), "z": 0.57, "t": Vector2(-0.4, 0.54)},
+				"fil": Vector3(0.0, 1.0, 0.0),
+				"preparation": 0.11, "tenue": 0.04, "active": 0.10, "acceleration": 2.0, "suivi_duree": 0.05, "recuperation": 0.30,
 				"fenetre": [0.25, 1.0], "cotes": [0, 0], "enchainement": [0.06, 0.8], "force": 1.0,
 			},
-			# coup lourd : armé large derrière l'épaule droite (pose de charge), abattu de haut en bas
+			# coup lourd : armé large au-dessus de l'épaule droite (pose de charge), abattu en grand arc à travers l'écran
 			"verticale": {
-				"armer": [Vector3(0.3, 0.06, -0.18), Vector3(0.25, 0.38, 0.89), Vector3(0.35, 0.0, -0.4), Vector3(0.03, 0.92, -0.39)],
-				"milieu": [Vector3(0.08, -0.04, -0.52), Vector3(-0.05, 0.2, -0.98), Vector3(0.05, -0.4, -0.25), Vector3(-0.22, 0.95, 0.2)],
-				"fin": [Vector3(0.0, -0.42, -0.42), Vector3(-0.1, -0.73, -0.68), Vector3(0.05, -0.4, -0.25), Vector3(0.04, 0.68, -0.73)],
-				"suivi": [Vector3(-0.02, -0.5, -0.32), Vector3(-0.1, -0.95, -0.3), Vector3(0.05, -0.4, -0.25), Vector3(0.25, 0.27, -0.93)],
-				"preparation": 0.06, "tenue": 0.0, "active": 0.20, "acceleration": 2.6, "suivi_duree": 0.10, "recuperation": 0.46,
-				"fenetre": [0.06, 1.0], "cotes": [1, 0], "enchainement": [0.08, 0.8], "force": 1.0,
+				"armer": {"g": Vector2(0.62, -0.12), "z": 0.71, "t": Vector2(0.65, 1.16)},
+				"milieu": {"g": Vector2(0.2, -0.38), "z": 0.55, "t": Vector2(-0.41, 1.01)},
+				"fin": {"g": Vector2(-0.12, -0.72), "z": 0.63, "t": Vector2(-1.07, -0.11)},
+				"suivi": {"g": Vector2(-0.2, -0.76), "z": 0.68, "t": Vector2(-0.98, -0.42)},
+				"preparation": 0.06, "tenue": 0.0, "active": 0.14, "acceleration": 2.8, "suivi_duree": 0.10, "recuperation": 0.46,
+				"fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.08, 0.8], "force": 1.0, "tassement": 1.0,
 			},
 		},
 		# poses tenues [poignée, lame, tranchant]
@@ -99,22 +104,60 @@ const LAME_TANGENTE := 0.8
 static func profil(nom: String) -> Dictionary:
 	return PROFILS.get(nom, PROFILS["epee_longue"])
 
-## Geste résolu (les gestes « miroir » sont recopiés côté opposé : poignée et lame en miroir, pôle du coude gardé du
-## côté droit, le bras qui tient l'épée).
+## Optique de la caméra du joueur (joueur.gd : fov 72° vertical, écran 16:9) : conversion des clés écran.
+const TAN_V := 0.7265
+const TAN_H := 0.7265 * 16.0 / 9.0
+## Distance de l'origine de l'objet (pommeau) à la garde, le long de la lame (épées longues : 0,096-0,1).
+const GARDE_Y := 0.098
+static var _cache := {}
+
+## Point (repère caméra) vu à la position écran `e` (normalisée) et à la profondeur z.
+static func point_ecran(e: Vector2, z: float) -> Vector3:
+	return Vector3(e.x * TAN_H * z, e.y * TAN_V * z, -z)
+
+## Position écran normalisée d'un point du repère caméra.
+static func vers_ecran(p: Vector3) -> Vector2:
+	var z := maxf(-p.z, 0.001)
+	return Vector2(p.x / z / TAN_H, p.y / z / TAN_V)
+
+## Longueur de lame (garde → pointe) des épées longues.
+const LONGUEUR_LAME := 0.87
+
+## Clé écran {g, z, t} → [position de l'objet (pommeau), direction de la lame, pôle (calculé à l'image : ZERO)].
+## La pointe est sur le rayon de visée de `t`, à la distance de la garde qui donne la longueur de la lame (racine la
+## plus lointaine : la pointe part en profondeur, jamais vers la caméra).
+static func cle_ecran(c: Dictionary) -> Array:
+	var garde := point_ecran(c["g"], float(c["z"]))
+	var d := point_ecran(c["t"], 1.0)
+	var dd := d.dot(d)
+	var dg := d.dot(garde)
+	var disc := dg * dg - dd * (garde.dot(garde) - LONGUEUR_LAME * LONGUEUR_LAME)
+	var k := (dg + sqrt(maxf(disc, 0.0))) / dd
+	var lame := (d * k - garde).normalized()
+	return [garde - lame * GARDE_Y, lame, Vector3.ZERO]
+
+## Geste résolu : clés écran converties en [poignée, lame, pôle] ; les gestes « miroir » sont recopiés côté opposé
+## (poignée et lame en miroir de l'écran).
 static func geste(nom_profil: String, nom_geste: String) -> Dictionary:
+	var cle := nom_profil + "/" + nom_geste
+	if _cache.has(cle):
+		return _cache[cle]
 	var gestes: Dictionary = profil(nom_profil)["gestes"]
 	var g: Dictionary = gestes[nom_geste]
-	if g.has("miroir"):
-		var src: Dictionary = gestes[g["miroir"]]
-		var r := g.duplicate()
-		for k in CLES:
-			var c: Array = src[k]
-			r[k] = [Vector3(-c[0].x, c[0].y, c[0].z), Vector3(-c[1].x, c[1].y, c[1].z), c[2]]
-		if g.has("coudes"):
-			for i in CLES.size():
-				r[CLES[i]][2] = g["coudes"][i]
-		return r
-	return g
+	var r := g.duplicate()
+	var src: Dictionary = gestes[g["miroir"]] if g.has("miroir") else g
+	for k in CLES:
+		var c = src[k]
+		var v: Array = cle_ecran(c) if c is Dictionary else c
+		if g.has("miroir"):
+			v = [Vector3(-v[0].x, v[0].y, v[0].z), Vector3(-v[1].x, v[1].y, v[1].z), v[2]]
+		r[k] = v
+	if g.has("miroir") and src.has("fil"):
+		r["fil"] = src["fil"]
+	if g.has("miroir") and src.has("tassement"):
+		r["tassement"] = src["tassement"]
+	_cache[cle] = r
+	return r
 
 ## Geste miroir (diagonales, horizontales) ou le même s'il n'en a pas.
 const MIROIRS := {"diag_dg": "diag_gd", "diag_gd": "diag_dg", "horizontale": "horizontale_gd", "horizontale_gd": "horizontale"}
