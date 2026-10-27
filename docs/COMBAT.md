@@ -20,7 +20,8 @@ Les phases 5 et 6 (variantes, polish) s'appuient sur la même architecture.
 | Film | idem avec `--write-movie "$W\captures\combat_epee\video\combat_epee.avi" --fixed-fps 30` avant `--script`, et `-- --film` |
 | Mesures des coups (planches) | `-- --mesures [--gestes=diag_gd,horizontale,estoc] [--arme=epee_rubis] [--nuit] --sortie=...\coups_ecran` (lignes MESURE / RESUME) |
 | Films des coups | `--write-movie ...\coups_ecran_reel.avi --fixed-fps 60 ... -- --film-coups [--ralenti=0.25]` |
-| Vérif image = tracé | `--headless ... --script res://outils/regler_gestes.gd` (écart lame affichée / pose, alignement avant-bras) |
+| Régénérer les clips du bras | `blender.exe -b sources_blender/bras_fps.blend --python sources_blender/scripts/anim_bras_epee.py -- --godot --blend` (depuis le worktree, ≈ 40 s ; TOUJOURS sans `--clips` avant tests / captures) |
+| Planches / films des coups animés | `... --script res://outils/captures_coups_animes.gd -- --seq=combo\|puissante[_avant\|_droite\|_arriere]\|garde\|contre\|horizontale\|revers\|estoc`, `--repos`, `--film [--ralenti=0.25]` (avec `--write-movie ... --fixed-fps 60`) |
 | Pose de repos dans le village | `--captures="$W\outils\poses_combat_epee.txt"` (voir SOCLE_TECHNIQUE §6.1) |
 
 En jeu : clic gauche court = coup léger, maintenu = charge puis coup lourd au relâchement ; clic droit = garde ;
@@ -178,7 +179,8 @@ lourd) ; garde : image de garde de `Sword_Attack` ; garde brisée : `Hit_Chest` 
   vue (garde → pointe) est projeté le long de son rayon de visée jusqu'à `portee` (2,0 m ; la garde à `portee_garde`
   0,6 m). Par échantillon : un rayon œil → point (le premier obstacle sur la ligne de visée est touché : un mur devant la
   cible l'arrête toujours) puis un rayon latéral entre deux échantillons successifs de chaque point. Ce que la lame couvre
-  à l'écran, dans la portée, est touché ; `outils/regler_gestes.gd` vérifie que la lame affichée = la pose du tracé (0°).
+  à l'écran, dans la portée, est touché ; la pose du tracé vient de `AnimateurBras.pose_arme` (cinématique directe sur les
+  pistes du clip) : image et tracé coïncident.
 - Portée : 2,0 m depuis l'œil (mannequin touché par les 3 coups à 1,5 et à 2 m, test) ; `allonge` n'est plus utilisée
   par les coups légers / lourds (elle reste dans `points_lame` pour d'autres usages).
 - Une seule touche par cible et par coup ; au plus `multi_cibles` (2) cibles par coup.
@@ -208,7 +210,46 @@ arrière de l'impulsion ; atterrissage : amorti proportionnel à la vitesse de c
 mouvement de souris ; arrêt brutal : le ressort dépasse puis revient. Option **« Réduire les mouvements »** (menu Options) :
 amplitude des bras × 0,35, balancement de tête × 0,4.
 
-## Pose FPS de repos (phase 1)
+## Coups animés à la main (passe 5, remplace les poses procédurales des passes 3-4)
+Le bras droit est joué par de **vraies animations à images clés** ; plus aucune IK ni pôle de coude à droite.
+- **Source** : `sources_blender/scripts/gestes_bras_epee.py` (poses clés en espace écran : poing, direction de lame,
+  roulis, coude, clavicule) → `anim_bras_epee.py` résout chaque clé dans les butées anatomiques (torsion de l'avant-bras
+  −80…+85°, inclinaison −35…+20°, flexion −60…70°, angle du coude autour de l'axe épaule-poignet, continuité avec la clé
+  précédente), pose des clés Blender (Bézier) et écrit `assets/animations/bras_epee.tres` (23 clips, 120 Hz, pistes
+  `clavicle_r` / `upperarm_r` / `lowerarm_r` / `hand_r`, métadonnée `marqueurs` = arme, frappe, fin_frappe, suivi, fin).
+  Le .blend d'auteur : `sources_blender/bras_fps_anims.blend`. `bras_godot.json` (repos, doigts, prises) vient de
+  `outils/anim_bras/dump_bras.gd`.
+- **Lecture** : `AnimateurBras` (`scripts/combat/animateur_bras.gd`) crée un AnimationPlayer « AnimationsEpee » en
+  traitement manuel ; `mains.gd` choisit le clip selon l'état et fixe son temps sur les phases de la machine à états
+  (`regler(t)`), fondus 0,06-0,12 s. Les durées des phases sont TIRÉES des marqueurs (÷ vitesse de l'arme).
+- **Couche additive** : `DecalageBras` (SkeletonModifier3D sur `clavicle_r`) applique respiration, marche, inertie,
+  recul, plongée d'équipement et tremblement de charge par-dessus le clip.
+- **Prise au repos** : poing en bas à droite, lame vers le haut-gauche, garde en croix vue de 3/4 ; **roulis mesuré
+  56°** (0 = plat face caméra, 90 = tranche), lame 100 % visible, garde à l'écran (0,54 ; −0,33), pointe (0,02 ; 0,88).
+  Planche : `captures/coups_animes/repos_reference.png` (à côté de la planche de référence).
+
+| Clip | Geste | Frappe (s) | Fin de la frappe | Fin du clip |
+|---|---|---|---|---|
+| coup_a | diagonale haut-droite → bas-gauche | 0,15 | 0,25 | 0,52 |
+| coup_b | revers gauche → droite | 0,11 | 0,21 | 0,50 |
+| coup_c | vertical par-dessus + tassement caméra | 0,16 | 0,26 | 0,56 |
+| lourd (arrêt, pas à gauche) | balayage horizontal droite → gauche | 0,08 après la charge (0,60) | 0,26 | 0,92 |
+| lourd_vertical (en avançant) | vertical | idem | 0,26 | 0,92 |
+| lourd_gd (pas à droite) | balayage vers la droite | idem | 0,26 | 0,92 |
+| lourd_revers (en reculant) | revers / pommeau | idem | 0,22 | 0,86 |
+| contre | revers rapide depuis la garde | 0,09 | 0,18 | 0,52 |
+| finisher_taille / finisher_sol | | 0,26 | 0,38 | 0,72 |
+
+Autres clips : repos, sprint, garde (épée en travers, pointe à gauche), encaisse, parade (petit choc), garde_brisee,
+coup_horizontal, coup_revers, estoc, charge_* (une par puissante).
+
+### Point d'accroche de la main gauche (pour la magie)
+Les clips n'animent QUE les os droits ; la main gauche est indépendante. Torche : `_accroche_g` (BoneAttachment3D sur
+`hand_l`) porte `porte_torche` avec la prise `PRISE_G` ; le bras gauche suit la cible IK `pivot_torche` (TwoBoneIK3D,
+seule IK restante, réglée par `MouvementsPassifs` et l'écartement pendant les coups). Un sort tenu en main gauche se
+branche sur `_accroche_g` (ou remplace la cible `pivot_torche`) sans toucher aux clips d'épée.
+
+## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)
 (≈ 35° de la verticale à l'écran, pointe vers le centre haut), tranchant (−0,9 ; 0 ; −0,6) (plat et garde en croix
 visibles), pôle du coude (0,7 ; 0,1 ; 0,4), déviation du poignet 40° (`deviation_poignet`). Torche (miroir) : poignée
@@ -218,7 +259,7 @@ Teinte de la lame : la lame métal de la planche reçoit une copie de matériau 
 reflet bleu restant vient de l'environnement (lumière ambiante bleue 0,32 ; 0,4 ; 0,62 sur une texture claire), voulu
 pour la neige.
 
-## Coups conçus en espace écran (passe 4)
+## Coups conçus en espace écran (passe 4, historique : remplacée par les clips de la passe 5)
 Constat de la passe 3 : des gestes pensés comme un vrai bras qui frappe VERS la cible (en profondeur) montrent la lame
 en bout et le poing énorme. Un viewmodel FPS (Skyrim, Mordhau, Chivalry) fait balayer la lame EN TRAVERS de l'écran.
 - **Clés écran** (`profils_animation.gd`) : pour chaque clé (armer, milieu, fin, suivi) : `g` position écran de la garde
@@ -286,6 +327,9 @@ vertical léger 0,06 → 85 % ; estoc 0,06 → 80 % ; lourd 0,08 → 80 %. Un ap
 3e personne : seule l'animation `Sword_Attack` existe pour l'épée ; l'estoc joue `Punch_Jab` (poussée droit devant).
 
 ## Limites connues / suite
+- Coups animés (passe 5) : quelques clés gardent 20-40° d'écart de lame à cause des butées (armés de B et du revers,
+  milieu de C) ; le coup C se lit comme une diagonale raide plutôt qu'un vertical pur (épaule sous l'œil) et l'avant-bras
+  reste visible quelques images pendant son armé.
 - Phase 3 (fait, integration/H) : la garde est orientée par la position de l'attaquant (cône de 120°), pas encore par le
   tracé de son arme ; seuls les draugrs (et squelettes, bandits : draugr.gd) réagissent à la parade (`subir_parade`) ;
   projectiles et pièges sont bloqués / parés sans déséquilibre. Pas d'animation 3e personne dédiée à la parade ni au
