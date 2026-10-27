@@ -390,6 +390,13 @@ func _physics_process(dt: float) -> void:
 		if _t > 30.0:
 			queue_free()
 		return
+	if _finisher != "":
+		# finisher en cours : le joueur mène, l'ennemi ne bouge plus (sécurité : il meurt au bout de DUREE_MAX)
+		_finisher_t += dt
+		velocity = Vector3.ZERO
+		if _finisher_t > FinisherSubi.DUREE_MAX:
+			subir_finisher("etourdi", {"finisher": _finisher})
+		return
 	_recharge -= dt
 	_cd_souffle -= dt
 	if not is_on_floor():
@@ -902,6 +909,55 @@ func finisher_possible(j: Node3D) -> String:
 		return ""
 	return combat.finisher_possible(j, vie, vie_max)
 
+# --- finishers multiples (FinisherSubi, GestesDefense.FINISHERS) : l'ennemi se fige pendant le geste du joueur ---------
+var _finisher := ""        # type du finisher en cours ("" = aucun) : plus d'IA, plus de déplacement
+var _finisher_t := 0.0
+
+## Le joueur lance un finisher tenu (épée plantée, plongé, pommeau…) : l'ennemi se fige, hébété (ou reste au sol), et se
+## laisse aligner devant la caméra. Renvoie faux s'il ne peut pas (mort).
+func preparer_finisher(type: String, _info: Dictionary = {}) -> bool:
+	if etat == MORT or combat == null:
+		return false
+	_finisher = type
+	_finisher_t = 0.0
+	velocity = Vector3.ZERO
+	if etat == CHUTE:
+		anim.speed_scale = 0.0   # reste à terre, figé
+	else:
+		_jouer("Hit_Head", 0.1, true)
+		anim.speed_scale = 0.3
+		if combat.reaction_os:
+			combat.reaction_os.etourdi = true
+	return true
+
+func en_finisher() -> bool:
+	return _finisher != ""
+
+## Étapes du finisher, appelées par l'épée du joueur au marqueur du clip : "pommeau", "entree" (la lame reste dans le
+## corps `info.tenue` s), "retrait" (giclée ; subir_finisher suit).
+func finisher_contact(phase: String, info: Dictionary = {}) -> void:
+	if etat == MORT or combat == null:
+		return
+	match phase:
+		"pommeau":
+			FinisherSubi.pommeau(self, combat, modele, info, joueur)
+			if not etat == CHUTE:
+				_jouer("Hit_Head", 0.03, true)
+				anim.speed_scale = 1.0
+		"entree":
+			FinisherSubi.entree(self, combat, modele, info, joueur, float(info.get("tenue", 0.6)))
+			if not etat == CHUTE:
+				# il encaisse la lame puis se fige, plié autour d'elle
+				_jouer("Hit_Chest", 0.04, true)
+				anim.speed_scale = 1.0
+				var a := anim
+				get_tree().create_timer(0.14, false).timeout.connect(func() -> void:
+					if is_instance_valid(a) and _finisher != "":
+						a.speed_scale = 0.03)
+		"retrait":
+			FinisherSubi.retrait(self, combat, modele, info)
+
+
 ## Achève l'ennemi par un finisher : mort spéciale (décapitation pour les catégories de taille, coup de grâce au sol…).
 ## `categorie` : celle de finisher_possible() (ou "puissant" : arme lourde) ; `info` : comme recevoir_coup. Renvoie "tue".
 func subir_finisher(categorie: String, info: Dictionary = {}) -> String:
@@ -975,15 +1031,24 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, 
 			force = 680.0
 			montee = 0.35
 		"finisher":
-			match categorie:
-				"sol":
-					force = 60.0
-					montee = -0.6   # coup de grâce : la lame cloue le corps au sol
-					os_touche = "spine_03"
-				_:
-					force = 260.0
-					decapiter = combat.profil.decapitable and Sang.niveau() > 0
-					os_touche = "spine_03"
+			var type_fin := String(info.get("finisher", ""))
+			if type_fin in ["plantee", "dos", "pommeau", "plonge"]:
+				# lame plantée puis retirée : le corps se vide et s'effondre (FinisherSubi.chute)
+				var ch := FinisherSubi.chute(type_fin, force)
+				force = float(ch[0])
+				montee = float(ch[1])
+				os_touche = String(ch[2])
+				dir *= float(ch[3])
+			else:
+				match categorie:
+					"sol":
+						force = 60.0
+						montee = -0.6   # coup de grâce : la lame cloue le corps au sol
+						os_touche = "spine_03"
+					_:
+						force = 260.0
+						decapiter = combat.profil.decapitable and Sang.niveau() > 0 and type_fin in ["", "decapitation"]
+						os_touche = "spine_03"
 	# l'animation de l'encaissement d'abord (mort titubante), puis le ragdoll
 	var lancer := func() -> void:
 		if not is_instance_valid(self) or not is_inside_tree():

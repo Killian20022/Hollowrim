@@ -107,6 +107,11 @@ def capuchon(m, ids_anneau, anneau, mat, uv_de):
 
 # ------------------------------------------------------------------ lame
 ELARGIR = (1.7, 1.2)    # lames de la planche : ~1,7x plus larges à la garde, effilées vers la pointe
+# lames ROBUSTES (retour utilisateur 2026-10-27 : « pas l'impression de faire de l'escrime ») : vues de tranche (tenue à
+# 79°), c'est l'épaisseur qui fait la largeur apparente → dos 1,8x plus épais, lame 1,12x plus large, biseaux plus courts
+# (méplat plus large : l'arête du dos se lit), gouttière gardée
+EPAIS = 1.8
+LARGE = 1.12
 
 
 def lame(m, prof, z0, z_pointe, section, mat_de, w_ref, sym_dx=None, elargir=ELARGIR):
@@ -114,16 +119,16 @@ def lame(m, prof, z0, z_pointe, section, mat_de, w_ref, sym_dx=None, elargir=ELA
     section 'hex' (plat + biseaux, 6 sommets), 'diamant' (4 sommets, cristal), 'veine' (10 sommets, bande centrale)."""
     anneaux = []
     L = z_pointe - z0
-    w_ref = w_ref * elargir[0]
+    w_ref = w_ref * elargir[0] * LARGE
     for st in prof:
-        z, w, t = st[0], st[1], st[2]
+        z, w, t = st[0], st[1] * LARGE, st[2] * EPAIS
         fr = (z - z0) / L
         w = w * (elargir[0] + (elargir[1] - elargir[0]) * fr)
         dx = st[3] if len(st) > 3 else 0.0
         if section == "gorge":   # plat + biseaux + gouttière centrale en creux (s'efface vers la pointe)
-            c = w * 0.58
-            g = w * 0.30 if fr < 0.74 else w * 0.02
-            f = t * (0.45 if fr < 0.74 else 0.98)
+            c = w * 0.64
+            g = w * 0.26 if fr < 0.74 else w * 0.02
+            f = t * (0.55 if fr < 0.74 else 0.98)
             a = [(-w, 0, z), (-c, t, z), (-g, f, z), (g, f, z), (c, t, z), (w, 0, z),
                  (c, -t, z), (g, -f, z), (-g, -f, z), (-c, -t, z)]
         elif section == "hex":
@@ -142,7 +147,7 @@ def lame(m, prof, z0, z_pointe, section, mat_de, w_ref, sym_dx=None, elargir=ELA
         v = max(0.0, (p[2] - z0) / L)
         if mat == "veine":      # la bande de veine a sa propre texture, étalée sur toute sa largeur
             st = prof[min(k, len(prof) - 1)]
-            demi = st[1] * (elargir[0] + (elargir[1] - elargir[0]) * (st[0] - z0) / L) * 0.16
+            demi = st[1] * LARGE * (elargir[0] + (elargir[1] - elargir[0]) * (st[0] - z0) / L) * 0.16
             return ((p[0] / demi + 1.0) * 0.5, v)
         return ((p[0] + w_ref) / (2 * w_ref), v)
     ids = relier(m, anneaux, mat_de, uv)

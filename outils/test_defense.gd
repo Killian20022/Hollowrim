@@ -8,8 +8,9 @@ extends SceneTree
 ##    apres_parade, titube/étourdi), fenêtre de contre-attaque ouverte.
 ## 5. Contre-attaque : geste « contre » depuis la garde, attaque « contre » (dégâts ×1,3, stagger de contre), critique selon
 ##    les règles seulement.
-## 6. Finisher depuis le joueur : clic sur un draugr ouvert → séquence FPS ≤ 0,8 s → subir_finisher → décapité, mort.
-## 7. Pas de finisher dans le dos d'un ennemi étourdi (coup normal) ; 8. finisher sur le mannequin (la tête s'envole).
+## 6. Finisher depuis le joueur : clic sur un draugr étourdi de face → ÉPÉE PLANTÉE (séquence 1-1,6 s, lame tenue, plaies,
+## retrait) → mort, pas de décapitation. 7. Dans le dos d'un ennemi étourdi : finisher « dos » (2026-10-27 : finishers
+## multiples) ; 8. finisher sur le mannequin (la tête s'envole).
 
 const SCENE := preload("res://scenes/test_combat.tscn")
 const DT := 1.0 / 60.0
@@ -197,20 +198,21 @@ func _tester() -> void:
 	var duree_fin := 0.0
 	var ecart_frappe := 99.0
 	while mains.combat.etat in [EtatCombat.FINISHER, EtatCombat.RECUPERATION] and duree_fin < 2.0:
-		var avant_frappe: bool = not mains._fin_frappe
+		var avant_contact: bool = not mains._fin_faits.has("contact")
 		await _pas(1)
 		duree_fin += DT
-		if avant_frappe and mains._fin_frappe:
+		if avant_contact and mains._fin_faits.has("contact"):
 			var cam: Camera3D = j.camera
-			var v: Vector3 = mains._point_finisher() - cam.global_position
+			var v: Vector3 = mains._os_finisher() - cam.global_position
 			ecart_frappe = rad_to_deg((-cam.global_transform.basis.z).angle_to(v))
-	_verif(duree_fin <= 0.8 + 1e-3, "séquence FPS complète en %.2f s (≤ 0,8 s)" % duree_fin)
-	_verif(ecart_frappe < 12.0, "caméra verrouillée sur la cible à l'impact (écart %.1f°)" % ecart_frappe)
+	_verif(duree_fin <= 1.6 + 1e-3 and duree_fin >= 0.9, "séquence FPS complète en %.2f s (finisher tenu : 0,9-1,6 s)" % duree_fin)
+	_verif(ecart_frappe < 25.0, "caméra verrouillée sur la cible au contact (torse à %.1f° du centre : la lame y entre)" % ecart_frappe)
 	await _pas(10)
 	_verif(not d.vivant() and mains.dernier_finisher.get("resultat") == "tue", "subir_finisher(« %s ») : draugr tué" % cat)
-	_verif(d.modele.has_meta("decapite") and d.modele.get_meta("tete_coupee", null) != null, "décapité : tête détachée en corps rigide")
+	_verif(mains.dernier_finisher.get("type", "") == "plantee" and not d.modele.has_meta("decapite"), "étourdi de face : épée plantée (%s), pas de décapitation" % mains.dernier_finisher.get("type", ""))
+	_verif(Plaies.nombre(d.modele) >= 2 or Sang.niveau() == 0, "plaies d'entrée et de sortie sur le corps (%d)" % Plaies.nombre(d.modele))
 
-	# --- 7. dans le dos : pas de finisher
+	# --- 7. dans le dos : finisher « dos » (lame plantée dans le dos)
 	print("-- dans le dos")
 	var d2: CharacterBody3D = s.creer_draugr(Vector3(4.0, 0.0, -5.0), true)
 	await _pas(5)
@@ -218,10 +220,12 @@ func _tester() -> void:
 	d2.combat.briser_posture()
 	d2._etourdir()
 	await _reset(d2.global_position + Vector3(0, 0, -1.4), 180.0)   # derrière lui, face à +Z (vers son dos)
-	_verif(mains._chercher_finisher().is_empty(), "derrière un draugr étourdi : aucun finisher proposé")
+	var fd: Dictionary = mains._chercher_finisher()
+	_verif(not fd.is_empty() and GestesDefense.choisir_finisher(String(fd.get("categorie", "")), d2, j) == "dos", "derrière un draugr étourdi : finisher « dos » proposé")
 	await _clic()
-	_verif(mains.combat.etat != EtatCombat.FINISHER and d2.vivant(), "le clic donne un coup normal (état %s)" % mains.combat.nom())
-	await _pas(40)
+	_verif(mains.combat.etat == EtatCombat.FINISHER and mains._fin_type == "dos", "le clic lance le finisher dans le dos (état %s)" % mains.combat.nom())
+	await _pas(100)
+	_verif(not d2.vivant(), "finisher dans le dos : draugr tué")
 	d2.queue_free()
 
 	# --- 8. mannequin

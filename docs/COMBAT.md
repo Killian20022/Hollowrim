@@ -62,6 +62,7 @@ Idle/Moving --clic--> LightAttack(préparation) --relâché--> LightAttack(phase
                          \--tenu ≥ 0,28 s--> HeavyCharge --relâché--> HeavyAttack --> Recovery
 Recovery --clic mémorisé (après 0,06 s)--> LightAttack (geste suivant du combo)
 Idle/Moving/Recovery(> 0,12 s) --clic droit--> Parrying (0,3 s) --> Blocking --relâché--> Idle
+LightAttack(préparation, lame pas encore active) --clic droit--> Parrying (annulation, 1 image ; mains.annulations)
 LightAttack/HeavyAttack --lame arrêtée (mur, bouclier, cassable qui tient)--> Staggered (0,30 s) --> Idle
 Idle/Moving --changement d'arme--> Equip (0,45 s) --> Idle
 Blocking/Parrying --coup bloqué sans assez d'endurance--> Staggered (garde brisée, 0,45 s) --> Idle (garde impossible 1 s)
@@ -291,6 +292,26 @@ Le bras droit est joué par de **vraies animations à images clés** ; plus aucu
 Autres clips : repos, sprint, garde (épée en travers, pointe à gauche), encaisse, parade (petit choc), garde_brisee,
 coup_horizontal, coup_revers, estoc, charge_* (une par puissante).
 
+### Passe 6 (2026-10-27, branche combat/coups_finishers ; audit : docs/COMBAT_AUDIT.md)
+Le tableau ci-dessus est l'historique ; valeurs actuelles (marqueurs arme / frappe / fin_frappe / suivi / fin, en s) :
+
+| Clip | Geste (profil) | Marqueurs |
+|---|---|---|
+| coup_a | 1 du combo `diag_dg` : VRAIE diagonale haut-droite → bas-gauche, épée levée au-dessus de l'épaule, pronation sans retournement | 0,13 / 0,16 / 0,26 / 0,33 / 0,54 |
+| coup_b | 2 du combo `revers_gd` : horizontal GAUCHE → DROITE à plat, lame qui traîne pointée à gauche (poids_torsion 0,4) | 0,10 / 0,13 / 0,23 / 0,30 / 0,50 |
+| coup_c | 3 du combo `estoc_combo` : petit recul puis extension, le poing pousse vers l'avant | 0,11 / 0,15 / 0,25 / 0,30 / 0,50 |
+| coup_c_ancien | vertical léger `verticale_l` (souris vers le bas, en avançant) | inchangé |
+| coup_v | essai de vertical pur (V2_*) : NON UTILISÉ (lame vue en bout pendant le suivi, avant-bras à 18 % de l'écran à l'armé) | 0,14 / 0,17 / 0,27 / 0,34 / 0,56 |
+| lourd | 4 phases : armé haut P2_ARME, tension (0,10), coup sec 0,10 → 0,25, grand suivi (0,42), retour 0,70, repos 0,96 | 0,10 / 0,10 / 0,25 / 0,42 / 0,96 |
+| lourd_vertical | sur V2 | 0,06 / 0,06 / 0,21 / 0,40 / 0,92 |
+| encaisse | coup bloqué : choc (lame chassée), rebond, replacement en garde | fin 0,26 (DUREE_ENCAISSE) |
+| parade | parade parfaite : choc sec et rebond | fin 0,22 |
+
+Lames : `sources_blender/epees_longues/epees_longues.py` (EPAIS 1,8, LARGE 1,12) : largeur apparente au repos (métal)
+4,7 → 7,0 px, plat 79,2° inchangé. Les clips de finishers (finisher_plantee, _dos, _plonge, _pommeau, _taille) sont
+dans la même bibliothèque ; leur logique est reprise par la branche combat/finishers_ennemis.
+Vues de contrôle Blender : `anim_bras_epee.py -- --clips=<x> --rendu=<dossier> --vue=cote|dessus|epaule`.
+
 ### Point d'accroche de la main gauche (pour la magie)
 Les clips n'animent QUE les os droits ; la main gauche est indépendante. Torche : `_accroche_g` (BoneAttachment3D sur
 `hand_l`) porte `porte_torche` avec la prise `PRISE_G` ; le bras gauche suit la cible IK `pivot_torche` (TwoBoneIK3D,
@@ -391,7 +412,9 @@ vertical léger 0,06 → 85 % ; estoc 0,06 → 80 % ; lourd 0,08 → 80 %. Un ap
   tracé de son arme ; seuls les draugrs (et squelettes, bandits : draugr.gd) réagissent à la parade (`subir_parade`) ;
   projectiles et pièges sont bloqués / parés sans déséquilibre. Pas d'animation 3e personne dédiée à la parade ni au
   finisher. Sons de garde non écoutés à l'oreille.
-- Phase 4 (reste) : annulation de la récupération par la garde, gestes 3e personne par direction (animations à créer).
+- Passe 6 : le vertical reste l'ancien coup_c_ancien (diagonale raide plutôt que vertical pur) ; 1re image de la
+  diagonale et du revers à 28 % de lame visible (armé hors champ par le haut) ; bras jusqu'à 15,3 % sur une image.
+- Phase 4 (reste) : gestes 3e personne par direction (animations à créer).
 - Phase 5 : équilibrage des 4 variantes, lueurs (rubis, verre), effets d'enchantement.
 - Phase 6 : sons d'impact par matériau, caméra, optimisation.
 - Coups en espace écran : l'armé du coup 1 a la main au bord droit à mi-hauteur (pas tout en haut) et l'armé du coup 3 au

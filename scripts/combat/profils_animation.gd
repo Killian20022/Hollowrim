@@ -12,23 +12,30 @@ class_name ProfilsAnimation
 ## « charge » (attaques puissantes) = clip de l'armé tenu pendant la charge.
 const PROFILS := {
 	"epee_longue": {
-		# enchaînement de base à l'arrêt (Skyrim) : A diagonale → B horizontal droite → gauche → C vertical (le plus fort)
-		"combo": ["diag_dg", "horizontale_b", "verticale_l"],
+		# enchaînement de base à l'arrêt (retour utilisateur 2026-10-27) : 1 VRAIE diagonale haut-droite → bas-gauche,
+		# 2 horizontal GAUCHE → DROITE (revers à plat, repart d'en bas à gauche), 3 ESTOC (le plus fort)
+		"combo": ["diag_dg", "revers_gd", "estoc_combo"],
 		"lourd": "lourd",
 		# attaque puissante selon le déplacement au début de la charge (mains._choisir_lourd)
 		"lourds": {"arret": "lourd", "avant": "verticale", "gauche": "lourd", "droite": "lourd_gd", "arriere": "lourd_revers"},
 		"gestes": {
-			# coup A : armé épée relevée près de l'épaule droite, entaille en DIAGONALE descendante droite → gauche à travers
-			# le centre à longueur de bras, pronation du poignet, finit en bas à gauche
+			# coup 1 : épée levée au-dessus de l'épaule droite (poing au coin haut droit), fend en DIAGONALE à travers le
+			# centre de l'écran jusqu'en bas à gauche, pronation progressive de l'avant-bras (sans retournement)
 			"diag_dg": {"clip": "coup_a", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.04, 1.0], "force": 1.0},
-			# coup B : repart de la fin de A (en bas à gauche), remonte l'épée à droite, puis horizontal droite → gauche à plat
-			# à hauteur de poitrine, finit à gauche (départ « 0 » : jamais remplacé par un miroir)
-			"horizontale_b": {"clip": "coup_b", "fenetre": [0.0, 1.0], "cotes": [0, -1], "enchainement": [0.04, 1.0], "force": 1.0},
+			# coup 2 : repart de la fin du 1 (en bas à gauche), armé à gauche à hauteur de poitrine, revers HORIZONTAL vers
+			# la droite, lame à plat (normale du plat verticale), avant-bras en pronation tout du long (départ « 0 » :
+			# jamais remplacé par un miroir)
+			"revers_gd": {"clip": "coup_b", "fenetre": [0.0, 1.0], "cotes": [0, 1], "enchainement": [0.04, 1.0], "force": 1.0},
+			# coup 3 : ESTOC du combo (même geste que l'estoc en reculant, qui plaît), part de la fin du 2 (à droite) ;
+			# le plus fort, petit tassement de la caméra
+			"estoc_combo": {"clip": "coup_c", "fenetre": [0.25, 1.0], "cotes": [0, 0], "enchainement": [0.06, 0.8], "force": 1.25, "tassement": 0.6},
+			# anciens coups du combo (avant 2026-10-27, « le coup du haut est mauvais ») : plus choisis, gardés pour comparaison
+			"horizontale_b": {"clip": "coup_b_ancien", "fenetre": [0.0, 1.0], "cotes": [0, -1], "enchainement": [0.04, 1.0], "force": 1.0},
 			# revers horizontal gauche → droite, légèrement montant (pas à droite, miroir de « horizontale »)
 			"horizontale_gd": {"clip": "coup_gd", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.04, 1.0], "force": 1.0},
 			# coup C : vertical par-dessus (épée levée au-dessus de la tête), descend à travers le centre, finit bas devant ;
 			# le plus fort, tassement de la caméra à l'impact
-			"verticale_l": {"clip": "coup_c", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.06, 1.0], "force": 1.25, "tassement": 1.0},
+			"verticale_l": {"clip": "coup_c_ancien", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.06, 1.0], "force": 1.25, "tassement": 1.0},
 			# variantes contextuelles : horizontal droite → gauche (pas de côté à gauche), diagonale revers haut-gauche →
 			# bas-droite (miroir de A quand la lame est déjà à gauche), estoc (en reculant)
 			"horizontale": {"clip": "coup_horizontal", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.04, 1.0], "force": 1.0},
