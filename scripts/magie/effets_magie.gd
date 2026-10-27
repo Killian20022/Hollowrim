@@ -275,10 +275,10 @@ static func reaction(nom: String, position: Vector3, rayon: float) -> void:
 	var r := _racine()
 	if r == null:
 		return
-	var s := _sphere(rayon * 0.3, couleur(nom), 0.5)
+	var s := _sphere(rayon * 0.25, couleur(nom), 0.35)
 	r.add_child(s)
 	s.global_position = position
-	_ephemere(s, 0.4, 3.3)
+	_ephemere(s, 0.35, 2.0)
 
 static func double(ecole: String, actif: bool) -> void:
 	_compter("double")
