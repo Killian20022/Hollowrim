@@ -33,7 +33,7 @@ const PROFILS := {
 				"armer": {"g": Vector2(0.6, -0.1), "z": 0.63, "t": Vector2(0.38, 1.15)},
 				"milieu": {"g": Vector2(0.2, -0.4), "z": 0.55, "t": Vector2(-0.34, 1.07)},
 				"fin": {"g": Vector2(-0.22, -0.72), "z": 0.69, "t": Vector2(-1.11, -0.09)},
-				"suivi": {"g": Vector2(-0.3, -0.78), "z": 0.75, "t": Vector2(-1.08, -0.52)},
+				"suivi": {"g": Vector2(-0.28, -0.74), "z": 0.72, "t": Vector2(-0.98, -0.28)},
 				"preparation": 0.10, "tenue": 0.04, "active": 0.09, "acceleration": 2.6, "suivi_duree": 0.07, "recuperation": 0.30,
 				"fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.04, 0.9], "force": 1.0,
 			},
@@ -56,20 +56,25 @@ const PROFILS := {
 				"preparation": 0.12, "tenue": 0.05, "active": 0.10, "acceleration": 3.0, "suivi_duree": 0.08, "recuperation": 0.34,
 				"fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.06, 0.85], "force": 1.25, "tassement": 1.0,
 			},
-			# variantes contextuelles : diagonale revers (miroir du coup 1), horizontal droite → gauche (miroir du coup 2)
-			"diag_gd": {"miroir": "diag_dg",
+			# variantes contextuelles : diagonale revers (main partie de l'épaule gauche, finit en bas à droite, lame toujours
+			# levée : un vrai miroir du coup 1 tordrait le bras droit), horizontal droite → gauche (miroir du coup 2)
+			"diag_gd": {
+				"armer": {"g": Vector2(-0.42, -0.12), "z": 0.67, "t": Vector2(-0.29, 1.15)},
+				"milieu": {"g": Vector2(-0.05, -0.42), "z": 0.59, "t": Vector2(0.32, 1.14)},
+				"fin": {"g": Vector2(0.28, -0.68), "z": 0.55, "t": Vector2(0.61, 0.91)},
+				"suivi": {"g": Vector2(0.35, -0.74), "z": 0.55, "t": Vector2(0.76, 0.72)},
 				"preparation": 0.11, "tenue": 0.04, "active": 0.09, "acceleration": 2.6, "suivi_duree": 0.07, "recuperation": 0.30,
 				"fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.04, 0.9], "force": 1.0},
 			"horizontale": {"miroir": "horizontale_gd",
 				"preparation": 0.11, "tenue": 0.04, "active": 0.09, "acceleration": 2.2, "suivi_duree": 0.07, "recuperation": 0.30,
 				"fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.04, 0.9], "force": 1.0},
-			# estoc (en reculant) : la main part de la hanche droite et pique vers le centre ; la lame garde son angle à
-			# l'écran (inclinée de 38° en profondeur au plus : jamais vue en bout), tranchant à plat (fil imposé)
+			# estoc (en reculant) : la main part de la hanche droite et pique vers le centre en s'enfonçant ; la lame garde son
+			# angle à l'écran (≥ 50° avec le rayon de visée : jamais vue en bout), tranchant à plat (fil imposé)
 			"estoc": {
-				"armer": {"g": Vector2(0.5, -0.6), "z": 0.45, "t": Vector2(0.02, -0.08)},
-				"milieu": {"g": Vector2(0.32, -0.42), "z": 0.58, "t": Vector2(-0.15, 0.0)},
-				"fin": {"g": Vector2(0.22, -0.32), "z": 0.68, "t": Vector2(-0.25, 0.06)},
-				"suivi": {"g": Vector2(0.2, -0.3), "z": 0.7, "t": Vector2(-0.27, 0.07)},
+				"armer": {"g": Vector2(0.5, -0.62), "z": 0.55, "t": Vector2(-0.06, 0.21)},
+				"milieu": {"g": Vector2(0.34, -0.5), "z": 0.55, "t": Vector2(-0.24, 0.36)},
+				"fin": {"g": Vector2(0.24, -0.42), "z": 0.56, "t": Vector2(-0.37, 0.5)},
+				"suivi": {"g": Vector2(0.22, -0.4), "z": 0.57, "t": Vector2(-0.4, 0.54)},
 				"fil": Vector3(0.0, 1.0, 0.0),
 				"preparation": 0.11, "tenue": 0.04, "active": 0.10, "acceleration": 2.0, "suivi_duree": 0.05, "recuperation": 0.30,
 				"fenetre": [0.25, 1.0], "cotes": [0, 0], "enchainement": [0.06, 0.8], "force": 1.0,
@@ -79,7 +84,7 @@ const PROFILS := {
 				"armer": {"g": Vector2(0.62, -0.12), "z": 0.71, "t": Vector2(0.65, 1.16)},
 				"milieu": {"g": Vector2(0.2, -0.38), "z": 0.55, "t": Vector2(-0.41, 1.01)},
 				"fin": {"g": Vector2(-0.12, -0.72), "z": 0.63, "t": Vector2(-1.07, -0.11)},
-				"suivi": {"g": Vector2(-0.2, -0.78), "z": 0.7, "t": Vector2(-1.1, -0.52)},
+				"suivi": {"g": Vector2(-0.2, -0.76), "z": 0.68, "t": Vector2(-0.98, -0.42)},
 				"preparation": 0.06, "tenue": 0.0, "active": 0.14, "acceleration": 2.8, "suivi_duree": 0.10, "recuperation": 0.46,
 				"fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.08, 0.8], "force": 1.0, "tassement": 1.0,
 			},

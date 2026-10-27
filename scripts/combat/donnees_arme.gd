@@ -91,8 +91,8 @@ enum Categorie { VIDE, EPEE, TORCHE, BOUCLIER, SORT }
 @export_group("Traînée de lame")
 ## Couleur de la traînée pixel (ruban garde → pointe pendant la frappe) ; `couleur_trainee_coeur` : le bord vif côté
 ## pointe. Blanc acier, or, rubis, verre, obsidienne.
-@export var couleur_trainee := Color(0.78, 0.84, 0.95)
-@export var couleur_trainee_coeur := Color(1.0, 1.0, 1.0)
+@export var couleur_trainee := Color(0.5, 0.64, 0.9)
+@export var couleur_trainee_coeur := Color(0.94, 0.97, 1.0)
 
 func est_arme() -> bool:
 	return categorie == Categorie.EPEE

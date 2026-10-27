@@ -21,15 +21,14 @@ void vertex() {
 void fragment() {
 	float vie = COLOR.a;
 	float le_long = UV.y;
-	// bande côté pointe (le dernier tiers de la lame), bord vif à la pointe ; s'éteint avec l'âge
-	float a = vie * smoothstep(0.5, 0.97, le_long);
-	a = max(a, vie * step(0.9, le_long) * 1.0);
-	float q = floor(a * 4.0 + 0.3) / 4.0;   // 4 paliers
+	// croissant fin côté pointe : nul sur les deux premiers tiers de la lame, plein au dernier dixième ; s'éteint avec
+	// l'âge (les échantillons les plus anciens disparaissent d'abord : la traînée « rattrape » la lame)
+	float a = vie * smoothstep(0.62, 0.96, le_long);
+	float q = floor(a * 4.0 + 0.25) / 4.0;   // 4 paliers
 	if (q <= 0.0) {
 		discard;
 	}
-	vec3 sombre = couleur.rgb * 0.7;
-	vec3 c = q >= 0.75 ? coeur.rgb : (q >= 0.5 ? mix(couleur.rgb, coeur.rgb, 0.5) : (q >= 0.25 ? couleur.rgb : sombre));
+	vec3 c = q >= 0.75 ? coeur.rgb : (q >= 0.5 ? mix(couleur.rgb, coeur.rgb, 0.45) : couleur.rgb);
 	ALBEDO = c;
-	ALPHA = 0.35 + q * 0.6;
+	ALPHA = q >= 0.75 ? 0.95 : (q >= 0.5 ? 0.75 : 0.45);
 }

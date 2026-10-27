@@ -887,7 +887,7 @@ func _pole_ecran(pivot: Transform3D, epaule: Vector3) -> Vector3:
 		var ecart := absf(f2.angle_to(b2)) if f2.length_squared() > 1e-10 and b2.length_squared() > 1e-10 else PI
 		var score := ecart
 		score += maxf(0.0, e.y - epaule.y - 0.25) * 6.0          # coude levé bien au-dessus de l'épaule : peu naturel
-		score += maxf(0.0, h.x - e.x - 0.05) * 2.0               # coude passé à gauche de la main (bras retourné)
+		score += maxf(0.0, h.x - e.x - 0.05) * 0.6               # coude passé à gauche de la main (bras retourné)
 		score += absf(angle_difference(al, _angle_coude)) * 0.08  # continuité
 		if score < meilleur:
 			meilleur = score

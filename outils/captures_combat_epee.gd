@@ -491,9 +491,13 @@ func _coups_mesures() -> void:
 	await _pas(0.6)
 	var dossier := sortie
 	var resume := []
-	for n in 4:
-		var lourd := n == 3
-		if lourd:
+	# --gestes=a,b : chaque geste isolé depuis le repos (directions contextuelles) ; sinon combo 1-2-3 puis lourd
+	var forces: Array = Array(_arg("gestes", "").split(",", false))
+	var nb_seq := forces.size() if not forces.is_empty() else 4
+	for n in nb_seq:
+		var force: String = forces[n] if not forces.is_empty() else ""
+		var lourd := n == 3 and force == ""
+		if lourd or force != "":
 			await _pas(0.9)
 		mains.entrees.appuyer()
 		var vues := []
@@ -506,6 +510,9 @@ func _coups_mesures() -> void:
 		while not fini and i < 220:
 			i += 1
 			mains.avancer(DT)
+			if i == 1 and force != "":
+				mains._geste_nom = force
+				mains._preparer_geste(false)
 			if lourd and i == 50:
 				mains.entrees.relacher()
 			elif not lourd and i == 2:
@@ -524,9 +531,9 @@ func _coups_mesures() -> void:
 			elif e == EtatCombat.RECUPERATION:
 				etape = "suivi" if mains.combat.t < mains._duree_suivi else "retour"
 				var fen: Array = mains._geste.get("enchainement", [0.05, 0.9])
-				if etape == "retour" and (n < 2 or lourd) and mains.combat.t >= float(fen[0]) + 0.05:
+				if etape == "retour" and n < 2 and force == "" and mains.combat.t >= float(fen[0]) + 0.05:
 					fini = true
-				if (n == 2 or lourd) and mains.combat.t > 0.2:
+				if (n >= 2 or force != "") and mains.combat.t > 0.2:
 					fini = true
 			else:
 				continue
@@ -548,7 +555,7 @@ func _coups_mesures() -> void:
 			print("   coude réel %s visé %s | main réelle %s visée %s | épaule réelle %s" % [(inv * _os_global(mains._sq, "lowerarm_r")).snapped(Vector3.ONE * 0.01), mains.coude_vise.snapped(Vector3.ONE * 0.01), (inv * _os_global(mains._sq, "hand_r")).snapped(Vector3.ONE * 0.01), (mains.pivot_epee.transform * mains.PRISE_D.affine_inverse()).origin.snapped(Vector3.ONE * 0.01), (inv * _os_global(mains._sq, "upperarm_r")).snapped(Vector3.ONE * 0.01)])
 			var img := await _image()
 			vues.append(img)
-		var nom := "coup_%d_%s" % [n + 1, geste]
+		var nom := ("geste_%s" % geste) if force != "" else "coup_%d_%s" % [n + 1, geste]
 		var w := 384
 		var h := 216
 		var images := vues.slice(0, 20)
