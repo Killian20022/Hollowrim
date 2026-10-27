@@ -9,6 +9,7 @@ uniform float tramage = 1.0;
 uniform float vignette = 0.35;
 uniform float degat = 0.0;  // voile rouge quand le joueur est touché
 uniform float fondu = 0.0;  // fondu au noir (mort)
+uniform float eclat_rouge = 0.0;  // voile rouge bref plein écran : gros coups, morts brutales, finishers (scripts/combat/retour_impact.gd)
 // Lot 2 : étalonnage fixé par cycle.gd selon l'heure (sous terre, monde.gd baisse `etal_mix`)
 uniform vec3 etal_ombre = vec3(0.88, 0.96, 1.14);
 uniform vec3 etal_clair = vec3(1.06, 1.01, 0.93);
@@ -41,6 +42,9 @@ void fragment() {
 	vec2 v = SCREEN_UV - 0.5;
 	c *= 1.0 - dot(v, v) * vignette;
 	c = mix(c, vec3(0.45, 0.02, 0.02), degat * smoothstep(0.05, 0.5, dot(v, v) * 2.0));
+	// éclat rouge : l'image vire au sang (les clairs gardent leur lecture), bords plus marqués
+	float lum = dot(c, vec3(0.3, 0.55, 0.15));
+	c = mix(c, vec3(lum * 1.25 + 0.08, lum * 0.18, lum * 0.14), eclat_rouge * (0.55 + 0.45 * smoothstep(0.0, 0.5, dot(v, v) * 2.0)));
 	c *= 1.0 - fondu;
 	if (actif) {
 		// Lot 7 : le tramage 15 bits reste (il casse les bandes des dégradés : brume, ciel), mais il s'efface sur
