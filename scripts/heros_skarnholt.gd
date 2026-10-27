@@ -204,7 +204,7 @@ static func materiaux_fps() -> Dictionary:
 	return {
 		"tunique": Palette.materiau(tex("fps_mailles"), Vector2(2, 1), Color.WHITE, true),
 		"brassards": Palette.materiau(tex("brassards"), Vector2(1, 1), Color.WHITE, true),
-		"gants": Palette.materiau(tex("fps_gant"), Vector2(2, 1), Color(1.1, 1.05, 1.0), true),
+		"gants": Palette.materiau(tex("fps_gant"), Vector2(2, 1), Color(0.74, 0.70, 0.68), true),
 		"fourrure": Palette.materiau(tex("fps_fourrure"), Vector2(2, 1), Color(1.08, 1.05, 1.0), true),
 	}
 

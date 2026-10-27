@@ -62,7 +62,10 @@ const APPARENCE := {
 func _creer_modele() -> void:
 	# héros « garde de Skarnholt amélioré » (HerosSkarnholt, base GardienNordique, cache disque des corps) ; --persos-kit : personnage de
 	# base unifié (PersoDefs.joueur). Équipement (bouclier, casque) : options de HerosSkarnholt.creer.
+	var t0 := Time.get_ticks_usec()
 	modele = Personnage.creer(PersoDefs.joueur()) if Personnage.kit_actif() else HerosSkarnholt.creer({})
+	if Chrono.actif:
+		print("CHRONO   corps du joueur %.1f ms (cache lus=%d)" % [(Time.get_ticks_usec() - t0) / 1000.0, CachePersos.lus])
 	modele.rotation.y = PI  # le modèle regarde +Z, le joueur -Z
 	add_child(modele)
 	var squelette: Skeleton3D = modele.find_child("Skeleton3D", true, false)

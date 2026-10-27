@@ -1538,7 +1538,7 @@ func _capture() -> void:
 ##   monde x,z,lacet°,tangage°      crypte x,z,lacet°,tangage° (repère de la crypte)
 ##   grotte s,décalage,lacet°,tangage°      scenario <nom> (village, place, forge, dialogue…)
 ##   interieur x,z,lacet°,tangage° bat=halle|sigrun|chasseurs|grima|forge [ouvert]  (repère du bâtiment ; lacet 0 = vers -Z)
-## Options : heure=12 (sinon l'heure de départ, nuit) · sans-mains · torche-eteinte · attente=N images.
+## Options : heure=12 (sinon l'heure de départ, nuit) · sans-mains · torche-eteinte · attente=N images · mains=<pose> · vue=3|1.
 ## --attente= vaut pour la 1re vue ; les suivantes attendent --attente-suite= (20) images.
 ## Les PNG vont dans --sortie=<dossier> (ou à côté du fichier de poses), nommés <nom>.png.
 ## Ordre imposé : monde, puis scénarios, puis crypte, puis grotte (on ne ressort pas du sous-sol).
@@ -1699,6 +1699,10 @@ func _lot_captures(fichier: String) -> void:
 			continue
 		joueur.mains.torche_lumiere.light_cull_mask = 0 if opt.has("torche-eteinte") else torche_masque
 		joueur.mains.visible = not (mains_globales or opt.has("sans-mains"))
+		if opt.has("mains"):     # mains=repos|armer|frappe|garde|… : pose figée de l'épée à la 1re personne (comme --mains=)
+			joueur.mains._pose_figee = String(opt["mains"])
+		if opt.has("vue"):       # vue=3 : troisième personne, vue=1 : première
+			joueur.basculer_vue(String(opt["vue"]) == "3")
 		# 1re vue : attente complète (compilation des shaders, stabilisation) ; les suivantes : --attente-suite (20 images)
 		var att: int = int(opt["attente"]) if opt.has("attente") else (attente_globale if n == 0 else mini(attente_globale, attente_suite))
 		for i in att:

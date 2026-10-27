@@ -1,0 +1,12 @@
+# Chantier perso/joueur_garde : bras du héros à la 1re personne (jour / nuit) puis vue à la 3e personne
+fps_repos_jour monde 21.80,19.82,-132.3,-8 heure=12 mains=repos vue=1
+fps_armer_jour monde 21.80,19.82,-132.3,-8 heure=12 mains=armer vue=1
+fps_frappe_jour monde 21.80,19.82,-132.3,-8 heure=12 mains=frappe vue=1
+fps_garde_jour monde 21.80,19.82,-132.3,-8 heure=12 mains=garde vue=1
+fps_torche_jour monde 21.80,19.82,-132.3,-28 heure=12 mains=repos vue=1
+fps_repos_nuit monde 21.80,19.82,-132.3,-8 heure=22 mains=repos vue=1
+fps_frappe_nuit monde 21.80,19.82,-132.3,-8 heure=22 mains=frappe vue=1
+fps_garde_nuit monde 21.80,19.82,-132.3,-8 heure=22 mains=garde vue=1
+fps_torche_nuit monde 21.80,19.82,-132.3,-28 heure=22 mains=repos vue=1
+tp_jour monde 21.80,19.82,-132.3,-5 heure=12 mains=repos vue=3 attente=40
+tp_nuit monde 21.80,19.82,-132.3,-5 heure=22 mains=repos vue=3 attente=40
