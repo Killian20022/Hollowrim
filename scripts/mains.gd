@@ -44,6 +44,10 @@ const DUREE_ENCAISSE := 0.26   # = clip « encaisse » (choc, rebond, replacemen
 const DUREE_REBOND := 0.30
 ## Coup affaibli (endurance insuffisante) : gestes ralentis de ce facteur.
 const LENTEUR_AFFAIBLI := 0.75
+## Réactivité (docs/COMBAT_LATENCE.md) : fondu d'entrée d'un coup dont le clip part de la pose affichée (s de clip), et
+## écart de pointe (px de l'écran 480×270) en dessous duquel on le considère « parti de la pose affichée ».
+const FONDU_VIF := 0.03
+const FONDU_PROCHE := 12.0
 
 var joueur: CharacterBody3D
 ## Bras droit animé par clés (AnimateurBras) et couche additive des mouvements passifs (decalage_bras.gd).
@@ -760,8 +764,26 @@ func _preparer_geste(lourd: bool) -> void:
 	_duree_suivi = (float(_m["suivi"]) - float(_m["fin_frappe"])) / v
 	_duree_recup = (float(_m["fin"]) - float(_m["fin_frappe"])) / v
 	_depart = _pose_courante
-	# fondu court depuis la pose affichée, terminé avant la frappe (l'image = le tracé pendant la phase active)
-	anim.jouer(_clip, minf(0.08, maxf(float(_m["frappe"]), 0.02) * 0.7))
+	# fondu court depuis la pose affichée, terminé avant la frappe (l'image = le tracé pendant la phase active).
+	# Réactivité (docs/COMBAT_LATENCE.md) : si le clip part de la pose affichée (coup lancé depuis le repos, pointe à moins
+	# de FONDU_PROCHE px), fondu de FONDU_VIF seulement — le fondu long atténuait les premières images du geste.
+	var fondu := minf(0.08, maxf(float(_m["frappe"]), 0.02) * 0.7)
+	if _ecart_px(_pose_courante, anim.pose_arme(_clip, 0.0)) < FONDU_PROCHE:
+		fondu = minf(fondu, FONDU_VIF)
+	anim.jouer(_clip, fondu)
+
+## Écart (pixels de l'écran 480×270) entre les pointes de deux poses de l'épée (repère des mains).
+func _ecart_px(a: Transform3D, b: Transform3D) -> float:
+	var ea := ProfilsAnimation.vers_ecran(transform * (a * _pointe_lame))
+	var eb := ProfilsAnimation.vers_ecran(transform * (b * _pointe_lame))
+	return ((ea - eb) * Vector2(240.0, 135.0)).length()
+
+## Réactivité (docs/COMBAT_LATENCE.md) : le coup qui vient de partir avance DÉJÀ dans l'image de l'appui (ou du relâchement
+## de la charge ; avant : il ne
+## bougeait qu'à l'image suivante, 1 image de retard : 17 ms à 60 i/s, 33 ms à 30 i/s).
+func _reponse_immediate(dt: float) -> void:
+	if combat.etat in [EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE, EtatCombat.CONTRE]:
+		_avancer_geste(dt)
 
 ## Lancement de la phase active : on paie l'endurance ici. Pas assez d'endurance = coup AFFAIBLI (dégâts ×0,5,
 ## geste ralenti, jamais puissant) — le coup part toujours, le joueur n'est jamais bloqué sans réponse.
@@ -848,6 +870,7 @@ func avancer(dt: float) -> void:
 					defense.lever()
 			elif entrees.consommer():
 				_commencer_attaque()
+				_reponse_immediate(dt)
 			if combat.calme():
 				_tenir("sprint" if passifs.sprint > 0.5 else "repos", 0.22, dt)
 		EtatCombat.PARADE, EtatCombat.GARDE:
@@ -886,6 +909,7 @@ func avancer(dt: float) -> void:
 				combat.changer(EtatCombat.ATTAQUE_LOURDE)
 				_geste_nom = _lourd_nom
 				_preparer_geste(true)
+				_reponse_immediate(dt)
 		EtatCombat.RECUPERATION:
 			# suivi (dépassement après la frappe) puis retour au repos : la fin du clip du geste
 			var k := clampf(combat.t / maxf(_duree_recup, 0.01), 0.0, 1.0)
@@ -901,6 +925,7 @@ func avancer(dt: float) -> void:
 			var fen: Array = _geste.get("enchainement", [DELAI_COMBO, 1.0])
 			if combat.t >= float(fen[0]) and entrees.consommer():
 				_commencer_attaque(combat.t <= float(fen[1]) * _duree_recup)
+				_reponse_immediate(dt)
 			elif veut_garde and combat.t > 0.12:
 				if combat.changer(EtatCombat.PARADE):
 					defense.lever()

@@ -32,6 +32,9 @@ func commencer() -> void:
 	nb_cibles = 0
 	arretee = false
 	rayons = 0
+	echantillons = 0
+	requetes = 0
+	vitesse = 0.0
 	_prec = PackedVector3Array()
 	debug_segments.clear()
 	debug_impacts.clear()
@@ -45,43 +48,46 @@ static func cible_de(objet: Object) -> Node:
 		n = n.get_parent()
 	return null
 
+## Résolution angulaire du balayage (rad, vue de l'œil) : écart maximal entre deux rayons voisins, le long de la lame comme
+## entre deux instants. 2,5° = 4 cm à 1 m, 8,7 cm à 2 m : un poteau, une hampe ou un bras ne passent plus entre deux rayons
+## (à 240 échantillons/s, la pointe d'un coup rapide balaie jusqu'à 30° d'un échantillon à l'autre : sans sous-pas, une
+## cible à 1 m pouvait traverser l'arc sans être touchée). Modifiable (navigateur : 3,5° divise les rayons par ~2).
+static var resolution := deg_to_rad(2.0)
+## Plafonds des subdivisions (par échantillon : sous-instants ; par segment de lame : rayons intermédiaires).
+static var sous_pas_max := 20
+static var sous_lame_max := 10
+## Pré-test par volume (pyramide) avant les sous-instants : faux = rayons denses partout (mesures, débogage).
+static var pre_test_volume := true
+## Vitesse angulaire minimale de la lame (°/s, pointe vue de l'œil, caméra comprise) pour BLESSER : une lame immobile ou
+## presque (début de fenêtre, coup bloqué contre une cible) ne coupe pas ; les murs l'arrêtent toujours.
+const VITESSE_MIN := 60.0
+
+## Vitesse angulaire de la pointe au dernier échantillon (°/s) ; échantillons et rayons lancés (débogage, perf).
+var vitesse := 0.0
+var echantillons := 0
+var requetes := 0
+var _prec_oeil := Vector3.ZERO
+var _volume := ConvexPolygonShape3D.new()
+var _requete_volume := PhysicsShapeQueryParameters3D.new()
+var _q := PhysicsRayQueryParameters3D.new()
+
 ## Un échantillon de la lame (points monde, garde → bout). Renvoie les événements :
 ## {type: "cible" | "mur" | "sol" | "cassable", point, normale, objet, collider, direction (mouvement de la lame), indice}.
-## `radial` (coups en espace écran, mains._points_jeu) : avant les rayons latéraux, un rayon de l'œil vers chaque point
-## (la lame vue à l'écran, prolongée à la portée) : le premier obstacle sur la ligne de visée est touché — un mur
-## devant la cible l'arrête toujours, et les points de jeu suivants ne sont jamais derrière le décor.
+## `radial` (coups en espace écran, mains._points_jeu) : nappe de rayons depuis l'œil entre l'échantillon précédent et
+## celui-ci (_balayer : subdivisée à `resolution` le long de la lame et dans le temps) — le premier obstacle sur la ligne de
+## visée est touché : un mur devant la cible l'arrête toujours. Sans `radial` : rayons latéraux entre deux échantillons.
 func echantillonner(espace: PhysicsDirectSpaceState3D, points: PackedVector3Array, oeil: Vector3, exclus: Array[RID], max_cibles: int, radial := false) -> Array:
 	var evts := []
 	if arretee:
 		return evts
 	if radial:
-		for i in points.size():
-			var q := PhysicsRayQueryParameters3D.create(oeil, points[i], MASQUE, exclus)
-			var r := espace.intersect_ray(q)
-			rayons += 1
-			if r.is_empty():
-				continue
-			var cible := cible_de(r["collider"])
-			var mouvement := (points[i] - _prec[i]).normalized() if _prec.size() == points.size() and points[i] != _prec[i] else (points[i] - oeil).normalized()
-			if cible == null or cible.is_in_group("cassables"):
-				var type := "cassable" if cible != null else ("sol" if (r["normal"] as Vector3).y > SOL_NORMALE else "mur")
-				evts.append({"type": type, "point": r["position"], "normale": r["normal"], "objet": cible if cible else r["collider"], "collider": r["collider"], "direction": mouvement, "indice": i})
-				arretee = true
-				break
-			var id := cible.get_instance_id()
-			if touches.has(id) or nb_cibles >= max_cibles:
-				continue
-			if cible.has_method("vivant") and not cible.vivant():
-				continue
-			touches[id] = true
-			nb_cibles += 1
-			evts.append({"type": "cible", "point": r["position"], "normale": r["normal"], "objet": cible, "collider": r["collider"], "direction": mouvement, "indice": i})
-		if arretee:
-			if garder_debug:
-				for e in evts:
-					debug_impacts.append(e["point"])
-			_prec = points
-			return evts
+		evts = _balayer(espace, points, oeil, exclus, max_cibles)
+		if garder_debug:
+			for e in evts:
+				debug_impacts.append(e["point"])
+		_prec = points
+		_prec_oeil = oeil
+		return evts
 	if _prec.size() != points.size():
 		_prec = points
 		return evts
@@ -129,4 +135,105 @@ func echantillonner(espace: PhysicsDirectSpaceState3D, points: PackedVector3Arra
 		for e in evts:
 			debug_impacts.append(e["point"])
 	_prec = points
+	_prec_oeil = oeil
 	return evts
+
+## Balayage RADIAL (coups en espace écran) : la lame vue de l'œil, projetée à la portée, balaie une nappe de rayons entre
+## l'échantillon précédent et celui-ci. Les rayons partent de l'œil (le premier obstacle sur la ligne de visée est touché :
+## jamais à travers un mur). Chaque segment de lame (entre deux des 7 points) balaie une pyramide (œil → segment précédent
+## → segment actuel) : si elle contient une CIBLE (pré-test par volume, intersect_shape), la nappe de ce segment est
+## subdivisée dans le temps et le long de la lame (deux rayons voisins à moins de `resolution`) ; sinon seuls les rayons
+## des points de la lame à l'instant de l'échantillon sont lancés (le décor, large, ne passe pas entre eux). Un coup dans le
+## vide coûte ~7 rayons et 6 requêtes de volume par échantillon. Sous-instants parcourus dans l'ordre du temps : le premier
+## contact (mur ou cible) l'emporte.
+func _balayer(espace: PhysicsDirectSpaceState3D, points: PackedVector3Array, oeil: Vector3, exclus: Array[RID], max_cibles: int) -> Array:
+	var evts := []
+	var n := points.size()
+	var prec_ok := _prec.size() == n and n >= 2
+	echantillons += 1
+	_q.collision_mask = MASQUE
+	_q.exclude = exclus
+	# vitesse de la pointe (caméra comprise : une lame tenue immobile pendant qu'on pivote balaie bien le monde)
+	vitesse = rad_to_deg((_prec[n - 1] - _prec_oeil).angle_to(points[n - 1] - oeil)) / PAS if prec_ok else INF
+	var blesse := vitesse >= VITESSE_MIN
+	var nt := 1
+	if prec_ok:
+		var amax := 0.0
+		for i in n:
+			amax = maxf(amax, (_prec[i] - _prec_oeil).angle_to(points[i] - oeil))
+		nt = clampi(ceili(amax / resolution - 1e-6), 1, sous_pas_max)
+	var denses := []
+	for jseg in n - 1:
+		var sommets := [_prec_oeil, oeil, _prec[jseg], _prec[jseg + 1], points[jseg], points[jseg + 1]] if prec_ok else [oeil, oeil, points[jseg], points[jseg + 1], points[jseg], points[jseg + 1]]
+		# plus aucune cible possible (plafond atteint) : la nappe fine ne sert plus, seuls les murs arrêtent encore la lame
+		denses.append(nb_cibles < max_cibles and (not pre_test_volume or _volume_cible(espace, sommets, exclus)))
+	for sp in range(1, nt + 1):
+		var f := float(sp) / float(nt)
+		var o := _prec_oeil.lerp(oeil, f) if prec_ok else oeil
+		var ligne := PackedVector3Array()
+		for i in n:
+			ligne.append(_prec[i].lerp(points[i], f) if prec_ok else points[i])
+		for jseg in n - 1:
+			var dense: bool = denses[jseg]
+			if sp < nt and not dense:
+				continue
+			var nb := clampi(ceili((ligne[jseg] - o).angle_to(ligne[jseg + 1] - o) / resolution - 1e-6), 1, sous_lame_max) if dense else 1
+			for bb in range(0 if jseg == 0 else 1, nb + 1):
+				var u := float(bb) / float(nb)
+				var p := ligne[jseg].lerp(ligne[jseg + 1], u)
+				var mvt := (p - _prec[jseg].lerp(_prec[jseg + 1], u)).normalized() if prec_ok else Vector3.ZERO
+				var e := _rayon(espace, o, p, max_cibles, blesse, mvt, jseg, sp < nt or bb not in [0, nb])
+				if not e.is_empty():
+					evts.append(e)
+				if arretee:
+					return evts
+	return evts
+
+## Un rayon œil → point de la nappe. Renvoie l'événement (cible nouvelle, mur, sol, cassable) ou {}.
+func _rayon(espace: PhysicsDirectSpaceState3D, o: Vector3, p: Vector3, max_cibles: int, blesse: bool, mouvement: Vector3, indice: int, sous_pas: bool) -> Dictionary:
+	_q.from = o
+	_q.to = p
+	var r := espace.intersect_ray(_q)
+	rayons += 1
+	if garder_debug:
+		debug_segments.append([o, r["position"] if not r.is_empty() else p, 1 if sous_pas else 0])
+	if r.is_empty():
+		return {}
+	if mouvement == Vector3.ZERO or not mouvement.is_finite():
+		mouvement = (p - o).normalized()
+	var cible := cible_de(r["collider"])
+	if cible == null or cible.is_in_group("cassables"):
+		var type := "cassable" if cible != null else ("sol" if (r["normal"] as Vector3).y > SOL_NORMALE else "mur")
+		arretee = true
+		return {"type": type, "point": r["position"], "normale": r["normal"], "objet": cible if cible else r["collider"], "collider": r["collider"], "direction": mouvement, "indice": indice}
+	var id := cible.get_instance_id()
+	if not blesse or touches.has(id) or nb_cibles >= max_cibles:
+		return {}
+	if cible.has_method("vivant") and not cible.vivant():
+		return {}
+	touches[id] = true
+	nb_cibles += 1
+	return {"type": "cible", "point": r["position"], "normale": r["normal"], "objet": cible, "collider": r["collider"], "direction": mouvement, "indice": indice}
+
+## Le volume balayé par un segment de lame entre deux échantillons (pyramide de l'œil) contient-il une cible (groupe ennemis /
+## cibles_combat, hors cassables) PAS ENCORE TOUCHÉE par ce coup ? Pyramide presque plate (lame vue dans son axe, premier échantillon) : vrai (on lance
+## les rayons, pas de volume fiable).
+func _volume_cible(espace: PhysicsDirectSpaceState3D, sommets: Array, exclus: Array[RID]) -> bool:
+	var o: Vector3 = sommets[1]
+	var v1: Vector3 = sommets[2] - o
+	var v2: Vector3 = sommets[3] - o
+	var v3: Vector3 = sommets[4] - o
+	var v4: Vector3 = sommets[5] - o
+	if maxf(absf(v1.cross(v2).dot(v3)), absf(v2.cross(v4).dot(v3))) < 1e-5:
+		return true
+	_volume.points = PackedVector3Array(sommets)
+	_requete_volume.shape = _volume
+	_requete_volume.transform = Transform3D()
+	_requete_volume.collision_mask = MASQUE
+	_requete_volume.exclude = exclus
+	requetes += 1
+	for h in espace.intersect_shape(_requete_volume, 8):
+		var c := cible_de(h["collider"])
+		if c != null and not c.is_in_group("cassables") and not touches.has(c.get_instance_id()):
+			return true   # cible pas encore touchée par ce coup
+	return false
