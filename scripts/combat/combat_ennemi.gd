@@ -266,14 +266,20 @@ func effets_impact(r: Dictionary, joueur: Node) -> void:
 	var p := ProfilImpact.de(String(r["impact"]))
 	var point: Vector3 = i["point"]
 	var dir: Vector3 = i["direction"]
-	var armure := (profil.armure >= 2.0 or profil.armure_part >= 0.06) and String(i["zone"]) in ["torse", "bras"]
+	var zone := String(i["zone"])
+	var armure := (profil.armure >= 2.0 or profil.armure_part >= 0.06) and zone in ["torse", "bras"]
+	# casque : un coup à la tête sonne sur le métal (étincelles, moins de sang : la lame glisse sur le casque)
+	var casque := profil.armure_tete > 0.0 and zone == "tete"
 	var part_sang := 0.25 if bool(i.get("continu", false)) else (0.6 if i.has("ecole") else 1.0)   # magie : moins de sang
+	if casque:
+		part_sang *= 0.35
 	if profil.sang and Sang.actif():
 		Sang.giclee(corps, point, dir, p.sang * part_sang, profil.couleur_sang)
 	else:
 		Sang.eclats_matiere(corps, point, dir, p.sang * 0.8, profil.couleur_sang if not profil.sang else Color(0.45, 0.42, 0.38))
-	if armure:
-		Effets.eclats(corps, point - dir * 0.05, Color(3.0, 2.2, 0.8), 6, 2.5, true)   # étincelles sur les mailles
+	if armure or casque:
+		# étincelles sur les mailles / le casque : plus nombreuses au coup lourd, jamais au point de masquer la cible
+		Effets.eclats(corps, point - dir * 0.05, Color(3.0, 2.2, 0.8), 4 if p.nom in ["leger", "moyen"] else 7, 2.5, true)
 	var taille := 0.32 if p.nom == "leger" else (0.4 if p.nom == "moyen" else 0.5)
 	# magie (docs/MAGIE.md) : un tic de sort canalisé ne laisse ni plaie ni arrêt sur image ; un sort élémentaire ne taille pas
 	if bool(i.get("continu", false)):
@@ -281,12 +287,18 @@ func effets_impact(r: Dictionary, joueur: Node) -> void:
 	if String(i.get("type", "tranchant")) in ["tranchant", "contondant"]:
 		Plaies.ajouter(modele, point, i["normale"], dir, taille, profil.couleur_sang, profil.matiere)
 	RetourImpact.son_impact(corps, profil.matiere, p, point, armure)
+	if casque:
+		RetourImpact.son(corps, "armure", point, p.volume_db, 1.2)          # tintement du casque (plus aigu que la cotte)
+	if profil.poids >= 2.0 and profil.matiere == "chair":
+		RetourImpact.son(corps, "chair_gore", point, p.volume_db - 3.0, 0.7)   # chair épaisse (troll) : impact sourd
 	if r["reaction"] in ["moyen", "lourd", "recul", "chute"] and randf() < 0.6:
 		RetourImpact.cri(corps, "douleur", point, profil.matiere, profil.mort_vivant)
 	RetourImpact.jouer(corps, p, joueur)
 	if reaction_os:
+		# réaction selon la zone, la direction de la lame et la puissance : léger = sursaut nerveux, lourd = le corps encaisse
 		var f := {"leger": 0.18, "moyen": 0.32, "lourd": 0.55, "recul": 0.7, "chute": 0.6, "etourdi": 0.6}
-		reaction_os.frapper(dir, float(f.get(r["reaction"], 0.25)))
+		var reac := String(r["reaction"])
+		reaction_os.frapper_zone(dir, float(f.get(reac, 0.25)) / sqrt(maxf(profil.poids, 0.5)), zone, reac not in ["leger", "moyen"])
 	if debug:
 		var txt := "-%d%s" % [roundi(float(r["degats"])), "!" if r["critique"] else ""]
 		_flottant(txt, point + Vector3(0, 0.25, 0), Color(1.0, 0.55, 0.2) if r["critique"] else Color(1, 0.95, 0.85))
@@ -299,6 +311,11 @@ func effets_blocage(r: Dictionary, brise: bool) -> void:
 	Effets.eclats(corps, corps.global_position + Vector3(0, 1.1, 0) - (corps.global_position - Vector3(i["origine"])).normalized() * 0.4, Color(3.0, 2.2, 0.8), 10 if brise else 8, 2.5, true)
 	if debug:
 		_flottant("GARDE BRISEE" if brise else "BLOQUE", point + Vector3(0, 0.25, 0), Color(0.7, 0.8, 1.0))
+
+## Animation de coup reçu selon la zone du dernier coup (tête : Hit_Head ; ailleurs : Hit_Chest).
+func anim_coup() -> String:
+	var z := String(dernier_resultat.get("info", {}).get("zone", ""))
+	return "Hit_Head" if z == "tete" else "Hit_Chest"
 
 ## Type de mort selon le coup : "legere", "titubante", "lourde", "recul", "chute", "puissant" (le finisher a la sienne).
 func type_mort(r: Dictionary) -> String:
@@ -319,9 +336,12 @@ func effets_mort(r: Dictionary, sorte: String, joueur: Node) -> void:
 	var dir: Vector3 = i.get("direction", -corps.global_transform.basis.z)
 	var gros := sorte in ["puissant", "recul", "lourde", "finisher"]
 	var p := ProfilImpact.de("finisher" if sorte == "finisher" else ("critique" if sorte == "puissant" else ("lourd" if gros else "moyen")))
+	# finisher aligné (épée plantée, plongé) : le gros du sang a coulé pendant la séquence (jets, giclée au retrait) ; à la
+	# mort, une giclée de lourd seulement (une explosion de gouttes devant la caméra masquerait la chute du corps)
+	var k_sang := 2.2 / p.sang if String(i.get("mort_finisher", "")) in ["effondre", "cloue"] else 1.0
 	if profil.sang and Sang.actif():
-		Sang.giclee(corps, point, dir, p.sang * 1.3, profil.couleur_sang)
-		if gros:
+		Sang.giclee(corps, point, dir, p.sang * 1.3 * k_sang, profil.couleur_sang)
+		if gros and k_sang >= 1.0:
 			Sang.giclee(corps, point + Vector3(0, 0.1, 0), (dir + Vector3.UP * 0.5).normalized(), p.sang, profil.couleur_sang, false)
 		# la flaque s'étale sous le corps une fois tombé
 		var c := corps

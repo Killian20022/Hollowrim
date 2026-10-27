@@ -492,7 +492,7 @@ func _tituber(recul: Vector3, duree: float) -> void:
 	_recul = recul
 	_duree_titube = duree
 	_changer(TITUBE)
-	_jouer(["Hit_Chest", "Hit_Head"].pick_random(), 0.05, true)
+	_jouer(combat.anim_coup(), 0.05, true)   # selon la zone touchée
 	anim.speed_scale = clampf(0.55 / duree, 0.6, 1.6)
 
 func _etourdir() -> void:

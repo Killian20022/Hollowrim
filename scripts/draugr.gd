@@ -875,7 +875,7 @@ func _tituber(recul: Vector3, duree := 0.55) -> void:
 	_recul = recul
 	_duree_titube = duree
 	_changer(TITUBE)
-	_jouer(["Hit_Chest", "Hit_Head"].pick_random(), 0.05, true)
+	_jouer(combat.anim_coup(), 0.05, true)   # selon la zone touchée
 	anim.speed_scale = clampf(0.55 / duree, 0.6, 1.6)
 
 ## Posture brisée : étourdi (CombatEnnemi.etourdi s), fenêtre de finisher.
@@ -913,7 +913,8 @@ func subir_finisher(categorie: String, info: Dictionary = {}) -> String:
 	i["categorie"] = categorie
 	var r := {"info": i, "degats": vie, "stagger": 999.0, "critique": true, "impact": "finisher", "bloque": false, "brise_garde": false, "reaction": "finisher", "finisher": categorie}
 	vie = 0.0
-	_eclair()
+	if not info.has("finisher_nom"):
+		_eclair()   # finisher aligné : l'éclair a déjà eu lieu au contact de la lame
 	_mourir_coup(r, "finisher")
 	return "tue"
 
@@ -928,7 +929,7 @@ func _eclair() -> void:
 	t.tween_method(func(v: float) -> void:
 		for mi in _mailles:
 			if is_instance_valid(mi):
-				mi.set_instance_shader_parameter("eclair", v), 0.5, 0.0, 0.14)
+				mi.set_instance_shader_parameter("eclair", v), 0.28, 0.0, 0.1)   # éclair bref et léger : la réaction du corps reste lisible (§8)
 
 ## Mort : le corps passe de l'animation au ragdoll, projeté dans le sens du coup ; morts variées selon le coup
 ## (CombatEnnemi.type_mort) : "legere" (s'effondre), "titubante" (encaisse, chancelle, puis tombe), "lourde", "recul" (projeté),
@@ -997,7 +998,7 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, 
 			var imp := (Vector3(info.get("direction", dir)) * 0.6 + dir * 0.4 + Vector3.UP * 0.7).normalized() * 16.0
 			Decapitation.decapiter(modele, imp, combat.profil.couleur_sang, combat.profil.sang, combat.profil.matiere)
 	if sorte == "titubante":
-		_jouer(["Hit_Head", "Hit_Chest"].pick_random(), 0.05, true)
+		_jouer(combat.anim_coup(), 0.05, true)   # selon la zone touchée
 		anim.speed_scale = 0.7
 		get_tree().create_timer(0.38).timeout.connect(lancer)
 	else:

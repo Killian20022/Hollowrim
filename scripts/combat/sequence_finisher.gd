@@ -184,6 +184,13 @@ func _mesurer() -> void:
 	if dg > r:
 		mesure["garde_dehors"] += 1
 	mesure["dist_max"] = maxf(float(mesure["dist_max"]), dp)
+	# profondeur de la pointe dans le corps (repère de la victime : + = vers son dos depuis l'axe du torse) et écart latéral
+	var bv := cible.global_transform.basis
+	var c3 := _accroche("spine_03")
+	if c3 != null:
+		var v := pointe - c3.global_position
+		var avant := bv.z.normalized() * (-1.0 if String(d["orientation"]) == "dos" else 1.0)
+		mesure["serie"] = mesure.get("serie", []) + [Vector3(t, -v.dot(avant), v.dot(bv.x.normalized()))]
 
 static func _dist_segment(p: Vector3, a: Vector3, b: Vector3) -> float:
 	var ab := b - a
@@ -239,11 +246,11 @@ func _evenement(sorte: String) -> void:
 				_entree_locale = acc.to_local(entree)
 			var vers_joueur := -dir_lame
 			if _saigne():
-				Sang.giclee(corps, entree, (vers_joueur + Vector3.UP * 0.25).normalized(), 1.8, _couleur())
+				Sang.giclee(corps, entree, (_lat() * 0.8 + Vector3.UP * 0.5 - vers_joueur * 0.1).normalized(), 1.5, _couleur())
 			else:
 				Sang.eclats_matiere(corps, entree, vers_joueur, 1.6, _couleur() if not combat.profil.sang else Color(0.45, 0.42, 0.38))
 			if _armure_torse():
-				Effets.eclats(corps, entree + vers_joueur * 0.04, Color(3.0, 2.2, 0.8), 7, 2.2, true)
+				Effets.eclats(corps, entree + vers_joueur * 0.04, Color(3.0, 2.2, 0.8), 4, 1.4, true)   # la lame racle la cotte : peu d'étincelles (la cible reste lisible)
 			Plaies.ajouter(combat.modele, entree, vers_joueur, Vector3.UP, 0.42, _couleur(), combat.profil.matiere)
 			var p := ProfilImpact.de("lourd")
 			RetourImpact.son_impact(corps, combat.profil.matiere, p, entree, _armure_torse())
@@ -257,7 +264,7 @@ func _evenement(sorte: String) -> void:
 			var casque := combat.profil.armure_tete > 0.0
 			if casque:
 				RetourImpact.son(corps, "armure", pt, 2.0, 0.85)
-				Effets.eclats(corps, pt, Color(3.0, 2.2, 0.8), 8, 2.0, true)
+				Effets.eclats(corps, pt, Color(3.0, 2.2, 0.8), 4, 1.2, true)
 			elif combat.profil.matiere == "os":
 				RetourImpact.son(corps, "os", pt, 3.0, 1.0)
 				Sang.eclats_matiere(corps, pt, -_epee().basis.z, 0.8, _couleur())
@@ -272,7 +279,8 @@ func _evenement(sorte: String) -> void:
 			if _saigne() and _accroche_entree != null:
 				# jet pulsé qui sort de la plaie vers le joueur (et un peu vers le haut), il goutte au sol ; flaque qui grossit
 				var loc := _entree_locale
-				var y := (_accroche_entree.global_transform.basis.inverse() * (-dir_lame + Vector3.UP * 0.35)).normalized()
+				# jet de côté et vers le haut (jamais droit sur la caméra : à 1 m, les gouttes deviendraient des pavés)
+				var y := (_accroche_entree.global_transform.basis.inverse() * (dir_lame * 0.35 + _lat() * 0.8 + Vector3.UP * 0.6)).normalized()
 				var x := y.cross(Vector3.FORWARD if absf(y.z) < 0.9 else Vector3.RIGHT).normalized()
 				Sang.jet(_accroche_entree, Transform3D(Basis(x, y, x.cross(y)), loc), _couleur(), 2.2)
 				Sang.flaque(corps, corps.global_position + (joueur.global_position - corps.global_position).normalized() * 0.15, _couleur(), 1.1, 1.6)
@@ -280,8 +288,8 @@ func _evenement(sorte: String) -> void:
 		"retrait":
 			var pt := _accroche_entree.to_global(_entree_locale) if _accroche_entree != null else entree
 			if _saigne():
-				Sang.giclee(corps, pt, (-dir_lame + Vector3.UP * 0.3).normalized(), 3.2, _couleur())
-				Sang.giclee(corps, pt, (-dir_lame + Vector3.DOWN * 0.4).normalized(), 1.6, _couleur(), false)
+				Sang.giclee(corps, pt, (-dir_lame * 0.15 + _lat() * 0.8 + Vector3.UP * 0.45).normalized(), 2.2, _couleur())
+				Sang.giclee(corps, pt, (-dir_lame * 0.3 - _lat() * 0.5 + Vector3.DOWN * 0.6).normalized(), 1.6, _couleur())
 			else:
 				Sang.eclats_matiere(corps, pt, -dir_lame, 1.4, _couleur() if not combat.profil.sang else Color(0.45, 0.42, 0.38))
 			RetourImpact.son(corps, "dechirure" if combat.profil.matiere == "chair" else "os", pt, 1.0, 0.9)
@@ -296,6 +304,11 @@ func _evenement(sorte: String) -> void:
 			if Sang.actif() and combat.profil.sang:
 				var xf2 := _epee()
 				Sang.giclee(mains, xf2 * Vector3(0, 0.6, 0), (xf2.basis.y * 0.3 + Vector3.DOWN).normalized(), 0.5, _couleur())
+
+## Côté (horizontal) perpendiculaire à la lame, vers la gauche de l'écran (là où la lame n'est pas).
+func _lat() -> Vector3:
+	var l := Vector3.UP.cross(dir_lame)
+	return l.normalized() if l.length() > 0.01 else Vector3.RIGHT
 
 func _tuer(tranche: bool) -> void:
 	mort = true

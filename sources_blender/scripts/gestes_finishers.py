@@ -41,12 +41,12 @@ PL_SECOUE = dict(nom="PL_secoue", poing=E(0.62, -0.72, 0.42), lame=(0.25, -0.35,
 
 # --- 2. DÉCAPITATION LATÉRALE --------------------------------------------------------------------------------------------
 # grand armé à droite à hauteur du cou, balayage horizontal droite → gauche qui traverse le cou, suivi large à gauche.
-D_ARME = dict(nom="D_arme", poing=E(0.86, 0.0, 0.48), lame=(0.0, 0.10, -1.0), roulis=TRANCHE, coude=(1, -0.5, 0.4), clav=(-10, 8), epaule=(0.02, 0.01, 0.01), torsion=-80)
-D_TENSION = dict(D_ARME, nom="D_tension", poing=E(0.92, 0.03, 0.46), lame=(0.06, 0.10, -1.0))
+D_ARME = dict(nom="D_arme", poing=E(0.74, -0.08, 0.56), lame=(0.0, 0.10, -1.0), roulis=TRANCHE, coude=(1, -0.5, 0.4), clav=(-10, 8), epaule=(0.02, 0.01, 0.01), torsion=-80)
+D_TENSION = dict(D_ARME, nom="D_tension", poing=E(0.78, -0.06, 0.55), lame=(0.06, 0.10, -1.0))
 D_ENTREE = dict(nom="D_entree", poing=E(0.55, -0.06, 0.55), lame=(-0.36, 0.06, -0.93), mouvement=(-1, -0.05, 0), coude=(1, -0.7, 0.3), clav=(6, 6), interp="passe", torsion=-80)
 D_MILIEU = dict(nom="D_milieu", poing=E(0.16, -0.12, 0.60), lame=(-0.80, 0.08, -0.60), mouvement=(-1, -0.05, 0), coude=(0.6, -1, 0.0), clav=(20, 3), epaule=(-0.05, 0.0, -0.06), interp="passe", torsion=-80)
-D_FIN = dict(nom="D_fin", poing=E(-0.25, -0.28, 0.56), lame=(-0.92, -0.12, -0.30), mouvement=(-0.8, -0.2, 0.4), coude=(0.3, -1, -0.2), clav=(30, 0), epaule=(-0.12, 0.02, -0.11), torsion=-80)
-D_SUIVI = dict(D_FIN, nom="D_suivi", poing=E(-0.36, -0.42, 0.55), lame=(-0.82, -0.32, -0.25))
+D_FIN = dict(nom="D_fin", poing=E(-0.22, -0.45, 0.58), lame=(-0.92, -0.12, -0.30), mouvement=(-0.8, -0.2, 0.4), coude=(0.3, -1, -0.2), clav=(30, 0), epaule=(-0.12, 0.02, -0.11), torsion=-80)
+D_SUIVI = dict(D_FIN, nom="D_suivi", poing=E(-0.30, -0.62, 0.55), lame=(-0.82, -0.32, -0.25))
 
 # --- 3. COUP PLONGÉ (ennemi à terre) -------------------------------------------------------------------------------------
 # la caméra regarde le corps au sol (tangage fort) : l'épée monte, pointe en avant-bas, puis plonge dans la poitrine (même
@@ -85,13 +85,13 @@ CLIPS = {
 }
 
 MARQUEURS = {
-    "fin_plantee": {"arme": 0.16, "frappe": 0.24, "contact": 0.30, "plante": 0.30, "retrait": 0.86, "sortie": 0.95, "mort": 0.97,
+    "fin_plantee": {"arme": 0.16, "frappe": 0.24, "contact": 0.30, "plante": 0.30, "retrait": 0.86, "sortie": 0.95, "mort": 1.02,
                     "suivi": 1.08, "fin": 1.45},
     "fin_decapitation": {"arme": 0.24, "frappe": 0.31, "contact": 0.36, "fin_frappe": 0.42, "mort": 0.36, "suivi": 0.56, "fin": 1.00},
-    "fin_plonge": {"arme": 0.20, "frappe": 0.28, "contact": 0.34, "plante": 0.34, "retrait": 0.80, "sortie": 0.90, "mort": 0.93,
+    "fin_plonge": {"arme": 0.20, "frappe": 0.28, "contact": 0.34, "plante": 0.34, "retrait": 0.80, "sortie": 0.90, "mort": 0.98,
                    "suivi": 1.06, "fin": 1.40},
     "fin_pommeau": {"arme": 0.13, "frappe": 0.18, "contact": 0.23, "contact2": 0.60, "plante": 0.60, "retrait": 0.86, "sortie": 0.95,
-                    "mort": 0.97, "suivi": 1.08, "fin": 1.42},
+                    "mort": 1.02, "suivi": 1.08, "fin": 1.42},
 }
 
 

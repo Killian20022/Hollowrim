@@ -22,15 +22,15 @@ const GARDE := 0.096
 const CATALOGUE := {
 	"plantee": {
 		"clip": "fin_plantee", "orientation": "face",
-		# le centre du buste à 5 cm avant la pointe au contact (8 cm après la poussée) : la pointe est DANS le torse (demi-épaisseur
-		# ~0,13 m) sans ressortir dans le dos ; ~0,18 m de lame dans le corps
-		"alignements": [{"marqueur": "contact", "os": "spine_03", "y_lame": POINTE - 0.05, "decalage": Vector3.ZERO, "depuis": 0.0}],
+		# la pointe arrive sur l'os du buste au contact (+3 cm à la poussée) : DANS le torse, sans ressortir dans le dos
+		# (mesuré : 0,04-0,10 m derrière l'axe) ; ~0,15 m de lame dans le corps
+		"alignements": [{"marqueur": "contact", "os": "spine_03", "y_lame": POINTE, "decalage": Vector3.ZERO, "depuis": 0.0}],
 		"pose": [
 			[0.0, {}],
 			[0.27, {"buste": -0.05, "tete": -0.1}],
-			[0.33, {"buste": 0.42, "tete": 0.3, "bras": 0.55, "coudes": 0.5, "genoux": 0.08, "tremble": 0.05}],
-			[0.50, {"buste": 0.5, "tete": 0.45, "bras": 0.75, "coudes": 0.9, "genoux": 0.22, "tremble": 0.07}],
-			[0.84, {"buste": 0.55, "tete": 0.6, "bras": 0.45, "coudes": 0.6, "genoux": 0.38, "tremble": 0.09}],
+			[0.33, {"buste": 0.42, "tete": 0.3, "bras": 0.12, "coudes": 0.7, "genoux": 0.08, "tremble": 0.05}],
+			[0.50, {"buste": 0.5, "tete": 0.45, "bras": 0.15, "coudes": 0.9, "genoux": 0.22, "tremble": 0.07}],
+			[0.84, {"buste": 0.55, "tete": 0.6, "bras": 0.1, "coudes": 0.6, "genoux": 0.38, "tremble": 0.09}],
 			[0.95, {"buste": 0.25, "tete": 0.2, "bras": 0.3, "coudes": 0.4, "genoux": 0.45, "tremble": 0.02}],
 		],
 		"evenements": [["contact", "entree"], ["plante", "jet"], ["sortie", "retrait"], ["mort", "mort"], ["suivi", "secoue"]],
@@ -38,7 +38,8 @@ const CATALOGUE := {
 	},
 	"dos": {
 		"clip": "fin_plantee", "orientation": "dos",
-		"alignements": [{"marqueur": "contact", "os": "spine_03", "y_lame": POINTE - 0.05, "decalage": Vector3.ZERO, "depuis": 0.0}],
+		# entre les omoplates : la pointe 12 cm au-dessus de l'os du buste (au-dessus d'un bouclier porté au dos)
+		"alignements": [{"marqueur": "contact", "os": "spine_03", "y_lame": POINTE, "decalage": Vector3(0, -0.12, 0), "depuis": 0.0}],
 		"pose": [
 			[0.0, {}],
 			[0.33, {"buste": -0.35, "tete": -0.55, "bras": -0.35, "coudes": 0.2, "tremble": 0.06}],
@@ -54,7 +55,7 @@ const CATALOGUE := {
 		"alignements": [
 			# le visage (os Head + 10 cm vers l'avant de la caméra) au pommeau (8 cm sous la garde, dans l'axe de l'arme)
 			{"marqueur": "contact", "os": "Head", "y_lame": -0.06, "decalage": Vector3(0, 0, -0.1), "depuis": 0.0},
-			{"marqueur": "contact2", "os": "spine_03", "y_lame": POINTE - 0.05, "decalage": Vector3.ZERO, "depuis": 0.25},
+			{"marqueur": "contact2", "os": "spine_03", "y_lame": POINTE, "decalage": Vector3.ZERO, "depuis": 0.25},
 		],
 		"pose": [
 			[0.0, {}],
@@ -62,8 +63,8 @@ const CATALOGUE := {
 			[0.27, {"buste": -0.3, "tete": -0.75, "bras": -0.25, "tremble": 0.03}],
 			[0.45, {"buste": -0.15, "tete": -0.35, "bras": 0.1, "genoux": 0.15}],
 			[0.58, {"buste": -0.05, "tete": -0.1, "bras": 0.2, "genoux": 0.1}],
-			[0.63, {"buste": 0.45, "tete": 0.35, "bras": 0.6, "coudes": 0.6, "genoux": 0.15, "tremble": 0.06}],
-			[0.86, {"buste": 0.55, "tete": 0.55, "bras": 0.45, "coudes": 0.7, "genoux": 0.38, "tremble": 0.08}],
+			[0.63, {"buste": 0.45, "tete": 0.35, "bras": 0.15, "coudes": 0.7, "genoux": 0.15, "tremble": 0.06}],
+			[0.86, {"buste": 0.55, "tete": 0.55, "bras": 0.1, "coudes": 0.6, "genoux": 0.38, "tremble": 0.08}],
 			[0.95, {"buste": 0.25, "tete": 0.25, "bras": 0.3, "genoux": 0.45}],
 		],
 		"evenements": [["contact", "pommeau"], ["contact2", "entree"], ["plante", "jet"], ["sortie", "retrait"], ["mort", "mort"], ["suivi", "secoue"]],
@@ -83,8 +84,8 @@ const CATALOGUE := {
 	},
 	"plonge": {
 		"clip": "fin_plonge", "orientation": "garder",
-		# corps au sol : le centre de la poitrine à 5 cm avant la pointe
-		"alignements": [{"marqueur": "contact", "os": "spine_03", "y_lame": POINTE - 0.05, "decalage": Vector3.ZERO, "depuis": 0.0}],
+		# corps au sol : la pointe sur l'os de la poitrine au contact
+		"alignements": [{"marqueur": "contact", "os": "spine_03", "y_lame": POINTE, "decalage": Vector3.ZERO, "depuis": 0.0}],
 		"pose": [
 			[0.0, {}],
 			[0.33, {}],
@@ -139,6 +140,8 @@ static func choisir(cible: Node3D, categorie: String, joueur: Node3D) -> String:
 		return "dos"
 	if categorie == "lateral":
 		return "decapitation"
+	if categorie == "apres_parade":
+		return "pommeau"     # après une parade : la garde adverse est ouverte, coup de pommeau puis estoc
 	# de face : l'épée plantée d'abord (demande de l'utilisateur), puis on varie sans répéter le dernier
 	var ordre := ["plantee", "pommeau", "decapitation"]
 	var i := (ordre.find(dernier) + 1) % ordre.size() if dernier in ordre else 0

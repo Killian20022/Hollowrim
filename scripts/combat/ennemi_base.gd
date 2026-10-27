@@ -510,7 +510,8 @@ func subir_finisher(categorie: String, info: Dictionary = {}) -> String:
 	i["categorie"] = categorie
 	var r := {"info": i, "degats": vie, "stagger": 999.0, "critique": true, "impact": "finisher", "bloque": false, "brise_garde": false, "reaction": "finisher", "finisher": categorie}
 	vie = 0.0
-	_eclair()
+	if not info.has("finisher_nom"):
+		_eclair()   # finisher aligné : l'éclair a déjà eu lieu au contact de la lame
 	_mourir_coup(r, "finisher")
 	return "tue"
 
@@ -589,7 +590,7 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, 
 			var imp := (Vector3(info.get("direction", dir)) * 0.6 + dir * 0.4 + Vector3.UP * 0.7).normalized() * 16.0
 			Decapitation.decapiter(modele, imp, combat.profil.couleur_sang, combat.profil.sang, combat.profil.matiere)
 	if sorte == "titubante":
-		_jouer(["Hit_Head", "Hit_Chest"].pick_random(), 0.05, true)
+		_jouer(combat.anim_coup(), 0.05, true)   # selon la zone touchée
 		anim.speed_scale = 0.7
 		get_tree().create_timer(0.38).timeout.connect(lancer)
 	else:
