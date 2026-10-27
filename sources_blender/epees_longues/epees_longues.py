@@ -106,14 +106,27 @@ def capuchon(m, ids_anneau, anneau, mat, uv_de):
 
 
 # ------------------------------------------------------------------ lame
-def lame(m, prof, z0, z_pointe, section, mat_de, w_ref, sym_dx=None):
+ELARGIR = (1.7, 1.2)    # lames de la planche : ~1,7x plus larges à la garde, effilées vers la pointe
+
+
+def lame(m, prof, z0, z_pointe, section, mat_de, w_ref, sym_dx=None, elargir=ELARGIR):
     """prof : liste de (z, demi-largeur, demi-épaisseur[, décalage de l'arête en x]).
     section 'hex' (plat + biseaux, 6 sommets), 'diamant' (4 sommets, cristal), 'veine' (10 sommets, bande centrale)."""
     anneaux = []
+    L = z_pointe - z0
+    w_ref = w_ref * elargir[0]
     for st in prof:
         z, w, t = st[0], st[1], st[2]
+        fr = (z - z0) / L
+        w = w * (elargir[0] + (elargir[1] - elargir[0]) * fr)
         dx = st[3] if len(st) > 3 else 0.0
-        if section == "hex":
+        if section == "gorge":   # plat + biseaux + gouttière centrale en creux (s'efface vers la pointe)
+            c = w * 0.58
+            g = w * 0.30 if fr < 0.74 else w * 0.02
+            f = t * (0.45 if fr < 0.74 else 0.98)
+            a = [(-w, 0, z), (-c, t, z), (-g, f, z), (g, f, z), (c, t, z), (w, 0, z),
+                 (c, -t, z), (g, -f, z), (-g, -f, z), (-c, -t, z)]
+        elif section == "hex":
             c = w * 0.42
             a = [(-w, 0, z), (-c, t, z), (c, t, z), (w, 0, z), (c, -t, z), (-c, -t, z)]
         elif section == "diamant":
@@ -124,12 +137,12 @@ def lame(m, prof, z0, z_pointe, section, mat_de, w_ref, sym_dx=None):
             a = [(-w, 0, z), (-c, t, z), (-v, t * 1.05, z), (v, t * 1.05, z), (c, t, z), (w, 0, z),
                  (c, -t, z), (v, -t * 1.05, z), (-v, -t * 1.05, z), (-c, -t, z)]
         anneaux.append(a)
-    L = z_pointe - z0
 
     def uv(p, k, i, mat=None):
         v = max(0.0, (p[2] - z0) / L)
         if mat == "veine":      # la bande de veine a sa propre texture, étalée sur toute sa largeur
-            demi = prof[min(k, len(prof) - 1)][1] * 0.16
+            st = prof[min(k, len(prof) - 1)]
+            demi = st[1] * (elargir[0] + (elargir[1] - elargir[0]) * (st[0] - z0) / L) * 0.16
             return ((p[0] / demi + 1.0) * 0.5, v)
         return ((p[0] + w_ref) / (2 * w_ref), v)
     ids = relier(m, anneaux, mat_de, uv)
@@ -142,18 +155,24 @@ def barre(m, stations, mat, z_centre, cotes=6, uv_l=2.0):
     """stations : (x, demi-hauteur z, demi-épaisseur y, décalage z). Section hexagonale (ou carrée si cotes = 4)."""
     anneaux = []
     for x, h, t, dz in stations:
+        x, h, t, dz = x * 1.25, h * 1.35, t * 1.35, dz * 1.25
         if cotes == 4:
             sec = [(0, -h), (t, 0), (0, h), (-t, 0)]
         else:
             sec = [(-t, -h * 0.55), (-t, h * 0.55), (0, h), (t, h * 0.55), (t, -h * 0.55), (0, -h)]
         anneaux.append([(x, y, z_centre + dz + z) for y, z in sec])
-    x0, x1 = stations[0][0], stations[-1][0]
+    x0, x1 = stations[0][0] * 1.25, stations[-1][0] * 1.25
 
     def uv(p, k, i, mat=None):
         return ((p[0] - x0) / (x1 - x0) * uv_l, i / cotes)
     ids = relier(m, anneaux, lambda k, i: mat, uv)
     capuchon(m, ids[0], anneaux[0], mat, uv)
     m.face(ids[-1], mat, [uv(p, 0, 0) for p in anneaux[-1]])
+
+
+def plaque(m, c, rx, ry, rz_haut, rz_bas, mat):
+    """Plaque centrale de garde (langue en losange), à l'échelle des lames élargies."""
+    octaedre(m, (c[0] * 1.25, c[1], c[2]), rx * 1.6, ry * 1.3, rz_haut * 1.3, rz_bas * 1.3, mat)
 
 
 def octaedre(m, c, rx, ry, rz_haut, rz_bas, mat, dx_haut=0.0):
@@ -216,16 +235,16 @@ def epee_metal():
     L = Maille("lame")
     prof = [(0.086, 0.0235, 0.0042), (0.13, 0.0240, 0.0040), (0.45, 0.0215, 0.0036), (0.76, 0.0180, 0.0031),
             (0.88, 0.0120, 0.0026), (0.935, 0.0060, 0.0020)]
-    lame(L, prof, 0.086, zt, "hex", lambda k, i: "lame", 0.024)
+    lame(L, prof, 0.086, zt, "gorge", lambda k, i: "lame", 0.024)
     L.creer()
     G = Maille("croisee")
     barre(G, [(-0.110, 0.0050, 0.0055, -0.005), (-0.101, 0.0120, 0.0105, -0.004), (-0.088, 0.0085, 0.0080, -0.001),
               (-0.030, 0.0100, 0.0095, 0.0), (0.030, 0.0100, 0.0095, 0.0), (0.088, 0.0085, 0.0080, -0.001),
               (0.101, 0.0120, 0.0105, -0.004), (0.110, 0.0050, 0.0055, -0.005)], "fer", 0.092)
-    octaedre(G, (0, 0, 0.093), 0.030, 0.0125, 0.046, 0.028, "fer")       # plaque centrale en losange (langue de garde)
+    plaque(G, (0, 0, 0.093), 0.030, 0.0125, 0.046, 0.028, "fer")       # plaque centrale en losange (langue de garde)
     G.creer()
     J = Maille("gemme")
-    octaedre(J, (0, 0, 0.095), 0.0100, 0.0150, 0.0120, 0.0100, "gemme")
+    octaedre(J, (0, 0, 0.096), 0.0224, 0.0301, 0.0266, 0.021, "gemme")
     J.creer()
     P = Maille("poignee")
     poignee(P, -0.088, 0.084, 0.0165)
@@ -243,17 +262,17 @@ def epee_or():
     L = Maille("lame")
     prof = [(0.088, 0.0215, 0.0038), (0.14, 0.0225, 0.0037), (0.50, 0.0195, 0.0033), (0.78, 0.0160, 0.0029),
             (0.885, 0.0100, 0.0023), (0.93, 0.0050, 0.0018)]
-    lame(L, prof, 0.088, zt, "hex", lambda k, i: "lame_or", 0.0225)
+    lame(L, prof, 0.088, zt, "gorge", lambda k, i: "lame_or", 0.0225)
     L.creer()
     G = Maille("croisee")
     barre(G, [(-0.112, 0.0020, 0.0040, 0.030), (-0.106, 0.0110, 0.0060, 0.022), (-0.094, 0.0070, 0.0060, 0.010),
               (-0.060, 0.0065, 0.0070, 0.001), (-0.020, 0.0125, 0.0110, 0.0), (0.020, 0.0125, 0.0110, 0.0),
               (0.060, 0.0065, 0.0070, 0.001), (0.094, 0.0070, 0.0060, 0.010), (0.106, 0.0110, 0.0060, 0.022),
               (0.112, 0.0020, 0.0040, 0.030)], "or", 0.090)
-    octaedre(G, (0, 0, 0.092), 0.020, 0.0110, 0.034, 0.030, "or")
+    plaque(G, (0, 0, 0.092), 0.020, 0.0110, 0.034, 0.030, "or")
     G.creer()
     J = Maille("gemme")
-    octaedre(J, (0, 0, 0.094), 0.0075, 0.0130, 0.0100, 0.0080, "rubis")
+    octaedre(J, (0, 0, 0.095), 0.021, 0.0294, 0.0252, 0.0196, "rubis")
     J.creer()
     P = Maille("poignee")
     poignee(P, -0.082, 0.082, 0.0160)
@@ -273,16 +292,16 @@ def epee_rubis():
     prof = [(0.086, 0.0200, 0.0060, 0.000), (0.12, 0.0250, 0.0068, 0.003), (0.26, 0.0225, 0.0064, -0.004),
             (0.40, 0.0240, 0.0062, 0.003), (0.55, 0.0205, 0.0058, -0.003), (0.68, 0.0215, 0.0055, 0.003),
             (0.80, 0.0165, 0.0048, -0.002), (0.89, 0.0105, 0.0040, 0.001)]
-    lame(L, prof, 0.086, zt, "diamant", lambda k, i: "rubis", 0.025)
+    lame(L, prof, 0.086, zt, "gorge", lambda k, i: "rubis", 0.025)
     L.creer()
     G = Maille("croisee")
     barre(G, [(-0.104, 0.0020, 0.0030, -0.022), (-0.096, 0.0075, 0.0070, -0.014), (-0.070, 0.0080, 0.0075, -0.003),
               (-0.024, 0.0110, 0.0095, 0.0), (0.024, 0.0110, 0.0095, 0.0), (0.070, 0.0080, 0.0075, -0.003),
               (0.096, 0.0075, 0.0070, -0.014), (0.104, 0.0020, 0.0030, -0.022)], "fer", 0.091)
-    octaedre(G, (0, 0, 0.092), 0.022, 0.0115, 0.036, 0.026, "fer")
+    plaque(G, (0, 0, 0.092), 0.022, 0.0115, 0.036, 0.026, "fer")
     G.creer()
     J = Maille("gemme")
-    octaedre(J, (0, 0, 0.096), 0.0080, 0.0135, 0.0110, 0.0090, "rubis")
+    octaedre(J, (0, 0, 0.097), 0.021, 0.0301, 0.0252, 0.0196, "rubis")
     octaedre(J, (0, 0, -0.120), 0.0190, 0.0140, 0.0120, 0.0230, "rubis")    # cristal du pommeau
     J.creer()
     P = Maille("poignee")
@@ -302,18 +321,18 @@ def epee_verre():
     prof = [(0.086, 0.0190, 0.0042, 0.0), (0.13, 0.0225, 0.0045, 0.002), (0.32, 0.0212, 0.0043, -0.002),
             (0.52, 0.0205, 0.0040, 0.002), (0.70, 0.0188, 0.0036, -0.0015), (0.82, 0.0145, 0.0031, 0.001),
             (0.90, 0.0080, 0.0025, 0.0)]
-    lame(L, prof, 0.086, zt, "diamant", lambda k, i: "verre", 0.0225)
+    lame(L, prof, 0.086, zt, "gorge", lambda k, i: "verre", 0.0225, elargir=(1.55, 1.15))
     L.creer()
     G = Maille("croisee")
     barre(G, [(-0.100, 0.0030, 0.0030, 0.012), (-0.090, 0.0060, 0.0050, 0.006), (-0.050, 0.0055, 0.0055, 0.0),
               (-0.018, 0.0090, 0.0080, 0.0), (0.018, 0.0090, 0.0080, 0.0), (0.050, 0.0055, 0.0055, 0.0),
               (0.090, 0.0060, 0.0050, 0.006), (0.100, 0.0030, 0.0030, 0.012)], "fer", 0.091)
-    octaedre(G, (0, 0, 0.092), 0.017, 0.0095, 0.030, 0.022, "fer")
+    plaque(G, (0, 0, 0.092), 0.017, 0.0095, 0.030, 0.022, "fer")
     G.creer()
     J = Maille("gemme")
-    octaedre(J, (0, 0, 0.095), 0.0065, 0.0115, 0.0090, 0.0070, "emeraude")
+    octaedre(J, (0, 0, 0.096), 0.0196, 0.0266, 0.0238, 0.0182, "emeraude")
     for sx in (-1, 1):
-        octaedre(J, (sx * 0.106, 0, 0.104), 0.0060, 0.0050, 0.0085, 0.0040, "emeraude")
+        octaedre(J, (sx * 0.132, 0, 0.106), 0.0075, 0.0065, 0.0105, 0.0050, "emeraude")
     octaedre(J, (0, 0, -0.116), 0.0160, 0.0120, 0.0100, 0.0210, "emeraude")
     J.creer()
     P = Maille("poignee")
@@ -335,19 +354,19 @@ def epee_obsidienne():
             (0.72, 0.0265, 0.0050), (0.86, 0.0190, 0.0042), (0.94, 0.0090, 0.0030)]
     # veine : bande centrale (quads 2 et 7 de l'anneau à 10 sommets), sur toute la lame sauf la pointe
     lame(L, prof, 0.088, zt, "veine",
-         lambda k, i: "veine" if (i in (2, 7) and k < len(prof) - 1) else "obsidienne", 0.032)
+         lambda k, i: "veine" if (i in (2, 7) and k < len(prof) - 1) else "obsidienne", 0.032, elargir=(1.45, 1.15))
     L.creer()
     G = Maille("croisee")
     barre(G, [(-0.118, 0.0015, 0.0020, 0.050), (-0.108, 0.0080, 0.0060, 0.030), (-0.088, 0.0110, 0.0085, 0.010),
               (-0.050, 0.0105, 0.0100, -0.004), (-0.022, 0.0140, 0.0120, -0.002), (0.022, 0.0140, 0.0120, -0.002),
               (0.050, 0.0105, 0.0100, -0.004), (0.088, 0.0110, 0.0085, 0.010), (0.108, 0.0080, 0.0060, 0.030),
               (0.118, 0.0015, 0.0020, 0.050)], "obsidienne", 0.090, cotes=4)
-    octaedre(G, (0, 0, 0.088), 0.026, 0.0130, 0.050, 0.032, "obsidienne")
+    plaque(G, (0, 0, 0.088), 0.026, 0.0130, 0.050, 0.032, "obsidienne")
     for sx in (-1, 1):   # ergots sous les quillons, pointés vers la poignée
-        octaedre(G, (sx * 0.060, 0, 0.082), 0.0060, 0.0060, 0.004, 0.026, "obsidienne")
+        plaque(G, (sx * 0.060, 0, 0.082), 0.0060, 0.0060, 0.004, 0.026, "obsidienne")
     G.creer()
     J = Maille("gemme")
-    octaedre(J, (0, 0, 0.094), 0.0070, 0.0145, 0.0130, 0.0080, "veine")
+    octaedre(J, (0, 0, 0.095), 0.021, 0.0322, 0.0266, 0.0196, "veine")
     J.creer()
     P = Maille("poignee")
     poignee(P, -0.090, 0.082, 0.0170)
