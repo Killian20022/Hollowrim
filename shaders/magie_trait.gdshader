@@ -28,7 +28,7 @@ void vertex() {
 		d = vec2(1.0, 0.0);
 	}
 	vec2 perp = normalize(vec2(-d.y, d.x));
-	float w = floor(mix(largeur_halo, largeur_coeur, UV.x) * max(UV2.x, 0.0) * max(magie_echelle * (UV.x > 0.5 ? 0.75 : 1.1), 1.0) + 0.5);
+	float w = floor(mix(largeur_halo, largeur_coeur, UV.x) * max(UV2.x, 0.0) * max(magie_echelle * (UV.x > 0.5 ? 0.75 : 1.25), 1.0) + 0.5);
 	vec2 p = floor(pa) + 0.5 + perp * UV.y * w * 0.5;
 	POSITION = vec4((p / vp * 2.0 - 1.0) * a.w, a.z, a.w);
 	couche = UV.x;

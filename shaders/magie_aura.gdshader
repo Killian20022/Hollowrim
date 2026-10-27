@@ -131,8 +131,8 @@ void fragment() {
 		float n2 = mbruit(q / 3.0 + 5.0 + floor(tt * 20.0) * 5.3);
 		float fil2 = 1.0 - abs(n2 * 2.0 - 1.0);
 		float pres = 1.0 - r;
-		if (r < 0.16 * force + 0.04) {
-			c = r < 0.08 ? c0.rgb : c1.rgb;
+		if (r < (0.07 + (n - 0.5) * 0.08) * force + 0.02) {
+			c = r < 0.04 ? c0.rgb : c1.rgb;
 		} else if (fil > 0.94 - pres * 0.06 && pres > 0.05) {
 			c = fil > 0.975 ? c0.rgb : c2.rgb;
 		} else if (fil2 > 0.95 && pres > 0.25) {
