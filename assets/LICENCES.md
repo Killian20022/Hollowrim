@@ -84,3 +84,18 @@ Copiés dans assets/sons/combat/ (branche combat/degats_gore : côté ennemi ; l
 | sons/combat/impacts/parade_parfaite_01 | RPG Sound Pack : inventory/metal-ringing (passe-haut 500 Hz) | artisticdude | CC0 |
 | sons/combat/impacts/parade_parfaite_02..05 | Metal Impact Sounds : bing1, clink1_0, clink2, clink3 (passe-haut 500 Hz) | bmaczero | CC0 |
 | sons/combat/impacts/parade_parfaite_06 | Medieval SFX: weapon impacts (opengameart.org/content/medieval-sound-effects-weapon-impacts) : Blade on Blade (passe-haut 500 Hz) | medicinestorm | CC0 |
+
+## Magie : sons des sorts (branche magie/sons ; sources CC0 vérifiées le 2026-10-27 : champ « License(s) : CC0 » de chaque page OpenGameArt)
+Fabriqués par `outils/sons_magie/generer.py` (ffmpeg : retaillés, normalisés -3 dBFS, mélangés ; .wav PCM 16 bits mono dans assets/sons/magie/). Aucune attribution n'est exigée en CC0 ; les packs sont cités par courtoisie. Aucun son n'a été écouté à l'oreille par l'agent : à valider à l'écoute.
+
+| Fichier(s) | Source (page OpenGameArt) | Licence |
+|---|---|---|
+| feu_* (lancer_2, impact_*), reaction_* (feu) | 80 CC0 RPG SFX (opengameart.org/content/80-cc0-rpg-sfx) : spell_fire_03, 06, 07, spell_01 | CC0 |
+| feu_lancer_1 | Fireball (opengameart.org/content/fireball-1) : 105016__julien-matthey__jm-fx-fireball-01 (Julien Matthey, freesound) | CC0 |
+| glace_lancer_1, reaction_vapeur / cristaux_corrompus | Freeze Spell (opengameart.org/content/freeze-spell-0) : freeze.wav | CC0 |
+| glace_lancer_2, glace_impact_*, reactions | Ice spells (opengameart.org/content/ice-spells) : ice.wav, coldsnap.wav | CC0 |
+| electricite_*, reaction_decharge*, reaction_arcs_violets, protection_*, double, refus_mana | Electricity Game Sound Pack (opengameart.org/content/electricity-game-sound-pack) : teleport_1, groundhit, hit, shieldhit, powerup, powerdown | CC0 |
+| tenebres_lancer_1, reaction_flammes_obscures | Energy Drain (opengameart.org/content/energy-drain) : qubodup-PowerDrain | CC0 |
+| tenebres_lancer_2, tenebres_impact_*, reactions | 3 Dark Magic Spells (opengameart.org/content/3-dark-magic-spells) : dm.mp3 découpé en 3 | CC0 |
+| soin_* | Cure Magic (opengameart.org/content/cure-magic) : Cure1, 3, 4, 6 | CC0 |
+| charge_*, jet_* (boucles) | synthétisés par nous (bruit filtré + sinus, ffmpeg) ; jets électrique/protection sans échantillon externe | création propre (CC0) |

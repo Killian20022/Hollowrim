@@ -174,6 +174,15 @@ mains.gd : cible d'IK de la main (`pivot_torche` / `pivot_epee`), orientation li
 écarté, doigts mélangés entre la pose de repos du squelette (ouverte) et le poing (`mains._doigts`). Ressort de 16 /s,
 tremblement léger en canalisation et à pleine charge. Le geste de l'épée (clés, rig, bras_fps.glb) n'est jamais modifié.
 
+## Sons (branche magie/sons)
+
+`scripts/magie/sons_magie.gd` (`SonsMagie`) : charge (boucle douce, volume et hauteur suivent l'intensité), lancement (2 variantes par école), jet continu (boucle, s'éteint 0,25 s après le dernier appel), impact (2 variantes, volume selon la force), zone, chaîne, réactions (6), double incantation (une note par école), enchantement, « Pas assez de mana » (aussi « Mana épuisé »). Écoles feu, glace, électricité, ténèbres (+ soin, protection). Fichiers : `assets/sons/magie/*.wav` (PCM 16 bits, sources CC0 dans assets/LICENCES.md, fabriqués par `outils/sons_magie/generer.py`). Boucles : `edit/loop_mode=2` dans leur .import.
+
+- Branchements (une ligne chacun) : `EffetsMagie.aura_main / jet / impact / zone / chaine / enchant_arme / reaction / double / tout_arreter`, `LanceurSorts.lancer` (départ du sort, joueur ET mage ennemi), `MainSort._refuser` (mana), `PrechauffeCombat.caches` (`SonsMagie.precharger()`).
+- Mage ennemi : mêmes appels, sons 3D qui suivent SA main (charge, jet) ou le point d'impact. Bus « Effets » (Options) quand il existe.
+- Perf : tout en .wav (jamais d'Ogg décodé au jeu), préchargé en tâche de fond ; pool de 12 lecteurs de coups + 8 de boucles créés une fois ; au plus 5 lectures par image, délai minimal par type de son. Mesuré (test_sons_magie, headless) : jet + charge chaque image ~80 us, un sort complet ~130 us, rien de créé par sort. `EffetsMagie.muet` : appels comptés (`SonsMagie.appels`), rien de joué.
+- Test : `bash outils/tous_les_tests.sh test_sons_magie`.
+
 ## Contrats
 
 ### EffetsMagie (agent effets : remplace `scripts/magie/effets_magie.gd`, signatures figées)

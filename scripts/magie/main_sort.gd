@@ -215,6 +215,8 @@ func _raison_indisponible(main: String, s: DonneesSort) -> String:
 	return ""
 
 func _refuser(main: String, raison: String) -> void:
+	if raison.begins_with("Pas assez de mana") or raison.begins_with("Mana épuisé"):
+		SonsMagie.refus_mana()
 	refus[main] = raison
 	joueur.action_refusee.emit(main, raison)
 	_noter("refus %s : %s" % [main, raison])
