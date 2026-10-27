@@ -143,6 +143,18 @@ alterné avant/après) : 1er coup 120-195 ms dans l'appel → 2-3 ms ; coup lég
   squelette — parade), ralenti de finisher ×0,6 à ×0,5 ; 2 appuyé = valeurs du tableau. Garde-fous dans `Effets` (demande échue
   ignorée, 1,5 s au plus, `Effets.reinitialiser_temps()` à la mort du joueur).
 Test : `bash outils/tous_les_tests.sh test_crypte_combat`.
+**Pics d'apparition, 2026-10-27** — `outils/mesure_apparitions.gd` (fenêtre hors écran ; `--lieu=crypte|grotte|fond`, `--sort-direct`,
+`--attendre-grotte`) : mage de la crypte 456 ms → ~18 ms (script `mage_nordique_ia.gd` compilé au 1er `load` : 243 ms ; modèle
+`MageNordique.creer` : 181 ms) ; troll de la grotte 792 ms → ~20 ms (script 239 ms + `TrollGivre.creer` 500 ms) ; draugrs 6-14 ms
+→ 2-4 ms par apparition (copie de la variante) ; entrée de la crypte : plus d'image > 25 ms une fois l'image revenue (une image de
+~60 ms sous l'écran noir). Correctifs : `EnnemisNordiques.spec_ia` / `modele_ia` (modèle des ennemis à IA bâti par le fil de
+préchauffage, script chargé par `ResourceLoader.load_threaded_request`), `EnnemisNordiques.preparer` (copies des prochains ennemis,
+une par image : devant la porte du tertre, puis à 20 m de la distance d'apparition ; grotte idem), un ennemi non préparé apparaît
+seul dans son passage, 1er passage des zones de la crypte sous l'écran noir. 1er trait d'ombre du mage : ~10 ms (pas de pic : les
+shaders magie_* sont déjà dans la vitrine de `PrechauffeCombat`) ; le pic « au 1er sort » venait de la **pose de la grotte en fond**
+(~1 500 nœuds ajoutés d'un coup, 150 ms vers 30 s après le chargement, donc souvent pendant le combat de la crypte) : la grotte entre
+vide puis par tranches de 2 ms (`GrotteAcces._poser_enfants`). Reste : la pose de la coque solide de la grotte (un corps Jolt par
+image, ~2 s) : images de 30-60 ms mesurées sur un PC chargé par un autre Godot, à revérifier sur PC libre.
 
 ## Débogage et validation
 

@@ -27,6 +27,13 @@ static var _anciens := -1
 static var _modeles := {}
 static var _mx := Mutex.new()              # protège le dictionnaire
 static var _bm := Mutex.new()              # un seul constructeur de corps à la fois (les archétypes ont des états statiques)
+## Pics d'apparition (2026-10-27) : la copie d'une variante coûtait encore 6-14 ms PAR ennemi au moment où il apparaît (2 par passage
+## des zones : images de 35-85 ms en entrant dans la crypte). Les copies des prochains ennemis sont donc faites D'AVANCE, une par image
+## (preparer, fil principal : les teintes clonées touchent Palette), puis rendues par creer() : ident -> [choix, Node3D hors arbre].
+static var _prets := {}
+## Ennemis à IA propre (mage nordique, troll de givre) : leur modèle est bâti par code à chaque fois (180-500 ms sur le fil principal à
+## l'apparition) ; le fil de préchauffage le bâtit d'avance, par ident, et modele_ia() le rend tel quel (pas de copie) au 1er qui le demande.
+static var _prets_ia := {}
 
 static func anciens() -> bool:
 	if _anciens < 0:
@@ -37,6 +44,12 @@ static func vider() -> void:
 	_clones.clear()
 	_mat.clear()
 	_mx.lock()
+	for dico: Dictionary in [_prets, _prets_ia]:
+		for k: String in dico:
+			var n: Node = dico[k][1] if dico[k] is Array else dico[k]
+			if is_instance_valid(n) and not n.is_inside_tree():
+				n.free()
+		dico.clear()
 	for k: String in _modeles:
 		if is_instance_valid(_modeles[k]):
 			(_modeles[k] as Node).free()
@@ -76,6 +89,30 @@ static func creer(spec := {}) -> Node3D:
 	if anciens():
 		return null
 	var ch := _choix(spec)
+	var id := String(spec.get("ident", ""))
+	if id != "" and _prets.has(id):
+		var pr: Array = _prets[id]
+		_prets.erase(id)
+		if pr[0] == ch and is_instance_valid(pr[1]):
+			return pr[1]
+		if is_instance_valid(pr[1]):
+			(pr[1] as Node).free()
+	return _fabriquer(ch)
+
+## Copie de la variante de `spec` faite d'avance (fil principal, hors arbre), rendue par creer() à l'apparition de cet ident.
+## Renvoie vrai si une copie a été faite (faux : déjà prête, pas d'ident, ou --pnj-anciens).
+static func preparer(spec: Dictionary) -> bool:
+	var id := String(spec.get("ident", ""))
+	if id == "" or anciens() or _prets.has(id) or String(spec.get("type", "")).begins_with("squelette"):
+		return false
+	var ch := _choix(spec)
+	_prets[id] = [ch, _fabriquer(ch)]
+	return true
+
+static func est_prepare(ident: String) -> bool:
+	return _prets.has(ident)
+
+static func _fabriquer(ch: Dictionary) -> Node3D:
 	var n: Node3D
 	match String(ch["t"]):
 		"hrafn":
@@ -102,9 +139,14 @@ static func nb_gabarits() -> int:
 ## Précalcul : bâtit (sans les ajouter à l'arbre) les corps de toutes les specs données. À lancer dans un fil d'exécution, au chargement.
 ## Les corps déjà prêts ne sont pas refaits.
 static func prechauffer(specs: Array) -> void:
+	for spec: Dictionary in specs:
+		if spec.has("ia"):
+			_preparer_ia(String(spec["ia"]), String(spec.get("ident", "")))
 	if anciens():
 		return
 	for spec: Dictionary in specs:
+		if spec.has("ia"):
+			continue
 		if String(spec.get("type", "")).begins_with("squelette"):
 			SqueletteGuerrier.prechauffer()     # les 3 variantes (épée, arc, hache) : les squelettes appelés en combat aussi
 			continue
@@ -123,9 +165,58 @@ static func prechauffer_fil(specs: Array) -> void:
 ## le serveur de rendu factice ne supporte pas deux fils qui créent des maillages en même temps (le monde se bâtit sur le fil principal pendant ce
 ## temps) : pas de précalcul, les gabarits se bâtissent à la demande (et restent en cache).
 static func lancer_prechauffe(specs: Array) -> int:
-	if specs.is_empty() or anciens() or DisplayServer.get_name() == "headless":
+	# scripts des ennemis à IA (compilation GDScript : ~240 ms au 1er load sur le fil principal) chargés en tâche de fond par le ResourceLoader
+	for spec: Dictionary in specs:
+		var chemin := String(spec.get("script", ""))
+		if chemin != "" and not ResourceLoader.has_cached(chemin):
+			ResourceLoader.load_threaded_request(chemin)
+	if specs.is_empty() or DisplayServer.get_name() == "headless":
+		return -1
+	if anciens() and specs.all(func(sp: Dictionary) -> bool: return not sp.has("ia")):
 		return -1
 	return WorkerThreadPool.add_task(prechauffer_fil.bind(specs))
+
+## Spec d'un ennemi à IA propre pour lancer_prechauffe : modèle bâti dans le fil, script chargé en tâche de fond.
+static func spec_ia(nom: String, ident: String, chemin_script: String) -> Dictionary:
+	return {"ia": nom, "ident": ident, "script": chemin_script}
+
+## Modèle d'un ennemi à IA propre (`nom` : "mage_nordique", "troll_givre") : celui bâti d'avance pour `ident` s'il existe, sinon bâti ici.
+static func modele_ia(nom: String, ident: String) -> Node3D:
+	_mx.lock()
+	var pr: Variant = _prets_ia.get(ident)
+	_prets_ia.erase(ident)
+	_mx.unlock()
+	if pr is Array and String(pr[0]) == nom and is_instance_valid(pr[1]):
+		return pr[1]
+	if pr is Array and is_instance_valid(pr[1]):
+		(pr[1] as Node).free()
+	return _fabriquer_ia(nom)
+
+static func _fabriquer_ia(nom: String) -> Node3D:
+	match nom:
+		"mage_nordique":
+			return MageNordique.creer({})
+		"troll_givre":
+			return TrollGivre.creer({})
+	return null
+
+## Dans le fil de préchauffage (sous _bm : les fabriques ont des caches statiques, comme les archétypes).
+static func _preparer_ia(nom: String, ident: String) -> void:
+	if ident == "":
+		return
+	_mx.lock()
+	var deja := _prets_ia.has(ident)
+	_mx.unlock()
+	if deja:
+		return
+	_bm.lock()
+	var n := _fabriquer_ia(nom)
+	_bm.unlock()
+	if n == null:
+		return
+	_mx.lock()
+	_prets_ia[ident] = [nom, n]
+	_mx.unlock()
 
 ## Tirages aléatoires (graine = ident) d'une spec -> description complète de la variante (clé du gabarit). Même ordre de tirages qu'avant.
 static func _choix(spec: Dictionary) -> Dictionary:

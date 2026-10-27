@@ -89,6 +89,32 @@ func installer(acces_: Node3D, g_: Grotte) -> void:
 	salles = SalleActive.depuis_grotte(g, g, acces.joueur, acces.get_tree())
 	salles.cacher_decor = false          # le décor de la grotte est un kit par cases de 10 m (pas par zone) : il reste géré par la portée de dessin
 
+## Pics d'apparition (2026-10-27) : copies des modèles des prochains ennemis (à moins de DIST_APPARITION + 20 m) faites d'avance, au plus
+## `max_n` par appel (une par image), rendues par EnnemisNordiques.creer à leur apparition.
+func _preparer_ennemis(max_n: int) -> void:
+	if _file.is_empty():
+		return
+	var pj: Vector3 = acces.joueur.global_position
+	var faits := 0
+	for a: Dictionary in _file:
+		var id := String(a["id"])
+		var e: Dictionary = a["d"]
+		if e.has("ia") or acces.morts_charges.has(id) or ennemis.has(id) or EnnemisNordiques.est_prepare(id):
+			continue
+		var p: Vector3 = g.to_global(a["pos"])
+		if Vector2(p.x - pj.x, p.z - pj.z).length() > DIST_APPARITION + 20.0 or absf(p.y - pj.y) > 16.0:
+			continue
+		var boss: String = e.get("boss", "")
+		var opts := {"ident": id, "apparence": _apparence(e)}
+		if boss != "":
+			opts["boss"] = boss
+		if e.get("archer", false):
+			opts["archer"] = true
+		if EnnemisNordiques.preparer(EnnemisNordiques.spec_depuis_options(String(e.get("type", "sbire")) if boss == "" else "sbire", opts)):
+			faits += 1
+			if faits >= max_n:
+				return
+
 ## Modèles des ennemis de la grotte préparés dans un fil (une variante = un gabarit dupliqué à l'apparition).
 func _lancer_prechauffe() -> void:
 	if EnnemisNordiques.anciens():
@@ -97,7 +123,10 @@ func _lancer_prechauffe() -> void:
 	for a: Dictionary in _file:
 		var e: Dictionary = a["d"]
 		if e.has("ia"):
-			continue          # ennemi EnnemiBase : son modèle (TrollGivre, MageNordique) n'est pas un gabarit EnnemisNordiques
+			# ennemi EnnemiBase : son modèle (TrollGivre, MageNordique) n'est pas un gabarit EnnemisNordiques ; préparé d'avance, script compris
+			var ia := String(e["ia"])
+			specs.append(EnnemisNordiques.spec_ia(ia, String(a["id"]), String(acces.monde.SCRIPTS_IA[ia])))
+			continue
 		var boss: String = e.get("boss", "")
 		var opts := {"ident": a["id"], "apparence": _apparence(e)}
 		if boss != "":
@@ -321,6 +350,8 @@ func tick(dt: float) -> void:
 		salles.pas(dt, true)
 	_t += dt
 	if _t < 0.25:
+		if _tache_en < 0:
+			_preparer_ennemis(1)
 		return
 	_t = 0.0
 	var pj: Vector3 = acces.joueur.global_position
@@ -352,6 +383,12 @@ func tick(dt: float) -> void:
 		if Vector2(p.x - pj.x, p.z - pj.z).length() < DIST_APPARITION and absf(p.y - pj.y) < 12.0:
 			if not _ennemis_prets():
 				break              # modèles en préparation (fil) : jamais de construction d'ennemi pendant le jeu, on réessaie dans 0,25 s
+			# pics d'apparition : un ennemi dont la copie n'est pas prête (ou à IA propre) coûte 6-15 ms : seul dans son passage
+			var leger: bool = EnnemisNordiques.est_prepare(String(a["id"])) or acces.morts_charges.has(a["id"]) or ennemis.has(a["id"])
+			if not leger:
+				if n > 0:
+					break
+				n = 1
 			_file.remove_at(i)
 			if not acces.morts_charges.has(a["id"]) and not ennemis.has(a["id"]):
 				_creer_ennemi(a)

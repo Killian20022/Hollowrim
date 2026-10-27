@@ -68,7 +68,7 @@ func _ready() -> void:
 	degats = 30.0
 	taille = 1.45
 	_mult_force_mort = 1.15
-	var mod := TrollGivre.creer({})
+	var mod := EnnemisNordiques.modele_ia("troll_givre", ident)       # bâti d'avance par le fil de préchauffage (grotte), sinon ici
 	_equiper(mod, ProfilCible.pour("troll_givre"), 0.75, 2.5, false)
 	if degats_imposes > 0.0:
 		degats_onde = degats_imposes * 1.33
