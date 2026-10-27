@@ -76,6 +76,9 @@ func _ready() -> void:
 		Jeu.regler("commandes", "sensibilite", v / 100.0))
 	_case(g, "Inverser l'axe Y", Jeu.option("commandes", "inverser_y"), func(v: bool) -> void:
 		Jeu.regler("commandes", "inverser_y", v))
+	# sang et gore du combat (décapitations, plaies, flaques) : complet par défaut
+	_choix(g, "Sang / gore", ["Désactivé", "Réduit", "Complet"], int(Jeu.option("combat", "gore")), func(v: int) -> void:
+		Jeu.regler("combat", "gore", v))
 	# copie de secours de la sauvegarde dans un dossier choisi (Google Drive, OneDrive…)
 	g.add_child(MenuStyle.etiquette("Copie de secours"))
 	var h := HBoxContainer.new()
@@ -191,6 +194,20 @@ func _case(g: GridContainer, texte: String, valeur: bool, quand: Callable) -> Ch
 	g.add_child(c)
 	g.add_child(Control.new())
 	return c
+
+## Liste déroulante (valeur = indice de l'élément).
+func _choix(g: GridContainer, texte: String, elements: Array, valeur: int, quand: Callable) -> OptionButton:
+	g.add_child(MenuStyle.etiquette(texte))
+	var o := OptionButton.new()
+	for e: String in elements:
+		o.add_item(e)
+	o.select(clampi(valeur, 0, elements.size() - 1))
+	o.focus_mode = Control.FOCUS_ALL
+	o.mouse_entered.connect(func() -> void: o.grab_focus())
+	o.item_selected.connect(func(i: int) -> void: quand.call(i))
+	g.add_child(o)
+	g.add_child(Control.new())
+	return o
 
 func _curseur(g: GridContainer, texte: String, mini: float, maxi: float, pas: float, valeur: float, format: String, quand: Callable) -> HSlider:
 	g.add_child(MenuStyle.etiquette(texte))

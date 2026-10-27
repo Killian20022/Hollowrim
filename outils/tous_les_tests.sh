@@ -58,6 +58,7 @@ TESTS=(
 	"test_troll|--nouvelle"
 	"test_draugr|--nouvelle"
 	"test_ennemis_nordiques|--nouvelle"
+	"test_degats|--nouvelle --test"   # dégâts, posture, finishers, décapitation, plafonds du sang (combat/degats_gore)
 	"test_persos_tous|--persos-tous"
 	"test_interieurs|--nouvelle"
 	"test_primitives|"

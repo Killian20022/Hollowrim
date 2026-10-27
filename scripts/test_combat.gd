@@ -50,6 +50,7 @@ func _ready() -> void:
 	joueur = CharacterBody3D.new()
 	joueur.set_script(JOUEUR)
 	add_child(joueur)
+	mannequin.set("joueur", joueur)
 	var mode_draugr: String = a.get("draugr", "actif")
 	if mode_draugr != "aucun":
 		draugr = creer_draugr(POS_DRAUGR, mode_draugr == "fige")

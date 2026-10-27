@@ -47,3 +47,32 @@ Toutes en CC0 1.0 (domaine public, usage commercial libre, aucune attribution ex
 
 Texte de la licence : https://openfontlicense.org (copie intégrale dans assets/polices/OFL_*.txt).
 Fond de l'écran titre (assets/ui/titre_reference.jpg) : image de référence fournie pour le projet (ref_menu/reference.png).
+
+## Combat : impacts, gore, voix, signaux (pack OpenGameArt + Kenney, tous CC0 ; vérifié le 2026-10-27, détail fichier par fichier dans audio_combat_cc0/CREDITS_AUDIO.md)
+
+Copiés dans assets/sons/combat/ (branche combat/degats_gore : côté ennemi). Conversion : Ogg Vorbis mono 44,1 kHz, crête -3 dBFS (signaux -14 dBFS).
+
+| Fichiers | Origine (pack : fichiers) | Auteur | Licence |
+|---|---|---|---|
+| sons/combat/impacts/chair_01..02 | Impact (opengameart.org/content/impact) : qubodupImpactMeat01, 02 | qubodup | CC0 |
+| sons/combat/impacts/chair_03..05 | Impact Sounds 1.0 (kenney.nl/assets/impact-sounds) : impactPunch_medium_000/001, impactSoft_medium_000 | Kenney | CC0 |
+| sons/combat/impacts/chair_gore_01..05 | 8 Wet Squish Slurp Impacts (opengameart.org/content/8-wet-squish-slurp-impacts) : impactsplat01..06 | qubodup | CC0 |
+| sons/combat/impacts/chair_gore_06, gore/jet_sang_01..04, 07 | Squish Sounds Effects (opengameart.org/content/squish-sounds-effects) | ezduzziteh | CC0 |
+| sons/combat/impacts/os_01..06 | Deep Bone Crack/Break SFX (opengameart.org/content/deep-bone-crackbreak-sfx) | zane-little-music | CC0 |
+| sons/combat/impacts/armure_maille_01..03 | RPG Sound Pack (opengameart.org/content/rpg-sound-pack) : chainmail1/2, armor-light | artisticdude | CC0 |
+| sons/combat/impacts/armure_maille_04..06 | Impact Sounds 1.0 : impactPlate_medium/heavy | Kenney | CC0 |
+| sons/combat/impacts/bois_bouclier_01..04 | 10 Impact/Shield Blocks (opengameart.org/content/10-impactshield-blocks) | StarNinjas | CC0 |
+| sons/combat/impacts/bois_bouclier_05..06, pierre_01 | Impact (qubodup) ; Impact Sounds 1.0 (Kenney) | qubodup ; Kenney | CC0 |
+| sons/combat/impacts/pierre_02 | 75 CC0 breaking/falling/hit SFX (opengameart.org/content/75-cc0-breaking-falling-hit-sfx) | rubberduck | CC0 |
+| sons/combat/impacts/pierre_03..05 | Impact Sounds 1.0 : impactMining_000..002 | Kenney | CC0 |
+| sons/combat/gore/dechirure_01..06 | Ripping into meat (opengameart.org/content/ripping-into-meat), extraits | eldritch-grim | CC0 |
+| sons/combat/gore/decapitation_01..05 | Montages : RPG Audio (Kenney), Ripping into meat, Impact (qubodup), Impact Sounds (Kenney), 75 CC0 breaking SFX, Squish Sounds, Wet Squish | divers (voir ci-dessus) | CC0 |
+| sons/combat/gore/jet_sang_05..06 | Various Sound Effects (opengameart.org/content/various-sound-effects-0) : snd_splurt, snd_splathit | spring-spring | CC0 |
+| sons/combat/gore/chute_corps_pierre_01..02 | Metal Impact Sounds (opengameart.org/content/metal-impact-sounds) : thud2/3 (filtrés) | bmaczero | CC0 |
+| sons/combat/gore/chute_corps_pierre_03..05, chute_corps_neige_01..05 | Impact Sounds 1.0 : impactSoft_heavy (+ footstep_snow) | Kenney | CC0 |
+| sons/combat/voix/draugr_mort_01..04 | Undead Moans (opengameart.org/content/undead-moans) | antumdeluge | CC0 |
+| sons/combat/voix/draugr_mort_05..06 | Hungry Ghoul (opengameart.org/content/hungry-ghoul) | darsycho | CC0 |
+| sons/combat/voix/draugr_grognement_01..04 | Zombies Sound Pack (opengameart.org/content/zombies-sound-pack) | artisticdude | CC0 |
+| sons/combat/voix/draugr_grognement_05..06 | Zomby SFX pack (opengameart.org/content/zomby-sfx-pack) | saturn91 | CC0 |
+| sons/combat/voix/douleur_01..06 | Grunts, male death and pain (opengameart.org/content/grunts-male-death-and-pain) | thebardofblasphemy | CC0 |
+| sons/combat/signaux/coup_de_grace_01..04 | Impact Sounds 1.0 : impactBell_heavy_000..003 (filtrés) | Kenney | CC0 |

@@ -14,8 +14,10 @@ extends CharacterBody3D
 ##   "reveil_evt": "<événement>"   dort (même debout) jusqu'à ce que quetes.signaler(<événement>) survienne (réveil immédiat si déjà vu).
 ##   "boss": "svanhild" | "hrafn" | "jarl"   voir _regler_boss ; l'ident vaut le nom du boss si aucun ident n'est donné.
 ## Méthodes publiques : vivant(), en_combat(), recevoir_coup(), alerter() ; signal mort(ident).
+## Combat (branche combat/degats_gore) : dégâts, posture, réactions, sang, plaies et morts par le composant CombatEnnemi
+## (scripts/combat/) ; finishers : finisher_possible(joueur) -> catégorie, subir_finisher(categorie, info) ; voir docs/DEGATS.md.
 
-enum { DORT, REVEIL, GARDE, TRAQUE, ATTAQUE, TITUBE, MORT, PATROUILLE, VISE, APPEL, ANNONCE, SOUFFLE }
+enum { DORT, REVEIL, GARDE, TRAQUE, ATTAQUE, TITUBE, MORT, PATROUILLE, VISE, APPEL, ANNONCE, SOUFFLE, ETOURDI, CHUTE }
 
 signal mort(ident: String)
 
@@ -126,6 +128,10 @@ var _ragdoll: Ragdoll  # corps physique à la mort
 var _gele := false             # gelé par SalleActive (hors salle active) : process coupé et caché
 var _mode_avant := Node.PROCESS_MODE_INHERIT
 var _immo := 0.0               # durée depuis le dernier move_and_slide d'un ennemi immobile au sol
+## Combat : composant (dégâts, posture, effets), durée de la titubation en cours, phase de la chute (CHUTE).
+var combat: CombatEnnemi
+var _duree_titube := 0.55
+var _releve := false
 
 func _ready() -> void:
 	add_to_group("ennemis")
@@ -186,6 +192,11 @@ func _ready() -> void:
 			_armer(squelette)  # le squelette porte son arme dans son modèle
 	_pieds = PiedsAuSol.equiper(modele, self) as PiedsAuSol
 	anim = modele.get_node("Animations")
+	var profil := ProfilCible.pour(ProfilCible.nom_pour(type, boss, modele))
+	if boss != "":
+		profil.posture_max *= 2.2
+	combat = CombatEnnemi.equiper(self, modele, profil)
+	combat.boss = boss != ""
 	_var = randf_range(0.94, 1.06)
 	origine = global_position
 	_pos_prec = global_position
@@ -318,7 +329,7 @@ func vivant() -> bool:
 	return etat != MORT
 
 func en_combat() -> bool:
-	return etat in [TRAQUE, ATTAQUE, TITUBE, VISE, APPEL, ANNONCE, SOUFFLE]
+	return etat in [TRAQUE, ATTAQUE, TITUBE, VISE, APPEL, ANNONCE, SOUFFLE, ETOURDI, CHUTE]
 
 ## --- gel hors salle active (SalleActive) -------------------------------------------------
 ## Seuls les dormeurs, gardes et patrouilleurs peuvent être gelés : jamais un ennemi qui poursuit, frappe ou se relève.
@@ -368,7 +379,7 @@ func _changer(nouvel: int) -> void:
 func _regler_pieds() -> void:
 	if _pieds == null:
 		return
-	var voulu := not (etat == DORT or etat == MORT or (etat == REVEIL and not debout))
+	var voulu := not (etat == DORT or etat == MORT or etat == CHUTE or (etat == REVEIL and not debout))
 	if _pieds.actif != voulu:
 		_pieds.actif = voulu
 
@@ -542,8 +553,12 @@ func _physics_process(dt: float) -> void:
 				if dist < PORTEE + 0.6 and dir.dot(Vector3(face.x, 0, face.z).normalized()) > 0.4:
 					var r: String = joueur.recevoir_coup(degats * (1.25 if _combo == 1 else 1.0), global_position)
 					if r == "parade":
-						# parade réussie : le draugr est déséquilibré
-						_tituber(Vector3.ZERO)
+						# parade réussie : le draugr est déséquilibré (grosse usure de posture, fenêtre de finisher)
+						combat.subir_parade()
+						if combat.etourdi > 0.0:
+							_etourdir()
+						else:
+							_tituber(-dir * 1.2, 0.7)
 						return
 			if _t >= duree * 0.92:
 				if boss == "hrafn" and _combo == 0 and dist < PORTEE + 1.2:
@@ -560,7 +575,34 @@ func _physics_process(dt: float) -> void:
 				_changer(TRAQUE)
 		TITUBE:
 			regard = false
-			if _t > 0.55:
+			if _t > _duree_titube:
+				_changer(TRAQUE)
+		ETOURDI:
+			# posture brisée : il titube sur place, sans frapper (fenêtre de finisher) ; le corps se balance (ReactionOs)
+			regard = false
+			if _t > 0.5 and _anim != "Sword_Idle":
+				_jouer("Sword_Idle", 0.3)
+				anim.speed_scale = 0.45
+			if combat.etourdi <= 0.0:
+				anim.speed_scale = 1.0
+				_recharge = 0.6
+				_changer(TRAQUE)
+		CHUTE:
+			# renversé : chute (Death01 accélérée), au sol ~1,3 s (finisher « sol »), puis se relève (Death01 à l'envers)
+			regard = false
+			var d_chute := _duree("Death01") / 1.6
+			if not _releve and _t >= d_chute + 1.3:
+				_releve = true
+				combat.au_sol = false
+				anim.speed_scale = 1.4
+				anim.play_backwards("Death01")
+				_anim = "releve"
+			elif not _releve and _t >= d_chute * 0.6:
+				combat.au_sol = true
+			if _releve and _t >= d_chute + 1.3 + _duree("Death01") / 1.4 * 0.95:
+				anim.speed_scale = 1.0
+				_releve = false
+				_recharge = 0.5
 				_changer(TRAQUE)
 		MORT:
 			regard = false
@@ -767,8 +809,10 @@ func _eviter(dir: Vector3, dt: float) -> Vector3:
 	_tenue = 0.5
 	return _dir_evit
 
-## Appelé par l'épée du joueur. Renvoie "bloque", "touche" ou "tue".
-func recevoir_coup(quantite: float, origine_coup: Vector3, puissant: bool) -> String:
+## Appelé par l'épée du joueur (et les tests). Renvoie "bloque", "touche" ou "tue".
+## `info` (facultatif, contrat avec l'épée FPS) : "type", "point", "direction", "normale", "zone", "attaque", "arme", "stagger",
+## "collider" ; sans info, tout est déduit (CalculDegats.completer).
+func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, info: Dictionary = {}) -> String:
 	if etat == MORT:
 		return ""
 	degeler()
@@ -777,47 +821,121 @@ func recevoir_coup(quantite: float, origine_coup: Vector3, puissant: bool) -> St
 	var vers := origine_coup - global_position
 	vers.y = 0.0
 	var de_face := vers.normalized().dot(global_transform.basis.z) > 0.3
-	if (type == "guerrier" or _os or boss == "jarl") and not puissant and de_face and etat in [TRAQUE] and randf() < _bouclier:
+	var peut_bloquer := (type == "guerrier" or _os or boss == "jarl") and etat in [TRAQUE]
+	var r := combat.analyser(quantite, origine_coup, puissant, info, {"de_face": de_face, "peut_bloquer": peut_bloquer,
+		"en_attaque": etat == ATTAQUE, "coup_donne": _coup_donne, "hauteur_visee": CombatEnnemi.hauteur_visee(joueur, self)})
+	if r["bloque"]:
 		_jouer("Hit_Chest", 0.05, true)
+		_duree_titube = 0.4
 		_changer(TITUBE)
-		Sons.jouer_a(self, ["impactPlate_medium_000", "impactPlate_medium_001"], global_position + Vector3.UP, 0.0)
-		Effets.eclats(self, global_position + Vector3(0, 1.1, 0) + vers.normalized() * 0.4, Color(3.0, 2.2, 0.8), 8, 2.5, true)
+		combat.effets_blocage(r, false)
 		return "bloque"
-	if _os and puissant:
-		quantite *= 1.3  # des os secs : les coups puissants (contondants) les brisent
-	vie -= quantite
+	# finisher PROVISOIRE (en attendant l'animation FPS de l'épée) : un coup lourd sur une cible ouverte l'achève
+	if String(r["info"]["attaque"]) in ["lourde", "chargee_max", "contre"] and joueur != null:
+		var cat := finisher_possible(joueur)
+		if cat != "":
+			return subir_finisher(cat, r["info"])
+	vie -= float(r["degats"])
 	_eclair()
-	Effets.eclats(self, global_position + Vector3(0, 1.1, 0), Color(0.75, 0.72, 0.6), 18 if puissant else 10, 3.5)
-	Sons.jouer_a(self, ["knifeSlice", "knifeSlice2", "chop"], global_position + Vector3.UP, 2.0 if puissant else 0.0)
+	if r["brise_garde"]:
+		combat.effets_blocage(r, true)
+	combat.effets_impact(r, joueur)
 	if vie <= 0.0:
-		_mourir(origine_coup, quantite, puissant)
+		_mourir_coup(r)
 		return "tue"
 	if etat in [DORT, GARDE, REVEIL, PATROUILLE]:
 		_attend = false
 		_changer(TRAQUE)
-	if etat in [APPEL, ANNONCE, SOUFFLE]:
-		return "touche"  # un chef qui lance son pouvoir ne titube pas
-	if boss != "" and not puissant and randf() < 0.6:
+	var reaction := String(r["reaction"])
+	if reaction == "etourdi" and combat.etourdi <= 0.0:
+		combat.briser_posture()
+		if etat in [APPEL, ANNONCE, SOUFFLE]:
+			return "touche"   # un chef qui lance son pouvoir reste debout (mais sa garde est ouverte)
+		_etourdir()
+		return "touche"
+	if etat in [APPEL, ANNONCE, SOUFFLE, ETOURDI, CHUTE]:
+		return "touche"  # pouvoir en cours, étourdi ou au sol : seule la réaction procédurale (ReactionOs)
+	if boss != "" and reaction == "leger" and randf() < 0.6:
 		return "touche"  # les chefs encaissent mieux
-	if puissant or etat != ATTAQUE or randf() < 0.3:
-		_tituber(-vers.normalized() * (3.5 if puissant else 1.5))
+	var recul := -vers.normalized() / maxf(combat.profil.poids, 0.3)
+	match reaction:
+		"chute":
+			_chuter(recul * 2.5)
+		"recul":
+			_tituber(recul * 6.0, 0.85)
+		"lourd":
+			_tituber(recul * 3.5, 0.7)
+		"moyen":
+			_tituber(recul * 1.8, 0.55)
+		_:
+			if etat != ATTAQUE or r["interrompt"]:
+				_tituber(recul * 0.8, 0.32)
 	return "touche"
 
-func _tituber(recul: Vector3) -> void:
+func _tituber(recul: Vector3, duree := 0.55) -> void:
 	_recul = recul
+	_duree_titube = duree
 	_changer(TITUBE)
 	_jouer(["Hit_Chest", "Hit_Head"].pick_random(), 0.05, true)
+	anim.speed_scale = clampf(0.55 / duree, 0.6, 1.6)
 
+## Posture brisée : étourdi (CombatEnnemi.etourdi s), fenêtre de finisher.
+func _etourdir() -> void:
+	_recul = Vector3.ZERO
+	_changer(ETOURDI)
+	_jouer("Hit_Head", 0.05, true)
+	anim.speed_scale = 0.6
+
+## Renversé : il tombe, reste au sol un instant (finisher « sol »), se relève.
+func _chuter(recul: Vector3) -> void:
+	_recul = recul
+	_releve = false
+	_changer(CHUTE)
+	_jouer("Death01", 0.08, true)
+	anim.speed_scale = 1.6
+
+# --- finishers (API pour l'épée FPS : finisher_possible / subir_finisher) -------------------------------
+
+## Catégorie de finisher possible pour ce joueur ("" = aucun) : "etourdi" (posture brisée), "sol" (renversé), "apres_parade",
+## "rapide" (presque mort, posture entamée), "lateral" (étourdi ou presque mort, pris de côté).
+func finisher_possible(j: Node3D) -> String:
+	if etat == MORT or combat == null or etat in [DORT, APPEL, ANNONCE, SOUFFLE]:
+		return ""
+	return combat.finisher_possible(j, vie, vie_max)
+
+## Achève l'ennemi par un finisher : mort spéciale (décapitation pour les catégories de taille, coup de grâce au sol…).
+## `categorie` : celle de finisher_possible() (ou "puissant" : arme lourde) ; `info` : comme recevoir_coup. Renvoie "tue".
+func subir_finisher(categorie: String, info: Dictionary = {}) -> String:
+	if etat == MORT:
+		return ""
+	var o: Vector3 = info.get("origine", joueur.global_position if joueur else global_position - global_transform.basis.z)
+	var i := CalculDegats.completer(info, self, vie, o, true, combat.hauteur)
+	i["attaque"] = "finisher"
+	i["categorie"] = categorie
+	var r := {"info": i, "degats": vie, "stagger": 999.0, "critique": true, "impact": "finisher", "bloque": false, "brise_garde": false, "reaction": "finisher", "finisher": categorie}
+	vie = 0.0
+	_eclair()
+	_mourir_coup(r, "finisher")
+	return "tue"
+
+func _mourir_coup(r: Dictionary, sorte := "") -> void:
+	var i: Dictionary = r["info"]
+	_mourir(i["origine"], float(r["degats"]), bool(i.get("puissant", false)), r, sorte if sorte != "" else combat.type_mort(r))
+
+## Éclair blanc du coup reçu (en temps réel : il ne reste pas figé pendant l'arrêt sur image, et il ne masque plus les plaies).
 func _eclair() -> void:
 	var t := create_tween()
+	t.set_ignore_time_scale(true)
 	t.tween_method(func(v: float) -> void:
 		for mi in _mailles:
 			if is_instance_valid(mi):
-				mi.set_instance_shader_parameter("eclair", v), 0.9, 0.0, 0.18)
+				mi.set_instance_shader_parameter("eclair", v), 0.5, 0.0, 0.14)
 
-## Mort : le corps passe de l'animation au ragdoll, projeté dans le sens du coup (de
-## l'origine du coup vers lui) ; plus le coup est puissant, plus il chute loin.
-func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false) -> void:
+## Mort : le corps passe de l'animation au ragdoll, projeté dans le sens du coup ; morts variées selon le coup
+## (CombatEnnemi.type_mort) : "legere" (s'effondre), "titubante" (encaisse, chancelle, puis tombe), "lourde", "recul" (projeté),
+## "chute" (fauché aux jambes), "puissant" (projeté loin, sang à flots, voile rouge), "finisher" (décapitation, coup de grâce…).
+## Le butin tombe et le signal mort (sauvegarde des morts) part dans TOUS les cas.
+func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, r: Dictionary = {}, sorte := "") -> void:
 	degeler()
 	_changer(MORT)
 	if is_instance_valid(_cone):
@@ -830,24 +948,69 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false) 
 	var dir := global_position - origine_coup
 	dir.y = 0.0
 	dir = dir.normalized() if dir.length() > 0.01 else -global_transform.basis.z
+	if sorte == "":
+		sorte = "lourde" if puissant else "legere"
+	var info: Dictionary = r.get("info", {})
+	var categorie := String(r.get("finisher", ""))
 	var force := (350.0 if puissant else 120.0) * clampf(quantite / (34.0 if puissant else 14.0), 0.7, 1.6)
-	# coup porté vers le haut (tête levée du joueur) : la tête est touchée, sinon le torse
-	var tete_joueur: Variant = joueur.get("tete") if joueur else null
-	var haut: bool = tete_joueur != null and (tete_joueur as Node3D).rotation.x > 0.05
-	var point := global_position + Vector3(0.0, 1.5 if haut else 1.15, 0.0) - dir * 0.2
-	_ragdoll = Ragdoll.equiper(modele) as Ragdoll
-	if _ragdoll:
-		if joueur:
-			_ragdoll.ignorer(joueur)
-		_ragdoll.endormir_apres(4.0)
-		_ragdoll.declencher(dir * force + Vector3.UP * force * 0.15, point, "Head" if haut else "spine_03", vitesse_avant)
+	var haut := String(info.get("zone", "")) == "tete"
+	var point: Vector3 = info.get("point", global_position + Vector3(0.0, 1.5 if haut else 1.15, 0.0) - dir * 0.2)
+	var os_touche := "Head" if haut else "spine_03"
+	var montee := 0.15
+	var decapiter := false
+	match sorte:
+		"legere":
+			force = 100.0
+		"titubante":
+			force = 70.0
+		"lourde":
+			force = maxf(force, 330.0)
+		"recul":
+			force = 520.0
+			montee = 0.25
+		"chute":
+			force = 300.0
+			os_touche = "calf_l" if randf() < 0.5 else "calf_r"
+			montee = 0.05
+		"puissant":
+			force = 680.0
+			montee = 0.35
+		"finisher":
+			match categorie:
+				"sol":
+					force = 60.0
+					montee = -0.6   # coup de grâce : la lame cloue le corps au sol
+					os_touche = "spine_03"
+				_:
+					force = 260.0
+					decapiter = combat.profil.decapitable and Sang.niveau() > 0
+					os_touche = "spine_03"
+	# l'animation de l'encaissement d'abord (mort titubante), puis le ragdoll
+	var lancer := func() -> void:
+		if not is_instance_valid(self) or not is_inside_tree():
+			return
+		_ragdoll = Ragdoll.equiper(modele) as Ragdoll
+		if _ragdoll:
+			if joueur:
+				_ragdoll.ignorer(joueur)
+			_ragdoll.endormir_apres(4.0)
+			_ragdoll.declencher(dir * force + Vector3.UP * force * montee, point, os_touche, vitesse_avant)
+		else:
+			_jouer("Death01", 0.1, true)
+		if decapiter:
+			var imp := (Vector3(info.get("direction", dir)) * 0.6 + dir * 0.4 + Vector3.UP * 0.7).normalized() * 16.0
+			Decapitation.decapiter(modele, imp, combat.profil.couleur_sang, combat.profil.sang, combat.profil.matiere)
+	if sorte == "titubante":
+		_jouer(["Hit_Head", "Hit_Chest"].pick_random(), 0.05, true)
+		anim.speed_scale = 0.7
+		get_tree().create_timer(0.38).timeout.connect(lancer)
 	else:
-		_jouer("Death01", 0.1, true)
-	if _os:
-		Sons.jouer_a(self, ["impactWood_heavy_000", "chop"], global_position + Vector3.UP, 4.0, 0.1)  # os qui s'entrechoquent
-	else:
-		Sons.jouer_a(self, ["mnstr5", "mnstr6"], global_position + Vector3.UP, 0.0, 0.1)
-	Effets.eclats(self, global_position + Vector3(0, 0.8, 0), Color(0.75, 0.72, 0.6), 44 if _os else 30, 4.0)
+		lancer.call()
+	if combat.reaction_os:
+		combat.reaction_os.active = sorte == "titubante"
+	if sorte == "finisher":
+		RetourImpact.son_finisher(self, point, combat.profil.matiere, decapiter)
+	combat.effets_mort(r if not r.is_empty() else {"info": {"point": point, "direction": dir, "normale": -dir}}, sorte, joueur)
 	_laisser_butin()
 
 func _laisser_butin() -> void:
