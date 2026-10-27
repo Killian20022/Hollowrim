@@ -125,6 +125,12 @@ static func vitrine() -> Node3D:
 	tr.ajouter(Vector3(-0.4, 0.9, 0), Vector3(0.4, 1.1, 0))
 	tr.ajouter(Vector3(-0.3, 0.7, 0), Vector3(0.5, 0.8, 0))
 	tr.avancer(0.0)
+	# magie (shaders magie_* : particules, cristaux, éclairs, disques, voile, teinte) : premier sort sans à-coup
+	var vm := Node3D.new()
+	vm.name = "VitrineMagie"
+	vm.position = Vector3(0.0, 0.0, -1.0)
+	v.add_child(vm)
+	GestionMagie.obtenir().vitrine_prechauffe(vm)
 	return v
 
 static func _particules(parent: Node3D, pos: Vector3, pm: ParticleProcessMaterial, maillage: Mesh) -> void:

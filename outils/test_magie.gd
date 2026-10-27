@@ -443,6 +443,11 @@ func _contrats() -> void:
 		if int(EffetsMagie.appels.get(f, 0)) == 0:
 			manquants.append(f)
 	_verif(manquants.is_empty(), "EffetsMagie : les 10 fonctions du contrat sont appelées %s" % str(manquants))
+	# vrais visuels (magie/effets) : les sorts du jeu passent bien par GestionMagie, pas par un bouchon
+	var st := EffetsMagie.stats()
+	_verif(GestionMagie.instance != null and int(st.get("emetteurs", 0)) + int(st.get("pool", 0)) > 0, "EffetsMagie : vrais visuels créés par les sorts (GestionMagie : %d émetteurs actifs, %d recyclés)" % [int(st.get("emetteurs", 0)), int(st.get("pool", 0))])
+	for p in ["raccourcis"]:
+		_verif(j.get(p) is Array and (j.get(p) as Array).size() == 8, "HUD : joueur.%s (8 cases)" % p)
 	for p in ["mana", "mana_max", "charge_gauche", "charge_droite", "recharges", "statuts_actifs"]:
 		_verif(j.get(p) != null, "HUD : joueur.%s" % p)
 	_verif(j.has_signal("etat_mains_change"), "HUD : signal etat_mains_change")

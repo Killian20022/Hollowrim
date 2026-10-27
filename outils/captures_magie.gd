@@ -4,7 +4,7 @@ extends SceneTree
 ## --poses : une image par pose de main (repos, charge, canalisation, double, épée + sort, bouclier) → <sortie>/pose_<nom>.png
 ## sans option : le pilote automatique (§10) et une image à chaque `moment` → <sortie>/<nn>_<moment>.png
 ## --film : le pilote seul (ajouter --write-movie <fichier.avi> --fixed-fps 30 avant « -- »).
-## Avec les BOUCHONS d'EffetsMagie (sphères colorées) tant que la branche magie/effets n'est pas fusionnée.
+## Avec les vrais visuels d'EffetsMagie (branche magie/effets fusionnée : GestionMagie, shaders magie_*).
 
 const SCENE := preload("res://scenes/test_magie.tscn")
 

@@ -57,6 +57,22 @@ var recharges: Dictionary:
 var statuts_actifs: Array:
 	get:
 		return mains.magie.statuts_actifs() if mains != null and mains.get("magie") != null else []
+## Barre de raccourcis du HUD (8 cases) : une icône par raccourci de data/magie/raccourcis.json (main gauche, sinon droite).
+var raccourcis: Array:
+	get:
+		var r: Array = []
+		var eq: Variant = mains.magie.eq if mains != null and mains.get("magie") != null else null
+		if eq != null:
+			for e: Dictionary in eq.raccourcis:
+				var id := String(e.get("gauche", "vide"))
+				if id == "vide":
+					id = String(e.get("droite", ""))
+				r.append("" if id == "vide" else id)
+		r.resize(8)
+		for i in 8:
+			if r[i] == null:
+				r[i] = ""
+		return r
 var mort := false
 var en_dialogue := false  # posé par la boîte de dialogue : ni marche ni combat
 var secousse := 0.0
