@@ -181,6 +181,12 @@ func _touche(_degats: float) -> void:
 func _coup() -> void:
 	var puissant: bool = mains._puissant
 	var vitesse := 1.4 if puissant else 1.8
+	if mains.get("_geste_nom") == "estoc":
+		# estoc : seule animation de poussée droit devant de la bibliothèque (pas d'animation d'épée par direction)
+		_action = "Punch_Jab"
+		_fin_action = _t + 0.87 / 1.6
+		_jouer("Punch_Jab", 0.06, 1.6, 0.0, -1.0, true)
+		return
 	_action = "Sword_Attack"
 	_fin_action = _t + (1.3 - IMG_ARMER) / vitesse
 	_jouer("Sword_Attack", 0.06, vitesse, IMG_ARMER, -1.0, true)

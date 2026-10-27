@@ -29,10 +29,15 @@ const SEUIL_CHARGE := 0.28
 const CHARGE_MAX := 0.9
 ## Fenêtre de parade : début de la garde pendant lequel un coup reçu est paré (s) — lue par joueur.recevoir_coup.
 const FENETRE_PARADE := 0.3
-## Délai minimal entre la fin d'un coup et le suivant du combo (s) : fluide, mais pas instantané.
+## Fenêtre de combo par défaut (un geste sans « enchainement ») : début (s) et fin (part de la récupération).
 const DELAI_COMBO := 0.06
-## Sans nouveau coup pendant ce temps, le combo repart du premier geste (s).
-const RAZ_COMBO := 0.9
+## Mouvement de souris récent (pixels, oubli exponentiel ~0,1 s) au-delà duquel il choisit la direction du coup.
+const SEUIL_SOURIS := 40.0
+## Vitesses locales du joueur (m/s) qui choisissent la direction : de côté → horizontal, en avant → vertical,
+## en arrière → estoc.
+const SEUIL_COTE := 1.2
+const SEUIL_AVANT := 1.5
+const SEUIL_RECUL := 1.2
 const DUREE_ENCAISSE := 0.18
 const DUREE_REBOND := 0.30
 ## Coup affaibli (endurance insuffisante) : gestes ralentis de ce facteur.
@@ -81,6 +86,10 @@ var _puissant := false
 var _geste := {}
 var _geste_nom := ""
 var _combo := 0
+## Côté où le dernier coup a fini (+1 droite, -1 gauche, 0 centre) et dernier geste : continuité des enchaînements.
+var _cote_fin := 0
+var _geste_prec := ""
+var _souris_recente := Vector2.ZERO
 var _lourd := false
 var _affaibli := false
 var _charge := 0.0
@@ -241,6 +250,7 @@ func _installer_arme() -> void:
 	PRISE_D = _calculer_prise("r", arme.milieu_poignee)
 	_cible_d.transform = PRISE_D.affine_inverse()
 	_coude_d.position = arme.repos_coude
+	_orient_d.deviation_max = deg_to_rad(arme.deviation_poignet)
 	var g_coude := equipement.gauche_rangee.repos_coude
 	_coude_g.position = Vector3(-g_coude.x, g_coude.y, g_coude.z)
 	_orient_d.prise = PRISE_D
@@ -461,6 +471,7 @@ func _unhandled_input(e: InputEvent) -> void:
 		return
 	if e is InputEventMouseMotion:
 		passifs.souris(e.screen_relative)
+		noter_souris(e.screen_relative)
 	elif e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
 		if e.pressed:
 			entrees.appuyer()
@@ -512,18 +523,59 @@ func _sur_changement_etat(_ancien: int, nouveau: int) -> void:
 		_encaisse = 0.0
 	_depart = _pose_courante
 
-## Démarre un coup (léger d'abord : il deviendra lourd si le bouton reste tenu au-delà du seuil).
-func _commencer_attaque() -> void:
+## Mouvement de souris (pixels d'écran) : lu pour choisir la direction du prochain coup.
+func noter_souris(d: Vector2) -> void:
+	_souris_recente += d
+
+## Direction du coup léger selon le contexte (phase 4) : souris balayée → horizontal dans son sens, souris tirée vers
+## le bas → vertical ; sinon déplacement : de côté → horizontal dans le sens du pas, en avant → vertical, en arrière →
+## estoc ; à l'arrêt → combo 1-2-3 du profil. Renvoie [geste, contextuel].
+func _choisir_geste() -> Array:
+	var p := _profil()
+	var gestes: Dictionary = p["gestes"]
+	var loc := joueur.global_transform.basis.inverse() * joueur.velocity
+	var sx := _souris_recente.x
+	var sy := _souris_recente.y
+	var choix := ""
+	if absf(sx) > SEUIL_SOURIS and absf(sx) > absf(sy) * 1.5:
+		choix = "horizontale_gd" if sx > 0.0 else "horizontale"
+	elif sy > SEUIL_SOURIS and sy > absf(sx) * 1.5:
+		choix = "verticale_l"
+	elif absf(loc.x) > SEUIL_COTE and absf(loc.x) > absf(loc.z):
+		choix = "horizontale_gd" if loc.x > 0.0 else "horizontale"
+	elif loc.z < -SEUIL_AVANT:
+		choix = "verticale_l"
+	elif loc.z > SEUIL_RECUL:
+		choix = "estoc"
+	if choix != "" and gestes.has(choix):
+		return [choix, true]
+	var combo: Array = p["combo"]
+	return [combo[_combo % combo.size()], false]
+
+## Démarre un coup (léger d'abord : il deviendra lourd si le bouton reste tenu au-delà du seuil). `enchaine` : l'appui
+## tombe dans la fenêtre de combo du coup précédent (le combo continue, le geste repart du côté où l'autre a fini).
+func _commencer_attaque(enchaine := false) -> void:
 	if not arme.est_arme():
 		return
-	if combat.calme() and _depuis_coup > RAZ_COMBO:
+	if not enchaine:
 		_combo = 0
+		_cote_fin = 0
+		_geste_prec = ""
 	if not combat.changer(EtatCombat.ATTAQUE_LEGERE):
 		return
-	var p := _profil()
-	var combo: Array = p["combo"]
-	_geste_nom = combo[_combo % combo.size()]
+	var c := _choisir_geste()
+	var nom: String = c[0]
+	var depart := int(ProfilsAnimation.geste(arme.profil, nom).get("cotes", [0, 0])[0])
+	# continuité : un geste qui partirait du côté opposé à la fin du précédent est remplacé par son miroir (combo à
+	# l'arrêt), ou un geste contextuel répété alterne de sens (pas de côté prolongé : gauche-droite-gauche…)
+	if enchaine and _cote_fin != 0 and depart != 0 and depart != _cote_fin and ProfilsAnimation.MIROIRS.has(nom):
+		if not c[1] or nom == _geste_prec:
+			nom = ProfilsAnimation.MIROIRS[nom]
+			depart = -depart
+	_geste_nom = nom
 	_preparer_geste(false)
+	if enchaine and depart != 0 and depart == _cote_fin:
+		_duree_prep *= 0.75   # la lame est déjà du bon côté : transition plus courte
 
 func _preparer_geste(lourd: bool) -> void:
 	_lourd = lourd
@@ -561,12 +613,15 @@ func _lancer_phase_active() -> void:
 func _finir_geste() -> void:
 	_pose_fin = _pose_courante
 	_combo += 1
+	_cote_fin = int(_geste.get("cotes", [0, 0])[1])
+	_geste_prec = _geste_nom
 	_depuis_coup = 0.0
 	combat.changer(EtatCombat.RECUPERATION)
 
 ## La lame est arrêtée (mur, bouclier, cassable qui tient) : rebond, petite ouverture.
 func _rebondir() -> void:
 	_pose_fin = _pose_courante
+	_cote_fin = 0
 	_depuis_coup = 0.0
 	combat.changer(EtatCombat.DESEQUILIBRE)
 
@@ -586,6 +641,7 @@ func avancer(dt: float) -> void:
 		entrees.tampon = -1.0
 	entrees.avancer(dt)
 	combat.avancer(dt)
+	_souris_recente *= exp(-10.0 * dt)
 	_encaisse = maxf(0.0, _encaisse - dt)
 
 	var veut_garde: bool = entrees.veut_garde() and not joueur.mort
@@ -636,8 +692,9 @@ func avancer(dt: float) -> void:
 			var k := clampf(combat.t / _duree_recup, 0.0, 1.0)
 			_pose_courante = _pose_fin.interpolate_with(_pose_repos(), k * k * (3.0 - 2.0 * k))
 			en_geste = true
-			if combat.t >= DELAI_COMBO and entrees.consommer():
-				_commencer_attaque()
+			var fen: Array = _geste.get("enchainement", [DELAI_COMBO, 1.0])
+			if combat.t >= float(fen[0]) and entrees.consommer():
+				_commencer_attaque(combat.t <= float(fen[1]) * _duree_recup)
 			elif veut_garde and combat.t > 0.12:
 				if combat.changer(EtatCombat.PARADE):
 					temps_garde = 0.0

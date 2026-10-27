@@ -139,6 +139,52 @@ func _tester() -> void:
 	_verif(cles.all(func(k: String) -> bool: return i_l.has(k)) and i_l["type"] == "tranchant" and i_l["arme"] == "epee_metal" and i_l["attaque"] == "legere" and (i_l["direction"] as Vector3).is_normalized(), "info du coup léger complète (zone %s, stagger %s)" % [i_l.get("zone"), i_l.get("stagger")])
 	_verif(i_h.get("attaque") == "chargee_max" and float(i_h.get("stagger", 0.0)) > float(i_l.get("stagger", 9.0)), "info du coup lourd : chargee_max, stagger %s" % [i_h.get("stagger")])
 
+	# --- 2 bis. directions selon le contexte (phase 4) et continuité des enchaînements
+	print("-- directions")
+	var cas := [["en avançant", Vector3(0, 0, -3.2), Vector2.ZERO, "verticale_l"], ["pas à droite", Vector3(3.2, 0, 0), Vector2.ZERO, "horizontale_gd"],
+		["pas à gauche", Vector3(-3.2, 0, 0), Vector2.ZERO, "horizontale"], ["en reculant", Vector3(0, 0, 2.5), Vector2.ZERO, "estoc"],
+		["souris vers la droite", Vector3.ZERO, Vector2(120, 0), "horizontale_gd"], ["souris vers le bas", Vector3.ZERO, Vector2(0, 120), "verticale_l"]]
+	for c in cas:
+		await _reset(Vector3.ZERO, 0.0)
+		var n0: int = s.mannequin.coups.size()
+		j.velocity = c[1]
+		mains.noter_souris(c[2])
+		mains.entrees.appuyer()
+		for k in 3:
+			mains.avancer(1.0 / 60.0)
+		mains.entrees.relacher()
+		var g: String = mains._geste_nom
+		for k in 40:
+			mains.avancer(1.0 / 60.0)
+		j.velocity = Vector3.ZERO
+		_verif(g == c[3] and s.mannequin.coups.size() == n0 + 1, "%s : geste %s (attendu %s), %d touche" % [c[0], g, c[3], s.mannequin.coups.size() - n0])
+	# pas de côté prolongé : les horizontales alternent de sens dans l'enchaînement
+	await _reset(Vector3.ZERO, 0.0)
+	var suite := []
+	for i in 3:
+		j.velocity = Vector3(3.2, 0, 0)
+		mains.entrees.appuyer()
+		for k in 3:
+			mains.avancer(1.0 / 60.0)
+		mains.entrees.relacher()
+		suite.append(mains._geste_nom)
+		for k in 26:
+			mains.avancer(1.0 / 60.0)
+	j.velocity = Vector3.ZERO
+	_verif(suite == ["horizontale_gd", "horizontale", "horizontale_gd"], "pas à droite enchaîné : %s" % [suite])
+	# hors de la fenêtre de combo, le combo repart du premier geste
+	await _reset(Vector3.ZERO, 0.0)
+	mains.entrees.appuyer()
+	await _simuler(0.05, 1.0 / 60.0)
+	mains.entrees.relacher()
+	await _simuler(1.2, 1.0 / 60.0)
+	mains.entrees.appuyer()
+	for k in 3:
+		mains.avancer(1.0 / 60.0)
+	mains.entrees.relacher()
+	_verif(mains._geste_nom == "diag_dg", "après le repos, le combo repart de diag_dg (%s)" % mains._geste_nom)
+	await _simuler(0.8, 1.0 / 60.0)
+
 	# --- 3. mur : la lame s'arrête sur la face
 	print("-- mur")
 	await _reset(Vector3(-1.9, 0, 1.0), 90.0)   # face à -X, mur à 1,15 m

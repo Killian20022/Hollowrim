@@ -125,16 +125,38 @@ mouvement de souris ; arrêt brutal : le ressort dépasse puis revient. Option *
 amplitude des bras × 0,35, balancement de tête × 0,4.
 
 ## Pose FPS de repos (phase 1)
-Épée de métal : poignée (0,32 ; −0,28 ; −0,45), lame (−0,05 ; 0,86 ; −0,51), tranchant (−0,3 ; 0 ; −1), pôle du coude
-(1,0 ; −0,3 ; 0,1). Torche (miroir) : poignée (−0,40 ; −0,30 ; −0,40), manche (−0,30 ; 0,86 ; −0,42). Le pôle du coude
-écarté garde l'avant-bras presque horizontal : le poignet (déviation bornée à 35° par `orientation_main.gd`) peut alors
-incliner la lame vers l'avant. Réglable par arme dans sa `.tres`.
+Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)
+(≈ 35° de la verticale à l'écran, pointe vers le centre haut), tranchant (−0,9 ; 0 ; −0,6) (plat et garde en croix
+visibles), pôle du coude (0,7 ; 0,1 ; 0,4), déviation du poignet 40° (`deviation_poignet`). Torche (miroir) : poignée
+(−0,40 ; −0,25 ; −0,33), manche (−0,24 ; 0,88 ; −0,42) (haut légèrement vers l'intérieur). Sprint : épée plus basse,
+pointe vers l'avant. Tout se règle par arme dans sa `.tres`.
+Teinte de la lame : la lame métal de la planche reçoit une copie de matériau légèrement chaude (1,3 ; 1,27 ; 1,22) ; le
+reflet bleu restant vient de l'environnement (lumière ambiante bleue 0,32 ; 0,4 ; 0,62 sur une texture claire), voulu
+pour la neige.
+
+## Directions et enchaînements (phase 4)
+Choix du geste léger à l'appui (`mains._choisir_geste`), par priorité :
+1. souris balayée (> 40 px récents, oubli ~0,1 s) : horizontal dans le sens du balayage ; tirée vers le bas : vertical ;
+2. déplacement : de côté (> 1,2 m/s) → horizontal dans le sens du pas ; en avant (> 1,5 m/s) → vertical ; en arrière
+   (> 1,2 m/s) → estoc ;
+3. à l'arrêt : combo du profil diag_dg → diag_gd → horizontale.
+Continuité : chaque geste a un côté de départ et d'arrivée ; dans un enchaînement, un geste du combo qui partirait du
+mauvais côté est remplacé par son miroir, un geste contextuel répété alterne de sens (pas de côté : droite-gauche-droite),
+et la préparation est raccourcie ×0,75 quand la lame est déjà du bon côté.
+Fenêtres de combo par geste (début en s, fin en part de la récupération) : diagonales et horizontales 0,05 → 90 % ;
+vertical léger 0,06 → 85 % ; estoc 0,06 → 80 % ; lourd 0,08 → 80 %. Un appui hors fenêtre relance le combo au geste 1.
+
+| Geste | Préparation | Active | Récupération |
+|---|---|---|---|
+| horizontale_gd (revers) | 0,14 | 0,19 | 0,34 |
+| verticale_l (en avançant) | 0,12 | 0,18 | 0,32 |
+| estoc (en reculant, dégâts de 25 % à 100 % du geste) | 0,12 | 0,15 | 0,30 |
+
+3e personne : seule l'animation `Sword_Attack` existe pour l'épée ; l'estoc joue `Punch_Jab` (poussée droit devant).
 
 ## Limites connues / suite
 - Phase 3 : garde orientée par le tracé de l'arme ennemie, parade parfaite avec déséquilibre ennemi, contre-attaque
   (`attaque = "contre"`), garde brisée quand l'endurance tombe à 0.
-- Phase 4 : choix de direction selon le mouvement (pas de côté → horizontal, en avant → vertical), fenêtres de combo
-  par geste, annulation de la récupération par la garde.
+- Phase 4 (reste) : annulation de la récupération par la garde, gestes 3e personne par direction (animations à créer).
 - Phase 5 : équilibrage des 4 variantes, lueurs (rubis, verre), effets d'enchantement.
 - Phase 6 : sons d'impact par matériau, traînée de lame pixel, caméra, optimisation.
-- Le corps 3e personne suit l'ancien état (Sword_Attack) : pas encore de geste par direction.

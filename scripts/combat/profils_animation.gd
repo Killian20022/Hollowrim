@@ -6,7 +6,10 @@ class_name ProfilsAnimation
 ## Les durées sont en secondes pour une arme de vitesse 1 (DonneesArme.vitesse les divise).
 ## Les mêmes fonctions servent à l'image affichée ET au tracé de lame : ce que l'on voit est ce qui touche.
 
-## Coups légers enchaînés (combo 1, 2, 3 puis retour au 1) ; le coup lourd a son propre geste.
+## Coups légers enchaînés (combo 1, 2, 3 puis retour au 1) quand le contexte ne choisit pas de direction (voir
+## mains._choisir_geste) ; le coup lourd a son propre geste. « cotes » = [côté de départ, côté d'arrivée] (+1 droite,
+## -1 gauche, 0 centre) : un enchaînement repart du côté où le coup précédent a fini. « enchainement » = fenêtre de combo
+## [début (s), fin (part de la récupération)] : un appui mémorisé dans la fenêtre enchaîne, après elle le combo repart à 1.
 const PROFILS := {
 	"epee_longue": {
 		"combo": ["diag_dg", "diag_gd", "horizontale"],
@@ -17,23 +20,34 @@ const PROFILS := {
 				"armer": [Vector3(0.36, -0.10, -0.50), Vector3(0.45, 0.85, 0.30), Vector3(0.28, 0.0, -0.45)],
 				"milieu": [Vector3(0.10, -0.17, -0.68), Vector3(-0.45, 0.25, -0.86), Vector3(-0.8, -0.5, 0.25)],
 				"fin": [Vector3(-0.16, -0.32, -0.56), Vector3(-0.85, -0.15, -0.45), Vector3(-0.45, 0.0, 0.85)],
-				"preparation": 0.10, "active": 0.17, "recuperation": 0.30, "fenetre": [0.10, 0.92],
+				"preparation": 0.10, "active": 0.17, "recuperation": 0.30, "fenetre": [0.10, 0.92], "cotes": [1, -1], "enchainement": [0.05, 0.9],
 			},
 			# diagonale gauche → droite : revers, armée au-dessus de l'épaule gauche (miroir du précédent)
-			"diag_gd": {"miroir": "diag_dg", "preparation": 0.12, "active": 0.17, "recuperation": 0.30, "fenetre": [0.10, 0.92]},
+			"diag_gd": {"miroir": "diag_dg", "preparation": 0.12, "active": 0.17, "recuperation": 0.30, "fenetre": [0.10, 0.92], "cotes": [-1, 1], "enchainement": [0.05, 0.9]},
 			# balayage horizontal de droite à gauche à hauteur de poitrine
 			"horizontale": {
 				"armer": [Vector3(0.40, -0.17, -0.42), Vector3(0.91, 0.12, 0.40), Vector3(0.40, 0.0, -0.9)],
 				"milieu": [Vector3(0.06, -0.20, -0.70), Vector3(-0.15, 0.06, -1.0), Vector3(-1.0, 0.0, 0.1)],
 				"fin": [Vector3(-0.28, -0.24, -0.50), Vector3(-0.87, 0.02, 0.50), Vector3(0.5, 0.0, 0.87)],
-				"preparation": 0.13, "active": 0.19, "recuperation": 0.34, "fenetre": [0.10, 0.92],
+				"preparation": 0.13, "active": 0.19, "recuperation": 0.34, "fenetre": [0.10, 0.92], "cotes": [1, -1], "enchainement": [0.05, 0.9],
 			},
 			# coup lourd : abattu de haut en bas, légèrement en diagonale (main droite)
 			"verticale": {
 				"armer": [Vector3(0.30, 0.0, -0.40), Vector3(0.12, 0.80, 0.58), Vector3(0.0, 0.58, -0.80)],
 				"milieu": [Vector3(0.10, -0.10, -0.72), Vector3(-0.06, 0.10, -1.0), Vector3(0.0, -1.0, 0.1)],
 				"fin": [Vector3(-0.02, -0.42, -0.55), Vector3(-0.18, -0.85, -0.50), Vector3(0.0, -0.5, 0.87)],
-				"preparation": 0.16, "active": 0.24, "recuperation": 0.46, "fenetre": [0.08, 0.94],
+				"preparation": 0.16, "active": 0.24, "recuperation": 0.46, "fenetre": [0.08, 0.94], "cotes": [1, 0], "enchainement": [0.08, 0.8],
+			},
+			# balayage horizontal de gauche à droite (revers)
+			"horizontale_gd": {"miroir": "horizontale", "preparation": 0.14, "active": 0.19, "recuperation": 0.34, "fenetre": [0.10, 0.92], "cotes": [-1, 1], "enchainement": [0.05, 0.9]},
+			# coup léger vertical (en avançant) : mêmes poses que le lourd, plus vif et moins haut
+			"verticale_l": {"copie": "verticale", "preparation": 0.12, "active": 0.18, "recuperation": 0.32, "fenetre": [0.10, 0.92], "cotes": [1, 0], "enchainement": [0.06, 0.85]},
+			# estoc (en reculant) : la lame part de la hanche et pique droit devant
+			"estoc": {
+				"armer": [Vector3(0.24, -0.30, -0.22), Vector3(-0.04, 0.18, -1.0), Vector3(-1.0, 0.0, 0.0)],
+				"milieu": [Vector3(0.14, -0.22, -0.52), Vector3(-0.07, 0.10, -1.0), Vector3(-1.0, 0.0, 0.0)],
+				"fin": [Vector3(0.08, -0.19, -0.70), Vector3(-0.06, 0.06, -1.0), Vector3(-1.0, 0.0, 0.0)],
+				"preparation": 0.12, "active": 0.15, "recuperation": 0.30, "fenetre": [0.25, 1.0], "cotes": [0, 0], "enchainement": [0.06, 0.8],
 			},
 		},
 		# poses tenues
@@ -41,7 +55,7 @@ const PROFILS := {
 		"garde": [Vector3(0.10, -0.20, -0.50), Vector3(-0.85, 0.42, -0.25), Vector3(0.0, 0.5, -1.0)],
 		"encaisse": [Vector3(0.14, -0.13, -0.42), Vector3(-0.85, 0.52, -0.08), Vector3(0.0, 0.5, -1.0)],
 		# sprint : épée abaissée le long du corps, pointe vers l'avant-bas
-		"sprint": [Vector3(0.36, -0.40, -0.40), Vector3(-0.12, 0.45, -0.88), Vector3(-0.3, 0.0, -1.0)],
+		"sprint": [Vector3(0.34, -0.50, -0.36), Vector3(-0.15, 0.30, -0.94), Vector3(-0.5, 0.0, -1.0)],
 	},
 }
 
@@ -52,13 +66,16 @@ static func profil(nom: String) -> Dictionary:
 static func geste(nom_profil: String, nom_geste: String) -> Dictionary:
 	var gestes: Dictionary = profil(nom_profil)["gestes"]
 	var g: Dictionary = gestes[nom_geste]
-	if g.has("miroir"):
-		var src: Dictionary = gestes[g["miroir"]]
+	if g.has("miroir") or g.has("copie"):
+		var src: Dictionary = gestes[g.get("miroir", g.get("copie"))]
 		var r := g.duplicate()
 		for k in ["armer", "milieu", "fin"]:
-			r[k] = miroir(src[k])
+			r[k] = miroir(src[k]) if g.has("miroir") else src[k]
 		return r
 	return g
+
+## Geste miroir (diagonales, horizontales) ou le même s'il n'en a pas.
+const MIROIRS := {"diag_dg": "diag_gd", "diag_gd": "diag_dg", "horizontale": "horizontale_gd", "horizontale_gd": "horizontale"}
 
 static func miroir(p: Array) -> Array:
 	var r := []

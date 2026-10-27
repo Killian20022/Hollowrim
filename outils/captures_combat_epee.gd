@@ -103,6 +103,21 @@ func _go() -> void:
 		await _pas(0.15)
 	await _planche("coups_legers_combo", imgs)
 	await _pas(0.8)
+	# --- directions selon le contexte (phase 4) : en avançant, pas à droite, pas à gauche, en reculant (armé, milieu)
+	imgs = []
+	for v in [Vector3(0, 0, -3.2), Vector3(3.2, 0, 0), Vector3(-3.2, 0, 0), Vector3(0, 0, 2.5)]:
+		await _pas(0.6)
+		j.velocity = v
+		mains.entrees.appuyer()
+		mains.avancer(DT)
+		mains.entrees.relacher()
+		await _pas(0.10)
+		imgs.append(await _image())
+		await _pas(0.09)
+		imgs.append(await _image())
+		j.velocity = Vector3.ZERO
+		await _pas(0.4)
+	await _planche("directions_avant_droite_gauche_recul", imgs)
 	# --- coup lourd : charge, pleine charge, frappe, fin
 	imgs = []
 	mains.entrees.appuyer()
