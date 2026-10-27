@@ -134,12 +134,37 @@ Teinte de la lame : la lame métal de la planche reçoit une copie de matériau 
 reflet bleu restant vient de l'environnement (lumière ambiante bleue 0,32 ; 0,4 ; 0,62 sur une texture claire), voulu
 pour la neige.
 
+## Coups authorés et poignet rigide (passe 3)
+- **Poignet rigide pendant les coups** (préparation, frappe, suivi, rebond) : la lame fait un angle fixe de 40° ± 15° avec
+  l'avant-bras (elle le prolonge), le tranchant ne tourne pas de plus de ±15° autour de la lame (`orientation_main.gd`,
+  `angle_min/angle_max`, réglés par `mains._poser_coude`). Le mouvement vient de l'épaule et du coude : chaque clé porte
+  son pôle de coude.
+- **Quatre clés par geste** (A = armer, milieu, B = fin, suivi) : [poignée, lame, pôle du coude, tranchant naturel]. Les
+  lames et tranchants sont ceux que le bras produit réellement avec le poignet rigide : `outils/regler_gestes.gd` cherche
+  le pôle du coude (un par geste, un autre pour A si besoin), lit la lame obtenue et l'imprime prête à coller ;
+  `-- --verifier` mesure l'écart image / tracé le long de l'arc (actuellement ≤ 21°, et seulement en début d'arc, avant
+  la zone de touche).
+- Orientation entre clés : slerp A → milieu → B (passe exactement par le milieu), tranchant gardé du même côté d'une clé
+  à l'autre (lame à deux tranchants) : pas de rotation de la lame sur elle-même.
+- **Rythme** : préparation (ease-out) → tenue de A (2-4 images, lisible) → frappe A → B accélérée (`acceleration`) →
+  suivi qui dépasse B → retour. Combo de base à l'arrêt :
+
+| Coup | Trajectoire | Prép. | Tenue | Frappe | Accél. | Suivi | Récup. | Dégâts |
+|---|---|---|---|---|---|---|---|---|
+| 1 diag_dg | haut-droite → bas-gauche | 0,09 | 0,04 | 0,13 | 2,4 | 0,07 | 0,30 | ×1 |
+| 2 horizontale_gd | gauche → droite, lame à plat, poitrine | 0,10 | 0,05 | 0,15 | 1,8 | 0,08 | 0,32 | ×1 |
+| 3 verticale_l | levée au-dessus de la tête → bas devant | 0,13 | 0,06 | 0,14 | 3,0 | 0,08 | 0,36 | ×1,25 |
+| Lourd verticale | armé derrière l'épaule → bas devant | 0,06 | — | 0,20 | 2,6 | 0,10 | 0,46 | ×1 (+charge) |
+
+Preuves : `outils/captures_combat_epee.gd -- --coups` (planches image par image numérotées),
+`-- --film-coups [--ralenti=0.25]` avec `--write-movie` (vidéos).
+
 ## Directions et enchaînements (phase 4)
 Choix du geste léger à l'appui (`mains._choisir_geste`), par priorité :
 1. souris balayée (> 40 px récents, oubli ~0,1 s) : horizontal dans le sens du balayage ; tirée vers le bas : vertical ;
 2. déplacement : de côté (> 1,2 m/s) → horizontal dans le sens du pas ; en avant (> 1,5 m/s) → vertical ; en arrière
    (> 1,2 m/s) → estoc ;
-3. à l'arrêt : combo du profil diag_dg → diag_gd → horizontale.
+3. à l'arrêt : combo du profil diag_dg → horizontale_gd → verticale_l.
 Continuité : chaque geste a un côté de départ et d'arrivée ; dans un enchaînement, un geste du combo qui partirait du
 mauvais côté est remplacé par son miroir, un geste contextuel répété alterne de sens (pas de côté : droite-gauche-droite),
 et la préparation est raccourcie ×0,75 quand la lame est déjà du bon côté.

@@ -96,6 +96,14 @@ var _charge := 0.0
 var _charge_signalee := false
 var _t_geste := 0.0          # temps dans le geste (préparation + phase active), arrêté pendant l'attente du relâchement
 var _duree_prep := 0.1
+var _duree_tenue := 0.0       # pose armée tenue, lisible (2-3 images)
+var _duree_suivi := 0.07      # dépassement après B, au début de la récupération
+var _pose_suivi := Transform3D()
+## Poignet RIGIDE pendant les coups : la lame fait un angle fixe avec l'avant-bras (elle le prolonge, cassée de
+## ANGLE_COUP), à ± DEVIATION_COUP près ; le tranchant ne tourne pas de plus de FLEXION_COUP autour de la lame.
+const ANGLE_COUP := 40.0
+const DEVIATION_COUP := 15.0
+const FLEXION_COUP := 15.0
 var _duree_active := 0.17
 var _duree_recup := 0.3
 var _t_trace := 0.0          # temps de phase active déjà échantillonné par le tracé
@@ -251,6 +259,7 @@ func _installer_arme() -> void:
 	_cible_d.transform = PRISE_D.affine_inverse()
 	_coude_d.position = arme.repos_coude
 	_orient_d.deviation_max = deg_to_rad(arme.deviation_poignet)
+	regler_poignet(false)
 	var g_coude := equipement.gauche_rangee.repos_coude
 	_coude_g.position = Vector3(-g_coude.x, g_coude.y, g_coude.z)
 	_orient_d.prise = PRISE_D
@@ -455,10 +464,11 @@ func _pose(nom: String, sens := 1.0) -> Transform3D:
 	match nom:
 		"repos":
 			return _pose_repos()
-		"armer", "frappe", "milieu":
+		"armer", "frappe", "milieu", "suivi":
 			var g := ProfilsAnimation.geste(arme.profil, p["combo"][0])
-			var cle: String = {"armer": "armer", "frappe": "fin", "milieu": "milieu"}[nom]
-			return ProfilsAnimation.transform_pose(g[cle], sens)
+			return ProfilsAnimation.pose_cle(g, {"armer": "armer", "frappe": "fin", "milieu": "milieu", "suivi": "suivi"}[nom])
+		"charge":
+			return ProfilsAnimation.pose_cle(ProfilsAnimation.geste(arme.profil, p["lourd"]), "armer")
 	return ProfilsAnimation.transform_pose(p.get(nom, p["garde"]), sens)
 
 # --- entrées ----------------------------------------------------------------------------
@@ -507,7 +517,7 @@ func basculer_debogage(actif: bool) -> void:
 func _etat_ancien() -> int:
 	match combat.etat:
 		EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE:
-			return ARMER if _t_geste < _duree_prep else FRAPPE
+			return ARMER if _t_geste < _duree_prep + _duree_tenue else FRAPPE
 		EtatCombat.CHARGE_LOURDE:
 			return CHARGE
 		EtatCombat.RECUPERATION:
@@ -584,6 +594,7 @@ func _preparer_geste(lourd: bool) -> void:
 	_t_geste = 0.0
 	_t_trace = 0.0
 	_actif_lance = false
+	_issue_arret = ""
 	_affaibli = false
 	_charge_signalee = false
 	if not lourd:
@@ -592,9 +603,9 @@ func _preparer_geste(lourd: bool) -> void:
 	_duree_prep = float(_geste["preparation"]) / v
 	_duree_active = float(_geste["active"]) / v
 	_duree_recup = float(_geste["recuperation"]) / v
+	_duree_tenue = float(_geste.get("tenue", 0.0)) / v
+	_duree_suivi = float(_geste.get("suivi_duree", 0.0)) / v
 	_depart = _pose_courante
-	if lourd:
-		_duree_prep = 0.06 / v   # la lame est déjà armée par la charge : départ presque immédiat
 
 ## Lancement de la phase active : on paie l'endurance ici. Pas assez d'endurance = coup AFFAIBLI (dégâts ×0,5,
 ## geste ralenti, jamais puissant) — le coup part toujours, le joueur n'est jamais bloqué sans réponse.
@@ -612,6 +623,7 @@ func _lancer_phase_active() -> void:
 
 func _finir_geste() -> void:
 	_pose_fin = _pose_courante
+	_pose_suivi = ProfilsAnimation.pose_cle(_geste, "suivi")
 	_combo += 1
 	_cote_fin = int(_geste.get("cotes", [0, 0])[1])
 	_geste_prec = _geste_nom
@@ -621,6 +633,7 @@ func _finir_geste() -> void:
 ## La lame est arrêtée (mur, bouclier, cassable qui tient) : rebond, petite ouverture.
 func _rebondir() -> void:
 	_pose_fin = _pose_courante
+	_pose_suivi = _pose_courante
 	_cote_fin = 0
 	_depuis_coup = 0.0
 	combat.changer(EtatCombat.DESEQUILIBRE)
@@ -674,7 +687,7 @@ func avancer(dt: float) -> void:
 			en_geste = true
 			_avancer_geste(dt)
 		EtatCombat.CHARGE_LOURDE:
-			cible = ProfilsAnimation.transform_pose(_profil()["charge"])
+			cible = ProfilsAnimation.pose_cle(ProfilsAnimation.geste(arme.profil, _profil()["lourd"]), "armer")
 			raideur = 7.0
 			if entrees.attaque_tenue:
 				_charge = clampf((entrees.duree_appui() - SEUIL_CHARGE) / CHARGE_MAX, 0.0, 1.0)
@@ -689,8 +702,13 @@ func avancer(dt: float) -> void:
 				_geste_nom = _profil()["lourd"]
 				_preparer_geste(true)
 		EtatCombat.RECUPERATION:
-			var k := clampf(combat.t / _duree_recup, 0.0, 1.0)
-			_pose_courante = _pose_fin.interpolate_with(_pose_repos(), k * k * (3.0 - 2.0 * k))
+			# suivi bref qui dépasse B (l'élan), puis retour au repos
+			var k := clampf((combat.t - _duree_suivi) / maxf(_duree_recup - _duree_suivi, 0.01), 0.0, 1.0)
+			if combat.t < _duree_suivi and _issue_arret != "arret":
+				var ks := combat.t / _duree_suivi
+				_pose_courante = _pose_fin.interpolate_with(_pose_suivi, 1.0 - (1.0 - ks) * (1.0 - ks))
+			else:
+				_pose_courante = _pose_suivi.interpolate_with(_pose_repos(), k * k * (3.0 - 2.0 * k))
 			en_geste = true
 			var fen: Array = _geste.get("enchainement", [DELAI_COMBO, 1.0])
 			if combat.t >= float(fen[0]) and entrees.consommer():
@@ -718,6 +736,7 @@ func avancer(dt: float) -> void:
 				combat.changer(EtatCombat.REPOS)
 	if not en_geste:
 		_pose_courante = _pose_courante.interpolate_with(cible, 1.0 - exp(-raideur * dt))
+	_poser_coude(dt)
 
 	# animations passives (respiration, marche, sprint, saut, inertie)
 	passifs.amplitude = 0.35 if bool(Jeu.option("affichage", "reduire_mouvements")) else 1.0
@@ -736,23 +755,64 @@ func avancer(dt: float) -> void:
 	_cam_prec = _transform_monde()
 	_cam_prec_ok = true
 
+## Pôle du coude et raideur du poignet selon l'état : pendant les coups, le coude suit les clés du geste (exact pendant
+## la frappe, pour que l'image suive le tracé) et le poignet est RIGIDE (±15°) ; au repos, réglages de l'arme.
+func _poser_coude(dt: float) -> void:
+	var cible := arme.repos_coude
+	var dev := arme.deviation_poignet
+	var exact := false
+	match combat.etat:
+		EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE:
+			dev = DEVIATION_COUP
+			if _actif_lance:
+				cible = ProfilsAnimation.coude_actif(_geste, _s_actif(clampf(_t_actif_prec, 0.0, _duree_active)))
+				exact = true
+			else:
+				cible = ProfilsAnimation.coude_cle(_geste, "armer")
+		EtatCombat.CHARGE_LOURDE:
+			dev = DEVIATION_COUP
+			cible = ProfilsAnimation.coude_cle(ProfilsAnimation.geste(arme.profil, _profil()["lourd"]), "armer")
+		EtatCombat.RECUPERATION:
+			dev = DEVIATION_COUP
+			if combat.t < _duree_suivi:
+				cible = ProfilsAnimation.coude_cle(_geste, "suivi")
+		EtatCombat.DESEQUILIBRE:
+			dev = DEVIATION_COUP
+	_coude_d.position = cible if exact else _coude_d.position.lerp(cible, 1.0 - exp(-25.0 * dt))
+	# repos : plan perpendiculaire à l'avant-bras ± déviation de l'arme ; coups : cône rigide autour de ANGLE_COUP
+	var coup := dev == DEVIATION_COUP
+	var amin := deg_to_rad(ANGLE_COUP - DEVIATION_COUP) if coup else deg_to_rad(90.0 - dev)
+	var amax := deg_to_rad(ANGLE_COUP + DEVIATION_COUP) if coup else deg_to_rad(90.0 + dev)
+	var k := 1.0 - exp(-20.0 * dt)
+	_orient_d.angle_min = lerpf(_orient_d.angle_min, amin, k)
+	_orient_d.angle_max = lerpf(_orient_d.angle_max, amax, k)
+	_orient_d.flexion_max = lerpf(_orient_d.flexion_max, deg_to_rad(FLEXION_COUP if coup else 55.0), k)
+
+## Réglage immédiat du poignet (installation de l'arme, outils).
+func regler_poignet(coup: bool) -> void:
+	_orient_d.angle_min = deg_to_rad(ANGLE_COUP - DEVIATION_COUP) if coup else deg_to_rad(90.0 - arme.deviation_poignet)
+	_orient_d.angle_max = deg_to_rad(ANGLE_COUP + DEVIATION_COUP) if coup else deg_to_rad(90.0 + arme.deviation_poignet)
+	_orient_d.flexion_max = deg_to_rad(FLEXION_COUP if coup else 55.0)
+
 ## Préparation (vers la pose armée), attente du relâchement (le coup peut devenir lourd), phase active avec tracé.
 func _avancer_geste(dt: float) -> void:
 	var tenu := combat.etat == EtatCombat.ATTAQUE_LEGERE and entrees.attaque_tenue
 	if tenu and entrees.duree_appui() >= SEUIL_CHARGE:
 		combat.changer(EtatCombat.CHARGE_LOURDE)
 		return
-	_t_geste = minf(_t_geste + dt, _duree_prep) if tenu else _t_geste + dt
+	var fin_prep := _duree_prep + _duree_tenue
+	_t_geste = minf(_t_geste + dt, fin_prep) if tenu else _t_geste + dt
 	if not _actif_lance:
-		if _t_geste < _duree_prep or tenu:
-			# bouton encore tenu : la lame reste armée jusqu'au relâchement ou au seuil de charge
-			var k := clampf(_t_geste / _duree_prep, 0.0, 1.0)
-			_pose_courante = _depart.interpolate_with(ProfilsAnimation.transform_pose(_geste["armer"]), 1.0 - (1.0 - k) * (1.0 - k))
+		if _t_geste < fin_prep or tenu:
+			# préparation vers A, puis A tenue un court instant (lisible) ; bouton encore tenu : la lame reste armée
+			# jusqu'au relâchement ou au seuil de charge
+			var k := clampf(_t_geste / maxf(_duree_prep, 0.001), 0.0, 1.0)
+			_pose_courante = _depart.interpolate_with(ProfilsAnimation.pose_cle(_geste, "armer"), 1.0 - (1.0 - k) * (1.0 - k) * (1.0 - k))
 			return
 		_actif_lance = true
 		_t_actif_prec = 0.0
 		_lancer_phase_active()
-	var t_actif := minf(_t_geste - _duree_prep, _duree_active)
+	var t_actif := minf(_t_geste - fin_prep, _duree_active)
 	var t_prec := _t_actif_prec
 	_t_actif_prec = t_actif
 	_pose_courante = _pose_active(t_actif)
@@ -768,7 +828,11 @@ func _avancer_geste(dt: float) -> void:
 		_finir_geste()
 
 func _pose_active(t_actif: float) -> Transform3D:
-	return ProfilsAnimation.pose_active(_geste, ProfilsAnimation.courbe_active(t_actif / _duree_active))
+	return ProfilsAnimation.pose_active(_geste, _s_actif(t_actif))
+
+## Avancement sur l'arc A → B au temps t de la frappe (courbe d'accélération du geste).
+func _s_actif(t_actif: float) -> float:
+	return ProfilsAnimation.courbe_active(t_actif / _duree_active, float(_geste.get("acceleration", 2.0)))
 
 func _transform_monde() -> Transform3D:
 	return (get_parent() as Node3D).global_transform * transform
@@ -813,7 +877,7 @@ func _resoudre_impact(e: Dictionary) -> String:
 	match e["type"]:
 		"cible":
 			var cible: Node = e["objet"]
-			var degats := DegatsCombat.calculer(arme, _lourd, _charge, _affaibli, joueur.competences.multiplicateur_degats(), equipement.bonus_trophee(joueur.inventaire))
+			var degats := DegatsCombat.calculer(arme, _lourd, _charge, _affaibli, joueur.competences.multiplicateur_degats(), equipement.bonus_trophee(joueur.inventaire)) * float(_geste.get("force", 1.0))
 			var r := DegatsCombat.appliquer(cible, degats, joueur.global_position, _puissant, _info_coup(e))
 			if cible.is_in_group("ennemis") or cible.is_in_group("cibles_combat"):
 				joueur.ennemi_vise = cible   # barre de vie de la cible (HUD)

@@ -81,6 +81,14 @@ func _go() -> void:
 		await _film()
 		quit()
 		return
+	if _arg("coups") != "":
+		await _coups_image_par_image()
+		quit()
+		return
+	if _arg("film-coups") != "":
+		await _film_coups(float(_arg("ralenti", "1")))
+		quit()
+		return
 	await _monter({"draugr": "fige", "sans-aide": ""})
 	mains.pas_manuel = true
 	# --- repos (scène de test, jour)
@@ -232,3 +240,101 @@ func _film() -> void:
 		if not d.vivant() and i > 60:
 			break
 	await create_timer(2.0).timeout
+
+
+## Planches image par image (60 i/s) des 3 coups légers enchaînés et du coup lourd : chaque image est numérotée et
+## porte l'état (préparation, tenue, frappe, suivi). Une planche par coup : <sortie>/coup_<n>_<geste>.png (grille 5 × 2).
+func _coups_image_par_image() -> void:
+	await _monter({"draugr": "aucun", "sans-aide": ""})
+	mains.pas_manuel = true
+	s.placer_joueur(Vector3(0, 0, 0.2), 0.0)
+	var calque := CanvasLayer.new()
+	calque.layer = 60
+	s.add_child(calque)
+	var l := Label.new()
+	l.add_theme_font_override("font", Palette.police())
+	l.add_theme_font_size_override("font_size", Palette.TAILLE_POLICE)
+	l.add_theme_color_override("font_color", Color(1, 0.95, 0.5))
+	l.add_theme_color_override("font_outline_color", Color.BLACK)
+	l.add_theme_constant_override("outline_size", 3)
+	l.position = Vector2(6, 330)
+	calque.add_child(l)
+	await _pas(0.6)
+	for n in 4:
+		var lourd := n == 3
+		if lourd:
+			await _pas(0.9)   # retour au repos avant le coup lourd
+		mains.entrees.appuyer()
+		var vues := []   # [étape, texte] puis image
+		var i := 0
+		var geste := ""
+		var fini := false
+		while not fini and i < 200:
+			i += 1
+			mains.avancer(DT)
+			if lourd and i == 70:
+				mains.entrees.relacher()
+			elif not lourd and i == 2:
+				mains.entrees.relacher()
+			var e: int = mains.combat.etat
+			if e == EtatCombat.CHARGE_LOURDE:
+				if i == 30 or i == 69:
+					vues.append(["charge", i])
+				else:
+					continue
+			var etape := ""
+			if e == EtatCombat.ATTAQUE_LEGERE or e == EtatCombat.ATTAQUE_LOURDE:
+				geste = mains._geste_nom
+				etape = "frappe" if mains._actif_lance else ("tenue" if mains._t_geste >= mains._duree_prep else "preparation")
+			elif e == EtatCombat.RECUPERATION:
+				etape = "suivi" if mains.combat.t < mains._duree_suivi else "retour"
+				var fen: Array = mains._geste.get("enchainement", [0.05, 0.9])
+				if etape == "retour" and (n < 2 or lourd) and mains.combat.t >= float(fen[0]) + 0.04:
+					fini = true   # le coup suivant part ici (fenêtre de combo)
+				if n == 2 and mains.combat.t > 0.16:
+					fini = true
+			elif e != EtatCombat.CHARGE_LOURDE:
+				continue
+			if lourd and e == EtatCombat.ATTAQUE_LEGERE and i != 6:
+				continue   # coup lourd : bouton tenu, une seule image de la montée avant la charge
+			if e != EtatCombat.CHARGE_LOURDE:
+				if etape == "preparation" and i % 2 == 1:
+					continue
+				vues.append([etape, i])
+			l.text = "Coup %d (%s) - image %02d (t = %d ms) - %s" % [n + 1, geste if geste != "" else "charge", vues.size(), roundi(i * DT * 1000.0), vues[vues.size() - 1][0]]
+			await process_frame
+			await process_frame
+			vues[vues.size() - 1].append(await _image())
+		var nom := "coup_%d_%s" % [n + 1, geste]
+		var w := 320
+		var h := 180
+		var images := vues.filter(func(v: Array) -> bool: return v.size() > 2).slice(0, 15)
+		var p := Image.create(w * 5, h * ceili(images.size() / 5.0), false, Image.FORMAT_RGBA8)
+		for k in images.size():
+			var im: Image = images[k][2]
+			im.convert(Image.FORMAT_RGBA8)
+			im.resize(w, h, Image.INTERPOLATE_BILINEAR)
+			p.blit_rect(im, Rect2i(0, 0, w, h), Vector2i((k % 5) * w, (k / 5) * h))
+		p.save_png(sortie.path_join(nom + ".png"))
+		print("PLANCHE ", nom, " ", images.size(), " images")
+		# coups 2 et 3 : l'appui du tour suivant tombe dans la fenêtre de combo du coup qui finit
+
+## Les trois coups enchaînés puis le lourd, en continu (Movie Maker) ; ralenti < 1 : Engine.time_scale.
+func _film_coups(ralenti: float) -> void:
+	await _monter({"draugr": "aucun", "sans-aide": ""})
+	s.placer_joueur(Vector3(0, 0, 0.2), 0.0)
+	for i in 20:
+		await process_frame
+	Engine.time_scale = ralenti
+	for boucle in 2:
+		for c in 3:
+			mains.entrees.appuyer()
+			await create_timer(0.04).timeout
+			mains.entrees.relacher()
+			await create_timer(0.42).timeout
+		await create_timer(0.6).timeout
+		mains.entrees.appuyer()
+		await create_timer(1.3).timeout
+		mains.entrees.relacher()
+		await create_timer(1.0).timeout
+	Engine.time_scale = 1.0

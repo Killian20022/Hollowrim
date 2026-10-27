@@ -113,7 +113,9 @@ func _tester() -> void:
 		res[fps] = await _suite(fps)
 	var ref: Array = res[60][0]
 	_verif(ref.size() == 4, "4 coups -> 4 touches sur le mannequin à 60 i/s (une seule par coup) : %d" % ref.size())
-	_verif(res[60][1] == ["diag_dg", "diag_gd", "horizontale"], "combo : trois directions enchaînées %s" % [res[60][1]])
+	_verif(res[60][1] == ["diag_dg", "horizontale_gd", "verticale_l"], "combo de base : diagonale, horizontal, vertical %s" % [res[60][1]])
+	if ref.size() == 4:
+		_verif(absf(ref[2]["degats"] - 14.0 * 1.25) < 0.05, "le coup 3 (vertical) est le plus fort : %.1f" % ref[2]["degats"])
 	_verif(absf(float(res[60][2]) - 1.0) < 1e-6 and res[60][3] == EtatCombat.CHARGE_LOURDE, "charge plafonnée à 1 en HeavyCharge")
 	if ref.size() == 4:
 		_verif(not ref[0]["puissant"] and ref[3]["puissant"] and absf(ref[3]["degats"] - 34.0 * 1.3) < 0.05, "léger 14, lourd à pleine charge 34 × 1,3 = %.1f" % ref[3]["degats"])
