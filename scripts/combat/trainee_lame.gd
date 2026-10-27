@@ -29,8 +29,15 @@ func couleurs(base: Color, vif: Color) -> void:
 	_mat.set_shader_parameter("couleur", base)
 	_mat.set_shader_parameter("coeur", vif)
 
-## Ajoute un échantillon (repère du parent) daté de `retard` s avant l'instant courant (échantillons sous-image).
+## Profondeur minimale (m, devant l'œil) d'un sommet du ruban : une pointe passée au-dessus de la tête ou derrière le
+## plan de la caméra se projetterait n'importe où (traînée projetée hors cadre, en haut de l'écran).
+const PROCHE := 0.08
+
+## Ajoute un échantillon (repère du parent = repère des mains, aligné sur la caméra) daté de `retard` s avant l'instant
+## courant (échantillons sous-image). La pointe est ramenée le long de la lame devant le plan z = -PROCHE.
 func ajouter(garde: Vector3, pointe: Vector3, retard := 0.0) -> void:
+	if pointe.z > -PROCHE and garde.z < -PROCHE:
+		pointe = garde.lerp(pointe, (-PROCHE - garde.z) / (pointe.z - garde.z))
 	_ech.append([_horloge - retard, garde, pointe])
 	if _ech.size() > MAX:
 		_ech.pop_front()

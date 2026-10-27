@@ -21,9 +21,11 @@ void vertex() {
 void fragment() {
 	float vie = COLOR.a;
 	float le_long = UV.y;
-	// croissant fin côté pointe : nul sur les deux premiers tiers de la lame, plein au dernier dixième ; s'éteint avec
-	// l'âge (les échantillons les plus anciens disparaissent d'abord : la traînée « rattrape » la lame)
-	float a = vie * smoothstep(0.62, 0.96, le_long);
+	// bande le long du TRANCHANT : naît au quart de la lame (près de la garde, rien), pleine sur le dernier tiers ;
+	// s'éteint avec l'âge (les échantillons les plus anciens disparaissent d'abord : la traînée « rattrape » la lame).
+	// Une bande large (et non un croissant au bout de la pointe) suit la partie de la lame qui traverse l'écran : avec
+	// une lame levée, un croissant limité à la pointe restait collé au haut de l'image, identique d'un coup à l'autre.
+	float a = vie * smoothstep(0.3, 0.8, le_long);
 	float q = floor(a * 4.0 + 0.25) / 4.0;   // 4 paliers
 	if (q <= 0.0) {
 		discard;

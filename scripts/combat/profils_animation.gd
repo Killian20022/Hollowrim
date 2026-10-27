@@ -12,8 +12,8 @@ class_name ProfilsAnimation
 ## « charge » (attaques puissantes) = clip de l'armé tenu pendant la charge.
 const PROFILS := {
 	"epee_longue": {
-		# enchaînement de base à l'arrêt (Skyrim) : A diagonale → B revers → C vertical par-dessus (le plus fort)
-		"combo": ["diag_dg", "horizontale_gd", "verticale_l"],
+		# enchaînement de base à l'arrêt (Skyrim) : A diagonale → B horizontal droite → gauche → C vertical (le plus fort)
+		"combo": ["diag_dg", "horizontale_b", "verticale_l"],
 		"lourd": "lourd",
 		# attaque puissante selon le déplacement au début de la charge (mains._choisir_lourd)
 		"lourds": {"arret": "lourd", "avant": "verticale", "gauche": "lourd", "droite": "lourd_gd", "arriere": "lourd_revers"},
@@ -21,8 +21,11 @@ const PROFILS := {
 			# coup A : armé épée relevée près de l'épaule droite, entaille en DIAGONALE descendante droite → gauche à travers
 			# le centre à longueur de bras, pronation du poignet, finit en bas à gauche
 			"diag_dg": {"clip": "coup_a", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.04, 1.0], "force": 1.0},
-			# coup B : revers gauche → droite, légèrement montant, repart de la fin de A, finit à droite
-			"horizontale_gd": {"clip": "coup_b", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.04, 1.0], "force": 1.0},
+			# coup B : repart de la fin de A (en bas à gauche), remonte l'épée à droite, puis horizontal droite → gauche à plat
+			# à hauteur de poitrine, finit à gauche (départ « 0 » : jamais remplacé par un miroir)
+			"horizontale_b": {"clip": "coup_b", "fenetre": [0.0, 1.0], "cotes": [0, -1], "enchainement": [0.04, 1.0], "force": 1.0},
+			# revers horizontal gauche → droite, légèrement montant (pas à droite, miroir de « horizontale »)
+			"horizontale_gd": {"clip": "coup_gd", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.04, 1.0], "force": 1.0},
 			# coup C : vertical par-dessus (épée levée au-dessus de la tête), descend à travers le centre, finit bas devant ;
 			# le plus fort, tassement de la caméra à l'impact
 			"verticale_l": {"clip": "coup_c", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.06, 1.0], "force": 1.25, "tassement": 1.0},

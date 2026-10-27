@@ -121,7 +121,7 @@ func _tester() -> void:
 		res[fps] = await _suite(fps)
 	var ref: Array = res[60][0]
 	_verif(ref.size() == 4, "4 coups -> 4 touches sur le mannequin à 60 i/s (une seule par coup) : %d" % ref.size())
-	_verif(res[60][1] == ["diag_dg", "horizontale_gd", "verticale_l"], "combo de base : diagonale, horizontal, vertical %s" % [res[60][1]])
+	_verif(res[60][1] == ["diag_dg", "horizontale_b", "verticale_l"], "combo de base : diagonale, horizontal, vertical %s" % [res[60][1]])
 	if ref.size() == 4:
 		_verif(absf(ref[2]["degats"] - 14.0 * 1.25) < 0.05, "le coup 3 (vertical) est le plus fort : %.1f" % ref[2]["degats"])
 	_verif(absf(float(res[60][2]) - 1.0) < 1e-6 and res[60][3] == EtatCombat.CHARGE_LOURDE, "charge plafonnée à 1 en HeavyCharge")
@@ -234,7 +234,7 @@ func _tester() -> void:
 	_verif(s.mannequin.coups.size() == avant, "rien n'est touché à travers le mur")
 
 	# les 3 coups du combo, chacun face au mur : la lame est toujours arrêtée sur la face
-	for g in ["diag_dg", "horizontale_gd", "verticale_l"]:
+	for g in ["diag_dg", "horizontale_b", "verticale_l"]:
 		await _reset(Vector3(-1.9, 0, 1.0), 90.0)
 		var n_m: int = s.mannequin.coups.size()
 		mains.trace.garder_debug = true

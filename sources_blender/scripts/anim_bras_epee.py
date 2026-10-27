@@ -232,7 +232,7 @@ def poser(cle, cote="r"):
     fixe = "k" in cle
     # le coude peut tourner autour de l'axe épaule -> poignet (± 90° de l'indication) : le solveur choisit la position du
     # coude qui rend la lame voulue atteignable, en préférant l'indication et la continuité avec la clé précédente
-    phis = [0] if (fixe or cle.get("coude_fixe")) else list(range(-90, 91, 15))
+    phis = [cle.get("phi", 0)] if (fixe or cle.get("coude_fixe")) else list(range(-90, 91, 15))
     phi_best = 0
     for it in range(3):
         decal = (Hrot @ centre_poing) if Hrot is not None else (B_DE_CAM.to_3x3() @ Vector((0.03, -0.06, 0.07)))
@@ -500,9 +500,12 @@ def explorer(noms):
     for nom in noms:
         base = getattr(G, nom)
         print("EXPLORER", nom, "poing", tuple(round(v, 2) for v in base["poing"]))
-        for k in (-80, -40, 0, 40, 84):
-            for f in (-40, 0, 40):
-                for r in (-35, 0, 20):
+        ks, fs, rs = (-80, -40, 0, 40, 84), (-40, 0, 40), (-35, 0, 20)
+        if "grille" in ARGS:      # --grille=k0:k1:pas,f0:f1:pas,r0:r1:pas
+            ks, fs, rs = (range(int(a), int(b) + 1, int(c)) for a, b, c in (x.split(":") for x in ARGS["grille"].split(",")))
+        for k in ks:
+            for f in fs:
+                for r in rs:
                     c = dict(base, k=k, f=f, r=r)
                     poser(c)
                     W = CAM_DE_B @ A.pose.bones["hand_r"].matrix @ PRISE_D
@@ -512,6 +515,8 @@ def explorer(noms):
                     e = lambda v: "(%.2f,%.2f)" % (v.x / -v.z / th, v.y / -v.z / tv) if v.z < -0.01 else "(derr)"
                     z = (W.to_3x3() @ Vector((0, 0, 1))).normalized()
                     plat = math.degrees(math.acos(min(1, abs(z.dot((-(g + p) * 0.5).normalized())))))
+                    vx, vy = (p.x / -p.z - g.x / -g.z) / th * 16, (p.y / -p.z - g.y / -g.z) / tv * 9
+                    print("  vert %5.1f" % math.degrees(math.atan2(-vx, vy)), end="")
                     print("  k%4d f%4d r%4d  lame (%.2f,%.2f,%.2f) garde %s pointe %s plat %d" % (k, f, r, y.x, y.y, y.z, e(g), e(p), plat))
 
 
