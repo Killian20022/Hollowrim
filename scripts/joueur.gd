@@ -99,6 +99,10 @@ var _dernier_pas := 0
 var _repos_vigueur := 0.0
 var _recul := Vector3.ZERO
 var _bruit_secousse := FastNoiseLite.new()
+## Caméra « corps » (scripts/combat/camera_corps.gd) : balancement de tête, saut / atterrissage, accompagnement des
+## attaques, micro-secousse des impacts, coup reçu ; ressorts critiques à pas fixe, options du menu (CameraCorps.facteurs).
+var camera_corps := CameraCorps.new()
+var _secousse_prec := 0.0
 var _t := 0.0
 
 func _ready() -> void:
@@ -250,6 +254,8 @@ func recevoir_coup(degats: float, origine: Vector3, options := {}) -> String:
 	degats_dernier_coup = degats
 	secousse = maxf(secousse, maxf(0.7, float(options.get("secousse", 0.0))))
 	_recul = -vers.normalized() * float(options.get("recul", 4.0))
+	camera_corps.coup_recu(global_transform.basis.inverse() * vers, degats / 30.0)
+	_secousse_prec = secousse   # pas un impact du joueur (CameraCorps.impact)
 	if options.has("ralenti"):
 		var rl: Vector2 = options["ralenti"]
 		ralentir(rl.x, rl.y)
@@ -354,23 +360,29 @@ func _physics_process(dt: float) -> void:
 		if n != _dernier_pas:
 			_dernier_pas = n
 			Sons.jouer(self, ["footstep_snow_000", "footstep_snow_001", "footstep_snow_002", "footstep_snow_003", "footstep_snow_004"], -12.0 if not court else -8.0, 0.1)
-	var amplitude := clampf(vitesse_sol / COURSE, 0.0, 1.0)
-	var bob := Vector3(cos(_pas) * 0.035, absf(sin(_pas)) * 0.06, 0.0) * amplitude * (0.4 if bool(Jeu.option("affichage", "reduire_mouvements")) else 1.0)   # option « Réduire les mouvements »
+	# caméra « corps » (CameraCorps) : options Mouvement de tête / Secousses, « Réduire les mouvements » compris
+	var f := CameraCorps.facteurs()
+	camera_corps.tete = f["tete"]
+	camera_corps.secousses = f["secousses"]
+	secousse = maxf(0.0, secousse - dt * 1.8)
+	# un coup du joueur qui porte fait monter la secousse (profils d'impact) : petit recul de la vue, amorti si puissant
+	if secousse > _secousse_prec + 0.05 and mains != null and mains.get("combat") != null \
+			and (mains.combat.attaque() or mains.combat.etat == EtatCombat.RECUPERATION):
+		camera_corps.impact(secousse)
+	_secousse_prec = secousse
+	camera_corps.avancer(dt, vitesse_sol if not mort else 0.0, _pas, is_on_floor(), velocity.y, secousse, global_position.y)
 	if mort:
 		# on s'effondre
-		bob = Vector3(0, -1.2, 0)
 		tete.rotation.z = lerpf(tete.rotation.z, 1.2, 1.0 - exp(-3.0 * dt))
-	camera.position = camera.position.lerp(bob, 1.0 - exp(-12.0 * dt))
-
-	# secousse de caméra
-	secousse = maxf(0.0, secousse - dt * 1.8)
-	var s := secousse * secousse
-	camera.h_offset = _bruit_secousse.get_noise_2d(_t * 40.0, 0.0) * s * 0.08
-	camera.v_offset = _bruit_secousse.get_noise_2d(0.0, _t * 40.0) * s * 0.08
-	camera.rotation.z = _bruit_secousse.get_noise_2d(_t * 30.0, 50.0) * s * 0.06
+		camera.position = camera.position.lerp(Vector3(0, -1.2, 0), 1.0 - exp(-12.0 * dt))
+	else:
+		camera.position = camera_corps.position
+	camera.rotation = camera_corps.rotation
+	camera.h_offset = camera_corps.decalage.x
+	camera.v_offset = camera_corps.decalage.y
 	if tassement > 0.0:
 		tassement = maxf(0.0, tassement - dt * 5.5)
-		camera.v_offset -= sin(minf(tassement, 1.0) * PI) * 0.035 * (0.4 if bool(Jeu.option("affichage", "reduire_mouvements")) else 1.0)
+		camera.v_offset -= sin(minf(tassement, 1.0) * PI) * 0.035 * float(f["secousses"])
 	var cam_tp: Camera3D = camera_tp.camera
 	cam_tp.h_offset = camera.h_offset
 	cam_tp.v_offset = camera.v_offset

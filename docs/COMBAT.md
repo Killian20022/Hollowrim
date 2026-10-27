@@ -44,6 +44,7 @@ T = torche ; **F3 = débogage** (tracé de lame, état de combat, endurance, cha
 | `degats_combat.gd` (`DegatsCombat`) | Calcul des dégâts, appel de `recevoir_coup` (avec `info` si la cible l'accepte), zone touchée. |
 | `retour_coups.gd` (`RetourCoups`) | Étincelles et son sur les murs, signal discret de pleine charge ; coups qui portent sur une cible SANS CombatEnnemi (dragon…) → profils d'impact (`RetourImpact.jouer`). |
 | `mouvements_passifs.gd` (`MouvementsPassifs`) | Respiration, marche, sprint, saut / atterrissage, inertie de la caméra, arrêt brutal (ressorts à pas fixe). |
+| `camera_corps.gd` (`CameraCorps`) | Caméra FPS : balancement de tête aux pas, saut / atterrissage, accompagnement des attaques, impact, coup reçu, secousse ; options Balancement / Tête / Secousses. |
 | `debogage_combat.gd` | Dessin du tracé et texte d'état (F3). |
 | `mannequin.gd` (`Mannequin`) | UN mannequin pour les deux scènes de test (test_combat, test_degats) : CombatEnnemi (posture, réaction, finisher : la tête s'envole et repousse), chiffres de dégâts, journal `coups`, signal `touche`, groupe `cibles_combat`. |
 
@@ -204,12 +205,51 @@ Coups qui portent : profils d'impact (voir « Retours d'impact : une seule sourc
 `RetourCoups.arret_actif` coupe l'arrêt sur image (tests). Les ennemis jouent leur son de chair et leurs éclats eux-mêmes.
 
 ## Animations passives (MouvementsPassifs)
-Ressorts amortis (raideur 110, amortissement 0,5, plus lents pour une arme lourde) intégrés à 240 Hz. Respiration
-(±5 mm, 1,6 rad/s) et micro-dérives lentes ; balancement de marche au rythme des pas (2,4 rad/m), plus ample en courant ;
-sprint (> 4,8 m/s) : épée abaissée vers l'avant, torche stabilisée (balancement × 0,35) ; saut : les bras restent en
-arrière de l'impulsion ; atterrissage : amorti proportionnel à la vitesse de chute ; inertie : impulsion à chaque
-mouvement de souris ; arrêt brutal : le ressort dépasse puis revient. Option **« Réduire les mouvements »** (menu Options) :
-amplitude des bras × 0,35, balancement de tête × 0,4.
+Ressorts amortis (raideur 110, amortissement 0,65 : dépassement ~7 % à l'arrêt brutal, plus lents pour une arme lourde)
+intégrés à 240 Hz. Respiration (±5 mm, 1,6 rad/s) et micro-dérives lentes ; balancement de marche au rythme des pas
+(2,4 rad/m, courbe en sin² : creux au pas, sans pointe), plus ample en courant ; sprint (> 4,8 m/s) : épée abaissée vers
+l'avant, torche stabilisée (balancement × 0,35) ; saut : les bras restent en arrière de l'impulsion ; atterrissage : amorti
+proportionnel à la HAUTEUR de chute (point haut du vol − sol, `altitude` passée par mains.gd ; plein à 3 m) ; inertie :
+la souris compte en angle tourné (pixels × sensibilité), impulsion RÉPARTIE sur les pas fixes de l'image, plafond doux
+(tanh) à 4° ; l'inertie de rotation déplace aussi un peu les mains (8 cm/rad). **Main gauche** (torche, sort, bouclier) :
+même mouvement, suivi par un ressort critique de 22 rad/s (retard mesuré ~50-70 ms) et balancement de marche en
+opposition de phase. Impulsions de saut / atterrissage appliquées après l'intégration de l'image (même instant à toute
+cadence). Amplitude = option **Balancement de l'arme**.
+
+## Caméra « corps » (CameraCorps, scripts/combat/camera_corps.gd)
+Appelée par joueur.gd (`camera_corps`, dans `_physics_process`) ; écrit `camera.position`, `camera.rotation`,
+`h_offset` / `v_offset`. Ressorts CRITIQUES (sans dépassement) à pas fixe de 1/240 s : rapide 11 rad/s (saut, atterrissage,
+attaques), lent 6,5 rad/s (amorti après un coup puissant, coup reçu, tangage d'atterrissage). La caméra ne fait jamais le
+geste des bras ; au repos elle est immobile (0).
+- **Balancement de tête** synchronisé aux sons de pas (même phase `_pas` : un pas à chaque multiple de π = point bas) :
+  sprint 2,2 cm haut-bas, 0,9 cm de côté, roulis 0,2° ; marche (3,2 m/s) 1,1 cm / 0,44 cm / 0,1° (avant : 6 cm et 3,5 cm).
+- **Saut** : la tête reste ~0,6 cm en arrière de l'impulsion ; **atterrissage** : creux 0,4 cm + 1,6 cm par mètre de chute
+  (≤ 6 cm), tangage lent 0,25 rad/m de creux : 0,74 m (saut) → 1,5 cm / 0,2° ; 2 m → 3,3 cm / 0,5° ; 4 m → 5,5 cm / 0,8°.
+- **Attaque** (`mains._accompagner_camera`, au début de la frappe) : la vue suit le sens de la lame de 0,25° environ
+  (≤ 0,4°, ×1,4 pour lourd / contre, ×0,6 affaibli) — un accompagnement, pas le mouvement.
+- **Impact** (montée de `joueur.secousse` pendant une attaque, profils d'impact inchangés) : recul de 0,004 × s rad ; coup
+  puissant (s ≥ 0,45) : amorti lent vers le bas (0,5° et 0,6 cm à s = 0,5). Tassement (`joueur.tassement`) inchangé.
+- **Secousse** : bruit CONTINU lent (~6 motifs/s au lieu de ~80 : l'ancien grésillait différemment à chaque cadence),
+  s² × 6 cm de décalage et s² × 2° de roulis (avant 8 cm / 3,4°) : léger (0,22) 0,03 cm, lourd (0,5) ~0,5-0,7 cm, coup
+  reçu (0,7) ~1,3-1,7 cm.
+- **Coup reçu** (`recevoir_coup`, touche) : la tête part en arrière et penche du côté opposé au coup (roulis 0,7° pour
+  12 dégâts de côté).
+- **Arrêt sur image** : les ressorts avancent avec le temps de jeu (dt ralenti par `Effets.arret_image`) : ils se figent
+  avec l'image et reprennent sans saut ; l'option « Arrêt sur image » n'est pas modifiée.
+
+### Options (menu Options, user://options.cfg, section affichage)
+`balancement_arme`, `mouvement_tete`, `secousses` (0..1, curseurs 0-100 %, défaut 100 %), dans le sous-panneau **Caméra**
+(bouton en bas du panneau Options, comme « Touches » : trois lignes de plus débordaient du panneau de l'écran titre). **Réduire les mouvements**
+plafonne : arme ≤ 35 %, tête ≤ 25 %, secousses (et tassement) ≤ 30 % (`CameraCorps.facteurs()`) ; un curseur plus bas
+reste plus bas. À 0 % chaque canal est réellement coupé (vérifié par le test).
+
+### Vérification : `outils/test_camera_corps.gd` (dans tous_les_tests.sh)
+Scénario synthétique (repos, marche, sprint, virage 3000 px/s, saut, chute de 2 m, attaques + impacts, coup reçu) à 30, 60
+et 144 i/s : écart aux instants communs 30/60 ≤ 0,8 mm et 0,00° ; pics par phase identiques (≤ 6 % ou 1 mm / 0,04°,
+secousse ≤ 15 % : un bruit échantillonné) ; vraie physique (scène de test, chute de 2 m à 30/60/144 ticks : 2,000 m mesurés,
+creux 3,27 / 3,29 / 3,29 cm). Courbes : `--courbes=<dossier>` (CSV + planche). Film : `outils/captures_camera_corps.gd`
+(Movie Maker, lignes SEGMENT pour la découpe et MESURE par séquence).
+Limite : sans interpolation de physique (projet à 60 ticks), à 144 i/s la caméra et le corps avancent par ticks de 1/60 s.
 
 ## Coups animés à la main (passe 5, remplace les poses procédurales des passes 3-4)
 Le bras droit est joué par de **vraies animations à images clés** ; plus aucune IK ni pôle de coude à droite.
