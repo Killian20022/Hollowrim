@@ -454,6 +454,22 @@ def preparer_rendu():
     cam.matrix_world = B_DE_CAM
     cam_d.sensor_fit = "VERTICAL"
     cam_d.angle_y = math.radians(D["fov"])
+    # --vue=cote|dessus|epaule : contrôle des trajectoires sous d'autres angles (repère caméra du jeu : œil à l'origine)
+    vue = ARGS.get("vue", "jeu")
+    if vue != "jeu":
+        poses = {"cote": ((1.7, -0.05, -0.55), (0.0, -0.15, -0.55), (0, 1, 0)),
+                 "dessus": ((0.0, 1.9, -0.6), (0.0, -0.1, -0.6), (0, 0, -1)),
+                 "epaule": ((0.9, 0.6, 1.1), (-0.05, -0.15, -0.7), (0, 1, 0))}
+        oeil, cible, haut = (Vector(v) for v in poses[vue])
+        z = (oeil - cible).normalized()
+        x = Vector(haut).cross(z).normalized()
+        y = z.cross(x)
+        m = Matrix.Identity(4)
+        for r in range(3):
+            m[r][0], m[r][1], m[r][2], m[r][3] = x[r], y[r], z[r], oeil[r]
+        cam.matrix_world = B_DE_CAM @ m
+        cam_d.angle_y = math.radians(55)
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.04, location=(B_DE_CAM @ Vector((0, 0, 0))))   # œil du joueur
     cam_d.clip_start = 0.02
     scene.camera = cam
     scene.render.resolution_x, scene.render.resolution_y = 480, 270

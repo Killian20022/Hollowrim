@@ -40,7 +40,7 @@ const SEUIL_SOURIS := 40.0
 const SEUIL_COTE := 1.2
 const SEUIL_AVANT := 1.5
 const SEUIL_RECUL := 1.2
-const DUREE_ENCAISSE := 0.18
+const DUREE_ENCAISSE := 0.26   # = clip « encaisse » (choc, rebond, replacement)
 const DUREE_REBOND := 0.30
 ## Coup affaibli (endurance insuffisante) : gestes ralentis de ce facteur.
 const LENTEUR_AFFAIBLI := 0.75
@@ -678,11 +678,11 @@ func _choisir_geste() -> Array:
 	if absf(sx) > SEUIL_SOURIS and absf(sx) > absf(sy) * 1.5:
 		choix = "horizontale_gd" if sx > 0.0 else "horizontale"
 	elif sy > SEUIL_SOURIS and sy > absf(sx) * 1.5:
-		choix = "diag_dg"   # souris tirée vers le bas : la diagonale (l'ancien vertical « du haut » est retiré)
+		choix = "verticale_l"   # souris tirée vers le bas : vertical (refait 2026-10-27, clip coup_v)
 	elif absf(loc.x) > SEUIL_COTE and absf(loc.x) > absf(loc.z):
 		choix = "horizontale_gd" if loc.x > 0.0 else "horizontale"
 	elif loc.z < -SEUIL_AVANT:
-		choix = "diag_dg"
+		choix = "verticale_l"
 	elif loc.z > SEUIL_RECUL:
 		choix = "estoc"
 	if choix != "" and gestes.has(choix):
@@ -1143,7 +1143,7 @@ func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictiona
 		"parade":
 			# parade parfaite : tintement clair (parade_parfaite), gerbe d'étincelles, la lame chasse l'arme adverse ;
 			# l'attaquant est déséquilibré (draugr : combat.subir_parade() sur le retour « parade ») ; fenêtre de contre-attaque
-			_parade_eclat = 0.14
+			_parade_eclat = 0.22
 			_encaisse = 0.0
 			anim.jouer("parade", 0.02)
 			RetourImpact.son(self, "parade_parfaite", point, 2.0)

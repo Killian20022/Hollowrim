@@ -152,9 +152,9 @@ func _tester() -> void:
 
 	# --- 2 bis. directions selon le contexte (phase 4) et continuité des enchaînements
 	print("-- directions")
-	var cas := [["en avançant", Vector3(0, 0, -3.2), Vector2.ZERO, "diag_dg"], ["pas à droite", Vector3(3.2, 0, 0), Vector2.ZERO, "horizontale_gd"],
+	var cas := [["en avançant", Vector3(0, 0, -3.2), Vector2.ZERO, "verticale_l"], ["pas à droite", Vector3(3.2, 0, 0), Vector2.ZERO, "horizontale_gd"],
 		["pas à gauche", Vector3(-3.2, 0, 0), Vector2.ZERO, "horizontale"], ["en reculant", Vector3(0, 0, 2.5), Vector2.ZERO, "estoc"],
-		["souris vers la droite", Vector3.ZERO, Vector2(120, 0), "horizontale_gd"], ["souris vers le bas", Vector3.ZERO, Vector2(0, 120), "diag_dg"]]
+		["souris vers la droite", Vector3.ZERO, Vector2(120, 0), "horizontale_gd"], ["souris vers le bas", Vector3.ZERO, Vector2(0, 120), "verticale_l"]]
 	for c in cas:
 		await _reset(Vector3.ZERO, 0.0)
 		var n0: int = s.mannequin.coups.size()
