@@ -17,6 +17,19 @@ static func calculer(arme: DonneesArme, lourd: bool, charge: float, affaibli: bo
 		base *= AFFAIBLI
 	return base * mult_competence * bonus_trophee
 
+## Force de déséquilibre (stagger) d'un coup, dans l'unité des postures ennemies (CalculDegats.STAGGER : léger 12, lourd 28,
+## chargé 42, contre 34) × le déséquilibre propre de l'arme rapporté à l'épée de métal (léger 0,3 ; lourd 0,7) ; la charge
+## ajoute jusqu'à +50 % au coup lourd (pleine charge = 42 pour l'épée de métal).
+const DESEQUILIBRE_REF_LEGER := 0.3
+const DESEQUILIBRE_REF_LOURD := 0.7
+static func stagger(arme: DonneesArme, attaque: String, charge := 0.0) -> float:
+	match attaque:
+		"legere":
+			return CalculDegats.STAGGER["legere"] * arme.desequilibre_leger / DESEQUILIBRE_REF_LEGER
+		"contre":
+			return CalculDegats.STAGGER["contre"] * arme.desequilibre_lourd / DESEQUILIBRE_REF_LOURD
+	return CalculDegats.STAGGER["lourde"] * arme.desequilibre_lourd / DESEQUILIBRE_REF_LOURD * (1.0 + clampf(charge, 0.0, 1.0) * 0.5)
+
 static func appliquer(cible: Node, degats: float, origine: Vector3, puissant: bool, info: Dictionary) -> String:
 	if cible == null or not is_instance_valid(cible):
 		return ""

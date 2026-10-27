@@ -44,6 +44,12 @@ func _reset(pos: Vector3, lacet: float) -> void:
 	mains._combo = 0
 	mains._depuis_coup = 9.0
 	mains._pose_courante = mains._pose_repos()
+	# mannequin (CombatEnnemi depuis la fusion combat/degats_gore) : posture neuve, sinon une posture brisée par la suite
+	# précédente ouvrirait un finisher au premier clic de la suivante
+	var mc: CombatEnnemi = s.mannequin.combat
+	mc.posture = mc.profil.posture_max
+	mc.etourdi = 0.0
+	mc.fenetre_parade = 0.0
 	await physics_frame
 	await physics_frame
 
@@ -103,6 +109,7 @@ func _tester() -> void:
 		await physics_frame
 	mains.pas_manuel = true
 	s.draugr._bouclier = 0.0   # pas de blocage aléatoire : test déterministe
+	s.draugr.combat.profil.chance_blocage = 0.0
 	_verif(mains.arme != null and mains.arme.id == "epee_metal", "arme par défaut : épée en métal (%s)" % (mains.arme.id if mains.arme else "aucune"))
 	_verif(mains._modele_arme_d != null and mains._pointe_lame.y > 0.9, "modèle chargé par la DonneesArme, repères garde/pointe lus (pointe y=%.3f)" % mains._pointe_lame.y)
 
@@ -222,6 +229,7 @@ func _tester() -> void:
 	_verif(d.vie < vie0, "coup léger : le draugr est touché (vie %.0f -> %.0f)" % [vie0, d.vie])
 	j.vigueur = j.vigueur_max
 	d.etat = d.TRAQUE
+	d.vie = 400.0   # le coup lourd vertical touche la tête (critique × 1,5, règles de degats_gore) : il ne doit pas tuer ici
 	var vie1: float = d.vie
 	mains.entrees.appuyer()
 	await _simuler(0.5, 1.0 / 60.0)

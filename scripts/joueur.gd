@@ -144,19 +144,16 @@ func recevoir_coup(degats: float, origine: Vector3) -> String:
 		return ""
 	var vers := origine - global_position
 	vers.y = 0.0
-	var face := -global_transform.basis.z
-	if mains.bloque and vers.normalized().dot(Vector3(face.x, 0, face.z).normalized()) > 0.3 and vigueur > 0.0:
-		var parade: bool = mains.temps_garde < mains.FENETRE_PARADE
-		var reduction := competences.reduction_parade()
-		var arme: DonneesArme = mains.arme   # réduction en garde et coût par coup bloqué : stats de l'arme tenue (docs/COMBAT.md)
-		depenser(degats * (0.3 if parade else 1.1) * reduction * arme.cout_garde)
-		vie -= 0.0 if parade else degats * (1.0 - arme.reduction_garde) * reduction
+	# garde (phase 3, mains.defendre / DefenseJoueur) : cône de 120° devant, réduction et coût selon l'arme tenue, parade
+	# parfaite dans la fenêtre (anti-spam), garde brisée quand l'endurance ne suffit plus (une partie du coup passe)
+	var g: Dictionary = mains.defendre(degats, origine)
+	if not g.is_empty():
+		var parade: bool = g["issue"] == "parade"
 		competences.pratiquer("parade", 0.6 + degats * 0.08 + (0.6 if parade else 0.0))
-		secousse = maxf(secousse, 0.2 if parade else 0.35)
-		mains.encaisser()
-		Sons.jouer(self, ["impactMetal_heavy_000", "impactMetal_heavy_001", "impactMetal_heavy_002"], -1.0)
-		Effets.eclats(self, mains.pivot_epee.global_position, Color(3.0, 2.2, 0.8), 10, 2.5, true)
-		return "parade" if parade else "bloque"
+		if g["issue"] != "brisee":
+			vie = maxf(minf(vie, 1.0), vie - float(g["degats"]))   # un coup bloqué ne tue pas
+			return String(g["issue"])
+		degats = float(g["degats"])
 	vie -= degats
 	origine_dernier_coup = origine
 	degats_dernier_coup = degats

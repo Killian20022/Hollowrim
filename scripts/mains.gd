@@ -27,8 +27,8 @@ enum { REPOS, ARMER, CHARGE, FRAPPE, RETOUR, GARDE, ENCAISSE }
 const SEUIL_CHARGE := 0.28
 ## Durée de charge (au-delà du seuil) pour atteindre le plafond (s).
 const CHARGE_MAX := 0.9
-## Fenêtre de parade : début de la garde pendant lequel un coup reçu est paré (s) — lue par joueur.recevoir_coup.
-const FENETRE_PARADE := 0.3
+## Fenêtre de parade parfaite (s) : réglée dans DefenseJoueur (anti-spam compris) ; gardée ici pour l'ancienne interface.
+const FENETRE_PARADE := DefenseJoueur.FENETRE_PARADE
 ## Fenêtre de combo par défaut (un geste sans « enchainement ») : début (s) et fin (part de la récupération).
 const DELAI_COMBO := 0.06
 ## Mouvement de souris récent (pixels, oubli exponentiel ~0,1 s) au-delà duquel il choisit la direction du coup.
@@ -51,7 +51,14 @@ var passifs := MouvementsPassifs.new()
 var trace := TraceLame.new()
 ## Arme de la main droite (raccourci de equipement.main_droite).
 var arme: DonneesArme
-var temps_garde := 0.0
+## Défense (phase 3) : garde orientée, garde brisée, parade parfaite, fenêtre de contre-attaque (scripts/combat/defense_joueur.gd).
+var defense := DefenseJoueur.new()
+## Temps depuis la levée de la garde (ancienne interface : lu / remis à zéro par les tests).
+var temps_garde: float:
+	get:
+		return defense.temps_garde
+	set(v):
+		defense.temps_garde = v
 ## Tests : _process ne fait plus rien, le test appelle avancer(dt) lui-même (pas de temps imposé).
 var pas_manuel := false
 var debug_combat := false
@@ -123,6 +130,17 @@ var _baisse := 0.0
 var _baisse_torche := 0.0
 var _respiration := 0.0
 var _debogage: Node
+# phase 3 : contre-attaque, garde brisée, parade parfaite, finisher
+var _contre := false            # le geste en cours est une contre-attaque (attaque « contre »)
+var _titube_garde := false      # le déséquilibre en cours vient d'une garde brisée (pas d'un rebond de lame)
+var _parade_eclat := 0.0        # s restantes du geste de parade parfaite (la lame chasse l'arme adverse)
+var _fin_cible: Node3D
+var _fin_cat := ""
+var _fin_geste := {}
+var _fin_t := 0.0
+var _fin_frappe := false
+## Dernier finisher lancé par le joueur : {cible, categorie, resultat} (débogage, tests).
+var dernier_finisher := {}
 ## Prises de l'épée et de la torche dans les mains (repère des os hand_r / hand_l),
 ## calculées sur le poing fermé (voir _calculer_prise).
 var PRISE_D := Transform3D()
@@ -175,6 +193,7 @@ func _ready() -> void:
 	_torche()
 	Jeu.option("affichage", "reduire_mouvements")   # charge les options si besoin
 	combat.change.connect(_sur_changement_etat)
+	RetourImpact.precharger()   # sons de lame, de blocage et de parade (pack de combat)
 
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--mains="):
@@ -516,8 +535,10 @@ func basculer_debogage(actif: bool) -> void:
 
 func _etat_ancien() -> int:
 	match combat.etat:
-		EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE:
+		EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE, EtatCombat.CONTRE:
 			return ARMER if _t_geste < _duree_prep + _duree_tenue else FRAPPE
+		EtatCombat.FINISHER:
+			return ARMER if _fin_t < GestesDefense.FINISHER["elan"] else FRAPPE
 		EtatCombat.CHARGE_LOURDE:
 			return CHARGE
 		EtatCombat.RECUPERATION:
@@ -567,6 +588,11 @@ func _choisir_geste() -> Array:
 func _commencer_attaque(enchaine := false) -> void:
 	if not arme.est_arme():
 		return
+	# phase 3 : un ennemi ouvert à portée → finisher ; juste après une parade parfaite → contre-attaque
+	if _tenter_finisher():
+		return
+	if defense.contre > 0.0 and _commencer_contre():
+		return
 	if not enchaine:
 		_combo = 0
 		_cote_fin = 0
@@ -590,7 +616,8 @@ func _commencer_attaque(enchaine := false) -> void:
 func _preparer_geste(lourd: bool) -> void:
 	_lourd = lourd
 	_puissant = lourd
-	_geste = ProfilsAnimation.geste(arme.profil, _geste_nom)
+	_contre = false
+	_geste = GestesDefense.GESTES[_geste_nom] if GestesDefense.GESTES.has(_geste_nom) else ProfilsAnimation.geste(arme.profil, _geste_nom)
 	_t_geste = 0.0
 	_t_trace = 0.0
 	_actif_lance = false
@@ -619,7 +646,8 @@ func _lancer_phase_active() -> void:
 	joueur.depenser(cout)
 	trace.commencer()
 	_cam_prec_ok = false
-	Sons.jouer(self, ["swing", "swing2", "swing3"], -2.0 if _lourd else -5.0, 0.12)
+	# fouetté de lame (pack de combat, catégories lame/) : lourd pour le coup lourd et la contre-attaque
+	RetourImpact.son(self, "fouette_lourd" if _lourd or _contre else "fouette_leger", (get_parent() as Node3D).global_position, -1.0 if _lourd or _contre else -4.0)
 
 func _finir_geste() -> void:
 	_pose_fin = _pose_courante
@@ -654,10 +682,12 @@ func avancer(dt: float) -> void:
 		entrees.tampon = -1.0
 	entrees.avancer(dt)
 	combat.avancer(dt)
+	defense.avancer(dt)
+	_parade_eclat = maxf(0.0, _parade_eclat - dt)
 	_souris_recente *= exp(-10.0 * dt)
 	_encaisse = maxf(0.0, _encaisse - dt)
 
-	var veut_garde: bool = entrees.veut_garde() and not joueur.mort
+	var veut_garde: bool = entrees.veut_garde() and not joueur.mort and defense.peut_garder()
 	var plat := Vector3(joueur.velocity.x, 0.0, joueur.velocity.z)
 	var vitesse_sol := plat.length()
 	var cible := _pose_repos()
@@ -669,20 +699,33 @@ func avancer(dt: float) -> void:
 			if veut_garde:
 				entrees.tampon = -1.0
 				if combat.changer(EtatCombat.PARADE):
-					temps_garde = 0.0
+					defense.lever()
 			elif entrees.consommer():
 				_commencer_attaque()
 			if combat.calme():
 				cible = cible.interpolate_with(ProfilsAnimation.transform_pose(_profil()["sprint"]), passifs.sprint)
 		EtatCombat.PARADE, EtatCombat.GARDE:
-			entrees.tampon = -1.0   # pas d'attaque normale en garde
-			temps_garde += dt
-			cible = ProfilsAnimation.transform_pose(_profil()["encaisse" if _encaisse > 0.0 else "garde"])
-			raideur = 25.0 if _encaisse > 0.0 else 18.0
-			if not veut_garde:
-				combat.changer(EtatCombat.REPOS)
-			elif combat.etat == EtatCombat.PARADE and temps_garde >= FENETRE_PARADE:
-				combat.changer(EtatCombat.GARDE)
+			# pas d'attaque normale en garde : seulement la contre-attaque (après une parade parfaite) ou un finisher
+			if entrees.tampon >= 0.0 and (defense.contre > 0.0 or not _chercher_finisher().is_empty()):
+				entrees.consommer()
+				_commencer_attaque()
+			else:
+				entrees.tampon = -1.0
+			if combat.defense():
+				cible = GestesDefense.pose("parade" if _parade_eclat > 0.0 else ("encaisse" if _encaisse > 0.0 else "garde"))
+				raideur = 30.0 if _parade_eclat > 0.0 else (25.0 if _encaisse > 0.0 else 18.0)
+				if not veut_garde:
+					combat.changer(EtatCombat.REPOS)
+				elif combat.etat == EtatCombat.PARADE and not defense.en_parade():
+					combat.changer(EtatCombat.GARDE)
+			else:
+				en_geste = true   # la contre-attaque ou le finisher vient de partir : sa pose est déjà posée
+		EtatCombat.CONTRE:
+			en_geste = true
+			_avancer_geste(dt)
+		EtatCombat.FINISHER:
+			en_geste = true
+			_avancer_finisher(dt)
 		EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE:
 			en_geste = true
 			_avancer_geste(dt)
@@ -715,8 +758,17 @@ func avancer(dt: float) -> void:
 				_commencer_attaque(combat.t <= float(fen[1]) * _duree_recup)
 			elif veut_garde and combat.t > 0.12:
 				if combat.changer(EtatCombat.PARADE):
-					temps_garde = 0.0
+					defense.lever()
 			elif k >= 1.0:
+				combat.changer(EtatCombat.REPOS)
+		EtatCombat.DESEQUILIBRE when _titube_garde:
+			# garde brisée : l'épée est rabattue en bas à droite, le joueur titube, puis la lame revient au repos
+			var k := clampf(combat.t / DefenseJoueur.TITUBE, 0.0, 1.0)
+			_pose_courante = _pose_fin.interpolate_with(GestesDefense.pose("garde_brisee"), sin(minf(k * 3.0, 1.0) * PI * 0.5))
+			_pose_courante = _pose_courante.interpolate_with(_pose_repos(), smoothstep(0.55, 1.0, k))
+			en_geste = true
+			if k >= 1.0:
+				_titube_garde = false
 				combat.changer(EtatCombat.REPOS)
 		EtatCombat.DESEQUILIBRE:
 			# rebond : la main recule un peu dans le sens inverse du coup, puis revient au repos
@@ -762,7 +814,7 @@ func _poser_coude(dt: float) -> void:
 	var dev := arme.deviation_poignet
 	var exact := false
 	match combat.etat:
-		EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE:
+		EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE, EtatCombat.CONTRE:
 			dev = DEVIATION_COUP
 			if _actif_lance:
 				cible = ProfilsAnimation.coude_actif(_geste, _s_actif(clampf(_t_actif_prec, 0.0, _duree_active)))
@@ -776,6 +828,13 @@ func _poser_coude(dt: float) -> void:
 			dev = DEVIATION_COUP
 			if combat.t < _duree_suivi:
 				cible = ProfilsAnimation.coude_cle(_geste, "suivi")
+		EtatCombat.FINISHER:
+			dev = DEVIATION_COUP
+			var e := GestesDefense.FINISHER
+			if _fin_t < float(e["elan"]):
+				cible = ProfilsAnimation.coude_cle(_fin_geste, "armer")
+			else:
+				cible = ProfilsAnimation.coude_actif(_fin_geste, clampf((_fin_t - float(e["elan"])) / float(e["coup"]), 0.0, 1.0))
 		EtatCombat.DESEQUILIBRE:
 			dev = DEVIATION_COUP
 	_coude_d.position = cible if exact else _coude_d.position.lerp(cible, 1.0 - exp(-25.0 * dt))
@@ -881,11 +940,16 @@ func _resoudre_impact(e: Dictionary) -> String:
 			var r := DegatsCombat.appliquer(cible, degats, joueur.global_position, _puissant, _info_coup(e))
 			if cible.is_in_group("ennemis") or cible.is_in_group("cibles_combat"):
 				joueur.ennemi_vise = cible   # barre de vie de la cible (HUD)
+			# arrêt sur image / secousse / voile rouge : UNE source, les profils d'impact (ProfilImpact). Les cibles équipées
+			# d'un CombatEnnemi (draugrs, mannequin) les jouent elles-mêmes avec le profil calculé ; les autres (dragon…) ici.
+			var gere: bool = cible.get("combat") is CombatEnnemi
 			if r == "touche" or r == "tue":
-				joueur.competences.pratiquer("epee", 1.8 if _lourd else 1.0)
-				RetourCoups.touche(joueur, _lourd)
+				joueur.competences.pratiquer("epee", 1.8 if _lourd or _contre else 1.0)
+				if not gere:
+					RetourCoups.touche(joueur, _lourd or _contre)
 			elif r == "bloque":
-				RetourCoups.bloque(joueur)
+				if not gere:
+					RetourCoups.bloque(joueur)
 				trace.arretee = true
 				return "rebond"
 		"cassable":
@@ -909,7 +973,9 @@ func _info_coup(e: Dictionary) -> Dictionary:
 	var attaque := "legere"
 	if _lourd:
 		attaque = "chargee_max" if _charge >= 1.0 else "lourde"
-	var stagger := arme.desequilibre_lourd * (1.0 + _charge * 0.5) if _lourd else arme.desequilibre_leger
+	elif _contre:
+		attaque = "contre"
+	var stagger := DegatsCombat.stagger(arme, attaque, _charge)
 	if _affaibli:
 		stagger *= DegatsCombat.AFFAIBLI
 	return {
@@ -918,6 +984,200 @@ func _info_coup(e: Dictionary) -> Dictionary:
 		"stagger": stagger, "collider": e["collider"], "affaibli": _affaibli, "charge": _charge,
 		"instant": _instant_impact,   # temps de phase active de l'impact (s), sur la grille du tracé
 	}
+
+# --- phase 3 : défense, contre-attaque, finishers -----------------------------------------------
+
+## Coup reçu par le joueur (appelé par joueur.recevoir_coup) : garde levée ET attaquant dans le cône de garde → parade
+## parfaite, blocage ou garde brisée (DefenseJoueur). Renvoie {} si la garde ne joue pas (dos, garde baissée), sinon
+## {issue, degats (qui passent), cout}. Sons et étincelles distincts ; l'endurance est dépensée ici.
+func defendre(degats: float, origine: Vector3) -> Dictionary:
+	if not bloque or not DefenseJoueur.couvre(joueur, origine):
+		return {}
+	var r := defense.encaisser(degats, joueur.vigueur, arme, joueur.competences.reduction_parade(), origine)
+	joueur.depenser(float(r["cout"]))
+	var point := pivot_epee.global_position + (get_parent() as Node3D).global_transform.basis * Vector3(-0.25, 0.12, -0.15)
+	match String(r["issue"]):
+		"parade":
+			# parade parfaite : tintement clair (parade_parfaite), gerbe d'étincelles, la lame chasse l'arme adverse ;
+			# l'attaquant est déséquilibré (draugr : combat.subir_parade() sur le retour « parade ») ; fenêtre de contre-attaque
+			_parade_eclat = 0.14
+			_encaisse = 0.0
+			RetourImpact.son(self, "parade_parfaite", point, 2.0)
+			Effets.eclats(self, point, Color(3.2, 2.6, 1.2), 18, 3.2, true)
+			if RetourImpact.temps_actif():
+				Effets.arret_image(get_tree(), 0.06)
+			joueur.secousse = maxf(joueur.secousse, 0.18)
+		"bloque":
+			_encaisse = DUREE_ENCAISSE
+			RetourImpact.son(self, "metal_blocage", point, 0.0)
+			Effets.eclats(self, point, Color(3.0, 2.2, 0.8), 9, 2.4, true)
+			joueur.secousse = maxf(joueur.secousse, 0.35)
+		"brisee":
+			# garde brisée : choc plus sourd, l'épée est rabattue, le joueur titube ; garde impossible ~1 s
+			RetourImpact.son(self, "metal_blocage", point, 3.0, 0.8)
+			Effets.eclats(self, point, Color(3.0, 2.0, 0.7), 12, 2.8, true)
+			joueur.secousse = maxf(joueur.secousse, 0.55)
+			_pose_fin = _pose_courante
+			_titube_garde = true
+			_encaisse = 0.0
+			combat.forcer(EtatCombat.DESEQUILIBRE)
+	return r
+
+## Contre-attaque (fenêtre DefenseJoueur.FENETRE_CONTRE après une parade parfaite) : geste « contre » (GestesDefense),
+## attaque « contre » (CalculDegats : dégâts × 1,3, stagger de contre, profil d'impact lourd ; critique seulement selon
+## les règles habituelles, pas automatique). Renvoie faux si la machine à états refuse.
+func _commencer_contre() -> bool:
+	if not combat.changer(EtatCombat.CONTRE):
+		return false
+	defense.contre = 0.0
+	_geste_nom = "contre"
+	_preparer_geste(false)
+	_contre = true
+	_combo = 0
+	_cote_fin = 0
+	return true
+
+## Cible achevable devant le joueur : {cible, categorie} ou {}. Conditions : finisher_possible(joueur) non vide (portée,
+## hauteur, état — CombatEnnemi), cible devant la caméra (cône ±50°), joueur de face ou de côté par rapport à elle (pas
+## dans son dos), rien entre les deux (rayon sur le décor).
+const PORTEE_FINISHER := 2.6
+const CONE_FINISHER := 50.0
+func _chercher_finisher() -> Dictionary:
+	if joueur == null or arme == null or not arme.est_arme():
+		return {}
+	var cam := get_parent() as Node3D
+	var avant := -cam.global_transform.basis.z
+	avant.y = 0.0
+	avant = avant.normalized()
+	var meilleur := {}
+	var d_min := INF
+	for groupe in ["ennemis", "cibles_combat"]:
+		for n in get_tree().get_nodes_in_group(groupe):
+			if not (n is Node3D) or not n.has_method("finisher_possible") or not n.has_method("subir_finisher"):
+				continue
+			if n.has_method("vivant") and not n.vivant():
+				continue
+			var c := n as Node3D
+			var v := c.global_position - joueur.global_position
+			v.y = 0.0
+			var d := v.length()
+			if d > PORTEE_FINISHER or d >= d_min:
+				continue
+			if d > 0.3 and v.normalized().dot(avant) < cos(deg_to_rad(CONE_FINISHER)):
+				continue
+			var face := c.global_transform.basis.z
+			if d > 0.3 and absf(Vector2(face.x, face.z).angle_to(Vector2(-v.x, -v.z))) > deg_to_rad(140.0):
+				continue   # dans le dos de la cible
+			var cat := String(n.finisher_possible(joueur))
+			if cat == "":
+				continue
+			var q := PhysicsRayQueryParameters3D.create(cam.global_position, c.global_position + Vector3(0, 1.1, 0), 1, [joueur.get_rid()])
+			var h := get_world_3d().direct_space_state.intersect_ray(q)
+			if not h.is_empty() and h["collider"] != c and cam.global_position.distance_to(h["position"]) < d - 0.45:
+				continue   # un mur entre les deux
+			meilleur = {"cible": c, "categorie": cat}
+			d_min = d
+	return meilleur
+
+## Lance un finisher si une cible est achevable (appelé au clic, léger ou lourd). Séquence FPS courte et paramétrable
+## (GestesDefense.FINISHER, ≤ 0,8 s) : élan avec ralenti léger et caméra verrouillée sur la cible, coup, suivi.
+func _tenter_finisher() -> bool:
+	var f := _chercher_finisher()
+	if f.is_empty() or not combat.changer(EtatCombat.FINISHER):
+		return false
+	_fin_cible = f["cible"]
+	_fin_cat = f["categorie"]
+	_fin_geste = GestesDefense.geste(GestesDefense.geste_finisher(_fin_cat))
+	_fin_t = 0.0
+	_fin_frappe = false
+	_depart = _pose_courante
+	_contre = false
+	_lourd = true
+	_puissant = true
+	_geste_nom = "finisher"
+	entrees.attaque_tenue = false   # le bouton tenu ne charge pas un coup lourd après le finisher
+	entrees.tampon = -1.0
+	joueur.depenser(arme.cout_leger)
+	if RetourImpact.temps_actif():
+		Effets.ralenti(get_tree(), GestesDefense.FINISHER_RALENTI, float(GestesDefense.FINISHER["elan"]) / GestesDefense.FINISHER_RALENTI)
+	RetourImpact.son(self, "fouette_lourd", (get_parent() as Node3D).global_position, 1.0, 0.92)
+	return true
+
+## Point visé par le finisher : le cou (finisher de taille) ou le buste au sol (coup de grâce).
+func _point_finisher() -> Vector3:
+	var c := _fin_cible
+	var cb: Variant = c.get("combat")
+	var h: float = (cb as CombatEnnemi).hauteur if cb is CombatEnnemi else 1.8
+	if _fin_cat == "sol":
+		return c.global_position + Vector3(0, 0.25, 0)
+	return c.global_position + Vector3(0, h * 0.84, 0)
+
+func _avancer_finisher(dt: float) -> void:
+	var e := GestesDefense.FINISHER
+	var elan := float(e["elan"])
+	var coup := float(e["coup"])
+	_fin_t += dt
+	var valide := is_instance_valid(_fin_cible) and _fin_cible.is_inside_tree()
+	if valide and not _fin_frappe:
+		_verrouiller_camera(dt)
+	if _fin_t < elan:
+		var k := _fin_t / elan
+		_pose_courante = _depart.interpolate_with(ProfilsAnimation.pose_cle(_fin_geste, "armer"), 1.0 - pow(1.0 - k, 3.0))
+		return
+	var s := ProfilsAnimation.courbe_active((_fin_t - elan) / coup, float(_fin_geste.get("acceleration", 2.4)))
+	_pose_courante = ProfilsAnimation.pose_active(_fin_geste, s)
+	if not _fin_frappe and s >= 0.5:
+		_frapper_finisher()
+	if _fin_t >= elan + coup:
+		if not _fin_frappe:
+			_frapper_finisher()
+		# suivi et retour au repos : la récupération habituelle (sans fenêtre de combo avant 0,12 s)
+		_geste = _fin_geste.duplicate()
+		_geste["enchainement"] = [0.12, 0.9]
+		_pose_fin = _pose_courante
+		_pose_suivi = ProfilsAnimation.pose_cle(_fin_geste, "suivi")
+		_duree_suivi = 0.1
+		_duree_recup = float(e["suivi"])
+		_issue_arret = ""
+		_depuis_coup = 0.0
+		_combo = 0
+		_cote_fin = 0
+		combat.changer(EtatCombat.RECUPERATION)
+
+## Verrou bref de la caméra : le regard (lacet du joueur, tangage de la tête) rejoint vite le point visé.
+func _verrouiller_camera(dt: float) -> void:
+	var cam := get_parent() as Node3D
+	var v := _point_finisher() - cam.global_position
+	var plat := Vector2(v.x, v.z).length()
+	if plat < 0.05:
+		return
+	var k := 1.0 - exp(-GestesDefense.FINISHER_VERROU * dt)
+	joueur.rotation.y = lerp_angle(joueur.rotation.y, atan2(-v.x, -v.z), k)
+	if "tete" in joueur and joueur.tete != null:
+		joueur.tete.rotation.x = lerpf(joueur.tete.rotation.x, clampf(atan2(v.y, plat), -1.2, 0.6), k)
+
+## Impact du finisher : subir_finisher(catégorie, info) — la cible joue sa mort spéciale (décapitation, coup de grâce) et
+## le profil d'impact « finisher » (arrêt, secousse, voile rouge, ralenti).
+func _frapper_finisher() -> void:
+	_fin_frappe = true
+	if not is_instance_valid(_fin_cible) or (_fin_cible.has_method("vivant") and not _fin_cible.vivant()):
+		return
+	var cam := get_parent() as Node3D
+	var b := cam.global_transform.basis
+	var g := _fin_geste
+	var dir := b * (ProfilsAnimation._pointe(g["fin"]) - ProfilsAnimation._pointe(g["armer"]))
+	var point := _point_finisher()
+	var vers := point - joueur.global_position
+	vers.y = 0.0
+	var info := {
+		"type": arme.type_degats, "point": point, "direction": dir.normalized(), "normale": -vers.normalized(),
+		"zone": "torse" if _fin_cat == "sol" else "tete", "attaque": "finisher", "arme": arme.id, "stagger": 999.0,
+		"collider": _fin_cible, "origine": joueur.global_position, "puissant": arme.poids >= 2.4,
+	}
+	var r := String(_fin_cible.subir_finisher(_fin_cat, info))
+	dernier_finisher = {"cible": _fin_cible, "categorie": _fin_cat, "resultat": r}
+	joueur.competences.pratiquer("epee", 2.5)
+	joueur.ennemi_vise = _fin_cible
 
 ## Torche : pose de repos (miroir), suit les animations passives ; baissée pendant la garde, rangée avec T, recule
 ## un peu pendant les coups (contrepoids).

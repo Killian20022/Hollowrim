@@ -6,9 +6,9 @@ extends RefCounted
 
 signal change(ancien: int, nouveau: int)
 
-enum { REPOS, MOUVEMENT, ATTAQUE_LEGERE, CHARGE_LOURDE, ATTAQUE_LOURDE, GARDE, PARADE, DESEQUILIBRE, RECUPERATION, EQUIPER }
+enum { REPOS, MOUVEMENT, ATTAQUE_LEGERE, CHARGE_LOURDE, ATTAQUE_LOURDE, GARDE, PARADE, DESEQUILIBRE, RECUPERATION, EQUIPER, CONTRE, FINISHER }
 
-const NOMS := ["Idle", "Moving", "LightAttack", "HeavyCharge", "HeavyAttack", "Blocking", "Parrying", "Staggered", "Recovery", "Equip"]
+const NOMS := ["Idle", "Moving", "LightAttack", "HeavyCharge", "HeavyAttack", "Blocking", "Parrying", "Staggered", "Recovery", "Equip", "Counter", "Finisher"]
 
 ## Depuis chaque état, les états accessibles. DESEQUILIBRE (rebond sur un mur ou un bouclier, coup encaissé) est
 ## accessible de partout ; EQUIPER seulement au calme.
@@ -25,6 +25,18 @@ const TRANSITIONS := {
 	EQUIPER: [REPOS, MOUVEMENT],
 }
 
+## Phase 3 (défense) : contre-attaque (après une parade parfaite) et finisher, ajoutés sans retoucher la table de base.
+const TRANSITIONS_PHASE3 := {
+	REPOS: [FINISHER],
+	MOUVEMENT: [FINISHER],
+	GARDE: [CONTRE, FINISHER],
+	PARADE: [CONTRE, FINISHER],
+	RECUPERATION: [CONTRE, FINISHER],
+	ATTAQUE_LEGERE: [FINISHER],
+	CONTRE: [RECUPERATION, DESEQUILIBRE],
+	FINISHER: [RECUPERATION],
+}
+
 var etat := REPOS
 ## Temps passé dans l'état courant (s).
 var t := 0.0
@@ -34,7 +46,7 @@ var refus := 0
 func changer(nouvel: int) -> bool:
 	if nouvel == etat:
 		return true
-	if not (nouvel in TRANSITIONS[etat]):
+	if not (nouvel in TRANSITIONS[etat] or nouvel in TRANSITIONS_PHASE3.get(etat, [])):
 		refus += 1
 		return false
 	var ancien := etat
@@ -58,7 +70,7 @@ func nom() -> String:
 	return NOMS[etat]
 
 func attaque() -> bool:
-	return etat in [ATTAQUE_LEGERE, CHARGE_LOURDE, ATTAQUE_LOURDE]
+	return etat in [ATTAQUE_LEGERE, CHARGE_LOURDE, ATTAQUE_LOURDE, CONTRE, FINISHER]
 
 func defense() -> bool:
 	return etat in [GARDE, PARADE]

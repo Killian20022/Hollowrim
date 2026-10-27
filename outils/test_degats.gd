@@ -17,6 +17,15 @@ var morts: Array = []
 func _init() -> void:
 	_tester.call_deferred()
 
+## Rôle du joueur (mains._tenter_finisher) : une cible achevable reçoit le finisher, sinon le coup normal.
+func _frapper_ou_achever(c: Node, j: Node3D, degats: float, info: Dictionary) -> String:
+	var cat: String = c.finisher_possible(j)
+	if cat != "":
+		var i := info.duplicate()
+		i["origine"] = j.global_position
+		return c.subir_finisher(cat, i)
+	return c.recevoir_coup(degats, j.global_position, true, info)
+
 func _verif(cond: bool, msg: String) -> void:
 	print(("OK     " if cond else "ÉCHEC  ") + msg)
 	if cond:
@@ -86,7 +95,7 @@ func _tester() -> void:
 	# --- E. finisher (coup lourd) -> décapitation
 	g.vie = 60.0
 	var b0 := _butins()
-	r = g.recevoir_coup(34.0, j.global_position, true, {"attaque": "lourde"})
+	r = _frapper_ou_achever(g, j, 34.0, {"attaque": "lourde"})
 	_verif(r == "tue" and not g.vivant(), "coup lourd sur cible étourdie : finisher, « tue »")
 	_verif(morts.has("t_guerrier"), "signal mort émis (sauvegarde des morts) : %s" % str(morts))
 	_verif(_butins() == b0 + 1, "butin lâché (finisher)")
@@ -131,7 +140,7 @@ func _tester() -> void:
 	await _frames(110)
 	print("   chute : etat=%d t=%.2f au_sol=%s dist=%.2f duree Death01=%.2f" % [c.etat, c._t, c.combat.au_sol, c.global_position.distance_to(j.global_position), c._duree("Death01")])
 	_verif(c.combat.au_sol and c.finisher_possible(j) == "sol", "au sol : finisher « sol » (%s)" % c.finisher_possible(j))
-	r = c.recevoir_coup(34.0, j.global_position, true, {"attaque": "lourde"})
+	r = _frapper_ou_achever(c, j, 34.0, {"attaque": "lourde"})
 	_verif(r == "tue" and not c.modele.has_meta("decapite"), "coup de grâce au sol : tué, sans décapitation")
 
 	# --- M. interruption d'une attaque
@@ -163,7 +172,7 @@ func _tester() -> void:
 	o.recevoir_coup(14.0, o.global_position + Vector3(0, 0, -2.0), false, {"attaque": "legere"})
 	o.combat.briser_posture()
 	o._etourdir()
-	r = o.recevoir_coup(34.0, j.global_position, true, {"attaque": "lourde"})
+	r = _frapper_ou_achever(o, j, 34.0, {"attaque": "lourde"})
 	await _frames(5)
 	_verif(r == "tue" and not o.modele.has_meta("decapite") and Plaies.nombre(o.modele) == 0, "gore désactivé : finisher sans décapitation ni plaie")
 	_verif(Sang.nombre_traces(sc) <= tr1, "gore désactivé : aucune trace ajoutée")
@@ -175,7 +184,7 @@ func _tester() -> void:
 	r = mq.recevoir_coup(14.0, j.global_position, false)
 	_verif(r == "touche" and mq.total > 0.0 and mq.vivant(), "mannequin : touché sans info, total %.0f, toujours debout" % mq.total)
 	mq.combat.briser_posture()
-	r = mq.recevoir_coup(34.0, j.global_position, true, {"attaque": "lourde"})
+	r = _frapper_ou_achever(mq, j, 34.0, {"attaque": "lourde"})
 	_verif(r == "tue" and not mq.tete.visible and mq.vivant(), "mannequin : finisher, tête envolée, mannequin toujours là")
 
 	# --- K. dragon : accepte le 4e argument (contrat épée FPS)

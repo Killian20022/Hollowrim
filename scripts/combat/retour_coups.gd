@@ -1,21 +1,18 @@
 class_name RetourCoups
-## Retours sensoriels des coups du joueur (son, étincelles, arrêt sur image, secousse de caméra), réglables ici.
-## Les ennemis jouent eux-mêmes leur son de chair et leurs éclats (draugr.recevoir_coup) : on n'en rajoute pas.
+## Retours sensoriels des coups du joueur sur ce qui n'a pas de CombatEnnemi (décor, murs, dragon…), réglables ici.
+## Arrêt sur image, secousse et voile rouge d'un coup qui PORTE : une seule source, les profils d'impact (ProfilImpact,
+## RetourImpact.jouer) ; les cibles équipées d'un CombatEnnemi (draugrs, mannequin) les jouent elles-mêmes avec le profil
+## calculé (léger, moyen, lourd, critique, finisher) — mains.gd n'en rajoute pas.
 
-## Arrêt sur image (s de temps réel) : bref, configurable ; false = coupé (tests à pas fixe).
+## Arrêt sur image et ralenti : false = coupés (tests à pas fixe) ; lu aussi par RetourImpact.jouer.
 static var arret_actif := true
-const ARRET_LEGER := 0.05
-const ARRET_LOURD := 0.10
 ## Secousse de caméra (échelle de joueur.secousse, décroît de 1,8 par seconde).
-const SECOUSSE_LEGER := 0.22
-const SECOUSSE_LOURD := 0.45
 const SECOUSSE_MUR := 0.18
 const SECOUSSE_BLOQUE := 0.3
 
+## Coup qui porte sur une cible sans CombatEnnemi : profil d'impact « leger » ou « lourd ».
 static func touche(joueur: Node, lourd: bool) -> void:
-	if arret_actif:
-		Effets.arret_image(joueur.get_tree(), ARRET_LOURD if lourd else ARRET_LEGER)
-	joueur.secousse = maxf(joueur.secousse, SECOUSSE_LOURD if lourd else SECOUSSE_LEGER)
+	RetourImpact.jouer(joueur, ProfilImpact.de("lourd" if lourd else "leger"), joueur)
 
 static func bloque(joueur: Node) -> void:
 	joueur.secousse = maxf(joueur.secousse, SECOUSSE_BLOQUE)

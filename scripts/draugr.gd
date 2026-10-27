@@ -830,11 +830,7 @@ func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, in
 		_changer(TITUBE)
 		combat.effets_blocage(r, false)
 		return "bloque"
-	# finisher PROVISOIRE (en attendant l'animation FPS de l'épée) : un coup lourd sur une cible ouverte l'achève
-	if String(r["info"]["attaque"]) in ["lourde", "chargee_max", "contre"] and joueur != null:
-		var cat := finisher_possible(joueur)
-		if cat != "":
-			return subir_finisher(cat, r["info"])
+	# (le finisher n'est plus déclenché ici : c'est l'épée du joueur qui le lance, mains._tenter_finisher → subir_finisher)
 	vie -= float(r["degats"])
 	_eclair()
 	if r["brise_garde"]:
