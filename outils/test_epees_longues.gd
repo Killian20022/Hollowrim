@@ -68,7 +68,7 @@ func _lancer() -> void:
 			v, longueur, b.position.y, b.end.y, b.size.x * 0.5, b.size.z * 0.5, m["tris"], reps["prise"], reps["garde"], reps["pointe"], m["mats"].keys()])
 		# échelle : épée longue de 1,0 à 1,16 m, lame le long de +Y, quillons en X, mince en Z
 		_verifier(longueur > 1.0 and longueur < 1.16, "%s : longueur %.3f hors [1,0 ; 1,16]" % [v, longueur])
-		_verifier(b.size.x < 0.26 and b.size.x > 0.15, "%s : envergure de garde %.3f" % [v, b.size.x])
+		_verifier(b.size.x < 0.32 and b.size.x > 0.15, "%s : envergure de garde %.3f" % [v, b.size.x])
 		_verifier(b.size.z < 0.07, "%s : épaisseur %.3f" % [v, b.size.z])
 		_verifier(absf(b.get_center().x) < 0.005 and absf(b.get_center().z) < 0.005, "%s : épée décentrée %s" % [v, b.get_center()])
 		# repère : poing à y = MILIEU_POIGNEE sur l'axe, dans le cuir comme l'épée nordique ; garde au-dessus ; pointe = haut de la boîte

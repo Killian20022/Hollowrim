@@ -45,7 +45,7 @@ const RUBIS := ["#140103", "#2a0306", "#44050a", "#640a10", "#881218", "#b01e26"
 const EMERAUDE := ["#04170e", "#082a19", "#0e4226", "#165e37", "#20804a", "#36a462", "#62c886", "#b2f0cc"]
 const OBSIDIENNE := ["#040306", "#09070c", "#100d14", "#18141e", "#221c2a", "#302838", "#463c52", "#6a5c78"]
 const VEINE := ["#2a0402", "#4e0904", "#7a1406", "#a8240a", "#d44412", "#f2782a", "#ffb35a"]
-const GEMME := ["#16243a", "#24405e", "#3a6688", "#5c92b0", "#90c4d8", "#d8f2fa"]
+const GEMME := ["#2a4a6a", "#3e6a90", "#5a90b8", "#82b8d8", "#b4dcef", "#eefaff"]
 
 static var _mats := {}
 static var _shader_lueur: Shader
@@ -87,7 +87,7 @@ static func materiaux() -> Dictionary:
 		"fer": Palette.materiau(ObjetsTextures.tex("fer"), Vector2.ONE, Color(0.62, 0.62, 0.7)),
 		"or": Palette.materiau(ImageTexture.create_from_image(_or_grave()), Vector2.ONE, Color(1.1, 1.05, 1.0)),
 		"cuir": Palette.materiau(ObjetsTextures.tex("tresse"), Vector2.ONE),
-		"gemme": Palette.materiau(ImageTexture.create_from_image(_facettes(GEMME, 8, 8, 3)), Vector2.ONE, Color(1.2, 1.2, 1.2)),
+		"gemme": _lueur(ImageTexture.create_from_image(_facettes(GEMME, 8, 8, 3)), Color(1.45, 1.45, 1.5), 0.35),
 		"rubis": _lueur(_cristal(RUBIS, 41), Color(1.0, 0.95, 0.95), 0.22),
 		"verre": _verre(_cristal(EMERAUDE, 57), 0.5),
 		"emeraude": _lueur(ImageTexture.create_from_image(_facettes(EMERAUDE, 8, 8, 5)), Color(1.1, 1.15, 1.1), 0.3),
