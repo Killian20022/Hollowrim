@@ -27,6 +27,8 @@ const OBJETS := {
 	"journal_sigrun": {"nom": "Journal de Solveig", "poids": 0.3, "valeur": 0},
 	"broche_sigrun": {"nom": "Broche de Solveig", "poids": 0.1, "valeur": 0},
 	"hache_kolbeinn": {"nom": "Hache de Kolbeinn le Gelé", "poids": 7.0, "valeur": 200},
+	"fourrure_troll": {"nom": "Fourrure de troll givrée", "poids": 4.0, "valeur": 60},
+	"croc_troll": {"nom": "Croc de troll", "poids": 0.3, "valeur": 18},
 }
 
 var pieces := 0

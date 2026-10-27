@@ -39,12 +39,43 @@ func _ready() -> void:
 	tete.add_child(camera)
 	_bruit.frequency = 2.0
 
-func recevoir_coup(_degats: float, _origine: Vector3) -> String:
+## Garde simulée par le pilote / les tests : "" (aucune), "bloque", "parade" (de face seulement ; un coup « imparable » ne se pare pas).
+var garde := ""
+var degats_recus := 0.0
+var dernier_options := {}
+var lenteur := 0.0
+var lenteur_facteur := 1.0
+
+func recevoir_coup(degats: float, origine: Vector3, options := {}) -> String:
 	coups_recus += 1
+	dernier_options = options
+	var vers := origine - global_position
+	vers.y = 0.0
+	var face := -global_transform.basis.z
+	var de_face := vers.length() < 0.01 or vers.normalized().dot(Vector3(face.x, 0, face.z).normalized()) > 0.3
+	var imparable := float(options.get("imparable", 0.0))
+	if garde != "" and de_face:
+		if garde == "parade" and imparable <= 0.0:
+			return "parade"
+		degats_recus += degats * imparable
+		if options.has("ralenti"):
+			ralentir(Vector2(options["ralenti"]).x * 0.5, Vector2(options["ralenti"]).y)
+		return "bloque"
+	degats_recus += degats
+	secousse = maxf(secousse, maxf(0.6, float(options.get("secousse", 0.0))))
+	if options.has("ralenti"):
+		ralentir(Vector2(options["ralenti"]).x, Vector2(options["ralenti"]).y)
 	return "touche"
+
+func ralentir(duree: float, facteur: float) -> void:
+	lenteur = maxf(lenteur, duree)
+	lenteur_facteur = minf(lenteur_facteur, facteur) if lenteur > 0.0 else facteur
 
 func _process(dt: float) -> void:
 	_t += dt
+	lenteur = maxf(0.0, lenteur - dt)
+	if lenteur <= 0.0:
+		lenteur_facteur = 1.0
 	secousse = maxf(0.0, secousse - dt * 1.8)
 	var s := secousse * secousse
 	camera.h_offset = _bruit.get_noise_2d(_t * 40.0, 0.0) * s * 0.08

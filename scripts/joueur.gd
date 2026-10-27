@@ -39,6 +39,9 @@ var ennemi_vise: Node = null
 ## Dernier coup subi (pour la chute du corps à la mort) : origine de l'attaquant et dégâts.
 var origine_dernier_coup := Vector3.ZERO
 var degats_dernier_coup := 0.0
+## Ralentissement (givre du mage, onde du troll) : durée restante (s) et facteur de vitesse (le plus fort l'emporte).
+var lenteur := 0.0
+var lenteur_facteur := 1.0
 var competences := Competences.new()
 var inventaire := Inventaire.new()
 
@@ -139,17 +142,34 @@ func depenser(quantite: float) -> void:
 	_repos_vigueur = 1.0
 
 ## Appelé par un ennemi qui frappe. Renvoie "parade", "bloque" ou "touche".
-func recevoir_coup(degats: float, origine: Vector3) -> String:
+## `options` (facultatif ; troll de givre, mage nordique) : "imparable" (part 0..1 des dégâts qui traverse la garde ; > 0 = pas de
+## parade possible, le coup « se pare mal »), "recul" (m/s, 4 par défaut), "ralenti" (Vector2(durée s, facteur de vitesse)),
+## "secousse" (minimum de secousse de caméra).
+func recevoir_coup(degats: float, origine: Vector3, options := {}) -> String:
 	if mort:
 		return ""
 	var vers := origine - global_position
 	vers.y = 0.0
 	var face := -global_transform.basis.z
+	var imparable := float(options.get("imparable", 0.0))
 	if mains.bloque and vers.normalized().dot(Vector3(face.x, 0, face.z).normalized()) > 0.3 and vigueur > 0.0:
-		var parade: bool = mains.temps_garde < 0.3
+		var parade: bool = mains.temps_garde < 0.3 and imparable <= 0.0
 		var reduction := competences.reduction_parade()
 		depenser(degats * (0.3 if parade else 1.1) * reduction)
 		vie -= 0.0 if parade else degats * 0.15 * reduction
+		if imparable > 0.0:
+			vie -= degats * imparable
+			_recul = -vers.normalized() * float(options.get("recul", 4.0)) * 0.6
+			secousse = maxf(secousse, float(options.get("secousse", 0.5)))
+			touche.emit(degats * imparable)
+			if vie <= 0.0:
+				vie = 0.0
+				mort = true
+				deces.emit()
+				return "touche"
+		if options.has("ralenti"):
+			var rl: Vector2 = options["ralenti"]
+			ralentir(rl.x * 0.5, rl.y)
 		competences.pratiquer("parade", 0.6 + degats * 0.08 + (0.6 if parade else 0.0))
 		secousse = maxf(secousse, 0.2 if parade else 0.35)
 		mains.encaisser()
@@ -159,8 +179,11 @@ func recevoir_coup(degats: float, origine: Vector3) -> String:
 	vie -= degats
 	origine_dernier_coup = origine
 	degats_dernier_coup = degats
-	secousse = maxf(secousse, 0.7)
-	_recul = -vers.normalized() * 4.0
+	secousse = maxf(secousse, maxf(0.7, float(options.get("secousse", 0.0))))
+	_recul = -vers.normalized() * float(options.get("recul", 4.0))
+	if options.has("ralenti"):
+		var rl: Vector2 = options["ralenti"]
+		ralentir(rl.x, rl.y)
 	touche.emit(degats)
 	Sons.jouer(self, ["impactPunch_heavy_000", "impactPunch_heavy_001", "impactPunch_heavy_002"], 0.0)
 	if vie <= 0.0:
@@ -168,6 +191,12 @@ func recevoir_coup(degats: float, origine: Vector3) -> String:
 		mort = true
 		deces.emit()
 	return "touche"
+
+## Ralentit le joueur `duree` s (vitesse × `facteur`) ; un ralentissement plus fort ou plus long remplace le précédent.
+func ralentir(duree: float, facteur: float) -> void:
+	if lenteur <= 0.0 or facteur <= lenteur_facteur:
+		lenteur_facteur = facteur
+	lenteur = maxf(lenteur, duree)
 
 var _point_sur := Vector3.ZERO
 var _point_sur_valide := false
@@ -218,6 +247,11 @@ func _physics_process(dt: float) -> void:
 	var vitesse := COURSE if court else VITESSE
 	if mains.bloque:
 		vitesse *= 0.5
+	if lenteur > 0.0:
+		lenteur -= dt
+		vitesse *= lenteur_facteur
+		if lenteur <= 0.0:
+			lenteur_facteur = 1.0
 	if court and dir != Vector3.ZERO:
 		vigueur = maxf(0.0, vigueur - COUT_COURSE * competences.cout_course() * dt)
 		competences.pratiquer("athletisme", dt * 0.12)
