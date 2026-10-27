@@ -123,7 +123,7 @@ static func calculer(i: Dictionary, p: ProfilCible, etat: Dictionary) -> Diction
 	if zone == "tete":
 		stagger *= 1.25
 	elif zone == "jambes":
-		stagger *= 1.1
+		stagger *= 1.25   # fauché : les coups aux jambes renversent
 	if r["brise_garde"]:
 		stagger = maxf(stagger, posture + 1.0)
 	r["stagger"] = stagger

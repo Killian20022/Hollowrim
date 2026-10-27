@@ -228,6 +228,19 @@ func _activer(c: Node) -> void:
 
 func _pilote() -> void:
 	await _attendre(1.5)
+	var seul := _arg("seul")   # --seul=guerrier : une seule cible (vidéo courte)
+	if seul == "" or seul == "mannequin":
+		await _pilote_mannequin()
+	for i in range(1, cibles.size()):
+		if seul == "" or seul == String(cibles[i].name):
+			await _pilote_draugr(i)
+	print("TRACES ", Sang.nombre_traces(self))
+	var fin := float(_arg("fin", "0"))
+	if fin > 0.0 or dossier_captures != "" or seul != "":
+		await _attendre(maxf(fin, 0.5))
+		get_tree().quit(0)
+
+func _pilote_mannequin() -> void:
 	# --- mannequin : coups sans info (compatibilité mains.gd), puis avec info, posture brisée, finisher
 	var m: Node3D = cibles[0]
 	_viser(m)
@@ -237,20 +250,22 @@ func _pilote() -> void:
 		await _attendre(0.5)
 	frapper(m, "lourde", "torse")
 	await _attendre(0.08)
-	capturer("mannequin_impact_lourd")
+	await capturer("mannequin_impact_lourd")
 	await _attendre(0.6)
 	var n := 0
 	while m.finisher_possible(joueur) == "" and n < 12:
 		frapper(m, "legere" if n % 2 == 0 else "lourde", "torse")
 		n += 1
 		await _attendre(0.45)
-	capturer("mannequin_posture_brisee")
+	await capturer("mannequin_posture_brisee")
 	frapper(m, "lourde", "tete")
 	await _attendre(0.25)
-	capturer("mannequin_finisher")
+	await capturer("mannequin_finisher")
 	await _attendre(1.0)
-	# --- draugrs : séquence légère/légère/lourde jusqu'au finisher ou à la mort
-	for i in range(1, cibles.size()):
+
+## Draugr : séquence légère/légère/lourde jusqu'au finisher ou à la mort (le dernier meurt sans finisher : mort standard).
+func _pilote_draugr(i: int) -> void:
+	if true:
 		var c: CharacterBody3D = cibles[i]
 		_activer(c)
 		_viser(c)
@@ -259,7 +274,7 @@ func _pilote() -> void:
 		var finisher_fait := false
 		while c.vivant() and coups < 30:
 			var cat: String = c.finisher_possible(joueur)
-			if cat != "" and (i != cibles.size() - 1):
+			if cat != "" and (i != cibles.size() - 1 or _arg("seul") != ""):
 				# caméra rapprochée sur la tête pour la décapitation
 				var tete := c.global_position + Vector3(0, 1.45, 0)
 				obs.global_position = tete + Vector3(1.5, 0.15, 1.3)
@@ -269,42 +284,49 @@ func _pilote() -> void:
 				var rb: Variant = c.modele.get_meta("tete_coupee", null)
 				print("DECAPITE ", c.name, " ", c.modele.has_meta("decapite"), " tete=", rb != null)
 				await _attendre(0.05)
-				capturer("%s_finisher_%s_a" % [c.name, cat])
+				await capturer("%s_finisher_%s_a" % [c.name, cat])
 				await _attendre(0.45)
-				capturer("%s_finisher_%s_b" % [c.name, cat])
+				await capturer("%s_finisher_%s_b" % [c.name, cat])
 				await _attendre(1.2)
-				capturer("%s_finisher_%s_c" % [c.name, cat])
+				await capturer("%s_finisher_%s_c" % [c.name, cat])
 				if rb is Node3D and is_instance_valid(rb):
 					await _attendre(1.0)
 					var pt: Vector3 = (rb as Node3D).global_position
 					obs.global_position = pt + Vector3(0.9, 0.7, 0.9)
 					obs.look_at(pt, Vector3.UP)
 					await _attendre(0.1)
-					capturer("%s_tete_au_sol" % c.name)
+					await capturer("%s_tete_au_sol" % c.name)
 					print("TETE ", c.name, " a ", pt.distance_to(c.global_position), " m du corps")
 				break
 			var motif := ["legere", "legere", "lourde"][coups % 3] as String
 			var zone := ["torse", "bras", "jambes", "torse", "tete"][coups % 5] as String
+			if _arg("seul") != "":
+				zone = ["torse", "bras", "torse", "tete"][coups % 4] as String   # vidéo : pas de chute, la posture casse -> décapitation
 			frapper(c, motif, zone, coups % 4 != 3)
 			if coups < 3:
-				await _attendre(0.06)
-				capturer("%s_impact_%s_%d" % [c.name, motif, coups])
+				await _attendre(0.18)
+				await capturer("%s_impact_%s_%d" % [c.name, motif, coups])
+			if coups == 2 and c.vivant():
+				# plaies sur le corps vivant : gros plan sur le buste
+				await _attendre(0.5)
+				var b := c.global_position + Vector3(0, 1.15, 0)
+				obs.global_position = b + Vector3(0.45, 0.25, 1.15)
+				obs.look_at(b, Vector3.UP)
+				await _attendre(0.05)
+				await capturer("%s_plaies_vivant" % c.name)
+				_placer_obs(c)
 			coups += 1
 			await _attendre(0.7 if motif == "legere" else 0.95)
 		# plaies et flaques
 		await _attendre(2.5)
-		_placer_obs(c)
-		obs.global_position = c.global_position + Vector3(1.6, 2.2, 1.8)
-		obs.look_at(c.global_position + Vector3(0, 0.2, -0.3), Vector3.UP)
+		var bassin: Node3D = c.combat._accroche("pelvis")
+		var pc: Vector3 = bassin.global_position if bassin else c.global_position
+		obs.global_position = pc + Vector3(1.1, 1.5, 1.2)
+		obs.look_at(pc, Vector3.UP)
 		await _attendre(0.2)
-		capturer("%s_flaque_plaies" % c.name)
+		await capturer("%s_flaque_plaies" % c.name)
 		_placer_obs(c)
 		print("FIN CIBLE ", c.name, " finisher=", finisher_fait, " vivant=", c.vivant())
-	print("TRACES ", Sang.nombre_traces(self))
-	var fin := float(_arg("fin", "0"))
-	if fin > 0.0 or dossier_captures != "":
-		await _attendre(maxf(fin, 0.5))
-		get_tree().quit(0)
 
 # ------------------------------------------------------------------ perf : 5 draugrs saignants au pire cas
 
@@ -320,6 +342,13 @@ func _perf() -> void:
 		d.rotation.y = atan2(-sin(a), cos(a))
 		ds.append(d)
 	await _attendre(2.0)
+	if _arg("chaud") != "":
+		# préchauffe : un 6e draugr achevé hors mesure (shaders des effets compilés, ragdoll et décapitation déjà vus)
+		var x := creer_draugr("guerrier", Vector3(0, 0.05, -1.5))
+		await _attendre(0.5)
+		x.combat.briser_posture()
+		x.subir_finisher("etourdi", {"origine": joueur.global_position})
+		await _attendre(2.0)
 	var base := await _mesurer(2.0)
 	# coups lourds sur tous (sang, plaies), puis finishers simultanés (5 décapitations, 5 jets)
 	for d in ds:
@@ -332,6 +361,7 @@ func _perf() -> void:
 	get_tree().create_timer(0.05).timeout.connect(func() -> void:
 		for d in ds:
 			d.subir_finisher("etourdi", {"origine": joueur.global_position}))
+	var t0 := Time.get_ticks_usec()
 	var g: Dictionary = await _mesurer(4.0)
 	print("PERF base moy %.2f ms max %.2f ms | gore moy %.2f ms max %.2f ms | traces %d" % [base["moy"], base["max"], g["moy"], g["max"], Sang.nombre_traces(self)])
 	get_tree().quit(0)

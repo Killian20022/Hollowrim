@@ -43,6 +43,7 @@ static func equiper(ennemi: Node3D, mod: Node3D, p: ProfilCible) -> CombatEnnemi
 	return c
 
 func _installer() -> void:
+	RetourImpact.precharger()
 	if modele == null:
 		return
 	Plaies.marquer(modele)
@@ -77,6 +78,8 @@ static func hauteur_visee(joueur: Node, cible: Node3D) -> float:
 		return -1.0
 	var o := (cam as Camera3D).global_position
 	var f := -(cam as Camera3D).global_transform.basis.z
+	if o.y - cible.global_position.y < 0.9 or o.y - cible.global_position.y > 2.6:
+		return -1.0   # caméra pas à hauteur d'yeux (joueur factice, cible très en contrebas) : regard inconnu
 	var d := Vector2(cible.global_position.x - o.x, cible.global_position.z - o.z).length()
 	var horiz := Vector2(f.x, f.z).length()
 	if d > 3.5 or horiz < 0.1:
@@ -88,6 +91,12 @@ func ratio_posture() -> float:
 
 ## Analyse d'un coup reçu. `etat` (fourni par l'ennemi) : {"de_face", "peut_bloquer", "en_attaque", "coup_donne", "hauteur_visee"}.
 func analyser(quantite: float, origine: Vector3, puissant: bool, info: Dictionary, etat: Dictionary) -> Dictionary:
+	# taille réelle du moment (draugr voûté, ennemi qui titube) : sommet du crâne = os de la tête + 12 cm
+	var tete := _accroche("Head")
+	if tete != null:
+		var h := tete.global_position.y - corps.global_position.y + 0.12
+		if h > 0.6:
+			hauteur = h
 	var i := CalculDegats.completer(info, corps, quantite, origine, puissant, hauteur, float(etat.get("hauteur_visee", -1.0)))
 	var e := etat.duplicate()
 	e["posture"] = posture
@@ -117,7 +126,7 @@ func _reaction(r: Dictionary, e: Dictionary, avant: float) -> String:
 	if avant > 0.0 and posture <= 0.0:
 		return "etourdi"
 	var lourde := attaque in ["lourde", "chargee_max", "contre"]
-	if s >= profil.seuil_chute and lourde and not boss and (String(r["info"]["zone"]) == "jambes" or randf() < 0.35):
+	if s >= profil.seuil_chute and lourde and not boss and String(r["info"]["zone"]) == "jambes":
 		return "chute"
 	if s >= profil.seuil_lourd:
 		return "recul" if attaque == "chargee_max" else "lourd"
@@ -188,7 +197,7 @@ func effets_impact(r: Dictionary, joueur: Node) -> void:
 		Sang.eclats_matiere(corps, point, dir, p.sang * 0.8, profil.couleur_sang if not profil.sang else Color(0.45, 0.42, 0.38))
 	if armure:
 		Effets.eclats(corps, point - dir * 0.05, Color(3.0, 2.2, 0.8), 6, 2.5, true)   # étincelles sur les mailles
-	var taille := 0.16 if p.nom == "leger" else (0.22 if p.nom == "moyen" else 0.3)
+	var taille := 0.32 if p.nom == "leger" else (0.4 if p.nom == "moyen" else 0.5)
 	Plaies.ajouter(modele, point, i["normale"], dir, taille, profil.couleur_sang, profil.matiere)
 	RetourImpact.son_impact(corps, profil.matiere, p, point, armure)
 	if r["reaction"] in ["moyen", "lourd", "recul", "chute"] and randf() < 0.6:
@@ -243,7 +252,7 @@ func effets_mort(r: Dictionary, sorte: String, joueur: Node) -> void:
 				Sang.flaque(c, pos, couleur, randf_range(0.9, 1.3) * (1.25 if gros else 1.0), 5.0))
 	else:
 		Sang.eclats_matiere(corps, point, dir, p.sang * 1.4, profil.couleur_sang if not profil.sang else Color(0.45, 0.42, 0.38))
-	Plaies.ajouter(modele, point, i.get("normale", -dir), dir, 0.32, profil.couleur_sang, profil.matiere)
+	Plaies.ajouter(modele, point, i.get("normale", -dir), dir, 0.5, profil.couleur_sang, profil.matiere)
 	RetourImpact.son_impact(corps, profil.matiere, p, point, false)
 	RetourImpact.cri(corps, "mort", point, profil.matiere, profil.mort_vivant)
 	var c2 := corps

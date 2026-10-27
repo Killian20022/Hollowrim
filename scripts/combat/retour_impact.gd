@@ -154,17 +154,72 @@ const GAIN := {
 ## Sol des chutes de corps : "" = deviné (sous terre, y < -8 : pierre ; sinon neige) ; "pierre" / "neige" imposé (scène de test).
 static var sol_force := ""
 static var _derniers := {}
+static var _flux := {}
+static var _precharge := false
+
+## Charge tous les sons de la banque en tâche de fond (appelé à la création du premier composant de combat) : plus de lecture de
+## fichier au moment d'un coup (un finisher sur 5 draugrs lisait ~20 fichiers dans la même image : pic de 200 ms).
+static func precharger() -> void:
+	if _precharge:
+		return
+	_precharge = true
+	for cat: String in BANQUE:
+		for nom: String in BANQUE[cat]:
+			var ch := _chemin(nom)
+			if ch != "":
+				ResourceLoader.load_threaded_request(ch, "AudioStream")
+
+static var _chemins := {}
+
+static func _chemin(nom: String) -> String:
+	if _chemins.has(nom):
+		return _chemins[nom]
+	var trouve := ""
+	for ext in [".ogg", ".wav"]:
+		var c: String = "res://assets/sons/" + nom + ext
+		if ResourceLoader.exists(c):
+			trouve = c
+			break
+	_chemins[nom] = trouve
+	return trouve
+
+## Flux d'un son préchargé ; null tant que sa lecture en tâche de fond n'est pas finie (le son est alors simplement sauté).
+static func _flux_de(nom: String) -> AudioStream:
+	if _flux.has(nom):
+		return _flux[nom]
+	var ch := _chemin(nom)
+	if ch == "":
+		_flux[nom] = null
+		return null
+	var st := ResourceLoader.load_threaded_get_status(ch)
+	if st == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+		return null
+	var a: AudioStream = ResourceLoader.load_threaded_get(ch) if st == ResourceLoader.THREAD_LOAD_LOADED else load(ch)
+	_flux[nom] = a
+	return a
 
 ## Joue une variante de la catégorie `cat` au point (gain par fichier + volume + hauteur).
+## Au plus SONS_PAR_IMAGE sons de combat lancés dans une même image (5 finishers simultanés : pas de pic, et pas de bouillie sonore).
+const SONS_PAR_IMAGE := 6
+static var _image := -1
+static var _n_image := 0
+
 static func son(n: Node, cat: String, point: Vector3, volume := 0.0, hauteur := 1.0) -> void:
 	var l: Array = BANQUE.get(cat, [])
 	if l.is_empty() or n == null or not n.is_inside_tree():
 		return
+	var img := Engine.get_process_frames()
+	if img != _image:
+		_image = img
+		_n_image = 0
+	if _n_image >= SONS_PAR_IMAGE:
+		return
+	_n_image += 1
 	var nom: String = l.pick_random()
 	if l.size() > 1 and nom == _derniers.get(cat, ""):
 		nom = l[(l.find(nom) + 1) % l.size()]
 	_derniers[cat] = nom
-	var s := Sons.flux(nom)
+	var s := _flux_de(nom)
 	if s == null:
 		return
 	var a := AudioStreamPlayer3D.new()

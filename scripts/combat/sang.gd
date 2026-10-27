@@ -34,7 +34,7 @@ static func giclee(n: Node, point: Vector3, direction: Vector3, intensite: float
 		return
 	var k := intensite * (1.0 if niv == 2 else 0.35)
 	var dir := direction.normalized() if direction.length() > 0.01 else Vector3.UP
-	_burst(n, point, (dir + Vector3.UP * 0.3).normalized(), clampi(int(18.0 * k), 4, 110), 22.0, 1.8 * sqrt(k), 5.2 * sqrt(k), couleur, Vector3(0.028, 0.07, 0.028))
+	_burst(n, point, (dir + Vector3.UP * 0.3).normalized(), clampi(int(18.0 * k), 4, 110), 22.0, 1.8 * sqrt(k), 5.2 * sqrt(k), couleur, Vector3(0.022, 0.06, 0.022))
 	# brume fine (gouttelettes) plus large, moins loin
 	_burst(n, point, (dir + Vector3.UP * 0.6).normalized(), clampi(int(10.0 * k), 2, 50), 55.0, 0.8, 2.6 * sqrt(k), couleur * 1.15, Vector3(0.02, 0.02, 0.02))
 	if traces:
@@ -45,7 +45,7 @@ static func eclats_matiere(n: Node, point: Vector3, direction: Vector3, intensit
 	if n == null or not n.is_inside_tree():
 		return
 	var dir := direction.normalized() if direction.length() > 0.01 else Vector3.UP
-	_burst(n, point, (dir + Vector3.UP * 0.5).normalized(), clampi(int(14.0 * intensite), 4, 70), 45.0, 1.2, 4.0 * sqrt(intensite), couleur, Vector3(0.04, 0.04, 0.04), false)
+	_burst(n, point, (dir + Vector3.UP * 0.5).normalized(), clampi(int(14.0 * intensite), 4, 70), 45.0, 1.2, 4.0 * sqrt(intensite), couleur * 0.85, Vector3(0.022, 0.022, 0.022), false)
 
 static func _burst(n: Node, point: Vector3, dir: Vector3, nombre: int, ecart: float, vmin: float, vmax: float, couleur: Color, taille: Vector3, aligne := true) -> void:
 	var p := GPUParticles3D.new()
@@ -347,44 +347,61 @@ static func _img_flaque(rng: RandomNumberGenerator, n: int, eclabousse: float) -
 	return img
 
 static func _img_trainee(rng: RandomNumberGenerator) -> Image:
+	# traînée de giclure : chapelet de gouttes ovales de plus en plus petites (pas un cône lisse), quelques gouttes perdues
 	var w := 64
 	var h := 24
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	for x in w:
-		var k := float(x) / w
-		var ep := lerpf(5.5, 0.8, k) + rng.randf_range(-0.6, 0.6)
-		var cy := h * 0.5 + sin(k * 7.0 + rng.randf()) * 1.2
-		for y in h:
-			var d := absf(y + 0.5 - cy)
-			if d < ep:
-				var l := lerpf(0.55, 1.0, d / ep)
-				img.set_pixel(x, y, Color(l, l, l, 1.0))
-		if rng.randf() < 0.25:
-			var py := clampi(int(cy + rng.randf_range(-9, 9)), 0, h - 1)
-			img.set_pixel(x, py, Color(0.8, 0.8, 0.8, 1.0))
+	var x := 4.0
+	var cy := h * 0.5
+	while x < w - 3:
+		var k := x / w
+		var r := lerpf(5.0, 1.2, k) * rng.randf_range(0.7, 1.15)
+		cy = clampf(cy + rng.randf_range(-1.2, 1.2), 5.0, h - 6.0)
+		for yy in range(int(cy - r) - 1, int(cy + r) + 2):
+			for xx in range(int(x - r * 1.4) - 1, int(x + r * 1.4) + 2):
+				if xx < 0 or yy < 0 or xx >= w or yy >= h:
+					continue
+				var d := Vector2((xx + 0.5 - x) / 1.4, yy + 0.5 - cy).length()
+				if d < r:
+					var l := lerpf(0.6, 1.0, d / r)
+					img.set_pixel(xx, yy, Color(l, l, l, 1.0))
+		x += r * rng.randf_range(1.6, 3.2)
+		if rng.randf() < 0.5:
+			var py := clampi(int(cy + rng.randf_range(-8, 8)), 0, h - 1)
+			var px := clampi(int(x + rng.randf_range(-3, 3)), 0, w - 1)
+			img.set_pixel(px, py, Color(0.8, 0.8, 0.8, 1.0))
 	return img
 
 static func _img_entaille(rng: RandomNumberGenerator) -> Image:
-	# plaie : fente sombre au centre (chair ouverte), lèvres rouges, coulures vers le bas (+Y de l'image)
+	# plaie : fente sombre (chair ouverte) bordée de lèvres rouges vives, éclaboussée autour, coulures vers le bas (+Y de l'image)
 	var w := 32
-	var h := 16
+	var h := 24
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	var pente := rng.randf_range(-0.12, 0.12)
-	for x in range(2, w - 2):
-		var k := float(x - 2) / (w - 4)
-		var ep := sin(k * PI) * rng.randf_range(2.4, 3.2) + 0.4
-		var cy := h * 0.42 + (x - w * 0.5) * pente
+	var pente := rng.randf_range(-0.15, 0.15)
+	for x in range(1, w - 1):
+		var k := float(x - 1) / (w - 2)
+		var ep := sin(k * PI) * rng.randf_range(3.2, 4.2) + 0.6
+		var cy := 8.0 + (x - w * 0.5) * pente
 		for y in h:
 			var d := absf(y + 0.5 - cy)
 			if d < ep:
-				var l := 0.2 if d < ep * 0.38 else lerpf(0.95, 0.65, d / ep)
+				var l := 0.12 if d < ep * 0.4 else (1.0 if d < ep * 0.75 else 0.7)
 				img.set_pixel(x, y, Color(l, l, l, 1.0))
-		if rng.randf() < 0.22:
-			var lg := rng.randi_range(2, 6)
-			for y in range(int(cy + ep), mini(int(cy + ep) + lg, h)):
-				img.set_pixel(x, y, Color(0.75, 0.75, 0.75, 1.0))
+		# coulures
+		if rng.randf() < 0.3 and k > 0.15 and k < 0.85:
+			var lg := rng.randi_range(4, 13)
+			var y0 := int(cy + ep)
+			for y in range(y0, mini(y0 + lg, h)):
+				var l := 0.85 if y < y0 + lg - 1 else 0.65
+				img.set_pixel(x, y, Color(l, l, l, 1.0))
+				if y == y0 + lg - 1 and x + 1 < w:
+					img.set_pixel(x + 1, y, Color(l, l, l, 1.0))
+		# éclaboussures autour
+		if rng.randf() < 0.18:
+			var py := clampi(int(cy + rng.randf_range(-ep - 4, ep + 4)), 0, h - 1)
+			img.set_pixel(x, py, Color(0.8, 0.8, 0.8, 1.0))
 	return img
 
 static func _img_fissure(rng: RandomNumberGenerator) -> Image:

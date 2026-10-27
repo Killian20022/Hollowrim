@@ -7,6 +7,8 @@ class_name Plaies
 ## Matières : "chair" (entaille sanglante), "os" (fissure), "bois" (copeau).
 
 const CALQUE := 1 << 19          # calque de rendu 20 : « corps qui reçoivent des plaies »
+## Échelle des plaies (réglage, sondes).
+static var echelle := 1.0
 const MAX_PAR_CORPS := 6
 ## Os candidats (le plus proche du point d'impact porte la plaie).
 const OS_PLAIES := ["Head", "neck_01", "spine_03", "spine_02", "spine_01", "pelvis", "upperarm_l", "upperarm_r", "lowerarm_l", "lowerarm_r",
@@ -46,7 +48,7 @@ static func ajouter(modele: Node3D, point: Vector3, normale: Vector3, direction:
 	d.name = "Plaie"
 	var sorte := "entaille" if matiere == "chair" else ("fissure" if matiere == "os" else "copeau")
 	d.texture_albedo = Sang.texture(sorte, randi() % 3)
-	d.modulate = Color(minf(couleur.r * 2.1, 1.0), minf(couleur.g * 2.1, 1.0), minf(couleur.b * 2.1, 1.0)) if matiere == "chair" else couleur
+	d.modulate = Color(minf(couleur.r * 3.0, 1.0), minf(couleur.g * 3.0, 1.0), minf(couleur.b * 3.0, 1.0)) if matiere == "chair" else couleur
 	d.albedo_mix = 1.0
 	d.cull_mask = CALQUE
 	d.normal_fade = 0.25
@@ -54,8 +56,8 @@ static func ajouter(modele: Node3D, point: Vector3, normale: Vector3, direction:
 	d.lower_fade = 0.15
 	# filtrage des décals : réglage du projet rendering/textures/decals/filter = plus proche (texels nets)
 	var reduit := Sang.niveau() == 1 and matiere == "chair"
-	var t := taille * (0.7 if reduit else 1.0)
-	d.size = Vector3(t, 0.22, t * 0.5)
+	var t := taille * (0.7 if reduit else 1.0) * echelle
+	d.size = Vector3(t, 0.5, t * 0.75)   # profondeur 50 cm : le point estimé (sans info de l'épée) n'est pas toujours sur la peau
 	accroche.add_child(d)
 	# repère : Y = normale (le décal projette le long de -Y), X = sens de la lame projeté sur la surface
 	var y := normale.normalized() if normale.length() > 0.01 else Vector3.UP
@@ -64,8 +66,11 @@ static func ajouter(modele: Node3D, point: Vector3, normale: Vector3, direction:
 		x = y.cross(Vector3.UP if absf(y.y) < 0.9 else Vector3.RIGHT)
 	x = x.normalized()
 	var z := x.cross(y)
+	if z.dot(Vector3.DOWN) < 0.0 and matiere == "chair":
+		x = -x   # les coulures (bas de la texture = +Z du décal) descendent
+		z = -z
 	# repère local : l'inverse du BoneAttachment (qui porte l'échelle du modèle) : la plaie garde sa taille en mètres
-	d.transform = accroche.global_transform.affine_inverse() * Transform3D(Basis(x, y, z), point + y * 0.02)
+	d.transform = accroche.global_transform.affine_inverse() * Transform3D(Basis(x, y, z), point - y * 0.08)
 	l.append(d)
 	modele.set_meta("plaies", l)
 	return d

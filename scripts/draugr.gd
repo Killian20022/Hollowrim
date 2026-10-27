@@ -1011,8 +1011,6 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, 
 	if sorte == "finisher":
 		RetourImpact.son_finisher(self, point, combat.profil.matiere, decapiter)
 	combat.effets_mort(r if not r.is_empty() else {"info": {"point": point, "direction": dir, "normale": -dir}}, sorte, joueur)
-	if not combat.profil.sang:
-		Effets.eclats(self, global_position + Vector3(0, 0.8, 0), Color(0.75, 0.72, 0.6), 44 if _os else 30, 4.0)
 	_laisser_butin()
 
 func _laisser_butin() -> void:

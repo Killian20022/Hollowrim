@@ -26,7 +26,7 @@ extends Resource
 ## Seuils de stagger (force effective d'un coup) des réactions moyenne, lourde et chute.
 @export var seuil_moyen := 11.0
 @export var seuil_lourd := 24.0
-@export var seuil_chute := 40.0
+@export var seuil_chute := 30.0
 ## Poids : divise le recul et le stagger reçus (1 = humain).
 @export var poids := 1.0
 ## Chance de bloquer au bouclier un coup léger de face (pondérée par la posture restante).
