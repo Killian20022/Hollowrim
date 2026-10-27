@@ -26,8 +26,7 @@ var charge_gauche := 0.5
 var charge_droite := 0.0
 var recharges := {}
 var statuts_actifs: Array = []
-var raccourcis: Array = ["epee", "boule_feu", "", "", "", "", "", ""]
-var raccourci_choisi := 1
+var raccourcis: Array = [{"gauche": "torche", "droite": "epee"}, {"gauche": "boule_feu", "droite": "epee"}, {"gauche": "vide", "droite": "vide"}]
 """
 
 var _ok := true
@@ -102,12 +101,24 @@ func _tester() -> void:
 	_verif(ui._t_mains > 0.0 and ui._t_barre > 0.0, "mains et raccourcis affichés après un changement")
 	j.recharges = {"boule_feu": {"restant": 3.0, "total": 4.0}}
 	j.emit_signal("etat_mains_change", sort, sort)
-	j.raccourci_choisi = 3
 	await _images(3)
 	_verif(absf(ui._v.rech_g - 0.75) < 0.01, "recharge par id du sort, forme {restant, total}")
 	ui.queue_redraw()
 	await _images(2)
 	_verif(ui.nb_dessins > 0, "dessin effectué sans erreur (%d)" % ui.nb_dessins)
+	# raccourcis : 10 cases (touches 1 à 0), case active déduite des mains, vide grisée
+	_verif(ui._v.raccourcis.size() == 10 and ui._v.raccourcis[9].touche == "0" and ui._v.raccourcis[8].touche == "9", "10 raccourcis, touches 9 et 0 présentes")
+	j.emit_signal("etat_mains_change", {"id": "boule_feu", "type": "sort"}, {"id": "epee", "type": "arme"})
+	await _images(2)
+	_verif(ui._v.choisi == 1, "case active = 2 (boule_feu | épée), obtenu %d" % ui._v.choisi)
+	j.emit_signal("etat_mains_change", {"id": "torche", "genre": "torche"}, {"id": "epee", "type": "arme"})
+	await _images(2)
+	_verif(ui._v.choisi == 0, "case active = 1 après changement (torche | épée), obtenu %d" % ui._v.choisi)
+	j.emit_signal("etat_mains_change", {"id": "soin", "type": "sort"}, {"id": "epee", "type": "arme"})
+	await _images(2)
+	_verif(ui._v.choisi == -1, "aucune case active si l'équipement ne correspond à aucun raccourci")
+	var pres_reel: Array = ui._presets({}, {})
+	_verif(pres_reel.size() == 10 and pres_reel[2].gauche == "" and pres_reel[2].droite == "", "case vide = ids vides (grisée)")
 	ui.queue_free()
 	j.queue_free()
 
@@ -116,7 +127,7 @@ func _tester() -> void:
 	root.add_child(j2)
 	var ui2 := _hud(j2)
 	await _images(3)
-	_verif(is_equal_approx(ui2._v.mana, 100.0) and ui2._v.statuts.is_empty() and ui2._v.choisi == -1, "défauts sans le contrat")
+	_verif(is_equal_approx(ui2._v.mana, 100.0) and ui2._v.statuts.is_empty() and ui2._v.choisi >= -1 and ui2._v.raccourcis.size() == 10, "défauts sans le contrat")
 	_verif(ui2.droite.get("id") == "epee" and ui2.gauche.get("id", "") == "", "repli : épée à droite, main nue à gauche")
 	ui2.queue_redraw()
 	await _images(2)
@@ -129,7 +140,7 @@ func _tester() -> void:
 	ui3.demo = true
 	ui3.demo_double = true
 	await _images(4)
-	_verif(ui3._a_mains == 1.0 and ui3.gauche.get("id") == "boule_feu" and ui3.droite.get("id") == "boule_feu" and ui3.nb_dessins > 0,
+	_verif(ui3._a_mains == 1.0 and ui3.gauche.get("id") == "jet_flammes" and ui3.droite.get("id") == "jet_flammes" and ui3.nb_dessins > 0,
 		"mode démo (double incantation)")
 	ui3.queue_free()
 	await _images(2)

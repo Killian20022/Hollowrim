@@ -2,7 +2,7 @@ extends Control
 ## Interface de combat (enfant de hud.gd, dessinée en _draw, pixels entiers, positions relatives à `size`) :
 ##   - bas gauche : statuts actifs (rangée d'icônes 8x8 + durée), puis VIE (rouge), MANA (bleue), ENDURANCE (verte)
 ##     empilées, chacune précédée d'un losange dans un cadre de fer (planche combat_epee, « INTERFACE EN JEU ») ;
-##   - bas centre : barre de raccourcis 1-8 (cases 18 px, icônes 16x16, numéros 3x5 dessous), encadrée par les deux
+##   - bas centre : barre de raccourcis 1-0 (10 cases = main gauche | main droite, numéro de touche x2 dessous), encadrée par les deux
 ##     emplacements de main (G à gauche, D à droite, cases 24 px) : icône de ce que tient la main, jauge de CHARGE
 ##     verticale côté extérieur, RECHARGE en voile sombre qui descend, « x2 » doré en double incantation,
 ##     icône assombrie + liseré rouge si le mana manque pour le sort.
@@ -22,7 +22,8 @@ extends Control
 ##     ou simple String (statut sans durée). Noms connus : brulure, gel, choc, corruption, soin, protection,
 ##     enchant_feu, enchant_glace, enchant_electricite, enchant_tenebres (alias tolérés : voir IconesCombat.ALIAS_STATUTS).
 ##     Clignote pendant les 2 dernières secondes. 8 icônes au plus.
-##   raccourcis : Array de 8 ids ("" = case vide) ; raccourci_choisi : int 0..7 (-1 = aucune).
+##   mains.magie.eq.raccourcis (10 entrées {touche, gauche, droite, nom}) ; à défaut raccourcis : Array d'ids ou de Dictionary.
+##   La case active est déduite des mains tenues (plus de raccourci_choisi).
 ## Signal (si `joueur.has_signal`) : etat_mains_change(gauche: Dictionary, droite: Dictionary), émis à chaque
 ##   changement d'équipement. Clés lues : "id" (String : "boule_feu", "epee", "torche", "bouclier", "" = main nue),
 ##   "nom" (String), "ecole" ("feu", "glace", "electricite", "tenebres", "soin", "protection" ou ""),
@@ -48,10 +49,11 @@ const BLEU_GAUCHE := Color("#6f9be8")
 const ROUGE_MANQUE := Color("#c8382a")
 const CADRE := preload("res://assets/ui/barre_cadre.svg")
 const MARGE := 16.0
-const CASE := 18          # case de raccourci (1 px de cadre + icône 16)
-const ECART := 2
+const CASE_L := 34        # case de raccourci : 1 px de cadre + icône main gauche 16 + icône main droite 16
+const CASE_H := 29        # + numéro de touche (3x5 agrandi x2) dessous
+const ECART := 1
 const MAIN := 24          # emplacement de main
-const NB := 8
+const NB := 10            # touches 1 2 3 4 5 6 7 8 9 0
 ## Chiffres et lettres 3x5 (bits de gauche à droite, ligne par ligne).
 const MINI := {
 	"0": ["111", "101", "101", "101", "111"], "1": ["010", "110", "010", "010", "111"],
@@ -152,7 +154,7 @@ func _process(dt: float) -> void:
 	_a_mana = _a_vie
 	_a_end = _a_vie
 	_a_mains = lerpf(_a_mains, 1.0 if (combat or actif_mains or _t_mains > 0.0) else 0.0, k)
-	_a_barre = lerpf(_a_barre, 1.0 if (combat or _t_barre > 0.0) else 0.0, k)
+	_a_barre = lerpf(_a_barre, 1.0 if (combat or _t_barre > 0.0) else 0.6, k)   # jamais cachée : on doit voir les touches
 	if demo or _force_visible:
 		_a_vie = 1.0; _a_mana = 1.0; _a_end = 1.0; _a_mains = 1.0; _a_barre = 1.0
 	queue_redraw()
@@ -172,9 +174,7 @@ func _lire_etat(dt: float) -> void:
 		gauche = g
 		droite = d
 	var rech: Variant = _lire("recharges", {})
-	var racc: Variant = _lire("raccourcis", null)
-	if not (racc is Array):
-		racc = [str(d.get("id", "")), str(g.get("id", "")), "", "", "", "", "", ""]
+	var racc := _presets(d, g)
 	var st: Variant = _lire("statuts_actifs", [])
 	_v = {
 		"vie": float(_lire("vie", 100.0)), "vie_max": maxf(1.0, float(_lire("vie_max", 100.0))),
@@ -185,9 +185,58 @@ func _lire_etat(dt: float) -> void:
 		"rech_g": _recharge(rech, "gauche", str(g.get("id", ""))),
 		"rech_d": _recharge(rech, "droite", str(d.get("id", ""))),
 		"statuts": (st as Array).filter(func(e: Variant) -> bool: return not (e is Dictionary and str(e.get("nom", "")) == "double")) if st is Array else [],   # double : déjà le « x2 » des mains
+		"rech_tout": rech,
 		"raccourcis": racc,
-		"choisi": int(_lire("raccourci_choisi", -1)),
+		"choisi": _actif(racc, g, d),
 	}
+
+## Raccourcis 1-0 sous forme [{touche, gauche, droite, nom}] ("" = main nue). Source : la table réelle de
+## joueur.mains.magie.eq.raccourcis (data/magie/raccourcis.json, lecture seule) ; sinon joueur.raccourcis
+## (ids seuls = main droite) ; sinon une table minimale.
+func _presets(d: Dictionary, g: Dictionary) -> Array:
+	var brut: Array = []
+	var m: Variant = _lire("mains", null)
+	if m != null and is_instance_valid(m):
+		var mg: Variant = m.get("magie")
+		var eq: Variant = mg.get("eq") if mg != null else null
+		var t: Variant = eq.get("raccourcis") if eq != null else null
+		if t is Array:
+			brut = t
+	if brut.is_empty() and joueur == null:   # démo : la vraie table de données
+		var j: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/magie/raccourcis.json"))
+		if j is Dictionary:
+			brut = j.get("raccourcis", [])
+	if brut.is_empty():
+		var r: Variant = _lire("raccourcis", null)
+		if r is Array:
+			brut = r
+		else:
+			brut = [{"gauche": str(g.get("id", "")), "droite": str(d.get("id", ""))}]
+	var res: Array = []
+	for i in NB:
+		var e: Variant = brut[i] if i < brut.size() else null
+		var pr := {"touche": str((i + 1) % 10), "gauche": "", "droite": "", "nom": ""}
+		if e is Dictionary:
+			pr["gauche"] = _id_main(e.get("gauche", ""))
+			pr["droite"] = _id_main(e.get("droite", ""))
+			pr["nom"] = str(e.get("nom", ""))
+		elif e != null:
+			pr["droite"] = _id_main(e)
+		res.append(pr)
+	return res
+
+static func _id_main(v: Variant) -> String:
+	var id := str(v)
+	return "" if id == "vide" else id
+
+## Index du raccourci dont les deux mains sont celles tenues (-1 si aucun).
+static func _actif(racc: Array, g: Dictionary, d: Dictionary) -> int:
+	var ig := _id_main(g.get("id", ""))
+	var idr := _id_main(d.get("id", ""))
+	for i in racc.size():
+		if str(racc[i]["gauche"]) == ig and str(racc[i]["droite"]) == idr and (ig != "" or idr != ""):
+			return i
+	return -1
 
 ## Ratio de recharge restant (0 = disponible, 1 = vient de commencer) d'une main.
 func _recharge(rech: Variant, cote: String, id: String) -> float:
@@ -215,7 +264,7 @@ func _recharge(rech: Variant, cote: String, id: String) -> float:
 
 func _etat_demo() -> void:
 	var t := demo_t if demo_t >= 0.0 else _horloge
-	var sort := {"id": "boule_feu", "nom": "Boule de feu", "ecole": "feu", "type": "sort", "cout": 25.0}
+	var sort := {"id": "jet_flammes", "nom": "Jet de flammes", "ecole": "feu", "type": "sort", "cout": 25.0}
 	gauche = sort
 	droite = sort if demo_double else {"id": "epee", "nom": "Épée", "type": "arme"}
 	_v = {
@@ -229,9 +278,11 @@ func _etat_demo() -> void:
 			{"nom": "enchant_feu", "duree": 20.0 - fmod(t, 20.0), "duree_max": 30.0},
 			{"nom": "gel", "duree": 2.0 - fmod(t * 0.5, 2.0), "duree_max": 5.0},
 		],
-		"raccourcis": ["epee", "boule_feu", "lance_givre", "arc_electrique", "trait_ombre", "soin", "protection", ""],
-		"choisi": 1,
+		"rech_tout": {"lance_givre": maxf(0.0, 2.0 - fmod(t, 3.0))},
+		"raccourcis": _presets({}, {}),
+		"choisi": -1,
 	}
+	_v.choisi = _actif(_v.raccourcis, gauche, droite)
 
 # ---------------------------------------------------------------- dessin
 func _draw() -> void:
@@ -246,15 +297,15 @@ func _draw() -> void:
 	_statuts(Vector2(MARGE + 1, bas - 34))
 	# --- raccourcis au centre, mains de part et d'autre ---
 	var cx := floorf(size.x * 0.5)
-	var larg := NB * CASE + (NB - 1) * ECART
+	var larg := NB * CASE_L + (NB - 1) * ECART
 	var x0 := cx - floorf(larg * 0.5)
-	var y_case := size.y - 28.0
+	var y_case := size.y - 8.0 - CASE_H
 	_raccourcis(Vector2(x0, y_case), _a_barre)
 	var y_main := size.y - 31.0
 	var double := _type(gauche) == "sort" and _type(droite) == "sort" and str(gauche.get("id", "")) == str(droite.get("id", "")) \
 		and str(gauche.get("id", "")) != ""
-	_main(Vector2(x0 - 8 - MAIN, y_main), gauche, _v.charge_g, _v.rech_g, -1, double, _a_mains)
-	_main(Vector2(x0 + larg + 8, y_main), droite, _v.charge_d, _v.rech_d, 1, double, _a_mains)
+	_main(Vector2(x0 - 6 - MAIN, y_main), gauche, _v.charge_g, _v.rech_g, -1, double, _a_mains)
+	_main(Vector2(x0 + larg + 6, y_main), droite, _v.charge_d, _v.rech_d, 1, double, _a_mains)
 
 func _type(m: Dictionary) -> String:
 	var t := str(m.get("type", ""))
@@ -388,46 +439,69 @@ func _main(pos: Vector2, m: Dictionary, charge: float, recharge: float, sens: in
 		_mini("x", px, Color(OR, alpha))
 		_mini("2", px + Vector2(4, 0), Color(OR, alpha))
 
-## Barre des raccourcis 1-8 : case choisie = cadre parchemin ; case tenue en main = liseré (or à droite, bleu à gauche).
+## Barre des raccourcis 1-0 : chaque touche équipe les DEUX mains d'un coup, donc chaque case montre deux icônes
+## (main gauche | main droite) et le numéro de la touche en grand dessous. Main gauche tenue = cadre bleu autour de
+## son icône, main droite = cadre or ; les deux = case entière cerclée de parchemin (« ACTIF »). Case vide = grisée.
+## Recharge d'un sort = voile sombre sur son icône.
 func _raccourcis(pos: Vector2, alpha: float) -> void:
 	if alpha < 0.02:
 		return
-	var ids: Array = _v.raccourcis
+	var presets: Array = _v.raccourcis
 	var id_g := str(gauche.get("id", ""))
 	var id_d := str(droite.get("id", ""))
 	for i in NB:
-		var id := str(ids[i]) if i < ids.size() else ""
-		var p := pos + Vector2(i * (CASE + ECART), 0)
-		var r := Rect2(p, Vector2(CASE, CASE))
-		var choisi: bool = i == _v.choisi
-		draw_rect(r, Color(PARCHEMIN if choisi else FOND, alpha))
-		draw_rect(Rect2(p + Vector2(1, 1), Vector2(16, 16)), Color(FOND, (0.8 if id != "" else 0.55) * alpha))
-		if id != "":
-			draw_texture(IconesCombat.icone(id), p + Vector2(1, 1), Color(1, 1, 1, alpha if (choisi or id == id_g or id == id_d) else 0.8 * alpha))
-		# liseré de main : 2 px sous la case
-		var en_d := id != "" and id == id_d
-		var en_g := id != "" and id == id_g
-		if en_d and en_g:
-			draw_rect(Rect2(p + Vector2(0, CASE), Vector2(CASE / 2, 1)), Color(BLEU_GAUCHE, alpha))
-			draw_rect(Rect2(p + Vector2(CASE / 2, CASE), Vector2(CASE / 2, 1)), Color(OR, alpha))
-		elif en_d or en_g:
-			draw_rect(Rect2(p + Vector2(0, CASE), Vector2(CASE, 1)), Color(OR if en_d else BLEU_GAUCHE, alpha))
-		var num := str(i + 1)
-		var c := OR if choisi else Color(PARCHEMIN, 0.85)
-		_mini(num, p + Vector2(CASE / 2 - 1, CASE + 3), Color(c, c.a * alpha))
+		var pr: Dictionary = presets[i] if i < presets.size() else {}
+		var ig := str(pr.get("gauche", ""))
+		var idr := str(pr.get("droite", ""))
+		var vide := ig == "" and idr == ""
+		var p := pos + Vector2(i * (CASE_L + ECART), 0)
+		var actif: bool = not vide and ig == id_g and idr == id_d
+		var en_g := not actif and ig != "" and ig == id_g
+		var en_d := not actif and idr != "" and idr == id_d
+		draw_rect(Rect2(p, Vector2(CASE_L, CASE_H)), Color(PARCHEMIN if actif else (FER_SOMBRE if vide else FER), alpha))
+		draw_rect(Rect2(p + Vector2(1, 1), Vector2(CASE_L - 2, CASE_H - 2)), Color(FOND, (0.55 if vide else 0.88) * alpha))
+		for k in 2:
+			var id := ig if k == 0 else idr
+			var q := p + Vector2(1 + 16 * k, 1)
+			if id != "":
+				draw_texture(IconesCombat.icone(id), q, Color(1, 1, 1, alpha if (actif or (k == 0 and en_g) or (k == 1 and en_d)) else 0.7 * alpha))
+				var rh := _recharge(_v.rech_tout, "id:" + id, id)
+				if rh > 0.0:
+					var h := ceili(16.0 * rh)
+					draw_rect(Rect2(q, Vector2(16, h)), Color(FOND, 0.72 * alpha))
+					draw_rect(Rect2(q + Vector2(0, h), Vector2(16, 1)), Color(PARCHEMIN, 0.5 * alpha))
+			elif not vide:
+				draw_texture(IconesCombat.icone("vide"), q, Color(1, 1, 1, 0.3 * alpha))   # main nue de ce raccourci
+			var tenu := (k == 0 and (en_g or actif)) or (k == 1 and (en_d or actif))
+			if tenu and id != "":
+				var c := BLEU_GAUCHE if k == 0 else OR
+				draw_rect(Rect2(q, Vector2(16, 1)), Color(c, alpha))
+				draw_rect(Rect2(q + Vector2(0, 15), Vector2(16, 1)), Color(c, alpha))
+				draw_rect(Rect2(q, Vector2(1, 16)), Color(c, alpha))
+				draw_rect(Rect2(q + Vector2(15, 0), Vector2(1, 16)), Color(c, alpha))
+		var touche := str(pr.get("touche", str((i + 1) % 10)))
+		var cn: Color = OR if actif else (Color(FER_CLAIR, 0.8) if vide else Color(PARCHEMIN, 0.95))
+		_mini(touche, p + Vector2(CASE_L / 2 - 3, 19), Color(cn, cn.a * alpha), 2)
+	# légende discrète au-dessus de la barre : on garde le centre de l'écran libre
+	_mini("G", pos + Vector2(2, -7), Color(BLEU_GAUCHE, 0.9 * alpha))
+	_mini("D", pos + Vector2(larg_barre() - 5, -7), Color(OR, 0.9 * alpha))
+
+func larg_barre() -> int:
+	return NB * CASE_L + (NB - 1) * ECART
 
 ## Petit glyphe 3x5 cerné de sombre (lisible sur la neige comme dans la nuit).
-func _mini(ch: String, pos: Vector2, couleur: Color) -> void:
+func _mini(ch: String, pos: Vector2, couleur: Color, e := 1) -> void:
 	var g: Array = MINI.get(ch, MINI["x"])
 	var ombre := Color(FOND, 0.8 * couleur.a)
+	var u := Vector2(e, e)
 	for y in 5:
 		for x in 3:
 			if g[y][x] == "1":
 				for d in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1), Vector2(1, 1)]:
 					var q: Vector2 = Vector2(x, y) + d
 					if q.x < 0 or q.x > 2 or q.y < 0 or q.y > 4 or g[int(q.y)][int(q.x)] != "1":
-						draw_rect(Rect2(pos + q, Vector2(1, 1)), ombre)
+						draw_rect(Rect2(pos + q * e, u), ombre)
 	for y in 5:
 		for x in 3:
 			if g[y][x] == "1":
-				draw_rect(Rect2(pos + Vector2(x, y), Vector2(1, 1)), couleur)
+				draw_rect(Rect2(pos + Vector2(x, y) * e, u), couleur)
