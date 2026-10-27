@@ -51,16 +51,17 @@ func _ready() -> void:
 	joueur.set_script(JOUEUR)
 	add_child(joueur)
 	mannequin.set("joueur", joueur)
+	_interface()
 	var mode_draugr: String = a.get("draugr", "actif")
 	if mode_draugr != "aucun":
 		draugr = creer_draugr(POS_DRAUGR, mode_draugr == "fige")
-	_interface()
 
 func creer_draugr(p: Vector3, fige: bool) -> CharacterBody3D:
 	var d := CharacterBody3D.new()
 	d.set_script(DRAUGR)
 	d.type = "guerrier"
 	d.joueur = joueur
+	d.hud = hud   # butin lâché à la mort (avis « + n pièces »)
 	d.ident = "draugr_test"
 	d.position = p
 	d.rotation.y = atan2(p.x, p.z)   # tourné vers l'origine

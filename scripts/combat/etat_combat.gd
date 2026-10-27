@@ -27,8 +27,8 @@ const TRANSITIONS := {
 
 ## Phase 3 (défense) : contre-attaque (après une parade parfaite) et finisher, ajoutés sans retoucher la table de base.
 const TRANSITIONS_PHASE3 := {
-	REPOS: [FINISHER],
-	MOUVEMENT: [FINISHER],
+	REPOS: [CONTRE, FINISHER],
+	MOUVEMENT: [CONTRE, FINISHER],
 	GARDE: [CONTRE, FINISHER],
 	PARADE: [CONTRE, FINISHER],
 	RECUPERATION: [CONTRE, FINISHER],
@@ -46,7 +46,7 @@ var refus := 0
 func changer(nouvel: int) -> bool:
 	if nouvel == etat:
 		return true
-	if not (nouvel in TRANSITIONS[etat] or nouvel in TRANSITIONS_PHASE3.get(etat, [])):
+	if not (nouvel in TRANSITIONS.get(etat, []) or nouvel in TRANSITIONS_PHASE3.get(etat, [])):
 		refus += 1
 		return false
 	var ancien := etat

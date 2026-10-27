@@ -588,10 +588,11 @@ func _choisir_geste() -> Array:
 func _commencer_attaque(enchaine := false) -> void:
 	if not arme.est_arme():
 		return
-	# phase 3 : un ennemi ouvert à portée → finisher ; juste après une parade parfaite → contre-attaque
-	if _tenter_finisher():
-		return
+	# phase 3 : juste après une parade parfaite → contre-attaque (elle consomme l'ouverture « apres_parade » de la cible
+	# touchée : le finisher ne suit que si la posture casse) ; sinon un ennemi ouvert à portée → finisher
 	if defense.contre > 0.0 and _commencer_contre():
+		return
+	if _tenter_finisher():
 		return
 	if not enchaine:
 		_combo = 0
@@ -943,6 +944,8 @@ func _resoudre_impact(e: Dictionary) -> String:
 			# arrêt sur image / secousse / voile rouge : UNE source, les profils d'impact (ProfilImpact). Les cibles équipées
 			# d'un CombatEnnemi (draugrs, mannequin) les jouent elles-mêmes avec le profil calculé ; les autres (dragon…) ici.
 			var gere: bool = cible.get("combat") is CombatEnnemi
+			if gere and _contre:
+				(cible.get("combat") as CombatEnnemi).fenetre_parade = 0.0   # l'ouverture de la parade est dépensée par la contre-attaque
 			if r == "touche" or r == "tue":
 				joueur.competences.pratiquer("epee", 1.8 if _lourd or _contre else 1.0)
 				if not gere:
