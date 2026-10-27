@@ -598,7 +598,7 @@ func _coups_mesures() -> void:
 		var nom := ("geste_%s" % geste) if force != "" else "coup_%d_%s" % [n + 1, geste]
 		var w := 384
 		var h := 216
-		var images := vues.slice(0, 20)
+		var images := vues.slice(0, 30)
 		var p := Image.create(w * 5, h * ceili(images.size() / 5.0), false, Image.FORMAT_RGBA8)
 		for k in images.size():
 			var im: Image = images[k]

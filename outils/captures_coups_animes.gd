@@ -5,7 +5,8 @@ extends SceneTree
 ##     planches IMAGE PAR IMAGE (60 i/s, pas fixe) : <sortie>/<seq>.png, chaque vignette légendée (geste, étape, temps,
 ##     % de lame visible à l'écran, angle du plat avec l'œil) ; lignes MESURE imprimées.
 ##     Séquences : combo (A → B → C enchaînés), puissante (charge puis balayage), puissante_avant / _droite / _arriere,
-##     garde (levée, parade parfaite, coup encaissé), contre, horizontale, revers, estoc.
+##     garde (levée, parade parfaite, coup encaissé), contre, horizontale, revers, estoc, vertical (geste verticale_l).
+##     --images : chaque image aussi en PNG (<sortie>/<seq>_images/NNN.png) pour monter un film ralenti (ffmpeg).
 ##   ... -- --repos --sortie=<dossier> : pose de repos (jour) à côté de la référence (planche_combat_epee_1100.jpg),
 ##     angle de roulis mesuré (plat de la lame / direction de l'œil).
 ##   godot --path . --write-movie <fichier.avi> --fixed-fps 60 --script res://outils/captures_coups_animes.gd -- --film
@@ -161,6 +162,9 @@ func _sequence(nom: String, actions: Dictionary, duree: float, tous := 1, geste_
 			mains._preparer_geste(false)
 		if i % tous == 0:
 			images.append(await _vue(nom, images.size() + 1, i * DT * 1000.0))
+			if _arg("images") != "":   # --images : chaque image en PNG (<sortie>/<seq>_images/NNN.png), pour un film ralenti
+				DirAccess.make_dir_recursive_absolute(sortie.path_join(nom + "_images"))
+				(images[images.size() - 1] as Image).save_png(sortie.path_join(nom + "_images/%03d.png" % images.size()))
 		else:
 			await process_frame
 	j.velocity = Vector3.ZERO
@@ -199,9 +203,9 @@ func _go() -> void:
 				await _sequence("garde", {0: ["garde"], 6: ["coup_face"], 40: ["coup_face"]}, 1.2, 1)
 			"contre":
 				await _sequence("contre", {0: ["garde"], 20: ["contre", "appuyer"], 22: ["relacher"]}, 1.0, 1)
-			"horizontale", "revers", "estoc":
-				var g: String = {"horizontale": "horizontale", "revers": "diag_gd", "estoc": "estoc"}[q]
-				await _sequence(q, {0: ["appuyer"], 2: ["relacher"]}, 0.55, 1, g)
+			"horizontale", "revers", "estoc", "vertical":
+				var g: String = {"horizontale": "horizontale", "revers": "diag_gd", "estoc": "estoc", "vertical": "verticale_l"}[q]
+				await _sequence(q, {0: ["appuyer"], 2: ["relacher"]}, 0.62, 1, g)
 	quit()
 
 ## Repos à côté de la référence (même hauteur), angle de roulis mesuré.
