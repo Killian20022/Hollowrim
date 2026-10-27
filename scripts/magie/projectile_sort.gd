@@ -6,7 +6,7 @@ extends Projectile
 ## animés). Peut traverser `traverse` cibles (lance). À chaque touche : rappel.call(cible, point, normale) — cible
 ## null = décor (fin du vol). Les dégâts sont faits par le rappel (LanceurSorts), pas ici.
 
-const RAYON_TOUCHE := 0.5
+const RAYON_TOUCHE := 0.4
 const VIE_SORT := 3.0
 
 var rappel: Callable
@@ -50,7 +50,7 @@ func _physics_process(dt: float) -> void:
 			continue
 		var centre: Vector3 = Elements._centre(c) if vise == "ennemis" else c.global_position + Vector3(0, 1.1, 0)
 		var proche := Geometry3D.get_closest_point_to_segment(centre, de, vers)
-		var rayon := RAYON_TOUCHE + (0.25 if vise == "ennemis" else 0.0)
+		var rayon := RAYON_TOUCHE + (0.15 if vise == "ennemis" else 0.0)
 		if proche.distance_to(centre) <= rayon or _dans_hauteur(c, proche):
 			if _mur_entre(de, proche):
 				break

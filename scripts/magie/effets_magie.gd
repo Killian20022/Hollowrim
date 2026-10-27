@@ -176,10 +176,10 @@ static func impact(ecole: String, position: Vector3, normale: Vector3, force: fl
 	var r := _racine()
 	if r == null:
 		return
-	var s := _sphere(0.15, couleur(ecole), 0.8)
+	var s := _sphere(0.07, couleur(ecole), 0.6)
 	r.add_child(s)
 	s.global_position = position + normale * 0.05
-	_ephemere(s, 0.25, 1.0 + 3.0 * clampf(force, 0.2, 2.0))
+	_ephemere(s, 0.18, 1.0 + 1.5 * clampf(force, 0.2, 2.0))
 
 static func zone(ecole: String, position: Vector3, rayon: float, duree: float) -> void:
 	_compter("zone")

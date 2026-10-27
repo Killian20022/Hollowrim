@@ -422,11 +422,13 @@ func _lancer(m: String, s: DonneesSort, charge: float) -> void:
 # ------------------------------------------------------------------ enchantement (phase 5)
 
 func _enchanter(s: DonneesSort) -> void:
-	if not enchantement.is_empty():
+	if not enchantement.is_empty() and is_instance_valid(_arme_enchantee):
 		EffetsMagie.enchant_arme(_arme_enchantee, (enchantement["sort"] as DonneesSort).ecole, false)
 	enchantement = {"sort": s, "reste": s.duree_enchant}
-	_arme_enchantee = mains.get("_modele_arme_d")
-	EffetsMagie.enchant_arme(_arme_enchantee, s.ecole, true)
+	var a = mains.get("_modele_arme_d")
+	_arme_enchantee = a if is_instance_valid(a) else null
+	if _arme_enchantee != null:
+		EffetsMagie.enchant_arme(_arme_enchantee, s.ecole, true)
 	_noter("enchantement %s" % s.id)
 
 func enchantement_actif() -> Dictionary:
@@ -438,13 +440,17 @@ func _avancer_enchantement(dt: float) -> void:
 	if enchantement.is_empty():
 		return
 	enchantement["reste"] = float(enchantement["reste"]) - dt
-	var arme: Node3D = mains.get("_modele_arme_d")
+	if not is_instance_valid(_arme_enchantee):
+		_arme_enchantee = null   # le modèle de l'épée a été libéré (changement d'arme)
+	var arme_v = mains.get("_modele_arme_d")
+	var arme: Node3D = arme_v if is_instance_valid(arme_v) else null
 	if float(enchantement["reste"]) <= 0.0 or not eq.categorie("droite").begins_with("arme"):
-		EffetsMagie.enchant_arme(_arme_enchantee, (enchantement["sort"] as DonneesSort).ecole, false)
+		if _arme_enchantee != null:
+			EffetsMagie.enchant_arme(_arme_enchantee, (enchantement["sort"] as DonneesSort).ecole, false)
 		enchantement = {}
 		_arme_enchantee = null
 		_noter("fin enchantement")
-	elif arme != _arme_enchantee:
+	elif arme != _arme_enchantee and arme != null:
 		# l'épée a changé de modèle (Skarnholt…) : l'enchantement passe sur la nouvelle
 		_arme_enchantee = arme
 		EffetsMagie.enchant_arme(arme, (enchantement["sort"] as DonneesSort).ecole, true)
