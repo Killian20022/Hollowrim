@@ -121,9 +121,10 @@ func _tester() -> void:
 		res[fps] = await _suite(fps)
 	var ref: Array = res[60][0]
 	_verif(ref.size() == 4, "4 coups -> 4 touches sur le mannequin à 60 i/s (une seule par coup) : %d" % ref.size())
-	_verif(res[60][1] == ["diag_dg", "horizontale_b", "verticale_l"], "combo de base : diagonale, horizontal, vertical %s" % [res[60][1]])
+	_verif(res[60][1] == ["diag_dg", "revers_gd", "estoc_combo"], "combo de base : diagonale, horizontal gauche → droite, estoc %s" % [res[60][1]])
 	if ref.size() == 4:
-		_verif(absf(ref[2]["degats"] - 14.0 * 1.25) < 0.05, "le coup 3 (vertical) est le plus fort : %.1f" % ref[2]["degats"])
+		_verif(absf(ref[2]["degats"] - 14.0 * 1.25) < 0.05, "le coup 3 (estoc) est le plus fort : %.1f" % ref[2]["degats"])
+	_geometrie_combo()
 	_verif(absf(float(res[60][2]) - 1.0) < 1e-6 and res[60][3] == EtatCombat.CHARGE_LOURDE, "charge plafonnée à 1 en HeavyCharge")
 	if ref.size() == 4:
 		_verif(not ref[0]["puissant"] and ref[3]["puissant"] and absf(ref[3]["degats"] - 34.0 * 1.3) < 0.05, "léger 14, lourd à pleine charge 34 × 1,3 = %.1f" % ref[3]["degats"])
@@ -151,9 +152,9 @@ func _tester() -> void:
 
 	# --- 2 bis. directions selon le contexte (phase 4) et continuité des enchaînements
 	print("-- directions")
-	var cas := [["en avançant", Vector3(0, 0, -3.2), Vector2.ZERO, "verticale_l"], ["pas à droite", Vector3(3.2, 0, 0), Vector2.ZERO, "horizontale_gd"],
+	var cas := [["en avançant", Vector3(0, 0, -3.2), Vector2.ZERO, "diag_dg"], ["pas à droite", Vector3(3.2, 0, 0), Vector2.ZERO, "horizontale_gd"],
 		["pas à gauche", Vector3(-3.2, 0, 0), Vector2.ZERO, "horizontale"], ["en reculant", Vector3(0, 0, 2.5), Vector2.ZERO, "estoc"],
-		["souris vers la droite", Vector3.ZERO, Vector2(120, 0), "horizontale_gd"], ["souris vers le bas", Vector3.ZERO, Vector2(0, 120), "verticale_l"]]
+		["souris vers la droite", Vector3.ZERO, Vector2(120, 0), "horizontale_gd"], ["souris vers le bas", Vector3.ZERO, Vector2(0, 120), "diag_dg"]]
 	for c in cas:
 		await _reset(Vector3.ZERO, 0.0)
 		var n0: int = s.mannequin.coups.size()
@@ -234,7 +235,7 @@ func _tester() -> void:
 	_verif(s.mannequin.coups.size() == avant, "rien n'est touché à travers le mur")
 
 	# les 3 coups du combo, chacun face au mur : la lame est toujours arrêtée sur la face
-	for g in ["diag_dg", "horizontale_b", "verticale_l"]:
+	for g in ["diag_dg", "revers_gd", "estoc_combo"]:
 		await _reset(Vector3(-1.9, 0, 1.0), 90.0)
 		var n_m: int = s.mannequin.coups.size()
 		mains.trace.garder_debug = true
@@ -298,5 +299,140 @@ func _tester() -> void:
 	_verif(not dernier.is_empty() and absf(float(dernier["degats"]) - 7.0) < 0.05, "sans endurance : coup affaibli (%s dégâts au lieu de 14)" % [dernier.get("degats", "aucun")])
 	print("   transitions refusées par la machine à états : %d" % mains.combat.refus)
 
+	await _finishers()
+
 	print("RESULTAT : ", "OK" if _ok else "ECHEC")
 	quit(0 if _ok else 1)
+
+
+## Combo 2026-10-27 (clips, cinématique directe, sans rendu) : trajet du milieu de lame à l'écran pendant la frappe et
+## « tranchant qui mène » (angle normale du plat / mouvement du milieu de lame, 90 = le tranchant mène).
+func _geometrie_combo() -> void:
+	var cam_mains: Transform3D = mains.transform
+	for g in ["diag_dg", "revers_gd", "estoc_combo"]:
+		var clip := String(ProfilsAnimation.geste(mains.arme.profil, g)["clip"])
+		var m: Dictionary = mains.anim.marqueurs(clip)
+		var t0 := float(m["frappe"])
+		var t1 := float(m["fin_frappe"])
+		var ecr := func(t: float) -> Vector2:
+			var x: Transform3D = cam_mains * mains.anim.pose_arme(clip, t)
+			return ProfilsAnimation.vers_ecran(x * mains._garde_lame.lerp(mains._pointe_lame, 0.5))
+		var a: Vector2 = ecr.call(t0)
+		var b: Vector2 = ecr.call(t1)
+		var fils := []
+		var n := 12
+		for k in n:
+			var ta := t0 + (t1 - t0) * k / n
+			var tb := t0 + (t1 - t0) * (k + 1) / n
+			var xa: Transform3D = cam_mains * mains.anim.pose_arme(clip, ta)
+			var xb: Transform3D = cam_mains * mains.anim.pose_arme(clip, tb)
+			var mil: Vector3 = mains._garde_lame.lerp(mains._pointe_lame, 0.6)
+			var mv: Vector3 = xb * mil - xa * mil
+			if mv.length() > 1e-4:
+				fils.append(rad_to_deg(acos(clampf(absf(xb.basis.z.normalized().dot(mv.normalized())), 0.0, 1.0))))
+		var moy := 0.0
+		for f in fils:
+			moy += float(f) / fils.size()
+		var d := b - a
+		print("   %s : milieu de lame %s -> %s, fil moyen %.0f°" % [g, a.snapped(Vector2.ONE * 0.01), b.snapped(Vector2.ONE * 0.01), moy])
+		match g:
+			"diag_dg":
+				_verif(d.x < -0.4 and d.y < -0.3 and a.x > 0.0 and a.y > 0.0 and b.x < 0.0 and b.y < 0.0, "coup 1 : VRAIE diagonale haut-droite → bas-gauche à travers le centre (%s -> %s)" % [a, b])
+				_verif(moy >= 70.0, "coup 1 : le tranchant mène (fil moyen %.0f° ≥ 70)" % moy)
+			"revers_gd":
+				_verif(d.x > 0.5 and absf(d.y) < 0.2, "coup 2 : horizontal GAUCHE → DROITE (%s -> %s)" % [a, b])
+				_verif(moy >= 70.0, "coup 2 : le tranchant mène, lame à plat (fil moyen %.0f° ≥ 70)" % moy)
+			"estoc_combo":
+				var p0: Transform3D = cam_mains * mains.anim.pose_arme(clip, t0)
+				var p1: Transform3D = cam_mains * mains.anim.pose_arme(clip, t1)
+				_verif((p1.origin - p0.origin).z < -0.1, "coup 3 : estoc, le poing pousse vers l'avant (%.2f m)" % (p1.origin - p0.origin).z)
+
+## Finishers multiples : type choisi selon le contexte, cible alignée (la lame DANS le corps au contact), épée plantée tenue
+## (cible vivante et figée pendant la tenue), retrait puis mort ; décapitation ; plongé au sol ; dos.
+func _finishers() -> void:
+	print("-- finishers multiples")
+	RetourImpact.arret_actif = false
+	for cas in [["plantee", "etourdi", false], ["pommeau", "apres_parade", false], ["dos", "etourdi", true], ["plonge", "sol", false], ["decapitation", "lateral", false]]:
+		var d: CharacterBody3D = s.draugr
+		if not is_instance_valid(d):
+			break
+		var dd := await _draugr_neuf()
+		if dd == null:
+			_verif(false, "draugr neuf pour le finisher %s" % cas[0])
+			continue
+		d = dd
+		var face := -d.global_transform.basis.z if not cas[2] else d.global_transform.basis.z
+		# joueur à 1,9 m, face au draugr (ou dans son dos)
+		var pos := d.global_position + Vector3(d.global_transform.basis.z.x, 0, d.global_transform.basis.z.z).normalized() * (1.9 if not cas[2] else -1.9)
+		var v := d.global_position - pos
+		await _reset(Vector3(pos.x, 0.0, pos.z), rad_to_deg(atan2(-v.x, -v.z)))
+		d.combat.etourdi = 0.0
+		d.combat.au_sol = false
+		d.combat.fenetre_parade = 0.0
+		match String(cas[1]):
+			"etourdi":
+				d.combat.briser_posture()
+			"apres_parade":
+				d.combat.fenetre_parade = 1.4
+			"sol":
+				d._chuter(Vector3.ZERO)
+				d.combat.au_sol = true
+				await _simuler(0.9, 1.0 / 60.0)
+				d.combat.au_sol = true
+			"lateral":
+				d.combat.briser_posture()
+		var cat := String(d.finisher_possible(j))
+		var type := GestesDefense.choisir_finisher(cat, d, j)
+		if cas[0] == "decapitation":
+			mains.finisher_force = "decapitation"
+			type = "decapitation"
+		_verif(type == cas[0], "finisher %s : contexte %s → catégorie %s, type %s" % [cas[0], cas[1], cat, type])
+		mains.finisher_force = String(cas[0])
+		mains.entrees.appuyer()
+		mains.avancer(1.0 / 60.0)
+		mains.entrees.relacher()
+		var lance: bool = mains.combat.etat == EtatCombat.FINISHER and mains._fin_type == cas[0]
+		_verif(lance, "finisher %s lancé (état %s)" % [cas[0], EtatCombat.NOMS[mains.combat.etat]])
+		if not lance:
+			mains.finisher_force = ""
+			continue
+		var m: Dictionary = mains._m.duplicate()
+		var ecart_contact := -1.0
+		var vivant_tenue := true
+		var fige := true
+		var t := 0.0
+		var p_tenue := Vector3.INF
+		while mains.combat.etat == EtatCombat.FINISHER and t < 2.0:
+			mains.avancer(1.0 / 60.0)
+			await physics_frame
+			t = mains._fin_t
+			if ecart_contact < 0.0 and t >= float(m["contact"]):
+				# la lame (pose affichée, fraction d'ancrage) passe par l'os d'ancrage de la cible
+				var xf: Transform3D = mains.global_transform * mains.anim.pose_arme(mains._clip, float(m["contact"]))
+				var pl: Vector3 = xf * mains._garde_lame.lerp(mains._pointe_lame, float(mains._fin_def["frac"]))
+				ecart_contact = Vector2(pl.x - mains._os_finisher().x, pl.z - mains._os_finisher().z).length()
+				p_tenue = d.global_position
+			if m.has("retrait") and cas[0] != "decapitation" and t > float(m["contact"]) + 0.05 and t < float(m["retrait"]) - 0.02:
+				vivant_tenue = vivant_tenue and d.vivant()
+				fige = fige and p_tenue != Vector3.INF and d.global_position.distance_to(p_tenue) < 0.02
+		var duree := float(m["fin"])
+		_verif(ecart_contact >= 0.0 and ecart_contact < 0.12, "finisher %s : la lame entre dans le corps au contact (écart lame / os %s m)" % [cas[0], snappedf(ecart_contact, 0.001)])
+		if cas[0] != "decapitation":
+			_verif(vivant_tenue and fige, "finisher %s : lame tenue dans le corps, cible vivante et figée jusqu'au retrait" % cas[0])
+		_verif(not d.vivant() and mains.dernier_finisher.get("type", "") == cas[0], "finisher %s : la cible meurt (%s), durée %.2f s" % [cas[0], mains.dernier_finisher.get("resultat", "?"), duree])
+		_verif(duree >= 0.95 and duree <= 1.6, "finisher %s : durée %.2f s dans 1-1,6 s" % [cas[0], duree])
+		for k in 60:
+			mains.avancer(1.0 / 60.0)
+		mains.finisher_force = ""
+
+## Remplace le draugr de la scène (tué par un finisher) par un neuf au même endroit (figé).
+func _draugr_neuf() -> CharacterBody3D:
+	var d: CharacterBody3D = s.draugr
+	if is_instance_valid(d) and d.vivant() and d._finisher == "":
+		return d
+	var n: CharacterBody3D = s.creer_draugr(s.POS_DRAUGR, true)
+	s.draugr = n
+	for i in 5:
+		await physics_frame
+	n.combat.profil.chance_blocage = 0.0
+	return n

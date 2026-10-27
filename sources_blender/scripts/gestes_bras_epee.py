@@ -136,17 +136,17 @@ HG_SUIVI = dict(HG_FIN, nom="HG_suivi", poing=E(0.62, -0.28, 0.54), lame=(-0.25,
 # --- FINISHERS ---------------------------------------------------------------------------------------------------------
 # épée plantée : le poing recule à la hanche droite (pointe vers le torse, au centre), estoc profond, la lame RESTE dans
 # le corps (le poing pousse encore, puis tourne la lame dans la plaie), retrait net vers la hanche
-FP_ARME = dict(nom="FP_arme", poing=E(0.56, -0.56, 0.42), lame=(-0.28, 0.26, -0.92), roulis=TRANCHE, coude=(0.8, -1, 0.5), clav=(-8, 0), large=1)
-FP_TENSION = dict(FP_ARME, nom="FP_tension", poing=E(0.60, -0.60, 0.39))
-FP_DEDANS = dict(nom="FP_dedans", poing=E(0.16, -0.36, 0.62), lame=(-0.22, 0.20, -0.95), roulis=TRANCHE, coude=(0.6, -1, 0.1), clav=(22, 2), epaule=(-0.05, 0.0, -0.09), large=1)
-FP_ENFONCE = dict(FP_DEDANS, nom="FP_enfonce", poing=E(0.14, -0.35, 0.66), epaule=(-0.05, 0.0, -0.11))
+FP_ARME = dict(nom="FP_arme", poing=E(0.64, -0.70, 0.44), lame=(-0.31, 0.18, -0.93), roulis=TRANCHE, coude=(0.8, -1, 0.5), clav=(-8, 0), large=1)
+FP_TENSION = dict(FP_ARME, nom="FP_tension", poing=E(0.68, -0.74, 0.41))
+FP_DEDANS = dict(nom="FP_dedans", poing=E(0.36, -0.52, 0.62), lame=(-0.31, 0.16, -0.94), roulis=TRANCHE, coude=(0.6, -1, 0.1), clav=(22, 2), epaule=(-0.05, 0.0, -0.09), large=1)
+FP_ENFONCE = dict(FP_DEDANS, nom="FP_enfonce", poing=E(0.33, -0.50, 0.66), epaule=(-0.05, 0.0, -0.11))
 FP_TOURNE = dict(FP_ENFONCE, nom="FP_tourne", roulis=48)
-FP_RETRAIT = dict(FP_ARME, nom="FP_retrait", poing=E(0.58, -0.60, 0.40), lame=(-0.26, 0.24, -0.93))
+FP_RETRAIT = dict(FP_ARME, nom="FP_retrait", poing=E(0.62, -0.68, 0.42))
 # coup de grâce au sol (caméra baissée sur le corps) : poing levé en haut à droite, lame plongée à travers le centre
 FS_ARME = dict(nom="FS_arme", poing=E(0.40, 0.30, 0.40), lame=(-0.18, 0.05, -0.98), roulis=TRANCHE, coude=(1, -0.6, 0.3), clav=(0, 14), epaule=(0.0, 0.06, 0.02), large=1)
 FS_TENSION = dict(FS_ARME, nom="FS_tension", poing=E(0.42, 0.36, 0.38))
-FS_DEDANS = dict(FP_DEDANS, nom="FS_dedans", poing=E(0.12, -0.28, 0.62), lame=(-0.15, 0.16, -0.97))
-FS_ENFONCE = dict(FS_DEDANS, nom="FS_enfonce", poing=E(0.11, -0.30, 0.66), epaule=(-0.05, -0.02, -0.11))
+FS_DEDANS = dict(FP_DEDANS, nom="FS_dedans", poing=E(0.30, -0.42, 0.62), lame=(-0.26, 0.14, -0.95))
+FS_ENFONCE = dict(FS_DEDANS, nom="FS_enfonce", poing=E(0.28, -0.44, 0.66), epaule=(-0.05, -0.02, -0.11))
 FS_RETRAIT = dict(FS_ARME, nom="FS_retrait", poing=E(0.40, 0.18, 0.42))
 
 CLIPS = {
