@@ -41,7 +41,7 @@ static func caches() -> void:
 	Sang._pm_giclee(45.0, 1.2, 4.0, false)
 	Sang.pm_jet(1)
 	Sang.pm_jet(2)
-	for v in [1.6, 2.2, 2.4, 2.5, 2.8, 3.0, 3.2]:
+	for v in [1.2, 1.4, 1.6, 2.2, 2.4, 2.5, 2.8, 3.0, 3.2]:   # 1,2 / 1,4 : étincelles des finishers (casque, cotte)
 		Effets._pm_eclats(v)
 	for c: Color in [Color(3.0, 2.2, 0.8), Color(3.0, 2.4, 1.0), Color(3.2, 2.6, 1.2), Color(3.0, 2.1, 0.7), Color(3.0, 2.0, 0.7)]:
 		Effets._cube_eclats(c, true)

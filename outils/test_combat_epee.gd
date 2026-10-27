@@ -300,8 +300,6 @@ func _tester() -> void:
 	print("   transitions refusées par la machine à états : %d" % mains.combat.refus)
 
 	await _annulation()
-	await _finishers()
-
 	print("RESULTAT : ", "OK" if _ok else "ECHEC")
 	quit(0 if _ok else 1)
 
@@ -383,93 +381,3 @@ func _annulation() -> void:
 	mains.entrees.forcer_garde(0.0)
 	s.mannequin.touche.disconnect(f)
 	await _simuler(0.6, 1.0 / 60.0)
-
-## Finishers multiples : type choisi selon le contexte, cible alignée (la lame DANS le corps au contact), épée plantée tenue
-## (cible vivante et figée pendant la tenue), retrait puis mort ; décapitation ; plongé au sol ; dos.
-func _finishers() -> void:
-	print("-- finishers multiples")
-	RetourImpact.arret_actif = false
-	for cas in [["plantee", "etourdi", false], ["pommeau", "apres_parade", false], ["dos", "etourdi", true], ["plonge", "sol", false], ["decapitation", "lateral", false]]:
-		var d: CharacterBody3D = s.draugr
-		if not is_instance_valid(d):
-			break
-		var dd := await _draugr_neuf()
-		if dd == null:
-			_verif(false, "draugr neuf pour le finisher %s" % cas[0])
-			continue
-		d = dd
-		var face := -d.global_transform.basis.z if not cas[2] else d.global_transform.basis.z
-		# joueur à 1,9 m, face au draugr (ou dans son dos)
-		var pos := d.global_position + Vector3(d.global_transform.basis.z.x, 0, d.global_transform.basis.z.z).normalized() * (1.9 if not cas[2] else -1.9)
-		var v := d.global_position - pos
-		await _reset(Vector3(pos.x, 0.0, pos.z), rad_to_deg(atan2(-v.x, -v.z)))
-		d.combat.etourdi = 0.0
-		d.combat.au_sol = false
-		d.combat.fenetre_parade = 0.0
-		match String(cas[1]):
-			"etourdi":
-				d.combat.briser_posture()
-			"apres_parade":
-				d.combat.fenetre_parade = 1.4
-			"sol":
-				d._chuter(Vector3.ZERO)
-				d.combat.au_sol = true
-				await _simuler(0.9, 1.0 / 60.0)
-				d.combat.au_sol = true
-			"lateral":
-				d.combat.briser_posture()
-		var cat := String(d.finisher_possible(j))
-		var type := GestesDefense.choisir_finisher(cat, d, j)
-		if cas[0] == "decapitation":
-			mains.finisher_force = "decapitation"
-			type = "decapitation"
-		_verif(type == cas[0], "finisher %s : contexte %s → catégorie %s, type %s" % [cas[0], cas[1], cat, type])
-		mains.finisher_force = String(cas[0])
-		mains.entrees.appuyer()
-		mains.avancer(1.0 / 60.0)
-		mains.entrees.relacher()
-		var lance: bool = mains.combat.etat == EtatCombat.FINISHER and mains._fin_type == cas[0]
-		_verif(lance, "finisher %s lancé (état %s)" % [cas[0], EtatCombat.NOMS[mains.combat.etat]])
-		if not lance:
-			mains.finisher_force = ""
-			continue
-		var m: Dictionary = mains._m.duplicate()
-		var ecart_contact := -1.0
-		var vivant_tenue := true
-		var fige := true
-		var t := 0.0
-		var p_tenue := Vector3.INF
-		while mains.combat.etat == EtatCombat.FINISHER and t < 2.0:
-			mains.avancer(1.0 / 60.0)
-			await physics_frame
-			t = mains._fin_t
-			if ecart_contact < 0.0 and t >= float(m["contact"]):
-				# la lame (pose affichée, fraction d'ancrage) passe par l'os d'ancrage de la cible
-				var xf: Transform3D = mains.global_transform * mains.anim.pose_arme(mains._clip, float(m["contact"]))
-				var pl: Vector3 = xf * mains._garde_lame.lerp(mains._pointe_lame, float(mains._fin_def["frac"]))
-				ecart_contact = Vector2(pl.x - mains._os_finisher().x, pl.z - mains._os_finisher().z).length()
-				p_tenue = d.global_position
-			if m.has("retrait") and cas[0] != "decapitation" and t > float(m["contact"]) + 0.05 and t < float(m["retrait"]) - 0.02:
-				vivant_tenue = vivant_tenue and d.vivant()
-				fige = fige and p_tenue != Vector3.INF and d.global_position.distance_to(p_tenue) < 0.02
-		var duree := float(m["fin"])
-		_verif(ecart_contact >= 0.0 and ecart_contact < 0.12, "finisher %s : la lame entre dans le corps au contact (écart lame / os %s m)" % [cas[0], snappedf(ecart_contact, 0.001)])
-		if cas[0] != "decapitation":
-			_verif(vivant_tenue and fige, "finisher %s : lame tenue dans le corps, cible vivante et figée jusqu'au retrait" % cas[0])
-		_verif(not d.vivant() and mains.dernier_finisher.get("type", "") == cas[0], "finisher %s : la cible meurt (%s), durée %.2f s" % [cas[0], mains.dernier_finisher.get("resultat", "?"), duree])
-		_verif(duree >= 0.95 and duree <= 1.6, "finisher %s : durée %.2f s dans 1-1,6 s" % [cas[0], duree])
-		for k in 60:
-			mains.avancer(1.0 / 60.0)
-		mains.finisher_force = ""
-
-## Remplace le draugr de la scène (tué par un finisher) par un neuf au même endroit (figé).
-func _draugr_neuf() -> CharacterBody3D:
-	var d: CharacterBody3D = s.draugr
-	if is_instance_valid(d) and d.vivant() and d._finisher == "":
-		return d
-	var n: CharacterBody3D = s.creer_draugr(s.POS_DRAUGR, true)
-	s.draugr = n
-	for i in 5:
-		await physics_frame
-	n.combat.profil.chance_blocage = 0.0
-	return n

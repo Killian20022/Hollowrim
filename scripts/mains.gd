@@ -160,20 +160,14 @@ var _fin_cat := ""
 var _fin_geste := {}
 var _fin_t := 0.0
 var _fin_frappe := false
-var _fin_type := ""             # type de finisher (GestesDefense.FINISHERS)
-var _fin_def := {}
-var _fin_faits := {}            # étapes déjà jouées (pommeau, contact, retrait)
-var _fin_ancre := Vector3.ZERO  # point d'ancrage sur la lame au contact (repère des mains)
-var _fin_lame := Vector3.UP     # direction de la lame au contact (repère des mains)
-var _fin_lacet := 0.0
-var _fin_tangage := 0.0
-var _fin_tient := false         # la cible tient le finisher (preparer_finisher) : alignée, figée, étapes jouées
-## Type de finisher imposé (tests, captures) ; "" = choisi selon le contexte.
-var finisher_force := ""
 ## Attaques légères annulées par la garde pendant leur préparation (débogage, tests).
 var annulations := 0
-## Dernier finisher lancé par le joueur : {cible, categorie, resultat} (débogage, tests).
+## Dernier finisher lancé par le joueur : {cible, categorie, resultat, nom} (débogage, tests).
 var dernier_finisher := {}
+## Finisher ALIGNÉ en cours (catalogue Finishers : épée plantée, pommeau, décapitation, dos, plongé) ; null = ancien finisher court.
+var _seq: SequenceFinisher
+## Dernière séquence alignée (mesures : pointe dans le torse…), gardée après la fin pour les tests et les outils.
+var derniere_sequence: SequenceFinisher
 ## Prises de l'épée et de la torche dans les mains (repère des os hand_r / hand_l),
 ## calculées sur le poing fermé (voir _calculer_prise).
 var PRISE_D := Transform3D()
@@ -651,7 +645,7 @@ func _etat_ancien() -> int:
 		EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE, EtatCombat.CONTRE:
 			return ARMER if _t_geste < _duree_prep + _duree_tenue else FRAPPE
 		EtatCombat.FINISHER:
-			return ARMER if _fin_t < float(_m.get("frappe", 0.26)) else FRAPPE
+			return ARMER if _fin_t < GestesDefense.FINISHER["elan"] else FRAPPE
 		EtatCombat.CHARGE_LOURDE:
 			return CHARGE
 		EtatCombat.RECUPERATION:
@@ -1261,7 +1255,9 @@ func _chercher_finisher() -> Dictionary:
 				continue
 			if d > 0.3 and v.normalized().dot(avant) < cos(deg_to_rad(CONE_FINISHER)):
 				continue
-			# (dans le dos de la cible : finisher « dos », GestesDefense.choisir_finisher)
+			var face := c.global_transform.basis.z
+			if d > 0.3 and absf(Vector2(face.x, face.z).angle_to(Vector2(-v.x, -v.z))) > deg_to_rad(140.0) and not Finishers.humanoide(c):
+				continue   # dans le dos d'une cible sans finisher « dos » (créature hors gabarit)
 			var cat := String(n.finisher_possible(joueur))
 			if cat == "":
 				continue
@@ -1273,26 +1269,32 @@ func _chercher_finisher() -> Dictionary:
 			d_min = d
 	return meilleur
 
-## Lance un finisher si une cible est achevable (appelé au clic, léger ou lourd). Le TYPE dépend du contexte
-## (GestesDefense.choisir_finisher : épée plantée, dos, plongé au sol, pommeau puis estoc, décapitation) ; la séquence suit
-## les marqueurs de son clip (frappe, contact, [pommeau], retrait, verrou, suivi, fin), 1,0 à 1,4 s : élan au ralenti léger,
-## caméra verrouillée, cible figée et ALIGNÉE (son os d'ancrage amené sur la lame au contact : la lame entre dans le corps),
-## lame tenue dans la plaie, retrait, récupération.
+## Lance un finisher si une cible est achevable (appelé au clic, léger ou lourd). Séquence FPS courte et paramétrable
+## (GestesDefense.FINISHER, ≤ 0,8 s) : élan avec ralenti léger et caméra verrouillée sur la cible, coup, suivi.
 func _tenter_finisher() -> bool:
 	var f := _chercher_finisher()
 	if f.is_empty() or not combat.changer(EtatCombat.FINISHER):
 		return false
 	_fin_cible = f["cible"]
 	_fin_cat = f["categorie"]
-	_fin_type = GestesDefense.choisir_finisher(_fin_cat, _fin_cible, joueur, finisher_force)
-	_fin_def = GestesDefense.FINISHERS[_fin_type]
-	_fin_geste = {"clip": _fin_def["clip"]}
 	_fin_t = 0.0
 	_fin_frappe = false
-	_fin_faits = {}
 	_depart = _pose_courante
-	_clip = String(_fin_def["clip"])
-	_m = anim.marqueurs(_clip)
+	var nom_fin := Finishers.choisir(_fin_cible, _fin_cat, joueur)
+	_seq = null
+	if nom_fin != "":
+		# finisher aligné : bras ET victime animés en synchro (SequenceFinisher), clip de la bibliothèque des finishers
+		_seq = SequenceFinisher.new()
+		_seq.demarrer(self, _fin_cible, _fin_cat, nom_fin)
+		derniere_sequence = _seq
+		_fin_geste = {"clip": _seq.clip}
+		_clip = _seq.clip
+		_m = _seq.m
+		dernier_finisher = {"cible": _fin_cible, "categorie": _fin_cat, "nom": nom_fin, "resultat": ""}
+	else:
+		_fin_geste = GestesDefense.geste(GestesDefense.geste_finisher(_fin_cat))
+		_clip = String(_fin_geste["clip"])
+		_m = anim.marqueurs(_clip)
 	anim.jouer(_clip, 0.08)
 	_contre = false
 	_lourd = true
@@ -1301,173 +1303,136 @@ func _tenter_finisher() -> bool:
 	entrees.attaque_tenue = false   # le bouton tenu ne charge pas un coup lourd après le finisher
 	entrees.tampon = -1.0
 	joueur.depenser(arme.cout_leger)
-	# point d'ancrage : sur la lame (fraction garde → pointe) dans la pose du contact (repère des mains)
-	var pc := anim.pose_arme(_clip, float(_m["contact"]))
-	_fin_ancre = pc * _garde_lame.lerp(_pointe_lame, float(_fin_def["frac"]))
-	_fin_lame = (pc.basis * (_pointe_lame - _garde_lame)).normalized()
-	var v := _fin_cible.global_position - joueur.global_position
-	_fin_lacet = atan2(-v.x, -v.z) if Vector2(v.x, v.z).length() > 0.05 else joueur.rotation.y
-	_fin_tient = _fin_cible.has_method("preparer_finisher") and bool(_fin_cible.preparer_finisher(_fin_type, {"origine": joueur.global_position}))
-	_fin_tangage = _tangage_finisher()
 	if RetourImpact.temps_actif():
-		Effets.ralenti(get_tree(), GestesDefense.FINISHER_RALENTI, float(_m["frappe"]) / GestesDefense.FINISHER_RALENTI)
+		var elan := float(_m.get("frappe", GestesDefense.FINISHER["elan"])) if _seq != null else float(GestesDefense.FINISHER["elan"])
+		Effets.ralenti(get_tree(), GestesDefense.FINISHER_RALENTI, elan / GestesDefense.FINISHER_RALENTI)
 	RetourImpact.son(self, "fouette_lourd", (get_parent() as Node3D).global_position, 1.0, 0.92)
 	return true
 
-## Os d'ancrage de la cible (monde) : spine_03 (torse), neck_01 (cou) ; à défaut une hauteur du corps.
-func _os_finisher() -> Vector3:
+## Point visé par le finisher : le cou (finisher de taille) ou le buste au sol (coup de grâce).
+func _point_finisher() -> Vector3:
 	var c := _fin_cible
-	var modele: Variant = c.get("modele")
-	var p := FinisherSubi.os_monde(modele as Node3D, String(_fin_def["ancre"])) if modele is Node3D else Vector3.INF
-	if p != Vector3.INF:
-		return p
+	if _seq != null and _seq.combat != null:
+		var acc := _seq.combat._accroche(String(_seq._plans[_seq._plans.size() - 1]["os"]))
+		if acc != null:
+			return acc.global_position
 	var cb: Variant = c.get("combat")
 	var h: float = (cb as CombatEnnemi).hauteur if cb is CombatEnnemi else 1.8
-	if not bool(_fin_def["debout"]):
+	if _fin_cat == "sol":
 		return c.global_position + Vector3(0, 0.25, 0)
-	return c.global_position + Vector3(0, h * (0.84 if _fin_def["ancre"] == "neck_01" else 0.7), 0)
-
-## Tangage de la tête qui met le point d'ancrage de la lame (au contact) à la hauteur de l'os d'ancrage de la cible.
-## Point L (repère de la tête, indépendant du tangage) ; rotation X de p : hauteur(p) = y_tête + L.y cos p − L.z sin p
-## = y_tête + R cos(p + φ), φ = atan2(L.z, L.y).
-func _tangage_finisher() -> float:
-	if not ("tete" in joueur) or joueur.tete == null:
-		return 0.0
-	var tete: Node3D = joueur.tete
-	var L: Vector3 = tete.global_transform.affine_inverse() * (global_transform * _fin_ancre)
-	var dy := _os_finisher().y - tete.global_position.y
-	var r := Vector2(L.y, L.z).length()
-	if r < 0.05:
-		return tete.rotation.x
-	var phi := atan2(L.z, L.y)
-	var a := acos(clampf(dy / r, -1.0, 1.0))
-	var p1 := wrapf(-phi + a, -PI, PI)
-	var p2 := wrapf(-phi - a, -PI, PI)
-	var p := p1 if absf(p1) < absf(p2) else p2
-	return clampf(p, -1.25, 0.6)
-
-## Point d'ancrage de la lame (monde) dans la pose du contact, avec la caméra actuelle.
-func _ancre_monde() -> Vector3:
-	return global_transform * _fin_ancre
+	return c.global_position + Vector3(0, h * 0.84, 0)
 
 func _avancer_finisher(dt: float) -> void:
-	var t0 := _fin_t
-	_fin_t += dt
-	var t := _fin_t
+	if _seq != null:
+		_avancer_sequence(dt)
+		return
+	var e := GestesDefense.FINISHER
+	var elan := float(e["elan"])
+	var coup := float(e["coup"])
 	var frappe := float(_m["frappe"])
 	var fin_frappe := float(_m["fin_frappe"])
-	var contact := float(_m["contact"])
+	_fin_t += dt
 	var valide := is_instance_valid(_fin_cible) and _fin_cible.is_inside_tree()
-	anim.regler(minf(t, float(_m["fin"])))
-	if valide and t <= float(_m.get("verrou", fin_frappe)):
+	if valide and not _fin_frappe:
 		_verrouiller_camera(dt)
-	# avant le contact : la cible (figée) est amenée sur la lame ; au contact, alignement exact
-	if valide and t0 < contact and _fin_tient:
-		_aligner_finisher(dt, t >= contact)
-	# traînée de lame pendant la frappe (pas fixe, comme les coups)
-	if t0 < frappe and t >= frappe:
+	if _fin_t < elan:
+		anim.regler(frappe * _fin_t / elan)
+		return
+	var s := clampf((_fin_t - elan) / coup, 0.0, 1.0)
+	anim.regler(frappe + (fin_frappe - frappe) * s)
+	# traînée de lame du coup, échantillonnée à pas fixe (comme les coups)
+	if _fin_t - dt < elan:
 		trainee.couper()
 		_t_trainee = 0.0
-	if t >= frappe:
-		var t_coup := minf(t, fin_frappe) - frappe
-		while _t_trainee + TraceLame.PAS <= t_coup + 1e-9:
-			_t_trainee += TraceLame.PAS
-			_echantillon_trainee(_couche() * anim.pose_arme(_clip, frappe + _t_trainee), (t - frappe) - _t_trainee)
-	# étapes : pommeau, contact (la lame entre / la tête est tranchée), retrait (la lame sort, l'ennemi s'effondre)
-	for ev in ["pommeau", "contact", "retrait"]:
-		if _m.has(ev) and not _fin_faits.has(ev) and t >= float(_m[ev]):
-			_fin_faits[ev] = true
-			_etape_finisher(ev)
-	if t >= float(_m["suivi"]):
+	var t_coup := minf(_fin_t - elan, coup)
+	while _t_trainee + TraceLame.PAS <= t_coup + 1e-9:
+		_t_trainee += TraceLame.PAS
+		_echantillon_trainee(_couche() * anim.pose_arme(_clip, frappe + (fin_frappe - frappe) * _t_trainee / coup), t_coup - _t_trainee)
+	if not _fin_frappe and s >= 0.5:
+		_frapper_finisher()
+		if "tassement" in joueur:
+			joueur.tassement = maxf(joueur.tassement, 1.0)
+	if _fin_t >= elan + coup:
 		if not _fin_frappe:
 			_frapper_finisher()
-		# fin du clip en récupération (sans fenêtre de combo avant 0,12 s)
+		# suivi et retour au repos : la récupération habituelle (sans fenêtre de combo avant 0,12 s), fin du clip
 		_geste = _fin_geste.duplicate()
 		_geste["enchainement"] = [0.12, 0.9]
-		var m2 := _m.duplicate()
-		m2["fin_frappe"] = minf(t, float(_m["fin"]))
-		_m = m2
 		_pose_fin = _pose_courante
-		_duree_suivi = 0.0
-		_duree_recup = maxf(float(_m["fin"]) - float(m2["fin_frappe"]), 0.01)
+		_duree_suivi = float(_m["suivi"]) - fin_frappe
+		_duree_recup = float(_m["fin"]) - fin_frappe
 		_issue_arret = ""
 		_depuis_coup = 0.0
 		_combo = 0
 		_cote_fin = 0
 		combat.changer(EtatCombat.RECUPERATION)
 
-func _etape_finisher(ev: String) -> void:
-	var mort := String(_fin_def["mort"])
-	match ev:
-		"pommeau":
-			if _fin_tient and _fin_cible.has_method("finisher_contact"):
-				_fin_cible.finisher_contact("pommeau", _info_finisher())
-			joueur.secousse = maxf(joueur.secousse, 0.3)
-		"contact":
-			if "tassement" in joueur:
-				joueur.tassement = maxf(joueur.tassement, 1.0)
-			joueur.secousse = maxf(joueur.secousse, 0.4)
-			if mort == "contact":
-				_frapper_finisher()
-			elif _fin_tient and _fin_cible.has_method("finisher_contact"):
-				var i := _info_finisher()
-				i["tenue"] = float(_m["retrait"]) - float(_m["contact"])
-				_fin_cible.finisher_contact("entree", i)
-		"retrait":
-			if _fin_tient and _fin_cible.has_method("finisher_contact"):
-				_fin_cible.finisher_contact("retrait", _info_finisher())
-			RetourImpact.son(self, "fouette_leger", (get_parent() as Node3D).global_position, -6.0, 0.8)
-			if mort == "retrait":
-				_frapper_finisher()
+## Finisher aligné : la séquence pose le bras, la caméra et la victime ; au suivi, récupération habituelle (fin du clip).
+func _avancer_sequence(dt: float) -> void:
+	_fin_t += dt
+	var interrompu: bool = joueur.mort or not is_instance_valid(_fin_cible) or not _fin_cible.is_inside_tree()
+	if interrompu and not _seq.mort:
+		_seq.annuler()
+		_seq.mort = true
+	var au_suivi: bool = true if interrompu else _seq.avancer(dt)
+	if _seq.mort and not _fin_frappe:
+		_fin_frappe = true
+		dernier_finisher["resultat"] = _seq.resultat
+		if not interrompu:
+			joueur.competences.pratiquer("epee", 2.5)
+			joueur.ennemi_vise = _fin_cible
+	if au_suivi:
+		if not _seq.mort:
+			_seq._tuer(false)
+			dernier_finisher["resultat"] = _seq.resultat
+		_geste = _fin_geste.duplicate()
+		_geste["enchainement"] = [0.12, 0.9]
+		_pose_fin = _pose_courante
+		var suivi := float(_m.get("suivi", _seq.t))
+		_m = _m.duplicate()
+		_m["fin_frappe"] = suivi
+		_duree_suivi = 0.0
+		_duree_recup = maxf(float(_m["fin"]) - suivi, 0.05)
+		_issue_arret = ""
+		_depuis_coup = 0.0
+		_combo = 0
+		_cote_fin = 0
+		_seq = null
+		combat.changer(EtatCombat.RECUPERATION)
 
-## Amène l'os d'ancrage de la cible sur le point d'ancrage de la lame (horizontalement ; la hauteur est réglée par le
-## tangage de la caméra), tourne la cible face au joueur (dos au joueur pour « dos »). `exact` : au contact.
-func _aligner_finisher(dt: float, exact: bool) -> void:
-	var c := _fin_cible
-	_fin_tangage = _tangage_finisher()
-	if bool(_fin_def["debout"]):
-		var v := joueur.global_position - c.global_position
-		var lacet := atan2(v.x, v.z) + (PI if _fin_def.get("dos", false) else 0.0)
-		c.rotation.y = lerp_angle(c.rotation.y, lacet, 1.0 if exact else 1.0 - exp(-12.0 * dt))
-	var ecart := _ancre_monde() - _os_finisher()
-	ecart.y = 0.0
-	c.global_position += ecart * (1.0 if exact else 1.0 - exp(-12.0 * dt))
-
-## Infos d'impact du finisher : point = os d'ancrage (sur la lame), direction = lame (estocs) ou mouvement de la pointe
-## (décapitation), type de finisher.
-func _info_finisher() -> Dictionary:
-	var cam := get_parent() as Node3D
-	var b := cam.global_transform.basis
-	var dir := (global_transform.basis * _fin_lame).normalized()
-	if _fin_type == "decapitation":
-		var tf := float(_m["contact"])
-		dir = (b * (anim.pose_arme(_clip, tf + 0.02) * _pointe_lame - anim.pose_arme(_clip, tf - 0.02) * _pointe_lame)).normalized()
-	var point := _os_finisher() if is_instance_valid(_fin_cible) else _ancre_monde()
-	var vers := point - joueur.global_position
-	vers.y = 0.0
-	return {
-		"type": arme.type_degats, "point": point, "direction": dir, "normale": -vers.normalized(),
-		"zone": "tete" if _fin_type == "decapitation" else "torse", "attaque": "finisher", "arme": arme.id, "stagger": 999.0,
-		"collider": _fin_cible, "origine": joueur.global_position, "puissant": arme.poids >= 2.4,
-		"finisher": _fin_type, "os": String(_fin_def["ancre"]),
-	}
-
-## Verrou de la caméra : le regard (lacet du joueur, tangage de la tête) rejoint vite la pose du finisher.
+## Verrou bref de la caméra : le regard (lacet du joueur, tangage de la tête) rejoint vite le point visé.
 func _verrouiller_camera(dt: float) -> void:
+	var cam := get_parent() as Node3D
+	var v := _point_finisher() - cam.global_position
+	var plat := Vector2(v.x, v.z).length()
+	if plat < 0.05:
+		return
 	var k := 1.0 - exp(-GestesDefense.FINISHER_VERROU * dt)
-	joueur.rotation.y = lerp_angle(joueur.rotation.y, _fin_lacet, k)
+	joueur.rotation.y = lerp_angle(joueur.rotation.y, atan2(-v.x, -v.z), k)
 	if "tete" in joueur and joueur.tete != null:
-		joueur.tete.rotation.x = lerpf(joueur.tete.rotation.x, _fin_tangage, k)
+		joueur.tete.rotation.x = lerpf(joueur.tete.rotation.x, clampf(atan2(v.y, plat), -1.2, 0.6), k)
 
-## Impact final du finisher : subir_finisher(catégorie, info) — la cible joue sa mort spéciale (décapitation, effondrement
-## après le retrait de la lame, coup de grâce) et le profil d'impact « finisher » (arrêt, secousse, voile rouge, ralenti).
+## Impact du finisher : subir_finisher(catégorie, info) — la cible joue sa mort spéciale (décapitation, coup de grâce) et
+## le profil d'impact « finisher » (arrêt, secousse, voile rouge, ralenti).
 func _frapper_finisher() -> void:
 	_fin_frappe = true
 	if not is_instance_valid(_fin_cible) or (_fin_cible.has_method("vivant") and not _fin_cible.vivant()):
 		return
-	var info := _info_finisher()
+	var cam := get_parent() as Node3D
+	var b := cam.global_transform.basis
+	# direction de la lame au contact : mouvement de la pointe dans le clip autour de l'instant de l'impact
+	var tf := (float(_m["frappe"]) + float(_m["fin_frappe"])) * 0.5
+	var dir := b * (anim.pose_arme(_clip, tf + 0.02) * _pointe_lame - anim.pose_arme(_clip, tf - 0.02) * _pointe_lame)
+	var point := _point_finisher()
+	var vers := point - joueur.global_position
+	vers.y = 0.0
+	var info := {
+		"type": arme.type_degats, "point": point, "direction": dir.normalized(), "normale": -vers.normalized(),
+		"zone": "torse" if _fin_cat == "sol" else "tete", "attaque": "finisher", "arme": arme.id, "stagger": 999.0,
+		"collider": _fin_cible, "origine": joueur.global_position, "puissant": arme.poids >= 2.4,
+	}
 	var r := String(_fin_cible.subir_finisher(_fin_cat, info))
-	dernier_finisher = {"cible": _fin_cible, "categorie": _fin_cat, "type": _fin_type, "resultat": r}
+	dernier_finisher = {"cible": _fin_cible, "categorie": _fin_cat, "resultat": r}
 	joueur.competences.pratiquer("epee", 2.5)
 	joueur.ennemi_vise = _fin_cible
 
