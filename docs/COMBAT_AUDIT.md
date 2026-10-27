@@ -70,13 +70,30 @@ Lecture :
   Commit 40dd934.
 - **Annulation** : la garde pendant la préparation d'une attaque légère coupe l'attaque en une image. Une fois la lame active, le coup va au bout. Commit 791b806.
 
+## Passe 7 (2026-10-27, branche combat/vertical)
+Mesures `outils/captures_combat_epee.gd -- --mesures [--gestes=verticale_l,diag_gd]` (lame visible = dans le cadre et non
+cachée par le bras ou la torche ; plat vu = |normale du plat · œil| ; pointe = angle du déplacement de la pointe pendant
+frappe + suivi, à l'écran, avec l'horizontale) :
+
+| Geste | Lame visible (toutes images) | Bras | Plat vu (armé → suivi) | Pointe |
+|---|---|---|---|---|
+| vertical avant (coup_c_ancien) | 12-100 %, 15 images < 60 % | 3,7-15,3 % | ≤ 63 % | 86° (mais lame à plat, se lit en diagonale) |
+| vertical V3 (coup_v) | 52-100 %, 1 image < 60 % (tenue) | 3,7-14,3 % | ≤ 31 % | 81° |
+
+- **Vertical V3** : armé court au coin haut droit (poing à mi-hauteur : plus haut, l'avant-bras dépasse 15 %), lame
+  dressée penchée vers l'avant, puis descente dans un plan vertical un peu à droite du centre, tranche vers l'œil, poignet
+  qui casse ; la pointe finit en bas juste à gauche du centre, sous le poing (jamais derrière lui : pas de lame en bout).
+- **1re image de la frappe** : diagonale 28 → 84 % (lame de l'armé penchée vers l'avant, même poing, frappe identique
+  image par image dès la 2e image) ; revers du combo 28 → 56 % (armé à -0,30 au lieu de -0,40 : la lame ne peut pas
+  pointer plus vers l'avant, butée de pronation). Latences inchangées (mesure_latence_combat : 33/167/200/317 ms etc.).
+
 ## Écarts restants
-- **Vertical** : un vertical pur (clip coup_v) a été essayé puis abandonné :
-  - la lame est vue en bout pendant le suivi (0 % visible) ;
-  - l'avant-bras occupe 18,4 % de l'écran pendant l'armé.
-  
-  L'ancien vertical est gardé : il se lit comme une diagonale raide (frappe : lame 36-100 %, bras 7,6-15,3 %).
-- **1re image de la diagonale et du revers** : seulement 28 % de lame visible, car l'armé sort par le haut de l'écran.
+- **Vertical** : une image de passage (milieu de la frappe) montre la lame très raccourcie (angle lame / visée 11°,
+  76 % visible) ; au suivi la lame est raccourcie de moitié environ (angle 40°) et penche vers le bas à gauche à l'écran ;
+  la récupération montre le plat 2 images (≈ 45-50 %) quand l'avant-bras repasse de la pronation à la supination.
+  Une lame de 0,87 m tenue à 0,6 m de l'œil (champ 72°) ne peut pas descendre « à plat dans l'écran » en restant
+  dans le cadre : elle est soit raccourcie (vers le fond), soit coupée par le bord bas.
+- **Revers du combo** : armé (images 1-6, reprises de la fin de la diagonale) encore à 32-56 %.
 - **Récupération** : la garde n'y est prise qu'après 0,12 s (choix conservé).
 - **Vues Blender** (`--vue=cote|dessus|epaule`) : elles existent mais sont encore trop éloignées pour bien lire.
 - **3e personne** : pas de geste propre par direction.

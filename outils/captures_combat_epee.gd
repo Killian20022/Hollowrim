@@ -483,7 +483,10 @@ func _mesurer_image() -> Array:
 		x = (x - dir * x.dot(dir)).normalized()
 		fil = rad_to_deg(acos(clampf(absf(x.dot(mv)), 0.0, 1.0)))
 	_pointe_prec = t
-	return [lame_pc, angle, bras_pc, poignet, cam.unproject_position(g) / taille, cam.unproject_position(t) / taille, fil]
+	# part apparente du plat (|normale du plat · œil→milieu| : 0 = on ne voit que la tranche, 1 = plat face caméra)
+	var oeil := (cam.global_position - (g + t) * 0.5).normalized()
+	var plat_part := absf(xf.basis.z.normalized().dot(oeil))
+	return [lame_pc, angle, bras_pc, poignet, cam.unproject_position(g) / taille, cam.unproject_position(t) / taille, fil, plat_part]
 
 func _coups_mesures() -> void:
 	var opts := {"draugr": "aucun", "sans-aide": ""}
@@ -530,6 +533,10 @@ func _coups_mesures() -> void:
 		var maxs := [-1e9, -1e9, -1e9, -1e9]
 		var viol := 0
 		var fil_max := 0.0
+		var lame_min_tout := 1e9
+		var sous_60 := 0
+		var plat_max := 0.0
+		var pointes_frappe: Array = []
 		while not fini and i < 220:
 			i += 1
 			mains.avancer(DT)
@@ -575,6 +582,14 @@ func _coups_mesures() -> void:
 			l.text = "C%d %s #%02d %s %dms\nlame %d%%  angle %d  bras %.1f%%  poignet %d  fil %s" % [n + 1, geste, vues.size() + 1, etape, roundi(i * DT * 1000.0), roundi(m[0]), roundi(m[1]), m[2], roundi(m[3]), "-" if m[6] < 0.0 else str(roundi(m[6]))]
 			if actif and m[6] >= 0.0:
 				fil_max = maxf(fil_max, m[6])
+			lame_min_tout = minf(lame_min_tout, m[0])
+			if m[0] < 60.0:
+				sous_60 += 1
+			if etape != "retour":
+				plat_max = maxf(plat_max, m[7])
+			if actif or etape == "suivi":
+				pointes_frappe.append((m[5] as Vector2) * Vector2(16.0, 9.0))
+			print("PLAT C%d #%02d %-7s plat %3d%%" % [n + 1, vues.size() + 1, etape, roundi(100.0 * m[7])])
 			print("MESURE C%d %-15s #%02d %-7s lame %5.1f%% angle %4.1f bras %5.2f%% poignet %4.1f garde %s pointe %s | torche %s main_g %s | visé %.0f, épaule→main %.2f" % [n + 1, geste, vues.size() + 1, etape, m[0], m[1], m[2], m[3], (m[4] as Vector2).snapped(Vector2.ONE * 0.01), (m[5] as Vector2).snapped(Vector2.ONE * 0.01), mains.pivot_torche.transform.origin.snapped(Vector3.ONE * 0.01), (mains.global_transform.affine_inverse() * _os_global(mains._sq, "hand_l")).snapped(Vector3.ONE * 0.01), mains.ecart_coude, ((mains.pivot_epee.transform * mains.PRISE_D.affine_inverse()).origin).distance_to(mains._bras_base * mains._epaule_bras) / (mains._l_bras + mains._l_avant_bras)])
 			var inv: Transform3D = mains.global_transform.affine_inverse()
 			print("   coude réel %s visé %s | main réelle %s visée %s | épaule réelle %s" % [(inv * _os_global(mains._sq, "lowerarm_r")).snapped(Vector3.ONE * 0.01), mains.coude_vise.snapped(Vector3.ONE * 0.01), (inv * _os_global(mains._sq, "hand_r")).snapped(Vector3.ONE * 0.01), (mains.pivot_epee.transform * mains.PRISE_D.affine_inverse()).origin.snapped(Vector3.ONE * 0.01), (inv * _os_global(mains._sq, "upperarm_r")).snapped(Vector3.ONE * 0.01)])
@@ -583,7 +598,7 @@ func _coups_mesures() -> void:
 		var nom := ("geste_%s" % geste) if force != "" else "coup_%d_%s" % [n + 1, geste]
 		var w := 384
 		var h := 216
-		var images := vues.slice(0, 20)
+		var images := vues.slice(0, 30)
 		var p := Image.create(w * 5, h * ceili(images.size() / 5.0), false, Image.FORMAT_RGBA8)
 		for k in images.size():
 			var im: Image = images[k]
@@ -592,6 +607,12 @@ func _coups_mesures() -> void:
 			p.blit_rect(im, Rect2i(0, 0, w, h), Vector2i((k % 5) * w, (k / 5) * h))
 		p.save_png(dossier.path_join(nom + ".png"))
 		var ligne := "RESUME C%d %-15s images %d | frappe : lame %.0f-%.0f %% | angle %.0f-%.0f | bras %.1f-%.1f %% | poignet %.0f-%.0f | fil/mouvement max %.0f | violations %d" % [n + 1, geste, images.size(), mins[0], maxs[0], mins[1], maxs[1], mins[2], maxs[2], mins[3], maxs[3], fil_max, viol]
+		# trajectoire de la pointe à l'écran (frappe + suivi, pixels 16:9) : angle avec l'horizontale du déplacement global
+		var traj := -1.0
+		if pointes_frappe.size() >= 2:
+			var dp: Vector2 = pointes_frappe[pointes_frappe.size() - 1] - pointes_frappe[0]
+			traj = rad_to_deg(atan2(absf(dp.y), absf(dp.x)))
+		ligne += " | toutes images : lame min %.0f %%, < 60 %% : %d | plat vu max %.0f %% | pointe %.0f° / horizontale" % [lame_min_tout, sous_60, 100.0 * plat_max, traj]
 		resume.append(ligne)
 		print("PLANCHE ", nom, " ", images.size(), " images")
 	for r in resume:

@@ -300,8 +300,9 @@ Le tableau ci-dessus est l'historique ; valeurs actuelles (marqueurs arme / frap
 | coup_a | 1 du combo `diag_dg` : VRAIE diagonale haut-droite → bas-gauche, épée levée au-dessus de l'épaule, pronation sans retournement | 0,13 / 0,16 / 0,26 / 0,33 / 0,54 |
 | coup_b | 2 du combo `revers_gd` : horizontal GAUCHE → DROITE à plat, lame qui traîne pointée à gauche (poids_torsion 0,4) | 0,10 / 0,13 / 0,23 / 0,30 / 0,50 |
 | coup_c | 3 du combo `estoc_combo` : petit recul puis extension, le poing pousse vers l'avant | 0,11 / 0,15 / 0,25 / 0,30 / 0,50 |
-| coup_c_ancien | vertical léger `verticale_l` (souris vers le bas, en avançant) | inchangé |
-| coup_v | essai de vertical pur (V2_*) : NON UTILISÉ (lame vue en bout pendant le suivi, avant-bras à 18 % de l'écran à l'armé) | 0,14 / 0,17 / 0,27 / 0,34 / 0,56 |
+| coup_c_ancien | ancien vertical (diagonale raide, lame à plat) : plus utilisé | inchangé |
+| coup_v | vertical `verticale_l` (souris vers le bas, en avançant), V3_* (passe 7, branche combat/vertical) : armé court au coin haut droit, descente dans un plan vertical un peu à droite du centre, poignet qui casse, pointe finale sous le poing | 0,13 / 0,16 / 0,26 / 0,34 / 0,56 |
+| coup_v2 | essai V2 abandonné (lame vue en bout pendant le suivi, avant-bras à 18 % à l'armé) | 0,14 / 0,17 / 0,27 / 0,34 / 0,56 |
 | lourd | 4 phases : armé haut P2_ARME, tension (0,10), coup sec 0,10 → 0,25, grand suivi (0,42), retour 0,70, repos 0,96 | 0,10 / 0,10 / 0,25 / 0,42 / 0,96 |
 | lourd_vertical | sur V2 | 0,06 / 0,06 / 0,21 / 0,40 / 0,92 |
 | encaisse | coup bloqué : choc (lame chassée), rebond, replacement en garde | fin 0,26 (DUREE_ENCAISSE) |
@@ -311,6 +312,10 @@ Lames : `sources_blender/epees_longues/epees_longues.py` (EPAIS 1,8, LARGE 1,12)
 4,7 → 7,0 px, plat 79,2° inchangé. Les clips de finishers (finisher_plantee, _dos, _plonge, _pommeau, _taille) sont
 dans la même bibliothèque ; leur logique est reprise par la branche combat/finishers_ennemis.
 Vues de contrôle Blender : `anim_bras_epee.py -- --clips=<x> --rendu=<dossier> --vue=cote|dessus|epaule`.
+Géométrie rapide sans rendu : `anim_bras_epee.py -- --clips=<x> --mesurer` (par image à 60 i/s : garde / pointe à l'écran,
+part de la lame dans le cadre, part du plat vue, angle lame / visée) ; `--explorer=<CLE> [--grille=...]` liste les lames
+atteignables pour un poing donné (utile : à poing bas, une lame pointée vers l'avant montre le plat).
+Passe 7 (combat/vertical) : voir docs/COMBAT_AUDIT.md (vertical V3, 1re image de la diagonale et du revers).
 
 ### Point d'accroche de la main gauche (pour la magie)
 Les clips n'animent QUE les os droits ; la main gauche est indépendante. Torche : `_accroche_g` (BoneAttachment3D sur
@@ -412,8 +417,8 @@ vertical léger 0,06 → 85 % ; estoc 0,06 → 80 % ; lourd 0,08 → 80 %. Un ap
   tracé de son arme ; seuls les draugrs (et squelettes, bandits : draugr.gd) réagissent à la parade (`subir_parade`) ;
   projectiles et pièges sont bloqués / parés sans déséquilibre. Pas d'animation 3e personne dédiée à la parade ni au
   finisher. Sons de garde non écoutés à l'oreille.
-- Passe 6 : le vertical reste l'ancien coup_c_ancien (diagonale raide plutôt que vertical pur) ; 1re image de la
-  diagonale et du revers à 28 % de lame visible (armé hors champ par le haut) ; bras jusqu'à 15,3 % sur une image.
+- Passe 6 : le vertical restait l'ancien coup_c_ancien ; passe 7 : vertical V3 (coup_v) et 1re image de la diagonale
+  (84 %) et du revers (56 %), limites dans docs/COMBAT_AUDIT.md.
 - Phase 4 (reste) : gestes 3e personne par direction (animations à créer).
 - Phase 5 : équilibrage des 4 variantes, lueurs (rubis, verre), effets d'enchantement.
 - Phase 6 : sons d'impact par matériau, caméra, optimisation.
