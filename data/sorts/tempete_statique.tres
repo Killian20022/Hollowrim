@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_mcxnr"]
+
+[resource]
+script = ExtResource("1_mcxnr")
+id = "tempete_statique"
+nom = "Tempête statique"
+ecole = "electricite"
+type = 3
+portee_mode = 3
+description = "Champ d'éclairs persistant au point visé."
+cout = 52.0
+cout_charge_min = 1.0
+incantation = 0.3
+temps_charge = 0.6
+recuperation = 0.5
+recharge = 9.0
+degats = 9.0
+degats_charge_min = 0.8
+type_degats = "electricite"
+statut = "choc"
+duree_statut = 0.4
+puissance_statut = 0.3
+portee = 16.0
+rayon = 4.0
+duree_zone = 5.0
+double = {
+"cout": 2.2,
+"degats": 1.8,
+"duree_zone": 1.3,
+"rayon": 1.4
+}
+profil = "levee"

@@ -15,7 +15,7 @@ extends Resource
 ## Part des dégâts absorbée (0..1), tous types confondus.
 @export var armure_part := 0.0
 ## Multiplicateurs par type de dégât (1 = normal, < 1 résistance, > 1 vulnérabilité).
-@export var resistances := {"tranchant": 1.0, "contondant": 1.0, "feu": 1.0, "glace": 1.0, "magique": 1.0}
+@export var resistances := {"tranchant": 1.0, "contondant": 1.0, "feu": 1.0, "glace": 1.0, "magique": 1.0, "electricite": 1.0, "tenebres": 1.0}
 ## Multiplicateurs par zone touchée.
 @export var zones := {"tete": 1.6, "torse": 1.0, "bras": 0.75, "jambes": 0.85}
 ## Jauge d'équilibre : réduite par la force de stagger de chaque coup ; vide = posture brisée (étourdi, finisher possible).
@@ -70,11 +70,13 @@ static func _defaut(n: String) -> ProfilCible:
 		"draugr":
 			p.couleur_sang = Color(0.26, 0.04, 0.03)   # sang de mort-vivant : épais, sombre, encore rouge
 			p.posture_max = 40.0
+			p.resistances = {"tranchant": 1.0, "contondant": 1.0, "feu": 1.25, "glace": 1.0, "magique": 1.0, "electricite": 1.0, "tenebres": 0.7}   # mort-vivant (magie)
 		"draugr_guerrier":
 			p.armure_tete = 2.0     # casque
 			p.armure_part = 0.08    # cotte de mailles
 			p.couleur_sang = Color(0.26, 0.04, 0.03)
 			p.posture_max = 50.0
+			p.resistances = {"tranchant": 1.0, "contondant": 1.0, "feu": 1.25, "glace": 1.0, "magique": 1.0, "electricite": 1.15, "tenebres": 0.7}   # mort-vivant en mailles (magie)
 			p.chance_blocage = 0.3
 			p.seuil_moyen = 13.0
 			p.seuil_lourd = 26.0
@@ -83,7 +85,7 @@ static func _defaut(n: String) -> ProfilCible:
 			p.matiere = "os"
 			p.sang = false
 			p.couleur_sang = Color(0.72, 0.68, 0.56)
-			p.resistances = {"tranchant": 1.0, "contondant": 1.4, "feu": 0.9, "glace": 0.8, "magique": 1.2}
+			p.resistances = {"tranchant": 1.0, "contondant": 1.4, "feu": 0.9, "glace": 0.8, "magique": 1.2, "electricite": 0.9, "tenebres": 0.6}
 			p.zones = {"tete": 1.8, "torse": 1.0, "bras": 0.8, "jambes": 0.9}
 			p.posture_max = 36.0
 			p.chance_blocage = 0.3
@@ -99,7 +101,7 @@ static func _defaut(n: String) -> ProfilCible:
 			# jamais renversé ; vulnérable au feu, presque insensible au givre ; sang sombre, épais, violacé ; voix de bête (râles graves)
 			p.armure = 1.0
 			p.armure_part = 0.03
-			p.resistances = {"tranchant": 1.0, "contondant": 0.9, "feu": 1.75, "glace": 0.25, "magique": 1.0}
+			p.resistances = {"tranchant": 1.0, "contondant": 0.9, "feu": 1.75, "glace": 0.25, "magique": 1.0, "electricite": 1.1, "tenebres": 1.0}
 			p.zones = {"tete": 1.5, "torse": 1.0, "bras": 0.8, "jambes": 0.9}
 			p.couleur_sang = Color(0.24, 0.045, 0.07)
 			p.posture_max = 110.0
@@ -115,7 +117,7 @@ static func _defaut(n: String) -> ProfilCible:
 			# lanceur de sorts : robe de laine, aucune armure, posture faible (chaque coup l'interrompt), facile à achever
 			p.couleur_sang = Color(0.40, 0.025, 0.02)
 			p.mort_vivant = false
-			p.resistances = {"tranchant": 1.0, "contondant": 1.0, "feu": 1.25, "glace": 0.5, "magique": 0.8}
+			p.resistances = {"tranchant": 1.0, "contondant": 1.0, "feu": 1.25, "glace": 0.5, "magique": 0.8, "electricite": 1.3, "tenebres": 0.9}
 			p.posture_max = 22.0
 			p.posture_regen = 8.0
 			p.posture_delai = 1.6

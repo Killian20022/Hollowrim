@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_4kcgn"]
+
+[resource]
+script = ExtResource("1_4kcgn")
+id = "arc_electrique"
+nom = "Arc électrique"
+ecole = "electricite"
+type = 1
+portee_mode = 1
+description = "Arc continu précis ; secoue la cible."
+cout_par_seconde = 14.0
+degats = 24.0
+type_degats = "electricite"
+statut = "choc"
+duree_statut = 0.5
+puissance_statut = 0.45
+stagger = 9.0
+portee = 9.0
+largeur = 0.5
+distance_rebond = 4.0
+attenuation_rebond = 0.6
+double = {
+"cout": 2.2,
+"degats": 2.0,
+"portee": 1.3,
+"rebonds_plus": 2,
+"stagger": 1.6
+}
+seuil_interruption = 10.0

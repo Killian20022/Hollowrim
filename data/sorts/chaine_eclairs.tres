@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_uklpx"]
+
+[resource]
+script = ExtResource("1_uklpx")
+id = "chaine_eclairs"
+nom = "Chaîne d'éclairs"
+ecole = "electricite"
+portee_mode = 2
+description = "Éclair instantané qui saute de cible en cible."
+cout = 22.0
+incantation = 0.18
+recuperation = 0.35
+recharge = 1.0
+degats = 24.0
+type_degats = "electricite"
+statut = "choc"
+duree_statut = 0.5
+puissance_statut = 0.4
+stagger = 14.0
+portee = 20.0
+rebonds = 3
+distance_rebond = 6.5
+double = {
+"cout": 2.2,
+"degats": 1.9,
+"portee": 1.2,
+"rebonds_plus": 3,
+"stagger": 1.5
+}

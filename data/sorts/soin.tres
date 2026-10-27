@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_6f84m"]
+
+[resource]
+script = ExtResource("1_6f84m")
+id = "soin"
+nom = "Soin"
+ecole = "soin"
+type = 1
+portee_mode = 5
+description = "Soigne tant que la main est tenue."
+cout_par_seconde = 12.0
+incantation = 0.2
+degats = 0.0
+soin = 16.0
+double = {
+"cout": 2.0,
+"soin": 1.9
+}
+profil = "soi"

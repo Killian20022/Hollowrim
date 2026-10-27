@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_qtpdu"]
+
+[resource]
+script = ExtResource("1_qtpdu")
+id = "explosion_obscure"
+nom = "Explosion obscure"
+ecole = "tenebres"
+type = 3
+portee_mode = 3
+description = "Vortex obscur qui attire puis éclate."
+cout = 48.0
+cout_charge_min = 1.0
+incantation = 0.2
+temps_charge = 1.0
+recuperation = 0.5
+recharge = 6.0
+degats = 34.0
+type_degats = "tenebres"
+statut = "corruption"
+duree_statut = 6.0
+puissance_statut = 0.2
+stagger = 24.0
+portee = 14.0
+rayon = 3.5
+attraction = 3.5
+double = {
+"attraction": 1.5,
+"cout": 2.3,
+"degats": 2.0,
+"duree_statut": 1.6,
+"rayon": 1.5
+}
+profil = "levee"

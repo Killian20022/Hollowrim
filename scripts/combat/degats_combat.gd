@@ -37,9 +37,15 @@ static func appliquer(cible: Node, degats: float, origine: Vector3, puissant: bo
 		cible.noter_impact(info.get("point", Vector3.ZERO), info.get("direction", Vector3.ZERO))
 	if not cible.has_method("recevoir_coup"):
 		return ""
+	# magie (docs/MAGIE.md) : corruption, lame enchantée, combos épée + statut, puis réaction / statut / drain après le coup
+	degats = Elements.avant_coup(cible, degats, info)
+	var res := ""
 	if cible.get_method_argument_count("recevoir_coup") >= 4:
-		return String(cible.recevoir_coup(degats, origine, puissant, info))
-	return String(cible.recevoir_coup(degats, origine, puissant))
+		res = String(cible.recevoir_coup(degats, origine, puissant, info))
+	else:
+		res = String(cible.recevoir_coup(degats, origine, puissant))
+	Elements.apres_coup(cible, res, info, degats)
+	return res
 
 ## Zone touchée d'après la hauteur du point d'impact sur la cible (pieds à son origine, taille 1,8 m × echelle) et son
 ## écart latéral : tête au-dessus de 83 %, jambes sous 45 %, bras sur les côtés du torse.

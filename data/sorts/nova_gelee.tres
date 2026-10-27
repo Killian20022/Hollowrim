@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_igl6c"]
+
+[resource]
+script = ExtResource("1_igl6c")
+id = "nova_gelee"
+nom = "Nova gelée"
+ecole = "glace"
+type = 3
+portee_mode = 4
+description = "Onde de glace autour de soi ; fige presque."
+cout = 40.0
+incantation = 0.25
+recuperation = 0.5
+recharge = 5.0
+degats = 20.0
+type_degats = "glace"
+statut = "gel"
+duree_statut = 4.0
+puissance_statut = 0.55
+stagger = 18.0
+rayon = 4.5
+double = {
+"cout": 2.2,
+"degats": 1.9,
+"duree_statut": 1.5,
+"puissance_statut": 1.4,
+"rayon": 1.5
+}
+profil = "levee"

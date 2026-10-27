@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_sort"]
+
+[resource]
+script = ExtResource("1_sort")
+id = "pics_givre_mage"
+nom = "Pics de givre (mage nordique)"
+ecole = "glace"
+type = 3
+portee_mode = 3
+description = "Zone télégraphiée sous le joueur (disque 1,4 s) puis pics : dégâts, 50 % traversent la garde, ralentissement ×0,5 pendant 2,5 s."
+cout = 0.0
+incantation = 1.4
+degats = 22.0
+type_degats = "glace"
+statut = "gel"
+duree_statut = 2.5
+puissance_statut = 0.5
+rayon = 2.4
+imparable = 0.5
+double = {}

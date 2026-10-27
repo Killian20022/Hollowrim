@@ -227,7 +227,9 @@ func plan() -> Array:
 		"garnitures": [["piliers", {"pts": [Vector3(47.0, 0, -34.0), Vector3(47.0, 0, -26.0), Vector3(53.0, 0, -34.0), Vector3(53.0, 0, -26.0)], "h": 4.6, "largeur": 0.9}]],
 		"ennemis": [_e("jarl", "guerrier", Vector3(53.8, 0, -30.0), -PI * 0.5, true, true, {"boss": "jarl"}),
 			_e("cr_g4_arch1", "squelette_archer", Vector3(56.2, 0, -35.8), -PI * 0.5, true, true, {"archer": true}),
-			_e("cr_g4_arch2", "squelette_archer", Vector3(56.2, 0, -24.2), -PI * 0.5, true, true, {"archer": true})],
+			_e("cr_g4_arch2", "squelette_archer", Vector3(56.2, 0, -24.2), -PI * 0.5, true, true, {"archer": true}),
+			# mage nordique (scripts/mage_nordique_ia.gd, extra « ia » ; ident en cr_ comme tout le donjon) près du coffre givré cof_g4b : garde 7-13 m, téléport borné à 22 m de ce poste
+			_e("cr_g4_mage", "mage", Vector3(55.0, 0, -23.3), -PI * 0.5, false, true, {"ia": "mage_nordique"})],
 		"coffres": [{"id": "cof_g4a", "pos": Vector3(57.9, 0, -36.8), "lacet": -PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 58, "lame_antique": 1}},
 			{"id": "cof_g4b", "pos": Vector3(57.9, 0, -23.2), "lacet": -PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 44, "os_draugr": 2}},
 			{"id": "cof_jarl", "pos": Vector3(57.9, 0, -34.3), "lacet": -PI * 0.5, "nom": "Coffre du Jarl", "butin": {"hache_kolbeinn": 1, "pieces": 80}}]}))

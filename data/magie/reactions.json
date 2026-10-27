@@ -1,0 +1,22 @@
+{
+	"_doc": "Réactions entre écoles (Phase 4) : un sort de l'école `ecole` touche une cible qui porte le statut `statut`. La réaction CONSOMME le statut, coûte `cout_mana` au lanceur (sans mana : coup normal, pas de réaction), et la cible ne peut plus réagir pendant `recharge_cible` s. Dégâts plafonnés à ~1 sort léger. Voir docs/MAGIE.md.",
+	"regles": [
+		{"nom": "vapeur", "statut": "gel", "ecole": "feu", "rayon": 2.5, "degats": 18.0, "type_degats": "feu", "applique": "choc", "duree": 0.6, "puissance": 0.6, "cout_mana": 6.0, "recharge_cible": 2.5, "texte": "Explosion de vapeur : dégâts de zone, cibles aveuglées (titubent)"},
+		{"nom": "vapeur", "statut": "brulure", "ecole": "glace", "rayon": 2.5, "degats": 18.0, "type_degats": "glace", "applique": "choc", "duree": 0.6, "puissance": 0.6, "cout_mana": 6.0, "recharge_cible": 2.5, "texte": "Choc thermique inverse : même vapeur"},
+		{"nom": "decharge", "statut": "gel", "ecole": "electricite", "rayon": 3.0, "degats": 22.0, "type_degats": "electricite", "applique": "choc", "duree": 0.8, "puissance": 0.8, "cout_mana": 8.0, "recharge_cible": 3.0, "texte": "Décharge : la glace conduit, choc sur toute la zone gelée"},
+		{"nom": "decharge_incendiaire", "statut": "brulure", "ecole": "electricite", "rayon": 2.5, "degats": 16.0, "type_degats": "feu", "applique": "brulure", "duree": 3.0, "puissance": 4.0, "cout_mana": 7.0, "recharge_cible": 3.0, "texte": "Décharge incendiaire : les flammes se propagent aux voisins"},
+		{"nom": "cristaux_corrompus", "statut": "corruption", "ecole": "glace", "rayon": 1.5, "degats": 20.0, "type_degats": "tenebres", "applique": "gel", "duree": 3.0, "puissance": 0.65, "cout_mana": 7.0, "recharge_cible": 3.0, "texte": "Cristaux corrompus : dégâts + fort ralentissement"},
+		{"nom": "flammes_obscures", "statut": "corruption", "ecole": "feu", "rayon": 0.0, "degats": 10.0, "type_degats": "tenebres", "applique": "brulure_obscure", "duree": 5.0, "puissance": 6.0, "cout_mana": 6.0, "recharge_cible": 4.0, "texte": "Flammes obscures : brûlure noire qui rend 30 % en vie"},
+		{"nom": "flammes_obscures", "statut": "brulure", "ecole": "tenebres", "rayon": 0.0, "degats": 10.0, "type_degats": "tenebres", "applique": "brulure_obscure", "duree": 5.0, "puissance": 6.0, "cout_mana": 6.0, "recharge_cible": 4.0, "texte": "Flammes obscures (dans l'autre sens)"},
+		{"nom": "arcs_violets", "statut": "corruption", "ecole": "electricite", "rayon": 5.0, "degats": 12.0, "type_degats": "electricite", "applique": "corruption", "duree": 4.0, "puissance": 0.15, "cout_mana": 6.0, "recharge_cible": 3.0, "chaine": 2, "texte": "Arcs violets : l'éclair saute vers 2 voisins et les affaiblit"},
+		{"nom": "arcs_violets", "statut": "choc", "ecole": "tenebres", "rayon": 5.0, "degats": 12.0, "type_degats": "electricite", "applique": "corruption", "duree": 4.0, "puissance": 0.15, "cout_mana": 6.0, "recharge_cible": 3.0, "chaine": 2, "texte": "Arcs violets (dans l'autre sens)"}
+	],
+	"combos_epee": {
+		"_doc": "Phase 5 : un coup d'épée (léger, lourd, contre) sur une cible qui porte ce statut.",
+		"brulure": {"nom": "embrasement", "mult_degats": 1.3, "prolonge": 2.0, "consomme": false},
+		"brulure_obscure": {"nom": "embrasement", "mult_degats": 1.3, "prolonge": 1.0, "consomme": false},
+		"gel": {"nom": "brise_glace", "mult_degats": 1.5, "mult_stagger": 1.5, "consomme": true},
+		"choc": {"nom": "ouverture", "mult_degats": 1.3, "mult_stagger": 2.0, "consomme": false},
+		"corruption": {"nom": "moisson", "mult_degats": 1.2, "soin_part": 0.25, "consomme": true}
+	}
+}

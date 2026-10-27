@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_0qryu"]
+
+[resource]
+script = ExtResource("1_0qryu")
+id = "trait_ombre"
+nom = "Trait d'ombre"
+ecole = "tenebres"
+description = "Trait rapide qui corrompt."
+recharge = 0.35
+degats = 15.0
+type_degats = "tenebres"
+statut = "corruption"
+duree_statut = 5.0
+puissance_statut = 0.15
+stagger = 8.0
+vitesse = 30.0
+forme = "trait"
+double = {
+"cout": 2.3,
+"degats": 2.1,
+"duree_statut": 1.6,
+"puissance_statut": 1.5,
+"stagger": 1.5
+}

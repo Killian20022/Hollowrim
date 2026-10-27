@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_mv8xp"]
+
+[resource]
+script = ExtResource("1_mv8xp")
+id = "enchant_feu"
+nom = "Lame ardente"
+type = 4
+portee_mode = 5
+description = "Enchante l'arme de l'autre main 30 s."
+cout = 35.0
+incantation = 0.5
+recuperation = 0.4
+recharge = 2.0
+degats = 0.0
+statut = "brulure"
+puissance_statut = 4.0
+duree_enchant = 30.0
+degats_enchant = 7.0
+double = {}
+profil = "lame"

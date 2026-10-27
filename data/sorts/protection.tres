@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_iu5re"]
+
+[resource]
+script = ExtResource("1_iu5re")
+id = "protection"
+nom = "Protection"
+ecole = "protection"
+type = 1
+portee_mode = 5
+description = "Barrière de face : absorbe coups et sorts contre du mana."
+cout_par_seconde = 5.0
+degats = 0.0
+reduction_physique = 0.6
+reduction_magique = 0.85
+mana_par_absorbe = 0.4
+double = {
+"cout": 1.8,
+"reduction": 1.25
+}
+profil = "soi"
+seuil_interruption = 9999.0

@@ -1,0 +1,50 @@
+{
+	"_doc": "Règles de compatibilité des deux mains (EquipementMains). Catégories : vide, arme, arme_deux_mains, sort, bouclier, torche. Voir docs/MAGIE.md.",
+	"permis": {
+		"gauche": ["vide", "sort", "bouclier", "torche"],
+		"droite": ["vide", "arme", "arme_deux_mains", "sort"]
+	},
+	"refus": {
+		"gauche:arme": "Une seule arme : elle se tient en main droite.",
+		"droite:bouclier": "Le bouclier se porte au bras gauche.",
+		"droite:torche": "La torche se tient en main gauche.",
+		"gauche:arme_deux_mains": "Une arme à deux mains se prend en main droite (elle occupe les deux)."
+	},
+	"occupe_deux_mains": ["arme_deux_mains"],
+	"_doc_remplace": "Équiper un objet dans une main occupée par une arme à deux mains la range (la main droite redevient vide).",
+	"garde": {
+		"_doc": "Le clic droit lève la GARDE (au lieu d'activer la main gauche) si l'une de ces paires correspond.",
+		"paires": [
+			{"gauche": "bouclier", "droite": "*"},
+			{"gauche": "vide", "droite": "arme"},
+			{"gauche": "torche", "droite": "arme"},
+			{"gauche": "*", "droite": "arme_deux_mains"}
+		]
+	},
+	"enchantement": {
+		"_doc": "Un sort d'enchantement exige une arme dans l'AUTRE main.",
+		"autre_main": ["arme", "arme_deux_mains"],
+		"raison": "Il faut une épée dans l'autre main pour l'enchanter."
+	},
+	"simultane": {
+		"_doc": "Deux sorts différents à la fois (une main chacun). Mana : chaque main paie son sort ; deux canalisations ensemble coûtent ×mult_deux_canalisations. La régénération de mana s'arrête tant qu'une main incante.",
+		"mult_deux_canalisations": 1.15,
+		"incompatibles": [
+			{"a": "soin", "b": "drain_vie", "raison": "Soin et drain se contrarient : un seul flux de vie à la fois."}
+		]
+	},
+	"epee_magie": {
+		"_doc": "Épée en main droite + sort en main gauche.",
+		"sort_pendant_attaque": false,
+		"sort_apres_recuperation": 0.35,
+		"tampon_sort": 0.35,
+		"attaque_coupe_canalisation": true,
+		"charge_gardee_pendant_attaque": true,
+		"fenetre_combo_apres_sort": 1.2,
+		"bonus_combo_apres_sort": 1.15
+	},
+	"double": {
+		"_doc": "Double incantation : les deux boutons dans la fenêtre de synchronisation, MÊME sort dans les deux mains.",
+		"fenetre": 0.15
+	}
+}

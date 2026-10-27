@@ -345,6 +345,51 @@ func _tester() -> void:
 	var sac_av: int = m.joueur.inventaire.objets.get("fragment_sceau_os", 0)
 	t._prendre_fragment(it_os)
 	_verif(m.joueur.inventaire.a("fragment_sceau_os") and t.quetes.vus.has("crypte:fragment_os") and t.quetes.vus.has("ramasse:fragment_sceau_os") and sac_av == 0, "fragment des Os : dans le sac, événement « ramasse: » émis (réveil du gardien)")
+	# mage nordique de la salle du trône (g4, près du coffre cof_g4b) : EnnemiBase créé par la file des gardiens, debout sur le sol,
+	# téléports qui restent dans la salle
+	var rg := Rect2()
+	for z in dj.zones:
+		if z["nom"] == "g4":
+			rg = z["rect"]
+	t.dedans = true          # le test téléporte le joueur sans passer par l'entrée : la crypte doit se savoir occupée (gel par salle)
+	m.joueur.global_position = c.to_global(Vector3(49.0, 0.1, -30.0))
+	for i in 40:
+		await physics_frame
+		await process_frame
+		t._gerer_zones()
+	var mage = m.draugrs.get("cr_g4_mage")
+	_verif(mage != null and is_instance_valid(mage) and mage is EnnemiBase and String(mage.get_script().resource_path).ends_with("mage_nordique_ia.gd"), "mage nordique cr_g4_mage apparu dans la salle du trône (EnnemiBase)")
+	if mage != null and is_instance_valid(mage):
+		var lm: Vector3 = c.to_local(mage.global_position)
+		var r_sol := ss.intersect_ray(PhysicsRayQueryParameters3D.create(mage.global_position + Vector3(0, 1.0, 0), mage.global_position + Vector3(0, -2.0, 0), 1, [mage.get_rid()]))
+		var ecart: float = (mage.global_position.y - (r_sol["position"] as Vector3).y) if not r_sol.is_empty() else 99.0
+		_verif(rg.has_point(Vector2(lm.x, lm.z)) and absf(ecart) < 0.25, "mage debout sur le sol de g4 (local %s, écart au sol %.2f m, à %.1f m du coffre cof_g4b)" % [lm, ecart, Vector2(lm.x - 57.9, lm.z + 23.2).length()])
+		_verif(not mage.est_gele() and t.salles.salle_de(lm) == "g4", "mage actif (pas gelé) avec le joueur dans g4 (salle %s, état %d)" % [t.salles.salle_de(lm), mage.etat])
+		var hors_salle := 0
+		var essais := 0
+		for pj in [Vector3(45.0, 0.1, -30.0), Vector3(51.0, 0.1, -36.0), Vector3(51.0, 0.1, -24.0), Vector3(56.0, 0.1, -30.0), Vector3(44.5, 0.1, -37.0)]:
+			m.joueur.global_position = c.to_global(pj)
+			await physics_frame
+			for k in 6:
+				var tp: Vector3 = mage.point_teleport()
+				if tp == Vector3.INF:
+					continue
+				essais += 1
+				var lt: Vector3 = c.to_local(tp)
+				if not rg.grow(-0.2).has_point(Vector2(lt.x, lt.z)):
+					hors_salle += 1
+					print("      téléport hors de g4 : %s (joueur en %s)" % [lt, pj])
+		_verif(hors_salle == 0, "téléports du mage : %d points d'arrivée calculés, tous dans la salle g4" % essais)
+		m.joueur.global_position = c.to_global(Vector3(-21, 0.1, -12))
+		await physics_frame
+		t.salles.rafraichir(true)
+		_verif(mage.est_gele(), "mage gelé quand le joueur est loin (ossuaire)")
+		t.reinitialiser(["cr_g4_mage"])
+		m.joueur.global_position = c.to_global(Vector3(49.0, 0.1, -30.0))
+		for i in 30:
+			await physics_frame
+			t._gerer_zones()
+		_verif(not m.draugrs.has("cr_g4_mage"), "mage tué dans la sauvegarde (draugrs_morts) : ne revient pas")
 	var n := 0
 	for s in m.tertre.corps.get_children():
 		if s is CollisionShape3D:

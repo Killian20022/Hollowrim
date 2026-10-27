@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_i8wob"]
+
+[resource]
+script = ExtResource("1_i8wob")
+id = "boule_feu"
+nom = "Boule de feu"
+type = 2
+description = "Maintenir pour charger ; explose à l'impact."
+cout = 24.0
+temps_charge = 0.8
+recuperation = 0.35
+recharge = 0.5
+degats = 34.0
+degats_charge_min = 0.55
+statut = "brulure"
+puissance_statut = 4.0
+stagger = 22.0
+rayon = 2.2
+double = {
+"cout": 2.4,
+"degats": 2.2,
+"duree_statut": 1.4,
+"rayon": 1.6,
+"stagger": 1.8,
+"vitesse": 1.1
+}
+profil = "poing"

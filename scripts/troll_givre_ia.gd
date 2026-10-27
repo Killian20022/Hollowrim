@@ -46,6 +46,10 @@ var _recharge := 0.8
 var _cd_ecrase := 2.0
 var _cd_charge := 3.0
 var _brule := 0.0                 # s restantes sans régénération (feu)
+var _peur_feu := 0.0              # magie : recharge de la peur du feu (s)
+## Magie (docs/MAGIE.md) : un troll qui brûle et reprend du feu recule d'effroi (une fois toutes les PEUR_FEU_RECHARGE s).
+const PEUR_FEU_RECHARGE := 6.0
+var peurs_feu := 0                # nombre de reculs d'effroi (tests)
 var _t_regen_fx := 0.0
 var _charge_dir := Vector3.ZERO
 var _charge_touche := false
@@ -116,6 +120,9 @@ func _ia(dt: float) -> void:
 	_cd_ecrase -= dt
 	_cd_charge -= dt
 	_brule = maxf(0.0, _brule - dt)
+	_peur_feu = maxf(0.0, _peur_feu - dt)
+	if Statuts.a(self, "brulure") or Statuts.a(self, "brulure_obscure"):
+		_brule = maxf(_brule, 1.0)   # magie : tant qu'il brûle (statut), pas de régénération
 	_regenerer(dt)
 	var vj := _vers_joueur()
 	var dist: float = vj["dist"]
@@ -405,6 +412,14 @@ func _apres_degats(r: Dictionary) -> void:
 	if String(r["info"].get("type", "")) == "feu":
 		_brule = SANS_REGEN_FEU
 		Effets.eclats(self, r["info"]["point"], Color(3.0, 1.4, 0.4), 10, 2.0, true)
+		# peur du feu : déjà en flammes, il recule (charge et écrasement annoncés annulés), sauf en rage ou étourdi
+		if (Statuts.a(self, "brulure") or Statuts.a(self, "brulure_obscure")) and _peur_feu <= 0.0 and etat not in [RAGE, ETOURDI, SONNE, CHARGE] and joueur != null and vie > 0.0:
+			_peur_feu = PEUR_FEU_RECHARGE
+			peurs_feu += 1
+			var loin: Vector3 = global_position - joueur.global_position
+			loin.y = 0.0
+			_tituber(loin.normalized() * 4.0, 0.7)
+			return
 	if etat in [DORT, GARDE, REVEIL]:
 		_changer(TRAQUE)
 
@@ -436,6 +451,12 @@ func _reagir(r: Dictionary, vers: Vector3) -> void:
 				_tituber(recul * 1.5, 0.45)
 		_:
 			pass   # hyper-armure : les coups légers ne le font pas tituber
+
+## Magie (docs/MAGIE.md) : choc électrique. Le troll (lourd) titube moitié moins, jamais en rage, étourdi, sonné ou en charge lancée.
+func subir_choc(duree: float) -> void:
+	if est_mort or etat in [RAGE, ETOURDI, SONNE, CHARGE]:
+		return
+	_tituber(Vector3.ZERO, maxf(0.25, duree * 0.5))
 
 func _tituber(recul: Vector3, duree: float) -> void:
 	_nettoyer_alerte()

@@ -33,6 +33,7 @@ extends RefCounted
 ##  teinte                         [couleur mini, couleur maxi] des lumières de la zone (tirage par graine) ; n_lum : nombre de lumières
 ##  corniches   [{id, s, lat, longueur, largeur, haut, rampe: "debut"|"fin"}]    dalles praticables (rampe d'accès comprise)
 ##  ennemis     [{id, type, s, lat, face, tenue, archer, boss, patrouille: [[s, lat]…], options}]
+##              « ia » (troll_givre, mage_nordique : monde.SCRIPTS_IA) = ennemi EnnemiBase créé par monde.creer_ennemi, `options` posées avant add_child
 ##  coffres     [{id, s, lat, lacet, nom, butin: {objet: n}}]
 ##  ressources  [{id, genre, s, lat, n}]    genres : minerai_fer, minerai_argent, cristal_givre, champignon_lumineux
 ##  interactions [{id, nom, verbe, texte: [..], evt, objet, s, lat, prop}]
@@ -257,6 +258,9 @@ static func zones_hrafn() -> Array:
 			"ennemis": [
 				{"id": "bandit_8", "type": "sbire", "s": 17.0, "lat": 0.5, "tenue": 1, "nom": "Bandit", "patrouille": [[17.0, 0.5], [30.0, 1.5], [41.0, 0.5]]},
 				{"id": "bandit_archer_2", "type": "sbire", "archer": true, "s": 27.5, "lat": 4.6, "sur": "corniche_lac", "tenue": 3, "nom": "Archer bandit", "face": "centre"},
+				# troll de givre (scripts/troll_givre_ia.gd) endormi au fond de la caverne, côté paroi : sol plat (±2 cm sur 1 m), à 1,3 m
+				# de la patrouille de bandit_8 (capsule 0,75 m libre) ; le rivage (lat < 0) est en pente : il y glissait. Réveil à 9 m.
+				{"id": "troll_lac", "ia": "troll_givre", "s": 37.5, "lat": 2.1, "face": "entree", "nom": "Troll de givre", "options": {"dort": true}},
 			],
 			"ressources": [
 				{"id": "champi_b", "genre": "champignon_lumineux", "s": 25.0, "lat": 4.9, "sur": "corniche_lac", "n": 1},
