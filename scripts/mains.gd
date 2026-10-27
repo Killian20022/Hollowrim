@@ -156,8 +156,12 @@ var _fin_cat := ""
 var _fin_geste := {}
 var _fin_t := 0.0
 var _fin_frappe := false
-## Dernier finisher lancé par le joueur : {cible, categorie, resultat} (débogage, tests).
+## Dernier finisher lancé par le joueur : {cible, categorie, resultat, nom} (débogage, tests).
 var dernier_finisher := {}
+## Finisher ALIGNÉ en cours (catalogue Finishers : épée plantée, pommeau, décapitation, dos, plongé) ; null = ancien finisher court.
+var _seq: SequenceFinisher
+## Dernière séquence alignée (mesures : pointe dans le torse…), gardée après la fin pour les tests et les outils.
+var derniere_sequence: SequenceFinisher
 ## Prises de l'épée et de la torche dans les mains (repère des os hand_r / hand_l),
 ## calculées sur le poing fermé (voir _calculer_prise).
 var PRISE_D := Transform3D()
@@ -1202,8 +1206,8 @@ func _chercher_finisher() -> Dictionary:
 			if d > 0.3 and v.normalized().dot(avant) < cos(deg_to_rad(CONE_FINISHER)):
 				continue
 			var face := c.global_transform.basis.z
-			if d > 0.3 and absf(Vector2(face.x, face.z).angle_to(Vector2(-v.x, -v.z))) > deg_to_rad(140.0):
-				continue   # dans le dos de la cible
+			if d > 0.3 and absf(Vector2(face.x, face.z).angle_to(Vector2(-v.x, -v.z))) > deg_to_rad(140.0) and not Finishers.humanoide(c):
+				continue   # dans le dos d'une cible sans finisher « dos » (créature hors gabarit)
 			var cat := String(n.finisher_possible(joueur))
 			if cat == "":
 				continue
@@ -1223,12 +1227,24 @@ func _tenter_finisher() -> bool:
 		return false
 	_fin_cible = f["cible"]
 	_fin_cat = f["categorie"]
-	_fin_geste = GestesDefense.geste(GestesDefense.geste_finisher(_fin_cat))
 	_fin_t = 0.0
 	_fin_frappe = false
 	_depart = _pose_courante
-	_clip = String(_fin_geste["clip"])
-	_m = anim.marqueurs(_clip)
+	var nom_fin := Finishers.choisir(_fin_cible, _fin_cat, joueur)
+	_seq = null
+	if nom_fin != "":
+		# finisher aligné : bras ET victime animés en synchro (SequenceFinisher), clip de la bibliothèque des finishers
+		_seq = SequenceFinisher.new()
+		_seq.demarrer(self, _fin_cible, _fin_cat, nom_fin)
+		derniere_sequence = _seq
+		_fin_geste = {"clip": _seq.clip}
+		_clip = _seq.clip
+		_m = _seq.m
+		dernier_finisher = {"cible": _fin_cible, "categorie": _fin_cat, "nom": nom_fin, "resultat": ""}
+	else:
+		_fin_geste = GestesDefense.geste(GestesDefense.geste_finisher(_fin_cat))
+		_clip = String(_fin_geste["clip"])
+		_m = anim.marqueurs(_clip)
 	anim.jouer(_clip, 0.08)
 	_contre = false
 	_lourd = true
@@ -1238,13 +1254,18 @@ func _tenter_finisher() -> bool:
 	entrees.tampon = -1.0
 	joueur.depenser(arme.cout_leger)
 	if RetourImpact.temps_actif():
-		Effets.ralenti(get_tree(), GestesDefense.FINISHER_RALENTI, float(GestesDefense.FINISHER["elan"]) / GestesDefense.FINISHER_RALENTI)
+		var elan := float(_m.get("frappe", GestesDefense.FINISHER["elan"])) if _seq != null else float(GestesDefense.FINISHER["elan"])
+		Effets.ralenti(get_tree(), GestesDefense.FINISHER_RALENTI, elan / GestesDefense.FINISHER_RALENTI)
 	RetourImpact.son(self, "fouette_lourd", (get_parent() as Node3D).global_position, 1.0, 0.92)
 	return true
 
 ## Point visé par le finisher : le cou (finisher de taille) ou le buste au sol (coup de grâce).
 func _point_finisher() -> Vector3:
 	var c := _fin_cible
+	if _seq != null and _seq.combat != null:
+		var acc := _seq.combat._accroche(String(_seq._plans[_seq._plans.size() - 1]["os"]))
+		if acc != null:
+			return acc.global_position
 	var cb: Variant = c.get("combat")
 	var h: float = (cb as CombatEnnemi).hauteur if cb is CombatEnnemi else 1.8
 	if _fin_cat == "sol":
@@ -1252,6 +1273,9 @@ func _point_finisher() -> Vector3:
 	return c.global_position + Vector3(0, h * 0.84, 0)
 
 func _avancer_finisher(dt: float) -> void:
+	if _seq != null:
+		_avancer_sequence(dt)
+		return
 	var e := GestesDefense.FINISHER
 	var elan := float(e["elan"])
 	var coup := float(e["coup"])
@@ -1291,6 +1315,39 @@ func _avancer_finisher(dt: float) -> void:
 		_depuis_coup = 0.0
 		_combo = 0
 		_cote_fin = 0
+		combat.changer(EtatCombat.RECUPERATION)
+
+## Finisher aligné : la séquence pose le bras, la caméra et la victime ; au suivi, récupération habituelle (fin du clip).
+func _avancer_sequence(dt: float) -> void:
+	_fin_t += dt
+	var interrompu: bool = joueur.mort or not is_instance_valid(_fin_cible) or not _fin_cible.is_inside_tree()
+	if interrompu and not _seq.mort:
+		_seq.annuler()
+		_seq.mort = true
+	var au_suivi: bool = true if interrompu else _seq.avancer(dt)
+	if _seq.mort and not _fin_frappe:
+		_fin_frappe = true
+		dernier_finisher["resultat"] = _seq.resultat
+		if not interrompu:
+			joueur.competences.pratiquer("epee", 2.5)
+			joueur.ennemi_vise = _fin_cible
+	if au_suivi:
+		if not _seq.mort:
+			_seq._tuer(false)
+			dernier_finisher["resultat"] = _seq.resultat
+		_geste = _fin_geste.duplicate()
+		_geste["enchainement"] = [0.12, 0.9]
+		_pose_fin = _pose_courante
+		var suivi := float(_m.get("suivi", _seq.t))
+		_m = _m.duplicate()
+		_m["fin_frappe"] = suivi
+		_duree_suivi = 0.0
+		_duree_recup = maxf(float(_m["fin"]) - suivi, 0.05)
+		_issue_arret = ""
+		_depuis_coup = 0.0
+		_combo = 0
+		_cote_fin = 0
+		_seq = null
 		combat.changer(EtatCombat.RECUPERATION)
 
 ## Verrou bref de la caméra : le regard (lacet du joueur, tangage de la tête) rejoint vite le point visé.

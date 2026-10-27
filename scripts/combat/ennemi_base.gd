@@ -567,15 +567,12 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, 
 			force = 680.0
 			montee = 0.35
 		"finisher":
-			match categorie:
-				"sol":
-					force = 60.0
-					montee = -0.6
-					os_touche = "spine_03"
-				_:
-					force = 260.0
-					decapiter = combat.profil.decapitable and Sang.niveau() > 0
-					os_touche = "spine_03"
+			# réglages selon le finisher joué (épée plantée : s'effondre ; décapitation ; coup de grâce au sol…)
+			var rf := combat.reglage_mort_finisher(categorie, info)
+			force = float(rf["force"])
+			montee = float(rf["montee"])
+			os_touche = String(rf["os"])
+			decapiter = bool(rf["decapiter"])
 	force *= _mult_force_mort
 	var lancer := func() -> void:
 		if not is_instance_valid(self) or not is_inside_tree():

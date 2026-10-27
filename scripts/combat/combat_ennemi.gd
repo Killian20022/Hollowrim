@@ -183,6 +183,82 @@ func finisher_possible(joueur: Node3D, vie := 1.0, vie_max := 1.0) -> String:
 			cat = "lateral"
 	return cat
 
+# ------------------------------------------------------------------ finisher aligné (SequenceFinisher)
+
+## En plein finisher : la victime ne pense plus (process physique coupé), ses pieds ne cherchent plus le sol, sa pose est
+## pilotée par la séquence (PoseFinisher par-dessus l'animation de base). Renvoie le modificateur de pose.
+var en_finisher := false
+var pose_finisher: PoseFinisher
+var _sauve_fin := {}
+
+func commencer_finisher(au_sol := false) -> PoseFinisher:
+	en_finisher = true
+	var pieds: Variant = corps.get("_pieds")
+	_sauve_fin = {"phys": corps.is_physics_processing(), "y": modele.position.y, "pieds": (pieds as PiedsAuSol).actif if pieds is PiedsAuSol else false}
+	corps.set_physics_process(false)
+	if corps is CollisionObject3D:
+		# la victime est posée contre le joueur : sa capsule ne doit pas le pousser (ni rien d'autre) pendant la séquence
+		_sauve_fin["couche"] = (corps as CollisionObject3D).collision_layer
+		_sauve_fin["masque"] = (corps as CollisionObject3D).collision_mask
+		(corps as CollisionObject3D).collision_layer = 0
+		(corps as CollisionObject3D).collision_mask = 0
+	if corps is CharacterBody3D:
+		(corps as CharacterBody3D).velocity = Vector3.ZERO
+	if pieds is PiedsAuSol:
+		(pieds as PiedsAuSol).actif = false
+	if reaction_os:
+		reaction_os.etourdi = false
+	var ap: Variant = corps.get("anim")
+	if ap is AnimationPlayer and not au_sol:
+		var a := ap as AnimationPlayer
+		for nom in ["Idle", "Sword_Idle"]:
+			if a.has_animation(nom):
+				a.play(nom, 0.2)
+				a.speed_scale = 0.45
+				break
+	var sq := modele.find_child("Skeleton3D", true, false) as Skeleton3D
+	pose_finisher = PoseFinisher.new()
+	pose_finisher.name = "PoseFinisher"
+	sq.add_child(pose_finisher)
+	return pose_finisher
+
+## Fin du finisher (juste avant la mort) : la pose pilotée s'efface, le process physique revient (état MORT, ragdoll).
+func terminer_finisher() -> void:
+	if is_instance_valid(pose_finisher):
+		pose_finisher.queue_free()
+	pose_finisher = null
+	if en_finisher:
+		modele.position.y = float(_sauve_fin.get("y", modele.position.y))
+		corps.set_physics_process(bool(_sauve_fin.get("phys", true)))
+	en_finisher = false
+
+## Finisher interrompu (joueur mort, cible disparue) : tout revient comme avant.
+func annuler_finisher() -> void:
+	var etait := en_finisher
+	terminer_finisher()
+	var pieds: Variant = corps.get("_pieds")
+	if etait and pieds is PiedsAuSol:
+		(pieds as PiedsAuSol).actif = bool(_sauve_fin.get("pieds", true))
+	if etait and corps is CollisionObject3D and _sauve_fin.has("couche"):
+		(corps as CollisionObject3D).collision_layer = int(_sauve_fin["couche"])
+		(corps as CollisionObject3D).collision_mask = int(_sauve_fin["masque"])
+
+## Mort d'un finisher : réglages du ragdoll selon le finisher joué (info["mort_finisher"], SequenceFinisher) ou la catégorie
+## (ancien finisher court : décapitation, coup de grâce au sol) → {force, montee, os, decapiter}.
+func reglage_mort_finisher(categorie: String, info: Dictionary) -> Dictionary:
+	var decap := profil.decapitable and Sang.niveau() > 0
+	match String(info.get("mort_finisher", "")):
+		"effondre":
+			# la lame retirée, le corps s'affaisse sur place : presque aucune poussée, vers le bas
+			return {"force": 45.0, "montee": -0.8, "os": "spine_03", "decapiter": false}
+		"cloue":
+			return {"force": 30.0, "montee": -1.0, "os": "spine_03", "decapiter": false}
+		"decapite":
+			return {"force": 200.0, "montee": 0.1, "os": "spine_03", "decapiter": decap}
+	if categorie == "sol":
+		return {"force": 60.0, "montee": -0.6, "os": "spine_03", "decapiter": false}
+	return {"force": 260.0, "montee": 0.15, "os": "spine_03", "decapiter": decap}
+
 # ------------------------------------------------------------------ effets
 
 func effets_impact(r: Dictionary, joueur: Node) -> void:

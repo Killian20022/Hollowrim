@@ -10,8 +10,12 @@ extends RefCounted
 ## Marqueurs de chaque clip (métadonnée « marqueurs », s à vitesse 1) : arme, frappe, fin_frappe, suivi, fin.
 
 const BIBLIOTHEQUE := preload("res://assets/animations/bras_epee.tres")
+## Finishers (achèvements) : bibliothèque À PART (sources_blender/scripts/gestes_finishers.py → bras_finishers.tres), jouée par
+## le même AnimationPlayer sous le préfixe « fin/ » ; mêmes os, même repère, mêmes marqueurs (+ contact, plante, retrait, mort).
+const FINISHERS := preload("res://assets/animations/bras_finishers.tres")
 const OS_ANIMES := ["clavicle_r", "upperarm_r", "lowerarm_r", "hand_r"]
 const PREFIXE := "epee/"
+const PREFIXE_FIN := "fin/"
 
 var ap: AnimationPlayer
 var sq: Skeleton3D
@@ -32,12 +36,16 @@ func installer(bras: Node3D, squelette: Skeleton3D) -> void:
 	ap.root_node = NodePath("..")
 	ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	ap.add_animation_library("epee", BIBLIOTHEQUE)
+	ap.add_animation_library("fin", FINISHERS)
 	var i := sq.find_bone("hand_r")
 	while i >= 0:
 		_chaine.push_front(i)
 		i = sq.get_bone_parent(i)
-	for nom in BIBLIOTHEQUE.get_animation_list():
-		var a := BIBLIOTHEQUE.get_animation(nom)
+	var noms: Array[StringName] = []
+	noms.append_array(BIBLIOTHEQUE.get_animation_list())
+	noms.append_array(FINISHERS.get_animation_list())
+	for nom in noms:
+		var a := _anim(nom)
 		var p := {}
 		for k in a.get_track_count():
 			var chemin := String(a.track_get_path(k))
@@ -53,15 +61,19 @@ func installer(bras: Node3D, squelette: Skeleton3D) -> void:
 				p[o][1] = k
 		_pistes[nom] = p
 
+## Clip `nom` : bibliothèque des coups, sinon celle des finishers.
+func _anim(nom: StringName) -> Animation:
+	return BIBLIOTHEQUE.get_animation(nom) if BIBLIOTHEQUE.has_animation(nom) else FINISHERS.get_animation(nom)
+
 func existe(nom: String) -> bool:
-	return BIBLIOTHEQUE.has_animation(nom)
+	return BIBLIOTHEQUE.has_animation(nom) or FINISHERS.has_animation(nom)
 
 func longueur(nom: String) -> float:
-	return BIBLIOTHEQUE.get_animation(nom).length
+	return _anim(nom).length
 
 ## Marqueurs du clip (s à vitesse 1) ; « fin » = longueur par défaut.
 func marqueurs(nom: String) -> Dictionary:
-	var a := BIBLIOTHEQUE.get_animation(nom)
+	var a := _anim(nom)
 	var m: Dictionary = a.get_meta("marqueurs", {}).duplicate()
 	if not m.has("fin"):
 		m["fin"] = a.length
@@ -71,7 +83,7 @@ func marqueurs(nom: String) -> Dictionary:
 func jouer(nom: String, fondu := 0.08, depart := 0.0) -> void:
 	clip = nom
 	t = 0.0
-	ap.play(PREFIXE + nom, fondu)
+	ap.play((PREFIXE if BIBLIOTHEQUE.has_animation(nom) else PREFIXE_FIN) + nom, fondu)
 	if depart > 0.0:
 		regler(depart)
 	else:
@@ -99,7 +111,7 @@ func fini() -> bool:
 ## Pose de l'épée (repère des mains, sans les mouvements passifs) dans le clip `nom` au temps `tc`, recalculée par
 ## cinématique directe sur les pistes du clip (rotation des os animés, repos des autres).
 func pose_arme(nom: String, tc: float) -> Transform3D:
-	var a := BIBLIOTHEQUE.get_animation(nom)
+	var a := _anim(nom)
 	var p: Dictionary = _pistes[nom]
 	tc = clampf(tc, 0.0, a.length)
 	var g := Transform3D()
