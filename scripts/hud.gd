@@ -1,6 +1,7 @@
 extends Control
-## HUD pixel art : boussole en haut, vie et vigueur en bas, barre de l'ennemi frappé.
-## Les barres s'effacent quand tout est plein, comme dans Skyrim.
+## HUD pixel art : boussole en haut, barre de l'ennemi frappé, avis, panneau Tab.
+## Vie / mana / endurance, mains, statuts et raccourcis : enfant HudCombat (scripts/hud_combat.gd), qui s'efface
+## quand tout est plein, comme dans Skyrim.
 ## Positions RELATIVES à `size` (écran logique, voir EchelleUi) : juste à 480x270, 640x360 et 960x540.
 ## Tailles des éléments : voir assets/ui/LISEZMOI.md.
 ## Captures : --hud-demo (barres et avis affichés), --hud-cible (barre d'ennemi), --hud-panneau (panneau Tab).
@@ -11,6 +12,7 @@ const REPERE := preload("res://assets/ui/boussole_repere.svg")
 const LETTRES := preload("res://assets/ui/lettres_boussole.svg")
 const RETICULE := preload("res://assets/ui/reticule.svg")
 const ENNEMI := preload("res://assets/ui/indicateur_degat.svg")
+const HUD_COMBAT := preload("res://scripts/hud_combat.gd")
 
 const VIE := [Color("#e0574a"), Color("#b8322a"), Color("#7a1c1c")]
 const VIGUEUR := [Color("#5fc27f"), Color("#2f8a56"), Color("#1f5a3a")]
@@ -23,8 +25,7 @@ const MARGE := 16.0  # marge des barres sur les bords
 
 var joueur: CharacterBody3D
 var lieux: Array = []  # [position, couleur] : points d'intérêt sur la boussole
-var _a_vie := 0.0
-var _a_vigueur := 0.0
+var combat_ui: Control  # HudCombat (barres, mains, statuts, raccourcis)
 var _a_cible := 0.0
 var _cible: Node = null
 var _avis: Array = []  # [texte, temps restant] : « Épée : niveau 16 »…
@@ -46,6 +47,10 @@ func _ready() -> void:
 	_cadre.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
 	_cadre.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
 	EchelleUi.appliquer(self)
+	combat_ui = Control.new()
+	combat_ui.set_script(HUD_COMBAT)
+	combat_ui.joueur = joueur
+	add_child(combat_ui)
 	var args := OS.get_cmdline_user_args()
 	_demo = args.has("--hud-demo")
 	_demo_cible = args.has("--hud-cible")
@@ -80,14 +85,6 @@ func _process(dt: float) -> void:
 	EchelleUi.appliquer(self)
 	if joueur == null:
 		return
-	var combat := false
-	for e in get_tree().get_nodes_in_group("ennemis"):
-		if e.en_combat():
-			combat = true
-			break
-	var k := 1.0 - exp(-5.0 * dt)
-	_a_vie = lerpf(_a_vie, 1.0 if (joueur.vie < joueur.vie_max - 0.5 or combat) else 0.0, k)
-	_a_vigueur = lerpf(_a_vigueur, 1.0 if (joueur.vigueur < joueur.vigueur_max - 0.5 or combat) else 0.0, k)
 	if joueur.ennemi_vise != null:
 		_cible = joueur.ennemi_vise
 		joueur.ennemi_vise = null
@@ -96,8 +93,6 @@ func _process(dt: float) -> void:
 	for a in _avis:
 		a[1] -= dt
 	if _demo:
-		_a_vie = 1.0
-		_a_vigueur = 1.0
 		for a in _avis:
 			a[1] = 4.0
 	_avis = _avis.filter(func(a: Array) -> bool: return a[1] > 0.0)
@@ -125,7 +120,6 @@ func _draw() -> void:
 	if joueur == null:
 		return
 	var cx := _cx()
-	var bas := size.y - 14.0  # haut des cadres de barre (7 px de haut) : 7 px de marge sous la barre
 	# --- boussole (bandeau 160 px centré) ---
 	draw_texture(BOUSSOLE, Vector2(cx - 80, 4))
 	var cap := rad_to_deg(-joueur.rotation.y)
@@ -145,10 +139,8 @@ func _draw() -> void:
 			_marqueur(e.global_position, ENNEMI, Color.WHITE)
 	draw_texture(REPERE, Vector2(cx - 2, 0))
 
-	# --- réticule (5x5 centré), barres en bas à gauche / à droite ---
+	# --- réticule (5x5 centré) ; les barres sont dessinées par HudCombat ---
 	draw_texture(RETICULE, Vector2(cx - 2, floorf(size.y * 0.5) - 2), Color(1, 1, 1, 0.7))
-	_barre(Vector2(MARGE, bas), joueur.vie / joueur.vie_max, VIE, _a_vie)
-	_barre(Vector2(size.x - MARGE - 80, bas), joueur.vigueur / joueur.vigueur_max, VIGUEUR, _a_vigueur)
 	for i in (0 if panneau_ouvert else _avis.size()):  # le panneau les masquerait à moitié
 		var alpha := clampf(_avis[i][1], 0.0, 1.0)
 		var pos := Vector2(8, 46 + i * 12)
