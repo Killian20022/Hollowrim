@@ -102,7 +102,7 @@ func coup_recu(vers_local: Vector3, force: float) -> void:
 	var v := Vector3(vers_local.x, 0.0, vers_local.z).normalized() if Vector2(vers_local.x, vers_local.z).length() > 0.01 else Vector3(0, 0, -1)
 	_vrl.x += _impulsion(0.016 * k * maxf(-v.z, 0.3), W_LENT)   # de face : la tête part en arrière
 	_vrl.z += _impulsion(0.018 * k * v.x, W_LENT)               # attaquant à droite : on penche à gauche (roulis +)
-	_vrl.y += _impulsion(-0.008 * k * v.x, W_LENT)
+	_vrl.y += _impulsion(0.008 * k * v.x, W_LENT)                # et tourne un peu à l'opposé du coup
 
 ## Une image de jeu. v_sol : vitesse au sol (m/s) ; phase : phase des pas de joueur.gd (_pas) ; vy : vitesse verticale ;
 ## s : joueur.secousse (0..1) ; altitude (facultative) : hauteur des pieds — la chute se mesure alors entre le point le
