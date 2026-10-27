@@ -668,11 +668,11 @@ func _choisir_geste() -> Array:
 	if absf(sx) > SEUIL_SOURIS and absf(sx) > absf(sy) * 1.5:
 		choix = "horizontale_gd" if sx > 0.0 else "horizontale"
 	elif sy > SEUIL_SOURIS and sy > absf(sx) * 1.5:
-		choix = "verticale_l"
+		choix = "diag_dg"   # souris tirée vers le bas : la diagonale (l'ancien vertical « du haut » est retiré)
 	elif absf(loc.x) > SEUIL_COTE and absf(loc.x) > absf(loc.z):
 		choix = "horizontale_gd" if loc.x > 0.0 else "horizontale"
 	elif loc.z < -SEUIL_AVANT:
-		choix = "verticale_l"
+		choix = "diag_dg"
 	elif loc.z > SEUIL_RECUL:
 		choix = "estoc"
 	if choix != "" and gestes.has(choix):

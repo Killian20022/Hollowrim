@@ -127,6 +127,8 @@ RAPPORT = []
 LIM_TORSION = (-80, 85)     # pronation (-) / supination (+) de l'avant-bras autour du neutre (poignée de main)
 LIM_FLEXION = (-60, 70)     # extension (-) / flexion (+, vers la paume)
 LIM_INCL = (-35, 20)        # inclinaison cubitale (-) / radiale (+, vers le pouce)
+LIM_TORSION_L = (-95, 95)   # clés « large » (combo 2026-10-27, finishers) : butées levées, toujours anatomiques
+LIM_INCL_L = (-40, 28)
 
 
 def _bras_deux_os(s, poignet, coude_indice):
@@ -187,12 +189,14 @@ def _cout(W, cle, kfr):
     if "mouvement" in cle:          # le tranchant mène : la normale du plat est perpendiculaire au mouvement
         mv = Vector(cle["mouvement"]).normalized()
         c += 0.3 * math.degrees(math.asin(min(1.0, abs(z.dot(mv)))))
+        if "normale" in cle:        # plat imposé (horizontal du combo : normale du plat verticale)
+            c += cle.get("poids_normale", 0.4) * math.degrees(math.acos(min(1.0, abs(z.dot(Vector(cle["normale"]).normalized())))))
     else:                           # pose tenue : angle du plat avec la direction de l'œil
         milieu = W.translation.to_3d() + y * 0.5
         plat = math.degrees(math.acos(min(1.0, abs(z.dot((-milieu).normalized())))))
         c += cle.get("poids_roulis", 0.6) * abs(plat - cle.get("roulis", 70.0))
     k, f, r = kfr
-    c += 0.03 * (abs(k - cle.get("torsion", 0)) + abs(f) + abs(r))
+    c += cle.get("poids_torsion", 0.03) * abs(k - cle.get("torsion", 0)) + 0.03 * (abs(f) + abs(r))
     if PREC[0] is not None:          # continuité avec la clé précédente (pas de retournement de l'avant-bras)
         c += 0.03 * (abs(k - PREC[0][0]) + 0.5 * abs(f - PREC[0][1]) + 0.5 * abs(r - PREC[0][2]))
     return c
@@ -234,6 +238,8 @@ def poser(cle, cote="r"):
     # coude qui rend la lame voulue atteignable, en préférant l'indication et la continuité avec la clé précédente
     phis = [cle.get("phi", 0)] if (fixe or cle.get("coude_fixe")) else list(range(-90, 91, 15))
     phi_best = 0
+    # butées élargies par clé (« large » : gestes amples des combos / finishers, l'épaule et le coude font le reste)
+    LT, LF, LI = (LIM_TORSION_L, LIM_FLEXION, LIM_INCL_L) if cle.get("large") else (LIM_TORSION, LIM_FLEXION, LIM_INCL)
     for it in range(3):
         decal = (Hrot @ centre_poing) if Hrot is not None else (B_DE_CAM.to_3x3() @ Vector((0.03, -0.06, 0.07)))
         poignet = poing_b - decal
@@ -255,9 +261,9 @@ def poser(cle, cote="r"):
             if fixe:
                 grille = ([cle["k"]], [cle["f"]], [cle["r"]])
             elif it == 0:
-                grille = (range(LIM_TORSION[0], LIM_TORSION[1] + 1, 20), range(LIM_FLEXION[0], LIM_FLEXION[1] + 1, 20), range(LIM_INCL[0], LIM_INCL[1] + 1, 10))
+                grille = (range(LT[0], LT[1] + 1, 20), range(LF[0], LF[1] + 1, 20), range(LI[0], LI[1] + 1, 10))
             else:
-                grille = (range(LIM_TORSION[0], LIM_TORSION[1] + 1, 10), range(LIM_FLEXION[0], LIM_FLEXION[1] + 1, 10), range(LIM_INCL[0], LIM_INCL[1] + 1, 5))
+                grille = (range(LT[0], LT[1] + 1, 10), range(LF[0], LF[1] + 1, 10), range(LI[0], LI[1] + 1, 5))
             for k in grille[0]:
                 for f in grille[1]:
                     for r in grille[2]:
@@ -282,7 +288,7 @@ def poser(cle, cote="r"):
             for k in range(k0 - 8, k0 + 9, 2):
                 for f in range(f0 - 8, f0 + 9, 2):
                     for r in range(r0 - 4, r0 + 5, 1):
-                        if not (LIM_TORSION[0] <= k <= LIM_TORSION[1] and LIM_FLEXION[0] <= f <= LIM_FLEXION[1] and LIM_INCL[0] <= r <= LIM_INCL[1]):
+                        if not (LT[0] <= k <= LT[1] and LF[0] <= f <= LF[1] and LI[0] <= r <= LI[1]):
                             continue
                         c, Hr = evalue(k, f, r)
                         if c < best[0]:
