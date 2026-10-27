@@ -190,7 +190,7 @@ def _cout(W, cle, kfr):
     else:                           # pose tenue : angle du plat avec la direction de l'œil
         milieu = W.translation.to_3d() + y * 0.5
         plat = math.degrees(math.acos(min(1.0, abs(z.dot((-milieu).normalized())))))
-        c += 0.6 * abs(plat - cle.get("roulis", 70.0))
+        c += cle.get("poids_roulis", 0.6) * abs(plat - cle.get("roulis", 70.0))
     k, f, r = kfr
     c += 0.03 * (abs(k - cle.get("torsion", 0)) + abs(f) + abs(r))
     if PREC[0] is not None:          # continuité avec la clé précédente (pas de retournement de l'avant-bras)

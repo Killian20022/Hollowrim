@@ -33,10 +33,10 @@ REPOS = dict(nom="repos", poing=E(0.5, -0.64, 0.55), lame=(-0.1, 0.95, -0.3), ro
              k=44, f=-20, r=-35, phi=0)   # poignet fixé : la même pose de repos au bout de chaque clip (pas de saut au retour)
 SPRINT = dict(nom="sprint", poing=E(0.72, -0.9, 0.42), lame=(-0.25, 0.4, -0.88), roulis=TRANCHE, coude=(0.6, -1, 0.4))
 # garde : épée en travers devant, pointe vers la gauche (un peu haute), tranchant vers l'ennemi, poing à droite
-GARDE = dict(nom="garde", poing=E(0.42, -0.42, 0.46), lame=(-0.88, 0.42, -0.2), roulis=TRANCHE, coude=(0.5, -1, 0.1), clav=(10, 4), epaule=(-0.02, 0, -0.03))
+GARDE = dict(nom="garde", poing=E(0.42, -0.3, 0.46), lame=(-0.88, 0.42, -0.2), roulis=TRANCHE, poids_roulis=1.5, coude=(0.5, -1, 0.1), clav=(10, 4), epaule=(-0.02, 0, -0.03))
 ENCAISSE = dict(GARDE, nom="encaisse", poing=E(0.44, -0.34, 0.41), lame=(-0.86, 0.5, -0.1))
 PARADE = dict(GARDE, nom="parade", poing=E(0.48, -0.3, 0.45), lame=(-0.62, 0.74, -0.25))
-BRISEE = dict(nom="brisee", poing=E(0.66, -0.8, 0.42), lame=(-0.3, 0.25, -0.92), roulis=TRANCHE, coude=(0.7, -1, 0.3))
+BRISEE = dict(nom="brisee", poing=E(0.66, -0.95, 0.42), lame=(-0.3, 0.25, -0.92), roulis=TRANCHE, coude=(0.7, -1, 0.3))
 
 # --- coup léger A : diagonale haut-droite -> bas-gauche ------------------------------------------------------------
 A_ARME = dict(nom="A_arme", poing=E(0.62, 0.0, 0.5), lame=(0.4, 0.8, -0.4), roulis=TRANCHE, coude=(1, -0.5, 0.3), clav=(0, 8))
@@ -118,7 +118,7 @@ CLIPS = {
     "garde": [cle(GARDE, 0.0), cle(GARDE, 0.5)],
     "encaisse": [cle(GARDE, 0.0), cle(ENCAISSE, 0.05, interp="lin"), cle(GARDE, 0.18)],
     "parade": [cle(GARDE, 0.0), cle(PARADE, 0.04, interp="lin"), cle(GARDE, 0.16)],
-    "garde_brisee": [cle(GARDE, 0.0), cle(BRISEE, 0.05, interp="lin"), cle(BRISEE, 0.22), cle(REPOS, 0.45)],
+    "garde_brisee": [cle(GARDE, 0.0), cle(BRISEE, 0.035, interp="lin"), cle(BRISEE, 0.22), cle(REPOS, 0.45)],
     "coup_a": [cle(REPOS, 0.0), cle(A_ARME, 0.12), cle(A_TENSION, 0.15), cle(A_ENTREE, 0.175), cle(A_MILIEU, 0.20),
                cle(A_FIN, 0.25), cle(A_SUIVI, 0.32), cle(REPOS, 0.52)],
     # combo B : horizontal droite -> gauche ; coup_gd : revers gauche -> droite (pas à droite, miroir de l'horizontal)

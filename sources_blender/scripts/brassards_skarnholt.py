@@ -188,7 +188,7 @@ for c in ("l", "r"):
 
     # --- 4. revers de fourrure sombre côté coude (anneau hirsute qui déborde du brassard)
     us = [U0 - 0.035, U0 - 0.022, U0 - 0.008, U0 + 0.004, U0 + 0.012]
-    dr = [0.004, 0.016, 0.022, 0.018, 0.006]
+    dr = [0.003, 0.009, 0.012, 0.010, 0.004]
     st = [(u, rayon(u) + d) for u, d in zip(us, dr)]
     def bruit(i, k, c=c):
         return (h(i * 5 + k, 23 if c == "l" else 41) - 0.5) * 0.012 + (0.005 if (i + k) % 2 == 0 else 0.0)

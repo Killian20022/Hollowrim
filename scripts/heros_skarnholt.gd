@@ -210,7 +210,7 @@ static func materiaux_fps() -> Dictionary:
 		# sombres, lames et rivets en « fer » (mains.gd), revers de fourrure gris-brun au coude et au poignet
 		"brassard_cuir": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(2, 3), Color(0.52, 0.43, 0.38), true),
 		"sangle": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(4, 1), Color(0.34, 0.27, 0.23), true),
-		"fourrure_sombre": Palette.materiau(tex("fps_fourrure"), Vector2(3, 1), Color(0.6, 0.53, 0.47), true),
+		"fourrure_sombre": Palette.materiau(tex("fps_fourrure"), Vector2(3, 1), Color(0.46, 0.4, 0.36), true),
 	}
 
 # ======================================================================================================== pièces du héros

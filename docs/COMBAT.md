@@ -22,6 +22,7 @@ Les phases 5 et 6 (variantes, polish) s'appuient sur la même architecture.
 | Films des coups | `--write-movie ...\coups_ecran_reel.avi --fixed-fps 60 ... -- --film-coups [--ralenti=0.25]` |
 | Régénérer les clips du bras | `blender.exe -b sources_blender/bras_fps.blend --python sources_blender/scripts/anim_bras_epee.py -- --godot --blend` (depuis le worktree, ≈ 40 s ; TOUJOURS sans `--clips` avant tests / captures) |
 | Planches / films des coups animés | `... --script res://outils/captures_coups_animes.gd -- --seq=combo\|puissante[_avant\|_droite\|_arriere]\|garde\|contre\|horizontale\|revers\|estoc`, `--repos`, `--film [--ralenti=0.25]` (avec `--write-movie ... --fixed-fps 60`) |
+| Tenue tranche / traînée (mesures + planches) | `... --script res://outils/mesures_tranche.gd -- [--images] [--seq=repos,marche,sprint,garde,combo,horizontale,revers,estoc,puissante,puissante_avant,puissante_droite,armes] --sortie=...\captures\tranche_trainee` (lignes MESURE / RESUME : plat/œil, vert, poings, fil, écart traînée) |
 | Pose de repos dans le village | `--captures="$W\outils\poses_combat_epee.txt"` (voir SOCLE_TECHNIQUE §6.1) |
 
 En jeu : clic gauche court = coup léger, maintenu = charge puis coup lourd au relâchement ; clic droit = garde ;
@@ -224,14 +225,21 @@ Le bras droit est joué par de **vraies animations à images clés** ; plus aucu
   (`regler(t)`), fondus 0,06-0,12 s. Les durées des phases sont TIRÉES des marqueurs (÷ vitesse de l'arme).
 - **Couche additive** : `DecalageBras` (SkeletonModifier3D sur `clavicle_r`) applique respiration, marche, inertie,
   recul, plongée d'équipement et tremblement de charge par-dessus le clip.
-- **Prise au repos** : poing en bas à droite, lame vers le haut-gauche, garde en croix vue de 3/4 ; **roulis mesuré
-  56°** (0 = plat face caméra, 90 = tranche), lame 100 % visible, garde à l'écran (0,54 ; −0,33), pointe (0,02 ; 0,88).
-  Planche : `captures/coups_animes/repos_reference.png` (à côté de la planche de référence).
+- **Prise au repos (tenue « tranche », 2026-10-27)** : épée DROITE d'après `references/combat_epee/tenue_epee_droite_1100.jpg`
+  — lame à 12° de la verticale de l'écran (pointe vers le centre), pointe au bord haut, poing droit (0,52 ; −0,73), poing
+  gauche / torche (−0,60 ; −0,78) ; **plat à 79° de l'œil** (0 = plat face caméra, 90 = tranche : on voit le fil, le plat
+  ≈ 19 % de sa largeur), poignet FIXÉ dans la clé REPOS (k, f, r, phi : même pose au bout de chaque clip). Cible
+  `TRANCHE = 78` pour toutes les poses tenues (repos, sprint, garde `poids_roulis`, armés) ; identique pour les 5 épées.
+  Mesures et planches : `outils/mesures_tranche.gd` (voir plus bas), `captures/tranche_trainee/`.
+- **Bras** : brassards d'avant-bras façon Skarnholt (`sources_blender/scripts/brassards_skarnholt.py`, part de
+  `sources_blender/bras_fps_lot6.glb`) : coque de cuir à facettes, canon de trois lames de fer rivetées, deux sangles à
+  boucle, revers de fourrure au coude ; matières `brassard_cuir`, `sangle`, `fourrure_sombre` (HerosSkarnholt.materiaux_fps).
 
 | Clip | Geste | Frappe (s) | Fin de la frappe | Fin du clip |
 |---|---|---|---|---|
 | coup_a | diagonale haut-droite → bas-gauche | 0,15 | 0,25 | 0,52 |
-| coup_b | revers gauche → droite | 0,11 | 0,21 | 0,50 |
+| coup_b (combo) | remonte à droite puis horizontal droite → gauche à plat, hauteur de poitrine | 0,17 | 0,27 | 0,54 |
+| coup_gd (pas à droite) | revers gauche → droite | 0,11 | 0,21 | 0,50 |
 | coup_c | vertical par-dessus + tassement caméra | 0,16 | 0,26 | 0,56 |
 | lourd (arrêt, pas à gauche) | balayage horizontal droite → gauche | 0,08 après la charge (0,60) | 0,26 | 0,92 |
 | lourd_vertical (en avançant) | vertical | idem | 0,26 | 0,92 |
@@ -287,7 +295,10 @@ en bout et le poing énorme. Un viewmodel FPS (Skyrim, Mordhau, Chivalry) fait b
 - **Coup 3** : ×1,25, un peu plus lent ; **tassement caméra** (`joueur.tassement`, v_offset −3,5 cm en ~0,18 s, ×0,4
   avec « Réduire les mouvements ») à la fin de la frappe ; aussi sur le coup lourd.
 - **Traînée** (`TraineeLame`) : ruban entre l'historique garde → pointe, échantillonné à 1/240 s pendant la frappe et le
-  suivi, en croissant sur le dernier tiers de la lame ; 4 paliers d'opacité, 3 tons (pas de dégradé, pas de tramage),
+  suivi (mêmes pistes que l'image : `AnimateurBras.pose_arme`, écart mesuré 0,0-0,1 px), en BANDE le long du tranchant
+  (nulle au premier tiers de la lame, pleine au-delà de 80 % : `smoothstep(0.3, 0.8)`) — l'ancien croissant limité à la
+  pointe restait collé au haut de l'écran, identique d'un coup à l'autre ; une pointe passée derrière le plan de la caméra
+  est ramenée le long de la lame à z = −0,08 (`TraineeLame.PROCHE`) ; 4 paliers d'opacité, 3 tons (pas de dégradé, pas de tramage),
   sommets accrochés à la grille 270 lignes comme le shader ps1, unshaded / alpha (compatible Web) ; s'efface en 0,1 s.
   Couleur par arme (`couleur_trainee`, `couleur_trainee_coeur`) : acier bleu-blanc, or, rubis, verre vert, obsidienne
   rouge sombre.
