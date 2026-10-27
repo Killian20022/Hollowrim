@@ -542,6 +542,34 @@ def explorer(noms):
                     print("  k%4d f%4d r%4d  lame (%.2f,%.2f,%.2f) garde %s pointe %s plat %d" % (k, f, r, y.x, y.y, y.z, e(g), e(p), plat))
 
 
+def mesurer_clips(actions):
+    """--mesurer : géométrie image par image (60 i/s, sans rendu) : garde / pointe à l'écran, part de la lame DANS le cadre
+    (hors occultation par le bras : la mesure complète est outils/captures_combat_epee.gd --mesures), part du plat vue."""
+    tv = math.tan(math.radians(D["fov"]) / 2)
+    th = tv * 16 / 9
+    for nom, (act, longueur) in actions.items():
+        A.animation_data.action = act
+        n = int(math.floor(longueur * 60 + 1e-6)) + 1
+        for i in range(n):
+            t = i / 60
+            f = t * FPS
+            scene.frame_set(int(math.floor(f)), subframe=f - math.floor(f))
+            W = CAM_DE_B @ A.pose.bones["hand_r"].matrix @ PRISE_D
+            g = W @ GARDE
+            p = W @ POINTE
+            vus = 0
+            for k in range(25):
+                q = g.lerp(p, k / 24)
+                if q.z < -0.02 and abs(q.x / -q.z / th) <= 1 and abs(q.y / -q.z / tv) <= 1:
+                    vus += 1
+            z = (W.to_3x3() @ Vector((0, 0, 1))).normalized()
+            part = abs(z.dot((-(g + p) * 0.5).normalized()))
+            visee = math.degrees(math.acos(min(1.0, abs((p - g).normalized().dot(((g + p) * 0.5).normalized())))))
+            e = lambda v: "(%5.2f,%5.2f)" % (v.x / -v.z / th, v.y / -v.z / tv) if v.z < -0.01 else "(derriere)"
+            coude = CAM_DE_B @ A.pose.bones["lowerarm_r"].head
+            print("MESURER %-14s #%02d t=%.3f garde %s pointe %s cadre %3d%% plat %3d%% visee %2d coude %s" % (nom, i, t, e(g), e(p), round(100 * vus / 25), round(100 * part), round(visee), e(coude)))
+
+
 def main():
     poings()
     if "explorer" in ARGS:
@@ -578,6 +606,8 @@ def main():
                 print("MESURE %s t=%.3f garde=%s pointe=%s plat=%d" % (nom, t, g, p, plat))
                 scene.render.filepath = os.path.join(dossier, "%s_%03d.png" % (nom, i))
                 bpy.ops.render.render(write_still=True)
+    if "mesurer" in ARGS:
+        mesurer_clips(actions)
     if "godot" in ARGS:
         ecrire_godot(os.path.join(BASE, "assets", "animations", "bras_epee.tres"), actions)
     if "blend" in ARGS:

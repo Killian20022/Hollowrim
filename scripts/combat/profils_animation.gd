@@ -33,9 +33,10 @@ const PROFILS := {
 			"horizontale_b": {"clip": "coup_b_ancien", "fenetre": [0.0, 1.0], "cotes": [0, -1], "enchainement": [0.04, 1.0], "force": 1.0},
 			# revers horizontal gauche → droite, légèrement montant (pas à droite, miroir de « horizontale »)
 			"horizontale_gd": {"clip": "coup_gd", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.04, 1.0], "force": 1.0},
-			# coup C : vertical par-dessus (épée levée au-dessus de la tête), descend à travers le centre, finit bas devant ;
-			# le plus fort, tassement de la caméra à l'impact
-			"verticale_l": {"clip": "coup_c_ancien", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.06, 1.0], "force": 1.25, "tassement": 1.0},
+			# vertical (souris tirée vers le bas, en avançant) : clip coup_v (V3, 2026-10-27) : armé court au coin haut droit,
+			# la lame descend dans un plan vertical un peu à droite du centre, tranchant en bas, poignet qui casse à l'impact ;
+			# le plus fort, tassement de la caméra à l'impact (ancien clip : coup_c_ancien, une diagonale raide)
+			"verticale_l": {"clip": "coup_v", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.06, 1.0], "force": 1.25, "tassement": 1.0},
 			# variantes contextuelles : horizontal droite → gauche (pas de côté à gauche), diagonale revers haut-gauche →
 			# bas-droite (miroir de A quand la lame est déjà à gauche), estoc (en reculant)
 			"horizontale": {"clip": "coup_horizontal", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.04, 1.0], "force": 1.0},
