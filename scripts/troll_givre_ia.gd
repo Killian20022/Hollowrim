@@ -411,6 +411,12 @@ func _apres_degats(r: Dictionary) -> void:
 func _finisher_permis() -> bool:
 	return etat not in [DORT, RAGE]
 
+## Mini-boss : pas d'exécution « apres_parade » (une parade suivie d'un coup lourd ne tue pas 420 PV) ; seulement étourdi
+## (posture brisée), pris de côté étourdi, ou presque mort (« rapide »).
+func finisher_possible(j: Node3D) -> String:
+	var c := super(j)
+	return "" if c == "apres_parade" else c
+
 func _reagir(r: Dictionary, vers: Vector3) -> void:
 	var reaction := String(r["reaction"])
 	if reaction == "etourdi" or (combat.etourdi > 0.0 and etat != ETOURDI and etat != RAGE):

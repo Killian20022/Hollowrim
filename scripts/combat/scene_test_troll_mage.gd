@@ -61,7 +61,7 @@ func _cibles() -> void:
 	if _mode == "mage":
 		_cible = creer_ennemi(MAGE, Vector3(0, 0.05, -10.0), {"ident": "mage_test", "vie_imposee": vie})
 	else:
-		_cible = creer_ennemi(TROLL, Vector3(0, 0.05, -9.0), {"ident": "troll_test", "vie_imposee": vie})
+		_cible = creer_ennemi(TROLL, Vector3(0, 0.05, -12.0), {"ident": "troll_test", "vie_imposee": vie})
 	_cible.rotation.y = 0.0
 	cibles.append(_cible)
 	_silhouette()
@@ -73,6 +73,7 @@ func creer_ennemi(script: Script, pos: Vector3, options := {}) -> CharacterBody3
 	d.joueur = joueur
 	d.hud = hud
 	d.ident = String(options.get("ident", "ennemi_%d" % get_child_count()))
+	d.name = d.ident
 	for cle in options:
 		d.set(cle, options[cle])
 	draugrs[d.ident] = d
@@ -122,9 +123,18 @@ func _physics_process(dt: float) -> void:
 		if _fin_combat < 0.0:
 			_fin_combat = _t_combat
 			print("PILOTE %s mort apres %.1f s, %d coups" % [_mode, _t_combat, _n_coups])
-		if _t_combat - _fin_combat > 1.2 and not _captures_faites.has("mort"):
+		if _t_combat - _fin_combat > 0.6 and not _captures_faites.has("mort"):
 			_captures_faites["mort"] = true
 			capturer.call_deferred("%s_mort" % _mode)
+		if _t_combat - _fin_combat > 2.2:
+			# gros plan sur le cadavre (ragdoll, plaies, flaque)
+			var bassin: Node3D = c.combat._accroche("pelvis") if c.combat else null
+			var pc: Vector3 = bassin.global_position if is_instance_valid(bassin) else c.global_position
+			obs.global_position = obs.global_position.lerp(pc + Vector3(1.6, 1.7, 1.8), 1.0 - exp(-3.0 * dt))
+			obs.look_at(pc, Vector3.UP)
+			if _t_combat - _fin_combat > 3.4 and not _captures_faites.has("cadavre"):
+				_captures_faites["cadavre"] = true
+				capturer.call_deferred("%s_cadavre" % _mode)
 		if _t_combat - _fin_combat > maxf(4.0, float(_arg("fin", "0"))):
 			_actif = false
 			get_tree().quit(0)
@@ -151,7 +161,8 @@ func _physics_process(dt: float) -> void:
 	elif _sil_clip == "Jog_Fwd":
 		_sil_anim.speed_scale = 1.0
 		_sil_jouer("Sword_Idle")
-	_suivre_camera(dt)
+	if c.vivant():
+		_suivre_camera(dt)
 
 func _esquiver(d: Vector3, duree: float) -> void:
 	_esquive = d.normalized()
@@ -174,6 +185,8 @@ func _coup(c: Node3D, motif: String, zone := "torse") -> void:
 
 func _pilote_troll(c: Node3D, dist: float, dir: Vector3) -> Vector3:
 	var e: int = c.etat
+	if _t_combat < 6.0 and e in [c.GARDE, c.TRAQUE]:
+		return -dir if dist < 10.0 else Vector3.ZERO     # il tient la distance : le troll charge
 	if e == c.ECRASE and not c._coup_donne:
 		var rel: Vector3 = joueur.global_position - c._centre_onde
 		rel.y = 0.0
@@ -204,16 +217,19 @@ func _pilote_troll(c: Node3D, dist: float, dir: Vector3) -> Vector3:
 		_capture_unique("troll_rage", c._t > 0.7)
 		return -dir if dist < 3.0 else Vector3.ZERO
 	if e in [c.ETOURDI, c.SONNE, c.TITUBE]:
-		_capture_unique("troll_etourdi", e == c.ETOURDI and c._t > 0.4)
+		_capture_unique("troll_etourdi", e == c.ETOURDI and c._t > 0.4 and c.rage)
 		if dist > 2.0:
 			return dir
-		_coup(c, "lourde" if _n_coups % 2 == 0 else "legere", "torse")
+		# vidéo : pas d'exécution avant la rage (on veut la voir), ensuite le coup lourd achève
+		_coup(c, "lourde" if (c.rage or c.finisher_possible(joueur) == "") and _n_coups % 2 == 0 else "legere", "torse")
 		return Vector3.ZERO
 	if dist > 2.3:
 		return dir
 	if dist < 1.6:
 		return -dir
 	var motif := ["legere", "lourde", "legere", "chargee_max"][_n_coups % 4] as String
+	if not c.rage and c.finisher_possible(joueur) != "":
+		motif = "legere"
 	_coup(c, motif, ["torse", "bras", "torse", "jambes"][_n_coups % 4])
 	if _n_coups == 3:
 		_capture_unique("troll_impact", true)
@@ -221,6 +237,7 @@ func _pilote_troll(c: Node3D, dist: float, dir: Vector3) -> Vector3:
 
 func _pilote_mage(c: Node3D, dist: float, dir: Vector3) -> Vector3:
 	var e: int = c.etat
+	var observe := _t_combat < 11.0
 	# trait de givre en vol vers le joueur : pas de côté perpendiculaire à sa course
 	for p in get_children():
 		if p is Projectile and (p as Projectile).genre == "givre" and not (p as Projectile).plantee:
@@ -243,6 +260,10 @@ func _pilote_mage(c: Node3D, dist: float, dir: Vector3) -> Vector3:
 		_capture_unique("mage_zone_pics", c._t > c.ANNONCE_ZONE + 0.06)
 	if e == c.TELEPORT:
 		_capture_unique("mage_teleport", c._t > 0.3)
+	if observe:
+		# il reste à portée des sorts (9-10 m) en se décalant : traits et sort de zone à esquiver
+		var lat := dir.cross(Vector3.UP) * (1.0 if int(_t_combat / 2.5) % 2 == 0 else -1.0)
+		return (lat * 0.6 + dir * clampf(dist - 9.5, -1.0, 1.0)).normalized() * 0.7
 	if e in [c.ETOURDI, c.TITUBE, c.CHUTE] or (dist < 2.2 and e != c.TELEPORT):
 		if dist > 2.0:
 			return dir
@@ -265,8 +286,8 @@ func _suivre_camera(dt: float) -> void:
 	arriere.y = 0.0
 	arriere = arriere.normalized()
 	var droite := arriere.cross(Vector3.UP)
-	var recul := 4.6 if _mode == "troll" else 4.0
-	var voulu := joueur.global_position + arriere * recul + Vector3(0, 2.6, 0) - droite * 1.6
+	var recul := 3.8 if _mode == "troll" else 3.2
+	var voulu := joueur.global_position + arriere * recul + Vector3(0, 2.1, 0) - droite * 1.3
 	var k := 1.0 - exp(-4.0 * dt)
 	obs.global_position = obs.global_position.lerp(voulu, k) if _t_combat > 0.1 else voulu
 	var mi := joueur.global_position.lerp(_cible.global_position, 0.45) + Vector3(0, 1.3, 0)

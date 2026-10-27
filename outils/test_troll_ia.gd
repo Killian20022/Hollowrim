@@ -104,6 +104,7 @@ func _tester() -> void:
 	j.garde = "parade"
 	await _frames(int(t_imp * 60.0) + 6)
 	j.garde = ""
+	_verif(t.combat.fenetre_parade > 0.0 and t.finisher_possible(j) == "", "après la parade : pas d'exécution « apres_parade » sur le mini-boss")
 	_verif(t.etat in [t.TITUBE, t.ETOURDI] and t.combat.posture < p.posture_max * 0.6, "balayage paré : le troll titube (état %d), posture %d/%d" % [t.etat, t.combat.posture, p.posture_max])
 
 	# --- E. onde au sol : mal parée dans le disque, sans effet hors du disque

@@ -36,7 +36,7 @@ var etat := GARDE
 var degats_givre := 14.0
 var degats_zone := 22.0
 var _recharge := 1.0
-var _cd_zone := 4.0
+var _cd_zone := 3.0
 var _cd_tp := 0.0
 var _cote_pas := 1.0
 var _t_cote := 0.0
@@ -181,7 +181,7 @@ func _ia(dt: float) -> void:
 				loco = "Jog_Fwd" if dist > DIST_MAX + 4.0 else "Walk"
 				face = Vector3.ZERO
 			elif _recharge <= 0.0 and dist >= DIST_COLLE:
-				if _cd_zone <= 0.0 and randf() < 0.45:
+				if _cd_zone <= 0.0 and randf() < 0.6:
 					_lancer_zone()
 				else:
 					_lancer_trait()
@@ -201,6 +201,10 @@ func _ia(dt: float) -> void:
 				libre = true
 		INCANTE:
 			# orbe qui grossit (lisible), visée suivie puis figée 0,25 s avant le tir : un pas de côté au bon moment l'évite
+			if not _coup_donne and dist < DIST_COLLE and _cd_tp <= 0.0:
+				_interrompre()     # le joueur arrive au contact : il abandonne le sort et se téléporte
+				_lancer_teleport()
+				return
 			face = dir if _t < ARMEMENT_TRAIT - 0.25 else Vector3.ZERO
 			if _t < ARMEMENT_TRAIT - 0.25:
 				_cible_tir = joueur.global_position + Vector3(0, 1.15, 0)
@@ -217,6 +221,10 @@ func _ia(dt: float) -> void:
 				_changer(TRAQUE)
 		ZONE:
 			face = dir
+			if not _coup_donne and dist < DIST_COLLE and _cd_tp <= 0.0:
+				_interrompre()
+				_lancer_teleport()
+				return
 			rot = 2.0
 			if _t > 0.53 and _anim == "Spell_Simple_Enter":
 				_jouer("Spell_Simple_Idle", 0.1)

@@ -59,6 +59,8 @@ TESTS=(
 	"test_draugr|--nouvelle"
 	"test_ennemis_nordiques|--nouvelle"
 	"test_degats|--nouvelle --test"   # dégâts, posture, finishers, décapitation, plafonds du sang (combat/degats_gore)
+	"test_troll_ia|--nouvelle --test"   # IA du troll de givre (ennemis/troll_mage)
+	"test_mage_ia|--nouvelle --test"    # IA du mage nordique (ennemis/troll_mage)
 	"test_persos_tous|--persos-tous"
 	"test_interieurs|--nouvelle"
 	"test_primitives|"

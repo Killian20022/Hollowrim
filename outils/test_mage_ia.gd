@@ -180,7 +180,14 @@ func _tester() -> void:
 	_verif(r == "touche" and n.vie < v0, "sans info (3 args) : touché, %.1f dégâts" % (v0 - n.vie))
 	_verif(Plaies.nombre(n.modele) >= 1, "plaie posée sur le mage")
 	await _frames(40)
+	# posture faible : un coup lourd la brise (étourdi) ; avec de la posture en réserve, le même coup aux jambes le renverse
 	n.combat.posture = p.posture_max
+	r = n.recevoir_coup(34.0, j.global_position, true, {"attaque": "lourde", "zone": "torse"})
+	_verif(n.etat == n.ETOURDI, "coup lourd, posture pleine (22) : posture brisée, étourdi (%s)" % n.combat.derniere_reaction)
+	n.combat.etourdi = 0.0
+	n._changer(n.TRAQUE)
+	n.vie = n.vie_max
+	n.combat.posture = 60.0
 	r = n.recevoir_coup(34.0, j.global_position, true, {"attaque": "lourde", "zone": "jambes"})
 	_verif(n.etat == n.CHUTE, "coup lourd aux jambes : renversé (%s)" % n.combat.derniere_reaction)
 	await _frames(110)
