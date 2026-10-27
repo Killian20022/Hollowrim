@@ -5,7 +5,7 @@ extends RefCounted
 ## chaque point de la lame (garde → pointe prolongée de l'allonge). La zone de dégâts est donc le vrai mouvement de
 ## l'épée. Règles :
 ##   - une seule touche par cible et par coup (touches) ; au plus `max_cibles` cibles par coup ;
-##   - un mur / le décor arrête la lame (événement « mur », la suite du coup est annulée) ;
+##   - un mur / le décor arrête la lame (événement « mur », rebond) ; le sol l'arrête sans rebond (« sol ») ;
 ##   - une cible vue à travers un mur (rayon œil → point d'impact coupé par le décor) compte comme le mur ;
 ##   - un « cassable » (mur fragile des donjons) arrête la lame et reçoit le coup.
 ## Cibles reconnues : nœud (ou ancêtre du collider) du groupe « ennemis » ou qui a recevoir_coup(), groupe « cassables ».
@@ -14,6 +14,8 @@ extends RefCounted
 const PAS := 1.0 / 240.0
 ## Calque physique du décor et des corps (joueur, ennemis, murs) ; les ragdolls (calque 16) ne bloquent pas la lame.
 const MASQUE := 1
+## Normale (composante verticale) au-delà de laquelle une surface est un sol : la lame s'y arrête sans rebondir.
+const SOL_NORMALE := 0.6
 
 var touches := {}
 var nb_cibles := 0
@@ -44,7 +46,7 @@ static func cible_de(objet: Object) -> Node:
 	return null
 
 ## Un échantillon de la lame (points monde, garde → bout). Renvoie les événements :
-## {type: "cible" | "mur" | "cassable", point, normale, objet, indice (point de la lame)}.
+## {type: "cible" | "mur" | "sol" | "cassable", point, normale, objet, collider, direction (mouvement de la lame), indice}.
 func echantillonner(espace: PhysicsDirectSpaceState3D, points: PackedVector3Array, oeil: Vector3, exclus: Array[RID], max_cibles: int) -> Array:
 	var evts := []
 	if arretee:
@@ -67,8 +69,11 @@ func echantillonner(espace: PhysicsDirectSpaceState3D, points: PackedVector3Arra
 			continue
 		var cible := cible_de(r["collider"])
 		var point: Vector3 = r["position"]
+		var mouvement := (b - a).normalized()
 		if cible == null or cible.is_in_group("cassables"):
-			evts.append({"type": "mur" if cible == null else "cassable", "point": point, "normale": r["normal"], "objet": cible if cible else r["collider"], "indice": i})
+			# sol (surface tournée vers le haut) : la lame s'y arrête sans rebond ; mur / décor : rebond
+			var type := "cassable" if cible != null else ("sol" if (r["normal"] as Vector3).y > SOL_NORMALE else "mur")
+			evts.append({"type": type, "point": point, "normale": r["normal"], "objet": cible if cible else r["collider"], "collider": r["collider"], "direction": mouvement, "indice": i})
 			arretee = true
 			break
 		var id := cible.get_instance_id()
@@ -83,12 +88,12 @@ func echantillonner(espace: PhysicsDirectSpaceState3D, points: PackedVector3Arra
 		var r2 := espace.intersect_ray(q2)
 		rayons += 1
 		if not r2.is_empty() and cible_de(r2["collider"]) == null:
-			evts.append({"type": "mur", "point": r2["position"], "normale": r2["normal"], "objet": r2["collider"], "indice": i})
+			evts.append({"type": "mur", "point": r2["position"], "normale": r2["normal"], "objet": r2["collider"], "collider": r2["collider"], "direction": mouvement, "indice": i})
 			arretee = true
 			break
 		touches[id] = true
 		nb_cibles += 1
-		evts.append({"type": "cible", "point": point, "normale": r["normal"], "objet": cible, "indice": i})
+		evts.append({"type": "cible", "point": point, "normale": r["normal"], "objet": cible, "collider": r["collider"], "direction": mouvement, "indice": i})
 	if garder_debug:
 		for e in evts:
 			debug_impacts.append(e["point"])

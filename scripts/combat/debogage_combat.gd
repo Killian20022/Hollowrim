@@ -57,7 +57,7 @@ func _process(_dt: float) -> void:
 			n += 1
 	# segment tranchant courant (garde → pointe prolongée)
 	var xf: Transform3D = mains.pivot_epee.global_transform
-	var pts: PackedVector3Array = mains.arme.points_lame()
+	var pts: PackedVector3Array = mains.arme.points_lame(mains._garde_lame, mains._pointe_lame)
 	if pts.size() >= 2:
 		_mesh.surface_set_color(Color(1.0, 0.9, 0.2))
 		_mesh.surface_add_vertex(xf * pts[0])

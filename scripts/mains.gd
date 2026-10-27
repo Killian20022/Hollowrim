@@ -92,6 +92,8 @@ var _duree_recup := 0.3
 var _t_trace := 0.0          # temps de phase active déjà échantillonné par le tracé
 var _actif_lance := false    # phase active commencée (endurance payée, tracé lancé)
 var _t_actif_prec := 0.0
+var _issue_arret := ""
+var _instant_impact := 0.0
 var _depart := Transform3D()
 var _pose_courante := Transform3D()
 var _pose_fin := Transform3D()
@@ -121,6 +123,10 @@ var _accroche_g: BoneAttachment3D
 var _cible_d: Node3D
 var _orient_d: SkeletonModifier3D
 var _modele_arme_d: Node3D
+## Matériau de la lame tenue (teinte, lueur de charge) et segment tranchant lu dans le modèle.
+var _lame: ShaderMaterial
+var _garde_lame := Vector3(0, 0.1, 0)
+var _pointe_lame := Vector3(0, 0.84, 0)
 var _doigts := {}
 var torche_lumiere: OmniLight3D
 var flammes: Array[GPUParticles3D] = []
@@ -232,16 +238,52 @@ func _installer_arme() -> void:
 	PRISE_D = _calculer_prise("r", arme.milieu_poignee)
 	_cible_d.transform = PRISE_D.affine_inverse()
 	_orient_d.prise = PRISE_D
+	_lame = _acier
+	_garde_lame = arme.garde
+	_pointe_lame = arme.pointe
 	if arme.modele != "" and ResourceLoader.exists(arme.modele):
 		var scene: PackedScene = load(arme.modele)
 		_modele_arme_d = scene.instantiate()
-		_habiller(_modele_arme_d)
+		if arme.habillage == "epees_longues":
+			EpeesLongues.habiller(_modele_arme_d)
+			_lame = _copie_lame(_modele_arme_d, EpeesLongues.materiaux().get(arme.materiau_lame))
+		else:
+			_habiller(_modele_arme_d)
 		_accroche_d.add_child(_modele_arme_d)
 		_accroche_d.move_child(_modele_arme_d, 0)
 		_modele_arme_d.transform = PRISE_D
-	if _acier != null:
-		_acier.set_shader_parameter("teinte", arme.teinte)
-		_acier.set_shader_parameter("emission", arme.emission)
+		if arme.reperes_du_modele:
+			var g := _repere(_modele_arme_d, "garde")
+			var p := _repere(_modele_arme_d, "pointe")
+			if g != Vector3.INF and p != Vector3.INF and g.distance_to(p) > 0.1:
+				_garde_lame = g
+				_pointe_lame = p
+	if _lame != null:
+		if arme.teinte.a > 0.0:
+			_lame.set_shader_parameter("teinte", arme.teinte)
+		_lame.set_shader_parameter("emission", arme.emission)
+
+## Copie du matériau de lame posée sur l'arme du joueur (teinte, lueur de charge sans toucher aux autres épées).
+func _copie_lame(racine: Node, partage: Material) -> ShaderMaterial:
+	if partage == null:
+		return null
+	var copie := partage.duplicate() as ShaderMaterial
+	for mi: MeshInstance3D in racine.find_children("*", "MeshInstance3D", true, false):
+		for k in mi.mesh.get_surface_count():
+			if mi.get_surface_override_material(k) == partage:
+				mi.set_surface_override_material(k, copie)
+	return copie
+
+## Position d'un nœud vide du modèle dans son repère (avant l'entrée dans l'arbre), INF s'il n'existe pas.
+func _repere(racine: Node3D, nom: String) -> Vector3:
+	var n := racine.find_child(nom, true, false) as Node3D
+	if n == null:
+		return Vector3.INF
+	var t := Transform3D()
+	while n != null and n != racine:
+		t = n.transform * t
+		n = n.get_parent() as Node3D
+	return t.origin
 
 func _sur_equipement(main: String) -> void:
 	if main == "droite":
@@ -571,10 +613,11 @@ func avancer(dt: float) -> void:
 		EtatCombat.CHARGE_LOURDE:
 			cible = ProfilsAnimation.transform_pose(_profil()["charge"])
 			raideur = 7.0
-			_charge = clampf((entrees.duree_appui() - SEUIL_CHARGE) / CHARGE_MAX, 0.0, 1.0)
+			if entrees.attaque_tenue:
+				_charge = clampf((entrees.duree_appui() - SEUIL_CHARGE) / CHARGE_MAX, 0.0, 1.0)
 			if _charge >= 1.0 and not _charge_signalee:
 				_charge_signalee = true
-				RetourCoups.charge_max(self, _acier, arme.emission)
+				RetourCoups.charge_max(self, _lame, arme.emission)
 			# tremblement discret à pleine charge
 			if _charge >= 1.0:
 				cible.origin += Vector3(sin(_respiration * 47.0), cos(_respiration * 53.0), 0.0) * 0.0025 * passifs.amplitude
@@ -652,7 +695,10 @@ func _avancer_geste(dt: float) -> void:
 	var arret := _tracer(t_prec, t_actif)
 	if arret >= 0.0:
 		_pose_courante = _pose_active(arret)
-		_rebondir()
+		if _issue_arret == "arret":
+			_finir_geste()
+		else:
+			_rebondir()
 		return
 	if t_actif >= _duree_active:
 		_finir_geste()
@@ -664,8 +710,8 @@ func _transform_monde() -> Transform3D:
 	return (get_parent() as Node3D).global_transform * transform
 
 ## Tracé de lame entre t0 et t1 (temps de phase active), à pas FIXE TraceLame.PAS : les échantillons tombent aux
-## mêmes instants du geste quelle que soit la durée de l'image. Renvoie l'instant d'arrêt de la lame (mur, bouclier,
-## cassable) ou -1.
+## mêmes instants du geste quelle que soit la durée de l'image. Renvoie l'instant d'arrêt de la lame (mur, sol,
+## bouclier, cassable ; _issue_arret dit lequel) ou -1.
 func _tracer(t0: float, t1: float) -> float:
 	var fen: Array = _geste["fenetre"]
 	var debut := float(fen[0]) * _duree_active
@@ -674,7 +720,7 @@ func _tracer(t0: float, t1: float) -> float:
 	var monde_avant := _cam_prec if _cam_prec_ok else monde_now
 	var espace := get_world_3d().direct_space_state
 	var exclus: Array[RID] = [joueur.get_rid()]
-	var points_arme := arme.points_lame()
+	var points_arme := arme.points_lame(_garde_lame, _pointe_lame)
 	var oeil := (get_parent() as Node3D).global_position
 	var max_cibles := maxi(arme.multi_cibles, 1)
 	var k := int(ceil(maxf(_t_trace, debut) / TraceLame.PAS - 1e-6))
@@ -689,28 +735,31 @@ func _tracer(t0: float, t1: float) -> float:
 		var pts := PackedVector3Array()
 		for p in points_arme:
 			pts.append(xf * p)
+		_instant_impact = ts
 		for e in trace.echantillonner(espace, pts, oeil, exclus, max_cibles):
-			if _resoudre_impact(e, pts):
+			var issue := _resoudre_impact(e)
+			if issue != "":
+				_issue_arret = issue
 				return ts
 	return -1.0
 
-## Applique un événement du tracé ; renvoie vrai si la lame est arrêtée (rebond).
-func _resoudre_impact(e: Dictionary, pts: PackedVector3Array) -> bool:
-	var dir := (pts[pts.size() - 1] - pts[0]).normalized()
+## Applique un événement du tracé ; renvoie "" (la lame continue), "rebond" (mur, bouclier, cassable qui tient) ou
+## "arret" (sol : la lame s'y arrête, le geste se termine sans rebond).
+func _resoudre_impact(e: Dictionary) -> String:
 	match e["type"]:
 		"cible":
 			var cible: Node = e["objet"]
 			var degats := DegatsCombat.calculer(arme, _lourd, _charge, _affaibli, joueur.competences.multiplicateur_degats(), equipement.bonus_trophee(joueur.inventaire))
-			var r := DegatsCombat.appliquer(cible, degats, joueur.global_position, _puissant, e["point"], dir)
-			if cible.is_in_group("ennemis"):
-				joueur.ennemi_vise = cible
+			var r := DegatsCombat.appliquer(cible, degats, joueur.global_position, _puissant, _info_coup(e))
+			if cible.is_in_group("ennemis") or cible.is_in_group("cibles_combat"):
+				joueur.ennemi_vise = cible   # barre de vie de la cible (HUD)
 			if r == "touche" or r == "tue":
 				joueur.competences.pratiquer("epee", 1.8 if _lourd else 1.0)
 				RetourCoups.touche(joueur, _lourd)
 			elif r == "bloque":
 				RetourCoups.bloque(joueur)
 				trace.arretee = true
-				return true
+				return "rebond"
 		"cassable":
 			var c: Node = e["objet"]
 			var cede: bool = c.has_method("frapper") and c.frapper(_puissant, joueur.global_position)
@@ -718,11 +767,29 @@ func _resoudre_impact(e: Dictionary, pts: PackedVector3Array) -> bool:
 				RetourCoups.touche(joueur, true)
 			else:
 				RetourCoups.mur(joueur, e["point"], e["normale"], arme.materiau_impact)
-				return true
+				return "rebond"
 		"mur":
 			RetourCoups.mur(joueur, e["point"], e["normale"], arme.materiau_impact)
-			return true
-	return false
+			return "rebond"
+		"sol":
+			RetourCoups.mur(joueur, e["point"], e["normale"], "bois" if arme.materiau_impact == "bois" else arme.materiau_impact)
+			return "arret"
+	return ""
+
+## Informations du coup transmises à la cible (contrat commun avec combat/degats_gore, voir DegatsCombat).
+func _info_coup(e: Dictionary) -> Dictionary:
+	var attaque := "legere"
+	if _lourd:
+		attaque = "chargee_max" if _charge >= 1.0 else "lourde"
+	var stagger := arme.desequilibre_lourd * (1.0 + _charge * 0.5) if _lourd else arme.desequilibre_leger
+	if _affaibli:
+		stagger *= DegatsCombat.AFFAIBLI
+	return {
+		"type": arme.type_degats, "point": e["point"], "direction": e["direction"], "normale": e["normale"],
+		"zone": DegatsCombat.zone(e["objet"] as Node3D, e["point"]), "attaque": attaque, "arme": arme.id,
+		"stagger": stagger, "collider": e["collider"], "affaibli": _affaibli, "charge": _charge,
+		"instant": _instant_impact,   # temps de phase active de l'impact (s), sur la grille du tracé
+	}
 
 ## Torche : pose de repos (miroir), suit les animations passives ; baissée pendant la garde, rangée avec T, recule
 ## un peu pendant les coups (contrepoids).

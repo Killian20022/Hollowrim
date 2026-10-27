@@ -1,8 +1,11 @@
 class_name DegatsCombat
-## Calcul et application des dégâts d'un coup du joueur. L'interface des cibles reste celle des ennemis existants :
-##   recevoir_coup(degats: float, origine: Vector3, puissant: bool) -> "touche" | "tue" | "bloque" | ""
-## Extension facultative (n'oblige aucun ennemi existant à changer) : noter_impact(point: Vector3, direction: Vector3),
-## appelée juste avant recevoir_coup quand la cible la possède (mannequin : chiffre de dégâts au point touché).
+## Calcul et application des dégâts d'un coup du joueur. Interface des cibles (contrat commun avec combat/degats_gore) :
+##   recevoir_coup(degats: float, origine: Vector3, puissant: bool, info: Dictionary = {}) -> "touche" | "tue" | "bloque" | ""
+## Le 4e paramètre est passé seulement si la méthode de la cible l'accepte (les ennemis à 3 paramètres marchent
+## toujours). info : type ("tranchant"), point (impact monde), direction (mouvement de la lame au contact, normalisé),
+## normale, zone ("tete" / "torse" / "bras" / "jambes" / ""), attaque ("legere" / "lourde" / "chargee_max" / "contre"),
+## arme (id de la DonneesArme), stagger (force de déséquilibre), collider (nœud touché).
+## Extension facultative : noter_impact(point, direction), appelée avant recevoir_coup (mannequin : chiffre de dégâts).
 
 ## Coup affaibli (endurance insuffisante) : dégâts multipliés, jamais « puissant ».
 const AFFAIBLI := 0.5
@@ -14,11 +17,29 @@ static func calculer(arme: DonneesArme, lourd: bool, charge: float, affaibli: bo
 		base *= AFFAIBLI
 	return base * mult_competence * bonus_trophee
 
-static func appliquer(cible: Node, degats: float, origine: Vector3, puissant: bool, point: Vector3, direction: Vector3) -> String:
+static func appliquer(cible: Node, degats: float, origine: Vector3, puissant: bool, info: Dictionary) -> String:
 	if cible == null or not is_instance_valid(cible):
 		return ""
 	if cible.has_method("noter_impact"):
-		cible.noter_impact(point, direction)
-	if cible.has_method("recevoir_coup"):
-		return String(cible.recevoir_coup(degats, origine, puissant))
-	return ""
+		cible.noter_impact(info.get("point", Vector3.ZERO), info.get("direction", Vector3.ZERO))
+	if not cible.has_method("recevoir_coup"):
+		return ""
+	if cible.get_method_argument_count("recevoir_coup") >= 4:
+		return String(cible.recevoir_coup(degats, origine, puissant, info))
+	return String(cible.recevoir_coup(degats, origine, puissant))
+
+## Zone touchée d'après la hauteur du point d'impact sur la cible (pieds à son origine, taille 1,8 m × echelle) et son
+## écart latéral : tête au-dessus de 83 %, jambes sous 45 %, bras sur les côtés du torse.
+static func zone(cible: Node3D, point: Vector3) -> String:
+	if cible == null:
+		return ""
+	var echelle: float = float(cible.get("echelle")) if cible.get("echelle") != null else 1.0
+	var local := cible.global_transform.affine_inverse() * point
+	var h := local.y / (1.8 * echelle)
+	if h > 0.83:
+		return "tete"
+	if h < 0.45:
+		return "jambes"
+	if absf(local.x) > 0.24 * echelle:
+		return "bras"
+	return "torse"

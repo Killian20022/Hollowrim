@@ -19,9 +19,16 @@ enum Categorie { VIDE, EPEE, TORCHE, BOUCLIER, SORT }
 @export_file("*.glb", "*.tscn") var modele := ""
 ## Point du modèle (le long de +Y) qui doit être au centre du poing fermé.
 @export var milieu_poignee := 0.03
-## Teinte et lueur de la lame (matériau « lame » du modèle) : Skarnholt dorée, lames enchantées plus tard.
-@export var teinte := Color(1.3, 1.3, 1.38)
+## Matériaux PS1 posés sur le modèle, par nom de matériau Blender : « joueur » (mains._habiller, épée nordique)
+## ou « epees_longues » (EpeesLongues.habiller : les 5 épées longues de la planche).
+@export var habillage := "joueur"
+## Nom du matériau de la lame (teinte, lueur de charge) ; la lame du joueur en reçoit une copie à lui.
+@export var materiau_lame := "lame"
+## Teinte et lueur de la lame : Skarnholt dorée, lames enchantées plus tard. Teinte d'alpha nul = celle du modèle.
+@export var teinte := Color(0, 0, 0, 0)
 @export var emission := Color(0, 0, 0)
+## Lire `garde` et `pointe` dans les nœuds vides du modèle quand il en a (épées longues) : le tracé suit le modèle.
+@export var reperes_du_modele := true
 
 @export_group("Pose FPS de repos")
 ## Repère caméra (+X droite, +Y haut, -Z devant) : position de la poignée, direction de la lame, côté du tranchant.
@@ -37,10 +44,15 @@ enum Categorie { VIDE, EPEE, TORCHE, BOUCLIER, SORT }
 @export var degats_lourd := 34.0
 ## Multiplicateur des dégâts lourds à pleine charge (plafond : pas de dégâts infinis).
 @export var bonus_charge_max := 1.3
-## Nombre maximal de cibles touchées par un même coup (1 = la lame s'arrête au premier corps).
+## Nombre maximal de cibles touchées par un même coup (les suivantes sont traversées sans dégâts).
 @export var multi_cibles := 2
 ## Part des dégâts absorbée en garde (0,85 = 15 % passent).
 @export var reduction_garde := 0.85
+## Type de dégâts transmis aux cibles (info["type"]) : « tranchant » ; plus tard contondant, feu, glace, magique.
+@export var type_degats := "tranchant"
+## Force de déséquilibre (stagger) transmise aux cibles (info["stagger"]), coup léger / lourd (×(1 + charge×0,5)).
+@export var desequilibre_leger := 0.3
+@export var desequilibre_lourd := 0.7
 ## Bruit d'impact sur un mur (« metal », « bois ») : choix du son et des étincelles.
 @export var materiau_impact := "metal"
 
@@ -68,11 +80,14 @@ enum Categorie { VIDE, EPEE, TORCHE, BOUCLIER, SORT }
 func est_arme() -> bool:
 	return categorie == Categorie.EPEE
 
-## Points du tracé dans le repère de l'objet, de la garde à la pointe prolongée de l'allonge.
-func points_lame() -> PackedVector3Array:
+## Points du tracé dans le repère de l'objet, de la garde à la pointe prolongée de l'allonge. `g` / `p` remplacent
+## garde / pointe (repères lus dans le modèle).
+func points_lame(g := Vector3.INF, p := Vector3.INF) -> PackedVector3Array:
+	var a := garde if g == Vector3.INF else g
+	var b := pointe if p == Vector3.INF else p
 	var res := PackedVector3Array()
 	var n := maxi(points_trace, 2)
-	var bout := pointe + (pointe - garde).normalized() * allonge
+	var bout := b + (b - a).normalized() * allonge
 	for i in n:
-		res.append(garde.lerp(bout, float(i) / float(n - 1)))
+		res.append(a.lerp(bout, float(i) / float(n - 1)))
 	return res
