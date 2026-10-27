@@ -369,7 +369,7 @@ func altitude() -> float:
 	return _alt
 
 ## Appelé par l'épée du joueur. Renvoie "touche", "tue" (ou "bloque" s'il est hors de portée).
-func recevoir_coup(quantite: float, origine_coup: Vector3, puissant: bool) -> String:
+func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, _info: Dictionary = {}) -> String:   # _info : contrat épée FPS (docs/DEGATS.md), non utilisé par le dragon
 	if etat == MORT:
 		return ""
 	if _alt > 3.5:

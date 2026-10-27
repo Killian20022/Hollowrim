@@ -31,8 +31,30 @@ static func eclats(parent: Node, position: Vector3, couleur: Color, nombre := 14
 	p.emitting = true
 	p.finished.connect(p.queue_free)
 
-## Fige le jeu une fraction de seconde : donne du poids aux coups.
+## Demandes d'échelle de temps en cours ([échelle] par demande) : la plus lente l'emporte ; quand la dernière se termine, le temps
+## reprend à 1. (Avant : deux arrêts superposés — épée + dégâts — se coupaient l'un l'autre au premier qui finissait.)
+static var _demandes: Array = []
+
+## Fige le jeu une fraction de seconde (temps réel) : donne du poids aux coups.
 static func arret_image(arbre: SceneTree, duree: float) -> void:
-	Engine.time_scale = 0.03
+	await _echelle_temps(arbre, 0.03, duree)
+
+## Ralenti (échelle < 1) pendant `duree` s de temps réel (finishers).
+static func ralenti(arbre: SceneTree, echelle: float, duree: float) -> void:
+	await _echelle_temps(arbre, echelle, duree)
+
+static func _echelle_temps(arbre: SceneTree, echelle: float, duree: float) -> void:
+	if arbre == null or duree <= 0.0:
+		return
+	var d := [echelle]
+	_demandes.append(d)
+	_maj_temps()
 	await arbre.create_timer(duree, true, false, true).timeout
-	Engine.time_scale = 1.0
+	_demandes.erase(d)
+	_maj_temps()
+
+static func _maj_temps() -> void:
+	var e := 1.0
+	for d: Array in _demandes:
+		e = minf(e, float(d[0]))
+	Engine.time_scale = e
