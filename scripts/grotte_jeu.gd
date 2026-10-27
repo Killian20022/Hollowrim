@@ -96,6 +96,8 @@ func _lancer_prechauffe() -> void:
 	var specs: Array = []
 	for a: Dictionary in _file:
 		var e: Dictionary = a["d"]
+		if e.has("ia"):
+			continue          # ennemi EnnemiBase : son modèle (TrollGivre, MageNordique) n'est pas un gabarit EnnemisNordiques
 		var boss: String = e.get("boss", "")
 		var opts := {"ident": a["id"], "apparence": _apparence(e)}
 		if boss != "":
@@ -272,6 +274,15 @@ func _creer_ennemi(a: Dictionary) -> void:
 	var monde: Node3D = acces.monde
 	var pos: Vector3 = g.to_global(a["pos"])
 	var lacet: float = float(a["lacet"]) + g.global_rotation.y
+	var ia: String = e.get("ia", "")
+	if ia != "":            # ennemi à IA propre (EnnemiBase : troll de givre, mage nordique…) : monde.creer_ennemi, mêmes file, gel et sauvegarde
+		var opts_ia := {"ident": id}
+		opts_ia.merge(e.get("options", {}))
+		var en: CharacterBody3D = monde.creer_ennemi(monde.script_ia(ia), pos, lacet, opts_ia)
+		if monde._paisible():
+			en.process_mode = Node.PROCESS_MODE_DISABLED
+		ennemis[id] = en
+		return
 	var boss: String = e.get("boss", "")
 	var opts := {"ident": id, "nom_affiche": e.get("nom", "Bandit"), "contourne": true, "apparence": _apparence(e)}
 	if boss == "":

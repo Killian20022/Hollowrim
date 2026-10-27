@@ -132,5 +132,52 @@ func _tester() -> void:
 	if mur != null:
 		mur.casser(false)
 		_verif(q.vus.has("meca:grotte_mur_cache:casse"), "mur cassé : état meca:grotte_mur_cache:casse noté")
+	# 10. troll de givre de la caverne du lac (entrée « ia » des données) : EnnemiBase, debout sur le sol, gelé hors zone, mort sauvegardée
+	jeu.reinitialiser([])
+	await _attendre(0.1)        # les ennemis retirés (queue_free) disparaissent : sinon le nouveau troll naît dans les anciens et en est éjecté
+	var ac_t: Dictionary = {}
+	for ac: Dictionary in g.accroches:
+		if ac["type"] == "ennemi" and ac["id"] == "troll_lac":
+			ac_t = ac
+	_verif(not ac_t.is_empty() and ac_t["zone"] == "lac_caverne", "troll_lac : accroche dans la zone lac_caverne")
+	if not ac_t.is_empty():
+		var cs_t := CapsuleShape3D.new()
+		cs_t.radius = 0.75
+		cs_t.height = 2.5
+		var qp_t := PhysicsShapeQueryParameters3D.new()
+		qp_t.shape = cs_t
+		qp_t.transform = Transform3D(Basis(), g.to_global(ac_t["pos"]) + Vector3(0, 0.1 + 1.25, 0))
+		qp_t.exclude = [j.get_rid()]
+		var gene := m.get_world_3d().direct_space_state.intersect_shape(qp_t, 4)
+		var noms := []
+		for h in gene:
+			noms.append(str(h["collider"].name) + " " + str(g.to_local(h["collider"].global_position)))
+		_verif(gene.is_empty(), "place libre pour la capsule du troll (0,75 m) à son accroche %s" % [noms])
+		j.global_position = g.to_global(g.sol_en("B", 20.0, 0.0)) + Vector3(0, 0.2, 0)
+		for i in 10:
+			jeu._t = 1.0
+			jeu.tick(0.0)
+		var tr = jeu.ennemis.get("troll_lac")
+		_verif(tr != null and is_instance_valid(tr) and tr is EnnemiBase and String(tr.get_script().resource_path).ends_with("troll_givre_ia.gd"), "troll de givre troll_lac apparu (EnnemiBase)")
+		if tr != null and is_instance_valid(tr):
+			await _attendre(1.0)
+			var ss := m.get_world_3d().direct_space_state
+			var r_sol := ss.intersect_ray(PhysicsRayQueryParameters3D.create(tr.global_position + Vector3(0, 1.0, 0), tr.global_position + Vector3(0, -3.0, 0), 1, [tr.get_rid()]))
+			var ecart: float = (tr.global_position.y - (r_sol["position"] as Vector3).y) if not r_sol.is_empty() else 99.0
+			var depl: float = tr.global_position.distance_to(g.to_global(ac_t["pos"]))
+			var lt: Vector3 = g.to_local(tr.global_position)
+			_verif(absf(ecart) < 0.25 and tr.is_on_floor() and depl < 1.0, "troll debout sur le sol, resté à son poste (écart au sol %.2f m, %.2f m de son accroche, état %d)" % [ecart, depl, tr.etat])
+			_verif(jeu.salles.salle_de(lt, 8.0) == "lac_caverne", "troll localisé dans lac_caverne par SalleActive")
+			j.global_position = g.monde_sol(306.0, 0.0) + Vector3(0, 0.2, 0)
+			jeu.salles.rafraichir(true)
+			_verif(tr.est_gele(), "troll gelé quand le joueur est au camp (hors zone active)")
+			j.global_position = g.to_global(g.sol_en("B", 20.0, 0.0)) + Vector3(0, 0.2, 0)
+			jeu.salles.rafraichir(true)
+			_verif(not tr.est_gele(), "troll dégelé au retour du joueur dans la caverne")
+		jeu.reinitialiser(["troll_lac"])
+		for i in 10:
+			jeu._t = 1.0
+			jeu.tick(0.0)
+		_verif(not jeu.ennemis.has("troll_lac"), "troll_lac tué dans la sauvegarde : ne revient pas")
 	print("ECHECS : %d" % _echecs)
 	quit(_echecs)

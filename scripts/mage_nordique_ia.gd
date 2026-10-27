@@ -389,8 +389,24 @@ func point_teleport() -> Vector3:
 		# place libre (rien à hauteur de buste autour)
 		if not (_libre(Vector3.RIGHT, 0.5, sol + Vector3(-0.25, 1.0, 0)) and _libre(Vector3.BACK, 0.5, sol + Vector3(0, 1.0, -0.25))):
 			continue
+		if not _corps_libre(sol):
+			continue      # les rayons partis de l'intérieur d'un mur épais ne le touchent pas : le volume du corps doit être libre
 		return sol
 	return Vector3.INF
+
+## Place libre pour la capsule du mage posée en `sol` (rien qui chevauche ; le sol lui-même est évité par le relèvement de 0,15 m).
+func _corps_libre(sol: Vector3) -> bool:
+	var cs := CapsuleShape3D.new()
+	cs.radius = 0.4
+	cs.height = 1.6
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = cs
+	q.transform = Transform3D(Basis(), sol + Vector3(0, 0.15 + 0.8, 0))
+	var ex: Array[RID] = [get_rid()]
+	if joueur != null:
+		ex.append(joueur.get_rid())
+	q.exclude = ex
+	return get_world_3d().direct_space_state.intersect_shape(q, 1).is_empty()
 
 func _teleporter() -> void:
 	var p := point_teleport()

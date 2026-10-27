@@ -295,6 +295,8 @@ func _lancer_prechauffe() -> void:
 		return
 	var specs: Array = []
 	for g: Dictionary in donjon.gardiens:
+		if (g["extra"] as Dictionary).has("ia"):
+			continue          # ennemi EnnemiBase (troll, mage) : modèle propre, pas de gabarit EnnemisNordiques
 		var o: Dictionary = (g["extra"] as Dictionary).duplicate()
 		o["ident"] = g["ident"]
 		var sp := EnnemisNordiques.spec_depuis_options(String(g["type"]), o)
@@ -564,7 +566,17 @@ func _gerer_zones() -> void:
 				continue
 			extra.erase("si")
 			_file_gardiens.remove_at(i)
-			if not morts_charges.has(g["ident"]):
+			if not morts_charges.has(g["ident"]) and extra.has("ia"):
+				# ennemi à IA propre (EnnemiBase : extra « ia » = troll_givre, mage_nordique) : monde.creer_ennemi, même file, gel et sauvegarde
+				var ia: String = extra["ia"]
+				extra.erase("ia")
+				extra["ident"] = g["ident"]
+				var en: CharacterBody3D = monde.creer_ennemi(monde.script_ia(ia), crypte.to_global(g["pos"] + Vector3(0, 0.05, 0)), g["lacet"], extra)
+				if monde._paisible():
+					en.process_mode = Node.PROCESS_MODE_DISABLED
+				if salles != null:
+					salles.rafraichir(dedans)
+			elif not morts_charges.has(g["ident"]):
 				var opts := {"debout": g["debout"], "ident": g["ident"]}
 				for k in extra:
 					opts[k] = extra[k]

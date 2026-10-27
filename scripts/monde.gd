@@ -1116,6 +1116,13 @@ func creer_ennemi(script: Script, position_: Vector3, lacet: float, options := {
 	add_child(d)
 	return d
 
+## Scripts des ennemis à IA propre cités par nom dans les données des lieux (grotte_donnees « ia », crypte_donjon extra « ia »).
+const SCRIPTS_IA := {"troll_givre": "res://scripts/troll_givre_ia.gd", "mage_nordique": "res://scripts/mage_nordique_ia.gd"}
+
+static func script_ia(nom: String) -> Script:
+	assert(SCRIPTS_IA.has(nom), "ennemi à IA inconnu : " + nom)
+	return load(SCRIPTS_IA[nom])
+
 func _draugrs() -> void:
 	# trois gardiens endormis au cercle de pierres, un guerrier debout à l'entrée
 	_draugr("guerrier", CERCLE.x + 2.6, CERCLE.z + 1.2, true, 2.0)

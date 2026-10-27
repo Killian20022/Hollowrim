@@ -1385,7 +1385,11 @@ func _decorer() -> void:
 		_corniches_zone(z)
 	for z: Dictionary in def.get("zones", []):          # lot D : pieds des ennemis connus avant le décor (rien ne se pose dessus)
 		for e: Dictionary in z.get("ennemis", []):
-			decor.apparitions.append(_pos_zone(z, e))
+			var pa := _pos_zone(z, e)
+			decor.apparitions.append(pa)
+			if e.has("ia"):            # créature large (troll : capsule de 0,75 m) : cercle de pieds réservés autour (rayon ≈ 0,9 m)
+				for k in 6:
+					decor.apparitions.append(pa + Vector3(cos(k * TAU / 6.0), 0.0, sin(k * TAU / 6.0)) * 0.5)
 	if GrotteKit.actif():
 		GrotteStructures.reserver_autel(self)
 	for z: Dictionary in def.get("zones", []):
