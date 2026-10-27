@@ -1,0 +1,15 @@
+{
+	"_doc": "Écran d'inventaire (touche I, scripts/inventaire_mains.gd) : catégories et objets équipables listés. Un objet = un identifiant lu par EquipementMains.objet (vide, epee, torche, bouclier, id d'une DonneesArme de data/armes/, ou sort). `inventaire` (facultatif) : l'objet n'apparaît que si le sac du joueur contient cet identifiant. Les sorts viennent de EquipementMains.sorts_connus ; Divers = le sac (Inventaire), non équipable. Les catégories regroupent par `genres` (EquipementMains.categorie_de).",
+	"categories": [
+		{"id": "armes", "nom": "Armes", "genres": ["vide", "arme", "arme_deux_mains", "bouclier", "torche"]},
+		{"id": "sorts", "nom": "Sorts", "genres": ["sort"]},
+		{"id": "divers", "nom": "Divers", "genres": []}
+	],
+	"objets": [
+		{"id": "vide"},
+		{"id": "epee"},
+		{"id": "torche"},
+		{"id": "bouclier"}
+	],
+	"ordre_ecoles": ["feu", "glace", "electricite", "tenebres", "soin", "protection"]
+}

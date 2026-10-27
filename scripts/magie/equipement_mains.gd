@@ -7,10 +7,14 @@ extends RefCounted
 ## sort, c'est data/armes/main_sort.tres (pas de modèle, catégorie SORT) ; la logique du sort est dans MainSort.
 
 signal change(main: String)
+## Un raccourci 1-0 a été réassigné ou vidé (écran d'inventaire).
+signal raccourcis_change
 
 const FICHIER_REGLES := "res://data/magie/regles_mains.json"
 const FICHIER_RACCOURCIS := "res://data/magie/raccourcis.json"
 const DOSSIER_SORTS := "res://data/sorts/%s.tres"
+const DOSSIER_ARMES := "res://data/armes/%s.tres"
+const FICHIER_INVENTAIRE := "res://data/magie/inventaire.json"
 const MAIN_SORT := preload("res://data/armes/main_sort.tres")
 const BOUCLIER := preload("res://data/armes/bouclier.tres")
 
@@ -23,6 +27,10 @@ var mains := {"gauche": {}, "droite": {}}
 ## Sorts connus (ids de data/sorts/) : sauvegardés.
 var sorts_connus: Array[String] = []
 var _sorts := {}
+## Objets équipables ajoutés à l'exécution (id → Resource), consultés par objet() avant les fichiers : butin unique, tests.
+var objets_supplementaires := {}
+## Catalogue de l'écran d'inventaire (data/magie/inventaire.json) : catégories, objets équipables, ordre des écoles.
+var catalogue := {}
 var _en_pose := false
 
 func _init(eq: Equipement = null, inv: Inventaire = null) -> void:
@@ -30,6 +38,7 @@ func _init(eq: Equipement = null, inv: Inventaire = null) -> void:
 	inventaire = inv
 	regles = _lire(FICHIER_REGLES)
 	raccourcis = _lire(FICHIER_RACCOURCIS).get("raccourcis", [])
+	catalogue = _lire(FICHIER_INVENTAIRE)
 	for f in DirAccess.get_files_at("res://data/sorts/"):
 		var id := f.trim_suffix(".remap").trim_suffix(".tres")
 		if f.ends_with(".tres") or f.ends_with(".tres.remap"):
@@ -80,9 +89,14 @@ func objet(id: String) -> Resource:
 			return Equipement.TORCHE
 		"bouclier":
 			return BOUCLIER
+	if objets_supplementaires.has(id):
+		return objets_supplementaires[id]
 	var s := sort_par_id(id)
 	if s != null:
 		return s
+	var chemin := DOSSIER_ARMES % id   # toute DonneesArme de data/armes/ par son id (butin, bouclier…)
+	if id.is_valid_filename() and ResourceLoader.exists(chemin):
+		return load(chemin) as DonneesArme
 	return null
 
 func categorie(main: String) -> String:
@@ -221,10 +235,191 @@ func resume(main: String) -> Dictionary:
 	var genre := "arme" if cat.begins_with("arme") else cat
 	return {"genre": genre, "id": String(mains[main].get("id", "vide")), "nom": a.nom if a != null else "", "deux_mains": cat == "arme_deux_mains"}
 
+# ------------------------------------------------------------------ inventaire (écran I : scripts/inventaire_mains.gd)
+
+const NOMS_ECOLES := {"feu": "Feu", "glace": "Glace", "electricite": "Électricité", "tenebres": "Ténèbres", "soin": "Soin", "protection": "Protection"}
+const NOMS_TYPES := {"rapide": "rapide", "canalise": "canalisé", "charge": "chargé", "zone": "zone", "enchant": "enchantement"}
+const NOMS_STATUTS := {"brulure": "brûlure", "gel": "gel (ralentit)", "choc": "choc (étourdit)", "corruption": "corruption (affaiblit)"}
+
+## Objets équipables que le joueur possède, dans une catégorie du catalogue (armes, sorts…) : ids lus par objet().
+## Rien n'est codé en dur : objets de data/magie/inventaire.json (condition `inventaire` facultative), sorts connus,
+## objets_supplementaires ; triés par école pour les sorts.
+func objets_possedes(categorie_id := "") -> Array[String]:
+	var res: Array[String] = []
+	var genres: Array = []
+	for c: Dictionary in catalogue.get("categories", []):
+		if String(c.get("id", "")) == categorie_id:
+			genres = c.get("genres", [])
+	var candidats: Array[String] = []
+	for o: Dictionary in catalogue.get("objets", []):
+		var cond := String(o.get("inventaire", ""))
+		if cond != "" and (inventaire == null or not inventaire.a(cond)):
+			continue
+		candidats.append(String(o.get("id", "")))
+	for id in objets_supplementaires:
+		if not candidats.has(String(id)):
+			candidats.append(String(id))
+	var ordre: Array = catalogue.get("ordre_ecoles", [])
+	var sorts := sorts_connus.duplicate()
+	sorts.sort_custom(func(x: String, y: String) -> bool:
+		var cx := _cle_tri(x, ordre)
+		var cy := _cle_tri(y, ordre)
+		return cx < cy if cx != cy else x < y)
+	candidats.append_array(sorts)
+	for id in candidats:
+		var r := objet(id)
+		if r == null or res.has(id):
+			continue
+		if (genres.is_empty() and categorie_id != "") or (not genres.is_empty() and not genres.has(categorie_de(r))):
+			continue
+		res.append(id)
+	return res
+
+## Clé de tri d'un sort : école (ordre du catalogue), enchantements en fin d'école.
+func _cle_tri(id: String, ordre: Array) -> int:
+	var s := sort_par_id(id)
+	if s == null:
+		return 999
+	var e := ordre.find(s.ecole)
+	return (e if e >= 0 else 50) * 10 + (1 if s.type == DonneesSort.Type.ENCHANT else 0)
+
+## Fiche lisible d'un objet (écran d'inventaire) : {id, nom, genre, ecole, deux_mains, lignes: [texte]}.
+func fiche(id: String) -> Dictionary:
+	var r := objet(id)
+	var f := {"id": id, "nom": "?", "genre": "vide", "ecole": "", "deux_mains": false, "lignes": []}
+	if r == null:
+		return f
+	var cat := categorie_de(r)
+	f["genre"] = cat
+	var l: Array = f["lignes"]
+	if r is DonneesSort:
+		var s := r as DonneesSort
+		var t := String(DonneesSort.Type.keys()[s.type]).to_lower()
+		f["nom"] = s.nom
+		f["ecole"] = s.ecole
+		l.append("%s, %s" % [NOMS_ECOLES.get(s.ecole, s.ecole), NOMS_TYPES.get(t, t)])
+		if s.canalise():
+			l.append("Coût : %d mana/s" % roundi(s.cout_par_seconde))
+		else:
+			l.append("Coût : %d mana" % roundi(s.cout))
+		if s.type == DonneesSort.Type.ENCHANT:
+			l.append("Lame : +%d par coup, %d s" % [roundi(s.degats_enchant), roundi(s.duree_enchant)])
+		elif s.soin > 0.0:
+			l.append("Soin : %d%s" % [roundi(s.soin), "/s" if s.canalise() else ""])
+		elif s.reduction_physique > 0.0:
+			l.append("Absorbe %d %% des coups de face" % roundi(s.reduction_physique * 100.0))
+		elif s.degats > 0.0:
+			var n := " x%d" % s.nombre if s.nombre > 1 else ""
+			l.append("Dégâts : %d%s%s" % [roundi(s.degats), "/s" if s.canalise() else "", n])
+		if s.statut != "":
+			l.append("Effet : %s, %s s" % [NOMS_STATUTS.get(s.statut, s.statut), str(snappedf(s.duree_statut, 0.1))])
+		if s.drain > 0.0:
+			l.append("Rend %d %% des dégâts en vie" % roundi(s.drain * 100.0))
+		if s.recharge > 0.0:
+			l.append("Recharge : %s s" % str(snappedf(s.recharge, 0.1)))
+		if s.se_charge():
+			l.append("Maintenir pour charger (%s s)" % str(snappedf(s.temps_charge, 0.1)))
+		if not s.double.is_empty() and s.type != DonneesSort.Type.ENCHANT:
+			l.append("Dans les deux mains : double incantation")
+	elif r is DonneesArme:
+		var a := r as DonneesArme
+		f["deux_mains"] = a.deux_mains
+		match cat:
+			"vide":
+				f["nom"] = "Main nue"
+				l.append("Rien en main.")
+			"arme", "arme_deux_mains":
+				f["nom"] = a.nom
+				l.append("Dégâts : %s (léger) / %s (lourd)" % [str(snappedf(a.degats_leger, 0.5)), str(snappedf(a.degats_lourd, 0.5))])
+				l.append("Vitesse : %s   Endurance : %d / %d" % [str(snappedf(a.vitesse, 0.05)), roundi(a.cout_leger), roundi(a.cout_lourd)])
+				l.append("Garde : %d %%" % roundi(a.reduction_garde * 100.0))
+				if a.element != "":
+					l.append("Effet : %s" % NOMS_STATUTS.get(a.element, a.element))
+				if a.deux_mains:
+					l.append("Arme à deux mains : occupe les deux mains")
+			"bouclier":
+				f["nom"] = a.nom
+				l.append("Garde : %d %% (endurance x%s)" % [roundi(a.reduction_garde * 100.0), str(snappedf(a.cout_garde, 0.05))])
+				l.append("Clic droit : lever le bouclier")
+			"torche":
+				f["nom"] = a.nom
+				l.append("Éclaire les grottes et la nuit.")
+			_:
+				f["nom"] = a.nom
+		if a.description != "":
+			l.append(a.description)
+	if r is DonneesSort and (r as DonneesSort).description != "":
+		l.append((r as DonneesSort).description)
+	return f
+
+## Ce que provoquerait l'équipement de `id` dans `main`, sans rien changer : {"refus": raison ou "", "effet": texte}.
+## « effet » explique les conséquences permises (arme à deux mains qui libère l'autre main, enchantement retiré…).
+func essai(main: String, id: String) -> Dictionary:
+	var r := objet(id)
+	var raison := refus(main, r)
+	if raison != "":
+		return {"refus": raison, "effet": ""}
+	var cat := categorie_de(r)
+	var deux: Array = regles.get("occupe_deux_mains", ["arme_deux_mains"])
+	var effet := ""
+	if deux.has(cat) and categorie(autre(main)) != "vide":
+		effet = "Occupe les deux mains : la main gauche sera libérée."
+	elif main == "gauche" and cat != "vide" and deux.has(categorie("droite")):
+		effet = "L'arme à deux mains sera rangée."
+	else:
+		var s := sort(autre(main))
+		if s != null and s.type == DonneesSort.Type.ENCHANT and categorie(main).begins_with("arme") and not cat.begins_with("arme"):
+			effet = "L'enchantement de l'autre main sera retiré (plus d'arme)."
+	return {"refus": "", "effet": effet}
+
+## Raccourci i (0..9) = la paire de mains donnée (ids). "" ou la raison du refus. Les deux mains sont mémorisées.
+func assigner_raccourci(i: int, gauche: String, droite: String) -> String:
+	if i < 0 or i >= 10:
+		return "Raccourci inconnu."
+	if objet(gauche) == null or objet(droite) == null:
+		return "Objet inconnu."
+	if refus("gauche", objet(gauche)) != "" and categorie_de(objet(gauche)) != "sort":
+		return refus("gauche", objet(gauche))
+	if refus("droite", objet(droite)) != "" and categorie_de(objet(droite)) != "sort":
+		return refus("droite", objet(droite))
+	while raccourcis.size() <= i:
+		raccourcis.append({"touche": str((raccourcis.size() + 1) % 10)})
+	var e: Dictionary = raccourcis[i]
+	e["gauche"] = gauche
+	e["droite"] = droite
+	e["nom"] = "%s | %s" % [fiche(gauche)["nom"], fiche(droite)["nom"]]
+	raccourcis_change.emit()
+	return ""
+
+## Vide le raccourci i : la touche ne change plus rien (aucune main dans l'entrée).
+func vider_raccourci(i: int) -> void:
+	if i < 0 or i >= raccourcis.size():
+		return
+	var e: Dictionary = raccourcis[i]
+	e.erase("gauche")
+	e.erase("droite")
+	e["nom"] = ""
+	raccourcis_change.emit()
+
+## Raccourcis sauvegardés : entrées {touche, gauche, droite, nom} ; une main inconnue (sort retiré…) est ignorée.
+func importer_raccourcis(liste: Array) -> void:
+	for i in mini(liste.size(), 10):
+		if not (liste[i] is Dictionary):
+			continue
+		var src: Dictionary = liste[i]
+		var e := {"touche": String(src.get("touche", str((i + 1) % 10))), "nom": String(src.get("nom", ""))}
+		for m in ["gauche", "droite"]:
+			if src.has(m) and objet(String(src[m])) != null:
+				e[m] = String(src[m])
+		while raccourcis.size() <= i:
+			raccourcis.append({"touche": str((raccourcis.size() + 1) % 10)})
+		raccourcis[i] = e
+
 # ------------------------------------------------------------------ sauvegarde
 
 func exporter() -> Dictionary:
-	return {"gauche": String(mains["gauche"].get("id", "vide")), "droite": String(mains["droite"].get("id", "vide")), "sorts_connus": sorts_connus.duplicate()}
+	return {"gauche": String(mains["gauche"].get("id", "vide")), "droite": String(mains["droite"].get("id", "vide")), "sorts_connus": sorts_connus.duplicate(),
+		"raccourcis": raccourcis.duplicate(true)}
 
 func importer(d: Dictionary) -> void:
 	if d.is_empty():
@@ -234,6 +429,8 @@ func importer(d: Dictionary) -> void:
 		for s in d["sorts_connus"]:
 			if sort_par_id(String(s)) != null:
 				sorts_connus.append(String(s))
+	if d.get("raccourcis") is Array:
+		importer_raccourcis(d["raccourcis"])
 	# la droite d'abord (enchantement, deux mains), puis la gauche
 	for m in ["droite", "gauche"]:
 		if d.has(m) and equiper(m, String(d[m])) != "":

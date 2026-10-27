@@ -30,6 +30,7 @@ var draugr: CharacterBody3D
 var mur: StaticBody3D
 var zone: ZoneCollisions
 var hud: Control
+var inventaire_ui: InventaireMains
 var soleil: DirectionalLight3D
 var env: Environment
 ## Réglages imposés par un script (tests, captures) avant l'entrée dans l'arbre ; priment sur la ligne de commande.
@@ -142,6 +143,10 @@ func _interface() -> void:
 	hud.set_anchors_preset(Control.PRESET_FULL_RECT)
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	calque.add_child(hud)
+	inventaire_ui = InventaireMains.new()   # inventaire des deux mains (I)
+	inventaire_ui.joueur = joueur
+	inventaire_ui.hud = hud
+	add_child(inventaire_ui)
 	var aide := Label.new()
 	aide.text = "Clic gauche : coup léger (maintenir : lourd)   Clic droit : garde   T : torche   F3 : débogage"
 	aide.add_theme_font_override("font", Palette.police())

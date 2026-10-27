@@ -1181,6 +1181,7 @@ func _neige() -> void:
 	add_child(neige)
 	neige.global_position = joueur.global_position + Vector3(0, 10, 0)
 
+var inventaire_ui: InventaireMains
 func _interface() -> void:
 	calque = CanvasLayer.new()
 	add_child(calque)
@@ -1192,7 +1193,7 @@ func _interface() -> void:
 	rect.material = post
 	calque.add_child(rect)
 	aide = Label.new()
-	aide.text = "ZQSD : marcher   Maj : courir   Espace : sauter\nClic gauche : frapper (maintenir = coup puissant)\nClic droit : garde   T : torche   V : vue   Tab : sac   Échap : menu"
+	aide.text = "ZQSD : marcher   Maj : courir   Espace : sauter\nClic gauche : frapper (maintenir = coup puissant)\nClic droit : garde   T : torche   V : vue   I : inventaire   Tab : sac   Échap : menu"
 	aide.add_theme_font_override("font", Palette.police())   # même police pixel que le HUD (C6)
 	aide.add_theme_font_size_override("font_size", Palette.TAILLE_POLICE)
 	aide.add_theme_color_override("font_color", Color(0.85, 0.9, 1.0, 0.85))
@@ -1203,6 +1204,10 @@ func _interface() -> void:
 	hud.lieux = [[Vector3(CERCLE.x, 0, CERCLE.z), Color("#6fd8ff")], [Vector3.ZERO, Color("#e8a64a")]]
 	calque.add_child(hud)
 	calque.add_child(aide)
+	inventaire_ui = InventaireMains.new()   # inventaire des deux mains (I) : scripts/inventaire_mains.gd
+	inventaire_ui.joueur = joueur
+	inventaire_ui.hud = hud
+	add_child(inventaire_ui)
 	var pause := CanvasLayer.new()   # menu pause (Échap) : scripts/menu_pause.gd
 	pause.set_script(preload("res://scripts/menu_pause.gd"))
 	pause.monde = self
