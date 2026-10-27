@@ -75,8 +75,9 @@ static func couvre(joueur: Node3D, origine: Vector3) -> bool:
 
 ## Coup reçu en garde levée et couverte. Renvoie {issue: "parade" | "bloque" | "brisee", degats: dégâts qui passent,
 ## cout: endurance dépensée}. `vigueur` : endurance actuelle ; `reduction_competence` : Competences.reduction_parade().
-func encaisser(degats: float, vigueur: float, arme: DonneesArme, reduction_competence: float, origine: Vector3) -> Dictionary:
-	var parade := en_parade()
+func encaisser(degats: float, vigueur: float, arme: DonneesArme, reduction_competence: float, origine: Vector3,
+		sans_parade := false) -> Dictionary:
+	var parade := en_parade() and not sans_parade   # sans_parade : coup « imparable » (troll, mage), jamais de parade parfaite
 	var cout := degats * (COUT_PARADE if parade else COUT_BLOCAGE) * reduction_competence * arme.cout_garde
 	if parade and vigueur > 0.0:
 		nb_parades += 1

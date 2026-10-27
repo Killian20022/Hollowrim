@@ -136,3 +136,30 @@ unique (≈ 10 ms). Correctifs déjà faits : sons de combat préchargés en tâ
   « FINISHER: <catégorie> » au-dessus de chaque ennemi.
 - Scène : `godot --path . res://scenes/test_degats.tscn -- --nouvelle [--nuit] [--vue=fps] [--captures=res://captures/degats/x] [--gore=0|1|2] [--perf]`.
 - Test sans fenêtre : `bash outils/tous_les_tests.sh test_degats` (32 vérifications).
+
+## Troll de givre et mage nordique (branche ennemis/troll_mage)
+
+Socle commun **`scripts/combat/ennemi_base.gd` (`EnnemiBase`)** : les briques de draugr.gd (CombatEnnemi, contrat `recevoir_coup`
+4 args, finisher provisoire, `finisher_possible` / `subir_finisher`, `_mourir` : ragdoll, morts variées, décapitation, butin et
+signal `mort` dans tous les cas, `_eviter` / `_libre`, ligne de vue, gel) + déplacement (`_bouger` : marche à reculons / de côté
+possible), télégraphes au sol (`_disque_sol`, `_bande_sol`) et pics de glace (`_pics_glace`). draugr.gd n'est pas modifié.
+Chaque ennemi : sa machine d'états (`_ia`) et des crochets (`_etat_coup`, `_reagir`, `_apres_degats`, `_special_mort`, `_contenu_butin`).
+Création dans le monde : `monde.creer_ennemi(preload("res://scripts/troll_givre_ia.gd"), position, lacet, {"ident": …})` —
+enregistré dans `draugrs` (mort sauvegardée dans `draugrs_morts`, « tue:<ident> » signalé aux quêtes). Modèles inchangés
+(`TrollGivre.creer`, `MageNordique.creer`).
+
+| | Troll de givre (`troll_givre_ia.gd`, profil `troll_givre`) | Mage nordique (`mage_nordique_ia.gd`, profil `mage_nordique`) |
+|---|---|---|
+| Vie / armure | 420 PV, armure 1 + 3 % | 70 PV, aucune |
+| Posture | 110, poids 2 (stagger ÷ 2), jamais renversé, étourdi 3,2 s | 22 (1-2 coups = étourdi), seuil moyen 7 : tout coup interrompt |
+| Résistances | feu ×1,75 (coupe la régénération 8 s), glace ×0,25 | feu ×1,25, glace ×0,5, magique ×0,8 |
+| Attaques | balayage (armement ~1,2 s, **parable** → titube, −45 % posture) ; écrasement (disque au sol 1,25 s, onde 3 m, **se pare mal** : 60 % traverse) ; charge (bande au sol 0,9 s, 8,5 m/s, 35 % traverse la garde, mur = assommé 1,6 s) | trait de givre (orbe 0,95 s, visée figée 0,25 s avant, 11 m/s, ralentit ×0,55 1,8 s) ; zone (disque 1,4 s, ralentit ×0,5 2,5 s, 50 % traverse) ; téléport à 7-9 m si collé ; coup de bâton faible |
+| Autres | rage à mi-vie (une fois : posture pleine, +30 % vitesse, +20 % gestes, recharges ×0,6) ; régénération 6 PV/s après 5 s sans coup | garde 7-13 m : recule face au joueur, pas chassés, rejoint la ligne de vue |
+| Mort | chute lourde (ragdoll), tremblement à l'impact, nuage de neige ; décapitation au finisher | éclatement du cristal (explosion de givre, éclair bleu, pics) ; décapitation au finisher |
+| Butin | 25-45 pièces, fourrure de troll, crocs, cristal de givre (35 %) | 10-25 pièces, cristal de givre, amulette de givre (30 %) |
+
+Côté joueur : `joueur.recevoir_coup(degats, origine, options := {})` accepte `imparable` (part qui traverse la garde, pas de parade),
+`recul`, `ralenti` (Vector2(durée, facteur)), `secousse` ; `joueur.ralentir(duree, facteur)`. Avec la défense de phase 3 (docs/COMBAT.md) : le coup passe par `mains.defendre(degats, origine, sans_parade)` (cône, coût, garde brisée) ; un coup imparable force `sans_parade` (jamais de parade parfaite ni de contre), la part `imparable` traverse ensuite la garde (peut tuer), recul ×0,6 et ralentissement de moitié en garde. `Projectile.tirer_givre(...)` : trait
+de givre (sans chute, se brise sur le décor). Scène : `scenes/test_troll_mage.tscn -- --nouvelle --seul=troll|mage [--vie=N]
+[--captures=…]` (pilote : pare, esquive, sort des disques, poursuit le mage). Tests : `bash outils/tous_les_tests.sh test_troll_ia`,
+`… test_mage_ia`.

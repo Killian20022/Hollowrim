@@ -94,6 +94,37 @@ static func _defaut(n: String) -> ProfilCible:
 			p.mort_vivant = false
 			p.posture_max = 42.0
 			p.seuil_finisher_vie = 0.22
+		"troll_givre":
+			# mini-boss lourd : cuir épais mais pas d'armure (faible), posture très haute (poids 2 : le stagger reçu est divisé par 2),
+			# jamais renversé ; vulnérable au feu, presque insensible au givre ; sang sombre, épais, violacé ; voix de bête (râles graves)
+			p.armure = 1.0
+			p.armure_part = 0.03
+			p.resistances = {"tranchant": 1.0, "contondant": 0.9, "feu": 1.75, "glace": 0.25, "magique": 1.0}
+			p.zones = {"tete": 1.5, "torse": 1.0, "bras": 0.8, "jambes": 0.9}
+			p.couleur_sang = Color(0.24, 0.045, 0.07)
+			p.posture_max = 110.0
+			p.posture_regen = 18.0
+			p.posture_delai = 1.2
+			p.seuil_moyen = 15.0
+			p.seuil_lourd = 24.0
+			p.seuil_chute = 999.0
+			p.poids = 2.0
+			p.duree_etourdi = 3.2
+			p.seuil_finisher_vie = 0.12
+		"mage_nordique":
+			# lanceur de sorts : robe de laine, aucune armure, posture faible (chaque coup l'interrompt), facile à achever
+			p.couleur_sang = Color(0.40, 0.025, 0.02)
+			p.mort_vivant = false
+			p.resistances = {"tranchant": 1.0, "contondant": 1.0, "feu": 1.25, "glace": 0.5, "magique": 0.8}
+			p.posture_max = 22.0
+			p.posture_regen = 8.0
+			p.posture_delai = 1.6
+			p.seuil_moyen = 7.0
+			p.seuil_lourd = 18.0
+			p.seuil_chute = 24.0
+			p.poids = 0.9
+			p.duree_etourdi = 3.0
+			p.seuil_finisher_vie = 0.3
 		"mannequin":
 			p.matiere = "bois"
 			p.sang = false

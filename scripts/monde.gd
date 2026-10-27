@@ -1097,6 +1097,25 @@ func creer_draugr(type: String, position_: Vector3, lacet: float, dort: bool, op
 	add_child(d)
 	return d
 
+## Crée un ennemi à IA propre (socle EnnemiBase : scripts/troll_givre_ia.gd, scripts/mage_nordique_ia.gd…) : mêmes branchements
+## qu'un draugr (joueur, hud, quetes, ident) et enregistré dans `draugrs` : sa mort est sauvegardée (draugrs_morts) et signalée
+## aux quêtes (« tue:<ident> »). `options` : propriétés posées avant add_child (vie_imposee, degats_imposes, dort…).
+func creer_ennemi(script: Script, position_: Vector3, lacet: float, options := {}) -> CharacterBody3D:
+	var d := CharacterBody3D.new()
+	d.set_script(script)
+	d.joueur = joueur
+	d.hud = hud
+	d.quetes = quetes
+	d.ident = String(options.get("ident", "%s_%d" % [script.resource_path.get_file().get_basename(), draugrs.size()]))
+	for cle in options:
+		d.set(cle, options[cle])
+	draugrs[d.ident] = d
+	d.position = position_
+	d.rotation.y = lacet
+	d.mort.connect(func(id: String) -> void: quetes.signaler("tue:" + id))
+	add_child(d)
+	return d
+
 func _draugrs() -> void:
 	# trois gardiens endormis au cercle de pierres, un guerrier debout à l'entrée
 	_draugr("guerrier", CERCLE.x + 2.6, CERCLE.z + 1.2, true, 2.0)

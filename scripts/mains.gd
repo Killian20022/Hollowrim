@@ -1130,10 +1130,10 @@ func _info_coup(e: Dictionary) -> Dictionary:
 ## Coup reçu par le joueur (appelé par joueur.recevoir_coup) : garde levée ET attaquant dans le cône de garde → parade
 ## parfaite, blocage ou garde brisée (DefenseJoueur). Renvoie {} si la garde ne joue pas (dos, garde baissée), sinon
 ## {issue, degats (qui passent), cout}. Sons et étincelles distincts ; l'endurance est dépensée ici.
-func defendre(degats: float, origine: Vector3) -> Dictionary:
+func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictionary:
 	if not bloque or not DefenseJoueur.couvre(joueur, origine):
 		return {}
-	var r := defense.encaisser(degats, joueur.vigueur, arme, joueur.competences.reduction_parade(), origine)
+	var r := defense.encaisser(degats, joueur.vigueur, arme, joueur.competences.reduction_parade(), origine, sans_parade)
 	joueur.depenser(float(r["cout"]))
 	var point := pivot_epee.global_position + (get_parent() as Node3D).global_transform.basis * Vector3(-0.25, 0.12, -0.15)
 	match String(r["issue"]):
