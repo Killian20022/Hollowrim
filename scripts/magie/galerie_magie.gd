@@ -14,10 +14,10 @@ const POST := preload("res://shaders/ps1_post.gdshader")
 
 ## Plans : [nom, durée (s), instant de la capture (s)].
 const PLANS := [
-	["aura_feu", 2.2, 1.6], ["jet_feu", 2.4, 1.2], ["boule_feu", 2.4, 0.42], ["zone_feu", 2.6, 0.5],
-	["aura_glace", 2.0, 1.4], ["eclat_glace", 2.2, 0.3], ["lance_givre", 2.4, 0.4], ["nova_gelee", 2.8, 0.7],
+	["aura_feu", 2.2, 1.6], ["jet_feu", 2.4, 1.2], ["boule_feu", 2.4, 0.16], ["explosion_feu", 2.0, 0.42], ["zone_feu", 2.6, 0.5],
+	["aura_glace", 2.0, 1.4], ["eclat_glace", 2.2, 0.12], ["lance_givre", 2.4, 0.1], ["souffle_givre", 2.4, 1.2], ["nova_gelee", 2.8, 0.7],
 	["aura_electricite", 2.0, 1.4], ["arc_electrique", 2.4, 1.0], ["chaine_eclairs", 1.8, 0.15], ["tempete_statique", 3.0, 1.2],
-	["aura_tenebres", 2.0, 1.4], ["trait_ombre", 2.2, 0.35], ["drain_vie", 2.4, 1.2], ["explosion_obscure", 2.8, 0.6],
+	["aura_tenebres", 2.0, 1.4], ["trait_ombre", 2.2, 0.14], ["drain_vie", 2.4, 1.2], ["explosion_obscure", 2.8, 0.6],
 	["soin", 2.4, 1.2], ["protection", 2.4, 1.2],
 	["statuts", 3.0, 1.5], ["enchant_feu", 1.6, 1.0], ["enchant_glace", 1.6, 1.0], ["enchant_electricite", 1.6, 1.0], ["enchant_tenebres", 1.6, 1.0],
 	["vapeur", 1.6, 0.35], ["decharge", 1.6, 0.2], ["decharge_incendiaire", 1.6, 0.2], ["cristaux_corrompus", 1.8, 0.5],
@@ -89,6 +89,7 @@ func _ready() -> void:
 		var d := DraugrNordique.creer({})
 		add_child(d)
 		d.position = Vector3(-1.6 + i * 1.6, 0.0, -6.0 - absf(i - 1) * 0.6)
+		d.add_to_group("cibles_magie")   # sans collision : les jets les trouvent par ce groupe
 		cibles.append(d)
 	_interface()
 	_preparer_mains.call_deferred()
@@ -305,6 +306,9 @@ func _debut(nom: String) -> void:
 		"boule_feu":
 			EffetsMagie.aura_main(paume_g, "feu", 1.0)
 			_tirer("feu", "boule", _vise())
+		"explosion_feu":
+			EffetsMagie.aura_main(paume_g, "feu", 1.0)
+			_tirer("feu", "boule", _vise(), 0.3)
 		"zone_feu":
 			EffetsMagie.zone("feu", sol_c, 2.6, 2.2)
 		"eclat_glace":
@@ -359,13 +363,13 @@ func _pendant(nom: String, t: float) -> void:
 	match nom:
 		"aura_feu", "aura_glace", "aura_electricite", "aura_tenebres":
 			EffetsMagie.aura_main(paume_g, nom.trim_prefix("aura_"), clampf(t / 1.4, 0.05, 1.0))
-		"jet_feu", "arc_electrique", "drain_vie":
-			var ecole: String = {"jet_feu": "feu", "arc_electrique": "electricite", "drain_vie": "tenebres"}[nom]
+		"jet_feu", "arc_electrique", "drain_vie", "souffle_givre":
+			var ecole: String = {"jet_feu": "feu", "arc_electrique": "electricite", "drain_vie": "tenebres", "souffle_givre": "glace"}[nom]
 			EffetsMagie.aura_main(paume_g, ecole, 1.0)
 			var actif := t > 0.15 and t < 2.0
 			EffetsMagie.jet(ecole, paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, actif)
 			if actif and t > 0.6:
-				EffetsMagie.statut_cible(cibles[1], {"feu": "brulure", "electricite": "choc", "tenebres": "corruption"}[ecole], 0.8)
+				EffetsMagie.statut_cible(cibles[1], {"feu": "brulure", "electricite": "choc", "tenebres": "corruption", "glace": "gel"}[ecole], 0.8)
 		"soin":
 			pass
 		"protection":
@@ -409,6 +413,29 @@ func _perf() -> void:
 	var avec := await _mesurer(240, func() -> void:
 		EffetsMagie.jet("electricite", paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, true))
 	var s := EffetsMagie.stats()
+	if _arg("perf") == "pire":
+		# pire cas : double incantation de feu (deux jets + deux auras) + explosion incendiaire + 5 statuts
+		EffetsMagie.tout_arreter()
+		await get_tree().create_timer(1.5).timeout
+		for i in 5:
+			EffetsMagie.statut_cible(cibles5[i], statuts[i], 60.0)
+		EffetsMagie.double("feu", true)
+		EffetsMagie.aura_main(paume_g, "feu", 1.0)
+		EffetsMagie.aura_main(paume_d, "feu", 1.0)
+		EffetsMagie.zone("feu", Vector3(0, 0, -6), 2.6, 60.0)
+		for k in 30:
+			EffetsMagie.jet("feu", paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, true)
+			EffetsMagie.jet("feu", paume_d, _dir_vers(paume_d, _vise()), 7.0, 1.0, true)
+			await get_tree().process_frame
+		var pire := await _mesurer(240, func() -> void:
+			EffetsMagie.jet("feu", paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, true)
+			EffetsMagie.jet("feu", paume_d, _dir_vers(paume_d, _vise()), 7.0, 1.0, true))
+		var s2 := EffetsMagie.stats()
+		print("PERF_PIRE %s %s : double feu (2 jets + 2 auras) + explosion incendiaire + 5 statuts %.2f ms (%d appels) ; %d particules, %d émetteurs, %d lumières" % [
+			lieu, vue, pire[0], pire[1], s2.particules, s2.emetteurs, s2.lumieres])
+		if dossier != "":
+			_capturer("%s_%s_perf_pire" % [lieu, vue])
+			await get_tree().create_timer(0.3).timeout
 	print("PERF %s %s : sans effet %.2f ms (%d appels de dessin) ; 3 effets (aura feu + arc électrique + nova) + 5 statuts %.2f ms (%d appels) ; %d particules, %d émetteurs, %d lumières, %d éclairs" % [
 		lieu, vue, base[0], base[1], avec[0], avec[1], s.particules, s.emetteurs, s.lumieres, s.eclairs])
 	if dossier != "":

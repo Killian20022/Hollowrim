@@ -15,6 +15,7 @@ appelle `EffetsMagie`. Références : `references/magie/prompt_magie.md` et les 
 | `shaders/magie_cristal.gdshader` | pics de glace et cristaux à facettes plates (MultiMesh), avec dissolution |
 | `shaders/magie_sol.gdshaderinc` (+ `magie_sol` / `magie_sol_mix`) | disques au sol : anneau, runes, spirale |
 | `shaders/magie_voile.gdshader` | couche additive (`material_overlay`) pour les statuts et les enchantements |
+| `shaders/magie_teinte.gdshader` | teinte d'écran discrète (halo additif de la couleur de l'école sur les bords) pendant les jets |
 | `scripts/magie/galerie_magie.gd`, `scenes/galerie_magie.tscn` | galerie de validation |
 | `outils/test_effets_magie.gd` | test sans fenêtre |
 
@@ -76,6 +77,32 @@ Pour le détail de chaque fonction, voir les commentaires de `effets_magie.gd`.
 
 Au-delà d'un plafond, l'effet est refusé et compté dans `stats().refus`.
 
+## Passe « spectaculaire » (2026-10-27)
+
+- **Jets** :
+  - Partent de la paume : un petit foyer `*_paume` est collé aux doigts.
+  - Remplissent tout le trajet : la durée de vie des particules est recalée sur la distance de la cible, sans la traverser.
+  - Cône 2 à 3 fois plus large.
+  - 3 couches : cœur clair additif, corps saturé, bord sombre. S'y ajoutent braises, éclats ou fumée.
+- **Gerbe** :
+  - Une émission en boîte sur la silhouette de la cible l'enveloppe.
+  - La cible est celle que touche le rayon (corps non statique).
+  - Sinon, c'est l'ennemi le plus proche de l'axe, cherché dans les groupes `ennemis`, `cibles_combat` et `cibles_magie`.
+  - Les draugrs de la galerie n'ont pas de collision : ils sont dans le groupe `cibles_magie`.
+- **Turbulence** :
+  - Turbulence GPU (`turb`) seulement sur les particules LENTES : auras, gerbes, traînées.
+  - Sur les jets rapides, elle ramène la vitesse vers celle du bruit : les particules s'entassent près de la main et le milieu du jet se vide.
+- **Lumière** :
+  - Une lumière forte un peu devant la main, une à l'arrivée du jet.
+  - Lumières d'aura et d'impact renforcées.
+  - Teinte d'écran discrète (`magie_teinte`, au plus 11 % sur les bords).
+- **Près de la caméra** : la paume est à environ 0,45 m de l'œil. Tout ce qui s'écarte de plus de 8 cm de la paume couvre une grande partie de l'écran. Les auras restent donc compactes, et les plafonds en pixels (`cap` 12 à 14 pour les corps) évitent les gros pavés au premier plan.
+- **Par école** :
+  - Ténèbres : vortex en spirale dans la paume, filaments épais (4 px de cœur) qui ondulent, fumée violette et éclats noirs, cible corrompue avec éclats violets et lueur.
+  - Glace : lance de 4 m à couronne d'éclats, souffle avec cristaux et poudre, cristaux qui jaillissent à l'impact.
+  - Électricité : arcs de 3 px très ramifiés, éclat de paume, chaîne qui se propage saut par saut (0,06 s par saut).
+  - Feu : grosse boule à 3 sphères, traînée, braises, explosion qui projette des braises.
+
 ## Choix de style
 
 - **Particules carrées :**
@@ -111,14 +138,15 @@ godot --path . res://scenes/galerie_magie.tscn -- --lieu=crypte|dehors --vue=fps
   - `captures/magie/planches/` : comparaisons avec les 5 références, plus la mesure de coût.
   - `captures/magie/video/galerie_magie.mp4` : vidéo de 40 s.
 
-## Coût mesuré (GPU réel, vue FPS, 3 effets + 5 cibles avec statut)
+## Coût mesuré (GPU réel Iris Xe, vue FPS, `--perf=pire`)
 
-| Lieu | Sans effet | Avec effets | Contenu actif |
+| Lieu | Sans effet | 3 effets + 5 statuts | Pire cas : double feu (2 jets, 2 auras) + explosion incendiaire + 5 statuts |
 |---|---|---|---|
-| Crypte | 5,20 ms (60 draw calls) | 6,04 ms (77 draw calls) | 356 particules, 13 émetteurs, 4 lumières, 2 éclairs |
-| Dehors | 5,42 ms | 7,39 ms | même contenu |
+| Crypte | 2,26 ms (60 appels de dessin) | 3,03 ms (+0,77) | 3,29 ms (+1,03 ; 2 970 particules, au plafond) |
+| Dehors | 4,13 ms | 5,59 ms (+1,46) | 4,91 ms (+0,78) |
 
-Mesure sans fenêtre : 2,15 ms par image, en CPU seul.
+- La référence sans effet varie d'une séance à l'autre selon la charge du PC (5,2 ms lors de la première mesure). Les écarts comptent plus que les valeurs absolues.
+- Mesure sans fenêtre : 0,63 ms par image, en CPU seul.
 
 ## Test
 

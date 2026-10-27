@@ -20,6 +20,7 @@ const SH_CRISTAL := preload("res://shaders/magie_cristal.gdshader")
 const SH_SOL := preload("res://shaders/magie_sol.gdshader")
 const SH_SOL_MIX := preload("res://shaders/magie_sol_mix.gdshader")
 const SH_VOILE := preload("res://shaders/magie_voile.gdshader")
+const SH_TEINTE := preload("res://shaders/magie_teinte.gdshader")
 
 const MAX_PARTICULES := 3000
 const MAX_EMETTEURS := 64
@@ -49,7 +50,7 @@ const CRISTAUX := {
 ## Éclairs : [halo, cœur] par teinte.
 const ARCS := {
 	"electricite": ["#4a3ad0", "#f0f2ff"], "tenebres": ["#6a1aa0", "#f0c8ff"], "glace": ["#2f5fb8", "#e8f6ff"],
-	"feu": ["#ec6a1f", "#fff0a8"], "drain": ["#5a1a8a", "#ff6a8a"], "soin": ["#8ab040", "#fff4c0"],
+	"feu": ["#ec6a1f", "#fff0a8"], "drain": ["#7a1ad0", "#e8a8ff"], "soin": ["#8ab040", "#fff4c0"],
 	"protection": ["#3a6a9a", "#eaf8ff"], "violet": ["#7a2ad0", "#f0d0ff"],
 }
 
@@ -86,6 +87,11 @@ var _double_vis := {}
 var _sphere: SphereMesh
 var _plan := PlaneMesh.new()
 var _quad_sol := QuadMesh.new()
+var _teinte_calque: CanvasLayer
+var _teinte_mat: ShaderMaterial
+var _teinte_v := 0.0
+var _teinte_cible := 0.0
+var _teinte_c := Color.BLACK
 
 # ====================================================================== cycle de vie
 
@@ -146,6 +152,7 @@ func _process(dt: float) -> void:
 	_maj_disques()
 	_maj_emetteurs()
 	_maj_lumieres()
+	_maj_teinte(dt)
 
 ## Compteurs (tests, débogage).
 func stats() -> Dictionary:
@@ -228,6 +235,8 @@ func emettre(nom: String, parent: Node, xf: Transform3D, persistant := false, k_
 	else:
 		p.draw_pass_1 = _quad
 		p.material_override = _mat_part(bool(d.get("add", false)), float(d.get("cap", 6.0)), float(d.get("eclat", 1.3)))
+	# les couches additives (cœurs, étincelles) passent par-dessus les corps opaques du même effet
+	p.sorting_offset = 0.5 if bool(d.get("add", false)) else 0.0
 	var ext := 2.0 if p.local_coords else 14.0
 	p.visibility_aabb = AABB(Vector3.ONE * -ext, Vector3.ONE * ext * 2.0)
 	var cible: Node = parent if parent != null else self
@@ -362,6 +371,15 @@ func _pm(nom: String, d: Dictionary, sur := {}) -> ParticleProcessMaterial:
 			pm.emission_ring_inner_radius = 0.0
 			pm.emission_ring_height = 0.05
 	pm.particle_flag_align_y = String(dd.get("mesh", "quad")) == "eclat"
+	if dd.has("turb"):
+		# turbulence (bruit GPU) : flammes et fumées qui ondulent au lieu de filer droit
+		var tu: Vector2 = dd.turb
+		pm.turbulence_enabled = true
+		pm.turbulence_influence_min = tu.x
+		pm.turbulence_influence_max = tu.y
+		pm.turbulence_noise_scale = float(dd.get("turb_echelle", 2.0))
+		pm.turbulence_noise_strength = float(dd.get("turb_force", 1.0))
+		pm.turbulence_noise_speed = Vector3(0, 0.6, 0)
 	if dd.has("rampe"):
 		pm.color_ramp = _rampe(dd.rampe, bool(dd.get("garde_fin", false)))
 	_pms[cle] = pm
@@ -462,6 +480,37 @@ func _maj_lumieres() -> void:
 			l.omni_range = d.portee
 		else:
 			l.visible = false
+
+# ====================================================================== teinte d'écran (discrète, pendant les jets)
+
+## Demande de teinte (à renouveler chaque image) : halo coloré léger sur les bords de l'écran, couleur de l'école.
+func _teinte_demande(ecole: String, k: float) -> void:
+	if k > _teinte_cible:
+		_teinte_cible = k
+		_teinte_c = LUMIERE.get(ecole, LUMIERE.feu)
+
+func _maj_teinte(dt: float) -> void:
+	var cible := minf(_teinte_cible, 1.5)
+	_teinte_cible = 0.0
+	_teinte_v = move_toward(_teinte_v, cible, dt * (5.0 if cible > _teinte_v else 2.5))
+	if _teinte_v <= 0.001:
+		if _teinte_calque != null:
+			_teinte_calque.visible = false
+		return
+	if _teinte_calque == null:
+		_teinte_calque = CanvasLayer.new()
+		_teinte_calque.layer = 1
+		var r := ColorRect.new()
+		r.set_anchors_preset(Control.PRESET_FULL_RECT)
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_teinte_mat = ShaderMaterial.new()
+		_teinte_mat.shader = SH_TEINTE
+		r.material = _teinte_mat
+		_teinte_calque.add_child(r)
+		add_child(_teinte_calque)
+	_teinte_calque.visible = true
+	_teinte_mat.set_shader_parameter("teinte", _teinte_c)
+	_teinte_mat.set_shader_parameter("force", _teinte_v * 0.11)
 
 # ====================================================================== éclairs (traits pixel)
 
@@ -810,7 +859,7 @@ func point_vise(depuis: Node3D, o: Vector3, dir: Vector3, portee: float) -> Dict
 	var r := depuis.get_world_3d().direct_space_state.intersect_ray(q)
 	if r.is_empty():
 		return {"pos": fin, "touche": false, "normale": -dir}
-	return {"pos": r.position, "touche": true, "normale": r.normal}
+	return {"pos": r.position, "touche": true, "normale": r.normal, "collider": r.collider}
 
 func _ecole_ok(ecole: String) -> String:
 	return ecole if LUMIERE.has(ecole) else "feu"
@@ -844,9 +893,9 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 	var a := {"main": main, "ancre": ancre, "ecole": ecole, "i": 0.0, "emit": [], "eclair": {}, "disque": {}, "extra": []}
 	var noms: Array = []
 	match ecole:
-		"feu": noms = ["feu_aura", "feu_aura_braise"]
-		"glace": noms = ["glace_aura", "glace_aura_cristal"]
-		"electricite": noms = ["elec_aura"]
+		"feu": noms = ["feu_aura", "feu_aura_coeur", "feu_aura_braise"]
+		"glace": noms = ["glace_aura", "glace_aura_cristal", "glace_aura_eclats"]
+		"electricite": noms = ["elec_aura", "elec_aura_lueur"]
 		"tenebres": noms = ["ten_aura", "ten_aura_lueur"]
 		"soin": noms = ["soin_aura"]
 		"protection": noms = ["prot_aura"]
@@ -855,9 +904,10 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 		if p != null:
 			a.emit.append(p)
 	if ecole == "electricite":
-		a.eclair = eclair(ancre, "electricite", 1.0, -1.0, 0.06, _gen_aura_arcs.bind(a))
+		a.eclair = eclair(ancre, "electricite", 2.0, -1.0, 0.05, _gen_aura_arcs.bind(a))
 	elif ecole == "tenebres":
-		var vortex := _vortex_main(ancre, 0.05)
+		# vortex noir et violet DANS la paume (spirale), bien visible en vue FPS
+		var vortex := _vortex_main(ancre, 0.07)
 		a.extra.append(vortex)
 	elif ecole == "protection":
 		var mi := MeshInstance3D.new()
@@ -884,13 +934,14 @@ func _vortex_main(parent: Node3D, rayon: float) -> MeshInstance3D:
 	mi.mesh = _quad_sol
 	var m := ShaderMaterial.new()
 	m.shader = SH_SOL_MIX
-	m.set_shader_parameter("couleur", Color("#7a2ad0"))
-	m.set_shader_parameter("coeur", Color("#0c0614"))
-	m.set_shader_parameter("anneau", 0.95)
-	m.set_shader_parameter("epaisseur", 0.04)
+	m.set_shader_parameter("couleur", Color("#b050ff"))
+	m.set_shader_parameter("coeur", Color("#06030c"))
+	m.set_shader_parameter("anneau", 0.92)
+	m.set_shader_parameter("epaisseur", 0.06)
 	m.set_shader_parameter("spirale", 1.0)
-	m.set_shader_parameter("texels", 24.0)
-	m.set_shader_parameter("opacite", 0.9)
+	m.set_shader_parameter("texels", 28.0)
+	m.set_shader_parameter("tourne", 0.8)
+	m.set_shader_parameter("opacite", 1.0)
 	m.set_shader_parameter("face_camera", true)
 	mi.material_override = m
 	mi.scale = Vector3.ONE * rayon
@@ -902,11 +953,11 @@ func _gen_aura_arcs(a: Dictionary) -> Array:
 	var traits: Array = []
 	var i := float(a.i)
 	var dbl: bool = _double.get(a.ecole, false)
-	var n := 2 + int(i * 3.0) + (2 if dbl else 0)
+	var n := 3 + int(i * 5.0) + (2 if dbl else 0)
 	for _k in n:
 		var o := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized() * 0.015
-		var b := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.6, 1), rng.randf_range(-1, 1)).normalized() * rng.randf_range(0.06, 0.12) * (1.0 + 0.4 * i)
-		traits.append([foudre(o, b, 0.018, 3), 2.0 if dbl else 1.0, 1.0])
+		var b := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.6, 1), rng.randf_range(-1, 1)).normalized() * rng.randf_range(0.05, 0.11) * (1.0 + 0.4 * i)
+		traits.append([foudre(o, b, 0.025, 3), 1.0 if rng.randf() < 0.5 else 0.6, 1.0])
 	return traits
 
 func _aura_eteindre(a: Dictionary) -> void:
@@ -948,7 +999,7 @@ func _maj_auras() -> void:
 			scint = 0.6 + 0.8 * rng.randf()
 		elif a.ecole == "feu":
 			scint = 0.9 + 0.2 * sin(horloge * 23.0) * sin(horloge * 7.0)
-		lumiere("aura%d" % id, ancre.position, c, (0.8 + 2.0 * i) * scint * (1.5 if dbl else 1.0), 3.5 + 2.5 * i, 2.0 + i)
+		lumiere("aura%d" % id, ancre.position + Vector3.UP * 0.05, c, (1.5 + 4.0 * i) * scint * (1.5 if dbl else 1.0), 4.5 + 3.5 * i, 2.0 + i)
 
 # ====================================================================== jets canalisés
 
@@ -977,26 +1028,44 @@ func jet(ecole: String, origine: Node3D, direction: Vector3, portee: float, larg
 func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, dbl: bool) -> Dictionary:
 	var j := {"ecole": ecole, "origine": origine, "portee": portee, "largeur": largeur, "dbl": dbl, "emit": [], "eclair": {},
 		"dir": Vector3.FORWARD, "vu": horloge, "fin_pos": Vector3.ZERO, "touche": false, "normale": Vector3.UP, "t_bout": 0.0, "t_rayon": -1.0,
-		"suit_bout": [], "bouclier": {}}
-	var kl := 1.7 if dbl else 1.0
-	var ecart := clampf(rad_to_deg(atan2(largeur * 0.5 * kl, maxf(portee, 0.5))) * 1.4, 5.0, 30.0)
-	var kn := 1.8 if dbl else 1.0
+		"suit_bout": [], "bouclier": {}, "cible": null, "gerbe": [], "gerbe_cible": null, "gerbe_bb": AABB(), "flash": null, "debut": horloge}
+	var kl := 1.6 if dbl else 1.0
+	# cône 2 à 3 fois plus large qu'un rayon « géométrique » : la flamme s'évase et noie la cible
+	var ecart := clampf(rad_to_deg(atan2(largeur * 0.5 * kl, maxf(portee, 0.5))) * 2.4, 8.0, 32.0)
+	var kn := 1.4 if dbl else 1.0
 	match ecole:
 		"feu", "glace", "soin":
-			var noms: Array = {"feu": ["feu_jet", "feu_jet_braise", "feu_jet_fumee"], "glace": ["glace_jet", "glace_jet_cristal", "glace_jet_brume"], "soin": ["soin_jet"]}[ecole]
+			var noms: Array = {"feu": ["feu_jet_coeur", "feu_jet", "feu_jet_bord", "feu_jet_braise", "feu_jet_fumee", "feu_paume"],
+				"glace": ["glace_jet", "glace_jet_corps", "glace_jet_cristal", "glace_jet_brume", "glace_paume"], "soin": ["soin_jet"]}[ecole]
 			for nom in noms:
 				var d: Dictionary = PresetsMagie.R[nom]
+				if nom.ends_with("paume"):
+					var pp := emettre(nom, null, Transform3D.IDENTITY, true, kn)
+					if pp != null:
+						j.emit.append(pp)
+					continue
 				var v: Vector2 = d.vit
-				var vie := portee / ((v.x + v.y) * 0.5) * (1.6 if nom.ends_with("fumee") or nom.ends_with("brume") else 1.0)
+				var vm := (v.x + v.y) * 0.5
+				var kv := 1.6 if nom.ends_with("fumee") or nom.ends_with("brume") else 1.2
 				var pm := _pm(nom, d, {"ecart": snappedf(float(d.get("ecart", 9.0)) * ecart / 9.0, 0.5)})
-				var p := emettre(nom, null, Transform3D.IDENTITY, true, kn, vie, pm)
+				var p := emettre(nom, null, Transform3D.IDENTITY, true, kn, portee / vm * kv, pm)
 				if p != null:
+					p.set_meta("v_jet", vm / kv)
 					j.emit.append(p)
 		"electricite":
-			j.eclair = eclair(null, "electricite", 2.0 if dbl else 1.0, -1.0, 0.05, _gen_jet_arc.bind(j))
+			j.eclair = eclair(null, "electricite", 4.0 if dbl else 3.0, -1.0, 0.05, _gen_jet_arc.bind(j))
+			var pe := emettre("elec_paume", null, Transform3D.IDENTITY, true, kn)
+			if pe != null:
+				j.emit.append(pe)
+			# éclat aveuglant dans la paume (sphère additive qui papillote)
+			var f := Node3D.new()
+			add_child(f)
+			_boule(f, 0.5, _mat_coeur(Color("#f0f2ff"), true, 2.2))
+			_boule(f, 1.0, _mat_coeur(Color("#7a7af0", 0.45), true, 1.4))
+			j.flash = f
 		"tenebres":
-			j.eclair = eclair(null, "drain", 2.0 if dbl else 1.0, -1.0, 0.04, _gen_drain.bind(j))
-			for nom in ["ten_drain_sombre", "ten_drain_rouge"]:
+			j.eclair = eclair(null, "drain", 5.0 if dbl else 4.0, -1.0, 0.04, _gen_drain.bind(j))
+			for nom in ["ten_drain_sombre", "ten_drain_rouge", "ten_drain_eclats"]:
 				var p := emettre(nom, null, Transform3D.IDENTITY, true, kn)
 				if p != null:
 					j.emit.append(p)
@@ -1012,11 +1081,15 @@ func _gen_jet_arc(j: Dictionary) -> Array:
 	var b: Vector3 = j.fin_pos
 	var l := o.distance_to(b)
 	var dbl: bool = j.dbl
-	var w := 2.0 if dbl else 1.0
-	foudre_ramifiee(traits, o, b, l * 0.1, w, 3 if dbl else 2, 5)
-	foudre_ramifiee(traits, o, b + Vector3(rng.randf_range(-0.2, 0.2), rng.randf_range(-0.2, 0.2), rng.randf_range(-0.2, 0.2)), l * 0.13, maxf(1.0, w - 1.0), 1, 5)
-	if dbl:
-		foudre_ramifiee(traits, o, b, l * 0.16, 1.0, 2, 5)
+	# arc principal épais + 2 arcs secondaires, nombreuses ramifications ; quelques fourches vers le corps de la cible
+	foudre_ramifiee(traits, o, b, l * 0.1, 1.0, 5 if dbl else 4, 5)
+	for _k in (3 if dbl else 2):
+		var dev := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * 0.35
+		foudre_ramifiee(traits, o, b + dev, l * 0.14, 0.6, 2, 5)
+	if j.touche:
+		for _k in 3:
+			var fin := b + Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(-0.8, 0.5), rng.randf_range(-0.4, 0.4))
+			traits.append([foudre(b, fin, 0.08, 3), 0.6, 0.8])
 	return traits
 
 func _gen_drain(j: Dictionary) -> Array:
@@ -1032,18 +1105,84 @@ func _gen_drain(j: Dictionary) -> Array:
 	var dir := axe / l
 	var x := dir.cross(Vector3.UP if absf(dir.y) < 0.95 else Vector3.RIGHT).normalized()
 	var y := dir.cross(x)
-	var n := clampi(int(l * 7.0), 6, 40)
+	var n := clampi(int(l * 9.0), 8, 60)
 	var dbl: bool = j.dbl
-	for brin in (3 if dbl else 2):
+	var brins := 5 if dbl else 4
+	# filaments épais qui ondulent et s'enroulent (pas un trait fin) : rayon qui respire le long du trajet
+	for brin in brins:
 		var pts := PackedVector3Array()
-		var ph := horloge * 9.0 + brin * TAU / (3.0 if dbl else 2.0)
+		var ph := horloge * (7.0 + brin) + brin * TAU / brins
+		var amp := (0.07 + 0.05 * float(brin % 2)) * (1.4 if dbl else 1.0)
 		for i in n + 1:
 			var t := float(i) / n
-			var rayon := (0.03 + 0.08 * sin(t * PI)) * (1.5 if dbl else 1.0)
-			var a := ph - t * 14.0
+			var rayon := amp * (0.35 + sin(t * PI) * (1.6 + 0.6 * sin(horloge * 3.0 + brin)))
+			var a := ph - t * (10.0 + 3.0 * brin)
 			pts.append(o + axe * t + (x * cos(a) + y * sin(a)) * rayon)
-		traits.append([pts, 2.0 if brin == 0 else 1.0, 1.0])
+		traits.append([pts, 1.0 if brin < 2 else 0.6, 1.0])
 	return traits
+
+## Cible du jet : ce que touche le rayon (corps mobile), sinon l'ennemi le plus proche de l'axe (groupes « ennemis »,
+## « cibles_combat », « cibles_magie ») : le jet s'arrête sur lui et la gerbe l'enveloppe.
+func _jet_cible(j: Dictionary, o: Vector3, dir: Vector3) -> void:
+	var portee := float(j.portee)
+	var r := point_vise(j.origine, o, dir, portee)
+	var cible: Node3D = null
+	var col: Variant = r.get("collider")
+	if r.touche and col is Node3D and not (col is StaticBody3D) and not (col is CSGShape3D):
+		cible = col
+	var lim := o.distance_to(r.pos)
+	if cible == null:
+		var meilleur := 1e9
+		for g in ["ennemis", "cibles_combat", "cibles_magie"]:
+			for n in get_tree().get_nodes_in_group(g):
+				if not (n is Node3D) or not (n as Node3D).is_visible_in_tree():
+					continue
+				var c := (n as Node3D).global_position + Vector3.UP * 1.0
+				var t := (c - o).dot(dir)
+				if t < 0.3 or t > lim + 0.5:
+					continue
+				var ecart := (o + dir * t).distance_to(c)
+				if ecart < 0.9 and t < meilleur:
+					meilleur = t
+					cible = n
+	j.cible = cible
+	if cible != null:
+		if j.gerbe_cible != cible:
+			j.gerbe_bb = boite(cible)
+		var bb: AABB = j.gerbe_bb if j.gerbe_cible == cible else boite(cible)
+		var centre := cible.global_transform * bb.get_center()
+		var t2 := maxf((centre - o).dot(dir), 0.3)
+		j.fin_pos = o + dir * t2
+		j.touche = true
+		j.normale = -dir
+	else:
+		j.fin_pos = r.pos
+		j.touche = r.touche
+		j.normale = r.normale
+
+func _jet_gerbe(j: Dictionary) -> void:
+	# gerbe qui ENVELOPPE le corps de la cible (flammes, givre, étincelles, fumée obscure sur toute la silhouette)
+	var cible: Variant = j.cible
+	if j.gerbe_cible != cible:
+		for p in j.gerbe:
+			arreter(p)
+		j.gerbe = []
+		j.gerbe_cible = cible
+		if cible != null and valide(cible):
+			var bb: AABB = j.gerbe_bb
+			var ext := (bb.size * 0.45).max(Vector3(0.1, 0.2, 0.1))
+			var exs := Vector3(snappedf(ext.x, 0.05), snappedf(ext.y, 0.05), snappedf(ext.z, 0.05))
+			var noms: Array = {"feu": ["feu_gerbe", "feu_gerbe_braise"], "glace": ["glace_gerbe", "glace_gerbe_cristal"],
+				"electricite": ["elec_gerbe"], "tenebres": ["ten_gerbe", "ten_gerbe_lueur"]}.get(j.ecole, [])
+			for nom in noms:
+				var p := emettre(nom, null, Transform3D.IDENTITY, true, 1.4 if j.dbl else 1.0, -1.0, _pm(nom, PresetsMagie.R[nom], {"ext": exs}))
+				if p != null:
+					j.gerbe.append(p)
+	if cible != null and valide(cible):
+		var centre: Vector3 = (cible as Node3D).global_transform * (j.gerbe_bb as AABB).get_center()
+		for p in j.gerbe:
+			if is_instance_valid(p):
+				p.position = centre
 
 func _jet_placer(j: Dictionary) -> void:
 	var origine: Node3D = j.origine
@@ -1053,28 +1192,33 @@ func _jet_placer(j: Dictionary) -> void:
 	var dir: Vector3 = j.dir
 	if horloge - float(j.t_rayon) > 0.08:
 		j.t_rayon = horloge
-		var r := point_vise(origine, o, dir, float(j.portee))
-		j.fin_pos = r.pos
-		j.touche = r.touche
-		j.normale = r.normale
-	var b := base_vers(dir)
+		_jet_cible(j, o, dir)
+	var fin: Vector3 = j.fin_pos
+	var l := o.distance_to(fin)
+	var vers := (fin - o) / maxf(l, 0.001) if l > 0.05 else dir
+	var b := base_vers(vers)
 	for p in j.emit:
 		if is_instance_valid(p) and not j.suit_bout.has(p):
 			p.transform = Transform3D(b, o)
+			# les particules s'éteignent DANS la cible : le jet remplit tout le trajet sans la traverser
+			if p.has_meta("v_jet"):
+				var vie := clampf(l / float(p.get_meta("v_jet")), 0.08, 3.0)
+				if absf(p.lifetime - vie) > vie * 0.18:
+					p.lifetime = vie
 	# drain : les particules partent de la cible et remontent vers la main
-	var fin: Vector3 = j.fin_pos
-	var l := o.distance_to(fin)
 	for p in j.suit_bout:
 		if is_instance_valid(p):
 			p.transform = Transform3D(base_vers(o - fin), fin)
-			var v := 5.5
-			var vie := clampf(l / v, 0.1, 2.0)
+			var vie := clampf(l / 5.75, 0.1, 2.0)
 			if absf(p.lifetime - vie) > 0.15:
 				p.lifetime = vie
 	if not j.bouclier.is_empty():
 		var d: Dictionary = j.bouclier
 		d.pos = o + dir * 0.35
 		d.base = GestionMagie.base_normale(dir)
+	if j.flash != null and is_instance_valid(j.flash):
+		(j.flash as Node3D).transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * rng.randf_range(0.035, 0.08) * (1.4 if j.dbl else 1.0)), o)
+	_jet_gerbe(j)
 	# feu / glace / électricité : léchage au point touché
 	if j.touche and horloge - float(j.t_bout) > 0.12:
 		j.t_bout = horloge
@@ -1085,18 +1229,30 @@ func _jet_placer(j: Dictionary) -> void:
 			"glace":
 				emettre("glace_bouffee", null, Transform3D(bn, fin), false)
 			"electricite":
-				emettre("elec_etincelles", null, Transform3D(bn, fin), false, 0.5)
+				emettre("elec_etincelles", null, Transform3D(bn, fin), false, 0.7)
+	# lumière : forte sur la main (un peu devant, pour éclairer main et sol) et à l'arrivée, couleur de l'école
 	var c: Color = LUMIERE[j.ecole]
-	var kd := 1.6 if j.dbl else 1.0
-	var e := 2.6 * kd
+	var kd := 1.2 if j.dbl else 1.0   # deux jets = deux lumières : multiplicateur modéré (neige surexposée sinon)
+	var sc := 1.0
 	if j.ecole == "electricite":
-		e *= 0.5 + rng.randf()
-	lumiere("jet%d" % origine.get_instance_id(), o.lerp(fin, 0.6), c, e, 5.0 + 2.0 * kd, 4.0 * kd)
+		sc = 0.55 + 0.9 * rng.randf()
+	elif j.ecole == "feu":
+		sc = 0.9 + 0.15 * sin(horloge * 21.0) * sin(horloge * 6.0)
+	var id := origine.get_instance_id()
+	lumiere("aura%d" % id, o + vers * 0.5, c, 5.0 * kd * sc, 7.5 + 1.5 * kd, 9.0)
+	lumiere("jet%d" % id, fin - vers * minf(0.7, l * 0.3) + Vector3.UP * 0.3, c, 7.0 * kd * sc, 7.0 + 2.0 * kd, 8.0)
+	_teinte_demande(j.ecole, 1.0 if not j.dbl else 1.4)
 
 func _jet_arreter(j: Dictionary) -> void:
 	for p in j.emit:
 		arreter(p)
+	for p in j.gerbe:
+		arreter(p)
+	j.gerbe = []
 	eclair_fin(j.eclair)
+	if j.flash != null and is_instance_valid(j.flash):
+		(j.flash as Node).queue_free()
+	j.flash = null
 	if not j.bouclier.is_empty():
 		j.bouclier.duree = 0.0
 
@@ -1130,27 +1286,30 @@ func projectile_visuel(ecole: String, forme: String) -> Node3D:
 			mi.mesh = _mesh_eclat
 			mi.material_override = _mat_cristal(cp)
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			mi.scale = (Vector3(2.6, 2.6, 2.2) if lance else Vector3(1.1, 1.1, 0.95)) * k
+			mi.scale = (Vector3(1.6, 1.6, 4.0) if lance else Vector3(1.3, 1.3, 1.7)) * k
 			visuel.add_child(mi)
 			if lance:
 				# cristaux latéraux en couronne vers l'arrière (lance de givre massive)
-				for i in (6 if dbl else 4):
+				for i in (8 if dbl else 6):
 					var s := MeshInstance3D.new()
 					s.mesh = _mesh_eclat
 					s.material_override = mi.material_override
 					s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-					var a := TAU * i / (6.0 if dbl else 4.0)
-					s.transform = Transform3D(Basis.from_euler(Vector3(sin(a) * 0.5, cos(a) * 0.5, 0)).scaled(Vector3(0.5, 0.5, 0.6) * k), Vector3(cos(a) * 0.12, sin(a) * 0.12, 0.25) * k)
+					var a := TAU * i / (8.0 if dbl else 6.0)
+					var lg := 1.1 if i % 2 == 0 else 0.75
+					s.transform = Transform3D(Basis.from_euler(Vector3(sin(a) * 0.45, cos(a) * 0.45, 0)).scaled(Vector3(0.7, 0.7, lg) * k), Vector3(cos(a) * 0.16, sin(a) * 0.16, 0.35 + 0.2 * float(i % 2)) * k)
 					visuel.add_child(s)
 		"trait":
-			_boule(visuel, 0.1 * k, _mat_coeur(Color(pal[2]).darkened(0.7), false, 1.0))
-			_boule(visuel, 0.2 * k, _mat_coeur(Color(pal[1], 0.6), true, 1.6))
-			_boule(visuel, 0.3 * k, _mat_coeur(Color(pal[2], 0.3), true, 1.2))
+			_boule(visuel, 0.15 * k, _mat_coeur(Color(pal[2]).darkened(0.7), false, 1.0))
+			_boule(visuel, 0.28 * k, _mat_coeur(Color(pal[1], 0.6), true, 1.6))
+			_boule(visuel, 0.42 * k, _mat_coeur(Color(pal[2], 0.3), true, 1.2))
 			if ecole == "tenebres":
 				coeur.append(emettre("ten_coeur", visuel, Transform3D.IDENTITY, true))
 		_:   # "boule", "orbe"
-			_boule(visuel, (0.09 if forme == "boule" else 0.07) * k, _mat_coeur(Color(pal[0]), true, 1.8))
-			_boule(visuel, (0.17 if forme == "boule" else 0.12) * k, _mat_coeur(Color(pal[2], 0.5), true, 1.2))
+			_boule(visuel, (0.17 if forme == "boule" else 0.1) * k, _mat_coeur(Color(pal[0]), true, 1.8))
+			_boule(visuel, (0.3 if forme == "boule" else 0.17) * k, _mat_coeur(Color(pal[2], 0.5), true, 1.2))
+			if forme == "boule":
+				_boule(visuel, 0.42 * k, _mat_coeur(Color(pal[3] if pal.size() > 3 else pal[2], 0.25), true, 1.1))
 			if ecole == "feu":
 				coeur.append(emettre("feu_boule_coeur", visuel, Transform3D.IDENTITY, true))
 			elif ecole == "tenebres":
@@ -1185,8 +1344,11 @@ func _maj_projectiles() -> void:
 				var noms: Array = [PresetsMagie.de(e.ecole, "trainee")]
 				if e.ecole == "feu":
 					noms.append("feu_trainee_fumee")
+					noms.append("feu_trainee_braise")
 				elif e.ecole == "glace":
 					noms.append("glace_trainee_brume")
+					if e.forme == "lance":
+						noms.append("glace_trainee_eclats")
 				elif e.ecole == "tenebres":
 					noms.append("ten_trainee_lueur")
 				for nom in noms:
@@ -1203,7 +1365,7 @@ func _maj_projectiles() -> void:
 					vis.global_basis = base_vers(v)
 			e.prec = pos
 			var c: Color = LUMIERE[e.ecole]
-			lumiere("proj%d" % (n as Node).get_instance_id(), pos, c, 2.2 if e.forme in ["boule", "orbe", "trait"] else 1.2, 4.5, 3.0)
+			lumiere("proj%d" % (n as Node).get_instance_id(), pos, c, 3.6 if e.forme in ["boule", "orbe", "trait"] else 2.2, 6.0, 3.0)
 		elif not vivant or e.entre:
 			for p in e.emit + e.coeur:
 				arreter(p)
@@ -1225,24 +1387,26 @@ func impact(ecole: String, position: Vector3, normale: Vector3, force: float) ->
 			emettre("feu_impact", null, xf, false, kn)
 			emettre("feu_impact_braise", null, xf, false, kn)
 			emettre("feu_impact_fumee", null, xf, false, kn)
-			disque(position, normale, 0.1, 1.1 * f, 0.4, {"couleur": "#ec6a1f", "coeur": "#fff0a8", "anneau": 0.85, "epaisseur": 0.12, "texels": 40.0})
+			disque(position, normale, 0.1, 1.7 * f, 0.45, {"couleur": "#ec6a1f", "coeur": "#fff0a8", "anneau": 0.85, "epaisseur": 0.14, "texels": 40.0})
 		"glace":
 			emettre("glace_impact", null, xf, false, kn)
 			emettre("glace_impact_eclats", null, xf, false, kn)
 			emettre("glace_impact_brume", null, xf, false, kn)
-			disque(position, normale, 0.1, 0.9 * f, 0.35, {"couleur": "#5f9fe8", "coeur": "#e8f6ff", "anneau": 0.85, "epaisseur": 0.1, "texels": 40.0})
-			for k in 3 + int(f * 2.0):
+			emettre("glace_impact_poudre", null, xf, false, kn)
+			disque(position, normale, 0.1, 1.3 * f, 0.35, {"couleur": "#5f9fe8", "coeur": "#e8f6ff", "anneau": 0.85, "epaisseur": 0.1, "texels": 40.0})
+			# cristaux qui JAILLISSENT de l'impact
+			for k in 6 + int(f * 3.0):
 				var a := rng.randf() * TAU
-				var off := (b.x * cos(a) + b.z * sin(a)) * rng.randf_range(0.1, 0.35) * f
-				var axe := (b.y + off.normalized() * 0.6).normalized()
-				pic("glace", position + off, axe, rng.randf_range(0.04, 0.08) * f, rng.randf_range(0.18, 0.4) * f, k * 0.02, 0.12, horloge + 1.2 + rng.randf() * 0.3)
+				var off := (b.x * cos(a) + b.z * sin(a)) * rng.randf_range(0.05, 0.4) * f
+				var axe := (b.y + off.normalized() * rng.randf_range(0.4, 1.0)).normalized()
+				pic("glace", position + off, axe, rng.randf_range(0.06, 0.12) * f, rng.randf_range(0.35, 0.8) * f, k * 0.015, 0.1, horloge + 1.3 + rng.randf() * 0.4)
 		"electricite":
 			emettre("elec_impact", null, xf, false, kn)
 			disque(position, normale, 0.1, 1.4 * f, 0.3, {"couleur": "#7a7af0", "coeur": "#f0f2ff", "anneau": 0.9, "epaisseur": 0.06, "texels": 48.0, "eclat": 1.8})
 			var centre := position + b.y * 0.05
-			eclair(null, "electricite", 1.0, 0.3, 0.05, func() -> Array:
+			eclair(null, "electricite", 2.0, 0.3, 0.05, func() -> Array:
 				var traits: Array = []
-				for _k in 5:
+				for _k in 7:
 					var a := rng.randf() * TAU
 					var fin := centre + (b.x * cos(a) + b.z * sin(a)) * rng.randf_range(0.6, 1.4) * f + b.y * rng.randf_range(0.0, 0.4)
 					foudre_ramifiee(traits, centre, fin, 0.12 * f, 1.0, 1, 4)
@@ -1250,6 +1414,7 @@ func impact(ecole: String, position: Vector3, normale: Vector3, force: float) ->
 		"tenebres":
 			emettre("ten_impact", null, xf, false, kn)
 			emettre("ten_impact_sombre", null, xf, false, kn)
+			emettre("ten_impact_eclats", null, xf, false, kn)
 			disque(position, normale, 0.1, 1.0 * f, 0.5, {"couleur": "#5a1a8a", "coeur": "#0c0614", "anneau": 0.8, "epaisseur": 0.15, "spirale": 0.8, "texels": 40.0}, true)
 			for k in 4 + int(f * 2.0):
 				var a := rng.randf() * TAU
@@ -1262,7 +1427,7 @@ func impact(ecole: String, position: Vector3, normale: Vector3, force: float) ->
 		"protection":
 			emettre("prot_impact", null, xf, false, kn)
 			disque(position, normale, 0.3, 1.0 * f, 0.6, {"couleur": "#7ab0d8", "coeur": "#eaf8ff", "anneau": 0.85, "epaisseur": 0.08, "runes": 1.0, "texels": 40.0})
-	lumiere("impact%d" % rng.randi(), position + b.y * 0.3, c, 5.0 * clampf(f, 0.6, 2.0), 6.0 + 2.0 * f, 6.0, 0.35)
+	lumiere("impact%d" % rng.randi(), position + b.y * 0.4, c, 7.0 * clampf(f, 0.6, 2.0), 7.0 + 2.0 * f, 6.0, 0.45)
 
 # ====================================================================== zones
 
@@ -1397,16 +1562,25 @@ func chaine(ecole: String, points: Array) -> void:
 		pts.append(p)
 	var teinte := "electricite" if ecole == "electricite" or not ARCS.has(ecole) else ecole
 	var dbl: bool = _double.get("electricite", false)
-	eclair(null, teinte, 2.0 if dbl else 1.0, 0.45, 0.05, func() -> Array:
+	var t0 := horloge
+	var pas := 0.06
+	# propagation VISIBLE : chaque saut part 0,06 s après le précédent ; arcs épais, ramifiés
+	eclair(null, teinte, 3.0 if dbl else 2.0, 0.45 + pas * (pts.size() - 2), 0.05, func() -> Array:
 		var traits: Array = []
-		for i in range(1, pts.size()):
+		var n := clampi(int((horloge - t0) / pas) + 1, 1, pts.size() - 1)
+		for i in range(1, n + 1):
 			var l := pts[i - 1].distance_to(pts[i])
-			foudre_ramifiee(traits, pts[i - 1], pts[i], l * 0.1, 2.0 if dbl else 1.0, 2, 5)
+			foudre_ramifiee(traits, pts[i - 1], pts[i], l * 0.1, 1.0, 3, 5)
+			foudre_ramifiee(traits, pts[i - 1], pts[i], l * 0.14, 0.6, 1, 5)
 		return traits)
+	var sp := "elec_impact" if teinte == "electricite" else "violet_etincelles"
 	for i in range(1, pts.size()):
-		emettre("elec_etincelles" if teinte == "electricite" else "violet_etincelles", null, Transform3D(Basis.IDENTITY, pts[i]), false, 0.7)
-	var milieu := pts[pts.size() / 2]
-	lumiere("chaine%d" % rng.randi(), milieu, LUMIERE.get(ecole, LUMIERE.electricite), 6.0, 8.0, 7.0, 0.35)
+		var xf := Transform3D(Basis.IDENTITY, pts[i])
+		if i == 1:
+			emettre(sp, null, xf, false, 0.5)
+		else:
+			get_tree().create_timer(pas * (i - 1), false).timeout.connect(func() -> void: emettre(sp, null, xf, false, 0.5))
+	lumiere("chaine%d" % rng.randi(), pts[0].lerp(pts[pts.size() - 1], 0.5), LUMIERE.get(ecole, LUMIERE.electricite), 8.0, 9.0, 7.0, 0.45)
 
 # ====================================================================== statuts des cibles
 
@@ -1430,7 +1604,7 @@ func statut_cible(cible: Node3D, statut: String, duree: float) -> void:
 	var bb := boite(cible)
 	var ext := (bb.size * 0.42).max(Vector3(0.08, 0.15, 0.08))
 	var s := {"cible": cible, "statut": statut, "fin": horloge + duree, "emit": [], "voiles": [], "eclair": {}, "bb": bb}
-	var noms: Array = {"brulure": ["brulure", "brulure_braise"], "gel": ["gel", "gel_brume"], "choc": ["choc"], "corruption": ["corruption", "corruption_lueur"]}.get(statut, [])
+	var noms: Array = {"brulure": ["brulure", "brulure_braise"], "gel": ["gel", "gel_brume"], "choc": ["choc"], "corruption": ["corruption", "corruption_lueur", "corruption_eclats"]}.get(statut, [])
 	for nom in noms:
 		var pd: Dictionary = PresetsMagie.R[nom]
 		var p := emettre(nom, null, Transform3D(Basis.IDENTITY, cible.global_transform * bb.get_center()), true, 1.0, -1.0,
@@ -1441,7 +1615,7 @@ func statut_cible(cible: Node3D, statut: String, duree: float) -> void:
 	if not voile.is_empty():
 		s.voiles = _voiler(cible, voile[0], Color(voile[1]), Color(voile[2]), voile[3], Vector3.UP, 0.4 if statut == "gel" else 0.0)
 	if statut == "choc":
-		s.eclair = eclair(null, "electricite", 1.0, -1.0, 0.08, _gen_choc.bind(s))
+		s.eclair = eclair(null, "electricite", 2.0, -1.0, 0.08, _gen_choc.bind(s))
 	_statuts[cle] = s
 
 func _gen_choc(s: Dictionary) -> Array:
@@ -1478,6 +1652,8 @@ func _maj_statuts() -> void:
 				p.position = centre
 		if s.statut == "brulure":
 			lumiere("statut" + cle, centre, LUMIERE.feu, 1.2 + 0.3 * sin(horloge * 19.0), 3.0, 1.0)
+		elif s.statut == "corruption":
+			lumiere("statut" + cle, centre, LUMIERE.tenebres, 1.0 + 0.3 * sin(horloge * 5.0), 2.5, 0.8)
 
 ## Pose la couche additive magie_voile sur les maillages de `n` (seulement ceux sans material_overlay) ; renvoie
 ## [[maillage, ancien overlay]] pour la retirer.
