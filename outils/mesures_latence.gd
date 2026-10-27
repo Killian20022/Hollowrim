@@ -86,6 +86,8 @@ func _coup(geste: String, fps: int, appui: float, lourd := false, contre := fals
 			# geste imposé (le choix contextuel dépend du déplacement) : même départ que le vrai appui
 			mains._geste_nom = geste
 			mains._preparer_geste(false)
+			if mains.has_method("_reponse_immediate"):
+				mains._reponse_immediate(dt)   # comme le vrai appui : le geste avance dès l'image de l'appui
 		if lourd and mains.combat.etat == EtatCombat.CHARGE_LOURDE:
 			mains._lourd_nom = geste
 		if mains.combat.etat == EtatCombat.RECUPERATION and fen.is_empty():
@@ -183,6 +185,15 @@ func _mesurer() -> void:
 		print("APPUI duree=%s actif=%s impact=%s" % [_ms(ap), _ms(r["actif"]), _ms(r["impact"])])
 	for g in GESTES + LOURDS:
 		_vitesse(g)
+	# départ des clips : écart de la pointe entre la première image du clip et le repos (un fondu court ne « saute » pas si
+	# l'écart est faible)
+	var px := func(xf: Transform3D) -> Vector2:
+		var e := ProfilsAnimation.vers_ecran(mains.transform * (xf * mains._pointe_lame))
+		return Vector2(e.x * 240.0, -e.y * 135.0)
+	var repos: Vector2 = px.call(mains.anim.pose_arme("repos", 0.0))
+	for g in GESTES:
+		var clip := String(ProfilsAnimation.geste(mains.arme.profil, g)["clip"])
+		print("DEPART geste=%s clip=%s ecart_repos=%.1f px" % [g, clip, (px.call(mains.anim.pose_arme(clip, 0.0)) as Vector2).distance_to(repos)])
 	if _a("armes"):
 		await _armes()
 	print("FIN mesures_latence")
