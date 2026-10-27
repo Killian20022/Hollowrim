@@ -37,7 +37,7 @@ const PROFILS := {
 			},
 		},
 		# poses tenues
-		"charge": [Vector3(0.32, 0.04, -0.36), Vector3(0.14, 0.78, 0.62), Vector3(0.0, 0.6, -0.80)],
+		"charge": [Vector3(0.33, 0.0, -0.42), Vector3(0.14, 0.78, 0.62), Vector3(0.0, 0.6, -0.80)],
 		"garde": [Vector3(0.10, -0.20, -0.50), Vector3(-0.85, 0.42, -0.25), Vector3(0.0, 0.5, -1.0)],
 		"encaisse": [Vector3(0.14, -0.13, -0.42), Vector3(-0.85, 0.52, -0.08), Vector3(0.0, 0.5, -1.0)],
 		# sprint : épée abaissée le long du corps, pointe vers l'avant-bas

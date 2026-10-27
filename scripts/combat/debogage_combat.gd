@@ -30,8 +30,13 @@ func _ready() -> void:
 	_texte.add_theme_constant_override("outline_size", 2)
 	_calque.add_child(_texte)
 
+## Affiche / cache le dessin et le texte (le CanvasLayer ne suit pas la visibilité du nœud 3D).
+func montrer(v: bool) -> void:
+	visible = v
+	_calque.visible = v
+	set_process(v)
+
 func _process(_dt: float) -> void:
-	_calque.visible = visible
 	if mains == null:
 		return
 	var j: Node = mains.joueur

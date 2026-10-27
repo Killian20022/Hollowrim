@@ -489,8 +489,7 @@ func basculer_debogage(actif: bool) -> void:
 		_debogage.mains = self
 		add_child(_debogage)
 	if _debogage != null:
-		_debogage.visible = actif
-		_debogage.set_process(actif)
+		_debogage.montrer(actif)
 
 # --- machine à états --------------------------------------------------------------------
 
