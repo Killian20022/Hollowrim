@@ -46,7 +46,7 @@ const AURA_PAL := {
 }
 const AURA_ECOLE := {"feu": 0, "glace": 1, "electricite": 2, "tenebres": 3, "soin": 4, "protection": 5}
 ## Rayon (m) de l'aura procédurale de la main, par école (paume à ~0,45 m de l'œil).
-const AURA_RAYON := {"feu": 0.09, "glace": 0.1, "electricite": 0.095, "tenebres": 0.1, "soin": 0.08, "protection": 0.08}
+const AURA_RAYON := {"feu": 0.12, "glace": 0.12, "electricite": 0.11, "tenebres": 0.12, "soin": 0.09, "protection": 0.09}
 
 const MAX_PARTICULES := 3000
 const MAX_EMETTEURS := 64
@@ -133,6 +133,9 @@ var _sans_suite := false
 static var masquer_particules := false
 ## Mise au point (galerie --sans-procedural) : couche fine sans flux ni auras procédurales (mesure de leur coût).
 static var sans_procedural := false
+## Tests sans fenêtre (outils/test_effets_magie.gd) : réglages de la couche fine même sans couche (pas de rendu headless).
+static var forcer_fin := false
+var _proc: Array = []             # visuels procéduraux de la couche fine (flux, auras, boules) : comptés par stats()
 
 # ====================================================================== cycle de vie
 
@@ -207,7 +210,7 @@ static func regler_detail(niveau: int) -> void:
 
 func _process(dt: float) -> void:
 	horloge += dt
-	fin_actif = couche != null and couche.fine()
+	fin_actif = forcer_fin or (couche != null and couche.fine())
 	_maj_auras()
 	_maj_jets()
 	_maj_projectiles()
@@ -234,7 +237,17 @@ func stats() -> Dictionary:
 	return {"emetteurs": _emetteurs.size(), "particules": _budget, "lumieres": lum, "demandes_lumiere": _demandes.size(),
 		"eclairs": _eclairs.size(), "pics": _pics.size(), "disques": _disques.size(), "statuts": _statuts.size(),
 		"auras": _auras.size(), "jets": _jets.size(), "projectiles": _projectiles.size(), "enchants": _enchants.size(),
-		"zones": _zones.size(), "refus": refus, "pool": _libres.size()}
+		"zones": _zones.size(), "refus": refus, "pool": _libres.size(), "proceduraux": _compter_proc(), "bouffees": _bouffees.size()}
+
+func _compter_proc() -> int:
+	var n := 0
+	var vivants: Array = []
+	for x in _proc:
+		if is_instance_valid(x) and not (x as Node).is_queued_for_deletion():
+			vivants.append(x)
+			n += 1
+	_proc = vivants
+	return n
 
 ## Éteint tout (changement de scène, tests).
 func tout_arreter() -> void:
@@ -281,7 +294,7 @@ func emettre(nom: String, parent: Node, xf: Transform3D, persistant := false, k_
 	if d.is_empty():
 		push_warning("EffetsMagie : réglage inconnu « %s »" % nom)
 		return null
-	fin_actif = couche != null and couche.fine()
+	fin_actif = forcer_fin or (couche != null and couche.fine())
 	var f: Dictionary = PresetsMagie.fin(nom) if fin_actif else {}
 	var n := maxi(1, int(round(float(d.n) * k_n * float(f.get("n", 1.0)))))
 	if _emetteurs.size() >= (MAX_EMETTEURS_FIN if fin_actif else MAX_EMETTEURS):
@@ -444,7 +457,7 @@ func _maj_emetteurs() -> void:
 ## ParticleProcessMaterial partagé d'un réglage (cache) ; `r` (rayon) / `ext` (boîte) / `ecart` surchargent le réglage
 ## (copie mise en cache par valeur arrondie).
 func _pm(nom: String, d: Dictionary, sur := {}) -> ParticleProcessMaterial:
-	fin_actif = couche != null and couche.fine()
+	fin_actif = forcer_fin or (couche != null and couche.fine())
 	var cle := nom
 	for k in sur:
 		cle += "|%s=%s" % [k, str(sur[k])]
@@ -1074,7 +1087,8 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 		# couche fine : l'aura est d'abord un motif procédural au pixel (flammes, givre, plasma, vortex) ; les
 		# particules et les arcs en font les éclats autour
 		a.fine = _aura_fine(ancre, ecole, AURA_RAYON.get(ecole, 0.09))
-		(a.fine as MeshInstance3D).set_instance_shader_parameter("avance", 0.035)
+		# pas d'avance vers l'œil : la main (devant la paume en vue FPS) se découpe en silhouette dans les flammes
+		(a.fine as MeshInstance3D).set_instance_shader_parameter("avance", 0.0)
 		a.extra.append(a.fine)
 	if ecole == "electricite":
 		a.eclair = eclair(ancre, "electricite", 2.0, -1.0, 0.05, _gen_aura_arcs.bind(a))
@@ -1289,7 +1303,7 @@ func _gen_drain(j: Dictionary) -> Array:
 	var y := dir.cross(x)
 	var n := clampi(int(l * 9.0), 8, 60)
 	var dbl: bool = j.dbl
-	var brins := 5 if dbl else 4
+	var brins := (5 if dbl else 4) + (3 if fin_actif else 0)
 	# filaments épais qui ondulent et s'enroulent (pas un trait fin) : rayon qui respire le long du trajet
 	for brin in brins:
 		var pts := PackedVector3Array()
@@ -1300,7 +1314,8 @@ func _gen_drain(j: Dictionary) -> Array:
 			var rayon := amp * (0.35 + sin(t * PI) * (1.6 + 0.6 * sin(horloge * 3.0 + brin)))
 			var a := ph - t * (10.0 + 3.0 * brin)
 			pts.append(o + axe * t + (x * cos(a) + y * sin(a)) * rayon)
-		traits.append([pts, 1.0 if brin < 2 else 0.6, 1.0])
+		# couche fine : plus de brins, plus fins et moins opaques (le flux procédural fait le corps sombre)
+		traits.append([pts, (0.6 if brin < 2 else 0.4) if fin_actif else (1.0 if brin < 2 else 0.6), 0.67 if fin_actif else 1.0])
 	return traits
 
 # ---------------------------------------------------------------------- flux procédural (couche fine)
@@ -1351,6 +1366,7 @@ func _flux_creer(ecole: String) -> MeshInstance3D:
 	mi.custom_aabb = AABB(Vector3(-2, -2, -12), Vector3(4, 4, 14))
 	mi.set_instance_shader_parameter("graine", rng.randf() * 10.0)
 	add_child(mi)
+	_proc.append(mi)
 	return mi
 
 func _mat_aura(ecole: String, forme := 0) -> ShaderMaterial:
@@ -1379,6 +1395,7 @@ func _aura_fine(parent: Node3D, ecole: String, rayon: float, forme := 0) -> Mesh
 	mi.set_instance_shader_parameter("graine", rng.randf() * 10.0)
 	mi.set_instance_shader_parameter("force", 1.0)
 	parent.add_child(mi)
+	_proc.append(mi)
 	return mi
 
 ## Bouffée procédurale (couche fine) : boule de feu d'explosion, givre, plasma ou vortex qui grossit puis s'éteint.
@@ -2291,6 +2308,8 @@ func prechauffer() -> void:
 ## sort payait la compilation de ses pipelines (même cause que « ça rame quand je frappe »). Matériaux tirés des caches
 ## de ce nœud : ils restent vivants après la vitrine (un shader dont le dernier matériau disparaît serait recompilé).
 func vitrine_prechauffe(v: Node3D) -> void:
+	if couche != null:
+		couche.amorcer(v)
 	var x := -1.0
 	var k := 0
 	for nom in PresetsMagie.R:
@@ -2376,6 +2395,19 @@ func vitrine_prechauffe(v: Node3D) -> void:
 	# cœurs des projectiles (magie_coeur_add / magie_coeur)
 	_boule(v, 0.1, _mat_coeur(Color("#fcb53a"), true, 1.8)).position = Vector3(0.3, 0.6, 0.0)
 	_boule(v, 0.1, _mat_coeur(Color("#5a1a1c"), false, 1.0)).position = Vector3(0.5, 0.6, 0.0)
+	# couche fine : flux des jets et auras / boules procédurales (magie_flux, magie_aura), une fois par école
+	var fx := _flux_creer("feu")
+	remove_child(fx)
+	v.add_child(fx)
+	fx.visible = true
+	fx.position = Vector3(-0.4, 0.4, 0.0)
+	fx.set_instance_shader_parameter("longueur", 0.6)
+	var ia := 0
+	for ec in AURA_ECOLE:
+		var au := _aura_fine(v, ec, 0.06, ia % 2)
+		au.visible = true
+		au.position = Vector3(-0.5 + 0.15 * ia, 1.1, 0.0)
+		ia += 1
 	# teinte d'écran (canvas_item, additive : force 0 = rien d'affiché)
 	var calque := CanvasLayer.new()
 	calque.layer = 1

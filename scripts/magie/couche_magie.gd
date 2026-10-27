@@ -40,6 +40,9 @@ var _env_source: Environment
 var _vue_prec := Transform3D.IDENTITY
 var _utile := false              # au moins un visuel de magie à l'écran (GestionMagie.demander_couche)
 var _utile_t := 0.0
+var _amorce_cible: Node3D
+var _amorce_n := 0
+var _mat: ShaderMaterial
 
 static func niveau_voulu() -> int:
 	if niveau_force >= 0:
@@ -84,6 +87,14 @@ func facteur_couche() -> int:
 		return 2
 	return 1
 
+## Préchauffage (GestionMagie.vitrine_prechauffe, pendant le chargement) : la couche dessine quelques images de la vitrine
+## des effets, invisibles (opacité 0), pour compiler ses pipelines à SON format (fond transparent, HDR) et celui de la pose
+## sur le monde : le premier sort ne les compile plus en pleine partie.
+func amorcer(cible: Node3D) -> void:
+	if vp != null:
+		_amorce_cible = cible
+		_amorce_n = 4
+
 ## Appelé par GestionMagie quand un visuel existe (la couche se met en veille 0,5 s après le dernier).
 func demander() -> void:
 	_utile = true
@@ -124,9 +135,9 @@ func _creer() -> void:
 	_rect.stretch_mode = TextureRect.STRETCH_SCALE
 	_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_rect.texture = vp.get_texture()
-	var mat := ShaderMaterial.new()
-	mat.shader = SH_COMPOSE
-	_rect.material = mat
+	_mat = ShaderMaterial.new()
+	_mat.shader = SH_COMPOSE
+	_rect.material = _mat
 	_rect.visible = false
 	_calque.add_child(_rect)
 	profondeur = ProfondeurMagie.new()
@@ -149,6 +160,7 @@ func _eteindre() -> void:
 			w.content_scale_mode = Window.CONTENT_SCALE_MODE_VIEWPORT
 		w.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
 		w.scaling_3d_scale = 1.0
+		w.texture_mipmap_bias = 0.0
 	_bascule = false
 	if vp != null:
 		vp.queue_free()
@@ -173,6 +185,20 @@ func _avant_rendu() -> void:
 	if vp == null or not is_inside_tree():
 		return
 	var w := get_tree().root
+	if _amorce_n > 0:
+		if _amorce_cible != null and is_instance_valid(_amorce_cible) and _amorce_cible.is_inside_tree():
+			_amorce_n -= 1
+			var c0 := _amorce_cible.global_position
+			cam.global_transform = Transform3D(Basis.looking_at(Vector3(0, -0.3, -1.6).normalized()), c0 + Vector3(0, 0.8, 1.4))
+			cam.fov = 72.0
+			vp.size = Vector2i(320, 180)
+			RenderingServer.global_shader_parameter_set("magie_occ", 0.0)
+			vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+			_mat.set_shader_parameter("opacite", 0.0)
+			_rect.visible = true
+			return
+		_amorce_n = 0
+	_mat.set_shader_parameter("opacite", 1.0)
 	# la fenêtre est en échelle « jeu » (VIEWPORT, project.godot) : on la passe en CANVAS_ITEMS ; l'écran titre et
 	# l'écran de chargement (DISABLED, haute définition) ne sont jamais touchés
 	if w.content_scale_mode == Window.CONTENT_SCALE_MODE_VIEWPORT:
@@ -182,11 +208,15 @@ func _avant_rendu() -> void:
 		_veille(w)
 		return
 	var base := Vector2(w.content_scale_size)
-	var cible := Vector2(w.get_texture().get_size())   # image de la fenêtre (zone utile, sans les bandes noires)
+	# taille réelle de l'image de la fenêtre = taille de la fenêtre (ViewportTexture.get_size() de la racine renvoie, en
+	# CANVAS_ITEMS, la taille multipliée une 2e fois par l'étirement : 2560x1440 pour 1280x720, mesuré)
+	var cible := Vector2(w.size)
 	k = maxi(1, int(minf(cible.x / base.x, cible.y / base.y) + 0.01))
 	# 3D de la fenêtre : exactement la taille de base (640x360), agrandie en plus proche voisin
 	w.scaling_3d_mode = Viewport.SCALING_3D_MODE_NEAREST
 	w.scaling_3d_scale = clampf(base.y / maxf(cible.y, 1.0), 0.1, 1.0)
+	# le moteur affine les textures d'un rendu réduit (biais de mipmap log2(échelle)) : on l'annule, décor identique
+	w.texture_mipmap_bias = -log(w.scaling_3d_scale) / log(2.0)
 	RenderingServer.global_shader_parameter_set("magie_pas", cible.y / base.y)
 	m = facteur_couche()
 	if k < 2:
@@ -258,6 +288,7 @@ func _veille(w: Window) -> void:
 		if _bascule:
 			w.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
 			w.scaling_3d_scale = 1.0
+			w.texture_mipmap_bias = 0.0
 			RenderingServer.global_shader_parameter_set("magie_pas", 1.0)
 
 ## Exposition du monde reprise par la couche (même luminosité que les sorts du mode rétro).

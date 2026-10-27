@@ -83,14 +83,15 @@ void fragment() {
 		} else {
 			// flammes qui montent : le bruit défile vers le haut, s'étire en hauteur ; plus large en bas
 			float hy = f.y / rp;                       // -1 bas, 1 haut
-			float larg = 1.0 - smoothstep(-0.6, 1.0, hy) * 0.55;
-			float d = length(vec2(f.x / (rp * larg), (hy + 0.25) * 0.8));
+			float larg = 1.0 - smoothstep(-0.7, 1.0, hy) * 0.75;   // goutte : large en bas, pointue en haut
+			float d = length(vec2(f.x / (rp * larg * 0.85), (hy + 0.2) * 0.75));
 			if (d > 1.5) {
 				discard;   // hors de portée même du bruit le plus fort : pas de calcul
 			}
-			n = mfbm2(vec2(f.x / 4.0 + tt * 0.2, (f.y - tt * rp * 1.4) / 9.0) + graine);
-			float n2 = mbruit(vec2(f.x / 1.6, (f.y - tt * rp * 2.2) / 3.5) + graine * 3.0);
-			i = (1.0 - d) * 1.35 + (n - 0.5) * 1.5 + (n2 - 0.5) * 0.55 - max(hy, 0.0) * 0.25;
+			// langues : bruit étiré en hauteur, plus fort vers le haut (les pointes se détachent)
+			n = mfbm2(vec2(f.x / 3.0 + tt * 0.2, (f.y - tt * rp * 1.6) / 10.0) + graine);
+			float n2 = mbruit(vec2(f.x / 1.4, (f.y - tt * rp * 2.4) / 4.0) + graine * 3.0);
+			i = (1.0 - d) * 1.35 + (n - 0.5) * (1.3 + max(hy, 0.0) * 1.2) + (n2 - 0.5) * 0.55 - max(hy, 0.0) * 0.2;
 		}
 		i *= force * garde;
 		if (i < 0.3) {

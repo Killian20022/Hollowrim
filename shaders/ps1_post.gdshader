@@ -42,7 +42,8 @@ vec3 etalonner(vec3 c) {
 
 void fragment() {
 	vec3 c = etalonner(texture(ecran, SCREEN_UV).rgb);
-	vec2 v = SCREEN_UV - 0.5;
+	// vignette et voiles calculés au centre du pixel du MONDE (identiques au rendu 640x360 quand la couche fine est active)
+	vec2 v = (floor(FRAGCOORD.xy / magie_pas) + 0.5) * magie_pas * SCREEN_PIXEL_SIZE - 0.5;
 	c *= 1.0 - dot(v, v) * vignette;
 	c = mix(c, vec3(0.45, 0.02, 0.02), degat * smoothstep(0.05, 0.5, dot(v, v) * 2.0));
 	// éclat rouge : l'image vire au sang (les clairs gardent leur lecture), bords plus marqués

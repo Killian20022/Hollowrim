@@ -14,6 +14,7 @@ const POST := preload("res://shaders/ps1_post.gdshader")
 
 ## Plans : [nom, durée (s), instant de la capture (s)].
 const PLANS := [
+	["vide", 1.0, 0.8],   # sans effet : référence du monde (rétro et couche fine doivent donner le même décor)
 	["aura_feu", 2.2, 1.6], ["jet_feu", 2.4, 1.2], ["boule_feu", 2.4, 0.16], ["explosion_feu", 2.0, 0.42], ["zone_feu", 2.6, 0.5],
 	["aura_glace", 2.0, 1.4], ["eclat_glace", 2.2, 0.12], ["lance_givre", 2.4, 0.1], ["souffle_givre", 2.4, 1.2], ["nova_gelee", 2.8, 0.7],
 	["aura_electricite", 2.0, 1.4], ["arc_electrique", 2.4, 1.0], ["chaine_eclairs", 1.8, 0.15], ["tempete_statique", 3.0, 1.2],
@@ -96,6 +97,7 @@ func _ready() -> void:
 		d.add_to_group("cibles_magie")   # sans collision : les jets les trouvent par ce groupe
 		cibles.append(d)
 	_interface()
+	GestionMagie.obtenir()   # comme en jeu (préchauffe au chargement) : la couche fine règle la fenêtre dès le début
 	_preparer_mains.call_deferred()
 	if _arg("perf") != "":
 		_perf.call_deferred()
@@ -175,6 +177,7 @@ func _interface() -> void:
 	post = ShaderMaterial.new()
 	post.shader = POST
 	rect.material = post
+	rect.visible = _arg("sans-post") == ""   # mise au point : comparer le décor sans le post-traitement
 	calque.add_child(rect)
 	_texte = Label.new()
 	_texte.add_theme_font_override("font", Palette.police())
@@ -189,6 +192,8 @@ func _interface() -> void:
 
 ## Main gauche du héros : torche rangée hors de vue, doigts ouverts, et deux repères « paume » (point d'où jaillit le sort).
 func _preparer_mains() -> void:
+	# souris libre : la fenêtre (hors écran) ne capture pas le curseur de l'utilisateur et la vue ne bouge pas
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	mains.porte_torche.visible = false
 	var sq: Skeleton3D = mains._sq
 	for i in mains._doigts.keys():

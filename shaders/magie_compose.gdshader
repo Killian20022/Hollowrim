@@ -4,6 +4,8 @@
 shader_type canvas_item;
 render_mode blend_premul_alpha;
 
+uniform float opacite = 1.0;   // 0 : amorçage au chargement (pipeline compilé, rien d'affiché)
+
 vec3 vers_srvb(vec3 c) {
 	c = max(c, vec3(0.0));
 	return mix(1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, c * 12.92, step(c, vec3(0.0031308)));
@@ -16,5 +18,5 @@ void fragment() {
 	// là où il n'y a que de l'additif (opacité nulle), la lumière est ajoutée telle quelle
 	vec3 c = a > 0.004 ? m.rgb / a : m.rgb;
 	vec3 s = vers_srvb(min(c, vec3(1.0)));
-	COLOR = vec4(a > 0.004 ? s * a : s, a);
+	COLOR = vec4(a > 0.004 ? s * a : s, a) * opacite;
 }

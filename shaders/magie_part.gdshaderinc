@@ -17,9 +17,9 @@ void vertex() {
 	vec2 vp = VIEWPORT_SIZE;
 	float w = max(centre.w, 0.0001);
 	float px = s * abs(PROJECTION_MATRIX[1][1]) / w * vp.y * 0.5;   // abs : axe Y retourné sous Vulkan
-	// couche fine (magie_echelle > 1) : plafond en pixels fins = 0,35 × m × plafond (×0,7 à ×2) : en mètres, à peine un
-	// tiers d'avant ; le volume vient du nombre (PresetsMagie.FIN), pas de pavés près de la caméra
-	px = clamp(floor(px + 0.5), 1.0, magie_echelle > 1.0 ? max(floor(taille_max * magie_echelle * 0.35 + 0.5), 1.0) : taille_max);
+	// couche fine (magie_echelle > 1) : plafond en pixels fins = 0,25 × m × plafond (×0,5 à ×2) : en mètres, un quart
+	// d'avant ; le volume vient du nombre (PresetsMagie.FIN) et des motifs procéduraux, pas de pavés près de la caméra
+	px = clamp(floor(px + 0.5), 1.0, magie_echelle > 1.0 ? max(floor(taille_max * magie_echelle * 0.2 + 0.5), 1.0) : taille_max);
 	if (s < 0.000001) {
 		px = 0.0;
 	}
