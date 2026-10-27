@@ -61,6 +61,10 @@ func _arg(nom: String, defaut := "") -> String:
 
 func _ready() -> void:
 	process_priority = 50   # après mains.gd (pose de la main gauche), avant GestionMagie (100)
+	if _arg("detail-sorts") == "":
+		CoucheMagie.niveau_force = CoucheMagie.ELEVE   # la galerie montre la couche fine (sauf --detail-sorts=retro|moyen)
+	GestionMagie.masquer_particules = _arg("sans-particules") != ""
+	GestionMagie.sans_procedural = _arg("sans-procedural") != ""
 	lieu = _arg("lieu", "crypte")
 	vue = _arg("vue", "fps")
 	dossier = _arg("captures")
@@ -263,7 +267,8 @@ func _capturer(nom: String) -> void:
 	var img := get_viewport().get_texture().get_image()
 	DirAccess.make_dir_recursive_absolute(dossier)
 	img.save_png(dossier.path_join(nom + ".png"))
-	print("CAPTURE ", nom, " ", EffetsMagie.stats())
+	var cm: CoucheMagie = GestionMagie.instance.couche if GestionMagie.instance != null else null
+	print("CAPTURE ", nom, " ", img.get_size(), " ", EffetsMagie.stats(), (" couche k=%d m=%d actif=%s prof=%s copies=%d fenetre=%s" % [cm.k, cm.m, cm.actif, cm.profondeur.taille, cm.profondeur.copies, get_window().size]) if cm != null and cm.profondeur != null else "")
 
 func _vise(i := 1) -> Vector3:
 	return cibles[clampi(i, 0, cibles.size() - 1)].global_position + Vector3.UP * 1.1
@@ -431,23 +436,37 @@ func _perf() -> void:
 			EffetsMagie.jet("feu", paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, true)
 			EffetsMagie.jet("feu", paume_d, _dir_vers(paume_d, _vise()), 7.0, 1.0, true))
 		var s2 := EffetsMagie.stats()
-		print("PERF_PIRE %s %s : double feu (2 jets + 2 auras) + explosion incendiaire + 5 statuts %.2f ms (%d appels) ; %d particules, %d émetteurs, %d lumières" % [
-			lieu, vue, pire[0], pire[1], s2.particules, s2.emetteurs, s2.lumieres])
+		print("PERF_PIRE %s %s : double feu (2 jets + 2 auras) + explosion incendiaire + 5 statuts %.2f ms (%d appels ; GPU %.2f ms) ; %d particules, %d émetteurs, %d lumières" % [
+			lieu, vue, pire[0], pire[1], pire[2], s2.particules, s2.emetteurs, s2.lumieres])
 		if dossier != "":
 			_capturer("%s_%s_perf_pire" % [lieu, vue])
 			await get_tree().create_timer(0.3).timeout
-	print("PERF %s %s : sans effet %.2f ms (%d appels de dessin) ; 3 effets (aura feu + arc électrique + nova) + 5 statuts %.2f ms (%d appels) ; %d particules, %d émetteurs, %d lumières, %d éclairs" % [
-		lieu, vue, base[0], base[1], avec[0], avec[1], s.particules, s.emetteurs, s.lumieres, s.eclairs])
+	print("PERF %s %s : sans effet %.2f ms (%d appels de dessin ; GPU %.2f ms) ; 3 effets (aura feu + arc électrique + nova) + 5 statuts %.2f ms (%d appels ; GPU %.2f ms) ; %d particules, %d émetteurs, %d lumières, %d éclairs" % [
+		lieu, vue, base[0], base[1], base[2], avec[0], avec[1], avec[2], s.particules, s.emetteurs, s.lumieres, s.eclairs])
 	if dossier != "":
 		_capturer("%s_%s_perf" % [lieu, vue])
 		await get_tree().create_timer(0.3).timeout
 	get_tree().quit()
 
 func _mesurer(n: int, chaque: Callable) -> Array:
+	# temps GPU mesuré par le moteur (fenêtre + couche fine de la magie) : moins sensible que le temps d'image aux
+	# autres programmes qui chargent la machine
+	var vps: Array[RID] = [get_viewport().get_viewport_rid()]
+	var cm: CoucheMagie = GestionMagie.instance.couche if GestionMagie.instance != null else null
+	if cm != null and cm.vp != null:
+		vps.append(cm.vp.get_viewport_rid())
+	for v in vps:
+		RenderingServer.viewport_set_measure_render_time(v, true)
 	var t0 := Time.get_ticks_usec()
 	var appels := 0
+	var gpu := 0.0
+	var gpu_couche := 0.0
 	for k in n:
 		chaque.call()
 		await get_tree().process_frame
 		appels += int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
-	return [(Time.get_ticks_usec() - t0) / 1000.0 / n, appels / n]
+		gpu += RenderingServer.viewport_get_measured_render_time_gpu(vps[0])
+		if vps.size() > 1:
+			gpu_couche += RenderingServer.viewport_get_measured_render_time_gpu(vps[1])
+	print("  GPU fenêtre %.2f ms + couche fine %.2f ms = %.2f ms" % [gpu / n, gpu_couche / n, (gpu + gpu_couche) / n])
+	return [(Time.get_ticks_usec() - t0) / 1000.0 / n, appels / n, (gpu + gpu_couche) / n]

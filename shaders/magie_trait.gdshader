@@ -4,8 +4,10 @@
 //   UV2.x = multiplicateur de largeur, COLOR.a = opacité (paliers).
 // Additif, sans texture : compatible Mobile / Compatibility.
 shader_type spatial;
-render_mode unshaded, blend_add, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
+render_mode unshaded, blend_premul_alpha, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
 
+#include "res://shaders/magie_occ.gdshaderinc"
+global uniform float magie_echelle;
 uniform vec4 halo : source_color = vec4(0.29, 0.23, 0.82, 1.0);
 uniform vec4 coeur : source_color = vec4(0.94, 0.95, 1.0, 1.0);
 uniform float largeur_halo = 3.0;
@@ -26,18 +28,21 @@ void vertex() {
 		d = vec2(1.0, 0.0);
 	}
 	vec2 perp = normalize(vec2(-d.y, d.x));
-	float w = floor(mix(largeur_halo, largeur_coeur, UV.x) * max(UV2.x, 0.0) + 0.5);
+	float w = floor(mix(largeur_halo, largeur_coeur, UV.x) * max(UV2.x, 0.0) * max(magie_echelle * 0.75, 1.0) + 0.5);
 	vec2 p = floor(pa) + 0.5 + perp * UV.y * w * 0.5;
 	POSITION = vec4((p / vp * 2.0 - 1.0) * a.w, a.z, a.w);
 	couche = UV.x;
 }
 
 void fragment() {
+	if (magie_cachee(SCREEN_UV, FRAGCOORD.z, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX)) {
+		discard;
+	}
 	vec4 c = couche > 0.5 ? coeur : halo;
 	float a = ceil(COLOR.a * c.a * 3.0 - 0.05) / 3.0;
 	if (a <= 0.0) {
 		discard;
 	}
-	ALBEDO = c.rgb * eclat;
-	ALPHA = a;
+	ALBEDO = c.rgb * eclat * a;   // additif en prémultiplié (voir magie_part_add)
+	ALPHA = 0.0;
 }

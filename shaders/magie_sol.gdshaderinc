@@ -1,3 +1,5 @@
+#include "res://shaders/magie_occ.gdshaderinc"
+global uniform float magie_echelle;
 uniform vec4 couleur : source_color = vec4(0.93, 0.42, 0.12, 1.0);
 uniform vec4 coeur : source_color = vec4(1.0, 0.94, 0.66, 1.0);
 uniform float anneau = 0.8;        // rayon de l'anneau (0..1 du demi-côté)
@@ -24,7 +26,11 @@ void vertex() {
 }
 
 void fragment() {
-	vec2 uv = (floor(UV * texels) + 0.5) / texels * 2.0 - 1.0;
+	if (magie_cachee(SCREEN_UV, FRAGCOORD.z, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX)) {
+		discard;
+	}
+	float tx = texels * magie_echelle;
+	vec2 uv = (floor(UV * tx) + 0.5) / tx * 2.0 - 1.0;
 	float r = length(uv);
 	if (r > 1.0) {
 		discard;
@@ -57,12 +63,25 @@ void fragment() {
 		a = max(a, spirale * step(0.25, bras) * (0.5 + step(0.5, bras) * 0.5));
 		k = r < 0.25 ? 1.0 : k;
 	}
+	if (magie_echelle > 1.0 && spirale <= 0.0 && runes <= 0.0) {
+		// couche fine : anneau rongé (cases polaires au hasard qui défilent) au lieu d'un cercle net de pavés
+		float ca = floor((ang / 6.2831 + 0.5) * tx * 1.6 + TIME * 3.0);
+		float cr = floor(r * tx * 0.45);
+		float g = h1(ca * 1.37 + cr * 17.1 + floor(TIME * 8.0) * 0.11);
+		a *= g > 0.3 ? 1.0 : (g > 0.15 ? 0.5 : 0.0);
+		k = g > 0.85 ? 1.0 : k;
+	}
 	a *= opacite;
 	a = ceil(a * 3.0 - 0.05) / 3.0;
 	if (a <= 0.0) {
 		discard;
 	}
 	vec3 c = k > 0.5 ? coeur.rgb : couleur.rgb;
+#ifdef MAGIE_ADD
+	ALBEDO = c * eclat * clamp(a, 0.0, 1.0);
+	ALPHA = 0.0;
+#else
 	ALBEDO = c * eclat;
 	ALPHA = clamp(a, 0.0, 1.0);
+#endif
 }

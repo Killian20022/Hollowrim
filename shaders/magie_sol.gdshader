@@ -2,5 +2,6 @@
 // UV pixellisés en `texels` cases (pixel art), anneau + remplissage + runes ou spirale, opacité en 3 paliers.
 // Additif (ou alpha : magie_sol_mix), sans texture.
 shader_type spatial;
-render_mode unshaded, blend_add, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
+render_mode unshaded, blend_premul_alpha, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
+#define MAGIE_ADD
 #include "res://shaders/magie_sol.gdshaderinc"
