@@ -277,6 +277,7 @@ const VUES_PRECHAUFFE := [[Vector2(2.5, 8.5), 8], [Vector2(19.0, 17.5), 4], [Vec
 ## NB : un essai par RenderingServer.force_draw pendant le chargement laissait des jeux d'uniformes périmés
 ## (« Parameter "uniform_set" is null » à chaque image dans la crypte) : ne pas y revenir.
 func _prechauffer_rendu() -> void:
+	PrechauffeCombat.caches()        # textures de sang peintes par code, sons de combat : plus rien à faire au premier coup
 	if DisplayServer.get_name() == "headless" or _arguments().has("capture") or _arguments().has("sans-prechauffe"):
 		return
 	var pts: Array = []
@@ -293,6 +294,11 @@ func _prechauffer_rendu() -> void:
 			for lacet: float in [0.0, PI]:
 				pc.append(cr.global_transform * Transform3D(Basis(Vector3.UP, lacet), Vector3(0.0, 1.6, z)))
 		PrechauffeRendu.lancer(cr, self, pc, cycle.lumiere, env_prechauffe(), 0.0)
+	# effets de combat (giclées, éclats, traces, plaies, traînée) : rendus une fois dehors (soleil) et sous terre (crypte), hors écran
+	if not _arguments().has("sans-prechauffe-combat"):
+		PrechauffeCombat.lancer(self, Vector3(0.0, hauteur(0.0, 0.0) - 30.0, 0.0))
+		if tertre != null and tertre.crypte != null:
+			PrechauffeCombat.lancer(self, tertre.crypte.global_position + Vector3(0, -25.0, 0), cycle.lumiere, env_prechauffe())
 
 # --- relief ---------------------------------------------------------------
 
@@ -647,6 +653,7 @@ func _joueur_touche(_degats: float) -> void:
 	t.tween_method(func(v: float) -> void: post.set_shader_parameter("degat", v), 0.8, 0.0, 0.6)
 
 func _joueur_mort() -> void:
+	Effets.reinitialiser_temps()        # un arrêt sur image / ralenti en cours ne survit pas à la mort (fondu à vitesse normale)
 	var t := create_tween()
 	t.tween_method(func(v: float) -> void: post.set_shader_parameter("fondu", v), 0.0, 1.0, 2.0)
 	t.tween_interval(1.5)

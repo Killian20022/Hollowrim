@@ -79,6 +79,9 @@ func _ready() -> void:
 	# sang et gore du combat (décapitations, plaies, flaques) : complet par défaut
 	_choix(g, "Sang / gore", ["Désactivé", "Réduit", "Complet"], int(Jeu.option("combat", "gore")), func(v: int) -> void:
 		Jeu.regler("combat", "gore", v))
+	# arrêt sur image / ralenti des coups qui portent : bref par défaut (l'arrêt appuyé se lisait comme des saccades)
+	_choix(g, "Arrêt sur image", ["Désactivé", "Bref", "Appuyé"], int(Jeu.option("combat", "arret_image")), func(v: int) -> void:
+		Jeu.regler("combat", "arret_image", v))
 	# copie de secours de la sauvegarde dans un dossier choisi (Google Drive, OneDrive…)
 	g.add_child(MenuStyle.etiquette("Copie de secours"))
 	var h := HBoxContainer.new()
