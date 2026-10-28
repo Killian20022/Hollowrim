@@ -122,8 +122,8 @@ func plan() -> Array:
 		{"lum": {"braseros": 2, "appliques": 2}, "extra": "_x_prep",
 		"garnitures": [["piliers", {"pts": [Vector3(-3.5, 0, -28.5), Vector3(-3.5, 0, -21.5), Vector3(3.5, 0, -28.5), Vector3(3.5, 0, -21.5)], "h": 4.6, "largeur": 0.9}], ["oculus", {"pos": Vector3(0, 0, -25)}]],
 		"ennemis": [_e("cr_prep_1", "guerrier", Vector3(4.6, 0, -26.8), -PI * 0.5, false), _e("cr_prep_2", "sbire", Vector3(2.5, 0, -23.5), 2.0, true), _e("cr_prep_3", "sbire", Vector3(-2.0, 0, -30.0), -0.8, true)],
-		"coffres": [{"id": "cof_prep", "pos": Vector3(-6.2, 0, -30.9), "lacet": PI * 0.5, "butin": {"pieces": 22, "os_draugr": 1}}],
-		"interactions": [_it("cach_prep", Vector3(-4.9, 0.45, -26.9), "Bandelettes cousues", "Défaire les bandelettes", "coffre", {"butin": {"pieces": 25, "poussiere_tombe": 1}, "coffre": Vector3(-4.9, 0, -26.9)})]}))
+		"coffres": [{"id": "cof_prep", "pos": Vector3(-6.2, 0, -30.9), "lacet": PI * 0.5, "butin": {"pieces": 22, "os_draugr": 1, "table": "coffre_crypte"}}],
+		"interactions": [_it("cach_prep", Vector3(-4.9, 0.45, -26.9), "Bandelettes cousues", "Défaire les bandelettes", "coffre", {"butin": {"pieces": 25, "poussiere_tombe": 1, "table": "sac"}, "coffre": Vector3(-4.9, 0, -26.9)})]}))
 	# salle rituelle (hub) : trois socles, porte scellée de l'arène, rituel interrompu
 	r.append(_salle("rituelle", Vector2(0, -48), Vector2(14, 12), 6.0, "tombeau", "enigme", 59,
 		[["S", 0.0, 3.2, false, ""], ["N", 0.0, 4.0, false, "antichambre"]],
@@ -162,8 +162,8 @@ func plan() -> Array:
 			_e("cr_ossuaire_sq2", "squelette", Vector3(-27.7, 0, -18.2), 1.5, true, true),
 			_e("cr_ossuaire_sqa", "squelette_archer", Vector3(-27.0, 0.9, -11.0), -1.2, true, true, {"archer": true, "poste": true}),
 			_e("cr_ossuaire_gardien", "guerrier", Vector3(-21.0, 0, -12.0), 0.0, true, false, {"reveil_evt": REVEIL_OS, "vie_imposee": 120.0, "degats_imposes": 20.0, "nom_affiche": "Gardien des Os"})],
-		"coffres": [{"id": "cof_ossuaire", "pos": Vector3(-28.2, 0, -24.7), "lacet": PI * 0.5, "butin": {"pieces": 34, "os_draugr": 2, "poussiere_tombe": 1}}],
-		"interactions": [_it("urne_ossuaire", Vector3(-28.4, 0.5, -19.0), "Urne funéraire", "Fouiller l’urne", "coffre", {"butin": {"pieces": 9}, "coffre": Vector3(-28.4, 0, -19.0)}),
+		"coffres": [{"id": "cof_ossuaire", "pos": Vector3(-28.2, 0, -24.7), "lacet": PI * 0.5, "butin": {"pieces": 34, "os_draugr": 2, "poussiere_tombe": 1, "table": "coffre_crypte"}}],
+		"interactions": [_it("urne_ossuaire", Vector3(-28.4, 0.5, -19.0), "Urne funéraire", "Fouiller l’urne", "coffre", {"butin": {"pieces": 9, "table": "urne"}, "coffre": Vector3(-28.4, 0, -19.0)}),
 			_it("fragment_os", Vector3(-21.0, 1.9, -16.0), "Fragment du sceau des Os", "Prendre le fragment", "fragment", {"objet": FRAG_OS, "evt": EVT_OS,
 				"texte": ["Un éclat d’os poli, gravé du sceau des Os. Il est glacé.", "Autour de vous, quelque chose bouge dans l’ombre des sarcophages…"]})],
 		"meca": [{"genre": "mur_fragile", "id": "mur_ossuaire", "pos": Vector3(-29.0, 1.5, -14.0), "taille": Vector3(0.6, 3.0, 2.4), "lacet": 0.0, "materiau": "mur1"}]}))
@@ -177,17 +177,17 @@ func plan() -> Array:
 		[["S", 4.0, 3.2, false, "w3"], ["O", -1.0, 3.2, true, "tresor"]],
 		{"usure": 1, "lum": {"braseros": 2, "appliques": 2}, "extra": "_x_galerie",
 		"ennemis": [_e("cr_reliquaires_5", "guerrier", Vector3(-25.5, 0, -47.5), PI * 0.5, true, true)],
-		"coffres": [{"id": "cof_reliq1", "pos": Vector3(-35.2, 0, -36.4), "lacet": PI * 0.5, "butin": {"pieces": 42, "lame_antique": 1}},
-			{"id": "cof_reliq2", "pos": Vector3(-35.2, 0, -49.8), "lacet": PI * 0.5, "butin": {"pieces": 26, "poussiere_tombe": 2}}],
-		"interactions": [_it("urne_reliq", Vector3(-22.8, 0.5, -36.6), "Urne funéraire", "Fouiller l’urne", "coffre", {"butin": {"pieces": 12, "os_draugr": 1}, "coffre": Vector3(-22.8, 0, -36.6)})],
+		"coffres": [{"id": "cof_reliq1", "pos": Vector3(-35.2, 0, -36.4), "lacet": PI * 0.5, "butin": {"pieces": 42, "lame_antique": 1, "table": "coffre_crypte"}},
+			{"id": "cof_reliq2", "pos": Vector3(-35.2, 0, -49.8), "lacet": PI * 0.5, "butin": {"pieces": 26, "poussiere_tombe": 2, "table": "coffre_crypte"}}],
+		"interactions": [_it("urne_reliq", Vector3(-22.8, 0.5, -36.6), "Urne funéraire", "Fouiller l’urne", "coffre", {"butin": {"pieces": 12, "os_draugr": 1, "table": "urne"}, "coffre": Vector3(-22.8, 0, -36.6)})],
 		"meca": [{"genre": "statues", "id": "statues_galerie", "positions": [Vector3(-33.0, 0, -41.0), Vector3(-28.0, 0, -46.5), Vector3(-31.0, 0, -38.2)], "solution": [0, 1, 2]}]}))
 	r.append(_salle("tresor", Vector2(-40.5, -44), Vector2(9, 8), 4.0, "tresor", "tresor", 19,
 		[["E", 0.0, 3.2, true, "reliquaires"]],
 		{"lum": {"braseros": 2, "appliques": 2}, "extra": "_x_tresor",
 		"ennemis": [_e("cr_tresor_8", "guerrier", Vector3(-41.0, 0, -41.2), 0.0, true, true)],
-		"coffres": [{"id": "cof_tresor1", "pos": Vector3(-44.2, 0, -41.3), "lacet": PI * 0.5, "nom": "Coffre du jarl", "butin": {"pieces": 120, "lame_antique": 1}},
-			{"id": "cof_tresor2", "pos": Vector3(-44.2, 0, -46.7), "lacet": PI * 0.5, "nom": "Coffre du jarl", "butin": {"pieces": 90, "poussiere_tombe": 3}},
-			{"id": "cof_tresor3", "pos": Vector3(-42.0, 0, -44.0), "lacet": PI * 0.5, "nom": "Grand coffre", "butin": {"pieces": 160, "lame_antique": 2, "os_draugr": 3}}]}))
+		"coffres": [{"id": "cof_tresor1", "pos": Vector3(-44.2, 0, -41.3), "lacet": PI * 0.5, "nom": "Coffre du jarl", "butin": {"pieces": 120, "lame_antique": 1, "table": "coffre_crypte_riche"}},
+			{"id": "cof_tresor2", "pos": Vector3(-44.2, 0, -46.7), "lacet": PI * 0.5, "nom": "Coffre du jarl", "butin": {"pieces": 90, "poussiere_tombe": 3, "table": "coffre_crypte_riche"}},
+			{"id": "cof_tresor3", "pos": Vector3(-42.0, 0, -44.0), "lacet": PI * 0.5, "nom": "Grand coffre", "butin": {"pieces": 160, "lame_antique": 2, "os_draugr": 3, "table": "coffre_crypte_riche"}}]}))
 
 	# ============================================================ AILE EST : sceau du Givre
 	r.append(_cl("g0", Vector2(12, -29.7), 10.0, 1, 3.2, "givre", 21, "prep", "g1"))
@@ -199,24 +199,24 @@ func plan() -> Array:
 			_e("cr_g1_10", "sbire", Vector3(30.0, 0, -20.0), 3.5),
 			_e("cr_g1_arch", "squelette_archer", Vector3(33.0, 0, -24.3), -1.9, true, true, {"archer": true}),
 			_e("cr_g1_gardien", "guerrier", Vector3(28.0, 0, -19.6), 0.0, true, false, {"reveil_evt": REVEIL_GIVRE, "vie_imposee": 110.0, "degats_imposes": 19.0, "nom_affiche": "Gardien du Givre"})],
-		"coffres": [{"id": "cof_g1", "pos": Vector3(34.3, 0, -19.0), "lacet": -PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 38, "poussiere_tombe": 1}}],
+		"coffres": [{"id": "cof_g1", "pos": Vector3(34.3, 0, -19.0), "lacet": -PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 38, "poussiere_tombe": 1, "table": "coffre_crypte"}}],
 		"interactions": [_it("fragment_givre", Vector3(33.2, 1.5, -32.2), "Fragment du sceau du Givre", "Prendre le fragment", "fragment", {"objet": FRAG_GIVRE, "evt": EVT_GIVRE,
 			"texte": ["Un éclat de glace qui ne fond pas, gravé du sceau du Givre.", "Sous la glace du sol, un corps cuirassé s’éveille."]})],
 		"meca": [{"genre": "souffle_givre", "id": "souffle_g1a", "pos": Vector3(27.0, 1.0, -33.55), "dir": Vector3(0, 0, 1), "longueur": 10.0, "periode": 4.2},
 			{"genre": "souffle_givre", "id": "souffle_g1b", "pos": Vector3(31.0, 1.0, -33.55), "dir": Vector3(0, 0, 1), "longueur": 10.0, "periode": 3.1}]}))
 	r.append(_cl("g2", Vector2(24, -13.5), 9.0, 0, 3.2, "givre", 25, "g1", "quartiers",
-		{"coffres": [{"id": "cof_g2", "pos": Vector3(23.0, 0, -11.5), "lacet": PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 18}}]}))
+		{"coffres": [{"id": "cof_g2", "pos": Vector3(23.0, 0, -11.5), "lacet": PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 18, "table": "coffre_crypte"}}]}))
 	r.append(_salle("quartiers", Vector2(21, -4), Vector2(12, 10), 3.6, "tombeau", "repos", 29,
 		[["N", 3.0, 3.2, false, "g2"], ["O", 2.0, 3.2, false, "s2"], ["E", 0.0, 2.4, true, "armurerie"]],
 		{"lum": {"braseros": 1, "appliques": 3}, "extra": "_x_quartiers",
-		"coffres": [{"id": "cof_quartiers", "pos": Vector3(15.9, 0, -7.9), "lacet": PI * 0.5, "butin": {"pieces": 55, "os_draugr": 1, "poussiere_tombe": 2}}],
+		"coffres": [{"id": "cof_quartiers", "pos": Vector3(15.9, 0, -7.9), "lacet": PI * 0.5, "butin": {"pieces": 55, "os_draugr": 1, "poussiere_tombe": 2, "table": "coffre_crypte"}}],
 		"interactions": [_cle("journal_quartiers", Vector3(24.4, 0.9, -1.1), "Journal de la garde", "Lire le journal", "journal_gardien"),
-			_it("cach_quartiers", Vector3(19.5, 0.3, -1.4), "Planche disjointe", "Soulever la planche", "coffre", {"butin": {"pieces": 40, "amulette_givre": 1}, "coffre": Vector3(19.5, 0, -1.4)})],
+			_it("cach_quartiers", Vector3(19.5, 0.3, -1.4), "Planche disjointe", "Soulever la planche", "coffre", {"butin": {"pieces": 40, "amulette_givre": 1, "table": "sac"}, "coffre": Vector3(19.5, 0, -1.4)})],
 		"meca": [{"genre": "mur_fragile", "id": "mur_quartiers", "pos": Vector3(27.0, 1.5, -4.0), "taille": Vector3(0.6, 3.0, 2.4), "lacet": 0.0, "materiau": "mur0"}]}))
 	r.append(_salle("armurerie", Vector2(30, -4), Vector2(6, 6), 3.2, "tombeau", "tresor", 33,
 		[["O", 0.0, 2.4, true, "quartiers"]],
 		{"lum": {"braseros": 0, "appliques": 1}, "extra": "_x_armurerie",
-		"coffres": [{"id": "cof_mur2", "pos": Vector3(31.8, 0, -6.0), "lacet": PI, "nom": "Coffre de l’armurerie", "butin": {"pieces": 90, "lame_antique": 1, "amulette_givre": 1}}]}))
+		"coffres": [{"id": "cof_mur2", "pos": Vector3(31.8, 0, -6.0), "lacet": PI, "nom": "Coffre de l’armurerie", "butin": {"pieces": 90, "lame_antique": 1, "amulette_givre": 1, "table": "coffre_crypte_riche"}}]}))
 	r.append(_cl("s2", Vector2(9, -2), 12.0, 1, 3.0, "givre", 35, "", "quartiers", {"extra": "_x_s2",
 		"ennemis": [_e("cr_s2_11", "sbire", Vector3(10.0, 0, -2.0), PI * 0.5, true, true)]}))
 	r.append(_cl("g3", Vector2(39, -30), 8.0, 1, 3.2, "glace", 37, "g1", "g4", {"extra": "_x_g3",
@@ -230,9 +230,9 @@ func plan() -> Array:
 			_e("cr_g4_arch2", "squelette_archer", Vector3(56.2, 0, -24.2), -PI * 0.5, true, true, {"archer": true}),
 			# mage nordique (scripts/mage_nordique_ia.gd, extra « ia » ; ident en cr_ comme tout le donjon) près du coffre givré cof_g4b : garde 7-13 m, téléport borné à 22 m de ce poste
 			_e("cr_g4_mage", "mage", Vector3(55.0, 0, -23.3), -PI * 0.5, false, true, {"ia": "mage_nordique"})],
-		"coffres": [{"id": "cof_g4a", "pos": Vector3(57.9, 0, -36.8), "lacet": -PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 58, "lame_antique": 1}},
-			{"id": "cof_g4b", "pos": Vector3(57.9, 0, -23.2), "lacet": -PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 44, "os_draugr": 2}},
-			{"id": "cof_jarl", "pos": Vector3(57.9, 0, -34.3), "lacet": -PI * 0.5, "nom": "Coffre du Jarl", "butin": {"hache_kolbeinn": 1, "pieces": 80}}]}))
+		"coffres": [{"id": "cof_g4a", "pos": Vector3(57.9, 0, -36.8), "lacet": -PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 58, "lame_antique": 1, "table": "coffre_crypte"}},
+			{"id": "cof_g4b", "pos": Vector3(57.9, 0, -23.2), "lacet": -PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 44, "os_draugr": 2, "table": "coffre_crypte"}},
+			{"id": "cof_jarl", "pos": Vector3(57.9, 0, -34.3), "lacet": -PI * 0.5, "nom": "Coffre du Jarl", "butin": {"hache_kolbeinn": 1, "pieces": 80, "table": "coffre_boss"}}]}))
 	r.append(_es("d1", Vector2(21, -40), 2, 0.0, B, 12.0, "g1", "lb1"))
 
 	# ============================================================ ÉTAGE −1 : sceau de l'Eau
@@ -240,8 +240,8 @@ func plan() -> Array:
 		[["S", -2.0, 3.2, false, "u1"], ["N", 0.0, 3.2, false, "lb2b"], ["O", 0.0, 3.2, false, "lb2w"], ["E", 0.0, 3.2, false, "lb2e"]],
 		{"y": B, "usure": 2, "lum": {"braseros": 1, "appliques": 3}, "extra": "_x_archives",
 		"ennemis": [_e("cr_lb2_17", "sbire", Vector3(-18.0, B, -45.0), PI * 0.5, false, false, {"patrouille": [Vector3(-18.0, B, -45.0), Vector3(-10.0, B, -45.0), Vector3(-10.0, B, -40.5)]})],
-		"coffres": [{"id": "cof_archives", "pos": Vector3(-21.1, B, -46.8), "lacet": PI * 0.5, "nom": "Coffre des archivistes", "butin": {"pieces": 48, "poussiere_tombe": 2}}],
-		"interactions": [_it("cach_archives", Vector3(-17.2, B + 0.35, -41.0), "Rayon creux", "Fouiller le rayonnage", "coffre", {"butin": {"pieces": 35, "poussiere_tombe": 2}, "coffre": Vector3(-17.2, B, -41.0)}),
+		"coffres": [{"id": "cof_archives", "pos": Vector3(-21.1, B, -46.8), "lacet": PI * 0.5, "nom": "Coffre des archivistes", "butin": {"pieces": 48, "poussiere_tombe": 2, "table": "coffre_crypte", "zone": "crypte_basse"}}],
+		"interactions": [_it("cach_archives", Vector3(-17.2, B + 0.35, -41.0), "Rayon creux", "Fouiller le rayonnage", "coffre", {"butin": {"pieces": 35, "poussiere_tombe": 2, "table": "sac", "zone": "crypte_basse"}, "coffre": Vector3(-17.2, B, -41.0)}),
 			_texte("notes_archives", Vector3(-9.0, B + 0.9, -45.2), "Registre des morts", "Lire le feuillet", [
 			"Le registre des morts de la Dame Svanhild, rongé par l’humidité.",
 			"Un feuillet récent, d’une autre main : « Eirik a brisé le sceau des Os, puis celui du Givre. Les morts se lèvent derrière nous. »",
@@ -249,7 +249,7 @@ func plan() -> Array:
 	r.append(_salle("lb2b", Vector2(-14, -52), Vector2(8, 8), 3.6, "tombeau", "recit", 41,
 		[["S", 0.0, 3.2, false, "lb2"]],
 		{"y": B, "lum": {"braseros": 0, "appliques": 1}, "extra": "_x_barricade",
-		"coffres": [{"id": "cof_lb2b", "pos": Vector3(-17.2, B, -54.8), "lacet": PI * 0.5, "nom": "Bagages de l’expédition", "butin": {"pieces": 60, "poussiere_tombe": 1}}],
+		"coffres": [{"id": "cof_lb2b", "pos": Vector3(-17.2, B, -54.8), "lacet": PI * 0.5, "nom": "Bagages de l’expédition", "butin": {"pieces": 60, "poussiere_tombe": 1, "table": "coffre_crypte", "zone": "crypte_basse"}}],
 		"interactions": [_cle("note_compagnon_1", Vector3(-11.9, B + 0.9, -52.2), "Carnet d’un compagnon", "Lire le carnet", "note_compagnon_1"),
 			_cle("note_compagnon_2", Vector3(-16.0, B + 0.5, -53.0), "Corps d’un compagnon", "Fouiller le corps", "note_compagnon_2"),
 			_cle("note_compagnon_3", Vector3(-12.6, B + 0.5, -54.2), "Dernier mot", "Lire le mot", "note_compagnon_3",
@@ -263,7 +263,7 @@ func plan() -> Array:
 			_e("cr_lb3_19", "sbire", Vector3(-37.8, B, -47.6), 1.5),
 			_e("cr_lb3_arch", "squelette_archer", Vector3(-40.6, B, -47.4), 0.8, true, true, {"archer": true, "poste": true}),
 			_e("cr_lb3_noye", "guerrier", Vector3(-38.0, B, -39.6), 0.0, true, false, {"reveil_evt": REVEIL_EAU, "vie_imposee": 115.0, "degats_imposes": 19.0, "nom_affiche": "Gardien de l’Eau"})],
-		"coffres": [{"id": "cof_lb3", "pos": Vector3(-28.6, B, -37.7), "lacet": -PI * 0.5, "butin": {"pieces": 47, "lame_antique": 1, "os_draugr": 2}}],
+		"coffres": [{"id": "cof_lb3", "pos": Vector3(-28.6, B, -37.7), "lacet": -PI * 0.5, "butin": {"pieces": 47, "lame_antique": 1, "os_draugr": 2, "table": "coffre_crypte", "zone": "crypte_basse"}}],
 		"interactions": [_it("fragment_eau", Vector3(-40.6, B + 1.5, -43.0), "Fragment du sceau de l’Eau", "Prendre le fragment", "fragment", {"objet": FRAG_EAU, "evt": EVT_EAU, "requiert": ["meca:braseros_cisterne:resolu"],
 			"texte": ["Un éclat de pierre humide, gravé du sceau de l’Eau.", "Les eaux de la citerne frémissent derrière vous."]})],
 		"meca": [{"genre": "braseros", "id": "braseros_cisterne", "positions": [Vector3(-39.2, B, -47.2), Vector3(-30.8, B, -47.2), Vector3(-39.2, B, -38.8), Vector3(-30.8, B, -38.8)], "ordre": [2, 0, 3, 1]}]}))
@@ -272,9 +272,9 @@ func plan() -> Array:
 	r.append(_salle("lb2a", Vector2(6, -48), Vector2(8, 16), 4.2, "tombeau", "repos", 47,
 		[["O", 5.0, 3.2, false, "lb2e"], ["E", -4.0, 3.2, false, "lb1c"]],
 		{"y": B, "lum": {"braseros": 1, "appliques": 2}, "extra": "_x_chapelle",
-		"coffres": [{"id": "cof_lb2a", "pos": Vector3(9.4, B, -41.0), "lacet": -PI * 0.5, "butin": {"pieces": 31, "poussiere_tombe": 1}}],
+		"coffres": [{"id": "cof_lb2a", "pos": Vector3(9.4, B, -41.0), "lacet": -PI * 0.5, "butin": {"pieces": 31, "poussiere_tombe": 1, "table": "coffre_crypte", "zone": "crypte_basse"}}],
 		"interactions": [_cle("inscription_chapelle", Vector3(6.0, B + 1.25, -53.9), "Inscription", "Lire l’inscription", "inscription_chapelle"),
-			_it("cach_chapelle", Vector3(7.6, B + 0.35, -54.3), "Pierre descellée", "Soulever la pierre", "coffre", {"butin": {"pieces": 45, "amulette_givre": 1}, "coffre": Vector3(7.6, B, -54.3)})]}))
+			_it("cach_chapelle", Vector3(7.6, B + 0.35, -54.3), "Pierre descellée", "Soulever la pierre", "coffre", {"butin": {"pieces": 45, "amulette_givre": 1, "table": "sac", "zone": "crypte_basse"}, "coffre": Vector3(7.6, B, -54.3)})]}))
 	r.append(_cl("lb1c", Vector2(13, -52), 6.0, 1, 3.2, "tombeau", 49, "lb2a", "lb1", {"y": B}))
 	r.append(_salle("lb1", Vector2(22, -53), Vector2(12, 14), 4.6, "garde", "combat", 53,
 		[["O", 1.0, 3.2, false, "lb1c"], ["S", -1.0, 3.2, false, "d1"]],
@@ -283,7 +283,7 @@ func plan() -> Array:
 		"ennemis": [_e("cr_lb1_15", "guerrier", Vector3(19.0, B, -57.0), 0.0, false, false, {"patrouille": [Vector3(19.0, B, -57.0), Vector3(25.0, B, -57.0), Vector3(25.0, B, -50.0)]}),
 			_e("cr_lb1_16", "sbire", Vector3(18.0, B, -49.0), 2.5),
 			_e("cr_lb1_arch", "squelette_archer", Vector3(22.0, B, -58.8), 0.0, true, true, {"archer": true})],
-		"coffres": [{"id": "cof_lb1", "pos": Vector3(27.1, B, -58.6), "lacet": -PI * 0.5, "butin": {"pieces": 52, "lame_antique": 1}},
+		"coffres": [{"id": "cof_lb1", "pos": Vector3(27.1, B, -58.6), "lacet": -PI * 0.5, "butin": {"pieces": 52, "lame_antique": 1, "table": "coffre_crypte", "zone": "crypte_basse"}},
 			{"id": "cof_lb1b", "pos": Vector3(27.1, B, -56.3), "lacet": -PI * 0.5, "nom": "Coffre de la garde", "butin": {"pieces": 80, "amulette_givre": 1, "relique_offrande": 1}}]}))
 	# crypte v2 (lot C4, 2026-10-23) : TOUTES les salles en style v2 ; sans table propre = mode auto (scripts/crypte_v2.gd)
 	for mm: Dictionary in r:

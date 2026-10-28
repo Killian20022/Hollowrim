@@ -132,6 +132,10 @@ func arme_de_garde(defaut: DonneesArme) -> DonneesArme:
 	return eq.arme_de_garde(defaut)
 
 func raccourci(i: int) -> void:
+	var conso := eq.conso_du_raccourci(i)
+	if conso != "":   # potion / nourriture : utilisée sans toucher aux mains ni couper l'incantation
+		utiliser_conso(conso)
+		return
 	for m in MAINS:
 		_couper(m, false)
 	var refuses := eq.raccourci(i)
@@ -139,6 +143,22 @@ func raccourci(i: int) -> void:
 		_refuser(r[0], r[1])
 	if i < eq.raccourcis.size():
 		_noter("raccourci %s : %s" % [eq.raccourcis[i].get("touche", ""), eq.raccourcis[i].get("nom", "")])
+
+## Utilise un consommable (raccourci 1-0) : avis « Potion de soin (reste 2) » ou refus dans le HUD. "" ou la raison.
+func utiliser_conso(id: String) -> String:
+	var r := Consommables.utiliser(joueur, id)
+	var hud: Variant = joueur.get_parent().get("hud") if joueur.get_parent() != null else null
+	var a_hud: bool = hud != null and is_instance_valid(hud) and hud.has_method("avis")
+	if r != "":
+		joueur.action_refusee.emit("droite", r)
+		if a_hud:
+			hud.avis(r)
+		_noter("conso refusée %s : %s" % [id, r])
+	else:
+		if a_hud:
+			hud.avis("%s (reste %d)" % [joueur.inventaire.nom(id), joueur.inventaire.nombre(id)])
+		_noter("conso %s" % id)
+	return r
 
 func equiper(main: String, quoi: Variant) -> String:
 	_couper(main, false)

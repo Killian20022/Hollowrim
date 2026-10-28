@@ -226,7 +226,7 @@ static func zones_hrafn() -> Array:
 				{"id": "bandit_6", "type": "sbire", "s": 46.0, "lat": -2.6, "tenue": 0, "nom": "Bandit"},
 			],
 			"coffres": [
-				{"id": "mine_a", "s": 48.0, "lat": 5.2, "lacet": -1.5, "nom": "Coffre des mineurs", "butin": {"pieces": 55, "minerai_fer": 2}},
+				{"id": "mine_a", "s": 48.0, "lat": 5.2, "lacet": -1.5, "nom": "Coffre des mineurs", "butin": {"pieces": 55, "minerai_fer": 2, "table": "coffre_mine", "zone": "grotte"}},
 			],
 			"ressources": [
 				{"id": "fer_b", "genre": "minerai_fer", "s": 37.5, "lat": -5.4, "n": 1},
@@ -239,7 +239,7 @@ static func zones_hrafn() -> Array:
 				{"id": "argent_rare", "genre": "minerai_argent", "s": 59.5, "lat": -5.2, "n": 3},
 			],
 			"coffres": [
-				{"id": "mine_eboulis", "s": 61.5, "lat": -5.0, "lacet": 1.5, "nom": "Cassette des mineurs", "butin": {"pieces": 35, "amulette_givre": 1}},
+				{"id": "mine_eboulis", "s": 61.5, "lat": -5.0, "lacet": 1.5, "nom": "Cassette des mineurs", "butin": {"pieces": 35, "amulette_givre": 1, "table": "coffre_mine", "zone": "grotte"}},
 			]},
 		{"id": "mine_retour", "branche": "A", "s": [63.5, 74.93], "theme": "mine", "role": "repos", "graine": 205, "densite": 0.8, "n_lum": 2,
 			"params": {"etais": [67.5], "rails": [64.0, 72.0], "chariots": [69.8]},
@@ -268,7 +268,7 @@ static func zones_hrafn() -> Array:
 				{"id": "cristal_lac", "genre": "cristal_givre", "s": 41.5, "lat": -3.5, "n": 1},
 			],
 			"coffres": [
-				{"id": "corniche", "s": 32.0, "lat": 5.35, "lacet": 3.14, "sur": "corniche_lac", "nom": "Coffre sur la corniche", "butin": {"pieces": 70, "poussiere_tombe": 2}},
+				{"id": "corniche", "s": 32.0, "lat": 5.35, "lacet": 3.14, "sur": "corniche_lac", "nom": "Coffre sur la corniche", "butin": {"pieces": 70, "poussiere_tombe": 2, "table": "coffre_bandit", "zone": "grotte"}},
 			]},
 		{"id": "lac_ilot", "branche": "B", "s": [30.0, 40.0], "theme": "lac", "role": "recit", "graine": 303, "densite": 0.6, "n_lum": 1,
 			"params": {"ilot_s": 35.0, "ilot_lat": -9.0, "ilot_r": 3.1},
@@ -304,8 +304,8 @@ static func zones_hrafn() -> Array:
 				{"id": "hrafn", "type": "guerrier", "boss": "hrafn", "s": 14.2, "lat": -0.2, "tenue": 4, "nom": "Hrafn, chef des bandits", "face": "entree"},
 			],
 			"coffres": [
-				{"id": "camp_a", "s": 14.6, "lat": -3.6, "lacet": 0.3, "nom": "Coffre du butin", "butin": {"pieces": 90, "amulette_givre": 1}},
-				{"id": "camp_b", "s": 15.0, "lat": 3.9, "lacet": -0.4, "nom": "Coffre du butin", "butin": {"pieces": 60, "os_draugr": 2, "poussiere_tombe": 1}},
+				{"id": "camp_a", "s": 14.6, "lat": -3.6, "lacet": 0.3, "nom": "Coffre du butin", "butin": {"pieces": 90, "amulette_givre": 1, "table": "coffre_bandit", "zone": "grotte"}},
+				{"id": "camp_b", "s": 15.0, "lat": 3.9, "lacet": -0.4, "nom": "Coffre du butin", "butin": {"pieces": 60, "os_draugr": 2, "poussiere_tombe": 1, "table": "coffre_bandit", "zone": "grotte"}},
 			]},
 		{"id": "goulot", "branche": "C", "s": [0.0, 9.0], "theme": "repaire", "role": "transition", "graine": 501, "densite": 0.6, "n_lum": 0,
 			"params": {"rideau": 3.6}},
@@ -318,7 +318,7 @@ static func zones_hrafn() -> Array:
 				{"id": "cristal_d", "genre": "cristal_givre", "s": 25.5, "lat": 2.6, "n": 1},
 			],
 			"coffres": [
-				{"id": "fond", "s": 27.0, "lat": 2.2, "lacet": -0.5, "nom": "Coffre de l’explorateur", "butin": {"pieces": 120, "amulette_givre": 1}},
+				{"id": "fond", "s": 27.0, "lat": 2.2, "lacet": -0.5, "nom": "Coffre de l’explorateur", "butin": {"pieces": 120, "amulette_givre": 1, "table": "coffre_crypte_riche", "zone": "grotte"}},
 			]},
 		{"id": "cache", "branche": "H", "s": [3.0, 19.89], "theme": "cache", "role": "tresor", "graine": 601, "densite": 1.0, "n_lum": 2,
 			"teinte": [Color(1.0, 0.6, 0.3), Color(1.0, 0.66, 0.36)],

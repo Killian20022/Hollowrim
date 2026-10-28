@@ -226,6 +226,7 @@ func _ready() -> void:
 		_ciel.set_shader_parameter("angle_pixel", deg_to_rad(72.0) / maxf(float(wh[1]), 1.0))  # nuages : finesse max du détail
 	if not _arguments().has("capture"):
 		_musique()
+	ButinTables.reinitialiser()   # nouvelle partie : aucun contenant pillé (charger() relit l'état de la sauvegarde)
 	if not _arguments().has("capture") and not _arguments().has("nouvelle") and not _arguments().has("persos-tous") and not Jeu.nouvelle_partie:
 		charger()
 	if not _arguments().has("capture"):
@@ -1282,6 +1283,7 @@ func sauvegarder() -> void:
 		"magie": joueur.mains.magie.exporter() if joueur.mains.get("magie") != null else {},   # mains, sorts connus, mana (docs/MAGIE.md)
 		"draugrs_morts": morts,
 		"villageois_parles": parles,
+		"butin": ButinTables.exporter(),   # graine du monde, contenants pillés, uniques pris (docs/BUTIN.md)
 	}
 	var f := FileAccess.open(fichier_sauvegarde(), FileAccess.WRITE)
 	f.store_string(JSON.stringify(donnees, "\t"))
@@ -1306,6 +1308,7 @@ func charger() -> void:
 	cycle.heure = float(d.get("heure", cycle.heure))
 	joueur.competences.importer(d.get("competences", {}))
 	joueur.inventaire.importer(d.get("inventaire", {}))
+	ButinTables.importer(d.get("butin", {}))
 	if joueur.mains.get("magie") != null:
 		joueur.mains.magie.importer(d.get("magie", {}))
 	dragon_vaincu = bool(d.get("dragon_vaincu", false))

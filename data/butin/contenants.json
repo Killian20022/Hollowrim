@@ -1,0 +1,26 @@
+{
+	"_doc": "Petits contenants (urnes, tonneaux, caisses, sacs) : butin mineur, aussi pour les cassables (lot L5).",
+	"tables": {
+		"urne": {"or": [0, 12], "tirages": 1, "rien": 45, "entrees": [
+			{"id": "poussiere_tombe", "poids": 30},
+			{"id": "os_draugr", "poids": 20},
+			{"id": "anneau_cuivre", "poids": 8},
+			{"id": "potion_soin", "poids": 6}
+		]},
+		"tonneau": {"tirages": 1, "rien": 40, "entrees": [
+			{"table": "nourriture", "poids": 45},
+			{"id": "potion_endurance", "poids": 8},
+			{"id": "minerai_fer", "poids": 7}
+		]},
+		"caisse": {"or": [0, 8], "tirages": 1, "rien": 35, "entrees": [
+			{"table": "nourriture", "poids": 35},
+			{"id": "minerai_fer", "poids": 15},
+			{"id": "potion_soin", "poids": 8},
+			{"id": "anneau_cuivre", "poids": 6}
+		]},
+		"sac": {"or": [3, 15], "tirages": 1, "rien": 30, "entrees": [
+			{"table": "nourriture", "poids": 40},
+			{"table": "potions", "poids": 20}
+		]}
+	}
+}

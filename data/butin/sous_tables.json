@@ -1,0 +1,34 @@
+{
+	"_doc": "Sous-tables appelées par les autres (entrée {\"table\": id, \"poids\": n}). Format d'une table : docs/BUTIN.md.",
+	"tables": {
+		"potions": {"tirages": 1, "entrees": [
+			{"id": "potion_soin", "poids": 40, "n": [1, 2]},
+			{"id": "potion_mana", "poids": 30},
+			{"id": "potion_endurance", "poids": 25},
+			{"id": "potion_soin_forte", "poids": 8}
+		]},
+		"nourriture": {"tirages": 1, "entrees": [
+			{"id": "pain_seigle", "poids": 55, "n": [1, 2]},
+			{"id": "viande_sechee", "poids": 45, "n": [1, 2]}
+		]},
+		"valeurs": {"tirages": 1, "entrees": [
+			{"id": "anneau_cuivre", "poids": 40},
+			{"id": "coupe_argent", "poids": 25},
+			{"id": "amulette_givre", "poids": 12},
+			{"id": "collier_or", "poids": 10},
+			{"id": "relique_offrande", "poids": 4}
+		]},
+		"tomes": {"tirages": 1, "entrees": [
+			{"id": "tome_boule_feu", "poids": 1},
+			{"id": "tome_lance_givre", "poids": 1},
+			{"id": "tome_drain_vie", "poids": 1}
+		]},
+		"armes": {"tirages": 1, "entrees": [
+			{"id": "lame_antique", "poids": 60},
+			{"id": "epee_or", "poids": 14},
+			{"id": "epee_rubis", "poids": 12},
+			{"id": "epee_verre", "poids": 10},
+			{"id": "epee_obsidienne", "poids": 4}
+		]}
+	}
+}

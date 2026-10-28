@@ -206,11 +206,14 @@ func arme_de_garde(defaut: DonneesArme) -> DonneesArme:
 	return defaut
 
 ## Raccourci n (index 0..9) : équipe les deux mains ; renvoie les raisons de refus (vide = tout est passé).
+## Un raccourci de consommable ({"conso": id}) ne change pas les mains : MainSort.raccourci l'utilise (Consommables).
 func raccourci(i: int) -> Array:
 	var refuses := []
 	if i < 0 or i >= raccourcis.size():
 		return refuses
 	var r: Dictionary = raccourcis[i]
+	if r.has("conso"):
+		return refuses
 	# la droite d'abord (une arme à deux mains libère la gauche ; un enchantement à gauche exige l'arme à droite)
 	for m in ["droite", "gauche"]:
 		if r.has(m):
@@ -385,11 +388,35 @@ func assigner_raccourci(i: int, gauche: String, droite: String) -> String:
 	while raccourcis.size() <= i:
 		raccourcis.append({"touche": str((raccourcis.size() + 1) % 10)})
 	var e: Dictionary = raccourcis[i]
+	e.erase("conso")
 	e["gauche"] = gauche
 	e["droite"] = droite
 	e["nom"] = "%s | %s" % [fiche(gauche)["nom"], fiche(droite)["nom"]]
 	raccourcis_change.emit()
 	return ""
+
+## Raccourci i (0..9) = un consommable du sac (potion, nourriture : catégorie « consommable » de data/butin/objets.json).
+## La touche l'utilise sans changer les mains. "" ou la raison du refus.
+func assigner_conso(i: int, id: String) -> String:
+	if i < 0 or i >= 10:
+		return "Raccourci inconnu."
+	if not Consommables.est(id):
+		return "Seuls les potions et la nourriture se rangent seuls dans un raccourci."
+	while raccourcis.size() <= i:
+		raccourcis.append({"touche": str((raccourcis.size() + 1) % 10)})
+	var e: Dictionary = raccourcis[i]
+	e.erase("gauche")
+	e.erase("droite")
+	e["conso"] = id
+	e["nom"] = String(Inventaire.objet(id).get("nom", id))
+	raccourcis_change.emit()
+	return ""
+
+## Consommable du raccourci i ("" si c'est une paire de mains ou une case vide).
+func conso_du_raccourci(i: int) -> String:
+	if i < 0 or i >= raccourcis.size():
+		return ""
+	return String(raccourcis[i].get("conso", ""))
 
 ## Vide le raccourci i : la touche ne change plus rien (aucune main dans l'entrée).
 func vider_raccourci(i: int) -> void:
@@ -398,6 +425,7 @@ func vider_raccourci(i: int) -> void:
 	var e: Dictionary = raccourcis[i]
 	e.erase("gauche")
 	e.erase("droite")
+	e.erase("conso")
 	e["nom"] = ""
 	raccourcis_change.emit()
 
@@ -411,6 +439,8 @@ func importer_raccourcis(liste: Array) -> void:
 		for m in ["gauche", "droite"]:
 			if src.has(m) and objet(String(src[m])) != null:
 				e[m] = String(src[m])
+		if src.has("conso") and Consommables.est(String(src["conso"])):
+			e["conso"] = String(src["conso"])
 		while raccourcis.size() <= i:
 			raccourcis.append({"touche": str((raccourcis.size() + 1) % 10)})
 		raccourcis[i] = e

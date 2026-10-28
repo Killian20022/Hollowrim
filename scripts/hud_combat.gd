@@ -215,11 +215,15 @@ func _presets(d: Dictionary, g: Dictionary) -> Array:
 	var res: Array = []
 	for i in NB:
 		var e: Variant = brut[i] if i < brut.size() else null
-		var pr := {"touche": str((i + 1) % 10), "gauche": "", "droite": "", "nom": ""}
+		var pr := {"touche": str((i + 1) % 10), "gauche": "", "droite": "", "nom": "", "conso": "", "nombre": 0}
 		if e is Dictionary:
 			pr["gauche"] = _id_main(e.get("gauche", ""))
 			pr["droite"] = _id_main(e.get("droite", ""))
 			pr["nom"] = str(e.get("nom", ""))
+			pr["conso"] = str(e.get("conso", ""))   # potion / nourriture (Consommables) : icône au centre + nombre dans le sac
+			if pr["conso"] != "":
+				var inv: Variant = _lire("inventaire", null)
+				pr["nombre"] = int(inv.nombre(pr["conso"])) if inv is Inventaire else 0
 		elif e != null:
 			pr["droite"] = _id_main(e)
 		res.append(pr)
@@ -453,8 +457,19 @@ func _raccourcis(pos: Vector2, alpha: float) -> void:
 		var pr: Dictionary = presets[i] if i < presets.size() else {}
 		var ig := str(pr.get("gauche", ""))
 		var idr := str(pr.get("droite", ""))
-		var vide := ig == "" and idr == ""
+		var conso := str(pr.get("conso", ""))
+		var vide := ig == "" and idr == "" and conso == ""
 		var p := pos + Vector2(i * (CASE_L + ECART), 0)
+		if conso != "":   # consommable : une seule icône centrée, nombre restant en bas à droite (grisé à 0)
+			var nb := int(pr.get("nombre", 0))
+			draw_rect(Rect2(p, Vector2(CASE_L, CASE_H)), Color(FER, alpha))
+			draw_rect(Rect2(p + Vector2(1, 1), Vector2(CASE_L - 2, CASE_H - 2)), Color(FOND, 0.88 * alpha))
+			draw_texture(IconesCombat.icone(conso), p + Vector2(CASE_L / 2 - 8, 1), Color(1, 1, 1, (alpha if nb > 0 else 0.35 * alpha)))
+			var txt := str(mini(nb, 9))
+			_mini(txt, p + Vector2(CASE_L - 5, 12), Color(PARCHEMIN if nb > 0 else FER_CLAIR, 0.95 * alpha))
+			var tc := str(pr.get("touche", str((i + 1) % 10)))
+			_mini(tc, p + Vector2(CASE_L / 2 - 3, 19), Color(PARCHEMIN, 0.95 * alpha), 2)
+			continue
 		var actif: bool = not vide and ig == id_g and idr == id_d
 		var en_g := not actif and ig != "" and ig == id_g
 		var en_d := not actif and idr != "" and idr == id_d

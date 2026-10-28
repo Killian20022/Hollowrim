@@ -1,0 +1,39 @@
+{
+	"_doc": "Coffres. or = [min, max] pièces ; tirages = nombre de tirages (ou [min, max]) ; rien = poids du tirage vide ; garanti = toujours donnés. Un coffre de donjon garde ses objets fixes (butin de crypte_donjon.gd / grotte_donnees.gd) et y AJOUTE le tirage de sa table (clé \"table\").",
+	"tables": {
+		"coffre_crypte": {"or": [8, 30], "tirages": [1, 3], "rien": 20, "entrees": [
+			{"id": "os_draugr", "poids": 30, "n": [1, 3]},
+			{"id": "poussiere_tombe", "poids": 22, "n": [1, 2]},
+			{"table": "potions", "poids": 26},
+			{"table": "valeurs", "poids": 12, "rarete": "peu_commun"},
+			{"id": "lame_antique", "poids": 6},
+			{"table": "tomes", "poids": 2, "rarete": "rare"}
+		]},
+		"coffre_crypte_riche": {"or": [30, 70], "tirages": [2, 3], "entrees": [
+			{"table": "potions", "poids": 30},
+			{"table": "valeurs", "poids": 28},
+			{"id": "poussiere_tombe", "poids": 15, "n": [1, 3]},
+			{"table": "armes", "poids": 10, "rarete": "rare"},
+			{"table": "tomes", "poids": 6, "rarete": "rare"}
+		]},
+		"coffre_boss": {"or": [80, 160], "tirages": 3, "garanti": [{"id": "potion_soin_forte", "n": 1}], "entrees": [
+			{"table": "valeurs", "poids": 30},
+			{"table": "potions", "poids": 25},
+			{"table": "armes", "poids": 25, "rarete": "rare"},
+			{"table": "tomes", "poids": 15, "rarete": "rare"}
+		]},
+		"coffre_bandit": {"or": [10, 40], "tirages": [1, 3], "rien": 15, "entrees": [
+			{"table": "nourriture", "poids": 30},
+			{"table": "potions", "poids": 24},
+			{"id": "minerai_fer", "poids": 12},
+			{"table": "valeurs", "poids": 14, "rarete": "peu_commun"},
+			{"id": "lame_antique", "poids": 5}
+		]},
+		"coffre_mine": {"or": [5, 20], "tirages": [1, 2], "rien": 10, "entrees": [
+			{"id": "minerai_fer", "poids": 35, "n": [1, 3]},
+			{"id": "minerai_argent", "poids": 15},
+			{"table": "nourriture", "poids": 25},
+			{"id": "potion_endurance", "poids": 15}
+		]}
+	}
+}

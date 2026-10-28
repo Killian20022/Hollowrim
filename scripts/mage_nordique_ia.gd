@@ -530,8 +530,6 @@ func _special_mort(_sorte: String, _r: Dictionary) -> void:
 	tw.tween_property(l, "light_energy", 0.0, 0.5)
 	tw.tween_callback(l.queue_free)
 
+## Bourse tirée de data/butin/cadavres.json (« cadavre_mage »), graine = ident : toujours la même pour un même ennemi.
 func _contenu_butin() -> Dictionary:
-	var c := {"pieces": randi_range(10, 25), "cristal_givre": 1}
-	if randf() < 0.3:
-		c["amulette_givre"] = 1
-	return c
+	return ButinTables.contenu(ButinTables.tirer_pour("ennemi:" + (ident if ident != "" else str(get_instance_id())), ButinTables.table_pour("mage")))
