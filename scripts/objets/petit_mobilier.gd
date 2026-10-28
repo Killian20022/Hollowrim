@@ -32,6 +32,8 @@ static func coffre(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, collision := tr
 	dcr.j1()
 
 static func bougie(dcr: CrypteDecor, pos: Vector3, avec_lumiere := true) -> void:
+	if ObjLuminaires.bougie_c6(dcr, pos, avec_lumiere):      # C6 : une bougie sur deux de la crypte devient une grappe
+		return
 	dcr.j0("bougie")
 	pos = dcr._suivre(pos)
 	dcr.emprise("bougie", pos, Vector2(0.06, 0.06), 0.0, 0.14)
@@ -65,6 +67,7 @@ static func table(dcr: CrypteDecor, pos: Vector3, lacet := 0.0) -> void:
 	dcr.emprise("table", pos, Vector2(0.55, 0.33), lacet, 0.8)
 	dcr.modele("table_" + variante(dcr, pos), pos, lacet, Vector3.ONE, {}, false)
 	dcr.j1()
+	ObjGarnitures.table(dcr, pos, lacet)      # C6 : livres, bols, crâne… posés dessus (crypte ; petits objets à part)
 
 static func crane(dcr: CrypteDecor, pos: Vector3, lacet := 0.0) -> void:
 	dcr.j0("crane", lacet)

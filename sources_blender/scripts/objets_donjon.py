@@ -23,11 +23,12 @@ TAU = 2 * math.pi
 I3 = Matrix.Identity(3)
 UP = Vector((0, 1, 0))
 TEINTE = {"bois": (1.0, 0.97, 0.93), "fer": (0.92, 0.94, 1.0), "or": (1.0, 0.97, 0.9)}
-BUDGET = {"coffre": 550, "tonneau": 400, "table": 550, "urne": 300, "crane": 180, "os_long": 40, "os_court": 30, "arme": 170,
+BUDGET = {"coffre": 550, "tonneau": 400, "table": 550, "urne": 420, "crane": 180, "os_long": 40, "os_court": 30, "arme": 170,
           "gravats": 480, "or_tas": 1100,
           "micro_eclats": 60, "micro_planche": 60, "micro_os": 50, "micro_cire": 70, "micro_pieces": 30, "micro_chaine": 100, "sac": 200, "os_monticule": 800,
           "etagere_cadre": 420, "etagere_contenu": 820, "etagere_couchee": 300, "lit": 570, "ratelier_cadre": 420, "arme_v": 90,
-          "bouclier": 330, "planche": 40, "poteau": 40, "tringle": 100}
+          "bouclier": 330, "planche": 40, "poteau": 40, "tringle": 100,
+          "garniture": 260, "garniture_autel": 520, "garniture_etagere": 700}      # garniture : par objet de table
 
 
 def V(x, y, z):
@@ -407,28 +408,69 @@ def table(var):
     return M
 
 
+def _ecorner(M, an, larg, y_min, dy, dr=0.0, i0=0):
+    """C6 : éclat (lèvre ébréchée) : les sommets du secteur d'angle `an` ± `larg` au-dessus de y_min descendent de dy et rentrent de dr
+    (dégradé vers les bords du secteur) ; triangles i0.. seulement (la pièce qu'on vient de tourner)."""
+    for j in range(i0, len(M.tris)):
+        m, p, t = M.tris[j]
+        q = []
+        for v in p:
+            if v.y > y_min:
+                da = abs((math.atan2(v.z, v.x) - an + math.pi) % TAU - math.pi)
+                if da < larg:
+                    f = 1.0 - (da / larg) ** 2
+                    rr = math.hypot(v.x, v.z)
+                    k = max(0.0, rr - dr * f) / max(rr, 1e-6)
+                    v = V(v.x * k, max(y_min, v.y - dy * f), v.z * k)
+            q.append(v)
+        M.tris[j] = (m, tuple(q), t)
+
+
+def _anse(M, pts, w=0.026, h=0.02, ton=0.85):
+    """Anse en tronçons de poutre le long d'une polyligne (repère du module)."""
+    for a, b in zip(pts, pts[1:]):
+        M.add("argile", poutre(a, b, w, h, up=V(0, 0, 1) if abs(a.x) > abs(a.z) else V(1, 0, 0)), ton)
+
+
 def urne(var):
-    """Urne (e = 1 : r 0,25, h 0,56) : a : panse et anses, b : jarre à couvercle, c : vase élancé. Bandeau « entrelacs » sur la panse."""
+    """Urne v2 (lot C6 ; e = 1 : r 0,25, h 0,56, MÊME encombrement) : col, lèvre éversée épaisse, bourrelet d'épaule, anses, éclat.
+    a : panse à deux anses et lèvre ébréchée, tesson au pied ; b : jarre à couvercle, cordon d'épaule, oreilles, couvercle écorné ;
+    c : vase élancé à col haut, lèvre en trompette, anses hautes d'amphore. Bandeau « entrelacs » sur la panse."""
     M = Module("urne_" + var, 600 + ord(var))
+    rg = M.rg
+    n = 10
     if var == "a":
-        prof = [(0.13, 0.0), (0.2, 0.08), (0.235, 0.15), (0.25, 0.22), (0.24, 0.29), (0.21, 0.4), (0.12, 0.5), (0.14, 0.555), (0.105, 0.555), (0.1, 0.5)]
-        mats = ["argile", "argile", "entrelacs", "entrelacs", "argile", "argile", "argile", "argile", "argile"]
-        M.rev("argile", prof, 12, caps=(False, False), mats=mats, ton=0.92, jt=0.04)
-        M.add("noir", disque(V(0, 0.5, 0), 0.1, 12), 1.0)
+        prof = [(0.13, 0.0), (0.2, 0.08), (0.235, 0.15), (0.25, 0.22), (0.24, 0.29), (0.21, 0.37), (0.218, 0.385), (0.175, 0.42),
+                (0.1, 0.455), (0.092, 0.5), (0.122, 0.528), (0.135, 0.552), (0.112, 0.558), (0.086, 0.535), (0.08, 0.49)]
+        mats = ["argile", "argile", "entrelacs", "entrelacs"] + ["argile"] * 10
+        M.rev("argile", prof, n, caps=(False, False), mats=mats, ton=0.92, jt=0.04)
+        _ecorner(M, rg.uniform(0, TAU), 0.42, 0.49, 0.04, 0.012)
+        M.add("noir", disque(V(0, 0.49, 0), 0.08, n), 1.0)
         for sx in (-1, 1):
-            a, b, c = V(sx * 0.2, 0.41, 0), V(sx * 0.2, 0.5, 0), V(sx * 0.13, 0.52, 0)
-            M.add("argile", poutre(a, b, 0.025, 0.02, up=V(0, 0, 1)), 0.85)
-            M.add("argile", poutre(b, c, 0.025, 0.02, up=V(0, 0, 1)), 0.85)
+            _anse(M, [V(sx * 0.2, 0.39, 0), V(sx * 0.243, 0.45, 0), V(sx * 0.215, 0.515, 0), V(sx * 0.1, 0.51, 0)])
+        M.add("argile", bloc_irr(V(0.17, 0.008, 0.17), (0.07, 0.014, 0.05), rg, 0.3, Ry(0.7)), 0.8)      # tesson tombé de la lèvre
     elif var == "b":
-        prof = [(0.15, 0.0), (0.22, 0.06), (0.245, 0.14), (0.25, 0.2), (0.235, 0.27), (0.16, 0.36), (0.15, 0.4), (0.172, 0.42)]
-        mats = ["argile", "argile", "entrelacs", "entrelacs", "argile", "argile", "argile"]
-        M.rev("argile", prof, 12, caps=(False, False), mats=mats, ton=0.9, jt=0.04)
-        M.rev("argile", [(0.172, 0.42), (0.17, 0.435), (0.12, 0.47), (0.04, 0.485), (0.035, 0.515), (0.045, 0.53), (0.0, 0.535)], 12, ton=0.8)
+        prof = [(0.15, 0.0), (0.22, 0.06), (0.245, 0.14), (0.25, 0.2), (0.235, 0.27), (0.2, 0.33), (0.208, 0.345), (0.2, 0.36),
+                (0.155, 0.39), (0.15, 0.405), (0.175, 0.418)]
+        mats = ["argile", "argile", "entrelacs", "entrelacs"] + ["argile"] * 6
+        M.rev("argile", prof, n, caps=(False, False), mats=mats, ton=0.9, jt=0.04)
+        i0 = len(M.tris)
+        M.rev("argile", [(0.175, 0.418), (0.172, 0.435), (0.12, 0.47), (0.045, 0.485), (0.04, 0.505), (0.052, 0.522), (0.0, 0.532)], n, ton=0.8)
+        _ecorner(M, rg.uniform(0, TAU), 0.5, 0.41, 0.012, 0.03, i0)
+        for k in range(2):      # oreilles de préhension sur l'épaule
+            an = k * math.pi + 0.3
+            d, tg = V(math.cos(an), 0, math.sin(an)), V(-math.sin(an), 0, math.cos(an))
+            M.add("argile", hull([d * 0.2 + tg * sx * 0.035 + V(0, y, 0) for sx in (-1, 1) for y in (0.3, 0.33)] +
+                                 [d * 0.238 + tg * sx * 0.026 + V(0, y, 0) for sx in (-1, 1) for y in (0.305, 0.325)]), 0.82)
     else:
-        prof = [(0.1, 0.0), (0.16, 0.06), (0.21, 0.16), (0.23, 0.24), (0.215, 0.31), (0.16, 0.39), (0.09, 0.46), (0.08, 0.5), (0.115, 0.555), (0.085, 0.555), (0.075, 0.52)]
-        mats = ["argile", "argile", "entrelacs", "entrelacs", "argile", "argile", "argile", "argile", "argile", "argile"]
-        M.rev("argile", prof, 12, caps=(False, False), mats=mats, ton=0.95, jt=0.04)
-        M.add("noir", disque(V(0, 0.52, 0), 0.075, 12), 1.0)
+        prof = [(0.1, 0.0), (0.16, 0.06), (0.21, 0.16), (0.23, 0.24), (0.215, 0.31), (0.16, 0.38), (0.168, 0.392), (0.1, 0.43),
+                (0.072, 0.47), (0.07, 0.5), (0.1, 0.535), (0.128, 0.556), (0.104, 0.558), (0.08, 0.53), (0.064, 0.5)]
+        mats = ["argile", "argile", "entrelacs", "entrelacs"] + ["argile"] * 10
+        M.rev("argile", prof, n, caps=(False, False), mats=mats, ton=0.95, jt=0.04)
+        _ecorner(M, rg.uniform(0, TAU), 0.36, 0.5, 0.03, 0.01)
+        M.add("noir", disque(V(0, 0.5, 0), 0.064, n), 1.0)
+        for sx in (-1, 1):
+            _anse(M, [V(sx * 0.19, 0.33, 0), V(sx * 0.215, 0.4, 0), V(sx * 0.2, 0.48, 0), V(sx * 0.08, 0.5, 0)], 0.022, 0.018)
     return M
 
 
@@ -874,6 +916,162 @@ def os_monticule():
     return M
 
 
+# ======================================================================= C6 (2026-10-28) : garnitures de surface (tables, autels, étagères)
+# « Tout objet porte d'autres objets » (INSPIRATION_IGNITE §2.8) : petites compositions posées PAR-DESSUS les meubles par
+# ObjGarnitures (scripts/objets/garnitures.gd), même repère que le meuble (origine = celle de la table / de l'étagère ; autel : dessus
+# de la nappe en y = 0). Livres, rouleaux, bols, cruche, gobelet, crâne, pièces, chandelier ÉTEINT (aucune lumière, aucune flamme).
+def _copier(M, src, c, R=I3):
+    """Verse les triangles d'un autre module (crâne…) dans M, tournés de R et posés en c."""
+    for (m, p, t) in src.tris:
+        M.tris.append((m, tuple(c + R @ q for q in p), t))
+
+
+def g_livre(M, c, L, t, W, an=0.0, cuir="laine", ton=None):
+    """Livre fermé posé à plat (L x t x W) : plats et dos de cuir, tranche de pages claire visible sur trois côtés."""
+    rg = M.rg
+    R = Ry(an)
+    ton = rg.uniform(0.5, 0.8) if ton is None else ton
+    e = max(0.005, t * 0.16)
+    M.add(cuir, boite(c + R @ V(0, e / 2, 0), (L, e, W), R), ton)
+    M.add(cuir, boite(c + R @ V(0, t - e / 2, 0), (L, e, W), R), ton * 1.05)
+    M.add(cuir, boite(c + R @ V(-L / 2 + e / 2, t / 2, 0), (e, t, W), R), ton * 0.9)
+    M.add("parchemin", boite(c + R @ V(e * 0.5, t / 2, 0), (L - e * 2.2, t - 2 * e, W - e * 1.4), R), rg.uniform(0.7, 0.85))
+
+
+def g_livre_ouvert(M, c, L, W, an=0.0, cuir="laine"):
+    """Livre ouvert : couverture à plat, deux blocs de pages en V léger, pages claires."""
+    rg = M.rg
+    R = Ry(an)
+    M.add(cuir, boite(c + R @ V(0, 0.004, 0), (2 * L + 0.012, 0.008, W + 0.012), R), rg.uniform(0.5, 0.7))
+    for sx in (-1, 1):
+        M.add("parchemin", boite(c + R @ V(sx * L * 0.5, 0.017, 0), (L * 0.98, 0.016, W), R @ Rz(-sx * 0.07)), rg.uniform(0.85, 1.0))
+    M.add("noir", [orienter([c + R @ V(-0.003, 0.0265, -W * 0.45), c + R @ V(0.003, 0.0265, -W * 0.45), c + R @ V(0.003, 0.0265, W * 0.45),
+                             c + R @ V(-0.003, 0.0265, W * 0.45)], UP)], 1.0)          # pli du milieu
+
+
+def g_bol(M, c, r, h, mat="fer", ton=0.72, contenu=None):
+    """Bol / écuelle à paroi épaisse (dedans visible), contenu : « os », « or » (pièces), « noir » (fond de liquide figé) ou rien."""
+    rg = M.rg
+    M.rev(mat, [(r * 0.55, 0.0), (r * 0.88, h * 0.4), (r, h), (r * 0.86, h), (r * 0.7, h * 0.5), (0.0, h * 0.25)], 8, c=c, caps=(False, False), ton=ton)
+    if contenu == "os":
+        for k in range(3):
+            an = rg.uniform(0, TAU)
+            M.add("os", boite(c + V(math.cos(an) * r * 0.3, h * 0.5 + k * 0.012, math.sin(an) * r * 0.3), (r * 1.2, 0.016, 0.018), Ry(an + 1.2) @ Rz(0.25)), rg.uniform(0.85, 1.0))
+    elif contenu == "or":
+        for k in range(4):
+            an = rg.uniform(0, TAU)
+            q = c + V(math.cos(an) * r * 0.35, h * 0.42 + k * 0.006, math.sin(an) * r * 0.35)
+            M.add_tons("or", piece(q, 0.022, Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.3, 0.3))), brut=True)
+    elif contenu == "noir":
+        M.add("noir", disque(c + V(0, h * 0.62, 0), r * 0.78, 8), 1.0)
+
+
+def g_cruche(M, c, an=0.0):
+    """Cruche de terre (h 0,19) : panse, col, bec pincé, anse."""
+    R = Ry(an)
+    M.rev("argile", [(0.045, 0.0), (0.065, 0.045), (0.066, 0.09), (0.045, 0.14), (0.034, 0.165), (0.04, 0.19), (0.033, 0.19), (0.026, 0.17)], 8, c=c, caps=(True, False), ton=0.85)
+    M.add("noir", disque(c + V(0, 0.17, 0), 0.026, 8), 1.0)
+    M.add("argile", hull([c + R @ V(0.03, 0.18, sz * 0.012) for sz in (-1, 1)] + [c + R @ V(0.058, 0.195, 0), c + R @ V(0.035, 0.192, 0)]), 0.82)       # bec
+    pts = [c + R @ V(-0.06, 0.07, 0), c + R @ V(-0.085, 0.12, 0), c + R @ V(-0.07, 0.165, 0), c + R @ V(-0.035, 0.172, 0)]
+    for a, b in zip(pts, pts[1:]):
+        M.add("argile", poutre(a, b, 0.016, 0.012, up=R @ V(0, 0, 1)), 0.8)
+
+
+def g_gobelet(M, c):
+    """Gobelet d'étain à pied (h 0,09)."""
+    M.rev("fer", [(0.03, 0.0), (0.03, 0.007), (0.009, 0.014), (0.009, 0.038), (0.032, 0.068), (0.036, 0.09), (0.03, 0.09), (0.0, 0.064)], 8, c=c, caps=(True, False), ton=0.78)
+
+
+def g_chandelier(M, c):
+    """Chandelier ÉTEINT (h 0,2) : pied en coupelle, fût, bobèche, chicot de cire à coulures, mèche noire. Aucune flamme."""
+    rg = M.rg
+    M.rev("fer", [(0.055, 0.0), (0.06, 0.008), (0.03, 0.02), (0.011, 0.032), (0.011, 0.125), (0.022, 0.13), (0.04, 0.14), (0.042, 0.15), (0.03, 0.15), (0.0, 0.142)], 8, c=c, caps=(True, False), ton=0.72)
+    h = rg.uniform(0.035, 0.06)
+    M.rev("cire", [(0.019, 0.14), (0.018, 0.14 + h), (0.012, 0.145 + h), (0.0, 0.142 + h)], 6, c=c, caps=(False, False), ton=0.92)
+    M.rev("cire", [(0.03, 0.149), (0.024, 0.157), (0.0, 0.158)], 6, c=c, caps=(False, False), ton=0.85)       # flaque figée dans la bobèche
+    M.add("cire", poutre(c + V(0.03, 0.15, 0.0), c + V(0.04, 0.128, 0.004), 0.009, 0.007), 0.9)               # larme qui pend
+    M.add("noir", boite(c + V(0, 0.147 + h, 0), (0.005, 0.012, 0.005)), 1.0)
+
+
+def g_rouleau(M, c, L, an=0.0, r=0.022):
+    R = Ry(an)
+    M.add("parchemin", cylindre(c + R @ V(-L / 2, r, 0), c + R @ V(L / 2, r, 0), r, 6), M.rg.uniform(0.8, 0.95))
+
+
+def g_pieces(M, c, n, rr=0.06):
+    rg = M.rg
+    for k in range(n):
+        an = rg.uniform(0, TAU)
+        q = c + V(math.cos(an) * rg.uniform(0, rr), 0.003 + 0.004 * (k % 2), math.sin(an) * rg.uniform(0, rr))
+        M.add_tons("or", piece(q, 0.024, Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.12, 0.12)), (0.5, 1.0)), brut=True)
+
+
+def g_crane(M, c, an, var="a"):
+    _copier(M, crane(var), c, Ry(an))
+
+
+def garniture_table(var):
+    """Dessus de table (repère de la table, plateau à y 0,79) : zones laissées libres par le feuillet et la vaisselle du module table
+    (bout gauche x < -0,43, bande arrière z < -0,12, milieu x -0,06..0,15). UN MODULE PAR OBJET (« garniture_table_a1 »…) : chacun est
+    un petit objet à part pour l'audit (les bougies posées ensuite sur la table s'écartent de son disque, ObjGarnitures.DISQUES)."""
+    y = 0.79
+    if var == "a":      # pile de livres, chandelier éteint, pièces
+        objets = [lambda M: (g_livre(M, V(-0.33, y, -0.22), 0.22, 0.045, 0.15, 0.15), g_livre(M, V(-0.32, y + 0.045, -0.225), 0.19, 0.04, 0.13, -0.12, "bois")),
+                  lambda M: g_chandelier(M, V(0.06, y, 0.17)),
+                  lambda M: g_pieces(M, V(0.04, y, -0.22), 3, 0.04)]
+    elif var == "b":    # cruche, gobelet, bol d'os
+        objets = [lambda M: g_cruche(M, V(-0.47, y, 0.17), 2.4),
+                  lambda M: g_gobelet(M, V(-0.45, y, -0.12)),
+                  lambda M: g_bol(M, V(0.05, y, 0.14), 0.075, 0.05, "argile", 0.8, "os")]
+    else:               # crâne, livre ouvert, rouleau
+        objets = [lambda M: g_crane(M, V(0.05, y, 0.1), -0.45, "b"),
+                  lambda M: g_livre_ouvert(M, V(-0.3, y, -0.215), 0.12, 0.16, 0.1),
+                  lambda M: g_rouleau(M, V(0.47, y, -0.18), 0.2, math.pi / 2)]
+    mods = []
+    for k, f in enumerate(objets):
+        M = Module("garniture_table_%s%d" % (var, k + 1), 4000 + ord(var) * 8 + k, sol=False)
+        f(M)
+        mods.append(M)
+    return mods
+
+
+def garniture_autel(var):
+    """Dessus d'autel (y = 0 : dessus de la nappe ; tient dans |x| < 0,45 m, entre les bougies posées à ±0,35 x largeur)."""
+    M = Module("garniture_autel_" + var, 4100 + ord(var), sol=False)
+    if var == "a":      # bol d'offrandes plein de pièces, crâne, livre fermé
+        g_bol(M, V(0.0, 0.0, 0.05), 0.11, 0.06, "fer", 0.75, "or")
+        g_crane(M, V(-0.3, 0.0, -0.18), 0.4, "a")
+        g_livre(M, V(0.32, 0.0, -0.2), 0.24, 0.05, 0.17, -0.3, "laine")
+        g_pieces(M, V(0.12, 0.0, 0.22), 3, 0.05)
+    else:               # chandelier éteint, bol noirci, gobelet, rouleau
+        g_chandelier(M, V(-0.28, 0.0, -0.25))
+        g_bol(M, V(0.06, 0.0, 0.02), 0.09, 0.05, "fer", 0.7, "noir")
+        g_gobelet(M, V(0.3, 0.0, -0.14))
+        g_rouleau(M, V(-0.12, 0.0, 0.22), 0.22, 0.25)
+    return M
+
+
+def garniture_etagere(var):
+    """Étagère (repère du bâti « etagere_cadre_<var> ») : bout libre du 3e rayon (x > 0,7, à côté de l'urne) et dessus du bâti
+    (a : planche à y 1,995, dos jusqu'à 2,05 en z -0,135 ; b : corniche à y 2,06)."""
+    M = Module("garniture_etagere_" + var, 4200 + ord(var), sol=False)
+    g_crane(M, V(0.76, 1.375, 0.01), 0.25 if var == "a" else -0.3, "a" if var == "a" else "b")
+    top = 1.995 if var == "a" else 2.06
+    if var == "a":
+        g_crane(M, V(-0.55, top, 0.03), -0.2, "b")
+        g_bol(M, V(-0.05, top, 0.03), 0.08, 0.05, "argile", 0.8, "os")
+        g_chandelier(M, V(0.5, top, 0.02))
+    else:
+        g_livre(M, V(-0.45, top, 0.02), 0.24, 0.05, 0.17, 0.1, "bois")
+        g_livre(M, V(-0.44, top + 0.05, 0.02), 0.2, 0.045, 0.15, -0.15, "laine")
+        g_gobelet(M, V(0.12, top, 0.04))
+        g_crane(M, V(0.58, top, 0.03), 0.35, "a")
+    return M
+
+
+GARNITURES = [garniture_table, garniture_autel, garniture_etagere]
+
+
 # ======================================================================= L3 : mobilier de bois et tissus de la crypte
 def etagere_cadre(var):
     """Bâti d'étagère 1,8 x 2,0 x 0,34 (mis à la taille), dos vers -z : montants, 4 rayons, dos de planches ; b : corniche et pieds."""
@@ -1154,6 +1352,10 @@ def construire():
             mods.append(f(v))
     for f in L3:
         mods += f()
+    for f in GARNITURES:            # C6 : garnitures de surface (tables : un module par objet)
+        for v in ("abc" if f is garniture_table else "ab"):
+            r = f(v)
+            mods += r if isinstance(r, list) else [r]
     return mods
 
 
@@ -1236,7 +1438,7 @@ def main():
         for mat, faces in res.items():
             donnees["%s__%s" % (M.nom, mat)] = faces
         base = M.nom.rsplit("_", 1)[0] if M.nom.rsplit("_", 1)[-1] in ("a", "b", "c") else M.nom
-        bud = BUDGET.get(base, 0)
+        bud = BUDGET.get(base, BUDGET.get(base.split("_")[0], 0))
         lo, hi = boite_mod(M)
         ok = len(M.tris) <= bud
         depasse += 0 if ok else 1

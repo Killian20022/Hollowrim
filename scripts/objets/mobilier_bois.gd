@@ -18,6 +18,7 @@ static func etagere(dcr: CrypteDecor, pos: Vector3, lacet: float, largeur := 1.8
 	dcr.modele("etagere_cadre_" + ObjPetitMobilier.variante(dcr, pos, 2), pos, lacet, ech, {}, false)
 	dcr.modele("etagere_contenu_" + ObjPetitMobilier.variante(dcr, pos, 3, 1), pos, lacet, ech, {}, false)      # livres, rouleaux, coffrets
 	dcr.urne(pos + b * Vector3(largeur * 0.3, 0.0, 0.0) + Vector3(0, 1.38, 0), 0.5)
+	ObjGarnitures.etagere(dcr, pos, lacet, ObjPetitMobilier.variante(dcr, pos, 2), ech)      # C6 : crânes, bols, chandelier (crypte)
 	dcr.j1()
 
 ## Étagère renversée (cadre couché et rayons obliques) : décor d'archives en ruine.

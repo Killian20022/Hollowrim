@@ -178,3 +178,113 @@ static func lanterne(dcr: CrypteDecor, haut: Vector3, chaine_l := 0.18) -> Vecto
 ## Brasero de fer forgé de la grotte (corps seulement) : trépied à pieds enroulés et cerclage, vasque rivetée à oreilles.
 static func brasero_fer(dcr: CrypteDecor, pos: Vector3) -> void:
 	poser(dcr, "brasero_trepied", pos)
+
+# ------------------------------------------------------------------ grappes de bougies (lot C6, 2026-10-28)
+## Une bougie posée dans la CRYPTE sur deux (tirée de la position, sans toucher à dcr.rng) devient une grappe de 3, 5 ou 9 bougies sur
+## sa flaque de cire (modules « bougies_grappe_N » de luminaires.py), la plus grande qui tient (meuble porteur, objets voisins,
+## garnitures) ; les bougies des trios (crypte_v2, tombeau) posées juste après, à moins de RAYON_TRIO, sont absorbées par la grappe.
+## AUCUNE lumière de plus : seule la bougie qui en avait une la garde (mêmes position, couleur, portée) ; MÊMES emprises ; MÊMES tirages
+## de dcr.rng (un par bougie d'origine : flamme() ou rng.randf()) — les flammes en plus sont versées directement dans _flammes_def
+## (phase tirée de la position). Une bougie posée sur un objet d'une garniture (ObjGarnitures) s'en écarte. Grotte, intérieurs : inchangés.
+const RAYON_TRIO := 0.2
+const RAYON_GRAPPE := {3: 0.115, 5: 0.15, 9: 0.2}      # rayon de la flaque (lobes compris), relevé sur les modules
+static func grappe_ici(dcr: CrypteDecor, pos: Vector3) -> int:
+	var w := dcr.xf * pos
+	var h := absi(floori(w.x * 5.3) * 73856093 ^ floori(w.z * 5.3) * 19349663 ^ floori(w.y * 3.0) * 83492791)
+	if h % 2 == 1:
+		return 0
+	return [3, 5, 9, 5][(h / 2) % 4]
+
+## Un disque de rayon r en `pos` tient-il : dans le dessus du meuble qui le porte (s'il y en a un), hors des autres emprises et des
+## objets des garnitures ?
+static func _tient(dcr: CrypteDecor, pos: Vector3, r: float) -> bool:
+	for e: Array in dcr.emprises:      # bougies seules comprises : pas de grappe collée à une bougie déjà posée
+		var c: Vector3 = e[0]
+		var dessus := c.y + float(e[3])
+		if pos.y >= dessus - 0.08 and pos.y <= dessus + 0.3:       # posé DESSUS : la flaque reste sur le meuble
+			var dm: Vector2 = e[1]
+			var q := Basis(Vector3.UP, -float(e[2])) * Vector3(pos.x - c.x, 0.0, pos.z - c.z)
+			if absf(q.x) <= dm.x and absf(q.z) <= dm.y and (dm.x - absf(q.x) < r or dm.y - absf(q.z) < r):
+				return false
+		elif pos.y < dessus and pos.y + 0.22 > c.y and CrypteDecor.dist_emprise(e, pos) < r:
+			return false
+	for d: Array in dcr.get_meta("c6_disques", []):
+		var dc: Vector3 = d[0]
+		if is_same(d[2], dcr.emprises) and pos.y - dc.y > -0.1 and pos.y - dc.y < 1.3 and Vector2(dc.x - pos.x, dc.z - pos.z).length() < r + float(d[1]):
+			return false
+	return true
+
+## Bougie posée sur un objet de garniture : écartée juste assez (au plus 3 passes), sur le même meuble.
+static func _hors_garnitures(dcr: CrypteDecor, pos: Vector3) -> Vector3:
+	for _passe in 3:
+		var bouge := false
+		for d: Array in dcr.get_meta("c6_disques", []):
+			var dc: Vector3 = d[0]
+			if not is_same(d[2], dcr.emprises) or pos.y - dc.y < -0.1 or pos.y - dc.y > 1.3:
+				continue
+			var v := Vector2(pos.x - dc.x, pos.z - dc.z)
+			var mini := float(d[1]) + 0.045
+			if v.length() < mini:
+				var u := v.normalized() if v.length() > 0.005 else Vector2(1, 0)
+				var q := Vector2(dc.x, dc.z) + u * (mini + 0.005)
+				pos = Vector3(q.x, pos.y, q.y)
+				bouge = true
+		if not bouge:
+			break
+	return pos
+
+## Remplace ObjPetitMobilier.bougie dans la crypte : rend vrai si la bougie a été posée ici (grappe, absorbée ou écartée), faux sinon.
+static func bougie_c6(dcr: CrypteDecor, pos: Vector3, avec_lumiere: bool) -> bool:
+	if not dcr.est_crypte or dcr.muet or not existe("bougies_grappe_5"):
+		return false          # décor muet : la bougie simple tire les mêmes nombres (un flamme(), une lumière éventuelle)
+	pos = dcr._suivre(pos)
+	var grappes: Array = dcr.get_meta("c6_grappes", [])
+	for g: Array in grappes:      # bougie d'un trio : absorbée par la grappe posée juste avant (même emprise, même tirage)
+		var c: Vector3 = g[0]
+		if is_same(g[1], dcr.emprises) and absf(c.y - pos.y) < 0.05 and Vector2(c.x - pos.x, c.z - pos.z).length() < RAYON_TRIO:
+			dcr.emprise("bougie", pos, Vector2(0.06, 0.06), 0.0, 0.14)
+			dcr.rng.randf()
+			if avec_lumiere:
+				dcr.lumiere(pos + Vector3(0, 0.4, 0), CrypteDecor.FEU, 0.9, 4.0, 1.8)
+			return true
+	var p0 := pos
+	pos = _hors_garnitures(dcr, pos)
+	var n := grappe_ici(dcr, p0)
+	while n > 0 and not _tient(dcr, pos, RAYON_GRAPPE[n]):
+		n = {9: 5, 5: 3, 3: 0}[n]
+	if n == 0:
+		if pos.is_equal_approx(p0):
+			return false
+		# écartée d'une garniture : bougie simple (même corps que ObjPetitMobilier.bougie, position déjà suivie)
+		dcr.j0("bougie")
+		dcr.emprise("bougie", pos, Vector2(0.06, 0.06), 0.0, 0.14)
+		dcr.tour("os", pos, [Vector2(0.03, 0.0), Vector2(0.026, 0.14)], 6, 0.0, true)
+		dcr.tour("fer", pos, [Vector2(0.06, 0.0), Vector2(0.06, 0.012)], 6, 0.0, true)
+		dcr.flamme(pos + Vector3(0, 0.14, 0), 0.4)
+		if avec_lumiere:
+			dcr.lumiere(pos + Vector3(0, 0.4, 0), CrypteDecor.FEU, 0.9, 4.0, 1.8)
+		dcr.j1()
+		return true
+	bougies_grappe(dcr, pos, n, avec_lumiere)
+	grappes.append([pos, dcr.emprises])
+	dcr.set_meta("c6_grappes", grappes)
+	return true
+
+## Grappe de n bougies au point `pos` (flaque au sol ou sur un meuble) : module, flammes des bougies allumées, lumière si demandée.
+## Journal d'audit : type « bougie » (petit objet, posé sur les meubles comme les bougies seules).
+static func bougies_grappe(dcr: CrypteDecor, pos: Vector3, n := 5, avec_lumiere := false) -> void:
+	dcr.j0("bougie")
+	dcr.emprise("bougie", pos, Vector2(0.06, 0.06), 0.0, 0.14)      # même emprise que la bougie remplacée (le décor tiré après ne bouge pas)
+	var nom := "bougies_grappe_%d" % n
+	var lacet := ObjPetitMobilier.lacet_pos(dcr, pos)
+	var pts := poser(dcr, nom, pos, lacet)
+	for i in pts.size():
+		var p: Vector3 = pts[i]
+		if i == 0:
+			dcr.flamme(p, 0.36)      # le tirage de la bougie d'origine
+		else:
+			var w := dcr.xf * p
+			dcr._flammes_def.append([w, 0.3 + 0.06 * float(i % 2), fposmod(w.x * 7.1 + w.z * 3.3 + float(i), 4.0)])
+	if avec_lumiere:
+		dcr.lumiere(pos + Vector3(0, 0.4, 0), CrypteDecor.FEU, 0.9, 4.0, 1.8)
+	dcr.j1()
