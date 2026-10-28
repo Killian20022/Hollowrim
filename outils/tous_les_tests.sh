@@ -74,6 +74,7 @@ TESTS=(
 	"test_effets_magie|--nouvelle"   # visuels de la magie (EffetsMagie / GestionMagie) : contrat, plafonds, retour au pool (docs/MAGIE_EFFETS.md)
 	"test_sons_magie|--nouvelle"   # sons de la magie (SonsMagie) : .wav PCM préchargés, chaque sort a ses sons, pools sans allocation, mage ennemi spatialisé, coût mesuré (docs/MAGIE.md)
 	"test_hud_combat|--nouvelle"   # HUD de combat : vie/mana/endurance, mains, recharges, double, statuts, raccourcis, icônes
+	"test_inventaire_mains|--nouvelle"   # écran d'inventaire (I) : équiper G / D, refus expliqués, deux mains, raccourcis 1-0 assignés, sauvegarde
 	"test_defense|--nouvelle"   # défense phase 3 : garde orientée, garde brisée, anti-spam, parade parfaite (vrai draugr), contre, finisher joueur
 	"test_finishers|--nouvelle"   # finishers alignés : épée plantée (lame DANS le torse), pommeau, décapitation, dos, plongé ; choix selon le contexte
 	"test_menu_titre|--nouvelle"   # menu principal : Continuer grisé sans sauvegarde valide, parcours au clavier, mise en page

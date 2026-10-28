@@ -1,0 +1,22 @@
+{
+	"_doc": "Écran d'inventaire (touche I, scripts/inventaire_mains.gd) : catégories et objets équipables listés. Un objet = un identifiant lu par EquipementMains.objet (vide, epee, torche, bouclier, id d'une DonneesArme de data/armes/, ou sort). `inventaire` (facultatif) : l'objet n'apparaît que si le sac du joueur contient cet identifiant. Les sorts viennent de EquipementMains.sorts_connus ; Divers = le sac (Inventaire), non équipable. Les catégories regroupent par `genres` (EquipementMains.categorie_de).",
+	"categories": [
+		{"id": "armes", "nom": "Armes", "genres": ["vide", "arme", "arme_deux_mains", "bouclier", "torche"]},
+		{"id": "sorts", "nom": "Sorts", "genres": ["sort"]},
+		{"id": "divers", "nom": "Divers", "genres": []}
+	],
+	"objets": [
+		{"id": "vide"},
+		{"id": "epee"},
+		{"id": "torche"},
+		{"id": "bouclier"},
+		{"id": "epee_or"},
+		{"id": "epee_rubis"},
+		{"id": "epee_verre"},
+		{"id": "epee_obsidienne"},
+		{"id": "epee_skarnholt"}
+	],
+	"_tout_disponible": "PÉRIODE DE TEST (demande utilisateur 2026-10-27) : true = les 5 épées sans condition et tous les sorts de data/sorts/ connus, même avec une ancienne sauvegarde. Repasser à false (et remettre des conditions `inventaire`) quand le butin existera.",
+	"tout_disponible": true,
+	"ordre_ecoles": ["feu", "glace", "electricite", "tenebres", "soin", "protection"]
+}
