@@ -25,7 +25,7 @@ I3 = Matrix.Identity(3)
 UP = Vector((0, 1, 0))
 TEINTE = {"bois": (1.0, 0.97, 0.93), "fer": (0.92, 0.94, 1.0), "or": (1.0, 0.97, 0.9)}
 BUDGET = {"coffre": 550, "tonneau": 400, "table": 550, "urne": 420, "crane": 180, "os_long": 40, "os_court": 30, "arme": 170,
-          "gravats": 480, "or_tas": 1100,
+          "gravats": 480, "or_tas": 1500,
           "micro_eclats": 60, "micro_planche": 60, "micro_os": 50, "micro_cire": 70, "micro_pieces": 30, "micro_chaine": 100, "sac": 200, "os_monticule": 800,
           "etagere_cadre": 420, "etagere_contenu": 820, "etagere_couchee": 300, "lit": 570, "ratelier_cadre": 420, "arme_v": 90,
           "bouclier": 330, "planche": 40, "poteau": 40, "tringle": 100,
@@ -942,53 +942,150 @@ def gravats(var):
     return M
 
 
+def _prisme(M, mat, c, rs, y0, y1, ton, dessus=True):
+    """Prisme vertical à base polygonale irrégulière (rayons rs, centre c) entre y0 et y1 : côtés + dessus (dessous omis)."""
+    n = len(rs)
+    bas = [c + V(math.cos(TAU * k / n) * rs[k], y0, math.sin(TAU * k / n) * rs[k]) for k in range(n)]
+    haut = [q + V(0, y1 - y0, 0) for q in bas]
+    for k in range(n):
+        a, b = k, (k + 1) % n
+        mil = (bas[a] + bas[b]) * 0.5 - c
+        M.add(mat, [orienter([bas[a], bas[b], haut[b], haut[a]], V(mil.x, 0, mil.z))], ton)
+    if dessus:
+        M.add(mat, [orienter(haut, UP)], ton)
+
+
 def or_tas(var):
-    """Tas d'or v2 (r 0,6, h 0,3, mis à la taille) : COUCHES DE PIÈCES distinctes de 4,8 cm (bord clair, face sombre, matière « or » :
-    reflet ponctuel du lot C1) sur un noyau sombre (les creux entre les pièces descendent au noir de l'or), pièces éparses en traînée,
-    piles ; a : coupe, b : couronne, c : plat et lingots."""
+    """Tas d'or v3 (lot L2, docs INSPIRATION_IGNITE §2.7 ; r 0,6, h 0,3, mis à la taille) : PLUS DE TERTRE LISSE. Quatre COUCHES de
+    pièces de 5,6-6 cm empilées en gradins décalés (le tas penche, pas de gâteau), chaque gradin = un noyau NOIR (matière « noir » :
+    les creux et les contremarches descendent au noir, sans reflet) couvert de pièces qui se chevauchent sur le dessus et de pièces
+    penchées sur le bord (la tranche claire accroche la torche) ; pièce = face sombre (Or terni #7b5a26) + bord clair (#d3b25c) en
+    couleur de sommet ; matière « or » : reflet ponctuel du lot C1 (1 px sous la torche, seulement les pièces bien inclinées).
+    Pièces éparses en TRAÎNÉE (une coulée d'un côté + quelques isolées), deux piles ; a : coupe, b : couronne, c : plat et lingots
+    (objets de prestige agrandis x1,25)."""
     M = Module("or_tas_" + var, 1200 + ord(var))
     M.sans_dessous = True
     rg = M.rg
-    R0, H0 = 0.46, 0.26
-    an_ = ((1.0, 0.0), (0.78, 0.38), (0.45, 0.78), (0.12, 1.0))
-    M.add("or", tertre(R0 * 0.9, H0 * 0.88, rg, 9, 0.1, an_), 0.2)      # noyau sous la surface nominale : les pièces restent dessus
-    rp = 0.028
-    def sur(rr, an, dy, incl):
-        y = surface_tertre(min(rr, R0), R0, H0, an_) + dy if rr < R0 else 0.004 + dy
-        c = V(math.cos(an) * rr, y, math.sin(an) * rr)
-        pente = math.atan2(H0, R0) * (0.8 if rr < R0 else 0.0)
-        R = Ry(-an) @ Rz(-pente) @ Rx(rg.uniform(-incl, incl)) @ Rz(rg.uniform(-incl, incl))
-        return c, R
-    n_couche = (80, 26)              # deux couches : la 2e décalée, plus haut d'une épaisseur (les pièces se chevauchent)
-    for couche, n in enumerate(n_couche):
-        for k in range(n):
-            rr = R0 * 1.02 * math.sqrt((k + rg.random()) / n)
-            an = k * 2.39996 + rg.uniform(-0.3, 0.3) + couche * 1.3
-            c, R = sur(rr, an, 0.007 + couche * 0.009, 0.45)
+    rp = 0.029                       # rayon d'une pièce : 5,8 cm (lisibilité avant réalisme : ≥ 3 px à 3 m)
+    # gradins : (rayon, dessus) ; centres décalés vers un même côté (le tas « coule » vers la traînée)
+    pente = rg.uniform(0, TAU)
+    gr = [(0.47, 0.06), (0.35, 0.135), (0.22, 0.2), (0.1, 0.255)]
+    couches = []
+    for k, (r, y) in enumerate(gr):
+        dec = 0.045 * k
+        c = V(-math.cos(pente) * dec + rg.uniform(-0.015, 0.015), 0, -math.sin(pente) * dec + rg.uniform(-0.015, 0.015))
+        n = 11 if k < 2 else 8
+        rs = [r * rg.uniform(0.8, 1.14) for _ in range(n)]
+        couches.append((c, rs, y))
+        _prisme(M, "noir", c, [q * 0.94 for q in rs], 0.0, y - 0.006, 0.6, dessus=False)      # contremarche noire
+        M.add("or", [orienter([c + V(math.cos(TAU * i / n) * rs[i] * 0.94, y - 0.005, math.sin(TAU * i / n) * rs[i] * 0.94) for i in range(n)], UP)], 0.12)
+
+    def rayon(cc, rs, an):
+        n = len(rs)
+        f = (an % TAU) / TAU * n
+        i = int(f) % n
+        t = f - int(f)
+        return rs[i] * (1 - t) + rs[(i + 1) % n] * t
+
+    def dessus(x, z):
+        """Hauteur du dessus du gradin le plus haut qui couvre (x, z) (0 hors du tas)."""
+        h = 0.0
+        for cc, rs, y in couches:
+            d = V(x - cc.x, 0, z - cc.z)
+            if d.length < rayon(cc, rs, math.atan2(d.z, d.x)) * 0.97:
+                h = y
+        return h
+
+    def pose(c, R, ton):
+        M.add_tons("or", piece(c, rp * rg.uniform(0.93, 1.07), R, ton), brut=True)
+
+    # dessus de chaque gradin : pièces qui se chevauchent (deux hauteurs alternées), seulement là où le gradin du dessus ne les cache
+    # pas ; nombre = 56 % de la surface visible couverte (le reste : le lit sombre du noyau, creux entre les pièces)
+    for k, (cc, rs, y) in enumerate(couches):
+        haut = couches[k + 1] if k + 1 < len(couches) else None
+        rmax = max(rs)
+        r_in = max(haut[1]) * 0.8 if haut else 0.0
+        rmoy = sum(rs) / len(rs)
+        rin_moy = sum(haut[1]) / len(haut[1]) * 0.8 if haut else 0.0
+        cible = int(round((rmoy * rmoy - rin_moy * rin_moy) * 0.56 / (rp * rp)))
+        j = 0
+        essais = 0
+        while j < cible and essais < cible * 6:
+            essais += 1
+            rr = math.sqrt(r_in * r_in * 0.6 + (rmax * rmax - r_in * r_in * 0.6) * rg.random())
+            an = rg.uniform(0, TAU)
+            x, z = cc.x + math.cos(an) * rr, cc.z + math.sin(an) * rr
+            if rr > rayon(cc, rs, an) * 0.95:
+                continue
+            if haut is not None:
+                d = V(x - haut[0].x, 0, z - haut[0].z)
+                if d.length < rayon(haut[0], haut[1], math.atan2(d.z, d.x)) * 0.8:
+                    continue
+            f = rg.uniform(0.8, 1.0)
+            R = Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.32, 0.32)) @ Rz(rg.uniform(-0.32, 0.32))
+            pose(V(x, y + 0.003 + 0.007 * (j % 2), z), R, (0.5 * f, 1.0 * f))
+            j += 1
+        # bord du gradin : pièces penchées vers l'extérieur (40-70°) à mi-hauteur de la contremarche, avec des trous (creux noirs)
+        y_bas = couches[k - 1][2] if k > 0 else 0.0
+        nb = (18, 13, 8, 4)[k]
+        for j in range(nb):
+            an = TAU * (j + rg.uniform(-0.25, 0.25)) / nb
+            if rg.random() < 0.18:
+                continue                 # trou : la contremarche noire se voit
+            rr = rayon(cc, rs, an) * 0.95
+            x, z = cc.x + math.cos(an) * rr, cc.z + math.sin(an) * rr
+            yc = y_bas + (y - y_bas) * rg.uniform(0.45, 0.7)
+            R = Ry(-an) @ Rz(-rg.uniform(0.7, 1.2)) @ Rx(rg.uniform(-0.2, 0.2))
             f = rg.uniform(0.85, 1.0)
-            M.add_tons("or", piece(c, rp * rg.uniform(0.92, 1.08), R, (0.5 * f, 1.0 * f)), brut=True)
-    for k in range(10):              # pièces éparses en traînée autour du tas
-        an = rg.uniform(0, TAU)
-        rr = rg.uniform(0.5, 0.78)
-        c = V(math.cos(an) * rr, 0.006, math.sin(an) * rr)
-        M.add_tons("or", piece(c, rp, Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.12, 0.12)), (0.5, 0.95)), brut=True)
-    for k in range(2):               # piles de pièces au pied du tas
-        an = rg.uniform(0, TAU)
-        c = V(math.cos(an) * 0.54, 0, math.sin(an) * 0.54)
-        h = rg.uniform(0.03, 0.06)
-        M.rev("or", [(rp, 0.0), (rp, h)], 6, c=c, ton=0.75)
+            pose(V(x, yc, z), R, (0.55 * f, 1.0 * f))
+    # traînée : une coulée de pièces du côté où le tas penche, qui s'éclaircit en s'éloignant, + quelques isolées
+    nt = 14 if var != "c" else 12
+    for j in range(nt):
+        t = (j + rg.random()) / nt
+        an = pente + rg.uniform(-0.5, 0.5) * (1.2 - t)
+        rr = 0.5 + 0.3 * t
+        x, z = math.cos(an) * rr, math.sin(an) * rr
+        pose(V(x, 0.004 + 0.005 * (j % 2), z), Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.12, 0.12)), (0.5, 0.95))
+    for j in range(4):
+        an = pente + math.pi + rg.uniform(-1.6, 1.6)
+        rr = rg.uniform(0.52, 0.72)
+        pose(V(math.cos(an) * rr, 0.004, math.sin(an) * rr), Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.1, 0.1)), (0.5, 0.95))
+    for k in range(2):               # piles de pièces au pied du tas (tranche claire, dessus = une pièce)
+        an = pente + math.pi * (0.55 + 0.9 * k) + rg.uniform(-0.3, 0.3)
+        c = V(math.cos(an) * 0.55, 0, math.sin(an) * 0.55)
+        h = rg.uniform(0.035, 0.07)
+        M.rev("or", [(rp, 0.0), (rp, h)], 6, c=c, ton=0.8, caps=(False, False))
         M.add_tons("or", piece(c + V(0, h + 0.001, 0), rp, I3, (0.55, 1.0)), brut=True)
+    # le tas PENCHE : plus haut du côté opposé à la traînée (y x 0,8 à 1,2, le sol reste à 0) — plus de gradins de gâteau
+    dp = V(math.cos(pente), 0, math.sin(pente))
+    pencher = lambda q: V(q.x, q.y * (1.0 - 0.2 * max(-1.0, min(1.0, (q.x * dp.x + q.z * dp.z) / 0.47))), q.z)
+    M.tris = [(m, tuple(pencher(q) for q in p), t) for (m, p, t) in M.tris]
+    _dessus0 = dessus
+    dessus = lambda x, z: _dessus0(x, z) * (1.0 - 0.2 * max(-1.0, min(1.0, (x * dp.x + z * dp.z) / 0.47)))
+    # objets de prestige (x1,25) posés sur le gradin qu'ils touchent
+    E = 1.25
     if var == "a":
-        M.rev("or", [(0.05, 0.2), (0.055, 0.21), (0.012, 0.23), (0.012, 0.3), (0.06, 0.34), (0.07, 0.42), (0.064, 0.42), (0.0, 0.37)], 8, c=V(0.12, 0, 0.05), ton=0.95)
+        c = V(0.1, 0, 0.04)
+        y0 = dessus(c.x, c.z) - 0.2 * E + 0.006
+        M.rev("or", [(r * E, y0 + y * E) for r, y in [(0.05, 0.2), (0.055, 0.21), (0.012, 0.23), (0.012, 0.3), (0.06, 0.34), (0.07, 0.42), (0.064, 0.42), (0.0, 0.37)]], 8, c=c, ton=0.95)
     elif var == "b":
+        c0 = V(-0.05, 0, 0.08)
+        y0 = dessus(c0.x, c0.z) + 0.004
+        rc = 0.1 * E
         for k in range(8):
             a0, a1 = TAU * k / 8, TAU * (k + 1) / 8
-            M.add("or", poutre(V(math.cos(a0) * 0.1, 0.25, math.sin(a0) * 0.1), V(math.cos(a1) * 0.1, 0.25, math.sin(a1) * 0.1), 0.014, 0.04), 1.0)
-            M.add("or", hull([V(math.cos(a0) * 0.1, 0.27, math.sin(a0) * 0.1) + V(s * 0.012, 0, t * 0.012) for s in (-1, 1) for t in (-1, 1)] + [V(math.cos(a0) * 0.1, 0.31, math.sin(a0) * 0.1)]), 1.0)
+            p0 = c0 + V(math.cos(a0) * rc, y0 + 0.02 * E, math.sin(a0) * rc)
+            p1 = c0 + V(math.cos(a1) * rc, y0 + 0.02 * E, math.sin(a1) * rc)
+            M.add("or", poutre(p0, p1, 0.014 * E, 0.04 * E), 1.0)
+            M.add("or", hull([p0 + V(s * 0.012 * E, 0.02 * E, t * 0.012 * E) for s in (-1, 1) for t in (-1, 1)] + [p0 + V(0, 0.06 * E, 0)]), 1.0)
     else:
-        M.rev("or", [(0.0, 0.0), (0.16, 0.0), (0.2, 0.025), (0.19, 0.03), (0.0, 0.012)], 10, c=V(0.62, 0, -0.2), R=Rx(0.08), ton=0.85)
+        cp = V(0.6, 0, -0.18)            # plat à rebord (Ø 34 cm, plus de disque lisse de 50 cm) avec trois pièces dedans
+        M.rev("or", [(0.0, 0.006), (0.13, 0.006), (0.17, 0.026), (0.155, 0.03), (0.12, 0.012), (0.0, 0.012)], 10, c=cp, R=Rx(0.06), ton=0.8)
         for k in range(3):
-            M.add("or", boite_ch(V(-0.62 + k * 0.03, 0.025 + k * 0.045, 0.15 + k * 0.01), (0.16, 0.045, 0.07), 0.01, Ry(0.3 + k * 0.4)), 0.95)
+            an = rg.uniform(0, TAU)
+            pose(cp + V(math.cos(an) * 0.06, 0.016 + 0.004 * k, math.sin(an) * 0.06), Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.15, 0.15)), (0.5, 1.0))
+        for k in range(3):
+            M.add("or", boite_ch(V(-0.58 + k * 0.03, 0.025 * E + k * 0.045 * E, 0.15 + k * 0.01), (0.16 * E, 0.045 * E, 0.07 * E), 0.01, Ry(0.3 + k * 0.4)), 0.95)
     return M
 
 
@@ -1695,7 +1792,8 @@ def _lire_dat(chemin):
 
 def main():
     """-- seulement=<préfixe>[,<préfixe>…] : ne régénère que les modules dont le nom commence par l'un des préfixes ; toutes les autres
-    entrées du .dat existant sont recopiées telles quelles (mêmes octets), dans leur ordre, les nouvelles à la suite."""
+    entrées du .dat existant sont recopiées telles quelles (mêmes octets), dans leur ordre ; un module régénéré reprend sa place, les
+    entrées nouvelles vont à la suite."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     seul = next((tuple(a[10:].split(",")) for a in args if a.startswith("seulement=")), None)
@@ -1726,6 +1824,9 @@ def main():
         ok = len(M.tris) <= bud
         depasse += 0 if ok else 1
         print("  %-20s %4d / %4d %s  x[%.2f %.2f] y[%.2f %.2f] z[%.2f %.2f]" % (M.nom, len(M.tris), bud, "OK" if ok else "DEPASSE", lo[0], hi[0], lo[1], hi[1], lo[2], hi[2]))
+    if seul:                                    # L2 : un module régénéré garde sa place dans le .dat (nouvelles entrées à la fin)
+        ordre = [k for k in _lire_dat(DAT) if k in donnees]
+        donnees = {k: donnees[k] for k in ordre + [k for k in donnees if k not in ordre]}
     os.makedirs(os.path.dirname(DAT), exist_ok=True)
     with open(DAT, "wb") as f:
         f.write(struct.pack("<I", len(donnees)))

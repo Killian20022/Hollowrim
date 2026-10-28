@@ -1,0 +1,6 @@
+# lot L2 : tas d'or (or_tas) de la salle du trésor et de l'ossuaire secret, avant / après
+# godot --path . --disable-vsync -- --captures=outils/poses_or_l2.txt --sortie=<dossier> --nouvelle --paisible --sans-particules --sans-hud --attente=200
+or_tresor_proche crypte -42.71,-40.4,0,-45 sans-mains ouvre=secret
+or_tresor_moyen crypte -41.6,-39.6,20,-32 sans-mains ouvre=secret
+or_tresor_torche crypte -42.71,-40.6,0,-40 ouvre=secret
+or_ossuaire crypte -32.9,-12.4,0,-42 sans-mains ouvre=secret
