@@ -11,6 +11,10 @@ TAN_V = 0.7265
 # tenue « tranche » (retour utilisateur 2026-10-27) : plat de la lame à 75-80° de l'œil, on voit le fil, le plat en
 # léger biais (~20 % de sa largeur)
 TRANCHE = 78
+# poses TENUES (repos, marche, sprint, garde, retours en garde) : un peu plus de plat vu (retour utilisateur 2026-10-27,
+# « tourne un tout petit peu plus l'épée ») — plat à ~71° de l'œil (~32 % de sa largeur) ; les armés et frappes gardent
+# TRANCHE (trajectoires inchangées)
+TRANCHE_TENUE = 71
 TAN_H = TAN_V * 16 / 9
 
 
@@ -29,14 +33,16 @@ def cle(base, t, **k):
 # repos : épée DROITE (référence references/combat_epee/tenue_epee_droite_1100.jpg) — lame presque verticale à l'écran
 # (pointe ~12° vers le centre), pointe en haut du cadre, garde et poing en bas à droite (x ≈ 0,5, y ≈ -0,6), tranche face
 # à l'œil
-REPOS = dict(nom="repos", poing=E(0.5, -0.64, 0.55), lame=(-0.1, 0.95, -0.3), roulis=TRANCHE, coude=(1, -0.8, 0.2),
-             k=44, f=-20, r=-35, phi=0)   # poignet fixé : la même pose de repos au bout de chaque clip (pas de saut au retour)
-SPRINT = dict(nom="sprint", poing=E(0.72, -0.9, 0.42), lame=(-0.25, 0.4, -0.88), roulis=TRANCHE, coude=(0.6, -1, 0.4))
+REPOS = dict(nom="repos", poing=E(0.5, -0.64, 0.55), lame=(-0.1, 0.95, -0.3), roulis=TRANCHE_TENUE, coude=(1, -0.8, 0.2),
+             k=52, f=-11, r=-32, phi=0)   # poignet fixé : la même pose de repos au bout de chaque clip (pas de saut au retour)
+SPRINT = dict(nom="sprint", poing=E(0.72, -0.9, 0.42), lame=(-0.25, 0.4, -0.88), roulis=TRANCHE_TENUE, coude=(0.6, -1, 0.4))
 # garde : épée en travers devant, pointe vers la gauche (un peu haute), tranchant vers l'ennemi, poing à droite
-GARDE = dict(nom="garde", poing=E(0.42, -0.3, 0.46), lame=(-0.88, 0.42, -0.2), roulis=TRANCHE, poids_roulis=1.5, coude=(0.5, -1, 0.1), clav=(10, 4), epaule=(-0.02, 0, -0.03))
+# (cible TRANCHE_TENUE + 4 : à 71 pile le solveur sacrifie la direction de la lame de ~15° ; à 75 elle reste à <1° et le
+# plat obtenu tombe à ~71°)
+GARDE = dict(nom="garde", poing=E(0.42, -0.3, 0.46), lame=(-0.88, 0.42, -0.2), roulis=TRANCHE_TENUE + 4, poids_roulis=1.5, coude=(0.5, -1, 0.1), clav=(10, 4), epaule=(-0.02, 0, -0.03))
 ENCAISSE = dict(GARDE, nom="encaisse", poing=E(0.44, -0.34, 0.41), lame=(-0.86, 0.5, -0.1))
 PARADE = dict(GARDE, nom="parade", poing=E(0.48, -0.3, 0.45), lame=(-0.62, 0.74, -0.25))
-BRISEE = dict(nom="brisee", poing=E(0.66, -0.95, 0.42), lame=(-0.3, 0.25, -0.92), roulis=TRANCHE, coude=(0.7, -1, 0.3))
+BRISEE = dict(nom="brisee", poing=E(0.66, -0.95, 0.42), lame=(-0.3, 0.25, -0.92), roulis=TRANCHE_TENUE, coude=(0.7, -1, 0.3))
 
 # --- coup léger A : diagonale haut-droite -> bas-gauche ------------------------------------------------------------
 A_ARME = dict(nom="A_arme", poing=E(0.62, 0.0, 0.5), lame=(0.4, 0.8, -0.4), roulis=TRANCHE, coude=(1, -0.5, 0.3), clav=(0, 8))
@@ -71,7 +77,7 @@ H_SUIVI = dict(H_FIN, nom="H_suivi", poing=E(-0.3, -0.38, 0.55), lame=(-0.85, -0
 
 # --- coup léger B du combo : horizontal droite -> gauche à hauteur de poitrine (repart de la fin de A, en bas à gauche :
 # l'épée remonte à droite en passant devant, puis balaie à plat) ------------------------------------------------------
-B_RETOUR = dict(nom="B_retour", poing=E(0.3, -0.45, 0.55), lame=(-0.6, 0.5, -0.6), roulis=TRANCHE, coude=(0.6, -1, 0.1), clav=(10, 2), epaule=(-0.04, 0.0, -0.05), torsion=-80)
+B_RETOUR = dict(nom="B_retour", poing=E(0.3, -0.45, 0.55), lame=(-0.6, 0.5, -0.6), roulis=TRANCHE_TENUE, coude=(0.6, -1, 0.1), clav=(10, 2), epaule=(-0.04, 0.0, -0.05), torsion=-80)
 
 # --- diagonale revers haut-gauche -> bas-droite (miroir de A dans un enchaînement ; base de la contre-attaque) -------
 R_ARME = dict(nom="R_arme", poing=E(-0.25, 0.0, 0.5), lame=(-0.6, 0.6, -0.5), mouvement=(0.6, -0.7, 0), coude=(0.3, -1, -0.4), clav=(28, 10), epaule=(-0.10, 0.03, -0.09))
@@ -175,14 +181,14 @@ V3_ENTREE = dict(nom="V3_entree", poing=E(0.46, 0.04, 0.57), lame=(-0.12, 0.30, 
 V3_MILIEU = dict(nom="V3_milieu", poing=E(0.36, -0.08, 0.62), lame=(-0.04, -0.45, -0.89), mouvement=(0, -1, 0.3), coude=(0.8, -1, 0.0), clav=(16, 6), epaule=(-0.05, 0.01, -0.07), interp="passe", large=1)
 V3_FIN = dict(nom="V3_fin", poing=E(0.34, -0.14, 0.60), lame=(-0.48, -0.68, -0.55), roulis=TRANCHE, coude=(0.6, -1, 0.0), clav=(22, 0), epaule=(-0.07, -0.01, -0.09), large=1)
 V3_SUIVI = dict(V3_FIN, nom="V3_suivi", poing=E(0.33, -0.16, 0.58), lame=(-0.55, -0.67, -0.48), clav=(24, -2), epaule=(-0.08, -0.02, -0.10))
-V3_RETOUR = dict(nom="V3_retour", poing=E(0.36, -0.42, 0.57), lame=(-0.05, 0.12, -0.99), roulis=TRANCHE, coude=(0.8, -1, 0.2), clav=(14, 0), epaule=(-0.05, 0.0, -0.06), large=1, torsion=-50, poids_torsion=0.2)
+V3_RETOUR = dict(nom="V3_retour", poing=E(0.36, -0.42, 0.57), lame=(-0.05, 0.12, -0.99), roulis=TRANCHE_TENUE, coude=(0.8, -1, 0.2), clav=(14, 0), epaule=(-0.05, 0.0, -0.06), large=1, torsion=-50, poids_torsion=0.2)
 
 # --- LOURD à l'arrêt refait : armé plus loin derrière l'épaule (contre-mouvement), grande accélération, suivi qui dépasse
 # loin à gauche puis RETOUR amorti en deux temps (le poids de la lame) -----------------------------------------------
 P2_ARME = dict(P_ARME, nom="P2_arme", poing=E(0.92, -0.10, 0.47), lame=(0.10, 0.08, -0.99), large=1)
 P2_TENSION = dict(P2_ARME, nom="P2_tension", poing=E(0.98, -0.06, 0.45), lame=(0.18, 0.10, -0.98))
 P2_SUIVI = dict(P_FIN, nom="P2_suivi", poing=E(-0.42, -0.50, 0.54), lame=(-0.75, -0.42, -0.5), clav=(32, -2), epaule=(-0.13, 0.02, -0.12), large=1)
-P2_RETOUR = dict(nom="P2_retour", poing=E(0.05, -0.62, 0.52), lame=(-0.45, 0.35, -0.8), roulis=TRANCHE, coude=(0.6, -1, 0.1), clav=(16, 0), epaule=(-0.05, 0.0, -0.05), large=1)
+P2_RETOUR = dict(nom="P2_retour", poing=E(0.05, -0.62, 0.52), lame=(-0.45, 0.35, -0.8), roulis=TRANCHE_TENUE, coude=(0.6, -1, 0.1), clav=(16, 0), epaule=(-0.05, 0.0, -0.05), large=1)
 
 # --- garde : réaction de l'épée au contact (coup bloqué : la lame est repoussée, rebondit, se replace — résistance) ----
 ENCAISSE2 = dict(GARDE, nom="encaisse2", poing=E(0.48, -0.40, 0.38), lame=(-0.80, 0.58, 0.05))
