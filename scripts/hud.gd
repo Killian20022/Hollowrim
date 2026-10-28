@@ -163,7 +163,7 @@ func _process(dt: float) -> void:
 		for a in _avis:
 			a[1] = 4.0
 	_avis = _avis.filter(func(a: Array) -> bool: return a[1] > 0.0)
-	if not _annonces.is_empty() and not panneau_ouvert:
+	if not _annonces.is_empty() and not panneau_ouvert and not get_tree().paused:   # figée sous le menu pause / l'inventaire
 		_annonces[0][3] = 1.0 if _demo_annonce else _annonces[0][3] + dt
 		if _annonces[0][3] >= _annonces[0][4]:
 			_annonces.pop_front()
@@ -260,7 +260,7 @@ func _decouvrir() -> void:
 
 ## Opacité de l'annonce en cours (0 si aucune) : fondu d'entrée 0,25 s, de sortie 0,6 s.
 func alpha_annonce() -> float:
-	if _annonces.is_empty() or panneau_ouvert:
+	if _annonces.is_empty() or panneau_ouvert or get_tree().paused:
 		return 0.0
 	var t: float = _annonces[0][3]
 	return clampf(minf(t / 0.25, (_annonces[0][4] - t) / 0.6), 0.0, 1.0)
@@ -300,7 +300,8 @@ func _dessiner_annonce(cx: float) -> void:
 
 ## L'aide des touches est-elle à l'écran (début de partie ou F1, ni panneau ni dialogue) ?
 func aide_visible() -> bool:
-	return (aide_forcee or aide_t > 0.0) and not panneau_ouvert and not bool(joueur.get("en_dialogue")) and not aide_lignes.is_empty()
+	return (aide_forcee or aide_t > 0.0) and not panneau_ouvert and not get_tree().paused and not bool(joueur.get("en_dialogue")) \
+		and not aide_lignes.is_empty()
 
 ## Cartouche d'aide en haut à droite (sous la hauteur de l'objectif) : titre gothique, touche en or, action en parchemin.
 func _dessiner_aide() -> void:
@@ -313,7 +314,7 @@ func _dessiner_aide() -> void:
 		col = maxf(col, _police.get_string_size(l[0], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
 	for l: Array in aide_lignes:
 		larg = maxf(larg, col + 8.0 + _police.get_string_size(l[1], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
-	var pied := "F1 : " + ("masquer" if aide_forcee else "revoir")
+	var pied := "F1 : masquer"
 	larg = maxf(larg, _police.get_string_size(pied, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
 	var t := Vector2(ceilf(larg) + 28.0, 59.0 + 10.0 * aide_lignes.size())
 	var o := Vector2(floorf(size.x - t.x - 6.0), 36.0)

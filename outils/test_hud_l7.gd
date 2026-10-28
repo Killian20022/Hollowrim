@@ -106,6 +106,11 @@ func _tester() -> void:
 	_verif(hud.annonce_courante() == "Épée|Niveau 16", "annonce affichée : « %s »" % hud.annonce_courante())
 	_avancer(hud, 0.4)
 	_verif(is_equal_approx(hud.alpha_annonce(), 1.0), "annonce opaque après le fondu d'entrée (%.2f)" % hud.alpha_annonce())
+	paused = true
+	var t_avant: float = hud._annonces[0][3]
+	_avancer(hud, 1.0)
+	_verif(hud.alpha_annonce() == 0.0 and is_equal_approx(hud._annonces[0][3], t_avant), "jeu en pause : annonce cachée et figée")
+	paused = false
 	hud.avis("Nouvelle quête : Les sceaux brisés")
 	_verif(hud._avis.is_empty() and hud._annonces.size() == 2, "« Nouvelle quête : … » → annonce en file, pas d'avis à gauche")
 	_avancer(hud, 2.4)
@@ -145,6 +150,9 @@ func _tester() -> void:
 	hud.panneau_ouvert = true
 	_verif(not hud.aide_visible(), "aide masquée quand le panneau Tab est ouvert")
 	hud.panneau_ouvert = false
+	paused = true
+	_verif(not hud.aide_visible(), "aide masquée sous le menu pause / l'inventaire (jeu en pause)")
+	paused = false
 	_avancer(hud, 60.0)
 	_verif(not hud.aide_visible(), "aide éteinte au bout de 60 s")
 	var f1 := InputEventKey.new()
