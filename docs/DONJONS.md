@@ -242,6 +242,18 @@ ronde en tambours octogonaux) et `arche_*` gardent leurs noms, encombrements et 
 et éclats au pied, claveaux à chanfrein avant (1 sur 8 descendu de 1-3 cm). Ton de base 0,66-0,84 et facteur par orientation de face (`PIL_FACE`) ;
 hors `aretes.py`. Budget mesuré (`outils/compter_triangles_crypte.gd`) : −58,8 k triangles sur les deux décors de la crypte (claveaux 20 triangles au lieu de 44).
 
+**Pans de mur v3 (lot C3, 2026-10-28, section « PANS DE MUR v3 » du script)** : `pan_mur_a/b/c/haut` gardent leurs noms et leur pose
+(`CrypteV2._panneaux`, inchangé) ; blocs en enveloppe convexe de 18 triangles (`_mur_bloc`, 44 en v2) : fond au noir (0,12), flancs de joint x 0,22,
+ton de base 0,52-0,86 x « essuyé » (0,82 au pied), chanfrein haut 4,5-6,5 cm x 1,42 (arête claire), chanfrein bas x 0,6 ; soubassement de 2 assises
+hautes puis assises de 0,2-0,4 m ; 1 bloc sur 12 sorti, 1 sur 12 tourné de 2-4°, 1 sur 25 manquant (blocage sombre en retrait, éclats dans le trou),
+1 sur 3 écorné. `pan_mur_b` : un corbeau ; `pan_mur_c` : une niche à arc brisé ; `pan_mur_haut` : deux corbeaux (hors du milieu du pan : appliques
+et bannières). Givre d'arête par tronçons et glaçons irréguliers en matière `mur4` (la neige étendue à tous les murs dépassait 8 lumières par maillage).
+Contraintes : RIEN au-delà de 0,315 m (objets accrochés à 0,33 m, audit des interpénétrations par boîtes) ; fond à 0,205 m sous 0,3 m et à 0,10 m
+au-dessus, sinon les pierres de `CrypteDecor._relief_mur` se montrent dans les joints, les trous et la niche. Hors `aretes.py` (comme C4).
+Textures (`crypte_textures.gd`, VERSION 15) : murs mur0-4 plus contrastés à arête claire peinte, givre de `mur3` et `neige` par tronçons, sans le
+dernier ton de la rampe Glace. `crypte.gdshader` : grain proche (256 cellules/m, ±1 ton, surfaces à relief, fondu par taille à l'écran et 0,5-1,5 m).
+Triangles des deux décors : 1 961 285 -> 1 879 847 (−81 k) ; maillages 4 082 -> 4 096 (glace `mur4` dans 14 cases qui n'en avaient pas).
+
 | module | usage |
 |---|---|
 | `pilier_mur_1p6`, `_3p2`, `_6` | pilier engagé (saillie 0,34 m), socle à ressauts, assises, chapiteau |
