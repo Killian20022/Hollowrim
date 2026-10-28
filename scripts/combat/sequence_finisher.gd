@@ -249,8 +249,15 @@ func _evenement(sorte: String) -> void:
 				Sang.giclee(corps, entree, (_lat() * 0.8 + Vector3.UP * 0.5 - vers_joueur * 0.1).normalized(), 1.5, _couleur())
 			else:
 				Sang.eclats_matiere(corps, entree, vers_joueur, 1.6, _couleur() if not combat.profil.sang else Color(0.45, 0.42, 0.38))
+			# os et éclats (lot L6) : de côté et vers le haut, jamais droit sur la caméra
+			var mg := combat.matiere_gerbe()
+			if mg in ["os", "draugr"]:
+				var d_os := (_lat() * 0.8 + Vector3.UP * 0.6 - vers_joueur * 0.1).normalized()
+				if mg == "draugr":
+					GerbePixels.emettre(corps, entree, d_os, "draugr", 2.0)
+				EclatsOs.lancer(corps, entree, d_os, 4 if mg == "os" else 2, 1.0)
 			if _armure_torse():
-				Effets.eclats(corps, entree + vers_joueur * 0.04, Color(3.0, 2.2, 0.8), 4, 1.4, true)   # la lame racle la cotte : peu d'étincelles (la cible reste lisible)
+				GerbePixels.emettre(corps, entree + vers_joueur * 0.04, (vers_joueur + Vector3.UP * 0.5).normalized(), "etincelles", 0.6)   # la lame racle la cotte : peu d'étincelles (la cible reste lisible)
 			Plaies.ajouter(combat.modele, entree, vers_joueur, Vector3.UP, 0.42, _couleur(), combat.profil.matiere)
 			var p := ProfilImpact.de("lourd")
 			RetourImpact.son_impact(corps, combat.profil.matiere, p, entree, _armure_torse())
@@ -264,7 +271,7 @@ func _evenement(sorte: String) -> void:
 			var casque := combat.profil.armure_tete > 0.0
 			if casque:
 				RetourImpact.son(corps, "armure", pt, 2.0, 0.85)
-				Effets.eclats(corps, pt, Color(3.0, 2.2, 0.8), 4, 1.2, true)
+				GerbePixels.emettre(corps, pt, Vector3.UP, "etincelles", 0.6)
 			elif combat.profil.matiere == "os":
 				RetourImpact.son(corps, "os", pt, 3.0, 1.0)
 				Sang.eclats_matiere(corps, pt, -_epee().basis.z, 0.8, _couleur())
@@ -292,6 +299,8 @@ func _evenement(sorte: String) -> void:
 				Sang.giclee(corps, pt, (-dir_lame * 0.3 - _lat() * 0.5 + Vector3.DOWN * 0.6).normalized(), 1.6, _couleur())
 			else:
 				Sang.eclats_matiere(corps, pt, -dir_lame, 1.4, _couleur() if not combat.profil.sang else Color(0.45, 0.42, 0.38))
+			if combat.matiere_gerbe() == "draugr":
+				GerbePixels.emettre(corps, pt, (-dir_lame * 0.2 + _lat() * 0.8 + Vector3.UP * 0.5).normalized(), "draugr", 1.6)
 			RetourImpact.son(corps, "dechirure" if combat.profil.matiere == "chair" else "os", pt, 1.0, 0.9)
 			if combat.profil.matiere == "chair":
 				RetourImpact.son(corps, "chair_gore", pt, -1.0, 0.8)

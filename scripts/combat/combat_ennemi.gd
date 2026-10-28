@@ -44,6 +44,9 @@ static func equiper(ennemi: Node3D, mod: Node3D, p: ProfilCible) -> CombatEnnemi
 
 func _installer() -> void:
 	RetourImpact.precharger()
+	if corps.is_inside_tree():   # pools des gerbes et des os créés à l'apparition, pas au premier coup
+		GerbePixels.obtenir(corps)
+		EclatsOs.obtenir(corps)
 	if modele == null:
 		return
 	Plaies.marquer(modele)
@@ -143,7 +146,7 @@ func briser_posture() -> void:
 	var tete := corps.global_position + Vector3(0, hauteur * 0.95, 0)
 	RetourImpact.son_finisher_dispo(corps, tete)
 	RetourImpact.cri(corps, "etourdi", tete, profil.matiere, profil.mort_vivant)
-	Effets.eclats(corps, tete, Color(3.0, 2.4, 1.0), 12, 1.6, true)
+	GerbePixels.emettre(corps, tete, Vector3.UP, "etincelles", 1.4)
 	posture_brisee.emit()
 	if debug:
 		_flottant("POSTURE BRISEE", tete + Vector3(0, 0.35, 0), Color(1.0, 0.85, 0.3))
@@ -282,9 +285,22 @@ func effets_impact(r: Dictionary, joueur: Node) -> void:
 		Sang.giclee(corps, point, dir, p.sang * part_sang, profil.couleur_sang)
 	else:
 		Sang.eclats_matiere(corps, point, dir, p.sang * 0.8, profil.couleur_sang if not profil.sang else Color(0.45, 0.42, 0.38))
+	var magie := i.has("ecole")
+	# gerbe de gros pixels de la matière touchée (os, draugr, sang, bois ; GerbePixels) : vers l'attaquant et le long de la lame
+	var dir_g := (Vector3(i.get("normale", -dir)) * 0.7 + dir * 0.5 + Vector3.UP * 0.35).normalized()
+	var mat_g := matiere_gerbe()
+	if not magie and not bool(i.get("continu", false)):
+		if mat_g in ["draugr", "sang"]:   # (os, bois, poussière : déjà par Sang.eclats_matiere ci-dessus)
+			GerbePixels.emettre(corps, point, dir_g, mat_g, GerbePixels.force_de(p.nom) * (0.7 if mat_g == "sang" else 1.0))
+		# os qui volent : coups forts sur un squelette ou un draugr
+		if mat_g in ["os", "draugr"] and p.nom in ["lourd", "critique", "finisher"]:
+			var n_os := {"lourd": 3, "critique": 4, "finisher": 6}
+			EclatsOs.lancer(corps, point, (dir * 0.8 + Vector3.UP * 0.9).normalized(), int(n_os[p.nom]) - (2 if mat_g == "draugr" else 0), GerbePixels.force_de(p.nom) * 0.6)   # le long de la lame, pas vers la caméra
 	if armure or casque:
 		# étincelles sur les mailles / le casque : plus nombreuses au coup lourd, jamais au point de masquer la cible
-		Effets.eclats(corps, point - dir * 0.05, Color(3.0, 2.2, 0.8), 4 if p.nom in ["leger", "moyen"] else 7, 2.5, true)
+		GerbePixels.emettre(corps, point - dir * 0.05, dir_g, "etincelles", 0.8 if p.nom in ["leger", "moyen"] else 1.4)
+	# chiffres de dégâts (option, désactivée par défaut) ; les tics d'un sort canalisé s'additionnent
+	ChiffresDegats.ajouter(corps, point + Vector3(0, 0.2, 0), float(r["degats"]), ChiffresDegats.sorte_de(r), bool(i.get("continu", false)))
 	var taille := 0.32 if p.nom == "leger" else (0.4 if p.nom == "moyen" else 0.5)
 	# magie (docs/MAGIE.md) : un tic de sort canalisé ne laisse ni plaie ni arrêt sur image ; un sort élémentaire ne taille pas
 	if bool(i.get("continu", false)):
@@ -313,7 +329,15 @@ func effets_blocage(r: Dictionary, brise: bool) -> void:
 	var i: Dictionary = r["info"]
 	var point: Vector3 = i["point"]
 	RetourImpact.son_blocage(corps, point, brise)
-	Effets.eclats(corps, corps.global_position + Vector3(0, 1.1, 0) - (corps.global_position - Vector3(i["origine"])).normalized() * 0.4, Color(3.0, 2.2, 0.8), 10 if brise else 8, 2.5, true)
+	# coup paré au bouclier : échardes du bois et étincelles de l'umbo, vers l'attaquant
+	var vers := (Vector3(i["origine"]) - corps.global_position)
+	vers.y = 0.0
+	vers = vers.normalized() if vers.length() > 0.01 else -corps.global_transform.basis.z
+	var pt := corps.global_position + Vector3(0, 1.1, 0) + vers * 0.4
+	var d_g := (vers + Vector3.UP * 0.5).normalized()
+	GerbePixels.emettre(corps, pt, d_g, "bois", 1.6 if brise else 1.0)
+	GerbePixels.emettre(corps, pt, d_g, "etincelles", 1.5 if brise else 1.1)
+	ChiffresDegats.ajouter(corps, point + Vector3(0, 0.2, 0), float(r.get("degats", 0.0)), ChiffresDegats.BLOQUE)
 	if debug:
 		_flottant("GARDE BRISEE" if brise else "BLOQUE", point + Vector3(0, 0.25, 0), Color(0.7, 0.8, 1.0))
 
@@ -358,6 +382,14 @@ func effets_mort(r: Dictionary, sorte: String, joueur: Node) -> void:
 				Sang.flaque(c, pos, couleur, randf_range(0.9, 1.3) * (1.25 if gros else 1.0), 5.0))
 	else:
 		Sang.eclats_matiere(corps, point, dir, p.sang * 1.4, profil.couleur_sang if not profil.sang else Color(0.45, 0.42, 0.38))
+	# mort : le squelette éclate en os (pixels + morceaux qui rebondissent) ; draugr achevé fort : quelques esquilles
+	var mat_g := matiere_gerbe()
+	if not i.has("ecole") and mat_g in ["os", "draugr"]:
+		var d_os := (dir + Vector3.UP * 0.8).normalized()
+		if mat_g == "draugr":
+			GerbePixels.emettre(corps, point, d_os, "draugr", GerbePixels.force_de(p.nom))
+		if mat_g == "os" or gros:
+			EclatsOs.lancer(corps, point, d_os, (8 if mat_g == "os" else 3) if gros else 4, 1.0)
 	Plaies.ajouter(modele, point, i.get("normale", -dir), dir, 0.5, profil.couleur_sang, profil.matiere)
 	RetourImpact.son_impact(corps, profil.matiere, p, point, false)
 	RetourImpact.cri(corps, "mort", point, profil.matiere, profil.mort_vivant)
@@ -370,6 +402,18 @@ func effets_mort(r: Dictionary, sorte: String, joueur: Node) -> void:
 		reaction_os.active = false
 	if debug:
 		_flottant("MORT " + sorte.to_upper(), point + Vector3(0, 0.45, 0), Color(1.0, 0.3, 0.25))
+
+## Matière de la gerbe de pixels (GerbePixels.MATIERES) : squelette → os ; mannequin → bois ; draugr → os et sang noirci ;
+## chair vivante (bandit, mage, troll) → sang sombre ; sang coupé (option gore) → os pour les draugrs, poussière sinon.
+func matiere_gerbe() -> String:
+	match profil.matiere:
+		"os":
+			return "os"
+		"bois":
+			return "bois"
+	if profil.nom.begins_with("draugr"):
+		return "draugr" if Sang.niveau() > 0 else "os"
+	return "sang" if Sang.niveau() > 0 else "poussiere"
 
 ## Accroche d'os préparée par Plaies (position visible, suit le ragdoll).
 func _accroche(os: String) -> Node3D:

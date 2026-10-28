@@ -189,3 +189,23 @@ Côté joueur : `joueur.recevoir_coup(degats, origine, options := {})` accepte `
 de givre (sans chute, se brise sur le décor). Scène : `scenes/test_troll_mage.tscn -- --nouvelle --seul=troll|mage [--vie=N]
 [--captures=…]` (pilote : pare, esquive, sort des disques, poursuit le mage). Tests : `bash outils/tous_les_tests.sh test_troll_ia`,
 `… test_mage_ia`.
+
+## Retour à l'écran du corps à corps (lot L6, branche gameplay/retour_combat)
+- **Nom + barre de l'ennemi** (`hud.gd`, `_barre_cible`) : nom centré au-dessus de la barre (or pour un boss), statut dessous
+  (« Étourdi » = posture brisée, puis Brûlure / Gel / Choc / Corruption des `Statuts`). La barre s'affiche pour l'ennemi frappé
+  ET pour un ennemi en combat sous le réticule (≤ 14 m, rayon contre le décor, tous les 0,12 s). Noms : `nom_affiche`
+  (draugr.gd `_nommer` : sbire « Draugr », guerrier « Draugr ancien », profil bandit « Bandit » ; les noms imposés restent).
+- **Chiffres de dégâts** (`chiffres_degats.gd`) : option Options > « Chiffres de dégâts », **coupée par défaut**
+  (`Jeu.option("combat", "chiffres_degats")`, options.cfg) ; entiers, police pixel x2 (critique x3, or), « Bloqué » (acier),
+  couleur d'école pour la magie ; tampon circulaire de 16, dessiné par le HUD, temps réel ; tics canalisés additionnés.
+- **Gerbes de gros pixels** (`gerbe_pixels.gd`, shaders `gerbe_pixels*.gdshader`) : carrés de 3 à 8 px en palette selon la
+  matière (`CombatEnnemi.matiere_gerbe` : os, draugr, sang, bois ; étincelles filantes sur métal ; pierre ; poussière si gore
+  coupé), amortis puis retombant ; pool de 16 émetteurs x 48 particules par scène, AUCUNE allocation par coup ; réutilisable
+  (`GerbePixels.emettre(noeud, point, direction, matiere, force)`, nouvelles matières dans `MATIERES`). `Sang.eclats_matiere`
+  passe par elles ; les anciens cubes `Effets.eclats` ne servent plus au corps à corps (ils restent pour dragon, troll, mage…).
+- **Os qui volent** (`eclats_os.gd`) : coups lourds / critiques / finishers sur squelettes (3-6) et draugrs (1-4), mort d'un
+  squelette (4-8) : pool de 14 corps rigides (calque 0, masque 1), 7 s au sol puis désactivés.
+- Préchauffe : `PrechauffeCombat` crée les ressources et rend les deux shaders et un éclat dans sa vitrine ; pools créés au
+  chargement et à l'apparition d'un ennemi. Mesure : `outils/perf_retour_crypte.gd` ; test : `outils/test_retour_combat.gd` ;
+  planches : `outils/captures_retour_combat.gd`.
+
