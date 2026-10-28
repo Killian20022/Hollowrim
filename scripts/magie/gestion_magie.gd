@@ -251,6 +251,7 @@ func _compter_proc() -> int:
 
 ## Éteint tout (changement de scène, tests).
 func tout_arreter() -> void:
+	ImpactCorps.arreter_tout()   # feu (et autres écoles) sur les corps : scripts/magie/impact_corps.gd
 	for a in _auras.values():
 		_aura_eteindre(a)
 	_auras.clear()
@@ -1528,6 +1529,8 @@ func _jet_cible(j: Dictionary, o: Vector3, dir: Vector3) -> void:
 		j.normale = r.normale
 
 func _jet_gerbe(j: Dictionary) -> void:
+	if ImpactCorps.jet_gerbe(self, j):   # le corps visé prend feu depuis sa surface (scripts/magie/impact_corps.gd)
+		return
 	# gerbe qui ENVELOPPE le corps de la cible (flammes, givre, étincelles, fumée obscure sur toute la silhouette)
 	var cible: Variant = j.cible
 	if j.gerbe_cible != cible:
@@ -2036,6 +2039,8 @@ func chaine(ecole: String, points: Array) -> void:
 # ====================================================================== statuts des cibles
 
 func statut_cible(cible: Node3D, statut: String, duree: float) -> void:
+	if ImpactCorps.statut(self, cible, statut, duree):   # rendu sur la surface du corps (scripts/magie/impact_corps.gd)
+		return
 	if cible == null or not is_instance_valid(cible):
 		return
 	var cle := "%d:%s" % [cible.get_instance_id(), statut]
@@ -2425,6 +2430,7 @@ func prechauffer() -> void:
 func vitrine_prechauffe(v: Node3D) -> void:
 	if couche != null:
 		couche.amorcer(v)
+	ImpactCorps.vitrine(self, v)   # émetteurs de surface et voile des corps (scripts/magie/impact_corps.gd)
 	var x := -1.0
 	var k := 0
 	for nom in PresetsMagie.R:
