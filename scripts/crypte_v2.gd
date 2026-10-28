@@ -553,6 +553,10 @@ static func finir(k: DonjonKit, m: Dictionary) -> void:
 				continue
 			var s: Array = libres[0]
 			var a: float = (s[0] + s[1]) * 0.5 + r.randf_range(-0.25, 0.25) * (s[1] - s[0] - 1.4)
+			# hors des angles : les panneaux du mur perpendiculaire sortent de 0,315 m de son plan (libres commence AU plan) ; bannière +
+			# tringle = 0,57 m de demi-largeur (audit : lb2b, bannière dans pan_mur_c de 0,13 m). Borne après le tirage : rng inchangé.
+			var lim := ((dim.x if c in ["N", "S"] else dim.y) * 0.5 - 0.3) - 0.33 - 0.62
+			a = clampf(a, -lim, lim)
 			var pm := k.plan_mur(m, c)
 			var haut := y + minf(h - 0.45, 4.8)
 			var lon := clampf(haut - y - 1.5, 1.4, 2.6)

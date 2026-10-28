@@ -296,6 +296,9 @@ func module(m: Dictionary) -> void:
 		for q0: Vector3 in pts:
 			var q := lw(q0)
 			_reserves.append([Vector2(q.x, q.z), 1.4])
+		if dm.has("pos_dalle"):      # indice de la dalle (CrypteDecor.dalle_fendue, posé par l'extra APRÈS les détritus du couloir) : os à 1 m
+			var q := lw(dm["pos_dalle"])      # du centre + emprise 0,5 m → 1,5 m ; 0,45 + 1,9 x 0,6 = 1,59 m (audit : g3 os_tas sur os_tas 0,17 m)
+			_reserves.append([Vector2(q.x, q.z), 1.9])
 	_n_res_accroches = _reserves.size()      # C5 : les premières réserves sont celles des accroches (CrypteV2.semis les respecte en entier)
 	modules[id] = {"centre": mw(Vector3(0, y, 0)), "y": y, "h": h, "ouv": [], "cibles": [], "ennemis": [], "dim": dim, "rot": int(m.get("rot", 0)), "role": m.get("role", ""), "theme": m.get("theme", "tombeau")}
 	if type == "escalier":
