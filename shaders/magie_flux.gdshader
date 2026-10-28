@@ -116,8 +116,11 @@ void fragment() {
 	// bord rongé : le bruit pousse et creuse le contour (plus fort en s'éloignant de la paume)
 	float e = as / ouvre + (n - 0.5) * (1.0 + 0.7 * t) + (f - 0.5) * (0.45 + 0.35 * t) + (g - 0.5) * 0.16;
 	float corps = 1.0 - e;
+	// feu : la densité ne s'effondre pas avec la distance (le flux porte jusqu'à la cible, comme le sort Flames) ;
+	// tt_d = distance « vieillie » : le feu ne se défait vraiment que sur le dernier cinquième
+	float tt_d = ecole == 0 ? t * 0.35 : t;
 	// trous dans le corps (là où le bruit est faible) : des langues séparées, pas un tube plein
-	corps -= max(0.0, 0.42 - n) * (1.2 + 2.0 * t) + max(0.0, 0.3 - f) * 0.8 * t;
+	corps -= max(0.0, 0.42 - n) * (1.2 + 2.0 * tt_d) + max(0.0, 0.3 - f) * 0.8 * tt_d;
 	// langues qui s'échappent des bords : filaments fins, étirés dans le sens du flux et tordus par le même champ
 	// (domain warp), qui débordent du cône puis se détachent
 	float lg = mbruit(vec2(ul * 1.8, s * 11.0 + (w.y - 0.5) * 7.0 + graine * 5.0));
@@ -125,7 +128,7 @@ void fragment() {
 	float langue = (lg - 0.62) * 3.4 - max(0.0, as - 0.55) * (1.1 - 0.4 * t) + (g - 0.5) * 0.2;
 	corps = max(corps, langue * smoothstep(0.04, 0.25, t));
 	// fragmentation en bout : des trous s'ouvrent, le jet se défait en lambeaux qui continuent d'avancer
-	float bout_jet = sens > 0.0 ? smoothstep(ecole == 0 ? 0.72 : 0.62, 1.02, t) : 1.0 - smoothstep(-0.02, 0.38, t);
+	float bout_jet = sens > 0.0 ? smoothstep(ecole == 0 ? 0.82 : 0.62, 1.02, t) : 1.0 - smoothstep(-0.02, 0.38, t);
 	corps -= bout_jet * (0.25 + (1.0 - n) * 0.85 + (0.5 - f) * 0.3) * (1.0 - etale * 0.45);
 	// pas de coupure nette au bout : le jet s'éteint (moins quand il s'étale contre une surface)
 	if (sens > 0.0) {
@@ -165,10 +168,10 @@ void fragment() {
 		// température : chaud sur l'axe et près de la paume, refroidit vers les bords et le bout
 		// la température suit le bruit transporté : des langues jaunes, orange et rouges qui filent dans le jet
 		float h = (1.0 - as) * 0.32 + corps * 0.3 + (n - 0.5) * 1.1 + (f - 0.5) * 0.5 + (g - 0.5) * 0.12
-			- t * 0.35 + (1.0 - t) * (1.0 - t) * pow(max(1.0 - as, 0.0), 3.0) * 0.5;
+			- tt_d * 0.35 + (1.0 - t) * (1.0 - t) * pow(max(1.0 - as, 0.0), 3.0) * 0.5;
 		if (ecole == 0) {
 			// feu : blanc seulement sur un filet le long de l'axe près de la paume ; le corps reste jaune-orange saturé
-			h -= 0.2 + 0.12 * as;
+			h -= 0.14 + 0.12 * as;
 		}
 		if (ecole == 1) {
 			h = corps * 1.0 + (1.0 - as) * 0.2 - t * 0.2 + (f - 0.5) * 0.3;
@@ -178,12 +181,12 @@ void fragment() {
 		// sortie prémultipliée « mixte » (rgb > alpha), partagée par magie_compose en couverture + lumière
 		al = clamp(0.5 - h * 0.4, 0.12, 0.42);
 		// les parties froides s'effacent (pas de nappe translucide autour du jet) : fumée seulement par endroits
-		k *= smoothstep(0.0, 0.3, h + (n - 0.5) * 0.4);
+		k *= smoothstep(0.0, 0.3, h + (n - 0.5) * 0.4 + (ecole == 0 ? 0.12 + t * 0.15 : 0.0));
 		if (ecole == 0) {
 			// feu : à l'intérieur du cône, les creux froids sont des trous de lumière (on voit au travers), pas de la
 			// suie opaque ; un peu de fumée rouge sombre seulement sur le pourtour et vers le bout
 			al = clamp(0.3 - h * 0.3, 0.05, 0.24) * mix(0.35, 1.0, smoothstep(0.35, 0.9, as + t * 0.3));
-			k *= smoothstep(0.05, 0.35, h + (n - 0.5) * 0.3 + (1.0 - as) * 0.1);
+			k *= smoothstep(-0.05, 0.28, h + (n - 0.5) * 0.3 + (1.0 - as) * 0.1 + t * 0.15);
 		}
 		float lum = clamp(h, 0.0, 1.3) * 0.6;
 		if (ecole == 1) {

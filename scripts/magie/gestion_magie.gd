@@ -1612,7 +1612,7 @@ func _jet_placer(j: Dictionary) -> void:
 		var lv := maxf(l - (0.3 if j.touche and j.cible == null else 0.0), 0.1)
 		fx.set_instance_shader_parameter("longueur", lv)
 		fx.set_instance_shader_parameter("bout", b.transposed() * (dv * lv))
-		var rr := 0.6 if j.ecole == "tenebres" else clampf(l * tan(deg_to_rad(float(j.ecart) * 0.5)) * (1.7 if j.ecole == "feu" else 1.4), 0.25, 1.0 if j.ecole == "feu" else 0.8)
+		var rr := 0.6 if j.ecole == "tenebres" else clampf(l * tan(deg_to_rad(float(j.ecart) * 0.5)) * (1.7 if j.ecole == "feu" else 1.4), 0.5 if j.ecole == "feu" else 0.25, 1.1 if j.ecole == "feu" else 0.8)
 		fx.set_instance_shader_parameter("r0", (0.04 if j.ecole == "tenebres" else 0.02) * kl)
 		fx.set_instance_shader_parameter("r1", rr * kl)
 		# au contact d'une surface, la flamme s'étale (moins sur un corps : on doit voir la cible)
