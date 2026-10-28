@@ -92,11 +92,24 @@ static func courbe(t: float) -> float:
 		return DEPASSE - (DEPASSE - 1.0) * sin(u * PI * 0.5)
 	return 1.0
 
+## Captures (monde.gd, option coffres=id:T) : ouverture FIGÉE à T s (couvercle, lueur et halo dans l'état de cet instant).
+func figer(t: float) -> void:
+	fermer()
+	ouvert = true
+	_t = 0.0
+	_effets()
+	_t = t
+	_maj()
+	set_process(false)
+
 func _process(dt: float) -> void:
 	if _t < 0.0:
 		set_process(false)
 		return
 	_t += dt
+	_maj()
+
+func _maj() -> void:
 	_poser(courbe(_t))
 	if _lueur != null:
 		var k := clampf(_t / 0.12, 0.0, 1.0) * clampf(1.0 - (_t - 0.12) / (LUEUR_DUREE - 0.12), 0.0, 1.0)
