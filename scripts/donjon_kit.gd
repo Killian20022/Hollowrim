@@ -45,6 +45,7 @@ var _v2_lum: Array = []          # lumières de candélabre à allumer si le bud
 var _v2_reglages: Dictionary = {}
 var _v2_ban0 := 0                # bannières déjà posées au début du module
 var _n_lum0 := 0                 # lumières déjà posées au début du module
+var _n_res_accroches := 0        # réserves des accroches (ennemis, coffres, interactions, mécanismes) en tête de _reserves (C5)
 var _n_corps0 := 0               # collisions déjà posées au début du module (CrypteV2._boites_sol)
 var _v2_boites: Array = []       # boîtes de collision du module en cours (repère local, Rect2 en x,z)
 var _p0 := Vector2.ZERO
@@ -295,6 +296,7 @@ func module(m: Dictionary) -> void:
 		for q0: Vector3 in pts:
 			var q := lw(q0)
 			_reserves.append([Vector2(q.x, q.z), 1.4])
+	_n_res_accroches = _reserves.size()      # C5 : les premières réserves sont celles des accroches (CrypteV2.semis les respecte en entier)
 	modules[id] = {"centre": mw(Vector3(0, y, 0)), "y": y, "h": h, "ouv": [], "cibles": [], "ennemis": [], "dim": dim, "rot": int(m.get("rot", 0)), "role": m.get("role", ""), "theme": m.get("theme", "tombeau")}
 	if type == "escalier":
 		_escalier(m)

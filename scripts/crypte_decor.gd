@@ -1755,14 +1755,18 @@ func fissures(centre: Vector3, vers: Vector3, larg := 2.0, haut := 2.6, n := 3, 
 	gravats(pg, 0.35, 0.18, false, "mur1")
 	muet = m0      # au pied du mur, au sol de l'étage (était y = 0 : gravats en l'air à l'étage −6)
 
-## Dalle de pression fendue : cadre de fissures autour (la dalle elle-même est celle du piège) ; os et fléchette brisée devant.
+## Dalle de pression fendue (la dalle elle-même est celle du piège) : os et fléchette brisée devant. C5 (2026-10-28) : les quatre traits
+## noirs PLATS posés sur le sol (illisibles et « peints » sur le dallage en relief du lot C2) sont remplacés par des éclats de pierre en
+## volume autour de la dalle (modules micro_eclats, sans collision) ; la fléchette brisée est une planchette cassée (micro_planche).
+## Mêmes tirages de rng qu'avant (os_tas seul en tire) : le décor tiré après ne bouge pas.
 func dalle_fendue(pos: Vector3, lacet := 0.0) -> void:
 	var b := Basis(Vector3.UP, lacet)
+	var y_sol := -0.02 if CrypteDecor.modele_existe("dallage_v3_0_0_0") and not OS.get_cmdline_user_args().has("--sol-plat") else 0.0
 	for k in 4:
 		var a := TAU * k / 4.0 + 0.4
-		_rect("noir", pos + Vector3(0, 0.017, 0) + b * Vector3(cos(a) * 0.62, 0, sin(a) * 0.62), Vector3.RIGHT, Vector3.FORWARD, 0.0, 0.0, 0.05, 0.5, a + lacet, Vector3.UP)
+		modele("micro_eclats_" + "abc"[k % 3], pos + Vector3(0, y_sol, 0) + b * Vector3(cos(a) * 0.95, 0, sin(a) * 0.95), a + lacet, Vector3.ONE, {}, false)
 	os_tas(pos + b * Vector3(0.1, 0, 1.0), 3, 0.35)
-	boite("bois", pos + b * Vector3(-0.4, 0.015, 1.3), Vector3(0.3, 0.015, 0.015), lacet + 0.8)
+	modele("micro_planche_a", pos + Vector3(0, y_sol, 0) + b * Vector3(-0.4, 0, 1.3), lacet + 0.8, Vector3(0.5, 1.0, 0.5), {}, false)
 
 ## Sarcophage au couvercle poussé de côté (pillage) : la cuve noire apparaît.
 func sarcophage_pille(pos: Vector3, taille: Vector3, lacet := 0.0) -> void:
