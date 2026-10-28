@@ -87,6 +87,49 @@ frappe + suivi, à l'écran, avec l'horizontale) :
   image par image dès la 2e image) ; revers du combo 28 → 56 % (armé à -0,30 au lieu de -0,40 : la lame ne peut pas
   pointer plus vers l'avant, butée de pronation). Latences inchangées (mesure_latence_combat : 33/167/200/317 ms etc.).
 
+## Passe 8 (2026-10-28, branche combat/poignet_fouet) : le poignet qui fouette
+Retour utilisateur : `references/combat_epee/prompt_poignet_fouet.md` (« les coups partent en inversé » : la main descendait
+d'un bloc, l'épée raide comme un levier, la pointe qui traînait).
+
+Ce qui a été fait :
+- **Mesure** `anim_bras_epee.py -- --fouet` (lignes FOUET / FOUET_RESUME) : part des images où la pointe est devant le
+  poing dans le sens du coup (début / fin de la frappe), rapport vitesse pointe / vitesse poing, « fil » (tranchant qui mène,
+  même calcul que test_combat_epee).
+- **Recherche des articulations** `sources_blender/scripts/optim_fouet.py` : les poings des clés restent ceux de
+  gestes_bras_epee.py ; les angles (torsion k, flexion f, inclinaison r, coude phi) des clés de frappe sont cherchés
+  (recherche locale, graine fixe) pour : pointe derrière au début / devant à la fin, pointe ≥ 3 × plus rapide que le poing,
+  fil ≥ 75°, trajet du milieu de lame voulu, direction finale de la lame, pas de saut d'image ni de retournement. Les
+  angles trouvés sont recopiés dans les clés (k, f, r, phi : clé fixée, comme REPOS).
+- **Diagonale (coup_a, clés D4_*)** : lame armée en arrière au-dessus de l'épaule (pointe en haut à droite du poing),
+  avant-bras en supination (k ≈ +90) ; à la frappe la pronation (+93 → −58°) et la cassure du poignet font passer la lame
+  par-dessus puis la fouettent vers le bas-gauche devant la main ; le poing ne fait que (0,56 ; 0,15) → (0,20 ; −0,18).
+  Une clé de récupération (V3_RETOUR) évite que la lame passe derrière la caméra au retour.
+- **Lourd (P4_*)** : charge tenue lame dressée (P4_CHARGE, lame entière dans le cadre) ; au relâchement le poignet s'arme
+  en arrière (0,06 s) puis claque : même fouet par-dessus, balayage vers la gauche devant la main.
+- Anciens gestes gardés pour comparaison : coup_a_levier, coup_b_levier, lourd_levier.
+
+Mesures (FOUET_RESUME, frappe = marqueurs frappe → fin_frappe ; avant = *_levier) :
+
+| Coup | Pointe devant (début → fin) | v pointe / v poing | Fil |
+|---|---|---|---|
+| diagonale avant | +0,41 → +0,72 (la pointe ne passe jamais : levier) | 1,2 | 81° |
+| diagonale après | −0,55 → +0,80 (derrière, puis devant) | 6,7 | 79° (test : 74°) |
+| lourd avant | −0,70 → +0,91 | 1,7 | 60° |
+| lourd après | −0,64 → +1,00 | 4,5 | 61° |
+| horizontal G → D (inchangé dans le fond) | −1,00 → −1,00 | 2,0 → 2,9 | 81° → 73° (test : 74°) |
+| vertical coup_v (inchangé) | −0,68 → +1,00 | 6,4 | 58° |
+
+Latences (mesure_latence_combat, avant → après) : identiques sauf l'impact de la diagonale 200 → 217 ms (une image : la
+lame passe par-dessus avant d'atteindre le mannequin) ; zone active 167 ms et combo 317 ms inchangés. Repos : plat 71°.
+Lame visible pendant la charge du lourd : 100 % (l'armé en arrière du relâchement : 16-44 % pendant 4 images).
+
+Limites :
+- **Horizontal G → D (coup_b)** : pas de vrai fouet. Avant-bras en pronation, la lame ne peut pas pointer vers la droite
+  avec le poing au centre (butées du poignet) ; il faudrait une rotation de l'avant-bras de ~180° (lame qui pointe en l'air
+  au milieu du coup). La lame rattrape le poing (pointe 2,9 × plus vite, armée plus en arrière qu'avant) sans le dépasser.
+- **Estoc** : poussée, pas de fouet (clés E_* d'origine).
+- L'armé de la diagonale et du lourd met la pointe hors du cadre en haut à droite (lame visible 56-72 % à l'armé de la diagonale, mesuré en jeu).
+
 ## Écarts restants
 - **Vertical** : une image de passage (milieu de la frappe) montre la lame très raccourcie (angle lame / visée 11°,
   76 % visible) ; au suivi la lame est raccourcie de moitié environ (angle 40°) et penche vers le bas à gauche à l'écran ;

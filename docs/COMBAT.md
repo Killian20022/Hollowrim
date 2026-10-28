@@ -300,13 +300,13 @@ Le tableau ci-dessus est l'historique ; valeurs actuelles (marqueurs arme / frap
 
 | Clip | Geste (profil) | Marqueurs |
 |---|---|---|
-| coup_a | 1 du combo `diag_dg` : VRAIE diagonale haut-droite → bas-gauche, épée levée au-dessus de l'épaule, pronation sans retournement | 0,13 / 0,16 / 0,26 / 0,33 / 0,54 |
+| coup_a | 1 du combo `diag_dg` : VRAIE diagonale haut-droite → bas-gauche ; passe 8 (combat/poignet_fouet) : POIGNET QUI FOUETTE, clés D4_* (articulations fixées par `optim_fouet.py`) : lame armée en arrière (pointe en haut à droite, au-dessus du poing), poignet claqué, la lame passe par-dessus et fouette vers le bas-gauche DEVANT la main, poing qui bouge peu ; ancien geste « levier » gardé dans coup_a_levier | 0,13 / 0,16 / 0,26 / 0,33 / 0,54 |
 | coup_b | 2 du combo `revers_gd` : horizontal GAUCHE → DROITE à plat, lame qui traîne pointée à gauche (poids_torsion 0,4) | 0,10 / 0,13 / 0,23 / 0,30 / 0,50 |
 | coup_c | 3 du combo `estoc_combo` : petit recul puis extension, le poing pousse vers l'avant | 0,11 / 0,15 / 0,25 / 0,30 / 0,50 |
 | coup_c_ancien | ancien vertical (diagonale raide, lame à plat) : plus utilisé | inchangé |
 | coup_v | vertical `verticale_l` (souris vers le bas, en avançant), V3_* (passe 7, branche combat/vertical) : armé court au coin haut droit, descente dans un plan vertical un peu à droite du centre, poignet qui casse, pointe finale sous le poing | 0,13 / 0,16 / 0,26 / 0,34 / 0,56 |
 | coup_v2 | essai V2 abandonné (lame vue en bout pendant le suivi, avant-bras à 18 % à l'armé) | 0,14 / 0,17 / 0,27 / 0,34 / 0,56 |
-| lourd | 4 phases : armé haut P2_ARME, tension (0,10), coup sec 0,10 → 0,25, grand suivi (0,42), retour 0,70, repos 0,96 | 0,10 / 0,10 / 0,25 / 0,42 / 0,96 |
+| lourd | 4 phases ; passe 8 : charge tenue lame dressée visible (P4_CHARGE), au relâchement le poignet s'arme en arrière (P4_ARME, 0,06) puis claque (P4_*) : la lame passe par-dessus et balaie à gauche devant la main ; grand suivi (0,42), retour 0,70, repos 0,96 ; ancien geste dans lourd_levier | 0,10 / 0,10 / 0,25 / 0,42 / 0,96 |
 | lourd_vertical | sur V2 | 0,06 / 0,06 / 0,21 / 0,40 / 0,92 |
 | encaisse | coup bloqué : choc (lame chassée), rebond, replacement en garde | fin 0,26 (DUREE_ENCAISSE) |
 | parade | parade parfaite : choc sec et rebond | fin 0,22 |
@@ -319,6 +319,10 @@ Géométrie rapide sans rendu : `anim_bras_epee.py -- --clips=<x> --mesurer` (pa
 part de la lame dans le cadre, part du plat vue, angle lame / visée) ; `--explorer=<CLE> [--grille=...]` liste les lames
 atteignables pour un poing donné (utile : à poing bas, une lame pointée vers l'avant montre le plat).
 Passe 7 (combat/vertical) : voir docs/COMBAT_AUDIT.md (vertical V3, 1re image de la diagonale et du revers).
+Passe 8 (combat/poignet_fouet) : `anim_bras_epee.py -- --clips=<x> --fouet` (par image : angles du poignet, poing / pointe à
+l'écran, vitesses, pointe DEVANT / DERRIÈRE la main dans le sens du coup, « fil » = tranchant qui mène comme
+test_combat_epee ; ligne FOUET_RESUME) ; `optim_fouet.py -- --clips=repos --optim=coup_a|lourd [--iter=2500] [--graine=n]`
+cherche les articulations (k, f, r, phi) des clés de frappe (voir docs/COMBAT_AUDIT.md, passe 8).
 
 ### Point d'accroche de la main gauche (pour la magie)
 Les clips n'animent QUE les os droits ; la main gauche est indépendante. Torche : `_accroche_g` (BoneAttachment3D sur
