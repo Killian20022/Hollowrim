@@ -1607,6 +1607,9 @@ func os_tas(pos: Vector3, n := 4, rayon := 0.4) -> void:
 ## (remplir_niches_os, après le récit de la salle) : sarcophages, estrade et meubles posés après les panneaux sont alors connus, et
 ## une niche qu'ils masquent reste vide (pas de crâne dans un couvercle). Tirages : générateur à part (graine = position du panneau),
 ## rng / rng_deco intouchés : le reste du décor ne bouge pas. `-- --os-plat` : ancien panneau peint (captures « avant » à code égal).
+## Portée : le contenu (crânes, fagots) n'est dessiné qu'à moins de 10 m (lot « os_proche ») ; au-delà, une case de la texture peinte
+## au fond de chaque niche (lot « os_loin ») ; cadres et corniche restent en volume. Mesure (mesure_vues, 640x360, 4 paires, moyenne) :
+## +0,02 à +0,16 ms GPU sur 4 vues de l'ossuaire (sans portée : +0,41 ms à 12 m) ; +62 k triangles dans la crypte.
 const OS_RANGEES := 3
 const OS_CASE := 0.5
 const OS_PROF := 0.28        # saillie du cadre (ossuaire.py PROF)
