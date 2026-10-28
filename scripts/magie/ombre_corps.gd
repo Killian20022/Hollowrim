@@ -227,7 +227,7 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 			if c.visible:
 				c.set_instance_shader_parameter("mc_vers", mv)
 	if kc > 0.05 and kj < 0.3:
-		ic.gm.lumiere("corps%d" % f.id, org + s.masse_centre, GestionMagie.LUMIERE.tenebres, (0.9 + 0.3 * sin(h * 5.0)) * kc, 2.8, 0.8)
+		ic.gm.lumiere("corps%d" % f.cible.get_instance_id(), org + s.masse_centre, GestionMagie.LUMIERE.tenebres, (0.9 + 0.3 * sin(h * 5.0)) * kc, 2.8, 0.8)
 	return sous_jet or corr or salve or kj > 0.0 or kc > 0.0 or ks > 0.0 or float(d.paleur) > 0.005
 
 ## Point de surface d'où s'arrache un filament : tourné vers le lanceur, plutôt dans le haut du corps, jamais trop loin de

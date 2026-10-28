@@ -56,6 +56,9 @@ const TOUCHE_RECENT := 0.05
 const PERIODE_REPOS := 2
 const PERIODE_LOIN := 3
 const DIST_LOIN := 10.0
+## Au-delà de ce nombre de foyers vivants, les foyers non touchés sont mis à jour à la cadence PERIODE_LOIN (budget CPU).
+const FOYERS_PLEINS := 4
+var _actifs_prec := 0
 const COMPORTEMENTS := {"feu": preload("res://scripts/magie/feu_corps.gd"),
 	"electricite": preload("res://scripts/magie/elec_corps.gd"), "glace": preload("res://scripts/magie/glace_corps.gd"),
 	"tenebres": preload("res://scripts/magie/ombre_corps.gd")}
@@ -173,7 +176,12 @@ class Foyer:
 
 # ====================================================================== accès
 
+static var _args_lus := false
 static func obtenir(g: GestionMagie = null) -> ImpactCorps:
+	# (2026-10-28, perf) appelé par chaque jet à chaque image : les arguments ne sont lus qu'une fois
+	if instance != null and _args_lus and is_instance_valid(instance) and not instance.is_queued_for_deletion():
+		return instance
+	_args_lus = true
 	if OS.get_cmdline_user_args().has("--sans-impact-corps"):
 		actif = false   # mise au point / mesure : rendu d'avant
 	if OS.get_cmdline_user_args().has("--sans-chauffe-corps"):
@@ -950,9 +958,23 @@ static func plus_proche(s: SurfaceCorps, p: Vector3) -> int:
 func arcs_regler(f: Foyer, main := Vector3.INF) -> void:
 	if f.surface == null:
 		return
-	f.mat_arcs.set_shader_parameter("sol_y", minf(f.surface.bas, 0.0) + 0.02)
+	# (2026-10-28, perf) posés seulement s'ils changent (chaque set_shader_parameter refait le tampon du matériau)
+	var sy := snappedf(minf(f.surface.bas, 0.0) + 0.02, 0.01)
+	if f.d.get("_arc_sy") != sy:
+		f.d["_arc_sy"] = sy
+		f.mat_arcs.set_shader_parameter("sol_y", sy)
 	if main != Vector3.INF:
-		f.mat_arcs.set_shader_parameter("point_main", main - f.origine())
+		var pm := (main - f.origine()).snappedf(0.01)
+		if f.d.get("_arc_pm") != pm:
+			f.d["_arc_pm"] = pm
+			f.mat_arcs.set_shader_parameter("point_main", pm)
+
+## Vrai si `cible` brûle (foyer de feu sous le jet ou en brûlure) : une seule lumière par corps (budget).
+func brule(cible: Node3D) -> bool:
+	for f: Foyer in foyers:
+		if not f.libre and f.cible == cible and f.ecole == "feu":
+			return float(f.d.get("k_brule", 0.0)) > 0.05 or float(f.d.get("k_jet", 0.0)) > 0.05
+	return false
 
 ## Canaux des écoles B sur le voile et la coque (fusionnés par corps à la fin de l'image : un corps gelé ET électrifié garde
 ## les deux). gel / choc / ombre / traces / paleur : 0..1 ; pt = point du monde (givre, arcs) ; rayon = rayon du givre (m).
@@ -987,11 +1009,15 @@ func _ecrire_ecoles() -> void:
 		var pt: Vector3 = (a[5] as Vector3).snappedf(0.03)
 		var vp := Vector4(pt.x, pt.y, pt.z, float(a[6]))
 		for f: Foyer in a[8]:
-			if f.ec_ecrit.size() == 2 and f.ec_ecrit[0] == v and (f.ec_ecrit[1] as Vector4).is_equal_approx(vp):
-				continue
-			f.ec_ecrit = [v, vp]
-			voile(f, "mc_ecoles", v)
-			voile(f, "mc_pt", vp)
+			if f.ec_ecrit.size() != 2:
+				f.ec_ecrit = [Vector4.INF, Vector4.INF]
+			# (2026-10-28, perf) chaque canal réécrit seulement s'il a changé (sous le jet le point bouge, pas les forces)
+			if f.ec_ecrit[0] != v:
+				f.ec_ecrit[0] = v
+				voile(f, "mc_ecoles", v)
+			if not (f.ec_ecrit[1] as Vector4).is_equal_approx(vp):
+				f.ec_ecrit[1] = vp
+				voile(f, "mc_pt", vp)
 
 ## Impulsion : jet VIRTUEL bref (info comme celle de jet_gerbe : o, dir, rayon, dbl, id) rejoué `duree` s sur le foyer :
 ## la boule de feu rend le même « souffle qui entoure la silhouette » que le jet, avec l'API de l'école.
@@ -1056,6 +1082,10 @@ func _maj() -> void:
 		var periode := 1
 		if not touche and lod:
 			periode = PERIODE_LOIN if cam_pos != Vector3.INF and o.distance_squared_to(cam_pos) > DIST_LOIN * DIST_LOIN else PERIODE_REPOS
+			# (2026-10-28, budget) plus de FOYERS_PLEINS foyers vivants (ex. feu + électricité sur 3 corps) : les foyers non
+			# touchés passent à la cadence « loin » (une image sur 3) ; ceux sous le jet restent à chaque image
+			if _actifs_prec > FOYERS_PLEINS:
+				periode = maxi(periode, PERIODE_LOIN)
 		# phase par CORPS (ses foyers feu + électricité partagent la même image : surface et octets calculés une fois)
 		var a_jour := periode == 1 or (Engine.get_process_frames() + f.cible.get_instance_id() % 7) % periode == 0 or f.image < 2
 		var ta := Time.get_ticks_usec()
@@ -1110,6 +1140,7 @@ func _maj() -> void:
 			f.surface.ecrire_nor(f.img_nor)
 			f.tex_nor.update(f.img_nor)
 		_t_sections[3] += Time.get_ticks_usec() - ta
+	_actifs_prec = actifs
 	var tb := Time.get_ticks_usec()
 	if actifs > 0:
 		_ecrire_ecoles()

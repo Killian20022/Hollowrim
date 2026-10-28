@@ -212,7 +212,7 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 	# le corps éclaire le décor pendant la brûlure (sous le jet, la lumière du jet est déjà au contact)
 	if kb > 0.05:
 		var sc := 0.85 + 0.25 * sin(h * 19.0 + f.id) * sin(h * 6.3)
-		ic.gm.lumiere("corps%d" % f.id, org + s.centre + Vector3.UP * 0.2, GestionMagie.LUMIERE.feu, 1.6 * kb * sc, 3.2, 1.0)
+		ic.gm.lumiere("corps%d" % f.cible.get_instance_id(), org + s.centre + Vector3.UP * 0.2, GestionMagie.LUMIERE.feu, 1.6 * kb * sc, 3.2, 1.0)
 	ImpactCorps.prof("feu repousse+lum", _p0)
 	if not (d.foyers as PackedInt32Array).is_empty() and not brule and kb <= 0.0:
 		d.foyers = PackedInt32Array()

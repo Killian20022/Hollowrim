@@ -203,23 +203,18 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 		_former(ic, f, kj, ks, kc, reste)
 	ImpactCorps.prof("elec former", _p0); _p0 = Time.get_ticks_usec()
 	ic.arcs_regler(f)
-	ic.uniformes(f, "sol_y", minf(s.bas, 0.0) + 0.02)
-	# ------------------------------------------------ émetteurs, uniformes
+	# ------------------------------------------------ émetteurs, paramètres du foyer (texture des points)
+	# (2026-10-28, perf) deux appels directs (regler_jet / regler_foyers) au lieu de sept passages par uniformes()
 	var imp := s.pos[int(d.imp_i)] if int(d.imp_i) >= 0 and int(d.imp_i) < s.nb else s.centre
 	d.imp_p = imp
-	ic.uniformes(f, "dir_jet", d.dir)
-	ic.uniformes(f, "point_impact", imp)
-	ic.uniformes(f, "rayon_jet", 0.3)
-	ic.uniformes(f, "k_jet", maxf(kj, ks))
-	ic.uniformes(f, "k_foyers", maxf(kc, reste * 0.6))
-	var fo: Array = []
+	ic.regler_jet(f, d.dir, maxf(kj, ks), imp, 0.3)
+	var fo: Array = [Vector4.ZERO, Vector4.ZERO, Vector4.ZERO, Vector4.ZERO]
 	var anc: PackedInt32Array = d.ancres
-	for k in 4:
-		if k < anc.size() and anc[k] < s.nb:
-			fo.append(Vector4(s.pos[anc[k]].x, s.pos[anc[k]].y, s.pos[anc[k]].z, 0.09))
-		else:
-			fo.append(Vector4.ZERO)
-	ic.uniformes(f, "foyers", fo)
+	for k in mini(anc.size(), 4):
+		if anc[k] < s.nb:
+			var q := s.pos[anc[k]]
+			fo[k] = Vector4(q.x, q.y, q.z, 0.09)
+	ic.regler_foyers(f, maxf(kc, reste * 0.6), minf(s.bas, 0.0) + 0.02, fo)
 	for k in f.em.size():
 		var r := maxf(SOUS_JET[k] * maxf(kj, ks), maxf(CHOC[k] * kc, TRACES[k] * reste))
 		ic.activer(f.em[k], r)
@@ -228,9 +223,10 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 	ic.ecoles(f, 0.0, snappedf(clampf(maxf(maxf(kj, ks), kc * 0.75), 0.0, 1.0), 0.05), 0.0, snappedf(tr * (0.35 + 0.65 * (1.0 - actif)), 0.02), 0.0, org + imp, 0.0)
 	ImpactCorps.prof("elec reste", _p0)
 	# le corps éclaire le décor par à-coups pendant le choc (sous le jet, la lumière du jet est déjà au contact)
-	if kc > 0.05 and kj < 0.5:
+	# (2026-10-28, budget) une seule lumière par CORPS : sous la brûlure, celle du feu reste (pas une 2e omni par corps)
+	if kc > 0.05 and kj < 0.5 and not ic.brule(f.cible):
 		if ic.rng.randf() < 0.6:
-			ic.gm.lumiere("corps%d" % f.id, org + s.masse_centre, GestionMagie.LUMIERE.electricite, (0.8 + 1.6 * ic.rng.randf()) * kc, 3.5, 1.0)
+			ic.gm.lumiere("corps%d" % f.cible.get_instance_id(), org + s.masse_centre, GestionMagie.LUMIERE.electricite, (0.8 + 1.6 * ic.rng.randf()) * kc, 3.5, 1.0)
 	return sous_jet or choc or salve or actif > 0.0 or tr > 0.003
 
 ## Nouvelle forme des arcs du foyer : rampes depuis le point touché (jet, salve), sauts entre os, descentes au sol ; sous le
