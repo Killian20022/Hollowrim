@@ -805,3 +805,70 @@ static func piece_tertre(d: CrypteDecor, id: String, x0: float, x1: float, z0: f
 	d.theme = {}
 	d.v2 = false
 	d.module_id = ""
+
+# ------------------------------------------------------------------ SOL EN RELIEF (C2, 2026-10-28)
+## Dallage v3 (docs/INSPIRATION_IGNITE.md §2.2) : le sol visible d'une salle ou d'un couloir v2 (rectangle [x0, x1] x [z0, z1] à
+## y, repère local du module) est couvert de RANGS parallèles à x (profondeurs DALLAGE_PROF, étirées pour finir pile sur z1),
+## chaque rang étant une suite de BANDES de dalles en relief (modules Blender « dallage_v3_<p>_<l>_<k> », longueurs DALLAGE_LONG,
+## étirées (meilleur de 6 tirages, en général à ±10 %) pour finir pile sur x1, retournées une fois sur deux au hasard). Les bandes voisines ne coupent pas aux
+## mêmes abscisses d'un rang à l'autre : aucune couture visible. Les dalles sont SOUS le sol de collision (dessus à −2,2 cm ± 1,5) :
+## collisions, accroches et décalques au sol inchangés. Tirage avec un générateur À PART (graine = position du module dans la crypte) :
+## rng / rng_deco ne bougent pas, le reste du décor reste identique. Renvoie false si les modules manquent ou avec `-- --sol-plat`
+## (mesures avant / après à code identique) : l'appelant (CrypteDecor.salle) pose alors l'ancien plan de dalles peintes.
+## Couloirs : même pose (axe long = z local) → rangs EN TRAVERS du couloir (« bandes »).
+const DALLAGE_LONG := [1.6, 2.2, 2.8]      # = sources_blender/scripts/crypte_modules_v2.py (DALLAGE_LONG, DALLAGE_PROF, DALLAGE_VAR)
+const DALLAGE_PROF := [0.55, 0.7, 0.85]
+const DALLAGE_VAR := 4
+static var dallage_bandes := 0      # bandes posées depuis le lancement (outils de mesure)
+
+static func dallage(d: CrypteDecor, x0: float, x1: float, z0: float, z1: float, y: float) -> bool:
+	if OS.get_cmdline_user_args().has("--sol-plat") or not CrypteDecor.modele_existe("dallage_v3_0_0_0"):
+		return false
+	var lx := x1 - x0
+	var lz := z1 - z0
+	if lx < 0.8 or lz < 0.5:
+		return false
+	var w := d.xf * Vector3((x0 + x1) * 0.5, y, (z0 + z1) * 0.5)
+	var r := RandomNumberGenerator.new()
+	r.seed = hash(Vector3i(roundi(w.x * 10.0), roundi(w.y * 10.0), roundi(w.z * 10.0))) + 2028
+	# rangs : nombre fixé par la longueur, profondeurs tirées puis étirées ensemble
+	var nr := maxi(1, roundi(lz / 0.7))
+	var rangs: Array = []
+	var somme := 0.0
+	for i in nr:
+		var p := r.randi_range(0, DALLAGE_PROF.size() - 1)
+		rangs.append(p)
+		somme += float(DALLAGE_PROF[p])
+	var sz := lz / somme
+	d.pose_sol = true
+	var z := z0
+	for p: int in rangs:
+		var prof: float = float(DALLAGE_PROF[p]) * sz
+		var cz := z + prof * 0.5
+		z += prof
+		# bandes du rang : 6 essais, on garde la suite dont l'étirement est le plus proche de 1
+		var meilleur: Array = []
+		var s_best := 0.0
+		for _e in 6:
+			var suite: Array = []
+			var tot := 0.0
+			while tot < lx - 0.8:
+				var l := r.randi_range(0, DALLAGE_LONG.size() - 1)
+				suite.append(l)
+				tot += float(DALLAGE_LONG[l])
+			if suite.is_empty():
+				suite.append(0)
+				tot = float(DALLAGE_LONG[0])
+			var s := lx / tot
+			if meilleur.is_empty() or absf(s - 1.0) < absf(s_best - 1.0):
+				meilleur = suite
+				s_best = s
+		var x := x0
+		for l: int in meilleur:
+			var long: float = float(DALLAGE_LONG[l]) * s_best
+			var nom := "dallage_v3_%d_%d_%d" % [p, l, r.randi_range(0, DALLAGE_VAR - 1)]
+			d.modele(nom, Vector3(x + long * 0.5, y, cz), PI if r.randf() < 0.5 else 0.0, Vector3(s_best, 1.0, sz), {"pierre": "pierre_sol"}, false)
+			x += long
+			dallage_bandes += 1
+	d.pose_sol = false
+	return true

@@ -1453,6 +1453,257 @@ def bassin_margelle(nom, graine, w=5.0, p=4.4, h=0.5, e=0.4):
     return M
 
 
+# ======================================================================= C2 (2026-10-28) : DALLAGE v3 (sol de salle en relief)
+# Chantier « anti pâte à modeler » (docs/INSPIRATION_IGNITE.md §2.2, lot C2) : le sol des salles et couloirs de la crypte n'est plus
+# une texture de dalles peinte sur un plan mais de VRAIES dalles en volume. Le sol est découpé (scripts/crypte_v2.gd : dallage) en
+# RANGS parallèles à x ; chaque rang est une suite de BANDES (modules « dallage_v3_<p>_<l>_<k> » : profondeur p, longueur l,
+# variante k) étirées de ±15 % au plus pour tomber juste sur la pièce (aucune découpe, aucune couture de tuile visible : les bouts de
+# bande sont de simples joints, et les rangs voisins ne coupent pas aux mêmes abscisses).
+# Une dalle = dessus plan légèrement incliné + 4 à 6 flancs en pente qui descendent jusqu'au fond de joint (−7,2 cm) : le joint est un
+# V creux de 7 cm en haut, fermé en bas, dont les couleurs de sommet descendent au noir (règle §3.1 : creux au ton 0 de la rampe
+# Ombre) ; le haut des flancs garde le ton de la dalle : face à la torche rasante, il s'éclaire plus que le dessus (arête claire).
+# Accidents : coins éclatés (le fond sombre se voit), dalles fendues en 2-3 morceaux (fente fine en V), dalles soulevées (une arête
+# remonte de 3-4,5 cm), dalles manquantes (terre sombre + éclats). Dessus à −2,2 cm (−1,2 à +1) sous le sol de COLLISION (inchangé, plan) :
+# une dalle ordinaire ne dépasse pas +1 cm, l'arête d'une dalle soulevée +3,5 cm (visuel seul : AUCUNE collision, rien ne bloque) ;
+# les décalques au sol (+0,7 à +2 cm : givre, cercles gravés, halos) et la plaque de piège enfoncée (−1 cm) restent visibles.
+# Budget : 10 triangles par dalle (13 si coin éclaté), ≈ 1,6 dalle/m² (voir BUDGET_DALLAGE, contrôlé à l'export).
+# Pas d'occlusion par rayons ici (finir surchargée) : couleurs écrites à la main (ton par dalle x dégradé des flancs).
+# NB lot C4 (piliers, même fichier) : rien ici ne touche aux autres modules ; tout est préfixé _dal_ / dallage_.
+
+DALLAGE_LONG = (1.6, 2.2, 2.8)      # longueurs nominales des bandes (m) — mêmes valeurs dans scripts/crypte_v2.gd (DALLAGE_LONG)
+DALLAGE_PROF = (0.55, 0.7, 0.85)    # profondeurs nominales des rangs (m) — idem (DALLAGE_PROF)
+DALLAGE_VAR = 4                     # variantes par couple (profondeur, longueur) — idem (DALLAGE_VAR)
+DAL_HAUT = -0.022                   # dessus nominal des dalles sous le sol de collision
+DAL_FOND = -0.072                   # fond des joints (pied des flancs)
+DAL_JOINT = 0.034                   # retrait du dessus depuis la limite de la case (joint de 7 cm entre deux dalles : 2-3 px à 3 m)
+DAL_JOINT_BAS = 0.002               # retrait du pied (le V se ferme en bas)
+DAL_FENTE = 0.005                   # retrait du dessus le long d'une fente
+BUDGET_DALLAGE = 14.0               # triangles par dalle en moyenne, au plus (contrôlé à l'export)
+
+
+class ModuleSol(Module):
+    """Module de dallage : triangles à couleurs de sommet explicites (pas d'occlusion par rayons, déjà réglée à la main)."""
+    def __init__(self, nom, graine):
+        super().__init__(nom, graine)
+        self.nb_dalles = 0
+
+    def tri_c(self, mat, p0, p1, p2, c0, c1, c2, sortant):
+        """Triangle (repère Godot) tourné pour que sa normale suive `sortant` ; c* = (r, g, b)."""
+        n = (p1 - p0).cross(p2 - p0)
+        if n.length_squared < 1e-14:
+            return
+        if n.dot(sortant) < 0:
+            p1, p2, c1, c2 = p2, p1, c2, c1
+        self.tris.append((mat, (p0, p1, p2), (c0, c1, c2)))
+
+    def finir(self, *a, **k):
+        sortie = {}
+        te = TEINTE["pierre"]
+        for m, p, t in self.tris:
+            if isinstance(t, tuple):
+                cols = [(min(1.0, c[0]), min(1.0, c[1]), min(1.0, c[2]), 1.0) for c in t]
+            else:      # éclats posés par Module.coin (ton scalaire)
+                tt = TEINTE.get(m, (1, 1, 1))
+                cols = [(min(1.0, t * tt[0]), min(1.0, t * tt[1]), min(1.0, t * tt[2]), 1.0)] * 3
+            sortie.setdefault(m, []).append((p, cols))
+        return sortie
+
+
+def _dal_aire(poly):
+    s = 0.0
+    for i in range(len(poly)):
+        x0, z0 = poly[i]
+        x1, z1 = poly[(i + 1) % len(poly)]
+        s += x0 * z1 - x1 * z0
+    return s * 0.5
+
+
+def _dal_retrait(poly, ret):
+    """Polygone convexe (x, z) dans le sens trigonométrique ; ret[i] = retrait vers l'intérieur de l'arête i (poly[i] -> poly[i+1])."""
+    n = len(poly)
+    lignes = []
+    for i in range(n):
+        x0, z0 = poly[i]
+        x1, z1 = poly[(i + 1) % n]
+        ex, ez = x1 - x0, z1 - z0
+        L = math.hypot(ex, ez)
+        ex, ez = ex / L, ez / L
+        nx, nz = -ez, ex      # normale intérieure (sens trigonométrique)
+        lignes.append(((x0 + nx * ret[i], z0 + nz * ret[i]), (ex, ez)))
+    out = []
+    for i in range(n):
+        (px, pz), (ax, az) = lignes[i - 1]
+        (qx, qz), (bx, bz) = lignes[i]
+        den = ax * bz - az * bx
+        if abs(den) < 1e-9:
+            out.append((qx, qz))
+            continue
+        t = ((qx - px) * bz - (qz - pz) * bx) / den
+        out.append((px + ax * t, pz + az * t))
+    return out
+
+
+def _dal_couper(poly, types, p, d):
+    """Coupe un polygone convexe par la droite (p, d) : deux polygones, l'arête de coupe est de type « fente »."""
+    nx, nz = -d[1], d[0]
+    s = [(q[0] - p[0]) * nx + (q[1] - p[1]) * nz for q in poly]
+    A, TA, Bp, TB = [], [], [], []
+    n = len(poly)
+    for i in range(n):
+        j = (i + 1) % n
+        qi, qj = poly[i], poly[j]
+        if s[i] >= 0:
+            A.append(qi); TA.append(types[i])
+        if s[i] <= 0:
+            Bp.append(qi); TB.append(types[i])
+        if (s[i] > 0 and s[j] < 0) or (s[i] < 0 and s[j] > 0):
+            t = s[i] / (s[i] - s[j])
+            x = (qi[0] + (qj[0] - qi[0]) * t, qi[1] + (qj[1] - qi[1]) * t)
+            if s[i] > 0:      # on sort de A : l'arête suivante de A est la coupe ; B commence ici sur l'arête d'origine
+                A.append(x); TA.append("fente")
+                Bp.append(x); TB.append(types[i])
+            else:
+                Bp.append(x); TB.append("fente")
+                A.append(x); TA.append(types[i])
+    return [(A, TA), (Bp, TB)]
+
+
+def _dal_dalle(M, poly, types, ton, h0=0.0, pente=(0.0, 0.0), chaleur=0.0):
+    """Une dalle : poly = contour de la case (x, z), types[i] = « joint » | « fente » | « eclat » pour l'arête i."""
+    if _dal_aire(poly) < 0:
+        poly = poly[::-1]
+        types = types[-2::-1] + types[-1:]
+    if _dal_aire(poly) < 0.004:
+        return
+    haut = _dal_retrait(poly, [DAL_FENTE if t == "fente" else DAL_JOINT for t in types])
+    bas = _dal_retrait(poly, [0.0 if t == "fente" else (0.012 if t == "eclat" else DAL_JOINT_BAS) for t in types])
+    if _dal_aire(haut) < 0.002:
+        return
+    cx = sum(q[0] for q in haut) / len(haut)
+    cz = sum(q[1] for q in haut) / len(haut)
+    hy = lambda x, z: DAL_HAUT + h0 + pente[0] * (x - cx) + pente[1] * (z - cz)
+    T = [Vector((x, hy(x, z), z)) for x, z in haut]
+    Bv = [Vector((x, DAL_FOND, z)) for x, z in bas]
+    k = (1.0 + 0.05 * chaleur, 1.0, 1.0 - 0.06 * chaleur)
+    te = TEINTE["pierre"]
+    col = lambda v: (v * te[0] * k[0], v * te[1] * k[1], v * te[2] * k[2])
+    usure = [M.rg.uniform(0.8, 1.0) for _ in T]      # dessus inégal : un coin plus usé / plus sale que l'autre (masses claires et sombres)
+    c_arete = col(ton * 0.85)                # haut des flancs : la torche rasante les éclaire plus que le dessus (arête claire)
+    c_pied = col(0.0)                        # fond de joint au noir (ton 0 de la rampe Ombre)
+    centre = Vector((cx, DAL_HAUT + h0, cz))
+    for i in range(1, len(T) - 1):           # dessus en éventail
+        M.tri_c("pierre", T[0], T[i], T[i + 1], col(ton * usure[0]), col(ton * usure[i]), col(ton * usure[i + 1]), Vector((0, 1, 0)))
+    n = len(T)
+    for i in range(n):                       # flancs en pente jusqu'au fond du joint
+        j = (i + 1) % n
+        mil = (T[i] + T[j]) * 0.5
+        sortant = Vector((mil.x - centre.x, 0.0, mil.z - centre.z))
+        ca = c_arete if types[i] != "fente" else col(ton * 0.7)
+        M.tri_c("pierre", T[i], T[j], Bv[j], ca, ca, c_pied, sortant)
+        M.tri_c("pierre", T[i], Bv[j], Bv[i], ca, c_pied, c_pied, sortant)
+    M.nb_dalles += 1
+
+
+def _dal_terre(M, poly):
+    """Case d'une dalle manquante : fond de terre sombre et 2-3 éclats de pierre."""
+    rg = M.rg
+    y = DAL_FOND + 0.014
+    pts = [Vector((x, y + rg.uniform(-0.004, 0.004), z)) for x, z in poly]
+    t = rg.uniform(0.36, 0.46)      # terre : nettement plus sombre que les dalles, mais pas un trou noir
+    c, c2 = (t * 1.0, t * 0.9, t * 0.78), (t * 0.8, t * 0.72, t * 0.62)
+    for i in range(1, len(pts) - 1):
+        M.tri_c("pierre", pts[0], pts[i], pts[i + 1], c, c2, c, Vector((0, 1, 0)))
+    xs = [q[0] for q in poly]
+    zs = [q[1] for q in poly]
+    for _ in range(rg.randint(2, 3)):
+        px, pz = rg.uniform(min(xs) + 0.08, max(xs) - 0.08), rg.uniform(min(zs) + 0.08, max(zs) - 0.08)
+        r = rg.uniform(0.04, 0.09)
+        ch = [Vector((px + rg.uniform(-r, r), y + rg.uniform(0.0, 0.012), pz + rg.uniform(-r, r))) for _ in range(4)]
+        ch.append(Vector((px + rg.uniform(-r * 0.4, r * 0.4), y + rg.uniform(0.02, 0.035), pz + rg.uniform(-r * 0.4, r * 0.4))))
+        M.coin(ch, "pierre", bev=0.0, ton=rg.uniform(0.45, 0.75))
+
+
+def dallage_v3(nom, graine, longueur, prof):
+    """Bande de dalles (longueur le long de x, profondeur le long de z, centrée sur l'origine, sol de collision à y = 0)."""
+    M = ModuleSol(nom, graine)
+    rg = M.rg
+    x0, z0, z1 = -longueur * 0.5, -prof * 0.5, prof * 0.5
+    # largeurs : 0,5 à 1,1 m, la dernière ajustée (jamais moins de 0,45 m)
+    larg = []
+    reste = longueur
+    while reste > 1e-6:
+        w = rg.uniform(0.5, 1.1)
+        if reste - w < 0.45:
+            w = reste if reste <= 1.1 else reste * 0.5
+        larg.append(w)
+        reste -= w
+    x = x0
+    for w in larg:
+        poly = [(x, z0), (x + w, z0), (x + w, z1), (x, z1)]
+        types = ["joint"] * 4
+        x += w
+        ton = rg.uniform(0.7, 1.0) * (0.68 if rg.random() < 0.18 else 1.0)      # dessus clairs (masses lisibles), 18 % de dalles sombres
+        chaleur = rg.uniform(-1.0, 1.0)
+        tirage = rg.random()
+        if tirage < 0.04:                                   # dalle manquante
+            _dal_terre(M, poly)
+            if rg.random() < 0.5:                           # un morceau resté en place, de travers
+                cut = _dal_couper(poly, types, (poly[0][0] + w * rg.uniform(0.3, 0.6), 0.0), (rg.uniform(-0.4, 0.4), 1.0))
+                morceau, tm = cut[rg.randint(0, 1)]
+                if len(morceau) >= 3:
+                    _dal_dalle(M, morceau, ["joint"] * len(morceau), ton * 0.85, -0.012, (rg.uniform(-0.06, 0.06), rg.uniform(-0.06, 0.06)), chaleur)
+            continue
+        # coin éclaté (25 %) : le coin devient une petite arête, le fond sombre se voit
+        if rg.random() < 0.25:
+            i = rg.randint(0, 3)
+            v = poly[i]
+            a, b = poly[i - 1], poly[(i + 1) % 4]
+            c1, c2 = rg.uniform(0.05, 0.16), rg.uniform(0.05, 0.16)
+            da = (a[0] - v[0], a[1] - v[1]); la = math.hypot(*da)
+            db = (b[0] - v[0], b[1] - v[1]); lb = math.hypot(*db)
+            p1 = (v[0] + da[0] / la * c1, v[1] + da[1] / la * c1)
+            p2 = (v[0] + db[0] / lb * c2, v[1] + db[1] / lb * c2)
+            poly = poly[:i] + [p1, p2] + poly[i + 1:]
+            types = types[:i] + ["eclat"] + types[i:]      # arête p1 -> p2 = éclat ; les autres gardent leur type
+        h0 = rg.uniform(-0.012, 0.01)      # avec la pente, le dessus reste sous +0,8 cm (décalques au sol à +0,7 à +2 cm)
+        pente = (rg.uniform(-0.035, 0.035), rg.uniform(-0.035, 0.035))      # ±2° : la torche voisine éclaire chaque dalle un peu différemment
+        if tirage < 0.10:                                   # dalle fendue en 2 ou 3 morceaux
+            cxm = (poly[0][0] + poly[1][0]) * 0.5
+            morceaux = _dal_couper(poly, types, (cxm + rg.uniform(-0.1, 0.1) * w, 0.0), (rg.uniform(-0.6, 0.6) * w / prof, 1.0))
+            if rg.random() < 0.4:
+                gros = max(range(2), key=lambda q: abs(_dal_aire(morceaux[q][0])))
+                pg, tg = morceaux.pop(gros)
+                cz_ = sum(q[1] for q in pg) / len(pg)
+                cx_ = sum(q[0] for q in pg) / len(pg)
+                morceaux += _dal_couper(pg, tg, (cx_, cz_), (1.0, rg.uniform(-0.5, 0.5)))
+            for pm, tm in morceaux:
+                if len(pm) >= 3:
+                    _dal_dalle(M, pm, tm, ton * rg.uniform(0.86, 1.0), h0 - rg.uniform(0.0, 0.008),
+                               (pente[0] + rg.uniform(-0.03, 0.03), pente[1] + rg.uniform(-0.03, 0.03)), chaleur)
+            continue
+        if tirage < 0.15:                                   # dalle soulevée : une arête remonte de 3 à 4,5 cm (dessus à +2 cm au plus)
+            demi = (w if rg.random() < 0.5 else prof) * 0.5
+            g = rg.uniform(0.03, 0.045) / demi
+            pente = (g * rg.choice((-1, 1)), 0.0) if demi == w * 0.5 else (0.0, g * rg.choice((-1, 1)))
+            h0 = rg.uniform(0.004, 0.01)
+        _dal_dalle(M, poly, types, ton, h0, pente, chaleur)
+    return M
+
+
+def construire_dallage():
+    """Les 36 bandes de dallage (3 profondeurs x 3 longueurs x 4 variantes) ; graines 3000 + …"""
+    mods = []
+    for p, pr in enumerate(DALLAGE_PROF):
+        for l, lo in enumerate(DALLAGE_LONG):
+            for k in range(DALLAGE_VAR):
+                mods.append(dallage_v3("dallage_v3_%d_%d_%d" % (p, l, k), 3000 + 100 * p + 10 * l + k, lo, pr))
+    nb = sum(len(M.tris) for M in mods)
+    dalles = sum(M.nb_dalles for M in mods)
+    print("DALLAGE : %d bandes, %d dalles, %d triangles (%.1f par dalle, budget %.0f)" % (len(mods), dalles, nb, nb / max(1, dalles), BUDGET_DALLAGE))
+    assert nb / max(1, dalles) <= BUDGET_DALLAGE, "dallage v3 : budget de triangles par dalle dépassé"
+    return mods
+
+
 # ======================================================================= table des modules exportés
 def construire():
     mods = []
@@ -1500,6 +1751,8 @@ def construire():
     mods.append(table_embaumement_v2("table_embaumement", 287))
     mods.append(sarcophage_pille("sarcophage_pille", 288))
     mods.append(bassin_margelle("bassin_margelle", 289))
+    # C2 (2026-10-28) : dallage v3 du sol des salles et couloirs (voir la section DALLAGE v3 plus haut)
+    mods += construire_dallage()
     return mods
 
 
