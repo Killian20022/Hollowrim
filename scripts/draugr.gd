@@ -702,7 +702,7 @@ func _faire_appel() -> void:
 			var cote := -1.0 if k == 0 else 1.0
 			var pos := global_position + droite * cote * 2.6 + global_transform.basis.z * 0.8
 			var sq: CharacterBody3D = monde.creer_draugr("squelette", pos, rotation.y, false, {"ident": id, "contourne": true})
-			Effets.eclats(self, pos + Vector3(0, 0.6, 0), Color(0.6, 0.85, 1.4), 24, 3.0, true)
+			GerbePixels.emettre(self, pos + Vector3(0, 0.6, 0), Vector3.UP, "givre_lueur", 1.5)
 			if sq != null:
 				sq.alerter()
 	Sons.jouer_a(self, ["giant1", "giant2"], global_position + Vector3.UP, 0.0, 0.1)
@@ -767,9 +767,9 @@ func _souffler() -> void:
 		tw.tween_property(mat, "albedo_color:a", 0.0, 0.5)
 		tw.tween_callback(cone.queue_free)
 		_cone = null
-	for k in 7:
-		var d := _souffle_dir * (1.5 + k * 1.2)
-		Effets.eclats(self, global_position + Vector3(0, 1.0, 0) + d, Color(0.6, 0.9, 1.6), 14, 4.0, true)
+	for k in 4:   # gerbes de pixels de givre le long du souffle (pool GerbePixels)
+		var d := _souffle_dir * (1.5 + k * 2.1)
+		GerbePixels.emettre(self, global_position + Vector3(0, 1.0, 0) + d, (_souffle_dir + Vector3.UP * 0.4).normalized(), "givre_lueur", 1.4)
 	Sons.jouer_a(self, ["mnstr5", "mnstr6"], global_position + Vector3.UP, 2.0, 0.1)
 	if not joueur.mort and absf(joueur.global_position.y - global_position.y) < 3.0 and _dans_cone(joueur.global_position):
 		joueur.recevoir_coup(degats * 0.9, global_position)

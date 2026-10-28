@@ -194,7 +194,7 @@ func _physics_process(dt: float) -> void:
 		if genre == "givre":
 			_briser(resultat == "touche")
 		elif resultat == "touche":
-			Effets.eclats(self, global_position, Color(0.8, 0.1, 0.1), 8, 2.0)
+			GerbePixels.emettre(self, global_position, (-vitesse.normalized() + Vector3.UP * 0.4).normalized(), "sang", 0.8)
 		queue_free()
 		return
 	if genre == "givre":
@@ -213,6 +213,7 @@ func _physics_process(dt: float) -> void:
 
 ## Éclatement du trait de givre : éclats de glace, buée, tintement.
 func _briser(sur_joueur: bool) -> void:
-	Effets.eclats(self, global_position, COULEUR_GIVRE, 16 if sur_joueur else 12, 3.0, true)
-	Effets.eclats(self, global_position, Color(0.85, 0.92, 1.0), 8, 1.5)
+	var d_g := (-vitesse.normalized() + Vector3.UP * 0.5).normalized() if vitesse.length() > 0.01 else Vector3.UP
+	GerbePixels.emettre(self, global_position, d_g, "givre", 1.1 if sur_joueur else 0.9)
+	GerbePixels.emettre(self, global_position, d_g, "givre_lueur", 0.7)
 	Sons.jouer_a(get_parent() if get_parent() else self, ["impactPlate_medium_000", "impactPlate_medium_001"], global_position, -4.0, 0.15)

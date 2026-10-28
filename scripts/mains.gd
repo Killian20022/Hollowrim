@@ -1309,6 +1309,19 @@ func _vers_attaquant(point: Vector3, origine: Vector3) -> Vector3:
 	v.y = 0.0
 	return (v.normalized() + Vector3.UP * 0.6).normalized() if v.length() > 0.01 else Vector3.UP
 
+## Rayon du bouclier vu de face (m) : les étincelles naissent juste au-dessus de son bord.
+const RAYON_BOUCLIER := 0.3
+
+## Point des étincelles d'un coup reçu au bouclier : le bouclier levé couvre le bas de l'écran et cache tout ce qui naît
+## derrière lui (passe « intensité », 2026-10-28 : les étincelles de l'umbo étaient invisibles) → point projeté juste
+## au-dessus de son bord À L'ÉCRAN, à 1,2 m devant la caméra (côté attaquant).
+func _fx_rebord(point: Vector3) -> Vector3:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null or cam.is_position_behind(point):
+		return point
+	var e := cam.unproject_position(point + cam.global_transform.basis.y * RAYON_BOUCLIER)
+	return cam.project_position(e, 1.2)
+
 ## Garde au BOUCLIER : le bras gauche encaisse (GestesBouclier), sons de bois (planches) et de fer (umbo), échardes, recul
 ## du joueur ; parade parfaite = coup de bouclier (l'attaquant perd DonneesArme.posture_parade de sa posture) ; garde
 ## brisée = bouclier rabattu, même titubement et même garde impossible qu'à l'épée.
@@ -1316,6 +1329,7 @@ func _defendre_bouclier(r: Dictionary, g: DonneesArme, origine: Vector3) -> void
 	var point := pivot_torche.global_transform * Vector3(0.09, 0.0, 0.0)   # face du bouclier, près de l'umbo
 	# éclats un peu en avant de la face (là où l'arme adverse frappe) : collés au bouclier, ils boucheraient la vue
 	var fx := point - (get_parent() as Node3D).global_transform.basis.z * 0.35
+	var fx_metal := _fx_rebord(point)   # étincelles du cerclage et de l'umbo : au-dessus du bord, là où on les voit
 	var son := g.son_garde if g.son_garde != "" else "metal_blocage"
 	var vers := origine - joueur.global_position
 	vers.y = 0.0
@@ -1328,7 +1342,7 @@ func _defendre_bouclier(r: Dictionary, g: DonneesArme, origine: Vector3) -> void
 			RetourImpact.son(self, son, point, 4.0, 0.92)
 			RetourImpact.son(self, "parade_parfaite", point, -4.0, 0.8)
 			GerbePixels.emettre(self, fx, _vers_attaquant(fx, origine), "bois", 0.8)          # échardes
-			GerbePixels.emettre(self, fx, _vers_attaquant(fx, origine), "etincelles", 1.3)    # étincelles de l'umbo
+			GerbePixels.emettre(self, fx_metal, _vers_attaquant(fx_metal, origine), "etincelles", 2.0)    # étincelles de l'umbo
 			if RetourImpact.temps_actif():
 				Effets.arret_image(get_tree(), 0.06)
 			joueur.secousse = maxf(joueur.secousse, 0.2)
@@ -1338,6 +1352,7 @@ func _defendre_bouclier(r: Dictionary, g: DonneesArme, origine: Vector3) -> void
 			RetourImpact.son(self, son, point, 1.0)
 			RetourImpact.son(self, "metal_blocage", point, -10.0, 0.85)
 			GerbePixels.emettre(self, fx, _vers_attaquant(fx, origine), "bois", 0.6)
+			GerbePixels.emettre(self, fx_metal, _vers_attaquant(fx_metal, origine), "etincelles", 1.2)   # le fer du cerclage
 			joueur.secousse = maxf(joueur.secousse, 0.28)
 			joueur._recul = recul
 		"brisee":
@@ -1345,6 +1360,7 @@ func _defendre_bouclier(r: Dictionary, g: DonneesArme, origine: Vector3) -> void
 			RetourImpact.son(self, son, point, 5.0, 0.75)
 			RetourImpact.son(self, "metal_blocage", point, -2.0, 0.7)
 			GerbePixels.emettre(self, fx, _vers_attaquant(fx, origine), "bois", 1.1)
+			GerbePixels.emettre(self, fx_metal, _vers_attaquant(fx_metal, origine), "etincelles", 1.6)
 			joueur.secousse = maxf(joueur.secousse, 0.55)
 			joueur._recul = recul * 1.6
 			_pose_fin = _pose_courante
