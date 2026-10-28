@@ -191,6 +191,19 @@ godot --path . res://scenes/galerie_magie.tscn -- --lieu=crypte|dehors --vue=fps
 | Élevé, plafond 4 500 (retenu) | 8,96 ms (+0,1) | 3,55 ms (+1,6 : fenêtre 2,86 + couche 0,69) | 4 500 |
 | Élevé, plafond 6 000 (écarté) | 13,74 ms (+3,6, moyenne de 4) | 4,10 ms (+1,8) | ~5 600 |
 
+### Jet de flammes en spray (2026-10-28, `galerie --perf=jet`, crypte, vue FPS, 3 × 240 images, PC chargé)
+
+Retour utilisateur : jet « transparent », « un rayon » → vagues de flamme couvrantes qui sortent de la paume.
+`magie_flux` : `bouffees` > 0 (feu : 0,6) = le corps est une suite d'ovales transportés (taille, retard, dérive
+latérale, température propres), fondus dans un cœur plein près de la paume ; feu couvrant (alpha 0,55-0,95), lumière
+seulement sur les parties chaudes ; cône feu evase 0,8, r0 0,045, r1 ×2,4 (≤ 1,3 m ; double : ×1,08). Glace essayée
+avec les bouffées : jet plus court et en deux paquets → laissée telle quelle. Particules inchangées (2 020).
+
+| | GPU sans effet | GPU avec le jet (3 mesures) | Coût du jet |
+|---|---|---|---|
+| Avant (4cb99b6) | 2,38 ms | 2,98 / 2,96 / 3,32 ms | +0,71 ms (moyenne) |
+| Après (spray) | 2,28 ms | 3,06 / 3,11 / 3,21 ms | +0,85 ms (moyenne) → +0,14 ms |
+
 ## Test
 
 Commande :
