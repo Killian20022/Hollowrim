@@ -678,12 +678,15 @@ static func _c8_voute_libre(k: DonjonKit, m: Dictionary, v2: Dictionary, p: Vect
 			return false
 	return true
 
-## Le rectangle orienté (centre, demi-côtés, lacet) ne touche aucune boîte de collision du récit (estrades, socles, meubles) : centre,
-## coins et milieux des côtés.
-static func _c8_hors_boites(k: DonjonKit, c: Vector3, demi: Vector2, lac: float) -> bool:
+## Le rectangle orienté (centre, demi-côtés, lacet) reste devant les panneaux des murs et ne touche aucune boîte de collision du récit
+## (estrades, socles, meubles) : centre, coins et milieux des côtés.
+static func _c8_hors_boites(k: DonjonKit, m: Dictionary, c: Vector3, demi: Vector2, lac: float) -> bool:
 	var b := Basis(Vector3.UP, lac)
+	var dim: Vector2 = m["dim"]
 	for u: Vector2 in [Vector2.ZERO, Vector2(1, 1), Vector2(1, -1), Vector2(-1, 1), Vector2(-1, -1), Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
 		var q := c + b * Vector3(u.x * demi.x, 0, u.y * demi.y)
+		if absf(q.x) > dim.x * 0.5 - 0.3 - 0.36 or absf(q.z) > dim.y * 0.5 - 0.3 - 0.36:
+			return false      # devant les panneaux de maçonnerie (plan du mur + 0,34 m), comme le semis
 		for bo: Rect2 in k._v2_boites:
 			if bo.grow(0.06).has_point(Vector2(q.x, q.z)):
 				return false
@@ -743,33 +746,37 @@ static func c8(k: DonjonKit, m: Dictionary, v2: Dictionary) -> void:
 	if not CrypteDecor.modele_existe("racine_sol_a"):
 		k.v2_stats.get(m["id"], {})["c8"] = st
 		return
-	# --- racines au sol : au pied des éboulis (côté pièce), puis 1 à 2 près des murs
-	var departs: Array = []
+	# --- racines au sol : d'abord au pied des éboulis (côté pièce), puis dans la bande des murs (0,7 à 2,6 m), couchées le long du mur ;
+	# chaque essai doit tenir entier : hors passages et accroches, hors emprises et boîtes du récit, devant les panneaux
+	var but := clampi(2 + int(aire / 80.0), 2, 5)
+	var essais: Array = []      # [point de départ, lacet visé (vers +z du module), écart de lacet permis]
 	for s: Dictionary in v2["eboulis"]:
-		if r.randf() < 0.85:
-			var pe := k.lw(s["pos"])
-			var vers := -Vector3(pe.x, 0, pe.z).normalized()
-			departs.append(Vector3(pe.x, y, pe.z) + vers.rotated(Vector3.UP, r.randf_range(-0.9, 0.9)) * r.randf_range(0.85, 1.1))
-	for i in r.randi_range(1, 2) + (1 if aire > 120.0 else 0):
+		var pe := k.lw(s["pos"])
+		var vers := -Vector3(pe.x, 0, pe.z).normalized()
+		for j in 3:
+			essais.append([Vector3(pe.x, y, pe.z) + vers.rotated(Vector3.UP, r.randf_range(-0.9, 0.9)) * r.randf_range(0.85, 1.1), atan2(vers.x, vers.z), 1.4])
+	for i in 50:
 		var c: String = ["N", "S", "O", "E"][r.randi_range(0, 3)]
 		var pm := k.plan_mur(m, c)
 		var Lw := dim.x if pm["horiz"] else dim.y
-		departs.append(k.pt_mur(m, c, r.randf_range(-Lw * 0.5 + 1.0, Lw * 0.5 - 1.0), y, r.randf_range(0.75, 1.0)))
-	for p0: Vector3 in departs:
+		var v: Vector3 = pm["vers"]
+		var le := atan2(v.x, v.z) + (PI * 0.5 if r.randf() < 0.5 else -PI * 0.5)      # le long du mur
+		essais.append([k.pt_mur(m, c, r.randf_range(-Lw * 0.5 + 0.8, Lw * 0.5 - 0.8), y, r.randf_range(0.7, 2.6)), le, 0.5])
+	for dp: Array in essais:
+		if int(st["racines_sol"]) >= but:
+			break
+		var p0: Vector3 = dp[0]
 		var mod: String = "racine_sol_%s" % "abc"[r.randi_range(0, 2)]
 		var bm := CrypteDecor.bornes_modele(mod)
 		var demi := Vector2(bm.size.x, bm.size.z) * 0.5 + Vector2(0.03, 0.03)
-		var vers_c := atan2(-p0.x, -p0.z)      # vers le centre de la pièce (le module part vers +z)
-		for essai in 8:
-			var lac := vers_c + r.randf_range(-1.2, 1.2)
-			var cb := p0 + Basis(Vector3.UP, lac) * Vector3(bm.get_center().x, 0.0, bm.get_center().z)
-			if not k.libre(m, cb, maxf(demi.x, demi.y) * 0.6, 0.15) or not d.rect_libre(cb, demi, lac, 0.04):
-				continue
-			if not _libre(k, m, cb, 0.2, 0.15) or not _c8_hors_boites(k, cb, demi, lac):
-				continue
-			d.modele(mod, Vector3(p0.x, y, p0.z), lac)
-			st["racines_sol"] += 1
-			break
+		var lac: float = float(dp[1]) + r.randf_range(-float(dp[2]), float(dp[2]))
+		var cb := p0 + Basis(Vector3.UP, lac) * Vector3(bm.get_center().x, 0.0, bm.get_center().z)
+		if not k.libre(m, cb, 0.3, 0.1) or not k.libre(m, p0, 0.2, 0.05) or not d.rect_libre(cb, demi, lac, 0.04):
+			continue
+		if not _libre(k, m, p0, 0.2, 0.05) or not _c8_hors_boites(k, m, cb, demi, lac):
+			continue
+		d.modele(mod, Vector3(p0.x, y, p0.z), lac)
+		st["racines_sol"] += 1
 	# --- racines de voûte : près des murs (hors arches, lustres, suspendus), bas des radicelles >= C8_DEGAGE
 	if h >= C8_DEGAGE + 1.4:
 		for i in r.randi_range(2, 3):

@@ -1,4 +1,5 @@
 # Lot C8 (chaînes, cages, herse, racines) : mêmes cadrages avant / après
+herse_bas crypte 0,-31.2,0,-22 ouvre=s1,s2,s3,secret
 herse crypte 0,-29.6,0,0 ouvre=s1,s2,s3,secret
 herse_pres crypte 0.6,-31.6,-15,3 ouvre=s1,s2,s3,secret
 herse_dos crypte 0,-38.5,180,2 ouvre=s1,s2,s3,secret

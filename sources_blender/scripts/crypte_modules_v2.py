@@ -2369,13 +2369,13 @@ def herse_couloir(nom, graine):
     """Herse du couloir (repère du nœud mobile de tertre.gd : x en travers, y haut, z = 0 plan de la grille) : mêmes 7 barreaux
     (x = -1,35 + 0,45 i, haut 3,1 m) et 3 traverses (y = 0,6 / 1,8 / 2,8) que les anciennes boîtes, mais forgés : barreaux carrés posés
     en losange (une arête vive vers la torche) terminés par une POINTE à 4 pans, traverses doubles (devant et derrière les barreaux)
-    rivetées à chaque croisement, chapeau haut. Fer sombre (ton 0,36-0,5 : le jeu le rend en fer MAT, voir CrypteDecor.MAT_BOITE)."""
+    rivetées à chaque croisement, chapeau haut. Fer sombre (ton 0,46-0,62, rivets 0,8 : le jeu le rend en fer MAT, voir CrypteDecor.MAT_BOITE)."""
     M = Module(nom, graine)
     rg = M.rg
     e = 0.04                                   # demi-côté des barreaux (anciennes boîtes : 0,08 de côté)
     for i in range(7):
         x = -1.35 + i * 0.45
-        ton = rg.uniform(0.38, 0.48)
+        ton = rg.uniform(0.52, 0.62)
         dx = rg.uniform(-0.006, 0.006)
         M.boite((e * 2, 2.88, e * 2), Vector((x + dx, 0.24 + 1.44, 0)), "fer", yaw=math.pi / 4, bev=0.0, jit=0.003, ton=ton)
         # pointe : base carrée en losange à 0,24 m, sommet à 1 cm du sol ; collerette forgée au-dessus
@@ -2384,12 +2384,12 @@ def herse_couloir(nom, graine):
     for y in (0.6, 1.8, 2.8):
         for zf in (-1.0, 1.0):
             M.boite((3.04, 0.11, 0.026), Vector((0, y + rg.uniform(-0.004, 0.004), zf * (e * 1.42 + 0.013))), "fer", bev=0.0, jit=0.003,
-                    ton=rg.uniform(0.4, 0.5))
+                    ton=rg.uniform(0.54, 0.62))
             for i in range(7):                 # rivets : têtes carrées à chaque croisement, devant et derrière
-                M.boite((0.04, 0.04, 0.018), Vector((-1.35 + i * 0.45, y, zf * (e * 1.42 + 0.035))), "fer", bev=0.0, jit=0.002, ton=0.58)
+                M.boite((0.04, 0.04, 0.018), Vector((-1.35 + i * 0.45, y, zf * (e * 1.42 + 0.035))), "fer", bev=0.0, jit=0.002, ton=0.8)
         for xb in (-1.52, 1.52):               # bouts des traverses : platines repliées
-            M.boite((0.04, 0.15, e * 2.84 + 0.06), Vector((xb, y, 0)), "fer", bev=0.0, jit=0.002, ton=0.42)
-    M.boite((3.1, 0.09, 0.16), Vector((0, 3.08, 0)), "fer", bev=0.0, jit=0.003, ton=0.36)     # chapeau (sous le plafond de 3,2 m)
+            M.boite((0.04, 0.15, e * 2.84 + 0.06), Vector((xb, y, 0)), "fer", bev=0.0, jit=0.002, ton=0.5)
+    M.boite((3.1, 0.09, 0.16), Vector((0, 3.08, 0)), "fer", bev=0.0, jit=0.003, ton=0.46)     # chapeau (sous le plafond de 3,2 m)
     return M
 
 
@@ -2472,7 +2472,7 @@ def racine_sol(nom, graine, longueur, branches):
     rt = lambda t, r=r0: r + (r * 0.3 - r) * t ** 0.8
     haut = lambda t: rt(t) * 1.1 - 0.03 + 0.01 * math.sin(math.pi * t * 3.0) ** 2 - (0.004 if t < 0.02 else 0.0)
     pr = _sinueux(rg, Vector((0, 0, 0)), Vector((rg.uniform(-0.25, 0.25), 0, 1)), longueur, 7, longueur * 0.12, haut)
-    _tube(M, pr, r0, r0 * 0.3, "bois", rg.uniform(0.42, 0.55), cap0=True)
+    _tube(M, pr, r0, r0 * 0.3, "bois", rg.uniform(0.62, 0.76), cap0=True)
     for b in range(branches):
         j = rg.randint(2, 5)
         base = pr[j]
@@ -2482,7 +2482,7 @@ def racine_sol(nom, graine, longueur, branches):
         rb = r0 * rg.uniform(0.45, 0.6)
         lb = longueur * rg.uniform(0.3, 0.55)
         pb = _sinueux(rg, Vector((base.x, 0, base.z)), d, lb, 4, lb * 0.15, lambda t, r=rb: (r + (r * 0.3 - r) * t ** 0.8) * 1.1 - 0.025)
-        _tube(M, pb, rb, rb * 0.3, "bois", rg.uniform(0.4, 0.52), cap0=True)
+        _tube(M, pb, rb, rb * 0.3, "bois", rg.uniform(0.6, 0.72), cap0=True)
     for _ in range(rg.randint(4, 6)):          # lichen le long de la racine, à côté (pas dessus)
         q = pr[rg.randint(1, len(pr) - 2)]
         a = rg.uniform(0, math.tau)
@@ -2491,36 +2491,40 @@ def racine_sol(nom, graine, longueur, branches):
 
 
 def racine_voute(nom, graine, chute):
-    """Racines qui percent la voûte (origine = plafond, y = 0) : une souche courte sort de la fissure (anneau de lichen autour), puis
-    3 à 5 radicelles pendent, de 30 % à 100 % de `chute`, en se tordant ; pointes fines. Tubes à 5 pans."""
+    """Racines qui percent la voûte le long d'une FISSURE (origine = plafond, y = 0 ; fissure de 0,9 à 1,3 m le long de x) : une racine
+    maîtresse court sous la voûte en suivant la fissure, 5 à 7 radicelles en tombent presque droit (30 % à 100 % de `chute`, légère
+    vrille), lichen gris-vert collé à la voûte au bord de la fissure. Tubes à 5 pans (4 pour les plus fines)."""
     M = Module(nom, graine)
     rg = M.rg
-    r0 = rg.uniform(0.08, 0.1)
-    souche = [Vector((0, 0.02, 0)), Vector((0.02, -0.08, 0.01)), Vector((0.0, -0.16, -0.02))]
-    _tube(M, souche, r0, r0 * 0.8, "bois", 0.5, pointe=False)
-    for k in range(rg.randint(4, 6)):
-        a = math.tau * k / 5 + rg.uniform(-0.5, 0.5)
+    L = rg.uniform(0.9, 1.3)
+    r0 = rg.uniform(0.06, 0.08)
+    ph = rg.uniform(0, math.tau)
+    fis = [Vector((-L * 0.5 + L * j / 6.0, -r0 * 0.7, 0.07 * math.sin(ph + j * 1.1))) for j in range(7)]
+    _tube(M, fis, r0, r0 * 0.45, "bois", 0.72, pointe=True)
+    n = rg.randint(5, 7)
+    for k in range(n):
+        f = (k + rg.uniform(0.2, 0.8)) / n
+        j = min(5, int(f * 6))
+        base = fis[j].lerp(fis[j + 1], f * 6 - j) + Vector((0, -r0 * 0.3, 0))
+        Lk = chute * (1.0 if k == n // 2 else rg.uniform(0.3, 0.85))
+        a = rg.uniform(0, math.tau)
         d = Vector((math.cos(a), 0, math.sin(a)))
-        L = chute * (1.0 if k == 0 else rg.uniform(0.3, 0.85))
-        ph = rg.uniform(0, math.tau)
         pts = []
-        for j in range(6):
-            t = j / 5
-            q = Vector((0, -0.12 - L * t, 0)) + d * (0.04 + 0.22 * math.sin(min(1.0, t * 1.6) * math.pi * 0.5)) \
-                + Vector((math.cos(ph + t * 4.0), 0, math.sin(ph + t * 4.0))) * 0.05 * t
-            pts.append(q)
-        _tube(M, pts, r0 * rg.uniform(0.4, 0.6), 0.006, "bois", rg.uniform(0.42, 0.55), cotes=5 if k < 2 else 4)
-    for k in range(5):                         # lichen collé à la voûte autour de la fissure (dessous, face vers le bas)
-        a = math.tau * k / 5 + rg.uniform(-0.3, 0.3)
-        c = Vector((math.cos(a), 0, math.sin(a))) * rg.uniform(0.12, 0.28)
-        rr = rg.uniform(0.05, 0.09)
+        for i in range(6):
+            t = i / 5
+            pts.append(base + Vector((0, -Lk * t, 0)) + d * (0.06 * math.sin(t * math.pi * 0.8)) + Vector((math.cos(ph + t * 3.0), 0, math.sin(ph + t * 3.0))) * 0.025 * t)
+        _tube(M, pts, r0 * rg.uniform(0.4, 0.6), 0.008, "bois", rg.uniform(0.66, 0.8), cotes=5 if k % 2 == 0 else 4)
+    for k in range(6):                         # lichen collé à la voûte de part et d'autre de la fissure (face vers le bas)
+        q = fis[rg.randint(0, 6)]
+        c = Vector((q.x + rg.uniform(-0.1, 0.1), 0, q.z + rg.choice((-1, 1)) * rg.uniform(0.1, 0.2)))
+        rr = rg.uniform(0.06, 0.11)
         bord = [c + Vector((math.cos(math.tau * j / 6) * rr * rg.uniform(0.7, 1.3), -0.004, math.sin(math.tau * j / 6) * rr * rg.uniform(0.7, 1.3))) for j in range(6)]
         ctr = c + Vector((0, -0.007, 0))
         for j in range(6):
             p0, p1 = bord[j], bord[(j + 1) % 6]
             if (p1 - p0).cross(ctr - p0).y > 0:
                 p0, p1 = p1, p0
-            M.tris.append(("lichen", (p0.copy(), p1.copy(), ctr.copy()), 0.85))
+            M.tris.append(("lichen", (p0.copy(), p1.copy(), ctr.copy()), 1.0))
     return M
 
 

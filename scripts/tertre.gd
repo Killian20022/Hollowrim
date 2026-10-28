@@ -772,9 +772,9 @@ func _couloir_herse() -> void:
 ## barreaux en losange à pointes, traverses doubles rivetées, chapeau), MÊMES barreaux et traverses que les anciennes boîtes. C'est une
 ## pièce MOBILE (le levier la lève) : un maillage propre sous le nœud `herse`, pas les tampons fusionnés du décor. Fer MAT (MAT_BOITE :
 ## le fer brillant de C1 sur la herse se lisait « en bois ») et ton de sommet sombre cuit dans le module. Collision, levier, son,
-## sauvegarde : inchangés. Faux si le module manque ou avec `-- --crypte-v1`.
+## sauvegarde : inchangés. Faux si le module manque ou avec `-- --crypte-v1` / `-- --sans-c8` (captures avant / après).
 func _herse_module(parent: Node3D) -> bool:
-	if not CrypteV2.tertre_actif() or not CrypteDecor.modele_existe("herse_couloir"):
+	if not CrypteV2.tertre_actif() or not CrypteDecor.modele_existe("herse_couloir") or OS.get_cmdline_user_args().has("--sans-c8"):
 		return false
 	var mats: Array = CrypteDecor._modeles_de["herse_couloir"]
 	if not mats.has("fer"):
