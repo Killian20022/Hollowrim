@@ -48,6 +48,7 @@ const TOUCHES := [
 	["F5 / F9", "sauvegarder / charger"],
 	["F11, Alt+Entrée", "plein écran"],
 	["Échap", "menu pause"],
+	["F1", "afficher / masquer l'aide des touches"],
 ]
 
 func _ready() -> void:

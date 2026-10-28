@@ -77,6 +77,7 @@ TESTS=(
 	"test_sons_magie|--nouvelle"   # sons de la magie (SonsMagie) : .wav PCM préchargés, chaque sort a ses sons, pools sans allocation, mage ennemi spatialisé, coût mesuré (docs/MAGIE.md)
 	"test_hud_combat|--nouvelle"   # HUD de combat : vie/mana/endurance, mains, recharges, double, statuts, raccourcis, icônes
 	"test_retour_combat|--nouvelle --test"   # lot L6 : nom de l'ennemi, option chiffres (coupée par défaut, persistée), gerbes de pixels et os sans allocation par coup
+	"test_hud_l7|--nouvelle"   # lot L7 : police des titres (Jacquard, OFL), cadre ornementé, annonces centrées, lieux découverts, aide des touches (60 s / F1), invite + nom de l'objet
 	"test_inventaire_mains|--nouvelle"   # écran d'inventaire (I) : équiper G / D, refus expliqués, deux mains, raccourcis 1-0 assignés, sauvegarde
 	"test_butin|--nouvelle"   # tables de butin à graine fixe (data/butin/) : déterminisme, raretés, pillé sauvegardé ; potions → stats, catégorie Potions, raccourci 1-0 (docs/BUTIN.md)
 	"test_defense|--nouvelle"   # défense phase 3 : garde orientée, garde brisée, anti-spam, parade parfaite (vrai draugr), contre, finisher joueur

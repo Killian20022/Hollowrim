@@ -1,6 +1,6 @@
 # Licences des ressources externes
 
-Toutes en CC0 1.0 (domaine public, usage commercial libre, aucune attribution exigée), sauf les deux polices du menu principal (SIL OFL 1.1, voir plus bas). Crédits donnés par courtoisie.
+Toutes en CC0 1.0 (domaine public, usage commercial libre, aucune attribution exigée), sauf les polices du menu principal et des titres du HUD (SIL OFL 1.1, voir plus bas). Crédits donnés par courtoisie.
 
 | Dossier | Source | Auteur | Licence |
 |---|---|---|---|
@@ -38,12 +38,13 @@ Toutes en CC0 1.0 (domaine public, usage commercial libre, aucune attribution ex
 | audio/menu/ui_validation.ogg | Interface Sounds click_002 (Kenney) + health_restore (opengameart.org/content/magic-words-healing-sound-effect) | Kenney ; spring-spring | CC0 |
 | audio/menu/ui_transition.ogg | Weird whooshes, whoosh_12 (opengameart.org/content/wierd-whooshes), licence CC0 retenue | Boss Level Audio | CC0 |
 
-## Polices du menu principal (SIL Open Font License 1.1, PAS du CC0 : usage, modification et redistribution libres avec le jeu, vente seule interdite)
+## Polices du menu principal et des titres du HUD (SIL Open Font License 1.1, PAS du CC0 : usage, modification et redistribution libres avec le jeu, vente seule interdite)
 
 | Fichier | Police | Auteurs | Licence |
 |---|---|---|---|
 | polices/Alegreya-Variable.ttf | Alegreya (github.com/huertatipografica/Alegreya) | Copyright 2011 The Alegreya Project Authors | SIL OFL 1.1 (polices/OFL_Alegreya.txt) |
 | polices/Cinzel-Variable.ttf | Cinzel (github.com/NDISCOVER/Cinzel) | Copyright 2020 The Cinzel Project Authors | SIL OFL 1.1 (polices/OFL_Cinzel.txt) |
+| polices/Jacquard12-Regular.ttf, polices/Jacquard24-Regular.ttf | Jacquard 12 et Jacquard 24 (github.com/scfried/soft-type-jacquard, via github.com/google/fonts/tree/main/ofl/jacquard12 et ofl/jacquard24 ; police des titres du HUD, lot L7) | Copyright 2023 The Soft Type Project Authors (Sarah Cadigan-Fried) | SIL OFL 1.1, sans nom réservé (polices/OFL_Jacquard.txt ; vérifié le 2026-10-28 : METADATA.pb `license: "OFL"`, fichiers non modifiés) |
 
 Texte de la licence : https://openfontlicense.org (copie intégrale dans assets/polices/OFL_*.txt).
 Fond de l'écran titre (assets/ui/titre_reference.jpg) : image de référence fournie pour le projet (ref_menu/reference.png).
