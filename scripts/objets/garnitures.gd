@@ -26,7 +26,7 @@ static func _tirage(dcr: CrypteDecor, pos: Vector3, n: int, decal := 0) -> int:
 	return (absi(floori(w.x * 2.9) * 19349663 ^ floori(w.z * 2.9) * 73856093 ^ floori(w.y * 2.0) * 83492791) + decal) % n
 
 static func _actif(dcr: CrypteDecor) -> bool:
-	return dcr.est_crypte and not dcr.muet and CrypteDecor.modele_existe("garniture_table_a")
+	return dcr.est_crypte and not dcr.muet and CrypteDecor.modele_existe("garniture_autel_a")
 
 static func _poser(dcr: CrypteDecor, nom: String, pos: Vector3, lacet: float, ech := Vector3.ONE) -> void:
 	dcr.modele(nom, pos, lacet, ech, {}, false)

@@ -198,10 +198,16 @@ static func grappe_ici(dcr: CrypteDecor, pos: Vector3) -> int:
 ## Un disque de rayon r en `pos` tient-il : dans le dessus du meuble qui le porte (s'il y en a un), hors des autres emprises et des
 ## objets des garnitures ?
 static func _tient(dcr: CrypteDecor, pos: Vector3, r: float) -> bool:
-	for e: Array in dcr.emprises:      # bougies seules comprises : pas de grappe collée à une bougie déjà posée
+	for e: Array in dcr.emprises:
 		var c: Vector3 = e[0]
+		if e[4] == "bougie":      # bougie seule déjà posée (début d'un trio resté simple) : pas de grappe qui l'avale à moitié
+			if absf(c.y - pos.y) < 0.1 and Vector2(c.x - pos.x, c.z - pos.z).length() < r + RAYON_TRIO:
+				return false
+			continue
 		var dessus := c.y + float(e[3])
-		if pos.y >= dessus - 0.08 and pos.y <= dessus + 0.3:       # posé DESSUS : la flaque reste sur le meuble
+		if float(e[3]) < 0.1 and pos.y >= dessus - 0.08:
+			continue      # objet plat dessous (flaque, tapis, dalles) : la cire peut le recouvrir
+		if pos.y >= dessus - 0.2 and pos.y <= dessus + 0.3:       # posé DESSUS (emprise un peu plus haute que le plateau : autels) : la flaque reste sur le meuble
 			var dm: Vector2 = e[1]
 			var q := Basis(Vector3.UP, -float(e[2])) * Vector3(pos.x - c.x, 0.0, pos.z - c.z)
 			if absf(q.x) <= dm.x and absf(q.z) <= dm.y and (dm.x - absf(q.x) < r or dm.y - absf(q.z) < r):
