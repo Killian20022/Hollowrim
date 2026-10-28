@@ -107,6 +107,10 @@ var _eclaire_n := 0
 const ECLAIRE_IMAGES := 4
 var _chauffe: Foyer = null
 var _chauffe_n := 0
+## (2026-10-28) préchauffe à blanc : matériaux de coque passés un à un (feu, puis chaque école B), chacun pendant
+## que les lumières montent de 1 à 4 (variantes « voile/coque × nombre de lumières » du moteur Mobile)
+var _chauffe_mats: Array = []
+const CHAUFFE_IMAGES := ECLAIRE_IMAGES + 10   # + le temps que les lumières de la phase d'avant (0,12 s) s'éteignent
 var _prets := {}                       # id des cibles déjà échantillonnées (plus de recherche de maillages)
 var _surfaces := {}                    # id -> SurfaceCorps préparée d'avance (le premier impact ne la construit pas)
 var _attente := 0.0
@@ -157,6 +161,7 @@ class Foyer:
 	var nb_segs_prec := 0
 	var avec_coque := true             # faux : école sans coque (les copies skinnées ne sont pas affichées)
 	var u := {}                        # uniformes communs : dernière valeur (posée sur les émetteurs qui émettent)
+	var xf_repousse := Transform3D()      # dernière transformée posée sur le répulseur
 	var ec_ecrit: Array = []           # derniers canaux des écoles B écrits (pas de réécriture s'ils n'ont pas changé)
 	var d: Dictionary = {}             # état du comportement
 	var params := PackedFloat32Array() # paramètres écrits à la suite des points (ImpactCorps.regler_*)
@@ -762,9 +767,16 @@ func repousser(f: Foyer, k: float) -> void:
 			ra.strength = 0.0
 		return
 	var s := f.surface
-	ra.visible = true
-	ra.global_transform = Transform3D(Basis.from_scale(s.masse_demi * 1.35), f.origine() + s.masse_centre)
-	ra.strength = -FORCE_REPOUSSE * k
+	if not ra.visible:
+		ra.visible = true
+	# (2026-10-28, perf) transformée et force posées seulement si elles changent (poser global_transform propage)
+	var xf := Transform3D(Basis.from_scale((s.masse_demi * 1.35).snappedf(0.01)), (f.origine() + s.masse_centre).snappedf(0.01))
+	if not xf.is_equal_approx(f.xf_repousse):
+		f.xf_repousse = xf
+		ra.global_transform = xf
+	var fo := snappedf(-FORCE_REPOUSSE * k, 0.05)
+	if ra.strength != fo:
+		ra.strength = fo
 
 ## Part active d'un émetteur (0 = éteint) ; la réserve dans le budget de GestionMagie suit, plafond respecté.
 func activer(e: Emetteur, ratio: float) -> void:
@@ -1126,6 +1138,7 @@ func _maj() -> void:
 		_t_sections[2] += Time.get_ticks_usec() - ta
 		if trace:
 			_t_ecoles[f.ecole] = float(_t_ecoles.get(f.ecole, 0.0)) + Time.get_ticks_usec() - ta
+			_t_ecoles[f.ecole + " n"] = float(_t_ecoles.get(f.ecole + " n", 0.0)) + 1000.0
 		if not vivant:
 			liberer(f)
 			continue
@@ -1210,7 +1223,10 @@ func _preparer(dt: float) -> void:
 		if gm.couche != null:
 			gm.couche.demander()
 		if _chauffe_n <= 0:
-			_finir_chauffe()
+			if _chauffe_mats.is_empty() or not is_instance_valid(_chauffe.cible) or not gm._jets.is_empty() or not gm._projectiles.is_empty():
+				_finir_chauffe()
+			else:
+				_chauffe_phase()
 	if _eclaire != null:
 		_eclairer_image()
 	_scan -= dt
@@ -1308,11 +1324,12 @@ func _chauffer_suivant() -> void:
 		for cle in _cles_format(c):
 			_formats_chauds[cle] = true
 		x.cible = c
+		x.avec_coque = true   # (électricité : pas de coque, mais la préchauffe passe toutes les coques) ; rétabli à la fin
 		_voiler(x)   # voile et coques posés à intensité nulle (mc_feu = 0) : dessinés, donc pipelines compilés
 		_chauffe = x
-		_chauffe_n = 3
-		if gm.couche != null:
-			gm.couche.demander()
+		_chauffe_mats = [mat_coque] + mat_coques.values()
+		_a_eclairer.erase(c)   # ses lumières sont préchauffées avec le voile et chaque coque
+		_chauffe_phase()
 		if trace:
 			print("ImpactCorps : préchauffe à blanc sur %s (%d maillages)" % [(c as Node).name, x.voiles.size()])
 		return
@@ -1359,11 +1376,31 @@ func _eclairer_image() -> void:
 	if _eclaire_n >= ECLAIRE_IMAGES:
 		_eclaire = null
 
+## Phase suivante de la préchauffe à blanc : coques du corps sur le matériau suivant, lumières de 1 à 4.
+func _chauffe_phase() -> void:
+	var m: Material = _chauffe_mats.pop_front()
+	for c: MeshInstance3D in _chauffe.coques:
+		if c.material_override != m:
+			c.material_override = m
+	_chauffe_n = CHAUFFE_IMAGES
+	_eclaire = _chauffe.cible   # lumières : une de plus par image (_preparer), après l'extinction de celles de la phase d'avant
+	_eclaire_n = 0
+	if gm.couche != null:
+		gm.couche.demander()
+
 func _finir_chauffe() -> void:
 	if _chauffe == null:
 		return
+	_chauffe_mats.clear()
 	_devoiler(_chauffe)
 	_chauffe.cible = null
+	# matériau de coque et avec_coque de l'école du foyer rétablis (foyer jamais servi : école vide, coque du feu)
+	var mc: Variant = mat_coques.get(_chauffe.ecole)
+	_chauffe.avec_coque = _chauffe.ecole == "feu" or mc != null
+	var m: Material = mc if mc != null else mat_coque
+	for c: MeshInstance3D in _chauffe.coques:
+		if c.material_override != m:
+			c.material_override = m
 	_chauffe = null
 
 ## Surfaces préparées des cibles disparues : libérées.

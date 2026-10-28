@@ -180,13 +180,13 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 	# paramètres du foyer (jet + foyers de brûlure), écrits dans la texture des points
 	var couv := float(d.couv)
 	ic.regler_jet(f, d.dir, kj, d.imp, float(d.rayon) * (1.0 + COUV_RAYON * couv))
-	var fo: Array = []
+	var fo: Array = [Vector4.ZERO, Vector4.ZERO, Vector4.ZERO, Vector4.ZERO]
 	var ids: PackedInt32Array = d.foyers
-	for k in 4:
-		if k < ids.size() and ids[k] < s.nb and kb > 0.0:
-			fo.append(Vector4(s.pos[ids[k]].x, s.pos[ids[k]].y, s.pos[ids[k]].z, 0.15 + 0.04 * k))
-		else:
-			fo.append(Vector4.ZERO)
+	if kb > 0.0:
+		for k in mini(ids.size(), 4):
+			if ids[k] < s.nb:
+				var q := s.pos[ids[k]]
+				fo[k] = Vector4(q.x, q.y, q.z, 0.15 + 0.04 * k)
 	ic.regler_foyers(f, kb, minf(s.bas, 0.0) + 0.02, fo)
 	# parts actives des émetteurs
 	for k in f.em.size():
