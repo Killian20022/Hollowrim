@@ -113,6 +113,12 @@ static var trace := false
 static var lod := true
 var _t_sections := PackedFloat64Array([0, 0, 0, 0, 0, 0])
 var _t_n := 0
+var _t_ecoles := {}
+static var _prof := {}
+static func prof(nom: String, t0: int) -> void:
+	if not trace:
+		return
+	_prof[nom] = float(_prof.get(nom, 0.0)) + Time.get_ticks_usec() - t0                    # mise au point (trace) : temps du comportement par école
 
 class Emetteur:
 	var p: GPUParticles3D
@@ -121,6 +127,8 @@ class Emetteur:
 	var reglage: Dictionary = {}
 	var n := 0                         # particules (amount)
 	var ratio := 0.0                   # part active (amount_ratio)
+	var on := false                    # (perf) dernier `emitting` posé par ImpactCorps (évite de relire le nœud)
+	var ar := -1.0                     # (perf) dernier amount_ratio posé
 	var reserve := 0                   # réservé dans le budget de GestionMagie
 	var vie := 0.5
 
@@ -636,6 +644,7 @@ func liberer(f: Foyer, net := false) -> void:
 	var fin := gm.horloge
 	for e: Emetteur in f.em:
 		e.p.emitting = false
+		e.on = false
 		e.ratio = 0.0
 		fin = maxf(fin, gm.horloge + e.vie * 1.4)
 		if net:
@@ -731,7 +740,9 @@ func voile(f: Foyer, canal: String, valeur: Vector4) -> void:
 		var mi: Variant = f.voiles[k]
 		if is_instance_valid(mi):
 			(mi as MeshInstance3D).set_instance_shader_parameter(canal, valeur)
-			(f.coques[k] as MeshInstance3D).set_instance_shader_parameter(canal, valeur)
+			# (perf) la coque seulement si le foyer en a une (électricité : aucune ; avant, la coque cachée était réécrite)
+			if f.avec_coque:
+				(f.coques[k] as MeshInstance3D).set_instance_shader_parameter(canal, valeur)
 
 ## Répulseur du foyer : ellipsoïde du corps, force `k` (0 = éteint, 1 = sous le jet) : les particules du JET qui arrivent
 ## sur le corps sont poussées vers l'extérieur et glissent autour de la silhouette au lieu de s'entasser devant.
@@ -752,7 +763,8 @@ func activer(e: Emetteur, ratio: float) -> void:
 	ratio = clampf(ratio, 0.0, 1.0)
 	if e.n <= 0:
 		ratio = 0.0
-	if absf(ratio - e.ratio) < 0.01 and (ratio > 0.02) == e.p.emitting:
+	# (perf) état gardé dans l'émetteur (e.on, e.ar) : plus de lecture des propriétés du nœud à chaque appel
+	if absf(ratio - e.ratio) < 0.01 and (ratio > 0.02) == e.on:
 		return
 	var voulu := int(ceil(float(e.n) * ratio))
 	var cap := GestionMagie.MAX_PARTICULES_FIN if gm.fin_actif else GestionMagie.MAX_PARTICULES
@@ -764,16 +776,19 @@ func activer(e: Emetteur, ratio: float) -> void:
 	e.ratio = ratio
 	var on := ratio > 0.02
 	if on:
-		if absf(e.p.amount_ratio - ratio) > 0.02:
+		if absf(e.ar - ratio) > 0.02:
+			e.ar = ratio
 			e.p.amount_ratio = ratio
-		if not e.p.visible:
-			e.p.visible = not GestionMagie.masquer_particules
-		if not e.p.emitting:
+		if not e.on:
+			if not e.p.visible:
+				e.p.visible = not GestionMagie.masquer_particules
 			for k in e.u:
 				e.mat.set_shader_parameter(k, e.u[k])
 			e.p.emitting = true
-	elif e.p.emitting:
+			e.on = true
+	elif e.on:
 		e.p.emitting = false
+		e.on = false
 
 func _reserver(e: Emetteur, n: int) -> void:
 	if gm != null and is_instance_valid(gm):
@@ -819,7 +834,7 @@ func uniformes(f: Foyer, nom: String, valeur: Variant) -> void:
 				return
 			f.u[nom] = valeur
 			for e: Emetteur in f.em:
-				if e.p.emitting:
+				if e.on:
 					e.mat.set_shader_parameter(nom, valeur)
 
 ## Paramètres du jet pour les émetteurs du foyer (écrits dans la texture des points, pas d'uniforme) : direction du jet
@@ -967,7 +982,9 @@ func _ecrire_ecoles() -> void:
 		var a: Array = acc[id]
 		var w := 256.0 * roundf(clampf(float(a[3]), 0.0, 1.0) * 255.0) + roundf(clampf(float(a[4]), 0.0, 1.0) * 255.0)
 		var v := Vector4(float(a[0]), float(a[1]), float(a[2]), w)
-		var pt: Vector3 = a[5]
+		# (perf) point arrondi à 3 cm : sous le jet il bouge à chaque image, et chaque changement réécrit 2 paramètres
+		# d'instance sur chaque maillage voilé ET sa coque
+		var pt: Vector3 = (a[5] as Vector3).snappedf(0.03)
 		var vp := Vector4(pt.x, pt.y, pt.z, float(a[6]))
 		for f: Foyer in a[8]:
 			if f.ec_ecrit.size() == 2 and f.ec_ecrit[0] == v and (f.ec_ecrit[1] as Vector4).is_equal_approx(vp):
@@ -1073,9 +1090,12 @@ func _maj() -> void:
 			continue
 		ta = Time.get_ticks_usec()
 		_impulser(f)
+		prof("impulser", ta)
 		var vivant: bool = COMPORTEMENTS[f.ecole].maj(self, f, f.dt_acc)
 		f.dt_acc = 0.0
 		_t_sections[2] += Time.get_ticks_usec() - ta
+		if trace:
+			_t_ecoles[f.ecole] = float(_t_ecoles.get(f.ecole, 0.0)) + Time.get_ticks_usec() - ta
 		if not vivant:
 			liberer(f)
 			continue
@@ -1093,7 +1113,10 @@ func _maj() -> void:
 	var tb := Time.get_ticks_usec()
 	if actifs > 0:
 		_ecrire_ecoles()
+		prof("ecrire_ecoles", tb)
+		var _tl := Time.get_ticks_usec()
 		_temperer_lumieres()
+		prof("temperer", _tl)
 		if gm.couche != null:
 			gm.couche.demander()
 	_t_sections[4] += Time.get_ticks_usec() - tb
@@ -1104,6 +1127,12 @@ func _maj() -> void:
 	if trace and _t_n >= 240:
 		print("ImpactCorps : µs/image surface %.0f, placement %.0f, comportement %.0f, textures %.0f, lumières %.0f, préparation %.0f (%d foyers)" % [
 			_t_sections[0] / _t_n, _t_sections[1] / _t_n, _t_sections[2] / _t_n, _t_sections[3] / _t_n, _t_sections[4] / _t_n, _t_sections[5] / _t_n, actifs])
+		if not _t_ecoles.is_empty():
+			print("ImpactCorps : comportement par école (µs/image) ", _t_ecoles.keys().map(func(e: String) -> String: return "%s %.0f" % [e, float(_t_ecoles[e]) / _t_n]))
+			_t_ecoles.clear()
+		if not _prof.is_empty():
+			print("ImpactCorps : PROF ", _prof.keys().map(func(e: String) -> String: return "%s %.0f" % [e, float(_prof[e]) / _t_n]))
+			_prof.clear()
 		_t_sections = PackedFloat64Array([0, 0, 0, 0, 0, 0])
 		_t_n = 0
 
@@ -1286,8 +1315,11 @@ func _eclairer_image() -> void:
 		return
 	var cam := get_viewport().get_camera_3d()
 	var c := _eclaire.global_position + Vector3.UP * 1.1
-	var vers := (cam.global_position - c).normalized() if cam != null else Vector3.BACK
-	gm.lumiere("chauffe_lum%d" % _eclaire_n, c + vers * (0.6 * _eclaire_n), GestionMagie.LUMIERE.feu, 0.002, 5.0, 0.01, 0.12)
+	# (2026-10-28) du corps jusqu'aux mains du lanceur (la 4e à 0,5 m de la caméra) : les lumières des sorts touchent aussi
+	# ses bras, son arme et le sol entre eux (avant : au plus 1,8 m devant le corps)
+	var vers := cam.global_position - c if cam != null else Vector3.BACK * 2.0
+	var pas := maxf(vers.length() - 0.5, 0.6) / float(ECLAIRE_IMAGES - 1)
+	gm.lumiere("chauffe_lum%d" % _eclaire_n, c + vers.normalized() * (pas * _eclaire_n), GestionMagie.LUMIERE.feu, 0.002, 5.0, 0.01, 0.12)
 	if gm.couche != null:
 		gm.couche.demander()
 	if trace and _eclaire_n == 0:
@@ -1370,6 +1402,8 @@ func _vitrine(v: Node3D) -> void:
 		vd.name = "CorpsVitrine"
 		v.add_child(vd)
 		vd.position = Vector3(0.1, -0.3, -0.6)   # dans le champ des caméras de la préchauffe (PrechauffeRendu, CoucheMagie.amorcer)
+		# la vitrine n'est pas toujours dans l'arbre à cet instant (préchauffe du combat) : position locale, pas global_position
+		var vd_pos := vd.global_position if vd.is_inside_tree() else (v.position + vd.position)
 		var nc := 0
 		# (la vitrine n'est pas encore dans l'arbre : pas de SurfaceCorps.maillages, qui exige is_visible_in_tree)
 		for n in vd.find_children("*", "MeshInstance3D", true, false):
@@ -1378,9 +1412,9 @@ func _vitrine(v: Node3D) -> void:
 				continue
 			if mi.material_overlay == null:
 				mi.material_overlay = mat_voile
-				mi.set_instance_shader_parameter("mc_feu", Vector4(vd.global_position.x, 1.0, vd.global_position.z, 1.0))
+				mi.set_instance_shader_parameter("mc_feu", Vector4(vd_pos.x, 1.0, vd_pos.z, 1.0))
 				mi.set_instance_shader_parameter("mc_ecoles", Vector4(0.6, 0.6, 0.6, 256.0 * 128.0 + 128.0))
-				mi.set_instance_shader_parameter("mc_pt", Vector4(vd.global_position.x, 1.0, vd.global_position.z, 2.0))
+				mi.set_instance_shader_parameter("mc_pt", Vector4(vd_pos.x, 1.0, vd_pos.z, 2.0))
 			var sq := mi.get_node_or_null(mi.skeleton) as Skeleton3D if mi.skin != null else null
 			for m: Material in [mat_coque] + mat_coques.values():
 				var c := MeshInstance3D.new()
@@ -1394,7 +1428,7 @@ func _vitrine(v: Node3D) -> void:
 					c.skeleton = c.get_path_to(sq)
 				c.set_instance_shader_parameter("mc_feu", Vector4(0.0, 1.0, 0.0, 1.0))
 				c.set_instance_shader_parameter("mc_ecoles", Vector4(1.0, 1.0, 1.0, 0.0))
-				c.set_instance_shader_parameter("mc_pt", Vector4(vd.global_position.x, 1.0, vd.global_position.z, 2.0))
+				c.set_instance_shader_parameter("mc_pt", Vector4(vd_pos.x, 1.0, vd_pos.z, 2.0))
 			nc += 1
 			if nc >= 8:
 				break

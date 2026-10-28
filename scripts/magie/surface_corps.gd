@@ -52,6 +52,7 @@ var _g_os := PackedInt32Array()
 var _g_o: Array[PackedVector3Array] = []
 var _g_n: Array[PackedVector3Array] = []
 var _g_pose: Array[Transform3D] = []
+var _g_xf: Array[Transform3D] = []      # transformée de chaque groupe à la dernière actualiser() (normales seules)
 var pos := PackedVector3Array()
 var nor := PackedVector3Array()
 ## Os (index du squelette, -1 pour une pièce rigide) de chaque point, dans l'ordre de pos.
@@ -403,6 +404,10 @@ func repli() -> bool:
 func actualiser(origine: Vector3, normales := true) -> void:
 	var img := Engine.get_process_frames()
 	if img == _image and origine == _origine:
+		# (2026-10-28, perf) déjà refaite cette image sans les normales (point d'accroche d'un jet, qui passe avant
+		# ImpactCorps) : on ajoute seulement les normales, avec les transformées de l'image
+		if normales and image_nor != img and _g_xf.size() == _g_os.size():
+			_normales_seules(img)
 		return
 	_image = img
 	_origine = origine
@@ -420,6 +425,8 @@ func actualiser(origine: Vector3, normales := true) -> void:
 	var k_os := 0
 	var base_prec: Node3D = null
 	var xf_base := Transform3D.IDENTITY
+	if _g_xf.size() != _g_os.size():
+		_g_xf.resize(_g_os.size())
 	for i in _g_os.size():
 		var base := _g_base[i]
 		if base != base_prec:
@@ -428,6 +435,7 @@ func actualiser(origine: Vector3, normales := true) -> void:
 			base_prec = base
 			xf_base = base.global_transform
 		var xf := xf_base * _g_pose[i] if _g_os[i] >= 0 else xf_base
+		_g_xf[i] = xf
 		var o: PackedVector3Array = (dec * xf) * _g_o[i]
 		pos.append_array(o)
 		if normales:
@@ -454,6 +462,20 @@ func actualiser(origine: Vector3, normales := true) -> void:
 		var var_ := som2 / k_os - masse_centre * masse_centre
 		masse_demi = Vector3(sqrt(maxf(var_.x, 0.0)), sqrt(maxf(var_.y, 0.0)), sqrt(maxf(var_.z, 0.0))) * 1.7
 		masse_demi = masse_demi.max(Vector3(0.18, 0.18, 0.18))
+
+## Normales seules, avec les transformées gardées par actualiser() pour cette image (mêmes groupes sautés).
+func _normales_seules(img: int) -> void:
+	nor.clear()
+	image_nor = img
+	_oct_img = -1
+	for i in _g_os.size():
+		if not is_instance_valid(_g_base[i]):
+			continue
+		var xf := _g_xf[i]
+		var e := xf.basis.x.length()
+		nor.append_array(Transform3D(xf.basis / maxf(e, 0.0001), Vector3.ZERO) * _g_n[i])
+	if nor.size() > LARGEUR:
+		nor.resize(LARGEUR)
 
 ## Écrit les points dans deux images RGBAF de TEXELS × 1 (au-delà de `nb` : zéros, jamais lus par le shader) ; `params`
 ## (TEXELS_PARAMS × 4 flottants) suit les positions.

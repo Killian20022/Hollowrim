@@ -42,6 +42,9 @@ func _go() -> void:
 		if a.begins_with("--tours="):
 			tours = int(a.substr(8))
 	var ecoles := ["feu", "electricite", "tenebres", "glace"] + (["feu+elec"] if balayage else [])
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--ecoles="):
+			ecoles = Array(a.substr(9).split(","))   # --ecoles=feu+elec,feu : seulement celles-ci
 	var res := {}
 	for tour in tours:
 		for ecole: String in ecoles:
@@ -60,7 +63,9 @@ func _go() -> void:
 		for r: Array in l:
 			s += float(r[0]) + float(r[1])
 			mini = minf(mini, float(r[0]) + float(r[1]))
-		print("BENCH_MOYEN %s : %.0f µs par image (meilleur %.0f) sur %d tours" % [cle, s / l.size(), mini, l.size()])
+		var tri: Array = l.map(func(r: Array) -> float: return float(r[0]) + float(r[1]))
+		tri.sort()
+		print("BENCH_MOYEN %s : %.0f µs par image (meilleur %.0f, médiane %.0f) sur %d tours" % [cle, s / l.size(), mini, tri[tri.size() / 2], l.size()])
 	GestionMagie.forcer_fin = false
 	quit()
 

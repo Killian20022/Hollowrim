@@ -99,6 +99,7 @@ static func _choisir_foyers(ic: ImpactCorps, f: ImpactCorps.Foyer) -> void:
 	d.foyers = f.surface.foyers_pres_de(p, FOYERS_BRULURE, ic.rng)
 
 static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
+	var _p0 := Time.get_ticks_usec()
 	var d := f.d
 	var h := ic.gm.horloge
 	var s := f.surface
@@ -151,6 +152,7 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 		# l'impact suit le point de surface (le corps bouge, tombe)
 		if int(d.imp_i) >= 0 and int(d.imp_i) < s.nb:
 			d.imp = s.pos[d.imp_i]
+	ImpactCorps.prof("feu jets", _p0); _p0 = Time.get_ticks_usec()
 	var brule := h < float(d.brule_fin)
 	if brule and (d.foyers as PackedInt32Array).is_empty() and float(d.k_jet) < 0.5:
 		_choisir_foyers(ic, f)
@@ -174,6 +176,7 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 		var t := h - float(d.eteint)
 		if t > CARBO_TENUE:
 			d.carbo = maxf(float(d.carbo) - dt * CARBO_MAX / CARBO_FONDU, 0.0)
+	ImpactCorps.prof("feu etat", _p0); _p0 = Time.get_ticks_usec()
 	# paramètres du foyer (jet + foyers de brûlure), écrits dans la texture des points
 	var couv := float(d.couv)
 	ic.regler_jet(f, d.dir, kj, d.imp, float(d.rayon) * (1.0 + COUV_RAYON * couv))
@@ -194,6 +197,7 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 			if d.dbl:
 				r = minf(r * 1.15, 1.0)
 		ic.activer(f.em[k], r)
+	ImpactCorps.prof("feu params+activer", _p0); _p0 = Time.get_ticks_usec()
 	# voile : chaleur au point touché, direction, carbonisation
 	if f.image % 2 == 0 or f.image < 4:
 		# valeurs arrondies (2 cm, 1/50) : le voile n'est renvoyé que si elles changent vraiment
@@ -203,11 +207,13 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 		ic.voile(f, "mc_dir", Vector4(dq.x, dq.y, dq.z, snappedf(float(d.carbo), 0.02)))
 		# x : couverture (coque et voile : zone chaude qui grandit avec la durée du jet) ; w : part du jet
 		ic.voile(f, "mc_autre", Vector4(snappedf(couv, 0.05), 0.0, 0.0, snappedf(kj, 0.02)))
+	ImpactCorps.prof("feu voile", _p0); _p0 = Time.get_ticks_usec()
 	ic.repousser(f, kj)
 	# le corps éclaire le décor pendant la brûlure (sous le jet, la lumière du jet est déjà au contact)
 	if kb > 0.05:
 		var sc := 0.85 + 0.25 * sin(h * 19.0 + f.id) * sin(h * 6.3)
 		ic.gm.lumiere("corps%d" % f.id, org + s.centre + Vector3.UP * 0.2, GestionMagie.LUMIERE.feu, 1.6 * kb * sc, 3.2, 1.0)
+	ImpactCorps.prof("feu repousse+lum", _p0)
 	if not (d.foyers as PackedInt32Array).is_empty() and not brule and kb <= 0.0:
 		d.foyers = PackedInt32Array()
 	# fini : plus de jet, plus de brûlure, braises éteintes, carbonisation estompée

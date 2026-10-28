@@ -74,7 +74,7 @@ static func jet(ic: ImpactCorps, f: ImpactCorps.Foyer, info: Dictionary) -> void
 static func _brancher_faisceau(ic: ImpactCorps, f: ImpactCorps.Foyer, j: Dictionary) -> void:
 	var s := f.surface
 	var o := f.origine()
-	s.actualiser(o)
+	s.actualiser(o, false)   # (perf) normales : celles de l'image d'avant, ImpactCorps les refait
 	var i: int = f.d.imp_i
 	if i >= 0 and i < s.nb:
 		j.fin_pos = o + s.pos[i] + s.nor[i] * 0.04
@@ -197,9 +197,11 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 	var reste := tr * (1.0 - actif)            # phase « traces » : plus rien de vif
 	# ------------------------------------------------ forme des arcs (accrochés aux points : le shader les suit)
 	var pas := PAS_JET if maxf(kj, ks) > 0.3 else PAS_CHOC
+	var _p0 := Time.get_ticks_usec()
 	if h - float(d.t_forme) >= pas:
 		d.t_forme = h
 		_former(ic, f, kj, ks, kc, reste)
+	ImpactCorps.prof("elec former", _p0); _p0 = Time.get_ticks_usec()
 	ic.arcs_regler(f)
 	ic.uniformes(f, "sol_y", minf(s.bas, 0.0) + 0.02)
 	# ------------------------------------------------ émetteurs, uniformes
@@ -224,6 +226,7 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 	# ------------------------------------------------ voile et coque : contour qui crépite, veines, traces
 	# (le papillotement est fait par le shader : les canaux ne changent pas à chaque image → pas réécrits)
 	ic.ecoles(f, 0.0, snappedf(clampf(maxf(maxf(kj, ks), kc * 0.75), 0.0, 1.0), 0.05), 0.0, snappedf(tr * (0.35 + 0.65 * (1.0 - actif)), 0.02), 0.0, org + imp, 0.0)
+	ImpactCorps.prof("elec reste", _p0)
 	# le corps éclaire le décor par à-coups pendant le choc (sous le jet, la lumière du jet est déjà au contact)
 	if kc > 0.05 and kj < 0.5:
 		if ic.rng.randf() < 0.6:

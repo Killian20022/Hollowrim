@@ -37,6 +37,9 @@ func _pipes() -> int:
 func _detail_pipes() -> String:
 	return "s%d sp%d d%d m%d" % [Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SURFACE), Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SPECIALIZATION), Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_DRAW), Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_MESH)]
 
+func _detail_pipes_vec() -> Array:
+	return [int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SURFACE)), int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SPECIALIZATION)), int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_DRAW)), int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_MESH))]
+
 func _arg(nom: String, defaut := "") -> String:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--%s=" % nom):
@@ -138,6 +141,24 @@ func _go() -> void:
 	var base := await _mesurer(240, false, vps, "")
 	var niveau: String = "rétro" if gm.couche == null or not gm.couche.fine() else ["rétro", "moyen", "élevé"][gm.couche.niveau]
 	print("PERF_ECOLES détail %s, %d corps : sans sort %.2f ms (GPU %.2f)" % [niveau, cibles.size(), base[0], base[1]])
+	# (2026-10-28) le monde charge encore en tâche de fond (kit de la grotte, troll…) : ses pipelines tombaient dans le
+	# 1er passage du 1er sort mesuré. On attend qu'aucun pipeline ne compile pendant 180 images (45 s au plus).
+	var p_calme := _pipes()
+	var n_calme := 0
+	var t_calme := Time.get_ticks_msec()
+	var p_monde := 0
+	while n_calme < 180 and Time.get_ticks_msec() - t_calme < 45000:
+		_viser(0.0)
+		j.vie = j.vie_max
+		await process_frame
+		var pn := _pipes()
+		if pn != p_calme:
+			p_monde += pn - p_calme
+			p_calme = pn
+			n_calme = 0
+		else:
+			n_calme += 1
+	print("PERF_ECOLES monde au calme après %.1f s (%d pipelines du monde compilés en attendant)" % [(Time.get_ticks_msec() - t_calme) / 1000.0, p_monde])
 	var tours := int(_arg("tours", "3"))
 	var liste: Array = (_arg("ecoles", "feu,electricite,tenebres,glace,feu+elec,feu+glace") as String).split(",")
 	var magie: Node = j.mains.magie
@@ -172,6 +193,7 @@ func _go() -> void:
 				var t_prec := Time.get_ticks_usec()
 				var diag := ""
 				var pp := _pipes()
+				var dp := _detail_pipes_vec()
 				for k in 60:
 					_tenir(sp, magie, k)
 					await process_frame
@@ -180,8 +202,10 @@ func _go() -> void:
 					t_prec = n
 					if tour == 0 and actif and OS.get_cmdline_user_args().has("--diag-pipes") and _pipes() != pp:
 						# image et nombre de chaque compilation pendant le 1er passage APRÈS (attribution, mise au point)
-						diag += "i%d:+%d(%s) " % [k, _pipes() - pp, _detail_pipes()]
+						var dd := _detail_pipes_vec()
+						diag += "i%d:+%d(s+%d sp+%d d+%d m+%d) " % [k, _pipes() - pp, dd[0] - dp[0], dd[1] - dp[1], dd[2] - dp[2], dd[3] - dp[3]]
 						pp = _pipes()
+						dp = dd
 				if diag != "":
 					print("  DIAG_PIPES %s : %s" % [ecole, diag])
 				if tour == 0:

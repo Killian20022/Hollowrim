@@ -71,7 +71,7 @@ static func jet(ic: ImpactCorps, f: ImpactCorps.Foyer, info: Dictionary) -> void
 		# le drain finit SUR la surface ; ses brins d'origine (spirale posée sur l'axe) cèdent la place aux filaments
 		var s := f.surface
 		var o := f.origine()
-		s.actualiser(o)
+		s.actualiser(o, false)   # (perf) normales : celles de l'image d'avant, ImpactCorps les refait
 		var i: int = d.imp_i
 		if i >= 0 and i < s.nb:
 			j.fin_pos = o + s.pos[i] + s.nor[i] * 0.05
