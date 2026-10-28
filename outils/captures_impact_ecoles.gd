@@ -34,6 +34,8 @@ const CAS := {
 	"drain_apres": {"e": "tenebres", "k": "jet", "l": 15.0, "d": 1.4, "t": [1.2, 1.7, 2.6, 4.6, 6.4], "st": "corruption", "sd": 3.0},
 	"ombre_trait": {"e": "tenebres", "k": "proj", "l": 0.0, "t": [0.2, 0.4, 1.4, 5.4, 6.6], "forme": "trait", "v": 30.0, "n": 1, "st": "corruption", "sd": 5.0, "f": 0.8, "tirs": [0.1]},
 	"ombre_trait_profil": {"e": "tenebres", "k": "proj", "l": 90.0, "t": [0.4, 1.4], "forme": "trait", "v": 30.0, "n": 1, "st": "corruption", "sd": 5.0, "f": 0.8, "tirs": [0.1]},
+	# jet de flammes (socle + FeuCorps) : la couverture grandit avec la durée du jet, puis brûlure (film ralenti : --film=feu_face)
+	"feu_face": {"e": "feu", "k": "jet", "l": 0.0, "d": 2.4, "t": [0.3, 1.2, 2.3, 3.4], "st": "brulure", "sd": 3.0},
 	"boule_face": {"e": "feu", "k": "proj", "l": 0.0, "t": [0.3, 0.45, 0.8, 2.2, 4.5], "forme": "boule", "v": 24.0, "n": 1, "st": "brulure", "sd": 3.0, "f": 1.6, "zone": 2.2, "tirs": [0.1]},
 	"boule_trois_quarts": {"e": "feu", "k": "proj", "l": 45.0, "t": [0.45, 0.8], "forme": "boule", "v": 24.0, "n": 1, "st": "brulure", "sd": 3.0, "f": 1.6, "zone": 2.2, "tirs": [0.1]},
 }

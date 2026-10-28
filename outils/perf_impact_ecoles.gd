@@ -26,12 +26,16 @@ var j: CharacterBody3D
 var cibles: Array[Node3D] = []
 var _t := 0.0
 var _vus := 0
+var _mediane := 0.0      # médiane du temps d'image de la dernière mesure (ms) : moins sensible aux à-coups des autres processus
 
 func _init() -> void:
 	_go.call_deferred()
 
 func _pipes() -> int:
 	return int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SURFACE) + Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SPECIALIZATION) + Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_DRAW) + Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_MESH))
+
+func _detail_pipes() -> String:
+	return "s%d sp%d d%d m%d" % [Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SURFACE), Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SPECIALIZATION), Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_DRAW), Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_MESH)]
 
 func _arg(nom: String, defaut := "") -> String:
 	for a in OS.get_cmdline_user_args():
@@ -166,12 +170,20 @@ func _go() -> void:
 					magie.appuyer("gauche")
 					magie.appuyer("droite")
 				var t_prec := Time.get_ticks_usec()
+				var diag := ""
+				var pp := _pipes()
 				for k in 60:
 					_tenir(sp, magie, k)
 					await process_frame
 					var n := Time.get_ticks_usec()
 					pire = maxf(pire, (n - t_prec) / 1000.0)
 					t_prec = n
+					if tour == 0 and actif and OS.get_cmdline_user_args().has("--diag-pipes") and _pipes() != pp:
+						# image et nombre de chaque compilation pendant le 1er passage APRÈS (attribution, mise au point)
+						diag += "i%d:+%d(%s) " % [k, _pipes() - pp, _detail_pipes()]
+						pp = _pipes()
+				if diag != "":
+					print("  DIAG_PIPES %s : %s" % [ecole, diag])
 				if tour == 0:
 					premier_passage += "1er passage %s : pire image %.1f ms, %d pipelines compilés ; " % ["après" if actif else "avant", pire, _pipes() - p0]
 				var c0 := ImpactCorps.duree_maj_us
@@ -182,6 +194,7 @@ func _go() -> void:
 				r.append(_vus)
 				r.append(pire)
 				r.append(cpu)
+				r.append(_mediane)
 				if tour > 0 or tours == 1:
 					res[actif].append(r)
 				magie.relacher("gauche")
@@ -195,9 +208,10 @@ func _go() -> void:
 			return t / maxf(l.size(), 1)
 		var av: Array = res[false]
 		var ap: Array = res[true]
-		print("PERF_ECOLES %s : AVANT %.2f ms (GPU %.2f) ; APRÈS %.2f ms (GPU %.2f = fenêtre %.2f + couche %.2f) ; écart %+.2f ms (GPU %+.2f) ; CPU du module %.3f ms ; %d particules, %d foyers ; pire image après %.1f ms ; %s" % [
+		print("PERF_ECOLES %s : AVANT %.2f ms (GPU %.2f) ; APRÈS %.2f ms (GPU %.2f = fenêtre %.2f + couche %.2f) ; écart %+.2f ms (GPU %+.2f) ; écart MÉDIAN %+.2f ms (%.2f → %.2f) ; CPU du module %.3f ms ; %d particules, %d foyers ; pire image après %.1f ms ; %s" % [
 			ecole, moy.call(av, 0), moy.call(av, 1), moy.call(ap, 0), moy.call(ap, 1), moy.call(ap, 2), moy.call(ap, 3),
-			moy.call(ap, 0) - moy.call(av, 0), moy.call(ap, 1) - moy.call(av, 1), moy.call(ap, 7), int(moy.call(ap, 4)), int(moy.call(ap, 5)), moy.call(ap, 6), premier_passage])
+			moy.call(ap, 0) - moy.call(av, 0), moy.call(ap, 1) - moy.call(av, 1), moy.call(ap, 8) - moy.call(av, 8), moy.call(av, 8), moy.call(ap, 8),
+			moy.call(ap, 7), int(moy.call(ap, 4)), int(moy.call(ap, 5)), moy.call(ap, 6), premier_passage])
 	quit()
 
 ## Balaie les 3 corps (± 0,95 m autour du milieu, 0,5 aller-retour par seconde).
@@ -233,6 +247,8 @@ func _tenir(sp: Array, magie: Node, k: int) -> void:
 func _mesurer(n: int, sort: bool, vps: Array[RID], ecole: String, sp: Array = [], magie: Node = null) -> Array:
 	var t0 := Time.get_ticks_usec()
 	var g := [0.0, 0.0]
+	var dts := PackedFloat32Array()
+	var t_img := Time.get_ticks_usec()
 	for k in n:
 		if sort:
 			_tenir(sp, magie, k)
@@ -240,6 +256,9 @@ func _mesurer(n: int, sort: bool, vps: Array[RID], ecole: String, sp: Array = []
 			_viser(0.0)
 			j.vie = j.vie_max
 		await process_frame
+		var t_n := Time.get_ticks_usec()
+		dts.append((t_n - t_img) / 1000.0)
+		t_img = t_n
 		for i in vps.size():
 			g[i] += RenderingServer.viewport_get_measured_render_time_gpu(vps[i])
 		if sort and k == n / 2:
@@ -252,4 +271,6 @@ func _mesurer(n: int, sort: bool, vps: Array[RID], ecole: String, sp: Array = []
 				print("  joueur ", j.global_position, " cam ", cam.global_position, " avant ", -cam.global_basis.z, " cibles ", cibles.map(func(c: Node3D) -> String: return "%s vis=%s grp=%s" % [c.global_position, c.is_visible_in_tree(), c.get_groups()]))
 				print("  mi-mesure %s : foyers %d ; jets %s ; statuts %s" % [ecole, _vus, vus, cibles.map(func(c: Node3D) -> String: return str(Statuts.de(c, false).liste() if Statuts.de(c, false) != null else []))])
 	var dt := (Time.get_ticks_usec() - t0) / 1000.0 / n
+	dts.sort()
+	_mediane = dts[dts.size() / 2] if dts.size() > 0 else dt
 	return [dt, (g[0] + g[1]) / n, g[0] / n, g[1] / n]

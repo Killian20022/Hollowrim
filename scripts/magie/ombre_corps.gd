@@ -13,7 +13,8 @@ const TEN := ["#d08aff", "#9a3ae0", "#5a1a8a", "#2a0e3e", "#0c0614"]
 ## Coque : volutes aspirées vers la main / qui montent (magie_corps_coque_ecoles, école 1).
 const COQUE := 1
 ## Filaments du drain : halo sombre (mélange) bordé d'un cœur violet clair.
-const ARCS := {"halo": "#2a0a48", "coeur": "#a050e8", "halo_px": 6.0, "coeur_px": 2.5, "eclat": 1.15, "sombre": true, "ampl": 0.1}
+## (2026-10-28) filaments plus épais (halo 6 → 8,5 px, cœur 2,5 → 3,5 px), cf. tenebres_fps_1100.jpg
+const ARCS := {"halo": "#2a0a48", "coeur": "#a050e8", "halo_px": 8.5, "coeur_px": 3.5, "eclat": 1.2, "sombre": true, "ampl": 0.1}
 
 const REGLAGES := [
 	# 0 fragments sombres arrachés à la surface et aspirés vers la main (carrés nets, pas de fumée floue)
@@ -182,7 +183,7 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 			d.t_forme = h
 			ic.arcs_debut(f)
 			for k in nf:
-				var lg := 0.8 + 0.5 * float(k % 2 == 0)
+				var lg := 0.95 + 0.55 * float(k % 2 == 0)
 				ic.arc(f, src[k], -1, 3, 12 if fin else 8, float(d.graine) + k * 1.618, lg * kj, 1.0 if k % 2 == 0 else 0.67)
 				# accroche : petite pointe sombre là où le filament s'arrache
 				ic.arc(f, src[k], -1, 2, 1, float(d.graine) + k * 2.7, 0.8, 0.67)

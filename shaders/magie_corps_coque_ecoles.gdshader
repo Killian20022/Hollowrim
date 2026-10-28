@@ -23,13 +23,14 @@ instance uniform vec4 mc_vers = vec4(0.0, 0.0, 1.0, 0.0);
 uniform int ecole = 0;
 uniform float cases = 48.0;
 uniform float cristal = 0.05;        // m : hauteur des cristaux au plus
-uniform float volute = 0.22;         // m : longueur des volutes aspirées
+uniform float volute = 0.28;         // m : longueur des volutes aspirées
 uniform float eclat = 1.0;
 
 varying vec3 p_monde;
 varying vec3 n_monde;
 varying float m_v;                   // couverture (givre) / force (volutes, choc) au sommet
 varying float pointe;                // 0..1 : sommet d'un cristal / bout d'une volute
+varying float plaque;                // givre : 0..1, plaques (zones bien prises / zones à peine givrées), stable par sommet
 
 float hh(float x) {
 	return fract(sin(x * 91.345 + 7.13) * 47453.5453);
@@ -63,11 +64,17 @@ void vertex() {
 	vec3 dep = vec3(0.0);
 	m_v = 0.0;
 	pointe = 0.0;
+	plaque = 1.0;
 	if (ecole == 0) {
 		float m = couvert(pm, g);
 		// côté tourné vers le tir d'abord ; le reste se couvre quand le givre est complet (mc_vers.w = 1 - plein)
 		vec3 vt = normalize(mc_vers.xyz + vec3(0.0, 0.00001, 0.0));
 		m *= mix(1.0, smoothstep(-0.55, 0.25, dot(nm, vt)), clamp(mc_vers.w, 0.0, 1.0));
+		// (2026-10-28) plaques : bruit large dans le repère du maillage (suit la pièce) → des zones épaisses, d'autres à
+		// peine prises, au lieu d'une « statue » uniforme ; le dessus des formes prend plus
+		plaque = bruit(VERTEX * 3.2 + vec3(1.7, 0.3, 4.1)) * 0.75 + bruit(VERTEX * 7.5) * 0.25;
+		plaque = clamp(plaque + nm.y * 0.15, 0.0, 1.0);
+		m *= mix(0.3, 1.0, smoothstep(0.32, 0.58, plaque));
 		m_v = m;
 		// un sommet sur trois devient la pointe d'un cristal ; les autres gonflent juste la croûte
 		float pic = step(0.66, g) * (0.45 + 0.55 * hh(g * 17.0));
@@ -121,12 +128,15 @@ void fragment() {
 		float lum = clamp(dot(nf, normalize(vec3(0.3, 1.0, 0.2))) * 0.5 + 0.5, 0.0, 1.0);
 		float m = m_v;
 		float trou = bruit(q * 9.0);
-		// la croûte se troue au bord du givre et pendant la fonte (jamais un aplat : le corps reste lisible)
-		if (m < 0.1 || trou > 0.05 + 0.4 * m + pointe * 0.7) {
+		// la croûte se troue au bord du givre, entre les plaques et pendant la fonte (jamais un aplat : le corps reste lisible)
+		float pl = smoothstep(0.3, 0.62, plaque);
+		if (m < 0.1 || trou > 0.02 + 0.42 * m * (0.45 + 0.55 * pl) + pointe * 0.7) {
 			discard;
 		}
-		// paliers glacés sombres (la croûte est dans l'ombre de la crypte) ; blanc seulement sur l'arête des cristaux
-		float t = lum * 0.55 + pointe * 0.4 + step(0.8, bord) * 0.2;
+		// paliers glacés sombres (la croûte est dans l'ombre de la crypte) ; blanc sur l'arête des cristaux, au bord des
+		// plaques et sur la tranche de la silhouette
+		float arete = 1.0 - smoothstep(0.0, 0.07, abs(plaque - 0.47));
+		float t = lum * 0.55 + pointe * 0.45 + step(0.78, bord) * 0.25 + arete * 0.35;
 		if (t > 0.9) {
 			c = vec3(0.86, 0.94, 1.0);
 		} else if (t > 0.68) {

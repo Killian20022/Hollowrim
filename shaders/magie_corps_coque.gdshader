@@ -26,12 +26,15 @@ uniform vec4 c5 : source_color = vec4(0.35, 0.10, 0.11, 1.0);  // #5a1a1c
 uniform float eclat = 1.3;
 uniform float gonfle_max = 0.055;   // m : épaisseur de la coque au plus chaud
 uniform float rayon_chaud = 0.55;   // m
-uniform float rayon_coeur = 0.17;   // m : tache blanc-jaune au point touché
+uniform float rayon_coeur = 0.21;   // m : tache blanc-jaune au point touché
 uniform float cases = 48.0;         // cases du motif par mètre (pixels francs)
 uniform float montee = 1.0;         // vitesse de montée du motif
 uniform float entraine = 0.45;      // m : langues entraînées dans le sens du jet sur le bord de la silhouette
 uniform float ecarte_bord = 0.2;   // m : … et écartées du corps
-uniform float hauteur = 0.42;       // m : les langues soulèvent la coque jusqu'à cette hauteur
+uniform float hauteur = 0.5;        // m : les langues soulèvent la coque jusqu'à cette hauteur
+// couverture (mc_autre.x, 0..1 : le feu a gagné le corps avec la durée du jet) : zone chaude élargie, langues plus hautes
+uniform float couv_rayon = 1.3;     // rayon_chaud × (1 + couv_rayon × couverture)
+uniform float couv_hauteur = 0.9;   // hauteur × (1 + couv_hauteur × couverture)
 uniform bool plein = false;         // mise au point : coque pleine (vérifie qu'elle suit le corps)
 
 varying vec3 p_monde;
@@ -53,10 +56,15 @@ float bruit(vec3 p) {
 
 float chaleur_en(vec3 p, vec3 n) {
 	vec3 d = normalize(mc_dir.xyz + vec3(0.0, 0.00001, 0.0));
-	float face = clamp(-dot(n, d) * 0.6 + 0.4, 0.0, 1.0);
+	float cv = clamp(mc_autre.x, 0.0, 1.0);
+	// le côté opposé au jet se prend aussi quand le feu a gagné le corps
+	float face = clamp(-dot(n, d) * 0.6 + 0.4 + 0.25 * cv, 0.0, 1.0);
 	float di = length(p - mc_feu.xyz);
-	float prox = exp(-(di * di) / (rayon_chaud * rayon_chaud));
-	return mc_feu.w * face * (0.3 + 0.7 * prox);
+	float rc = rayon_chaud * (1.0 + couv_rayon * cv);
+	float prox = exp(-(di * di) / (rc * rc));
+	// les flammes MONTENT : au-dessus du point touché la chaleur porte plus loin qu'en dessous
+	float dessus = smoothstep(-0.1, 0.5, p.y - mc_feu.y) * cv;
+	return mc_feu.w * face * (0.3 + 0.7 * max(prox, dessus * 0.75));
 }
 
 void vertex() {
@@ -77,7 +85,7 @@ void vertex() {
 	float hk = clamp(hv, 0.0, 1.2);
 	float fl2 = bruit(pm * vec3(5.0, 5.0, 5.0) - dj * t * 3.0);
 	vec3 dep = nm * (0.012 + gonfle_max * hk)
-		+ vec3(0.0, 1.0, 0.0) * hauteur * hk * fl * fl
+		+ vec3(0.0, 1.0, 0.0) * hauteur * (1.0 + couv_hauteur * clamp(mc_autre.x, 0.0, 1.0)) * hk * fl * fl
 		+ (dj * entraine + np * ecarte_bord) * sous_jet * smoothstep(0.55, 0.95, bj) * hk * fl2;
 	VERTEX += (transpose(mat3(MODEL_MATRIX)) * dep) / (echelle * echelle);
 	p_monde = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -111,13 +119,15 @@ void fragment() {
 		float v = bruit(q * vec3(11.0, 3.0, 11.0) - vec3(0.0, t * montee * 3.0, 0.0)) * 0.65
 			+ bruit(q * vec3(23.0, 7.0, 23.0) - vec3(0.0, t * montee * 6.0, 0.0)) * 0.35;
 		// densité : contour de la silhouette et côté chaud ; au centre du corps, seulement le plus chaud (corps lisible)
-		float dens = chaleur_v * (0.25 + 1.0 * smoothstep(0.25, 0.85, bord));
+		// (couverture : un peu plus dense au centre, beaucoup plus sur le bord ; le centre reste en dessous du bord)
+		float cv = clamp(mc_autre.x, 0.0, 1.0);
+		float dens = chaleur_v * (0.25 + 0.15 * cv + (1.0 + 0.45 * cv) * smoothstep(0.25, 0.85, bord));
 		float i = dens * (v * 1.7 - 0.55);
 		// cœur d'impact : éclaboussure blanc-jaune qui s'étale sur la surface autour du point touché (pas une sphère)
 		vec3 dj = normalize(mc_dir.xyz + vec3(0.0, 0.00001, 0.0));
 		float di = length(p_monde - mc_feu.xyz);
 		float coeur = exp(-(di * di) / (rayon_coeur * rayon_coeur)) * clamp(-dot(n_monde, dj), 0.0, 1.0) * min(mc_feu.w, 1.2) * clamp(mc_autre.w, 0.0, 1.0);
-		i = max(i, coeur * (0.4 + 0.6 * v));
+		i = max(i, coeur * (0.55 + 0.6 * v));
 		if (i <= 0.06) {
 			discard;
 		}

@@ -13,20 +13,21 @@ const FEU6 := ["#fffbe8", "#fff0a8", "#fcb53a", "#ec6a1f", "#b3341f", "#5a1a1c"]
 ## Un réglage par émetteur du foyer (ordre = index de l'émetteur). Valeurs « rétro » (640x360) ; "fin" = couche fine.
 const REGLAGES := [
 	# 0 langues de surface : côté impact, montent en collant au corps (flottabilité), penchées dans le souffle du jet
-	{"mode": "langues", "n": 130, "vie": 0.5, "vitesse": Vector2(0.6, 1.5), "gravite": Vector3(0, 2.6, 0), "amorti": Vector2(1.2, 2.2),
-		"ouvert": 0.14, "ecarte": 0.02, "turb": 3.5, "suit_jet": 0.45, "taille": Vector2(0.05, 0.1), "courbe": 2, "alea": 0.35,
-		"chaud": 0.4, "rampe": FEU6, "cap": 8.0, "eclat": 1.5,
-		"fin": {"n": 360, "taille": Vector2(0.016, 0.034), "cap": 12.0, "etire": 3.5, "eclat": 1.55}},
+	# (2026-10-28, intensité) plus hautes et plus denses : vie 0,5 → 0,66 s, flottabilité 2,6 → 3,8, plus grosses
+	{"mode": "langues", "n": 170, "vie": 0.66, "vitesse": Vector2(0.7, 1.7), "gravite": Vector3(0, 3.8, 0), "amorti": Vector2(1.2, 2.2),
+		"ouvert": 0.12, "ecarte": 0.025, "turb": 3.5, "suit_jet": 0.4, "taille": Vector2(0.06, 0.12), "courbe": 2, "alea": 0.35,
+		"chaud": 0.45, "rampe": FEU6, "cap": 9.0, "eclat": 1.55,
+		"fin": {"n": 460, "taille": Vector2(0.022, 0.046), "cap": 13.0, "etire": 4.5, "eclat": 1.6}},
 	# 1 contour : le flux contourne la silhouette et en ressort sur les côtés, dans le sens du jet
 	{"mode": "contour", "n": 100, "vie": 0.38, "vitesse": Vector2(1.8, 3.2), "gravite": Vector3(0, 1.6, 0), "amorti": Vector2(2.0, 3.0),
 		"ouvert": 0.12, "ecarte": 0.03, "turb": 4.0, "taille": Vector2(0.06, 0.11), "courbe": 2, "alea": 0.3, "chaud": 0.5,
 		"rampe": ["#fff0a8", "#fcb53a", "#ec6a1f", "#ec6a1f", "#b3341f", "#5a1a1c"], "cap": 9.0, "eclat": 1.45,
 		"fin": {"n": 260, "taille": Vector2(0.02, 0.042), "cap": 12.0, "etire": 2.5, "eclat": 1.5}},
 	# 2 éclaboussure : cœur blanc-jaune qui s'étale sur la surface autour du point touché
-	{"mode": "eclabousse", "add": true, "n": 40, "vie": 0.2, "vitesse": Vector2(1.2, 2.6), "gravite": Vector3(0, 0.8, 0), "amorti": Vector2(5.0, 8.0),
+	{"mode": "eclabousse", "add": true, "n": 56, "vie": 0.24, "vitesse": Vector2(1.2, 2.6), "gravite": Vector3(0, 0.8, 0), "amorti": Vector2(5.0, 8.0),
 		"ouvert": 0.15, "ecarte": 0.02, "taille": Vector2(0.04, 0.08), "courbe": 1, "alea": 0.3, "chaud": 0.0,
 		"rampe": ["#ffffff", "#fffbe8", "#fff0a8", "#fcb53a"], "cap": 7.0, "eclat": 1.8,
-		"fin": {"n": 120, "taille": Vector2(0.014, 0.028), "cap": 10.0, "etire": 3.0, "eclat": 2.0}},
+		"fin": {"n": 150, "taille": Vector2(0.018, 0.034), "cap": 10.0, "etire": 3.0, "eclat": 2.1}},
 	# 3 escarbilles : fines, s'échappent par les bords
 	{"mode": "escarbilles", "add": true, "n": 30, "vie": 0.9, "vitesse": Vector2(1.0, 3.0), "gravite": Vector3(0, 0.5, 0), "amorti": Vector2(0.8, 1.5),
 		"ouvert": 0.45, "turb": 6.0, "suit_jet": 0.6, "taille": Vector2(0.012, 0.022), "courbe": 0, "alea": 0.4, "chaud": 0.0,
@@ -46,18 +47,23 @@ const REGLAGES := [
 
 ## Parts actives (amount_ratio) sous le jet / pendant la brûlure.
 const SOUS_JET := [1.0, 1.0, 1.0, 1.0, 0.25, 1.0]
-const BRULURE := [0.42, 0.0, 0.0, 0.45, 1.0, 0.18]
+const BRULURE := [0.55, 0.0, 0.0, 0.45, 1.0, 0.22]
 const MONTEE := 0.15            # s : le corps prend feu
 const RETOMBEE := 0.12          # s : fin du jet → brûlure
 const FOYERS_BRULURE := 3
 const CARBO_MAX := 0.55
 const CARBO_TENUE := 3.0        # s : la carbonisation reste après l'extinction…
 const CARBO_FONDU := 4.0        # … puis s'estompe
+## Couverture : le feu GAGNE le corps tant que le jet dure (0 → 1 en COUV_MONTEE s), puis recule après l'arrêt.
+## Elle élargit la zone des langues (rayon du jet × 1 + COUV_RAYON × couverture) et celle de la coque (mc_autre.x).
+const COUV_MONTEE := 1.4
+const COUV_DESCENTE := 2.5
+const COUV_RAYON := 1.1
 
 static func debut(_ic: ImpactCorps, f: ImpactCorps.Foyer) -> void:
 	f.d = {"k_jet": 0.0, "vu": -INF, "jets": {}, "dir": Vector3.FORWARD, "imp": Vector3(0, 1.1, 0), "imp_i": -1,
 		"rayon": 0.45, "dbl": false, "brule_fin": -INF, "k_brule": 0.0, "foyers": PackedInt32Array(), "carbo": 0.0,
-		"chaleur": 0.0, "eteint": -INF}
+		"chaleur": 0.0, "eteint": -INF, "couv": 0.0}
 
 ## Le jet (une main) touche le corps cette image.
 static func jet(ic: ImpactCorps, f: ImpactCorps.Foyer, info: Dictionary) -> void:
@@ -128,17 +134,20 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 		d.dir = dir
 		d.rayon = rayon * (1.15 if n_jets > 1 else 1.0)
 		d.dbl = dbl or n_jets > 1
-		var i := s.point_vise(o - org, dir) if (f.image % 3 == 0 or int(d.imp_i) < 0) else int(d.imp_i)
+		# point touché refait au plus toutes les 3 images, et pas avant 0,08 s si le jet n'a pas tourné (cache de B)
+		var i := ic.point_vise(f, o - org, dir) if (f.image % 3 == 0 or int(d.imp_i) < 0) else int(d.imp_i)
 		if i >= 0 and i < s.nb:
 			d.imp = d.imp.lerp(s.pos[i], 1.0 - exp(-dt * 25.0)) if float(d.k_jet) > 0.05 else s.pos[i]
 			d.imp_i = i
 		d.k_jet = minf(float(d.k_jet) + dt / MONTEE, 1.0)
+		d.couv = minf(float(d.couv) + dt / COUV_MONTEE * (1.3 if d.dbl else 1.0), 1.0)
 		d.chaleur = minf(float(d.chaleur) + dt / MONTEE, 1.2 if d.dbl else 1.0)
 		d.carbo = minf(float(d.carbo) + dt * 0.25, CARBO_MAX)
 		d.eteint = -INF
 		d.foyers = PackedInt32Array()   # choisis à la fin du jet, autour du dernier point touché
 	else:
 		d.k_jet = maxf(float(d.k_jet) - dt / RETOMBEE, 0.0)
+		d.couv = maxf(float(d.couv) - dt / COUV_DESCENTE, 0.0)
 		# l'impact suit le point de surface (le corps bouge, tombe)
 		if int(d.imp_i) >= 0 and int(d.imp_i) < s.nb:
 			d.imp = s.pos[d.imp_i]
@@ -166,20 +175,24 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 		if t > CARBO_TENUE:
 			d.carbo = maxf(float(d.carbo) - dt * CARBO_MAX / CARBO_FONDU, 0.0)
 	# paramètres du foyer (jet + foyers de brûlure), écrits dans la texture des points
-	ic.regler_jet(f, d.dir, kj, d.imp, float(d.rayon))
+	var couv := float(d.couv)
+	ic.regler_jet(f, d.dir, kj, d.imp, float(d.rayon) * (1.0 + COUV_RAYON * couv))
 	var fo: Array = []
 	var ids: PackedInt32Array = d.foyers
 	for k in 4:
 		if k < ids.size() and ids[k] < s.nb and kb > 0.0:
-			fo.append(Vector4(s.pos[ids[k]].x, s.pos[ids[k]].y, s.pos[ids[k]].z, 0.12 + 0.03 * k))
+			fo.append(Vector4(s.pos[ids[k]].x, s.pos[ids[k]].y, s.pos[ids[k]].z, 0.15 + 0.04 * k))
 		else:
 			fo.append(Vector4.ZERO)
 	ic.regler_foyers(f, kb, minf(s.bas, 0.0) + 0.02, fo)
 	# parts actives des émetteurs
 	for k in f.em.size():
 		var r := maxf(SOUS_JET[k] * kj, BRULURE[k] * kb)
-		if k == 0 and d.dbl:
-			r = minf(r * 1.15, 1.0)
+		if k == 0:
+			# langues : 70 % au contact, toutes quand le feu a gagné le corps
+			r *= 0.7 + 0.3 * maxf(couv, 1.0 - kj)
+			if d.dbl:
+				r = minf(r * 1.15, 1.0)
 		ic.activer(f.em[k], r)
 	# voile : chaleur au point touché, direction, carbonisation
 	if f.image % 2 == 0 or f.image < 4:
@@ -188,7 +201,8 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 		var dq: Vector3 = (d.dir as Vector3).snappedf(0.02)
 		ic.voile(f, "mc_feu", Vector4(imp_monde.x, imp_monde.y, imp_monde.z, snappedf(ch, 0.02)))
 		ic.voile(f, "mc_dir", Vector4(dq.x, dq.y, dq.z, snappedf(float(d.carbo), 0.02)))
-		ic.voile(f, "mc_autre", Vector4(0.0, 0.0, 0.0, snappedf(kj, 0.02)))
+		# x : couverture (coque et voile : zone chaude qui grandit avec la durée du jet) ; w : part du jet
+		ic.voile(f, "mc_autre", Vector4(snappedf(couv, 0.05), 0.0, 0.0, snappedf(kj, 0.02)))
 	ic.repousser(f, kj)
 	# le corps éclaire le décor pendant la brûlure (sous le jet, la lumière du jet est déjà au contact)
 	if kb > 0.05:

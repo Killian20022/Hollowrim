@@ -48,6 +48,14 @@ const ENERGIE_MAX_CORPS := 2.0
 const ECLAIREMENT_MAX := 1.25
 ## Maillages voilés par corps au plus (une passe de plus par maillage).
 const MAX_VOILES := 12
+## (2026-10-28, perf) Fréquence des mises à jour (comportement, points, textures) d'un foyer : à chaque image s'il est
+## TOUCHÉ (jet, impulsion : moins de TOUCHE_RECENT s), une image sur PERIODE_REPOS sinon (brûlure, choc, retombée,
+## extinction), une sur PERIODE_LOIN au-delà de DIST_LOIN m de la caméra ; échelonné par foyer (pas tous la même image).
+## Les transformées des coques et la position des émetteurs restent à jour à chaque image (rien ne décroche du corps).
+const TOUCHE_RECENT := 0.05
+const PERIODE_REPOS := 2
+const PERIODE_LOIN := 3
+const DIST_LOIN := 10.0
 const COMPORTEMENTS := {"feu": preload("res://scripts/magie/feu_corps.gd"),
 	"electricite": preload("res://scripts/magie/elec_corps.gd"), "glace": preload("res://scripts/magie/glace_corps.gd"),
 	"tenebres": preload("res://scripts/magie/ombre_corps.gd")}
@@ -86,6 +94,14 @@ var _a_preparer: Array = []            # cibles dont les maillages ne sont pas e
 static var chauffe_corps := true
 static var _formats_chauds := {}
 var _a_chauffer: Array = []
+## (2026-10-28) Préchauffe des LUMIÈRES : sur le moteur Mobile, une variante de pipeline dépend aussi du nombre de lumières
+## omni qui touchent un objet ; la 1re lumière de la magie sur un gardien ou le sol autour de lui en compilait encore 1 à 3
+## au premier sort (électricité 3, ténèbres 1, glace 1). Une fois par corps, quand il est à l'écran et qu'aucun sort n'est
+## en cours : 1, puis 2, 3 et 4 lumières du pool de la magie, d'énergie quasi nulle, autour de lui pendant 4 images.
+var _a_eclairer: Array = []
+var _eclaire: Node3D = null
+var _eclaire_n := 0
+const ECLAIRE_IMAGES := 4
 var _chauffe: Foyer = null
 var _chauffe_n := 0
 var _prets := {}                       # id des cibles déjà échantillonnées (plus de recherche de maillages)
@@ -93,6 +109,8 @@ var _surfaces := {}                    # id -> SurfaceCorps préparée d'avance 
 var _attente := 0.0
 ## Mise au point (outils de mesure) : imprime les lectures de maillages et les images lentes du module.
 static var trace := false
+## Faux = fréquence réduite / échelonnement / LOD par distance coupés (mesure avant / après dans la même séance).
+static var lod := true
 var _t_sections := PackedFloat64Array([0, 0, 0, 0, 0, 0])
 var _t_n := 0
 
@@ -131,7 +149,10 @@ class Foyer:
 	var ec_ecrit: Array = []           # derniers canaux des écoles B écrits (pas de réécriture s'ils n'ont pas changé)
 	var d: Dictionary = {}             # état du comportement
 	var params := PackedFloat32Array() # paramètres écrits à la suite des points (ImpactCorps.regler_*)
-	var image := 0                     # images depuis l'activation (mises à jour espacées)
+	var image := 0                     # mises à jour depuis l'activation (mises à jour espacées)
+	var dt_acc := 0.0                  # temps cumulé depuis la dernière mise à jour du comportement (fréquence réduite)
+	var nor_ecrit := -1                # SurfaceCorps.image_nor du dernier envoi des normales par ce foyer
+	var nor_surface: SurfaceCorps      # … et la surface à laquelle il correspond
 	var o_prec := Vector3.INF
 	var xf_coques: Array[Transform3D] = []
 	var canaux := {}                   # dernière valeur envoyée par canal du voile (envoi seulement si elle change)
@@ -149,6 +170,10 @@ static func obtenir(g: GestionMagie = null) -> ImpactCorps:
 		actif = false   # mise au point / mesure : rendu d'avant
 	if OS.get_cmdline_user_args().has("--sans-chauffe-corps"):
 		chauffe_corps = false   # mesure : sans la préchauffe à blanc sur les vrais maillages
+	if OS.get_cmdline_user_args().has("--sans-lod"):
+		lod = false   # mesure : tous les foyers mis à jour à chaque image (comme avant la réduction de fréquence)
+	if OS.get_cmdline_user_args().has("--trace-impact"):
+		trace = true   # mesure : coût par section toutes les 240 images, images lentes, lectures, préchauffes
 	if instance != null and is_instance_valid(instance) and not instance.is_queued_for_deletion():
 		return instance
 	if g == null:
@@ -623,6 +648,8 @@ func liberer(f: Foyer, net := false) -> void:
 	f.nb_segs = 0
 	f.ec_ecrit = []
 	f.u.clear()
+	f.nor_surface = null
+	f.dt_acc = 0.0
 	if f.d.has("_ec"):
 		# canaux des écoles B remis à zéro (un autre foyer du même corps les réécrit à l'image suivante)
 		for mi in f.voiles:
@@ -954,6 +981,12 @@ func _ecrire_ecoles() -> void:
 func impulsion(f: Foyer, info: Dictionary, duree: float) -> void:
 	_impulsions.append({"f": f, "info": info, "fin": gm.horloge + duree})
 
+func _a_impulsion(f: Foyer) -> bool:
+	for im: Dictionary in _impulsions:
+		if im.f == f:
+			return true
+	return false
+
 func _impulser(f: Foyer) -> void:
 	if _impulsions.is_empty():
 		return
@@ -986,6 +1019,8 @@ func _maj() -> void:
 	if niveau != _niveau:
 		_configurer_tous()
 	var actifs := 0
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	var cam_pos := cam.global_position if cam != null else Vector3.INF
 	for f: Foyer in foyers:
 		if f.libre:
 			if gm.horloge >= f.fin_particules:
@@ -998,13 +1033,20 @@ func _maj() -> void:
 			continue
 		actifs += 1
 		var o := f.origine()
-		f.image += 1
-		# brûlure seule (pas de jet) : flammes lentes, points refaits une image sur deux ; normales une image sur deux
-		var sous_jet := float(f.d.get("k_jet", 0.0)) > 0.0 or not (f.d.get("jets", {}) as Dictionary).is_empty()
-		var refaire := sous_jet or f.image % 2 == 0 or f.surface.pos.is_empty()
+		# fréquence de mise à jour : chaque image si le foyer est touché, sinon réduite (et plus encore s'il est loin)
+		f.dt_acc += dt
+		var touche := gm.horloge - float(f.d.get("vu", -INF)) < TOUCHE_RECENT or _a_impulsion(f)
+		var periode := 1
+		if not touche and lod:
+			periode = PERIODE_LOIN if cam_pos != Vector3.INF and o.distance_squared_to(cam_pos) > DIST_LOIN * DIST_LOIN else PERIODE_REPOS
+		# phase par CORPS (ses foyers feu + électricité partagent la même image : surface et octets calculés une fois)
+		var a_jour := periode == 1 or (Engine.get_process_frames() + f.cible.get_instance_id() % 7) % periode == 0 or f.image < 2
 		var ta := Time.get_ticks_usec()
-		if refaire:
-			f.surface.actualiser(o, f.image % 2 == 0 or not sous_jet)
+		if a_jour:
+			f.image += 1
+			# touché : points à chaque image, normales une image sur deux ; au repos : tout, à chaque mise à jour (une image
+			# sur PERIODE_REPOS : c'est la cadence « brûlure seule » d'avant, mais le comportement suit la même cadence)
+			f.surface.actualiser(o, f.image % 2 == 0 or periode > 1)
 		_t_sections[0] += Time.get_ticks_usec() - ta
 		ta = Time.get_ticks_usec()
 		# positions et transformées réécrites seulement si elles ont changé (poser global_transform notifie et propage)
@@ -1022,22 +1064,30 @@ func _maj() -> void:
 				if not xf.is_equal_approx(f.xf_coques[k]):
 					f.xf_coques[k] = xf
 					c.global_transform = xf
-				var vis := (mi as Node3D).is_visible_in_tree()
-				if c.visible != vis:
-					c.visible = vis
+				if a_jour:
+					var vis := (mi as Node3D).is_visible_in_tree()
+					if c.visible != vis:
+						c.visible = vis
 		_t_sections[1] += Time.get_ticks_usec() - ta
+		if not a_jour:
+			continue
 		ta = Time.get_ticks_usec()
 		_impulser(f)
-		var vivant: bool = COMPORTEMENTS[f.ecole].maj(self, f, dt)
+		var vivant: bool = COMPORTEMENTS[f.ecole].maj(self, f, f.dt_acc)
+		f.dt_acc = 0.0
 		_t_sections[2] += Time.get_ticks_usec() - ta
 		if not vivant:
 			liberer(f)
 			continue
 		ta = Time.get_ticks_usec()
-		if refaire:
-			f.params[10] = float(f.surface.nb)
-			f.surface.ecrire(f.img_pos, f.img_nor, f.params)
-			f.tex_pos.update(f.img_pos)
+		f.params[10] = float(f.surface.nb)
+		f.surface.ecrire_pos(f.img_pos, f.params)
+		f.tex_pos.update(f.img_pos)
+		# normales : seulement si la surface les a recalculées depuis le dernier envoi de ce foyer
+		if f.nor_ecrit != f.surface.image_nor or f.nor_surface != f.surface:
+			f.nor_ecrit = f.surface.image_nor
+			f.nor_surface = f.surface
+			f.surface.ecrire_nor(f.img_nor)
 			f.tex_nor.update(f.img_nor)
 		_t_sections[3] += Time.get_ticks_usec() - ta
 	var tb := Time.get_ticks_usec()
@@ -1061,15 +1111,22 @@ func _maj() -> void:
 ## la lumière du bout du jet est posée ~0,5 m devant le torse et brûlait le corps en blanc de près. Elle est reculée
 ## vers le lanceur et plafonnée : le corps est éclairé par le feu sans saturer (rien n'est modifié dans GestionMagie).
 func _temperer_lumieres() -> void:
+	# (perf) lumières visibles relevées une fois ; un corps qui porte plusieurs foyers (feu + électricité) traité une fois
+	var vis: Array[OmniLight3D] = []
+	for l: OmniLight3D in gm._lumieres:
+		if l.visible:
+			vis.append(l)
+	if vis.is_empty():
+		return
+	var faits: Array[Node3D] = []
 	for f: Foyer in foyers:
-		if f.libre or f.surface == null:
+		if f.libre or f.surface == null or faits.has(f.cible):
 			continue
+		faits.append(f.cible)
 		var c := f.origine() + f.surface.masse_centre
 		var somme := 0.0
 		var proches: Array[OmniLight3D] = []
-		for l: OmniLight3D in gm._lumieres:
-			if not l.visible:
-				continue
+		for l: OmniLight3D in vis:
 			var v := l.position - c
 			var dist := v.length()
 			if dist < RAYON_TEMPERE:
@@ -1094,6 +1151,8 @@ func _preparer(dt: float) -> void:
 			gm.couche.demander()
 		if _chauffe_n <= 0:
 			_finir_chauffe()
+	if _eclaire != null:
+		_eclairer_image()
 	_scan -= dt
 	if _scan <= 0.0:
 		_scan = 0.5
@@ -1118,6 +1177,8 @@ func _preparer(dt: float) -> void:
 		return
 	if _chauffe == null and not _a_chauffer.is_empty():
 		_chauffer_suivant()
+	if _eclaire == null and _chauffe == null and not _a_eclairer.is_empty():
+		_eclairer_suivant()
 	if _attente > 0.0:
 		return
 	while not _a_preparer.is_empty():
@@ -1158,6 +1219,8 @@ static func _cles_format(c: Node3D) -> PackedStringArray:
 	return cles
 
 func _mettre_a_chauffer(c: Variant) -> void:
+	if chauffe_corps and _a_eclairer.size() < 32 and not _a_eclairer.has(c):
+		_a_eclairer.append(c)
 	if chauffe_corps and actif and _a_chauffer.size() < 16 and not _a_chauffer.has(c) and not _cles_format(c).is_empty():
 		_a_chauffer.append(c)
 
@@ -1193,6 +1256,45 @@ func _chauffer_suivant() -> void:
 		if trace:
 			print("ImpactCorps : préchauffe à blanc sur %s (%d maillages)" % [(c as Node).name, x.voiles.size()])
 		return
+
+## Préchauffe des lumières : premier corps de la file à l'écran et à portée de sort (≤ DIST_ECLAIRE m : les lumières
+## doivent aussi toucher ce qui entoure le lanceur, ses mains, son arme).
+const DIST_ECLAIRE := 12.0
+func _eclairer_suivant() -> void:
+	var cam := get_viewport().get_camera_3d()
+	var i := 0
+	while i < _a_eclairer.size():
+		var c: Variant = _a_eclairer[i]
+		if not is_instance_valid(c) or not (c as Node).is_inside_tree():
+			_a_eclairer.remove_at(i)
+			continue
+		var pos := (c as Node3D).global_position + Vector3.UP
+		if cam != null and (not cam.is_position_in_frustum(pos) or pos.distance_to(cam.global_position) > DIST_ECLAIRE):
+			i += 1
+			continue
+		_a_eclairer.remove_at(i)
+		_eclaire = c
+		_eclaire_n = 0
+		_eclairer_image()
+		return
+
+## Une image de la préchauffe des lumières : une lumière de plus (elles durent 0,12 s : 1, 2, 3 puis 4 ensemble), posées
+## comme celles des sorts (au corps, puis vers le lanceur), énergie quasi nulle (invisible, mais le moteur la compte).
+func _eclairer_image() -> void:
+	if not is_instance_valid(_eclaire) or not _eclaire.is_inside_tree() or not gm._jets.is_empty() or not gm._projectiles.is_empty():
+		_eclaire = null
+		return
+	var cam := get_viewport().get_camera_3d()
+	var c := _eclaire.global_position + Vector3.UP * 1.1
+	var vers := (cam.global_position - c).normalized() if cam != null else Vector3.BACK
+	gm.lumiere("chauffe_lum%d" % _eclaire_n, c + vers * (0.6 * _eclaire_n), GestionMagie.LUMIERE.feu, 0.002, 5.0, 0.01, 0.12)
+	if gm.couche != null:
+		gm.couche.demander()
+	if trace and _eclaire_n == 0:
+		print("ImpactCorps : préchauffe des lumières sur %s" % _eclaire.name)
+	_eclaire_n += 1
+	if _eclaire_n >= ECLAIRE_IMAGES:
+		_eclaire = null
 
 func _finir_chauffe() -> void:
 	if _chauffe == null:

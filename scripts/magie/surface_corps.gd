@@ -67,6 +67,13 @@ var masse_demi := Vector3(0.3, 0.8, 0.3)
 var _image := -1
 var _origine := Vector3.ZERO
 var _repli := false
+## (2026-10-28, perf) image (Engine.get_process_frames) du dernier calcul des normales : un foyer ne renvoie sa texture
+## des normales que si elles ont changé ; octets des points / normales gardés pour l'image (partagés entre les foyers
+## d'un même corps : feu + électricité).
+var image_nor := -1
+var _oct_img := -1
+var _oct_pos := PackedByteArray()
+var _oct_nor := PackedByteArray()
 ## (Agent B, perf) groupes PARTAGÉS entre maillages : clé = squelette + os + transformée du maillage. Les pièces d'un même
 ## personnage (tunique, pantalon, bottes… même squelette, même transformée) ne font plus qu'un groupe par os : ~60 → ~25
 ## groupes pour un draugr, actualiser() presque deux fois moins cher.
@@ -399,10 +406,12 @@ func actualiser(origine: Vector3, normales := true) -> void:
 		return
 	_image = img
 	_origine = origine
+	_oct_img = -1
 	normales = normales or nor.size() < nb
 	pos.clear()
 	if normales:
 		nor.clear()
+		image_nor = img
 	var dec := Transform3D(Basis.IDENTITY, -origine)
 	var y0 := INF
 	var y1 := -INF
@@ -461,6 +470,35 @@ func ecrire(img_pos: Image, img_nor: Image, params := PackedFloat32Array()) -> v
 	n.append_array(_zeros_params)
 	img_pos.set_data(TEXELS, 1, false, Image.FORMAT_RGBAF, o)
 	img_nor.set_data(TEXELS, 1, false, Image.FORMAT_RGBAF, n)
+
+## Comme ecrire(), en deux temps (ImpactCorps) : positions + paramètres du foyer à chaque mise à jour, normales seulement
+## si elles ont changé depuis le dernier envoi de CE foyer (ecrire_nor). Octets des points calculés une fois par image.
+func ecrire_pos(img_pos: Image, params: PackedFloat32Array) -> void:
+	if nb <= 0:
+		return
+	_octets()
+	var o := _oct_pos.duplicate()
+	o.append_array(params.to_byte_array() if params.size() == TEXELS_PARAMS * 4 else _zeros_params)
+	img_pos.set_data(TEXELS, 1, false, Image.FORMAT_RGBAF, o)
+
+func ecrire_nor(img_nor: Image) -> void:
+	if nb <= 0:
+		return
+	_octets()
+	img_nor.set_data(TEXELS, 1, false, Image.FORMAT_RGBAF, _oct_nor)
+
+func _octets() -> void:
+	var img := Engine.get_process_frames()
+	if img == _oct_img and _oct_pos.size() > 0:
+		return
+	_oct_img = img
+	pos.resize(LARGEUR)
+	nor.resize(LARGEUR)
+	if _zeros_params.is_empty():
+		_zeros_params.resize(TEXELS_PARAMS * 16)
+	_oct_pos = pos.to_byte_array()
+	_oct_nor = nor.to_byte_array()
+	_oct_nor.append_array(_zeros_params)
 
 ## Image vide au bon format pour ecrire().
 static func image() -> Image:

@@ -45,6 +45,9 @@ void voile_ecoles(vec3 p_monde, vec3 p_obj, vec3 n_monde, vec3 n_vue, float case
 		float ir = e_bruit(qc * 0.35) * 0.35 + e_bruit(qc * 0.9) * 0.15;
 		float m = 1.0 - smoothstep(r * (0.55 + ir), r * (0.8 + ir), di);
 		m *= gel;
+		// (2026-10-28) plaques : zones bien prises / à peine givrées (même idée que la croûte de la coque)
+		float pl = e_bruit(p_obj * 3.2 + vec3(1.7, 0.3, 4.1)) * 0.75 + e_bruit(p_obj * 7.5) * 0.25;
+		m *= mix(0.35, 1.0, smoothstep(0.3, 0.6, pl + n_monde.y * 0.15));
 		// dessus des formes (épaules, casque) plus blanc : le givre se dépose
 		float dessus = clamp(n_monde.y * 0.5 + 0.5, 0.0, 1.0);
 		float ag = m * (0.16 + 0.16 * dessus + 0.12 * step(0.7, bord));

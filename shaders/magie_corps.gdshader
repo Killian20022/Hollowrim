@@ -10,7 +10,7 @@
 //   mc_feu  : xyz = point d'impact (monde), w = chaleur 0..1 (1 = sous le jet, ~0,4 = brûlure)
 //   mc_dir  : xyz = direction du jet (monde), w = carbonisation 0..1
 //   mc_mesh : x = grille ps1 du modèle (0 = aucune), y = gonfle (m, repère objet), z = cases du motif par mètre
-//   mc_autre: x, y, z réservés aux autres écoles (gel, choc, ténèbres : agent B) ; w = part du jet en cours (0..1)
+//   mc_autre: x = couverture du feu (0..1, grandit avec la durée du jet), y, z libres (B passe par mc_ecoles) ; w = part du jet (0..1)
 shader_type spatial;
 render_mode unshaded, blend_premul_alpha, cull_back, depth_draw_never, fog_disabled, shadows_disabled;
 
@@ -75,7 +75,8 @@ void fragment() {
 	float face = clamp(-dot(n, d) * 0.5 + 0.5, 0.0, 1.0);          // côté tourné vers le jet
 	vec3 v = p_monde - mc_feu.xyz;
 	float di = length(v);
-	float prox = exp(-(di * di) / (rayon_chaud * rayon_chaud));    // près du point touché
+	float rc = rayon_chaud * (1.0 + 0.9 * clamp(mc_autre.x, 0.0, 1.0));   // couverture du feu (FeuCorps)
+	float prox = exp(-(di * di) / (rc * rc));    // près du point touché
 	float hloc = chaleur * face * face * (0.2 + 0.8 * prox);
 	float cases = mc_mesh.z;
 	// lueur du corps éclairé de l'intérieur : 3 paliers concentriques autour du point touché (pas de grain)

@@ -33,37 +33,70 @@ func _go() -> void:
 		await process_frame
 	for k in 30:
 		await process_frame
-	for ecole in ["feu", "electricite", "tenebres", "glace"]:
-		EffetsMagie.tout_arreter()
-		for k in 10:
-			await process_frame
-		var jets := []
-		for c in corps:
-			jets.append({"ecole": ecole, "origine": main, "portee": 6.0, "largeur": 0.6, "dbl": false, "emit": [], "gerbe": [],
-				"gerbe_cible": null, "cible": c, "fin_pos": c.global_position + Vector3.UP * 1.1, "t_bout": 0.0, "eclair": {}})
-		var st: String = {"feu": "brulure", "electricite": "choc", "tenebres": "corruption", "glace": "gel"}[ecole]
-		var c0 := 0
-		var i0 := 0
-		var accroche := 0
-		for k in 200:
-			if k == 40:
-				c0 = ImpactCorps.duree_maj_us
-				i0 = ImpactCorps.images_maj
-			var ta := Time.get_ticks_usec()
-			if ecole != "glace":
-				for jj: Dictionary in jets:
-					ImpactCorps.jet_gerbe(gm, jj)
-			elif k % 20 == 0:
-				for c in corps:
-					ImpactCorps.impact(gm, "glace", c.global_position + Vector3.UP * 1.1, Vector3.BACK, 0.8)
-			if k % 12 == 0:
-				for c in corps:
-					ImpactCorps.statut(gm, c, st, 3.0)
-			if k >= 40:
-				accroche += Time.get_ticks_usec() - ta
-			await process_frame
-		var us := float(ImpactCorps.duree_maj_us - c0) / maxf(float(ImpactCorps.images_maj - i0), 1.0)
-		var ua := accroche / 160.0
-		print("BENCH %s : %.0f µs par image (module %.0f + points d'accroche %.0f) pour %d foyers (%.0f µs par corps), %d particules réservées" % [ecole, us + ua, us, ua, ImpactCorps.stats().foyers, (us + ua) / 3.0, ImpactCorps.stats().particules])
+	# --balayage : comme la mesure en jeu (perf_impact_ecoles), le jet ne touche qu'UN corps à la fois (il passe de l'un à
+	# l'autre toutes les 20 images), statuts sur les trois ; « feu+elec » = jet de flammes ET arc sur le même corps.
+	# LOD (ImpactCorps.lod : fréquence réduite des foyers non touchés) coupé / actif ALTERNÉ, --tours=N fois.
+	var balayage := OS.get_cmdline_user_args().has("--balayage")
+	var tours := 1
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--tours="):
+			tours = int(a.substr(8))
+	var ecoles := ["feu", "electricite", "tenebres", "glace"] + (["feu+elec"] if balayage else [])
+	var res := {}
+	for tour in tours:
+		for ecole: String in ecoles:
+			for lod: bool in ([false, true] if balayage else [ImpactCorps.lod]):
+				ImpactCorps.lod = lod
+				var r := await _bench(gm, corps, main, ecole, balayage)
+				var cle := "%s %s" % [ecole, "LOD" if lod else "sans LOD"]
+				if not res.has(cle):
+					res[cle] = []
+				(res[cle] as Array).append(r)
+				print("BENCH %s : %.0f µs par image (module %.0f + points d'accroche %.0f) pour %d foyers (%.0f µs par corps), %d particules réservées" % [cle, r[0] + r[1], r[0], r[1], r[2], (r[0] + r[1]) / 3.0, r[3]])
+	for cle: String in res:
+		var l: Array = res[cle]
+		var s := 0.0
+		var mini := INF
+		for r: Array in l:
+			s += float(r[0]) + float(r[1])
+			mini = minf(mini, float(r[0]) + float(r[1]))
+		print("BENCH_MOYEN %s : %.0f µs par image (meilleur %.0f) sur %d tours" % [cle, s / l.size(), mini, l.size()])
 	GestionMagie.forcer_fin = false
 	quit()
+
+func _bench(gm: GestionMagie, corps: Array[Node3D], main: Node3D, ecole: String, balayage: bool) -> Array:
+	EffetsMagie.tout_arreter()
+	for k in 10:
+		await process_frame
+	var ecs: Array = ["feu", "electricite"] if ecole == "feu+elec" else [ecole]
+	var jets := []
+	for e: String in ecs:
+		for c in corps:
+			jets.append({"ecole": e, "origine": main, "portee": 6.0, "largeur": 0.6, "dbl": false, "emit": [], "gerbe": [],
+				"gerbe_cible": null, "cible": c, "fin_pos": c.global_position + Vector3.UP * 1.1, "t_bout": 0.0, "eclair": {}})
+	var sts := {"feu": "brulure", "electricite": "choc", "tenebres": "corruption", "glace": "gel"}
+	var c0 := 0
+	var i0 := 0
+	var accroche := 0
+	for k in 200:
+		if k == 40:
+			c0 = ImpactCorps.duree_maj_us
+			i0 = ImpactCorps.images_maj
+		var ta := Time.get_ticks_usec()
+		if ecole != "glace":
+			for n in jets.size():
+				if not balayage or n % corps.size() == (k / 20) % corps.size():
+					ImpactCorps.jet_gerbe(gm, jets[n])
+		elif k % 20 == 0:
+			for i in corps.size():
+				if not balayage or i == (k / 20) % corps.size():
+					ImpactCorps.impact(gm, "glace", corps[i].global_position + Vector3.UP * 1.1, Vector3.BACK, 0.8)
+		if k % 12 == 0:
+			for c in corps:
+				for e: String in ecs:
+					ImpactCorps.statut(gm, c, sts[e], 3.0)
+		if k >= 40:
+			accroche += Time.get_ticks_usec() - ta
+		await process_frame
+	var us := float(ImpactCorps.duree_maj_us - c0) / maxf(float(ImpactCorps.images_maj - i0), 1.0)
+	return [us, accroche / 160.0, ImpactCorps.stats().foyers, ImpactCorps.stats().particules]
