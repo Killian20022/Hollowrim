@@ -16,7 +16,12 @@ void fragment() {
 	float a = clamp(m.a, 0.0, 1.0);
 	// dé-prémultiplier avant le passage en sRVB (sinon les paliers 1/3 et 2/3 des particules opaques pâlissent) ;
 	// là où il n'y a que de l'additif (opacité nulle), la lumière est ajoutée telle quelle
-	vec3 c = a > 0.004 ? m.rgb / a : m.rgb;
-	vec3 s = vers_srvb(min(c, vec3(1.0)));
-	COLOR = vec4(a > 0.004 ? s * a : s, a) * opacite;
+	// pixel MIXTE (flux des jets : lumière + couverture partielle, rgb > a) : la part couvrante (rgb <= a) est
+	// dé-prémultipliée, l'excédent est de la lumière ajoutée ; sans ce partage, la division saturait chaque canal
+	// séparément (cœur blanc délavé et franges de couleurs fausses)
+	vec3 couvre = min(m.rgb, vec3(a));
+	vec3 lum = m.rgb - couvre;
+	vec3 s = a > 0.004 ? vers_srvb(couvre / a) * a : vec3(0.0);
+	s += vers_srvb(min(a > 0.004 ? lum : m.rgb, vec3(1.0)));
+	COLOR = vec4(s, a) * opacite;
 }

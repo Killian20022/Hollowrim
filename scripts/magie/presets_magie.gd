@@ -165,9 +165,9 @@ const FIN := {
 	"feu_jet": {"etire": 2.0, "n": 1.2, "t": 0.22, "avec": ["feu_fin_jet_etincelles", "feu_fin_jet_flammeches"]},
 	"feu_jet_coeur": {"etire": 2.0, "n": 1.0, "t": 0.22, "sur": {"eclat": 2.2, "rampe": ["#ffffff", "#fffbe8", "#fff0a8", "#fff0a8", "#fcb53a"]}},
 	"feu_jet_bord": {"etire": 1.5, "n": 1.2, "t": 0.22},
-	"feu_paume": {"sur": {"eclat": 2.4}, "avec": ["feu_fin_paume_etincelles"]},
-	"feu_gerbe": {"etire": 2, "n": 1.2, "t": 0.28, "avec": ["feu_fin_gerbe_langues", "feu_fin_gerbe_etincelles"]},
-	"feu_lechage": {"etire": 2, "n": 2.0, "t": 0.25, "avec": ["feu_fin_eclats_braise"]},
+	"feu_paume": {"n": 0.7, "t": 0.45, "sur": {"eclat": 2.4}, "avec": ["feu_fin_paume_etincelles"]},
+	"feu_gerbe": {"etire": 2, "n": 0.8, "t": 0.16, "avec": ["feu_fin_gerbe_langues", "feu_fin_gerbe_etincelles"]},
+	"feu_lechage": {"etire": 2, "n": 1.4, "t": 0.15, "avec": ["feu_fin_eclats_braise"]},
 	"feu_impact": {"etire": 1.5, "avec": ["feu_fin_eclats_braise", "feu_fin_flash"]},
 	"feu_explosion": {"etire": 1.5, "avec": ["feu_fin_eclats_braise", "feu_fin_explosion_langues"]},
 	"feu_trainee": {"etire": 1.5, "n": 2.6, "t": 0.22, "avec": ["feu_fin_trainee_etincelles"]},
@@ -190,7 +190,7 @@ const FIN := {
 	"enchant_glace": {"avec": ["glace_fin_enchant"]},
 	# électricité (les arcs eux-mêmes : GestionMagie.foudre, plus de niveaux en couche fine)
 	"elec_aura": {"etire": 3, "n": 2.2, "avec": ["elec_fin_etincelles", "elec_fin_lueur"]},
-	"elec_paume": {"etire": 4, "n": 2.2, "avec": ["elec_fin_paume"]},
+	"elec_paume": {"etire": 4, "n": 0.6, "avec": ["elec_fin_paume"]},
 	"elec_gerbe": {"etire": 4, "n": 2.2, "avec": ["elec_fin_crepite"]},
 	"elec_impact": {"etire": 5, "n": 2.2, "avec": ["elec_fin_crepite"]},
 	"elec_etincelles": {"etire": 5, "n": 3.0},
@@ -226,6 +226,13 @@ const R_FIN := {
 	"feu_fin_etincelle": {"etire": 4, "add": true, "n": 30, "vie": 0.9, "forme": "sphere", "r": 0.07, "dir": HAUT, "ecart": 50.0, "vit": Vector2(0.15, 0.45), "grav": Vector3(0, 0.3, 0), "taille": Vector2(0.002, 0.004), "rampe": ["#ffffff", "#fff0a8", "#fcb53a", "#ec6a1f", "#b3341f"], "eclat": 2.0, "cap": 2.0, "local": true, "turb": Vector2(0.15, 0.4), "turb_echelle": 5.0},
 	"feu_fin_jet_etincelles": {"etire": 5, "add": true, "n": 120, "vie": 0.5, "dir": AVANT, "ecart": 9.0, "vit": Vector2(6.0, 10.0), "amort": Vector2(0.5, 1.5), "grav": Vector3(0, -0.6, 0), "taille": Vector2(0.006, 0.014), "rampe": ["#ffffff", "#fffbe8", "#fff0a8", "#fcb53a", "#ec6a1f", "#b3341f"], "eclat": 2.0, "cap": 3.0, "alea": 0.3},
 	"feu_fin_jet_flammeches": {"etire": 3, "n": 156, "vie": 0.5, "dir": AVANT, "ecart": 11.0, "vit": Vector2(6.5, 9.0), "amort": Vector2(0.8, 1.8), "grav": Vector3(0, 0.6, 0), "taille": Vector2(0.02, 0.06), "courbe": "bosse", "rampe": ["#fff0a8", "#fcb53a", "#ec6a1f", "#ec6a1f", "#b3341f", "#5a1a1c"], "eclat": 1.6, "cap": 7.0, "alea": 0.25},
+	# jet de flammes continu (couche fine) : le corps est le flux procédural (magie_flux) ; ici, seulement le détail
+	# fin qui s'en échappe. Langues : petites flammes claires étirées qui filent sur les bords du cône. Escarbilles
+	# (« libre » : vie propre, elles dépassent la cible) : freinées, elles tourbillonnent et montent ; retombée : braises
+	# plus lourdes qui retombent vers le sol.
+	"feu_fin_jet_langues": {"etire": 4, "add": true, "n": 150, "vie": 0.45, "dir": AVANT, "ecart": 10.0, "vit": Vector2(6.0, 8.5), "amort": Vector2(0.6, 1.6), "grav": Vector3(0, 0.8, 0), "taille": Vector2(0.008, 0.02), "courbe": "bosse", "rampe": ["#fffbe8", "#fff0a8", "#fcb53a", "#ec6a1f", "#b3341f"], "eclat": 1.7, "cap": 4.0, "alea": 0.3},
+	"feu_fin_jet_escarbilles": {"libre": true, "etire": 4, "add": true, "n": 170, "vie": 1.0, "dir": AVANT, "ecart": 16.0, "vit": Vector2(3.0, 9.0), "amort": Vector2(3.0, 6.0), "grav": Vector3(0, 0.7, 0), "taille": Vector2(0.003, 0.007), "rampe": ["#ffffff", "#fffbe8", "#fff0a8", "#fcb53a", "#ec6a1f", "#b3341f"], "eclat": 2.1, "cap": 1.2, "alea": 0.5, "turb": Vector2(0.15, 0.45), "turb_echelle": 1.5, "turb_force": 3.0},
+	"feu_fin_jet_retombee": {"libre": true, "etire": 4, "add": true, "n": 50, "vie": 1.1, "dir": AVANT, "ecart": 13.0, "vit": Vector2(4.0, 7.5), "amort": Vector2(0.8, 1.5), "grav": Vector3(0, -4.5, 0), "taille": Vector2(0.004, 0.009), "rampe": ["#fffbe8", "#fff0a8", "#fcb53a", "#ec6a1f", "#b3341f"], "eclat": 2.0, "cap": 1.5, "alea": 0.4},
 	"feu_fin_paume_etincelles": {"etire": 4, "add": true, "n": 36, "vie": 0.25, "forme": "sphere", "r": 0.02, "dir": AVANT, "ecart": 60.0, "vit": Vector2(0.4, 1.4), "taille": Vector2(0.003, 0.006), "rampe": ["#ffffff", "#fffbe8", "#fff0a8", "#fcb53a"], "eclat": 2.2, "cap": 2.0},
 	"feu_fin_gerbe_langues": {"etire": 3, "n": 156, "vie": 0.5, "dir": HAUT, "ecart": 18.0, "vit": Vector2(0.8, 2.2), "grav": Vector3(0, 2.8, 0), "taille": Vector2(0.02, 0.05), "courbe": "descend", "rampe": ["#fffbe8", "#fff0a8", "#fcb53a", "#ec6a1f", "#b3341f", "#5a1a1c"], "eclat": 1.6, "cap": 6.0, "turb": Vector2(0.08, 0.2), "turb_echelle": 3.0, "turb_force": 2.0},
 	"feu_fin_gerbe_etincelles": {"etire": 4, "add": true, "n": 42, "vie": 0.6, "dir": HAUT, "ecart": 45.0, "vit": Vector2(0.8, 2.2), "grav": Vector3(0, 0.6, 0), "taille": Vector2(0.004, 0.008), "rampe": ["#ffffff", "#fff0a8", "#fcb53a", "#ec6a1f"], "eclat": 2.0, "cap": 2.0, "turb": Vector2(0.2, 0.5), "turb_echelle": 2.0},

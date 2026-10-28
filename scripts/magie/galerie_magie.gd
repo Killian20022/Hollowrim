@@ -7,6 +7,9 @@ extends Node3D
 ##       [--captures=<dossier>]   une image PNG au milieu de chaque plan (<lieu>_<vue>_<plan>.png), puis quitte
 ##       [--perf]                 mesure : temps d'image sans effet, puis avec 3 effets simultanés + 5 cibles avec statut
 ##       [--boucle]               rejoue la suite sans fin (démonstration)
+##       [--instants=a,b,...]     plusieurs captures par plan, aux instants donnés (s)
+##       [--tourne=<°/s>]         jets canalisés : la vue pivote (lacet) à partir de 0,8 s et le jet suit la caméra
+##                                (inertie du jet quand on tourne)
 ##   Vidéo Movie Maker : --write-movie <fichier.avi> --fixed-fps 30 -- --lieu=crypte (quitte à la fin de la suite).
 
 const JOUEUR := preload("res://scripts/joueur.gd")
@@ -246,7 +249,13 @@ func _process(dt: float) -> void:
 	if String(p[0]).begins_with("pose_"):
 		EffetsMagie.aura_main(paume_g, "feu", 1.0)
 	_pendant(p[0], _t)
-	if dossier != "" and not _capture_faite and _t >= float(p[2]):
+	if dossier != "" and _arg("instants") != "":
+		# --instants=0.5,1.2 : plusieurs captures par plan (<lieu>_<vue>_<plan>_<instant>.png)
+		var suffixe := "_tourne" if _arg("tourne") != "" else ""
+		for x in _arg("instants").split(","):
+			if _t >= float(x) and _t - dt < float(x):
+				_capturer("%s_%s_%s%s_%s" % [lieu, vue, p[0], suffixe, x])
+	elif dossier != "" and not _capture_faite and _t >= float(p[2]):
 		_capture_faite = true
 		_capturer("%s_%s_%s" % [lieu, vue, p[0]])
 	if _t >= float(p[1]):
@@ -377,7 +386,7 @@ func _pendant(nom: String, t: float) -> void:
 			var ecole: String = {"jet_feu": "feu", "arc_electrique": "electricite", "drain_vie": "tenebres", "souffle_givre": "glace"}[nom]
 			EffetsMagie.aura_main(paume_g, ecole, 1.0)
 			var actif := t > 0.15 and t < 2.0
-			EffetsMagie.jet(ecole, paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, actif)
+			EffetsMagie.jet(ecole, paume_g, _dir_jet(paume_g, t), 7.0, 1.0, actif)
 			if actif and t > 0.6:
 				EffetsMagie.statut_cible(cibles[1], {"feu": "brulure", "electricite": "choc", "tenebres": "corruption", "glace": "gel"}[ecole], 0.8)
 		"soin":
@@ -387,8 +396,18 @@ func _pendant(nom: String, t: float) -> void:
 		"double_feu", "double_electricite", "double_tenebres":
 			var ecole := nom.trim_prefix("double_")
 			var actif := t > 0.3 and t < 2.1
-			EffetsMagie.jet(ecole, paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, actif)
-			EffetsMagie.jet(ecole, paume_d, _dir_vers(paume_d, _vise()), 7.0, 1.0, actif)
+			EffetsMagie.jet(ecole, paume_g, _dir_jet(paume_g, t), 7.0, 1.0, actif)
+			EffetsMagie.jet(ecole, paume_d, _dir_jet(paume_d, t), 7.0, 1.0, actif)
+
+## Direction d'un jet : vers la cible du milieu ; avec --tourne, la vue pivote à partir de 0,8 s et le jet suit la caméra.
+func _dir_jet(o: Node3D, t: float) -> Vector3:
+	var v := float(_arg("tourne", "0"))
+	if v == 0.0 or t < 0.8:
+		return _dir_vers(o, _vise())
+	if t < 2.0 and o == paume_g:   # une seule rotation par image, même en double incantation
+		joueur.rotate_y(deg_to_rad(v) * get_process_delta_time())
+	var cible: Vector3 = joueur.camera.global_position - joueur.camera.global_basis.z * 6.0
+	return _dir_vers(o, cible)
 
 func _fin(nom: String) -> void:
 	for p in [paume_g, paume_d]:
@@ -399,6 +418,8 @@ func _fin(nom: String) -> void:
 	if nom.begins_with("double_"):
 		EffetsMagie.double(nom.trim_prefix("double_"), false)
 		mains._modele_arme_d.visible = true
+	if _arg("tourne") != "":
+		joueur.rotation.y = 0.0
 
 # ---------------------------------------------------------------- mesure
 

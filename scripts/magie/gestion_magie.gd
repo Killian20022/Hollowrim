@@ -1141,6 +1141,10 @@ func _gen_aura_arcs(a: Dictionary) -> Array:
 	var i := float(a.i)
 	var dbl: bool = _double.get(a.ecole, false)
 	var n := 3 + int(i * 5.0) + (2 if dbl else 0)
+	if valide(a.main) and _jets.has((a.main as Node).get_instance_id()):
+		# un arc part de cette main : quelques étincelles seulement autour de la paume (pas de pelote blanche)
+		n = 2
+		i = 0.0
 	for _k in n:
 		var o := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized() * 0.015
 		var b := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.6, 1), rng.randf_range(-1, 1)).normalized() * rng.randf_range(0.05, 0.11) * (1.0 + 0.4 * i)
@@ -1174,6 +1178,10 @@ func _maj_auras() -> void:
 			continue
 		var ancre: Node3D = a.ancre
 		var i := float(a.i)
+		if _jets.has(id):
+			# un jet part de cette main : l'aura se résorbe en un petit foyer dans la paume (c'est le jet qui naît
+			# là) au lieu d'une boule de flammes qui couvre la naissance du flux
+			i *= 0.4 if a.ecole == "feu" else 0.15
 		var dbl: bool = _double.get(a.ecole, false)
 		var k := (0.75 + 0.5 * minf(i, 1.0)) * (1.25 if dbl else 1.0)
 		ancre.transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * k), (main as Node3D).global_position)
@@ -1220,7 +1228,7 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 	var j := {"ecole": ecole, "origine": origine, "portee": portee, "largeur": largeur, "dbl": dbl, "emit": [], "eclair": {},
 		"dir": Vector3.FORWARD, "vu": horloge, "fin_pos": Vector3.ZERO, "touche": false, "normale": Vector3.UP, "t_bout": 0.0, "t_rayon": -1.0,
 		"suit_bout": [], "bouclier": {}, "cible": null, "gerbe": [], "gerbe_cible": null, "gerbe_bb": AABB(), "flash": null, "debut": horloge,
-		"flux": null, "ecart": 10.0}
+		"flux": null, "ecart": 10.0, "dir_vis": Vector3.ZERO, "t_maj": horloge, "eclabousse": null}
 	var kl := 1.6 if dbl else 1.0
 	# cône 2 à 3 fois plus large qu'un rayon « géométrique » : la flamme s'évase et noie la cible
 	var ecart := clampf(rad_to_deg(atan2(largeur * 0.5 * kl, maxf(portee, 0.5))) * 2.4, 8.0, 32.0)
@@ -1233,6 +1241,11 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 		"feu", "glace", "soin":
 			var noms: Array = {"feu": ["feu_jet_coeur", "feu_jet", "feu_jet_bord", "feu_jet_braise", "feu_jet_fumee", "feu_paume"],
 				"glace": ["glace_jet", "glace_jet_corps", "glace_jet_cristal", "glace_jet_brume", "glace_paume"], "soin": ["soin_jet"]}[ecole]
+			if j.flux != null and ecole == "feu":
+				# couche fine : le CORPS du jet est le flux procédural (un seul volume qui coule) ; plus de gros carrés
+				# opaques qui s'entassent (« un tas de flammes ») : seulement des langues fines, des escarbilles qui
+				# s'échappent, tourbillonnent et retombent, et le foyer de la paume
+				noms = ["feu_fin_jet_langues", "feu_fin_jet_escarbilles", "feu_fin_jet_retombee", "feu_paume"]
 			for nom in noms:
 				var d: Dictionary = PresetsMagie.R[nom]
 				if nom.ends_with("paume"):
@@ -1244,12 +1257,15 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 				var vm := (v.x + v.y) * 0.5
 				var kv := 1.6 if nom.ends_with("fumee") or nom.ends_with("brume") else 1.2
 				var pm := _pm(nom, d, {"ecart": snappedf(float(d.get("ecart", 9.0)) * ecart / 9.0, 0.5)})
-				var p := emettre(nom, null, Transform3D.IDENTITY, true, kn, portee / vm * kv, pm)
+				# escarbilles : vie propre (elles dépassent la cible, ralentissent, tourbillonnent, retombent)
+				var libre := bool(d.get("libre", false))
+				var p := emettre(nom, null, Transform3D.IDENTITY, true, kn, -1.0 if libre else portee / vm * kv, pm)
 				if p != null:
-					p.set_meta("v_jet", vm / kv)
+					if not libre:
+						p.set_meta("v_jet", vm / kv)
 					j.emit.append(p)
 		"electricite":
-			j.eclair = eclair(null, "electricite", 4.0 if dbl else 3.0, -1.0, 0.05, _gen_jet_arc.bind(j))
+			j.eclair = eclair(null, "electricite", 2.4 if dbl else 2.0, -1.0, 0.033, _gen_jet_arc.bind(j))
 			var pe := emettre("elec_paume", null, Transform3D.IDENTITY, true, kn)
 			if pe != null:
 				j.emit.append(pe)
@@ -1257,10 +1273,10 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 			var f := Node3D.new()
 			add_child(f)
 			_boule(f, 0.5, _mat_coeur(Color("#f0f2ff"), true, 2.2))
-			_boule(f, 1.0, _mat_coeur(Color("#7a7af0", 0.45), true, 1.4))
+			_boule(f, 1.0, _mat_coeur(Color("#7a7af0", 0.2), true, 1.4))
 			j.flash = f
 		"tenebres":
-			j.eclair = eclair(null, "drain", 5.0 if dbl else 4.0, -1.0, 0.04, _gen_drain.bind(j))
+			j.eclair = eclair(null, "drain", 3.0 if dbl else 2.5, -1.0, 0.033, _gen_drain.bind(j))
 			for nom in ["ten_drain_sombre", "ten_drain_rouge", "ten_drain_eclats"]:
 				var p := emettre(nom, null, Transform3D.IDENTITY, true, kn)
 				if p != null:
@@ -1271,21 +1287,65 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 				{"couleur": "#7ab0d8", "coeur": "#eaf8ff", "anneau": 0.88, "epaisseur": 0.06, "runes": 1.0, "remplissage": 0.25, "texels": 40.0, "tourne": 0.2, "eclat": 1.3}, false, false, 0.05)
 	return j
 
+## Point de la courbe d'un jet (Bézier quadratique) : part de la paume selon la visée actuelle, le bout suit la visée
+## avec un retard (dir_vis, inertie) ; même courbe que le flux procédural (magie_flux.gdshader).
+func _jet_courbe(o: Vector3, j: Dictionary, l: float, t: float) -> Vector3:
+	var dv: Vector3 = j.dir_vis if j.dir_vis != Vector3.ZERO else j.dir
+	var c := o + (j.dir as Vector3) * l * 0.5
+	var bout: Vector3 = o + dv * l if not j.touche else j.fin_pos
+	return o * (1.0 - t) * (1.0 - t) + c * 2.0 * (1.0 - t) * t + bout * t * t
+
+## Arc d'éclair le long de la courbe du jet : 9 points de passage tirés au hasard autour de la courbe, puis zigzag fin
+## entre eux (déplacement du point milieu) ; nerveux mais orienté (pas une pelote).
+func _arc_courbe(o: Vector3, j: Dictionary, l: float, ampl: float, decal: Vector3) -> PackedVector3Array:
+	var pts := PackedVector3Array()
+	var n := 9
+	var prec := o
+	for i in range(1, n + 1):
+		var t := float(i) / n
+		var q := _jet_courbe(o, j, l, t) + decal * t * t
+		if i < n:
+			q += Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * ampl * (0.12 + 0.28 * t)
+		# zigzag serré à haute fréquence (cf. electricite_fps_1100.jpg) plutôt que de grandes ondulations à angle droit
+		var seg := foudre(prec, q, ampl * 0.6 * (0.3 + 0.7 * t), 3)
+		if i > 1:
+			seg.remove_at(0)
+		pts.append_array(seg)
+		prec = q
+	return pts
+
 func _gen_jet_arc(j: Dictionary) -> Array:
 	var traits: Array = []
 	var o: Vector3 = (j.origine as Node3D).global_position if valide(j.origine) else Vector3.ZERO
-	var b: Vector3 = j.fin_pos
-	var l := o.distance_to(b)
+	var l := o.distance_to(j.fin_pos)
+	if l < 0.05:
+		return traits
 	var dbl: bool = j.dbl
-	# arc principal épais + 2 arcs secondaires, nombreuses ramifications ; quelques fourches vers le corps de la cible
-	foudre_ramifiee(traits, o, b, l * 0.1, 1.0, 5 if dbl else 4, 5)
-	for _k in (3 if dbl else 2):
-		var dev := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * 0.35
-		foudre_ramifiee(traits, o, b + dev, l * 0.14, 0.6, 2, 5)
+	# faisceau à la « Sparks » : 1 arc maître fin + 2 (3 en double) arcs plus fins qui se croisent autour, tous refaits
+	# à chaque régénération (30 fois par seconde) ; branches COURTES tournées vers l'avant (pas de pelote au milieu)
+	var dir: Vector3 = (j.fin_pos - o) / l
+	var arcs := (5 if dbl else 4)
+	for k in arcs:
+		var decal := Vector3.ZERO
+		if k > 0:
+			decal = Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * l * 0.025
+		var p := _arc_courbe(o, j, l, l * (0.035 if k == 0 else 0.05), decal)
+		traits.append([p, (1.0 if k == 0 else 0.5), 1.0 if k == 0 else 0.7])
+		for _r in (3 if k == 0 else 1) * (2 if fin_actif else 1):
+			# branches sur la seconde moitié du trajet seulement, longueur proportionnelle à la distance parcourue : près
+			# de la paume (donc de la caméra) une branche de 50 cm couvrait un tiers de l'écran (grandes boucles)
+			var i := rng.randi_range(p.size() * 2 / 5, maxi(p.size() * 2 / 5, p.size() - 3))
+			var depart := p[i]
+			var kt := float(i) / p.size()
+			var dev := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
+			var fin := depart + (dir + dev * 0.8).normalized() * l * kt * rng.randf_range(0.03, 0.08)
+			traits.append([foudre(depart, fin, l * 0.02, 3), 0.4, 0.6])
 	if j.touche:
-		for _k in 3:
-			var fin := b + Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(-0.8, 0.5), rng.randf_range(-0.4, 0.4))
-			traits.append([foudre(b, fin, 0.08, 3), 0.6, 0.8])
+		# arrivée : petites fourches qui courent sur le corps de la cible
+		for _k in 2:
+			var b: Vector3 = j.fin_pos
+			var fin: Vector3 = b + Vector3(rng.randf_range(-0.35, 0.35), rng.randf_range(-0.7, 0.45), rng.randf_range(-0.35, 0.35))
+			traits.append([foudre(b, fin, 0.05, 3), 0.5, 0.7])
 	return traits
 
 func _gen_drain(j: Dictionary) -> Array:
@@ -1301,21 +1361,25 @@ func _gen_drain(j: Dictionary) -> Array:
 	var dir := axe / l
 	var x := dir.cross(Vector3.UP if absf(dir.y) < 0.95 else Vector3.RIGHT).normalized()
 	var y := dir.cross(x)
-	var n := clampi(int(l * 9.0), 8, 60)
+	var n := clampi(int(l * 9.0), 12, 60)
 	var dbl: bool = j.dbl
-	var brins := (5 if dbl else 4) + (3 if fin_actif else 0)
-	# filaments épais qui ondulent et s'enroulent (pas un trait fin) : rayon qui respire le long du trajet
+	var brins := (3 if dbl else 2) + (1 if fin_actif else 0)
+	# filaments fins qui ondulent comme de la fumée aspirée (2 à 3 ondulations sur le trajet, l'onde COURT de la cible
+	# vers la main), écartés au milieu et resserrés aux deux bouts : pas de ressort régulier
 	for brin in brins:
 		var pts := PackedVector3Array()
-		var ph := horloge * (7.0 + brin) + brin * TAU / brins
-		var amp := (0.07 + 0.05 * float(brin % 2)) * (1.4 if dbl else 1.0)
+		var fa := 1.3 + 0.4 * brin
+		var fb := 1.0 + 0.3 * ((brin * 7) % 3)
+		var ph := float(brin) * 2.399
+		var amp := (0.09 + 0.05 * float(brin % 3)) * (1.3 if dbl else 1.0)
 		for i in n + 1:
 			var t := float(i) / n
-			var rayon := amp * (0.35 + sin(t * PI) * (1.6 + 0.6 * sin(horloge * 3.0 + brin)))
-			var a := ph - t * (10.0 + 3.0 * brin)
-			pts.append(o + axe * t + (x * cos(a) + y * sin(a)) * rayon)
-		# couche fine : plus de brins, plus fins et moins opaques (le flux procédural fait le corps sombre)
-		traits.append([pts, (0.6 if brin < 2 else 0.4) if fin_actif else (1.0 if brin < 2 else 0.6), 0.67 if fin_actif else 1.0])
+			var env := pow(sin(t * PI), 0.8) * (1.0 - 0.55 * t)   # vu de la main, le bout lointain est raccourci
+			var ox := sin(t * fa * TAU + horloge * 9.0 + ph) * amp * env
+			var oy := sin(t * fb * TAU + horloge * 6.5 + ph * 1.7) * amp * 0.8 * env
+			pts.append(_jet_courbe(o, j, l, t) + x * ox + y * oy)
+		# couche fine : brins fins et discrets, c'est le flux procédural (fumée noire et lueur violette) qui fait le corps
+		traits.append([pts, (0.4 if brin < 1 else 0.3) if fin_actif else (1.0 if brin < 2 else 0.6), 0.55 if fin_actif else 1.0])
 	return traits
 
 # ---------------------------------------------------------------------- flux procédural (couche fine)
@@ -1353,7 +1417,10 @@ func _mat_flux(ecole: String) -> ShaderMaterial:
 			m.set_shader_parameter("c%d" % i, Color(pal[i]))
 		m.set_shader_parameter("ecole", {"feu": 0, "glace": 1, "tenebres": 2, "soin": 3}.get(ecole, 0))
 		m.set_shader_parameter("vitesse", {"feu": 7.0, "glace": 5.5, "tenebres": 4.0, "soin": 4.0}.get(ecole, 6.0))
-		m.set_shader_parameter("eclat", {"feu": 1.45, "glace": 1.3, "tenebres": 1.25, "soin": 1.3}.get(ecole, 1.3))
+		m.set_shader_parameter("eclat", {"feu": 1.2, "glace": 1.1, "tenebres": 1.35, "soin": 1.0}.get(ecole, 1.1))
+		m.set_shader_parameter("allonge", {"feu": 3.6, "tenebres": 2.6}.get(ecole, 1.0))
+		m.set_shader_parameter("ouvre", {"feu": 1.4, "tenebres": 1.4}.get(ecole, 1.0))
+		m.set_shader_parameter("evase", {"feu": 0.6}.get(ecole, 0.8))
 		_mats[cle] = m
 	return _mats[cle]
 
@@ -1526,22 +1593,43 @@ func _jet_placer(j: Dictionary) -> void:
 			var vie := clampf(l / 5.75, 0.1, 2.0)
 			if absf(p.lifetime - vie) > 0.15:
 				p.lifetime = vie
+	# inertie : le bout visuel suit la visée avec un retard (fluide), la naissance reste collée à la paume
+	var dt_j := clampf(horloge - float(j.t_maj), 0.0, 0.1)
+	j.t_maj = horloge
+	var dv: Vector3 = j.dir_vis
+	if dv == Vector3.ZERO:
+		dv = vers
+	dv = dv.slerp(vers, 1.0 - exp(-dt_j * 7.0)).normalized()
+	if dv.angle_to(vers) > 0.4:   # au plus ~23° de traîne, même en tournant très vite
+		dv = vers.slerp(dv, 0.4 / dv.angle_to(vers)).normalized()
+	j.dir_vis = dv
 	if j.flux != null and is_instance_valid(j.flux):
 		var fx: MeshInstance3D = j.flux
 		var kl := 1.25 if j.dbl else 1.0
 		fx.transform = Transform3D(b, o)
-		fx.set_instance_shader_parameter("longueur", maxf(l, 0.1))
-		var rr := 0.34 if j.ecole == "tenebres" else clampf(l * tan(deg_to_rad(float(j.ecart) * 0.5)) * 1.2, 0.25, 0.7)
-		fx.set_instance_shader_parameter("r0", (0.05 if j.ecole == "tenebres" else 0.035) * kl)
+		# contre un mur ou le sol, le flux s'arrête un peu avant la surface (sinon la profondeur le coupe net) et
+		# s'y étale ; l'éclaboussure procédurale (_jet_eclabousse) lèche la surface
+		var lv := maxf(l - (0.3 if j.touche and j.cible == null else 0.0), 0.1)
+		fx.set_instance_shader_parameter("longueur", lv)
+		fx.set_instance_shader_parameter("bout", b.transposed() * (dv * lv))
+		var rr := 0.6 if j.ecole == "tenebres" else clampf(l * tan(deg_to_rad(float(j.ecart) * 0.5)) * (1.7 if j.ecole == "feu" else 1.4), 0.5 if j.ecole == "feu" else 0.25, 1.1 if j.ecole == "feu" else 0.8)
+		fx.set_instance_shader_parameter("r0", (0.04 if j.ecole == "tenebres" else 0.02) * kl)
 		fx.set_instance_shader_parameter("r1", rr * kl)
+		# au contact d'une surface, la flamme s'étale (moins sur un corps : on doit voir la cible)
+		var et := 0.0
+		if j.touche:
+			et = 0.55 if j.cible != null else 1.0
+		fx.set_instance_shader_parameter("etale", lerpf(float(fx.get_meta("etale", 0.0)), et, 1.0 - exp(-dt_j * 8.0)))
+		fx.set_meta("etale", lerpf(float(fx.get_meta("etale", 0.0)), et, 1.0 - exp(-dt_j * 8.0)))
 		fx.set_instance_shader_parameter("force", clampf((horloge - float(j.debut)) / 0.12, 0.0, 1.0))
 	if not j.bouclier.is_empty():
 		var d: Dictionary = j.bouclier
 		d.pos = o + dir * 0.35
 		d.base = GestionMagie.base_normale(dir)
 	if j.flash != null and is_instance_valid(j.flash):
-		(j.flash as Node3D).transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * rng.randf_range(0.035, 0.08) * (1.4 if j.dbl else 1.0)), o)
+		(j.flash as Node3D).transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * rng.randf_range(0.012, 0.026) * (1.3 if j.dbl else 1.0)), o)
 	_jet_gerbe(j)
+	_jet_eclabousse(j, fin)
 	# feu / glace / électricité : léchage au point touché
 	if j.touche and horloge - float(j.t_bout) > 0.12:
 		j.t_bout = horloge
@@ -1566,7 +1654,27 @@ func _jet_placer(j: Dictionary) -> void:
 	lumiere("jet%d" % id, fin - vers * minf(0.7, l * 0.3) + Vector3.UP * 0.3, c, 7.0 * kd * sc, 7.0 + 2.0 * kd, 8.0)
 	_teinte_demande(j.ecole, 1.0 if not j.dbl else 1.4)
 
+## Couche fine : flammes (ou givre) procédurales qui lèchent la surface touchée par le jet (mur, sol), hors cible.
+func _jet_eclabousse(j: Dictionary, fin: Vector3) -> void:
+	var veut: bool = fin_actif and j.flux != null and j.touche and j.cible == null and j.ecole in ["feu", "glace", "soin"]
+	var e: Variant = j.eclabousse
+	if not veut:
+		if e != null and is_instance_valid(e):
+			(e as Node).queue_free()
+		j.eclabousse = null
+		return
+	if e == null or not is_instance_valid(e):
+		e = _aura_fine(self, j.ecole, 0.4 * (1.2 if j.dbl else 1.0))
+		j.eclabousse = e
+	var mi: MeshInstance3D = e
+	var n: Vector3 = j.normale
+	mi.position = fin + n * 0.12 + Vector3.UP * 0.1
+	mi.set_instance_shader_parameter("force", clampf((horloge - float(j.debut)) / 0.3, 0.0, 1.0))
+
 func _jet_arreter(j: Dictionary) -> void:
+	if j.get("eclabousse") != null and is_instance_valid(j.eclabousse):
+		(j.eclabousse as Node).queue_free()
+	j.eclabousse = null
 	for p in j.emit:
 		arreter(p)
 	for p in j.gerbe:
@@ -2250,7 +2358,8 @@ func _maj_double() -> void:
 				"electricite":
 					v.eclair = eclair(null, "electricite", 2.0, -1.0, 0.05, func() -> Array:
 						var t: Array = []
-						foudre_ramifiee(t, v.p0, v.p1, (v.p0 as Vector3).distance_to(v.p1) * 0.15, 2.0, 2, 4)
+						if not v.get("jette", false):
+							foudre_ramifiee(t, v.p0, v.p1, (v.p0 as Vector3).distance_to(v.p1) * 0.15, 2.0, 2, 4)
 						return t)
 				_:
 					var mi := MeshInstance3D.new()
@@ -2270,6 +2379,12 @@ func _maj_double() -> void:
 			_double_vis[ecole] = v
 		v.p0 = p0
 		v.p1 = p1
+		# pendant les jets des deux mains, rien entre les mains : le centre de l'écran reste dégagé pour les flux
+		v.jette = _jets.has((mains[0].main as Node).get_instance_id()) or _jets.has((mains[1].main as Node).get_instance_id())
+		(v.noeud as Node3D).visible = not v.jette
+		for p in v.emit:
+			if is_instance_valid(p):
+				(p as GPUParticles3D).emitting = not v.jette
 		(v.noeud as Node3D).position = milieu
 		lumiere("double" + ecole, milieu, LUMIERE[ecole], 3.5, 6.0, 6.0)
 
