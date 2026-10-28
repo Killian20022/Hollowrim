@@ -804,7 +804,7 @@ static func credits_texte() -> String:
 		"· Musiques : congusbongus (Cathedral in the forest, Ancient caverns), Kaiser (Frost in the Northern Winter), RandomMind (Medieval: Battle, The Old Tower Inn), synth-thetic (Beyond the Frozen Veil), indieteur (Long Winter) — OpenGameArt",
 		"· Ambiances du menu : Luke.RUSTLTD (vent), pagdev (feu), randommind (eau) — OpenGameArt",
 		"",
-		"Polices du menu (SIL Open Font License 1.1) : Alegreya (The Alegreya Project Authors), Cinzel (The Cinzel Project Authors).",
+		"Polices du menu et des titres (SIL Open Font License 1.1) : Alegreya (The Alegreya Project Authors), Cinzel (The Cinzel Project Authors), Jacquard (The Soft Type Project Authors).",
 		"Citations de l'écran de chargement : d'après le Hávamál (poème eddique, domaine public), traduction libre.",
 		"",
 		"Le reste (terrain, végétation, bâtiments, crypte, grotte, textures, shaders PS1) est généré par le code du jeu.",

@@ -24,6 +24,8 @@ const CHEMINS := {
 var joueur: CharacterBody3D
 
 var _police: FontFile
+var _invite_nom := ""     # nom de l'objet sous l'invite (« Grand coffre ») quand le verbe ne le dit pas déjà
+var _invite_larg := 0.0
 var _tex := {}
 var _invites: Array[Node3D] = []
 var _pnj: Node3D = null
@@ -257,6 +259,9 @@ func _process(dt: float) -> void:
 		if icone == null:
 			_invite_texte.text = "[E] " + _invite_texte.text
 		var total := l + larg_icone + (4.0 if icone != null else 0.0)
+		_invite_larg = total
+		var nom_obj: String = String(p.nom_affiche()) if p.has_method("nom_affiche") else ""
+		_invite_nom = nom_obj if nom_obj != "" and _invite_texte.text.to_lower().find(nom_obj.to_lower()) < 0 else ""
 		_invite.position = Vector2(roundf(floorf(size.x * 0.5) - total * 0.5), floorf(size.y * 0.5) + 15.0)  # sous le réticule
 		_invite_texte.position = Vector2(larg_icone + (4.0 if icone != null else 0.0), 0) if icone != null else Vector2.ZERO
 		queue_redraw()
@@ -266,6 +271,14 @@ func _process(dt: float) -> void:
 		_sous_titre.modulate.a = clampf(_sous_titre_t / 0.6, 0.0, 1.0)
 
 func _draw() -> void:
+	# lot L7 : bandeau sombre sous l'invite (lisible sur la neige), nom de l'objet en or dessous (« Grand coffre ») ; police du
+	# corps : le gothique 12 px est illisible à cette taille, le 24 px trop gros sous le réticule
+	if _invite != null and _invite.visible:
+		var ln := _police.get_string_size(_invite_nom, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x if _invite_nom != "" else 0.0
+		var lb := ceilf(maxf(_invite_larg, ln)) + 10.0
+		draw_rect(Rect2(floorf(floorf(size.x * 0.5) - lb * 0.5), _invite.position.y, lb, 15.0 if _invite_nom == "" else 27.0), Color(FOND, 0.55))
+		if _invite_nom != "":
+			MenuStyle.texte_detoure(self, _police, Vector2(roundf(floorf(size.x * 0.5) - ln * 0.5), _invite.position.y + 23.0), _invite_nom, TAILLE_POLICE, OR, 0.9)
 	# icône de la touche E à côté de l'invite
 	if _invite != null and _invite.visible and _tex["touche"] != null:
 		draw_texture(_tex["touche"], _invite.position + Vector2(0, 2))

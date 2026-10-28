@@ -101,17 +101,117 @@ static func theme() -> Theme:
 	_theme = t
 	return t
 
+## Cadre des panneaux (pause, options, inventaire, panneau Tab) : le cadre ornementé du lot L7 (voir cadre_orne).
 static func cadre() -> StyleBox:
-	var c := StyleBoxTexture.new()
-	c.texture = load("res://assets/ui/dialogue_cadre.svg")
-	c.set_texture_margin_all(8)
-	c.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
-	c.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+	var c := cadre_orne()
 	c.content_margin_left = 14
 	c.content_margin_right = 14
 	c.content_margin_top = 10
 	c.content_margin_bottom = 10
 	return c
+
+# --- lot L7 : police des titres et cadre ornementé ------------------------------------------------------------------------
+## Police des TITRES : « Jacquard », gothique pixel de Sarah Cadigan-Fried (SIL OFL 1.1, assets/polices/OFL_Jacquard.txt ;
+## sans nom réservé). Deux dessins, chacun à sa taille NATIVE (un pixel de police = un pixel logique : net, sans flou) :
+##   Jacquard 24 (grille de 24 px, `grande`) : LA police des titres du HUD : nom de l'ennemi, titres du panneau Tab et de l'aide,
+##   annonces centrées (lieu découvert, quête, niveau) ;
+##   Jacquard 12 (grille de 12 px) : essayé pour les noms, trop serré à 12 px (le s final se lit « x ») : pas utilisé, gardé pour
+##   d'éventuelles mentions très courtes. Texte courant et nombres : Palette.police.
+## Ses chiffres sont « elzéviriens » (le 1 ressemble à un ı) : écrire les nombres avec Palette.police (corps du texte).
+## Une copie par appelant, comme Palette.police (une police gardée en statique fait planter Godot à la fermeture).
+const TITRE_PETIT := 12
+const TITRE_GRAND := 24
+static func police_gothique(grande := false) -> FontFile:
+	var chemin := "res://assets/polices/Jacquard24-Regular.ttf" if grande else "res://assets/polices/Jacquard12-Regular.ttf"
+	var p := (load(chemin) as FontFile).duplicate()
+	p.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	p.hinting = TextServer.HINTING_NONE
+	p.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+	p.generate_mipmaps = false
+	return p
+
+## Texte détouré de 1 px (contour FOND sur les 8 voisins + ombre portée) : lisible sur la neige comme dans le noir, sans flou.
+## `contour` faux : ombre portée (1, 1) seule. Pour Jacquard 12 et la police du corps : leurs lettres ne sont séparées que d'un
+## pixel, le contour complet les soude (« Draugr ancien » devenait une bande noire) ; on le garde pour Jacquard 24.
+static func texte_detoure(ci: CanvasItem, police: Font, pos: Vector2, texte: String, taille: int, couleur: Color, alpha := 1.0, contour := false) -> void:
+	var c_fond := Color(FOND, alpha * couleur.a)
+	var voisins: Array = [Vector2(-1, -1), Vector2(0, -1), Vector2(1, -1), Vector2(-1, 0), Vector2(1, 0), Vector2(-1, 1), Vector2(0, 1), Vector2(1, 1), Vector2(1, 2)] if contour else [Vector2(1, 1)]
+	for d: Vector2 in voisins:
+		ci.draw_string(police, pos + d, texte, HORIZONTAL_ALIGNMENT_LEFT, -1, taille, c_fond)
+	ci.draw_string(police, pos, texte, HORIZONTAL_ALIGNMENT_LEFT, -1, taille, Color(couleur, alpha * couleur.a))
+
+## Coin haut-gauche (12x12) du cadre ornementé : plaque de fer à nœud d'entrelacs or (deux boucles croisées ; « b » = brin qui
+## passe dessous), puis le départ des bords. k contour, h reflet, m fer, s ombre, d filet sombre, f fond, o or, b or sombre.
+## La colonne 11 = bord du haut, la ligne 11 = bord de gauche (même suite que _BORD_ORNE).
+const _COIN_ORNE := [
+	"kkkkkkkkkkkk",
+	"khhhhhhhhhkh",
+	"khmoomoomskm",
+	"khommommoskm",
+	"khombmbmosks",
+	"khmomomomskd",
+	"khombmbmoskf",
+	"khommommoskb",
+	"khmoomoomskf",
+	"khsssssssskf",
+	"kkkkkkkkkkkf",
+	"khmmsdfbffff",
+]
+const _COULEURS_ORNE := {"k": Color("#0b0f1a"), "h": Color("#8a96ad"), "m": Color("#56627a"), "s": Color("#3a4458"),
+	"d": Color("#1a2233"), "f": Color(0.043, 0.059, 0.102, 0.85), "o": Color("#e8a64a"), "b": Color("#b8762a")}
+## Bord (12 px, de l'extérieur vers l'intérieur) : contour, reflet, fer, fer, ombre, filet sombre, fond, filet or, fond.
+## Bords du bas et de droite : le reflet devient ombre (comme dialogue_cadre.svg, lumière venue d'en haut à gauche).
+const _BORD_ORNE := "khmmsdfbffff"
+
+## Cadre ornementé (9-slice 32x32, marges 12) : bords du cadre du designer (dialogue_cadre.svg : contour, reflet, bande de fer,
+## ombre) + un filet or intérieur, et des coins en plaques de fer à nœud d'entrelacs. Pixels entiers, filtre Nearest.
+static func cadre_orne() -> StyleBoxTexture:
+	var img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
+	img.fill(_COULEURS_ORNE["f"])
+	for i in 12:   # bords (répétés en mode Tile)
+		var c: Color = _COULEURS_ORNE[_BORD_ORNE[i]]
+		var c2: Color = _COULEURS_ORNE["s"] if _BORD_ORNE[i] == "h" else c
+		for t in range(12, 20):
+			img.set_pixel(t, i, c)
+			img.set_pixel(i, t, c)
+			img.set_pixel(t, 31 - i, c2)
+			img.set_pixel(31 - i, t, c2)
+	for y in 12:   # coins : le coin haut-gauche en miroir, reflet / ombre échangés sur les côtés retournés
+		for x in 12:
+			var ch: String = _COIN_ORNE[y][x]
+			img.set_pixel(x, y, _COULEURS_ORNE[ch])
+			img.set_pixel(31 - x, y, _COULEURS_ORNE[_eclairage(ch, x, y, true, false)])
+			img.set_pixel(x, 31 - y, _COULEURS_ORNE[_eclairage(ch, x, y, false, true)])
+			img.set_pixel(31 - x, 31 - y, _COULEURS_ORNE[_eclairage(ch, x, y, true, true)])
+	var s := StyleBoxTexture.new()
+	s.texture = ImageTexture.create_from_image(img)
+	s.set_texture_margin_all(12)
+	s.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+	s.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+	return s
+
+## Pixel (x, y) du coin haut-gauche recopié en miroir : sur un côté retourné, le reflet (h) devient ombre (s) et l'inverse
+## (côtés de la plaque : colonnes / lignes 1 et 9 ; bord : pixel 1 de la ligne / colonne 11).
+static func _eclairage(ch: String, x: int, y: int, miroir_x: bool, miroir_y: bool) -> String:
+	var plaque := x <= 9 and y <= 9 and x >= 1 and y >= 1
+	var vertical := (plaque and (x == 1 or x == 9)) or (y == 11 and x == 1)
+	var horizontal := (plaque and (y == 1 or y == 9)) or (x == 11 and y == 1)
+	if (miroir_x and vertical) or (miroir_y and horizontal):
+		return {"h": "s", "s": "h"}.get(ch, ch) if plaque else ("s" if ch == "h" else ch)
+	return ch
+
+## Filet ornemental horizontal centré sur cx (annonces) : trait or de `demi` px de chaque côté, losanges or au centre et aux bouts.
+static func dessiner_filet(ci: CanvasItem, cx: float, y: float, demi: float, alpha := 1.0) -> void:
+	var o := Color(OR, alpha)
+	var b := Color("#b8762a", alpha)
+	var k := Color(FOND, 0.8 * alpha)
+	ci.draw_rect(Rect2(cx - demi, y - 1, demi * 2.0 + 1.0, 3), k)
+	ci.draw_rect(Rect2(cx - demi, y, demi * 2.0 + 1.0, 1), b)
+	for x0: float in [cx - demi - 3.0, cx, cx + demi + 3.0]:
+		ci.draw_rect(Rect2(x0 - 2, y - 3, 5, 7), k)
+		ci.draw_rect(Rect2(x0, y - 2, 1, 5), o)
+		ci.draw_rect(Rect2(x0 - 1, y - 1, 3, 3), o)
+		ci.draw_rect(Rect2(x0, y, 1, 1), b)
 
 static func _carre(cote: int, couleur: Color) -> ImageTexture:
 	var img := Image.create(cote, cote + 4, false, Image.FORMAT_RGBA8)

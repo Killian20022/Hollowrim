@@ -5,7 +5,12 @@ extends Control
 ## quand tout est plein, comme dans Skyrim.
 ## Positions RELATIVES à `size` (écran logique, voir EchelleUi) : juste à 480x270, 640x360 et 960x540.
 ## Tailles des éléments : voir assets/ui/LISEZMOI.md.
-## Captures : --hud-demo (barres et avis affichés), --hud-cible (barre d'ennemi), --hud-panneau (panneau Tab).
+## Captures : --hud-demo (barres et avis affichés), --hud-cible (barre d'ennemi), --hud-panneau (panneau Tab),
+## --hud-annonce (annonce centrée figée), --hud-aide (aide des touches affichée même en capture).
+## Lot L7 : police des TITRES gothique pixel (MenuStyle.police_gothique : Jacquard, OFL) pour le nom de l'ennemi, les titres du
+## panneau et les ANNONCES CENTRÉES (lieu découvert, nouvelle quête / quête terminée, niveau de compétence) ; AIDE DES TOUCHES
+## dans un cartouche en haut à droite les 60 premières secondes, puis sur F1 ; cadre ornementé (MenuStyle.cadre_orne).
+## L'invite d'action sous le réticule (« E  Ouvrir le coffre ») est dessinée par scripts/dialogue.gd.
 
 const CADRE := preload("res://assets/ui/barre_cadre.svg")
 const BOUSSOLE := preload("res://assets/ui/boussole.svg")
@@ -31,7 +36,24 @@ var _a_cible := 0.0
 var _cible: Node = null
 var _avis: Array = []  # [texte, temps restant] : « Épée : niveau 16 »…
 var _police: FontFile
+var _gothique: FontFile   # Jacquard 24 (police des titres) : nom de l'ennemi, titres du panneau et de l'aide, annonces centrées
 var _cadre: StyleBoxTexture
+## Annonces centrées : [titre, sous-titre, couleur, temps écoulé, durée] ; une à la fois, les suivantes attendent.
+var _annonces: Array = []
+const DUREE_ANNONCE := 2.6
+var _demo_annonce := false
+## Lieux nommés : [position, rayon (m), nom] ; le premier passage annonce « Lieu découvert ». lieux_vus est sauvegardé (monde.gd).
+var lieux_nommes: Array = []
+var lieux_vus := {}
+var decouverte_active := false   # posé par monde.gd une fois la partie chargée (sinon : annonces au point d'apparition)
+var _decouverte_t := 0.0
+## Aide des touches : [touche, action] ; affichée AIDE_DUREE s au début de la partie (demarrer()), puis seulement sur F1.
+const AIDE_DUREE := 60.0
+var aide_lignes: Array = [["ZQSD", "marcher"], ["Maj", "courir"], ["Espace", "sauter"], ["Clic gauche", "frapper"],
+	["Clic droit", "parer"], ["E", "agir"], ["I", "inventaire"], ["1 - 0", "raccourcis"], ["Tab", "sac et quêtes"],
+	["T", "torche"], ["V", "vue"], ["Échap", "menu"]]
+var aide_t := 0.0          # secondes d'affichage restantes (fondu sur la dernière)
+var aide_forcee := false   # F1
 var panneau_ouvert := false
 var quetes: Node = null
 var _demo := false
@@ -48,12 +70,9 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_police = Palette.police()
+	_gothique = MenuStyle.police_gothique(true)
 	process_mode = Node.PROCESS_MODE_ALWAYS  # le panneau marche jeu en pause
-	_cadre = StyleBoxTexture.new()
-	_cadre.texture = load("res://assets/ui/dialogue_cadre.svg")
-	_cadre.set_texture_margin_all(8)
-	_cadre.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
-	_cadre.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+	_cadre = MenuStyle.cadre_orne()
 	EchelleUi.appliquer(self)
 	combat_ui = Control.new()
 	combat_ui.set_script(HUD_COMBAT)
@@ -70,19 +89,52 @@ func _ready() -> void:
 				joueur.inventaire.ajouter(id, 2)
 			joueur.inventaire.pieces = 137).call_deferred()
 	if _demo:
-		avis("Épée : niveau 16")
+		avis("+ 22 Pièces")
 		avis("Partie sauvegardée")
+	_demo_annonce = args.has("--hud-annonce")
+	if _demo_annonce:
+		annonce("Tertre de Svanhild", "Lieu découvert", PARCHEMIN)
+	if args.has("--hud-aide"):
+		aide_forcee = true
 	joueur.competences.niveau_gagne.connect(func(nom: String, niveau: int) -> void:
-		avis("%s : niveau %d" % [Competences.NOMS[nom], niveau])
+		annonce(Competences.NOMS[nom], "Niveau %d" % niveau)
 		Sons.jouer(self, ["sword-unsheathe"], -10.0))
 
+## Début de partie (monde.gd, une fois la sauvegarde relue) : découverte des lieux active, aide des touches pour AIDE_DUREE s.
+func demarrer(avec_aide := true) -> void:
+	decouverte_active = true
+	_decouverte_t = 0.0
+	if avec_aide:
+		aide_t = AIDE_DUREE
+
+## Lieu nommé : annoncé au centre (« Lieu découvert ») la première fois que le joueur entre dans `rayon` m.
+func lieu_nomme(pos: Vector3, rayon: float, nom: String) -> void:
+	lieux_nommes.append([pos, rayon, nom])
+
 ## Message en haut à gauche, qui s'efface au bout de quelques secondes.
+## « Nouvelle quête : X » et « Quête terminée : X » (scripts/quetes.gd) deviennent des annonces centrées.
 func avis(texte: String) -> void:
+	for prefixe: String in ["Nouvelle quête : ", "Quête terminée : "]:
+		if texte.begins_with(prefixe):
+			annonce(prefixe.trim_suffix(" : "), texte.substr(prefixe.length()), OR if prefixe.begins_with("Nouvelle") else PARCHEMIN)
+			return
 	_avis.append([texte, 4.0])
 	if _avis.size() > 4:
 		_avis.pop_front()
 
+## Annonce centrée (lot L7) : TITRE en gothique 24 px, filet ornemental, sous-titre en police du corps ; ~2,6 s avec fondu.
+## Les annonces se suivent (au plus 4 en attente).
+func annonce(titre: String, sous_titre := "", couleur := OR) -> void:
+	_annonces.append([titre, sous_titre, couleur, 0.0, DUREE_ANNONCE])
+	if _annonces.size() > 4:
+		_annonces.remove_at(1)
+
 func _unhandled_input(e: InputEvent) -> void:
+	if e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_F1:
+		aide_forcee = not (aide_forcee or aide_t > 0.0)
+		aide_t = 0.0
+		get_viewport().set_input_as_handled()
+		return
 	if e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_TAB and not joueur.mort and not joueur.en_dialogue:
 		panneau_ouvert = not panneau_ouvert
 		get_tree().paused = panneau_ouvert
@@ -111,6 +163,17 @@ func _process(dt: float) -> void:
 		for a in _avis:
 			a[1] = 4.0
 	_avis = _avis.filter(func(a: Array) -> bool: return a[1] > 0.0)
+	if not _annonces.is_empty() and not panneau_ouvert and not get_tree().paused:   # figée sous le menu pause / l'inventaire
+		_annonces[0][3] = 1.0 if _demo_annonce else _annonces[0][3] + dt
+		if _annonces[0][3] >= _annonces[0][4]:
+			_annonces.pop_front()
+	if aide_t > 0.0 and not panneau_ouvert and not get_tree().paused:
+		aide_t = maxf(0.0, aide_t - dt)
+	if decouverte_active and not lieux_nommes.is_empty():
+		_decouverte_t -= dt
+		if _decouverte_t <= 0.0:
+			_decouverte_t = 0.5
+			_decouvrir()
 	if _cible != null and not is_instance_valid(_cible):
 		_cible = null
 	queue_redraw()
@@ -179,19 +242,110 @@ func _draw() -> void:
 			var a := 0.6 * (1.0 - a_cible)
 			draw_string(_police, Vector2(roundf(cx - l * 0.5) + 1, 28), texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(FOND, 1.0 - a_cible))
 			draw_string(_police, Vector2(roundf(cx - l * 0.5), 27), texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(PARCHEMIN, a))
+	_dessiner_annonce(cx)
+	_dessiner_aide()
 	if panneau_ouvert:
 		_panneau()
 
-## Barre de l'ennemi (lot L6) : NOM centré au-dessus (or pour un boss), barre de vie, statut actif en dessous.
+## Premier passage dans un lieu nommé (à moins de 30 m en hauteur : la crypte est sous le cercle) → annonce « Lieu découvert ».
+func _decouvrir() -> void:
+	var p := joueur.global_position
+	for l: Array in lieux_nommes:
+		var c: Vector3 = l[0]
+		if lieux_vus.has(l[2]) or absf(p.y - c.y) > 30.0 or Vector2(p.x - c.x, p.z - c.z).length() > float(l[1]):
+			continue
+		lieux_vus[l[2]] = true
+		annonce(l[2], "Lieu découvert", PARCHEMIN)
+		Sons.jouer(self, ["cloth1", "cloth2"], -12.0)
+
+## Opacité de l'annonce en cours (0 si aucune) : fondu d'entrée 0,25 s, de sortie 0,6 s.
+func alpha_annonce() -> float:
+	if _annonces.is_empty() or panneau_ouvert or get_tree().paused:
+		return 0.0
+	var t: float = _annonces[0][3]
+	return clampf(minf(t / 0.25, (_annonces[0][4] - t) / 0.6), 0.0, 1.0)
+
+## Texte de l'annonce en cours (« titre|sous-titre »), vide sans annonce (tests).
+func annonce_courante() -> String:
+	return "" if _annonces.is_empty() else "%s|%s" % [_annonces[0][0], _annonces[0][1]]
+
+## Ligne de base du titre de l'annonce : au tiers haut, mais jamais au-dessus de y = 104 (sous les 4 avis de gauche, y 46..82).
+func _y_annonce() -> float:
+	return maxf(104.0, floorf(size.y * 0.3))
+
+## Rectangle occupé par l'annonce en cours (titre, filet, sous-titre).
+func _rect_annonce() -> Rect2:
+	if _annonces.is_empty():
+		return Rect2()
+	var lt := _gothique.get_string_size(_annonces[0][0], HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND).x
+	var demi := floorf(clampf(lt * 0.5 + 10.0, 40.0, 150.0)) + 6.0
+	var ls := _police.get_string_size(_annonces[0][1], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x * 0.5
+	demi = maxf(demi, ls + 2.0)
+	return Rect2(_cx() - demi, _y_annonce() - 20.0, demi * 2.0, 50.0)
+
+## Annonce centrée au tiers haut de l'écran : titre gothique 24 px détouré, filet or à losanges, sous-titre dessous.
+func _dessiner_annonce(cx: float) -> void:
+	var a := alpha_annonce()
+	if a <= 0.01:
+		return
+	var an: Array = _annonces[0]
+	var y := _y_annonce()
+	var lt := _gothique.get_string_size(an[0], HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND).x
+	MenuStyle.texte_detoure(self, _gothique, Vector2(roundf(cx - lt * 0.5), y), an[0], MenuStyle.TITRE_GRAND, an[2], a, true)
+	var demi := floorf(clampf(lt * 0.5 + 10.0, 40.0, 150.0))
+	MenuStyle.dessiner_filet(self, cx, y + 8.0, demi, a)
+	if String(an[1]) != "":
+		var ls := _police.get_string_size(an[1], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
+		MenuStyle.texte_detoure(self, _police, Vector2(roundf(cx - ls * 0.5), y + 22.0), an[1], TAILLE_POLICE, PARCHEMIN, 0.9 * a)
+
+## L'aide des touches est-elle à l'écran (début de partie ou F1, ni panneau ni dialogue) ?
+func aide_visible() -> bool:
+	return (aide_forcee or aide_t > 0.0) and not panneau_ouvert and not get_tree().paused and not bool(joueur.get("en_dialogue")) \
+		and not aide_lignes.is_empty()
+
+## Cartouche d'aide en haut à droite (sous la hauteur de l'objectif) : titre gothique, touche en or, action en parchemin.
+func _dessiner_aide() -> void:
+	if not aide_visible():
+		return
+	var a := 1.0 if aide_forcee else clampf(aide_t / 1.5, 0.0, 1.0)
+	var col := 0.0
+	var larg := 0.0
+	for l: Array in aide_lignes:
+		col = maxf(col, _police.get_string_size(l[0], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
+	for l: Array in aide_lignes:
+		larg = maxf(larg, col + 8.0 + _police.get_string_size(l[1], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
+	var pied := "F1 : masquer"
+	larg = maxf(larg, _police.get_string_size(pied, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
+	var t := Vector2(ceilf(larg) + 28.0, 59.0 + 10.0 * aide_lignes.size())
+	var o := Vector2(floorf(size.x - t.x - 6.0), 36.0)
+	if Rect2(o, t).intersects(_rect_annonce()):   # petit écran (480x270) : l'annonce passe devant, l'aide s'efface le temps de l'annonce
+		a *= 1.0 - alpha_annonce()
+		if a <= 0.01:
+			return
+	_cadre_alpha(Rect2(o, t), a)
+	MenuStyle.texte_detoure(self, _gothique, o + Vector2(14, 27), "Commandes", MenuStyle.TITRE_GRAND, OR, a)
+	var y := o.y + 42.0
+	for l: Array in aide_lignes:
+		MenuStyle.texte_detoure(self, _police, Vector2(o.x + 14.0, y), l[0], TAILLE_POLICE, OR, a)
+		MenuStyle.texte_detoure(self, _police, Vector2(o.x + 22.0 + col, y), l[1], TAILLE_POLICE, PARCHEMIN, a)
+		y += 10.0
+	MenuStyle.texte_detoure(self, _police, Vector2(o.x + 14.0, y + 4.0), pied, TAILLE_POLICE, MenuStyle.GRIS, a)
+
+## Cadre en fondu (fin de l'aide) : même boîte, modulée.
+func _cadre_alpha(r: Rect2, a: float) -> void:
+	_cadre.modulate_color = Color(1, 1, 1, a)
+	draw_style_box(_cadre, r)
+	_cadre.modulate_color = Color.WHITE
+
+## Barre de l'ennemi (lot L6) : NOM centré au-dessus (gothique pixel du lot L7, or pour un boss), barre de vie, statut actif en dessous.
 func _barre_cible(cx: float, nom: String, ratio: float, statut: String, boss: bool, alpha: float) -> void:
-	var l := _police.get_string_size(nom, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
-	var pn := Vector2(roundf(cx - l * 0.5), 28)
-	draw_string(_police, pn + Vector2(1, 1), nom, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(FOND, alpha))
-	draw_string(_police, pn, nom, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(OR if boss else PARCHEMIN, alpha))
-	_barre(Vector2(cx - 40, 30), ratio, VIE, alpha)
+	# gothique 24 px sous la boussole (y 4..15) : capitales vers y 20, jambages (g, p) au-dessus de la barre
+	var l := _gothique.get_string_size(nom, HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND).x
+	MenuStyle.texte_detoure(self, _gothique, Vector2(roundf(cx - l * 0.5), 34), nom, MenuStyle.TITRE_GRAND, OR if boss else PARCHEMIN, alpha)
+	_barre(Vector2(cx - 40, 40), ratio, VIE, alpha)
 	if statut != "":
 		var ls := _police.get_string_size(statut, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
-		var ps := Vector2(roundf(cx - ls * 0.5), 47)
+		var ps := Vector2(roundf(cx - ls * 0.5), 57)
 		draw_string(_police, ps + Vector2(1, 1), statut, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(FOND, alpha))
 		draw_string(_police, ps, statut, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(PARCHEMIN, 0.75 * alpha))
 
@@ -264,6 +418,10 @@ func _texte(pos: Vector2, texte: String, couleur := PARCHEMIN, largeur := -1.0) 
 	draw_string(_police, pos + Vector2(1, 1), texte, HORIZONTAL_ALIGNMENT_LEFT, largeur, TAILLE_POLICE, FOND)
 	draw_string(_police, pos, texte, HORIZONTAL_ALIGNMENT_LEFT, largeur, TAILLE_POLICE, couleur)
 
+## Titre de panneau : gothique pixel 24 px, or, ombre portée (ligne de base 5 px plus bas que le texte du corps).
+func _titre(pos: Vector2, texte: String) -> void:
+	MenuStyle.texte_detoure(self, _gothique, pos + Vector2(0, 5), texte, MenuStyle.TITRE_GRAND, OR)
+
 ## Panneau du personnage (Tab) : compétences et quêtes à gauche, sac à droite.
 ## Centré ; il s'élargit quand l'écran logique est plus grand (360x180 à 480x270, 440x220 à 640x360).
 func _panneau() -> void:
@@ -276,17 +434,18 @@ func _panneau() -> void:
 	var pied := o.y + t.y - 14.0          # ligne du bas
 	var larg_g := dx - gx - 8.0
 	var larg_d := o.x + t.x - 12.0 - dx
-	_texte(Vector2(gx, o.y + 22), "Compétences", OR)
-	var y := o.y + 40.0
+	_titre(Vector2(gx, o.y + 22), "Compétences")
+	var y := o.y + 45.0   # 5 px de plus qu'avant le lot L7 : place pour les jambages du titre gothique
 	var c: Competences = joueur.competences
 	for nom in Competences.NOMS:
 		_texte(Vector2(gx, y), "%s  %d" % [Competences.NOMS[nom], c.niveaux[nom]])
 		draw_rect(Rect2(gx, y + 3, 100, 2), Color("#1a2233"))
 		draw_rect(Rect2(gx, y + 3, roundi(100 * c.progression(nom)), 2), Color("#6f9be8"))
 		y += 22.0
-	_texte(Vector2(dx, o.y + 22), "Sac", OR)
+	_titre(Vector2(dx, o.y + 22), "Sac")
 	var inv: Inventaire = joueur.inventaire
 	y = o.y + 40.0
+	y += 5.0
 	_texte(Vector2(dx, y), "Pièces : %d" % inv.pieces)
 	y += 13.0
 	if inv.objets.is_empty():
@@ -300,8 +459,9 @@ func _panneau() -> void:
 		_texte(Vector2(dx, y), "%s  x%d" % [inv.nom(ids[i]), inv.objets[ids[i]]], PARCHEMIN, larg_d)
 		y += 13.0
 	if quetes != null:
-		var yq := maxf(o.y + 110.0, o.y + 40.0 + 22.0 * Competences.NOMS.size() + 4.0)
-		_texte(Vector2(gx, yq), "Quêtes", OR)
+		var yq := maxf(o.y + 115.0, o.y + 45.0 + 22.0 * Competences.NOMS.size() + 4.0)
+		_titre(Vector2(gx, yq), "Quêtes")
+		yq += 6.0
 		for q in quetes.objectifs():
 			var lignes := _couper("> " + q[1], larg_g)
 			for i in lignes.size():

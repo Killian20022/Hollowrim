@@ -1,0 +1,7 @@
+# Lot L7 (HUD et police des titres) : exploration, invite de coffre (avec les mains, comme en jeu).
+# Lancer aussi avec --hud-demo --hud-cible --hud-annonce --hud-aide (tout le HUD L7 visible) et --hud-panneau (cadre ornementé).
+explo_village monde 32,30,-125,0 heure=12
+explo_tumulus monde -35.8,-43,205,3 heure=17.5
+coffre_tresor crypte -40.4,-44,90,-28 ouvre=s1,s2,s3,secret,herse
+coffre_prep crypte -4.9,-30.9,90,-22 ouvre=s1,s2,s3,secret,herse
+coffre_ossuaire crypte -21,-8,0,-5 ouvre=s1,s2,s3,secret,herse

@@ -69,7 +69,6 @@ var joueur: CharacterBody3D
 var neige: GPUParticles3D
 var feu_lumiere: OmniLight3D
 var post: ShaderMaterial
-var aide: Label
 var hud: Control
 var sbire: CharacterBody3D
 var depart_joueur := Vector3.ZERO
@@ -239,6 +238,8 @@ func _ready() -> void:
 	_prechauffer_rendu()
 	Chrono.total()
 	pret = true
+	if not _arguments().has("capture"):
+		hud.demarrer()   # lot L7 : découverte des lieux + aide des touches (60 s) une fois la partie chargée
 	_aller_crypte()
 	_aller_interieur()
 	if _arguments().has("grotte") and not _arguments().has("capture"):
@@ -941,6 +942,7 @@ func _tertre() -> void:
 		if quetes.etat.get("anneau_givre", 0) >= 6 and dragon == null and not dragon_vaincu:
 			_dragon())
 	hud.lieux.append([tertre.porte_dehors, Color("#6fd8ff")])
+	hud.lieu_nomme(tertre.porte_dehors, 8.0, "Tertre de Svanhild")
 
 ## Entrée de la grotte des bandits (flanc est) : bouche de roche, passage fondu, grotte bâtie en fil d'exécution.
 func _grotte_acces() -> void:
@@ -959,6 +961,7 @@ func _grotte_acces() -> void:
 		if dedans:
 			grotte_acces.grotte.ambiance(_env))
 	hud.lieux.append([grotte_acces.porte_dehors, Color("#ffb347")])
+	hud.lieu_nomme(grotte_acces.porte_dehors, 10.0, "Grotte des bandits")
 
 func _dragon() -> void:
 	dragon = CharacterBody3D.new()
@@ -1193,18 +1196,13 @@ func _interface() -> void:
 	post.shader = POST
 	rect.material = post
 	calque.add_child(rect)
-	aide = Label.new()
-	aide.text = "ZQSD : marcher   Maj : courir   Espace : sauter\nClic gauche : frapper (maintenir = coup puissant)\nClic droit : garde   T : torche   V : vue   I : inventaire   Tab : sac   Échap : menu"
-	aide.add_theme_font_override("font", Palette.police())   # même police pixel que le HUD (C6)
-	aide.add_theme_font_size_override("font_size", Palette.TAILLE_POLICE)
-	aide.add_theme_color_override("font_color", Color(0.85, 0.9, 1.0, 0.85))
-	aide.position = Vector2(6, 92)   # sous les avis (lignes de 12 px à partir de y = 46) : ils se chevauchaient au départ
-	hud = Control.new()
+	hud = Control.new()   # aide des touches : cartouche du HUD (lot L7, 60 s puis F1 ; hud.demarrer en fin de chargement)
 	hud.set_script(HUD)
 	hud.joueur = joueur
 	hud.lieux = [[Vector3(CERCLE.x, 0, CERCLE.z), Color("#6fd8ff")], [Vector3.ZERO, Color("#e8a64a")]]
 	calque.add_child(hud)
-	calque.add_child(aide)
+	hud.lieu_nomme(Vector3(VILLAGE.x, h_village, VILLAGE.z), 30.0, "Skarnholt")   # lot L7 : annonces « Lieu découvert »
+	hud.lieu_nomme(Vector3(CERCLE.x, hauteur(CERCLE.x, CERCLE.z), CERCLE.z), 12.0, "Cercle des pierres runiques")
 	inventaire_ui = InventaireMains.new()   # inventaire des deux mains (I) : scripts/inventaire_mains.gd
 	inventaire_ui.joueur = joueur
 	inventaire_ui.hud = hud
@@ -1213,8 +1211,6 @@ func _interface() -> void:
 	pause.set_script(preload("res://scripts/menu_pause.gd"))
 	pause.monde = self
 	add_child(pause)
-	if _arguments().has("capture"):
-		aide.visible = false
 	if _arguments().has("sans-ps1"):
 		_basculer_ps1()
 
@@ -1284,6 +1280,7 @@ func sauvegarder() -> void:
 		"draugrs_morts": morts,
 		"villageois_parles": parles,
 		"butin": ButinTables.exporter(),   # graine du monde, contenants pillés, uniques pris (docs/BUTIN.md)
+		"lieux_vus": hud.lieux_vus.keys(),   # lot L7 : lieux déjà annoncés (« Lieu découvert »)
 	}
 	var f := FileAccess.open(fichier_sauvegarde(), FileAccess.WRITE)
 	f.store_string(JSON.stringify(donnees, "\t"))
@@ -1321,6 +1318,8 @@ func charger() -> void:
 		if draugrs.has(id):
 			draugrs[id].queue_free()
 			draugrs.erase(id)
+	for nom in d.get("lieux_vus", []):
+		hud.lieux_vus[String(nom)] = true
 	var parles: Array = d.get("villageois_parles", [])
 	for v in get_tree().get_nodes_in_group("villageois"):
 		if v.donnees.get("id", "") in parles:
@@ -1340,8 +1339,6 @@ func _process(dt: float) -> void:
 	neige.global_position = joueur.global_position + Vector3(0, 10, 0)
 	# le feu vacille : deux sinus désaccordés + un peu de hasard
 	feu_lumiere.light_energy = 3.2 + sin(_t * 11.0) * 0.25 + sin(_t * 23.7) * 0.18 + randf() * 0.25
-	if _t > 14.0 and aide.modulate.a > 0.0:
-		aide.modulate.a = maxf(0.0, aide.modulate.a - dt * 0.5)
 	_remplir_audio()
 	_minuterie_sauvegarde += dt
 	if _minuterie_sauvegarde > 120.0 and not _arguments().has("capture"):
