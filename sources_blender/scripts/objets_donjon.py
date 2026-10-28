@@ -24,7 +24,8 @@ I3 = Matrix.Identity(3)
 UP = Vector((0, 1, 0))
 TEINTE = {"bois": (1.0, 0.97, 0.93), "fer": (0.92, 0.94, 1.0), "or": (1.0, 0.97, 0.9)}
 BUDGET = {"coffre": 550, "tonneau": 400, "table": 550, "urne": 300, "crane": 180, "os_long": 40, "os_court": 30, "arme": 170,
-          "gravats": 340, "or_tas": 440, "sac": 200, "os_monticule": 800,
+          "gravats": 480, "or_tas": 1100,
+          "micro_eclats": 60, "micro_planche": 60, "micro_os": 50, "micro_cire": 70, "micro_pieces": 30, "micro_chaine": 100, "sac": 200, "os_monticule": 800,
           "etagere_cadre": 420, "etagere_contenu": 820, "etagere_couchee": 300, "lit": 570, "ratelier_cadre": 420, "arme_v": 90,
           "bouclier": 330, "planche": 40, "poteau": 40, "tringle": 100}
 
@@ -175,6 +176,9 @@ class Module:
         self.rg = random.Random(graine)
         self.tris = []      # (matière, (a, b, c), ton)
         self.sol = sol      # posé au sol : pied assombri
+        self.bandes = "hautes"      # option `bandes` d'aretes.appliquer (« aucune » : semis micro, zéro triangle de plus)
+        self.sans_dessous = False    # C5 : faces tournées vers le bas au ras du sol omises (jamais vues : gravats, or, semis)
+        self.bruts = set()  # C5 : indices des triangles laissés hors d'aretes.py (pièces : leur bord clair est fait en couleur de sommet)
 
     def add(self, mat, polys, ton=None, jt=0.0):
         if ton is None:
@@ -183,8 +187,22 @@ class Module:
             t = ton * (1 + self.rg.uniform(-jt, jt)) if jt else ton
             for i in range(1, len(p) - 1):
                 a, b, c = p[0], p[i], p[i + 1]
-                if (b - a).cross(c - a).length_squared > 1e-14:
+                if (b - a).cross(c - a).length_squared > 1e-14 and not self._dessous(a, b, c):
                     self.tris.append((mat, (a.copy(), b.copy(), c.copy()), t))
+
+    def _dessous(self, a, b, c):
+        if not self.sans_dessous or max(a.y, b.y, c.y) > 0.012:
+            return False
+        n = (b - a).cross(c - a)
+        return n.y < -0.7 * n.length
+
+    def add_tons(self, mat, tris, brut=False):
+        """C5 : triangles à ton PAR SOMMET : tris = [((a, b, c), (ta, tb, tc)), ...] ; brut = hors liserés d'aretes.py."""
+        for (a, b, c), t in tris:
+            if (b - a).cross(c - a).length_squared > 1e-14 and not self._dessous(a, b, c):
+                if brut:
+                    self.bruts.add(len(self.tris))
+                self.tris.append((mat, (a.copy(), b.copy(), c.copy()), tuple(t)))
 
     def rev(self, mat, profil, n=8, c=None, R=I3, ech=(1.0, 1.0), rot=0.0, caps=(False, True), ton=None, jt=0.0, mats=None):
         """Révolution autour de y local : profil [(r, y)] ; jt = écart de ton par colonne (douelles) ; mats = matière par segment."""
@@ -228,12 +246,13 @@ class Module:
             th = TAU * v
             dirs.append((r * math.cos(th), r * math.sin(th), math.sqrt(max(0.0, 1.0 - u))))
         sortie = {}
-        for (m, p, t) in self.tris:
+        brute = {}
+        for i, (m, p, t) in enumerate(self.tris):
             n = (p[1] - p[0]).cross(p[2] - p[0]).normalized()
             tg = n.cross(UP if abs(n.y) < 0.9 else V(1, 0, 0)).normalized()
             bt = n.cross(tg)
             cols = []
-            for q in p:
+            for j, q in enumerate(p):
                 occ = 0.0
                 o = q + n * 0.004
                 for dx, dy, dz in dirs:
@@ -244,9 +263,10 @@ class Module:
                 ao = max(0.5, min(1.0, 1.0 - force * occ / len(dirs) * 1.6))
                 pied = (0.8 + 0.2 * min(1.0, max(0.0, q.y / 0.25))) if self.sol else 1.0
                 te = TEINTE.get(m, (1, 1, 1))
-                k = ao * t * pied
+                k = ao * (t[j] if isinstance(t, tuple) else t) * pied
                 cols.append((min(1.0, k * te[0]), min(1.0, k * te[1]), min(1.0, k * te[2]), 1.0))
-            sortie.setdefault(m, []).append((p, cols))
+            (brute if i in self.bruts else sortie).setdefault(m, []).append((p, cols))
+        self.brute = brute      # C5 : rejoint la sortie APRÈS aretes.appliquer (voir main)
         return sortie
 
 
@@ -491,52 +511,317 @@ def arme(var):
     return M
 
 
+# ======================================================================= C5 (2026-10-28) : gravats v2, or en pièces, semis micro
+# docs INSPIRATION_IGNITE §2.4 / §2.7 / §6 règle 3 : des tas faits de PIÈCES DISTINCTES (blocs taillés cassés à arêtes vives, planches en
+# éclisses, pièces lisibles) au lieu de dômes lisses ; une couche de petits débris posée au sol par CrypteV2.semis (scripts/crypte_v2.gd).
+def _pts_boite(c, s, R=I3, ch=0.0):
+    """Coins d'un pavé (ch > 0 : arêtes abattues, 24 points)."""
+    hx, hy, hz = s[0] / 2, s[1] / 2, s[2] / 2
+    if ch <= 0.0:
+        return [c + R @ V(sx * hx, sy * hy, sz * hz) for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)]
+    ch = min(ch, hx * 0.45, hy * 0.45, hz * 0.45)
+    pts = []
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            for sz in (-1, 1):
+                pts += [c + R @ V(sx * (hx - ch), sy * hy, sz * hz), c + R @ V(sx * hx, sy * (hy - ch), sz * hz), c + R @ V(sx * hx, sy * hy, sz * (hz - ch))]
+    return pts
+
+
+def _casser(pts, rg, n=1, prof=(0.12, 0.32), haut=False):
+    """Casse un volume convexe : n plans tranchent des coins (les points au-delà sont ramenés sur le plan) -> facettes vives.
+    haut : les cassures prennent plutôt le dessus (éclat visible d'en haut)."""
+    c = sum(pts, Vector()) / len(pts)
+    for _ in range(n):
+        d = V(rg.uniform(-1, 1), rg.uniform(0.2, 1.0) if haut else rg.uniform(-0.4, 1.0), rg.uniform(-1, 1)).normalized()
+        ext = max((p - c).dot(d) for p in pts)
+        lim = ext * (1.0 - rg.uniform(*prof))
+        pts = [p if (p - c).dot(d) <= lim else p - d * ((p - c).dot(d) - lim) for p in pts]
+    vus, res = set(), []
+    for p in pts:
+        k = (round(p.x * 2000), round(p.y * 2000), round(p.z * 2000))
+        if k not in vus:
+            vus.add(k)
+            res.append(p)
+    return res
+
+
+def _poser(polys, y0=0.0):
+    """Remonte (ou descend) un volume pour que son point le plus bas soit à y0."""
+    lo = min(q.y for p in polys for q in p)
+    d = V(0, y0 - lo, 0)
+    return [[q + d for q in p] for p in polys]
+
+
+def bloc_taille(c, s, rg, R=I3, ch=0.018, coupes=2, y0=None):
+    """Moellon TAILLÉ cassé : pavé chanfreiné (arêtes vives qui accrochent la torche) dont 1 à 3 coins sont emportés."""
+    polys = hull(_casser(_pts_boite(c, s, R, ch), rg, coupes, haut=True))
+    return _poser(polys, y0) if y0 is not None else polys
+
+
+def eclat(c, t, rg, R=I3, plat=0.45):
+    """Éclat de pierre : 5-6 points (6 à 8 triangles), arêtes vives."""
+    pts = [c + R @ V(rg.uniform(-0.5, 0.5) * t, rg.uniform(0.0, plat * 0.3) * t, rg.uniform(-0.5, 0.5) * t) for _ in range(4)]
+    pts.append(c + R @ V(rg.uniform(-0.15, 0.15) * t, plat * t, rg.uniform(-0.15, 0.15) * t))
+    return _poser(hull(pts), c.y)
+
+
+def planche_cassee(M, c, L, w, e, an, rg, incl=0.0, ton=None, eclisses=2):
+    """Planche cassée couchée (longueur L vers +x local tourné de an) : un bout franc, l'autre en éclisses (pointes de bois)."""
+    R = Ry(an) @ Rz(incl)
+    ton = rg.uniform(0.6, 0.95) if ton is None else ton
+    x1 = L * 0.5 - rg.uniform(0.05, 0.12)
+    corps = [c + R @ V(x, y, z) for x in (-L * 0.5, x1) for y in (0.0, e) for z in (-w * 0.5, w * 0.5)]
+    M.add("bois", hull(corps), ton)
+    for k in range(eclisses):       # éclisses : pointes fines qui dépassent du bout cassé
+        z0 = -w * 0.5 + w * (k + 0.5) / eclisses
+        lp = rg.uniform(0.05, 0.16)
+        pts = [c + R @ V(x1 - 0.01, y, z0 + dz) for y in (0.002, e * 0.8) for dz in (-w * 0.22, w * 0.22)]
+        pts.append(c + R @ V(x1 + lp, e * rg.uniform(0.2, 0.6), z0 + rg.uniform(-0.3, 0.3) * w))
+        M.add("bois", hull(pts), ton * rg.uniform(0.85, 1.05))
+
+
+def piece(c, r, R, ton=(0.55, 1.0), n=5):
+    """Pièce d'or LISIBLE : disque à n pans en éventail autour du centre ; centre sombre (face, rampe Or terni #7b5a26), bord clair
+    (tranche #d3b25c) en couleur de sommet : le bord clair se lit à 3 m sans liseré géométrique. 5 triangles."""
+    up = R @ UP
+    pts = [c + R @ V(math.cos(TAU * k / n) * r, 0.0, math.sin(TAU * k / n) * r) for k in range(n)]
+    tris = []
+    for k in range(n):
+        a, b = pts[k], pts[(k + 1) % n]
+        tri = (c, a, b) if (a - c).cross(b - c).dot(up) >= 0 else (c, b, a)
+        tris.append((tri, (ton[0], ton[1], ton[1])))
+    return tris
+
+
 def gravats(var):
-    """Tas de gravats (r = 1, h = 0,7, mis à la taille) : tertre de blocaille, moellons tombés, éclats. pierre / pierre2 remplacées à la pose."""
+    """Tas de gravats v2 (r = 1, h ≈ 0,7, mis à la taille) : PLUS DE DÔME. Gros blocs taillés cassés empilés (silhouette dentelée), moellons
+    moyens, planches cassées en éclisses (b : dalle brisée dressée ; c : poutre tombée), traînée d'éclats vers +x ; noyau sombre réduit,
+    caché dessous. pierre / pierre2 remplacées à la pose. Tout tient dans r 1,15 (CrypteDecor : emprise r, différé jusqu'à 1,3 r)."""
     M = Module("gravats_" + var, 1100 + ord(var))
+    M.sans_dessous = True
     rg = M.rg
-    M.add("pierre", tertre(0.88, 0.62, rg, 9), 0.6)
-    for k in range(11):
-        an = rg.uniform(0, TAU)
-        rr = rg.uniform(0.2, 0.95)
-        t = rg.uniform(0.16, 0.34)
-        y = surface_tertre(rr, 0.88, 0.62) + t * 0.15
-        M.add("pierre" if k % 2 == 0 else "pierre2", bloc_irr(V(math.cos(an) * rr, y, math.sin(an) * rr), (t * 1.4, t * 0.75, t), rg, 0.22,
-                                                              Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.4, 0.4))), rg.uniform(0.7, 1.0))
+    M.add("pierre2", tertre(0.5, 0.2, rg, 7, 0.15), 0.32)          # noyau : 30 % de la hauteur, dans l'ombre des blocs
+    a0 = rg.uniform(0, TAU)
+    # gros blocs au sol, puis un ou deux par-dessus, basculés
+    gros = [(0.3, 0.0, 0.0, (0.62, 0.34, 0.42)), (0.36, 2.3, 0.0, (0.54, 0.3, 0.4)), (0.42, 4.2, 0.0, (0.5, 0.32, 0.36)),
+            (0.12, 1.1, 0.24, (0.5, 0.28, 0.38))]
+    if var != "a":
+        gros.append((0.2, 3.4, 0.2, (0.44, 0.26, 0.34)))
+    for k, (rr, da, y0, sz) in enumerate(gros):
+        an = a0 + da + rg.uniform(-0.3, 0.3)
+        s = tuple(v * rg.uniform(0.88, 1.08) for v in sz)
+        R = Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.18, 0.18) + (0.35 if y0 > 0 else 0.0)) @ Rz(rg.uniform(-0.15, 0.15) + (0.3 if y0 > 0 else 0.0))
+        M.add("pierre" if k % 2 == 0 else "pierre2", bloc_taille(V(math.cos(an) * rr, 0, math.sin(an) * rr), s, rg, R, 0.02, 2, y0 - 0.01), rg.uniform(0.78, 1.0))
+    # moellons moyens autour et sur les flancs
+    for k in range(7 if var == "a" else 6):
+        an = a0 + k * TAU / 6 + rg.uniform(-0.4, 0.4)
+        rr = rg.uniform(0.5, 0.82)
+        t = rg.uniform(0.17, 0.27)
+        y0 = 0.0 if rr > 0.62 else rg.uniform(0.05, 0.18)
+        R = Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.5, 0.5)) @ Rz(rg.uniform(-0.4, 0.4))
+        M.add("pierre2" if k % 2 else "pierre", bloc_taille(V(math.cos(an) * rr, 0, math.sin(an) * rr), (t * 1.35, t * 0.7, t), rg, R, 0.0, 2, y0 - 0.008), rg.uniform(0.62, 1.0))
+    # planches cassées (rampe Bois) posées en travers, appuyées sur les blocs
+    npl = {"a": 2, "b": 3, "c": 2}[var]
+    for k in range(npl):            # pied au sol, tête sur le tas (bout cassé en l'air, vers le centre)
+        an = a0 + 0.8 + k * 2.1 + rg.uniform(-0.3, 0.3)
+        rr = rg.uniform(0.62, 0.78)
+        L = rg.uniform(0.62, 0.85)
+        inc = rg.uniform(0.3, 0.45)
+        planche_cassee(M, V(math.cos(an) * rr, L * 0.5 * math.sin(inc) + 0.004, math.sin(an) * rr), L, rg.uniform(0.12, 0.16), 0.03,
+                       math.pi - an + rg.uniform(-0.35, 0.35), rg, inc)
+    if var == "b":                 # dalle brisée dressée contre le tas
+        an = a0 + 3.0
+        R = Ry(an) @ Rz(1.05)
+        M.add("pierre", bloc_taille(V(math.cos(an) * 0.62, 0, math.sin(an) * 0.62), (0.5, 0.07, 0.42), rg, R, 0.012, 2, -0.01), 0.85)
+    if var == "c":                 # poutre tombée, un bout au sol, l'autre sur le tas, bout cassé en éclisses
+        an = a0 + 1.6
+        d = V(math.cos(an), 0, math.sin(an))
+        a_, b_ = d * -0.95 + V(0, 0.08, 0), d * 0.25 + V(0, 0.5, 0)
+        M.add("bois", poutre(a_, b_, 0.14, 0.13), 0.7)
+        for k in range(3):
+            M.add("bois", hull([b_ + V(rg.uniform(-0.05, 0.05), rg.uniform(-0.05, 0.05), rg.uniform(-0.05, 0.05)) for _ in range(4)] + [b_ + d * rg.uniform(0.1, 0.2) + V(0, rg.uniform(-0.04, 0.04), 0)]), 0.75)
+    # traînée d'éclats vers +x (1,5 r de long au plus, dans l'emprise différée)
     for k in range(9):
-        an = rg.uniform(0, TAU)
-        rr = rg.uniform(0.85, 1.05)
-        t = rg.uniform(0.06, 0.13)
-        M.add("pierre2", bloc_irr(V(math.cos(an) * rr, t * 0.3, math.sin(an) * rr), (t * 1.3, t * 0.7, t), rg, 0.3, Ry(rg.uniform(0, TAU))), rg.uniform(0.65, 0.95))
+        u = k / 8.0
+        x = 0.62 + u * 0.5 + rg.uniform(-0.05, 0.05)
+        z = rg.uniform(-0.35, 0.35) * (1.0 - u * 0.6)
+        t = rg.uniform(0.05, 0.11) * (1.0 - u * 0.4)
+        M.add("pierre2" if k % 3 else "pierre", eclat(V(x, 0, z), t, rg, Ry(rg.uniform(0, TAU))), rg.uniform(0.55, 1.0))
     return M
 
 
 def or_tas(var):
-    """Tas d'or (r 0,6, h 0,3, mis à la taille) : monceau de pièces, pièces éparses ; a : coupe, b : couronne, c : plat et lingots."""
+    """Tas d'or v2 (r 0,6, h 0,3, mis à la taille) : COUCHES DE PIÈCES distinctes de 4,8 cm (bord clair, face sombre, matière « or » :
+    reflet ponctuel du lot C1) sur un noyau sombre (les creux entre les pièces descendent au noir de l'or), pièces éparses en traînée,
+    piles ; a : coupe, b : couronne, c : plat et lingots."""
     M = Module("or_tas_" + var, 1200 + ord(var))
+    M.sans_dessous = True
     rg = M.rg
-    M.add("or", tertre(0.58, 0.28, rg, 10, 0.1), 0.85)
-    for k in range(2):
+    R0, H0 = 0.46, 0.26
+    an_ = ((1.0, 0.0), (0.78, 0.38), (0.45, 0.78), (0.12, 1.0))
+    M.add("or", tertre(R0 * 0.9, H0 * 0.88, rg, 9, 0.1, an_), 0.2)      # noyau sous la surface nominale : les pièces restent dessus
+    rp = 0.028
+    def sur(rr, an, dy, incl):
+        y = surface_tertre(min(rr, R0), R0, H0, an_) + dy if rr < R0 else 0.004 + dy
+        c = V(math.cos(an) * rr, y, math.sin(an) * rr)
+        pente = math.atan2(H0, R0) * (0.8 if rr < R0 else 0.0)
+        R = Ry(-an) @ Rz(-pente) @ Rx(rg.uniform(-incl, incl)) @ Rz(rg.uniform(-incl, incl))
+        return c, R
+    n_couche = (80, 26)              # deux couches : la 2e décalée, plus haut d'une épaisseur (les pièces se chevauchent)
+    for couche, n in enumerate(n_couche):
+        for k in range(n):
+            rr = R0 * 1.02 * math.sqrt((k + rg.random()) / n)
+            an = k * 2.39996 + rg.uniform(-0.3, 0.3) + couche * 1.3
+            c, R = sur(rr, an, 0.007 + couche * 0.009, 0.45)
+            f = rg.uniform(0.85, 1.0)
+            M.add_tons("or", piece(c, rp * rg.uniform(0.92, 1.08), R, (0.5 * f, 1.0 * f)), brut=True)
+    for k in range(10):              # pièces éparses en traînée autour du tas
         an = rg.uniform(0, TAU)
-        sat = tertre(0.2, 0.11, rg, 6, 0.15)
-        M.add("or", [[p + V(math.cos(an) * 0.5, 0, math.sin(an) * 0.5) for p in poly] for poly in sat], 0.8)
-    for k in range(26):             # pièces posées sur le monceau
+        rr = rg.uniform(0.5, 0.78)
+        c = V(math.cos(an) * rr, 0.006, math.sin(an) * rr)
+        M.add_tons("or", piece(c, rp, Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.12, 0.12)), (0.5, 0.95)), brut=True)
+    for k in range(2):               # piles de pièces au pied du tas
         an = rg.uniform(0, TAU)
-        rr = rg.uniform(0.05, 0.62)
-        y = surface_tertre(min(rr, 0.58), 0.58, 0.28) + 0.006 if rr < 0.58 else 0.004
-        M.add("or", disque(V(math.cos(an) * rr, y, math.sin(an) * rr), rg.uniform(0.022, 0.03), 6, Rx(rg.uniform(-0.5, 0.5)) @ Rz(rg.uniform(-0.5, 0.5))), rg.uniform(0.8, 1.0))
+        c = V(math.cos(an) * 0.54, 0, math.sin(an) * 0.54)
+        h = rg.uniform(0.03, 0.06)
+        M.rev("or", [(rp, 0.0), (rp, h)], 6, c=c, ton=0.75)
+        M.add_tons("or", piece(c + V(0, h + 0.001, 0), rp, I3, (0.55, 1.0)), brut=True)
     if var == "a":
         M.rev("or", [(0.05, 0.2), (0.055, 0.21), (0.012, 0.23), (0.012, 0.3), (0.06, 0.34), (0.07, 0.42), (0.064, 0.42), (0.0, 0.37)], 8, c=V(0.12, 0, 0.05), ton=0.95)
     elif var == "b":
         for k in range(8):
             a0, a1 = TAU * k / 8, TAU * (k + 1) / 8
-            M.add("or", poutre(V(math.cos(a0) * 0.1, 0.27, math.sin(a0) * 0.1), V(math.cos(a1) * 0.1, 0.27, math.sin(a1) * 0.1), 0.014, 0.04), 1.0)
-            M.add("or", hull([V(math.cos(a0) * 0.1, 0.29, math.sin(a0) * 0.1) + V(s * 0.012, 0, t * 0.012) for s in (-1, 1) for t in (-1, 1)] + [V(math.cos(a0) * 0.1, 0.33, math.sin(a0) * 0.1)]), 1.0)
+            M.add("or", poutre(V(math.cos(a0) * 0.1, 0.25, math.sin(a0) * 0.1), V(math.cos(a1) * 0.1, 0.25, math.sin(a1) * 0.1), 0.014, 0.04), 1.0)
+            M.add("or", hull([V(math.cos(a0) * 0.1, 0.27, math.sin(a0) * 0.1) + V(s * 0.012, 0, t * 0.012) for s in (-1, 1) for t in (-1, 1)] + [V(math.cos(a0) * 0.1, 0.31, math.sin(a0) * 0.1)]), 1.0)
     else:
         M.rev("or", [(0.0, 0.0), (0.16, 0.0), (0.2, 0.025), (0.19, 0.03), (0.0, 0.012)], 10, c=V(0.62, 0, -0.2), R=Rx(0.08), ton=0.85)
         for k in range(3):
             M.add("or", boite_ch(V(-0.62 + k * 0.03, 0.025 + k * 0.045, 0.15 + k * 0.01), (0.16, 0.045, 0.07), 0.01, Ry(0.3 + k * 0.4)), 0.95)
     return M
+
+
+# ----------------------------------------------------------------------- semis micro (C5) : petits objets au sol, 15 à 60 triangles
+# Origine au sol au centre ; emprise ≤ 0,3 m de rayon (CrypteV2.semis ne vérifie que ce rayon). Sans collision.
+def micro_eclats(var):
+    """Éclats de pierre (3-6) d'un bloc tombé ; pierre remplacée à la pose (pierre_v2 des murs)."""
+    M = Module("micro_eclats_" + var, 3000 + ord(var))
+    M.sans_dessous = True
+    M.bandes = "aucune"
+    rg = M.rg
+    n = {"a": 4, "b": 6, "c": 3}[var]
+    for k in range(n):
+        an = rg.uniform(0, TAU)
+        rr = rg.uniform(0.0, 0.24) if k else 0.0
+        t = rg.uniform(0.11, 0.15) if k == 0 else rg.uniform(0.05, 0.1)
+        if k == 0:
+            M.add("pierre", bloc_taille(V(0, 0, 0), (t, t * 0.55, t * 0.75), rg, Ry(rg.uniform(0, TAU)), 0.0, 2, 0.0), rg.uniform(0.75, 1.0))
+            continue
+        M.add("pierre", eclat(V(math.cos(an) * rr, 0, math.sin(an) * rr), t, rg, Ry(rg.uniform(0, TAU)), 0.5 if k == 0 else 0.4), rg.uniform(0.6, 1.0))
+    if var == "c":                  # un moellon taillé brisé (gros éclat d'angle)
+        M.add("pierre", bloc_taille(V(0.12, 0, -0.08), (0.2, 0.1, 0.14), rg, Ry(rg.uniform(0, TAU)), 0.0, 2, 0.0), 0.85)
+    return M
+
+
+def micro_planche(var):
+    """Planches cassées au sol : a : une longue + un éclat, b : deux courtes croisées."""
+    M = Module("micro_planche_" + var, 3100 + ord(var))
+    M.sans_dessous = True
+    M.bandes = "aucune"
+    rg = M.rg
+    if var == "a":
+        planche_cassee(M, V(0, 0, 0), 0.62, 0.12, 0.025, 0.0, rg, 0.0, 0.8, 3)
+        M.add("bois", eclat(V(0.05, 0, 0.16), 0.07, rg, Ry(0.4), 0.3), 0.7)
+    else:
+        planche_cassee(M, V(-0.04, 0, 0.02), 0.42, 0.11, 0.025, 0.4, rg, 0.0, 0.75, 2)
+        planche_cassee(M, V(0.05, 0.024, -0.02), 0.34, 0.1, 0.022, -0.9, rg, 0.06, 0.62, 2)
+    return M
+
+
+def micro_os(var):
+    """Os au sol, agrandis (lisibles) : a : os long à épiphyses + fragment, b : deux côtes courbes + vertèbre."""
+    M = Module("micro_os_" + var, 3200 + ord(var))
+    M.sans_dessous = True
+    M.bandes = "aucune"
+    rg = M.rg
+    if var == "a":
+        a, b = V(-0.17, 0.02, 0.0), V(0.17, 0.02, 0.02)
+        M.add("os", cylindre(a, b, 0.016, 5, 0.014), 0.92)
+        for p, r in ((a, 0.032), (b, 0.028)):
+            M.add("os", hull([p + V(rg.uniform(-0.6, 0.6) * r, rg.uniform(-0.6, 0.6) * r, (j - 2) / 2 * r) for j in range(5)]), 0.88)
+        M.add("os", eclat(V(0.06, 0, 0.12), 0.06, rg, Ry(0.7), 0.4), 0.8)
+    else:
+        for s in (1,):
+            pts = [V(-0.13 + 0.135 * j, 0.012 + 0.02 * math.sin(math.pi * j / 2), s * 0.05 + 0.06 * math.sin(math.pi * j / 2)) for j in range(3)]
+            for p0, p1 in zip(pts, pts[1:]):
+                M.add("os", poutre(p0, p1, 0.022, 0.012), rg.uniform(0.82, 0.98))
+        M.add("os", cylindre(V(0.15, 0.0, 0), V(0.15, 0.03, 0), 0.026, 5), 0.9)
+    return M
+
+
+def micro_cire(var):
+    """Coulure de cire : flaque irrégulière à bourrelet + chicots de bougie fondue (a : deux, b : un couché). Sans lumière."""
+    M = Module("micro_cire_" + var, 3300 + ord(var))
+    M.sans_dessous = True
+    M.bandes = "aucune"
+    rg = M.rg
+    n = 8
+    rr = [rg.uniform(0.09, 0.15) for _ in range(n)]
+    bord = [V(math.cos(TAU * k / n) * rr[k], 0.004, math.sin(TAU * k / n) * rr[k] * 0.8) for k in range(n)]
+    haut = [V(p.x * 0.8, 0.012, p.z * 0.8) for p in bord]
+    M.add("cire", [orienter(haut, UP)], 0.95)
+    for k in range(n):
+        a, b = bord[k], bord[(k + 1) % n]
+        c, d = haut[(k + 1) % n], haut[k]
+        M.add("cire", [orienter([a, b, c, d], (a + b) * 0.5)], 0.75)
+    if var == "a":
+        for (x, z, h) in ((0.02, -0.01, 0.07), (-0.06, 0.04, 0.035)):
+            M.rev("cire", [(0.026, 0.0), (0.018, h), (0.008, h + 0.006)], 5, c=V(x, 0.008, z), ton=0.9)
+    else:
+        M.add("cire", cylindre(V(-0.08, 0.02, 0.0), V(0.06, 0.02, 0.03), 0.018, 6), 0.85)
+    return M
+
+
+def micro_pieces(var):
+    """Pièces isolées (4,8 cm, bord clair) : a : trois éparses, b : cinq dont une sur la tranche contre une autre."""
+    M = Module("micro_pieces_" + var, 3400 + ord(var))
+    M.sans_dessous = True
+    M.bandes = "aucune"
+    rg = M.rg
+    n = 3 if var == "a" else 5
+    for k in range(n):
+        an = rg.uniform(0, TAU)
+        rr = rg.uniform(0.02, 0.2)
+        c = V(math.cos(an) * rr, 0.004 + 0.006 * (k % 2), math.sin(an) * rr)
+        R = Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.15, 0.15))
+        if var == "b" and k == n - 1:
+            c = V(0.0, 0.026, 0.0)
+            R = Rx(1.25)
+        M.add_tons("or", piece(c, 0.024, R, (0.5, 1.0)), brut=True)
+    return M
+
+
+def micro_chaine(var):
+    """Bout de chaîne au sol (fer, maillons alternés à plat / sur la tranche), a : droit, b : en S."""
+    M = Module("micro_chaine_" + var, 3500 + ord(var))
+    M.sans_dessous = True
+    M.bandes = "aucune"
+    rg = M.rg
+    n = 6
+    for k in range(n):
+        u = k - (n - 1) * 0.5
+        x = u * 0.075
+        z = 0.0 if var == "a" else 0.07 * math.sin(u * 0.8)
+        dz = 0.0 if var == "a" else 0.056 * math.cos(u * 0.8)
+        an = math.atan2(-dz, 0.075)
+        R = Ry(an) @ (Rx(math.pi / 2) if k % 2 else I3)
+        c = V(x, 0.012 if not (k % 2) else 0.03, z)
+        pts = [c + R @ V(math.cos(TAU * j / 4) * 0.05, e, math.sin(TAU * j / 4) * 0.026) for j in range(4) for e in (-0.009, 0.009)]
+        M.add("fer", _poser(hull(pts), 0.0), rg.uniform(0.75, 0.95))
+    return M
+
+
+MICRO = [micro_eclats, micro_planche, micro_os, micro_cire, micro_pieces, micro_chaine]
 
 
 def sac(var):
@@ -864,6 +1149,9 @@ def construire():
     for v in "ab":
         mods += [crane(v), os_court(v), sac(v)]
     mods.append(os_monticule())
+    for f in MICRO:                 # C5 : semis micro
+        for v in ("abc" if f is micro_eclats else "ab"):
+            mods.append(f(v))
     for f in L3:
         mods += f()
     return mods
@@ -941,7 +1229,9 @@ def main():
     depasse = 0
     st = {}
     for M in mods:
-        res = aretes.appliquer(M.finir(), stats=st)
+        res = aretes.appliquer(M.finir(), bandes=M.bandes, stats=st)
+        for mat, faces in M.brute.items():      # C5 : pièces (bord clair en couleur de sommet), hors liserés
+            res.setdefault(mat, []).extend(faces)
         sorties.append((M, res))
         for mat, faces in res.items():
             donnees["%s__%s" % (M.nom, mat)] = faces
