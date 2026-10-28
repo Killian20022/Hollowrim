@@ -44,6 +44,120 @@ func _faux_jet(gm: GestionMagie, origine: Node3D, cible: Node3D, dbl := false) -
 	return {"ecole": "feu", "origine": origine, "portee": 5.5, "largeur": 0.9, "dbl": dbl, "emit": [], "gerbe": [],
 		"gerbe_cible": null, "cible": cible, "fin_pos": cible.global_position + Vector3.UP * 1.1, "t_bout": 0.0, "horloge": gm.horloge}
 
+## Jet factice d'une autre école (arc électrique, drain) ; `eclair` : générateur d'origine factice (le socle le remplace).
+func _faux_jet_ecole(gm: GestionMagie, ecole: String, origine: Node3D, cible: Node3D) -> Dictionary:
+	var j := _faux_jet(gm, origine, cible)
+	j.ecole = ecole
+	j["eclair"] = {"gen": func() -> Array: return [[PackedVector3Array([Vector3.ZERO, Vector3.ONE]), 1.0, 1.0]]}
+	return j
+
+func _canaux(c: Node3D) -> Vector4:
+	var m := Vector4.ZERO
+	for mi in c.find_children("*", "MeshInstance3D", true, false):
+		if (mi as MeshInstance3D).material_overlay != null:
+			var v: Variant = (mi as MeshInstance3D).get_instance_shader_parameter("mc_ecoles")
+			if v is Vector4:
+				m = Vector4(maxf(m.x, v.x), maxf(m.y, v.y), maxf(m.z, v.z), maxf(m.w, v.w))
+	return m
+
+func _ecoles_b(gm: GestionMagie, ic: ImpactCorps, main: Node3D, corps: Array, crees0: int) -> void:
+	EffetsMagie.tout_arreter()
+	await _images(3)
+	var noeuds0 := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
+	var res0 := int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT))
+	var da: Node3D = corps[0]
+	var db: Node3D = corps[1]
+	var dc: Node3D = corps[2]
+	# arc électrique sur da, drain sur db (jets factices : le point d'accroche jet_gerbe), givre et choc par statut sur dc
+	var je := _faux_jet_ecole(gm, "electricite", main, da)
+	var jd := _faux_jet_ecole(gm, "tenebres", main, db)
+	var max_budget := 0
+	var fin_sur := true
+	for k in 50:
+		for jj: Dictionary in [je, jd]:
+			jj.fin_pos = (jj.cible as Node3D).global_position + Vector3.UP * 1.1
+			ImpactCorps.jet_gerbe(gm, jj)
+		if k % 10 == 0:
+			ImpactCorps.statut(gm, da, "choc", 0.5)
+			ImpactCorps.statut(gm, db, "corruption", 3.0)
+			ImpactCorps.statut(gm, dc, "gel", 3.0)
+			ImpactCorps.statut(gm, dc, "choc", 0.5)
+		await process_frame
+		max_budget = maxi(max_budget, gm._budget)
+		# le faisceau / le drain finissent SUR la surface du corps (pas en son centre)
+		var fe: ImpactCorps.Foyer = ic.trouver(da, "electricite")
+		if fe != null and int(fe.d.imp_i) >= 0 and k > 3:
+			var sp: Vector3 = da.global_position + fe.surface.pos[int(fe.d.imp_i)]
+			fin_sur = fin_sur and (je.fin_pos as Vector3).distance_to(sp) < 0.1
+	var fe: ImpactCorps.Foyer = ic.trouver(da, "electricite")
+	var fd: ImpactCorps.Foyer = ic.trouver(db, "tenebres")
+	var fg: ImpactCorps.Foyer = ic.trouver(dc, "glace")
+	var fc: ImpactCorps.Foyer = ic.trouver(dc, "electricite")
+	verifier(fe != null and fd != null and fg != null and fc != null, "écoles B : foyers électricité, ténèbres, glace, choc sur des corps")
+	verifier(fin_sur, "électricité : le faisceau finit sur la surface du corps")
+	verifier(fe != null and fe.arcs.visible and fe.nb_segs > 10, "électricité : arcs sur le corps (%d sous-segments)" % (fe.nb_segs if fe != null else 0))
+	verifier(fd != null and fd.arcs.visible and fd.nb_segs > 10, "drain : filaments arrachés à la surface (%d sous-segments)" % (fd.nb_segs if fd != null else 0))
+	# les arcs sont accrochés aux POINTS du corps : index valides, maillage posé sur l'origine du corps (le shader suit les os)
+	var ok_idx := true
+	for f: ImpactCorps.Foyer in [fe, fd]:
+		if f == null:
+			continue
+		for k in f.nb_segs:
+			var ia := int(f.segs[k * 8])
+			ok_idx = ok_idx and ia >= 0 and ia < f.surface.nb
+		ok_idx = ok_idx and f.arcs.global_position.distance_to(f.origine()) < 0.001 and f.arcs.mesh == ic.mesh_arcs
+	verifier(ok_idx, "arcs : points d'accroche valides, maillage partagé posé sur le corps")
+	# le corps bouge : les arcs le suivent (même repère que les émetteurs)
+	da.position += Vector3(0.6, 0.0, 0.2)
+	ImpactCorps.jet_gerbe(gm, je)
+	await _images(2)
+	verifier(fe != null and fe.arcs.global_position.distance_to(da.global_position) < 0.001 and fe.em[0].p.global_position.distance_to(da.global_position) < 0.001, "suivi : arcs et émetteurs suivent le corps déplacé")
+	var cg := _canaux(dc)
+	verifier(cg.x > 0.5 and cg.y > 0.0, "voile : givre ET choc fusionnés sur le même corps (%.2f, %.2f)" % [cg.x, cg.y])
+	verifier(_canaux(db).z > 0.2, "voile : ténèbres sur le corps drainé (%.2f)" % _canaux(db).z)
+	var coque_ok: bool = fg != null and fg.avec_coque and fg.coques[0].material_override == ic.mat_coques.glace
+	coque_ok = coque_ok and fd != null and fd.coques[0].material_override == ic.mat_coques.tenebres
+	verifier(coque_ok, "coque : un matériau partagé par école (glace, ténèbres), pris dans le pool")
+	verifier(max_budget <= GestionMagie.MAX_PARTICULES_FIN, "plafond : écoles B, %d particules <= %d" % [max_budget, GestionMagie.MAX_PARTICULES_FIN])
+	# projectiles : impact DANS un corps → rendu sur sa surface ; sur le décor → rendu d'avant
+	EffetsMagie.tout_arreter()
+	await _images(2)
+	var centre: Vector3 = da.global_position + Vector3.UP * 1.1
+	verifier(ImpactCorps.impact(gm, "glace", centre, Vector3.BACK, 0.8), "projectile : lance de givre dans un corps prise en charge")
+	verifier(ImpactCorps.impact(gm, "tenebres", db.global_position + Vector3.UP * 1.1, Vector3.BACK, 0.8), "projectile : trait d'ombre dans un corps pris en charge")
+	verifier(ImpactCorps.impact(gm, "feu", dc.global_position + Vector3.UP * 1.1, Vector3.BACK, 1.6), "projectile : boule de feu dans un corps prise en charge (souffle = impulsion)")
+	verifier(ImpactCorps.impact(gm, "electricite", da.global_position + Vector3.UP * 1.0, Vector3.BACK, 0.7), "chaîne d'éclairs : impact sur le corps pris en charge")
+	verifier(not ImpactCorps.impact(gm, "glace", Vector3(0, 1.0, 8.0), Vector3.BACK, 0.8), "projectile sur le décor : rendu d'avant")
+	var fg2: ImpactCorps.Foyer = ic.trouver(da, "glace")
+	await _images(5)
+	verifier(fg2 != null and float(fg2.d.rayon) > 0.0 and float(fg2.d.gel) > 0.0, "glace : la plaque de givre gagne la surface depuis le point touché (rayon %.2f m)" % (float(fg2.d.rayon) if fg2 != null else 0.0))
+	# (la chaîne n'ouvre ni ne lit de surface : elle reprend celle d'un foyer du corps, ici celui de l'impact électrique)
+	var pts := [main.global_position, da.global_position + Vector3.UP * 1.1] as Array[Vector3]
+	ImpactCorps.points_sur_corps(gm, pts)
+	verifier(pts[1].distance_to(da.global_position + Vector3.UP * 1.1) > 0.05, "chaîne : l'arc se pose sur la surface du corps (%.2f m du centre)" % pts[1].distance_to(da.global_position + Vector3.UP * 1.1))
+	# rien de créé par tout ça (pool, matériaux et rampes des écoles créés avec le pool)
+	await _images(3)
+	verifier(ic.crees == crees0, "écoles B : rien créé par le module (%d → %d)" % [crees0, ic.crees])
+	verifier(int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)) == noeuds0, "écoles B : nombre de nœuds du moteur inchangé")
+	verifier(int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT)) <= res0, "écoles B : nombre de ressources du moteur inchangé (%d → %d)" % [res0, int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT))])
+	# persistances puis extinction : givre qui fond, traces de choc, ténèbres qui se dissipent → foyers rendus, canaux nuls
+	for c: Node3D in corps:
+		for st in ["gel", "choc", "corruption", "brulure"]:
+			ImpactCorps.statut(gm, c, st, 0.0)
+	await _images(20)
+	var fond: ImpactCorps.Foyer = ic.trouver(da, "glace")
+	verifier(fond != null and float(fond.d.fonte) > 0.0, "glace : le givre fond après le statut (gouttes)")
+	var t1 := Time.get_ticks_msec()
+	while ImpactCorps.stats().foyers > 0 and Time.get_ticks_msec() - t1 < 60000:
+		await process_frame
+	verifier(ImpactCorps.stats().foyers == 0 and ImpactCorps.stats().particules == 0, "écoles B : extinction complète (foyers, réserve)")
+	var reste := 0
+	for c: Node3D in corps:
+		for mi in c.find_children("*", "MeshInstance3D", true, false):
+			if (mi as MeshInstance3D).material_overlay == ic.mat_voile:
+				reste += 1
+	verifier(reste == 0, "écoles B : voile retiré de tous les maillages (%d restants)" % reste)
+
 func _points_de_l_os(s: SurfaceCorps, os: int) -> PackedInt32Array:
 	var r := PackedInt32Array()
 	for i in s.nb:
@@ -224,6 +338,9 @@ func _lancer() -> void:
 			if (mi as MeshInstance3D).material_overlay == ic.mat_voile:
 				reste += 1
 	verifier(reste == 0, "extinction : voile retiré de tous les maillages (%d restants)" % reste)
+
+	# ------------------------------------------------ agent B : électricité, glace, ténèbres, projectiles (même socle)
+	await _ecoles_b(gm, ic, main, [d2, d3, d4], crees0)
 
 	# ------------------------------------------------ tout_arreter et rendu d'avant
 	ImpactCorps.statut(gm, d2, "brulure", 3.0)

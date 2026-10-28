@@ -10,14 +10,18 @@
 //   mc_feu  : xyz = point d'impact (monde), w = chaleur 0..1 (1 = sous le jet, ~0,4 = brûlure)
 //   mc_dir  : xyz = direction du jet (monde), w = carbonisation 0..1
 //   mc_mesh : x = grille ps1 du modèle (0 = aucune), y = gonfle (m, repère objet), z = cases du motif par mètre
-//   mc_autre: x, y, z réservés aux autres écoles (gel, choc, ténèbres : agent B) ; w = part du jet en cours (0..1)
+//   mc_autre: x = couverture du feu (0..1, grandit avec la durée du jet), y, z libres (B passe par mc_ecoles) ; w = part du jet (0..1)
 shader_type spatial;
 render_mode unshaded, blend_premul_alpha, cull_back, depth_draw_never, fog_disabled, shadows_disabled;
 
-instance uniform vec4 mc_feu = vec4(0.0);
-instance uniform vec4 mc_dir = vec4(0.0, 0.0, -1.0, 0.0);
-instance uniform vec4 mc_mesh = vec4(135.0, 0.006, 64.0, 0.0);
-instance uniform vec4 mc_autre = vec4(0.0);
+// index d'instance fixés (10..15) : le voile est un material_overlay, il partage les emplacements d'instance du maillage avec
+// le matériau du personnage (ps1_draugr : eclair = 0 ; perso : 0..8) ; sans index, mc_feu écrasait ces paramètres-là.
+instance uniform vec4 mc_feu : instance_index(10) = vec4(0.0);
+instance uniform vec4 mc_dir : instance_index(11) = vec4(0.0, 0.0, -1.0, 0.0);
+instance uniform vec4 mc_mesh : instance_index(12) = vec4(135.0, 0.006, 64.0, 0.0);
+instance uniform vec4 mc_autre : instance_index(13) = vec4(0.0);
+// écoles de l'agent B (givre, choc, ténèbres) : mc_ecoles (14), mc_pt (15)
+#include "res://shaders/magie_corps_ecoles.gdshaderinc"
 
 uniform vec4 c0 : source_color = vec4(0.35, 0.07, 0.05, 1.0);   // rouge sombre (braise qui meurt)
 uniform vec4 c1 : source_color = vec4(0.70, 0.20, 0.12, 1.0);   // #b3341f
@@ -63,7 +67,7 @@ vec3 palette(float t) {
 void fragment() {
 	float chaleur = mc_feu.w;
 	float carbo = mc_dir.w;
-	if (chaleur <= 0.002 && carbo <= 0.002) {
+	if (chaleur <= 0.002 && carbo <= 0.002 && !ecoles_actives()) {
 		discard;
 	}
 	vec3 d = normalize(mc_dir.xyz + vec3(0.0, 0.00001, 0.0));
@@ -71,7 +75,8 @@ void fragment() {
 	float face = clamp(-dot(n, d) * 0.5 + 0.5, 0.0, 1.0);          // côté tourné vers le jet
 	vec3 v = p_monde - mc_feu.xyz;
 	float di = length(v);
-	float prox = exp(-(di * di) / (rayon_chaud * rayon_chaud));    // près du point touché
+	float rc = rayon_chaud * (1.0 + 0.9 * clamp(mc_autre.x, 0.0, 1.0));   // couverture du feu (FeuCorps)
+	float prox = exp(-(di * di) / (rc * rc));    // près du point touché
 	float hloc = chaleur * face * face * (0.2 + 0.8 * prox);
 	float cases = mc_mesh.z;
 	// lueur du corps éclairé de l'intérieur : 3 paliers concentriques autour du point touché (pas de grain)
@@ -84,20 +89,25 @@ void fragment() {
 	float braise = step(0.93, b) * clamp(hloc * 1.4 + carbo * min(chaleur * 2.5, 1.0), 0.0, 1.0) * palp;
 	// contour rougeoyant (bord de la silhouette vue de l'œil), côté chaud
 	float bord = 1.0 - abs(normalize(n_vue).z);
-	float contour = step(0.7, bord) * chaleur * (0.3 + 0.7 * face);
-	a_lum = max(a_lum, max(braise, contour * 0.67));
-	t = max(t, braise * 0.6);
-	a_lum = ceil(clamp(a_lum, 0.0, 0.67) * 3.0 - 0.05) / 3.0;
+	// (2026-10-28, intensité) contour plus large et plus vif, côté chaud : la silhouette se lit DANS les flammes
+	float contour = (step(0.62, bord) * 0.75 + step(0.8, bord) * 0.25) * chaleur * (0.35 + 0.65 * face);
+	a_lum = max(a_lum, max(braise, contour * 0.85));
+	t = max(t, max(braise * 0.6, contour * step(0.8, bord) * 0.75));
+	a_lum = ceil(clamp(a_lum, 0.0, 0.8) * 3.0 - 0.05) / 3.0;
 	// jamais d'aplat clair : au plus de l'orange (le blanc-jaune est réservé au cœur de la coque, dans la couche fine)
-	vec3 lum = palette(clamp(t * 0.7 + 0.1, 0.0, 0.8)) * eclat * a_lum * 0.75;
+	vec3 lum = palette(clamp(t * 0.75 + 0.12, 0.0, 0.8)) * eclat * a_lum * 0.9;
 	// carbonisation : taches sombres (jamais un aplat : le motif du corps reste lisible)
 	float tache = h3(floor(p_obj * cases * 0.3) + 11.0);
 	float a_noir = carbo * (0.25 + 0.45 * step(0.4, tache)) * (0.45 + 0.55 * face);
 	a_noir = floor(a_noir * 4.0) / 4.0;
-	if (a_lum <= 0.0 && a_noir <= 0.0) {
+	// givre, choc, ténèbres (magie_corps_ecoles.gdshaderinc)
+	vec3 add_e = vec3(0.0);
+	float a_e = 0.0;
+	voile_ecoles(p_monde, p_obj, n, n_vue, cases, TIME, add_e, a_e);
+	if (a_lum <= 0.0 && a_noir <= 0.0 && a_e <= 0.0 && dot(add_e, vec3(1.0)) <= 0.0) {
 		discard;
 	}
 	// sortie prémultipliée : couleur ajoutée + fond × (1 − ALPHA)
-	ALBEDO = lum + charbon * a_noir;
-	ALPHA = clamp(a_noir, 0.0, 0.85);
+	ALBEDO = lum + charbon * a_noir + add_e;
+	ALPHA = clamp(a_noir + a_e, 0.0, 0.85);
 }

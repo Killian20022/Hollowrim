@@ -52,6 +52,7 @@ var _g_os := PackedInt32Array()
 var _g_o: Array[PackedVector3Array] = []
 var _g_n: Array[PackedVector3Array] = []
 var _g_pose: Array[Transform3D] = []
+var _g_xf: Array[Transform3D] = []      # transformée de chaque groupe à la dernière actualiser() (normales seules)
 var pos := PackedVector3Array()
 var nor := PackedVector3Array()
 ## Os (index du squelette, -1 pour une pièce rigide) de chaque point, dans l'ordre de pos.
@@ -67,6 +68,17 @@ var masse_demi := Vector3(0.3, 0.8, 0.3)
 var _image := -1
 var _origine := Vector3.ZERO
 var _repli := false
+## (2026-10-28, perf) image (Engine.get_process_frames) du dernier calcul des normales : un foyer ne renvoie sa texture
+## des normales que si elles ont changé ; octets des points / normales gardés pour l'image (partagés entre les foyers
+## d'un même corps : feu + électricité).
+var image_nor := -1
+var _oct_img := -1
+var _oct_pos := PackedByteArray()
+var _oct_nor := PackedByteArray()
+## (Agent B, perf) groupes PARTAGÉS entre maillages : clé = squelette + os + transformée du maillage. Les pièces d'un même
+## personnage (tunique, pantalon, bottes… même squelette, même transformée) ne font plus qu'un groupe par os : ~60 → ~25
+## groupes pour un draugr, actualiser() presque deux fois moins cher.
+var _par_cle := {}
 
 ## Échantillonnage d'une cible. `lire` = faux : les maillages pas encore en cache sont sautés (repli en capsules si rien
 ## n'est prêt ; ImpactCorps les lit ensuite, un par image, et refait la surface) → jamais de lecture au premier impact.
@@ -264,7 +276,8 @@ func _ajouter(mi: MeshInstance3D) -> void:
 		var s2 := mi.get_node_or_null(mi.skeleton) as Skeleton3D
 		if s2 != null:
 			sq = s2
-	var par_os := {}   # clé de groupe -> groupe
+	var par_os := {}   # clé de groupe -> groupe (nouveaux groupes de ce maillage)
+	var t_mi := str(mi.global_transform if mi.is_inside_tree() else mi.transform)
 	var bs: PackedInt32Array = e.b
 	var ps: PackedVector3Array = e.p
 	var ns: PackedVector3Array = e.n
@@ -281,9 +294,14 @@ func _ajouter(mi: MeshInstance3D) -> void:
 				var bp := skin.get_bind_pose(b)
 				o = bp * o
 				n = (bp.basis * n).normalized()
-		var cle := os   # un appel = un maillage : l'os suffit
+		# pièce skinnée : groupe partagé par os (et transformée du maillage) entre les pièces d'un même squelette (agent B) ;
+		# pièce rigide : son propre groupe. _compter fusionne ensuite par (repère, os) (agent A).
+		var cle := "%d:%d:%s" % [sq.get_instance_id(), os, t_mi] if os >= 0 else "%d:%d" % [mi.get_instance_id(), os]
 		if not par_os.has(cle):
-			par_os[cle] = {"mi": mi, "sq": sq if os >= 0 else null, "os": os, "o": PackedVector3Array(), "n": PackedVector3Array()}
+			if _par_cle.has(cle):
+				par_os[cle] = _par_cle[cle]
+			else:
+				par_os[cle] = {"mi": mi, "sq": sq if os >= 0 else null, "os": os, "o": PackedVector3Array(), "n": PackedVector3Array(), "neuf": true}
 		# (un PackedVector3Array lu dans un dictionnaire est une COPIE : on le relit, on ajoute, on le réécrit)
 		var g: Dictionary = par_os[cle]
 		var go: PackedVector3Array = g.o
@@ -293,7 +311,11 @@ func _ajouter(mi: MeshInstance3D) -> void:
 		g.o = go
 		g.n = gn
 	for cle in par_os:
-		_groupes.append(par_os[cle])
+		var g: Dictionary = par_os[cle]
+		if g.get("neuf", false):
+			g.erase("neuf")
+			_par_cle[cle] = g
+			_groupes.append(g)
 
 ## Repli sans maillage lisible (ou avant lecture) : capsules le long des os du squelette.
 func _repli_capsules() -> void:
@@ -382,13 +404,19 @@ func repli() -> bool:
 func actualiser(origine: Vector3, normales := true) -> void:
 	var img := Engine.get_process_frames()
 	if img == _image and origine == _origine:
+		# (2026-10-28, perf) déjà refaite cette image sans les normales (point d'accroche d'un jet, qui passe avant
+		# ImpactCorps) : on ajoute seulement les normales, avec les transformées de l'image
+		if normales and image_nor != img and _g_xf.size() == _g_os.size():
+			_normales_seules(img)
 		return
 	_image = img
 	_origine = origine
+	_oct_img = -1
 	normales = normales or nor.size() < nb
 	pos.clear()
 	if normales:
 		nor.clear()
+		image_nor = img
 	var dec := Transform3D(Basis.IDENTITY, -origine)
 	var y0 := INF
 	var y1 := -INF
@@ -397,6 +425,8 @@ func actualiser(origine: Vector3, normales := true) -> void:
 	var k_os := 0
 	var base_prec: Node3D = null
 	var xf_base := Transform3D.IDENTITY
+	if _g_xf.size() != _g_os.size():
+		_g_xf.resize(_g_os.size())
 	for i in _g_os.size():
 		var base := _g_base[i]
 		if base != base_prec:
@@ -405,6 +435,7 @@ func actualiser(origine: Vector3, normales := true) -> void:
 			base_prec = base
 			xf_base = base.global_transform
 		var xf := xf_base * _g_pose[i] if _g_os[i] >= 0 else xf_base
+		_g_xf[i] = xf
 		var o: PackedVector3Array = (dec * xf) * _g_o[i]
 		pos.append_array(o)
 		if normales:
@@ -432,6 +463,20 @@ func actualiser(origine: Vector3, normales := true) -> void:
 		masse_demi = Vector3(sqrt(maxf(var_.x, 0.0)), sqrt(maxf(var_.y, 0.0)), sqrt(maxf(var_.z, 0.0))) * 1.7
 		masse_demi = masse_demi.max(Vector3(0.18, 0.18, 0.18))
 
+## Normales seules, avec les transformées gardées par actualiser() pour cette image (mêmes groupes sautés).
+func _normales_seules(img: int) -> void:
+	nor.clear()
+	image_nor = img
+	_oct_img = -1
+	for i in _g_os.size():
+		if not is_instance_valid(_g_base[i]):
+			continue
+		var xf := _g_xf[i]
+		var e := xf.basis.x.length()
+		nor.append_array(Transform3D(xf.basis / maxf(e, 0.0001), Vector3.ZERO) * _g_n[i])
+	if nor.size() > LARGEUR:
+		nor.resize(LARGEUR)
+
 ## Écrit les points dans deux images RGBAF de TEXELS × 1 (au-delà de `nb` : zéros, jamais lus par le shader) ; `params`
 ## (TEXELS_PARAMS × 4 flottants) suit les positions.
 func ecrire(img_pos: Image, img_nor: Image, params := PackedFloat32Array()) -> void:
@@ -447,6 +492,35 @@ func ecrire(img_pos: Image, img_nor: Image, params := PackedFloat32Array()) -> v
 	n.append_array(_zeros_params)
 	img_pos.set_data(TEXELS, 1, false, Image.FORMAT_RGBAF, o)
 	img_nor.set_data(TEXELS, 1, false, Image.FORMAT_RGBAF, n)
+
+## Comme ecrire(), en deux temps (ImpactCorps) : positions + paramètres du foyer à chaque mise à jour, normales seulement
+## si elles ont changé depuis le dernier envoi de CE foyer (ecrire_nor). Octets des points calculés une fois par image.
+func ecrire_pos(img_pos: Image, params: PackedFloat32Array) -> void:
+	if nb <= 0:
+		return
+	_octets()
+	var o := _oct_pos.duplicate()
+	o.append_array(params.to_byte_array() if params.size() == TEXELS_PARAMS * 4 else _zeros_params)
+	img_pos.set_data(TEXELS, 1, false, Image.FORMAT_RGBAF, o)
+
+func ecrire_nor(img_nor: Image) -> void:
+	if nb <= 0:
+		return
+	_octets()
+	img_nor.set_data(TEXELS, 1, false, Image.FORMAT_RGBAF, _oct_nor)
+
+func _octets() -> void:
+	var img := Engine.get_process_frames()
+	if img == _oct_img and _oct_pos.size() > 0:
+		return
+	_oct_img = img
+	pos.resize(LARGEUR)
+	nor.resize(LARGEUR)
+	if _zeros_params.is_empty():
+		_zeros_params.resize(TEXELS_PARAMS * 16)
+	_oct_pos = pos.to_byte_array()
+	_oct_nor = nor.to_byte_array()
+	_oct_nor.append_array(_zeros_params)
 
 ## Image vide au bon format pour ecrire().
 static func image() -> Image:
