@@ -11,6 +11,10 @@
 //   avec « specular_schlick_ggx » et « #define BRILLANT » à la place de specular_disabled (CrypteDecor.shader_brillant : un seul Shader de plus, partagé, aucun matériau dupliqué) ;
 //   elle remplace l'éclairage direct par light() : Lambert identique + reflet NET (Blinn-Phong seuillé, une tache de quelques pixels,
 //   pas de dégradé) + un lustre doux. La pierre et le bois gardent la variante sans light() (coût inchangé).
+// - C3 murs (2026-10-28) : GRAIN PROCHE (surfaces à relief seulement) : bruit de valeur à 256 cellules/m (le double des textures de
+//   pierre, 128 t/m) dans le plan de la face, +-1 ton (x 0,88 / x 1,12, une cellule sur deux neutre), qui casse les texels de 6-10 px
+//   vus à bout de bras ; fondu par la TAILLE À L'ÉCRAN d'une cellule (absent sous 1,5 px : aucun scintillement, rien en vue rasante)
+//   et par la distance (plein à 0,5 m, nul à 1,5 m). Bruit seulement (hachage entier par cellule), jamais de tramage ordonné.
 shader_type spatial;
 render_mode diffuse_lambert, specular_disabled;
 
@@ -37,6 +41,9 @@ uniform float durete = 32.0;
 uniform float seuil_reflet = 0.35;
 uniform float lustre = 0.0;
 uniform vec3 reflet : source_color = vec3(1.0);
+// C3 murs : force du grain proche (0 = éteint) ; densité en cellules par mètre
+uniform float grain_proche = 1.0;
+uniform float grain_densite = 256.0;
 
 varying vec3 pos_m;
 varying vec3 n_m;
@@ -58,6 +65,20 @@ void fragment() {
 	if (decoupe > 0.0 && t.a < decoupe) discard;
 	vec3 c = t.rgb * COLOR.rgb * teinte.rgb;
 	vec3 nw = normalize(n_m);
+	if (grain_proche > 0.0 && relief > 0.0) {         // condition uniforme : les dérivées restent valides
+		float dist = length(pos_m - CAMERA_POSITION_WORLD);
+		vec3 an = abs(nw);
+		vec2 q = an.y >= max(an.x, an.z) ? pos_m.xz : (an.x >= an.z ? pos_m.zy : pos_m.xy);
+		vec2 g = q * grain_densite;
+		float cpp = max(length(dFdx(g)), length(dFdy(g)));           // cellules par pixel
+		float w = (1.0 - smoothstep(1.0 / 2.5, 1.0 / 1.5, cpp)) * (1.0 - smoothstep(0.5, 1.5, dist)) * grain_proche;
+		uvec2 k = uvec2(ivec2(floor(g)) + ivec2(65536));
+		uint h = (k.x * 1597334677u) ^ (k.y * 3812015801u);
+		h = (h ^ (h >> 15u)) * 2246822519u;
+		h ^= h >> 13u;
+		uint v = h & 3u;                                             // 0, 1, 2, 3 -> -1, 0, 0, +1 ton
+		c *= 1.0 + 0.12 * w * (v == 0u ? -1.0 : (v == 3u ? 1.0 : 0.0));
+	}
 	if (relief > 0.0) {
 		vec2 s = (texture(tex_nm, UV).rg * 2.0 - 1.0) * relief;
 		vec3 a = abs(nw);

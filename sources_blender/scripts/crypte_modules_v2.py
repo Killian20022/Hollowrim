@@ -2073,6 +2073,292 @@ def arche_v3(nom, portee, fleche, graine, epaisseur=0.34, prof=0.5, bloc=None):
     return M
 
 
+# ======================================================================= PANS DE MUR v3 (lot C3, 2026-10-28)
+# Chantier « anti pâte à modeler » (docs INSPIRATION_IGNITE §2.1, planche 01_murs_crypte). Constat : à distance de jeu (2-4 m) le
+# pan_mur v2 se lisait comme une texture plane (tons 0,72-1,0 trop proches, joints gris à 0,32, aucune arête claire, couleur de sommet
+# 8 bits déjà au plafond). Le relief passe donc par la GÉOMÉTRIE et l'orientation des faces, comme les piliers v3 (C4) :
+#   - joints au NOIR : fond à 0,12 (rampe Ombre) et flancs de bloc (faces de joint) x 0,22 ;
+#   - blocs contrastés : ton de base 0,52-0,86 (+ 1 bloc sur 7 plus sombre, 1 sur 10 plus clair), face x 0,96 ;
+#   - ARÊTE CLAIRE : chanfrein haut de 4,5-6,5 cm (3-5 px à 3 m) x 1,42 ; PIED SOMBRE : chanfrein bas x 0,6 (= règle d'aretes.py, posée
+#     face par face : aretes.appliquer ajouterait des liserés en double et assombrirait le cœur des faces) ;
+#   - mur « essuyé » : tons x 0,82 au pied -> x 1 à 1,6 m ;
+#   - assises : soubassement de 2 assises hautes à longs blocs, puis petites assises de 0,2-0,4 m (blocs de 0,3 à 0,95 m) ;
+#   - accidents : 1 bloc sur 12 SORTI de 8-12 cm (plafonné à 0,315 m du mur : les objets accrochés sont posés à 0,33), 1 sur 12 TOURNÉ
+#     de 2-4°, 1 sur 25 MANQUANT (blocage sombre en retrait, éclats dans le trou), 1 sur 3 avec un coin arraché (aucun triangle de plus) ;
+#   - pan_mur_b : un corbeau (console à deux ressauts, blocs voisins reculés de 4 cm) ; pan_mur_c : une niche à arc brisé (jambages,
+#     tablette, écoinçons) ; niche et corbeaux hors du milieu du pan (appliques, bannières) ; RIEN au-delà de 0,315 m ;
+#     pan_mur_haut : deux corbeaux. Le gabarit étant posé à 1,8 / 2,6 / 3,4 m, cela fait un accident d'architecture tous les 4-6 m ;
+#   - givre d'arête par TRONÇONS (30-70 % de l'arête haute d'un bloc sur 5, épaisseur variable, ton x 0,72-0,9 : jamais le haut de la
+#     rampe Glace) ; glaçons IRRÉGULIERS (0 à 4, longueurs tirées au carré, trous) sous les blocs sortis, les corbeaux et la tablette.
+# Bloc = enveloppe convexe de 12 points (dos caché) : 18 triangles (44 pour le bloc biseauté v2) ; ~2 fois plus de blocs pour moins de
+# triangles. Mêmes noms, encombrement 0 -> 0,315 m devant le mur (v2 : 0,30 ; objets accrochés posés à 0,33 m), aucune collision.
+ARETES_SANS = ARETES_SANS + ("pan_mur",)
+MUR_TON = (0.52, 0.86)
+MUR_FACE = {"face": 0.96, "chanfrein": 1.22, "chanfrein_haut": 1.42, "dessus": 1.0, "dessous": 0.6, "joint": 0.22}
+MUR_FOND = 0.12
+MUR_MAX = 0.315
+X_P, X_M, Z_P = Vector((1, 0, 0)), Vector((-1, 0, 0)), Vector((0, 0, 1))
+# givre et glaçons des pans : matière « mur4 » (glace de la crypte, celle des glaçons du décor, présente dans chaque case murée) et non
+# « givre » (-> neige) : un maillage de neige étendu à tous les murs d'une case touchait 9 lumières à l'entrée (test_crypte : 8 au plus)
+MUR_GIVRE = "mur4"
+
+
+def _essuye(y):
+    return 0.82 + 0.18 * min(1.0, max(0.0, y / 1.6))
+
+
+def _mur_bloc(M, x0, x1, y0, y1, zf, ton, zb=0.03, ch_h=0.055, ch_b=0.025, ch_s=0.03, d=0.035, yaw=0.0, roll=0.0, eclat=None, jit=0.006):
+    """Bloc de parement : face avant [x0, x1] x [y0, y1] à z = zf, chanfreins haut / bas / côtés (largeur ch_*, profondeur d), dos à zb
+    (caché). eclat = (coin 0..3 : bas-g, bas-d, haut-d, haut-g ; taille) : coin avant arraché. 18 triangles."""
+    rg = M.rg
+    cx, cy = (x0 + x1) * 0.5, (y0 + y1) * 0.5
+    pts = []
+    for (x, y) in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
+        pts.append(Vector((x, y, zb)))
+        pts.append(Vector((x, y, zf - d)))
+    face = [(x0 + ch_s, y0 + ch_b), (x1 - ch_s, y0 + ch_b), (x1 - ch_s, y1 - ch_h), (x0 + ch_s, y1 - ch_h)]
+    for i, (x, y) in enumerate(face):
+        q = Vector((x + rg.uniform(-jit, jit), y + rg.uniform(-jit, jit), zf + rg.uniform(-jit, jit * 0.5)))
+        if eclat and i == eclat[0]:
+            e = eclat[1]
+            q += Vector(((cx - x) / max(1e-6, abs(cx - x)) * e * 0.8, (cy - y) / max(1e-6, abs(cy - y)) * e, -e * 0.7))
+        pts.append(q)
+    if yaw or roll:
+        R = Matrix.Rotation(yaw, 3, 'Y') @ Matrix.Rotation(roll, 3, 'Z')
+        c = Vector((cx, cy, zb))
+        pts = [c + R @ (p - c) for p in pts]
+        Rj = R
+    else:
+        Rj = Matrix.Identity(3)
+    joints = tuple(Rj @ v for v in (X_P, X_M, HAUT, BAS))
+    _pil_emettre(M, pts, ton, joints=joints, cacher=(Rj @ DOS,), regles=MUR_FACE)
+
+
+def _mur_coin(M, pts, ton, joints=(), regles=None):
+    """Pièce taillée quelconque (enveloppe convexe, dos caché) aux tons de face des murs."""
+    r = dict(MUR_FACE)
+    if regles:
+        r.update(regles)
+    _pil_emettre(M, pts, ton, joints=joints, cacher=(DOS,), regles=r)
+
+
+def _givre_troncon(M, x0, x1, y, zf, ch_h=0.055, d=0.035):
+    """Givre sur l'arête haute d'un bloc (dessus y, face avant zf, chanfrein haut ch_h x d), par TRONÇONS : 1 à 2 croûtes couvrant
+    30-70 % de [x0, x1], couchées sur le chanfrein, épaisseur et avancée variables, tons 0,72-0,9 sur la glace « mur4 » (jamais le haut de la rampe)."""
+    rg = M.rg
+    L = x1 - x0
+    if L < 0.1:
+        return
+    couvre = rg.uniform(0.3, 0.7) * L
+    n = 1 if couvre < 0.3 or rg.random() < 0.5 else 2
+    a = x0 + rg.uniform(0.0, L - couvre)
+    for k in range(n):
+        l = couvre / n * rg.uniform(0.7, 1.0)
+        ep = rg.uniform(0.008, 0.02)
+        pts = []
+        m = rg.randint(3, 5)
+        for i in range(m):
+            t = i / (m - 1)
+            x = a + l * t
+            f = (0.3 + 0.7 * math.sin(math.pi * (0.15 + 0.7 * t))) * rg.uniform(0.6, 1.0)      # avancée sur le chanfrein
+            e = ep * (0.4 + 0.6 * math.sin(math.pi * (0.1 + 0.8 * t)))
+            pts += [Vector((x, y - 0.003, zf - d - 0.014)), Vector((x, y + e, zf - d - 0.004)),
+                    Vector((x, y - ch_h * f + e * 0.5, zf - d + d * f + 0.004)), Vector((x, y - ch_h * f - 0.004, zf - d + d * f + 0.001))]
+        M.coin(pts, MUR_GIVRE, bev=0.0, jit=0.0, ton=rg.uniform(0.72, 0.9))
+        a += couvre / n + rg.uniform(0.04, 0.2)
+
+
+def _glacons_irreg(M, x0, x1, y, z, nmax=4, lmax=0.24):
+    """Glaçons irréguliers sous une arête : 0 à nmax, longueurs tirées au carré (un long, des courts), positions avec trous."""
+    rg = M.rg
+    n = rg.randint(0, nmax)
+    xs = sorted(rg.uniform(x0, x1) for _ in range(n))
+    for x in xs:
+        h = 0.03 + lmax * rg.random() ** 2
+        M.cylindre(0.0, rg.uniform(0.01, 0.022) + h * 0.05, h, Vector((x, y - h, z + rg.uniform(-0.012, 0.0))), 4, MUR_GIVRE, jit=0.003,
+                   ton=rg.uniform(0.78, 0.95), rot=rg.uniform(0, 1.5))
+
+
+def _gravats_trou(M, x0, x1, y, n):
+    """Éclats restés dans le trou d'un bloc manquant (posés sur son lit, devant le blocage) : petits blocs inclinés, 12 triangles chacun.
+    Pas de gravats au sol devant le mur : l'encombrement du pan resterait à 0,315 m (objets accrochés à 0,33 m, audit des
+    interpénétrations par boîtes)."""
+    rg = M.rg
+    for _ in range(n):
+        s = rg.uniform(0.05, 0.1)
+        x = rg.uniform(x0 + s, x1 - s)
+        z = rg.uniform(0.17, 0.27)
+        M.boite((s * rg.uniform(1.0, 1.6), s * rg.uniform(0.5, 0.8), s * 0.8), Vector((x, y + s * 0.3, z)), yaw=rg.uniform(-0.6, 0.6),
+                incl=(rg.uniform(-0.3, 0.3), rg.uniform(-0.3, 0.3)), bev=0.0, jit=0.01, ton=rg.uniform(0.45, 0.75))
+
+
+def _corbeau(M, cx, y_haut, larg=0.3):
+    """Console à deux ressauts sous une tablette (corbeau) : dessous en biais (quart de rond taillé), tablette à arête claire,
+    givre dessus, glaçons dessous. Saillie plafonnée à MUR_MAX (objets accrochés à 0,33 m) ; les blocs autour reculent de 4 cm
+    (pan_mur_v3) ; 0,5 m de haut."""
+    rg = M.rg
+    w = larg
+    zt = MUR_MAX - 0.005
+    # tablette
+    _mur_bloc(M, cx - w * 0.75, cx + w * 0.75, y_haut - 0.11, y_haut, zt, rg.uniform(0.72, 0.86), zb=0.05, ch_h=0.04, ch_b=0.02, ch_s=0.025)
+    # corbeau : profil en biais (haut à 0,42, bas à 0,2), deux ressauts
+    for k, (ya, yb, za, zb_) in enumerate(((y_haut - 0.27, y_haut - 0.12, zt - 0.02, zt - 0.07), (y_haut - 0.5, y_haut - 0.28, zt - 0.08, zt - 0.17))):
+        hw = w * (0.5 - 0.06 * k)
+        pts = []
+        for sx in (-1, 1):
+            x = cx + sx * hw
+            xi = cx + sx * (hw - 0.025)
+            pts += [Vector((x, ya, 0.05)), Vector((x, yb, 0.05)), Vector((x, yb, za - 0.03)), Vector((x, ya, zb_ - 0.03)),
+                    Vector((xi, yb - 0.035, za)), Vector((xi, ya + 0.02, zb_))]
+        _mur_coin(M, pts, rg.uniform(0.62, 0.8), joints=(HAUT,))
+    _givre_troncon(M, cx - w * 0.7, cx + w * 0.7, y_haut, zt, 0.04)
+    _glacons_irreg(M, cx - w * 0.4, cx + w * 0.4, y_haut - 0.5, zt - 0.19, 3, 0.2)
+
+
+def _niche(M, cx, y0, w=0.62, h=0.82, fleche=0.26):
+    """Niche à arc brisé : fond noir (le fond du pan), jambages en saillie, tablette, deux claveaux en mitre et écoinçons. Renvoie la
+    zone exclue des assises (x0, x1, y0, y1)."""
+    rg = M.rg
+    jb = 0.15
+    zj = 0.27
+    x0, x1 = cx - w * 0.5, cx + w * 0.5
+    y1 = y0 + h
+    # tablette (seuil) : arête claire, givre, glaçons
+    _mur_bloc(M, x0 - jb - 0.05, x1 + jb + 0.05, y0 - 0.1, y0, MUR_MAX - 0.005, rg.uniform(0.74, 0.86), ch_h=0.04, ch_b=0.02)
+    _givre_troncon(M, x0, x1, y0, MUR_MAX - 0.005, 0.04)
+    _glacons_irreg(M, x0 - 0.1, x1 + 0.1, y0 - 0.1, MUR_MAX - 0.02, 4, 0.22)
+    # jambages : deux pierres chacun
+    for sx, xa, xb in ((-1, x0 - jb, x0), (1, x1, x1 + jb)):
+        ym = y0 + h * rg.uniform(0.42, 0.58)
+        _mur_bloc(M, xa, xb, y0, ym - 0.015, zj, rg.uniform(0.66, 0.84), ch_s=0.025)
+        _mur_bloc(M, xa, xb, ym + 0.015, y1, zj, rg.uniform(0.66, 0.84), ch_s=0.025)
+    # fond de la niche : plus noir que les joints, à 0,16 m derrière la face des jambages (devant les pierres du décor, <= 0,09 m)
+    M.boite((w + 0.02, h + fleche, 0.01), Vector((cx, y0 + (h + fleche) * 0.5, 0.11)), bev=0.0, jit=0.0, ton=0.06)
+    # claveaux en mitre (arc brisé), clé au sommet
+    yt = y1 + fleche
+    e = 0.15
+    for sx in (-1, 1):
+        xe = cx + sx * (w * 0.5 + jb)
+        xi = cx + sx * w * 0.5
+        pts = []
+        for z in (0.04, zj - 0.03):
+            pts += [Vector((xi, y1, z)), Vector((xe, y1, z)), Vector((cx + sx * 0.06, yt + e, z)), Vector((cx + sx * 0.02, yt, z))]
+        pts += [Vector((xi - sx * 0.02, y1 + 0.03, zj)), Vector((xe - sx * 0.025, y1 + 0.02, zj)), Vector((cx + sx * 0.055, yt + e - 0.035, zj)),
+                Vector((cx + sx * 0.025, yt + 0.03, zj))]
+        _mur_coin(M, pts, rg.uniform(0.7, 0.86), joints=(BAS,), regles={"dessous": 0.32})
+    # clé
+    _mur_coin(M, [Vector((cx + sx * 0.06, y, z)) for sx in (-1, 1) for y in (yt - 0.01, yt + e + 0.06) for z in (0.04, zj + 0.02)] +
+              [Vector((cx + sx * 0.04, yt + e + 0.04, zj + 0.035)) for sx in (-1, 1)], 0.84)
+    # écoinçons (au-dessus des claveaux, jusqu'au haut de la zone)
+    yz = yt + e + 0.06
+    for sx in (-1, 1):
+        xe = cx + sx * (w * 0.5 + jb)
+        pts = []
+        for z in (0.03, 0.2):
+            pts += [Vector((xe, y1 + 0.02, z)), Vector((xe, yz, z)), Vector((cx + sx * 0.075, yz, z))]
+        _mur_coin(M, pts, rg.uniform(0.55, 0.72), joints=(HAUT,))
+    return (x0 - jb - 0.03, x1 + jb + 0.03, y0 - 0.11, yz + 0.015)
+
+
+def pan_mur_v3(nom, larg, haut, graine, corbeaux=0, niche=False):
+    """Pan de maçonnerie v3 (voir l'en-tête de section) : +z vers la pièce, x dans [-larg/2, larg/2], y dans [0, haut]."""
+    M = Module(nom, graine)
+    rg = M.rg
+    L2 = larg * 0.5
+    # fond (joints au noir) EN AVANT des pierres du décor que le pan recouvre (CrypteDecor._relief_mur : soubassement 0,10-0,20 m
+    # sous 0,3 m, pierres d'assise <= 0,09 m) : sinon elles se montrent, éclairées, dans les joints, les trous et la niche
+    M.boite((larg, 0.32, 0.2), Vector((0, 0.16, 0.105)), bev=0.0, jit=0.0, ton=MUR_FOND)
+    M.boite((larg, haut - 0.32, 0.1), Vector((0, 0.32 + (haut - 0.32) * 0.5, 0.055)), bev=0.0, jit=0.0, ton=MUR_FOND)
+    zones = []
+    # niche et corbeaux HORS du milieu du pan : les appliques (torches) et bannières se posent au milieu des travées
+    if niche:
+        zones.append(_niche(M, rg.choice((-1, 1)) * larg * rg.uniform(0.24, 0.28), 0.98))
+    cotes = [rg.choice((-1, 1))] if corbeaux == 1 else [-1, 1]
+    retraits = []        # (x0, x1, y0, y1) : blocs reculés de 4 cm autour d'un corbeau (sa saillie reste lisible sous le plafond)
+    for k in range(corbeaux):
+        cxk = cotes[k] * larg * rg.uniform(0.27, 0.34)
+        yk = min(haut - 0.45, 2.45 + rg.uniform(-0.1, 0.1))
+        lk = rg.uniform(0.26, 0.34)
+        _corbeau(M, cxk, yk, lk)
+        retraits.append((cxk - lk - 0.35, cxk + lk + 0.35, yk - 0.95, yk + 0.35))
+    J = 0.032
+    y = 0.0
+    rang = 0
+    trous = []
+    while y < haut - 0.05:
+        hc = rg.choice([0.42, 0.48, 0.54]) if rang < 2 else rg.choice([0.2, 0.24, 0.28, 0.3, 0.34, 0.4])
+        hc = min(hc, haut - y)
+        if haut - y - hc < 0.17:
+            hc = haut - y
+        ya, yb = y + J * 0.5, y + hc - J * 0.5
+        # intervalles libres de l'assise (hors niche)
+        libres = [(-L2, L2)]
+        for (zx0, zx1, zy0, zy1) in zones:
+            if yb > zy0 and ya < zy1:
+                n_l = []
+                for (a, b) in libres:
+                    if zx0 > a:
+                        n_l.append((a, min(b, zx0)))
+                    if zx1 < b:
+                        n_l.append((max(a, zx1), b))
+                libres = [(a, b) for (a, b) in n_l if b - a > 0.06]
+        for (a, b) in libres:
+            x = a
+            if rang % 2 and a == -L2:
+                x = a - rg.uniform(0.1, 0.3)
+            while x < b - 0.04:
+                w = rg.choice([0.3, 0.38, 0.46, 0.55, 0.66, 0.8, 0.95] if rang >= 2 else [0.7, 0.9, 1.1, 1.3])
+                if x + w > b - 0.18:
+                    w = b - x
+                xa, xb = max(a, x) + J * 0.5, min(b, x + w) - J * 0.5
+                x += w
+                if xb - xa < 0.06:
+                    continue
+                r = rg.random()
+                if r < 0.04 and 0 < rang and yb < haut - 0.3 and xb - xa < 0.8:
+                    trous.append((xa, xb, ya))
+                    _mur_bloc(M, xa - 0.01, xb + 0.01, ya - 0.01, yb + 0.01, 0.13, 0.15, zb=0.1, ch_h=0.03, ch_b=0.02, ch_s=0.02)      # blocage du fond
+                    continue
+                ton = rg.uniform(*MUR_TON) * _essuye((ya + yb) * 0.5)
+                tr = rg.random()
+                if tr < 0.14:
+                    ton *= 0.8
+                elif tr > 0.9:
+                    ton = min(1.0, ton * 1.15)
+                zf = 0.04 + rg.uniform(0.16, 0.21) + (0.035 if rang == 0 else 0.0)      # assise basse : devant le fond du bas (0,205)
+                zf = min(zf, MUR_MAX - 0.006)
+                yaw = roll = 0.0
+                sorti = False
+                if r < 0.04 + 1.0 / 12:
+                    zf = min(MUR_MAX - 0.006, zf + rg.uniform(0.08, 0.12))
+                    sorti = True
+                elif r < 0.04 + 2.0 / 12:
+                    yaw = rg.choice((-1, 1)) * math.radians(rg.uniform(2, 4))
+                    roll = rg.choice((-1, 1)) * math.radians(rg.uniform(0.5, 1.5))
+                    zf = min(MUR_MAX - 0.02, zf + 0.025)
+                if yaw:
+                    zf = min(zf, MUR_MAX - 0.006 - (xb - xa) * 0.5 * abs(math.sin(yaw)))
+                for (rx0, rx1, ry0, ry1) in retraits:
+                    if xb > rx0 and xa < rx1 and yb > ry0 and ya < ry1:
+                        zf -= 0.04
+                eclat = (rg.randrange(4), rg.uniform(0.03, 0.07)) if rg.random() < 0.33 else None
+                chh = rg.uniform(0.045, 0.065)
+                _mur_bloc(M, xa, xb, ya, yb, zf, ton, ch_h=chh, ch_b=rg.uniform(0.018, 0.03),
+                          ch_s=rg.uniform(0.022, 0.038), yaw=yaw, roll=roll, eclat=eclat)
+                if yb < 1.6 and not yaw and rg.random() < 0.2:
+                    _givre_troncon(M, xa + 0.04, xb - 0.04, yb, zf, chh)
+                if sorti and ya > 1.2 and rg.random() < 0.5:
+                    _glacons_irreg(M, xa + 0.05, xb - 0.05, ya, zf - 0.02, 3, 0.16)
+        y += hc
+        rang += 1
+    for (tx0, tx1, ty) in trous:
+        _gravats_trou(M, tx0, tx1, ty, rg.randint(2, 3))
+    for (_m, pts, _t) in M.tris:          # garde-fou d'encombrement (blocs tournés + éclats : quelques mm à 2 cm de trop)
+        for q in pts:
+            q.z = min(q.z, MUR_MAX)
+    return M
+
+
 # ======================================================================= table des modules exportés
 def construire():
     mods = []
@@ -2085,9 +2371,10 @@ def construire():
     mods.append(arche_v3("arche_2p0", 2.0, 1.0, 121, 0.3, 0.5))
     mods.append(arche_v3("arche_4p0", 4.0, 2.2, 122, 0.36, 0.5))
     mods.append(arche_v3("arche_10p7", 10.7, 2.3, 123, 0.44, 0.5, bloc=0.52))
+    # C3 v3 (2026-10-28) : pans de mur taillés (section PANS DE MUR v3) ; b = un corbeau, c = une niche, haut = deux corbeaux
     for i, (w, h) in enumerate([(1.8, 3.0), (2.6, 3.0), (3.4, 3.0)]):
-        mods.append(pan_mur("pan_mur_%s" % "abc"[i], w, h, 131 + i))
-    mods.append(pan_mur("pan_mur_haut", 2.6, 4.4, 141))
+        mods.append(pan_mur_v3("pan_mur_%s" % "abc"[i], w, h, 131 + i, corbeaux=1 if i == 1 else 0, niche=i == 2))
+    mods.append(pan_mur_v3("pan_mur_haut", 2.6, 4.4, 141, corbeaux=2))
     for i in range(3):
         mods.append(eboulis("eboulis_%s" % "abc"[i], [0.8, 1.05, 0.6][i], [0.5, 0.7, 0.35][i], 151 + i, [11, 15, 8][i]))
     for i in range(3):
