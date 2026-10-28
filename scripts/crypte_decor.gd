@@ -55,7 +55,7 @@ const TEINTE_STATUE := Color(1.12, 1.16, 1.18)
 const LUEUR_STATUE_HAUT := Vector3(0.11, 0.14, 0.2)
 const LUEUR_STATUE_BAS := Vector3(0.05, 0.028, 0.012)
 ## Matières qui réutilisent la texture d'une autre (même dessin, réglages d'éclairage différents).
-const ALIAS_TEXTURE := {"statue_v2": "pierre_v2", "pierre_sol": "pierre_v2"}      # C2 : sol en relief = texture de pierre_v2
+const ALIAS_TEXTURE := {"statue_v2": "pierre_v2", "pierre_sol": "pierre_v2", "fer_mat": "fer"}      # C2 : sol en relief = texture de pierre_v2 ; fer_mat : voir MAT_BOITE
 const GAIN_LUMIERE := 1.7          # pierre plus sombre (rampe donjon) : les feux portent plus loin et plus fort
 const GRILLE_CRYPTE := 180.0      # accroche des sommets : H / 2 à 640 x 360 (DIRECTION_ARTISTIQUE §3)
 
@@ -108,7 +108,7 @@ var niveau_a := 1.0
 var xf := Transform3D.IDENTITY
 
 const RELIEF := {"entrelacs": 1.0, "mur0": 0.75, "mur1": 0.75, "mur2": 0.75, "dalle0": 0.8, "dalle1": 0.8, "voute": 0.7, "bois": 0.8, "fer": 0.7, "gravure": 1.0,
-	"mur3": 0.8, "mur4": 0.9, "dalle3": 0.8, "dalle4": 0.9, "ossuaire": 1.0, "dalle_v2": 0.85, "pierre_v2": 0.7, "statue_v2": 0.7, "pierre_sol": 0.7}
+	"mur3": 0.8, "mur4": 0.9, "dalle3": 0.8, "dalle4": 0.9, "ossuaire": 1.0, "dalle_v2": 0.85, "pierre_v2": 0.7, "statue_v2": 0.7, "pierre_sol": 0.7, "fer_mat": 0.7}
 const AVEC_MIPS := ["mur0", "mur1", "mur2", "dalle0", "voute", "bois", "fer", "lame", "gravure", "argile", "os", "parchemin", "toile", "laine", "lin", "jute",
 	"mur3", "mur4", "dalle3", "dalle4", "ossuaire", "or", "neige", "entrelacs", "dalle_v2", "pierre_v2", "statue_v2", "givre_sol"]
 const SANS_MIPS := ["halo", "rai", "flamme"]
@@ -445,7 +445,7 @@ func mat(nom: String) -> Material:
 			if nm != null:
 				sm.set_shader_parameter("tex_nm", nm)
 				sm.set_shader_parameter("relief", RELIEF.get(nom, 1.0))
-			if nom == "fer" or nom == "lame":
+			if nom == "fer" or nom == "lame" or nom == "fer_mat":
 				sm.set_shader_parameter("crasse", 0.0)
 			if est_crypte:
 				sm.set_shader_parameter("ambiant", AMBIANT_CRYPTE)
@@ -644,6 +644,11 @@ func boite(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0, sans_des
 	_nb_pieces += 1
 
 ## Boîte autonome (pièces mobiles : herse, levier) : maillage propre, UV en mètres comme le reste.
+## Correctif « grille en bois » (2026-10-28) : ces boîtes n'ont pas le ton cuit des modules Blender (couleur de sommet blanche, contre
+## ~0,45 pour le fer des modules) ; avec le fer BRILLANT de C1 (teinte 1,3 + lustre 0,8) les barreaux de la herse sortaient clairs et
+## orangés à la torche, comme du bois. Le fer des boîtes garde donc le fer MAT d'avant C1 (même texture, mêmes réglages qu'à cae3a80).
+const MAT_BOITE := {"fer": "fer_mat"}
+
 func instance_boite(parent: Node3D, nom: String, taille: Vector3, pos: Vector3, lacet := 0.0) -> MeshInstance3D:
 	var buf := {"nom": nom, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray()}
 	var h := taille * 0.5
@@ -668,7 +673,7 @@ func instance_boite(parent: Node3D, nom: String, taille: Vector3, pos: Vector3, 
 	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 	var mi := MeshInstance3D.new()
 	mi.mesh = m
-	mi.material_override = mat(nom)
+	mi.material_override = mat(MAT_BOITE.get(nom, nom))
 	mi.position = xf * pos
 	mi.rotation.y = lacet + xf.basis.get_euler().y
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
