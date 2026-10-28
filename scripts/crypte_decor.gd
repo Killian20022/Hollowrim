@@ -25,6 +25,9 @@ const TUILE := {
 	"entrelacs": 1.0, "sceau": 1.0, "brume": 1.0,
 	# crypte v2 : dalles irrégulières, pierre nue des modules Blender, givre en décalque
 	"dalle_v2": 4.0, "pierre_v2": 2.0, "statue_v2": 2.0, "givre_sol": 1.0, "flaque": 1.0, "flaque_bord": 1.0, "flaque_reflet": 1.0,
+	# C2 : sol en relief (dallage v3) = pierre_v2 éclaircie (même shader et mêmes textures : ALIAS_TEXTURE), son propre maillage par case, comme l'ancien
+	# sol « dalle_v2 » : le maillage de pierre des modules ne s'étend pas au sol de toute la case (≤ 8 lumières par maillage)
+	"pierre_sol": 2.0,
 }
 ## Refonte « crypte matière » (références grottes_cryptes_2/3) : feu plus orangé, ambiant écrasé dans les matériaux de la crypte
 ## (ombres presque noires, la torche et les braseros gardent toute leur force). La grotte (GrotteDecor) garde les anciennes valeurs.
@@ -40,6 +43,7 @@ const RUNE := Color(0.35, 0.80, 1.0)
 const AMBIANT_CRYPTE := 1.6
 const AMBIANT_V2 := 2.6              # crypte v2 : pierre des modules Blender et dalles irrégulières
 const TEINTE_PIERRE_V2 := Color(1.0, 1.12, 1.18)
+const TEINTE_SOL_V3 := 1.22            # C2 : dallage en relief (pierre_sol) : même luminance moyenne que l'ancien sol peint
 ## C4 (2026-10-23) : statues un peu mieux éclairées SANS lumière de plus (budget : 7 par salle, 8 par maillage) : leur pierre reçoit
 ## plus d'ambiant (la silhouette se détache dans l'ombre bleue) et une teinte un peu plus claire et chaude que les murs.
 const AMBIANT_STATUE := 4.4
@@ -51,11 +55,34 @@ const TEINTE_STATUE := Color(1.12, 1.16, 1.18)
 const LUEUR_STATUE_HAUT := Vector3(0.11, 0.14, 0.2)
 const LUEUR_STATUE_BAS := Vector3(0.05, 0.028, 0.012)
 ## Matières qui réutilisent la texture d'une autre (même dessin, réglages d'éclairage différents).
-const ALIAS_TEXTURE := {"statue_v2": "pierre_v2"}
+const ALIAS_TEXTURE := {"statue_v2": "pierre_v2", "pierre_sol": "pierre_v2", "fer_mat": "fer"}      # C2 : sol en relief = texture de pierre_v2 ; fer_mat : voir MAT_BOITE
 const GAIN_LUMIERE := 1.7          # pierre plus sombre (rampe donjon) : les feux portent plus loin et plus fort
 const GRILLE_CRYPTE := 180.0      # accroche des sommets : H / 2 à 640 x 360 (DIRECTION_ARTISTIQUE §3)
 
 const CRYPTE_SHADER := preload("res://shaders/crypte.gdshader")
+## C1 matières (2026-10-28, chantier « anti pâte à modeler ») : chaque matière de la crypte réagit à la torche à sa façon. Pierre et bois
+## restent mats (shader de base) ; fer, lame, or, os (et cire des bougies, qui en prend la matière) et givre passent par la variante
+## BRILLANT de crypte.gdshader (un seul Shader de plus, partagé : les matériaux restent un par matière, aucun n'est dupliqué).
+## brillance / durete / seuil : tache de reflet nette ; lustre : reflet doux ; reflet : couleur. Or : terni, reflet ponctuel seulement
+## (BIBLE_VISUELLE §2 : ton `#fff0a8` de la rampe Braise, quelques pixels sous une flamme proche).
+const MATIERES := {
+	"fer": {"brillance": 2.0, "durete": 22.0, "seuil_reflet": 0.25, "lustre": 0.8, "reflet": Color(0.85, 0.9, 1.0), "saturation": 0.35, "teinte": Color(1.3, 1.26, 1.2)},
+	"lame": {"brillance": 1.6, "durete": 36.0, "seuil_reflet": 0.3, "lustre": 0.5, "reflet": Color(0.9, 0.94, 1.0), "saturation": 0.6},
+	"or": {"brillance": 2.0, "durete": 50.0, "seuil_reflet": 0.6, "lustre": 0.15, "reflet": Color(1.0, 0.94, 0.66), "saturation": 0.78},
+	"os": {"brillance": 0.25, "durete": 14.0, "seuil_reflet": 0.4, "lustre": 0.08, "reflet": Color(1.0, 0.95, 0.85)},
+	"neige": {"brillance": 0.5, "durete": 36.0, "seuil_reflet": 0.35, "lustre": 0.0, "reflet": Color(0.78, 0.92, 0.95)},
+}
+## Bois de la crypte : un peu moins saturé (rampe Bois travaillé « moins orange », INSPIRATION_IGNITE §3.6) sans retoucher la texture.
+const SATURATION_BOIS := 0.75
+static var _shader_brillant: Shader
+
+static func shader_brillant() -> Shader:
+	if _shader_brillant == null:
+		var s := Shader.new()
+		# specular_disabled jetterait SPECULAR_LIGHT écrit par light() : la variante rend le spéculaire (SPECULAR = 0 : pas de reflet ambiant)
+		s.code = CRYPTE_SHADER.code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_schlick_ggx;\n#define BRILLANT")
+		_shader_brillant = s
+	return _shader_brillant
 const FLAMME_SHADER := preload("res://shaders/crypte_flamme.gdshader")
 
 var racine: Node3D
@@ -81,7 +108,7 @@ var niveau_a := 1.0
 var xf := Transform3D.IDENTITY
 
 const RELIEF := {"entrelacs": 1.0, "mur0": 0.75, "mur1": 0.75, "mur2": 0.75, "dalle0": 0.8, "dalle1": 0.8, "voute": 0.7, "bois": 0.8, "fer": 0.7, "gravure": 1.0,
-	"mur3": 0.8, "mur4": 0.9, "dalle3": 0.8, "dalle4": 0.9, "ossuaire": 1.0, "dalle_v2": 0.85, "pierre_v2": 0.7, "statue_v2": 0.7}
+	"mur3": 0.8, "mur4": 0.9, "dalle3": 0.8, "dalle4": 0.9, "ossuaire": 1.0, "dalle_v2": 0.85, "pierre_v2": 0.7, "statue_v2": 0.7, "pierre_sol": 0.7, "fer_mat": 0.7}
 const AVEC_MIPS := ["mur0", "mur1", "mur2", "dalle0", "voute", "bois", "fer", "lame", "gravure", "argile", "os", "parchemin", "toile", "laine", "lin", "jute",
 	"mur3", "mur4", "dalle3", "dalle4", "ossuaire", "or", "neige", "entrelacs", "dalle_v2", "pierre_v2", "statue_v2", "givre_sol"]
 const SANS_MIPS := ["halo", "rai", "flamme"]
@@ -96,6 +123,7 @@ var est_crypte := false   # vrai pour la crypte elle-même (pas pour GrotteDecor
 ## RNG des détails ajoutés par la refonte matière (givre, glaçons, niches, lustres…) : séparé de `rng` pour ne pas déplacer
 ## le décor existant (gravats à collision, statues) tiré après eux.
 var rng_deco := RandomNumberGenerator.new()
+var rng_givre := RandomNumberGenerator.new()   # lèvres de givre et rangées de glaçons : leur nombre de tirages ne décale plus le reste du décor
 
 # ------------------------------------------------------------------ registre d'audit (outils/audit_interpenetrations.gd)
 ## Rempli SEULEMENT quand `CrypteDecor.audit_actif` est vrai (l'outil d'audit le pose avant de bâtir le lieu) : tout ce qui est écrit
@@ -228,6 +256,56 @@ func emprise_libre(p: Vector3, r: float, marge := 0.05, sauf: Array = []) -> boo
 			return false
 	return true
 
+## Le rectangle orienté (centre c, demi-côtés demi, lacet) ne recoupe aucune emprise à moins de 2 m de hauteur (axes séparateurs, à
+## `marge` près).
+func rect_libre(c: Vector3, demi: Vector2, lacet: float, marge := 0.03) -> bool:
+	var a := [Vector2(cos(lacet), -sin(lacet)), Vector2(sin(lacet), cos(lacet))]      # axes x et z du rectangle, en plan (x, z)
+	for e: Array in emprises:
+		var ce: Vector3 = e[0]
+		if absf(ce.y - c.y) > 2.0:
+			continue
+		var de: Vector2 = e[1]
+		var le := float(e[2])
+		var b := [Vector2(cos(le), -sin(le)), Vector2(sin(le), cos(le))]
+		var t := Vector2(ce.x - c.x, ce.z - c.z)
+		var separe := false
+		for ax: Vector2 in a + b:
+			var ra := absf(ax.dot(a[0])) * demi.x + absf(ax.dot(a[1])) * demi.y
+			var rb := absf(ax.dot(b[0])) * de.x + absf(ax.dot(b[1])) * de.y
+			if absf(ax.dot(t)) > ra + rb + marge:
+				separe = true
+				break
+		if not separe:
+			return false
+	return true
+
+## Bornes d'un module Blender (repère du module, échelle 1) ; AABB vide s'il est introuvable.
+static func bornes_modele(nom: String) -> AABB:
+	_charger_modeles()
+	var b := AABB()
+	var vu := false
+	for mat: String in _modeles_de.get(nom, []):
+		for p: Vector3 in (_modeles["%s__%s" % [nom, mat]] as Dictionary)["v"]:
+			b = b.expand(p) if vu else AABB(p, Vector3.ZERO)
+			vu = true
+	return b
+
+## Le disque (p, r) ne touche, EN PLAN et quelle que soit la hauteur de p, ni le fût ni le chapiteau d'un pilier isolé (emprises
+## « pilier » de pilier()) : glaçons et lustres pendus à la voûte.
+func hors_piliers(p: Vector3, r: float, marge := 0.05) -> bool:
+	for e: Array in emprises:
+		if e[4] == "pilier" and dist_emprise(e, p) < r + marge:
+			return false
+	return true
+
+## Distance en plan de p à la plus proche emprise de pilier isolé (pied, éclats, fût) à moins de 2 m de hauteur ; INF s'il n'y en a pas.
+func dist_piliers(p: Vector3) -> float:
+	var best := INF
+	for e: Array in emprises:
+		if String(e[4]).begins_with("pilier") and absf(float((e[0] as Vector3).y) - p.y) <= 2.0:
+			best = minf(best, dist_emprise(e, p))
+	return best
+
 func j0(type: String, lacet := 0.0) -> void:
 	objet_debut(type)      # registre commun de l'outil d'audit (branche grotte)
 	if not journal_actif or muet:
@@ -296,6 +374,7 @@ func _init(parent: Node3D, solide: StaticBody3D, partage: CrypteDecor = null) ->
 	rng.seed = 7007
 	est_crypte = get_script() == CrypteDecor
 	rng_deco.seed = 4242
+	rng_givre.seed = 9157
 	voisin = partage
 	if partage != null:
 		# second décor (le donjon, bâti dans un fil d'exécution) : mêmes images, déjà peintes ; ses propres matériaux
@@ -406,6 +485,11 @@ func mat(nom: String) -> Material:
 				sm.set_shader_parameter("decoupe", 0.5)
 				sm.set_shader_parameter("crasse", 0.0)
 				sm.set_shader_parameter("emission", Vector3(0.06, 0.08, 0.1))
+			if est_crypte and sh == CRYPTE_SHADER and MATIERES.has(nom):
+				sh = shader_brillant()
+				var mt: Dictionary = MATIERES[nom]
+				for k: String in mt:
+					sm.set_shader_parameter(k, mt[k])
 			sm.shader = sh
 			var nom_tex: String = ALIAS_TEXTURE.get(nom, nom)
 			sm.set_shader_parameter("tex_base", _texture(nom_tex))
@@ -413,7 +497,7 @@ func mat(nom: String) -> Material:
 			if nm != null:
 				sm.set_shader_parameter("tex_nm", nm)
 				sm.set_shader_parameter("relief", RELIEF.get(nom, 1.0))
-			if nom == "fer" or nom == "lame":
+			if nom == "fer" or nom == "lame" or nom == "fer_mat":
 				sm.set_shader_parameter("crasse", 0.0)
 			if est_crypte:
 				sm.set_shader_parameter("ambiant", AMBIANT_CRYPTE)
@@ -423,11 +507,14 @@ func mat(nom: String) -> Material:
 					sm.set_shader_parameter("crasse", 0.0)
 				elif nom == "mur4":
 					sm.set_shader_parameter("emission", Vector3(0.012, 0.03, 0.05))
+				elif nom == "bois":
+					sm.set_shader_parameter("saturation", SATURATION_BOIS)
 				if nom in PIERRE_NEUTRE:
 					sm.set_shader_parameter("teinte", TEINTE_PIERRE)
-				if nom == "pierre_v2" or nom == "dalle_v2":      # crypte v2 : plus de fond bleuté (planche : pierre lisible dans l'ombre)
+				if nom == "pierre_v2" or nom == "dalle_v2" or nom == "pierre_sol":      # crypte v2 : plus de fond bleuté (planche : pierre lisible dans l'ombre)
 					sm.set_shader_parameter("ambiant", AMBIANT_V2)
-					sm.set_shader_parameter("teinte", TEINTE_PIERRE_V2)
+					# C2 : dallage en relief un peu plus clair (la texture de pierre est plus sombre que l'ancienne « dalle_v2 »)
+					sm.set_shader_parameter("teinte", TEINTE_PIERRE_V2 * (TEINTE_SOL_V3 if nom == "pierre_sol" else 1.0))
 				elif nom == "statue_v2":
 					sm.set_shader_parameter("ambiant", AMBIANT_STATUE)
 					sm.set_shader_parameter("teinte", TEINTE_STATUE)
@@ -455,7 +542,21 @@ func _texture(nom: String) -> ImageTexture:
 ## Index rapide (matière → case → tampon) : évite de formater une clé texte à chaque quad (le bâti du donjon en fait ~200 000).
 var _bufs_vite := {}
 
+## C7 : « lot » de portée de vue. Vide = tampons ordinaires (cases de 8 m, toujours dessinés jusqu'à PORTEE_DESSIN) ; sinon les
+## triangles vont dans des tampons À PART, en cases de LOT_CASE, dont le maillage reçoit la portée LOTS[lot] = [début, fin] (m) :
+## contenu des niches d'ossuaire en volume de près, texture peinte des niches de loin (les crânes de 180 triangles vus à plus de
+## 10 m ne font que quelques pixels : sur le GPU, des triangles sous-pixel coûteux, +0,4 ms mesurés sur la vue de l'ossuaire à 12 m).
+const LOT_CASE := 4.0
+const LOTS := {"os_proche": [0.0, 10.0], "os_loin": [10.0, 0.0]}
+var lot := ""
+
 func _buf(c: Vector3, nom: String) -> Dictionary:
+	if lot != "":
+		var kl := Vector3i(floori(c.x / LOT_CASE), floori(c.z / LOT_CASE), 1 if c.y < -3.0 else 0)
+		var cl := "%d,%d,%d|%s|%s" % [kl.x, kl.y, kl.z, nom, lot]
+		if not _bufs.has(cl):
+			_bufs[cl] = {"nom": nom, "lot": lot, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray()}
+		return _bufs[cl]
 	var k := Vector3i(floori(c.x / CASE), floori(c.z / CASE), 1 if c.y < -3.0 else 0)      # l'étage inférieur a ses propres maillages
 	var par_nom: Dictionary = _bufs_vite.get(nom, {})
 	if par_nom.is_empty():
@@ -609,6 +710,11 @@ func boite(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0, sans_des
 	_nb_pieces += 1
 
 ## Boîte autonome (pièces mobiles : herse, levier) : maillage propre, UV en mètres comme le reste.
+## Correctif « grille en bois » (2026-10-28) : ces boîtes n'ont pas le ton cuit des modules Blender (couleur de sommet blanche, contre
+## ~0,45 pour le fer des modules) ; avec le fer BRILLANT de C1 (teinte 1,3 + lustre 0,8) les barreaux de la herse sortaient clairs et
+## orangés à la torche, comme du bois. Le fer des boîtes garde donc le fer MAT d'avant C1 (même texture, mêmes réglages qu'à cae3a80).
+const MAT_BOITE := {"fer": "fer_mat"}
+
 func instance_boite(parent: Node3D, nom: String, taille: Vector3, pos: Vector3, lacet := 0.0) -> MeshInstance3D:
 	var buf := {"nom": nom, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray()}
 	var h := taille * 0.5
@@ -633,7 +739,7 @@ func instance_boite(parent: Node3D, nom: String, taille: Vector3, pos: Vector3, 
 	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 	var mi := MeshInstance3D.new()
 	mi.mesh = m
-	mi.material_override = mat(nom)
+	mi.material_override = mat(MAT_BOITE.get(nom, nom))
 	mi.position = xf * pos
 	mi.rotation.y = lacet + xf.basis.get_euler().y
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -795,12 +901,14 @@ func _coupes(a: float, b: float, marges: Array) -> Array:
 	return out
 
 # ------------------------------------------------------------------ surfaces modulaires (pas de 4 m), AO cuite
-func plan_h(nom: String, x0: float, x1: float, z0: float, z1: float, y: float, vers_haut: bool, marge := 0.9, fond := 0.5) -> void:
+## `mult` (C2) : multiplie les couleurs de sommet (fond de joint sombre sous le dallage v3 en relief).
+func plan_h(nom: String, x0: float, x1: float, z0: float, z1: float, y: float, vers_haut: bool, marge := 0.9, fond := 0.5, mult := 1.0) -> void:
 	var n := Vector3.UP if vers_haut else Vector3.DOWN
 	var xs := _coupes(x0, x1, [marge])
 	var zs := _coupes(z0, z1, [marge])
 	var col := func(x: float, z: float) -> Color:
-		return _ao(minf(minf(x - x0, x1 - x), minf(z - z0, z1 - z)), marge, fond)
+		var c := _ao(minf(minf(x - x0, x1 - x), minf(z - z0, z1 - z)), marge, fond)
+		return Color(c.r * mult, c.g * mult, c.b * mult, c.a) if mult != 1.0 else c
 	for i in xs.size() - 1:
 		for j in zs.size() - 1:
 			quad(nom, Vector3(xs[i], y, zs[j]), Vector3(xs[i + 1], y, zs[j]), Vector3(xs[i + 1], y, zs[j + 1]), Vector3(xs[i], y, zs[j + 1]), n, [], [],
@@ -888,7 +996,15 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 	var xb := xmax - 0.3
 	var za := zmin + 0.3
 	var zb := zmax - 0.3
-	plan_h("dalle0", xa, xb, za, zb, y, true)
+	# C2 (2026-10-28) : crypte v2 → dalles EN RELIEF (modules Blender dallage_v3, CrypteV2.dallage) au-dessus d'un fond de joint sombre
+	# 7,5 cm sous le sol ; collision du sol inchangée (boîte ci-dessus). Sinon (grotte, v1, --sol-plat) : le plan de dalles peintes.
+	# Dalles, fond et seuils dans le tampon « pierre_sol » (pierre_v2 éclaircie) : un maillage de sol par case, comme avant (appels inchangés).
+	var relief := v2 and est_crypte and CrypteV2.dallage(self, xa, xb, za, zb, y)
+	var sol := "pierre_sol" if relief else "dalle0"
+	if relief:
+		plan_h(sol, xa, xb, za, zb, y - 0.075, true, 0.9, 0.5, 0.18)
+	else:
+		plan_h(sol, xa, xb, za, zb, y, true)
 	plan_h("voute", xa, xb, za, zb, y + h, false)
 	var ho := minf(h, 3.0)
 	var idx := 0
@@ -950,10 +1066,10 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 					boite("mur0", Vector3(mc, y + 0.022, q) if horizontal else Vector3(q, y + 0.022, mc), Vector3(lw - 0.1, 0.045, 0.32) if horizontal else Vector3(0.32, 0.045, lw - 0.1), 0.0, true)
 					givre_dessus(Vector3(mc + sp * lw * 0.3, y + 0.045, q) if horizontal else Vector3(q, y + 0.045, mc + sp * lw * 0.3), Vector2(0.5, 0.2) if horizontal else Vector2(0.2, 0.5), 0.0)
 			if horizontal:
-				quad("dalle0", Vector3(c[0], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur + 0.3), Vector3(c[0], y, fixe_mur + 0.3), Vector3.UP)
+				quad(sol, Vector3(c[0], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur + 0.3), Vector3(c[0], y, fixe_mur + 0.3), Vector3.UP)
 				quad("voute", Vector3(c[0], y + ho, fixe_mur - 0.3), Vector3(c[1], y + ho, fixe_mur - 0.3), Vector3(c[1], y + ho, fixe_mur + 0.3), Vector3(c[0], y + ho, fixe_mur + 0.3), Vector3.DOWN)
 			else:
-				quad("dalle0", Vector3(fixe_mur - 0.3, y, c[0]), Vector3(fixe_mur + 0.3, y, c[0]), Vector3(fixe_mur + 0.3, y, c[1]), Vector3(fixe_mur - 0.3, y, c[1]), Vector3.UP)
+				quad(sol, Vector3(fixe_mur - 0.3, y, c[0]), Vector3(fixe_mur + 0.3, y, c[0]), Vector3(fixe_mur + 0.3, y, c[1]), Vector3(fixe_mur - 0.3, y, c[1]), Vector3.UP)
 				quad("voute", Vector3(fixe_mur - 0.3, y + ho, c[0]), Vector3(fixe_mur + 0.3, y + ho, c[0]), Vector3(fixe_mur + 0.3, y + ho, c[1]), Vector3(fixe_mur - 0.3, y + ho, c[1]), Vector3.DOWN)
 			# cadre de porte épais : deux jambages et un linteau en saillie sur le mur
 			if not c[2]:
@@ -1028,10 +1144,10 @@ func _givre_mur(horizontal: bool, plan: float, signe: float, a0: float, a1: floa
 	glacons_arete(pt.call(a0 + 0.3, y + h - 0.5, 0.2), pt.call(a1 - 0.3, y + h - 0.5, 0.2), 1.7 if gele else 0.9, 0.7 if gele else 0.5)
 	if est_crypte:       # 4e passe : givre visible d'en bas sur les ressauts de la corniche et le bandeau, glaçons longs épars
 		var vv := Vector3(0, 0, signe) if horizontal else Vector3(signe, 0, 0)
-		givre_levre(pt.call(a0, y + h - 0.2, 0.24), pt.call(a1, y + h - 0.2, 0.24), vv, 0.05, 0.85)
-		givre_levre(pt.call(a0, y + h - 0.4, 0.14), pt.call(a1, y + h - 0.4, 0.14), vv, 0.035, 0.6)
+		givre_levre(pt.call(a0, y + h - 0.2, 0.24), pt.call(a1, y + h - 0.2, 0.24), vv, 0.05, 0.45)
+		givre_levre(pt.call(a0, y + h - 0.4, 0.14), pt.call(a1, y + h - 0.4, 0.14), vv, 0.035, 0.4)
 		if h >= 3.5:
-			givre_levre(pt.call(a0, y + h - 0.98, 0.22), pt.call(a1, y + h - 0.98, 0.22), vv, 0.05, 0.85)
+			givre_levre(pt.call(a0, y + h - 0.98, 0.22), pt.call(a1, y + h - 0.98, 0.22), vv, 0.05, 0.45)
 		var ag := a0 + rng_deco.randf_range(0.3, 1.2)
 		while ag < a1 - 0.3:
 			glacon_sous(pt.call(ag, y + h - 0.2, 0.2), rng_deco.randf_range(0.7, 1.3), 0.06)
@@ -1126,14 +1242,84 @@ func pilastre_mur(pied: Vector3, vers: Vector3, hp: float) -> void:
 ## Pilier (refonte matière, références grottes_cryptes_2/3) : fût carré à arêtes abattues, socle mouluré givré, chapiteau à
 ## ressauts, et sur chaque face un panneau d'ENTRELACS en losanges (un ou deux panneaux superposés selon la hauteur).
 ## Collision = la boîte d'origine (largeur x h x largeur), inchangée.
+## Crypte v2 : module Blender et échelle du pilier isolé de hauteur h et de section `largeur` -> [nom, échelle].
+static func pilier_module(h: float, largeur: float) -> Array:
+	var bw := 1.2 if h > 6.5 else 1.0
+	return ["pilier_libre_8" if h > 6.5 else "pilier_libre_5", Vector3(largeur / bw, h / (8.0 if h > 6.5 else 5.0), largeur / bw)]
+
+## Hauteur (repère du module, échelle 1) qui sépare le PIED (plinthe, talon, éclats tombés) du fût et du chapiteau.
+const PILIER_PIED := 0.45
+static var _parties_pilier := {}      # module -> [AABB] (repère du module, échelle 1)
+
+## Emprise RÉELLE d'un pilier isolé v3, lue sur les sommets du module (une seule source : la géométrie Blender, voir
+## sources_blender/scripts/crypte_modules_v2.py, pilier_libre_v3 / pilier_rond_v3) : [plinthe + talon, amas d'éclats par coin
+## (C4 : jusqu'à 1,05-1,10 m de l'axe, la collision n'en fait que 0,5-0,6), fût + chapiteau]. Mises à l'échelle `ech`, posées en `pos`.
+static func pilier_parties(nom: String, ech: Vector3, pos: Vector3) -> Array:
+	_charger_modeles()
+	_modeles_verrou.lock()
+	if not _parties_pilier.has(nom):
+		var vs := PackedVector3Array()
+		for mat: String in _modeles_de.get(nom, []):
+			vs.append_array((_modeles["%s__%s" % [nom, mat]] as Dictionary)["v"])
+		var socle := 0.0      # demi-côté de la plinthe (au-dessus des éclats, qui font moins de 8 cm)
+		for p in vs:
+			if p.y > 0.1 and p.y < PILIER_PIED:
+				socle = maxf(socle, maxf(absf(p.x), absf(p.z)))
+		var bas := AABB()
+		var haut := AABB()
+		var amas := {}
+		var vu_b := false
+		var vu_h := false
+		for p in vs:
+			if p.y >= PILIER_PIED:
+				haut = haut.expand(p) if vu_h else AABB(p, Vector3.ZERO)
+				vu_h = true
+			elif maxf(absf(p.x), absf(p.z)) > socle + 0.01:
+				var k := Vector2i(signi(int(signf(p.x))), signi(int(signf(p.z))))
+				amas[k] = (amas[k] as AABB).expand(p) if amas.has(k) else AABB(p, Vector3.ZERO)
+			else:
+				bas = bas.expand(p) if vu_b else AABB(p, Vector3.ZERO)
+				vu_b = true
+		var l: Array = []
+		if vu_b:
+			l.append(bas)
+		for k in amas:
+			l.append(amas[k])
+		if vu_h:
+			l.append(haut)
+		_parties_pilier[nom] = l
+	var src: Array = _parties_pilier[nom]
+	_modeles_verrou.unlock()
+	var out: Array = []
+	for b: AABB in src:
+		out.append(AABB(pos + b.position * ech, b.size * ech))
+	return out
+
 func pilier(x: float, z: float, h: float, largeur := 0.9, y := 0.0) -> void:
 	j0("pilier")
 	if v2:      # crypte v2 : pilier isolé en assises de blocs (module Blender), MÊME collision
-		var base := "pilier_libre_8" if h > 6.5 else "pilier_libre_5"
-		var bh := 8.0 if h > 6.5 else 5.0
-		var bw := 1.2 if h > 6.5 else 1.0
-		modele(base, Vector3(x, y, z), 0.0, Vector3(largeur / bw, h / bh, largeur / bw))
+		var pm := pilier_module(h, largeur)
+		var ech: Vector3 = pm[1]
+		modele(pm[0], Vector3(x, y, z), 0.0, ech)
 		solide(Vector3(x, y + h * 0.5, z), Vector3(largeur, h, largeur))
+		# emprise RÉELLE (sommets du module) : plinthe, éclats tombés au pied, fût + chapiteau — plus large que la collision depuis C4.
+		# Tout ce qui se pose après (semis, flaques, congères, objets différés, glaçons) la contourne ; l'audit lit les mêmes parties.
+		var parts := pilier_parties(pm[0], ech, Vector3(x, y, z))
+		for i in parts.size():
+			var b: AABB = parts[i]
+			var fut := b.position.y > y + PILIER_PIED * ech.y - 0.01      # fût + chapiteau : « pilier » (glaçons et lustres l'évitent aussi)
+			emprise("pilier" if fut else "pilier_pied", Vector3(b.get_center().x, y, b.get_center().z), Vector2(b.size.x, b.size.z) * 0.5, 0.0, b.end.y - y)
+		if journal_actif and not muet and _j_prof == 1:
+			_j_cases = {}      # le journal note les parties (pied, amas d'éclats, fût) au lieu d'une boîte pleine de la largeur des éclats
+			for i in parts.size():
+				var b: AABB = parts[i]
+				var mn := Vector3(INF, INF, INF)
+				var mx := -mn
+				for c in 8:
+					var q := _j_inv * (xf * b.get_endpoint(c))
+					mn = mn.min(q)
+					mx = mx.max(q)
+				_j_cases[Vector2i(i, -1000)] = [mn, mx]
 		j1()
 		return
 	if not est_crypte:
@@ -1212,15 +1398,15 @@ func givre_levre(a: Vector3, b: Vector3, vers: Vector3, haut := 0.045, densite :
 	var v := vers.normalized()
 	var t := 0.0
 	while t < l - 0.1:
-		var lp := minf(rng_deco.randf_range(0.3, 1.1), l - t)
-		if rng_deco.randf() < densite:
-			var hh := haut * rng_deco.randf_range(0.7, 1.4)
+		var lp := minf(rng_givre.randf_range(0.3, 1.1), l - t)
+		if rng_givre.randf() < densite:
+			var hh := haut * rng_givre.randf_range(0.7, 1.4)
 			var c := a + dr * (t + lp * 0.5) + v * 0.015 - Vector3(0, hh * 0.5, 0)
 			boite("neige", c, Vector3(lp, hh, 0.035) if le_long_x else Vector3(0.035, hh, lp), 0.0, true)
-			if rng_deco.randf() < 0.5:        # coulure
-				var q := a + dr * (t + rng_deco.randf_range(0.1, 0.9) * lp) + v * 0.02 - Vector3(0, hh, 0)
+			if rng_givre.randf() < 0.5:        # coulure
+				var q := a + dr * (t + rng_givre.randf_range(0.1, 0.9) * lp) + v * 0.02 - Vector3(0, hh, 0)
 				boite("neige", q - Vector3(0, 0.03, 0), Vector3(0.03, 0.06, 0.03), 0.0, true)
-		t += lp + rng_deco.randf_range(0.0, 0.35)
+		t += lp + rng_givre.randf_range(0.3, 1.2)       # trous plus longs : givre discontinu, pas de baguette continue
 
 ## Glaçon : cône effilé de glace (6 pans) pendu sous `haut`.
 func glacon_sous(haut: Vector3, longueur := 0.5, r := 0.06) -> void:
@@ -1232,13 +1418,14 @@ func glacon_sous(haut: Vector3, longueur := 0.5, r := 0.06) -> void:
 ## Rangée de glaçons le long d'une arête horizontale (de `a` à `b`, à la hauteur de l'arête) ; `densite` = glaçons par mètre.
 func glacons_arete(a: Vector3, b: Vector3, densite := 1.0, lmax := 0.55) -> void:
 	var l := a.distance_to(b)
-	var n := int(l * densite + rng_deco.randf())
+	var n := int(l * densite + rng_givre.randf())
 	for k in n:
-		var t := rng_deco.randf()
-		var lon := lmax * rng_deco.randf_range(0.25, 1.0)
+		var t := rng_givre.randf()
+		var u := rng_givre.randf()
+		var lon := lmax * (0.2 + 0.8 * u * u)     # tirage au carré : surtout des petits, quelques longs
 		glacon_sous(a.lerp(b, t), lon, 0.025 + lon * 0.08)
-		if rng_deco.randf() < 0.45:     # grappe : un ou deux petits à côté
-			glacon_sous(a.lerp(b, clampf(t + rng_deco.randf_range(-0.04, 0.04), 0.0, 1.0)), lon * 0.45, 0.02 + lon * 0.04)
+		if rng_givre.randf() < 0.45:     # grappe : un ou deux petits à côté
+			glacon_sous(a.lerp(b, clampf(t + rng_givre.randf_range(-0.04, 0.04), 0.0, 1.0)), lon * 0.45, 0.02 + lon * 0.04)
 
 ## Nappe de brume au ras du sol : quelques cartes additives horizontales qui se chevauchent (aucune particule).
 func brume(centre: Vector3, ext: Vector2, nombre := 5) -> void:
@@ -1412,6 +1599,195 @@ func crane(pos: Vector3, lacet := 0.0) -> void:
 
 func os_tas(pos: Vector3, n := 4, rayon := 0.4) -> void:
 	ObjPetitMobilier.os_tas(self, pos, n, rayon)
+
+# ------------------------------------------------------------------ C7 : ossuaire en relief (panneaux d'os)
+## Les panneaux d'os (DonjonKit.panneau_os) n'étaient qu'une texture de crânes peints (ossuaire.res) : à 1-3 m, « papier peint ».
+## Version en relief : de y0 à y0 + 1,5 m (0,8 -> 2,3 m, hauteur d'yeux), 3 rangées de niches de 0,5 m en vraie pierre (modules de
+## ossuaire.py : tablette, montant, fond NOIR), garnies de crânes et de fagots d'os en volume ; au-dessus, corniche puis la texture
+## `ossuaire` gardée (2,3 -> y1 : vue de loin et en contre-plongée, elle suffit), ses niches calées sur les colonnes du relief.
+## Tout passe par modele() : fusionné dans les tampons de la case de 8 m (pas un nœud par crâne). Le contenu est posé PLUS TARD
+## (remplir_niches_os, après le récit de la salle) : sarcophages, estrade et meubles posés après les panneaux sont alors connus, et
+## une niche qu'ils masquent reste vide (pas de crâne dans un couvercle). Tirages : générateur à part (graine = position du panneau),
+## rng / rng_deco intouchés : le reste du décor ne bouge pas. `-- --os-plat` : ancien panneau peint (captures « avant » à code égal).
+## Portée : le contenu (crânes, fagots) n'est dessiné qu'à moins de 10 m (lot « os_proche ») ; au-delà, une case de la texture peinte
+## au fond de chaque niche (lot « os_loin ») ; cadres et corniche restent en volume. Mesure (mesure_vues, 640x360, 4 paires, moyenne) :
+## +0,02 à +0,16 ms GPU sur 4 vues de l'ossuaire (sans portée : +0,41 ms à 12 m) ; +62 k triangles dans la crypte.
+const OS_RANGEES := 3
+const OS_CASE := 0.5
+const OS_PROF := 0.28        # saillie du cadre (ossuaire.py PROF)
+var niches_os: Array = []    # poses différées : [genre (case | corniche | poteau), pied (repère local, plan du mur), lacet, largeur, rangée, graine, variante]
+
+static func ossuaire_relief() -> bool:
+	return not OS.get_cmdline_user_args().has("--os-plat") and modele_existe("niche_os_cadre_a")
+
+## Renvoie la nouvelle hauteur du haut du panneau (la rangée peinte au-dessus de la corniche est entière : 0,5 m).
+func panneau_os_v3(axe: String, fixe: float, a0: float, a1: float, y0: float, y1: float, signe: float) -> float:
+	var vers := Vector3(0, 0, signe) if axe == "x" else Vector3(signe, 0, 0)
+	var lac := atan2(vers.x, vers.z)
+	var P := func(u: float, y: float) -> Vector3: return Vector3(u, y, fixe) if axe == "x" else Vector3(fixe, y, u)
+	var n := maxi(1, floori((a1 - a0) / OS_CASE + 0.001))
+	var w := (a1 - a0) / n
+	var ex := w / OS_CASE
+	# sens de l'axe du module (+x local) le long du mur : les colonnes vont de a0 à a1 quel que soit le signe
+	var sx := (Basis(Vector3.UP, lac) * Vector3.RIGHT).dot(Vector3.RIGHT if axe == "x" else Vector3.BACK)
+	var r := RandomNumberGenerator.new()
+	var pw: Vector3 = xf * (P.call(a0, y0) as Vector3)
+	r.seed = hash(Vector3i(roundi(pw.x * 10.0), roundi(pw.y * 10.0), roundi(pw.z * 10.0))) + 7070
+	var yr := y0 + OS_RANGEES * OS_CASE
+	# cases, corniche et montants de bout : posés plus tard (remplir_niches_os), chacun son objet du journal (audit : une boîte par case,
+	# pas une boîte de 0,31 m de saillie sur tout le panneau qui « entrerait » dans les sarcophages posés devant)
+	for i in n:
+		var u := a0 + (i + 0.5) * w
+		for k in OS_RANGEES:
+			var t := r.randf()
+			niches_os.append(["case", P.call(u, y0 + k * OS_CASE), lac, w, k, r.randi(), "a" if t < 0.55 else ("b" if t < 0.82 else "c")])
+		niches_os.append(["corniche", P.call(u, yr), lac, w, OS_RANGEES, r.randi(), "b" if r.randf() < 0.3 else "a"])
+	for k in OS_RANGEES:      # montant de bout (côté où les cases n'en ont pas : le montant d'une case est à sa gauche, -x du module)
+		niches_os.append(["poteau", P.call(a1 if sx > 0.0 else a0, y0 + k * OS_CASE), lac, w, k, 0, ""])
+	j0("panneau_os")
+	# texture au-dessus de la corniche : une rangée entière de niches de 0,5 m (2,43 -> 2,93 m), calée sur la corniche et sur les colonnes
+	var yt := yr + 0.13
+	y1 = maxf(y1, yt + OS_CASE)
+	var f := fixe + signe * 0.11
+	var pts := _pas(a0, a1, 4.0)
+	for i in pts.size() - 1:
+		var u0: float = pts[i]
+		var u1: float = pts[i + 1]
+		var t0 := a0 + (u0 - a0) * OS_CASE / w
+		var t1 := a0 + (u1 - a0) * OS_CASE / w
+		var dy := ceilf(yt / OS_CASE) * OS_CASE - yt
+		if axe == "x":
+			quad("ossuaire", Vector3(u0, yt, f), Vector3(u1, yt, f), Vector3(u1, y1, f), Vector3(u0, y1, f), Vector3(0, 0, signe), [],
+				[Vector3(t0, yt + dy, f), Vector3(t1, yt + dy, f), Vector3(t1, y1 + dy, f), Vector3(t0, y1 + dy, f)])
+		else:
+			quad("ossuaire", Vector3(f, yt, u0), Vector3(f, yt, u1), Vector3(f, y1, u1), Vector3(f, y1, u0), Vector3(signe, 0, 0), [],
+				[Vector3(f, yt + dy, t0), Vector3(f, yt + dy, t1), Vector3(f, y1 + dy, t1), Vector3(f, y1 + dy, t0)])
+	j1()
+	return y1
+
+## Une emprise posée (sarcophage, estrade, meuble…) entre-t-elle dans le volume de la niche (pied p, lacet du module, largeur w) ?
+func _niche_masquee(p: Vector3, lac: float, w: float) -> bool:
+	var v := Basis(Vector3.UP, lac) * Vector3.BACK
+	var c := p + v * (OS_PROF * 0.5)
+	for e: Array in emprises:
+		var t: String = e[4]
+		if t == "panneau_os" or t.begins_with("niche_os") or t.begins_with("oss_"):
+			continue
+		var y0e := float((e[0] as Vector3).y)
+		if y0e + float(e[3]) < p.y + 0.02 or y0e > p.y + 0.4:
+			continue
+		if dist_emprise(e, c) < maxf(w * 0.5, OS_PROF * 0.5) - 0.02:
+			return true
+	return false
+
+## Garnit les niches notées par panneau_os_v3 (appelé par DonjonKit.module après le récit de la salle). Rangée du bas : surtout des
+## fagots (bouts d'os vers la salle) ; rangée des yeux : crânes (seuls, par deux, percés, couchés) ; rangée du haut : mélange.
+func remplir_niches_os() -> void:
+	if niches_os.is_empty():
+		return
+	var liste := niches_os
+	niches_os = []
+	for nn: Array in liste:
+		var genre: String = nn[0]
+		var p: Vector3 = nn[1]
+		var lac: float = nn[2]
+		var w: float = nn[3]
+		var rangee: int = nn[4]
+		var ex := Vector3(w / OS_CASE, 1.0, 1.0)
+		# une case garnie = UN objet du journal, de genre « niche_os » (structure) : crânes et fagots reposent sur la tablette du cadre,
+		# qui n'est pas une collision (l'audit les jugerait « sans appui » un par un)
+		if genre == "corniche":
+			j0("niche_os", lac)
+			modele("niche_os_corniche_" + String(nn[6]), p, lac, ex, {}, false)
+			j1()
+			continue
+		# case masquée (couvercle de sarcophage, estrade, dos d'un meuble posés après le panneau) : ni cadre ni contenu, le mur nu
+		if _niche_masquee(p + Vector3(0, 0.06, 0), lac, w):
+			continue
+		j0("niche_os", lac)
+		if genre == "poteau":
+			modele("niche_os_poteau", p, lac, Vector3.ONE, {}, false)
+		else:
+			var r := RandomNumberGenerator.new()
+			r.seed = int(nn[5])
+			modele("niche_os_cadre_" + String(nn[6]), p, lac, ex, {}, false)
+			lot = "os_proche"
+			if _garnir_niche(r, p + Vector3(0, 0.06, 0), lac, w, rangee):
+				lot = "os_loin"
+				_niche_peinte(r, p, lac, w)
+			lot = ""
+		j1()
+
+## Version lointaine du contenu d'une case : une case de la texture `ossuaire` (crâne ou fagot peint, tirée au hasard dans la tuile de
+## 8 x 8 niches) collée au fond de la niche, calée sur le cadre en volume (qui, lui, reste dessiné à toute distance).
+func _niche_peinte(r: RandomNumberGenerator, p: Vector3, lac: float, w: float) -> void:
+	var bs := Basis(Vector3.UP, lac)
+	var ax := bs * Vector3.RIGHT
+	var av := bs * Vector3.BACK
+	var tx := r.randi_range(0, 7) * OS_CASE + OS_CASE * 0.5
+	var ty := r.randi_range(0, 7) * OS_CASE
+	var q: Array = []
+	var uvp: Array = []
+	for c: Vector2 in [Vector2(-1, 0), Vector2(1, 0), Vector2(1, 1), Vector2(-1, 1)]:
+		var pt := p + ax * (c.x * w * 0.5) + Vector3(0, c.y * OS_CASE, 0) + av * 0.012
+		q.append(pt)
+		var t := tx + c.x * OS_CASE * 0.5
+		var y := ty + c.y * OS_CASE
+		uvp.append(Vector3(t, y, 0.0) if absf(av.z) > absf(av.x) else Vector3(0.0, y, t))
+	quad("ossuaire", q[0], q[1], q[2], q[3], av, [], uvp)
+
+## Contenu d'une case (lot « os_proche » : dessiné de près seulement). Faux si la niche est murée (moellons dessinés à toute distance,
+## pas de version peinte).
+func _garnir_niche(r: RandomNumberGenerator, p: Vector3, lac: float, w: float, rangee: int) -> bool:
+	if r.randf() < 0.03:
+		# niche murée : moellons devant le fond, rien dedans
+		lot = ""
+		modele("niche_os_muree_" + ("a" if r.randf() < 0.6 else "b"), p - Vector3(0, 0.06, 0), lac, Vector3(w / OS_CASE, 1.0, 1.0), {}, false)
+		return false
+	var bs := Basis(Vector3.UP, lac)
+	var ax := bs * Vector3.RIGHT
+	var av := bs * Vector3.BACK
+	var t := r.randf()
+	var genre: String
+	match rangee:
+		0: genre = "fagot" if t < 0.5 else ("fagot_crane" if t < 0.72 else ("couche" if t < 0.9 else "crane"))
+		1: genre = "crane" if t < 0.6 else ("deux" if t < 0.78 else ("fagot_crane" if t < 0.88 else "fagot"))
+		_: genre = "crane" if t < 0.42 else ("fagot" if t < 0.7 else ("deux" if t < 0.8 else ("couche" if t < 0.92 else "vide")))
+	if genre == "vide":
+		_os_crane(r, p + ax * r.randf_range(-0.08, 0.08) + av * 0.1, lac, 0.8, true)      # un éclat de calotte, rien d'autre
+		return true
+	if genre == "fagot" or genre == "fagot_crane":
+		var v := "a" if r.randf() < 0.55 else "b"
+		_os_teint(r, "oss_fagot_" + v, p + ax * r.randf_range(-0.03, 0.03) + av * r.randf_range(0.0, 0.02), lac + r.randf_range(-0.08, 0.08),
+			Vector3(r.randf_range(1.05, 1.2) * (1.0 if r.randf() < 0.5 else -1.0), r.randf_range(0.95, 1.15), 1.0))
+		if genre == "fagot_crane":
+			_os_crane(r, p + Vector3(0, 0.12, 0) + ax * r.randf_range(-0.06, 0.06) + av * 0.1, lac, r.randf_range(0.95, 1.08))
+	elif genre == "couche":
+		_os_teint(r, "oss_fagot_c", p + ax * r.randf_range(-0.02, 0.02), lac + r.randf_range(-0.06, 0.06),
+			Vector3((w / OS_CASE) * (1.0 if r.randf() < 0.5 else -1.0), 1.0, 1.0))
+		if r.randf() < 0.45:
+			_os_crane(r, p + Vector3(0, 0.1, 0) + ax * r.randf_range(-0.1, 0.1) + av * 0.1, lac, r.randf_range(0.9, 1.0))
+	elif genre == "deux":
+		for sgn: float in [-1.0, 1.0]:
+			_os_crane(r, p + ax * (sgn * w * 0.21 + r.randf_range(-0.015, 0.015)) + av * 0.12, lac, r.randf_range(0.92, 1.02))
+	else:
+		_os_crane(r, p + ax * r.randf_range(-0.05, 0.05) + av * 0.12, lac, r.randf_range(1.12, 1.3))
+	return true
+
+## Pose d'un module d'os avec une teinte d'os tirée (jauni / pâle / sali) : la rangée ne se lit pas comme un tampon répété.
+func _os_teint(r: RandomNumberGenerator, nom: String, pos: Vector3, lacet: float, ech: Vector3) -> void:
+	var k := r.randf_range(0.82, 1.06)
+	var j := r.randf_range(-0.04, 0.05)
+	modele(nom, pos, lacet, ech, {"@os": Color(k, k * (0.98 - j * 0.5), k * (0.93 - j))}, false)
+
+## Crâne de niche : variante (entier, sans mâchoire, percé, couché), tourné vers la salle à ±20° (parfois de trois quarts), miroir tiré.
+func _os_crane(r: RandomNumberGenerator, pos: Vector3, lac: float, s: float, eclat := false) -> void:
+	var t := r.randf()
+	var v := "d" if eclat else ("a" if t < 0.36 else ("b" if t < 0.66 else ("c" if t < 0.84 else "d")))
+	var dl := r.randf_range(-0.35, 0.35) + (r.randf_range(0.5, 0.9) * (1.0 if r.randf() < 0.5 else -1.0) if r.randf() < 0.18 else 0.0)
+	if eclat:
+		s *= 0.8
+	_os_teint(r, "oss_crane_" + v, pos, lac + dl, Vector3(s * (1.0 if r.randf() < 0.5 else -1.0), s, s))
 
 func arme(pos: Vector3, lacet := 0.0) -> void:
 	ObjPetitMobilier.arme(self, pos, lacet)
@@ -1705,14 +2081,18 @@ func fissures(centre: Vector3, vers: Vector3, larg := 2.0, haut := 2.6, n := 3, 
 	gravats(pg, 0.35, 0.18, false, "mur1")
 	muet = m0      # au pied du mur, au sol de l'étage (était y = 0 : gravats en l'air à l'étage −6)
 
-## Dalle de pression fendue : cadre de fissures autour (la dalle elle-même est celle du piège) ; os et fléchette brisée devant.
+## Dalle de pression fendue (la dalle elle-même est celle du piège) : os et fléchette brisée devant. C5 (2026-10-28) : les quatre traits
+## noirs PLATS posés sur le sol (illisibles et « peints » sur le dallage en relief du lot C2) sont remplacés par des éclats de pierre en
+## volume autour de la dalle (modules micro_eclats, sans collision) ; la fléchette brisée est une planchette cassée (micro_planche).
+## Mêmes tirages de rng qu'avant (os_tas seul en tire) : le décor tiré après ne bouge pas.
 func dalle_fendue(pos: Vector3, lacet := 0.0) -> void:
 	var b := Basis(Vector3.UP, lacet)
+	var y_sol := -0.02 if CrypteDecor.modele_existe("dallage_v3_0_0_0") and not OS.get_cmdline_user_args().has("--sol-plat") else 0.0
 	for k in 4:
 		var a := TAU * k / 4.0 + 0.4
-		_rect("noir", pos + Vector3(0, 0.017, 0) + b * Vector3(cos(a) * 0.62, 0, sin(a) * 0.62), Vector3.RIGHT, Vector3.FORWARD, 0.0, 0.0, 0.05, 0.5, a + lacet, Vector3.UP)
+		modele("micro_eclats_" + "abc"[k % 3], pos + Vector3(0, y_sol, 0) + b * Vector3(cos(a) * 0.95, 0, sin(a) * 0.95), a + lacet, Vector3.ONE, {}, false)
 	os_tas(pos + b * Vector3(0.1, 0, 1.0), 3, 0.35)
-	boite("bois", pos + b * Vector3(-0.4, 0.015, 1.3), Vector3(0.3, 0.015, 0.015), lacet + 0.8)
+	modele("micro_planche_a", pos + Vector3(0, y_sol, 0) + b * Vector3(-0.4, 0, 1.3), lacet + 0.8, Vector3(0.5, 1.0, 0.5), {}, false)
 
 ## Sarcophage au couvercle poussé de côté (pillage) : la cuve noire apparaît.
 func sarcophage_pille(pos: Vector3, taille: Vector3, lacet := 0.0) -> void:
@@ -1758,12 +2138,14 @@ static func _charger_modeles() -> void:
 	_modeles_verrou.lock()
 	if not _modeles_charges:
 		_modeles_charges = true
-		for chemin: String in [MODELES_DAT, OBJETS_DAT]:
+		for chemin: String in [MODELES_DAT, OBJETS_DAT, OSSUAIRE_DAT]:
 			_lire_dat(chemin)
 	_modeles_verrou.unlock()
 
 ## Lots L2/L3 objets : mobilier de la crypte et de la grotte (sources_blender/scripts/objets_donjon.py), même format que crypte_v2.dat.
 const OBJETS_DAT := "res://assets/crypte/modules/objets_donjon.dat"
+## C7 ossuaire en relief : niches, crânes et fagots d'os (sources_blender/scripts/ossuaire.py), même format.
+const OSSUAIRE_DAT := "res://assets/crypte/modules/ossuaire.dat"
 
 static func _lire_dat(chemin: String) -> void:
 	var f := FileAccess.open(chemin, FileAccess.READ)
@@ -1797,6 +2179,8 @@ static func modele_existe(nom: String) -> bool:
 ## fois par module (_modele_cache), transformés en bloc (Transform3D * PackedVector3Array), un seul tampon par pose (case de 8 m du
 ## point de pose), UV triplanaires en mètres calculés dans le repère de la crypte.
 static var _cache_modeles := {}      # "module__matiere|alpha|miroir" -> {"v", "n", "c"} (sommets a, c, b ; normale répétée 3 fois)
+## C2 : vrai pendant la pose du dallage v3 (CrypteV2.dallage) : le sol n'est pas un objet (ni journal d'audit, ni registre, ni emprise).
+var pose_sol := false
 
 func _modele_cache(cle_mat: String, alpha: float, miroir: bool) -> Dictionary:
 	var cle := "%s|%.3f|%d" % [cle_mat, alpha, 1 if miroir else 0]
@@ -1853,12 +2237,15 @@ static func _est_structure(nom: String) -> bool:
 func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats := {}, emp := true) -> Array:
 	if muet:
 		return []
-	j0(nom, lacet)
+	var jn := not pose_sol
+	if jn:
+		j0(nom, lacet)
 	_charger_modeles()
 	var points: Array = []
 	if not _modeles_de.has(nom):
 		push_warning("module Blender introuvable : " + nom)
-		j1()
+		if jn:
+			j1()
 		return points
 	var b := Basis(Vector3.UP, lacet) * Basis.from_scale(ech)
 	var T := xf * Transform3D(b, pos)
@@ -1949,7 +2336,8 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 		var ec := ((e_min + e_max) * 0.5) * ech
 		var ce := pos + Basis(Vector3.UP, lacet) * Vector3(ec.x, 0.0, ec.z)
 		emprise(nom, ce, Vector2(absf((e_max.x - e_min.x) * ech.x), absf((e_max.z - e_min.z) * ech.z)) * 0.5, lacet, (e_max.y - e_min.y) * ech.y)
-	j1()
+	if jn:
+		j1()
 	return points
 
 ## D/crypte_restes (2026-10-26) : module Blender en MeshInstance3D AUTONOME, pour les pièces des mécanismes (statue qui pivote,
@@ -2080,6 +2468,12 @@ func finir() -> void:
 		mi.material_override = mat(b["nom"])
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.name = "Decor_" + String(cle).replace("|", "_").replace(",", "_").replace("-", "m")
+		if b.has("lot"):      # C7 : portée du lot (sans fondu : pas de tramage ; la marge évite le battement à la limite)
+			var pr: Array = LOTS[b["lot"]]
+			mi.visibility_range_begin = float(pr[0])
+			mi.visibility_range_end = float(pr[1])
+			mi.visibility_range_begin_margin = 0.5 if float(pr[0]) > 0.0 else 0.0
+			mi.visibility_range_end_margin = 0.5 if float(pr[1]) > 0.0 else 0.0
 		racine.add_child(mi)
 	_bufs.clear()
 	_bufs_vite.clear()

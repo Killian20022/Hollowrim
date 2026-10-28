@@ -42,7 +42,7 @@ Toute texture n'utilise que ces valeurs (quantification obligatoire sur la rampe
 | Ecru | `#8e8688` `#b9ae9f` `#dbd0b6` `#efe7d0` | lin et laine non teints |
 | Fourrure | `#25262f` `#3d3e4a` `#5c5d68` `#85848c` `#b3b0b4` | cols, doublures, peaux (gris froid) |
 | Fer | `#20252f` `#3a4256` `#5b6680` `#8a96ae` `#bcc6d8` | lames, clous, armures, rivets |
-| Or Terni | `#4a3419` `#7b5a26` `#a98638` `#d3b25c` | broches, ornements (jamais brillant) |
+| Or Terni | `#4a3419` `#7b5a26` `#a98638` `#d3b25c` | broches, ornements, pièces, coffres : **terni dans l'ensemble** ; seul un **reflet ponctuel** (quelques pixels, ton `#fff0a8` de Braise Flamme) est permis sous une flamme proche (validé le 2026-10-28, lot C1) |
 | Braise Flamme | `#5a1a1c` `#b3341f` `#ec6a1f` `#fcb53a` `#fff0a8` | feu, torches, fenêtres chaudes |
 | Runes Cyan | `#0c4a5e` `#14899b` `#3fd0d0` `#b6fbf0` | runes, sanctuaire, magie |
 
@@ -51,6 +51,10 @@ Règles d'usage de la palette :
 - **Glissement de teinte** : ombre = 15-25° vers le violet/bleu, lumière = 10-15° vers le jaune ; ne pas monter la luminosité en désaturant seulement.
 - Les rampes se croisent peu : une écorce ne porte que sa rampe + `NEIGE` (givre) ; le fer n'emprunte que `FER` + `BRAISE FLAMME` près du feu.
 - Hors palette interdits : noir `#000000`, blanc `#ffffff`, gris neutres purs.
+
+### 2 a. Matières des donjons : mat ou brillant (lot C1, 2026-10-28)
+
+Validé par l'utilisateur (chantier « anti pâte à modeler », `docs/INSPIRATION_IGNITE.md`) : dans la crypte, chaque matière réagit à la torche à sa façon, sans quitter les rampes ci-dessus. **Pierre et bois : mats** (bois de la crypte un peu désaturé, moins orange). **Fer et lames** : reflet net de la flamme sur la face qui la regarde + lustre doux (le fer se lit gris clair, plus le bleu plat). **Or** : terni, reflet ponctuel seulement (voir la rampe Or terni). **Os et cire** : à peine lustrés. **Givre** : petit reflet froid. Le reflet est un aplat à bord net (seuil), jamais un dégradé lisse ; il ne vient que des lumières du jeu (aucun reflet de l'ambiante). Arêtes des modules Blender : arête haute +1 ton, arête basse -1 ton, cœur des faces bordées un peu plus sombre (`sources_blender/scripts/aretes.py`, cf. §4.6). Réglages : `CrypteDecor.MATIERES`, `shaders/crypte.gdshader` (variante BRILLANT) ; `ps1.gdshader` n'est pas touché.
 
 ### 2 bis. Rampes étendues à 12 tons (lot 5, 2e passe, 2026-10-20)
 

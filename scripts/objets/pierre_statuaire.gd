@@ -130,6 +130,7 @@ static func autel(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, largeur := 2.0) 
 		dcr.bougie(pos + b * Vector3(sx * largeur * 0.5, 1.0, 0.0), false)
 	var s := b * Vector3(largeur + 0.16, 0, 1.06)
 	dcr.solide(pos + Vector3(0, 0.5, 0), Vector3(absf(s.x), 1.0, absf(s.z)))
+	ObjGarnitures.autel(dcr, pos, lacet, largeur)      # C6 : bol d'offrandes, crâne, livre… sur la nappe (crypte)
 	dcr.j1()
 
 ## Bassin : margelle de pierre (collision, h de haut) et surface noire en retrait.

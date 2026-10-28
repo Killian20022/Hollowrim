@@ -139,7 +139,8 @@ static func _obstacles(k: DonjonKit, m: Dictionary, v2: Dictionary) -> Dictionar
 				(ob[c] as Array).append([pe.x if pm["horiz"] else pe.z, hl + 0.08])
 	return ob
 
-const SANS_OBSTACLE := ["bougie", "crane", "flaque", "os_tas", "crane_os", "arme", "eboulis_a", "eboulis_b", "eboulis_c", "dalles_a", "dalles_b", "dalles_c", "congere", "gravats", "parchemins_epars"]
+const SANS_OBSTACLE := ["bougie", "crane", "flaque", "os_tas", "crane_os", "arme", "eboulis_a", "eboulis_b", "eboulis_c", "dalles_a", "dalles_b", "dalles_c", "congere", "gravats", "parchemins_epars",
+	"pilier", "pilier_pied", "eboulis_a_prevu", "eboulis_b_prevu", "eboulis_c_prevu", "dalles_a_prevu", "dalles_b_prevu", "dalles_c_prevu"]      # piliers isolés (emprise réelle) : au milieu des salles, jamais adossés
 
 ## Décalage des objets accrochés au mur (bannières, boucliers, gravures, fissures) : devant les panneaux, sauf dans une ouverture.
 ## Appelé par CrypteDecor._saillie (lié au module : saillie.bind(k, m)).
@@ -227,6 +228,27 @@ static func salle(k: DonjonKit, m: Dictionary) -> void:
 				var c4: Vector3 = centres[i]
 				if Vector2(c4.x - po.x, c4.z - po.z).length() < 1.6:
 					centres[i] = c4 + Vector3(2.0 if c4.x >= po.x else -2.0, 0, 0)
+		# ni contre le fût ou le chapiteau d'un pilier isolé de la table (posés après : emprise réelle lue sur le module, pilier_parties) ;
+		# on écarte le lustre (couronne + halo : LUSTRE_DEMI) sur l'axe le moins coûteux
+		for g: Array in m.get("garnitures", []):
+			if g[0] != "piliers":
+				continue
+			var ga: Dictionary = g[1]
+			var pm := CrypteDecor.pilier_module(float(ga.get("h", h)), float(ga.get("largeur", 1.0)))
+			for pw: Vector3 in ga["pts"]:
+				var po := k.lw(pw)
+				var parts := CrypteDecor.pilier_parties(pm[0], pm[1], Vector3(po.x, y, po.z))
+				var fut: AABB = parts[parts.size() - 1]
+				for i in centres.size():
+					var c4: Vector3 = centres[i]
+					var lx := fut.size.x * 0.5 + LUSTRE_DEMI + 0.05 - absf(c4.x - fut.get_center().x)
+					var lz := fut.size.z * 0.5 + LUSTRE_DEMI + 0.05 - absf(c4.z - fut.get_center().z)
+					if lx > 0.0 and lz > 0.0:
+						if lx < lz:
+							c4.x += lx * (1.0 if c4.x >= fut.get_center().x else -1.0)
+						else:
+							c4.z += lz * (1.0 if c4.z >= fut.get_center().z else -1.0)
+						centres[i] = c4
 		for c3: Vector3 in centres:
 			lustre(d, Vector3(c3.x, y + h, c3.z), clampf(h - 3.0, 0.8, 3.2))
 	if not v2["auto"]:
@@ -371,8 +393,18 @@ static func _auto_contenu(k: DonjonKit, m: Dictionary, v2: Dictionary) -> void:
 			var p := k.pt_mur(m, c, r.randf_range(-Lw * 0.5 + 1.0, Lw * 0.5 - 1.0), y, r.randf_range(0.7, 1.1) if eb else r.randf_range(0.9, 1.8))
 			if _libre(k, m, p, 1.0 if eb else 1.1, -1.3):      # rayon réel des modules (éboulis 0,9 à 1 m, dalles jusqu’à 0,93 m en biais)
 				var liste: Array = v2["eboulis"] if eb else v2["dalles"]
-				liste.append({"pos": k.mw(p), "mod": (["eboulis_a", "eboulis_b", "eboulis_c"] if eb else ["dalles_a", "dalles_b", "dalles_c"])[r.randi_range(0, 2)], "lacet": r.randf() * TAU})
+				var mod: String = (["eboulis_a", "eboulis_b", "eboulis_c"] if eb else ["dalles_a", "dalles_b", "dalles_c"])[r.randi_range(0, 2)]
+				var lac := r.randf() * TAU
+				# boîte réelle du module tiré (eboulis_b : 1,03 x 0,96 m de demi-côtés, ses coins dépassent le rayon de 1 m) : pas sur un objet
+				# déjà posé (urne, os des détritus différés) ; emprise provisoire jusqu'à la pose (_sol, fin de salle) pour ce qui suit
+				var bm := CrypteDecor.bornes_modele(mod)
+				var cb := p + Basis(Vector3.UP, lac) * Vector3(bm.get_center().x, 0.0, bm.get_center().z)
+				var demi := Vector2(bm.size.x, bm.size.z) * 0.5
+				if not d.rect_libre(cb, demi, lac, 0.03):
+					continue
+				liste.append({"pos": k.mw(p), "mod": mod, "lacet": lac})
 				k._reserves.append([Vector2(p.x, p.z), 0.9 if eb else 0.5])
+				d.emprise(mod + "_prevu", cb, demi, lac, bm.size.y)
 				break
 	for i in n_fl:
 		for essai in 10:
@@ -451,6 +483,15 @@ static func _ajoute_obst(k: DonjonKit, c: String, a: float, demi: float) -> void
 ## panneaux de maçonnerie autour de tout ce qui est plaqué au mur, bannières si la salle n'en a pas, lumières des candélabres de statue
 ## si le budget de la salle le permet (au plus 6 lumières par salle : test_crypte en tolère 7, une reste libre).
 static func finir(k: DonjonKit, m: Dictionary) -> void:
+	if m.get("type", "salle") == "salle" and actif(m) and not auto(m):      # C5 : salle pilote (rituelle) : seulement le semis
+		var v2p := reglages(m)
+		var obp := _obstacles(k, m, v2p)
+		var dimp: Vector2 = m["dim"]
+		for a: float in v2p["piliers"]:
+			for c: String in (["N", "S"] if dimp.x >= dimp.y else ["O", "E"]):
+				(obp[c] as Array).append([a, 0.45])
+		semis(k, m, obp)
+		return
 	if m.get("type", "salle") != "salle" or not auto(m):
 		return
 	var d := k.d
@@ -512,6 +553,10 @@ static func finir(k: DonjonKit, m: Dictionary) -> void:
 				continue
 			var s: Array = libres[0]
 			var a: float = (s[0] + s[1]) * 0.5 + r.randf_range(-0.25, 0.25) * (s[1] - s[0] - 1.4)
+			# hors des angles : les panneaux du mur perpendiculaire sortent de 0,315 m de son plan (libres commence AU plan) ; bannière +
+			# tringle = 0,57 m de demi-largeur (audit : lb2b, bannière dans pan_mur_c de 0,13 m). Borne après le tirage : rng inchangé.
+			var lim := ((dim.x if c in ["N", "S"] else dim.y) * 0.5 - 0.3) - 0.33 - 0.62
+			a = clampf(a, -lim, lim)
 			var pm := k.plan_mur(m, c)
 			var haut := y + minf(h - 0.45, 4.8)
 			var lon := clampf(haut - y - 1.5, 1.4, 2.6)
@@ -541,6 +586,7 @@ static func finir(k: DonjonKit, m: Dictionary) -> void:
 	st["arche"] = v2["arche"]
 	st["bannieres"] = d.nb_bannieres - k._v2_ban0
 	k.v2_stats[m["id"]] = st
+	semis(k, m, obst)      # C5 : couche de petits objets au sol, en dernier (tout le reste est posé ou réservé)
 
 ## Éboulis, dalles soulevées, givre en décalques, flaques (emplacements d'eau + placeholder).
 static func _sol(k: DonjonKit, m: Dictionary, v2: Dictionary, y: float) -> void:
@@ -567,6 +613,9 @@ static func _sol(k: DonjonKit, m: Dictionary, v2: Dictionary, y: float) -> void:
 		var Lw := dim.x if pm["horiz"] else dim.y
 		var p := k.pt_mur(m, c, r.randf_range(-Lw * 0.5 + 1.2, Lw * 0.5 - 1.2), y, r.randf_range(0.5, 0.9))
 		d.givre_decal(p, Vector2(r.randf_range(0.8, 1.5), r.randf_range(0.6, 1.1)), r.randf() * TAU)
+
+## Demi-largeur du lustre de fer en plan (halo de 1,8 m compris : ObjLuminaires.lustre_v2).
+const LUSTRE_DEMI := 0.9
 
 ## Lustre de fer posé à la voûte : chaîne, couronne à cierges (lot L8 : module « lustre_l8 », ObjLuminaires), flammes, halo.
 static func lustre(d: CrypteDecor, plafond: Vector3, chute: float) -> void:
@@ -717,6 +766,7 @@ static func couloir(k: DonjonKit, m: Dictionary) -> void:
 		for i in kk:
 			k.glacon(Vector3(k.alea(-0.7, 0.7), y + h, lerpf(-L * 0.5 + 1.5, L * 0.5 - 1.5, (i + 0.5) / kk)), k.alea(0.5, 0.9), 0.12)
 		k.souffle(Vector3(0, y + 1.0, 0), Vector3(0.9, 0.8, L * 0.5 - 1.0), Vector3(0, 0, -1), clampi(int(L * 2.5), 10, 30))
+	semis(k, m, obst)      # C5 : petits objets au sol, le long des murs (couloir pilote des niches compris : obst y contient ses piliers)
 
 # ------------------------------------------------------------------ PIÈCES DU TERTRE (C4b)
 ## Vestibule, alcôve d'Eirik et couloir de la herse : pièces uniques bâties par tertre.gd (hors kit). C4b (2026-10-23) les passe en v2
@@ -805,3 +855,268 @@ static func piece_tertre(d: CrypteDecor, id: String, x0: float, x1: float, z0: f
 	d.theme = {}
 	d.v2 = false
 	d.module_id = ""
+
+# ------------------------------------------------------------------ SOL EN RELIEF (C2, 2026-10-28)
+## Dallage v3 (docs/INSPIRATION_IGNITE.md §2.2) : le sol visible d'une salle ou d'un couloir v2 (rectangle [x0, x1] x [z0, z1] à
+## y, repère local du module) est couvert de RANGS parallèles à x (profondeurs DALLAGE_PROF, étirées pour finir pile sur z1),
+## chaque rang étant une suite de BANDES de dalles en relief (modules Blender « dallage_v3_<p>_<l>_<k> », longueurs DALLAGE_LONG,
+## étirées (meilleur de 6 tirages, en général à ±10 %) pour finir pile sur x1, retournées une fois sur deux au hasard). Les bandes voisines ne coupent pas aux
+## mêmes abscisses d'un rang à l'autre : aucune couture visible. Les dalles sont SOUS le sol de collision (dessus à −2,2 cm ± 1,5) :
+## collisions, accroches et décalques au sol inchangés. Tirage avec un générateur À PART (graine = position du module dans la crypte) :
+## rng / rng_deco ne bougent pas, le reste du décor reste identique. Renvoie false si les modules manquent ou avec `-- --sol-plat`
+## (mesures avant / après à code identique) : l'appelant (CrypteDecor.salle) pose alors l'ancien plan de dalles peintes.
+## Couloirs : même pose (axe long = z local) → rangs EN TRAVERS du couloir (« bandes »).
+const DALLAGE_LONG := [1.6, 2.2, 2.8]      # = sources_blender/scripts/crypte_modules_v2.py (DALLAGE_LONG, DALLAGE_PROF, DALLAGE_VAR)
+const DALLAGE_PROF := [0.55, 0.7, 0.85]
+const DALLAGE_VAR := 4
+static var dallage_bandes := 0      # bandes posées depuis le lancement (outils de mesure)
+
+static func dallage(d: CrypteDecor, x0: float, x1: float, z0: float, z1: float, y: float) -> bool:
+	if OS.get_cmdline_user_args().has("--sol-plat") or not CrypteDecor.modele_existe("dallage_v3_0_0_0"):
+		return false
+	var lx := x1 - x0
+	var lz := z1 - z0
+	if lx < 0.8 or lz < 0.5:
+		return false
+	var w := d.xf * Vector3((x0 + x1) * 0.5, y, (z0 + z1) * 0.5)
+	var r := RandomNumberGenerator.new()
+	r.seed = hash(Vector3i(roundi(w.x * 10.0), roundi(w.y * 10.0), roundi(w.z * 10.0))) + 2028
+	# rangs : nombre fixé par la longueur, profondeurs tirées puis étirées ensemble
+	var nr := maxi(1, roundi(lz / 0.7))
+	var rangs: Array = []
+	var somme := 0.0
+	for i in nr:
+		var p := r.randi_range(0, DALLAGE_PROF.size() - 1)
+		rangs.append(p)
+		somme += float(DALLAGE_PROF[p])
+	var sz := lz / somme
+	d.pose_sol = true
+	var z := z0
+	for p: int in rangs:
+		var prof: float = float(DALLAGE_PROF[p]) * sz
+		var cz := z + prof * 0.5
+		z += prof
+		# bandes du rang : 6 essais, on garde la suite dont l'étirement est le plus proche de 1
+		var meilleur: Array = []
+		var s_best := 0.0
+		for _e in 6:
+			var suite: Array = []
+			var tot := 0.0
+			while tot < lx - 0.8:
+				var l := r.randi_range(0, DALLAGE_LONG.size() - 1)
+				suite.append(l)
+				tot += float(DALLAGE_LONG[l])
+			if suite.is_empty():
+				suite.append(0)
+				tot = float(DALLAGE_LONG[0])
+			var s := lx / tot
+			if meilleur.is_empty() or absf(s - 1.0) < absf(s_best - 1.0):
+				meilleur = suite
+				s_best = s
+		var x := x0
+		for l: int in meilleur:
+			var long: float = float(DALLAGE_LONG[l]) * s_best
+			var nom := "dallage_v3_%d_%d_%d" % [p, l, r.randi_range(0, DALLAGE_VAR - 1)]
+			d.modele(nom, Vector3(x + long * 0.5, y, cz), PI if r.randf() < 0.5 else 0.0, Vector3(s_best, 1.0, sz), {"pierre": "pierre_sol"}, false)
+			x += long
+			dallage_bandes += 1
+	d.pose_sol = false
+	return true
+
+# ------------------------------------------------------------------ SEMIS MICRO (C5, 2026-10-28)
+## Couche de petits objets au sol (docs/INSPIRATION_IGNITE.md §1 écart 3, §6 règle 3) : éclats de pierre, planches cassées, os, coulures
+## de cire, pièces isolées, bouts de chaîne (modules Blender « micro_* » d'objets_donjon.py, 18 à 84 triangles), posés PAR RÈGLES :
+##   - bande des murs (devant les panneaux, au pied des piliers engagés), plus serrée dans les ANGLES ;
+##   - pieds des boîtes de collision du récit (piliers isolés, sarcophages, autels, tables, socles) ;
+##   - quelques-uns au milieu, jamais sur un passage (couloirs des ouvertures), une accroche (ennemi, coffre, interaction, mécanisme) ni
+##     dans un objet déjà posé (emprises) ; densité tirée par salle (usure, thème).
+## Fusionnés dans les tampons de la case comme tout module (CrypteDecor.modele, emp = false) : AUCUN nœud par objet, AUCUNE collision
+## (ni le joueur ni les draugrs n'y butent). Générateur À PART (graine = position du module dans la crypte) : rng / rng_deco ne bougent
+## pas, le reste du décor est identique. `-- --sans-semis` : captures et mesures « avant » à code identique.
+const SEMIS_FAMILLES := {
+	"eclats": [["micro_eclats_a", "micro_eclats_b", "micro_eclats_c"], 0.26],     # [modules, rayon d'emprise] (éclats : traînée jusqu'à 0,3 m du centre)
+	"planche": [["micro_planche_a", "micro_planche_b"], 0.36],
+	"os": [["micro_os_a", "micro_os_b"], 0.2],
+	"cire": [["micro_cire_a", "micro_cire_b"], 0.15],
+	"pieces": [["micro_pieces_a", "micro_pieces_b"], 0.2],
+	"chaine": [["micro_chaine_a", "micro_chaine_b"], 0.3],
+}
+## Poids des familles : au mur / au pied des meubles et des piliers. Thèmes : surcharge partielle.
+const SEMIS_POIDS := {
+	"mur": {"eclats": 0.46, "os": 0.18, "planche": 0.14, "cire": 0.06, "pieces": 0.08, "chaine": 0.08},
+	"pied": {"eclats": 0.3, "os": 0.2, "planche": 0.04, "cire": 0.28, "pieces": 0.18, "chaine": 0.0},
+	"milieu": {"eclats": 0.55, "os": 0.2, "planche": 0.15, "cire": 0.0, "pieces": 0.1, "chaine": 0.0},
+}
+const SEMIS_THEME := {
+	"ossuaire": {"os": 0.4}, "tresor": {"pieces": 0.35}, "garde": {"planche": 0.25, "chaine": 0.14}, "givre": {"cire": 0.02}, "glace": {"cire": 0.0},
+}
+const SEMIS_DENSITE := 2.3         # facteur global (mesure 2026-10-28 : 354 objets, +23 k triangles sur 2,05 M, audit 0 grave)
+## Éclats en pierre claire des statues (plus d'ambiant) : ils se détachent du dallage au lieu de s'y fondre.
+const SEMIS_MATS := {"pierre": "statue_v2"}
+static var semis_poses := 0          # objets posés depuis le lancement (outils de mesure)
+
+static func _semis_famille(r: RandomNumberGenerator, lieu: String, th: String) -> String:
+	var p: Dictionary = (SEMIS_POIDS[lieu] as Dictionary).duplicate()
+	if lieu != "milieu":
+		for f: String in SEMIS_THEME.get(th, {}):
+			p[f] = SEMIS_THEME[th][f]
+	var tot := 0.0
+	for f: String in p:
+		tot += float(p[f])
+	var t := r.randf() * tot
+	for f: String in p:
+		t -= float(p[f])
+		if t <= 0.0:
+			return f
+	return "eclats"
+
+## Essaie de poser un objet de la famille `f` en p (repère local) ; ctx : état du semis (voir semis). Vrai si posé.
+static func _semis_poser(k: DonjonKit, m: Dictionary, ctx: Dictionary, f: String, p: Vector3, lacet: float, marge_passage := 0.45) -> bool:
+	var fam: Array = SEMIS_FAMILLES[f]
+	var r: RandomNumberGenerator = ctx["r"]
+	var ech := Vector3.ONE * (r.randf_range(1.15, 1.5) if f == "eclats" else r.randf_range(0.9, 1.1))      # éclats : lisibles à 480x270
+	var rr: float = float(fam[1]) * ech.x      # emprise à l'échelle tirée (sinon les éclats agrandis entrent dans les piliers et les murs)
+	var dim: Vector2 = m["dim"]
+	var d := k.d
+	# devant les panneaux de maçonnerie (plan du mur + 0,34 m) : rien dans le soubassement ni dans le mur
+	if absf(p.x) > dim.x * 0.5 - 0.3 - 0.34 - rr or absf(p.z) > dim.y * 0.5 - 0.3 - 0.34 - rr:
+		return false
+	var q := Vector2(p.x, p.z)
+	# piliers engagés (0,54 m de saillie à la base) et meubles adossés : abscisses occupées au mur
+	var obst: Dictionary = ctx["obst"]
+	for c: String in ["N", "S", "O", "E"]:
+		var pm := k.plan_mur(m, c)
+		var v: Vector3 = pm["vers"]
+		var dist: float = ((p.z if pm["horiz"] else p.x) - float(pm["plan"])) * (v.z if pm["horiz"] else v.x)
+		if dist > 0.62 + rr:
+			continue
+		var a: float = p.x if pm["horiz"] else p.z
+		for ob: Array in obst.get(c, []):
+			if absf(a - float(ob[0])) < float(ob[1]) + rr:
+				return false
+	# passages (de chaque ouverture au centre) : on n'y sème presque rien
+	for l: Array in k._lanes:
+		var a2: Vector2 = l[0]
+		var seg: Vector2 = (l[1] as Vector2) - a2
+		var t := clampf((q - a2).dot(seg) / maxf(seg.length_squared(), 0.0001), 0.0, 1.0)
+		if q.distance_to(a2 + seg * t) < rr + marge_passage:
+			return false
+	# accroches (ennemis, coffres, interactions, mécanismes) et places réservées
+	for i in k._reserves.size():      # accroches : réserve entière ; décor (statues, éboulis, flaques…) : son emprise suffit, marge réduite
+		var rv: Array = k._reserves[i]
+		if q.distance_to(rv[0]) < float(rv[1]) * (0.85 if i < k._n_res_accroches else 0.35) + rr:
+			return false
+	for b: Rect2 in ctx["boites"]:
+		if b.grow(rr + 0.04).has_point(q):
+			return false
+	if not d.emprise_libre(p, rr, 0.02):
+		return false
+	for pp: Array in ctx["poses"]:
+		if q.distance_to(pp[0]) < rr + float(pp[1]):
+			return false
+	var mods: Array = fam[0]
+	var nom: String = mods[r.randi_range(0, mods.size() - 1)]
+	d.modele(nom, Vector3(p.x, float(ctx["y_sol"]), p.z), lacet, ech, SEMIS_MATS, false)
+	(ctx["poses"] as Array).append([q, rr])
+	semis_poses += 1
+	if OS.get_cmdline_user_args().has("--semis-liste"):      # outil : positions (repère du décor) pour cadrer les captures
+		var pw := d.xf * Vector3(p.x, float(ctx["y_sol"]), p.z)
+		print("SEMIS %s %s %.2f,%.2f,%.2f" % [m["id"], nom, pw.x, pw.y, pw.z])
+	ctx["n"] = int(ctx["n"]) + 1
+	return true
+
+## Grappe d'éclats (C5) : 1 à 3 éclats de plus autour d'un éclat posé au pied du mur — la pierre tombée se lit en « coulée » et non en
+## cailloux isolés. Mêmes règles d'emprise que tout le semis (passages, accroches, piliers).
+const SEMIS_GRAPPE := 0.7          # probabilité qu'un éclat au mur ait des voisins
+static func _semis_grappe(k: DonjonKit, m: Dictionary, ctx: Dictionary, c: String, a: float, y: float, ret: float) -> void:
+	var r: RandomNumberGenerator = ctx["r"]
+	if r.randf() > SEMIS_GRAPPE:
+		return
+	for j in r.randi_range(1, 3):
+		var da := r.randf_range(0.42, 0.65) * (1.0 if r.randf() < 0.5 else -1.0)
+		_semis_poser(k, m, ctx, "eclats", k.pt_mur(m, c, a + da, y, ret + r.randf_range(-0.05, 0.4)), r.randf() * TAU)
+
+## Semis d'un module (salle auto : fin de finir() ; couloir auto : fin de couloir()). obst : abscisses occupées par mur (piliers inclus).
+static func semis(k: DonjonKit, m: Dictionary, obst: Dictionary) -> void:
+	if OS.get_cmdline_user_args().has("--sans-semis") or not CrypteDecor.modele_existe("micro_eclats_a"):
+		return
+	var d := k.d
+	if d.muet:
+		return
+	var dim: Vector2 = m["dim"]
+	var y := float(m.get("y", 0.0))
+	var th: String = m.get("theme", "tombeau")
+	var w := d.xf * Vector3(0, y, 0)
+	var r := RandomNumberGenerator.new()
+	r.seed = hash(Vector3i(roundi(w.x * 10.0), roundi(w.y * 10.0), roundi(w.z * 10.0))) + 5150
+	var dallage := not OS.get_cmdline_user_args().has("--sol-plat") and CrypteDecor.modele_existe("dallage_v3_0_0_0")
+	# densité de la salle : usure, thème, tirage (certaines salles presque nettes, d'autres jonchées)
+	var dens := SEMIS_DENSITE * clampf(r.randf_range(0.55, 1.25) + 0.15 * int(m.get("usure", 0)) + (0.2 if th == "garde" or th == "ossuaire" else 0.0), 0.4, 1.6)
+	var ctx := {"r": r, "obst": obst, "boites": _boites_sol(k, m), "poses": [], "n": 0, "y_sol": y - 0.02 if dallage else y}
+	var couloir: bool = m.get("type", "salle") == "couloir"
+	var murs: Array = ["O", "E"] if couloir else ["N", "S", "O", "E"]
+	# --- bande des murs (et pieds des piliers engagés : juste devant leur base)
+	for c: String in murs:
+		var pm := k.plan_mur(m, c)
+		var v: Vector3 = pm["vers"]
+		var lac_mur := atan2(v.x, v.z) + PI * 0.5      # +x local des modules le long du mur
+		for s: Array in _libres_mur(k, m, c, [], 0.45):
+			var a: float = s[0] + r.randf_range(0.1, 0.6)
+			while a < s[1] - 0.2:
+				if r.randf() < 0.7:
+					var f := _semis_famille(r, "mur", th)
+					var rr: float = SEMIS_FAMILLES[f][1]
+					var ret := 0.34 + rr + r.randf() * r.randf() * 0.6
+					if couloir:
+						ret = 0.34 + rr + r.randf() * 0.12
+					var lac := lac_mur + r.randf_range(-0.5, 0.5) + (PI if r.randf() < 0.5 else 0.0)
+					var ok := _semis_poser(k, m, ctx, f, k.pt_mur(m, c, a, y, ret), lac)
+					if not ok:
+						# au pied d'un pilier engagé ou d'un meuble adossé : un peu plus loin du mur, ou un peu à côté
+						ok = _semis_poser(k, m, ctx, f, k.pt_mur(m, c, a, y, ret + 0.45), lac)
+						if not ok and not couloir:
+							ok = _semis_poser(k, m, ctx, f, k.pt_mur(m, c, a + r.randf_range(-0.5, 0.5), y, ret + 0.2), lac)
+					if ok and f == "eclats":
+						_semis_grappe(k, m, ctx, c, a, y, ret)
+				a += r.randf_range(0.8, 1.7) / dens
+	# --- angles : 2 à 4 objets serrés dans chaque coin
+	if not couloir:
+		for cn: Array in [[-1, -1], [1, -1], [-1, 1], [1, 1]]:
+			for i in r.randi_range(2, 4):
+				if r.randf() > 0.55 + 0.25 * dens:
+					continue
+				var f := _semis_famille(r, "mur", th)
+				var rr: float = SEMIS_FAMILLES[f][1]
+				var bx := dim.x * 0.5 - 0.64 - rr
+				var bz := dim.y * 0.5 - 0.64 - rr
+				var p := Vector3(cn[0] * (bx - r.randf() * r.randf() * 0.9), y, cn[1] * (bz - r.randf() * r.randf() * 0.9))
+				_semis_poser(k, m, ctx, f, p, r.randf() * TAU)
+	# --- pieds des piliers isolés, sarcophages, autels, tables, socles (boîtes de collision du récit)
+	for b: Rect2 in ctx["boites"]:
+		if b.size.x > 4.5 or b.size.y > 4.5:
+			continue      # grandes estrades
+		for i in r.randi_range(1, 3):
+			if r.randf() > 0.45 + 0.3 * dens:
+				continue
+			var f := _semis_famille(r, "pied", th)
+			var rr: float = SEMIS_FAMILLES[f][1]
+			var cote := r.randi_range(0, 3)
+			var e := 0.08 + rr + r.randf() * 0.25
+			var u := r.randf()
+			var p2: Vector2
+			match cote:
+				0: p2 = Vector2(b.position.x + u * b.size.x, b.position.y - e)
+				1: p2 = Vector2(b.position.x + u * b.size.x, b.end.y + e)
+				2: p2 = Vector2(b.position.x - e, b.position.y + u * b.size.y)
+				_: p2 = Vector2(b.end.x + e, b.position.y + u * b.size.y)
+			_semis_poser(k, m, ctx, f, Vector3(p2.x, y, p2.y), r.randf() * TAU, 0.3)
+	# --- quelques-uns au milieu, loin des passages
+	if not couloir:
+		var nm := int(dim.x * dim.y / 40.0 * dens)
+		for i in nm:
+			var f := _semis_famille(r, "milieu", th)
+			var p := Vector3(r.randf_range(-dim.x * 0.5 + 1.0, dim.x * 0.5 - 1.0), y, r.randf_range(-dim.y * 0.5 + 1.0, dim.y * 0.5 - 1.0))
+			_semis_poser(k, m, ctx, f, p, r.randf() * TAU, 0.9)
+	var st: Dictionary = k.v2_stats.get(m["id"], {})
+	st["semis"] = ctx["n"]
+	k.v2_stats[m["id"]] = st

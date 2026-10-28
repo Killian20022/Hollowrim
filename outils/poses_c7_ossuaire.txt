@@ -1,0 +1,10 @@
+# C7 « ossuaire en relief » : mêmes cadrages avant / après (repère crypte). Panneaux (outil --os-liste) : mur O x = -28,7 (z -24,8..-15,8
+# et -12,3..-7,2), mur S z = -6,3 (x -27,8..-18,8), mur E x = -13,3 (z -17,7..-11,1 et -24,8..-21,9), mur N z = -25,7 (x -22,9..-18,1).
+oss_e_1m crypte -14.3,-12.3,-90,0 ouvre=s1,s2,s3,secret,herse sans-mains
+oss_e_2m crypte -15.3,-16.5,-60,-4 ouvre=s1,s2,s3,secret,herse sans-mains
+oss_s_2m crypte -23.0,-8.2,180,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+oss_o_3m crypte -25.7,-23.5,95,-4 ouvre=s1,s2,s3,secret,herse sans-mains
+oss_n_2m crypte -20.5,-23.8,0,-2 ouvre=s1,s2,s3,secret,herse sans-mains
+oss_loin_o crypte -16.0,-19.0,75,-3 ouvre=s1,s2,s3,secret,herse sans-mains
+oss_loin_s crypte -20.0,-21.0,175,-2 ouvre=s1,s2,s3,secret,herse sans-mains
+oss_e_torche crypte -14.6,-12.0,-110,-2 ouvre=s1,s2,s3,secret,herse

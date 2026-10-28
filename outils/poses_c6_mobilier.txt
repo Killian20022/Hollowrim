@@ -1,0 +1,11 @@
+# C6 mobilier et bougies : poses avant / après (repère crypte x,z,lacet°,tangage°[,y]) ; tables, autels, étagères, grappes à 1-3 m
+c6_eirik crypte -7.0,-24.6,95,-18 attente=240
+c6_etagere_eirik crypte -8.4,-23.9,0,-6 attente=240
+c6_sarco crypte -1.0,-68.4,15,-22 attente=240
+c6_archives crypte -8.4,-43.4,10,-18,-6 attente=240
+c6_etageres crypte -10.3,-44.8,10,-6,-6 attente=240
+c6_barricade crypte -10.6,-50.6,39,-20,-6 attente=240
+c6_autel crypte 6.0,-52.6,0,-14,-6 attente=240
+c6_bancs crypte 6.0,-44.3,90,-25,-6 attente=240
+c6_garde crypte 18.5,-50.3,0,-25,-6 attente=240
+c6_autel2 crypte 20.6,-72.0,-90,-14 attente=240

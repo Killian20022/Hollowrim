@@ -45,6 +45,7 @@ var _v2_lum: Array = []          # lumières de candélabre à allumer si le bud
 var _v2_reglages: Dictionary = {}
 var _v2_ban0 := 0                # bannières déjà posées au début du module
 var _n_lum0 := 0                 # lumières déjà posées au début du module
+var _n_res_accroches := 0        # réserves des accroches (ennemis, coffres, interactions, mécanismes) en tête de _reserves (C5)
 var _n_corps0 := 0               # collisions déjà posées au début du module (CrypteV2._boites_sol)
 var _v2_boites: Array = []       # boîtes de collision du module en cours (repère local, Rect2 en x,z)
 var _p0 := Vector2.ZERO
@@ -131,7 +132,7 @@ func _place_differee(m: Dictionary, p: Vector3, r: float, boites: Array, genre: 
 		if b.grow(rr + 0.05).has_point(q):
 			return false
 	if genre == "plafond":
-		return true
+		return d.hors_piliers(p, rr, 0.05)      # glaçons : ni dans le fût ni dans le chapiteau (plus larges que la collision)
 	if genre != "amas" and genre != "fissure" and (absf(p.x) > dim.x * 0.5 - 0.3 - 0.32 - r or absf(p.z) > dim.y * 0.5 - 0.3 - 0.32 - r):
 		return false      # hors du soubassement et des panneaux de maçonnerie (saillie <= 0,32 m)
 	if genre == "gravats" and not libre(m, p, r, 0.4):
@@ -303,6 +304,10 @@ func module(m: Dictionary) -> void:
 		for q0: Vector3 in pts:
 			var q := lw(q0)
 			_reserves.append([Vector2(q.x, q.z), 1.4])
+		if dm.has("pos_dalle"):      # indice de la dalle (CrypteDecor.dalle_fendue, posé par l'extra APRÈS les détritus du couloir) : os à 1 m
+			var q := lw(dm["pos_dalle"])      # du centre + emprise 0,5 m → 1,5 m ; 0,45 + 1,9 x 0,6 = 1,59 m (audit : g3 os_tas sur os_tas 0,17 m)
+			_reserves.append([Vector2(q.x, q.z), 1.9])
+	_n_res_accroches = _reserves.size()      # C5 : les premières réserves sont celles des accroches (CrypteV2.semis les respecte en entier)
 	modules[id] = {"centre": mw(Vector3(0, y, 0)), "y": y, "h": h, "ouv": [], "cibles": [], "ennemis": [], "dim": dim, "rot": int(m.get("rot", 0)), "role": m.get("role", ""), "theme": m.get("theme", "tombeau")}
 	if type == "escalier":
 		_escalier(m)
@@ -332,6 +337,7 @@ func module(m: Dictionary) -> void:
 			_usure(m)
 		if m.has("extra"):
 			call(m["extra"], m)
+		d.remplir_niches_os()      # C7 : contenu des niches d'ossuaire, une fois sarcophages, estrade et meubles posés
 		_emettre_differes(m)
 		if v2_actif:
 			CrypteV2.finir(self, m)      # mode auto : piliers, panneaux, bannières, lumières de statue (après le récit de la salle)
@@ -1382,6 +1388,12 @@ func glacon(pos_plafond: Vector3, longueur := 0.8, r := 0.12) -> void:
 	d.j1()
 
 func congere(pos: Vector3, r := 1.8, h := 0.7) -> void:
+	# les buttes satellites vont jusqu'à 1,45 r du centre : réduite pour ne pas monter dans un pilier isolé (emprise réelle, éclats compris)
+	var lib := d.dist_piliers(pos)
+	if lib < r * 1.45 + 0.05:
+		var r2 := maxf(0.3, (lib - 0.05) / 1.45)
+		h *= maxf(0.6, r2 / r)
+		r = r2
 	d.j0("congere")
 	d.emprise("congere", pos, Vector2(r, r), 0.0, h)
 	d.tour("neige", pos, [Vector2(r, 0.0), Vector2(r * 0.82, h * 0.45), Vector2(r * 0.45, h * 0.85), Vector2(r * 0.12, h)], 7, 0.2, true)
@@ -1430,9 +1442,16 @@ func or_tas(pos: Vector3, r := 0.6, h := 0.3) -> void:
 
 ## Panneau d'ossuaire (texture de niches) plaqué sur un mur, avec cadre ; axe "x" : mur le long de X (z fixe), "z" : le long de Z.
 func panneau_os(axe: String, fixe: float, a0: float, a1: float, y0: float, y1: float, signe: float) -> void:
+	if OS.get_cmdline_user_args().has("--os-liste"):      # outil (C7) : étendue des panneaux (repère du décor) pour cadrer les captures
+		var pa := d.xf * (Vector3(a0, y0, fixe) if axe == "x" else Vector3(fixe, y0, a0))
+		var pb := d.xf * (Vector3(a1, y1, fixe) if axe == "x" else Vector3(fixe, y1, a1))
+		print("PANNEAU_OS %s signe=%.0f de %.2f,%.2f,%.2f a %.2f,%.2f,%.2f" % [axe, signe, pa.x, pa.y, pa.z, pb.x, pb.y, pb.z])
 	d.j0("panneau_os")
 	var f := fixe + signe * 0.11
 	var pts := d._pas(a0, a1, 4.0)
+	if CrypteDecor.ossuaire_relief():      # C7 : niches en relief (crânes et os en volume) jusqu'à 2,3 m, texture au-dessus
+		y1 = d.panneau_os_v3(axe, fixe, a0, a1, y0, y1, signe)
+		pts = []
 	for i in pts.size() - 1:
 		var u0: float = pts[i]
 		var u1: float = pts[i + 1]

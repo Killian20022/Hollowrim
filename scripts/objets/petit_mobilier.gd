@@ -32,6 +32,8 @@ static func coffre(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, collision := tr
 	dcr.j1()
 
 static func bougie(dcr: CrypteDecor, pos: Vector3, avec_lumiere := true) -> void:
+	if ObjLuminaires.bougie_c6(dcr, pos, avec_lumiere):      # C6 : une bougie sur deux de la crypte devient une grappe
+		return
 	dcr.j0("bougie")
 	pos = dcr._suivre(pos)
 	dcr.emprise("bougie", pos, Vector2(0.06, 0.06), 0.0, 0.14)
@@ -65,6 +67,7 @@ static func table(dcr: CrypteDecor, pos: Vector3, lacet := 0.0) -> void:
 	dcr.emprise("table", pos, Vector2(0.55, 0.33), lacet, 0.8)
 	dcr.modele("table_" + variante(dcr, pos), pos, lacet, Vector3.ONE, {}, false)
 	dcr.j1()
+	ObjGarnitures.table(dcr, pos, lacet)      # C6 : livres, bols, crâne… posés dessus (crypte ; petits objets à part)
 
 static func crane(dcr: CrypteDecor, pos: Vector3, lacet := 0.0) -> void:
 	dcr.j0("crane", lacet)
@@ -102,7 +105,12 @@ static func gravats(dcr: CrypteDecor, pos: Vector3, r := 1.0, h := 0.7, avec_col
 		dcr.rng.randf_range(0.55, 1.05)
 		dcr.rng.randf_range(0.18, 0.4)
 		dcr.rng.randf()
-	dcr.modele("gravats_" + variante(dcr, pos), pos, lacet_pos(dcr, pos), Vector3(r, h / 0.7, r), {"pierre": mat, "pierre2": "mur1" if mat != "mur1" else "mur0"}, false)
+	# C5 : gravats v2 en blocs taillés — échelle verticale bornée (0,7 à 1,3 fois l'horizontale) : les blocs ne s'écrasent ni ne s'étirent
+	# pierre : en crypte v2, celle des murs et du dallage (pierre_v2 / pierre_sol, plus claires que les vieux « mur* ») — sauf la glace (mur4)
+	var mats := {"pierre": mat, "pierre2": "mur1" if mat != "mur1" else "mur0"}
+	if dcr.v2 and mat != "mur4":
+		mats = {"pierre": "pierre_v2", "pierre2": "mur1"}      # blocs clairs + éclats sombres : le tas garde sa silhouette sur le dallage
+	dcr.modele("gravats_" + variante(dcr, pos), pos, lacet_pos(dcr, pos), Vector3(r, clampf(h / 0.7, r * 0.7, r * 1.3), r), mats, false)
 	if avec_collision:
 		dcr.solide(pos + Vector3(0, h * 0.4, 0), Vector3(r * 1.5, h * 0.8, r * 1.5))
 	dcr.j1()

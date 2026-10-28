@@ -54,10 +54,29 @@ const V2_SALLES := {
 	"prep": {"lumieres_statue": false},      # sa statue (déplacée hors de la table d'embaumement) éclairait le sol des niches et de s1 : 9 lumières sur un maillage      # oculus du récit : le lustre central passe à côté
 }
 
+## Lot C9 (atmosphère, docs/INSPIRATION_IGNITE.md §2.11) : champ `accent` des salles = couleur dominante (Lumieres.ACCENTS) ;
+## `accent_pos` (repère de la crypte) : où poser la lumière d'accent (Rune / Cristal) si le budget le permet. Rune cyan : salles des
+## sceaux ; glace bleue : trône de glace et salle piégée ; braise : salle de préparation et chapelle ; noir : ossuaire.
+const ACCENTS := {
+	"rituelle": {"accent": "rune", "accent_pos": Vector3(0.0, 2.2, -51.0)},
+	"arene": {"accent": "rune"},
+	"g4": {"accent": "glace", "accent_pos": Vector3(54.0, 1.6, -30.0)},
+	"g1": {"accent": "glace"},
+	"prep": {"accent": "braise"},
+	"lb2a": {"accent": "braise"},
+	"ossuaire": {"accent": "noir"},
+	"ossuaire_secret": {"accent": "noir"},
+}
+
 func construire() -> void:
 	for m: Dictionary in plan():
+		m.merge(ACCENTS.get(m["id"], {}), false)
 		module(m)
+		for k in ["accent", "accent_pos"]:
+			if m.has(k):
+				modules[m["id"]][k] = m[k]
 	verifier()
+	Lumieres.atmosphere(d, self)     # brume au sol, halos de brume, accents (avant CrypteDecor.finir : tampons encore ouverts)
 
 ## Portée de dessin ~30 m (bord proche) pour tous les maillages d'une racine de crypte. À appeler APRÈS `CrypteDecor.finir()` (les
 ## maillages fusionnés par case de 8 m n'existent pas avant : l'ancienne boucle de `construire()` ne voyait rien et la portée de 70 m
@@ -116,7 +135,7 @@ func plan() -> Array:
 		{"role": "combat", "extra": "_x_niches", "detritus": false, "lum": {"appliques": 2},
 		"v2": V2_NICHES,
 		"ouv": [["N", 0.0, 3.2, false, "prep"], ["S", 0.0, 3.2, false, ""], ["O", 3.0, 3.2, false, "s1"]],
-		"ennemis": [_e("cr_niches_1", "sbire", Vector3(0.85, 0, -13.0), -PI * 0.5, true, true), _e("cr_niches_2", "sbire", Vector3(-0.85, 0, -16.8), PI * 0.5, true, true)]}))
+		"ennemis": [_e("cr_niches_1", "sbire", Vector3(0.7, 0, -13.0), -PI * 0.5, true, true), _e("cr_niches_2", "sbire", Vector3(-0.7, 0, -16.8), PI * 0.5, true, true)]}))
 	r.append(_salle("prep", Vector2(0, -25), Vector2(14, 14), 4.6, "tombeau", "combat", 5,
 		[["S", 0.0, 3.2, false, "niches"], ["N", 0.0, 3.2, false, ""], ["O", 0.0, 3.0, false, ""], ["O", 5.2, 3.2, false, "w1"], ["E", -4.7, 3.2, false, "g0"]],
 		{"lum": {"braseros": 2, "appliques": 2}, "extra": "_x_prep",

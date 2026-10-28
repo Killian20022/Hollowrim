@@ -19,3 +19,16 @@ static func appliquer(env: Environment, debut: float, courbe: float) -> void:
 	env.fog_height_density = 0.0
 	if env.background_mode == Environment.BG_COLOR:
 		env.background_color = env.fog_light_color
+
+## Couleur de la brume (et du fond) de la crypte (monde.gd : env_sous_terre). Lot C9 : chaque salle peut la teinter (Lumieres.ACCENTS).
+const COULEUR_CRYPTE := Color(0.03, 0.045, 0.08)
+
+## Environnement « sous terre » réglé par appliquer() (fond uni, brume en profondeur pleine à FIN) ? Dehors : jamais vrai.
+static func sous_terre(env: Environment) -> bool:
+	return env.background_mode == Environment.BG_COLOR and env.fog_enabled and env.fog_mode == Environment.FOG_MODE_DEPTH \
+		and absf(env.fog_depth_end - FIN) < 0.01
+
+## Teinte de la brume de profondeur ET du fond (ils doivent rester égaux : rien ne se détache à la portée de dessin).
+static func teinter(env: Environment, couleur: Color) -> void:
+	env.fog_light_color = couleur
+	env.background_color = couleur
