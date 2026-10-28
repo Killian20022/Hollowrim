@@ -106,7 +106,7 @@ static func gravats(dcr: CrypteDecor, pos: Vector3, r := 1.0, h := 0.7, avec_col
 	# pierre : en crypte v2, celle des murs et du dallage (pierre_v2 / pierre_sol, plus claires que les vieux « mur* ») — sauf la glace (mur4)
 	var mats := {"pierre": mat, "pierre2": "mur1" if mat != "mur1" else "mur0"}
 	if dcr.v2 and mat != "mur4":
-		mats = {"pierre": "pierre_v2", "pierre2": "pierre_sol"}
+		mats = {"pierre": "pierre_v2", "pierre2": "mur1"}      # blocs clairs + éclats sombres : le tas garde sa silhouette sur le dallage
 	dcr.modele("gravats_" + variante(dcr, pos), pos, lacet_pos(dcr, pos), Vector3(r, clampf(h / 0.7, r * 0.7, r * 1.3), r), mats, false)
 	if avec_collision:
 		dcr.solide(pos + Vector3(0, h * 0.4, 0), Vector3(r * 1.5, h * 0.8, r * 1.5))

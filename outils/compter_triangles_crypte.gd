@@ -41,4 +41,5 @@ func _go() -> void:
 		tot += r
 		k += 1
 	print("TRIANGLES crypte=%d maillages=%d" % [tot.x, tot.y])
+	print("SEMIS poses=%d" % CrypteV2.semis_poses if "semis_poses" in CrypteV2 else "SEMIS absent")
 	quit(0)

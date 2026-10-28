@@ -911,7 +911,7 @@ const SEMIS_POIDS := {
 const SEMIS_THEME := {
 	"ossuaire": {"os": 0.4}, "tresor": {"pieces": 0.35}, "garde": {"planche": 0.25, "chaine": 0.14}, "givre": {"cire": 0.02}, "glace": {"cire": 0.0},
 }
-const SEMIS_DENSITE := 1.4         # facteur global (budget : ≤ +15 k triangles pour le lot C5 dans toute la crypte)
+const SEMIS_DENSITE := 1.7         # facteur global (mesure 2026-10-28 : 420 objets, +27 k triangles sur 2,05 M dans toute la crypte)
 ## Éclats en pierre claire des statues (plus d'ambiant) : ils se détachent du dallage au lieu de s'y fondre.
 const SEMIS_MATS := {"pierre": "statue_v2"}
 static var semis_poses := 0          # objets posés depuis le lancement (outils de mesure)
@@ -976,11 +976,26 @@ static func _semis_poser(k: DonjonKit, m: Dictionary, ctx: Dictionary, f: String
 	var mods: Array = fam[0]
 	var r: RandomNumberGenerator = ctx["r"]
 	var nom: String = mods[r.randi_range(0, mods.size() - 1)]
-	d.modele(nom, Vector3(p.x, float(ctx["y_sol"]), p.z), lacet, Vector3.ONE, SEMIS_MATS, false)
+	var ech := Vector3.ONE * (r.randf_range(1.15, 1.5) if f == "eclats" else r.randf_range(0.9, 1.1))      # éclats : lisibles à 480x270
+	d.modele(nom, Vector3(p.x, float(ctx["y_sol"]), p.z), lacet, ech, SEMIS_MATS, false)
 	(ctx["poses"] as Array).append([q, rr])
 	semis_poses += 1
+	if OS.get_cmdline_user_args().has("--semis-liste"):      # outil : positions (repère du décor) pour cadrer les captures
+		var pw := d.xf * Vector3(p.x, float(ctx["y_sol"]), p.z)
+		print("SEMIS %s %s %.2f,%.2f,%.2f" % [m["id"], nom, pw.x, pw.y, pw.z])
 	ctx["n"] = int(ctx["n"]) + 1
 	return true
+
+## Grappe d'éclats (C5) : 1 à 3 éclats de plus autour d'un éclat posé au pied du mur — la pierre tombée se lit en « coulée » et non en
+## cailloux isolés. Mêmes règles d'emprise que tout le semis (passages, accroches, piliers).
+const SEMIS_GRAPPE := 0.7          # probabilité qu'un éclat au mur ait des voisins
+static func _semis_grappe(k: DonjonKit, m: Dictionary, ctx: Dictionary, c: String, a: float, y: float, ret: float) -> void:
+	var r: RandomNumberGenerator = ctx["r"]
+	if r.randf() > SEMIS_GRAPPE:
+		return
+	for j in r.randi_range(1, 3):
+		var da := r.randf_range(0.42, 0.65) * (1.0 if r.randf() < 0.5 else -1.0)
+		_semis_poser(k, m, ctx, "eclats", k.pt_mur(m, c, a + da, y, ret + r.randf_range(-0.05, 0.4)), r.randf() * TAU)
 
 ## Semis d'un module (salle auto : fin de finir() ; couloir auto : fin de couloir()). obst : abscisses occupées par mur (piliers inclus).
 static func semis(k: DonjonKit, m: Dictionary, obst: Dictionary) -> void:
@@ -1016,10 +1031,14 @@ static func semis(k: DonjonKit, m: Dictionary, obst: Dictionary) -> void:
 					if couloir:
 						ret = 0.34 + rr + r.randf() * 0.12
 					var lac := lac_mur + r.randf_range(-0.5, 0.5) + (PI if r.randf() < 0.5 else 0.0)
-					if not _semis_poser(k, m, ctx, f, k.pt_mur(m, c, a, y, ret), lac):
+					var ok := _semis_poser(k, m, ctx, f, k.pt_mur(m, c, a, y, ret), lac)
+					if not ok:
 						# au pied d'un pilier engagé ou d'un meuble adossé : un peu plus loin du mur, ou un peu à côté
-						if not _semis_poser(k, m, ctx, f, k.pt_mur(m, c, a, y, ret + 0.45), lac) and not couloir:
-							_semis_poser(k, m, ctx, f, k.pt_mur(m, c, a + r.randf_range(-0.5, 0.5), y, ret + 0.2), lac)
+						ok = _semis_poser(k, m, ctx, f, k.pt_mur(m, c, a, y, ret + 0.45), lac)
+						if not ok and not couloir:
+							ok = _semis_poser(k, m, ctx, f, k.pt_mur(m, c, a + r.randf_range(-0.5, 0.5), y, ret + 0.2), lac)
+					if ok and f == "eclats":
+						_semis_grappe(k, m, ctx, c, a, y, ret)
 				a += r.randf_range(0.8, 1.7) / dens
 	# --- angles : 2 à 4 objets serrés dans chaque coin
 	if not couloir:
