@@ -89,12 +89,13 @@ void fragment() {
 	float braise = step(0.93, b) * clamp(hloc * 1.4 + carbo * min(chaleur * 2.5, 1.0), 0.0, 1.0) * palp;
 	// contour rougeoyant (bord de la silhouette vue de l'œil), côté chaud
 	float bord = 1.0 - abs(normalize(n_vue).z);
-	float contour = step(0.7, bord) * chaleur * (0.3 + 0.7 * face);
-	a_lum = max(a_lum, max(braise, contour * 0.67));
-	t = max(t, braise * 0.6);
-	a_lum = ceil(clamp(a_lum, 0.0, 0.67) * 3.0 - 0.05) / 3.0;
+	// (2026-10-28, intensité) contour plus large et plus vif, côté chaud : la silhouette se lit DANS les flammes
+	float contour = (step(0.62, bord) * 0.75 + step(0.8, bord) * 0.25) * chaleur * (0.35 + 0.65 * face);
+	a_lum = max(a_lum, max(braise, contour * 0.85));
+	t = max(t, max(braise * 0.6, contour * step(0.8, bord) * 0.75));
+	a_lum = ceil(clamp(a_lum, 0.0, 0.8) * 3.0 - 0.05) / 3.0;
 	// jamais d'aplat clair : au plus de l'orange (le blanc-jaune est réservé au cœur de la coque, dans la couche fine)
-	vec3 lum = palette(clamp(t * 0.7 + 0.1, 0.0, 0.8)) * eclat * a_lum * 0.75;
+	vec3 lum = palette(clamp(t * 0.75 + 0.12, 0.0, 0.8)) * eclat * a_lum * 0.9;
 	// carbonisation : taches sombres (jamais un aplat : le motif du corps reste lisible)
 	float tache = h3(floor(p_obj * cases * 0.3) + 11.0);
 	float a_noir = carbo * (0.25 + 0.45 * step(0.4, tache)) * (0.45 + 0.55 * face);

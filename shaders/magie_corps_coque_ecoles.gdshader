@@ -137,27 +137,29 @@ void fragment() {
 		// plaques et sur la tranche de la silhouette
 		float arete = 1.0 - smoothstep(0.0, 0.07, abs(plaque - 0.47));
 		float t = lum * 0.55 + pointe * 0.45 + step(0.78, bord) * 0.25 + arete * 0.35;
-		if (t > 0.9) {
+		// (2026-10-28, intensité) un palier plus clair : la croûte se lit sur le corps dans la pénombre
+		if (t > 0.84) {
 			c = vec3(0.86, 0.94, 1.0);
-		} else if (t > 0.68) {
+		} else if (t > 0.62) {
 			c = vec3(0.48, 0.7, 0.92);
 		} else if (t > 0.45) {
 			c = vec3(0.24, 0.45, 0.78);
 		} else {
 			c = vec3(0.11, 0.2, 0.42);
 		}
-		a = pointe > 0.05 ? 0.85 : 0.35;
-		c *= eclat * 0.85;
+		a = pointe > 0.05 ? 0.88 : 0.5;
+		c *= eclat * 1.0;
 	} else if (ecole == 1) {
 		float v = bruit(q * vec3(9.0, 9.0, 9.0) + vec3(0.0, -TIME * 2.0, 0.0));
 		float i = m_v * (v * 1.4 - 0.3) * (0.2 + 0.8 * max(pointe, smoothstep(0.45, 0.9, bord)));
 		if (i <= 0.14) {
 			discard;
 		}
-		if (i > 0.7) {
-			c = vec3(0.75, 0.45, 1.0);   // liseré violet clair
-		} else if (i > 0.5) {
-			c = vec3(0.42, 0.13, 0.66);
+		// (2026-10-28, intensité) paliers violets plus tôt : volutes lisibles, pas une fumée noire
+		if (i > 0.62) {
+			c = vec3(0.8, 0.5, 1.0);   // liseré violet clair
+		} else if (i > 0.42) {
+			c = vec3(0.5, 0.17, 0.78);
 		} else if (i > 0.3) {
 			c = vec3(0.12, 0.04, 0.19);
 		} else {

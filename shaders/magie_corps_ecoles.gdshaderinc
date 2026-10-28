@@ -50,13 +50,15 @@ void voile_ecoles(vec3 p_monde, vec3 p_obj, vec3 n_monde, vec3 n_vue, float case
 		m *= mix(0.35, 1.0, smoothstep(0.3, 0.6, pl + n_monde.y * 0.15));
 		// dessus des formes (épaules, casque) plus blanc : le givre se dépose
 		float dessus = clamp(n_monde.y * 0.5 + 0.5, 0.0, 1.0);
-		float ag = m * (0.16 + 0.16 * dessus + 0.12 * step(0.7, bord));
+		// (2026-10-28, intensité) givre plus couvrant et plus clair, liseré blanc-bleu sur le bord de la silhouette
+		float ag = m * (0.3 + 0.22 * dessus + 0.2 * step(0.7, bord));
 		ag = floor(ag * 4.0 + 0.25) / 4.0;
-		vec3 c = mix(vec3(0.3, 0.42, 0.56), vec3(0.6, 0.74, 0.88), step(0.5, dessus + bord * 0.4));
+		vec3 c = mix(vec3(0.46, 0.62, 0.78), vec3(0.8, 0.91, 1.0), step(0.5, dessus + bord * 0.4));
 		// éclats de cristal : cases rares, blanc pur, qui scintillent
 		float sc = e_h3(qc + floor(t * 3.0) * 0.37);
-		float eclat_g = step(0.965, sc) * step(0.4, m);
-		add += c * ag * 0.75 + vec3(0.85, 0.95, 1.0) * eclat_g * 0.6;
+		float eclat_g = step(0.95, sc) * step(0.4, m);
+		float liser = step(0.78, bord) * step(0.3, m) * 0.5;
+		add += c * ag * 0.9 + vec3(0.85, 0.95, 1.0) * eclat_g * 0.85 + vec3(0.62, 0.84, 1.0) * liser * gel;
 		a = max(a, ag * 0.85);
 	}
 	// ---------------------------------------------------------------- CHOC : contour qui crépite, veines bleues, traces
@@ -85,19 +87,24 @@ void voile_ecoles(vec3 p_monde, vec3 p_obj, vec3 n_monde, vec3 n_vue, float case
 	float om = mc_ecoles.z;
 	if (om > 0.002) {
 		float palp = 0.75 + 0.25 * sin(t * 5.0);
-		float contour = step(0.66, bord) * om * palp;
+		// (2026-10-28, intensité) contour plus large et lueur violette DANS le corps (la vie qu'on arrache), en paliers
+		float contour = (step(0.58, bord) * 0.7 + step(0.82, bord) * 0.3) * om * palp;
 		contour = ceil(contour * 3.0 - 0.05) / 3.0;
-		add += mix(vec3(0.35, 0.1, 0.54), vec3(0.82, 0.54, 1.0), step(0.9, bord)) * contour;
+		add += mix(vec3(0.42, 0.12, 0.66), vec3(0.86, 0.6, 1.0), step(0.85, bord)) * contour * 1.2;
+		float interne = floor(om * palp * (0.35 + 0.4 * bord) * 3.0 + 0.2) / 3.0;
+		add += vec3(0.2, 0.05, 0.34) * interne;
 		// lueur violette au point d'où la vie est arrachée (paliers, palpite)
 		// (bord rongé par le bruit en cases : jamais une tache ronde)
-		float pres = exp(-(di * di) / 0.05) * om * palp * step(0.42, e_bruit(qc * 0.6 + vec3(0.0, -t * 2.0, 0.0)));
+		float pres = exp(-(di * di) / 0.09) * om * palp * step(0.42, e_bruit(qc * 0.6 + vec3(0.0, -t * 2.0, 0.0)));
 		float ap2 = floor(pres * 3.0) / 3.0;
-		add += mix(vec3(0.36, 0.1, 0.6), vec3(0.8, 0.55, 1.0), step(0.6, ap2)) * ap2 * 0.7;
+		add += mix(vec3(0.42, 0.12, 0.7), vec3(0.86, 0.6, 1.0), step(0.6, ap2)) * ap2 * 0.9;
 		float v = e_bruit(p_obj * 7.0 + vec3(0.0, -t * 1.5, 0.0));
 		float veine = step(0.88, 1.0 - abs(v * 2.0 - 1.0)) * om;
 		float av = floor(veine * 3.0 + 0.3) / 3.0 * 0.5;
-		add += vec3(0.05, 0.01, 0.08) * av;
-		a = max(a, av);
+		// veines : sombres, une sur deux luit (violet) — elles se voient sur la lueur interne
+		float vl = step(0.5, e_bruit(p_obj * 2.0 + vec3(t * 0.7)));
+		add += mix(vec3(0.05, 0.01, 0.08), vec3(0.55, 0.22, 0.9), vl) * av;
+		a = max(a, av * (1.0 - vl * 0.5));
 	}
 	if (paleur > 0.004) {
 		// la victime pâlit : mélange vers un gris froid (jamais un aplat : 40 % au plus)
