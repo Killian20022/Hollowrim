@@ -26,7 +26,7 @@ static var _anciens := -1
 ## retouches de la variante (teinte, arme, couronne…) sur la copie. Remplis par prechauffer() au chargement (fil d'exécution) ou à la demande.
 static var _modeles := {}
 static var _mx := Mutex.new()              # protège le dictionnaire
-static var _bm := Mutex.new()              # un seul constructeur de corps à la fois (les archétypes ont des états statiques)
+static var _bm := Mutex.new()              # un seul constructeur de corps à la fois (les archétypes ont des états statiques) ; pris par FilVerrou.verrouiller
 ## Pics d'apparition (2026-10-27) : la copie d'une variante coûtait encore 6-14 ms PAR ennemi au moment où il apparaît (2 par passage
 ## des zones : images de 35-85 ms en entrant dans la crypte). Les copies des prochains ennemis sont donc faites D'AVANCE, une par image
 ## (preparer, fil principal : les teintes clonées touchent Palette), puis rendues par creer() : ident -> [choix, Node3D hors arbre].
@@ -209,7 +209,7 @@ static func _preparer_ia(nom: String, ident: String) -> void:
 	_mx.unlock()
 	if deja:
 		return
-	_bm.lock()
+	FilVerrou.verrouiller(_bm)
 	var n := _fabriquer_ia(nom)
 	_bm.unlock()
 	if n == null:
@@ -280,7 +280,7 @@ static func _gabarit(cle: String, fab: Callable) -> Node3D:
 	_mx.unlock()
 	if g != null:
 		return g
-	_bm.lock()
+	FilVerrou.verrouiller(_bm)      # fil principal : vide la file du serveur de rendu en attendant (le fil des ennemis peut tenir _bm)
 	_mx.lock()
 	g = _modeles.get(cle)
 	_mx.unlock()

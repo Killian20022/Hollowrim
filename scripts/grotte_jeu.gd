@@ -119,6 +119,10 @@ func _preparer_ennemis(max_n: int) -> void:
 func _lancer_prechauffe() -> void:
 	if EnnemisNordiques.anciens():
 		return
+	_tache_en = EnnemisNordiques.lancer_prechauffe(specs_ennemis())
+
+## Specs des ennemis de la grotte préparés d'avance ; aussi pour les tests (outils/test_gel_cache_persos.gd).
+func specs_ennemis() -> Array:
 	var specs: Array = []
 	for a: Dictionary in _file:
 		var e: Dictionary = a["d"]
@@ -136,7 +140,7 @@ func _lancer_prechauffe() -> void:
 		var sp := EnnemisNordiques.spec_depuis_options(String(e.get("type", "sbire")) if boss == "" else "sbire", opts)
 		if not sp.is_empty():
 			specs.append(sp)
-	_tache_en = EnnemisNordiques.lancer_prechauffe(specs)
+	return specs
 
 ## Modèles prêts ? (`attendre` : on bloque jusqu'à la fin du fil.)
 func _ennemis_prets(attendre := false) -> bool:

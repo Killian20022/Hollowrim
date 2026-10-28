@@ -35,6 +35,20 @@ static func attendre(tache: int) -> void:
 			OS.delay_usec(500)
 	WorkerThreadPool.wait_for_task_completion(tache)
 
+## Prise d'un verrou partagé avec des fils de construction SANS interblocage (correctifs/gel_cache_persos, 2026-10-28). Un fil qui bâtit
+## un corps garde son verrou (EnnemisNordiques._bm, SqueletteGuerrier._mx) pendant des appels au serveur de rendu qui attendent une
+## réponse (surface_get_arrays…) ; avec une fenêtre, SEUL le fil principal vide la file de ces appels. Un lock() nu du fil principal
+## sur ce verrou (corps demandé pendant que le fil de préparation des ennemis tourne : draugr du cercle, gardiens, outils) le figeait
+## donc pour toujours : le fil attendait le fil principal, qui attendait le verrou (chargement figé après « Donjon : intégré »).
+## Sur le fil principal avec fenêtre, on vide la file en attendant (comme attendre) ; ailleurs (fils, --headless), lock() nu.
+static func verrouiller(m: Mutex) -> void:
+	if fil_principal() and DisplayServer.get_name() != "headless":
+		while not m.try_lock():
+			RenderingServer.force_sync()
+			OS.delay_usec(200)
+		return
+	m.lock()
+
 ## Appel réservé au fil principal : tout de suite si on y est, sinon différé (call_deferred, ignoré si l'objet a été libéré entre-temps).
 ## Sert aux affectations qui compilent un shader de matériau intégré (StandardMaterial3D / ParticleProcessMaterial neufs : get_rid →
 ## _update_shader → compilation par tâches de groupe du WorkerThreadPool). Faite depuis un fil de construction pendant le chargement
