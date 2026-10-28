@@ -56,6 +56,7 @@ var acces: Node3D                       # GrotteAcces (monde, joueur, dialogue, 
 var g: Grotte
 var prefixe := "grotte"
 var interactifs := {}                   # id -> nœud Interactif
+var couvercles := {}                    # L1 : id du coffre -> CoffreCouvercle (ouvert = quetes.vus["<pref>:<id>"])
 var ennemis := {}                       # id -> CharacterBody3D (apparus)
 var _file: Array = []                   # accroches d'ennemis pas encore apparues
 var _lieux: Array = []
@@ -168,6 +169,12 @@ func _etat() -> void:
 		var cle: String = it.get_meta("cle_etat", "")
 		if cle != "" and vus.has(cle):
 			it.actif = false
+	for id: String in couvercles:      # L1 : coffre déjà vidé (partie chargée) = ouvert ; refermé sinon (mort avant la bourse)
+		var c: CoffreCouvercle = couvercles[id]
+		if vus.has("%s:%s" % [prefixe, id]):
+			c.ouvrir(true)
+		elif c.ouvert:
+			c.fermer()
 
 func _interactif(pos: Vector3, nom: String, verbe: String, action: Callable, condition := Callable(), unique := true, rayon := 2.3) -> Node3D:
 	var it := Node3D.new()
@@ -204,6 +211,10 @@ func _coffre(a: Dictionary) -> void:
 	it.set_meta("cle_etat", cle)
 	it.set_meta("genre", "coffre")
 	interactifs[id] = it
+	var c := CoffreCouvercle.creer(g.decor, a.get("couvercle", {}))
+	if c != null:
+		g.add_child(c)
+		couvercles[id] = c
 
 func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
 	acces.quetes.signaler("%s:%s" % [prefixe, id])
@@ -215,6 +226,8 @@ func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
 	b.set_meta("coffre", id)
 	g.add_child(b)
 	b.position = lieu + Vector3(0, 0.75, 0)
+	if couvercles.has(id):          # L1 : le couvercle bascule, une lueur chaude s'échappe
+		(couvercles[id] as CoffreCouvercle).ouvrir()
 	Sons.jouer_a(g, ["doorOpen_1", "handleCoins"], g.to_global(lieu), -2.0)
 	return []
 

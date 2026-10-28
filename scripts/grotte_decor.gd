@@ -1099,12 +1099,13 @@ func boite(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0, sans_des
 	super.boite(nom, centre, taille, lacet, sans_dessous, decal)
 
 # ------------------------------------------------------------------ pièces de CrypteDecor posées par les règles de pose
-func coffre(pos: Vector3, lacet := 0.0, collision := true) -> void:
+func coffre(pos: Vector3, lacet := 0.0, collision := true, deux_pieces := false) -> Dictionary:
 	var pz := pose_objet(pos, 0.47, 0.3, lacet, 0.64, INCLINE, 0.35)
 	var x0 := _incliner(pz)
-	super.coffre(pz["p"], lacet, collision)
+	var info := super.coffre(pz["p"], lacet, collision, deux_pieces)      # L1 : repère du couvercle pris SOUS l'inclinaison de la pose
 	xf = x0
 	_empreinte(pz["p"], 0.45, 0.64)
+	return info
 
 func tonneau(pos: Vector3, e := 1.0) -> void:
 	var pz := pose_objet(pos, 0.38 * e, 0.38 * e, 0.0, e, INCLINE, 0.5, 0.45, true)

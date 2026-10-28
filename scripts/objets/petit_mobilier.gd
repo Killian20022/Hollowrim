@@ -20,16 +20,56 @@ static func lacet_pos(dcr: CrypteDecor, pos: Vector3) -> float:
 	var w := dcr.xf * pos
 	return fposmod(w.x * 2.39 + w.z * 3.17, TAU)
 
-static func coffre(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, collision := true) -> void:
+## Lot L1 : `deux_pieces` = coffre qui s'OUVRE (coffres interactifs de la crypte et de la grotte) : la cuve « coffre_cuve_x » (avec son or)
+## est fondue dans les tampons comme avant, le couvercle « coffre_couvercle_x » est rendu à part (CoffreCouvercle) : renvoie
+## {"modele", "xf" (charnière, repère du décor), "lueur" (intérieur de la cuve, repère du décor), "angle"} ; {} sinon (ou décor muet).
+## Même variante, mêmes emprise, écart au mur, collision et tirages qu'un coffre d'une pièce.
+static func coffre(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, collision := true, deux_pieces := false) -> Dictionary:
 	dcr.j0("coffre", lacet)
 	pos = dcr._ecarter(pos, Vector2(0.47, 0.3), lacet)
 	dcr.emprise("coffre", pos, Vector2(0.47, 0.3), lacet, 0.64)
 	var b := Basis(Vector3.UP, lacet)
-	dcr.modele("coffre_" + variante(dcr, pos), pos, lacet, Vector3.ONE, {}, false)
+	var v := variante(dcr, pos)
+	var info := {}
+	if deux_pieces:
+		dcr.modele("coffre_cuve_" + v, pos, lacet, Vector3.ONE, {}, false)
+		info = _couvercle(dcr, "coffre_couvercle_" + v, pos, lacet, CHARNIERE[v], 0.42)
+	else:
+		dcr.modele("coffre_" + v, pos, lacet, Vector3.ONE, {}, false)
 	if collision:
 		var s := b * Vector3(0.9, 0, 0.56)
 		dcr.solide(pos + Vector3(0, 0.3, 0), Vector3(absf(s.x), 0.6, absf(s.z)))
 	dcr.j1()
+	return info
+
+## Lot L1 : GRAND COFFRE ROYAL (1,2 x 0,7 m, 0,86 m couvercle compris), toujours en deux pièces (trésor du jarl, salle du trône).
+static func coffre_royal(dcr: CrypteDecor, pos: Vector3, lacet := 0.0) -> Dictionary:
+	dcr.j0("coffre", lacet)
+	pos = dcr._ecarter(pos, Vector2(0.62, 0.38), lacet)
+	dcr.emprise("coffre", pos, Vector2(0.62, 0.38), lacet, 0.86)
+	var b := Basis(Vector3.UP, lacet)
+	dcr.modele("coffre_royal_cuve", pos, lacet, Vector3.ONE, {}, false)
+	var info := _couvercle(dcr, "coffre_royal_couvercle", pos, lacet, CHARNIERE["royal"], 0.56)
+	var s := b * Vector3(1.22, 0, 0.74)
+	dcr.solide(pos + Vector3(0, 0.36, 0), Vector3(absf(s.x), 0.72, absf(s.z)))
+	dcr.j1()
+	return info
+
+## Charnière (y, z) de chaque couvercle : mêmes valeurs que CHARNIERE de sources_blender/scripts/objets_donjon.py.
+const CHARNIERE := {"a": Vector2(0.445, -0.29), "b": Vector2(0.44, -0.29), "c": Vector2(0.44, -0.30), "royal": Vector2(0.56, -0.36)}
+
+## Repère du couvercle (charnière) dans le repère du décor ; le couvercle OUVERT entre au registre d'audit de l'objet en cours
+## (outils/audit_interpenetrations : un couvercle levé ne doit entrer ni dans le mur ni dans un voisin).
+static func _couvercle(dcr: CrypteDecor, nom: String, pos: Vector3, lacet: float, ch: Vector2, y_lueur: float) -> Dictionary:
+	if dcr.muet:
+		return {}
+	var b := Basis(Vector3.UP, lacet)
+	var xf_c: Transform3D = dcr.xf * Transform3D(b, pos + b * Vector3(0, ch.x, ch.y))
+	var info := {"modele": nom, "xf": xf_c, "lueur": dcr.xf * (pos + Vector3(0, y_lueur, 0)), "angle": CoffreCouvercle.ANGLE}
+	if dcr._obj_n > 0:
+		var ouvert := xf_c * Transform3D(Basis(Vector3.RIGHT, -CoffreCouvercle.ANGLE), Vector3.ZERO)
+		dcr._obj_v.append_array(ouvert * dcr.sommets_modele(nom))
+	return info
 
 static func bougie(dcr: CrypteDecor, pos: Vector3, avec_lumiere := true) -> void:
 	if ObjLuminaires.bougie_c6(dcr, pos, avec_lumiere):      # C6 : une bougie sur deux de la crypte devient une grappe

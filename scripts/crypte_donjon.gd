@@ -206,7 +206,7 @@ func plan() -> Array:
 		"ennemis": [_e("cr_tresor_8", "guerrier", Vector3(-41.0, 0, -41.2), 0.0, true, true)],
 		"coffres": [{"id": "cof_tresor1", "pos": Vector3(-44.2, 0, -41.3), "lacet": PI * 0.5, "nom": "Coffre du jarl", "butin": {"pieces": 120, "lame_antique": 1, "table": "coffre_crypte_riche"}},
 			{"id": "cof_tresor2", "pos": Vector3(-44.2, 0, -46.7), "lacet": PI * 0.5, "nom": "Coffre du jarl", "butin": {"pieces": 90, "poussiere_tombe": 3, "table": "coffre_crypte_riche"}},
-			{"id": "cof_tresor3", "pos": Vector3(-42.0, 0, -44.0), "lacet": PI * 0.5, "nom": "Grand coffre", "butin": {"pieces": 160, "lame_antique": 2, "os_draugr": 3, "table": "coffre_crypte_riche"}}]}))
+			{"id": "cof_tresor3", "pos": Vector3(-42.0, 0, -44.0), "lacet": PI * 0.5, "nom": "Grand coffre", "style": "royal", "butin": {"pieces": 160, "lame_antique": 2, "os_draugr": 3, "table": "coffre_crypte_riche"}}]}))
 
 	# ============================================================ AILE EST : sceau du Givre
 	r.append(_cl("g0", Vector2(12, -29.7), 10.0, 1, 3.2, "givre", 21, "prep", "g1"))
@@ -251,7 +251,7 @@ func plan() -> Array:
 			_e("cr_g4_mage", "mage", Vector3(55.0, 0, -23.3), -PI * 0.5, false, true, {"ia": "mage_nordique"})],
 		"coffres": [{"id": "cof_g4a", "pos": Vector3(57.9, 0, -36.8), "lacet": -PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 58, "lame_antique": 1, "table": "coffre_crypte"}},
 			{"id": "cof_g4b", "pos": Vector3(57.9, 0, -23.2), "lacet": -PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 44, "os_draugr": 2, "table": "coffre_crypte"}},
-			{"id": "cof_jarl", "pos": Vector3(57.9, 0, -34.3), "lacet": -PI * 0.5, "nom": "Coffre du Jarl", "butin": {"hache_kolbeinn": 1, "pieces": 80, "table": "coffre_boss"}}]}))
+			{"id": "cof_jarl", "pos": Vector3(57.9, 0, -34.3), "lacet": -PI * 0.5, "nom": "Coffre du Jarl", "style": "royal", "butin": {"hache_kolbeinn": 1, "pieces": 80, "table": "coffre_boss"}}]}))
 	r.append(_es("d1", Vector2(21, -40), 2, 0.0, B, 12.0, "g1", "lb1"))
 
 	# ============================================================ ÉTAGE −1 : sceau de l'Eau

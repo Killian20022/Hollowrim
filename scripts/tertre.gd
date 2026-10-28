@@ -42,6 +42,7 @@ var _tache_en := -1                 # fil de préparation des modèles d'ennemis
 var salles: SalleActive             # salle active du donjon : ennemis gelés / décor caché hors de la salle courante et de ses voisines
 var _cont: Node3D
 var _inter := {}                    # id -> interactif du donjon
+var _couvercles := {}               # L1 : id du coffre -> CoffreCouvercle (coffres qui s'ouvrent ; ouvert = quetes.vus["crypte:<id>"])
 var _file_gardiens: Array = []
 const BUDGET_POSE_US := 1500        # pose étalée du donjon : ≤ 1,5 ms par image
 const BUDGET_POSE_NOIR_US := 8000   # pendant le fondu au noir de l'entrée (écran noir) : on pose plus vite, sans figer l'image
@@ -400,6 +401,12 @@ func _etat_donjon() -> void:
 		var it: Node3D = _inter[id]
 		if it.get_meta("genre_donjon", "") == "coffre" and quetes.vus.has("crypte:" + id):
 			it.actif = false
+	for id in _couvercles:          # L1 : couvercles ouverts d'un coup si le coffre est déjà vidé (partie chargée), refermés sinon
+		var c: CoffreCouvercle = _couvercles[id]
+		if quetes.vus.has("crypte:" + id):
+			c.ouvrir(true)
+		elif c.ouvert:
+			c.fermer()
 	for id in ["s1", "s2"]:
 		if quetes.vus.has("crypte:" + id) and donjon.portes.has(id):
 			(donjon.portes[id] as Node3D).position.y = 3.2
@@ -480,6 +487,12 @@ func _creer_interaction(it: Dictionary) -> void:
 	var n := _interactif(crypte, it["pos"], it["nom"], it["verbe"], action, cond, genre == "coffre")
 	n.set_meta("genre_donjon", genre)
 	_inter[id] = n
+	var cv: Dictionary = it.get("couvercle", {})
+	if not cv.is_empty():           # L1 : couvercle du coffre, sous le nœud du donjon (classé par salle avec le reste du décor)
+		var c := CoffreCouvercle.creer(d2, cv)
+		if c != null:
+			_cont.add_child(c)
+			_couvercles[id] = c
 
 func _ouvrir_porte(id: String) -> Array:
 	quetes.signaler("crypte:" + id)
@@ -530,6 +543,8 @@ func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
 	b.set_meta("coffre", id)         # pour rendre le coffre si le joueur meurt avant d'avoir ramassé la bourse
 	crypte.add_child(b)
 	b.position = lieu + Vector3(0, 0.7, 0)
+	if _couvercles.has(id):         # L1 : le couvercle bascule, une lueur chaude s'échappe
+		(_couvercles[id] as CoffreCouvercle).ouvrir()
 	Sons.jouer_a(self, ["doorOpen_1", "handleCoins"], crypte.to_global(lieu), -2.0)
 	return []
 

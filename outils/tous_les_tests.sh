@@ -85,6 +85,7 @@ TESTS=(
 	"test_menu_titre|--nouvelle"   # menu principal : Continuer grisé sans sauvegarde valide, parcours au clavier, mise en page
 	"test_sortie|--nouvelle"   # sortie Hollowrim : migration, copie de secours, options (dossiers temporaires)
 	"test_sauvegarde|ecrire;verifier"   # deux processus à la suite
+	"test_coffre_l1|ecrire;verifier"   # lot L1 : coffres en deux pièces, ouverture animée (S + rebond, 0,5 s), lueur brève, ouvert après rechargement, refermé à la mort (crypte + grotte)
 )
 # tests dont le résultat dépend du pas de physique : lancés en temps réel (test_ragdoll : OK aussi en --fixed-fps depuis la correction du signe des limites de charnière, 10/10 sous charge ; gardé en temps réel par prudence)
 TEMPS_REEL="test_ragdoll test_mort_ragdoll"

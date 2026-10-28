@@ -1575,8 +1575,13 @@ func brasero(pos: Vector3, froid := false) -> void:  # froid : lumière bleue (i
 func sarcophage(pos: Vector3, taille: Vector3, lacet := 0.0, collision := true) -> void:
 	ObjPierreStatuaire.sarcophage(self, pos, taille, lacet, collision)
 
-func coffre(pos: Vector3, lacet := 0.0, collision := true) -> void:
-	ObjPetitMobilier.coffre(self, pos, lacet, collision)
+## L1 : deux_pieces = coffre qui s'ouvre (renvoie le couvercle à poser à part, voir ObjPetitMobilier.coffre).
+func coffre(pos: Vector3, lacet := 0.0, collision := true, deux_pieces := false) -> Dictionary:
+	return ObjPetitMobilier.coffre(self, pos, lacet, collision, deux_pieces)
+
+## L1 : grand coffre royal (toujours en deux pièces).
+func coffre_royal(pos: Vector3, lacet := 0.0) -> Dictionary:
+	return ObjPetitMobilier.coffre_royal(self, pos, lacet)
 
 func bougie(pos: Vector3, avec_lumiere := true) -> void:
 	ObjPetitMobilier.bougie(self, pos, avec_lumiere)
@@ -2379,6 +2384,15 @@ func maillage_modele(nom: String, ech := Vector3.ONE, mats := {}) -> MeshInstanc
 	mi.name = nom
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mi
+
+## L1 : sommets d'un module Blender (toutes matières, repère du module) : couvercle ouvert compté par l'audit des interpénétrations.
+func sommets_modele(nom: String) -> PackedVector3Array:
+	_charger_modeles()
+	var r := PackedVector3Array()
+	for m: String in _modeles_de.get(nom, []):
+		if m != "pts":
+			r.append_array((_modele_cache("%s__%s" % [nom, m], 1.0, false))["v"] as PackedVector3Array)
+	return r
 
 ## Givre au sol en décalque irrégulier (texture « givre_sol », alpha découpé) : remplace les plaques de neige du sol.
 func givre_decal(centre: Vector3, taille: Vector2, lacet := 0.0) -> void:
