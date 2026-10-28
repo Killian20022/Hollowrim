@@ -12,6 +12,9 @@
 #                 suspension à nœuds, anneau d'accroche à +0,55 ; points de flamme dans « pts »
 #   candelabre_l8 candélabre à pied (1,45 m) : pieds en volute, fût à nœuds, bobèche, bras courbes ; points de flamme dans « pts »
 #   brasero_trepied  brasero de fer de la grotte : trépied à pieds enroulés et cerclage, vasque rivetée à oreilles (0,44 m de rayon)
+#   bougies_grappe_3 / _5 / _9  (lot C6, 2026-10-28) grappe de bougies de suif posée sur sa flaque de cire : hauteurs 4 à 22 cm,
+#                 coulures en anneaux et larmes, mèches noires, chicots fondus ; points de flamme des bougies allumées dans « pts »
+#                 (ObjLuminaires.bougies_grappe : UNE seule lumière par grappe, celle de la bougie remplacée) ; arêtes C1 (aretes.py)
 # Les primitives (Module, occlusion cuite, conversion de repère) sont celles de crypte_modules_v2.py : le haut de ce fichier est
 # exécuté tel quel (jusqu'au marqueur « modules »), sans reconstruire crypte_v2.dat.
 import math, os, struct, sys
@@ -197,20 +200,190 @@ def brasero_trepied(nom):
     return M
 
 
+# ======================================================================= C6 (2026-10-28) : grappes de bougies
+def _tri(M, mat, a, b, c, ton, dehors):
+    """Triangle orienté (sens trigonométrique vu de `dehors`), comme ceux de Module._emettre."""
+    if (b - a).cross(c - a).length_squared < 1e-14:
+        return
+    if (b - a).cross(c - a).dot(dehors) < 0.0:
+        b, c = c, b
+    M.tris.append((mat, (a.copy(), b.copy(), c.copy()), ton))
+
+
+def _fut(M, c, profil, n, mat, ton, rot=0.0, cap=True, jit=0.0):
+    """Révolution SANS fond (posée dans la cire) : profil [(r, y)] de bas en haut, chapeau en éventail si `cap`."""
+    rg = M.rg
+    P = lambda r, y, k: c + Vector((math.cos(rot + math.tau * k / n) * r, y, math.sin(rot + math.tau * k / n) * r))
+    for i in range(len(profil) - 1):
+        (r0, y0), (r1, y1) = profil[i], profil[i + 1]
+        for k in range(n):
+            an = rot + math.tau * (k + 0.5) / n
+            d = Vector((math.cos(an) * (y1 - y0), r0 - r1, math.sin(an) * (y1 - y0)))
+            t = ton * (1.0 + rg.uniform(-jit, jit))
+            a, b, cc, dd = P(r0, y0, k), P(r0, y0, k + 1), P(r1, y1, k + 1), P(r1, y1, k)
+            if r0 > 1e-5:
+                _tri(M, mat, a, b, cc, t, d)
+            if r1 > 1e-5:
+                _tri(M, mat, a, cc, dd, t, d)
+    if cap and profil[-1][0] > 1e-5:
+        r, y = profil[-1]
+        for k in range(1, n - 1):
+            _tri(M, mat, P(r, y, 0), P(r, y, k), P(r, y, k + 1), ton, Vector((0, 1, 0)))
+
+
+def _flaque_cire(M, R, n=10):
+    """Flaque de cire figée : contour lobé (rayon R ± 30 %), bourrelet en biseau, dessus presque plat (cire à peine bombée)."""
+    rg = M.rg
+    rr = [R * rg.uniform(0.72, 1.12) for _ in range(n)]
+    for k in range(0, n, 3):
+        rr[k] *= rg.uniform(1.05, 1.25)          # lobes : coulées plus longues
+    bord = [Vector((math.cos(math.tau * k / n) * rr[k], 0.0015, math.sin(math.tau * k / n) * rr[k])) for k in range(n)]
+    haut = [Vector((p.x * 0.86, 0.009, p.z * 0.86)) for p in bord]
+    ctr = Vector((0, 0.012, 0))
+    for k in range(n):
+        a, b = bord[k], bord[(k + 1) % n]
+        c, d = haut[(k + 1) % n], haut[k]
+        o = (a + b) * 0.5
+        dehors = Vector((o.x, 0.6 * o.length, o.z))
+        _tri(M, "cire", a, b, c, 0.78, dehors)
+        _tri(M, "cire", a, c, d, 0.78, dehors)
+        _tri(M, "cire", d, c, ctr, 0.9, Vector((0, 1, 0)))
+
+
+def _bougie_c6(M, c, r, h, allumee):
+    """Bougie de suif à 6 pans : fût un peu conique, anneaux de coulure, cratère et lèvre fondue au sommet, larmes, mèche."""
+    rg = M.rg
+    ton = rg.uniform(0.84, 1.0)
+    rot = rg.uniform(0, math.tau)
+    prof = [(r * 1.08, 0.0)]
+    # anneaux de coulure : bourrelets de cire refroidie (la cire a coulé puis figé) ; deux sur les grandes bougies
+    for y in sorted(rg.uniform(0.25, 0.8) * h for _ in range(2 if h > 0.15 else (1 if h > 0.05 else 0))):
+        prof += [(r * 1.0, y - 0.01), (r * 1.24, y)]
+    lev = r * rg.uniform(1.06, 1.16) if h > 0.06 else r * 0.9     # lèvre fondue débordante
+    prof += [(r * 0.96, h - 0.008), (lev, h)]
+    _fut(M, c, prof, 6, "cire", ton, rot, cap=True, jit=0.03)
+    # larmes : cordons de cire qui descendent du sommet sur le fût, jusqu'à la flaque pour les plus longues
+    for _ in range(rg.randint(1, 2)):
+        a = rg.uniform(0, math.tau)
+        d = Vector((math.cos(a), 0, math.sin(a)))
+        tg = Vector((-d.z, 0, d.x))
+        y1 = h - 0.004
+        y0 = max(0.004, h * rg.uniform(0.0, 0.55))
+        rb = r * 1.0
+        w = rg.uniform(0.006, 0.01)
+        p = [c + d * rb + tg * w + Vector((0, y1, 0)), c + d * rb - tg * w + Vector((0, y1, 0)),
+             c + d * (rb + 0.007) + Vector((0, (y0 + y1) * 0.5, 0)),
+             c + d * rb + tg * w * 1.4 + Vector((0, y0, 0)), c + d * rb - tg * w * 1.4 + Vector((0, y0, 0))]
+        _tri(M, "cire", p[0], p[3], p[2], ton * 1.05, d + tg)
+        _tri(M, "cire", p[1], p[2], p[4], ton * 1.05, d - tg)
+        _tri(M, "cire", p[0], p[2], p[1], ton * 1.1, d + Vector((0, 1, 0)))
+        _tri(M, "cire", p[3], p[4], p[2], ton * 0.9, d - Vector((0, 1, 0)))
+    # mèche (noire, courbée) : prisme à 3 pans
+    hm = 0.016 if allumee else 0.011
+    m0 = c + Vector((0, h - 0.006, 0))
+    m1 = c + Vector((rg.uniform(-0.004, 0.004), h + hm, rg.uniform(-0.004, 0.004)))
+    for k in range(3):
+        a0, a1 = math.tau * k / 3, math.tau * (k + 1) / 3
+        e0 = Vector((math.cos(a0), 0, math.sin(a0))) * 0.0035
+        e1 = Vector((math.cos(a1), 0, math.sin(a1))) * 0.0035
+        dh = (e0 + e1)
+        _tri(M, "noir", m0 + e0, m0 + e1, m1 + e1 * 0.5, 1.0, dh)
+        _tri(M, "noir", m0 + e0, m1 + e1 * 0.5, m1 + e0 * 0.5, 1.0, dh)
+    if allumee:
+        M.pts.append(c + Vector((0, h + 0.012, 0)))
+
+
+def bougies_grappe(nom, n):
+    """Grappe de n bougies (3, 5 ou 9) sur une flaque de cire : hauteurs 4-22 cm (les hautes au centre), rayons 2,2-3,6 cm
+    (bougies agrandies : >= 3 px à 3 m, règle §3.5), allumées : 3 / 4 / 7 ; chicots fondus (sans mèche) dans la flaque."""
+    M = Module(nom, 361 + n)
+    rg = M.rg
+    R = {3: 0.08, 5: 0.11, 9: 0.155}[n]
+    allumees = {3: 3, 5: 4, 9: 7}[n]
+    _flaque_cire(M, R + 0.03, 9 if n < 9 else 12)
+    pos = []
+    essais = 0
+    while len(pos) < n and essais < 2000:
+        essais += 1
+        k = len(pos)
+        r = rg.uniform(0.022, 0.034) * (1.0 - min(0.3, essais / 2000.0))      # serré : rayons réduits si la place manque
+        if k == 0 and n > 3:
+            q = Vector((rg.uniform(-0.01, 0.01), 0, rg.uniform(-0.01, 0.01)))
+        else:
+            a = rg.uniform(0, math.tau)
+            d = rg.uniform(0.2, 1.0) ** 0.5 * (R - r)
+            q = Vector((math.cos(a) * d, 0, math.sin(a) * d))
+        if all((q - p).length > r + rp + 0.004 for p, rp in pos):
+            pos.append((q, r))
+    assert len(pos) == n, (nom, len(pos))
+    pos.sort(key=lambda e: e[0].length)
+    for i, (q, r) in enumerate(pos):
+        loin = q.length / max(R, 1e-3)
+        h = 0.22 - loin * 0.14 + rg.uniform(-0.03, 0.02)          # 4 à 22 cm : hautes au centre, basses au bord
+        h = max(0.04, min(0.22, h))
+        if i >= allumees:
+            h = max(0.04, h * 0.45)                                # bougies mortes : brûlées presque jusqu'à la cire
+        _bougie_c6(M, q + Vector((0, 0.006, 0)), r, h, i < allumees)
+    # chicots fondus : deux bosses de cire sans mèche dans la flaque (entre les bougies)
+    for _ in range(2 if n > 3 else 1):
+        for _e in range(30):
+            a = rg.uniform(0, math.tau)
+            q = Vector((math.cos(a), 0, math.sin(a))) * rg.uniform(0.5, 0.95) * R
+            if all((q - p).length > rp + 0.03 for p, rp in pos):
+                _fut(M, q + Vector((0, 0.006, 0)), [(0.022, 0.0), (0.016, 0.018), (0.006, 0.026)], 5, "cire", 0.85, rg.uniform(0, 6.3))
+                break
+    return M
+
+
+GRAPPES = (3, 5, 9)
+
+
 def construire_l8():
     return [maillon("maillon"), applique_fer("applique_fer"), lanterne_fer("lanterne_fer"), lustre_l8("lustre_l8", 8),
-            lustre_l8("lustre_l8_6", 6, leger=True), candelabre_l8("candelabre_l8"), brasero_trepied("brasero_trepied")]
+            lustre_l8("lustre_l8_6", 6, leger=True), candelabre_l8("candelabre_l8"), brasero_trepied("brasero_trepied")] + \
+           [bougies_grappe("bougies_grappe_%d" % n, n) for n in GRAPPES]
 
 
-def exporter_l8(mods):
+def _lire_dat(chemin):
+    """Entrées d'un .dat existant : { nom: [((p, p, p), (c, c, c)), ...] } (pour ne remplacer que certains modules)."""
+    d = {}
+    if not os.path.exists(chemin):
+        return d
+    b = open(chemin, "rb").read()
+    o = 4
+    for _ in range(struct.unpack_from("<I", b, 0)[0]):
+        nom = b[o + 1:o + 1 + b[o]].decode()
+        o += 1 + b[o]
+        nb = struct.unpack_from("<I", b, o)[0]
+        o += 4
+        fl = struct.unpack_from("<%df" % (nb * 7), b, o)
+        o += nb * 28
+        sv = [(Vector(fl[i * 7:i * 7 + 3]), tuple(fl[i * 7 + 3:i * 7 + 7])) for i in range(nb)]
+        d[nom] = [(tuple(q for q, _ in sv[j:j + 3]), tuple(c for _, c in sv[j:j + 3])) for j in range(0, nb, 3)]
+    return d
+
+
+def exporter_l8(mods, seulement=None):
+    """seulement = préfixe : les modules qui ne le portent pas gardent leurs triangles du .dat existant (la génération des lustres
+    n'est pas reproductible d'un lancement à l'autre : les lots suivants ne doivent pas les changer sans le vouloir)."""
     donnees = {}
+    if seulement:
+        ancien = _lire_dat(DAT_L8)
+        mods = [M for M in mods if M.nom.startswith(seulement) or not any(k.startswith(M.nom + "__") for k in ancien)]
+        for k, v in ancien.items():
+            if not k.startswith(seulement):
+                donnees[k] = v
+    st = {}
     for M in mods:
         res = M.finir()
+        if M.nom.startswith("bougies_grappe"):      # C6 : arête claire / pied sombre (lot C1) ; les luminaires L8 restent tels quels
+            res = aretes.appliquer(res, bandes="hautes", stats=st)
+        n_c6 = sum(len(f) for f in res.values())
         for mat, faces in res.items():
             donnees["%s__%s" % (M.nom, mat)] = faces
         if M.pts:
             donnees["%s__pts" % M.nom] = [((p, p, p), [(1, 1, 1, 1)] * 3) for p in M.pts]
-        print("  %-18s %5d tris" % (M.nom, len(M.tris)))
+        print("  %-18s %5d tris (%d apres aretes)" % (M.nom, len(M.tris), n_c6))
     with open(DAT_L8, "wb") as f:
         f.write(struct.pack("<I", len(donnees)))
         for nom, faces in donnees.items():
@@ -222,4 +395,6 @@ def exporter_l8(mods):
     print("luminaires L8 : %d modules ->" % len(mods), DAT_L8)
 
 
-exporter_l8(construire_l8())
+_args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+#   blender.exe -b --python luminaires.py -- seulement=bougies_grappe   (C6 : ne régénère que les grappes, garde le reste du .dat)
+exporter_l8(construire_l8(), next((a[10:] for a in _args if a.startswith("seulement=")), None))
