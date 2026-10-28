@@ -298,6 +298,10 @@ func _integrer_donjon() -> void:
 func _lancer_prechauffe() -> void:
 	if _tache_en >= 0 or EnnemisNordiques.anciens() or donjon == null:
 		return
+	_tache_en = EnnemisNordiques.lancer_prechauffe(specs_ennemis())
+
+## Specs de tous les ennemis du donjon préparés d'avance (gardiens + Svanhild) ; aussi pour les tests (outils/test_gel_cache_persos.gd).
+func specs_ennemis() -> Array:
 	var specs: Array = []
 	for g: Dictionary in donjon.gardiens:
 		if (g["extra"] as Dictionary).has("ia"):
@@ -311,7 +315,7 @@ func _lancer_prechauffe() -> void:
 		if not sp.is_empty():
 			specs.append(sp)
 	specs.append(EnnemisNordiques.spec_depuis_options("guerrier", {"boss": "svanhild", "ident": "svanhild"}))
-	_tache_en = EnnemisNordiques.lancer_prechauffe(specs)
+	return specs
 
 ## Les modèles d'ennemis sont-ils prêts ? `attendre` : on attend le fil s'il tourne encore (sinon on interroge seulement).
 func _ennemis_prets(attendre := false) -> bool:

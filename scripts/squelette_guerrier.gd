@@ -100,7 +100,7 @@ static func creer(options := {}) -> Node3D:
 
 ## Gabarit de la variante `arme` (construit une fois, hors de l'arbre ; sûr depuis un fil de chargement).
 static func gabarit(arme: String) -> Node3D:
-	_mx.lock()
+	FilVerrou.verrouiller(_mx)      # fil principal : vide la file du serveur de rendu si le fil des ennemis bâtit un gabarit (voir FilVerrou)
 	var g: Node3D = _gabarits.get(arme)
 	if g == null:
 		g = creer({"arme": arme})
@@ -134,7 +134,7 @@ static func arc() -> MeshInstance3D:
 	return mi
 
 static func vider() -> void:
-	_mx.lock()
+	FilVerrou.verrouiller(_mx)
 	for k: String in _gabarits:
 		if is_instance_valid(_gabarits[k]):
 			(_gabarits[k] as Node).free()

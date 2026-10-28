@@ -2,7 +2,7 @@
 # Enchaîne tous les outils/test_*.gd SANS FENÊTRE (--headless) et affiche un résumé OK/ÉCHEC + durée.
 #   bash outils/tous_les_tests.sh [motif]      ex. bash outils/tous_les_tests.sh dragon   (seulement test_*dragon*)
 #   Variables : GODOT (exécutable), TEMPS_MAX (secondes par test, défaut 240), AVEC_FENETRE=1 (ajoute les tests qui exigent
-#   une fenêtre : test_biome comparer), JOURNAUX=<dossier> (défaut captures/tests : un .log par test).
+#   une fenêtre : test_biome comparer, test_menus, test_gel_cache_persos), JOURNAUX=<dossier> (défaut captures/tests : un .log par test).
 # Verdict : code de sortie 0, aucune « SCRIPT ERROR » et aucun « ÉCHEC » (ni « ECHECS : n » avec n>0) dans la sortie.
 # --fixed-fps 60 : la simulation tourne aussi vite que possible (au lieu du temps réel : test_degats_sanctuaire > 240 s → ~55 s).
 # Tous les lancements portent des arguments (« -- … ») : le jeu écrit alors user://sauvegarde_test_<dossier>.json (un par worktree), jamais la vraie partie.
@@ -115,6 +115,18 @@ if [[ -n "${AVEC_FENETRE:-}" && ( -z "$MOTIF" || "test_menus" == *"$MOTIF"* ) ]]
 	d0=$SECONDS   # titre → nouvelle partie → pause → sauvegarde (+ copie de secours) → continuer → restaurer (4 lancements à fenêtre)
 	if bash "$ICI/outils/test_menus.sh" > "$LOGS/test_menus.log" 2>&1; then s="OK    "; nok=$((nok+1)); else s="ÉCHEC "; nko=$((nko+1)); fi
 	RES+=("$s test_menus (fenêtre, $((SECONDS-d0)) s)")
+fi
+if [[ -n "${AVEC_FENETRE:-}" && ( -z "$MOTIF" || "test_gel_cache_persos" == *"$MOTIF"* ) ]]; then
+	# gel du chargement après « Donjon : intégré » (correctifs/gel_cache_persos) : corps demandés sur le fil principal pendant le fil
+	# des ennemis ; 1er lancement = cache des corps rempli (corps des ennemis compris), 2e = relu par le fil. Figé = tué au délai.
+	# Fenêtre hors écran via /tmp/godot_slot.sh s'il est là (le fil des ennemis ne tourne pas en --headless).
+	d0=$SECONDS; sortie="$LOGS/test_gel_cache_persos.log"; : > "$sortie"; ok=1
+	LANCEUR=(timeout 320); [[ -f /tmp/godot_slot.sh ]] && LANCEUR=(env GODOT_TIMEOUT=300 bash /tmp/godot_slot.sh)
+	for etape in "--nouvelle --remplir" "--nouvelle"; do
+		"${LANCEUR[@]}" "$G" --path "$P" --script res://outils/test_gel_cache_persos.gd -- $etape >> "$sortie" 2>&1 || ok=0
+	done
+	if [[ $ok -eq 1 ]] && [[ $(grep -c "^ECHECS : 0" "$sortie") -eq 2 ]] && ! grep -qE "SCRIPT ERROR|^ECHEC " "$sortie"; then s="OK    "; nok=$((nok+1)); else s="ÉCHEC "; nko=$((nko+1)); fi
+	RES+=("$s test_gel_cache_persos (fenêtre, $((SECONDS-d0)) s)")
 fi
 echo "== Résumé des tests sans fenêtre"
 printf '%s\n' "${RES[@]}"
