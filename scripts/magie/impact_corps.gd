@@ -97,6 +97,7 @@ var _a_preparer: Array = []            # cibles dont les maillages ne sont pas e
 static var chauffe_corps := true
 static var _formats_chauds := {}
 var _a_chauffer: Array = []
+var _reverif_i := 0
 ## (2026-10-28) Préchauffe des LUMIÈRES : sur le moteur Mobile, une variante de pipeline dépend aussi du nombre de lumières
 ## omni qui touchent un objet ; la 1re lumière de la magie sur un gardien ou le sol autour de lui en compilait encore 1 à 3
 ## au premier sort (électricité 3, ténèbres 1, glace 1). Une fois par corps, quand il est à l'écran et qu'aucun sort n'est
@@ -1232,10 +1233,19 @@ func _preparer(dt: float) -> void:
 	_scan -= dt
 	if _scan <= 0.0:
 		_scan = 0.5
+		_reverif_i += 1
 		var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+		var deja: Array[Node3D] = []
 		for g in ["ennemis", "cibles_magie", "cibles_combat"]:
 			for n in get_tree().get_nodes_in_group(g):
-				if not (n is Node3D) or _prets.has(n.get_instance_id()) or _a_preparer.has(n) or _a_preparer.size() >= 16:
+				if not (n is Node3D) or _a_preparer.has(n) or _a_preparer.size() >= 16:
+					continue
+				if _prets.has(n.get_instance_id()):
+					# (2026-10-28) un corps « prêt » peut montrer de nouvelles pièces (gardien réveillé : arme, bouclier, casque) :
+					# un seul revérifié par passage (tour à tour), sinon ses maillages étaient lus PENDANT le 1er sort
+					# (repli en capsules, images de 5 à 9 ms) et sa préchauffe venait après
+					if not deja.has(n) and (cam == null or (n as Node3D).global_position.distance_to(cam.global_position) <= 30.0):
+						deja.append(n)
 					continue
 				if cam != null and (n as Node3D).global_position.distance_to(cam.global_position) > 30.0:
 					continue
@@ -1246,6 +1256,13 @@ func _preparer(dt: float) -> void:
 					_mettre_a_chauffer(n)
 				else:
 					_a_preparer.append(n)
+		if not deja.is_empty():
+			var n: Node3D = deja[_reverif_i % deja.size()]
+			if not SurfaceCorps.pret(n):
+				_prets.erase(n.get_instance_id())
+				_a_preparer.append(n)
+				if trace:
+					print("ImpactCorps : nouvelles pièces sur %s, relues avant le sort" % n.name)
 	# lecture d'un maillage = lecture du GPU (synchronisation) : jamais pendant un sort en cours, au plus une toutes les
 	# 0,2 s ; les ennemis sont lus quand ils approchent (≤ 30 m), en général bien avant le premier sort
 	_attente -= dt
@@ -1328,6 +1345,12 @@ func _chauffer_suivant() -> void:
 		_voiler(x)   # voile et coques posés à intensité nulle (mc_feu = 0) : dessinés, donc pipelines compilés
 		_chauffe = x
 		_chauffe_mats = [mat_coque] + mat_coques.values()
+		# arcs (électricité, filaments des ténèbres) : dessinés à opacité nulle près du corps, sous les mêmes lumières
+		x.nb_segs = 0
+		x.nb_segs_prec = MAX_SEGMENTS
+		arcs_fin(x)
+		x.arcs.global_position = x.origine()
+		x.arcs.visible = true
 		_a_eclairer.erase(c)   # ses lumières sont préchauffées avec le voile et chaque coque
 		_chauffe_phase()
 		if trace:
@@ -1392,6 +1415,7 @@ func _finir_chauffe() -> void:
 	if _chauffe == null:
 		return
 	_chauffe_mats.clear()
+	_chauffe.arcs.visible = false
 	_devoiler(_chauffe)
 	_chauffe.cible = null
 	# matériau de coque et avec_coque de l'école du foyer rétablis (foyer jamais servi : école vide, coque du feu)
