@@ -198,11 +198,15 @@ de givre (sans chute, se brise sur le décor). Scène : `scenes/test_troll_mage.
 - **Chiffres de dégâts** (`chiffres_degats.gd`) : option Options > « Chiffres de dégâts », **coupée par défaut**
   (`Jeu.option("combat", "chiffres_degats")`, options.cfg) ; entiers, police pixel x2 (critique x3, or), « Bloqué » (acier),
   couleur d'école pour la magie ; tampon circulaire de 16, dessiné par le HUD, temps réel ; tics canalisés additionnés.
-- **Gerbes de gros pixels** (`gerbe_pixels.gd`, shaders `gerbe_pixels*.gdshader`) : carrés de 3 à 8 px en palette selon la
-  matière (`CombatEnnemi.matiere_gerbe` : os, draugr, sang, bois ; étincelles filantes sur métal ; pierre ; poussière si gore
-  coupé), amortis puis retombant ; pool de 16 émetteurs x 48 particules par scène, AUCUNE allocation par coup ; réutilisable
-  (`GerbePixels.emettre(noeud, point, direction, matiere, force)`, nouvelles matières dans `MATIERES`). `Sang.eclats_matiere`
-  passe par elles ; les anciens cubes `Effets.eclats` ne servent plus au corps à corps (ils restent pour dragon, troll, mage…).
+- **Gerbes de gros pixels** (`gerbe_pixels.gd`, shaders `gerbe_pixels*.gdshader`) : carrés de 3 à 8 px **à 480x270** (convertis
+  selon le rendu) en palette selon la matière (`CombatEnnemi.matiere_gerbe` : os, draugr, sang, chair pour le troll, bois ; pierre ;
+  poussière si gore coupé ; givre, givre_lueur, écailles, braise pour dragon / troll / mage / pièges / traits) ; **éclat d'impact**
+  en deux paliers (rampe HDR : os → blanc, sang → rouge vif, carrés ×1,4) puis retombée (amorti + gravité) ; étincelles du métal
+  en traits courts opaques jaune-blanc → orange (`rendu: "trait"`) ; magie de givre en additif (`rendu: "lueur"`) ; pool de
+  20 émetteurs x 64 particules par scène, AUCUNE allocation par coup ; réutilisable (`GerbePixels.emettre(noeud, point,
+  direction, matiere, force)`, nouvelles matières dans `MATIERES`). `Sang.eclats_matiere` passe par elles. Bouclier du joueur :
+  étincelles projetées au-dessus de son bord à l'écran (`mains._fx_rebord`). Les anciens cubes `Effets.eclats` sont supprimés
+  (2026-10-28) ; planches image par image : `outils/captures_gerbes.gd`.
 - **Os qui volent** (`eclats_os.gd`) : coups lourds / critiques / finishers sur squelettes (3-6) et draugrs (1-4), mort d'un
   squelette (4-8) : pool de 14 corps rigides (calque 0, masque 1), 7 s au sol puis désactivés.
 - Préchauffe : `PrechauffeCombat` crée les ressources et rend les deux shaders et un éclat dans sa vitrine ; pools créés au

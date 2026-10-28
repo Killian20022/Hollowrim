@@ -67,8 +67,8 @@ const MATIERES := {
 	# lueur de givre (magie : téléport, invocation, souffle, onde) : pixels lumineux additifs, bleu glacier
 	"givre_lueur": {"couleurs": ["#e8f6ff", "#a8d8f8", "#7ab8f0", "#5f9fe8"], "n": 14, "taille": [0.025, 0.05],
 		"vitesse": [1.2, 3.6], "ecart": 75.0, "gravite": 2.0, "amorti": 3.0, "duree": 0.7, "eclair": [1.6, 1.25], "rendu": "lueur"},
-	# écailles de dragon (givre) : éclats d'écaille bleu nuit à arêtes claires + sang sombre
-	"ecailles": {"couleurs": ["#d8e4f0", "#8a9cb8", "#4a5a78", "#2a3448", "#7a1c1c", "#3a0605"], "n": 22, "taille": [0.035, 0.08],
+	# écailles de dragon (givre) : éclats d'écaille bleu nuit à arêtes claires + sang sombre ; plus gros (corps vu à 4-6 m)
+	"ecailles": {"couleurs": ["#d8e4f0", "#8a9cb8", "#4a5a78", "#2a3448", "#7a1c1c", "#3a0605"], "n": 22, "taille": [0.06, 0.12],
 		"vitesse": [1.6, 4.4], "ecart": 60.0, "gravite": 8.0, "amorti": 3.6, "duree": 0.9, "eclair": [2.0, 1.4]},
 	# braise (troll touché par le feu) : pixels de la palette du feu, lumineux, qui montent un peu
 	"braise": {"couleurs": ["#fff0a8", "#fcb53a", "#ec6a1f", "#b3341f"], "n": 12, "taille": [0.025, 0.045],

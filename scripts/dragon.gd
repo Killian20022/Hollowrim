@@ -381,8 +381,10 @@ func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, _i
 	# éclats d'écaille et sang (GerbePixels) vers le joueur, poudre de givre lumineuse
 	var vers_j := (joueur.global_position + Vector3(0, 1.4, 0) - impact) if joueur != null else Vector3.UP
 	var d_g := (vers_j.normalized() * 0.6 + Vector3.UP * 0.5).normalized()
-	GerbePixels.emettre(self, impact, d_g, "ecailles", 1.8 if puissant else 1.0)
-	GerbePixels.emettre(self, impact, d_g, "givre_lueur", 1.2 if puissant else 0.7)
+	# point_impact est sur l'axe du corps (dedans) : la gerbe naît à la surface du flanc, côté joueur, sinon le corps la cache
+	var surf := impact + vers_j.normalized() * 1.0
+	GerbePixels.emettre(self, surf, d_g, "ecailles", 2.4 if puissant else 1.6)
+	GerbePixels.emettre(self, surf, d_g, "givre_lueur", 1.2 if puissant else 0.7)
 	_son(["knifeSlice", "knifeSlice2", "chop", "impactPlate_medium_000"], impact, 2.0 if puissant else 0.0, 0.8)
 	if vie <= 0.0:
 		_mourir()
@@ -812,8 +814,11 @@ func _mourir() -> void:
 	_impact_fait = _alt <= 0.05
 	_mat_oeil.albedo_color = Color(0.08, 0.1, 0.14)
 	_son(["mnstr5", "mnstr6", "giant5"], _pos_bouche(), 10.0, 0.5)
-	GerbePixels.emettre(self, point_impact(), Vector3.UP, "givre_lueur", 3.0)
-	GerbePixels.emettre(self, point_impact(), Vector3.UP, "ecailles", 2.4)
+	var pm := point_impact()
+	if joueur != null:
+		pm += (joueur.global_position + Vector3(0, 1.4, 0) - pm).normalized()   # à la surface du flanc, côté joueur
+	GerbePixels.emettre(self, pm, Vector3.UP, "givre_lueur", 3.0)
+	GerbePixels.emettre(self, pm, Vector3.UP, "ecailles", 2.4)
 	_laisser_butin()
 	vaincu.emit()
 
