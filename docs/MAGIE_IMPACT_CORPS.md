@@ -234,3 +234,21 @@ persistances après l'arrêt. Références : `references/magie/electricite_fps_1
 - Boucle du module : mise à jour espacée de A (points une image sur deux hors jet, transformées en cache) + visibilité des
   coques, position des arcs, impulsions et canaux des écoles B. `FeuCorps` utilise `surface_changee` / `plus_proche`.
 - Chronomètres : `cout_us` / `cout_images` (A) et `duree_maj_us` / `images_maj` (B) comptent la même chose.
+
+## Lot intensité / budget / préchauffe (2026-10-28, magie/impacts_fusion)
+
+- **Préchauffe** : la préchauffe à blanc d'un corps passe le voile ET chaque matériau de coque (feu, givre, volutes,
+  contour électrique) et les arcs (opacité nulle), chacun sous 1 → 4 lumières de la magie (variantes « nombre de lumières »
+  du moteur Mobile) ; les corps déjà « prêts » sont revérifiés un par un toutes les 0,5 s (gardien réveillé : arme,
+  bouclier, casque montrés après coup → relus AVANT le sort, plus pendant). Pipelines compilés au 1er passage d'un sort
+  sur les corps (`perf_impact_ecoles.gd --diag-pipes`, élevé) : 4b37332 feu 2 / élec 1 / ténèbres 1 / glace 0 →
+  **0 / 0 / 0 / 0** (tous de type « spécialisation »).
+- **Budget** : une seule lumière par CORPS (le choc ne pose pas la sienne si le corps brûle) ; au-delà de `FOYERS_PLEINS`
+  (4) foyers vivants, les foyers non touchés passent à `PERIODE_LOIN` ; paramètres de l'électricité en 2 appels
+  (`regler_jet` / `regler_foyers`) ; canaux des écoles, arcs et répulseur posés seulement s'ils changent ; arguments de la
+  ligne de commande lus une fois (`obtenir`, appelé par chaque jet). CPU du module en jeu (élevé, 3 gardiens) : feu+élec
+  1,29 → 0,77 ms ; banc sans fenêtre (`bench_impact_ecoles.gd --balayage --tours=5`, module + points d'accroche) feu+élec
+  LOD médiane 1,39 ms. Les écarts de TEMPS D'IMAGE restent bruités sur le PC partagé (±3 ms d'une passe à l'autre).
+- **Intensité** : feu (contour de la silhouette plus large et plus vif), ténèbres (lueur violette interne, contour plus
+  large, une veine sur deux luit, volutes plus violettes), glace (givre plus clair et couvrant, liseré, croûte plus
+  opaque). Électricité inchangée (référence).
