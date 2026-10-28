@@ -895,7 +895,7 @@ static func dallage(d: CrypteDecor, x0: float, x1: float, z0: float, z1: float, 
 ## (ni le joueur ni les draugrs n'y butent). Générateur À PART (graine = position du module dans la crypte) : rng / rng_deco ne bougent
 ## pas, le reste du décor est identique. `-- --sans-semis` : captures et mesures « avant » à code identique.
 const SEMIS_FAMILLES := {
-	"eclats": [["micro_eclats_a", "micro_eclats_b", "micro_eclats_c"], 0.2],      # [modules, rayon d'emprise]
+	"eclats": [["micro_eclats_a", "micro_eclats_b", "micro_eclats_c"], 0.26],     # [modules, rayon d'emprise] (éclats : traînée jusqu'à 0,3 m du centre)
 	"planche": [["micro_planche_a", "micro_planche_b"], 0.36],
 	"os": [["micro_os_a", "micro_os_b"], 0.2],
 	"cire": [["micro_cire_a", "micro_cire_b"], 0.15],
@@ -911,7 +911,7 @@ const SEMIS_POIDS := {
 const SEMIS_THEME := {
 	"ossuaire": {"os": 0.4}, "tresor": {"pieces": 0.35}, "garde": {"planche": 0.25, "chaine": 0.14}, "givre": {"cire": 0.02}, "glace": {"cire": 0.0},
 }
-const SEMIS_DENSITE := 1.7         # facteur global (mesure 2026-10-28 : 420 objets, +27 k triangles sur 2,05 M dans toute la crypte)
+const SEMIS_DENSITE := 2.3         # facteur global (mesure 2026-10-28 : 354 objets, +23 k triangles sur 2,05 M, audit 0 grave)
 ## Éclats en pierre claire des statues (plus d'ambiant) : ils se détachent du dallage au lieu de s'y fondre.
 const SEMIS_MATS := {"pierre": "statue_v2"}
 static var semis_poses := 0          # objets posés depuis le lancement (outils de mesure)
@@ -934,7 +934,9 @@ static func _semis_famille(r: RandomNumberGenerator, lieu: String, th: String) -
 ## Essaie de poser un objet de la famille `f` en p (repère local) ; ctx : état du semis (voir semis). Vrai si posé.
 static func _semis_poser(k: DonjonKit, m: Dictionary, ctx: Dictionary, f: String, p: Vector3, lacet: float, marge_passage := 0.45) -> bool:
 	var fam: Array = SEMIS_FAMILLES[f]
-	var rr: float = fam[1]
+	var r: RandomNumberGenerator = ctx["r"]
+	var ech := Vector3.ONE * (r.randf_range(1.15, 1.5) if f == "eclats" else r.randf_range(0.9, 1.1))      # éclats : lisibles à 480x270
+	var rr: float = float(fam[1]) * ech.x      # emprise à l'échelle tirée (sinon les éclats agrandis entrent dans les piliers et les murs)
 	var dim: Vector2 = m["dim"]
 	var d := k.d
 	# devant les panneaux de maçonnerie (plan du mur + 0,34 m) : rien dans le soubassement ni dans le mur
@@ -974,9 +976,7 @@ static func _semis_poser(k: DonjonKit, m: Dictionary, ctx: Dictionary, f: String
 		if q.distance_to(pp[0]) < rr + float(pp[1]):
 			return false
 	var mods: Array = fam[0]
-	var r: RandomNumberGenerator = ctx["r"]
 	var nom: String = mods[r.randi_range(0, mods.size() - 1)]
-	var ech := Vector3.ONE * (r.randf_range(1.15, 1.5) if f == "eclats" else r.randf_range(0.9, 1.1))      # éclats : lisibles à 480x270
 	d.modele(nom, Vector3(p.x, float(ctx["y_sol"]), p.z), lacet, ech, SEMIS_MATS, false)
 	(ctx["poses"] as Array).append([q, rr])
 	semis_poses += 1
