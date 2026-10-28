@@ -116,7 +116,7 @@ func plan() -> Array:
 		{"role": "combat", "extra": "_x_niches", "detritus": false, "lum": {"appliques": 2},
 		"v2": V2_NICHES,
 		"ouv": [["N", 0.0, 3.2, false, "prep"], ["S", 0.0, 3.2, false, ""], ["O", 3.0, 3.2, false, "s1"]],
-		"ennemis": [_e("cr_niches_1", "sbire", Vector3(0.85, 0, -13.0), -PI * 0.5, true, true), _e("cr_niches_2", "sbire", Vector3(-0.85, 0, -16.8), PI * 0.5, true, true)]}))
+		"ennemis": [_e("cr_niches_1", "sbire", Vector3(0.7, 0, -13.0), -PI * 0.5, true, true), _e("cr_niches_2", "sbire", Vector3(-0.7, 0, -16.8), PI * 0.5, true, true)]}))
 	r.append(_salle("prep", Vector2(0, -25), Vector2(14, 14), 4.6, "tombeau", "combat", 5,
 		[["S", 0.0, 3.2, false, "niches"], ["N", 0.0, 3.2, false, ""], ["O", 0.0, 3.0, false, ""], ["O", 5.2, 3.2, false, "w1"], ["E", -4.7, 3.2, false, "g0"]],
 		{"lum": {"braseros": 2, "appliques": 2}, "extra": "_x_prep",
