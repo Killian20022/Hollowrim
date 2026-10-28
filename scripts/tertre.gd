@@ -735,10 +735,11 @@ func _couloir_herse() -> void:
 	crypte.add_child(herse)
 	var corps_herse := StaticBody3D.new()
 	herse.add_child(corps_herse)
-	for i in 7:
-		d.instance_boite(herse, "fer", Vector3(0.08, 3.1, 0.08), Vector3(-1.35 + i * 0.45, 1.55, 0))
-	for y in [0.6, 1.8, 2.8]:
-		d.instance_boite(herse, "fer", Vector3(3.0, 0.08, 0.08), Vector3(0, y, 0))
+	if not _herse_module(herse):      # C8 : herse forgée (module Blender) ; repli : les boîtes d'avant (crypte v1, module absent)
+		for i in 7:
+			d.instance_boite(herse, "fer", Vector3(0.08, 3.1, 0.08), Vector3(-1.35 + i * 0.45, 1.55, 0))
+		for y in [0.6, 1.8, 2.8]:
+			d.instance_boite(herse, "fer", Vector3(3.0, 0.08, 0.08), Vector3(0, y, 0))
 	var bs := BoxShape3D.new()
 	bs.size = Vector3(3.2, 3.2, 0.3)
 	var cs := CollisionShape3D.new()
@@ -766,6 +767,43 @@ func _couloir_herse() -> void:
 		"dalles": [{"pos": Vector3(0.85, 0, -35.7), "mod": "dalles_a", "lacet": 0.3}],
 		"flaques": [{"pos": Vector3(-0.25, 0, -36.3), "r": 0.5, "graine": 23}],
 		"givre": 6})
+
+## C8 (2026-10-28, docs/INSPIRATION_IGNITE.md §2.9) : visuel de la herse = module Blender « herse_couloir » (crypte_modules_v2.py :
+## barreaux en losange à pointes, traverses doubles rivetées, chapeau), MÊMES barreaux et traverses que les anciennes boîtes. C'est une
+## pièce MOBILE (le levier la lève) : un maillage propre sous le nœud `herse`, pas les tampons fusionnés du décor. Fer MAT (MAT_BOITE :
+## le fer brillant de C1 sur la herse se lisait « en bois ») et ton de sommet sombre cuit dans le module. Collision, levier, son,
+## sauvegarde : inchangés. Faux si le module manque ou avec `-- --crypte-v1`.
+func _herse_module(parent: Node3D) -> bool:
+	if not CrypteV2.tertre_actif() or not CrypteDecor.modele_existe("herse_couloir"):
+		return false
+	var mats: Array = CrypteDecor._modeles_de["herse_couloir"]
+	if not mats.has("fer"):
+		return false
+	var cm := d._modele_cache("herse_couloir__fer", d.niveau_a, false)
+	var v: PackedVector3Array = cm["v"]
+	var nn: PackedVector3Array = cm["n"]
+	var uv := PackedVector2Array()
+	uv.resize(v.size())
+	var inv := 1.0 / float(CrypteDecor.TUILE.get("fer", 1.0))
+	for q in v.size():      # UV triplanaires en mètres (repère de la herse : la texture monte avec elle), comme CrypteDecor.modele
+		var a := nn[q].abs()
+		var p := v[q]
+		uv[q] = (Vector2(p.x, p.z) if a.y >= a.x and a.y >= a.z else (Vector2(p.z, -p.y) if a.x >= a.z else Vector2(p.x, -p.y))) * inv
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = v
+	arr[Mesh.ARRAY_NORMAL] = nn
+	arr[Mesh.ARRAY_TEX_UV] = uv
+	arr[Mesh.ARRAY_COLOR] = cm["c"]
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	var mi := MeshInstance3D.new()
+	mi.name = "herse_forgee"
+	mi.mesh = m
+	mi.material_override = d.mat(CrypteDecor.MAT_BOITE["fer"])
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	return true
 
 ## Sarcophage de Svanhild, dans l'arène (les degrés de l'estrade sont dans le donjon) : mêmes formes que l'ancien tombeau.
 func _sarcophage_arene() -> void:

@@ -15,6 +15,8 @@
 #   bougies_grappe_3 / _5 / _9  (lot C6, 2026-10-28) grappe de bougies de suif posée sur sa flaque de cire : hauteurs 4 à 22 cm,
 #                 coulures en anneaux et larmes, mèches noires, chicots fondus ; points de flamme des bougies allumées dans « pts »
 #                 (ObjLuminaires.bougies_grappe : UNE seule lumière par grappe, celle de la bougie remplacée) ; arêtes C1 (aretes.py)
+#   chaines_grappe_<2|3|5><a|b>  (lot C8, 2026-10-28) 3 à 7 chaînes lourdes pendant de la voûte (origine = plafond), chute maximale
+#                 2, 3 ou 5 m, crochets / anneaux / poids, guirlande ; cage_suspendue : cage de fer à dôme, restes d'un prisonnier
 # Les primitives (Module, occlusion cuite, conversion de repère) sont celles de crypte_modules_v2.py : le haut de ce fichier est
 # exécuté tel quel (jusqu'au marqueur « modules »), sans reconstruire crypte_v2.dat.
 import math, os, struct, sys
@@ -335,13 +337,195 @@ def bougies_grappe(nom, n):
     return M
 
 
+# ======================================================================= C8 (2026-10-28) : chaînes en grappes, cage suspendue
+# docs/INSPIRATION_IGNITE.md §2.9 (planche 09_chaines_grilles : forêts de chaînes lourdes qui pendent de la voûte, crochets, cages).
+# Repère : origine = point d'accroche à la voûte (y = 0 = plafond), tout pend vers -y. Fer SOMBRE (ton 0,4-0,55) : le fer brillant de
+# C1 (teinte 1,3 + lustre) ne se lit en métal que sur une couleur de sommet sombre ; pas de liserés aretes.py (maillons trop petits :
+# chaque face deviendrait « arête » et la chaîne entière s'éclaircirait).
+C8_RX, C8_RY, C8_E = 0.06, 0.11, 0.024           # maillon lourd : 27 x 17 cm hors tout, fil de 4,8 cm (>= 3 px à 5 m)
+C8_PAS = 2 * C8_RY - 2 * C8_E                     # pas d'une chaîne tendue : chaque maillon passe dans le trou du précédent
+
+
+def _repere(t):
+    """Repère orthonormé (u, t, w) autour de la tangente t (unitaire)."""
+    a = Vector((1, 0, 0)) if abs(t.x) < 0.9 else Vector((0, 0, 1))
+    u = t.cross(a).normalized()
+    return u, t, u.cross(t).normalized()
+
+
+def _maillon_c8(M, c, t, tour, ton, segs=6, cotes=3):
+    """Maillon ovale le long de la tangente t, centré en c, tourné de `tour` autour de t (0 ou ~90°) : segs x cotes x 2 triangles."""
+    u, t, w = _repere(t)
+    u, w = u * math.cos(tour) + w * math.sin(tour), w * math.cos(tour) - u * math.sin(tour)
+    bm = bmesh.new()
+    rings = []
+    for i in range(segs):
+        a = math.tau * (i + 0.5) / segs
+        q = u * (math.cos(a) * C8_RX) + t * (math.sin(a) * C8_RY)
+        n = (u * (math.cos(a) / C8_RX) + t * (math.sin(a) / C8_RY)).normalized()
+        ring = []
+        for j in range(cotes):
+            b = math.tau * (j + 0.5) / cotes
+            ring.append(bm.verts.new(B(c + q + n * (math.cos(b) * C8_E) + w * (math.sin(b) * C8_E))))
+        rings.append(ring)
+    for i in range(segs):
+        r0, r1 = rings[i], rings[(i + 1) % segs]
+        for j in range(cotes):
+            bm.faces.new((r0[j], r0[(j + 1) % cotes], r1[(j + 1) % cotes], r1[j]))
+    M._emettre(bm, "fer", ton)
+
+
+def _chaine_c8(M, chemin, ton):
+    """Maillons posés le long d'une polyligne (abscisse curviligne, pas C8_PAS), un sur deux tourné de 90° (± un peu de vrille).
+    Rend la position et la tangente du dernier maillon."""
+    rg = M.rg
+    L = [0.0]
+    for i in range(1, len(chemin)):
+        L.append(L[-1] + (chemin[i] - chemin[i - 1]).length)
+    s, k, i = C8_RY - C8_E, 0, 1
+    der = (chemin[0], Vector((0, -1, 0)))
+    while s <= L[-1] - (C8_RY - C8_E) * 0.5:
+        while i < len(chemin) - 1 and L[i] < s:
+            i += 1
+        f = (s - L[i - 1]) / max(1e-6, L[i] - L[i - 1])
+        c = chemin[i - 1].lerp(chemin[i], f)
+        t = (chemin[i] - chemin[i - 1]).normalized()
+        _maillon_c8(M, c, t, (math.pi * 0.5 if k % 2 else 0.0) + rg.uniform(-0.25, 0.25), ton * rg.uniform(0.9, 1.1))
+        der = (c, t)
+        s += C8_PAS
+        k += 1
+    return der
+
+
+def _attache_voute(M, p, ton):
+    """Platine carrée rivetée sous la voûte (dessus à y = p.y) + piton à œil d'où part la chaîne."""
+    rg = M.rg
+    M.boite((0.13, 0.03, 0.13), p + Vector((0, -0.015, 0)), "fer", yaw=rg.uniform(0, 1.5), bev=0.0, jit=0.003, ton=ton * 0.85)
+    M.cylindre(0.025, 0.02, 0.05, p + Vector((0, -0.075, 0)), 5, "fer", ton=ton, jit=0.002)
+
+
+def _bout_c8(M, c, t, sorte, ton):
+    """Bout de chaîne : « crochet » (J forgé à pointe), « anneau » (gros anneau), « poids » (manille + boule de fer), ou rien."""
+    rg = M.rg
+    bas = c + t * (C8_RY - C8_E)
+    if sorte == "crochet":
+        a = rg.uniform(0, math.tau)
+        d = Vector((math.cos(a), 0, math.sin(a)))
+        p = [bas, bas + Vector((0, -0.16, 0)), bas + Vector((0, -0.22, 0)) + d * 0.05, bas + Vector((0, -0.2, 0)) + d * 0.11,
+             bas + Vector((0, -0.11, 0)) + d * 0.12]
+        for q0, q1, e in zip(p, p[1:], (0.017, 0.017, 0.015, 0.012)):
+            M.barre(q0, q1, e, "fer", ton * 1.05)
+        M.coin([p[-1] + d * 0.012 + Vector((0, 0, 0.01)), p[-1] + d * 0.012 - Vector((0, 0, 0.01)), p[-1] - d * 0.012 + Vector((0.01, 0, 0)),
+                p[-1] - d * 0.012 - Vector((0.01, 0, 0)), p[-1] + Vector((0, 0.07, 0)) - d * 0.02], "fer", bev=0.0, ton=ton * 1.1)
+    elif sorte == "anneau":
+        anneau(M, 0.085, 0.085, 0.02, bas + Vector((0, -0.08, 0)), 8, "fer", ton, yaw=rg.uniform(0, math.pi), cotes=3)
+    elif sorte == "poids":
+        M.barre(bas, bas + Vector((0, -0.08, 0)), 0.016, "fer", ton)
+        M.sphere(0.075, bas + Vector((0, -0.15, 0)), mat="fer", seg=6, ton=ton * 0.9, jit=0.006)
+
+
+def chaines_grappe(nom, graine, chute):
+    """Grappe de 3 à 7 chaînes lourdes pendant de la voûte (accroches sur un disque de 0,5 à 0,9 m), longueurs tirées de 35 % à 100 % de
+    `chute` (chute = longueur maximale : y >= -chute partout), légère courbe (balancement figé), un bout par chaîne (crochet, anneau,
+    poids ou rien) ; à partir de 4 chaînes, une chaîne en guirlande entre deux accroches (chaînette)."""
+    M = Module(nom, graine)
+    rg = M.rg
+    n = rg.randint(3, 7) if chute > 2.5 else rg.randint(3, 5)
+    R = rg.uniform(0.5, 0.9)
+    acc = []
+    for _e in range(400):
+        if len(acc) >= n:
+            break
+        a = rg.uniform(0, math.tau)
+        q = Vector((math.cos(a), 0, math.sin(a))) * R * math.sqrt(rg.uniform(0.05, 1.0))
+        if all((q - p).length > 0.24 for p in acc):
+            acc.append(q)
+    for k, p in enumerate(acc):
+        ton = rg.uniform(0.46, 0.58)
+        _attache_voute(M, p, ton)
+        sorte = rg.choice(("crochet", "crochet", "anneau", "poids", ""))
+        bout = {"crochet": 0.24, "anneau": 0.26, "poids": 0.25, "": 0.0}[sorte]
+        L = rg.uniform(0.35, 1.0) * chute - 0.1 - bout
+        if k == 0:
+            L = chute - 0.1 - bout          # la plus longue va jusqu'à la chute (lecture « forêt » de la planche)
+        L = max(0.45, L)
+        a = rg.uniform(0, math.tau)
+        bow = Vector((math.cos(a), 0, math.sin(a))) * rg.uniform(0.015, 0.035) * L
+        chemin = [p + Vector((0, -0.1 - L * j / 8.0, 0)) + bow * math.sin(math.pi * 0.5 * j / 8.0) ** 2 for j in range(9)]
+        c, t = _chaine_c8(M, chemin, ton)
+        _bout_c8(M, c, t, sorte, ton)
+    if len(acc) >= 4:                       # guirlande : entre les deux accroches les plus éloignées, flèche 0,35 à 0,6 x l'écart
+        i0, i1 = max(((i, j) for i in range(len(acc)) for j in range(i + 1, len(acc))), key=lambda e: (acc[e[0]] - acc[e[1]]).length)
+        p0, p1 = acc[i0], acc[i1]
+        f = min(chute - 0.2, (p1 - p0).length * rg.uniform(0.35, 0.6))
+        chemin = [p0.lerp(p1, j / 12.0) + Vector((0, -0.1 - f * math.sin(math.pi * j / 12.0) ** 1.2, 0)) for j in range(13)]
+        _chaine_c8(M, chemin, rg.uniform(0.42, 0.52))
+    return M
+
+
+def cage_suspendue(nom, graine):
+    """Cage de fer suspendue (origine = anneau d'accroche, la chaîne de la voûte est posée par le jeu au-dessus) : dôme à 4 arceaux,
+    3 cercles, 9 barreaux (un tordu, un cassé), fond plein à pointe ; restes d'un prisonnier dedans (crâne, os longs)."""
+    M = Module(nom, graine)
+    rg = M.rg
+    R, y0, y1 = 0.4, -0.38, -1.5
+    anneau(M, 0.045, 0.06, 0.014, Vector((0, -0.05, 0)), 6, "fer", 0.55, cotes=3)
+    M.cylindre(0.05, 0.035, 0.07, Vector((0, -0.17, 0)), 6, "fer", ton=0.48, jit=0.0)
+    for k in range(4):                                   # dôme : 4 arceaux du moyeu au cercle haut
+        a = math.tau * k / 4 + 0.3
+        d = Vector((math.cos(a), 0, math.sin(a)))
+        pts = [Vector((0, -0.12, 0)) + d * 0.04, d * R * 0.6 + Vector((0, -0.2, 0)), d * R * 0.95 + Vector((0, -0.3, 0)), d * R + Vector((0, y0, 0))]
+        for q0, q1 in zip(pts, pts[1:]):
+            M.barre(q0, q1, 0.016, "fer", 0.5)
+    for y in (y0, (y0 + y1) * 0.5, y1 + 0.04):
+        M.tore_polygonal(R, 0.022, Vector((0, y, 0)), 9, "fer", 0.52, 0.045)
+    for k in range(9):
+        a = math.tau * (k + 0.5) / 9
+        d = Vector((math.cos(a), 0, math.sin(a)))
+        if k == 5:                                       # barreau cassé : deux moignons
+            M.barre(d * R + Vector((0, y0, 0)), d * R + Vector((0, y0 - 0.3, 0)) + d * 0.03, 0.013, "fer", 0.45)
+            M.barre(d * R + Vector((0, y1 + 0.04, 0)), d * R * 1.04 + Vector((0, y1 + 0.32, 0)), 0.013, "fer", 0.45)
+            continue
+        mi = d * (R + (0.07 if k == 2 else 0.0)) + Vector((0, (y0 + y1) * 0.5, 0))     # un barreau tordu vers l'extérieur
+        M.barre(d * R + Vector((0, y0, 0)), mi, 0.013, "fer", rg.uniform(0.44, 0.56))
+        M.barre(mi, d * R + Vector((0, y1 + 0.04, 0)), 0.013, "fer", rg.uniform(0.44, 0.56))
+    M.cylindre(R + 0.02, R + 0.02, 0.035, Vector((0, y1, 0)), 9, "fer", ton=0.42, jit=0.002)
+    M.cylindre(0.0, 0.12, 0.16, Vector((0, y1 - 0.16, 0)), 6, "fer", ton=0.4, jit=0.0)        # pointe sous le fond (pointe en bas)
+    for k in range(9):                                   # rivets du cercle du fond
+        a = math.tau * k / 9
+        M.boite((0.03, 0.03, 0.03), Vector((math.cos(a) * (R + 0.02), y1 + 0.05, math.sin(a) * (R + 0.02))), "fer", bev=0.0, jit=0.0, ton=0.62)
+    # restes : crâne affaissé contre les barreaux, mâchoire, deux os longs, côtes (matière « cire » = texture d'os du décor)
+    yc = y1 + 0.035
+    M.sphere(0.085, Vector((0.17, yc + 0.08, -0.12)), ech=(1.0, 0.92, 1.12), mat="cire", seg=6, ton=0.82, jit=0.006)
+    M.boite((0.09, 0.035, 0.07), Vector((0.2, yc + 0.02, -0.03)), "cire", yaw=0.4, bev=0.0, jit=0.004, ton=0.7)
+    for p0, p1 in ((Vector((-0.25, yc + 0.03, 0.1)), Vector((0.12, yc + 0.03, 0.22))), (Vector((-0.2, yc + 0.03, -0.2)), Vector((0.05, yc + 0.1, 0.12)))):
+        M.barre(p0, p1, 0.018, "cire", 0.8)
+        M.sphere(0.03, p0, mat="cire", seg=4, ton=0.85, jit=0.0)
+        M.sphere(0.03, p1, mat="cire", seg=4, ton=0.85, jit=0.0)
+    for k in range(3):
+        M.barre(Vector((-0.15 + k * 0.08, yc + 0.02, -0.05)), Vector((-0.12 + k * 0.08, yc + 0.09, 0.08)), 0.01, "cire", 0.75)
+    return M
+
+
+C8_CHUTES = (2, 3, 5)      # chute maximale (m) des grappes : le jeu prend la plus grande qui laisse >= 2,2 m sous la chaîne
+
+
+def construire_c8():
+    mods = []
+    for i, ch in enumerate(C8_CHUTES):
+        for v in "ab":
+            mods.append(chaines_grappe("chaines_grappe_%d%s" % (ch, v), 801 + i * 2 + (v == "b"), float(ch)))
+    mods.append(cage_suspendue("cage_suspendue", 811))
+    return mods
+
+
 GRAPPES = (3, 5, 9)
 
 
 def construire_l8():
     return [maillon("maillon"), applique_fer("applique_fer"), lanterne_fer("lanterne_fer"), lustre_l8("lustre_l8", 8),
             lustre_l8("lustre_l8_6", 6, leger=True), candelabre_l8("candelabre_l8"), brasero_trepied("brasero_trepied")] + \
-           [bougies_grappe("bougies_grappe_%d" % n, n) for n in GRAPPES]
+           [bougies_grappe("bougies_grappe_%d" % n, n) for n in GRAPPES] + construire_c8()
 
 
 def _lire_dat(chemin):
@@ -368,6 +552,7 @@ def exporter_l8(mods, seulement=None):
     n'est pas reproductible d'un lancement à l'autre : les lots suivants ne doivent pas les changer sans le vouloir)."""
     donnees = {}
     if seulement:
+        seulement = tuple(seulement.split(","))      # C8 : plusieurs préfixes (« chaines_grappe,cage_ »)
         ancien = _lire_dat(DAT_L8)
         mods = [M for M in mods if M.nom.startswith(seulement) or not any(k.startswith(M.nom + "__") for k in ancien)]
         for k, v in ancien.items():
@@ -397,4 +582,5 @@ def exporter_l8(mods, seulement=None):
 
 _args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 #   blender.exe -b --python luminaires.py -- seulement=bougies_grappe   (C6 : ne régénère que les grappes, garde le reste du .dat)
+#   blender.exe -b --python luminaires.py -- seulement=chaines_grappe,cage_   (C8 : plusieurs préfixes séparés par des virgules)
 exporter_l8(construire_l8(), next((a[10:] for a in _args if a.startswith("seulement=")), None))

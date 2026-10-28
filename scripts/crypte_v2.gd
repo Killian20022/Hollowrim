@@ -586,6 +586,7 @@ static func finir(k: DonjonKit, m: Dictionary) -> void:
 	st["arche"] = v2["arche"]
 	st["bannieres"] = d.nb_bannieres - k._v2_ban0
 	k.v2_stats[m["id"]] = st
+	c8(k, m, v2)      # C8 : chaînes en grappes, cage, racines et lichen (avant le semis : il contourne les racines)
 	semis(k, m, obst)      # C5 : couche de petits objets au sol, en dernier (tout le reste est posé ou réservé)
 
 ## Éboulis, dalles soulevées, givre en décalques, flaques (emplacements d'eau + placeholder).
@@ -620,6 +621,178 @@ const LUSTRE_DEMI := 0.9
 ## Lustre de fer posé à la voûte : chaîne, couronne à cierges (lot L8 : module « lustre_l8 », ObjLuminaires), flammes, halo.
 static func lustre(d: CrypteDecor, plafond: Vector3, chute: float) -> void:
 	ObjLuminaires.lustre_v2(d, plafond, chute)
+
+
+# ------------------------------------------------------------------ C8 (2026-10-28) : CHAÎNES, CAGES, RACINES
+## docs/INSPIRATION_IGNITE.md §2.9-2.10 : salles auto (pas les pilotes, pas l'ossuaire), générateur À PART (graine = position de la
+## salle) : rng / rng_deco ne bougent pas, décor et lumières restent identiques. Aucune lumière, aucune collision.
+##  - grappes de 3 à 7 chaînes lourdes (luminaires.py « chaines_grappe_<chute> ») : 1, 2 au-delà de 120 m², 3 au-delà de 250 m², h >= 4,4 m ; le bas des
+##    chaînes reste à C8_DEGAGE au-dessus du sol (on ne marche pas dedans) ; hors des arches, des lustres, des oculi, des piliers isolés ;
+##  - une cage suspendue (« cage_suspendue ») par grande salle (>= 150 m²), au bout d'une chaîne de lustre ;
+##  - racines au sol (« racine_sol_* », crypte_modules_v2.py) au pied des éboulis et près des murs, racines de voûte (« racine_voute_* »)
+##    qui pendent des fissures près des murs ; lichen gris-vert sur leur trajet (dans les modules).
+## `-- --sans-c8` : salle sans ces objets (mesures avant / après à code identique).
+const C8_DEGAGE := 2.2                  # m sous le bas des chaînes et des cages
+const C8_CHUTES := [5, 3, 2]            # = luminaires.py C8_CHUTES (chute maximale des grappes)
+const C8_R_GRAPPE := 0.95               # rayon en plan d'une grappe (accroches 0,9 m + maillon)
+const C8_R_CAGE := 0.5
+const C8_H_CAGE := 1.72                 # de l'anneau d'accroche à la pointe du fond
+
+static func c8_actif() -> bool:
+	return not OS.get_cmdline_user_args().has("--sans-c8") and ObjLuminaires.existe("chaines_grappe_2a")
+
+## Point (local) libre à la voûte pour un objet suspendu de rayon r : loin des murs, des arches (abscisses des piliers), des lustres
+## (mêmes centres que salle() : centre, et ±0,27 x largeur au-delà de 110 m²), des oculi, des piliers isolés et des autres suspendus.
+static func _c8_voute_libre(k: DonjonKit, m: Dictionary, v2: Dictionary, p: Vector3, r: float, pris: Array) -> bool:
+	var dim: Vector2 = m["dim"]
+	if absf(p.x) > dim.x * 0.5 - 0.3 - 0.4 - r or absf(p.z) > dim.y * 0.5 - 0.3 - 0.4 - r:
+		return false
+	var long_x := dim.x >= dim.y
+	for a: float in v2["piliers"]:
+		if absf((p.x if long_x else p.z) - a) < 0.35 + r:
+			return false
+	if Vector2(p.x, p.z).length() < 0.6 + LUSTRE_DEMI + r:
+		return false
+	if dim.x * dim.y >= 110.0:
+		for sx: float in [-1.0, 1.0]:
+			if absf(p.x - sx * dim.x * 0.27) < LUSTRE_DEMI + r + 0.1 and absf(p.z) < dim.y * 0.18 + LUSTRE_DEMI + r:
+				return false
+	for g: Array in m.get("garnitures", []):
+		if g[0] == "oculus":
+			var po := k.lw((g[1] as Dictionary).get("pos", k.mw(Vector3.ZERO)))
+			if Vector2(p.x - po.x, p.z - po.z).length() < 1.6 + r:
+				return false
+		elif g[0] == "piliers":
+			for pw: Vector3 in (g[1] as Dictionary)["pts"]:
+				var po := k.lw(pw)
+				if Vector2(p.x - po.x, p.z - po.z).length() < float((g[1] as Dictionary).get("largeur", 1.0)) * 0.75 + 0.3 + r:
+					return false
+	for pw: Vector3 in v2.get("eviter_lustre", []):
+		var po := k.lw(pw)
+		if Vector2(p.x - po.x, p.z - po.z).length() < 1.6 + r:
+			return false
+	if not k.d.hors_piliers(p, r, 0.1):
+		return false
+	for q: Array in pris:
+		if Vector2(p.x, p.z).distance_to(q[0]) < r + float(q[1]):
+			return false
+	return true
+
+## Le rectangle orienté (centre, demi-côtés, lacet) ne touche aucune boîte de collision du récit (estrades, socles, meubles) : centre,
+## coins et milieux des côtés.
+static func _c8_hors_boites(k: DonjonKit, c: Vector3, demi: Vector2, lac: float) -> bool:
+	var b := Basis(Vector3.UP, lac)
+	for u: Vector2 in [Vector2.ZERO, Vector2(1, 1), Vector2(1, -1), Vector2(-1, 1), Vector2(-1, -1), Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
+		var q := c + b * Vector3(u.x * demi.x, 0, u.y * demi.y)
+		for bo: Rect2 in k._v2_boites:
+			if bo.grow(0.06).has_point(Vector2(q.x, q.z)):
+				return false
+	return true
+
+static func c8(k: DonjonKit, m: Dictionary, v2: Dictionary) -> void:
+	var d := k.d
+	if d.muet or not c8_actif():
+		return
+	var th: String = m.get("theme", "tombeau")
+	if th == "ossuaire":
+		return      # salles de l'ossuaire : lot C7 (panneaux d'os en relief)
+	var dim: Vector2 = m["dim"]
+	var h := float(m.get("h", 3.0))
+	var y := float(m.get("y", 0.0))
+	var aire := dim.x * dim.y
+	var w := d.xf * Vector3(0, y, 0)
+	var r := RandomNumberGenerator.new()
+	r.seed = hash(Vector3i(roundi(w.x * 10.0), roundi(w.y * 10.0), roundi(w.z * 10.0))) + 8008
+	var pris: Array = []      # [Vector2, rayon] : suspendus déjà posés
+	var st := {"grappes": 0, "cage": 0, "racines_sol": 0, "racines_voute": 0}
+	# --- grappes de chaînes
+	var chute_max := h - C8_DEGAGE
+	var classe := 0
+	for c: int in C8_CHUTES:
+		if c <= chute_max + 0.01:
+			classe = c
+			break
+	if h >= 4.4 and classe > 0:
+		var nb := 1 if aire < 120.0 else (2 if aire < 250.0 else 3)
+		for i in nb:
+			for essai in 40:
+				var p := Vector3(r.randf_range(-dim.x * 0.5, dim.x * 0.5), y + h, r.randf_range(-dim.y * 0.5, dim.y * 0.5))
+				if not _c8_voute_libre(k, m, v2, p, C8_R_GRAPPE, pris):
+					continue
+				d.j0("chaine")
+				ObjLuminaires.poser(d, "chaines_grappe_%d%s" % [classe, "ab"[r.randi_range(0, 1)]], p, r.randf() * TAU)
+				d.j1()
+				pris.append([Vector2(p.x, p.z), C8_R_GRAPPE + 1.6])      # grappes bien séparées (lecture « forêt » par endroits)
+				st["grappes"] += 1
+				break
+	# --- cage suspendue (grandes salles)
+	if aire >= 150.0 and h >= C8_DEGAGE + C8_H_CAGE + 0.3 and ObjLuminaires.existe("cage_suspendue"):
+		var bas := maxf(C8_DEGAGE + 0.2, h * 0.45)
+		var haut_cage := minf(y + bas + C8_H_CAGE, y + h - 0.3)
+		for essai in 40:
+			var p := Vector3(r.randf_range(-dim.x * 0.5, dim.x * 0.5), y + h, r.randf_range(-dim.y * 0.5, dim.y * 0.5))
+			if not _c8_voute_libre(k, m, v2, p, C8_R_CAGE, pris):
+				continue
+			d.j0("cage_suspendue")
+			d.chaine(p, Vector3(p.x, haut_cage + 0.02, p.z))
+			ObjLuminaires.poser(d, "cage_suspendue", Vector3(p.x, haut_cage, p.z), r.randf() * TAU)
+			d.j1()
+			pris.append([Vector2(p.x, p.z), C8_R_CAGE + 1.0])
+			st["cage"] = 1
+			break
+	if not CrypteDecor.modele_existe("racine_sol_a"):
+		k.v2_stats.get(m["id"], {})["c8"] = st
+		return
+	# --- racines au sol : au pied des éboulis (côté pièce), puis 1 à 2 près des murs
+	var departs: Array = []
+	for s: Dictionary in v2["eboulis"]:
+		if r.randf() < 0.85:
+			var pe := k.lw(s["pos"])
+			var vers := -Vector3(pe.x, 0, pe.z).normalized()
+			departs.append(Vector3(pe.x, y, pe.z) + vers.rotated(Vector3.UP, r.randf_range(-0.9, 0.9)) * r.randf_range(0.85, 1.1))
+	for i in r.randi_range(1, 2) + (1 if aire > 120.0 else 0):
+		var c: String = ["N", "S", "O", "E"][r.randi_range(0, 3)]
+		var pm := k.plan_mur(m, c)
+		var Lw := dim.x if pm["horiz"] else dim.y
+		departs.append(k.pt_mur(m, c, r.randf_range(-Lw * 0.5 + 1.0, Lw * 0.5 - 1.0), y, r.randf_range(0.75, 1.0)))
+	for p0: Vector3 in departs:
+		var mod: String = "racine_sol_%s" % "abc"[r.randi_range(0, 2)]
+		var bm := CrypteDecor.bornes_modele(mod)
+		var demi := Vector2(bm.size.x, bm.size.z) * 0.5 + Vector2(0.03, 0.03)
+		var vers_c := atan2(-p0.x, -p0.z)      # vers le centre de la pièce (le module part vers +z)
+		for essai in 8:
+			var lac := vers_c + r.randf_range(-1.2, 1.2)
+			var cb := p0 + Basis(Vector3.UP, lac) * Vector3(bm.get_center().x, 0.0, bm.get_center().z)
+			if not k.libre(m, cb, maxf(demi.x, demi.y) * 0.6, 0.15) or not d.rect_libre(cb, demi, lac, 0.04):
+				continue
+			if not _libre(k, m, cb, 0.2, 0.15) or not _c8_hors_boites(k, cb, demi, lac):
+				continue
+			d.modele(mod, Vector3(p0.x, y, p0.z), lac)
+			st["racines_sol"] += 1
+			break
+	# --- racines de voûte : près des murs (hors arches, lustres, suspendus), bas des radicelles >= C8_DEGAGE
+	if h >= C8_DEGAGE + 1.4:
+		for i in r.randi_range(2, 3):
+			var mod: String = "racine_voute_%s" % "ab"[r.randi_range(0, 1)]
+			var bm := CrypteDecor.bornes_modele(mod)
+			if y + h + bm.position.y < y + C8_DEGAGE:
+				continue
+			for essai in 12:
+				var c: String = ["N", "S", "O", "E"][r.randi_range(0, 3)]
+				var pm := k.plan_mur(m, c)
+				var Lw := dim.x if pm["horiz"] else dim.y
+				var p := k.pt_mur(m, c, r.randf_range(-Lw * 0.5 + 1.0, Lw * 0.5 - 1.0), y + h, r.randf_range(0.95, 1.4))
+				if not _c8_voute_libre(k, m, v2, p, 0.4, pris):
+					continue
+				d.j0("racine_voute")
+				d.modele(mod, p, r.randf() * TAU, Vector3.ONE, {}, false)
+				d.j1()
+				pris.append([Vector2(p.x, p.z), 0.4 + 0.3])
+				st["racines_voute"] += 1
+				break
+	var stm: Dictionary = k.v2_stats.get(m["id"], {})
+	stm["c8"] = st
+	k.v2_stats[m["id"]] = stm
 
 # ------------------------------------------------------------------ COULOIR
 ## Couloir (axe long = z local, 3,2 m de large, plafond 3 m) : arches en voussoirs sur piliers engagés tous les 4 m, panneaux de
