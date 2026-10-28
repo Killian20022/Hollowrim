@@ -254,6 +254,7 @@ static func _essai_fogvolume(d: CrypteDecor, salles: Array) -> void:
 class AccentBrume extends Node:
 	var salles: Array = []
 	var bornes := Rect2()
+	var fogvolume := OS.get_cmdline_user_args().has("--essai-fogvolume")
 	var _courante := BrumePortee.COULEUR_CRYPTE
 
 	func _process(dt: float) -> void:
@@ -270,6 +271,10 @@ class AccentBrume extends Node:
 			return      # hors de la crypte : la grotte ou dehors ne sont jamais touchés
 		var cible: Color = Lumieres.accent(s.get("accent", ""))["fond"]
 		_courante = _courante.lerp(cible, clampf(dt / 0.8, 0.0, 1.0))
+		if fogvolume and not env.volumetric_fog_enabled:
+			env.volumetric_fog_enabled = true      # essai --essai-fogvolume seulement (renderer Mobile : sans effet attendu)
+			env.volumetric_fog_density = 0.0
+			print("Essai FogVolume : brume volumétrique activée (renderer %s)" % ProjectSettings.get_setting("rendering/renderer/rendering_method"))
 		if not env.fog_light_color.is_equal_approx(_courante):
 			BrumePortee.teinter(env, _courante)
 
