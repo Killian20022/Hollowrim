@@ -1,0 +1,11 @@
+{
+	"_doc": "Par zone : table de chaque type de contenant (ButinTables.table_pour(type, zone)) et modulateurs : or = facteur sur les pièces, rarete = facteur sur le poids des entrées de cette rareté (tirage). Zone inconnue = « defaut ».",
+	"zones": {
+		"defaut": {"tables": {"coffre": "coffre_crypte", "coffre_riche": "coffre_crypte_riche", "coffre_boss": "coffre_boss", "urne": "urne", "tonneau": "tonneau", "caisse": "caisse", "sac": "sac",
+			"draugr": "cadavre_draugr", "bandit": "cadavre_bandit", "mage": "cadavre_mage", "troll": "cadavre_troll"}},
+		"crypte": {"tables": {"coffre": "coffre_crypte", "coffre_riche": "coffre_crypte_riche", "coffre_boss": "coffre_boss", "urne": "urne"}, "or": 1.0},
+		"crypte_basse": {"tables": {"coffre": "coffre_crypte", "coffre_riche": "coffre_crypte_riche", "urne": "urne"}, "or": 1.2, "rarete": {"rare": 1.5}},
+		"grotte": {"tables": {"coffre": "coffre_bandit", "coffre_riche": "coffre_crypte_riche", "coffre_mine": "coffre_mine", "tonneau": "tonneau", "caisse": "caisse", "sac": "sac"}, "or": 1.0},
+		"village": {"tables": {"tonneau": "tonneau", "caisse": "caisse", "sac": "sac"}, "or": 0.5, "rarete": {"rare": 0.5}}
+	}
+}

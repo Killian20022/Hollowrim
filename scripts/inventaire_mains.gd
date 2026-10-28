@@ -7,6 +7,8 @@ extends CanvasLayer
 ##   - ÉQUIPER : clic gauche (ou Entrée, D, A manette) = main droite ; clic droit (ou G, X manette) = main gauche, comme en
 ##     combat. Une action impossible n'est jamais muette : la fiche dit d'avance pour chaque main pourquoi (« Le bouclier se
 ##     porte au bras gauche. ») et le bandeau du bas répète la raison si on essaie quand même ;
+##   - POTIONS (consommables du sac, Consommables) : clic gauche / droit, Entrée, G ou D = UTILISER (effet sur la vie, la mana,
+##     l'endurance du joueur) ; un chiffre 1-0 dans cette catégorie range la potion choisie dans le raccourci (la touche la boit) ;
 ##   - RACCOURCIS 1-0 : appuyer sur un chiffre (ou cliquer une case) range les deux mains ACTUELLES dans ce raccourci (paire
 ##     G|D, lue telle quelle par la barre du HUD) ; clic droit sur une case = la vider. Sauvegardés avec la partie.
 ## Aucune règle ici : tout passe par EquipementMains (objets_possedes, fiche, essai, assigner_raccourci) et MainSort.equiper,
@@ -379,6 +381,8 @@ func equiper(main: String, id: String) -> String:
 	var eq := _eq()
 	if eq == null or id == "":
 		return "Rien à équiper."
+	if id.begins_with("conso:"):
+		return utiliser(id.substr(6))
 	if id.begins_with("sac:"):
 		return _dire("Cet objet ne se tient pas en main.", true)
 	var cote := "gauche" if main == "gauche" else "droite"
@@ -399,10 +403,31 @@ func equiper(main: String, id: String) -> String:
 	_rafraichir()
 	return ""
 
-## Range les deux mains actuelles dans le raccourci i (0..9 = touches 1..0).
+## Utilise un consommable du sac (potion, nourriture) : effet sur les stats du joueur. "" ou la raison du refus.
+func utiliser(id: String) -> String:
+	var r := Consommables.utiliser(joueur, id)
+	if r != "":
+		Sons.jouer(self, ["cloth1"], -18.0)
+		return _dire("%s : %s" % [joueur.inventaire.nom(id), r], true)
+	var reste: int = joueur.inventaire.nombre(id)
+	_dire("Utilisé : %s. %s Reste : %d." % [joueur.inventaire.nom(id), Consommables.description(id), reste], false)
+	_remplir_liste()
+	_rafraichir()
+	return ""
+
+## Range les deux mains actuelles dans le raccourci i (0..9 = touches 1..0). Catégorie Potions : y range la potion choisie.
 func memoriser(i: int) -> String:
 	var eq := _eq()
 	if eq == null:
+		return ""
+	if categorie == "consommables" and choisi.begins_with("conso:"):
+		var id := choisi.substr(6)
+		var rc := eq.assigner_conso(i, id)
+		if rc != "":
+			return _dire(rc, true)
+		_dire("Raccourci %d : %s (la touche l'utilise, les mains ne changent pas)." % [(i + 1) % 10, joueur.inventaire.nom(id)], false)
+		Sons.jouer(self, ["cloth1", "cloth2"], -12.0)
+		_rafraichir()
 		return ""
 	var g := tenu("gauche")
 	var d := tenu("droite")
@@ -450,14 +475,22 @@ func _remplir_liste() -> void:
 	if eq == null:
 		return
 	var boutons: Array = []
-	if categorie == "divers":
+	if categorie == "consommables":
+		var inv: Inventaire = joueur.inventaire
+		for id in inv.ids_de("consommable"):
+			boutons.append(_ligne("conso:" + id, "%s  x%d" % [inv.nom(id), inv.objets[id]], IconesCombat.icone(String(Inventaire.objet(id).get("icone", ""))), Color.WHITE))
+		if boutons.is_empty():
+			_liste.add_child(MenuStyle.etiquette("(aucune potion ni nourriture)", MenuStyle.GRIS))
+	elif categorie == "divers":
 		var inv: Inventaire = joueur.inventaire
 		var p := MenuStyle.etiquette("Pièces : %d" % inv.pieces, MenuStyle.OR)
 		_liste.add_child(p)
 		for id in inv.objets:
+			if Inventaire.categorie_de(id) == "consommable":
+				continue   # catégorie Potions
 			var b := _ligne("sac:" + String(id), "%s  x%d" % [inv.nom(id), inv.objets[id]], null, Color.WHITE)
 			boutons.append(b)
-		if inv.objets.is_empty():
+		if boutons.is_empty():
 			_liste.add_child(MenuStyle.etiquette("(sac vide)", MenuStyle.GRIS))
 	else:
 		for id in eq.objets_possedes(categorie):
@@ -531,10 +564,23 @@ func _remplir_fiche() -> void:
 	var eq := _eq()
 	if eq == null or choisi == "":
 		return
+	if choisi.begins_with("conso:"):
+		var idc := choisi.substr(6)
+		var invc: Inventaire = joueur.inventaire
+		var oc := Inventaire.objet(idc)
+		var rar := String(oc.get("rarete", "commun"))
+		_fiche.add_child(MenuStyle.etiquette(invc.nom(idc), Color(ButinTables.COULEURS_RARETE.get(rar, "#c8d0dc"))))
+		_fiche.add_child(_texte(Consommables.description(idc)))
+		_fiche.add_child(_texte("Quantité : %d   (%s)" % [invc.nombre(idc), ButinTables.NOMS_RARETE.get(rar, rar)]))
+		_fiche.add_child(_texte("Poids : %s   Valeur : %d" % [str(oc.get("poids", 0.0)), int(oc.get("valeur", 0))]))
+		var rf := Consommables.refus(joueur, idc)
+		_fiche.add_child(_texte("Clic / Entrée : utiliser" if rf == "" else "Pour l'instant : " + rf, MenuStyle.PARCHEMIN if rf == "" else ROUGE))
+		_fiche.add_child(_texte("1-0 : ranger dans ce raccourci (la touche l'utilise).", MenuStyle.GRIS))
+		return
 	if choisi.begins_with("sac:"):
 		var id := choisi.substr(4)
 		var inv: Inventaire = joueur.inventaire
-		var o: Dictionary = Inventaire.OBJETS.get(id, {})
+		var o: Dictionary = Inventaire.objet(id)
 		_fiche.add_child(MenuStyle.etiquette(inv.nom(id), MenuStyle.OR))
 		_fiche.add_child(_texte("Quantité : %d" % int(inv.objets.get(id, 0))))
 		_fiche.add_child(_texte("Poids : %s   Valeur : %d" % [str(o.get("poids", 0.0)), int(o.get("valeur", 0))]))
@@ -599,6 +645,14 @@ func _rafraichir() -> void:
 	for i in _cases.size():
 		var b := _cases[i]
 		var r: Dictionary = eq.raccourcis[i] if i < eq.raccourcis.size() else {}
+		if r.has("conso"):   # consommable : son icône à gauche, nombre restant à droite (rien)
+			var ic := String(r["conso"])
+			(b.get_meta("g") as TextureRect).texture = IconesCombat.icone(String(Inventaire.objet(ic).get("icone", "")))
+			(b.get_meta("g") as TextureRect).modulate = Color(1, 1, 1, 1.0 if joueur.inventaire.a(ic) else 0.35)
+			(b.get_meta("d") as TextureRect).texture = null
+			(b.get_meta("n") as Label).add_theme_color_override("font_color", MenuStyle.PARCHEMIN)
+			b.tooltip_text = "%s (x%d)" % [joueur.inventaire.nom(ic), joueur.inventaire.nombre(ic)]
+			continue
 		var vide := not r.has("gauche") and not r.has("droite")
 		for k in ["g", "d"]:
 			var id := String(r.get("gauche" if k == "g" else "droite", ""))

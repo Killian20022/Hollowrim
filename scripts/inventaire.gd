@@ -1,6 +1,8 @@
 class_name Inventaire
 extends RefCounted
 ## Sac du joueur : objets empilés par identifiant, plus les pièces.
+## Catalogue = OBJETS (ci-dessous) + data/butin/objets.json (consommables, armes et tomes trouvables : docs/BUTIN.md) ;
+## lire un objet par Inventaire.objet(id) / Inventaire.connu(id), jamais OBJETS seul.
 
 signal change
 
@@ -13,7 +15,7 @@ const OBJETS := {
 	"amulette_eirik": {"nom": "Amulette d’Eirik", "poids": 0.2, "valeur": 0},
 	"epee_skarnholt": {"nom": "Épée de Skarnholt", "poids": 9.0, "valeur": 120},
 	"ecaille_dragon": {"nom": "Écaille de dragon", "poids": 2.0, "valeur": 80},
-	# donjons : objets de quête (valeur 0) et objets de valeur (pas de consommables)
+	# donjons : objets de quête (valeur 0) et objets de valeur ; consommables (potions, nourriture) : data/butin/objets.json
 	"fragment_sceau_os": {"nom": "Fragment du sceau des Os", "poids": 0.6, "valeur": 0},
 	"fragment_sceau_givre": {"nom": "Fragment du sceau du Givre", "poids": 0.6, "valeur": 0},
 	"fragment_sceau_eau": {"nom": "Fragment du sceau de l’Eau", "poids": 0.6, "valeur": 0},
@@ -31,8 +33,40 @@ const OBJETS := {
 	"croc_troll": {"nom": "Croc de troll", "poids": 0.3, "valeur": 18},
 }
 
+const FICHIER_BUTIN := "res://data/butin/objets.json"
+static var _butin := {}
+static var _butin_lu := false
+
 var pieces := 0
 var objets := {}
+
+## Fiche d'un objet : {nom, poids, valeur, [rarete, categorie, icone, effets]} ; {} si inconnu.
+static func objet(id: String) -> Dictionary:
+	if OBJETS.has(id):
+		return OBJETS[id]
+	if not _butin_lu:   # publié d'un coup puis marqué lu (lecture possible depuis le fil de construction de la crypte)
+		var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(FICHIER_BUTIN)) if FileAccess.file_exists(FICHIER_BUTIN) else null
+		_butin = d.get("objets", {}) if d is Dictionary else {}
+		_butin_lu = true
+	return _butin.get(id, {})
+
+static func connu(id: String) -> bool:
+	return not objet(id).is_empty()
+
+## Catégorie d'un objet du sac : « consommable », « arme » ou « divers » (défaut).
+static func categorie_de(id: String) -> String:
+	return String(objet(id).get("categorie", "divers"))
+
+## Identifiants du sac d'une catégorie, dans l'ordre d'arrivée.
+func ids_de(categorie: String) -> Array[String]:
+	var r: Array[String] = []
+	for id in objets:
+		if categorie_de(id) == categorie:
+			r.append(String(id))
+	return r
+
+func nombre(id: String) -> int:
+	return pieces if id == "pieces" else int(objets.get(id, 0))
 
 func ajouter(id: String, nombre := 1) -> void:
 	if id == "pieces":
@@ -51,12 +85,12 @@ func a(id: String) -> bool:
 	return objets.get(id, 0) > 0
 
 func nom(id: String) -> String:
-	return "pièces" if id == "pieces" else OBJETS[id]["nom"]
+	return "pièces" if id == "pieces" else String(objet(id).get("nom", id))
 
 func poids() -> float:
 	var total := 0.0
 	for id in objets:
-		total += OBJETS[id]["poids"] * objets[id]
+		total += float(objet(id).get("poids", 0.0)) * objets[id]
 	return total
 
 func exporter() -> Dictionary:
@@ -66,6 +100,6 @@ func importer(d: Dictionary) -> void:
 	pieces = int(d.get("pieces", 0))
 	objets = {}
 	for id in d.get("objets", {}):
-		if OBJETS.has(id):
+		if connu(id):
 			objets[id] = int(d["objets"][id])
 	change.emit()

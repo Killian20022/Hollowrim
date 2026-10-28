@@ -186,17 +186,25 @@ func gardien(zone_: String, type: String, pos: Vector3, lacet: float, ident_: St
 	if _m.has("id") and modules.has(_m["id"]):
 		(modules[_m["id"]]["ennemis"] as Array).append({"id": ident_, "pos": mw(pos)})
 
+## Préfixe de la graine du butin tiré (ButinTables) : même clé que l'état « vidé » de tertre.gd (quetes.vus["crypte:<id>"]).
+var prefixe_butin := "crypte"
+
+## `extra.butin` : {objet: n} fixe ; avec une clé « table » (et « zone »), le tirage à graine fixe de cette table
+## (data/butin/, ButinTables.resoudre) s'AJOUTE aux objets fixes. Coffres de quête : pas de clé « table » = inchangés.
 func interaction(id: String, pos: Vector3, nom: String, verbe: String, genre: String, extra := {}) -> void:
 	var it := {"id": id, "pos": mw(pos), "nom": nom, "verbe": verbe, "genre": genre}
 	for k in extra:
 		var v: Variant = extra[k]
 		it[k] = mw(v) if (k == "coffre" and v is Vector3) else v
+	if it.get("butin") is Dictionary and (it["butin"] as Dictionary).has("table"):
+		it["table_butin"] = String(it["butin"]["table"])
+		it["butin"] = ButinTables.resoudre(it["butin"], "%s:%s" % [prefixe_butin, id])
 	interactions.append(it)
 	if _m.has("id") and modules.has(_m["id"]):
 		(modules[_m["id"]]["cibles"] as Array).append({"id": id, "pos": mw(pos)})
 	_reserves.append([Vector2(pos.x, pos.z), 0.9])
 
-## Coffre : décor + interaction (genre « coffre », identifiant fixe, butin fixe). style : « normal » | « force » (couvercle arraché, pillé).
+## Coffre : décor + interaction (genre « coffre », identifiant fixe, butin fixe + tirage de butin["table"] s'il y en a une). style : « normal » | « force » (couvercle arraché, pillé).
 func coffre(id: String, pos: Vector3, lacet: float, butin: Dictionary, nom := "Coffre ferré", style := "normal") -> void:
 	pos = d._ecarter(pos, Vector2(0.47, 0.3), lacet)      # devant le soubassement (l'interaction suit le coffre)
 	if style == "force":

@@ -1,0 +1,26 @@
+{
+	"_doc": "Corps des ennemis (bourse laissée à la mort). Graine = identifiant stable de l'ennemi (ident) : un même draugr donne toujours la même bourse.",
+	"tables": {
+		"cadavre_draugr": {"or": [4, 14], "tirages": [1, 2], "garanti": [{"id": "os_draugr", "n": [1, 2]}], "rien": 30, "entrees": [
+			{"id": "poussiere_tombe", "poids": 40},
+			{"id": "lame_antique", "poids": 12},
+			{"id": "potion_soin", "poids": 8},
+			{"table": "valeurs", "poids": 5, "rarete": "peu_commun"}
+		]},
+		"cadavre_bandit": {"or": [6, 22], "tirages": [1, 2], "rien": 25, "entrees": [
+			{"table": "nourriture", "poids": 35},
+			{"table": "potions", "poids": 22},
+			{"id": "anneau_cuivre", "poids": 10},
+			{"id": "lame_antique", "poids": 6}
+		]},
+		"cadavre_mage": {"or": [10, 25], "tirages": [1, 2], "garanti": [{"id": "cristal_givre", "n": 1}], "rien": 20, "entrees": [
+			{"id": "potion_mana", "poids": 40, "n": [1, 2]},
+			{"id": "amulette_givre", "poids": 15},
+			{"table": "tomes", "poids": 8, "rarete": "rare"}
+		]},
+		"cadavre_troll": {"or": [0, 0], "tirages": 1, "garanti": [{"id": "fourrure_troll", "n": 1}], "rien": 30, "entrees": [
+			{"id": "croc_troll", "poids": 50, "n": [1, 2]},
+			{"id": "cristal_givre", "poids": 25}
+		]}
+	}
+}

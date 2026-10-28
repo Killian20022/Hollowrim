@@ -1,8 +1,9 @@
 {
-	"_doc": "Écran d'inventaire (touche I, scripts/inventaire_mains.gd) : catégories et objets équipables listés. Un objet = un identifiant lu par EquipementMains.objet (vide, epee, torche, bouclier, id d'une DonneesArme de data/armes/, ou sort). `inventaire` (facultatif) : l'objet n'apparaît que si le sac du joueur contient cet identifiant. Les sorts viennent de EquipementMains.sorts_connus ; Divers = le sac (Inventaire), non équipable. Les catégories regroupent par `genres` (EquipementMains.categorie_de).",
+	"_doc": "Écran d'inventaire (touche I, scripts/inventaire_mains.gd) : catégories et objets équipables listés. Un objet = un identifiant lu par EquipementMains.objet (vide, epee, torche, bouclier, id d'une DonneesArme de data/armes/, ou sort). `inventaire` (facultatif) : l'objet n'apparaît que si le sac du joueur contient cet identifiant. Les sorts viennent de EquipementMains.sorts_connus ; Potions = consommables du sac (catégorie « consommable » de data/butin/objets.json : utiliser, ranger dans un raccourci 1-0) ; Divers = le reste du sac (Inventaire), non équipable. Les catégories regroupent par `genres` (EquipementMains.categorie_de).",
 	"categories": [
 		{"id": "armes", "nom": "Armes", "genres": ["vide", "arme", "arme_deux_mains", "bouclier", "torche"]},
 		{"id": "sorts", "nom": "Sorts", "genres": ["sort"]},
+		{"id": "consommables", "nom": "Potions", "genres": []},
 		{"id": "divers", "nom": "Divers", "genres": []}
 	],
 	"objets": [
@@ -16,7 +17,7 @@
 		{"id": "epee_obsidienne"},
 		{"id": "epee_skarnholt"}
 	],
-	"_tout_disponible": "PÉRIODE DE TEST (demande utilisateur 2026-10-27) : true = les 5 épées sans condition et tous les sorts de data/sorts/ connus, même avec une ancienne sauvegarde. Repasser à false (et remettre des conditions `inventaire`) quand le butin existera.",
+	"_tout_disponible": "PÉRIODE DE TEST (demande utilisateur 2026-10-27) : true = les 5 épées sans condition et tous les sorts de data/sorts/ connus, même avec une ancienne sauvegarde. Repasser à false (et remettre des conditions `inventaire`) quand le butin existera : les tables data/butin/ donnent déjà epee_or, epee_rubis, epee_verre, epee_obsidienne (sous-table « armes ») et des tomes de sorts (« tomes ») ; il suffira d'ajouter \"inventaire\": \"epee_or\" (etc.) aux objets ci-dessous (docs/BUTIN.md).",
 	"tout_disponible": true,
 	"ordre_ecoles": ["feu", "glace", "electricite", "tenebres", "soin", "protection"]
 }

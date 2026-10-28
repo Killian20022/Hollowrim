@@ -499,10 +499,6 @@ func _special_mort(sorte: String, _r: Dictionary) -> void:
 		RetourImpact.son(moi, "chute_pierre", p, 4.0, 0.55)
 		Sons.jouer_a(moi, ["impactPunch_heavy_000", "impactPunch_heavy_001"], p, 3.0, 0.05))
 
+## Bourse tirée de data/butin/cadavres.json (« cadavre_troll »), graine = ident : toujours la même pour un même ennemi.
 func _contenu_butin() -> Dictionary:
-	var c := {"pieces": randi_range(25, 45), "fourrure_troll": 1}
-	if randf() < 0.6:
-		c["croc_troll"] = randi_range(1, 2)
-	if randf() < 0.35:
-		c["cristal_givre"] = 1
-	return c
+	return ButinTables.contenu(ButinTables.tirer_pour("ennemi:" + (ident if ident != "" else str(get_instance_id())), ButinTables.table_pour("troll")))

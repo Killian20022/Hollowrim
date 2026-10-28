@@ -45,6 +45,7 @@ const ROT_MAX := 6.0  # rad/s ; 10 pendant le geste d'attaque
 
 var type := "guerrier"
 var _os := false  # type « squelette* » (renseigné dans _ready)
+var _humain := false  # bandit vivant (personnage de base) : bourse « cadavre_bandit » au lieu de « cadavre_draugr »
 ## Allures propres au type (le squelette est plus vif que le draugr, dont la marche est lente et raide).
 var _marche := MARCHE
 var _marche_proche := MARCHE_PROCHE
@@ -171,6 +172,7 @@ func _ready() -> void:
 	add_child(forme)
 
 	var app := EnnemisNordiques.apparence_defaut(type, apparence)
+	_humain = app.has("perso")
 	if app.has("perso"):
 		modele = Personnage.creer(app["perso"])      # bandits vivants : personnage de base unifie (PersoDef)
 	elif _os:
@@ -1010,19 +1012,21 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, 
 	combat.effets_mort(r if not r.is_empty() else {"info": {"point": point, "direction": dir, "normale": -dir}}, sorte, joueur)
 	_laisser_butin()
 
+## Table de la bourse (data/butin/cadavres.json) : graine = ident (un même ennemi laisse toujours la même bourse).
+func table_butin() -> String:
+	return ButinTables.table_pour("bandit" if _humain else "draugr")
+
 func _laisser_butin() -> void:
 	var b := Node3D.new()
 	b.set_script(BUTIN)
 	b.joueur = joueur
 	b.hud = hud
-	b.contenu = {"pieces": randi_range(4, 14), "os_draugr": randi_range(1, 2)}
+	b.contenu = ButinTables.contenu(ButinTables.tirer_pour("ennemi:" + (ident if ident != "" else str(get_instance_id())), table_butin()))
+	var rng := RandomNumberGenerator.new()   # or des chefs : même graine que la bourse (même chef = même somme)
+	rng.seed = ButinTables.graine("ennemi_or:" + ident)
 	if boss == "hrafn":
-		b.contenu["pieces"] = randi_range(90, 140)
+		b.contenu["pieces"] = rng.randi_range(90, 140)
 	elif boss == "jarl":
-		b.contenu["pieces"] = randi_range(70, 110)
-	if randf() < 0.5:
-		b.contenu["poussiere_tombe"] = 1
-	if (type == "guerrier" or _os) and randf() < 0.4:
-		b.contenu["lame_antique"] = 1
+		b.contenu["pieces"] = rng.randi_range(70, 110)
 	get_parent().add_child(b)
 	b.global_position = global_position + global_transform.basis.z * 0.6

@@ -185,18 +185,20 @@ func _interactif(pos: Vector3, nom: String, verbe: String, action: Callable, con
 	return it
 
 func _inconnu(id: String) -> bool:
-	return id != "pieces" and not Inventaire.OBJETS.has(id)
+	return id != "pieces" and not Inventaire.connu(id)
 
 # ------------------------------------------------------------------ coffres
 func _coffre(a: Dictionary) -> void:
 	var d: Dictionary = a["d"]
 	var id: String = a["id"]
-	var butin: Dictionary = {}
-	for k: String in (d.get("butin", {}) as Dictionary):
-		if not _inconnu(k):
-			butin[k] = d["butin"][k]
-	var lieu: Vector3 = a["lieu"]
 	var cle := "%s:%s" % [prefixe, id]
+	var butin: Dictionary = {}
+	# clé « table » (et « zone ») : tirage à graine fixe ajouté aux objets fixes (ButinTables, docs/BUTIN.md)
+	var brut: Dictionary = ButinTables.resoudre(d.get("butin", {}), cle)
+	for k: String in brut:
+		if not _inconnu(k):
+			butin[k] = brut[k]
+	var lieu: Vector3 = a["lieu"]
 	var it := _interactif(a["pos"], String(d.get("nom", "Coffre")), "Ouvrir le coffre", func() -> Array: return _ouvrir_coffre(id, butin, lieu),
 		func() -> bool: return not _vus().has(cle), true)
 	it.set_meta("cle_etat", cle)
