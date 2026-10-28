@@ -1708,17 +1708,383 @@ def construire_dallage():
     return mods
 
 
+# ======================================================================= C4 (2026-10-28) : PILIERS ET ARCHES v3
+# Chantier « anti pâte à modeler » (docs/INSPIRATION_IGNITE.md §2.3, lot C4) : les piliers v2 (pilier_mur, pilier_libre) étaient des
+# empilements de boîtes à biseau de 3 cm (sous le pixel à 3 m en 640x360 : « boîtes nettes ») et les arches des voussoirs réguliers.
+# v3 = mêmes noms de modules, mêmes encombrements et points d'appui (scripts/crypte_decor.gd, crypte_v2.gd, crypte_donjon.gd,
+# donjon_kit.gd inchangés ; collisions inchangées), mais :
+#   - blocs taillés en ENVELOPPE CONVEXE explicite (_pil_bloc) : coins verticaux abattus LARGES (6-10 cm, un par coin : usure),
+#     chanfrein haut de 4-5 cm, petit chanfrein bas ; pas de biseau bmesh (44 triangles par boîte) : 30-46 triangles par bloc, faces
+#     cachées (dessous posé, dos contre le mur) non émises ;
+#   - le relief vient de la GÉOMÉTRIE : constat C1, les tons de pierre montent déjà à 0,9-1 (plafond 8 bits) et la couleur de sommet
+#     n'éclaircit presque plus. Le ton de base des blocs descend donc à 0,66-0,84 (PIL_TON, palette Pierre de BIBLE_VISUELLE inchangée :
+#     c'est le facteur de sommet) et chaque face reçoit un facteur selon son orientation (PIL_FACE) : chanfreins verticaux +20 %,
+#     chanfreins hauts +34 % (ce que la torche accroche), dessous -38 %, faces de JOINT au noir (0,32) ;
+#   - pierres appareillées : assises de hauteurs inégales, deux blocs croisés par assise (pilier isolé) ou une assise sur deux coupée
+#     (pilier engagé), joints de 2,6 cm devant un NOYAU sombre (rien ne transparaît entre deux blocs) ;
+#   - base à plinthe + talon évasé, chapiteau à bague + corbeille évasée + tailloir à chanfrein bas ;
+#   - éclats : 1-2 coins de bloc arrachés par pilier (sommets tirés vers l'intérieur et vers le bas, AUCUN triangle de plus) et
+#     quelques éclats au pied (pilier isolé) ;
+#   - pilier_libre_8 (grandes salles, arène) : variante RONDE en tambours octogonaux (pilier_rond_v3), même encombrement ;
+#   - arches : claveaux à chanfrein avant large, joints au noir, 1 claveau sur 8 descendu de 1-3 cm, quelques arêtes épaufrées,
+#     clé saillante (20 triangles par claveau au lieu de 44).
+# Ces modules ne passent PAS par aretes.py (ARETES_SANS) : leurs tons d'arête sont posés ici, face par face.
+# Les anciennes versions (pilier_mur, pilier_libre, arche plus haut) restent dans le fichier pour mémoire ; construire() appelle les v3.
+ARETES_SANS = ARETES_SANS + ("pilier_mur_", "pilier_libre_", "arche_")
+PIL_TON = (0.66, 0.84)       # ton de base d'un bloc (v2 : 0,74-1,0)
+PIL_FACE = {"face": 0.96, "chanfrein": 1.26, "chanfrein_haut": 1.42, "dessus": 1.1, "dessous": 0.6, "joint": 0.22}
+PIL_CHANF = (0.07, 0.12)     # coins verticaux abattus (m) : 4-6 px à 3 m
+PIL_CH_HAUT = 0.05           # chanfrein de l'arête haute d'un bloc
+PIL_CH_BAS = 0.03            # chanfrein de l'arête basse (le joint devient un V)
+PIL_JOINT = 0.034            # joint entre deux blocs
+PIL_NOYAU = 0.18             # ton du noyau sombre vu dans les joints
+BAS, HAUT, DOS = Vector((0, -1, 0)), Vector((0, 1, 0)), Vector((0, 0, -1))
+
+
+def _pil_emettre(M, pts, ton, joints=(), cacher=(), regles=None, mat="pierre"):
+    """Enveloppe convexe des points (repère Godot), émise SANS biseau. Chaque triangle prend ton x PIL_FACE[orientation] :
+    face (normale horizontale dans l'axe x ou z), chanfrein (horizontale en biais), chanfrein_haut (0,25 < ny <= 0,95), dessus, dessous ;
+    « joint » si la normale suit une direction de `joints` ; les triangles dont la normale suit `cacher` ne sont pas émis."""
+    fac = dict(PIL_FACE)
+    if regles:
+        fac.update(regles)
+    bm = bmesh.new()
+    for p in pts:
+        bm.verts.new(B(p))
+    bmesh.ops.convex_hull(bm, input=bm.verts[:], use_existing_faces=False)
+    interieur = [v for v in bm.verts if not v.link_faces]
+    if interieur:
+        bmesh.ops.delete(bm, geom=interieur, context='VERTS')
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    bmesh.ops.triangulate(bm, faces=bm.faces[:])
+    for f in bm.faces:
+        p = [G(v.co) for v in f.verts]
+        n = (p[1] - p[0]).cross(p[2] - p[0])
+        if n.length_squared < 1e-12:
+            continue
+        n.normalize()
+        if any(n.dot(c) > 0.95 for c in cacher):
+            continue
+        if any(n.dot(j) > 0.9 for j in joints):
+            k = "joint"
+        elif n.y > 0.95:
+            k = "dessus"
+        elif n.y < -0.5:
+            k = "dessous"
+        elif n.y > 0.25:
+            k = "chanfrein_haut"
+        else:
+            hl = math.hypot(n.x, n.z)
+            k = "face" if hl < 1e-6 or max(abs(n.x), abs(n.z)) / hl > 0.96 else "chanfrein"
+        M.tris.append((mat, (p[0], p[1], p[2]), ton * fac[k]))
+    bm.free()
+
+
+def _pil_anneau(y, sx, sz, coins, c=Vector((0, 0, 0))):
+    """Octogone à la hauteur y : rectangle sx x sz (centre c) aux coins abattus de coins[i] ; coins dans l'ordre (+x+z) (-x+z) (-x-z) (+x-z).
+    Renvoie [(point, coin), ...]."""
+    out = []
+    for i, (ux, uz) in enumerate(((1, 1), (-1, 1), (-1, -1), (1, -1))):
+        k = max(0.004, min(coins[i], 0.45 * min(sx, sz)))
+        out.append((Vector((c.x + ux * sx * 0.5, y, c.z + uz * (sz * 0.5 - k))), i))
+        out.append((Vector((c.x + ux * (sx * 0.5 - k), y, c.z + uz * sz * 0.5)), i))
+    return out
+
+
+def _pil_bloc(M, taille, pos, coins=None, ch=PIL_CH_HAUT, ch_bas=PIL_CH_BAS, haut=None, ton=None, eclat=None, joints=(),
+              cacher=(BAS,), regles=None, usure=0.008, haut_dz=0.0):
+    """Bloc taillé (assise de pilier, moulure) : taille (sx, sy, sz) centré en pos ; `haut` = (sx, sz) du dessus (talon, corbeille
+    évasée) ; coins abattus `coins` (sinon tirés dans PIL_CHANF) ; eclat = (coin, profondeur) : coin arraché (haut du bloc)."""
+    rg = M.rg
+    sx, sy, sz = taille
+    hx, hz = haut if haut else (sx, sz)
+    if coins is None:
+        coins = [rg.uniform(*PIL_CHANF) for _ in range(4)]
+    if ton is None:
+        ton = rg.uniform(*PIL_TON)
+    y0, y1 = pos.y - sy * 0.5, pos.y + sy * 0.5
+    c = Vector((pos.x, 0, pos.z))
+    anneaux = []
+    if ch_bas > 0.003:
+        anneaux.append((_pil_anneau(y0, sx - 2 * ch_bas, sz - 2 * ch_bas, [k * 0.8 for k in coins], c), "bas"))
+        anneaux.append((_pil_anneau(y0 + ch_bas, sx, sz, coins, c), "flanc"))
+    else:
+        anneaux.append((_pil_anneau(y0, sx, sz, coins, c), "flanc"))
+    ch_ = c + Vector((0, 0, haut_dz))
+    anneaux.append((_pil_anneau(y1 - ch, hx, hz, coins, ch_), "flanc_haut"))
+    anneaux.append((_pil_anneau(y1, hx - 2 * ch, hz - 2 * ch, [k * 0.7 for k in coins], ch_), "dessus"))
+    pts = []
+    for an, role in anneaux:
+        for p, i in an:
+            q = p.copy()
+            if role == "dessus" and usure > 0:        # arête haute usée : chanfrein irrégulier
+                q += Vector((rg.uniform(-usure, usure), rg.uniform(-usure * 0.8, 0.0), rg.uniform(-usure, usure)))
+            if eclat and i == eclat[0] and role in ("dessus", "flanc_haut"):
+                d = eclat[1]
+                vers = (c - Vector((q.x, 0, q.z)))
+                vers.y = 0
+                if vers.length > 1e-6:
+                    vers.normalize()
+                q += vers * d * (0.7 if role == "dessus" else 0.55) + Vector((0, -d * (1.0 if role == "dessus" else 0.35), 0))
+            pts.append(q)
+    _pil_emettre(M, pts, ton, joints, cacher, regles)
+
+
+def _pil_noyau(M, sx, sy, sz, pos):
+    """Noyau sombre derrière les joints (12 triangles, pas de biseau)."""
+    M.boite((sx, sy, sz), pos, bev=0.0, jit=0.0, ton=PIL_NOYAU)
+
+
+def _pil_eclats_pied(M, cx, cz, n):
+    """Petits éclats tombés au pied d'un coin arraché (8-12 triangles chacun)."""
+    rg = M.rg
+    for _ in range(n):
+        r = rg.uniform(0.035, 0.07)
+        x, z = cx + rg.uniform(-0.15, 0.15), cz + rg.uniform(-0.15, 0.15)
+        pts = [Vector((x + rg.uniform(-r, r), rg.uniform(0.0, 0.01), z + rg.uniform(-r, r))) for _ in range(3)]
+        pts += [Vector((x + rg.uniform(-r, r) * 0.7, rg.uniform(r * 0.5, r * 1.1), z + rg.uniform(-r, r) * 0.7)) for _ in range(2)]
+        _pil_emettre(M, pts, rg.uniform(0.7, 0.85), cacher=(BAS,))
+
+
+def _pil_chapiteau(M, w, d, y, z=0.0, dos=False):
+    """Bague + corbeille évasée + tailloir (chanfrein bas large) ; dessus du tailloir à y + 0,62. w x d = section du fût (centre z).
+    dos : pilier engagé, le dos de chaque pièce reste à 2 cm derrière celui du fût (contre le mur) et n'est pas émis."""
+    rg = M.rg
+    cach = (BAS, DOS) if dos else (BAS,)
+    arr = z - d * 0.5 - 0.02          # dos commun (pilier engagé)
+
+    def zc(D):
+        return arr + D * 0.5 if dos else z
+
+    dz_b, dz_h = (d + 0.07, d + 0.03 + 0.2) if dos else (d + 0.07, d + 0.24)
+    _pil_bloc(M, (w + 0.07, 0.09, dz_b), Vector((0, y + 0.045, zc(dz_b))), ch=0.025, ch_bas=0.01, cacher=cach)               # bague
+    D0 = d + 0.03
+    _pil_bloc(M, (w + 0.02, 0.24, D0), Vector((0, y + 0.21, zc(D0))), haut=(w + 0.24, dz_h), haut_dz=(zc(dz_h) - zc(D0)),
+              ch=0.03, ch_bas=0.0, cacher=cach)                                                                                 # corbeille
+    Dt = d + (0.24 if dos else 0.38)
+    _pil_bloc(M, (w + 0.38, 0.29, Dt), Vector((0, y + 0.475, zc(Dt))), ch=0.03, ch_bas=0.08,
+              coins=[rg.uniform(0.04, 0.07) for _ in range(4)], cacher=cach)                                                    # tailloir
+
+
+def pilier_libre_v3(nom, h, graine, larg=1.0):
+    """Pilier ISOLÉ v3 : plinthe + talon, fût en assises de deux blocs croisés (joints alternés, au noir), chapiteau bague / corbeille /
+    tailloir, 1-2 coins arrachés et leurs éclats au pied. Centré sur l'origine, hauteur h, section larg (même encombrement que v2)."""
+    M = Module(nom, graine)
+    rg = M.rg
+    w = larg
+    J = PIL_JOINT
+    _pil_noyau(M, w - 0.14, h - 0.6, w - 0.14, Vector((0, h * 0.5, 0)))
+    _pil_bloc(M, (w + 0.36, 0.24, w + 0.36), Vector((0, 0.12, 0)), ch=0.07, ch_bas=0.0)                               # plinthe
+    _pil_bloc(M, (w + 0.2, 0.17, w + 0.2), Vector((0, 0.24 + 0.085, 0)), haut=(w + 0.04, w + 0.04), ch=0.025, ch_bas=0.0)  # talon
+    y = 0.41 + J
+    fin = h - 0.62
+    rang = 0
+    blocs = []
+    while y < fin - 0.05:
+        hc = min(rg.uniform(0.34, 0.56), fin - y)
+        if fin - y - hc < 0.18:
+            hc = fin - y
+        cut = rg.uniform(-0.12, 0.12) * w
+        for s_ in (-1, 1):
+            a0 = -w * 0.5 if s_ < 0 else cut + J * 0.5
+            a1 = cut - J * 0.5 if s_ < 0 else w * 0.5
+            lw = a1 - a0
+            cc = (a0 + a1) * 0.5
+            ep = w + rg.uniform(-0.025, 0.012)
+            if rang % 2 == 0:       # joint perpendiculaire à x : coins extérieurs côté s_
+                dims, pos = (lw, hc - J, ep), Vector((cc + rg.uniform(-0.006, 0.006), y + (hc - J) * 0.5, rg.uniform(-0.008, 0.008)))
+                ext = (1, 2) if s_ < 0 else (0, 3)
+                jn = (Vector((-s_, 0, 0)), HAUT)
+            else:
+                dims, pos = (ep, hc - J, lw), Vector((rg.uniform(-0.008, 0.008), y + (hc - J) * 0.5, cc + rg.uniform(-0.006, 0.006)))
+                ext = (2, 3) if s_ < 0 else (0, 1)
+                jn = (Vector((0, 0, -s_)), HAUT)
+            coins = [rg.uniform(*PIL_CHANF) if i in ext else 0.012 for i in range(4)]
+            blocs.append((dims, pos, coins, ext, jn))
+        y += hc
+        rang += 1
+    # 1-2 coins arrachés, pas sur l'assise du bas (lisible à hauteur d'yeux) ; pas de bloc trop bas
+    eclats = {}
+    cand = [i for i, b in enumerate(blocs) if 0.6 < b[1].y < 2.4]
+    for i in rg.sample(cand, min(len(cand), rg.choice((2, 3)))):
+        eclats[i] = (rg.choice(blocs[i][3]), rg.uniform(0.08, 0.16))
+    for i, (dims, pos, coins, ext, jn) in enumerate(blocs):
+        e = eclats.get(i)
+        _pil_bloc(M, dims, pos, coins=coins, eclat=e, joints=jn, regles={"dessus": PIL_FACE["joint"]})
+        if e:
+            k = e[0]
+            ux, uz = ((1, 1), (-1, 1), (-1, -1), (1, -1))[k]
+            _pil_eclats_pied(M, ux * (w * 0.5 + 0.36), uz * (w * 0.5 + 0.36), rg.choice((2, 3)))
+    _pil_chapiteau(M, w, w, fin)
+    return M
+
+
+def pilier_rond_v3(nom, h, graine, larg=1.2):
+    """Pilier ISOLÉ v3, variante RONDE des grandes salles (INSPIRATION_IGNITE §2.3) : fût en TAMBOURS octogonaux de hauteurs inégales
+    (décalés de 1-2 cm, chanfreins haut / bas : joints en V au noir), une bague tous les 3-4 tambours, plinthe carrée + talon,
+    chapiteau carré (le module s'appuie sur la même boîte de collision larg x h x larg, l'octogone y est inscrit), 2-3 tambours
+    épaufrés et leurs éclats au pied."""
+    M = Module(nom, graine)
+    rg = M.rg
+    w = larg * 0.92                  # diamètre du fût (octogone régulier : coin abattu = 0,293 w)
+    J = PIL_JOINT
+    _pil_noyau(M, w * 0.7, h - 0.6, w * 0.7, Vector((0, h * 0.5, 0)))
+    _pil_bloc(M, (larg + 0.36, 0.26, larg + 0.36), Vector((0, 0.13, 0)), ch=0.08, ch_bas=0.0)                                  # plinthe
+    _pil_bloc(M, (larg + 0.12, 0.18, larg + 0.12), Vector((0, 0.26 + 0.09, 0)), haut=(w + 0.08, w + 0.08), ch=0.03, ch_bas=0.0,
+              coins=[0.06, 0.06, 0.06, 0.06])                                                                                  # talon
+    y = 0.44 + J
+    fin = h - 0.62
+    tamb = []
+    n_bague = rg.randint(3, 4)
+    while y < fin - 0.05:
+        hc = min(rg.uniform(0.42, 0.68), fin - y)
+        if fin - y - hc < 0.2:
+            hc = fin - y
+        if len(tamb) % (n_bague + 1) == n_bague and fin - y > 0.6:           # bague
+            tamb.append(("bague", (w + 0.1, 0.1, w + 0.1), Vector((0, y + 0.05, 0))))
+            y += 0.1 + J
+            continue
+        r = w + rg.uniform(-0.03, 0.015)
+        tamb.append(("tambour", (r, hc - J, r), Vector((rg.uniform(-0.012, 0.012), y + (hc - J) * 0.5, rg.uniform(-0.012, 0.012)))))
+        y += hc
+    cand = [i for i, t in enumerate(tamb) if t[0] == "tambour" and 0.6 < t[2].y < 3.0]
+    epauf = {i: (rg.randrange(4), rg.uniform(0.1, 0.18)) for i in rg.sample(cand, min(len(cand), rg.choice((2, 3))))}
+    for i, (sorte, dims, pos) in enumerate(tamb):
+        k = 0.2929 * dims[0]
+        if sorte == "bague":
+            _pil_bloc(M, dims, pos, coins=[0.2929 * dims[0]] * 4, ch=0.025, ch_bas=0.02, regles={"dessus": PIL_FACE["joint"]})
+            continue
+        coins = [k + rg.uniform(-0.01, 0.01) for _ in range(4)]
+        e = epauf.get(i)
+        _pil_bloc(M, dims, pos, coins=coins, eclat=e, joints=(HAUT,), regles={"dessus": PIL_FACE["joint"]})
+        if e:
+            ux, uz = ((1, 1), (-1, 1), (-1, -1), (1, -1))[e[0]]
+            _pil_eclats_pied(M, ux * (larg * 0.5 + 0.32), uz * (larg * 0.5 + 0.32), 3)
+    _pil_chapiteau(M, w, w, fin)
+    return M
+
+
+def pilier_mur_v3(nom, h, graine, larg=0.62, prof=0.34):
+    """Pilier ENGAGÉ v3 (demi-pilier contre le mur, +z vers la pièce) : plinthe + talon, fût en assises inégales (une sur deux coupée
+    par un joint vertical décalé), chapiteau bague / corbeille / tailloir, un coin avant arraché. Saillie <= 0,35 m (hors moulures,
+    comme v2) : aucune collision. Dos (contre le mur) et dessous non émis."""
+    M = Module(nom, graine)
+    rg = M.rg
+    J = PIL_JOINT
+    z0 = prof * 0.5 - 0.02
+    cach = (BAS, DOS)
+    _pil_noyau(M, larg - 0.12, h - 0.5, prof - 0.1, Vector((0, h * 0.5, z0 - 0.04)))
+    _pil_bloc(M, (larg + 0.2, 0.2, prof + 0.12), Vector((0, 0.1, z0 + 0.04)), ch=0.06, ch_bas=0.0, cacher=cach)
+    _pil_bloc(M, (larg + 0.12, 0.12, prof + 0.07), Vector((0, 0.26, z0 + 0.025)), haut=(larg + 0.01, prof + 0.01), ch=0.02, ch_bas=0.0, cacher=cach)
+    y = 0.32 + J
+    fin = h - 0.62
+    blocs = []
+    rang = 0
+    while y < fin - 0.05:
+        hc = min(rg.uniform(0.34, 0.56), fin - y)
+        if fin - y - hc < 0.16:
+            hc = fin - y
+        ep = prof + rg.uniform(-0.025, 0.02)
+        pz = z0 + rg.uniform(-0.006, 0.006)
+        if rang % 2 == 1 and larg > 0.5:     # assise coupée : deux blocs, joint vertical décalé
+            cut = rg.uniform(-0.15, 0.15) * larg
+            for s_ in (-1, 1):
+                a0 = -larg * 0.5 if s_ < 0 else cut + J * 0.5
+                a1 = cut - J * 0.5 if s_ < 0 else larg * 0.5
+                ext = (1,) if s_ < 0 else (0,)
+                coins = [rg.uniform(*PIL_CHANF) if i in ext else 0.01 for i in range(4)]
+                blocs.append(((a1 - a0, hc - J, ep), Vector(((a0 + a1) * 0.5, y + (hc - J) * 0.5, pz)), coins, ext, (Vector((-s_, 0, 0)), HAUT)))
+        else:
+            coins = [rg.uniform(*PIL_CHANF), rg.uniform(*PIL_CHANF), 0.01, 0.01]
+            blocs.append(((larg + rg.uniform(-0.03, 0.02), hc - J, ep), Vector((rg.uniform(-0.012, 0.012), y + (hc - J) * 0.5, pz)), coins, (0, 1), (HAUT,)))
+        y += hc
+        rang += 1
+    cand = [i for i, b in enumerate(blocs) if 0.5 < b[1].y < 2.4] or list(range(len(blocs)))
+    ie = rg.sample(cand, min(len(cand), rg.choice((1, 2))))
+    for i, (dims, pos, coins, ext, jn) in enumerate(blocs):
+        e = (rg.choice(ext), rg.uniform(0.07, 0.13)) if i in ie else None
+        _pil_bloc(M, dims, pos, coins=coins, eclat=e, joints=jn, cacher=cach, regles={"dessus": PIL_FACE["joint"]})
+    _pil_chapiteau(M, larg, prof, fin, z=z0, dos=True)
+    return M
+
+
+def arche_v3(nom, portee, fleche, graine, epaisseur=0.34, prof=0.5, bloc=None):
+    """Arc en claveaux v3 : même tracé et mêmes appuis que arche() (portée, flèche, naissance à y = 0, relief vers +z) ; claveaux à
+    chanfrein avant large (usure : un par claveau), joints au noir, 1 claveau sur 8 descendu de 1-3 cm, quelques arêtes avant
+    épaufrées, clé saillante (+5 cm). 20 triangles par claveau."""
+    M = Module(nom, graine)
+    rg = M.rg
+    a = portee * 0.5
+    f = fleche
+    ep = epaisseur
+    bloc = bloc or (0.36 + 0.012 * portee)
+    regles = {"dessous": 0.85, "chanfrein_haut": 1.25}
+
+    def vouss(cx, cy, R, t0, t1, miroir, cle):
+        gap = 0.013 / R
+        e_out = R + ep + rg.uniform(-0.02, 0.025) + (0.05 if cle else 0.0)
+        cf = rg.uniform(0.045, 0.075)                       # chanfrein avant
+        zb = -prof * 0.5 + rg.uniform(0, 0.02)
+        zf = prof * 0.5 - rg.uniform(0, 0.02) + (0.05 if cle else 0.0)
+        chute = rg.uniform(0.01, 0.03) if (not cle and rg.random() < 0.125) else 0.0
+        epauf = (rg.randrange(4), rg.uniform(0.03, 0.06)) if rg.random() < 0.18 else None
+        ton = rg.uniform(*PIL_TON)
+        ta, tb = t0 + gap, t1 - gap
+        pts = []
+        for r_, t_ in ((R, ta), (R, tb), (e_out, tb), (e_out, ta)):
+            pts.append((r_, t_, zb, 0))
+            pts.append((r_, t_, zf - cf, 0))
+        dt = cf / R
+        for i, (r_, t_) in enumerate(((R + cf, ta + dt), (R + cf, tb - dt), (e_out - cf, tb - dt), (e_out - cf, ta + dt))):
+            pts.append((r_, t_, zf, 1 + i))
+        P = []
+        for r_, t_, z, i in pts:
+            x = cx + r_ * math.cos(t_)
+            y = cy + r_ * math.sin(t_) - chute
+            if epauf and i == 1 + epauf[0]:
+                z -= epauf[1]
+            P.append(Vector((-x if miroir else x, y, z)))
+        # normales des faces de joint (sortantes) : -tangente en t0, +tangente en t1
+        j0 = Vector((math.sin(ta), -math.cos(ta), 0))
+        j1 = Vector((-math.sin(tb), math.cos(tb), 0))
+        if miroir:
+            j0.x, j1.x = -j0.x, -j1.x
+        _pil_emettre(M, P, ton, joints=(j0, j1), regles=regles)
+
+    if f >= a:
+        xc = (f * f - a * a) / (2 * a)
+        R = a + xc
+        t_top = math.atan2(f, xc)
+        n = max(3, int(round(R * t_top / bloc)))
+        for s_ in (False, True):
+            for k in range(n):
+                vouss(-xc, 0.0, R, t_top * k / n, t_top * (k + 1) / n, s_, k == n - 1)
+    else:
+        yc = (f * f - a * a) / (2 * f)
+        R = f - yc
+        t_s = math.atan2(-yc, a)
+        n = max(5, int(round(R * (math.pi - 2 * t_s) / bloc)))
+        if n % 2 == 0:
+            n += 1
+        for k in range(n):
+            vouss(0.0, yc, R, t_s + (math.pi - 2 * t_s) * k / n, t_s + (math.pi - 2 * t_s) * (k + 1) / n, False, k == n // 2)
+    for sx in (-1, 1):                # sabots sous la naissance
+        _pil_bloc(M, (0.34, 0.16, prof + 0.1), Vector((sx * (a + 0.02), -0.08, 0.02)), ch=0.035, ch_bas=0.03, cacher=())
+    return M
+
+
 # ======================================================================= table des modules exportés
 def construire():
     mods = []
-    mods.append(pilier_mur("pilier_mur_1p6", 1.62, 101, 0.58, 0.32))
-    mods.append(pilier_mur("pilier_mur_3p2", 3.2, 102, 0.66, 0.34))
-    mods.append(pilier_mur("pilier_mur_6", 6.0, 103, 0.72, 0.34))
+    # C4 v3 (2026-10-28) : piliers et arches taillés (section PILIERS ET ARCHES v3 plus haut) ; mêmes noms, mêmes encombrements
+    mods.append(pilier_mur_v3("pilier_mur_1p6", 1.62, 101, 0.58, 0.32))
+    mods.append(pilier_mur_v3("pilier_mur_3p2", 3.2, 102, 0.66, 0.34))
+    mods.append(pilier_mur_v3("pilier_mur_6", 6.0, 103, 0.72, 0.34))
     mods.append(colonne_mur("colonne_mur_3p2", 3.2, 111))
     mods.append(colonne_mur("colonne_mur_6", 6.0, 112, 0.3))
-    mods.append(arche("arche_2p0", 2.0, 1.0, 121, 0.3, 0.5))
-    mods.append(arche("arche_4p0", 4.0, 2.2, 122, 0.36, 0.5))
-    mods.append(arche("arche_10p7", 10.7, 2.3, 123, 0.44, 0.5, bloc=0.52))
+    mods.append(arche_v3("arche_2p0", 2.0, 1.0, 121, 0.3, 0.5))
+    mods.append(arche_v3("arche_4p0", 4.0, 2.2, 122, 0.36, 0.5))
+    mods.append(arche_v3("arche_10p7", 10.7, 2.3, 123, 0.44, 0.5, bloc=0.52))
     for i, (w, h) in enumerate([(1.8, 3.0), (2.6, 3.0), (3.4, 3.0)]):
         mods.append(pan_mur("pan_mur_%s" % "abc"[i], w, h, 131 + i))
     mods.append(pan_mur("pan_mur_haut", 2.6, 4.4, 141))
@@ -1732,8 +2098,8 @@ def construire():
     mods.append(lustre("lustre_fer", 201))
     mods.append(marches("marches_3p0", 3.0, 4, 211))
     # C4 (2026-10-23) : généralisation à toutes les salles — piliers isolés, vasque, autel, estrades
-    mods.append(pilier_libre("pilier_libre_5", 5.0, 221, 1.0))
-    mods.append(pilier_libre("pilier_libre_8", 8.0, 222, 1.2))
+    mods.append(pilier_libre_v3("pilier_libre_5", 5.0, 221, 1.0))
+    mods.append(pilier_rond_v3("pilier_libre_8", 8.0, 222, 1.2))      # C4 v3 : variante ronde (tambours) des grandes salles
     mods.append(plateforme_octo("vasque_rituel", 231, [(2.2, 0.0, 0.4), (1.7, 0.4, 0.9)], bassin=(1.4, 0.1, 0.72)))
     mods.append(plateforme_octo("autel_octo", 232, [(2.6, 0.0, 0.25), (2.0, 0.25, 0.5)]))
     mods.append(estrade("estrade_3x4", 241, 3.2, 0.9, 4.0))

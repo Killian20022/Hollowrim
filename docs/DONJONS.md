@@ -236,6 +236,12 @@ Chaque module = pierre taillée par assises irrégulières (blocs aux arêtes ab
 Repère Godot, origine au pied, `+z` = face avant (vers la pièce). `CrypteDecor.modele(nom, pos, lacet, echelle, mats)` verse les triangles dans les tampons
 de matière existants (fusion par cellule de 8 m : aucun nœud en plus) avec UV triplanaires en mètres.
 
+**Piliers et arches v3 (lot C4, 2026-10-28, section « PILIERS ET ARCHES v3 » du script)** : `pilier_mur_*`, `pilier_libre_5`, `pilier_libre_8` (variante
+ronde en tambours octogonaux) et `arche_*` gardent leurs noms, encombrements et collisions, mais sont taillés en enveloppes convexes explicites
+(`_pil_bloc`) : coins abattus de 7-12 cm, chanfreins haut / bas, joints de 3,4 cm au noir devant un noyau sombre, assises appareillées, coins arrachés
+et éclats au pied, claveaux à chanfrein avant (1 sur 8 descendu de 1-3 cm). Ton de base 0,66-0,84 et facteur par orientation de face (`PIL_FACE`) ;
+hors `aretes.py`. Budget mesuré (`outils/compter_triangles_crypte.gd`) : −58,8 k triangles sur les deux décors de la crypte (claveaux 20 triangles au lieu de 44).
+
 | module | usage |
 |---|---|
 | `pilier_mur_1p6`, `_3p2`, `_6` | pilier engagé (saillie 0,34 m), socle à ressauts, assises, chapiteau |
