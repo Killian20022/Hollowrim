@@ -96,6 +96,13 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 	var d := f.d
 	var h := ic.gm.horloge
 	var s := f.surface
+	# (fusion, API de B) surface remplacée (repli en capsules → vrais maillages) : les index gardés désignent d'autres
+	# points ; le point touché est retrouvé par sa position, les foyers de brûlure sont retirés autour de lui
+	if ic.surface_changee(f):
+		if int(d.imp_i) >= 0:
+			d.imp_i = ImpactCorps.plus_proche(s, d.imp)
+		if not (d.foyers as PackedInt32Array).is_empty():
+			_choisir_foyers(ic, f)
 	# jets de l'image (deux mains en double incantation) : direction et rayon moyens, impact sur la surface
 	var jets: Dictionary = d.jets
 	var n_jets := 0

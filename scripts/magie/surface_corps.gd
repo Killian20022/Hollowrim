@@ -67,6 +67,10 @@ var masse_demi := Vector3(0.3, 0.8, 0.3)
 var _image := -1
 var _origine := Vector3.ZERO
 var _repli := false
+## (Agent B, perf) groupes PARTAGÉS entre maillages : clé = squelette + os + transformée du maillage. Les pièces d'un même
+## personnage (tunique, pantalon, bottes… même squelette, même transformée) ne font plus qu'un groupe par os : ~60 → ~25
+## groupes pour un draugr, actualiser() presque deux fois moins cher.
+var _par_cle := {}
 
 ## Échantillonnage d'une cible. `lire` = faux : les maillages pas encore en cache sont sautés (repli en capsules si rien
 ## n'est prêt ; ImpactCorps les lit ensuite, un par image, et refait la surface) → jamais de lecture au premier impact.
@@ -264,7 +268,8 @@ func _ajouter(mi: MeshInstance3D) -> void:
 		var s2 := mi.get_node_or_null(mi.skeleton) as Skeleton3D
 		if s2 != null:
 			sq = s2
-	var par_os := {}   # clé de groupe -> groupe
+	var par_os := {}   # clé de groupe -> groupe (nouveaux groupes de ce maillage)
+	var t_mi := str(mi.global_transform if mi.is_inside_tree() else mi.transform)
 	var bs: PackedInt32Array = e.b
 	var ps: PackedVector3Array = e.p
 	var ns: PackedVector3Array = e.n
@@ -281,9 +286,14 @@ func _ajouter(mi: MeshInstance3D) -> void:
 				var bp := skin.get_bind_pose(b)
 				o = bp * o
 				n = (bp.basis * n).normalized()
-		var cle := os   # un appel = un maillage : l'os suffit
+		# pièce skinnée : groupe partagé par os (et transformée du maillage) entre les pièces d'un même squelette (agent B) ;
+		# pièce rigide : son propre groupe. _compter fusionne ensuite par (repère, os) (agent A).
+		var cle := "%d:%d:%s" % [sq.get_instance_id(), os, t_mi] if os >= 0 else "%d:%d" % [mi.get_instance_id(), os]
 		if not par_os.has(cle):
-			par_os[cle] = {"mi": mi, "sq": sq if os >= 0 else null, "os": os, "o": PackedVector3Array(), "n": PackedVector3Array()}
+			if _par_cle.has(cle):
+				par_os[cle] = _par_cle[cle]
+			else:
+				par_os[cle] = {"mi": mi, "sq": sq if os >= 0 else null, "os": os, "o": PackedVector3Array(), "n": PackedVector3Array(), "neuf": true}
 		# (un PackedVector3Array lu dans un dictionnaire est une COPIE : on le relit, on ajoute, on le réécrit)
 		var g: Dictionary = par_os[cle]
 		var go: PackedVector3Array = g.o
@@ -293,7 +303,11 @@ func _ajouter(mi: MeshInstance3D) -> void:
 		g.o = go
 		g.n = gn
 	for cle in par_os:
-		_groupes.append(par_os[cle])
+		var g: Dictionary = par_os[cle]
+		if g.get("neuf", false):
+			g.erase("neuf")
+			_par_cle[cle] = g
+			_groupes.append(g)
 
 ## Repli sans maillage lisible (ou avant lecture) : capsules le long des os du squelette.
 func _repli_capsules() -> void:

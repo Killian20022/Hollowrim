@@ -12,6 +12,7 @@
 //   3 escarbille: escarbilles fines qui s'échappent par les bords et du côté impact
 //   4 fumee     : fumée légère au-dessus des foyers
 //   5 sol       : flammes au sol, autour des points bas (pieds)
+//   6 aspire, 7 givre, 8 fonte : écoles de l'agent B (magie_corps_part_ecoles.gdshaderinc)
 shader_type particles;
 // les répulseurs du foyer (déviation du jet autour du corps) ne poussent pas ces particules-ci
 render_mode disable_force;
@@ -22,7 +23,7 @@ uniform int mode = 0;
 // Paramètres du foyer (jet, impact, foyers de brûlure, sol) : lus dans la texture des positions, à la suite des points
 // (SurfaceCorps.TEXELS_POINTS ; écrits chaque image par ImpactCorps) → aucun uniforme modifié par image.
 //   P+0 : dir_jet.xyz, k_jet        P+1 : point_impact.xyz (relatif), rayon_jet
-//   P+2 : k_foyers, sol_y, nb_pts, 0  P+3..P+6 : foyers (xyz relatif, w rayon ; 0 = éteint)  P+7 : réservé
+//   P+2 : k_foyers, sol_y, nb_pts, 0  P+3..P+6 : foyers (xyz relatif, w rayon ; 0 = éteint)  P+7 : point_main.xyz (monde, ténèbres)
 const int P = 192;   // = SurfaceCorps.TEXELS_POINTS (LARGEUR 256 × 3 / 4)
 uniform float poids_min = 0.0;      // mise au point : poids plancher (1 = émission sur tous les points)
 // cinématique
@@ -84,6 +85,8 @@ float foyer(vec3 p) {
 	return m;
 }
 
+#include "res://shaders/magie_corps_part_ecoles.gdshaderinc"
+
 // poids (0..1) d'un point pour le mode courant, et sa « chaleur » (0..1 : départ dans la rampe)
 vec2 poids(vec3 p, vec3 n, vec3 dir_jet, float k_jet, vec3 point_impact, float rayon_jet, float k_foyers, float sol_y) {
 	vec3 d = dir_jet;
@@ -117,6 +120,10 @@ vec2 poids(vec3 p, vec3 n, vec3 dir_jet, float k_jet, vec3 point_impact, float r
 		float bas = 1.0 - smoothstep(0.08, 0.4, p.y - sol_y);
 		w = bas * (k_jet * (0.4 + 0.6 * prox) + k_foyers * 0.6);
 		c = 0.3;
+	} else {
+		vec2 r = poids_ecoles(p, n, face, prox, k_jet, point_impact, rayon_jet, k_foyers);
+		w = r.x;
+		c = r.y;
 	}
 	return vec2(clamp(max(w, poids_min), 0.0, 1.0), c);
 }
@@ -187,6 +194,8 @@ void start() {
 			vec3 r = sphere(s);
 			pos = vec3(p.x + r.x * 0.22, sol_y + 0.02, p.z + r.z * 0.22);
 			dir = up + d * suit_jet * 0.5;
+		} else if (mode >= 6) {
+			dir = depart_ecoles(p, n, d, s, pos);
 		} else {
 			// la flamme naît sur la surface et MONTE en la léchant (peu de normale : elle colle au corps)
 			dir = n * 0.25 + up * 0.9 + d * suit_jet * k_jet;
@@ -226,6 +235,13 @@ void process() {
 		uint sa = h(uint(INDEX) * 2654435761u + 17u);
 		float am = mix(amorti.x, amorti.y, float(sa & 1023u) / 1023.0);
 		VELOCITY *= max(1.0 - am * DELTA, 0.0);
+		if (mode == 6) {
+			vec3 vel = VELOCITY;
+			if (aspirer(vel, p, DELTA, INDEX, TIME)) {
+				ACTIVE = false;
+			}
+			VELOCITY = vel;
+		}
 		float k = 1.0;
 		if (courbe == 1) {
 			k = mix(1.0, 0.2, age);
