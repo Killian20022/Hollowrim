@@ -1717,6 +1717,8 @@ func _maj_projectiles() -> void:
 
 func impact(ecole: String, position: Vector3, normale: Vector3, force: float) -> void:
 	ecole = _ecole_ok(ecole)
+	if ImpactCorps.impact(self, ecole, position, normale, force):   # dans un corps : rendu sur sa surface (impact_corps.gd)
+		return
 	var f := clampf(force, 0.3, 3.0)
 	var b := base_normale(normale)
 	var xf := Transform3D(b.scaled(Vector3.ONE * sqrt(f)), position)
@@ -1786,8 +1788,10 @@ func zone(ecole: String, position: Vector3, rayon: float, duree: float) -> void:
 	var kz := clampf(r / 2.5, 0.5, 2.0)
 	match ecole:
 		"feu":
-			bouffee("feu", position + Vector3.UP * 0.6, 0.4, r * 0.75, 0.7)
-			emettre("feu_explosion", null, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * kz), position + Vector3.UP * 0.4), false, kz)
+			# explosion DANS un corps (boule de feu) : le souffle l'entoure déjà (ImpactCorps.impact) ; pas de boule posée devant
+			if not ImpactCorps.zone_sur_corps(self, position):
+				bouffee("feu", position + Vector3.UP * 0.6, 0.4, r * 0.75, 0.7)
+				emettre("feu_explosion", null, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * kz), position + Vector3.UP * 0.4), false, kz)
 			emettre("feu_explosion_fumee", null, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * kz), position + Vector3.UP * 0.5), false, kz)
 			emettre("feu_impact_braise", null, base, false, 1.5)
 			disque(position, Vector3.UP, 0.2, r * 1.15, 0.55, {"couleur": "#ec6a1f", "coeur": "#fff0a8", "anneau": 0.88, "epaisseur": 0.08, "texels": 64.0})
@@ -1906,6 +1910,7 @@ func chaine(ecole: String, points: Array) -> void:
 	var pts: Array[Vector3] = []
 	for p in points:
 		pts.append(p)
+	var sur_corps := ImpactCorps.points_sur_corps(self, pts)   # les arcs finissent SUR la surface des corps (impact_corps.gd)
 	var teinte := "electricite" if ecole == "electricite" or not ARCS.has(ecole) else ecole
 	var dbl: bool = _double.get("electricite", false)
 	var t0 := horloge
@@ -1916,8 +1921,11 @@ func chaine(ecole: String, points: Array) -> void:
 		var n := clampi(int((horloge - t0) / pas) + 1, 1, pts.size() - 1)
 		for i in range(1, n + 1):
 			var l := pts[i - 1].distance_to(pts[i])
-			foudre_ramifiee(traits, pts[i - 1], pts[i], l * 0.1, 1.0, 3, 5)
-			foudre_ramifiee(traits, pts[i - 1], pts[i], l * 0.14, 0.6, 1, 5)
+			# lien qui finit sur un corps : peu de ramifications (les arcs du corps prennent le relais, pas de pelote autour)
+			var sc: bool = sur_corps[i]
+			foudre_ramifiee(traits, pts[i - 1], pts[i], l * 0.1, 1.0, 1 if sc else 3, 5)
+			if not sc:
+				foudre_ramifiee(traits, pts[i - 1], pts[i], l * 0.14, 0.6, 1, 5)
 		return traits)
 	var sp := "elec_impact" if teinte == "electricite" else "violet_etincelles"
 	for i in range(1, pts.size()):
