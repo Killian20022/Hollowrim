@@ -4,6 +4,7 @@ extends SceneTree
 ##   godot --path . --script res://outils/captures_impact_feu.gd -- --sortie=<dossier> [--cas=face,trois_quarts,...]
 ##       [--sans-impact-corps]   rendu d'AVANT (gerbe en boîte + voile de statut) pour les planches avant | après
 ##       [--seul-corps]          jet et aura masqués : on ne voit que ce qui naît sur le corps (mise au point)
+##       [--sans-voile] [--sans-coque]  mise au point : voile / coque éteints
 ##       [--cote]                ajoute une vue de côté (caméra à 3 m) de chaque capture : contrôle de la silhouette
 ##       [--detail-sorts=retro|moyen|eleve]  (défaut : élevé, comme la galerie)
 ## Cas : face, trois_quarts, profil, marche, attaque, chute, brulure, double. Une image par instant listé dans CAS.
@@ -91,14 +92,14 @@ func _cas(nom: String) -> void:
 		t += dt
 		var actif := t > 0.05 and t < duree
 		if nom == "marche":
-			d.position += Basis(Vector3.UP, d.rotation.y).z * dt * 0.9
+			d.position += Basis(Vector3.UP, d.rotation.y).z * dt * 0.5
 		if nom == "chute" and t > 0.8 and not tombe:
 			tombe = true
 			var rd := Ragdoll.equiper(d) as Ragdoll
 			if rd != null:
 				rd.declencher(Vector3(0.3, 0.6, -1.0) * 60.0, d.global_position + Vector3.UP * 1.3)
 		var vise: Vector3 = d.global_position + Vector3.UP * (1.1 if not tombe else 0.5)
-		EffetsMagie.aura_main(paume_g, "feu", 1.0)
+		EffetsMagie.aura_main(paume_g, "feu", 1.0 if t < duree + 0.3 else 0.0)
 		EffetsMagie.jet("feu", paume_g, (vise - paume_g.global_position).normalized(), 7.0, 1.0, actif)
 		if dbl:
 			EffetsMagie.aura_main(paume_d, "feu", 1.0)
@@ -111,6 +112,11 @@ func _cas(nom: String) -> void:
 					(j.flux as Node3D).visible = false
 			for a: Dictionary in GestionMagie.instance._auras.values():
 				(a.ancre as Node3D).visible = false
+		if _arg("sans-voile") != "" and ImpactCorps.instance != null:
+			ImpactCorps.instance.mat_voile.set_shader_parameter("eclat", 0.0)
+		if _arg("sans-coque") != "" and ImpactCorps.instance != null:
+			ImpactCorps.instance.mat_coque.set_shader_parameter("plein", false)
+			ImpactCorps.instance.mat_coque.set_shader_parameter("eclat", 0.0)
 		if _arg("debug-coque") != "" and ImpactCorps.instance != null:
 			ImpactCorps.instance.mat_coque.set_shader_parameter("plein", true)
 		if _arg("debug-poids") != "" and ImpactCorps.instance != null:
@@ -140,6 +146,12 @@ func _capturer(nom: String, d: Node3D) -> void:
 	var img := root.get_texture().get_image()
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(sortie))
 	img.save_png(sortie.path_join(nom + ".png"))
+	if _arg("debug-lum") != "":
+		for l: OmniLight3D in GestionMagie.instance._lumieres:
+			print("  lum vis=", l.visible, " e=", l.light_energy, " portee=", l.omni_range, " dist_corps=", l.global_position.distance_to(d.global_position + Vector3.UP * 1.0))
+		for l in g.find_children("*", "Light3D", true, false):
+			if not GestionMagie.instance._lumieres.has(l):
+				print("  autre lum ", l.name, " ", l.get_class(), " e=", (l as Light3D).light_energy, " vis=", (l as Light3D).is_visible_in_tree())
 	if _arg("debug") != "" and ImpactCorps.instance != null:
 		for fo: ImpactCorps.Foyer in ImpactCorps.instance.foyers:
 			if fo.libre:

@@ -23,14 +23,15 @@ uniform vec4 c2 : source_color = vec4(0.99, 0.71, 0.23, 1.0);  // #fcb53a
 uniform vec4 c3 : source_color = vec4(0.93, 0.42, 0.12, 1.0);  // #ec6a1f
 uniform vec4 c4 : source_color = vec4(0.70, 0.20, 0.12, 1.0);  // #b3341f
 uniform vec4 c5 : source_color = vec4(0.35, 0.10, 0.11, 1.0);  // #5a1a1c
-uniform float eclat = 1.45;
+uniform float eclat = 1.3;
 uniform float gonfle_max = 0.055;   // m : épaisseur de la coque au plus chaud
 uniform float rayon_chaud = 0.55;   // m
+uniform float rayon_coeur = 0.17;   // m : tache blanc-jaune au point touché
 uniform float cases = 48.0;         // cases du motif par mètre (pixels francs)
 uniform float montee = 1.0;         // vitesse de montée du motif
-uniform float entraine = 0.32;      // m : langues entraînées dans le sens du jet sur le bord de la silhouette
-uniform float ecarte_bord = 0.14;   // m : … et écartées du corps
-uniform float hauteur = 0.26;       // m : les langues soulèvent la coque jusqu'à cette hauteur
+uniform float entraine = 0.45;      // m : langues entraînées dans le sens du jet sur le bord de la silhouette
+uniform float ecarte_bord = 0.2;   // m : … et écartées du corps
+uniform float hauteur = 0.42;       // m : les langues soulèvent la coque jusqu'à cette hauteur
 uniform bool plein = false;         // mise au point : coque pleine (vérifie qu'elle suit le corps)
 
 varying vec3 p_monde;
@@ -110,21 +111,26 @@ void fragment() {
 		float v = bruit(q * vec3(11.0, 3.0, 11.0) - vec3(0.0, t * montee * 3.0, 0.0)) * 0.65
 			+ bruit(q * vec3(23.0, 7.0, 23.0) - vec3(0.0, t * montee * 6.0, 0.0)) * 0.35;
 		// densité : contour de la silhouette et côté chaud ; au centre du corps, seulement le plus chaud (corps lisible)
-		float dens = chaleur_v * (0.3 + 0.9 * smoothstep(0.2, 0.8, bord));
-		float i = dens * (v * 1.5 - 0.35);
+		float dens = chaleur_v * (0.25 + 1.0 * smoothstep(0.25, 0.85, bord));
+		float i = dens * (v * 1.7 - 0.55);
+		// cœur d'impact : éclaboussure blanc-jaune qui s'étale sur la surface autour du point touché (pas une sphère)
+		vec3 dj = normalize(mc_dir.xyz + vec3(0.0, 0.00001, 0.0));
+		float di = length(p_monde - mc_feu.xyz);
+		float coeur = exp(-(di * di) / (rayon_coeur * rayon_coeur)) * clamp(-dot(n_monde, dj), 0.0, 1.0) * min(mc_feu.w, 1.2) * clamp(mc_autre.w, 0.0, 1.0);
+		i = max(i, coeur * (0.4 + 0.6 * v));
 		if (i <= 0.06) {
 			discard;
 		}
 		vec3 c;
-		if (i > 0.7) {
+		if (i > 0.62) {
 			c = c0.rgb;
-		} else if (i > 0.52) {
+		} else if (i > 0.44) {
 			c = c1.rgb;
-		} else if (i > 0.36) {
+		} else if (i > 0.28) {
 			c = c2.rgb;
-		} else if (i > 0.22) {
+		} else if (i > 0.16) {
 			c = c3.rgb;
-		} else if (i > 0.12) {
+		} else if (i > 0.1) {
 			c = c4.rgb;
 		} else {
 			c = c5.rgb;

@@ -75,7 +75,7 @@ void fragment() {
 	float hloc = chaleur * face * face * (0.2 + 0.8 * prox);
 	float cases = mc_mesh.z;
 	// lueur du corps éclairé de l'intérieur : 3 paliers concentriques autour du point touché (pas de grain)
-	float a_lum = step(0.28, hloc) * 0.34 + step(0.5, hloc) * 0.33 + step(0.75, hloc) * 0.33;
+	float a_lum = step(0.3, hloc) * 0.2 + step(0.55, hloc) * 0.2 + step(0.8, hloc) * 0.2;
 	float t = hloc;
 	// braises (grosses cases rares qui palpitent), là où ça a chauffé puis carbonisé
 	vec3 qb = floor(p_obj * cases * 0.4);
@@ -87,8 +87,9 @@ void fragment() {
 	float contour = step(0.7, bord) * chaleur * (0.3 + 0.7 * face);
 	a_lum = max(a_lum, max(braise, contour * 0.67));
 	t = max(t, braise * 0.6);
-	a_lum = ceil(clamp(a_lum, 0.0, 1.0) * 3.0 - 0.05) / 3.0;
-	vec3 lum = palette(clamp(t * 0.95 + 0.1, 0.0, 1.0)) * eclat * a_lum * 0.8;
+	a_lum = ceil(clamp(a_lum, 0.0, 0.67) * 3.0 - 0.05) / 3.0;
+	// jamais d'aplat clair : au plus de l'orange (le blanc-jaune est réservé au cœur de la coque, dans la couche fine)
+	vec3 lum = palette(clamp(t * 0.7 + 0.1, 0.0, 0.8)) * eclat * a_lum * 0.75;
 	// carbonisation : taches sombres (jamais un aplat : le motif du corps reste lisible)
 	float tache = h3(floor(p_obj * cases * 0.3) + 11.0);
 	float a_noir = carbo * (0.25 + 0.45 * step(0.4, tache)) * (0.45 + 0.55 * face);

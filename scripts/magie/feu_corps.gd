@@ -16,12 +16,12 @@ const REGLAGES := [
 	{"mode": "langues", "n": 130, "vie": 0.5, "vitesse": Vector2(0.6, 1.5), "gravite": Vector3(0, 2.6, 0), "amorti": Vector2(1.2, 2.2),
 		"ouvert": 0.14, "ecarte": 0.02, "turb": 3.5, "suit_jet": 0.45, "taille": Vector2(0.05, 0.1), "courbe": 2, "alea": 0.35,
 		"chaud": 0.4, "rampe": FEU6, "cap": 8.0, "eclat": 1.5,
-		"fin": {"n": 420, "taille": Vector2(0.016, 0.034), "cap": 12.0, "etire": 4.5, "eclat": 1.55}},
+		"fin": {"n": 360, "taille": Vector2(0.016, 0.034), "cap": 12.0, "etire": 3.5, "eclat": 1.55}},
 	# 1 contour : le flux contourne la silhouette et en ressort sur les côtés, dans le sens du jet
-	{"mode": "contour", "n": 100, "vie": 0.34, "vitesse": Vector2(2.4, 4.2), "gravite": Vector3(0, 1.6, 0), "amorti": Vector2(2.0, 3.0),
-		"ouvert": 0.1, "ecarte": 0.03, "turb": 2.0, "taille": Vector2(0.06, 0.11), "courbe": 2, "alea": 0.3, "chaud": 0.5,
+	{"mode": "contour", "n": 100, "vie": 0.38, "vitesse": Vector2(1.8, 3.2), "gravite": Vector3(0, 1.6, 0), "amorti": Vector2(2.0, 3.0),
+		"ouvert": 0.12, "ecarte": 0.03, "turb": 4.0, "taille": Vector2(0.06, 0.11), "courbe": 2, "alea": 0.3, "chaud": 0.5,
 		"rampe": ["#fff0a8", "#fcb53a", "#ec6a1f", "#ec6a1f", "#b3341f", "#5a1a1c"], "cap": 9.0, "eclat": 1.45,
-		"fin": {"n": 300, "taille": Vector2(0.016, 0.034), "cap": 12.0, "etire": 5.0, "eclat": 1.5}},
+		"fin": {"n": 260, "taille": Vector2(0.02, 0.042), "cap": 12.0, "etire": 2.5, "eclat": 1.5}},
 	# 2 éclaboussure : cœur blanc-jaune qui s'étale sur la surface autour du point touché
 	{"mode": "eclabousse", "add": true, "n": 40, "vie": 0.2, "vitesse": Vector2(1.2, 2.6), "gravite": Vector3(0, 0.8, 0), "amorti": Vector2(5.0, 8.0),
 		"ouvert": 0.15, "ecarte": 0.02, "taille": Vector2(0.04, 0.08), "courbe": 1, "alea": 0.3, "chaud": 0.0,
@@ -31,7 +31,7 @@ const REGLAGES := [
 	{"mode": "escarbilles", "add": true, "n": 30, "vie": 0.9, "vitesse": Vector2(1.0, 3.0), "gravite": Vector3(0, 0.5, 0), "amorti": Vector2(0.8, 1.5),
 		"ouvert": 0.45, "turb": 6.0, "suit_jet": 0.6, "taille": Vector2(0.012, 0.022), "courbe": 0, "alea": 0.4, "chaud": 0.0,
 		"rampe": ["#ffffff", "#fff0a8", "#fcb53a", "#ec6a1f", "#b3341f"], "cap": 3.0, "eclat": 2.0,
-		"fin": {"n": 80, "taille": Vector2(0.006, 0.011), "cap": 3.0, "etire": 4.0}},
+		"fin": {"n": 45, "taille": Vector2(0.006, 0.011), "cap": 3.0, "etire": 2.0}},
 	# 4 fumée légère au-dessus des foyers
 	{"mode": "fumee", "n": 16, "vie": 1.3, "vitesse": Vector2(0.3, 0.7), "gravite": Vector3(0, 0.9, 0), "amorti": Vector2(0.8, 1.4),
 		"ouvert": 0.3, "turb": 2.0, "taille": Vector2(0.12, 0.22), "courbe": 3, "alea": 0.3, "chaud": 0.0,

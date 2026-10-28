@@ -29,6 +29,11 @@ const MODES := {"langues": 0, "contour": 1, "eclabousse": 2, "escarbilles": 3, "
 const FORCE_REPOUSSE := 160.0
 ## Durée de vie des particules du jet quand il touche un corps (× celle qui les arrête au centre du corps).
 const PROLONGE_JET := 1.15
+## Lumières de la magie autour d'un corps en feu : pas plus près que RAYON_TEMPERE (m) de son centre, énergie plafonnée.
+const RAYON_TEMPERE := 1.35
+const ENERGIE_MAX_CORPS := 2.0
+## Somme des énergie / distance² des lumières de la magie à moins de 2,6 m d'un corps en feu.
+const ECLAIREMENT_MAX := 1.25
 ## Maillages voilés par corps au plus (une passe de plus par maillage).
 const MAX_VOILES := 12
 const COMPORTEMENTS := {"feu": preload("res://scripts/magie/feu_corps.gd")}
@@ -83,6 +88,8 @@ class Foyer:
 # ====================================================================== accès
 
 static func obtenir(g: GestionMagie = null) -> ImpactCorps:
+	if OS.get_cmdline_user_args().has("--sans-impact-corps"):
+		actif = false   # mise au point / mesure : rendu d'avant
 	if instance != null and is_instance_valid(instance) and not instance.is_queued_for_deletion():
 		return instance
 	if g == null:
@@ -528,9 +535,39 @@ func _process(_dt: float) -> void:
 		uniformes(f, "nb_pts", f.surface.nb)
 		if not COMPORTEMENTS[f.ecole].maj(self, f, dt):
 			liberer(f)
-	if actifs > 0 and gm.couche != null:
-		gm.couche.demander()
+	if actifs > 0:
+		_temperer_lumieres()
+		if gm.couche != null:
+			gm.couche.demander()
 	_preparer(dt)
+
+## Lumières du pool de GestionMagie (déjà placées pour cette image : ce nœud passe après lui) trop près d'un corps en feu :
+## la lumière du bout du jet est posée ~0,5 m devant le torse et brûlait le corps en blanc de près. Elle est reculée
+## vers le lanceur et plafonnée : le corps est éclairé par le feu sans saturer (rien n'est modifié dans GestionMagie).
+func _temperer_lumieres() -> void:
+	for f: Foyer in foyers:
+		if f.libre or f.surface == null:
+			continue
+		var c := f.origine() + f.surface.masse_centre
+		var somme := 0.0
+		var proches: Array[OmniLight3D] = []
+		for l: OmniLight3D in gm._lumieres:
+			if not l.visible:
+				continue
+			var v := l.position - c
+			var dist := v.length()
+			if dist < RAYON_TEMPERE:
+				l.position = c + v / maxf(dist, 0.001) * RAYON_TEMPERE
+				l.light_energy = minf(l.light_energy, ENERGIE_MAX_CORPS)
+				dist = RAYON_TEMPERE
+			if dist < 2.6:
+				somme += l.light_energy / (dist * dist)
+				proches.append(l)
+		# éclairement total reçu par le corps plafonné (de près, la lumière de la main s'ajoute à celle du jet)
+		if somme > ECLAIREMENT_MAX:
+			var k := ECLAIREMENT_MAX / somme
+			for l in proches:
+				l.light_energy *= k
 
 ## Lecture des maillages en avance (au plus un par image) : ennemis proches pas encore échantillonnés, puis ceux touchés
 ## avant d'être prêts (le foyer tourne alors sur le repli en capsules, puis il est refait avec les vrais points).
