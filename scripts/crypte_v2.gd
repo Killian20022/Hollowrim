@@ -139,7 +139,8 @@ static func _obstacles(k: DonjonKit, m: Dictionary, v2: Dictionary) -> Dictionar
 				(ob[c] as Array).append([pe.x if pm["horiz"] else pe.z, hl + 0.08])
 	return ob
 
-const SANS_OBSTACLE := ["bougie", "crane", "flaque", "os_tas", "crane_os", "arme", "eboulis_a", "eboulis_b", "eboulis_c", "dalles_a", "dalles_b", "dalles_c", "congere", "gravats", "parchemins_epars"]
+const SANS_OBSTACLE := ["bougie", "crane", "flaque", "os_tas", "crane_os", "arme", "eboulis_a", "eboulis_b", "eboulis_c", "dalles_a", "dalles_b", "dalles_c", "congere", "gravats", "parchemins_epars",
+	"pilier", "pilier_pied", "eboulis_a_prevu", "eboulis_b_prevu", "eboulis_c_prevu", "dalles_a_prevu", "dalles_b_prevu", "dalles_c_prevu"]      # piliers isolés (emprise réelle) : au milieu des salles, jamais adossés
 
 ## Décalage des objets accrochés au mur (bannières, boucliers, gravures, fissures) : devant les panneaux, sauf dans une ouverture.
 ## Appelé par CrypteDecor._saillie (lié au module : saillie.bind(k, m)).
@@ -227,6 +228,27 @@ static func salle(k: DonjonKit, m: Dictionary) -> void:
 				var c4: Vector3 = centres[i]
 				if Vector2(c4.x - po.x, c4.z - po.z).length() < 1.6:
 					centres[i] = c4 + Vector3(2.0 if c4.x >= po.x else -2.0, 0, 0)
+		# ni contre le fût ou le chapiteau d'un pilier isolé de la table (posés après : emprise réelle lue sur le module, pilier_parties) ;
+		# on écarte le lustre (couronne + halo : LUSTRE_DEMI) sur l'axe le moins coûteux
+		for g: Array in m.get("garnitures", []):
+			if g[0] != "piliers":
+				continue
+			var ga: Dictionary = g[1]
+			var pm := CrypteDecor.pilier_module(float(ga.get("h", h)), float(ga.get("largeur", 1.0)))
+			for pw: Vector3 in ga["pts"]:
+				var po := k.lw(pw)
+				var parts := CrypteDecor.pilier_parties(pm[0], pm[1], Vector3(po.x, y, po.z))
+				var fut: AABB = parts[parts.size() - 1]
+				for i in centres.size():
+					var c4: Vector3 = centres[i]
+					var lx := fut.size.x * 0.5 + LUSTRE_DEMI + 0.05 - absf(c4.x - fut.get_center().x)
+					var lz := fut.size.z * 0.5 + LUSTRE_DEMI + 0.05 - absf(c4.z - fut.get_center().z)
+					if lx > 0.0 and lz > 0.0:
+						if lx < lz:
+							c4.x += lx * (1.0 if c4.x >= fut.get_center().x else -1.0)
+						else:
+							c4.z += lz * (1.0 if c4.z >= fut.get_center().z else -1.0)
+						centres[i] = c4
 		for c3: Vector3 in centres:
 			lustre(d, Vector3(c3.x, y + h, c3.z), clampf(h - 3.0, 0.8, 3.2))
 	if not v2["auto"]:
@@ -371,8 +393,18 @@ static func _auto_contenu(k: DonjonKit, m: Dictionary, v2: Dictionary) -> void:
 			var p := k.pt_mur(m, c, r.randf_range(-Lw * 0.5 + 1.0, Lw * 0.5 - 1.0), y, r.randf_range(0.7, 1.1) if eb else r.randf_range(0.9, 1.8))
 			if _libre(k, m, p, 1.0 if eb else 1.1, -1.3):      # rayon réel des modules (éboulis 0,9 à 1 m, dalles jusqu’à 0,93 m en biais)
 				var liste: Array = v2["eboulis"] if eb else v2["dalles"]
-				liste.append({"pos": k.mw(p), "mod": (["eboulis_a", "eboulis_b", "eboulis_c"] if eb else ["dalles_a", "dalles_b", "dalles_c"])[r.randi_range(0, 2)], "lacet": r.randf() * TAU})
+				var mod: String = (["eboulis_a", "eboulis_b", "eboulis_c"] if eb else ["dalles_a", "dalles_b", "dalles_c"])[r.randi_range(0, 2)]
+				var lac := r.randf() * TAU
+				# boîte réelle du module tiré (eboulis_b : 1,03 x 0,96 m de demi-côtés, ses coins dépassent le rayon de 1 m) : pas sur un objet
+				# déjà posé (urne, os des détritus différés) ; emprise provisoire jusqu'à la pose (_sol, fin de salle) pour ce qui suit
+				var bm := CrypteDecor.bornes_modele(mod)
+				var cb := p + Basis(Vector3.UP, lac) * Vector3(bm.get_center().x, 0.0, bm.get_center().z)
+				var demi := Vector2(bm.size.x, bm.size.z) * 0.5
+				if not d.rect_libre(cb, demi, lac, 0.03):
+					continue
+				liste.append({"pos": k.mw(p), "mod": mod, "lacet": lac})
 				k._reserves.append([Vector2(p.x, p.z), 0.9 if eb else 0.5])
+				d.emprise(mod + "_prevu", cb, demi, lac, bm.size.y)
 				break
 	for i in n_fl:
 		for essai in 10:
@@ -577,6 +609,9 @@ static func _sol(k: DonjonKit, m: Dictionary, v2: Dictionary, y: float) -> void:
 		var Lw := dim.x if pm["horiz"] else dim.y
 		var p := k.pt_mur(m, c, r.randf_range(-Lw * 0.5 + 1.2, Lw * 0.5 - 1.2), y, r.randf_range(0.5, 0.9))
 		d.givre_decal(p, Vector2(r.randf_range(0.8, 1.5), r.randf_range(0.6, 1.1)), r.randf() * TAU)
+
+## Demi-largeur du lustre de fer en plan (halo de 1,8 m compris : ObjLuminaires.lustre_v2).
+const LUSTRE_DEMI := 0.9
 
 ## Lustre de fer posé à la voûte : chaîne, couronne à cierges (lot L8 : module « lustre_l8 », ObjLuminaires), flammes, halo.
 static func lustre(d: CrypteDecor, plafond: Vector3, chute: float) -> void:

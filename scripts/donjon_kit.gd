@@ -132,7 +132,7 @@ func _place_differee(m: Dictionary, p: Vector3, r: float, boites: Array, genre: 
 		if b.grow(rr + 0.05).has_point(q):
 			return false
 	if genre == "plafond":
-		return true
+		return d.hors_piliers(p, rr, 0.05)      # glaçons : ni dans le fût ni dans le chapiteau (plus larges que la collision)
 	if genre != "amas" and genre != "fissure" and (absf(p.x) > dim.x * 0.5 - 0.3 - 0.32 - r or absf(p.z) > dim.y * 0.5 - 0.3 - 0.32 - r):
 		return false      # hors du soubassement et des panneaux de maçonnerie (saillie <= 0,32 m)
 	if genre == "gravats" and not libre(m, p, r, 0.4):
@@ -1376,6 +1376,12 @@ func glacon(pos_plafond: Vector3, longueur := 0.8, r := 0.12) -> void:
 	d.j1()
 
 func congere(pos: Vector3, r := 1.8, h := 0.7) -> void:
+	# les buttes satellites vont jusqu'à 1,45 r du centre : réduite pour ne pas monter dans un pilier isolé (emprise réelle, éclats compris)
+	var lib := d.dist_piliers(pos)
+	if lib < r * 1.45 + 0.05:
+		var r2 := maxf(0.3, (lib - 0.05) / 1.45)
+		h *= maxf(0.6, r2 / r)
+		r = r2
 	d.j0("congere")
 	d.emprise("congere", pos, Vector2(r, r), 0.0, h)
 	d.tour("neige", pos, [Vector2(r, 0.0), Vector2(r * 0.82, h * 0.45), Vector2(r * 0.45, h * 0.85), Vector2(r * 0.12, h)], 7, 0.2, true)

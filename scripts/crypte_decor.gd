@@ -255,6 +255,56 @@ func emprise_libre(p: Vector3, r: float, marge := 0.05, sauf: Array = []) -> boo
 			return false
 	return true
 
+## Le rectangle orienté (centre c, demi-côtés demi, lacet) ne recoupe aucune emprise à moins de 2 m de hauteur (axes séparateurs, à
+## `marge` près).
+func rect_libre(c: Vector3, demi: Vector2, lacet: float, marge := 0.03) -> bool:
+	var a := [Vector2(cos(lacet), -sin(lacet)), Vector2(sin(lacet), cos(lacet))]      # axes x et z du rectangle, en plan (x, z)
+	for e: Array in emprises:
+		var ce: Vector3 = e[0]
+		if absf(ce.y - c.y) > 2.0:
+			continue
+		var de: Vector2 = e[1]
+		var le := float(e[2])
+		var b := [Vector2(cos(le), -sin(le)), Vector2(sin(le), cos(le))]
+		var t := Vector2(ce.x - c.x, ce.z - c.z)
+		var separe := false
+		for ax: Vector2 in a + b:
+			var ra := absf(ax.dot(a[0])) * demi.x + absf(ax.dot(a[1])) * demi.y
+			var rb := absf(ax.dot(b[0])) * de.x + absf(ax.dot(b[1])) * de.y
+			if absf(ax.dot(t)) > ra + rb + marge:
+				separe = true
+				break
+		if not separe:
+			return false
+	return true
+
+## Bornes d'un module Blender (repère du module, échelle 1) ; AABB vide s'il est introuvable.
+static func bornes_modele(nom: String) -> AABB:
+	_charger_modeles()
+	var b := AABB()
+	var vu := false
+	for mat: String in _modeles_de.get(nom, []):
+		for p: Vector3 in (_modeles["%s__%s" % [nom, mat]] as Dictionary)["v"]:
+			b = b.expand(p) if vu else AABB(p, Vector3.ZERO)
+			vu = true
+	return b
+
+## Le disque (p, r) ne touche, EN PLAN et quelle que soit la hauteur de p, ni le fût ni le chapiteau d'un pilier isolé (emprises
+## « pilier » de pilier()) : glaçons et lustres pendus à la voûte.
+func hors_piliers(p: Vector3, r: float, marge := 0.05) -> bool:
+	for e: Array in emprises:
+		if e[4] == "pilier" and dist_emprise(e, p) < r + marge:
+			return false
+	return true
+
+## Distance en plan de p à la plus proche emprise de pilier isolé (pied, éclats, fût) à moins de 2 m de hauteur ; INF s'il n'y en a pas.
+func dist_piliers(p: Vector3) -> float:
+	var best := INF
+	for e: Array in emprises:
+		if String(e[4]).begins_with("pilier") and absf(float((e[0] as Vector3).y) - p.y) <= 2.0:
+			best = minf(best, dist_emprise(e, p))
+	return best
+
 func j0(type: String, lacet := 0.0) -> void:
 	objet_debut(type)      # registre commun de l'outil d'audit (branche grotte)
 	if not journal_actif or muet:
@@ -1176,14 +1226,84 @@ func pilastre_mur(pied: Vector3, vers: Vector3, hp: float) -> void:
 ## Pilier (refonte matière, références grottes_cryptes_2/3) : fût carré à arêtes abattues, socle mouluré givré, chapiteau à
 ## ressauts, et sur chaque face un panneau d'ENTRELACS en losanges (un ou deux panneaux superposés selon la hauteur).
 ## Collision = la boîte d'origine (largeur x h x largeur), inchangée.
+## Crypte v2 : module Blender et échelle du pilier isolé de hauteur h et de section `largeur` -> [nom, échelle].
+static func pilier_module(h: float, largeur: float) -> Array:
+	var bw := 1.2 if h > 6.5 else 1.0
+	return ["pilier_libre_8" if h > 6.5 else "pilier_libre_5", Vector3(largeur / bw, h / (8.0 if h > 6.5 else 5.0), largeur / bw)]
+
+## Hauteur (repère du module, échelle 1) qui sépare le PIED (plinthe, talon, éclats tombés) du fût et du chapiteau.
+const PILIER_PIED := 0.45
+static var _parties_pilier := {}      # module -> [AABB] (repère du module, échelle 1)
+
+## Emprise RÉELLE d'un pilier isolé v3, lue sur les sommets du module (une seule source : la géométrie Blender, voir
+## sources_blender/scripts/crypte_modules_v2.py, pilier_libre_v3 / pilier_rond_v3) : [plinthe + talon, amas d'éclats par coin
+## (C4 : jusqu'à 1,05-1,10 m de l'axe, la collision n'en fait que 0,5-0,6), fût + chapiteau]. Mises à l'échelle `ech`, posées en `pos`.
+static func pilier_parties(nom: String, ech: Vector3, pos: Vector3) -> Array:
+	_charger_modeles()
+	_modeles_verrou.lock()
+	if not _parties_pilier.has(nom):
+		var vs := PackedVector3Array()
+		for mat: String in _modeles_de.get(nom, []):
+			vs.append_array((_modeles["%s__%s" % [nom, mat]] as Dictionary)["v"])
+		var socle := 0.0      # demi-côté de la plinthe (au-dessus des éclats, qui font moins de 8 cm)
+		for p in vs:
+			if p.y > 0.1 and p.y < PILIER_PIED:
+				socle = maxf(socle, maxf(absf(p.x), absf(p.z)))
+		var bas := AABB()
+		var haut := AABB()
+		var amas := {}
+		var vu_b := false
+		var vu_h := false
+		for p in vs:
+			if p.y >= PILIER_PIED:
+				haut = haut.expand(p) if vu_h else AABB(p, Vector3.ZERO)
+				vu_h = true
+			elif maxf(absf(p.x), absf(p.z)) > socle + 0.01:
+				var k := Vector2i(signi(int(signf(p.x))), signi(int(signf(p.z))))
+				amas[k] = (amas[k] as AABB).expand(p) if amas.has(k) else AABB(p, Vector3.ZERO)
+			else:
+				bas = bas.expand(p) if vu_b else AABB(p, Vector3.ZERO)
+				vu_b = true
+		var l: Array = []
+		if vu_b:
+			l.append(bas)
+		for k in amas:
+			l.append(amas[k])
+		if vu_h:
+			l.append(haut)
+		_parties_pilier[nom] = l
+	var src: Array = _parties_pilier[nom]
+	_modeles_verrou.unlock()
+	var out: Array = []
+	for b: AABB in src:
+		out.append(AABB(pos + b.position * ech, b.size * ech))
+	return out
+
 func pilier(x: float, z: float, h: float, largeur := 0.9, y := 0.0) -> void:
 	j0("pilier")
 	if v2:      # crypte v2 : pilier isolé en assises de blocs (module Blender), MÊME collision
-		var base := "pilier_libre_8" if h > 6.5 else "pilier_libre_5"
-		var bh := 8.0 if h > 6.5 else 5.0
-		var bw := 1.2 if h > 6.5 else 1.0
-		modele(base, Vector3(x, y, z), 0.0, Vector3(largeur / bw, h / bh, largeur / bw))
+		var pm := pilier_module(h, largeur)
+		var ech: Vector3 = pm[1]
+		modele(pm[0], Vector3(x, y, z), 0.0, ech)
 		solide(Vector3(x, y + h * 0.5, z), Vector3(largeur, h, largeur))
+		# emprise RÉELLE (sommets du module) : plinthe, éclats tombés au pied, fût + chapiteau — plus large que la collision depuis C4.
+		# Tout ce qui se pose après (semis, flaques, congères, objets différés, glaçons) la contourne ; l'audit lit les mêmes parties.
+		var parts := pilier_parties(pm[0], ech, Vector3(x, y, z))
+		for i in parts.size():
+			var b: AABB = parts[i]
+			var fut := b.position.y > y + PILIER_PIED * ech.y - 0.01      # fût + chapiteau : « pilier » (glaçons et lustres l'évitent aussi)
+			emprise("pilier" if fut else "pilier_pied", Vector3(b.get_center().x, y, b.get_center().z), Vector2(b.size.x, b.size.z) * 0.5, 0.0, b.end.y - y)
+		if journal_actif and not muet and _j_prof == 1:
+			_j_cases = {}      # le journal note les parties (pied, amas d'éclats, fût) au lieu d'une boîte pleine de la largeur des éclats
+			for i in parts.size():
+				var b: AABB = parts[i]
+				var mn := Vector3(INF, INF, INF)
+				var mx := -mn
+				for c in 8:
+					var q := _j_inv * (xf * b.get_endpoint(c))
+					mn = mn.min(q)
+					mx = mx.max(q)
+				_j_cases[Vector2i(i, -1000)] = [mn, mx]
 		j1()
 		return
 	if not est_crypte:
