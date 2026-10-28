@@ -2084,13 +2084,14 @@ def arche_v3(nom, portee, fleche, graine, epaisseur=0.34, prof=0.5, bloc=None):
 #   - mur « essuyé » : tons x 0,82 au pied -> x 1 à 1,6 m ;
 #   - assises : soubassement de 2 assises hautes à longs blocs, puis petites assises de 0,2-0,4 m (blocs de 0,3 à 0,95 m) ;
 #   - accidents : 1 bloc sur 12 SORTI de 8-12 cm (plafonné à 0,315 m du mur : les objets accrochés sont posés à 0,33), 1 sur 12 TOURNÉ
-#     de 2-4°, 1 sur 25 MANQUANT (trou noir, gravats au pied), 1 sur 3 avec un coin arraché (aucun triangle de plus) ;
-#   - pan_mur_b : un corbeau (console à deux ressauts) ; pan_mur_c : une niche à arc brisé (jambages, tablette, écoinçons) ;
+#     de 2-4°, 1 sur 25 MANQUANT (blocage sombre en retrait, éclats dans le trou), 1 sur 3 avec un coin arraché (aucun triangle de plus) ;
+#   - pan_mur_b : un corbeau (console à deux ressauts, blocs voisins reculés de 4 cm) ; pan_mur_c : une niche à arc brisé (jambages,
+#     tablette, écoinçons) ; niche et corbeaux hors du milieu du pan (appliques, bannières) ; RIEN au-delà de 0,315 m ;
 #     pan_mur_haut : deux corbeaux. Le gabarit étant posé à 1,8 / 2,6 / 3,4 m, cela fait un accident d'architecture tous les 4-6 m ;
 #   - givre d'arête par TRONÇONS (30-70 % de l'arête haute d'un bloc sur 5, épaisseur variable, ton x 0,72-0,9 : jamais le haut de la
 #     rampe Glace) ; glaçons IRRÉGULIERS (0 à 4, longueurs tirées au carré, trous) sous les blocs sortis, les corbeaux et la tablette.
 # Bloc = enveloppe convexe de 12 points (dos caché) : 18 triangles (44 pour le bloc biseauté v2) ; ~2 fois plus de blocs pour moins de
-# triangles. Mêmes noms, mêmes encombrements (0 -> 0,32 m devant le mur), aucune collision.
+# triangles. Mêmes noms, encombrement 0 -> 0,315 m devant le mur (v2 : 0,30 ; objets accrochés posés à 0,33 m), aucune collision.
 ARETES_SANS = ARETES_SANS + ("pan_mur",)
 MUR_TON = (0.52, 0.86)
 MUR_FACE = {"face": 0.96, "chanfrein": 1.22, "chanfrein_haut": 1.42, "dessus": 1.0, "dessous": 0.6, "joint": 0.22}
@@ -2178,27 +2179,30 @@ def _glacons_irreg(M, x0, x1, y, z, nmax=4, lmax=0.24):
                    ton=rg.uniform(0.78, 0.95), rot=rg.uniform(0, 1.5))
 
 
-def _gravats_pied(M, cx, n):
-    """Éclats tombés au pied du mur (bloc manquant) : petits blocs inclinés, 12 triangles chacun."""
+def _gravats_trou(M, x0, x1, y, n):
+    """Éclats restés dans le trou d'un bloc manquant (posés sur son lit, devant le blocage) : petits blocs inclinés, 12 triangles chacun.
+    Pas de gravats au sol devant le mur : l'encombrement du pan resterait à 0,315 m (objets accrochés à 0,33 m, audit des
+    interpénétrations par boîtes)."""
     rg = M.rg
     for _ in range(n):
-        s = rg.uniform(0.05, 0.12)
-        x = cx + rg.uniform(-0.35, 0.35)
-        z = rg.uniform(0.12, 0.38)
-        M.boite((s * rg.uniform(1.0, 1.8), s * rg.uniform(0.5, 0.9), s), Vector((x, s * 0.3, z)), yaw=rg.uniform(0, 6.2),
-                incl=(rg.uniform(-0.4, 0.4), rg.uniform(-0.3, 0.3)), bev=0.0, jit=0.012, ton=rg.uniform(0.45, 0.75))
+        s = rg.uniform(0.05, 0.1)
+        x = rg.uniform(x0 + s, x1 - s)
+        z = rg.uniform(0.17, 0.27)
+        M.boite((s * rg.uniform(1.0, 1.6), s * rg.uniform(0.5, 0.8), s * 0.8), Vector((x, y + s * 0.3, z)), yaw=rg.uniform(-0.6, 0.6),
+                incl=(rg.uniform(-0.3, 0.3), rg.uniform(-0.3, 0.3)), bev=0.0, jit=0.01, ton=rg.uniform(0.45, 0.75))
 
 
 def _corbeau(M, cx, y_haut, larg=0.3):
     """Console à deux ressauts sous une tablette (corbeau) : dessous en biais (quart de rond taillé), tablette à arête claire,
-    givre dessus, glaçons dessous. Saillie 0,46 m devant le mur, 0,5 m de haut."""
+    givre dessus, glaçons dessous. Saillie plafonnée à MUR_MAX (objets accrochés à 0,33 m) ; les blocs autour reculent de 4 cm
+    (pan_mur_v3) ; 0,5 m de haut."""
     rg = M.rg
     w = larg
-    zt = 0.46
+    zt = MUR_MAX - 0.005
     # tablette
     _mur_bloc(M, cx - w * 0.75, cx + w * 0.75, y_haut - 0.11, y_haut, zt, rg.uniform(0.72, 0.86), zb=0.05, ch_h=0.04, ch_b=0.02, ch_s=0.025)
     # corbeau : profil en biais (haut à 0,42, bas à 0,2), deux ressauts
-    for k, (ya, yb, za, zb_) in enumerate(((y_haut - 0.27, y_haut - 0.12, 0.42, 0.34), (y_haut - 0.5, y_haut - 0.28, 0.32, 0.2))):
+    for k, (ya, yb, za, zb_) in enumerate(((y_haut - 0.27, y_haut - 0.12, zt - 0.02, zt - 0.07), (y_haut - 0.5, y_haut - 0.28, zt - 0.08, zt - 0.17))):
         hw = w * (0.5 - 0.06 * k)
         pts = []
         for sx in (-1, 1):
@@ -2208,7 +2212,7 @@ def _corbeau(M, cx, y_haut, larg=0.3):
                     Vector((xi, yb - 0.035, za)), Vector((xi, ya + 0.02, zb_))]
         _mur_coin(M, pts, rg.uniform(0.62, 0.8), joints=(HAUT,))
     _givre_troncon(M, cx - w * 0.7, cx + w * 0.7, y_haut, zt, 0.04)
-    _glacons_irreg(M, cx - w * 0.4, cx + w * 0.4, y_haut - 0.5, 0.2, 3, 0.2)
+    _glacons_irreg(M, cx - w * 0.4, cx + w * 0.4, y_haut - 0.5, zt - 0.19, 3, 0.2)
 
 
 def _niche(M, cx, y0, w=0.62, h=0.82, fleche=0.26):
@@ -2220,9 +2224,9 @@ def _niche(M, cx, y0, w=0.62, h=0.82, fleche=0.26):
     x0, x1 = cx - w * 0.5, cx + w * 0.5
     y1 = y0 + h
     # tablette (seuil) : arête claire, givre, glaçons
-    _mur_bloc(M, x0 - jb - 0.05, x1 + jb + 0.05, y0 - 0.1, y0, 0.32, rg.uniform(0.74, 0.86), ch_h=0.04, ch_b=0.02)
-    _givre_troncon(M, x0, x1, y0, 0.32, 0.04)
-    _glacons_irreg(M, x0 - 0.1, x1 + 0.1, y0 - 0.1, 0.3, 4, 0.22)
+    _mur_bloc(M, x0 - jb - 0.05, x1 + jb + 0.05, y0 - 0.1, y0, MUR_MAX - 0.005, rg.uniform(0.74, 0.86), ch_h=0.04, ch_b=0.02)
+    _givre_troncon(M, x0, x1, y0, MUR_MAX - 0.005, 0.04)
+    _glacons_irreg(M, x0 - 0.1, x1 + 0.1, y0 - 0.1, MUR_MAX - 0.02, 4, 0.22)
     # jambages : deux pierres chacun
     for sx, xa, xb in ((-1, x0 - jb, x0), (1, x1, x1 + jb)):
         ym = y0 + h * rg.uniform(0.42, 0.58)
@@ -2270,9 +2274,13 @@ def pan_mur_v3(nom, larg, haut, graine, corbeaux=0, niche=False):
     if niche:
         zones.append(_niche(M, rg.choice((-1, 1)) * larg * rg.uniform(0.24, 0.28), 0.98))
     cotes = [rg.choice((-1, 1))] if corbeaux == 1 else [-1, 1]
+    retraits = []        # (x0, x1, y0, y1) : blocs reculés de 4 cm autour d'un corbeau (sa saillie reste lisible sous le plafond)
     for k in range(corbeaux):
         cxk = cotes[k] * larg * rg.uniform(0.27, 0.34)
-        _corbeau(M, cxk, min(haut - 0.45, 2.45 + rg.uniform(-0.1, 0.1)), rg.uniform(0.26, 0.34))
+        yk = min(haut - 0.45, 2.45 + rg.uniform(-0.1, 0.1))
+        lk = rg.uniform(0.26, 0.34)
+        _corbeau(M, cxk, yk, lk)
+        retraits.append((cxk - lk - 0.35, cxk + lk + 0.35, yk - 0.95, yk + 0.35))
     J = 0.032
     y = 0.0
     rang = 0
@@ -2308,7 +2316,7 @@ def pan_mur_v3(nom, larg, haut, graine, corbeaux=0, niche=False):
                     continue
                 r = rg.random()
                 if r < 0.04 and 0 < rang and yb < haut - 0.3 and xb - xa < 0.8:
-                    trous.append(((xa + xb) * 0.5, ya))
+                    trous.append((xa, xb, ya))
                     _mur_bloc(M, xa - 0.01, xb + 0.01, ya - 0.01, yb + 0.01, 0.13, 0.15, zb=0.1, ch_h=0.03, ch_b=0.02, ch_s=0.02)      # blocage du fond
                     continue
                 ton = rg.uniform(*MUR_TON) * _essuye((ya + yb) * 0.5)
@@ -2318,15 +2326,21 @@ def pan_mur_v3(nom, larg, haut, graine, corbeaux=0, niche=False):
                 elif tr > 0.9:
                     ton = min(1.0, ton * 1.15)
                 zf = 0.04 + rg.uniform(0.16, 0.21) + (0.035 if rang == 0 else 0.0)      # assise basse : devant le fond du bas (0,205)
+                zf = min(zf, MUR_MAX - 0.006)
                 yaw = roll = 0.0
                 sorti = False
                 if r < 0.04 + 1.0 / 12:
-                    zf = min(MUR_MAX, zf + rg.uniform(0.08, 0.12))
+                    zf = min(MUR_MAX - 0.006, zf + rg.uniform(0.08, 0.12))
                     sorti = True
                 elif r < 0.04 + 2.0 / 12:
                     yaw = rg.choice((-1, 1)) * math.radians(rg.uniform(2, 4))
                     roll = rg.choice((-1, 1)) * math.radians(rg.uniform(0.5, 1.5))
                     zf = min(MUR_MAX - 0.02, zf + 0.025)
+                if yaw:
+                    zf = min(zf, MUR_MAX - 0.006 - (xb - xa) * 0.5 * abs(math.sin(yaw)))
+                for (rx0, rx1, ry0, ry1) in retraits:
+                    if xb > rx0 and xa < rx1 and yb > ry0 and ya < ry1:
+                        zf -= 0.04
                 eclat = (rg.randrange(4), rg.uniform(0.03, 0.07)) if rg.random() < 0.33 else None
                 chh = rg.uniform(0.045, 0.065)
                 _mur_bloc(M, xa, xb, ya, yb, zf, ton, ch_h=chh, ch_b=rg.uniform(0.018, 0.03),
@@ -2337,8 +2351,11 @@ def pan_mur_v3(nom, larg, haut, graine, corbeaux=0, niche=False):
                     _glacons_irreg(M, xa + 0.05, xb - 0.05, ya, zf - 0.02, 3, 0.16)
         y += hc
         rang += 1
-    for (tx, ty) in trous:
-        _gravats_pied(M, tx, rg.randint(3, 5))
+    for (tx0, tx1, ty) in trous:
+        _gravats_trou(M, tx0, tx1, ty, rg.randint(2, 3))
+    for (_m, pts, _t) in M.tris:          # garde-fou d'encombrement (blocs tournés + éclats : quelques mm à 2 cm de trop)
+        for q in pts:
+            q.z = min(q.z, MUR_MAX)
     return M
 
 
