@@ -1584,6 +1584,147 @@ func crane(pos: Vector3, lacet := 0.0) -> void:
 func os_tas(pos: Vector3, n := 4, rayon := 0.4) -> void:
 	ObjPetitMobilier.os_tas(self, pos, n, rayon)
 
+# ------------------------------------------------------------------ C7 : ossuaire en relief (panneaux d'os)
+## Les panneaux d'os (DonjonKit.panneau_os) n'étaient qu'une texture de crânes peints (ossuaire.res) : à 1-3 m, « papier peint ».
+## Version en relief : de y0 à y0 + 1,5 m (0,8 -> 2,3 m, hauteur d'yeux), 3 rangées de niches de 0,5 m en vraie pierre (modules de
+## ossuaire.py : tablette, montant, fond NOIR), garnies de crânes et de fagots d'os en volume ; au-dessus, corniche puis la texture
+## `ossuaire` gardée (2,3 -> y1 : vue de loin et en contre-plongée, elle suffit), ses niches calées sur les colonnes du relief.
+## Tout passe par modele() : fusionné dans les tampons de la case de 8 m (pas un nœud par crâne). Le contenu est posé PLUS TARD
+## (remplir_niches_os, après le récit de la salle) : sarcophages, estrade et meubles posés après les panneaux sont alors connus, et
+## une niche qu'ils masquent reste vide (pas de crâne dans un couvercle). Tirages : générateur à part (graine = position du panneau),
+## rng / rng_deco intouchés : le reste du décor ne bouge pas. `-- --os-plat` : ancien panneau peint (captures « avant » à code égal).
+const OS_RANGEES := 3
+const OS_CASE := 0.5
+const OS_PROF := 0.28        # saillie du cadre (ossuaire.py PROF)
+var niches_os: Array = []    # niches à garnir : [pied (repère local, plan du mur), lacet du module, largeur, rangée, graine]
+
+static func ossuaire_relief() -> bool:
+	return not OS.get_cmdline_user_args().has("--os-plat") and modele_existe("niche_os_cadre_a")
+
+## Renvoie la nouvelle hauteur du haut du panneau (la rangée peinte au-dessus de la corniche est entière : 0,5 m).
+func panneau_os_v3(axe: String, fixe: float, a0: float, a1: float, y0: float, y1: float, signe: float) -> float:
+	var vers := Vector3(0, 0, signe) if axe == "x" else Vector3(signe, 0, 0)
+	var lac := atan2(vers.x, vers.z)
+	var P := func(u: float, y: float) -> Vector3: return Vector3(u, y, fixe) if axe == "x" else Vector3(fixe, y, u)
+	var n := maxi(1, floori((a1 - a0) / OS_CASE + 0.001))
+	var w := (a1 - a0) / n
+	var ex := w / OS_CASE
+	# sens de l'axe du module (+x local) le long du mur : les colonnes vont de a0 à a1 quel que soit le signe
+	var sx := (Basis(Vector3.UP, lac) * Vector3.RIGHT).dot(Vector3.RIGHT if axe == "x" else Vector3.BACK)
+	var r := RandomNumberGenerator.new()
+	var pw: Vector3 = xf * (P.call(a0, y0) as Vector3)
+	r.seed = hash(Vector3i(roundi(pw.x * 10.0), roundi(pw.y * 10.0), roundi(pw.z * 10.0))) + 7070
+	var yr := y0 + OS_RANGEES * OS_CASE
+	j0("panneau_os")
+	for i in n:
+		var u := a0 + (i + 0.5) * w
+		for k in OS_RANGEES:
+			var yb := y0 + k * OS_CASE
+			var t := r.randf()
+			var v := "a" if t < 0.55 else ("b" if t < 0.82 else "c")
+			# montant à gauche de la case (côté -x du module) ; le dernier montant est posé à part, de l'autre côté
+			modele("niche_os_cadre_" + v, P.call(u, yb), lac, Vector3(ex, 1.0, 1.0), {}, false)
+			niches_os.append([P.call(u, yb + 0.06), lac, w, k, r.randi()])
+		modele("niche_os_corniche_" + ("b" if r.randf() < 0.3 else "a"), P.call(u, yr), lac, Vector3(ex, 1.0, 1.0), {}, false)
+	for k in OS_RANGEES:      # montant de bout (côté où les cases n'en ont pas)
+		modele("niche_os_poteau", P.call(a1 if sx > 0.0 else a0, y0 + k * OS_CASE), lac, Vector3.ONE, {}, false)
+	# texture au-dessus de la corniche : une rangée entière de niches de 0,5 m (2,43 -> 2,93 m), calée sur la corniche et sur les colonnes
+	var yt := yr + 0.13
+	y1 = maxf(y1, yt + OS_CASE)
+	var f := fixe + signe * 0.11
+	var pts := _pas(a0, a1, 4.0)
+	for i in pts.size() - 1:
+		var u0: float = pts[i]
+		var u1: float = pts[i + 1]
+		var t0 := a0 + (u0 - a0) * OS_CASE / w
+		var t1 := a0 + (u1 - a0) * OS_CASE / w
+		var dy := ceilf(yt / OS_CASE) * OS_CASE - yt
+		if axe == "x":
+			quad("ossuaire", Vector3(u0, yt, f), Vector3(u1, yt, f), Vector3(u1, y1, f), Vector3(u0, y1, f), Vector3(0, 0, signe), [],
+				[Vector3(t0, yt + dy, f), Vector3(t1, yt + dy, f), Vector3(t1, y1 + dy, f), Vector3(t0, y1 + dy, f)])
+		else:
+			quad("ossuaire", Vector3(f, yt, u0), Vector3(f, yt, u1), Vector3(f, y1, u1), Vector3(f, y1, u0), Vector3(signe, 0, 0), [],
+				[Vector3(f, yt + dy, t0), Vector3(f, yt + dy, t1), Vector3(f, y1 + dy, t1), Vector3(f, y1 + dy, t0)])
+	j1()
+	return y1
+
+## Une emprise posée (sarcophage, estrade, meuble…) entre-t-elle dans le volume de la niche (pied p, lacet du module, largeur w) ?
+func _niche_masquee(p: Vector3, lac: float, w: float) -> bool:
+	var v := Basis(Vector3.UP, lac) * Vector3.BACK
+	var c := p + v * (OS_PROF * 0.5)
+	for e: Array in emprises:
+		var t: String = e[4]
+		if t == "panneau_os" or t.begins_with("niche_os") or t.begins_with("oss_"):
+			continue
+		var y0e := float((e[0] as Vector3).y)
+		if y0e + float(e[3]) < p.y + 0.02 or y0e > p.y + 0.4:
+			continue
+		if dist_emprise(e, c) < maxf(w * 0.5, OS_PROF * 0.5) - 0.02:
+			return true
+	return false
+
+## Garnit les niches notées par panneau_os_v3 (appelé par DonjonKit.module après le récit de la salle). Rangée du bas : surtout des
+## fagots (bouts d'os vers la salle) ; rangée des yeux : crânes (seuls, par deux, percés, couchés) ; rangée du haut : mélange.
+func remplir_niches_os() -> void:
+	if niches_os.is_empty():
+		return
+	var liste := niches_os
+	niches_os = []
+	for nn: Array in liste:
+		var p: Vector3 = nn[0]
+		var lac: float = nn[1]
+		var w: float = nn[2]
+		var rangee: int = nn[3]
+		var r := RandomNumberGenerator.new()
+		r.seed = int(nn[4])
+		if _niche_masquee(p, lac, w) or r.randf() < 0.03:
+			# niche masquée (couvercle de sarcophage, estrade, dos d'un meuble) ou murée : moellons devant le fond, rien dedans
+			modele("niche_os_muree_" + ("a" if r.randf() < 0.6 else "b"), p - Vector3(0, 0.06, 0), lac, Vector3(w / OS_CASE, 1.0, 1.0), {}, false)
+			continue
+		var bs := Basis(Vector3.UP, lac)
+		var ax := bs * Vector3.RIGHT
+		var av := bs * Vector3.BACK
+		var t := r.randf()
+		var genre: String
+		match rangee:
+			0: genre = "fagot" if t < 0.5 else ("fagot_crane" if t < 0.72 else ("couche" if t < 0.9 else "crane"))
+			1: genre = "crane" if t < 0.6 else ("deux" if t < 0.78 else ("fagot_crane" if t < 0.88 else "fagot"))
+			_: genre = "crane" if t < 0.42 else ("fagot" if t < 0.7 else ("deux" if t < 0.8 else ("couche" if t < 0.92 else "vide")))
+		if genre == "vide":
+			_os_crane(r, p + ax * r.randf_range(-0.08, 0.08) + av * 0.1, lac, 0.8, true)      # un éclat de calotte, rien d'autre
+			continue
+		if genre == "fagot" or genre == "fagot_crane":
+			var v := "a" if r.randf() < 0.55 else "b"
+			_os_teint(r, "oss_fagot_" + v, p + ax * r.randf_range(-0.03, 0.03) + av * r.randf_range(0.0, 0.02), lac + r.randf_range(-0.08, 0.08),
+				Vector3(r.randf_range(1.05, 1.2) * (1.0 if r.randf() < 0.5 else -1.0), r.randf_range(0.95, 1.15), 1.0))
+			if genre == "fagot_crane":
+				_os_crane(r, p + Vector3(0, 0.12, 0) + ax * r.randf_range(-0.06, 0.06) + av * 0.1, lac, r.randf_range(0.95, 1.08))
+		elif genre == "couche":
+			_os_teint(r, "oss_fagot_c", p + ax * r.randf_range(-0.02, 0.02), lac + r.randf_range(-0.06, 0.06),
+				Vector3((w / OS_CASE) * (1.0 if r.randf() < 0.5 else -1.0), 1.0, 1.0))
+			if r.randf() < 0.45:
+				_os_crane(r, p + Vector3(0, 0.1, 0) + ax * r.randf_range(-0.1, 0.1) + av * 0.1, lac, r.randf_range(0.9, 1.0))
+		elif genre == "deux":
+			for sgn: float in [-1.0, 1.0]:
+				_os_crane(r, p + ax * (sgn * w * 0.21 + r.randf_range(-0.015, 0.015)) + av * 0.12, lac, r.randf_range(0.92, 1.02))
+		else:
+			_os_crane(r, p + ax * r.randf_range(-0.05, 0.05) + av * 0.12, lac, r.randf_range(1.12, 1.3))
+
+## Pose d'un module d'os avec une teinte d'os tirée (jauni / pâle / sali) : la rangée ne se lit pas comme un tampon répété.
+func _os_teint(r: RandomNumberGenerator, nom: String, pos: Vector3, lacet: float, ech: Vector3) -> void:
+	var k := r.randf_range(0.82, 1.06)
+	var j := r.randf_range(-0.04, 0.05)
+	modele(nom, pos, lacet, ech, {"@os": Color(k, k * (0.98 - j * 0.5), k * (0.93 - j))}, false)
+
+## Crâne de niche : variante (entier, sans mâchoire, percé, couché), tourné vers la salle à ±20° (parfois de trois quarts), miroir tiré.
+func _os_crane(r: RandomNumberGenerator, pos: Vector3, lac: float, s: float, eclat := false) -> void:
+	var t := r.randf()
+	var v := "d" if eclat else ("a" if t < 0.36 else ("b" if t < 0.66 else ("c" if t < 0.84 else "d")))
+	var dl := r.randf_range(-0.35, 0.35) + (r.randf_range(0.5, 0.9) * (1.0 if r.randf() < 0.5 else -1.0) if r.randf() < 0.18 else 0.0)
+	if eclat:
+		s *= 0.8
+	_os_teint(r, "oss_crane_" + v, pos, lac + dl, Vector3(s * (1.0 if r.randf() < 0.5 else -1.0), s, s))
+
 func arme(pos: Vector3, lacet := 0.0) -> void:
 	ObjPetitMobilier.arme(self, pos, lacet)
 
@@ -1933,12 +2074,14 @@ static func _charger_modeles() -> void:
 	_modeles_verrou.lock()
 	if not _modeles_charges:
 		_modeles_charges = true
-		for chemin: String in [MODELES_DAT, OBJETS_DAT]:
+		for chemin: String in [MODELES_DAT, OBJETS_DAT, OSSUAIRE_DAT]:
 			_lire_dat(chemin)
 	_modeles_verrou.unlock()
 
 ## Lots L2/L3 objets : mobilier de la crypte et de la grotte (sources_blender/scripts/objets_donjon.py), même format que crypte_v2.dat.
 const OBJETS_DAT := "res://assets/crypte/modules/objets_donjon.dat"
+## C7 ossuaire en relief : niches, crânes et fagots d'os (sources_blender/scripts/ossuaire.py), même format.
+const OSSUAIRE_DAT := "res://assets/crypte/modules/ossuaire.dat"
 
 static func _lire_dat(chemin: String) -> void:
 	var f := FileAccess.open(chemin, FileAccess.READ)

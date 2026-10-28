@@ -326,6 +326,7 @@ func module(m: Dictionary) -> void:
 			_usure(m)
 		if m.has("extra"):
 			call(m["extra"], m)
+		d.remplir_niches_os()      # C7 : contenu des niches d'ossuaire, une fois sarcophages, estrade et meubles posés
 		_emettre_differes(m)
 		if v2_actif:
 			CrypteV2.finir(self, m)      # mode auto : piliers, panneaux, bannières, lumières de statue (après le récit de la salle)
@@ -1430,9 +1431,16 @@ func or_tas(pos: Vector3, r := 0.6, h := 0.3) -> void:
 
 ## Panneau d'ossuaire (texture de niches) plaqué sur un mur, avec cadre ; axe "x" : mur le long de X (z fixe), "z" : le long de Z.
 func panneau_os(axe: String, fixe: float, a0: float, a1: float, y0: float, y1: float, signe: float) -> void:
+	if OS.get_cmdline_user_args().has("--os-liste"):      # outil (C7) : étendue des panneaux (repère du décor) pour cadrer les captures
+		var pa := d.xf * (Vector3(a0, y0, fixe) if axe == "x" else Vector3(fixe, y0, a0))
+		var pb := d.xf * (Vector3(a1, y1, fixe) if axe == "x" else Vector3(fixe, y1, a1))
+		print("PANNEAU_OS %s signe=%.0f de %.2f,%.2f,%.2f a %.2f,%.2f,%.2f" % [axe, signe, pa.x, pa.y, pa.z, pb.x, pb.y, pb.z])
 	d.j0("panneau_os")
 	var f := fixe + signe * 0.11
 	var pts := d._pas(a0, a1, 4.0)
+	if CrypteDecor.ossuaire_relief():      # C7 : niches en relief (crânes et os en volume) jusqu'à 2,3 m, texture au-dessus
+		y1 = d.panneau_os_v3(axe, fixe, a0, a1, y0, y1, signe)
+		pts = []
 	for i in pts.size() - 1:
 		var u0: float = pts[i]
 		var u1: float = pts[i + 1]
