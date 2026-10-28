@@ -2228,8 +2228,8 @@ def _niche(M, cx, y0, w=0.62, h=0.82, fleche=0.26):
         ym = y0 + h * rg.uniform(0.42, 0.58)
         _mur_bloc(M, xa, xb, y0, ym - 0.015, zj, rg.uniform(0.66, 0.84), ch_s=0.025)
         _mur_bloc(M, xa, xb, ym + 0.015, y1, zj, rg.uniform(0.66, 0.84), ch_s=0.025)
-    # fond de la niche : plus noir que les joints, un peu en retrait de la face des jambages (profondeur 0,22 m)
-    M.boite((w + 0.02, h + fleche, 0.01), Vector((cx, y0 + (h + fleche) * 0.5, 0.045)), bev=0.0, jit=0.0, ton=0.06)
+    # fond de la niche : plus noir que les joints, à 0,16 m derrière la face des jambages (devant les pierres du décor, <= 0,09 m)
+    M.boite((w + 0.02, h + fleche, 0.01), Vector((cx, y0 + (h + fleche) * 0.5, 0.11)), bev=0.0, jit=0.0, ton=0.06)
     # claveaux en mitre (arc brisé), clé au sommet
     yt = y1 + fleche
     e = 0.15
@@ -2261,12 +2261,17 @@ def pan_mur_v3(nom, larg, haut, graine, corbeaux=0, niche=False):
     M = Module(nom, graine)
     rg = M.rg
     L2 = larg * 0.5
-    M.boite((larg, haut, 0.04), Vector((0, haut * 0.5, 0.02)), bev=0.0, jit=0.0, ton=MUR_FOND)      # fond (joints au noir)
+    # fond (joints au noir) EN AVANT des pierres du décor que le pan recouvre (CrypteDecor._relief_mur : soubassement 0,10-0,20 m
+    # sous 0,3 m, pierres d'assise <= 0,09 m) : sinon elles se montrent, éclairées, dans les joints, les trous et la niche
+    M.boite((larg, 0.32, 0.2), Vector((0, 0.16, 0.105)), bev=0.0, jit=0.0, ton=MUR_FOND)
+    M.boite((larg, haut - 0.32, 0.1), Vector((0, 0.32 + (haut - 0.32) * 0.5, 0.055)), bev=0.0, jit=0.0, ton=MUR_FOND)
     zones = []
+    # niche et corbeaux HORS du milieu du pan : les appliques (torches) et bannières se posent au milieu des travées
     if niche:
-        zones.append(_niche(M, rg.uniform(-0.25, 0.25) * larg * 0.3, 0.98))
+        zones.append(_niche(M, rg.choice((-1, 1)) * larg * rg.uniform(0.24, 0.28), 0.98))
+    cotes = [rg.choice((-1, 1))] if corbeaux == 1 else [-1, 1]
     for k in range(corbeaux):
-        cxk = (-L2 + larg * (k + 0.5) / corbeaux) + rg.uniform(-0.2, 0.2)
+        cxk = cotes[k] * larg * rg.uniform(0.27, 0.34)
         _corbeau(M, cxk, min(haut - 0.45, 2.45 + rg.uniform(-0.1, 0.1)), rg.uniform(0.26, 0.34))
     J = 0.032
     y = 0.0
@@ -2304,6 +2309,7 @@ def pan_mur_v3(nom, larg, haut, graine, corbeaux=0, niche=False):
                 r = rg.random()
                 if r < 0.04 and 0 < rang and yb < haut - 0.3 and xb - xa < 0.8:
                     trous.append(((xa + xb) * 0.5, ya))
+                    _mur_bloc(M, xa - 0.01, xb + 0.01, ya - 0.01, yb + 0.01, 0.13, 0.15, zb=0.1, ch_h=0.03, ch_b=0.02, ch_s=0.02)      # blocage du fond
                     continue
                 ton = rg.uniform(*MUR_TON) * _essuye((ya + yb) * 0.5)
                 tr = rg.random()
@@ -2311,7 +2317,7 @@ def pan_mur_v3(nom, larg, haut, graine, corbeaux=0, niche=False):
                     ton *= 0.8
                 elif tr > 0.9:
                     ton = min(1.0, ton * 1.15)
-                zf = 0.04 + rg.uniform(0.16, 0.21)
+                zf = 0.04 + rg.uniform(0.16, 0.21) + (0.035 if rang == 0 else 0.0)      # assise basse : devant le fond du bas (0,205)
                 yaw = roll = 0.0
                 sorti = False
                 if r < 0.04 + 1.0 / 12:
