@@ -217,6 +217,7 @@ func _construire_crypte() -> void:
 	_sarcophage_arene()
 	await _souffle()   # chargement étalé : les durées du journal ci-dessous comptent alors aussi ces images
 	var t1 := Time.get_ticks_msec()
+	Lumieres.atmosphere(d, null)      # lot C9 : halos de brume des braseros du vestibule (accent par défaut)
 	d.finir()
 	CrypteDonjon.limiter_portee(crypte)   # portée de dessin ~30 m
 	print("Crypte (lot 7a) : plan %d ms + finition %d ms = %d ms" % [t1 - t0, Time.get_ticks_msec() - t1, Time.get_ticks_msec() - t0])
