@@ -6,6 +6,7 @@ extends Node3D
 ##   godot --path . res://scenes/galerie_magie.tscn -- [--lieu=crypte|dehors] [--vue=fps|cote] [--plans=a,b,...]
 ##       [--captures=<dossier>]   une image PNG au milieu de chaque plan (<lieu>_<vue>_<plan>.png), puis quitte
 ##       [--perf]                 mesure : temps d'image sans effet, puis avec 3 effets simultanés + 5 cibles avec statut
+##       [--perf=jet]             mesure : un seul jet de flammes tenu (3 mesures de 240 images)
 ##       [--boucle]               rejoue la suite sans fin (démonstration)
 ##       [--instants=a,b,...]     plusieurs captures par plan, aux instants donnés (s)
 ##       [--tourne=<°/s>]         jets canalisés : la vue pivote (lacet) à partir de 0,8 s et le jet suit la caméra
@@ -434,6 +435,21 @@ func _perf() -> void:
 	await get_tree().create_timer(1.0).timeout
 	var base := await _mesurer(240, func() -> void: pass)
 	EffetsMagie.prechauffer()
+	if _arg("perf") == "jet":
+		# --perf=jet : coût d'UN jet de flammes tenu (aura + jet sur la cible du milieu), rien d'autre ; 3 mesures
+		await get_tree().create_timer(0.5).timeout
+		EffetsMagie.aura_main(paume_g, "feu", 1.0)
+		for k in 30:
+			EffetsMagie.jet("feu", paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, true)
+			await get_tree().process_frame
+		for r in 3:
+			var mj := await _mesurer(240, func() -> void:
+				EffetsMagie.jet("feu", paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, true))
+			var sj := EffetsMagie.stats()
+			print("PERF_JET %s %s : sans effet %.2f ms (GPU %.2f ms) ; jet de flammes %.2f ms (%d appels ; GPU %.2f ms) ; %d particules, %d émetteurs" % [
+				lieu, vue, base[0], base[2], mj[0], mj[1], mj[2], sj.particules, sj.emetteurs])
+		get_tree().quit()
+		return
 	await get_tree().create_timer(0.5).timeout
 	EffetsMagie.aura_main(paume_g, "feu", 1.0)
 	EffetsMagie.zone("glace", Vector3(0, 0, -6), 2.6, 60.0)
