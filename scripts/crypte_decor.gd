@@ -25,6 +25,9 @@ const TUILE := {
 	"entrelacs": 1.0, "sceau": 1.0, "brume": 1.0,
 	# crypte v2 : dalles irrégulières, pierre nue des modules Blender, givre en décalque
 	"dalle_v2": 4.0, "pierre_v2": 2.0, "statue_v2": 2.0, "givre_sol": 1.0, "flaque": 1.0, "flaque_bord": 1.0, "flaque_reflet": 1.0,
+	# C2 : sol en relief (dallage v3) = pierre_v2 éclaircie (même shader et mêmes textures : ALIAS_TEXTURE), son propre maillage par case, comme l'ancien
+	# sol « dalle_v2 » : le maillage de pierre des modules ne s'étend pas au sol de toute la case (≤ 8 lumières par maillage)
+	"pierre_sol": 2.0,
 }
 ## Refonte « crypte matière » (références grottes_cryptes_2/3) : feu plus orangé, ambiant écrasé dans les matériaux de la crypte
 ## (ombres presque noires, la torche et les braseros gardent toute leur force). La grotte (GrotteDecor) garde les anciennes valeurs.
@@ -40,6 +43,7 @@ const RUNE := Color(0.35, 0.80, 1.0)
 const AMBIANT_CRYPTE := 1.6
 const AMBIANT_V2 := 2.6              # crypte v2 : pierre des modules Blender et dalles irrégulières
 const TEINTE_PIERRE_V2 := Color(1.0, 1.12, 1.18)
+const TEINTE_SOL_V3 := 1.22            # C2 : dallage en relief (pierre_sol) : même luminance moyenne que l'ancien sol peint
 ## C4 (2026-10-23) : statues un peu mieux éclairées SANS lumière de plus (budget : 7 par salle, 8 par maillage) : leur pierre reçoit
 ## plus d'ambiant (la silhouette se détache dans l'ombre bleue) et une teinte un peu plus claire et chaude que les murs.
 const AMBIANT_STATUE := 4.4
@@ -51,7 +55,7 @@ const TEINTE_STATUE := Color(1.12, 1.16, 1.18)
 const LUEUR_STATUE_HAUT := Vector3(0.11, 0.14, 0.2)
 const LUEUR_STATUE_BAS := Vector3(0.05, 0.028, 0.012)
 ## Matières qui réutilisent la texture d'une autre (même dessin, réglages d'éclairage différents).
-const ALIAS_TEXTURE := {"statue_v2": "pierre_v2"}
+const ALIAS_TEXTURE := {"statue_v2": "pierre_v2", "pierre_sol": "pierre_v2"}      # C2 : sol en relief = texture de pierre_v2
 const GAIN_LUMIERE := 1.7          # pierre plus sombre (rampe donjon) : les feux portent plus loin et plus fort
 const GRILLE_CRYPTE := 180.0      # accroche des sommets : H / 2 à 640 x 360 (DIRECTION_ARTISTIQUE §3)
 
@@ -81,7 +85,7 @@ var niveau_a := 1.0
 var xf := Transform3D.IDENTITY
 
 const RELIEF := {"entrelacs": 1.0, "mur0": 0.75, "mur1": 0.75, "mur2": 0.75, "dalle0": 0.8, "dalle1": 0.8, "voute": 0.7, "bois": 0.8, "fer": 0.7, "gravure": 1.0,
-	"mur3": 0.8, "mur4": 0.9, "dalle3": 0.8, "dalle4": 0.9, "ossuaire": 1.0, "dalle_v2": 0.85, "pierre_v2": 0.7, "statue_v2": 0.7}
+	"mur3": 0.8, "mur4": 0.9, "dalle3": 0.8, "dalle4": 0.9, "ossuaire": 1.0, "dalle_v2": 0.85, "pierre_v2": 0.7, "statue_v2": 0.7, "pierre_sol": 0.7}
 const AVEC_MIPS := ["mur0", "mur1", "mur2", "dalle0", "voute", "bois", "fer", "lame", "gravure", "argile", "os", "parchemin", "toile", "laine", "lin", "jute",
 	"mur3", "mur4", "dalle3", "dalle4", "ossuaire", "or", "neige", "entrelacs", "dalle_v2", "pierre_v2", "statue_v2", "givre_sol"]
 const SANS_MIPS := ["halo", "rai", "flamme"]
@@ -425,9 +429,10 @@ func mat(nom: String) -> Material:
 					sm.set_shader_parameter("emission", Vector3(0.012, 0.03, 0.05))
 				if nom in PIERRE_NEUTRE:
 					sm.set_shader_parameter("teinte", TEINTE_PIERRE)
-				if nom == "pierre_v2" or nom == "dalle_v2":      # crypte v2 : plus de fond bleuté (planche : pierre lisible dans l'ombre)
+				if nom == "pierre_v2" or nom == "dalle_v2" or nom == "pierre_sol":      # crypte v2 : plus de fond bleuté (planche : pierre lisible dans l'ombre)
 					sm.set_shader_parameter("ambiant", AMBIANT_V2)
-					sm.set_shader_parameter("teinte", TEINTE_PIERRE_V2)
+					# C2 : dallage en relief un peu plus clair (la texture de pierre est plus sombre que l'ancienne « dalle_v2 »)
+					sm.set_shader_parameter("teinte", TEINTE_PIERRE_V2 * (TEINTE_SOL_V3 if nom == "pierre_sol" else 1.0))
 				elif nom == "statue_v2":
 					sm.set_shader_parameter("ambiant", AMBIANT_STATUE)
 					sm.set_shader_parameter("teinte", TEINTE_STATUE)
@@ -795,12 +800,14 @@ func _coupes(a: float, b: float, marges: Array) -> Array:
 	return out
 
 # ------------------------------------------------------------------ surfaces modulaires (pas de 4 m), AO cuite
-func plan_h(nom: String, x0: float, x1: float, z0: float, z1: float, y: float, vers_haut: bool, marge := 0.9, fond := 0.5) -> void:
+## `mult` (C2) : multiplie les couleurs de sommet (fond de joint sombre sous le dallage v3 en relief).
+func plan_h(nom: String, x0: float, x1: float, z0: float, z1: float, y: float, vers_haut: bool, marge := 0.9, fond := 0.5, mult := 1.0) -> void:
 	var n := Vector3.UP if vers_haut else Vector3.DOWN
 	var xs := _coupes(x0, x1, [marge])
 	var zs := _coupes(z0, z1, [marge])
 	var col := func(x: float, z: float) -> Color:
-		return _ao(minf(minf(x - x0, x1 - x), minf(z - z0, z1 - z)), marge, fond)
+		var c := _ao(minf(minf(x - x0, x1 - x), minf(z - z0, z1 - z)), marge, fond)
+		return Color(c.r * mult, c.g * mult, c.b * mult, c.a) if mult != 1.0 else c
 	for i in xs.size() - 1:
 		for j in zs.size() - 1:
 			quad(nom, Vector3(xs[i], y, zs[j]), Vector3(xs[i + 1], y, zs[j]), Vector3(xs[i + 1], y, zs[j + 1]), Vector3(xs[i], y, zs[j + 1]), n, [], [],
@@ -888,7 +895,15 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 	var xb := xmax - 0.3
 	var za := zmin + 0.3
 	var zb := zmax - 0.3
-	plan_h("dalle0", xa, xb, za, zb, y, true)
+	# C2 (2026-10-28) : crypte v2 → dalles EN RELIEF (modules Blender dallage_v3, CrypteV2.dallage) au-dessus d'un fond de joint sombre
+	# 7,5 cm sous le sol ; collision du sol inchangée (boîte ci-dessus). Sinon (grotte, v1, --sol-plat) : le plan de dalles peintes.
+	# Dalles, fond et seuils dans le tampon « pierre_sol » (pierre_v2 éclaircie) : un maillage de sol par case, comme avant (appels inchangés).
+	var relief := v2 and est_crypte and CrypteV2.dallage(self, xa, xb, za, zb, y)
+	var sol := "pierre_sol" if relief else "dalle0"
+	if relief:
+		plan_h(sol, xa, xb, za, zb, y - 0.075, true, 0.9, 0.5, 0.18)
+	else:
+		plan_h(sol, xa, xb, za, zb, y, true)
 	plan_h("voute", xa, xb, za, zb, y + h, false)
 	var ho := minf(h, 3.0)
 	var idx := 0
@@ -950,10 +965,10 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 					boite("mur0", Vector3(mc, y + 0.022, q) if horizontal else Vector3(q, y + 0.022, mc), Vector3(lw - 0.1, 0.045, 0.32) if horizontal else Vector3(0.32, 0.045, lw - 0.1), 0.0, true)
 					givre_dessus(Vector3(mc + sp * lw * 0.3, y + 0.045, q) if horizontal else Vector3(q, y + 0.045, mc + sp * lw * 0.3), Vector2(0.5, 0.2) if horizontal else Vector2(0.2, 0.5), 0.0)
 			if horizontal:
-				quad("dalle0", Vector3(c[0], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur + 0.3), Vector3(c[0], y, fixe_mur + 0.3), Vector3.UP)
+				quad(sol, Vector3(c[0], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur + 0.3), Vector3(c[0], y, fixe_mur + 0.3), Vector3.UP)
 				quad("voute", Vector3(c[0], y + ho, fixe_mur - 0.3), Vector3(c[1], y + ho, fixe_mur - 0.3), Vector3(c[1], y + ho, fixe_mur + 0.3), Vector3(c[0], y + ho, fixe_mur + 0.3), Vector3.DOWN)
 			else:
-				quad("dalle0", Vector3(fixe_mur - 0.3, y, c[0]), Vector3(fixe_mur + 0.3, y, c[0]), Vector3(fixe_mur + 0.3, y, c[1]), Vector3(fixe_mur - 0.3, y, c[1]), Vector3.UP)
+				quad(sol, Vector3(fixe_mur - 0.3, y, c[0]), Vector3(fixe_mur + 0.3, y, c[0]), Vector3(fixe_mur + 0.3, y, c[1]), Vector3(fixe_mur - 0.3, y, c[1]), Vector3.UP)
 				quad("voute", Vector3(fixe_mur - 0.3, y + ho, c[0]), Vector3(fixe_mur + 0.3, y + ho, c[0]), Vector3(fixe_mur + 0.3, y + ho, c[1]), Vector3(fixe_mur - 0.3, y + ho, c[1]), Vector3.DOWN)
 			# cadre de porte épais : deux jambages et un linteau en saillie sur le mur
 			if not c[2]:
@@ -1797,6 +1812,8 @@ static func modele_existe(nom: String) -> bool:
 ## fois par module (_modele_cache), transformés en bloc (Transform3D * PackedVector3Array), un seul tampon par pose (case de 8 m du
 ## point de pose), UV triplanaires en mètres calculés dans le repère de la crypte.
 static var _cache_modeles := {}      # "module__matiere|alpha|miroir" -> {"v", "n", "c"} (sommets a, c, b ; normale répétée 3 fois)
+## C2 : vrai pendant la pose du dallage v3 (CrypteV2.dallage) : le sol n'est pas un objet (ni journal d'audit, ni registre, ni emprise).
+var pose_sol := false
 
 func _modele_cache(cle_mat: String, alpha: float, miroir: bool) -> Dictionary:
 	var cle := "%s|%.3f|%d" % [cle_mat, alpha, 1 if miroir else 0]
@@ -1853,12 +1870,15 @@ static func _est_structure(nom: String) -> bool:
 func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats := {}, emp := true) -> Array:
 	if muet:
 		return []
-	j0(nom, lacet)
+	var jn := not pose_sol
+	if jn:
+		j0(nom, lacet)
 	_charger_modeles()
 	var points: Array = []
 	if not _modeles_de.has(nom):
 		push_warning("module Blender introuvable : " + nom)
-		j1()
+		if jn:
+			j1()
 		return points
 	var b := Basis(Vector3.UP, lacet) * Basis.from_scale(ech)
 	var T := xf * Transform3D(b, pos)
@@ -1949,7 +1969,8 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 		var ec := ((e_min + e_max) * 0.5) * ech
 		var ce := pos + Basis(Vector3.UP, lacet) * Vector3(ec.x, 0.0, ec.z)
 		emprise(nom, ce, Vector2(absf((e_max.x - e_min.x) * ech.x), absf((e_max.z - e_min.z) * ech.z)) * 0.5, lacet, (e_max.y - e_min.y) * ech.y)
-	j1()
+	if jn:
+		j1()
 	return points
 
 ## D/crypte_restes (2026-10-26) : module Blender en MeshInstance3D AUTONOME, pour les pièces des mécanismes (statue qui pivote,
