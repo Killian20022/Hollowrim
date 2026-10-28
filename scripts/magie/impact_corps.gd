@@ -44,6 +44,9 @@ static var instance: ImpactCorps
 
 ## Ce qui a été créé par ce module (nœuds, matériaux, textures) : figé après la préchauffe (lu par le test).
 var crees := 0
+## Temps CPU passé dans ce module (µs, cumulé : _process + points d'accroche) et images comptées (mesures de coût).
+static var cout_us := 0
+static var cout_images := 0
 var gm: GestionMagie
 var foyers: Array = []                 # Foyer
 var mat_voile: ShaderMaterial
@@ -54,6 +57,13 @@ var _niveau := -1                      # 0 rétro, 1 fin : les émetteurs sont r
 var rng := RandomNumberGenerator.new()
 var _scan := 0.0
 var _a_preparer: Array = []            # cibles dont les maillages ne sont pas encore lus
+var _prets := {}                       # id des cibles déjà échantillonnées (plus de recherche de maillages)
+var _surfaces := {}                    # id -> SurfaceCorps préparée d'avance (le premier impact ne la construit pas)
+var _attente := 0.0
+## Mise au point (outils de mesure) : imprime les lectures de maillages et les images lentes du module.
+static var trace := false
+var _t_sections := PackedFloat64Array([0, 0, 0, 0, 0, 0])
+var _t_n := 0
 
 class Emetteur:
 	var p: GPUParticles3D
@@ -78,6 +88,11 @@ class Foyer:
 	var coques: Array = []             # MeshInstance3D du pool : copies skinnées (couche fine) des maillages voilés
 	var repousse: GPUParticlesAttractorSphere3D   # répulseur : le jet (particules du jet) contourne le corps
 	var d: Dictionary = {}             # état du comportement
+	var params := PackedFloat32Array() # paramètres écrits à la suite des points (ImpactCorps.regler_*)
+	var image := 0                     # images depuis l'activation (mises à jour espacées)
+	var o_prec := Vector3.INF
+	var xf_coques: Array[Transform3D] = []
+	var canaux := {}                   # dernière valeur envoyée par canal du voile (envoi seulement si elle change)
 	var t0 := 0.0
 	var fin_particules := 0.0          # horloge après laquelle plus aucune particule n'est en vie
 	var libre := true
@@ -109,6 +124,7 @@ static func jet_gerbe(g: GestionMagie, j: Dictionary) -> bool:
 	var cible: Variant = j.get("cible")
 	if cible == null or not g.valide(cible) or not COMPORTEMENTS.has(String(j.ecole)):
 		return false
+	var t0 := Time.get_ticks_usec()
 	var ic := obtenir(g)
 	var f: Foyer = ic.foyer(cible, String(j.ecole))
 	if f == null:
@@ -135,6 +151,10 @@ static func jet_gerbe(g: GestionMagie, j: Dictionary) -> bool:
 				(p as GPUParticles3D).lifetime = vie
 	var rayon := clampf(l * tan(deg_to_rad(ecart * 0.5)) * 1.2, 0.25, 0.7) * (1.25 if dbl else 1.0)
 	COMPORTEMENTS[f.ecole].jet(ic, f, {"o": o, "dir": (fin - o) / maxf(l, 0.001), "rayon": rayon, "dbl": dbl, "id": (j.origine as Node).get_instance_id()})
+	var t := Time.get_ticks_usec() - t0
+	cout_us += t
+	if trace and t > 3000:
+		print("ImpactCorps : accroche du jet lente %.1f ms" % (t / 1000.0))
 	return true
 
 ## Point d'accroche de GestionMagie.statut_cible : vrai si le statut est rendu sur le corps par ce module.
@@ -215,6 +235,7 @@ func _creer_pool() -> void:
 	for i in MAX_FOYERS:
 		var f := Foyer.new()
 		f.id = i
+		f.params.resize(SurfaceCorps.TEXELS_PARAMS * 4)
 		f.img_pos = SurfaceCorps.image()
 		f.img_nor = SurfaceCorps.image()
 		f.tex_pos = ImageTexture.create_from_image(f.img_pos)
@@ -355,9 +376,14 @@ func foyer(cible: Node3D, ecole: String) -> Foyer:
 			if libre == null or float(x.d.get("vu", 0.0)) < float(libre.d.get("vu", 0.0)):
 				libre = x
 		liberer(libre, true)
-	var s := SurfaceCorps.de(cible, false)
+	var s: SurfaceCorps = _surfaces.get(cible.get_instance_id()) if _prets.has(cible.get_instance_id()) else null
+	if s != null and s.cible != cible:
+		s = null
+	if s == null:
+		s = SurfaceCorps.de(cible, false)
 	if s == null:
 		return null
+	s.brancher()
 	if s.repli() and not _a_preparer.has(cible):
 		_a_preparer.push_front(cible)
 	f = libre
@@ -399,6 +425,9 @@ func liberer(f: Foyer, net := false) -> void:
 
 func _voiler(f: Foyer) -> void:
 	f.voiles.clear()
+	f.canaux.clear()
+	f.o_prec = Vector3.INF
+	f.xf_coques.resize(MAX_VOILES)
 	for mi in SurfaceCorps.maillages(f.cible):
 		if f.voiles.size() >= MAX_VOILES:
 			break
@@ -422,6 +451,7 @@ func _voiler(f: Foyer) -> void:
 		var sq := mi.get_node_or_null(mi.skeleton) as Skeleton3D if mi.skin != null else null
 		c.skeleton = c.get_path_to(sq) if sq != null else NodePath("")
 		c.global_transform = mi.global_transform
+		f.xf_coques[f.voiles.size() - 1] = mi.global_transform
 		c.set_instance_shader_parameter("mc_mesh", Vector4(gm._grille_de(mi), 0.0, 64.0, 0.0))
 		c.set_instance_shader_parameter("mc_feu", Vector4.ZERO)
 		c.visible = true
@@ -448,6 +478,10 @@ func _devoiler(f: Foyer) -> void:
 
 ## Canaux du voile d'un foyer (paramètres d'instance, aucun matériau touché).
 func voile(f: Foyer, canal: String, valeur: Vector4) -> void:
+	var avant: Variant = f.canaux.get(canal)
+	if avant != null and (avant as Vector4).is_equal_approx(valeur):
+		return
+	f.canaux[canal] = valeur
 	for k in f.voiles.size():
 		var mi: Variant = f.voiles[k]
 		if is_instance_valid(mi):
@@ -473,6 +507,8 @@ func activer(e: Emetteur, ratio: float) -> void:
 	ratio = clampf(ratio, 0.0, 1.0)
 	if e.n <= 0:
 		ratio = 0.0
+	if absf(ratio - e.ratio) < 0.01 and (ratio > 0.02) == e.p.emitting:
+		return
 	var voulu := int(ceil(float(e.n) * ratio))
 	var cap := GestionMagie.MAX_PARTICULES_FIN if gm.fin_actif else GestionMagie.MAX_PARTICULES
 	var dispo := cap - gm._budget + e.reserve
@@ -483,7 +519,8 @@ func activer(e: Emetteur, ratio: float) -> void:
 	e.ratio = ratio
 	var on := ratio > 0.02
 	if on:
-		e.p.amount_ratio = ratio
+		if absf(e.p.amount_ratio - ratio) > 0.02:
+			e.p.amount_ratio = ratio
 		if not e.p.visible:
 			e.p.visible = not GestionMagie.masquer_particules
 		if not e.p.emitting:
@@ -496,14 +533,64 @@ func _reserver(e: Emetteur, n: int) -> void:
 		gm._budget += n - e.reserve
 	e.reserve = n
 
-## Uniformes communs du jet / des foyers pour tous les émetteurs d'un foyer.
+## Uniforme commun aux 6 émetteurs d'un foyer. Compatibilité (API du socle d1bb7c6) : les paramètres qui changent à
+## chaque image (dir_jet, k_jet, point_impact, rayon_jet, k_foyers, sol_y, foyers, nb_pts) ne sont plus des uniformes
+## du shader : ils sont écrits dans la texture des points (regler_jet / regler_foyers, ou ce redirecteur).
 func uniformes(f: Foyer, nom: String, valeur: Variant) -> void:
-	for e: Emetteur in f.em:
-		e.mat.set_shader_parameter(nom, valeur)
+	var p := f.params
+	match nom:
+		"dir_jet":
+			var v: Vector3 = valeur
+			p[0] = v.x; p[1] = v.y; p[2] = v.z
+		"k_jet":
+			p[3] = float(valeur)
+		"point_impact":
+			var v: Vector3 = valeur
+			p[4] = v.x; p[5] = v.y; p[6] = v.z
+		"rayon_jet":
+			p[7] = float(valeur)
+		"k_foyers":
+			p[8] = float(valeur)
+		"sol_y":
+			p[9] = float(valeur)
+		"nb_pts":
+			pass   # écrit par ImpactCorps à chaque image
+		"foyers":
+			var l: Array = valeur
+			for k in 4:
+				var v: Vector4 = l[k] if k < l.size() else Vector4.ZERO
+				p[12 + k * 4] = v.x; p[13 + k * 4] = v.y; p[14 + k * 4] = v.z; p[15 + k * 4] = v.w
+		_:
+			for e: Emetteur in f.em:
+				e.mat.set_shader_parameter(nom, valeur)
+
+## Paramètres du jet pour les émetteurs du foyer (écrits dans la texture des points, pas d'uniforme) : direction du jet
+## (monde), part du jet 0..1, point d'impact (relatif à f.origine()), rayon du jet au contact.
+func regler_jet(f: Foyer, dir: Vector3, k_jet: float, point: Vector3, rayon: float) -> void:
+	var p := f.params
+	p[0] = dir.x; p[1] = dir.y; p[2] = dir.z; p[3] = k_jet
+	p[4] = point.x; p[5] = point.y; p[6] = point.z; p[7] = rayon
+
+## Foyers de brûlure (jusqu'à 4 Vector4 : xyz relatif, w rayon ; 0 = éteint), leur force, hauteur du sol (relative).
+func regler_foyers(f: Foyer, k_foyers: float, sol_y: float, liste: Array) -> void:
+	var p := f.params
+	p[8] = k_foyers; p[9] = sol_y
+	for k in 4:
+		var v: Vector4 = liste[k] if k < liste.size() else Vector4.ZERO
+		p[12 + k * 4] = v.x; p[13 + k * 4] = v.y; p[14 + k * 4] = v.z; p[15 + k * 4] = v.w
 
 func _process(_dt: float) -> void:
 	if gm == null or not is_instance_valid(gm):
 		return
+	var t0 := Time.get_ticks_usec()
+	_maj()
+	var t := Time.get_ticks_usec() - t0
+	cout_us += t
+	cout_images += 1
+	if trace and t > 3000:
+		print("ImpactCorps : image lente %.1f ms (%d foyers)" % [t / 1000.0, stats().foyers])
+
+func _maj() -> void:
 	var dt := get_process_delta_time()
 	var niveau := 1 if (GestionMagie.forcer_fin or (gm.couche != null and gm.couche.fine())) else 0
 	if niveau != _niveau:
@@ -521,25 +608,56 @@ func _process(_dt: float) -> void:
 			continue
 		actifs += 1
 		var o := f.origine()
-		f.surface.actualiser(o)
-		f.surface.ecrire(f.img_pos, f.img_nor)
-		f.tex_pos.update(f.img_pos)
-		f.tex_nor.update(f.img_nor)
-		for e: Emetteur in f.em:
-			e.p.global_position = o
+		f.image += 1
+		# brûlure seule (pas de jet) : flammes lentes, points refaits une image sur deux ; normales une image sur deux
+		var sous_jet := float(f.d.get("k_jet", 0.0)) > 0.0 or not (f.d.get("jets", {}) as Dictionary).is_empty()
+		var refaire := sous_jet or f.image % 2 == 0 or f.surface.pos.is_empty()
+		var ta := Time.get_ticks_usec()
+		if refaire:
+			f.surface.actualiser(o, f.image % 2 == 0 or not sous_jet)
+		_t_sections[0] += Time.get_ticks_usec() - ta
+		ta = Time.get_ticks_usec()
+		if not o.is_equal_approx(f.o_prec):
+			f.o_prec = o
+			for e: Emetteur in f.em:
+				e.p.global_position = o
 		for k in f.voiles.size():
 			var mi: Variant = f.voiles[k]
 			if is_instance_valid(mi):
-				(f.coques[k] as MeshInstance3D).global_transform = (mi as Node3D).global_transform
-				(f.coques[k] as MeshInstance3D).visible = (mi as Node3D).is_visible_in_tree()
-		uniformes(f, "nb_pts", f.surface.nb)
-		if not COMPORTEMENTS[f.ecole].maj(self, f, dt):
+				var xf: Transform3D = (mi as Node3D).global_transform
+				var c: MeshInstance3D = f.coques[k]
+				if not xf.is_equal_approx(f.xf_coques[k]):
+					f.xf_coques[k] = xf
+					c.global_transform = xf
+		_t_sections[1] += Time.get_ticks_usec() - ta
+		ta = Time.get_ticks_usec()
+		var vivant: bool = COMPORTEMENTS[f.ecole].maj(self, f, dt)
+		_t_sections[2] += Time.get_ticks_usec() - ta
+		if not vivant:
 			liberer(f)
+			continue
+		ta = Time.get_ticks_usec()
+		if refaire:
+			f.params[10] = float(f.surface.nb)
+			f.surface.ecrire(f.img_pos, f.img_nor, f.params)
+			f.tex_pos.update(f.img_pos)
+			f.tex_nor.update(f.img_nor)
+		_t_sections[3] += Time.get_ticks_usec() - ta
+	var tb := Time.get_ticks_usec()
 	if actifs > 0:
 		_temperer_lumieres()
 		if gm.couche != null:
 			gm.couche.demander()
+	_t_sections[4] += Time.get_ticks_usec() - tb
+	tb = Time.get_ticks_usec()
 	_preparer(dt)
+	_t_sections[5] += Time.get_ticks_usec() - tb
+	_t_n += 1
+	if trace and _t_n >= 240:
+		print("ImpactCorps : µs/image surface %.0f, placement %.0f, comportement %.0f, textures %.0f, lumières %.0f, préparation %.0f (%d foyers)" % [
+			_t_sections[0] / _t_n, _t_sections[1] / _t_n, _t_sections[2] / _t_n, _t_sections[3] / _t_n, _t_sections[4] / _t_n, _t_sections[5] / _t_n, actifs])
+		_t_sections = PackedFloat64Array([0, 0, 0, 0, 0, 0])
+		_t_n = 0
 
 ## Lumières du pool de GestionMagie (déjà placées pour cette image : ce nœud passe après lui) trop près d'un corps en feu :
 ## la lumière du bout du jet est posée ~0,5 m devant le torse et brûlait le corps en blanc de près. Elle est reculée
@@ -578,19 +696,36 @@ func _preparer(dt: float) -> void:
 		var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 		for g in ["ennemis", "cibles_magie", "cibles_combat"]:
 			for n in get_tree().get_nodes_in_group(g):
-				if n is Node3D and not _a_preparer.has(n) and _a_preparer.size() < 16:
-					if cam != null and (n as Node3D).global_position.distance_to(cam.global_position) > 30.0:
-						continue
-					if not SurfaceCorps.pret(n):
-						_a_preparer.append(n)
+				if not (n is Node3D) or _prets.has(n.get_instance_id()) or _a_preparer.has(n) or _a_preparer.size() >= 16:
+					continue
+				if cam != null and (n as Node3D).global_position.distance_to(cam.global_position) > 30.0:
+					continue
+				if SurfaceCorps.pret(n):
+					_prets[n.get_instance_id()] = true
+					_surfaces[n.get_instance_id()] = SurfaceCorps.de(n, false, false)
+					_nettoyer_surfaces()
+				else:
+					_a_preparer.append(n)
+	# lecture d'un maillage = lecture du GPU (synchronisation) : jamais pendant un sort en cours, au plus une toutes les
+	# 0,2 s ; les ennemis sont lus quand ils approchent (≤ 30 m), en général bien avant le premier sort
+	_attente -= dt
+	if _attente > 0.0 or not gm._jets.is_empty() or not gm._projectiles.is_empty():
+		return
 	while not _a_preparer.is_empty():
 		var c: Variant = _a_preparer[0]
 		if not is_instance_valid(c) or not (c as Node).is_inside_tree():
 			_a_preparer.pop_front()
 			continue
+		var t0 := Time.get_ticks_usec()
 		if SurfaceCorps.preparer_un(c):
+			_attente = 0.2
+			if trace:
+				print("ImpactCorps : maillage lu pour %s en %.1f ms" % [(c as Node).name, (Time.get_ticks_usec() - t0) / 1000.0])
 			return
 		_a_preparer.pop_front()
+		_prets[(c as Node).get_instance_id()] = true
+		_surfaces[(c as Node).get_instance_id()] = SurfaceCorps.de(c, false, false)
+		_nettoyer_surfaces()
 		# foyer en cours sur le repli : on refait sa surface avec les vrais points
 		for f: Foyer in foyers:
 			if not f.libre and f.cible == c and f.surface != null and f.surface.repli():
@@ -599,6 +734,16 @@ func _preparer(dt: float) -> void:
 					f.surface.lacher()
 					f.surface = s
 		return
+
+## Surfaces préparées des cibles disparues : libérées.
+func _nettoyer_surfaces() -> void:
+	if _surfaces.size() < 48:
+		return
+	for id in _surfaces.keys():
+		var sc: SurfaceCorps = _surfaces[id]
+		if sc == null or not is_instance_valid(sc.cible):
+			_surfaces.erase(id)
+			_prets.erase(id)
 
 ## Préchauffe : un émetteur par mode (matériaux de dessin de chaque réglage) et le voile sur un matériau standard et sur
 ## le shader des personnages ; les VRAIES ressources du pool (même shader de particules, mêmes rampes).
@@ -610,9 +755,16 @@ func _vitrine(v: Node3D) -> void:
 		var a := TAU * i / SurfaceCorps.LARGEUR
 		pts.append(Vector3(cos(a) * 0.2, 0.2 + 1.2 * float(i % 16) / 16.0, sin(a) * 0.2))
 		nrm.append(Vector3(cos(a), 0.0, sin(a)))
-	img.set_data(SurfaceCorps.TEXELS, 1, false, Image.FORMAT_RGBAF, pts.to_byte_array())
+	var par := PackedFloat32Array()
+	par.resize(SurfaceCorps.TEXELS_PARAMS * 4)
+	par[2] = -1.0; par[3] = 1.0; par[5] = 1.0; par[7] = 0.5; par[8] = 1.0; par[10] = float(SurfaceCorps.LARGEUR)
+	var octets := pts.to_byte_array()
+	octets.append_array(par.to_byte_array())
+	img.set_data(SurfaceCorps.TEXELS, 1, false, Image.FORMAT_RGBAF, octets)
 	var tp := ImageTexture.create_from_image(img)
-	img.set_data(SurfaceCorps.TEXELS, 1, false, Image.FORMAT_RGBAF, nrm.to_byte_array())
+	octets = nrm.to_byte_array()
+	octets.append_array(par.to_byte_array())
+	img.set_data(SurfaceCorps.TEXELS, 1, false, Image.FORMAT_RGBAF, octets)
 	var tn := ImageTexture.create_from_image(img)
 	var k := 0
 	for ecole in COMPORTEMENTS:
@@ -633,9 +785,6 @@ func _vitrine(v: Node3D) -> void:
 				m.shader = SH_PART
 				m.set_shader_parameter("pts", tp)
 				m.set_shader_parameter("nrm", tn)
-				m.set_shader_parameter("nb_pts", SurfaceCorps.LARGEUR)
-				m.set_shader_parameter("k_jet", 1.0)
-				m.set_shader_parameter("k_foyers", 1.0)
 				m.set_shader_parameter("mode", int(MODES.get(String(r.get("mode", "langues")), 0)))
 				m.set_shader_parameter("rampe", _rampe(r.get("rampe", PresetsMagie.FEU), fin))
 				p.process_material = m
@@ -661,3 +810,13 @@ func _vitrine(v: Node3D) -> void:
 		corps.position = Vector3(0.4 + 0.3 * j, 0.5, 0.6)
 		corps.set_instance_shader_parameter("mc_feu", Vector4(0, 0.5, 0.6, 1.0))
 		corps.set_instance_shader_parameter("mc_dir", Vector4(0, 0, -1, 0.5))
+		# coque (couche fine) sur le même maillage
+		var coque := MeshInstance3D.new()
+		coque.mesh = boite
+		coque.material_override = mat_coque
+		coque.layers = CoucheMagie.CALQUE
+		coque.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		v.add_child(coque)
+		coque.position = corps.position
+		coque.set_instance_shader_parameter("mc_feu", Vector4(0, 0.5, 0.6, 1.0))
+		coque.set_instance_shader_parameter("mc_autre", Vector4(0, 0, 0, 1.0))

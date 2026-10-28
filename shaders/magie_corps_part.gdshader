@@ -18,18 +18,13 @@ render_mode disable_force;
 
 uniform sampler2D pts : filter_nearest, repeat_disable;
 uniform sampler2D nrm : filter_nearest, repeat_disable;
-uniform int nb_pts = 0;
 uniform int mode = 0;
-// jet (repère du monde ; point_impact relatif à l'émetteur) ; k_jet = 0 hors du jet
-uniform vec3 dir_jet = vec3(0.0, 0.0, -1.0);
-uniform vec3 point_impact = vec3(0.0);
-uniform float rayon_jet = 0.45;
-uniform float k_jet = 0.0;
-// foyers de brûlure (xyz relatif, w = rayon, 0 = éteint) et leur force
-uniform vec4 foyers[4];
-uniform float k_foyers = 0.0;
-uniform float sol_y = 0.0;
-uniform float poids_min = 0.0;      // mise au point : poids plancher (1 = émission sur tous les points)          // hauteur du sol sous le corps (relative)
+// Paramètres du foyer (jet, impact, foyers de brûlure, sol) : lus dans la texture des positions, à la suite des points
+// (SurfaceCorps.TEXELS_POINTS ; écrits chaque image par ImpactCorps) → aucun uniforme modifié par image.
+//   P+0 : dir_jet.xyz, k_jet        P+1 : point_impact.xyz (relatif), rayon_jet
+//   P+2 : k_foyers, sol_y, nb_pts, 0  P+3..P+6 : foyers (xyz relatif, w rayon ; 0 = éteint)  P+7 : réservé
+const int P = 192;   // = SurfaceCorps.TEXELS_POINTS (LARGEUR 256 × 3 / 4)
+uniform float poids_min = 0.0;      // mise au point : poids plancher (1 = émission sur tous les points)
 // cinématique
 uniform vec2 vitesse = vec2(0.5, 1.5);
 uniform vec3 gravite = vec3(0.0, 2.0, 0.0);
@@ -80,8 +75,9 @@ vec3 sphere(inout uint s) {
 float foyer(vec3 p) {
 	float m = 0.0;
 	for (int i = 0; i < 4; i++) {
-		if (foyers[i].w > 0.0) {
-			float d = length(p - foyers[i].xyz) / foyers[i].w;
+		vec4 fo = texelFetch(pts, ivec2(P + 3 + i, 0), 0);
+		if (fo.w > 0.0) {
+			float d = length(p - fo.xyz) / fo.w;
 			m = max(m, exp(-d * d));
 		}
 	}
@@ -89,7 +85,7 @@ float foyer(vec3 p) {
 }
 
 // poids (0..1) d'un point pour le mode courant, et sa « chaleur » (0..1 : départ dans la rampe)
-vec2 poids(vec3 p, vec3 n) {
+vec2 poids(vec3 p, vec3 n, vec3 dir_jet, float k_jet, vec3 point_impact, float rayon_jet, float k_foyers, float sol_y) {
 	vec3 d = dir_jet;
 	vec3 v = p - point_impact;
 	float axe = length(v - d * dot(v, d));
@@ -127,6 +123,16 @@ vec2 poids(vec3 p, vec3 n) {
 
 void start() {
 	uint s = h(NUMBER * 747796405u + RANDOM_SEED);
+	vec4 p0 = texelFetch(pts, ivec2(P, 0), 0);
+	vec4 p1 = texelFetch(pts, ivec2(P + 1, 0), 0);
+	vec4 p2 = texelFetch(pts, ivec2(P + 2, 0), 0);
+	vec3 dir_jet = normalize(p0.xyz + vec3(0.0, 0.0, -0.00001));
+	float k_jet = p0.w;
+	vec3 point_impact = p1.xyz;
+	float rayon_jet = p1.w;
+	float k_foyers = p2.x;
+	float sol_y = p2.y;
+	int nb_pts = int(p2.z + 0.5);
 	CUSTOM = vec4(0.0, 0.0, 0.0, 1.0 - alea_vie * alea(s));
 	int choisi = -1;
 	vec3 p = vec3(0.0);
@@ -138,7 +144,7 @@ void start() {
 			int i = int(alea(s) * float(nb_pts)) % nb_pts;
 			vec3 pp = lire3(pts, i);
 			vec3 nn = lire3(nrm, i);
-			vec2 q = poids(pp, nn);
+			vec2 q = poids(pp, nn, dir_jet, k_jet, point_impact, rayon_jet, k_foyers, sol_y);
 			if (alea(s) < q.x) {
 				choisi = i;
 				p = pp;

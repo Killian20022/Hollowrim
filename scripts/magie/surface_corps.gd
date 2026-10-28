@@ -19,7 +19,12 @@ const LARGEUR := 256
 ## Les textures de points sont en RGBA flottant (le RGB flottant n'est pas échantillonnable partout, Iris Xe compris) : les
 ## xyz des points y sont tassés bout à bout (3 flottants par point, 4 par texel) → LARGEUR × 3 / 4 texels, aucune
 ## conversion côté CPU (octets du PackedVector3Array tels quels). Lecture : magie_corps_part.gdshader (lire3).
-const TEXELS := LARGEUR * 3 / 4
+const TEXELS_POINTS := LARGEUR * 3 / 4
+## Texels de PARAMÈTRES du foyer à la suite des points (texture des positions) : jet, impact, foyers… (voir
+## ImpactCorps.regler_* et magie_corps_part.gdshader) → aucun set_shader_parameter par image.
+const TEXELS_PARAMS := 8
+const TEXELS := TEXELS_POINTS + TEXELS_PARAMS
+static var _zeros_params := PackedByteArray()
 ## Points par m² de surface (estimée) : ~1,8 m² visibles sur un draugr → ~200 points.
 const DENSITE := 120.0
 const MIN_PAR_MAILLAGE := 4
@@ -37,8 +42,16 @@ static var duree_lectures_us := 0
 
 var cible: Node3D
 var squelette: Skeleton3D
-## Groupes d'échantillons qui bougent ensemble : {"mi": MeshInstance3D, "os": int (-1 = rigide), "o": décalages, "n": normales}.
+## Groupes d'échantillons qui bougent ensemble (construction) : {"mi", "sq", "os" (-1 = rigide), "o", "n"}.
 var _groupes: Array = []
+## Groupes FUSIONNÉS par (repère, os) en tableaux typés (chaque image : pas de dictionnaire) : repère = squelette (maillage
+## enfant direct sans décalage) ou maillage rigide ; os -1 = rigide.
+var _g_base: Array[Node3D] = []
+var _g_sq: Array[Skeleton3D] = []
+var _g_os := PackedInt32Array()
+var _g_o: Array[PackedVector3Array] = []
+var _g_n: Array[PackedVector3Array] = []
+var _g_pose: Array[Transform3D] = []
 var pos := PackedVector3Array()
 var nor := PackedVector3Array()
 ## Os (index du squelette, -1 pour une pièce rigide) de chaque point, dans l'ordre de pos.
@@ -57,7 +70,7 @@ var _repli := false
 
 ## Échantillonnage d'une cible. `lire` = faux : les maillages pas encore en cache sont sautés (repli en capsules si rien
 ## n'est prêt ; ImpactCorps les lit ensuite, un par image, et refait la surface) → jamais de lecture au premier impact.
-static func de(c: Node3D, lire := true) -> SurfaceCorps:
+static func de(c: Node3D, lire := true, branche := true) -> SurfaceCorps:
 	if c == null or not is_instance_valid(c):
 		return null
 	var s := SurfaceCorps.new()
@@ -75,17 +88,22 @@ static func de(c: Node3D, lire := true) -> SurfaceCorps:
 	if s._groupes.is_empty():
 		return null
 	s._compter()
-	# poses APRÈS les modificateurs du squelette (ragdoll = PhysicalBoneSimulator3D, cou tranché, raideur) : elles ne
-	# sont lisibles qu'au signal skeleton_updated ; hors de lui, get_bone_global_pose rend la pose animée seule
-	for sq in s._squelettes():
-		if not sq.skeleton_updated.is_connected(s._poses_modifiees.bind(sq)):
-			sq.skeleton_updated.connect(s._poses_modifiees.bind(sq))
+	if branche:
+		s.brancher()
 	return s
+
+## Poses APRÈS les modificateurs du squelette (ragdoll = PhysicalBoneSimulator3D, cou tranché, raideur) : elles ne sont
+## lisibles qu'au signal skeleton_updated ; hors de lui, get_bone_global_pose rend la pose animée seule. Branché tant que
+## la surface sert (foyer actif), lâché ensuite (lacher).
+func brancher() -> void:
+	for sq in _squelettes():
+		if not sq.skeleton_updated.is_connected(_poses_modifiees.bind(sq)):
+			sq.skeleton_updated.connect(_poses_modifiees.bind(sq))
 
 func _squelettes() -> Array[Skeleton3D]:
 	var r: Array[Skeleton3D] = []
-	for g in _groupes:
-		var v: Variant = g.sq
+	for i in _g_sq.size():
+		var v: Variant = _g_sq[i]
 		if v == null or not is_instance_valid(v):
 			continue
 		var sq := v as Skeleton3D
@@ -95,10 +113,9 @@ func _squelettes() -> Array[Skeleton3D]:
 
 ## Copie des poses modifiées de chaque os touché (appelé par Skeleton3D.skeleton_updated).
 func _poses_modifiees(sq: Skeleton3D) -> void:
-	for g in _groupes:
-		if is_instance_valid(g.sq) and g.sq == sq and int(g.os) >= 0:
-			g.pose = sq.get_bone_global_pose(int(g.os))
-			g.vu = true
+	for i in _g_os.size():
+		if _g_sq[i] == sq:
+			_g_pose[i] = sq.get_bone_global_pose(_g_os[i])
 
 ## Détache les signaux (le foyer est rendu au pool).
 func lacher() -> void:
@@ -144,6 +161,9 @@ static func preparer_un(c: Node3D) -> bool:
 			return true
 	return false
 
+## Signature d'une forme de maillage : nom de la pièce, surfaces, sommets, taille arrondie au décimètre. Les copies d'une
+## pièce (variantes de draugr amincies, usées : mêmes sommets, positions à quelques mm près) partagent leurs échantillons
+## → une seule lecture du GPU par pièce et par séance, pas une par ennemi.
 static func signature(mi: MeshInstance3D) -> String:
 	var m := mi.mesh
 	var a := m.get_aabb()
@@ -153,7 +173,7 @@ static func signature(mi: MeshInstance3D) -> String:
 			n += (m as ArrayMesh).surface_get_array_len(i)
 	else:
 		n = -m.get_class().hash() % 100000
-	return "%d|%d|%.3f|%.3f|%.3f|%.3f" % [m.get_surface_count(), n, a.position.x, a.position.y, a.size.x, a.size.y]
+	return "%s|%d|%d|%.1f|%.1f|%.1f" % [mi.name, m.get_surface_count(), n, a.size.x, a.size.y, a.size.z]
 
 ## Tirage de points sur la surface d'un maillage, pondéré par l'aire (estimée sur TIRAGES_AIRE triangles).
 static func _echantillonner(m: Mesh) -> Dictionary:
@@ -261,7 +281,7 @@ func _ajouter(mi: MeshInstance3D) -> void:
 				var bp := skin.get_bind_pose(b)
 				o = bp * o
 				n = (bp.basis * n).normalized()
-		var cle := "%d:%d" % [mi.get_instance_id(), os]
+		var cle := os   # un appel = un maillage : l'os suffit
 		if not par_os.has(cle):
 			par_os[cle] = {"mi": mi, "sq": sq if os >= 0 else null, "os": os, "o": PackedVector3Array(), "n": PackedVector3Array()}
 		# (un PackedVector3Array lu dans un dictionnaire est une COPIE : on le relit, on ajoute, on le réécrit)
@@ -321,61 +341,85 @@ func _compter() -> void:
 				nn.append(gn[j])
 			g.o = no
 			g.n = nn
+	# fusion par (repère, os) : les maillages enfants directs du squelette, sans décalage, partagent son repère
+	var index := {}
+	for g in _groupes:
+		var mi: MeshInstance3D = g.mi
+		var sq: Skeleton3D = g.sq
+		var os := int(g.os)
+		var base: Node3D = mi
+		if os >= 0 and sq != null and (mi == null or (mi.get_parent() == sq and mi.transform.is_equal_approx(Transform3D.IDENTITY))):
+			base = sq
+		if base == null:
+			continue
+		var cle := "%d:%d" % [base.get_instance_id(), os]
+		if not index.has(cle):
+			index[cle] = _g_os.size()
+			_g_base.append(base)
+			_g_sq.append(sq if os >= 0 else null)
+			_g_os.append(os)
+			_g_o.append(PackedVector3Array())
+			_g_n.append(PackedVector3Array())
+			_g_pose.append(sq.get_bone_global_pose(os) if os >= 0 and sq != null else Transform3D.IDENTITY)
+		var i: int = index[cle]
+		_g_o[i].append_array(g.o)
+		_g_n[i].append_array(g.n)
+	_groupes.clear()
 	nb = 0
 	os_de.clear()
-	for g in _groupes:
-		var k: int = (g.o as PackedVector3Array).size()
+	for i in _g_os.size():
+		var k := _g_o[i].size()
 		nb += k
-		for _i in k:
-			os_de.append(int(g.os))
+		for _j in k:
+			os_de.append(_g_os[i])
 	nb = mini(nb, LARGEUR)
 
 func repli() -> bool:
 	return _repli
 
-## Positions et normales du monde (relatives à `origine`), une seule fois par image.
-func actualiser(origine: Vector3) -> void:
+## Positions et normales du monde (relatives à `origine`), une seule fois par image. `normales` = faux : seules les
+## positions sont refaites (les normales de l'image précédente servent aux poids d'émission : une image de retard).
+func actualiser(origine: Vector3, normales := true) -> void:
 	var img := Engine.get_process_frames()
 	if img == _image and origine == _origine:
 		return
 	_image = img
 	_origine = origine
+	normales = normales or nor.size() < nb
 	pos.clear()
-	nor.clear()
+	if normales:
+		nor.clear()
 	var dec := Transform3D(Basis.IDENTITY, -origine)
 	var y0 := INF
 	var y1 := -INF
 	var som := Vector3.ZERO
 	var som2 := Vector3.ZERO
 	var k_os := 0
-	for g in _groupes:
-		var mi: MeshInstance3D = g.mi
-		var xf: Transform3D
-		if int(g.os) >= 0:
-			if not is_instance_valid(g.sq):
+	var base_prec: Node3D = null
+	var xf_base := Transform3D.IDENTITY
+	for i in _g_os.size():
+		var base := _g_base[i]
+		if base != base_prec:
+			if not is_instance_valid(base):
 				continue
-			var sq: Skeleton3D = g.sq
-			var base: Transform3D = mi.global_transform if mi != null and is_instance_valid(mi) else sq.global_transform
-			xf = base * (g.pose as Transform3D if g.get("vu", false) else sq.get_bone_global_pose(int(g.os)))
-		else:
-			if mi == null or not is_instance_valid(mi):
-				continue
-			xf = mi.global_transform
-		var w := dec * xf
-		var o: PackedVector3Array = w * (g.o as PackedVector3Array)
+			base_prec = base
+			xf_base = base.global_transform
+		var xf := xf_base * _g_pose[i] if _g_os[i] >= 0 else xf_base
+		var o: PackedVector3Array = (dec * xf) * _g_o[i]
 		pos.append_array(o)
-		var e := xf.basis.get_scale().x
-		var nb_g: PackedVector3Array = Transform3D(xf.basis / maxf(e, 0.0001), Vector3.ZERO) * (g.n as PackedVector3Array)
-		nor.append_array(nb_g)
+		if normales:
+			var e := xf.basis.x.length()
+			nor.append_array(Transform3D(xf.basis / maxf(e, 0.0001), Vector3.ZERO) * _g_n[i])
 		# bornes verticales (un point par groupe suffit) et os pour l'ellipsoïde du corps
-		if not o.is_empty():
-			y0 = minf(y0, o[0].y)
-			y1 = maxf(y1, o[0].y)
-			som += o[0]
-			som2 += o[0] * o[0]
-			k_os += 1
+		var p0 := o[0]
+		y0 = minf(y0, p0.y)
+		y1 = maxf(y1, p0.y)
+		som += p0
+		som2 += p0 * p0
+		k_os += 1
 	if pos.size() > LARGEUR:
 		pos.resize(LARGEUR)
+	if nor.size() > LARGEUR:
 		nor.resize(LARGEUR)
 	nb = pos.size()
 	if nb > 0:
@@ -388,14 +432,21 @@ func actualiser(origine: Vector3) -> void:
 		masse_demi = Vector3(sqrt(maxf(var_.x, 0.0)), sqrt(maxf(var_.y, 0.0)), sqrt(maxf(var_.z, 0.0))) * 1.7
 		masse_demi = masse_demi.max(Vector3(0.18, 0.18, 0.18))
 
-## Écrit les points dans deux images RGBAF de TEXELS × 1 (au-delà de `nb` : zéros, jamais lus par le shader).
-func ecrire(img_pos: Image, img_nor: Image) -> void:
+## Écrit les points dans deux images RGBAF de TEXELS × 1 (au-delà de `nb` : zéros, jamais lus par le shader) ; `params`
+## (TEXELS_PARAMS × 4 flottants) suit les positions.
+func ecrire(img_pos: Image, img_nor: Image, params := PackedFloat32Array()) -> void:
 	if nb <= 0:
 		return
 	pos.resize(LARGEUR)
 	nor.resize(LARGEUR)
-	img_pos.set_data(TEXELS, 1, false, Image.FORMAT_RGBAF, pos.to_byte_array())
-	img_nor.set_data(TEXELS, 1, false, Image.FORMAT_RGBAF, nor.to_byte_array())
+	if _zeros_params.is_empty():
+		_zeros_params.resize(TEXELS_PARAMS * 16)
+	var o := pos.to_byte_array()
+	o.append_array(params.to_byte_array() if params.size() == TEXELS_PARAMS * 4 else _zeros_params)
+	var n := nor.to_byte_array()
+	n.append_array(_zeros_params)
+	img_pos.set_data(TEXELS, 1, false, Image.FORMAT_RGBAF, o)
+	img_nor.set_data(TEXELS, 1, false, Image.FORMAT_RGBAF, n)
 
 ## Image vide au bon format pour ecrire().
 static func image() -> Image:
@@ -403,10 +454,10 @@ static func image() -> Image:
 
 ## Index du point le plus proche de l'axe d'un jet (origine o, direction d, en coordonnées relatives) parmi ceux tournés
 ## vers lui : le point d'impact sur la surface. -1 si aucun.
-func point_vise(o: Vector3, d: Vector3) -> int:
+func point_vise(o: Vector3, d: Vector3, pas := 2) -> int:
 	var meilleur := -1
 	var score := INF
-	for i in nb:
+	for i in range(0, nb, pas):
 		var n := nor[i]
 		if n.dot(d) > 0.15:
 			continue

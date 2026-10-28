@@ -121,8 +121,8 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 		d.dir = dir
 		d.rayon = rayon * (1.15 if n_jets > 1 else 1.0)
 		d.dbl = dbl or n_jets > 1
-		var i := s.point_vise(o - org, dir)
-		if i >= 0:
+		var i := s.point_vise(o - org, dir) if (f.image % 3 == 0 or int(d.imp_i) < 0) else int(d.imp_i)
+		if i >= 0 and i < s.nb:
 			d.imp = d.imp.lerp(s.pos[i], 1.0 - exp(-dt * 25.0)) if float(d.k_jet) > 0.05 else s.pos[i]
 			d.imp_i = i
 		d.k_jet = minf(float(d.k_jet) + dt / MONTEE, 1.0)
@@ -158,13 +158,8 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 		var t := h - float(d.eteint)
 		if t > CARBO_TENUE:
 			d.carbo = maxf(float(d.carbo) - dt * CARBO_MAX / CARBO_FONDU, 0.0)
-	# uniformes du foyer (jet + foyers de brûlure)
-	ic.uniformes(f, "dir_jet", d.dir)
-	ic.uniformes(f, "point_impact", d.imp)
-	ic.uniformes(f, "rayon_jet", float(d.rayon))
-	ic.uniformes(f, "k_jet", kj)
-	ic.uniformes(f, "k_foyers", kb)
-	ic.uniformes(f, "sol_y", minf(s.bas, 0.0) + 0.02)
+	# paramètres du foyer (jet + foyers de brûlure), écrits dans la texture des points
+	ic.regler_jet(f, d.dir, kj, d.imp, float(d.rayon))
 	var fo: Array = []
 	var ids: PackedInt32Array = d.foyers
 	for k in 4:
@@ -172,7 +167,7 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 			fo.append(Vector4(s.pos[ids[k]].x, s.pos[ids[k]].y, s.pos[ids[k]].z, 0.12 + 0.03 * k))
 		else:
 			fo.append(Vector4.ZERO)
-	ic.uniformes(f, "foyers", fo)
+	ic.regler_foyers(f, kb, minf(s.bas, 0.0) + 0.02, fo)
 	# parts actives des émetteurs
 	for k in f.em.size():
 		var r := maxf(SOUS_JET[k] * kj, BRULURE[k] * kb)
@@ -180,10 +175,13 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 			r = minf(r * 1.15, 1.0)
 		ic.activer(f.em[k], r)
 	# voile : chaleur au point touché, direction, carbonisation
-	var imp_monde: Vector3 = org + d.imp
-	ic.voile(f, "mc_feu", Vector4(imp_monde.x, imp_monde.y, imp_monde.z, ch))
-	ic.voile(f, "mc_dir", Vector4(d.dir.x, d.dir.y, d.dir.z, float(d.carbo)))
-	ic.voile(f, "mc_autre", Vector4(0.0, 0.0, 0.0, kj))
+	if f.image % 2 == 0 or f.image < 4:
+		# valeurs arrondies (2 cm, 1/50) : le voile n'est renvoyé que si elles changent vraiment
+		var imp_monde: Vector3 = (org + d.imp).snappedf(0.02)
+		var dq: Vector3 = (d.dir as Vector3).snappedf(0.02)
+		ic.voile(f, "mc_feu", Vector4(imp_monde.x, imp_monde.y, imp_monde.z, snappedf(ch, 0.02)))
+		ic.voile(f, "mc_dir", Vector4(dq.x, dq.y, dq.z, snappedf(float(d.carbo), 0.02)))
+		ic.voile(f, "mc_autre", Vector4(0.0, 0.0, 0.0, snappedf(kj, 0.02)))
 	ic.repousser(f, kj)
 	# le corps éclaire le décor pendant la brûlure (sous le jet, la lumière du jet est déjà au contact)
 	if kb > 0.05:
