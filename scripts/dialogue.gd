@@ -24,7 +24,6 @@ const CHEMINS := {
 var joueur: CharacterBody3D
 
 var _police: FontFile
-var _gothique: FontFile   # police des titres (lot L7, MenuStyle.police_gothique) : nom de l'interlocuteur, nom de l'objet visé
 var _invite_nom := ""     # nom de l'objet sous l'invite (« Grand coffre ») quand le verbe ne le dit pas déjà
 var _invite_larg := 0.0
 var _tex := {}
@@ -49,7 +48,6 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_police = Palette.police()
-	_gothique = MenuStyle.police_gothique()
 	for cle: String in CHEMINS:
 		_tex[cle] = load(CHEMINS[cle]) if ResourceLoader.exists(CHEMINS[cle]) else null
 
@@ -73,9 +71,7 @@ func _ready() -> void:
 	_cartouche = _cadre("nom", 4, Rect2(8, -7, 60, 14))
 	_boite.add_child(_cartouche)
 	_nom = _etiquette(OR)
-	_nom.add_theme_font_override("font", _gothique)
-	_nom.add_theme_font_size_override("font_size", MenuStyle.TITRE_PETIT)
-	_nom.position = Vector2(6, 1)
+	_nom.position = Vector2(6, 0)
 	_cartouche.add_child(_nom)
 	_fleche = _dessin_fleche()
 	_boite.add_child(_fleche)
@@ -205,7 +201,7 @@ func _ouvrir(pnj: Node3D) -> void:
 	_sous_titre.modulate.a = 0.0
 	_sous_titre_t = 0.0
 	_nom.text = pnj.nom_affiche()
-	_cartouche.size.x = ceilf(_gothique.get_string_size(_nom.text, HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_PETIT).x) + 12.0
+	_cartouche.size.x = ceilf(_police.get_string_size(_nom.text, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x) + 12.0
 	_nom.size = Vector2(_cartouche.size.x, 14)
 	_boite.visible = true
 	_afficher_ligne()
@@ -275,12 +271,14 @@ func _process(dt: float) -> void:
 		_sous_titre.modulate.a = clampf(_sous_titre_t / 0.6, 0.0, 1.0)
 
 func _draw() -> void:
-	# lot L7 : bandeau sombre sous l'invite (lisible sur la neige), nom de l'objet en gothique dessous (« Grand coffre »)
+	# lot L7 : bandeau sombre sous l'invite (lisible sur la neige), nom de l'objet en or dessous (« Grand coffre ») ; police du
+	# corps : le gothique 12 px est illisible à cette taille, le 24 px trop gros sous le réticule
 	if _invite != null and _invite.visible:
-		draw_rect(Rect2(_invite.position + Vector2(-5, 0), Vector2(ceilf(_invite_larg) + 10.0, 15)), Color(FOND, 0.55))
+		var ln := _police.get_string_size(_invite_nom, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x if _invite_nom != "" else 0.0
+		var lb := ceilf(maxf(_invite_larg, ln)) + 10.0
+		draw_rect(Rect2(floorf(floorf(size.x * 0.5) - lb * 0.5), _invite.position.y, lb, 15.0 if _invite_nom == "" else 27.0), Color(FOND, 0.55))
 		if _invite_nom != "":
-			var ln := _gothique.get_string_size(_invite_nom, HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_PETIT).x
-			MenuStyle.texte_detoure(self, _gothique, Vector2(roundf(floorf(size.x * 0.5) - ln * 0.5), _invite.position.y + 27.0), _invite_nom, MenuStyle.TITRE_PETIT, OR, 0.9)
+			MenuStyle.texte_detoure(self, _police, Vector2(roundf(floorf(size.x * 0.5) - ln * 0.5), _invite.position.y + 23.0), _invite_nom, TAILLE_POLICE, OR, 0.9)
 	# icône de la touche E à côté de l'invite
 	if _invite != null and _invite.visible and _tex["touche"] != null:
 		draw_texture(_tex["touche"], _invite.position + Vector2(0, 2))

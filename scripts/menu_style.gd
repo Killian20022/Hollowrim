@@ -113,8 +113,10 @@ static func cadre() -> StyleBox:
 # --- lot L7 : police des titres et cadre ornementé ------------------------------------------------------------------------
 ## Police des TITRES : « Jacquard », gothique pixel de Sarah Cadigan-Fried (SIL OFL 1.1, assets/polices/OFL_Jacquard.txt ;
 ## sans nom réservé). Deux dessins, chacun à sa taille NATIVE (un pixel de police = un pixel logique : net, sans flou) :
-##   Jacquard 12 (grille de 12 px) : noms d'ennemis, titres de panneaux, nom de l'objet sous l'invite ;
-##   Jacquard 24 (grille de 24 px) : annonces centrées (lieu découvert, quête, niveau).
+##   Jacquard 24 (grille de 24 px, `grande`) : LA police des titres du HUD : nom de l'ennemi, titres du panneau Tab et de l'aide,
+##   annonces centrées (lieu découvert, quête, niveau) ;
+##   Jacquard 12 (grille de 12 px) : essayé pour les noms, trop serré à 12 px (le s final se lit « x ») : pas utilisé, gardé pour
+##   d'éventuelles mentions très courtes. Texte courant et nombres : Palette.police.
 ## Ses chiffres sont « elzéviriens » (le 1 ressemble à un ı) : écrire les nombres avec Palette.police (corps du texte).
 ## Une copie par appelant, comme Palette.police (une police gardée en statique fait planter Godot à la fermeture).
 const TITRE_PETIT := 12

@@ -36,8 +36,7 @@ var _a_cible := 0.0
 var _cible: Node = null
 var _avis: Array = []  # [texte, temps restant] : « Épée : niveau 16 »…
 var _police: FontFile
-var _gothique: FontFile     # Jacquard 12 : nom de l'ennemi, titres du panneau et de l'aide
-var _gothique_g: FontFile   # Jacquard 24 : annonces centrées
+var _gothique: FontFile   # Jacquard 24 (police des titres) : nom de l'ennemi, titres du panneau et de l'aide, annonces centrées
 var _cadre: StyleBoxTexture
 ## Annonces centrées : [titre, sous-titre, couleur, temps écoulé, durée] ; une à la fois, les suivantes attendent.
 var _annonces: Array = []
@@ -71,8 +70,7 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_police = Palette.police()
-	_gothique = MenuStyle.police_gothique()
-	_gothique_g = MenuStyle.police_gothique(true)
+	_gothique = MenuStyle.police_gothique(true)
 	process_mode = Node.PROCESS_MODE_ALWAYS  # le panneau marche jeu en pause
 	_cadre = MenuStyle.cadre_orne()
 	EchelleUi.appliquer(self)
@@ -271,15 +269,29 @@ func alpha_annonce() -> float:
 func annonce_courante() -> String:
 	return "" if _annonces.is_empty() else "%s|%s" % [_annonces[0][0], _annonces[0][1]]
 
+## Ligne de base du titre de l'annonce : au tiers haut, mais jamais au-dessus de y = 104 (sous les 4 avis de gauche, y 46..82).
+func _y_annonce() -> float:
+	return maxf(104.0, floorf(size.y * 0.3))
+
+## Rectangle occupé par l'annonce en cours (titre, filet, sous-titre).
+func _rect_annonce() -> Rect2:
+	if _annonces.is_empty():
+		return Rect2()
+	var lt := _gothique.get_string_size(_annonces[0][0], HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND).x
+	var demi := floorf(clampf(lt * 0.5 + 10.0, 40.0, 150.0)) + 6.0
+	var ls := _police.get_string_size(_annonces[0][1], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x * 0.5
+	demi = maxf(demi, ls + 2.0)
+	return Rect2(_cx() - demi, _y_annonce() - 20.0, demi * 2.0, 50.0)
+
 ## Annonce centrée au tiers haut de l'écran : titre gothique 24 px détouré, filet or à losanges, sous-titre dessous.
 func _dessiner_annonce(cx: float) -> void:
 	var a := alpha_annonce()
 	if a <= 0.01:
 		return
 	var an: Array = _annonces[0]
-	var y := floorf(size.y * 0.27)
-	var lt := _gothique_g.get_string_size(an[0], HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND).x
-	MenuStyle.texte_detoure(self, _gothique_g, Vector2(roundf(cx - lt * 0.5), y), an[0], MenuStyle.TITRE_GRAND, an[2], a, true)
+	var y := _y_annonce()
+	var lt := _gothique.get_string_size(an[0], HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND).x
+	MenuStyle.texte_detoure(self, _gothique, Vector2(roundf(cx - lt * 0.5), y), an[0], MenuStyle.TITRE_GRAND, an[2], a, true)
 	var demi := floorf(clampf(lt * 0.5 + 10.0, 40.0, 150.0))
 	MenuStyle.dessiner_filet(self, cx, y + 8.0, demi, a)
 	if String(an[1]) != "":
@@ -303,11 +315,15 @@ func _dessiner_aide() -> void:
 		larg = maxf(larg, col + 8.0 + _police.get_string_size(l[1], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
 	var pied := "F1 : " + ("masquer" if aide_forcee else "revoir")
 	larg = maxf(larg, _police.get_string_size(pied, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
-	var t := Vector2(ceilf(larg) + 28.0, 50.0 + 10.0 * aide_lignes.size())
+	var t := Vector2(ceilf(larg) + 28.0, 59.0 + 10.0 * aide_lignes.size())
 	var o := Vector2(floorf(size.x - t.x - 6.0), 36.0)
+	if Rect2(o, t).intersects(_rect_annonce()):   # petit écran (480x270) : l'annonce passe devant, l'aide s'efface le temps de l'annonce
+		a *= 1.0 - alpha_annonce()
+		if a <= 0.01:
+			return
 	_cadre_alpha(Rect2(o, t), a)
-	MenuStyle.texte_detoure(self, _gothique, o + Vector2(14, 21), "Commandes", MenuStyle.TITRE_PETIT, OR, a)
-	var y := o.y + 33.0
+	MenuStyle.texte_detoure(self, _gothique, o + Vector2(14, 27), "Commandes", MenuStyle.TITRE_GRAND, OR, a)
+	var y := o.y + 42.0
 	for l: Array in aide_lignes:
 		MenuStyle.texte_detoure(self, _police, Vector2(o.x + 14.0, y), l[0], TAILLE_POLICE, OR, a)
 		MenuStyle.texte_detoure(self, _police, Vector2(o.x + 22.0 + col, y), l[1], TAILLE_POLICE, PARCHEMIN, a)
@@ -322,12 +338,13 @@ func _cadre_alpha(r: Rect2, a: float) -> void:
 
 ## Barre de l'ennemi (lot L6) : NOM centré au-dessus (gothique pixel du lot L7, or pour un boss), barre de vie, statut actif en dessous.
 func _barre_cible(cx: float, nom: String, ratio: float, statut: String, boss: bool, alpha: float) -> void:
-	var l := _gothique.get_string_size(nom, HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_PETIT).x
-	MenuStyle.texte_detoure(self, _gothique, Vector2(roundf(cx - l * 0.5), 27), nom, MenuStyle.TITRE_PETIT, OR if boss else PARCHEMIN, alpha)
-	_barre(Vector2(cx - 40, 30), ratio, VIE, alpha)
+	# gothique 24 px sous la boussole (y 4..15) : capitales vers y 20, jambages (g, p) au-dessus de la barre
+	var l := _gothique.get_string_size(nom, HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND).x
+	MenuStyle.texte_detoure(self, _gothique, Vector2(roundf(cx - l * 0.5), 34), nom, MenuStyle.TITRE_GRAND, OR if boss else PARCHEMIN, alpha)
+	_barre(Vector2(cx - 40, 40), ratio, VIE, alpha)
 	if statut != "":
 		var ls := _police.get_string_size(statut, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
-		var ps := Vector2(roundf(cx - ls * 0.5), 47)
+		var ps := Vector2(roundf(cx - ls * 0.5), 57)
 		draw_string(_police, ps + Vector2(1, 1), statut, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(FOND, alpha))
 		draw_string(_police, ps, statut, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(PARCHEMIN, 0.75 * alpha))
 
@@ -400,9 +417,9 @@ func _texte(pos: Vector2, texte: String, couleur := PARCHEMIN, largeur := -1.0) 
 	draw_string(_police, pos + Vector2(1, 1), texte, HORIZONTAL_ALIGNMENT_LEFT, largeur, TAILLE_POLICE, FOND)
 	draw_string(_police, pos, texte, HORIZONTAL_ALIGNMENT_LEFT, largeur, TAILLE_POLICE, couleur)
 
-## Titre de panneau : gothique pixel 12 px, or, détouré.
+## Titre de panneau : gothique pixel 24 px, or, ombre portée (ligne de base 5 px plus bas que le texte du corps).
 func _titre(pos: Vector2, texte: String) -> void:
-	MenuStyle.texte_detoure(self, _gothique, pos, texte, MenuStyle.TITRE_PETIT, OR)
+	MenuStyle.texte_detoure(self, _gothique, pos + Vector2(0, 5), texte, MenuStyle.TITRE_GRAND, OR)
 
 ## Panneau du personnage (Tab) : compétences et quêtes à gauche, sac à droite.
 ## Centré ; il s'élargit quand l'écran logique est plus grand (360x180 à 480x270, 440x220 à 640x360).
@@ -417,7 +434,7 @@ func _panneau() -> void:
 	var larg_g := dx - gx - 8.0
 	var larg_d := o.x + t.x - 12.0 - dx
 	_titre(Vector2(gx, o.y + 22), "Compétences")
-	var y := o.y + 40.0
+	var y := o.y + 45.0   # 5 px de plus qu'avant le lot L7 : place pour les jambages du titre gothique
 	var c: Competences = joueur.competences
 	for nom in Competences.NOMS:
 		_texte(Vector2(gx, y), "%s  %d" % [Competences.NOMS[nom], c.niveaux[nom]])
@@ -427,6 +444,7 @@ func _panneau() -> void:
 	_titre(Vector2(dx, o.y + 22), "Sac")
 	var inv: Inventaire = joueur.inventaire
 	y = o.y + 40.0
+	y += 5.0
 	_texte(Vector2(dx, y), "Pièces : %d" % inv.pieces)
 	y += 13.0
 	if inv.objets.is_empty():
@@ -440,8 +458,9 @@ func _panneau() -> void:
 		_texte(Vector2(dx, y), "%s  x%d" % [inv.nom(ids[i]), inv.objets[ids[i]]], PARCHEMIN, larg_d)
 		y += 13.0
 	if quetes != null:
-		var yq := maxf(o.y + 110.0, o.y + 40.0 + 22.0 * Competences.NOMS.size() + 4.0)
+		var yq := maxf(o.y + 115.0, o.y + 45.0 + 22.0 * Competences.NOMS.size() + 4.0)
 		_titre(Vector2(gx, yq), "Quêtes")
+		yq += 6.0
 		for q in quetes.objectifs():
 			var lignes := _couper("> " + q[1], larg_g)
 			for i in lignes.size():
