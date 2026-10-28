@@ -14,7 +14,7 @@ from mathutils.bvhtree import BVHTree
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import aretes      # C1 matières : arête claire / creux sombre en couleur de sommet (sources_blender/scripts/aretes.py)
-ARETES_SANS = ("dallage", "dalles_")      # sols (lot C2) : leurs propres réglages
+ARETES_SANS = ("dallage", "dalles_", "herse_")      # sols (lot C2) : leurs propres réglages ; herse (C8) : fer sombre sans liseré
 
 ICI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(os.path.dirname(ICI))
@@ -2359,6 +2359,184 @@ def pan_mur_v3(nom, larg, haut, graine, corbeaux=0, niche=False):
     return M
 
 
+# ======================================================================= C8 (2026-10-28) : HERSE, RACINES, LICHEN
+# docs/INSPIRATION_IGNITE.md §2.9 (herse à pointes, traverses rivetées) et §2.10 (racines en tubes à 5 pans, lichen gris-vert).
+TEINTE["lichen"] = (0.72, 0.84, 0.66)      # croûte de lichen : texture de pierre du décor (matière absente de MAT_MODELE -> mur0) teintée
+                                           # gris-vert par la couleur de sommet (aucun matériau de plus)
+
+
+def herse_couloir(nom, graine):
+    """Herse du couloir (repère du nœud mobile de tertre.gd : x en travers, y haut, z = 0 plan de la grille) : mêmes 7 barreaux
+    (x = -1,35 + 0,45 i, haut 3,1 m) et 3 traverses (y = 0,6 / 1,8 / 2,8) que les anciennes boîtes, mais forgés : barreaux carrés posés
+    en losange (une arête vive vers la torche) terminés par une POINTE à 4 pans, traverses doubles (devant et derrière les barreaux)
+    rivetées à chaque croisement, chapeau haut. Fer sombre (ton 0,46-0,62, rivets 0,8 : le jeu le rend en fer MAT, voir CrypteDecor.MAT_BOITE)."""
+    M = Module(nom, graine)
+    rg = M.rg
+    e = 0.04                                   # demi-côté des barreaux (anciennes boîtes : 0,08 de côté)
+    for i in range(7):
+        x = -1.35 + i * 0.45
+        ton = rg.uniform(0.52, 0.62)
+        dx = rg.uniform(-0.006, 0.006)
+        M.boite((e * 2, 2.88, e * 2), Vector((x + dx, 0.24 + 1.44, 0)), "fer", yaw=math.pi / 4, bev=0.0, jit=0.003, ton=ton)
+        # pointe : base carrée en losange à 0,24 m, sommet à 1 cm du sol ; collerette forgée au-dessus
+        _pyramide(M, Vector((x + dx, 0.24, 0)), e * 1.5, Vector((x + dx + rg.uniform(-0.004, 0.004), 0.01, 0)), "fer", ton * 0.92, 4, 0.0)
+        M.boite((e * 2.7, 0.05, e * 2.7), Vector((x + dx, 0.27, 0)), "fer", yaw=math.pi / 4, bev=0.0, jit=0.002, ton=ton * 1.1)
+    for y in (0.6, 1.8, 2.8):
+        for zf in (-1.0, 1.0):
+            M.boite((3.04, 0.11, 0.026), Vector((0, y + rg.uniform(-0.004, 0.004), zf * (e * 1.42 + 0.013))), "fer", bev=0.0, jit=0.003,
+                    ton=rg.uniform(0.54, 0.62))
+            for i in range(7):                 # rivets : têtes carrées à chaque croisement, devant et derrière
+                M.boite((0.04, 0.04, 0.018), Vector((-1.35 + i * 0.45, y, zf * (e * 1.42 + 0.035))), "fer", bev=0.0, jit=0.002, ton=0.8)
+        for xb in (-1.52, 1.52):               # bouts des traverses : platines repliées
+            M.boite((0.04, 0.15, e * 2.84 + 0.06), Vector((xb, y, 0)), "fer", bev=0.0, jit=0.002, ton=0.5)
+    M.boite((3.1, 0.09, 0.16), Vector((0, 3.08, 0)), "fer", bev=0.0, jit=0.003, ton=0.46)     # chapeau (sous le plafond de 3,2 m)
+    return M
+
+
+def _tube(M, pts, r0, r1, mat="bois", ton=0.6, cotes=5, rot=0.0, pointe=True, cap0=False):
+    """Tube à `cotes` pans le long d'une polyligne (repère Godot), rayon de r0 (départ, ouvert : il sort d'un joint) à r1 ; bout fermé
+    en pointe. Section orientée par transport (pas de torsion)."""
+    rg = M.rg
+    n = len(pts)
+    tg = [(pts[min(i + 1, n - 1)] - pts[max(i - 1, 0)]).normalized() for i in range(n)]
+    a = Vector((0, 1, 0)) if abs(tg[0].y) < 0.9 else Vector((1, 0, 0))
+    u = tg[0].cross(a).normalized()
+    anneaux = []
+    for i in range(n):
+        if i:
+            u = (u - tg[i] * u.dot(tg[i])).normalized()
+        w = tg[i].cross(u)
+        r = r0 + (r1 - r0) * (i / max(1, n - 1)) ** 0.8
+        r *= rg.uniform(0.9, 1.1)
+        anneaux.append([pts[i] + (u * math.cos(rot + math.tau * k / cotes) + w * math.sin(rot + math.tau * k / cotes)) * r for k in range(cotes)])
+    for i in range(n - 1):
+        t = ton * rg.uniform(0.9, 1.08)
+        for k in range(cotes):
+            a0, a1 = anneaux[i][k], anneaux[i][(k + 1) % cotes]
+            b0, b1 = anneaux[i + 1][k], anneaux[i + 1][(k + 1) % cotes]
+            dehors = (a0 + a1 + b0 + b1) * 0.25 - (pts[i] + pts[i + 1]) * 0.5
+            for tri in ((a0, a1, b1), (a0, b1, b0)):
+                p0, p1, p2 = tri
+                if (p1 - p0).cross(p2 - p0).dot(dehors) < 0:
+                    p1, p2 = p2, p1
+                M.tris.append((mat, (p0.copy(), p1.copy(), p2.copy()), t))
+    if cap0:                                   # départ fermé (la racine sort d'un joint : pas de tube creux visible)
+        for k in range(1, cotes - 1):
+            p0, p1, p2 = anneaux[0][0], anneaux[0][k], anneaux[0][k + 1]
+            if (p1 - p0).cross(p2 - p0).dot(-tg[0]) < 0:
+                p1, p2 = p2, p1
+            M.tris.append((mat, (p0.copy(), p1.copy(), p2.copy()), ton * 0.8))
+    if pointe:
+        bout = pts[-1] + tg[-1] * max(r1 * 3.0, 0.02)
+        for k in range(cotes):
+            p0, p1 = anneaux[-1][k], anneaux[-1][(k + 1) % cotes]
+            if (p1 - p0).cross(bout - p0).dot((p0 + p1) * 0.5 - pts[-1] + tg[-1] * 0.01) < 0:
+                p0, p1 = p1, p0
+            M.tris.append((mat, (p0.copy(), p1.copy(), bout.copy()), ton))
+
+
+def _sinueux(rg, p0, d, longueur, n, amp, y_fn):
+    """Chemin qui serpente au sol : n+1 points de p0 dans la direction d (plan xz), écart latéral amp, hauteur y_fn(t)."""
+    d = Vector((d.x, 0, d.z)).normalized()
+    lat = Vector((-d.z, 0, d.x))
+    ph, fq = rg.uniform(0, math.tau), rg.uniform(1.2, 2.2)
+    pts = []
+    for j in range(n + 1):
+        t = j / n
+        q = p0 + d * (longueur * t) + lat * (amp * math.sin(ph + fq * math.pi * t) * min(1.0, t * 3.0))
+        pts.append(Vector((q.x, y_fn(t), q.z)))
+    return pts
+
+
+def _lichen(M, c, r, ton=0.9, n=7, y=0.004):
+    """Croûte de lichen : polygone lobé à plat (éventail), 1 mm à 4 mm au-dessus du sol, rayon r ± 35 %."""
+    rg = M.rg
+    rr = [r * rg.uniform(0.65, 1.35) for _ in range(n)]
+    bord = [c + Vector((math.cos(math.tau * k / n) * rr[k], y, math.sin(math.tau * k / n) * rr[k])) for k in range(n)]
+    ctr = c + Vector((0, y + 0.003, 0))
+    for k in range(n):
+        a, b = bord[k], bord[(k + 1) % n]
+        if (b - a).cross(ctr - a).y < 0:
+            a, b = b, a
+        M.tris.append(("lichen", (a.copy(), b.copy(), ctr.copy()), ton * rg.uniform(0.85, 1.1)))
+
+
+def racine_sol(nom, graine, longueur, branches):
+    """Racine qui affleure entre les dalles (origine au pied de l'éboulis ou du mur, elle part vers +z) : sort du sol par un coude,
+    serpente en surface (dessus à 3-9 cm, dessous enfoncé de 2 cm au plus : elle « mord » le sol), replonge ; radicelles latérales
+    qui replongent aussi ; croûtes de lichen gris-vert sur son trajet. Tubes à 5 pans ; bois sombre brun-rouge (rampe Végétation sèche)."""
+    M = Module(nom, graine)
+    rg = M.rg
+    r0 = rg.uniform(0.085, 0.11)
+    # dessous à -3 cm au plus (le dallage visible est à -2,2 cm : la racine y repose, l'audit tolère moins de 4 cm), départ qui plonge
+    rt = lambda t, r=r0: r + (r * 0.3 - r) * t ** 0.8
+    haut = lambda t: rt(t) * 1.1 - 0.03 + 0.01 * math.sin(math.pi * t * 3.0) ** 2 - (0.004 if t < 0.02 else 0.0)
+    pr = _sinueux(rg, Vector((0, 0, 0)), Vector((rg.uniform(-0.25, 0.25), 0, 1)), longueur, 7, longueur * 0.12, haut)
+    _tube(M, pr, r0, r0 * 0.3, "bois", rg.uniform(0.62, 0.76), cap0=True)
+    for b in range(branches):
+        j = rg.randint(2, 5)
+        base = pr[j]
+        cote = 1.0 if b % 2 == 0 else -1.0
+        dd = (pr[j + 1] - pr[j - 1]).normalized()
+        d = Vector((-dd.z * cote, 0, dd.x * cote)) * 0.8 + dd * 0.6
+        rb = r0 * rg.uniform(0.45, 0.6)
+        lb = longueur * rg.uniform(0.3, 0.55)
+        pb = _sinueux(rg, Vector((base.x, 0, base.z)), d, lb, 4, lb * 0.15, lambda t, r=rb: (r + (r * 0.3 - r) * t ** 0.8) * 1.1 - 0.025)
+        _tube(M, pb, rb, rb * 0.3, "bois", rg.uniform(0.6, 0.72), cap0=True)
+    for _ in range(rg.randint(4, 6)):          # lichen le long de la racine, à côté (pas dessus)
+        q = pr[rg.randint(1, len(pr) - 2)]
+        a = rg.uniform(0, math.tau)
+        _lichen(M, Vector((q.x, 0, q.z)) + Vector((math.cos(a), 0, math.sin(a))) * rg.uniform(0.16, 0.3), rg.uniform(0.08, 0.16), ton=1.0)
+    return M
+
+
+def racine_voute(nom, graine, chute):
+    """Racines qui percent la voûte le long d'une FISSURE (origine = plafond, y = 0 ; fissure de 0,9 à 1,3 m le long de x) : une racine
+    maîtresse court sous la voûte en suivant la fissure, 5 à 7 radicelles en tombent presque droit (30 % à 100 % de `chute`, légère
+    vrille), lichen gris-vert collé à la voûte au bord de la fissure. Tubes à 5 pans (4 pour les plus fines)."""
+    M = Module(nom, graine)
+    rg = M.rg
+    L = rg.uniform(0.9, 1.3)
+    r0 = rg.uniform(0.06, 0.08)
+    ph = rg.uniform(0, math.tau)
+    fis = [Vector((-L * 0.5 + L * j / 6.0, -r0 * 0.7, 0.07 * math.sin(ph + j * 1.1))) for j in range(7)]
+    _tube(M, fis, r0, r0 * 0.45, "bois", 0.72, pointe=True)
+    n = rg.randint(5, 7)
+    for k in range(n):
+        f = (k + rg.uniform(0.2, 0.8)) / n
+        j = min(5, int(f * 6))
+        base = fis[j].lerp(fis[j + 1], f * 6 - j) + Vector((0, -r0 * 0.3, 0))
+        Lk = chute * (1.0 if k == n // 2 else rg.uniform(0.3, 0.85))
+        a = rg.uniform(0, math.tau)
+        d = Vector((math.cos(a), 0, math.sin(a)))
+        pts = []
+        for i in range(6):
+            t = i / 5
+            pts.append(base + Vector((0, -Lk * t, 0)) + d * (0.06 * math.sin(t * math.pi * 0.8)) + Vector((math.cos(ph + t * 3.0), 0, math.sin(ph + t * 3.0))) * 0.025 * t)
+        _tube(M, pts, r0 * rg.uniform(0.4, 0.6), 0.008, "bois", rg.uniform(0.66, 0.8), cotes=5 if k % 2 == 0 else 4)
+    for k in range(6):                         # lichen collé à la voûte de part et d'autre de la fissure (face vers le bas)
+        q = fis[rg.randint(0, 6)]
+        c = Vector((q.x + rg.uniform(-0.1, 0.1), 0, q.z + rg.choice((-1, 1)) * rg.uniform(0.1, 0.2)))
+        rr = rg.uniform(0.06, 0.11)
+        bord = [c + Vector((math.cos(math.tau * j / 6) * rr * rg.uniform(0.7, 1.3), -0.004, math.sin(math.tau * j / 6) * rr * rg.uniform(0.7, 1.3))) for j in range(6)]
+        ctr = c + Vector((0, -0.007, 0))
+        for j in range(6):
+            p0, p1 = bord[j], bord[(j + 1) % 6]
+            if (p1 - p0).cross(ctr - p0).y > 0:
+                p0, p1 = p1, p0
+            M.tris.append(("lichen", (p0.copy(), p1.copy(), ctr.copy()), 1.0))
+    return M
+
+
+def construire_c8():
+    mods = [herse_couloir("herse_couloir", 801)]
+    for i, (L, b) in enumerate([(2.0, 2), (2.8, 3), (1.5, 2)]):
+        mods.append(racine_sol("racine_sol_%s" % "abc"[i], 811 + i, L, b))
+    for i, ch in enumerate((0.7, 1.1)):
+        mods.append(racine_voute("racine_voute_%s" % "ab"[i], 821 + i, ch))
+    return mods
+
+
 # ======================================================================= table des modules exportés
 def construire():
     mods = []
@@ -2410,12 +2588,40 @@ def construire():
     mods.append(bassin_margelle("bassin_margelle", 289))
     # C2 (2026-10-28) : dallage v3 du sol des salles et couloirs (voir la section DALLAGE v3 plus haut)
     mods += construire_dallage()
+    # C8 (2026-10-28) : herse du couloir (pièce mobile de tertre.gd), racines et lichen (section C8 plus haut) ; EN FIN de liste
+    mods += construire_c8()
     return mods
 
 
-def exporter(mods):
+def _lire_dat_v2(chemin):
+    """Entrées brutes d'un .dat existant, dans l'ordre : [(nom, octets des sommets)] (pour ne remplacer que certains modules)."""
+    r = []
+    if not os.path.exists(chemin):
+        return r
+    b = open(chemin, "rb").read()
+    o = 4
+    for _ in range(struct.unpack_from("<I", b, 0)[0]):
+        nom = b[o + 1:o + 1 + b[o]].decode()
+        o += 1 + b[o]
+        nb = struct.unpack_from("<I", b, o)[0]
+        o += 4
+        r.append((nom, b[o:o + nb * 28]))
+        o += nb * 28
+    return r
+
+
+def exporter(mods, seulement=None):
+    """seulement = préfixes séparés par des virgules (lot C8) : seuls ces modules sont recalculés ; les autres gardent les octets du .dat
+    existant (les couleurs cuites de plusieurs modules ne sortent pas identiques d'un lancement à l'autre : un lot ne doit pas changer
+    les modules des autres sans le vouloir). Dans ce mode, ni .glb ni .blend (exports d'inspection) ne sont réécrits."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     donnees = {}
+    garder = []
+    if seulement:
+        seulement = tuple(seulement.split(","))
+        ancien = _lire_dat_v2(DAT)
+        garder = [(k, v) for k, v in ancien if not k.startswith(seulement)]
+        mods = [M for M in mods if M.nom.startswith(seulement)]
     objets = []
     nb_tris = {}
     st_ar = {}
@@ -2452,7 +2658,10 @@ def exporter(mods):
             donnees["%s__pts" % M.nom] = [((p, p, p), [(1, 1, 1, 1)] * 3) for p in M.pts]
     # disposition en grille pour l'inspection dans Blender (les coordonnées du .dat restent celles des modules)
     with open(DAT, "wb") as f:      # [u32 nb objets] puis par objet : [u8 long][nom][u32 nb sommets][sommets : x y z r g b a float32 ; 3 par triangle]
-        f.write(struct.pack("<I", len(donnees)))
+        f.write(struct.pack("<I", len(donnees) + len(garder)))
+        for nom, octets in garder:      # mode « seulement » : modules des autres lots recopiés à l'octet, dans leur ordre
+            nb = nom.encode()
+            f.write(struct.pack("<B", len(nb)) + nb + struct.pack("<I", len(octets) // 28) + octets)
         for nom, faces in donnees.items():
             nb = nom.encode()
             f.write(struct.pack("<B", len(nb)) + nb + struct.pack("<I", len(faces) * 3))
@@ -2462,6 +2671,11 @@ def exporter(mods):
     x = 0.0
     for ob in objets:
         pass
+    if seulement:
+        print("crypte v2 (seulement %s) : %d modules recalcules, %d entrees gardees ->" % (",".join(seulement), len(mods), len(garder)), DAT)
+        for k, v in nb_tris.items():
+            print("  %-18s %5d tris" % (k, v))
+        return
     bpy.ops.export_scene.gltf(filepath=GLB, export_format='GLB', export_apply=True, export_normals=True, export_vertex_color='ACTIVE',
                               export_active_vertex_color_when_no_material=True, export_materials='NONE', export_yup=True)
     bpy.ops.wm.save_as_mainfile(filepath=BLEND)
@@ -2472,4 +2686,6 @@ def exporter(mods):
         print("  %-18s %5d tris" % (k, v))
 
 
-exporter(construire())
+_args_v2 = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+#   blender.exe -b --python crypte_modules_v2.py -- seulement=herse_,racine_   (C8 : ne recalcule que ces modules, garde le reste du .dat)
+exporter(construire(), next((a[10:] for a in _args_v2 if a.startswith("seulement=")), None))
