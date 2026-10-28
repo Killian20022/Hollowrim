@@ -57,6 +57,14 @@ var _niveau := -1                      # 0 rétro, 1 fin : les émetteurs sont r
 var rng := RandomNumberGenerator.new()
 var _scan := 0.0
 var _a_preparer: Array = []            # cibles dont les maillages ne sont pas encore lus
+## Préchauffe « à blanc » sur les VRAIS maillages (la vitrine du chargement n'a que des boîtes : le format de sommets d'un
+## corps skinné donne d'autres pipelines au voile et à la coque). Une fois par format de maillage : quand un corps préparé
+## est À L'ÉCRAN et qu'aucun sort n'est en cours, voile + coques posés à intensité nulle pendant quelques images.
+static var chauffe_corps := true
+static var _formats_chauds := {}
+var _a_chauffer: Array = []
+var _chauffe: Foyer = null
+var _chauffe_n := 0
 var _prets := {}                       # id des cibles déjà échantillonnées (plus de recherche de maillages)
 var _surfaces := {}                    # id -> SurfaceCorps préparée d'avance (le premier impact ne la construit pas)
 var _attente := 0.0
@@ -105,6 +113,8 @@ class Foyer:
 static func obtenir(g: GestionMagie = null) -> ImpactCorps:
 	if OS.get_cmdline_user_args().has("--sans-impact-corps"):
 		actif = false   # mise au point / mesure : rendu d'avant
+	if OS.get_cmdline_user_args().has("--sans-chauffe-corps"):
+		chauffe_corps = false   # mesure : sans la préchauffe à blanc sur les vrais maillages
 	if instance != null and is_instance_valid(instance) and not instance.is_queued_for_deletion():
 		return instance
 	if g == null:
@@ -190,6 +200,7 @@ static func embraser(cible: Node3D, ecole: String, point: Vector3, direction: Ve
 ## Point d'accroche de GestionMagie.tout_arreter.
 static func arreter_tout() -> void:
 	if instance != null and is_instance_valid(instance):
+		instance._finir_chauffe()
 		for f: Foyer in instance.foyers:
 			if not f.libre:
 				instance.liberer(f, true)
@@ -360,6 +371,7 @@ func foyer(cible: Node3D, ecole: String) -> Foyer:
 	var f := trouver(cible, ecole)
 	if f != null:
 		return f
+	_finir_chauffe()
 	var libre: Foyer = null
 	for x: Foyer in foyers:
 		if x.libre and gm.horloge >= x.fin_particules:
@@ -690,6 +702,12 @@ func _temperer_lumieres() -> void:
 ## Lecture des maillages en avance (au plus un par image) : ennemis proches pas encore échantillonnés, puis ceux touchés
 ## avant d'être prêts (le foyer tourne alors sur le repli en capsules, puis il est refait avec les vrais points).
 func _preparer(dt: float) -> void:
+	if _chauffe != null:
+		_chauffe_n -= 1
+		if gm.couche != null:
+			gm.couche.demander()
+		if _chauffe_n <= 0:
+			_finir_chauffe()
 	_scan -= dt
 	if _scan <= 0.0:
 		_scan = 0.5
@@ -704,12 +722,17 @@ func _preparer(dt: float) -> void:
 					_prets[n.get_instance_id()] = true
 					_surfaces[n.get_instance_id()] = SurfaceCorps.de(n, false, false)
 					_nettoyer_surfaces()
+					_mettre_a_chauffer(n)
 				else:
 					_a_preparer.append(n)
 	# lecture d'un maillage = lecture du GPU (synchronisation) : jamais pendant un sort en cours, au plus une toutes les
 	# 0,2 s ; les ennemis sont lus quand ils approchent (≤ 30 m), en général bien avant le premier sort
 	_attente -= dt
-	if _attente > 0.0 or not gm._jets.is_empty() or not gm._projectiles.is_empty():
+	if not gm._jets.is_empty() or not gm._projectiles.is_empty():
+		return
+	if _chauffe == null and not _a_chauffer.is_empty():
+		_chauffer_suivant()
+	if _attente > 0.0:
 		return
 	while not _a_preparer.is_empty():
 		var c: Variant = _a_preparer[0]
@@ -726,6 +749,7 @@ func _preparer(dt: float) -> void:
 		_prets[(c as Node).get_instance_id()] = true
 		_surfaces[(c as Node).get_instance_id()] = SurfaceCorps.de(c, false, false)
 		_nettoyer_surfaces()
+		_mettre_a_chauffer(c)
 		# foyer en cours sur le repli : on refait sa surface avec les vrais points
 		for f: Foyer in foyers:
 			if not f.libre and f.cible == c and f.surface != null and f.surface.repli():
@@ -734,6 +758,62 @@ func _preparer(dt: float) -> void:
 					f.surface.lacher()
 					f.surface = s
 		return
+
+static func _cles_format(c: Node3D) -> PackedStringArray:
+	var cles := PackedStringArray()
+	for mi in SurfaceCorps.maillages(c):
+		var am := mi.mesh as ArrayMesh   # surface_get_format : ArrayMesh seulement (pas les maillages primitifs)
+		if am == null:
+			continue
+		for i in mini(am.get_surface_count(), 4):
+			var cle := "%d|%s" % [am.surface_get_format(i), mi.skin != null]
+			if not _formats_chauds.has(cle) and not cles.has(cle):
+				cles.append(cle)
+	return cles
+
+func _mettre_a_chauffer(c: Variant) -> void:
+	if chauffe_corps and actif and _a_chauffer.size() < 16 and not _a_chauffer.has(c) and not _cles_format(c).is_empty():
+		_a_chauffer.append(c)
+
+## Préchauffe à blanc du premier corps de la file qui est à l'écran (les autres attendent d'y être).
+func _chauffer_suivant() -> void:
+	var cam := get_viewport().get_camera_3d()
+	var i := 0
+	while i < _a_chauffer.size():
+		var c: Variant = _a_chauffer[i]
+		if not is_instance_valid(c) or not (c as Node).is_inside_tree() or _cles_format(c).is_empty():
+			_a_chauffer.remove_at(i)
+			continue
+		var pos := (c as Node3D).global_position + Vector3.UP
+		if cam != null and (not cam.is_position_in_frustum(pos) or pos.distance_to(cam.global_position) > 30.0):
+			i += 1
+			continue
+		var x: Foyer = null
+		for f: Foyer in foyers:
+			if f.libre and gm.horloge >= f.fin_particules:
+				x = f
+				break
+		if x == null:
+			return
+		_a_chauffer.remove_at(i)
+		for cle in _cles_format(c):
+			_formats_chauds[cle] = true
+		x.cible = c
+		_voiler(x)   # voile et coques posés à intensité nulle (mc_feu = 0) : dessinés, donc pipelines compilés
+		_chauffe = x
+		_chauffe_n = 3
+		if gm.couche != null:
+			gm.couche.demander()
+		if trace:
+			print("ImpactCorps : préchauffe à blanc sur %s (%d maillages)" % [(c as Node).name, x.voiles.size()])
+		return
+
+func _finir_chauffe() -> void:
+	if _chauffe == null:
+		return
+	_devoiler(_chauffe)
+	_chauffe.cible = null
+	_chauffe = null
 
 ## Surfaces préparées des cibles disparues : libérées.
 func _nettoyer_surfaces() -> void:

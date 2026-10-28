@@ -45,8 +45,11 @@ static func embraser(ic, f, point: Vector3, dir: Vector3, force: float, duree: f
 static func maj(ic, f, dt: float) -> bool             # faux = fini (le foyer est rendu au pool)
 
 # 2) outils du socle utilisables dans maj()
-ic.uniformes(f, "dir_jet", Vector3)      # uniformes communs aux 6 émetteurs : dir_jet, point_impact (relatif), rayon_jet,
-                                          # k_jet, foyers (Array de 4 Vector4 : xyz relatif, w rayon), k_foyers, sol_y
+ic.regler_jet(f, dir, k_jet, point, rayon)          # (ajout 5215947) paramètres du jet pour les 6 émetteurs ; point relatif
+ic.regler_foyers(f, k_foyers, sol_y, liste)         # (ajout 5215947) liste = jusqu'à 4 Vector4 (xyz relatif, w rayon)
+ic.uniformes(f, "dir_jet", Vector3)      # API d1bb7c6, CONSERVÉE : dir_jet, k_jet, point_impact, rayon_jet, k_foyers, sol_y,
+                                          # foyers sont redirigés vers les paramètres du foyer (texture, voir plus bas) ;
+                                          # tout autre nom reste un set_shader_parameter sur les 6 matériaux (à éviter par image)
 ic.activer(f.em[k], part)                # part active 0..1 (réserve dans le budget de GestionMagie, plafond respecté)
 ic.voile(f, "mc_feu", Vector4(...))       # canaux du voile ET de la coque (paramètres d'instance)
 ic.repousser(f, k)                        # répulseur du jet (0 = éteint)
@@ -67,6 +70,26 @@ Réglage d'émetteur (`ImpactCorps.configurer`) : `mode` (`langues`, `contour`, 
 surcharge. **Nouveaux modes** : à ajouter À LA FIN de `poids()` / `start()` dans `magie_corps_part.gdshader` et dans
 `ImpactCorps.MODES` (numéros 6, 7… ; ne pas renuméroter). **Nouveaux canaux** du voile / de la coque : `mc_autre.xyz`
 est réservé (gel, choc, ténèbres) ; `mc_autre.w` = part du jet (déjà utilisé par la coque).
+
+**Paramètres du foyer dans la texture des points** (depuis 5215947) : la texture `pts` fait `SurfaceCorps.TEXELS` texels =
+192 texels de points (xyz tassés en RGBA) + 8 texels de paramètres, envoyés avec les points en UNE mise à jour par image
+(plus aucun `set_shader_parameter` par image) : P+0 = dir_jet.xyz, k_jet ; P+1 = point_impact.xyz, rayon_jet ;
+P+2 = k_foyers, sol_y, nb_pts ; P+3..P+6 = foyers ; P+7 réservé (libre pour B). Un mode de B lit ces texels avec
+`lire1(P + i)` dans `magie_corps_part.gdshader`.
+
+**Lecture des maillages** : `surface_get_arrays` est une lecture GPU synchrone (2 à 9 ms par maillage sur Iris Xe). Elle est
+faite UNE fois par pièce (cache statique par signature nom|surfaces|sommets|taille), à l'avance (`_preparer` : corps à
+≤ 30 m, une lecture toutes les 0,2 s, JAMAIS pendant un jet ou un projectile). Un corps pas encore lu passe en repli
+(capsules par os) au lieu de lire au moment de l'impact.
+
+**Préchauffe à blanc sur les vrais maillages** : la vitrine du chargement n'a que des boîtes ; le format de sommets d'un
+corps skinné donne d'autres pipelines au voile et à la coque. Quand un corps préparé est à l'écran (≤ 30 m) et qu'aucun
+sort n'est en cours, un foyer libre lui pose voile + coques à intensité nulle pendant 3 images, une fois par format de
+maillage (`ImpactCorps._formats_chauds`, statique). Mesure (`--diag-embraser`) : le premier feu sur un corps compile
+2 pipelines au lieu de 4. `--sans-chauffe-corps` la coupe (mesure).
+
+**Lumières** : ImpactCorps passe après GestionMagie (process_priority 101) et tempère les lumières du pool à moins de
+`RAYON_TEMPERE` d'un foyer (énergie ≤ `ENERGIE_MAX_CORPS`) : sinon le jet à bout portant aplatit le corps en blanc.
 
 Pièges connus :
 - un `PackedVector3Array` lu dans un `Dictionary` est une **copie** (append perdu) : relire, ajouter, réécrire ;
@@ -97,10 +120,28 @@ Pièges connus :
 |---|---|
 | Test | `bash outils/tous_les_tests.sh test_impact_corps` |
 | Captures | `bash /tmp/godot_slot.sh $G --path "$W" --script res://outils/captures_impact_feu.gd -- --plans=aucun --lieu=crypte --sortie=res://captures/impact_feu/apres [--cas=face,...] [--cote] [--sans-impact-corps] [--seul-corps]` |
-| Planches | `bash outils/planches_impact_feu.sh` (référence \| avant \| après) |
+| Planches | `bash outils/planches_impact_feu.sh [dossier_avant] [dossier_apres]` (référence \| avant \| après + zoom) |
+| Perf (vraie crypte) | `bash /tmp/godot_slot.sh $G --path "$W" --disable-vsync --script res://outils/perf_impact_crypte.gd -- --nouvelle --detail-sorts=eleve --tours=4 [--premier=avant] [--diag-embraser] [--sans-chauffe-corps]` : 3 gardiens figés devant le joueur (direction dégagée), double jet qui balaie, phases module actif / coupé alternées ; une phase où le jet touche un gardien moins d'une image sur deux est écartée |
 
 ## Coût et limites
 
-Voir le rapport de la branche (mesures `outils/perf_magie_crypte.gd`). Limites : la tête coupée (corps rigide de
+Mesures 2026-10-28 (`outils/perf_impact_crypte.gd`, Iris Xe, PC partagé avec d'autres rendus : charge 5 à 10, donc
+bruit de plusieurs ms sur le temps d'image ; le GPU mesuré est plus stable) — voir la table du rapport de la branche.
+Double jet sur 3 gardiens, phases alternées dans la même séance, 1er tour écarté :
+
+| Détail | Charge du PC | Temps d'image après − avant | GPU après − avant | CPU du module |
+|---|---|---|---|---|
+| Élevé (6 tours) | ~0,2 (calme) | +1,01 ms | +0,38 ms | 0,48 ms |
+| Élevé (4 tours) | ~9 | −0,38 ms | +0,36 ms | 0,94 ms |
+| Moyen (4 tours) | ~1,4 | +1,11 ms | +0,27 ms | 0,66 ms |
+| Rétro (4 tours) | ~2 | +1,10 ms | +0,32 ms | 0,55 ms |
+
+Particules : plafond `MAX_PARTICULES_FIN` (4500) jamais dépassé (tests + mesures). 1er jet sur les corps, machine calme :
+pire image 18,7 ms (module actif) contre 26,6 ms (module coupé).
+
+Limites : la tête coupée (corps rigide de
 Decapitation) ne brûle pas ; la coque et le voile sont limités à 12 maillages par corps ; le répulseur est un ellipsoïde
-(pas une capsule par os).
+(pas une capsule par os) ; la lecture d'un maillage (une fois par pièce, hors sorts) coûte 2 à 9 ms d'image, et une
+fois 411 ms observée sur PC très chargé (synchronisation GPU) ; la 1re accroche d'un corps coûte ~2 à 5 ms CPU ; la
+prolongation du jet (×1,15) dépend de la marge de 18 % de `_jet_placer` (à revoir si le jet change) ; le voile ne se
+pose pas sur un maillage qui porte déjà un autre `material_overlay`.

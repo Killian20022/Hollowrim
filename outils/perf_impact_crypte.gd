@@ -12,6 +12,7 @@ var m: Node3D
 var j: CharacterBody3D
 var cibles: Array[Node3D] = []
 var _t := 0.0
+var _touches := 0
 
 func _init() -> void:
 	_go.call_deferred()
@@ -70,6 +71,28 @@ func _go() -> void:
 		if cibles.is_empty():
 			quit(1)
 			return
+	# direction DÉGAGÉE depuis le premier gardien (sinon le jet bute sur un pilier ou un mur : « cible <null> »)
+	var espace := m.get_world_3d().direct_space_state
+	var exclus: Array[RID] = [j.get_rid()]
+	for c in cibles:
+		if c is CollisionObject3D:
+			exclus.append((c as CollisionObject3D).get_rid())
+	var meilleure := -1.0
+	var face0 := face
+	for k in 16:
+		var d := Basis(Vector3.UP, TAU * k / 16.0) * face0
+		var libre := 9.0
+		for h: float in [0.6, 1.2, 1.7]:
+			for lat: float in [-1.2, 0.0, 1.2]:
+				var dep := premier + Vector3.UP * h + d.cross(Vector3.UP).normalized() * lat
+				var q := PhysicsRayQueryParameters3D.create(dep, dep + d * 6.0)
+				q.exclude = exclus
+				var r := espace.intersect_ray(q)
+				libre = minf(libre, dep.distance_to(r.position) if not r.is_empty() else 6.0)
+		if libre > meilleure + 0.05:
+			meilleure = libre
+			face = d
+	print("  direction dégagée : %.1f m libres" % meilleure)
 	j.global_position = premier + face * 4.2 + Vector3(0, 0.1, 0)
 	var cote := face.cross(Vector3.UP).normalized()
 	for i in cibles.size():
@@ -88,6 +111,22 @@ func _go() -> void:
 	for v in vps:
 		RenderingServer.viewport_set_measure_render_time(v, true)
 	var base := await _mesurer(240, false, vps)
+	if OS.get_cmdline_user_args().has("--diag-embraser"):
+		# diagnostic : pipelines compilés par le SEUL feu sur le corps (sans jet), puis par le seul jet (module coupé)
+		var q0 := _pipes()
+		var c1 := cibles[mini(1, cibles.size() - 1)]
+		ImpactCorps.embraser(c1, "feu", c1.global_position + Vector3.UP * 1.1, (c1.global_position - j.global_position).normalized(), 1.0, 2.0)
+		var pire0 := 0.0
+		var tq := Time.get_ticks_usec()
+		for k in 60:
+			_viser(0.0)
+			await process_frame
+			pire0 = maxf(pire0, (Time.get_ticks_usec() - tq) / 1000.0)
+			tq = Time.get_ticks_usec()
+		print("  DIAG feu sur le corps seul (embraser) : %d pipelines, pire image %.1f ms" % [_pipes() - q0, pire0])
+		EffetsMagie.tout_arreter()
+		for k in 30:
+			await process_frame
 	var magie: Node = j.mains.magie
 	magie.raccourci(2)   # touche 3 : jet de flammes / jet de flammes
 	for k in 10:
@@ -97,11 +136,17 @@ func _go() -> void:
 	var res := {true: [], false: []}
 	var premier_impact := ""
 	for tour in tours:
-		for actif: bool in ([false, true] if _arg("premier") == "avant" else [true, false]):
+		for actif: bool in ([true] if _arg("seul") == "apres" else [false] if _arg("seul") == "avant" else [false, true] if _arg("premier") == "avant" else [true, false]):
 			ImpactCorps.actif = actif
 			EffetsMagie.tout_arreter()
 			for k in 20:
 				_viser(0.0)
+				await process_frame
+			# les deux mains libres (récupération du jet précédent finie), sinon l'appui est refusé : « jets [] »
+			var att := 0
+			while att < 180 and not ((magie.inc["gauche"] as Incantation).libre() and (magie.inc["droite"] as Incantation).libre()):
+				_viser(0.0)
+				att += 1
 				await process_frame
 			var p0 := _pipes()
 			var pire := 0.0
@@ -114,10 +159,12 @@ func _go() -> void:
 				var n := Time.get_ticks_usec()
 				pire = maxf(pire, (n - t_prec) / 1000.0)
 				t_prec = n
+			print("  phase actif=%s, 1re seconde : pire image %.1f ms, %d pipelines compilés" % [actif, pire, _pipes() - p0])
 			if premier_impact == "":
 				premier_impact = "1er jet sur les corps (%s) : pire image %.1f ms, %d pipelines compilés pendant la 1re seconde" % ["après" if actif else "avant", pire, _pipes() - p0]
 			var c0 := ImpactCorps.cout_us
 			var i0 := ImpactCorps.cout_images
+			_touches = 0
 			var r := await _mesurer(240, true, vps)
 			var cpu_module := float(ImpactCorps.cout_us - c0) / maxf(float(ImpactCorps.cout_images - i0), 1.0) / 1000.0
 			var s := EffetsMagie.stats()
@@ -130,7 +177,10 @@ func _go() -> void:
 			r.append(sc.foyers)
 			r.append(pire)
 			r.append(cpu_module)
-			if tour > 0 or tours == 1:   # le 1er tour (premiers jets, caches) n'entre pas dans les moyennes
+			r.append(_touches / 240.0)
+			if r[8] < 0.5:
+				print("  phase actif=%s ÉCARTÉE : un jet touche un gardien sur %d %% des images seulement" % [actif, int(r[8] * 100)])
+			elif tour > 0 or tours == 1:   # le 1er tour (premiers jets, caches) n'entre pas dans les moyennes
 				res[actif].append(r)
 			magie.relacher("gauche")
 			magie.relacher("droite")
@@ -145,8 +195,8 @@ func _go() -> void:
 	print("PERF_IMPACT détail %s, %d corps : sans sort %.2f ms (GPU %.2f)" % [niveau, cibles.size(), base[0], base[1]])
 	for actif: bool in [false, true]:
 		for r: Array in res[actif]:
-			print("  %s : %.2f ms (GPU %.2f = fenêtre %.2f + couche %.2f) ; pire %.1f ms ; CPU du module %.3f ms ; %d particules, %d foyers" % [
-				"APRÈS (ImpactCorps)" if actif else "AVANT (gerbe)", r[0], r[1], r[2], r[3], r[6], r[7], r[4], r[5]])
+			print("  %s : %.2f ms (GPU %.2f = fenêtre %.2f + couche %.2f) ; pire %.1f ms ; CPU du module %.3f ms ; %d particules, %d foyers ; jet sur un gardien %d %% des images" % [
+				"APRÈS (ImpactCorps)" if actif else "AVANT (gerbe)", r[0], r[1], r[2], r[3], r[6], r[7], r[4], r[5], int(r[8] * 100)])
 	print("PERF_IMPACT écart après - avant : temps d'image %+.2f ms, GPU %+.2f ms, CPU du module %.3f ms (moyennes de %d tours, le 1er écarté) ; %s" % [
 		moy.call(res[true], 0) - moy.call(res[false], 0), moy.call(res[true], 1) - moy.call(res[false], 1), moy.call(res[true], 7), res[true].size(), premier_impact])
 	quit()
@@ -184,6 +234,11 @@ func _mesurer(n: int, sort: bool, vps: Array[RID]) -> Array:
 			_viser(0.0)
 			j.vie = j.vie_max
 		await process_frame
+		if sort:
+			for jj: Dictionary in gm._jets.values():
+				if cibles.has(jj.cible):
+					_touches += 1
+					break
 		for i in vps.size():
 			g[i] += RenderingServer.viewport_get_measured_render_time_gpu(vps[i])
 	var dt := (Time.get_ticks_usec() - t0) / 1000.0 / n
