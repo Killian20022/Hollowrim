@@ -1621,7 +1621,8 @@ func _jet_placer(j: Dictionary) -> void:
 		# feu : cône de SPRAY bien ouvert (≈ 25° au sommet), les bouffées débordent encore un peu
 		var rr := 0.6 if j.ecole == "tenebres" else clampf(l * tan(deg_to_rad(float(j.ecart) * 0.5)) * (2.4 if j.ecole == "feu" else 1.4), 0.55 if j.ecole == "feu" else 0.25, 1.3 if j.ecole == "feu" else 0.8)
 		fx.set_instance_shader_parameter("r0", {"tenebres": 0.04, "feu": 0.045}.get(j.ecole, 0.02) * kl)
-		fx.set_instance_shader_parameter("r1", rr * kl)
+		# double feu : le spray est déjà large, à peine plus ouvert (sinon un mur de flammes masque toute la visée)
+		fx.set_instance_shader_parameter("r1", rr * (kl if j.ecole != "feu" else (1.08 if j.dbl else 1.0)))
 		# au contact d'une surface, la flamme s'étale (moins sur un corps : on doit voir la cible)
 		var et := 0.0
 		if j.touche:
