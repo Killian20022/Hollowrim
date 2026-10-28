@@ -1,0 +1,16 @@
+# lot L1 : coffre à couvercle (fermé, mi-ouverture, ouvert avec lueur, ouvert), grands coffres royaux, grotte
+# godot --path . --disable-vsync -- --captures=outils/poses_coffre_l1.txt --sortie=<dossier> --nouvelle --paisible --sans-particules --sans-hud --attente=200
+crypte_prep_1_ferme crypte 0,0,0,0 face=cof_prep:2.1:-15 coffres=cof_prep:ferme sans-mains
+crypte_prep_2_mi_ouverture crypte 0,0,0,0 face=cof_prep:2.1:-15 coffres=cof_prep:0.17 sans-mains
+crypte_prep_3_ouvert_lueur crypte 0,0,0,0 face=cof_prep:2.1:-15 coffres=cof_prep:0.3 sans-mains
+crypte_prep_4_ouvert crypte 0,0,0,0 face=cof_prep:2.1:-15 coffres=cof_prep:ouvert sans-mains
+crypte_givre_ouvert_lueur crypte 0,0,0,0 face=cof_g2:1.7:-30 coffres=cof_g2:0.3 sans-mains
+crypte_royal_tresor_ferme crypte 0,0,0,0 face=cof_tresor3:2.4:20 coffres=cof_tresor3:ferme,cof_tresor1:ferme,cof_tresor2:ferme sans-mains
+crypte_royal_tresor_lueur crypte 0,0,0,0 face=cof_tresor3:2.4:20 coffres=cof_tresor3:0.3,cof_tresor1:ouvert sans-mains
+crypte_royal_tresor_ouvert crypte 0,0,0,0 face=cof_tresor3:1.6:0 coffres=cof_tresor3:ouvert sans-mains
+grotte_camp_ferme grotte 0,0,0,0 face=camp_a:1.7:20 coffres=camp_a:ferme sans-mains
+grotte_camp_lueur grotte 0,0,0,0 face=camp_a:1.7:20 coffres=camp_a:0.3 sans-mains
+grotte_camp_ouvert grotte 0,0,0,0 face=camp_a:1.4:0 coffres=camp_a:ouvert sans-mains
+crypte_prep_5_ouvert_proche crypte 0,0,0,0 face=cof_prep:1.5:-40 coffres=cof_prep:ouvert sans-mains
+crypte_royal_jarl_ouvert crypte 0,0,0,0 face=cof_jarl:1.6:0 coffres=cof_jarl:ouvert sans-mains
+crypte_royal_jarl_b crypte 0,0,0,0 face=cof_jarl:2.6:30 coffres=cof_jarl:0.3 sans-mains
