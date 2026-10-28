@@ -7,6 +7,10 @@
 //   tangent déduit de l'axe dominant de la face (comme les UV du maillage) : la torche, en lumière rasante, sculpte les
 //   joints creux, les biseaux, les dalles inégales et les gravures, sans tangentes ni sommets en plus ;
 // - une occlusion de pied de mur en dégradé (le reste, coins, plafond, bord des sols, est cuit dans la couleur des sommets).
+// - C1 matières (2026-10-28) : `saturation` (bois moins orange) ; variante BRILLANTE (fer, lame, or, os, givre) : le code de ce fichier
+//   avec « specular_schlick_ggx » et « #define BRILLANT » à la place de specular_disabled (CrypteDecor.shader_brillant : un seul Shader de plus, partagé, aucun matériau dupliqué) ;
+//   elle remplace l'éclairage direct par light() : Lambert identique + reflet NET (Blinn-Phong seuillé, une tache de quelques pixels,
+//   pas de dégradé) + un lustre doux. La pierre et le bois gardent la variante sans light() (coût inchangé).
 shader_type spatial;
 render_mode diffuse_lambert, specular_disabled;
 
@@ -24,6 +28,15 @@ uniform float ambiant = 1.0;         // < 1 : n'assombrit QUE la lumière ambian
 uniform vec3 lueur_haut = vec3(0.0);
 uniform vec3 lueur_bas = vec3(0.0);
 instance uniform float eclair = 0.0;
+// C1 matières : 1 = couleur inchangée ; < 1 rapproche la couleur de sa luminance (bois de la crypte moins orange)
+uniform float saturation = 1.0;
+// C1 matières, variante BRILLANT seulement (sans effet ailleurs) : reflet net (brillance, durete = exposant, seuil de la tache),
+// lustre = reflet doux large (fer patiné), couleur du reflet ; le reflet suit la clarté de l'albédo (creux et joints sombres : rien)
+uniform float brillance = 0.0;
+uniform float durete = 32.0;
+uniform float seuil_reflet = 0.35;
+uniform float lustre = 0.0;
+uniform vec3 reflet : source_color = vec3(1.0);
 
 varying vec3 pos_m;
 varying vec3 n_m;
@@ -62,6 +75,7 @@ void fragment() {
 	float mur = 1.0 - abs(nw.y);
 	float pied = mix(0.5, 1.0, smoothstep(0.0, 1.15, h));
 	c *= mix(1.0, pied, crasse * mur);
+	if (saturation != 1.0) c = mix(vec3(dot(c, vec3(0.3, 0.59, 0.11))), c, saturation);
 	c = mix(c, vec3(1.0, 0.85, 0.8), eclair);
 	ALBEDO = c;
 	vec3 nh = nw;
@@ -69,6 +83,22 @@ void fragment() {
 	float hemi = nh.y * 0.5 + 0.5;
 	EMISSION = emission + c * mix(lueur_bas, lueur_haut, hemi * hemi);
 	ROUGHNESS = 1.0;
+#ifdef BRILLANT
+	SPECULAR = 0.0;      // pas de reflet de l'ambiante (comme specular_disabled) : seul light() fait briller
+#endif
 	AO = ambiant;
 	AO_LIGHT_AFFECT = 0.0;
 }
+
+#ifdef BRILLANT
+void light() {
+	float nl = max(dot(NORMAL, LIGHT), 0.0);
+	vec3 l = ATTENUATION * LIGHT_COLOR / PI;
+	DIFFUSE_LIGHT += nl * l;                                  // = diffuse_lambert
+	float nh = max(dot(NORMAL, normalize(LIGHT + VIEW)), 0.0);
+	float p = pow(nh, durete);
+	float tache = smoothstep(seuil_reflet, seuil_reflet + 0.1, p);      // bord net : une tache, pas un dégradé
+	float clair = smoothstep(0.004, 0.05, dot(ALBEDO, vec3(0.3, 0.59, 0.11)));      // albédo LINÉAIRE (fer sombre ≈ 0,05) : creux cuits éteints
+	SPECULAR_LIGHT += reflet * ((brillance * tache + lustre * pow(nh, durete * 0.2)) * clair * step(0.001, nl)) * l;
+}
+#endif

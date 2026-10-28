@@ -11,6 +11,10 @@
 import bpy, bmesh, math, os, random, struct
 from mathutils import Vector, Matrix, Euler
 from mathutils.bvhtree import BVHTree
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import aretes      # C1 matières : arête claire / creux sombre en couleur de sommet (sources_blender/scripts/aretes.py)
+ARETES_SANS = ("dallage", "dalles_")      # sols (lot C2) : leurs propres réglages
 
 ICI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(os.path.dirname(ICI))
@@ -1508,8 +1512,11 @@ def exporter(mods):
     donnees = {}
     objets = []
     nb_tris = {}
+    st_ar = {}
     for M in mods:
         res = M.finir()
+        if not M.nom.startswith(ARETES_SANS):
+            res = aretes.appliquer(res, bandes="aucune", stats=st_ar)      # blocs chanfreinés : aucun triangle de plus (perf)
         nb_tris[M.nom] = len(M.tris)
         for mat, faces in res.items():
             nom = "%s__%s" % (M.nom, mat)
@@ -1554,6 +1561,7 @@ def exporter(mods):
     bpy.ops.wm.save_as_mainfile(filepath=BLEND)
     total = sum(nb_tris.values())
     print("crypte v2 : %d modules, %d triangles ->" % (len(mods), total), DAT)
+    print("aretes : %d -> %d triangles apres liseres" % (st_ar.get("avant", 0), st_ar.get("apres", 0)))
     for k, v in nb_tris.items():
         print("  %-18s %5d tris" % (k, v))
 
