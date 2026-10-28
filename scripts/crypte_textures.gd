@@ -12,7 +12,7 @@ class_name CrypteTextures
 
 const CLEAR := Color(0, 0, 0, 0)
 const DOSSIER := "res://assets/crypte"   # textures précalculées par outils/generer_crypte.gd
-const VERSION := 14                      # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
+const VERSION := 15                      # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
 const E := 2   # facteur de finesse de la pierre proche (murs, dalles, voûte, ossuaire) : 2 = 64 texels/m (tuiles de 256 px pour 4 m)
 ## Murs et ossuaire : 128 texels/m (tuile de 512 px), car le joueur les frôle (< 1 m) ; dalles et voûte restent à 64.
 const EM := 4   # refonte matière, 2e passe : 128 texels/m pour murs et dalles (vus à 1-2 m) avec micro-détail (moucheture, arêtes ébréchées)
@@ -228,6 +228,7 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 	var n_mac2 := _nmap(S, 9, 9, graine + 10)
 	var n_sal := _nmap(S, S / 8, S / 8, graine + 6) if v >= 1 else n_big
 	var n_mou := _nmap(S, 6, 6, graine + 7) if v == 1 else n_big
+	var n_tr := _nmap(S, S / 32, S / 40, graine + 12) if v == 3 else n_big     # C3 : tronçons de givre (cellules de 25 x 30 cm)
 	var H := PackedFloat32Array()
 	H.resize(S * S)
 	var L := PackedFloat32Array()
@@ -371,11 +372,14 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 			if v == 3:
 				# pierre givrée (refonte matière) : le givre s'accroche à l'arête HAUTE de chaque bloc (biseau supérieur) et dans le joint
 				# au-dessus, en grains (tirage par texel), plus quelques amas rares ; jamais de grandes plaques blanches en damier
+				# C3 murs : par TRONÇONS (30-70 % de l'arête : masque n_tr étiré le long des assises), épaisseur variable (le givre
+				# déborde sur la face là où le masque est fort), jamais le dernier ton de la rampe (plus de « baguette » bleu clair continue)
 				var hg := float(((x * 37139213) ^ (y * 51299581)) & 1023) / 1023.0
-				var haut_bloc := gy > 0.015 and a < 0.95
-				var gl := (haut_bloc and hg < 0.8) or (a < 0.3 and hg < 0.35) or hg < 0.05 or (n_mac2[i] > 0.86 and hg < 0.6)
+				var tr: float = n_tr[i]
+				var haut_bloc := gy > 0.015 and (a < 0.95 or (tr > 0.72 and a < 1.0 and gy > 0.004))
+				var gl := (haut_bloc and hg < 0.8 and tr > 0.45) or (a < 0.3 and hg < 0.35 and tr > 0.35) or hg < 0.04 or (n_mac2[i] > 0.86 and hg < 0.5)
 				if gl:
-					c = c.lerp(_rp(giv, clampf(0.25 + lq * 0.7 + (hg - 0.5) * 0.2, 0.0, 1.0)), 0.75)
+					c = c.lerp(_rp(giv, clampf(0.2 + lq * 0.62 + (hg - 0.5) * 0.2, 0.0, 0.84)), 0.72)
 			elif v == 4:
 				# pierre sous une gangue de glace (refonte matière) : la pierre reste lisible sous un voile bleu-gris désaturé,
 				# reflets en lèvre claire, givre en grains, bulles ; plus de « bleu plastique »
@@ -544,16 +548,18 @@ static func neige_image() -> Image:
 	var n_a := _nmap(S, 16, 16, 9001, true)
 	var n_b := _nmap(S, 8, 8, 9002)
 	var n_c := _nmap(S, 32, 32, 9003, true)
+	var n_d := _nmap(S, 6, 5, 9004)
 	var giv := _cols(GIVRE)
 	var cols := PackedColorArray()
 	cols.resize(S * S)
 	for y in S:
 		for x in S:
 			var i := y * S + x
-			var l := 0.62 + (n_b[i] - 0.5) * 0.5 + (floorf(n_a[i] * 3.0) / 3.0 - 0.4) * 0.22
+			var l := 0.58 + (n_b[i] - 0.5) * 0.5 + (floorf(n_a[i] * 3.0) / 3.0 - 0.4) * 0.22
 			if n_c[i] > 0.85:
-				l += 0.2
-			cols[i] = _rp(giv, _q(clampf(l, 0.0, 1.0), x, y))
+				l += 0.16
+			l -= 0.3 * _ss(0.5, 0.72, n_d[i])      # C3 : plaques plus ternes (une lèvre de givre n'est plus une baguette uniforme)
+			cols[i] = _rp(giv, _q(clampf(l, 0.0, 0.8), x, y))      # C3 : jamais le dernier ton de la rampe Glace
 	return _vers_image(S, cols)
 
 ## Ton d'une rampe en `n` paliers (12 par défaut) : tramage par BRUIT stable de moins d'un palier, jamais d'ordre régulier.
