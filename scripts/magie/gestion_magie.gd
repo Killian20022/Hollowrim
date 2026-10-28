@@ -1417,11 +1417,14 @@ func _mat_flux(ecole: String) -> ShaderMaterial:
 		for i in 6:
 			m.set_shader_parameter("c%d" % i, Color(pal[i]))
 		m.set_shader_parameter("ecole", {"feu": 0, "glace": 1, "tenebres": 2, "soin": 3}.get(ecole, 0))
-		m.set_shader_parameter("vitesse", {"feu": 7.0, "glace": 5.5, "tenebres": 4.0, "soin": 4.0}.get(ecole, 6.0))
+		m.set_shader_parameter("vitesse", {"feu": 5.5, "glace": 5.5, "tenebres": 4.0, "soin": 4.0}.get(ecole, 6.0))
 		m.set_shader_parameter("eclat", {"feu": 1.2, "glace": 1.1, "tenebres": 1.35, "soin": 1.0}.get(ecole, 1.1))
 		m.set_shader_parameter("allonge", {"feu": 3.6, "tenebres": 2.6}.get(ecole, 1.0))
 		m.set_shader_parameter("ouvre", {"feu": 1.4, "tenebres": 1.4}.get(ecole, 1.0))
-		m.set_shader_parameter("evase", {"feu": 0.6}.get(ecole, 0.8))
+		m.set_shader_parameter("evase", {"feu": 0.8}.get(ecole, 0.8))
+		# feu : SPRAY (vagues de flamme qui sortent de la paume, gonflent et se déchirent), pas un rayon
+		m.set_shader_parameter("bouffees", {"feu": 0.6}.get(ecole, 0.0))
+		m.set_shader_parameter("marge", {"feu": 1.75}.get(ecole, 1.35))
 		_mats[cle] = m
 	return _mats[cle]
 
@@ -1615,8 +1618,9 @@ func _jet_placer(j: Dictionary) -> void:
 		var lv := maxf(l - (0.3 if j.touche and j.cible == null else 0.0), 0.1)
 		fx.set_instance_shader_parameter("longueur", lv)
 		fx.set_instance_shader_parameter("bout", b.transposed() * (dv * lv))
-		var rr := 0.6 if j.ecole == "tenebres" else clampf(l * tan(deg_to_rad(float(j.ecart) * 0.5)) * (1.7 if j.ecole == "feu" else 1.4), 0.5 if j.ecole == "feu" else 0.25, 1.1 if j.ecole == "feu" else 0.8)
-		fx.set_instance_shader_parameter("r0", (0.04 if j.ecole == "tenebres" else 0.02) * kl)
+		# feu : cône de SPRAY bien ouvert (≈ 25° au sommet), les bouffées débordent encore un peu
+		var rr := 0.6 if j.ecole == "tenebres" else clampf(l * tan(deg_to_rad(float(j.ecart) * 0.5)) * (2.4 if j.ecole == "feu" else 1.4), 0.55 if j.ecole == "feu" else 0.25, 1.3 if j.ecole == "feu" else 0.8)
+		fx.set_instance_shader_parameter("r0", {"tenebres": 0.04, "feu": 0.045}.get(j.ecole, 0.02) * kl)
 		fx.set_instance_shader_parameter("r1", rr * kl)
 		# au contact d'une surface, la flamme s'étale (moins sur un corps : on doit voir la cible)
 		var et := 0.0
