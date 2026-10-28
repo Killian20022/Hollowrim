@@ -1128,10 +1128,10 @@ func _givre_mur(horizontal: bool, plan: float, signe: float, a0: float, a1: floa
 	glacons_arete(pt.call(a0 + 0.3, y + h - 0.5, 0.2), pt.call(a1 - 0.3, y + h - 0.5, 0.2), 1.7 if gele else 0.9, 0.7 if gele else 0.5)
 	if est_crypte:       # 4e passe : givre visible d'en bas sur les ressauts de la corniche et le bandeau, glaçons longs épars
 		var vv := Vector3(0, 0, signe) if horizontal else Vector3(signe, 0, 0)
-		givre_levre(pt.call(a0, y + h - 0.2, 0.24), pt.call(a1, y + h - 0.2, 0.24), vv, 0.05, 0.85)
-		givre_levre(pt.call(a0, y + h - 0.4, 0.14), pt.call(a1, y + h - 0.4, 0.14), vv, 0.035, 0.6)
+		givre_levre(pt.call(a0, y + h - 0.2, 0.24), pt.call(a1, y + h - 0.2, 0.24), vv, 0.05, 0.45)
+		givre_levre(pt.call(a0, y + h - 0.4, 0.14), pt.call(a1, y + h - 0.4, 0.14), vv, 0.035, 0.4)
 		if h >= 3.5:
-			givre_levre(pt.call(a0, y + h - 0.98, 0.22), pt.call(a1, y + h - 0.98, 0.22), vv, 0.05, 0.85)
+			givre_levre(pt.call(a0, y + h - 0.98, 0.22), pt.call(a1, y + h - 0.98, 0.22), vv, 0.05, 0.45)
 		var ag := a0 + rng_deco.randf_range(0.3, 1.2)
 		while ag < a1 - 0.3:
 			glacon_sous(pt.call(ag, y + h - 0.2, 0.2), rng_deco.randf_range(0.7, 1.3), 0.06)
@@ -1390,7 +1390,7 @@ func givre_levre(a: Vector3, b: Vector3, vers: Vector3, haut := 0.045, densite :
 			if rng_deco.randf() < 0.5:        # coulure
 				var q := a + dr * (t + rng_deco.randf_range(0.1, 0.9) * lp) + v * 0.02 - Vector3(0, hh, 0)
 				boite("neige", q - Vector3(0, 0.03, 0), Vector3(0.03, 0.06, 0.03), 0.0, true)
-		t += lp + rng_deco.randf_range(0.0, 0.35)
+		t += lp + rng_deco.randf_range(0.3, 1.2)       # trous plus longs : givre discontinu, pas de baguette continue
 
 ## Glaçon : cône effilé de glace (6 pans) pendu sous `haut`.
 func glacon_sous(haut: Vector3, longueur := 0.5, r := 0.06) -> void:
@@ -1405,7 +1405,8 @@ func glacons_arete(a: Vector3, b: Vector3, densite := 1.0, lmax := 0.55) -> void
 	var n := int(l * densite + rng_deco.randf())
 	for k in n:
 		var t := rng_deco.randf()
-		var lon := lmax * rng_deco.randf_range(0.25, 1.0)
+		var u := rng_deco.randf()
+		var lon := lmax * (0.2 + 0.8 * u * u)     # tirage au carré : surtout des petits, quelques longs
 		glacon_sous(a.lerp(b, t), lon, 0.025 + lon * 0.08)
 		if rng_deco.randf() < 0.45:     # grappe : un ou deux petits à côté
 			glacon_sous(a.lerp(b, clampf(t + rng_deco.randf_range(-0.04, 0.04), 0.0, 1.0)), lon * 0.45, 0.02 + lon * 0.04)
