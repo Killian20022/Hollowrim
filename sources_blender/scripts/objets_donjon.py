@@ -13,6 +13,8 @@
 import bpy, bmesh, math, os, random, struct, sys
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import aretes      # C1 matières : arête claire / creux sombre en couleur de sommet (sources_blender/scripts/aretes.py)
 
 ICI = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(os.path.dirname(ICI))
@@ -937,8 +939,9 @@ def main():
     sorties = []
     donnees = {}
     depasse = 0
+    st = {}
     for M in mods:
-        res = M.finir()
+        res = aretes.appliquer(M.finir(), stats=st)
         sorties.append((M, res))
         for mat, faces in res.items():
             donnees["%s__%s" % (M.nom, mat)] = faces
@@ -958,6 +961,7 @@ def main():
                 for q, cc in zip(p, c):
                     f.write(struct.pack("<7f", q.x, q.y, q.z, cc[0], cc[1], cc[2], cc[3]))
     print("objets donjon : %d modules, %d triangles, %d depassements -> %s" % (len(mods), sum(len(M.tris) for M in mods), depasse, DAT))
+    print("aretes : %d -> %d triangles apres liseres" % (st.get("avant", 0), st.get("apres", 0)))
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     for a in args:
         if a.startswith("apercu="):

@@ -60,6 +60,29 @@ const GAIN_LUMIERE := 1.7          # pierre plus sombre (rampe donjon) : les feu
 const GRILLE_CRYPTE := 180.0      # accroche des sommets : H / 2 à 640 x 360 (DIRECTION_ARTISTIQUE §3)
 
 const CRYPTE_SHADER := preload("res://shaders/crypte.gdshader")
+## C1 matières (2026-10-28, chantier « anti pâte à modeler ») : chaque matière de la crypte réagit à la torche à sa façon. Pierre et bois
+## restent mats (shader de base) ; fer, lame, or, os (et cire des bougies, qui en prend la matière) et givre passent par la variante
+## BRILLANT de crypte.gdshader (un seul Shader de plus, partagé : les matériaux restent un par matière, aucun n'est dupliqué).
+## brillance / durete / seuil : tache de reflet nette ; lustre : reflet doux ; reflet : couleur. Or : terni, reflet ponctuel seulement
+## (BIBLE_VISUELLE §2 : ton `#fff0a8` de la rampe Braise, quelques pixels sous une flamme proche).
+const MATIERES := {
+	"fer": {"brillance": 2.0, "durete": 22.0, "seuil_reflet": 0.25, "lustre": 0.8, "reflet": Color(0.85, 0.9, 1.0), "saturation": 0.35, "teinte": Color(1.3, 1.26, 1.2)},
+	"lame": {"brillance": 1.6, "durete": 36.0, "seuil_reflet": 0.3, "lustre": 0.5, "reflet": Color(0.9, 0.94, 1.0), "saturation": 0.6},
+	"or": {"brillance": 2.0, "durete": 50.0, "seuil_reflet": 0.6, "lustre": 0.15, "reflet": Color(1.0, 0.94, 0.66), "saturation": 0.78},
+	"os": {"brillance": 0.25, "durete": 14.0, "seuil_reflet": 0.4, "lustre": 0.08, "reflet": Color(1.0, 0.95, 0.85)},
+	"neige": {"brillance": 0.5, "durete": 36.0, "seuil_reflet": 0.35, "lustre": 0.0, "reflet": Color(0.78, 0.92, 0.95)},
+}
+## Bois de la crypte : un peu moins saturé (rampe Bois travaillé « moins orange », INSPIRATION_IGNITE §3.6) sans retoucher la texture.
+const SATURATION_BOIS := 0.75
+static var _shader_brillant: Shader
+
+static func shader_brillant() -> Shader:
+	if _shader_brillant == null:
+		var s := Shader.new()
+		# specular_disabled jetterait SPECULAR_LIGHT écrit par light() : la variante rend le spéculaire (SPECULAR = 0 : pas de reflet ambiant)
+		s.code = CRYPTE_SHADER.code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_schlick_ggx;\n#define BRILLANT")
+		_shader_brillant = s
+	return _shader_brillant
 const FLAMME_SHADER := preload("res://shaders/crypte_flamme.gdshader")
 
 var racine: Node3D
@@ -410,6 +433,11 @@ func mat(nom: String) -> Material:
 				sm.set_shader_parameter("decoupe", 0.5)
 				sm.set_shader_parameter("crasse", 0.0)
 				sm.set_shader_parameter("emission", Vector3(0.06, 0.08, 0.1))
+			if est_crypte and sh == CRYPTE_SHADER and MATIERES.has(nom):
+				sh = shader_brillant()
+				var mt: Dictionary = MATIERES[nom]
+				for k: String in mt:
+					sm.set_shader_parameter(k, mt[k])
 			sm.shader = sh
 			var nom_tex: String = ALIAS_TEXTURE.get(nom, nom)
 			sm.set_shader_parameter("tex_base", _texture(nom_tex))
@@ -427,6 +455,8 @@ func mat(nom: String) -> Material:
 					sm.set_shader_parameter("crasse", 0.0)
 				elif nom == "mur4":
 					sm.set_shader_parameter("emission", Vector3(0.012, 0.03, 0.05))
+				elif nom == "bois":
+					sm.set_shader_parameter("saturation", SATURATION_BOIS)
 				if nom in PIERRE_NEUTRE:
 					sm.set_shader_parameter("teinte", TEINTE_PIERRE)
 				if nom == "pierre_v2" or nom == "dalle_v2" or nom == "pierre_sol":      # crypte v2 : plus de fond bleuté (planche : pierre lisible dans l'ombre)
