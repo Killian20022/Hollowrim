@@ -47,11 +47,16 @@ static func caches() -> void:
 	for c: Color in [Color(3.0, 2.2, 0.8), Color(3.0, 2.4, 1.0), Color(3.2, 2.6, 1.2), Color(3.0, 2.1, 0.7), Color(3.0, 2.0, 0.7)]:
 		Effets._cube_eclats(c, true)
 	Effets._cube_eclats(Color(0.6, 0.45, 0.3), false)
+	GerbePixels._preparer_ressources()   # gerbes de pixels du corps à corps (lot L6) : quads, shaders, matériaux de processus
+	EclatsOs._ressources()
 
 ## Lance le préchauffage rendu d'une vitrine posée en `lieu` (monde, sous le sol) : `soleil` exclu de la caméra si donné (sous
 ## terre), `env` = environnement du lieu (null = celui du monde). Renvoie la vitrine (libérée toute seule à la fin).
 static func lancer(hote: Node, lieu: Vector3, soleil: Light3D = null, env: Environment = null) -> Node3D:
 	caches()
+	if hote.is_inside_tree():   # pools des gerbes et des os de la scène : créés au chargement
+		GerbePixels.obtenir(hote)
+		EclatsOs.obtenir(hote)
 	var v := vitrine()
 	v.name = "VitrineEffetsCombat"
 	hote.add_child(v)
@@ -86,6 +91,12 @@ static func vitrine() -> Node3D:
 	_particules(v, Vector3(0.0, 0.0, -0.2), Sang.pm_jet(2), Sang._cube(Vector3(0.03, 0.08, 0.03), COULEURS[0]))
 	_particules(v, Vector3(0.3, 0.0, -0.2), Effets._pm_eclats(3.0), Effets._cube_eclats(Color(3.0, 2.2, 0.8), true))
 	_particules(v, Vector3(0.5, 0.0, -0.2), Effets._pm_eclats(2.2), Effets._cube_eclats(Color(0.6, 0.45, 0.3), false))
+	# gerbes de gros pixels (mélange et additif) et un éclat d'os (shader ps1, palette OSSEMENT)
+	GerbePixels.vitrine(v)
+	var os := MeshInstance3D.new()
+	os.mesh = EclatsOs._mailles[0]
+	os.position = Vector3(0.7, 0.2, 0.0)
+	v.add_child(os)
 	# traces au sol / au mur (plans à découpe alpha) et bouchon de cou (cylindre texturé opaque)
 	var plan := PlaneMesh.new()
 	plan.size = Vector2.ONE * 0.3

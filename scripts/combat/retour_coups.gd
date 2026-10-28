@@ -20,7 +20,13 @@ static func bloque(joueur: Node) -> void:
 ## La lame heurte le décor : quelques étincelles carrées et un choc métallique, la main rebondit.
 static func mur(joueur: Node, point: Vector3, normale: Vector3, materiau: String) -> void:
 	var bois := materiau == "bois"
-	Effets.eclats(joueur, point + normale * 0.03, Color(0.6, 0.45, 0.3) if bois else Color(3.0, 2.1, 0.7), 6 if bois else 9, 2.2, not bois)
+	# gerbe de gros pixels (GerbePixels) : échardes sur le bois ; gravillons + étincelles sur la pierre et le métal
+	var d := (normale + Vector3.UP * 0.3).normalized()
+	if bois:
+		GerbePixels.emettre(joueur, point + normale * 0.03, d, "bois", 0.9)
+	else:
+		GerbePixels.emettre(joueur, point + normale * 0.03, d, "pierre", 0.8)
+		GerbePixels.emettre(joueur, point + normale * 0.03, d, "etincelles", 1.0)
 	Sons.jouer_a(joueur, ["impactWood_heavy_000"] if bois else ["impactPlate_medium_000", "impactPlate_medium_001"], point, -4.0, 0.15)
 	joueur.secousse = maxf(joueur.secousse, SECOUSSE_MUR)
 

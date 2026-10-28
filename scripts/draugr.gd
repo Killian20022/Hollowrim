@@ -134,6 +134,15 @@ var combat: CombatEnnemi
 var _duree_titube := 0.55
 var _releve := false
 
+## Nom lisible (barre de l'ennemi du HUD) quand aucun nom n'est imposé (options, boss) : d'après le profil de combat.
+func _nommer(profil_nom: String) -> void:
+	if nom_affiche == "Draugr":
+		match profil_nom:
+			"draugr_guerrier":
+				nom_affiche = "Draugr ancien"
+			"bandit":
+				nom_affiche = "Bandit"
+
 func _ready() -> void:
 	add_to_group("ennemis")
 	_os = type.begins_with("squelette")
@@ -199,6 +208,7 @@ func _ready() -> void:
 		profil.posture_max *= 2.2
 	combat = CombatEnnemi.equiper(self, modele, profil)
 	combat.boss = boss != ""
+	_nommer(profil.nom)
 	_var = randf_range(0.94, 1.06)
 	origine = global_position
 	_pos_prec = global_position

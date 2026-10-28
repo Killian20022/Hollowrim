@@ -1,5 +1,6 @@
 extends Control
-## HUD pixel art : boussole en haut, barre de l'ennemi frappé, avis, panneau Tab.
+## HUD pixel art : boussole en haut, NOM + barre de l'ennemi frappé ou visé (statut et « Étourdi » dessous), chiffres de dégâts
+## (option, ChiffresDegats), avis, panneau Tab.
 ## Vie / mana / endurance, mains, statuts et raccourcis : enfant HudCombat (scripts/hud_combat.gd), qui s'efface
 ## quand tout est plein, comme dans Skyrim.
 ## Positions RELATIVES à `size` (écran logique, voir EchelleUi) : juste à 480x270, 640x360 et 960x540.
@@ -35,6 +36,13 @@ var panneau_ouvert := false
 var quetes: Node = null
 var _demo := false
 var _demo_cible := false
+var _visee_t := 0.0
+var _rayon := PhysicsRayQueryParameters3D.new()
+## Noms des statuts écrits sous la barre de l'ennemi (Statuts.actifs) ; « Étourdi » = posture brisée (finisher possible).
+const NOMS_STATUTS := {"brulure": "Brûlure", "brulure_obscure": "Flammes obscures", "gel": "Gel", "choc": "Choc", "corruption": "Corruption"}
+## Portée (m) et demi-angle (rad, en plus du rayon de l'ennemi) de la visée qui affiche la barre d'un ennemi en combat.
+const VISEE_PORTEE := 14.0
+const VISEE_PERIODE := 0.12
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -90,6 +98,13 @@ func _process(dt: float) -> void:
 		joueur.ennemi_vise = null
 		_a_cible = 4.0
 	_a_cible -= dt
+	_visee_t -= dt
+	if _visee_t <= 0.0:
+		_visee_t = VISEE_PERIODE
+		var v := _ennemi_vise()
+		if v != null:
+			_cible = v
+			_a_cible = maxf(_a_cible, 1.2)
 	for a in _avis:
 		a[1] -= dt
 	if _demo:
@@ -149,10 +164,12 @@ func _draw() -> void:
 	var a_cible := 0.0  # la barre de l'ennemi prend la place de l'objectif (ils se chevauchaient)
 	if _cible != null and _a_cible > 0.0:
 		a_cible = clampf(_a_cible, 0.0, 1.0)
-		_barre(Vector2(cx - 40, 19), _cible.vie / _cible.vie_max, VIE, a_cible)
+		_barre_cible(cx, nom_ennemi(_cible), _cible.vie / _cible.vie_max, statut_ennemi(_cible), _est_boss(_cible), a_cible)
 	elif _demo_cible:
 		a_cible = 1.0
-		_barre(Vector2(cx - 40, 19), 0.6, VIE, 1.0)
+		_barre_cible(cx, "Draugr ancien", 0.6, "Brûlure", false, 1.0)
+	if joueur.get("camera") is Camera3D:
+		ChiffresDegats.dessiner(self, joueur.camera, _police)
 	# objectif de la quête la plus récente, discret sous la boussole
 	if quetes != null and not panneau_ouvert and a_cible < 0.98:
 		var obj: Array = quetes.objectifs()
@@ -164,6 +181,84 @@ func _draw() -> void:
 			draw_string(_police, Vector2(roundf(cx - l * 0.5), 27), texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(PARCHEMIN, a))
 	if panneau_ouvert:
 		_panneau()
+
+## Barre de l'ennemi (lot L6) : NOM centré au-dessus (or pour un boss), barre de vie, statut actif en dessous.
+func _barre_cible(cx: float, nom: String, ratio: float, statut: String, boss: bool, alpha: float) -> void:
+	var l := _police.get_string_size(nom, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
+	var pn := Vector2(roundf(cx - l * 0.5), 28)
+	draw_string(_police, pn + Vector2(1, 1), nom, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(FOND, alpha))
+	draw_string(_police, pn, nom, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(OR if boss else PARCHEMIN, alpha))
+	_barre(Vector2(cx - 40, 30), ratio, VIE, alpha)
+	if statut != "":
+		var ls := _police.get_string_size(statut, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
+		var ps := Vector2(roundf(cx - ls * 0.5), 47)
+		draw_string(_police, ps + Vector2(1, 1), statut, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(FOND, alpha))
+		draw_string(_police, ps, statut, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(PARCHEMIN, 0.75 * alpha))
+
+## Nom lisible d'un ennemi (propriété nom_affiche : « Draugr », « Draugr ancien », « Bandit », « Troll de givre »…).
+static func nom_ennemi(e: Node) -> String:
+	var n: Variant = e.get("nom_affiche") if e != null else null
+	if n is Callable:
+		n = (n as Callable).call()
+	elif e != null and e.has_method("nom_affiche"):
+		n = e.call("nom_affiche")
+	return String(n) if n is String and String(n) != "" else "Ennemi"
+
+## Statut écrit sous la barre : « Étourdi » (posture brisée), puis les statuts élémentaires actifs (Statuts).
+static func statut_ennemi(e: Node) -> String:
+	var morceaux := PackedStringArray()
+	var c: Variant = e.get("combat")
+	if c is CombatEnnemi and (c as CombatEnnemi).etourdi > 0.0:
+		morceaux.append("Étourdi")
+	var st := e.get_node_or_null(Statuts.NOM) as Statuts
+	if st != null:
+		for k: String in st.actifs:
+			if NOMS_STATUTS.has(k):
+				morceaux.append(NOMS_STATUTS[k])
+	return " · ".join(morceaux)
+
+static func _est_boss(e: Node) -> bool:
+	var b: Variant = e.get("boss")
+	if b is String:
+		return String(b) != ""
+	var c: Variant = e.get("combat")
+	return c is CombatEnnemi and (c as CombatEnnemi).boss
+
+## Ennemi en combat sous le réticule (≤ VISEE_PORTEE m, non caché par le décor) : sa barre s'affiche sans avoir à le frapper.
+func _ennemi_vise() -> Node:
+	var cam: Variant = joueur.get("camera")
+	if not (cam is Camera3D) or not (cam as Camera3D).is_inside_tree():
+		return null
+	var o := (cam as Camera3D).global_position
+	var f := -(cam as Camera3D).global_transform.basis.z
+	var meilleur: Node3D = null
+	var d_min := VISEE_PORTEE
+	for e: Node in get_tree().get_nodes_in_group("ennemis"):
+		var e3 := e as Node3D
+		if e3 == null or not e3.is_visible_in_tree() or not ("vie" in e3) or float(e3.get("vie")) <= 0.0:
+			continue
+		if e3.has_method("en_combat") and not e3.en_combat():
+			continue
+		var c := e3.global_position + Vector3(0, 1.1, 0)
+		var v := c - o
+		var d := v.length()
+		if d > d_min or d < 0.3:
+			continue
+		if f.angle_to(v) > atan2(0.45, d) + 0.03:
+			continue
+		meilleur = e3
+		d_min = d
+	if meilleur == null:
+		return null
+	var esp := (cam as Camera3D).get_world_3d().direct_space_state
+	_rayon.from = o
+	_rayon.to = meilleur.global_position + Vector3(0, 1.1, 0)
+	_rayon.collision_mask = 1
+	_rayon.exclude = [joueur.get_rid()]
+	var r := esp.intersect_ray(_rayon)
+	if not r.is_empty() and r["collider"] != meilleur and float((r["position"] as Vector3).distance_to(o)) < d_min - 0.6:
+		return null
+	return meilleur
 
 func _texte(pos: Vector2, texte: String, couleur := PARCHEMIN, largeur := -1.0) -> void:
 	draw_string(_police, pos + Vector2(1, 1), texte, HORIZONTAL_ALIGNMENT_LEFT, largeur, TAILLE_POLICE, FOND)

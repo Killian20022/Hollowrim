@@ -45,7 +45,19 @@ static func eclats_matiere(n: Node, point: Vector3, direction: Vector3, intensit
 	if n == null or not n.is_inside_tree():
 		return
 	var dir := direction.normalized() if direction.length() > 0.01 else Vector3.UP
-	_burst(n, point, (dir + Vector3.UP * 0.5).normalized(), clampi(int(14.0 * intensite), 4, 70), 45.0, 1.2, 4.0 * sqrt(intensite), couleur * 0.85, Vector3(0.022, 0.022, 0.022), false)
+	# lot L6 : gerbe de GROS PIXELS CARRÉS en palette (GerbePixels, pool sans allocation) au lieu des cubes de 2 cm
+	GerbePixels.emettre(n, point, (dir + Vector3.UP * 0.5).normalized(), matiere_de(couleur), clampf(intensite, 0.6, 3.0))
+
+## Matière de gerbe (GerbePixels.MATIERES) d'après la couleur passée à eclats_matiere : gris = poussière (gore coupé),
+## clair = os (squelette), brun clair = bois (mannequin, échardes), sinon sang.
+static func matiere_de(c: Color) -> String:
+	if c.s < 0.2:
+		return "poussiere"
+	if c.v > 0.66:
+		return "os"
+	if c.r > 0.5 and c.g > 0.4:
+		return "bois"
+	return "sang" if niveau() > 0 else "poussiere"
 
 ## Une giclée = un GPUParticles3D éphémère. Ses ressources (matériau de processus, rampe de couleur, cube) sont PARTAGÉES
 ## (caches par réglage) : en créer de neuves à chaque coup coûtait des allocations et un envoi de texture par giclée. La direction

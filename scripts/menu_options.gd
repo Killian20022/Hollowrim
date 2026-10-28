@@ -112,6 +112,9 @@ func _ready() -> void:
 	# arrêt sur image / ralenti des coups qui portent : bref par défaut (l'arrêt appuyé se lisait comme des saccades)
 	_choix(g, "Arrêt sur image", ["Désactivé", "Bref", "Appuyé"], int(Jeu.option("combat", "arret_image")), func(v: int) -> void:
 		Jeu.regler("combat", "arret_image", v))
+	# chiffres de dégâts flottants au-dessus des ennemis touchés (ChiffresDegats) : désactivés par défaut (esprit Skyrim)
+	_case(g, "Chiffres de dégâts", Jeu.option("combat", "chiffres_degats"), func(v: bool) -> void:
+		Jeu.regler("combat", "chiffres_degats", v))
 	# copie de secours de la sauvegarde dans un dossier choisi (Google Drive, OneDrive…)
 	g.add_child(MenuStyle.etiquette("Copie de secours"))
 	var h := HBoxContainer.new()

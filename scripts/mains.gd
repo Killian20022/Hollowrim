@@ -1281,7 +1281,7 @@ func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictiona
 			_encaisse = 0.0
 			anim.jouer("parade", 0.02)
 			RetourImpact.son(self, "parade_parfaite", point, 2.0)
-			Effets.eclats(self, point, Color(3.2, 2.6, 1.2), 18, 3.2, true)
+			GerbePixels.emettre(self, point, _vers_attaquant(point, origine), "etincelles", 2.2)
 			if RetourImpact.temps_actif():
 				Effets.arret_image(get_tree(), 0.06)
 			joueur.secousse = maxf(joueur.secousse, 0.18)
@@ -1289,12 +1289,12 @@ func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictiona
 			_encaisse = DUREE_ENCAISSE
 			anim.jouer("encaisse", 0.02)
 			RetourImpact.son(self, "metal_blocage", point, 0.0)
-			Effets.eclats(self, point, Color(3.0, 2.2, 0.8), 9, 2.4, true)
+			GerbePixels.emettre(self, point, _vers_attaquant(point, origine), "etincelles", 1.1)
 			joueur.secousse = maxf(joueur.secousse, 0.35)
 		"brisee":
 			# garde brisée : choc plus sourd, l'épée est rabattue, le joueur titube ; garde impossible ~1 s
 			RetourImpact.son(self, "metal_blocage", point, 3.0, 0.8)
-			Effets.eclats(self, point, Color(3.0, 2.0, 0.7), 12, 2.8, true)
+			GerbePixels.emettre(self, point, _vers_attaquant(point, origine), "etincelles", 1.6)
 			joueur.secousse = maxf(joueur.secousse, 0.55)
 			_pose_fin = _pose_courante
 			_titube_garde = true
@@ -1302,6 +1302,12 @@ func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictiona
 			combat.forcer(EtatCombat.DESEQUILIBRE)
 			anim.jouer("garde_brisee", 0.0)
 	return r
+
+## Sens des gerbes d'une garde (GerbePixels) : vers l'attaquant, un peu vers le haut (jamais vers l'œil du joueur).
+func _vers_attaquant(point: Vector3, origine: Vector3) -> Vector3:
+	var v := origine - point
+	v.y = 0.0
+	return (v.normalized() + Vector3.UP * 0.6).normalized() if v.length() > 0.01 else Vector3.UP
 
 ## Garde au BOUCLIER : le bras gauche encaisse (GestesBouclier), sons de bois (planches) et de fer (umbo), échardes, recul
 ## du joueur ; parade parfaite = coup de bouclier (l'attaquant perd DonneesArme.posture_parade de sa posture) ; garde
@@ -1321,8 +1327,8 @@ func _defendre_bouclier(r: Dictionary, g: DonneesArme, origine: Vector3) -> void
 			_encaisse = 0.0
 			RetourImpact.son(self, son, point, 4.0, 0.92)
 			RetourImpact.son(self, "parade_parfaite", point, -4.0, 0.8)
-			Effets.eclats(self, fx, Color(0.3, 0.21, 0.12), 6, 2.6, false)   # échardes
-			Effets.eclats(self, fx, Color(3.2, 2.6, 1.2), 10, 3.0, true)     # étincelles de l'umbo
+			GerbePixels.emettre(self, fx, _vers_attaquant(fx, origine), "bois", 0.8)          # échardes
+			GerbePixels.emettre(self, fx, _vers_attaquant(fx, origine), "etincelles", 1.3)    # étincelles de l'umbo
 			if RetourImpact.temps_actif():
 				Effets.arret_image(get_tree(), 0.06)
 			joueur.secousse = maxf(joueur.secousse, 0.2)
@@ -1331,14 +1337,14 @@ func _defendre_bouclier(r: Dictionary, g: DonneesArme, origine: Vector3) -> void
 			_encaisse = DUREE_ENCAISSE
 			RetourImpact.son(self, son, point, 1.0)
 			RetourImpact.son(self, "metal_blocage", point, -10.0, 0.85)
-			Effets.eclats(self, fx, Color(0.3, 0.21, 0.12), 4, 2.0, false)
+			GerbePixels.emettre(self, fx, _vers_attaquant(fx, origine), "bois", 0.6)
 			joueur.secousse = maxf(joueur.secousse, 0.28)
 			joueur._recul = recul
 		"brisee":
 			bouclier.declencher("brisee")
 			RetourImpact.son(self, son, point, 5.0, 0.75)
 			RetourImpact.son(self, "metal_blocage", point, -2.0, 0.7)
-			Effets.eclats(self, fx, Color(0.3, 0.21, 0.12), 8, 2.8, false)
+			GerbePixels.emettre(self, fx, _vers_attaquant(fx, origine), "bois", 1.1)
 			joueur.secousse = maxf(joueur.secousse, 0.55)
 			joueur._recul = recul * 1.6
 			_pose_fin = _pose_courante
