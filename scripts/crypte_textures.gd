@@ -12,7 +12,7 @@ class_name CrypteTextures
 
 const CLEAR := Color(0, 0, 0, 0)
 const DOSSIER := "res://assets/crypte"   # textures précalculées par outils/generer_crypte.gd
-const VERSION := 15                      # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
+const VERSION := 16                      # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
 const E := 2   # facteur de finesse de la pierre proche (murs, dalles, voûte, ossuaire) : 2 = 64 texels/m (tuiles de 256 px pour 4 m)
 ## Murs et ossuaire : 128 texels/m (tuile de 512 px), car le joueur les frôle (< 1 m) ; dalles et voûte restent à 64.
 const EM := 4   # refonte matière, 2e passe : 128 texels/m pour murs et dalles (vus à 1-2 m) avec micro-détail (moucheture, arêtes ébréchées)
@@ -28,7 +28,9 @@ const PIERRE_FROID := ["#08090a", "#101214", "#181a1d", "#212326", "#2b2d30", "#
 # rampe « Pierre de donjon » de DIRECTION_ARTISTIQUE §2 (brun-gris granuleux, mesurée sur les références), interpolée à 10 tons
 const PIERRE_CHAUD := ["#0d0b09", "#161412", "#1f1c19", "#292521", "#332e29", "#3d3731", "#48413a", "#564e44", "#686052", "#7c7263"]
 const PIERRE_SOMBRE_F := ["#060708", "#0d0e10", "#141618", "#1c1e21", "#25272a", "#2f3134", "#3b3d3f", "#494a4b", "#59595a", "#6b6a68"]
-const MOUSSE := ["#0e1810", "#16261a", "#203820", "#2d4e2e", "#3f6a39", "#5b8a49"]
+# Mousse / lichen : rampe « Lichen gris-vert » de la bible (K_LICHEN de peinture_bati.gd), désaturée et froide — plus de vert pomme
+# (lot « mousse des murs », 2026-10-28 : l'ancienne rampe #203820 → #5b8a49 posait des plaques vert vif bloc par bloc).
+const MOUSSE := ["#10191a", "#1c2a27", "#2c3f35", "#43584a", "#5d7260", "#7a8d76", "#97a88f"]
 const SALPETRE := ["#4a5d5f", "#647e80", "#82a09f", "#a0bdb8", "#bdd5cd", "#d9e8e0"]
 const BOIS := ["#130c07", "#1c120a", "#291a0f", "#372314", "#473019", "#593d22", "#6c4c2b", "#815c36", "#966e42", "#ab8250"]
 const FER := ["#13161c", "#1c2029", "#292f3b", "#394150", "#4c5568", "#66718a", "#8591a8", "#a6b1c4"]
@@ -188,6 +190,33 @@ static func _vers_image(S: int, cols: PackedColorArray) -> Image:
 		d[i * 4 + 3] = 255
 	return Image.create_from_data(S, S, false, Image.FORMAT_RGBA8, d)
 
+## Mousse et lichen d'un texel de mur (lot « mousse des murs ») : l'ancienne mousse était un bruit lisse de 6 x 6 cellules (0,67 m)
+## seuillé et posé à 90 % dans une rampe vert vif : chaque bloc touché devenait un rectangle vert plein, découpé par ses joints
+## (« carrés verts »). Désormais : (1) une HUMIDITÉ localisée — pied du mur (remontées sur ~1,4 m, bord irrégulier), sous les
+## joints horizontaux, coulures, autour des fissures, dans les joints — modulée par de grandes zones humides / sèches ;
+## (2) des TACHES organiques (bruit à deux échelles) qui ne naissent que là où l'humidité le permet, bord rongé au bruit blanc
+## par texel (jamais de motif ordonné) et spores isolées autour ; (3) une couleur gris-vert désaturée (rampe MOUSSE = lichen de
+## la bible) mêlée à ~85 % à la pierre, qui garde sa lumière. La tuile du mur fait 4 m : ligne du bas = pied (y = 0).
+static func _mousse(c: Color, mou: Array, lq: float, x: int, y: int, S: int, a: float, top: float, wf: float, ma: float, mb: float,
+		mz: float, stk: float, ech: int, force: float) -> Color:
+	var h := float(((x * 19349663) ^ (y * 83492791)) & 1023) / 1023.0
+	var h2 := float(((x * 73856093) ^ (y * 50331653)) & 1023) / 1023.0
+	var yf := float(y) / S                                                     # 0 = haut de la tuile (4 m), 1 = pied
+	var w_pied := _ss(0.6, 1.0, yf + (ma - 0.5) * 0.3)
+	var w_joint := exp(-top / (5.0 * ech)) * _ss(0.4, 0.8, stk) * 0.9         # suintement juste sous le joint horizontal
+	var w_coul := _ss(0.7, 0.88, stk) * exp(-top / (18.0 * ech)) * 0.6         # coulures plus longues, rares
+	var w := maxf(maxf(w_pied, wf), maxf(w_joint, w_coul)) + (1.0 - a) * 0.15
+	w = clampf(w * (0.45 + 0.55 * _ss(0.3, 0.7, mz)) * force, 0.0, 1.0)      # zones sèches / humides
+	var tache := ma * 0.6 + mb * 0.4
+	var seuil := 0.45 + 0.55 * (1.0 - w)
+	var cov := _ss(seuil, seuil + 0.09, tache + (h - 0.5) * 0.08)
+	if cov < 0.05 and tache > seuil - 0.07 and h2 < 0.1:
+		cov = 0.5                                                                 # spores isolées en lisière
+	if cov <= 0.0:
+		return c.darkened(0.07 * w)                                               # pierre mouillée, sans mousse
+	var lm := clampf(lq * 0.85 + 0.09 + (mb - 0.5) * 0.22 + (h2 - 0.5) * 0.1, 0.0, 0.82)
+	return c.darkened(0.07 * w).lerp(_rp(mou, lm), cov * 0.84)
+
 # ------------------------------------------------------------------ pierre générique (murs, dalles, voûte)
 ## Assises de hauteurs `rangs` (somme = S), blocs de largeurs tirées dans `larg`. Options `o` :
 ## seed, v (0 sain, 1 mousse + salpêtre, 2 humide), joint, biseau, rug (rugosité), l_lo/l_hi (luminance des blocs), sombre,
@@ -228,7 +257,11 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 	var n_mac := _nmap(S, 5, 5, graine + 9)       # macro-taches d'usure (une dizaine de texels et plus)
 	var n_mac2 := _nmap(S, 9, 9, graine + 10)
 	var n_sal := _nmap(S, S / 8, S / 8, graine + 6) if v >= 1 else n_big
-	var n_mou := _nmap(S, 6, 6, graine + 7) if v == 1 else n_big
+	# mousse (v 1 et 2) : taches organiques à deux échelles (~22 cm et ~8 cm à 128 texels/m) + zones humides / sèches (~1,3 m)
+	var mousse := v == 1 or v == 2
+	var n_ma := _nmap(S, S / 28, S / 28, graine + 7) if mousse else n_big
+	var n_mb := _nmap(S, S / 11, S / 11, graine + 13) if mousse else n_big
+	var n_mz := _nmap(S, 3, 3, graine + 14) if mousse else n_big
 	var n_tr := _nmap(S, S / 32, S / 40, graine + 12) if v == 3 else n_big     # C3 : tronçons de givre (cellules de 25 x 30 cm)
 	var H := PackedFloat32Array()
 	H.resize(S * S)
@@ -238,6 +271,10 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 	T.resize(S * S)
 	var D := PackedFloat32Array()
 	D.resize(S * S)
+	var TOP := PackedFloat32Array()      # texels sous l'arête haute du bloc (l'eau suinte du joint horizontal et coule dessous)
+	TOP.resize(S * S)
+	var WF := PackedFloat32Array()       # humidité autour des fissures (élargie vers le bas : l'eau en sort et descend)
+	WF.resize(S * S)
 	# blocs [x, y, largeur, hauteur] : assises (murs) ou découpe irrégulière en grandes dalles (sols, option « bsp » = [min, max])
 	var blocs: Array = []
 	if o.has("bsp"):
@@ -299,6 +336,7 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 				H[i] = hh
 				T[i] = t
 				D[i] = d
+				TOP[i] = float(ly)
 	# fissures : marche aléatoire qui creuse la pierre
 	for k in o.get("fissures", S / 24):
 		var fx := rng.randi_range(0, S - 1)
@@ -309,6 +347,14 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 				H[i] = -0.8
 				L[i] = 0.08
 				D[i] = J
+			if mousse and s % 2 == 0:
+				var r := 3 * ech
+				for dy in range(-r / 2, r * 2 + 1):
+					for dx in range(-r, r + 1):
+						var dd := sqrt(float(dx * dx) + float(dy * dy) * (0.25 if dy > 0 else 4.0)) / r
+						if dd < 1.0:
+							var j := posmod(fy + dy, S) * S + posmod(fx + dx, S)
+							WF[j] = maxf(WF[j], 1.0 - dd)
 			fy += 1
 			if rng.randf() < 0.55:
 				fx += rng.randi_range(-1, 1)
@@ -403,9 +449,8 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 				var ms := _ss(0.72, 0.88, n_sal[i]) * (0.3 + 0.7 * (1.0 - a)) * (0.5 + 0.5 * (0.5 if v == 1 else 1.0))
 				ms = maxf(ms, stk * 0.45 * (1.0 if v == 2 else 0.6) * _ss(0.78, 0.9, n_sal[(i + S * 5) % (S * S)]))
 				c = c.lerp(_rp(sal, 0.25 + lq * 0.65), clampf(ms, 0.0, 1.0) * 0.85)
-				if v == 1:
-					var mm := _ss(0.68, 0.84, n_mou[i]) * (1.0 - a * 0.7)
-					c = c.lerp(_rp(mou, 0.15 + lq * 0.9), clampf(mm, 0.0, 1.0) * 0.9)
+				if mousse:
+					c = _mousse(c, mou, lq, x, y, S, a, TOP[i], WF[i], n_ma[i], n_mb[i], n_mz[i], n_stk[i], ech, 1.0 if v == 1 else 0.7)
 			if pous > 0.0 and d >= J:
 				var pz := _ss(0.5, 0.85, n_mac[i]) * (0.55 + 0.45 * _ss(0.4, 0.8, n_mac2[i]))
 				var pc: Color = _rp(froid, clampf(0.5 + lq * 0.35, 0.0, 1.0))
