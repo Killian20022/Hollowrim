@@ -540,7 +540,21 @@ func _texture(nom: String) -> ImageTexture:
 ## Index rapide (matière → case → tampon) : évite de formater une clé texte à chaque quad (le bâti du donjon en fait ~200 000).
 var _bufs_vite := {}
 
+## C7 : « lot » de portée de vue. Vide = tampons ordinaires (cases de 8 m, toujours dessinés jusqu'à PORTEE_DESSIN) ; sinon les
+## triangles vont dans des tampons À PART, en cases de LOT_CASE, dont le maillage reçoit la portée LOTS[lot] = [début, fin] (m) :
+## contenu des niches d'ossuaire en volume de près, texture peinte des niches de loin (les crânes de 180 triangles vus à plus de
+## 10 m ne font que quelques pixels : sur le GPU, des triangles sous-pixel coûteux, +0,4 ms mesurés sur la vue de l'ossuaire à 12 m).
+const LOT_CASE := 4.0
+const LOTS := {"os_proche": [0.0, 10.0], "os_loin": [10.0, 0.0]}
+var lot := ""
+
 func _buf(c: Vector3, nom: String) -> Dictionary:
+	if lot != "":
+		var kl := Vector3i(floori(c.x / LOT_CASE), floori(c.z / LOT_CASE), 1 if c.y < -3.0 else 0)
+		var cl := "%d,%d,%d|%s|%s" % [kl.x, kl.y, kl.z, nom, lot]
+		if not _bufs.has(cl):
+			_bufs[cl] = {"nom": nom, "lot": lot, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray()}
+		return _bufs[cl]
 	var k := Vector3i(floori(c.x / CASE), floori(c.z / CASE), 1 if c.y < -3.0 else 0)      # l'étage inférieur a ses propres maillages
 	var par_nom: Dictionary = _bufs_vite.get(nom, {})
 	if par_nom.is_empty():
@@ -1596,7 +1610,7 @@ func os_tas(pos: Vector3, n := 4, rayon := 0.4) -> void:
 const OS_RANGEES := 3
 const OS_CASE := 0.5
 const OS_PROF := 0.28        # saillie du cadre (ossuaire.py PROF)
-var niches_os: Array = []    # niches à garnir : [pied (repère local, plan du mur), lacet du module, largeur, rangée, graine]
+var niches_os: Array = []    # poses différées : [genre (case | corniche | poteau), pied (repère local, plan du mur), lacet, largeur, rangée, graine, variante]
 
 static func ossuaire_relief() -> bool:
 	return not OS.get_cmdline_user_args().has("--os-plat") and modele_existe("niche_os_cadre_a")
@@ -1615,19 +1629,17 @@ func panneau_os_v3(axe: String, fixe: float, a0: float, a1: float, y0: float, y1
 	var pw: Vector3 = xf * (P.call(a0, y0) as Vector3)
 	r.seed = hash(Vector3i(roundi(pw.x * 10.0), roundi(pw.y * 10.0), roundi(pw.z * 10.0))) + 7070
 	var yr := y0 + OS_RANGEES * OS_CASE
-	j0("panneau_os")
+	# cases, corniche et montants de bout : posés plus tard (remplir_niches_os), chacun son objet du journal (audit : une boîte par case,
+	# pas une boîte de 0,31 m de saillie sur tout le panneau qui « entrerait » dans les sarcophages posés devant)
 	for i in n:
 		var u := a0 + (i + 0.5) * w
 		for k in OS_RANGEES:
-			var yb := y0 + k * OS_CASE
 			var t := r.randf()
-			var v := "a" if t < 0.55 else ("b" if t < 0.82 else "c")
-			# montant à gauche de la case (côté -x du module) ; le dernier montant est posé à part, de l'autre côté
-			modele("niche_os_cadre_" + v, P.call(u, yb), lac, Vector3(ex, 1.0, 1.0), {}, false)
-			niches_os.append([P.call(u, yb + 0.06), lac, w, k, r.randi()])
-		modele("niche_os_corniche_" + ("b" if r.randf() < 0.3 else "a"), P.call(u, yr), lac, Vector3(ex, 1.0, 1.0), {}, false)
-	for k in OS_RANGEES:      # montant de bout (côté où les cases n'en ont pas)
-		modele("niche_os_poteau", P.call(a1 if sx > 0.0 else a0, y0 + k * OS_CASE), lac, Vector3.ONE, {}, false)
+			niches_os.append(["case", P.call(u, y0 + k * OS_CASE), lac, w, k, r.randi(), "a" if t < 0.55 else ("b" if t < 0.82 else "c")])
+		niches_os.append(["corniche", P.call(u, yr), lac, w, OS_RANGEES, r.randi(), "b" if r.randf() < 0.3 else "a"])
+	for k in OS_RANGEES:      # montant de bout (côté où les cases n'en ont pas : le montant d'une case est à sa gauche, -x du module)
+		niches_os.append(["poteau", P.call(a1 if sx > 0.0 else a0, y0 + k * OS_CASE), lac, w, k, 0, ""])
+	j0("panneau_os")
 	# texture au-dessus de la corniche : une rangée entière de niches de 0,5 m (2,43 -> 2,93 m), calée sur la corniche et sur les colonnes
 	var yt := yr + 0.13
 	y1 = maxf(y1, yt + OS_CASE)
@@ -1671,44 +1683,91 @@ func remplir_niches_os() -> void:
 	var liste := niches_os
 	niches_os = []
 	for nn: Array in liste:
-		var p: Vector3 = nn[0]
-		var lac: float = nn[1]
-		var w: float = nn[2]
-		var rangee: int = nn[3]
-		var r := RandomNumberGenerator.new()
-		r.seed = int(nn[4])
-		if _niche_masquee(p, lac, w) or r.randf() < 0.03:
-			# niche masquée (couvercle de sarcophage, estrade, dos d'un meuble) ou murée : moellons devant le fond, rien dedans
-			modele("niche_os_muree_" + ("a" if r.randf() < 0.6 else "b"), p - Vector3(0, 0.06, 0), lac, Vector3(w / OS_CASE, 1.0, 1.0), {}, false)
+		var genre: String = nn[0]
+		var p: Vector3 = nn[1]
+		var lac: float = nn[2]
+		var w: float = nn[3]
+		var rangee: int = nn[4]
+		var ex := Vector3(w / OS_CASE, 1.0, 1.0)
+		# une case garnie = UN objet du journal, de genre « niche_os » (structure) : crânes et fagots reposent sur la tablette du cadre,
+		# qui n'est pas une collision (l'audit les jugerait « sans appui » un par un)
+		if genre == "corniche":
+			j0("niche_os", lac)
+			modele("niche_os_corniche_" + String(nn[6]), p, lac, ex, {}, false)
+			j1()
 			continue
-		var bs := Basis(Vector3.UP, lac)
-		var ax := bs * Vector3.RIGHT
-		var av := bs * Vector3.BACK
-		var t := r.randf()
-		var genre: String
-		match rangee:
-			0: genre = "fagot" if t < 0.5 else ("fagot_crane" if t < 0.72 else ("couche" if t < 0.9 else "crane"))
-			1: genre = "crane" if t < 0.6 else ("deux" if t < 0.78 else ("fagot_crane" if t < 0.88 else "fagot"))
-			_: genre = "crane" if t < 0.42 else ("fagot" if t < 0.7 else ("deux" if t < 0.8 else ("couche" if t < 0.92 else "vide")))
-		if genre == "vide":
-			_os_crane(r, p + ax * r.randf_range(-0.08, 0.08) + av * 0.1, lac, 0.8, true)      # un éclat de calotte, rien d'autre
+		# case masquée (couvercle de sarcophage, estrade, dos d'un meuble posés après le panneau) : ni cadre ni contenu, le mur nu
+		if _niche_masquee(p + Vector3(0, 0.06, 0), lac, w):
 			continue
-		if genre == "fagot" or genre == "fagot_crane":
-			var v := "a" if r.randf() < 0.55 else "b"
-			_os_teint(r, "oss_fagot_" + v, p + ax * r.randf_range(-0.03, 0.03) + av * r.randf_range(0.0, 0.02), lac + r.randf_range(-0.08, 0.08),
-				Vector3(r.randf_range(1.05, 1.2) * (1.0 if r.randf() < 0.5 else -1.0), r.randf_range(0.95, 1.15), 1.0))
-			if genre == "fagot_crane":
-				_os_crane(r, p + Vector3(0, 0.12, 0) + ax * r.randf_range(-0.06, 0.06) + av * 0.1, lac, r.randf_range(0.95, 1.08))
-		elif genre == "couche":
-			_os_teint(r, "oss_fagot_c", p + ax * r.randf_range(-0.02, 0.02), lac + r.randf_range(-0.06, 0.06),
-				Vector3((w / OS_CASE) * (1.0 if r.randf() < 0.5 else -1.0), 1.0, 1.0))
-			if r.randf() < 0.45:
-				_os_crane(r, p + Vector3(0, 0.1, 0) + ax * r.randf_range(-0.1, 0.1) + av * 0.1, lac, r.randf_range(0.9, 1.0))
-		elif genre == "deux":
-			for sgn: float in [-1.0, 1.0]:
-				_os_crane(r, p + ax * (sgn * w * 0.21 + r.randf_range(-0.015, 0.015)) + av * 0.12, lac, r.randf_range(0.92, 1.02))
+		j0("niche_os", lac)
+		if genre == "poteau":
+			modele("niche_os_poteau", p, lac, Vector3.ONE, {}, false)
 		else:
-			_os_crane(r, p + ax * r.randf_range(-0.05, 0.05) + av * 0.12, lac, r.randf_range(1.12, 1.3))
+			var r := RandomNumberGenerator.new()
+			r.seed = int(nn[5])
+			modele("niche_os_cadre_" + String(nn[6]), p, lac, ex, {}, false)
+			lot = "os_proche"
+			if _garnir_niche(r, p + Vector3(0, 0.06, 0), lac, w, rangee):
+				lot = "os_loin"
+				_niche_peinte(r, p, lac, w)
+			lot = ""
+		j1()
+
+## Version lointaine du contenu d'une case : une case de la texture `ossuaire` (crâne ou fagot peint, tirée au hasard dans la tuile de
+## 8 x 8 niches) collée au fond de la niche, calée sur le cadre en volume (qui, lui, reste dessiné à toute distance).
+func _niche_peinte(r: RandomNumberGenerator, p: Vector3, lac: float, w: float) -> void:
+	var bs := Basis(Vector3.UP, lac)
+	var ax := bs * Vector3.RIGHT
+	var av := bs * Vector3.BACK
+	var tx := r.randi_range(0, 7) * OS_CASE + OS_CASE * 0.5
+	var ty := r.randi_range(0, 7) * OS_CASE
+	var q: Array = []
+	var uvp: Array = []
+	for c: Vector2 in [Vector2(-1, 0), Vector2(1, 0), Vector2(1, 1), Vector2(-1, 1)]:
+		var pt := p + ax * (c.x * w * 0.5) + Vector3(0, c.y * OS_CASE, 0) + av * 0.012
+		q.append(pt)
+		var t := tx + c.x * OS_CASE * 0.5
+		var y := ty + c.y * OS_CASE
+		uvp.append(Vector3(t, y, 0.0) if absf(av.z) > absf(av.x) else Vector3(0.0, y, t))
+	quad("ossuaire", q[0], q[1], q[2], q[3], av, [], uvp)
+
+## Contenu d'une case (lot « os_proche » : dessiné de près seulement). Faux si la niche est murée (moellons dessinés à toute distance,
+## pas de version peinte).
+func _garnir_niche(r: RandomNumberGenerator, p: Vector3, lac: float, w: float, rangee: int) -> bool:
+	if r.randf() < 0.03:
+		# niche murée : moellons devant le fond, rien dedans
+		lot = ""
+		modele("niche_os_muree_" + ("a" if r.randf() < 0.6 else "b"), p - Vector3(0, 0.06, 0), lac, Vector3(w / OS_CASE, 1.0, 1.0), {}, false)
+		return false
+	var bs := Basis(Vector3.UP, lac)
+	var ax := bs * Vector3.RIGHT
+	var av := bs * Vector3.BACK
+	var t := r.randf()
+	var genre: String
+	match rangee:
+		0: genre = "fagot" if t < 0.5 else ("fagot_crane" if t < 0.72 else ("couche" if t < 0.9 else "crane"))
+		1: genre = "crane" if t < 0.6 else ("deux" if t < 0.78 else ("fagot_crane" if t < 0.88 else "fagot"))
+		_: genre = "crane" if t < 0.42 else ("fagot" if t < 0.7 else ("deux" if t < 0.8 else ("couche" if t < 0.92 else "vide")))
+	if genre == "vide":
+		_os_crane(r, p + ax * r.randf_range(-0.08, 0.08) + av * 0.1, lac, 0.8, true)      # un éclat de calotte, rien d'autre
+		return true
+	if genre == "fagot" or genre == "fagot_crane":
+		var v := "a" if r.randf() < 0.55 else "b"
+		_os_teint(r, "oss_fagot_" + v, p + ax * r.randf_range(-0.03, 0.03) + av * r.randf_range(0.0, 0.02), lac + r.randf_range(-0.08, 0.08),
+			Vector3(r.randf_range(1.05, 1.2) * (1.0 if r.randf() < 0.5 else -1.0), r.randf_range(0.95, 1.15), 1.0))
+		if genre == "fagot_crane":
+			_os_crane(r, p + Vector3(0, 0.12, 0) + ax * r.randf_range(-0.06, 0.06) + av * 0.1, lac, r.randf_range(0.95, 1.08))
+	elif genre == "couche":
+		_os_teint(r, "oss_fagot_c", p + ax * r.randf_range(-0.02, 0.02), lac + r.randf_range(-0.06, 0.06),
+			Vector3((w / OS_CASE) * (1.0 if r.randf() < 0.5 else -1.0), 1.0, 1.0))
+		if r.randf() < 0.45:
+			_os_crane(r, p + Vector3(0, 0.1, 0) + ax * r.randf_range(-0.1, 0.1) + av * 0.1, lac, r.randf_range(0.9, 1.0))
+	elif genre == "deux":
+		for sgn: float in [-1.0, 1.0]:
+			_os_crane(r, p + ax * (sgn * w * 0.21 + r.randf_range(-0.015, 0.015)) + av * 0.12, lac, r.randf_range(0.92, 1.02))
+	else:
+		_os_crane(r, p + ax * r.randf_range(-0.05, 0.05) + av * 0.12, lac, r.randf_range(1.12, 1.3))
+	return true
 
 ## Pose d'un module d'os avec une teinte d'os tirée (jauni / pâle / sali) : la rangée ne se lit pas comme un tampon répété.
 func _os_teint(r: RandomNumberGenerator, nom: String, pos: Vector3, lacet: float, ech: Vector3) -> void:
@@ -2404,6 +2463,12 @@ func finir() -> void:
 		mi.material_override = mat(b["nom"])
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.name = "Decor_" + String(cle).replace("|", "_").replace(",", "_").replace("-", "m")
+		if b.has("lot"):      # C7 : portée du lot (sans fondu : pas de tramage ; la marge évite le battement à la limite)
+			var pr: Array = LOTS[b["lot"]]
+			mi.visibility_range_begin = float(pr[0])
+			mi.visibility_range_end = float(pr[1])
+			mi.visibility_range_begin_margin = 0.5 if float(pr[0]) > 0.0 else 0.0
+			mi.visibility_range_end_margin = 0.5 if float(pr[1]) > 0.0 else 0.0
 		racine.add_child(mi)
 	_bufs.clear()
 	_bufs_vite.clear()
