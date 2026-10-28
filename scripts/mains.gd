@@ -105,6 +105,23 @@ var _puissant := false
 ## Magie et deux mains (scripts/magie/main_sort.gd, docs/MAGIE.md) : SEUL point d'accroche — entrées interceptées avant
 ## l'épée, garde selon les règles des deux mains, pose des mains qui incantent appliquée après celle de l'épée.
 var magie: Node
+## Bouclier (main gauche, IK) : gestes à part des clips du bras droit (scripts/combat/gestes_bouclier.gd), modèle de l'objet
+## de la main gauche chargé depuis sa DonneesArme (data/armes/bouclier.tres → bouclier_nordique.glb).
+var bouclier := GestesBouclier.new()
+var _modele_gauche: Node3D
+var _id_modele_gauche := ""
+## La garde brisée en cours a frappé le bouclier (le bras droit garde l'épée au repos).
+var _brisee_bouclier := false
+## Changement d'objet de la main gauche (torche ↔ sort ↔ bouclier ↔ vide) : la cible de la main et le pôle du coude
+## passent de la pose affichée au moment du changement à la nouvelle pose en TRANSITION_G s, sur une courbe en S (vitesse
+## nulle au départ et à l'arrivée : aucun saut d'une image à l'autre).
+const TRANSITION_G := 0.35
+var _t_transition_g := 9.0
+var _g_lisse := Transform3D()
+var _coude_g_lisse := Vector3.ZERO
+var _g_depart := Transform3D()
+var _coude_g_depart := Vector3.ZERO
+var _g_lisse_ok := false
 
 var _geste := {}
 var _geste_nom := ""
@@ -238,6 +255,7 @@ func _ready() -> void:
 	_accroche_g.add_child(porte_torche)
 	porte_torche.transform = PRISE_G
 	_torche()
+	_installer_gauche()
 	trainee = TraineeLame.new()
 	add_child(trainee)
 	trainee.couleurs(arme.couleur_trainee, arme.couleur_trainee_coeur)
@@ -394,6 +412,40 @@ func _sur_equipement(main: String) -> void:
 			combat.changer(EtatCombat.EQUIPER)
 	else:
 		Sons.jouer(self, ["cloth1", "cloth2"], -8.0)
+		_installer_gauche()
+		_t_transition_g = 0.0
+		_g_depart = _g_lisse
+		_coude_g_depart = _coude_g_lisse
+
+## Bouclier tenu en main gauche (et sorti) : la garde se lève au bouclier.
+func garde_bouclier() -> bool:
+	return equipement.main_gauche.categorie == DonneesArme.Categorie.BOUCLIER
+
+## Modèle de l'objet de la main gauche (celui qui ressort avec T : equipement.gauche_rangee) quand sa DonneesArme en a un
+## (bouclier) ; la torche reste construite par le code (porte_torche). Prise au poing gauche selon milieu_poignee.
+func _installer_gauche() -> void:
+	var g: DonneesArme = equipement.gauche_rangee
+	var id := g.modele if g.modele != "" and ResourceLoader.exists(g.modele) else ""
+	if id == _id_modele_gauche:
+		return
+	_id_modele_gauche = id
+	if is_instance_valid(_modele_gauche):
+		_modele_gauche.queue_free()
+		_modele_gauche = null
+	if id == "":
+		return
+	_modele_gauche = (load(id) as PackedScene).instantiate()
+	_modele_gauche.name = "Objet_gauche"
+	if g.habillage == "bouclier":
+		BouclierNordique.habiller(_modele_gauche)
+	elif g.habillage == "epees_longues":
+		EpeesLongues.habiller(_modele_gauche)
+	else:
+		_habiller(_modele_gauche)
+	_accroche_g.add_child(_modele_gauche)
+	_modele_gauche.transform = _calculer_prise("l", g.milieu_poignee)
+	if g.categorie == DonneesArme.Categorie.BOUCLIER:
+		bouclier.regler_repos(g)
 
 ## Vrais bras : manches, brassards et gants du corps du joueur, sur son squelette, placés
 ## pour que les yeux du squelette soient la caméra. L'IK à deux os (épaule, coude) amène
@@ -882,8 +934,11 @@ func avancer(dt: float) -> void:
 			else:
 				entrees.tampon = -1.0
 			if combat.defense():
-				# garde tenue ; choc de parade parfaite / coup encaissé : clips courts lancés par defendre(), puis retour
-				if anim.clip in ["parade", "encaisse"] and not anim.fini():
+				# garde tenue ; choc de parade parfaite / coup encaissé : clips courts lancés par defendre(), puis retour.
+				# Au bouclier, c'est le bras gauche qui pare (GestesBouclier) : l'épée reste au repos, prête.
+				if garde_bouclier():
+					_tenir("repos", 0.12, dt)
+				elif anim.clip in ["parade", "encaisse"] and not anim.fini():
 					anim.avancer(dt)
 				else:
 					_tenir("garde", 0.12 if anim.clip not in ["parade", "encaisse"] else 0.06, dt)
@@ -934,13 +989,19 @@ func avancer(dt: float) -> void:
 				combat.changer(EtatCombat.REPOS)
 				_tenir("repos", 0.1, 0.0)
 		EtatCombat.DESEQUILIBRE when _titube_garde:
-			# garde brisée : clip « garde_brisee » (épée rabattue en bas à droite, puis retour au repos)
+			# garde brisée : clip « garde_brisee » (épée rabattue en bas à droite, puis retour au repos) ; au bouclier, c'est
+			# le bouclier qui est rabattu (GestesBouclier « brisee ») et l'épée recule un peu, sans quitter le repos
 			var k := clampf(combat.t / DefenseJoueur.TITUBE, 0.0, 1.0)
-			if anim.clip != "garde_brisee":
-				anim.jouer("garde_brisee", 0.0)
-			anim.regler(k * anim.longueur("garde_brisee"))
+			if _brisee_bouclier:
+				_tenir("repos", 0.1, dt)
+				_offset_d.origin = Vector3(0.0, -0.05, 0.05) * sin(k * PI)
+			else:
+				if anim.clip != "garde_brisee":
+					anim.jouer("garde_brisee", 0.0)
+				anim.regler(k * anim.longueur("garde_brisee"))
 			if k >= 1.0:
 				_titube_garde = false
+				_brisee_bouclier = false
 				combat.changer(EtatCombat.REPOS)
 		EtatCombat.DESEQUILIBRE:
 			# rebond (lame arrêtée) : la pose se fige un instant, la main recule, puis le bras revient au repos
@@ -980,6 +1041,7 @@ func avancer(dt: float) -> void:
 	_poser_torche(dt)
 	if magie != null:
 		magie.avancer(dt)
+	_lisser_gauche(dt)
 	_cam_prec = _transform_monde()
 	_cam_prec_ok = true
 
@@ -1200,10 +1262,16 @@ func _info_coup(e: Dictionary) -> Dictionary:
 ## parfaite, blocage ou garde brisée (DefenseJoueur). Renvoie {} si la garde ne joue pas (dos, garde baissée), sinon
 ## {issue, degats (qui passent), cout}. Sons et étincelles distincts ; l'endurance est dépensée ici.
 func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictionary:
-	if not bloque or not DefenseJoueur.couvre(joueur, origine):
+	var garde_arme: DonneesArme = magie.arme_de_garde(arme) if magie != null else arme
+	if not bloque or not DefenseJoueur.couvre(joueur, origine, garde_arme.angle_garde):
 		return {}
-	var r := defense.encaisser(degats, joueur.vigueur, magie.arme_de_garde(arme) if magie != null else arme, joueur.competences.reduction_parade(), origine, sans_parade)
+	# l'attaquant paré perd la part de posture de l'arme qui pare (il appelle CombatEnnemi.subir_parade juste après)
+	CombatEnnemi.part_parade = garde_arme.posture_parade
+	var r := defense.encaisser(degats, joueur.vigueur, garde_arme, joueur.competences.reduction_parade(), origine, sans_parade)
 	joueur.depenser(float(r["cout"]))
+	if garde_arme.categorie == DonneesArme.Categorie.BOUCLIER:
+		_defendre_bouclier(r, garde_arme, origine)
+		return r
 	var point := pivot_epee.global_position + (get_parent() as Node3D).global_transform.basis * Vector3(-0.25, 0.12, -0.15)
 	match String(r["issue"]):
 		"parade":
@@ -1234,6 +1302,50 @@ func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictiona
 			combat.forcer(EtatCombat.DESEQUILIBRE)
 			anim.jouer("garde_brisee", 0.0)
 	return r
+
+## Garde au BOUCLIER : le bras gauche encaisse (GestesBouclier), sons de bois (planches) et de fer (umbo), échardes, recul
+## du joueur ; parade parfaite = coup de bouclier (l'attaquant perd DonneesArme.posture_parade de sa posture) ; garde
+## brisée = bouclier rabattu, même titubement et même garde impossible qu'à l'épée.
+func _defendre_bouclier(r: Dictionary, g: DonneesArme, origine: Vector3) -> void:
+	var point := pivot_torche.global_transform * Vector3(0.09, 0.0, 0.0)   # face du bouclier, près de l'umbo
+	# éclats un peu en avant de la face (là où l'arme adverse frappe) : collés au bouclier, ils boucheraient la vue
+	var fx := point - (get_parent() as Node3D).global_transform.basis.z * 0.35
+	var son := g.son_garde if g.son_garde != "" else "metal_blocage"
+	var vers := origine - joueur.global_position
+	vers.y = 0.0
+	var recul := -vers.normalized() * g.recul_garde if vers.length() > 0.01 else Vector3.ZERO
+	match String(r["issue"]):
+		"parade":
+			bouclier.declencher("coup")
+			_parade_eclat = 0.22
+			_encaisse = 0.0
+			RetourImpact.son(self, son, point, 4.0, 0.92)
+			RetourImpact.son(self, "parade_parfaite", point, -4.0, 0.8)
+			Effets.eclats(self, fx, Color(0.3, 0.21, 0.12), 6, 2.6, false)   # échardes
+			Effets.eclats(self, fx, Color(3.2, 2.6, 1.2), 10, 3.0, true)     # étincelles de l'umbo
+			if RetourImpact.temps_actif():
+				Effets.arret_image(get_tree(), 0.06)
+			joueur.secousse = maxf(joueur.secousse, 0.2)
+		"bloque":
+			bouclier.declencher("impact")
+			_encaisse = DUREE_ENCAISSE
+			RetourImpact.son(self, son, point, 1.0)
+			RetourImpact.son(self, "metal_blocage", point, -10.0, 0.85)
+			Effets.eclats(self, fx, Color(0.3, 0.21, 0.12), 4, 2.0, false)
+			joueur.secousse = maxf(joueur.secousse, 0.28)
+			joueur._recul = recul
+		"brisee":
+			bouclier.declencher("brisee")
+			RetourImpact.son(self, son, point, 5.0, 0.75)
+			RetourImpact.son(self, "metal_blocage", point, -2.0, 0.7)
+			Effets.eclats(self, fx, Color(0.3, 0.21, 0.12), 8, 2.8, false)
+			joueur.secousse = maxf(joueur.secousse, 0.55)
+			joueur._recul = recul * 1.6
+			_pose_fin = _pose_courante
+			_titube_garde = true
+			_brisee_bouclier = true
+			_encaisse = 0.0
+			combat.forcer(EtatCombat.DESEQUILIBRE)
 
 ## Contre-attaque (fenêtre DefenseJoueur.FENETRE_CONTRE après une parade parfaite) : geste « contre » (GestesDefense),
 ## attaque « contre » (CalculDegats : dégâts × 1,3, stagger de contre, profil d'impact lourd ; critique seulement selon
@@ -1461,6 +1573,11 @@ func _frapper_finisher() -> void:
 ## Torche : pose de repos (miroir), suit les animations passives ; baissée pendant la garde, rangée avec T, recule
 ## un peu pendant les coups (contrepoids).
 func _poser_torche(dt: float) -> void:
+	var g: DonneesArme = equipement.gauche_rangee
+	_coude_g.position = Vector3(-g.repos_coude.x, g.repos_coude.y, g.repos_coude.z)   # la magie le remplace quand elle tient la main
+	if g.categorie == DonneesArme.Categorie.BOUCLIER:
+		_poser_bouclier(dt)
+		return
 	var baisse := 0.0
 	if bloque:
 		baisse = 0.14
@@ -1484,3 +1601,35 @@ func _poser_torche(dt: float) -> void:
 	var scint := fposmod(sin(palier * 12.9898) * 43758.5453, 1.0)
 	torche_lumiere.light_energy = 1.4 + sin(_respiration * 13.0) * 0.12 + sin(_respiration * 29.0) * 0.08 + scint * 0.14
 	_halo_mat.set_shader_parameter("intensite", 0.65 + (torche_lumiere.light_energy - 1.4) * 0.7)
+
+## Bouclier : gestes de GestesBouclier (repos, garde levée, impact, coup de bouclier, garde brisée, contrepoids des coups,
+## sprint) + mouvements passifs ; rangé avec T (il descend sous l'écran), caché quand la main gauche incante.
+func _poser_bouclier(dt: float) -> void:
+	var g: DonneesArme = equipement.gauche_rangee
+	var sortie := equipement.main_gauche == g
+	_baisse_torche = lerpf(_baisse_torche, 0.0 if sortie else 0.5, 1.0 - exp(-8.0 * dt))
+	var attaque := combat.attaque() or combat.etat == EtatCombat.RECUPERATION
+	var p := bouclier.avancer(dt, sortie and bloque, attaque, passifs.sprint > 0.5)
+	p.origin += Vector3(-_baisse_torche * 0.3, -_baisse_torche, _baisse_torche * 0.2)
+	pivot_torche.transform = passifs.decalage_g * p
+	if is_instance_valid(_modele_gauche):
+		_modele_gauche.visible = sortie or (equipement.main_gauche.categorie == DonneesArme.Categorie.VIDE and _baisse_torche < 0.45)
+	for fl in flammes:
+		fl.emitting = false
+
+## Transition d'objet de la main gauche : de la pose affichée au changement vers la nouvelle pose (courbe en S) pendant
+## TRANSITION_G s, quel que soit celui qui pose la main (torche / bouclier ici, sorts dans MainSort).
+func _lisser_gauche(dt: float) -> void:
+	_t_transition_g += dt
+	var cible := pivot_torche.transform
+	var coude := _coude_g.position
+	if _g_lisse_ok and _t_transition_g < TRANSITION_G:
+		var w := smoothstep(0.0, TRANSITION_G, _t_transition_g)
+		_g_lisse = GestesBouclier.melange(_g_depart, cible, w)
+		_coude_g_lisse = _coude_g_depart.lerp(coude, w)
+		pivot_torche.transform = _g_lisse
+		_coude_g.position = _coude_g_lisse
+	else:
+		_g_lisse = cible
+		_coude_g_lisse = coude
+	_g_lisse_ok = true

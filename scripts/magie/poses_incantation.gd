@@ -6,8 +6,10 @@ class_name PosesIncantation
 ## MainSort (main_sort.gd) interpole vers la pose voulue (ressort) et pose les os de la main par IK + orientation.
 
 const POSES := {
-	# main levée au repos, sort prêt (lueur dans la paume), doigts à demi refermés
-	"repos": {"pos": Vector3(-0.25, -0.25, -0.40), "paume": Vector3(0.30, 0.25, -1.0), "doigts": Vector3(0.10, 1.0, -0.15), "fermeture": 0.38},
+	# repos, sort prêt : main basse à gauche (à la place de la torche de la tenue validée, references/combat_epee/
+	# tenue_epee_droite_1100.jpg), paume tournée vers le haut et vers le centre — l'aura brûle dans la paume, visible, sans
+	# masquer le centre de l'écran ni croiser le bras de l'épée ; doigts détendus
+	"repos": {"pos": Vector3(-0.32, -0.31, -0.42), "paume": Vector3(0.45, 0.85, 0.15), "doigts": Vector3(0.12, 0.35, -1.0), "fermeture": 0.32},
 	# incantation : la main monte et s'ouvre
 	"incante": {"pos": Vector3(-0.22, -0.20, -0.45), "paume": Vector3(0.22, 0.05, -1.0), "doigts": Vector3(0.05, 1.0, -0.30), "fermeture": 0.18},
 	# charge « paume » (jet, zone) : main ramenée, doigts en griffe, énergie qui s'accumule
@@ -28,9 +30,6 @@ const POSES := {
 	"lame_fin": {"pos": Vector3(-0.06, 0.02, -0.62), "paume": Vector3(1.0, 0.15, -0.2), "doigts": Vector3(0.0, 0.7, -1.0), "fermeture": 0.1},
 	# l'épée frappe : la main qui tient le sort s'écarte et descend (contrepoids), sans se mettre dans la trajectoire
 	"ecartee": {"pos": Vector3(-0.34, -0.38, -0.36), "paume": Vector3(0.35, 0.35, -0.9), "doigts": Vector3(0.10, 1.0, 0.0), "fermeture": 0.45},
-	# bouclier : repos (bas à gauche) et garde (devant, face au coup)
-	"bouclier": {"pos": Vector3(-0.36, -0.40, -0.46), "paume": Vector3(0.9, 0.0, -0.4), "doigts": Vector3(0.0, 1.0, 0.0), "fermeture": 0.85},
-	"bouclier_garde": {"pos": Vector3(-0.17, -0.24, -0.44), "paume": Vector3(1.0, 0.0, -0.15), "doigts": Vector3(0.0, 1.0, 0.1), "fermeture": 0.85},
 }
 
 ## Double incantation : les deux mains se rapprochent du centre (décalage en X vers l'axe, pour la main gauche).

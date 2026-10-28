@@ -149,9 +149,14 @@ func briser_posture() -> void:
 		_flottant("POSTURE BRISEE", tete + Vector3(0, 0.35, 0), Color(1.0, 0.85, 0.3))
 
 ## Parade réussie du joueur : grosse usure de posture et fenêtre de finisher « apres_parade ».
+## Part de posture retirée par la PROCHAINE parade (posée par mains.defendre juste avant que l'attaquant n'appelle
+## subir_parade : DonneesArme.posture_parade de l'arme qui pare — le coup de bouclier déséquilibre davantage).
+static var part_parade := 0.45
+
 func subir_parade() -> void:
 	_sans_coup = 0.0
-	posture = maxf(0.0, posture - profil.posture_max * 0.45)
+	posture = maxf(0.0, posture - profil.posture_max * part_parade)
+	part_parade = 0.45
 	fenetre_parade = 1.4
 	if posture <= 0.0 and etourdi <= 0.0:
 		briser_posture()

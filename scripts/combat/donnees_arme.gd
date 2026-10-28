@@ -74,6 +74,18 @@ enum Categorie { VIDE, EPEE, TORCHE, BOUCLIER, SORT }
 ## Multiplicateur de la vigueur dépensée par coup bloqué.
 @export var cout_garde := 1.0
 
+@export_group("Garde")
+## Cône couvert par la garde levée (degrés, devant le joueur) : 120 à l'épée, plus large au bouclier.
+@export var angle_garde := 120.0
+## Recul du joueur quand un coup est bloqué (m/s, poussé à l'opposé de l'attaquant) : 0 = aucun.
+@export var recul_garde := 0.0
+## Part de la posture de l'attaquant retirée par une PARADE PARFAITE (CombatEnnemi.subir_parade) : 0,45 à l'épée ;
+## le coup de bouclier déséquilibre davantage.
+@export var posture_parade := 0.45
+## Sons d'un coup bloqué / paré (catégories de RetourImpact.BANQUE) : vide = « metal_blocage » / « parade_parfaite ».
+## Bouclier : « bois » (planches) ; le fer de l'umbo sonne en dessous.
+@export var son_garde := ""
+
 @export_group("Profil de jeu")
 ## Profil de gameplay (docs/COMBAT.md, « Profils des 5 épées ») : le MATÉRIAU ne fixe rien tout seul, chaque valeur se
 ## règle ici. Une ligne de description pour l'équilibrage et le HUD.
