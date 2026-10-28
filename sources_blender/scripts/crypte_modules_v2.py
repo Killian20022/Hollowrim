@@ -2361,7 +2361,7 @@ def pan_mur_v3(nom, larg, haut, graine, corbeaux=0, niche=False):
 
 # ======================================================================= C8 (2026-10-28) : HERSE, RACINES, LICHEN
 # docs/INSPIRATION_IGNITE.md §2.9 (herse à pointes, traverses rivetées) et §2.10 (racines en tubes à 5 pans, lichen gris-vert).
-TEINTE["lichen"] = (0.72, 0.84, 0.66)      # croûte de lichen : texture de pierre du décor (matière absente de MAT_MODELE -> mur0) teintée
+TEINTE["lichen"] = (0.432, 0.482, 0.438)  # = 80 % de #4a5a4c (teinte de la mousse des murs, VERSION 16) + 20 % de blanc ; moins saturé que #6a7d66 ; croûte de lichen : texture de pierre du décor (matière absente de MAT_MODELE -> mur0) teintée
                                            # gris-vert par la couleur de sommet (aucun matériau de plus)
 
 
