@@ -2087,7 +2087,7 @@ def arche_v3(nom, portee, fleche, graine, epaisseur=0.34, prof=0.5, bloc=None):
 #     de 2-4°, 1 sur 25 MANQUANT (trou noir, gravats au pied), 1 sur 3 avec un coin arraché (aucun triangle de plus) ;
 #   - pan_mur_b : un corbeau (console à deux ressauts) ; pan_mur_c : une niche à arc brisé (jambages, tablette, écoinçons) ;
 #     pan_mur_haut : deux corbeaux. Le gabarit étant posé à 1,8 / 2,6 / 3,4 m, cela fait un accident d'architecture tous les 4-6 m ;
-#   - givre d'arête par TRONÇONS (30-70 % de l'arête haute d'un bloc sur 5, épaisseur variable, tons 0,45-0,66 : jamais le haut de la
+#   - givre d'arête par TRONÇONS (30-70 % de l'arête haute d'un bloc sur 5, épaisseur variable, ton x 0,72-0,9 : jamais le haut de la
 #     rampe Glace) ; glaçons IRRÉGULIERS (0 à 4, longueurs tirées au carré, trous) sous les blocs sortis, les corbeaux et la tablette.
 # Bloc = enveloppe convexe de 12 points (dos caché) : 18 triangles (44 pour le bloc biseauté v2) ; ~2 fois plus de blocs pour moins de
 # triangles. Mêmes noms, mêmes encombrements (0 -> 0,32 m devant le mur), aucune collision.
@@ -2097,6 +2097,9 @@ MUR_FACE = {"face": 0.96, "chanfrein": 1.22, "chanfrein_haut": 1.42, "dessus": 1
 MUR_FOND = 0.12
 MUR_MAX = 0.315
 X_P, X_M, Z_P = Vector((1, 0, 0)), Vector((-1, 0, 0)), Vector((0, 0, 1))
+# givre et glaçons des pans : matière « mur4 » (glace de la crypte, celle des glaçons du décor, présente dans chaque case murée) et non
+# « givre » (-> neige) : un maillage de neige étendu à tous les murs d'une case touchait 9 lumières à l'entrée (test_crypte : 8 au plus)
+MUR_GIVRE = "mur4"
 
 
 def _essuye(y):
@@ -2140,7 +2143,7 @@ def _mur_coin(M, pts, ton, joints=(), regles=None):
 
 def _givre_troncon(M, x0, x1, y, zf, ch_h=0.055, d=0.035):
     """Givre sur l'arête haute d'un bloc (dessus y, face avant zf, chanfrein haut ch_h x d), par TRONÇONS : 1 à 2 croûtes couvrant
-    30-70 % de [x0, x1], couchées sur le chanfrein, épaisseur et avancée variables, tons 0,45-0,66 (jamais le haut de la rampe Glace)."""
+    30-70 % de [x0, x1], couchées sur le chanfrein, épaisseur et avancée variables, tons 0,72-0,9 sur la glace « mur4 » (jamais le haut de la rampe)."""
     rg = M.rg
     L = x1 - x0
     if L < 0.1:
@@ -2160,7 +2163,7 @@ def _givre_troncon(M, x0, x1, y, zf, ch_h=0.055, d=0.035):
             e = ep * (0.4 + 0.6 * math.sin(math.pi * (0.1 + 0.8 * t)))
             pts += [Vector((x, y - 0.003, zf - d - 0.014)), Vector((x, y + e, zf - d - 0.004)),
                     Vector((x, y - ch_h * f + e * 0.5, zf - d + d * f + 0.004)), Vector((x, y - ch_h * f - 0.004, zf - d + d * f + 0.001))]
-        M.coin(pts, "givre", bev=0.0, jit=0.0, ton=rg.uniform(0.45, 0.66))
+        M.coin(pts, MUR_GIVRE, bev=0.0, jit=0.0, ton=rg.uniform(0.72, 0.9))
         a += couvre / n + rg.uniform(0.04, 0.2)
 
 
@@ -2171,8 +2174,8 @@ def _glacons_irreg(M, x0, x1, y, z, nmax=4, lmax=0.24):
     xs = sorted(rg.uniform(x0, x1) for _ in range(n))
     for x in xs:
         h = 0.03 + lmax * rg.random() ** 2
-        M.cylindre(0.0, rg.uniform(0.01, 0.022) + h * 0.05, h, Vector((x, y - h, z + rg.uniform(-0.012, 0.0))), 4, "givre", jit=0.003,
-                   ton=rg.uniform(0.5, 0.7), rot=rg.uniform(0, 1.5))
+        M.cylindre(0.0, rg.uniform(0.01, 0.022) + h * 0.05, h, Vector((x, y - h, z + rg.uniform(-0.012, 0.0))), 4, MUR_GIVRE, jit=0.003,
+                   ton=rg.uniform(0.78, 0.95), rot=rg.uniform(0, 1.5))
 
 
 def _gravats_pied(M, cx, n):

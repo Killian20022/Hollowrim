@@ -211,6 +211,7 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 	var ebr: float = o.get("ebr", 0.0)          # arêtes ébréchées : éclats de 2-3 texels mordant le biseau
 	var pous: float = o.get("poussiere", 0.0)   # sols : voile de poussière gris clair en macro-taches, surtout au creux des dalles
 	var gj: float = o.get("givre_joints", 0.0)  # sols : grains de givre dans les joints et au bord des dalles
+	var ar: float = o.get("arete", 0.0)         # C3 murs : arête HAUTE claire / arête basse sombre de chaque bloc (bande de ~5 cm)
 	var froid := _cols(PIERRE_SOMBRE_F if o.get("sombre", false) else PIERRE_FROID)
 	var chaud := _cols(PIERRE_CHAUD)
 	var mou := _cols(MOUSSE)
@@ -347,6 +348,11 @@ static func _pierre(S: int, rangs: Array, larg: Array, o: Dictionary) -> Array:
 			if d >= J and d < J + float(ech):                    # lèvre claire nette le long des joints (côtés éclairés)
 				lip = (0.2 if v == 4 else 0.12) if (gx + gy) > 0.05 else 0.0
 			var l: float = (L[i] + shade) * ao - proj + lip
+			if ar > 0.0 and d >= J and d < J + 1.5 * ech:
+				if gy > 0.012:
+					l += ar * (1.0 - (d - J) / (1.5 * ech) * 0.5)
+				elif gy < -0.012:
+					l -= ar * 0.8
 			var ln := n_big[i]
 			l -= 0.1 * _ss(0.55, 0.8, ln) * (1.0 + minf(v, 2.0) * 0.6)
 			var stk := _ss(0.6, 0.8, n_stk[i]) * (0.45 + 0.55 * (1.0 - a))
@@ -436,7 +442,8 @@ static func mur_paire(v: int) -> Array:
 	var S := 64 * K * EM
 	var rangs: Array = _largeurs(rng, S, [10 * EM, 12 * EM, 14 * EM, 16 * EM, 18 * EM, 24 * EM])
 	return _pierre(S, rangs, [12 * EM, 18 * EM, 22 * EM, 26 * EM, 30 * EM, 36 * EM, 48 * EM], {"ech": EM, "seed": 8100 + v * 17, "v": v, "sombre": v == 2, "joint": 2.6, "biseau": 2.2,
-		"rug": 0.6, "l_lo": 0.5 if v == 2 else 0.56, "l_hi": 0.7 if v == 2 else 0.86, "elev": 0.6, "fissures": 12, "grain": 1.0, "ebr": 0.15})
+		"rug": 0.6, "l_lo": 0.42 if v == 2 else 0.46, "l_hi": 0.74 if v == 2 else 0.9, "elev": 0.6, "fissures": 12, "grain": 1.0, "ebr": 0.15,
+		"arete": 0.14})      # C3 murs : tons de blocs plus écartés (0,56-0,86 -> 0,46-0,9) et arête claire / pied sombre
 
 static func dalle_paire(v: int) -> Array:
 	var rng := _rng(8200 + v)
