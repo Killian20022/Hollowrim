@@ -570,6 +570,93 @@ def mesurer_clips(actions):
             print("MESURER %-14s #%02d t=%.3f garde %s pointe %s cadre %3d%% plat %3d%% visee %2d coude %s" % (nom, i, t, e(g), e(p), round(100 * vus / 25), round(100 * part), round(visee), e(coude)))
 
 
+def angles_poignet():
+    """Flexion f (+ vers la paume) et inclinaison r (+ radiale, vers le pouce) de la main droite par rapport à
+    l'avant-bras (mêmes axes que _poignet), en degrés, plus la « cassure » totale (angle avant-bras / main)."""
+    la, ha = A.pose.bones["lowerarm_r"], A.pose.bones["hand_r"]
+    lrel = A.data.bones["lowerarm_r"].matrix_local.to_3x3().inverted() @ A.data.bones["hand_r"].matrix_local.to_3x3()
+    Rw = lrel.inverted() @ la.matrix.to_3x3().normalized().inverted() @ ha.matrix.to_3x3().normalized()
+    y = Vector((0, 1, 0))
+    a_f = y.cross(_axe_local("hand_r", (0, 0, -1))).normalized()
+    a_r = y.cross(_axe_local("hand_r", (0, -1, 0))).normalized()
+    v = Rw @ y
+    r = math.degrees(math.asin(max(-1.0, min(1.0, v.dot(a_r.cross(y))))))
+    f = math.degrees(math.atan2(v.dot(a_f.cross(y)), v.dot(y)))
+    return f, r, math.degrees(math.acos(max(-1.0, min(1.0, v.dot(y)))))
+
+
+def mesurer_fouet(actions):
+    """--fouet : le poignet fouette-t-il ? Par image (60 i/s) : angles du poignet, poing et pointe à l'écran, vitesses à
+    l'écran (hauteurs d'écran / s, x corrigé du format 16/9) et signe « pointe devant / derrière la main » dans le sens du
+    coup (sens = déplacement du milieu de lame à l'écran ; devant = (pointe - poing) · sens > 0).
+    Résumé (fenêtre frappe -> fin_frappe des MARQUEURS) : part des images où la pointe est devant, rapport moyen des
+    vitesses pointe / poing, amplitude du poignet (f, r, cassure)."""
+    tv = math.tan(math.radians(D["fov"]) / 2)
+    th = tv * 16 / 9
+    ecr = lambda v: Vector((v.x / -v.z / th * 16 / 9, v.y / -v.z / tv)) if v.z < -0.01 else None
+    for nom, (act, longueur) in actions.items():
+        A.animation_data.action = act
+        m = MARQUEURS.get(nom, {})
+        t0, t1 = m.get("frappe", 0.0), m.get("fin_frappe", longueur)
+        n = int(math.floor(longueur * 60 + 1e-6)) + 1
+        img = []
+        m6, zs = [], []     # milieu de lame (0,6) et normale du plat, repère caméra : « le tranchant mène » (test_combat_epee)
+        for i in range(n):
+            t = i / 60
+            fr = t * FPS
+            scene.frame_set(int(math.floor(fr)), subframe=fr - math.floor(fr))
+            W = CAM_DE_B @ A.pose.bones["hand_r"].matrix @ PRISE_D
+            poing = W @ Vector((0, MILIEU_POIGNEE, 0))
+            p = W @ POINTE
+            mil = (W @ GARDE + p) * 0.5
+            f, r, c = angles_poignet()
+            img.append((t, ecr(poing), ecr(p), ecr(mil), f, r, c))
+            m6.append((W @ GARDE).lerp(p, 0.6))
+            zs.append((W.to_3x3() @ Vector((0, 0, 1))).normalized())
+        devant = []      # pointe devant le poing (position) dans le sens du coup
+        fouette = []     # la pointe gagne sur le poing (vitesse relative pointe - poing dans le sens du coup > 0)
+        rapports = []
+        pos_debut = pos_fin = None
+        for i, (t, po, pt, mi, f, r, c) in enumerate(img):
+            sgn, rel, rap, vpo, vpt = 0.0, 0.0, 0.0, 0.0, 0.0
+            dans = t0 - 1e-6 <= t <= t1 + 1e-6
+            voisins = [img[j][k] for j in (i - 1, i + 1) for k in (1, 2, 3)] if 0 < i < n - 1 else [None]
+            if None not in voisins and None not in (po, pt, mi):
+                vmi = (img[i + 1][3] - img[i - 1][3]) * 30
+                vpo_v = (img[i + 1][1] - img[i - 1][1]) * 30
+                vpt_v = (img[i + 1][2] - img[i - 1][2]) * 30
+                vpo, vpt = vpo_v.length, vpt_v.length
+                if vmi.length > 0.3:
+                    d = vmi.normalized()
+                    sgn = (pt - po).dot(d) / max((pt - po).length, 1e-6)
+                    rel = (vpt_v - vpo_v).dot(d)
+                rap = vpt / max(vpo, 1e-3)
+                if dans and vmi.length > 0.3:
+                    devant.append(sgn > 0.0)
+                    fouette.append(rel > 0.0)
+                    rapports.append(rap)
+                    if pos_debut is None:
+                        pos_debut = sgn
+                    pos_fin = sgn
+            e = lambda v: "(%5.2f,%5.2f)" % (v.x * 9 / 16, v.y) if v is not None else "(derriere)"
+            etat = "DEVANT  " if sgn > 0.05 else ("DERRIERE" if sgn < -0.05 else "--      ")
+            print("FOUET %-14s #%02d t=%.3f%s poignet f %4d r %4d cassure %3d  poing %s pointe %s  v_poing %4.1f v_pointe %5.1f  rel %+6.1f %s  pointe %s (%5.2f)" % (
+                nom, i, t, "*" if dans else " ", round(f), round(r), round(c), e(po), e(pt), vpo, vpt, rel,
+                "FOUETTE" if rel > 0 else ("LEVIER " if rel < 0 else "       "), etat, sgn))
+        fils = []
+        for i in range(n - 1):
+            mv = m6[i + 1] - m6[i]
+            if t0 - 1e-6 <= img[i][0] and img[i + 1][0] <= t1 + 1e-6 and mv.length > 1e-4:
+                fils.append(math.degrees(math.acos(min(1.0, abs(zs[i + 1].dot(mv.normalized()))))))
+        fs = [x[4] for x in img]
+        rs = [x[5] for x in img]
+        cs = [x[6] for x in img]
+        print("FOUET_RESUME %-14s frappe %d images : pointe qui gagne sur le poing %3d%%, pointe devant %3d%% (début %+.2f, fin %+.2f) ; v_pointe / v_poing moyen %.1f ; fil moyen %d° (tranchant qui mène >= 70) ; poignet f %d..%d r %d..%d cassure %d..%d" % (
+            nom, len(devant), round(100 * sum(fouette) / max(1, len(fouette))), round(100 * sum(devant) / max(1, len(devant))),
+            pos_debut or 0.0, pos_fin or 0.0, sum(rapports) / max(1, len(rapports)), round(sum(fils) / max(1, len(fils))),
+            round(min(fs)), round(max(fs)), round(min(rs)), round(max(rs)), round(min(cs)), round(max(cs))))
+
+
 def main():
     poings()
     if "explorer" in ARGS:
@@ -608,6 +695,8 @@ def main():
                 bpy.ops.render.render(write_still=True)
     if "mesurer" in ARGS:
         mesurer_clips(actions)
+    if "fouet" in ARGS:
+        mesurer_fouet(actions)
     if "godot" in ARGS:
         ecrire_godot(os.path.join(BASE, "assets", "animations", "bras_epee.tres"), actions)
     if "blend" in ARGS:

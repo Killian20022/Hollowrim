@@ -190,6 +190,42 @@ P2_TENSION = dict(P2_ARME, nom="P2_tension", poing=E(0.98, -0.06, 0.45), lame=(0
 P2_SUIVI = dict(P_FIN, nom="P2_suivi", poing=E(-0.42, -0.50, 0.54), lame=(-0.75, -0.42, -0.5), clav=(32, -2), epaule=(-0.13, 0.02, -0.12), large=1)
 P2_RETOUR = dict(nom="P2_retour", poing=E(0.05, -0.62, 0.52), lame=(-0.45, 0.35, -0.8), roulis=TRANCHE_TENUE, coude=(0.6, -1, 0.1), clav=(16, 0), epaule=(-0.05, 0.0, -0.05), large=1)
 
+# =====================================================================================================================
+# POIGNET QUI FOUETTE (retour utilisateur 2026-10-27 ~23h25, references/combat_epee/prompt_poignet_fouet.md : « les coups
+# partent en inversé ») : la main ne descend plus d'un bloc avec la lame raide (levier, pointe qui traîne) ; à l'armé le
+# poignet se plie et la lame part en arrière / au-dessus, à la frappe il claque vers l'avant : la lame part du haut et
+# FOUETTE en passant DEVANT la main (la pointe va plus vite que le poing et le dépasse), à l'impact la lame est en avant
+# de la main dans le sens du coup. Le poing fait un trajet plus court, la lame tourne dans le plan du coup (normale du
+# plat = normale du plan : le tranchant mène). Mesure : anim_bras_epee.py -- --fouet (FOUET_RESUME).
+# --- 1 : diagonale haut-droite -> bas-gauche ; plan du coup de normale (1, -1, 0) -------------------------------------
+N_DIAG = (0.7, -0.7, 0.0)
+D4_ARME = dict(nom="D4_arme", poing=E(0.55, 0.10, 0.55), lame=(0.45, 0.65, -0.60), mouvement=(-0.7, -0.7, 0), normale=N_DIAG, poids_normale=0.3, coude=(1, -0.4, 0.3), clav=(-4, 12), epaule=(0.03, 0.06, 0.0), large=1, torsion=80, poids_torsion=0.5, k=90, f=15, r=-40, phi=45)
+D4_TENSION = dict(D4_ARME, nom="D4_tension", poing=E(0.60, 0.18, 0.54), lame=(0.55, 0.62, -0.52), torsion=85, k=93, f=9, r=-40, phi=48)
+D4_ENTREE = dict(nom="D4_entree", poing=E(0.48, 0.08, 0.60), lame=(0.15, 0.55, -0.82), mouvement=(-0.7, -0.7, 0), normale=N_DIAG, poids_normale=0.3, coude=(1, -0.5, 0.2), clav=(6, 10), epaule=(-0.01, 0.03, -0.02), interp="passe", large=1, torsion=30, poids_torsion=0.5, k=21, f=-20, r=-40, phi=-13)
+D4_MILIEU = dict(nom="D4_milieu", poing=E(0.38, 0.02, 0.62), lame=(-0.35, -0.15, -0.92), mouvement=(-0.7, -0.7, 0), normale=N_DIAG, poids_normale=0.3, coude=(0.7, -1, 0.0), clav=(16, 6), epaule=(-0.04, 0.01, -0.06), interp="passe", large=1, torsion=-30, poids_torsion=0.5, k=-43, f=-23, r=-7, phi=-16)
+D4_FIN = dict(nom="D4_fin", poing=E(0.22, -0.16, 0.60), lame=(-0.62, -0.55, -0.55), mouvement=(-0.7, -0.7, 0), normale=N_DIAG, poids_normale=0.3, coude=(0.4, -1, -0.1), clav=(26, 2), epaule=(-0.09, 0.0, -0.10), large=1, torsion=-80, poids_torsion=0.5, k=-58, f=42, r=27, phi=-14)
+D4_SUIVI = dict(D4_FIN, nom="D4_suivi", poing=E(0.16, -0.24, 0.58), lame=(-0.50, -0.78, -0.38), clav=(30, -2), epaule=(-0.11, 0.0, -0.11), k=-60, f=46, r=27, phi=-14)
+# --- 2 : horizontal gauche -> droite : poignet armé (lame pointée à gauche, en arrière), puis la lame fouette vers la
+# droite en devançant le poing ; plat horizontal (normale verticale) -------------------------------------------------
+N_HORIZ = (0.0, 1.0, 0.0)
+HG4_ARME = dict(nom="HG4_arme", poing=E(-0.22, -0.22, 0.55), lame=(-0.97, 0.06, -0.20), mouvement=(1, 0, 0), normale=N_HORIZ, coude=(0.3, -1, -0.3), clav=(30, 4), epaule=(-0.12, 0.02, -0.11), large=1, torsion=-90, poids_torsion=0.6)
+HG4_TENSION = dict(HG4_ARME, nom="HG4_tension", poing=E(-0.25, -0.21, 0.55), lame=(-0.99, 0.06, -0.05))
+HG4_ENTREE = dict(nom="HG4_entree", poing=E(-0.10, -0.22, 0.58), lame=(-0.85, 0.04, -0.52), mouvement=(1, 0, 0), normale=N_HORIZ, coude=(0.4, -1, -0.2), clav=(24, 3), epaule=(-0.09, 0.01, -0.09), interp="passe", large=1, torsion=-90, poids_torsion=0.6)
+HG4_MILIEU = dict(nom="HG4_milieu", poing=E(0.10, -0.22, 0.60), lame=(-0.55, 0.03, -0.83), mouvement=(1, 0, 0), normale=N_HORIZ, coude=(0.6, -1, 0.0), clav=(14, 3), epaule=(-0.04, 0.0, -0.06), interp="passe", large=1, torsion=-90, poids_torsion=0.6)
+HG4_FIN = dict(nom="HG4_fin", poing=E(0.28, -0.22, 0.58), lame=(-0.18, 0.03, -0.98), mouvement=(1, 0, 0.3), normale=N_HORIZ, coude=(1, -1, 0.2), clav=(6, 4), epaule=(-0.01, 0.0, -0.03), large=1, torsion=-90, poids_torsion=0.6)
+HG4_SUIVI = dict(HG4_FIN, nom="HG4_suivi", poing=E(0.38, -0.26, 0.55), lame=(0.0, 0.0, -1.0), clav=(2, 4), epaule=(0.0, 0.0, -0.02))
+# --- lourd à l'arrêt (droite -> gauche) : armé poignet cassé (lame vers la droite, en arrière), coup sec où la lame
+# fouette vers la gauche et dépasse le poing ; P_* restent ceux de finisher_taille --------------------------------------
+P4_ARME = dict(nom="P4_arme", poing=E(0.72, -0.06, 0.50), lame=(0.20, 0.78, -0.59), mouvement=(-1, 0, 0), normale=N_HORIZ, poids_normale=0.3, coude=(1, -0.5, 0.4), clav=(-10, 6), epaule=(0.02, 0.0, 0.01), large=1, torsion=85, poids_torsion=0.5, k=90, f=15, r=-40, phi=45)
+# charge tenue (0,6 s) : lame dressée penchée vers le centre, ENTIÈRE dans le cadre (armée vers l'arrière, poing au bord
+# droit, elle sortait du cadre : 16-32 % visibles) ; au relâchement le poignet s'arme en arrière (P4_ARME) puis claque
+P4_CHARGE = dict(P4_ARME, nom="P4_charge", lame=(-0.49, 0.67, -0.56), k=0, f=40, r=-40, phi=45)
+P4_TENSION = dict(P4_ARME, nom="P4_tension", poing=E(0.78, -0.02, 0.48), lame=(0.32, 0.74, -0.59), torsion=90, k=95, f=5, r=-40, phi=55)
+P4_ENTREE = dict(nom="P4_entree", poing=E(0.66, -0.14, 0.54), lame=(0.2, 0.3, -0.93), mouvement=(-1, -0.15, 0), normale=N_HORIZ, poids_normale=0.3, coude=(1, -0.7, 0.3), clav=(6, 6), interp="passe", large=1, torsion=30, poids_torsion=0.5, k=36, f=23, r=-40, phi=-33)
+P4_MILIEU = dict(nom="P4_milieu", poing=E(0.40, -0.20, 0.60), lame=(-0.55, 0.0, -0.83), mouvement=(-1, -0.15, 0), normale=N_HORIZ, poids_normale=0.3, coude=(0.6, -1, 0.0), clav=(20, 2), epaule=(-0.05, 0.0, -0.06), interp="passe", large=1, torsion=-40, poids_torsion=0.5, k=-33, f=21, r=-14, phi=-14)
+P4_FIN = dict(nom="P4_fin", poing=E(0.10, -0.30, 0.57), lame=(-0.93, -0.12, -0.34), mouvement=(-0.8, -0.3, 0.4), normale=N_HORIZ, poids_normale=0.3, coude=(0.3, -1, -0.2), clav=(30, 0), epaule=(-0.12, 0.02, -0.11), large=1, torsion=-80, poids_torsion=0.5, k=-93, f=9, r=10, phi=-1)
+P4_SUIVI = dict(P2_SUIVI, nom="P4_suivi", k=-95, f=66, r=-40, phi=-15)
+
 # --- garde : réaction de l'épée au contact (coup bloqué : la lame est repoussée, rebondit, se replace — résistance) ----
 ENCAISSE2 = dict(GARDE, nom="encaisse2", poing=E(0.48, -0.40, 0.38), lame=(-0.80, 0.58, 0.05))
 ENC_REBOND = dict(GARDE, nom="enc_rebond", poing=E(0.41, -0.28, 0.48), lame=(-0.90, 0.38, -0.22))
@@ -206,11 +242,19 @@ CLIPS = {
     "parade": [cle(GARDE, 0.0), cle(PARADE2, 0.035, interp="lin"), cle(PARADE, 0.08), cle(PAR_REBOND, 0.13), cle(GARDE, 0.22)],
     "garde_brisee": [cle(GARDE, 0.0), cle(BRISEE, 0.035, interp="lin"), cle(BRISEE, 0.22), cle(REPOS, 0.45)],
     # combo 2026-10-27 : 1 diagonale (coup_a), 2 horizontal gauche -> droite (coup_b), 3 estoc (coup_c)
-    "coup_a": [cle(REPOS, 0.0), cle(D_ARME, 0.13), cle(D_TENSION, 0.16), cle(D_ENTREE, 0.185), cle(D_MILIEU, 0.21),
+    # poignet qui fouette (2026-10-27, combat/poignet_fouet) : mêmes instants (latence et marqueurs inchangés)
+    "coup_a": [cle(REPOS, 0.0), cle(D4_ARME, 0.13), cle(D4_TENSION, 0.16), cle(D4_ENTREE, 0.185), cle(D4_MILIEU, 0.21),
+               cle(D4_FIN, 0.26), cle(D4_SUIVI, 0.33), cle(V3_RETOUR, 0.44), cle(REPOS, 0.54)],
+    "coup_b": [cle(D4_SUIVI, 0.0), cle(HG4_ARME, 0.10), cle(HG4_TENSION, 0.13), cle(HG4_ENTREE, 0.155), cle(HG4_MILIEU, 0.18),
+               cle(HG4_FIN, 0.23), cle(HG4_SUIVI, 0.30), cle(REPOS, 0.50)],
+    "coup_c": [cle(HG4_SUIVI, 0.0), cle(E_ARME, 0.11), cle(E_ARME, 0.15), cle(E_FIN, 0.25), cle(E_SUIVI, 0.30), cle(REPOS, 0.50)],
+    # combo « levier » d'avant le poignet qui fouette (main qui descend d'un bloc, lame raide) : gardé pour comparaison
+    "coup_a_levier": [cle(REPOS, 0.0), cle(D_ARME, 0.13), cle(D_TENSION, 0.16), cle(D_ENTREE, 0.185), cle(D_MILIEU, 0.21),
                cle(D_FIN, 0.26), cle(D_SUIVI, 0.33), cle(REPOS, 0.54)],
-    "coup_b": [cle(D_SUIVI, 0.0), cle(HG_ARME, 0.10), cle(HG_TENSION, 0.13), cle(HG_ENTREE, 0.155), cle(HG_MILIEU, 0.18),
+    "coup_b_levier": [cle(D_SUIVI, 0.0), cle(HG_ARME, 0.10), cle(HG_TENSION, 0.13), cle(HG_ENTREE, 0.155), cle(HG_MILIEU, 0.18),
                cle(HG_FIN, 0.23), cle(HG_SUIVI, 0.30), cle(REPOS, 0.50)],
-    "coup_c": [cle(HG_SUIVI, 0.0), cle(E_ARME, 0.11), cle(E_ARME, 0.15), cle(E_FIN, 0.25), cle(E_SUIVI, 0.30), cle(REPOS, 0.50)],
+    "lourd_levier": [cle(P2_ARME, 0.0), cle(P2_TENSION, 0.10), cle(P_ENTREE, 0.165), cle(P_MILIEU, 0.20), cle(P_FIN, 0.25),
+              cle(P2_SUIVI, 0.42), cle(P2_RETOUR, 0.70), cle(REPOS, 0.96)],
     # anciens coups du combo (avant 2026-10-27) : gardés pour comparaison
     # vertical refait (directionnel) : levée au-dessus de la tête, descente droite à travers le centre
     # vertical V3 (2026-10-27) : mêmes instants que coup_c_ancien (latence inchangée) ; l'essai V2 reste dans coup_v2
@@ -233,9 +277,9 @@ CLIPS = {
                     cle(R_SUIVI, 0.31), cle(REPOS, 0.50)],
     "estoc": [cle(REPOS, 0.0), cle(E_ARME, 0.11), cle(E_ARME, 0.15), cle(E_FIN, 0.25), cle(E_SUIVI, 0.30), cle(REPOS, 0.50)],
     # puissantes : armé (tenu pendant la charge), puis coup au relâchement
-    "charge_lourd": [cle(REPOS, 0.0), cle(P_ARME, 0.30), cle(P2_ARME, 0.60)],
-    "lourd": [cle(P2_ARME, 0.0), cle(P2_TENSION, 0.10), cle(P_ENTREE, 0.165), cle(P_MILIEU, 0.20), cle(P_FIN, 0.25),
-              cle(P2_SUIVI, 0.42), cle(P2_RETOUR, 0.70), cle(REPOS, 0.96)],
+    "charge_lourd": [cle(REPOS, 0.0), cle(P_ARME, 0.30), cle(P4_CHARGE, 0.60)],
+    "lourd": [cle(P4_CHARGE, 0.0), cle(P4_ARME, 0.06), cle(P4_TENSION, 0.10), cle(P4_ENTREE, 0.165), cle(P4_MILIEU, 0.20), cle(P4_FIN, 0.25),
+              cle(P4_SUIVI, 0.42), cle(P2_RETOUR, 0.70), cle(REPOS, 0.96)],
     # lourd vertical (en avançant) refait sur le vertical V2 : levée plus haute tenue pendant la charge
     "charge_vertical": [cle(REPOS, 0.0), cle(V2_ARME, 0.30), cle(V2_TENSION, 0.60)],
     "lourd_vertical": [cle(V2_TENSION, 0.0), cle(V2_ENTREE, 0.11), cle(V2_MILIEU, 0.15), cle(V2_FIN, 0.21),
@@ -259,6 +303,9 @@ MARQUEURS = {
     "coup_a": {"arme": 0.13, "frappe": 0.16, "fin_frappe": 0.26, "suivi": 0.33, "fin": 0.54},
     "coup_b": {"arme": 0.10, "frappe": 0.13, "fin_frappe": 0.23, "suivi": 0.30, "fin": 0.50},
     "coup_c": {"arme": 0.11, "frappe": 0.15, "fin_frappe": 0.25, "suivi": 0.30, "fin": 0.50},
+    "coup_a_levier": {"arme": 0.13, "frappe": 0.16, "fin_frappe": 0.26, "suivi": 0.33, "fin": 0.54},
+    "coup_b_levier": {"arme": 0.10, "frappe": 0.13, "fin_frappe": 0.23, "suivi": 0.30, "fin": 0.50},
+    "lourd_levier": {"arme": 0.10, "frappe": 0.10, "fin_frappe": 0.25, "suivi": 0.42, "fin": 0.96},
     "coup_a_ancien": {"arme": 0.12, "frappe": 0.15, "fin_frappe": 0.25, "suivi": 0.32, "fin": 0.52},
     "coup_b_ancien": {"arme": 0.14, "frappe": 0.17, "fin_frappe": 0.27, "suivi": 0.34, "fin": 0.54},
     "coup_gd": {"arme": 0.08, "frappe": 0.11, "fin_frappe": 0.21, "suivi": 0.28, "fin": 0.50},
