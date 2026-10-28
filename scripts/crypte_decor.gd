@@ -123,6 +123,7 @@ var est_crypte := false   # vrai pour la crypte elle-même (pas pour GrotteDecor
 ## RNG des détails ajoutés par la refonte matière (givre, glaçons, niches, lustres…) : séparé de `rng` pour ne pas déplacer
 ## le décor existant (gravats à collision, statues) tiré après eux.
 var rng_deco := RandomNumberGenerator.new()
+var rng_givre := RandomNumberGenerator.new()   # lèvres de givre et rangées de glaçons : leur nombre de tirages ne décale plus le reste du décor
 
 # ------------------------------------------------------------------ registre d'audit (outils/audit_interpenetrations.gd)
 ## Rempli SEULEMENT quand `CrypteDecor.audit_actif` est vrai (l'outil d'audit le pose avant de bâtir le lieu) : tout ce qui est écrit
@@ -373,6 +374,7 @@ func _init(parent: Node3D, solide: StaticBody3D, partage: CrypteDecor = null) ->
 	rng.seed = 7007
 	est_crypte = get_script() == CrypteDecor
 	rng_deco.seed = 4242
+	rng_givre.seed = 9157
 	voisin = partage
 	if partage != null:
 		# second décor (le donjon, bâti dans un fil d'exécution) : mêmes images, déjà peintes ; ses propres matériaux
@@ -1382,15 +1384,15 @@ func givre_levre(a: Vector3, b: Vector3, vers: Vector3, haut := 0.045, densite :
 	var v := vers.normalized()
 	var t := 0.0
 	while t < l - 0.1:
-		var lp := minf(rng_deco.randf_range(0.3, 1.1), l - t)
-		if rng_deco.randf() < densite:
-			var hh := haut * rng_deco.randf_range(0.7, 1.4)
+		var lp := minf(rng_givre.randf_range(0.3, 1.1), l - t)
+		if rng_givre.randf() < densite:
+			var hh := haut * rng_givre.randf_range(0.7, 1.4)
 			var c := a + dr * (t + lp * 0.5) + v * 0.015 - Vector3(0, hh * 0.5, 0)
 			boite("neige", c, Vector3(lp, hh, 0.035) if le_long_x else Vector3(0.035, hh, lp), 0.0, true)
-			if rng_deco.randf() < 0.5:        # coulure
-				var q := a + dr * (t + rng_deco.randf_range(0.1, 0.9) * lp) + v * 0.02 - Vector3(0, hh, 0)
+			if rng_givre.randf() < 0.5:        # coulure
+				var q := a + dr * (t + rng_givre.randf_range(0.1, 0.9) * lp) + v * 0.02 - Vector3(0, hh, 0)
 				boite("neige", q - Vector3(0, 0.03, 0), Vector3(0.03, 0.06, 0.03), 0.0, true)
-		t += lp + rng_deco.randf_range(0.3, 1.2)       # trous plus longs : givre discontinu, pas de baguette continue
+		t += lp + rng_givre.randf_range(0.3, 1.2)       # trous plus longs : givre discontinu, pas de baguette continue
 
 ## Glaçon : cône effilé de glace (6 pans) pendu sous `haut`.
 func glacon_sous(haut: Vector3, longueur := 0.5, r := 0.06) -> void:
@@ -1402,14 +1404,14 @@ func glacon_sous(haut: Vector3, longueur := 0.5, r := 0.06) -> void:
 ## Rangée de glaçons le long d'une arête horizontale (de `a` à `b`, à la hauteur de l'arête) ; `densite` = glaçons par mètre.
 func glacons_arete(a: Vector3, b: Vector3, densite := 1.0, lmax := 0.55) -> void:
 	var l := a.distance_to(b)
-	var n := int(l * densite + rng_deco.randf())
+	var n := int(l * densite + rng_givre.randf())
 	for k in n:
-		var t := rng_deco.randf()
-		var u := rng_deco.randf()
+		var t := rng_givre.randf()
+		var u := rng_givre.randf()
 		var lon := lmax * (0.2 + 0.8 * u * u)     # tirage au carré : surtout des petits, quelques longs
 		glacon_sous(a.lerp(b, t), lon, 0.025 + lon * 0.08)
-		if rng_deco.randf() < 0.45:     # grappe : un ou deux petits à côté
-			glacon_sous(a.lerp(b, clampf(t + rng_deco.randf_range(-0.04, 0.04), 0.0, 1.0)), lon * 0.45, 0.02 + lon * 0.04)
+		if rng_givre.randf() < 0.45:     # grappe : un ou deux petits à côté
+			glacon_sous(a.lerp(b, clampf(t + rng_givre.randf_range(-0.04, 0.04), 0.0, 1.0)), lon * 0.45, 0.02 + lon * 0.04)
 
 ## Nappe de brume au ras du sol : quelques cartes additives horizontales qui se chevauchent (aucune particule).
 func brume(centre: Vector3, ext: Vector2, nombre := 5) -> void:
