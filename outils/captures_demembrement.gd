@@ -93,15 +93,16 @@ func _info(d: Node3D, rel: float, dir_ecran: Vector3, attaque: String) -> Dictio
 	return {"type": "tranchant", "point": d.global_position + Vector3(0, 1.8 * rel * d.modele.scale.y, 0) + vers * 0.2,
 		"direction": dir, "normale": vers, "attaque": attaque, "instant": 0.1, "charge": 1.0 if attaque == "chargee_max" else 0.0}
 
-## Caméra témoin de trois quarts sur la cible (côté joueur).
+## Caméra témoin sur le flanc de la cible (perpendiculaire au joueur, un peu en avant) ; le corps du joueur est caché.
 func _temoin(cible: Vector3, haut := 1.1, dist := 2.6, cote := 1.0) -> void:
 	var vj: Vector3 = s.joueur.global_position - cible
 	vj.y = 0.0
 	vj = vj.normalized()
 	var lat := Vector3.UP.cross(vj) * cote
-	_cam.global_position = cible + vj * dist * 0.75 + lat * dist * 0.65 + Vector3(0, haut + 0.25, 0)
-	_cam.look_at(cible + Vector3(0, haut * 0.55, 0), Vector3.UP)
+	_cam.global_position = cible + lat * dist + vj * dist * 0.35 + Vector3(0, haut, 0)
+	_cam.look_at(cible + Vector3(0, haut * 0.55, 0) - vj * 0.3, Vector3.UP)
 	_cam.current = true
+	s.joueur.visible = false
 
 func _cas(genre: String, membre: String) -> void:
 	var lacet := 0.0
@@ -115,7 +116,7 @@ func _cas(genre: String, membre: String) -> void:
 	Demembrement.membre_force = membre
 	Demembrement.chance_forcee = 1.0
 	var c: Array = COUPS[membre]
-	_temoin(d.global_position, 1.1, 2.7 if membre != "moitie" else 3.2)
+	_temoin(d.global_position, 1.0, 2.1 if membre != "moitie" else 2.6, -1.0 if membre.ends_with("_l") else 1.0)
 	var images: Array = []
 	if not film:
 		images.append(await _image())
@@ -128,11 +129,12 @@ func _cas(genre: String, membre: String) -> void:
 		if not film:
 			images.append(await _image())
 	# vue FPS (caméra du joueur) à la fin
+	s.joueur.visible = true
 	s.joueur.camera.current = true
 	await _attendre(0.05 if not film else 0.8)
 	if not film:
 		images.append(await _image())
-	_planche("%s_%s" % [membre, genre], images, 5)
+	_planche("%s_%s" % [membre, genre], images, int(_arg("colonnes", "5")))
 	Demembrement.membre_force = ""
 	Demembrement.chance_forcee = -1.0
 	d.set_meta("a_effacer", true)
@@ -146,7 +148,7 @@ func _entailles(genre: String) -> void:
 	d.set_physics_process(false)
 	Demembrement.chance_forcee = 0.0
 	var images: Array = []
-	_temoin(d.global_position, 1.2, 1.7, 0.6)
+	_temoin(d.global_position, 1.3, 1.9, -0.5)
 	var coups := [[0.66, Vector3(1, -0.7, 0)], [0.55, Vector3(-1, -0.4, 0)], [0.75, Vector3(1, 0.1, 0)], [0.4, Vector3(-1, -0.9, 0)], [0.6, Vector3(0.2, -1, 0)]]
 	for k in coups.size():
 		var cp: Array = coups[k]
@@ -156,7 +158,7 @@ func _entailles(genre: String) -> void:
 		await _attendre(0.35)
 		if k % 2 == 1 and not film:
 			images.append(await _image())
-	_temoin(d.global_position, 1.2, 1.3, 0.2)
+	_temoin(d.global_position, 1.3, 1.5, -0.25)
 	await _attendre(0.2)
 	if not film:
 		images.append(await _image())

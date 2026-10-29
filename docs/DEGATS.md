@@ -18,6 +18,7 @@ qui se passe dans l'ennemi et à l'écran quand il est touché.
 | `sang.gd` (`Sang`) | giclées (particules pixel), jets pulsés, flaques et traînées (plans texturés au sol / au mur, plafonnés), textures peintes par code |
 | `plaies.gd` (`Plaies`) | plaies persistantes : Decal accroché à l'os le plus proche (suit animation et ragdoll) |
 | `decapitation.gd` (`Decapitation`) | tête détachée en corps rigide (copie des maillages, peau refaite), cou replié (modificateur `CouTranche`), bouchons, jet |
+| `demembrement.gd` (`Demembrement`) | membres tranchés à la mort (bras, avant-bras, jambe, mollet, coupe en deux au bassin ; tête → `Decapitation`) : membre replié (modificateur `MembreTranche`), morceau en corps rigide (pool de 6, 30 s), capuchons de moignon, jets en gros pixels (`Jets`, pool de 6) |
 | `reaction_os.gd` (`ReactionOs`) | flexion procédurale du buste et de la tête dans le sens du coup (ressort), balancement quand étourdi |
 | `retour_impact.gd` (`RetourImpact`) | arrêt sur image, secousse, voile rouge (`eclat_rouge` de `ps1_post.gdshader`), sons par matière (pack CC0) |
 | `mannequin.gd` (`Mannequin`) | mannequin d'entraînement (ne meurt pas, compte les dégâts, posture, finisher : la tête s'envole et repousse) |
@@ -213,3 +214,23 @@ de givre (sans chute, se brise sur le décor). Scène : `scenes/test_troll_mage.
   chargement et à l'apparition d'un ennemi. Mesure : `outils/perf_retour_crypte.gd` ; test : `outils/test_retour_combat.gd` ;
   planches : `outils/captures_retour_combat.gd`.
 
+
+## Démembrement (étape 1 : draugrs, bandits — 2026-10-29)
+
+`Demembrement.choisir(combat, r, sorte)` à la mort (draugr.gd `_mourir`), coups d'arme blanche tranchante du joueur seulement
+(info de mains.gd : « instant » / « charge » ; ni flèches, ni pièges, ni sorts, ni masses) :
+- chance : 35 % coup normal, 60 % lourd / recul / chute, 100 % coup puissant et finisher ; option « réduit » × 0,5 ; tirages sur
+  un générateur propre (le hasard global des salles et du butin n'est pas consommé) ;
+- membre : point ≥ 80 % de la taille (ou zone tête, ou horizontal ≥ 68 %) → tête ; < 42 % → jambe (mollet sous 24 %), côté le plus
+  proche ; coup puissant horizontal au buste → coupe en deux (pas en « réduit ») ; sinon bras / avant-bras le plus proche ;
+- finishers : décapitation inchangée ; les autres → coupe en deux (bras en « réduit »), sauf coup de grâce au sol / cloué ;
+- technique : aucun maillage prédécoupé. Corps : os écrasé (échelle 0,002) par un modificateur placé après le ragdoll ; bassin de la
+  coupe en deux écrasé SEUL (enfant `spine_01` compensé : position et échelle ÷ 0,002). Morceau : copie des maillages, peau
+  B' = P_racine⁻¹ · P_os · B (pose du moment), autres attaches écrasées sur la coupe ; armes accrochées aux os du morceau partent avec ;
+- moignons : capuchon procédural (chair, lèvre sombre, os blanc au centre ; draugr brun-rouge, bandit rouge) ; jet pulsé (battement
+  0,42 s) en gros pixels `sang_jet` / `draugr_jet`, gouttes au sol (4 traces max par jet), éclaboussures sol + mur (`Sang._traces_giclee`) ;
+- plafonds : 6 morceaux, 6 jets, 48 traces (`Sang.MAX_TRACES`, disparition lente : la trace se résorbe en 6 s) ;
+- réglages de test : `Demembrement.chance_forcee`, `membre_force`, `duree` ; `outils/test_demembrement.gd`, planches et film :
+  `outils/captures_demembrement.gd`.
+Plaies (entailles) : décal plus fin (taille × 0,5 en hauteur, 26 cm de profondeur au lieu de 50), lèvres en couleur de palette
+(`Plaies.couleur_levres`), texture « entaille » redessinée (fente noire, lèvres d'un texel, coulures).

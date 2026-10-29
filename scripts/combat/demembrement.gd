@@ -39,7 +39,7 @@ const CHANCE := {"legere": 0.35, "titubante": 0.35, "lourde": 0.6, "recul": 0.6,
 const CHANCE_REDUIT := 0.5
 ## Couleurs des capuchons (chair, lèvre de la plaie, os) par matière de corps.
 const CHAIRS := {
-	"draugr": [Color("#3b2418"), Color("#1c0d09"), Color("#d2c9ad")],
+	"draugr": [Color("#5a2a1c"), Color("#2e0807"), Color("#d2c9ad")],
 	"chair": [Color("#8a1a14"), Color("#3a0605"), Color("#efe7d0")],
 }
 
@@ -120,6 +120,11 @@ static func choisir(combat: CombatEnnemi, r: Dictionary, sorte: String) -> Strin
 		return ""
 	if membre_force != "":
 		return membre_force
+	if String(i.get("attaque", "")) == "finisher":
+		# finisher (hors décapitation) : coupé en deux au retrait de la lame ; jamais au sol ni cloué (coup de grâce plongé)
+		if String(r.get("finisher", i.get("categorie", ""))) == "sol" or String(i.get("mort_finisher", "")) == "cloue":
+			return ""
+		return "moitie" if niv == 2 else "bras_" + ("l" if _rng.randf() < 0.5 else "r")
 	return membre_du_coup(combat.corps, combat.modele, combat.hauteur, i, sorte in ["puissant", "finisher"], niv)
 
 ## Membre visé d'après la hauteur et le sens de la lame : horizontal haut → tête ; coup puissant / finisher horizontal au
@@ -310,7 +315,9 @@ static func trancher(modele: Node3D, membre: String, impulsion: Vector3, couleur
 	else:
 		GerbePixels.emettre(modele, t_racine.origin, dir_coup, "poussiere", 1.6)
 	# lancer
-	rb.apply_central_impulse(impulsion * clampf(rb.mass / 4.0, 0.6, 3.0))
+	# vitesse imposée (et non une impulsion) : un bras ne part pas plus loin qu'une jambe ; le morceau tombe près du corps
+	var vitesse := {"moitie": 1.1, "jambe_l": 1.8, "jambe_r": 1.8}.get(membre, 2.4) as float
+	rb.linear_velocity = impulsion.normalized() * vitesse
 	rb.angular_velocity = Vector3(_rng.randf_range(-7, 7), _rng.randf_range(-4, 4), _rng.randf_range(-7, 7)) * (0.35 if membre == "moitie" else 1.0)
 	Jets.obtenir(modele)   # horloge de jeu des morceaux (et jets)
 	slot["fin"] = horloge + duree
@@ -498,8 +505,8 @@ static func maillage_capuchon() -> ArrayMesh:
 		var e1 := Vector3(cos(a1), 0, sin(a1)) * float(r_ext[(k + 1) % pans])
 		var m0 := Vector3(cos(a0), 0.25, sin(a0)) * 0.62
 		var m1 := Vector3(cos(a1), 0.25, sin(a1)) * 0.62
-		var o0 := Vector3(cos(a0), 0, sin(a0)) * 0.3 + Vector3(0, 0.5, 0)
-		var o1 := Vector3(cos(a1), 0, sin(a1)) * 0.3 + Vector3(0, 0.5, 0)
+		var o0 := Vector3(cos(a0), 0, sin(a0)) * 0.22 + Vector3(0, 0.45, 0)
+		var o1 := Vector3(cos(a1), 0, sin(a1)) * 0.22 + Vector3(0, 0.45, 0)
 		# anneau extérieur : bord de chair (lèvre sombre) → chair
 		_tri(st, [e0, e1, m1], [c_levre, c_levre, c_chair])
 		_tri(st, [e0, m1, m0], [c_levre, c_chair, c_chair])
@@ -507,7 +514,7 @@ static func maillage_capuchon() -> ArrayMesh:
 		_tri(st, [m0, m1, o1], [c_chair, c_chair, c_os])
 		_tri(st, [m0, o1, o0], [c_chair, c_os, c_os])
 		# os : bout plat
-		_tri(st, [o0, o1, Vector3(0, 0.55, 0)], [c_os, c_os, c_os])
+		_tri(st, [o0, o1, Vector3(0, 0.5, 0)], [c_os, c_os, c_os])
 	st.generate_normals()
 	_maillage_capuchon = st.commit()
 	return _maillage_capuchon

@@ -1000,6 +1000,8 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, 
 	if membre == "tete":
 		membre = ""
 		decapiter = true
+	elif membre == "moitie":
+		force *= 0.45   # coupé en deux : le haut du corps s'affaisse, il ne s'envole pas
 	# l'animation de l'encaissement d'abord (mort titubante), puis le ragdoll
 	var lancer := func() -> void:
 		if not is_instance_valid(self) or not is_inside_tree():
