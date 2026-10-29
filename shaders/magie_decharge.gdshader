@@ -100,6 +100,8 @@ void fragment() {
 		}
 	} else if (genre == 3) {
 		ci = int(img + g) % 2;                // fourche : formes les plus anguleuses
+	} else if (genre == 2) {
+		ci = int(img + g * 7.0) % 3;          // étincelle : forme d'éclair ramifiée (plus le trait droit trace_03)
 	}
 	// miroir et glissement au hasard à chaque image (la même forme n'est jamais deux fois la même)
 	vec2 uu = u;

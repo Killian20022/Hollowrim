@@ -73,6 +73,7 @@ void process() {
 	vec3 p = TRANSFORM[3].xyz;
 	float k_age = 1.0;
 	bool accroche = false;
+	bool ecrase = false;
 	if (arret.w > 0.5) {
 		float s = dot(p - arret.xyz, arret_dir);
 		if (cristal) {
@@ -91,9 +92,13 @@ void process() {
 				float ll = length(lat);
 				vec3 dl = ll > 0.01 ? lat / ll : normalize(vec3(sin(g * 3.0), 0.1, cos(g * 3.0)));
 				float q = min(1.0, DELTA * 14.0);
-				// la brume s'écrase et s'étale à plat (un peu vers le bas : l'air froid coule)
-				VELOCITY += (dl * 0.85 + vec3(0.0, -0.1, 0.0) - arret_dir) * vp * q;
+				// la brume s'écrase et s'étale (un peu vers le bas : l'air froid coule) ; étalement modéré : à pleine
+				// vitesse latérale, les bouffées étirées faisaient de grandes « ailes » pâles autour de la cible
+				VELOCITY += (dl * 0.4 + vec3(0.0, -0.1, 0.0) - arret_dir) * vp * q;
 			}
+			// elle s'y amortit (elle gonfle sur place au lieu de fuser)
+			VELOCITY *= exp(-5.0 * DELTA);
+			ecrase = true;
 			k_age = etale;
 		}
 	}
@@ -124,7 +129,8 @@ void process() {
 	} else {
 		// bouffée : gonfle vite au départ puis plus lentement ; étirée dans le sens de la vitesse (souffle, pas langue)
 		float sz = mix(taille0, taille1, pow(min(a, 1.0), 0.6)) * (0.7 + 0.6 * COLOR.g);
-		float el = 1.0 + clamp(vl * 0.3, 0.0, 4.0);
+		// (plus étirées en vol : un flot soudé, pas un chapelet de boules ; peu étirées une fois écrasées)
+		float el = ecrase ? 1.0 + clamp(vl * 0.12, 0.0, 1.2) : 1.0 + clamp(vl * 0.36, 0.0, 4.6);
 		TRANSFORM[0].xyz = ax * sz;
 		TRANSFORM[1].xyz = vd * sz * el;
 		TRANSFORM[2].xyz = cross(ax, vd) * sz;

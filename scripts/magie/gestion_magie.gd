@@ -40,12 +40,15 @@ const BRUIT_VAGUE := preload("res://assets/magie/bruit_vague.png")
 ## Jet électrique (couche fine) : DÉCHARGE d'éclats texturés qui crépitent le long de l'arc (magie_decharge*.gdshader).
 const SH_DECHARGE := preload("res://shaders/magie_decharge.gdshader")
 const SH_DECHARGE_PROC := preload("res://shaders/magie_decharge_process.gdshader")
+## Faisceau épais de l'arc électrique (couche fine) : corps d'un seul tenant, brins tressés et fourches (magie_faisceau).
+const SH_FAISCEAU := preload("res://shaders/magie_faisceau.gdshader")
+const FAISCEAU_SEG := 48
 ## Formes des éclats : atlas 4×2 de 128² tiré du Kenney Particle Pack (CC0, assets/LICENCES.md) : rangée 0 = traits
 ## d'éclair (spark_05, spark_06, spark_07 redressé, trace_03), rangée 1 = nuages d'éclairs (spark_01, 02, 04), éclat star_04.
 const ATLAS_ELEC := preload("res://assets/magie/elec_kenney_atlas.png")
 ## Shaders des visuels qui passent dans la couche fine (CoucheMagie.CALQUE) ; le voile (material_overlay des cibles) reste
 ## dans le rendu du monde.
-const SHADERS_COUCHE := [SH_ADD, SH_MIX, SH_TRAIT, SH_CRISTAL, SH_SOL, SH_SOL_MIX, SH_COEUR, SH_COEUR_ADD, SH_FLUX, SH_AURA, SH_VAGUE, SH_DECHARGE, SH_GIVRE]
+const SHADERS_COUCHE := [SH_ADD, SH_MIX, SH_TRAIT, SH_CRISTAL, SH_SOL, SH_SOL_MIX, SH_COEUR, SH_COEUR_ADD, SH_FLUX, SH_AURA, SH_VAGUE, SH_DECHARGE, SH_GIVRE, SH_FAISCEAU]
 ## Palettes du flux procédural des jets (couche fine) : cœur → bord (ténèbres : rehaut → cœur noir).
 const FLUX := {
 	"feu": ["#fffbe8", "#fff0a8", "#fcb53a", "#ec6a1f", "#b3341f", "#5a1a1c"],
@@ -68,6 +71,9 @@ const VAGUE_PORTEE := 10.5
 const VAGUE_VIE := 1.15
 const VAGUE_TRAINE := 1.25
 const VAGUE_N := 88
+## Amorce du jet de flammes (s) : à sa création, la vague est simulée d'avance sur cette durée (GPUParticles3D.preprocess),
+## le jet est donc PLEIN dès sa première image (avant : ~0,2 s de trou, les premières bouffées sortaient de la paume).
+const VAGUE_AMORCE := 0.45
 ## Décharge électrique : éclats vivants (3 à 5 images chacun) et durée de vie d'un éclat (s).
 const DECHARGE_N := 64
 const DECHARGE_VIE := 0.13
@@ -102,6 +108,8 @@ const MAX_PROJECTILES := 24
 const POOL_GARDE := 24
 ## Échelle de départ d'un projectile cristal (il naît petit dans la paume, voir _cristal_echelle).
 const CRISTAL_GERME := 0.12
+## Distance à l'œil (m) à partir de laquelle un cristal lancé par le joueur a sa pleine taille (_cristal_echelle).
+const CRISTAL_OEIL := 2.8
 
 ## Couleurs des lumières dynamiques par école.
 const LUMIERE := {
@@ -141,6 +149,7 @@ var _quad := QuadMesh.new()
 var _mesh_eclat: ArrayMesh
 var _mesh_pic: ArrayMesh
 var _mesh_flux: ArrayMesh
+var _mesh_faisceau: ArrayMesh
 var _bouffees: Array = []         # {mi, t0, duree, r0, r1, f0} : boules procédurales qui grossissent et s'éteignent
 var _lumieres: Array[OmniLight3D] = []
 var _demandes := {}               # cle -> {pos, noeud, couleur, energie, portee, prio, debut, fin, duree}
@@ -165,6 +174,8 @@ var _teinte_mat: ShaderMaterial
 var _teinte_v := 0.0
 var _teinte_cible := 0.0
 var _teinte_c := Color.BLACK
+var _soleil: DirectionalLight3D = null   # lumière directionnelle de la scène (_jour)
+var _soleil_cherche := -10.0
 ## Couche fine (option « Détail des sorts ») : null en rétro / sans fenêtre.
 var couche: CoucheMagie
 ## Vrai quand la couche fine dessine les sorts : réglages PresetsMagie.FIN (lu à chaque émission).
@@ -855,12 +866,18 @@ func foudre_ramifiee(traits: Array, a: Vector3, b: Vector3, ampl: float, largeur
 	var p := foudre(a, b, ampl, prof)
 	traits.append([p, largeur, 1.0])
 	var l := a.distance_to(b)
+	var dir := (b - a).normalized()
+	# ramifications SYMÉTRIQUES autour du lien : écart perpendiculaire à l'axe, une sur deux de l'autre côté (angle + PI)
+	# (avant : écart aléatoire 3D ajouté à l'axe → gerbe penchée du côté où part le lien, toujours le même dans la chaîne)
+	var u := dir.cross(Vector3.UP if absf(dir.y) < 0.9 else Vector3.RIGHT).normalized()
+	var w := dir.cross(u)
+	var ang := rng.randf() * TAU
 	for _k in (ramifs * 2 if fin_actif else ramifs):
 		var i := rng.randi_range(1, maxi(1, p.size() - 2))
 		var o := p[i]
-		var dir := (b - a).normalized()
-		var dev := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
-		var fin := o + (dir + dev * 0.9).normalized() * l * rng.randf_range(0.12, 0.3)
+		ang += PI + rng.randf_range(-0.6, 0.6)
+		var dev := u * cos(ang) + w * sin(ang)
+		var fin := o + (dir * 0.6 + dev).normalized() * l * rng.randf_range(0.12, 0.3)
 		var br := foudre(o, fin, l * 0.06, 2)
 		traits.append([br, maxf(1.0, largeur - 1.0), 0.7])
 		if fin_actif and br.size() > 3 and rng.randf() < 0.6:
@@ -1050,7 +1067,9 @@ func boite(n: Node3D) -> AABB:
 	for v in liste:
 		if k > 40:
 			break
-		if v is GPUParticles3D or v is OmniLight3D or v is Light3D or not (v as Node3D).visible:
+		# Label3D : texte flottant (dégâts du mannequin, noms) : sa boîte de billboard (cube de 1,5 m) gonflait la silhouette
+		# → la gerbe en boîte du jet faisait un grand dôme de points autour de la cible
+		if v is GPUParticles3D or v is OmniLight3D or v is Light3D or v is Label3D or not (v as Node3D).visible:
 			continue
 		k += 1
 		var vi := v as VisualInstance3D
@@ -1287,6 +1306,11 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 		j.ecart = ecart
 	elif fin_actif and ecole == "electricite":
 		j.decharge = _decharge_creer(dbl)
+		# avec le faisceau épais, moins d'éclats (sinon, en double, deux jets empilent un gros blanc sur la cible)
+		var dch: GPUParticles3D = j.decharge
+		dch.amount = int(DECHARGE_N * (0.8 if dbl else 0.65))
+		(dch.process_material as ShaderMaterial).set_shader_parameter("force", 1.1 if dbl else 1.0)
+		j.faisceau = _faisceau_creer(dbl)
 	elif fin_actif and ecole == "glace":
 		# couche fine : le corps du jet de glace est un SOUFFLE DE GIVRE (même machinerie que la vague : j.vague)
 		j.vague = _givre_creer(dbl)
@@ -1430,7 +1454,9 @@ func _gen_jet_arc_vif(j: Dictionary) -> Array:
 			decal = Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * l * 0.04
 		var p := _arc_courbe(o, j, l, l * (0.03 if k == 0 else 0.045), decal)
 		var a := 0.4 if hoquet else (rng.randf_range(0.7, 1.0) if k == 0 else rng.randf_range(0.3, 0.7))
-		traits.append([p, 1.0 if k == 0 else 0.5, a])
+		# avec le faisceau épais (magie_faisceau), les brins sont dessinés par le shader : ici seulement les fourches 3D
+		if j.get("faisceau") == null:
+			traits.append([p, 1.0 if k == 0 else 0.5, a])
 		if hoquet:
 			break
 		for _r in (4 if k == 0 else 1):
@@ -1558,6 +1584,7 @@ func _vague_creer(dbl: bool) -> GPUParticles3D:
 	p.name = "VagueFlammes"
 	p.amount = int(VAGUE_N * (1.2 if dbl else 1.0))
 	p.lifetime = VAGUE_VIE
+	p.preprocess = VAGUE_AMORCE
 	p.local_coords = false
 	p.fixed_fps = 0
 	p.interpolate = false
@@ -1677,6 +1704,77 @@ func _decharge_arreter(j: Dictionary) -> void:
 		dc.emitting = false
 		get_tree().create_timer(DECHARGE_VIE + 0.1, false).timeout.connect(dc.queue_free)
 	j.erase("decharge")
+
+# ---------------------------------------------------------------------- faisceau électrique (couche fine, arc électrique)
+
+## Ruban fixe de FAISCEAU_SEG segments (UV.x = t le long de l'arc, UV.y = côté) : le shader le pose sur la courbe.
+func _creer_faisceau() -> ArrayMesh:
+	var v := PackedVector3Array()
+	var uv := PackedVector2Array()
+	for i in FAISCEAU_SEG:
+		var t0 := float(i) / FAISCEAU_SEG
+		var t1 := float(i + 1) / FAISCEAU_SEG
+		for q in [[t0, -1.0], [t0, 1.0], [t1, 1.0], [t0, -1.0], [t1, 1.0], [t1, -1.0]]:
+			v.append(Vector3.ZERO)
+			uv.append(Vector2(q[0], q[1]))
+	var a := []
+	a.resize(Mesh.ARRAY_MAX)
+	a[Mesh.ARRAY_VERTEX] = v
+	a[Mesh.ARRAY_TEX_UV] = uv
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+	return m
+
+## Corps épais de l'arc électrique (un par jet : matériau propre, ses uniformes sont la courbe de CE jet).
+func _faisceau_creer(dbl: bool) -> MeshInstance3D:
+	if _mesh_faisceau == null:
+		_mesh_faisceau = _creer_faisceau()
+	var mi := MeshInstance3D.new()
+	mi.name = "FaisceauElec"
+	mi.mesh = _mesh_faisceau
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.custom_aabb = AABB(Vector3.ONE * -1e4, Vector3.ONE * 2e4)   # sommets posés par le shader
+	var m := ShaderMaterial.new()
+	m.shader = SH_FAISCEAU
+	var pal: Array = AURA_PAL.electricite
+	for i in 6:
+		m.set_shader_parameter("c%d" % i, Color(pal[i]))
+	m.set_shader_parameter("dbl", 1.0 if dbl else 0.0)
+	m.set_shader_parameter("graine", rng.randf() * 100.0)
+	mi.material_override = m
+	mi.visible = not sans_procedural and not OS.get_cmdline_user_args().has("--sans-flux")
+	add_child(mi)
+	mi.global_transform = Transform3D.IDENTITY
+	_proc.append(mi)
+	return mi
+
+## Même courbe que la décharge (_decharge_placer) et que l'arc maître CPU.
+func _faisceau_placer(j: Dictionary, o: Vector3, l: float) -> void:
+	var mi: MeshInstance3D = j.faisceau
+	var m := mi.material_override as ShaderMaterial
+	var dv: Vector3 = j.dir_vis if j.dir_vis != Vector3.ZERO else j.dir
+	m.set_shader_parameter("arc_o", o)
+	m.set_shader_parameter("arc_c", o + (j.dir as Vector3) * l * 0.5)
+	m.set_shader_parameter("arc_b", o + dv * l if not j.touche else (j.fin_pos as Vector3))
+	m.set_shader_parameter("touche", 1.0 if j.touche else 0.0)
+	m.set_shader_parameter("force", clampf((horloge - float(j.debut)) / 0.08, 0.0, 1.0))
+	m.set_shader_parameter("jour", _jour())
+
+## Clarté du jour 0..1 (soleil blanc et fort : 1 ; lune bleutée, nuit, intérieur sans soleil : 0), pour le cœur de l'arc
+## électrique (sur la neige de jour, l'additif blanc s'y perdait). La lumière directionnelle est cherchée une fois (puis
+## au plus toutes les 5 s si la scène n'en a pas), sa couleur et son énergie sont lues à chaque image.
+func _jour() -> float:
+	if not is_instance_valid(_soleil) and horloge - _soleil_cherche > 5.0:
+		_soleil_cherche = horloge
+		var sc := get_tree().current_scene
+		if sc != null:
+			for n in sc.find_children("*", "DirectionalLight3D", true, false):
+				if (n as DirectionalLight3D).is_visible_in_tree():
+					_soleil = n
+					break
+	if not is_instance_valid(_soleil) or not _soleil.is_visible_in_tree():
+		return 0.0
+	return smoothstep(0.8, 1.15, _soleil.light_energy) * smoothstep(0.75, 0.9, _soleil.light_color.r)
 
 # ---------------------------------------------------------------------- souffle de givre (couche fine, jet de glace)
 
@@ -1877,6 +1975,8 @@ func _jet_gerbe(j: Dictionary) -> void:
 			var exs := Vector3(snappedf(ext.x, 0.05), snappedf(ext.y, 0.05), snappedf(ext.z, 0.05))
 			var noms: Array = {"feu": ["feu_gerbe", "feu_gerbe_braise"], "glace": ["glace_gerbe", "glace_gerbe_cristal"],
 				"electricite": ["elec_gerbe"], "tenebres": ["ten_gerbe", "ten_gerbe_lueur"]}.get(j.ecole, [])
+			if j.ecole == "electricite" and j.get("faisceau") != null:
+				noms = []   # arc à faisceau : les fourches de la décharge sautent sur le corps (plus de traits droits étirés)
 			for nom in noms:
 				var p := emettre(nom, null, Transform3D.IDENTITY, true, 1.4 if j.dbl else 1.0, -1.0, _pm(nom, PresetsMagie.R[nom], {"ext": exs}))
 				if p != null:
@@ -1892,6 +1992,7 @@ func _jet_gerbe(j: Dictionary) -> void:
 				var g := _aura_fine(self, j.ecole, maxf(bb.size.y, 0.6) * 0.62 * (1.2 if j.dbl else 1.0))
 				g.set_instance_shader_parameter("avance", maxf(bb.size.x, bb.size.z) * 0.45)
 				g.set_meta("gerbe_fine", true)
+				g.set_meta("rayon0", maxf(bb.size.y, 0.6) * 0.62 * (1.2 if j.dbl else 1.0))
 				j.gerbe.append(g)
 	if cible != null and valide(cible):
 		var centre: Vector3 = (cible as Node3D).global_transform * (j.gerbe_bb as AABB).get_center()
@@ -1899,7 +2000,13 @@ func _jet_gerbe(j: Dictionary) -> void:
 			if is_instance_valid(p):
 				p.position = centre
 				if (p as Node).has_meta("gerbe_fine"):
-					(p as MeshInstance3D).set_instance_shader_parameter("force", clampf((horloge - float(j.debut)) / 0.4, 0.0, 1.0))
+					# le motif de l'enveloppe est en pixels de la couche : cible PROCHE de l'œil = grand carré d'un grain
+					# fin → rideau de points devant la cible (« dôme » à 1,75 m). De près : plus petite et plus resserrée.
+					var cam := get_viewport().get_camera_3d()
+					var kp := clampf((cam.global_position.distance_to(centre) - 1.5) / 2.0, 0.0, 1.0) if cam != null else 1.0
+					var mg := p as MeshInstance3D
+					mg.set_instance_shader_parameter("rayon", float(mg.get_meta("rayon0")) * lerpf(0.35, 1.0, kp))
+					mg.set_instance_shader_parameter("force", clampf((horloge - float(j.debut)) / 0.4, 0.0, 1.0) * lerpf(0.55, 1.0, kp))
 
 func _jet_placer(j: Dictionary) -> void:
 	var origine: Node3D = j.origine
@@ -1966,6 +2073,8 @@ func _jet_placer(j: Dictionary) -> void:
 			_givre_placer(j)
 	if j.get("decharge") != null and is_instance_valid(j.decharge):
 		_decharge_placer(j, o, l)
+	if j.get("faisceau") != null and is_instance_valid(j.faisceau):
+		_faisceau_placer(j, o, l)
 	if not j.bouclier.is_empty():
 		var d: Dictionary = j.bouclier
 		d.pos = o + dir * 0.35
@@ -1984,7 +2093,10 @@ func _jet_placer(j: Dictionary) -> void:
 			"glace":
 				emettre("glace_bouffee", null, Transform3D(bn, fin), false)
 			"electricite":
-				emettre("elec_etincelles", null, Transform3D(bn, fin), false, 0.7)
+				# avec le faisceau (couche fine), les étincelles de la décharge (genre 2, ramifiées) suffisent : les
+				# traits droits étirés de l'ancien système faisaient des bâtons blancs autour de la cible
+				if j.get("faisceau") == null:
+					emettre("elec_etincelles", null, Transform3D(bn, fin), false, 0.7)
 	# lumière : forte sur la main (un peu devant, pour éclairer main et sol) et à l'arrivée, couleur de l'école
 	var c: Color = LUMIERE[j.ecole]
 	var kd := 1.2 if j.dbl else 1.0   # deux jets = deux lumières : multiplicateur modéré (neige surexposée sinon)
@@ -2038,6 +2150,9 @@ func _jet_arreter(j: Dictionary) -> void:
 		get_tree().create_timer(VAGUE_VIE + 0.15, false).timeout.connect(vg.queue_free)
 	j.vague = null
 	_decharge_arreter(j)
+	if j.get("faisceau") != null and is_instance_valid(j.faisceau):
+		(j.faisceau as Node).queue_free()
+	j.erase("faisceau")
 	if not j.bouclier.is_empty():
 		j.bouclier.duree = 0.0
 
@@ -2132,9 +2247,17 @@ func projectile_visuel(ecole: String, forme: String) -> Node3D:
 func _cristal_echelle(e: Dictionary, pos: Vector3) -> float:
 	if not e.has("queue"):
 		return 1.0
+	var cam := get_viewport().get_camera_3d()
 	if e.depart == null:
 		e.depart = pos
-	return clampf(((pos - (e.depart as Vector3)).length() + 0.05) / float(e.queue), CRISTAL_GERME, 1.0)
+		# lancé par le joueur (né contre l'œil) : la taille suit aussi la distance à l'œil (voir plus bas)
+		e.pres_oeil = cam != null and cam.global_position.distance_to(pos) < 1.2
+	var ech := clampf(((pos - (e.depart as Vector3)).length() + 0.05) / float(e.queue), CRISTAL_GERME, 1.0)
+	if e.get("pres_oeil", false) and cam != null:
+		# à 34 m/s, l'éclat est encore à ~1-2 m de l'œil pendant ses 2 premières images : à pleine taille il couvrait un
+		# grand pan d'écran près de la main. Il grandit jusqu'à CRISTAL_OEIL m de l'œil (taille apparente ~constante).
+		ech = minf(ech, clampf((cam.global_position.distance_to(pos) - 0.35) / (CRISTAL_OEIL - 0.35), CRISTAL_GERME, 1.0))
+	return ech
 
 func _gen_orbe_arcs(r: float) -> Array:
 	var traits: Array = []
@@ -2445,6 +2568,8 @@ func statut_cible(cible: Node3D, statut: String, duree: float) -> void:
 	var ext := (bb.size * 0.42).max(Vector3(0.08, 0.15, 0.08))
 	var s := {"cible": cible, "statut": statut, "fin": horloge + duree, "emit": [], "voiles": [], "eclair": {}, "bb": bb}
 	var noms: Array = {"brulure": ["brulure", "brulure_braise"], "gel": ["gel", "gel_brume"], "choc": ["choc"], "corruption": ["corruption", "corruption_lueur", "corruption_eclats"]}.get(statut, [])
+	if statut == "choc" and fin_actif:
+		noms = []   # couche fine : le choc = arcs ramifiés (_gen_choc) + voile ; plus de bâtons blancs étirés autour du corps
 	for nom in noms:
 		var pd: Dictionary = PresetsMagie.R[nom]
 		var p := emettre(nom, null, Transform3D(Basis.IDENTITY, cible.global_transform * bb.get_center()), true, 1.0, -1.0,
@@ -2922,6 +3047,16 @@ func vitrine_prechauffe(v: Node3D) -> void:
 	v.add_child(vgg)
 	vgg.visible = true
 	vgg.position = Vector3(0.6, 0.4, 0.0)
+	var fs := _faisceau_creer(false)
+	remove_child(fs)
+	v.add_child(fs)
+	fs.visible = true
+	var mf := fs.material_override as ShaderMaterial
+	var vo := v.global_position if v.is_inside_tree() else Vector3.ZERO
+	mf.set_shader_parameter("arc_o", vo + Vector3(-0.5, 0.8, 0.0))
+	mf.set_shader_parameter("arc_c", vo + Vector3(0.0, 0.85, 0.0))
+	mf.set_shader_parameter("arc_b", vo + Vector3(0.5, 0.8, 0.0))
+	mf.set_shader_parameter("force", 1.0)
 	var ia := 0
 	for ec in AURA_ECOLE:
 		var au := _aura_fine(v, ec, 0.06, ia % 2)

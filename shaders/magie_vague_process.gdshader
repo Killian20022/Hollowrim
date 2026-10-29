@@ -6,7 +6,8 @@
 // celles déjà parties continuent leur route (jet « tuyau d'arrosage »), seules les nouvelles suivent la main.
 // Plan d'arrêt (`arret`) : au-delà du point touché (cible, mur), la vitesse vers l'avant passe en ÉTALEMENT latéral et la
 // bouffée vieillit plus vite : la vague s'écrase et lèche la surface au lieu de la traverser.
-// CUSTOM : x = graine, y = âge (0..1), z = rotation (rad), w = vitesse de rotation. COLOR.r = température propre.
+// CUSTOM : x = graine, y = âge (0..1), z = rotation (rad), w = vitesse de rotation. COLOR.r = température propre,
+// COLOR.g = taille propre, COLOR.b = 1 une fois écrasée au point touché.
 shader_type particles;
 render_mode disable_force;
 
@@ -87,10 +88,16 @@ void process() {
 				float ll = length(lat);
 				vec3 dl = ll > 0.01 ? lat / ll : normalize(vec3(sin(g * 3.0), 0.4, cos(g * 3.0)));
 				float q = min(1.0, DELTA * 14.0);
-				VELOCITY += (dl * 0.7 + vec3(0.0, 0.45, 0.0) - arret_dir) * vp * q;
+				// étalement plus doux qu'avant (0,7 → 0,45 de côté) : la vague s'écrase en boule au lieu de gicler en rayons
+				VELOCITY += (dl * 0.45 + vec3(0.0, 0.4, 0.0) - arret_dir) * vp * q;
 			}
 			k_age = etale;
+			COLOR.b = 1.0;   // écrasée : plus d'étirement (voir plus bas)
 		}
+	}
+	if (COLOR.b > 0.5) {
+		// bouffée écrasée : freinée fort (elle reste collée au point touché et s'y fond avec les voisines)
+		VELOCITY *= exp(-5.0 * DELTA);
 	}
 	a += DELTA / LIFETIME * k_age;
 	CUSTOM.y = a;
@@ -105,6 +112,9 @@ void process() {
 	float vl = length(VELOCITY);
 	vec3 vd = vl > 0.001 ? VELOCITY / vl : vec3(0.0, 0.0, -1.0);
 	float el = 1.0 + clamp(vl * 0.26, 0.0, 4.2);
+	// écrasée sur la cible : bouffée RONDE (avant : langues étirées de côté à ~10 m/s, des « pétales » en étoile autour
+	// du point touché, surtout à bout portant)
+	el = mix(el, 1.0 + clamp(vl * 0.05, 0.0, 0.5), COLOR.b);
 	vec3 ax = abs(vd.y) < 0.95 ? normalize(cross(vd, vec3(0.0, 1.0, 0.0))) : vec3(1.0, 0.0, 0.0);
 	TRANSFORM[0].xyz = ax * sz;
 	TRANSFORM[1].xyz = vd * sz * el;

@@ -41,7 +41,8 @@
 				{"id": "pain_seigle", "n": [3, 6]},
 				{"id": "viande_sechee", "n": [2, 4]},
 				{"id": "champignon_lumineux", "n": [2, 5]},
-				{"id": "poussiere_tombe", "n": [1, 2], "chance": 50}
+				{"id": "poussiere_tombe", "n": [1, 2], "chance": 50},
+				{"id": "tome_souffle_givre", "n": 1, "chance": 80}
 			]
 		}
 	}

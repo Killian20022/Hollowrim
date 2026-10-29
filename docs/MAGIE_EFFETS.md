@@ -328,3 +328,55 @@ communs avec le feu via `_vague_placer`). Fichiers propres à la glace : `shader
 - Coût (`galerie --perf=jet --ecole=glace`, crypte FPS 1280×720 Élevé, PC partagé par 5 agents, 2 lancements × 3 mesures) :
   avant (flux) GPU 2,78 à 4,06 ms pour 2,33 à 2,83 sans effet (+0,45 à +1,2 ms) ; après 3,11 à 3,53 ms pour 2,31 à 2,45
   (+0,8 à +1,1 ms) : écart dans le bruit de mesure (≈ 0 ± 0,3 ms), particules 1 675 → 977, émetteurs 13 → 9.
+
+## Sorts continus : faisceau électrique + Souffle de givre jouable (branche magie/sorts_continus, 2026-10-29)
+
+Retour utilisateur : « le sort électrique continu aussi qualitatif que les flammes » + un sort de glace continu.
+- **Arc électrique : faisceau épais** (`shaders/magie_faisceau.gdshader`, `_faisceau_creer` / `_faisceau_placer`) : un ruban fixe
+  de 48 segments (UV.x = t, UV.y = côté) posé par le shader sur la même courbe de Bézier que la décharge (`arc_o`, `arc_c`,
+  `arc_b` ; NE PAS nommer ces uniformes `o`/`c`/`b` : `c` entre en collision avec une variable de `magie_occ.gdshaderinc` et
+  le shader ne compile plus). Demi-largeur en perspective (enveloppe 0,2 m) bornée à 7-22 pixels du monde. Dans le ruban :
+  3 brins tressés (4 en double) en zigzag linéaire par morceaux à 2 octaves (le maître change de forme 15 fois/s, les autres
+  30 fois/s et papillotent), cœur blanc de 4 pixels du monde, 2 fourches par image qui jaillissent du brin maître, et une
+  GAINE violette qui couvre un peu le fond (pixel mixte de `magie_compose`, `ombre` 0,85) : sur la neige de jour l'arc garde
+  un liseré bleu-violet. Paliers de la palette électrique, tramage par bruit (pas de Bayer), pixel du monde.
+  L'arc maître CPU (`_gen_jet_arc_vif`) ne dessine plus ses brins quand le faisceau existe (seulement fourches 3D et doigts
+  sur la cible) ; la décharge garde son crépitement mais avec moins d'éclats (×0,65, ×0,8 en double, force 1,1 au lieu de
+  1,35) et le faisceau baisse au point frappé : plus de gros blanc sur la cible en double incantation.
+- **Souffle de givre** (`data/sorts/souffle_givre.tres`) : canalisé, école glace, 12 mana/s, 16 dégâts/s de froid, gel 0,35
+  (ralentit de 35 %, 2 s), portée 8 m, largeur 0,9, traverse 3 ; double ×2 dégâts. Rendu = le souffle de givre de
+  glace_vivante (`_givre_creer`). Connu d'office (période `tout_disponible`, comme le jet de flammes) et trouvable en tome
+  (`tome_souffle_givre`, table `tomes`) ; icône `souffle_givre` (IconesCombat) ; entrée dans `outils/generer_sorts.gd`.
+  Correctif du souffle : à l'impact, les bouffées s'amortissent au lieu de fuser de côté (plus de grandes « ailes » pâles)
+  et sont plus étirées en vol (flot soudé).
+- **Coût** (`galerie --perf=jet --ecole=…`, crypte FPS 1280×720 Élevé, PC très chargé par d'autres Godot : 30 ms par image,
+  3 mesures, A/B avec `--sans-flux`) : couche fine de l'arc 1,71 ms contre 0,84 (corps décharge + faisceau ≈ +0,9 ms, dont
+  ≈ +0,5 pour le faisceau d'après la mesure de elec_vivante) ; même séance, jet de flammes +1,8 ms, souffle de givre +1,3 ms.
+- Outil : `outils/captures_gestes_magie.gd -- --geste=jet --sort=<id> [--draugr=fige]`.
+- Limites : en double sur la neige, le faisceau reste très clair (l'additif domine) ; dans la scène de test (mannequins à
+  1,75 m) un grand dôme de points apparaît autour du mannequin avec TOUT jet (feu compris) : particules classiques
+  d'ImpactCorps, propre aux mannequins (absent sur les draugrs de la galerie), non traité.
+
+## Finitions (branche magie/finitions_soir, 2026-10-29)
+
+Cinq retours utilisateur sur les sorts de la couche fine ; planches avant/après dans
+`Desktop/Skyrim captures/finitions_magie/` (outil `outils/captures_finitions_magie.gd`, voir son en-tête).
+- **Jet de flammes au déclenchement** : la vague est préchauffée (`VAGUE_AMORCE` = 0,45 s, `GPUParticles3D.preprocess`) :
+  le jet est plein dès sa première image (avant : ~0,2 s de trou, les bouffées sortaient de la paume). Au plan d'arrêt
+  (`magie_vague_process`) les bouffées sont freinées (exp(-5 dt)) et arrondies au lieu de s'écraser en « pétales ».
+- **Dôme de points autour du mannequin** (le « non traité » de la section précédente) : deux causes. 1) `boite()` comptait
+  le Label3D des dégâts, la boîte de la cible faisait plusieurs mètres → gerbe géante (corrigé : les Label3D sont ignorés).
+  2) L'enveloppe procédurale (`_aura_fine`, méta `gerbe_fine`) a un grain en pixels de la couche : près de l'œil elle
+  devient un rideau de points fins ; sous ~3,5 m de la caméra elle rétrécit (jusqu'à ×0,35) et s'atténue (jusqu'à ×0,55).
+  Les draugrs (ImpactCorps) n'avaient pas le défaut.
+- **Éclat de glace** : `CRISTAL_OEIL` + `pres_oeil` dans `_cristal_echelle` : le cristal est réduit près de la main. Le
+  correctif du triangle bleu est conservé.
+- **Arc électrique** : traits blancs droits supprimés. Avec le faisceau, plus d'`elec_etincelles` au léchage, plus de
+  `elec_gerbe` sur la cible, et en couche fine le statut « choc » ne garde que les arcs ramifiés (`_gen_choc`) et le voile.
+  Les étincelles de la décharge (genre 2) prennent les formes fourchues de l'atlas au lieu de `trace_03`, avec une largeur
+  proportionnelle. De jour (`_jour()` : énergie et blancheur de la DirectionalLight3D), la rampe du faisceau est décalée et
+  le cœur passe de ×1 à ×0,7 : il est teinté au lieu d'être blanc sur la neige. La nuit, rien ne change.
+- **Chaîne d'éclairs** : `foudre_ramifiee` écarte les ramifications perpendiculairement au lien, en alternant les côtés
+  (angle + π ± 0,6 rad) : les branches ne penchent plus toutes du même côté.
+- Limites : à 1,75 m, le jet garde un peu de forme en lobes au contact ; sur le mannequin, les points carrés des dégâts
+  (`GerbesPixels`) ne sont pas de la magie et restent.

@@ -9,6 +9,7 @@
 		"viande_sechee": {"nom": "Viande séchée", "poids": 0.3, "valeur": 5, "rarete": "commun", "categorie": "consommable", "icone": "viande_sechee", "effets": {"vie": 15, "duree": 10, "famille": "nourriture"}},
 		"tome_boule_feu": {"nom": "Tome : Boule de feu", "poids": 1.0, "valeur": 120, "rarete": "rare", "categorie": "consommable", "icone": "tome", "effets": {"apprendre": "boule_feu"}},
 		"tome_lance_givre": {"nom": "Tome : Lance de givre", "poids": 1.0, "valeur": 120, "rarete": "rare", "categorie": "consommable", "icone": "tome", "effets": {"apprendre": "lance_givre"}},
+		"tome_souffle_givre": {"nom": "Tome : Souffle de givre", "poids": 1.0, "valeur": 200, "rarete": "rare", "categorie": "consommable", "icone": "tome", "effets": {"apprendre": "souffle_givre"}},
 		"tome_drain_vie": {"nom": "Tome : Drain de vie", "poids": 1.0, "valeur": 150, "rarete": "rare", "categorie": "consommable", "icone": "tome", "effets": {"apprendre": "drain_vie"}},
 		"tome_chaine_eclairs": {"nom": "Tome : Chaîne d'éclairs", "poids": 1.0, "valeur": 220, "rarete": "rare", "categorie": "consommable", "icone": "tome", "effets": {"apprendre": "chaine_eclairs"}},
 		"tome_nova_gelee": {"nom": "Tome : Nova de gelée", "poids": 1.0, "valeur": 160, "rarete": "rare", "categorie": "consommable", "icone": "tome", "effets": {"apprendre": "nova_gelee"}},

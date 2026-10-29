@@ -1,6 +1,6 @@
 class_name IconesCombat
 extends RefCounted
-## Icônes pixel du combat (HUD, plus tard inventaire) : 16x16 pour ce que tient une main (armes, objets, 14 sorts),
+## Icônes pixel du combat (HUD, plus tard inventaire) : 16x16 pour ce que tient une main (armes, objets, 15 sorts),
 ## 8x8 pour les statuts actifs. Dessinées en motifs ASCII (ci-dessous) → Image → ImageTexture (filtre nearest à
 ## l'affichage : les Control de l'interface dessinent en pixels entiers, échelle EchelleUi entière).
 ## Motifs : '.' = transparent ; '1'..'5' = palette de l'école (sombre → clair) ; lettres = couleurs fixes (FIXES).
@@ -204,6 +204,24 @@ const MOTIFS := {
 		"...32...4.......",
 		"..32............",
 		".32.............",
+		"................",
+	]],
+	"souffle_givre": ["glace", [
+		"................",
+		"...........5....",
+		"..........545...",
+		"........2..5..3.",
+		".......23332.33.",
+		".....22344333.3.",
+		"...2334444445...",
+		".4445555544455..",
+		".4445555555555..",
+		"...2334444445...",
+		".....22344333.5.",
+		".......2333.545.",
+		"........2..3..5.",
+		"..........343...",
+		"...........3....",
 		"................",
 	]],
 	"nova_gelee": ["glace", [
