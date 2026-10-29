@@ -459,6 +459,12 @@ def _cadrage(spec, t, longueur):
     pondérée par _poids_cadrage."""
     lacet, tangage, roul = spec.get("cadrage", (0.0, 0.0, 0.0))
     a = _poids_cadrage(spec, t, longueur)
+    if "balayage" in spec:
+        # « balayage » (lacet début°, lacet fin°, t0, t1) : le bras tourne autour de l'épaule (+ = vers la gauche)
+        # pendant [t0, t1] : la capture garde sa forme, la main traverse l'écran (revers horizontal)
+        l0, l1, b0, b1 = spec["balayage"]
+        u = max(0.0, min(1.0, (t - b0) / (b1 - b0)))
+        lacet += l0 + (l1 - l0) * u * u * (3 - 2 * u)
     return (Matrix.Rotation(math.radians(lacet * a), 3, "Y") @ Matrix.Rotation(math.radians(tangage * a), 3, "X")
             @ Matrix.Rotation(math.radians(roul * a), 3, "Z"))
 
@@ -518,6 +524,14 @@ def creer_action_mixamo(nom, spec):
     echelle = spec.get("echelle_epaule", 1.0)
     t_in, t_out = spec.get("fondu", (0.0, longueur))
     rapport = []
+    # amplitude (FPS) : les directions du bras et le repère de la main sont ramenés vers ceux de l'image « centre »
+    # (impact) d'un facteur « amplitude » < 1 : l'arc reste dans le champ sans changer sa forme ni son sens
+    alpha = spec.get("amplitude", 1.0)
+    imc = _mx_image(src, spec.get("centre", table[0][0]))
+    c_ua = (imc["p_coude"] - imc["p_epaule"]).normalized()
+    c_la = (imc["p_poignet"] - imc["p_coude"]).normalized()
+    c_F = _repere_main(imc["p_poignet"], imc["p_index"], imc["p_auriculaire"]).to_quaternion()
+    serre = lambda c, d: Quaternion().slerp(c.rotation_difference(d), alpha) @ c
     for i in range(n + 1):
         t = i / 60
         for (f0, t0), (f1, t1) in zip(table, table[1:]):
@@ -544,14 +558,23 @@ def creer_action_mixamo(nom, spec):
         cl.matrix = Matrix.Translation(B3 @ (dep * w)) @ cl.matrix
         maj()
         S = CAM_DE_B @ ua.head
-        d_ua = Q @ (im["p_coude"] - im["p_epaule"]).normalized()
-        d_la = Q @ (im["p_poignet"] - im["p_coude"]).normalized()
+        d_ua = Q @ serre(c_ua, (im["p_coude"] - im["p_epaule"]).normalized())
+        d_la = Q @ serre(c_la, (im["p_poignet"] - im["p_coude"]).normalized())
         E = S + d_ua * l1
         W = E + d_la * l2
         # fondu des cibles avec la garde (positions relatives à l'épaule, repère de la main en slerp)
         E = S + (E0 - S0).lerp(E - S, w)
         W = S + (W0 - S0).lerp(W - S, w)
-        Fm = F0.slerp((Q @ _repere_main(im["p_poignet"], im["p_index"], im["p_auriculaire"])).to_quaternion(), w).to_matrix()
+        Fi = _repere_main(im["p_poignet"], im["p_index"], im["p_auriculaire"]).to_quaternion()
+        if c_F.dot(Fi) < 0:
+            Fi = -Fi
+        Fi = c_F.slerp(Fi, alpha)
+        # « main » : (lacet°, tangage°, roulis°) en plus sur la main seule (repère caméra), même cloche que le cadrage :
+        # pointe la lame vers l'avant pour qu'elle balaie la cible au lieu de rester dressée
+        lm, tm, rm = (x * _poids_cadrage(spec, t, longueur) for x in spec.get("main", (0.0, 0.0, 0.0)))
+        Rm = (Matrix.Rotation(math.radians(lm), 3, "Y") @ Matrix.Rotation(math.radians(tm), 3, "X")
+              @ Matrix.Rotation(math.radians(rm), 3, "Z"))
+        Fm = F0.slerp((Rm @ Q @ Fi.to_matrix()).to_quaternion(), w).to_matrix()
         coude, d2, Rl0, allonge = _bras_deux_os("r", B_DE_CAM @ W, (E - (S + W) * 0.5).normalized())
         Hd = B3 @ Fm @ G.inverted() @ Matrix.Rotation(math.radians(ROULIS_PRISE_MX), 3, PRISE_D.to_3x3().col[1].normalized())
         c, k, f, r, Hr = _resoudre_main(Rl0, Hd, prec_k)
@@ -833,6 +856,8 @@ def mesurer_clips(actions):
             e = lambda v: "(%5.2f,%5.2f)" % (v.x / -v.z / th, v.y / -v.z / tv) if v.z < -0.01 else "(derriere)"
             coude = CAM_DE_B @ A.pose.bones["lowerarm_r"].head
             print("MESURER %-14s #%02d t=%.3f garde %s pointe %s cadre %3d%% plat %3d%% visee %2d coude %s" % (nom, i, t, e(g), e(p), round(100 * vus / 25), round(100 * part), round(visee), e(coude)))
+            m6 = g.lerp(p, 0.6)
+            print("MESFIL %s %.4f %.5f %.5f %.5f %.5f %.5f %.5f %d" % (nom, t, m6.x, m6.y, m6.z, z.x, z.y, z.z, round(100 * vus / 25)))
 
 
 def angles_poignet():

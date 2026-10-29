@@ -308,19 +308,22 @@ CLIPS = {
 # frappe garde à peu près la vitesse réelle de la capture, l'armé est accéléré) ; image None = la garde de référence
 # (fondu en S). cadrage = (lacet, tangage, roulis)° autour de l'épaule, en cloche sur « plein ».
 CLIPS_MIXAMO = {
-    # 1 : diagonale haut-droite -> bas-gauche (« Sword And Shield Slash (1) » : armé haut derrière l'épaule droite,
-    # frappe images 17 -> 21, suivi bas à gauche)
-    "coup_a": dict(source="slash_1", ref=0, temps=[(8, 0.0), (15, 0.13), (17.5, 0.16), (21, 0.26), (24, 0.33), (28, 0.44), (32, 0.54)], fondu=(0.12, 0.28),
-                   cadrage=(15, 45, 0), decalage=(0.0, 0.06, -0.15), plein=(0.12, 0.36)),
+    # 1 : diagonale haut-droite -> bas-gauche (« Sword And Shield Slash (1) », images 17 -> 23 : l'armé derrière la tête
+    # (images 8-16, hors champ en vue FPS) est sauté, le fondu monte directement de la garde à l'armé ; amplitude 0,6 :
+    # tout l'arc reste dans le champ)
+    "coup_a": dict(source="slash_1", ref=0, temps=[(17, 0.0), (17, 0.10), (17.5, 0.16), (21, 0.26), (22.5, 0.33), (23, 0.44), (23, 0.54)], fondu=(0.12, 0.28),
+                   cadrage=(15, 35, 0), decalage=(0.0, 0.06, -0.15), plein=(0.12, 0.36), amplitude=0.6, centre=19, main=(-20,0,0)),
     # 2 : gauche -> droite (« Sword And Shield Slash (2) », début : la lame monte à gauche puis balaie vers le bas à droite,
-    # images 12 -> 19 ; la suite du fichier, une vrille sautée, n'est pas utilisée : retour en garde par fondu)
+    # images 12 -> 19 ; la suite du fichier, une vrille sautée, n'est pas utilisée : retour en garde par fondu) ; roulis 65
+    # + balayage (le bras tourne de 50° à gauche vers 0 autour de l'épaule) = trajet horizontal, lame inclinée vers
+    # l'avant (main) pour que le tranchant mène
     "coup_b": dict(source="slash_2", ref=0, temps=[(4, 0.0), (10, 0.10), (12, 0.13), (19, 0.23), (20, 0.30), (20, 0.50)], fondu=(0.09, 0.24),
-                   cadrage=(0, 30, 35), decalage=(0.0, 0.06, -0.15), plein=(0.09, 0.32)),
+                   cadrage=(0,25,65), decalage=(0.0, 0.06, -0.15), plein=(0.09, 0.32), amplitude=0.6, centre=15, balayage=(50,0,0.12,0.25), main=(0,-20,0)),
     # lourd à l'arrêt : grand coup droite -> gauche (« Sword And Shield Slash » : armé derrière l'épaule, images 16 -> 21)
     "charge_lourd": dict(source="slash_0", ref=0, temps=[(6, 0.0), (14, 0.30), (16, 0.60)], fondu=(0.30, 0.60),
-                          cadrage=(15, 30, 0), decalage=(0.0, 0.06, -0.15), plein=(0.30, 0.60)),
-    "lourd": dict(source="slash_0", ref=0, temps=[(16, 0.0), (16.5, 0.10), (21, 0.25), (25, 0.42), (30, 0.70), (33, 0.96)], fondu=(0.0, 0.30),
-                  cadrage=(15, 30, 0), decalage=(0.0, 0.06, -0.15), plein=(0.0, 0.45)),
+                          cadrage=(15, 30, 0), decalage=(0.0, 0.06, -0.15), plein=(0.30, 0.60), amplitude=0.6, centre=19),
+    "lourd": dict(source="slash_0", ref=0, temps=[(16,0.0),(16.5,0.10),(21,0.25),(23,0.42),(24,0.70),(24,0.96)], fondu=(0.0, 0.30),
+                  cadrage=(15, 30, 0), decalage=(0.0, 0.06, -0.15), plein=(0.0, 0.45), amplitude=0.6, centre=19, main=(0,0,0)),
 }
 
 # instants (s, vitesse 1) : arme = fin de l'armé, frappe = début de la phase active (la lame blesse), fin_frappe,
