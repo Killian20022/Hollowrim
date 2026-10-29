@@ -1,11 +1,12 @@
 // Voile « carbonisé » (Demembrement.carboniser, mort par le feu) posé en material_overlay sur les maillages du corps :
-// multiplie la couleur (blend_mul) vers le charbon, par taches de BRUIT (texels d'écran, jamais de tramage Bayer) qui gagnent
+// recouvre la couleur de charbon (transparence : rien là où ce n'est pas brûlé), par taches de BRUIT (texels d'écran, jamais de tramage Bayer) qui gagnent
 // tout le corps quand `carbonise` monte à 1. Même accroche des sommets que le corps (grille), léger décalage vers la caméra.
 shader_type spatial;
-render_mode unshaded, blend_mul, depth_draw_never, cull_back;
+render_mode unshaded, blend_mix, depth_draw_never, cull_back;
 
 uniform float grille = 135.0;
-instance uniform float carbonise = 0.0;
+// index fixe : sans lui, Godot lui donne l'index 0, déjà pris par `eclair` / `c_peau` des shaders du corps (même instance) → corps blanc
+instance uniform float carbonise : instance_index(9) = 0.0;
 
 
 float hash(vec3 p) {
@@ -25,9 +26,11 @@ void vertex() {
 }
 
 void fragment() {
+	// valeurs LINÉAIRES (unshaded) : 0,03 ≈ 0,19 sRGB — charbon
 	// taches : bruit par cellule d'UV (stable quand le corps bouge) ; la carbonisation les allume une à une
 	float n = hash(vec3(floor(UV * 40.0), 3.0));
 	float noir = step(n, carbonise * 1.15);
-	vec3 charbon = mix(vec3(0.16, 0.13, 0.12), vec3(0.09, 0.075, 0.07), step(0.5, hash(vec3(floor(UV * 96.0), 7.0))));
-	ALBEDO = mix(vec3(1.0), charbon, noir * clamp(carbonise * 1.4, 0.0, 1.0));
+	vec3 charbon = mix(vec3(0.030, 0.024, 0.021), vec3(0.012, 0.010, 0.009), step(0.5, hash(vec3(floor(UV * 96.0), 7.0))));
+	ALBEDO = charbon;
+	ALPHA = noir * clamp(carbonise * 1.4, 0.0, 1.0) * 0.94;
 }

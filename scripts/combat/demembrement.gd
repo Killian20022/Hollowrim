@@ -448,7 +448,7 @@ static func mat_boyaux(matiere_chair: String) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = preload("res://shaders/ps1_gore.gdshader")
 	# draugr : chair desséchée telle que peinte ; vivant (bandit) : plus rouge et plus mouillé
-	m.set_shader_parameter("teinte", Color(1, 1, 1) if matiere_chair == "draugr" else Color(1.25, 0.72, 0.68))
+	m.set_shader_parameter("teinte", Color(1.45, 1.25, 1.2) if matiere_chair == "draugr" else Color(1.8, 1.0, 0.95))
 	m.set_shader_parameter("mouille", 0.45 if matiere_chair == "draugr" else 0.8)
 	_mat_boyaux[matiere_chair] = m
 	return m
@@ -460,7 +460,7 @@ static func boyaux(modele: Node3D, accroche: Node3D, t_moignon: Transform3D, ori
 	if b.is_empty():
 		return
 	var m := mat_boyaux(matiere_chair)
-	var k := r_coupe / 0.15
+	var k := r_coupe / 0.15 * 1.5   # lisibles à 3 m (à 1×, perdus sous le corps)
 	var pend := MeshInstance3D.new()
 	pend.name = "BoyauxPendants"
 	pend.mesh = b.get("BoyauxPendants")
@@ -579,12 +579,12 @@ static func _poser_voile(modele: Node3D, mailles: Array, essais: int) -> void:
 				if is_instance_valid(mi) and mi.material_overlay == _mat_carbonise:
 					mi.set_instance_shader_parameter("carbonise", 1.0))
 
-## Allègement des gerbes tout près de la caméra (elles masquaient le corps) : 0,4 à moins de 1,8 m, 1 au-delà de 4 m.
+## Allègement des gerbes près de la caméra (elles masquaient le corps) : 0,35 à moins de 2 m, 1 au-delà de 6 m.
 static func attenuation_camera(n: Node, point: Vector3) -> float:
 	var cam := n.get_viewport().get_camera_3d() if n != null and n.is_inside_tree() else null
 	if cam == null:
 		return 1.0
-	return clampf(remap(cam.global_position.distance_to(point), 1.8, 4.0, 0.4, 1.0), 0.4, 1.0)
+	return clampf(remap(cam.global_position.distance_to(point), 2.0, 6.0, 0.35, 1.0), 0.35, 1.0)
 
 static func _sous_arbre(sq: Skeleton3D, os: int, garde: int, dans: Dictionary) -> void:
 	if os == garde:

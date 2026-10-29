@@ -10,6 +10,21 @@ extends SceneTree
 const SCENE := preload("res://scenes/test_combat.tscn")
 const DRAUGR := preload("res://scripts/draugr.gd")
 const GROTTE := preload("res://scripts/grotte_jeu.gd")
+const TROLL := preload("res://scripts/troll_givre_ia.gd")
+## Étape 2 (--etape2) : cas = [gabarit, membre imposé, coup ("epee" / "puissant" / "feu" / "glace"), hauteur, sens de la lame].
+const CAS2 := {
+	"boyaux_guerrier": ["guerrier", "moitie", "puissant", 0.52, Vector3(1, -0.1, 0)],
+	"boyaux_bandit": ["bandit", "moitie", "puissant", 0.52, Vector3(1, -0.1, 0)],
+	"squelette_bras": ["squelette", "bras_r", "epee", 0.68, Vector3(-1, -0.8, 0)],
+	"squelette_tete": ["squelette", "tete", "epee", 0.86, Vector3(1, -0.05, 0)],
+	"troll_tete": ["troll", "tete", "epee", 0.86, Vector3(1, -0.05, 0)],
+	"troll_bras": ["troll", "bras_l", "epee", 0.7, Vector3(1, -0.8, 0)],
+	"feu_bandit": ["bandit", "avantbras_r", "feu", 0.6, Vector3(1, 0, 0)],
+	"feu_guerrier": ["guerrier", "bras_l", "feu", 0.6, Vector3(1, 0, 0)],
+	"glace_guerrier": ["guerrier", "jambe_l", "glace", 0.6, Vector3(1, 0, 0)],
+	"glace_bandit": ["bandit", "bras_r", "glace", 0.6, Vector3(1, 0, 0)],
+}
+const INSTANTS2 := [0.0, 0.1, 0.25, 0.5, 0.9, 1.4, 2.2, 3.5]
 const INSTANTS := [0.0, 0.08, 0.2, 0.4, 0.7, 1.1, 1.7, 2.5]
 ## Coup par membre : hauteur relative du point, sens de la lame (repère : +X = droite du joueur), attaque.
 const COUPS := {
@@ -83,6 +98,59 @@ func _ennemi(genre: String, pos: Vector3, lacet: float) -> CharacterBody3D:
 	d.combat.profil.chance_blocage = 0.0
 	d.set_physics_process(false)
 	return d
+
+func _cas2(cle: String) -> void:
+	var c: Array = CAS2[cle]
+	_x += 2.6 if c[0] != "troll" else 4.0
+	var pos := Vector3(_x, 0.0, -1.9 if c[0] != "troll" else -3.0)
+	s.placer_joueur(Vector3(_x, 0, 0), 0.0)
+	var d: CharacterBody3D
+	if c[0] == "troll":
+		d = CharacterBody3D.new()
+		d.set_script(TROLL)
+		d.joueur = s.joueur
+		d.hud = s.hud
+		d.ident = "capt_troll_%d" % _n
+		d.position = pos
+		d.rotation.y = PI
+		s.add_child(d)
+		await _attendre(0.6)
+		d.set_physics_process(false)
+	else:
+		d = _ennemi(c[0], pos, 0.0)
+		d.set_physics_process(true)
+		await _attendre(0.5)
+		d.set_physics_process(false)
+	Demembrement.membre_force = c[1]
+	Demembrement.chance_forcee = 1.0
+	var membre: String = c[1]
+	if membre == "moitie":
+		_temoin(d.global_position, 1.9, 2.3, 1.0)   # plongée : boyaux et tas au sol lisibles
+	else:
+		_temoin(d.global_position, 1.0 if c[0] != "troll" else 1.6, 2.1 * (1.7 if c[0] == "troll" else 1.0), -1.0 if membre.ends_with("_l") else 1.0)
+	var images: Array = []
+	if not film:
+		images.append(await _image())
+	d.vie = 1.0
+	var coup: String = c[2]
+	if coup in ["feu", "glace"]:
+		d.recevoir_coup(40.0, s.joueur.global_position, false, {"type": coup, "ecole": coup, "attaque": "sort", "point": d.global_position + Vector3(0, 1.2, 0.25), "direction": Vector3(0, 0, -1)})
+	else:
+		d.recevoir_coup(60.0, s.joueur.global_position, coup == "puissant", _info(d, c[3], c[4], "chargee_max" if coup == "puissant" else "legere"))
+	var t := 0.0
+	for ti: float in INSTANTS2:
+		await _attendre(ti - t)
+		t = ti
+		if not film:
+			images.append(await _image())
+	s.joueur.visible = true
+	s.joueur.camera.current = true
+	await _attendre(0.05 if not film else 0.8)
+	if not film:
+		images.append(await _image())
+	_planche(cle, images, int(_arg("colonnes", "5")))
+	Demembrement.membre_force = ""
+	Demembrement.chance_forcee = -1.0
 
 func _info(d: Node3D, rel: float, dir_ecran: Vector3, attaque: String) -> Dictionary:
 	var vers: Vector3 = s.joueur.global_position - d.global_position
@@ -210,6 +278,13 @@ func _go() -> void:
 	Sang.niveau_force = 2
 	for i in 40:
 		await process_frame
+	if _arg("etape2") != "":
+		var liste := _arg("cas", ",".join(CAS2.keys())).split(",")
+		for cle in liste:
+			await _cas2(cle)
+		print("CAPTURES DEMEMBREMENT : fini")
+		quit()
+		return
 	var membres := _arg("membres", "tete,bras_l,avantbras_r,jambe_r,mollet_l,moitie").split(",")
 	var genres := _arg("genres", "guerrier,bandit").split(",")
 	for g in genres:

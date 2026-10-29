@@ -233,6 +233,26 @@ de givre (sans chute, se brise sur le décor). Scène : `scenes/test_troll_mage.
 - plafonds : 6 morceaux, 6 jets, 48 traces (`Sang.MAX_TRACES`, disparition lente : la trace se résorbe en 6 s) ;
 - réglages de test : `Demembrement.chance_forcee`, `membre_force`, `duree` ; `outils/test_demembrement.gd`, planches et film :
   `outils/captures_demembrement.gd`.
-Gerbes allégées tout près de la caméra (`Demembrement.attenuation_camera` : × 0,4 à moins de 1,8 m) à la coupe et à la mort.
+Gerbes allégées tout près de la caméra (`Demembrement.attenuation_camera` : × 0,35 à moins de 2 m, plein effet au-delà de 6 m) à la coupe et à la mort.
 Plaies (entailles) : décal plus fin (taille × 0,5 en hauteur, 26 cm de profondeur au lieu de 50), lèvres en couleur de palette
 (`Plaies.couleur_levres`), texture « entaille » redessinée (fente noire, lèvres d'un texel, coulures).
+
+### Étape 2 (squelettes, troll, boyaux, sorts, sons — 2026-10-29)
+- profils démembrables : draugr*, bandit, squelette, troll* (`Demembrement.profil_demembrable`) ; matière (`matiere_de`) :
+  `os` (squelette), `draugr`, `chair` ;
+- **squelettes** : le membre part en morceau (pas de sang, pas de jet, éclats `os` + son `os_brise`) avant l'éclatement des os ;
+- **troll** : tête et bras seulement (`membres_autorises` : ni jambe, ni coupe en deux) ; morceaux et rayon de coupe × 2
+  (`meta gore_echelle`) ;
+- **boyaux** (coupe en deux) : `assets/modeles/gore/boyaux.glb` (Blender procédural, `sources_blender/scripts/boyaux_draugr.py`,
+  1 488 triangles, couleurs de sommet) : `BoyauxPendants` accrochés au moignon (tenus vers le bas), `BoyauxTas` au sol ; teinte
+  draugr brun-rose, bandit rouge ;
+- **sorts** (`effet_sort` / `appliquer_sort`, jamais après un finisher, une décapitation ou une coupe) :
+  - feu : corps carbonisé par taches (`shaders/carbonise.gdshader` en `material_overlay`, 0 → 1 en 1,6 s, braises) ; 40 % : un
+    membre part en cendres (poussière + braises, pas de morceau) ;
+  - glace : 60 % : un membre gelé éclate (gerbe `givre`, son `glace_eclate`, pas de morceau) ;
+  - piège : l'`instance uniform carbonise` a un index fixe (`instance_index(9)`) ; sans lui il prend l'index 0 = `eclair` /
+    `c_peau` des shaders du corps et le corps flashe en blanc ;
+- **sons** (`RetourImpact.BANQUE`, `assets/sons/combat/gore/`, CC0, voir `assets/LICENCES.md`, régénération
+  `outils/sons_gore/generer.sh`) : `membre_tranche`, `giclee`, `chute_membre` (au premier contact du morceau), `os_brise`,
+  `glace_eclate`, `carbonise`, `boyaux` ;
+- planches / film : `outils/captures_demembrement.gd -- --nouvelle --etape2 [--cas=a,b] [--film]`.
