@@ -214,5 +214,21 @@ func _tester() -> void:
 		_verif(String(gcs.ident).begins_with(String(gr.def.get("id", "grotte")) + ":"), "état de la grotte sous son préfixe (%s)" % gcs.ident)
 		gcs.frapper(false, gcs.global_position + Vector3(1, 1, 0))
 		_verif(gcs.casse and ButinTables.est_pille(gcs.ident), "objet de la grotte brisé et noté pillé")
+	# --- caisses : cassables comme urnes et tonneaux, bloquent le passage (calque 1) tant qu'elles sont intactes
+	var caisses: Array = []
+	for g in [gr, ga.obtenir_entree() if ga.has_method("obtenir_entree") else null]:
+		if g != null:
+			for c: Cassable in (g as Node).find_children("*", "Cassable", true, false):
+				if c.genre == "caisse" and not c.casse:
+					caisses.append(c)
+	print("grotte : %d caisses cassables" % caisses.size())
+	_verif(caisses.size() > 0, "la grotte contient des caisses cassables")
+	if caisses.size() > 0:
+		var cs: Cassable = caisses[0]
+		_verif((cs.collision_layer & 1) != 0 and (cs.collision_layer & Cassable.CALQUE) != 0, "caisse intacte : bloque le passage et se frappe")
+		var tr := ButinTables.contenu(ButinTables.tirer_pour(cs.ident, ButinTables.table_pour("caisse", cs.ident.get_slice(":", 0)), cs.ident.get_slice(":", 0)))
+		_verif(ButinTables.contenu(ButinTables.tirer_pour(cs.ident, ButinTables.table_pour("caisse", cs.ident.get_slice(":", 0)), cs.ident.get_slice(":", 0))) == tr, "butin de la caisse à graine fixe")
+		cs.frapper(true, cs.global_position + Vector3(1, 1, 0))
+		_verif(cs.casse and cs.collision_layer == 0 and ButinTables.est_pille(cs.ident), "caisse brisée : libre, notée pillée")
 	print("ECHECS : %d" % _echecs)
 	quit(1 if _echecs > 0 else 0)
