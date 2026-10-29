@@ -356,3 +356,27 @@ Retour utilisateur : « le sort électrique continu aussi qualitatif que les fla
 - Limites : en double sur la neige, le faisceau reste très clair (l'additif domine) ; dans la scène de test (mannequins à
   1,75 m) un grand dôme de points apparaît autour du mannequin avec TOUT jet (feu compris) : particules classiques
   d'ImpactCorps, propre aux mannequins (absent sur les draugrs de la galerie), non traité.
+
+## Finitions (branche magie/finitions_soir, 2026-10-29)
+
+Cinq retours utilisateur sur les sorts de la couche fine ; planches avant/après dans
+`Desktop/Skyrim captures/finitions_magie/` (outil `outils/captures_finitions_magie.gd`, voir son en-tête).
+- **Jet de flammes au déclenchement** : la vague est préchauffée (`VAGUE_AMORCE` = 0,45 s, `GPUParticles3D.preprocess`) :
+  le jet est plein dès sa première image (avant : ~0,2 s de trou, les bouffées sortaient de la paume). Au plan d'arrêt
+  (`magie_vague_process`) les bouffées sont freinées (exp(-5 dt)) et arrondies au lieu de s'écraser en « pétales ».
+- **Dôme de points autour du mannequin** (le « non traité » de la section précédente) : deux causes. 1) `boite()` comptait
+  le Label3D des dégâts, la boîte de la cible faisait plusieurs mètres → gerbe géante (corrigé : les Label3D sont ignorés).
+  2) L'enveloppe procédurale (`_aura_fine`, méta `gerbe_fine`) a un grain en pixels de la couche : près de l'œil elle
+  devient un rideau de points fins ; sous ~3,5 m de la caméra elle rétrécit (jusqu'à ×0,35) et s'atténue (jusqu'à ×0,55).
+  Les draugrs (ImpactCorps) n'avaient pas le défaut.
+- **Éclat de glace** : `CRISTAL_OEIL` + `pres_oeil` dans `_cristal_echelle` : le cristal est réduit près de la main. Le
+  correctif du triangle bleu est conservé.
+- **Arc électrique** : traits blancs droits supprimés. Avec le faisceau, plus d'`elec_etincelles` au léchage, plus de
+  `elec_gerbe` sur la cible, et en couche fine le statut « choc » ne garde que les arcs ramifiés (`_gen_choc`) et le voile.
+  Les étincelles de la décharge (genre 2) prennent les formes fourchues de l'atlas au lieu de `trace_03`, avec une largeur
+  proportionnelle. De jour (`_jour()` : énergie et blancheur de la DirectionalLight3D), la rampe du faisceau est décalée et
+  le cœur passe de ×1 à ×0,7 : il est teinté au lieu d'être blanc sur la neige. La nuit, rien ne change.
+- **Chaîne d'éclairs** : `foudre_ramifiee` écarte les ramifications perpendiculairement au lien, en alternant les côtés
+  (angle + π ± 0,6 rad) : les branches ne penchent plus toutes du même côté.
+- Limites : à 1,75 m, le jet garde un peu de forme en lobes au contact ; sur le mannequin, les points carrés des dégâts
+  (`GerbesPixels`) ne sont pas de la magie et restent.
