@@ -8,7 +8,7 @@ extends SceneTree
 ##      branche sans tenue « runes » ni os de torsion (colonne « avant »).
 ##   2) planche : godot --headless --path . --script res://outils/captures_avant_bras_v2.gd -- --sortie=<dossier> \
 ##        --planche=<nom> --colonnes=<pref>_jeu:<titre>,<pref>_jeu:<titre> --instants=a,b,c
-##      → <dossier>/<nom>.png : une ligne par instant, une colonne par source, image ×2 (plus proche voisin) ; le titre
+##      → <dossier>/<nom>.png : une ligne par instant, une colonne par source, images à la taille de la fenêtre ; le titre
 ##      (--titre=… à l'étape 1) et l'instant sont écrits en haut à gauche de chaque image.
 
 const SCENE := preload("res://scenes/test_magie.tscn")
@@ -53,8 +53,7 @@ func _image() -> Image:
 	await RenderingServer.frame_post_draw
 	var im := root.get_viewport().get_texture().get_image()
 	im.convert(Image.FORMAT_RGBA8)
-	im.resize(W, H, Image.INTERPOLATE_NEAREST)
-	return im
+	return im   # taille de la fenêtre (rendu 480×270 déjà agrandi par le jeu) : pas de ré-échantillonnage
 
 
 func _monter() -> void:
@@ -187,21 +186,26 @@ func _instant(nom: String, prefixe: String, gros: bool) -> void:
 
 
 func _planche(nom: String, colonnes: Array, instants: Array) -> void:
-	var titre_h := 0
-	var p := Image.create(W * 2 * colonnes.size(), titre_h + H * 2 * instants.size(), false, Image.FORMAT_RGBA8)
-	p.fill(Color(0.08, 0.08, 0.09))
+	var lw := 0
+	var lh := 0
+	var ims := {}
 	for r in instants.size():
 		for k in colonnes.size():
-			var spec: String = colonnes[k]
-			var suff := spec.get_slice(":", 0)    # ex. avant_jeu → avant_<instant>_jeu.png
+			var suff: String = String(colonnes[k]).get_slice(":", 0)    # ex. avant_jeu → avant_<instant>_jeu.png
 			var f := sortie.path_join("%s_%s_%s.png" % [suff.get_slice("_", 0), instants[r], suff.get_slice("_", 1)])
 			var im := Image.load_from_file(f)
 			if im == null:
 				print("MANQUE ", f)
 				continue
 			im.convert(Image.FORMAT_RGBA8)
-			im.resize(W * 2, H * 2, Image.INTERPOLATE_NEAREST)
-			p.blit_rect(im, Rect2i(0, 0, W * 2, H * 2), Vector2i(k * W * 2, titre_h + r * H * 2))
+			ims[Vector2i(k, r)] = im
+			lw = maxi(lw, im.get_width())
+			lh = maxi(lh, im.get_height())
+	var p := Image.create(lw * colonnes.size() + 4 * (colonnes.size() - 1), lh * instants.size() + 4 * (instants.size() - 1), false, Image.FORMAT_RGBA8)
+	p.fill(Color(0.05, 0.05, 0.06))
+	for c: Vector2i in ims:
+		var im: Image = ims[c]
+		p.blit_rect(im, Rect2i(0, 0, im.get_width(), im.get_height()), Vector2i(c.x * (lw + 4), c.y * (lh + 4)))
 	var f := sortie.path_join(nom + ".png")
 	p.save_png(f)
 	print("PLANCHE ", f)
