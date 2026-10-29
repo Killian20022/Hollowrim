@@ -49,6 +49,30 @@ var _infl_d_lin := 0.0
 const FONDU_IK_D := 0.3
 var _aura := {"gauche": 0.0, "droite": 0.0}
 var _ecole_aura := {"gauche": "", "droite": ""}
+var _runes := {"gauche": null, "droite": null}
+## Flammes de l'aura de feu en tenue « runes » (fraction de leur taille) : la boule tenue reste lisible.
+const ECHELLE_FLAMMES_TENUE := 0.6
+## Tenue « runes » : l'énergie flotte au creux de la main, plus loin de la paume (m, le long de sa normale), entre le
+## pouce et les doigts courbés autour d'elle ; fondu `_paume_k` (0..1) pour que lancer reparte de la paume, sans saut.
+const ECART_TENUE := 0.058
+var _paume_base := {"gauche": Vector3.ZERO, "droite": Vector3.ZERO}
+var _paume_n := {"gauche": Vector3.ZERO, "droite": Vector3.ZERO}
+var _paume_d := {"gauche": Vector3.ZERO, "droite": Vector3.ZERO}
+## … et un peu vers le bout des doigts (m) : la boule passe AU-DESSUS du pouce, sous l'index courbé (références).
+const MONTEE_TENUE := 0.055
+var _paume_k := {"gauche": 0.0, "droite": 0.0}
+## Tenue « runes » : mains gantées plus grandes (échelle de l'os hand_*, doigts compris), comme les grosses mains en
+## coupe de bras_feu_1100.jpg ; fondue avec `_paume_k`, rendue à 1 dès que la main quitte la tenue (épée, torche…).
+const ECHELLE_MAIN_TENUE := 1.25
+var _os_main := {"gauche": -1, "droite": -1}
+## Tenue « runes » : épaule déplacée (repère CAMÉRA, m, main gauche ; miroir en X à droite) avant l'IK, pour que
+## l'avant-bras traverse le coin bas de l'écran (EpauleTenue, scripts/magie/epaule_tenue.gd). Fondu `_epaule_k`.
+const EPAULE_TENUE := Vector3(-0.15, 0.0, 0.08)
+## … et pôle du coude (repère caméra) : coude bas et en dehors, à peu près à la profondeur du poignet.
+const COUDE_TENUE := Vector3(-0.9, -0.45, -0.3)
+var _epaule_k := {"gauche": 0.0, "droite": 0.0}
+var _epaules: SkeletonModifier3D
+var _echelle_main := {"gauche": 1.0, "droite": 1.0}
 var _arme_enchantee: Node3D
 ## Gestes des bras capturés (Mixamo) : lancer, charge, jet tenu, double incantation, zone (gestes_magie.gd).
 var gestes := GestesMagie.new()
@@ -401,7 +425,9 @@ func _avancer_main(m: String, dt: float, deux_canal: bool) -> void:
 		i.double = false
 
 func _intensite(i: Incantation, s: DonneesSort) -> float:
-	var k := 0.35
+	# repos : l'énergie reste bien visible dans la main (flammes orange, givre, arcs, volutes : références
+	# Jeux/references/avant_bras_magie), sans atteindre l'éclat de la charge
+	var k := 0.6
 	match i.etat:
 		Incantation.INCANTE:
 			k = 0.35 + 0.4 * clampf(i.t / maxf(s.incantation, 0.01), 0.0, 1.0)
@@ -414,11 +440,50 @@ func _intensite(i: Incantation, s: DonneesSort) -> float:
 	return k * (1.5 if i.double else 1.0)
 
 func _aura_vers(m: String, ecole: String, k: float, _dt: float) -> void:
+	_runes_vers(m, ecole, k)
 	if ecole != _ecole_aura[m] or absf(k - _aura[m]) > 0.02:
 		_aura[m] = k
 		_ecole_aura[m] = ecole
 		if paume[m] != null:
 			EffetsMagie.aura_main(paume[m], ecole, k)
+
+## Runes en orbite autour de l'énergie tenue (RunesOrbite) : une orbite par main qui tient un sort de feu, glace,
+## électricité ou ténèbres, de son éclat à la charge.
+func _runes_vers(m: String, ecole: String, k: float) -> void:
+	var r = _runes[m]
+	if r != null and not is_instance_valid(r):
+		r = null
+	var voulu := ecole != "" and k > 0.001 and paume[m] != null and RunesOrbite.ECOLES.has(ecole) and not EffetsMagie.muet
+	if r != null and (not voulu or r.ecole != ecole):
+		r.queue_free()
+		r = null
+		_runes[m] = null
+	if not voulu:
+		return
+	if r == null:
+		r = RunesOrbite.new()
+		r.name = "Runes_" + m
+		r.ecole = ecole
+		r.suivi = paume[m]
+		r.cote = 1.0 if m == "gauche" else -1.0
+		mains.add_child(r)
+		_runes[m] = r
+	var i: Incantation = inc[m]
+	r.intensite = k
+	r.charge = i.charge if i.etat == Incantation.CHARGE else 0.0
+	# tenue « runes » : les flammes de l'aura serrées autour de la boule tenue (cœur de l'aura de feu). La boule et
+	# `echelles_aura` vivent dans gestion_magie.gd (branche fps/avant_bras_runes, pas encore portés) : sans elles, rien.
+	var g = GestionMagie.obtenir()
+	if g != null and "echelles_aura" in g:
+		var id: int = (paume[m] as Node).get_instance_id()
+		if _tenue_runes(m):
+			g.echelles_aura[id] = ECHELLE_FLAMMES_TENUE if ecole == "feu" else 1.0
+		else:
+			g.echelles_aura.erase(id)
+
+## Tenue « runes » des avant-bras : sort au repos et l'autre main sans arme (sort ou vide).
+func _tenue_runes(m: String) -> bool:
+	return inc[m].etat == Incantation.REPOS and eq.categorie(eq.autre(m)) in ["sort", "vide"]
 
 ## Œil et direction de visée (caméra du joueur).
 func _vue() -> Array:
@@ -599,10 +664,19 @@ func _preparer_os() -> void:
 		accroche.add_child(p)
 		p.position = (r01.origin * 0.55 + sq.get_bone_rest(ii).origin * 0.15 + sq.get_bone_rest(ip).origin * 0.15) + n * 0.035
 		paume[m] = p
+		_os_main[m] = sq.find_bone("hand_" + c)
+		_paume_base[m] = p.position
+		_paume_n[m] = n
+		_paume_d[m] = d
 	for i in sq.get_bone_count():
 		var nom := sq.get_bone_name(i)
 		if nom.begins_with("thumb") or nom.begins_with("index") or nom.begins_with("middle") or nom.begins_with("ring") or nom.begins_with("pinky"):
 			_doigts_repos[i] = sq.get_bone_rest(i).basis.get_rotation_quaternion()
+	_epaules = SkeletonModifier3D.new()
+	_epaules.set_script(preload("res://scripts/magie/epaule_tenue.gd"))
+	_epaules.name = "EpaulesTenue"
+	sq.add_child(_epaules)
+	sq.move_child(_epaules, 0)   # avant l'IK des bras
 	for o in sq.get_children():
 		if o is SkeletonModifier3D and o.get_script() == ORIENTATION:
 			_orient["gauche" if String(o.get("os")) == "hand_l" else "droite"] = o
@@ -619,7 +693,16 @@ func _pose_voulue(m: String, dt := 0.0) -> Dictionary:
 	# geste capturé (Mixamo) s'il y en a un pour ce sort et cet état, sinon pose fixe
 	var p := gestes.pose(m, i, s, dt)
 	var capture := not p.is_empty()
-	if not capture:
+	if not capture and _tenue_runes(m):
+		# au repos sans arme dans l'autre main (et geste fini) : tenue « runes » des avant-bras (mains vers le centre,
+		# énergie tenue en griffe), vivante : respiration (le poignet monte et descend), doigts qui jouent un peu,
+		# chaque main à son rythme
+		p = PosesIncantation.pose("repos_runes", m).duplicate()
+		var ph := 0.0 if m == "gauche" else 1.7
+		var souffle := sin(horloge * 1.9 + ph)
+		p["pos"] = Vector3(p["pos"]) + Vector3(0.002 * sin(horloge * 0.83 + ph), 0.006 * souffle, 0.003 * sin(horloge * 1.1 + ph))
+		p["fermeture"] = float(p["fermeture"]) + 0.05 * sin(horloge * 1.3 + ph * 2.0) + 0.02 * sin(horloge * 3.1 + ph)
+	elif not capture:
 		p = PosesIncantation.pour(i.nom(), s.profil if s != null else "paume", i.charge, i.depuis_lancement, i.t, m)
 	# l'épée de l'autre main frappe : la main du sort s'écarte (contrepoids), sauf si elle canalise
 	if eq.categorie(o).begins_with("arme") and (mains.combat.attaque() or mains.combat.etat == EtatCombat.RECUPERATION) and i.etat != Incantation.CANALISE:
@@ -655,8 +738,17 @@ func _poser_mains(dt: float) -> void:
 			if o != null:
 				o.active = _infl_d > 0.0
 				o.influence = _infl_d
+		# épaule de la tenue « runes » : fondu vers la pose normale dès que la main (ou l'autre) prend autre chose
+		_epaule_k[m] = move_toward(float(_epaule_k[m]), 1.0 if p.has("griffe") else 0.0, dt / 0.25)
+		var we := smoothstep(0.0, 1.0, float(_epaule_k[m]))
+		var sx := 1.0 if m == "gauche" else -1.0
+		if _epaules != null:
+			var cam: Camera3D = joueur.camera
+			var d_cam := Vector3(EPAULE_TENUE.x * sx, EPAULE_TENUE.y, EPAULE_TENUE.z) * we
+			_epaules.decalages["upperarm_" + ("l" if m == "gauche" else "r")] = sq.global_basis.inverse() * cam.global_basis * d_cam
 		if p.is_empty():
 			_xf_ok[m] = false
+			_echelle(sq, m, 1.0)
 			if o != null and not (m == "droite" and _infl_d > 0.0):
 				o.angle_min = -1.0
 				o.angle_max = -1.0
@@ -687,24 +779,67 @@ func _poser_mains(dt: float) -> void:
 			o.angle_max = PI
 			o.flexion_max = PI
 		var coude: Node3D = mains.get("_coude_g" if m == "gauche" else "_coude_d")
-		var pole_voulu := (_pole[m] as Vector3).lerp(p.get("coude", Vector3(-0.75 if m == "gauche" else 0.75, -0.55, 0.25)), k)
+		# pôle par défaut ; tenue « runes » : coude bas et en dehors (COUDE_TENUE), en fondu avec l'épaule
+		var pole_defaut := Vector3(-0.75 * sx, -0.55, 0.25).lerp(Vector3(COUDE_TENUE.x * sx, COUDE_TENUE.y, COUDE_TENUE.z), we)
+		var pole_voulu := (_pole[m] as Vector3).lerp(p.get("coude", pole_defaut), k)
 		_pole[m] = GestesMagie.limiter_pole(m, _pole[m], pole_voulu, dt) if p.has("suivi") else pole_voulu
 		coude.position = _pole[m]
-		_poser_doigts(sq, m, float(p["fermeture"]))
+		_poser_doigts(sq, m, float(p["fermeture"]), float(p.get("griffe", 0.0)))
+		var pm: Node3D = paume[m]
+		if pm != null:
+			_paume_k[m] = move_toward(float(_paume_k[m]), 1.0 if p.has("griffe") else 0.0, dt / 0.25)
+			pm.position = Vector3(_paume_base[m]) + (Vector3(_paume_n[m]) * ECART_TENUE + Vector3(_paume_d[m]) * MONTEE_TENUE) * smoothstep(0.0, 1.0, float(_paume_k[m]))
+			_echelle(sq, m, lerpf(1.0, ECHELLE_MAIN_TENUE, smoothstep(0.0, 1.0, float(_paume_k[m]))))
 	# objets de la main gauche : torche seulement si c'est elle ; le bouclier (modèle et visibilité) est géré par mains.gd
 	var porte: Node3D = mains.get("porte_torche")
 	if porte != null:
 		porte.visible = eq.categorie("gauche") == "torche"
 	_afficher_bouclier(eq.categorie("gauche") == "bouclier")
 
-func _poser_doigts(sq: Skeleton3D, m: String, fermeture: float) -> void:
+## Échelle de l'os de la main (tenue « runes ») ; rien n'est écrit tant qu'elle reste à 1 (clips de l'épée intacts).
+func _echelle(sq: Skeleton3D, m: String, e: float) -> void:
+	var i: int = _os_main[m]
+	if i < 0 or absf(e - float(_echelle_main[m])) < 0.0005:
+		return
+	_echelle_main[m] = e
+	sq.set_bone_pose_scale(i, Vector3.ONE * e)
+
+## Doigts entre la main ouverte (repos des os) et le poing (mains.gd). `griffe` > 0 (tenue « runes ») : doigts écartés
+## en éventail et pliés chacun à sa mesure (index moins, auriculaire plus), qui jouent un peu, chaque main à son rythme.
+func _poser_doigts(sq: Skeleton3D, m: String, fermeture: float, griffe := 0.0) -> void:
 	var suffixe := "_l" if m == "gauche" else "_r"
 	var poings: Dictionary = mains.get("_doigts")
+	var ph := 0.0 if m == "gauche" else 2.3
 	for i in _doigts_repos:
-		if not sq.get_bone_name(i).ends_with(suffixe):
+		var nom := sq.get_bone_name(i)
+		if not nom.ends_with(suffixe):
 			continue
 		var q: Quaternion = _doigts_repos[i]
-		sq.set_bone_pose_rotation(i, q.slerp(poings.get(i, q), clampf(fermeture, 0.0, 1.0)))
+		var qp: Quaternion = poings.get(i, q)
+		var f := clampf(fermeture, 0.0, 1.0)
+		if griffe > 0.0:
+			var d := nom.get_slice("_", 0)
+			var rang := int(nom.get_slice("_", 1))
+			var k: float = {"thumb": 1.3, "index": 0.72, "middle": 0.98, "ring": 1.22, "pinky": 1.45}.get(d, 1.0)
+			var jeu := 0.05 * sin(horloge * (1.1 + 0.17 * k) + ph + k * 2.0)
+			f = clampf(f * k + jeu * griffe, 0.0, 1.0)
+			var r := q.slerp(qp, f)
+			if rang == 1 and d != "thumb":
+				# éventail : rotation autour de (axe de l'os × axe de flexion), le tout dans le repère de l'os au repos
+				var flex := (q.inverse() * qp).get_axis()
+				var ecart := Vector3.UP.cross(flex)
+				if ecart.length() > 0.01:
+					var a: float = {"index": -0.32, "middle": -0.1, "ring": 0.12, "pinky": 0.32}.get(d, 0.0) * griffe
+					r = r * Quaternion(ecart.normalized(), a)
+			if d == "thumb":
+				# pouce plié en crochet SOUS la boule (bras_feu_1100.jpg) : phalanges repliées au-delà du poing
+				var axe := (q.inverse() * qp).get_axis()
+				var crochet: float = {1: 0.2, 2: 0.6, 3: 0.7}.get(rang, 0.0) * griffe
+				if axe.length() > 0.01:
+					r = r * Quaternion(axe.normalized(), crochet)
+			sq.set_bone_pose_rotation(i, r)
+			continue
+		sq.set_bone_pose_rotation(i, q.slerp(qp, f))
 
 func _afficher_bouclier(_oui: bool) -> void:
 	# le vrai bouclier (bouclier_nordique.glb) est installé et posé par mains.gd ; on garde sa référence (ancienne interface)

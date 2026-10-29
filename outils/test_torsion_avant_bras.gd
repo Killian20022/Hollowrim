@@ -99,7 +99,8 @@ func _tester() -> void:
 			var nom := String(mi.skin.get_bind_name(k))
 			if nom.begins_with("lowerarm_twist_"):
 				peaux[mi.name] = true
-	for n in ["peau_bras", "manches", "brassard_r", "brassard_l", "revers_r", "gants"]:
+	# avant-bras « runes » (avant_bras_runes.py) : un maillage par bras (gant, brassard, fourrure) + haut de manche et de peau
+	for n in ["peau_bras", "manches", "avant_bras_l", "avant_bras_r"]:
 		_verif(peaux.has(n), "%s : poids sur les os de torsion" % n)
 	# --- clips des coups
 	var tb := TorsionAvantBras.new()

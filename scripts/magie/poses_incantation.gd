@@ -10,6 +10,11 @@ const POSES := {
 	# tenue_epee_droite_1100.jpg), paume tournée vers le haut et vers le centre — l'aura brûle dans la paume, visible, sans
 	# masquer le centre de l'écran ni croiser le bras de l'épée ; doigts détendus
 	"repos": {"pos": Vector3(-0.32, -0.31, -0.42), "paume": Vector3(0.45, 0.85, 0.15), "doigts": Vector3(0.12, 0.35, -1.0), "fermeture": 0.32},
+	# repos « runes » (deux sorts, ou sort + main vide ; références Jeux/references/avant_bras_magie/bras_feu_1100.jpg) :
+	# avant-bras qui montent des coins bas de l'écran, mains avancées vers le centre, DOS de la main vers l'œil, paume
+	# tournée vers l'avant et vers le centre, doigts dressés et courbés autour de l'énergie (griffe). La droite est
+	# un peu plus basse et plus refermée que la gauche (POSES_DROITE). Avec une épée dans l'autre main : « repos ».
+	"repos_runes": {"pos": Vector3(-0.25, -0.12, -0.30), "paume": Vector3(0.4, 0.05, -0.9), "doigts": Vector3(0.15, 0.65, -0.74), "fermeture": 0.5, "griffe": 1.0},
 	# incantation : la main monte et s'ouvre
 	"incante": {"pos": Vector3(-0.22, -0.20, -0.45), "paume": Vector3(0.22, 0.05, -1.0), "doigts": Vector3(0.05, 1.0, -0.30), "fermeture": 0.18},
 	# charge « paume » (jet, zone) : main ramenée, doigts en griffe, énergie qui s'accumule
@@ -32,6 +37,11 @@ const POSES := {
 	"ecartee": {"pos": Vector3(-0.34, -0.38, -0.36), "paume": Vector3(0.35, 0.35, -0.9), "doigts": Vector3(0.10, 1.0, 0.0), "fermeture": 0.45},
 }
 
+## Variantes propres à la main droite (déjà écrites pour la droite, pas en miroir) : gauche ≠ droite.
+const POSES_DROITE := {
+	"repos_runes": {"pos": Vector3(0.27, -0.155, -0.31), "paume": Vector3(-0.42, 0.04, -0.9), "doigts": Vector3(-0.12, 0.66, -0.74), "fermeture": 0.56, "griffe": 1.0},
+}
+
 ## Double incantation : les deux mains se rapprochent du centre (décalage en X vers l'axe, pour la main gauche).
 const RAPPROCHE_DOUBLE := 0.07
 ## Tremblement de la canalisation et de la pleine charge (m, rad/s).
@@ -41,6 +51,8 @@ static func pose(nom: String, main := "gauche") -> Dictionary:
 	var p: Dictionary = POSES.get(nom, POSES["repos"])
 	if main == "gauche":
 		return p
+	if POSES_DROITE.has(nom):
+		return POSES_DROITE[nom]
 	var m := {}
 	for k in ["pos", "paume", "doigts"]:
 		var v: Vector3 = p[k]

@@ -118,9 +118,15 @@ func _sur_maj() -> void:
 func _preparer_peaux() -> void:
 	_peaux.clear()
 	for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", true, false):
-		if not (mi.name in ["manches", "gants", "revers_l", "revers_r"]) or mi.skin == null:
+		if not (mi.name in ["manches", "gants", "revers_l", "revers_r", "avant_bras_l", "avant_bras_r"]) or mi.skin == null:
 			continue
-		var a := mi.mesh.surface_get_arrays(0)
+		# avant-bras « runes » : seule la surface du gant (ab_gant) se tord, le brassard est rigide
+		var surf := 0
+		for k in mi.mesh.get_surface_count():
+			var mat := mi.mesh.surface_get_material(k)
+			if mat != null and mat.resource_name == "ab_gant":
+				surf = k
+		var a := mi.mesh.surface_get_arrays(surf)
 		var binds := []
 		var poses := []
 		for k in mi.skin.get_bind_count():

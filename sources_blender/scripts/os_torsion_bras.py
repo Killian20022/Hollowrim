@@ -3,12 +3,14 @@
 #   lowerarm_twist_01_<c> au milieu de l'avant-bras, lowerarm_twist_02_<c> au poignet.
 # Poids de peau : la part « lowerarm » de chaque sommet de peau, de manche, de revers de fourrure et de gant est répartie
 # progressivement selon s (0 au coude, 1 au poignet) : lowerarm (s = 0) -> twist_01 (s = 0,5) -> twist_02 (s = 1) ; le
-# brassard (RIGIDES) suit twist_02 d'un bloc.
+# brassard (RIGIDES / MATS_RIGIDES) suit d'un bloc l'os choisi par BRASSARD_OS (twist_02 par défaut).
 # Les parts upperarm / hand / doigts ne changent pas. Godot (scripts/combat/torsion_avant_bras.gd) ramène lowerarm sur la
 # charnière du coude et donne à twist_01 un tiers de la pronation, à twist_02 la totalité : la torsion va en douceur du
 # coude au poignet au lieu de tomber d'un coup sur l'un des deux.
 #   blender.exe -b --python os_torsion_bras.py      (ré-exporte assets/modeles/joueur/bras_fps.glb ; état d'avant :
 #   sources_blender/bras_fps_avant_torsion.glb, gardé la première fois et toujours repris comme source)
+# Chaîne complète (avant-bras « runes ») : avant_bras_runes.py (bras_fps_skarnholt.glb -> bras_fps_avant_torsion.glb)
+# puis ce script (-> assets/modeles/joueur/bras_fps.glb).
 import bpy, os, shutil
 
 base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -24,6 +26,19 @@ NOEUDS = [(0.0, "lowerarm_{c}"), (0.5, "lowerarm_twist_01_{c}"), (1.0, "lowerarm
 # Brassard d'avant-bras (coque de cuir, canon de fer, rivets, sangles, boucles) : une pièce rigide sanglée au poignet, qui
 # tourne d'un bloc avec lui (twist_02) par-dessus la peau qui, elle, se tord progressivement (pas de plaques vrillées).
 RIGIDES = ("brassard", "canon_", "rivets", "sangle_", "boucle_")
+# Avant-bras « runes » (avant_bras_runes.py : un maillage avant_bras_l/r par bras, rangé par matières) : les faces de ces
+# matières forment le brassard rigide (coque, rouleaux, plaque, clous, sangles, manchette) ; le gant (ab_gant) se tord.
+MATS_RIGIDES = ("ab_cuir", "ab_tresse", "ab_metal", "ab_fer", "ab_sangle", "ab_fourrure")
+# Os qui porte le brassard d'un bloc : "twist_02" (poignet, il suit toute la pronation) ou "twist_01" (milieu de
+# l'avant-bras, un tiers de la pronation : TorsionAvantBras.FRACTIONS) ; ex. -- --brassard=twist_01
+BRASSARD_OS = "twist_02"
+import sys
+for _a in sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []:
+    if _a.startswith("--brassard="):
+        BRASSARD_OS = _a.split("=", 1)[1]
+assert BRASSARD_OS in ("twist_01", "twist_02"), BRASSARD_OS
+S_RIGIDE = 1.0 if BRASSARD_OS == "twist_02" else 0.5      # position s du nœud correspondant dans NOEUDS
+print("BRASSARD sur lowerarm_%s" % BRASSARD_OS)
 
 # --- 1. os
 bpy.context.view_layer.objects.active = arm
@@ -82,6 +97,12 @@ for o in bpy.data.objects:
         for s_, nom in NOEUDS:
             nom = nom.format(c=c)
             groupes[nom] = o.vertex_groups.get(nom) or o.vertex_groups.new(name=nom)
+        rigides_mat = set()
+        mats = [m.name if m else "" for m in o.data.materials]
+        if any(n in MATS_RIGIDES for n in mats):
+            for poly in o.data.polygons:
+                if mats[poly.material_index] in MATS_RIGIDES:
+                    rigides_mat.update(poly.vertices)
         for v in o.data.vertices:
             w = 0.0
             for g in v.groups:
@@ -93,8 +114,8 @@ for o in bpy.data.objects:
             p = o.matrix_world @ v.co
             p = arm.matrix_world.inverted() @ p
             s = (p - head).dot(ax) / L2
-            if o.name.startswith(RIGIDES):
-                s = 1.0
+            if o.name.startswith(RIGIDES) or v.index in rigides_mat:
+                s = S_RIGIDE
             g_l.remove([v.index])
             for nom, k in poids_noeuds(s, c):
                 if k * w > 1e-4:
@@ -108,6 +129,11 @@ bpy.ops.object.select_all(action='DESELECT')
 for o in bpy.data.objects:
     o.select_set(True)
 bpy.context.view_layer.objects.active = arm
-bpy.ops.export_scene.gltf(filepath=glb, export_format='GLB', use_selection=True, export_skins=True,
-                          export_animations=False, export_apply=False)
+kw = dict(filepath=glb, export_format='GLB', use_selection=True, export_skins=True, export_animations=False,
+          export_apply=False)
+try:
+    # couleurs de sommet de l'avant-bras « runes » (occlusion, pointes de fourrure) : gardées comme avant_bras_runes.py
+    bpy.ops.export_scene.gltf(export_vertex_color='ACTIVE', **kw)
+except TypeError:
+    bpy.ops.export_scene.gltf(**kw)
 print("EXPORT OK", glb)

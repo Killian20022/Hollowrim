@@ -322,6 +322,8 @@ func _materiaux_equipement() -> Dictionary:
 	}
 	# bras du héros assortis à son corps (HerosSkarnholt) : manches de mailles d'acier, brassards, gants de cuir sombre, revers de fourrure
 	_mats.merge(HerosSkarnholt.materiaux_fps(), true)
+	# avant-bras « runes » (bras_fps.glb, matières ab_*) : gants, brassards tressés, plaques gravées, fourrure
+	_mats.merge(AvantBras.materiaux(), true)
 	# les fichiers exportés de Blender portent des couleurs de sommet d'alpha nul, que le
 	# shader lirait comme « neige » : la texture de neige devient la texture de base
 	for m: ShaderMaterial in _mats.values():
@@ -460,6 +462,7 @@ func _bras() -> void:
 	for mi: MeshInstance3D in bras.find_children("*", "MeshInstance3D", true, false):
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.extra_cull_margin = 2.0
+		mi.layers = AvantBras.CALQUE    # éclairés par la lueur courte des sorts tenus (RunesOrbite), pas par leur aura
 	# modèle tourné vers -Z (la caméra), yeux sur l'origine de la caméra
 	var tete := _sq.get_bone_global_rest(_sq.find_bone("Head")).origin
 	var yeux := tete + Vector3(0, 0.07, 0.1)
