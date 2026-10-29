@@ -9,6 +9,7 @@ extends Node3D
 ##       [--perf=jet]             mesure : un seul jet tenu (3 mesures de 240 images) ; --ecole=electricite|… (feu par défaut)
 ##       [--boucle]               rejoue la suite sans fin (démonstration)
 ##       [--instants=a,b,...]     plusieurs captures par plan, aux instants donnés (s)
+##       [--cible=<m>]            cibles à cette distance de l'œil (6 m par défaut ; ex. 3 ou 8 pour le jet de flammes)
 ##       [--tourne=<°/s>]         jets canalisés : la vue pivote (lacet) à partir de 0,8 s et le jet suit la caméra
 ##                                (inertie du jet quand on tourne)
 ##   Vidéo Movie Maker : --write-movie <fichier.avi> --fixed-fps 30 -- --lieu=crypte (quitte à la fin de la suite).
@@ -97,7 +98,8 @@ func _ready() -> void:
 	for i in 3:
 		var d := DraugrNordique.creer({})
 		add_child(d)
-		d.position = Vector3(-1.6 + i * 1.6, 0.0, -6.0 - absf(i - 1) * 0.6)
+		var dc := float(_arg("cible", "6"))
+		d.position = Vector3((-1.6 + i * 1.6) * clampf(dc / 6.0, 0.5, 1.0), 0.0, -dc - absf(i - 1) * 0.6)
 		d.add_to_group("cibles_magie")   # sans collision : les jets les trouvent par ce groupe
 		cibles.append(d)
 	_interface()
@@ -396,7 +398,7 @@ func _pendant(nom: String, t: float) -> void:
 			var ecole: String = {"jet_feu": "feu", "arc_electrique": "electricite", "drain_vie": "tenebres", "souffle_givre": "glace"}[nom]
 			EffetsMagie.aura_main(paume_g, ecole, 1.0)
 			var actif := t > 0.15 and t < 2.0
-			EffetsMagie.jet(ecole, paume_g, _dir_jet(paume_g, t), 7.0, 1.0, actif)
+			EffetsMagie.jet(ecole, paume_g, _dir_jet(paume_g, t), _portee(), 1.0, actif)
 			if actif and t > 0.6:
 				EffetsMagie.statut_cible(cibles[1], {"feu": "brulure", "electricite": "choc", "tenebres": "corruption", "glace": "gel"}[ecole], 0.8)
 		"jet_feu_loin", "souffle_givre_loin":
@@ -412,8 +414,12 @@ func _pendant(nom: String, t: float) -> void:
 		"double_feu", "double_electricite", "double_tenebres":
 			var ecole := nom.trim_prefix("double_")
 			var actif := t > 0.3 and t < 2.1
-			EffetsMagie.jet(ecole, paume_g, _dir_jet(paume_g, t), 7.0, 1.0, actif)
-			EffetsMagie.jet(ecole, paume_d, _dir_jet(paume_d, t), 7.0, 1.0, actif)
+			EffetsMagie.jet(ecole, paume_g, _dir_jet(paume_g, t), _portee(), 1.0, actif)
+			EffetsMagie.jet(ecole, paume_d, _dir_jet(paume_d, t), _portee(), 1.0, actif)
+
+## Portée des jets canalisés de la galerie : 7 m, ou un peu au-delà des cibles éloignées (--cible=8 : 9 m, comme le sort).
+func _portee() -> float:
+	return maxf(7.0, float(_arg("cible", "6")) + 1.0)
 
 ## Direction d'un jet : vers la cible du milieu ; avec --tourne, la vue pivote à partir de 0,8 s et le jet suit la caméra.
 func _dir_jet(o: Node3D, t: float) -> Vector3:
