@@ -515,6 +515,7 @@ def main():
     dossier = A.get("apercu")
     donnees = {k: v for k, v in _lire_dat(dat).items() if seul and not k.split("__")[0] in seul}
     cases = []
+    par_cat = {}
     bilan = []
     for e in liste:
         if seul and e["nom"] not in seul:
@@ -541,6 +542,7 @@ def main():
         if dossier:
             apercu_adapte(P, res, os.path.join(dossier, e["nom"] + "_adapte.png"))
             cases.append((os.path.join(dossier, e["nom"] + "_orig.png"), os.path.join(dossier, e["nom"] + "_adapte.png")))
+            par_cat.setdefault(e.get("categorie", "divers"), []).append(cases[-1])
     os.makedirs(os.path.dirname(dat), exist_ok=True)
     with open(dat, "wb") as f:
         f.write(struct.pack("<I", len(donnees)))
@@ -553,6 +555,10 @@ def main():
     print("props quaternius : %d entrees -> %s" % (len(donnees), dat))
     if dossier:
         open(os.path.join(dossier, "bilan.txt"), "w", encoding="utf8").write("\n".join(bilan) + "\n")
+        for cat, cs in par_cat.items():       # planches=<dossier> : une planche (original | adapté) par catégorie
+            if A.get("planches"):
+                os.makedirs(A["planches"], exist_ok=True)
+                planche(cs, os.path.join(A["planches"], "planche_%s.png" % cat), cols=4)
         if cases and A.get("planche"):
             planche(cases, A["planche"])
             print("planche ->", A["planche"])

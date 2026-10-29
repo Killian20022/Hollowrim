@@ -6,7 +6,7 @@ extends SceneTree
 const SCENE := preload("res://scenes/foret_test.tscn")
 const DAT := "res://assets/crypte/modules/props_quaternius.dat"
 ## matières des props absentes de CrypteDecor.MAT_MODELE (sinon « mur0 »)
-const MATS := {"lin": "lin", "laine": "laine", "jute": "jute", "or": "or", "os": "os", "toile": "toile", "argile": "argile", "noir": "noir", "lame": "lame"}
+const MATS := {"lin": "lin", "laine": "laine", "jute": "jute", "or": "or", "os": "os", "toile": "toile", "argile": "argile", "noir": "noir", "lame": "lame", "fer": "fer_mat"}      # fer : variante MATE (le fer brillant, teinte x1,3 + lustre, sortait beige-doré)
 ## groupes : [module, x (droite), z (vers le joueur), lacet en degrés, y]
 const GROUPES := {
 	"forge": [["q_enclume", 0.0, 0.0, 20, 0.0], ["q_pierre_aiguiser", -1.3, -0.3, 60, 0.0], ["q_etabli", 0.6, -1.2, 0, 0.0],
@@ -18,6 +18,18 @@ const GROUPES := {
 		["q_pile_livres", 0.6, 0.2, 10, 0.0], ["q_parchemin", 0.2, 0.5, 40, 0.0], ["q_calice", 0.7, 0.2, 0, 0.21], ["q_chaudron", -0.3, 0.4, 0, 0.0]],
 	"marche": [["q_etal", -1.0, -0.8, 10, 0.0], ["q_tonneau_pommes", 0.5, -0.1, 0, 0.0], ["q_cageot_pommes", 1.2, 0.4, -30, 0.0],
 		["q_sac", -0.4, 0.4, 0, 0.0], ["q_caisse", 1.6, -0.9, 20, 0.0]],
+	"forge2": [["q_billot_enclume", 0.0, 0.0, 20, 0.0], ["q_mannequin", -1.4, -0.6, 30, 0.0], ["q_rack_armes", 1.5, -0.7, 0, 0.0],
+		["q_caisse_fer", 0.9, 0.5, 15, 0.0], ["q_etabli_tiroirs", -0.5, -1.3, 0, 0.0], ["q_enclume", -0.8, 0.5, 40, 0.0]],
+	"interieur": [["q_bibliotheque", -1.5, -1.0, 0, 0.0], ["q_lit_2", 1.4, -0.9, 0, 0.0], ["q_etagere_simple", 0.0, -1.3, 0, 0.0],
+		["q_chevet_etagere", 0.5, -0.4, 0, 0.0], ["q_assiette", 0.0, 0.3, 0, 0.0], ["q_bougie_1", 0.5, -0.4, 0, 0.65], ["q_porte_manteau", -0.4, 0.4, 0, 0.0]],
+	"alchimie2": [["q_livres_moyens_1", -0.6, -0.4, 10, 0.0], ["q_potion_1", 0.2, 0.3, 0, 0.0], ["q_potion_2", 0.45, 0.3, 0, 0.0],
+		["q_potion_4", 0.7, 0.3, 0, 0.0], ["q_fioles_1", 1.0, -0.3, 0, 0.0], ["q_pile_livres_2", 0.2, -0.5, 0, 0.0], ["q_parchemin_2", -0.1, 0.5, 40, 0.0]],
+	"marche2": [["q_tonneau", -0.8, -0.4, 0, 0.0], ["q_cageot_carottes", 0.4, 0.0, 10, 0.0], ["q_corde_1", 1.2, 0.3, 0, 0.0],
+		["q_bourse", 0.0, 0.6, 0, 0.0], ["q_cageot_vide", 1.4, -0.7, 20, 0.0], ["q_carotte", 0.6, 0.6, 30, 0.0]],
+	"crypte": [["q_tas_pieces", 0.0, 0.3, 0, 0.0], ["q_vase_2", -0.8, -0.3, 0, 0.0], ["q_urne_brisee", 0.9, -0.2, 0, 0.0],
+		["q_cle_or", 0.3, 0.7, 40, 0.0], ["q_lanterne_murale", -1.6, 0.2, 0, 0.0], ["q_cage", 1.8, -0.9, 20, 0.0], ["q_vase_4", -1.3, -0.8, 0, 0.0]],
+	"village": [["q_chariot", -0.5, -0.8, 20, 0.0], ["q_cheminee_1", -2.3, -1.2, 0, 0.0], ["q_porte_1_ronde", 1.6, -0.9, 0, 0.0],
+		["q_barriere_bois", 0.4, 0.5, 0, 0.0], ["q_grille_fer", 1.0, 0.7, 0, 0.0], ["q_caisse_village", -1.6, 0.3, 30, 0.0], ["q_brique_1", 0.0, 0.8, 0, 0.0]],
 }
 
 var m: Node3D
@@ -75,8 +87,8 @@ func _go() -> void:
 			mi.global_rotation = Vector3(0, yaw + deg_to_rad(float(e[3])), 0)
 			poses.append(mi)
 		var lum := OmniLight3D.new()       # brasero hors champ : lumière chaude de la salle
-		lum.light_color = Color(1.0, 0.62, 0.3)
-		lum.light_energy = 1.6
+		lum.light_color = Color(1.0, 0.8, 0.62)
+		lum.light_energy = 1.1
 		lum.omni_range = 7.0
 		root.add_child(lum)
 		lum.global_position = centre + b * Vector3(-1.5, 2.0, 1.0)

@@ -1,31 +1,117 @@
-  q_enclume              src   750 ->  465 tris (budget  500) ->  501 apres aretes  0.82x0.42x0.30 m  fer:465
-  q_pierre_aiguiser      src  1100 ->  500 tris (budget  500) ->  638 apres aretes  0.95x1.00x0.75 m  fer:372 bois:128
-  q_seau_fer             src   540 ->  250 tris (budget  250) ->  250 apres aretes  0.47x0.36x0.45 m  fer:250
-  q_etabli               src  1368 ->  900 tris (budget  900) -> 1140 apres aretes  1.92x0.85x0.97 m  fer:736 bois:162 lin:2
-  q_marmite              src  1068 ->  300 tris (budget  300) ->  332 apres aretes  0.53x0.23x0.49 m  fer:300
-  q_support_tonneau      src  2676 -> 1200 tris (budget 1200) -> 1568 apres aretes  1.17x1.10x0.64 m  fer:590 bois:578 lin:32
-  q_grande_table         src   986 ->  636 tris (budget  700) ->  744 apres aretes  2.73x0.78x1.05 m  bois:582 fer:40 lin:14
-  q_chaise               src   496 ->  300 tris (budget  400) ->  312 apres aretes  0.49x0.95x0.46 m  bois:156 fer:132 lin:12
-  q_tabouret             src   152 ->  152 tris (budget  250) ->  248 apres aretes  0.40x0.50x0.40 m  bois:148 lin:4
-  q_banc                 src   404 ->  377 tris (budget  400) ->  425 apres aretes  2.34x0.45x0.45 m  bois:225 fer:152
-  q_lit                  src  1600 ->  800 tris (budget  800) -> 1190 apres aretes  1.75x0.75x2.25 m  bois:432 lin:238 fer:130
-  q_armoire              src  2388 ->  700 tris (budget  700) ->  756 apres aretes  1.36x1.00x0.36 m  fer:506 bois:146 lin:48
-  q_chope                src   268 ->  120 tris (budget  120) ->  130 apres aretes  0.21x0.20x0.16 m  bois:73 fer:47
-  q_chaudron             src  2020 ->  500 tris (budget  500) ->  512 apres aretes  0.65x0.55x0.62 m  fer:500
-  q_seau_bois            src   976 ->  250 tris (budget  250) ->  264 apres aretes  0.43x0.29x0.39 m  bois:152 lin:76 fer:22
-  q_lutrin               src  1526 ->  399 tris (budget  400) ->  433 apres aretes  0.46x1.30x0.46 m  bois:397 lin:2
-  q_pile_livres          src   208 ->  208 tris (budget  300) ->  208 apres aretes  0.28x0.21x0.23 m  os:158 fer:50
-  q_parchemin            src   512 ->  119 tris (budget  120) ->  121 apres aretes  0.24x0.07x0.06 m  lin:87 fer:28 pierre:4
-  q_etagere_fioles       src  5234 ->  900 tris (budget  900) ->  974 apres aretes  1.15x0.65x0.28 m  fer:752 bois:112 os:26 lin:10
-  q_bougeoir_triple      src  2528 ->  300 tris (budget  300) ->  300 apres aretes  0.44x0.46x0.14 m  fer:251 os:40 jute:9
-  q_lustre               src  5680 ->  899 tris (budget  900) -> 1099 apres aretes  1.30x1.45x1.29 m  fer:706 bois:99 os:74 jute:20
-  q_calice               src   458 ->  150 tris (budget  150) ->  150 apres aretes  0.12x0.26x0.12 m  fer:150
-  q_cage                 src  4588 ->  500 tris (budget  500) ->  580 apres aretes  0.86x0.80x0.89 m  fer:500
-  q_etal                 src  1496 ->  899 tris (budget  900) ->  957 apres aretes  1.55x2.20x0.78 m  fer:404 bois:266 lin:229
-  q_charrette_etal       src  3936 -> 1000 tris (budget 1000) -> 1202 apres aretes  2.50x2.20x0.86 m  bois:606 fer:247 lin:147
-  q_cageot_pommes        src  4028 ->  900 tris (budget  900) -> 1142 apres aretes  0.71x0.24x0.42 m  fer:667 bois:144 lin:89
-  q_tonneau_pommes       src  2480 -> 1199 tris (budget 1200) -> 1281 apres aretes  0.66x0.85x0.67 m  fer:963 bois:236
-  q_caisse               src  1576 ->  300 tris (budget  300) ->  390 apres aretes  0.67x0.70x0.68 m  bois:268 fer:28 lin:4
-  q_sac                  src   858 ->  299 tris (budget  300) ->  325 apres aretes  0.66x0.80x0.54 m  jute:207 lin:92
-  q_banniere             src   448 ->  448 tris (budget  500) ->  472 apres aretes  1.61x2.39x0.19 m  fer:304 bois:144
-props quaternius : 71 entrees -> C:\Users\lopezk19\Jeux\nordique_props_quat\assets\crypte\modules\props_quaternius.dat
+q_enclume              src   750 ->  465 tris (budget  500) ->  501 apres aretes  0.82x0.42x0.30 m  fer:465
+q_pierre_aiguiser      src  1100 ->  500 tris (budget  500) ->  638 apres aretes  0.95x1.00x0.75 m  fer:372 bois:128
+q_seau_fer             src   540 ->  250 tris (budget  250) ->  250 apres aretes  0.47x0.36x0.45 m  fer:250
+q_etabli               src  1368 ->  900 tris (budget  900) -> 1140 apres aretes  1.92x0.85x0.97 m  fer:736 bois:162 lin:2
+q_marmite              src  1068 ->  300 tris (budget  300) ->  332 apres aretes  0.53x0.23x0.49 m  fer:300
+q_support_tonneau      src  2676 -> 1200 tris (budget 1200) -> 1568 apres aretes  1.17x1.10x0.64 m  fer:590 bois:578 lin:32
+q_grande_table         src   986 ->  636 tris (budget  700) ->  744 apres aretes  2.73x0.78x1.05 m  bois:582 fer:40 lin:14
+q_chaise               src   496 ->  300 tris (budget  400) ->  312 apres aretes  0.49x0.95x0.46 m  bois:156 fer:132 lin:12
+q_tabouret             src   152 ->  152 tris (budget  250) ->  248 apres aretes  0.40x0.50x0.40 m  bois:148 lin:4
+q_banc                 src   404 ->  377 tris (budget  400) ->  425 apres aretes  2.34x0.45x0.45 m  bois:225 fer:152
+q_lit                  src  1600 ->  800 tris (budget  800) -> 1190 apres aretes  1.75x0.75x2.25 m  bois:432 lin:238 fer:130
+q_armoire              src  2388 ->  700 tris (budget  700) ->  756 apres aretes  1.36x1.00x0.36 m  fer:506 bois:146 lin:48
+q_chope                src   268 ->  120 tris (budget  120) ->  130 apres aretes  0.21x0.20x0.16 m  bois:73 fer:47
+q_chaudron             src  2020 ->  500 tris (budget  500) ->  512 apres aretes  0.65x0.55x0.62 m  fer:500
+q_seau_bois            src   976 ->  250 tris (budget  250) ->  264 apres aretes  0.43x0.29x0.39 m  bois:152 lin:76 fer:22
+q_lutrin               src  1526 ->  399 tris (budget  400) ->  433 apres aretes  0.46x1.30x0.46 m  bois:397 lin:2
+q_pile_livres          src   208 ->  208 tris (budget  300) ->  208 apres aretes  0.28x0.21x0.23 m  os:158 fer:50
+q_parchemin            src   512 ->  119 tris (budget  120) ->  121 apres aretes  0.24x0.07x0.06 m  lin:87 fer:28 pierre:4
+q_etagere_fioles       src  5234 ->  900 tris (budget  900) ->  974 apres aretes  1.15x0.65x0.28 m  fer:752 bois:112 os:26 lin:10
+q_bougeoir_triple      src  2528 ->  300 tris (budget  300) ->  300 apres aretes  0.44x0.46x0.14 m  fer:251 os:40 jute:9
+q_lustre               src  5680 ->  899 tris (budget  900) -> 1099 apres aretes  1.30x1.45x1.29 m  fer:706 bois:99 os:74 jute:20
+q_calice               src   458 ->  150 tris (budget  150) ->  150 apres aretes  0.12x0.26x0.12 m  fer:150
+q_cage                 src  4588 ->  500 tris (budget  500) ->  580 apres aretes  0.86x0.80x0.89 m  fer:500
+q_etal                 src  1496 ->  899 tris (budget  900) ->  957 apres aretes  1.55x2.20x0.78 m  fer:404 bois:266 lin:229
+q_charrette_etal       src  3936 -> 1000 tris (budget 1000) -> 1202 apres aretes  2.50x2.20x0.86 m  bois:606 fer:247 lin:147
+q_cageot_pommes        src  4028 ->  900 tris (budget  900) -> 1142 apres aretes  0.71x0.24x0.42 m  fer:667 bois:144 lin:89
+q_tonneau_pommes       src  2480 -> 1199 tris (budget 1200) -> 1281 apres aretes  0.66x0.85x0.67 m  fer:963 bois:236
+q_caisse               src  1576 ->  300 tris (budget  300) ->  390 apres aretes  0.67x0.70x0.68 m  bois:268 fer:28 lin:4
+q_sac                  src   858 ->  299 tris (budget  300) ->  325 apres aretes  0.66x0.80x0.54 m  jute:207 lin:92
+q_banniere             src   448 ->  448 tris (budget  500) ->  472 apres aretes  1.61x2.39x0.19 m  fer:304 bois:144
+q_billot_enclume       src  3808 ->  900 tris (budget  900) ->  947 apres aretes  0.74x0.85x0.65 m  fer:646 os:210 bois:44
+q_etabli_tiroirs       src   364 ->  299 tris (budget  300) ->  315 apres aretes  1.57x0.90x1.11 m  fer:269 lin:16 bois:14
+q_mannequin            src  2858 ->  900 tris (budget  900) -> 1012 apres aretes  0.74x1.70x0.53 m  jute:440 lin:338 bois:82 fer:40
+q_rack_armes           src  2084 ->  800 tris (budget  800) ->  916 apres aretes  1.87x1.50x1.33 m  bois:412 fer:388
+q_tonneau              src   824 ->  500 tris (budget  500) ->  536 apres aretes  0.75x0.95x0.77 m  fer:329 bois:171
+q_lit_2                src  1584 ->  800 tris (budget  800) -> 1176 apres aretes  1.85x0.75x2.38 m  bois:415 lin:250 fer:135
+q_livres_moyens_1      src   416 ->  300 tris (budget  300) ->  320 apres aretes  1.07x0.30x0.25 m  os:164 fer:136
+q_livres_moyens_2      src   468 ->  300 tris (budget  300) ->  330 apres aretes  1.13x0.30x0.25 m  os:180 fer:120
+q_livres_moyens_3      src   468 ->  300 tris (budget  300) ->  322 apres aretes  1.06x0.30x0.25 m  os:194 fer:106
+q_livres_petits_1      src   104 ->  104 tris (budget  104) ->  104 apres aretes  0.29x0.30x0.23 m  os:64 fer:40
+q_livres_petits_2      src   104 ->  104 tris (budget  104) ->  104 apres aretes  0.23x0.28x0.24 m  os:64 fer:40
+q_livres_petits_3      src   130 ->  130 tris (budget  130) ->  130 apres aretes  0.24x0.28x0.24 m  os:80 fer:50
+q_livre_5              src    96 ->   96 tris (budget   96) ->   96 apres aretes  0.21x0.06x0.29 m  os:76 fer:20
+q_livre_7              src   724 ->  300 tris (budget  300) ->  300 apres aretes  0.25x0.07x0.33 m  fer:238 os:62
+q_livre_simple         src    52 ->   52 tris (budget   52) ->   52 apres aretes  0.06x0.27x0.21 m  os:42 fer:10
+q_pile_livres_2        src   446 ->  300 tris (budget  300) ->  308 apres aretes  0.27x0.20x0.23 m  os:205 fer:95
+q_bibliotheque         src  2148 ->  899 tris (budget  900) -> 1007 apres aretes  1.15x2.00x0.34 m  fer:621 bois:196 lin:82
+q_bouteille            src   312 ->  200 tris (budget  200) ->  200 apres aretes  0.09x0.30x0.09 m  fer:200
+q_bougie_1             src   212 ->  118 tris (budget  120) ->  118 apres aretes  0.11x0.15x0.12 m  os:108 fer:10
+q_bougie_2             src   210 ->  120 tris (budget  120) ->  120 apres aretes  0.05x0.12x0.05 m  os:65 jute:45 fer:10
+q_carotte              src   634 ->  150 tris (budget  150) ->  154 apres aretes  0.18x0.57x0.22 m  fer:150
+q_pieces               src   304 ->  150 tris (budget  150) ->  150 apres aretes  0.07x0.07x0.01 m  fer:150
+q_tas_pieces           src   960 ->  400 tris (budget  400) ->  400 apres aretes  0.20x0.07x0.16 m  fer:400
+q_tas_pieces_2         src  1062 ->  400 tris (budget  400) ->  400 apres aretes  0.28x0.06x0.21 m  fer:400
+q_caisse_fer           src  2738 ->  700 tris (budget  700) ->  836 apres aretes  0.70x0.70x0.70 m  fer:596 bois:96 lin:8
+q_cageot_carottes      src  5262 ->  900 tris (budget  900) -> 1116 apres aretes  0.71x0.41x0.56 m  fer:704 bois:146 lin:50
+q_cageot_vide          src  1928 ->  699 tris (budget  700) ->  715 apres aretes  0.71x0.24x0.41 m  lin:401 fer:158 bois:140
+q_cle_or               src  1366 ->  300 tris (budget  300) ->  300 apres aretes  0.06x0.01x0.12 m  fer:300
+q_cle_fer              src   546 ->  300 tris (budget  300) ->  300 apres aretes  0.05x0.01x0.11 m  fer:300
+q_lanterne_murale      src  2822 ->  700 tris (budget  700) ->  748 apres aretes  0.14x0.50x0.49 m  fer:700
+q_chevet_etagere       src   262 ->  262 tris (budget  262) ->  298 apres aretes  0.37x0.65x0.21 m  bois:250 lin:12
+q_porte_manteau        src   712 ->  299 tris (budget  300) ->  315 apres aretes  1.18x0.35x0.10 m  fer:287 bois:12
+q_couvercle_marmite    src  1292 ->  300 tris (budget  300) ->  352 apres aretes  0.53x0.30x0.50 m  fer:300
+q_potion_1             src   440 ->  249 tris (budget  250) ->  249 apres aretes  0.15x0.18x0.15 m  fer:249
+q_potion_2             src   472 ->  249 tris (budget  250) ->  249 apres aretes  0.09x0.18x0.09 m  fer:249
+q_potion_4             src   536 ->  249 tris (budget  250) ->  249 apres aretes  0.13x0.18x0.13 m  fer:249
+q_bourse               src   730 ->  300 tris (budget  300) ->  330 apres aretes  0.43x0.30x0.23 m  os:206 fer:94
+q_corde_1              src  1748 ->  399 tris (budget  400) ->  409 apres aretes  0.56x0.10x0.61 m  lin:399
+q_corde_2              src  1460 ->  400 tris (budget  400) ->  422 apres aretes  0.81x0.12x0.85 m  lin:400
+q_corde_3              src  1748 ->  399 tris (budget  400) ->  441 apres aretes  1.23x0.11x0.94 m  lin:399
+q_parchemin_2          src   672 ->  199 tris (budget  200) ->  199 apres aretes  0.24x0.06x0.06 m  lin:108 fer:85 pierre:6
+q_etagere_arche        src  1286 ->  700 tris (budget  700) ->  798 apres aretes  1.25x1.59x0.31 m  fer:539 bois:153 lin:8
+q_etagere_simple       src   480 ->  480 tris (budget  480) ->  552 apres aretes  1.18x0.31x0.29 m  bois:480
+q_petite_fiole         src   130 ->  130 tris (budget  130) ->  130 apres aretes  0.06x0.12x0.05 m  fer:130
+q_fioles_1             src   486 ->  300 tris (budget  300) ->  300 apres aretes  0.22x0.15x0.06 m  fer:300
+q_fourchette           src   108 ->  108 tris (budget  108) ->  108 apres aretes  0.05x0.01x0.26 m  fer:108
+q_couteau_table        src    54 ->   54 tris (budget   54) ->   54 apres aretes  0.04x0.01x0.29 m  fer:54
+q_assiette             src   172 ->  172 tris (budget  172) ->  172 apres aretes  0.33x0.02x0.34 m  fer:172
+q_cuillere             src   164 ->  164 tris (budget  164) ->  164 apres aretes  0.05x0.02x0.27 m  fer:164
+q_vase_2               src   598 ->  400 tris (budget  400) ->  438 apres aretes  0.65x0.50x0.65 m  fer:400
+q_vase_4               src   598 ->  400 tris (budget  400) ->  400 apres aretes  0.37x0.50x0.37 m  fer:400
+q_urne_brisee          src  1113 ->  600 tris (budget  600) -> 1106 apres aretes  2.69x0.60x2.01 m  fer:598 os:2
+q_banniere_2           src   429 ->  429 tris (budget  500) ->  453 apres aretes  1.61x2.08x0.19 m  fer:285 bois:144
+q_caisse_village       src   230 ->  230 tris (budget  400) ->  378 apres aretes  1.08x1.06x1.08 m  lin:130 jute:94 bois:6
+q_chariot              src  1672 -> 1000 tris (budget 1000) -> 1704 apres aretes  1.98x1.55x4.02 m  jute:559 lin:296 pierre:89 bois:56
+q_cheminee_1           src   618 ->  400 tris (budget  400) ->  478 apres aretes  0.95x3.18x1.00 m  pierre:392 lin:8
+q_cheminee_2           src   130 ->  130 tris (budget  400) ->  194 apres aretes  0.95x3.00x0.99 m  lin:130
+q_support_bois         src    16 ->   16 tris (budget  300) ->   40 apres aretes  0.20x1.71x2.04 m  jute:16
+q_grille_fer_ornee     src  3988 ->  700 tris (budget  700) ->  902 apres aretes  1.94x2.85x0.14 m  fer:694 or:6
+q_grille_fer           src  2744 ->  500 tris (budget  500) ->  546 apres aretes  1.94x2.87x0.16 m  fer:496 or:4
+q_barriere_bois        src    40 ->   40 tris (budget  300) ->   96 apres aretes  2.06x0.84x0.12 m  lin:22 jute:14 bois:4
+q_barriere_ext_1       src    32 ->   32 tris (budget  300) ->   76 apres aretes  2.05x0.84x0.11 m  jute:22 lin:8 bois:2
+q_barriere_ext_2       src    28 ->   28 tris (budget  300) ->   68 apres aretes  2.03x0.84x0.11 m  jute:14 lin:12 bois:2
+q_brique_1             src   108 ->  108 tris (budget  150) ->  128 apres aretes  0.35x0.21x0.25 m  pierre:108
+q_brique_2             src    94 ->   94 tris (budget  150) ->   98 apres aretes  0.40x0.24x0.22 m  pierre:94
+q_brique_3             src   126 ->  126 tris (budget  150) ->  134 apres aretes  0.38x0.25x0.22 m  pierre:126
+q_brique_4             src   126 ->  126 tris (budget  150) ->  134 apres aretes  0.26x0.25x0.22 m  pierre:126
+q_porte_1_plate        src   314 ->  314 tris (budget  500) ->  486 apres aretes  1.17x2.20x0.13 m  jute:270 lin:42 bois:2
+q_porte_1_ronde        src   470 ->  470 tris (budget  500) ->  766 apres aretes  1.06x2.20x0.11 m  jute:428 lin:40 bois:2
+q_porte_2_plate        src  6032 ->  500 tris (budget  500) ->  550 apres aretes  1.17x2.20x0.26 m  fer:355 jute:137 lin:8
+q_porte_2_ronde        src  6188 ->  500 tris (budget  500) ->  562 apres aretes  1.04x2.20x0.23 m  fer:336 jute:160 lin:4
+q_porte_4_plate        src  1044 ->  499 tris (budget  500) ->  545 apres aretes  1.18x2.20x0.22 m  fer:375 jute:114 lin:8 bois:2
+q_porte_4_ronde        src  1228 ->  500 tris (budget  500) ->  612 apres aretes  1.06x2.20x0.20 m  fer:332 jute:160 lin:8
+q_porte_8_plate        src   986 ->  500 tris (budget  500) ->  618 apres aretes  1.17x2.20x0.21 m  fer:176 jute:146 lin:132 bois:46
+q_porte_8_ronde        src  1142 ->  500 tris (budget  500) ->  626 apres aretes  1.11x2.20x0.19 m  jute:184 fer:139 lin:119 bois:58
+q_volets_thin_flat_closed src    96 ->   96 tris (budget  300) ->  224 apres aretes  0.85x1.42x0.14 m  lin:60 jute:36
+q_volets_thin_flat_open src    96 ->   96 tris (budget  300) ->  224 apres aretes  1.35x1.42x0.38 m  lin:60 jute:36
+q_volets_thin_round_closed src   112 ->  112 tris (budget  300) ->  248 apres aretes  0.87x1.52x0.14 m  lin:68 jute:32 bois:12
+q_volets_thin_round_open src   112 ->  112 tris (budget  300) ->  248 apres aretes  1.61x1.52x0.38 m  lin:64 jute:36 bois:12
+q_volets_wide_flat_closed src   120 ->  120 tris (budget  300) ->  280 apres aretes  1.35x1.42x0.14 m  lin:84 jute:36
+q_volets_wide_flat_open src   120 ->  120 tris (budget  300) ->  280 apres aretes  2.48x1.42x0.46 m  lin:80 jute:40
+q_volets_wide_round_closed src   136 ->  136 tris (budget  300) ->  312 apres aretes  1.35x1.65x0.14 m  lin:94 jute:42
+q_volets_wide_round_open src   136 ->  136 tris (budget  300) ->  312 apres aretes  2.30x1.65x0.47 m  lin:92 jute:44
+q_fenetre_thin_flat1   src   112 ->  112 tris (budget  300) ->  200 apres aretes  0.79x1.56x0.44 m  jute:58 lin:42 bois:12
+q_fenetre_thin_round1  src   418 ->  300 tris (budget  300) ->  366 apres aretes  0.89x1.60x0.34 m  jute:161 lin:133 bois:6
+q_fenetre_wide_flat1   src   160 ->  160 tris (budget  300) ->  264 apres aretes  1.61x1.58x0.68 m  jute:84 lin:62 bois:14
+q_fenetre_wide_round1  src   354 ->  300 tris (budget  300) ->  472 apres aretes  1.36x1.73x0.53 m  jute:151 lin:141 bois:8
