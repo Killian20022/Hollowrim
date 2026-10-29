@@ -21,6 +21,21 @@ func _images(n: int) -> void:
 	for i in n:
 		await process_frame
 
+## Attend que `fini` soit vrai, en TEMPS DE JEU (somme des deltas de _process, donc indépendant de la charge de la machine et
+## de --fixed-fps), au plus `max_s` secondes de jeu. Les durées des effets (zone 10 s...) s'écoulent avec ces deltas, pas avec l'horloge murale.
+func _attendre_jeu(max_s: float, fini: Callable) -> float:
+	var ecoule := 0.0
+	while ecoule < max_s:
+		await process_frame
+		ecoule += root.get_process_delta_time()
+		if fini.call():
+			break
+	return ecoule
+
+func _eteint() -> bool:
+	var s := EffetsMagie.stats()
+	return s.emetteurs == 0 and s.eclairs == 0 and s.disques == 0 and s.pics == 0
+
 func _plafonds(etape: String) -> void:
 	var s := EffetsMagie.stats()
 	verifier(s.particules <= GestionMagie.MAX_PARTICULES, "%s : particules %d <= %d" % [etape, s.particules, GestionMagie.MAX_PARTICULES])
@@ -188,11 +203,7 @@ func _lancer() -> void:
 			EffetsMagie.statut_cible(c, statut, 0.0)
 	for p in projectiles:
 		p.queue_free()
-	var t_fin := Time.get_ticks_msec()
-	while Time.get_ticks_msec() - t_fin < 6000:
-		await process_frame
-		if EffetsMagie.stats().emetteurs == 0 and EffetsMagie.stats().eclairs == 0 and EffetsMagie.stats().disques == 0 and EffetsMagie.stats().pics == 0:
-			break
+	await _attendre_jeu(20.0, _eteint)   # zone de 10 s de jeu + marge
 	await _images(3)
 	s = EffetsMagie.stats()
 	print("  après extinction : ", s)
@@ -242,12 +253,9 @@ func _lancer() -> void:
 	EffetsMagie.jet("feu", main_g, Vector3.FORWARD, 9.0, 1.2, false)
 	for p in fins:
 		p.queue_free()
-	t_fin = Time.get_ticks_msec()
-	while Time.get_ticks_msec() - t_fin < 8000:
-		await process_frame
-		s = EffetsMagie.stats()
-		if s.emetteurs == 0 and s.proceduraux == 0 and s.bouffees == 0 and s.eclairs == 0 and s.disques == 0:
-			break
+	await _attendre_jeu(20.0, func() -> bool:
+		var st := EffetsMagie.stats()
+		return st.emetteurs == 0 and st.proceduraux == 0 and st.bouffees == 0 and st.eclairs == 0 and st.disques == 0)
 	await _images(3)
 	s = EffetsMagie.stats()
 	print("  couche fine, après extinction : ", s)

@@ -4,6 +4,17 @@ extends SceneTree
 ##   godot --headless --path . --script res://outils/test_sons_magie.gd -- --nouvelle
 var echecs := 0
 
+func _mediane(v: Array[float]) -> float:
+	var t := v.duplicate()
+	t.sort()
+	return t[t.size() / 2]
+
+## Plus grand échantillon après avoir écarté le plus mauvais (un pic d'ordonnancement isolé).
+func _pire_hors_pic(v: Array[float]) -> float:
+	var t := v.duplicate()
+	t.sort()
+	return t[t.size() - 2]
+
 func _init() -> void:
 	_lancer.call_deferred()
 
@@ -154,14 +165,20 @@ func _lancer() -> void:
 	verifier(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT) <= res0 + 1, "aucune ressource créée par sort (%d -> %d)" % [int(res0), int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT))])
 	verifier(SonsMagie.sync == 0, "toujours aucun chargement synchrone (%d)" % SonsMagie.sync)
 	# --- coût mesuré (CPU, fil principal) : appels seuls, puis salve typique par image
-	var t1 := Time.get_ticks_usec()
-	for i in 1000:
-		SonsMagie.impact("feu", Vector3(0, 1, -5), 1.0)
-		SonsMagie.lancement("glace", Vector3(0, 1, -3), 1.0)
-	var par_appel := float(Time.get_ticks_usec() - t1) / 2000.0
+	# Mesures ROBUSTES à la charge de la machine (plusieurs Godot en parallèle) : un échantillon par image / par lot, MÉDIANE
+	# (un pic d'ordonnancement ne fausse qu'un échantillon ; une vraie régression décale tous les échantillons).
+	var lots: Array[float] = []
+	for lot in 9:
+		var t1 := Time.get_ticks_usec()
+		for i in 250:
+			SonsMagie.impact("feu", Vector3(0, 1, -5), 1.0)
+			SonsMagie.lancement("glace", Vector3(0, 1, -3), 1.0)
+		lots.append(float(Time.get_ticks_usec() - t1) / 500.0)
+	var par_appel := _mediane(lots)
 	# pire image : 5 lectures réelles (plafond par image) + 3 boucles qui montent, mesurées image par image
 	var pire := 0.0
 	var somme := 0.0
+	var ech_charge: Array[float] = []
 	var lect0 := SonsMagie.joues
 	await create_timer(0.3).timeout
 	for i in 120:
@@ -176,11 +193,15 @@ func _lancer() -> void:
 		SonsMagie.aura(ennemi, "tenebres", 1.0)
 		var d := float(Time.get_ticks_usec() - tt)
 		somme += d
+		ech_charge.append(d)
 		pire = maxf(pire, d)
-	print("  mesure image chargée : moyenne %.0f us, pire %.0f us, %d lectures réelles sur 120 images" % [somme / 120.0, pire, SonsMagie.joues - lect0])
-	verifier(pire < 2000.0 and somme / 120.0 < 600.0, "salve de 5 lectures + 3 boucles par image (cas extrême) : moyenne %.0f us (< 600), pire %.0f us (< 2000)" % [somme / 120.0, pire])
+	var med_charge := _mediane(ech_charge)
+	print("  mesure image chargée : moyenne %.0f us, médiane %.0f us, pire %.0f us, %d lectures réelles sur 120 images" % [somme / 120.0, med_charge, pire, SonsMagie.joues - lect0])
+	# médiane (robuste à la charge) pour le coût typique ; le pire cas garde un plafond large (un pic isolé de la machine ne compte pas : 2e plus mauvais)
+	var pire2 := _pire_hors_pic(ech_charge)
+	verifier(pire2 < 2000.0 and med_charge < 600.0, "salve de 5 lectures + 3 boucles par image (cas extrême) : médiane %.0f us (< 600), pire hors pic isolé %.0f us (< 2000)" % [med_charge, pire2])
 	# coût continu : un jet + une charge ennemie appelés CHAQUE image (le cas d'un combat soutenu), sans nouvelle lecture
-	var cont := 0.0
+	var ech_cont: Array[float] = []
 	var cont_max := 0.0
 	for i in 240:
 		await process_frame
@@ -188,18 +209,20 @@ func _lancer() -> void:
 		SonsMagie.jet("feu", main, true)
 		SonsMagie.aura(ennemi, "tenebres", 1.0)
 		var dc := float(Time.get_ticks_usec() - tc)
-		cont += dc
+		ech_cont.append(dc)
 		cont_max = maxf(cont_max, dc)
 	# un sort complet (lancement + impact) = 2 lectures
-	var cast := 0.0
+	var ech_cast: Array[float] = []
 	for i in 60:
 		await create_timer(0.1).timeout
 		var tk := Time.get_ticks_usec()
 		SonsMagie.lancement("electricite", Vector3(0, 1, -3), 1.0)
 		SonsMagie.impact("electricite", Vector3(0, 1, -8), 1.0)
-		cast += float(Time.get_ticks_usec() - tk)
-	print("  mesure : jet + charge chaque image : moyenne %.1f us (pire %.0f) ; un sort (lancement + impact) : %.1f us" % [cont / 240.0, cont_max, cast / 60.0])
-	verifier(cont / 240.0 < 100.0 and cast / 60.0 < 300.0, "coût continu < 100 us par image, un sort < 300 us (marge sur le budget de +0,3 ms)")
+		ech_cast.append(float(Time.get_ticks_usec() - tk))
+	var cont := _mediane(ech_cont)
+	var cast := _mediane(ech_cast)
+	print("  mesure : jet + charge chaque image : médiane %.1f us (pire %.0f) ; un sort (lancement + impact) : médiane %.1f us" % [cont, cont_max, cast])
+	verifier(cont < 100.0 and cast < 300.0, "coût continu < 100 us par image, un sort < 300 us (marge sur le budget de +0,3 ms)")
 	print("  mesure : %.1f us par appel de son (lecture ou refus), %d appels en %.1f ms avec %d images" % [par_appel, appels, dt / 1000.0, 100])
 	verifier(par_appel < 100.0, "coût par appel < 100 us (%.1f us)" % par_appel)
 	print("test_sons_magie : ", "TOUT OK" if echecs == 0 else "ECHECS : %d" % echecs)
