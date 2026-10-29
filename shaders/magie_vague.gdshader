@@ -72,7 +72,9 @@ void vertex() {
 	vec2 da = ca.w > 0.0001 ? pa - pc : vec2(0.0);
 	float la = length(da);
 	vec2 ax = la > 0.001 ? da / la : vec2(0.0, 1.0);
-	float rl = clamp(la, rpx, rpx * 5.2);
+	// (jeune : langue qui file ; en vieillissant l'étirement retombe, sinon les empreintes qui s'éloignent de l'œil
+	// dessinent un éventail de rayons autour du bout)
+	float rl = clamp(la, rpx, rpx * mix(5.2, 2.0, smoothstep(0.08, 0.45, INSTANCE_CUSTOM.y)));
 	// centre calé sur la grille des pixels du MONDE : le motif ne glisse pas d'un sous-pixel à l'autre
 	vec2 c = (floor(pc / m) + 0.5) * m;
 	vec2 off = vec2(-ax.y, ax.x) * VERTEX.x * 2.0 * (rpx + m) + ax * VERTEX.y * 2.0 * (rl + m);
@@ -135,49 +137,65 @@ void fragment() {
 	vec2 fc = (floor(FRAGCOORD.xy / m) + 0.5) * m;
 	vec2 jp_[8] = vec2[8](v_j01.xy, v_j01.zw, v_j23.xy, v_j23.zw, v_j45.xy, v_j45.zw, v_j67.xy, v_j67.zw);
 	float jw_[8] = float[8](v_jw0.x, v_jw0.y, v_jw0.z, v_jw0.w, v_jw1.x, v_jw1.y, v_jw1.z, v_jw1.w);
+	// Chaque segment donne SA distance réelle (sj_i) et son écart signé ; on les MÉLANGE, pondérés par la proximité
+	// (1/d²²) : pas de couture droite là où le segment le plus proche change (creux d'un virage quand on tourne, deux
+	// segments à des distances différentes). Le dernier segment est prolongé au-delà du bout pour l'écart et la distance
+	// (sinon, autour du point touché, l'écart devient une distance au POINT et le motif dessine des anneaux), mais sa
+	// proximité reste mesurée au bout lui-même (sinon sa droite prolongée « capte » des pixels loin du jet).
+	float px_m = abs(PROJECTION_MATRIX[1][1]) * VIEWPORT_SIZE.y * 0.5;
+	float ds = jet_long / 7.0;
+	float sw = 0.0, ss = 0.0, sl = 0.0, sd = 0.0, swj = 0.0, sm_ = 0.0, smpp = 0.0;
 	float best = 1e20;
 	int bi = 0;
-	float bt = 0.0;
-	float lat = 0.0;
 	float avant0 = 0.0;   // à l'écran, distance (px) en arrière de la paume (> 0 : derrière la main)
-	float apres7 = 0.0;   // à l'écran, distance (px) au-delà du bout (matière écrasée sur la cible qui déborde)
+	float e2m = 4.0 * m * m;
 	for (int i = 0; i < 7; i++) {
 		vec2 e = jp_[i + 1] - jp_[i];
 		float le2 = max(dot(e, e), 1.0);
+		float le = sqrt(le2);
 		vec2 dp = fc - jp_[i];
 		float tu = dot(dp, e) / le2;
 		if (i == 0) {
-			avant0 = max(-tu, 0.0) * sqrt(le2);
+			avant0 = max(-tu, 0.0) * le;
 		}
-		if (i == 6) {
-			apres7 = max(tu - 1.0, 0.0) * sqrt(le2);
-		}
-		// le dernier segment est prolongé au-delà du bout (sinon, autour du point touché, l'écart devient une distance au
-		// POINT et le motif dessine des anneaux concentriques)
-		float tc = clamp(tu, 0.0, i == 6 ? 1e6 : 1.0);
+		float tc = clamp(tu, 0.0, 1.0);
 		vec2 dd = dp - e * tc;
 		float d2 = dot(dd, dd);
+		float cr = (dp.x * e.y - dp.y * e.x) / le;   // écart perpendiculaire signé à la droite du segment
+		float li = (cr >= 0.0 ? 1.0 : -1.0) * sqrt(d2);
+		float extra = 0.0;
+		float lid = li;   // écart RÉEL (distance au bout au-delà de celui-ci) : chaleur du cœur, refroidissement
+		if (i == 6 && tu > 1.0) {
+			li = cr;                                   // au-delà du bout : écart à la droite prolongée (motif)
+			extra = (tu - 1.0) * le * jw_[7] / px_m;   // et surplus converti en mètres à cette profondeur
+		}
+		float wa = jw_[i];
+		float wb = jw_[i + 1];
+		float ai = tc * wa / max(wb + tc * (wa - wb), 0.05);   // fraction réelle du segment (perspective)
+		float wgt = 1.0 / ((d2 + e2m) * (d2 + e2m));
+		sw += wgt;
+		ss += wgt * (float(i) + ai) * ds;
+		sm_ += wgt * extra;
+		sl += wgt * li;
+		sd += wgt * abs(lid);
+		swj += wgt * mix(wa, wb, ai);
+		smpp += wgt * ds / le;   // mètres de jet par pixel d'écran, le long du segment
 		if (d2 < best) {
 			best = d2;
 			bi = i;
-			bt = min(tc, 1.0);
-			lat = (dp.x * e.y - dp.y * e.x >= 0.0 ? 1.0 : -1.0) * sqrt(d2);   // signé : motif pas en miroir autour de la ligne
 		}
 	}
-	float w_a = jw_[bi];
-	float w_b = jw_[bi + 1];
-	float aj = bt * w_a / max(w_b + bt * (w_a - w_b), 0.05);   // fraction réelle du segment (perspective)
-	float ds = jet_long / 7.0;
-	float sj = (float(bi) + aj) * ds;
-	float wj = mix(w_a, w_b, aj);
-	float px_m = abs(PROJECTION_MATRIX[1][1]) * VIEWPORT_SIZE.y * 0.5;
+	float sj = ss / sw;
+	float lat = sl / sw;     // écart signé pour le MOTIF (pas d'anneaux autour du bout)
+	float latd = sd / sw;    // écart réel pour la CHALEUR (pas de rayon brûlant dans le prolongement du bout)
+	float wj = swj / sw;
 	// au-delà du bout (cible, mur : la matière y est écrasée et déborde) : même distance que le bout ; le motif continue
-	// avec le surplus à l'écran converti en mètres à cette profondeur (sinon : motif figé en stries)
-	float sm = sj + (bi == 6 ? apres7 * jw_[7] / px_m : 0.0);
+	// avec le surplus (sinon : motif figé en stries)
+	float sm = sj + sm_ / sw;
 	// rayon du jet (le spray s'ouvre) vu à l'écran à cette distance
 	float rj = (0.07 + 0.085 * sj) * px_m / max(wj, 0.05);
 	float ln = lat / max(rj, m);
-	float lna = abs(ln);
+	float lna = latd / max(rj, m);
 	float t = TIME;
 	// turbulence qui défile le long du jet (≈ 7 m/s) et bout : déformation lente + bruit fin déformé, + un 2e canal à
 	// contre-temps (le motif ne glisse pas en bloc : il se renouvelle)
@@ -187,8 +205,21 @@ void fragment() {
 	float n = texture(bruit, vec2(np.x, np.y - t * 2.2)).b;
 	float n2 = texture(bruit, vec2(np.x * 1.7 + 0.5, np.y * 1.6 - t * 1.4 + 0.21)).a;
 	n = mix(n, n2, 0.4);
+	// autour du BOUT (point touché : la matière s'y écrase et s'étale de tous côtés) : les coordonnées du jet n'ont plus
+	// de sens (anneaux, stries) ; on passe à un bruit posé dans le plan de l'écran autour du bout, en mètres à cette
+	// profondeur, qui bout et monte
+	float k_bout = smoothstep(jet_long - 1.2 * ds, jet_long + 0.5 * ds, sm);
+	// idem là où le jet file vers le fond (vu de l'œil, des mètres de jet tiennent en quelques pixels) : le motif en
+	// coordonnées du jet s'y tasserait en tourbillon de rayons
+	k_bout = max(k_bout, smoothstep(0.025, 0.07, smpp / sw * 0.3 * m));
+	if (k_bout > 0.0) {
+		vec2 pb = (fc - jp_[7]) * jw_[7] / px_m;
+		vec2 wb = texture(bruit, pb * 0.21 + vec2(0.61, t * 0.5)).rg;
+		float nb = texture(bruit, pb * 0.36 + (wb - 0.5) * 0.3 + vec2(0.13, t * 0.9)).b;
+		n = mix(n, nb, k_bout);
+	}
 	// --- couverture : empreinte rongée par la turbulence PARTAGÉE (bords déchiquetés, aucune forme propre) ---
-	float corps = (1.0 - r) * 2.6 - 0.55 + (n - 0.5) * 2.2;
+	float corps = (1.0 - r) * 2.4 - 0.5 + (n - 0.5) * 2.5;
 	// rien en arrière de la paume (à l'écran, avant le début de l'axe)
 	corps -= bi == 0 ? clamp(avant0 / max(rj, 2.0 * m), 0.0, 1.0) * 2.5 : 0.0;
 	// bouffées âgées (le haut du panache, le bout) : se trouent en lambeaux (toujours par le champ partagé), puis
@@ -207,9 +238,10 @@ void fragment() {
 	float coeur = 1.0 - clamp(lna, 0.0, 1.6) / 1.6;
 	float h = 0.67 - 0.95 * pow(qd, 1.3) + coeur * 0.24 + (n - 0.5) * 0.8 + (wv.x - 0.5) * 0.3;
 	// loin de l'axe (matière qui monte, qui traîne quand on tourne, qui déborde de la cible) : elle a refroidi
-	h -= max(lna - 1.0, 0.0) * 0.3;
+	// (moins autour du point touché : la flamme écrasée lèche la cible, elle reste vive)
+	h -= clamp(lna - 1.0, 0.0, 1.4) * 0.26 * (1.0 - 0.6 * k_bout);
 	// tout près de la paume : jaune d'or saturé, pas un voile blanc laiteux autour de la main
-	h = min(h, 0.8 + 0.25 * smoothstep(0.3, 1.5, sj));
+	h = min(h, 0.77 + 0.25 * smoothstep(0.3, 1.5, sj));
 	// bord net (déchiqueté par la turbulence) plutôt qu'un large halo de points tramés
 	float k = clamp(corps * 3.0, 0.0, 1.0);
 	// couverture tramée par un bruit (pas de Bayer) qui « bout » à 12 images/s, la MÊME pour toutes les bouffées
@@ -227,7 +259,7 @@ void fragment() {
 		// corps du feu presque opaque (la masse ne laisse pas voir l'empilement des bouffées) ; lumière seulement sur le
 		// cœur blanc-jaune
 		al = opacite * clamp(0.82 + h * 0.15, 0.0, 0.97);
-		lum = clamp(h - 0.72, 0.0, 1.0) * 0.45;
+		lum = clamp(h - 0.78, 0.0, 1.0) * 0.4;
 	} else {
 		// fumée : rouge sombre qui noircit, couvrante mais légère, sans lumière
 		float f = clamp(-h * 2.5, 0.0, 1.0);
