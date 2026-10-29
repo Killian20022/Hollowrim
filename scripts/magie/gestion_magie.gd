@@ -1291,6 +1291,10 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 		j.ecart = ecart
 	elif fin_actif and ecole == "electricite":
 		j.decharge = _decharge_creer(dbl)
+		# avec le faisceau épais, moins d'éclats (sinon, en double, deux jets empilent un gros blanc sur la cible)
+		var dch: GPUParticles3D = j.decharge
+		dch.amount = int(DECHARGE_N * (0.8 if dbl else 0.65))
+		(dch.process_material as ShaderMaterial).set_shader_parameter("force", 1.1 if dbl else 1.0)
 		j.faisceau = _faisceau_creer(dbl)
 	elif fin_actif and ecole == "glace":
 		# couche fine : le corps du jet de glace est un SOUFFLE DE GIVRE (même machinerie que la vague : j.vague)

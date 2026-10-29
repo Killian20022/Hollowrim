@@ -138,7 +138,7 @@ void fragment() {
 		float dd = abs(y - yi) / sqrt(1.0 + pow((yi2 - yi) / (0.02 * v_lpx / nk), 2.0));
 		float flick = mh(vec2(img, sg));
 		float ki = i < 0.5 ? (flick < 0.1 ? 0.6 : 0.8 + 0.2 * flick) : (flick < 0.3 ? 0.0 : (flick < 0.65 ? 0.5 : 0.85));
-		float cw = (i < 0.5 ? coeur_px : coeur_px * 0.45) * m * (1.0 + 0.25 * dbl);
+		float cw = (i < 0.5 ? coeur_px : coeur_px * 0.45) * m * (1.0 + 0.15 * dbl);
 		float core = 1.0 - smoothstep(cw, cw + m, dd);
 		float halo = exp(-max(dd - cw, 0.0) / ((i < 0.5 ? 4.0 : 1.8) * m));
 		I = max(I, ki * (core * 1.15 + halo * (i < 0.5 ? 0.62 : 0.35)));
@@ -162,7 +162,8 @@ void fragment() {
 			I = max(I, kf * 0.9);
 		}
 	}
-	I *= force * bord;
+	// au point frappé, la lumière baisse un peu : le crépitement de l'impact prend le relais (pas de tache blanche)
+	I *= force * bord * (touche > 0.5 ? mix(1.0, 0.6, smoothstep(0.85, 1.0, t)) : 1.0);
 	gaine *= force * bord * env;
 	if (I < 0.03 && gaine < 0.03) {
 		discard;
