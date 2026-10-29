@@ -6,7 +6,7 @@ render_mode unshaded, blend_add, cull_disabled, depth_draw_never, fog_disabled, 
 
 uniform vec3 ton_1 : source_color = vec3(0.35, 0.10, 0.11);
 uniform vec3 ton_2 : source_color = vec3(0.70, 0.20, 0.12);
-uniform float force = 0.15;
+uniform float force = 0.25;
 uniform float paliers = 4.0;
 uniform float debut_brume = 4.0;
 uniform float fin_brume = 31.0;
