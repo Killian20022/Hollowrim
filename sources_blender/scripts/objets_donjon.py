@@ -29,7 +29,7 @@ BUDGET = {"coffre": 550, "tonneau": 400, "table": 550, "urne": 420, "crane": 180
           "micro_eclats": 60, "micro_planche": 60, "micro_os": 50, "micro_cire": 70, "micro_pieces": 30, "micro_chaine": 100, "sac": 200, "os_monticule": 800,
           "etagere_cadre": 420, "etagere_contenu": 820, "etagere_couchee": 300, "lit": 570, "ratelier_cadre": 420, "arme_v": 90,
           "bouclier": 330, "planche": 40, "poteau": 40, "tringle": 100,
-          "coffre_cuve": 1100, "coffre_couvercle": 330, "coffre_royal_cuve": 2200, "coffre_royal_couvercle": 900,
+          "coffre_cuve": 1100, "coffre_couvercle": 330, "coffre_or": 700, "coffre_royal_or": 1300, "coffre_royal_cuve": 2200, "coffre_royal_couvercle": 900,
           "garniture": 260, "garniture_autel": 520, "garniture_etagere": 700}      # garniture : par objet de table
 
 
@@ -378,8 +378,8 @@ def _rivets(M, pts, r=0.011, saillie=0.009, n=V(0, 0, 1), ton=0.5):
 
 def coffre_cuve(var):
     """Cuve du coffre a/b/c (mêmes cotes que coffre_x, sans couvercle) : fond plein jusqu'à 0,33 m, parois de planches dont on voit
-    l'intérieur à l'ouverture, nappe d'or + pièces, un objet du butin (a : gobelet, b : bague, c : rouleau) ; ferrures, serrure,
-    nœuds de charnière à l'arrière."""
+    l'intérieur à l'ouverture ; ferrures, serrure, nœuds de charnière à l'arrière. L3 : l'or et l'objet posé dessus sont le module
+    à part coffre_or_x (rendu par CoffreCouvercle : il s'enfonce et disparaît quand le coffre est pillé)."""
     M = Module("coffre_cuve_" + var, 1500 + ord(var))
     rg = M.rg
     yh, zh = CHARNIERE[var]
@@ -395,19 +395,6 @@ def coffre_cuve(var):
     for sx in (-1, 1):              # liteaux d'angle intérieurs (le creux entre deux parois descend au sombre par l'occlusion)
         for sz in (-1, 1):
             M.add("bois", boite(V(sx * 0.4, 0.385, sz * 0.235), (0.035, 0.11, 0.035)), 0.5)
-    h = _or_cuve(M, 0.405, 0.24, 0.335, 0.05, 72)
-    if var == "a":                  # gobelet couché sur l'or
-        M.rev("or", [(0.03, 0.0), (0.03, 0.007), (0.009, 0.014), (0.009, 0.038), (0.032, 0.068), (0.036, 0.09), (0.03, 0.09), (0.0, 0.064)], 8,
-              c=V(0.13, h(0.13, 0.04) + 0.03, 0.04), R=Ry(0.7) @ Rz(1.35), caps=(True, False), ton=0.85)
-    elif var == "b":                # bague à chaton (tout en or : la grotte ne peint ni laine ni entrelacs)
-        for k in range(6):
-            a0, a1 = TAU * k / 6, TAU * (k + 1) / 6
-            c0 = V(-0.12 + math.cos(a0) * 0.028, h(-0.12, 0.05) + 0.012, 0.05 + math.sin(a0) * 0.028)
-            c1 = V(-0.12 + math.cos(a1) * 0.028, h(-0.12, 0.05) + 0.012, 0.05 + math.sin(a1) * 0.028)
-            M.add("or", poutre(c0, c1, 0.01, 0.012), 0.95)
-        M.add("or", boite_ch(V(-0.12, h(-0.12, 0.05) + 0.026, 0.078), (0.024, 0.018, 0.024), 0.005), 1.0)
-    else:                           # rouleau scellé
-        M.add("parchemin", cylindre(V(-0.2, h(-0.1, -0.06) + 0.022, -0.1), V(0.04, h(0.0, -0.06) + 0.022, -0.02), 0.022, 6), 0.9)
     for dx in (-0.3, 0.3):          # cerclages verticaux devant / derrière, rivets
         for side in (-1, 1):
             M.add("fer", boite(V(dx, 0.235, side * 0.287), (0.07, 0.43, 0.014)), 0.45)
@@ -428,6 +415,30 @@ def coffre_cuve(var):
         M.add("fer", boite(V(0, 0.025, 0), (0.93, 0.05, 0.59)), 0.45)
         for sx in (-1, 1):          # poignées latérales
             M.add("fer", poutre(V(sx * 0.452, 0.36, -0.07), V(sx * 0.452, 0.36, 0.07), 0.018, 0.022), 0.5)
+    return M
+
+
+def coffre_or(var):
+    """L3 : OR DE LA CUVE a/b/c (nappe d'or + pièces, un objet du butin : a gobelet, b bague, c rouleau), à part de la cuve pour pouvoir
+    le retirer quand le coffre est pillé (CoffreCouvercle) ; repère de la cuve. Mêmes tirages que l'or fondu dans la cuve avant L3 :
+    les 24 tirages des planches de coffre_cuve sont rejoués d'abord (mêmes pièces, aux mêmes places)."""
+    M = Module("coffre_or_" + var, 1500 + ord(var))
+    rg = M.rg
+    for _ in range(24):
+        rg.random()
+    h = _or_cuve(M, 0.405, 0.24, 0.335, 0.05, 72)
+    if var == "a":                  # gobelet couché sur l'or
+        M.rev("or", [(0.03, 0.0), (0.03, 0.007), (0.009, 0.014), (0.009, 0.038), (0.032, 0.068), (0.036, 0.09), (0.03, 0.09), (0.0, 0.064)], 8,
+              c=V(0.13, h(0.13, 0.04) + 0.03, 0.04), R=Ry(0.7) @ Rz(1.35), caps=(True, False), ton=0.85)
+    elif var == "b":                # bague à chaton (tout en or : la grotte ne peint ni laine ni entrelacs)
+        for k in range(6):
+            a0, a1 = TAU * k / 6, TAU * (k + 1) / 6
+            c0 = V(-0.12 + math.cos(a0) * 0.028, h(-0.12, 0.05) + 0.012, 0.05 + math.sin(a0) * 0.028)
+            c1 = V(-0.12 + math.cos(a1) * 0.028, h(-0.12, 0.05) + 0.012, 0.05 + math.sin(a1) * 0.028)
+            M.add("or", poutre(c0, c1, 0.01, 0.012), 0.95)
+        M.add("or", boite_ch(V(-0.12, h(-0.12, 0.05) + 0.026, 0.078), (0.024, 0.018, 0.024), 0.005), 1.0)
+    else:                           # rouleau scellé
+        M.add("parchemin", cylindre(V(-0.2, h(-0.1, -0.06) + 0.022, -0.1), V(0.04, h(0.0, -0.06) + 0.022, -0.02), 0.022, 6), 0.9)
     return M
 
 
@@ -486,11 +497,11 @@ def coffre_couvercle(var):
 
 def coffre_royal_cuve():
     """GRAND COFFRE ROYAL (trésor, tombeau du jarl) : 1,2 x 0,7 m, cuve 0,56 m sur quatre pieds de fer ; quatre rangées de planches,
-    six cerclages rivetés, équerres d'angle, serrure ouvragée ; DÉBORDE d'or (nappe bombée au ras du bord), couronne et coupe dessus."""
+    six cerclages rivetés, équerres d'angle, serrure ouvragée. L3 : l'or (nappe bombée au ras du bord, couronne et coupe) est le module à
+    part coffre_royal_or (retiré quand le coffre est pillé)."""
     M = Module("coffre_royal_cuve", 1700)
     rg = M.rg
     yh, zh = CHARNIERE["royal"]
-    lx, lz = 0.58, 0.33
     M.add("bois", boite(V(0, 0.27, 0), (1.12, 0.4, 0.62)), 0.5)            # fond plein (sous l'or)
     for side in (-1, 1):
         for i in range(4):
@@ -503,17 +514,6 @@ def coffre_royal_cuve():
     for sx in (-1, 1):
         for sz in (-1, 1):
             M.add("bois", boite(V(sx * 0.535, 0.5, sz * 0.305), (0.035, 0.11, 0.035)), 0.5)
-    h = _or_cuve(M, lx * 0.93, lz * 0.92, 0.475, 0.1, 130, rp=0.032, nx=8, nz=5)
-    # couronne posée de travers sur l'or, coupe à pied
-    cc = V(0.16, h(0.16, 0.02) + 0.04, 0.02)
-    Rc = Rx(0.25) @ Rz(-0.18)
-    for k in range(8):
-        a0, a1 = TAU * k / 8, TAU * (k + 1) / 8
-        M.add("or", poutre(cc + Rc @ V(math.cos(a0) * 0.085, 0, math.sin(a0) * 0.085), cc + Rc @ V(math.cos(a1) * 0.085, 0, math.sin(a1) * 0.085), 0.012, 0.035), 1.0)
-        M.add("or", hull([cc + Rc @ (V(math.cos(a0) * 0.085, 0.017, math.sin(a0) * 0.085) + V(s * 0.011, 0, t * 0.011)) for s in (-1, 1) for t in (-1, 1)] + [cc + Rc @ V(math.cos(a0) * 0.085, 0.055, math.sin(a0) * 0.085)]), 1.0)
-    M.add("laine", boite_ch(cc + Rc @ V(0, 0.0, 0.088), (0.022, 0.022, 0.012), 0.004), 0.9)
-    M.rev("or", [(0.045, 0.0), (0.05, 0.01), (0.012, 0.022), (0.012, 0.07), (0.055, 0.1), (0.062, 0.15), (0.055, 0.15), (0.0, 0.11)], 8,
-          c=V(-0.24, h(-0.24, -0.05) - 0.01, -0.05), R=Rz(0.12), caps=(True, False), ton=0.9)
     # cerclages : quatre devant / derrière (x), deux sur les joues ; rivets
     for dx in (-0.45, -0.16, 0.16, 0.45):
         for side in (-1, 1):
@@ -534,6 +534,28 @@ def coffre_royal_cuve():
     M.add("noir", boite(V(0, 0.42, 0.3735), (0.014, 0.04, 0.002)), 1.0)
     _rivets(M, [V(x, 0.47, 0.373) for x in (-0.06, 0.06)], r=0.01, ton=0.6)
     M.add("fer", boite(V(0, 0.07, 0), (1.18, 0.03, 0.68)), 0.45)             # semelle cerclée
+    return M
+
+
+def coffre_royal_or():
+    """L3 : OR DU GRAND COFFRE ROYAL (nappe bombée au ras du bord, couronne posée de travers, coupe à pied), à part de la cuve ;
+    mêmes tirages qu'avant L3 (les 32 tirages des planches de coffre_royal_cuve rejoués d'abord)."""
+    M = Module("coffre_royal_or", 1700)
+    rg = M.rg
+    for _ in range(32):
+        rg.random()
+    lx, lz = 0.58, 0.33
+    h = _or_cuve(M, lx * 0.93, lz * 0.92, 0.475, 0.1, 130, rp=0.032, nx=8, nz=5)
+    # couronne posée de travers sur l'or, coupe à pied
+    cc = V(0.16, h(0.16, 0.02) + 0.04, 0.02)
+    Rc = Rx(0.25) @ Rz(-0.18)
+    for k in range(8):
+        a0, a1 = TAU * k / 8, TAU * (k + 1) / 8
+        M.add("or", poutre(cc + Rc @ V(math.cos(a0) * 0.085, 0, math.sin(a0) * 0.085), cc + Rc @ V(math.cos(a1) * 0.085, 0, math.sin(a1) * 0.085), 0.012, 0.035), 1.0)
+        M.add("or", hull([cc + Rc @ (V(math.cos(a0) * 0.085, 0.017, math.sin(a0) * 0.085) + V(s * 0.011, 0, t * 0.011)) for s in (-1, 1) for t in (-1, 1)] + [cc + Rc @ V(math.cos(a0) * 0.085, 0.055, math.sin(a0) * 0.085)]), 1.0)
+    M.add("laine", boite_ch(cc + Rc @ V(0, 0.0, 0.088), (0.022, 0.022, 0.012), 0.004), 0.9)
+    M.rev("or", [(0.045, 0.0), (0.05, 0.01), (0.012, 0.022), (0.012, 0.07), (0.055, 0.1), (0.062, 0.15), (0.055, 0.15), (0.0, 0.11)], 8,
+          c=V(-0.24, h(-0.24, -0.05) - 0.01, -0.05), R=Rz(0.12), caps=(True, False), ton=0.9)
     return M
 
 
@@ -576,7 +598,8 @@ def coffre_royal_couvercle():
 
 
 def _l1():
-    return [coffre_cuve(v) for v in "abc"] + [coffre_couvercle(v) for v in "abc"] + [coffre_royal_cuve(), coffre_royal_couvercle()]
+    return [coffre_cuve(v) for v in "abc"] + [coffre_couvercle(v) for v in "abc"] + [coffre_royal_cuve(), coffre_royal_couvercle()] + \
+        [coffre_or(v) for v in "abc"] + [coffre_royal_or()]
 
 
 L1 = [_l1]

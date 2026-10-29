@@ -52,12 +52,63 @@ func _ready() -> void:
 	if deja_verse:
 		objets.clear()
 		process_mode = Node.PROCESS_MODE_ALWAYS     # la gerbe d'un coffre continue sous la fenêtre de butin (jeu en pause)
+	elif not objets.is_empty():
+		_creer_fouille()
 	var nb := 0 if n_or <= 0 else clampi(4 + n_or / 3, 5, MAX_PIECES)
 	if nb > 0:
 		_jaillir.call_deferred(nb)      # après add_child : l'appelant pose global_position juste après
 	elif _inter == null:
 		_verser()                                   # rien à montrer : contenu versé tel quel (repli)
 		queue_free()
+
+## L3 : corps à fouiller (touche E, « Fouiller ») : ouvre la fenêtre de butin sur `objets` ; sans boîte de dialogue ni fenêtre
+## (scène sans interface), pas d'invite : les objets sont versés avec les pièces (repli de _verser).
+func _creer_fouille() -> void:
+	if dialogue == null:
+		dialogue = _trouver_dialogue()
+	if dialogue == null or joueur == null:
+		return
+	var it := Node3D.new()
+	it.set_script(preload("res://scripts/interactif.gd"))
+	it.joueur = joueur
+	it.dialogue = dialogue
+	it.nom = nom_corps
+	it.verbe = "Fouiller"
+	it.rayon = 2.0
+	it.action = func() -> Array:
+		fouiller()
+		return []
+	it.condition = func() -> bool: return not objets.is_empty()
+	it.position = Vector3(0, 0.3, 0)
+	add_child(it)
+	_inter = it
+
+## Ouvre la fenêtre de butin du corps (aussi appelé par les tests). Repli sans fenêtre : tout au sac.
+func fouiller() -> bool:
+	if objets.is_empty():
+		return false
+	var f := FenetreButin.trouver(self)
+	if f != null and f.ouvrir(nom_corps, objets, 0, _apres_fouille):
+		return true
+	var liste: Array = []
+	for id: String in objets:
+		liste.append({"id": id, "n": int(objets[id]), "rarete": ButinTables.rarete_de(id)})
+	for o: Dictionary in ButinTables.prendre(joueur.inventaire, liste):
+		if hud != null:
+			hud.avis("+ %d %s" % [int(o["n"]), joueur.inventaire.nom(String(o["id"]))])
+	objets.clear()
+	_apres_fouille()
+	return false
+
+func _apres_fouille() -> void:
+	if objets.is_empty() and _inter != null and is_instance_valid(_inter):
+		_inter.actif = false
+		dialogue.retirer_invite(_inter)
+	_peut_partir()
+
+## Tests : invite de fouille posée (corps avec objets).
+func a_fouille() -> bool:
+	return _inter != null and is_instance_valid(_inter) and _inter.actif
 
 func _peut_partir() -> void:
 	if objets.is_empty() and _pieces.is_empty() and is_inside_tree() and not is_queued_for_deletion():

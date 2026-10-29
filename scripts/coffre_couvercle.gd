@@ -9,6 +9,9 @@ extends Node3D
 ##   - ouvrir(true) : ouvert d'un coup (partie chargée : l'état vient de quetes.vus, voir tertre._etat_donjon / GrotteJeu._etat).
 ##   - fermer() : refermé d'un coup (mort du joueur avant d'avoir ramassé la bourse : le coffre redevient pillable).
 ## Aucun _process hors de l'animation. Le butin reste tiré par ButinTables ; l'or de la cuve est un décor (rien à ramasser).
+## Lot L3 : l'OR de la cuve (module « coffre_or_x » / « coffre_royal_or », nappe + pièces + objet posé) n'est plus fondu dans les
+## tampons : c'est un maillage enfant de ce nœud, qui S'ENFONCE sous le fond de la cuve pendant que les pièces jaillissent
+## (OR_DEBUT → OR_FIN) puis disparaît : un coffre pillé est vide. Ouvert d'emblée (partie chargée) : pas d'or ; refermé : l'or revient.
 
 const ANGLE := 1.75          # rad (≈ 100°) : couvercle un peu au-delà de la verticale
 const DUREE := 0.5
@@ -17,6 +20,8 @@ const DEPASSE := 1.06
 const LUEUR_DUREE := 0.6
 const HALO_DUREE := 0.9
 const LUEUR_PORTEE := 1.8
+const OR_DEBUT := 0.2        # s : l'or commence à s'enfoncer (les premières pièces sont en l'air)
+const OR_FIN := 1.1          # s : l'or est sous le fond de la cuve, caché
 
 var decor: CrypteDecor       # pour lumiere_possible (lumières de la case et du voisin)
 var lueur_pos := Vector3.ZERO      # intérieur de la cuve, repère du parent (= racine du décor)
@@ -28,6 +33,10 @@ var _lueur: OmniLight3D
 var _halo: MeshInstance3D
 var _halo_mat: StandardMaterial3D
 var _halo_taille := Vector2(0.8, 0.5)
+var _or: MeshInstance3D      # L3 : or de la cuve (null si le module manque)
+var _or_base := Vector3.ZERO
+var _or_couches := 1
+var _or_creux := 0.0         # profondeur d'enfoncement (hauteur de l'or + 1 cm : son sommet passe sous le fond de la cuve)
 
 ## Couvercle prêt à poser sous la racine du décor (`info` : retour de CrypteDecor.coffre(…, deux_pieces) / coffre_royal) ; null si
 ## le module manque. À appeler sur le fil principal (matériaux du décor).
@@ -49,7 +58,21 @@ static func creer(dcr: CrypteDecor, info: Dictionary) -> CoffreCouvercle:
 	mi.visibility_range_end_margin = 3.0
 	c._maillage = mi
 	c.add_child(mi)
+	if info.has("or"):              # L3 : or de la cuve, repère de la cuve = charnière - décalage
+		var mo := dcr.maillage_modele(String(info["or"]))
+		if mo != null:
+			mo.name = "Or"
+			mo.position = -(info["charniere"] as Vector3)
+			mo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mo.visibility_range_end = CrypteDonjon.PORTEE_DESSIN + 2.0
+			mo.visibility_range_end_margin = 3.0
+			c._or = mo
+			c._or_base = mo.position
+			c._or_creux = mo.get_aabb().size.y + 0.01
+			c._or_couches = mo.layers
+			c.add_child(mo)
 	c.set_process(false)
+	c.process_mode = Node.PROCESS_MODE_ALWAYS     # L3 : le couvercle finit de s'ouvrir sous la fenêtre de butin (jeu en pause)
 	return c
 
 ## Angle actuel du couvercle (rad, 0 = fermé) : tests et captures.
@@ -66,6 +89,7 @@ func ouvrir(instant := false) -> void:
 	if instant:
 		_finir_effets()
 		_poser(1.0)
+		_poser_or(1.0)
 		_t = -1.0
 		set_process(false)
 		return
@@ -78,7 +102,21 @@ func fermer() -> void:
 	_finir_effets()
 	_t = -1.0
 	_poser(0.0)
+	_poser_or(0.0)
 	set_process(false)
+
+## L3 : or enfoncé de f (0 = en place, 1 = sous le fond, caché).
+func _poser_or(f: float) -> void:
+	if _or == null:
+		return
+	var u := clampf(f, 0.0, 1.0)
+	_or.position = _or_base - Vector3(0, _or_creux * u * u * (3.0 - 2.0 * u), 0)
+	# caché par ses couches de rendu, pas par `visible` (SalleActive gère `visible` des maillages du décor salle par salle)
+	_or.layers = _or_couches if u < 1.0 else 0
+
+## Tests et captures : or de la cuve visible (pas encore pillé).
+func or_visible() -> bool:
+	return _or != null and _or.layers != 0
 
 ## Courbe d'ouverture : S (smoothstep) jusqu'à DEPASSE à T_HAUT, puis retour amorti à 1 (petit rebond) à DUREE.
 static func courbe(t: float) -> float:
@@ -111,6 +149,7 @@ func _process(dt: float) -> void:
 
 func _maj() -> void:
 	_poser(courbe(_t))
+	_poser_or((_t - OR_DEBUT) / (OR_FIN - OR_DEBUT))
 	if _lueur != null:
 		var k := clampf(_t / 0.12, 0.0, 1.0) * clampf(1.0 - (_t - 0.12) / (LUEUR_DUREE - 0.12), 0.0, 1.0)
 		_lueur.light_energy = Lumieres.BOUGIE["energie"] * 2.2 * k
@@ -124,9 +163,10 @@ func _maj() -> void:
 		if _t >= HALO_DUREE:
 			_halo.queue_free()
 			_halo = null
-	if _t >= maxf(DUREE, maxf(LUEUR_DUREE, HALO_DUREE)):
+	if _t >= maxf(maxf(DUREE, OR_FIN), maxf(LUEUR_DUREE, HALO_DUREE)):
 		_t = -1.0
 		_poser(1.0)
+		_poser_or(1.0)
 		set_process(false)
 
 func _effets() -> void:

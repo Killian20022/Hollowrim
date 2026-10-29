@@ -608,6 +608,7 @@ func _laisser_butin() -> void:
 	b.set_script(BUTIN)
 	b.joueur = joueur
 	b.hud = hud
+	b.nom_corps = nom_affiche       # L3 : titre de la fenêtre de butin
 	b.contenu = _contenu_butin()
 	get_parent().add_child(b)
 	b.global_position = global_position + global_transform.basis.z * 0.6

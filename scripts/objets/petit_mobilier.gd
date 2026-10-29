@@ -34,6 +34,8 @@ static func coffre(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, collision := tr
 	if deux_pieces:
 		dcr.modele("coffre_cuve_" + v, pos, lacet, Vector3.ONE, {}, false)
 		info = _couvercle(dcr, "coffre_couvercle_" + v, pos, lacet, CHARNIERE[v], 0.42)
+		if not info.is_empty():
+			info["or"] = "coffre_or_" + v      # L3 : or de la cuve à part (CoffreCouvercle : il disparaît quand le coffre est pillé)
 	else:
 		dcr.modele("coffre_" + v, pos, lacet, Vector3.ONE, {}, false)
 	if collision:
@@ -50,6 +52,8 @@ static func coffre_royal(dcr: CrypteDecor, pos: Vector3, lacet := 0.0) -> Dictio
 	var b := Basis(Vector3.UP, lacet)
 	dcr.modele("coffre_royal_cuve", pos, lacet, Vector3.ONE, {}, false)
 	var info := _couvercle(dcr, "coffre_royal_couvercle", pos, lacet, CHARNIERE["royal"], 0.56)
+	if not info.is_empty():
+		info["or"] = "coffre_royal_or"
 	var s := b * Vector3(1.22, 0, 0.74)
 	dcr.solide(pos + Vector3(0, 0.36, 0), Vector3(absf(s.x), 0.72, absf(s.z)))
 	dcr.j1()
@@ -65,7 +69,7 @@ static func _couvercle(dcr: CrypteDecor, nom: String, pos: Vector3, lacet: float
 		return {}
 	var b := Basis(Vector3.UP, lacet)
 	var xf_c: Transform3D = dcr.xf * Transform3D(b, pos + b * Vector3(0, ch.x, ch.y))
-	var info := {"modele": nom, "xf": xf_c, "lueur": dcr.xf * (pos + Vector3(0, y_lueur, 0)), "angle": CoffreCouvercle.ANGLE}
+	var info := {"modele": nom, "xf": xf_c, "lueur": dcr.xf * (pos + Vector3(0, y_lueur, 0)), "angle": CoffreCouvercle.ANGLE, "charniere": Vector3(0, ch.x, ch.y)}
 	if dcr._obj_n > 0:
 		var ouvert := xf_c * Transform3D(Basis(Vector3.RIGHT, -CoffreCouvercle.ANGLE), Vector3.ZERO)
 		dcr._obj_v.append_array(ouvert * dcr.sommets_modele(nom))

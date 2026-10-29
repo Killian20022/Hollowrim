@@ -1186,6 +1186,7 @@ func _neige() -> void:
 	neige.global_position = joueur.global_position + Vector3(0, 10, 0)
 
 var inventaire_ui: InventaireMains
+var fenetre_butin: FenetreButin
 func _interface() -> void:
 	calque = CanvasLayer.new()
 	add_child(calque)
@@ -1207,6 +1208,10 @@ func _interface() -> void:
 	inventaire_ui.joueur = joueur
 	inventaire_ui.hud = hud
 	add_child(inventaire_ui)
+	fenetre_butin = FenetreButin.new()   # lot L3 : fenêtre de butin (coffres, corps) : scripts/fenetre_butin.gd
+	fenetre_butin.joueur = joueur
+	fenetre_butin.hud = hud
+	add_child(fenetre_butin)
 	var pause := CanvasLayer.new()   # menu pause (Échap) : scripts/menu_pause.gd
 	pause.set_script(preload("res://scripts/menu_pause.gd"))
 	pause.monde = self

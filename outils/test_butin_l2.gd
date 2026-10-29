@@ -88,9 +88,14 @@ func _tester() -> void:
 	_verif(j.inventaire.pieces == or0 and b.pieces_visibles() == 11, "corps : joueur à 5 m, rien versé, les pièces attendent")
 	j.global_position = pos + Vector3(-1.2, 0.1, 0)
 	await _attendre(0.1)
-	_verif(j.inventaire.pieces == or0 + 23 and j.inventaire.nombre("os_draugr") == os0 + 2, "corps : à 1,2 m, +23 pièces et +2 os versés (%d → %d)" % [or0, j.inventaire.pieces])
+	_verif(j.inventaire.pieces == or0 + 23 and j.inventaire.nombre("os_draugr") == os0, "corps : à 1,2 m, +23 pièces versées (%d → %d), les os restent dans le corps (L3)" % [or0, j.inventaire.pieces])
 	await _attendre(2.2)
-	_verif(not is_instance_valid(b), "corps : pièces aspirées puis gerbe retirée")
+	_verif(is_instance_valid(b) and b.pieces_visibles() == 0 and b.a_fouille(), "corps : pièces aspirées, le corps reste à fouiller (objets)")
+	b.fouiller()
+	m.fenetre_butin.tout_prendre()
+	_verif(j.inventaire.nombre("os_draugr") == os0 + 2, "corps : fouillé, +2 os")
+	await _attendre(0.1)
+	_verif(not is_instance_valid(b), "corps : tout pris, gerbe retirée")
 	await _attendre(0.5)
 	_verif(j.inventaire.pieces == or0 + 23, "corps : aucune pièce ramassée en double")
 	# même position, même nombre : mêmes points de chute
@@ -110,6 +115,7 @@ func _tester() -> void:
 	var avant: int = j.inventaire.pieces
 	(t._inter["cof_prep"] as Node3D).parler()
 	await _attendre(0.05)
+	m.fenetre_butin.fermer()
 	var g: Node3D = null
 	for c in t.crypte.get_children():
 		if c.get_script() == BUTIN:

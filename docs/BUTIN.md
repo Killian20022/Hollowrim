@@ -108,9 +108,9 @@ var stock := ButinTables.tirer_pour("marchand:forgeron:%d" % int(jour / 3), "sto
   l'explorateur (`coffre_crypte_riche`), zone `grotte` ; inchangés : Sac de l'expédition (broche), Cachette de Hrafn.
 - Bourses : `draugr.gd` (`cadavre_draugr`, ou `cadavre_bandit` pour un personnage humain ; or des chefs Hrafn / Jarl à
   graine fixe), `mage_nordique_ia.gd` (`cadavre_mage`), `troll_givre_ia.gd` (`cadavre_troll`). `dragon.gd` inchangé.
-- État « vidé » : les coffres de crypte et de grotte restent marqués par `quetes.vus` (comme avant, et une bourse non
-  ramassée est perdue à la mort). `ButinTables.pilles` sert aux nouveaux contenants (L5, corps L3) ; sauvegardé dans
-  `monde.gd` (`"butin"`), remis à zéro au lancement d'une partie.
+- État « vidé » : les coffres de crypte et de grotte restent marqués par `quetes.vus` (ouvert = pièces au sac, même après la
+  mort : lots L2-L3). `ButinTables.pilles` sert aux nouveaux contenants (L5) ; sauvegardé dans `monde.gd` (`"butin"`), remis à
+  zéro au lancement d'une partie.
 
 ## 5. Consommables
 
@@ -144,8 +144,29 @@ déjà le sort à `sorts_connus` (sauvegardé).
 
 ## 7. Limites connues
 
-- Les sacs sur le sol restent la bourse de `scripts/butin.gd` (L2 / L3 les remplaceront).
+- ~~Les sacs sur le sol restent la bourse de `scripts/butin.gd`~~ : remplacés par les pièces qui jaillissent (L2) et la fenêtre de butin (L3).
 - Pas de délai entre deux potions ni d'effet dans la durée (régénération) : instantané.
 - `graine_monde` n'est pas encore tirée au hasard pour une nouvelle partie (constante) ; si un jour elle l'est, la fixer
   **avant** la construction des donjons.
 - Pas de poids maximal du sac (le poids est calculé, non limité).
+
+## 8. Pièces qui jaillissent (L2) et fenêtre de butin (L3)
+
+- **Coffre** (`tertre.gd` / `grotte_jeu.gd` : `_ouvrir_coffre`) : à la première ouverture, les PIÈCES vont au sac tout de suite et
+  jaillissent du coffre (`scripts/butin.gd`, `deja_verse`, aspirées vers le joueur) ; l'or de la cuve (module `coffre_or_x` /
+  `coffre_royal_or`, à part de la cuve depuis L3) s'enfonce sous le fond puis disparaît (`CoffreCouvercle`) ; les OBJETS restent
+  dans `ButinTables.restes["<contenant>"]` et la fenêtre de butin s'ouvre (`FenetreButin.fouiller`). Fenêtre fermée avant la fin :
+  le coffre devient « Fouiller le coffre » (objets laissés sauvegardés, clé `butin.restes`) ; tout pris : plus d'invite.
+- **Corps** (`draugr.gd`, `ennemi_base.gd`, `dragon.gd` → `butin.gd`) : pièces au sol autour du corps, versées une fois quand le joueur
+  passe à moins de 1,5 m ; objets : invite « Fouiller » (nom de l'ennemi) → fenêtre ; le nœud part quand tout est pris.
+- **Fenêtre** (`scripts/fenetre_butin.gd`, une instance créée par `monde._interface`, groupe `fenetre_butin`) : jeu en pause ; une ligne
+  par objet (icône, nom en couleur de rareté, nombre, poids), triées unique → commun ; fiche (rareté, valeur, effet) ; poids du sac.
+  E / Entrée / Espace / clic / A = prendre ; R / Y = tout prendre ; Échap / Tab / clic droit / B = fermer ; flèches, Z/S, molette,
+  croix = choisir. La prise passe par `ButinTables.prendre` (unique déjà pris → pièces).
+- API : `FenetreButin.trouver(noeud)`, `ouvrir(titre, objets, pieces_versees, fin) -> bool` (objets modifié en place), `prendre(i)`,
+  `tout_prendre()`, `fermer()` ; `ButinTables.reste(id) / a_reste(id) / restes`.
+- Tests : `outils/test_butin_l2.gd`, `outils/test_fenetre_butin.gd`, `outils/test_coffre_l1.gd` (objets laissés relus après chargement).
+  Captures : `outils/captures_butin_l2l3.gd -- --sequence` (gerbes) / `--fenetre [--petit]` (fenêtre, aussi en 480x270).
+- Limites : le butin d'un corps n'est pas sauvegardé (un ennemi tué puis sauvegardé ne revient pas, son butin non pris est perdu,
+  comme l'ancienne bourse) ; l'or de chaque coffre à couvercle est un maillage à part (1 à 2 appels de dessin de plus par coffre
+  dans la portée de dessin, exception « objets interactifs » du socle).

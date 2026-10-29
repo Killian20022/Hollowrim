@@ -46,6 +46,9 @@ func _tester() -> void:
 		if b.get_script() == preload("res://scripts/butin.gd"):
 			gerbe = b
 	_verif(gerbe != null and gerbe.pieces_visibles() >= 4, "coffre camp_a : gerbe de pièces (%d pièces visibles)" % (gerbe.pieces_visibles() if gerbe else 0))
+	var fb: FenetreButin = m.fenetre_butin
+	_verif(fb.ouvert and fb.lignes.size() >= 1 and not j.inventaire.a("amulette_givre"), "coffre camp_a : fenêtre de butin (%d objet(s)), rien pris d'office" % fb.lignes.size())
+	fb.tout_prendre()
 	_verif(j.inventaire.pieces >= pieces0 + 90 and j.inventaire.a("amulette_givre"), "coffre camp_a : butin reçu (pièces %d → %d, amulette de givre)" % [pieces0, j.inventaire.pieces])
 	if gerbe != null:
 		j.global_position = gerbe.global_position + Vector3(0, 0.1, 0)      # le joueur reste devant le coffre (comme avant L2)
@@ -55,6 +58,7 @@ func _tester() -> void:
 	var it2: Node3D = jeu.interactifs["camp_b"]
 	var p2: int = j.inventaire.pieces
 	it2.parler()
+	fb.tout_prendre()
 	jeu.reinitialiser([])
 	_verif(q.vus.has("grotte:camp_b") and not it2.actif and j.inventaire.pieces > p2, "coffre camp_b : ouvert puis mort → reste vidé, pièces gardées")
 	_verif(q.vus.has("grotte:camp_a"), "coffre camp_a : vidé reste acquis")
@@ -67,6 +71,7 @@ func _tester() -> void:
 	var lignes: Array = (jeu.interactifs["journal_sigrun"] as Node3D).parler()
 	_verif(lignes.size() >= 3 and j.inventaire.a("journal_sigrun") and q.vus.has("ramasse:journal_sigrun"), "journal de Solveig : texte (%d lignes), objet, événement ramasse:journal_sigrun" % lignes.size())
 	(jeu.interactifs["ilot"] as Node3D).parler()
+	fb.tout_prendre()
 	await _attendre(0.3)
 	_verif(j.inventaire.a("broche_sigrun") and q.vus.has("ramasse:broche_sigrun"), "coffre de l'îlot : broche de Solveig (ramasse:broche_sigrun)")
 	(jeu.interactifs["registre_hrafn"] as Node3D).parler()
