@@ -79,6 +79,7 @@ TESTS=(
 	"test_retour_combat|--nouvelle --test"   # lot L6 : nom de l'ennemi, option chiffres (coupée par défaut, persistée), gerbes de pixels et os sans allocation par coup
 	"test_hud_l7|--nouvelle"   # lot L7 : police des titres (Jacquard, OFL), cadre ornementé, annonces centrées, lieux découverts, aide des touches (60 s / F1), invite + nom de l'objet
 	"test_inventaire_mains|--nouvelle"   # écran d'inventaire (I) : équiper G / D, refus expliqués, deux mains, raccourcis 1-0 assignés, sauvegarde
+	"test_cassables|--nouvelle"   # L5 : urnes et tonneaux cassables (crypte, grotte) : casse, éclats, butin, état pillé, rng du décor intact (scripts/cassable.gd)
 	"test_butin|--nouvelle"   # tables de butin à graine fixe (data/butin/) : déterminisme, raretés, pillé sauvegardé ; potions → stats, catégorie Potions, raccourci 1-0 (docs/BUTIN.md)
 	"test_defense|--nouvelle"   # défense phase 3 : garde orientée, garde brisée, anti-spam, parade parfaite (vrai draugr), contre, finisher joueur
 	"test_finishers|--nouvelle"   # finishers alignés : épée plantée (lame DANS le torse), pommeau, décapitation, dos, plongé ; choix selon le contexte

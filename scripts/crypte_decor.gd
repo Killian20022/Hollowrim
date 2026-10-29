@@ -550,6 +550,53 @@ const LOT_CASE := 4.0
 const LOTS := {"os_proche": [0.0, 10.0], "os_loin": [10.0, 0.0]}
 var lot := ""
 
+## L5 : objets CASSABLES (urnes, tonneaux ; scripts/cassable.gd). cassable_debut() ouvre un lot « cass:<id> » : les triangles de l'objet
+## vont dans des tampons à part (sans toucher à rng, rng_deco ni aux emprises), finir() en fait un Cassable (maillage + solide propres).
+## Identifiant stable = préfixe + genre + position arrondie au décimètre (repère du lieu) ; même clé que l'état « pillé » sauvegardé.
+var cass_prefixe := "crypte"
+var cass_actif := true
+var _cass: Array = []
+var _cass_ids := {}
+
+func cassable_debut(genre: String, pos: Vector3, ech: float) -> void:
+	if muet or not cass_actif or lot != "":
+		return
+	var w := xf * pos
+	var id := "%s:%s_%d_%d_%d" % [cass_prefixe, genre, roundi(w.x * 10.0), roundi(w.y * 10.0), roundi(w.z * 10.0)]
+	if _cass_ids.has(id):
+		return
+	_cass_ids[id] = true
+	lot = "cass:" + id
+	_cass.append({"id": id, "genre": genre, "pos": w, "ech": ech})
+
+func cassable_fin() -> void:
+	if lot.begins_with("cass:"):
+		lot = ""
+
+## Fabrique les Cassable (finir) : tampons du lot regroupés par objet, sommets recentrés sur le pied de l'objet.
+func _cassables_finir() -> void:
+	for c: Dictionary in _cass:
+		var cle_lot := "cass:" + String(c["id"])
+		var origine: Vector3 = c["pos"]
+		var tampons: Array = []
+		var materiaux := {}
+		for cle in _bufs:
+			var b: Dictionary = _bufs[cle]
+			if b.get("lot", "") != cle_lot or (b["v"] as PackedVector3Array).is_empty():
+				continue
+			var v: PackedVector3Array = b["v"]
+			for k in v.size():
+				v[k] -= origine
+			tampons.append({"nom": b["nom"], "v": v, "n": b["n"], "u": b["u"], "c": b["c"]})
+			materiaux[b["nom"]] = mat(b["nom"])
+		if tampons.is_empty():
+			continue
+		var cs := Cassable.new()
+		cs.monter(String(c["id"]), String(c["genre"]), float(c["ech"]), tampons, materiaux)
+		racine.add_child(cs)
+		cs.position = origine
+	_cass.clear()
+
 func _buf(c: Vector3, nom: String) -> Dictionary:
 	if lot != "":
 		var kl := Vector3i(floori(c.x / LOT_CASE), floori(c.z / LOT_CASE), 1 if c.y < -3.0 else 0)
@@ -2464,10 +2511,11 @@ func vaciller(t: float) -> void:
 ## Construit les maillages fusionnés (un par cellule de 8 m et par matériau).
 func finir() -> void:
 	attendre_tout()
+	_cassables_finir()
 	for cle in _bufs:
 		var b: Dictionary = _bufs[cle]
 		var v: PackedVector3Array = b["v"]
-		if v.is_empty():
+		if v.is_empty() or String(b.get("lot", "")).begins_with("cass:"):
 			continue
 		var arr := []
 		arr.resize(Mesh.ARRAY_MAX)
