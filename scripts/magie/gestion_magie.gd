@@ -90,6 +90,13 @@ const GIVRE_PAL := ["#ffffff", "#e4f8ff", "#9fe2ff", "#4fa6e8", "#2a5cc0", "#172
 ## Couches de particules qui accompagnent le souffle de givre (poudre scintillante, éclats de cristal 3D, foyer de la paume).
 const GIVRE_COMPAGNONS := ["glace_fin_jet_poudre", "glace_fin_jet_cristaux", "glace_paume"]
 const AURA_ECOLE := {"feu": 0, "glace": 1, "electricite": 2, "tenebres": 3, "soin": 4, "protection": 5}
+## Rayon (m) de la boule de feu tenue au creux de la main (cœur de l'aura de feu).
+const AURA_BOULE := 0.095
+## Tenue « runes » (main gantée agrandie, MainSort.ECHELLE_MAIN_TENUE) : la boule tenue grandit d'autant.
+const BOULE_TENUE := 0.8
+## Calque de rendu 18 des avant-bras FPS (= AvantBras.CALQUE, branche fps/avant_bras_*) : la lumière des auras ne l'éclaire
+## pas (gants brûlés en orange) ; valeur recopiée ici pour ne pas dépendre de la classe tant que le rig n'est pas fusionné.
+const CALQUE_AVANT_BRAS := 1 << 17
 ## Rayon (m) de l'aura procédurale de la main, par école (paume à ~0,45 m de l'œil).
 const AURA_RAYON := {"feu": 0.12, "glace": 0.12, "electricite": 0.11, "tenebres": 0.12, "soin": 0.09, "protection": 0.09}
 
@@ -159,6 +166,9 @@ var _pics: Array = []             # {pal, pos, base, l, h, t0, monte, fin}
 var _mm := {}                     # pal -> MultiMeshInstance3D
 var _disques: Array = []          # {mi, mat, t0, duree, r0, r1, op, suivre}
 var _auras := {}
+## Échelle des auras par main (id du nœud porteur -> facteur) : la tenue « runes » des avant-bras (MainSort) resserre les
+## flammes autour de la boule tenue, comme sur les références (bras_feu_1100.jpg) ; 1 par défaut.
+var echelles_aura := {}
 var _jets := {}
 var _projectiles: Array = []
 var _statuts := {}
@@ -676,10 +686,12 @@ func _mat_coeur(couleur: Color, add := true, eclat := 1.5) -> Material:
 # ====================================================================== lumières (pool)
 
 ## Demande de lumière : persistante (duree <= 0, à renouveler chaque image) ou éclair bref qui décroît (duree > 0).
-func lumiere(cle: String, pos: Vector3, couleur: Color, energie: float, portee: float, prio: float, duree := -1.0) -> void:
+## `masque` : calques éclairés (light_cull_mask) ; les auras des mains excluent les avant-bras FPS (CALQUE_AVANT_BRAS),
+## éclairés par leur propre lueur, courte (RunesOrbite) : une lumière de 4 m posée DANS la paume les brûlait à blanc.
+func lumiere(cle: String, pos: Vector3, couleur: Color, energie: float, portee: float, prio: float, duree := -1.0, masque := 0xFFFFF) -> void:
 	var fin := horloge + (duree if duree > 0.0 else 0.12)
 	_demandes[cle] = {"pos": pos, "couleur": couleur, "energie": energie, "portee": portee, "prio": prio,
-		"debut": horloge, "fin": fin, "duree": duree}
+		"debut": horloge, "fin": fin, "duree": duree, "masque": masque}
 
 func _maj_lumieres() -> void:
 	var liste: Array = []
@@ -703,6 +715,7 @@ func _maj_lumieres() -> void:
 			l.light_color = d.couleur
 			l.light_energy = liste[i][2]
 			l.omni_range = d.portee
+			l.light_cull_mask = int(d.get("masque", 0xFFFFF))
 		else:
 			l.visible = false
 
@@ -1131,7 +1144,7 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 	ancre.name = "AuraMagie"
 	add_child(ancre)
 	ancre.position = main.global_position
-	var a := {"main": main, "ancre": ancre, "ecole": ecole, "i": 0.0, "emit": [], "eclair": {}, "disque": {}, "extra": [], "fine": null}
+	var a := {"main": main, "ancre": ancre, "ecole": ecole, "i": 0.0, "emit": [], "eclair": {}, "disque": {}, "extra": [], "fine": null, "boule": null}
 	var noms: Array = []
 	match ecole:
 		"feu": noms = ["feu_aura", "feu_aura_coeur", "feu_aura_braise"]
@@ -1151,6 +1164,13 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 		# pas d'avance vers l'œil : la main (devant la paume en vue FPS) se découpe en silhouette dans les flammes
 		(a.fine as MeshInstance3D).set_instance_shader_parameter("avance", 0.0)
 		a.extra.append(a.fine)
+		if ecole == "feu":
+			# cœur : une boule de feu bouillonnante tenue au creux de la main, d'où partent les langues (référence
+			# Jeux/references/avant_bras_magie/bras_feu_1100.jpg) ; les doigts la masquent en partie (profondeur)
+			a.boule = _aura_fine(ancre, ecole, AURA_BOULE, 2)
+			# le cœur lisse passe DEVANT les langues de la couche fine (même centre) : pas de flammes sombres sur le cœur
+			(a.boule as MeshInstance3D).sorting_offset = 0.05
+			a.extra.append(a.boule)
 	if ecole == "electricite":
 		a.eclair = eclair(ancre, "electricite", 2.0, -1.0, 0.05, _gen_aura_arcs.bind(a))
 	elif ecole == "tenebres" and not fin_actif:
@@ -1245,21 +1265,33 @@ func _maj_auras() -> void:
 			i *= 0.4 if a.ecole == "feu" else 0.15
 		var dbl: bool = _double.get(a.ecole, false)
 		var k := (0.75 + 0.5 * minf(i, 1.0)) * (1.25 if dbl else 1.0)
+		var ech: float = echelles_aura.get(id, 1.0)
+		var tenue := echelles_aura.has(id)
 		ancre.transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * k), (main as Node3D).global_position)
 		if a.fine != null and is_instance_valid(a.fine):
 			var fm: MeshInstance3D = a.fine
-			fm.set_instance_shader_parameter("rayon", float(AURA_RAYON.get(a.ecole, 0.09)) * k)
+			fm.set_instance_shader_parameter("rayon", float(AURA_RAYON.get(a.ecole, 0.09)) * k * ech)
 			fm.set_instance_shader_parameter("force", clampf(0.25 + 0.75 * i, 0.0, 1.3))
-		for p in a.emit:
+		if a.boule != null and is_instance_valid(a.boule):
+			var bm: MeshInstance3D = a.boule
+			bm.set_instance_shader_parameter("rayon", AURA_BOULE * k * (BOULE_TENUE if tenue else 1.0))
+			bm.set_instance_shader_parameter("force", clampf(0.7 + 0.4 * i, 0.0, 1.3))
+		for n_e in a.emit.size():
+			var p: GPUParticles3D = a.emit[n_e]
 			if is_instance_valid(p):
-				p.amount_ratio = clampf(0.3 + 0.7 * i, 0.05, 1.0)
+				var ratio := clampf(0.3 + 0.7 * i, 0.05, 1.0)
+				if tenue and a.ecole == "feu":
+					# boule tenue : pas de traits blancs (flammèches étirées, cœur) devant le cœur lisse, des braises
+					ratio *= [0.12, 0.0, 1.0][mini(n_e, 2)]
+				p.amount_ratio = ratio
 		var c: Color = LUMIERE[a.ecole]
 		var scint := 1.0
 		if a.ecole == "electricite":
 			scint = 0.6 + 0.8 * rng.randf()
 		elif a.ecole == "feu":
 			scint = 0.9 + 0.2 * sin(horloge * 23.0) * sin(horloge * 7.0)
-		lumiere("aura%d" % id, ancre.position + Vector3.UP * 0.05, c, (1.5 + 4.0 * i) * scint * (1.5 if dbl else 1.0), 4.5 + 3.5 * i, 2.0 + i)
+		lumiere("aura%d" % id, ancre.position + Vector3.UP * 0.05, c, (1.5 + 4.0 * i) * scint * (1.5 if dbl else 1.0), 4.5 + 3.5 * i, 2.0 + i, -1.0,
+			0xFFFFF & ~CALQUE_AVANT_BRAS)
 
 # ====================================================================== jets canalisés
 
