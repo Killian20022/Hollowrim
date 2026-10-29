@@ -39,15 +39,28 @@ func _init(eq: Equipement = null, inv: Inventaire = null) -> void:
 	regles = _lire(FICHIER_REGLES)
 	raccourcis = _lire(FICHIER_RACCOURCIS).get("raccourcis", [])
 	catalogue = _lire(FICHIER_INVENTAIRE)
-	for f in DirAccess.get_files_at("res://data/sorts/"):
-		var id := f.trim_suffix(".remap").trim_suffix(".tres")
-		if f.ends_with(".tres") or f.ends_with(".tres.remap"):
-			if not sorts_connus.has(id):
-				sorts_connus.append(id)
+	if catalogue.get("tout_disponible", false) or not catalogue.has("sorts_depart"):   # période de test : tous les sorts
+		for f in DirAccess.get_files_at("res://data/sorts/"):
+			var id := f.trim_suffix(".remap").trim_suffix(".tres")
+			if f.ends_with(".tres") or f.ends_with(".tres.remap"):
+				if not sorts_connus.has(id):
+					sorts_connus.append(id)
+	else:   # fin du « tout disponible » : sorts de départ (inventaire.json), les autres par les tomes
+		for id in catalogue["sorts_depart"]:
+			if sort_par_id(String(id)) != null and not sorts_connus.has(String(id)):
+				sorts_connus.append(String(id))
 	sorts_connus.sort()
 	_synchroniser("gauche")
 	_synchroniser("droite")
 	equipement.change.connect(_sur_equipement)
+
+## Connaît tous les sorts de data/sorts/ (tests, outils de capture : depuis la fin du « tout disponible », une partie neuve n'a que les sorts de départ).
+func apprendre_tout() -> void:
+	for f in DirAccess.get_files_at("res://data/sorts/"):
+		var id := f.trim_suffix(".remap").trim_suffix(".tres")
+		if (f.ends_with(".tres") or f.ends_with(".tres.remap")) and not sorts_connus.has(id):
+			sorts_connus.append(id)
+	sorts_connus.sort()
 
 static func _lire(chemin: String) -> Dictionary:
 	if not FileAccess.file_exists(chemin):

@@ -124,14 +124,16 @@ func _ecrire() -> void:
 	var lame: ShaderMaterial = EpeesLongues.materiaux()["lame"]
 	_verif(lame.shader == EpeesLongues.shader_reflet() and lame.shader.code.contains("reflet_force") and EpeesLongues.materiaux()["obsidienne"].shader == EpeesLongues.shader_reflet(),
 		"reflet de lame : lame, lame_or et obsidienne sur le shader à reflet")
-	# --- tout disponible : inchangé, mais le passage est prêt
+	# --- fin du « tout disponible » (2026-10-29) : les épées se gagnent, l'épée de départ reste
 	var eq := EquipementMains.new(null, Inventaire.new())
-	_verif(bool(eq.catalogue.get("tout_disponible", false)) and eq.objets_possedes("armes").has("epee_or"), "« tout disponible » toujours actif (décision de l'utilisateur)")
-	eq.catalogue["tout_disponible"] = false
+	_verif(not bool(eq.catalogue.get("tout_disponible", true)), "« tout disponible » terminé (inventaire.json)")
 	var sans := eq.objets_possedes("armes")
 	eq.inventaire.ajouter("epee_or")
+	eq.inventaire.ajouter("epee_hrafn")
 	var avec := eq.objets_possedes("armes")
-	_verif(not sans.has("epee_or") and not sans.has("epee_skarnholt") and avec.has("epee_or") and sans.has("epee"), "tout_disponible = false : les épées se gagnent (inventaire_hors_test)")
+	_verif(not sans.has("epee_or") and not sans.has("epee_skarnholt") and not sans.has("epee_hrafn") and avec.has("epee_or") and avec.has("epee_hrafn") and sans.has("epee") and sans.has("torche"),
+		"épées gagnées (achat, butin, objets uniques) équipables ; épée et torche de départ présentes")
+	_verif(eq.sorts_connus.size() == 6 and eq.sorts_connus.has("soin") and not eq.sorts_connus.has("boule_feu"), "sorts de départ seulement (%d)" % eq.sorts_connus.size())
 	# --- grotte : Croc-Rouge
 	var ga: Node3D = m.grotte_acces
 	ga.attendre_exterieur()

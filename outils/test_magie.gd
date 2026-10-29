@@ -91,6 +91,7 @@ func _tester() -> void:
 	j = s.joueur
 	mains = j.mains
 	magie = mains.magie
+	magie.eq.apprendre_tout()   # fin du « tout disponible » : ce test a besoin de tous les sorts
 	mains.pas_manuel = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	j.etat_mains_change.connect(func(_g: Dictionary, _d: Dictionary) -> void: _signaux_mains += 1)

@@ -57,6 +57,7 @@ func _tester() -> void:
 	root.add_child(s)
 	j = s.joueur
 	magie = j.mains.magie
+	magie.eq.apprendre_tout()   # fin du « tout disponible » : ce test a besoin de tous les sorts
 	ui = s.inventaire_ui
 	eq = magie.eq
 	await _images(20)
