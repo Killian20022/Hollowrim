@@ -385,7 +385,9 @@ func emettre(nom: String, parent: Node, xf: Transform3D, persistant := false, k_
 		p.material_override = _mat_cristal(String(d.get("pal", "glace")))
 	else:
 		p.draw_pass_1 = _quad
-		p.material_override = _mat_part(bool(d.get("add", false)), float(d.get("cap", 6.0)), float(d.get("eclat", 1.3)), _etire(nom, d))
+		var gros: Vector2 = f.get("gros", Vector2.ZERO)
+		p.material_override = _mat_part(bool(d.get("add", false)), float(d.get("cap", 6.0)), float(d.get("eclat", 1.3)),
+			0.0 if gros != Vector2.ZERO else _etire(nom, d), gros)
 	# les couches additives (cœurs, étincelles) passent par-dessus les corps opaques du même effet
 	p.sorting_offset = 0.5 if bool(d.get("add", false)) else 0.0
 	var ext := 2.0 if p.local_coords else 14.0
@@ -412,7 +414,9 @@ func emettre(nom: String, parent: Node, xf: Transform3D, persistant := false, k_
 				continue
 			var ratio := float(dc.vie) / maxf(float(d.vie), 0.01)
 			var vc := (vie * ratio) if vie > 0.0 else -1.0
-			var pc := emettre(nc, cible, xf, persistant, k_n, vc, _pm_compagnon(nc, dc, p.process_material as ParticleProcessMaterial, d))
+			# palier « gros pixels » : les couches compagnes (étincelles, poudre) aussi GROS_DIVISE fois moins nombreuses
+			var kc := k_n / PresetsMagie.GROS_DIVISE if f.has("gros") else k_n
+			var pc := emettre(nc, cible, xf, persistant, kc, vc, _pm_compagnon(nc, dc, p.process_material as ParticleProcessMaterial, d))
 			if pc != null:
 				e.suite.append({"p": pc, "ratio": ratio})
 		_sans_suite = false
@@ -538,6 +542,12 @@ func _pm(nom: String, d: Dictionary, sur := {}) -> ParticleProcessMaterial:
 			dd[k] = f.sur[k]
 		if f.has("etire"):
 			dd.etire = f.etire
+		if f.has("gros") and PresetsMagie.GROS.has(nom):
+			# palier « gros pixels » (PresetsMagie.GROS) : carrés plus gros qui rétrécissent, cœur clair puis ton de l'école
+			dd.taille = PresetsMagie.GROS[nom].taille
+			dd.courbe = "descend"
+			dd.rampe = PresetsMagie.rampe_gros(nom)
+			dd.erase("etire")
 	var pm := ParticleProcessMaterial.new()
 	pm.direction = dd.get("dir", Vector3.UP)
 	pm.spread = float(dd.get("ecart", 0.0))
@@ -608,7 +618,8 @@ func _pm(nom: String, d: Dictionary, sur := {}) -> ParticleProcessMaterial:
 		pm.turbulence_noise_strength = float(dd.get("turb_force", 1.0))
 		pm.turbulence_noise_speed = Vector3(0, 0.6, 0)
 	if dd.has("rampe"):
-		pm.color_ramp = _rampe(dd.rampe, bool(dd.get("garde_fin", false)), fin_actif)
+		# gros pixels : paliers francs de la rampe, sans palier intermédiaire de la couche fine (pas de cœur délavé)
+		pm.color_ramp = _rampe(dd.rampe, bool(dd.get("garde_fin", false)), fin_actif and not PresetsMagie.fin(nom).has("gros"))
 	_pms[cle] = pm
 	return pm
 
@@ -645,14 +656,16 @@ func _etire(nom: String, d: Dictionary) -> float:
 	var f: Dictionary = PresetsMagie.fin(nom)
 	return float(f.get("etire", d.get("etire", 0.0)))
 
-func _mat_part(add: bool, cap: float, eclat: float, etire := 0.0) -> ShaderMaterial:
-	var cle := "p%s|%s|%s|%s" % [add, cap, eclat, etire]
+## `gros` : palier « gros pixels » (PresetsMagie.GROS, taille min / max en pixels du monde) ; nul = particule ordinaire.
+func _mat_part(add: bool, cap: float, eclat: float, etire := 0.0, gros := Vector2.ZERO) -> ShaderMaterial:
+	var cle := "p%s|%s|%s|%s|%s" % [add, cap, eclat, etire, gros]
 	if not _mats.has(cle):
 		var m := ShaderMaterial.new()
 		m.shader = SH_ADD if add else SH_MIX
 		m.set_shader_parameter("taille_max", cap)
 		m.set_shader_parameter("eclat", eclat)
 		m.set_shader_parameter("etire", etire)
+		m.set_shader_parameter("gros_px", gros)
 		_mats[cle] = m
 	return _mats[cle]
 

@@ -10,6 +10,10 @@ uniform float paliers = 3.0;      // paliers d'opacité
 // > 0 : TRAÎNÉE (flammèche, étincelle filante) : la particule (axe Y = vitesse, particle_flag_align_y) s'étire derrière
 // elle sur `etire` fois sa taille en mètres, en pixels francs ; vue de face (vitesse vers la caméra) elle reste un point
 uniform float etire = 0.0;
+// > 0 : palier « GROS PIXELS » (impacts et explosions, PresetsMagie.GROS) : carré de gros_px.x à gros_px.y pixels du MONDE
+// (pixels internes : magie_echelle pixels de la couche fine chacun), aligné sur leur grille ; pas de traînée. La taille suit
+// toujours la particule (courbe « descend » : il rétrécit en disparaissant), bornée à ce palier.
+uniform vec2 gros_px = vec2(0.0);
 
 void vertex() {
 	vec4 centre = PROJECTION_MATRIX * (VIEW_MATRIX * vec4(MODEL_MATRIX[3].xyz, 1.0));
@@ -19,14 +23,21 @@ void vertex() {
 	float px = s * abs(PROJECTION_MATRIX[1][1]) / w * vp.y * 0.5;   // abs : axe Y retourné sous Vulkan
 	// couche fine (magie_echelle > 1) : plafond en pixels fins = 0,25 × m × plafond (×0,5 à ×2) : en mètres, un quart
 	// d'avant ; le volume vient du nombre (PresetsMagie.FIN) et des motifs procéduraux, pas de pavés près de la caméra
-	px = clamp(floor(px + 0.5), 1.0, magie_echelle > 1.0 ? max(floor(taille_max * magie_echelle * 0.2 + 0.5), 1.0) : taille_max);
-	if (s < 0.000001) {
-		px = 0.0;
-	}
 	vec2 p = (centre.xy / w * 0.5 + 0.5) * vp;
-	p = mod(px, 2.0) > 0.5 ? floor(p) + 0.5 : floor(p + 0.5);
+	if (gros_px.y > 0.0) {
+		float u = max(magie_echelle, 1.0);
+		float pm = clamp(floor(px / u + 0.5), gros_px.x, gros_px.y);
+		px = s < 0.000001 ? 0.0 : pm * u;
+		p = (mod(pm, 2.0) > 0.5 ? floor(p / u) + 0.5 : floor(p / u + 0.5)) * u;
+	} else {
+		px = clamp(floor(px + 0.5), 1.0, magie_echelle > 1.0 ? max(floor(taille_max * magie_echelle * 0.2 + 0.5), 1.0) : taille_max);
+		if (s < 0.000001) {
+			px = 0.0;
+		}
+		p = mod(px, 2.0) > 0.5 ? floor(p) + 0.5 : floor(p + 0.5);
+	}
 	// traînée : seulement pour les petites particules (les grosses, près de l'œil, feraient des planches)
-	if (etire > 0.0 && px > 0.0 && px <= 5.0 * max(magie_echelle * 0.5, 1.0)) {
+	if (etire > 0.0 && gros_px.y <= 0.0 && px > 0.0 && px <= 5.0 * max(magie_echelle * 0.5, 1.0)) {
 		vec3 dm = normalize(MODEL_MATRIX[1].xyz + vec3(0.0, 0.000001, 0.0));
 		vec4 c2 = PROJECTION_MATRIX * (VIEW_MATRIX * vec4(MODEL_MATRIX[3].xyz - dm * s * etire, 1.0));
 		vec2 p2 = (c2.xy / max(c2.w, 0.0001) * 0.5 + 0.5) * vp;

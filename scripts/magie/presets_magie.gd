@@ -279,6 +279,45 @@ const R_FIN := {
 	"ten_fin_enchant": {"add": true, "n": 36, "vie": 0.6, "ecart": 180.0, "vit": Vector2(0.03, 0.12), "taille": Vector2(0.002, 0.005), "rampe": VIOLET_VIF, "eclat": 2.0, "cap": 2.0},
 }
 
+# ====================================================================== palier « gros pixels » (lot M1)
+## Impacts et explosions de sorts en GROS PIXELS (docs INSPIRATION_IGNITE §2.15, planche 15_sorts) : en couche fine (en
+## rétro, les particules sont déjà des carrés de pixels du monde), ces réglages donnent des carrés de GROS_PX pixels
+## INTERNES (pixels du monde, alignés sur leur grille : magie_part.gdshaderinc, `gros_px`), GROS_DIVISE fois moins
+## nombreux que la couche fine ordinaire (couches compagnes comprises), sans traînée, rampe cœur GROS_COEUR puis le ton de
+## l'école (« ton »), courbe « descend » : ils rétrécissent en disparaissant. « taille » (m) : carré de ~8 px à 3-4 m.
+## Pas concernés : jets continus (flammes, arc, givre), auras, traînées, zones au sol, statuts, gerbes de combat (GerbePixels),
+## ni les impacts DANS un corps (ImpactCorps). Fumées, brumes et cristaux 3D (mesh « eclat ») restent tels quels.
+const GROS_COEUR := "#fff0a8"
+const GROS_PX := Vector2(3, 8)
+const GROS_DIVISE := 3.0
+const TON_FEU := ["#fcb53a", "#ec6a1f", "#b3341f", "#5a1a1c"]
+const TON_GLACE := ["#a8d8f8", "#5f9fe8", "#2f5fb8", "#1b2c5a"]
+const TON_ELEC := ["#b4c0ff", "#7a7af0", "#4a3ad0", "#2a1a6a"]
+const TON_TEN := ["#d08aff", "#9a3ae0", "#5a1a8a", "#2a0e3e"]
+const GROS := {
+	# boule de feu (impact) et explosions (zone de feu, décharge incendiaire)
+	"feu_impact": {"taille": Vector2(0.07, 0.15), "ton": TON_FEU},
+	"feu_impact_braise": {"taille": Vector2(0.035, 0.07), "ton": TON_FEU, "px": Vector2(3, 5)},
+	"feu_explosion": {"taille": Vector2(0.1, 0.2), "ton": TON_FEU},
+	# lance de givre, éclat de glace (impact) ; nova gelée (zone)
+	"glace_impact": {"taille": Vector2(0.07, 0.15), "ton": TON_GLACE},
+	"glace_impact_poudre": {"taille": Vector2(0.035, 0.07), "ton": TON_GLACE, "px": Vector2(3, 5)},
+	"glace_nova_souffle": {"taille": Vector2(0.09, 0.18), "ton": TON_GLACE},
+	# chaîne d'éclairs (chaque saut), impact électrique, décharge
+	"elec_impact": {"taille": Vector2(0.04, 0.09), "ton": TON_ELEC, "px": Vector2(3, 6)},
+	# trait d'ombre (impact), explosion obscure (éruption), chaîne teintée (étincelles violettes)
+	"ten_impact": {"taille": Vector2(0.07, 0.15), "ton": TON_TEN},
+	"ten_eruption": {"taille": Vector2(0.1, 0.2), "ton": TON_TEN},
+	"violet_etincelles": {"taille": Vector2(0.04, 0.09), "ton": TON_TEN, "px": Vector2(3, 6)},
+	# soin, protection (impact)
+	"soin_impact": {"taille": Vector2(0.04, 0.09), "ton": ["#f0d070", "#b8d060", "#5f9a3a"], "px": Vector2(3, 6)},
+	"prot_impact": {"taille": Vector2(0.04, 0.09), "ton": ["#b8e0f0", "#7ab0d8", "#3a6a9a"], "px": Vector2(3, 6)},
+}
+
+## Rampe d'un réglage « gros pixels » : cœur GROS_COEUR puis le ton de l'école.
+static func rampe_gros(nom: String) -> Array:
+	return [GROS_COEUR] + (GROS[nom].ton as Array)
+
 static var _fin_cache := {}
 
 ## Réglage fin d'un réglage de R : {"n": multiplicateur, "t": multiplicateur de taille, "sur": {…}, "avec": [...]}.
@@ -294,6 +333,13 @@ static func fin(nom: String) -> Dictionary:
 	elif d.has("taille") and (d.taille as Vector2).y <= 0.025:
 		f = {"n": 1.6, "t": 0.6}
 	f.merge(FIN.get(nom, {}), true)
+	if GROS.has(nom):
+		# palier « gros pixels » : moins nombreux (÷ GROS_DIVISE), plus de traînée ; taille et rampe : GestionMagie._pm
+		f = f.duplicate()
+		f.n = float(f.get("n", 1.0)) / GROS_DIVISE
+		f.t = 1.0
+		f.erase("etire")
+		f.gros = GROS[nom].get("px", GROS_PX)
 	_fin_cache[nom] = f
 	return f
 
