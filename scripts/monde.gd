@@ -1320,6 +1320,7 @@ func charger() -> void:
 	joueur.competences.importer(d.get("competences", {}))
 	joueur.inventaire.importer(d.get("inventaire", {}))
 	ButinTables.importer(d.get("butin", {}))
+	preload("res://scripts/butin.gd").restaurer(self, joueur, hud)      # corps fouillables d'ennemis tués (objets laissés)
 	Marchand.importer(d.get("marchands", {}))
 	if marchand != null:
 		marchand.recaler_horloge()

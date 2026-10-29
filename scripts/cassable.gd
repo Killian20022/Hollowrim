@@ -29,12 +29,15 @@ var _vol := -1.0
 var _veille := 0.0
 
 ## Appelé par CrypteDecor.finir() : `tampons` = [{"nom": matériau, "v", "n", "u", "c"}] relatifs à l'origine du nœud.
-func monter(id: String, genre_: String, ech: float, tampons: Array, materiaux: Dictionary) -> void:
+func monter(id: String, genre_: String, ech: float, tampons: Array, materiaux: Dictionary, boite := Vector3.ZERO) -> void:
 	ident = id
 	genre = genre_
 	name = "Cass_" + id.replace(":", "_")
 	haut = (0.95 if genre == "tonneau" else 0.55) * ech
 	rayon = (0.38 if genre == "tonneau" else 0.24) * ech
+	if boite != Vector3.ZERO:      # caisse : boîte exacte, et elle BLOQUE le passage tant qu'elle est intacte (remplace le solide fixe du décor)
+		haut = boite.y
+		rayon = maxf(boite.x, boite.z) * 0.5
 	for t: Dictionary in tampons:
 		var arr := []
 		arr.resize(Mesh.ARRAY_MAX)
@@ -50,13 +53,18 @@ func monter(id: String, genre_: String, ech: float, tampons: Array, materiaux: D
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
 		_mis.append(mi)
-	collision_layer = CALQUE
+	collision_layer = CALQUE | (1 if boite != Vector3.ZERO else 0)
 	collision_mask = 0
 	var cs := CollisionShape3D.new()
-	var cyl := CylinderShape3D.new()
-	cyl.radius = rayon
-	cyl.height = haut
-	cs.shape = cyl
+	if boite != Vector3.ZERO:
+		var bs := BoxShape3D.new()
+		bs.size = boite
+		cs.shape = bs
+	else:
+		var cyl := CylinderShape3D.new()
+		cyl.radius = rayon
+		cyl.height = haut
+		cs.shape = cyl
 	cs.position = Vector3(0, haut * 0.5, 0)
 	add_child(cs)
 	_forme = cs
@@ -109,10 +117,10 @@ func casser(avec_effets: bool, origine: Vector3) -> void:
 	var dir := centre - origine
 	dir.y = 0.0
 	dir = (dir.normalized() if dir.length() > 0.01 else Vector3.UP) * 0.6 + Vector3.UP
-	var matiere := "bois" if genre == "tonneau" else "pierre"
+	var matiere := "bois" if genre in ["tonneau", "caisse"] else "pierre"
 	GerbePixels.emettre(self, centre, dir.normalized(), matiere, 1.5)
 	GerbePixels.emettre(self, global_position + Vector3(0, 0.1, 0), Vector3.UP, "poussiere", 0.9)
-	Sons.jouer_a(self, ["impactWood_heavy_000"] if genre == "tonneau" else ["impactPlate_medium_000", "impactPlate_medium_001"], centre, 2.0)
+	Sons.jouer_a(self, ["impactWood_heavy_000"] if genre in ["tonneau", "caisse"] else ["impactPlate_medium_000", "impactPlate_medium_001"], centre, 2.0)
 	_butin(centre)
 
 ## Éclats : les triangles de chaque surface sont rangés par secteur (angle autour de l'axe) et par moitié (haut / bas).

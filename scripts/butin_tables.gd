@@ -28,6 +28,9 @@ static var uniques_pris := {}
 ## Lot L3 : objets laissés dans un contenant OUVERT (fenêtre de butin fermée avant de tout prendre) : {id_contenant: {id: n}} ;
 ## sauvegardé (clé « restes ») ; les pièces n'y sont jamais (versées à l'ouverture).
 static var restes := {}
+## Corps fouillables encore chargés (butin des ennemis tués, scripts/butin.gd) : {cle: {"pos": [x, y, z], "nom": String}} ; leurs objets
+## sont dans `restes[cle]` (même clé). Sauvegardé (clé « corps ») : une partie rechargée repose le corps (Butin.restaurer).
+static var corps := {}
 static var _tables := {}
 static var _zones := {}
 static var _charge := false
@@ -263,7 +266,11 @@ static func exporter() -> Dictionary:
 	for id in restes:
 		if not (restes[id] as Dictionary).is_empty():
 			r[id] = (restes[id] as Dictionary).duplicate()
-	return {"graine": graine_monde, "pilles": p, "uniques": u, "restes": r}
+	var c := {}
+	for id in corps:
+		if a_reste(id):
+			c[id] = (corps[id] as Dictionary).duplicate(true)
+	return {"graine": graine_monde, "pilles": p, "uniques": u, "restes": r, "corps": c}
 
 ## Partie chargée. Une ancienne sauvegarde (sans « butin ») garde la graine par défaut et aucun contenant pillé.
 static func importer(d: Dictionary) -> void:
@@ -282,6 +289,12 @@ static func importer(d: Dictionary) -> void:
 					o[String(k)] = int(r[id][k])      # JSON : nombres relus en flottants
 			if not o.is_empty():
 				restes[String(id)] = o
+	var c: Variant = d.get("corps", {})      # absent des anciennes sauvegardes : aucun corps à reposer
+	if c is Dictionary:
+		for id in c:
+			var e: Variant = c[id]
+			if e is Dictionary and (e as Dictionary).get("pos", []) is Array and ((e as Dictionary)["pos"] as Array).size() == 3 and a_reste(String(id)):
+				corps[String(id)] = {"pos": ((e as Dictionary)["pos"] as Array).duplicate(), "nom": String((e as Dictionary).get("nom", "Dépouille"))}
 
 ## Nouvelle partie.
 static func reinitialiser() -> void:
@@ -289,6 +302,7 @@ static func reinitialiser() -> void:
 	pilles = {}
 	uniques_pris = {}
 	restes = {}
+	corps = {}
 
 # ------------------------------------------------------------------ vérification (tests)
 

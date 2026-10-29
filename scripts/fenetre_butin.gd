@@ -292,7 +292,7 @@ func _dessiner() -> void:
 	_vue.draw_rect(Rect2(Vector2.ZERO, s), Color(MenuStyle.FOND, 0.45))
 	var vis := mini(lignes.size(), MAX_LIGNES)
 	var w := clampf(s.x - 190.0, 280.0, 340.0)
-	var h := 112.0 + vis * LIGNE
+	var h := 120.0 + vis * LIGNE
 	var o := ((s - Vector2(w, h)) * 0.5).floor()
 	_vue.draw_rect(Rect2(o + Vector2(6, 6), Vector2(w, h) - Vector2(12, 12)), Color(MenuStyle.FOND, 0.9))   # l'invite « E » ne transparaît pas
 	_vue.draw_style_box(_cadre, Rect2(o, Vector2(w, h)))
@@ -377,7 +377,7 @@ func _dessiner() -> void:
 		var fin := lx + _larg(a[1])
 		_zones[a[2]] = Rect2(x0 - 2.0, y - 11.0, fin - x0 + 4.0, LIGNE)
 		x0 = fin + 10.0
+	# poids du sac : sa propre ligne (entre la fiche et les actions) : en 480x270 il ne tenait plus à droite des actions
 	var ps: float = joueur.inventaire.poids()
 	var sac := "Sac : %s" % (poids_texte(ps) if ps > 0.0 else "0")
-	if x0 + _larg(sac) <= dx:
-		_texte(Vector2(dx - _larg(sac), y), sac, MenuStyle.GRIS)
+	_texte(Vector2(dx - _larg(sac), y - 15.0), sac, MenuStyle.PARCHEMIN)
