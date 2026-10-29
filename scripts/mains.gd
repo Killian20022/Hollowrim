@@ -207,6 +207,8 @@ var _orient_d: SkeletonModifier3D
 ## IK du bras DROIT, INACTIVE par défaut (les clips pilotent ce bras) : seule la magie l'allume quand la main droite
 ## incante (main_sort.gd, _poser_mains), pour poser la main sur pivot_epee par-dessus le clip.
 var _ik_d: TwoBoneIK3D
+## Os de torsion des avant-bras (dernier modificateur du squelette des bras).
+var torsion_bras: TorsionAvantBras
 var _modele_arme_d: Node3D
 ## Matériau de la lame tenue (teinte, lueur de charge) et segment tranchant lu dans le modèle.
 var _lame: ShaderMaterial
@@ -540,6 +542,10 @@ func _bras() -> void:
 	_couche_passive = SkeletonModifier3D.new()
 	_couche_passive.set_script(preload("res://scripts/combat/decalage_bras.gd"))
 	_sq.add_child(_couche_passive)
+	# os de torsion des avant-bras : DERNIER modificateur (pronation répartie du coude au poignet, mains inchangées)
+	torsion_bras = TorsionAvantBras.new()
+	torsion_bras.name = "TorsionAvantBras"
+	_sq.add_child(torsion_bras)
 
 ## Prise d'un objet dans le poing fermé (repère de l'os de la main) : axe passant par le
 ## creux de chaque doigt, de l'auriculaire vers l'index ; le +X de l'objet (tranchant,
