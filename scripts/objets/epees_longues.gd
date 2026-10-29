@@ -23,11 +23,17 @@ class_name EpeesLongues
 ##   emeraude   gemmes vertes opaques, légère lueur
 ##   obsidienne verre volcanique noir à reflets
 ##   veine      fissures rouge sombre rougeoyantes (shader « lueur »)
+##   entrelacs  bronze patiné gravé d'entrelacs (L9 : garde et pommeau de l'épée unique de Skarnholt)
+## L9 REFLET DE LAME (docs/INSPIRATION_IGNITE.md §2.14) : lame, lame_or et obsidienne passent par shader_reflet() = ps1 + 1-2 px clairs
+## sur les BISEAUX du tranchant (faces dont la normale du modèle penche vers ±X) : un éclat court qui GLISSE le long de la lame avec
+## l'angle de vue (position = onde triangle de l'angle caméra / lame), plus un fil faible constant ; en paliers, sans dégradé lisse.
 ## Les variantes de shader sont dérivées de shaders/ps1.gdshader par remplacement de texte (comme
 ## Palette.shader_double_face) : grille d'accroche, affine, neige, éclair de coup… restent identiques. Rien de lourd :
 ## ni écran lu (SCREEN_TEXTURE), ni réfraction, ni lumière dynamique : compatible rendu Web (Compatibility).
 
 const VARIANTES := ["metal", "or", "rubis", "verre", "obsidienne"]
+## L9 : épées uniques (même repère et mêmes matériaux, hors des cinq de la planche) : assets/modeles/armes/epees/<nom>.glb.
+const UNIQUES := ["skarnholt"]
 const DOSSIER := "res://assets/modeles/armes/epees/"
 
 ## Stats d'exemple de la planche (dégâts, vitesse, poids) : indicatif, pour le code de combat.
@@ -46,10 +52,15 @@ const EMERAUDE := ["#04170e", "#082a19", "#0e4226", "#165e37", "#20804a", "#36a4
 const OBSIDIENNE := ["#040306", "#09070c", "#100d14", "#18141e", "#221c2a", "#302838", "#463c52", "#6a5c78"]
 const VEINE := ["#2a0402", "#4e0904", "#7a1406", "#a8240a", "#d44412", "#f2782a", "#ffb35a"]
 const GEMME := ["#2a4a6a", "#3e6a90", "#5a90b8", "#82b8d8", "#b4dcef", "#eefaff"]
+const BRONZE := ["#140d06", "#24180b", "#3a2812", "#563d1c", "#745428", "#946e38", "#b48c4c", "#d4b070"]
+## Reflet de lame (L9) : couleur de l'éclat par matériau ; [couleur, force de l'éclat, fil constant].
+const REFLETS := {"lame": [Color(0.86, 0.93, 1.0), 1.0, 0.07], "lame_or": [Color(1.0, 0.92, 0.7), 0.9, 0.06],
+	"obsidienne": [Color(0.8, 0.72, 1.0), 0.8, 0.05]}
 
 static var _mats := {}
 static var _shader_lueur: Shader
 static var _shader_verre: Shader
+static var _shader_reflet: Shader
 
 ## Instance habillée de la variante (« metal », « or », « rubis », « verre », « obsidienne »).
 static func instancier(variante: String) -> Node3D:
@@ -93,7 +104,14 @@ static func materiaux() -> Dictionary:
 		"emeraude": _lueur(ImageTexture.create_from_image(_facettes(EMERAUDE, 8, 8, 5)), Color(1.1, 1.15, 1.1), 0.3),
 		"obsidienne": Palette.materiau(ImageTexture.create_from_image(_obsidienne()), Vector2.ONE, Color(0.85, 0.85, 1.0)),
 		"veine": _lueur(ImageTexture.create_from_image(_veine()), Color.WHITE, 1.4),
+		"entrelacs": Palette.materiau(ImageTexture.create_from_image(_entrelacs()), Vector2.ONE, Color(1.12, 1.06, 0.98)),
 	}
+	for nom: String in REFLETS:      # L9 : reflet de lame (même texture, même teinte : seul le shader change)
+		var m: ShaderMaterial = _mats[nom]
+		m.shader = shader_reflet()
+		m.set_shader_parameter("reflet_couleur", REFLETS[nom][0])
+		m.set_shader_parameter("reflet_force", REFLETS[nom][1])
+		m.set_shader_parameter("reflet_fil", REFLETS[nom][2])
 	# glb de Blender : couleurs de sommet d'alpha nul, lues comme « neige » par le shader -> neige = base
 	for m: ShaderMaterial in _mats.values():
 		m.set_shader_parameter("tex_neige", m.get_shader_parameter("tex_base"))
@@ -119,6 +137,19 @@ static func shader_verre() -> Shader:
 			.replace("uniform vec3 emission : source_color = vec3(0.0);", "uniform vec3 emission : source_color = vec3(0.0);\nuniform float opacite = 0.5;\nuniform float lueur = 0.0;") \
 			.replace("\tROUGHNESS = 1.0;\n}", "\tfloat bord_v = 1.0 - abs(dot(normalize(NORMAL), normalize(VIEW)));\n\tbord_v = floor(bord_v * bord_v * 4.0) / 4.0;   // en paliers : pas de dégradé lisse\n\tALPHA = clamp(opacite + bord_v * 0.45, 0.0, 1.0);\n\tEMISSION += ALBEDO * (lueur + bord_v * 0.8);\n\tROUGHNESS = 1.0;\n}")
 	return _shader_verre
+
+## L9 : reflet de lame. Varyings dans le repère du MODÈLE (le glb : +Y le long de la lame, ±X les tranchants) : la face est un biseau
+## si |normale.x| > reflet_biseau (plat et gorge : < 0,25 ; biseaux : 0,42 à 0,7 selon la lame). Position de l'éclat le long de la lame
+## (0 = garde, 1 = pointe, reflet_y en m) = onde triangle de la direction de la caméra vue depuis la lame : il glisse quand l'arme ou la
+## caméra tourne (coups, balancement, tour d'un présentoir). Deux paliers (cœur 1, bord 0,45) : 1 à 2 px à 480 x 270.
+static func shader_reflet() -> Shader:
+	if _shader_reflet == null:
+		_shader_reflet = Shader.new()
+		_shader_reflet.code = Palette.PS1.code \
+			.replace("uniform vec3 emission : source_color = vec3(0.0);", "uniform vec3 emission : source_color = vec3(0.0);\nuniform vec3 reflet_couleur : source_color = vec3(0.86, 0.93, 1.0);\nuniform float reflet_force = 1.0;\nuniform float reflet_fil = 0.07;\nuniform float reflet_biseau = 0.32;\nuniform vec2 reflet_y = vec2(0.09, 0.96);\nuniform float reflet_largeur = 0.07;\nvarying vec3 l9_pos;\nvarying vec3 l9_n;\nvarying vec3 l9_vue;") \
+			.replace("void vertex() {\n", "void vertex() {\n\tl9_pos = VERTEX;\n\tl9_n = NORMAL;\n\tl9_vue = (inverse(MODEL_MATRIX) * vec4(CAMERA_POSITION_WORLD, 1.0)).xyz - VERTEX;\n") \
+			.replace("\tROUGHNESS = 1.0;\n}", "\t{\n\t\tvec3 nm = normalize(l9_n);\n\t\tvec3 vm = normalize(l9_vue);\n\t\tfloat biseau = step(reflet_biseau, abs(nm.x));\n\t\tfloat v = (l9_pos.y - reflet_y.x) / (reflet_y.y - reflet_y.x);\n\t\tfloat dans = step(0.0, v) * step(v, 1.0);\n\t\tfloat ph = fract(0.5 + 1.15 * vm.y + 0.6 * vm.x * sign(nm.x) + 0.35 * vm.z);\n\t\tfloat c = abs(ph * 2.0 - 1.0);\n\t\tfloat g = 1.0 - abs(v - c) / reflet_largeur;\n\t\tfloat palier = step(0.5, g) + step(0.0, g) * 0.45 * (1.0 - step(0.5, g));\n\t\tEMISSION += reflet_couleur * (reflet_force * palier + reflet_fil) * biseau * dans;\n\t}\n\tROUGHNESS = 1.0;\n}")
+	return _shader_reflet
 
 static func _lueur(tex: Texture2D, teinte: Color, force: float) -> ShaderMaterial:
 	var m := Palette.materiau(tex, Vector2.ONE, teinte)
@@ -261,4 +292,30 @@ static func _veine() -> Image:
 			if int(v * 40.0) % 5 == 0 and absf(u - axe - 0.18) < 0.08:
 				l = maxf(l, 0.7)
 			img.set_pixel(x, y, _c(VEINE, ObjetsTextures._ton(l, VEINE.size(), x, y, 0.4)))
+	return img
+
+## L9 : entrelacs 32 x 16 (garde et pommeau des épées uniques) : deux rubans en diagonale qui passent alternativement dessus et
+## dessous à chaque croisement, cœur clair, bords sombres, fond creusé presque noir ; bronze patiné.
+static func _entrelacs() -> Image:
+	var W := 32
+	var H := 16
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	for y in H:
+		for x in W:
+			var a := posmod(x + y, 8)
+			var b := posmod(x - y, 8)
+			var da := absf(a - 3.5)      # 0 au centre du ruban
+			var db := absf(b - 3.5)
+			var dessus_a := posmod(int(floor((x + y) / 8.0)) + int(floor((x - y) / 8.0)), 2) == 0
+			var l := 0.06                # fond creusé
+			var ra := da < 2.0
+			var rb := db < 2.0
+			if ra and (not rb or dessus_a):
+				l = 0.85 - da * 0.22
+			elif rb:
+				l = 0.85 - db * 0.22
+			if (ra and absf(da - 2.0) < 0.6 and not (rb and not dessus_a)) or (rb and absf(db - 2.0) < 0.6 and not (ra and dessus_a)):
+				l = 0.16                 # liseré sombre du ruban
+			l += (_h(x, y, 71) - 0.5) * 0.12
+			img.set_pixel(x, y, _c(BRONZE, ObjetsTextures._ton(l, BRONZE.size(), x, y, 0.3)))
 	return img

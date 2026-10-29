@@ -7,6 +7,10 @@ class_name InterieurForge
 ## Micro : tenailles, marteaux, limes, fers à cheval, lames en cours, lingots, braise sur l'enclume, cendres.
 
 const Y := 0.04       # dessus du sol
+## L9 : râtelier de l'Épée de Skarnholt (mur est, face à l'ouest) ; l'épée elle-même est un ObjetUnique posé par le monde
+## (Monde._uniques_village) quand Brodd l'a forgée (étape « epee » de la quête lames_brodd).
+const RATELIER_UNIQUE := Transform3D(Basis(Vector3.UP, -PI * 0.5), Vector3(2.06, 1.45, -0.3))
+const EPEE_COUCHEE := Basis(Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(0, 0, -1))
 
 static func construire(b: Interieurs) -> void:
 	# --- sol : terre battue, dalles autour du foyer et de l'enclume
@@ -40,6 +44,27 @@ static func construire(b: Interieurs) -> void:
 		var x := b.rng.randf_range(-1.6, 1.8)
 		var z := b.rng.randf_range(-0.5, 1.2)
 		b.bx(Vector3(x, 0.05, z), Vector3(0.18 + b.rng.randf() * 0.12, 0.02, 0.1), "cendre" if k % 2 == 0 else "fer_noir", b.rng.randf() * 3.0)
+	_ratelier_unique(b)       # L9 : après les tirages (aucun tirage ici : le reste de la forge ne bouge pas)
+
+## Repère (dans l'intérieur) de l'Épée de Skarnholt posée sur son râtelier.
+static func xf_epee_unique() -> Transform3D:
+	return RATELIER_UNIQUE * Transform3D(EPEE_COUCHEE, Vector3(-0.42, 0.03, 0.075))
+
+## L9 : râtelier à une arme (même dessin que le module « presentoir_ratelier » de la crypte) : planche de chêne sombre et cadre, deux
+## crochets de fer en fourche à ±0,26 m, clous ; repère RATELIER_UNIQUE (dos au mur, face +z).
+static func _ratelier_unique(b: Interieurs) -> void:
+	var t := RATELIER_UNIQUE
+	var l := -PI * 0.5
+	b.bx(t * Vector3(0, 0, 0.016), Vector3(0.95, 0.3, 0.03), "bois_sombre", l)
+	for yy in [-0.165, 0.165]:
+		b.bx(t * Vector3(0, yy, 0.024), Vector3(1.02, 0.045, 0.045), "bois", l)
+	for sx in [-1.0, 1.0]:
+		var x: float = sx * 0.26
+		b.bx(t * Vector3(x, -0.02, 0.055), Vector3(0.022, 0.022, 0.08), "fer_noir", l)
+		b.bx(t * Vector3(x, 0.0, 0.098), Vector3(0.022, 0.06, 0.016), "fer_noir", l)
+		b.bx(t * Vector3(x, -0.02, 0.034), Vector3(0.05, 0.07, 0.006), "fer", l)
+		for yy in [-0.165, 0.165]:
+			b.bx(t * Vector3(sx * 0.44, yy, 0.049), Vector3(0.014, 0.014, 0.006), "fer", l)
 
 ## Plafond sous la pente du toit : lambris de planches sombres sous les chevrons, nervures et un linteau de poutre.
 static func _plafond(b: Interieurs) -> void:

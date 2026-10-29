@@ -221,6 +221,7 @@ static func trone(dcr: CrypteDecor, pos: Vector3, lacet := 0.0, mat := "mur1") -
 		dcr.emprise("trone", pos + b * Vector3(0, 0, -0.2), Vector2(1.47, 1.72), lacet, 3.35)
 		dcr.modele("estrade_trone", pos, lacet)
 		dcr.modele("trone_jarl", pos + b * Vector3(0, 0.6, -0.85), lacet, Vector3.ONE, {"pierre": "statue_v2", "fourrure": "laine"})      # pierre des statues : plus claire que le mur derrière
+		dcr.set_meta("trone_assise", dcr.xf * Transform3D(b, pos + b * Vector3(0, 1.16, -0.87)))      # L9 : dessus de l'assise (repère de la crypte) : hache de Kolbeinn
 		for m: Array in [[2.9, 0.0, 1.5], [2.4, 0.2, 1.05], [2.0, 0.4, 0.6]]:      # [largeur, bas, avant] ; dos commun en z = -1,9
 			_solide_l(dcr, pos + b * Vector3(0, m[1] + 0.1, (m[2] - 1.9) * 0.5), Vector3(m[0], 0.2, m[2] + 1.9), lacet)
 		_solide_l(dcr, pos + b * Vector3(0, 0.88, -0.87), Vector3(1.5, 0.56, 0.96), lacet)      # assise et accoudoirs

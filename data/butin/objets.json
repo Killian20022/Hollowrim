@@ -14,6 +14,7 @@
 		"epee_rubis": {"nom": "Épée en rubis", "poids": 9.0, "valeur": 220, "rarete": "rare", "categorie": "arme"},
 		"epee_verre": {"nom": "Épée en verre", "poids": 7.0, "valeur": 260, "rarete": "rare", "categorie": "arme"},
 		"epee_obsidienne": {"nom": "Épée en obsidienne", "poids": 10.0, "valeur": 300, "rarete": "unique", "categorie": "arme"},
+		"epee_hrafn": {"nom": "Croc-Rouge, l’épée de Hrafn", "poids": 9.0, "valeur": 280, "rarete": "unique", "categorie": "arme"},
 		"anneau_cuivre": {"nom": "Anneau de cuivre", "poids": 0.1, "valeur": 15, "rarete": "commun", "categorie": "divers"},
 		"coupe_argent": {"nom": "Coupe d’argent", "poids": 1.0, "valeur": 35, "rarete": "peu_commun", "categorie": "divers"},
 		"collier_or": {"nom": "Collier d’or", "poids": 0.3, "valeur": 85, "rarete": "rare", "categorie": "divers"}

@@ -205,6 +205,18 @@ func interaction(id: String, pos: Vector3, nom: String, verbe: String, genre: St
 		(modules[_m["id"]]["cibles"] as Array).append({"id": id, "pos": mw(pos)})
 	_reserves.append([Vector2(pos.x, pos.z), 0.9])
 
+## L9 : objet UNIQUE posé (ObjetUnique) : `xf` = repère de l'objet dans le module en cours (converti en repère de la crypte) ; interaction
+## « unique » (tertre._creer_interaction : modèle à part, pris = ButinTables « unique:<objet> ») ; `extra` : requiert, interdit…
+func unique(objet: String, xf: Transform3D, extra := {}) -> void:
+	var w := d.xf * xf
+	var ex := {"objet": objet, "xf": w}
+	ex.merge(extra, true)
+	var it := {"id": "unique_" + objet, "pos": w.origin + Vector3(0, 0.25, 0), "nom": ObjetUnique.nom_de(objet), "verbe": ObjetUnique.verbe_de(objet), "genre": "unique"}
+	it.merge(ex, true)
+	interactions.append(it)
+	if _m.has("id") and modules.has(_m["id"]):
+		(modules[_m["id"]]["cibles"] as Array).append({"id": it["id"], "pos": it["pos"]})
+
 ## Coffre : décor + interaction (genre « coffre », identifiant fixe, butin fixe + tirage de butin["table"] s'il y en a une). style : « normal » | « force » (couvercle arraché, pillé)
 ## | « royal » (L1 : grand coffre royal 1,2 m). L1 : « normal » et « royal » s'OUVRENT : cuve fondue dans le décor, couvercle à part
 ## (clé « couvercle » de l'interaction : posé par tertre._creer_interaction en CoffreCouvercle, état ouvert = quetes.vus["crypte:<id>"]).

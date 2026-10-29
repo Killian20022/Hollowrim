@@ -42,6 +42,7 @@ var _tache_en := -1                 # fil de préparation des modèles d'ennemis
 var salles: SalleActive             # salle active du donjon : ennemis gelés / décor caché hors de la salle courante et de ses voisines
 var _cont: Node3D
 var _inter := {}                    # id -> interactif du donjon
+var _uniques := {}                  # L9 : id de l'interaction -> ObjetUnique (pris = ButinTables « unique:<objet> »)
 var _couvercles := {}               # L1 : id du coffre -> CoffreCouvercle (coffres qui s'ouvrent ; ouvert = quetes.vus["crypte:<id>"])
 var _file_gardiens: Array = []
 const BUDGET_POSE_US := 1500        # pose étalée du donjon : ≤ 1,5 ms par image
@@ -403,6 +404,8 @@ func _etat_donjon() -> void:
 			it.actif = ButinTables.a_reste("crypte:" + id)      # L3 : coffre ouvert dont on a laissé des objets = à fouiller encore
 			if it.actif:
 				it.verbe = "Fouiller le coffre"
+	for id in _uniques:             # L9 : objets uniques déjà pris (partie chargée)
+		(_uniques[id] as ObjetUnique).actualiser()
 	for id in _couvercles:          # L1 : couvercles ouverts d'un coup si le coffre est déjà vidé (partie chargée), refermés sinon
 		var c: CoffreCouvercle = _couvercles[id]
 		if quetes.vus.has("crypte:" + id):
@@ -481,6 +484,11 @@ func _creer_interaction(it: Dictionary) -> void:
 		"choix":
 			var choix: String = it["choix"]
 			action = func() -> Array: return _choisir(choix)
+		"unique":       # L9 : objet unique posé (ObjetUnique) : pris une fois pour toutes (ButinTables « unique:<objet> »)
+			var obj: String = it["objet"]
+			var c0 := cond
+			cond = func() -> bool: return not ObjetUnique.pris(obj) and (not c0.is_valid() or c0.call())
+			action = func() -> Array: return ObjetUnique.prendre(obj, joueur.inventaire, hud, _uniques.get(id))
 		_:
 			var butin: Dictionary = it["butin"]
 			var lieu: Vector3 = it["coffre"]
@@ -489,6 +497,11 @@ func _creer_interaction(it: Dictionary) -> void:
 	var n := _interactif(crypte, it["pos"], it["nom"], it["verbe"], action, cond, false)
 	n.set_meta("genre_donjon", genre)
 	_inter[id] = n
+	if genre == "unique":           # L9 : le modèle, sous le nœud du donjon (classé par salle avec le décor)
+		var u := ObjetUnique.creer(String(it["objet"]), it["xf"], d2)
+		if u != null:
+			_cont.add_child(u)
+			_uniques[id] = u
 	var cv: Dictionary = it.get("couvercle", {})
 	if not cv.is_empty():           # L1 : couvercle du coffre, sous le nœud du donjon (classé par salle avec le reste du décor)
 		var c := CoffreCouvercle.creer(d2, cv)
