@@ -6,7 +6,7 @@ extends Node3D
 ##   godot --path . res://scenes/galerie_magie.tscn -- [--lieu=crypte|dehors] [--vue=fps|cote] [--plans=a,b,...]
 ##       [--captures=<dossier>]   une image PNG au milieu de chaque plan (<lieu>_<vue>_<plan>.png), puis quitte
 ##       [--perf]                 mesure : temps d'image sans effet, puis avec 3 effets simultanés + 5 cibles avec statut
-##       [--perf=jet]             mesure : un seul jet de flammes tenu (3 mesures de 240 images)
+##       [--perf=jet]             mesure : un seul jet tenu (3 mesures de 240 images) ; --ecole=electricite|… (feu par défaut)
 ##       [--boucle]               rejoue la suite sans fin (démonstration)
 ##       [--instants=a,b,...]     plusieurs captures par plan, aux instants donnés (s)
 ##       [--tourne=<°/s>]         jets canalisés : la vue pivote (lacet) à partir de 0,8 s et le jet suit la caméra
@@ -21,7 +21,7 @@ const PLANS := [
 	["vide", 1.0, 0.8],   # sans effet : référence du monde (rétro et couche fine doivent donner le même décor)
 	["aura_feu", 2.2, 1.6], ["jet_feu", 2.4, 1.2], ["jet_feu_loin", 3.0, 1.5], ["boule_feu", 2.4, 0.16], ["explosion_feu", 2.0, 0.42], ["zone_feu", 2.6, 0.5],
 	["aura_glace", 2.0, 1.4], ["eclat_glace", 2.2, 0.12], ["lance_givre", 2.4, 0.1], ["souffle_givre", 2.4, 1.2], ["nova_gelee", 2.8, 0.7],
-	["aura_electricite", 2.0, 1.4], ["arc_electrique", 2.4, 1.0], ["chaine_eclairs", 1.8, 0.15], ["tempete_statique", 3.0, 1.2],
+	["aura_electricite", 2.0, 1.4], ["arc_electrique", 2.4, 1.0], ["chaine_eclairs", 1.8, 0.15], ["impact_electricite", 1.4, 0.1], ["tempete_statique", 3.0, 1.2],
 	["aura_tenebres", 2.0, 1.4], ["trait_ombre", 2.2, 0.14], ["drain_vie", 2.4, 1.2], ["explosion_obscure", 2.8, 0.6],
 	["soin", 2.4, 1.2], ["protection", 2.4, 1.2],
 	["statuts", 3.0, 1.5], ["enchant_feu", 1.6, 1.0], ["enchant_glace", 1.6, 1.0], ["enchant_electricite", 1.6, 1.0], ["enchant_tenebres", 1.6, 1.0],
@@ -350,6 +350,10 @@ func _debut(nom: String) -> void:
 				EffetsMagie.statut_cible(c, "choc", 1.6)
 		"tempete_statique":
 			EffetsMagie.zone("electricite", sol_c, 2.8, 2.8)
+		"impact_electricite":
+			# impact sur une surface (sol devant les cibles, puis mur) : éclatement de la décharge
+			EffetsMagie.impact("electricite", Vector3(0.4, 0.0, -4.2), Vector3.UP, 1.0)
+			get_tree().create_timer(0.5).timeout.connect(func() -> void: EffetsMagie.impact("electricite", Vector3(-1.2, 0.0, -3.4), Vector3.UP, 1.6))
 		"trait_ombre":
 			EffetsMagie.aura_main(paume_g, "tenebres", 1.0)
 			_tirer("tenebres", "trait", _vise(), 0.5)
@@ -441,18 +445,19 @@ func _perf() -> void:
 	var base := await _mesurer(240, func() -> void: pass)
 	EffetsMagie.prechauffer()
 	if _arg("perf") == "jet":
-		# --perf=jet : coût d'UN jet de flammes tenu (aura + jet sur la cible du milieu), rien d'autre ; 3 mesures
+		# --perf=jet [--ecole=electricite] : coût d'UN jet tenu (feu par défaut) (aura + jet sur la cible du milieu), rien d'autre ; 3 mesures
 		await get_tree().create_timer(0.5).timeout
-		EffetsMagie.aura_main(paume_g, "feu", 1.0)
+		var ej := _arg("ecole", "feu")
+		EffetsMagie.aura_main(paume_g, ej, 1.0)
 		for k in 30:
-			EffetsMagie.jet("feu", paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, true)
+			EffetsMagie.jet(ej, paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, true)
 			await get_tree().process_frame
 		for r in 3:
 			var mj := await _mesurer(240, func() -> void:
-				EffetsMagie.jet("feu", paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, true))
+				EffetsMagie.jet(ej, paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, true))
 			var sj := EffetsMagie.stats()
-			print("PERF_JET %s %s : sans effet %.2f ms (GPU %.2f ms) ; jet de flammes %.2f ms (%d appels ; GPU %.2f ms) ; %d particules, %d émetteurs" % [
-				lieu, vue, base[0], base[2], mj[0], mj[1], mj[2], sj.particules, sj.emetteurs])
+			print("PERF_JET %s %s : sans effet %.2f ms (GPU %.2f ms) ; jet %s %.2f ms (%d appels ; GPU %.2f ms) ; %d particules, %d émetteurs" % [
+				lieu, vue, base[0], base[2], ej, mj[0], mj[1], mj[2], sj.particules, sj.emetteurs])
 		get_tree().quit()
 		return
 	await get_tree().create_timer(0.5).timeout

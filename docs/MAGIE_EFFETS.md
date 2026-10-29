@@ -23,6 +23,7 @@ appelle `EffetsMagie`. Références : `references/magie/prompt_magie.md` et les 
 | `shaders/magie_occ.gdshaderinc`, `magie_compose.gdshader` | occlusion par la profondeur du monde ; pose de la couche sur le monde |
 | `shaders/magie_flux.gdshader`, `magie_aura.gdshader`, `magie_bruit.gdshaderinc` | jets, auras, boules et bouffées procéduraux au pixel (couche fine) |
 | `shaders/magie_vague.gdshader`, `magie_vague_process.gdshader`, `assets/magie/feu_kenney_atlas.png`, `bruit_vague.png` | jet de flammes (couche fine) : VAGUE de bouffées qui avancent dans l'espace |
+| `shaders/magie_decharge.gdshader`, `magie_decharge_process.gdshader`, `assets/magie/elec_kenney_atlas.png` | arc électrique, chaîne d'éclairs et impact électrique (couche fine) : DÉCHARGE d'éclats d'éclair texturés |
 | `shaders/magie_coeur*.gdshader*` | cœurs lumineux de la couche fine |
 | `outils/perf_magie_crypte.gd` | mesure dans la vraie crypte (double jet de flammes) |
 | `outils/planches_magie_detail.sh` | planches avant / après face aux références |
@@ -270,3 +271,29 @@ Retour utilisateur : « on voit que c'est plusieurs petites flammes collées …
 - Liseré jaune-vert autour de la paume : la teinte des bouffées peu denses est plafonnée (jaune-orange saturé, le blanc
   est réservé aux cœurs denses), plafond relâché avec la distance à l'œil.
 - Coût (même protocole, 2 mesures chacune) : ~3,5-3,6 ms GPU avec la vague contre ~2,9-3,0 sans, soit +0,5 à +0,6 ms.
+
+## Électricité : décharge vivante (branche magie/elec_vivante, 2026-10-29)
+
+Même architecture que la vague de flammes. En couche fine, le corps de l'arc électrique n'est plus le ruban `magie_flux`
+(tube violet uniforme) mais un `GPUParticles3D` par jet (`_decharge_creer`, `DECHARGE_N` 64 éclats, ×1,35 en double) :
+- `magie_decharge_process.gdshader` : chaque éclat vit `DECHARGE_VIE` 0,13 s (3-5 images) et se RECALCULE à chaque image
+  sur la courbe de Bézier actuelle (paume, contrôle, bout : uniformes posés par `_decharge_placer`, mêmes points que
+  `_jet_courbe`), il colle donc à l'arc quand on tourne. Genres : traits d'éclair le long de l'arc (de travers, écartés au
+  milieu ; dans le vide le bout s'effiloche), crépitement au bout touché et un peu dans la paume, étincelles renvoyées qui
+  tombent, fourches qui sautent du bout sur le corps. Mode `eclatement` (impact sur une surface) : traits en étoile autour
+  de la normale.
+- `magie_decharge.gdshader` : quad à l'écran tendu entre les deux bouts projetés de l'éclat, forme du Kenney Particle Pack
+  (CC0, atlas 4×2 de 128² : spark_05/06/07, trace_03 / spark_01/02/04, star_04). À chaque image (30 /s) chaque éclat change
+  de forme (case suivante, miroir, glissement) et d'éclat (plein, moitié, éteint ~1 image sur 5). Intensité en paliers
+  blanc → blanc-bleu → bleu → violet, grain au pixel du monde, tramage par bruit qui change à chaque image (pas de Bayer),
+  additif. Éclats contre l'œil non dessinés, tailles plafonnées (paume à 0,45 m).
+- Arc maître CPU (`_gen_jet_arc_vif`, remplace `_gen_jet_arc` en couche fine) : brin fin qui relie toujours la paume au
+  point frappé (lisibilité), 2 brins (3 en double) refaits 30 fois/s, éclat variable, « hoquet » (un seul brin pâle) ~1 image
+  sur 8, fourches vers l'avant, doigts sur la cible.
+- `chaine()` : chaque saut crépite aussi (`_decharge_ponctuelle`, au moment où l'arc l'atteint) ; `impact("electricite")` :
+  éclatement de 0,26 s. Rendu rétro (couche fine éteinte) : inchangé.
+- Galerie : plan `impact_electricite` ; `--perf=jet --ecole=electricite`.
+- Coût (`--perf=jet --ecole=electricite`, crypte FPS 1280×720 Élevé, A/B contre eb973fb, PC partagé, 3 séances) : couche
+  fine 0,35-0,47 → 0,68-0,76 ms ; coût total du jet +0,2 à +0,5 ms GPU. Pas de simulation CPU (4 uniformes par image).
+- Limites : de jour sur la neige (additif sur fond clair), l'arc tire vers le blanc et perd son bleu-violet ; les grandes
+  branches CPU de `chaine()` près de la paume (déjà là avant) ne sont pas touchées.
