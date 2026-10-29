@@ -864,12 +864,18 @@ func foudre_ramifiee(traits: Array, a: Vector3, b: Vector3, ampl: float, largeur
 	var p := foudre(a, b, ampl, prof)
 	traits.append([p, largeur, 1.0])
 	var l := a.distance_to(b)
+	var dir := (b - a).normalized()
+	# ramifications SYMÉTRIQUES autour du lien : écart perpendiculaire à l'axe, une sur deux de l'autre côté (angle + PI)
+	# (avant : écart aléatoire 3D ajouté à l'axe → gerbe penchée du côté où part le lien, toujours le même dans la chaîne)
+	var u := dir.cross(Vector3.UP if absf(dir.y) < 0.9 else Vector3.RIGHT).normalized()
+	var w := dir.cross(u)
+	var ang := rng.randf() * TAU
 	for _k in (ramifs * 2 if fin_actif else ramifs):
 		var i := rng.randi_range(1, maxi(1, p.size() - 2))
 		var o := p[i]
-		var dir := (b - a).normalized()
-		var dev := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
-		var fin := o + (dir + dev * 0.9).normalized() * l * rng.randf_range(0.12, 0.3)
+		ang += PI + rng.randf_range(-0.6, 0.6)
+		var dev := u * cos(ang) + w * sin(ang)
+		var fin := o + (dir * 0.6 + dev).normalized() * l * rng.randf_range(0.12, 0.3)
 		var br := foudre(o, fin, l * 0.06, 2)
 		traits.append([br, maxf(1.0, largeur - 1.0), 0.7])
 		if fin_actif and br.size() > 3 and rng.randf() < 0.6:
