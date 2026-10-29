@@ -105,6 +105,8 @@ const MAX_PROJECTILES := 24
 const POOL_GARDE := 24
 ## Échelle de départ d'un projectile cristal (il naît petit dans la paume, voir _cristal_echelle).
 const CRISTAL_GERME := 0.12
+## Distance à l'œil (m) à partir de laquelle un cristal lancé par le joueur a sa pleine taille (_cristal_echelle).
+const CRISTAL_OEIL := 2.8
 
 ## Couleurs des lumières dynamiques par école.
 const LUMIERE := {
@@ -2204,9 +2206,17 @@ func projectile_visuel(ecole: String, forme: String) -> Node3D:
 func _cristal_echelle(e: Dictionary, pos: Vector3) -> float:
 	if not e.has("queue"):
 		return 1.0
+	var cam := get_viewport().get_camera_3d()
 	if e.depart == null:
 		e.depart = pos
-	return clampf(((pos - (e.depart as Vector3)).length() + 0.05) / float(e.queue), CRISTAL_GERME, 1.0)
+		# lancé par le joueur (né contre l'œil) : la taille suit aussi la distance à l'œil (voir plus bas)
+		e.pres_oeil = cam != null and cam.global_position.distance_to(pos) < 1.2
+	var ech := clampf(((pos - (e.depart as Vector3)).length() + 0.05) / float(e.queue), CRISTAL_GERME, 1.0)
+	if e.get("pres_oeil", false) and cam != null:
+		# à 34 m/s, l'éclat est encore à ~1-2 m de l'œil pendant ses 2 premières images : à pleine taille il couvrait un
+		# grand pan d'écran près de la main. Il grandit jusqu'à CRISTAL_OEIL m de l'œil (taille apparente ~constante).
+		ech = minf(ech, clampf((cam.global_position.distance_to(pos) - 0.35) / (CRISTAL_OEIL - 0.35), CRISTAL_GERME, 1.0))
+	return ech
 
 func _gen_orbe_arcs(r: float) -> Array:
 	var traits: Array = []
