@@ -27,14 +27,14 @@ uniform float px_min = 7.0;          // bornes de la demi-largeur (pixels du MON
 uniform float px_max = 22.0;
 uniform float coeur_px = 2.0;        // demi-épaisseur du cœur du brin maître (pixels du monde)
 uniform float eclat = 1.35;
-uniform float ombre = 0.72;          // couverture maximale de la gaine (0 = additif pur)
+uniform float ombre = 0.85;          // couverture maximale de la gaine (0 = additif pur)
 uniform vec4 c0 : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform vec4 c1 : source_color = vec4(0.94, 0.95, 1.0, 1.0);
 uniform vec4 c2 : source_color = vec4(0.71, 0.75, 1.0, 1.0);
 uniform vec4 c3 : source_color = vec4(0.48, 0.48, 0.94, 1.0);
 uniform vec4 c4 : source_color = vec4(0.29, 0.23, 0.82, 1.0);
 uniform vec4 c5 : source_color = vec4(0.16, 0.10, 0.42, 1.0);
-uniform vec4 gaine_c : source_color = vec4(0.10, 0.05, 0.30, 1.0);
+uniform vec4 gaine_c : source_color = vec4(0.16, 0.08, 0.48, 1.0);
 
 varying float v_t;
 varying float v_off;      // décalage perpendiculaire (pixels de l'écran)
@@ -143,7 +143,8 @@ void fragment() {
 		float halo = exp(-max(dd - cw, 0.0) / ((i < 0.5 ? 4.0 : 1.8) * m));
 		I = max(I, ki * (core * 1.15 + halo * (i < 0.5 ? 0.62 : 0.35)));
 		if (i < 0.5) {
-			gaine = exp(-max(dd - cw, 0.0) / (6.5 * m * (1.0 + 0.4 * dbl)));
+			// gaine : plateau autour du cœur puis bord franc (un bord net se lit mieux sur la neige qu'un dégradé)
+			gaine = 1.0 - smoothstep(cw + 2.0 * m, cw + 7.0 * m * (1.0 + 0.3 * dbl), dd);
 		}
 	}
 	// fourches : 2 par image, partent du brin maître et s'en écartent en zigzag, s'éteignent vers leur bout

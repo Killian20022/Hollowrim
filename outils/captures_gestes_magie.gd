@@ -6,6 +6,7 @@ extends SceneTree
 ##     gestes : lance (sort rapide à une main), charge (boule de feu : charge tenue puis départ), jet (jet tenu à une main),
 ##     double (double incantation : lancer à deux mains), double_jet (jet à deux mains), zone (sort de zone chargé),
 ##     droite (sort rapide de la main droite), epee (épée à droite + sort à gauche : enchaînement coup / sort).
+##     --sort=<id> : sort tenu par les gestes jet et double_jet (jet_flammes par défaut ; ex. souffle_givre, arc_electrique).
 ##     --avant : gestes Mixamo coupés (anciennes poses fixes) pour la planche avant / après.
 ##     --vue=face|cote : gros plan des avant-bras (face : devant le joueur, tourné vers lui ; cote : profil du bras gauche) :
 ##     torsion des poignets et des avant-bras (outils/test_articulations_magie.gd).
@@ -37,7 +38,7 @@ func _attendre(t: float) -> void:
 
 func _go() -> void:
 	s = SCENE.instantiate()
-	s.options = {"draugr": "aucun", "sans-aide": ""}
+	s.options = {"draugr": _arg("draugr", "aucun"), "sans-aide": ""}   # --draugr=fige : un draugr figé dans la scène
 	root.add_child(s)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	for i in 30:
@@ -100,14 +101,14 @@ func _scenario(geste: String) -> Array:
 		"charge":   # boule de feu : charge tenue 1,2 s puis départ
 			return [["boule_feu", "epee"], [0.5, "appui:gauche", "Charge (boule de feu)"], [1.3, "relache:gauche", "Depart"], [1.3, "", ""]]
 		"jet":   # jet tenu
-			return [["jet_flammes", "epee"], [0.5, "appui:gauche", "Jet tenu (main gauche)"], [2.2, "relache:gauche", "Fin du jet"], [1.0, "", ""]]
+			return [[_arg("sort", "jet_flammes"), "epee"], [0.5, "appui:gauche", "Jet tenu (main gauche)"], [2.2, "relache:gauche", "Fin du jet"], [1.0, "", ""]]
 		"double":   # double incantation d'un sort rapide
 			return [["eclat_glace", "eclat_glace"], [0.5, "appui:deux", "Double incantation (sort rapide)"], [0.08, "relache:deux", ""],
 				[1.3, "appui:deux", ""], [0.08, "relache:deux", ""], [1.4, "", ""]]
 		"double_charge":
 			return [["boule_feu", "boule_feu"], [0.5, "appui:deux", "Double incantation (charge)"], [1.3, "relache:deux", "Depart"], [1.4, "", ""]]
 		"double_jet":
-			return [["jet_flammes", "jet_flammes"], [0.5, "appui:deux", "Double incantation (jet tenu)"], [2.2, "relache:deux", "Fin du jet"], [1.0, "", ""]]
+			return [[_arg("sort", "jet_flammes"), _arg("sort", "jet_flammes")], [0.5, "appui:deux", "Double incantation (jet tenu)"], [2.2, "relache:deux", "Fin du jet"], [1.0, "", ""]]
 		"zone":   # sort de zone chargé (explosion obscure)
 			return [["explosion_obscure", "epee"], [0.5, "appui:gauche", "Sort de zone (charge)"], [1.3, "relache:gauche", "Depart"], [1.4, "", ""]]
 		"droite":
