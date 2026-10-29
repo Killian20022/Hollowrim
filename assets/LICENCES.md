@@ -12,6 +12,7 @@ Toutes en CC0 1.0 (domaine public, usage commercial libre, aucune attribution ex
 | modeles/joueur | Modélisés pour le jeu (Blender, sources dans sources_blender/) | — | propriété du projet |
 | modeles/humains | Universal Base Characters + Universal Animation Library (quaternius.com) | Quaternius | CC0 |
 | magie/feu_kenney_atlas.png | Kenney Particle Pack (kenney.nl/assets/particle-pack) : flame_01-06, fire_01, smoke_03-07, alpha réduit en 128² et assemblé en atlas 4×3 | Kenney | CC0 |
+| magie/elec_kenney_atlas.png | Kenney Particle Pack (kenney.nl/assets/particle-pack) : spark_01, 02, 04, 05, 06, 07 (redressé), trace_03, star_04, luminance réduite en 128² et assemblée en atlas 4×2 | Kenney | CC0 |
 
 ## Musique et ambiances (OpenGameArt, tous CC0, convertis en Ogg Vorbis ~96 kb/s)
 

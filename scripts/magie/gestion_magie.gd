@@ -32,9 +32,15 @@ const SH_VAGUE_PROC := preload("res://shaders/magie_vague_process.gdshader")
 const ATLAS_FEU := preload("res://assets/magie/feu_kenney_atlas.png")
 ## Bruit fractal périodique de la vague (64², 4 canaux indépendants ; outils/generer_bruit_vague.gd).
 const BRUIT_VAGUE := preload("res://assets/magie/bruit_vague.png")
+## Jet électrique (couche fine) : DÉCHARGE d'éclats texturés qui crépitent le long de l'arc (magie_decharge*.gdshader).
+const SH_DECHARGE := preload("res://shaders/magie_decharge.gdshader")
+const SH_DECHARGE_PROC := preload("res://shaders/magie_decharge_process.gdshader")
+## Formes des éclats : atlas 4×2 de 128² tiré du Kenney Particle Pack (CC0, assets/LICENCES.md) : rangée 0 = traits
+## d'éclair (spark_05, spark_06, spark_07 redressé, trace_03), rangée 1 = nuages d'éclairs (spark_01, 02, 04), éclat star_04.
+const ATLAS_ELEC := preload("res://assets/magie/elec_kenney_atlas.png")
 ## Shaders des visuels qui passent dans la couche fine (CoucheMagie.CALQUE) ; le voile (material_overlay des cibles) reste
 ## dans le rendu du monde.
-const SHADERS_COUCHE := [SH_ADD, SH_MIX, SH_TRAIT, SH_CRISTAL, SH_SOL, SH_SOL_MIX, SH_COEUR, SH_COEUR_ADD, SH_FLUX, SH_AURA, SH_VAGUE]
+const SHADERS_COUCHE := [SH_ADD, SH_MIX, SH_TRAIT, SH_CRISTAL, SH_SOL, SH_SOL_MIX, SH_COEUR, SH_COEUR_ADD, SH_FLUX, SH_AURA, SH_VAGUE, SH_DECHARGE]
 ## Palettes du flux procédural des jets (couche fine) : cœur → bord (ténèbres : rehaut → cœur noir).
 const FLUX := {
 	"feu": ["#fffbe8", "#fff0a8", "#fcb53a", "#ec6a1f", "#b3341f", "#5a1a1c"],
@@ -57,6 +63,9 @@ const VAGUE_PORTEE := 10.5
 const VAGUE_VIE := 1.15
 const VAGUE_TRAINE := 1.25
 const VAGUE_N := 88
+## Décharge électrique : éclats vivants (3 à 5 images chacun) et durée de vie d'un éclat (s).
+const DECHARGE_N := 64
+const DECHARGE_VIE := 0.13
 const AURA_ECOLE := {"feu": 0, "glace": 1, "electricite": 2, "tenebres": 3, "soin": 4, "protection": 5}
 ## Rayon (m) de l'aura procédurale de la main, par école (paume à ~0,45 m de l'œil).
 const AURA_RAYON := {"feu": 0.12, "glace": 0.12, "electricite": 0.11, "tenebres": 0.12, "soin": 0.09, "protection": 0.09}
@@ -1257,6 +1266,8 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 		# réellement dans l'espace (elles grossissent, montent, roulent, refroidissent puis fument)
 		j.vague = _vague_creer(dbl)
 		j.ecart = ecart
+	elif fin_actif and ecole == "electricite":
+		j.decharge = _decharge_creer(dbl)
 	elif fin_actif and FLUX.has(ecole):
 		# couche fine : le corps du jet est un flux procédural continu (les particules en font les bords et les éclats)
 		j.flux = _flux_creer(ecole)
@@ -1289,7 +1300,10 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 						p.set_meta("v_jet", vm / kv)
 					j.emit.append(p)
 		"electricite":
-			j.eclair = eclair(null, "electricite", 2.4 if dbl else 2.0, -1.0, 0.033, _gen_jet_arc.bind(j))
+			if j.get("decharge") != null:
+				j.eclair = eclair(null, "electricite", 1.5 if dbl else 1.0, -1.0, 0.033, _gen_jet_arc_vif.bind(j))
+			else:
+				j.eclair = eclair(null, "electricite", 2.4 if dbl else 2.0, -1.0, 0.033, _gen_jet_arc.bind(j))
 			var pe := emettre("elec_paume", null, Transform3D.IDENTITY, true, kn)
 			if pe != null:
 				j.emit.append(pe)
@@ -1370,6 +1384,43 @@ func _gen_jet_arc(j: Dictionary) -> Array:
 			var b: Vector3 = j.fin_pos
 			var fin: Vector3 = b + Vector3(rng.randf_range(-0.35, 0.35), rng.randf_range(-0.7, 0.45), rng.randf_range(-0.35, 0.35))
 			traits.append([foudre(b, fin, 0.05, 3), 0.5, 0.7])
+	return traits
+
+## Arc maître de la décharge (couche fine) : la colonne vertébrale fine qui relie TOUJOURS la paume au bout (on voit
+## où l'éclair frappe) ; les éclats texturés de la décharge (_decharge_*) lui donnent l'épaisseur et le crépitement.
+## Refait 30 fois par seconde : 2 brins (3 en double) qui se croisent, éclat qui varie à chaque image (scintillement),
+## une image sur huit environ réduite à un brin pâle (l'arc « hoquette ») ; fourches courtes vers l'avant et, sur la
+## cible, des doigts qui courent sur le corps.
+func _gen_jet_arc_vif(j: Dictionary) -> Array:
+	var traits: Array = []
+	var o: Vector3 = (j.origine as Node3D).global_position if valide(j.origine) else Vector3.ZERO
+	var l := o.distance_to(j.fin_pos)
+	if l < 0.05:
+		return traits
+	var dbl: bool = j.dbl
+	var dir: Vector3 = (j.fin_pos - o) / l
+	var hoquet := rng.randf() < 0.12
+	var brins := 1 if hoquet else (3 if dbl else 2)
+	for k in brins:
+		var decal := Vector3.ZERO
+		if k > 0:
+			decal = Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * l * 0.04
+		var p := _arc_courbe(o, j, l, l * (0.03 if k == 0 else 0.045), decal)
+		var a := 0.4 if hoquet else (rng.randf_range(0.7, 1.0) if k == 0 else rng.randf_range(0.3, 0.7))
+		traits.append([p, 1.0 if k == 0 else 0.5, a])
+		if hoquet:
+			break
+		for _r in (4 if k == 0 else 1):
+			var i := rng.randi_range(p.size() * 2 / 5, maxi(p.size() * 2 / 5, p.size() - 3))
+			var kt := float(i) / p.size()
+			var dev := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
+			var fin := p[i] + (dir + dev * 0.9).normalized() * l * kt * rng.randf_range(0.04, 0.1)
+			traits.append([foudre(p[i], fin, l * 0.02, 3), 0.5, 0.55])
+	if j.touche:
+		for _k in (4 if dbl else 3):
+			var b: Vector3 = j.fin_pos
+			var fin: Vector3 = b + Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(-0.8, 0.5), rng.randf_range(-0.4, 0.4))
+			traits.append([foudre(b, fin, 0.06, 3), 0.5, rng.randf_range(0.5, 0.9)])
 	return traits
 
 func _gen_drain(j: Dictionary) -> Array:
@@ -1522,6 +1573,87 @@ func _vague_placer(j: Dictionary, o: Vector3, b: Basis, fin: Vector3, vers: Vect
 	var touche: bool = j.touche
 	pm.set_shader_parameter("arret", Vector4(fin.x, fin.y, fin.z, 1.0 if touche else 0.0))
 	pm.set_shader_parameter("arret_dir", vers)
+
+# ---------------------------------------------------------------------- décharge électrique (couche fine, arc électrique)
+
+func _mat_decharge() -> ShaderMaterial:
+	if not _mats.has("decharge"):
+		var m := ShaderMaterial.new()
+		m.shader = SH_DECHARGE
+		m.set_shader_parameter("formes", ATLAS_ELEC)
+		_mats["decharge"] = m
+	return _mats["decharge"]
+
+## Émetteur des éclats d'un arc électrique (un par jet : sa courbe lui est propre). Les éclats sont recalculés chaque
+## image sur la courbe actuelle (uniformes o, c, b) : ils collent à l'arc, rien n'est simulé sur le CPU.
+func _decharge_creer(dbl: bool) -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.name = "DechargeElec"
+	p.amount = int(DECHARGE_N * (1.35 if dbl else 1.0))
+	p.lifetime = DECHARGE_VIE
+	p.local_coords = false
+	p.fixed_fps = 0
+	p.interpolate = false
+	p.randomness = 0.0
+	p.explosiveness = 0.0
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.draw_pass_1 = _quad
+	p.visibility_aabb = AABB(Vector3.ONE * -14.0, Vector3.ONE * 28.0)
+	var pm := ShaderMaterial.new()
+	pm.shader = SH_DECHARGE_PROC
+	pm.set_shader_parameter("force", 1.35 if dbl else 1.0)
+	p.process_material = pm
+	p.material_override = _mat_decharge()
+	p.visible = not sans_procedural and not OS.get_cmdline_user_args().has("--sans-flux")
+	add_child(p)
+	p.emitting = true
+	_proc.append(p)
+	return p
+
+## Courbe de la décharge = celle de l'arc maître (_jet_courbe : paume, contrôle sur la visée, bout en retard).
+func _decharge_placer(j: Dictionary, o: Vector3, l: float) -> void:
+	var p: GPUParticles3D = j.decharge
+	var pm := p.process_material as ShaderMaterial
+	var dv: Vector3 = j.dir_vis if j.dir_vis != Vector3.ZERO else j.dir
+	p.global_position = o
+	pm.set_shader_parameter("o", o)
+	pm.set_shader_parameter("c", o + (j.dir as Vector3) * l * 0.5)
+	pm.set_shader_parameter("b", o + dv * l if not j.touche else (j.fin_pos as Vector3))
+	pm.set_shader_parameter("touche", 1.0 if j.touche else 0.0)
+
+## Décharge PONCTUELLE (chaîne d'éclairs, impact) : émetteur à courbe fixe qui crépite `duree` s après `delai` s, puis
+## s'éteint et se libère seul. `eclat` : o = c = b = point touché, traits en étoile autour de `normale`.
+func _decharge_ponctuelle(o: Vector3, b: Vector3, duree: float, delai := 0.0, n := 40, force := 1.0, eclat := false, normale := Vector3.UP) -> void:
+	if sans_procedural or not fin_actif:
+		return
+	var p := _decharge_creer(false)
+	p.amount = n
+	p.emitting = delai <= 0.0
+	p.global_position = b
+	var pm := p.process_material as ShaderMaterial
+	pm.set_shader_parameter("o", o)
+	pm.set_shader_parameter("c", o.lerp(b, 0.5) + Vector3.UP * o.distance_to(b) * 0.06)
+	pm.set_shader_parameter("b", b)
+	pm.set_shader_parameter("touche", 1.0)
+	pm.set_shader_parameter("force", force)
+	pm.set_shader_parameter("eclatement", 1.0 if eclat else 0.0)
+	pm.set_shader_parameter("normale", normale.normalized())
+	var tm := get_tree()
+	if delai > 0.0:
+		tm.create_timer(delai, false).timeout.connect(func() -> void:
+			if is_instance_valid(p):
+				p.emitting = true)
+	tm.create_timer(delai + duree, false).timeout.connect(func() -> void:
+		if is_instance_valid(p):
+			p.emitting = false)
+	tm.create_timer(delai + duree + DECHARGE_VIE + 0.1, false).timeout.connect(p.queue_free)
+
+func _decharge_arreter(j: Dictionary) -> void:
+	if j.get("decharge") != null and is_instance_valid(j.decharge):
+		var dc: GPUParticles3D = j.decharge
+		dc.emitting = false
+		get_tree().create_timer(DECHARGE_VIE + 0.1, false).timeout.connect(dc.queue_free)
+	j.erase("decharge")
 
 func _mat_aura(ecole: String, forme := 0) -> ShaderMaterial:
 	var cle := "a%s|%d" % [ecole, forme]
@@ -1717,6 +1849,8 @@ func _jet_placer(j: Dictionary) -> void:
 		fx.set_instance_shader_parameter("force", clampf((horloge - float(j.debut)) / 0.12, 0.0, 1.0))
 	if j.vague != null and is_instance_valid(j.vague):
 		_vague_placer(j, o, b, fin, vers)
+	if j.get("decharge") != null and is_instance_valid(j.decharge):
+		_decharge_placer(j, o, l)
 	if not j.bouclier.is_empty():
 		var d: Dictionary = j.bouclier
 		d.pos = o + dir * 0.35
@@ -1788,6 +1922,7 @@ func _jet_arreter(j: Dictionary) -> void:
 		vg.emitting = false
 		get_tree().create_timer(VAGUE_VIE + 0.15, false).timeout.connect(vg.queue_free)
 	j.vague = null
+	_decharge_arreter(j)
 	if not j.bouclier.is_empty():
 		j.bouclier.duree = 0.0
 
@@ -1954,6 +2089,7 @@ func impact(ecole: String, position: Vector3, normale: Vector3, force: float) ->
 		"electricite":
 			bouffee("electricite", position + b.y * 0.15, 0.1, 0.45 * sqrt(f), 0.28)
 			emettre("elec_impact", null, xf, false, kn)
+			_decharge_ponctuelle(position, position + normale * 0.05, 0.26, 0.0, int(28 + 10 * f), sqrt(f), true, normale)
 			disque(position, normale, 0.1, 1.4 * f, 0.3, {"couleur": "#7a7af0", "coeur": "#f0f2ff", "anneau": 0.9, "epaisseur": 0.06, "texels": 48.0, "eclat": 1.8})
 			var centre := position + b.y * 0.05
 			eclair(null, "electricite", 2.0, 0.3, 0.05, func() -> Array:
@@ -2133,6 +2269,11 @@ func chaine(ecole: String, points: Array) -> void:
 			if not sc:
 				foudre_ramifiee(traits, pts[i - 1], pts[i], l * 0.14, 0.6, 1, 5)
 		return traits)
+	if teinte == "electricite":
+		# couche fine : chaque saut CRÉPITE aussi (éclats texturés de la décharge), au moment où l'arc l'atteint
+		var total := 0.45 + pas * (pts.size() - 2)
+		for i in range(1, pts.size()):
+			_decharge_ponctuelle(pts[i - 1], pts[i], total - pas * (i - 1), pas * (i - 1), 36, 1.35 if dbl else 1.0)
 	var sp := "elec_impact" if teinte == "electricite" else "violet_etincelles"
 	for i in range(1, pts.size()):
 		var xf := Transform3D(Basis.IDENTITY, pts[i])
@@ -2634,6 +2775,11 @@ func vitrine_prechauffe(v: Node3D) -> void:
 	v.add_child(vg)
 	vg.visible = true
 	vg.position = Vector3(0.4, 0.4, 0.0)
+	var dc := _decharge_creer(false)
+	remove_child(dc)
+	v.add_child(dc)
+	dc.visible = true
+	dc.position = Vector3(0.0, 0.4, 0.0)
 	var ia := 0
 	for ec in AURA_ECOLE:
 		var au := _aura_fine(v, ec, 0.06, ia % 2)
