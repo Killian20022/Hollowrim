@@ -50,6 +50,10 @@ const FONDU_IK_D := 0.3
 var _aura := {"gauche": 0.0, "droite": 0.0}
 var _ecole_aura := {"gauche": "", "droite": ""}
 var _arme_enchantee: Node3D
+## Gestes des bras capturés (Mixamo) : lancer, charge, jet tenu, double incantation, zone (gestes_magie.gd).
+var gestes := GestesMagie.new()
+## Pôle du coude de chaque main (lissé : pas de saut du coude entre un geste capturé et une pose fixe).
+var _pole := {"gauche": Vector3(-0.75, -0.55, 0.25), "droite": Vector3(0.75, -0.55, 0.25)}
 
 func _ready() -> void:
 	name = "Magie"
@@ -604,19 +608,24 @@ func _preparer_os() -> void:
 			_orient["gauche" if String(o.get("os")) == "hand_l" else "droite"] = o
 
 ## Pose voulue d'une main ({} = la main n'est pas à nous : épée, torche… restent à mains.gd).
-func _pose_voulue(m: String) -> Dictionary:
+func _pose_voulue(m: String, dt := 0.0) -> Dictionary:
 	var cat := eq.categorie(m)
 	var o := eq.autre(m)
 	if cat != "sort":   # bouclier : posé par mains.gd (GestesBouclier), comme la torche
+		gestes.oublier(m)
 		return {}
 	var i: Incantation = inc[m]
 	var s := eq.sort(m)
-	var p := PosesIncantation.pour(i.nom(), s.profil if s != null else "paume", i.charge, i.depuis_lancement, i.t, m)
+	# geste capturé (Mixamo) s'il y en a un pour ce sort et cet état, sinon pose fixe
+	var p := gestes.pose(m, i, s, dt)
+	var capture := not p.is_empty()
+	if not capture:
+		p = PosesIncantation.pour(i.nom(), s.profil if s != null else "paume", i.charge, i.depuis_lancement, i.t, m)
 	# l'épée de l'autre main frappe : la main du sort s'écarte (contrepoids), sauf si elle canalise
 	if eq.categorie(o).begins_with("arme") and (mains.combat.attaque() or mains.combat.etat == EtatCombat.RECUPERATION) and i.etat != Incantation.CANALISE:
 		var k := 1.0 if mains.combat.attaque() else clampf(1.0 - mains.combat.t / maxf(float(mains.get("_duree_recup")), 0.05), 0.0, 1.0)
 		p = PosesIncantation.melange(p, PosesIncantation.pose("ecartee", m), k * 0.85)
-	if i.double:
+	if i.double and not capture:   # le geste capturé à deux mains rapproche déjà les mains
 		p = p.duplicate()
 		var v: Vector3 = p["pos"]
 		p["pos"] = v + Vector3(PosesIncantation.RAPPROCHE_DOUBLE * (1.0 if m == "gauche" else -1.0), 0.0, 0.0)
@@ -631,7 +640,7 @@ func _poser_mains(dt: float) -> void:
 		return
 	var ik_d = mains.get("_ik_d")   # bras droit : clips à images clés, sauf quand un sort l'occupe (IK allumée ici)
 	for m in MAINS:
-		var p := _pose_voulue(m)
+		var p := _pose_voulue(m, dt)
 		var o = _orient[m]
 		var pivot: Node3D = mains.get("pivot_torche" if m == "gauche" else "pivot_epee")
 		if m == "droite":
@@ -667,7 +676,7 @@ func _poser_mains(dt: float) -> void:
 			_xf[m] = dec.affine_inverse() * pivot.transform * prise.affine_inverse()
 			_xf[m] = Transform3D(_xf[m].basis.orthonormalized(), _xf[m].origin)
 			_xf_ok[m] = true
-		var k := 1.0 - exp(-16.0 * dt)
+		var k := 1.0 - exp(-float(p.get("suivi", 16.0)) * dt)
 		var a: Transform3D = _xf[m]
 		_xf[m] = Transform3D(Basis(a.basis.get_rotation_quaternion().slerp(xf.basis.get_rotation_quaternion(), k)), a.origin.lerp(xf.origin, k))
 		pivot.transform = dec * _xf[m] * prise
@@ -676,7 +685,8 @@ func _poser_mains(dt: float) -> void:
 			o.angle_max = PI
 			o.flexion_max = PI
 		var coude: Node3D = mains.get("_coude_g" if m == "gauche" else "_coude_d")
-		coude.position = Vector3(-0.75 if m == "gauche" else 0.75, -0.55, 0.25)
+		_pole[m] = (_pole[m] as Vector3).lerp(p.get("coude", Vector3(-0.75 if m == "gauche" else 0.75, -0.55, 0.25)), k)
+		coude.position = _pole[m]
 		_poser_doigts(sq, m, float(p["fermeture"]))
 	# objets de la main gauche : torche seulement si c'est elle ; le bouclier (modèle et visibilité) est géré par mains.gd
 	var porte: Node3D = mains.get("porte_torche")

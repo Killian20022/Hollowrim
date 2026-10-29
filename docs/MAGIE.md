@@ -46,6 +46,7 @@ Le joueur sait toujours pourquoi une action est refusée : signal `joueur.action
 | `magie/projectile_sort.gd` (`ProjectileSort`) | **Étend `projectile.gd`** : vol tendu, visuel EffetsMagie, touche par proximité de la trajectoire, traverse (lance). |
 | `magie/zone_magie.gd` (`ZoneMagie`) | Zone persistante (tempête) et attraction (vortex). |
 | `magie/poses_incantation.gd` (`PosesIncantation`) | Poses FPS des mains qui incantent (fichier à part des gestes de l'épée). |
+| `magie/gestes_magie.gd` (`GestesMagie`) | Gestes des bras capturés (Mixamo, `data/magie/gestes_mixamo.json`) : lancer, charge, jet tenu, double incantation, zone ; à défaut, les poses fixes de PosesIncantation. |
 | `magie/effets_magie.gd` (`EffetsMagie`) | Contrat visuel ; ici **bouchons** (sphères / boîtes colorées), remplacé par la branche magie/effets. |
 | `magie/scene_test_magie.gd` + `scenes/test_magie.tscn` | Scène de test + pilote automatique (§10). |
 | `combat/statuts.gd` (`Statuts`) | Statuts centralisés d'une cible (nœud enfant) : brûlure, brûlure obscure, gel, choc, corruption. |
@@ -191,6 +192,42 @@ mains.gd : cible d'IK de la main (`pivot_torche` / `pivot_epee`), orientation li
 écarté, doigts mélangés entre la pose de repos du squelette (ouverte) et le poing (`mains._doigts`). Ressort de 16 /s,
 tremblement léger en canalisation et à pleine charge. Le geste de l'épée (clés, rig, bras_fps.glb) n'est jamais modifié.
 
+### Gestes Mixamo (2026-10-29, branche magie/gestes_mixamo)
+
+Les gestes de lancer viennent de captures de mouvement Mixamo (« Magic Spell Pack », gratuit, usage commercial permis ;
+les `.fbx` restent dans `references/mixamo/magic_spell_pack/`, **jamais commités** : seules les données converties le sont),
+retargetées comme les coups d'épée (`anim_bras_epee.py`, « Coups Mixamo ») :
+
+1. `sources_blender/scripts/extraire_mixamo_magie.py` (Blender, `-b`) : positions des deux bras (épaule, coude, poignet, base de
+   l'index / de l'auriculaire / du majeur, bout du majeur) relatives au cou, repère caméra -> `sources_blender/mixamo/gestes_magie_mixamo.json`
+   (`--tous` : tout le pack, pour choisir).
+2. `sources_blender/scripts/gestes_magie.py` (Python 3 seul) : la capture pilote le corps, la caméra est la tête ; on garde les
+   DIRECTIONS épaule -> coude -> poignet posées sur notre bras FPS (épaules (±0,212, -0,314, -0,092), bras 0,251, avant-bras 0,244 :
+   `outils/captures_gestes_magie.gd --bras`), la main portée par l'avant-bras (flexion / inclinaison du poignet = celles de la capture),
+   puis par geste : amplitude (ramenée vers l'image « centre »), cadrage (rotation autour de l'épaule), « poignet » (extension ajoutée
+   pour tourner la paume vers la cible, en rampe pendant la poussée), cadre (paume dans l'écran, devant l'œil, à 0,55 m au moins),
+   butées du poignet (extension 70°, flexion 60°, cubitale 30°, radiale 20°) sur l'avant-bras que donne l'IK, fondu depuis / vers la
+   pose de repos actuelle (inchangée), fermeture des doigts lue sur la courbure du majeur, pôle du coude = coude de la capture
+   -> `data/magie/gestes_mixamo.json` (poses au format PosesIncantation + `coude`).
+3. `GestesMagie.pose()` (une instance dans MainSort) : incantation -> phase `entree` (u = t / incantation), charge -> `tenue`
+   (u = charge), canalisation -> `boucle` (maintien, aller-retour), après le lancer -> `depart`, après un jet -> `fin` ; ces deux
+   dernières continuent au repos jusqu'à la pose de repos. MainSort applique la pose (ressort 34 /s au lieu de 16, pôle du coude
+   lissé) ; l'écart de la main quand l'épée frappe et le tremblement restent. Interruption : retour aux poses fixes.
+
+| Geste (sorts) | Clip Mixamo, piste | Phases |
+|---|---|---|
+| `lance` : sort rapide à une main (éclat de glace, trait d'ombre, chaîne d'éclairs) | Standing 1H Magic Attack 01, main droite (miroir pour la gauche) | armé 12->20 pendant l'incantation, poussée paume en avant, retour |
+| `charge` : sort chargé (boule de feu, lance de givre) | même clip : l'armé (13->18) est TENU, poing fermé, pendant la charge | entree, tenue, depart |
+| `jet` : jet tenu à une main (jet de flammes, arc, drain) | Standing 2H Magic Attack 03, main gauche (miroir pour la droite) : maintien bras tendu ~2 s | entree 24->33, boucle 36->96, fin |
+| `double` / `double_charge` / `double_jet` : double incantation | Standing 2H Magic Attack 04, chaque main SA piste (paumes jointes en avant) | rapprochement, poussée, maintien |
+| `zone` : explosion, tempête statique, nova | Standing 2H Magic Area Attack 01 (main levée poing fermé, frappe vers le sol) | entree 26->31, tenue, depart |
+
+Poses fixes gardées : soin / protection (`soi`), enchantement de la lame (`lame`), repos, écart pendant un coup d'épée.
+Écartés : 1H Cast Spell 01 (main levée au-dessus de la tête : hors champ), 1H Attack 02 / 03 (balayage qui traverse l'écran,
+lancer par en dessous), 2H Attack 01 / 02 / 05 et Area Attack 02 (mains derrière la tête ou écartées hors champ), Sword And Shield
+Casting (bras gauche levé derrière la tête). `GestesMagie.actif = false` rend les anciennes poses (planches avant / après).
+Films et planches : `outils/captures_gestes_magie.gd` (`--geste=… [--ralenti=0.5] [--avant]`, `--planche=`), test `test_gestes_magie`.
+
 ## Sons (branche magie/sons)
 
 `scripts/magie/sons_magie.gd` (`SonsMagie`) : charge (boucle douce, volume et hauteur suivent l'intensité), lancement (2 variantes par école), jet continu (boucle, s'éteint 0,25 s après le dernier appel), impact (2 variantes, volume selon la force), zone, chaîne, réactions (6), double incantation (une note par école), enchantement, « Pas assez de mana » (aussi « Mana épuisé »). Écoles feu, glace, électricité, ténèbres (+ soin, protection). Fichiers : `assets/sons/magie/*.wav` (PCM 16 bits, sources CC0 dans assets/LICENCES.md, fabriqués par `outils/sons_magie/generer.py`). Boucles : `edit/loop_mode=2` dans leur .import.
@@ -225,6 +262,9 @@ d'abord : enchantement et deux mains). Les 18 sorts sont connus d'office (pas en
   refus), les 12 sorts + soin + protection (dégâts, statut, drain, chaîne, recharge), double (fenêtre, coût, dégâts, 4 écoles),
   6 réactions + réaction impayable, interruption (seuil), épée + magie (mémorisation, canalisation coupée, bonus), enchantement
   et combos, statuts sur un draugr (gel, choc + immunité, brûlure), contrats EffetsMagie / HUD, sauvegarde JSON.
+- `test_gestes_magie` (54 vérifications) : données (7 gestes × 2 mains), paume dans l'écran, départ et retour au repos, chaque
+  sort joue son geste (une main, main droite, double, zone sans charge, interruption), la cible de la main ne saute jamais
+  (pire écart entre deux images à 60 i/s : 4,5 à 8 cm, poussées capturées), soin / enchantement gardent les poses fixes.
 - Non-régression : test_combat_epee, test_defense, test_degats, test_troll_ia, test_mage_ia.
 
 ## Limites / suite
