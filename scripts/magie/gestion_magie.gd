@@ -27,6 +27,11 @@ const SH_FLUX := preload("res://shaders/magie_flux.gdshader")
 const SH_AURA := preload("res://shaders/magie_aura.gdshader")
 const SH_VAGUE := preload("res://shaders/magie_vague.gdshader")
 const SH_VAGUE_PROC := preload("res://shaders/magie_vague_process.gdshader")
+const SH_GIVRE := preload("res://shaders/magie_givre.gdshader")
+const SH_GIVRE_PROC := preload("res://shaders/magie_givre_process.gdshader")
+## Formes du souffle de givre : atlas 4×3 de 128² tiré du Kenney Particle Pack (CC0, outils/generer_atlas_givre.gd) :
+## rangée 0 = volumes de souffle (smoke), rangée 1 = tourbillons (twirl) + brume, rangée 2 = scintillements (star).
+const ATLAS_GIVRE := preload("res://assets/magie/givre_kenney_atlas.png")
 ## Formes des bouffées : atlas 4×3 de 128² tiré du Kenney Particle Pack (CC0, assets/LICENCES.md) : rangée 0 = volumes
 ## de flamme (flame_01-04), rangée 1 = fumée (smoke_03-06), rangée 2 = langues (flame_05-06), braises (fire_01), fumée.
 const ATLAS_FEU := preload("res://assets/magie/feu_kenney_atlas.png")
@@ -34,7 +39,7 @@ const ATLAS_FEU := preload("res://assets/magie/feu_kenney_atlas.png")
 const BRUIT_VAGUE := preload("res://assets/magie/bruit_vague.png")
 ## Shaders des visuels qui passent dans la couche fine (CoucheMagie.CALQUE) ; le voile (material_overlay des cibles) reste
 ## dans le rendu du monde.
-const SHADERS_COUCHE := [SH_ADD, SH_MIX, SH_TRAIT, SH_CRISTAL, SH_SOL, SH_SOL_MIX, SH_COEUR, SH_COEUR_ADD, SH_FLUX, SH_AURA, SH_VAGUE]
+const SHADERS_COUCHE := [SH_ADD, SH_MIX, SH_TRAIT, SH_CRISTAL, SH_SOL, SH_SOL_MIX, SH_COEUR, SH_COEUR_ADD, SH_FLUX, SH_AURA, SH_VAGUE, SH_GIVRE]
 ## Palettes du flux procédural des jets (couche fine) : cœur → bord (ténèbres : rehaut → cœur noir).
 const FLUX := {
 	"feu": ["#fffbe8", "#fff0a8", "#fcb53a", "#ec6a1f", "#b3341f", "#5a1a1c"],
@@ -57,6 +62,18 @@ const VAGUE_PORTEE := 10.5
 const VAGUE_VIE := 1.15
 const VAGUE_TRAINE := 1.25
 const VAGUE_N := 88
+## Jet de glace (couche fine) : SOUFFLE DE GIVRE, mêmes principes que la vague (magie_givre*.gdshader) : bouffées de
+## souffle qui roulent et cristaux qui tournoient puis s'accrochent au point touché. Portée (m), vie (s), freinage (1/s),
+## particules vivantes (dont GIVRE_CRISTAUX de cristaux).
+const GIVRE_PORTEE := 8.5
+const GIVRE_VIE := 1.05
+const GIVRE_TRAINE := 1.5
+const GIVRE_N := 120
+const GIVRE_CRISTAUX := 0.25
+## Palette du souffle : cœur blanc → cyan → bleu profond.
+const GIVRE_PAL := ["#ffffff", "#e4f8ff", "#9fe2ff", "#4fa6e8", "#2a5cc0", "#172a66"]
+## Couches de particules qui accompagnent le souffle de givre (poudre scintillante, éclats de cristal 3D, foyer de la paume).
+const GIVRE_COMPAGNONS := ["glace_fin_jet_poudre", "glace_fin_jet_cristaux", "glace_paume"]
 const AURA_ECOLE := {"feu": 0, "glace": 1, "electricite": 2, "tenebres": 3, "soin": 4, "protection": 5}
 ## Rayon (m) de l'aura procédurale de la main, par école (paume à ~0,45 m de l'œil).
 const AURA_RAYON := {"feu": 0.12, "glace": 0.12, "electricite": 0.11, "tenebres": 0.12, "soin": 0.09, "protection": 0.09}
@@ -1259,6 +1276,10 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 		# réellement dans l'espace (elles grossissent, montent, roulent, refroidissent puis fument)
 		j.vague = _vague_creer(dbl)
 		j.ecart = ecart
+	elif fin_actif and ecole == "glace":
+		# couche fine : le corps du jet de glace est un SOUFFLE DE GIVRE (même machinerie que la vague : j.vague)
+		j.vague = _givre_creer(dbl)
+		j.ecart = ecart
 	elif fin_actif and FLUX.has(ecole):
 		# couche fine : le corps du jet est un flux procédural continu (les particules en font les bords et les éclats)
 		j.flux = _flux_creer(ecole)
@@ -1271,7 +1292,7 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 				# couche fine : le CORPS du jet est le flux procédural (un seul volume qui coule) ; plus de gros carrés
 				# opaques qui s'entassent (« un tas de flammes ») : seulement des langues fines, des escarbilles qui
 				# s'échappent, tourbillonnent et retombent, et le foyer de la paume
-				noms = ["feu_fin_jet_langues", "feu_fin_jet_escarbilles", "feu_fin_jet_retombee", "feu_paume"]
+				noms = ["feu_fin_jet_langues", "feu_fin_jet_escarbilles", "feu_fin_jet_retombee", "feu_paume"] if ecole == "feu" else GIVRE_COMPAGNONS
 			for nom in noms:
 				var d: Dictionary = PresetsMagie.R[nom]
 				if nom.ends_with("paume"):
@@ -1525,6 +1546,96 @@ func _vague_placer(j: Dictionary, o: Vector3, b: Basis, fin: Vector3, vers: Vect
 	pm.set_shader_parameter("arret", Vector4(fin.x, fin.y, fin.z, 1.0 if touche else 0.0))
 	pm.set_shader_parameter("arret_dir", vers)
 
+# ---------------------------------------------------------------------- souffle de givre (couche fine, jet de glace)
+
+func _mat_givre() -> ShaderMaterial:
+	if not _mats.has("givre"):
+		var m := ShaderMaterial.new()
+		m.shader = SH_GIVRE
+		m.set_shader_parameter("bruit", BRUIT_VAGUE)
+		m.set_shader_parameter("formes", ATLAS_GIVRE)
+		for i in 6:
+			m.set_shader_parameter("c%d" % i, Color(GIVRE_PAL[i]))
+		_mats["givre"] = m
+	return _mats["givre"]
+
+## Émetteur du souffle de givre (un par jet) : placé chaque image par _vague_placer (repère, sous-pas, plan d'arrêt),
+## comme la vague de flammes ; _givre_placer règle en plus l'accroche des cristaux.
+func _givre_creer(dbl: bool) -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.name = "SouffleGivre"
+	p.amount = int(GIVRE_N * (1.2 if dbl else 1.0))
+	p.lifetime = GIVRE_VIE
+	p.local_coords = false
+	p.fixed_fps = 0
+	p.interpolate = false
+	p.randomness = 0.0
+	p.explosiveness = 0.0
+	p.draw_order = GPUParticles3D.DRAW_ORDER_VIEW_DEPTH
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.draw_pass_1 = _quad
+	p.visibility_aabb = AABB(Vector3.ONE * -14.0, Vector3.ONE * 28.0)
+	var pm := ShaderMaterial.new()
+	pm.shader = SH_GIVRE_PROC
+	var k := GIVRE_TRAINE
+	pm.set_shader_parameter("traine", k)
+	pm.set_shader_parameter("vitesse", GIVRE_PORTEE * (1.15 if dbl else 1.0) * k / (1.0 - exp(-k * GIVRE_VIE)))
+	pm.set_shader_parameter("ecart", 0.13 if dbl else 0.1)
+	pm.set_shader_parameter("taille1", 0.62 if dbl else 0.56)
+	pm.set_shader_parameter("part_cristaux", GIVRE_CRISTAUX)
+	p.process_material = pm
+	p.material_override = _mat_givre()
+	p.visible = not sans_procedural and not OS.get_cmdline_user_args().has("--sans-flux")
+	add_child(p)
+	p.emitting = true
+	_proc.append(p)
+	return p
+
+## Accroche des cristaux : sur une cible, un peu devant son centre (à sa surface) ; sur un mur, contre la surface.
+func _givre_placer(j: Dictionary) -> void:
+	var pm := (j.vague as GPUParticles3D).process_material as ShaderMaterial
+	pm.set_shader_parameter("colle", 0.28 if j.cible != null else 0.05)
+
+## Impact de glace (couche fine) : bouffée de givre qui éclate depuis la surface (souffle qui roule et retombe, cristaux
+## qui fusent et scintillent), même simulation que le souffle en salve unique. Libérée seule à la fin de sa vie.
+func _givre_impact(pos: Vector3, normale: Vector3, f: float) -> void:
+	if sans_procedural:
+		return
+	var p := GPUParticles3D.new()
+	p.name = "ImpactGivre"
+	p.amount = 30
+	p.lifetime = 0.8
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.local_coords = false
+	p.randomness = 0.0
+	p.draw_order = GPUParticles3D.DRAW_ORDER_VIEW_DEPTH
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.draw_pass_1 = _quad
+	p.visibility_aabb = AABB(Vector3.ONE * -4.0, Vector3.ONE * 8.0)
+	var pm := ShaderMaterial.new()
+	pm.shader = SH_GIVRE_PROC
+	var b := base_vers(normale if normale.length() > 0.01 else Vector3.UP)
+	var kf := sqrt(f)
+	pm.set_shader_parameter("vitesse", 4.5 * kf)
+	pm.set_shader_parameter("traine", 3.5)
+	pm.set_shader_parameter("ecart", 1.15)
+	pm.set_shader_parameter("taille0", 0.08 * kf)
+	pm.set_shader_parameter("taille1", 0.42 * kf)
+	pm.set_shader_parameter("lourd", 1.4)
+	pm.set_shader_parameter("turb", 2.0)
+	pm.set_shader_parameter("part_cristaux", 0.4)
+	pm.set_shader_parameter("prec_o", pos)
+	pm.set_shader_parameter("prec_base", b)
+	pm.set_shader_parameter("pas", 0.0)
+	p.process_material = pm
+	p.material_override = _mat_givre()
+	add_child(p)
+	p.global_transform = Transform3D(b, pos)
+	p.emitting = true
+	_proc.append(p)
+	get_tree().create_timer(p.lifetime + 0.2, false).timeout.connect(p.queue_free)
+
 func _mat_aura(ecole: String, forme := 0) -> ShaderMaterial:
 	var cle := "a%s|%d" % [ecole, forme]
 	if not _mats.has(cle):
@@ -1719,6 +1830,8 @@ func _jet_placer(j: Dictionary) -> void:
 		fx.set_instance_shader_parameter("force", clampf((horloge - float(j.debut)) / 0.12, 0.0, 1.0))
 	if j.vague != null and is_instance_valid(j.vague):
 		_vague_placer(j, o, b, fin, vers)
+		if j.ecole == "glace":
+			_givre_placer(j)
 	if not j.bouclier.is_empty():
 		var d: Dictionary = j.bouclier
 		d.pos = o + dir * 0.35
@@ -1966,6 +2079,8 @@ func impact(ecole: String, position: Vector3, normale: Vector3, force: float) ->
 			emettre("glace_impact_eclats", null, xf, false, kn)
 			emettre("glace_impact_brume", null, xf, false, kn)
 			emettre("glace_impact_poudre", null, xf, false, kn)
+			if fin_actif:
+				_givre_impact(position, normale, f)
 			disque(position, normale, 0.1, 1.3 * f, 0.35, {"couleur": "#5f9fe8", "coeur": "#e8f6ff", "anneau": 0.85, "epaisseur": 0.1, "texels": 40.0})
 			# cristaux qui JAILLISSENT de l'impact
 			for k in 6 + int(f * 3.0):
@@ -2656,6 +2771,11 @@ func vitrine_prechauffe(v: Node3D) -> void:
 	v.add_child(vg)
 	vg.visible = true
 	vg.position = Vector3(0.4, 0.4, 0.0)
+	var vgg := _givre_creer(false)
+	remove_child(vgg)
+	v.add_child(vgg)
+	vgg.visible = true
+	vgg.position = Vector3(0.6, 0.4, 0.0)
 	var ia := 0
 	for ec in AURA_ECOLE:
 		var au := _aura_fine(v, ec, 0.06, ia % 2)

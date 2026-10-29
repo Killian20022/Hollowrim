@@ -281,3 +281,23 @@ grandit à mesure qu'il avance (`_cristal_echelle` : la queue ne repasse jamais 
 après ~0,4 m / ~1 m) ; garde-fou dans `magie_cristal.gdshader` (aucun fragment à moins de 0,12 m de l'œil). Vérifié par
 `outils/captures_glace.gd --rafale=<dossier> [--sort=lance_givre]` (journal `PROCHE` / `BILAN` : distance minimale
 0,086 m → 0,46 m pour l'éclat, 0,235 m pour la lance ; plus aucune image à moins de 0,2 m).
+
+## Jet de glace : souffle de givre (branche magie/glace_vivante, 2026-10-29)
+
+Même architecture que la vague de flammes : en couche fine, le corps du jet de GLACE n'est plus le ruban `magie_flux` mais un
+`GPUParticles3D` par jet (`_givre_creer`, rangé dans `j.vague` : sous-pas d'émission, plan d'arrêt et extinction au bout
+communs avec le feu via `_vague_placer`). Fichiers propres à la glace : `shaders/magie_givre_process.gdshader`,
+`shaders/magie_givre.gdshader`, `assets/magie/givre_kenney_atlas.png` (`outils/generer_atlas_givre.gd`, Kenney CC0).
+- Deux familles dans un émetteur (`GIVRE_N` 120, `GIVRE_CRISTAUX` 25 %) : bouffées de souffle (cône 0,1 rad, ~16 m/s freinées
+  pour porter à `GIVRE_PORTEE` 8,5 m, l'air froid retombe un peu, roulis propre, tourbillon twirl) ; cristaux (étoiles Kenney)
+  moins freinés, qui tournoient et scintillent, puis S'ACCROCHENT au point touché (`_givre_placer` : à la surface d'une
+  cible, contre un mur) et y scintillent jusqu'à leur fin.
+- Couleur : cœur blanc → cyan → bleu profond au bord, brume froide pâle en fin de vie ; points de givre qui scintillent ;
+  paliers de palette (`GIVRE_PAL`), motif au pixel du monde, couverture tramée par un bruit (pas de Bayer).
+- Compagnons (`GIVRE_COMPAGNONS`) : poudre fine, éclats de cristal 3D, foyer de la paume (avant : 5 couches + flux).
+- Impact sur une surface (couche fine) : `_givre_impact`, salve de 30 particules de la même simulation (brume qui éclate
+  et retombe, cristaux qui fusent). Sur un corps : inchangé (ImpactCorps / GlaceCorps).
+- Galerie : plans `souffle_givre_loin` et `eclat_glace_sol` ; `--perf=jet --ecole=glace`.
+- Coût (`galerie --perf=jet --ecole=glace`, crypte FPS 1280×720 Élevé, PC partagé par 5 agents, 2 lancements × 3 mesures) :
+  avant (flux) GPU 2,78 à 4,06 ms pour 2,33 à 2,83 sans effet (+0,45 à +1,2 ms) ; après 3,11 à 3,53 ms pour 2,31 à 2,45
+  (+0,8 à +1,1 ms) : écart dans le bruit de mesure (≈ 0 ± 0,3 ms), particules 1 675 → 977, émetteurs 13 → 9.
