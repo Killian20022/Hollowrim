@@ -17,6 +17,7 @@ const PAS := 1.0 / 240.0
 const REDUIT_ARME := 0.35
 const REDUIT_TETE := 0.25
 const REDUIT_SECOUSSES := 0.3
+const REDUIT_COUPS := 0.25
 ## Ressorts (rad/s) : rapide (saut, atterrissage, attaques), lent (amorti après un coup puissant ou reçu).
 const W_RAPIDE := 11.0
 const W_LENT := 6.5
@@ -31,6 +32,12 @@ const GRAVITE := 13.0   # joueur.GRAVITE
 
 var tete := 1.0
 var secousses := 1.0
+## Vue qui suit la lame pendant les coups (coups_v4, AccompagnementCoup.cible_vue) : ressort critique vers la rotation visée,
+## posée à chaque image par mains.gd (déjà multipliée par l'option « Caméra des coups »).
+const W_LAME := 12.0
+var _cible_lame := Vector3.ZERO
+var _rlm := Vector3.ZERO
+var _vrlm := Vector3.ZERO
 
 ## Sorties (repère de la tête) : camera.position, camera.rotation, (h_offset, v_offset).
 var position := Vector3.ZERO
@@ -68,8 +75,10 @@ static func facteurs() -> Dictionary:
 		"arme": clampf(float(Jeu.option("affichage", "balancement_arme")), 0.0, 1.0),
 		"tete": clampf(float(Jeu.option("affichage", "mouvement_tete")), 0.0, 1.0),
 		"secousses": clampf(float(Jeu.option("affichage", "secousses")), 0.0, 1.0),
+		"coups": clampf(float(Jeu.option("affichage", "camera_coups")), 0.0, 1.0),
 	}
 	if bool(Jeu.option("affichage", "reduire_mouvements")):
+		f["coups"] = minf(f["coups"], REDUIT_COUPS)
 		f["arme"] = minf(f["arme"], REDUIT_ARME)
 		f["tete"] = minf(f["tete"], REDUIT_TETE)
 		f["secousses"] = minf(f["secousses"], REDUIT_SECOUSSES)
@@ -86,6 +95,10 @@ func accompagner(dir: Vector2, force: float) -> void:
 	_vr.y += _impulsion(-d.x * 0.0045, W_RAPIDE)
 	_vr.x += _impulsion(-d.y * 0.0035, W_RAPIDE)
 	_vr.z += _impulsion(-d.x * 0.0015, W_RAPIDE)
+
+## Rotation visée (tangage, lacet, roulis ; rad) de la vue qui suit la lame ; ZERO = retour amorti à la vue normale.
+func suivre_lame(cible: Vector3) -> void:
+	_cible_lame = cible
 
 ## Coup du joueur qui porte (montée de joueur.secousse) : petit recul de la vue, puis pour un coup puissant (s ≥ 0,45)
 ## un amorti lent vers le bas (le poids du coup passe dans le corps).
@@ -152,6 +165,8 @@ func avancer(dt: float, v_sol: float, phase: float, au_sol: bool, vy: float, s: 
 		_rl += _vrl * PAS
 		_vpl += (-_pl * wl2 - _vpl * 2.0 * W_LENT) * PAS
 		_pl += _vpl * PAS
+		_vrlm += ((_cible_lame - _rlm) * W_LAME * W_LAME - _vrlm * 2.0 * W_LAME) * PAS
+		_rlm += _vrlm * PAS
 	_vp += i_p
 	_vr += i_r
 	_vrt += i_rt
@@ -165,7 +180,7 @@ func avancer(dt: float, v_sol: float, phase: float, au_sol: bool, vy: float, s: 
 	decalage = Vector2(_bruit.get_noise_2d(_t * 6.0, 0.0), _bruit.get_noise_2d(0.0, _t * 6.0)) * s2 * SECOUSSE_DEC * secousses
 	var roulis_secousse := _bruit.get_noise_2d(_t * 5.0, 50.0) * s2 * SECOUSSE_ROULIS
 	position = (bob + _p) * tete + _pl * secousses
-	rotation_lisse = (_r + _rt + Vector3(0, 0, roulis_pas)) * tete + _rl * secousses
+	rotation_lisse = (_r + _rt + Vector3(0, 0, roulis_pas)) * tete + _rl * secousses + _rlm
 	rotation = rotation_lisse + Vector3(0, 0, roulis_secousse * secousses)
 
 ## Amplitude courante (m, rad) des trois composantes, pour les mesures.

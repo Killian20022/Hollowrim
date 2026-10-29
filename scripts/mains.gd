@@ -62,6 +62,11 @@ var entrees := EntreesCombat.new()
 var equipement := Equipement.new()
 var passifs := MouvementsPassifs.new()
 var trace := TraceLame.new()
+## coups_v4 : accompagnement du corps (rythme, suivi, avancée, vue qui suit la lame) — AccompagnementCoup.
+var accompagnement := AccompagnementCoup.new()
+var _t0_clip := 0.0             # instant du clip où commence l'armé (coup enchaîné : là où se trouve déjà la lame)
+var _elan_donne := false
+var _pointe_repos := Vector2.INF
 ## Arme de la main droite (raccourci de equipement.main_droite).
 var arme: DonneesArme
 ## Défense (phase 3) : garde orientée, garde brisée, parade parfaite, fenêtre de contre-attaque (scripts/combat/defense_joueur.gd).
@@ -795,6 +800,27 @@ func _commencer_attaque(enchaine := false) -> void:
 	_preparer_geste(false)
 	if enchaine and depart != 0 and depart == _cote_fin:
 		_duree_prep *= 0.75   # la lame est déjà du bon côté : transition plus courte
+	if enchaine:
+		_enchainer_depuis_pose()
+
+## coups_v4 : le coup enchaîné part de là où se trouve la lame (instant de l'armé dont la pointe, à l'écran, est la plus proche
+## de la pointe affichée ; au plus 70 % de l'armé) au lieu de repasser par le début du clip — combo fluide.
+func _enchainer_depuis_pose() -> void:
+	if not AccompagnementCoup.actif:
+		return
+	var a := float(_m["arme"])
+	var ici := ProfilsAnimation.vers_ecran(transform * (_pose_courante * _pointe_lame))
+	var meilleur := 0.0
+	var dmin := ProfilsAnimation.vers_ecran(transform * (anim.pose_arme(_clip, 0.0) * _pointe_lame)).distance_to(ici)
+	for i in range(1, 11):
+		var tc := a * 0.7 * float(i) / 10.0
+		var d := ProfilsAnimation.vers_ecran(transform * (anim.pose_arme(_clip, tc) * _pointe_lame)).distance_to(ici)
+		if d < dmin - 1e-4:
+			dmin = d
+			meilleur = tc
+	if meilleur > 0.0:
+		_t0_clip = meilleur   # même durée d'armé (le rythme du combo et sa fenêtre d'enchaînement ne changent pas) : moins de
+		anim.jouer(_clip, 0.06, meilleur)   # chemin, donc un armé plus posé
 
 func _preparer_geste(lourd: bool) -> void:
 	_lourd = lourd
@@ -804,6 +830,9 @@ func _preparer_geste(lourd: bool) -> void:
 	_t_geste = 0.0
 	_t_trace = 0.0
 	_actif_lance = false
+	_t0_clip = 0.0
+	_elan_donne = false
+	accompagnement.oublier()
 	_issue_arret = ""
 	_affaibli = false
 	_charge_signalee = false
@@ -881,6 +910,13 @@ func _accompagner_camera() -> void:
 	joueur.camera_corps.accompagner(dir.normalized() * minf(dir.length(), 1.0), force)
 
 func _finir_geste() -> void:
+	if _actif_lance and _issue_arret == "":
+		# coups_v4 : vitesse de la pointe à la fin de la frappe (le suivi la prolonge en douceur, AccompagnementCoup.suivi)
+		var p1 := _pose_active(_duree_active) * _pointe_lame
+		var p0 := _pose_active(maxf(_duree_active - TraceLame.PAS, 0.0)) * _pointe_lame
+		accompagnement.noter_fin((p1 - p0) / TraceLame.PAS, p1, _bras_base * _epaule_bras)
+		if debug_combat:
+			print("coups_v4 : vitesse de la pointe en fin de frappe %.2f m/s (%s)" % [((p1 - p0) / TraceLame.PAS).length(), _geste_nom])
 	if _geste.has("tassement") and "tassement" in joueur:
 		joueur.tassement = maxf(joueur.tassement, float(_geste["tassement"]) * (0.6 if _affaibli else 1.0))
 	_pose_fin = _pose_courante
@@ -892,6 +928,7 @@ func _finir_geste() -> void:
 
 ## La lame est arrêtée (mur, bouclier, cassable qui tient) : rebond, petite ouverture.
 func _rebondir() -> void:
+	accompagnement.oublier()
 	trainee.couper()
 	_pose_fin = _pose_courante
 	_cote_fin = 0
@@ -980,6 +1017,7 @@ func avancer(dt: float) -> void:
 			var k := clampf(combat.t / maxf(_duree_recup, 0.01), 0.0, 1.0)
 			var t0 := maxf(combat.t - dt, 0.0)
 			anim.regler(_t_recup(combat.t))
+			_offset_d = accompagnement.suivi(combat.t, k) * _offset_d   # coups_v4 : le coup va au bout, sans arrêt sec
 			if t0 < _duree_suivi and _issue_arret == "":
 				# traînée du suivi, échantillonnée à pas fixe entre l'image précédente et celle-ci
 				var t1 := minf(combat.t, _duree_suivi)
@@ -1043,6 +1081,7 @@ func avancer(dt: float) -> void:
 	_pose_courante = anim.pose_affichee()
 	pivot_epee.transform = couche * _pose_courante
 	trainee.avancer(dt)
+	_vue_suit_lame()
 
 	# pendant une conversation, on baisse les armes
 	_baisse = lerpf(_baisse, 0.45 if joueur.en_dialogue else 0.0, 1.0 - exp(-6.0 * dt))
@@ -1069,12 +1108,12 @@ func _tenir(nom: String, fondu: float, dt: float) -> void:
 func _t_prep(t: float) -> float:
 	var a := float(_m["arme"])
 	if t <= _duree_prep:
-		return a * t / maxf(_duree_prep, 1e-4)
+		return _t0_clip + (a - _t0_clip) * AccompagnementCoup.prep(t / maxf(_duree_prep, 1e-4))
 	return a + (float(_m["frappe"]) - a) * clampf((t - _duree_prep) / maxf(_duree_tenue, 1e-4), 0.0, 1.0)
 
 ## Temps du clip pendant la frappe (t : temps de phase active, s de jeu).
 func _t_actif(t: float) -> float:
-	return float(_m["frappe"]) + (float(_m["fin_frappe"]) - float(_m["frappe"])) * clampf(t / maxf(_duree_active, 1e-4), 0.0, 1.0)
+	return float(_m["frappe"]) + (float(_m["fin_frappe"]) - float(_m["frappe"])) * AccompagnementCoup.frappe(t / maxf(_duree_active, 1e-4))
 
 ## Temps du clip pendant la récupération (suivi puis retour au repos).
 func _t_recup(t: float) -> float:
@@ -1097,6 +1136,8 @@ func _avancer_geste(dt: float) -> void:
 		return
 	var fin_prep := _duree_prep + _duree_tenue
 	_t_geste = minf(_t_geste + dt, fin_prep) if tenu else _t_geste + dt
+	if not _elan_donne and not tenu and _t_geste >= _duree_prep * 0.5:
+		_donner_elan()
 	if not _actif_lance:
 		# annulation : la garde demandée pendant la préparation d'une attaque légère (lame pas encore active) la coupe
 		if combat.etat == EtatCombat.ATTAQUE_LEGERE and entrees.veut_garde() and not joueur.mort and defense.peut_garder():
@@ -1131,7 +1172,34 @@ func _avancer_geste(dt: float) -> void:
 			_rebondir()
 		return
 	if t_actif >= _duree_active:
+		var reste := _t_geste - fin_prep - _duree_active
 		_finir_geste()
+		if AccompagnementCoup.actif and reste > 0.0:
+			# coups_v4 : le temps qui dépasse la fin de la frappe passe dans le suivi dès cette image (sinon une image figée
+			# sur la fin de la frappe : la lame « cale » juste avant le suivi)
+			combat.t = reste
+			anim.regler(_t_recup(reste))
+			_offset_d = accompagnement.suivi(reste, reste / maxf(_duree_recup, 0.01)) * _offset_d
+
+## coups_v4 : petite avancée du joueur sur l'armé (« elan » du geste, m ; bloquée par les murs : move_and_slide). Pas dans les
+## tests à pas imposé (pas_manuel : la physique n'y avance pas avec le geste).
+func _donner_elan() -> void:
+	_elan_donne = true
+	if pas_manuel or not ("_recul" in joueur) or not joueur.is_on_floor():
+		return
+	var elan := float(_geste.get("elan", AccompagnementCoup.ELAN_DEFAUT)) * (0.6 if _affaibli else 1.0)
+	joueur._recul += AccompagnementCoup.impulsion(-joueur.global_transform.basis.z, elan)
+
+## coups_v4 : la vue suit la pointe de l'épée pendant le geste (CameraCorps.suivre_lame ; option « Caméra des coups »).
+func _vue_suit_lame() -> void:
+	if not ("camera_corps" in joueur):
+		return
+	if _pointe_repos == Vector2.INF:
+		_pointe_repos = ProfilsAnimation.vers_ecran(transform * (_pose_repos() * _pointe_lame))
+	var en_coup := combat.etat in [EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE, EtatCombat.CONTRE, EtatCombat.CHARGE_LOURDE, EtatCombat.RECUPERATION]
+	var pointe := ProfilsAnimation.vers_ecran(transform * (_pose_courante * _pointe_lame))
+	var f := float(CameraCorps.facteurs()["coups"])
+	joueur.camera_corps.suivre_lame(AccompagnementCoup.cible_vue(pointe, _pointe_repos, 1.0 if en_coup else 0.0, 1.3 if _lourd else 1.0) * f)
 
 ## Échantillon de la traînée : garde et pointe de la lame pour une pose (repère des mains), daté de `retard` s.
 func _echantillon_trainee(pose: Transform3D, retard: float) -> void:
