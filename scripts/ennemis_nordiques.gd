@@ -77,7 +77,7 @@ static func apparence_defaut(type: String, apparence := {}) -> Dictionary:
 static func spec_depuis_options(type: String, opts := {}) -> Dictionary:
 	var apparence: Dictionary = opts.get("apparence", {})
 	if type.begins_with("squelette"):
-		return {"type": type, "archer": bool(opts.get("archer", false)), "ident": String(opts.get("ident", "")), "variante": String(opts.get("variante", ""))}
+		return {"type": type, "archer": bool(opts.get("archer", false)), "ident": String(opts.get("ident", "")), "variante": String(opts.get("variante", "")), "teinte": String(opts.get("teinte_os", ""))}
 	if apparence.has("perso"):
 		return {}
 	var boss: String = opts.get("boss", "")
@@ -251,7 +251,11 @@ static func _choix(spec: Dictionary) -> Dictionary:
 		bouclier_d = ""
 		arme_d = "arc"
 	# environ 1 draugr sur 3 sans casque (crâne et cheveux funéraires visibles)
-	return {"t": "draugr", "etat": etat, "arme": arme_d, "bouclier": bouclier_d, "sans_casque": rng.randf() < 0.34}
+	var sans_casque := rng.randf() < 0.34
+	# C10 : lueur des orbites Givre / Sang / Braise (tirage ajouté après les autres : armes, casques, états inchangés)
+	var r_l := rng.randf()
+	var lueur := "givre" if r_l < 0.5 else ("sang" if r_l < 0.75 else "braise")
+	return {"t": "draugr", "etat": etat, "arme": arme_d, "bouclier": bouclier_d, "sans_casque": sans_casque, "lueur": lueur}
 
 ## Corps (clé, fabrique) d'une variante.
 static func _def_corps(ch: Dictionary) -> Array:
@@ -331,7 +335,25 @@ static func _sq(n: Node3D) -> Skeleton3D:
 ## les archers, sinon tirée de l'identifiant (graine fixe : même squelette à chaque partie) — 1 sur 3 en sbire à la hache, crâne nu.
 ## Indépendant de --pnj-anciens (les squelettes n'ont pas d'ancien corps).
 static func squelette(spec := {}) -> Node3D:
-	return SqueletteGuerrier.modele(arme_squelette(spec))
+	return SqueletteGuerrier.modele(arme_squelette(spec), teinte_squelette(spec))
+
+## Variante de teinte d'un squelette (C10) : imposée (spec « teinte » : givre, sang, braise, ivoire), sinon tirée de l'identifiant
+## (graine propre, indépendante du tirage de l'arme : même squelette, même teinte à chaque partie). Parts : SqueletteGuerrier.PARTS_TEINTES.
+static func teinte_squelette(spec: Dictionary) -> String:
+	var t := String(spec.get("teinte", ""))
+	if t == "ivoire" or SqueletteGuerrier.TEINTES.has(t):
+		return t
+	var id := String(spec.get("ident", ""))
+	if id == "":
+		return "ivoire"
+	var rng := RandomNumberGenerator.new()
+	rng.seed = (id + "|teinte").hash()
+	var x := rng.randf()
+	for p: Array in SqueletteGuerrier.PARTS_TEINTES:
+		if x < float(p[1]):
+			return String(p[0])
+		x -= float(p[1])
+	return "ivoire"
 
 static func arme_squelette(spec: Dictionary) -> String:
 	var v := String(spec.get("variante", ""))
@@ -353,12 +375,14 @@ static func _draugr(ch: Dictionary) -> Node3D:
 	var n := _corps(ch)
 	var sq := _sq(n)
 	var teintes: Array[Color] = [Color(1, 1, 1), Color(0.86, 1.02, 0.9), Color(0.72, 0.7, 0.68), Color(0.88, 0.98, 1.12)]
-	_teinter_tout(n, teintes[etat])
+	var lueur := String(ch.get("lueur", "givre"))
+	_teinter_tout(n, teintes[etat], LUEURS_DRAUGR.get(lueur, Vector3(-1, -1, -1)))
 	if arme == "hache" or arme == "masse":
 		_poser_arme(sq, arme)
 	elif arme == "arc":
 		_arc(sq)
 	n.set_meta("variante", "draugr_%s_%s_%s%s" % [["os_sec", "moisi", "cendre", "gele"][etat], arme, bouclier, "_nu" if sans_casque else ""])
+	n.set_meta("teinte", lueur)
 	return n
 
 ## Chefs draugrs : couronne, givre, plus imposants (l'échelle ×1,1 est posée par draugr.gd / _regler_boss).
@@ -437,23 +461,29 @@ static func _hrafn(ch: Dictionary) -> Node3D:
 
 # ======================================================================================================== teintes
 ## Clone partagé d'un matériau avec une teinte multipliée (même matériau + même teinte = même clone).
-static func _cloner(m: ShaderMaterial, f: Color) -> ShaderMaterial:
-	var k := "%d|%s" % [m.get_instance_id(), f.to_html()]
+## C10 : lueur des orbites des draugrs par variante (givre = celle de DraugrNordique ; sang, braise = celles des squelettes).
+const LUEURS_DRAUGR := {"sang": Vector3(8.0, 1.0, 0.6), "braise": Vector3(8.5, 3.6, 0.5)}
+
+## `lueur` (x < 0 = inchangée) : émission du fond des orbites (shader ps1_draugr, sommets d'alpha < 1 : les yeux seulement).
+static func _cloner(m: ShaderMaterial, f: Color, lueur := Vector3(-1, -1, -1)) -> ShaderMaterial:
+	var k := "%d|%s|%s" % [m.get_instance_id(), f.to_html(), lueur]
 	if _clones.has(k):
 		return _clones[k]
 	var c := m.duplicate() as ShaderMaterial
 	var te: Variant = m.get_shader_parameter("teinte")
 	c.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * f)
+	if lueur.x >= 0.0 and m.get_shader_parameter("lueur") != null:
+		c.set_shader_parameter("lueur", lueur)
 	Palette.materiaux.append(c)
 	Palette._appliquer(c, Palette._ps1_actif)
 	_clones[k] = c
 	return c
 
-static func _teinter(mi: MeshInstance3D, f: Color, seulement := "") -> void:
+static func _teinter(mi: MeshInstance3D, f: Color, seulement := "", lueur := Vector3(-1, -1, -1)) -> void:
 	if mi == null or mi.mesh == null:
 		return
 	if mi.material_override is ShaderMaterial:
-		mi.material_override = _cloner(mi.material_override, f)
+		mi.material_override = _cloner(mi.material_override, f, lueur)
 		return
 	for s in mi.mesh.get_surface_count():
 		var m := mi.get_surface_override_material(s)
@@ -463,7 +493,7 @@ static func _teinter(mi: MeshInstance3D, f: Color, seulement := "") -> void:
 			var dec: bool = (m as ShaderMaterial).get_shader_parameter("decoupe") == true
 			if seulement == "op" and dec or seulement == "dec" and not dec:
 				continue
-			mi.set_surface_override_material(s, _cloner(m, f))
+			mi.set_surface_override_material(s, _cloner(m, f, lueur))
 
 static func _teinter_piece(sq: Skeleton3D, nom: String, f: Color) -> void:
 	_teinter(sq.get_node_or_null(nom) as MeshInstance3D, f)
@@ -474,10 +504,10 @@ static func _teinter_acc(sq: Skeleton3D, op: Color, dec: Color) -> void:
 	_teinter(mi, dec, "dec")
 
 ## Toutes les pièces visibles du corps (draugr : décomposition / givre).
-static func _teinter_tout(n: Node3D, f: Color) -> void:
+static func _teinter_tout(n: Node3D, f: Color, lueur := Vector3(-1, -1, -1)) -> void:
 	for mi: MeshInstance3D in _sq(n).find_children("*", "MeshInstance3D", false, false):
 		if mi.visible:
-			_teinter(mi, f)
+			_teinter(mi, f, "", lueur)
 
 # ======================================================================================================== armes
 static func _boite(st: SurfaceTool, c: Vector3, h: Vector3, rot := Basis.IDENTITY) -> void:

@@ -28,6 +28,12 @@ uniform vec3 appoint = vec3(0.035, 0.045, 0.07); // lumière propre froide (ciel
 // du fond au crépuscule et de nuit. Large fondu (pas de palier qui scintille), proportionnel à l'albédo + un peu de constant.
 uniform vec3 contour_froid = vec3(0.16, 0.21, 0.32);
 uniform vec3 lueur = vec3(0.0);
+// C10 : variantes de teinte des squelettes (Givre / Sang / Braise) à coût nul. Masque dans l'ALPHA de la texture des os
+// (opaques) : 1 = rien, ~0,85 = dessus (givre, cendre), <= 0,77 = fissure / creux (sang, braise). Force 0 par défaut : aucun effet
+// (draugrs, étoffes ; jamais lu quand `decoupe` est vrai, l'alpha y découpe les trous).
+uniform vec4 motif_dessus : source_color = vec4(0.0);    // rgb = couleur, a = force
+uniform vec4 motif_fissure : source_color = vec4(0.0);
+uniform vec3 motif_lueur = vec3(0.0);                    // émission des fissures (braises)
 instance uniform float eclair = 0.0;
 
 varying vec3 uv_aff;
@@ -52,10 +58,17 @@ void fragment() {
 	}
 	ALBEDO = c.rgb * teinte.rgb;
 	ALBEDO = mix(vec3(dot(ALBEDO, vec3(0.3, 0.59, 0.11))), ALBEDO, saturation);
+	float m_fis = 0.0;
+	if (!decoupe) {
+		float m_des = 1.0 - step(0.07, abs(c.a - 0.85));
+		m_fis = step(c.a, 0.77);
+		ALBEDO = mix(ALBEDO, motif_dessus.rgb, m_des * motif_dessus.a);
+		ALBEDO = mix(ALBEDO, motif_fissure.rgb, m_fis * motif_fissure.a);
+	}
 	ALBEDO = mix(ALBEDO, vec3(1.0, 0.85, 0.8), eclair);
 	float bord = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
 	EMISSION = emission + ALBEDO * appoint + vec3(0.6, 0.25, 0.2) * eclair
-		+ contour_froid * (ALBEDO * 1.5 + 0.06) * smoothstep(0.40, 0.85, bord);
+		+ contour_froid * (ALBEDO * 1.5 + 0.06) * smoothstep(0.40, 0.85, bord) + motif_lueur * m_fis;
 	float g = 1.0 - COLOR.a;
 	EMISSION = mix(EMISSION, lueur * c.rgb, g);
 	ALBEDO *= 1.0 - g * 0.8;
