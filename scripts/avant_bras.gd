@@ -14,7 +14,7 @@ static func materiaux() -> Dictionary:
 	if not _mats.is_empty():
 		return _mats
 	_mats = {
-		"ab_gant": Palette.materiau(_tex("gant"), Vector2(1, 1), Color(0.95, 0.88, 0.84), true),
+		"ab_gant": Palette.materiau(_tex("gant"), Vector2(1, 1), Color(0.66, 0.6, 0.57), true),   # cuir sombre (main humaine, 2026-10-29)
 		"ab_cuir": Palette.materiau(_tex("cuir"), Vector2(1, 1), Color(0.95, 0.9, 0.86), true),
 		"ab_tresse": Palette.materiau(_tex("tresse"), Vector2(1, 1), Color(0.95, 0.9, 0.86), true),
 		"ab_metal": Palette.materiau(_tex("metal"), Vector2(1, 1), Color(0.7, 0.7, 0.74), true),

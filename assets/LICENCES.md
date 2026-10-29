@@ -103,3 +103,8 @@ Fabriqués par `outils/sons_magie/generer.py` (ffmpeg : retaillés, normalisés 
 | tenebres_lancer_2, tenebres_impact_*, reactions | 3 Dark Magic Spells (opengameart.org/content/3-dark-magic-spells) : dm.mp3 découpé en 3 | CC0 |
 | soin_* | Cure Magic (opengameart.org/content/cure-magic) : Cure1, 3, 4, 6 | CC0 |
 | charge_*, jet_* (boucles) | synthétisés par nous (bruit filtré + sinus, ffmpeg) ; jets électrique/protection sans échantillon externe | création propre (CC0) |
+
+## Modèles 3D : mains du bras FPS (MakeHuman / MPFB2, CC0 ; vérifié le 2026-10-29)
+| Fichier | Source | Licence |
+|---|---|---|
+| assets/modeles/joueur/bras_fps.glb (maillage des mains gantées, surfaces `ab_gant`) ; sources_blender/mpfb/main_gauche_mh.json | Main gauche du maillage de base MakeHuman hm08 (`src/mpfb/data/3dobjs/base.obj`) et poids `rigs/standard/weights.mixamo.json` de MPFB2, github.com/makehumancommunity/mpfb2. Extraite par sources_blender/scripts/extraire_main_mpfb.py, réduite et recalée par main_humaine.py | CC0 1.0 : en-tête de base.obj (« explicitly released as CC0 in september 2020 ») et LICENSE.md du dépôt (« These assets have been released under CC0 1.0 Universal » ; aucune revendication sur les exports). Le code de MPFB2 (GPLv3) n'est ni utilisé ni livré avec le jeu |

@@ -61,9 +61,9 @@ var _paume_d := {"gauche": Vector3.ZERO, "droite": Vector3.ZERO}
 ## … et un peu vers le bout des doigts (m) : la boule passe AU-DESSUS du pouce, sous l'index courbé (références).
 const MONTEE_TENUE := 0.055
 var _paume_k := {"gauche": 0.0, "droite": 0.0}
-## Tenue « runes » : mains gantées plus grandes (échelle de l'os hand_*, doigts compris), comme les grosses mains en
-## coupe de bras_feu_1100.jpg ; fondue avec `_paume_k`, rendue à 1 dès que la main quitte la tenue (épée, torche…).
-const ECHELLE_MAIN_TENUE := 1.25
+## Tenue « runes » : mains gantées un peu plus grandes (échelle de l'os hand_*, doigts compris), comme les mains en
+## coupe de bras_feu_1100.jpg (1,25 avant le 2026-10-29 : mains monstrueuses avec les doigts longs) ; fondue avec `_paume_k`, rendue à 1 dès que la main quitte la tenue (épée, torche…).
+const ECHELLE_MAIN_TENUE := 1.1
 var _os_main := {"gauche": -1, "droite": -1}
 ## Tenue « runes » : épaule déplacée (repère CAMÉRA, m, main gauche ; miroir en X à droite) avant l'IK, pour que
 ## l'avant-bras traverse le coin bas de l'écran (EpauleTenue, scripts/magie/epaule_tenue.gd). Fondu `_epaule_k`.
@@ -489,8 +489,18 @@ func _runes_vers(m: String, ecole: String, k: float) -> void:
 			g.echelles_aura.erase(id)
 
 ## Tenue « runes » des avant-bras : sort au repos et l'autre main sans arme (sort ou vide).
+## Retour utilisateur 2026-10-29 (« mains de robots », pince / griffe) : tenue coupée ; à deux sorts, chaque main prend
+## la pose de la main qui tient un sort seule (paume ouverte, doigts détendus), plus basse et plus écartée (DEUX_SORTS).
+const TENUE_RUNES := false
 func _tenue_runes(m: String) -> bool:
-	return inc[m].etat == Incantation.REPOS and eq.categorie(eq.autre(m)) in ["sort", "vide"]
+	return TENUE_RUNES and inc[m].etat == Incantation.REPOS and eq.categorie(eq.autre(m)) in ["sort", "vide"]
+
+## Deux sorts au repos (tenue runes coupée) : la pose « repos » de chaque main, décalée vers le coin bas de l'écran
+## (repère caméra, main gauche ; miroir en X à droite) et un peu plus ouverte.
+const DEUX_SORTS_DECALAGE := Vector3(-0.05, -0.015, 0.0)
+const DEUX_SORTS_FERMETURE := -0.06
+func _deux_sorts_repos(m: String) -> bool:
+	return not TENUE_RUNES and inc[m].etat == Incantation.REPOS and eq.categorie(eq.autre(m)) in ["sort", "vide"]
 
 ## Œil et direction de visée (caméra du joueur).
 func _vue() -> Array:
@@ -705,6 +715,11 @@ func _pose_voulue(m: String, dt := 0.0) -> Dictionary:
 	var capture := not p.is_empty()
 	if not capture:
 		p = PosesIncantation.pour(i.nom(), s.profil if s != null else "paume", i.charge, i.depuis_lancement, i.t, m)
+		if _deux_sorts_repos(m):
+			p = p.duplicate()
+			var dx := DEUX_SORTS_DECALAGE
+			p["pos"] = Vector3(p["pos"]) + Vector3(dx.x * (1.0 if m == "gauche" else -1.0), dx.y, dx.z)
+			p["fermeture"] = maxf(float(p["fermeture"]) + DEUX_SORTS_FERMETURE, 0.0)
 	var w := smoothstep(0.0, 1.0, float(_tenue_w[m]))
 	if w > 0.0:
 		# au repos sans arme dans l'autre main : tenue « runes » des avant-bras (mains vers le centre, énergie tenue en
@@ -825,8 +840,16 @@ func _echelle(sq: Skeleton3D, m: String, e: float) -> void:
 	_echelle_main[m] = e
 	sq.set_bone_pose_scale(i, Vector3.ONE * e)
 
-## Doigts entre la main ouverte (repos des os) et le poing (mains.gd). `griffe` > 0 (tenue « runes ») : doigts écartés
-## en éventail et pliés chacun à sa mesure (index moins, auriculaire plus), qui jouent un peu, chaque main à son rythme.
+## Doigts entre la main ouverte (repos des os) et le poing (mains.gd). `griffe` > 0 (tenue « runes ») : main HUMAINE
+## détendue autour de l'énergie (retour « on dirait Fiddlesticks », 2026-10-29) : chaque doigt fléchi un peu plus que
+## son voisin côté index (FLEXION_TENUE), chaque phalange à sa part de la flexion du poing (FLEXION_PHALANGES : la
+## jointure du milieu plie le plus, le bout reste presque droit, jamais crochu), doigts légèrement écartés, pouce opposé
+## sans crochet ; ils jouent un peu, chaque main à son rythme.
+const FLEXION_TENUE := {"thumb": 1.0, "index": 0.90, "middle": 0.96, "ring": 1.04, "pinky": 1.12}
+const FLEXION_PHALANGES := {1: 0.80, 2: 1.0, 3: 0.62}
+## Pouce (métacarpe, 1re phalange, bout) : opposé, en C autour de l'énergie, le bout à peine plié.
+const FLEXION_POUCE := {1: 0.85, 2: 0.75, 3: 0.5}
+const ECART_TENUE_DOIGTS := {"index": -0.13, "middle": -0.04, "ring": 0.05, "pinky": 0.14}
 func _poser_doigts(sq: Skeleton3D, m: String, fermeture: float, griffe := 0.0) -> void:
 	var suffixe := "_l" if m == "gauche" else "_r"
 	var poings: Dictionary = mains.get("_doigts")
@@ -841,23 +864,16 @@ func _poser_doigts(sq: Skeleton3D, m: String, fermeture: float, griffe := 0.0) -
 		if griffe > 0.0:
 			var d := nom.get_slice("_", 0)
 			var rang := int(nom.get_slice("_", 1))
-			var k: float = {"thumb": 1.3, "index": 0.72, "middle": 0.98, "ring": 1.22, "pinky": 1.45}.get(d, 1.0)
-			var jeu := 0.05 * sin(horloge * (1.1 + 0.17 * k) + ph + k * 2.0)
+			var k: float = FLEXION_TENUE.get(d, 1.0) * (FLEXION_POUCE if d == "thumb" else FLEXION_PHALANGES).get(rang, 1.0)
+			var jeu := 0.04 * sin(horloge * (1.1 + 0.17 * k) + ph + k * 2.0)
 			f = clampf(f * lerpf(1.0, k, griffe) + jeu * griffe, 0.0, 1.0)
 			var r := q.slerp(qp, f)
 			if rang == 1 and d != "thumb":
-				# éventail : rotation autour de (axe de l'os × axe de flexion), le tout dans le repère de l'os au repos
+				# éventail léger : rotation autour de (axe de l'os × axe de flexion), dans le repère de l'os au repos
 				var flex := (q.inverse() * qp).get_axis()
 				var ecart := Vector3.UP.cross(flex)
 				if ecart.length() > 0.01:
-					var a: float = {"index": -0.32, "middle": -0.1, "ring": 0.12, "pinky": 0.32}.get(d, 0.0) * griffe
-					r = r * Quaternion(ecart.normalized(), a)
-			if d == "thumb":
-				# pouce plié en crochet SOUS la boule (bras_feu_1100.jpg) : phalanges repliées au-delà du poing
-				var axe := (q.inverse() * qp).get_axis()
-				var crochet: float = {1: 0.2, 2: 0.6, 3: 0.7}.get(rang, 0.0) * griffe
-				if axe.length() > 0.01:
-					r = r * Quaternion(axe.normalized(), crochet)
+					r = r * Quaternion(ecart.normalized(), float(ECART_TENUE_DOIGTS.get(d, 0.0)) * griffe)
 			sq.set_bone_pose_rotation(i, r)
 			continue
 		sq.set_bone_pose_rotation(i, q.slerp(qp, f))
