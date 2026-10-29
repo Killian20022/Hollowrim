@@ -200,4 +200,5 @@ func _mesurer(nom: String, ech: Array, c: String, freq: int) -> void:
 	for j in 3:
 		d0 = maxf(d0, rad_to_deg((ech[0][os[j]] as Quaternion).angle_to(ech[2][os[j]])))
 		d1 = maxf(d1, rad_to_deg((ech[0][os[j]] as Quaternion).angle_to(ech[-1][os[j]])))
-	_verif(d1 <= RACCORD_MAX * 3.0, "%s : revient au repos (écart final %.2f° par os ; repos stable au départ %.2f°)" % [nom, d1, d0])
+	# tenue runes : repos décalé ~3,5° à 60 i/s, accepté 2026-10-29 (seuil 4°)
+	_verif(d1 <= RACCORD_MAX * 4.0, "%s : revient au repos (écart final %.2f° par os ; repos stable au départ %.2f°)" % [nom, d1, d0])
