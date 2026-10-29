@@ -37,9 +37,9 @@ func _pnj(id: String) -> Node3D:
 	return null
 
 ## Joueur à 1,7 m devant le PNJ, regard sur son visage, PNJ figé.
-func _devant(p: Node3D) -> void:
+func _devant(p: Node3D, vers_village := false) -> void:
 	p.set_physics_process(false)
-	var dir: Vector3 = p.global_transform.basis.z
+	var dir: Vector3 = (m.village.global_position - p.global_position) if vers_village else p.global_transform.basis.z
 	dir.y = 0.0
 	dir = dir.normalized() if dir.length() > 0.01 else Vector3.BACK
 	var j: CharacterBody3D = m.joueur
@@ -98,6 +98,7 @@ func _go() -> void:
 	mb._choisir(1)
 	await _images(4)
 	mb._avis_t = 0.0
+	mb._vue.queue_redraw()
 	await _images(2)
 	await _capturer("5_boutique_brodd_vendre")
 	# --- 480x270
@@ -113,12 +114,13 @@ func _go() -> void:
 		mb.traiter(0, true)
 	mb._avis_t = 0.0
 	inv.pieces = 412
+	mb._vue.queue_redraw()
 	await _images(4)
 	await _capturer("7_boutique_brodd_etal_vide")
 	mb.fermer()
 	await _images(4)
 	# --- Grima
-	_devant(grima)
+	_devant(grima, true)
 	await _images(30)
 	_jour()
 	inv.pieces = 94

@@ -638,6 +638,8 @@ func _dessiner() -> void:
 	y = o.y + h - 31.0
 	if _avis_t > 0.0:
 		_texte(Vector2(gx, y), _couper(_avis, w - 32.0), _avis_couleur)
+	elif onglet == 0 and lignes.is_empty():
+		pass    # étal vide : le délai est déjà dit au centre
 	elif onglet == 0:
 		_texte(Vector2(gx, y), "Stock limité, réassort dans %s" % duree_texte(heures_avant_reassort(id_marchand)), Color(MenuStyle.OR, 0.8))
 	else:
