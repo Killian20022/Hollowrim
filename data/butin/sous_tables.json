@@ -21,7 +21,11 @@
 		"tomes": {"tirages": 1, "entrees": [
 			{"id": "tome_boule_feu", "poids": 1},
 			{"id": "tome_lance_givre", "poids": 1},
-			{"id": "tome_drain_vie", "poids": 1}
+			{"id": "tome_drain_vie", "poids": 1},
+			{"id": "tome_chaine_eclairs", "poids": 1},
+			{"id": "tome_tempete_statique", "poids": 1},
+			{"id": "tome_explosion_incendiaire", "poids": 1},
+			{"id": "tome_explosion_obscure", "poids": 1}
 		]},
 		"armes": {"tirages": 1, "entrees": [
 			{"id": "lame_antique", "poids": 60},

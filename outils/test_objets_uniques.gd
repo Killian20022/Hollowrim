@@ -133,7 +133,16 @@ func _ecrire() -> void:
 	var avec := eq.objets_possedes("armes")
 	_verif(not sans.has("epee_or") and not sans.has("epee_skarnholt") and not sans.has("epee_hrafn") and avec.has("epee_or") and avec.has("epee_hrafn") and sans.has("epee") and sans.has("torche"),
 		"épées gagnées (achat, butin, objets uniques) équipables ; épée et torche de départ présentes")
-	_verif(eq.sorts_connus.size() == 6 and eq.sorts_connus.has("soin") and not eq.sorts_connus.has("boule_feu"), "sorts de départ seulement (%d)" % eq.sorts_connus.size())
+	_verif(eq.sorts_connus.size() == 7 and eq.sorts_connus.has("soin") and eq.sorts_connus.has("jet_flammes") and not eq.sorts_connus.has("boule_feu"), "sorts de départ seulement (%d)" % eq.sorts_connus.size())
+	# tomes partout : chaque sort hors départ a un tome qui l'apprend
+	var sans_tome: Array[String] = []
+	var depart: Array = eq.catalogue.get("sorts_depart", [])
+	var tout := EquipementMains.new(null, null)
+	tout.apprendre_tout()
+	for id in tout.sorts_connus:
+		if not depart.has(id) and Inventaire.objet("tome_" + id).is_empty():
+			sans_tome.append(id)
+	_verif(sans_tome.is_empty(), "un tome pour chaque sort hors départ (manque : %s)" % str(sans_tome))
 	# --- grotte : Croc-Rouge
 	var ga: Node3D = m.grotte_acces
 	ga.attendre_exterieur()

@@ -135,7 +135,7 @@ var stock := ButinTables.tirer_pour("marchand:forgeron:%d" % int(jour / 3), "sto
 | `potion_endurance` | +60 vigueur (endurance) | commun |
 | `pain_seigle` | +8 vie, +20 vigueur | commun |
 | `viande_sechee` | +15 vie | commun |
-| `tome_boule_feu`, `tome_lance_givre`, `tome_drain_vie` | apprend le sort | rare |
+| `tome_<sort>` (un par sort hors départ : 11 tomes ; Grima vend les sorts de base, les coffres les plus forts) | apprend le sort | rare |
 
 - Effets instantanés sur les vraies stats (`joueur.soigner`, `joueur.mana`, `joueur.vigueur`, plafonnés au max) ;
   refus (et objet gardé) si la stat est pleine, le sort connu, le joueur mort.

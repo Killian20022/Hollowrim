@@ -28,6 +28,12 @@
 			"vente": 0.4,
 			"achete": ["consommable", "os_draugr", "poussiere_tombe", "champignon_lumineux", "croc_troll", "cristal_givre", "fourrure_troll", "anneau_cuivre", "coupe_argent", "collier_or", "amulette_givre", "relique_offrande"],
 			"stock": [
+				{"id": "tome_enchant_electricite", "n": 1, "chance": 70},
+				{"id": "tome_enchant_glace", "n": 1, "chance": 70},
+				{"id": "tome_enchant_tenebres", "n": 1, "chance": 70},
+				{"id": "tome_nova_gelee", "n": 1, "chance": 60},
+				{"id": "tome_boule_feu", "n": 1, "chance": 80},
+				{"id": "tome_lance_givre", "n": 1, "chance": 80},
 				{"id": "potion_soin", "n": [2, 4]},
 				{"id": "potion_soin_forte", "n": 1, "chance": 35},
 				{"id": "potion_endurance", "n": [1, 3]},
