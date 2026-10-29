@@ -20,6 +20,8 @@ static var actif := true
 ## filtré par la réactivité du sol (10/s), même intégrale).
 const ELAN_DEFAUT := 0.3
 const ELAN_IMPULSION := 8.0
+## On ne s'avance pas plus près que ça (m) d'une cible devant soi (mains._donner_elan).
+const DISTANCE_CIBLE := 0.9
 ## Déformation du temps : armé (sortie rapide, arrivée posée), frappe (départ retenu, accélération franche).
 const EXPO_PREP := 1.7
 const EXPO_ACTIF := 1.35

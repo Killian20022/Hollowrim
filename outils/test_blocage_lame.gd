@@ -10,7 +10,7 @@ extends SceneTree
 ##   regard_bas   couloir, regard baissé de 35° : la lame passe près du sol
 ##   embrasure    porte de 1,2 m à 0,8 m devant (chambranles de chaque côté), mannequin derrière
 ## Avancée sur l'armé (AccompagnementCoup, jeu en temps normal) : 0,25 à 0,7 m en terrain libre selon le coup ; face au mur à
-## 0,6 m, le joueur ne le traverse pas (move_and_slide).
+## 0,6 m, le joueur ne le traverse pas (move_and_slide) ; devant un mannequin à 1,4 m, il s'arrête à ~0,9 m de lui.
 ## Attendu (comportement « Skyrim ») : le coup part TOUJOURS, ne rebondit pas, ne s'arrête pas, touche le mannequin ; les cassables
 ## balayés sont brisés. Contrôle : face_mur (mur plein à 1 m, dans l'axe) : la lame rebondit, mais à MI-COURSE (jamais au départ).
 ##   godot --headless --path . --script res://outils/test_blocage_lame.gd -- --nouvelle
@@ -189,13 +189,16 @@ func _tester() -> void:
 func _tester_elan() -> void:
 	print("-- avancée sur l'armé")
 	mains.pas_manuel = false
-	for lieu in ["libre", "mur"]:
+	for lieu in ["libre", "mur", "cible"]:
 		for g in ["diag_dg", "estoc_combo", "lourd"]:
 			await _batir("face_mur" if lieu == "mur" else "embrasure")
 			# libre : 3 m devant la porte ; mur : face au mur plein (face à 1 m de l'origine du lieu), à 0,6 m de lui
 			var depart := ORIGINE + (Vector3(0, 0, -0.4) if lieu == "mur" else Vector3(0, 0, 3.0))
+			if lieu == "cible":
+				await _batir("embrasure")
 			s.placer_joueur(depart, 0.0)
-			_cible.global_position = ORIGINE + Vector3(4.0, 0, 9.0)   # hors du chemin
+			# cible : mannequin à 1,4 m devant (on ne s'avance pas dedans) ; sinon hors du chemin
+			_cible.global_position = depart + Vector3(0, 0, -1.4) if lieu == "cible" else ORIGINE + Vector3(4.0, 0, 9.0)
 			mains.combat.forcer(EtatCombat.REPOS)
 			mains._combo = 0
 			j.vigueur = j.vigueur_max
@@ -215,6 +218,9 @@ func _tester_elan() -> void:
 			var av := -(j.global_position.z - p0.z)
 			if lieu == "libre":
 				_verif(av >= 0.25 and av <= 0.7, "avancée %s en terrain libre : %.2f m (0,25 à 0,7)" % [g, av])
+			elif lieu == "cible":
+				var dc := Vector2(j.global_position.x - _cible.global_position.x, j.global_position.z - _cible.global_position.z).length()
+				_verif(dc >= 1.0, "avancée %s vers un mannequin à 1,4 m : on s'arrête devant lui (centre à %.2f m, ≥ 1,0)" % [g, dc])
 			else:
 				var face := ORIGINE.z - 1.0
 				_verif(j.global_position.z > face + 0.2, "avancée %s face au mur : bloquée par le mur (pieds à %.2f m de la face)" % [g, j.global_position.z - face])

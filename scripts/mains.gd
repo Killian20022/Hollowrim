@@ -1188,7 +1188,15 @@ func _donner_elan() -> void:
 	if pas_manuel or not ("_recul" in joueur) or not joueur.is_on_floor():
 		return
 	var elan := float(_geste.get("elan", AccompagnementCoup.ELAN_DEFAUT)) * (0.6 if _affaibli else 1.0)
-	joueur._recul += AccompagnementCoup.impulsion(-joueur.global_transform.basis.z, elan)
+	# pas d'avancée DANS l'ennemi : une cible devant à moins de 0,9 m + elan raccourcit l'avancée (on s'arrête à 0,9 m d'elle)
+	var avant := -joueur.global_transform.basis.z
+	avant.y = 0.0
+	var de := joueur.global_position + Vector3(0, 1.0, 0)
+	var q := PhysicsRayQueryParameters3D.create(de, de + avant.normalized() * (AccompagnementCoup.DISTANCE_CIBLE + elan), 1, [joueur.get_rid()])
+	var r := get_world_3d().direct_space_state.intersect_ray(q)
+	if not r.is_empty() and TraceLame.cible_de(r["collider"]) != null:
+		elan = clampf(de.distance_to(r["position"]) - AccompagnementCoup.DISTANCE_CIBLE, 0.0, elan)
+	joueur._recul += AccompagnementCoup.impulsion(avant, elan)
 
 ## coups_v4 : la vue suit la pointe de l'épée pendant le geste (CameraCorps.suivre_lame ; option « Caméra des coups »).
 func _vue_suit_lame() -> void:
