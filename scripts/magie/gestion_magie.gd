@@ -2429,6 +2429,8 @@ func zone(ecole: String, position: Vector3, rayon: float, duree: float) -> void:
 	ecole = _ecole_ok(ecole)
 	var r := maxf(rayon, 0.3)
 	var d := maxf(duree, 0.3)
+	if ecole != "soin" and ecole != "protection":
+		Cassable.briser_zone(get_tree(), position, r)      # urnes, tonneaux, caisses dans le rayon
 	var z := {"ecole": ecole, "pos": position, "r": r, "duree": d, "t0": horloge, "emit": [], "prochain": horloge + 0.1, "fini": false, "eclair": {}}
 	var rq := snappedf(r, 0.25)
 	var base := Transform3D(Basis.IDENTITY, position)

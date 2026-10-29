@@ -47,6 +47,8 @@ var _son_fait := false
 var _pret := false
 
 func _ready() -> void:
+	if cle_sauvegarde.begins_with("lache:"):      # objet lâché depuis l'inventaire (scripts/lacher.gd) : petit sac visible au sol
+		Lacher.habiller(self)
 	var n_or := int(contenu.get("pieces", 0))
 	for id in contenu:
 		if id != "pieces" and int(contenu[id]) > 0:
