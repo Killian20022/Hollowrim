@@ -1501,6 +1501,8 @@ func _jet_cible(j: Dictionary, o: Vector3, dir: Vector3) -> void:
 	var col: Variant = r.get("collider")
 	if r.touche and col is Node3D and not (col is StaticBody3D) and not (col is CSGShape3D):
 		cible = col
+	if r.touche and col is Cassable and String(j.get("ecole", "")) != "soin":      # L5 : objet cassable brisé par le jet
+		(col as Cassable).briser_sort(r.pos)
 	var lim := o.distance_to(r.pos)
 	if cible == null:
 		var meilleur := 1e9

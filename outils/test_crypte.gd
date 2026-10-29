@@ -67,7 +67,7 @@ func _tester() -> void:
 	var sp: Node3D = dj.portes["secret"]
 	var rs := ss.intersect_ray(PhysicsRayQueryParameters3D.create(c.to_global(Vector3(-35.2, 1.2, -44.0)), c.to_global(Vector3(-37.5, 1.2, -44.0))))
 	_verif(not rs.is_empty(), "mur secret de la galerie fermé : bloquant")
-	var cass := get_nodes_in_group("cassables")
+	var cass := get_nodes_in_group("cassables").filter(func(n): return not (n is Cassable))      # L5 : urnes et tonneaux (Cassable) hors sujet
 	_verif(cass.size() == 2, "deux murs fragiles posés (%d)" % cass.size())
 	for k in cass:
 		var rf := ss.intersect_ray(PhysicsRayQueryParameters3D.create(k.global_position + Vector3(-1.2, 0, 0), k.global_position + Vector3(1.2, 0, 0)))
@@ -81,7 +81,8 @@ func _tester() -> void:
 	t._etat_donjon()
 	(dj.portes["secret"] as Node3D).rotation.y = -PI * 0.5
 	for k in get_nodes_in_group("cassables"):
-		k.casser(false)
+		if not (k is Cassable):       # L5 : les urnes / tonneaux restent debout (ils ne bloquent pas le parcours testé : voir test_cassables)
+			k.casser(false)
 	t.herse.position.y = 2.9
 	for i in 4:
 		await physics_frame
@@ -100,6 +101,7 @@ func _tester() -> void:
 		qp.shape = cap
 		qp.transform = Transform3D(Basis(), c.to_global(Vector3(x, y_sol + 0.13 + 0.85, z)))
 		qp.exclude = vivants
+		qp.collision_mask = 1          # masque du joueur : les cassables (calque propre) se traversent
 		qp.collide_with_bodies = true
 		return ss.intersect_shape(qp, 1).is_empty()
 	var sol_en := func(x: float, z: float, y_ref: float) -> float:
@@ -208,6 +210,7 @@ func _tester() -> void:
 		cs.radius = 0.3
 		cs.height = 1.6
 		qp.shape = cs
+		qp.collision_mask = 1
 		qp.transform = Transform3D(Basis(), c.to_global(Vector3(p.x, p.y + 0.1 + 0.8, p.z)))
 		qp.exclude = vivants
 		if not ss.intersect_shape(qp, 1).is_empty():

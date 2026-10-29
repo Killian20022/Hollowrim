@@ -117,6 +117,7 @@ func _construire() -> void:
 	corps.name = "CorpsEntree"
 	_cont.add_child(corps)
 	decor = GrotteDecor.new(_cont, corps)
+	decor.cass_prefixe = "grotte_entree"      # L5 : états des objets cassables (entrée de la grotte)
 	_mur_toit_tunnel()
 	_neige_glacons()
 	_signes_des_bandits()

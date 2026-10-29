@@ -76,6 +76,8 @@ func _physics_process(dt: float) -> void:
 	if not r.is_empty():
 		global_position = r["position"]
 		resultat = "mur"
+		if r["collider"] is Cassable:      # L5 : urne, tonneau… brisés par le sort
+			(r["collider"] as Cassable).briser_sort(r["position"])
 		if rappel.is_valid():
 			rappel.call(null, r["position"], r["normal"])
 		plante.emit(r["position"])

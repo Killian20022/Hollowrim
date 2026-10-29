@@ -13,7 +13,7 @@ extends RefCounted
 ## Pas d'échantillonnage du tracé (s de temps de jeu) : 240 échantillons par seconde quel que soit le rendu.
 const PAS := 1.0 / 240.0
 ## Calque physique du décor et des corps (joueur, ennemis, murs) ; les ragdolls (calque 16) ne bloquent pas la lame.
-const MASQUE := 1
+const MASQUE := 1 | Cassable.CALQUE      # décor + objets cassables (urnes, tonneaux : calque propre, franchissables)
 ## Normale (composante verticale) au-delà de laquelle une surface est un sol : la lame s'y arrête sans rebondir.
 const SOL_NORMALE := 0.6
 

@@ -51,14 +51,18 @@ static func urne(dcr: CrypteDecor, pos: Vector3, e := 1.0, cotes := 8) -> void:
 	dcr.emprise("urne", pos, Vector2(0.26, 0.26) * e, 0.0, 0.56 * e)
 	# bandeau d'entrelacs gravé sur la panse : crypte seulement (texture non peinte dans la grotte), pas sur les petites urnes
 	var mats := {} if dcr.est_crypte and e >= 0.45 else {"entrelacs": "argile"}
+	dcr.cassable_debut("urne", pos, e)      # L5 : brisable (scripts/cassable.gd), maillage à part
 	dcr.modele("urne_" + variante(dcr, pos), pos, lacet_pos(dcr, pos), Vector3(e, e, e), mats, false)
+	dcr.cassable_fin()
 	dcr.j1()
 
 static func tonneau(dcr: CrypteDecor, pos: Vector3, e := 1.0) -> void:
 	dcr.j0("tonneau")
 	pos = dcr._ecarter(pos, Vector2(0.4, 0.4) * e)
 	dcr.emprise("tonneau", pos, Vector2(0.4, 0.4) * e, 0.0, e)
+	dcr.cassable_debut("tonneau", pos, e)
 	dcr.modele("tonneau_" + variante(dcr, pos), pos, lacet_pos(dcr, pos), Vector3(e, e, e), {}, false)
+	dcr.cassable_fin()
 	dcr.j1()
 
 static func table(dcr: CrypteDecor, pos: Vector3, lacet := 0.0) -> void:

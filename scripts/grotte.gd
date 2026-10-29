@@ -791,6 +791,7 @@ func construire() -> void:
 	corps.name = "Corps"
 	add_child(corps)
 	decor = GrotteDecor.new(self, corps)
+	decor.cass_prefixe = String(def.get("id", "grotte"))      # L5 : états des objets cassables (butin pillé)
 	decor.rng.seed = int(def.get("graine", 1))
 	var t1 := Time.get_ticks_msec()
 	_preparer()

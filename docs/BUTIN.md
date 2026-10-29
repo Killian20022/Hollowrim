@@ -112,6 +112,19 @@ var stock := ButinTables.tirer_pour("marchand:forgeron:%d" % int(jour / 3), "sto
   ramassée est perdue à la mort). `ButinTables.pilles` sert aux nouveaux contenants (L5, corps L3) ; sauvegardé dans
   `monde.gd` (`"butin"`), remis à zéro au lancement d'une partie.
 
+## 4 bis. Objets cassables (lot L5)
+
+- `scripts/cassable.gd` (`Cassable`) : urnes et tonneaux du décor de la crypte et de la grotte (`CrypteDecor.cassable_debut/fin`, appelés par
+  `ObjPetitMobilier.urne/tonneau`). Leurs triangles vont dans un tampon à part (lot `cass:<id>`), `finir()` en fait un nœud avec maillage et
+  solide propres ; aucun tirage de `rng` / `rng_deco`, aucune emprise changée. Caisses de la grotte : non cassables (solide fusionné dans la roche).
+- Identifiant stable : `<crypte|id de grotte>:<urne|tonneau>_<x*10>_<y*10>_<z*10>` (position dans le repère du lieu). État : `ButinTables.piller(id)`
+  (sauvegardé avec la clé « butin ») ; un objet déjà pillé se brise sans bruit au premier contrôle (le monde est bâti avant le chargement).
+- Coups : lame (`TraceLame.MASQUE` inclut le calque `Cassable.CALQUE` = 64, groupe « cassables », `frapper()`), sorts (`briser_sort()` : projectiles
+  de `ProjectileSort`, jets de `GestionMagie` hors soin). Le calque 64 est franchissable (joueur / ennemis : masque 1) ; tout test de parcours
+  par requête de forme doit avoir `collision_mask = 1`.
+- Casse : 6 éclats (3 secteurs x 2 hauteurs) tirés des vrais triangles, retombée à la main (pas de RigidBody), `GerbePixels` (pierre / bois +
+  poussière), son, bourse `butin.gd` si le tirage `table_pour("urne" | "tonneau", zone)` n'est pas vide (graine fixe par id).
+
 ## 5. Consommables
 
 | id | effet | rareté |
