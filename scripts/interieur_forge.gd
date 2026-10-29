@@ -55,9 +55,11 @@ static func xf_epee_unique() -> Transform3D:
 static func _ratelier_unique(b: Interieurs) -> void:
 	var t := RATELIER_UNIQUE
 	var l := -PI * 0.5
-	b.bx(t * Vector3(0, 0, 0.016), Vector3(0.95, 0.3, 0.03), "bois_sombre", l)
+	# finition (2026-10-29, INSPIRATION_IGNITE §3 : arête claire +1 ton, pied sombre) : le râtelier se perdait dans la pierre brune
+	b.bx(t * Vector3(0, 0, 0.016), Vector3(0.95, 0.3, 0.03), "bois_clair", l)
+	b.bx(t * Vector3(0, -0.115, 0.027), Vector3(0.95, 0.05, 0.02), "bois_suie", l)       # pied sombre (ombre portée de la lame)
 	for yy in [-0.165, 0.165]:
-		b.bx(t * Vector3(0, yy, 0.024), Vector3(1.02, 0.045, 0.045), "bois", l)
+		b.bx(t * Vector3(0, yy, 0.024), Vector3(1.02, 0.045, 0.045), "rondin", l)     # traverses : arête claire
 	for sx in [-1.0, 1.0]:
 		var x: float = sx * 0.26
 		b.bx(t * Vector3(x, -0.02, 0.055), Vector3(0.022, 0.022, 0.08), "fer_noir", l)

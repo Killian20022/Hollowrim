@@ -67,8 +67,8 @@ static func obtenir(n: Node) -> EclatsOs:
 static func _ressources() -> void:
 	if _mat != null:
 		return
-	_mat = Palette.materiau(Palette.tex("eclats_os", Palette.OSSEMENT, 2, 0.35), Vector2.ONE, Color(1.3, 1.25, 1.15))   # éclairci : lisible dans la pénombre
-	(_mat as ShaderMaterial).set_shader_parameter("emission", Color(0.16, 0.15, 0.12))   # un peu de lueur propre (crypte)
+	_mat = Palette.materiau(Palette.tex("eclats_os", Palette.OSSEMENT, 2, 0.35), Vector2.ONE, Color(1.28, 1.27, 1.24))   # os MAT CLAIR neutre (2026-10-29, INSPIRATION_IGNITE §3.4) : plus de dominante jaune
+	(_mat as ShaderMaterial).set_shader_parameter("emission", Color(0.07, 0.07, 0.075))   # lueur propre minimale : un aplat de lueur écrasait le modelé (os « plats »)
 	_phys = PhysicsMaterial.new()
 	_phys.bounce = 0.35
 	_phys.friction = 0.9
@@ -128,7 +128,11 @@ static func _modules_os() -> void:
 		_formes_mort.append(s)
 
 static func _opaque(c: Color) -> Color:
-	return Color(c.r, c.g, c.b, 1.0)   # alpha 1 = texture de base (alpha 0 = variante neige du shader ps1)
+	# contraste de sommet : arêtes (clair) un peu plus claires, creux (sombre) plus sombres ; teinte neutralisée à 60 % (pas de reflet jaune)
+	var l := c.r * 0.3 + c.g * 0.59 + c.b * 0.11
+	var f := 0.78 + 0.34 * smoothstep(0.3, 0.9, l)
+	var n := Color(c.r, c.g, c.b).lerp(Color(l, l, l * 1.02), 0.6)
+	return Color(minf(n.r * f, 1.0), minf(n.g * f, 1.0), minf(n.b * f, 1.0), 1.0)   # alpha 1 = texture de base (alpha 0 = variante neige du shader ps1)
 
 func _ready() -> void:
 	_ressources()

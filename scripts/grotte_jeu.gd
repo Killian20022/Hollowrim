@@ -261,6 +261,31 @@ func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
 ## Clé « uniques » des zones (grotte_donnees.gd) : présentoir (module objets_donjon.dat, maillage à part : le décor de la grotte et ses
 ## tirages ne changent pas) + ObjetUnique posé dessus + interaction « Prendre » (prise sauvegardée dans ButinTables).
 const EPEE_A_PLAT := Basis(Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(0, 0, -1))      # glb : lame le long de +x du chevalet, sur la tranche (plat face au joueur)
+const EPEE_ECHELLE := 1.45
+## Chevalet plus clair (+1 ton de bois, fer moins noir) : il se confondait avec la roche sombre (copie des matières, le décor n'est pas touché).
+func _eclaircir_presentoir(mp: MeshInstance3D) -> void:
+	var am := mp.mesh as ArrayMesh
+	for i in am.get_surface_count():
+		var m := am.surface_get_material(i)
+		if m is ShaderMaterial:
+			var c := (m as ShaderMaterial).duplicate() as ShaderMaterial
+			var t = c.get_shader_parameter("teinte")
+			if t is Color:
+				c.set_shader_parameter("teinte", Color(minf(t.r * 1.7, 2.0), minf(t.g * 1.65, 2.0), minf(t.b * 1.6, 2.0), t.a))
+			am.surface_set_material(i, c)
+
+## Petite lueur rouge ponctuelle sur le cristal de Croc-Rouge (courte portée, sans ombre ; comptée dans le budget de lumières de la grotte).
+func _lueur_epee(pos_locale: Vector3, obj: String) -> void:
+	var l := OmniLight3D.new()
+	l.name = "Lueur_" + obj
+	l.light_color = Color(1.0, 0.22, 0.16)
+	l.light_energy = 0.7
+	l.omni_range = 2.4
+	l.shadow_enabled = false
+	l.position = pos_locale
+	g.add_child(l)
+	g.decor.toutes.append(l)
+
 func _uniques() -> void:
 	for z: Dictionary in g.def.get("zones", []):
 		for u: Dictionary in z.get("uniques", []):
@@ -275,6 +300,7 @@ func _uniques() -> void:
 					mp.transform = xf
 					mp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 					mp.visibility_range_end = ObjetUnique.PORTEE
+					_eclaircir_presentoir(mp)
 					g.add_child(mp)
 					var sb := StaticBody3D.new()       # on ne traverse pas le chevalet
 					var cs := CollisionShape3D.new()
@@ -286,11 +312,16 @@ func _uniques() -> void:
 					sb.transform = xf
 					g.add_child(sb)
 			var obj := String(u["objet"])
-			var n := ObjetUnique.creer(obj, xf * Transform3D(EPEE_A_PLAT, Vector3(-0.42, 0.9, 0.0)), g.decor)
+			# finition 2026-10-29 : à 2 m la lame n'était qu'un trait de 3-4 px -> épée agrandie x1,45 (règle « lisibilité » : petits objets x1,5)
+			# et inclinée de 12° (pointe relevée, plat tourné vers un regard à hauteur d'yeux) ; la garde reste sur la fourche gauche.
+			var base_epee := Basis(Vector3(0, 0, 1), deg_to_rad(12.0)) * EPEE_A_PLAT.scaled(Vector3.ONE * EPEE_ECHELLE)
+			var n := ObjetUnique.creer(obj, xf * Transform3D(base_epee, Vector3(-0.52, 0.88, 0.0)), g.decor)
 			if n == null:
 				continue
 			g.add_child(n)
 			uniques[obj] = n
+			if pres != "":
+				_lueur_epee(xf * Vector3(0.1, 1.0, 0.18), obj)
 			var it := _interactif(p + Vector3(0, 0.95, 0), ObjetUnique.nom_de(obj), ObjetUnique.verbe_de(obj),
 				func() -> Array: return ObjetUnique.prendre(obj, acces.joueur.inventaire, acces.hud, n),
 				func() -> bool: return not ObjetUnique.pris(obj), false, 1.9)

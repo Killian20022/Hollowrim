@@ -54,7 +54,7 @@ const VEINE := ["#2a0402", "#4e0904", "#7a1406", "#a8240a", "#d44412", "#f2782a"
 const GEMME := ["#2a4a6a", "#3e6a90", "#5a90b8", "#82b8d8", "#b4dcef", "#eefaff"]
 const BRONZE := ["#140d06", "#24180b", "#3a2812", "#563d1c", "#745428", "#946e38", "#b48c4c", "#d4b070"]
 ## Reflet de lame (L9) : couleur de l'éclat par matériau ; [couleur, force de l'éclat, fil constant].
-const REFLETS := {"lame": [Color(0.86, 0.93, 1.0), 1.0, 0.07], "lame_or": [Color(1.0, 0.92, 0.7), 0.9, 0.06],
+const REFLETS := {"lame": [Color(0.9, 0.96, 1.0), 1.4, 0.09], "lame_or": [Color(1.0, 0.92, 0.7), 0.9, 0.06],
 	"obsidienne": [Color(0.8, 0.72, 1.0), 0.8, 0.05]}
 
 static var _mats := {}
@@ -93,7 +93,7 @@ static func materiaux() -> Dictionary:
 		return _mats
 	var lame := ObjetsTextures.lame()
 	_mats = {
-		"lame": Palette.materiau(ImageTexture.create_from_image(lame), Vector2.ONE, Color(1.3, 1.3, 1.38)),
+		"lame": Palette.materiau(ImageTexture.create_from_image(lame), Vector2.ONE, Color(1.12, 1.12, 1.2)),       # 2026-10-29 : 1,3 -> 1,12 (lame de Skarnholt saturée : le reflet ne ressortait pas)
 		"lame_or": Palette.materiau(ImageTexture.create_from_image(_lame_or(lame)), Vector2.ONE, Color(1.15, 1.12, 1.05)),
 		"fer": Palette.materiau(ObjetsTextures.tex("fer"), Vector2.ONE, Color(0.62, 0.62, 0.7)),
 		"or": Palette.materiau(ImageTexture.create_from_image(_or_grave()), Vector2.ONE, Color(1.1, 1.05, 1.0)),
