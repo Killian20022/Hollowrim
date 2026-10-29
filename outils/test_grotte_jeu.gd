@@ -35,25 +35,32 @@ func _tester() -> void:
 	var q: Node = m.quetes
 	var jeu: GrotteJeu = a.jeu
 	await _attendre(0.5)
-	# 1. coffre : ouverture, bourse, état
+	# 1. coffre : ouverture, contenu versé au sac (L2 : pièces qui jaillissent puis volent vers le joueur), état
 	var it: Node3D = jeu.interactifs["camp_a"]
 	var pieces0: int = j.inventaire.pieces
 	it.parler()
+	await _attendre(0.05)
 	_verif(q.vus.has("grotte:camp_a"), "coffre camp_a : état noté dans quetes.vus")
-	var bourse: Node3D = null
+	var gerbe: Node3D = null
 	for b in g.get_children():
-		if b.has_meta("coffre") and b.get_meta("coffre") == "camp_a":
-			bourse = b
-	_verif(bourse != null, "coffre camp_a : bourse posée")
-	if bourse != null:
-		j.global_position = bourse.global_position
-		await _attendre(0.3)
+		if b.get_script() == preload("res://scripts/butin.gd"):
+			gerbe = b
+	_verif(gerbe != null and gerbe.pieces_visibles() >= 4, "coffre camp_a : gerbe de pièces (%d pièces visibles)" % (gerbe.pieces_visibles() if gerbe else 0))
+	var fb: FenetreButin = m.fenetre_butin
+	_verif(fb.ouvert and fb.lignes.size() >= 1 and not j.inventaire.a("amulette_givre"), "coffre camp_a : fenêtre de butin (%d objet(s)), rien pris d'office" % fb.lignes.size())
+	fb.tout_prendre()
 	_verif(j.inventaire.pieces >= pieces0 + 90 and j.inventaire.a("amulette_givre"), "coffre camp_a : butin reçu (pièces %d → %d, amulette de givre)" % [pieces0, j.inventaire.pieces])
-	# 2. coffre non ramassé : refermé à la mort
+	if gerbe != null:
+		j.global_position = gerbe.global_position + Vector3(0, 0.1, 0)      # le joueur reste devant le coffre (comme avant L2)
+	await _attendre(3.0)
+	_verif(not is_instance_valid(gerbe) or gerbe.pieces_visibles() == 0, "coffre camp_a : pièces aspirées puis retirées (gerbe terminée)")
+	# 2. mort après l'ouverture : le coffre reste vidé (contenu déjà au sac, pas de double)
 	var it2: Node3D = jeu.interactifs["camp_b"]
+	var p2: int = j.inventaire.pieces
 	it2.parler()
+	fb.tout_prendre()
 	jeu.reinitialiser([])
-	_verif(not q.vus.has("grotte:camp_b") and it2.actif, "coffre camp_b : bourse non ramassée perdue, coffre refermé à la mort")
+	_verif(q.vus.has("grotte:camp_b") and not it2.actif and j.inventaire.pieces > p2, "coffre camp_b : ouvert puis mort → reste vidé, pièces gardées")
 	_verif(q.vus.has("grotte:camp_a"), "coffre camp_a : vidé reste acquis")
 	# 3. ressource
 	var res: Node3D = jeu.interactifs["res_champi_a"]
@@ -64,13 +71,8 @@ func _tester() -> void:
 	var lignes: Array = (jeu.interactifs["journal_sigrun"] as Node3D).parler()
 	_verif(lignes.size() >= 3 and j.inventaire.a("journal_sigrun") and q.vus.has("ramasse:journal_sigrun"), "journal de Solveig : texte (%d lignes), objet, événement ramasse:journal_sigrun" % lignes.size())
 	(jeu.interactifs["ilot"] as Node3D).parler()
-	var bourse2: Node3D = null
-	for b in g.get_children():
-		if b.has_meta("coffre") and b.get_meta("coffre") == "ilot":
-			bourse2 = b
-	if bourse2 != null:
-		j.global_position = bourse2.global_position
-		await _attendre(0.3)
+	fb.tout_prendre()
+	await _attendre(0.3)
 	_verif(j.inventaire.a("broche_sigrun") and q.vus.has("ramasse:broche_sigrun"), "coffre de l'îlot : broche de Solveig (ramasse:broche_sigrun)")
 	(jeu.interactifs["registre_hrafn"] as Node3D).parler()
 	_verif(j.inventaire.a("registre_hrafn") and q.vus.has("ramasse:registre_hrafn"), "registre de Hrafn : objet et événement ramasse:registre_hrafn")

@@ -1,6 +1,7 @@
 # Lots L2 + L3 objets : MODULES DU MOBILIER DE LA CRYPTE ET DE LA GROTTE (coffres, tonneaux, tables, urnes, crânes, os, armes posées,
 # gravats, tas d'or, sacs éventrés, monticule d'os ; étagères, lits, râteliers, boucliers muraux, planches de barricade, tringles).
-#   blender.exe -b --python objets_donjon.py [-- apercu=<dossier>]      (aperçus Workbench, un PNG par module)
+#   blender.exe -b --python objets_donjon.py [-- apercu=<dossier>] [seulement=coffre_cuve,coffre_couvercle,coffre_royal]
+#   (aperçus Workbench, un PNG par module ; seulement= : ne régénère que ces modules, le reste du .dat est recopié à l'octet)
 # Sortie : assets/crypte/modules/objets_donjon.dat, MÊME format que crypte_v2.dat (relu par CrypteDecor._charger_modeles en FileAccess :
 #   sûr dans le fil de construction, aucun .glb) : [u32 nb objets] puis par objet [u8 long][« module__matiere »][u32 nb sommets]
 #   [x y z r g b a float32 ; 3 sommets par triangle, sens trigonométrique vu de l'extérieur].
@@ -24,10 +25,11 @@ I3 = Matrix.Identity(3)
 UP = Vector((0, 1, 0))
 TEINTE = {"bois": (1.0, 0.97, 0.93), "fer": (0.92, 0.94, 1.0), "or": (1.0, 0.97, 0.9)}
 BUDGET = {"coffre": 550, "tonneau": 400, "table": 550, "urne": 420, "crane": 180, "os_long": 40, "os_court": 30, "arme": 170,
-          "gravats": 480, "or_tas": 1100,
+          "gravats": 480, "or_tas": 1500,
           "micro_eclats": 60, "micro_planche": 60, "micro_os": 50, "micro_cire": 70, "micro_pieces": 30, "micro_chaine": 100, "sac": 200, "os_monticule": 800,
           "etagere_cadre": 420, "etagere_contenu": 820, "etagere_couchee": 300, "lit": 570, "ratelier_cadre": 420, "arme_v": 90,
           "bouclier": 330, "planche": 40, "poteau": 40, "tringle": 100,
+          "coffre_cuve": 1100, "coffre_couvercle": 330, "coffre_or": 700, "coffre_royal_or": 1300, "coffre_royal_cuve": 2200, "coffre_royal_couvercle": 900,
           "garniture": 260, "garniture_autel": 520, "garniture_etagere": 700}      # garniture : par objet de table
 
 
@@ -180,6 +182,7 @@ class Module:
         self.bandes = "hautes"      # option `bandes` d'aretes.appliquer (« aucune » : semis micro, zéro triangle de plus)
         self.sans_dessous = False    # C5 : faces tournées vers le bas au ras du sol omises (jamais vues : gravats, or, semis)
         self.bruts = set()  # C5 : indices des triangles laissés hors d'aretes.py (pièces : leur bord clair est fait en couleur de sommet)
+        self.decale = None  # L1 : origine du module déplacée en ce point APRÈS aretes.appliquer (couvercles : charnière ; liserés calculés au vrai sol)
 
     def add(self, mat, polys, ton=None, jt=0.0):
         if ton is None:
@@ -331,6 +334,275 @@ def coffre(var):
         for sx in (-1, 1):          # poignées latérales
             M.add("fer", poutre(V(sx * 0.452, 0.36, -0.07), V(sx * 0.452, 0.36, 0.07), 0.018, 0.022), 0.6)
     return M
+
+
+# ======================================================================= L1 : coffre en DEUX PIÈCES (cuve fusionnée + couvercle à part)
+# INSPIRATION_IGNITE §2.6 : la cuve (avec son contenu : couche de pièces, un objet de butin) reste fondue dans les tampons de la case ;
+# le couvercle est un MeshInstance3D à part (CoffreCouvercle) qui bascule autour de sa CHARNIÈRE ARRIÈRE. Repère du couvercle : origine
+# SUR LA CHARNIÈRE (arête arrière du dessous du couvercle), décalage CHARNIERE retiré APRÈS aretes.appliquer (main : M.decale).
+# Mêmes cotes extérieures que coffre_a/b/c (emprise, collision et interaction inchangées). Grand coffre royal : 1,2 x 0,7 x 0,86 m.
+# Fer sur couleur de sommet SOMBRE (0,42-0,5 : le reflet du lot C1 le lit en métal ; plus clair, la texture de fer passe pour du bois).
+CHARNIERE = {"a": (0.445, -0.29), "b": (0.44, -0.29), "c": (0.44, -0.30), "royal": (0.56, -0.36)}     # (y, z)
+
+
+def _or_cuve(M, lx, lz, y0, bombe, n, rp=0.03, nx=6, nz=4):
+    """Contenu de la cuve : nappe d'or sombre bombée (creux au ton 0 de l'or) + n pièces LISIBLES (bord clair, face sombre) dessus,
+    deux couches décalées ; renvoie la hauteur de la nappe (x, z) -> y pour y poser un objet."""
+    rg = M.rg
+    h = lambda x, z: y0 + bombe * max(0.0, 1 - (x / lx) ** 2) * max(0.0, 1 - (z / lz) ** 2) + 0.012 * math.sin(x * 23 + z * 17)
+    for i in range(nx):
+        for k in range(nz):
+            x0, x1 = -lx + 2 * lx * i / nx, -lx + 2 * lx * (i + 1) / nx
+            z0, z1 = -lz + 2 * lz * k / nz, -lz + 2 * lz * (k + 1) / nz
+            q = [V(x0, h(x0, z0), z0), V(x0, h(x0, z1), z1), V(x1, h(x1, z1), z1), V(x1, h(x1, z0), z0)]
+            M.add("or", [orienter(q, UP)], 0.24)
+    for couche, nn in enumerate((n, n // 3)):
+        for k in range(nn):
+            x = rg.uniform(-lx * 0.94, lx * 0.94)
+            z = rg.uniform(-lz * 0.92, lz * 0.92)
+            gx = (h(x + 0.01, z) - h(x - 0.01, z)) / 0.02
+            gz = (h(x, z + 0.01) - h(x, z - 0.01)) / 0.02
+            R = Rz(math.atan(gx)) @ Rx(-math.atan(gz)) @ Rx(rg.uniform(-0.35, 0.35)) @ Rz(rg.uniform(-0.35, 0.35)) @ Ry(rg.uniform(0, TAU))
+            f = rg.uniform(0.82, 1.0)
+            M.add_tons("or", piece(V(x, h(x, z) + 0.006 + 0.008 * couche, z), rp * rg.uniform(0.92, 1.08), R, (0.5 * f, 1.0 * f)), brut=True)
+    return h
+
+
+def _rivets(M, pts, r=0.011, saillie=0.009, n=V(0, 0, 1), ton=0.5):
+    for p in pts:
+        a = n.cross(UP) if abs(n.dot(UP)) < 0.9 else n.cross(V(1, 0, 0))
+        a.normalize()
+        b = n.cross(a)
+        M.add("fer", hull([p + a * sa * r + b * sb * r for sa in (-1, 1) for sb in (-1, 1)] + [p + n * saillie]), ton)
+
+
+def coffre_cuve(var):
+    """Cuve du coffre a/b/c (mêmes cotes que coffre_x, sans couvercle) : fond plein jusqu'à 0,33 m, parois de planches dont on voit
+    l'intérieur à l'ouverture ; ferrures, serrure, nœuds de charnière à l'arrière. L3 : l'or et l'objet posé dessus sont le module
+    à part coffre_or_x (rendu par CoffreCouvercle : il s'enfonce et disparaît quand le coffre est pillé)."""
+    M = Module("coffre_cuve_" + var, 1500 + ord(var))
+    rg = M.rg
+    yh, zh = CHARNIERE[var]
+    M.add("bois", boite(V(0, 0.185, 0), (0.85, 0.29, 0.5)), 0.5)          # fond plein (sous l'or)
+    for side in (-1, 1):            # planches horizontales devant / derrière (leur face intérieure fait la paroi)
+        for i in range(3):
+            y = 0.04 + i * 0.135 + 0.0625
+            M.add("bois", boite(V(rg.uniform(-0.005, 0.005), y, side * 0.265), (0.88, 0.125, 0.03), Rz(rg.uniform(-0.006, 0.006))), rg.uniform(0.74, 0.95))
+    for sx in (-1, 1):
+        for i in range(3):
+            y = 0.04 + i * 0.135 + 0.0625
+            M.add("bois", boite(V(sx * 0.43, y, 0), (0.03, 0.125, 0.5)), rg.uniform(0.7, 0.9))
+    for sx in (-1, 1):              # liteaux d'angle intérieurs (le creux entre deux parois descend au sombre par l'occlusion)
+        for sz in (-1, 1):
+            M.add("bois", boite(V(sx * 0.4, 0.385, sz * 0.235), (0.035, 0.11, 0.035)), 0.5)
+    for dx in (-0.3, 0.3):          # cerclages verticaux devant / derrière, rivets
+        for side in (-1, 1):
+            M.add("fer", boite(V(dx, 0.235, side * 0.287), (0.07, 0.43, 0.014)), 0.45)
+        _rivets(M, [V(dx, y, 0.294) for y in (0.1, 0.3)], ton=0.55)
+        # charnière : nœud (tige le long de x) sur l'arête arrière, patte qui descend sur le cerclage arrière
+        M.add("fer", cylindre(V(dx - 0.045, yh - 0.006, zh - 0.012), V(dx + 0.045, yh - 0.006, zh - 0.012), 0.014, 6), 0.42)
+        M.add("fer", boite(V(dx, yh - 0.07, -0.296), (0.05, 0.12, 0.01)), 0.42)
+    M.add("fer", boite_ch(V(0, 0.35, 0.305), (0.1, 0.09, 0.025), 0.006), 0.45)        # serrure (le moraillon est sur le couvercle)
+    M.add("fer", boite(V(0, 0.4, 0.2945), (0.13, 0.07, 0.012)), 0.42)                 # gâche
+    M.add("noir", boite(V(0, 0.345, 0.3185), (0.012, 0.03, 0.002)), 1.0)
+    if var == "c":                  # équerres de coin et socle de bois
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                M.add("fer", boite(V(sx * 0.425, 0.24, sz * 0.284), (0.06, 0.44, 0.018)), 0.45)
+                M.add("fer", boite(V(sx * 0.448, 0.24, sz * 0.25), (0.018, 0.44, 0.06)), 0.45)
+        M.add("bois", boite(V(0, 0.022, 0), (0.92, 0.044, 0.58)), 0.55)
+    else:
+        M.add("fer", boite(V(0, 0.025, 0), (0.93, 0.05, 0.59)), 0.45)
+        for sx in (-1, 1):          # poignées latérales
+            M.add("fer", poutre(V(sx * 0.452, 0.36, -0.07), V(sx * 0.452, 0.36, 0.07), 0.018, 0.022), 0.5)
+    return M
+
+
+def coffre_or(var):
+    """L3 : OR DE LA CUVE a/b/c (nappe d'or + pièces, un objet du butin : a gobelet, b bague, c rouleau), à part de la cuve pour pouvoir
+    le retirer quand le coffre est pillé (CoffreCouvercle) ; repère de la cuve. Mêmes tirages que l'or fondu dans la cuve avant L3 :
+    les 24 tirages des planches de coffre_cuve sont rejoués d'abord (mêmes pièces, aux mêmes places)."""
+    M = Module("coffre_or_" + var, 1500 + ord(var))
+    rg = M.rg
+    for _ in range(24):
+        rg.random()
+    h = _or_cuve(M, 0.405, 0.24, 0.335, 0.05, 72)
+    if var == "a":                  # gobelet couché sur l'or
+        M.rev("or", [(0.03, 0.0), (0.03, 0.007), (0.009, 0.014), (0.009, 0.038), (0.032, 0.068), (0.036, 0.09), (0.03, 0.09), (0.0, 0.064)], 8,
+              c=V(0.13, h(0.13, 0.04) + 0.03, 0.04), R=Ry(0.7) @ Rz(1.35), caps=(True, False), ton=0.85)
+    elif var == "b":                # bague à chaton (tout en or : la grotte ne peint ni laine ni entrelacs)
+        for k in range(6):
+            a0, a1 = TAU * k / 6, TAU * (k + 1) / 6
+            c0 = V(-0.12 + math.cos(a0) * 0.028, h(-0.12, 0.05) + 0.012, 0.05 + math.sin(a0) * 0.028)
+            c1 = V(-0.12 + math.cos(a1) * 0.028, h(-0.12, 0.05) + 0.012, 0.05 + math.sin(a1) * 0.028)
+            M.add("or", poutre(c0, c1, 0.01, 0.012), 0.95)
+        M.add("or", boite_ch(V(-0.12, h(-0.12, 0.05) + 0.026, 0.078), (0.024, 0.018, 0.024), 0.005), 1.0)
+    else:                           # rouleau scellé
+        M.add("parchemin", cylindre(V(-0.2, h(-0.1, -0.06) + 0.022, -0.1), V(0.04, h(0.0, -0.06) + 0.022, -0.02), 0.022, 6), 0.9)
+    return M
+
+
+def coffre_couvercle(var):
+    """Couvercle du coffre a/b/c (repère : origine sur la charnière, voir CHARNIERE) : planches, cerclages, moraillon qui pend devant
+    la serrure ; dessous en bois brut (vu à l'ouverture)."""
+    M = Module("coffre_couvercle_" + var, 1600 + ord(var), sol=False)
+    rg = M.rg
+    yh, zh = CHARNIERE[var]
+    M.decale = V(0, yh, zh)
+    if var == "b":                  # bombé : arc de 6 pans extrudé en x, joues pleines
+        arc = [(0.29 * math.cos(math.pi * k / 6), 0.44 + 0.17 * math.sin(math.pi * k / 6)) for k in range(7)]
+        for k in range(6):
+            (z0, y0), (z1, y1) = arc[k], arc[k + 1]
+            q = [V(-0.45, y0, z0), V(0.45, y0, z0), V(0.45, y1, z1), V(-0.45, y1, z1)]
+            M.add("bois", [orienter(q, V(0, (y0 + y1) / 2 - 0.44, (z0 + z1) / 2))], rg.uniform(0.8, 1.0))
+        for sx in (-1, 1):
+            M.add("bois", [orienter([V(sx * 0.45, y, z) for (z, y) in arc], V(sx, 0, 0))], 0.75)
+        M.add("bois", [orienter([V(-0.45, 0.44, 0.29), V(0.45, 0.44, 0.29), V(0.45, 0.44, -0.29), V(-0.45, 0.44, -0.29)], -UP)], 0.42)
+        for dx in (-0.3, 0.3):      # cerclages qui suivent l'arc
+            for k in range(6):
+                (z0, y0), (z1, y1) = arc[k], arc[k + 1]
+                e0 = V(0, y0 - 0.44, z0).normalized() * 0.012
+                e1 = V(0, y1 - 0.44, z1).normalized() * 0.012
+                pts = [V(dx + s * 0.035, y0, z0) + e0 * f for s in (-1, 1) for f in (0, 1)] + [V(dx + s * 0.035, y1, z1) + e1 * f for s in (-1, 1) for f in (0, 1)]
+                M.add("fer", hull(pts), 0.45)
+            _rivets(M, [V(dx, 0.44 + 0.17 * math.sin(a) + 0.012, 0.29 * math.cos(a)) * 1.0 + V(0, 0, 0) for a in (0.5, 1.57, 2.64)], n=UP, ton=0.55)
+        avant = 0.29
+        bas = 0.44
+    elif var == "a":
+        M.add("bois", boite_ch(V(0, 0.49, 0), (0.92, 0.09, 0.58), 0.014), 0.9)
+        M.add("bois", boite(V(0, 0.552, 0), (0.86, 0.034, 0.4)), 0.78)
+        for dx in (-0.3, 0.3):
+            M.add("fer", boite(V(dx, 0.573, 0), (0.07, 0.012, 0.42)), 0.45)
+            M.add("fer", boite(V(dx, 0.541, 0.0), (0.07, 0.012, 0.6)), 0.45)
+            for side in (-1, 1):
+                M.add("fer", boite(V(dx, 0.495, side * 0.297), (0.07, 0.09, 0.012)), 0.45)
+            _rivets(M, [V(dx, 0.58, z) for z in (-0.12, 0.12)], n=UP, ton=0.55)
+        avant = 0.29
+        bas = 0.445
+    else:
+        M.add("bois", boite_ch(V(0, 0.475, 0), (0.94, 0.07, 0.6), 0.012), 0.88)
+        M.add("bois", boite_ch(V(0, 0.53, 0), (0.84, 0.05, 0.48), 0.012), 0.8)
+        for dx in (-0.3, 0.3):
+            M.add("fer", boite(V(dx, 0.556, 0), (0.07, 0.012, 0.5)), 0.45)
+            for side in (-1, 1):
+                M.add("fer", boite(V(dx, 0.475, side * 0.305), (0.07, 0.07, 0.012)), 0.45)
+        avant = 0.30
+        bas = 0.44
+    # moraillon : patte qui descend du bord avant devant la serrure (anneau + plaque)
+    M.add("fer", boite(V(0, bas - 0.035, avant + 0.03), (0.07, 0.1, 0.012)), 0.42)
+    M.add("fer", boite(V(0, bas + 0.02, avant + 0.012), (0.09, 0.04, 0.03)), 0.45)
+    _rivets(M, [V(0, bas - 0.07, avant + 0.036)], r=0.01, ton=0.6)
+    return M
+
+
+def coffre_royal_cuve():
+    """GRAND COFFRE ROYAL (trésor, tombeau du jarl) : 1,2 x 0,7 m, cuve 0,56 m sur quatre pieds de fer ; quatre rangées de planches,
+    six cerclages rivetés, équerres d'angle, serrure ouvragée. L3 : l'or (nappe bombée au ras du bord, couronne et coupe) est le module à
+    part coffre_royal_or (retiré quand le coffre est pillé)."""
+    M = Module("coffre_royal_cuve", 1700)
+    rg = M.rg
+    yh, zh = CHARNIERE["royal"]
+    M.add("bois", boite(V(0, 0.27, 0), (1.12, 0.4, 0.62)), 0.5)            # fond plein (sous l'or)
+    for side in (-1, 1):
+        for i in range(4):
+            y = 0.06 + i * 0.125 + 0.0575
+            M.add("bois", boite(V(rg.uniform(-0.005, 0.005), y, side * 0.335), (1.16, 0.115, 0.032), Rz(rg.uniform(-0.005, 0.005))), rg.uniform(0.72, 0.95))
+    for sx in (-1, 1):
+        for i in range(4):
+            y = 0.06 + i * 0.125 + 0.0575
+            M.add("bois", boite(V(sx * 0.565, y, 0), (0.032, 0.115, 0.64)), rg.uniform(0.68, 0.9))
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            M.add("bois", boite(V(sx * 0.535, 0.5, sz * 0.305), (0.035, 0.11, 0.035)), 0.5)
+    # cerclages : quatre devant / derrière (x), deux sur les joues ; rivets
+    for dx in (-0.45, -0.16, 0.16, 0.45):
+        for side in (-1, 1):
+            M.add("fer", boite(V(dx, 0.31, side * 0.357), (0.075, 0.5, 0.014)), 0.45)
+        _rivets(M, [V(dx, y, 0.364) for y in (0.14, 0.31, 0.48)], r=0.012, ton=0.55)
+    for sx in (-1, 1):
+        M.add("fer", boite(V(sx * 0.587, 0.31, 0), (0.014, 0.5, 0.075)), 0.45)
+        M.add("fer", cylindre(V(sx * 0.6, 0.38, -0.08), V(sx * 0.6, 0.38, 0.08), 0.014, 6), 0.5)      # anneau de portage
+        for sz in (-1, 1):          # équerres d'angle sur les deux faces
+            M.add("fer", boite(V(sx * 0.56, 0.31, sz * 0.355), (0.08, 0.52, 0.02)), 0.42)
+            M.add("fer", boite(V(sx * 0.588, 0.31, sz * 0.33), (0.02, 0.52, 0.08)), 0.42)
+            M.add("fer", boite_ch(V(sx * 0.55, 0.03, sz * 0.31), (0.12, 0.06, 0.12), 0.01), 0.42)     # pieds
+    for dx in (-0.45, 0.45):        # charnières
+        M.add("fer", cylindre(V(dx - 0.06, yh - 0.008, zh - 0.012), V(dx + 0.06, yh - 0.008, zh - 0.012), 0.017, 6), 0.42)
+        M.add("fer", boite(V(dx, yh - 0.09, -0.366), (0.06, 0.16, 0.012)), 0.42)
+    # serrure ouvragée : plaque à pans, entrée noire, deux rivets
+    M.add("fer", hull([V(x, y, z) for x in (-0.09, 0.09) for y in (0.38, 0.5) for z in (0.358, 0.372)] + [V(0, 0.33, 0.365), V(0, 0.33, 0.358)]), 0.45)
+    M.add("noir", boite(V(0, 0.42, 0.3735), (0.014, 0.04, 0.002)), 1.0)
+    _rivets(M, [V(x, 0.47, 0.373) for x in (-0.06, 0.06)], r=0.01, ton=0.6)
+    M.add("fer", boite(V(0, 0.07, 0), (1.18, 0.03, 0.68)), 0.45)             # semelle cerclée
+    return M
+
+
+def coffre_royal_or():
+    """L3 : OR DU GRAND COFFRE ROYAL (nappe bombée au ras du bord, couronne posée de travers, coupe à pied), à part de la cuve ;
+    mêmes tirages qu'avant L3 (les 32 tirages des planches de coffre_royal_cuve rejoués d'abord)."""
+    M = Module("coffre_royal_or", 1700)
+    rg = M.rg
+    for _ in range(32):
+        rg.random()
+    lx, lz = 0.58, 0.33
+    h = _or_cuve(M, lx * 0.93, lz * 0.92, 0.475, 0.1, 130, rp=0.032, nx=8, nz=5)
+    # couronne posée de travers sur l'or, coupe à pied
+    cc = V(0.16, h(0.16, 0.02) + 0.04, 0.02)
+    Rc = Rx(0.25) @ Rz(-0.18)
+    for k in range(8):
+        a0, a1 = TAU * k / 8, TAU * (k + 1) / 8
+        M.add("or", poutre(cc + Rc @ V(math.cos(a0) * 0.085, 0, math.sin(a0) * 0.085), cc + Rc @ V(math.cos(a1) * 0.085, 0, math.sin(a1) * 0.085), 0.012, 0.035), 1.0)
+        M.add("or", hull([cc + Rc @ (V(math.cos(a0) * 0.085, 0.017, math.sin(a0) * 0.085) + V(s * 0.011, 0, t * 0.011)) for s in (-1, 1) for t in (-1, 1)] + [cc + Rc @ V(math.cos(a0) * 0.085, 0.055, math.sin(a0) * 0.085)]), 1.0)
+    M.add("laine", boite_ch(cc + Rc @ V(0, 0.0, 0.088), (0.022, 0.022, 0.012), 0.004), 0.9)
+    M.rev("or", [(0.045, 0.0), (0.05, 0.01), (0.012, 0.022), (0.012, 0.07), (0.055, 0.1), (0.062, 0.15), (0.055, 0.15), (0.0, 0.11)], 8,
+          c=V(-0.24, h(-0.24, -0.05) - 0.01, -0.05), R=Rz(0.12), caps=(True, False), ton=0.9)
+    return M
+
+
+def coffre_royal_couvercle():
+    """Couvercle bombé du grand coffre royal (origine sur la charnière) : 8 pans, cinq cerclages rivetés, moraillon ouvragé."""
+    M = Module("coffre_royal_couvercle", 1800, sol=False)
+    rg = M.rg
+    yh, zh = CHARNIERE["royal"]
+    M.decale = V(0, yh, zh)
+    L, R, H = 0.6, 0.36, 0.26
+    arc = [(R * math.cos(math.pi * k / 8), yh + H * math.sin(math.pi * k / 8)) for k in range(9)]
+    for k in range(8):
+        (z0, y0), (z1, y1) = arc[k], arc[k + 1]
+        q = [V(-L, y0, z0), V(L, y0, z0), V(L, y1, z1), V(-L, y1, z1)]
+        M.add("bois", [orienter(q, V(0, (y0 + y1) / 2 - yh, (z0 + z1) / 2))], rg.uniform(0.78, 1.0))
+    for sx in (-1, 1):
+        M.add("bois", [orienter([V(sx * L, y, z) for (z, y) in arc], V(sx, 0, 0))], 0.72)
+    M.add("bois", [orienter([V(-L, yh, R), V(L, yh, R), V(L, yh, -R), V(-L, yh, -R)], -UP)], 0.42)
+    for dx in (-0.5, -0.25, 0.0, 0.25, 0.5):
+        w = 0.034 if dx else 0.05
+        for k in range(8):
+            (z0, y0), (z1, y1) = arc[k], arc[k + 1]
+            e0 = V(0, y0 - yh, z0).normalized() * 0.014
+            e1 = V(0, y1 - yh, z1).normalized() * 0.014
+            pts = [V(dx + s * w, y0, z0) + e0 * f for s in (-1, 1) for f in (0, 1)] + [V(dx + s * w, y1, z1) + e1 * f for s in (-1, 1) for f in (0, 1)]
+            M.add("fer", hull(pts), 0.45)
+        if dx in (-0.5, 0.5, 0.0):
+            for a in (0.45, 1.2, 1.94, 2.7):
+                n = V(0, math.sin(a), math.cos(a) * H / R).normalized()
+                _rivets(M, [V(dx, yh + (H + 0.014) * math.sin(a), (R + 0.014) * math.cos(a))], r=0.011, n=n, ton=0.55)
+    for sx in (-1, 1):              # bord des joues ferré
+        for k in range(8):
+            (z0, y0), (z1, y1) = arc[k], arc[k + 1]
+            M.add("fer", hull([V(sx * (L + f), y, z) * 1.0 + V(0, 0, 0) for f in (0.0, 0.012) for (z, y) in ((z0, y0), (z1, y1))] +
+                              [V(sx * (L - 0.04), y0, z0), V(sx * (L - 0.04), y1, z1)]), 0.42)
+    M.add("fer", hull([V(x, y, z) for x in (-0.05, 0.05) for y in (yh - 0.12, yh + 0.02) for z in (R + 0.006, R + 0.02)] + [V(0, yh - 0.15, R + 0.013)]), 0.42)
+    M.add("fer", boite(V(0, yh + 0.035, R + 0.004), (0.14, 0.05, 0.03)), 0.45)
+    _rivets(M, [V(0, yh - 0.1, R + 0.026)], r=0.012, ton=0.6)
+    return M
+
+
+def _l1():
+    return [coffre_cuve(v) for v in "abc"] + [coffre_couvercle(v) for v in "abc"] + [coffre_royal_cuve(), coffre_royal_couvercle()] + \
+        [coffre_or(v) for v in "abc"] + [coffre_royal_or()]
+
+
+L1 = [_l1]
 
 
 def tonneau(var):
@@ -693,53 +965,150 @@ def gravats(var):
     return M
 
 
+def _prisme(M, mat, c, rs, y0, y1, ton, dessus=True):
+    """Prisme vertical à base polygonale irrégulière (rayons rs, centre c) entre y0 et y1 : côtés + dessus (dessous omis)."""
+    n = len(rs)
+    bas = [c + V(math.cos(TAU * k / n) * rs[k], y0, math.sin(TAU * k / n) * rs[k]) for k in range(n)]
+    haut = [q + V(0, y1 - y0, 0) for q in bas]
+    for k in range(n):
+        a, b = k, (k + 1) % n
+        mil = (bas[a] + bas[b]) * 0.5 - c
+        M.add(mat, [orienter([bas[a], bas[b], haut[b], haut[a]], V(mil.x, 0, mil.z))], ton)
+    if dessus:
+        M.add(mat, [orienter(haut, UP)], ton)
+
+
 def or_tas(var):
-    """Tas d'or v2 (r 0,6, h 0,3, mis à la taille) : COUCHES DE PIÈCES distinctes de 4,8 cm (bord clair, face sombre, matière « or » :
-    reflet ponctuel du lot C1) sur un noyau sombre (les creux entre les pièces descendent au noir de l'or), pièces éparses en traînée,
-    piles ; a : coupe, b : couronne, c : plat et lingots."""
+    """Tas d'or v3 (lot L2, docs INSPIRATION_IGNITE §2.7 ; r 0,6, h 0,3, mis à la taille) : PLUS DE TERTRE LISSE. Quatre COUCHES de
+    pièces de 5,6-6 cm empilées en gradins décalés (le tas penche, pas de gâteau), chaque gradin = un noyau NOIR (matière « noir » :
+    les creux et les contremarches descendent au noir, sans reflet) couvert de pièces qui se chevauchent sur le dessus et de pièces
+    penchées sur le bord (la tranche claire accroche la torche) ; pièce = face sombre (Or terni #7b5a26) + bord clair (#d3b25c) en
+    couleur de sommet ; matière « or » : reflet ponctuel du lot C1 (1 px sous la torche, seulement les pièces bien inclinées).
+    Pièces éparses en TRAÎNÉE (une coulée d'un côté + quelques isolées), deux piles ; a : coupe, b : couronne, c : plat et lingots
+    (objets de prestige agrandis x1,25)."""
     M = Module("or_tas_" + var, 1200 + ord(var))
     M.sans_dessous = True
     rg = M.rg
-    R0, H0 = 0.46, 0.26
-    an_ = ((1.0, 0.0), (0.78, 0.38), (0.45, 0.78), (0.12, 1.0))
-    M.add("or", tertre(R0 * 0.9, H0 * 0.88, rg, 9, 0.1, an_), 0.2)      # noyau sous la surface nominale : les pièces restent dessus
-    rp = 0.028
-    def sur(rr, an, dy, incl):
-        y = surface_tertre(min(rr, R0), R0, H0, an_) + dy if rr < R0 else 0.004 + dy
-        c = V(math.cos(an) * rr, y, math.sin(an) * rr)
-        pente = math.atan2(H0, R0) * (0.8 if rr < R0 else 0.0)
-        R = Ry(-an) @ Rz(-pente) @ Rx(rg.uniform(-incl, incl)) @ Rz(rg.uniform(-incl, incl))
-        return c, R
-    n_couche = (80, 26)              # deux couches : la 2e décalée, plus haut d'une épaisseur (les pièces se chevauchent)
-    for couche, n in enumerate(n_couche):
-        for k in range(n):
-            rr = R0 * 1.02 * math.sqrt((k + rg.random()) / n)
-            an = k * 2.39996 + rg.uniform(-0.3, 0.3) + couche * 1.3
-            c, R = sur(rr, an, 0.007 + couche * 0.009, 0.45)
+    rp = 0.029                       # rayon d'une pièce : 5,8 cm (lisibilité avant réalisme : ≥ 3 px à 3 m)
+    # gradins : (rayon, dessus) ; centres décalés vers un même côté (le tas « coule » vers la traînée)
+    pente = rg.uniform(0, TAU)
+    gr = [(0.47, 0.06), (0.35, 0.135), (0.22, 0.2), (0.1, 0.255)]
+    couches = []
+    for k, (r, y) in enumerate(gr):
+        dec = 0.045 * k
+        c = V(-math.cos(pente) * dec + rg.uniform(-0.015, 0.015), 0, -math.sin(pente) * dec + rg.uniform(-0.015, 0.015))
+        n = 11 if k < 2 else 8
+        rs = [r * rg.uniform(0.8, 1.14) for _ in range(n)]
+        couches.append((c, rs, y))
+        _prisme(M, "noir", c, [q * 0.94 for q in rs], 0.0, y - 0.006, 0.6, dessus=False)      # contremarche noire
+        M.add("or", [orienter([c + V(math.cos(TAU * i / n) * rs[i] * 0.94, y - 0.005, math.sin(TAU * i / n) * rs[i] * 0.94) for i in range(n)], UP)], 0.12)
+
+    def rayon(cc, rs, an):
+        n = len(rs)
+        f = (an % TAU) / TAU * n
+        i = int(f) % n
+        t = f - int(f)
+        return rs[i] * (1 - t) + rs[(i + 1) % n] * t
+
+    def dessus(x, z):
+        """Hauteur du dessus du gradin le plus haut qui couvre (x, z) (0 hors du tas)."""
+        h = 0.0
+        for cc, rs, y in couches:
+            d = V(x - cc.x, 0, z - cc.z)
+            if d.length < rayon(cc, rs, math.atan2(d.z, d.x)) * 0.97:
+                h = y
+        return h
+
+    def pose(c, R, ton):
+        M.add_tons("or", piece(c, rp * rg.uniform(0.93, 1.07), R, ton), brut=True)
+
+    # dessus de chaque gradin : pièces qui se chevauchent (deux hauteurs alternées), seulement là où le gradin du dessus ne les cache
+    # pas ; nombre = 56 % de la surface visible couverte (le reste : le lit sombre du noyau, creux entre les pièces)
+    for k, (cc, rs, y) in enumerate(couches):
+        haut = couches[k + 1] if k + 1 < len(couches) else None
+        rmax = max(rs)
+        r_in = max(haut[1]) * 0.8 if haut else 0.0
+        rmoy = sum(rs) / len(rs)
+        rin_moy = sum(haut[1]) / len(haut[1]) * 0.8 if haut else 0.0
+        cible = int(round((rmoy * rmoy - rin_moy * rin_moy) * 0.56 / (rp * rp)))
+        j = 0
+        essais = 0
+        while j < cible and essais < cible * 6:
+            essais += 1
+            rr = math.sqrt(r_in * r_in * 0.6 + (rmax * rmax - r_in * r_in * 0.6) * rg.random())
+            an = rg.uniform(0, TAU)
+            x, z = cc.x + math.cos(an) * rr, cc.z + math.sin(an) * rr
+            if rr > rayon(cc, rs, an) * 0.95:
+                continue
+            if haut is not None:
+                d = V(x - haut[0].x, 0, z - haut[0].z)
+                if d.length < rayon(haut[0], haut[1], math.atan2(d.z, d.x)) * 0.8:
+                    continue
+            f = rg.uniform(0.8, 1.0)
+            R = Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.32, 0.32)) @ Rz(rg.uniform(-0.32, 0.32))
+            pose(V(x, y + 0.003 + 0.007 * (j % 2), z), R, (0.5 * f, 1.0 * f))
+            j += 1
+        # bord du gradin : pièces penchées vers l'extérieur (40-70°) à mi-hauteur de la contremarche, avec des trous (creux noirs)
+        y_bas = couches[k - 1][2] if k > 0 else 0.0
+        nb = (18, 13, 8, 4)[k]
+        for j in range(nb):
+            an = TAU * (j + rg.uniform(-0.25, 0.25)) / nb
+            if rg.random() < 0.18:
+                continue                 # trou : la contremarche noire se voit
+            rr = rayon(cc, rs, an) * 0.95
+            x, z = cc.x + math.cos(an) * rr, cc.z + math.sin(an) * rr
+            yc = y_bas + (y - y_bas) * rg.uniform(0.45, 0.7)
+            R = Ry(-an) @ Rz(-rg.uniform(0.7, 1.2)) @ Rx(rg.uniform(-0.2, 0.2))
             f = rg.uniform(0.85, 1.0)
-            M.add_tons("or", piece(c, rp * rg.uniform(0.92, 1.08), R, (0.5 * f, 1.0 * f)), brut=True)
-    for k in range(10):              # pièces éparses en traînée autour du tas
-        an = rg.uniform(0, TAU)
-        rr = rg.uniform(0.5, 0.78)
-        c = V(math.cos(an) * rr, 0.006, math.sin(an) * rr)
-        M.add_tons("or", piece(c, rp, Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.12, 0.12)), (0.5, 0.95)), brut=True)
-    for k in range(2):               # piles de pièces au pied du tas
-        an = rg.uniform(0, TAU)
-        c = V(math.cos(an) * 0.54, 0, math.sin(an) * 0.54)
-        h = rg.uniform(0.03, 0.06)
-        M.rev("or", [(rp, 0.0), (rp, h)], 6, c=c, ton=0.75)
+            pose(V(x, yc, z), R, (0.55 * f, 1.0 * f))
+    # traînée : une coulée de pièces du côté où le tas penche, qui s'éclaircit en s'éloignant, + quelques isolées
+    nt = 14 if var != "c" else 12
+    for j in range(nt):
+        t = (j + rg.random()) / nt
+        an = pente + rg.uniform(-0.5, 0.5) * (1.2 - t)
+        rr = 0.5 + 0.3 * t
+        x, z = math.cos(an) * rr, math.sin(an) * rr
+        pose(V(x, 0.004 + 0.005 * (j % 2), z), Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.12, 0.12)), (0.5, 0.95))
+    for j in range(4):
+        an = pente + math.pi + rg.uniform(-1.6, 1.6)
+        rr = rg.uniform(0.52, 0.72)
+        pose(V(math.cos(an) * rr, 0.004, math.sin(an) * rr), Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.1, 0.1)), (0.5, 0.95))
+    for k in range(2):               # piles de pièces au pied du tas (tranche claire, dessus = une pièce)
+        an = pente + math.pi * (0.55 + 0.9 * k) + rg.uniform(-0.3, 0.3)
+        c = V(math.cos(an) * 0.55, 0, math.sin(an) * 0.55)
+        h = rg.uniform(0.035, 0.07)
+        M.rev("or", [(rp, 0.0), (rp, h)], 6, c=c, ton=0.8, caps=(False, False))
         M.add_tons("or", piece(c + V(0, h + 0.001, 0), rp, I3, (0.55, 1.0)), brut=True)
+    # le tas PENCHE : plus haut du côté opposé à la traînée (y x 0,8 à 1,2, le sol reste à 0) — plus de gradins de gâteau
+    dp = V(math.cos(pente), 0, math.sin(pente))
+    pencher = lambda q: V(q.x, q.y * (1.0 - 0.2 * max(-1.0, min(1.0, (q.x * dp.x + q.z * dp.z) / 0.47))), q.z)
+    M.tris = [(m, tuple(pencher(q) for q in p), t) for (m, p, t) in M.tris]
+    _dessus0 = dessus
+    dessus = lambda x, z: _dessus0(x, z) * (1.0 - 0.2 * max(-1.0, min(1.0, (x * dp.x + z * dp.z) / 0.47)))
+    # objets de prestige (x1,25) posés sur le gradin qu'ils touchent
+    E = 1.25
     if var == "a":
-        M.rev("or", [(0.05, 0.2), (0.055, 0.21), (0.012, 0.23), (0.012, 0.3), (0.06, 0.34), (0.07, 0.42), (0.064, 0.42), (0.0, 0.37)], 8, c=V(0.12, 0, 0.05), ton=0.95)
+        c = V(0.1, 0, 0.04)
+        y0 = dessus(c.x, c.z) - 0.2 * E + 0.006
+        M.rev("or", [(r * E, y0 + y * E) for r, y in [(0.05, 0.2), (0.055, 0.21), (0.012, 0.23), (0.012, 0.3), (0.06, 0.34), (0.07, 0.42), (0.064, 0.42), (0.0, 0.37)]], 8, c=c, ton=0.95)
     elif var == "b":
+        c0 = V(-0.05, 0, 0.08)
+        y0 = dessus(c0.x, c0.z) + 0.004
+        rc = 0.1 * E
         for k in range(8):
             a0, a1 = TAU * k / 8, TAU * (k + 1) / 8
-            M.add("or", poutre(V(math.cos(a0) * 0.1, 0.25, math.sin(a0) * 0.1), V(math.cos(a1) * 0.1, 0.25, math.sin(a1) * 0.1), 0.014, 0.04), 1.0)
-            M.add("or", hull([V(math.cos(a0) * 0.1, 0.27, math.sin(a0) * 0.1) + V(s * 0.012, 0, t * 0.012) for s in (-1, 1) for t in (-1, 1)] + [V(math.cos(a0) * 0.1, 0.31, math.sin(a0) * 0.1)]), 1.0)
+            p0 = c0 + V(math.cos(a0) * rc, y0 + 0.02 * E, math.sin(a0) * rc)
+            p1 = c0 + V(math.cos(a1) * rc, y0 + 0.02 * E, math.sin(a1) * rc)
+            M.add("or", poutre(p0, p1, 0.014 * E, 0.04 * E), 1.0)
+            M.add("or", hull([p0 + V(s * 0.012 * E, 0.02 * E, t * 0.012 * E) for s in (-1, 1) for t in (-1, 1)] + [p0 + V(0, 0.06 * E, 0)]), 1.0)
     else:
-        M.rev("or", [(0.0, 0.0), (0.16, 0.0), (0.2, 0.025), (0.19, 0.03), (0.0, 0.012)], 10, c=V(0.62, 0, -0.2), R=Rx(0.08), ton=0.85)
+        cp = V(0.6, 0, -0.18)            # plat à rebord (Ø 34 cm, plus de disque lisse de 50 cm) avec trois pièces dedans
+        M.rev("or", [(0.0, 0.006), (0.13, 0.006), (0.17, 0.026), (0.155, 0.03), (0.12, 0.012), (0.0, 0.012)], 10, c=cp, R=Rx(0.06), ton=0.8)
         for k in range(3):
-            M.add("or", boite_ch(V(-0.62 + k * 0.03, 0.025 + k * 0.045, 0.15 + k * 0.01), (0.16, 0.045, 0.07), 0.01, Ry(0.3 + k * 0.4)), 0.95)
+            an = rg.uniform(0, TAU)
+            pose(cp + V(math.cos(an) * 0.06, 0.016 + 0.004 * k, math.sin(an) * 0.06), Ry(rg.uniform(0, TAU)) @ Rx(rg.uniform(-0.15, 0.15)), (0.5, 1.0))
+        for k in range(3):
+            M.add("or", boite_ch(V(-0.58 + k * 0.03, 0.025 * E + k * 0.045 * E, 0.15 + k * 0.01), (0.16 * E, 0.045 * E, 0.07 * E), 0.01, Ry(0.3 + k * 0.4)), 0.95)
     return M
 
 
@@ -1356,6 +1725,8 @@ def construire():
         for v in ("abc" if f is garniture_table else "ab"):
             r = f(v)
             mods += r if isinstance(r, list) else [r]
+    for f in L1:                    # L1 : coffre en deux pièces (en fin de fichier : les modules d'avant gardent leur ordre)
+        mods += f()
     return mods
 
 
@@ -1423,17 +1794,50 @@ def apercus(sorties, dossier):
             bpy.data.objects.remove(ob)
 
 
+def _lire_dat(chemin):
+    """Entrées d'un .dat existant : { nom: [((p, p, p), (c, c, c)), ...] } (copie de luminaires.py : ne remplacer que certains modules)."""
+    d = {}
+    if not os.path.exists(chemin):
+        return d
+    b = open(chemin, "rb").read()
+    o = 4
+    for _ in range(struct.unpack_from("<I", b, 0)[0]):
+        nom = b[o + 1:o + 1 + b[o]].decode()
+        o += 1 + b[o]
+        nb = struct.unpack_from("<I", b, o)[0]
+        o += 4
+        fl = struct.unpack_from("<%df" % (nb * 7), b, o)
+        o += nb * 28
+        sv = [(Vector(fl[i * 7:i * 7 + 3]), tuple(fl[i * 7 + 3:i * 7 + 7])) for i in range(nb)]
+        d[nom] = [(tuple(q for q, _ in sv[j:j + 3]), tuple(c for _, c in sv[j:j + 3])) for j in range(0, nb, 3)]
+    return d
+
+
 def main():
+    """-- seulement=<préfixe>[,<préfixe>…] : ne régénère que les modules dont le nom commence par l'un des préfixes ; toutes les autres
+    entrées du .dat existant sont recopiées telles quelles (mêmes octets), dans leur ordre ; un module régénéré reprend sa place, les
+    entrées nouvelles vont à la suite."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
+    args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    seul = next((tuple(a[10:].split(",")) for a in args if a.startswith("seulement=")), None)
     mods = construire()
     sorties = []
     donnees = {}
+    if seul:
+        for k, v in _lire_dat(DAT).items():
+            if not k.startswith(seul):
+                donnees[k] = v
+        mods = [M for M in mods if M.nom.startswith(seul)]
     depasse = 0
     st = {}
     for M in mods:
         res = aretes.appliquer(M.finir(), bandes=M.bandes, stats=st)
         for mat, faces in M.brute.items():      # C5 : pièces (bord clair en couleur de sommet), hors liserés
             res.setdefault(mat, []).extend(faces)
+        if M.decale is not None:                # L1 : couvercles (origine sur la charnière)
+            for mat in res:
+                res[mat] = [(tuple(q - M.decale for q in p), c) for p, c in res[mat]]
+            M.tris = [(m, tuple(q - M.decale for q in p), t) for (m, p, t) in M.tris]
         sorties.append((M, res))
         for mat, faces in res.items():
             donnees["%s__%s" % (M.nom, mat)] = faces
@@ -1443,6 +1847,9 @@ def main():
         ok = len(M.tris) <= bud
         depasse += 0 if ok else 1
         print("  %-20s %4d / %4d %s  x[%.2f %.2f] y[%.2f %.2f] z[%.2f %.2f]" % (M.nom, len(M.tris), bud, "OK" if ok else "DEPASSE", lo[0], hi[0], lo[1], hi[1], lo[2], hi[2]))
+    if seul:                                    # L2 : un module régénéré garde sa place dans le .dat (nouvelles entrées à la fin)
+        ordre = [k for k in _lire_dat(DAT) if k in donnees]
+        donnees = {k: donnees[k] for k in ordre + [k for k in donnees if k not in ordre]}
     os.makedirs(os.path.dirname(DAT), exist_ok=True)
     with open(DAT, "wb") as f:
         f.write(struct.pack("<I", len(donnees)))
@@ -1454,7 +1861,6 @@ def main():
                     f.write(struct.pack("<7f", q.x, q.y, q.z, cc[0], cc[1], cc[2], cc[3]))
     print("objets donjon : %d modules, %d triangles, %d depassements -> %s" % (len(mods), sum(len(M.tris) for M in mods), depasse, DAT))
     print("aretes : %d -> %d triangles apres liseres" % (st.get("avant", 0), st.get("apres", 0)))
-    args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     for a in args:
         if a.startswith("apercu="):
             apercus(sorties, a[7:])

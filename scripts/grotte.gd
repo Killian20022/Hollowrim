@@ -1612,9 +1612,9 @@ func _accroches_zone(z: Dictionary) -> void:
 	for c: Dictionary in z.get("coffres", []):
 		var p: Vector3 = _poser_accroche(z, c, 0.47, 0.3, float(c.get("lacet", 0.0)), 1.1, GrotteDecor.INCLINE)
 		decor.objet_debut("coffre", c["id"])
-		decor.coffre(p, float(c.get("lacet", 0.0)))
+		var couvercle := decor.coffre(p, float(c.get("lacet", 0.0)), true, true)      # L1 : coffre qui s'ouvre (GrotteJeu pose le couvercle)
 		decor.objet_fin()
-		accroches.append({"type": "coffre", "id": c["id"], "zone": z["id"], "pos": p + Vector3(0, 0.8, 0), "lieu": p, "d": c})
+		accroches.append({"type": "coffre", "id": c["id"], "zone": z["id"], "pos": p + Vector3(0, 0.8, 0), "lieu": p, "d": c, "couvercle": couvercle})
 	for r: Dictionary in z.get("ressources", []):
 		var gr := String(r["genre"])
 		var mine := gr.begins_with("minerai")

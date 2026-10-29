@@ -25,6 +25,9 @@ static var graine_monde := GRAINE_MONDE_DEFAUT
 static var pilles := {}
 ## Objets uniques déjà pris (prendre()) : un second exemplaire est changé en pièces (valeur).
 static var uniques_pris := {}
+## Lot L3 : objets laissés dans un contenant OUVERT (fenêtre de butin fermée avant de tout prendre) : {id_contenant: {id: n}} ;
+## sauvegardé (clé « restes ») ; les pièces n'y sont jamais (versées à l'ouverture).
+static var restes := {}
 static var _tables := {}
 static var _zones := {}
 static var _charge := false
@@ -244,12 +247,23 @@ static func piller(id_contenant: String) -> void:
 static func est_pille(id_contenant: String) -> bool:
 	return pilles.has(id_contenant)
 
+## Lot L3 : objets encore dans un contenant ouvert ({} si rien) ; le dictionnaire rendu est celui de l'état (la fenêtre de butin le vide).
+static func reste(id_contenant: String) -> Dictionary:
+	return restes.get(id_contenant, {})
+
+static func a_reste(id_contenant: String) -> bool:
+	return restes.has(id_contenant) and not (restes[id_contenant] as Dictionary).is_empty()
+
 static func exporter() -> Dictionary:
 	var p: Array = pilles.keys()
 	p.sort()
 	var u: Array = uniques_pris.keys()
 	u.sort()
-	return {"graine": graine_monde, "pilles": p, "uniques": u}
+	var r := {}
+	for id in restes:
+		if not (restes[id] as Dictionary).is_empty():
+			r[id] = (restes[id] as Dictionary).duplicate()
+	return {"graine": graine_monde, "pilles": p, "uniques": u, "restes": r}
 
 ## Partie chargée. Une ancienne sauvegarde (sans « butin ») garde la graine par défaut et aucun contenant pillé.
 static func importer(d: Dictionary) -> void:
@@ -259,12 +273,22 @@ static func importer(d: Dictionary) -> void:
 		pilles[String(id)] = true
 	for id in d.get("uniques", []):
 		uniques_pris[String(id)] = true
+	var r: Variant = d.get("restes", {})
+	if r is Dictionary:
+		for id in r:
+			var o := {}
+			for k in r[id]:
+				if int(r[id][k]) > 0:
+					o[String(k)] = int(r[id][k])      # JSON : nombres relus en flottants
+			if not o.is_empty():
+				restes[String(id)] = o
 
 ## Nouvelle partie.
 static func reinitialiser() -> void:
 	graine_monde = GRAINE_MONDE_DEFAUT
 	pilles = {}
 	uniques_pris = {}
+	restes = {}
 
 # ------------------------------------------------------------------ vérification (tests)
 

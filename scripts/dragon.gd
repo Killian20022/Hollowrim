@@ -836,6 +836,7 @@ func _laisser_butin() -> void:
 	b.set_script(BUTIN)
 	b.joueur = joueur
 	b.hud = hud
+	b.nom_corps = nom_affiche       # L3 : titre de la fenêtre de butin
 	var contenu := {"pieces": randi_range(150, 300), "amulette_givre": 1}
 	if Inventaire.OBJETS.has("ecaille_dragon"):
 		contenu["ecaille_dragon"] = randi_range(2, 4)

@@ -1031,6 +1031,7 @@ func _laisser_butin() -> void:
 	b.set_script(BUTIN)
 	b.joueur = joueur
 	b.hud = hud
+	b.nom_corps = nom_affiche       # L3 : titre de la fenêtre de butin (« Fouiller » le corps)
 	b.contenu = ButinTables.contenu(ButinTables.tirer_pour("ennemi:" + (ident if ident != "" else str(get_instance_id())), table_butin()))
 	var rng := RandomNumberGenerator.new()   # or des chefs : même graine que la bourse (même chef = même somme)
 	rng.seed = ButinTables.graine("ennemi_or:" + ident)

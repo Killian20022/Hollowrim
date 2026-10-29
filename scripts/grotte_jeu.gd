@@ -3,8 +3,8 @@ extends RefCounted
 ## Gameplay d'une grotte du kit : transforme les POINTS D'ACCROCHE de Grotte.accroches (ennemis, coffres, ressources, interactions,
 ## mécanismes, lieux) en nœuds du monde, et gère leur état (sauvegarde par quetes.vus, mort du joueur, apparition progressive).
 ##
-##  - coffres : interactifs « Ouvrir » (bourse BUTIN posée au-dessus, contenu {objet: n}) ; état quetes.vus["<pref>:<id>"] ; une bourse
-##    non ramassée est perdue à la mort du joueur : le coffre se referme (comme la crypte).
+##  - coffres : interactifs « Ouvrir » (contenu {objet: n}) ; état quetes.vus["<pref>:<id>"] ; pièces au sac à l'ouverture (gerbe
+##    BUTIN), objets dans la fenêtre de butin (FenetreButin ; laissés : ButinTables.restes, « Fouiller le coffre ») ; ouvert même après la mort.
 ##  - ressources : minerais, cristaux, champignons (ids d'Inventaire.OBJETS) ; état quetes.vus["<pref>:res_<id>"].
 ##  - interactions (récit) : journal, registre… : texte (clé de quetes.texte ou lignes), objet remis, événement de quête signalé.
 ##  - mécanismes : « mur_fragile » via Mecanisme.mur_fragile (cède au coup puissant ; état géré par Mecanisme, relu à la mort).
@@ -56,6 +56,7 @@ var acces: Node3D                       # GrotteAcces (monde, joueur, dialogue, 
 var g: Grotte
 var prefixe := "grotte"
 var interactifs := {}                   # id -> nœud Interactif
+var couvercles := {}                    # L1 : id du coffre -> CoffreCouvercle (ouvert = quetes.vus["<pref>:<id>"])
 var ennemis := {}                       # id -> CharacterBody3D (apparus)
 var _file: Array = []                   # accroches d'ennemis pas encore apparues
 var _lieux: Array = []
@@ -167,7 +168,15 @@ func _etat() -> void:
 		var it: Node3D = interactifs[id]
 		var cle: String = it.get_meta("cle_etat", "")
 		if cle != "" and vus.has(cle):
-			it.actif = false
+			it.actif = it.get_meta("genre", "") == "coffre" and ButinTables.a_reste(cle)      # L3 : coffre ouvert, objets laissés
+			if it.actif:
+				it.verbe = "Fouiller le coffre"
+	for id: String in couvercles:      # L1 : coffre déjà vidé (partie chargée) = ouvert ; refermé sinon (mort avant la bourse)
+		var c: CoffreCouvercle = couvercles[id]
+		if vus.has("%s:%s" % [prefixe, id]):
+			c.ouvrir(true)
+		elif c.ouvert:
+			c.fermer()
 
 func _interactif(pos: Vector3, nom: String, verbe: String, action: Callable, condition := Callable(), unique := true, rayon := 2.3) -> Node3D:
 	var it := Node3D.new()
@@ -200,22 +209,48 @@ func _coffre(a: Dictionary) -> void:
 			butin[k] = brut[k]
 	var lieu: Vector3 = a["lieu"]
 	var it := _interactif(a["pos"], String(d.get("nom", "Coffre")), "Ouvrir le coffre", func() -> Array: return _ouvrir_coffre(id, butin, lieu),
-		func() -> bool: return not _vus().has(cle), true)
+		func() -> bool: return not _vus().has(cle) or ButinTables.a_reste(cle), false)      # L3 : objets laissés = à fouiller encore
 	it.set_meta("cle_etat", cle)
 	it.set_meta("genre", "coffre")
 	interactifs[id] = it
+	var c := CoffreCouvercle.creer(g.decor, a.get("couvercle", {}))
+	if c != null:
+		g.add_child(c)
+		couvercles[id] = c
 
 func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
-	acces.quetes.signaler("%s:%s" % [prefixe, id])
-	var b := Node3D.new()
-	b.set_script(BUTIN)
-	b.joueur = acces.joueur
-	b.hud = acces.hud
-	b.contenu = contenu.duplicate()
-	b.set_meta("coffre", id)
-	g.add_child(b)
-	b.position = lieu + Vector3(0, 0.75, 0)
-	Sons.jouer_a(g, ["doorOpen_1", "handleCoins"], g.to_global(lieu), -2.0)
+	var cle := "%s:%s" % [prefixe, id]
+	var n_or := 0
+	if not _vus().has(cle):
+		acces.quetes.signaler(cle)
+		# L2 : les pièces vont au sac à l'ouverture, elles jaillissent du coffre et volent vers le joueur (scripts/butin.gd) ;
+		# L3 : les objets restent dans le coffre (ButinTables.restes), fenêtre de butin
+		n_or = int(contenu.get("pieces", 0))
+		if n_or > 0:
+			acces.joueur.inventaire.ajouter("pieces", n_or)
+		var objets := {}
+		for k: String in contenu:
+			if k != "pieces" and int(contenu[k]) > 0:
+				objets[k] = int(contenu[k])
+		if not objets.is_empty():
+			ButinTables.restes[cle] = objets
+		var b := Node3D.new()
+		b.set_script(BUTIN)
+		b.joueur = acces.joueur
+		b.hud = acces.hud
+		b.contenu = {"pieces": n_or}
+		b.deja_verse = true
+		if couvercles.has(id):          # L1 : le couvercle bascule, une lueur chaude s'échappe
+			var cv: CoffreCouvercle = couvercles[id]
+			cv.ouvrir()
+			b.depart_global = (cv.get_parent() as Node3D).to_global(cv.lueur_pos)
+		else:
+			b.depart_global = g.to_global(lieu + Vector3(0, 0.45, 0))
+		g.add_child(b)
+		b.position = lieu
+		Sons.jouer_a(g, ["doorOpen_1", "handleCoins"], g.to_global(lieu), -2.0)
+	var it: Node3D = interactifs.get(id)
+	FenetreButin.fouiller(g, cle, String(it.nom) if it != null else "Coffre", n_or, it, acces.joueur, acces.hud)
 	return []
 
 # ------------------------------------------------------------------ ressources
@@ -426,7 +461,7 @@ func _ambiance() -> void:
 	env.fog_density = BRUME_D
 	BrumePortee.appliquer(env, 8.0, 1.6)   # brume pleine à la portée de dessin (30 m) : la coupure ne se voit plus
 
-## Mort du joueur sous terre : ennemis retirés (ceux tués dans le fichier le restent), coffres dont la bourse n'a pas été ramassée refermés.
+## Mort du joueur sous terre : ennemis retirés (ceux tués dans le fichier le restent) ; coffres ouverts : restent ouverts (lots L2-L3).
 func reinitialiser(sauves: Array) -> void:
 	acces.morts_charges = sauves.duplicate()
 	var monde: Node3D = acces.monde

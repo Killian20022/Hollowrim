@@ -205,14 +205,20 @@ func interaction(id: String, pos: Vector3, nom: String, verbe: String, genre: St
 		(modules[_m["id"]]["cibles"] as Array).append({"id": id, "pos": mw(pos)})
 	_reserves.append([Vector2(pos.x, pos.z), 0.9])
 
-## Coffre : décor + interaction (genre « coffre », identifiant fixe, butin fixe + tirage de butin["table"] s'il y en a une). style : « normal » | « force » (couvercle arraché, pillé).
+## Coffre : décor + interaction (genre « coffre », identifiant fixe, butin fixe + tirage de butin["table"] s'il y en a une). style : « normal » | « force » (couvercle arraché, pillé)
+## | « royal » (L1 : grand coffre royal 1,2 m). L1 : « normal » et « royal » s'OUVRENT : cuve fondue dans le décor, couvercle à part
+## (clé « couvercle » de l'interaction : posé par tertre._creer_interaction en CoffreCouvercle, état ouvert = quetes.vus["crypte:<id>"]).
 func coffre(id: String, pos: Vector3, lacet: float, butin: Dictionary, nom := "Coffre ferré", style := "normal") -> void:
-	pos = d._ecarter(pos, Vector2(0.47, 0.3), lacet)      # devant le soubassement (l'interaction suit le coffre)
+	var royal := style == "royal"
+	pos = d._ecarter(pos, Vector2(0.62, 0.38) if royal else Vector2(0.47, 0.3), lacet)      # devant le soubassement (l'interaction suit le coffre)
+	var couvercle := {}
 	if style == "force":
 		d.coffre_force(pos, lacet)
+	elif royal:
+		couvercle = d.coffre_royal(pos, lacet)
 	else:
-		d.coffre(pos, lacet)
-	interaction(id, pos + Vector3(0, 0.7, 0), nom, "Ouvrir le coffre", "coffre", {"butin": butin, "coffre": pos})
+		couvercle = d.coffre(pos, lacet, true, true)
+	interaction(id, pos + Vector3(0, 0.7, 0), nom, "Ouvrir le coffre", "coffre", {"butin": butin, "coffre": pos, "couvercle": couvercle})
 
 ## Demande de piège / mécanisme (exécutée par tertre, qui possède le parent, le joueur et les quêtes). Les positions sont converties en repère crypte.
 func demande_meca(genre: String, id: String, args: Dictionary) -> void:

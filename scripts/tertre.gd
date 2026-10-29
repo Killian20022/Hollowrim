@@ -42,6 +42,7 @@ var _tache_en := -1                 # fil de préparation des modèles d'ennemis
 var salles: SalleActive             # salle active du donjon : ennemis gelés / décor caché hors de la salle courante et de ses voisines
 var _cont: Node3D
 var _inter := {}                    # id -> interactif du donjon
+var _couvercles := {}               # L1 : id du coffre -> CoffreCouvercle (coffres qui s'ouvrent ; ouvert = quetes.vus["crypte:<id>"])
 var _file_gardiens: Array = []
 const BUDGET_POSE_US := 1500        # pose étalée du donjon : ≤ 1,5 ms par image
 const BUDGET_POSE_NOIR_US := 8000   # pendant le fondu au noir de l'entrée (écran noir) : on pose plus vite, sans figer l'image
@@ -399,7 +400,15 @@ func _etat_donjon() -> void:
 	for id in _inter:
 		var it: Node3D = _inter[id]
 		if it.get_meta("genre_donjon", "") == "coffre" and quetes.vus.has("crypte:" + id):
-			it.actif = false
+			it.actif = ButinTables.a_reste("crypte:" + id)      # L3 : coffre ouvert dont on a laissé des objets = à fouiller encore
+			if it.actif:
+				it.verbe = "Fouiller le coffre"
+	for id in _couvercles:          # L1 : couvercles ouverts d'un coup si le coffre est déjà vidé (partie chargée), refermés sinon
+		var c: CoffreCouvercle = _couvercles[id]
+		if quetes.vus.has("crypte:" + id):
+			c.ouvrir(true)
+		elif c.ouvert:
+			c.fermer()
 	for id in ["s1", "s2"]:
 		if quetes.vus.has("crypte:" + id) and donjon.portes.has(id):
 			(donjon.portes[id] as Node3D).position.y = 3.2
@@ -476,10 +485,16 @@ func _creer_interaction(it: Dictionary) -> void:
 			var butin: Dictionary = it["butin"]
 			var lieu: Vector3 = it["coffre"]
 			action = func() -> Array: return _ouvrir_coffre(id, butin, lieu)
-			cond = func() -> bool: return not quetes.vus.has("crypte:" + id)
-	var n := _interactif(crypte, it["pos"], it["nom"], it["verbe"], action, cond, genre == "coffre")
+			cond = func() -> bool: return not quetes.vus.has("crypte:" + id) or ButinTables.a_reste("crypte:" + id)   # L3 : objets laissés
+	var n := _interactif(crypte, it["pos"], it["nom"], it["verbe"], action, cond, false)
 	n.set_meta("genre_donjon", genre)
 	_inter[id] = n
+	var cv: Dictionary = it.get("couvercle", {})
+	if not cv.is_empty():           # L1 : couvercle du coffre, sous le nœud du donjon (classé par salle avec le reste du décor)
+		var c := CoffreCouvercle.creer(d2, cv)
+		if c != null:
+			_cont.add_child(c)
+			_couvercles[id] = c
 
 func _ouvrir_porte(id: String) -> Array:
 	quetes.signaler("crypte:" + id)
@@ -521,16 +536,38 @@ func _choisir(choix: String) -> Array:
 	return quetes.texte("choix_piller" if choix == "piller_offrandes" else "choix_respecter")
 
 func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
-	quetes.signaler("crypte:" + id)
-	var b := Node3D.new()
-	b.set_script(BUTIN)
-	b.joueur = joueur
-	b.hud = hud
-	b.contenu = contenu.duplicate()
-	b.set_meta("coffre", id)         # pour rendre le coffre si le joueur meurt avant d'avoir ramassé la bourse
-	crypte.add_child(b)
-	b.position = lieu + Vector3(0, 0.7, 0)
-	Sons.jouer_a(self, ["doorOpen_1", "handleCoins"], crypte.to_global(lieu), -2.0)
+	var cle := "crypte:" + id
+	var n_or := 0
+	if not quetes.vus.has(cle):
+		quetes.signaler(cle)
+		# L2 : les pièces vont au sac À L'OUVERTURE (ni bourse à ramasser ni perte possible), elles jaillissent du coffre et sont
+		# aspirées vers le joueur (scripts/butin.gd, deja_verse) ; L3 : les objets restent dans le coffre, fenêtre de butin
+		n_or = int(contenu.get("pieces", 0))
+		if n_or > 0:
+			joueur.inventaire.ajouter("pieces", n_or)
+		var objets := {}
+		for k: String in contenu:
+			if k != "pieces" and int(contenu[k]) > 0:
+				objets[k] = int(contenu[k])
+		if not objets.is_empty():
+			ButinTables.restes[cle] = objets
+		var b := Node3D.new()
+		b.set_script(BUTIN)
+		b.joueur = joueur
+		b.hud = hud
+		b.contenu = {"pieces": n_or}
+		b.deja_verse = true
+		if _couvercles.has(id):         # L1 : le couvercle bascule, une lueur chaude s'échappe
+			var cv: CoffreCouvercle = _couvercles[id]
+			cv.ouvrir()
+			b.depart_global = (cv.get_parent() as Node3D).to_global(cv.lueur_pos)
+		else:
+			b.depart_global = crypte.to_global(lieu + Vector3(0, 0.45, 0))
+		crypte.add_child(b)
+		b.position = lieu
+		Sons.jouer_a(self, ["doorOpen_1", "handleCoins"], crypte.to_global(lieu), -2.0)
+	var it: Node3D = _inter.get(id)
+	FenetreButin.fouiller(self, cle, String(it.nom) if it != null else "Coffre", n_or, it, joueur, hud)
 	return []
 
 ## Toutes les 0,25 s : lumières (et gardiens du donjon) selon la position du joueur. Seules les lumières proches sont allumées
@@ -896,7 +933,7 @@ func restaurer(herse_ouverte: bool) -> void:
 
 ## Mort du joueur sous terre : la crypte revient à un état cohérent avec la sauvegarde. Les gardiens tués ne restent morts que
 ## s'ils le sont dans le fichier de sauvegarde (`morts` : liste imposée, sinon lue dans le fichier) ; les autres sont retirés
-## puis remis dans la file d'apparition. Une bourse de coffre non ramassée est perdue : le coffre se referme (rejouable).
+## puis remis dans la file d'apparition. Coffres ouverts : restent ouverts (pièces déjà au sac, objets laissés dans ButinTables.restes).
 ## Portes, herse et mur secret suivent les événements des quêtes (qui, eux, restent acquis, comme l'inventaire).
 func reinitialiser(morts: Variant = null) -> void:
 	if not dedans:

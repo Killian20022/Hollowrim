@@ -1186,6 +1186,7 @@ func _neige() -> void:
 	neige.global_position = joueur.global_position + Vector3(0, 10, 0)
 
 var inventaire_ui: InventaireMains
+var fenetre_butin: FenetreButin
 func _interface() -> void:
 	calque = CanvasLayer.new()
 	add_child(calque)
@@ -1207,6 +1208,10 @@ func _interface() -> void:
 	inventaire_ui.joueur = joueur
 	inventaire_ui.hud = hud
 	add_child(inventaire_ui)
+	fenetre_butin = FenetreButin.new()   # lot L3 : fenêtre de butin (coffres, corps) : scripts/fenetre_butin.gd
+	fenetre_butin.joueur = joueur
+	fenetre_butin.hud = hud
+	add_child(fenetre_butin)
 	var pause := CanvasLayer.new()   # menu pause (Échap) : scripts/menu_pause.gd
 	pause.set_script(preload("res://scripts/menu_pause.gd"))
 	pause.monde = self
@@ -1738,6 +1743,8 @@ func _lot_captures(fichier: String) -> void:
 		else:
 			push_error("--captures : type inconnu « %s » (vue %s)" % [type, v["nom"]])
 			continue
+		if type == "crypte" or type == "grotte":
+			_capture_coffres(opt, type)      # lot L1 : coffres=id:etat,… et face=id[:distance[:azimut°[:hauteur]]]
 		joueur.mains.torche_lumiere.light_cull_mask = 0 if opt.has("torche-eteinte") else torche_masque
 		joueur.mains.visible = not (mains_globales or opt.has("sans-mains"))
 		if opt.has("mains"):     # mains=repos|armer|frappe|garde|… : pose figée de l'épée à la 1re personne (comme --mains=)
@@ -1775,6 +1782,42 @@ func _lot_captures(fichier: String) -> void:
 		print("CAPTURE ", v["nom"], " (", type, ") joueur=", joueur.global_position)
 	print("LOT : %d captures en %.1f s" % [n, (Time.get_ticks_msec() - t0) / 1000.0])
 	get_tree().quit()
+
+## Lot L1 (captures) : `coffres=cof_prep:0.25,cof_g2:ouvert,camp_a:ferme` fige chaque couvercle (ferme | ouvert | temps en s de
+## l'ouverture, lueur et halo compris) ; `face=cof_prep[:1.7[:20[:0]]]` place le joueur devant ce coffre (distance, azimut depuis la
+## face avant, œil abaissé de m) et le fait regarder l'intérieur de la cuve.
+func _capture_coffres(opt: Dictionary, type: String) -> void:
+	var cv: Dictionary = tertre._couvercles if type == "crypte" else (grotte_acces.jeu.couvercles if grotte_acces.jeu != null else {})
+	if opt.has("coffres"):
+		for e: String in String(opt["coffres"]).split(","):
+			var kv := e.split(":")
+			var c: CoffreCouvercle = cv.get(kv[0])
+			if c == null:
+				push_error("--captures : coffre inconnu " + kv[0])
+				continue
+			if kv.size() < 2 or kv[1] == "ouvert":
+				c.ouvrir(true)
+			elif kv[1] == "ferme":
+				c.fermer()
+			else:
+				c.figer(float(kv[1]))
+	if opt.has("face"):
+		var f := String(opt["face"]).split(":")
+		var c: CoffreCouvercle = cv.get(f[0])
+		if c == null:
+			push_error("--captures : coffre inconnu " + f[0])
+			return
+		var centre: Vector3 = (c.get_parent() as Node3D).to_global(c.lueur_pos)
+		var avant := c.global_basis.z
+		avant.y = 0.0
+		avant = avant.normalized().rotated(Vector3.UP, deg_to_rad(float(f[2]) if f.size() > 2 else 0.0))
+		var pos := centre + avant * (float(f[1]) if f.size() > 1 else 1.7)
+		pos.y = centre.y - 0.45 + 0.1 - (float(f[3]) if f.size() > 3 else 0.0)      # pieds au sol du coffre (lueur à ~0,45 m)
+		joueur.global_position = pos
+		var v := centre - pos
+		joueur.rotation.y = atan2(-v.x, -v.z)
+		joueur.tete.rotation.x = atan2(centre.y - (pos.y + 1.62), Vector2(v.x, v.z).length())
+		joueur.velocity = Vector3.ZERO
 
 func _etat_lumiere() -> Dictionary:
 	return {
