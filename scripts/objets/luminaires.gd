@@ -89,7 +89,8 @@ static func applique(dcr: CrypteDecor, plan_mur: Vector3, vers: Vector3, haut :=
 	var d := vers.normalized()
 	var lacet := atan2(d.x, d.z)
 	var p := Vector3(plan_mur.x, haut, plan_mur.z)
-	poser(dcr, "applique_fer", p, lacet)
+	# fer MAT et assombri : le fer brillant (teinte 1,3 + lustre) saturait vers le blanc près de la flamme
+	poser(dcr, "applique_fer", p, lacet, Vector3.ONE, {"fer": "fer_mat", "@fer": Color(0.55, 0.55, 0.58)})
 	dcr.flamme(p + d * 0.32 + Vector3(0, 0.2, 0), 1.6)
 	dcr.carte("halo", p + d * 0.13 + Vector3(0, 0.3, 0), d, 1.4, 1.4)
 	if avec_lumiere:
