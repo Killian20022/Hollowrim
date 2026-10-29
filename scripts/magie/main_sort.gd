@@ -489,8 +489,18 @@ func _runes_vers(m: String, ecole: String, k: float) -> void:
 			g.echelles_aura.erase(id)
 
 ## Tenue « runes » des avant-bras : sort au repos et l'autre main sans arme (sort ou vide).
+## Retour utilisateur 2026-10-29 (« mains de robots », pince / griffe) : tenue coupée ; à deux sorts, chaque main prend
+## la pose de la main qui tient un sort seule (paume ouverte, doigts détendus), plus basse et plus écartée (DEUX_SORTS).
+const TENUE_RUNES := false
 func _tenue_runes(m: String) -> bool:
-	return inc[m].etat == Incantation.REPOS and eq.categorie(eq.autre(m)) in ["sort", "vide"]
+	return TENUE_RUNES and inc[m].etat == Incantation.REPOS and eq.categorie(eq.autre(m)) in ["sort", "vide"]
+
+## Deux sorts au repos (tenue runes coupée) : la pose « repos » de chaque main, décalée vers le coin bas de l'écran
+## (repère caméra, main gauche ; miroir en X à droite) et un peu plus ouverte.
+const DEUX_SORTS_DECALAGE := Vector3(-0.05, -0.035, 0.0)
+const DEUX_SORTS_FERMETURE := -0.06
+func _deux_sorts_repos(m: String) -> bool:
+	return not TENUE_RUNES and inc[m].etat == Incantation.REPOS and eq.categorie(eq.autre(m)) in ["sort", "vide"]
 
 ## Œil et direction de visée (caméra du joueur).
 func _vue() -> Array:
@@ -705,6 +715,11 @@ func _pose_voulue(m: String, dt := 0.0) -> Dictionary:
 	var capture := not p.is_empty()
 	if not capture:
 		p = PosesIncantation.pour(i.nom(), s.profil if s != null else "paume", i.charge, i.depuis_lancement, i.t, m)
+		if _deux_sorts_repos(m):
+			p = p.duplicate()
+			var dx := DEUX_SORTS_DECALAGE
+			p["pos"] = Vector3(p["pos"]) + Vector3(dx.x * (1.0 if m == "gauche" else -1.0), dx.y, dx.z)
+			p["fermeture"] = maxf(float(p["fermeture"]) + DEUX_SORTS_FERMETURE, 0.0)
 	var w := smoothstep(0.0, 1.0, float(_tenue_w[m]))
 	if w > 0.0:
 		# au repos sans arme dans l'autre main : tenue « runes » des avant-bras (mains vers le centre, énergie tenue en
