@@ -35,7 +35,9 @@ const MEMBRES := {
 }
 
 ## Chances de démembrement à la mort par l'épée (niveau complet ; × CHANCE_REDUIT au niveau « réduit »).
-const CHANCE := {"legere": 0.35, "titubante": 0.35, "lourde": 0.6, "recul": 0.6, "chute": 0.6, "puissant": 1.0, "finisher": 1.0}
+const CHANCE := {"legere": 0.35, "titubante": 0.35, "lourde": 0.6, "recul": 0.6, "chute": 0.6, "puissant": 1.0}
+## Coup puissant : part des coupes en deux (les autres fois, membre selon la hauteur et le sens de la lame). Avis du 2026-10-29.
+const PART_MOITIE := 1.0 / 3.0
 const CHANCE_REDUIT := 0.5
 ## Couleurs des capuchons (chair, lèvre de la plaie, os) par matière de corps.
 const CHAIRS := {
@@ -108,8 +110,9 @@ static func choisir(combat: CombatEnnemi, r: Dictionary, sorte: String) -> Strin
 	if niv == 0 or combat == null or not profil_demembrable(combat.profil) or combat.modele == null:
 		return ""
 	var i: Dictionary = r.get("info", {})
-	# coups d'arme blanche du joueur seulement (mains.gd : « instant », « charge ») et finishers ; pas les flèches ni les pièges
-	if i.is_empty() or not (i.has("instant") or i.has("charge") or String(i.get("attaque", "")) == "finisher"):
+	# coups d'arme blanche du joueur seulement (mains.gd : « instant », « charge ») ; pas les flèches ni les pièges ; les finishers
+	# gardent leur mort propre (décapitation, épée plantée : le corps reste entier)
+	if i.is_empty() or not (i.has("instant") or i.has("charge")) or String(i.get("attaque", "")) == "finisher":
 		return ""
 	if i.has("ecole") or bool(i.get("continu", false)) or String(i.get("type", "tranchant")) != "tranchant":
 		return ""   # sorts, coups contondants : pas de membre tranché (étape 2 : feu, glace)
@@ -120,28 +123,23 @@ static func choisir(combat: CombatEnnemi, r: Dictionary, sorte: String) -> Strin
 		return ""
 	if membre_force != "":
 		return membre_force
-	if String(i.get("attaque", "")) == "finisher":
-		# finisher (hors décapitation) : coupé en deux au retrait de la lame ; jamais au sol ni cloué (coup de grâce plongé)
-		if String(r.get("finisher", i.get("categorie", ""))) == "sol" or String(i.get("mort_finisher", "")) == "cloue":
-			return ""
-		return "moitie" if niv == 2 else "bras_" + ("l" if _rng.randf() < 0.5 else "r")
-	return membre_du_coup(combat.corps, combat.modele, combat.hauteur, i, sorte in ["puissant", "finisher"], niv)
+	if sorte == "puissant" and niv == 2 and _rng.randf() < PART_MOITIE and peut(combat.modele, "moitie"):
+		return "moitie"
+	return membre_du_coup(combat.corps, combat.modele, combat.hauteur, i)
 
-## Membre visé d'après la hauteur et le sens de la lame : horizontal haut → tête ; coup puissant / finisher horizontal au
-## buste → coupe en deux ; diagonale → bras (le plus proche du point) ; bas → jambe (mollet si très bas).
-static func membre_du_coup(corps: Node3D, modele: Node3D, hauteur: float, i: Dictionary, fort: bool, niv := 2) -> String:
+## Membre visé d'après la hauteur et le sens de la lame : horizontal haut → tête ; diagonale / buste → bras (le plus proche
+## du point) ; bas → jambe (mollet si très bas). La coupe en deux est tirée à part (coup puissant, PART_MOITIE).
+static func membre_du_coup(corps: Node3D, modele: Node3D, hauteur: float, i: Dictionary) -> String:
 	var point: Vector3 = i.get("point", corps.global_position + Vector3.UP * hauteur * 0.6)
 	var dir: Vector3 = i.get("direction", Vector3.ZERO)
 	var rel := (point.y - corps.global_position.y) / maxf(hauteur, 0.5)
 	var vertical := absf(dir.normalized().y) if dir.length() > 0.01 else 0.4
 	var zone := String(i.get("zone", ""))
 	var choix := ""
-	if zone == "tete" or rel >= 0.8 or (rel >= 0.68 and vertical < 0.35 and not fort):
+	if zone == "tete" or rel >= 0.8 or (rel >= 0.68 and vertical < 0.35):
 		choix = "tete"
 	elif zone == "jambes" or rel < 0.42:
 		choix = ("mollet_" if rel < 0.24 else "jambe_") + _cote(corps, modele, point, "thigh")
-	elif fort and vertical < 0.5 and niv == 2:
-		choix = "moitie"
 	else:
 		var c := _cote(corps, modele, point, "upperarm")
 		var avant := _plus_proche_de(modele, point, "lowerarm_" + c, "upperarm_" + c)
@@ -308,7 +306,7 @@ static func trancher(modele: Node3D, membre: String, impulsion: Vector3, couleur
 		if accroche_corps != null:
 			Jets.lancer(accroche_corps, t_moignon, mat_jet, couleur, duree_jet, 1.5 if membre == "moitie" else 1.0)
 		Jets.lancer(sk, t_bout_morceau, mat_jet, couleur, duree_jet * 0.35, 0.7)
-		GerbePixels.emettre(modele, t_racine.origin, dir_coup, mat_jet, 2.4)
+		GerbePixels.emettre(modele, t_racine.origin, dir_coup, mat_jet, 1.7 * attenuation_camera(modele, t_racine.origin))
 		# éclaboussures au sol et sur le mur proche, dans le sens du coup (traces plafonnées de Sang)
 		Sang._traces_giclee(modele, t_racine.origin, impulsion.normalized(), 2.2 if niveau() == 2 else 1.0, couleur, niveau())
 		_traces_morceau(rb, couleur)
@@ -330,6 +328,13 @@ static func trancher(modele: Node3D, membre: String, impulsion: Vector3, couleur
 	modele.set_meta("morceau_" + membre, rb)
 	coupes += 1
 	return rb
+
+## Allègement des gerbes tout près de la caméra (elles masquaient le corps) : 0,4 à moins de 1,8 m, 1 au-delà de 4 m.
+static func attenuation_camera(n: Node, point: Vector3) -> float:
+	var cam := n.get_viewport().get_camera_3d() if n != null and n.is_inside_tree() else null
+	if cam == null:
+		return 1.0
+	return clampf(remap(cam.global_position.distance_to(point), 1.8, 4.0, 0.4, 1.0), 0.4, 1.0)
 
 static func _sous_arbre(sq: Skeleton3D, os: int, garde: int, dans: Dictionary) -> void:
 	if os == garde:

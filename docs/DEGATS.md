@@ -219,11 +219,12 @@ de givre (sans chute, se brise sur le décor). Scène : `scenes/test_troll_mage.
 
 `Demembrement.choisir(combat, r, sorte)` à la mort (draugr.gd `_mourir`), coups d'arme blanche tranchante du joueur seulement
 (info de mains.gd : « instant » / « charge » ; ni flèches, ni pièges, ni sorts, ni masses) :
-- chance : 35 % coup normal, 60 % lourd / recul / chute, 100 % coup puissant et finisher ; option « réduit » × 0,5 ; tirages sur
+- chance : 35 % coup normal, 60 % lourd / recul / chute, 100 % coup puissant ; option « réduit » × 0,5 ; tirages sur
   un générateur propre (le hasard global des salles et du butin n'est pas consommé) ;
 - membre : point ≥ 80 % de la taille (ou zone tête, ou horizontal ≥ 68 %) → tête ; < 42 % → jambe (mollet sous 24 %), côté le plus
-  proche ; coup puissant horizontal au buste → coupe en deux (pas en « réduit ») ; sinon bras / avant-bras le plus proche ;
-- finishers : décapitation inchangée ; les autres → coupe en deux (bras en « réduit »), sauf coup de grâce au sol / cloué ;
+  proche ; sinon bras / avant-bras le plus proche ;
+- coupe en deux : coup puissant SEULEMENT, 1 fois sur 3 (avis utilisateur 2026-10-29), jamais en « réduit » ;
+- finishers : inchangés (décapitation ; épée plantée, dos, pommeau, plongé : corps entier) ;
 - technique : aucun maillage prédécoupé. Corps : os écrasé (échelle 0,002) par un modificateur placé après le ragdoll ; bassin de la
   coupe en deux écrasé SEUL (enfant `spine_01` compensé : position et échelle ÷ 0,002). Morceau : copie des maillages, peau
   B' = P_racine⁻¹ · P_os · B (pose du moment), autres attaches écrasées sur la coupe ; armes accrochées aux os du morceau partent avec ;
@@ -232,5 +233,6 @@ de givre (sans chute, se brise sur le décor). Scène : `scenes/test_troll_mage.
 - plafonds : 6 morceaux, 6 jets, 48 traces (`Sang.MAX_TRACES`, disparition lente : la trace se résorbe en 6 s) ;
 - réglages de test : `Demembrement.chance_forcee`, `membre_force`, `duree` ; `outils/test_demembrement.gd`, planches et film :
   `outils/captures_demembrement.gd`.
+Gerbes allégées tout près de la caméra (`Demembrement.attenuation_camera` : × 0,4 à moins de 1,8 m) à la coupe et à la mort.
 Plaies (entailles) : décal plus fin (taille × 0,5 en hauteur, 26 cm de profondeur au lieu de 50), lèvres en couleur de palette
 (`Plaies.couleur_levres`), texture « entaille » redessinée (fente noire, lèvres d'un texel, coulures).

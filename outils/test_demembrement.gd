@@ -123,15 +123,14 @@ func _lancer() -> void:
 		await physics_frame
 	var c: CombatEnnemi = d0.combat
 	var h := c.hauteur
-	var m := func(rel: float, dir: Vector3, fort: bool, lat := 0.0, niv := 2) -> String:
-		return Demembrement.membre_du_coup(d0, d0.modele, h, _info(d0, rel, dir, "legere", lat), fort, niv)
+	var m := func(rel: float, dir: Vector3, _fort: bool, lat := 0.0) -> String:
+		return Demembrement.membre_du_coup(d0, d0.modele, h, _info(d0, rel, dir, "legere", lat))
 	ok(m.call(0.84, Vector3(1, 0, 0), false) == "tete", "horizontal haut (cou) → tête (%s)" % m.call(0.84, Vector3(1, 0, 0), false))
 	ok(String(m.call(0.3, Vector3(1, -0.2, 0), false)).begins_with("jambe_"), "bas → jambe (%s)" % m.call(0.3, Vector3(1, -0.2, 0), false))
 	ok(String(m.call(0.12, Vector3(1, 0, 0), false)).begins_with("mollet_"), "très bas → mollet (%s)" % m.call(0.12, Vector3(1, 0, 0), false))
 	var diag: String = m.call(0.62, Vector3(1, -0.8, 0), false, 0.22)
 	ok(diag.begins_with("bras_") or diag.begins_with("avantbras_"), "diagonale au buste → bras (%s)" % diag)
-	ok(m.call(0.55, Vector3(1, -0.1, 0), true) == "moitie", "coup puissant horizontal au buste → coupe en deux (%s)" % m.call(0.55, Vector3(1, -0.1, 0), true))
-	ok(m.call(0.55, Vector3(1, -0.1, 0), true, 0.0, 1) != "moitie", "niveau réduit : pas de coupe en deux (%s)" % m.call(0.55, Vector3(1, -0.1, 0), true, 0.0, 1))
+	ok(m.call(0.55, Vector3(1, -0.1, 0), true) != "moitie", "le choix par la hauteur ne coupe jamais en deux (%s)" % m.call(0.55, Vector3(1, -0.1, 0), true))
 	var dl: String = m.call(0.62, Vector3(1, -0.8, 0), false, 0.25)
 	var dr: String = m.call(0.62, Vector3(1, -0.8, 0), false, -0.25)
 	ok(dl.right(1) != dr.right(1), "le côté suit le point d'impact (%s / %s)" % [dl, dr])
@@ -156,6 +155,31 @@ func _lancer() -> void:
 			n_fort += 1
 	ok(n_leger > 100 and n_leger < 180, "coup normal : ~35 %% de démembrements (%d / 400)" % n_leger)
 	ok(n_fort == 400, "coup puissant : toujours (%d / 400)" % n_fort)
+	# coupe en deux : coup puissant seulement, 1 fois sur 3 ; jamais sur un coup normal, lourd, ni en niveau réduit ; finishers : rien
+	var n_moitie := 0
+	var n_moitie_autre := 0
+	var n_moitie_reduit := 0
+	for k in 600:
+		if Demembrement.choisir(c, r_epee, "puissant") == "moitie":
+			n_moitie += 1
+		if Demembrement.choisir(c, r_epee, "lourde") == "moitie" or Demembrement.choisir(c, r_epee, "legere") == "moitie":
+			n_moitie_autre += 1
+	Sang.niveau_force = 1
+	for k in 200:
+		if Demembrement.choisir(c, r_epee, "puissant") == "moitie":
+			n_moitie_reduit += 1
+	Sang.niveau_force = 2
+	ok(n_moitie > 150 and n_moitie < 250, "coup puissant : ~1 coupe en deux sur 3 (%d / 600)" % n_moitie)
+	ok(n_moitie_autre == 0, "coup normal ou lourd : jamais coupé en deux (%d)" % n_moitie_autre)
+	ok(n_moitie_reduit == 0, "niveau réduit : pas de coupe en deux (%d)" % n_moitie_reduit)
+	var r_fin := r_epee.duplicate(true)
+	r_fin["info"]["attaque"] = "finisher"
+	r_fin["info"]["mort_finisher"] = "effondre"
+	var n_fin := 0
+	for k in 50:
+		if Demembrement.choisir(c, r_fin, "finisher") != "":
+			n_fin += 1
+	ok(n_fin == 0, "finishers (épée plantée, dos, pommeau) : corps entier (%d)" % n_fin)
 	seed(4242)
 	var a1 := randf()
 	seed(4242)
