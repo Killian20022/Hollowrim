@@ -20,6 +20,12 @@ uniform float turb = 3.0;         // turbulence (m/s²)
 uniform vec4 arret = vec4(0.0, 0.0, 0.0, 0.0);   // xyz = point touché (monde), w = 1 si le jet touche quelque chose
 uniform vec3 arret_dir = vec3(0.0, 0.0, -1.0);   // direction du jet (monde) au point touché
 uniform float etale = 3.0;        // vieillissement après l'impact (×)
+// SOUS-PAS d'émission : repère de l'émetteur à l'image précédente et durée de l'image. Chaque bouffée naît à un instant
+// tiré dans l'image écoulée : origine et direction interpolées entre les deux repères, déjà avancée du temps écoulé.
+// Le jet reste d'un seul tenant même quand on tourne vite (plus de chapelet image par image).
+uniform vec3 prec_o = vec3(0.0);
+uniform mat3 prec_base = mat3(1.0);
+uniform float pas = 0.016;
 
 float h1(uint n) {
 	n = (n << 13u) ^ n;
@@ -36,15 +42,20 @@ void start() {
 	vec3 d = normalize(vec3(cos(th) * rr, sin(th) * rr, -1.0));
 	float v = vitesse * (0.78 + 0.44 * rc);
 	vec3 p = vec3(cos(th) * 0.02 * rd, sin(th) * 0.02 * rd, -0.04);
+	float rs = h1(b + 6u);                     // 0 = maintenant, 1 = début de l'image écoulée
+	float dt0 = rs * min(pas, 0.05);
+	mat3 bc = mat3(EMISSION_TRANSFORM[0].xyz, EMISSION_TRANSFORM[1].xyz, EMISSION_TRANSFORM[2].xyz);
+	vec3 vw = normalize(mix(bc * d, prec_base * d, rs)) * v;
+	vec3 ow = mix(EMISSION_TRANSFORM[3].xyz, prec_o, rs) + mix(bc * p, prec_base * p, rs);
 	if (RESTART_POSITION) {
-		TRANSFORM = EMISSION_TRANSFORM * mat4(vec4(taille0, 0.0, 0.0, 0.0), vec4(0.0, taille0, 0.0, 0.0),
-			vec4(0.0, 0.0, taille0, 0.0), vec4(p, 1.0));
+		TRANSFORM = mat4(vec4(taille0, 0.0, 0.0, 0.0), vec4(0.0, taille0, 0.0, 0.0), vec4(0.0, 0.0, taille0, 0.0),
+			vec4(ow + vw * dt0, 1.0));
 	}
 	if (RESTART_VELOCITY) {
-		VELOCITY = (EMISSION_TRANSFORM * vec4(d * v, 0.0)).xyz;
+		VELOCITY = vw;
 	}
 	if (RESTART_CUSTOM) {
-		CUSTOM = vec4(rd * 37.0, 0.0, ra * 6.2831853, (re - 0.5) * 5.0);
+		CUSTOM = vec4(rd * 37.0, dt0 / LIFETIME, ra * 6.2831853, (re - 0.5) * 5.0);
 	}
 	if (RESTART_COLOR) {
 		COLOR = vec4(re, rc, 0.0, 1.0);
@@ -88,12 +99,12 @@ void process() {
 	}
 	CUSTOM.z += CUSTOM.w * DELTA * (1.0 - 0.6 * a);
 	// taille : gonfle vite au départ puis plus lentement (la flamme s'ouvre), chaque bouffée à sa mesure
-	float sz = mix(taille0, taille1, pow(min(a, 1.0), 0.8)) * (0.7 + 0.6 * COLOR.g);
+	float sz = mix(taille0, taille1, pow(min(a, 1.0), 0.6)) * (0.7 + 0.6 * COLOR.g);
 	// étirement dans le sens de la vitesse : les bouffées jeunes et rapides sont des LANGUES qui filent (le jet est
 	// continu à la sortie de la main), les vieilles, freinées, s'arrondissent. Axe Y = vitesse × étirement ; X = rayon.
 	float vl = length(VELOCITY);
 	vec3 vd = vl > 0.001 ? VELOCITY / vl : vec3(0.0, 0.0, -1.0);
-	float el = 1.0 + clamp(vl * 0.16, 0.0, 2.6);
+	float el = 1.0 + clamp(vl * 0.26, 0.0, 4.2);
 	vec3 ax = abs(vd.y) < 0.95 ? normalize(cross(vd, vec3(0.0, 1.0, 0.0))) : vec3(1.0, 0.0, 0.0);
 	TRANSFORM[0].xyz = ax * sz;
 	TRANSFORM[1].xyz = vd * sz * el;

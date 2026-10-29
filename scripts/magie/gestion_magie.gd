@@ -56,7 +56,7 @@ const AURA_PAL := {
 const VAGUE_PORTEE := 10.5
 const VAGUE_VIE := 1.15
 const VAGUE_TRAINE := 1.25
-const VAGUE_N := 66
+const VAGUE_N := 88
 const AURA_ECOLE := {"feu": 0, "glace": 1, "electricite": 2, "tenebres": 3, "soin": 4, "protection": 5}
 ## Rayon (m) de l'aura procédurale de la main, par école (paume à ~0,45 m de l'œil).
 const AURA_RAYON := {"feu": 0.12, "glace": 0.12, "electricite": 0.11, "tenebres": 0.12, "soin": 0.09, "protection": 0.09}
@@ -1499,7 +1499,7 @@ func _vague_creer(dbl: bool) -> GPUParticles3D:
 	pm.set_shader_parameter("traine", k)
 	pm.set_shader_parameter("vitesse", VAGUE_PORTEE * (1.15 if dbl else 1.0) * k / (1.0 - exp(-k * VAGUE_VIE)))
 	pm.set_shader_parameter("ecart", 0.11 if dbl else 0.085)
-	pm.set_shader_parameter("taille1", 0.9 if dbl else 0.85)
+	pm.set_shader_parameter("taille1", 0.8 if dbl else 0.75)
 	p.process_material = pm
 	p.material_override = _mat_vague()
 	p.visible = not sans_procedural and not OS.get_cmdline_user_args().has("--sans-flux")
@@ -1510,8 +1510,14 @@ func _vague_creer(dbl: bool) -> GPUParticles3D:
 
 func _vague_placer(j: Dictionary, o: Vector3, b: Basis, fin: Vector3, vers: Vector3) -> void:
 	var p: GPUParticles3D = j.vague
-	p.global_transform = Transform3D(b, o)
 	var pm := p.process_material as ShaderMaterial
+	# sous-pas d'émission : repère de l'image précédente (le shader interpole la naissance des bouffées entre les deux)
+	var prec: Transform3D = j.get("vague_prec", Transform3D(b, o))
+	pm.set_shader_parameter("prec_o", prec.origin)
+	pm.set_shader_parameter("prec_base", prec.basis)
+	pm.set_shader_parameter("pas", get_process_delta_time())
+	p.global_transform = Transform3D(b, o)
+	j.vague_prec = p.global_transform
 	# plan d'arrêt : un peu avant la surface (la vague s'y écrase et la lèche), sur la cible : à son centre
 	var touche: bool = j.touche
 	pm.set_shader_parameter("arret", Vector4(fin.x, fin.y, fin.z, 1.0 if touche else 0.0))

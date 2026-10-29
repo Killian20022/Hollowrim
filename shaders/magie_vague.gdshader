@@ -32,6 +32,7 @@ varying vec2 v_haut;    // haut du monde à l'écran
 varying vec4 v_c;       // graine, âge, rotation
 varying vec2 v_ax;      // axe d'étirement à l'écran (sens de la vitesse)
 varying float v_rl;     // demi-longueur en pixels le long de l'axe
+varying float v_proche_d; // distance à l'œil (m)
 varying float v_proche; // 0 tout contre l'œil (pas de voile pâle sur la main), 1 au-delà de ~0,8 m
 
 void vertex() {
@@ -50,13 +51,13 @@ void vertex() {
 	float m = max(magie_echelle, 1.0);
 	float rpx = s * abs(PROJECTION_MATRIX[1][1]) / w * vp.y * 0.5;
 	// trop près de l'œil (bouffée qui naît dans la paume) : pas de carré géant
-	rpx = min(rpx, vp.y * 0.2);
+	rpx = min(rpx, vp.y * 0.15);
 	// étirement vu à l'écran : de face (vitesse vers l'œil) la bouffée reste ronde, de profil c'est une langue
 	vec2 pa = (ca.xy / max(ca.w, 0.0001) * 0.5 + 0.5) * vp;
 	vec2 da = ca.w > 0.0001 ? pa - pc : vec2(0.0);
 	float la = length(da);
 	vec2 ax = la > 0.001 ? da / la : vec2(0.0, 1.0);
-	float rl = clamp(la, rpx, rpx * 3.6);
+	float rl = clamp(la, rpx, rpx * 5.2);
 	// centre calé sur la grille des pixels du MONDE : le motif ne glisse pas d'un sous-pixel à l'autre
 	vec2 c = (floor(pc / m) + 0.5) * m;
 	vec2 off = vec2(-ax.y, ax.x) * VERTEX.x * 2.0 * (rpx + m) + ax * VERTEX.y * 2.0 * (rl + m);
@@ -66,9 +67,10 @@ void vertex() {
 	v_px = off;
 	v_rpx = max(rpx, 0.5);
 	v_c = INSTANCE_CUSTOM;
-	v_proche = smoothstep(0.32, 0.75, cc.w);
+	v_proche = step(0.5, cc.w);
+	v_proche_d = cc.w;
 	// (et contre l'œil, où la bouffée serait de toute façon effacée : on n'en paie pas les pixels)
-	if (s < 0.000001 || INSTANCE_CUSTOM.y >= 1.0 || cc.w < 0.32) {
+	if (s < 0.000001 || INSTANCE_CUSTOM.y >= 1.0 || cc.w < 0.5) {
 		POSITION = vec4(0.0, 0.0, 2.0, 1.0);   // particule inactive : hors du volume de vue
 	}
 }
@@ -120,12 +122,19 @@ void fragment() {
 	float ff = smoothstep(0.15, 0.85, fract(fa));
 	float ia = mod(fi, 4.0), ib = mod(fi + 1.0, 4.0);
 	float flamme = mix(texture(formes, (up + vec2(ia, 0.0)) / vec2(4.0, 3.0)).r, texture(formes, (up + vec2(ib, 0.0)) / vec2(4.0, 3.0)).r, ff);
-	float fum = texture(formes, (up + vec2(mod(floor(g * 7.0), 4.0), 1.0)) / vec2(4.0, 3.0)).r;
-	// langue : repère de la vitesse (pointe en avant), ondule
-	vec2 ul = clamp(vec2(qa.x * 0.3 + 0.5 + (w.x - 0.5) * 0.2, 0.5 - qa.y * 0.5), vec2(0.01), vec2(0.99));
-	float langue = texture(formes, (ul + vec2(mod(floor(g * 5.0), 2.0), 2.0)) / vec2(4.0, 3.0)).r;
-	float dens = mix(max(langue * 1.2, flamme * 0.9), flamme * 1.7, smoothstep(0.03, 0.16, age));
-	dens = mix(dens, fum * 1.3, smoothstep(0.55, 0.9, age));
+	// langue (jeune) et fumée (vieille) lues seulement quand elles comptent : l'âge est le même sur toute la bouffée,
+	// la branche est cohérente (2 lectures de moins sur la plupart des pixels)
+	float dens = flamme * 1.7;
+	if (age < 0.16) {
+		// langue : repère de la vitesse (pointe en avant), ondule
+		vec2 ul = clamp(vec2(qa.x * 0.3 + 0.5 + (w.x - 0.5) * 0.2, 0.5 - qa.y * 0.5), vec2(0.01), vec2(0.99));
+		float langue = texture(formes, (ul + vec2(mod(floor(g * 5.0), 2.0), 2.0)) / vec2(4.0, 3.0)).r;
+		dens = mix(max(langue * 1.2, flamme * 0.9), dens, smoothstep(0.03, 0.16, age));
+	}
+	if (age > 0.55) {
+		float fum = texture(formes, (up + vec2(mod(floor(g * 7.0), 4.0), 1.0)) / vec2(4.0, 3.0)).r;
+		dens = mix(dens, fum * 1.3, smoothstep(0.55, 0.9, age));
+	}
 	// bouillonnement : le bruit ronge et creuse la forme (plus en vieillissant : lambeaux)
 	float corps = (dens - 0.07 + (n - 0.5) * (0.3 + 0.35 * age)) * 3.0;
 	corps -= max(0.0, 0.45 - n) * 2.0 * age * age;
@@ -145,7 +154,7 @@ void fragment() {
 	float h = 0.55 - age * 0.38 - smoothstep(0.5, 0.92, age) * 0.6 + (dens - 0.55) * 0.7 + (0.35 - r) * 0.2 + (n - 0.5) * 1.1 + (w.x - 0.5) * 0.35 + (temp - 0.5) * 0.3
 		+ pow(1.0 - age, 8.0) * 0.1;
 	// jeune : jaune d'or saturé (le blanc pur ne reste qu'au creux, sinon voile laiteux autour de la main)
-	h = min(h, mix(0.78, 1.2, smoothstep(0.0, 0.5, dens - 0.4)));
+	h = min(h, mix(0.58, 0.92, smoothstep(0.7, 1.05, dens)) + 0.25 * smoothstep(0.6, 2.5, v_proche_d));
 	float k = clamp(corps, 0.0, 1.0);
 	// couverture tramée par un bruit (pas de Bayer) qui « bout » à 12 images/s : 4 paliers
 	vec2 cell = floor(FRAGCOORD.xy / m);
