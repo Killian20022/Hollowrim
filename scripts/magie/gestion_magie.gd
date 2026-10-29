@@ -25,9 +25,16 @@ const SH_COEUR := preload("res://shaders/magie_coeur.gdshader")
 const SH_COEUR_ADD := preload("res://shaders/magie_coeur_add.gdshader")
 const SH_FLUX := preload("res://shaders/magie_flux.gdshader")
 const SH_AURA := preload("res://shaders/magie_aura.gdshader")
+const SH_VAGUE := preload("res://shaders/magie_vague.gdshader")
+const SH_VAGUE_PROC := preload("res://shaders/magie_vague_process.gdshader")
+## Formes des bouffées : atlas 4×3 de 128² tiré du Kenney Particle Pack (CC0, assets/LICENCES.md) : rangée 0 = volumes
+## de flamme (flame_01-04), rangée 1 = fumée (smoke_03-06), rangée 2 = langues (flame_05-06), braises (fire_01), fumée.
+const ATLAS_FEU := preload("res://assets/magie/feu_kenney_atlas.png")
+## Bruit fractal périodique de la vague (64², 4 canaux indépendants ; outils/generer_bruit_vague.gd).
+const BRUIT_VAGUE := preload("res://assets/magie/bruit_vague.png")
 ## Shaders des visuels qui passent dans la couche fine (CoucheMagie.CALQUE) ; le voile (material_overlay des cibles) reste
 ## dans le rendu du monde.
-const SHADERS_COUCHE := [SH_ADD, SH_MIX, SH_TRAIT, SH_CRISTAL, SH_SOL, SH_SOL_MIX, SH_COEUR, SH_COEUR_ADD, SH_FLUX, SH_AURA]
+const SHADERS_COUCHE := [SH_ADD, SH_MIX, SH_TRAIT, SH_CRISTAL, SH_SOL, SH_SOL_MIX, SH_COEUR, SH_COEUR_ADD, SH_FLUX, SH_AURA, SH_VAGUE]
 ## Palettes du flux procédural des jets (couche fine) : cœur → bord (ténèbres : rehaut → cœur noir).
 const FLUX := {
 	"feu": ["#fffbe8", "#fff0a8", "#fcb53a", "#ec6a1f", "#b3341f", "#5a1a1c"],
@@ -44,6 +51,12 @@ const AURA_PAL := {
 	"soin": ["#fffbe8", "#fff4c0", "#f0d070", "#b8d060", "#5f9a3a", "#3a5a1a"],
 	"protection": ["#ffffff", "#eaf8ff", "#b8e0f0", "#7ab0d8", "#3a6a9a", "#1a3050"],
 }
+## Jet de flammes (couche fine) : VAGUE de bouffées qui avancent réellement dans l'espace (magie_vague*.gdshader).
+## Portée visuelle en champ libre (m), durée de vie d'une bouffée (s), freinage (1/s), bouffées vivantes.
+const VAGUE_PORTEE := 10.5
+const VAGUE_VIE := 1.15
+const VAGUE_TRAINE := 1.25
+const VAGUE_N := 66
 const AURA_ECOLE := {"feu": 0, "glace": 1, "electricite": 2, "tenebres": 3, "soin": 4, "protection": 5}
 ## Rayon (m) de l'aura procédurale de la main, par école (paume à ~0,45 m de l'œil).
 const AURA_RAYON := {"feu": 0.12, "glace": 0.12, "electricite": 0.11, "tenebres": 0.12, "soin": 0.09, "protection": 0.09}
@@ -1215,7 +1228,12 @@ func jet(ecole: String, origine: Node3D, direction: Vector3, portee: float, larg
 			_jets.erase(id)
 		return
 	var dbl: bool = _double.get(ecole, false)
-	if not j.is_empty() and (j.ecole != ecole or j.dbl != dbl or absf(float(j.portee) - portee) > portee * 0.2 or absf(float(j.largeur) - largeur) > maxf(largeur, 0.05) * 0.3):
+	# vague de flammes : un changement de portée (on vise un mur plus proche) ne recrée pas le jet (les bouffées en vol
+	# disparaîtraient d'un coup) ; le plan d'arrêt suit le point touché
+	var garde_portee: bool = not j.is_empty() and j.get("vague") != null
+	if garde_portee:
+		j.portee = portee
+	if not j.is_empty() and (j.ecole != ecole or j.dbl != dbl or (not garde_portee and absf(float(j.portee) - portee) > portee * 0.2) or absf(float(j.largeur) - largeur) > maxf(largeur, 0.05) * 0.3):
 		_jet_arreter(j)
 		j = {}
 	if j.is_empty():
@@ -1229,12 +1247,17 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 	var j := {"ecole": ecole, "origine": origine, "portee": portee, "largeur": largeur, "dbl": dbl, "emit": [], "eclair": {},
 		"dir": Vector3.FORWARD, "vu": horloge, "fin_pos": Vector3.ZERO, "touche": false, "normale": Vector3.UP, "t_bout": 0.0, "t_rayon": -1.0,
 		"suit_bout": [], "bouclier": {}, "cible": null, "gerbe": [], "gerbe_cible": null, "gerbe_bb": AABB(), "flash": null, "debut": horloge,
-		"flux": null, "ecart": 10.0, "dir_vis": Vector3.ZERO, "t_maj": horloge, "eclabousse": null}
+		"flux": null, "vague": null, "ecart": 10.0, "dir_vis": Vector3.ZERO, "t_maj": horloge, "eclabousse": null}
 	var kl := 1.6 if dbl else 1.0
 	# cône 2 à 3 fois plus large qu'un rayon « géométrique » : la flamme s'évase et noie la cible
 	var ecart := clampf(rad_to_deg(atan2(largeur * 0.5 * kl, maxf(portee, 0.5))) * 2.4, 8.0, 32.0)
 	var kn := 1.4 if dbl else 1.0
-	if fin_actif and FLUX.has(ecole):
+	if fin_actif and ecole == "feu":
+		# couche fine : le corps du jet de flammes est une VAGUE de bouffées qui naissent dans la paume et avancent
+		# réellement dans l'espace (elles grossissent, montent, roulent, refroidissent puis fument)
+		j.vague = _vague_creer(dbl)
+		j.ecart = ecart
+	elif fin_actif and FLUX.has(ecole):
 		# couche fine : le corps du jet est un flux procédural continu (les particules en font les bords et les éclats)
 		j.flux = _flux_creer(ecole)
 		j.ecart = ecart
@@ -1242,7 +1265,7 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 		"feu", "glace", "soin":
 			var noms: Array = {"feu": ["feu_jet_coeur", "feu_jet", "feu_jet_bord", "feu_jet_braise", "feu_jet_fumee", "feu_paume"],
 				"glace": ["glace_jet", "glace_jet_corps", "glace_jet_cristal", "glace_jet_brume", "glace_paume"], "soin": ["soin_jet"]}[ecole]
-			if j.flux != null and ecole == "feu":
+			if j.vague != null:
 				# couche fine : le CORPS du jet est le flux procédural (un seul volume qui coule) ; plus de gros carrés
 				# opaques qui s'entassent (« un tas de flammes ») : seulement des langues fines, des escarbilles qui
 				# s'échappent, tourbillonnent et retombent, et le foyer de la paume
@@ -1440,6 +1463,60 @@ func _flux_creer(ecole: String) -> MeshInstance3D:
 	_proc.append(mi)
 	return mi
 
+# ---------------------------------------------------------------------- vague de flammes (couche fine, jet de feu)
+
+func _mat_vague() -> ShaderMaterial:
+	if not _mats.has("vague"):
+		var m := ShaderMaterial.new()
+		m.shader = SH_VAGUE
+		m.set_shader_parameter("bruit", BRUIT_VAGUE)
+		m.set_shader_parameter("formes", ATLAS_FEU)
+		var pal: Array = FLUX.feu
+		for i in 6:
+			m.set_shader_parameter("c%d" % i, Color(pal[i]))
+		_mats["vague"] = m
+	return _mats["vague"]
+
+## Émetteur de la vague (un par jet : son plan d'arrêt lui est propre). Repère du MONDE : les bouffées parties gardent
+## leur trajectoire quand la main tourne. Vitesse de sortie réglée pour que, freinées, elles portent à VAGUE_PORTEE.
+func _vague_creer(dbl: bool) -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	p.name = "VagueFlammes"
+	p.amount = int(VAGUE_N * (1.2 if dbl else 1.0))
+	p.lifetime = VAGUE_VIE
+	p.local_coords = false
+	p.fixed_fps = 0
+	p.interpolate = false
+	p.randomness = 0.0
+	p.explosiveness = 0.0
+	p.draw_order = GPUParticles3D.DRAW_ORDER_VIEW_DEPTH
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.draw_pass_1 = _quad
+	p.visibility_aabb = AABB(Vector3.ONE * -14.0, Vector3.ONE * 28.0)
+	var pm := ShaderMaterial.new()
+	pm.shader = SH_VAGUE_PROC
+	var k := VAGUE_TRAINE
+	pm.set_shader_parameter("traine", k)
+	pm.set_shader_parameter("vitesse", VAGUE_PORTEE * (1.15 if dbl else 1.0) * k / (1.0 - exp(-k * VAGUE_VIE)))
+	pm.set_shader_parameter("ecart", 0.11 if dbl else 0.085)
+	pm.set_shader_parameter("taille1", 0.9 if dbl else 0.85)
+	p.process_material = pm
+	p.material_override = _mat_vague()
+	p.visible = not sans_procedural and not OS.get_cmdline_user_args().has("--sans-flux")
+	add_child(p)
+	p.emitting = true
+	_proc.append(p)
+	return p
+
+func _vague_placer(j: Dictionary, o: Vector3, b: Basis, fin: Vector3, vers: Vector3) -> void:
+	var p: GPUParticles3D = j.vague
+	p.global_transform = Transform3D(b, o)
+	var pm := p.process_material as ShaderMaterial
+	# plan d'arrêt : un peu avant la surface (la vague s'y écrase et la lèche), sur la cible : à son centre
+	var touche: bool = j.touche
+	pm.set_shader_parameter("arret", Vector4(fin.x, fin.y, fin.z, 1.0 if touche else 0.0))
+	pm.set_shader_parameter("arret_dir", vers)
+
 func _mat_aura(ecole: String, forme := 0) -> ShaderMaterial:
 	var cle := "a%s|%d" % [ecole, forme]
 	if not _mats.has(cle):
@@ -1630,6 +1707,8 @@ func _jet_placer(j: Dictionary) -> void:
 		fx.set_instance_shader_parameter("etale", lerpf(float(fx.get_meta("etale", 0.0)), et, 1.0 - exp(-dt_j * 8.0)))
 		fx.set_meta("etale", lerpf(float(fx.get_meta("etale", 0.0)), et, 1.0 - exp(-dt_j * 8.0)))
 		fx.set_instance_shader_parameter("force", clampf((horloge - float(j.debut)) / 0.12, 0.0, 1.0))
+	if j.vague != null and is_instance_valid(j.vague):
+		_vague_placer(j, o, b, fin, vers)
 	if not j.bouclier.is_empty():
 		var d: Dictionary = j.bouclier
 		d.pos = o + dir * 0.35
@@ -1664,7 +1743,7 @@ func _jet_placer(j: Dictionary) -> void:
 
 ## Couche fine : flammes (ou givre) procédurales qui lèchent la surface touchée par le jet (mur, sol), hors cible.
 func _jet_eclabousse(j: Dictionary, fin: Vector3) -> void:
-	var veut: bool = fin_actif and j.flux != null and j.touche and j.cible == null and j.ecole in ["feu", "glace", "soin"]
+	var veut: bool = fin_actif and (j.flux != null or j.vague != null) and j.touche and j.cible == null and j.ecole in ["feu", "glace", "soin"]
 	var e: Variant = j.eclabousse
 	if not veut:
 		if e != null and is_instance_valid(e):
@@ -1695,6 +1774,12 @@ func _jet_arreter(j: Dictionary) -> void:
 	if j.flux != null and is_instance_valid(j.flux):
 		(j.flux as Node).queue_free()
 	j.flux = null
+	if j.get("vague") != null and is_instance_valid(j.vague):
+		# les bouffées déjà parties finissent leur vie (le jet s'éteint au bout, pas d'un coup)
+		var vg: GPUParticles3D = j.vague
+		vg.emitting = false
+		get_tree().create_timer(VAGUE_VIE + 0.15, false).timeout.connect(vg.queue_free)
+	j.vague = null
 	if not j.bouclier.is_empty():
 		j.bouclier.duree = 0.0
 
@@ -2536,6 +2621,11 @@ func vitrine_prechauffe(v: Node3D) -> void:
 	fx.visible = true
 	fx.position = Vector3(-0.4, 0.4, 0.0)
 	fx.set_instance_shader_parameter("longueur", 0.6)
+	var vg := _vague_creer(false)
+	remove_child(vg)
+	v.add_child(vg)
+	vg.visible = true
+	vg.position = Vector3(0.4, 0.4, 0.0)
 	var ia := 0
 	for ec in AURA_ECOLE:
 		var au := _aura_fine(v, ec, 0.06, ia % 2)

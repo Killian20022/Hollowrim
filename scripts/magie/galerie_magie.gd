@@ -19,7 +19,7 @@ const POST := preload("res://shaders/ps1_post.gdshader")
 ## Plans : [nom, durée (s), instant de la capture (s)].
 const PLANS := [
 	["vide", 1.0, 0.8],   # sans effet : référence du monde (rétro et couche fine doivent donner le même décor)
-	["aura_feu", 2.2, 1.6], ["jet_feu", 2.4, 1.2], ["boule_feu", 2.4, 0.16], ["explosion_feu", 2.0, 0.42], ["zone_feu", 2.6, 0.5],
+	["aura_feu", 2.2, 1.6], ["jet_feu", 2.4, 1.2], ["jet_feu_loin", 3.0, 1.5], ["boule_feu", 2.4, 0.16], ["explosion_feu", 2.0, 0.42], ["zone_feu", 2.6, 0.5],
 	["aura_glace", 2.0, 1.4], ["eclat_glace", 2.2, 0.12], ["lance_givre", 2.4, 0.1], ["souffle_givre", 2.4, 1.2], ["nova_gelee", 2.8, 0.7],
 	["aura_electricite", 2.0, 1.4], ["arc_electrique", 2.4, 1.0], ["chaine_eclairs", 1.8, 0.15], ["tempete_statique", 3.0, 1.2],
 	["aura_tenebres", 2.0, 1.4], ["trait_ombre", 2.2, 0.14], ["drain_vie", 2.4, 1.2], ["explosion_obscure", 2.8, 0.6],
@@ -390,6 +390,11 @@ func _pendant(nom: String, t: float) -> void:
 			EffetsMagie.jet(ecole, paume_g, _dir_jet(paume_g, t), 7.0, 1.0, actif)
 			if actif and t > 0.6:
 				EffetsMagie.statut_cible(cibles[1], {"feu": "brulure", "electricite": "choc", "tenebres": "corruption", "glace": "gel"}[ecole], 0.8)
+		"jet_feu_loin":
+			# jet de flammes dans le vide, au-dessus des cibles, vers le mur du fond : portée entière de la vague
+			EffetsMagie.aura_main(paume_g, "feu", 1.0)
+			var loin := Vector3(1.4, 3.1, -12.2) if lieu == "crypte" else Vector3(1.4, 3.1, -14.0)
+			EffetsMagie.jet("feu", paume_g, _dir_vers(paume_g, loin) if _arg("tourne") == "" else _dir_jet(paume_g, t), 9.0, 0.9, t > 0.15 and t < 2.6)
 		"soin":
 			pass
 		"protection":

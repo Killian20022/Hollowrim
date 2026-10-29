@@ -22,6 +22,7 @@ appelle `EffetsMagie`. Références : `references/magie/prompt_magie.md` et les 
 | `scripts/magie/profondeur_magie.gd` | `ProfondeurMagie` (CompositorEffect) : copie la profondeur du monde pour l'occlusion de la couche fine |
 | `shaders/magie_occ.gdshaderinc`, `magie_compose.gdshader` | occlusion par la profondeur du monde ; pose de la couche sur le monde |
 | `shaders/magie_flux.gdshader`, `magie_aura.gdshader`, `magie_bruit.gdshaderinc` | jets, auras, boules et bouffées procéduraux au pixel (couche fine) |
+| `shaders/magie_vague.gdshader`, `magie_vague_process.gdshader`, `assets/magie/feu_kenney_atlas.png`, `bruit_vague.png` | jet de flammes (couche fine) : VAGUE de bouffées qui avancent dans l'espace |
 | `shaders/magie_coeur*.gdshader*` | cœurs lumineux de la couche fine |
 | `outils/perf_magie_crypte.gd` | mesure dans la vraie crypte (double jet de flammes) |
 | `outils/planches_magie_detail.sh` | planches avant / après face aux références |
@@ -236,3 +237,24 @@ Voir `scripts/hud_combat.gd`. Le contrat de données est décrit en tête de fic
   - Renderer Compatibility (pas de RenderingDevice) et mode sans fenêtre : retour automatique au rendu rétro.
   - Les voiles (`material_overlay`) restent dans le rendu du monde, en 640x360.
   - Il reste quelques carrés de taille moyenne dans le corps des particules (traînée de la boule de feu surtout).
+
+## Jet de flammes : vague de bouffées (branche magie/flammes_vivantes, 2026-10-29)
+
+Retour utilisateur : « jet un peu court et trop cheap … on dirait un screenshot ». En couche fine, le corps du jet de FEU n'est
+plus le ruban `magie_flux` (motif qui glissait sur une forme fixe) mais un `GPUParticles3D` par jet (`_vague_creer`) :
+- `magie_vague_process.gdshader` (particules, repère du MONDE) : sortie dans un cône étroit à ~17 m/s, freinage
+  (`VAGUE_TRAINE` 1,25/s) réglé pour porter à `VAGUE_PORTEE` = 10,5 m, flottabilité croissante, turbulence dépendant de
+  la position, rotation propre, étirement dans le sens de la vitesse (langues à la sortie, bouffées rondes au bout) ; plan
+  d'arrêt au point touché : la vague s'écrase, s'étale, monte et vieillit 3 fois plus vite. Quand on tourne, les bouffées
+  parties gardent leur route (jet « tuyau d'arrosage ») ; à l'arrêt du sort, elles finissent leur vie (extinction au bout).
+- `magie_vague.gdshader` (dessin) : formes du Kenney Particle Pack (CC0, atlas 4×3 de 128² : flame_01-04 enchaînées en
+  flipbook, flame_05-06 pour les langues jeunes, smoke_03-07 en fin de vie), déformées par un bruit précalculé
+  (`bruit_vague.png`, `outils/generer_bruit_vague.gd`) ; couleur par l'âge et la densité (blanc-jaune → orange → rouge
+  sombre → fumée), paliers de la palette, motif évalué par pixel du MONDE, couverture tramée par un bruit qui bout à
+  12 images/s (pas de Bayer). Bouffées effacées à moins de ~0,5 m de l'œil (pas de voile sur la main).
+- `jet_flammes.tres` : portée 5,5 → 9 m. Galerie : plan `jet_feu_loin` (jet dans le vide, portée entière).
+- Coût mesuré (`--perf=jet`, crypte FPS, 1280×720 Élevé, PC partagé, A/B avec `--sans-flux`) : couche fine +0,5 ms GPU
+  (1,0 contre 0,5 ms), fenêtre +0,1 à +0,4 ms (bruit de mesure) ; CPU : rien (simulation sur le GPU).
+  Version d'essai sans atlas ni bruit précalculé, 110 bouffées : +1,6 ms ; c'est l'overdraw des bouffées proches de l'œil
+  qui coûtait (plafond 0,2 × hauteur d'écran, bouffées à moins de 0,32 m non rasterisées).
+

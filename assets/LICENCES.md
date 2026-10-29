@@ -11,6 +11,7 @@ Toutes en CC0 1.0 (domaine public, usage commercial libre, aucune attribution ex
 | polices | Kenney Fonts (kenney.nl) | Kenney | CC0 |
 | modeles/joueur | Modélisés pour le jeu (Blender, sources dans sources_blender/) | — | propriété du projet |
 | modeles/humains | Universal Base Characters + Universal Animation Library (quaternius.com) | Quaternius | CC0 |
+| magie/feu_kenney_atlas.png | Kenney Particle Pack (kenney.nl/assets/particle-pack) : flame_01-06, fire_01, smoke_03-07, alpha réduit en 128² et assemblé en atlas 4×3 | Kenney | CC0 |
 
 ## Musique et ambiances (OpenGameArt, tous CC0, convertis en Ogg Vorbis ~96 kb/s)
 
