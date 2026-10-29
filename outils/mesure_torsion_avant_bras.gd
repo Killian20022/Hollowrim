@@ -1,7 +1,7 @@
 extends SceneTree
 ## Mesure de la pronation des avant-bras dans les clips des coups (bras_epee.tres) : torsion propre de lowerarm (ce que
 ## porte l'os du coude) et torsion totale main / charnière du coude (TorsionAvantBras.decomposer), à 60 i/s.
-##   godot --headless --path . --script res://outils/mesure_torsion_avant_bras.gd [-- --detail]
+##   godot --headless --path . --script res://outils/mesure_torsion_avant_bras.gd [-- --detail] [--tous : tous les clips]
 
 const BRAS := preload("res://assets/modeles/joueur/bras_fps.glb")
 const BIBLIOTHEQUE := preload("res://assets/animations/bras_epee.tres")
@@ -39,19 +39,27 @@ func _go() -> void:
 	sq = _squelette(bras)
 	var il := sq.find_bone("lowerarm_r")
 	var ih := sq.find_bone("hand_r")
-	for clip in CLIPS:
+	var clips: Array = CLIPS
+	if "--tous" in OS.get_cmdline_user_args():
+		clips = Array(BIBLIOTHEQUE.get_animation_list())
+	for clip in clips:
 		var anim: Animation = BIBLIOTHEQUE.get_animation(clip)
 		var n := floori(anim.length * 60.0 + 1e-6) + 1
 		var mn := [1e9, 1e9]
 		var mx := [-1e9, -1e9]
+		var pas := 0.0
+		var prec := NAN
 		for i in n:
 			_poser(anim, minf(i / 60.0, anim.length))
 			var d := TorsionAvantBras.decomposer(sq, il, ih)
 			var tc := rad_to_deg(float(d[1]))
 			var tt := rad_to_deg(float(d[2]))
+			if not is_nan(prec):
+				pas = maxf(pas, absf(wrapf(tt - prec, -180.0, 180.0)))
+			prec = tt
 			mn = [minf(mn[0], tc), minf(mn[1], tt)]
 			mx = [maxf(mx[0], tc), maxf(mx[1], tt)]
 			if detail:
 				print("  %s t=%.3f coude %+6.1f total %+6.1f poignet %+6.1f" % [clip, i / 60.0, tc, tt, tt - tc])
-		print("%-13s torsion du coude %+6.1f..%+6.1f°   torsion totale %+6.1f..%+6.1f°" % [clip, mn[0], mx[0], mn[1], mx[1]])
+		print("%-18s torsion du coude %+6.1f..%+6.1f°   torsion totale %+6.1f..%+6.1f° (pas max %.1f°/image)" % [clip, mn[0], mx[0], mn[1], mx[1], pas])
 	quit(0)

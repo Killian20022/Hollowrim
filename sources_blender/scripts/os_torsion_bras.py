@@ -5,7 +5,7 @@
 # progressivement selon s (0 au coude, 1 au poignet) : lowerarm (s = 0) -> twist_01 (s = 0,5) -> twist_02 (s = 1) ; le
 # brassard (RIGIDES) suit twist_02 d'un bloc.
 # Les parts upperarm / hand / doigts ne changent pas. Godot (scripts/combat/torsion_avant_bras.gd) ramène lowerarm sur la
-# charnière du coude et donne à twist_01 la moitié de la pronation, à twist_02 la totalité : la torsion va en douceur du
+# charnière du coude et donne à twist_01 un tiers de la pronation, à twist_02 la totalité : la torsion va en douceur du
 # coude au poignet au lieu de tomber d'un coup sur l'un des deux.
 #   blender.exe -b --python os_torsion_bras.py      (ré-exporte assets/modeles/joueur/bras_fps.glb ; état d'avant :
 #   sources_blender/bras_fps_avant_torsion.glb, gardé la première fois et toujours repris comme source)

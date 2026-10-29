@@ -3,10 +3,12 @@ extends SceneTree
 ## modificateur coupé (« avant » : la torsion retombe sur lowerarm / hand comme dans l'ancien rig) puis actif (« après »).
 ## FENÊTRE (via godot_slot.sh : hors écran) :
 ##   godot --path . --script res://outils/captures_torsion_avant_bras.gd -- --sortie=<dossier> \
-##       [--seq=repos,estoc,puissante,revers,zone,jet]
+##       [--seq=repos,diagonale,revers,estoc,puissante,zone,jet,lance]
 ##   planche <sortie>/<seq>.png : une ligne par instant ; colonnes = gros plan avant | gros plan après | vue de jeu avant |
 ##   vue de jeu après. Gros plan : caméra qui suit l'avant-bras (côté extérieur), même cadrage pour les deux colonnes.
 ##   Lignes MESURE : torsion totale (main / charnière du coude) et torsion que portait lowerarm, en degrés.
+##   Lignes PINCEMENT : rapport minimal rayon posé / rayon au repos de la peau, de la manche, du revers et du gant autour de
+##   l'axe de l'avant-bras, au coude et au poignet, avant -> après (1 = rond ; < 1 = pincé, effet « papillote »).
 
 const SCENE_COMBAT := preload("res://scenes/test_combat.tscn")
 const SCENE_MAGIE := preload("res://scenes/test_magie.tscn")
@@ -21,6 +23,10 @@ var sq: Skeleton3D
 var sortie := ""
 var l: Label
 var cam_gp: Camera3D
+var _accroches := {}
+var _globales: Array[Transform3D] = []   # pose finale (après tous les modificateurs), relevée à skeleton_updated
+var _peaux := []                         # [sommets, os (indices d'os du squelette), poids, pose de liaison par sommet]
+var _pincement := {}                     # "avant" / "apres" -> [coude, poignet] (rapport de rayon minimal)
 
 
 func _init() -> void:
@@ -66,20 +72,21 @@ func _monter(scene: PackedScene) -> void:
 	cam_gp.near = 0.01
 	s.add_child(cam_gp)
 	mains.pas_manuel = true
-
-
-func _globale(i: int) -> Transform3D:
-	var t := Transform3D()
-	while i >= 0:
-		t = sq.get_bone_pose(i) * t
-		i = sq.get_bone_parent(i)
-	return sq.global_transform * t
+	sq.skeleton_updated.connect(_sur_maj)
+	_preparer_peaux()
+	_accroches.clear()
+	for n in ["lowerarm_l", "lowerarm_r", "hand_l", "hand_r"]:
+		var a := BoneAttachment3D.new()
+		a.bone_name = n
+		sq.add_child(a)
+		_accroches[n] = a
 
 
 ## Caméra de gros plan sur l'avant-bras `c` : au-dessus et côté extérieur, perpendiculaire à l'avant-bras.
 func _cadrer(c: String) -> void:
-	var co := _globale(sq.find_bone("lowerarm_" + c)).origin
-	var po := _globale(sq.find_bone("hand_" + c)).origin
+	# pose FINALE (après IK et modificateurs) : accroches d'os, mises à jour après le squelette
+	var co: Vector3 = (_accroches["lowerarm_" + c] as Node3D).global_position
+	var po: Vector3 = (_accroches["hand_" + c] as Node3D).global_position
 	var mi := co.lerp(po, 0.5)
 	var b: Basis = j.camera.global_transform.basis
 	var cote := 1.0 if c == "r" else -1.0
@@ -96,6 +103,74 @@ func _image() -> Image:
 	im.convert(Image.FORMAT_RGBA8)
 	im.resize(W, H, Image.INTERPOLATE_BILINEAR)
 	return im
+
+
+func _sur_maj() -> void:
+	var n := sq.get_bone_count()
+	_globales.resize(n)
+	for i in n:
+		var p := sq.get_bone_parent(i)
+		_globales[i] = (_globales[p] if p >= 0 else Transform3D()) * sq.get_bone_pose(i)
+
+
+## Peaux VISIBLES suivies pour la mesure de pincement : manche, revers du coude, gants (la sous-couche de peau, cachée, et
+## le brassard, rigide, n'y sont pas).
+func _preparer_peaux() -> void:
+	_peaux.clear()
+	for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", true, false):
+		if not (mi.name in ["manches", "gants", "revers_l", "revers_r"]) or mi.skin == null:
+			continue
+		var a := mi.mesh.surface_get_arrays(0)
+		var binds := []
+		var poses := []
+		for k in mi.skin.get_bind_count():
+			var b := mi.skin.get_bind_bone(k)
+			if b < 0:
+				b = sq.find_bone(mi.skin.get_bind_name(k))
+			binds.append(b)
+			poses.append(mi.skin.get_bind_pose(k))
+		_peaux.append([a[Mesh.ARRAY_VERTEX], a[Mesh.ARRAY_BONES], a[Mesh.ARRAY_WEIGHTS], binds, poses])
+
+
+## Rapport minimal (rayon posé / rayon au repos autour de l'axe coude → poignet) des sommets de l'avant-bras `c`, au coude
+## (côté avant-bras, avant le brassard : s ∈ [0,02 ; 0,15]) et au poignet (s ∈ [0,8 ; 1]) : 1 = rond, < 1 = pincé (torsion concentrée, « papillote »).
+func _pincer(c: String) -> Array:
+	var il := sq.find_bone("lowerarm_" + c)
+	var ih := sq.find_bone("hand_" + c)
+	var e0 := sq.get_bone_global_rest(il).origin
+	var w0 := sq.get_bone_global_rest(ih).origin
+	var e1 := _globales[il].origin
+	var w1 := _globales[ih].origin
+	var res := [9.0, 9.0]
+	for pk in _peaux:
+		var v: PackedVector3Array = pk[0]
+		var bo: PackedInt32Array = pk[1]
+		var we: PackedFloat32Array = pk[2]
+		var nb := bo.size() / v.size()
+		for i in v.size():
+			var p := v[i]
+			if (p.x > 0.0) != (c == "l"):
+				continue
+			var ax0 := w0 - e0
+			var t := (p - e0).dot(ax0) / ax0.length_squared()
+			var zone := 0 if (t > 0.02 and t < 0.15) else (1 if (t > 0.8 and t < 1.0) else -1)
+			if zone < 0:
+				continue
+			var r0 := (p - (e0 + ax0 * t)).length()
+			if r0 < 0.01:
+				continue
+			var q := Vector3.ZERO
+			for k in nb:
+				var w := we[i * nb + k]
+				if w <= 0.0:
+					continue
+				var bi: int = bo[i * nb + k]
+				q += w * ((_globales[pk[3][bi]] * (pk[4][bi] as Transform3D)) * p)
+			var ax1 := w1 - e1
+			var t1 := (q - e1).dot(ax1) / ax1.length_squared()
+			var r1 := (q - (e1 + ax1 * t1)).length()
+			res[zone] = minf(res[zone], r1 / r0)
+	return res
 
 
 ## Rend la pose courante : [gros plan avant, gros plan après, jeu avant, jeu après]. Le temps ne bouge pas (pas manuel).
@@ -117,7 +192,12 @@ func _quatre(c: String, legende: String) -> Array:
 			await process_frame
 			await process_frame
 			out.append(await _image())
+			if gros:
+				_pincement["apres" if actif else "avant"] = _pincer(c)
 	tb.active = true
+	var pa: Array = _pincement["avant"]
+	var pp: Array = _pincement["apres"]
+	print("PINCEMENT %s : coude %.2f -> %.2f   poignet %.2f -> %.2f" % [legende.get_slice("  ", 0) + " " + legende.get_slice("  ", 1), pa[0], pp[0], pa[1], pp[1]])
 	return out
 
 
@@ -201,7 +281,7 @@ func _go() -> void:
 	RetourCoups.arret_actif = false
 	RetourImpact.muet = true
 	var seqs := Array(_arg("seq", "repos,estoc,puissante,revers,zone,jet").split(",", false))
-	var combat := seqs.filter(func(q): return q in ["repos", "estoc", "puissante", "revers", "horizontale"])
+	var combat := seqs.filter(func(q): return q in ["repos", "estoc", "puissante", "revers", "diagonale"])
 	var magie := seqs.filter(func(q): return q in ["zone", "jet", "lance"])
 	if not combat.is_empty():
 		await _monter(SCENE_COMBAT)
@@ -209,9 +289,10 @@ func _go() -> void:
 			match q:
 				"repos":
 					await _coup("repos", {}, 0.1, [3])
-				"estoc", "revers", "horizontale":
-					var g: String = {"horizontale": "horizontale", "revers": "diag_gd", "estoc": "estoc"}[q]
-					await _coup(q, {0: ["appuyer"], 2: ["relacher"]}, 0.62, [8, 14, 18, 22, 27, 33], g)
+				"estoc", "revers", "diagonale":
+					# coups du combo validé (Mixamo v3) : 3 estoc (coup_c), 2 revers horizontal (coup_b), 1 diagonale (coup_a)
+					var g: String = {"diagonale": "diag_dg", "revers": "revers_gd", "estoc": "estoc_combo"}[q]
+					await _coup(q, {0: ["appuyer"], 2: ["relacher"]}, 0.62, [6, 11, 16, 21, 26, 31], g)
 				"puissante":
 					await _coup("puissante", {0: ["appuyer"], 52: ["relacher"]}, 1.6, [30, 55, 62, 68, 75, 90])
 	if not magie.is_empty():

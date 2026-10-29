@@ -5,15 +5,17 @@ class_name TorsionAvantBras
 ##   - la pronation / supination (rotation de la main autour de l'axe coude → poignet) est mesurée par rapport à la
 ##     charnière du coude (l'avant-bras sans torsion propre, porté par le bras : décomposition balancement-torsion) ;
 ##   - lowerarm est ramené sur la charnière (torsion 0 au coude : le coude ne vrille plus) ;
-##   - la torsion est répartie sur les os de torsion (FRACTIONS : moitié au milieu, totalité au poignet), dont les poids de
-##     peau vont progressivement du coude au poignet ;
+##   - la torsion est répartie sur les os de torsion (FRACTIONS : un tiers au milieu, totalité au poignet), dont les poids
+##     de peau vont progressivement du coude au poignet ; le brassard, rigide, tourne d'un bloc avec le poignet ;
 ##   - la main garde EXACTEMENT son repère (l'épée, la torche, les sorts ne bougent pas d'un pixel) : seule la peau de
 ##     l'avant-bras change.
 ## Sans os de torsion dans le squelette, ne fait rien.
 
 const COTES := ["l", "r"]
-## Part de la torsion totale portée par chaque os de torsion (01 au milieu de l'avant-bras, 02 au poignet).
-const FRACTIONS := [0.5, 1.0]
+## Part de la torsion totale portée par chaque os de torsion (01 au milieu de l'avant-bras, 02 au poignet). Un tiers
+## plutôt que la moitié au milieu : la partie visible près du coude (manche, revers) se tord moins, la partie cachée sous
+## le brassard rigide prend le reste (mesuré : outils/captures_torsion_avant_bras.gd, lignes PINCEMENT).
+const FRACTIONS := [1.0 / 3.0, 1.0]
 ## Torsion totale bornée (degrés, depuis la pose de repos) : au-delà, le poignet portera le reste (anatomie : ~±90° de
 ## part et d'autre de la position neutre).
 const TORSION_MAX := 170.0
@@ -66,8 +68,13 @@ static func _torsion_autour(q: Quaternion, a: Vector3) -> float:
 
 func _process_modification_with_delta(_dt: float) -> void:
 	var sq := get_skeleton()
-	if sq == null:
-		return
+	if sq != null:
+		appliquer(sq)
+
+
+## Répartit la torsion des deux avant-bras sur la pose courante de `sq` (appelée à chaque image ; les tests l'appellent
+## directement sur un squelette posé à la main).
+func appliquer(sq: Skeleton3D) -> void:
 	if sq != _sq_os:
 		_indices(sq)
 	for c in _os:
