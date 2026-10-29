@@ -232,6 +232,7 @@ ENC_REBOND = dict(GARDE, nom="enc_rebond", poing=E(0.41, -0.28, 0.48), lame=(-0.
 PARADE2 = dict(GARDE, nom="parade2", poing=E(0.52, -0.26, 0.47), lame=(-0.50, 0.82, -0.28))
 PAR_REBOND = dict(GARDE, nom="par_rebond", poing=E(0.40, -0.31, 0.46), lame=(-0.92, 0.36, -0.15))
 
+
 CLIPS = {
     "repos": [cle(REPOS, 0.0), cle(REPOS, 0.5)],
     "sprint": [cle(SPRINT, 0.0), cle(SPRINT, 0.5)],
@@ -243,11 +244,14 @@ CLIPS = {
     "garde_brisee": [cle(GARDE, 0.0), cle(BRISEE, 0.035, interp="lin"), cle(BRISEE, 0.22), cle(REPOS, 0.45)],
     # combo 2026-10-27 : 1 diagonale (coup_a), 2 horizontal gauche -> droite (coup_b), 3 estoc (coup_c)
     # poignet qui fouette (2026-10-27, combat/poignet_fouet) : mêmes instants (latence et marqueurs inchangés)
-    "coup_a": [cle(REPOS, 0.0), cle(D4_ARME, 0.13), cle(D4_TENSION, 0.16), cle(D4_ENTREE, 0.185), cle(D4_MILIEU, 0.21),
+    # coup_a, coup_b, charge_lourd, lourd : capture Mixamo retargetée (CLIPS_MIXAMO plus bas, 2026-10-29) ; l'estoc du
+    # combo reste à la main (aucun estoc dans les fichiers Mixamo fournis)
+    "coup_c": [cle(REPOS, 0.0), cle(E_ARME, 0.11), cle(E_ARME, 0.15), cle(E_FIN, 0.25), cle(E_SUIVI, 0.30), cle(REPOS, 0.50)],
+    # poignet qui fouette (2026-10-27, combat/poignet_fouet, poignet hors butées) : gardé pour comparaison
+    "coup_a_fouet": [cle(REPOS, 0.0), cle(D4_ARME, 0.13), cle(D4_TENSION, 0.16), cle(D4_ENTREE, 0.185), cle(D4_MILIEU, 0.21),
                cle(D4_FIN, 0.26), cle(D4_SUIVI, 0.33), cle(V3_RETOUR, 0.44), cle(REPOS, 0.54)],
-    "coup_b": [cle(D4_SUIVI, 0.0), cle(HG4_ARME, 0.10), cle(HG4_TENSION, 0.13), cle(HG4_ENTREE, 0.155), cle(HG4_MILIEU, 0.18),
+    "coup_b_fouet": [cle(D4_SUIVI, 0.0), cle(HG4_ARME, 0.10), cle(HG4_TENSION, 0.13), cle(HG4_ENTREE, 0.155), cle(HG4_MILIEU, 0.18),
                cle(HG4_FIN, 0.23), cle(HG4_SUIVI, 0.30), cle(REPOS, 0.50)],
-    "coup_c": [cle(HG4_SUIVI, 0.0), cle(E_ARME, 0.11), cle(E_ARME, 0.15), cle(E_FIN, 0.25), cle(E_SUIVI, 0.30), cle(REPOS, 0.50)],
     # combo « levier » d'avant le poignet qui fouette (main qui descend d'un bloc, lame raide) : gardé pour comparaison
     "coup_a_levier": [cle(REPOS, 0.0), cle(D_ARME, 0.13), cle(D_TENSION, 0.16), cle(D_ENTREE, 0.185), cle(D_MILIEU, 0.21),
                cle(D_FIN, 0.26), cle(D_SUIVI, 0.33), cle(REPOS, 0.54)],
@@ -277,8 +281,8 @@ CLIPS = {
                     cle(R_SUIVI, 0.31), cle(REPOS, 0.50)],
     "estoc": [cle(REPOS, 0.0), cle(E_ARME, 0.11), cle(E_ARME, 0.15), cle(E_FIN, 0.25), cle(E_SUIVI, 0.30), cle(REPOS, 0.50)],
     # puissantes : armé (tenu pendant la charge), puis coup au relâchement
-    "charge_lourd": [cle(REPOS, 0.0), cle(P_ARME, 0.30), cle(P4_CHARGE, 0.60)],
-    "lourd": [cle(P4_CHARGE, 0.0), cle(P4_ARME, 0.06), cle(P4_TENSION, 0.10), cle(P4_ENTREE, 0.165), cle(P4_MILIEU, 0.20), cle(P4_FIN, 0.25),
+    "charge_lourd_fouet": [cle(REPOS, 0.0), cle(P_ARME, 0.30), cle(P4_CHARGE, 0.60)],
+    "lourd_fouet": [cle(P4_CHARGE, 0.0), cle(P4_ARME, 0.06), cle(P4_TENSION, 0.10), cle(P4_ENTREE, 0.165), cle(P4_MILIEU, 0.20), cle(P4_FIN, 0.25),
               cle(P4_SUIVI, 0.42), cle(P2_RETOUR, 0.70), cle(REPOS, 0.96)],
     # lourd vertical (en avançant) refait sur le vertical V2 : levée plus haute tenue pendant la charge
     "charge_vertical": [cle(REPOS, 0.0), cle(V2_ARME, 0.30), cle(V2_TENSION, 0.60)],
@@ -297,12 +301,41 @@ CLIPS = {
                      cle(C_SUIVI, 0.48), cle(REPOS, 0.72)],
 }
 
+# =====================================================================================================================
+# COUPS EN CAPTURE DE MOUVEMENT (Mixamo, décision utilisateur 2026-10-29 : plus de coups inventés à la main) ; données
+# converties : sources_blender/mixamo/coups_mixamo.json (extraire_mixamo.py), retarget : anim_bras_epee.creer_action_mixamo.
+# temps = [(image source à 30 i/s, instant du clip en s)] : les instants des marqueurs restent ceux du jeu (la phase de
+# frappe garde à peu près la vitesse réelle de la capture, l'armé est accéléré) ; image None = la garde de référence
+# (fondu en S). cadrage = (lacet, tangage, roulis)° autour de l'épaule, en cloche sur « plein ».
+CLIPS_MIXAMO = {
+    # 1 : diagonale haut-droite -> bas-gauche (« Sword And Shield Slash (1) », images 17 -> 23 : l'armé derrière la tête
+    # (images 8-16, hors champ en vue FPS) est sauté, le fondu monte directement de la garde à l'armé ; amplitude 0,6 :
+    # tout l'arc reste dans le champ)
+    "coup_a": dict(source="slash_1", ref=0, temps=[(17, 0.0), (17, 0.10), (17.5, 0.16), (21, 0.26), (22.5, 0.33), (23, 0.44), (23, 0.54)], fondu=(0.12, 0.28),
+                   cadrage=(15, 35, 0), decalage=(0.0, 0.06, -0.15), plein=(0.12, 0.36), amplitude=0.6, centre=19, main=(-20,0,0)),
+    # 2 : gauche -> droite (« Sword And Shield Slash (2) », début : la lame monte à gauche puis balaie vers le bas à droite,
+    # images 12 -> 19 ; la suite du fichier, une vrille sautée, n'est pas utilisée : retour en garde par fondu) ; roulis 65
+    # + balayage (le bras tourne de 50° à gauche vers 0 autour de l'épaule) = trajet horizontal, lame inclinée vers
+    # l'avant (main) pour que le tranchant mène
+    "coup_b": dict(source="slash_2", ref=0, temps=[(4, 0.0), (10, 0.10), (12, 0.13), (19, 0.23), (20, 0.30), (20, 0.50)], fondu=(0.09, 0.24),
+                   cadrage=(0,25,65), decalage=(0.0, 0.06, -0.15), plein=(0.09, 0.32), amplitude=0.6, centre=15, balayage=(50,0,0.12,0.25), main=(0,-20,0)),
+    # lourd à l'arrêt : grand coup droite -> gauche (« Sword And Shield Slash » : armé derrière l'épaule, images 16 -> 21)
+    "charge_lourd": dict(source="slash_0", ref=0, temps=[(6, 0.0), (14, 0.30), (16, 0.60)], fondu=(0.30, 0.60),
+                          cadrage=(15, 30, 0), decalage=(0.0, 0.06, -0.15), plein=(0.30, 0.60), amplitude=0.6, centre=19),
+    "lourd": dict(source="slash_0", ref=0, temps=[(16,0.0),(16.5,0.10),(21,0.25),(23,0.42),(24,0.70),(24,0.96)], fondu=(0.0, 0.30),
+                  cadrage=(15, 30, 0), decalage=(0.0, 0.06, -0.15), plein=(0.0, 0.45), amplitude=0.6, centre=19, main=(0,0,0)),
+}
+
 # instants (s, vitesse 1) : arme = fin de l'armé, frappe = début de la phase active (la lame blesse), fin_frappe,
 # suivi = fin du suivi (dépassement), fin = retour au repos. Charges : arme = armé atteint (tenu ensuite).
 MARQUEURS = {
     "coup_a": {"arme": 0.13, "frappe": 0.16, "fin_frappe": 0.26, "suivi": 0.33, "fin": 0.54},
     "coup_b": {"arme": 0.10, "frappe": 0.13, "fin_frappe": 0.23, "suivi": 0.30, "fin": 0.50},
     "coup_c": {"arme": 0.11, "frappe": 0.15, "fin_frappe": 0.25, "suivi": 0.30, "fin": 0.50},
+    "coup_a_fouet": {"arme": 0.13, "frappe": 0.16, "fin_frappe": 0.26, "suivi": 0.33, "fin": 0.54},
+    "coup_b_fouet": {"arme": 0.10, "frappe": 0.13, "fin_frappe": 0.23, "suivi": 0.30, "fin": 0.50},
+    "charge_lourd_fouet": {"arme": 0.30, "fin": 0.60},
+    "lourd_fouet": {"arme": 0.10, "frappe": 0.10, "fin_frappe": 0.25, "suivi": 0.42, "fin": 0.96},
     "coup_a_levier": {"arme": 0.13, "frappe": 0.16, "fin_frappe": 0.26, "suivi": 0.33, "fin": 0.54},
     "coup_b_levier": {"arme": 0.10, "frappe": 0.13, "fin_frappe": 0.23, "suivi": 0.30, "fin": 0.50},
     "lourd_levier": {"arme": 0.10, "frappe": 0.10, "fin_frappe": 0.25, "suivi": 0.42, "fin": 0.96},
