@@ -104,6 +104,15 @@ Corps validé, inchangé ; seul le crâne (os Head) est refait, dans la même en
 - Les crânes décoratifs de la crypte (`scripts/objets/petit_mobilier.gd`, `crane()`) sont un AUTRE modèle (procédural Godot) : non touchés.
 - Vérification visuelle : `outils/planche_crane.gd` (gros plans face / trois quarts / profil / regard du joueur cadrés sur l'os Head, casque et capuche, rang à 3, 5 et 8 m, torche réelle de la crypte).
 
+### C10 ennemis (persos/C10_ennemis, 2026-10-29) : os patinés, 3 teintes, draugrs usés
+Inspiration observée (jamais réutilisée) : INSPIRATION_IGNITE §2.13 et ligne C10 du §4.1.
+- Cage thoracique : 8 paires de côtes (au lieu de 10), plus fines (section max 8,8 mm), espacées de 33 mm : on voit le VIDE entre elles et la colonne derrière. Maillage « squelette » 5 552 -> 5 376 triangles ; variantes guerrier 6 812 -> 6 636, archer 6 304 -> 6 128, sbire 5 938 -> 5 762.
+- Peinture des os (script Blender) : creux NOIRS (cavité ou AO forte -> crasse la plus sombre), arête claire seulement sur les crêtes saillantes et éclairées (rampe `arete`), patine par deux bruits, fêlures élargies, ombre de contact. Atlas recuit, VERSION 7.
+- Teintes : `SqueletteGuerrier.TEINTES` givre / sang / braise (+ ivoire par défaut). Répartition déterministe (`EnnemisNordiques.teinte_squelette`, graine = identifiant + « |teinte ») : givre 26 %, sang 22 %, braise 18 %, ivoire le reste (`PARTS_TEINTES`) ; option `teinte_os` (ou spec `teinte`) pour forcer. Une teinte = clones des matériaux os/étoffe (créés une fois, inscrits dans `Palette`), posés sur la copie du gabarit : aucun gabarit ni maillage en plus.
+- Masque dans l'ALPHA des texels d'os opaques (l'alpha 0 reste la lueur des orbites) : 0,85 = dessus des os (givre, sang séché, suie), <= 0,77 = fissures et creux (braises qui luisent pour la braise). Lu par `ps1_draugr.gdshader` (`motif_dessus`, `motif_fissure`, `motif_lueur`, à 0 par défaut : aucun effet sur les draugrs, pas d'alpha intermédiaire dans leurs atlas). Mipmaps : `SqueletteGuerrier.mips_alpha` (garde l'alpha des opaques).
+- Draugrs : lueur des orbites tirée par identifiant (givre 50 %, sang 25 %, braise 25 %, tirage fait EN DERNIER dans `_choix` pour ne pas décaler les autres) ; épaulières réécrites en armure usée (bosses creusées, lèvres claires, rayures, bord ébréché) dans `draugr_textures.gd` (VERSION 13 : le cache des draugrs se reconstruit une fois).
+- Vérification visuelle : `outils/planche_c10.gd` (`--types=type[:arme[:teinte]]`, face/profil/3/4 à 3 m, en jeu à 8 m, gros plans, `--mesure`).
+
 ### Fichiers
 - `sources_blender/scripts/squelette_nordique.py` (options `--apercu=`, `--sans-bake`) -> `assets/modeles/squelettes/squelette_nordique.glb` + `sources_blender/squelette_nordique_atlas.png`. Rejouable : `outils/blender.sh` (rejoue le script du worktree courant ; options transmises au script), puis `godot --headless --import`, puis `outils/generer_squelette.gd`.
 - `scripts/squelette_guerrier.gd` (`creer`, `modele(arme)`, `prechauffer`, `arc()` partagé avec les archers humains/draugrs), `scripts/draugr.gd`, `scripts/ennemis_nordiques.gd`.

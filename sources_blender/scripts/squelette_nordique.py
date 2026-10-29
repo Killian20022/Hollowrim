@@ -454,13 +454,20 @@ for z in [1.520, 1.546, 1.572, 1.598, 1.622]:
 
 print('TRI colonne', len(S.f))
 # ---------------------------------------------------------------- cage thoracique
-for k in range(10):
-    z0 = 1.468 - k * 0.0265
+# C10 : 8 paires de côtes (au lieu de 10) en BANDES plus hautes que profondes, écart 3,3 cm : le vide entre deux côtes fait
+# ≥ 1 px à 3 m en 480x270 (on voit le fond à travers) ; avant, 10 côtes serrées se lisaient comme un bloc rayé.
+NB_COTES = 8
+def _interp(tab, k):
+    t = k * (len(tab) - 1) / (NB_COTES - 1)
+    i = min(int(t), len(tab) - 2); u = t - i
+    return tab[i] + (tab[i + 1] - tab[i]) * u
+for k in range(NB_COTES):
+    z0 = 1.468 - k * 0.033
     c0, _ = col_at(z0)
-    rx = [0.062, 0.088, 0.108, 0.124, 0.136, 0.142, 0.145, 0.144, 0.138, 0.128][k]
-    ry = [0.060, 0.072, 0.082, 0.090, 0.095, 0.098, 0.100, 0.100, 0.096, 0.090][k]
-    t1 = [2.75, 2.80, 2.80, 2.78, 2.74, 2.68, 2.55, 2.38, 2.0, 1.75][k]
-    drop = [0.030, 0.050, 0.065, 0.075, 0.085, 0.090, 0.095, 0.090, 0.075, 0.060][k]
+    rx = _interp([0.062, 0.088, 0.108, 0.124, 0.136, 0.142, 0.145, 0.144, 0.138, 0.128], k)
+    ry = _interp([0.060, 0.072, 0.082, 0.090, 0.095, 0.098, 0.100, 0.100, 0.096, 0.090], k)
+    t1 = _interp([2.75, 2.80, 2.80, 2.78, 2.74, 2.68, 2.55, 2.38, 2.0, 1.75], k)
+    drop = _interp([0.030, 0.050, 0.065, 0.075, 0.085, 0.090, 0.095, 0.090, 0.075, 0.060], k)
     yc = c0.y + 0.012 - ry
     bone = "spine_03" if z0 > 1.311 else "spine_02"
     for sg in (1, -1):
@@ -473,8 +480,8 @@ for k in range(10):
             z = z0 - drop * (t / math.pi) ** 1.3 + 0.012 * math.sin(t * 1.2)
             pts.append(V(x, y, z))
         pts[0] = V(sg * 0.014, c0.y + 0.006, z0 + 0.004)
-        h = [0.006, 0.008, 0.009, 0.0095, 0.0095, 0.0085]
-        tube(S, pts, [(hh * 1.15, 0.0050) for hh in h], 4, bone, "os", up=(0, 0, 1))
+        h = [0.0060, 0.0075, 0.0085, 0.0088, 0.0085, 0.0072]
+        tube(S, pts, [(hh * 1.05, 0.0058) for hh in h], 4, bone, "os", up=(0, 0, 1))
 # sternum (manubrium + corps + xiphoïde)
 st = [V(0, -0.098, 1.478), V(0, -0.108, 1.430), V(0, -0.114, 1.360), V(0, -0.112, 1.300), V(0, -0.104, 1.272)]
 tube(S, st, [(0.0055, 0.024), (0.005, 0.018), (0.005, 0.016), (0.005, 0.013), (0.004, 0.005)], 4, "spine_03", "os", up=(0, 1, 0))
@@ -891,6 +898,7 @@ def rampe(*hs):
     return np.stack([hexc(h) for h in hs])
 RAMPES = {
     "ivoire": rampe("#15130f", "#1f1c17", "#2a2620", "#37322a", "#454036", "#554f43", "#666051", "#78715f", "#8b836e", "#9c947d"),
+    "arete": rampe("#8b836e", "#9c947d", "#aaa28a", "#b8b099"),          # C10 : arête claire (bord des os, crêtes, épiphyses)
     "osgris": rampe("#141413", "#1e1d1b", "#292825", "#363431", "#44423d", "#53504a", "#635f58", "#736f66"),
     "tache": rampe("#1c1712", "#2e261c", "#433727", "#5a4a34", "#6f5c41", "#84704f"),
     "crasse": rampe("#141310", "#1f1d18", "#2c2a22", "#3a372c"),
@@ -1041,19 +1049,34 @@ if not SANS_BAKE:
         # --- os : ivoire patiné, taches brunes, crasse dans les creux, poussière vers le bas, fêlures
         k = m("os")
         # passe 2 : plus sombre, creux (orbites, entre les côtes, articulations, bassin) cuits fort, bouts des os (arêtes, épiphyses) plus clairs
-        ton = 0.40 + eclair + (L - 0.80) * 1.55 + (n1 - 0.5) * 0.30 + (n2 - 0.5) * 0.16 + arete * 0.30 - creux * 0.34
+        # C10 : contraste forme > grain — arête claire franche (+1 à +3 tons, rampe « arete »), creux descendus au noir de la rampe
+        ton = 0.38 + eclair + (L - 0.80) * 1.60 + (n1 - 0.5) * 0.30 + (n2 - 0.5) * 0.16 + arete * 0.22 - creux * 0.55
         ton -= 0.18 * np.clip((0.55 - Pp[..., 2]) / 0.5, 0, 1)             # bas des jambes plus sales
-        ton -= 0.12 * np.clip((0.78 - L) / 0.25, 0, 1)                     # ombre de contact
+        ton -= 0.16 * np.clip((0.78 - L) / 0.25, 0, 1)                     # ombre de contact
         gris = fbm(Pp, 1.0 / 0.09, 21) > 0.52                              # patine grise (poussière, salpêtre) par plaques
         tache = (fbm(Pp, 1.0 / 0.03, 7) + 0.20 * (n3 - 0.5)) > 0.60
-        crasse = ((L < 0.62) | (creux > 0.5)) & (n2 > 0.34)
-        fel = (np.abs(fbm(Pp, 1.0 / 0.035, 9) - 0.5) < 0.012) & (arete < 0.5)
+        crasse = ((L < 0.62) | (creux > 0.5)) & (n2 > 0.30)
+        noir = (L < 0.50) | (creux > 0.85)                                  # fond des creux : noir (entre les côtes, sous le bassin, sutures)
+        # fêlures plus larges (≈ 1 texel à 160 t/m), surtout sur le crâne et les os longs
+        fel = (np.abs(fbm(Pp, 1.0 / 0.035, 9) - 0.5) < 0.020) & (arete < 0.5)
+        # arête claire : seulement les crêtes vraiment saillantes (épiphyses, bord des côtes, arcades), par touches (pas tout l'os :
+        # les os fins sont convexes partout, un seuil bas les blanchissait en entier)
+        clair = (arete > 0.85) & (L > 0.72) & (haut > -0.3) & (n2 > 0.38) & ~fel
         c = quant("ivoire", np.clip(ton, 0, 1), jit)
         c = np.where(gris[..., None], quant("osgris", np.clip(ton, 0, 1), jit), c)
         c = np.where(tache[..., None], quant("tache", np.clip(ton * 1.05, 0, 1), jit), c)
         c = np.where(crasse[..., None], quant("crasse", np.clip(ton * 1.4, 0, 1), jit), c)
+        c = np.where(clair[..., None], quant("arete", np.clip((L - 0.8) * 2.0 + 0.3 * haut + 0.35, 0, 1), jit * 0.6), c)
+        c = np.where(noir[..., None], RAMPES["crasse"][0], c)
         c = np.where(fel[..., None], RAMPES["tache"][1], c)
         img[k] = c[k]
+        # C10 : masque des variantes de teinte (Givre / Sang / Braise, shader ps1_draugr « motif_* ») dans l'ALPHA des texels d'os
+        # (les os sont opaques : l'alpha n'y servait à rien) — 1 = rien, 0,85 = dessus (givre, cendre), 0,70 = fissure / creux (sang, braise).
+        dessus = (haut > 0.35) & (fbm(Pp, 1.0 / 0.025, 61) > 0.42) & ~noir
+        # sans l'AO : sous le casque / la capuche, toute la voûte du crâne est à l'ombre (elle se serait allumée en braise)
+        fissure = fel | (creux > 0.60)
+        alpha[k & dessus] = 0.85
+        alpha[k & fissure] = 0.70
         # --- dents : alternance dent / interstice le long de l'arcade
         k = m("dent")
         ang = np.arctan2(Pp[..., 0], -(Pp[..., 1] - 0.02))

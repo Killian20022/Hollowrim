@@ -65,6 +65,7 @@ var vie_imposee := 0.0
 var degats_imposes := 0.0
 var debout := false  # endormi debout (niches) plutôt qu'allongé
 var variante := ""  # squelettes : arme imposée (« epee », « arc », « hache ») ; vide = tirée de l'identifiant
+var teinte_os := ""    # squelettes : teinte imposée (« givre », « sang », « braise », « ivoire ») ; vide = tirée de l'identifiant (C10)
 var ident := ""  # pour la sauvegarde (les draugrs tués restent morts)
 var hud: Control
 var quetes: Node  # posé par monde.creer_draugr (événements de réveil)
@@ -185,7 +186,7 @@ func _ready() -> void:
 	if app.has("perso"):
 		modele = Personnage.creer(app["perso"])      # bandits vivants : personnage de base unifie (PersoDef)
 	elif _os:
-		modele = EnnemisNordiques.squelette({"type": type, "archer": archer, "ident": ident, "variante": variante})   # copie d'un gabarit préconstruit
+		modele = EnnemisNordiques.squelette({"type": type, "archer": archer, "ident": ident, "variante": variante, "teinte": teinte_os})   # copie d'un gabarit préconstruit
 	else:
 		# pnj/ennemis : archétypes nordiques + variante (EnnemisNordiques) ; --pnj-anciens = ancien corps Humain
 		modele = EnnemisNordiques.creer({"type": type, "archer": archer, "boss": boss, "ident": ident, "apparence": app})

@@ -26,7 +26,7 @@ const TISSU_BLEU := ["#131314", "#1f2022", "#2e2f33", "#404247", "#55575d", "#6f
 const BANDE := ["#2e2a24", "#464037", "#5f574b", "#7a705f"]
 
 const DOSSIER := "res://assets/persos/draugr"
-const VERSION := 12
+const VERSION := 13
 static var enregistrer := false
 static var _cache := {}
 
@@ -692,26 +692,39 @@ static func _casque(img: Image) -> void:
 
 ## Épaulières en DÔME (64 x 64, u = tour en 9 pans, v = sommet -> collerette) : fer bombé terni, reflet clair au sommet,
 ## 9 pans séparés par des nervures, couronne de rivets en bas de la coupole, collerette sombre, rouille en coulures.
+## C10 (armure usée) : fond plus sombre, nervure en creux noir + arête claire, bosses (enfoncements sombres à lèvre claire),
+## rayures claires en biais, bord de la collerette usé jusqu'au métal (liseré clair ébréché) : la coque ne se lit plus en aplat.
 static func _epaul(img: Image) -> void:
 	var r := R_EPAUL
+	var bosses := [Vector2(14, 20), Vector2(41, 12), Vector2(52, 33), Vector2(25, 38)]
 	for y in r.size.y:
 		for x in r.size.x:
 			var fx := int(fposmod(x * 9.0 / 64.0, 1.0) * 8.0)
-			var t := 4 - y / 22
-			t += int(roundf((_n(x, y, 64, 64, 8, 8, 2002) - 0.5) * 1.8))
-			if y < 10:
+			var t := 3 - y / 24
+			t += int(roundf((_n(x, y, 64, 64, 8, 8, 2002) - 0.5) * 2.0))
+			if y < 9:
 				t += 1                                        # reflet au sommet
 			var c := _c(FER, clampi(t, 0, 6))
-			if _n(x, y, 64, 64, 6, 6, 2003) > 0.66 or (y > 44 and _h(x, y, 2004) < (y - 44) / 60.0):
+			if _n(x, y, 64, 64, 6, 6, 2003) > 0.62 or (y > 40 and _h(x, y, 2004) < (y - 40) / 50.0):
 				c = _c(ROUILLE, clampi(t - 1, 0, 3))
+			for b: Vector2 in bosses:                          # bosses : creux sombre, lèvre claire en haut
+				var d := Vector2(x, y).distance_to(b)
+				if d < 3.2:
+					c = _c(FER, 0 if d < 2.0 else 1)
+				elif d < 4.4 and y < b.y:
+					c = _c(FER, 5)
+			if y < 46 and posmod(x * 2 - y * 3 + 7, 37) == 0 and _h(x, y, 2005) > 0.35:
+				c = _c(FER, 5)                                # rayure claire
 			if fx == 0:
-				c = _c(FER, 1)                                # nervure entre deux pans
+				c = _c(FER, 0)                                # nervure en creux noir
 			elif fx == 1:
-				c = _c(FER, 5) if y < 44 else c
+				c = _c(FER, 5) if y < 44 else c               # arête claire
 			if y >= 50:
 				c = _c(FER, 1 if y > 58 else 2)               # collerette
+				if y == 63 or (y == 62 and _h(x, y, 2006) > 0.55):
+					c = _c(FER, 6 if _h(x, y, 2007) > 0.3 else 4)   # bord usé jusqu'au métal
 			elif y == 49:
-				c = _c(FER, 5)
+				c = _c(FER, 6)
 			img.set_pixel(r.position.x + x, r.position.y + y, c)
 	for k in range(0, 9):
 		var cx := r.position.x + int((k + 0.5) * 64.0 / 9.0)
