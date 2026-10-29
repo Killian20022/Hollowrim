@@ -336,7 +336,7 @@ func _tester() -> void:
 	m.joueur.global_position = c.to_global(Vector3(-28.2, 0.1, -23.9))
 	for i in 5:
 		await process_frame
-	_verif(m.joueur.inventaire.pieces == avant + 34, "la bourse du coffre est ramassée (+34 pièces)")
+	_verif(m.joueur.inventaire.pieces == avant + 34, "coffre : +34 pièces versées à l'ouverture (gerbe de pièces, lot L2)")
 	# fragments : prise, marqueur, événement de réveil
 	var it_os: Dictionary = {}
 	for it in dj.interactions:

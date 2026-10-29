@@ -535,16 +535,26 @@ func _choisir(choix: String) -> Array:
 
 func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
 	quetes.signaler("crypte:" + id)
+	# L2 : contenu versé au sac À L'OUVERTURE (ni bourse à ramasser ni perte possible), les pièces jaillissent du coffre et sont
+	# aspirées vers le joueur (scripts/butin.gd, deja_verse)
+	for k: String in contenu:
+		joueur.inventaire.ajouter(k, contenu[k])
+		if k != "pieces":
+			hud.avis("+ %d %s" % [contenu[k], joueur.inventaire.nom(k)])
 	var b := Node3D.new()
 	b.set_script(BUTIN)
 	b.joueur = joueur
 	b.hud = hud
-	b.contenu = contenu.duplicate()
-	b.set_meta("coffre", id)         # pour rendre le coffre si le joueur meurt avant d'avoir ramassé la bourse
-	crypte.add_child(b)
-	b.position = lieu + Vector3(0, 0.7, 0)
+	b.contenu = {"pieces": int(contenu.get("pieces", 0))}
+	b.deja_verse = true
 	if _couvercles.has(id):         # L1 : le couvercle bascule, une lueur chaude s'échappe
-		(_couvercles[id] as CoffreCouvercle).ouvrir()
+		var cv: CoffreCouvercle = _couvercles[id]
+		cv.ouvrir()
+		b.depart_global = (cv.get_parent() as Node3D).to_global(cv.lueur_pos)
+	else:
+		b.depart_global = crypte.to_global(lieu + Vector3(0, 0.45, 0))
+	crypte.add_child(b)
+	b.position = lieu
 	Sons.jouer_a(self, ["doorOpen_1", "handleCoins"], crypte.to_global(lieu), -2.0)
 	return []
 

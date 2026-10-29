@@ -1,6 +1,7 @@
 extends SceneTree
 ## Test headless : mort du joueur dans la crypte. La crypte revient à un état cohérent avec la sauvegarde : gardiens tués
-## absents seulement s'ils sont dans la sauvegarde, les autres réapparaissent ; bourse de coffre non ramassée = coffre rendu ;
+## absents seulement s'ils sont dans la sauvegarde, les autres réapparaissent ; coffre ouvert = contenu déjà versé au sac (L2 :
+## plus de bourse à ramasser), il reste ouvert et ne se rouvre pas (pas de double) ;
 ## portes ouvertes conservées (événements de quête) ; joueur dehors, crypte cachée. Aucun fichier de sauvegarde n'est touché
 ## (liste des morts sauvegardés imposée). godot --headless --path . --script outils/test_crypte_mort.gd -- --nouvelle
 const SCENE := preload("res://scenes/foret_test.tscn")
@@ -52,14 +53,15 @@ func _tester() -> void:
 	for id in [a, b]:
 		m.draugrs[id]._mourir()
 	_verif(not m.draugrs[a].vivant() and not m.draugrs[b].vivant(), "deux gardiens tués")
-	# coffre ouvert, bourse posée mais non ramassée ; porte S1 ouverte
+	# coffre ouvert (L2 : pièces versées tout de suite, gerbe en vol) ; porte S1 ouverte
+	var or0: int = m.joueur.inventaire.pieces
 	t._ouvrir_coffre("cof_ossuaire", {"pieces": 34}, Vector3(-28.2, 0, -24.7))
 	t._ouvrir_porte("s1")
-	var n_butin := 0
+	var n_gerbe := 0
 	for n in c.get_children():
-		if n.has_meta("coffre"):
-			n_butin += 1
-	_verif(n_butin == 1 and t.quetes.vus.has("crypte:cof_ossuaire"), "coffre ouvert, bourse posée")
+		if n.get_script() == preload("res://scripts/butin.gd"):
+			n_gerbe += 1
+	_verif(n_gerbe == 1 and t.quetes.vus.has("crypte:cof_ossuaire") and m.joueur.inventaire.pieces == or0 + 34, "coffre ouvert : +34 pièces versées, gerbe de pièces en vol")
 	m.joueur.mort = true
 	t.reinitialiser([a])
 	for i in 3:
@@ -68,12 +70,12 @@ func _tester() -> void:
 	_verif(etats == [false], "signal d'entrée émis une fois avec « dehors »")
 	_verif(not m.draugrs.has(a) and t.morts_charges.has(a), "gardien sauvegardé comme tué : reste mort")
 	_verif(not m.draugrs.has(b) and not t.morts_charges.has(b), "gardien tué non sauvegardé : retiré, à refaire")
-	_verif(not t.quetes.vus.has("crypte:cof_ossuaire") and t._inter["cof_ossuaire"].actif, "bourse perdue : coffre de nouveau fermé")
+	_verif(t.quetes.vus.has("crypte:cof_ossuaire") and m.joueur.inventaire.pieces == or0 + 34, "mort : le coffre ouvert reste ouvert, pièces gardées (rien à reperdre, pas de double)")
 	var reste := 0
 	for n in c.get_children():
 		if n.has_meta("coffre") and not n.is_queued_for_deletion():
 			reste += 1
-	_verif(reste == 0, "plus de bourse flottante dans la crypte")
+	_verif(reste == 0, "aucune bourse flottante dans la crypte")
 	_verif(t.quetes.vus.has("crypte:s1") and absf((t.donjon.portes["s1"] as Node3D).position.y - 3.2) < 0.05, "porte S1 toujours ouverte (événement de quête acquis)")
 	# retour dans la crypte : le gardien non sauvegardé réapparaît vivant, l'autre non
 	t.dedans = true

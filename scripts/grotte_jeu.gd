@@ -218,16 +218,25 @@ func _coffre(a: Dictionary) -> void:
 
 func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
 	acces.quetes.signaler("%s:%s" % [prefixe, id])
+	# L2 : contenu versé au sac à l'ouverture, les pièces jaillissent du coffre et volent vers le joueur (scripts/butin.gd)
+	for k: String in contenu:
+		acces.joueur.inventaire.ajouter(k, contenu[k])
+		if k != "pieces":
+			acces.hud.avis("+ %d %s" % [contenu[k], acces.joueur.inventaire.nom(k)])
 	var b := Node3D.new()
 	b.set_script(BUTIN)
 	b.joueur = acces.joueur
 	b.hud = acces.hud
-	b.contenu = contenu.duplicate()
-	b.set_meta("coffre", id)
-	g.add_child(b)
-	b.position = lieu + Vector3(0, 0.75, 0)
+	b.contenu = {"pieces": int(contenu.get("pieces", 0))}
+	b.deja_verse = true
 	if couvercles.has(id):          # L1 : le couvercle bascule, une lueur chaude s'échappe
-		(couvercles[id] as CoffreCouvercle).ouvrir()
+		var cv: CoffreCouvercle = couvercles[id]
+		cv.ouvrir()
+		b.depart_global = (cv.get_parent() as Node3D).to_global(cv.lueur_pos)
+	else:
+		b.depart_global = g.to_global(lieu + Vector3(0, 0.45, 0))
+	g.add_child(b)
+	b.position = lieu
 	Sons.jouer_a(g, ["doorOpen_1", "handleCoins"], g.to_global(lieu), -2.0)
 	return []
 
