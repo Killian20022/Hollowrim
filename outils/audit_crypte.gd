@@ -129,6 +129,8 @@ func _collecter(tr: Node) -> void:
 		var cs := n as CollisionShape3D
 		if cs.disabled or cs.shape == null or _sous_perso(cs):
 			continue
+		if cs.get_parent() is Cassable:
+			continue      # L5 : solide d'une urne / d'un tonneau cassable (calque 64, franchissable) : l'objet est déjà audité par son registre
 		var t := crypte.global_transform.affine_inverse() * cs.global_transform
 		var bx := t.basis.x.normalized()
 		if absf(bx.y) > 0.05 or absf(t.basis.y.normalized().y) < 0.95:
