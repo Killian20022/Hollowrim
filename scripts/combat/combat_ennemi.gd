@@ -47,6 +47,9 @@ func _installer() -> void:
 	if corps.is_inside_tree():   # pools des gerbes et des os créés à l'apparition, pas au premier coup
 		GerbePixels.obtenir(corps)
 		EclatsOs.obtenir(corps)
+		if Demembrement.profil_demembrable(profil):
+			Demembrement.prechauffer()
+			Demembrement.Jets.obtenir(corps)
 	if modele == null:
 		return
 	Plaies.marquer(modele)
