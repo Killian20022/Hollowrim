@@ -497,7 +497,7 @@ func _tenue_runes(m: String) -> bool:
 
 ## Deux sorts au repos (tenue runes coupée) : la pose « repos » de chaque main, décalée vers le coin bas de l'écran
 ## (repère caméra, main gauche ; miroir en X à droite) et un peu plus ouverte.
-const DEUX_SORTS_DECALAGE := Vector3(-0.05, -0.035, 0.0)
+const DEUX_SORTS_DECALAGE := Vector3(-0.05, -0.015, 0.0)
 const DEUX_SORTS_FERMETURE := -0.06
 func _deux_sorts_repos(m: String) -> bool:
 	return not TENUE_RUNES and inc[m].etat == Incantation.REPOS and eq.categorie(eq.autre(m)) in ["sort", "vide"]
