@@ -407,7 +407,7 @@ def _rot_ecart(R1, R0):
     return R1 @ R0.inverted()
 
 
-def _resoudre_main(Rl0, Hd, prec_k):
+def _resoudre_main(Rl0, Hd, prec_k, continuite=0.04):
     """Torsion k (avant-bras), flexion f, inclinaison r dans LIM_MX qui approchent le mieux l'orientation voulue Hd
     (armature) : la lame d'abord (axe Y de l'épée), puis le tranchant ; continuité de la torsion avec l'image précédente."""
     Ry = (Hd @ PRISE_D.to_3x3()).col[1].normalized()
@@ -420,7 +420,7 @@ def _resoudre_main(Rl0, Hd, prec_k):
         c = math.degrees(E.col[1].normalized().angle(Ry)) + 0.4 * math.degrees(E.col[0].normalized().angle(Rx))
         c += 0.02 * (abs(f) + abs(r))
         if prec_k is not None:
-            c += 0.04 * abs(k - prec_k)
+            c += continuite * abs(k - prec_k)
         return c, Hr
     best = None
     for k in range(LT[0], LT[1] + 1, 10):
@@ -574,10 +574,13 @@ def creer_action_mixamo(nom, spec):
         lm, tm, rm = (x * _poids_cadrage(spec, t, longueur) for x in spec.get("main", (0.0, 0.0, 0.0)))
         Rm = (Matrix.Rotation(math.radians(lm), 3, "Y") @ Matrix.Rotation(math.radians(tm), 3, "X")
               @ Matrix.Rotation(math.radians(rm), 3, "Z"))
-        Fm = F0.slerp((Rm @ Q @ Fi.to_matrix()).to_quaternion(), w).to_matrix()
+        Fc = (Rm @ Q @ Fi.to_matrix()).to_quaternion()
+        if F0.dot(Fc) < 0:   # même hémisphère : le fondu prend le chemin court (sinon la lame fait un tour au retour)
+            Fc = -Fc
+        Fm = F0.slerp(Fc, w).to_matrix()
         coude, d2, Rl0, allonge = _bras_deux_os("r", B_DE_CAM @ W, (E - (S + W) * 0.5).normalized())
-        Hd = B3 @ Fm @ G.inverted() @ Matrix.Rotation(math.radians(ROULIS_PRISE_MX), 3, PRISE_D.to_3x3().col[1].normalized())
-        c, k, f, r, Hr = _resoudre_main(Rl0, Hd, prec_k)
+        Hd = B3 @ Fm @ G.inverted() @ Matrix.Rotation(math.radians(spec.get("roulis_prise", ROULIS_PRISE_MX)), 3, PRISE_D.to_3x3().col[1].normalized())
+        c, k, f, r, Hr = _resoudre_main(Rl0, Hd, prec_k, spec.get("continuite", 0.04))
         prec_k = k
         Rl = Matrix.Rotation(math.radians(k), 3, d2) @ Rl0
         la.matrix = Matrix.Translation(coude) @ Rl.to_4x4()

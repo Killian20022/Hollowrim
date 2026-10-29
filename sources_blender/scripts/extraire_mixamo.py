@@ -23,6 +23,11 @@ SOURCES = {   # nom -> fichier Mixamo
     "slash_0": "Sword And Shield Slash.fbx",
     "slash_1": "Sword And Shield Slash (1).fbx",
     "slash_2": "Sword And Shield Slash (2).fbx",
+    "revers": "Stable Sword Outward Slash.fbx",           # revers gauche -> droite
+    "revers_b": "Standing Melee Attack Backhand.fbx",     # revers gauche -> droite (comparé à « revers »)
+    "vertical": "Standing Melee Attack Downward.fbx",     # frappe verticale de haut en bas (coup puissant)
+    "estoc": "Stabbing.fbx",                              # estoc (coup 3)
+    "interieur": "Stable Sword Inward Slash.fbx",         # coup intérieur droite -> gauche (comparé au coup 1)
 }
 OS = {"epaule": "RightShoulder", "bras": "RightArm", "avant_bras": "RightForeArm", "main": "RightHand"}
 # repère caméra <- monde Blender du personnage Mixamo (colonnes : droite, haut, arrière)

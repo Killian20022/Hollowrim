@@ -246,7 +246,8 @@ CLIPS = {
     # poignet qui fouette (2026-10-27, combat/poignet_fouet) : mêmes instants (latence et marqueurs inchangés)
     # coup_a, coup_b, charge_lourd, lourd : capture Mixamo retargetée (CLIPS_MIXAMO plus bas, 2026-10-29) ; l'estoc du
     # combo reste à la main (aucun estoc dans les fichiers Mixamo fournis)
-    "coup_c": [cle(REPOS, 0.0), cle(E_ARME, 0.11), cle(E_ARME, 0.15), cle(E_FIN, 0.25), cle(E_SUIVI, 0.30), cle(REPOS, 0.50)],
+    # estoc fait main (avant « Stabbing » Mixamo), gardé pour comparaison
+    "coup_c_main": [cle(REPOS, 0.0), cle(E_ARME, 0.11), cle(E_ARME, 0.15), cle(E_FIN, 0.25), cle(E_SUIVI, 0.30), cle(REPOS, 0.50)],
     # poignet qui fouette (2026-10-27, combat/poignet_fouet, poignet hors butées) : gardé pour comparaison
     "coup_a_fouet": [cle(REPOS, 0.0), cle(D4_ARME, 0.13), cle(D4_TENSION, 0.16), cle(D4_ENTREE, 0.185), cle(D4_MILIEU, 0.21),
                cle(D4_FIN, 0.26), cle(D4_SUIVI, 0.33), cle(V3_RETOUR, 0.44), cle(REPOS, 0.54)],
@@ -319,11 +320,16 @@ CLIPS_MIXAMO = {
     # l'avant (main) pour que le tranchant mène
     "coup_b": dict(source="slash_2", ref=0, temps=[(4, 0.0), (10, 0.10), (12, 0.13), (19, 0.23), (20, 0.30), (20, 0.50)], fondu=(0.09, 0.24),
                    cadrage=(0,25,65), decalage=(0.0, 0.06, -0.15), plein=(0.09, 0.32), amplitude=0.6, centre=15, balayage=(50,0,0.12,0.25), main=(0,-20,0)),
-    # lourd à l'arrêt : grand coup droite -> gauche (« Sword And Shield Slash » : armé derrière l'épaule, images 16 -> 21)
-    "charge_lourd": dict(source="slash_0", ref=0, temps=[(6, 0.0), (14, 0.30), (16, 0.60)], fondu=(0.30, 0.60),
-                          cadrage=(15, 30, 0), decalage=(0.0, 0.06, -0.15), plein=(0.30, 0.60), amplitude=0.6, centre=19),
-    "lourd": dict(source="slash_0", ref=0, temps=[(16,0.0),(16.5,0.10),(21,0.25),(23,0.42),(24,0.70),(24,0.96)], fondu=(0.0, 0.30),
-                  cadrage=(15, 30, 0), decalage=(0.0, 0.06, -0.15), plein=(0.0, 0.45), amplitude=0.6, centre=19, main=(0,0,0)),
+    # 3 : estoc (« Stabbing », images 2 -> 14 : le poing recule, puis pousse vers le centre ; tenue tendue jusqu'au fondu ;
+    # amplitude 0,3 vers l'extension, main inclinée pour pointer le buste ; continuité de torsion renforcée)
+    "coup_c": dict(source="estoc", ref=0, temps=[(2, 0.0), (6, 0.11), (8, 0.15), (14, 0.25), (14, 0.30), (14, 0.50)], fondu=(0.10, 0.30),
+                   cadrage=(-15, -18, 0), decalage=(0.0, 0.06, -0.15), plein=(0.10, 0.50), amplitude=0.3, centre=14, main=(20, 10, 20), continuite=0.3),
+    # coup puissant : frappe verticale de haut en bas (« Standing Melee Attack Downward », armé images 2 -> 21, frappe 21 -> 27) ;
+    # charge et coup partagent cadrage et amplitude (enchaînés sans saut). Ancien : « Sword And Shield Slash » (slash_0).
+    # Revers essayés pour le coup 2 (« Stable Sword Outward Slash », « Standing Melee Attack Backhand ») : poing bas à la
+    # hanche et lame vers l'arrière à l'armé, trajet court et tranchant à 40-66° en vue FPS -> coup 2 v2 gardé.
+    "charge_lourd": dict(source="vertical", ref=0, temps=[(2, 0.0), (19, 0.30), (21, 0.60)], fondu=(0.30, 0.60), cadrage=(30, -35, 0), decalage=(0.0, 0.06, -0.15), plein=(0.30, 0.60), amplitude=0.4, centre=23),
+    "lourd": dict(source="vertical", ref=0, temps=[(21, 0.0), (21.5, 0.10), (26, 0.25), (27, 0.42), (27, 0.70), (27, 0.96)], fondu=(0.0, 0.30), cadrage=(30, -35, 0), decalage=(0.0, 0.06, -0.15), plein=(0.0, 0.45), amplitude=0.4, centre=23),
 }
 
 # instants (s, vitesse 1) : arme = fin de l'armé, frappe = début de la phase active (la lame blesse), fin_frappe,
@@ -332,6 +338,7 @@ MARQUEURS = {
     "coup_a": {"arme": 0.13, "frappe": 0.16, "fin_frappe": 0.26, "suivi": 0.33, "fin": 0.54},
     "coup_b": {"arme": 0.10, "frappe": 0.13, "fin_frappe": 0.23, "suivi": 0.30, "fin": 0.50},
     "coup_c": {"arme": 0.11, "frappe": 0.15, "fin_frappe": 0.25, "suivi": 0.30, "fin": 0.50},
+    "coup_c_main": {"arme": 0.11, "frappe": 0.15, "fin_frappe": 0.25, "suivi": 0.30, "fin": 0.50},
     "coup_a_fouet": {"arme": 0.13, "frappe": 0.16, "fin_frappe": 0.26, "suivi": 0.33, "fin": 0.54},
     "coup_b_fouet": {"arme": 0.10, "frappe": 0.13, "fin_frappe": 0.23, "suivi": 0.30, "fin": 0.50},
     "charge_lourd_fouet": {"arme": 0.30, "fin": 0.60},
