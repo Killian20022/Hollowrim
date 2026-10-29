@@ -678,7 +678,11 @@ func _x_armurerie(_m: Dictionary) -> void:
 	d.ratelier_armes(_l(32.62, -5.2), -PI * 0.5, 1.4)
 	# L9 : l'épée d'obsidienne, arme unique, sur son râtelier au mur sud (présentoir fondu dans le décor, sans emprise : la pose auto
 	# ne bouge pas ; l'épée est un nœud à part qui disparaît quand on la prend)
-	var rat := Transform3D(Basis(Vector3.UP, _ll(PI)), _l(30.0, -1.03, 1.45))
+	var br := Basis(Vector3.UP, _ll(PI))
+	var pied := _l(30.0, -1.05)
+	if d.murs_cb.is_valid():        # dos hors du soubassement (même calcul que _ecarter, sans poussée enregistrée : le reste ne bouge pas)
+		pied += d.murs_cb.call(pied + br * Vector3(0, 0, 0.05), Vector2(0.6, 0.08), _ll(PI))
+	var rat := Transform3D(br, pied + Vector3(0, 1.45, 0))
 	d.modele("presentoir_ratelier", rat.origin, _ll(PI), Vector3.ONE, {}, false)
 	unique("epee_obsidienne", rat * Transform3D(EPEE_COUCHEE, Vector3(-0.42, 0.03, 0.075)))
 	d.arme(_l(30.0, -2.4), 0.5)
@@ -692,7 +696,12 @@ func _x_trone(_m: Dictionary) -> void:
 	# L9 : la hache de Kolbeinn couchée en travers de l'assise du trône (objet unique, à prendre une fois le Jarl vaincu)
 	if d.has_meta("trone_assise"):
 		var assise: Transform3D = d.get_meta("trone_assise")
-		unique("hache_kolbeinn", d.xf.affine_inverse() * assise * Transform3D(Basis(Vector3.UP, 0.32), Vector3(-0.08, 0.0, 0.1)), {"requiert": ["tue:jarl"]})
+		# dressée contre le devant de l'assise, fer en haut, tranchant vers l'extérieur (repère de l'assise : +z = devant, y = 0 au dessus
+		# de l'assise, estrade à -0,56) : pied du manche sur l'estrade, tête appuyée au rebord (lisible depuis l'entrée de la salle)
+		var dresse := Basis(Vector3(0, 1, 0), Vector3(0, 0, 1), Vector3(1, 0, 0))      # module couché -> manche vertical
+		var bh := Basis(Vector3.RIGHT, -0.2) * Basis(Vector3.BACK, 0.08) * dresse
+		var pied_h := Vector3(0.42, -0.56, 0.72)
+		unique("hache_kolbeinn", d.xf.affine_inverse() * assise * Transform3D(bh, pied_h + bh * Vector3(0.535, -0.023, 0.0)), {"requiert": ["tue:jarl"]})
 	else:
 		push_warning("trône sans assise v2 : hache de Kolbeinn non posée")
 	d.statue(_l(44.2, -36.6), 0.0, 1.2, "guerrier", true, "mur4")

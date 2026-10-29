@@ -260,7 +260,7 @@ func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
 # ------------------------------------------------------------------ L9 : objets uniques exposés
 ## Clé « uniques » des zones (grotte_donnees.gd) : présentoir (module objets_donjon.dat, maillage à part : le décor de la grotte et ses
 ## tirages ne changent pas) + ObjetUnique posé dessus + interaction « Prendre » (prise sauvegardée dans ButinTables).
-const EPEE_A_PLAT := Basis(Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0))      # glb : lame le long de +x du chevalet, à plat
+const EPEE_A_PLAT := Basis(Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(0, 0, -1))      # glb : lame le long de +x du chevalet, sur la tranche (plat face au joueur)
 func _uniques() -> void:
 	for z: Dictionary in g.def.get("zones", []):
 		for u: Dictionary in z.get("uniques", []):
@@ -286,7 +286,7 @@ func _uniques() -> void:
 					sb.transform = xf
 					g.add_child(sb)
 			var obj := String(u["objet"])
-			var n := ObjetUnique.creer(obj, xf * Transform3D(EPEE_A_PLAT, Vector3(-0.42, 0.885, 0.0)), g.decor)
+			var n := ObjetUnique.creer(obj, xf * Transform3D(EPEE_A_PLAT, Vector3(-0.42, 0.9, 0.0)), g.decor)
 			if n == null:
 				continue
 			g.add_child(n)

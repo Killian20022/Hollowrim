@@ -67,7 +67,8 @@ func _ecrire() -> void:
 		return
 	_verif(hache.visible and _geo(hache) >= 1 and obs.visible and _geo(obs) >= 3, "crypte : modèles visibles (hache %d maillage(s), épée %d)" % [_geo(hache), _geo(obs)])
 	var assise: Transform3D = t.d2.get_meta("trone_assise")
-	_verif(hache.position.distance_to(assise.origin) < 0.25 and absf(hache.position.y - assise.origin.y) < 0.02, "hache posée sur l'assise du trône (%.2f m du centre)" % hache.position.distance_to(assise.origin))
+	var vers := assise.affine_inverse() * hache.position       # repère de l'assise : devant = +z
+	_verif(vers.z > 0.4 and vers.z < 1.0 and vers.y > -0.5 and vers.y < 0.2 and absf(vers.x) < 0.7, "hache dressée contre le devant du trône (repère de l'assise %s)" % vers)
 	var ih: Node3D = t._inter["unique_hache_kolbeinn"]
 	_verif(not ih.condition.call(), "hache : pas d'invite tant que le Jarl vit")
 	q.signaler("tue:jarl")
