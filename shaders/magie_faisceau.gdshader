@@ -28,6 +28,9 @@ uniform float px_max = 22.0;
 uniform float coeur_px = 2.0;        // demi-épaisseur du cœur du brin maître (pixels du monde)
 uniform float eclat = 1.35;
 uniform float ombre = 0.85;          // couverture maximale de la gaine (0 = additif pur)
+// clarté du jour 0..1 (GestionMagie._jour : soleil blanc et fort) : de jour, le CŒUR blanc pur se perdait sur la neige
+// (blanc ajouté à du blanc) → il descend d'un palier vers le blanc-bleu / bleu clair et éclaire un peu moins ; nuit inchangée
+uniform float jour = 0.0;
 uniform vec4 c0 : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform vec4 c1 : source_color = vec4(0.94, 0.95, 1.0, 1.0);
 uniform vec4 c2 : source_color = vec4(0.71, 0.75, 1.0, 1.0);
@@ -177,9 +180,9 @@ void fragment() {
 	float tr = mh(cell + vec2(img * 7.31, graine));
 	float kq = clamp(floor(I * 5.0 + tr * 0.9) / 5.0, 0.0, 1.2);
 	float gq = clamp(floor(gaine * 4.0 + tr * 0.9) / 4.0, 0.0, 1.0);
-	vec3 col = rampe(clamp(kq * 1.0 - 0.02, 0.0, 1.0));
+	vec3 col = rampe(clamp(kq * 1.0 - 0.02 - 0.4 * jour, 0.0, 1.0));
 	float a = gq * ombre;
 	// pixel mixte (magie_compose) : couverture violette (rgb <= a) + lumière ajoutée
-	ALBEDO = gaine_c.rgb * a + col * eclat * kq;
+	ALBEDO = gaine_c.rgb * a + col * eclat * (1.0 - 0.3 * jour) * kq;
 	ALPHA = a;
 }

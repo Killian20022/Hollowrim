@@ -174,6 +174,8 @@ var _teinte_mat: ShaderMaterial
 var _teinte_v := 0.0
 var _teinte_cible := 0.0
 var _teinte_c := Color.BLACK
+var _soleil: DirectionalLight3D = null   # lumière directionnelle de la scène (_jour)
+var _soleil_cherche := -10.0
 ## Couche fine (option « Détail des sorts ») : null en rétro / sans fenêtre.
 var couche: CoucheMagie
 ## Vrai quand la couche fine dessine les sorts : réglages PresetsMagie.FIN (lu à chaque émission).
@@ -1756,6 +1758,23 @@ func _faisceau_placer(j: Dictionary, o: Vector3, l: float) -> void:
 	m.set_shader_parameter("arc_b", o + dv * l if not j.touche else (j.fin_pos as Vector3))
 	m.set_shader_parameter("touche", 1.0 if j.touche else 0.0)
 	m.set_shader_parameter("force", clampf((horloge - float(j.debut)) / 0.08, 0.0, 1.0))
+	m.set_shader_parameter("jour", _jour())
+
+## Clarté du jour 0..1 (soleil blanc et fort : 1 ; lune bleutée, nuit, intérieur sans soleil : 0), pour le cœur de l'arc
+## électrique (sur la neige de jour, l'additif blanc s'y perdait). La lumière directionnelle est cherchée une fois (puis
+## au plus toutes les 5 s si la scène n'en a pas), sa couleur et son énergie sont lues à chaque image.
+func _jour() -> float:
+	if not is_instance_valid(_soleil) and horloge - _soleil_cherche > 5.0:
+		_soleil_cherche = horloge
+		var sc := get_tree().current_scene
+		if sc != null:
+			for n in sc.find_children("*", "DirectionalLight3D", true, false):
+				if (n as DirectionalLight3D).is_visible_in_tree():
+					_soleil = n
+					break
+	if not is_instance_valid(_soleil) or not _soleil.is_visible_in_tree():
+		return 0.0
+	return smoothstep(0.8, 1.15, _soleil.light_energy) * smoothstep(0.75, 0.9, _soleil.light_color.r)
 
 # ---------------------------------------------------------------------- souffle de givre (couche fine, jet de glace)
 
@@ -1956,6 +1975,8 @@ func _jet_gerbe(j: Dictionary) -> void:
 			var exs := Vector3(snappedf(ext.x, 0.05), snappedf(ext.y, 0.05), snappedf(ext.z, 0.05))
 			var noms: Array = {"feu": ["feu_gerbe", "feu_gerbe_braise"], "glace": ["glace_gerbe", "glace_gerbe_cristal"],
 				"electricite": ["elec_gerbe"], "tenebres": ["ten_gerbe", "ten_gerbe_lueur"]}.get(j.ecole, [])
+			if j.ecole == "electricite" and j.get("faisceau") != null:
+				noms = []   # arc à faisceau : les fourches de la décharge sautent sur le corps (plus de traits droits étirés)
 			for nom in noms:
 				var p := emettre(nom, null, Transform3D.IDENTITY, true, 1.4 if j.dbl else 1.0, -1.0, _pm(nom, PresetsMagie.R[nom], {"ext": exs}))
 				if p != null:
@@ -2072,7 +2093,10 @@ func _jet_placer(j: Dictionary) -> void:
 			"glace":
 				emettre("glace_bouffee", null, Transform3D(bn, fin), false)
 			"electricite":
-				emettre("elec_etincelles", null, Transform3D(bn, fin), false, 0.7)
+				# avec le faisceau (couche fine), les étincelles de la décharge (genre 2, ramifiées) suffisent : les
+				# traits droits étirés de l'ancien système faisaient des bâtons blancs autour de la cible
+				if j.get("faisceau") == null:
+					emettre("elec_etincelles", null, Transform3D(bn, fin), false, 0.7)
 	# lumière : forte sur la main (un peu devant, pour éclairer main et sol) et à l'arrivée, couleur de l'école
 	var c: Color = LUMIERE[j.ecole]
 	var kd := 1.2 if j.dbl else 1.0   # deux jets = deux lumières : multiplicateur modéré (neige surexposée sinon)
@@ -2544,6 +2568,8 @@ func statut_cible(cible: Node3D, statut: String, duree: float) -> void:
 	var ext := (bb.size * 0.42).max(Vector3(0.08, 0.15, 0.08))
 	var s := {"cible": cible, "statut": statut, "fin": horloge + duree, "emit": [], "voiles": [], "eclair": {}, "bb": bb}
 	var noms: Array = {"brulure": ["brulure", "brulure_braise"], "gel": ["gel", "gel_brume"], "choc": ["choc"], "corruption": ["corruption", "corruption_lueur", "corruption_eclats"]}.get(statut, [])
+	if statut == "choc" and fin_actif:
+		noms = []   # couche fine : le choc = arcs ramifiés (_gen_choc) + voile ; plus de bâtons blancs étirés autour du corps
 	for nom in noms:
 		var pd: Dictionary = PresetsMagie.R[nom]
 		var p := emettre(nom, null, Transform3D(Basis.IDENTITY, cible.global_transform * bb.get_center()), true, 1.0, -1.0,

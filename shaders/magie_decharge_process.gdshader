@@ -87,7 +87,7 @@ void poser(inout mat4 tr, vec4 cu, vec3 col, float age) {
 		vec3 v = v0 + vec3(0.0, -9.8, 0.0) * tps;
 		ax = normalize(v);
 		demi = 0.05 + length(v) * 0.012;
-		larg = 0.03;
+		larg = max(0.03, demi * 0.45);   // assez large pour que la forme d'éclair (fourchue) se lise : pas un bâton droit
 	} else {
 		// fourche : saute du bout vers le corps touché (de haut en bas, sur ~1 m)
 		vec3 dev = normalize(n1 * (col.r - 0.5) * 2.0 + vec3(0.0, (col.g - 0.6) * 2.0, 0.0) + d * 0.3);
