@@ -56,7 +56,8 @@ var recharges: Dictionary:
 		return mains.magie.recharges if mains != null and mains.get("magie") != null else {}
 var statuts_actifs: Array:
 	get:
-		return mains.magie.statuts_actifs() if mains != null and mains.get("magie") != null else []
+		var st: Array = mains.magie.statuts_actifs() if mains != null and mains.get("magie") != null else []
+		return st + potions.statuts() if not potions.actifs.is_empty() else st
 ## Barre de raccourcis du HUD (8 cases) : une icône par raccourci de data/magie/raccourcis.json (main gauche, sinon droite).
 var raccourcis: Array:
 	get:
@@ -87,6 +88,13 @@ var lenteur := 0.0
 var lenteur_facteur := 1.0
 var competences := Competences.new()
 var inventaire := Inventaire.new()
+## Potions et nourriture en cours (effets progressifs, délais) : scripts/effets_potions.gd.
+var potions := EffetsPotions.new()
+## Poids du sac au-dessus de la capacité : marche lente, pas de course. `avis` : texte pour le HUD (branché par le monde).
+signal avis(texte: String)
+const LENTEUR_SURCHARGE := 0.6
+var surcharge := false
+var _t_avis_surcharge := 0.0
 
 var tete: Node3D
 var camera: Camera3D
@@ -309,6 +317,19 @@ func ressusciter(lieu: Vector3, lacet: float) -> void:
 	vigueur = vigueur_max
 	mana = mana_max
 	mort = false
+	potions.vider()
+
+## Surcharge (poids du sac > capacité) : avis au passage, et un rappel si on tente de courir.
+func _surcharge(dt: float) -> void:
+	_t_avis_surcharge -= dt
+	var lourd := inventaire.surcharge()
+	if lourd != surcharge:
+		surcharge = lourd
+		avis.emit(("Surchargé (%.0f / %.0f) : marche lente, course impossible." % [inventaire.poids(), inventaire.capacite()]) if lourd else "Vous n'êtes plus surchargé.")
+		_t_avis_surcharge = 6.0
+	elif lourd and _t_avis_surcharge <= 0.0 and Input.is_action_just_pressed("course") and not mort:
+		_t_avis_surcharge = 4.0
+		avis.emit("Surchargé : impossible de courir (%.0f / %.0f)." % [inventaire.poids(), inventaire.capacite()])
 
 func _physics_process(dt: float) -> void:
 	_t += dt
@@ -319,8 +340,12 @@ func _physics_process(dt: float) -> void:
 		depenser(6.0)
 	var entree := Vector2.ZERO if (mort or en_dialogue) else Input.get_vector("gauche", "droite", "avant", "arriere")
 	var dir := (transform.basis * Vector3(entree.x, 0.0, entree.y)).normalized()
-	var court: bool = Input.is_action_pressed("course") and vigueur > 0.0 and entree.y < 0.0 and not mains.bloque
+	potions.avancer(self, dt)
+	_surcharge(dt)
+	var court: bool = Input.is_action_pressed("course") and vigueur > 0.0 and entree.y < 0.0 and not mains.bloque and not surcharge
 	var vitesse := COURSE if court else VITESSE
+	if surcharge:
+		vitesse *= LENTEUR_SURCHARGE
 	if mains.bloque:
 		vitesse *= 0.5
 	if lenteur > 0.0:

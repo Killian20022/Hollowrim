@@ -36,6 +36,7 @@ var _main_ui := {}
 var _fiche: VBoxContainer
 var _avis: Label
 var _aide: Label
+var _poids: Label   # « Poids : 12 / 100 » (rouge si surchargé)
 var _souris := Input.MOUSE_MODE_CAPTURED
 
 func _ready() -> void:
@@ -93,6 +94,11 @@ func _construire() -> void:
 	var vide := Control.new()
 	vide.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	haut.add_child(vide)
+	_poids = MenuStyle.etiquette("", MenuStyle.PARCHEMIN)
+	haut.add_child(_poids)
+	var sep := Control.new()
+	sep.custom_minimum_size = Vector2(18, 0)
+	haut.add_child(sep)
 	_aide = MenuStyle.etiquette("", MenuStyle.GRIS)
 	haut.add_child(_aide)
 
@@ -618,7 +624,17 @@ func _texte(t: String, c := MenuStyle.PARCHEMIN) -> Label:
 	return l
 
 ## Met à jour les mains, les marques G/D de la liste, la fiche et les cases des raccourcis.
+## Poids du sac / capacité, en rouge (avec la consigne) quand le joueur est surchargé.
+func _maj_poids() -> void:
+	if _poids == null or joueur == null:
+		return
+	var inv: Inventaire = joueur.inventaire
+	var lourd := inv.surcharge()
+	_poids.text = "Poids : %s / %d%s" % [FenetreButin.poids_texte(inv.poids()) if inv.poids() > 0.0 else "0", roundi(inv.capacite()), "  SURCHARGÉ : pas de course" if lourd else ""]
+	_poids.add_theme_color_override("font_color", ROUGE if lourd else MenuStyle.PARCHEMIN)
+
 func _rafraichir() -> void:
+	_maj_poids()
 	var eq := _eq()
 	if eq == null:
 		return

@@ -3,7 +3,8 @@ extends RefCounted
 ## Potions et nourriture (catégorie « consommable » de data/butin/objets.json) : empilées dans le sac, utilisées depuis
 ## l'inventaire (I, catégorie Potions) ou par un raccourci 1-0 (entrée {"conso": id} de EquipementMains.raccourcis).
 ## Effets branchés sur les vraies stats du joueur : vie (joueur.soigner), mana (joueur.mana / mana_max), vigueur
-## (joueur.vigueur / vigueur_max), apprendre (sort ajouté à EquipementMains.sorts_connus). Instantanés.
+## (joueur.vigueur / vigueur_max), apprendre (sort ajouté à EquipementMains.sorts_connus). Vie / mana / vigueur sont versées
+## PROGRESSIVEMENT (EffetsPotions, `joueur.potions` : durée et famille dans `effets`) ; le sort appris est immédiat.
 ## Une potion qui ne servirait à rien (stat déjà pleine, sort déjà connu) est refusée et reste dans le sac.
 
 const NOMS_EFFETS := {"vie": "vie", "mana": "mana", "vigueur": "endurance"}
@@ -21,11 +22,16 @@ static func description(id: String) -> String:
 	for k in ["vie", "mana", "vigueur"]:
 		if e.has(k):
 			parts.append("%d %s" % [int(e[k]), ("d’" if k == "vigueur" else "de ") + String(NOMS_EFFETS[k])])
-	var t := ("Rend " + ", ".join(parts) + ".") if not parts.is_empty() else ""
+	var t := ""
+	if not parts.is_empty():
+		t = "Rend " + ", ".join(parts) + ((" en %d s." % int(e["duree"])) if e.has("duree") else ".")
 	if e.has("apprendre"):
 		var s: Resource = load(EquipementMains.DOSSIER_SORTS % String(e["apprendre"])) if ResourceLoader.exists(EquipementMains.DOSSIER_SORTS % String(e["apprendre"])) else null
 		t += ("" if t == "" else " ") + "Apprend le sort %s." % (String(s.get("nom")) if s != null else String(e["apprendre"]))
 	return t
+
+static func _famille_txt(f: String) -> String:
+	return {"soin": "une autre potion de soin", "mana": "une autre potion de mana", "endurance": "une autre potion d’endurance", "nourriture": "reprendre de la nourriture"}.get(f, "recommencer")
 
 static func _eq(joueur: Node) -> EquipementMains:
 	var m: Variant = joueur.get("mains")
@@ -46,6 +52,9 @@ static func refus(joueur: Node, id: String) -> String:
 	if joueur.get("mort"):
 		return "Trop tard."
 	var e := effets(id)
+	var pot: EffetsPotions = joueur.get("potions")
+	if pot != null and e.has("famille") and pot.delai(id) > 0.0:
+		return "Trop tôt pour %s (%d s)." % [_famille_txt(EffetsPotions.famille(id)), ceili(pot.delai(id))]
 	if e.has("apprendre"):
 		var eq := _eq(joueur)
 		if eq == null:
@@ -54,11 +63,12 @@ static func refus(joueur: Node, id: String) -> String:
 			return "Vous connaissez déjà ce sort."
 		return ""
 	var utile := false
-	if e.has("vie") and float(joueur.vie) < float(joueur.vie_max) - 0.01:
+	var att := func(k: String) -> float: return pot.en_attente(k) if pot != null else 0.0
+	if e.has("vie") and float(joueur.vie) + att.call("vie") < float(joueur.vie_max) - 0.01:
 		utile = true
-	if e.has("mana") and float(joueur.mana) < float(joueur.mana_max) - 0.01:
+	if e.has("mana") and float(joueur.mana) + att.call("mana") < float(joueur.mana_max) - 0.01:
 		utile = true
-	if e.has("vigueur") and float(joueur.vigueur) < float(joueur.vigueur_max) - 0.01:
+	if e.has("vigueur") and float(joueur.vigueur) + att.call("vigueur") < float(joueur.vigueur_max) - 0.01:
 		utile = true
 	if not utile:
 		var noms: Array[String] = []
@@ -74,12 +84,8 @@ static func utiliser(joueur: Node, id: String) -> String:
 	if r != "":
 		return r
 	var e := effets(id)
-	if e.has("vie"):
-		joueur.soigner(float(e["vie"]))
-	if e.has("mana"):
-		joueur.mana = minf(float(joueur.mana_max), float(joueur.mana) + float(e["mana"]))
-	if e.has("vigueur"):
-		joueur.vigueur = minf(float(joueur.vigueur_max), float(joueur.vigueur) + float(e["vigueur"]))
+	if joueur.get("potions") != null:
+		(joueur.potions as EffetsPotions).demarrer(id)
 	if e.has("apprendre"):
 		var eq := _eq(joueur)
 		eq.sorts_connus.append(String(e["apprendre"]))
