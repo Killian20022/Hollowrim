@@ -9,6 +9,7 @@
 		"viande_sechee": {"nom": "Viande séchée", "poids": 0.3, "valeur": 5, "rarete": "commun", "categorie": "consommable", "icone": "viande_sechee", "effets": {"vie": 15}},
 		"tome_boule_feu": {"nom": "Tome : Boule de feu", "poids": 1.0, "valeur": 120, "rarete": "rare", "categorie": "consommable", "icone": "tome", "effets": {"apprendre": "boule_feu"}},
 		"tome_lance_givre": {"nom": "Tome : Lance de givre", "poids": 1.0, "valeur": 120, "rarete": "rare", "categorie": "consommable", "icone": "tome", "effets": {"apprendre": "lance_givre"}},
+		"tome_souffle_givre": {"nom": "Tome : Souffle de givre", "poids": 1.0, "valeur": 130, "rarete": "rare", "categorie": "consommable", "icone": "tome", "effets": {"apprendre": "souffle_givre"}},
 		"tome_drain_vie": {"nom": "Tome : Drain de vie", "poids": 1.0, "valeur": 150, "rarete": "rare", "categorie": "consommable", "icone": "tome", "effets": {"apprendre": "drain_vie"}},
 		"epee_or": {"nom": "Épée en or", "poids": 9.0, "valeur": 180, "rarete": "rare", "categorie": "arme"},
 		"epee_rubis": {"nom": "Épée en rubis", "poids": 9.0, "valeur": 220, "rarete": "rare", "categorie": "arme"},

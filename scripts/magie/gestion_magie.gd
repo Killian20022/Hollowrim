@@ -40,12 +40,15 @@ const BRUIT_VAGUE := preload("res://assets/magie/bruit_vague.png")
 ## Jet électrique (couche fine) : DÉCHARGE d'éclats texturés qui crépitent le long de l'arc (magie_decharge*.gdshader).
 const SH_DECHARGE := preload("res://shaders/magie_decharge.gdshader")
 const SH_DECHARGE_PROC := preload("res://shaders/magie_decharge_process.gdshader")
+## Faisceau épais de l'arc électrique (couche fine) : corps d'un seul tenant, brins tressés et fourches (magie_faisceau).
+const SH_FAISCEAU := preload("res://shaders/magie_faisceau.gdshader")
+const FAISCEAU_SEG := 48
 ## Formes des éclats : atlas 4×2 de 128² tiré du Kenney Particle Pack (CC0, assets/LICENCES.md) : rangée 0 = traits
 ## d'éclair (spark_05, spark_06, spark_07 redressé, trace_03), rangée 1 = nuages d'éclairs (spark_01, 02, 04), éclat star_04.
 const ATLAS_ELEC := preload("res://assets/magie/elec_kenney_atlas.png")
 ## Shaders des visuels qui passent dans la couche fine (CoucheMagie.CALQUE) ; le voile (material_overlay des cibles) reste
 ## dans le rendu du monde.
-const SHADERS_COUCHE := [SH_ADD, SH_MIX, SH_TRAIT, SH_CRISTAL, SH_SOL, SH_SOL_MIX, SH_COEUR, SH_COEUR_ADD, SH_FLUX, SH_AURA, SH_VAGUE, SH_DECHARGE, SH_GIVRE]
+const SHADERS_COUCHE := [SH_ADD, SH_MIX, SH_TRAIT, SH_CRISTAL, SH_SOL, SH_SOL_MIX, SH_COEUR, SH_COEUR_ADD, SH_FLUX, SH_AURA, SH_VAGUE, SH_DECHARGE, SH_GIVRE, SH_FAISCEAU]
 ## Palettes du flux procédural des jets (couche fine) : cœur → bord (ténèbres : rehaut → cœur noir).
 const FLUX := {
 	"feu": ["#fffbe8", "#fff0a8", "#fcb53a", "#ec6a1f", "#b3341f", "#5a1a1c"],
@@ -141,6 +144,7 @@ var _quad := QuadMesh.new()
 var _mesh_eclat: ArrayMesh
 var _mesh_pic: ArrayMesh
 var _mesh_flux: ArrayMesh
+var _mesh_faisceau: ArrayMesh
 var _bouffees: Array = []         # {mi, t0, duree, r0, r1, f0} : boules procédurales qui grossissent et s'éteignent
 var _lumieres: Array[OmniLight3D] = []
 var _demandes := {}               # cle -> {pos, noeud, couleur, energie, portee, prio, debut, fin, duree}
@@ -1287,6 +1291,7 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 		j.ecart = ecart
 	elif fin_actif and ecole == "electricite":
 		j.decharge = _decharge_creer(dbl)
+		j.faisceau = _faisceau_creer(dbl)
 	elif fin_actif and ecole == "glace":
 		# couche fine : le corps du jet de glace est un SOUFFLE DE GIVRE (même machinerie que la vague : j.vague)
 		j.vague = _givre_creer(dbl)
@@ -1430,7 +1435,9 @@ func _gen_jet_arc_vif(j: Dictionary) -> Array:
 			decal = Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * l * 0.04
 		var p := _arc_courbe(o, j, l, l * (0.03 if k == 0 else 0.045), decal)
 		var a := 0.4 if hoquet else (rng.randf_range(0.7, 1.0) if k == 0 else rng.randf_range(0.3, 0.7))
-		traits.append([p, 1.0 if k == 0 else 0.5, a])
+		# avec le faisceau épais (magie_faisceau), les brins sont dessinés par le shader : ici seulement les fourches 3D
+		if j.get("faisceau") == null:
+			traits.append([p, 1.0 if k == 0 else 0.5, a])
 		if hoquet:
 			break
 		for _r in (4 if k == 0 else 1):
@@ -1677,6 +1684,60 @@ func _decharge_arreter(j: Dictionary) -> void:
 		dc.emitting = false
 		get_tree().create_timer(DECHARGE_VIE + 0.1, false).timeout.connect(dc.queue_free)
 	j.erase("decharge")
+
+# ---------------------------------------------------------------------- faisceau électrique (couche fine, arc électrique)
+
+## Ruban fixe de FAISCEAU_SEG segments (UV.x = t le long de l'arc, UV.y = côté) : le shader le pose sur la courbe.
+func _creer_faisceau() -> ArrayMesh:
+	var v := PackedVector3Array()
+	var uv := PackedVector2Array()
+	for i in FAISCEAU_SEG:
+		var t0 := float(i) / FAISCEAU_SEG
+		var t1 := float(i + 1) / FAISCEAU_SEG
+		for q in [[t0, -1.0], [t0, 1.0], [t1, 1.0], [t0, -1.0], [t1, 1.0], [t1, -1.0]]:
+			v.append(Vector3.ZERO)
+			uv.append(Vector2(q[0], q[1]))
+	var a := []
+	a.resize(Mesh.ARRAY_MAX)
+	a[Mesh.ARRAY_VERTEX] = v
+	a[Mesh.ARRAY_TEX_UV] = uv
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+	return m
+
+## Corps épais de l'arc électrique (un par jet : matériau propre, ses uniformes sont la courbe de CE jet).
+func _faisceau_creer(dbl: bool) -> MeshInstance3D:
+	if _mesh_faisceau == null:
+		_mesh_faisceau = _creer_faisceau()
+	var mi := MeshInstance3D.new()
+	mi.name = "FaisceauElec"
+	mi.mesh = _mesh_faisceau
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.custom_aabb = AABB(Vector3.ONE * -1e4, Vector3.ONE * 2e4)   # sommets posés par le shader
+	var m := ShaderMaterial.new()
+	m.shader = SH_FAISCEAU
+	var pal: Array = AURA_PAL.electricite
+	for i in 6:
+		m.set_shader_parameter("c%d" % i, Color(pal[i]))
+	m.set_shader_parameter("dbl", 1.0 if dbl else 0.0)
+	m.set_shader_parameter("graine", rng.randf() * 100.0)
+	mi.material_override = m
+	mi.visible = not sans_procedural and not OS.get_cmdline_user_args().has("--sans-flux")
+	add_child(mi)
+	mi.global_transform = Transform3D.IDENTITY
+	_proc.append(mi)
+	return mi
+
+## Même courbe que la décharge (_decharge_placer) et que l'arc maître CPU.
+func _faisceau_placer(j: Dictionary, o: Vector3, l: float) -> void:
+	var mi: MeshInstance3D = j.faisceau
+	var m := mi.material_override as ShaderMaterial
+	var dv: Vector3 = j.dir_vis if j.dir_vis != Vector3.ZERO else j.dir
+	m.set_shader_parameter("arc_o", o)
+	m.set_shader_parameter("arc_c", o + (j.dir as Vector3) * l * 0.5)
+	m.set_shader_parameter("arc_b", o + dv * l if not j.touche else (j.fin_pos as Vector3))
+	m.set_shader_parameter("touche", 1.0 if j.touche else 0.0)
+	m.set_shader_parameter("force", clampf((horloge - float(j.debut)) / 0.08, 0.0, 1.0))
 
 # ---------------------------------------------------------------------- souffle de givre (couche fine, jet de glace)
 
@@ -1966,6 +2027,8 @@ func _jet_placer(j: Dictionary) -> void:
 			_givre_placer(j)
 	if j.get("decharge") != null and is_instance_valid(j.decharge):
 		_decharge_placer(j, o, l)
+	if j.get("faisceau") != null and is_instance_valid(j.faisceau):
+		_faisceau_placer(j, o, l)
 	if not j.bouclier.is_empty():
 		var d: Dictionary = j.bouclier
 		d.pos = o + dir * 0.35
@@ -2038,6 +2101,9 @@ func _jet_arreter(j: Dictionary) -> void:
 		get_tree().create_timer(VAGUE_VIE + 0.15, false).timeout.connect(vg.queue_free)
 	j.vague = null
 	_decharge_arreter(j)
+	if j.get("faisceau") != null and is_instance_valid(j.faisceau):
+		(j.faisceau as Node).queue_free()
+	j.erase("faisceau")
 	if not j.bouclier.is_empty():
 		j.bouclier.duree = 0.0
 
@@ -2922,6 +2988,16 @@ func vitrine_prechauffe(v: Node3D) -> void:
 	v.add_child(vgg)
 	vgg.visible = true
 	vgg.position = Vector3(0.6, 0.4, 0.0)
+	var fs := _faisceau_creer(false)
+	remove_child(fs)
+	v.add_child(fs)
+	fs.visible = true
+	var mf := fs.material_override as ShaderMaterial
+	var vo := v.global_position if v.is_inside_tree() else Vector3.ZERO
+	mf.set_shader_parameter("arc_o", vo + Vector3(-0.5, 0.8, 0.0))
+	mf.set_shader_parameter("arc_c", vo + Vector3(0.0, 0.85, 0.0))
+	mf.set_shader_parameter("arc_b", vo + Vector3(0.5, 0.8, 0.0))
+	mf.set_shader_parameter("force", 1.0)
 	var ia := 0
 	for ec in AURA_ECOLE:
 		var au := _aura_fine(v, ec, 0.06, ia % 2)

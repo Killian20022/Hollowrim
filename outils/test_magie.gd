@@ -169,10 +169,10 @@ func _mana() -> void:
 	_verif(magie.inc["gauche"].etat == Incantation.REPOS and magie.refus["gauche"].contains("mana"), "sans mana : refus expliqué (« %s »)" % magie.refus["gauche"])
 	magie.relacher("gauche")
 
-# ------------------------------------------------------------------ les 12 sorts
+# ------------------------------------------------------------------ les 13 sorts offensifs
 
 func _sorts() -> void:
-	var ids := ["jet_flammes", "boule_feu", "explosion_incendiaire", "eclat_glace", "lance_givre", "nova_gelee", "arc_electrique",
+	var ids := ["jet_flammes", "boule_feu", "explosion_incendiaire", "eclat_glace", "lance_givre", "nova_gelee", "souffle_givre", "arc_electrique",
 		"chaine_eclairs", "tempete_statique", "trait_ombre", "drain_vie", "explosion_obscure"]
 	for id in ids:
 		magie.equiper("gauche", "vide")
@@ -190,6 +190,11 @@ func _sorts() -> void:
 				if Statuts.a(m, sd.statut) or (sd.statut == "choc"):
 					porte = true
 			_verif(porte, "%s : statut « %s » posé" % [id, sd.statut])
+		if id == "souffle_givre":
+			var lent := 1.0
+			for m in [s.mannequin, s.mannequin2, s.mannequin3]:
+				lent = minf(lent, Statuts.facteur_vitesse(m))
+			_verif(lent < 0.9, "souffle de givre : la cible est ralentie (vitesse ×%.2f)" % lent)
 		if id == "drain_vie":
 			_verif(j.vie > 52.0, "drain de vie : le joueur se soigne (%.1f)" % j.vie)
 		if id == "chaine_eclairs":
@@ -462,4 +467,4 @@ func _sauvegarde() -> void:
 	magie.importer(JSON.parse_string(texte))
 	_verif(magie.eq.mains["gauche"]["id"] == "drain_vie" and magie.eq.mains["droite"]["id"] == "epee" and absf(j.mana - 42.0) < 0.01,
 		"sauvegarde : mains (%s / %s) et mana restaurés" % [magie.eq.mains["gauche"]["id"], magie.eq.mains["droite"]["id"]])
-	_verif(magie.eq.sorts_connus.size() == 18, "sauvegarde : 18 sorts connus")
+	_verif(magie.eq.sorts_connus.size() == 19, "sauvegarde : 19 sorts connus")
