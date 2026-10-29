@@ -292,8 +292,9 @@ procédural a été écarté : c'est le `magie_flux` rejeté (« motif qui gliss
   la ligne : une bouffée à x m est partie il y a a(x) s (freinage), d'où et vers où visait alors la main.
 - `presets_magie.gd` : `feu_fin_jet_langues` 150 → 90 (braises discrètes).
 - Outils : `galerie --cible=<m>`, `outils/captures_jet_vague.sh`, `outils/planches_jet_vague.sh`.
-- Coût (`--perf=jet`, crypte FPS, 1280×720, A/B alterné avec 3ecd533, 2 × 3 mesures, PC partagé) : coût du jet
-  ~1,99 ms GPU avant, ~2,10 ms après : +0,1 ms (dans le bruit de mesure).
+- Coût (`--perf=jet`, crypte FPS, 1280×720, A/B alterné avec 3ecd533, PC partagé ; coût du jet = GPU avec − GPU sans) :
+  version finale, 2 × 3 mesures : 2,37 ms avant, 2,50 ms après, soit +0,13 ms (bruit de mesure ≈ ±0,3 ms) ; particules
+  2 020 → 1 960, émetteurs inchangés (10).
 
 ## Électricité : décharge vivante (branche magie/elec_vivante, 2026-10-29)
 
