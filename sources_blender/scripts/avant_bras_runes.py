@@ -44,6 +44,8 @@ for nom in GARDE:
     bm0.free()
 MATS = ["ab_gant", "ab_cuir", "ab_tresse", "ab_metal", "ab_fer", "ab_sangle", "ab_fourrure"]
 TAU = 2 * math.pi
+# Main : True = main anatomique MakeHuman (main_humaine.py, 2026-10-29) ; False = paume et doigts en tubes (avant)
+MAIN_HUMAINE = True
 
 
 def h(i, j):
@@ -328,7 +330,15 @@ def construire(var):
     st = [(0.692, r_base(0.692) + 0.001, 0.0), (0.703, r_base(0.70) + 0.003, 0.5), (0.712, 0.040, 0.8), (0.720, 0.034, 1.0)]
     anneau_tube(m, st, "ab_gant", 16, rep_u=2.0, poids=lambda x: poids_main(x) if x > 0.709 else poids_avant_bras(x))
 
-    # paume : coque à section de rectangle arrondi, du poignet aux jointures
+    if MAIN_HUMAINE:
+        # main anatomique MakeHuman (CC0) recalée sur le rig : main_humaine.py (paume, doigts, pouce)
+        import sys as _sys
+        _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import main_humaine
+        main_humaine.main(m, os_)
+        return m
+
+    # paume : coque à section de rectangle arrondi, du poignet aux jointures (ancienne main en tubes, MAIN_HUMAINE = False)
     def section(x):
         k = min(max((x - 0.71) / (0.83 - 0.71), 0.0), 1.0)
         cy = 0.064 + (0.062 - 0.064) * k
