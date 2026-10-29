@@ -228,28 +228,38 @@ func _ennemis() -> void:
 
 # ------------------------------------------------------------------ potions → stats
 
+## Les effets des potions sont progressifs (EffetsPotions) : on laisse passer le temps (effets versés en entier, délais levés).
+func _fin_effets() -> void:
+	j.potions.avancer(j, 30.0)
+
 func _potions() -> void:
 	var inv: Inventaire = j.inventaire
 	for id in ["potion_soin", "potion_mana", "potion_endurance", "pain_seigle", "tome_boule_feu"]:
 		inv.ajouter(id, 2)
 	j.vie = 30.0
 	var r := Consommables.utiliser(j, "potion_soin")
+	_fin_effets()
 	_verif(r == "" and is_equal_approx(j.vie, 70.0) and inv.nombre("potion_soin") == 1, "potion de soin : vie 30 → %.0f, reste %d" % [j.vie, inv.nombre("potion_soin")])
 	j.vie = j.vie_max
 	r = Consommables.utiliser(j, "potion_soin")
+	_fin_effets()
 	_verif(r != "" and inv.nombre("potion_soin") == 1, "vie pleine : potion refusée et gardée (« %s »)" % r)
 	j.mana = 10.0
 	r = Consommables.utiliser(j, "potion_mana")
+	_fin_effets()
 	_verif(r == "" and is_equal_approx(j.mana, 60.0), "potion de mana : mana 10 → %.0f" % j.mana)
 	j.mana = j.mana_max - 5.0
 	Consommables.utiliser(j, "potion_mana")
+	_fin_effets()
 	_verif(is_equal_approx(j.mana, j.mana_max), "mana plafonnée à mana_max (%.0f)" % j.mana)
 	j.vigueur = 5.0
 	r = Consommables.utiliser(j, "potion_endurance")
+	_fin_effets()
 	_verif(r == "" and is_equal_approx(j.vigueur, 65.0), "potion d'endurance : vigueur 5 → %.0f" % j.vigueur)
 	j.vie = 50.0
 	j.vigueur = 50.0
 	r = Consommables.utiliser(j, "pain_seigle")
+	_fin_effets()
 	_verif(r == "" and is_equal_approx(j.vie, 58.0) and is_equal_approx(j.vigueur, 70.0), "pain de seigle : vie +8, vigueur +20 (%.0f / %.0f)" % [j.vie, j.vigueur])
 	_verif(Consommables.description("pain_seigle").contains("8 de vie") and Consommables.description("pain_seigle").contains("endurance"), "description : « %s »" % Consommables.description("pain_seigle"))
 	# tome : apprendre un sort (tout_disponible : déjà connu → refus, sinon appris)
@@ -291,9 +301,12 @@ func _inventaire() -> void:
 	j.vie = 20.0
 	var n0 := inv.nombre("potion_soin")
 	var mains_av := [ui.tenu("gauche"), ui.tenu("droite")]
-	_verif(ui.equiper("droite", "conso:potion_soin") == "" and is_equal_approx(j.vie, 60.0) and inv.nombre("potion_soin") == n0 - 1, "inventaire : clic sur la potion = bue (vie 20 → %.0f, reste %d)" % [j.vie, inv.nombre("potion_soin")])
+	var r_inv := ui.equiper("droite", "conso:potion_soin")
+	_fin_effets()
+	_verif(r_inv == "" and is_equal_approx(j.vie, 60.0) and inv.nombre("potion_soin") == n0 - 1, "inventaire : clic sur la potion = bue (vie 20 → %.0f, reste %d, « %s »)" % [j.vie, inv.nombre("potion_soin"), r_inv])
 	_verif([ui.tenu("gauche"), ui.tenu("droite")] == mains_av, "boire ne change pas les mains")
 	j.vie = j.vie_max
+	_fin_effets()
 	var rf := ui.equiper("gauche", "conso:potion_soin")
 	_verif(rf != "" and ui.message.contains("maximum"), "inventaire : refus expliqué (« %s »)" % ui.message)
 	ui._choisir("conso:potion_soin")
@@ -309,6 +322,7 @@ func _raccourcis() -> void:
 	j.vie = 25.0
 	var n0 := inv.nombre("potion_soin")
 	magie.raccourci(6)
+	_fin_effets()
 	_verif(is_equal_approx(j.vie, 65.0) and inv.nombre("potion_soin") == n0 - 1, "touche 7 en jeu : potion bue (vie 25 → %.0f)" % j.vie)
 	_verif(eq.mains["gauche"]["id"] == "torche" and eq.mains["droite"]["id"] == "epee", "touche 7 : les mains restent torche | épée")
 	var hud: Control = s.hud.combat_ui if s.hud.get("combat_ui") != null else null

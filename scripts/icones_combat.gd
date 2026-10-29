@@ -19,6 +19,8 @@ const PALETTES := {
 	"tenebres": ["#07040f", "#2a0f45", "#4a1f7a", "#7a3fc0", "#b07aef", "#e8d0ff"],
 	"soin": ["#1a1408", "#6a5218", "#a88a2a", "#e8c050", "#f4dc80", "#fff8d8"],
 	"protection": ["#0b1426", "#2a3f66", "#4a6a9a", "#8ab0d8", "#c8e0f4", "#ffffff"],
+	"vie": ["#1a0808", "#6a1818", "#a82a2a", "#e0473a", "#f48a80", "#ffd8d0"],
+	"endurance": ["#08140a", "#1f4a2a", "#3a8a4a", "#7fc87a", "#b0e8a8", "#f0fff0"],
 	"metal": ["#0b0f1a", "#3a4458", "#56627a", "#8a96ad", "#c8d0dc", "#ffffff"],
 	"cuir": ["#140c06", "#3a2414", "#5a3a20", "#8a5a32", "#b07a48", "#d8a878"],
 }
@@ -30,7 +32,7 @@ const FIXES := {
 ## Couleur d'accent par école (jauges de charge, liserés, barre de durée des statuts).
 const ACCENTS := {
 	"feu": "#f07a22", "glace": "#7fc0f0", "electricite": "#8aa0ff", "tenebres": "#b07aef",
-	"soin": "#e8c050", "protection": "#8ab0d8", "": "#c8d0dc",
+	"soin": "#e8c050", "protection": "#8ab0d8", "vie": "#e0473a", "endurance": "#7fc87a", "": "#c8d0dc",
 }
 ## Noms de statuts tolérés → motif.
 const ALIAS_STATUTS := {
@@ -634,6 +636,36 @@ const MOTIFS_STATUTS := {
 		"..33....",
 		"..33....",
 		"........",
+		"........",
+	]],
+	"pot_vie": ["vie", [
+		"...1....",
+		"..131...",
+		"..131...",
+		".13531..",
+		".13331..",
+		".13331..",
+		"..111...",
+		"........",
+	]],
+	"pot_mana": ["glace", [
+		"...1....",
+		"..131...",
+		"..131...",
+		".13531..",
+		".13331..",
+		".13331..",
+		"..111...",
+		"........",
+	]],
+	"pot_vigueur": ["endurance", [
+		"...1....",
+		"..131...",
+		"..131...",
+		".13531..",
+		".13331..",
+		".13331..",
+		"..111...",
 		"........",
 	]],
 	"protection": ["protection", [

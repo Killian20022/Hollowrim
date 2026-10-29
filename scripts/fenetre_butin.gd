@@ -143,6 +143,24 @@ func prendre(i := -1) -> Array[Dictionary]:
 	if not ouvert or i < 0 or i >= lignes.size():
 		return []
 	var l: Dictionary = lignes[i]
+	# poids : on ne prend que ce que le sac peut porter (le reste demeure dans le contenant)
+	var place: int = joueur.inventaire.place_pour(String(l["id"]))
+	if place < int(l["n"]):
+		if hud != null:
+			hud.avis("Trop lourd : sac %d / %d" % [roundi(joueur.inventaire.poids()), roundi(joueur.inventaire.capacite())])
+		if place <= 0:
+			return []
+		var part: Dictionary = l.duplicate()
+		part["n"] = place
+		var rp := ButinTables.prendre(joueur.inventaire, [part])
+		for o: Dictionary in rp:
+			if hud != null:
+				hud.avis("+ %d %s" % [int(o["n"]), joueur.inventaire.nom(String(o["id"]))])
+		l["n"] = int(l["n"]) - place
+		_objets[String(l["id"])] = int(l["n"])
+		Sons.jouer(self, ["cloth1", "cloth2"], -8.0)
+		_vue.queue_redraw()
+		return rp
 	var res := ButinTables.prendre(joueur.inventaire, [l])
 	for o: Dictionary in res:
 		if hud != null:
@@ -160,8 +178,12 @@ func prendre(i := -1) -> Array[Dictionary]:
 
 func tout_prendre() -> Array[Dictionary]:
 	var res: Array[Dictionary] = []
-	while ouvert and not lignes.is_empty():
-		res.append_array(prendre(0))
+	var i := 0
+	while ouvert and i < lignes.size():
+		var avant := lignes.size()
+		res.append_array(prendre(i))
+		if ouvert and lignes.size() >= avant:   # ligne gardée (sac plein) : on passe à la suivante
+			i += 1
 	return res
 
 func _choisir(i: int) -> void:

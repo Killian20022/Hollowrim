@@ -93,6 +93,22 @@ func poids() -> float:
 		total += float(objet(id).get("poids", 0.0)) * objets[id]
 	return total
 
+## Capacité du sac (poids) : au-delà, le joueur est surchargé (marche lente, pas de course). Les poids vont de 0,1 (anneau) à 10 (épée).
+const CAPACITE := 100.0
+
+func capacite() -> float:
+	return CAPACITE
+
+func surcharge() -> bool:
+	return poids() > capacite() + 0.001
+
+## Combien d'exemplaires de `id` le sac peut encore recevoir sans dépasser la capacité (grand nombre si l'objet ne pèse rien).
+func place_pour(id: String) -> int:
+	var w := float(objet(id).get("poids", 0.0))
+	if id == "pieces" or w <= 0.0:
+		return 9999
+	return maxi(0, int(floorf((capacite() - poids() + 0.001) / w)))
+
 func exporter() -> Dictionary:
 	return {"pieces": pieces, "objets": objets.duplicate()}
 

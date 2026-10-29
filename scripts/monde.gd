@@ -1205,6 +1205,7 @@ func _interface() -> void:
 	hud.joueur = joueur
 	hud.lieux = [[Vector3(CERCLE.x, 0, CERCLE.z), Color("#6fd8ff")], [Vector3.ZERO, Color("#e8a64a")]]
 	calque.add_child(hud)
+	joueur.avis.connect(hud.avis)   # surcharge du sac (joueur.gd)
 	hud.lieu_nomme(Vector3(VILLAGE.x, h_village, VILLAGE.z), 30.0, "Skarnholt")   # lot L7 : annonces « Lieu découvert »
 	hud.lieu_nomme(Vector3(CERCLE.x, hauteur(CERCLE.x, CERCLE.z), CERCLE.z), 12.0, "Cercle des pierres runiques")
 	inventaire_ui = InventaireMains.new()   # inventaire des deux mains (I) : scripts/inventaire_mains.gd
