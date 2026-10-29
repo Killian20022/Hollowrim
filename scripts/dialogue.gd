@@ -4,6 +4,10 @@ extends Control
 ## Positions relatives à `size` (écran logique, voir EchelleUi) : boîte centrée en bas, 320 px de large
 ## à 480x270, jusqu'à 420 px à 640x360 ; tout est replacé par _placer() quand la taille change.
 ## Propriété à poser AVANT add_child : joueur.
+## Lot L8 : un villageois MARCHAND (data/marchands.json : Brodd, Grima) affiche « [T] Commercer » en haut à droite de la boîte
+## pendant toute la conversation, puis, sur la dernière réplique, le choix « Commercer / Au revoir » (flèches ou Z/S, E / Entrée
+## = valider ; T = commercer tout de suite) ; « Commercer » ferme le dialogue et ouvre la boutique (Marchand.ouvrir).
+## Manette : A = suite / valider, B = fermer, X = commercer, croix haut/bas = choisir.
 
 const VITESSE_TEXTE := 45.0  # caractères par seconde
 const DIST_FERMETURE := 4.0
@@ -43,6 +47,12 @@ var _nom: Label
 var _cartouche: Control
 var _fleche: Control
 var _sous_titre: Label
+var _marchand := ""        # id de marchand du PNJ en conversation ("" = il ne commerce pas)
+var _choix_vis := false    # choix « Commercer / Au revoir » affiché (dernière réplique)
+var _choix := 0            # 0 = Commercer, 1 = Au revoir
+var _carte_cmd: Control    # cartouche « [T] Commercer » (haut droit de la boîte)
+var _choix_ui: Control     # panneau des choix (au-dessus de la boîte, à droite)
+const CHOIX := ["Commercer", "Au revoir"]
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -75,6 +85,29 @@ func _ready() -> void:
 	_cartouche.add_child(_nom)
 	_fleche = _dessin_fleche()
 	_boite.add_child(_fleche)
+	# lot L8 : commerce (marchands)
+	_carte_cmd = _cadre("nom", 4, Rect2(0, -7, 80, 14))
+	_carte_cmd.visible = false
+	_boite.add_child(_carte_cmd)
+	var cmd := _etiquette(PARCHEMIN)
+	cmd.name = "Texte"
+	cmd.position = Vector2(6, 0)
+	_carte_cmd.add_child(cmd)
+	_choix_ui = _cadre("cadre", 8, Rect2(0, 0, 92, 38))
+	_choix_ui.visible = false
+	_boite.add_child(_choix_ui)
+	var dessin := Control.new()
+	dessin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dessin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dessin.draw.connect(func() -> void:
+		for i in CHOIX.size():
+			var y := 15.0 + i * 13.0
+			var c := OR if i == _choix else PARCHEMIN
+			if i == _choix:
+				dessin.draw_string(_police, Vector2(8, y), ">", HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, c)
+			dessin.draw_string(_police, Vector2(18, y + 1), CHOIX[i], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, FOND)
+			dessin.draw_string(_police, Vector2(17, y), CHOIX[i], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, c))
+	_choix_ui.add_child(dessin)
 
 	# sous-titre « au passage »
 	_sous_titre = _etiquette(PARCHEMIN)
@@ -96,6 +129,8 @@ func _placer() -> void:
 	_fleche.position = Vector2(larg - 16, HAUT_BOITE - 9)
 	_sous_titre.size = Vector2(larg, 20)
 	_sous_titre.position = Vector2(cx - floorf(larg * 0.5), size.y - BAS_BOITE - _sous_titre.size.y)
+	_carte_cmd.position = Vector2(larg - 8.0 - _carte_cmd.size.x, -7)
+	_choix_ui.position = Vector2(larg - _choix_ui.size.x, -_choix_ui.size.y - 9.0)
 
 func _etiquette(couleur: Color) -> Label:
 	var l := Label.new()
@@ -176,10 +211,13 @@ func _plus_proche() -> Node3D:
 	return meilleur
 
 func _unhandled_input(e: InputEvent) -> void:
+	if e is InputEventJoypadButton and e.pressed:
+		_manette((e as InputEventJoypadButton).button_index)
+		return
 	if not (e is InputEventKey) or not e.pressed or e.echo:
 		return
 	var touche: Key = e.physical_keycode
-	if touche == KEY_E:
+	if touche == KEY_E or (_choix_vis and touche in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]):
 		if _ouvert:
 			_suite()
 			get_viewport().set_input_as_handled()
@@ -189,6 +227,60 @@ func _unhandled_input(e: InputEvent) -> void:
 	elif touche == KEY_ESCAPE and _ouvert:
 		_fermer()
 		get_viewport().set_input_as_handled()
+	elif touche == KEY_T and _ouvert and _marchand != "":
+		commercer()
+		get_viewport().set_input_as_handled()
+	elif _choix_vis and touche in [KEY_UP, KEY_DOWN, KEY_W, KEY_S, KEY_LEFT, KEY_RIGHT]:
+		_choisir(1 - _choix)
+		get_viewport().set_input_as_handled()
+
+## Manette (lot L8) : A = parler / suite / valider, B = fermer, X = commercer, croix = choisir.
+func _manette(b: JoyButton) -> void:
+	match b:
+		JOY_BUTTON_A:
+			if _ouvert:
+				_suite()
+			elif _plus_proche() != null and not joueur.mort:
+				_ouvrir(_plus_proche())
+			else:
+				return
+		JOY_BUTTON_B:
+			if not _ouvert:
+				return
+			_fermer()
+		JOY_BUTTON_X:
+			if not _ouvert or _marchand == "":
+				return
+			commercer()
+		JOY_BUTTON_DPAD_UP, JOY_BUTTON_DPAD_DOWN:
+			if not _choix_vis:
+				return
+			_choisir(1 - _choix)
+		_:
+			return
+	get_viewport().set_input_as_handled()
+
+## Dernière réplique d'un marchand : choix « Commercer / Au revoir » (Commercer choisi d'office).
+func _montrer_choix() -> void:
+	_choix_vis = true
+	_choix = 0
+	_choix_ui.visible = true
+	_carte_cmd.visible = false
+	_choix_ui.get_child(0).queue_redraw()
+
+func _choisir(i: int) -> void:
+	_choix = clampi(i, 0, CHOIX.size() - 1)
+	_choix_ui.get_child(0).queue_redraw()
+
+## Lot L8 : ferme la conversation et ouvre la boutique du marchand (si la boutique existe dans la scène).
+func commercer() -> bool:
+	if not _ouvert or _marchand == "":
+		return false
+	var id := _marchand
+	var nom := _nom.text
+	_fermer()
+	var m := Marchand.trouver(self)
+	return m != null and m.ouvrir(id, nom)
 
 func _ouvrir(pnj: Node3D) -> void:
 	_lignes = pnj.parler()
@@ -201,6 +293,16 @@ func _ouvrir(pnj: Node3D) -> void:
 	_sous_titre.modulate.a = 0.0
 	_sous_titre_t = 0.0
 	_nom.text = pnj.nom_affiche()
+	_marchand = Marchand.pour_pnj(pnj)
+	_choix_vis = false
+	_choix_ui.visible = false
+	_carte_cmd.visible = _marchand != ""
+	if _marchand != "":
+		var lc := _carte_cmd.get_node("Texte") as Label
+		lc.text = "[T] Commercer"
+		_carte_cmd.size.x = ceilf(_police.get_string_size(lc.text, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x) + 12.0
+		lc.size = Vector2(_carte_cmd.size.x, 14)
+		_placer()
 	_cartouche.size.x = ceilf(_police.get_string_size(_nom.text, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x) + 12.0
 	_nom.size = Vector2(_cartouche.size.x, 14)
 	_boite.visible = true
@@ -215,6 +317,16 @@ func _afficher_ligne() -> void:
 func _suite() -> void:
 	if _texte.visible_characters < _texte.text.length():
 		_texte.visible_characters = _texte.text.length()
+		_t = maxf(_t, float(_texte.text.length()) / VITESSE_TEXTE)   # sinon _process remettait la machine à écrire en arrière
+		return
+	if _choix_vis:     # dernière réplique d'un marchand : E valide le choix
+		if _choix == 0:
+			commercer()
+		else:
+			_fermer()
+		return
+	if _marchand != "" and _index >= _lignes.size() - 1:
+		_montrer_choix()
 		return
 	_index += 1
 	if _index >= _lignes.size():
@@ -225,6 +337,8 @@ func _suite() -> void:
 func _fermer() -> void:
 	_ouvert = false
 	_boite.visible = false
+	_choix_vis = false
+	_choix_ui.visible = false
 	joueur.en_dialogue = false
 	if _pnj != null and is_instance_valid(_pnj) and _pnj.has_method("fin_conversation"):
 		_pnj.fin_conversation()
@@ -244,6 +358,10 @@ func _process(dt: float) -> void:
 			var n := mini(int(_t * VITESSE_TEXTE), _texte.text.length())
 			_texte.visible_characters = n
 			_fleche.visible = n >= _texte.text.length() and fmod(_t, 0.8) < 0.5
+			if _marchand != "" and not _choix_vis and n >= _texte.text.length() and _index >= _lignes.size() - 1:
+				_montrer_choix()
+			if _choix_vis:
+				_fleche.visible = false
 			_fleche.queue_redraw()
 	# invite
 	var p := _plus_proche() if not _ouvert else null

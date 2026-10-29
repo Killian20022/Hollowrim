@@ -1,0 +1,42 @@
+{
+	"_doc": "Lot L8 « marchands » (scripts/marchand.gd, docs/BUTIN.md §9). Clé = id du villageois (data/villageois.json). Champs : titre (en-tête de la boutique), or (bourse du marchand au début de chaque période), renouvellement_jours (jours de jeu entre deux réassorts : stock tiré à nouveau, bourse remise à `or`, ce que le joueur a vendu disparaît), achat (prix d'achat = valeur x achat, arrondi au-dessus), vente (prix de rachat au joueur = valeur x vente, arrondi au-dessous, 1 au moins), achete (ce que le marchand rachète : catégories de Inventaire.categorie_de ou ids), stock (tirage à graine fixe « marchand:<id>:<période> » : n = nombre ou [min, max], chance = % d'être en rayon, 100 par défaut). Jamais vendables : valeur 0 (objets de quête), `invendables`, et les objets demandés par une étape « objet:<id>>=n » d'une quête en cours.",
+	"invendables": [],
+	"marchands": {
+		"forgeron": {
+			"titre": "Forge de Brodd",
+			"or": 600,
+			"renouvellement_jours": 2,
+			"achat": 1.1,
+			"vente": 0.4,
+			"achete": ["arme", "lame_antique", "epee_skarnholt", "hache_kolbeinn", "ecaille_dragon", "minerai_fer", "minerai_argent", "cristal_givre", "fourrure_troll", "croc_troll", "anneau_cuivre", "coupe_argent", "collier_or", "amulette_givre", "relique_offrande"],
+			"stock": [
+				{"id": "epee_or", "n": 1, "chance": 60},
+				{"id": "epee_rubis", "n": 1, "chance": 45},
+				{"id": "epee_verre", "n": 1, "chance": 30},
+				{"id": "minerai_fer", "n": [3, 6]},
+				{"id": "minerai_argent", "n": [1, 3]},
+				{"id": "cristal_givre", "n": 1, "chance": 40},
+				{"id": "fourrure_troll", "n": 1, "chance": 35},
+				{"id": "anneau_cuivre", "n": [1, 2], "chance": 50}
+			]
+		},
+		"ancienne": {
+			"titre": "Remèdes de Grima",
+			"or": 300,
+			"renouvellement_jours": 2,
+			"achat": 1.15,
+			"vente": 0.4,
+			"achete": ["consommable", "os_draugr", "poussiere_tombe", "champignon_lumineux", "croc_troll", "cristal_givre", "fourrure_troll", "anneau_cuivre", "coupe_argent", "collier_or", "amulette_givre", "relique_offrande"],
+			"stock": [
+				{"id": "potion_soin", "n": [2, 4]},
+				{"id": "potion_soin_forte", "n": 1, "chance": 35},
+				{"id": "potion_endurance", "n": [1, 3]},
+				{"id": "potion_mana", "n": [1, 2]},
+				{"id": "pain_seigle", "n": [3, 6]},
+				{"id": "viande_sechee", "n": [2, 4]},
+				{"id": "champignon_lumineux", "n": [2, 5]},
+				{"id": "poussiere_tombe", "n": [1, 2], "chance": 50}
+			]
+		}
+	}
+}
