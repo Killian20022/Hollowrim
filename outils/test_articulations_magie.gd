@@ -70,6 +70,7 @@ func _tester() -> void:
 	root.add_child(s)
 	mains = s.joueur.mains
 	magie = mains.magie
+	magie.souffle_tenue = false   # tenue « runes » : repos sans respiration, comparable d'un bout à l'autre du geste
 	mains.pas_manuel = true
 	sq = mains.get("_sq")
 	sq.skeleton_updated.connect(_sur_maj)
