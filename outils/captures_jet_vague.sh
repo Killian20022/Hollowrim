@@ -13,7 +13,7 @@ mkdir -p "$OUT"
 W="$(wslpath -w "$OUT")"
 galerie() {   # $1 = suffixe de fichier, puis arguments de la galerie
 	local suf="$1"; shift
-	GODOT_TIMEOUT=400 timeout 450 bash "$SLOT" "$G" --path "$P" --disable-vsync res://scenes/galerie_magie.tscn -- "$@" 2>&1 | grep -E "CAPTURE|ERROR|rror" | head -40
+	GODOT_TIMEOUT=400 timeout 1500 bash "$SLOT" "$G" --path "$P" --disable-vsync res://scenes/galerie_magie.tscn -- "$@" 2>&1 | grep -E "CAPTURE|ERROR|rror" | head -40
 }
 if [ "$QUOI" != videos ]; then
 	for lieu in crypte dehors; do
@@ -27,8 +27,8 @@ fi
 if [ "$QUOI" != images ]; then
 	TMPV="$OUT/../_avi_$(basename "$OUT")"; mkdir -p "$TMPV"; WV="$(wslpath -w "$TMPV")"   # AVI bruts (gardés à côté)
 	for lieu in crypte dehors; do
-		GODOT_TIMEOUT=400 timeout 450 bash "$SLOT" "$G" --path "$P" --write-movie "$WV\\$lieu.avi" --fixed-fps 30 res://scenes/galerie_magie.tscn -- --lieu=$lieu --cible=8 --plans=jet_feu,jet_feu_loin,double_feu >/dev/null 2>&1
-		GODOT_TIMEOUT=400 timeout 450 bash "$SLOT" "$G" --path "$P" --write-movie "$WV\\${lieu}_tourne.avi" --fixed-fps 30 res://scenes/galerie_magie.tscn -- --lieu=$lieu --cible=3 --plans=jet_feu,double_feu --tourne=70 >/dev/null 2>&1
+		GODOT_TIMEOUT=400 timeout 1500 bash "$SLOT" "$G" --path "$P" --write-movie "$WV\\$lieu.avi" --fixed-fps 30 res://scenes/galerie_magie.tscn -- --lieu=$lieu --cible=8 --plans=jet_feu,jet_feu_loin,double_feu >/dev/null 2>&1
+		GODOT_TIMEOUT=400 timeout 1500 bash "$SLOT" "$G" --path "$P" --write-movie "$WV\\${lieu}_tourne.avi" --fixed-fps 30 res://scenes/galerie_magie.tscn -- --lieu=$lieu --cible=3 --plans=jet_feu,double_feu --tourne=70 >/dev/null 2>&1
 	done
 	for f in "$TMPV"/*.avi; do
 		[ -f "$f" ] || continue
