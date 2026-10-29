@@ -323,13 +323,13 @@ CLIPS_MIXAMO = {
     # 3 : estoc (« Stabbing », images 2 -> 14 : le poing recule, puis pousse vers le centre ; tenue tendue jusqu'au fondu ;
     # amplitude 0,3 vers l'extension, main inclinée pour pointer le buste ; continuité de torsion renforcée)
     "coup_c": dict(source="estoc", ref=0, temps=[(2, 0.0), (6, 0.11), (8, 0.15), (14, 0.25), (14, 0.30), (14, 0.50)], fondu=(0.10, 0.30),
-                   cadrage=(-15, -18, 0), decalage=(0.0, 0.06, -0.15), plein=(0.10, 0.50), amplitude=0.3, centre=14, main=(20, 10, 20), continuite=0.3),
+                   cadrage=(-15, -18, 0), decalage=(0.0, 0.06, -0.15), plein=(0.10, 0.50), amplitude=0.3, centre=14, main=(20, 10, 20), continuite=0.3, torsion=(0, 85)),
     # coup puissant : frappe verticale de haut en bas (« Standing Melee Attack Downward », armé images 2 -> 21, frappe 21 -> 27) ;
     # charge et coup partagent cadrage et amplitude (enchaînés sans saut). Ancien : « Sword And Shield Slash » (slash_0).
     # Revers essayés pour le coup 2 (« Stable Sword Outward Slash », « Standing Melee Attack Backhand ») : poing bas à la
     # hanche et lame vers l'arrière à l'armé, trajet court et tranchant à 40-66° en vue FPS -> coup 2 v2 gardé.
-    "charge_lourd": dict(source="vertical", ref=0, temps=[(2, 0.0), (19, 0.30), (21, 0.60)], fondu=(0.30, 0.60), cadrage=(30, -35, 0), decalage=(0.0, 0.06, -0.15), plein=(0.30, 0.60), amplitude=0.4, centre=23),
-    "lourd": dict(source="vertical", ref=0, temps=[(21, 0.0), (21.5, 0.10), (26, 0.25), (27, 0.42), (27, 0.70), (27, 0.96)], fondu=(0.0, 0.30), cadrage=(30, -35, 0), decalage=(0.0, 0.06, -0.15), plein=(0.0, 0.45), amplitude=0.4, centre=23),
+    "charge_lourd": dict(source="vertical", ref=0, temps=[(2, 0.0), (19, 0.30), (21, 0.60)], fondu=(0.30, 0.60), cadrage=(30, -37, 0), decalage=(0.0, 0.06, -0.15), plein=(0.30, 0.60), amplitude=0.4, centre=23),
+    "lourd": dict(source="vertical", ref=0, temps=[(21, 0.0), (21.5, 0.10), (26, 0.25), (27, 0.42), (27, 0.70), (27, 0.96)], fondu=(0.0, 0.30), cadrage=(30, -37, 0), decalage=(0.0, 0.06, -0.15), plein=(0.0, 0.45), amplitude=0.4, centre=23),
 }
 
 # instants (s, vitesse 1) : arme = fin de l'armé, frappe = début de la phase active (la lame blesse), fin_frappe,

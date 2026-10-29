@@ -352,6 +352,11 @@ from gestes_bras_epee import CLIPS, MARQUEURS, CLIPS_MIXAMO, REPOS  # noqa: E402
 # la prise Mixamo n'est pas connue (pas d'épée dans les fichiers) : notre prise est posée dans la main Mixamo par le
 # repère anatomique, puis tournée de ROULIS_PRISE_MX° autour de la lame (calage : le tranchant mène pendant les frappes)
 ROULIS_PRISE_MX = float(ARGS.get("roulis_prise", 0.0))
+# continuité du bras (clips Mixamo, clés à 60 i/s) : torsion de l'avant-bras et rotation du pôle du coude, max par image
+VITESSE_TORSION_MX = float(ARGS.get("vitesse_torsion", 10.0))
+POLE_MAX_MX = float(ARGS.get("pole_max", 8.0))
+# part du fondu (poids w) sur laquelle les os rejoignent EXACTEMENT la tenue de repos (le solveur y est déjà presque)
+RACCORD_MX = float(ARGS.get("raccord", 0.1))
 LIM_MX = dict(torsion=(-85, 85), flexion=(-55, 55), inclinaison=(-29, 18))
 _MX = {}
 
@@ -407,12 +412,14 @@ def _rot_ecart(R1, R0):
     return R1 @ R0.inverted()
 
 
-def _resoudre_main(Rl0, Hd, prec_k, continuite=0.04):
+def _resoudre_main(Rl0, Hd, prec_k, continuite=0.04, vitesse=None, rappel=0.0, prec_fr=None, torsion=None):
     """Torsion k (avant-bras), flexion f, inclinaison r dans LIM_MX qui approchent le mieux l'orientation voulue Hd
     (armature) : la lame d'abord (axe Y de l'épée), puis le tranchant ; continuité de la torsion avec l'image précédente."""
     Ry = (Hd @ PRISE_D.to_3x3()).col[1].normalized()
     Rx = (Hd @ PRISE_D.to_3x3()).col[0].normalized()
     LT, LF, LI = LIM_MX["torsion"], LIM_MX["flexion"], LIM_MX["inclinaison"]
+    if torsion is not None:   # plage de torsion propre au clip (le maillage du coude, sans os de torsion, ne suit pas au-delà)
+        LT = (max(LT[0], torsion[0]), min(LT[1], torsion[1]))
 
     def cout(k, f, r):
         Hr = _poignet("r", Rl0, k, f, r)
@@ -421,11 +428,19 @@ def _resoudre_main(Rl0, Hd, prec_k, continuite=0.04):
         c += 0.02 * (abs(f) + abs(r))
         if prec_k is not None:
             c += continuite * abs(k - prec_k)
+        c += rappel * abs(k - REPOS["k"])   # vers la tenue de repos pendant les fondus (pas de rattrapage brusque au bord)
         return c, Hr
+    if vitesse is not None and prec_k is not None:
+        # torsion de l'avant-bras bornée par image (pas de vrille du maillage d'une image à l'autre)
+        LT = (max(LT[0], int(math.floor(prec_k - vitesse))), min(LT[1], int(math.ceil(prec_k + vitesse))))
+    if vitesse is not None and prec_fr is not None:
+        # poignet aussi borné par image (la main ne pivote pas d'un coup autour de l'avant-bras)
+        LF = (max(LF[0], int(math.floor(prec_fr[0] - vitesse))), min(LF[1], int(math.ceil(prec_fr[0] + vitesse))))
+        LI = (max(LI[0], int(math.floor(prec_fr[1] - vitesse))), min(LI[1], int(math.ceil(prec_fr[1] + vitesse))))
     best = None
-    for k in range(LT[0], LT[1] + 1, 10):
-        for f in range(LF[0], LF[1] + 1, 10):
-            for r in range(LI[0], LI[1] + 1, 6):
+    for k in sorted(set(list(range(LT[0], LT[1] + 1, 10)) + [LT[0], LT[1]] + ([int(round(prec_k))] if prec_k is not None and LT[0] <= prec_k <= LT[1] else []))):
+        for f in sorted(set(list(range(LF[0], LF[1] + 1, 10)) + [LF[1]])):
+            for r in sorted(set(list(range(LI[0], LI[1] + 1, 6)) + [LI[1]])):
                 c, Hr = cout(k, f, r)
                 if best is None or c < best[0]:
                     best = (c, k, f, r, Hr)
@@ -518,6 +533,8 @@ def creer_action_mixamo(nom, spec):
     A.animation_data.action = act
     prec = {}
     prec_k = None
+    prec_fr = None
+    pole = None
     n = int(round(longueur * 60))
     B3 = B_DE_CAM.to_3x3()
     cl, ua, la, ha = (A.pose.bones[x] for x in OS_ANIMES)
@@ -578,10 +595,30 @@ def creer_action_mixamo(nom, spec):
         if F0.dot(Fc) < 0:   # même hémisphère : le fondu prend le chemin court (sinon la lame fait un tour au retour)
             Fc = -Fc
         Fm = F0.slerp(Fc, w).to_matrix()
-        coude, d2, Rl0, allonge = _bras_deux_os("r", B_DE_CAM @ W, (E - (S + W) * 0.5).normalized())
+        # pôle du coude CONTINU : le plan épaule-coude-poignet de la capture n'est fiable que bras plié ; bras presque tendu,
+        # il bascule d'une image à l'autre (vrille de l'épaule et de l'avant-bras). On garde le pôle précédent, rapproché de
+        # celui de la capture selon le pli du coude, et sa rotation est bornée par image.
+        n_ = (W - S).normalized()
+        ind = E - (S + W) * 0.5
+        ind = ind - n_ * ind.dot(n_)
+        pli = math.degrees((E - S).angle(W - E)) if (E - S).length > 1e-6 and (W - E).length > 1e-6 else 0.0
+        if pole is not None:
+            pp = pole - n_ * pole.dot(n_)
+            pp = pp.normalized() if pp.length > 1e-6 else pole
+            b = max(0.0, min(1.0, (pli - 10.0) / 30.0))
+            cand = (pp * (1.0 - b) + (ind.normalized() if ind.length > 1e-6 else pp) * b)
+            cand = cand.normalized() if cand.length > 1e-6 else pp
+            ang = math.degrees(pp.angle(cand)) if (pp - cand).length > 1e-9 else 0.0
+            if ang > POLE_MAX_MX:
+                cand = Quaternion().slerp(pp.rotation_difference(cand), POLE_MAX_MX / ang) @ pp
+            pole = cand
+        else:
+            pole = ind.normalized() if ind.length > 1e-6 else Vector((0.0, -0.5, 0.5)).normalized()
+        coude, d2, Rl0, allonge = _bras_deux_os("r", B_DE_CAM @ W, pole)
         Hd = B3 @ Fm @ G.inverted() @ Matrix.Rotation(math.radians(spec.get("roulis_prise", ROULIS_PRISE_MX)), 3, PRISE_D.to_3x3().col[1].normalized())
-        c, k, f, r, Hr = _resoudre_main(Rl0, Hd, prec_k, spec.get("continuite", 0.04))
+        c, k, f, r, Hr = _resoudre_main(Rl0, Hd, prec_k, spec.get("continuite", 0.04), VITESSE_TORSION_MX, 2.0 * (1.0 - w), prec_fr, spec.get("torsion"))
         prec_k = k
+        prec_fr = (f, r)
         Rl = Matrix.Rotation(math.radians(k), 3, d2) @ Rl0
         la.matrix = Matrix.Translation(coude) @ Rl.to_4x4()
         maj()
@@ -594,12 +631,13 @@ def creer_action_mixamo(nom, spec):
             q0 = repos_q[nb]
             if q0.dot(q) < 0:
                 q = -q
-            q = q0.slerp(q, min(1.0, 4.0 * w))   # bords du clip : exactement la tenue validée (r = -32)
+            a_ = min(1.0, w / RACCORD_MX)
+            q = q0.slerp(q, a_ * a_ * (3 - 2 * a_))   # bords du clip : exactement la tenue validée (r = -32), raccord doux
             if nb in prec and prec[nb].dot(q) < 0:
                 q = -q
             prec[nb] = q
             if nb == "clavicle_r":
-                loc = repos_loc.lerp(pb.matrix_basis.to_translation(), min(1.0, 4.0 * w))
+                loc = repos_loc.lerp(pb.matrix_basis.to_translation(), a_ * a_ * (3 - 2 * a_))
             pb.rotation_quaternion = q
             pb.keyframe_insert("rotation_quaternion", frame=t * FPS, group=nb)
             if nb == "clavicle_r":
@@ -748,7 +786,8 @@ def preparer_rendu():
     # --vue=cote|dessus|epaule : contrôle des trajectoires sous d'autres angles (repère caméra du jeu : œil à l'origine)
     vue = ARGS.get("vue", "jeu")
     if vue != "jeu":
-        poses = {"cote": ((1.7, -0.05, -0.55), (0.0, -0.15, -0.55), (0, 1, 0)),
+        poses = {"avant_bras": ((0.6, 0.0, 0.0), (0.0, 0.0, 0.0), (0, 1, 0)),
+                 "cote": ((1.7, -0.05, -0.55), (0.0, -0.15, -0.55), (0, 1, 0)),
                  "dessus": ((0.0, 1.9, -0.6), (0.0, -0.1, -0.6), (0, 0, -1)),
                  "epaule": ((0.9, 0.6, 1.1), (-0.05, -0.15, -0.7), (0, 1, 0))}
         oeil, cible, haut = (Vector(v) for v in poses[vue])
@@ -759,7 +798,7 @@ def preparer_rendu():
         for r in range(3):
             m[r][0], m[r][1], m[r][2], m[r][3] = x[r], y[r], z[r], oeil[r]
         cam.matrix_world = B_DE_CAM @ m
-        cam_d.angle_y = math.radians(55)
+        cam_d.angle_y = math.radians(40 if vue == "avant_bras" else 55)
         bpy.ops.mesh.primitive_uv_sphere_add(radius=0.04, location=(B_DE_CAM @ Vector((0, 0, 0))))   # œil du joueur
     cam_d.clip_start = 0.02
     scene.camera = cam
@@ -771,7 +810,7 @@ def preparer_rendu():
         pass
     sh = scene.display.shading
     sh.light = "STUDIO"
-    sh.color_type = "MATERIAL"
+    sh.color_type = "TEXTURE" if ARGS.get("vue") == "avant_bras" else "MATERIAL"
     sh.show_shadows = False
     sh.show_cavity = True
     scene.render.film_transparent = False
@@ -950,6 +989,68 @@ def mesurer_fouet(actions):
             round(min(fs)), round(max(fs)), round(min(rs)), round(max(rs)), round(min(cs)), round(max(cs))))
 
 
+
+def _torsion_y(q):
+    """Torsion (degrés, signée) d'un quaternion autour de l'axe Y local (décomposition balancement-torsion)."""
+    t = Quaternion((q.w, 0.0, q.y, 0.0))
+    if t.magnitude < 1e-9:
+        return 0.0
+    t.normalize()
+    if t.w < 0:
+        t = -t
+    return math.degrees(2.0 * math.atan2(t.y, t.w))
+
+
+def verifier_articulations(actions, freq=60):
+    """--articulations : continuité du bras image par image (60 i/s, et 30 i/s = une image sur deux). Par clip : torsion de
+    l'avant-bras (os lowerarm, autour de son axe, par rapport à la pose de liaison) et de la main par rapport à l'avant-bras,
+    saut maximal par image, déplacement du coude par image (m, repère caméra), bascule du plan du coude (°/image), longueur
+    épaule -> coude -> poignet (doit rester constante)."""
+    tous = []
+    for nom, (act, longueur) in actions.items():
+        A.animation_data.action = act
+        n = int(math.floor(longueur * freq + 1e-6)) + 1
+        img = []
+        for i in range(n):
+            t = i / freq
+            f = t * FPS
+            scene.frame_set(int(math.floor(f)), subframe=f - math.floor(f))
+            la, ha, ua = A.pose.bones["lowerarm_r"], A.pose.bones["hand_r"], A.pose.bones["upperarm_r"]
+            tl = _torsion_y(la.matrix_basis.to_quaternion())
+            th = _torsion_y(ha.matrix_basis.to_quaternion())
+            S, E, W = (CAM_DE_B @ ua.head, CAM_DE_B @ la.head, CAM_DE_B @ ha.head)
+            nrm = (E - S).cross(W - E)
+            tu = _torsion_y(ua.matrix_basis.to_quaternion())
+            qs = (ua.matrix_basis.to_quaternion(), la.matrix_basis.to_quaternion(), ha.matrix_basis.to_quaternion())
+            pli = math.degrees((E - S).angle(W - E)) if (E - S).length > 1e-6 and (W - E).length > 1e-6 else 0.0
+            img.append((t, tl, th, E, nrm.normalized() if nrm.length > 1e-6 else None, (E - S).length, (W - E).length, tu, pli, qs))
+        def sauts(pas):
+            # torsion INCRÉMENTALE par image : rotation de l'os entre deux images (repère local), décomposée autour de son axe
+            dl = dh = de = dp = 0.0
+            for a, b in zip(img[::pas], img[pas::pas]):
+                dl = max(dl, abs(_torsion_y(a[9][1].inverted() @ b[9][1])), abs(_torsion_y(a[9][0].inverted() @ b[9][0])))
+                dh = max(dh, abs(_torsion_y(a[9][2].inverted() @ b[9][2])))
+                de = max(de, (b[3] - a[3]).length)
+                if a[4] is not None and b[4] is not None:
+                    dp = max(dp, math.degrees(a[4].angle(b[4])))
+            return dl, dh, de, dp
+        s60, s30 = sauts(1), sauts(2)
+        l1 = max(x[5] for x in img) - min(x[5] for x in img)
+        l2 = max(x[6] for x in img) - min(x[6] for x in img)
+        tous.append((nom, s60))
+        print("ARTIC %-14s 60 i/s : torsion avant-bras %d..%d saut (bras ou avant-bras) %4.1f°  torsion main %d..%d saut %4.1f°  coude %.3f m  plan du coude %4.1f°"
+              " | 30 i/s : saut avant-bras %4.1f° coude %.3f m | longueurs ±%.4f/%.4f m" % (
+                  nom, min(x[1] for x in img), max(x[1] for x in img), s60[0], min(x[2] for x in img), max(x[2] for x in img),
+                  s60[1], s60[2], s60[3], s30[0], s30[2], l1, l2))
+        if "detail_artic" in ARGS:
+            for x in img:
+                print("ARTIC_IMG %s t=%.3f torsion_bras %6.1f torsion_ab %6.1f torsion_main %6.1f pli_coude %5.1f" % (nom, x[0], x[7], x[1], x[2], x[8]))
+        if "detail_artic" in ARGS:
+            for a, b in zip(img, img[1:]):
+                print("ARTIC_D %s t=%.3f d_bras %6.1f d_ab %6.1f d_main %6.1f" % (nom, b[0], _torsion_y(a[9][0].inverted() @ b[9][0]),
+                      _torsion_y(a[9][1].inverted() @ b[9][1]), _torsion_y(a[9][2].inverted() @ b[9][2])))
+    return tous
+
 def verifier_butees(actions):
     """--butees : angles du poignet image par image (120 i/s) ; ÉCHEC si une image sort des butées anatomiques
     (BUTEES_ANATOMIQUES : flexion / extension ±60°, inclinaison radiale 20°, cubitale 30°)."""
@@ -976,6 +1077,31 @@ def main():
     poings()
     if "explorer" in ARGS:
         explorer(ARGS["explorer"].split(","))
+        return
+    if "torsions" in ARGS:
+        # --torsions=<dossier> : pose de repos rendue en gros plan pour une série de torsions d'avant-bras (seuil du maillage)
+        epee, torche = preparer_rendu()
+        os.makedirs(ARGS["torsions"], exist_ok=True)
+        A.animation_data_create()
+        A.animation_data.action = None
+        for k in range(-85, 86, 15):
+            PREC[0] = None
+            poser(dict(REPOS, k=k))
+            poser_torche()
+            placer_accessoires(epee, torche)
+            la = A.pose.bones["lowerarm_r"]
+            mil = CAM_DE_B @ ((la.head + la.tail) * 0.5)
+            oeil = mil + Vector((0.55, 0.25, 0.45))
+            z = (oeil - mil).normalized()
+            x = Vector((0, 1, 0)).cross(z).normalized()
+            y = z.cross(x)
+            m = Matrix.Identity(4)
+            for r_ in range(3):
+                m[r_][0], m[r_][1], m[r_][2], m[r_][3] = x[r_], y[r_], z[r_], oeil[r_]
+            scene.camera.matrix_world = B_DE_CAM @ m
+            print("TORSION k=%d torsion os %.1f" % (k, _torsion_y(la.matrix_basis.to_quaternion())))
+            scene.render.filepath = os.path.join(ARGS["torsions"], "k%+04d.png" % k)
+            bpy.ops.render.render(write_still=True)
         return
     if "rendu" not in ARGS:
         poser_torche()
@@ -1007,6 +1133,18 @@ def main():
                 scene.frame_set(int(math.floor(f)), subframe=f - math.floor(f))
                 poser_torche()
                 placer_accessoires(epee, torche)
+                if ARGS.get("vue") == "avant_bras":
+                    # gros plan qui suit l'avant-bras (contrôle du maillage : torsion, plis, coude)
+                    la = A.pose.bones["lowerarm_r"]
+                    mil = CAM_DE_B @ ((la.head + la.tail) * 0.5)
+                    oeil = mil + Vector((0.55, 0.25, 0.45))
+                    z = (oeil - mil).normalized()
+                    x = Vector((0, 1, 0)).cross(z).normalized()
+                    y = z.cross(x)
+                    m = Matrix.Identity(4)
+                    for r_ in range(3):
+                        m[r_][0], m[r_][1], m[r_][2], m[r_][3] = x[r_], y[r_], z[r_], oeil[r_]
+                    scene.camera.matrix_world = B_DE_CAM @ m
                 g, p, plat = mesures_cam()
                 print("MESURE %s t=%.3f garde=%s pointe=%s plat=%d" % (nom, t, g, p, plat))
                 scene.render.filepath = os.path.join(dossier, "%s_%03d.png" % (nom, i))
@@ -1017,6 +1155,8 @@ def main():
         mesurer_fouet(actions)
     if "butees" in ARGS:
         verifier_butees(actions)
+    if "articulations" in ARGS:
+        verifier_articulations(actions)
     if "godot" in ARGS:
         ecrire_godot(os.path.join(BASE, "assets", "animations", "bras_epee.tres"), actions)
     if "blend" in ARGS:
