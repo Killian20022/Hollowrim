@@ -20,7 +20,7 @@ const POST := preload("res://shaders/ps1_post.gdshader")
 const PLANS := [
 	["vide", 1.0, 0.8],   # sans effet : référence du monde (rétro et couche fine doivent donner le même décor)
 	["aura_feu", 2.2, 1.6], ["jet_feu", 2.4, 1.2], ["jet_feu_loin", 3.0, 1.5], ["boule_feu", 2.4, 0.16], ["explosion_feu", 2.0, 0.42], ["zone_feu", 2.6, 0.5],
-	["aura_glace", 2.0, 1.4], ["eclat_glace", 2.2, 0.12], ["lance_givre", 2.4, 0.1], ["souffle_givre", 2.4, 1.2], ["nova_gelee", 2.8, 0.7],
+	["aura_glace", 2.0, 1.4], ["eclat_glace", 2.2, 0.12], ["eclat_glace_sol", 2.0, 0.5], ["lance_givre", 2.4, 0.1], ["souffle_givre", 2.4, 1.2], ["souffle_givre_loin", 3.0, 1.5], ["nova_gelee", 2.8, 0.7],
 	["aura_electricite", 2.0, 1.4], ["arc_electrique", 2.4, 1.0], ["chaine_eclairs", 1.8, 0.15], ["impact_electricite", 1.4, 0.1], ["tempete_statique", 3.0, 1.2],
 	["aura_tenebres", 2.0, 1.4], ["trait_ombre", 2.2, 0.14], ["drain_vie", 2.4, 1.2], ["explosion_obscure", 2.8, 0.6],
 	["soin", 2.4, 1.2], ["protection", 2.4, 1.2],
@@ -335,6 +335,11 @@ func _debut(nom: String) -> void:
 			EffetsMagie.aura_main(paume_g, "glace", 1.0)
 			for k in 3:
 				_tirer("glace", "eclat", _vise(k), 0.35 + k * 0.05)
+		"eclat_glace_sol":
+			# éclats qui frappent le sol devant les cibles : impact de givre sur une surface (hors corps)
+			EffetsMagie.aura_main(paume_g, "glace", 1.0)
+			for k in 3:
+				_tirer("glace", "eclat", Vector3(-1.0 + k * 1.0, 0.02, -3.6 - 0.4 * k), 0.3 + k * 0.05)
 		"lance_givre":
 			EffetsMagie.aura_main(paume_g, "glace", 1.0)
 			_tirer("glace", "lance", _vise(), 0.55)
@@ -394,11 +399,12 @@ func _pendant(nom: String, t: float) -> void:
 			EffetsMagie.jet(ecole, paume_g, _dir_jet(paume_g, t), 7.0, 1.0, actif)
 			if actif and t > 0.6:
 				EffetsMagie.statut_cible(cibles[1], {"feu": "brulure", "electricite": "choc", "tenebres": "corruption", "glace": "gel"}[ecole], 0.8)
-		"jet_feu_loin":
-			# jet de flammes dans le vide, au-dessus des cibles, vers le mur du fond : portée entière de la vague
-			EffetsMagie.aura_main(paume_g, "feu", 1.0)
+		"jet_feu_loin", "souffle_givre_loin":
+			# jet dans le vide, au-dessus des cibles, vers le mur du fond : portée entière de la vague (feu) / du souffle (glace)
+			var ec_loin := "glace" if nom == "souffle_givre_loin" else "feu"
+			EffetsMagie.aura_main(paume_g, ec_loin, 1.0)
 			var loin := Vector3(1.4, 3.1, -12.2) if lieu == "crypte" else Vector3(1.4, 3.1, -14.0)
-			EffetsMagie.jet("feu", paume_g, _dir_vers(paume_g, loin) if _arg("tourne") == "" else _dir_jet(paume_g, t), 9.0, 0.9, t > 0.15 and t < 2.6)
+			EffetsMagie.jet(ec_loin, paume_g, _dir_vers(paume_g, loin) if _arg("tourne") == "" else _dir_jet(paume_g, t), 9.0, 0.9, t > 0.15 and t < 2.6)
 		"soin":
 			pass
 		"protection":
@@ -445,19 +451,19 @@ func _perf() -> void:
 	var base := await _mesurer(240, func() -> void: pass)
 	EffetsMagie.prechauffer()
 	if _arg("perf") == "jet":
-		# --perf=jet [--ecole=electricite] : coût d'UN jet tenu (feu par défaut) (aura + jet sur la cible du milieu), rien d'autre ; 3 mesures
+		# --perf=jet [--ecole=glace] : coût d'UN jet tenu (aura + jet sur la cible du milieu), rien d'autre ; 3 mesures
+		var ec_p := _arg("ecole", "feu")
 		await get_tree().create_timer(0.5).timeout
-		var ej := _arg("ecole", "feu")
-		EffetsMagie.aura_main(paume_g, ej, 1.0)
+		EffetsMagie.aura_main(paume_g, ec_p, 1.0)
 		for k in 30:
-			EffetsMagie.jet(ej, paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, true)
+			EffetsMagie.jet(ec_p, paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, true)
 			await get_tree().process_frame
 		for r in 3:
 			var mj := await _mesurer(240, func() -> void:
-				EffetsMagie.jet(ej, paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, true))
+				EffetsMagie.jet(ec_p, paume_g, _dir_vers(paume_g, _vise()), 7.0, 1.0, true))
 			var sj := EffetsMagie.stats()
-			print("PERF_JET %s %s : sans effet %.2f ms (GPU %.2f ms) ; jet %s %.2f ms (%d appels ; GPU %.2f ms) ; %d particules, %d émetteurs" % [
-				lieu, vue, base[0], base[2], ej, mj[0], mj[1], mj[2], sj.particules, sj.emetteurs])
+			print("PERF_JET %s %s %s : sans effet %.2f ms (GPU %.2f ms) ; jet %.2f ms (%d appels ; GPU %.2f ms) ; %d particules, %d émetteurs" % [
+				ec_p, lieu, vue, base[0], base[2], mj[0], mj[1], mj[2], sj.particules, sj.emetteurs])
 		get_tree().quit()
 		return
 	await get_tree().create_timer(0.5).timeout
