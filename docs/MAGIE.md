@@ -220,13 +220,24 @@ retargetées comme les coups d'épée (`anim_bras_epee.py`, « Coups Mixamo ») 
 | `charge` : sort chargé (boule de feu, lance de givre) | même clip : l'armé (13->18) est TENU, poing fermé, pendant la charge | entree, tenue, depart |
 | `jet` : jet tenu à une main (jet de flammes, arc, drain) | Standing 2H Magic Attack 03, main gauche (miroir pour la droite) : maintien bras tendu ~2 s | entree 24->33, boucle 36->96, fin |
 | `double` / `double_charge` / `double_jet` : double incantation | Standing 2H Magic Attack 04, chaque main SA piste (paumes jointes en avant) | rapprochement, poussée, maintien |
-| `zone` : explosion, tempête statique, nova | Standing 2H Magic Area Attack 01 (main levée poing fermé, frappe vers le sol) | entree 26->31, tenue, depart |
+| `zone` : explosion, tempête statique, nova | Standing 2H Magic Area Attack 01, main gauche (miroir pour la droite : la piste droite roule la main d'un tour complet) (main levée poing fermé, frappe vers le sol) | entree 26->31, tenue, depart |
 
 Poses fixes gardées : soin / protection (`soi`), enchantement de la lame (`lame`), repos, écart pendant un coup d'épée.
 Écartés : 1H Cast Spell 01 (main levée au-dessus de la tête : hors champ), 1H Attack 02 / 03 (balayage qui traverse l'écran,
 lancer par en dessous), 2H Attack 01 / 02 / 05 et Area Attack 02 (mains derrière la tête ou écartées hors champ), Sword And Shield
 Casting (bras gauche levé derrière la tête). `GestesMagie.actif = false` rend les anciennes poses (planches avant / après).
-Films et planches : `outils/captures_gestes_magie.gd` (`--geste=… [--ralenti=0.5] [--avant]`, `--planche=`), test `test_gestes_magie`.
+Films et planches : `outils/captures_gestes_magie.gd` (`--geste=… [--ralenti=0.5] [--avant] [--vue=face|cote]`, `--planche=`), tests `test_gestes_magie`, `test_articulations_magie`.
+
+**Avant-bras sans dislocation** (même cause que les coups d'épée, `anim_bras_epee.py` b720b15) : le rig n'a pas d'os de torsion,
+toute la pronation tombe au poignet. Mesuré sur 18e103d : la capture roulait la main jusqu'à 195° autour de l'avant-bras
+(et d'un tour complet sur la piste droite de la zone), jusqu'à 38° par image à 60 i/s au début du geste (cible de la main qui
+suit une incantation courte), plan du coude jusqu'à 20° par image (zone). Correctif :
+- `gestes_magie.py` : pronation mesurée sur le plan du coude (repère de lowerarm), suivie CONTINÛMENT d'une phase à l'autre
+  (pas de saut de ±360°), bornée en douceur à -40..+125° depuis la pose de repos (`PRONATION`, marge 20°) ; la main tourne autour
+  de l'avant-bras (flexion / inclinaison du poignet inchangées). Zone : la main droite joue le miroir de la piste gauche.
+- `GestesMagie.pas_rotation` / `limiter_pole` (appelés par MainSort pendant un geste capturé seulement) : rotation de la main
+  ≤ 480°/s (8° par image à 60 i/s), pôle du coude ≤ 420°/s autour de l'épaule (le plan du coude ne bascule plus).
+- `test_articulations_magie` (pose finale du squelette, après IK et OrientationMain, deux bras, 60 et 30 i/s).
 
 ## Sons (branche magie/sons)
 
@@ -265,6 +276,10 @@ d'abord : enchantement et deux mains). Les 18 sorts sont connus d'office (pas en
 - `test_gestes_magie` (54 vérifications) : données (7 gestes × 2 mains), paume dans l'écran, départ et retour au repos, chaque
   sort joue son geste (une main, main droite, double, zone sans charge, interruption), la cible de la main ne saute jamais
   (pire écart entre deux images à 60 i/s : 4,5 à 8 cm, poussées capturées), soin / enchantement gardent les poses fixes.
+- `test_articulations_magie` (156 vérifications) : 10 situations (dont zone main droite, double ×3 sur les deux bras), à 60 et
+  30 i/s : longueurs ±1 mm, torsion bras / avant-bras / main ≤ 15° par image (30 à 30 i/s ; mesuré 13,9 / 27,8), plan du coude
+  ≤ 20° par image (mesuré 10,0), accélération du coude ≤ 0,10 m/image² (mesuré 0,035), torsion de la main depuis le repos ≤ 140°
+  (mesuré 134,7), retour au repos.
 - Non-régression : test_combat_epee, test_defense, test_degats, test_troll_ia, test_mage_ia.
 
 ## Limites / suite

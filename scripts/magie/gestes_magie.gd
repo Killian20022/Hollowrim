@@ -12,6 +12,13 @@ extends RefCounted
 const FICHIER := "res://data/magie/gestes_mixamo.json"
 ## Raideur du ressort de la main (1/s) pendant un geste capturé (main_sort.gd : 16 pour les poses fixes).
 const SUIVI := 34.0
+## Vitesses maximales pendant un geste capturé (rad/s) : le rig n'a pas d'os de torsion, toute la pronation tombe au poignet ;
+## au-delà d'environ 10° par image à 60 i/s l'avant-bras paraît « disloqué » (outils/test_articulations_magie.gd).
+## Main : rotation de la cible de la main. Coude : rotation du pôle de l'IK autour de l'épaule (plan du coude).
+const VITESSE_MAIN := deg_to_rad(480.0)
+const VITESSE_COUDE := deg_to_rad(420.0)
+## Épaules du bras FPS dans le repère des mains (outils/captures_gestes_magie.gd --bras ; gestes_magie.py : EPAULE).
+const EPAULE := {"gauche": Vector3(-0.212, -0.3143, -0.092), "droite": Vector3(0.212, -0.3143, -0.092)}
 
 ## false : gestes coupés (anciennes poses fixes ; planches avant / après d'outils/captures_gestes_magie.gd).
 static var actif := true
@@ -113,6 +120,25 @@ func _boucle(g: String, m: String, t: float) -> Dictionary:
 	var duree := maxf(float(donnees()[g].get("boucle_duree", 1.0)), 0.1)
 	var u := fmod(t, 2.0 * duree) / duree
 	return _echantillon(g, m, "boucle", u if u <= 1.0 else 2.0 - u)
+
+## Pas du ressort de la main (k) ramené pour que la rotation ne dépasse pas VITESSE_MAIN × dt.
+static func pas_rotation(qa: Quaternion, qb: Quaternion, k: float, dt: float) -> float:
+	var ang := qa.angle_to(qb)
+	return minf(k, VITESSE_MAIN * dt / ang) if ang > 1e-5 else k
+
+## Pôle du coude `avant` -> `apres`, rotation autour de l'épaule bornée à VITESSE_COUDE × dt (pas de bascule du plan du coude).
+static func limiter_pole(m: String, avant: Vector3, apres: Vector3, dt: float) -> Vector3:
+	var e: Vector3 = EPAULE[m]
+	var u := avant - e
+	var v := apres - e
+	var ang := u.angle_to(v)
+	var lim := VITESSE_COUDE * dt
+	if ang <= lim or u.length() < 1e-4 or v.length() < 1e-4:
+		return apres
+	var axe := u.cross(v)
+	if axe.length() < 1e-6:
+		return apres
+	return e + u.normalized().rotated(axe.normalized(), lim) * lerpf(u.length(), v.length(), lim / ang)
 
 static func _v(a: Array) -> Vector3:
 	return Vector3(a[0], a[1], a[2])

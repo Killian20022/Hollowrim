@@ -73,6 +73,7 @@ TESTS=(
 	"test_collisions_lame|--nouvelle"   # collisions de la lame dans la zone de test (ZoneCollisions) : murs fins, coin, porte, serrés, poteau, 20/30/60/144 i/s
 	"test_magie|--nouvelle"   # magie et deux mains : compatibilité, mana, 12 sorts + soin + protection, double, réactions, interruption, épée + magie, enchantement, sauvegarde (docs/MAGIE.md)
 	"test_gestes_magie|--nouvelle"   # gestes de magie capturés (Mixamo) : données, paume dans l'écran, départ et retour au repos, gestes joués par sort, main sans saut (docs/MAGIE.md)
+	"test_articulations_magie|--nouvelle"   # gestes de magie : bras sans avant-bras « disloqué » (longueurs, torsion par image, plan et accélération du coude, pronation bornée, retour au repos ; deux bras, 60 et 30 i/s)
 	"test_effets_magie|--nouvelle"   # visuels de la magie (EffetsMagie / GestionMagie) : contrat, plafonds, retour au pool (docs/MAGIE_EFFETS.md)
 	"test_impact_corps|--nouvelle"   # feu sur le corps (socle ImpactCorps) : points qui suivent les os (ragdoll, décapitation), rien créé par impact, plafond, extinction (docs/MAGIE_IMPACT_CORPS.md)
 	"test_sons_magie|--nouvelle"   # sons de la magie (SonsMagie) : .wav PCM préchargés, chaque sort a ses sons, pools sans allocation, mage ennemi spatialisé, coût mesuré (docs/MAGIE.md)
