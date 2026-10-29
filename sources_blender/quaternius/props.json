@@ -3,13 +3,15 @@
 "nom": "q_enclume",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Anvil.gltf",
 "budget": 500,
-"role": "forge"
+"role": "forge",
+"hauteur": 0.42
 },
 {
 "nom": "q_pierre_aiguiser",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Whetstone.gltf",
 "budget": 500,
-"role": "forge"
+"role": "forge",
+"hauteur": 1.0
 },
 {
 "nom": "q_seau_fer",
@@ -21,7 +23,8 @@
 "nom": "q_etabli",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Workbench.gltf",
 "budget": 900,
-"role": "forge"
+"role": "forge",
+"hauteur": 0.85
 },
 {
 "nom": "q_marmite",
@@ -32,38 +35,44 @@
 {
 "nom": "q_support_tonneau",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Barrel_Holder.gltf",
-"budget": 700,
-"role": "forge"
+"budget": 1200,
+"role": "forge",
+"hauteur": 1.1
 },
 {
 "nom": "q_grande_table",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Table_Large.gltf",
 "budget": 700,
-"role": "auberge"
+"role": "auberge",
+"hauteur": 0.78
 },
 {
 "nom": "q_chaise",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Chair_1.gltf",
 "budget": 400,
-"role": "auberge"
+"role": "auberge",
+"hauteur": 0.95
 },
 {
 "nom": "q_tabouret",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Stool.gltf",
 "budget": 250,
-"role": "auberge"
+"role": "auberge",
+"hauteur": 0.5
 },
 {
 "nom": "q_banc",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Bench.gltf",
 "budget": 400,
-"role": "auberge"
+"role": "auberge",
+"hauteur": 0.45
 },
 {
 "nom": "q_lit",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Bed_Twin1.gltf",
 "budget": 800,
-"role": "maison"
+"role": "maison",
+"hauteur": 0.75
 },
 {
 "nom": "q_armoire",
@@ -81,7 +90,8 @@
 "nom": "q_chaudron",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Cauldron.gltf",
 "budget": 500,
-"role": "maison"
+"role": "maison",
+"hauteur": 0.55
 },
 {
 "nom": "q_seau_bois",
@@ -93,7 +103,8 @@
 "nom": "q_lutrin",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/BookStand.gltf",
 "budget": 400,
-"role": "alchimie"
+"role": "alchimie",
+"hauteur": 1.3
 },
 {
 "nom": "q_pile_livres",
@@ -135,37 +146,42 @@
 "nom": "q_cage",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Cage_Small.gltf",
 "budget": 500,
-"role": "crypte"
+"role": "crypte",
+"hauteur": 0.8
 },
 {
 "nom": "q_etal",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Stall_Empty.gltf",
 "budget": 900,
-"role": "marche"
+"role": "marche",
+"hauteur": 2.2
 },
 {
 "nom": "q_charrette_etal",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Stall_Cart_Empty.gltf",
 "budget": 1000,
-"role": "marche"
+"role": "marche",
+"hauteur": 2.2
 },
 {
 "nom": "q_cageot_pommes",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/FarmCrate_Apple.gltf",
-"budget": 500,
+"budget": 900,
 "role": "marche"
 },
 {
 "nom": "q_tonneau_pommes",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Barrel_Apples.gltf",
-"budget": 800,
-"role": "marche"
+"budget": 1200,
+"role": "marche",
+"hauteur": 0.85
 },
 {
 "nom": "q_caisse",
 "src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Crate_Wooden.gltf",
 "budget": 300,
-"role": "marche"
+"role": "marche",
+"hauteur": 0.7
 },
 {
 "nom": "q_sac",

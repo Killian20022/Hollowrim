@@ -107,7 +107,8 @@ def classer(c, indice=None, candidats=DEFAUT):
         if s < 0.12 and v < 0.12:
             m = "noir"
     ref = RAMPES.get(m, RAMPES["bois"])
-    lref = lum(H(ref[-2])) if m in RAMPES else lum(APERCU.get(m, (0.5, 0.5, 0.5)))
+    # fer : référence au ton clair (le fer foncé descend)
+    lref = lum(H(ref[-1 if m == "fer" else -2])) if m in RAMPES else lum(APERCU.get(m, (0.5, 0.5, 0.5)))
     ton = max(0.3, min(1.0, (lum(c) / max(lref, 1e-3)) ** 0.9))      # ton 1 = avant-dernier ton de la rampe
     return m, ton
 
