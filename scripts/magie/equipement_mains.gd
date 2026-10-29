@@ -254,8 +254,11 @@ func objets_possedes(categorie_id := "") -> Array[String]:
 		if String(c.get("id", "")) == categorie_id:
 			genres = c.get("genres", [])
 	var candidats: Array[String] = []
+	var test: bool = catalogue.get("tout_disponible", false)
 	for o: Dictionary in catalogue.get("objets", []):
 		var cond := String(o.get("inventaire", ""))
+		if cond == "" and not test:       # L9 : condition préparée pour la fin du « tout disponible » (inventaire.json, _inventaire_hors_test)
+			cond = String(o.get("inventaire_hors_test", ""))
 		if cond != "" and (inventaire == null or not inventaire.a(cond)):
 			continue
 		candidats.append(String(o.get("id", "")))

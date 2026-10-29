@@ -91,10 +91,16 @@
           "id": "fin",
           "declencheur": "parle:forgeron",
           "objectif": "Voir Brodd forger l’épée",
-          "journal": "Brodd a fondu les trois lames et battu l’acier toute la nuit. Il en est sorti une épée au fil clair : l’Épée de Skarnholt. Elle est à moi."
+          "journal": "Brodd a fondu les trois lames et battu l’acier toute la nuit. Il en est sorti une épée au fil clair : l’Épée de Skarnholt. Il l’a accrochée au râtelier de sa forge."
+        },
+        {
+          "id": "epee",
+          "declencheur": "ramasse:epee_skarnholt",
+          "objectif": "Prendre l’épée sur le râtelier de la forge",
+          "journal": "J’ai décroché l’Épée de Skarnholt du râtelier de Brodd. Garde et pommeau sont gravés d’entrelacs. Elle est à moi."
         }
       ],
-      "recompense": { "pieces": 0, "objets": { "epee_skarnholt": 1 } }
+      "recompense": { "pieces": 0, "objets": {} }
     },
     {
       "id": "repaire_hrafn",
@@ -280,7 +286,11 @@
       "lames_brodd:fin": [
         "Ha ! Regarde ce fil. On dirait de la glace claire.",
         "Je l’appelle l’Épée de Skarnholt. Ne la plante pas dans mon établi.",
-        "Elle est à toi. Fais-en bon usage."
+        "Elle t’attend sur le râtelier, au mur. Prends-la et fais-en bon usage."
+      ],
+      "lames_brodd:pendant_epee": [
+        "Ton épée est sur le râtelier, au mur. Je ne vais pas te la porter.",
+        "Regarde la garde : des entrelacs, comme sur les vieilles pierres."
       ]
     },
     "ancienne": {

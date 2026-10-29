@@ -183,7 +183,7 @@ func _contenants() -> void:
 	_verif(ButinTables.resoudre(avec, "crypte:cof_ossuaire") == r, "coffre de donjon : même contenu à chaque construction")
 	_verif(ButinTables.resoudre({"pieces": 80, "hache_kolbeinn": 1}, "crypte:x") == {"pieces": 80, "hache_kolbeinn": 1}, "coffre de quête (sans « table ») : contenu inchangé")
 	var src := FileAccess.get_file_as_string("res://scripts/crypte_donjon.gd")
-	_verif(src.count("\"table\": \"") >= 20 and src.contains("\"hache_kolbeinn\": 1, \"pieces\": 80, \"table\": \"coffre_boss\""), "crypte : coffres et urnes branchés sur les tables (%d)" % src.count("\"table\": \""))
+	_verif(src.count("\"table\": \"") >= 20 and src.contains("\"pieces\": 80, \"table\": \"coffre_boss\""), "crypte : coffres et urnes branchés sur les tables (%d)" % src.count("\"table\": \""))
 
 func _persistance() -> void:
 	ButinTables.reinitialiser()

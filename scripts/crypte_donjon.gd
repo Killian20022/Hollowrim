@@ -17,6 +17,8 @@ const EVT_EAU := "crypte:fragment_eau"
 const REVEIL_OS := "ramasse:fragment_sceau_os"       # événement de quête qui réveille le gardien (émis à l'entrée dans le sac)
 const REVEIL_GIVRE := "ramasse:fragment_sceau_givre"
 const REVEIL_EAU := "ramasse:fragment_sceau_eau"
+## L9 : épée couchée sur un râtelier (glb : +Y lame, +X tranchant) : lame le long de +x du présentoir, tranchant vertical, plat face au mur.
+const EPEE_COUCHEE := Basis(Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(0, 0, -1))
 
 # ------------------------------------------------------------------ crypte v2 : tables de données (voir docs/DONJONS.md §13 et scripts/crypte_v2.gd)
 # Positions en repère de la CRYPTE (comme les accroches). Salle et couloir pilotes de la refonte graphique (références/crypte_v2_planche.png, vues 2/6 et 3).
@@ -251,7 +253,7 @@ func plan() -> Array:
 			_e("cr_g4_mage", "mage", Vector3(55.0, 0, -23.3), -PI * 0.5, false, true, {"ia": "mage_nordique"})],
 		"coffres": [{"id": "cof_g4a", "pos": Vector3(57.9, 0, -36.8), "lacet": -PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 58, "lame_antique": 1, "table": "coffre_crypte"}},
 			{"id": "cof_g4b", "pos": Vector3(57.9, 0, -23.2), "lacet": -PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 44, "os_draugr": 2, "table": "coffre_crypte"}},
-			{"id": "cof_jarl", "pos": Vector3(57.9, 0, -34.3), "lacet": -PI * 0.5, "nom": "Coffre du Jarl", "style": "royal", "butin": {"hache_kolbeinn": 1, "pieces": 80, "table": "coffre_boss"}}]}))
+			{"id": "cof_jarl", "pos": Vector3(57.9, 0, -34.3), "lacet": -PI * 0.5, "nom": "Coffre du Jarl", "style": "royal", "butin": {"pieces": 80, "table": "coffre_boss"}}]}))      # L9 : la hache est sur le trône (objet unique)
 	r.append(_es("d1", Vector2(21, -40), 2, 0.0, B, 12.0, "g1", "lb1"))
 
 	# ============================================================ ÉTAGE −1 : sceau de l'Eau
@@ -674,6 +676,15 @@ func _x_quartiers(_m: Dictionary) -> void:
 func _x_armurerie(_m: Dictionary) -> void:
 	d.ratelier_armes(_l(32.62, -2.8), -PI * 0.5, 1.8)
 	d.ratelier_armes(_l(32.62, -5.2), -PI * 0.5, 1.4)
+	# L9 : l'épée d'obsidienne, arme unique, sur son râtelier au mur sud (présentoir fondu dans le décor, sans emprise : la pose auto
+	# ne bouge pas ; l'épée est un nœud à part qui disparaît quand on la prend)
+	var br := Basis(Vector3.UP, _ll(PI))
+	var pied := _l(30.0, -1.05)
+	if d.murs_cb.is_valid():        # dos hors du soubassement (même calcul que _ecarter, sans poussée enregistrée : le reste ne bouge pas)
+		pied += d.murs_cb.call(pied + br * Vector3(0, 0, 0.05), Vector2(0.6, 0.08), _ll(PI))
+	var rat := Transform3D(br, pied + Vector3(0, 1.45, 0))
+	d.modele("presentoir_ratelier", rat.origin, _ll(PI), Vector3.ONE, {}, false)
+	unique("epee_obsidienne", rat * Transform3D(EPEE_COUCHEE, Vector3(-0.42, 0.03, 0.075)))
 	d.arme(_l(30.0, -2.4), 0.5)
 	d.arme(_l(29.0, -6.0), 2.1)
 	d.bouclier_mural(_l(31.4, -6.7, 1.8), Vector3(0, 0, 1), 0.34, Color(0.5, 0.35, 0.3))
@@ -682,6 +693,17 @@ func _x_armurerie(_m: Dictionary) -> void:
 
 func _x_trone(_m: Dictionary) -> void:
 	d.trone(_l(56.5, -30.0), -PI * 0.5, "mur4")
+	# L9 : la hache de Kolbeinn couchée en travers de l'assise du trône (objet unique, à prendre une fois le Jarl vaincu)
+	if d.has_meta("trone_assise"):
+		var assise: Transform3D = d.get_meta("trone_assise")
+		# dressée contre le devant de l'assise, fer en haut, tranchant vers l'extérieur (repère de l'assise : +z = devant, y = 0 au dessus
+		# de l'assise, estrade à -0,56) : pied du manche sur l'estrade, tête appuyée au rebord (lisible depuis l'entrée de la salle)
+		var dresse := Basis(Vector3(0, 1, 0), Vector3(0, 0, 1), Vector3(1, 0, 0))      # module couché -> manche vertical
+		var bh := Basis(Vector3.RIGHT, -0.2) * Basis(Vector3.BACK, 0.08) * dresse
+		var pied_h := Vector3(0.42, -0.56, 0.72)
+		unique("hache_kolbeinn", d.xf.affine_inverse() * assise * Transform3D(bh, pied_h + bh * Vector3(0.535, -0.023, 0.0)), {"requiert": ["tue:jarl"]})
+	else:
+		push_warning("trône sans assise v2 : hache de Kolbeinn non posée")
 	d.statue(_l(44.2, -36.6), 0.0, 1.2, "guerrier", true, "mur4")
 	d.statue(_l(44.2, -23.4), PI, 1.2, "guerrier", true, "mur4")
 	d.statue(_l(50.0, -37.2), 0.0, 1.2, "jarl", true, "mur4")

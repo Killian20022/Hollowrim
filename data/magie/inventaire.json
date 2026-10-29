@@ -11,12 +11,14 @@
 		{"id": "epee"},
 		{"id": "torche"},
 		{"id": "bouclier"},
-		{"id": "epee_or"},
-		{"id": "epee_rubis"},
-		{"id": "epee_verre"},
-		{"id": "epee_obsidienne"},
-		{"id": "epee_skarnholt"}
+		{"id": "epee_or", "inventaire_hors_test": "epee_or"},
+		{"id": "epee_rubis", "inventaire_hors_test": "epee_rubis"},
+		{"id": "epee_verre", "inventaire_hors_test": "epee_verre"},
+		{"id": "epee_obsidienne", "inventaire_hors_test": "epee_obsidienne"},
+		{"id": "epee_skarnholt", "inventaire_hors_test": "epee_skarnholt"},
+		{"id": "epee_hrafn", "inventaire": "epee_hrafn"}
 	],
+	"_inventaire_hors_test": "L9 (2026-10-29) : PRÉPARATION de la fin du « tout disponible », SANS l'appliquer (décision de l'utilisateur). `inventaire_hors_test` = condition `inventaire` qui ne s'applique QUE si tout_disponible vaut false (EquipementMains.objets_possedes) : passer tout_disponible à false suffit, les épées se gagnent alors dans le monde (épée de Skarnholt : râtelier de la forge ; obsidienne : râtelier de l'armurerie de la crypte ; or, rubis, verre : coffres, sous-table « armes ») et les sorts par les tomes. `inventaire` (sans suffixe) s'applique toujours (objets uniques nouveaux : Croc-Rouge).",
 	"_tout_disponible": "PÉRIODE DE TEST (demande utilisateur 2026-10-27) : true = les 5 épées sans condition et tous les sorts de data/sorts/ connus, même avec une ancienne sauvegarde. Repasser à false (et remettre des conditions `inventaire`) quand le butin existera : les tables data/butin/ donnent déjà epee_or, epee_rubis, epee_verre, epee_obsidienne (sous-table « armes ») et des tomes de sorts (« tomes ») ; il suffira d'ajouter \"inventaire\": \"epee_or\" (etc.) aux objets ci-dessous (docs/BUTIN.md).",
 	"tout_disponible": true,
 	"ordre_ecoles": ["feu", "glace", "electricite", "tenebres", "soin", "protection"]

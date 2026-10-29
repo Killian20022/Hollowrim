@@ -680,6 +680,7 @@ func _villageois() -> void:
 	add_child(quetes)
 	hud.quetes = quetes
 	village.activer_interieurs(joueur, dialogue)   # portes des maisons (touche E)
+	_uniques_village()
 	var promenade: Array = village.promenade
 	var rng_pts := RandomNumberGenerator.new()
 	rng_pts.seed = 20261020          # promenades des villageois reproductibles (captures)
@@ -1326,6 +1327,7 @@ func charger() -> void:
 		joueur.mains.magie.importer(d.get("magie", {}))
 	dragon_vaincu = bool(d.get("dragon_vaincu", false))
 	quetes.importer(d.get("quetes", {}))
+	_actualiser_uniques_village()      # L9 : épée de la forge selon la quête et le butin relus
 	tertre.restaurer(bool(d.get("herse", false)))
 	grotte_acces.morts_charges = d.get("draugrs_morts", [])
 	grotte_acces.restaurer()      # sauvegardé dans la grotte : on y revient (position du fichier)
@@ -2001,3 +2003,46 @@ func _scenario(nom: String) -> void:
 		await get_tree().process_frame
 		if nom.begins_with("dragon"):
 			_viser(dragon.global_position + Vector3(0, 2.0 if nom == "dragon_loin" else 1.5, 0))
+
+# ------------------------------------------------------------------ L9 : objets uniques du village
+## Épée de Skarnholt sur le râtelier de la forge (ObjetUnique) : visible quand Brodd l'a forgée (quête lames_brodd à l'étape « epee »)
+## et tant qu'elle n'est pas prise ; E = la prendre (ButinTables « unique:epee_skarnholt », quetes signale « ramasse:epee_skarnholt »).
+var unique_forge: ObjetUnique
+
+func _uniques_village() -> void:
+	var ip: Interieur = village.interieur("forge") if village.has_method("interieur") else null
+	if ip == null:
+		return
+	unique_forge = ObjetUnique.creer("epee_skarnholt", InterieurForge.xf_epee_unique())
+	if unique_forge == null:
+		return
+	unique_forge.presence = _epee_forgee
+	ip.racine.add_child(unique_forge)
+	var it := Node3D.new()
+	it.set_script(preload("res://scripts/interactif.gd"))
+	it.joueur = joueur
+	it.dialogue = dialogue
+	it.nom = ObjetUnique.nom_de("epee_skarnholt")
+	it.verbe = ObjetUnique.verbe_de("epee_skarnholt")
+	it.rayon = 1.8
+	it.condition = func() -> bool: return unique_forge.visible
+	it.action = func() -> Array: return ObjetUnique.prendre("epee_skarnholt", joueur.inventaire, hud, unique_forge)
+	it.position = unique_forge.position + RATELIER_VERS_SALLE
+	ip.add_child(it)
+	quetes.change.connect(_actualiser_uniques_village)
+	_actualiser_uniques_village()
+
+const RATELIER_VERS_SALLE := Vector3(-0.25, -0.05, 0.42)   # point d'interaction : devant la lame, côté pièce (repère de l'intérieur)
+
+func _epee_forgee() -> bool:
+	var n: int = quetes.etat.get("lames_brodd", -1)
+	return n >= 3
+
+## Ancienne partie (quête terminée en 3 étapes, épée déjà reçue) : l'épée n'est plus sur le râtelier, l'étape « epee » est faite.
+func _actualiser_uniques_village() -> void:
+	if unique_forge == null or not is_instance_valid(unique_forge):
+		return
+	if quetes.etat.get("lames_brodd", -1) == 3 and joueur.inventaire.a("epee_skarnholt") and not ObjetUnique.pris("epee_skarnholt"):
+		ButinTables.piller(ObjetUnique.cle("epee_skarnholt"))
+		quetes.signaler.call_deferred("ramasse:epee_skarnholt")
+	unique_forge.actualiser()

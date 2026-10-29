@@ -56,6 +56,7 @@ var acces: Node3D                       # GrotteAcces (monde, joueur, dialogue, 
 var g: Grotte
 var prefixe := "grotte"
 var interactifs := {}                   # id -> nœud Interactif
+var uniques := {}                       # L9 : objet -> ObjetUnique (pris = ButinTables « unique:<objet> »)
 var couvercles := {}                    # L1 : id du coffre -> CoffreCouvercle (ouvert = quetes.vus["<pref>:<id>"])
 var ennemis := {}                       # id -> CharacterBody3D (apparus)
 var _file: Array = []                   # accroches d'ennemis pas encore apparues
@@ -85,6 +86,7 @@ func installer(acces_: Node3D, g_: Grotte) -> void:
 				_lieux.append(a)
 			"ennemi":
 				_file.append(a)
+	_uniques()
 	_etat()
 	_lancer_prechauffe()
 	salles = SalleActive.depuis_grotte(g, g, acces.joueur, acces.get_tree())
@@ -171,6 +173,8 @@ func _etat() -> void:
 			it.actif = it.get_meta("genre", "") == "coffre" and ButinTables.a_reste(cle)      # L3 : coffre ouvert, objets laissés
 			if it.actif:
 				it.verbe = "Fouiller le coffre"
+	for o: String in uniques:          # L9 : objets uniques déjà pris
+		(uniques[o] as ObjetUnique).actualiser()
 	for id: String in couvercles:      # L1 : coffre déjà vidé (partie chargée) = ouvert ; refermé sinon (mort avant la bourse)
 		var c: CoffreCouvercle = couvercles[id]
 		if vus.has("%s:%s" % [prefixe, id]):
@@ -252,6 +256,45 @@ func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
 	var it: Node3D = interactifs.get(id)
 	FenetreButin.fouiller(g, cle, String(it.nom) if it != null else "Coffre", n_or, it, acces.joueur, acces.hud)
 	return []
+
+# ------------------------------------------------------------------ L9 : objets uniques exposés
+## Clé « uniques » des zones (grotte_donnees.gd) : présentoir (module objets_donjon.dat, maillage à part : le décor de la grotte et ses
+## tirages ne changent pas) + ObjetUnique posé dessus + interaction « Prendre » (prise sauvegardée dans ButinTables).
+const EPEE_A_PLAT := Basis(Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(0, 0, -1))      # glb : lame le long de +x du chevalet, sur la tranche (plat face au joueur)
+func _uniques() -> void:
+	for z: Dictionary in g.def.get("zones", []):
+		for u: Dictionary in z.get("uniques", []):
+			var br := String(z.get("branche", ""))
+			var s := float(u["s"])
+			var p: Vector3 = g.sol_en(br, s, float(u.get("lat", 0.0)))
+			var xf := Transform3D(Basis(Vector3.UP, g.lacet_en(br, s) + float(u.get("lacet", 0.0))), p)
+			var pres := String(u.get("presentoir", ""))
+			if pres != "":
+				var mp := g.decor.maillage_modele(pres)
+				if mp != null:
+					mp.transform = xf
+					mp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+					mp.visibility_range_end = ObjetUnique.PORTEE
+					g.add_child(mp)
+					var sb := StaticBody3D.new()       # on ne traverse pas le chevalet
+					var cs := CollisionShape3D.new()
+					var bs := BoxShape3D.new()
+					bs.size = Vector3(0.66, 0.92, 0.5)
+					cs.shape = bs
+					cs.position = Vector3(0, 0.46, 0)
+					sb.add_child(cs)
+					sb.transform = xf
+					g.add_child(sb)
+			var obj := String(u["objet"])
+			var n := ObjetUnique.creer(obj, xf * Transform3D(EPEE_A_PLAT, Vector3(-0.42, 0.9, 0.0)), g.decor)
+			if n == null:
+				continue
+			g.add_child(n)
+			uniques[obj] = n
+			var it := _interactif(p + Vector3(0, 0.95, 0), ObjetUnique.nom_de(obj), ObjetUnique.verbe_de(obj),
+				func() -> Array: return ObjetUnique.prendre(obj, acces.joueur.inventaire, acces.hud, n),
+				func() -> bool: return not ObjetUnique.pris(obj), false, 1.9)
+			interactifs["unique_" + obj] = it
 
 # ------------------------------------------------------------------ ressources
 func _ressource(a: Dictionary) -> void:

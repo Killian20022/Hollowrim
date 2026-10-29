@@ -30,7 +30,8 @@ BUDGET = {"coffre": 550, "tonneau": 400, "table": 550, "urne": 420, "crane": 180
           "etagere_cadre": 420, "etagere_contenu": 820, "etagere_couchee": 300, "lit": 570, "ratelier_cadre": 420, "arme_v": 90,
           "bouclier": 330, "planche": 40, "poteau": 40, "tringle": 100,
           "coffre_cuve": 1100, "coffre_couvercle": 330, "coffre_or": 700, "coffre_royal_or": 1300, "coffre_royal_cuve": 2200, "coffre_royal_couvercle": 900,
-          "garniture": 260, "garniture_autel": 520, "garniture_etagere": 700}      # garniture : par objet de table
+          "garniture": 260, "garniture_autel": 520, "garniture_etagere": 700,      # garniture : par objet de table
+          "hache_kolbeinn": 420, "presentoir_ratelier": 320, "presentoir_socle": 420}      # L9 : objet unique et présentoirs
 
 
 def V(x, y, z):
@@ -1709,6 +1710,89 @@ def _l3():
 L3 = [_l3]
 
 
+# ======================================================================= L9 (2026-10-29) : objets uniques et présentoirs
+# docs INSPIRATION_IGNITE §2.14 / §2.18 : armes uniques posées dans le monde en modèle 3D (scripts/objet_unique.gd). Les PRÉSENTOIRS sont
+# fondus dans le décor (CrypteDecor.modele, sans emprise : la pose auto ne bouge pas) ; l'OBJET est un maillage à part
+# (CrypteDecor.maillage_modele) qui disparaît quand on le prend. Matières communes crypte + grotte (bois, fer, lame, or, noir) sauf
+# l'entrelacs de la hache (crypte seulement).
+def hache_kolbeinn():
+    """Hache de Kolbeinn le Gelé, COUCHÉE à plat (origine au sol sous le milieu du manche, manche le long de x, tête en +x, tranchant
+    vers +z) : hache barbue à fer large, joues gravées d'entrelacs, talon de marteau, bagues d'or, manche de bois sombre gainé de fer."""
+    M = Module("hache_kolbeinn", 9101, sol=False)
+    r = 0.017
+    y = 0.023
+    M.add("bois", cylindre(V(-0.5, y, 0), V(0.47, y, 0), r, 6), 0.62)
+    M.add("noir", cylindre(V(-0.44, y, 0), V(-0.2, y, 0), r * 1.12, 6), 0.8)          # gaine de cuir noirci (poignée)
+    for x, mat, t in ((-0.205, "or", 0.95), (-0.445, "or", 0.95), (0.3, "fer", 0.7), (0.24, "or", 0.9)):
+        M.add(mat, cylindre(V(x - 0.008, y, 0), V(x + 0.008, y, 0), r * 1.3, 6), t)
+    M.add("fer", hull([V(-0.5 + a * 0.012, y + b * 0.022, c * 0.022) for a in (-1, 1) for b in (-1, 1) for c in (-1, 1)] + [V(-0.535, y, 0)]), 0.6)
+    # œil de la tête autour du manche et talon de marteau (côté -z)
+    M.add("fer", boite_ch(V(0.4, y, 0.0), (0.075, 0.046, 0.062), 0.008), 0.72)
+    M.add("fer", hull([V(0.4 + a * 0.028, y + b * 0.02, -0.03) for a in (-1, 1) for b in (-1, 1)] +
+                      [V(0.4 + a * 0.024, y + b * 0.017, -0.075) for a in (-1, 1) for b in (-1, 1)]), 0.66)
+    # fer barbu : col épais puis éventail effilé jusqu'au fil (convexe), la barbe redescend le long du manche
+    col = [V(x, y + s * 0.013, 0.03) for x in (0.365, 0.435) for s in (-1, 1)]
+    fil = []
+    for k in range(7):
+        a = k / 6.0
+        x = 0.255 + a * 0.31
+        z = 0.235 + math.sin(a * math.pi) * 0.04 - (1 - a) * 0.012
+        fil += [V(x, y + s * 0.0028, z) for s in (-1, 1)]
+    M.add("lame", hull(col + fil), 0.95)
+    # joues gravées (plaques d'entrelacs à peine en relief, de chaque côté du fer)
+    for s in (-1, 1):
+        M.add("entrelacs", hull([V(x, y + s * (0.0126 - (z - 0.03) * 0.045), z) for x in (0.355, 0.445) for z in (0.035, 0.13)] +
+                                [V(x, y + s * (0.0108 - (z - 0.03) * 0.045), z) for x in (0.355, 0.445) for z in (0.035, 0.13)]), 0.9)
+    return M
+
+
+def presentoir_ratelier():
+    """Râtelier mural à UNE arme (origine au centre du dos, contre le mur en z = 0, face +z) : planche sculptée 0,95 x 0,34, cadre
+    sombre, deux crochets de fer en fourche à x = ±0,26 (l'arme repose à y = -0,02, z = 0,075), clous et plaque à rune."""
+    M = Module("presentoir_ratelier", 9102, sol=False)
+    rg = M.rg
+    for i in range(3):
+        M.add("bois", boite(V(-0.32 + i * 0.32 + rg.uniform(-0.003, 0.003), 0.0, 0.016), (0.31, 0.3, 0.03)), rg.uniform(0.6, 0.74))
+    for yy in (-0.165, 0.165):
+        M.add("bois", boite_ch(V(0, yy, 0.022), (1.0, 0.045, 0.045), 0.008), 0.48)
+    for sx in (-1, 1):
+        M.add("bois", hull([V(sx * 0.5, -0.19, 0.0), V(sx * 0.5, 0.19, 0.0), V(sx * 0.5, -0.19, 0.045), V(sx * 0.5, 0.19, 0.045),
+                            V(sx * 0.56, 0.0, 0.0), V(sx * 0.56, 0.0, 0.04)]), 0.45)      # bouts taillés en pointe
+        x = sx * 0.26
+        M.add("fer", boite(V(x, -0.02, 0.055), (0.022, 0.022, 0.08)), 0.55)
+        M.add("fer", boite(V(x, 0.0, 0.098), (0.022, 0.06, 0.016)), 0.6)
+        M.add("fer", boite(V(x, -0.02, 0.034), (0.05, 0.07, 0.006)), 0.45)
+        for yy in (-0.165, 0.165):
+            M.add("fer", boite(V(sx * 0.44, yy, 0.047), (0.014, 0.014, 0.006)), 0.4)
+    M.add("or", hull([V(a * 0.05, 0.11 + b * 0.025, 0.031) for a in (-1, 1) for b in (-1, 1)] + [V(a * 0.05, 0.11 + b * 0.025, 0.036) for a in (-1, 1) for b in (-1, 1)]), 0.75)
+    return M
+
+
+def presentoir_socle():
+    """Chevalet d'arme (origine au sol, centre) : deux pieds en traîneau, deux montants en fourche (l'arme repose à y = 0,86, sur x = ±0,27,
+    le long de x), traverse basse et ferrures. Matières communes crypte + grotte (bois, fer)."""
+    M = Module("presentoir_socle", 9103)
+    rg = M.rg
+    for sx in (-1, 1):
+        x = sx * 0.27
+        M.add("bois", boite_ch(V(x, 0.04, 0), (0.08, 0.08, 0.5), 0.012), rg.uniform(0.6, 0.72))
+        M.add("bois", boite_ch(V(x, 0.44, 0), (0.07, 0.8, 0.07), 0.012), rg.uniform(0.66, 0.78))
+        for sz in (-1, 1):       # fourche
+            M.add("bois", poutre(V(x, 0.82, 0), V(x, 0.92, sz * 0.05), 0.06, 0.03, V(1, 0, 0)), 0.72)
+            M.add("fer", boite(V(x, 0.07, sz * 0.2), (0.09, 0.03, 0.03)), 0.5)
+        M.add("fer", boite(V(x, 0.8, 0), (0.08, 0.03, 0.08)), 0.55)
+        M.add("bois", poutre(V(x, 0.08, 0.18), V(x, 0.38, 0.0), 0.04, 0.04, V(1, 0, 0)), 0.6)      # jambe de force
+    M.add("bois", boite_ch(V(0, 0.2, 0), (0.6, 0.06, 0.06), 0.01), 0.55)
+    return M
+
+
+def _l9():
+    return [hache_kolbeinn(), presentoir_ratelier(), presentoir_socle()]
+
+
+L9 = [_l9]
+
+
 def construire():
     mods = []
     for v in "abc":
@@ -1726,6 +1810,8 @@ def construire():
             r = f(v)
             mods += r if isinstance(r, list) else [r]
     for f in L1:                    # L1 : coffre en deux pièces (en fin de fichier : les modules d'avant gardent leur ordre)
+        mods += f()
+    for f in L9:                    # L9 : objets uniques et présentoirs (à la suite)
         mods += f()
     return mods
 

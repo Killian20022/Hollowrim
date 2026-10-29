@@ -71,8 +71,13 @@ func _tester() -> void:
 	await process_frame
 	_parler("forgeron")
 	var inv = m.joueur.inventaire
+	# L9 : Brodd accroche l'épée au râtelier de la forge (étape « epee ») ; on la prend comme le joueur (ObjetUnique)
+	var sur_ratelier: bool = m.quetes.etat.get("lames_brodd", 0) == 3 and not inv.a("epee_skarnholt") and m.unique_forge != null and m.unique_forge.visible
+	print("   épée sur le râtelier de la forge : ", sur_ratelier)
+	ObjetUnique.prendre("epee_skarnholt", inv, null, m.unique_forge)
+	await process_frame
 	print("   quêtes : ", _etat(), " | pièces=", inv.pieces, " objets=", inv.objets)
-	var ok: bool = m.quetes.etat.get("anneau_givre", 0) == 6 and m.quetes.etat.get("frere_ylva", 0) == 3 and m.quetes.etat.get("lames_brodd", 0) == 3
+	var ok: bool = sur_ratelier and m.quetes.etat.get("anneau_givre", 0) == 6 and m.quetes.etat.get("frere_ylva", 0) == 3 and m.quetes.etat.get("lames_brodd", 0) == 4
 	ok = ok and inv.a("amulette_givre") and inv.a("epee_skarnholt") and inv.pieces == 210 and not inv.a("anneau_givre") and not inv.a("lame_antique") and not inv.a("amulette_eirik")
 	print("TEST QUÊTES : ", "OK" if ok else "ÉCHEC")
 	ok = await _tester_donjons() and ok

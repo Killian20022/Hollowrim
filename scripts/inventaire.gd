@@ -13,7 +13,7 @@ const OBJETS := {
 	"amulette_givre": {"nom": "Amulette de givre", "poids": 0.3, "valeur": 40},
 	"anneau_givre": {"nom": "Anneau de givre", "poids": 0.1, "valeur": 0},
 	"amulette_eirik": {"nom": "Amulette d’Eirik", "poids": 0.2, "valeur": 0},
-	"epee_skarnholt": {"nom": "Épée de Skarnholt", "poids": 9.0, "valeur": 120},
+	"epee_skarnholt": {"nom": "Épée de Skarnholt", "poids": 9.0, "valeur": 120, "rarete": "unique"},      # L9 : uniques posés dans le monde (ObjetUnique)
 	"ecaille_dragon": {"nom": "Écaille de dragon", "poids": 2.0, "valeur": 80},
 	# donjons : objets de quête (valeur 0) et objets de valeur ; consommables (potions, nourriture) : data/butin/objets.json
 	"fragment_sceau_os": {"nom": "Fragment du sceau des Os", "poids": 0.6, "valeur": 0},
@@ -28,7 +28,7 @@ const OBJETS := {
 	"registre_hrafn": {"nom": "Registre de Hrafn", "poids": 0.8, "valeur": 0},
 	"journal_sigrun": {"nom": "Journal de Solveig", "poids": 0.3, "valeur": 0},
 	"broche_sigrun": {"nom": "Broche de Solveig", "poids": 0.1, "valeur": 0},
-	"hache_kolbeinn": {"nom": "Hache de Kolbeinn le Gelé", "poids": 7.0, "valeur": 200},
+	"hache_kolbeinn": {"nom": "Hache de Kolbeinn le Gelé", "poids": 7.0, "valeur": 200, "rarete": "unique"},
 	"fourrure_troll": {"nom": "Fourrure de troll givrée", "poids": 4.0, "valeur": 60},
 	"croc_troll": {"nom": "Croc de troll", "poids": 0.3, "valeur": 18},
 }

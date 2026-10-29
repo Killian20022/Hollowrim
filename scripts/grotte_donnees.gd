@@ -332,6 +332,10 @@ static func zones_hrafn() -> Array:
 			],
 			"coffres": [
 				{"id": "cache", "s": 16.5, "lat": -1.8, "lacet": 1.2, "nom": "Cachette de Hrafn", "butin": {"pieces": 200, "amulette_givre": 1, "lame_antique": 1}},
+			],
+			# L9 : objet unique exposé (GrotteJeu._uniques : chevalet + épée posés à part, hors du décor : rien d'autre ne bouge)
+			"uniques": [
+				{"objet": "epee_hrafn", "s": 18.4, "lat": 1.3, "presentoir": "presentoir_socle"},
 			]},
 	]
 

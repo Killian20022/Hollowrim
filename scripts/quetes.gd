@@ -157,7 +157,12 @@ func repliques(villageois: String) -> Array:
 				return lignes
 	for q in donnees["quetes"]:
 		if en_cours(q["id"]):
-			var lignes: Array = dialogues.get(q["id"] + ":pendant", [])
+			# L9 : réplique propre à l'étape en cours (« <quête>:pendant_<étape> »), sinon la réplique générale
+			var n: int = etat.get(q["id"], -1)
+			var et: Array = q["etapes"]
+			var lignes: Array = dialogues.get("%s:pendant_%s" % [q["id"], et[n]["id"]], []) if n >= 0 and n < et.size() else []
+			if lignes.is_empty():
+				lignes = dialogues.get(q["id"] + ":pendant", [])
 			if not lignes.is_empty():
 				return lignes
 	return []
