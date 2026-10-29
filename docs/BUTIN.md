@@ -183,3 +183,41 @@ déjà le sort à `sorts_connus` (sauvegardé).
 - Limites : le butin d'un corps n'est pas sauvegardé (un ennemi tué puis sauvegardé ne revient pas, son butin non pris est perdu,
   comme l'ancienne bourse) ; l'or de chaque coffre à couvercle est un maillage à part (1 à 2 appels de dessin de plus par coffre
   dans la portée de dessin, exception « objets interactifs » du socle).
+
+## 9. Marchands (lot L8)
+
+Brodd le Large (forgeron, id `forgeron`) et Grima Cendrefroide (doyenne du puits, id `ancienne`). Fichiers : `scripts/marchand.gd`
+(`Marchand` : état statique + boutique), `data/marchands.json`, `scripts/dialogue.gd` (option « Commercer »), `outils/test_marchands.gd`,
+`outils/captures_marchands.gd`.
+
+- **Données** (`data/marchands.json`, clé = id du villageois) : `titre`, `or` (bourse au début de chaque période), `renouvellement_jours` (2),
+  `achat` (1,1 Brodd ; 1,15 Grima), `vente` (0,4), `achete` (catégories ou ids rachetés), `stock` (`{id, n, chance}`).
+  Brodd : épées (or, rubis, verre, au hasard), minerais, cristal, fourrure, anneau ; rachète armes, métaux, trophées, bijoux.
+  Grima : potions, pain, viande séchée, champignons, poussière de tombe ; rachète consommables, ingrédients, os, bijoux.
+  Le test vérifie que tout objet vendable du catalogue a au moins un acheteur.
+- **Prix** : achat = `ceil(valeur x achat)`, rachat = `floor(valeur x vente)` (1 au moins). Exemples : minerai de fer 12 → 14 / 4,
+  collier d'or 85 → 94 / 34, potion de soin chez Grima 30 → 35 / 12.
+- **Jamais vendables** : valeur 0 (objets de quête), liste `invendables`, et tout objet demandé par une étape `objet:<id>>=n` d'une quête
+  EN COURS (les lames antiques pendant « Le fer des morts »). Ils restent listés en bas de l'onglet Vendre, grisés, avec la raison.
+- **Stock et temps** : `Marchand.heures` = heures de jeu écoulées depuis le début de la partie, suivies sur `cycle.heure` (arrêtée en pause ;
+  un saut > 6 h, chargement ou capture, n'est pas compté). Période = `floor(heures / (24 x renouvellement_jours))` ; à chaque nouvelle période
+  le stock est tiré à nouveau (graine `ButinTables.graine("marchand:<id>:<période>")`, même période = même étal), la bourse revient à `or`,
+  ce que le joueur avait vendu disparaît. Un achat retire du stock et remplit la bourse ; une vente vide la bourse (refus si elle ne suffit
+  pas) et met l'objet sur l'étal.
+- **Sauvegarde** : clé `"marchands"` de `monde.sauvegarder()` = `{heures, etats: {id: {periode, or, stock}}}` ; `Marchand.reinitialiser()`
+  à chaque lancement de partie, `Marchand.importer()` dans `charger()`.
+- **Dialogue** : chez un marchand, cartouche « [T] Commercer » en haut à droite de la boîte pendant toute la conversation ; sur la
+  dernière réplique, choix « Commercer / Au revoir » (haut/bas, Z/S ; E / Entrée / Espace = valider). Manette : A = suite / valider,
+  B = fermer, X = commercer, croix = choisir. Correction au passage : E qui termine la réplique ne fait plus repartir la machine à écrire.
+- **Boutique** (une instance, `monde.marchand`, calque 44, groupe `marchand`) : jeu en pause ; titre en Jacquard 24, or du joueur
+  (pièce dessinée + chiffres Kenney), onglets Acheter / Vendre, bourse du marchand ; une carte par objet (icône, nom en couleur de
+  rareté, effet ou « Arme, 9 kg », nombre, prix en or, rouge si on ne peut pas payer) ; ligne d'information (retour de la dernière
+  transaction, « Stock limité, réassort dans 1 j 6 h ») ; étal vide : « Étal vide. Revenez dans … ».
+  Clavier : E / Entrée / Espace = un, R = toute la pile, Tab / flèches gauche-droite / Q-D = onglet, haut-bas / Z-S / molette = choisir,
+  Échap / clic droit = fermer. Manette : A, Y (pile), LB / RB ou croix gauche-droite, croix haut-bas, B.
+- **API** : `Marchand.pour_pnj(pnj)`, `etat(id)`, `stock(id)`, `or_de(id)`, `prix_achat(id, oid)`, `prix_vente(id, oid)`, `de_quete(oid, quetes)`,
+  `refus_vente(id, oid, quetes)`, `acheter(id, inv, oid, n) -> String`, `vendre(id, inv, oid, n, quetes) -> String` (refus, "" = fait),
+  `avancer(heures)`, `heures_avant_reassort(id)`, `exporter() / importer(d) / reinitialiser()`, `verifier()` ;
+  boutique : `Marchand.trouver(n)`, `ouvrir(id) -> bool`, `fermer()`, `changer_onglet(i)`, `traiter(i, tout) -> String`.
+- **Limites** : pas d'armures dans le jeu (le forgeron vend armes et matériaux) ; les épées achetées n'ont pas encore d'effet tant que
+  `data/magie/inventaire.json` garde `tout_disponible = true` ; pas de marchandage ni de prix selon une compétence ; pas de réparation.

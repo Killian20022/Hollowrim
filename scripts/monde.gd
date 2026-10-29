@@ -226,6 +226,7 @@ func _ready() -> void:
 	if not _arguments().has("capture"):
 		_musique()
 	ButinTables.reinitialiser()   # nouvelle partie : aucun contenant pillé (charger() relit l'état de la sauvegarde)
+	Marchand.reinitialiser()      # lot L8 : stocks et bourses des marchands neufs, horloge à 0
 	if not _arguments().has("capture") and not _arguments().has("nouvelle") and not _arguments().has("persos-tous") and not Jeu.nouvelle_partie:
 		charger()
 	if not _arguments().has("capture"):
@@ -1187,6 +1188,7 @@ func _neige() -> void:
 
 var inventaire_ui: InventaireMains
 var fenetre_butin: FenetreButin
+var marchand: Marchand
 func _interface() -> void:
 	calque = CanvasLayer.new()
 	add_child(calque)
@@ -1212,6 +1214,11 @@ func _interface() -> void:
 	fenetre_butin.joueur = joueur
 	fenetre_butin.hud = hud
 	add_child(fenetre_butin)
+	marchand = Marchand.new()   # lot L8 : boutique de Brodd et de Grima (option « Commercer » du dialogue) : scripts/marchand.gd
+	marchand.joueur = joueur
+	marchand.hud = hud
+	marchand.monde = self
+	add_child(marchand)
 	var pause := CanvasLayer.new()   # menu pause (Échap) : scripts/menu_pause.gd
 	pause.set_script(preload("res://scripts/menu_pause.gd"))
 	pause.monde = self
@@ -1285,6 +1292,7 @@ func sauvegarder() -> void:
 		"draugrs_morts": morts,
 		"villageois_parles": parles,
 		"butin": ButinTables.exporter(),   # graine du monde, contenants pillés, uniques pris (docs/BUTIN.md)
+		"marchands": Marchand.exporter(),  # lot L8 : heures de jeu écoulées, stock et bourse de chaque marchand (docs/BUTIN.md §9)
 		"lieux_vus": hud.lieux_vus.keys(),   # lot L7 : lieux déjà annoncés (« Lieu découvert »)
 	}
 	var f := FileAccess.open(fichier_sauvegarde(), FileAccess.WRITE)
@@ -1311,6 +1319,9 @@ func charger() -> void:
 	joueur.competences.importer(d.get("competences", {}))
 	joueur.inventaire.importer(d.get("inventaire", {}))
 	ButinTables.importer(d.get("butin", {}))
+	Marchand.importer(d.get("marchands", {}))
+	if marchand != null:
+		marchand.recaler_horloge()
 	if joueur.mains.get("magie") != null:
 		joueur.mains.magie.importer(d.get("magie", {}))
 	dragon_vaincu = bool(d.get("dragon_vaincu", false))
