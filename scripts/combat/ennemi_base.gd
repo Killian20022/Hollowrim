@@ -249,13 +249,13 @@ func _duree(nom: String) -> float:
 	return anim.get_animation(nom).length if anim.has_animation(nom) else 1.0
 
 ## Éclair blanc du coup reçu (instance shader « eclair » des matériaux ps1_perso ; temps réel).
-func _eclair(force := 0.5) -> void:
+func _eclair(force := 0.25) -> void:
 	var t := create_tween()
 	t.set_ignore_time_scale(true)
 	t.tween_method(func(v: float) -> void:
 		for mi in _mailles:
 			if is_instance_valid(mi):
-				mi.set_instance_shader_parameter("eclair", v), force, 0.0, 0.14)
+				mi.set_instance_shader_parameter("eclair", v), force, 0.0, 0.08)
 
 # ------------------------------------------------------------------ perception
 

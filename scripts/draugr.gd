@@ -941,7 +941,7 @@ func _eclair() -> void:
 	t.tween_method(func(v: float) -> void:
 		for mi in _mailles:
 			if is_instance_valid(mi):
-				mi.set_instance_shader_parameter("eclair", v), 0.28, 0.0, 0.1)   # éclair bref et léger : la réaction du corps reste lisible (§8)
+				mi.set_instance_shader_parameter("eclair", v), 0.14, 0.0, 0.06)   # éclair bref et léger : la réaction du corps reste lisible (§8)
 
 ## Mort : le corps passe de l'animation au ragdoll, projeté dans le sens du coup ; morts variées selon le coup
 ## (CombatEnnemi.type_mort) : "legere" (s'effondre), "titubante" (encaisse, chancelle, puis tombe), "lourde", "recul" (projeté),
