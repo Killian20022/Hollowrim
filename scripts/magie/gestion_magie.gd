@@ -71,6 +71,9 @@ const VAGUE_PORTEE := 10.5
 const VAGUE_VIE := 1.15
 const VAGUE_TRAINE := 1.25
 const VAGUE_N := 88
+## Amorce du jet de flammes (s) : à sa création, la vague est simulée d'avance sur cette durée (GPUParticles3D.preprocess),
+## le jet est donc PLEIN dès sa première image (avant : ~0,2 s de trou, les premières bouffées sortaient de la paume).
+const VAGUE_AMORCE := 0.45
 ## Décharge électrique : éclats vivants (3 à 5 images chacun) et durée de vie d'un éclat (s).
 const DECHARGE_N := 64
 const DECHARGE_VIE := 0.13
@@ -1573,6 +1576,7 @@ func _vague_creer(dbl: bool) -> GPUParticles3D:
 	p.name = "VagueFlammes"
 	p.amount = int(VAGUE_N * (1.2 if dbl else 1.0))
 	p.lifetime = VAGUE_VIE
+	p.preprocess = VAGUE_AMORCE
 	p.local_coords = false
 	p.fixed_fps = 0
 	p.interpolate = false
