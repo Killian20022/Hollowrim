@@ -432,7 +432,7 @@ func utiliser(id: String) -> String:
 
 ## Lâche l'objet choisi (potion ou objet divers du sac) : 1 exemplaire, ou toute la pile si `tout`. "" ou la raison du refus.
 func lacher(tout := false) -> String:
-	var id := choisi.substr(5) if choisi.begins_with("conso:") else (choisi.substr(4) if choisi.begins_with("sac:") else "")
+	var id := choisi.substr(6) if choisi.begins_with("conso:") else (choisi.substr(4) if choisi.begins_with("sac:") else "")
 	if id == "" or joueur == null:
 		return _dire("Choisissez d'abord un objet du sac (Potions ou Divers) : les armes et les sorts ne se lâchent pas.", true)
 	var n: int = joueur.inventaire.nombre(id) if tout else 1
