@@ -270,3 +270,14 @@ Retour utilisateur : « on voit que c'est plusieurs petites flammes collées …
 - Liseré jaune-vert autour de la paume : la teinte des bouffées peu denses est plafonnée (jaune-orange saturé, le blanc
   est réservé aux cœurs denses), plafond relâché avec la distance à l'œil.
 - Coût (même protocole, 2 mesures chacune) : ~3,5-3,6 ms GPU avec la vague contre ~2,9-3,0 sans, soit +0,5 à +0,6 ms.
+
+## Correctif : triangle bleu au départ des éclats de glace (2026-10-29)
+
+Symptôme : au lancer d'un éclat de glace (ou d'une lance de givre), un grand aplat bleu en triangle couvrait un coin de
+l'écran pendant une image. Cause : le maillage du cristal (`_creer_eclat`, bipyramide) a sa queue à 0,25 × sa longueur
+DERRIÈRE son origine ; né dans la paume (~0,5 m de l'œil), l'éclat (queue 0,43 m) ou la lance (1 m) traversait le plan
+proche de la caméra (mesuré : sommet à 0,086 m de l'œil). Correctif : le projectile cristal naît à l'échelle 0,12 et
+grandit à mesure qu'il avance (`_cristal_echelle` : la queue ne repasse jamais derrière le point de départ, pleine taille
+après ~0,4 m / ~1 m) ; garde-fou dans `magie_cristal.gdshader` (aucun fragment à moins de 0,12 m de l'œil). Vérifié par
+`outils/captures_glace.gd --rafale=<dossier> [--sort=lance_givre]` (journal `PROCHE` / `BILAN` : distance minimale
+0,086 m → 0,46 m pour l'éclat, 0,235 m pour la lance ; plus aucune image à moins de 0,2 m).

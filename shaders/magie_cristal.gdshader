@@ -37,6 +37,10 @@ void vertex() {
 }
 
 void fragment() {
+	// garde-fou : jamais de facette collée à l'œil (un cristal qui frôle le plan proche couvrirait l'écran d'un aplat)
+	if (-VERTEX.z < 0.12) {
+		discard;
+	}
 	if (magie_cachee(SCREEN_UV, FRAGCOORD.z, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX)) {
 		discard;
 	}

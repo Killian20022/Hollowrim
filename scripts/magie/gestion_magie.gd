@@ -74,6 +74,8 @@ const MAX_DISQUES := 16
 const MAX_STATUTS := 12
 const MAX_PROJECTILES := 24
 const POOL_GARDE := 24
+## Échelle de départ d'un projectile cristal (il naît petit dans la paume, voir _cristal_echelle).
+const CRISTAL_GERME := 0.12
 
 ## Couleurs des lumières dynamiques par école.
 const LUMIERE := {
@@ -1864,10 +1866,27 @@ func projectile_visuel(ecole: String, forme: String) -> Node3D:
 		refus += 1
 	else:
 		var e := {"noeud": racine, "visuel": visuel, "ecole": ecole, "forme": forme, "emit": [], "coeur": coeur, "prec": null, "entre": false, "eclair": {}, "dbl": dbl}
+		if forme in ["eclat", "lance"]:
+			# cristal : sa queue dépasse de 0,25 × sa longueur DERRIÈRE le point de départ. Né dans la paume (~0,5 m de
+			# l'œil), l'éclat (0,43 m de queue) ou la lance (1 m) traversait le plan proche de la caméra pendant la
+			# première image : grand triangle bleu uni sur l'écran. Il naît donc petit et grandit à mesure qu'il
+			# avance (_cristal_echelle) : la queue ne repasse jamais derrière la paume.
+			e.queue = 0.25 * (4.0 if forme == "lance" else 1.7) * k
+			e.depart = null
+			visuel.scale = Vector3.ONE * CRISTAL_GERME
 		_projectiles.append(e)
 		if ecole == "electricite":
 			e.eclair = eclair(visuel, "electricite", 1.0, -1.0, 0.05, _gen_orbe_arcs.bind(0.12 * k))
 	return racine
+
+## Échelle d'un projectile cristal (éclat, lance) : il grandit depuis la paume, sa queue (e.queue, m) ne dépasse jamais
+## le point de départ (+ 5 cm). Pleine taille après ~0,4 m (éclat) / ~1 m (lance) : une image ou deux à 30 m/s.
+func _cristal_echelle(e: Dictionary, pos: Vector3) -> float:
+	if not e.has("queue"):
+		return 1.0
+	if e.depart == null:
+		e.depart = pos
+	return clampf(((pos - (e.depart as Vector3)).length() + 0.05) / float(e.queue), CRISTAL_GERME, 1.0)
 
 func _gen_orbe_arcs(r: float) -> Array:
 	var traits: Array = []
@@ -1904,11 +1923,14 @@ func _maj_projectiles() -> void:
 			for p in e.emit:
 				if is_instance_valid(p):
 					p.position = pos
+			var ech := _cristal_echelle(e, pos)
 			if e.prec != null:
 				var v: Vector3 = pos - (e.prec as Vector3)
 				if v.length() > 0.0005:
 					var vis: Node3D = e.visuel
-					vis.global_basis = base_vers(v)
+					vis.global_basis = base_vers(v).scaled(Vector3.ONE * ech)
+			elif ech != 1.0:
+				(e.visuel as Node3D).scale = Vector3.ONE * ech
 			e.prec = pos
 			var c: Color = LUMIERE[e.ecole]
 			lumiere("proj%d" % (n as Node).get_instance_id(), pos, c, 3.6 if e.forme in ["boule", "orbe", "trait"] else 2.2, 6.0, 3.0)
