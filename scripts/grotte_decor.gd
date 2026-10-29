@@ -1015,9 +1015,9 @@ static func _charger_objets() -> void:
 	_modeles_verrou.unlock()
 
 ## Pose un module du camp (repère du module : x largeur, y haut, z profondeur ; origine au sol, au centre de l'emprise).
-func objet(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE) -> void:
+func objet(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats: Dictionary = MAT_OBJETS) -> void:
 	_charger_objets()
-	modele(nom, pos, lacet, ech, MAT_OBJETS)
+	modele(nom, pos, lacet, ech, mats)
 	if _obj_n > 0 and not muet and _modeles_de.has(nom):
 		# registre d'audit (outils/audit_interpenetrations.gd) : modele() ne passe pas par quad(), on y verse ses triangles
 		var T := xf * Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(ech), pos)
