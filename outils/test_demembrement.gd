@@ -10,6 +10,7 @@ extends SceneTree
 const SCENE := preload("res://scenes/test_combat.tscn")
 const DRAUGR := preload("res://scripts/draugr.gd")
 const GROTTE := preload("res://scripts/grotte_jeu.gd")
+const TROLL := preload("res://scripts/troll_givre_ia.gd")
 
 var s: Node3D
 var echecs := 0
@@ -105,6 +106,107 @@ func _membre_reel(genre: String, membre: String, x: float) -> void:
 	if rb:
 		ok(rb.global_position.y > -0.15, "%s/%s : le morceau reste au-dessus du sol (y %.2f)" % [genre, membre, rb.global_position.y])
 		ok(rb.global_position.distance_to(d.global_position) < 6.0, "%s/%s : le morceau tombe près du corps (%.2f m)" % [genre, membre, rb.global_position.distance_to(d.global_position)])
+
+func _troll(pos: Vector3) -> CharacterBody3D:
+	_n += 1
+	var t := CharacterBody3D.new()
+	t.set_script(TROLL)
+	t.joueur = s.joueur
+	t.hud = s.hud
+	t.ident = "test_troll_%d" % _n
+	t.position = pos
+	s.add_child(t)
+	return t
+
+func _attendre(n: int) -> void:
+	for i in n:
+		await physics_frame
+
+## Étape 2 : boyaux de la coupe en deux, squelette (membre d'os avant l'éclatement), troll (tête / bras seulement), sorts.
+func _etape2() -> void:
+	Demembrement.chance_forcee = 1.0
+	# boyaux : coupe en deux d'un draugr
+	Demembrement.membre_force = "moitie"
+	var d := _ennemi("guerrier", Vector3(-4, 0, -5.0))
+	await _attendre(15)
+	d.recevoir_coup(50.0, s.joueur.global_position, true, _info(d, 0.5, Vector3(1, -0.1, 0), "chargee_max"))
+	await _attendre(40)
+	var pend: Array = d.modele.find_children("BoyauxPendants*", "MeshInstance3D", true, false)
+	ok(pend.size() == 1 and (pend[0] as MeshInstance3D).mesh != null, "coupe en deux : boyaux pendants au moignon")
+	if pend.size() == 1:
+		var axe := (pend[0] as Node3D).global_basis.y.normalized()
+		ok(axe.y > 0.8, "boyaux pendus vers le bas (axe %.2f)" % axe.y)
+	var tas: Array = Sang.gestion(s).find_children("BoyauxTas*", "MeshInstance3D", true, false)
+	ok(tas.size() >= 1, "coupe en deux : tas de boyaux au sol (%d)" % tas.size())
+	# squelette : un bras d'os saute (morceau, sans sang ni jet), puis les os éclatent comme avant
+	Demembrement.membre_force = "bras_r"
+	var sq := _ennemi("squelette", Vector3(-2, 0, -5.0))
+	await _attendre(15)
+	var jets0: int = Demembrement.Jets.obtenir(sq).actifs()
+	var l0 := EclatsOs.lances
+	sq.recevoir_coup(80.0, s.joueur.global_position, false, _info(sq, 0.65, Vector3(-1, -0.7, 0)))
+	await _attendre(35)
+	var rb: RigidBody3D = sq.modele.get_meta("morceau_bras_r", null)
+	ok(rb != null and rb.visible, "squelette : le bras d'os saute (morceau)")
+	ok(Demembrement.Jets.obtenir(sq).actifs() <= jets0, "squelette : pas de jet de sang")
+	ok(EclatsOs.lances > l0, "squelette : les os éclatent toujours à la mort (%d lancés)" % (EclatsOs.lances - l0))
+	var caps: Array = sq.modele.find_children("*Capuchon*", "MeshInstance3D", true, false)
+	ok(caps.size() >= 1 and ((caps[0] as MeshInstance3D).material_override as ShaderMaterial).get_shader_parameter("c_chair") == Demembrement.CHAIRS["os"][0], "squelette : capuchon d'os cassé")
+	# troll : bras oui, jambe non (rabattue sur le bras), jamais coupé en deux
+	var t := _troll(Vector3(1, 0, -6.0))
+	await _attendre(20)
+	var ct: CombatEnnemi = t.combat
+	Demembrement.membre_force = ""
+	var n_jambe := 0
+	var n_moitie := 0
+	for k in 60:
+		var m := Demembrement.choisir(ct, {"info": _info(t, 0.2, Vector3(1, -0.2, 0))}, "puissant")
+		if m.begins_with("jambe") or m.begins_with("mollet"):
+			n_jambe += 1
+		if m == "moitie":
+			n_moitie += 1
+	ok(n_jambe == 0 and n_moitie == 0, "troll : ni jambe ni coupe en deux (%d, %d)" % [n_jambe, n_moitie])
+	Demembrement.membre_force = "bras_l"
+	t.vie = 1.0
+	t.recevoir_coup(80.0, s.joueur.global_position, false, _info(t, 0.6, Vector3(1, -0.7, 0)))
+	await _attendre(40)
+	var rbt: RigidBody3D = t.modele.get_meta("morceau_bras_l", null)
+	ok(rbt != null and rbt.visible, "troll : bras tranché (morceau)")
+	if rbt:
+		var cap: CapsuleShape3D = (rbt.get_child(0) as CollisionShape3D).shape
+		ok(cap.radius > 0.09, "troll : morceau épais (rayon %.2f m)" % cap.radius)
+	# sorts : le feu carbonise ; la glace fait éclater un membre gelé (pas de morceau)
+	Demembrement.membre_force = ""
+	Demembrement.chance_forcee = 0.0
+	var df := _ennemi("bandit", Vector3(3, 0, -5.0))
+	await _attendre(15)
+	df.vie = 1.0
+	df.recevoir_coup(40.0, s.joueur.global_position, false, {"type": "feu", "ecole": "feu", "attaque": "sort", "point": df.global_position + Vector3(0, 1.2, 0.2)})
+	await _attendre(150)
+	var voiles := 0
+	var noir := 0.0
+	for mi: MeshInstance3D in df.modele.find_children("*", "MeshInstance3D", true, false):
+		if mi.material_overlay != null and mi.material_overlay.resource_name == "carbonise":
+			voiles += 1
+			noir = maxf(noir, float(mi.get_instance_shader_parameter("carbonise")))
+	ok(df.modele.has_meta("carbonise") and voiles >= 3 and noir > 0.9, "feu : corps carbonisé (%d maillages, %.2f)" % [voiles, noir])
+	Demembrement.chance_forcee = 1.0
+	Demembrement.membre_force = "jambe_l"
+	var dg := _ennemi("guerrier", Vector3(5, 0, -5.0))
+	await _attendre(15)
+	dg.vie = 1.0
+	dg.recevoir_coup(40.0, s.joueur.global_position, false, {"type": "glace", "ecole": "glace", "attaque": "sort", "point": dg.global_position + Vector3(0, 1.2, 0.2)})
+	await _attendre(40)
+	ok(String(dg.modele.get_meta("mode_jambe_l", "")) == "glace" and dg.modele.get_meta("morceau_jambe_l", null) == null, "glace : la jambe gelée éclate (pas de morceau)")
+	var capg: Array = dg.modele.find_children("*Capuchon*", "MeshInstance3D", true, false)
+	ok(capg.size() >= 1 and ((capg[0] as MeshInstance3D).material_override as ShaderMaterial).get_shader_parameter("c_chair") == Demembrement.CHAIRS["glace"][0], "glace : moignon de glace")
+	# sons du démembrement présents (banque RetourImpact, fichiers importés)
+	var manquants := []
+	for cat in ["membre_tranche", "giclee", "chute_membre", "os_brise", "glace_eclate", "carbonise", "boyaux"]:
+		for nom: String in RetourImpact.BANQUE[cat]:
+			if RetourImpact._chemin(nom) == "":
+				manquants.append(nom)
+	ok(manquants.is_empty(), "sons du démembrement présents (%s)" % ", ".join(manquants))
 
 func _lancer() -> void:
 	s = SCENE.instantiate()
@@ -215,6 +317,7 @@ func _lancer() -> void:
 		await physics_frame
 	ok(rb3 == null or not rb3.visible, "morceau libéré après sa durée (pool rendu)")
 	Demembrement.duree = Demembrement.DUREE
+	await _etape2()
 	Demembrement.membre_force = ""
 	Demembrement.chance_forcee = -1.0
 	Sang.niveau_force = -1

@@ -103,3 +103,18 @@ Fabriqués par `outils/sons_magie/generer.py` (ffmpeg : retaillés, normalisés 
 | tenebres_lancer_2, tenebres_impact_*, reactions | 3 Dark Magic Spells (opengameart.org/content/3-dark-magic-spells) : dm.mp3 découpé en 3 | CC0 |
 | soin_* | Cure Magic (opengameart.org/content/cure-magic) : Cure1, 3, 4, 6 | CC0 |
 | charge_*, jet_* (boucles) | synthétisés par nous (bruit filtré + sinus, ffmpeg) ; jets électrique/protection sans échantillon externe | création propre (CC0) |
+
+## Combat : sons du démembrement (branche combat/gore, 2026-10-29 ; sources CC0 vérifiées dans references/sons_cc0/LICENCES_SONS.md)
+Fabriqués par `outils/sons_gore/generer.sh` (ffmpeg : silence de tête coupé, retaillés, fondu de fin, crête -3 dBFS ; .wav PCM 16 bits mono dans assets/sons/combat/gore/). Aucune attribution n'est exigée en CC0 ; auteurs cités par courtoisie. Non écoutés à l'oreille par l'agent : à valider à l'écoute.
+
+| Fichier(s) | Source (page OpenGameArt) | Licence |
+|---|---|---|
+| membre_tranche_01-04 | Fleshy Bone Break/Snap SFX, Zane Little Music (opengameart.org/content/fleshy-bone-breaksnap-sfx) : Wet Break 1, 3, 5, 7 | CC0 |
+| giclee_01-03 | 8 Wet Squish Slurp Impacts, Independent.nu (opengameart.org/content/8-wet-squish-slurp-impacts) : impactsplat01, 03, 05 | CC0 |
+| giclee_04, chute_membre_04, boyaux_02 | Squish Sounds Effects, EZduzziteh (opengameart.org/content/squish-sounds-effects) : squishsplat_impact, squish_03, squish_05 | CC0 |
+| chute_membre_01-03 | 75 CC0 Breaking / Falling / Hit SFX, rubberduck (opengameart.org/content/75-cc0-breaking-falling-hit-sfx) : bfh1_falling_01-03 | CC0 |
+| os_brise_01-03 | Deep Bone Crack/Break SFX, Zane Little Music (opengameart.org/content/deep-bone-crackbreak-sfx) : Deep Break 1, 3, 6 | CC0 |
+| os_brise_04 | Bones 2, AntumDeluge (opengameart.org/content/bones-2) | CC0 |
+| glace_eclate_01-03 | Ice breaking/shattering, IgnasD (opengameart.org/content/ice-breakingshattering) : LedasLuzta, 2, 4 | CC0 |
+| carbonise_01 | Catching Fire, themightyglider (opengameart.org/content/catching-fire) : flame_0 | CC0 |
+| boyaux_01 | Ripping into meat, Eldritch Grim (opengameart.org/content/ripping-into-meat) : rippingintomeat_0 | CC0 |

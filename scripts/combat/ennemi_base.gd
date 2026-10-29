@@ -574,6 +574,17 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, 
 			montee = float(rf["montee"])
 			os_touche = String(rf["os"])
 			decapiter = bool(rf["decapiter"])
+	# démembrement (coups d'épée : tête, bras, jambe, coupe en deux ; Demembrement.choisir) ; tirage fait à la mort
+	var membre := "" if decapiter else Demembrement.choisir(combat, r, sorte)
+	if membre == "tete":
+		membre = ""
+		decapiter = true
+	elif membre == "moitie":
+		force *= 0.45   # coupé en deux : le haut du corps s'affaisse, il ne s'envole pas
+	# sorts : le feu carbonise le corps (parfois un bras en cendres), la glace fait éclater un membre gelé
+	var effet_sort := Demembrement.effet_sort(combat, r) if sorte != "finisher" and not decapiter and membre == "" else ""
+	if combat.profil.nom.begins_with("troll"):
+		modele.set_meta("gore_echelle", 2.0)
 	force *= _mult_force_mort
 	var lancer := func() -> void:
 		if not is_instance_valid(self) or not is_inside_tree():
@@ -589,6 +600,11 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, 
 		if decapiter:
 			var imp := (Vector3(info.get("direction", dir)) * 0.6 + dir * 0.4 + Vector3.UP * 0.7).normalized() * 16.0
 			Decapitation.decapiter(modele, imp, combat.profil.couleur_sang, combat.profil.sang, combat.profil.matiere)
+		elif membre != "":
+			var imp_m := (Vector3(info.get("direction", dir)) * 0.7 + dir * 0.3 + Vector3.UP * 0.5).normalized() * 16.0
+			Demembrement.trancher(modele, membre, imp_m, combat.profil.couleur_sang, Demembrement.matiere_de(combat.profil))
+		if effet_sort != "":
+			Demembrement.appliquer_sort(modele, effet_sort, combat, (Vector3(info.get("direction", dir)) + Vector3.UP * 0.3).normalized())
 	if sorte == "titubante":
 		_jouer(combat.anim_coup(), 0.05, true)   # selon la zone touchée
 		anim.speed_scale = 0.7

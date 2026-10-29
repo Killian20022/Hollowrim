@@ -64,6 +64,15 @@ const BANQUE := {
 	"pierre": ["combat/impacts/pierre_01", "combat/impacts/pierre_02", "combat/impacts/pierre_03", "combat/impacts/pierre_04", "combat/impacts/pierre_05"],
 	"jet_sang": ["combat/gore/jet_sang_01", "combat/gore/jet_sang_02", "combat/gore/jet_sang_03", "combat/gore/jet_sang_04", "combat/gore/jet_sang_05", "combat/gore/jet_sang_06", "combat/gore/jet_sang_07"],
 	"decapitation": ["combat/gore/decapitation_01", "combat/gore/decapitation_02", "combat/gore/decapitation_03", "combat/gore/decapitation_04", "combat/gore/decapitation_05"],
+	# démembrement (Demembrement, branche combat/gore) : lame dans la chair et l'os, giclée du moignon, chute du membre, os brisés
+	# (squelettes), membre gelé qui éclate, corps carbonisé, boyaux
+	"membre_tranche": ["combat/gore/membre_tranche_01", "combat/gore/membre_tranche_02", "combat/gore/membre_tranche_03", "combat/gore/membre_tranche_04"],
+	"giclee": ["combat/gore/giclee_01", "combat/gore/giclee_02", "combat/gore/giclee_03", "combat/gore/giclee_04"],
+	"chute_membre": ["combat/gore/chute_membre_01", "combat/gore/chute_membre_02", "combat/gore/chute_membre_03", "combat/gore/chute_membre_04"],
+	"os_brise": ["combat/gore/os_brise_01", "combat/gore/os_brise_02", "combat/gore/os_brise_03", "combat/gore/os_brise_04"],
+	"glace_eclate": ["combat/gore/glace_eclate_01", "combat/gore/glace_eclate_02", "combat/gore/glace_eclate_03"],
+	"carbonise": ["combat/gore/carbonise_01"],
+	"boyaux": ["combat/gore/boyaux_01", "combat/gore/boyaux_02"],
 	"chute_pierre": ["combat/gore/chute_corps_pierre_01", "combat/gore/chute_corps_pierre_02", "combat/gore/chute_corps_pierre_03", "combat/gore/chute_corps_pierre_04", "combat/gore/chute_corps_pierre_05"],
 	"chute_neige": ["combat/gore/chute_corps_neige_01", "combat/gore/chute_corps_neige_02", "combat/gore/chute_corps_neige_03", "combat/gore/chute_corps_neige_04", "combat/gore/chute_corps_neige_05"],
 	"draugr_douleur": ["combat/voix/draugr_grognement_01", "combat/voix/draugr_grognement_02", "combat/voix/draugr_grognement_03", "combat/voix/draugr_grognement_04", "combat/voix/draugr_grognement_05", "combat/voix/draugr_grognement_06"],
