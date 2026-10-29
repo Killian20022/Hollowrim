@@ -258,3 +258,15 @@ plus le ruban `magie_flux` (motif qui glissait sur une forme fixe) mais un `GPUP
   Version d'essai sans atlas ni bruit précalculé, 110 bouffées : +1,6 ms ; c'est l'overdraw des bouffées proches de l'œil
   qui coûtait (plafond 0,2 × hauteur d'écran, bouffées à moins de 0,32 m non rasterisées).
 
+
+### Passe 2 : un seul flot (2026-10-29)
+
+Retour utilisateur : « on voit que c'est plusieurs petites flammes collées … compacter pour faire un vrai jet ».
+- Sous-pas d'émission : `_vague_placer` passe au shader de particules la pose de l'émetteur à l'image précédente
+  (`prec_o`, `prec_base`) et la durée de l'image (`pas`) ; chaque bouffée naît à un instant tiré dans l'image écoulée
+  (position et direction interpolées, puis avancée de ce reste de temps). Plus de chapelet quand on tourne vite.
+- Plus dense et plus soudé : `VAGUE_N` 66 → 88, bouffées plus étirées dans le sens de la vitesse (jusqu'à ×5,2 au lieu
+  de ×3,6), grossissement plus précoce (exposant 0,6), taille finale 0,75 (0,8 en double) pour tenir le budget.
+- Liseré jaune-vert autour de la paume : la teinte des bouffées peu denses est plafonnée (jaune-orange saturé, le blanc
+  est réservé aux cœurs denses), plafond relâché avec la distance à l'œil.
+- Coût (même protocole, 2 mesures chacune) : ~3,5-3,6 ms GPU avec la vague contre ~2,9-3,0 sans, soit +0,5 à +0,6 ms.
