@@ -9,7 +9,7 @@
 #   La poignée d'épée longue se prolonge SOUS la main (prise à une main et demie), pommeau plus bas.
 # NŒUDS VIDES : `prise` (centre du poing, y = 0,03), `garde` (base de la lame), `pointe` (bout de la lame).
 # MATÉRIAUX (noms stables, appliqués dans Godot par scripts/armes/materiaux_epees.gd) :
-#   lame, lame_or, fer, or, cuir, gemme, rubis, verre, emeraude, obsidienne, veine.
+#   lame, lame_or, fer, or, cuir, gemme, rubis, verre, emeraude, obsidienne, veine, entrelacs (L9 : garde et pommeau gravés d'entrelacs).
 # Textures : aucune dans le glb ; elles sont dessinées en pixel art dans Godot (palette limitée).
 # UV : lame u = travers (0 = -X, 1 = +X), v = longueur (0 = garde, 1 = pointe) ; poignée u = tour (x2), v = long.
 import bpy, bmesh, math, os, sys
@@ -18,7 +18,7 @@ ICI = os.path.dirname(os.path.abspath(__file__))
 DEPOT = os.path.dirname(os.path.dirname(ICI))
 SORTIE = os.path.join(DEPOT, "assets", "modeles", "armes", "epees")
 
-MATS = ("lame", "lame_or", "fer", "or", "cuir", "gemme", "rubis", "verre", "emeraude", "obsidienne", "veine")
+MATS = ("lame", "lame_or", "fer", "or", "cuir", "gemme", "rubis", "verre", "emeraude", "obsidienne", "veine", "entrelacs")
 
 Z_PRISE = 0.03
 
@@ -383,7 +383,40 @@ def epee_obsidienne():
     return 0.088, zt
 
 
-VARIANTES = {"metal": epee_metal, "or": epee_or, "rubis": epee_rubis, "verre": epee_verre, "obsidienne": epee_obsidienne}
+def epee_skarnholt():
+    """L9 (2026-10-29) : ÉPÉE DE SKARNHOLT, unique forgée par Brodd avec trois lames antiques. Lame d'acier clair à gorge, large et
+    droite (type viking) ; garde COURTE et ÉPAISSE et pommeau à CINQ LOBES, tous deux gravés d'ENTRELACS (matériau « entrelacs » :
+    bronze patiné à nœuds en relief peints dans Godot, EpeesLongues._entrelacs) ; poignée de cuir tressé, bague de bronze."""
+    zt = 0.96
+    L = Maille("lame")
+    prof = [(0.086, 0.0250, 0.0042), (0.13, 0.0250, 0.0041), (0.48, 0.0228, 0.0037), (0.78, 0.0195, 0.0032),
+            (0.89, 0.0130, 0.0027), (0.935, 0.0062, 0.0020)]
+    lame(L, prof, 0.086, zt, "gorge", lambda k, i: "lame", 0.025)
+    L.creer()
+    G = Maille("croisee")
+    # garde viking : barre courte, haute et épaisse, légèrement renflée au centre, bouts arrondis
+    barre(G, [(-0.074, 0.0080, 0.0090, 0.0), (-0.068, 0.0135, 0.0135, 0.0), (-0.040, 0.0150, 0.0150, 0.0),
+              (0.0, 0.0165, 0.0160, 0.0), (0.040, 0.0150, 0.0150, 0.0), (0.068, 0.0135, 0.0135, 0.0),
+              (0.074, 0.0080, 0.0090, 0.0)], "entrelacs", 0.090, cotes=6, uv_l=3.0)
+    G.creer()
+    P = Maille("poignee")
+    poignee(P, -0.080, 0.078, 0.0160)
+    tour(P, [(0.074, 0.0172), (0.079, 0.0185), (0.084, 0.0172)], "entrelacs", cotes=8, ecrase_y=0.85, uv_tours=1.0)   # bague sous la garde
+    tour(P, [(-0.083, 0.0172), (-0.078, 0.0185), (-0.073, 0.0172)], "entrelacs", cotes=8, ecrase_y=0.85, uv_tours=1.0)
+    P.creer()
+    M = Maille("pommeau")
+    # barre inférieure (comme la garde, plus courte) puis chapeau à cinq lobes
+    barre(M, [(-0.050, 0.0060, 0.0080, 0.0), (-0.044, 0.0085, 0.0115, 0.0), (0.0, 0.0095, 0.0125, 0.0),
+              (0.044, 0.0085, 0.0115, 0.0), (0.050, 0.0060, 0.0080, 0.0)], "entrelacs", -0.094, cotes=6, uv_l=2.0)
+    for k in range(5):
+        x = (k - 2) * 0.0175
+        h = 0.0185 - abs(k - 2) * 0.0035
+        octaedre(M, (x, 0, -0.112), 0.0095, 0.0110, 0.004, h, "entrelacs")
+    M.creer()
+    return 0.086, zt
+
+
+VARIANTES = {"metal": epee_metal, "or": epee_or, "rubis": epee_rubis, "verre": epee_verre, "obsidienne": epee_obsidienne, "skarnholt": epee_skarnholt}
 
 
 def construire(nom):
@@ -408,7 +441,7 @@ def construire(nom):
 
 
 args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-choix = [a for a in args if a in VARIANTES] or list(VARIANTES)
+choix = [a for a in args if a in VARIANTES] or list(VARIANTES)   # sans argument : toutes (L9 : six, dont « skarnholt »)
 for n in choix:
     construire(n)
 if len(choix) == len(VARIANTES):
