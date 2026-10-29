@@ -48,7 +48,7 @@ q_bibliotheque         src  2148 ->  899 tris (budget  900) -> 1007 apres aretes
 q_bouteille            src   312 ->  200 tris (budget  200) ->  200 apres aretes  0.09x0.30x0.09 m  fer:200
 q_bougie_1             src   212 ->  118 tris (budget  120) ->  118 apres aretes  0.11x0.15x0.12 m  os:108 fer:10
 q_bougie_2             src   210 ->  120 tris (budget  120) ->  120 apres aretes  0.05x0.12x0.05 m  os:65 jute:45 fer:10
-q_carotte              src   634 ->  150 tris (budget  150) ->  154 apres aretes  0.18x0.57x0.22 m  fer:150
+q_carotte              src   634 ->  150 tris (budget  150) ->  150 apres aretes  0.09x0.30x0.11 m  fer:150
 q_pieces               src   304 ->  150 tris (budget  150) ->  150 apres aretes  0.07x0.07x0.01 m  fer:150
 q_tas_pieces           src   960 ->  400 tris (budget  400) ->  400 apres aretes  0.20x0.07x0.16 m  fer:400
 q_tas_pieces_2         src  1062 ->  400 tris (budget  400) ->  400 apres aretes  0.28x0.06x0.21 m  fer:400
@@ -79,15 +79,15 @@ q_assiette             src   172 ->  172 tris (budget  172) ->  172 apres aretes
 q_cuillere             src   164 ->  164 tris (budget  164) ->  164 apres aretes  0.05x0.02x0.27 m  fer:164
 q_vase_2               src   598 ->  400 tris (budget  400) ->  438 apres aretes  0.65x0.50x0.65 m  fer:400
 q_vase_4               src   598 ->  400 tris (budget  400) ->  400 apres aretes  0.37x0.50x0.37 m  fer:400
-q_urne_brisee          src  1113 ->  600 tris (budget  600) -> 1106 apres aretes  2.69x0.60x2.01 m  fer:598 os:2
+q_urne_brisee          src  1113 ->  600 tris (budget  600) ->  732 apres aretes  1.12x0.25x0.84 m  fer:598 os:2
 q_banniere_2           src   429 ->  429 tris (budget  500) ->  453 apres aretes  1.61x2.08x0.19 m  fer:285 bois:144
-q_caisse_village       src   230 ->  230 tris (budget  400) ->  378 apres aretes  1.08x1.06x1.08 m  lin:130 jute:94 bois:6
-q_chariot              src  1672 -> 1000 tris (budget 1000) -> 1704 apres aretes  1.98x1.55x4.02 m  jute:559 lin:296 pierre:89 bois:56
+q_caisse_village       src   230 ->  230 tris (budget  400) ->  378 apres aretes  0.82x0.80x0.82 m  lin:130 jute:94 bois:6
+q_chariot              src  1672 -> 1000 tris (budget 1000) -> 1420 apres aretes  1.53x1.20x3.11 m  jute:559 lin:296 pierre:89 bois:56
 q_cheminee_1           src   618 ->  400 tris (budget  400) ->  478 apres aretes  0.95x3.18x1.00 m  pierre:392 lin:8
 q_cheminee_2           src   130 ->  130 tris (budget  400) ->  194 apres aretes  0.95x3.00x0.99 m  lin:130
 q_support_bois         src    16 ->   16 tris (budget  300) ->   40 apres aretes  0.20x1.71x2.04 m  jute:16
-q_grille_fer_ornee     src  3988 ->  700 tris (budget  700) ->  902 apres aretes  1.94x2.85x0.14 m  fer:694 or:6
-q_grille_fer           src  2744 ->  500 tris (budget  500) ->  546 apres aretes  1.94x2.87x0.16 m  fer:496 or:4
+q_grille_fer_ornee     src  3988 ->  700 tris (budget  700) ->  734 apres aretes  1.22x1.80x0.09 m  fer:694 or:6
+q_grille_fer           src  2744 ->  500 tris (budget  500) ->  534 apres aretes  1.22x1.80x0.10 m  fer:496 or:4
 q_barriere_bois        src    40 ->   40 tris (budget  300) ->   96 apres aretes  2.06x0.84x0.12 m  lin:22 jute:14 bois:4
 q_barriere_ext_1       src    32 ->   32 tris (budget  300) ->   76 apres aretes  2.05x0.84x0.11 m  jute:22 lin:8 bois:2
 q_barriere_ext_2       src    28 ->   28 tris (budget  300) ->   68 apres aretes  2.03x0.84x0.11 m  jute:14 lin:12 bois:2
