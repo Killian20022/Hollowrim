@@ -1172,6 +1172,8 @@ func _tracer(t0: float, t1: float) -> float:
 		var oeil := monde * oeil_local
 		var pts := _points_jeu(xf, points_arme, oeil)
 		_instant_impact = ts
+		trace.axe = -monde.basis.z.normalized()   # coups_v4 : le décor ne fait rebondir qu'un mur franc, dans l'axe,
+		trace.progression = ts / maxf(_duree_active, 1e-4)   # à mi-course (TraceLame.permissif)
 		for e in trace.echantillonner(espace, pts, oeil, exclus, max_cibles, true):
 			var issue := _resoudre_impact(e)
 			if issue != "":
@@ -1224,7 +1226,7 @@ func _resoudre_impact(e: Dictionary) -> String:
 			var cede: bool = c.has_method("frapper") and c.frapper(_puissant, joueur.global_position)
 			if cede:
 				RetourCoups.touche(joueur, true)
-			else:
+			elif not TraceLame.permissif:
 				RetourCoups.mur(joueur, e["point"], e["normale"], arme.materiau_impact)
 				return "rebond"
 		"mur":
