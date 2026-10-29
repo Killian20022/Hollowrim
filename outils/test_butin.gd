@@ -303,7 +303,7 @@ func _inventaire() -> void:
 	var mains_av := [ui.tenu("gauche"), ui.tenu("droite")]
 	var r_inv := ui.equiper("droite", "conso:potion_soin")
 	_fin_effets()
-	_verif(r_inv == "" and is_equal_approx(j.vie, 60.0) and inv.nombre("potion_soin") == n0 - 1, "inventaire : clic sur la potion = bue (vie 20 → %.0f, reste %d)" % [j.vie, inv.nombre("potion_soin")])
+	_verif(r_inv == "" and is_equal_approx(j.vie, 60.0) and inv.nombre("potion_soin") == n0 - 1, "inventaire : clic sur la potion = bue (vie 20 → %.0f, reste %d, « %s »)" % [j.vie, inv.nombre("potion_soin"), r_inv])
 	_verif([ui.tenu("gauche"), ui.tenu("droite")] == mains_av, "boire ne change pas les mains")
 	j.vie = j.vie_max
 	_fin_effets()

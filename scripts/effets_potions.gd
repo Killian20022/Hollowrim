@@ -22,8 +22,9 @@ func demarrer(id: String) -> void:
 	for k: String in STATS:
 		if e.has(k):
 			actifs.append({"stat": k, "reste": float(e[k]), "taux": float(e[k]) / duree, "duree": duree, "duree_max": duree})
-	var f := famille(id)
-	delais[f] = float(DELAIS.get(f, 3.0))
+	if e.has("famille"):
+		var f := famille(id)
+		delais[f] = float(DELAIS.get(f, 3.0))
 
 static func famille(id: String) -> String:
 	return String(Consommables.effets(id).get("famille", "soin"))
