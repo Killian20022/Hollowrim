@@ -92,6 +92,7 @@ TESTS=(
 	"test_butin_l2|--nouvelle"   # lot L2 : pièces qui jaillissent (au sol, versées une fois à 1,5 m, aspirées, sans double), pièces du coffre versées à l'ouverture, or_tas v3
 	"test_fenetre_butin|--nouvelle"   # lot L3 : fenêtre de butin (tri par rareté, E / R / Échap / Tab, pause, unique → pièces, objets laissés sauvegardés, corps « Fouiller », coffre « Fouiller le coffre »)
 	"test_marchands|--nouvelle"   # lot L8 : marchands (achat, vente, objets de quête, stock vide, réassort 2 jours, sauvegarde, boutique en pause, dialogue « Commercer »)
+	"test_potions|--nouvelle"   # potions à effet progressif (durée, délai par famille, HUD) et poids du sac limité (surcharge, butin, marchands, anciennes sauvegardes)
 )
 # tests dont le résultat dépend du pas de physique : lancés en temps réel (test_ragdoll : OK aussi en --fixed-fps depuis la correction du signe des limites de charnière, 10/10 sous charge ; gardé en temps réel par prudence)
 TEMPS_REEL="test_ragdoll test_mort_ragdoll"

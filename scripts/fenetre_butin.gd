@@ -144,7 +144,7 @@ func prendre(i := -1) -> Array[Dictionary]:
 		return []
 	var l: Dictionary = lignes[i]
 	# poids : on ne prend que ce que le sac peut porter (le reste demeure dans le contenant)
-	var place := joueur.inventaire.place_pour(String(l["id"]))
+	var place: int = joueur.inventaire.place_pour(String(l["id"]))
 	if place < int(l["n"]):
 		if hud != null:
 			hud.avis("Trop lourd : sac %d / %d" % [roundi(joueur.inventaire.poids()), roundi(joueur.inventaire.capacite())])

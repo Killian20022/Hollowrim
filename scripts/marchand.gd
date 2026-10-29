@@ -166,7 +166,7 @@ static func acheter(id: String, inv: Inventaire, oid: String, n := 1) -> String:
 	var k := mini(mini(n, dispo), inv.pieces / prix)
 	if k <= 0:
 		return "Pas assez de pièces (%d)." % prix
-	var place := inv.place_pour(oid)
+	var place: int = inv.place_pour(oid)
 	if place <= 0:
 		return "Trop lourd : sac %d / %d." % [roundi(inv.poids()), roundi(inv.capacite())]
 	k = mini(k, place)
