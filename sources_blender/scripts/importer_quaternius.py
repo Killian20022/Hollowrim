@@ -30,6 +30,7 @@ UP = Vector((0, 1, 0))
 OMBRE = 0.42        # plancher de l'occlusion : le creux descend vers le ton 0 (rampe Ombre) sans tomber au noir pur
 PIED = 0.62         # facteur au ras du sol (≈ -2 tons), remonte à 1 sur PIED_H
 PIED_H = 0.22
+FER_MAX = 0.6       # plafond du ton du fer (réglé sur les captures en jeu du 2026-10-29)
 
 
 def H(s):
@@ -109,7 +110,9 @@ def classer(c, indice=None, candidats=DEFAUT):
     ref = RAMPES.get(m, RAMPES["bois"])
     # fer : référence au ton clair (le fer foncé descend)
     lref = lum(H(ref[-1 if m == "fer" else -2])) if m in RAMPES else lum(APERCU.get(m, (0.5, 0.5, 0.5)))
-    ton = max(0.3, min(1.0, (lum(c) / max(lref, 1e-3)) ** 0.9))      # ton 1 = avant-dernier ton de la rampe
+    ton = max(0.3, min(1.0, (lum(c) / max(lref, 1e-3)) ** 0.9))
+    if m == "fer":
+        ton = min(ton, FER_MAX)     # le shader crypte éclaircit déjà le fer (teinte x1,3 + reflet) : sinon l'enclume sort beige      # ton 1 = avant-dernier ton de la rampe
     return m, ton
 
 
