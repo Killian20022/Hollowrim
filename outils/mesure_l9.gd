@@ -20,7 +20,7 @@ func _regarder(cible: Vector3, dist: float, lacet: float, sol_y: float) -> void:
 	j.velocity = Vector3.ZERO
 	j.rotation.y = atan2(d.x, d.z)
 	await _images(20)
-	var v := cible - j.camera.global_position
+	var v: Vector3 = cible - (j.camera as Camera3D).global_position
 	j.tete.rotation.x = atan2(v.y, Vector2(v.x, v.z).length())
 	await _images(30)
 
@@ -37,15 +37,17 @@ func _mesure() -> Array:
 	return [dc / 120.0, pr / 120.0, gpu / 120.0]
 
 func _poste(nom: String, u: ObjetUnique) -> void:
+	# visible / caché / visible / caché : l'écart répété sépare le coût de l'objet du bruit (villageois, flammes, charge machine)
+	for k in 2:
+		u.visible = true
+		await _images(10)
+		var a := await _mesure()
+		u.visible = false
+		await _images(10)
+		var b := await _mesure()
+		print("L9 %-10s visible : %4.0f appels, %6.0f prim., GPU %.3f ms | caché : %4.0f appels, %6.0f prim., GPU %.3f ms | écart %+.0f appels, %+.0f prim., %+.3f ms" %
+			[nom, a[0], a[1], a[2], b[0], b[1], b[2], a[0] - b[0], a[1] - b[1], a[2] - b[2]])
 	u.visible = true
-	await _images(10)
-	var a := await _mesure()
-	u.visible = false
-	await _images(10)
-	var b := await _mesure()
-	u.visible = true
-	print("L9 %-10s visible : %4.0f appels, %6.0f prim., GPU %.3f ms | caché : %4.0f appels, %6.0f prim., GPU %.3f ms | écart %+.0f appels, %+.0f prim., %+.3f ms" %
-		[nom, a[0], a[1], a[2], b[0], b[1], b[2], a[0] - b[0], a[1] - b[1], a[2] - b[2]])
 
 func _go() -> void:
 	m = SCENE.instantiate()
