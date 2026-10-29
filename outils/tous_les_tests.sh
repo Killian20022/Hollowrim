@@ -96,6 +96,7 @@ TESTS=(
 	"test_marchands|--nouvelle"   # lot L8 : marchands (achat, vente, objets de quête, stock vide, réassort 2 jours, sauvegarde, boutique en pause, dialogue « Commercer »)
 	"test_objets_uniques|ecrire;verifier"   # lot L9 : objets uniques posés (hache de Kolbeinn sur le trône, épées sur râteliers / chevalet), prise sauvegardée, jamais deux fois, marchand, reflet de lame, « tout disponible » préparé
 	"test_potions|--nouvelle"   # potions à effet progressif (durée, délai par famille, HUD) et poids du sac limité (surcharge, butin, marchands, anciennes sauvegardes)
+	"test_lacher|--nouvelle"   # Lâcher dans l inventaire (L, Maj+L, boutons) : sac au sol sauvegardé, uniques et quête refusés
 )
 # tests dont le résultat dépend du pas de physique : lancés en temps réel (test_ragdoll : OK aussi en --fixed-fps depuis la correction du signe des limites de charnière, 10/10 sous charge ; gardé en temps réel par prudence)
 TEMPS_REEL="test_ragdoll test_mort_ragdoll"

@@ -9,6 +9,9 @@ extends CanvasLayer
 ##     porte au bras gauche. ») et le bandeau du bas répète la raison si on essaie quand même ;
 ##   - POTIONS (consommables du sac, Consommables) : clic gauche / droit, Entrée, G ou D = UTILISER (effet sur la vie, la mana,
 ##     l'endurance du joueur) ; un chiffre 1-0 dans cette catégorie range la potion choisie dans le raccourci (la touche la boit) ;
+##   - LÂCHER (potions et objets divers du sac) : L = en lâcher 1, Maj+L = toute la pile, ou les deux boutons de la fiche ; manette Y = 1,
+##     clic sur le bouton « tout » (stick droit enfoncé). L'objet tombe devant le joueur dans un sac ramassable (E), scripts/lacher.gd ;
+##     objets uniques et de quête : refusés avec un message clair ;
 ##   - RACCOURCIS 1-0 : appuyer sur un chiffre (ou cliquer une case) range les deux mains ACTUELLES dans ce raccourci (paire
 ##     G|D, lue telle quelle par la barre du HUD) ; clic droit sur une case = la vider. Sauvegardés avec la partie.
 ## Aucune règle ici : tout passe par EquipementMains (objets_possedes, fiche, essai, assigner_raccourci) et MainSort.equiper,
@@ -319,7 +322,7 @@ func _input(e: InputEvent) -> void:
 	if e is InputEventKey:
 		var k := e as InputEventKey
 		if not k.pressed:
-			if k.physical_keycode in [KEY_TAB, KEY_E, KEY_F5, KEY_F9, KEY_P, KEY_T, KEY_V, KEY_Q, KEY_G, KEY_D]:
+			if k.physical_keycode in [KEY_TAB, KEY_E, KEY_F5, KEY_F9, KEY_P, KEY_T, KEY_V, KEY_Q, KEY_G, KEY_D, KEY_L]:
 				vp.set_input_as_handled()
 			return
 		if k.echo and not (k.physical_keycode in [KEY_UP, KEY_DOWN]):
@@ -343,6 +346,8 @@ func _input(e: InputEvent) -> void:
 				equiper("gauche", choisi)
 			KEY_D:
 				equiper("droite", choisi)
+			KEY_L:
+				lacher(k.shift_pressed)
 			KEY_TAB, KEY_F5, KEY_F9, KEY_P, KEY_T, KEY_V:
 				pass
 			_:
@@ -358,6 +363,10 @@ func _input(e: InputEvent) -> void:
 				_categorie_voisine(1)
 			JOY_BUTTON_X:
 				equiper("gauche", choisi)
+			JOY_BUTTON_Y:
+				lacher(false)
+			JOY_BUTTON_RIGHT_STICK:
+				lacher(true)
 			_:
 				return
 		vp.set_input_as_handled()
@@ -420,6 +429,36 @@ func utiliser(id: String) -> String:
 	_remplir_liste()
 	_rafraichir()
 	return ""
+
+## Lâche l'objet choisi (potion ou objet divers du sac) : 1 exemplaire, ou toute la pile si `tout`. "" ou la raison du refus.
+func lacher(tout := false) -> String:
+	var id := choisi.substr(6) if choisi.begins_with("conso:") else (choisi.substr(4) if choisi.begins_with("sac:") else "")
+	if id == "" or joueur == null:
+		return _dire("Choisissez d'abord un objet du sac (Potions ou Divers) : les armes et les sorts ne se lâchent pas.", true)
+	var n: int = joueur.inventaire.nombre(id) if tout else 1
+	var r := Lacher.lacher(joueur, hud, id, n)
+	if r != "":
+		Sons.jouer(self, ["cloth1"], -18.0)
+		return _dire(r, true)
+	Sons.jouer(self, ["cloth1", "cloth2"], -10.0)
+	_dire("Lâché : %d %s. Il est devant vous : E pour le reprendre." % [n, joueur.inventaire.nom(id)], false)
+	_remplir_liste()
+	_rafraichir()
+	return ""
+
+## Boutons « Lâcher » de la fiche (potions et objets divers) ; grisés avec la raison si l'objet n'est pas lâchable.
+func _boutons_lacher(id: String) -> void:
+	var r := Lacher.refus(id)
+	if r != "":
+		_fiche.add_child(_texte(r, ROUGE))
+		return
+	var n: int = joueur.inventaire.nombre(id)
+	var ligne := HBoxContainer.new()
+	ligne.add_theme_constant_override("separation", 4)
+	ligne.add_child(MenuStyle.bouton("Lâcher 1  (L)", func() -> void: lacher(false)))
+	if n > 1:
+		ligne.add_child(MenuStyle.bouton("Tout (%d)  (Maj+L)" % n, func() -> void: lacher(true)))
+	_fiche.add_child(ligne)
 
 ## Range les deux mains actuelles dans le raccourci i (0..9 = touches 1..0). Catégorie Potions : y range la potion choisie.
 func memoriser(i: int) -> String:
@@ -582,6 +621,7 @@ func _remplir_fiche() -> void:
 		var rf := Consommables.refus(joueur, idc)
 		_fiche.add_child(_texte("Clic / Entrée : utiliser" if rf == "" else "Pour l'instant : " + rf, MenuStyle.PARCHEMIN if rf == "" else ROUGE))
 		_fiche.add_child(_texte("1-0 : ranger dans ce raccourci (la touche l'utilise).", MenuStyle.GRIS))
+		_boutons_lacher(idc)
 		return
 	if choisi.begins_with("sac:"):
 		var id := choisi.substr(4)
@@ -591,6 +631,7 @@ func _remplir_fiche() -> void:
 		_fiche.add_child(_texte("Quantité : %d" % int(inv.objets.get(id, 0))))
 		_fiche.add_child(_texte("Poids : %s   Valeur : %d" % [str(o.get("poids", 0.0)), int(o.get("valeur", 0))]))
 		_fiche.add_child(_texte("Ne se tient pas en main.", MenuStyle.GRIS))
+		_boutons_lacher(id)
 		return
 	var f := eq.fiche(choisi)
 	_fiche.add_child(MenuStyle.etiquette(String(f["nom"]), MenuStyle.OR if String(f["ecole"]) == "" else IconesCombat.accent(String(f["ecole"])).lightened(0.15)))

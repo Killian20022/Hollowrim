@@ -86,6 +86,41 @@ func briser_sort(point: Vector3) -> void:
 	if not casse:
 		casser(true, point)
 
+## Sort de ZONE (explosion, nova, tempête… GestionMagie.zone) : brise tous les cassables dont le volume touche le disque de rayon `rayon`
+## (distance horizontale du centre à l'objet, et hauteur à moins de `rayon` + hauteur de l'objet), comme un coup d'épée.
+static func briser_zone(arbre: SceneTree, centre: Vector3, rayon: float) -> int:
+	var n := 0
+	for c in arbre.get_nodes_in_group("cassables"):
+		if not (c is Cassable) or (c as Cassable).casse:
+			continue
+		var o := c as Cassable
+		var d := Vector2(o.global_position.x - centre.x, o.global_position.z - centre.z).length() - o.rayon
+		var dy := maxf(maxf(o.global_position.y - centre.y, centre.y - (o.global_position.y + o.haut)), 0.0)
+		if d <= rayon and dy <= rayon:
+			o.briser_sort(centre)
+			n += 1
+	return n
+
+## Caisses posées SUR celle-ci (leur pied à la hauteur de son dessus, emprise qui se recouvre) : privées d'appui, elles se brisent aussi.
+func _briser_dessus(avec_effets: bool) -> void:
+	if genre != "caisse" or not is_inside_tree():
+		return
+	var dessus := global_position.y + haut
+	for c in get_tree().get_nodes_in_group("cassables"):
+		var o := c as Cassable
+		if o == null or o == self or o.casse or o.genre != "caisse":
+			continue
+		if absf(o.global_position.y - dessus) > 0.2:
+			continue
+		if Vector2(o.global_position.x - global_position.x, o.global_position.z - global_position.z).length() > rayon + o.rayon:
+			continue
+		if avec_effets:      # elle perd son appui : un instant, puis elle tombe en morceaux
+			get_tree().create_timer(0.18).timeout.connect(func() -> void:
+				if is_instance_valid(o) and not o.casse:
+					o.casser(true, global_position + Vector3(0, haut, 0)))
+		else:
+			o.casser(false, global_position + Vector3(0, haut, 0))
+
 func _process(dt: float) -> void:
 	if _vol >= 0.0:
 		_animer(dt)
@@ -108,6 +143,7 @@ func casser(avec_effets: bool, origine: Vector3) -> void:
 	if _forme != null:
 		_forme.set_deferred("disabled", true)
 	var centre := global_position + Vector3(0, haut * 0.5, 0)
+	_briser_dessus(avec_effets)
 	_eclater(avec_effets, centre, origine)
 	for mi in _mis:
 		mi.visible = false

@@ -152,6 +152,63 @@ func _tester() -> void:
 			break
 	scene_b.free()
 	ButinTables.reinitialiser()
+	# ---------------------------------------------------------------- A2 : sorts de zone et caisses empilées
+	ButinTables.reinitialiser()
+	var sc := Node3D.new()
+	root.add_child(sc)
+	var rc := Node3D.new()
+	sc.add_child(rc)
+	var cc := StaticBody3D.new()
+	rc.add_child(cc)
+	var dc := GrotteDecor.new(rc, cc)
+	dc.cass_actif = true
+	dc.caisse(Vector3(0, 0, 0), Vector3(0.8, 0.55, 0.6), 0.0)
+	dc.caisse(Vector3(0.05, 0.55, 0), Vector3(0.6, 0.45, 0.5), 0.3)      # posée SUR la première
+	dc.caisse(Vector3(6, 0, 0), Vector3(0.7, 0.5, 0.5), 0.0)             # seule
+	dc.caisse(Vector3(12, 0, 0), Vector3(0.7, 0.5, 0.5), 0.0)            # hors de portée du sort
+	dc.urne(Vector3(6, 0, 3), 1.0)
+	dc.finir()
+	var lot: Array = rc.find_children("*", "Cassable", false, false)
+	_verif(lot.size() == 5, "A2 : 5 cassables posés (4 caisses, 1 urne) : %d" % lot.size())
+	var bas_c: Cassable = null
+	var haut_c: Cassable = null
+	var seule: Cassable = null
+	var loin: Cassable = null
+	var urne2: Cassable = null
+	for c: Cassable in lot:
+		if c.genre == "urne":
+			urne2 = c
+		elif c.global_position.x > 11.0:
+			loin = c
+		elif c.global_position.x > 5.0:
+			seule = c
+		elif c.global_position.y > 0.3:
+			haut_c = c
+		else:
+			bas_c = c
+	_verif(bas_c != null and haut_c != null and seule != null and loin != null and urne2 != null, "A2 : caisse du bas, du haut, seule, lointaine et urne repérées")
+	await _attendre(1.0)
+	var n_zone := Cassable.briser_zone(root.get_tree(), Vector3(6.0, 0.0, 1.5), 2.5)
+	_verif(n_zone == 2 and seule.casse and urne2.casse, "A2 : une zone (r 2,5) brise la caisse et l'urne de son rayon (%d)" % n_zone)
+	_verif(not loin.casse and not bas_c.casse and not haut_c.casse, "A2 : les cassables hors du rayon restent intacts")
+	_verif(Cassable.briser_zone(root.get_tree(), Vector3(6.0, 0.0, 1.5), 2.5) == 0, "A2 : un cassable déjà brisé n'est pas recompté")
+	# le vrai chemin : GestionMagie.zone (feu) brise ; soin et protection non
+	var gm: Node = EffetsMagie._g()
+	if gm != null:
+		gm.zone("soin", loin.global_position, 2.0, 0.5)
+		gm.zone("protection", loin.global_position, 2.0, 0.5)
+		_verif(not loin.casse, "A2 : cercle de soin / protection : rien ne se brise")
+		gm.zone("feu", loin.global_position + Vector3(0.5, 0, 0), 2.0, 0.5)
+		_verif(loin.casse, "A2 : GestionMagie.zone(feu) brise la caisse du rayon")
+	else:
+		_verif(false, "A2 : GestionMagie introuvable")
+	# caisse du dessous brisée : celle du dessus tombe en morceaux aussi (après un court instant)
+	bas_c.frapper(true, bas_c.global_position + Vector3(1, 0.3, 0))
+	_verif(bas_c.casse and not haut_c.casse, "A2 : caisse du bas brisée, celle du dessus encore en l'air")
+	await _attendre(0.5)
+	_verif(haut_c.casse and not haut_c.is_in_group("cassables") and haut_c.collision_layer == 0, "A2 : la caisse empilée se brise aussi (plus d'appui)")
+	sc.free()
+	ButinTables.reinitialiser()
 	# ---------------------------------------------------------------- B
 	var m: Node3D = SCENE.instantiate()
 	m.set_meta("test", true)
