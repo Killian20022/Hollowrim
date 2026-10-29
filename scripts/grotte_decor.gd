@@ -24,6 +24,7 @@ const COQUES := {
 	"c_roche_bouche": ["roche_givre", "", Color(0.6, 0.72, 1.0), Vector3(0.0, 0.0, 0.0), 0.0, 0.8, 0.0, 1.0],   # C2 : front de roche de la bouche, froid comme l'intérieur (plus de brun dominant)
 	"c_roche_mousse": ["roche", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.7, 0.0, 1.0],
 	"c_roche_glace": ["roche_b", "glace_sup", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.4, 0.0, 1.0],
+	"c_autel": ["roche", "", Color(0.9, 0.85, 0.85), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 1.0],   # pierre de l'autel : roche sombre SANS givre (k_roche_nu blanchissait les dessus en « neige »)
 	"c_roche_nu": ["roche", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.65, 0.0, 1.0],
 	"c_roche_mur": ["roche", "", Color(0.74, 0.73, 0.75), Vector3(0.0, 0.0, 0.0), 0.0, 0.4, 0.0, 1.0],   # mur fragile (boîte sans occlusion peinte)
 	"c_strate_mousse": ["strate", "", Color(1, 1, 1), Vector3(0.0, 0.0, 0.0), 0.0, 0.0, 0.0, 1.0],
@@ -102,8 +103,9 @@ func regler_lueurs(l: Array) -> void:
 	_lueurs = [Vector4.ZERO, Vector4.ZERO, Vector4.ZERO]
 	for i in mini(3, l.size()):
 		_lueurs[i] = l[i]
-	for m in _mats.values():
-		if m is ShaderMaterial and (m as ShaderMaterial).shader == GROTTE_SHADER:
+	for k: String in _mats:
+		var m: Material = _mats[k]
+		if k != "c_autel" and m is ShaderMaterial and (m as ShaderMaterial).shader == GROTTE_SHADER:      # c_autel : pas de reflet bleu des lueurs
 			(m as ShaderMaterial).set_shader_parameter("lueurs", _lueurs)
 
 func _tex_g(nom: String) -> ImageTexture:
@@ -159,7 +161,8 @@ func mat(nom: String) -> Material:
 		if nom == "c_sol_neige":
 			sm.set_shader_parameter("echelle_sup", 0.5)     # neige du sol extérieur : tuile de 8 m (16 texels/m), même grain que dehors
 		sm.set_shader_parameter("bouche", _bouche)
-		sm.set_shader_parameter("lueurs", _lueurs)
+		if nom != "c_autel":
+			sm.set_shader_parameter("lueurs", _lueurs)
 		m = sm
 	elif nom == "jour" or nom == "ciel":
 		var s := StandardMaterial3D.new()

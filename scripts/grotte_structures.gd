@@ -459,9 +459,10 @@ static func _autel(k: GrotteKit, id: String, s_a: float, lat_a: float, e := 1.2)
 	# appareillées, stèle runique brisée à entrelacs, piliers rompus, chapiteau et linteau tombés, table d'offrande sur deux dés,
 	# éboulis devant ; mêmes volumes et mêmes hauteurs de dessus que les 11 blocs d'avant (bougies), roche nue de la coque.
 	# DÉCOR SEUL (aucun solide, comme avant).
-	# finition : pierre de l'autel assombrie (x 0,4, un peu froide) pour rejoindre la roche de la grotte
+	# finition : pierre de l'autel = roche sombre sans givre (c_autel) pour rejoindre la roche de la grotte
 	var mats_autel: Dictionary = GrotteDecor.MAT_OBJETS.duplicate()
-	mats_autel["@pierre"] = Color(0.36, 0.38, 0.47)
+	mats_autel["pierre"] = "c_autel"
+	mats_autel["@pierre"] = Color(1.0, 1.0, 1.0)
 	d.objet("g_autel", ps, yaw, Vector3.ONE * e, mats_autel)
 	var f := e / 1.2
 	var top := ps + bz * Vector3(0, 1.74, -0.24) * f
