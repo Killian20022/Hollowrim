@@ -1054,7 +1054,9 @@ func boite(n: Node3D) -> AABB:
 	for v in liste:
 		if k > 40:
 			break
-		if v is GPUParticles3D or v is OmniLight3D or v is Light3D or not (v as Node3D).visible:
+		# Label3D : texte flottant (dégâts du mannequin, noms) : sa boîte de billboard (cube de 1,5 m) gonflait la silhouette
+		# → la gerbe en boîte du jet faisait un grand dôme de points autour de la cible
+		if v is GPUParticles3D or v is OmniLight3D or v is Light3D or v is Label3D or not (v as Node3D).visible:
 			continue
 		k += 1
 		var vi := v as VisualInstance3D
