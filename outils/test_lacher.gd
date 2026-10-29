@@ -1,7 +1,7 @@
 extends SceneTree
 ## « Lâcher » dans l'inventaire (scripts/lacher.gd, inventaire_mains.gd) :
 ##   godot --headless --path . --script res://outils/test_lacher.gd -- --nouvelle
-## Avec fenêtre (godot_slot.sh) et --captures=<dossier> : lacher_inventaire.png, lacher_sac_au_sol.png.
+## Avec fenêtre (godot_slot.sh) et --sorties=<dossier> : lacher_inventaire.png, lacher_sac_au_sol.png.
 
 const SCENE := preload("res://scenes/foret_test.tscn")
 
@@ -46,8 +46,8 @@ func _touche(code: Key, maj := false) -> void:
 
 func _tester() -> void:
 	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--captures="):
-			_captures = a.substr(11)
+		if a.begins_with("--sorties="):
+			_captures = a.substr(10)
 	ButinTables.reinitialiser()
 	s = SCENE.instantiate()
 	s.set_meta("test", true)
@@ -82,6 +82,8 @@ func _tester() -> void:
 	_verif(devant > 0.8 and devant < 1.6 and sac.contenu == {"potion_soin": 1}, "il tombe devant le joueur (%.2f m) avec 1 potion" % devant)
 	_verif(sac.a_fouille() and sac.find_children("*", "MeshInstance3D", false, false).size() >= 2, "sac visible et invite « Fouiller » posée")
 	_verif(ButinTables.a_reste(sac.cle_sauvegarde) and ButinTables.corps.has(sac.cle_sauvegarde), "sac enregistré pour la sauvegarde (clé %s)" % sac.cle_sauvegarde)
+
+	await _capture("lacher_sac_au_sol.png")      # (le sac est devant, sous la ligne de visée : peu visible en vue subjective)
 
 	# --- refus : objet de quête
 	var avant := inv.nombre("fragment_sceau_os")
@@ -156,8 +158,6 @@ func _tester() -> void:
 	_verif(ui.lacher(false) != "", "rien de choisi : message, pas d'erreur")
 	await _capture("lacher_refus_quete.png")
 	ui.fermer()
-	await _images(3)
-	await _capture("lacher_sac_au_sol.png")
 	print("ECHECS : %d  (%d vérifications)" % [0 if _ok else 1, _n])
 	print("RESULTAT : ", "OK" if _ok else "ECHEC")
 	quit(0 if _ok else 1)
