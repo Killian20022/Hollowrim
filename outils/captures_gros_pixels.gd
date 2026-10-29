@@ -4,6 +4,7 @@ extends SceneTree
 ## FENÊTRE (via godot_slot.sh : hors écran), couche fine imposée (--detail-sorts=eleve par défaut) :
 ##   godot --path . --fixed-fps 60 --disable-vsync --script res://outils/captures_gros_pixels.gd -- \
 ##       --planche=<fichier.png> [--images=2,6,14,26] [--effets=boule_feu,lance_givre,...] [--main=<fichier.png>]
+##       [--sans-gros]  palier « gros pixels » coupé (planche / mesure « avant » dans le même code)
 ##       [--tenue=1]   main : aperçu avec avant-bras sur le calque 18 et flammes resserrées (comme fps/avant_bras_v2)
 ##   Vignettes : zone centrale 960x540 de la fenêtre 1280x720, sans ré-échantillonnage (pixels francs).
 
@@ -26,6 +27,7 @@ func _arg(nom: String, defaut := "") -> String:
 	return defaut
 
 func _go() -> void:
+	PresetsMagie.sans_gros = OS.get_cmdline_user_args().has("--sans-gros")
 	if _arg("detail-sorts") == "":
 		CoucheMagie.niveau_force = CoucheMagie.ELEVE
 	s = SCENE.instantiate()
@@ -116,7 +118,13 @@ func _planche(fichier: String) -> void:
 		gm.tout_arreter()
 		for i in 45:
 			await process_frame
+		var vrid := root.get_viewport().get_viewport_rid()
+		RenderingServer.viewport_set_measure_render_time(vrid, true)
+		if gm.couche != null and gm.couche.vp != null:
+			RenderingServer.viewport_set_measure_render_time(gm.couche.vp.get_viewport_rid(), true)
 		_declencher(nom)
+		var pic := 0
+		var gpu := 0.0
 		var f := 0
 		var dernier: int = images[images.size() - 1]
 		while f <= dernier:
@@ -126,7 +134,12 @@ func _planche(fichier: String) -> void:
 				vignettes.append(_vignette())
 			else:
 				await process_frame
+			pic = maxi(pic, int(EffetsMagie.stats().particules))
+			gpu += RenderingServer.viewport_get_measured_render_time_gpu(vrid)
+			if gm.couche != null and gm.couche.vp != null:
+				gpu += RenderingServer.viewport_get_measured_render_time_gpu(gm.couche.vp.get_viewport_rid())
 			f += 1
+		print("MESURE %s particules_max=%d gpu_moyen_ms=%.3f" % [nom, pic, gpu / float(f)])
 	var cols := images.size()
 	var p := Image.create(VW * cols, VH * effets.size(), false, Image.FORMAT_RGBA8)
 	for i in vignettes.size():

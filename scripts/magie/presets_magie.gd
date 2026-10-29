@@ -318,6 +318,10 @@ const GROS := {
 static func rampe_gros(nom: String) -> Array:
 	return [GROS_COEUR] + (GROS[nom].ton as Array)
 
+## Mise au point (outils/captures_gros_pixels.gd --sans-gros) : palier « gros pixels » coupé (mesure avant / après),
+## à régler AVANT la première émission (caches de réglages et de matériaux).
+static var sans_gros := false
+
 static var _fin_cache := {}
 
 ## Réglage fin d'un réglage de R : {"n": multiplicateur, "t": multiplicateur de taille, "sur": {…}, "avec": [...]}.
@@ -333,7 +337,7 @@ static func fin(nom: String) -> Dictionary:
 	elif d.has("taille") and (d.taille as Vector2).y <= 0.025:
 		f = {"n": 1.6, "t": 0.6}
 	f.merge(FIN.get(nom, {}), true)
-	if GROS.has(nom):
+	if GROS.has(nom) and not sans_gros:
 		# palier « gros pixels » : moins nombreux (÷ GROS_DIVISE), plus de traînée ; taille et rampe : GestionMagie._pm
 		f = f.duplicate()
 		f.n = float(f.get("n", 1.0)) / GROS_DIVISE
