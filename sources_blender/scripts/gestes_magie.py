@@ -38,6 +38,11 @@ BUTEES = {"flexion": (-70.0, 60.0), "inclinaison": (-30.0, 20.0)}
 FPS_SORTIE = 60.0
 # distance minimale œil -> paume (m) ; la pose de repos est à 0,61 m, l'ancienne pose « charge » à 0,48 m
 DIST_MIN = 0.55
+# pronation (+) / supination (-) de la main autour de l'avant-bras, mesurée depuis la pose de repos (degrés) : le rig n'a
+# pas d'os de torsion, toute la torsion tombe au poignet ; au-delà, l'avant-bras paraît « disloqué » (la capture va
+# jusqu'à 195° et fait même un tour complet sur la piste droite de la zone). Bornes douces (marge PRONATION_MARGE).
+PRONATION = (-40.0, 125.0)
+PRONATION_MARGE = 20.0
 
 # --- gestes : piste source (clip, côté de la main qui lance dans la capture), phases et cadrage --------------------------
 # entree : jouée pendant l'incantation (u = t / sort.incantation), images [a, b] de la source.
@@ -72,8 +77,9 @@ GESTES = {
                        depuis_repos=0.45, entree=(24, 31), boucle=(33, 76),
                        fin=[[80, 0.0], [90, 0.25], [100, 0.50]], vers_repos=0.0),
     # sort de zone (explosion, tempête statique, nova) : « 2H Magic Area Attack 01 » : la main monte, poing fermé (charge),
-    # puis frappe vers le sol ; à une main, la main du jeu joue la piste de son côté
-    "zone": dict(source="zone_2m", pistes={"gauche": "g", "droite": "d"}, centre=36, amplitude=0.6, cadrage=(-8, 0, 0),
+    # puis frappe vers le sol ; la main droite joue le miroir de la piste gauche (la piste droite de la capture roule la
+    # main d'un tour complet autour de l'avant-bras : impossible sans os de torsion)
+    "zone": dict(source="zone_2m", pistes={"gauche": "g", "droite": "g"}, centre=36, amplitude=0.6, cadrage=(-8, 0, 0),
                  depuis_repos=0.5, entree=(26, 31), tenue=(31, 33),
                  depart=[[33, 0.0], [37, 0.08], [41, 0.18], [52, 0.42], [60, 0.66]], vers_repos=0.24),
 }
@@ -342,6 +348,48 @@ class Retarget:
         return {"pos": r5(W), "paume": r5(p), "doigts": r5(y), "fermeture": round(ferm, 3), "coude": r5(pole)}
 
 
+def pronation(main, W, paume, pole):
+    """Angle (degrés) de la paume autour de l'avant-bras de l'IK, repéré sur le plan du coude (repère de lowerarm)."""
+    S = EPAULE[main]
+    a = unit(sub(W, ik_coude(S, W, pole)))
+    r = cross(sub(W, S), sub(pole, S))
+    r = unit(sub(r, mul(a, dot(r, a))))
+    pp = unit(sub(paume, mul(a, dot(paume, a))))
+    return math.degrees(math.atan2(dot(cross(r, pp), a), dot(r, pp))), a
+
+
+def borne_douce(x, lo, hi, m):
+    """x borné à [lo, hi], raccord C1 sur une marge m (saturation exponentielle)."""
+    if x > hi - m:
+        return hi - m * math.exp(-(x - (hi - m)) / m)
+    if x < lo + m:
+        return lo + m * math.exp((x - (lo + m)) / m)
+    return x
+
+
+def borner_pronation(rt, poses, prec):
+    """Pronation de chaque pose suivie CONTINÛMENT depuis `prec` (déroulée, pas de saut de ±360°), bornée (PRONATION) ;
+    la main tourne autour de l'avant-bras de l'écart (flexion / inclinaison du poignet inchangées). Rend la dernière
+    pronation (raccord de la phase suivante) et le pire écart avant bornage."""
+    sg = 1.0 if rt.main == "gauche" else -1.0   # + = pronation pour les deux mains
+    rp = rt.repos
+    ref, _ = pronation(rt.main, rp["pos"], rp["paume"], rp["coude"])
+    pire = prec
+    for p in poses:
+        W, pole = tuple(p["pos"]), tuple(p["coude"])
+        ang, a = pronation(rt.main, W, tuple(p["paume"]), pole)
+        x = sg * (ang - ref)
+        x += 360.0 * round((prec - x) / 360.0)
+        prec = x
+        pire = max(pire, abs(x), key=abs)
+        xb = borne_douce(x, PRONATION[0], PRONATION[1], PRONATION_MARGE)
+        if abs(xb - x) > 1e-6:
+            q = q_axe(a, math.radians(sg * (xb - x)))
+            p["paume"] = [round(c, 4) for c in q_rot(q, tuple(p["paume"]))]
+            p["doigts"] = [round(c, 4) for c in q_rot(q, tuple(p["doigts"]))]
+    return prec, pire
+
+
 def table_vers(table, t):
     """Image source à l'instant t (s) d'une table [[image, s], ...] (linéaire par morceaux)."""
     for (f0, t0), (f1, t1) in zip(table, table[1:]):
@@ -393,11 +441,19 @@ def construire(nom, spec, sources):
                     poses.append(rt.pose(table_vers(table, t), w, kp))
                 pistes[ph] = poses
                 out[ph + "_duree"] = round(duree, 3)
+        # pronation continue d'une phase à l'autre (entree -> tenue -> depart, ou entree -> boucle -> fin), bornée
+        prec = 0.0
+        pire = 0.0
+        for ph in ("entree", "tenue", "boucle", "depart", "fin"):
+            if ph in pistes:
+                prec, pr = borner_pronation(rt, pistes[ph], prec)
+                pire = max(pire, abs(pr))
         out[main] = pistes
         st = rt.stats
-        rapport.append("%-14s %-6s piste %s%s : poignet flexion %+.0f..%+.0f inclinaison %+.0f..%+.0f ; %d/%d bornées, %d recadrées" % (
+        st["pronation"] = pire
+        rapport.append("%-14s %-6s piste %s%s : poignet flexion %+.0f..%+.0f inclinaison %+.0f..%+.0f ; %d/%d bornées, %d recadrées ; pronation capture %.0f° (bornée %+.0f..%+.0f)" % (
             nom, main, rt.cote, " (miroir)" if rt.mir else "", min(st["f"]), max(st["f"]), min(st["r"]), max(st["r"]),
-            st["bornes"], st["n"], st["cadre"]))
+            st["bornes"], st["n"], st["cadre"], st["pronation"], PRONATION[0], PRONATION[1]))
     return out, rapport
 
 

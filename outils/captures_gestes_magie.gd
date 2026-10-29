@@ -7,6 +7,8 @@ extends SceneTree
 ##     double (double incantation : lancer à deux mains), double_jet (jet à deux mains), zone (sort de zone chargé),
 ##     droite (sort rapide de la main droite), epee (épée à droite + sort à gauche : enchaînement coup / sort).
 ##     --avant : gestes Mixamo coupés (anciennes poses fixes) pour la planche avant / après.
+##     --vue=face|cote : gros plan des avant-bras (face : devant le joueur, tourné vers lui ; cote : profil du bras gauche) :
+##     torsion des poignets et des avant-bras (outils/test_articulations_magie.gd).
 ##   ... --script res://outils/captures_gestes_magie.gd -- --planche=<fichier.png> --geste=<nom> [--avant]
 ##     planche de 8 vignettes aux instants clés du geste.
 ##   godot --headless --path . --script res://outils/captures_gestes_magie.gd -- --bras
@@ -134,9 +136,23 @@ func _action(a: String) -> void:
 			await _attendre(0.05)
 			mains.entrees.relacher()
 
+## Caméra de gros plan sur les avant-bras (repère de la caméra du joueur, qui la suit) : « face » = devant le joueur,
+## tournée vers lui (les deux bras) ; « cote » = à gauche, vue de profil du bras gauche.
+func _vue(nom: String) -> void:
+	var c := Camera3D.new()
+	(s.joueur.camera as Node3D).add_child(c)
+	var pos := Vector3(0.0, 0.02, -1.55) if nom == "face" else Vector3(-1.05, 0.0, -0.55)
+	var vise := Vector3(0.0, -0.26, -0.42) if nom == "face" else Vector3(-0.22, -0.26, -0.45)
+	c.transform = Transform3D(Basis.looking_at(vise - pos, Vector3.UP), pos)
+	c.fov = 50.0
+	c.near = 0.02
+	c.current = true
+
 func _film(geste: String, ralenti: float) -> void:
 	var sc := _scenario(geste)
 	await _preparer(sc[0][0], sc[0][1])
+	if _arg("vue") != "":
+		_vue(_arg("vue"))
 	var titre := ("AVANT (poses fixes) - " if not GestesMagie.actif else "") + ("ralenti x%.2f" % ralenti if ralenti < 1.0 else "vitesse reelle")
 	l.text = titre
 	Engine.time_scale = ralenti

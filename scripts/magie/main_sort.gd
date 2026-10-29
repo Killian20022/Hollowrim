@@ -678,14 +678,17 @@ func _poser_mains(dt: float) -> void:
 			_xf_ok[m] = true
 		var k := 1.0 - exp(-float(p.get("suivi", 16.0)) * dt)
 		var a: Transform3D = _xf[m]
-		_xf[m] = Transform3D(Basis(a.basis.get_rotation_quaternion().slerp(xf.basis.get_rotation_quaternion(), k)), a.origin.lerp(xf.origin, k))
+		var qa := a.basis.get_rotation_quaternion()
+		var kr := GestesMagie.pas_rotation(qa, xf.basis.get_rotation_quaternion(), k, dt) if p.has("suivi") else k   # geste capturé : rotation bornée
+		_xf[m] = Transform3D(Basis(qa.slerp(xf.basis.get_rotation_quaternion(), kr)), a.origin.lerp(xf.origin, k))
 		pivot.transform = dec * _xf[m] * prise
 		if o != null:
 			o.angle_min = 0.0
 			o.angle_max = PI
 			o.flexion_max = PI
 		var coude: Node3D = mains.get("_coude_g" if m == "gauche" else "_coude_d")
-		_pole[m] = (_pole[m] as Vector3).lerp(p.get("coude", Vector3(-0.75 if m == "gauche" else 0.75, -0.55, 0.25)), k)
+		var pole_voulu := (_pole[m] as Vector3).lerp(p.get("coude", Vector3(-0.75 if m == "gauche" else 0.75, -0.55, 0.25)), k)
+		_pole[m] = GestesMagie.limiter_pole(m, _pole[m], pole_voulu, dt) if p.has("suivi") else pole_voulu
 		coude.position = _pole[m]
 		_poser_doigts(sq, m, float(p["fermeture"]))
 	# objets de la main gauche : torche seulement si c'est elle ; le bouclier (modèle et visibilité) est géré par mains.gd
