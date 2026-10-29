@@ -1971,6 +1971,7 @@ func _jet_gerbe(j: Dictionary) -> void:
 				var g := _aura_fine(self, j.ecole, maxf(bb.size.y, 0.6) * 0.62 * (1.2 if j.dbl else 1.0))
 				g.set_instance_shader_parameter("avance", maxf(bb.size.x, bb.size.z) * 0.45)
 				g.set_meta("gerbe_fine", true)
+				g.set_meta("rayon0", maxf(bb.size.y, 0.6) * 0.62 * (1.2 if j.dbl else 1.0))
 				j.gerbe.append(g)
 	if cible != null and valide(cible):
 		var centre: Vector3 = (cible as Node3D).global_transform * (j.gerbe_bb as AABB).get_center()
@@ -1978,7 +1979,13 @@ func _jet_gerbe(j: Dictionary) -> void:
 			if is_instance_valid(p):
 				p.position = centre
 				if (p as Node).has_meta("gerbe_fine"):
-					(p as MeshInstance3D).set_instance_shader_parameter("force", clampf((horloge - float(j.debut)) / 0.4, 0.0, 1.0))
+					# le motif de l'enveloppe est en pixels de la couche : cible PROCHE de l'œil = grand carré d'un grain
+					# fin → rideau de points devant la cible (« dôme » à 1,75 m). De près : plus petite et plus resserrée.
+					var cam := get_viewport().get_camera_3d()
+					var kp := clampf((cam.global_position.distance_to(centre) - 1.5) / 2.0, 0.0, 1.0) if cam != null else 1.0
+					var mg := p as MeshInstance3D
+					mg.set_instance_shader_parameter("rayon", float(mg.get_meta("rayon0")) * lerpf(0.35, 1.0, kp))
+					mg.set_instance_shader_parameter("force", clampf((horloge - float(j.debut)) / 0.4, 0.0, 1.0) * lerpf(0.55, 1.0, kp))
 
 func _jet_placer(j: Dictionary) -> void:
 	var origine: Node3D = j.origine
