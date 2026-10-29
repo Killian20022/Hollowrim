@@ -374,27 +374,43 @@ def construire(var):
         b = k01[d]
         rivet(m, Vector((b.x - 0.006, b.y, b.z + 0.0125)), Vector((0, 0, 1)), 0.0028, poids=[("hand_l", 1.0)], haut=0.003)
 
-    # doigts : tubes octogonaux, phalange par phalange
+    # doigts : tubes octogonaux, phalange par phalange. Passe « mains humaines » (2026-10-29, retour « on dirait
+    # Fiddlesticks ») : le doigt s'arrête au bout de la phalange distale (os _03 : 84 % de sa longueur, bout arrondi)
+    # au lieu de se prolonger sur l'os feuille _04_leaf (une 4e phalange : majeur de 12,5 cm pour une paume de 11,5) ;
+    # doigts effilés vers le bout ; le métacarpe du pouce (thumb_01) n'est plus un tube libre mais l'éminence thénar,
+    # fondue dans la paume : le pouce visible part de thumb_02 (≈ 6,5 cm, opposable, côté paume).
     def doigt(nom, r, bagues):
         chaine = [os_("%s_0%d" % (nom, i)) for i in (1, 2, 3)] + [os_(nom + "_04_leaf")]
         pts = [b.head_local.copy() for b in chaine] + [chaine[-1].tail_local.copy()]
         noms = [b.name for b in chaine]
         d0 = (pts[1] - pts[0]).normalized()
-        depart = pts[0] - d0 * (0.022 if nom != "thumb" else 0.012)
+        pouce = nom == "thumb"
+        depart = pts[0] - d0 * (0.022 if not pouce else 0.014)
         # stations : (point, rayon, poids)
-        sts = [(depart, r * 1.05, [(noms[0], 1.0)] if nom != "thumb" else [("hand_l", 0.6), (noms[0], 0.4)])]
-        for i in range(3):
-            a, b = pts[i], pts[i + 1]
-            jr = [1.22, 1.12, 1.06][i]
-            wj = [(noms[i], 1.0)] if i == 0 else [(noms[i - 1], 0.5), (noms[i], 0.5)]
-            if i == 0 and nom != "thumb":
-                wj = [("hand_l", 0.35), (noms[0], 0.65)]
-            sts.append((a, r * jr, wj))
-            sts.append((a.lerp(b, 0.5), r * (1.0 - 0.06 * i), [(noms[i], 1.0)]))
-        a, b = pts[3], pts[4]
-        sts.append((a, r * 0.98, [(noms[2], 0.5), (noms[3], 0.5)]))
-        sts.append((a.lerp(b, 0.55), r * 0.86, [(noms[3], 1.0)]))
-        sts.append((a.lerp(b, 0.9), r * 0.62, [(noms[3], 1.0)]))
+        if pouce:
+            # éminence thénar : masse charnue du métacarpe, large, accrochée à la paume (poids partagés avec hand)
+            sts = [(depart, r * 1.30, [("hand_l", 0.75), (noms[0], 0.25)]),
+                   (pts[0], r * 1.42, [("hand_l", 0.5), (noms[0], 0.5)]),
+                   (pts[0].lerp(pts[1], 0.5), r * 1.28, [("hand_l", 0.25), (noms[0], 0.75)]),
+                   (pts[1], r * 1.06, [(noms[0], 0.5), (noms[1], 0.5)]),
+                   (pts[1].lerp(pts[2], 0.5), r * 0.98, [(noms[1], 1.0)])]
+        else:
+            sts = [(depart, r * 1.05, [(noms[0], 1.0)])]
+            for i in range(2):
+                a, b = pts[i], pts[i + 1]
+                jr = [1.20, 1.08][i]
+                wj = [("hand_l", 0.35), (noms[0], 0.65)] if i == 0 else [(noms[i - 1], 0.5), (noms[i], 0.5)]
+                sts.append((a, r * jr, wj))
+                sts.append((a.lerp(b, 0.5), r * [1.0, 0.92][i], [(noms[i], 1.0)]))
+        # phalange distale (os _03) : jointure, pulpe, bout arrondi (dôme) à 84 % de l'os (74 % pour le pouce)
+        a, b = pts[2], pts[3]
+        sts.append((a, r * (1.0 if not pouce else 0.98), [(noms[1], 0.5), (noms[2], 0.5)]))
+        lb = 0.84 if not pouce else 0.74     # longueur visible de la phalange distale (fraction de l'os _03)
+        sts.append((a.lerp(b, lb * 0.48), r * 0.88, [(noms[2], 1.0)]))
+        sts.append((a.lerp(b, lb * 0.79), r * 0.84, [(noms[2], 1.0)]))
+        sts.append((a.lerp(b, lb * 0.93), r * 0.70, [(noms[2], 1.0)]))
+        sts.append((a.lerp(b, lb), r * 0.42, [(noms[2], 1.0)]))
+        bout = a.lerp(b, lb + 0.025)
         sec = 8
         haut = Vector((0, 0, 1)) if nom != "thumb" else Vector((0, 0.6, 0.8)).normalized()
         rgs = []
@@ -417,7 +433,7 @@ def construire(var):
                 j = (i + 1) % sec
                 m.face([rgs[k][i], rgs[k][j], rgs[k + 1][j], rgs[k + 1][i]],
                        [(i / sec, k / 4.0), ((i + 1) / sec, k / 4.0), ((i + 1) / sec, (k + 1) / 4.0), (i / sec, (k + 1) / 4.0)], "ab_gant")
-        disque(m, rgs[-1], pts[3].lerp(pts[4], 1.0), [(noms[3], 1.0)], "ab_gant")
+        disque(m, rgs[-1], bout, [(noms[2], 1.0)], "ab_gant")
         # bague de jointure (fer) sur la première phalange
         if bagues:
             p = pts[0].lerp(pts[1], 0.55)
@@ -432,6 +448,36 @@ def construire(var):
             for i in range(sec):
                 j = (i + 1) % sec
                 m.face([rg0[i], rg0[j], rg1[j], rg1[i]], [(i / sec, 0), ((i + 1) / sec, 0), ((i + 1) / sec, 1), (i / sec, 1)], "ab_fer", False)
+
+    # palmure du pouce : masse aplatie du bord de la paume (côté index) jusqu'à la base de la 1re phalange du pouce
+    # (thumb_02) — le pouce n'est plus un bâton accroché sous le poignet, il sort de la main comme un vrai pouce
+    t1, t2 = os_("thumb_01").head_local.copy(), os_("thumb_02").head_local.copy()
+    sts_p = []
+    for k, (u, w) in enumerate(((0.10, [("hand_l", 1.0)]), (0.40, [("hand_l", 0.8), ("thumb_01_l", 0.2)]),
+                                (0.70, [("hand_l", 0.5), ("thumb_01_l", 0.5)]), (0.95, [("hand_l", 0.25), ("thumb_01_l", 0.75)]))):
+        tk = t1.lerp(t2, u)                                    # axe du métacarpe du pouce
+        cy_, cz_, dl_, hs_, hb_ = section(min(tk.x + 0.012, 0.83))
+        pk = Vector((min(tk.x + 0.012, 0.83), cy_ - dl_ * 0.75, cz_ - hb_ * 0.35))   # bord de la paume côté pouce
+        pk = pk.lerp(tk, [0.0, 0.0, 0.15, 0.45][k])            # la palmure se resserre vers la 1re phalange
+        sts_p.append(((tk + pk) * 0.5, (pk - tk).length * 0.5 + 0.007, 0.0095, w, (pk - tk).normalized()))
+    rg_p = []
+    for k, (pp, large, mince, w, lat) in enumerate(sts_p):
+        q = sts_p[min(k + 1, 3)][0] - sts_p[max(k - 1, 0)][0]
+        d = q.normalized()
+        cote = (lat - d * lat.dot(d)).normalized()             # grand axe : de l'axe du pouce au bord de la paume
+        if d.cross(cote).z < 0:
+            cote = -cote                                       # même sens de rotation partout (normales vers l'extérieur)
+        up = d.cross(cote)
+        rang = []
+        for i in range(8):
+            a_ = TAU * i / 8
+            rang.append(m.sommet(pp + up * math.cos(a_) * mince + cote * math.sin(a_) * large, w, 1.0 if math.cos(a_) > -0.2 else 0.78))
+        rg_p.append(rang)
+    for k in range(3):
+        for i in range(8):
+            j = (i + 1) % 8
+            m.face([rg_p[k][i], rg_p[k][j], rg_p[k + 1][j], rg_p[k + 1][i]], [(i / 8, k / 3), ((i + 1) / 8, k / 3), ((i + 1) / 8, (k + 1) / 3), (i / 8, (k + 1) / 3)], "ab_gant")
+    disque(m, rg_p[0], sts_p[0][0] - (sts_p[1][0] - sts_p[0][0]).normalized() * 0.004, [("hand_l", 1.0)], "ab_gant")
 
     bag = [["index", "middle"], ["middle", "ring"]][var]
     # doigts de gant épais (références : doigts gantés trapus, pas des baguettes) : rayons ~ +20 %
