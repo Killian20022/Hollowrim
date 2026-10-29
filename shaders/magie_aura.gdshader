@@ -7,6 +7,7 @@
 //   ténèbres   : vortex (spirale noire aux bras violets), aspiré vers le centre
 //   soin / protection : halo doré / bleu pâle qui ondule
 // `forme` 1 = boule (projectile, explosion) : masque rond bouillonnant au lieu des flammes montantes.
+// `forme` 2 = boule de feu TENUE (cœur de l'aura de feu) : sphère lisse et lumineuse, langues au bord.
 shader_type spatial;
 render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
 #include "res://shaders/magie_occ.gdshaderinc"
@@ -73,7 +74,19 @@ void fragment() {
 		// FEU
 		vec2 f = q;
 		float n;
-		if (forme == 1) {
+		if (forme == 2) {
+			// boule TENUE au creux de la main (avant-bras « runes », bras_feu_1100.jpg) : sphère lisse et lumineuse, cœur
+			// blanc-jaune, orange franc, petites langues qui lèchent le bord vers le haut ; peu de bruit (pas de taches)
+			float hy = f.y / rp;
+			float lang = mfbm2(vec2(f.x / 2.5 + tt * 0.15, (f.y - tt * rp * 1.3) / 6.0) + graine) - 0.5;
+			float rr = r - max(hy, 0.0) * 0.18 * (1.0 + lang * 2.0);
+			if (rr > 1.0) {
+				discard;
+			}
+			n = mfbm2(f / 7.0 + vec2(tt * 0.35, -tt * 0.55) + graine);
+			// cœur blanc-jaune large et LISSE qui domine (bruit faible), orange franc puis langues au bord seulement
+			i = (1.0 - rr) * 1.95 + (n - 0.5) * 0.16 * smoothstep(0.25, 0.6, rr) + lang * 0.35 * smoothstep(0.5, 0.9, rr);
+		} else if (forme == 1) {
 			if (r > 1.0) {
 				discard;
 			}
