@@ -159,7 +159,7 @@ func _tester() -> void:
 	var gp := GerbePixels.obtenir(sc)
 	var eo := EclatsOs.obtenir(sc)
 	_verif(gp != null and gp.get_child_count() == GerbePixels.TAILLE_POOL, "pool de gerbes : %d émetteurs" % (gp.get_child_count() if gp else 0))
-	_verif(eo != null and eo.get_child_count() == EclatsOs.TAILLE_POOL, "pool d'os : %d corps" % (eo.get_child_count() if eo else 0))
+	_verif(eo != null and eo.get_child_count() == EclatsOs.TOTAL, "pool d'os : %d corps" % (eo.get_child_count() if eo else 0))
 	j.global_position = Vector3(0, 0, 3.0)
 	var dos := sq.global_position + Vector3(0, 0, -2.0)
 	sq.vie = 5000.0
@@ -184,7 +184,7 @@ func _tester() -> void:
 	_verif(p1 == p0, "aucun GPUParticles3D créé par coup (%d → %d)" % [p0, p1])
 	_verif(r1 == r0, "aucun corps rigide créé par coup (%d → %d)" % [r0, r1])
 	_verif(EclatsOs.lances > l0 and eo.vivants() > 0, "coups lourds : os qui volent (%d lancés, %d en vol)" % [EclatsOs.lances - l0, eo.vivants()])
-	_verif(gp.get_child_count() == GerbePixels.TAILLE_POOL and eo.get_child_count() == EclatsOs.TAILLE_POOL, "pools inchangés après 30 coups")
+	_verif(gp.get_child_count() == GerbePixels.TAILLE_POOL and eo.get_child_count() == EclatsOs.TOTAL, "pools inchangés après 30 coups")
 	# coup paré au bouclier (draugr guerrier de face) : échardes + étincelles, chiffre « bloqué »
 	var e1 := GerbePixels.emissions
 	var c0 := _cubes_effets()
@@ -204,7 +204,7 @@ func _tester() -> void:
 	for c in eo.get_children():
 		if (c as Node).process_mode == Node.PROCESS_MODE_DISABLED and not (c as Node3D).visible:
 			desactives += 1
-	_verif(desactives == EclatsOs.TAILLE_POOL, "tous les corps d'os désactivés et cachés (%d/%d)" % [desactives, EclatsOs.TAILLE_POOL])
+	_verif(desactives == EclatsOs.TOTAL, "tous les corps d'os désactivés et cachés (%d/%d)" % [desactives, EclatsOs.TOTAL])
 	_verif(Engine.time_scale == 1.0, "échelle de temps rendue à 1")
 
 	ChiffresDegats.force_actif = -1

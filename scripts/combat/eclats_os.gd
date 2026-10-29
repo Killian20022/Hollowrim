@@ -10,15 +10,24 @@ extends Node3D
 
 const NOM := "EclatsOs"
 const TAILLE_POOL := 14
+## Os de MORT d'un squelette : 8 à 12 vrais os des modules de la crypte (os_long_a/b/c, crane), posés sur un pool à part
+## (NB_MORT corps, repris du plus ancien) ; ils restent DUREE_MORT s au sol, puis rétrécissent. Un corps au repos s'endort
+## puis sort de l'espace physique : 20 s d'os au sol ne coûtent rien.
+const NB_MORT := 30
+const MODULES_MORT := ["os_long_a", "os_long_b", "os_long_c", "os_long_a", "os_long_b", "crane_a"]
+const DUREE_MORT := 20.0
 ## Durée de vie d'un éclat (s) ; il rétrécit sur la dernière DUREE_FONTE s avant de disparaître.
 const DUREE := 7.0
 const DUREE_FONTE := 0.6
+const TOTAL := TAILLE_POOL + NB_MORT
 ## Formes : esquille longue, éclat de côte, fragment plat (crâne).
 const FORMES := [Vector3(0.16, 0.04, 0.04), Vector3(0.12, 0.05, 0.035), Vector3(0.08, 0.07, 0.025)]
 
 static var _instance: EclatsOs
 static var _mailles: Array[BoxMesh] = []
 static var _formes: Array[BoxShape3D] = []
+static var _mailles_mort: Array[Mesh] = []
+static var _formes_mort: Array[BoxShape3D] = []
 static var _mat: Material
 static var _phys: PhysicsMaterial
 ## Compteur de lancers (tests).
@@ -31,6 +40,8 @@ static var cout_us := 0
 var _corps: Array[RigidBody3D] = []
 var _reste := PackedFloat32Array()
 var _suivant := 0
+var _suivant_mort := 0
+var _endormis := PackedByteArray()
 var _vivants := 0
 
 static func lancer(n: Node, point: Vector3, direction: Vector3, nombre: int, force := 1.0) -> void:
@@ -69,6 +80,55 @@ static func _ressources() -> void:
 		var s := BoxShape3D.new()
 		s.size = t
 		_formes.append(s)
+	_modules_os()
+
+## Maillages des os de mort, tirés des modules Blender de la crypte (CrypteDecor) ; boîtes si un module manque.
+static func _modules_os() -> void:
+	CrypteDecor._charger_modeles()
+	for nom: String in MODULES_MORT:
+		var v := PackedVector3Array()
+		var nrm := PackedVector3Array()
+		var col := PackedColorArray()
+		for mat: String in CrypteDecor._modeles_de.get(nom, []):
+			if mat == "pts":
+				continue
+			var dat: Dictionary = CrypteDecor._modeles["%s__%s" % [nom, mat]]
+			var sv: PackedVector3Array = dat["v"]
+			var sc: PackedColorArray = dat["c"]
+			for q in range(0, sv.size() - 2, 3):
+				var n := (sv[q + 1] - sv[q]).cross(sv[q + 2] - sv[q])
+				if n.length_squared() < 1e-12:
+					continue
+				n = n.normalized()
+				# ordre de sommets du module (a, c, b) : voir CrypteDecor._modele_cache
+				v.append_array([sv[q], sv[q + 2], sv[q + 1]])
+				nrm.append_array([n, n, n])
+				col.append_array([_opaque(sc[q]), _opaque(sc[q + 2]), _opaque(sc[q + 1])])   # couleurs de sommet du module : arêtes claires, creux sombres (orbites)
+		var m: Mesh
+		var taille := Vector3(0.28, 0.05, 0.05)
+		if v.size() >= 3:
+			var tab := []
+			tab.resize(Mesh.ARRAY_MAX)
+			tab[Mesh.ARRAY_VERTEX] = v
+			tab[Mesh.ARRAY_NORMAL] = nrm
+			tab[Mesh.ARRAY_COLOR] = col
+			var am := ArrayMesh.new()
+			am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, tab)
+			am.surface_set_material(0, _mat)
+			m = am
+			taille = am.get_aabb().size.max(Vector3(0.04, 0.04, 0.04))
+		else:
+			var b := BoxMesh.new()
+			b.size = taille
+			b.material = _mat
+			m = b
+		_mailles_mort.append(m)
+		var s := BoxShape3D.new()
+		s.size = taille
+		_formes_mort.append(s)
+
+static func _opaque(c: Color) -> Color:
+	return Color(c.r, c.g, c.b, 1.0)   # alpha 1 = texture de base (alpha 0 = variante neige du shader ps1)
 
 func _ready() -> void:
 	_ressources()
@@ -93,8 +153,33 @@ func _ready() -> void:
 		rb.process_mode = Node.PROCESS_MODE_DISABLED
 		add_child(rb)
 		_corps.append(rb)
-	_reste.resize(TAILLE_POOL)
+	for i in NB_MORT:
+		var k := i % _mailles_mort.size()
+		var rb := RigidBody3D.new()
+		rb.collision_layer = 0
+		rb.collision_mask = 1
+		rb.mass = 0.12
+		rb.physics_material_override = _phys
+		rb.angular_damp = 2.0
+		rb.linear_damp = 0.2
+		rb.can_sleep = true
+		var cs := CollisionShape3D.new()
+		cs.shape = _formes_mort[k]
+		cs.position = _mailles_mort[k].get_aabb().get_center()
+		rb.add_child(cs)
+		var mi := MeshInstance3D.new()
+		mi.mesh = _mailles_mort[k]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.name = "Os"
+		rb.add_child(mi)
+		rb.visible = false
+		rb.process_mode = Node.PROCESS_MODE_DISABLED
+		add_child(rb)
+		_corps.append(rb)
+	_reste.resize(TOTAL)
 	_reste.fill(0.0)
+	_endormis.resize(TOTAL)
+	_endormis.fill(0)
 	set_physics_process(false)
 
 func _lancer(point: Vector3, direction: Vector3, nombre: int, force: float) -> void:
@@ -120,12 +205,51 @@ func _lancer(point: Vector3, direction: Vector3, nombre: int, force: float) -> v
 	set_physics_process(true)
 	cout_us += Time.get_ticks_usec() - t_us
 
+## Mort d'un squelette : 8 à 12 os jaillissent du corps (du bassin à la tête), retombent et restent DUREE_MORT s.
+## `centre` = pied du squelette ; le ragdoll reste en place (les os sont en plus de lui, pas à sa place).
+static func mort_squelette(n: Node, centre: Vector3, direction: Vector3, force := 1.0) -> void:
+	if not actif or n == null or not n.is_inside_tree():
+		return
+	var e := obtenir(n)
+	if e != null:
+		e._mort(centre, direction, force)
+
+func _mort(centre: Vector3, direction: Vector3, force: float) -> void:
+	var t_us := Time.get_ticks_usec()
+	var d := direction
+	d.y = 0.0
+	d = d.normalized() if d.length() > 0.01 else Vector3.ZERO
+	var nombre := randi_range(8, 12)
+	for k in nombre:
+		var i := TAILLE_POOL + _suivant_mort
+		_suivant_mort = (_suivant_mort + 1) % NB_MORT
+		var rb := _corps[i]
+		if _reste[i] <= 0.0:
+			_vivants += 1
+		_reste[i] = DUREE_MORT * randf_range(0.9, 1.0)
+		_endormis[i] = 0
+		rb.process_mode = Node.PROCESS_MODE_INHERIT
+		rb.visible = true
+		(rb.get_child(1) as Node3D).scale = Vector3.ONE
+		var b := Basis.from_euler(Vector3(randf() * TAU, randf() * TAU, randf() * TAU))
+		var haut := randf_range(0.25, 1.55)   # le crâne (dernier os) part de la tête
+		if k == nombre - 1:
+			haut = 1.6
+		rb.global_transform = Transform3D(b, centre + Vector3(randf_range(-0.12, 0.12), haut, randf_range(-0.12, 0.12)))
+		var lat := Vector3(randf_range(-1, 1), 0.0, randf_range(-1, 1)).normalized() * randf_range(0.8, 2.2)
+		rb.linear_velocity = (lat + d * randf_range(0.4, 1.4) + Vector3.UP * randf_range(1.6, 3.4)) * sqrt(force)
+		rb.angular_velocity = Vector3(randf_range(-10, 10), randf_range(-10, 10), randf_range(-10, 10))
+		rb.sleeping = false
+	lances += nombre
+	set_physics_process(true)
+	cout_us += Time.get_ticks_usec() - t_us
+
 func _physics_process(dt: float) -> void:
 	if _vivants <= 0:
 		set_physics_process(false)
 		return
 	var t_us := Time.get_ticks_usec()
-	for i in TAILLE_POOL:
+	for i in TOTAL:
 		if _reste[i] <= 0.0:
 			continue
 		_reste[i] -= dt
@@ -138,6 +262,9 @@ func _physics_process(dt: float) -> void:
 			(rb.get_child(1) as Node3D).scale = Vector3.ONE * maxf(_reste[i] / DUREE_FONTE, 0.05)
 		elif rb.global_position.y < -200.0:
 			_reste[i] = DUREE_FONTE   # tombé hors du monde
+		elif i >= TAILLE_POOL and _endormis[i] == 0 and rb.sleeping and _reste[i] > DUREE_FONTE:
+			_endormis[i] = 1   # os au repos : il sort de l'espace physique (reste visible, ne coûte plus rien)
+			rb.process_mode = Node.PROCESS_MODE_DISABLED
 	cout_us += Time.get_ticks_usec() - t_us
 
 ## Éclats en vol ou au sol (tests).

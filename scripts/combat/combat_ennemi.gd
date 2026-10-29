@@ -388,8 +388,12 @@ func effets_mort(r: Dictionary, sorte: String, joueur: Node) -> void:
 		var d_os := (dir + Vector3.UP * 0.8).normalized()
 		if mat_g == "draugr":
 			GerbePixels.emettre(corps, point, d_os, "draugr", GerbePixels.force_de(p.nom))
-		if mat_g == "os" or gros:
-			EclatsOs.lancer(corps, point, d_os, (8 if mat_g == "os" else 3) if gros else 4, 1.0)
+		if mat_g == "draugr" and gros:
+			EclatsOs.lancer(corps, point, d_os, 3, 1.0)
+	# squelette : 8 à 12 vrais os (modules os_long / crâne) jaillissent du corps, quel que soit le coup (sort compris) ; le
+	# ragdoll reste en place, les os restent 20 s au sol
+	if mat_g == "os":
+		EclatsOs.mort_squelette(corps, corps.global_position, dir, 1.0 if gros else 0.7)
 	Plaies.ajouter(modele, point, i.get("normale", -dir), dir, 0.5, profil.couleur_sang, profil.matiere)
 	RetourImpact.son_impact(corps, profil.matiere, p, point, false)
 	RetourImpact.cri(corps, "mort", point, profil.matiere, profil.mort_vivant)
