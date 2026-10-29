@@ -73,6 +73,13 @@ const COUDE_TENUE := Vector3(-0.9, -0.45, -0.3)
 var _epaule_k := {"gauche": 0.0, "droite": 0.0}
 var _epaules: SkeletonModifier3D
 var _echelle_main := {"gauche": 1.0, "droite": 1.0}
+## Respiration de la tenue « runes » (poignet qui monte et descend, doigts qui jouent) ; les tests de raccord au repos
+## (test_articulations_magie) la coupent : la pose de repos doit y être fixe pour être comparée.
+var souffle_tenue := true
+## Fondus d'entrée et de sortie de la tenue (s) : poids `_tenue_w` (pose, épaule, pôle du coude, main agrandie, griffe).
+const ENTREE_TENUE := 0.5
+const SORTIE_TENUE := 0.3
+var _tenue_w := {"gauche": 0.0, "droite": 0.0}
 var _arme_enchantee: Node3D
 ## Gestes des bras capturés (Mixamo) : lancer, charge, jet tenu, double incantation, zone (gestes_magie.gd).
 var gestes := GestesMagie.new()
@@ -685,6 +692,9 @@ func _preparer_os() -> void:
 func _pose_voulue(m: String, dt := 0.0) -> Dictionary:
 	var cat := eq.categorie(m)
 	var o := eq.autre(m)
+	# tenue « runes » : poids continu 0..1 (pas de bascule) ; le geste capturé et la tenue se fondent l'un dans l'autre
+	var cible := 1.0 if cat == "sort" and _tenue_runes(m) else 0.0
+	_tenue_w[m] = move_toward(float(_tenue_w[m]), cible, dt / (ENTREE_TENUE if cible > 0.5 else SORTIE_TENUE))
 	if cat != "sort":   # bouclier : posé par mains.gd (GestesBouclier), comme la torche
 		gestes.oublier(m)
 		return {}
@@ -693,17 +703,25 @@ func _pose_voulue(m: String, dt := 0.0) -> Dictionary:
 	# geste capturé (Mixamo) s'il y en a un pour ce sort et cet état, sinon pose fixe
 	var p := gestes.pose(m, i, s, dt)
 	var capture := not p.is_empty()
-	if not capture and _tenue_runes(m):
-		# au repos sans arme dans l'autre main (et geste fini) : tenue « runes » des avant-bras (mains vers le centre,
-		# énergie tenue en griffe), vivante : respiration (le poignet monte et descend), doigts qui jouent un peu,
-		# chaque main à son rythme
-		p = PosesIncantation.pose("repos_runes", m).duplicate()
-		var ph := 0.0 if m == "gauche" else 1.7
-		var souffle := sin(horloge * 1.9 + ph)
-		p["pos"] = Vector3(p["pos"]) + Vector3(0.002 * sin(horloge * 0.83 + ph), 0.006 * souffle, 0.003 * sin(horloge * 1.1 + ph))
-		p["fermeture"] = float(p["fermeture"]) + 0.05 * sin(horloge * 1.3 + ph * 2.0) + 0.02 * sin(horloge * 3.1 + ph)
-	elif not capture:
+	if not capture:
 		p = PosesIncantation.pour(i.nom(), s.profil if s != null else "paume", i.charge, i.depuis_lancement, i.t, m)
+	var w := smoothstep(0.0, 1.0, float(_tenue_w[m]))
+	if w > 0.0:
+		# au repos sans arme dans l'autre main : tenue « runes » des avant-bras (mains vers le centre, énergie tenue en
+		# griffe), vivante : respiration (le poignet monte et descend), doigts qui jouent un peu, chaque main à son rythme.
+		# Fondue avec le geste qui finit (le lancer s'achève dans la tenue) ou qui commence (il en part).
+		var t := PosesIncantation.pose("repos_runes", m).duplicate()
+		var ph := 0.0 if m == "gauche" else 1.7
+		var hl := horloge if souffle_tenue else 0.0
+		var souffle := sin(hl * 1.9 + ph)
+		t["pos"] = Vector3(t["pos"]) + Vector3(0.002 * sin(hl * 0.83 + ph), 0.006 * souffle, 0.003 * sin(hl * 1.1 + ph))
+		t["fermeture"] = float(t["fermeture"]) + 0.05 * sin(hl * 1.3 + ph * 2.0) + 0.02 * sin(hl * 3.1 + ph)
+		var q := PosesIncantation.melange(p, t, w)
+		for cle in ["coude", "suivi"]:
+			if p.has(cle):
+				q[cle] = p[cle]
+		q["griffe"] = w
+		p = q
 	# l'épée de l'autre main frappe : la main du sort s'écarte (contrepoids), sauf si elle canalise
 	if eq.categorie(o).begins_with("arme") and (mains.combat.attaque() or mains.combat.etat == EtatCombat.RECUPERATION) and i.etat != Incantation.CANALISE:
 		var k := 1.0 if mains.combat.attaque() else clampf(1.0 - mains.combat.t / maxf(float(mains.get("_duree_recup")), 0.05), 0.0, 1.0)
@@ -711,7 +729,8 @@ func _pose_voulue(m: String, dt := 0.0) -> Dictionary:
 	if i.double and not capture:   # le geste capturé à deux mains rapproche déjà les mains
 		p = p.duplicate()
 		var v: Vector3 = p["pos"]
-		p["pos"] = v + Vector3(PosesIncantation.RAPPROCHE_DOUBLE * (1.0 if m == "gauche" else -1.0), 0.0, 0.0)
+		# (pas dans la tenue « runes » : ses mains ont leur propre écart)
+		p["pos"] = v + Vector3(PosesIncantation.RAPPROCHE_DOUBLE * (1.0 if m == "gauche" else -1.0) * (1.0 - w), 0.0, 0.0)
 	if i.etat in [Incantation.CANALISE] or (i.etat == Incantation.CHARGE and i.charge >= 1.0):
 		p = p.duplicate()
 		p["pos"] = Vector3(p["pos"]) + Vector3(sin(horloge * 53.0), cos(horloge * 47.0), 0.0) * PosesIncantation.TREMBLE
@@ -739,7 +758,7 @@ func _poser_mains(dt: float) -> void:
 				o.active = _infl_d > 0.0
 				o.influence = _infl_d
 		# épaule de la tenue « runes » : fondu vers la pose normale dès que la main (ou l'autre) prend autre chose
-		_epaule_k[m] = move_toward(float(_epaule_k[m]), 1.0 if p.has("griffe") else 0.0, dt / 0.25)
+		_epaule_k[m] = _tenue_w[m]
 		var we := smoothstep(0.0, 1.0, float(_epaule_k[m]))
 		var sx := 1.0 if m == "gauche" else -1.0
 		if _epaules != null:
@@ -771,7 +790,9 @@ func _poser_mains(dt: float) -> void:
 		var k := 1.0 - exp(-float(p.get("suivi", 16.0)) * dt)
 		var a: Transform3D = _xf[m]
 		var qa := a.basis.get_rotation_quaternion()
-		var kr := GestesMagie.pas_rotation(qa, xf.basis.get_rotation_quaternion(), k, dt) if p.has("suivi") else k   # geste capturé : rotation bornée
+		# geste capturé, tenue « runes » (et son fondu) : rotation bornée (pas de main qui vrille d'un coup en y entrant)
+		var borne := p.has("suivi") or float(_tenue_w[m]) > 0.0
+		var kr := GestesMagie.pas_rotation(qa, xf.basis.get_rotation_quaternion(), k, dt) if borne else k
 		_xf[m] = Transform3D(Basis(qa.slerp(xf.basis.get_rotation_quaternion(), kr)), a.origin.lerp(xf.origin, k))
 		pivot.transform = dec * _xf[m] * prise
 		if o != null:
@@ -780,14 +801,14 @@ func _poser_mains(dt: float) -> void:
 			o.flexion_max = PI
 		var coude: Node3D = mains.get("_coude_g" if m == "gauche" else "_coude_d")
 		# pôle par défaut ; tenue « runes » : coude bas et en dehors (COUDE_TENUE), en fondu avec l'épaule
-		var pole_defaut := Vector3(-0.75 * sx, -0.55, 0.25).lerp(Vector3(COUDE_TENUE.x * sx, COUDE_TENUE.y, COUDE_TENUE.z), we)
-		var pole_voulu := (_pole[m] as Vector3).lerp(p.get("coude", pole_defaut), k)
-		_pole[m] = GestesMagie.limiter_pole(m, _pole[m], pole_voulu, dt) if p.has("suivi") else pole_voulu
+		var pole_cible: Vector3 = (p.get("coude", Vector3(-0.75 * sx, -0.55, 0.25)) as Vector3).lerp(Vector3(COUDE_TENUE.x * sx, COUDE_TENUE.y, COUDE_TENUE.z), we)
+		var pole_voulu := (_pole[m] as Vector3).lerp(pole_cible, k)
+		_pole[m] = GestesMagie.limiter_pole(m, _pole[m], pole_voulu, dt) if borne else pole_voulu
 		coude.position = _pole[m]
 		_poser_doigts(sq, m, float(p["fermeture"]), float(p.get("griffe", 0.0)))
 		var pm: Node3D = paume[m]
 		if pm != null:
-			_paume_k[m] = move_toward(float(_paume_k[m]), 1.0 if p.has("griffe") else 0.0, dt / 0.25)
+			_paume_k[m] = _tenue_w[m]
 			pm.position = Vector3(_paume_base[m]) + (Vector3(_paume_n[m]) * ECART_TENUE + Vector3(_paume_d[m]) * MONTEE_TENUE) * smoothstep(0.0, 1.0, float(_paume_k[m]))
 			_echelle(sq, m, lerpf(1.0, ECHELLE_MAIN_TENUE, smoothstep(0.0, 1.0, float(_paume_k[m]))))
 	# objets de la main gauche : torche seulement si c'est elle ; le bouclier (modèle et visibilité) est géré par mains.gd
@@ -822,7 +843,7 @@ func _poser_doigts(sq: Skeleton3D, m: String, fermeture: float, griffe := 0.0) -
 			var rang := int(nom.get_slice("_", 1))
 			var k: float = {"thumb": 1.3, "index": 0.72, "middle": 0.98, "ring": 1.22, "pinky": 1.45}.get(d, 1.0)
 			var jeu := 0.05 * sin(horloge * (1.1 + 0.17 * k) + ph + k * 2.0)
-			f = clampf(f * k + jeu * griffe, 0.0, 1.0)
+			f = clampf(f * lerpf(1.0, k, griffe) + jeu * griffe, 0.0, 1.0)
 			var r := q.slerp(qp, f)
 			if rang == 1 and d != "thumb":
 				# éventail : rotation autour de (axe de l'os × axe de flexion), le tout dans le repère de l'os au repos
