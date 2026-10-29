@@ -8,13 +8,13 @@ id = "jet_flammes"
 nom = "Jet de flammes"
 type = 1
 portee_mode = 1
-description = "Flammes continues à courte portée ; enflamme."
+description = "Vague de flammes continue qui porte loin ; enflamme."
 cout_par_seconde = 13.0
 degats = 20.0
 statut = "brulure"
 puissance_statut = 4.0
 stagger = 7.0
-portee = 5.5
+portee = 9.0
 largeur = 0.9
 double = {
 "cout": 2.2,
