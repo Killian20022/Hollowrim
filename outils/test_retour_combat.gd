@@ -107,8 +107,14 @@ func _tester() -> void:
 	sq.etat = sq.TRAQUE
 	j.global_position = sq.global_position + Vector3(0, 0, 3.0)
 	j.camera.global_transform = Transform3D(Basis.looking_at(sq.global_position + Vector3(0, 1.1, 0) - (j.global_position + Vector3(0, 1.62, 0)), Vector3.UP), j.global_position + Vector3(0, 1.62, 0))
-	for k in 12:
+	# Attente d'un ÉTAT, pas d'un nombre d'images : le HUD sonde la visée toutes les 0,12 s de jeu et son rayon traverse
+	# l'espace physique, que le déplacement du joueur ne met à jour qu'au prochain pas de physique. On laisse donc passer des
+	# pas de physique puis on attend (au plus 5 s de jeu) que la cible soit acquise.
+	await _frames(2)
+	for k in 300:
 		await process_frame
+		if hud.get("_cible") == sq:
+			break
 	_verif(hud.get("_cible") == sq, "HUD : ennemi en combat sous le réticule → barre affichée sans le frapper (%s)" % str(hud.get("_cible")))
 	sq.etat = sq.GARDE
 
