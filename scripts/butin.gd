@@ -34,6 +34,8 @@ var nom_corps := "Dépouille"
 var dialogue: Control
 ## Objets du corps encore à prendre (fenêtre de butin) : {id: n}.
 var objets := {}
+## Corps d'ennemi sauvegardé : clé de ButinTables.restes / corps (« ennemi:<ident> ») ; vide = non sauvegardé (coffres, bourses…).
+var cle_sauvegarde := ""
 
 static var _mesh: ArrayMesh
 static var _mats := {}
@@ -54,12 +56,44 @@ func _ready() -> void:
 		process_mode = Node.PROCESS_MODE_ALWAYS     # la gerbe d'un coffre continue sous la fenêtre de butin (jeu en pause)
 	elif not objets.is_empty():
 		_creer_fouille()
+		if cle_sauvegarde != "" and _inter != null:
+			# les objets restés dans le corps sont ceux de l'état sauvegardé (même dictionnaire : la fenêtre de butin le vide en place)
+			add_to_group("corps_butin")
+			ButinTables.restes[cle_sauvegarde] = objets
+			_noter_corps.call_deferred()
 	var nb := 0 if n_or <= 0 else clampi(4 + n_or / 3, 5, MAX_PIECES)
 	if nb > 0:
 		_jaillir.call_deferred(nb)      # après add_child : l'appelant pose global_position juste après
 	elif _inter == null:
 		_verser()                                   # rien à montrer : contenu versé tel quel (repli)
 		queue_free()
+
+## Position du corps (posée par l'appelant après add_child) notée pour la sauvegarde.
+func _noter_corps() -> void:
+	if is_inside_tree() and cle_sauvegarde != "":
+		var p := global_position
+		ButinTables.corps[cle_sauvegarde] = {"pos": [snappedf(p.x, 0.01), snappedf(p.y, 0.01), snappedf(p.z, 0.01)], "nom": nom_corps}
+
+## Partie chargée (monde.gd) : repose les corps encore fouillables de la sauvegarde (ButinTables.corps) ; ceux déjà présents sont retirés
+## d'abord (chargement en cours de partie). Pas de pièces : elles étaient versées ou perdues avant la sauvegarde.
+static func restaurer(parent: Node, joueur_: CharacterBody3D, hud_: Control) -> void:
+	for n in parent.get_tree().get_nodes_in_group("corps_butin"):
+		n.remove_from_group("corps_butin")
+		n.queue_free()
+	for cle: String in ButinTables.corps.keys():
+		if not ButinTables.a_reste(cle):
+			continue
+		var e: Dictionary = ButinTables.corps[cle]
+		var pos: Array = e["pos"]
+		var b := Node3D.new()
+		b.set_script(preload("res://scripts/butin.gd"))
+		b.joueur = joueur_
+		b.hud = hud_
+		b.nom_corps = String(e.get("nom", "Dépouille"))
+		b.contenu = (ButinTables.restes[cle] as Dictionary).duplicate()
+		b.cle_sauvegarde = cle
+		parent.add_child(b)
+		b.global_position = Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
 
 ## L3 : corps à fouiller (touche E, « Fouiller ») : ouvre la fenêtre de butin sur `objets` ; sans boîte de dialogue ni fenêtre
 ## (scène sans interface), pas d'invite : les objets sont versés avec les pièces (repli de _verser).

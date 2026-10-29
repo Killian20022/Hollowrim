@@ -558,16 +558,17 @@ var cass_actif := true
 var _cass: Array = []
 var _cass_ids := {}
 
-func cassable_debut(genre: String, pos: Vector3, ech: float) -> void:
+func cassable_debut(genre: String, pos: Vector3, ech: float, boite := Vector3.ZERO) -> bool:
 	if muet or not cass_actif or lot != "":
-		return
+		return false
 	var w := xf * pos
 	var id := "%s:%s_%d_%d_%d" % [cass_prefixe, genre, roundi(w.x * 10.0), roundi(w.y * 10.0), roundi(w.z * 10.0)]
 	if _cass_ids.has(id):
-		return
+		return false
 	_cass_ids[id] = true
 	lot = "cass:" + id
-	_cass.append({"id": id, "genre": genre, "pos": w, "ech": ech})
+	_cass.append({"id": id, "genre": genre, "pos": w, "ech": ech, "boite": boite})
+	return true
 
 func cassable_fin() -> void:
 	if lot.begins_with("cass:"):
@@ -592,7 +593,7 @@ func _cassables_finir() -> void:
 		if tampons.is_empty():
 			continue
 		var cs := Cassable.new()
-		cs.monter(String(c["id"]), String(c["genre"]), float(c["ech"]), tampons, materiaux)
+		cs.monter(String(c["id"]), String(c["genre"]), float(c["ech"]), tampons, materiaux, c.get("boite", Vector3.ZERO))
 		racine.add_child(cs)
 		cs.position = origine
 	_cass.clear()

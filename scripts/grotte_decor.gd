@@ -1047,9 +1047,15 @@ func caisse(pos: Vector3, taille := Vector3(0.7, 0.5, 0.5), lacet := 0.0) -> voi
 		return
 	var b := Basis(Vector3.UP, lacet)
 	# L5 : module Blender (planches jointives, montants, écharpes, cercles et cornières de fer, couvercle), étiré à la taille demandée
-	objet("g_caisse_" + variante(pos, 2), pos, lacet, taille / Vector3(0.7, 0.5, 0.5))
 	var s := b * Vector3(taille.x, 0, taille.z)
-	solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s.x), taille.y, absf(s.z)))
+	var casse := cassable_debut("caisse", pos, 1.0, (xf.basis * Vector3(absf(s.x), taille.y, absf(s.z))).abs() if xf != Transform3D.IDENTITY else Vector3(absf(s.x), taille.y, absf(s.z)))      # brisable (cassable.gd)
+	objet("g_caisse_" + variante(pos, 2), pos, lacet, taille / Vector3(0.7, 0.5, 0.5))
+	cassable_fin()
+	if casse:      # le Cassable porte lui-même le solide (retiré à la casse)
+		if _obj_n > 0 and not muet:
+			_audit_solide(xf * (pos + Vector3(0, taille.y * 0.5, 0)), Vector3(absf(s.x), taille.y, absf(s.z)))
+	else:
+		solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s.x), taille.y, absf(s.z)))
 	xf = x0
 	_empreinte(pos, (taille.x + taille.z) * 0.25, taille.y)
 	objet_fin()
