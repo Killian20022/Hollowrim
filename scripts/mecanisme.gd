@@ -701,8 +701,8 @@ class Mur extends Base:
 			var s := rng.randf_range(0.12, 0.3)
 			Mecanisme.boite(self, Vector3(s, s * 0.7, s), Vector3(rng.randf_range(-taille.x * 0.4, taille.x * 0.4), -taille.y * 0.5 + s * 0.35, rng.randf_range(-taille.z * 1.2, taille.z * 1.2)), gravats, Vector3(rng.randf(), rng.randf(), rng.randf()))
 		if avec_effets and is_inside_tree():
-			Effets.eclats(self, global_position, gris, 40, 3.0)
-			Effets.eclats(self, global_position + Vector3(0, taille.y * 0.2, 0), Color(0.7, 0.68, 0.64), 24, 1.5)
+			GerbePixels.emettre(self, global_position, Vector3.UP, "pierre", 3.0)        # gravats (GerbePixels, palette Roche)
+			GerbePixels.emettre(self, global_position + Vector3(0, taille.y * 0.2, 0), Vector3.UP, "poussiere", 2.0)
 			son(["impactPlate_medium_000", "impactWood_heavy_000"], Vector3.ZERO, 4.0)
 			secousse(0.6)
 			fin([])

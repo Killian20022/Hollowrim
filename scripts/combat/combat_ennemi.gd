@@ -290,7 +290,7 @@ func effets_impact(r: Dictionary, joueur: Node) -> void:
 	var dir_g := (Vector3(i.get("normale", -dir)) * 0.7 + dir * 0.5 + Vector3.UP * 0.35).normalized()
 	var mat_g := matiere_gerbe()
 	if not magie and not bool(i.get("continu", false)):
-		if mat_g in ["draugr", "sang"]:   # (os, bois, poussière : déjà par Sang.eclats_matiere ci-dessus)
+		if mat_g in ["draugr", "sang", "chair"]:   # (os, bois, poussière : déjà par Sang.eclats_matiere ci-dessus)
 			GerbePixels.emettre(corps, point, dir_g, mat_g, GerbePixels.force_de(p.nom) * (0.7 if mat_g == "sang" else 1.0))
 		# os qui volent : coups forts sur un squelette ou un draugr
 		if mat_g in ["os", "draugr"] and p.nom in ["lourd", "critique", "finisher"]:
@@ -336,7 +336,7 @@ func effets_blocage(r: Dictionary, brise: bool) -> void:
 	var pt := corps.global_position + Vector3(0, 1.1, 0) + vers * 0.4
 	var d_g := (vers + Vector3.UP * 0.5).normalized()
 	GerbePixels.emettre(corps, pt, d_g, "bois", 1.6 if brise else 1.0)
-	GerbePixels.emettre(corps, pt, d_g, "etincelles", 1.5 if brise else 1.1)
+	GerbePixels.emettre(corps, pt, d_g, "etincelles", 2.2 if brise else 1.6)   # fer de l'umbo : traits nets (passe « intensité »)
 	ChiffresDegats.ajouter(corps, point + Vector3(0, 0.2, 0), float(r.get("degats", 0.0)), ChiffresDegats.BLOQUE)
 	if debug:
 		_flottant("GARDE BRISEE" if brise else "BLOQUE", point + Vector3(0, 0.25, 0), Color(0.7, 0.8, 1.0))
@@ -404,7 +404,8 @@ func effets_mort(r: Dictionary, sorte: String, joueur: Node) -> void:
 		_flottant("MORT " + sorte.to_upper(), point + Vector3(0, 0.45, 0), Color(1.0, 0.3, 0.25))
 
 ## Matière de la gerbe de pixels (GerbePixels.MATIERES) : squelette → os ; mannequin → bois ; draugr → os et sang noirci ;
-## chair vivante (bandit, mage, troll) → sang sombre ; sang coupé (option gore) → os pour les draugrs, poussière sinon.
+## chair vivante (bandit, mage) → sang ; chair épaisse (troll) → sang vif et peau ; sang coupé (option gore) → os pour les
+## draugrs, poussière sinon.
 func matiere_gerbe() -> String:
 	match profil.matiere:
 		"os":
@@ -413,7 +414,9 @@ func matiere_gerbe() -> String:
 			return "bois"
 	if profil.nom.begins_with("draugr"):
 		return "draugr" if Sang.niveau() > 0 else "os"
-	return "sang" if Sang.niveau() > 0 else "poussiere"
+	if Sang.niveau() <= 0:
+		return "poussiere"
+	return "chair" if profil.nom.begins_with("troll") else "sang"
 
 ## Accroche d'os préparée par Plaies (position visible, suit le ragdoll).
 func _accroche(os: String) -> Node3D:

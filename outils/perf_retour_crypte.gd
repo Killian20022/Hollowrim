@@ -6,7 +6,7 @@ extends SceneTree
 ## chiffres) → l'écart ne dépend pas de la charge du PC ; coupé = AUCUNE gerbe (pas même les anciens cubes) : l'écart est un
 ## majorant du coût ajouté. La PREMIÈRE phase est le tout premier coup (après la préchauffe du chargement) : pire image et
 ## pipelines compilés pendant sa première seconde.
-##   godot --path . --disable-vsync --script res://outils/perf_retour_crypte.gd -- --nouvelle [--tours=3]
+##   godot --path . --disable-vsync --script res://outils/perf_retour_crypte.gd -- --nouvelle [--tours=3] [--ennemis=3]
 const SCENE := preload("res://scenes/foret_test.tscn")
 
 var m: Node3D
@@ -54,7 +54,7 @@ func _go() -> void:
 	var premier := Vector3.ZERO
 	var face := Vector3.FORWARD
 	for g: Dictionary in m.tertre.donjon.gardiens:
-		if cibles.size() >= 3:
+		if cibles.size() >= int(_arg("ennemis", "3")):
 			break
 		var ty := String(g["type"])
 		if ty == "squelette_archer" or (g["extra"] as Dictionary).has("boss") or (g["extra"] as Dictionary).has("si"):

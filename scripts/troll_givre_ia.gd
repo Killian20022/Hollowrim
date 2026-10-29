@@ -231,7 +231,7 @@ func _ia(dt: float) -> void:
 					var r: String = joueur.recevoir_coup(degats_charge, global_position, {"imparable": 0.35, "recul": 11.0, "secousse": 0.8})
 					RetourImpact.son(self, "chair", joueur.global_position + Vector3.UP, 0.0, 0.8)
 					if r != "touche":
-						Effets.eclats(self, joueur.global_position + Vector3(0, 1.2, 0), Color(3.0, 2.2, 0.8), 10, 2.5, true)
+						GerbePixels.emettre(self, joueur.global_position + Vector3(0, 1.2, 0), (_charge_dir + Vector3.UP * 0.5).normalized(), "etincelles", 1.4)
 			if etat != CHARGE:
 				return
 			if _t >= DUREE_CHARGE or _charge_touche and _t > 0.25:
@@ -286,7 +286,7 @@ func _t_pas_charge(dt: float) -> void:
 		anim.speed_scale = 0.5
 		combat.posture = maxf(0.0, combat.posture - combat.profil.posture_max * 0.4)
 		RetourImpact.son(self, "chute_pierre", global_position + _charge_dir + Vector3.UP, 2.0, 0.7)
-		Effets.eclats(self, global_position + _charge_dir * 0.9 + Vector3(0, 1.6, 0), Color(0.85, 0.9, 1.0), 20, 3.5)
+		GerbePixels.emettre(self, global_position + _charge_dir * 0.9 + Vector3(0, 1.6, 0), (-_charge_dir + Vector3.UP * 0.5).normalized(), "pierre", 1.8)
 		_secouer(0.6, 10.0)
 		derniere_attaque = "charge_mur"
 
@@ -340,10 +340,11 @@ func _onde() -> void:
 	if is_instance_valid(_alerte):
 		_effacer_telegraphe(_alerte, 0.25)
 	_pics_glace(_centre_onde, RAYON_ONDE * 0.9, 14, 1.0)
-	for k in 6:
-		var a := TAU * k / 6.0
-		Effets.eclats(self, _centre_onde + Vector3(cos(a), 0.2, sin(a)) * RAYON_ONDE * 0.6, Color(0.7, 0.9, 1.5), 10, 4.5, true)
-	Effets.eclats(self, _centre_onde + Vector3(0, 0.2, 0), Color(0.9, 0.93, 1.0), 26, 5.0)
+	for k in 3:   # gerbes de givre autour du disque (pool GerbePixels)
+		var a := TAU * k / 3.0
+		var o := Vector3(cos(a), 0.0, sin(a))
+		GerbePixels.emettre(self, _centre_onde + o * RAYON_ONDE * 0.6 + Vector3(0, 0.2, 0), (o + Vector3.UP).normalized(), "givre_lueur", 1.3)
+	GerbePixels.emettre(self, _centre_onde + Vector3(0, 0.2, 0), Vector3.UP, "givre", 2.2)
 	Sons.jouer_a(self, ["impactPunch_heavy_000", "impactPunch_heavy_001", "impactPunch_heavy_002"], _centre_onde, 4.0, 0.1)
 	RetourImpact.son(self, "chute_pierre", _centre_onde, 3.0, 0.6)
 	_secouer(0.85, 12.0)
@@ -376,9 +377,8 @@ func _lancer_rage() -> void:
 func _cri_rage() -> void:
 	_jouer("Spell_Simple_Shoot", 0.1, true)
 	anim.speed_scale = 0.45
-	for k in 3:
-		Effets.eclats(self, global_position + Vector3(0, 1.4 + k * 0.4, 0), Color(0.65, 0.9, 1.6), 22, 5.0, true)
-	Effets.eclats(self, global_position + Vector3(0, 0.3, 0), Color(0.9, 0.93, 1.0), 30, 4.0)
+	GerbePixels.emettre(self, global_position + Vector3(0, 1.8, 0), Vector3.UP, "givre_lueur", 3.0)
+	GerbePixels.emettre(self, global_position + Vector3(0, 0.3, 0), Vector3.UP, "givre", 2.0)
 	_secouer(0.6, 14.0)
 	_eclair(0.8)
 
@@ -401,7 +401,7 @@ func _regenerer(dt: float) -> void:
 	_t_regen_fx -= dt
 	if _t_regen_fx <= 0.0:
 		_t_regen_fx = 0.9
-		Effets.eclats(self, global_position + Vector3(randf_range(-0.4, 0.4), 1.5, randf_range(-0.4, 0.4)), Color(0.75, 0.95, 1.3), 6, 1.2, true)
+		GerbePixels.emettre(self, global_position + Vector3(randf_range(-0.4, 0.4), 1.5, randf_range(-0.4, 0.4)), Vector3.UP, "givre_lueur", 0.4)
 
 # ------------------------------------------------------------------ coups reçus
 
@@ -411,7 +411,7 @@ func _etat_coup() -> Dictionary:
 func _apres_degats(r: Dictionary) -> void:
 	if String(r["info"].get("type", "")) == "feu":
 		_brule = SANS_REGEN_FEU
-		Effets.eclats(self, r["info"]["point"], Color(3.0, 1.4, 0.4), 10, 2.0, true)
+		GerbePixels.emettre(self, r["info"]["point"], Vector3.UP, "braise", 0.9)
 		# peur du feu : déjà en flammes, il recule (charge et écrasement annoncés annulés), sauf en rage ou étourdi
 		if (Statuts.a(self, "brulure") or Statuts.a(self, "brulure_obscure")) and _peur_feu <= 0.0 and etat not in [RAGE, ETOURDI, SONNE, CHARGE] and joueur != null and vie > 0.0:
 			_peur_feu = PEUR_FEU_RECHARGE
@@ -494,8 +494,8 @@ func _special_mort(sorte: String, _r: Dictionary) -> void:
 		if is_instance_valid(bassin):
 			p = bassin.global_position
 		moi._secouer(1.0, 14.0)
-		Effets.eclats(moi, Vector3(p.x, moi.global_position.y + 0.2, p.z), Color(0.9, 0.93, 1.0), 36, 4.0)
-		Effets.eclats(moi, Vector3(p.x, moi.global_position.y + 0.4, p.z), Color(0.65, 0.88, 1.4), 16, 3.0, true)
+		GerbePixels.emettre(moi, Vector3(p.x, moi.global_position.y + 0.2, p.z), Vector3.UP, "givre", 2.4)
+		GerbePixels.emettre(moi, Vector3(p.x, moi.global_position.y + 0.4, p.z), Vector3.UP, "givre_lueur", 1.2)
 		RetourImpact.son(moi, "chute_pierre", p, 4.0, 0.55)
 		Sons.jouer_a(moi, ["impactPunch_heavy_000", "impactPunch_heavy_001"], p, 3.0, 0.05))
 

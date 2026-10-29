@@ -42,11 +42,6 @@ static func caches() -> void:
 	Sang._pm_giclee(45.0, 1.2, 4.0, false)
 	Sang.pm_jet(1)
 	Sang.pm_jet(2)
-	for v in [1.2, 1.4, 1.6, 2.2, 2.4, 2.5, 2.8, 3.0, 3.2]:   # 1,2 / 1,4 : étincelles des finishers (casque, cotte)
-		Effets._pm_eclats(v)
-	for c: Color in [Color(3.0, 2.2, 0.8), Color(3.0, 2.4, 1.0), Color(3.2, 2.6, 1.2), Color(3.0, 2.1, 0.7), Color(3.0, 2.0, 0.7)]:
-		Effets._cube_eclats(c, true)
-	Effets._cube_eclats(Color(0.6, 0.45, 0.3), false)
 	GerbePixels._preparer_ressources()   # gerbes de pixels du corps à corps (lot L6) : quads, shaders, matériaux de processus
 	EclatsOs._ressources()
 
@@ -89,9 +84,8 @@ static func vitrine() -> Node3D:
 		_particules(v, Vector3(x, 0.6, 0), Sang._pm_giclee(45.0, 1.2, 4.0, false), Sang._cube(Vector3(0.022, 0.022, 0.022), c * 0.85))
 		x += 0.2
 	_particules(v, Vector3(0.0, 0.0, -0.2), Sang.pm_jet(2), Sang._cube(Vector3(0.03, 0.08, 0.03), COULEURS[0]))
-	_particules(v, Vector3(0.3, 0.0, -0.2), Effets._pm_eclats(3.0), Effets._cube_eclats(Color(3.0, 2.2, 0.8), true))
-	_particules(v, Vector3(0.5, 0.0, -0.2), Effets._pm_eclats(2.2), Effets._cube_eclats(Color(0.6, 0.45, 0.3), false))
-	# gerbes de gros pixels (mélange et additif) et un éclat d'os (shader ps1, palette OSSEMENT)
+	# (anciens éclats Effets.eclats supprimés le 2026-10-28 : tout passe par GerbePixels, préchauffé juste en dessous)
+	# gerbes de gros pixels (carrés, traits, lueur) et un éclat d'os (shader ps1, palette OSSEMENT)
 	GerbePixels.vitrine(v)
 	var os := MeshInstance3D.new()
 	os.mesh = EclatsOs._mailles[0]

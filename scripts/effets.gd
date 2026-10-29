@@ -1,53 +1,6 @@
 class_name Effets
-## Effets de combat partagés : éclats (sang, poussière d'os, étincelles), arrêt sur image.
-
-static func eclats(parent: Node, position: Vector3, couleur: Color, nombre := 14, vitesse := 3.0, lumineux := false) -> void:
-	var p := GPUParticles3D.new()
-	p.one_shot = true
-	p.amount = nombre
-	p.lifetime = 0.9
-	p.explosiveness = 1.0
-	p.process_material = _pm_eclats(vitesse)
-	p.draw_pass_1 = _cube_eclats(couleur, lumineux)
-	var scene := parent.get_tree().current_scene
-	(scene if scene else parent.get_tree().root).add_child(p)
-	p.global_position = position
-	p.emitting = true
-	p.finished.connect(p.queue_free)
-
-## Ressources partagées des éclats (une par vitesse / couleur) : plus de matériau neuf à chaque coup.
-static var _pm := {}
-static var _cubes := {}
-
-static func _pm_eclats(vitesse: float) -> ParticleProcessMaterial:
-	var cle := snappedf(vitesse, 0.1)
-	if not _pm.has(cle):
-		var pm := ParticleProcessMaterial.new()
-		pm.direction = Vector3.UP
-		pm.spread = 75.0
-		pm.initial_velocity_min = cle * 0.4
-		pm.initial_velocity_max = cle
-		pm.gravity = Vector3(0, -9.0, 0)
-		pm.scale_min = 0.5
-		pm.scale_max = 1.4
-		_pm[cle] = pm
-	return _pm[cle]
-
-static func _cube_eclats(couleur: Color, lumineux: bool) -> BoxMesh:
-	var cle := str(couleur) + ("L" if lumineux else "")
-	if not _cubes.has(cle):
-		var cube := BoxMesh.new()
-		cube.size = Vector3.ONE * 0.05
-		if lumineux:
-			cube.material = Palette.lueur(couleur)
-		else:
-			var m := StandardMaterial3D.new()
-			m.albedo_color = couleur
-			cube.material = m
-		if _cubes.size() > 64:
-			_cubes.clear()
-		_cubes[cle] = cube
-	return _cubes[cle]
+## Effets de combat partagés : arrêt sur image, ralenti. (Les éclats en cubes StandardMaterial3D — Effets.eclats — sont
+## remplacés le 2026-10-28 par les gerbes de gros pixels en palette : GerbePixels.emettre(nœud, point, direction, matière, force).)
 
 ## Demandes d'échelle de temps en cours ([échelle, fin en ms réelles] par demande) : la plus lente l'emporte ; quand la dernière se
 ## termine, le temps reprend à 1. (Avant : deux arrêts superposés — épée + dégâts — se coupaient l'un l'autre au premier qui finissait.)

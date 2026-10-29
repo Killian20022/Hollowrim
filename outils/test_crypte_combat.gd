@@ -159,7 +159,7 @@ func _tester() -> void:
 	_verif(pire < 15.0, "coups légers suivants : pire appel %.1f ms (%d coups ; ~10 ms avant, dont 2 ms par son Ogg)" % [pire, appels_legers.size()])
 	_verif(n_tetes >= 2, "têtes coupées : %d" % n_tetes)
 	_verif(Decapitation._mats_bouchon.size() - bouchons0 <= 0, "bouchons de cou : matériaux partagés (%d avant les combats, %d après %d décapitations)" % [bouchons0, Decapitation._mats_bouchon.size(), n_tetes])
-	_verif(Sang._pm_cache.size() <= 24 and pm_vus.size() <= Sang._pm_cache.size() + Effets._pm.size() + Sang._pm_jets.size() + 2, "matériaux de particules réutilisés : %d en cache, %d distincts vus" % [Sang._pm_cache.size(), pm_vus.size()])
+	_verif(Sang._pm_cache.size() <= 24 and pm_vus.size() <= Sang._pm_cache.size() + GerbePixels._pms.size() + Sang._pm_jets.size() + 2, "matériaux de particules réutilisés : %d en cache, %d distincts vus" % [Sang._pm_cache.size(), pm_vus.size()])
 	# cadavres et têtes : 3 s de physique, puis tous dans la crypte, au-dessus du sol
 	for f in 180:
 		await physics_frame

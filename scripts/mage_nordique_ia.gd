@@ -322,7 +322,7 @@ func _lancer_trait() -> void:
 	_jouer("Spell_Simple_Enter", 0.1, true)
 	_cible_tir = joueur.global_position + Vector3(0, 1.15, 0)
 	Sons.jouer_a(self, ["cloth1", "cloth2"], global_position + Vector3.UP * 1.4, -2.0, 0.1)
-	Effets.eclats(self, _main_gauche(), COULEUR, 6, 1.0, true)
+	GerbePixels.emettre(self, _main_gauche(), Vector3.UP, "givre_lueur", 0.45)
 
 func _tirer() -> void:
 	_jouer("Spell_Simple_Shoot", 0.05, true)
@@ -334,7 +334,7 @@ func _tirer() -> void:
 		ombres += 1
 	tirs += 1
 	_orbe_montrer(0.0)
-	Effets.eclats(self, depart, COULEUR, 10, 2.0, true)
+	GerbePixels.emettre(self, depart, d, "givre_lueur", 0.75)
 	Sons.jouer_a(self, ["swing2", "swing3"], depart, -2.0, 0.1)
 
 func _lancer_zone() -> void:
@@ -352,8 +352,8 @@ func _declencher_zone() -> void:
 	if is_instance_valid(_alerte):
 		_effacer_telegraphe(_alerte, 0.25)
 	_alerte = null
-	Effets.eclats(self, _centre_zone + Vector3(0, 0.3, 0), COULEUR, 24, 4.0, true)
-	Effets.eclats(self, _centre_zone + Vector3(0, 0.2, 0), Color(0.9, 0.94, 1.0), 16, 3.0)
+	GerbePixels.emettre(self, _centre_zone + Vector3(0, 0.3, 0), Vector3.UP, "givre_lueur", 1.7)
+	GerbePixels.emettre(self, _centre_zone + Vector3(0, 0.2, 0), Vector3.UP, "givre", 1.0)
 	Sons.jouer_a(self, ["impactPlate_medium_000", "impactPlate_medium_001"], _centre_zone, 2.0, 0.1)
 	if joueur.get("mort") == true:
 		return
@@ -366,7 +366,7 @@ func _lancer_teleport() -> void:
 	_changer(TELEPORT)
 	_jouer("Spell_Simple_Enter", 0.05, true)
 	anim.speed_scale = 1.6
-	Effets.eclats(self, global_position + Vector3(0, 1.0, 0), COULEUR, 18, 2.5, true)
+	GerbePixels.emettre(self, global_position + Vector3(0, 1.0, 0), Vector3.UP, "givre_lueur", 1.3)
 	Sons.jouer_a(self, ["mnstr5", "mnstr6"], global_position + Vector3.UP, -4.0, 0.15)
 
 ## Point d'arrivée du téléport : 7-9 m du joueur, du sol sous les pieds, la ligne de vue sur le joueur, pas trop loin de son poste.
@@ -415,14 +415,14 @@ func _teleporter() -> void:
 		_recharge = 0.0
 		return
 	var avant := global_position
-	Effets.eclats(self, avant + Vector3(0, 1.0, 0), COULEUR, 24, 3.5, true)
-	Effets.eclats(self, avant + Vector3(0, 0.3, 0), Color(0.9, 0.94, 1.0), 14, 2.0)
+	GerbePixels.emettre(self, avant + Vector3(0, 1.0, 0), Vector3.UP, "givre_lueur", 1.7)
+	GerbePixels.emettre(self, avant + Vector3(0, 0.3, 0), Vector3.UP, "givre", 0.9)
 	global_position = p + Vector3(0, 0.05, 0)
 	velocity = Vector3.ZERO
 	_vit = 0.0
 	var vj := _vers_joueur()
 	rotation.y = atan2(Vector3(vj["dir"]).x, Vector3(vj["dir"]).z)
-	Effets.eclats(self, global_position + Vector3(0, 1.0, 0), COULEUR, 24, 3.5, true)
+	GerbePixels.emettre(self, global_position + Vector3(0, 1.0, 0), Vector3.UP, "givre_lueur", 1.7)
 	Sons.jouer_a(self, ["impactPlate_medium_000", "impactPlate_medium_001"], global_position + Vector3.UP, -2.0, 0.1)
 	_cd_tp = randf_range(6.5, 8.0)
 	teleports += 1
@@ -516,8 +516,9 @@ func _special_mort(_sorte: String, _r: Dictionary) -> void:
 	var cristal := global_position + Vector3(0, 2.0, 0)
 	if sq != null and sq.find_bone("hand_r") >= 0:
 		cristal = (sq.global_transform * sq.get_bone_global_pose(sq.find_bone("hand_r"))).origin + Vector3(0, 0.7, 0)
-	Effets.eclats(self, cristal, COULEUR, 30, 5.0, true)
-	Effets.eclats(self, global_position + Vector3(0, 1.2, 0), Color(0.9, 0.95, 1.0), 20, 3.0)
+	GerbePixels.emettre(self, cristal, Vector3.UP, "givre", 2.2)          # le cristal du bâton vole en éclats
+	GerbePixels.emettre(self, cristal, Vector3.UP, "givre_lueur", 1.6)
+	GerbePixels.emettre(self, global_position + Vector3(0, 1.2, 0), Vector3.UP, "givre", 1.2)
 	_pics_glace(global_position, 1.3, 8, 0.7)
 	Sons.jouer_a(self, ["impactPlate_medium_000", "impactPlate_medium_001"], cristal, 4.0, 0.05)
 	var l := OmniLight3D.new()
