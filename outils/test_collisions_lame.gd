@@ -93,7 +93,7 @@ func _coup(poste: String, geste: String, fps: int, mouvement := {}) -> Dictionar
 		j.rotation.y += deg_to_rad(lacet) * sens * dt
 		t += dt
 	mains.trace.garder_debug = false
-	var res := {"poste": poste, "geste": geste, "fps": fps, "arret": arrete, "rebond": etats.has(EtatCombat.DESEQUILIBRE), "touches": [], "rayons": rayons, "impacts": mains.trace.debug_impacts.duplicate(), "instants": instants, "cout": cout_max}
+	var res := {"poste": poste, "geste": geste, "fps": fps, "arret": arrete, "oeil": j.camera.global_position, "rebond": etats.has(EtatCombat.DESEQUILIBRE), "touches": [], "rayons": rayons, "impacts": mains.trace.debug_impacts.duplicate(), "instants": instants, "cout": cout_max}
 	for c in zone.cibles[poste]:
 		if c is CharacterBody3D:
 			res["touches"].append(1 if c.vie < vies[zone.cibles[poste].find(c)] else 0)
@@ -103,6 +103,20 @@ func _coup(poste: String, geste: String, fps: int, mouvement := {}) -> Dictionar
 				instants.append(snappedf(float(h["info"].get("instant", -1.0)), 0.0001))
 	print("CAS %-9s %-14s %3d i/s : touches %s, arrêt %s, rayons %d, image la plus chère %.2f ms%s" % [poste, geste, fps, res["touches"], "oui" if arrete else "non", rayons, cout_max / 1000.0, "" if mouvement.is_empty() else "  (en mouvement %s)" % mouvement])
 	return res
+
+## Aucune touche À TRAVERS un mur : chaque point d'impact du coup est vu de l'œil sans décor entre les deux.
+func _sans_traversee(r: Dictionary) -> bool:
+	var oeil: Vector3 = r["oeil"]
+	var espace := j.get_world_3d().direct_space_state
+	for p: Vector3 in r["impacts"]:
+		var d := p - oeil
+		if d.length() < 0.05:
+			continue
+		var q := PhysicsRayQueryParameters3D.create(oeil, oeil + d * (1.0 - 0.03 / d.length()), 1, [j.get_rid()])
+		var h := espace.intersect_ray(q)
+		if not h.is_empty() and TraceLame.cible_de(h["collider"]) == null:
+			return false
+	return true
 
 func _somme(a: Array) -> int:
 	var n := 0
@@ -136,7 +150,14 @@ func _tester() -> void:
 			for g in (BALAYAGES + ["estoc"] if poste != "derriere" else ["horizontale_b", "horizontale", "diag_dg"]):
 				var r := await _coup(poste, g, fps)
 				res["%s/%s" % [poste, g]] = r
-				_verif(r["arret"] and _somme(r["touches"]) == 0, "%d i/s %s %s : lame arrêtée, cible derrière intacte" % [fps, poste, g])
+				if poste == "coin":
+					# (coups_v4 : le V du coin s'ouvre VERS le joueur — pointe à ~2,07 m, bras jusqu'à 0,93 m de côté — et le
+					# mannequin dépasse un peu devant la pointe. L'ancien attendu « lame arrêtée » venait des bras du V, sur les
+					# côtés de l'écran ou hors de portée de la vraie lame : c'est le défaut corrigé. L'invariant gardé : jamais de
+					# touche À TRAVERS un mur.)
+					_verif(_sans_traversee(r), "%d i/s coin %s : aucune touche à travers un mur (touches %s, arrêt %s)" % [fps, g, r["touches"], "oui" if r["arret"] else "non"])
+				else:
+					_verif(r["arret"] and _somme(r["touches"]) == 0, "%d i/s %s %s : lame arrêtée, cible derrière intacte" % [fps, poste, g])
 		# point d'arrêt sur la face du mur fin (5 cm, à 0,9 m)
 		var rm: Dictionary = res["mur_fin/horizontale_gd"]
 		var face_z: float = zone.poste("mur_fin").z - 0.9 + 0.025
@@ -145,9 +166,12 @@ func _tester() -> void:
 		var re := await _coup("porte", "estoc", fps)
 		res["porte/estoc"] = re
 		_verif(_somme(re["touches"]) == 1, "%d i/s porte, estoc : cible touchée par l'ouverture" % fps)
+		# (coups_v4, 2026-10-29 soir : l'ancien attendu — « arrêté par le chambranle » — était justement le défaut signalé :
+		# « parfois je ne peux pas donner de coup d'épée dans un endroit pas si restreint ». Le chambranle, sur le côté de l'écran,
+		# ne fait plus rebondir la lame ; elle passe par l'ouverture et touche la cible, sans rebond.)
 		var rh := await _coup("porte", "horizontale_gd", fps)
 		res["porte/horizontale_gd"] = rh
-		_verif(rh["arret"] and _somme(rh["touches"]) == 0, "%d i/s porte, horizontal : arrêté par le chambranle, cible intacte" % fps)
+		_verif(not rh["rebond"] and _somme(rh["touches"]) == 1, "%d i/s porte, horizontal : passe par l'ouverture (pas de rebond sur le chambranle), cible touchée %s" % [fps, rh["touches"]])
 		var rv := await _coup("porte", "verticale_l", fps)
 		res["porte/verticale_l"] = rv
 		_verif(not (rv["arret"] and _somme(rv["touches"]) > 0 and false), "%d i/s porte, vertical : %s" % [fps, "touchée" if _somme(rv["touches"]) > 0 else "arrêté par l'embrasure"])

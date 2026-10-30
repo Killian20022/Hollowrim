@@ -9,7 +9,8 @@ class_name ProfilsAnimation
 ## « cotes » = [côté de départ, côté d'arrivée] (+1 droite, -1 gauche, 0 centre) ; « enchainement » = fenêtre de combo
 ## [début (s), fin (part de la récupération)] ; « force » = multiplicateur de dégâts du geste ; « fenetre » = part de la
 ## frappe où la lame blesse ; « tassement » = petit tassement de la caméra à la fin de la frappe (coup 3, lourds) ;
-## « charge » (attaques puissantes) = clip de l'armé tenu pendant la charge.
+## « charge » (attaques puissantes) = clip de l'armé tenu pendant la charge ; « elan » = avancée du joueur sur l'armé (m, coups_v4 :
+## AccompagnementCoup ; 0 pour l'estoc en reculant).
 const PROFILS := {
 	"epee_longue": {
 		# enchaînement de base à l'arrêt (retour utilisateur 2026-10-27) : 1 VRAIE diagonale haut-droite → bas-gauche,
@@ -21,32 +22,32 @@ const PROFILS := {
 		"gestes": {
 			# coup 1 : épée levée au-dessus de l'épaule droite (poing au coin haut droit), fend en DIAGONALE à travers le
 			# centre de l'écran jusqu'en bas à gauche, pronation progressive de l'avant-bras (sans retournement)
-			"diag_dg": {"clip": "coup_a", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.04, 1.0], "force": 1.0},
+			"diag_dg": {"clip": "coup_a", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.04, 1.0], "force": 1.0, "elan": 0.35},
 			# coup 2 : repart de la fin du 1 (en bas à gauche), armé à gauche à hauteur de poitrine, revers HORIZONTAL vers
 			# la droite, lame à plat (normale du plat verticale), avant-bras en pronation tout du long (départ « 0 » :
 			# jamais remplacé par un miroir)
-			"revers_gd": {"clip": "coup_b", "fenetre": [0.0, 1.0], "cotes": [0, 1], "enchainement": [0.04, 1.0], "force": 1.0},
+			"revers_gd": {"clip": "coup_b", "fenetre": [0.0, 1.0], "cotes": [0, 1], "enchainement": [0.04, 1.0], "force": 1.0, "elan": 0.3},
 			# coup 3 : ESTOC du combo (même geste que l'estoc en reculant, qui plaît), part de la fin du 2 (à droite) ;
 			# le plus fort, petit tassement de la caméra
-			"estoc_combo": {"clip": "coup_c", "fenetre": [0.25, 1.0], "cotes": [0, 0], "enchainement": [0.06, 0.8], "force": 1.25, "tassement": 0.6},
+			"estoc_combo": {"clip": "coup_c", "fenetre": [0.25, 1.0], "cotes": [0, 0], "enchainement": [0.06, 0.8], "force": 1.25, "tassement": 0.6, "elan": 0.55},
 			# anciens coups du combo (avant 2026-10-27, « le coup du haut est mauvais ») : plus choisis, gardés pour comparaison
-			"horizontale_b": {"clip": "coup_b_ancien", "fenetre": [0.0, 1.0], "cotes": [0, -1], "enchainement": [0.04, 1.0], "force": 1.0},
+			"horizontale_b": {"clip": "coup_b_ancien", "fenetre": [0.0, 1.0], "cotes": [0, -1], "enchainement": [0.04, 1.0], "force": 1.0, "elan": 0.3},
 			# revers horizontal gauche → droite, légèrement montant (pas à droite, miroir de « horizontale »)
-			"horizontale_gd": {"clip": "coup_gd", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.04, 1.0], "force": 1.0},
+			"horizontale_gd": {"clip": "coup_gd", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.04, 1.0], "force": 1.0, "elan": 0.3},
 			# vertical (souris tirée vers le bas, en avançant) : clip coup_v (V3, 2026-10-27) : armé court au coin haut droit,
 			# la lame descend dans un plan vertical un peu à droite du centre, tranchant en bas, poignet qui casse à l'impact ;
 			# le plus fort, tassement de la caméra à l'impact (ancien clip : coup_c_ancien, une diagonale raide)
-			"verticale_l": {"clip": "coup_v", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.06, 1.0], "force": 1.25, "tassement": 1.0},
+			"verticale_l": {"clip": "coup_v", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.06, 1.0], "force": 1.25, "tassement": 1.0, "elan": 0.45},
 			# variantes contextuelles : horizontal droite → gauche (pas de côté à gauche), diagonale revers haut-gauche →
 			# bas-droite (miroir de A quand la lame est déjà à gauche), estoc (en reculant)
-			"horizontale": {"clip": "coup_horizontal", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.04, 1.0], "force": 1.0},
-			"diag_gd": {"clip": "coup_revers", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.04, 1.0], "force": 1.0},
-			"estoc": {"clip": "estoc", "fenetre": [0.25, 1.0], "cotes": [0, 0], "enchainement": [0.06, 0.8], "force": 1.0},
+			"horizontale": {"clip": "coup_horizontal", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.04, 1.0], "force": 1.0, "elan": 0.3},
+			"diag_gd": {"clip": "coup_revers", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.04, 1.0], "force": 1.0, "elan": 0.3},
+			"estoc": {"clip": "estoc", "fenetre": [0.25, 1.0], "cotes": [0, 0], "enchainement": [0.06, 0.8], "force": 1.0, "elan": 0.0},
 			# attaques puissantes (maintien) : plus lentes, du poids ; armé tenu pendant la charge (« charge »)
-			"lourd": {"clip": "lourd", "charge": "charge_lourd", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.08, 0.8], "force": 1.0, "tassement": 0.7},
-			"verticale": {"clip": "lourd_vertical", "charge": "charge_vertical", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.08, 0.8], "force": 1.0, "tassement": 1.0},
-			"lourd_gd": {"clip": "lourd_gd", "charge": "charge_gd", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.08, 0.8], "force": 1.0, "tassement": 0.7},
-			"lourd_revers": {"clip": "lourd_revers", "charge": "charge_revers", "fenetre": [0.0, 1.0], "cotes": [0, 0], "enchainement": [0.08, 0.8], "force": 1.0, "tassement": 0.5},
+			"lourd": {"clip": "lourd", "charge": "charge_lourd", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.08, 0.8], "force": 1.0, "tassement": 0.7, "elan": 0.5},
+			"verticale": {"clip": "lourd_vertical", "charge": "charge_vertical", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.08, 0.8], "force": 1.0, "tassement": 1.0, "elan": 0.6},
+			"lourd_gd": {"clip": "lourd_gd", "charge": "charge_gd", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.08, 0.8], "force": 1.0, "tassement": 0.7, "elan": 0.45},
+			"lourd_revers": {"clip": "lourd_revers", "charge": "charge_revers", "fenetre": [0.0, 1.0], "cotes": [0, 0], "enchainement": [0.08, 0.8], "force": 1.0, "tassement": 0.5, "elan": 0.15},
 		},
 	},
 }

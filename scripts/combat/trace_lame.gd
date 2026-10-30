@@ -5,9 +5,15 @@ extends RefCounted
 ## chaque point de la lame (garde → pointe prolongée de l'allonge). La zone de dégâts est donc le vrai mouvement de
 ## l'épée. Règles :
 ##   - une seule touche par cible et par coup (touches) ; au plus `max_cibles` cibles par coup ;
-##   - un mur / le décor arrête la lame (événement « mur », rebond) ; le sol l'arrête sans rebond (« sol ») ;
-##   - une cible vue à travers un mur (rayon œil → point d'impact coupé par le décor) compte comme le mur ;
-##   - un « cassable » (mur fragile des donjons) arrête la lame et reçoit le coup.
+##   - le décor n'arrête la lame (événement « mur », rebond) que s'il est frappé FRANCHEMENT (comportement « Skyrim », retour
+##     du 2026-10-29 soir « parfois je ne peux pas donner de coup d'épée dans un endroit pas si restreint ») : une grande
+##     surface verticale (mur, porte, pas un petit objet), tournée vers le joueur, DANS L'AXE de la vue, à portée de la vraie
+##     lame, à MI-COURSE de la frappe (jamais au départ). Sinon la lame passe : un mur de côté (couloir, chambranle) ou le sol
+##     masquent seulement ce qui est derrière eux (jamais de touche à travers un mur) ; un petit objet de décor (urne fusionnée
+##     au décor, caisse basse, banc) est traversé (la lame passe au-dessus / à travers) ;
+##   - un « cassable » (urne, tonneau, caisse : calque 64) est brisé au passage et la lame CONTINUE (une fois par coup).
+##   Ancien comportement (permissif = false) : le premier contact avec le décor arrêtait la lame — au départ d'un revers près
+##   du mur d'un couloir, sur le sol, sur une urne, sur un chambranle.
 ## Cibles reconnues : nœud (ou ancêtre du collider) du groupe « ennemis » ou qui a recevoir_coup(), groupe « cassables ».
 
 ## Pas d'échantillonnage du tracé (s de temps de jeu) : 240 échantillons par seconde quel que soit le rendu.
@@ -16,6 +22,30 @@ const PAS := 1.0 / 240.0
 const MASQUE := 1 | Cassable.CALQUE      # décor + objets cassables (urnes, tonneaux : calque propre, franchissables)
 ## Normale (composante verticale) au-delà de laquelle une surface est un sol : la lame s'y arrête sans rebondir.
 const SOL_NORMALE := 0.6
+
+## --- Décor permissif (« Skyrim ») -------------------------------------------------------------------------------------
+## Faux : ancien comportement (tout contact avec le décor arrête la lame) — comparaisons, tests d'avant.
+static var permissif := true
+## Part de la frappe (0 début, 1 fin de la phase active) où un mur franc peut faire rebondir la lame : jamais au départ.
+const COURSE_MUR := Vector2(0.3, 0.85)
+## Cône autour de l'axe de la vue (°) : le mur doit être frappé « dans l'axe », pas sur le côté de l'écran.
+const CONE_MUR := 24.0
+## Le mur doit faire face au joueur : normale · (−axe à plat) au-delà de ce seuil (≈ 50°).
+const FACE_MUR := 0.64
+## Distance (m, depuis l'œil) au-delà de laquelle la vraie lame ne touche pas le mur (les rayons, eux, vont jusqu'à la portée).
+const PORTEE_MUR := 1.5
+## Sondes de largeur (m) : une surface est « grande » (mur, porte) si au moins 3 des 4 sondes décalées de SONDE (gauche,
+## droite, haut, bas) retrouvent le même plan ; sinon c'est un petit objet de décor (traversé).
+const SONDE := 0.3
+const SONDES_MIN := 3
+## Direction du regard (monde) et part de la frappe : posées par mains.gd avant chaque échantillon.
+var axe := Vector3.ZERO
+var progression := 0.5
+## Contacts de décor ignorés pendant ce coup (mesures, débogage) : surfaces masquantes et petits objets traversés.
+var frolements := 0
+var traverses := 0
+var _q_sonde := PhysicsRayQueryParameters3D.new()
+var _exclus_cass: Array[RID] = []
 
 var touches := {}
 var nb_cibles := 0
@@ -36,6 +66,9 @@ func commencer() -> void:
 	requetes = 0
 	vitesse = 0.0
 	_prec = PackedVector3Array()
+	frolements = 0
+	traverses = 0
+	_exclus_cass.clear()
 	debug_segments.clear()
 	debug_impacts.clear()
 
@@ -152,7 +185,10 @@ func _balayer(espace: PhysicsDirectSpaceState3D, points: PackedVector3Array, oei
 	var prec_ok := _prec.size() == n and n >= 2
 	echantillons += 1
 	_q.collision_mask = MASQUE
-	_q.exclude = exclus
+	var ex: Array[RID] = exclus.duplicate()
+	if permissif:
+		ex.append_array(_exclus_cass)
+	_q.exclude = ex
 	# vitesse de la pointe (caméra comprise : une lame tenue immobile pendant qu'on pivote balaie bien le monde)
 	vitesse = rad_to_deg((_prec[n - 1] - _prec_oeil).angle_to(points[n - 1] - oeil)) / PAS if prec_ok else INF
 	var blesse := vitesse >= VITESSE_MIN
@@ -202,6 +238,40 @@ func _rayon(espace: PhysicsDirectSpaceState3D, o: Vector3, p: Vector3, max_cible
 	if mouvement == Vector3.ZERO or not mouvement.is_finite():
 		mouvement = (p - o).normalized()
 	var cible := cible_de(r["collider"])
+	if permissif:
+		# décor : rebond seulement sur un mur franc ; un petit objet est traversé (le rayon repart derrière lui, 3 fois au
+		# plus) ; une grande surface non franche (mur de côté, sol, chambranle) masque ce qui est derrière, sans arrêter
+		var passes := 0
+		while cible == null:
+			var large := _surface_large(espace, o, r)
+			if large and _mur_franc(o, r):
+				arretee = true
+				return {"type": "mur", "point": r["position"], "normale": r["normal"], "objet": r["collider"], "collider": r["collider"], "direction": mouvement, "indice": indice}
+			# traversé seulement si c'est vraiment un PETIT objet (rien autour du point) : une arête de mur, un angle, un mur vu
+			# par la tranche masquent (sinon le rayon repartirait de l'intérieur du mur et toucherait derrière)
+			if large or passes >= 3 or not _petit_objet(espace, o, r):
+				frolements += 1
+				return {}
+			traverses += 1
+			passes += 1
+			var d := (p - o).normalized()
+			var dep: Vector3 = r["position"] + d * 0.02
+			if (p - o).length() <= (dep - o).length():
+				return {}
+			_q.from = dep
+			r = espace.intersect_ray(_q)
+			rayons += 1
+			_q.from = o
+			if r.is_empty():
+				return {}
+			cible = cible_de(r["collider"])
+		if cible.is_in_group("cassables"):
+			# brisé au passage, la lame continue (exclu des rayons suivants de ce coup)
+			_exclus_cass.append(r["rid"])
+			var ex: Array[RID] = _q.exclude
+			ex.append(r["rid"])
+			_q.exclude = ex
+			return {"type": "cassable", "point": r["position"], "normale": r["normal"], "objet": cible, "collider": r["collider"], "direction": mouvement, "indice": indice}
 	if cible == null or cible.is_in_group("cassables"):
 		var type := "cassable" if cible != null else ("sol" if (r["normal"] as Vector3).y > SOL_NORMALE else "mur")
 		arretee = true
@@ -237,3 +307,73 @@ func _volume_cible(espace: PhysicsDirectSpaceState3D, sommets: Array, exclus: Ar
 		if c != null and not c.is_in_group("cassables") and not touches.has(c.get_instance_id()):
 			return true   # cible pas encore touchée par ce coup
 	return false
+
+## Mur FRANC (rebond) : grande surface verticale tournée vers le joueur, dans l'axe de la vue, à portée de la vraie lame, à
+## mi-course de la frappe. `r` : résultat du rayon (position, normale).
+func _mur_franc(o: Vector3, r: Dictionary) -> bool:
+	if axe == Vector3.ZERO or progression < COURSE_MUR.x or progression > COURSE_MUR.y:
+		return false
+	var n: Vector3 = r["normal"]
+	if absf(n.y) > 0.5:
+		return false   # sol, voûte : jamais de rebond
+	var vers: Vector3 = r["position"] - o
+	if vers.length() > PORTEE_MUR or rad_to_deg(vers.angle_to(axe)) > CONE_MUR:
+		return false
+	var plat := Vector3(axe.x, 0.0, axe.z)
+	if plat.length_squared() < 1e-6:
+		return false
+	return n.dot(-plat.normalized()) >= FACE_MUR
+
+## Grande surface (mur, porte, sol) ou petit objet de décor ? Sondes parallèles au rayon, décalées de SONDE à gauche, à droite,
+## en haut et en bas du point touché : une grande surface est retrouvée (même plan, même orientation) par SONDES_MIN d'entre elles.
+## Le sol et la voûte (normale verticale) sont toujours grands.
+func _surface_large(espace: PhysicsDirectSpaceState3D, o: Vector3, r: Dictionary) -> bool:
+	var n: Vector3 = r["normal"]
+	if absf(n.y) > SOL_NORMALE:
+		return true
+	if n == Vector3.ZERO:
+		return true   # rayon parti de l'intérieur d'un solide : prudence, il masque
+	var pt: Vector3 = r["position"]
+	var d := (pt - o).normalized()
+	var lat := n.cross(Vector3.UP).normalized()
+	var haut := lat.cross(n).normalized()
+	_q_sonde.collision_mask = 1
+	_q_sonde.exclude = _q.exclude
+	var ok := 0
+	var k := 0
+	for dec: Vector3 in [lat * SONDE, -lat * SONDE, haut * SONDE, -haut * SONDE]:
+		k += 1
+		_q_sonde.from = o + dec
+		_q_sonde.to = pt + dec + d * 0.4
+		var h := espace.intersect_ray(_q_sonde)
+		rayons += 1
+		if not h.is_empty() and absf(((h["position"] as Vector3) - pt).dot(n)) < 0.12 and (h["normal"] as Vector3).dot(n) > 0.8:
+			ok += 1
+		if ok >= SONDES_MIN or ok + (4 - k) < SONDES_MIN:
+			break
+	return ok >= SONDES_MIN
+
+## Petit objet de décor (traversé par la lame) : au plus une des 4 sondes (gauche, droite, haut, bas, décalées de SONDE)
+## rencontre une surface à moins de 0,6 m derrière le point touché. Une arête ou la tranche d'un mur, un angle, une urne collée
+## au mur sont « entourés » : pas petits (ils masquent ce qui est derrière).
+func _petit_objet(espace: PhysicsDirectSpaceState3D, o: Vector3, r: Dictionary) -> bool:
+	var n: Vector3 = r["normal"]
+	if n == Vector3.ZERO or absf(n.y) > SOL_NORMALE:
+		return false
+	var pt: Vector3 = r["position"]
+	var d := (pt - o).normalized()
+	var lat := d.cross(Vector3.UP).normalized()
+	var haut := lat.cross(d).normalized()
+	_q_sonde.collision_mask = 1
+	_q_sonde.exclude = _q.exclude
+	var autour := 0
+	for dec: Vector3 in [lat * SONDE, -lat * SONDE, haut * SONDE, -haut * SONDE]:
+		_q_sonde.from = o + dec
+		_q_sonde.to = pt + dec + d * 0.6
+		var h := espace.intersect_ray(_q_sonde)
+		rayons += 1
+		if not h.is_empty() and ((h["position"] as Vector3) - pt).dot(d) < 0.6:
+			autour += 1
+			if autour >= 2:
+				return false
+	return true

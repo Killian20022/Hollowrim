@@ -2,7 +2,7 @@
 # caméra du jeu (+X droite, +Y haut, +Z arrière ; le personnage Mixamo importé regarde vers -Y, sa droite est -X).
 #
 #   blender.exe -b --python sources_blender/scripts/extraire_mixamo.py -- --fbx=<dossier des .fbx> \
-#       [--sortie=sources_blender/mixamo/coups_mixamo.json]
+#       [--sortie=sources_blender/mixamo/coups_mixamo.json] [--seulement=ss_slash,gs_slash (fusion dans le fichier existant)]
 #
 # Les .fbx Mixamo (gratuits, usage commercial permis, redistribution des fichiers bruts INTERDITE) restent hors du dépôt
 # (references/mixamo/). Seules les données converties (rotations d'os, pas le fichier source) sont écrites ici, puis
@@ -28,6 +28,23 @@ SOURCES = {   # nom -> fichier Mixamo
     "vertical": "Standing Melee Attack Downward.fbx",     # frappe verticale de haut en bas (coup puissant)
     "estoc": "Stabbing.fbx",                              # estoc (coup 3)
     "interieur": "Stable Sword Inward Slash.fbx",         # coup intérieur droite -> gauche (comparé au coup 1)
+    # coups_v4 (2026-10-29 soir) : packs « Sword And Shield » et « Great Sword » téléchargés par l'utilisateur (sous-dossiers)
+    "ss_slash": "sword_and_shield_pack/sword and shield slash.fbx",
+    "ss_slash_2": "sword_and_shield_pack/sword and shield slash (2).fbx",
+    "ss_slash_3": "sword_and_shield_pack/sword and shield slash (3).fbx",
+    "ss_slash_4": "sword_and_shield_pack/sword and shield slash (4).fbx",
+    "ss_slash_5": "sword_and_shield_pack/sword and shield slash (5).fbx",
+    "ss_attack": "sword_and_shield_pack/sword and shield attack.fbx",
+    "ss_attack_2": "sword_and_shield_pack/sword and shield attack (2).fbx",
+    "ss_attack_3": "sword_and_shield_pack/sword and shield attack (3).fbx",
+    "ss_attack_4": "sword_and_shield_pack/sword and shield attack (4).fbx",
+    "gs_slash": "great_sword_pack/great sword slash.fbx",
+    "gs_slash_2": "great_sword_pack/great sword slash (2).fbx",
+    "gs_slash_3": "great_sword_pack/great sword slash (3).fbx",
+    "gs_slash_4": "great_sword_pack/great sword slash (4).fbx",
+    "gs_slash_5": "great_sword_pack/great sword slash (5).fbx",
+    "gs_attack": "great_sword_pack/great sword attack.fbx",
+    "gs_spin": "great_sword_pack/great sword high spin attack.fbx",
 }
 OS = {"epaule": "RightShoulder", "bras": "RightArm", "avant_bras": "RightForeArm", "main": "RightHand"}
 # repère caméra <- monde Blender du personnage Mixamo (colonnes : droite, haut, arrière)
@@ -35,8 +52,14 @@ F = Matrix(((-1, 0, 0), (0, 0, 1), (0, 1, 0))).transposed()
 CAM_DE_MONDE = F.transposed()
 
 sortie = ARGS.get("sortie", os.path.join(BASE, "sources_blender", "mixamo", "coups_mixamo.json"))
+# --seulement=a,b : n'extrait que ces sources et les FUSIONNE dans le fichier existant (les autres données restent telles quelles)
+seulement = [x for x in ARGS.get("seulement", "").split(",") if x]
 donnees = {}
+if seulement and os.path.exists(sortie):
+    donnees = json.load(open(sortie, encoding="utf-8"))
 for nom, fichier in SOURCES.items():
+    if seulement and nom not in seulement:
+        continue
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.fbx(filepath=os.path.join(ARGS["fbx"], fichier))
     a = [o for o in bpy.data.objects if o.type == "ARMATURE"][0]
