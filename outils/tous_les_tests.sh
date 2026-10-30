@@ -88,6 +88,7 @@ TESTS=(
 	"test_defense|--nouvelle"   # défense phase 3 : garde orientée, garde brisée, anti-spam, parade parfaite (vrai draugr), contre, finisher joueur
 	"test_finishers|--nouvelle"   # finishers alignés : épée plantée (lame DANS le torse), pommeau, décapitation, dos, plongé ; choix selon le contexte
 	"test_demembrement|--nouvelle"   # démembrement (draugr, bandit) : choix du membre selon le coup, morceaux, moignons, jets, pool, option
+	"test_sang_v2|--nouvelle"   # sang v2 : sang sur la lame (accumulation, séchage, effacement), giclée qui tache un voisin, entailles qui coulent et gouttent
 	"test_menu_titre|--nouvelle"   # menu principal : Continuer grisé sans sauvegarde valide, parcours au clavier, mise en page
 	"test_sortie|--nouvelle"   # sortie Hollowrim : migration, copie de secours, options (dossiers temporaires)
 	"test_sauvegarde|ecrire;verifier"   # deux processus à la suite

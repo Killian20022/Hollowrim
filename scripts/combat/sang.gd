@@ -40,6 +40,53 @@ static func giclee(n: Node, point: Vector3, direction: Vector3, intensite: float
 	if traces:
 		_traces_giclee(n, point, dir, k, couleur, niv)
 
+## Sang v2 (2026-10-30) : la giclée TACHE LES VOISINS. Ennemis à moins de PORTEE_TACHE m du point d'impact, dans le sens de la
+## lame (ou tout contre la victime) : un jet de pixels part vers eux et, le temps du vol, une éclaboussure se pose sur leur corps
+## (Plaies.tacher, côté tourné vers la victime, à la hauteur du coup). Au plus MAX_VOISINS par coup. Rend le nombre de voisins tachés.
+const PORTEE_TACHE := 1.8
+const MAX_VOISINS := 2
+
+static func tacher_voisins(source: Node3D, point: Vector3, direction: Vector3, intensite: float, couleur: Color) -> int:
+	if not SangLame.actif or niveau() == 0 or source == null or not source.is_inside_tree():
+		return 0
+	var t_us := Time.get_ticks_usec()
+	var plat := Vector3(direction.x, 0, direction.z)
+	plat = plat.normalized() if plat.length() > 0.05 else Vector3.ZERO
+	var portee := PORTEE_TACHE * clampf(0.75 + intensite * 0.12, 0.85, 1.35)
+	var n := 0
+	for e in source.get_tree().get_nodes_in_group("ennemis"):
+		if n >= MAX_VOISINS:
+			break
+		if e == source or not (e is Node3D) or not (e as Node3D).is_inside_tree():
+			continue
+		var autre := e as Node3D
+		var vers := autre.global_position - point
+		vers.y = 0.0
+		var dist := vers.length()
+		if dist > portee or dist < 0.05:
+			continue
+		if plat != Vector3.ZERO and dist > 0.9 and vers.normalized().dot(plat) < 0.1:
+			continue
+		var c := autre.get_node_or_null("Combat")
+		var modele: Node3D = c.get("modele") if c != null else autre.get("modele")
+		if modele == null:
+			continue
+		var vn := vers.normalized()
+		var h := clampf(point.y - autre.global_position.y + randf_range(-0.2, 0.15), 0.45, 1.6)
+		var decalage := Vector3.UP * h - vn * 0.2   # relatif à l'ennemi : il peut bouger pendant le vol
+		var normale := (-vn + Vector3.UP * 0.15).normalized()
+		var taille := clampf(0.2 + intensite * 0.05, 0.2, 0.42) * clampf(1.4 - dist / portee, 0.6, 1.2)
+		GerbePixels.emettre(source, point, (vn + Vector3.UP * 0.25).normalized(), "sang_jet" if couleur.r >= 0.3 else "draugr_jet", clampf(0.6 + intensite * 0.2, 0.7, 1.5))
+		var delai := 0.06 + dist / 4.5
+		source.get_tree().create_timer(delai).timeout.connect(func() -> void:
+			if is_instance_valid(autre) and is_instance_valid(modele) and modele.is_inside_tree():
+				var t1 := Time.get_ticks_usec()
+				Plaies.tacher(modele, autre.global_position + decalage, normale, taille, couleur)
+				SangLame.cout_us += Time.get_ticks_usec() - t1)
+		n += 1
+	SangLame.cout_us += Time.get_ticks_usec() - t_us
+	return n
+
 ## Éclats non sanglants (os, bois, sang désactivé) : même geste, autre matière.
 static func eclats_matiere(n: Node, point: Vector3, direction: Vector3, intensite: float, couleur: Color) -> void:
 	if n == null or not n.is_inside_tree():
@@ -421,6 +468,97 @@ static func _img_trainee(rng: RandomNumberGenerator) -> Image:
 			var py := clampi(int(cy + rng.randf_range(-8, 8)), 0, h - 1)
 			var px := clampi(int(x + rng.randf_range(-3, 3)), 0, w - 1)
 			img.set_pixel(px, py, Color(0.8, 0.8, 0.8, 1.0))
+	return img
+
+## Sang v2 (2026-10-30) : entaille DÉTAILLÉE qui coule, image `etape` sur Plaies.ETAPES (32 x 40, la fente au rang 8) :
+## fente irrégulière (bords déchiquetés au texel), cœur noir de la chair ouverte, lèvres de chair claire d'un texel, chair à vif,
+## pourtour tuméfié d'un texel, film de sang en plaques (pas un bandeau), coulures (1-2 texels) qui s'allongent d'une image à
+## l'autre et finissent par un caillot (2 x 2) ; gouttelettes projetées ; un éclat mouillé.
+## Retouche 2026-10-30 : texture EN COULEURS (palette par sang : « sombre » = draugr, « vif » = vivants), le décal n'est plus
+## teinté (modulate blanc) — les lèvres et le pourtour des draugrs ressortent sur leur chair sombre sans virer au rose.
+const PALETTE_PLAIE := {
+	"sombre": {"coeur": "#1c0806", "fond": "#3a100c", "levre": "#c27a5c", "chair": "#9a3424", "tumefie": "#7a5444",
+		"film": "#7e1610", "coulure": "#721410", "coulure2": "#8a1c14", "caillot": "#3e0806", "eclat": "#e0a080"},
+	"vif": {"coeur": "#1e0404", "fond": "#3e0c08", "levre": "#b0503a", "chair": "#a8261c", "tumefie": "#7e4234",
+		"film": "#8e1810", "coulure": "#801610", "coulure2": "#9c2016", "caillot": "#4a0806", "eclat": "#f0b090"},
+}
+
+static func texture_entaille(variante: int, etape: int, vif := false) -> ImageTexture:
+	var cle := "entaille_v2_%d_%d_%s" % [variante, etape, vif]
+	if not _tex.has(cle):
+		_tex[cle] = ImageTexture.create_from_image(_img_entaille_v2(variante, etape, PALETTE_PLAIE["vif" if vif else "sombre"]))
+	return _tex[cle]
+
+static func _img_entaille_v2(variante: int, etape: int, pal: Dictionary) -> Image:
+	var c := {}
+	for k: String in pal:
+		c[k] = Color(pal[k])
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("entaille_v2_%d" % variante)
+	var w := 32
+	var h := 40
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var bruit := FastNoiseLite.new()
+	bruit.seed = rng.randi()
+	bruit.frequency = 0.21
+	var pente := rng.randf_range(-0.14, 0.14)
+	var ep0 := rng.randf_range(1.9, 2.6)
+	var k_et := float(etape) / maxf(Plaies.ETAPES - 1, 1)
+	var cy_de := func(x: float) -> float: return 8.0 + (x - w * 0.5) * pente + bruit.get_noise_1d(x * 1.7) * 0.9
+	var coulures := []
+	for n in rng.randi_range(4, 6):
+		coulures.append({"x": rng.randi_range(6, w - 7), "lg": rng.randf_range(7.0, 27.0), "l2": rng.randf() < 0.35, "vit": rng.randf_range(0.6, 1.0)})
+	var gouttelettes := []
+	for g in rng.randi_range(5, 9):
+		gouttelettes.append(Vector2i(rng.randi_range(1, w - 2), clampi(int(8 + rng.randf_range(-6, 7)), 0, h - 1)))
+	# pourtour tuméfié (1 texel) puis film de sang EN PLAQUES, surtout sous la fente (retouche : plus de bandeau rouge)
+	for y in range(0, 20):
+		for x in range(1, w - 1):
+			var cy: float = cy_de.call(float(x))
+			var kx := sin(float(x - 1) / (w - 2) * PI)
+			var d := y + 0.5 - cy
+			var ep := ep0 * kx + 0.35
+			var nb := bruit.get_noise_2d(x * 2.3, y * 2.3)
+			var portee := ep + (0.4 + 1.1 * k_et) * kx + nb * 1.3
+			if d > 0.0 and absf(d) < portee and nb > -0.15:
+				img.set_pixel(x, y, c["film"])
+			elif absf(d) < ep + 1.2 and kx > 0.3:
+				img.set_pixel(x, y, c["tumefie"])
+	# coulures
+	for cl: Dictionary in coulures:
+		var lg := float(cl["lg"]) * clampf(k_et * float(cl["vit"]) * 1.25, 0.0, 1.0)
+		var x: int = cl["x"]
+		var y0 := int(cy_de.call(float(x)) + ep0 * 0.6)
+		var yb := y0
+		for y in range(y0, mini(y0 + int(lg), h - 2)):
+			var xx := x + (1 if bruit.get_noise_2d(x * 3.0, y * 0.6) > 0.35 else 0)
+			img.set_pixel(xx, y, c["coulure"])
+			if cl["l2"] and y < y0 + int(lg * 0.6):
+				img.set_pixel(xx + 1, y, c["coulure2"])
+			yb = y
+		if lg >= 3.0:
+			for dy in 2:
+				for dx in 2:
+					if x + dx < w and yb + dy < h:
+						img.set_pixel(x + dx, yb + dy, c["caillot"])
+	# la fente : bords déchiquetés, cœur presque noir (fond de chair sombre par endroits), chair à vif, lèvres claires, éclat
+	for x in range(2, w - 2):
+		var k := float(x - 2) / (w - 4)
+		var ep := sin(k * PI) * ep0 * (0.85 + 0.3 * (bruit.get_noise_1d(x * 3.1 + 40.0) * 0.5 + 0.5)) + 0.35
+		var cy: float = cy_de.call(float(x))
+		for y in range(0, 20):
+			var d := absf(y + 0.5 - cy)
+			if d < ep:
+				var col: Color = c["coeur"] if d < ep * 0.42 else (c["chair"] if d < ep * 0.62 else c["levre"])
+				if d < ep * 0.42 and rng.randf() < 0.1:
+					col = c["fond"]
+				img.set_pixel(x, y, col)
+		if k > 0.25 and k < 0.75 and rng.randf() < 0.18:
+			img.set_pixel(x, clampi(int(cy - ep * 0.6), 0, h - 1), c["eclat"])
+	for p: Vector2i in gouttelettes:
+		if img.get_pixel(p.x, p.y).a == 0.0:
+			img.set_pixel(p.x, p.y, c["film"])
 	return img
 
 static func _img_entaille(rng: RandomNumberGenerator) -> Image:
