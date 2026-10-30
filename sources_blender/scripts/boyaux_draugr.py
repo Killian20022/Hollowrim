@@ -95,17 +95,36 @@ def pendants(bm, col):
 
 
 def tas(bm, col):
-    rng = random.Random(11)
-    for s in range(3):
+    """Tas ORGANIQUE (retouche 2026-10-30, l'ancien était une spirale d'escargot) : 4 boyaux qui serpentent, tournent
+    d'un côté puis de l'autre (vitesse de virage aléatoire et lisse), se rappellent vers le centre pour rester en tas,
+    se chevauchent et s'affaissent (hauteur variable, aplatis aux croisements)."""
+    rng = random.Random(23)
+    cfg = [(0.7, 0.028, 0.030), (2.4, 0.025, 0.052), (4.1, 0.030, 0.074), (5.5, 0.023, 0.098)]
+    for s, (cap0, rayon, couche) in enumerate(cfg):
+        n = 20
+        x, y = rng.uniform(-0.07, 0.07), rng.uniform(-0.07, 0.07)
+        cap = rng.uniform(0, 2 * math.pi) + cap0
+        om = 0.0
+        ph = [rng.uniform(0, 6.28) for _ in range(3)]
         pts = []
-        n = 26
-        r0 = 0.06 + s * 0.035
         for i in range(n):
             t = i / (n - 1)
-            ang = t * math.pi * 2.6 + s * 1.7
-            r = r0 + 0.11 * t
-            pts.append((math.cos(ang) * r, math.sin(ang) * r, 0.022 + 0.03 * math.sin(t * 9 + s) * (1 - t) + s * 0.012))
-        tube(bm, col, pts, 0.024, rng)
+            # virage lisse mais irrégulier : somme de trois sinus incommensurables + une dérive aléatoire
+            om += rng.uniform(-0.5, 0.5)
+            om *= 0.8
+            cap += 0.16 * math.sin(i * 0.9 + ph[0]) + 0.10 * math.sin(i * 1.7 + ph[1]) + 0.22 * om
+            # rappel doux vers le centre : le tas reste compact, mais les boucles sortent et rentrent
+            r = math.hypot(x, y)
+            if r > 0.075:
+                vers = math.atan2(-y, -x)
+                d = (vers - cap + math.pi) % (2 * math.pi) - math.pi
+                cap += d * min(1.0, (r - 0.075) * 5.0) * 0.45
+            x += math.cos(cap) * 0.040
+            y += math.sin(cap) * 0.040
+            # affaissé : couche basse, quelques bosses là où les boyaux montent les uns sur les autres
+            z = 0.019 + couche * 0.30 + 0.014 * math.sin(i * 0.8 + s * 2.0) + 0.010 * math.sin(i * 2.3 + s)
+            pts.append((x, y, z))
+        tube(bm, col, pts, rayon, rng)
 
 
 def construire():
