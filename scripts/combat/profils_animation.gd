@@ -15,7 +15,7 @@ const PROFILS := {
 	"epee_longue": {
 		# enchaînement de base à l'arrêt (retour utilisateur 2026-10-27) : 1 VRAIE diagonale haut-droite → bas-gauche,
 		# 2 horizontal GAUCHE → DROITE (revers à plat, repart d'en bas à gauche), 3 ESTOC (le plus fort)
-		"combo": ["diag_dg", "revers_gd", "estoc_combo"],
+		"combo": CoupsUneMain.COMBO,   # coups_v5 : 4 coups (diagonale, revers, taille horizontale, estoc), voir CoupsUneMain
 		"lourd": "lourd",
 		# attaque puissante selon le déplacement au début de la charge (mains._choisir_lourd)
 		"lourds": {"arret": "lourd", "avant": "verticale", "gauche": "lourd", "droite": "lourd_gd", "arriere": "lourd_revers"},
@@ -59,7 +59,8 @@ static func profil(nom: String) -> Dictionary:
 	return PROFILS.get(nom, PROFILS["epee_longue"])
 
 static func geste(nom_profil: String, nom_geste: String) -> Dictionary:
-	return profil(nom_profil)["gestes"][nom_geste]
+	var g: Dictionary = profil(nom_profil)["gestes"]
+	return g[nom_geste] if g.has(nom_geste) else CoupsUneMain.GESTES[nom_geste]   # coups_v5 : gestes à une main ajoutés
 
 ## Optique de la caméra du joueur (joueur.gd : fov 72° vertical, écran 16:9).
 const TAN_V := 0.7265

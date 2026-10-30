@@ -370,3 +370,8 @@ MARQUEURS = {
     "parade": {"fin": 0.22},
     "garde_brisee": {"fin": 0.45},
 }
+
+# coups à une main ajoutés (lot coups_v5) : fichier voisin, fusionnés ici
+from gestes_une_main import CLIPS_MIXAMO_UNE_MAIN, MARQUEURS_UNE_MAIN  # noqa: E402
+CLIPS_MIXAMO.update(CLIPS_MIXAMO_UNE_MAIN)
+MARQUEURS.update(MARQUEURS_UNE_MAIN)

@@ -71,6 +71,7 @@ TESTS=(
 	"test_deux_mains|--nouvelle"   # deux mains (épée + torche / sort / bouclier, deux sorts, deux mains ; deux épées refusées) et profils des 5 épées
 	"test_bouclier|--nouvelle"   # bouclier nordique (main gauche) : modèle, repos bas à gauche, garde au bouclier (cône 170°, coût, recul), coup de bouclier, garde brisée, épée + combo + latence, transitions de la main gauche sans saut, sauvegarde
 	"test_blocage_lame|--nouvelle"   # coups_v4 : le coup part toujours dans un couloir étroit, près d'un mur, d'urnes, d'un chambranle ; rebond seulement sur un mur franc dans l'axe, à mi-course
+	"test_combo_une_main|--nouvelle"   # coups_v5 : combo à une main (diagonale, revers, taille horizontale, estoc) au rythme des clics, retour au coup 1, clic maintenu = puissant
 	"test_collisions_lame|--nouvelle"   # collisions de la lame dans la zone de test (ZoneCollisions) : murs fins, coin, porte, serrés, poteau, 20/30/60/144 i/s
 	"test_magie|--nouvelle"   # magie et deux mains : compatibilité, mana, 12 sorts + soin + protection, double, réactions, interruption, épée + magie, enchantement, sauvegarde (docs/MAGIE.md)
 	"test_gestes_magie|--nouvelle"   # gestes de magie capturés (Mixamo) : données, paume dans l'écran, départ et retour au repos, gestes joués par sort, main sans saut (docs/MAGIE.md)
