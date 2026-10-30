@@ -68,6 +68,9 @@ const AURA_PAL := {
 }
 ## Jet de flammes (couche fine) : VAGUE de bouffées qui avancent réellement dans l'espace (magie_vague*.gdshader).
 ## Portée visuelle en champ libre (m), durée de vie d'une bouffée (s), freinage (1/s), bouffées vivantes.
+## Taille du cœur chaud du jet, par école (1 = normal ; > 1 = cœur plus large). Retouche du 2026-10-30 : le cœur du feu
+## était crème sur 1,5 m ; il est maintenant orange, plus large et veiné.
+const GROS_COEUR := {"feu": 1.25, "glace": 1.0, "foudre": 1.0}
 const VAGUE_PORTEE := 10.5
 const VAGUE_VIE := 1.15
 const VAGUE_TRAINE := 1.25
@@ -1619,6 +1622,10 @@ func _mat_vague() -> ShaderMaterial:
 		var pal: Array = FLUX.feu
 		for i in 6:
 			m.set_shader_parameter("c%d" % i, Color(pal[i]))
+		# cœur orange (pas crème) : les deux teintes les plus claires de la rampe sont des jaune-orange
+		m.set_shader_parameter("c0", Color("#ffc25a"))
+		m.set_shader_parameter("c1", Color("#ffa63a"))
+		m.set_shader_parameter("gros_coeur", GROS_COEUR.feu)
 		_mats["vague"] = m
 	return _mats["vague"]
 
@@ -1866,6 +1873,7 @@ func _mat_givre() -> ShaderMaterial:
 		m.set_shader_parameter("formes", ATLAS_GIVRE)
 		for i in 6:
 			m.set_shader_parameter("c%d" % i, Color(GIVRE_PAL[i]))
+		m.set_shader_parameter("gros_coeur", GROS_COEUR.glace)
 		_mats["givre"] = m
 	return _mats["givre"]
 

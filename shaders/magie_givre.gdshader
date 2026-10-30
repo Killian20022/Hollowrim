@@ -14,6 +14,7 @@ global uniform float magie_echelle;
 
 uniform float eclat = 1.0;
 uniform float opacite = 0.85;    // couverture du souffle (0..1)
+uniform float gros_coeur = 1.0;  // taille du cœur clair (GestionMagie.GROS_COEUR)
 uniform float brume = 0.4;       // couverture de la brume en fin de vie
 uniform vec4 c0 : source_color = vec4(1.0, 1.0, 1.0, 1.0);    // cœur blanc
 uniform vec4 c1 : source_color = vec4(0.89, 0.97, 1.0, 1.0);
@@ -143,7 +144,7 @@ void fragment() {
 			discard;
 		}
 		// teinte : blanc au cœur des jeunes bouffées denses, cyan, bleu profond au bord et en vieillissant, puis brume
-		float h = 0.46 - age * 0.45 + (dens - 0.55) * 0.75 + (0.35 - r) * 0.45 + (n - 0.5) * 0.9 + (w.x - 0.5) * 0.3
+		float h = 0.46 - age * 0.45 + (dens - 0.55) * 0.75 + (0.35 - r) * 0.45 * gros_coeur + (n - 0.5) * 0.9 + (w.x - 0.5) * 0.3
 			+ (fract(g * 0.618) - 0.5) * 0.25;
 		// pas de voile blanc laiteux contre la main
 		h = min(h, mix(0.55, 0.92, smoothstep(0.8, 1.2, dens)) + 0.15 * smoothstep(0.6, 2.5, v_proche_d));
