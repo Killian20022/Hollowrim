@@ -10,6 +10,7 @@ extends Node3D
 ##       [--boucle]               rejoue la suite sans fin (démonstration)
 ##       [--instants=a,b,...]     plusieurs captures par plan, aux instants donnés (s)
 ##       [--cible=<m>]            cibles à cette distance de l'œil (6 m par défaut ; ex. 3 ou 8 pour le jet de flammes)
+##       (plan souffle_givre_sol : souffle de givre vers le sol, à mi-chemin de la cible du milieu)
 ##       [--tourne=<°/s>]         jets canalisés : la vue pivote (lacet) à partir de 0,8 s et le jet suit la caméra
 ##                                (inertie du jet quand on tourne)
 ##   Vidéo Movie Maker : --write-movie <fichier.avi> --fixed-fps 30 -- --lieu=crypte (quitte à la fin de la suite).
@@ -21,7 +22,7 @@ const POST := preload("res://shaders/ps1_post.gdshader")
 const PLANS := [
 	["vide", 1.0, 0.8],   # sans effet : référence du monde (rétro et couche fine doivent donner le même décor)
 	["aura_feu", 2.2, 1.6], ["jet_feu", 2.4, 1.2], ["jet_feu_loin", 3.0, 1.5], ["boule_feu", 2.4, 0.16], ["explosion_feu", 2.0, 0.42], ["zone_feu", 2.6, 0.5],
-	["aura_glace", 2.0, 1.4], ["eclat_glace", 2.2, 0.12], ["eclat_glace_sol", 2.0, 0.5], ["lance_givre", 2.4, 0.1], ["souffle_givre", 2.4, 1.2], ["souffle_givre_loin", 3.0, 1.5], ["nova_gelee", 2.8, 0.7],
+	["aura_glace", 2.0, 1.4], ["eclat_glace", 2.2, 0.12], ["eclat_glace_sol", 2.0, 0.5], ["lance_givre", 2.4, 0.1], ["souffle_givre", 2.4, 1.2], ["souffle_givre_loin", 3.0, 1.5], ["souffle_givre_sol", 2.6, 1.4], ["nova_gelee", 2.8, 0.7],
 	["aura_electricite", 2.0, 1.4], ["arc_electrique", 2.4, 1.0], ["chaine_eclairs", 1.8, 0.15], ["impact_electricite", 1.4, 0.1], ["tempete_statique", 3.0, 1.2],
 	["aura_tenebres", 2.0, 1.4], ["trait_ombre", 2.2, 0.14], ["drain_vie", 2.4, 1.2], ["explosion_obscure", 2.8, 0.6],
 	["soin", 2.4, 1.2], ["protection", 2.4, 1.2],
@@ -407,6 +408,11 @@ func _pendant(nom: String, t: float) -> void:
 			EffetsMagie.aura_main(paume_g, ec_loin, 1.0)
 			var loin := Vector3(1.4, 3.1, -12.2) if lieu == "crypte" else Vector3(1.4, 3.1, -14.0)
 			EffetsMagie.jet(ec_loin, paume_g, _dir_vers(paume_g, loin) if _arg("tourne") == "" else _dir_jet(paume_g, t), 9.0, 0.9, t > 0.15 and t < 2.6)
+		"souffle_givre_sol":
+			# souffle de givre dirigé vers le SOL, devant la cible du milieu : la brume doit s'écraser et ramper au sol
+			EffetsMagie.aura_main(paume_g, "glace", 1.0)
+			var sol := cibles[1].global_position * Vector3(1.0, 0.0, 0.55) + Vector3(0.0, cibles[1].global_position.y + 0.02, 0.0)
+			EffetsMagie.jet("glace", paume_g, _dir_vers(paume_g, sol), _portee(), 1.0, t > 0.15 and t < 2.2)
 		"soin":
 			pass
 		"protection":
