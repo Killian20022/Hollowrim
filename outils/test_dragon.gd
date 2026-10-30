@@ -91,7 +91,7 @@ func _lancer(vaincu: Array) -> void:
 			tris += mi.mesh.get_faces().size() / 3
 	print("triangles : ", tris)
 	_verifier(tris < 3000, "moins de 3000 triangles")
-	_verifier(d.is_in_group("ennemis") and d.vivant() and d.vie_max == 600.0 and d.nom_affiche == "Dragon de givre", "interface de base")
+	_verifier(d.is_in_group("ennemis") and d.vivant() and d.vie_max == ReglagesCombat.vie("dragon") and d.nom_affiche == "Dragon de givre", "interface de base")
 	# vol loin du joueur : il doit tournoyer
 	await _attendre(12.0)
 	_verifier(d.nom_etat() == "TOURNOIE" and not d.en_combat(), "tournoie sans combat quand le joueur est loin")
@@ -144,8 +144,8 @@ func _lancer(vaincu: Array) -> void:
 	_verifier(ok_queue, "coup de queue (25 dégâts) si le joueur est derrière")
 	# perte de 30 % de vie -> redécolle
 	if d.nom_etat() == "AU_SOL":
-		var r1: String = d.recevoir_coup(200.0, j.global_position, true)
-		_verifier(r1 == "touche" and d.vie == 400.0, "recevoir_coup renvoie touche (vie %.0f)" % d.vie)
+		var r1: String = d.recevoir_coup(d.vie_max / 3.0, j.global_position, true)   # équilibrage : PV dans ReglagesCombat
+		_verifier(r1 == "touche" and absf(d.vie - d.vie_max * 2.0 / 3.0) < 0.5, "recevoir_coup renvoie touche (vie %.0f)" % d.vie)
 		_verifier(await _attendre_etat("DECOLLE", 2.0), "redécolle après 30 % de vie perdue")
 	_verifier(await _attendre_etat("PIQUE", 20.0), "PIQUE à nouveau")
 	_verifier(await _attendre_etat("AU_SOL", 120.0), "se repose")

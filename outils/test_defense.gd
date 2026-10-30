@@ -182,6 +182,7 @@ func _tester() -> void:
 	# --- 6. finisher depuis le joueur (draugr ouvert, de face)
 	print("-- finisher")
 	await _pas(30)
+	d.vie = d.vie_max * 0.4   # équilibrage (ReglagesCombat) : finisher sur posture brisée / au sol seulement à vie ≤ 50 %
 	if d.finisher_possible(j) == "":
 		d.combat.briser_posture()
 		d._etourdir()
@@ -223,6 +224,7 @@ func _tester() -> void:
 	d2.rotation.y = 0.0   # tourné vers +Z
 	d2.combat.briser_posture()
 	d2._etourdir()
+	d2.vie = d2.vie_max * 0.4   # équilibrage (ReglagesCombat) : finisher sur posture brisée / au sol seulement à vie ≤ 50 %
 	await _reset(d2.global_position + Vector3(0, 0, -1.4), 180.0)   # derrière lui, face à +Z (vers son dos)
 	_verif(not mains._chercher_finisher().is_empty(), "derrière un draugr étourdi : finisher proposé")
 	await _clic()

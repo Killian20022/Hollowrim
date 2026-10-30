@@ -194,6 +194,7 @@ func _tester() -> void:
 	_verif(n.etat == n.CHUTE, "coup lourd aux jambes : renversé (%s)" % n.combat.derniere_reaction)
 	await _frames(110)
 	_devant(n, 1.6)
+	n.vie = n.vie_max * 0.4   # équilibrage (ReglagesCombat) : finisher sur posture brisée / au sol seulement à vie ≤ 50 %
 	var cat: String = n.finisher_possible(j)
 	_verif(cat == "sol", "au sol : finisher « sol » (%s)" % cat)
 	var b0 := _butins()

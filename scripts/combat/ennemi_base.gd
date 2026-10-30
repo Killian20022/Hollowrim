@@ -469,6 +469,7 @@ func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, in
 	vers.y = 0.0
 	var e := _etat_coup()
 	e["de_face"] = vers.normalized().dot(global_transform.basis.z) > 0.3
+	e["surpris"] = not en_combat() and not e["de_face"]   # attaque furtive (ReglagesCombat.FURTIF)
 	e["hauteur_visee"] = CombatEnnemi.hauteur_visee(joueur, self)
 	var r := combat.analyser(quantite, origine_coup, puissant, info, e)
 	_t_sans_coup = 0.0

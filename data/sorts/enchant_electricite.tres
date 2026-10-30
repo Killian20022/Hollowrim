@@ -20,6 +20,6 @@ statut = "choc"
 duree_statut = 0.4
 puissance_statut = 0.35
 duree_enchant = 30.0
-degats_enchant = 7.0
+degats_enchant = 5.0
 double = {}
 profil = "lame"

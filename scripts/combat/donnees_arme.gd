@@ -56,9 +56,9 @@ enum Categorie { VIDE, EPEE, TORCHE, BOUCLIER, SORT }
 
 @export_group("Dégâts")
 @export var degats_leger := 14.0
-@export var degats_lourd := 34.0
+@export var degats_lourd := 28.0
 ## Multiplicateur des dégâts lourds à pleine charge (plafond : pas de dégâts infinis).
-@export var bonus_charge_max := 1.3
+@export var bonus_charge_max := 1.2
 ## Nombre maximal de cibles touchées par un même coup (les suivantes sont traversées sans dégâts).
 @export var multi_cibles := 2
 ## Part des dégâts absorbée en garde (0,85 = 15 % passent).

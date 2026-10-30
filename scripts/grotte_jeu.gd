@@ -430,7 +430,7 @@ func _creer_ennemi(a: Dictionary) -> void:
 	var boss: String = e.get("boss", "")
 	var opts := {"ident": id, "nom_affiche": e.get("nom", "Bandit"), "contourne": true, "apparence": _apparence(e)}
 	if boss == "":
-		opts["vie_imposee"] = 55.0
+		opts["vie_imposee"] = ReglagesCombat.vie("bandit")
 	else:
 		opts["boss"] = boss
 	if e.get("archer", false):

@@ -109,6 +109,8 @@ func analyser(quantite: float, origine: Vector3, puissant: bool, info: Dictionar
 	e["etourdi"] = etourdi > 0.0
 	e["au_sol"] = au_sol
 	e["boss"] = boss
+	if "vie_max" in corps:
+		e["vie_max"] = float(corps.vie_max)   # plafond de l'attaque furtive sur un chef
 	var r := CalculDegats.calculer(i, profil, e)
 	_sans_coup = 0.0
 	var avant := posture
@@ -179,13 +181,17 @@ func finisher_possible(joueur: Node3D, vie := 1.0, vie_max := 1.0) -> String:
 	if v.length() > 2.6:
 		return ""
 	var cat := ""
-	if au_sol:
+	# équilibrage (ReglagesCombat) : le finisher tue d'un coup ; il faut donc des PV déjà entamés — posture brisée et vie
+	# ≤ FINISHER_POSTURE_VIE, ou vie basse réelle (seuil_finisher_vie, « rapide ») ; un chef seulement sous FINISHER_BOSS_VIE.
+	var part := vie / maxf(vie_max, 1.0)
+	var ouvert := part <= (ReglagesCombat.FINISHER_BOSS_VIE if boss else ReglagesCombat.FINISHER_POSTURE_VIE)
+	if au_sol and ouvert:
 		cat = "sol"
-	elif etourdi > 0.0:
+	elif etourdi > 0.0 and ouvert:
 		cat = "etourdi"
-	elif fenetre_parade > 0.0:
+	elif fenetre_parade > 0.0 and ouvert:
 		cat = "apres_parade"
-	elif vie <= vie_max * profil.seuil_finisher_vie and ratio_posture() < 0.6:
+	elif part <= minf(profil.seuil_finisher_vie, ReglagesCombat.FINISHER_BOSS_VIE if boss else 1.0) and ratio_posture() < 0.6:
 		cat = "rapide"
 	if cat in ["etourdi", "rapide"]:
 		var face := corps.global_transform.basis.z

@@ -152,7 +152,8 @@ func _chiffre(p: Vector3, degats: float, puissant: bool) -> void:
 func finisher_possible(j: Node3D) -> String:
 	if tete == null or not tete.visible:
 		return ""
-	return combat.finisher_possible(j, vie, vie_max)
+	# mannequin d'entraînement : la posture brisée suffit (pas de condition de vie, ReglagesCombat.FINISHER_POSTURE_VIE)
+	return combat.finisher_possible(j, minf(vie, vie_max * ReglagesCombat.FINISHER_POSTURE_VIE), vie_max)
 
 ## Finisher sur le mannequin : la tête de toile s'envole (copie en corps rigide), puis repousse.
 func subir_finisher(categorie: String, info: Dictionary = {}) -> String:

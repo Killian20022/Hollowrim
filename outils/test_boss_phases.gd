@@ -39,7 +39,7 @@ func _tester() -> void:
 	var base := _sol(o.x + 60.0, o.z)
 	var s: CharacterBody3D = m.creer_draugr("guerrier", base, 0.0, false, {"boss": "svanhild"})
 	_verif(s.ident == "svanhild", "l'ident d'un boss vaut son nom (%s)" % s.ident)
-	_verif(s.vie_max == 260.0, "Svanhild : 260 de vie")
+	_verif(s.vie_max == ReglagesCombat.vie("svanhild"), "Svanhild : %d de vie (ReglagesCombat)" % int(s.vie_max))
 	var p_j := _sol(base.x, base.z - 7.0)  # devant elle (regarde vers +z → on la place à -z, elle pivote)
 	j.global_position = p_j
 	await _frames(40, j, p_j)
@@ -133,6 +133,6 @@ func _tester() -> void:
 	_verif(combo and coups >= 2, "enchaînement de 2 coups (coups=%d)" % coups)
 	# ---------- Jarl
 	var jl: CharacterBody3D = m.creer_draugr("guerrier", _sol(o.x - 60.0, o.z), 0.0, true, {"boss": "jarl", "ident": "jarl"})
-	_verif(jl.vie_max >= 300.0 and jl.degats >= 35.0 and jl._rythme < 0.8 and jl._bouclier > 0.5, "Jarl : vie %d, dégâts %d, coups lents, bouclier" % [int(jl.vie_max), int(jl.degats)])
+	_verif(jl.vie_max >= ReglagesCombat.vie("svanhild") and jl.degats > ReglagesCombat.degats("svanhild") and jl._rythme < 0.8 and jl._bouclier > 0.5, "Jarl : vie %d, dégâts %d, coups lents, bouclier" % [int(jl.vie_max), int(jl.degats)])
 	print("TEST BOSS : ", "OK" if _echecs == 0 else "ÉCHEC (%d)" % _echecs)
 	quit()

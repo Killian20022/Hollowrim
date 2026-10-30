@@ -199,6 +199,7 @@ func _tester() -> void:
 		u.recevoir_coup(34.0, j.global_position, true, {"attaque": "chargee_max", "zone": "torse", "stagger": 42.0})
 		n += 1
 	_verif(u.combat.etourdi > 0.0 and u.etat == u.ETOURDI, "posture brisée après %d coups chargés : ÉTOURDI" % n)
+	u.vie = u.vie_max * 0.2   # équilibrage (ReglagesCombat) : mini-chef achevable seulement sous 25 % de vie
 	_devant(u, 1.8)
 	var cat: String = u.finisher_possible(j)
 	_verif(cat in ["etourdi", "lateral"], "finisher disponible : « %s »" % cat)

@@ -20,6 +20,6 @@ statut = "gel"
 duree_statut = 2.5
 puissance_statut = 0.35
 duree_enchant = 30.0
-degats_enchant = 7.0
+degats_enchant = 5.0
 double = {}
 profil = "lame"
