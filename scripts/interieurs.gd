@@ -52,7 +52,7 @@ static func _m(nom: String, teinte := Color.WHITE, texels := 32.0, relief := 0.8
 ## Toutes les matières d'intérieur (une fois par village).
 static func materiaux() -> Dictionary:
 	# os et parchemin : peints pour la crypte (images à mipmaps), réutilisés tels quels
-	for nom in ["os", "parchemin", "argile"]:
+	for nom in ["os", "parchemin", "argile", "lin", "or"]:
 		if not TexturesBati._cache.has(nom):
 			var img: Image = ResourceLoader.load("res://assets/crypte/%s.res" % nom)
 			TexturesBati._cache[nom] = [ImageTexture.create_from_image(img), TexturesBati.relief_neutre()]
@@ -87,6 +87,10 @@ static func materiaux() -> Dictionary:
 	d["parchemin"] = _m("parchemin", Color(1.1, 1.05, 0.95), 64.0, 0.0)
 	d["cire"] = _m("os", Color(1.3, 1.15, 0.8), 64.0, 0.0)
 	d["noir"] = _m("fer", Color(0.12, 0.12, 0.14), 32.0, 0.0)
+	# props Quaternius (props/placement) : fer MAT (CATALOGUE §6 : fer -> fer_mat), lin écru, or terni
+	d["fer_mat"] = _m("fer", Color(0.72, 0.74, 0.8), 32.0, 0.6)
+	d["lin"] = _m("lin", Color(1.0, 0.96, 0.9), 64.0, 0.4)
+	d["or"] = _m("or", Color(1.0, 0.95, 0.85), 64.0, 0.3)
 	var eau := _m("fer", Color(0.1, 0.14, 0.22), 32.0, 0.0)
 	eau.set_shader_parameter("emission", Color(0.03, 0.06, 0.12))
 	d["eau"] = eau
@@ -302,6 +306,28 @@ func modele_xf(nom: String, xf: Transform3D, mats := {}) -> void:
 ## Module posé en `pos`, tourné de `lacet`, mis à l'échelle `ech` (dans son repère : X largeur, Y hauteur, Z profondeur).
 func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats := {}) -> void:
 	modele_xf(nom, Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(ech), pos), mats)
+
+## Props Quaternius (scripts/props_quaternius.gd) : matière du prop -> matière de l'intérieur. Fer MAT ; pierre chaude (les briques
+## sortaient bleutées sur la rampe pierre de la bible) ; laine = tenture rouge, toile = tenture bleue.
+const MATS_Q := {"bois": "bois", "fer": "fer_mat", "lin": "lin", "jute": "jute", "os": "os", "pierre": "pierre", "or": "or",
+	"argile": "argile", "laine": "tenture_r", "toile": "tenture_b", "noir": "noir", "lame": "etain"}
+
+## Pose un prop Quaternius fondu dans les lots de la pièce : `pos` (y < 0,2 = posé sur le sol), lacet, échelle uniforme ; `mats` remplace
+## une matière (ex. {"fer": "argile"} pour un vase) ; `solide_` : boîte de collision tirée de l'emprise du prop (gros objets).
+func q(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, mats := {}, solide_ := false) -> void:
+	if not PropsQuaternius.actif:
+		return
+	pos = _sol(pos)
+	if not PropsQuaternius.existe(nom):
+		push_error("Interieurs : prop %s absent de %s" % [nom, PropsQuaternius.DAT])
+		return
+	var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(Vector3.ONE * e), pos)
+	for m: Array in PropsQuaternius.morceaux(nom):
+		var cible: String = mats.get(m[0], MATS_Q.get(m[0], "bois"))
+		v._ajouter(_p(), m[1], xf, M[cible])
+	if solide_:
+		var bb := PropsQuaternius.boite(nom)
+		solide(pos + Basis(Vector3.UP, lacet) * (bb.get_center() * e), bb.size * e, lacet)
 
 ## Variante tirée de la position (stable d'un lancement à l'autre) : "a", "b" ou "c".
 static func variante(pos: Vector3, n: int, sel := 0) -> String:

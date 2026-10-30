@@ -17,6 +17,7 @@ static func construire(b: Interieurs, id: String) -> void:
 			_chasseurs(b, xch)
 		"grima":
 			_grima(b, xch)
+	_props_quaternius(b, id, xch)
 
 # ------------------------------------------------------------------------------------------------ foyer central
 
@@ -268,3 +269,34 @@ static func _grima(b: Interieurs, xch: float) -> void:
 	b.tenture(Vector3(xe - 0.01, 1.7, 1.6), -PI * 0.5, 1.2, 1.6, "tenture_b")
 	b.applique(Vector3(-1.0, 1.85, zf - 0.02), PI, 1.4, 5.0, true)
 	b.peau_murale(Vector3(1.8, 1.55, zf - 0.04), PI, 0.8, 1.0, "peau_sombre")
+
+# ------------------------------------------------------------------------------------------------ props Quaternius (props/placement, lot 1)
+
+## Props Quaternius (CC0, scripts/props_quaternius.gd) fondus dans les lots de la maison : quelques pièces qui manquaient (lutrin et
+## fioles de la voyante, seau et chopes des chasseurs, vaisselle et seau de la doyenne), posées dans les vides du mobilier L6, hors
+## du passage porte -> foyer (|x| < 0,9 côté porte) et de l'âtre. Fer MAT (fer -> fer_mat), pierre chaude.
+static func _props_quaternius(b: Interieurs, id: String, xch: float) -> void:
+	var F := Interieurs.F
+	var y := F + 0.78           # dessus des tables L6
+	match id:
+		"sigrun":
+			b.q("q_lutrin", Vector3(2.45, 0, -1.55), -PI * 0.5 + 0.35, 1.0, {}, true)       # lutrin tourné vers la pièce, livre ouvert
+			b.q("q_pile_livres", Vector3(2.85, 0, -0.95), 0.4)
+			b.q("q_etagere_fioles", Vector3(3.55, F + 0.55, -1.9), -PI * 0.5, 0.85)          # gradin de fioles sur le grand coffre
+			b.bougie(Vector3(3.55, F + 0.5, -0.95), 0.13, true)                              # chandelle de lecture (petit coffre) : éclaire lutrin et fioles
+			b.q("q_potion_1", Vector3(-0.85, y, -2.3), 0.0, 1.0, {"fer": "argile"})
+			b.q("q_potion_4", Vector3(-0.68, y, -2.38), 0.7, 1.0, {"fer": "argile"})
+			b.q("q_fioles_1", Vector3(1.05, y, -2.0), 0.3, 1.0, {"fer": "etain"})
+			b.q("q_parchemin", Vector3(-0.2, y, -2.05), 1.2)
+		"chasseurs":
+			b.q("q_seau_bois", Vector3(-0.75, 0, -0.95), 0.6)
+			b.q("q_chope", Vector3(1.78, y, -1.85), 0.5)
+			b.q("q_chope", Vector3(1.55, y, -1.68), 2.1)
+			b.q("q_porte_manteau", Vector3(3.76, 1.55, 1.95), -PI * 0.5)                   # patère au-dessus du tonneau de viande
+		"grima":
+			var zb := -b.W * 0.5 + 0.14
+			b.q("q_seau_bois", Vector3(2.15, 0, -1.45), 1.1)
+			b.q("q_etagere_simple", Vector3(xch - 0.3, 1.62, zb + 0.15), 0.0)              # planche murale au-dessus du pétrin
+			for k in 3:
+				b.q("q_bouteille", Vector3(xch - 0.65 + k * 0.32, 1.62 + 0.29, zb + 0.15), k * 0.9, 1.0, {"fer": "argile"})
+			b.q("q_bougie_1", Vector3(b.L * 0.5 - 0.49, F + 0.5, 0.75), 0.0)               # sur le coffre
