@@ -72,8 +72,24 @@ func _plan() -> void:
 		["dans_grotte", func() -> void:
 			monde._aller_grotte("40,0,0,-3")],
 	]
+	# props/placement : postes des props Quaternius (lancés seulement s'ils sont nommés dans --seulement=)
+	file += [
+		["pq_marche", _mond(51.5, 33.6, 0, -10)],
+		["pq_forge_dehors", _mond(32.5, 37.5, 95, -10)],
+		["pq_sigrun", _ip("sigrun", 2.6, 0.7, 0)],
+		["pq_forge", _ip("forge", 1.4, 1.5, 0)],
+		["pq_crypte_tresor", func() -> void:
+			monde.tertre._passer(true)
+			await create_timer(1.4).timeout
+			while not monde.tertre.dedans:
+				await create_timer(0.1).timeout
+			await create_timer(0.7).timeout
+			_poser(monde.tertre.crypte.to_global(Vector3(-37.5, 0.1, -44.0)), monde.tertre.crypte.global_rotation.y + deg_to_rad(90.0), -8.0)],
+	]
 	if not sel.is_empty():
 		file = file.filter(func(e: Array) -> bool: return e[0] in sel)
+	else:
+		file = file.filter(func(e: Array) -> bool: return not String(e[0]).begins_with("pq_"))
 
 func _process(_dt: float) -> bool:
 	var now := Time.get_ticks_usec()
@@ -93,7 +109,7 @@ func _process(_dt: float) -> bool:
 	if etape == "fin":
 		return false
 	t_etape += ms / 1000.0
-	if ms > SEUIL and etape != "crypte_arene":
+	if ms > SEUIL and not etape in ["crypte_arene", "pq_crypte_tresor"]:
 		var jp: Vector3 = monde.joueur.global_position
 		print("IMG   pic %.1f ms [%s t=%.2f s] joueur=(%.1f, %.1f, %.1f) process=%.1f physique=%.1f gpu=%.1f cpu_rendu=%.1f" % [ms, etape, t_etape, jp.x, jp.y, jp.z,
 			Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
@@ -165,5 +181,6 @@ func _rapport() -> void:
 	for l in monde.find_children("*", "OmniLight3D", true, false):
 		if (l as OmniLight3D).is_visible_in_tree():
 			nb_l += 1
-	print("IMG %-22s moy=%6.2f pire=%7.1f >33=%d gpu=%5.2f ms n=%d | arrivee pire=%7.1f >33=%d lumieres=%d" % [cur[0], st[0], st[1], st[2], g, frames.size(), se[1], se[2], nb_l])
+	print("IMG %-22s moy=%6.2f pire=%7.1f >33=%d gpu=%5.2f ms n=%d | arrivee pire=%7.1f >33=%d lumieres=%d appels=%d prims=%d" % [cur[0], st[0], st[1], st[2], g, frames.size(), se[1], se[2], nb_l,
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME), RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
 	_suivant()

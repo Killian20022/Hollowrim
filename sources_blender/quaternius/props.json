@@ -1,0 +1,977 @@
+[
+{
+"nom": "q_enclume",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Anvil.gltf",
+"budget": 500,
+"role": "forge",
+"hauteur": 0.42,
+"categorie": "forge"
+},
+{
+"nom": "q_pierre_aiguiser",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Whetstone.gltf",
+"budget": 500,
+"role": "forge",
+"hauteur": 1.0,
+"categorie": "forge"
+},
+{
+"nom": "q_seau_fer",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Bucket_Metal.gltf",
+"budget": 250,
+"role": "forge",
+"categorie": "forge"
+},
+{
+"nom": "q_etabli",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Workbench.gltf",
+"budget": 900,
+"role": "forge",
+"hauteur": 0.85,
+"categorie": "forge"
+},
+{
+"nom": "q_marmite",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Pot_1.gltf",
+"budget": 300,
+"role": "forge",
+"categorie": "forge"
+},
+{
+"nom": "q_support_tonneau",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Barrel_Holder.gltf",
+"budget": 1200,
+"role": "forge",
+"hauteur": 1.1,
+"categorie": "forge"
+},
+{
+"nom": "q_grande_table",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Table_Large.gltf",
+"budget": 700,
+"role": "auberge",
+"hauteur": 0.78,
+"categorie": "interieur"
+},
+{
+"nom": "q_chaise",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Chair_1.gltf",
+"budget": 400,
+"role": "auberge",
+"hauteur": 0.95,
+"categorie": "interieur"
+},
+{
+"nom": "q_tabouret",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Stool.gltf",
+"budget": 250,
+"role": "auberge",
+"hauteur": 0.5,
+"categorie": "interieur"
+},
+{
+"nom": "q_banc",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Bench.gltf",
+"budget": 400,
+"role": "auberge",
+"hauteur": 0.45,
+"categorie": "interieur"
+},
+{
+"nom": "q_lit",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Bed_Twin1.gltf",
+"budget": 800,
+"role": "maison",
+"hauteur": 0.75,
+"categorie": "interieur"
+},
+{
+"nom": "q_armoire",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Cabinet.gltf",
+"budget": 700,
+"role": "maison",
+"categorie": "interieur"
+},
+{
+"nom": "q_chope",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Mug.gltf",
+"budget": 120,
+"role": "auberge",
+"categorie": "interieur"
+},
+{
+"nom": "q_chaudron",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Cauldron.gltf",
+"budget": 500,
+"role": "maison",
+"hauteur": 0.55,
+"categorie": "interieur"
+},
+{
+"nom": "q_seau_bois",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Bucket_Wooden_1.gltf",
+"budget": 250,
+"role": "maison",
+"categorie": "interieur"
+},
+{
+"nom": "q_lutrin",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/BookStand.gltf",
+"budget": 400,
+"role": "alchimie",
+"hauteur": 1.3,
+"categorie": "alchimie"
+},
+{
+"nom": "q_pile_livres",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Book_Stack_1.gltf",
+"budget": 300,
+"role": "alchimie",
+"categorie": "alchimie"
+},
+{
+"nom": "q_parchemin",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Scroll_1.gltf",
+"budget": 120,
+"role": "alchimie",
+"categorie": "alchimie"
+},
+{
+"nom": "q_etagere_fioles",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Shelf_Small_Bottles.gltf",
+"budget": 900,
+"role": "alchimie",
+"categorie": "alchimie"
+},
+{
+"nom": "q_bougeoir_triple",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/CandleStick_Triple.gltf",
+"budget": 300,
+"role": "crypte",
+"categorie": "crypte"
+},
+{
+"nom": "q_lustre",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Chandelier.gltf",
+"budget": 900,
+"role": "crypte",
+"categorie": "crypte"
+},
+{
+"nom": "q_calice",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Chalice.gltf",
+"budget": 150,
+"role": "crypte",
+"categorie": "crypte"
+},
+{
+"nom": "q_cage",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Cage_Small.gltf",
+"budget": 500,
+"role": "crypte",
+"hauteur": 0.8,
+"categorie": "crypte"
+},
+{
+"nom": "q_etal",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Stall_Empty.gltf",
+"budget": 900,
+"role": "marche",
+"hauteur": 2.2,
+"categorie": "marche"
+},
+{
+"nom": "q_charrette_etal",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Stall_Cart_Empty.gltf",
+"budget": 1000,
+"role": "marche",
+"hauteur": 2.2,
+"categorie": "marche"
+},
+{
+"nom": "q_cageot_pommes",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/FarmCrate_Apple.gltf",
+"budget": 900,
+"role": "marche",
+"categorie": "marche"
+},
+{
+"nom": "q_tonneau_pommes",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Barrel_Apples.gltf",
+"budget": 1200,
+"role": "marche",
+"hauteur": 0.85,
+"categorie": "marche"
+},
+{
+"nom": "q_caisse",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Crate_Wooden.gltf",
+"budget": 300,
+"role": "marche",
+"hauteur": 0.7,
+"categorie": "marche"
+},
+{
+"nom": "q_sac",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Bag.gltf",
+"budget": 300,
+"role": "marche",
+"categorie": "marche"
+},
+{
+"nom": "q_banniere",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Banner_1.gltf",
+"budget": 500,
+"role": "village",
+"categorie": "village"
+},
+{
+"nom": "q_billot_enclume",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Anvil_Log.gltf",
+"budget": 900,
+"role": "forge",
+"categorie": "forge",
+"lot2": true,
+"hauteur": 0.85,
+"mats": {
+"Furniture": "bois",
+"Props": "bois"
+}
+},
+{
+"nom": "q_etabli_tiroirs",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Workbench_Drawers.gltf",
+"budget": 300,
+"role": "forge",
+"categorie": "forge",
+"lot2": true,
+"hauteur": 0.9
+},
+{
+"nom": "q_mannequin",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Dummy.gltf",
+"budget": 900,
+"role": "forge",
+"categorie": "forge",
+"lot2": true,
+"hauteur": 1.7
+},
+{
+"nom": "q_rack_armes",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/WeaponStand.gltf",
+"budget": 800,
+"role": "forge",
+"categorie": "forge",
+"lot2": true,
+"hauteur": 1.5
+},
+{
+"nom": "q_tonneau",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Barrel.gltf",
+"budget": 500,
+"role": "marche",
+"categorie": "marche",
+"lot2": true,
+"hauteur": 0.95
+},
+{
+"nom": "q_lit_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Bed_Twin2.gltf",
+"budget": 800,
+"role": "interieur",
+"categorie": "interieur",
+"lot2": true,
+"hauteur": 0.75
+},
+{
+"nom": "q_livres_moyens_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/BookGroup_Medium_1.gltf",
+"budget": 300,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true,
+"hauteur": 0.3
+},
+{
+"nom": "q_livres_moyens_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/BookGroup_Medium_2.gltf",
+"budget": 300,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true,
+"hauteur": 0.3
+},
+{
+"nom": "q_livres_moyens_3",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/BookGroup_Medium_3.gltf",
+"budget": 300,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true,
+"hauteur": 0.3
+},
+{
+"nom": "q_livres_petits_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/BookGroup_Small_1.gltf",
+"budget": 104,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true
+},
+{
+"nom": "q_livres_petits_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/BookGroup_Small_2.gltf",
+"budget": 104,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true
+},
+{
+"nom": "q_livres_petits_3",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/BookGroup_Small_3.gltf",
+"budget": 130,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true
+},
+{
+"nom": "q_livre_5",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Book_5.gltf",
+"budget": 96,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true
+},
+{
+"nom": "q_livre_7",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Book_7.gltf",
+"budget": 300,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true
+},
+{
+"nom": "q_livre_simple",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Book_Simplified_Single.gltf",
+"budget": 52,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true
+},
+{
+"nom": "q_pile_livres_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Book_Stack_2.gltf",
+"budget": 300,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true
+},
+{
+"nom": "q_bibliotheque",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Bookcase_2.gltf",
+"budget": 900,
+"role": "interieur",
+"categorie": "interieur",
+"lot2": true,
+"hauteur": 2.0
+},
+{
+"nom": "q_bouteille",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Bottle_1.gltf",
+"budget": 200,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true,
+"hauteur": 0.3
+},
+{
+"nom": "q_bougie_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Candle_1.gltf",
+"budget": 120,
+"role": "interieur",
+"categorie": "interieur",
+"lot2": true,
+"hauteur": 0.15
+},
+{
+"nom": "q_bougie_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Candle_2.gltf",
+"budget": 120,
+"role": "interieur",
+"categorie": "interieur",
+"lot2": true,
+"hauteur": 0.12
+},
+{
+"nom": "q_carotte",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Carrot.gltf",
+"budget": 150,
+"role": "marche",
+"categorie": "marche",
+"lot2": true,
+"hauteur": 0.3
+},
+{
+"nom": "q_pieces",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Coin.gltf",
+"budget": 150,
+"role": "crypte",
+"categorie": "crypte",
+"lot2": true
+},
+{
+"nom": "q_tas_pieces",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Coin_Pile.gltf",
+"budget": 400,
+"role": "crypte",
+"categorie": "crypte",
+"lot2": true
+},
+{
+"nom": "q_tas_pieces_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Coin_Pile_2.gltf",
+"budget": 400,
+"role": "crypte",
+"categorie": "crypte",
+"lot2": true
+},
+{
+"nom": "q_caisse_fer",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Crate_Metal.gltf",
+"budget": 700,
+"role": "forge",
+"categorie": "forge",
+"lot2": true,
+"hauteur": 0.7
+},
+{
+"nom": "q_cageot_carottes",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/FarmCrate_Carrot.gltf",
+"budget": 900,
+"role": "marche",
+"categorie": "marche",
+"lot2": true
+},
+{
+"nom": "q_cageot_vide",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/FarmCrate_Empty.gltf",
+"budget": 700,
+"role": "marche",
+"categorie": "marche",
+"lot2": true
+},
+{
+"nom": "q_cle_or",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Key_Gold.gltf",
+"budget": 300,
+"role": "crypte",
+"categorie": "crypte",
+"lot2": true
+},
+{
+"nom": "q_cle_fer",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Key_Metal.gltf",
+"budget": 300,
+"role": "crypte",
+"categorie": "crypte",
+"lot2": true
+},
+{
+"nom": "q_lanterne_murale",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Lantern_Wall.gltf",
+"budget": 700,
+"role": "crypte",
+"categorie": "crypte",
+"lot2": true,
+"hauteur": 0.5
+},
+{
+"nom": "q_chevet_etagere",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Nightstand_Shelf.gltf",
+"budget": 262,
+"role": "interieur",
+"categorie": "interieur",
+"lot2": true,
+"hauteur": 0.65
+},
+{
+"nom": "q_porte_manteau",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Peg_Rack.gltf",
+"budget": 300,
+"role": "interieur",
+"categorie": "interieur",
+"lot2": true
+},
+{
+"nom": "q_couvercle_marmite",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Pot_1_Lid.gltf",
+"budget": 300,
+"role": "forge",
+"categorie": "forge",
+"lot2": true
+},
+{
+"nom": "q_potion_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Potion_1.gltf",
+"budget": 250,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true,
+"hauteur": 0.18
+},
+{
+"nom": "q_potion_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Potion_2.gltf",
+"budget": 250,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true,
+"hauteur": 0.18
+},
+{
+"nom": "q_potion_4",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Potion_4.gltf",
+"budget": 250,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true,
+"hauteur": 0.18
+},
+{
+"nom": "q_bourse",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Pouch_Large.gltf",
+"budget": 300,
+"role": "marche",
+"categorie": "marche",
+"lot2": true,
+"hauteur": 0.3
+},
+{
+"nom": "q_corde_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Rope_1.gltf",
+"budget": 400,
+"role": "marche",
+"categorie": "marche",
+"lot2": true
+},
+{
+"nom": "q_corde_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Rope_2.gltf",
+"budget": 400,
+"role": "marche",
+"categorie": "marche",
+"lot2": true
+},
+{
+"nom": "q_corde_3",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Rope_3.gltf",
+"budget": 400,
+"role": "marche",
+"categorie": "marche",
+"lot2": true
+},
+{
+"nom": "q_parchemin_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Scroll_2.gltf",
+"budget": 200,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true
+},
+{
+"nom": "q_etagere_arche",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Shelf_Arch.gltf",
+"budget": 700,
+"role": "interieur",
+"categorie": "interieur",
+"lot2": true
+},
+{
+"nom": "q_etagere_simple",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Shelf_Simple.gltf",
+"budget": 480,
+"role": "interieur",
+"categorie": "interieur",
+"lot2": true
+},
+{
+"nom": "q_petite_fiole",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/SmallBottle.gltf",
+"budget": 130,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true
+},
+{
+"nom": "q_fioles_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/SmallBottles_1.gltf",
+"budget": 300,
+"role": "alchimie",
+"categorie": "alchimie",
+"lot2": true
+},
+{
+"nom": "q_fourchette",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Table_Fork.gltf",
+"budget": 108,
+"role": "interieur",
+"categorie": "interieur",
+"lot2": true
+},
+{
+"nom": "q_couteau_table",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Table_Knife.gltf",
+"budget": 54,
+"role": "interieur",
+"categorie": "interieur",
+"lot2": true
+},
+{
+"nom": "q_assiette",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Table_Plate.gltf",
+"budget": 172,
+"role": "interieur",
+"categorie": "interieur",
+"lot2": true
+},
+{
+"nom": "q_cuillere",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Table_Spoon.gltf",
+"budget": 164,
+"role": "interieur",
+"categorie": "interieur",
+"lot2": true
+},
+{
+"nom": "q_vase_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Vase_2.gltf",
+"budget": 400,
+"role": "crypte",
+"categorie": "crypte",
+"lot2": true,
+"hauteur": 0.5
+},
+{
+"nom": "q_vase_4",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Vase_4.gltf",
+"budget": 400,
+"role": "crypte",
+"categorie": "crypte",
+"lot2": true,
+"hauteur": 0.5
+},
+{
+"nom": "q_urne_brisee",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Vase_Rubble_Medium.gltf",
+"budget": 600,
+"role": "crypte",
+"categorie": "crypte",
+"lot2": true,
+"hauteur": 0.25
+},
+{
+"nom": "q_banniere_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Banner_2.gltf",
+"budget": 500,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_caisse_village",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_Crate.gltf",
+"budget": 400,
+"role": "village",
+"categorie": "village",
+"lot2": true,
+"hauteur": 0.8,
+"famille": [
+"bois",
+"fer",
+"noir"
+]
+},
+{
+"nom": "q_chariot",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_Wagon.gltf",
+"budget": 1000,
+"role": "village",
+"categorie": "village",
+"lot2": true,
+"hauteur": 0.95,
+"famille": [
+"bois",
+"fer",
+"noir"
+]
+},
+{
+"nom": "q_cheminee_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_Chimney.gltf",
+"budget": 400,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_cheminee_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_Chimney2.gltf",
+"budget": 400,
+"role": "village",
+"categorie": "village",
+"lot2": true,
+"mats": {
+"Brick": "pierre"
+}
+},
+{
+"nom": "q_support_bois",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_Support.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_grille_fer_ornee",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_MetalFence_Ornament.gltf",
+"budget": 700,
+"role": "village",
+"categorie": "village",
+"lot2": true,
+"hauteur": 1.8
+},
+{
+"nom": "q_grille_fer",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_MetalFence_Simple.gltf",
+"budget": 500,
+"role": "village",
+"categorie": "village",
+"lot2": true,
+"hauteur": 1.8
+},
+{
+"nom": "q_barriere_bois",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_WoodenFence_Single.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_barriere_ext_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_WoodenFence_Extension1.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_barriere_ext_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_WoodenFence_Extension2.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_brique_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_Brick1.gltf",
+"budget": 150,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_brique_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_Brick2.gltf",
+"budget": 150,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_brique_3",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_Brick3.gltf",
+"budget": 150,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_brique_4",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_Brick4.gltf",
+"budget": 150,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_porte_1_plate",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Door_1_Flat.gltf",
+"budget": 500,
+"role": "village",
+"categorie": "village",
+"lot2": true,
+"hauteur": 2.2
+},
+{
+"nom": "q_porte_1_ronde",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Door_1_Round.gltf",
+"budget": 500,
+"role": "village",
+"categorie": "village",
+"lot2": true,
+"hauteur": 2.2
+},
+{
+"nom": "q_porte_2_plate",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Door_2_Flat.gltf",
+"budget": 500,
+"role": "village",
+"categorie": "village",
+"lot2": true,
+"hauteur": 2.2
+},
+{
+"nom": "q_porte_2_ronde",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Door_2_Round.gltf",
+"budget": 500,
+"role": "village",
+"categorie": "village",
+"lot2": true,
+"hauteur": 2.2
+},
+{
+"nom": "q_porte_4_plate",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Door_4_Flat.gltf",
+"budget": 500,
+"role": "village",
+"categorie": "village",
+"lot2": true,
+"hauteur": 2.2
+},
+{
+"nom": "q_porte_4_ronde",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Door_4_Round.gltf",
+"budget": 500,
+"role": "village",
+"categorie": "village",
+"lot2": true,
+"hauteur": 2.2
+},
+{
+"nom": "q_porte_8_plate",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Door_8_Flat.gltf",
+"budget": 500,
+"role": "village",
+"categorie": "village",
+"lot2": true,
+"hauteur": 2.2
+},
+{
+"nom": "q_porte_8_ronde",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Door_8_Round.gltf",
+"budget": 500,
+"role": "village",
+"categorie": "village",
+"lot2": true,
+"hauteur": 2.2
+},
+{
+"nom": "q_volets_thin_flat_closed",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/WindowShutters_Thin_Flat_Closed.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_volets_thin_flat_open",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/WindowShutters_Thin_Flat_Open.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_volets_thin_round_closed",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/WindowShutters_Thin_Round_Closed.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_volets_thin_round_open",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/WindowShutters_Thin_Round_Open.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_volets_wide_flat_closed",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/WindowShutters_Wide_Flat_Closed.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_volets_wide_flat_open",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/WindowShutters_Wide_Flat_Open.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_volets_wide_round_closed",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/WindowShutters_Wide_Round_Closed.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_volets_wide_round_open",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/WindowShutters_Wide_Round_Open.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_fenetre_thin_flat1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Window_Thin_Flat1.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_fenetre_thin_round1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Window_Thin_Round1.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_fenetre_wide_flat1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Window_Wide_Flat1.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+},
+{
+"nom": "q_fenetre_wide_round1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Window_Wide_Round1.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot2": true
+}
+]

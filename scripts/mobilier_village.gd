@@ -31,6 +31,31 @@ const POSES := [
 	["caisse_c", 55.3, 41.2, -25.0, 1.0], ["sacs", 51.4, 44.9, 80.0, 1.0], ["caisse_c", 46.4, 55.0, 10.0, 1.0],
 	["sacs", 40.4, 54.6, -60.0, 1.0], ["caisse_c", 40.0, 68.8, 30.0, 1.0], ["tonneau_c", 49.3, 79.9, 0.0, 1.0],
 ]
+## Lot 3 (props/placement) : props Quaternius du marché, dans le repère d'un étal de POSES (indice parmi les « etal », 0 = 51,5 ; 30,5) :
+## [prop, étal, position locale (y 0 = au sol, recalé sur le relief ; 0,9 = sur la planche avant du comptoir), lacet° local, collision].
+## Repère de l'étal : comptoir z -0,96 .. -0,14, dessus 0,9 / 0,83 (côté client, au nord pour lacet 0), marchand entre le comptoir et les poteaux arrière (z 0,95).
+## Rien devant le comptoir (z < -0,9) : le client y passe ; réserves derrière ou au bout du comptoir.
+const POSES_Q := [
+	# étal 0 : primeurs (pommes, carottes) ; marchandises d'avant sur le comptoir : caisse x -1,33..-1,03, peaux x 0,1..0,6
+	["q_cageot_pommes", 0, Vector3(-0.5, 0.9, -0.62), 4.0, false], ["q_cageot_carottes", 0, Vector3(1.05, 0.9, -0.62), -3.0, false],
+	["q_carotte", 0, Vector3(0.75, 0.9, -0.88), 70.0, false],
+	["q_tonneau", 0, Vector3(-0.95, 0.0, 0.45), 30.0, true],
+	["q_cageot_vide", 0, Vector3(0.75, 0.0, 0.45), 85.0, false], ["q_cageot_vide", 0, Vector3(0.78, 0.24, 0.47), 95.0, false],
+	# étal 1 : cordier et sacs
+	["q_corde_2", 1, Vector3(-0.5, 0.9, -0.6), 10.0, false], ["q_bourse", 1, Vector3(0.95, 0.9, -0.62), 200.0, false],
+	["q_sac", 1, Vector3(-0.9, 0.0, 0.45), 15.0, true], ["q_sac", 1, Vector3(-0.35, 0.0, 0.5), -40.0, true],
+	["q_corde_3", 1, Vector3(0.75, 0.0, 0.45), 30.0, false], ["q_corde_1", 1, Vector3(0.9, 0.11, 0.42), 80.0, false],
+	# étal 2 : réserve et cageots
+	["q_cageot_carottes", 2, Vector3(-0.5, 0.9, -0.62), 0.0, false], ["q_cageot_vide", 2, Vector3(1.05, 0.9, -0.62), 3.0, false],
+	["q_carotte", 2, Vector3(1.0, 0.94, -0.6), 20.0, false], ["q_carotte", 2, Vector3(1.15, 0.94, -0.66), 110.0, false],
+	["q_caisse", 2, Vector3(-0.85, 0.0, 0.45), 12.0, true], ["q_tonneau", 2, Vector3(0.85, 0.0, 0.45), 0.0, true],
+	["q_caisse", 2, Vector3(1.95, 0.0, -0.4), -20.0, true], ["q_cageot_pommes", 2, Vector3(1.95, 0.7, -0.4), -15.0, false],
+]
+## Matières des props Quaternius -> matières du mobilier (fer MAT : fer du village, déjà terne ; voir _materiau pour lin et os).
+const MATS_Q := {"bois": "planches_h", "fer": "fer", "jute": "foin", "lin": "lin", "os": "os", "pierre": "pierre_brute", "or": "fer", "noir": "fer"}
+## Primeurs : les fruits et légumes du pack Standard sont blancs à l'origine et sortaient en « fer » bleu-noir : terre cuite orangée.
+const PRIMEURS := ["q_cageot_pommes", "q_cageot_carottes", "q_carotte"]
+
 ## Collisions par module : ["cyl", rayon, hauteur, centre] ou ["boite", taille, centre] (repère du module).
 const COLLISIONS := {
 	"puits": [["cyl", 1.72, 0.85, Vector3(0, 0.42, 0)], ["cyl", 0.1, 3.0, Vector3(1.3, 1.5, 1.3)], ["cyl", 0.1, 3.0, Vector3(-1.3, 1.5, 1.3)],
@@ -76,6 +101,13 @@ static func _materiau(nom: String) -> Material:
 		"cuir": return TexturesBati.m_cuir_e()
 		"foin": return TexturesBati.m_foin_e()
 		"braises": return TexturesBati.m_braises()
+		"lin", "os", "argile":      # props Quaternius : textures de la crypte sur le shader du bâti (comme les intérieurs)
+			if not TexturesBati._cache.has(nom):
+				var img: Image = ResourceLoader.load("res://assets/crypte/%s.res" % nom)
+				TexturesBati._cache[nom] = [ImageTexture.create_from_image(img), TexturesBati.relief_neutre()]
+			var ml := TexturesBati.materiau(nom, Color(1.35, 1.1, 0.92) if nom == "argile" else Color(1.0, 0.96, 0.9), 64.0, 0.4, "neige_e")      # primeurs plus vives à l'ombre de l'auvent
+			ml.set_shader_parameter("proche", Vector2(4.0, 14.0))
+			return ml
 		"tenture_rouge", "peau":
 			return TexturesBati.materiau(nom, Color.WHITE, 32.0, 0.6)   # tissus modélisés double face
 	return TexturesBati.m_planches_e()
@@ -290,6 +322,8 @@ func _construire() -> void:
 				forme.shape = bx
 				forme.transform = Transform3D(xf.basis.orthonormalized(), xf * (c[2] as Vector3))
 			_corps.add_child(forme)
+	var nq := _props_q(fusion)
+	tris += nq.x
 	for mat: String in fusion:
 		var st: SurfaceTool = fusion[mat]
 		st.generate_normals()
@@ -299,7 +333,49 @@ func _construire() -> void:
 		mi.material_override = _materiau(mat)
 		mi.visibility_range_end = PORTEE
 		add_child(mi)
+	print("MobilierVillage : %d props Quaternius (%d triangles)" % [nq.y, nq.x])
 	print("MobilierVillage : %d poses, %d triangles, %d matières, %d tissus, %d collisions, %d ms" % [POSES.size(), tris, fusion.size(), _tissus.size(), _corps.get_child_count(), Time.get_ticks_msec() - t0])
+
+## Lot 3 : props Quaternius du marché (POSES_Q), fondus dans les mêmes SurfaceTool par matière (aucun maillage en plus si la matière
+## existe déjà) ; collisions boîtes de l'emprise sur les gros. Renvoie (triangles, poses).
+func _props_q(fusion: Dictionary) -> Vector2i:
+	if not PropsQuaternius.actif:
+		return Vector2i.ZERO
+	var etals: Array = []
+	for pose: Array in POSES:
+		if pose[0] == "etal":
+			etals.append(Transform3D(Basis(Vector3.UP, deg_to_rad(pose[3])), Vector3(pose[1], _sol_bas(pose[1], pose[2], 1.4), pose[2])))
+	var tris := 0
+	var num := 0
+	for e: Array in POSES_Q:
+		var nom: String = e[0]
+		if not PropsQuaternius.existe(nom):
+			continue
+		num += 1
+		var xe: Transform3D = etals[e[1]]
+		var lp: Vector3 = e[2]
+		var p := xe * lp
+		if lp.y < 0.01:      # au sol : recalé sur le relief (le plus bas de l'emprise, rien ne flotte)
+			p.y = _sol_bas(p.x, p.z, 0.3)
+		var xf := Transform3D(xe.basis * Basis(Vector3.UP, deg_to_rad(e[3])), p)
+		for t: Array in PropsQuaternius.triangles(nom):
+			var mat: String = "argile" if t[0] == "fer" and nom in PRIMEURS else MATS_Q.get(t[0], "planches_h")
+			if not fusion.has(mat):
+				var st := SurfaceTool.new()
+				st.begin(Mesh.PRIMITIVE_TRIANGLES)
+				fusion[mat] = st
+			(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(nom, t[0]), 0, xf)
+			tris += (t[1] as PackedVector3Array).size() / 3
+		if e[4]:
+			var bb := PropsQuaternius.boite(nom)
+			var forme := CollisionShape3D.new()
+			forme.set_meta("objet", "%s#q%d" % [nom, num])
+			var bs := BoxShape3D.new()
+			bs.size = bb.size
+			forme.shape = bs
+			forme.transform = Transform3D(xf.basis, xf * bb.get_center())
+			_corps.add_child(forme)
+	return Vector2i(tris, num)
 
 func _ajouter(st: SurfaceTool, d: Array, xf: Transform3D) -> void:
 	var pos: PackedVector3Array = d[0]
