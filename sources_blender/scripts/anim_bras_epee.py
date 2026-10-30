@@ -416,7 +416,7 @@ def _rot_ecart(R1, R0):
     return R1 @ R0.inverted()
 
 
-def _resoudre_main(Rl0, Hd, prec_k, continuite=0.04, vitesse=None, rappel=0.0, prec_fr=None, torsion=None):
+def _resoudre_main(Rl0, Hd, prec_k, continuite=0.04, vitesse=None, rappel=0.0, prec_fr=None, torsion=None, butees=None):
     """Torsion k (avant-bras), flexion f, inclinaison r dans LIM_MX qui approchent le mieux l'orientation voulue Hd
     (armature) : la lame d'abord (axe Y de l'épée), puis le tranchant ; continuité de la torsion avec l'image précédente."""
     Ry = (Hd @ PRISE_D.to_3x3()).col[1].normalized()
@@ -424,6 +424,10 @@ def _resoudre_main(Rl0, Hd, prec_k, continuite=0.04, vitesse=None, rappel=0.0, p
     LT, LF, LI = LIM_MX["torsion"], LIM_MX["flexion"], LIM_MX["inclinaison"]
     if torsion is not None:   # plage de torsion propre au clip (le maillage du coude, sans os de torsion, ne suit pas au-delà)
         LT = (max(LT[0], torsion[0]), min(LT[1], torsion[1]))
+    if butees is not None:   # POIGNET VERROUILLÉ (coups v6) : flexion / inclinaison serrées autour de la tenue, l'épée
+        # prolonge l'avant-bras ; le reste de l'orientation passe dans la torsion de l'avant-bras et dans le bras
+        LF = (max(LF[0], butees[0][0]), min(LF[1], butees[0][1]))
+        LI = (max(LI[0], butees[1][0]), min(LI[1], butees[1][1]))
 
     def cout(k, f, r):
         Hr = _poignet("r", Rl0, k, f, r)
@@ -553,15 +557,80 @@ def creer_action_mixamo(nom, spec):
     c_la = (imc["p_poignet"] - imc["p_coude"]).normalized()
     c_F = _repere_main(imc["p_poignet"], imc["p_index"], imc["p_auriculaire"]).to_quaternion()
     serre = lambda c, d: Quaternion().slerp(c.rotation_difference(d), alpha) @ c
-    for i in range(n + 1):
-        t = i / 60
+    roulis_prise = Matrix.Rotation(math.radians(spec.get("roulis_prise", ROULIS_PRISE_MX)), 3, PRISE_D.to_3x3().col[1].normalized())
+
+    etat_a = [0.0]
+
+    def cibles(t):
+        """Cibles de la capture à l'instant t (avant fondu) : image source, directions du bras et de l'avant-bras, repère
+        anatomique de la main (repère caméra)."""
+        a = etat_a[0]   # hors table (arrondi au dernier instant) : même comportement qu'avant (dernier segment, a précédent)
         for (f0, t0), (f1, t1) in zip(table, table[1:]):
             if t0 - 1e-9 <= t <= t1 + 1e-9:
                 a = (t - t0) / max(t1 - t0, 1e-6)
                 break
+        etat_a[0] = a
         fr = f0 + (f1 - f0) * a
         im = _mx_image(src, fr)
         Q = _cadrage(spec, t, longueur)
+        d_ua = Q @ serre(c_ua, (im["p_coude"] - im["p_epaule"]).normalized())
+        d_la = Q @ serre(c_la, (im["p_poignet"] - im["p_coude"]).normalized())
+        Fi = _repere_main(im["p_poignet"], im["p_index"], im["p_auriculaire"]).to_quaternion()
+        if c_F.dot(Fi) < 0:
+            Fi = -Fi
+        Fi = c_F.slerp(Fi, alpha)
+        lm, tm, rm = (x * _poids_cadrage(spec, t, longueur) for x in spec.get("main", (0.0, 0.0, 0.0)))
+        Rm = (Matrix.Rotation(math.radians(lm), 3, "Y") @ Matrix.Rotation(math.radians(tm), 3, "X")
+              @ Matrix.Rotation(math.radians(rm), 3, "Z"))
+        Fc = (Rm @ Q @ Fi.to_matrix()).to_quaternion()
+        return fr, im, d_ua, d_la, Fc
+
+    def pointe_rel(d_ua, d_la, Fc):
+        """Pointe de l'épée par rapport à l'épaule (repère caméra) si la main prenait exactement le repère Fc."""
+        return d_ua * l1 + d_la * l2 + (Fc.to_matrix() @ G.inverted() @ roulis_prise) @ (PRISE_D @ POINTE)
+
+    # ARC GUIDÉ (coups v6, idée reprise de COBRA FPS Feelkit, MIT : la trajectoire d'un coup = rotation autour d'un pivot à
+    # vitesse angulaire constante, plus un léger creux de poids en sin(pi u)). « arc » = (t0, t1, poids) : pendant la frappe,
+    # la pointe est ramenée vers un ARC DE CERCLE autour de l'épaule, dans le plan qui colle le mieux à la capture, parcouru
+    # dans le même sens que la capture, angle linéaire en temps (la capture à 30 i/s interpolée image à image donnait des
+    # cordes et des à-coups). Correction = rotation rigide du bras autour de l'épaule, en SURCOUCHE de la capture, en cloche
+    # (0 aux bords de la frappe). « creux » = m : l'épaule descend de creux·sin(pi u) pendant la frappe.
+    arc = None
+    if "arc" in spec:
+        a0, a1, poids_arc = spec["arc"]
+        echs = [a0 + (a1 - a0) * j / 24 for j in range(25)]
+        dirs = []
+        for te in echs:
+            _, _, du, dl, fc = cibles(te)
+            dirs.append(pointe_rel(du, dl, fc).normalized())
+        # plan passant par l'épaule le plus proche des directions (plus petite valeur propre de la covariance)
+        import numpy as np
+        Mv = np.array([[v.x, v.y, v.z] for v in dirs])
+        _, vecs = np.linalg.eigh(Mv.T @ Mv)
+        nrm = Vector(vecs[:, 0].tolist()).normalized()
+        proj = lambda v: (v - nrm * v.dot(nrm)).normalized()
+        theta = 0.0
+        for v0, v1 in zip(dirs, dirs[1:]):
+            p0, p1 = proj(v0), proj(v1)
+            theta += math.atan2(p0.cross(p1).dot(nrm), p0.dot(p1))
+        arc = (a0, a1, poids_arc, nrm, proj(dirs[0]), theta)
+        print("ARC %-10s plan n=(%.2f, %.2f, %.2f), %.0f° en %.3f s, écart max capture/plan %.1f°" % (
+            nom, nrm.x, nrm.y, nrm.z, math.degrees(theta), a1 - a0, max(abs(90.0 - math.degrees(v.angle(nrm))) for v in dirs)))
+    creux = spec.get("creux", 0.0)
+
+    for i in range(n + 1):
+        t = i / 60
+        fr, im, d_ua, d_la, Fc = cibles(t)
+        u_arc = -1.0
+        if arc is not None and arc[0] <= t <= arc[1]:
+            a0, a1, poids_arc, nrm, p0, theta = arc
+            u_arc = (t - a0) / (a1 - a0)
+            dc = pointe_rel(d_ua, d_la, Fc).normalized()
+            da = Quaternion(nrm, theta * u_arc) @ p0
+            cl_ = min(u_arc, 1.0 - u_arc) / 0.2
+            cl_ = max(0.0, min(1.0, cl_))
+            Qc = Quaternion().slerp(dc.rotation_difference(da), poids_arc * cl_ * cl_ * (3 - 2 * cl_))
+            d_ua, d_la, Fc = Qc @ d_ua, Qc @ d_la, Qc @ Fc
         w = 1.0
         if t < t_in:
             w = t / t_in
@@ -576,26 +645,17 @@ def creer_action_mixamo(nom, spec):
         cl.location = repos_loc
         maj()
         dep = (im["p_epaule"] - ref["p_epaule"]) * echelle + Vector(spec.get("decalage", (0.0, 0.0, 0.0))) * _poids_cadrage(spec, t, longueur)
+        if u_arc >= 0.0:
+            dep = dep + Vector((0.0, -creux * math.sin(math.pi * u_arc), 0.0))
         cl.matrix = Matrix.Translation(B3 @ (dep * w)) @ cl.matrix
         maj()
         S = CAM_DE_B @ ua.head
-        d_ua = Q @ serre(c_ua, (im["p_coude"] - im["p_epaule"]).normalized())
-        d_la = Q @ serre(c_la, (im["p_poignet"] - im["p_coude"]).normalized())
         E = S + d_ua * l1
         W = E + d_la * l2
         # fondu des cibles avec la garde (positions relatives à l'épaule, repère de la main en slerp)
         E = S + (E0 - S0).lerp(E - S, w)
         W = S + (W0 - S0).lerp(W - S, w)
-        Fi = _repere_main(im["p_poignet"], im["p_index"], im["p_auriculaire"]).to_quaternion()
-        if c_F.dot(Fi) < 0:
-            Fi = -Fi
-        Fi = c_F.slerp(Fi, alpha)
-        # « main » : (lacet°, tangage°, roulis°) en plus sur la main seule (repère caméra), même cloche que le cadrage :
-        # pointe la lame vers l'avant pour qu'elle balaie la cible au lieu de rester dressée
-        lm, tm, rm = (x * _poids_cadrage(spec, t, longueur) for x in spec.get("main", (0.0, 0.0, 0.0)))
-        Rm = (Matrix.Rotation(math.radians(lm), 3, "Y") @ Matrix.Rotation(math.radians(tm), 3, "X")
-              @ Matrix.Rotation(math.radians(rm), 3, "Z"))
-        Fc = (Rm @ Q @ Fi.to_matrix()).to_quaternion()
+        # « main » (lacet°, tangage°, roulis° sur la main seule, même cloche que le cadrage) : appliqué dans cibles()
         if F0.dot(Fc) < 0:   # même hémisphère : le fondu prend le chemin court (sinon la lame fait un tour au retour)
             Fc = -Fc
         Fm = F0.slerp(Fc, w).to_matrix()
@@ -619,8 +679,8 @@ def creer_action_mixamo(nom, spec):
         else:
             pole = ind.normalized() if ind.length > 1e-6 else Vector((0.0, -0.5, 0.5)).normalized()
         coude, d2, Rl0, allonge = _bras_deux_os("r", B_DE_CAM @ W, pole)
-        Hd = B3 @ Fm @ G.inverted() @ Matrix.Rotation(math.radians(spec.get("roulis_prise", ROULIS_PRISE_MX)), 3, PRISE_D.to_3x3().col[1].normalized())
-        c, k, f, r, Hr = _resoudre_main(Rl0, Hd, prec_k, spec.get("continuite", 0.04), VITESSE_TORSION_MX, 2.0 * (1.0 - w), prec_fr, spec.get("torsion"))
+        Hd = B3 @ Fm @ G.inverted() @ roulis_prise
+        c, k, f, r, Hr = _resoudre_main(Rl0, Hd, prec_k, spec.get("continuite", 0.04), VITESSE_TORSION_MX, 2.0 * (1.0 - w), prec_fr, spec.get("torsion"), spec.get("poignet"))
         prec_k = k
         prec_fr = (f, r)
         Rl = Matrix.Rotation(math.radians(k), 3, d2) @ Rl0
@@ -901,7 +961,8 @@ def mesurer_clips(actions):
             visee = math.degrees(math.acos(min(1.0, abs((p - g).normalized().dot(((g + p) * 0.5).normalized())))))
             e = lambda v: "(%5.2f,%5.2f)" % (v.x / -v.z / th, v.y / -v.z / tv) if v.z < -0.01 else "(derriere)"
             coude = CAM_DE_B @ A.pose.bones["lowerarm_r"].head
-            print("MESURER %-14s #%02d t=%.3f garde %s pointe %s cadre %3d%% plat %3d%% visee %2d coude %s" % (nom, i, t, e(g), e(p), round(100 * vus / 25), round(100 * part), round(visee), e(coude)))
+            pf, pr, pc = angles_poignet()
+            print("MESURER %-14s #%02d t=%.3f garde %s pointe %s cadre %3d%% plat %3d%% visee %2d coude %s poignet f%+04d r%+04d cassure %3d" % (nom, i, t, e(g), e(p), round(100 * vus / 25), round(100 * part), round(visee), e(coude), round(pf), round(pr), round(pc)))
             m6 = g.lerp(p, 0.6)
             print("MESFIL %s %.4f %.5f %.5f %.5f %.5f %.5f %.5f %d" % (nom, t, m6.x, m6.y, m6.z, z.x, z.y, z.z, round(100 * vus / 25)))
 

@@ -77,7 +77,7 @@ func _tester() -> void:
 		gestes.append(await _clic(0.45))
 	_pas(roundi(0.6 / DT))
 	print("   gestes %s ; touches %s" % [gestes, touches])
-	_verif(gestes == ["diag_dg", "revers_gd", "taille_dg", "estoc_combo", "diag_dg"], "4 coups dans l'ordre puis retour au coup 1 : %s" % [gestes])
+	_verif(gestes == CoupsUneMain.COMBO + [CoupsUneMain.COMBO[0]], "4 coups dans l'ordre puis retour au coup 1 : %s" % [gestes])
 	_verif(touches.size() == 5 and touches.all(func(t: Array) -> bool: return not t[2]), "une touche légère par coup (%d)" % touches.size())
 
 	# --- 2. trop lent : le 2e clic tombe après le retour au repos
@@ -85,7 +85,7 @@ func _tester() -> void:
 	await _reset()
 	var a := await _clic(1.2)
 	var b := await _clic(0.6)
-	_verif(a == "diag_dg" and b == "diag_dg" and mains.combat.etat in [EtatCombat.REPOS, EtatCombat.MOUVEMENT, EtatCombat.RECUPERATION], "clic après le repos : le combo repart au coup 1 (%s, %s)" % [a, b])
+	_verif(a == CoupsUneMain.COMBO[0] and b == CoupsUneMain.COMBO[0] and mains.combat.etat in [EtatCombat.REPOS, EtatCombat.MOUVEMENT, EtatCombat.RECUPERATION], "clic après le repos : le combo repart au coup 1 (%s, %s)" % [a, b])
 
 	# --- 3. clic maintenu au milieu du combo : puissant
 	print("-- clic maintenu")

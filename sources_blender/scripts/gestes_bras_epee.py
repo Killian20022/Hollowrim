@@ -375,3 +375,14 @@ MARQUEURS = {
 from gestes_une_main import CLIPS_MIXAMO_UNE_MAIN, MARQUEURS_UNE_MAIN  # noqa: E402
 CLIPS_MIXAMO.update(CLIPS_MIXAMO_UNE_MAIN)
 MARQUEURS.update(MARQUEURS_UNE_MAIN)
+
+# coups v6 (2026-10-30) : les 4 coups du combo v5 + poignet verrouillé, arc guidé, creux de poids (gestes_une_main.py)
+from gestes_une_main import surcouche_v6  # noqa: E402
+for _nom, _arc in (("coup_a", (0.16, 0.26, 0.85)), ("coup_b", (0.13, 0.23, 0.85)), ("coup_t", (0.13, 0.23, 0.85)), ("coup_c", None)):
+    CLIPS_MIXAMO[_nom + "6"] = surcouche_v6(CLIPS_MIXAMO[_nom], _arc)
+    MARQUEURS[_nom + "6"] = dict(MARQUEURS[_nom])
+# retouches v6 (mesures anim_bras_epee --mesurer, 2026-10-30) : revers redressé de 15° (le poignet verrouillé le faisait
+# descendre vers la droite) ; taille : flexion permise jusqu'à 45° (sans elle le plat mène : fil 37° au lieu de 73°) et arc
+# moins appuyé
+CLIPS_MIXAMO["coup_b6"]["cadrage"] = (0, 25, 80)
+CLIPS_MIXAMO["coup_t6"].update(poignet=((-28, 45), (-29, -18)), arc=(0.13, 0.23, 0.6))

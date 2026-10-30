@@ -135,7 +135,7 @@ func _tester() -> void:
 		res[fps] = await _suite(fps)
 	var ref: Array = res[60][0]
 	_verif(ref.size() == 5, "5 coups (combo de 4 + lourd) -> 5 touches sur le mannequin à 60 i/s (une seule par coup) : %d" % ref.size())
-	_verif(res[60][1] == ["diag_dg", "revers_gd", "taille_dg", "estoc_combo"], "combo de base : diagonale, revers gauche → droite, taille droite → gauche, estoc %s" % [res[60][1]])
+	_verif(res[60][1] == CoupsUneMain.COMBO, "combo de base : diagonale, revers gauche → droite, taille droite → gauche, estoc %s" % [res[60][1]])
 	if ref.size() == 5:
 		_verif(absf(ref[2]["degats"] - 14.0 * 1.1) < 0.05, "le coup 3 (taille horizontale) : %.1f" % ref[2]["degats"])
 		_verif(absf(ref[3]["degats"] - 14.0 * 1.25) < 0.05, "le coup 4 (estoc) est le plus fort : %.1f" % ref[3]["degats"])
@@ -208,7 +208,7 @@ func _tester() -> void:
 	for k in 3:
 		mains.avancer(1.0 / 60.0)
 	mains.entrees.relacher()
-	_verif(mains._geste_nom == "diag_dg", "après le repos, le combo repart de diag_dg (%s)" % mains._geste_nom)
+	_verif(mains._geste_nom == CoupsUneMain.COMBO[0], "après le repos, le combo repart du coup 1 (%s)" % mains._geste_nom)
 	await _simuler(0.8, 1.0 / 60.0)
 
 	# --- 2 ter. coups en espace écran : le mannequin à 1,5 m et à 2 m est touché par chacun des 3 coups du combo
@@ -349,7 +349,7 @@ func _geometrie_combo() -> void:
 			moy += float(f) / fils.size()
 		var d := b - a
 		print("   %s : milieu de lame %s -> %s, fil moyen %.0f°" % [g, a.snapped(Vector2.ONE * 0.01), b.snapped(Vector2.ONE * 0.01), moy])
-		match g:
+		match g.trim_suffix("6"):   # coups v6 : mêmes gestes (clips « 6 »), mêmes exigences
 			"diag_dg":
 				_verif(d.x < -0.4 and d.y < -0.3 and a.x > 0.0 and a.y > 0.0 and b.x < 0.0 and b.y < 0.0, "coup 1 : VRAIE diagonale haut-droite → bas-gauche à travers le centre (%s -> %s)" % [a, b])
 				_verif(moy >= 70.0, "coup 1 : le tranchant mène (fil moyen %.0f° ≥ 70)" % moy)
