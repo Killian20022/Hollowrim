@@ -215,7 +215,7 @@ func _fiche(parent: Node, k: int, id: String, o: Vector2) -> void:
 		var y := o.y + 34 + r * (CH + 4)
 		_texte(parent, "AVANT" if r == 0 else "APRÈS", Vector2(o.x + 4, y + CH * 0.5 - 10), 15, Color("#d8cfb8") if r == 0 else Color("#9fe0a0"))
 		for c in 3:
-			var nom := ["pres_", "detail_", "main_"][c] + id + ".png"
+			var nom: String = ["pres_", "detail_", "main_"][c] + id + ".png"
 			_image_rect(parent, _lire(ph.path_join(nom)), Vector2(o.x + 66 + c * CW, y))
 
 func _assembler() -> void:

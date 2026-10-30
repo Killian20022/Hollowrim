@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" path="res://assets/modeles/armes/cc0_essai/07_axe_small.glb" id="1_glb"]
 
 [node name="hachette" type="Node3D"]
+metadata/remap_materiaux = {"lame.0": "acier_q", "lame.3": "acier_fil", "cuir.2": "bois", "cuir.1": "cuir"}
 
 [node name="modele" parent="." instance=ExtResource("1_glb")]
 transform = Transform3D(1.15, 0, 0, 0, 1.15, 0, 0, 0, 1.15, 0, -0.0045, 0)

@@ -30,6 +30,21 @@ ARMES = [
 BOUCLIERS = [("bouclier_cercle", "11_shield_round", 0.03), ("ecu_chevalier", "12_shield_heater", 0.03)]
 
 
+# RÉALISME (branche armes/realisme) : matériaux PS1 à projection boîte de EpeesLongues (fini les aplats « camouflage » des UV
+# automatiques Quaternius). Clé = nom de surface du glb (« lame.3 ») ou nom court (« lame ») ; la claymore n'est pas remappée
+# (refaite sur la branche combat/claymore_2mains).
+LAME_Q = {"lame.0": "acier_q", "lame.3": "acier_fil", "fer": "fer", "cuir": "cuir"}   # lame.0 = plats, lame.3 = tranchants
+MANCHE_Q = {"lame.0": "acier_q", "lame.3": "acier_fil", "cuir.2": "bois", "cuir.1": "cuir"}   # cuir.2 = fût, cuir.1 = lanières
+REMAP = {
+	"epee_soldat": LAME_Q, "sabre_pillard": LAME_Q, "dague_acier": LAME_Q,
+	"epee_doree": {"or.0": "or_lame", "or.4": "or", "fer": "fer", "cuir": "cuir"},
+	"hache_guerre": MANCHE_Q, "hachette": MANCHE_Q,
+	"marteau_guerre": {"lame.0": "fer", "lame.3": "acier_fil", "cuir.2": "bois", "cuir.1": "cuir"},
+	"grand_marteau": {"lame.0": "fer", "lame.3": "acier_fil", "cuir.2": "bois", "cuir.1": "cuir"},
+}
+REMAP_BOUCLIER = {"lame": "fer_rivete", "cuir": "planches"}
+
+
 def f(v):
 	return ('%.4f' % v).rstrip('0').rstrip('.') if abs(v) > 1e-9 else '0'
 
@@ -62,10 +77,10 @@ def scene(id_, glb, t_modele, reperes, remap=None):
 os.makedirs(D, exist_ok=True)
 for id_, glb, s, g, p in ARMES:
 	t = tr((s, 0, 0, 0, s, 0, 0, 0, s), (0, PRISE * (1 - s), 0))
-	open(D + id_ + '.tscn', 'w').write(scene(id_, glb, t, [("prise", (0, PRISE, 0)), ("garde", ech(g, s)), ("pointe", ech(p, s))]))
+	open(D + id_ + '.tscn', 'w').write(scene(id_, glb, t, [("prise", (0, PRISE, 0)), ("garde", ech(g, s)), ("pointe", ech(p, s))], REMAP.get(id_)))
 for id_, glb, cy in BOUCLIERS:
 	# rotation +90° autour de Y : x' = z, z' = -x (la face +Z du glb devient +X)
 	t = tr((0, 0, 1, 0, 1, 0, -1, 0, 0), (0.085, -cy, 0))
-	# dos, cerclage et clous nommés « lame » dans le glb : fer forgé sombre plutôt que l'acier poli des lames
-	open(D + id_ + '.tscn', 'w').write(scene(id_, glb, t, [("prise", (0, 0, 0)), ("umbo", (0.19, 0, 0))], {"lame": "fer"}))
+	# dos, cerclage et clous nommés « lame » dans le glb : fer riveté ; face et dos « cuir » : planches de bois veiné
+	open(D + id_ + '.tscn', 'w').write(scene(id_, glb, t, [("prise", (0, 0, 0)), ("umbo", (0.19, 0, 0))], REMAP_BOUCLIER))
 print('enveloppes :', len(ARMES) + len(BOUCLIERS), '->', D)
