@@ -14,7 +14,7 @@ const POSES := [
 	["marteau_guerre", "repos_m:0.0", "Marteau : repos"], ["marteau_guerre", "m_c:0.46", "Marteau 1 : écrasement, armé"],
 	["marteau_guerre", "m_c:0.70", "Marteau 1 : impact"], ["marteau_guerre", "m_b:0.62", "Marteau 3 : revers, impact"],
 	["grand_marteau", "repos_gm:0.0", "Grand marteau : repos (2 mains)"], ["grand_marteau", "gm_a:0.45", "Grand marteau : armé"],
-	["grand_marteau", "gm_a:0.70", "Grand marteau : tête au sol"], ["grand_marteau", "gm_b:0.67", "Grand marteau 2 : vertical en biais, impact"],
+	["grand_marteau", "gm_a:0.70", "Grand marteau : tête au sol"], ["grand_marteau", "lourd_gm:0.31", "Grand marteau : puissante, impact"],
 ]
 
 var s: Node

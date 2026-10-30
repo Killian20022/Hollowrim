@@ -246,15 +246,15 @@ G1_IMPACT = dict(nom="G1_impact", poing=E(0.18, -0.50, 0.58), lame=(-0.45, -0.55
                  clav=(24, 0), epaule=(-0.08, 0.0, -0.10), interp="lin", torsion=-40, **L)
 G1_RECUL = pose(G1_IMPACT, "G1_recul", poing=E(0.19, -0.45, 0.58), lame=(-0.45, -0.46, -0.77), interp="amorti")
 G1_POSE = pose(G1_IMPACT, "G1_pose", poing=E(0.17, -0.52, 0.58), lame=(-0.44, -0.58, -0.68), interp="amorti")
-# 2e coup : vertical en léger biais (levée au-dessus de l'épaule droite, la tête tombe un peu à gauche du centre) — mêmes
+# (non utilisé : la tête passait à côté de la cible, test_gestes_familles) 2e coup : vertical en léger biais (levée au-dessus de l'épaule droite, la tête tombe un peu à gauche du centre) — mêmes
 # poses que le vertical, décalées (une diagonale large sortait de la cible et retournait l'avant-bras)
-G2_ARME = decale(G1_ARME, "G2_arme", dx=0.12, dy=-0.02)
-G2_TENSION = decale(G1_TENSION, "G2_tension", dx=0.13, dy=-0.02)
-G2_ENTREE = decale(G1_ENTREE, "G2_entree", dx=0.08, lame=(-0.45, 0.82, -0.36))
-G2_MILIEU = decale(G1_MILIEU, "G2_milieu", dx=-0.02, lame=(-0.62, 0.26, -0.74))
-G2_IMPACT = decale(G1_IMPACT, "G2_impact", dx=-0.10, lame=(-0.55, -0.52, -0.65))
-G2_RECUL = decale(G1_RECUL, "G2_recul", dx=-0.10, lame=(-0.55, -0.43, -0.72))
-G2_POSE = decale(G1_POSE, "G2_pose", dx=-0.10, lame=(-0.54, -0.55, -0.64))
+G2_ARME = decale(G1_ARME, "G2_arme", dx=0.10, dy=-0.02)
+G2_TENSION = decale(G1_TENSION, "G2_tension", dx=0.11, dy=-0.02)
+G2_ENTREE = decale(G1_ENTREE, "G2_entree", dx=0.06)
+G2_MILIEU = decale(G1_MILIEU, "G2_milieu", dx=0.0)
+G2_IMPACT = decale(G1_IMPACT, "G2_impact", dx=-0.06, lame=(-0.52, -0.54, -0.66))
+G2_RECUL = decale(G1_RECUL, "G2_recul", dx=-0.06, lame=(-0.52, -0.45, -0.72))
+G2_POSE = decale(G1_POSE, "G2_pose", dx=-0.06, lame=(-0.51, -0.57, -0.64))
 GP_CHARGE = pose(G1_TENSION, "GP_charge", poing=E(0.25, 0.14, 0.48), lame=(-0.18, 0.60, 0.78))
 GP_ARME = pose(GP_CHARGE, "GP_arme", poing=E(0.25, 0.17, 0.47), lame=(-0.17, 0.55, 0.82))
 
@@ -291,8 +291,6 @@ CLIPS = {
     # grand marteau : armé très lent (0,45 s de clip, ~0,8 s en jeu), chute, la tête reste au sol, relevée lente
     "gm_a": [cle(REPOS_GM, 0.0), cle(G1_ARME, 0.45), cle(G1_TENSION, 0.55), cle(G1_ENTREE, 0.60), cle(G1_MILIEU, 0.645),
              cle(G1_IMPACT, 0.70), cle(G1_RECUL, 0.78), cle(G1_POSE, 0.95), cle(REPOS_GM, 1.40)],
-    "gm_b": [cle(REPOS_GM, 0.0), cle(G2_ARME, 0.42), cle(G2_TENSION, 0.52), cle(G2_ENTREE, 0.57), cle(G2_MILIEU, 0.615),
-             cle(G2_IMPACT, 0.67), cle(G2_RECUL, 0.75), cle(G2_POSE, 0.92), cle(REPOS_GM, 1.38)],
     "charge_gm": [cle(REPOS_GM, 0.0), cle(G1_ARME, 0.45), cle(GP_CHARGE, 0.85)],
     "lourd_gm": [cle(GP_CHARGE, 0.0), cle(GP_ARME, 0.12), cle(G1_ENTREE, 0.19), cle(G1_MILIEU, 0.245), cle(G1_IMPACT, 0.31),
                  cle(G1_RECUL, 0.40), cle(G1_POSE, 0.62), cle(REPOS_GM, 1.35)],
@@ -310,7 +308,6 @@ MARQUEURS = {
     "charge_m": {"arme": 0.40, "fin": 0.75},
     "lourd_m": {"arme": 0.10, "frappe": 0.10, "fin_frappe": 0.26, "suivi": 0.34, "fin": 1.05},
     "gm_a": {"arme": 0.45, "frappe": 0.55, "fin_frappe": 0.70, "suivi": 0.78, "fin": 1.40},
-    "gm_b": {"arme": 0.42, "frappe": 0.52, "fin_frappe": 0.67, "suivi": 0.75, "fin": 1.38},
     "charge_gm": {"arme": 0.45, "fin": 0.85},
     "lourd_gm": {"arme": 0.12, "frappe": 0.12, "fin_frappe": 0.31, "suivi": 0.40, "fin": 1.35},
 }
