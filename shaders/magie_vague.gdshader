@@ -22,6 +22,7 @@ global uniform float magie_echelle;
 
 uniform float eclat = 1.0;
 uniform float opacite = 1.0;     // couverture des flammes (0..1)
+uniform float gros_coeur = 1.0;  // taille du cœur chaud (GestionMagie.GROS_COEUR, par école) : 1 = normal, > 1 = cœur plus large
 uniform float fumee = 0.55;      // couverture de la fumée en fin de vie
 uniform vec4 c0 : source_color = vec4(1.0, 0.98, 0.91, 1.0);   // chauffé à blanc
 uniform vec4 c1 : source_color = vec4(1.0, 0.94, 0.66, 1.0);
@@ -205,6 +206,9 @@ void fragment() {
 	float n = texture(bruit, vec2(np.x, np.y - t * 2.2)).b;
 	float n2 = texture(bruit, vec2(np.x * 1.7 + 0.5, np.y * 1.6 - t * 1.4 + 0.21)).a;
 	n = mix(n, n2, 0.4);
+	// relief du feu : un 3e bruit plus fin, déformé comme les autres, creuse des veines sombres dans le cœur
+	float n3 = texture(bruit, np * 2.9 + vec2(0.23, -t * 3.1)).r;
+	n = clamp(n + (n3 - 0.5) * 0.45, 0.0, 1.0);
 	// autour du BOUT (point touché : la matière s'y écrase et s'étale de tous côtés) : les coordonnées du jet n'ont plus
 	// de sens (anneaux, stries) ; on passe à un bruit posé dans le plan de l'écran autour du bout, en mètres à cette
 	// profondeur, qui bout et monte
@@ -236,12 +240,12 @@ void fragment() {
 	// --- température PARTAGÉE : refroidit le long du jet, plus chaude sur l'axe, veinée par la turbulence ---
 	float qd = sj / max(jet_portee, 1.0);
 	float coeur = 1.0 - clamp(lna, 0.0, 1.6) / 1.6;
-	float h = 0.67 - 0.95 * pow(qd, 1.3) + coeur * 0.24 + (n - 0.5) * 0.8 + (wv.x - 0.5) * 0.3;
+	float h = 0.62 - 0.95 * pow(qd, 1.3) + coeur * 0.30 * gros_coeur + (smoothstep(0.15, 0.85, n) - 0.5) * 1.9 + (wv.x - 0.5) * 0.5;
 	// loin de l'axe (matière qui monte, qui traîne quand on tourne, qui déborde de la cible) : elle a refroidi
 	// (moins autour du point touché : la flamme écrasée lèche la cible, elle reste vive)
 	h -= clamp(lna - 1.0, 0.0, 1.4) * 0.26 * (1.0 - 0.6 * k_bout);
 	// tout près de la paume : jaune d'or saturé, pas un voile blanc laiteux autour de la main
-	h = min(h, 0.77 + 0.25 * smoothstep(0.3, 1.5, sj));
+	h = min(h, 0.54 + 0.06 * smoothstep(0.3, 1.5, sj));   // le cœur reste ORANGE (jamais crème)
 	// bord net (déchiqueté par la turbulence) plutôt qu'un large halo de points tramés
 	float k = clamp(corps * 3.0, 0.0, 1.0);
 	// couverture tramée par un bruit (pas de Bayer) qui « bout » à 12 images/s, la MÊME pour toutes les bouffées
@@ -259,7 +263,7 @@ void fragment() {
 		// corps du feu presque opaque (la masse ne laisse pas voir l'empilement des bouffées) ; lumière seulement sur le
 		// cœur blanc-jaune
 		al = opacite * clamp(0.82 + h * 0.15, 0.0, 0.97);
-		lum = clamp(h - 0.78, 0.0, 1.0) * 0.4;
+		lum = clamp(h - 0.4, 0.0, 1.0) * 0.35;
 	} else {
 		// fumée : rouge sombre qui noircit, couvrante mais légère, sans lumière
 		float f = clamp(-h * 2.5, 0.0, 1.0);
