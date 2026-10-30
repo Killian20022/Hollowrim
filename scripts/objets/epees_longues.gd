@@ -78,7 +78,7 @@ const MATIERES := {
 	"lame_or": {"teinte": Color(1.04, 1.0, 0.96), "metal": 0.72, "poli": 0.7, "reflet": Color(1.06, 0.92, 0.66), "l9": [0.7, 0.02], "reflet_l9": Color(1.0, 0.9, 0.66)},
 	"acier_q": {"teinte": Color(1.04, 1.04, 1.06), "boite": 4.0, "metal": 0.75, "poli": 0.75, "reflet": Color(0.94, 0.98, 1.05)},
 	"acier_fil": {"teinte": Color(1.06, 1.06, 1.08), "boite": 4.0, "metal": 0.85, "poli": 0.95, "reflet": Color(0.96, 0.99, 1.05)},
-	"fer": {"teinte": Color(1.0, 1.0, 1.02), "boite": 4.0, "metal": 0.5, "poli": 0.35, "reflet": Color(0.95, 0.96, 1.0)},
+	"fer": {"teinte": Color(1.0, 1.0, 1.02), "boite": 6.0, "metal": 0.5, "poli": 0.35, "reflet": Color(0.95, 0.96, 1.0)},
 	"fer_rivete": {"teinte": Color(1.0, 1.0, 1.02), "boite": 2.5, "metal": 0.45, "poli": 0.3, "reflet": Color(0.95, 0.96, 1.0)},
 	"or": {"teinte": Color(1.0, 1.0, 1.0), "boite": 4.0, "metal": 0.72, "poli": 0.6, "reflet": Color(1.06, 0.9, 0.62)},
 	"or_lame": {"teinte": Color(1.0, 1.0, 1.0), "boite": 4.0, "metal": 0.75, "poli": 0.75, "reflet": Color(1.06, 0.92, 0.66)},
@@ -86,8 +86,8 @@ const MATIERES := {
 	"bois": {"teinte": Color(1.0, 1.0, 1.0), "boite": 3.0, "bord": 0.08, "poli": 0.1},
 	"planches": {"teinte": Color(1.0, 1.0, 1.0), "boite": 2.5, "bord": 0.06, "poli": 0.1},
 	"gemme": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.8, "poli": 1.0, "profondeur": 0.04, "lueur": 0.18, "reflet": Color(0.9, 0.96, 1.0)},
-	"rubis": {"teinte": Color(1.08, 1.0, 1.0), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.34, "opacite": 0.78, "reflet": Color(1.0, 0.93, 0.94)},
-	"saphir": {"teinte": Color(1.0, 1.0, 1.08), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.36, "opacite": 0.78, "reflet": Color(0.92, 0.96, 1.04)},
+	"rubis": {"teinte": Color(1.08, 1.0, 1.0), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.42, "opacite": 0.88, "reflet": Color(1.0, 0.93, 0.94)},
+	"saphir": {"teinte": Color(1.0, 1.0, 1.08), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.44, "opacite": 0.88, "reflet": Color(0.92, 0.96, 1.04)},
 	"emeraude": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.8, "poli": 1.0, "profondeur": 0.04, "lueur": 0.18, "reflet": Color(0.92, 1.0, 0.95)},
 	"obsidienne": {"teinte": Color(0.95, 0.95, 1.0), "metal": 0.12, "bord": 0.85, "poli": 1.0, "reflet": Color(0.88, 0.84, 1.0), "l9": [0.7, 0.03], "reflet_l9": Color(0.8, 0.72, 1.0)},
 }
@@ -578,7 +578,7 @@ static func _acier_brosse(fil: bool) -> Image:
 				pal = CRASSE
 				l = 0.35 + (tache - 0.72) * 1.8
 				b = 0.1
-			elif not fil and tache > 0.68 and _h(x, y, 113) > 0.85:
+			elif not fil and tache > 0.75 and _h(x, y, 113) > 0.85:
 				pal = OXYDE
 				l = 0.35
 				b = 0.05
@@ -597,7 +597,7 @@ static func _fer_forge(rivets: bool) -> Image:
 		cuv.append([_h(i, 1, 181) * S, _h(i, 2, 181) * S, 2.0 + _h(i, 3, 181) * 3.5])
 	for y in S:
 		for x in S:
-			var hv := 0.5 + (ObjetsTextures._fbm(x, y, S, S, 4, 4, 21, 3) - 0.5) * 0.4
+			var hv := 0.5 + (ObjetsTextures._fbm(x, y, S, S, 8, 8, 21, 3) - 0.5) * 0.3
 			for c in cuv:
 				var dx := absf(x - c[0])
 				dx = minf(dx, S - dx)
@@ -618,7 +618,7 @@ static func _fer_forge(rivets: bool) -> Image:
 			if ray[y * S + x] > 0.5:
 				l += 0.1
 				b = 0.8
-			var creux := ObjetsTextures._fbm(x, y, S, S, 3, 3, 22, 2)
+			var creux := ObjetsTextures._fbm(x, y, S, S, 6, 6, 22, 2)
 			if hv < 0.38 and creux > 0.58:
 				pal = OXYDE if creux > 0.72 and _h(x, y, 185) > 0.4 else CRASSE
 				l = 0.25 + (creux - 0.58) * 1.2
@@ -651,19 +651,19 @@ static func _or_patine(lame: bool) -> Image:
 		for x in S:
 			var n := ObjetsTextures._fbm(x, y, S, S, 32, 2, 23, 2) if lame else ObjetsTextures._fbm(x, y, S, S, 4, 4, 23, 3)
 			var t := ObjetsTextures._fbm(x, y, S, S, 3, 3, 24, 3)
-			var l := 0.56 + (n - 0.5) * 0.25
+			var l := 0.58 + (n - 0.5) * (0.1 if lame else 0.22)
 			var b := 0.8
-			if t > 0.58:
-				l -= (t - 0.58) * 1.6                                     # ternissure
+			if t > 0.64:
+				l -= (t - 0.64) * 1.4                                     # ternissure
 				b = 0.25
 			if ray[y * S + x] > 0.5:
 				l += 0.1
 				b = 1.0
 			elif ray[y * S + x] < -0.5:
-				l -= 0.12
-				b = 0.3
-			if _h(x, y, 192) > 0.99:
-				l = 0.15
+				l -= 0.06
+				b = 0.4
+			if _h(x, y, 192) > 0.997:
+				l = 0.2
 				b = 0.0
 			_pix(img, x, y, OR_PATINE, l, b)
 	return img
@@ -683,16 +683,16 @@ static func _cuir_fusee() -> Image:
 			var pal: Array = CUIR_GRAIN
 			match k:
 				0:
-					l = 0.1
+					l = 0.16
 					b = 0.0
 				1:
-					l = 0.58
-				2, 3, 4:
 					l = 0.5
+				2, 3, 4:
+					l = 0.45
 				5:
-					l = 0.42
+					l = 0.4
 				_:
-					l = 0.3
+					l = 0.33
 			if k > 0:
 				l += grain
 			if lustre > 0.6 and k > 0:
@@ -700,7 +700,7 @@ static func _cuir_fusee() -> Image:
 				b = 0.4
 			if k == 4 and posmod(x, 3) == 0:
 				pal = FIL_COUTURE                                         # point de couture
-				l = 0.7
+				l = 0.5
 				b = 0.2
 			_pix(img, x, y, pal, l, b)
 	return img
@@ -759,7 +759,7 @@ static func _cristal_profond(rampe: Array, g: int) -> Image:
 		for x in W:
 			var u := (x + 0.5) / W
 			var au := absf(u - 0.5) * 2.0
-			var l := 0.38 + (ObjetsTextures._fbm(x, y, W, H, 3, 10, g, 3) - 0.5) * 0.36
+			var l := 0.44 + (ObjetsTextures._fbm(x, y, W, H, 3, 10, g, 3) - 0.5) * 0.36
 			var b := 1.0
 			if ObjetsTextures._fbm(x, y, W, H, 6, 24, g + 1, 2) > 0.62:
 				l += 0.12                                                 # voile laiteux
