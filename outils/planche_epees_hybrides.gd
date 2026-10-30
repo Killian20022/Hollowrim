@@ -7,6 +7,7 @@ const DOSSIER := "res://assets/modeles/armes/hybrides/"
 const INFO := "res://sources_blender/epees_hybrides/hybrides_info.json"
 const CLAYMORE := "res://assets/modeles/armes/cc0_essai/05_claymore.glb"
 const SAPHIR := ["#01060f", "#031026", "#06204a", "#0b3470", "#14509a", "#2272c4", "#58a4e8", "#b8e2ff"]
+const VUE_LACET := 0.0   # lacet ABSOLU du joueur pour la vue FPS : la clairière (fond dégagé), pas les sapins
 const W := 1920
 const H_ALIGN := 640
 const CELL := Vector2i(960, 630)
@@ -34,6 +35,15 @@ func _lancer() -> void:
 	root.add_child(m)
 	for i in 60:
 		await process_frame
+	if "--essai_lacets" in OS.get_cmdline_user_args():
+		for k in 8:
+			m.joueur.rotation.y = deg_to_rad(45.0 * k)
+			m.joueur.tete.rotation.x = deg_to_rad(6.0)
+			for i in 20:
+				await process_frame
+			root.get_viewport().get_texture().get_image().save_png(sortie.get_base_dir().path_join("lacet_%d.png" % (45 * k)))
+		quit()
+		return
 	await _vues_neutres()
 	await _fps(m)
 	await _assembler()
@@ -143,8 +153,8 @@ func _fps(m: Node) -> void:
 	var prise: Transform3D = origine.transform
 	origine.visible = false
 	m.calque.visible = false
-	j.tete.rotation.x = deg_to_rad(-4.0)
-	j.rotation.y += deg_to_rad(-35.0)
+	j.tete.rotation.x = deg_to_rad(-2.0)
+	j.rotation.y = deg_to_rad(VUE_LACET)
 	for i in 20:
 		await process_frame
 	mains.set_process(false)
@@ -167,16 +177,26 @@ func _fps(m: Node) -> void:
 
 func _texte(parent: Node, t: String, pos: Vector2, taille: int, couleur := Color("#f2e6c8"), largeur := 0.0) -> Label:
 	var l := Label.new()
-	l.text = t
+	l.text = _couper(t, int(largeur / (taille * 0.52))) if largeur > 0.0 else t
 	l.position = pos
 	l.add_theme_font_size_override("font_size", taille)
 	l.add_theme_color_override("font_color", couleur)
-	if largeur > 0.0:
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		l.custom_minimum_size = Vector2(largeur, 0)
-		l.size = Vector2(largeur, 0)
 	parent.add_child(l)
 	return l
+
+## Coupe un texte en lignes d'au plus n caractères (aux espaces).
+func _couper(t: String, n: int) -> String:
+	var res: PackedStringArray = []
+	for para in t.split("\n"):
+		var ligne := ""
+		for mot in para.split(" "):
+			if ligne != "" and ligne.length() + 1 + mot.length() > n:
+				res.append(ligne)
+				ligne = mot
+			else:
+				ligne = mot if ligne == "" else ligne + " " + mot
+		res.append(ligne)
+	return "\n".join(res)
 
 func _image_rect(parent: Node, img: Image, pos: Vector2, taille: Vector2) -> void:
 	var t := TextureRect.new()
@@ -217,11 +237,11 @@ func _assembler() -> void:
 	var y_sol := 70 + H_ALIGN * 0.5 + (0.84) * px_m
 	for c in range(0, 18):
 		var y := y_sol - c * 0.1 * px_m
-		var trait := ColorRect.new()
-		trait.color = Color(1, 1, 1, 0.16 if c % 5 else 0.35)
-		trait.position = Vector2(0, y)
-		trait.size = Vector2(W if c % 5 == 0 else 40, 1)
-		vp.add_child(trait)
+		var ligne_r := ColorRect.new()
+		ligne_r.color = Color(1, 1, 1, 0.16 if c % 5 else 0.35)
+		ligne_r.position = Vector2(0, y)
+		ligne_r.size = Vector2(W if c % 5 == 0 else 40, 1)
+		vp.add_child(ligne_r)
 		if c % 5 == 0:
 			_texte(vp, "%s m" % String.num(c * 0.1, 1).replace(".", ","), Vector2(4, y - 22), 18, Color("#c8c0a8"))
 	var pas := 0.52
