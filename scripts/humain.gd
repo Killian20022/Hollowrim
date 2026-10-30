@@ -14,6 +14,7 @@ const CORPS := {
 	"femme": "res://assets/modeles/humains/femme_vetue.glb",
 }
 const ANIMATIONS := preload("res://assets/modeles/humains/animations.glb")
+const ANIMATIONS_ZOMBIE := "res://assets/modeles/humains/animations_zombie.res"
 const BOUCLE := ["Idle", "Walk", "Walk_Formal", "Jog_Fwd", "Sprint", "Sword_Idle", "Idle_Talking", "Idle_Torch",
 	"Sitting_Idle", "Fixing_Kneeling", "Spell_Simple_Idle", "Crouch_Idle", "Crouch_Fwd", "Sitting_Talking"]
 const PIECES := ["tunique", "pantalon", "bottes", "ceinture", "mante", "brassards", "gants",
@@ -56,6 +57,11 @@ static func bibliotheque() -> AnimationLibrary:
 			if _bibliotheque.has_animation(nom):
 				_bibliotheque.get_animation(nom).loop_mode = Animation.LOOP_LINEAR
 		source.free()
+		# clips Zombie_* des draugrs (Mixamo « Not So Scary Zombie Pack » reporté sur ce squelette : outils/zombie_retarget.gd)
+		if ResourceLoader.exists(ANIMATIONS_ZOMBIE):
+			var z := load(ANIMATIONS_ZOMBIE) as AnimationLibrary
+			for nom: StringName in z.get_animation_list():
+				_bibliotheque.add_animation(nom, z.get_animation(nom))
 	return _bibliotheque
 
 ## Scènes importées (corps ~16 Mo, cheveux, casques, bouclier) gardées en mémoire : `load(x).instantiate()` seul relâchait la

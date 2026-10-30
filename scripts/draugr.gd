@@ -13,6 +13,11 @@ extends CharacterBody3D
 ##   "degats_tir": float           dégâts de la flèche (10 par défaut).
 ##   "reveil_evt": "<événement>"   dort (même debout) jusqu'à ce que quetes.signaler(<événement>) survienne (réveil immédiat si déjà vu).
 ##   "boss": "svanhild" | "hrafn" | "jarl"   voir _regler_boss ; l'ident vaut le nom du boss si aucun ident n'est donné.
+##   "zombie": true                draugr désarmé animé par capture Mixamo (« Not So Scary Zombie Pack », clips Zombie_* de
+##                                 Humain.bibliotheque) : allongé face contre terre, il se RELÈVE (Zombie_Reveil) quand le joueur
+##                                 approche, titube vers lui (Zombie_Marche, jamais de course), frappe à mains nues (poing, coup de
+##                                 tête, griffes) et encaisse avec ses propres réactions. Le reste (dégâts, chute, mort, ragdoll,
+##                                 démembrement) est celui des autres draugrs.
 ## Méthodes publiques : vivant(), en_combat(), recevoir_coup(), alerter() ; signal mort(ident).
 ## Combat (branche combat/degats_gore) : dégâts, posture, réactions, sang, plaies et morts par le composant CombatEnnemi
 ## (scripts/combat/) ; finishers : finisher_possible(joueur) -> catégorie, subir_finisher(categorie, info) ; voir docs/DEGATS.md.
@@ -26,6 +31,12 @@ const EPEE := preload("res://assets/modeles/joueur/epee_nordique.glb")
 ## l'index, poignée au creux des doigts — calculée par outils/calcul_prise.gd.
 var prise := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
 const ATTAQUES := ["Sword_Attack", "Sword_Attack", "Punch_Cross"]
+## Draugr « zombie » : clips Zombie_* joués à la place des clips Quaternius (même logique d'états) ; la course devient la démarche.
+const ANIMS_ZOMBIE := {"Sword_Idle": "Zombie_Attente", "Idle": "Zombie_Attente", "Walk": "Zombie_Marche", "Jog_Fwd": "Zombie_Marche",
+	"Hit_Chest": "Zombie_Coup2", "Hit_Head": "Zombie_Coup"}
+const ATTAQUES_ZOMBIE := ["Zombie_Poing", "Zombie_Griffes", "Zombie_Tete", "Zombie_Poing"]
+## Vitesse du corps supposée par Zombie_Marche (capture : 0,85 m en 1,53 s, bassin reporté à l'échelle du squelette).
+const REF_MARCHE_ZOMBIE := 0.55
 
 const GRAVITE := 13.0
 const DETECTION := 17.0
@@ -76,6 +87,7 @@ var poste := false
 var degats_tir := 10.0
 var reveil_evt := ""
 var boss := ""
+var zombie := false
 var _attend := false           # endormi jusqu'à l'événement reveil_evt
 var _p_i := 0
 var _p_pause := 0.0
@@ -159,6 +171,14 @@ func _ready() -> void:
 		_course = 4.3
 	if type == "squelette_archer":
 		archer = true
+	if zombie and not _os:
+		archer = false
+		degats = 13.0
+		_marche = 0.5
+		_marche_proche = 0.7
+		_course = 0.8
+		_rythme = 1.1      # gestes capturés un peu longs : légèrement accélérés
+		_bouclier = 0.0
 	if archer:
 		if not _os:
 			nom_affiche = "Bandit archer"
@@ -189,7 +209,10 @@ func _ready() -> void:
 		modele = EnnemisNordiques.squelette({"type": type, "archer": archer, "ident": ident, "variante": variante, "teinte": teinte_os})   # copie d'un gabarit préconstruit
 	else:
 		# pnj/ennemis : archétypes nordiques + variante (EnnemisNordiques) ; --pnj-anciens = ancien corps Humain
-		modele = EnnemisNordiques.creer({"type": type, "archer": archer, "boss": boss, "ident": ident, "apparence": app})
+		var spec := {"type": type, "archer": archer, "boss": boss, "ident": ident, "apparence": app}
+		if zombie:
+			spec["zombie"] = true
+		modele = EnnemisNordiques.creer(spec)
 		if modele == null:
 			modele = Humain.creer(app)
 	modele.scale = Vector3.ONE * echelle
@@ -197,7 +220,7 @@ func _ready() -> void:
 	for mi: MeshInstance3D in modele.find_children("*", "MeshInstance3D", true, false):
 		_mailles.append(mi)
 	var squelette: Skeleton3D = modele.find_child("Skeleton3D", true, false)
-	if not _os and not modele.has_meta("armes_nordiques"):
+	if not _os and not zombie and not modele.has_meta("armes_nordiques"):
 		if archer:
 			_armer_arc(squelette)
 		else:
@@ -225,6 +248,12 @@ func _ready() -> void:
 			_jouer("Idle", 0.0)
 			anim.speed_scale = 0.0  # figé dans sa niche
 			anim.advance(0.0)       # pose appliquée tout de suite : sous --paisible (process coupé), plus de T-pose
+		elif _zombie_ok():
+			# allongé face contre terre : première image du relevé capturé (aucun raccord au réveil)
+			_anim = "Zombie_Reveil"
+			anim.play("Zombie_Reveil", 0.0)
+			anim.seek(0.0, true)
+			anim.pause()
 		else:
 			# allongé : dernière image de l'animation de mort
 			_jouer("Death01", 0.0)
@@ -240,6 +269,10 @@ func _ready() -> void:
 ## Le réveil : un dormeur allongé rejoue sa mort à l'envers et se relève.
 func _reveiller() -> void:
 	anim.speed_scale = 1.0
+	if _zombie_ok() and not debout:
+		_anim = "Zombie_Reveil"
+		anim.play("Zombie_Reveil", 0.0)
+		return
 	if debout:
 		_jouer("Sword_Idle", 0.6)
 	else:
@@ -247,7 +280,19 @@ func _reveiller() -> void:
 		anim.play_backwards("Death01")
 
 func _duree_reveil() -> float:
+	if _zombie_ok() and not debout:
+		return _duree("Zombie_Reveil")
 	return 0.8 if debout else _duree("Death01")
+
+## Clips Zombie_* disponibles (bibliothèque reportée présente) pour ce draugr « zombie ».
+func _zombie_ok() -> bool:
+	return zombie and anim != null and anim.has_animation("Zombie_Reveil")
+
+## Nom du clip réellement joué (draugr « zombie » : clip capturé correspondant).
+func _clip(nom: String) -> String:
+	if zombie and ANIMS_ZOMBIE.has(nom) and anim.has_animation(ANIMS_ZOMBIE[nom]):
+		return ANIMS_ZOMBIE[nom]
+	return nom
 
 ## Lame nordique rouillée (modèle du joueur) tenue dans la main droite.
 func _armer(squelette: Skeleton3D) -> void:
@@ -373,15 +418,25 @@ func _jouer(nom: String, fondu := 0.15, forcer := false) -> void:
 	if _anim == nom and not forcer:
 		return
 	_anim = nom
-	if forcer:
-		anim.stop()
-	anim.play(nom, fondu)
+	var clip := _clip(nom)
+	if zombie and clip.begins_with("Zombie"):
+		# clips capturés : jamais de stop() (il couperait le fondu -> saut de pose) ; fondu plus doux (0,2 s pour lancer un geste, 0,3 s
+		# à la sortie d'une réaction ou d'une attaque) ; même clip relancé : repris du début (ses images extrêmes sont la même pose)
+		fondu = maxf(fondu, 0.2 if forcer else 0.3)
+		if forcer and String(anim.current_animation) == clip:
+			anim.seek(0.0, true)
+		else:
+			anim.play(clip, fondu)
+	else:
+		if forcer:
+			anim.stop()
+		anim.play(clip, fondu)
 	# Walk et Jog_Fwd : speed_scale réglé à chaque image sur la vitesse réelle
 	if nom != "Walk" and nom != "Jog_Fwd":
 		anim.speed_scale = _var if nom in ["Sword_Idle", "Idle"] else 1.0
 
 func _duree(nom: String) -> float:
-	return anim.get_animation(nom).length
+	return anim.get_animation(_clip(nom)).length
 
 func _changer(nouvel: int) -> void:
 	etat = nouvel
@@ -431,7 +486,7 @@ func _physics_process(dt: float) -> void:
 				_reveiller()
 				Sons.jouer_a(self, ["giant1", "giant2", "giant3"], global_position + Vector3.UP, -2.0, 0.15)
 		REVEIL:
-			regard = _t > 0.6
+			regard = _t > (_duree_reveil() * 0.75 if _zombie_ok() and not debout else 0.6)
 			if _t >= _duree_reveil() * 0.95:
 				_changer(TRAQUE)
 		GARDE:
@@ -513,6 +568,8 @@ func _physics_process(dt: float) -> void:
 				_jouer("Sword_Idle")
 				if _recharge <= 0.0:
 					_attaque = (["Sword_Attack"] if _os else ATTAQUES).pick_random()  # le squelette frappe à l’arme (pas de coup de poing : la lame traverserait la tête)
+					if _zombie_ok():
+						_attaque = ATTAQUES_ZOMBIE.pick_random()
 					if boss == "hrafn":
 						_attaque = "Sword_Attack"
 					_coup_donne = false
@@ -557,9 +614,14 @@ func _physics_process(dt: float) -> void:
 				_changer(TRAQUE)
 		ATTAQUE:
 			var duree := _duree(_attaque) / _rythme
-			regard = _t < duree * 0.45  # il se vise avant de frapper
+			# contact : 42 % du geste (clips Quaternius) ou image mesurée sur la capture (clips Zombie_*, méta « impact »)
+			var f_coup := 0.42
+			var a_coup := anim.get_animation(_clip(_attaque))
+			if a_coup.has_meta("impact") and float(a_coup.get_meta("impact")) > 0.0:
+				f_coup = float(a_coup.get_meta("impact"))
+			regard = _t < duree * minf(0.45, f_coup * 0.9)  # il se vise avant de frapper
 			vitesse_rot = 10.0
-			if not _coup_donne and _t >= duree * 0.42:
+			if not _coup_donne and _t >= duree * f_coup:
 				_coup_donne = true
 				Sons.jouer_a(self, ["swing", "swing2", "swing3"], global_position + Vector3.UP, -6.0, 0.2)
 				var face := global_transform.basis.z
@@ -636,7 +698,8 @@ func _physics_process(dt: float) -> void:
 	if loco != "" and aligne >= 0.25:
 		_vit = move_toward(_vit, vitesse * aligne, ACCEL * dt)
 		_jouer(loco)
-		anim.speed_scale = clampf(_vit / (REF_COURSE if loco == "Jog_Fwd" else REF_MARCHE), 0.4, 1.5)
+		var ref := REF_MARCHE_ZOMBIE if _clip(loco) == "Zombie_Marche" else (REF_COURSE if loco == "Jog_Fwd" else REF_MARCHE)
+		anim.speed_scale = clampf(_vit / ref, 0.4, 1.5)
 	else:
 		_vit = 0.0
 		vitesse = 0.0

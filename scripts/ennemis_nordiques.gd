@@ -8,7 +8,7 @@ class_name EnnemisNordiques
 ## Les archétypes ne sont pas modifiés : les variantes sont des retouches APRÈS création (matériaux clonés avec une teinte, arme
 ## remplacée par un BoneAttachment3D sur hand_r, couronne sur Head). `--pnj-anciens` (argument utilisateur) remet Humain.creer.
 ##
-##   EnnemisNordiques.creer({"type", "archer", "boss", "ident", "apparence"}) -> Node3D (null si --pnj-anciens)
+##   EnnemisNordiques.creer({"type", "archer", "boss", "ident", "apparence", "zombie"}) -> Node3D (null si --pnj-anciens)
 ## Contrat de Humain.creer conservé (Skeleton3D 65 os + AnimationPlayer « Animations »). Méta « armes_nordiques » : l'arme est déjà posée.
 
 const PRISE := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
@@ -82,7 +82,10 @@ static func spec_depuis_options(type: String, opts := {}) -> Dictionary:
 		return {}
 	var boss: String = opts.get("boss", "")
 	var ident: String = opts.get("ident", boss)
-	return {"type": type, "archer": bool(opts.get("archer", false)), "boss": boss, "ident": ident, "apparence": apparence_defaut(type, apparence)}
+	var sp := {"type": type, "archer": bool(opts.get("archer", false)), "boss": boss, "ident": ident, "apparence": apparence_defaut(type, apparence)}
+	if bool(opts.get("zombie", false)):
+		sp["zombie"] = true   # draugr « zombie » (mains nues, clips Zombie_*) : même clé que draugr.gd._ready, la copie préparée sert
+	return sp
 
 # ======================================================================================================== aiguillage
 static func creer(spec := {}) -> Node3D:
@@ -250,6 +253,10 @@ static func _choix(spec: Dictionary) -> Dictionary:
 	if archer:
 		bouclier_d = ""
 		arme_d = "arc"
+	if bool(spec.get("zombie", false)):
+		# draugr « zombie » (draugr.gd, option zombie) : mains nues, sans bouclier ; tirages ci-dessus inchangés (les autres variantes aussi)
+		bouclier_d = ""
+		arme_d = "mains"
 	# environ 1 draugr sur 3 sans casque (crâne et cheveux funéraires visibles)
 	var sans_casque := rng.randf() < 0.34
 	# C10 : lueur des orbites Givre / Sang / Braise (tirage ajouté après les autres : armes, casques, états inchangés)
