@@ -390,6 +390,9 @@ func _installer_arme() -> void:
 		if arme.habillage == "epees_longues":
 			EpeesLongues.habiller(_modele_arme_d)
 			_lame = _copie_lame(_modele_arme_d, EpeesLongues.materiaux().get(arme.materiau_lame))
+		elif arme.habillage == "claymore":   # matériaux réalistes de la claymore longue (ClaymoreMateriaux)
+			ClaymoreMateriaux.habiller(_modele_arme_d)
+			_lame = _copie_lame(_modele_arme_d, ClaymoreMateriaux.materiaux().get(arme.materiau_lame))
 		else:
 			_habiller(_modele_arme_d)
 		_accroche_d.add_child(_modele_arme_d)

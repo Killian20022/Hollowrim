@@ -10,9 +10,10 @@ extends SceneTree
 ##   4. blocage à deux mains : clip garde_2m, un coup de 30 venu de face est bloqué (≤ 15 % passent).
 ##   godot --headless --path . --script res://outils/test_arme_deux_mains.gd -- --nouvelle
 const SCENE := preload("res://scenes/test_combat.tscn")
-const ARMES := ["claymore", "coeur_de_braise"]
-const POSES := ["repos_2m:0.0", "garde_2m:0.0", "sprint_2m:0.0", "encaisse_2m:0.06", "c2_a:0.30", "c2_a:0.46", "c2_a:0.62",
-	"c2_b:0.24", "c2_b:0.38", "c2_b:0.55", "c2_c:0.40", "c2_c:0.53", "c2_c:0.70", "charge_2m:0.70", "lourd_2m:0.18"]
+const ARMES := ["claymore_longue", "claymore", "coeur_de_braise"]
+const POSES := ["repos_2m:0.0", "garde_2m:0.0", "sprint_2m:0.0", "encaisse_2m:0.06", "c2_a:0.30", "c2_a:0.50", "c2_a:0.60",
+	"c2_a:0.80", "c2_b:0.20", "c2_b:0.42", "c2_b:0.52", "c2_b:0.70", "c2_c:0.40", "c2_c:0.60", "c2_c:0.72", "c2_c:0.88",
+	"charge_2m:0.70", "lourd_2m:0.30"]
 const ORIGINE := Vector3(-12.0, 0.0, 6.0)
 const DT := 1.0 / 60.0
 
