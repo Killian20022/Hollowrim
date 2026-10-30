@@ -10,9 +10,9 @@ import bpy, bmesh, math, os, random
 DEPOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SORTIE = os.path.join(DEPOT, "assets", "modeles", "gore", "boyaux.glb")
 PANS = 6
-PALETTE = [(0.690, 0.290, 0.290), (0.600, 0.210, 0.230), (0.780, 0.420, 0.400), (0.540, 0.170, 0.200)]   # rose-rouge de viande
-SILLON = (0.330, 0.085, 0.105)
-REFLET = (0.960, 0.700, 0.660)   # reflet mouillé
+PALETTE = [(0.520, 0.130, 0.140), (0.450, 0.100, 0.120), (0.600, 0.200, 0.190), (0.380, 0.080, 0.100)]   # rouge sombre de viande
+SILLON = (0.170, 0.030, 0.040)
+REFLET = (0.660, 0.290, 0.270)   # petit reflet mouillé (rouge clair, pas crème)
 
 
 def srgb_lin(c):
@@ -42,7 +42,7 @@ def tube(bm, col, points, rayon, rng):
             ang = 2 * math.pi * k / PANS
             q = [p[j] + (u[j] * math.cos(ang) + v[j] * math.sin(ang)) * r for j in range(3)]
             vert = bm.verts.new(q)
-            anneau.append((vert, REFLET if (k == 1 and not bord) else c))
+            anneau.append((vert, REFLET if (k == 1 and i % 4 == 1) else c))
         anneaux.append(anneau)
     for i in range(n - 1):
         for k in range(PANS):
@@ -95,33 +95,28 @@ def pendants(bm, col):
 
 
 def tas(bm, col):
-    """Tas AFFAISSÉ (retouche v2 2026-10-30) : 4 boyaux qui s'écrasent les uns sur les autres, compact, peu de jours,
-    aplati sous son poids (hauteurs ×0,5 après coup : section en ovale, boucles posées à plat)."""
-    rng = random.Random(23)
-    cfg = [(0.7, 0.032, 0.018), (2.4, 0.030, 0.034), (4.1, 0.034, 0.050), (5.5, 0.028, 0.064)]
-    for s, (cap0, rayon, couche) in enumerate(cfg):
-        n = 20
-        x, y = rng.uniform(-0.05, 0.05), rng.uniform(-0.05, 0.05)
-        cap = rng.uniform(0, 2 * math.pi) + cap0
-        om = 0.0
-        ph = [rng.uniform(0, 6.28) for _ in range(3)]
+    """Tas v3 (2026-10-30) : 8 brins FINS qui serpentent en se croisant à plat (axes répartis en éventail + ondulation
+    latérale, un peu de dérive), compact (-25 %), affaissé ; chaque tube reste lisible, ni spirale ni anneau."""
+    rng = random.Random(5)
+    for s in range(8):
+        n = 10
+        a = s * math.pi / 8 * 1.0 + rng.uniform(-0.25, 0.25)
+        d = (math.cos(a), math.sin(a))
+        p = (-math.sin(a), math.cos(a))
+        dec = rng.uniform(-0.03, 0.03)       # décalage latéral du brin
+        ph = rng.uniform(0, 6.28)
+        amp = rng.uniform(0.022, 0.034)
+        curl = rng.choice((-1, 1)) * rng.uniform(0.04, 0.08)
+        couche = 0.010 + (s % 4) * 0.009
         pts = []
         for i in range(n):
-            om += rng.uniform(-0.6, 0.6)
-            om *= 0.8
-            cap += 0.16 * math.sin(i * 0.9 + ph[0]) + 0.10 * math.sin(i * 1.7 + ph[1]) + 0.28 * om
-            r = math.hypot(x, y)
-            if r > 0.055:
-                vers = math.atan2(-y, -x)
-                d = (vers - cap + math.pi) % (2 * math.pi) - math.pi
-                cap += d * min(1.0, (r - 0.055) * 6.0) * 0.55
-            x += math.cos(cap) * 0.036
-            y += math.sin(cap) * 0.036
-            z = 0.02 + couche + 0.006 * math.sin(i * 0.8 + s * 2.0)
-            pts.append((x, y, z))
-        tube(bm, col, pts, rayon, rng)
+            t = (i / (n - 1) - 0.5) * 0.23
+            tt = i / (n - 1) - 0.5
+            lat = dec + amp * math.sin(i * 0.95 + ph) + curl * tt * tt * 4.0
+            pts.append((d[0] * t + p[0] * lat, d[1] * t + p[1] * lat, 0.013 + couche + 0.004 * math.sin(i * 0.9 + ph)))
+        tube(bm, col, pts, rng.uniform(0.016, 0.021), rng)
     for v in bm.verts:
-        v.co.z *= 0.5
+        v.co.z *= 0.6
 
 
 def construire():
