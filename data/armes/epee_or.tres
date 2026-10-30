@@ -40,3 +40,5 @@ desequilibre_lourd = 0.6
 preparation = 0.9
 recuperation = 0.9
 hauteur_son = 1.12
+famille = "epee_longue"
+materiau = "or"

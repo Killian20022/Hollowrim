@@ -556,6 +556,8 @@ func _description(id: String) -> String:
 	if Consommables.est(id):
 		return Consommables.description(id)
 	var f := Inventaire.objet(id)
+	if CatalogueArmes.connu(id):
+		return "%s, %s kg" % [CatalogueArmes.resume(id), FenetreButin.poids_texte(float(f.get("poids", 0.0)))]
 	var cat := "Arme" if Inventaire.categorie_de(id) == "arme" else "Objet"
 	return "%s, %s kg" % [cat, FenetreButin.poids_texte(float(f.get("poids", 0.0)))]
 

@@ -221,3 +221,21 @@ Brodd le Large (forgeron, id `forgeron`) et Grima Cendrefroide (doyenne du puits
   boutique : `Marchand.trouver(n)`, `ouvrir(id) -> bool`, `fermer()`, `changer_onglet(i)`, `traiter(i, tout) -> String`.
 - **Limites** : pas d'armures dans le jeu (le forgeron vend armes et matériaux) ; les épées achetées n'ont pas encore d'effet tant que
   `data/magie/inventaire.json` garde `tout_disponible = true` ; pas de marchandage ni de prix selon une compétence ; pas de réparation.
+
+## 10. Armes du catalogue (branche armes/integration)
+
+- `data/armes/catalogue_armes.json` + `scripts/combat/catalogue_armes.gd` (`CatalogueArmes`) : 20 armes (8 épées hybrides
+  `assets/modeles/armes/hybrides/`, 12 armes Quaternius CC0 enveloppées dans `assets/modeles/armes/integrees/*.tscn`, générées
+  par `outils/generer_enveloppes_armes.py` : échelle corrigée autour du poing, nœuds `prise` / `garde` / `pointe`, boucliers
+  tournés pour le bras gauche avec `prise` / `umbo`).
+- Stats = **famille** (une_main, epee_longue, deux_mains, dague, masse, marteau, bouclier ; base en acier, l'épée longue = l'épée
+  de métal du jeu) x **matériau** (fer, bois, acier, or, verre, rubis, saphir, obsidienne : multiplicateurs + élément) x `mult`
+  de l'arme. `DonneesArme.famille` / `.materiau` sur toutes les armes (aussi les .tres écrits à la main).
+- Une arme du catalogue est un objet du sac (`Inventaire.objet` retombe sur `CatalogueArmes.fiche_objet`) et une DonneesArme
+  (`EquipementMains.objet` → `CatalogueArmes.donnees`, en cache) ; l'écran d'inventaire liste celles du sac. Un
+  `data/armes/<id>.tres` du même id sert de modèle (modèle 3D, poses, réglages d'animation) : seules les stats s'y appliquent.
+- Deux mains : famille `deux_mains` (+ grand marteau) → `deux_mains = true`, profil « deux_mains » (branche combat/claymore_2mains).
+- Butin : sous-tables `armes_communes` (corps de bandits et de draugrs, coffres de bandits et de crypte), `armes_rares` (coffres
+  riches), `armes_crypte` (coffre du Jarl ; la crypte basse multiplie les rares par 1,5). Uniques : Sang-du-Roi, Croc-de-Givre.
+  Forge de Brodd : 12 armes ajoutées EN FIN de stock (les tirages des objets précédents ne changent pas).
+- Test : `outils/test_armes_catalogue.gd` ; planche : `outils/captures_armes_integrees.gd`.

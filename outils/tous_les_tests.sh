@@ -67,6 +67,7 @@ TESTS=(
 	"test_interieurs|--nouvelle"
 	"test_primitives|"
 	"test_epees_longues|--nouvelle"   # 5 épées longues : nœuds prise/garde/pointe, repère, échelle, matériaux
+	"test_armes_catalogue|--nouvelle"   # 20 armes du catalogue (hybrides + CC0) : chargement, stats famille x matériau, repères, échelles, bouclier à gauche, butin et forge
 	"test_combat_epee|--nouvelle"   # combat à l'épée : tracé de lame identique à 30/60/144 i/s, mur, draugr, garde, endurance (scenes/test_combat.tscn)
 	"test_camera_corps|--nouvelle"   # caméra « corps » et mouvements passifs : mêmes courbes à 30/60/144 i/s, amplitudes subtiles, main gauche déphasée, options Balancement / Tête / Secousses, chute réelle de 2 m
 	"test_deux_mains|--nouvelle"   # deux mains (épée + torche / sort / bouclier, deux sorts, deux mains ; deux épées refusées) et profils des 5 épées

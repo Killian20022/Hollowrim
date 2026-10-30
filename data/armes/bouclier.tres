@@ -29,3 +29,5 @@ recul_garde = 2.2
 posture_parade = 0.8
 son_garde = "bois"
 description = "Planches peintes, cerclage et umbo de fer. Garde au clic droit : bloc frontal large (170°), 95 % absorbés, endurance x0,6 ; parade parfaite = coup de bouclier qui brise la posture."
+famille = "bouclier"
+materiau = "bois"

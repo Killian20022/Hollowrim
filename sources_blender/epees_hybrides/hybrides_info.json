@@ -1,0 +1,82 @@
+{
+ "h1_garde_du_guet": {
+  "nom": "Garde-du-Guet",
+  "mains": 1,
+  "triangles": 642,
+  "longueur": 0.993,
+  "lame": 0.8,
+  "fusee": 0.12,
+  "origine_lame": "nôtre (acier à gouttière, reflet)",
+  "origine_garde": "Quaternius Sword (garde, fusée gainée, pommeau)"
+ },
+ "h2_dent_d_or": {
+  "nom": "Dent-d'Or",
+  "mains": 1,
+  "triangles": 616,
+  "longueur": 0.976,
+  "lame": 0.78,
+  "fusee": 0.12,
+  "origine_lame": "nôtre (acier doré gravé, gouttière, reflet)",
+  "origine_garde": "Quaternius Sword_Golden (garde, fusée, pommeau) dorés"
+ },
+ "h3_veilleuse": {
+  "nom": "Veilleuse",
+  "mains": 1.5,
+  "triangles": 699,
+  "longueur": 1.273,
+  "lame": 0.92,
+  "fusee": 0.2,
+  "origine_lame": "nôtre (acier, talon/ricasso, gouttière, reflet)",
+  "origine_garde": "Quaternius Claymore réduite (garde à cornes, fusée baguée, pommeau à pointe)"
+ },
+ "h4_crocs_de_cendre": {
+  "nom": "Crocs-de-Cendre",
+  "mains": 1.5,
+  "triangles": 748,
+  "longueur": 1.242,
+  "lame": 0.95,
+  "fusee": 0.2,
+  "origine_lame": "nôtre (obsidienne à veines, crans)",
+  "origine_garde": "Quaternius Sword_2 (garde, fusée, pommeau) en obsidienne"
+ },
+ "h5_larme_de_givre": {
+  "nom": "Larme-de-Givre",
+  "mains": 1.5,
+  "triangles": 697,
+  "longueur": 1.244,
+  "lame": 0.93,
+  "fusee": 0.2,
+  "origine_lame": "nôtre (verre émeraude translucide)",
+  "origine_garde": "Quaternius Sword (garde, fusée) + pommeau de la Claymore"
+ },
+ "h6_coeur_de_braise": {
+  "nom": "Cœur-de-Braise",
+  "mains": 2,
+  "triangles": 1073,
+  "longueur": 1.52,
+  "lame": 1.06,
+  "fusee": 0.3,
+  "origine_lame": "Quaternius Claymore (lame rouge étirée à 1,06 m)",
+  "origine_garde": "garde Claymore Quaternius + NOTRE fusée tressée baguée et pommeau-cristal"
+ },
+ "h7_sang_du_roi": {
+  "nom": "Sang-du-Roi",
+  "mains": 2,
+  "triangles": 827,
+  "longueur": 1.566,
+  "lame": 1.04,
+  "fusee": 0.3,
+  "origine_lame": "nôtre (cristal rubis à crans, gouttière)",
+  "origine_garde": "Quaternius Claymore (garde, fusée baguée, pommeau) dorés"
+ },
+ "h8_croc_de_givre": {
+  "nom": "Croc-de-Givre",
+  "mains": 2,
+  "triangles": 843,
+  "longueur": 1.566,
+  "lame": 1.04,
+  "fusee": 0.3,
+  "origine_lame": "nôtre (cristal saphir à crans, gouttière)",
+  "origine_garde": "Quaternius Claymore (garde, fusée baguée, pommeau) en fer"
+ }
+}

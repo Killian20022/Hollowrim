@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/modeles/armes/cc0_essai/03_sword_golden.glb" id="1_glb"]
+
+[node name="epee_doree" type="Node3D"]
+metadata/remap_materiaux = {"or.0": "or_lame", "or.4": "or", "fer": "fer", "cuir": "cuir"}
+
+[node name="modele" parent="." instance=ExtResource("1_glb")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="prise" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 0)
+
+[node name="garde" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.172, 0)
+
+[node name="pointe" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.921, 0)

@@ -46,3 +46,5 @@ element_degats = 3.0
 element_duree = 2.0
 element_puissance = 0.35
 element_lourd_seulement = true
+famille = "epee_longue"
+materiau = "verre"

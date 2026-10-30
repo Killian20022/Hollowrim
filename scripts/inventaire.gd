@@ -1,7 +1,8 @@
 class_name Inventaire
 extends RefCounted
 ## Sac du joueur : objets empilés par identifiant, plus les pièces.
-## Catalogue = OBJETS (ci-dessous) + data/butin/objets.json (consommables, armes et tomes trouvables : docs/BUTIN.md) ;
+## Catalogue = OBJETS (ci-dessous) + data/butin/objets.json (consommables, armes et tomes trouvables : docs/BUTIN.md)
+## + CatalogueArmes (data/armes/catalogue_armes.json : hybrides et armes CC0, stats par famille x matériau) ;
 ## lire un objet par Inventaire.objet(id) / Inventaire.connu(id), jamais OBJETS seul.
 
 signal change
@@ -48,7 +49,9 @@ static func objet(id: String) -> Dictionary:
 		var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(FICHIER_BUTIN)) if FileAccess.file_exists(FICHIER_BUTIN) else null
 		_butin = d.get("objets", {}) if d is Dictionary else {}
 		_butin_lu = true
-	return _butin.get(id, {})
+	if _butin.has(id):
+		return _butin[id]
+	return CatalogueArmes.fiche_objet(id)   # armes trouvables (data/armes/catalogue_armes.json) : 20 armes, stats par famille et matériau
 
 static func connu(id: String) -> bool:
 	return not objet(id).is_empty()

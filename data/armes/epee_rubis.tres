@@ -45,3 +45,5 @@ element_type = "feu"
 element_degats = 1.5
 element_duree = 2.5
 element_puissance = 2.0
+famille = "epee_longue"
+materiau = "rubis"

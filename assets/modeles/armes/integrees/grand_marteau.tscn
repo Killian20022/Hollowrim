@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/modeles/armes/cc0_essai/09_hammer_double.glb" id="1_glb"]
+
+[node name="grand_marteau" type="Node3D"]
+metadata/remap_materiaux = {"lame.0": "fer", "lame.3": "acier_fil", "cuir.2": "bois", "cuir.1": "cuir"}
+
+[node name="modele" parent="." instance=ExtResource("1_glb")]
+transform = Transform3D(1.25, 0, 0, 0, 1.25, 0, 0, 0, 1.25, 0, -0.0075, 0)
+
+[node name="prise" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 0)
+
+[node name="garde" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.555, 0)
+
+[node name="pointe" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1025, 0)

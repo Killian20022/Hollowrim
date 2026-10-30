@@ -510,6 +510,8 @@ func _icone_et_teinte(id: String) -> Array:
 		return [IconesCombat.icone("epee"), IconesCombat.accent(String(f.get("ecole", ""))).lightened(0.2)]
 	if String(f.get("genre", "")).begins_with("arme"):
 		return [IconesCombat.icone("epee"), Color.WHITE]
+	if String(f.get("genre", "")) == "bouclier":
+		return [IconesCombat.icone("bouclier"), Color.WHITE]
 	return [IconesCombat.icone("inconnu"), Color.WHITE]
 
 func _remplir_liste() -> void:

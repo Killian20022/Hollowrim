@@ -36,3 +36,5 @@ allonge = 0.45
 points_trace = 5
 couleur_trainee = Color(0.85, 0.72, 0.42, 1)
 couleur_trainee_coeur = Color(1, 0.95, 0.78, 1)
+famille = "epee_longue"
+materiau = "acier"
