@@ -147,6 +147,8 @@ func _ready() -> void:
 		Jeu.regler("affichage", "mouvement_tete", v / 100.0))
 	_curseur(gc, "Secousses", 0, 100, 5, Jeu.option("affichage", "secousses") * 100.0, "%d %%", func(v: float) -> void:
 		Jeu.regler("affichage", "secousses", v / 100.0))
+	_curseur(gc, "Caméra des coups", 0, 100, 5, Jeu.option("affichage", "camera_coups") * 100.0, "%d %%", func(v: float) -> void:
+		Jeu.regler("affichage", "camera_coups", v / 100.0))   # la vue suit la lame (AccompagnementCoup) ; 0 = coupée
 	var note := MenuStyle.etiquette("« Réduire les mouvements » les plafonne tous.", MenuStyle.GRIS)
 	var pc := VBoxContainer.new()
 	pc.add_child(gc)
