@@ -10,9 +10,9 @@ import bpy, bmesh, math, os, random
 DEPOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SORTIE = os.path.join(DEPOT, "assets", "modeles", "gore", "boyaux.glb")
 PANS = 6
-PALETTE = [(0.478, 0.290, 0.243), (0.361, 0.188, 0.157), (0.561, 0.369, 0.290), (0.420, 0.235, 0.200)]
-SILLON = (0.227, 0.110, 0.086)
-REFLET = (0.690, 0.478, 0.400)
+PALETTE = [(0.520, 0.130, 0.140), (0.450, 0.100, 0.120), (0.600, 0.200, 0.190), (0.380, 0.080, 0.100)]   # rouge sombre de viande
+SILLON = (0.170, 0.030, 0.040)
+REFLET = (0.660, 0.290, 0.270)   # petit reflet mouillé (rouge clair, pas crème)
 
 
 def srgb_lin(c):
@@ -42,7 +42,7 @@ def tube(bm, col, points, rayon, rng):
             ang = 2 * math.pi * k / PANS
             q = [p[j] + (u[j] * math.cos(ang) + v[j] * math.sin(ang)) * r for j in range(3)]
             vert = bm.verts.new(q)
-            anneau.append((vert, REFLET if (k == 1 and not bord) else c))
+            anneau.append((vert, REFLET if (k == 1 and i % 4 == 1) else c))
         anneaux.append(anneau)
     for i in range(n - 1):
         for k in range(PANS):
@@ -95,17 +95,28 @@ def pendants(bm, col):
 
 
 def tas(bm, col):
-    rng = random.Random(11)
-    for s in range(3):
+    """Tas v3 (2026-10-30) : 8 brins FINS qui serpentent en se croisant à plat (axes répartis en éventail + ondulation
+    latérale, un peu de dérive), compact (-25 %), affaissé ; chaque tube reste lisible, ni spirale ni anneau."""
+    rng = random.Random(5)
+    for s in range(8):
+        n = 10
+        a = s * math.pi / 8 * 1.0 + rng.uniform(-0.25, 0.25)
+        d = (math.cos(a), math.sin(a))
+        p = (-math.sin(a), math.cos(a))
+        dec = rng.uniform(-0.03, 0.03)       # décalage latéral du brin
+        ph = rng.uniform(0, 6.28)
+        amp = rng.uniform(0.022, 0.034)
+        curl = rng.choice((-1, 1)) * rng.uniform(0.04, 0.08)
+        couche = 0.010 + (s % 4) * 0.009
         pts = []
-        n = 26
-        r0 = 0.06 + s * 0.035
         for i in range(n):
-            t = i / (n - 1)
-            ang = t * math.pi * 2.6 + s * 1.7
-            r = r0 + 0.11 * t
-            pts.append((math.cos(ang) * r, math.sin(ang) * r, 0.022 + 0.03 * math.sin(t * 9 + s) * (1 - t) + s * 0.012))
-        tube(bm, col, pts, 0.024, rng)
+            t = (i / (n - 1) - 0.5) * 0.23
+            tt = i / (n - 1) - 0.5
+            lat = dec + amp * math.sin(i * 0.95 + ph) + curl * tt * tt * 4.0
+            pts.append((d[0] * t + p[0] * lat, d[1] * t + p[1] * lat, 0.013 + couche + 0.004 * math.sin(i * 0.9 + ph)))
+        tube(bm, col, pts, rng.uniform(0.016, 0.021), rng)
+    for v in bm.verts:
+        v.co.z *= 0.6
 
 
 def construire():
