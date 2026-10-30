@@ -34,6 +34,7 @@ const SH_GIVRE_PROC := preload("res://shaders/magie_givre_process.gdshader")
 const ATLAS_GIVRE := preload("res://assets/magie/givre_kenney_atlas.png")
 ## Formes des bouffées : atlas 4×3 de 128² tiré du Kenney Particle Pack (CC0, assets/LICENCES.md) : rangée 0 = volumes
 ## de flamme (flame_01-04), rangée 1 = fumée (smoke_03-06), rangée 2 = langues (flame_05-06), braises (fire_01), fumée.
+## (Plus lu par la vague depuis le 2026-10-29 soir : le dessin est un champ de feu partagé, voir magie_vague.gdshader.)
 const ATLAS_FEU := preload("res://assets/magie/feu_kenney_atlas.png")
 ## Bruit fractal périodique de la vague (64², 4 canaux indépendants ; outils/generer_bruit_vague.gd).
 const BRUIT_VAGUE := preload("res://assets/magie/bruit_vague.png")
@@ -1615,7 +1616,6 @@ func _mat_vague() -> ShaderMaterial:
 		var m := ShaderMaterial.new()
 		m.shader = SH_VAGUE
 		m.set_shader_parameter("bruit", BRUIT_VAGUE)
-		m.set_shader_parameter("formes", ATLAS_FEU)
 		var pal: Array = FLUX.feu
 		for i in 6:
 			m.set_shader_parameter("c%d" % i, Color(pal[i]))
@@ -1647,7 +1647,8 @@ func _vague_creer(dbl: bool) -> GPUParticles3D:
 	pm.set_shader_parameter("ecart", 0.11 if dbl else 0.085)
 	pm.set_shader_parameter("taille1", 0.8 if dbl else 0.75)
 	p.process_material = pm
-	p.material_override = _mat_vague()
+	# un matériau par jet : le champ partagé du dessin (magie_vague) suit l'axe de CE jet (double incantation : deux axes)
+	p.material_override = _mat_vague().duplicate()
 	p.visible = not sans_procedural and not OS.get_cmdline_user_args().has("--sans-flux")
 	add_child(p)
 	p.emitting = true
@@ -1668,6 +1669,40 @@ func _vague_placer(j: Dictionary, o: Vector3, b: Basis, fin: Vector3, vers: Vect
 	var touche: bool = j.touche
 	pm.set_shader_parameter("arret", Vector4(fin.x, fin.y, fin.z, 1.0 if touche else 0.0))
 	pm.set_shader_parameter("arret_dir", vers)
+	var mv := p.material_override as ShaderMaterial
+	if mv != null and mv.shader == SH_VAGUE:
+		_vague_axe(j, mv, float(pm.get_shader_parameter("vitesse")), o, vers, o.distance_to(fin) if touche else VAGUE_PORTEE)
+
+## Ligne médiane RÉELLE du jet de flammes, pour le dessin (magie_vague : champ partagé par toutes les bouffées). Une
+## bouffée à x mètres de la paume est partie il y a a(x) secondes (freinage : x = v0/k·(1 - e^(-k·a))), de là où était la
+## paume et dans la direction qu'elle visait alors : on garde l'historique des poses (≈ VAGUE_VIE) et on pose 8 points
+## de x = 0 au bout (point touché, ou portée). En tournant, la ligne suit le cordon qui traîne, pas l'axe actuel.
+func _vague_axe(j: Dictionary, mv: ShaderMaterial, v0: float, o: Vector3, vers: Vector3, longueur: float) -> void:
+	var hist: Array = j.get("vague_hist", [])
+	hist.append([horloge, o, vers])
+	while hist.size() > 2 and horloge - float(hist[1][0]) > VAGUE_VIE + 0.1:
+		hist.pop_front()
+	j.vague_hist = hist
+	var k := VAGUE_TRAINE
+	var lg := clampf(longueur, 0.3, VAGUE_PORTEE)
+	var pts := PackedVector3Array()
+	var n := hist.size()
+	var idx := n - 1
+	for i in 8:
+		var x := lg * i / 7.0
+		var ta := horloge + log(maxf(1.0 - x * k / maxf(v0, 0.1), 0.05)) / k   # instant de départ
+		while idx > 0 and float(hist[idx][0]) > ta:
+			idx -= 1
+		var po: Vector3 = hist[idx][1]
+		var di: Vector3 = hist[idx][2]
+		if idx < n - 1 and float(hist[idx][0]) <= ta:
+			var h1: Array = hist[idx + 1]
+			var f := clampf((ta - float(hist[idx][0])) / maxf(float(h1[0]) - float(hist[idx][0]), 0.0001), 0.0, 1.0)
+			po = po.lerp(h1[1], f)
+			di = di.lerp(h1[2], f).normalized()
+		pts.append(po + di * x)
+	mv.set_shader_parameter("jet_pts", pts)
+	mv.set_shader_parameter("jet_long", lg)
 
 # ---------------------------------------------------------------------- décharge électrique (couche fine, arc électrique)
 

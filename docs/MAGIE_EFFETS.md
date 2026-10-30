@@ -272,6 +272,30 @@ Retour utilisateur : « on voit que c'est plusieurs petites flammes collées …
   est réservé aux cœurs denses), plafond relâché avec la distance à l'œil.
 - Coût (même protocole, 2 mesures chacune) : ~3,5-3,6 ms GPU avec la vague contre ~2,9-3,0 sans, soit +0,5 à +0,6 ms.
 
+### Passe 3 : un seul volume de feu (branche magie/jet_vague, 2026-10-29 soir)
+
+Retour utilisateur : « vraiment une vague de pixels uniforme … moins voir ces petits bouts de flamme »
+(`references/magie/prompt_jet_vague_2026-10-29.md`). Le défaut venait du dessin lui-même : chaque bouffée dessinait SA
+flamme Kenney, lisible. Choix : garder la simulation des bouffées (repère du monde, cordon qui traîne en tournant,
+écrasement au point touché, amorce 0,45 s : tout ce qui avait plu) et changer seulement ce qu'elles dessinent. Un ruban
+procédural a été écarté : c'est le `magie_flux` rejeté (« motif qui glisse sur une forme fixe, un screenshot »).
+- `magie_vague.gdshader` : la bouffée n'est plus qu'une EMPREINTE (disque étiré, moitié arrière courte). Couleur, turbulence
+  et tramage viennent d'un CHAMP PARTAGÉ calculé pour le pixel, pas pour la bouffée : la ligne médiane réelle du jet
+  (8 points) est projetée à l'écran ; distance à la paume (remontée par la perspective) et écart à la ligne, mélangés
+  segment par segment (pas de couture dans les virages). Toutes les bouffées qui couvrent un pixel y prennent la même
+  couleur : elles se fondent en une masse. Turbulence : bruit précalculé déformé, qui défile le long du jet (~7 m/s) et
+  bout ; autour du point touché, bruit dans le plan de l'écran (pas d'anneaux). Dégradé : cœur clair près de la main →
+  jaune → orange → rouge sombre → fumée au bout, plus chaud sur la ligne. Corps presque opaque (sinon l'empilement
+  redessine les contours), bords rongés par la même turbulence, tramage par bruit identique pour toutes les bouffées.
+  Un calcul 3D « rayon de vue / axe » a été essayé : inutilisable en vue FPS (l'œil est presque sur l'axe).
+- `gestion_magie.gd` : un matériau par jet ; `_vague_axe` garde l'historique des poses de la paume (≈ `VAGUE_VIE`) et pose
+  la ligne : une bouffée à x m est partie il y a a(x) s (freinage), d'où et vers où visait alors la main.
+- `presets_magie.gd` : `feu_fin_jet_langues` 150 → 90 (braises discrètes).
+- Outils : `galerie --cible=<m>`, `outils/captures_jet_vague.sh`, `outils/planches_jet_vague.sh`.
+- Coût (`--perf=jet`, crypte FPS, 1280×720, A/B alterné avec 3ecd533, PC partagé ; coût du jet = GPU avec − GPU sans) :
+  version finale, 2 × 3 mesures : 2,37 ms avant, 2,50 ms après, soit +0,13 ms (bruit de mesure ≈ ±0,3 ms) ; particules
+  2 020 → 1 960, émetteurs inchangés (10).
+
 ## Électricité : décharge vivante (branche magie/elec_vivante, 2026-10-29)
 
 Même architecture que la vague de flammes. En couche fine, le corps de l'arc électrique n'est plus le ruban `magie_flux`
