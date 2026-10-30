@@ -142,7 +142,7 @@ func plan() -> Array:
 		[["S", 0.0, 3.2, false, "niches"], ["N", 0.0, 3.2, false, ""], ["O", 0.0, 3.0, false, ""], ["O", 5.2, 3.2, false, "w1"], ["E", -4.7, 3.2, false, "g0"]],
 		{"lum": {"braseros": 2, "appliques": 2}, "extra": "_x_prep",
 		"garnitures": [["piliers", {"pts": [Vector3(-3.5, 0, -28.5), Vector3(-3.5, 0, -21.5), Vector3(3.5, 0, -28.5), Vector3(3.5, 0, -21.5)], "h": 4.6, "largeur": 0.9}], ["oculus", {"pos": Vector3(0, 0, -25)}]],
-		"ennemis": [_e("cr_prep_1", "guerrier", Vector3(4.6, 0, -26.8), -PI * 0.5, false), _e("cr_prep_2", "sbire", Vector3(2.5, 0, -23.5), 2.0, true), _e("cr_prep_3", "sbire", Vector3(-2.0, 0, -30.0), -0.8, true)],
+		"ennemis": [_e("cr_prep_1", "guerrier", Vector3(4.6, 0, -26.8), -PI * 0.5, false), _e("cr_prep_2", "sbire", Vector3(2.5, 0, -23.5), 2.0, true, false, {"zombie": true}), _e("cr_prep_3", "sbire", Vector3(-2.0, 0, -30.0), -0.8, true, false, {"zombie": true})],   # zombies : se relèvent du sol, mains nues (draugr.gd)
 		"coffres": [{"id": "cof_prep", "pos": Vector3(-6.2, 0, -30.9), "lacet": PI * 0.5, "butin": {"pieces": 22, "os_draugr": 1, "table": "coffre_crypte"}}],
 		"interactions": [_it("cach_prep", Vector3(-4.9, 0.45, -26.9), "Bandelettes cousues", "Défaire les bandelettes", "coffre", {"butin": {"pieces": 25, "poussiere_tombe": 1, "table": "sac"}, "coffre": Vector3(-4.9, 0, -26.9)})]}))
 	# salle rituelle (hub) : trois socles, porte scellée de l'arène, rituel interrompu

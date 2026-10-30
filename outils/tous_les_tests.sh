@@ -58,6 +58,7 @@ TESTS=(
 	"test_gardien|--nouvelle"
 	"test_troll|--nouvelle"
 	"test_draugr|--nouvelle"
+	"test_draugr_zombie|--nouvelle"   # draugr « zombie » (clips Mixamo Zombie_*) : clips continus, réveil allongé -> debout, démarche, mains nues, réaction ; draugr ordinaire inchangé
 	"test_ennemis_nordiques|--nouvelle"
 	"test_degats|--nouvelle --test"   # dégâts, posture, finishers, décapitation, plafonds du sang (combat/degats_gore)
 	"test_troll_ia|--nouvelle --test"   # IA du troll de givre (ennemis/troll_mage)

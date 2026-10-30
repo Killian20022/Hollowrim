@@ -19,7 +19,8 @@ func _process_modification() -> void:
 	var ap := sq.get_parent().get_node_or_null("Animations") as AnimationPlayer
 	var clip := String(ap.current_animation) if ap else ""
 	var cible_m := 1.0 if (clip.begins_with("Walk") or clip.begins_with("Jog") or clip.begins_with("Sprint") or clip.begins_with("Run")) else 0.0
-	var cible_v := 0.0 if clip.begins_with("Death") else (0.5 if (clip.contains("Attack") or clip.begins_with("Hit")) else 1.0)
+	# clips Zombie_* (capture Mixamo, draugr.gd option zombie) : déjà voûtés et titubants, rien n'est ajouté
+	var cible_v := 0.0 if (clip.begins_with("Death") or clip.begins_with("Zombie")) else (0.5 if (clip.contains("Attack") or clip.begins_with("Hit")) else 1.0)
 	var k := 1.0 - exp(-8.0 * get_process_delta_time())
 	_marche = lerpf(_marche, cible_m, k)
 	_voute = lerpf(_voute, cible_v, k)
