@@ -364,6 +364,10 @@ _MX = {}
 def _mx_donnees():
     if not _MX:
         _MX.update(json.load(open(os.path.join(BASE, "sources_blender", "mixamo", "coups_mixamo.json"), encoding="utf-8")))
+        # clips Quaternius UAL2 (CC0, sources « q_* », extraire_quaternius.py), même format
+        q = os.path.join(BASE, "sources_blender", "mixamo", "coups_quaternius.json")
+        if os.path.exists(q):
+            _MX.update(json.load(open(q, encoding="utf-8")))
     return _MX
 
 
