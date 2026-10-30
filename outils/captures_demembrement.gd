@@ -125,7 +125,10 @@ func _cas2(cle: String) -> void:
 	Demembrement.chance_forcee = 1.0
 	var membre: String = c[1]
 	if membre == "moitie":
-		_temoin(d.global_position, 1.9, 2.3, 1.0)   # plongée : boyaux et tas au sol lisibles
+		if _arg("proche") != "":
+			_temoin(d.global_position, 0.8, 1.25, 1.0)   # tas au sol, caméra proche à côté du draugr (retouche v2)
+		else:
+			_temoin(d.global_position, 1.9, 2.3, 1.0)   # plongée : boyaux et tas au sol lisibles
 	else:
 		_temoin(d.global_position, 1.0 if c[0] != "troll" else 1.6, 2.1 * (1.7 if c[0] == "troll" else 1.0), -1.0 if membre.ends_with("_l") else 1.0)
 	var images: Array = []
@@ -143,6 +146,17 @@ func _cas2(cle: String) -> void:
 		t = ti
 		if not film:
 			images.append(await _image())
+	if _arg("proche") != "" and not film:
+		# vue rapprochée du tas de boyaux au sol, à côté du corps (retouche v2)
+		for tas: Node in s.find_children("BoyauxTas", "MeshInstance3D", true, false):
+			var tp: Vector3 = (tas as Node3D).global_position
+			for dist: float in [1.1, 0.7]:
+				_cam.global_position = tp + Vector3(-0.35, 0.55, 1.0).normalized() * dist
+				_cam.look_at(tp, Vector3.UP)
+				_cam.current = true
+				await _attendre(0.1)
+				images.append(await _image())
+			break
 	s.joueur.visible = true
 	s.joueur.camera.current = true
 	await _attendre(0.05 if not film else 0.8)

@@ -10,9 +10,9 @@ import bpy, bmesh, math, os, random
 DEPOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SORTIE = os.path.join(DEPOT, "assets", "modeles", "gore", "boyaux.glb")
 PANS = 6
-PALETTE = [(0.478, 0.290, 0.243), (0.361, 0.188, 0.157), (0.561, 0.369, 0.290), (0.420, 0.235, 0.200)]
-SILLON = (0.227, 0.110, 0.086)
-REFLET = (0.690, 0.478, 0.400)
+PALETTE = [(0.690, 0.290, 0.290), (0.600, 0.210, 0.230), (0.780, 0.420, 0.400), (0.540, 0.170, 0.200)]   # rose-rouge de viande
+SILLON = (0.330, 0.085, 0.105)
+REFLET = (0.960, 0.700, 0.660)   # reflet mouillé
 
 
 def srgb_lin(c):
@@ -95,36 +95,33 @@ def pendants(bm, col):
 
 
 def tas(bm, col):
-    """Tas ORGANIQUE (retouche 2026-10-30, l'ancien était une spirale d'escargot) : 4 boyaux qui serpentent, tournent
-    d'un côté puis de l'autre (vitesse de virage aléatoire et lisse), se rappellent vers le centre pour rester en tas,
-    se chevauchent et s'affaissent (hauteur variable, aplatis aux croisements)."""
+    """Tas AFFAISSÉ (retouche v2 2026-10-30) : 4 boyaux qui s'écrasent les uns sur les autres, compact, peu de jours,
+    aplati sous son poids (hauteurs ×0,5 après coup : section en ovale, boucles posées à plat)."""
     rng = random.Random(23)
-    cfg = [(0.7, 0.028, 0.030), (2.4, 0.025, 0.052), (4.1, 0.030, 0.074), (5.5, 0.023, 0.098)]
+    cfg = [(0.7, 0.032, 0.018), (2.4, 0.030, 0.034), (4.1, 0.034, 0.050), (5.5, 0.028, 0.064)]
     for s, (cap0, rayon, couche) in enumerate(cfg):
         n = 20
-        x, y = rng.uniform(-0.07, 0.07), rng.uniform(-0.07, 0.07)
+        x, y = rng.uniform(-0.05, 0.05), rng.uniform(-0.05, 0.05)
         cap = rng.uniform(0, 2 * math.pi) + cap0
         om = 0.0
         ph = [rng.uniform(0, 6.28) for _ in range(3)]
         pts = []
         for i in range(n):
-            t = i / (n - 1)
-            # virage lisse mais irrégulier : somme de trois sinus incommensurables + une dérive aléatoire
-            om += rng.uniform(-0.5, 0.5)
+            om += rng.uniform(-0.6, 0.6)
             om *= 0.8
-            cap += 0.16 * math.sin(i * 0.9 + ph[0]) + 0.10 * math.sin(i * 1.7 + ph[1]) + 0.22 * om
-            # rappel doux vers le centre : le tas reste compact, mais les boucles sortent et rentrent
+            cap += 0.16 * math.sin(i * 0.9 + ph[0]) + 0.10 * math.sin(i * 1.7 + ph[1]) + 0.28 * om
             r = math.hypot(x, y)
-            if r > 0.075:
+            if r > 0.055:
                 vers = math.atan2(-y, -x)
                 d = (vers - cap + math.pi) % (2 * math.pi) - math.pi
-                cap += d * min(1.0, (r - 0.075) * 5.0) * 0.45
-            x += math.cos(cap) * 0.040
-            y += math.sin(cap) * 0.040
-            # affaissé : couche basse, quelques bosses là où les boyaux montent les uns sur les autres
-            z = 0.019 + couche * 0.30 + 0.014 * math.sin(i * 0.8 + s * 2.0) + 0.010 * math.sin(i * 2.3 + s)
+                cap += d * min(1.0, (r - 0.055) * 6.0) * 0.55
+            x += math.cos(cap) * 0.036
+            y += math.sin(cap) * 0.036
+            z = 0.02 + couche + 0.006 * math.sin(i * 0.8 + s * 2.0)
             pts.append((x, y, z))
         tube(bm, col, pts, rayon, rng)
+    for v in bm.verts:
+        v.co.z *= 0.5
 
 
 def construire():

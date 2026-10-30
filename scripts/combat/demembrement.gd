@@ -448,8 +448,8 @@ static func mat_boyaux(matiere_chair: String) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = preload("res://shaders/ps1_gore.gdshader")
 	# draugr : chair desséchée telle que peinte ; vivant (bandit) : plus rouge et plus mouillé
-	m.set_shader_parameter("teinte", Color(1.45, 1.25, 1.2) if matiere_chair == "draugr" else Color(1.8, 1.0, 0.95))
-	m.set_shader_parameter("mouille", 0.45 if matiere_chair == "draugr" else 0.8)
+	m.set_shader_parameter("teinte", Color(1.15, 1.0, 1.0) if matiere_chair == "draugr" else Color(1.5, 0.95, 0.92))
+	m.set_shader_parameter("mouille", 0.75 if matiere_chair == "draugr" else 0.9)
 	_mat_boyaux[matiere_chair] = m
 	return m
 
