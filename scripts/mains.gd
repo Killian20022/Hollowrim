@@ -386,6 +386,9 @@ func _installer_arme() -> void:
 		if arme.teinte.a > 0.0:
 			_lame.set_shader_parameter("teinte", arme.teinte)
 		_lame.set_shader_parameter("emission", arme.emission)
+		# sang v2 : sang qui s'accumule sur la lame puis s'efface (matériau propre au joueur : _copie_lame)
+		if _lame != _acier and is_instance_valid(_modele_arme_d):
+			SangLame.equiper(_modele_arme_d, _lame, _garde_lame, _pointe_lame)
 
 ## Copie du matériau de lame posée sur l'arme du joueur (teinte, lueur de charge sans toucher aux autres épées).
 func _copie_lame(racine: Node, partage: Material) -> ShaderMaterial:

@@ -286,6 +286,11 @@ func effets_impact(r: Dictionary, joueur: Node) -> void:
 		part_sang *= 0.35
 	if profil.sang and Sang.actif():
 		Sang.giclee(corps, point, dir, p.sang * part_sang, profil.couleur_sang)
+		# sang v2 : la lame du joueur se couvre de sang (coup d'arme seulement) ; la giclée tache les ennemis voisins
+		if i.has("arme") and not i.has("ecole") and not bool(i.get("continu", false)):
+			SangLame.coup(p.sang * part_sang, profil.couleur_sang)
+		if not bool(i.get("continu", false)):
+			Sang.tacher_voisins(corps, point, dir, p.sang * part_sang, profil.couleur_sang)
 	else:
 		Sang.eclats_matiere(corps, point, dir, p.sang * 0.8, profil.couleur_sang if not profil.sang else Color(0.45, 0.42, 0.38))
 	var magie := i.has("ecole")
