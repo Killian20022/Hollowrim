@@ -176,21 +176,88 @@ NS["poser"] = _poser_suivi
 NS["LIM_TORSION_L"] = (-125, 125)
 NS["LIM_INCL_L"] = (-45, 32)
 
+# =====================================================================================================================
+# v3 (2026-10-30, retour utilisateur : « on retrouve le poignet qui se casse et pas de mouvement d'épée fluide ») : les COUPS
+# et le BLOCAGE sont des captures Mixamo « Great Sword Pack » RETARGETÉES (anim_bras_epee.creer_action_mixamo, même méthode
+# que les coups à une main validés) au lieu des arcs écrits à la main : la courbe de vitesse est celle de la capture (continue),
+# le poignet est résolu dans des butées SERRÉES (pas de poignet cassé), la torsion passe dans l'avant-bras avec continuité.
+# Retouches vue FPS par clip : roulis / tangage du bras (cadrage), balayage autour de l'épaule, déplacement de l'épaule réduit
+# (echelle_epaule), prise tournée autour de la lame (roulis_prise) pour que le tranchant mène, main inclinée (main).
+# Données : sources_blender/mixamo/coups_2mains.json (extraire_2mains.py ; les .fbx restent hors du dépôt). Les tenues
+# (repos, sprint, encaisse, parade, garde brisée) restent celles de la v2 ci-dessus ; les clips Mixamo partent de / reviennent à
+# REPOS_2M (fondu en S).
+CLIPS_MX_2M = {
+    # réglage commun vue FPS : bras relevé de 30-35° (tangage) et épaule avancée/relevée (decalage), amplitude 0,5 (l'arc reste
+    # dans le champ, la poignée au tiers bas : la main gauche l'atteint), déplacement de l'épaule de la capture à 50 %.
+    # 1 : diagonale haut-droite -> bas-gauche (« great sword slash », images 12 -> 24 ; roulis -30° du bras : la verticale de
+    # la capture devient une diagonale) ; milieu de lame (0,46 ; 0,69) -> (-0,44 ; -0,06), fil 63°
+    "c2_a": dict(source="gs_slash", ref=0, temps=[(12, 0.0), (16, 0.30), (18, 0.38), (22, 0.62), (24, 0.80), (24, 1.20)],
+                 fondu=(0.30, 0.85), plein=(0.30, 0.85), cadrage=(0, 35, -30), decalage=(0.0, 0.08, -0.12), amplitude=0.5, centre=20,
+                 echelle_epaule=0.5),
+    # 2 : retour horizontal gauche -> droite, légèrement montant (« great sword slash (2) », 2e coup, images 46 -> 57 ; prise tournée
+    # de 90° : le tranchant mène) ; milieu de lame (-0,51 ; 0,04) -> (0,82 ; 0,42), fil 66°. (« slash (3) » essayé : sa main est
+    # hors des butées serrées du poignet, fil < 20°.)
+    "c2_b": dict(source="gs_slash_2", ref=0, temps=[(46, 0.0), (50.5, 0.20), (52, 0.28), (55.5, 0.52), (57, 0.70), (57, 1.10)],
+                 fondu=(0.20, 0.75), plein=(0.20, 0.75), cadrage=(0, 30, 0), decalage=(0.0, 0.08, -0.12), amplitude=0.5, centre=53,
+                 echelle_epaule=0.5, roulis_prise=90),
+    # 3 : grand vertical tête -> pieds (« great sword slash (2) », 1er coup, images 18 -> 31, diagonale raide redressée par un
+    # roulis de +25°) ; milieu de lame (0,15 ; 1,09) -> (-0,16 ; -0,65), fil 76°
+    "c2_c": dict(source="gs_slash_2", ref=0, temps=[(18, 0.0), (22, 0.34), (23.5, 0.44), (29, 0.68), (31, 0.88), (31, 1.30)],
+                 fondu=(0.34, 0.95), plein=(0.34, 0.95), cadrage=(0, 30, 25), decalage=(0.0, 0.08, -0.12), amplitude=0.5, centre=26,
+                 echelle_epaule=0.5),
+    # puissante : même grand vertical, armé tenu pendant la charge (charge et coup partagent cadrage et amplitude)
+    "charge_2m": dict(source="gs_slash_2", ref=0, temps=[(10, 0.0), (21, 0.35), (22.5, 0.70)], fondu=(0.35, 0.70), plein=(0.35, 0.70),
+                      cadrage=(0, 30, 25), decalage=(0.0, 0.08, -0.12), amplitude=0.5, centre=26, echelle_epaule=0.5),
+    "lourd_2m": dict(source="gs_slash_2", ref=0, temps=[(22.5, 0.0), (23.5, 0.08), (29, 0.32), (31, 0.50), (31, 1.10)],
+                     fondu=(0.0, 0.60), plein=(0.0, 0.60), cadrage=(0, 30, 25), decalage=(0.0, 0.08, -0.12), amplitude=0.5, centre=26,
+                     echelle_epaule=0.5),
+    # blocage tenu : lame en travers devant le visage (« great sword blocking (2) », pose tenue) ; milieu de lame (0,09 ; 0,65)
+    "garde_2m": dict(source="gs_block_2", ref=0, temps=[(0, 0.0), (0, 0.5)], fondu=(0.0, 0.5), plein=(0.0, 0.5),
+                     cadrage=(0, 12, 0), decalage=(0.1, 0.1, -0.1), amplitude=1.0, centre=0, echelle_epaule=0.5),
+}
+MARQUEURS_MX_2M = {
+    "c2_a": {"arme": 0.30, "frappe": 0.38, "fin_frappe": 0.62, "suivi": 0.80, "fin": 1.20},
+    "c2_b": {"arme": 0.20, "frappe": 0.28, "fin_frappe": 0.52, "suivi": 0.70, "fin": 1.10},
+    "c2_c": {"arme": 0.34, "frappe": 0.44, "fin_frappe": 0.68, "suivi": 0.88, "fin": 1.30},
+    "charge_2m": {"arme": 0.35, "fin": 0.70},
+    "lourd_2m": {"arme": 0.06, "frappe": 0.08, "fin_frappe": 0.32, "suivi": 0.50, "fin": 1.10},
+}
+MARQUEURS.update(MARQUEURS_MX_2M)
+# butées du poignet SERRÉES pour ces clips (pas de poignet cassé) ; torsion de l'avant-bras dans les limites du maillage
+NS["LIM_MX"].update(torsion=(-85, 85), flexion=(-35, 35), inclinaison=(-22, 15))
+
+
+def _preparer_mx_2m():
+    """Données Mixamo deux bras + tenue de repos à deux mains comme bord des clips retargetés."""
+    import json
+    NS["_mx_donnees"]()
+    NS["_MX"].update(json.load(open(os.path.join(NS["BASE"], "sources_blender", "mixamo", "coups_2mains.json"), encoding="utf-8")))
+    NS["PREC"][0] = None
+    NS["poser"](dict(REPOS_2M))
+    k, f, r = NS["PREC"][0][:3]
+    NS["REPOS"] = dict(REPOS_2M, k=k, f=f, r=r)   # poignet fixé : exactement la tenue de repos aux bords des clips
+
+
 
 def main():
     ARGS = NS["ARGS"]
     NS["poings"]()
     NS["poser_torche"]()
     noms = [c for c in ARGS.get("clips", "").split(",") if c] or list(CLIPS)
+    noms = list(dict.fromkeys(noms + ([] if ARGS.get("clips") else list(CLIPS_MX_2M))))
+    _preparer_mx_2m()
     actions = {}
     for nom in noms:
+        if nom in CLIPS_MX_2M:
+            actions[nom] = NS["creer_action_mixamo"](nom, CLIPS_MX_2M[nom])
+            continue
         cles = CLIPS[nom]
         act = NS["creer_action"](nom, cles)
         actions[nom] = (act, cles[-1]["t"])
     print("POIGNET  (clé, allonge, torsion avant-bras° (+ supination), flexion°, inclinaison° (+ radiale), erreur lame°, coût)")
     for r in NS["RAPPORT"]:
         print("POIGNET ", r)
-    for nom, (x, n_) in ((k, (v, len(CLIPS[k]))) for k, v in MARQUEURS.items()):
+    for nom, x in MARQUEURS.items():
         print("MARQUEURS", nom, x)
     if "mesurer" in ARGS:
         NS["mesurer_clips"](actions)
