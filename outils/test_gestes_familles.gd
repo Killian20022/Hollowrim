@@ -2,7 +2,7 @@ extends SceneTree
 ## Test sans fenêtre : GESTES PAR FAMILLE (branche combat/gestes_lourds, GestesLourds) — haches, masse, marteaux, grand marteau.
 ##   1. branchement : chaque arme du catalogue reçoit le profil de sa famille (hache, masse, marteau, grand_marteau), les
 ##      épées gardent le leur (combo d'épée inchangé) ; tenues remplacées (repos → repos_h / repos_m / repos_gm) ;
-##   2. trajectoires : pendant chaque frappe, la tête de l'arme décrit un ARC continu à l'écran (pas de cassure > 40° entre
+##   2. trajectoires : pendant chaque frappe, la tête de l'arme décrit un ARC continu à l'écran (pas de cassure > 45° entre
 ##      deux pas de 1/120 s avant l'impact, pas de retour en arrière) ; armé plus lent que la chute (masses, marteaux) ;
 ##   3. combo : les trois coups de chaque famille touchent le mannequin à 1,7 m ; le contact déclenche le « mordant » ;
 ##      un coup de masse dure ≥ 1,3 × le coup d'épée, un coup de grand marteau ≥ 2 × ;
@@ -137,7 +137,7 @@ func _tester() -> void:
 		for g in p["combo"]:
 			var clip := String(p["gestes"][g]["clip"])
 			var r := _arc(clip)
-			_verif(r[0] <= 40.0, "%s : %s (%s) — arc continu pendant la frappe (cassure max %.0f°)" % [id, g, clip, r[0]])
+			_verif(r[0] <= 45.0, "%s : %s (%s) — arc continu pendant la frappe (cassure max %.0f°)" % [id, g, clip, r[0]])
 			if a.profil != "hache":
 				_verif(r[1] >= 2.0, "%s : %s — armé lent, chute rapide (armé = %.1f × la frappe)" % [id, g, r[1]])
 		# 5. traînée

@@ -107,7 +107,7 @@ const PROFILS := {
 		"gestes": {
 			"gm_vertical": {"clip": "gm_a", "fenetre": [0.0, 1.0], "cotes": [0, 0], "enchainement": [0.15, 0.85], "force": 1.15, "tassement": 1.3, "elan": 0.55,
 				"mordant": [0.1, 0.03], "secousse": 0.55, "suivi": 0.0, "trainee": [0.78, 1.0]},
-			"gm_diag": {"clip": "gm_b", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.15, 0.85], "force": 1.0, "tassement": 1.0, "elan": 0.5,
+			"gm_diag": {"clip": "gm_b", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.15, 0.85], "force": 1.0, "tassement": 1.0, "elan": 0.5,
 				"mordant": [0.09, 0.03], "secousse": 0.5, "suivi": 0.0, "trainee": [0.78, 1.0]},
 			"gm_lourd": {"clip": "lourd_gm", "charge": "charge_gm", "fenetre": [0.0, 1.0], "cotes": [0, 0], "enchainement": [0.15, 0.8], "force": 1.0, "tassement": 1.5, "elan": 0.7,
 				"mordant": [0.13, 0.035], "secousse": 0.7, "suivi": 0.0, "trainee": [0.78, 1.0]},

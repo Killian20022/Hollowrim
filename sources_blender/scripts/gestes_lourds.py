@@ -246,24 +246,21 @@ G1_IMPACT = dict(nom="G1_impact", poing=E(0.18, -0.50, 0.58), lame=(-0.45, -0.55
                  clav=(24, 0), epaule=(-0.08, 0.0, -0.10), interp="lin", torsion=-40, **L)
 G1_RECUL = pose(G1_IMPACT, "G1_recul", poing=E(0.19, -0.45, 0.58), lame=(-0.45, -0.46, -0.77), interp="amorti")
 G1_POSE = pose(G1_IMPACT, "G1_pose", poing=E(0.17, -0.52, 0.58), lame=(-0.44, -0.58, -0.68), interp="amorti")
-# diagonale haut-droite -> bas-gauche jusqu'au sol (A2 de la claymore, resserrée vers le centre : la tête traverse la cible)
-G2_ARME = dict(nom="G2_arme", poing=E(0.52, 0.06, 0.58), lame=(0.30, 0.90, 0.30), roulis=G.TRANCHE, coude=(1, -0.4, 0.3), clav=(-6, 12),
-               epaule=(0.02, 0.04, 0.02), torsion=40, **L)
-G2_TENSION = pose(G2_ARME, "G2_tension", poing=E(0.57, 0.12, 0.57), lame=(0.36, 0.86, 0.36))
-G2_ENTREE = dict(nom="G2_entree", poing=E(0.42, 0.0, 0.54), lame=(-0.15, 0.85, -0.50), mouvement=(-0.6, -0.8, 0), coude=(1, -0.6, 0.2),
-                 clav=(8, 8), epaule=(-0.02, 0.02, -0.03), interp="passe", torsion=10, **L)
-G2_MILIEU = dict(nom="G2_milieu", poing=E(0.18, -0.22, 0.60), lame=(-0.55, 0.10, -0.83), mouvement=(-0.5, -0.85, 0), coude=(0.6, -1, 0.0),
-                 clav=(20, 4), epaule=(-0.06, 0.0, -0.07), interp="passe", torsion=-35, **L)
-G2_IMPACT = dict(nom="G2_impact", poing=E(0.02, -0.46, 0.58), lame=(-0.50, -0.50, -0.71), mouvement=(-0.6, -0.7, 0.2), coude=(0.3, -1, -0.2),
-                 clav=(30, 0), epaule=(-0.11, 0.02, -0.11), interp="lin", torsion=-65, **L)
-G2_RECUL = pose(G2_IMPACT, "G2_recul", poing=E(0.04, -0.42, 0.58), lame=(-0.50, -0.40, -0.77), interp="amorti")
-G2_POSE = pose(G2_IMPACT, "G2_pose", poing=E(0.01, -0.48, 0.58), lame=(-0.49, -0.54, -0.68), interp="amorti")
+# 2e coup : vertical en léger biais (levée au-dessus de l'épaule droite, la tête tombe un peu à gauche du centre) — mêmes
+# poses que le vertical, décalées (une diagonale large sortait de la cible et retournait l'avant-bras)
+G2_ARME = decale(G1_ARME, "G2_arme", dx=0.12, dy=-0.02)
+G2_TENSION = decale(G1_TENSION, "G2_tension", dx=0.13, dy=-0.02)
+G2_ENTREE = decale(G1_ENTREE, "G2_entree", dx=0.08, lame=(-0.45, 0.82, -0.36))
+G2_MILIEU = decale(G1_MILIEU, "G2_milieu", dx=-0.02, lame=(-0.62, 0.26, -0.74))
+G2_IMPACT = decale(G1_IMPACT, "G2_impact", dx=-0.10, lame=(-0.55, -0.52, -0.65))
+G2_RECUL = decale(G1_RECUL, "G2_recul", dx=-0.10, lame=(-0.55, -0.43, -0.72))
+G2_POSE = decale(G1_POSE, "G2_pose", dx=-0.10, lame=(-0.54, -0.55, -0.64))
 GP_CHARGE = pose(G1_TENSION, "GP_charge", poing=E(0.25, 0.14, 0.48), lame=(-0.18, 0.60, 0.78))
 GP_ARME = pose(GP_CHARGE, "GP_arme", poing=E(0.25, 0.17, 0.47), lame=(-0.17, 0.55, 0.82))
 
 # torsions bornées (progression régulière de l'avant-bras, jamais de retournement entre deux clés de frappe)
 for _d, _tb in ((G1_ENTREE, -15), (G1_MILIEU, -55), (G1_IMPACT, -85), (G1_RECUL, -85), (G1_POSE, -85),
-                (G2_ARME, 60), (G2_TENSION, 60), (G2_ENTREE, 15), (G2_MILIEU, -40), (G2_IMPACT, -80), (G2_RECUL, -80), (G2_POSE, -80)):
+                (G2_ENTREE, -15), (G2_MILIEU, -55), (G2_IMPACT, -85), (G2_RECUL, -85), (G2_POSE, -85)):
     _d["tb"] = _tb
 
 CLIPS = {
