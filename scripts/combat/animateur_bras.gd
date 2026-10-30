@@ -13,9 +13,16 @@ const BIBLIOTHEQUE := preload("res://assets/animations/bras_epee.tres")
 ## Finishers (achèvements) : bibliothèque À PART (sources_blender/scripts/gestes_finishers.py → bras_finishers.tres), jouée par
 ## le même AnimationPlayer sous le préfixe « fin/ » ; mêmes os, même repère, mêmes marqueurs (+ contact, plante, retrait, mort).
 const FINISHERS := preload("res://assets/animations/bras_finishers.tres")
+## Arme à deux mains (claymore) : bibliothèque À PART (sources_blender/scripts/gestes_2mains.py → bras_2mains.tres), préfixe
+## « deux/ » ; mêmes os, même repère, mêmes marqueurs. La main gauche est posée par IK sur la poignée (mains._poser_deux_mains).
+const DEUX_MAINS := preload("res://assets/animations/bras_2mains.tres")
 const OS_ANIMES := ["clavicle_r", "upperarm_r", "lowerarm_r", "hand_r"]
 const PREFIXE := "epee/"
 const PREFIXE_FIN := "fin/"
+const PREFIXE_DEUX := "deux/"
+## Clips remplacés selon l'arme (profil « tenues » de ProfilsAnimation : « repos » → « repos_2m »…). Le nom LOGIQUE reste celui
+## demandé (clip, comparaisons de mains.gd inchangées) ; seul le clip joué / mesuré change.
+var variante := {}
 
 var ap: AnimationPlayer
 var sq: Skeleton3D
@@ -37,6 +44,7 @@ func installer(bras: Node3D, squelette: Skeleton3D) -> void:
 	ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	ap.add_animation_library("epee", BIBLIOTHEQUE)
 	ap.add_animation_library("fin", FINISHERS)
+	ap.add_animation_library("deux", DEUX_MAINS)
 	var i := sq.find_bone("hand_r")
 	while i >= 0:
 		_chaine.push_front(i)
@@ -44,6 +52,7 @@ func installer(bras: Node3D, squelette: Skeleton3D) -> void:
 	var noms: Array[StringName] = []
 	noms.append_array(BIBLIOTHEQUE.get_animation_list())
 	noms.append_array(FINISHERS.get_animation_list())
+	noms.append_array(DEUX_MAINS.get_animation_list())
 	for nom in noms:
 		var a := _anim(nom)
 		var p := {}
@@ -61,12 +70,27 @@ func installer(bras: Node3D, squelette: Skeleton3D) -> void:
 				p[o][1] = k
 		_pistes[nom] = p
 
-## Clip `nom` : bibliothèque des coups, sinon celle des finishers.
+## Clip réellement joué pour le nom logique `nom` (variante de l'arme).
+func reel(nom: String) -> String:
+	return String(variante.get(nom, nom))
+
+## Clip `nom` : bibliothèque des coups, puis celle des deux mains, sinon celle des finishers (variante de l'arme appliquée).
 func _anim(nom: StringName) -> Animation:
-	return BIBLIOTHEQUE.get_animation(nom) if BIBLIOTHEQUE.has_animation(nom) else FINISHERS.get_animation(nom)
+	var r := StringName(reel(nom))
+	if BIBLIOTHEQUE.has_animation(r):
+		return BIBLIOTHEQUE.get_animation(r)
+	if DEUX_MAINS.has_animation(r):
+		return DEUX_MAINS.get_animation(r)
+	return FINISHERS.get_animation(r)
 
 func existe(nom: String) -> bool:
-	return BIBLIOTHEQUE.has_animation(nom) or FINISHERS.has_animation(nom)
+	var r := reel(nom)
+	return BIBLIOTHEQUE.has_animation(r) or DEUX_MAINS.has_animation(r) or FINISHERS.has_animation(r)
+
+func _prefixe(r: String) -> String:
+	if BIBLIOTHEQUE.has_animation(r):
+		return PREFIXE
+	return PREFIXE_DEUX if DEUX_MAINS.has_animation(r) else PREFIXE_FIN
 
 func longueur(nom: String) -> float:
 	return _anim(nom).length
@@ -83,7 +107,8 @@ func marqueurs(nom: String) -> Dictionary:
 func jouer(nom: String, fondu := 0.08, depart := 0.0) -> void:
 	clip = nom
 	t = 0.0
-	ap.play((PREFIXE if BIBLIOTHEQUE.has_animation(nom) else PREFIXE_FIN) + nom, fondu)
+	var r := reel(nom)
+	ap.play(_prefixe(r) + r, fondu)
 	if depart > 0.0:
 		regler(depart)
 	else:
@@ -112,7 +137,7 @@ func fini() -> bool:
 ## cinématique directe sur les pistes du clip (rotation des os animés, repos des autres).
 func pose_arme(nom: String, tc: float) -> Transform3D:
 	var a := _anim(nom)
-	var p: Dictionary = _pistes[nom]
+	var p: Dictionary = _pistes[StringName(reel(nom))]
 	tc = clampf(tc, 0.0, a.length)
 	var g := Transform3D()
 	for o in _chaine:

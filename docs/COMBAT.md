@@ -356,6 +356,45 @@ Main droite qui incante : `_ik_d` (TwoBoneIK3D sur le bras droit, ÉTEINTE par d
 qu'un sort occupe la main droite (avec l'orienteur `_orient_d` ; la couche passive est alors mise à zéro, déjà incluse
 dans la cible) ; dès que l'épée revient, l'IK s'éteint et les clips reprennent le bras.
 
+## Armes à deux mains (famille « deux_mains », branche combat/claymore_2mains, 2026-10-30)
+Générique : toute DonneesArme avec `deux_mains = true` et `profil = "deux_mains"` (claymore n°05 `data/armes/claymore.tres`,
+hybride n°6 `data/armes/coeur_de_braise.tres` ; n°7 et n°8 : même réglage, repères du modèle).
+- **Main gauche sur la poignée** (`mains._poser_deux_mains`) : la cible IK de la main gauche (`pivot_torche`) est posée chaque
+  image sur la pose AFFICHÉE de l'arme (`pivot_epee`, sans retard), à `ecart_mains` (9,5 cm) sous le centre du poing droit vers
+  le pommeau (borné par `fusee_bas`), même sens de fusée ; centre du poing droit = repère « prise » du modèle s'il existe
+  (hybrides : 0,03), sinon `milieu_poignee` (claymore n°05 : 0,10). Torche rangée et cachée (`porte_torche`).
+- **Épaule gauche qui avance** : si le poignet visé est au-delà de 96 % de l'allonge du bras gauche, la clavicule gauche
+  avance vers lui (≤ 28 cm ; `decalage_bras.gd` sur `clavicle_l`, AVANT l'IK) : le buste tourne vers la poignée. Mesuré par
+  `test_arme_deux_mains` : poing gauche à ≤ 1,5 cm de la fusée dans 14 des 15 poses clés, 4 cm au suivi du coup 2 (poignet gauche en butée, lame à droite).
+- **Clips** : `sources_blender/scripts/gestes_2mains.py` → `assets/animations/bras_2mains.tres` (préfixe « deux/ »,
+  `AnimateurBras.DEUX_MAINS`) ; `blender.exe -b sources_blender/bras_fps.blend --python sources_blender/scripts/gestes_2mains.py -- --godot`.
+  Tenues remplacées par le profil (`"tenues"` → `AnimateurBras.variante` : repos → repos_2m, garde → garde_2m, sprint,
+  encaisse, parade, garde_brisee → brisee_2m, contre → c2_b) : mains.gd garde les mêmes noms logiques.
+- **Coups** (marqueurs arme / frappe / fin_frappe / suivi / fin, s à vitesse 1 ; arme : vitesse 0,85, préparation × 1,1,
+  récupération × 1,2) : c2_a diagonale haut-droite → bas-gauche 0,30 / 0,38 / 0,55 / 0,72 / 1,10 ; c2_b horizontal gauche →
+  droite 0,22 / 0,30 / 0,46 / 0,62 / 1,00 ; c2_c vertical par-dessus 0,34 / 0,44 / 0,60 / 0,78 / 1,25 (force 1,3, tassement 1,2) ;
+  puissante charge_2m (armé tenu) + lourd_2m 0,10 / 0,10 / 0,27 / 0,50 / 1,15. Élan 0,45-0,7 m (AccompagnementCoup) ;
+  TraceLame / traînée / dégâts inchangés (portée 2,4 m, 3 cibles).
+- **Sources** : rythme et trajets d'après Mixamo « Great Sword Pack » (great sword slash (3), slash, attack, blocking),
+  extraits avec les DEUX bras par `sources_blender/scripts/extraire_2mains.py` (→ `sources_blender/mixamo/coups_2mains.json`) ;
+  poses écrites en espace écran (la capture, buste tourné de 60°, ne se lit pas depuis une caméra fixe).
+- Outils : `outils/film_claymore.gd` (`--poses [--vue=cote] [--arme=…]` planche des poses clés ; `--film` vidéo garde / combo /
+  blocage contre 2 draugrs / puissante), `outils/test_arme_deux_mains.gd`.
+- Limites : finishers à une main (clips « fin/ ») joués tels quels (la main gauche suit la poignée) ; pas de variante
+  directionnelle (combo partout) ; frappe du coup 2 vue par la tranche à mi-course (lame pointée vers l'avant).
+
+### v2 (retour utilisateur 2026-10-30 : tenue penchée à droite, arcs circulaires, lame longue, réalisme)
+- Lame : `sources_blender/epees_hybrides/claymore_longue.py` → `assets/modeles/armes/deux_mains/claymore_longue.glb` (lame 1,30 m,
+  total 1,71 m, 1086 triangles : gouttière, talon gainé de cuir à crochets de parade, crans, runes d'or, garde fine) ;
+  `data/armes/claymore_longue.tres` (habillage « claymore », écart des mains 11 cm). L'ancienne n°05 reste (`claymore.tres`).
+- Matériaux réalistes À PART : `scripts/objets/claymore_materiaux.gd` (ClaymoreMateriaux : rubis profond translucide via
+  EpeesLongues.shader_verre, fer usé, cuir à couture) ; `scripts/objets/epees_longues.gd` NON modifié.
+- Tenues : lame penchée à droite (repos ~35°, garde ~55°). Coups : arcs de cercle denses (une clé par 1/60 s, axe fixe, temps
+  en une seule courbe douce), poing sur un petit cercle à droite-bas du centre pour que la lame balaie le réticule ; lame
+  demandée ramenée vers le plan de l'écran (sinon vue en bout) ; torsion continue ; butées « large » élargies pour ces clips.
+- Épaule gauche : avancée jusqu'à 40 cm. Limite : poing gauche à ~8 cm de la fusée au milieu de l'arc de la diagonale et
+  de la puissante (≤ 3,3 cm ailleurs).
+
 ## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)
 (≈ 35° de la verticale à l'écran, pointe vers le centre haut), tranchant (−0,9 ; 0 ; −0,6) (plat et garde en croix

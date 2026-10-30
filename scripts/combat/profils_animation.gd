@@ -50,6 +50,29 @@ const PROFILS := {
 			"lourd_revers": {"clip": "lourd_revers", "charge": "charge_revers", "fenetre": [0.0, 1.0], "cotes": [0, 0], "enchainement": [0.08, 0.8], "force": 1.0, "tassement": 0.5, "elan": 0.15},
 		},
 	},
+	# FAMILLE « DEUX MAINS » (claymore n°05, hybrides n°6-8 ; branche combat/claymore_2mains) : générique, la prise s'appuie sur
+	# les repères prise / garde / pointe du modèle (mains._poser_deux_mains), pas sur une arme précise. clips de sources_blender/scripts/gestes_2mains.py
+	# (bibliothèque « deux/ »), rythme d'après les captures Mixamo « Great Sword Pack ». La main gauche tient la poignée (IK,
+	# mains._poser_deux_mains). Coups plus lents (armé ~0,3 s tenu, frappe qui traverse le cadre, grand suivi), plus
+	# d'avancée (élan) ; pas de variantes directionnelles : combo 1-2-3 partout, une seule puissante (verticale chargée).
+	"deux_mains": {
+		"combo": ["c2_diag", "c2_revers", "c2_vertical"],
+		"lourd": "c2_lourd",
+		"lourds": {},
+		# tenues remplacées (AnimateurBras.variante) : mêmes noms logiques dans mains.gd et GestesDefense
+		"tenues": {"repos": "repos_2m", "sprint": "sprint_2m", "garde": "garde_2m", "encaisse": "encaisse_2m",
+			"parade": "parade_2m", "garde_brisee": "brisee_2m", "contre": "c2_b"},
+		"gestes": {
+			# 1 : diagonale haut-droite → bas-gauche, armé au-dessus de l'épaule droite
+			"c2_diag": {"clip": "c2_a", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.10, 1.0], "force": 1.0, "elan": 0.5},
+			# 2 : horizontal gauche → droite à plat, repart d'en bas à gauche
+			"c2_revers": {"clip": "c2_b", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.10, 1.0], "force": 1.05, "elan": 0.45},
+			# 3 : vertical par-dessus la tête, le plus fort, gros tassement de la caméra
+			"c2_vertical": {"clip": "c2_c", "fenetre": [0.0, 1.0], "cotes": [0, 0], "enchainement": [0.12, 0.8], "force": 1.3, "tassement": 1.2, "elan": 0.65},
+			# puissante : armé tenu au-dessus de la tête pendant la charge, la lame tombe de tout son poids
+			"c2_lourd": {"clip": "lourd_2m", "charge": "charge_2m", "fenetre": [0.0, 1.0], "cotes": [0, 0], "enchainement": [0.12, 0.8], "force": 1.0, "tassement": 1.3, "elan": 0.7},
+		},
+	},
 }
 
 ## Geste miroir (diagonales, horizontales) ou le même s'il n'en a pas.

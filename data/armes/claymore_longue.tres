@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="DonneesArme" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/donnees_arme.gd" id="1_arme"]
+
+[resource]
+script = ExtResource("1_arme")
+id = "claymore_longue"
+nom = "Claymore rubis (longue)"
+categorie = 1
+deux_mains = true
+ecart_mains = 0.11
+fusee_bas = -0.23
+modele = "res://assets/modeles/armes/deux_mains/claymore_longue.glb"
+milieu_poignee = 0.03
+habillage = "claymore"
+materiau_lame = "rubis"
+reperes_du_modele = true
+profil = "deux_mains"
+degats_leger = 22.0
+degats_lourd = 48.0
+bonus_charge_max = 1.35
+multi_cibles = 3
+reduction_garde = 0.9
+desequilibre_leger = 0.55
+desequilibre_lourd = 1.1
+materiau_impact = "metal"
+vitesse = 0.85
+poids = 3.2
+cout_leger = 16.0
+cout_lourd = 40.0
+cout_garde = 0.9
+angle_garde = 130.0
+posture_parade = 0.55
+description = "Claymore longue (lame rubis 1,30 m, talon gainé à crochets, runes d or) : lente et lourde, grands arcs, touche jusqu a 3 cibles."
+preparation = 1.1
+recuperation = 1.2
+son_fouette = "fouette_lourd"
+hauteur_son = 0.85
+garde = Vector3(0, 0.30, 0)
+pointe = Vector3(0, 1.22, 0)
+allonge = 0.3
+points_trace = 6
+portee = 2.6
+portee_garde = 0.7
+couleur_trainee = Color(0.85, 0.12, 0.14, 1)
+couleur_trainee_coeur = Color(1, 0.55, 0.5, 1)
