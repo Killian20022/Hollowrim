@@ -109,15 +109,20 @@ finir(melange((R("elec/teleport_1.wav", pitch=0.85), 1.0, 0), (R("dm.mp3", duree
 
 # ------------------------------------------------------------------ BOUCLES (synthèse ffmpeg, 2 s, 32 kHz)
 # charge : douce, basse énergie
+# (2026-10-30) glace et électricité refaites : plus de sinus aigus ni de bruit blanc haché 30-47 Hz (« font mal aux
+# oreilles ») ; bruit rose filtré, passe-bas 2,8-3,8 kHz, niveau aligné sur le feu (≈ -23 LUFS, < -45 dB au-dessus de 3 kHz).
 boucle("charge_feu",
   "anoisesrc=c=brown:r={R}:seed=11,lowpass=f=420,tremolo=f=4:d=0.35,volume=2.2[a];"
   "anoisesrc=c=pink:r={R}:seed=12,highpass=f=2500,lowpass=f=7000,tremolo=f=11:d=0.95,volume=0.25[b];[a][b]amix=inputs=2:normalize=0[o]")
 boucle("charge_glace",
-  "sine=f=1760:r={R},tremolo=f=3:d=0.5,volume=0.20[a];sine=f=2637:r={R},tremolo=f=4.5:d=0.6,volume=0.12[b];sine=f=3520:r={R},tremolo=f=6.5:d=0.7,volume=0.07[c];"
-  "anoisesrc=c=white:r={R}:seed=13,highpass=f=6000,volume=0.05[d];[a][b][c][d]amix=inputs=4:normalize=0[o]")
+  "anoisesrc=c=pink:r={R}:seed=13,bandpass=f=900:width_type=h:w=900,tremolo=f=0.5:d=0.5,volume=1.6[a];"
+  "anoisesrc=c=brown:r={R}:seed=17,lowpass=f=350,tremolo=f=0.7:d=0.3,volume=1.4[b];"
+  "sine=f=440:r={R},tremolo=f=1.5:d=0.6,volume=0.05[c];sine=f=659:r={R},tremolo=f=2:d=0.6,volume=0.03[d];"
+  "[a][b][c][d]amix=inputs=4:normalize=0,lowpass=f=3200,lowpass=f=3200[o]")
 boucle("charge_electricite",
-  "sine=f=100:r={R},volume=0.30[a];sine=f=200:r={R},volume=0.18[b];"
-  "anoisesrc=c=white:r={R}:seed=14,highpass=f=1800,tremolo=f=22:d=1.0,volume=0.18[c];[a][b][c]amix=inputs=3:normalize=0[o]")
+  "sine=f=60:r={R},volume=0.30[a];sine=f=120:r={R},volume=0.15[b];"
+  "anoisesrc=c=pink:r={R}:seed=14,bandpass=f=900:width_type=h:w=700,tremolo=f=9:d=0.6,volume=0.7[c];"
+  "[a][b][c]amix=inputs=3:normalize=0,lowpass=f=2800,lowpass=f=2800[o]")
 boucle("charge_tenebres",
   "sine=f=55:r={R},vibrato=f=0.5:d=0.3,volume=0.40[a];sine=f=82.4:r={R},vibrato=f=1:d=0.2,volume=0.25[b];"
   "anoisesrc=c=brown:r={R}:seed=15,lowpass=f=260,volume=1.2[c];[a][b][c]amix=inputs=3:normalize=0[o]")
@@ -132,12 +137,15 @@ boucle("jet_feu",
   "anoisesrc=c=brown:r={R}:seed=22,lowpass=f=220,volume=3.0[b];"
   "anoisesrc=c=white:r={R}:seed=23,highpass=f=4000,tremolo=f=15:d=1.0,volume=0.12[c];[a][b][c]amix=inputs=3:normalize=0[o]", crete_db=-8.0)
 boucle("jet_glace",
-  "anoisesrc=c=white:r={R}:seed=24,highpass=f=2200,lowpass=f=9000,tremolo=f=3:d=0.4,volume=0.8[a];"
-  "sine=f=3136:r={R},tremolo=f=7:d=0.8,volume=0.06[b];anoisesrc=c=pink:r={R}:seed=25,bandpass=f=1200:width_type=h:w=800,volume=0.6[c];[a][b][c]amix=inputs=3:normalize=0[o]", crete_db=-8.0)
+  "anoisesrc=c=pink:r={R}:seed=24,bandpass=f=1100:width_type=h:w=1400,tremolo=f=1.2:d=0.35,volume=2.2[a];"
+  "anoisesrc=c=brown:r={R}:seed=25,lowpass=f=300,volume=2.4[b];"
+  "anoisesrc=c=pink:r={R}:seed=32,bandpass=f=2200:width_type=h:w=800,tremolo=f=6:d=0.9,volume=0.35[c];"
+  "[a][b][c]amix=inputs=3:normalize=0,lowpass=f=3800,lowpass=f=3800[o]", crete_db=-8.0)
 boucle("jet_electricite",
-  "sine=f=100:r={R},volume=0.25[a];sine=f=300:r={R},volume=0.12[b];"
-  "anoisesrc=c=white:r={R}:seed=26,highpass=f=1500,tremolo=f=30:d=1.0,volume=0.7[c];"
-  "anoisesrc=c=white:r={R}:seed=27,highpass=f=3500,tremolo=f=47:d=1.0,volume=0.4[d];[a][b][c][d]amix=inputs=4:normalize=0[o]", crete_db=-8.0)
+  "sine=f=60:r={R},volume=0.30[a];sine=f=120:r={R},volume=0.18[b];sine=f=180:r={R},volume=0.08[e];"
+  "anoisesrc=c=pink:r={R}:seed=26,bandpass=f=1000:width_type=h:w=900,tremolo=f=13:d=0.7,volume=1.1[c];"
+  "anoisesrc=c=brown:r={R}:seed=27,lowpass=f=400,tremolo=f=5:d=0.4,volume=1.5[d];"
+  "[a][b][e][c][d]amix=inputs=5:normalize=0,lowpass=f=3000,lowpass=f=3000[o]", crete_db=-8.0)
 boucle("jet_tenebres",
   "sine=f=70:r={R},volume=0.35[a];sine=f=73:r={R},volume=0.35[b];"
   "anoisesrc=c=brown:r={R}:seed=28,lowpass=f=300,volume=2.0[c];"
