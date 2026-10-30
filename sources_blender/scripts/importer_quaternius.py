@@ -1,7 +1,7 @@
 # CHAÎNE D'ADAPTATION DES PROPS QUATERNIUS (CC0) AU RENDU DU JEU (essai/props_quaternius, 2026-10-29).
 #   blender.exe -b --python importer_quaternius.py -- liste=<props.json> [sortie=<.dat>] [apercu=<dossier>] [seulement=q_a,q_b]
 # Entrée : props.json = [{"nom": "q_enclume", "src": "C:/.../Anvil.gltf", "hauteur": 0.55 | "ech": 1.0, "budget": 400,
-#                         "mats": {"MI_Trim_Metal": "fer"}, "lacet": 0, "role": "forge"} ...]
+#                         "mats": {"MI_Trim_Metal": "fer"}, "famille": ["bois", "fer", "noir"], "lacet": 0, "role": "forge"} ...]
 #   (src : .gltf / .glb / .fbx / .obj ; les fichiers Quaternius sont des DONNÉES : on les importe, on n'exécute rien d'eux)
 # Étapes par prop :
 #   1. import, fusion des maillages, transformations appliquées, passage au repère Godot (y en haut, +z = avant) ;
@@ -304,7 +304,8 @@ def adapter(e):
     P = Prop(e["nom"])
     P.sol = e.get("sol", True)
     stat = {}
-    cl = [classer(col, indice_mat(mn, e.get("mats", {})) if e.get("mats") else None, famille(mn)) for p, col, mn, il in tris]
+    fam = tuple(e["famille"]) if "famille" in e else None       # matières candidates imposées par prop (props.json)
+    cl = [classer(col, indice_mat(mn, e.get("mats", {})) if e.get("mats") else None, fam or famille(mn)) for p, col, mn, il in tris]
     vote = {}                               # vote pondéré par l'aire : matière majoritaire et ton moyen de chaque îlot
     for (p, col, mn, il), (m, ton) in zip(tris, cl):
         a = (p[1] - p[0]).cross(p[2] - p[0]).length + 1e-9

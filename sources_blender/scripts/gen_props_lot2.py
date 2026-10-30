@@ -49,6 +49,15 @@ for w in ("Thin", "Wide"):
             VILL.append(("q_volets_%s_%s_%s" % (w.lower(), f.lower(), o.lower()), "WindowShutters_%s_%s_%s" % (w, f, o), 300, "village", None))
 for w in ("Thin_Flat1", "Thin_Round1", "Wide_Flat1", "Wide_Round1"):
     VILL.append(("q_fenetre_" + w.lower(), "Window_" + w, 300, "village", None))
+# Correctifs (props/placement, 2026-10-30, défauts du CATALOGUE §6) : « famille » = matières candidates imposées (le trim
+# WoodTrim du Medieval Village ne correspond à aucune famille : la caisse et le chariot sortaient en jute/lin/pierre) ;
+# « mats » = matière imposée par nom de matériau Quaternius (billot de bois, cheminée de briques) ; chariot ramené à 2,5 m.
+CORRECTIFS = {
+    "q_caisse_village": {"famille": ["bois", "fer", "noir"]},
+    "q_billot_enclume": {"mats": {"Furniture": "bois", "Props": "bois"}},
+    "q_cheminee_2": {"mats": {"Brick": "pierre"}},
+    "q_chariot": {"famille": ["bois", "fer", "noir"], "hauteur": 0.95},
+}
 CAT = {"forge": "forge", "auberge": "interieur", "maison": "interieur", "alchimie": "alchimie", "marche": "marche", "crypte": "crypte", "village": "village"}
 p = sys.argv[1]
 d = [x for x in json.load(open(p, encoding="utf8")) if not x.get("lot2")]
@@ -59,6 +68,7 @@ for liste, tpl in ((FANT, F), (VILL, V)):
         e = {"nom": nom, "src": tpl % src, "budget": bud, "role": cat, "categorie": cat, "lot2": True}
         if h:
             e["hauteur"] = h
+        e.update(CORRECTIFS.get(nom, {}))
         d.append(e)
 json.dump(d, open(p, "w", encoding="utf8"), ensure_ascii=False, indent=0)
 print(len(d), "props")

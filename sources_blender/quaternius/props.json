@@ -232,7 +232,11 @@
 "role": "forge",
 "categorie": "forge",
 "lot2": true,
-"hauteur": 0.85
+"hauteur": 0.85,
+"mats": {
+"Furniture": "bois",
+"Props": "bois"
+}
 },
 {
 "nom": "q_etabli_tiroirs",
@@ -680,7 +684,12 @@
 "role": "village",
 "categorie": "village",
 "lot2": true,
-"hauteur": 0.8
+"hauteur": 0.8,
+"famille": [
+"bois",
+"fer",
+"noir"
+]
 },
 {
 "nom": "q_chariot",
@@ -689,7 +698,12 @@
 "role": "village",
 "categorie": "village",
 "lot2": true,
-"hauteur": 1.2
+"hauteur": 0.95,
+"famille": [
+"bois",
+"fer",
+"noir"
+]
 },
 {
 "nom": "q_cheminee_1",
@@ -705,7 +719,10 @@
 "budget": 400,
 "role": "village",
 "categorie": "village",
-"lot2": true
+"lot2": true,
+"mats": {
+"Brick": "pierre"
+}
 },
 {
 "nom": "q_support_bois",
