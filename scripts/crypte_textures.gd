@@ -552,44 +552,91 @@ static func ossuaire_paire() -> Array:
 						c = _rp(pierre, _q(clampf(l, 0.0, 1.0), x, y))
 					cols[i] = c
 					H[i] = h
-			if genre < 0.62:                                                       # crâne
-				var ox := cx * cell + 3 * EM + jx
-				var oy := cy * cell + 3 * EM + jy
-				var N := 10 * EM
-				for sy in N:
-					for sx in N:
-						var m: String = CRANE[sy / EM][sx / EM]
-						if m == ".":
-							continue
-						var i := posmod(oy + sy, S) * S + posmod(ox + sx, S)
-						var nf: float = n_fin[i]
-						var fx := float(sx) / float(N - 1)
-						var fy := float(sy) / float(N - 1)
-						var l := 0.58 - 0.12 * fy + (0.1 if fx < 0.3 else 0.0) - (0.12 if fx > 0.65 else 0.0) + (nf - 0.5) * 0.2
-						var h := 0.5 + 0.2 * sin(fx * PI) * sin(fy * PI)
-						if m == "o" or m == "n":
-							l = 0.0
-							h = -0.5
-						elif m == "t":
-							l = 0.1
-							h = 0.1
-						cols[i] = _rp(osse, _q(clampf(l, 0.0, 1.0), ox + sx, oy + sy))
-						H[i] = h
-			elif genre < 0.88:                                                     # fagot de trois os en diagonale
+			if genre < 0.62:                                                       # crâne (ossuaire v2 : même anatomie que les crânes en volume)
+				_crane_peint(cols, H, S, cx * cell + 3 * EM + jx, cy * cell + 3 * EM + jy, 10 * EM, 11 * EM, rot == 1, osse, n_fin, n_big)
+			else:                                                                  # fagot : bouts d'os vers la salle, en pyramide (4 + 3 + 2)
 				for k in 3:
-					var bx := cx * cell + (3 + rng.randi_range(0, 3)) * EM
-					var by := cy * cell + (3 + k * 3 + rng.randi_range(0, 1)) * EM
-					var pente := 0.35 if rot == 0 else -0.35
-					for t in 11 * EM:
-						var px := bx + t
-						var py := by + int(float(t) * pente) + (4 * EM if rot == 1 else 0)
-						for w in 2 * EM:
-							var i := posmod(py + w, S) * S + posmod(px, S)
-							var knob := t < 2 * EM or t > 8 * EM
-							var l := 0.62 - 0.1 * float(w) / EM + (nf_safe(n_fin, i) - 0.5) * 0.2 + (0.08 if knob else 0.0)
-							cols[i] = _rp(osse, _q(clampf(l, 0.0, 1.0), px, py + w))
-							H[i] = 0.55 + (0.2 if knob else 0.0) - 0.2 * float(w) / EM
+					var nb := 4 - k
+					for i in nb:
+						var d := 3 * EM
+						var bx := cx * cell + fr + i * d + (4 - nb) * d / 2 + rng.randi_range(-1, 0)
+						var by := cy * cell + cell - fr - (k + 1) * (d - EM / 2) - EM + rng.randi_range(-1, 1)
+						_bout_peint(cols, H, S, bx, by, d, rng.randf() < 0.6, rng.randf_range(-0.08, 0.06), osse, n_fin)
 	return [_vers_image(S, cols), _pentes(H, S, 0.9)]
+
+## Ossuaire v2 : crâne de face peint au texel près (tuile murale et cases lointaines) : voûte, tempes creusées, arcades claires,
+## orbites noires en entonnoir, cavité nasale en cœur inversé, pommettes, maxillaire, rangée de dents à jours noirs, mâchoire (ou
+## non) ; lumière d'en haut à gauche, taches de terre, grain : même lecture que les crânes en volume vus de loin.
+static func _crane_peint(cols: PackedColorArray, H: PackedFloat32Array, S: int, ox: int, oy: int, w: int, h: int, machoire: bool,
+		osse: Array, n_fin: PackedFloat32Array, n_big: PackedFloat32Array) -> void:
+	for sy in h:
+		for sx in w:
+			var u := (float(sx) + 0.5) / w - 0.5
+			var v := (float(sy) + 0.5) / h
+			var x := posmod(ox + sx, S)
+			var y := posmod(oy + sy, S)
+			var i := y * S + x
+			var cr := (u / 0.47) * (u / 0.47) + ((v - 0.38) / 0.37) * ((v - 0.38) / 0.37)      # voûte
+			var hw := lerpf(0.4, 0.25, clampf((v - 0.5) / 0.36, 0.0, 1.0))                     # face, plus étroite vers le bas
+			var face := v > 0.42 and v < 0.86 and absf(u) < hw
+			var dents := v >= 0.8 and v < 0.89 and absf(u) < 0.2
+			var mand := machoire and v >= 0.89 and v < 0.99 and absf(u) < 0.23 - (v - 0.89) * 0.6
+			if not (cr < 1.0 or face or dents or mand):
+				continue
+			var l := 0.62 - 0.32 * u - 0.28 * (v - 0.4) + (n_fin[i] - 0.5) * 0.22
+			var hh := 0.5 + 0.3 * sqrt(maxf(0.0, 1.0 - cr))
+			if absf(u) > 0.33 and v > 0.4 and v < 0.62:
+				l -= 0.16                                                                     # tempes creusées
+			var ob := ((absf(u) - 0.16) / 0.11) * ((absf(u) - 0.16) / 0.11) + ((v - 0.53) / 0.09) * ((v - 0.53) / 0.09)
+			if v > 0.41 and v < 0.45 and absf(u) < 0.3:
+				l += 0.14                                                                     # arcades sourcilières
+			if ob < 1.0:
+				l = -1.0 if ob < 0.7 else 0.1                                                 # orbite : fond noir, bord sombre
+				hh = -0.5
+			var nz := absf(u) < 0.055 * (1.0 + (v - 0.62) * 6.0) and v > 0.62 and v < 0.74
+			if nz:
+				l = -1.0                                                                      # cavité nasale
+				hh = -0.4
+			var pom := ((absf(u) - 0.27) / 0.08) * ((absf(u) - 0.27) / 0.08) + ((v - 0.66) / 0.05) * ((v - 0.66) / 0.05)
+			if pom < 1.0:
+				l += 0.12 if u < 0.0 else 0.04                                                # pommettes
+			elif absf(u) > 0.2 and v > 0.7 and v < 0.8:
+				l -= 0.14                                                                     # sous les pommettes
+			if dents:
+				l = -1.0 if posmod(sx - w / 2, 4) == 0 else 0.6 - 0.2 * u
+				if v > 0.845:
+					l *= 0.7
+				hh = 0.35
+			if mand:
+				l = 0.42 - 0.3 * u + (n_fin[i] - 0.5) * 0.2
+				hh = 0.4
+			var c := Color(0.02, 0.02, 0.025) if l < -0.5 else _rp(osse, _q(clampf(l - 0.08, 0.0, 1.0), x, y))
+			if n_big[(i * 7) % (S * S)] > 0.68 and l > 0.15:
+				c = c.lerp(Color(0.42, 0.33, 0.2), 0.35)                                      # terre
+			cols[i] = c
+			H[i] = hh
+
+## Ossuaire v2 : bout d'os vu de face (épiphyse), d x d texels : disque un peu ovale, échancrure des condyles (fémur) ou tête ronde,
+## lumière d'en haut à gauche, ombre portée en bas à droite, cœur plus jaune.
+static func _bout_peint(cols: PackedColorArray, H: PackedFloat32Array, S: int, ox: int, oy: int, d: int, condyles: bool, dl: float,
+		osse: Array, n_fin: PackedFloat32Array) -> void:
+	for sy in d:
+		for sx in d:
+			var u := (float(sx) + 0.5) / d - 0.5
+			var v := (float(sy) + 0.5) / d - 0.5
+			var r := sqrt(u * u * (1.0 if condyles else 1.25) + v * v * (1.3 if condyles else 1.0))
+			if r > 0.47:
+				continue
+			var x := posmod(ox + sx, S)
+			var y := posmod(oy + sy, S)
+			var i := y * S + x
+			var l := 0.64 + dl - 0.5 * (u + v) * 0.6 + (n_fin[i] - 0.5) * 0.2 - (0.22 if r > 0.4 else 0.0)
+			var hh := 0.55 + 0.25 * (1.0 - r / 0.47)
+			if condyles and absf(u) < 0.06 and v > 0.0:
+				l = 0.1                                                                       # échancrure entre les condyles
+				hh = 0.3
+			cols[i] = _rp(osse, _q(clampf(l, 0.0, 1.0), x, y))
+			H[i] = hh
 
 static func nf_safe(a: PackedFloat32Array, i: int) -> float:
 	return a[i % a.size()]

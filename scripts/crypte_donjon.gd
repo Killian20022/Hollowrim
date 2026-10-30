@@ -805,7 +805,7 @@ func _x_cisterne(_m: Dictionary) -> void:
 		d.tonneau(_l(-35.0 + (k - 1.5) * 1.2, -36.8, y), 1.1)
 	d.os_tas(_l(-38.0, -43.0, y), 4, 0.6)
 	d.arme(_l(-33.0, -37.6, y), 2.0)
-	d.crane(_l(-36.0, -41.0, y + 0.56), 0.0)      # sur la margelle du bassin (il flottait)
+	d.crane(_l(-36.0, -41.0, y + 0.535), 0.0)      # sur la margelle du bassin (il flottait ; ossuaire v2 : crâne anatomique, base plus haute)
 	d.parchemins_epars(_l(-33.0, -48.0, y), 1.4, 5)
 
 func _x_chapelle(_m: Dictionary) -> void:
