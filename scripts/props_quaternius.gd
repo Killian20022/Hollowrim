@@ -186,3 +186,37 @@ static func village(v, parent: Node3D, nom: String, xf: Transform3D, solide := f
 		var bb := boite(nom)
 		var s := xf.basis.get_scale()
 		v._collision(parent, BoxShape3D.new(), Transform3D(xf.basis.orthonormalized(), xf * bb.get_center()), bb.size * s)
+
+static var _brut_mesh := {}
+## Maillage NON indexé (triangles bruts, ordre Godot, couleurs) d'une matière du prop, pour SurfaceTool.append_from (copie en C++ :
+## le marché passait ~150 ms à recopier 11 000 triangles sommet par sommet). Cache.
+static func maillage_brut(nom: String, mat: String) -> ArrayMesh:
+	var cle := nom + "__" + mat
+	_verrou.lock()
+	var m: ArrayMesh = _brut_mesh.get(cle)
+	_verrou.unlock()
+	if m != null:
+		return m
+	for e: Array in triangles(nom):
+		if e[0] != mat:
+			continue
+		var pos: PackedVector3Array = e[1]
+		var nn := PackedVector3Array()
+		nn.resize(pos.size())
+		for t in range(0, pos.size(), 3):
+			var nf := (pos[t + 2] - pos[t]).cross(pos[t + 1] - pos[t])
+			nf = nf.normalized() if nf.length_squared() > 1e-14 else Vector3.UP
+			nn[t] = nf
+			nn[t + 1] = nf
+			nn[t + 2] = nf
+		var a := []
+		a.resize(Mesh.ARRAY_MAX)
+		a[Mesh.ARRAY_VERTEX] = pos
+		a[Mesh.ARRAY_NORMAL] = nn
+		a[Mesh.ARRAY_COLOR] = e[2]
+		m = ArrayMesh.new()
+		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+	_verrou.lock()
+	_brut_mesh[cle] = m
+	_verrou.unlock()
+	return m

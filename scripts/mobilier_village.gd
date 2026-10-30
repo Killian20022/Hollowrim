@@ -364,7 +364,7 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 				var st := SurfaceTool.new()
 				st.begin(Mesh.PRIMITIVE_TRIANGLES)
 				fusion[mat] = st
-			_ajouter(fusion[mat], [t[1], t[2]], xf)
+			(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(nom, t[0]), 0, xf)
 			tris += (t[1] as PackedVector3Array).size() / 3
 		if e[4]:
 			var bb := PropsQuaternius.boite(nom)
