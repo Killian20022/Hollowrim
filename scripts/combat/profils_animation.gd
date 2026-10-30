@@ -79,6 +79,8 @@ const PROFILS := {
 const MIROIRS := {"diag_dg": "diag_gd", "diag_gd": "diag_dg", "horizontale": "horizontale_gd", "horizontale_gd": "horizontale"}
 
 static func profil(nom: String) -> Dictionary:
+	if not PROFILS.has(nom) and GestesLourds.PROFILS.has(nom):
+		return GestesLourds.PROFILS[nom]   # haches, masses, marteaux (branche combat/gestes_lourds)
 	return PROFILS.get(nom, PROFILS["epee_longue"])
 
 static func geste(nom_profil: String, nom_geste: String) -> Dictionary:

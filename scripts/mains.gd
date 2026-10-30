@@ -63,6 +63,8 @@ var _milieu_d := 0.03           # centre du poing droit le long de la lame (rep�
 var _m := {}                    # ses marqueurs (s de clip)
 var _lourd_nom := "lourd"       # attaque puissante choisie au début de la charge (selon le déplacement)
 var _offset_d := Transform3D()  # décalage additif ponctuel (dégainer, rebond, tremblement de charge)
+var _mordant_u := -1.0          # gestes lourds : temps depuis le contact (s ; < 0 : pas de mordant en cours)
+var _mordant_reste := 0.0       # gestes lourds : arrêt net de la tête restant (s)
 var combat := EtatCombat.new()
 var entrees := EntreesCombat.new()
 var equipement := Equipement.new()
@@ -367,6 +369,7 @@ func _installer_arme() -> void:
 		var m := _repere_fichier(arme.modele, "prise")   # centre du poing droit lu dans le modèle (hybrides, épées longues)
 		if m != Vector3.INF:
 			_milieu_d = m.y
+	_milieu_d += GestesLourds.decalage_prise(arme)   # haches, masses, marteaux : manche tenu plus bas (combat/gestes_lourds)
 	PRISE_D = _calculer_prise("r", _milieu_d)
 	_cible_d.transform = PRISE_D.affine_inverse()
 	var variante: Dictionary = _profil().get("tenues", {})
@@ -871,6 +874,8 @@ func _preparer_geste(lourd: bool) -> void:
 	_elan_donne = false
 	accompagnement.oublier()
 	_issue_arret = ""
+	_mordant_u = -1.0
+	_mordant_reste = 0.0
 	_affaibli = false
 	_charge_signalee = false
 	if not lourd:
@@ -951,7 +956,7 @@ func _finir_geste() -> void:
 		# coups_v4 : vitesse de la pointe à la fin de la frappe (le suivi la prolonge en douceur, AccompagnementCoup.suivi)
 		var p1 := _pose_active(_duree_active) * _pointe_lame
 		var p0 := _pose_active(maxf(_duree_active - TraceLame.PAS, 0.0)) * _pointe_lame
-		accompagnement.noter_fin((p1 - p0) / TraceLame.PAS, p1, _bras_base * _epaule_bras)
+		accompagnement.noter_fin((p1 - p0) / TraceLame.PAS * GestesLourds.part_suivi(_geste), p1, _bras_base * _epaule_bras)
 		if debug_combat:
 			print("coups_v4 : vitesse de la pointe en fin de frappe %.2f m/s (%s)" % [((p1 - p0) / TraceLame.PAS).length(), _geste_nom])
 	if _geste.has("tassement") and "tassement" in joueur:
@@ -1107,6 +1112,9 @@ func avancer(dt: float) -> void:
 	passifs.amplitude = float(CameraCorps.facteurs()["arme"])   # option « Balancement de l'arme » (« Réduire les mouvements » : ≤ 0,35)
 	var locale := joueur.global_transform.basis.inverse() * Vector3(joueur.velocity.x, joueur.velocity.y, joueur.velocity.z)
 	passifs.avancer(dt, locale, joueur.is_on_floor(), combat.calme() or combat.defense(), joueur.global_position.y)
+	if _mordant_u >= 0.0:   # gestes lourds : recul du poing après le contact
+		_mordant_u += dt
+		_offset_d = _offset_d * GestesLourds.recul_mordant(_geste, _mordant_u)
 	var couche := _couche()
 	if _pose_figee != "":
 		var c := _clip_pose(_pose_figee)
@@ -1172,6 +1180,10 @@ func _avancer_geste(dt: float) -> void:
 			anim.jouer(String(ProfilsAnimation.geste(arme.profil, _lourd_nom)["charge"]), 0.1)
 		return
 	var fin_prep := _duree_prep + _duree_tenue
+	if _mordant_reste > 0.0:   # gestes lourds : la tête a mordu, le geste se fige un instant (arrêt net)
+		var gel := minf(dt, _mordant_reste)
+		_mordant_reste -= gel
+		_t_geste -= gel
 	_t_geste = minf(_t_geste + dt, fin_prep) if tenu else _t_geste + dt
 	if not _elan_donne and not tenu and _t_geste >= _duree_prep * 0.5:
 		_donner_elan()
@@ -1248,7 +1260,19 @@ func _vue_suit_lame() -> void:
 
 ## Échantillon de la traînée : garde et pointe de la lame pour une pose (repère des mains), daté de `retard` s.
 func _echantillon_trainee(pose: Transform3D, retard: float) -> void:
-	trainee.ajouter(pose * _garde_lame, pose * _pointe_lame, retard)
+	var pts := GestesLourds.points_trainee(_geste, _garde_lame, _pointe_lame)   # masses, marteaux : la tête seulement
+	if not pts.is_empty():
+		trainee.ajouter(pose * pts[0], pose * pts[1], retard)
+
+## Gestes lourds (GestesLourds) : la tête de l'arme mord la cible — arrêt net du geste, recul du poing, secousse de caméra
+## propre au geste (en plus du profil d'impact de la cible). Une seule fois par geste.
+func _mordre() -> void:
+	if _mordant_u >= 0.0 or not _geste.has("mordant"):
+		return
+	_mordant_u = 0.0
+	_mordant_reste = GestesLourds.arret_mordant(_geste)
+	if "secousse" in joueur:
+		joueur.secousse = maxf(joueur.secousse, float(_geste.get("secousse", 0.0)))
 
 ## Pose de l'épée (repère des mains, sans couche passive) au temps t de la frappe : le clip du geste, recalculé par
 ## cinématique directe sur ses pistes (AnimateurBras.pose_arme) — ce que l'image montre au même instant.
@@ -1326,6 +1350,7 @@ func _resoudre_impact(e: Dictionary) -> String:
 			if gere and _contre:
 				(cible.get("combat") as CombatEnnemi).fenetre_parade = 0.0   # l'ouverture de la parade est dépensée par la contre-attaque
 			if r == "touche" or r == "tue":
+				_mordre()
 				joueur.competences.pratiquer("epee", 1.8 if _lourd or _contre else 1.0)
 				if not gere:
 					RetourCoups.touche(joueur, _lourd or _contre)

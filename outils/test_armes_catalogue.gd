@@ -81,7 +81,7 @@ func _lancer() -> void:
 			_verifier(d.vitesse > 0.5 and d.vitesse < 1.6 and d.cout_lourd > d.cout_leger, "%s : vitesse %.2f, endurance %.1f/%.1f" % [id, d.vitesse, d.cout_leger, d.cout_lourd])
 			_verifier(is_equal_approx(d.degats_leger, float(s["degats_leger"])) and is_equal_approx(d.vitesse, float(s["vitesse"])) and is_equal_approx(d.allonge, float(s["allonge"])), "%s : stats du catalogue appliquées" % id)
 		if fam == CatalogueArmes.FAMILLE_DEUX_MAINS or id == "grand_marteau":
-			_verifier(d.deux_mains and EquipementMains.categorie_de(d) == "arme_deux_mains" and d.profil == "deux_mains", "%s : arme à deux mains (profil « deux_mains »)" % id)
+			_verifier(d.deux_mains and EquipementMains.categorie_de(d) == "arme_deux_mains" and (d.profil == "deux_mains" or (id == "grand_marteau" and d.profil == "grand_marteau")), "%s : arme à deux mains (profil « deux_mains », ou « grand_marteau » : combat/gestes_lourds)" % id)
 		elif fam != "bouclier":
 			_verifier(not d.deux_mains, "%s : une main" % id)
 		# modèle : chargement, repères, échelle, habillage
@@ -91,7 +91,13 @@ func _lancer() -> void:
 		var m := _mesurer(e)
 		var b: AABB = m["boite"]
 		var reps := {}
+		# arme dont le .tres propre (data/armes/<id>.tres, ex. claymore.tres de combat/claymore_2mains) donne garde / pointe /
+		# prise à la main (reperes_du_modele = false) : son modèle n'a pas de nœuds repères, on ne les cherche pas
+		var reperes_tres := not d.reperes_du_modele and ResourceLoader.exists(CatalogueArmes.DOSSIER_TRES % id)
 		for n in (["prise", "umbo"] if fam == "bouclier" else ["prise", "garde", "pointe"]):
+			if reperes_tres:
+				reps[n] = Vector3(0, d.milieu_poignee, 0) if n == "prise" else (d.garde if n == "garde" else d.pointe)
+				continue
 			var r := e.find_child(n, true, false)
 			_verifier(r != null, "%s : repère « %s » absent" % [id, n])
 			reps[n] = _local(e, r).origin if r else Vector3.INF
@@ -103,7 +109,7 @@ func _lancer() -> void:
 			_verifier(b.position.x > -0.06 and b.end.x > 0.08 and b.size.x < 0.25 and b.size.z > 0.5, "%s : face peinte vers +X, disque dans le plan YZ (boîte %s)" % [id, b])
 			_verifier(reps["umbo"].x > 0.05, "%s : umbo devant le poing (+X)" % id)
 		else:
-			_verifier(reps["prise"].distance_to(Vector3(0, 0.03, 0)) < 0.002 and is_equal_approx(d.milieu_poignee, 0.03), "%s : prise au centre du poing (0 ; 0,03 ; 0) : %s" % [id, reps["prise"]])
+			_verifier(reperes_tres or (reps["prise"].distance_to(Vector3(0, 0.03, 0)) < 0.002 and is_equal_approx(d.milieu_poignee, 0.03)), "%s : prise au centre du poing (0 ; 0,03 ; 0) : %s" % [id, reps["prise"]])
 			var cuir: AABB = m["mats"].get("cuir", m["mats"].get("fer", AABB()))
 			_verifier(cuir.position.y < 0.0 and cuir.end.y > 0.07, "%s : la fusée (cuir) entoure le poing : y [%.3f ; %.3f]" % [id, cuir.position.y, cuir.end.y])
 			_verifier(reps["garde"].y > 0.06 and reps["pointe"].y > reps["garde"].y + 0.15, "%s : garde %s sous la pointe %s" % [id, reps["garde"], reps["pointe"]])
