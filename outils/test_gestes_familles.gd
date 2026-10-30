@@ -136,7 +136,7 @@ func _tester() -> void:
 	for id in ATTENDU:
 		var d := CatalogueArmes.donnees(id)
 		_verif(d != null and d.profil == ATTENDU[id], "%s (famille %s) : profil « %s » (%s)" % [id, d.famille if d else "?", ATTENDU[id], d.profil if d else "?"])
-	_verif(ProfilsAnimation.profil("epee_longue")["combo"] == ["diag_dg", "revers_gd", "estoc_combo"], "épée : combo inchangé")
+	_verif(ProfilsAnimation.profil("epee_longue")["combo"] == CoupsUneMain.COMBO, "épée : combo inchangé (coups v5)")
 	# référence : coup 1 de l'épée de métal
 	await _remettre()
 	var ref := await _coup()
