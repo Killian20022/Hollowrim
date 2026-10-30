@@ -69,6 +69,7 @@ TESTS=(
 	"test_armes_catalogue|--nouvelle"   # 20 armes du catalogue (hybrides + CC0) : chargement, stats famille x matériau, repères, échelles, bouclier à gauche, butin et forge
 	"test_combat_epee|--nouvelle"   # combat à l'épée : tracé de lame identique à 30/60/144 i/s, mur, draugr, garde, endurance (scenes/test_combat.tscn)
 	"test_camera_corps|--nouvelle"   # caméra « corps » et mouvements passifs : mêmes courbes à 30/60/144 i/s, amplitudes subtiles, main gauche déphasée, options Balancement / Tête / Secousses, chute réelle de 2 m
+	"test_arme_deux_mains|--nouvelle"   # armes à DEUX MAINS (claymore, hybrides) : main gauche sur la poignée, combo lourd, puissante, blocage
 	"test_deux_mains|--nouvelle"   # deux mains (épée + torche / sort / bouclier, deux sorts, deux mains ; deux épées refusées) et profils des 5 épées
 	"test_bouclier|--nouvelle"   # bouclier nordique (main gauche) : modèle, repos bas à gauche, garde au bouclier (cône 170°, coût, recul), coup de bouclier, garde brisée, épée + combo + latence, transitions de la main gauche sans saut, sauvegarde
 	"test_blocage_lame|--nouvelle"   # coups_v4 : le coup part toujours dans un couloir étroit, près d'un mur, d'urnes, d'un chambranle ; rebond seulement sur un mur franc dans l'axe, à mi-course
