@@ -165,11 +165,14 @@ func _tester() -> void:
 	_verif(cles.all(func(k: String) -> bool: return i_l.has(k)) and i_l["type"] == "tranchant" and i_l["arme"] == "epee_metal" and i_l["attaque"] == "legere" and (i_l["direction"] as Vector3).is_normalized(), "info du coup léger complète (zone %s, stagger %s)" % [i_l.get("zone"), i_l.get("stagger")])
 	_verif(i_h.get("attaque") == "chargee_max" and float(i_h.get("stagger", 0.0)) > float(i_l.get("stagger", 9.0)), "info du coup lourd : chargee_max, stagger %s" % [i_h.get("stagger")])
 
-	# --- 2 bis. directions selon le contexte (phase 4) et continuité des enchaînements
-	print("-- directions")
-	var cas := [["en avançant", Vector3(0, 0, -3.2), Vector2.ZERO, "verticale_l"], ["pas à droite", Vector3(3.2, 0, 0), Vector2.ZERO, "horizontale_gd"],
-		["pas à gauche", Vector3(-3.2, 0, 0), Vector2.ZERO, "horizontale"], ["en reculant", Vector3(0, 0, 2.5), Vector2.ZERO, "estoc"],
-		["souris vers la droite", Vector3.ZERO, Vector2(120, 0), "horizontale_gd"], ["souris vers le bas", Vector3.ZERO, Vector2(0, 120), "verticale_l"]]
+	# --- 2 bis. le coup léger suit TOUJOURS le combo (2026-10-30 : plus de variantes selon le déplacement ou la souris,
+	# mains.VARIANTES_CONTEXTE = false) : 1er clic = coup 1 quel que soit le contexte, et l'enchaînement reste 1-2-3
+	print("-- combo quel que soit le contexte")
+	var combo_ref: Array = ProfilsAnimation.profil("epee_longue")["combo"]
+	var c1: String = combo_ref[0]
+	var cas := [["en avançant", Vector3(0, 0, -3.2), Vector2.ZERO, c1], ["pas à droite", Vector3(3.2, 0, 0), Vector2.ZERO, c1],
+		["pas à gauche", Vector3(-3.2, 0, 0), Vector2.ZERO, c1], ["en reculant", Vector3(0, 0, 2.5), Vector2.ZERO, c1],
+		["souris vers la droite", Vector3.ZERO, Vector2(120, 0), c1], ["souris vers le bas", Vector3.ZERO, Vector2(0, 120), c1]]
 	for c in cas:
 		await _reset(Vector3.ZERO, 0.0)
 		var n0: int = s.mannequin.coups.size()
@@ -184,7 +187,7 @@ func _tester() -> void:
 			mains.avancer(1.0 / 60.0)
 		j.velocity = Vector3.ZERO
 		_verif(g == c[3] and s.mannequin.coups.size() == n0 + 1, "%s : geste %s (attendu %s), %d touche" % [c[0], g, c[3], s.mannequin.coups.size() - n0])
-	# pas de côté prolongé : les horizontales alternent de sens dans l'enchaînement
+	# pas de côté prolongé : l'enchaînement reste celui du combo
 	await _reset(Vector3.ZERO, 0.0)
 	var suite := []
 	for i in 3:
@@ -197,7 +200,7 @@ func _tester() -> void:
 		for k in 26:
 			mains.avancer(1.0 / 60.0)
 	j.velocity = Vector3.ZERO
-	_verif(suite == ["horizontale_gd", "horizontale", "horizontale_gd"], "pas à droite enchaîné : %s" % [suite])
+	_verif(suite == combo_ref.slice(0, 3), "pas à droite enchaîné = combo : %s" % [suite])
 	# hors de la fenêtre de combo, le combo repart du premier geste
 	await _reset(Vector3.ZERO, 0.0)
 	mains.entrees.appuyer()

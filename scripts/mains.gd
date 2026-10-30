@@ -771,9 +771,12 @@ func _sur_changement_etat(_ancien: int, nouveau: int) -> void:
 func noter_souris(d: Vector2) -> void:
 	_souris_recente += d
 
-## Direction du coup léger selon le contexte (phase 4) : souris balayée → horizontal dans son sens, souris tirée vers
-## le bas → vertical ; sinon déplacement : de côté → horizontal dans le sens du pas, en avant → vertical, en arrière →
-## estoc ; à l'arrêt → combo 1-2-3 du profil. Renvoie [geste, contextuel].
+## Coup léger : TOUJOURS le combo du profil, au rythme des clics (1er clic = coup 1, 2e = coup 2… jusqu'au 4e), quels que
+## soient le déplacement et la souris (retour utilisateur 2026-10-30 : les variantes contextuelles — souris balayée, pas de
+## côté, en avançant, en reculant — remplaçaient en jeu les coups validés par les anciens gestes faits à la main).
+## Variantes gardées derrière VARIANTES_CONTEXTE (false). Renvoie [geste, contextuel].
+const VARIANTES_CONTEXTE := false
+
 func _choisir_geste() -> Array:
 	var p := _profil()
 	var gestes: Dictionary = p["gestes"]
@@ -781,7 +784,9 @@ func _choisir_geste() -> Array:
 	var sx := _souris_recente.x
 	var sy := _souris_recente.y
 	var choix := ""
-	if absf(sx) > SEUIL_SOURIS and absf(sx) > absf(sy) * 1.5:
+	if not VARIANTES_CONTEXTE:
+		pass
+	elif absf(sx) > SEUIL_SOURIS and absf(sx) > absf(sy) * 1.5:
 		choix = "horizontale_gd" if sx > 0.0 else "horizontale"
 	elif sy > SEUIL_SOURIS and sy > absf(sx) * 1.5:
 		choix = "verticale_l"   # souris tirée vers le bas : vertical (refait 2026-10-27, clip coup_v)
