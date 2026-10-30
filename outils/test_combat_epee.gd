@@ -66,8 +66,8 @@ func _suite(fps: int) -> Array:
 		journal.append({"degats": snappedf(degats, 0.01), "puissant": puissant, "t": horloge[0], "instant": float(info.get("instant", -1.0))})
 	s.mannequin.touche.connect(cb)
 	var gestes := []
-	# trois coups légers enchaînés (le 2e et le 3e sont mémorisés pendant la récupération du précédent)
-	for i in 3:
+	# coups légers enchaînés (combo complet, coups_v5 : 4 ; chacun mémorisé pendant la récupération du précédent)
+	for i in CoupsUneMain.COMBO.size():
 		mains.entrees.appuyer()
 		for k in roundi(0.05 / dt):
 			mains.avancer(dt)
@@ -84,6 +84,20 @@ func _suite(fps: int) -> Array:
 	for k in roundi(0.6 / dt):
 		mains.avancer(dt)
 		horloge[0] += dt
+	# coups_v5 : 4 coups légers brisent la posture du mannequin, étourdi il oscille (au rythme de _process, pas du pas
+	# simulé) : on le remet d'aplomb pour que le lourd frappe la même cible quel que soit le pas de temps
+	var mc: CombatEnnemi = s.mannequin.combat
+	mc.posture = mc.profil.posture_max
+	mc.etourdi = 0.0
+	s.mannequin._tilt = Vector2.ZERO
+	s.mannequin._v = Vector2.ZERO
+	s.mannequin.pivot.basis = Basis()
+	# … et la vue aussi : l'accompagnement des 4 coups (ressorts de CameraCorps, tassement de l'estoc) est avancé par la
+	# physique du joueur au rythme du moteur ; repartie du repos, la caméra est la même à 30, 60 et 144 i/s
+	j.camera_corps = CameraCorps.new()
+	j.tassement = 0.0
+	await physics_frame
+	await physics_frame
 	mains.entrees.appuyer()
 	var charge_vue := 0.0
 	for k in roundi(1.5 / dt):
@@ -120,14 +134,15 @@ func _tester() -> void:
 	for fps in [30, 60, 144]:
 		res[fps] = await _suite(fps)
 	var ref: Array = res[60][0]
-	_verif(ref.size() == 4, "4 coups -> 4 touches sur le mannequin à 60 i/s (une seule par coup) : %d" % ref.size())
-	_verif(res[60][1] == ["diag_dg", "revers_gd", "estoc_combo"], "combo de base : diagonale, horizontal gauche → droite, estoc %s" % [res[60][1]])
-	if ref.size() == 4:
-		_verif(absf(ref[2]["degats"] - 14.0 * 1.25) < 0.05, "le coup 3 (estoc) est le plus fort : %.1f" % ref[2]["degats"])
+	_verif(ref.size() == 5, "5 coups (combo de 4 + lourd) -> 5 touches sur le mannequin à 60 i/s (une seule par coup) : %d" % ref.size())
+	_verif(res[60][1] == ["diag_dg", "revers_gd", "taille_dg", "estoc_combo"], "combo de base : diagonale, revers gauche → droite, taille droite → gauche, estoc %s" % [res[60][1]])
+	if ref.size() == 5:
+		_verif(absf(ref[2]["degats"] - 14.0 * 1.1) < 0.05, "le coup 3 (taille horizontale) : %.1f" % ref[2]["degats"])
+		_verif(absf(ref[3]["degats"] - 14.0 * 1.25) < 0.05, "le coup 4 (estoc) est le plus fort : %.1f" % ref[3]["degats"])
 	_geometrie_combo()
 	_verif(absf(float(res[60][2]) - 1.0) < 1e-6 and res[60][3] == EtatCombat.CHARGE_LOURDE, "charge plafonnée à 1 en HeavyCharge")
-	if ref.size() == 4:
-		_verif(not ref[0]["puissant"] and ref[3]["puissant"] and absf(ref[3]["degats"] - 34.0 * 1.3) < 0.05, "léger 14, lourd à pleine charge 34 × 1,3 = %.1f" % ref[3]["degats"])
+	if ref.size() == 5:
+		_verif(not ref[0]["puissant"] and ref[4]["puissant"] and absf(ref[4]["degats"] - 34.0 * 1.3) < 0.05, "léger 14, lourd à pleine charge 34 × 1,3 = %.1f" % ref[4]["degats"])
 	for fps in [30, 144]:
 		var jr: Array = res[fps][0]
 		var memes := jr.size() == ref.size()
@@ -234,8 +249,8 @@ func _tester() -> void:
 	_verif(impacts.size() == 1 and absf((impacts[0] as Vector3).x - face) < 0.06, "point d'arrêt sur la face du mur (x=%s, face %.2f)" % [str(impacts[0].x) if impacts.size() > 0 else "?", face])
 	_verif(s.mannequin.coups.size() == avant, "rien n'est touché à travers le mur")
 
-	# les 3 coups du combo, chacun face au mur : la lame est toujours arrêtée sur la face
-	for g in ["diag_dg", "revers_gd", "estoc_combo"]:
+	# les coups du combo, chacun face au mur : la lame est toujours arrêtée sur la face
+	for g in CoupsUneMain.COMBO:
 		await _reset(Vector3(-1.9, 0, 1.0), 90.0)
 		var n_m: int = s.mannequin.coups.size()
 		mains.trace.garder_debug = true
@@ -308,7 +323,7 @@ func _tester() -> void:
 ## « tranchant qui mène » (angle normale du plat / mouvement du milieu de lame, 90 = le tranchant mène).
 func _geometrie_combo() -> void:
 	var cam_mains: Transform3D = mains.transform
-	for g in ["diag_dg", "revers_gd", "estoc_combo"]:
+	for g in CoupsUneMain.COMBO:
 		var clip := String(ProfilsAnimation.geste(mains.arme.profil, g)["clip"])
 		var m: Dictionary = mains.anim.marqueurs(clip)
 		var t0 := float(m["frappe"])
@@ -341,10 +356,13 @@ func _geometrie_combo() -> void:
 			"revers_gd":
 				_verif(d.x > 0.5 and absf(d.y) < 0.2, "coup 2 : horizontal GAUCHE → DROITE (%s -> %s)" % [a, b])
 				_verif(moy >= 70.0, "coup 2 : le tranchant mène, lame à plat (fil moyen %.0f° ≥ 70)" % moy)
+			"taille_dg":
+				_verif(d.x < -0.6 and absf(d.y) < 0.3, "coup 3 : taille HORIZONTALE droite → gauche (%s -> %s)" % [a, b])
+				_verif(moy >= 70.0, "coup 3 : le tranchant mène (fil moyen %.0f° ≥ 70)" % moy)
 			"estoc_combo":
 				var p0: Transform3D = cam_mains * mains.anim.pose_arme(clip, t0)
 				var p1: Transform3D = cam_mains * mains.anim.pose_arme(clip, t1)
-				_verif((p1.origin - p0.origin).z < -0.1, "coup 3 : estoc, le poing pousse vers l'avant (%.2f m)" % (p1.origin - p0.origin).z)
+				_verif((p1.origin - p0.origin).z < -0.1, "coup 4 : estoc, le poing pousse vers l'avant (%.2f m)" % (p1.origin - p0.origin).z)
 
 ## Règle d'annulation (P5) : la garde demandée pendant la PRÉPARATION d'une attaque légère la coupe (parade levée,
 ## aucune touche) ; une fois la lame active, le coup va au bout (la garde n'est prise qu'en récupération).
