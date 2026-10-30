@@ -148,6 +148,10 @@ static func donnees(id: String) -> DonneesArme:
 			d.materiau_lame = String(a["materiau_lame"])
 		for cle in (a.get("reglages", {}) as Dictionary):
 			d.set(cle, a["reglages"][cle])
+		# gestes propres (combat/gestes_lourds) : haches (« gestes »: "hache"), masses, marteaux, grand marteau à deux mains
+		var gl := GestesLourds.profil_pour(String(a.get("famille", "")), String(a.get("gestes", "")), d.deux_mains)
+		if gl != "":
+			d.profil = gl
 		var m: Dictionary = donnees_brutes().get("materiaux", {}).get(String(a.get("materiau", "")), {})
 		if m.has("trainee"):
 			d.couleur_trainee = Color(String(m["trainee"][0]))

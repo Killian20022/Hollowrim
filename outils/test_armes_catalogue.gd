@@ -81,7 +81,7 @@ func _lancer() -> void:
 			_verifier(d.vitesse > 0.5 and d.vitesse < 1.6 and d.cout_lourd > d.cout_leger, "%s : vitesse %.2f, endurance %.1f/%.1f" % [id, d.vitesse, d.cout_leger, d.cout_lourd])
 			_verifier(is_equal_approx(d.degats_leger, float(s["degats_leger"])) and is_equal_approx(d.vitesse, float(s["vitesse"])) and is_equal_approx(d.allonge, float(s["allonge"])), "%s : stats du catalogue appliquées" % id)
 		if fam == CatalogueArmes.FAMILLE_DEUX_MAINS or id == "grand_marteau":
-			_verifier(d.deux_mains and EquipementMains.categorie_de(d) == "arme_deux_mains" and d.profil == "deux_mains", "%s : arme à deux mains (profil « deux_mains »)" % id)
+			_verifier(d.deux_mains and EquipementMains.categorie_de(d) == "arme_deux_mains" and (d.profil == "deux_mains" or (id == "grand_marteau" and d.profil == "grand_marteau")), "%s : arme à deux mains (profil « deux_mains », ou « grand_marteau » : combat/gestes_lourds)" % id)
 		elif fam != "bouclier":
 			_verifier(not d.deux_mains, "%s : une main" % id)
 		# modèle : chargement, repères, échelle, habillage
