@@ -15,7 +15,7 @@ extends SceneTree
 ## balayés sont brisés. Contrôle : face_mur (mur plein à 1 m, dans l'axe) : la lame rebondit, mais à MI-COURSE (jamais au départ).
 ##   godot --headless --path . --script res://outils/test_blocage_lame.gd -- --nouvelle
 const SCENE := preload("res://scenes/test_combat.tscn")
-const GESTES := ["diag_dg", "revers_gd", "taille_dg", "estoc_combo", "lourd"]   # coups_v5 : + taille horizontale (CoupsUneMain)
+const GESTES := ["diag_dg6", "revers_gd6", "taille_dg6", "estoc_combo6", "lourd"]   # coups v6 (CoupsUneMain.COMBO) + puissant
 const ORIGINE := Vector3(-12.0, 0.0, 6.0)     # loin du mannequin, du mur et de la zone de collisions de la scène
 const LIEUX := ["couloir", "pres_mur_d", "pres_mur_g", "urnes", "decor", "regard_bas", "embrasure", "face_mur"]
 

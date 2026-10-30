@@ -21,3 +21,27 @@ CLIPS_MIXAMO_UNE_MAIN = {
 MARQUEURS_UNE_MAIN = {
     "coup_t": {"arme": 0.10, "frappe": 0.13, "fin_frappe": 0.23, "suivi": 0.30, "fin": 0.54},
 }
+
+# =====================================================================================================================
+# COUPS V6 (2026-10-30) : les 4 coups validés de coups_v5 (mêmes captures, mêmes retouches) + trois SURCOUCHES
+# (anim_bras_epee.creer_action_mixamo), clips « <nom>6 » à côté des clips v5 (gardés intacts pour comparaison) :
+#   - « poignet » ((flexion), (inclinaison))° : POIGNET VERROUILLÉ autour de la tenue (repos : f -11, r -32 ; v5 : la main
+#     cassait jusqu'à 54° de flexion pendant les coups) ; l'épée prolonge l'avant-bras, la torsion (pronation / supination)
+#     reste libre dans l'avant-bras (os de torsion, TorsionAvantBras) ;
+#   - « arc » (t0, t1, poids) : pendant la frappe, la pointe est ramenée vers un ARC DE CERCLE propre autour de l'épaule
+#     (plan ajusté sur la capture, même sens, vitesse angulaire constante : idée de COBRA FPS Feelkit, MIT) ;
+#   - « creux » (m) : l'épaule descend un peu au milieu de la frappe (le poids de la lame, COBRA : sin(pi u)).
+# Essayé et ÉCARTÉ (mesures + planches du 2026-10-30) : les autres coups des combos Quaternius UAL2 (Sword_Regular_Combo
+# coups 2 et 4, Sword_Heavy_Combo coup 4) retargetés tels quels : en vue FPS l'armé passe derrière la tête (lame qui
+# traverse la caméra) et la frappe devient un « hachoir » vertical, lame droite qui descend sans balayer.
+POIGNET_V6 = ((-28, 8), (-29, -18))
+
+
+
+def surcouche_v6(spec, arc=None, creux=0.03):
+    s = dict(spec)
+    s["poignet"] = POIGNET_V6
+    if arc is not None:
+        s["arc"] = arc
+        s["creux"] = creux
+    return s
