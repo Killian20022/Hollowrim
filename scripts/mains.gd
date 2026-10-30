@@ -54,6 +54,11 @@ var joueur: CharacterBody3D
 var anim := AnimateurBras.new()
 var _couche_passive: SkeletonModifier3D
 var _clip := ""                 # clip du geste en cours (coups, contre, finisher)
+var _epaule_g := Vector3.ZERO    # tête de upperarm_l au repos (repère des mains)
+var _avance_epaule_g: SkeletonModifier3D   # decalage_bras.gd sur clavicle_l (deux mains : l'épaule gauche s'avance)
+## Deux mains : part de l'allonge du bras gauche (bras + avant-bras) au-delà de laquelle l'épaule s'avance, et avancée maximale (m).
+const ALLONGE_G_2M := 0.96
+const AVANCE_EPAULE_G_MAX := 0.28
 var _milieu_d := 0.03           # centre du poing droit le long de la lame (repère du modèle) : DonneesArme ou repère « prise »
 var _m := {}                    # ses marqueurs (s de clip)
 var _lourd_nom := "lourd"       # attaque puissante choisie au début de la charge (selon le déplacement)
@@ -364,7 +369,11 @@ func _installer_arme() -> void:
 			_milieu_d = m.y
 	PRISE_D = _calculer_prise("r", _milieu_d)
 	_cible_d.transform = PRISE_D.affine_inverse()
-	anim.variante = _profil().get("tenues", {})
+	var variante: Dictionary = _profil().get("tenues", {})
+	if variante != anim.variante:
+		anim.variante = variante
+		if anim.clip != "":
+			anim.jouer(anim.clip, 0.15)   # même nom logique (repos…), autre clip : on relance pour changer de pose
 	_coude_d.position = arme.repos_coude
 	_orient_d.deviation_max = deg_to_rad(arme.deviation_poignet)
 	regler_poignet(false)
@@ -522,6 +531,12 @@ func _bras() -> void:
 	_coude_g = coude_g
 	# IK à deux os : main GAUCHE seulement (torche, plus tard sorts). Le bras droit est joué par ses animations à images
 	# clés (AnimateurBras) ; son IK et son orienteur de poignet ne servent plus (orienteur gardé inactif : réglages d'arme).
+	# deux mains : l'épaule gauche s'avance vers la poignée quand elle est hors de portée du bras (le buste tourne), AVANT l'IK
+	_epaule_g = _bras_base * (rel * _sq.get_bone_global_rest(_sq.find_bone("upperarm_l")).origin)
+	_avance_epaule_g = SkeletonModifier3D.new()
+	_avance_epaule_g.set_script(preload("res://scripts/combat/decalage_bras.gd"))
+	_avance_epaule_g.set("os", "clavicle_l")
+	_sq.add_child(_avance_epaule_g)
 	var ik := TwoBoneIK3D.new()
 	_sq.add_child(ik)
 	ik.set_setting_count(1)
@@ -1702,6 +1717,7 @@ func _poser_torche(dt: float) -> void:
 		_poser_deux_mains(dt)
 		return
 	porte_torche.visible = true
+	_avance_epaule_g.set("decalage", Transform3D())
 	var g: DonneesArme = equipement.gauche_rangee
 	_coude_g.position = Vector3(-g.repos_coude.x, g.repos_coude.y, g.repos_coude.z)   # la magie le remplace quand elle tient la main
 	if g.categorie == DonneesArme.Categorie.BOUCLIER:
@@ -1741,6 +1757,15 @@ func _poser_deux_mains(dt: float) -> void:
 	var prise := Transform3D(Basis(Vector3.UP, deg_to_rad(arme.rotation_main_gauche)), Vector3(0.0, y, 0.0))
 	pivot_torche.transform = pivot_epee.transform * prise
 	_coude_g.position = arme.coude_gauche_2m
+	# poignet visé (cible de l'IK) hors de portée : l'épaule gauche avance d'autant vers lui (bornée) — le buste tourne vers la
+	# poignée, comme un vrai geste à deux mains ; sans quoi la main gauche resterait à quelques cm de la fusée
+	var poignet := (pivot_torche.transform * PRISE_G.affine_inverse()).origin
+	var v := poignet - _epaule_g
+	var manque := v.length() - (_l_bras + _l_avant_bras) * ALLONGE_G_2M
+	var dec := Transform3D()
+	if manque > 0.0:
+		dec.origin = v.normalized() * minf(manque, AVANCE_EPAULE_G_MAX)
+	_avance_epaule_g.set("decalage", _bras_base.affine_inverse() * dec * _bras_base)
 	porte_torche.visible = false
 	for fl in flammes:
 		fl.emitting = false

@@ -67,9 +67,9 @@ B2_ARME = dict(nom="B2_arme", poing=E(-0.22, -0.30, 0.54), lame=(-0.94, 0.26, -0
 B2_TENSION = dict(B2_ARME, nom="B2_tension", poing=E(-0.28, -0.28, 0.53), lame=(-0.95, 0.22, -0.16))
 B2_MILIEU = dict(nom="B2_milieu", poing=E(0.10, -0.28, 0.60), lame=(0.15, 0.45, -0.88), mouvement=(1, 0.05, 0), coude=(0.5, -1, -0.1),
                  clav=(18, 2), epaule=(-0.05, 0.0, -0.06), interp="passe", torsion=-90, poids_torsion=0.4, large=True)
-B2_FIN = dict(nom="B2_fin", poing=E(0.46, -0.30, 0.57), lame=(0.88, 0.35, -0.32), mouvement=(0.8, 0.1, 0.4), coude=(1, -1, 0.2),
+B2_FIN = dict(nom="B2_fin", poing=E(0.42, -0.30, 0.57), lame=(0.88, 0.35, -0.32), mouvement=(0.8, 0.1, 0.4), coude=(1, -1, 0.2),
               clav=(6, 4), torsion=-90, poids_torsion=0.4, large=True)
-B2_SUIVI = dict(B2_FIN, nom="B2_suivi", poing=E(0.54, -0.36, 0.55), lame=(0.90, 0.25, -0.35), mouvement=(0.5, 0, 0.6), torsion=-90, poids_torsion=0.4)
+B2_SUIVI = dict(B2_FIN, nom="B2_suivi", poing=E(0.48, -0.36, 0.55), lame=(0.90, 0.25, -0.35), mouvement=(0.5, 0, 0.6), torsion=-90, poids_torsion=0.4)
 
 # --- coup 3 : vertical par-dessus la tête (le plus lourd du combo, tassement de la caméra) ---------------------------------
 C2_ARME = dict(nom="C2_arme", poing=E(0.24, 0.06, 0.50), lame=(-0.20, 0.72, 0.66), roulis=TRANCHE, coude=(1, -0.5, 0.0), clav=(-4, 16),
