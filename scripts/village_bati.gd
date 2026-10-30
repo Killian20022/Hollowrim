@@ -487,6 +487,14 @@ static func forge_ouverte(v, p: Node3D) -> void:
 	# meule à aiguiser sur ses chevalets
 	MobilierVillage.poser_dans(v, p, "forge_meule", Transform3D(Basis(), Vector3(-2.2, 0, 3.75)))
 	v._collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(-2.2, 0.55, 3.75)), Vector3(0.9, 1.1, 0.6))
+	# props Quaternius (props/placement, lot 2) : contre la façade à gauche de la porte, caisse ferrée et seau ; briques de réserve
+	# au pied du foyer ; mannequin d'entraînement côté droit de l'auvent, hors du passage rue -> porte (x 0,55 .. 2,15)
+	PropsQuaternius.village(v, p, "q_caisse_fer", Transform3D(Basis(Vector3.UP, 0.12).scaled(Vector3.ONE * 0.9), Vector3(-0.15, 0, 2.2)), true)
+	PropsQuaternius.village(v, p, "q_seau_fer", Transform3D(Basis(Vector3.UP, 0.9), Vector3(-0.72, 0, 2.15)))
+	PropsQuaternius.village(v, p, "q_brique_1", Transform3D(Basis(Vector3.UP, 0.3), Vector3(-2.45, 0, 3.1)))
+	PropsQuaternius.village(v, p, "q_brique_3", Transform3D(Basis(Vector3.UP, -0.4), Vector3(-2.15, 0, 3.08)))
+	PropsQuaternius.village(v, p, "q_brique_2", Transform3D(Basis(Vector3.UP, 1.2), Vector3(-2.3, 0.21, 3.1)))
+	PropsQuaternius.village(v, p, "q_mannequin", Transform3D(Basis(Vector3.UP, -0.5), Vector3(2.42, 0, 3.25)), true)
 
 # --- tour-clocher ----------------------------------------------------------------------------------------------
 

@@ -44,6 +44,9 @@ static func construire(b: Interieurs) -> void:
 		var x := b.rng.randf_range(-1.6, 1.8)
 		var z := b.rng.randf_range(-0.5, 1.2)
 		b.bx(Vector3(x, 0.05, z), Vector3(0.18 + b.rng.randf() * 0.12, 0.02, 0.1), "cendre" if k % 2 == 0 else "fer_noir", b.rng.randf() * 3.0)
+	# --- props Quaternius (props/placement, lot 2) : caisse ferrée sous le râtelier de l'Épée, seau de fer près du bac de trempe
+	b.q("q_caisse_fer", Vector3(1.78, Y, -0.3), -PI * 0.5 + 0.08, 0.9, {}, true)
+	b.q("q_seau_fer", Vector3(-1.22, Y, 0.28), 0.5)
 	_ratelier_unique(b)       # L9 : après les tirages (aucun tirage ici : le reste de la forge ne bouge pas)
 
 ## Repère (dans l'intérieur) de l'Épée de Skarnholt posée sur son râtelier.
