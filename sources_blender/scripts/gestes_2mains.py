@@ -32,56 +32,60 @@ TRANCHE = G.TRANCHE
 TT = G.TRANCHE_TENUE
 
 # --- tenues ---------------------------------------------------------------------------------------------------------------
-# garde de repos à deux mains : poings bas, un peu à droite du centre, lame qui monte en diagonale vers le haut gauche
-# (la pointe vers le haut du cadre) ; la main gauche tient la poignée juste sous la droite (bas de l'écran)
-REPOS_2M = dict(nom="repos_2m", poing=E(0.30, -0.60, 0.50), lame=(-0.32, 0.90, -0.28), roulis=TT, coude=(1, -0.8, 0.2), clav=(6, 0),
-                epaule=(-0.02, 0.0, -0.02))
-SPRINT_2M = dict(nom="sprint_2m", poing=E(0.50, -0.88, 0.44), lame=(-0.45, 0.55, -0.70), roulis=TT, coude=(0.7, -1, 0.3))
+# Torsion de l'avant-bras imposée par clé (« torsion », poids_torsion PT) : pronation PROGRESSIVE pendant les coups, jamais de
+# retournement (+95 → -95) entre deux clés (v1 : la lame passait par l'arrière, vue en bout).
+PT = 0.08
+# garde de repos à deux mains : poings bas à droite, lame en diagonale vers le haut gauche (pointe vers le haut du cadre) ;
+# la main gauche tient la poignée juste sous la droite, visible en bas à droite
+REPOS_2M = dict(nom="repos_2m", poing=E(0.27, -0.34, 0.55), lame=(-0.55, 0.78, -0.30), roulis=TT, coude=(1, -0.8, 0.2), clav=(6, 0),
+                epaule=(-0.02, 0.0, -0.02), torsion=20, poids_torsion=PT, large=True)
+SPRINT_2M = dict(nom="sprint_2m", poing=E(0.50, -0.80, 0.46), lame=(-0.60, 0.50, -0.62), roulis=TT, coude=(0.7, -1, 0.3), torsion=0, poids_torsion=PT, large=True)
 # blocage à deux mains : lame en travers devant le visage, pointe en haut à gauche, poignée à droite (les deux mains côte à
 # côte sur la poignée, la gauche à droite de la droite), plat face à l'ennemi
-GARDE_2M = dict(nom="garde_2m", poing=E(0.26, -0.30, 0.45), lame=(-0.84, 0.50, -0.18), roulis=TT + 4, poids_roulis=1.5,
-                coude=(0.5, -1, 0.1), clav=(12, 4), epaule=(-0.04, 0.0, -0.04))
-ENCAISSE_2M = dict(GARDE_2M, nom="encaisse_2m", poing=E(0.30, -0.37, 0.40), lame=(-0.80, 0.58, -0.10))
-PARADE_2M = dict(GARDE_2M, nom="parade_2m", poing=E(0.30, -0.28, 0.45), lame=(-0.60, 0.76, -0.22))
-BRISEE_2M = dict(nom="brisee_2m", poing=E(0.48, -0.95, 0.42), lame=(-0.40, 0.22, -0.89), roulis=TT, coude=(0.7, -1, 0.3))
+GARDE_2M = dict(nom="garde_2m", poing=E(0.26, -0.30, 0.48), lame=(-0.86, 0.48, -0.16), roulis=TT + 4, poids_roulis=1.5,
+                coude=(0.5, -1, 0.1), clav=(12, 4), epaule=(-0.04, 0.0, -0.04), torsion=-60, poids_torsion=PT, large=True)
+ENCAISSE_2M = dict(GARDE_2M, nom="encaisse_2m", poing=E(0.30, -0.36, 0.44), lame=(-0.82, 0.56, -0.10))
+PARADE_2M = dict(GARDE_2M, nom="parade_2m", poing=E(0.30, -0.28, 0.48), lame=(-0.64, 0.73, -0.20))
+BRISEE_2M = dict(nom="brisee_2m", poing=E(0.48, -0.90, 0.44), lame=(-0.50, 0.22, -0.84), roulis=TT, coude=(0.7, -1, 0.3), torsion=-20, poids_torsion=PT, large=True)
 
 # --- coup 1 : diagonale haut-droite -> bas-gauche (armé au-dessus de l'épaule droite, la lame traverse tout le cadre) -------
-A2_ARME = dict(nom="A2_arme", poing=E(0.52, 0.10, 0.45), lame=(0.40, 0.78, 0.48), roulis=TRANCHE, coude=(1, -0.4, 0.3), clav=(-6, 12),
-               epaule=(0.02, 0.04, 0.02), large=True)
-A2_TENSION = dict(A2_ARME, nom="A2_tension", poing=E(0.58, 0.16, 0.44), lame=(0.46, 0.72, 0.52))
-A2_ENTREE = dict(nom="A2_entree", poing=E(0.42, 0.0, 0.52), lame=(-0.10, 0.85, -0.50), mouvement=(-0.6, -0.8, 0), coude=(1, -0.6, 0.2),
-                 clav=(8, 8), epaule=(-0.02, 0.02, -0.03), interp="passe", large=True)
-A2_MILIEU = dict(nom="A2_milieu", poing=E(0.15, -0.25, 0.58), lame=(-0.80, 0.25, -0.55), mouvement=(-0.5, -0.85, 0), coude=(0.6, -1, 0.0),
-                 clav=(20, 4), epaule=(-0.06, 0.0, -0.07), interp="passe", large=True)
-A2_FIN = dict(nom="A2_fin", poing=E(-0.10, -0.52, 0.56), lame=(-0.70, -0.50, -0.45), mouvement=(-0.6, -0.7, 0.2), coude=(0.3, -1, -0.2),
-              clav=(30, 0), epaule=(-0.11, 0.02, -0.11), large=True)
-A2_SUIVI = dict(A2_FIN, nom="A2_suivi", poing=E(-0.20, -0.66, 0.54), lame=(-0.55, -0.72, -0.40), clav=(34, -3), epaule=(-0.13, 0.02, -0.12))
+A2_ARME = dict(nom="A2_arme", poing=E(0.52, 0.06, 0.58), lame=(0.30, 0.90, 0.30), roulis=TRANCHE, coude=(1, -0.4, 0.3), clav=(-6, 12),
+               epaule=(0.02, 0.04, 0.02), torsion=40, poids_torsion=PT, large=True)
+A2_TENSION = dict(A2_ARME, nom="A2_tension", poing=E(0.57, 0.12, 0.57), lame=(0.36, 0.86, 0.36))
+A2_ENTREE = dict(nom="A2_entree", poing=E(0.42, 0.0, 0.54), lame=(-0.25, 0.92, -0.30), mouvement=(-0.6, -0.8, 0), coude=(1, -0.6, 0.2),
+                 clav=(8, 8), epaule=(-0.02, 0.02, -0.03), interp="passe", torsion=10, poids_torsion=PT, large=True)
+A2_MILIEU = dict(nom="A2_milieu", poing=E(0.16, -0.25, 0.58), lame=(-0.88, 0.30, -0.36), mouvement=(-0.5, -0.85, 0), coude=(0.6, -1, 0.0),
+                 clav=(20, 4), epaule=(-0.06, 0.0, -0.07), interp="passe", torsion=-35, poids_torsion=PT, large=True)
+A2_FIN = dict(nom="A2_fin", poing=E(-0.08, -0.50, 0.56), lame=(-0.74, -0.56, -0.36), mouvement=(-0.6, -0.7, 0.2), coude=(0.3, -1, -0.2),
+              clav=(30, 0), epaule=(-0.11, 0.02, -0.11), torsion=-65, poids_torsion=PT, large=True)
+A2_SUIVI = dict(A2_FIN, nom="A2_suivi", poing=E(-0.18, -0.62, 0.54), lame=(-0.56, -0.74, -0.36), clav=(34, -3), epaule=(-0.13, 0.02, -0.12),
+                torsion=-75, poids_torsion=0.2)
 
 # --- coup 2 : horizontal gauche -> droite à plat (repart de la fin du 1, en bas à gauche) ----------------------------------
-B2_ARME = dict(nom="B2_arme", poing=E(-0.24, -0.32, 0.52), lame=(-0.90, 0.30, -0.30), mouvement=(1, 0.1, 0), coude=(0.3, -1, -0.2),
-               clav=(30, 2), epaule=(-0.12, 0.02, -0.11), large=True)
-B2_TENSION = dict(B2_ARME, nom="B2_tension", poing=E(-0.30, -0.30, 0.51), lame=(-0.92, 0.25, -0.22))
-B2_MILIEU = dict(nom="B2_milieu", poing=E(0.10, -0.28, 0.60), lame=(0.20, 0.12, -0.97), mouvement=(1, 0.05, 0), coude=(0.5, -1, -0.1),
-                 clav=(18, 2), epaule=(-0.05, 0.0, -0.06), interp="passe", large=True)
-B2_FIN = dict(nom="B2_fin", poing=E(0.48, -0.30, 0.57), lame=(0.88, 0.12, -0.45), mouvement=(0.8, 0.1, 0.4), coude=(1, -1, 0.2),
-              clav=(6, 4), large=True)
-B2_SUIVI = dict(B2_FIN, nom="B2_suivi", poing=E(0.58, -0.38, 0.54), lame=(0.90, -0.05, -0.30), mouvement=(0.5, 0, 0.6))
+B2_ARME = dict(nom="B2_arme", poing=E(-0.22, -0.30, 0.54), lame=(-0.94, 0.26, -0.22), mouvement=(1, 0.1, 0), coude=(0.3, -1, -0.2),
+               clav=(30, 2), epaule=(-0.12, 0.02, -0.11), torsion=-75, poids_torsion=PT, large=True)
+B2_TENSION = dict(B2_ARME, nom="B2_tension", poing=E(-0.28, -0.28, 0.53), lame=(-0.95, 0.22, -0.16))
+B2_MILIEU = dict(nom="B2_milieu", poing=E(0.10, -0.28, 0.60), lame=(0.15, 0.45, -0.88), mouvement=(1, 0.05, 0), coude=(0.5, -1, -0.1),
+                 clav=(18, 2), epaule=(-0.05, 0.0, -0.06), interp="passe", torsion=-90, poids_torsion=0.4, large=True)
+B2_FIN = dict(nom="B2_fin", poing=E(0.46, -0.30, 0.57), lame=(0.88, 0.35, -0.32), mouvement=(0.8, 0.1, 0.4), coude=(1, -1, 0.2),
+              clav=(6, 4), torsion=-90, poids_torsion=0.4, large=True)
+B2_SUIVI = dict(B2_FIN, nom="B2_suivi", poing=E(0.54, -0.36, 0.55), lame=(0.90, 0.25, -0.35), mouvement=(0.5, 0, 0.6), torsion=-90, poids_torsion=0.4)
 
 # --- coup 3 : vertical par-dessus la tête (le plus lourd du combo, tassement de la caméra) ---------------------------------
-C2_ARME = dict(nom="C2_arme", poing=E(0.28, 0.36, 0.42), lame=(-0.10, 0.80, 0.55), roulis=TRANCHE, coude=(1, -0.5, 0.0), clav=(-4, 18),
-               epaule=(0.0, 0.07, 0.01), large=True)
-C2_TENSION = dict(C2_ARME, nom="C2_tension", poing=E(0.28, 0.44, 0.40), lame=(-0.08, 0.70, 0.70))
-C2_ENTREE = dict(nom="C2_entree", poing=E(0.22, 0.24, 0.52), lame=(-0.10, 0.60, -0.80), mouvement=(0, -1, -0.3), coude=(0.8, -1, 0.0),
-                 clav=(8, 16), epaule=(-0.03, 0.04, -0.04), interp="passe", large=True)
-C2_MILIEU = dict(nom="C2_milieu", poing=E(0.12, -0.12, 0.60), lame=(-0.08, -0.05, -1.0), mouvement=(0, -1, 0), coude=(0.6, -1, 0.0),
-                 clav=(18, 8), epaule=(-0.05, 0.02, -0.08), interp="passe", large=True)
-C2_FIN = dict(nom="C2_fin", poing=E(0.06, -0.55, 0.58), lame=(-0.05, -0.70, -0.70), mouvement=(0, -0.8, 0.4), coude=(0.4, -1, 0.0),
-              clav=(24, 0), epaule=(-0.08, 0.0, -0.10), large=True)
-C2_SUIVI = dict(C2_FIN, nom="C2_suivi", poing=E(0.04, -0.68, 0.55), lame=(-0.03, -0.85, -0.50))
+C2_ARME = dict(nom="C2_arme", poing=E(0.24, 0.06, 0.50), lame=(-0.20, 0.72, 0.66), roulis=TRANCHE, coude=(1, -0.5, 0.0), clav=(-4, 16),
+               epaule=(0.0, 0.06, 0.0), torsion=20, poids_torsion=PT, large=True)
+C2_TENSION = dict(C2_ARME, nom="C2_tension", poing=E(0.24, 0.10, 0.49), lame=(-0.18, 0.66, 0.73))
+C2_ENTREE = dict(nom="C2_entree", poing=E(0.30, 0.06, 0.56), lame=(-0.35, 0.88, -0.32), mouvement=(0, -1, -0.3), coude=(0.8, -1, 0.0),
+                 clav=(8, 14), epaule=(-0.03, 0.04, -0.04), interp="passe", torsion=0, poids_torsion=PT, large=True)
+C2_MILIEU = dict(nom="C2_milieu", poing=E(0.30, -0.15, 0.60), lame=(-0.55, 0.30, -0.78), mouvement=(0, -1, 0), coude=(0.6, -1, 0.0),
+                 clav=(18, 8), epaule=(-0.05, 0.02, -0.08), interp="passe", torsion=-20, poids_torsion=PT, large=True)
+C2_FIN = dict(nom="C2_fin", poing=E(0.18, -0.50, 0.58), lame=(-0.45, -0.55, -0.70), mouvement=(0, -0.8, 0.4), coude=(0.4, -1, 0.0),
+              clav=(24, 0), epaule=(-0.08, 0.0, -0.10), torsion=-40, poids_torsion=PT, large=True)
+C2_SUIVI = dict(C2_FIN, nom="C2_suivi", poing=E(0.14, -0.62, 0.56), lame=(-0.40, -0.70, -0.60), torsion=-45, poids_torsion=0.2)
 
 # --- puissante (maintien) : armé tenu au-dessus de la tête, la lame tombe de tout son poids -------------------------------
-P2_CHARGE = dict(C2_TENSION, nom="P2_charge", poing=E(0.30, 0.50, 0.40), lame=(-0.06, 0.62, 0.78))
-P2_ARME = dict(P2_CHARGE, nom="P2_arme", poing=E(0.31, 0.54, 0.39), lame=(-0.05, 0.55, 0.83))
+P2_CHARGE = dict(C2_TENSION, nom="P2_charge", poing=E(0.25, 0.10, 0.49), lame=(-0.20, 0.62, 0.76))
+P2_ARME = dict(P2_CHARGE, nom="P2_arme", poing=E(0.25, 0.13, 0.48), lame=(-0.18, 0.56, 0.81))
 
 CLIPS = {
     "repos_2m": [cle(REPOS_2M, 0.0), cle(REPOS_2M, 0.5)],
