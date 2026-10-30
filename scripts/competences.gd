@@ -36,7 +36,7 @@ func bonus(nom: String) -> float:
 	return float(niveaux[nom] - DEPART) / float(MAXIMUM - DEPART)
 
 func multiplicateur_degats() -> float:
-	return 1.0 + bonus("epee") * 0.6
+	return 1.0 + bonus("epee") * ReglagesCombat.GAIN_COMPETENCE_EPEE
 
 func reduction_parade() -> float:
 	return 1.0 - bonus("parade") * 0.5

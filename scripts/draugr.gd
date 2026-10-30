@@ -63,9 +63,9 @@ var _marche_proche := MARCHE_PROCHE
 var _course := COURSE
 var dort := false
 var joueur: CharacterBody3D
-var vie := 70.0
-var vie_max := 70.0
-var degats := 16.0
+var vie := 80.0
+var vie_max := 80.0
+var degats := 11.0   # PV et dégâts : ReglagesCombat (table unique d'équilibrage), posés dans _ready
 var nom_affiche := "Draugr"
 # réglages facultatifs, posés avant add_child (boss…)
 var echelle := 1.0
@@ -159,13 +159,18 @@ func _nommer(profil_nom: String) -> void:
 func _ready() -> void:
 	add_to_group("ennemis")
 	_os = type.begins_with("squelette")
+	vie_max = ReglagesCombat.vie("draugr")
+	degats = ReglagesCombat.degats("draugr")
+	if type == "guerrier":
+		vie_max = ReglagesCombat.vie("guerrier")
+		degats = ReglagesCombat.degats("guerrier")
 	if type == "sbire":
-		vie_max = 45.0
-		degats = 12.0
+		vie_max = ReglagesCombat.vie("sbire")
+		degats = ReglagesCombat.degats("sbire")
 	elif _os:
 		nom_affiche = "Squelette"
-		vie_max = 70.0
-		degats = 14.0
+		vie_max = ReglagesCombat.vie("squelette")
+		degats = ReglagesCombat.degats("squelette")
 		_marche = 1.05
 		_marche_proche = 1.5
 		_course = 4.3
@@ -173,7 +178,7 @@ func _ready() -> void:
 		archer = true
 	if zombie and not _os:
 		archer = false
-		degats = 13.0
+		degats = ReglagesCombat.degats("zombie")
 		_marche = 0.5
 		_marche_proche = 0.7
 		_course = 0.8
@@ -182,7 +187,7 @@ func _ready() -> void:
 	if archer:
 		if not _os:
 			nom_affiche = "Bandit archer"
-		degats = minf(degats, 8.0)  # corps à corps faible : l'arc est son arme
+		degats = minf(degats, ReglagesCombat.degats("archer_melee"))  # corps à corps faible : l'arc est son arme
 		contourne = true
 	if not patrouille.is_empty():
 		contourne = true
@@ -313,19 +318,19 @@ func _regler_boss() -> void:
 	match boss:
 		"svanhild":
 			nom_affiche = "Svanhild, Dame de givre"
-			vie_max = 260.0
-			degats = 24.0
+			vie_max = ReglagesCombat.vie("svanhild")
+			degats = ReglagesCombat.degats("svanhild")
 		"hrafn":
 			nom_affiche = "Hrafn, chef des bandits"
-			vie_max = 230.0
-			degats = 20.0
+			vie_max = ReglagesCombat.vie("hrafn")
+			degats = ReglagesCombat.degats("hrafn")
 			_rythme = 0.85
 			if echelle == 1.0:
 				echelle = 1.08
 		"jarl":
 			nom_affiche = "Jarl Kolbeinn le Gelé"
-			vie_max = 320.0
-			degats = 38.0
+			vie_max = ReglagesCombat.vie("jarl")
+			degats = ReglagesCombat.degats("jarl")
 			_rythme = 0.7
 			_bouclier = 0.6
 			if echelle == 1.0:
@@ -901,7 +906,9 @@ func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, in
 	vers.y = 0.0
 	var de_face := vers.normalized().dot(global_transform.basis.z) > 0.3
 	var peut_bloquer := (type == "guerrier" or _os or boss == "jarl") and etat in [TRAQUE]
-	var r := combat.analyser(quantite, origine_coup, puissant, info, {"de_face": de_face, "peut_bloquer": peut_bloquer,
+	# attaque furtive (ReglagesCombat.FURTIF) : pas encore en combat, frappé dans le dos — ou endormi, de n'importe où
+	var surpris := etat == DORT or (etat in [GARDE, PATROUILLE] and not de_face)
+	var r := combat.analyser(quantite, origine_coup, puissant, info, {"de_face": de_face, "peut_bloquer": peut_bloquer, "surpris": surpris,
 		"en_attaque": etat == ATTAQUE, "coup_donne": _coup_donne, "hauteur_visee": CombatEnnemi.hauteur_visee(joueur, self)})
 	if r["bloque"]:
 		_jouer("Hit_Chest", 0.05, true)

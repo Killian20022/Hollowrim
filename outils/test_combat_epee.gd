@@ -142,7 +142,7 @@ func _tester() -> void:
 	_geometrie_combo()
 	_verif(absf(float(res[60][2]) - 1.0) < 1e-6 and res[60][3] == EtatCombat.CHARGE_LOURDE, "charge plafonnée à 1 en HeavyCharge")
 	if ref.size() == 5:
-		_verif(not ref[0]["puissant"] and ref[4]["puissant"] and absf(ref[4]["degats"] - 34.0 * 1.3) < 0.05, "léger 14, lourd à pleine charge 34 × 1,3 = %.1f" % ref[4]["degats"])
+		_verif(not ref[0]["puissant"] and ref[4]["puissant"] and absf(ref[4]["degats"] - 28.0 * 1.2) < 0.05, "léger 14, lourd à pleine charge 28 × 1,2 = %.1f (équilibrage)" % ref[4]["degats"])
 	for fps in [30, 144]:
 		var jr: Array = res[fps][0]
 		var memes := jr.size() == ref.size()

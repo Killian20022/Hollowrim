@@ -17,7 +17,7 @@ extends Resource
 ## Multiplicateurs par type de dégât (1 = normal, < 1 résistance, > 1 vulnérabilité).
 @export var resistances := {"tranchant": 1.0, "contondant": 1.0, "feu": 1.0, "glace": 1.0, "magique": 1.0, "electricite": 1.0, "tenebres": 1.0}
 ## Multiplicateurs par zone touchée.
-@export var zones := {"tete": 1.6, "torse": 1.0, "bras": 0.75, "jambes": 0.85}
+@export var zones := {"tete": 1.4, "torse": 1.0, "bras": 0.75, "jambes": 0.85}   # tête : 1,6 avant l'équilibrage
 ## Jauge d'équilibre : réduite par la force de stagger de chaque coup ; vide = posture brisée (étourdi, finisher possible).
 @export var posture_max := 45.0
 ## Récupération de posture (par seconde) après `posture_delai` s sans coup.
@@ -39,7 +39,7 @@ extends Resource
 ## Voix de mort-vivant (râles de draugr) ; faux = voix humaine (bandits).
 @export var mort_vivant := true
 ## Vie sous laquelle (part de la vie max) un coup lourd de face ouvre le finisher « rapide ».
-@export var seuil_finisher_vie := 0.18
+@export var seuil_finisher_vie := 0.22
 
 const DOSSIER := "res://data/combat/cible_%s.tres"
 
@@ -69,13 +69,13 @@ static func _defaut(n: String) -> ProfilCible:
 	match n:
 		"draugr":
 			p.couleur_sang = Color(0.26, 0.04, 0.03)   # sang de mort-vivant : épais, sombre, encore rouge
-			p.posture_max = 40.0
+			p.posture_max = 55.0   # un coup puissant chargé (42) ne brise plus la garde à lui seul
 			p.resistances = {"tranchant": 1.0, "contondant": 1.0, "feu": 1.25, "glace": 1.0, "magique": 1.0, "electricite": 1.0, "tenebres": 0.7}   # mort-vivant (magie)
 		"draugr_guerrier":
 			p.armure_tete = 2.0     # casque
 			p.armure_part = 0.08    # cotte de mailles
 			p.couleur_sang = Color(0.26, 0.04, 0.03)
-			p.posture_max = 50.0
+			p.posture_max = 70.0
 			p.resistances = {"tranchant": 1.0, "contondant": 1.0, "feu": 1.25, "glace": 1.0, "magique": 1.0, "electricite": 1.15, "tenebres": 0.7}   # mort-vivant en mailles (magie)
 			p.chance_blocage = 0.3
 			p.seuil_moyen = 13.0
@@ -86,23 +86,23 @@ static func _defaut(n: String) -> ProfilCible:
 			p.sang = false
 			p.couleur_sang = Color(0.72, 0.68, 0.56)
 			p.resistances = {"tranchant": 1.0, "contondant": 1.4, "feu": 0.9, "glace": 0.8, "magique": 1.2, "electricite": 0.9, "tenebres": 0.6}
-			p.zones = {"tete": 1.8, "torse": 1.0, "bras": 0.8, "jambes": 0.9}
-			p.posture_max = 36.0
+			p.zones = {"tete": 1.4, "torse": 1.0, "bras": 0.8, "jambes": 0.9}
+			p.posture_max = 45.0
 			p.chance_blocage = 0.3
 			p.poids = 0.8
 		"bandit":
 			p.armure_part = 0.05
 			p.couleur_sang = Color(0.40, 0.025, 0.02)   # sang vivant, rouge franc
 			p.mort_vivant = false
-			p.posture_max = 42.0
-			p.seuil_finisher_vie = 0.22
+			p.posture_max = 55.0
+			p.seuil_finisher_vie = 0.25
 		"troll_givre":
 			# mini-boss lourd : cuir épais mais pas d'armure (faible), posture très haute (poids 2 : le stagger reçu est divisé par 2),
 			# jamais renversé ; vulnérable au feu, presque insensible au givre ; sang sombre, épais, violacé ; voix de bête (râles graves)
 			p.armure = 1.0
 			p.armure_part = 0.03
 			p.resistances = {"tranchant": 1.0, "contondant": 0.9, "feu": 1.75, "glace": 0.25, "magique": 1.0, "electricite": 1.1, "tenebres": 1.0}
-			p.zones = {"tete": 1.5, "torse": 1.0, "bras": 0.8, "jambes": 0.9}
+			p.zones = {"tete": 1.3, "torse": 1.0, "bras": 0.8, "jambes": 0.9}
 			p.couleur_sang = Color(0.24, 0.045, 0.07)
 			p.posture_max = 110.0
 			p.posture_regen = 18.0
@@ -112,7 +112,7 @@ static func _defaut(n: String) -> ProfilCible:
 			p.seuil_chute = 999.0
 			p.poids = 2.0
 			p.duree_etourdi = 3.2
-			p.seuil_finisher_vie = 0.12
+			p.seuil_finisher_vie = 0.15
 		"mage_nordique":
 			# lanceur de sorts : robe de laine, aucune armure, posture faible (chaque coup l'interrompt), facile à achever
 			p.couleur_sang = Color(0.40, 0.025, 0.02)
@@ -126,7 +126,7 @@ static func _defaut(n: String) -> ProfilCible:
 			p.seuil_chute = 24.0
 			p.poids = 0.9
 			p.duree_etourdi = 3.0
-			p.seuil_finisher_vie = 0.3
+			p.seuil_finisher_vie = 0.25
 		"mannequin":
 			p.matiere = "bois"
 			p.sang = false

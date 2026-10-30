@@ -85,6 +85,7 @@ func _tester() -> void:
 		g.recevoir_coup(14.0, derriere, false, {"attaque": "legere", "zone": "torse"})
 		n += 1
 	_verif(g.combat.etourdi > 0.0 and g.etat == g.ETOURDI, "posture brisée après %d coups légers : ÉTOURDI" % n)
+	g.vie = g.vie_max * 0.4   # équilibrage (ReglagesCombat) : finisher sur posture brisée / au sol seulement à vie ≤ 50 %
 	j.global_position = g.global_position + Vector3(0, 0, 1.6)
 	var cat: String = g.finisher_possible(j)
 	_verif(cat in ["etourdi", "lateral"], "finisher disponible : « %s »" % cat)
@@ -93,7 +94,7 @@ func _tester() -> void:
 	j.global_position = g.global_position + Vector3(0, 0, 1.6)
 
 	# --- E. finisher (coup lourd) -> décapitation
-	g.vie = 60.0
+	g.vie = g.vie_max * 0.4   # équilibrage : sous 50 % (60 PV = 52 % du guerrier à 115)
 	var b0 := _butins()
 	r = _frapper_ou_achever(g, j, 34.0, {"attaque": "lourde"})
 	_verif(r == "tue" and not g.vivant(), "coup lourd sur cible étourdie : finisher, « tue »")
@@ -138,6 +139,7 @@ func _tester() -> void:
 	r = c.recevoir_coup(34.0, j.global_position, true, {"attaque": "lourde", "zone": "jambes"})
 	_verif(c.etat == c.CHUTE, "coup lourd aux jambes : renversé (CHUTE) [%s]" % c.combat.derniere_reaction)
 	await _frames(110)
+	c.vie = c.vie_max * 0.4   # équilibrage (ReglagesCombat) : finisher sur posture brisée / au sol seulement à vie ≤ 50 %
 	print("   chute : etat=%d t=%.2f au_sol=%s dist=%.2f duree Death01=%.2f" % [c.etat, c._t, c.combat.au_sol, c.global_position.distance_to(j.global_position), c._duree("Death01")])
 	_verif(c.combat.au_sol and c.finisher_possible(j) == "sol", "au sol : finisher « sol » (%s)" % c.finisher_possible(j))
 	r = _frapper_ou_achever(c, j, 34.0, {"attaque": "lourde"})
@@ -172,6 +174,7 @@ func _tester() -> void:
 	o.recevoir_coup(14.0, o.global_position + Vector3(0, 0, -2.0), false, {"attaque": "legere"})
 	o.combat.briser_posture()
 	o._etourdir()
+	o.vie = o.vie_max * 0.4   # équilibrage (ReglagesCombat) : finisher sur posture brisée / au sol seulement à vie ≤ 50 %
 	r = _frapper_ou_achever(o, j, 34.0, {"attaque": "lourde"})
 	await _frames(5)
 	_verif(r == "tue" and not o.modele.has_meta("decapite") and Plaies.nombre(o.modele) == 0, "gore désactivé : finisher sans décapitation ni plaie")

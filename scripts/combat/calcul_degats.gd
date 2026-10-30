@@ -6,12 +6,10 @@ class_name CalculDegats
 
 ## Force de stagger par défaut selon l'attaque (avant le poids de la cible).
 const STAGGER := {"legere": 12.0, "lourde": 28.0, "chargee_max": 42.0, "contre": 34.0, "finisher": 999.0}
-## Multiplicateur de dégâts selon l'attaque (le coup puissant de mains.gd a déjà sa propre base : 1,0).
-const MULT_ATTAQUE := {"legere": 1.0, "lourde": 1.0, "chargee_max": 1.25, "contre": 1.3, "finisher": 1.0}
-## Multiplicateur des coups critiques (tête au coup lourd, cible étourdie ou au sol).
-const CRITIQUE := 1.5
-## Os (squelettes) : multiplicateur des coups lourds (règle historique de draugr.gd : +30 %).
-const OS_LOURD := 1.3
+## Multiplicateurs (attaque, critique, os, furtif) : table unique ReglagesCombat (équilibrage du 2026-10-30).
+const MULT_ATTAQUE := ReglagesCombat.MULT_ATTAQUE
+const CRITIQUE := ReglagesCombat.CRITIQUE
+const OS_LOURD := ReglagesCombat.OS_LOURD
 ## Hauteurs relatives (part de la taille de la cible) des zones.
 const H_TETE := 0.86
 ## La lame passe ~12 cm sous le réticule (taille de biais).
@@ -113,9 +111,19 @@ static func calculer(i: Dictionary, p: ProfilCible, etat: Dictionary) -> Diction
 	if p.matiere == "os" and attaque in ["lourde", "chargee_max"]:
 		d *= OS_LOURD   # des os secs : les coups puissants les brisent
 	d *= 1.0 - clampf(p.armure_part, 0.0, 0.9)
-	var critique: bool = etat.get("etourdi", false) or etat.get("au_sol", false) or (zone == "tete" and attaque != "legere")
-	if critique:
+	# critique (dégâts) : cible étourdie ou au sol seulement ; un coup puissant à la tête reste « critique » pour l'impact
+	# (son, gerbe, décapitation) mais n'empile plus de multiplicateur sur celui de la zone
+	var ouvert: bool = etat.get("etourdi", false) or etat.get("au_sol", false)
+	var critique: bool = ouvert or (zone == "tete" and attaque != "legere")
+	if ouvert:
 		d *= CRITIQUE
+	# attaque furtive (etat["surpris"] : ennemi pas encore en combat, frappé dans le dos ou endormi)
+	if etat.get("surpris", false) and attaque != "finisher":
+		var boss: bool = etat.get("boss", false)
+		d *= (ReglagesCombat.FURTIF_BOSS if boss else ReglagesCombat.FURTIF) * ReglagesCombat.competence("furtivite")
+		if boss and float(etat.get("vie_max", 0.0)) > 0.0:
+			d = minf(d, float(etat["vie_max"]) * ReglagesCombat.FURTIF_PLAFOND_BOSS)
+		r["furtif"] = true
 	r["degats"] = maxf(d, 1.0)
 	r["critique"] = critique
 	if type == "contondant" and p.matiere == "os":

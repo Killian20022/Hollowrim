@@ -130,7 +130,7 @@ func _e(id: String, type: String, pos: Vector3, lacet := 0.0, dort := true, debo
 func plan() -> Array:
 	var B := BAS
 	var r: Array = []
-	var serment := {"reveil_evt": "vague_gardiens", "vie_imposee": 90.0, "degats_imposes": 18.0, "nom_affiche": "Gardien du serment"}
+	var serment := {"reveil_evt": "vague_gardiens", "vie_imposee": ReglagesCombat.vie("gardien_serment"), "degats_imposes": ReglagesCombat.degats("guerrier"), "nom_affiche": "Gardien du serment"}
 	# ============================================================ COLONNE VERTÉBRALE (étage 0)
 	# vestibule (entrée), alcôve d'Eirik et couloir de la herse : bâtis par tertre.gd (pièces uniques : levier, herse, corps d'Eirik)
 	r.append(_cl("niches", Vector2(0, -12), 12.0, 0, 3.0, "tombeau", 3, "prep", "",
@@ -182,7 +182,7 @@ func plan() -> Array:
 			_e("cr_ossuaire_sq1", "squelette", Vector3(-27.7, 0, -21.5), 1.5, true, true),
 			_e("cr_ossuaire_sq2", "squelette", Vector3(-27.7, 0, -18.2), 1.5, true, true),
 			_e("cr_ossuaire_sqa", "squelette_archer", Vector3(-27.0, 0.9, -11.0), -1.2, true, true, {"archer": true, "poste": true}),
-			_e("cr_ossuaire_gardien", "guerrier", Vector3(-21.0, 0, -12.0), 0.0, true, false, {"reveil_evt": REVEIL_OS, "vie_imposee": 120.0, "degats_imposes": 20.0, "nom_affiche": "Gardien des Os"})],
+			_e("cr_ossuaire_gardien", "guerrier", Vector3(-21.0, 0, -12.0), 0.0, true, false, {"reveil_evt": REVEIL_OS, "vie_imposee": ReglagesCombat.vie("gardien"), "degats_imposes": ReglagesCombat.degats("gardien"), "nom_affiche": "Gardien des Os"})],
 		"coffres": [{"id": "cof_ossuaire", "pos": Vector3(-28.2, 0, -24.7), "lacet": PI * 0.5, "butin": {"pieces": 34, "os_draugr": 2, "poussiere_tombe": 1, "table": "coffre_crypte"}}],
 		"interactions": [_it("urne_ossuaire", Vector3(-28.4, 0.5, -19.0), "Urne funéraire", "Fouiller l’urne", "coffre", {"butin": {"pieces": 9, "table": "urne"}, "coffre": Vector3(-28.4, 0, -19.0)}),
 			_it("fragment_os", Vector3(-21.0, 1.9, -16.0), "Fragment du sceau des Os", "Prendre le fragment", "fragment", {"objet": FRAG_OS, "evt": EVT_OS,
@@ -219,7 +219,7 @@ func plan() -> Array:
 		"ennemis": [_e("cr_g1_9", "guerrier", Vector3(21.0, 0, -32.0), 0.4, true, true),
 			_e("cr_g1_10", "sbire", Vector3(30.0, 0, -20.0), 3.5),
 			_e("cr_g1_arch", "squelette_archer", Vector3(33.0, 0, -24.3), -1.9, true, true, {"archer": true}),
-			_e("cr_g1_gardien", "guerrier", Vector3(28.0, 0, -19.6), 0.0, true, false, {"reveil_evt": REVEIL_GIVRE, "vie_imposee": 110.0, "degats_imposes": 19.0, "nom_affiche": "Gardien du Givre"})],
+			_e("cr_g1_gardien", "guerrier", Vector3(28.0, 0, -19.6), 0.0, true, false, {"reveil_evt": REVEIL_GIVRE, "vie_imposee": ReglagesCombat.vie("gardien"), "degats_imposes": ReglagesCombat.degats("gardien"), "nom_affiche": "Gardien du Givre"})],
 		"coffres": [{"id": "cof_g1", "pos": Vector3(34.3, 0, -19.0), "lacet": -PI * 0.5, "nom": "Coffre givré", "butin": {"pieces": 38, "poussiere_tombe": 1, "table": "coffre_crypte"}}],
 		"interactions": [_it("fragment_givre", Vector3(33.2, 1.5, -32.2), "Fragment du sceau du Givre", "Prendre le fragment", "fragment", {"objet": FRAG_GIVRE, "evt": EVT_GIVRE,
 			"texte": ["Un éclat de glace qui ne fond pas, gravé du sceau du Givre.", "Sous la glace du sol, un corps cuirassé s’éveille."]})],
@@ -283,7 +283,7 @@ func plan() -> Array:
 		"ennemis": [_e("cr_lb3_18", "guerrier", Vector3(-33.0, B, -38.0), 0.0, true, true),
 			_e("cr_lb3_19", "sbire", Vector3(-37.8, B, -47.6), 1.5),
 			_e("cr_lb3_arch", "squelette_archer", Vector3(-40.6, B, -47.4), 0.8, true, true, {"archer": true, "poste": true}),
-			_e("cr_lb3_noye", "guerrier", Vector3(-38.0, B, -39.6), 0.0, true, false, {"reveil_evt": REVEIL_EAU, "vie_imposee": 115.0, "degats_imposes": 19.0, "nom_affiche": "Gardien de l’Eau"})],
+			_e("cr_lb3_noye", "guerrier", Vector3(-38.0, B, -39.6), 0.0, true, false, {"reveil_evt": REVEIL_EAU, "vie_imposee": ReglagesCombat.vie("gardien"), "degats_imposes": ReglagesCombat.degats("gardien"), "nom_affiche": "Gardien de l’Eau"})],
 		"coffres": [{"id": "cof_lb3", "pos": Vector3(-28.6, B, -37.7), "lacet": -PI * 0.5, "butin": {"pieces": 47, "lame_antique": 1, "os_draugr": 2, "table": "coffre_crypte", "zone": "crypte_basse"}}],
 		"interactions": [_it("fragment_eau", Vector3(-40.6, B + 1.5, -43.0), "Fragment du sceau de l’Eau", "Prendre le fragment", "fragment", {"objet": FRAG_EAU, "evt": EVT_EAU, "requiert": ["meca:braseros_cisterne:resolu"],
 			"texte": ["Un éclat de pierre humide, gravé du sceau de l’Eau.", "Les eaux de la citerne frémissent derrière vous."]})],

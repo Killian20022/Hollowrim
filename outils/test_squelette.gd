@@ -51,17 +51,21 @@ func _tester() -> void:
 		_verif(sq.get_bone_count() <= 26, "%s : au plus 26 os" % d.type)
 		var tri := _triangles(d)
 		_verif(tri >= BUDGET.x and tri <= BUDGET.y, "%s : %d triangles dans le budget %d-%d" % [d.type, tri, BUDGET.x, BUDGET.y])
-		_verif(d.vie_max == 70.0 and d.nom_affiche == "Squelette", "%s : 70 PV, nommé « Squelette »" % d.type)
+		_verif(d.vie_max == ReglagesCombat.vie("squelette") and d.nom_affiche == "Squelette", "%s : %d PV (ReglagesCombat), nommé « Squelette »" % [d.type, int(d.vie_max)])
 		_verif(d.anim.has_animation("Sword_Idle") and d.anim.has_animation("Death01") and d.anim.has_animation("Sword_Attack"), "%s : animations de la bibliothèque partagée" % d.type)
 	_verif(epee.modele.find_child("epee", true, false).visible and not epee.modele.find_child("arc", true, false).visible, "épéiste : épée visible, arc caché")
 	_verif(archer.modele.find_child("arc", true, false).visible and not archer.modele.find_child("epee", true, false).visible, "archer : arc visible, épée cachée")
 	# --- coups : léger (par derrière : pas de parade), puissant (os fragiles : +30 %)
 	var derriere := epee.global_position + Vector3(0, 0, -2.0)
+	# équilibrage : un squelette pas encore alerté, frappé dans le dos, subit l'attaque furtive (× ReglagesCombat.FURTIF)
 	var r: String = epee.recevoir_coup(10.0, derriere, false)
-	_verif(r == "touche" and absf(epee.vie - 60.0) < 0.01, "coup léger : touché, 60 PV (%s, %.1f)" % [r, epee.vie])
+	var att_epee: float = epee.vie_max - 10.0 * ReglagesCombat.FURTIF
+	_verif(r == "touche" and absf(epee.vie - att_epee) < 0.01, "coup léger furtif : touché, 10 x %.1f, %.1f PV (%s, %.1f)" % [ReglagesCombat.FURTIF, att_epee, r, epee.vie])
 	var derriere2 := archer.global_position + Vector3(0, 0, -2.0)
+	archer._changer(archer.TRAQUE)   # alerté : plus d'attaque furtive
 	archer.recevoir_coup(20.0, derriere2, true)
-	_verif(absf(archer.vie - 44.0) < 0.01, "coup puissant : fragile (20 x 1,3 = 26 dégâts, 44 PV : %.1f)" % archer.vie)
+	var att_arc: float = archer.vie_max - 20.0 * CalculDegats.OS_LOURD
+	_verif(absf(archer.vie - att_arc) < 0.01, "coup puissant : fragile (20 x %.2f, %.1f PV : %.1f)" % [CalculDegats.OS_LOURD, att_arc, archer.vie])
 	# --- mort : ragdoll
 	var morts := []
 	epee.mort.connect(func(id: String) -> void: morts.append(id))

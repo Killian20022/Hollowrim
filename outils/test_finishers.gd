@@ -62,6 +62,7 @@ func _ennemi(genre: String, pos: Vector3, lacet: float) -> CharacterBody3D:
 	return d
 
 func _ouvrir(d: CharacterBody3D, sol: bool) -> void:
+	d.vie = d.vie_max * 0.4   # équilibrage (ReglagesCombat) : finisher sur posture brisée / au sol seulement à vie ≤ 50 %
 	if sol:
 		d._chuter(Vector3.ZERO)
 		d.combat.au_sol = true

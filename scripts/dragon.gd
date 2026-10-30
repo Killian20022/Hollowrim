@@ -34,8 +34,8 @@ var centre := Vector3.ZERO
 var hud: Control
 
 # --- interface attendue par le reste du jeu ---
-var vie_max := 600.0
-var vie := 600.0
+var vie_max := ReglagesCombat.vie("dragon")
+var vie := ReglagesCombat.vie("dragon")
 var nom_affiche := "Dragon de givre"
 var ident := ""
 

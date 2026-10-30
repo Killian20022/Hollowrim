@@ -147,6 +147,8 @@ func frapper(cible: Node, quantite: float, s: DonneesSort, point: Vector3, direc
 		return ""
 	var origine := lanceur.global_position if lanceur != null else point - direction
 	var res := ""
+	if vise != "joueur":
+		quantite *= ReglagesCombat.competence("destruction")   # progression à venir (1,0 pour l'instant)
 	if vise == "joueur":
 		# statuts sur le JOUEUR : gel = ralentissement (joueur.ralentir), choc = secousse, corruption = mana volé
 		var opt := {"type": s.type_degats, "recul": 1.5 if continu else 2.5}

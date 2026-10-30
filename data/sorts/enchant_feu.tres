@@ -17,6 +17,6 @@ degats = 0.0
 statut = "brulure"
 puissance_statut = 4.0
 duree_enchant = 30.0
-degats_enchant = 7.0
+degats_enchant = 5.0
 double = {}
 profil = "lame"

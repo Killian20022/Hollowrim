@@ -15,7 +15,8 @@ static func calculer(arme: DonneesArme, lourd: bool, charge: float, affaibli: bo
 	var base := arme.degats_lourd * lerpf(1.0, arme.bonus_charge_max, clampf(charge, 0.0, 1.0)) if lourd else arme.degats_leger
 	if affaibli:
 		base *= AFFAIBLI
-	return base * mult_competence * bonus_trophee
+	# progression (arbre de compétences à venir) : multiplicateur de la famille d'arme, 1,0 pour l'instant (ReglagesCombat)
+	return base * mult_competence * bonus_trophee * ReglagesCombat.competence_arme(arme.famille, arme.deux_mains)
 
 ## Force de déséquilibre (stagger) d'un coup, dans l'unité des postures ennemies (CalculDegats.STAGGER : léger 12, lourd 28,
 ## chargé 42, contre 34) × le déséquilibre propre de l'arme rapporté à l'épée de métal (léger 0,3 ; lourd 0,7) ; la charge

@@ -223,6 +223,7 @@ func depenser(quantite: float) -> void:
 func recevoir_coup(degats: float, origine: Vector3, options := {}) -> String:
 	if mort:
 		return ""
+	degats /= maxf(ReglagesCombat.competence("armure"), 0.1)   # armure / progression à venir (1,0 pour l'instant)
 	var vers := origine - global_position
 	vers.y = 0.0
 	# magie : protection (sort canalisé de face) — absorbe une part du coup contre du mana ; un coup encaissé peut couper

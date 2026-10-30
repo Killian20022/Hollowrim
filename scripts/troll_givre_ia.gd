@@ -64,8 +64,10 @@ var derniere_attaque := ""
 
 func _ready() -> void:
 	nom_affiche = "Troll de givre"
-	vie_max = 420.0
-	degats = 30.0
+	vie_max = ReglagesCombat.vie("troll")
+	degats = ReglagesCombat.degats("troll")
+	degats_onde = degats * 1.33
+	degats_charge = degats
 	taille = 1.45
 	_mult_force_mort = 1.15
 	var mod := EnnemisNordiques.modele_ia("troll_givre", ident)       # bâti d'avance par le fil de préchauffage (grotte), sinon ici
@@ -430,6 +432,8 @@ func _finisher_permis() -> bool:
 ## (posture brisée), pris de côté étourdi, ou presque mort (« rapide »).
 func finisher_possible(j: Node3D) -> String:
 	var c := super(j)
+	if vie > vie_max * ReglagesCombat.FINISHER_BOSS_VIE:
+		return ""   # mini-chef : finisher seulement à vie basse réelle (ReglagesCombat)
 	return "" if c == "apres_parade" else c
 
 func _reagir(r: Dictionary, vers: Vector3) -> void:

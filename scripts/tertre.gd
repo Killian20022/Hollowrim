@@ -998,7 +998,7 @@ func _lever_svanhild() -> void:
 		"ident": "svanhild", "echelle": 1.12, "boss": "svanhild",
 		"apparence": {"corps": "femme", "casque": "couronne_givre", "cheveux": "Hair_Long", "teinte_cheveux": Color(1.1, 1.15, 1.25), "tenue": {"tunique": Color.WHITE, "haillons": Color.WHITE, "cape": Color.WHITE, "mante": Color.WHITE, "brassards": Color.WHITE, "ceinture": Color.WHITE, "bottes": Color.WHITE, "epaulieres": Color.WHITE},
 			"etoffes": {"tunique": "draugr", "haillons": "draugr", "cape": "draugr", "mante": "blanc", "epaulieres": "draugr"}},
-		"vie_imposee": 260.0, "degats_imposes": 24.0, "nom_affiche": "Svanhild, Dame de givre",
+		"vie_imposee": ReglagesCombat.vie("svanhild"), "degats_imposes": ReglagesCombat.degats("svanhild"), "nom_affiche": "Svanhild, Dame de givre",
 	})
 	var lignes: Array = quetes.texte("svanhild_reveil")
 	for i in lignes.size():
