@@ -1,19 +1,12 @@
 // SOUFFLE DE GIVRE du jet de glace (couche fine) : dessin d'une particule de magie_givre_process.gdshader. Même
-// technique que la vague de flammes validée (magie_vague.gdshader, 2026-10-30) : carré tourné vers la caméra, motif
-// évalué par pixel du MONDE (grain ps1), couleurs en paliers de la palette, couverture tramée par un bruit qui bout
-// (jamais de Bayer). Fusion PRÉMULTIPLIÉE « mixte ».
-//   - BOUFFÉE (2026-10-30, « une seule masse soudée de brume glacée ») : elle ne dessine plus SA forme (avant : volumes
-//     de fumée Kenney en flipbook, chaque bouffée lisible, une grappe de boules) ; elle n'est plus qu'une EMPREINTE
-//     (disque étiré) qui dit « il y a du givre ici ». Couleur, turbulence et tramage viennent d'un CHAMP PARTAGÉ calculé
-//     pour le pixel le long de la LIGNE MÉDIANE réelle du souffle (jet_pts, posés par GestionMagie._vague_axe, qui
-//     retombe un peu : l'air froid est lourd) : toutes les bouffées qui couvrent un pixel y prennent la même couleur,
-//     elles se fondent en une masse. La découpe (corps, bruit n) est celle du feu validé (mêmes échelles : pas de
-//     lambeaux) ; ce qui change : la turbulence défile ~2,5 × plus LENTEMENT (la brume rampe), autour du point touché le
-//     bruit COULE vers le bas, la couleur est froide (cœur blanc-bleu pâle plafonné, jamais blanc pur ; bleu acier au
-//     bord ; brume grise bleutée qui se dissipe en traîne de vapeur), paillettes de givre fines dans la masse, et
-//     presque pas de lumière propre (le givre n'éclaire pas).
-//   - CRISTAL (graine >= 100) : étoile Kenney qui tournoie et SCINTILLE (éclat qui pulse, chaque cristal à son rythme) ;
-//     additive (n'assombrit jamais). Inchangé.
+// architecture que la vague de flammes (magie_vague.gdshader) : carré tourné vers la caméra, motif évalué par pixel du
+// MONDE (grain ps1), couleurs en paliers de la palette, couverture tramée par un bruit qui bout (jamais de Bayer).
+//   - BOUFFÉE : volumes de fumée Kenney enchaînés en flipbook fondu, tourbillon (twirl) qui tourne avec la bouffée (la
+//     brume ROULE), déformés par le bruit précalculé ; cœur blanc → cyan → bleu profond au bord, puis brume froide pâle
+//     qui se dissipe ; quelques points de givre qui scintillent dans le cœur.
+//   - CRISTAL (graine >= 100) : étoile Kenney qui tournoie et SCINTILLE (éclat qui pulse, chaque cristal à son rythme),
+//     blanc au centre, cyan autour ; additive (n'assombrit jamais).
+// Fusion PRÉMULTIPLIÉE « mixte » : les parties claires éclairent (rgb > alpha), la brume couvre légèrement.
 shader_type spatial;
 render_mode unshaded, blend_premul_alpha, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
 #include "res://shaders/magie_occ.gdshaderinc"
@@ -21,21 +14,16 @@ global uniform float magie_echelle;
 
 uniform float eclat = 1.0;
 uniform float opacite = 0.85;    // couverture du souffle (0..1)
-uniform float gros_coeur = 1.0;  // taille du cœur clair (GestionMagie.GROS_COEUR, par école)
-uniform float brume = 0.34;      // couverture de la vapeur froide (traîne, fin de vie)
-uniform vec4 c0 : source_color = vec4(0.91, 0.95, 0.98, 1.0);  // éclat du givre (paillettes, cristaux) : jamais blanc pur
-uniform vec4 c1 : source_color = vec4(0.80, 0.89, 0.95, 1.0);  // cœur blanc-bleu pâle
-uniform vec4 c2 : source_color = vec4(0.62, 0.77, 0.89, 1.0);
-uniform vec4 c3 : source_color = vec4(0.42, 0.59, 0.75, 1.0);  // bleu acier clair
-uniform vec4 c4 : source_color = vec4(0.28, 0.41, 0.56, 1.0);  // bleu acier
-uniform vec4 c5 : source_color = vec4(0.18, 0.27, 0.38, 1.0);
-uniform vec4 c_brume : source_color = vec4(0.63, 0.71, 0.77, 1.0);  // vapeur froide
+uniform float brume = 0.4;       // couverture de la brume en fin de vie
+uniform vec4 c0 : source_color = vec4(1.0, 1.0, 1.0, 1.0);    // cœur blanc
+uniform vec4 c1 : source_color = vec4(0.89, 0.97, 1.0, 1.0);
+uniform vec4 c2 : source_color = vec4(0.62, 0.89, 1.0, 1.0);  // cyan
+uniform vec4 c3 : source_color = vec4(0.31, 0.65, 0.91, 1.0);
+uniform vec4 c4 : source_color = vec4(0.16, 0.36, 0.75, 1.0); // bleu profond
+uniform vec4 c5 : source_color = vec4(0.09, 0.16, 0.40, 1.0);
+uniform vec4 c_brume : source_color = vec4(0.74, 0.85, 0.93, 1.0);
 uniform sampler2D bruit : filter_linear, repeat_enable;
-uniform sampler2D formes : filter_linear, repeat_disable;   // atlas 4×3 (Kenney Particle Pack, CC0) : étoiles des cristaux
-// ligne médiane du souffle (monde) : 8 points de la paume (0) au bout (7), espacés de jet_long / 7 m
-uniform vec3 jet_pts[8];
-uniform float jet_long = 8.5;     // longueur de la ligne (m) : point touché, ou portée en champ libre
-uniform float jet_portee = 8.5;   // portée en champ libre (m) : règle le réchauffement (dissipation) le long du souffle
+uniform sampler2D formes : filter_linear, repeat_disable;   // atlas 4×3 (Kenney Particle Pack, CC0)
 
 varying vec2 v_px;
 varying float v_rpx;
@@ -43,13 +31,7 @@ varying vec4 v_c;
 varying vec2 v_ax;
 varying float v_rl;
 varying float v_cristal;
-varying float v_proche;
-varying vec4 v_j01;
-varying vec4 v_j23;
-varying vec4 v_j45;
-varying vec4 v_j67;
-varying vec4 v_jw0;
-varying vec4 v_jw1;
+varying float v_proche_d;
 
 void vertex() {
 	vec3 centre = MODEL_MATRIX[3].xyz;
@@ -69,8 +51,7 @@ void vertex() {
 	vec2 da = ca.w > 0.0001 ? pa - pc : vec2(0.0);
 	float la = length(da);
 	vec2 ax = la > 0.001 ? da / la : vec2(0.0, 1.0);
-	// étirement : moindre que le feu (souffle lourd qui gonfle, pas langue qui file), retombe avec l'âge
-	float rl = cristal > 0.5 ? rpx : clamp(la, rpx, rpx * mix(4.2, 1.7, smoothstep(0.08, 0.45, INSTANCE_CUSTOM.y)));
+	float rl = cristal > 0.5 ? rpx : clamp(la, rpx, rpx * 5.0);
 	vec2 c = (floor(pc / m) + 0.5) * m;
 	vec2 off = vec2(-ax.y, ax.x) * VERTEX.x * 2.0 * (rpx + m) + ax * VERTEX.y * 2.0 * (rl + m);
 	v_ax = ax;
@@ -81,20 +62,7 @@ void vertex() {
 	v_c = INSTANCE_CUSTOM;
 	v_c.x -= cristal * 100.0;
 	v_cristal = cristal;
-	v_proche = step(0.5, cc.w);
-	vec2 jp_[8];
-	float jw_[8];
-	for (int i = 0; i < 8; i++) {
-		vec4 cj = PROJECTION_MATRIX * (VIEW_MATRIX * vec4(jet_pts[i], 1.0));
-		jw_[i] = max(cj.w, 0.05);
-		jp_[i] = (cj.xy / jw_[i] * 0.5 + 0.5) * vp;
-	}
-	v_j01 = vec4(jp_[0], jp_[1]);
-	v_j23 = vec4(jp_[2], jp_[3]);
-	v_j45 = vec4(jp_[4], jp_[5]);
-	v_j67 = vec4(jp_[6], jp_[7]);
-	v_jw0 = vec4(jw_[0], jw_[1], jw_[2], jw_[3]);
-	v_jw1 = vec4(jw_[4], jw_[5], jw_[6], jw_[7]);
+	v_proche_d = cc.w;
 	if (s < 0.000001 || INSTANCE_CUSTOM.y >= 1.0 || cc.w < 0.5) {
 		POSITION = vec4(0.0, 0.0, 2.0, 1.0);   // inactive ou contre l'œil : hors du volume de vue
 	}
@@ -102,7 +70,6 @@ void vertex() {
 
 #include "res://shaders/magie_bruit.gdshaderinc"
 
-// dégradé c0 (h >= 1) → c5 (h <= 0), en paliers (3 par intervalle : palette resserrée, pas de dégradé lisse)
 vec3 rampe(float h) {
 	float x = clamp((1.0 - h) * 5.0, 0.0, 4.999);
 	float i = floor(x);
@@ -118,15 +85,15 @@ void fragment() {
 	float g = v_c.x;
 	float age = clamp(v_c.y, 0.0, 1.0);
 	vec2 qa = vec2(dot(q, vec2(-v_ax.y, v_ax.x)) / v_rpx, dot(q, v_ax) / v_rl);
+	float cr = cos(v_c.z), sr = sin(v_c.z);
+	vec2 ur = mat2(vec2(cr, sr), vec2(-sr, cr)) * qa;
+	float r = length(qa);
+	if (r > 1.0) {
+		discard;
+	}
 	vec2 cell = floor(FRAGCOORD.xy / m);
+	float tr = mh2(cell + vec2(floor(TIME * 12.0) * 7.31, g));
 	if (v_cristal > 0.5) {
-		float r = length(qa);
-		if (r > 1.0) {
-			discard;
-		}
-		float tr = mh2(cell + vec2(floor(TIME * 12.0) * 7.31, g));
-		float cr = cos(v_c.z), sr = sin(v_c.z);
-		vec2 ur = mat2(vec2(cr, sr), vec2(-sr, cr)) * qa;
 		// CRISTAL : étoile qui tournoie et scintille (pulsation propre, éclats brefs)
 		float fi = mod(floor(g * 3.7), 4.0);
 		vec2 us = clamp(ur * 0.5 + 0.5, vec2(0.01), vec2(0.99));
@@ -146,140 +113,57 @@ void fragment() {
 		ALBEDO = col * k * 1.4 * eclat;
 		ALPHA = 0.0;   // additif
 	} else {
-		// --- BOUFFÉE : empreinte (disque étiré, moitié arrière courte), comme la vague de flammes ---
-		qa.y *= qa.y < 0.0 ? mix(1.0, 2.6, clamp((v_rl / v_rpx - 1.0) * 0.5, 0.0, 1.0)) : 1.0;
-		float r = length(qa);
-		if (r > 1.0) {
-			discard;
+		// BOUFFÉE de souffle
+		float tt = TIME + g;
+		vec2 np = ur * (1.3 + age * 0.9) + vec2(g * 1.3, g * 0.7);
+		vec2 w = texture(bruit, (np * 0.8 + vec2(0.0, tt * 1.3)) * 0.125).rg;
+		float n = texture(bruit, (np * 1.2 + (w - 0.5) * 2.2 + vec2(tt * 0.7, -tt * 1.1 - age * 2.5)) * 0.125).b;
+		// (2026-10-30, comme le jet de flammes Kenney) images NETTES : forme tenue puis bascule rapide, déformation réduite
+		vec2 dw = (w - 0.5) * (0.09 + 0.11 * age);
+		vec2 up = clamp(ur * 0.5 * (1.0 + 0.1 * age) + 0.5 + dw, vec2(0.01), vec2(0.99));
+		float fa = age * 4.5 + TIME * 1.2 + g * 3.0;
+		float fi = floor(fa);
+		float ff = smoothstep(0.82, 0.97, fract(fa));
+		float ia = mod(fi, 4.0), ib = mod(fi + 1.0, 4.0);
+		float vol = mix(texture(formes, (up + vec2(ia, 0.0)) / vec2(4.0, 3.0)).r, texture(formes, (up + vec2(ib, 0.0)) / vec2(4.0, 3.0)).r, ff);
+		// tourbillon : la brume roule (twirl tourné avec la bouffée), surtout au milieu de sa vie
+		float tw = texture(formes, (up + vec2(mod(floor(g * 5.0), 3.0), 1.0)) / vec2(4.0, 3.0)).r;
+		float dens = mix(vol, max(vol * 0.8, tw * 1.1), 0.5 * smoothstep(0.08, 0.3, age) * (1.0 - smoothstep(0.6, 0.85, age))) * 1.6;
+		if (age > 0.6) {
+			float fin = texture(formes, (up + vec2(3.0, 1.0)) / vec2(4.0, 3.0)).r;
+			dens = mix(dens, fin * 1.25, smoothstep(0.6, 0.9, age));
 		}
-		// --- CHAMP PARTAGÉ (identique à magie_vague) : coordonnées du souffle pour le centre du pixel du monde ---
-		vec2 fc = (floor(FRAGCOORD.xy / m) + 0.5) * m;
-		vec2 jp_[8] = vec2[8](v_j01.xy, v_j01.zw, v_j23.xy, v_j23.zw, v_j45.xy, v_j45.zw, v_j67.xy, v_j67.zw);
-		float jw_[8] = float[8](v_jw0.x, v_jw0.y, v_jw0.z, v_jw0.w, v_jw1.x, v_jw1.y, v_jw1.z, v_jw1.w);
-		float px_m = abs(PROJECTION_MATRIX[1][1]) * VIEWPORT_SIZE.y * 0.5;
-		float ds = jet_long / 7.0;
-		float sw = 0.0, ss = 0.0, sl = 0.0, sd = 0.0, swj = 0.0, sm_ = 0.0, smpp = 0.0;
-		float best = 1e20;
-		int bi = 0;
-		float avant0 = 0.0;
-		float e2m = 4.0 * m * m;
-		for (int i = 0; i < 7; i++) {
-			vec2 e = jp_[i + 1] - jp_[i];
-			float le2 = max(dot(e, e), 1.0);
-			float le = sqrt(le2);
-			vec2 dp = fc - jp_[i];
-			float tu = dot(dp, e) / le2;
-			if (i == 0) {
-				avant0 = max(-tu, 0.0) * le;
-			}
-			float tc = clamp(tu, 0.0, 1.0);
-			vec2 dd = dp - e * tc;
-			float d2 = dot(dd, dd);
-			float crs = (dp.x * e.y - dp.y * e.x) / le;
-			float li = (crs >= 0.0 ? 1.0 : -1.0) * sqrt(d2);
-			float extra = 0.0;
-			float lid = li;
-			if (i == 6 && tu > 1.0) {
-				li = crs;
-				extra = (tu - 1.0) * le * jw_[7] / px_m;
-			}
-			float wa = jw_[i];
-			float wb = jw_[i + 1];
-			float ai = tc * wa / max(wb + tc * (wa - wb), 0.05);
-			float wgt = 1.0 / ((d2 + e2m) * (d2 + e2m));
-			sw += wgt;
-			ss += wgt * (float(i) + ai) * ds;
-			sm_ += wgt * extra;
-			sl += wgt * li;
-			sd += wgt * abs(lid);
-			swj += wgt * mix(wa, wb, ai);
-			smpp += wgt * ds / le;
-			if (d2 < best) {
-				best = d2;
-				bi = i;
-			}
-		}
-		float sj = ss / sw;
-		float lat = sl / sw;
-		float latd = sd / sw;
-		float wj = swj / sw;
-		float sm = sj + sm_ / sw;
-		// rayon du souffle vu à l'écran (il s'ouvre un peu plus que le feu : la brume gonfle)
-		float rj = (0.08 + 0.095 * sj) * px_m / max(wj, 0.05);
-		float ln = lat / max(rj, m);
-		float lna = latd / max(rj, m);
-		float t = TIME;
-		// turbulence : MÊMES échelles que le feu (découpe sans lambeaux), mais qui défile ~2,5 × plus lentement (≈ 3 m/s) :
-		// la brume ROULE et rampe au lieu de fuser
-		vec2 jp = vec2(ln * 0.16, sm * 0.30);
-		vec2 wv = texture(bruit, vec2(jp.x * 0.7 + 0.37, jp.y * 0.55 - t * 0.42)).rg;
-		vec2 np = jp + (wv - 0.5) * vec2(0.22, 0.30);
-		float n = texture(bruit, vec2(np.x, np.y - t * 0.85)).b;
-		float n2 = texture(bruit, vec2(np.x * 1.7 + 0.5, np.y * 1.6 - t * 0.55 + 0.21)).a;
-		n = mix(n, n2, 0.4);
-		// plaques de givre (COULEUR seulement, comme les veines du feu : la découpe reste celle de n)
-		float n3 = texture(bruit, np * 3.4 + vec2(0.23, -t * 0.9)).r;
-		// autour du BOUT (point touché) et là où le souffle file vers le fond : bruit dans le plan de l'écran, qui COULE
-		// vers le bas (l'air froid tombe et s'étale), lentement
-		float k_bout = smoothstep(jet_long - 1.2 * ds, jet_long + 0.5 * ds, sm);
-		k_bout = max(k_bout, smoothstep(0.025, 0.07, smpp / sw * 0.3 * m));
-		if (k_bout > 0.0) {
-			vec2 pb = (fc - jp_[7]) * jw_[7] / px_m;
-			vec2 wb = texture(bruit, pb * 0.21 + vec2(0.61, -t * 0.2)).rg;
-			float nb = texture(bruit, pb * 0.36 + (wb - 0.5) * 0.3 + vec2(0.13, -t * 0.36)).b;
-			n = mix(n, nb, k_bout);
-		}
-		// --- couverture : empreinte rongée par la turbulence PARTAGÉE (identique au feu) ---
-		float corps = (1.0 - r) * 2.4 - 0.5 + (n - 0.5) * 2.5;
-		corps -= bi == 0 ? clamp(avant0 / max(rj, 2.0 * m), 0.0, 1.0) * 2.5 : 0.0;
-		corps -= smoothstep(0.42, 0.95, age) * (1.1 + (0.5 - n) * 1.8);
-		corps *= smoothstep(0.0, 0.012, age) * v_proche;
+		float corps = (dens - 0.08 + (n - 0.5) * (0.3 + 0.3 * age)) * 2.8;
+		corps -= max(0.0, 0.45 - n) * 1.8 * age * age;
+		corps -= (1.0 - smoothstep(0.02, 0.06, age)) * 0.12;
+		corps *= smoothstep(0.0, 0.012, age) * (1.0 - smoothstep(0.75, 1.0, age));
 		if (corps < 0.03) {
 			discard;
 		}
 		if (magie_cachee(SCREEN_UV, FRAGCOORD.z, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX)) {
 			discard;
 		}
-		// --- « froid » PARTAGÉ : se dissipe le long du souffle, plus dense sur l'axe, marbré par la turbulence ---
-		float qd = sj / max(jet_portee, 1.0);
-		float coeur = 1.0 - clamp(lna, 0.0, 1.6) / 1.6;
-		float h = 0.64 - 0.85 * pow(qd, 1.2) + coeur * 0.26 * gros_coeur + (n - 0.5) * 0.6 + (wv.x - 0.5) * 0.25;
-		h += (n3 - 0.5) * 0.35 * smoothstep(0.2, 0.5, h);
-		// loin de l'axe (brume qui retombe, qui traîne quand on tourne, qui s'étale au contact) : bleu acier puis brume
-		h -= clamp(lna - 0.8, 0.0, 1.4) * 0.4 * (1.0 - 0.5 * k_bout);
-		// cœur blanc-bleu pâle, jamais blanc pur (plafond entre les paliers c1 et c2)
-		h = min(h, 0.66 + 0.06 * smoothstep(0.3, 1.5, sj));
-		float k = clamp(corps * 3.0, 0.0, 1.0);
-		// couverture tramée par un bruit (pas de Bayer) qui bout à 12 images/s, la MÊME pour toutes les bouffées
-		float tr = mh2(cell + vec2(floor(TIME * 12.0) * 7.31, 3.7));
-		k = clamp(floor(k * 3.0 + tr) / 3.0, 0.0, 1.0);
+		// teinte : blanc au cœur des jeunes bouffées denses, cyan, bleu profond au bord et en vieillissant, puis brume
+		float h = 0.46 - age * 0.45 + (dens - 0.55) * 0.75 + (0.35 - r) * 0.45 + (n - 0.5) * 0.9 + (w.x - 0.5) * 0.3
+			+ (fract(g * 0.618) - 0.5) * 0.25;
+		// pas de voile blanc laiteux contre la main
+		h = min(h, mix(0.55, 0.92, smoothstep(0.8, 1.2, dens)) + 0.15 * smoothstep(0.6, 2.5, v_proche_d));
+		float k = clamp(corps, 0.0, 1.0);
+		k = clamp(floor(k * 4.0 + tr) / 4.0, 0.0, 1.0);
 		if (k <= 0.0) {
 			discard;
 		}
-		vec3 c;
-		float al;
-		float lum;
-		if (h > 0.0) {
-			c = rampe(h);
-			// masse presque couvrante (sinon l'empilement redessine les empreintes), les bords se dissipent en brume
-			al = opacite * clamp(0.74 + h * 0.2, 0.0, 0.92) * (1.0 - 0.4 * smoothstep(0.9, 1.9, lna));
-			lum = clamp(h - 0.62, 0.0, 1.0) * 0.18;   // presque pas de lumière propre : le givre n'éclaire pas
-			// paillettes de givre fines dans la masse (pixels du monde qui scintillent, chacun à son instant)
-			float sp = step(0.983, mh2(cell * 1.37 + vec2(floor(TIME * 8.0) * 3.1, 5.3))) * smoothstep(0.25, 0.5, h);
-			c = mix(c, c0.rgb, sp);
-			lum += sp * 0.55;
-		} else {
-			// traîne de vapeur froide : bleu acier qui pâlit en brume grise bleutée, légère, sans lumière
-			float f = clamp(-h * 2.5, 0.0, 1.0);
-			c = mix(c4.rgb, c_brume.rgb, f);
-			al = mix(opacite * 0.62, brume, f);
-			lum = 0.0;
-		}
-		// bouffées âgées (bout, cordon qui traîne quand on tourne, où elles s'espacent) : elles PÂLISSENT en vapeur
-		// transparente au lieu de rester des boules couvrantes (alpha seulement : la découpe n'est pas touchée)
-		float vieux = smoothstep(0.5, 0.95, age);
-		c = mix(c, c_brume.rgb, vieux * 0.5);
-		al *= 1.0 - 0.65 * vieux;
+		float vieux = smoothstep(0.55, 0.95, age);
+		vec3 c = rampe(h);
+		float al = opacite * clamp(0.55 + h * 0.3, 0.25, 1.0);
+		float lum = clamp(h - 0.7, 0.0, 1.0) * 0.4;
+		// givre qui scintille dans le cœur (points brefs, chaque pixel du monde à son instant)
+		float sp = step(0.985, mh2(cell * 1.37 + vec2(floor(TIME * 9.0) * 3.1, g * 11.0))) * step(0.45, dens) * (1.0 - vieux);
+		c = mix(c, c0.rgb, sp);
+		lum += sp * 0.8;
+		// brume froide en fin de vie : pâle, légère, sans lumière
+		c = mix(c, c_brume.rgb, vieux * 0.75);
+		al = mix(al, brume, vieux);
 		lum *= 1.0 - vieux;
 		ALBEDO = c * (al + lum) * eclat * k;
 		ALPHA = al * k;
