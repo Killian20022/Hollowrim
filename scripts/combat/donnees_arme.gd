@@ -11,8 +11,16 @@ enum Categorie { VIDE, EPEE, TORCHE, BOUCLIER, SORT }
 @export var id := ""
 @export var nom := ""
 @export var categorie: Categorie = Categorie.EPEE
-## Arme à deux mains : la main gauche est libérée de tout autre objet (Equipement.equiper).
+## Arme à deux mains : la main gauche est libérée de tout autre objet (Equipement.equiper) et vient tenir la poignée sous la
+## main droite (mains._poser_deux_mains, IK) ; profil d'animation « deux_mains » (famille générique, clips bras_2mains.tres).
 @export var deux_mains := false
+## Deux mains : distance (m, le long de la fusée) du centre du poing droit au centre du poing gauche, vers le pommeau
+## (largeur d'un poing ≈ 9 cm + un peu de jeu). Le poing gauche ne descend pas sous `fusee_bas` (bas de la fusée, repère du modèle).
+@export var ecart_mains := 0.095
+@export var fusee_bas := -0.2
+## Deux mains : rotation de la main gauche autour de la fusée (degrés) et pôle de son coude (repère caméra).
+@export var rotation_main_gauche := 0.0
+@export var coude_gauche_2m := Vector3(-0.35, -1.0, 0.15)
 
 @export_group("Modèle")
 ## Chemin du modèle (.glb ou .tscn). Vide : pas de modèle (main vide) ou objet construit par le code (torche).
@@ -27,7 +35,8 @@ enum Categorie { VIDE, EPEE, TORCHE, BOUCLIER, SORT }
 ## Teinte et lueur de la lame : Skarnholt dorée, lames enchantées plus tard. Teinte d'alpha nul = celle du modèle.
 @export var teinte := Color(0, 0, 0, 0)
 @export var emission := Color(0, 0, 0)
-## Lire `garde` et `pointe` dans les nœuds vides du modèle quand il en a (épées longues) : le tracé suit le modèle.
+## Lire `garde`, `pointe` (et `prise`, centre du poing droit → milieu_poignee) dans les nœuds vides du modèle quand il en a
+## (épées longues, hybrides) : le tracé et la prise suivent le modèle.
 @export var reperes_du_modele := true
 
 @export_group("Pose FPS de repos")
