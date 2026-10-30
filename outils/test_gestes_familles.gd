@@ -89,7 +89,9 @@ func _arc(clip: String) -> Array:
 	var pts: Array[Vector2] = []
 	var t := float(m["frappe"])
 	while t <= float(m["fin_frappe"]) + 1e-6:
-		pts.append(ProfilsAnimation.vers_ecran(mains.transform * (mains.anim.pose_arme(clip, t) * mains._pointe_lame)))
+		var c: Vector3 = mains.transform * (mains.anim.pose_arme(clip, t) * mains._pointe_lame)
+		if c.z < -0.15:   # tête devant la caméra seulement (armé au-dessus / derrière la tête : hors champ, projection sans sens)
+			pts.append(ProfilsAnimation.vers_ecran(c))
 		t += 1.0 / 120.0
 	var pire := 0.0
 	for i in range(1, pts.size() - 1):

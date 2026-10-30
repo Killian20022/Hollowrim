@@ -170,13 +170,15 @@ H1_MILIEU = pose(G.D4_MILIEU, "H1_milieu")
 H1_IMPACT = pose(G.D4_FIN, "H1_impact", interp="lin")
 H1_RECUL = decale(G.D4_FIN, "H1_recul", dx=0.03, dy=0.05, dz=-0.03)          # la tête rebondit un peu en arrière
 H1_TIENT = decale(G.D4_FIN, "H1_tient", dx=0.02, dy=0.03, dz=-0.02)
-# --- 2 : revers haut-gauche -> bas-droite (armé au-dessus de l'épaule gauche ; revers R de l'épée, coupé à l'impact) ---
-H2_ARME = pose(G.R_ARME, "H2_arme", poing=E(-0.22, 0.04, 0.50), **L)
-H2_TENSION = pose(G.R_TENSION, "H2_tension", poing=E(-0.27, 0.08, 0.49), **L)
-H2_MILIEU = pose(G.R_MILIEU, "H2_milieu", **L)
-H2_IMPACT = pose(G.R_FIN, "H2_impact", poing=E(0.40, -0.44, 0.56), interp="lin", **L)
-H2_RECUL = pose(H2_IMPACT, "H2_recul", poing=E(0.37, -0.38, 0.54), lame=(0.82, 0.12, -0.56), interp="amorti")
-H2_TIENT = pose(H2_RECUL, "H2_tient", poing=E(0.38, -0.40, 0.54))
+# --- 2 : revers haut-gauche -> bas-droite : revers à plat HG4 de l'épée (avant-bras en pronation constante, aucun
+# retournement), incliné en DIAGONALE DESCENDANTE (armé plus haut à gauche, impact bas à droite), coupé à l'impact ---
+H2_ARME = decale(G.HG4_ARME, "H2_arme", dy=0.20, lame=(-0.90, 0.36, -0.24))
+H2_TENSION = decale(G.HG4_TENSION, "H2_tension", dy=0.22, lame=(-0.92, 0.36, -0.12))
+H2_ENTREE = decale(G.HG4_ENTREE, "H2_entree", dy=0.10, lame=(-0.80, 0.20, -0.56))
+H2_MILIEU = decale(G.HG4_MILIEU, "H2_milieu", dy=-0.02, lame=(-0.52, 0.0, -0.85))
+H2_IMPACT = decale(G.HG4_FIN, "H2_impact", dy=-0.14, lame=(-0.18, -0.12, -0.97), interp="lin")
+H2_RECUL = decale(G.HG4_FIN, "H2_recul", dx=-0.03, dy=-0.10, dz=-0.02, lame=(-0.25, -0.05, -0.96))
+H2_TIENT = decale(G.HG4_FIN, "H2_tient", dx=-0.02, dy=-0.12, dz=-0.02, lame=(-0.22, -0.08, -0.97))
 # --- 3 : taille verticale (V3 de l'épée : armé court au coin haut droit, la tête tombe dans un plan vertical, le poignet
 # casse à l'impact) ---
 H3_ARME = pose(G.V3_ARME, "H3_arme")
@@ -244,20 +246,25 @@ G1_IMPACT = dict(nom="G1_impact", poing=E(0.18, -0.50, 0.58), lame=(-0.45, -0.55
                  clav=(24, 0), epaule=(-0.08, 0.0, -0.10), interp="lin", torsion=-40, **L)
 G1_RECUL = pose(G1_IMPACT, "G1_recul", poing=E(0.19, -0.45, 0.58), lame=(-0.45, -0.46, -0.77), interp="amorti")
 G1_POSE = pose(G1_IMPACT, "G1_pose", poing=E(0.17, -0.52, 0.58), lame=(-0.44, -0.58, -0.68), interp="amorti")
-# diagonale haut-droite -> bas-gauche jusqu'au sol (A2 de la claymore)
+# diagonale haut-droite -> bas-gauche jusqu'au sol (A2 de la claymore, resserrée vers le centre : la tête traverse la cible)
 G2_ARME = dict(nom="G2_arme", poing=E(0.52, 0.06, 0.58), lame=(0.30, 0.90, 0.30), roulis=G.TRANCHE, coude=(1, -0.4, 0.3), clav=(-6, 12),
                epaule=(0.02, 0.04, 0.02), torsion=40, **L)
 G2_TENSION = pose(G2_ARME, "G2_tension", poing=E(0.57, 0.12, 0.57), lame=(0.36, 0.86, 0.36))
-G2_ENTREE = dict(nom="G2_entree", poing=E(0.42, 0.0, 0.54), lame=(-0.25, 0.92, -0.30), mouvement=(-0.6, -0.8, 0), coude=(1, -0.6, 0.2),
+G2_ENTREE = dict(nom="G2_entree", poing=E(0.42, 0.0, 0.54), lame=(-0.15, 0.85, -0.50), mouvement=(-0.6, -0.8, 0), coude=(1, -0.6, 0.2),
                  clav=(8, 8), epaule=(-0.02, 0.02, -0.03), interp="passe", torsion=10, **L)
-G2_MILIEU = dict(nom="G2_milieu", poing=E(0.16, -0.25, 0.58), lame=(-0.88, 0.30, -0.36), mouvement=(-0.5, -0.85, 0), coude=(0.6, -1, 0.0),
+G2_MILIEU = dict(nom="G2_milieu", poing=E(0.18, -0.22, 0.60), lame=(-0.55, 0.10, -0.83), mouvement=(-0.5, -0.85, 0), coude=(0.6, -1, 0.0),
                  clav=(20, 4), epaule=(-0.06, 0.0, -0.07), interp="passe", torsion=-35, **L)
-G2_IMPACT = dict(nom="G2_impact", poing=E(-0.04, -0.48, 0.56), lame=(-0.74, -0.56, -0.36), mouvement=(-0.6, -0.7, 0.2), coude=(0.3, -1, -0.2),
+G2_IMPACT = dict(nom="G2_impact", poing=E(0.02, -0.46, 0.58), lame=(-0.50, -0.50, -0.71), mouvement=(-0.6, -0.7, 0.2), coude=(0.3, -1, -0.2),
                  clav=(30, 0), epaule=(-0.11, 0.02, -0.11), interp="lin", torsion=-65, **L)
-G2_RECUL = pose(G2_IMPACT, "G2_recul", poing=E(-0.01, -0.43, 0.56), lame=(-0.74, -0.46, -0.48), interp="amorti")
-G2_POSE = pose(G2_IMPACT, "G2_pose", poing=E(-0.05, -0.50, 0.56), lame=(-0.72, -0.60, -0.35), interp="amorti")
+G2_RECUL = pose(G2_IMPACT, "G2_recul", poing=E(0.04, -0.42, 0.58), lame=(-0.50, -0.40, -0.77), interp="amorti")
+G2_POSE = pose(G2_IMPACT, "G2_pose", poing=E(0.01, -0.48, 0.58), lame=(-0.49, -0.54, -0.68), interp="amorti")
 GP_CHARGE = pose(G1_TENSION, "GP_charge", poing=E(0.25, 0.14, 0.48), lame=(-0.18, 0.60, 0.78))
 GP_ARME = pose(GP_CHARGE, "GP_arme", poing=E(0.25, 0.17, 0.47), lame=(-0.17, 0.55, 0.82))
+
+# torsions bornées (progression régulière de l'avant-bras, jamais de retournement entre deux clés de frappe)
+for _d, _tb in ((G1_ENTREE, -15), (G1_MILIEU, -55), (G1_IMPACT, -85), (G1_RECUL, -85), (G1_POSE, -85),
+                (G2_ARME, 60), (G2_TENSION, 60), (G2_ENTREE, 15), (G2_MILIEU, -40), (G2_IMPACT, -80), (G2_RECUL, -80), (G2_POSE, -80)):
+    _d["tb"] = _tb
 
 CLIPS = {
     # tenues
@@ -267,7 +274,7 @@ CLIPS = {
     # haches : armé court, frappe très courte, arrêt net, recul, retour
     "h_a": [cle(REPOS_H, 0.0), cle(H1_ARME, 0.15), cle(H1_TENSION, 0.20), cle(H1_ENTREE, 0.235), cle(H1_MILIEU, 0.265),
             cle(H1_IMPACT, 0.30), cle(H1_RECUL, 0.35), cle(H1_TIENT, 0.42), cle(REPOS_H, 0.68)],
-    "h_b": [cle(REPOS_H, 0.0), cle(H2_ARME, 0.17), cle(H2_TENSION, 0.22), cle(H2_MILIEU, 0.275),
+    "h_b": [cle(REPOS_H, 0.0), cle(H2_ARME, 0.17), cle(H2_TENSION, 0.22), cle(H2_ENTREE, 0.25), cle(H2_MILIEU, 0.28),
             cle(H2_IMPACT, 0.32), cle(H2_RECUL, 0.37), cle(H2_TIENT, 0.44), cle(REPOS_H, 0.70)],
     "h_c": [cle(REPOS_H, 0.0), cle(H3_ARME, 0.17), cle(H3_TENSION, 0.22), cle(H3_ENTREE, 0.255), cle(H3_MILIEU, 0.285),
             cle(H3_IMPACT, 0.32), cle(H3_RECUL, 0.37), cle(H3_TIENT, 0.45), cle(REPOS_H, 0.72)],
