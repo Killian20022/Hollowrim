@@ -1,0 +1,5 @@
+# Ossuaire v2 (crânes et os anatomiques) : mêmes cadrages avant / après, mur E de l'ossuaire (x = -13,3 ; panneau z -17,7..-11,1).
+oss_e_1m crypte -14.3,-12.3,-90,0 ouvre=s1,s2,s3,secret,herse sans-mains
+oss_e_4m crypte -17.3,-13.3,-90,-3 ouvre=s1,s2,s3,secret,herse sans-mains
+oss_o_3m crypte -25.7,-23.5,95,-4 ouvre=s1,s2,s3,secret,herse sans-mains
+oss_autel crypte -18.3,-14.0,55,-16 ouvre=s1,s2,s3,secret,herse sans-mains

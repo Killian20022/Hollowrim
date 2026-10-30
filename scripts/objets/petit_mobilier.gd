@@ -121,19 +121,22 @@ static func crane(dcr: CrypteDecor, pos: Vector3, lacet := 0.0) -> void:
 	dcr.j0("crane", lacet)
 	pos = dcr._suivre(pos)
 	dcr.emprise("crane", pos, Vector2(0.1, 0.1), 0.0, 0.22)
-	dcr.modele("crane_" + variante(dcr, pos, 2), pos, lacet, Vector3.ONE, {}, false)
+	# ossuaire v2 : crâne anatomique (ossuaire.py, même anatomie que le squelette ennemi) ; ancien crâne en enveloppes si absent
+	var pre := "oss_crane_" if CrypteDecor.modele_existe("oss_crane_a") else "crane_"
+	dcr.modele(pre + variante(dcr, pos, 2), pos, lacet, Vector3.ONE, {}, false)
 	dcr.j1()
 
 static func os_tas(dcr: CrypteDecor, pos: Vector3, n := 4, rayon := 0.4) -> void:
 	dcr.j0("os_tas")
 	dcr.emprise("os_tas", pos, Vector2(rayon + 0.15, rayon + 0.15), 0.0, 0.2)
 	var v0 := variante(dcr, pos)
+	var pre := "oss_long_" if CrypteDecor.modele_existe("oss_long_a") else "os_long_"      # ossuaire v2 : fémur, côte, tibia anatomiques
 	for k in n:       # mêmes tirages que l'ancienne version (5 par os)
 		var a := dcr.rng.randf() * TAU
 		var d := dcr.rng.randf() * rayon
 		var l := dcr.rng.randf_range(0.2, 0.36)
 		var p := pos + Vector3(cos(a) * d, 0.012 * (k % 2), sin(a) * d)
-		dcr.modele("os_long_" + "abc"[(v0.unicode_at(0) - 97 + k) % 3], p, dcr.rng.randf() * TAU, Vector3(l / 0.3, 1.0, 1.0), {}, false)
+		dcr.modele(pre + "abc"[(v0.unicode_at(0) - 97 + k) % 3], p, dcr.rng.randf() * TAU, Vector3(l / 0.3, 1.0, 1.0), {}, false)
 		dcr.modele("os_court_" + "ab"[(k + v0.unicode_at(0)) % 2], pos + Vector3(cos(a) * d, 0.0, sin(a) * d), dcr.rng.randf() * TAU, Vector3.ONE, {}, false)
 	dcr.crane(pos + Vector3(dcr.rng.randf_range(-0.1, 0.1), 0.0, dcr.rng.randf_range(-0.1, 0.1)), dcr.rng.randf() * TAU)
 	dcr.j1()

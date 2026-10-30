@@ -1436,7 +1436,8 @@ func lampe_glace(pos: Vector3, e := 1.3) -> void:
 func os_monticule(pos: Vector3, r := 0.9, h := 0.6) -> void:
 	d.j0("os_monticule")
 	d.emprise("os_monticule", pos, Vector2(r * 1.1, r * 1.1), 0.0, h)
-	d.modele("os_monticule", pos, 0.2, Vector3(r / 0.9, h / 0.6, r / 0.9), {}, false)      # lot L2 : module Blender (os couchés sur un noyau sombre)
+	# lot L2 : module Blender (os couchés sur un noyau sombre) ; ossuaire v2 : os longs anatomiques entiers (ossuaire.py)
+	d.modele("oss_monticule" if CrypteDecor.modele_existe("oss_monticule") else "os_monticule", pos, 0.2, Vector3(r / 0.9, h / 0.6, r / 0.9), {}, false)
 	for k in 7:
 		var a := d.rng.randf() * TAU
 		var rr := d.rng.randf() * r * 0.8
