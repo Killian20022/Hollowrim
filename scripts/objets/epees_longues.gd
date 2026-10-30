@@ -19,6 +19,7 @@ class_name EpeesLongues
 ##   cuir       cuir tressé (ObjetsTextures « tresse »)
 ##   gemme      pierre bleu pâle (garde de l'épée en métal)
 ##   rubis      cristal rouge à facettes + lueur rouge (shader « lueur » : émission = albédo × force)
+##   saphir     cristal bleu nuit à facettes + lueur bleue (shader « lueur ») : lame de Croc-de-Givre (hybride n°8)
 ##   verre      cristal émeraude TRANSLUCIDE (shader « verre » : alpha + reflet de bord + légère lueur)
 ##   emeraude   gemmes vertes opaques, légère lueur
 ##   obsidienne verre volcanique noir à reflets
@@ -48,6 +49,7 @@ const STATS := {
 const OR := ["#2a1806", "#452a0a", "#664010", "#8a5a18", "#b07a22", "#d29e36", "#ecc45a", "#fbe89a"]
 const OR_ACIER := ["#1e1810", "#30281a", "#463a24", "#62502e", "#80683a", "#9e8448", "#bca25a", "#d8c278", "#efe0a6", "#fdf6d8"]
 const RUBIS := ["#140103", "#2a0306", "#44050a", "#640a10", "#881218", "#b01e26", "#e05458", "#ffb0a8"]
+const SAPHIR := ["#01060f", "#031026", "#06204a", "#0b3470", "#14509a", "#2272c4", "#58a4e8", "#b8e2ff"]
 const EMERAUDE := ["#04170e", "#082a19", "#0e4226", "#165e37", "#20804a", "#36a462", "#62c886", "#b2f0cc"]
 const OBSIDIENNE := ["#040306", "#09070c", "#100d14", "#18141e", "#221c2a", "#302838", "#463c52", "#6a5c78"]
 const VEINE := ["#2a0402", "#4e0904", "#7a1406", "#a8240a", "#d44412", "#f2782a", "#ffb35a"]
@@ -100,6 +102,7 @@ static func materiaux() -> Dictionary:
 		"cuir": Palette.materiau(ObjetsTextures.tex("tresse"), Vector2.ONE),
 		"gemme": _lueur(ImageTexture.create_from_image(_facettes(GEMME, 8, 8, 3)), Color(1.45, 1.45, 1.5), 0.35),
 		"rubis": _lueur(_cristal(RUBIS, 41), Color(1.0, 0.95, 0.95), 0.22),
+		"saphir": _lueur(_cristal(SAPHIR, 63), Color(0.95, 1.0, 1.08), 0.25),
 		"verre": _verre(_cristal(EMERAUDE, 57), 0.5),
 		"emeraude": _lueur(ImageTexture.create_from_image(_facettes(EMERAUDE, 8, 8, 5)), Color(1.1, 1.15, 1.1), 0.3),
 		"obsidienne": Palette.materiau(ImageTexture.create_from_image(_obsidienne()), Vector2.ONE, Color(0.85, 0.85, 1.0)),

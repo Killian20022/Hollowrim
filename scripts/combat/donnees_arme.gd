@@ -129,6 +129,14 @@ enum Categorie { VIDE, EPEE, TORCHE, BOUCLIER, SORT }
 @export var couleur_trainee := Color(0.5, 0.64, 0.9)
 @export var couleur_trainee_coeur := Color(0.94, 0.97, 1.0)
 
+@export_group("Catalogue")
+## Famille de l'arme (CatalogueArmes.FAMILLES) : une_main, epee_longue, deux_mains, dague, masse, marteau, bouclier ; vide =
+## objet qui n'est pas une arme (torche, main vide, main qui incante). Stats de base de chaque famille et variations par
+## matériau : data/armes/catalogue_armes.json. Tenue à deux mains : `deux_mains` (famille deux_mains, grand marteau).
+@export var famille := ""
+## Matériau (acier, fer, or, verre, rubis, saphir, obsidienne, bois) : multiplicateurs du catalogue, élément de la lame.
+@export var materiau := ""
+
 func est_arme() -> bool:
 	return categorie == Categorie.EPEE
 

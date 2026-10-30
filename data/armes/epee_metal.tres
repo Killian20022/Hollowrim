@@ -41,3 +41,5 @@ desequilibre_lourd = 0.7
 preparation = 1.0
 recuperation = 1.0
 hauteur_son = 1.0
+famille = "epee_longue"
+materiau = "acier"

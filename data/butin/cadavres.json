@@ -5,13 +5,15 @@
 			{"id": "poussiere_tombe", "poids": 40},
 			{"id": "lame_antique", "poids": 12},
 			{"id": "potion_soin", "poids": 8},
+			{"table": "armes_communes", "poids": 5},
 			{"table": "valeurs", "poids": 5, "rarete": "peu_commun"}
 		]},
 		"cadavre_bandit": {"or": [6, 22], "tirages": [1, 2], "rien": 25, "entrees": [
 			{"table": "nourriture", "poids": 35},
 			{"table": "potions", "poids": 22},
 			{"id": "anneau_cuivre", "poids": 10},
-			{"id": "lame_antique", "poids": 6}
+			{"id": "lame_antique", "poids": 6},
+			{"table": "armes_communes", "poids": 7}
 		]},
 		"cadavre_mage": {"or": [10, 25], "tirages": [1, 2], "garanti": [{"id": "cristal_givre", "n": 1}], "rien": 20, "entrees": [
 			{"id": "potion_mana", "poids": 40, "n": [1, 2]},

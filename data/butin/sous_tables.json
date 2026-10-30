@@ -1,5 +1,5 @@
 {
-	"_doc": "Sous-tables appelées par les autres (entrée {\"table\": id, \"poids\": n}). Format d'une table : docs/BUTIN.md.",
+	"_doc": "Sous-tables appelées par les autres (entrée {\"table\": id, \"poids\": n}). Format d'une table : docs/BUTIN.md. Armes du catalogue (data/armes/catalogue_armes.json, CatalogueArmes) : communes (acier, fer : corps de bandits et de draugrs, coffres de bandits et de crypte), rares (coffres riches) et armes de crypte (coffre du Jarl, étage inférieur : bonus de rareté x1,5 en crypte_basse). Uniques : Sang-du-Roi, Croc-de-Givre (une fois par partie).",
 	"tables": {
 		"potions": {"tirages": 1, "entrees": [
 			{"id": "potion_soin", "poids": 40, "n": [1, 2]},
@@ -33,6 +33,41 @@
 			{"id": "epee_rubis", "poids": 12},
 			{"id": "epee_verre", "poids": 10},
 			{"id": "epee_obsidienne", "poids": 4}
+		]},
+		"armes_communes": {"tirages": 1, "entrees": [
+			{"id": "epee_soldat", "poids": 20},
+			{"id": "dague_acier", "poids": 18},
+			{"id": "sabre_pillard", "poids": 16},
+			{"id": "hachette", "poids": 16},
+			{"id": "masse_cloutee", "poids": 14},
+			{"id": "hache_guerre", "poids": 12},
+			{"id": "bouclier_cercle", "poids": 12},
+			{"id": "marteau_guerre", "poids": 6},
+			{"id": "ecu_chevalier", "poids": 5},
+			{"id": "garde_du_guet", "poids": 3}
+		]},
+		"armes_rares": {"tirages": 1, "entrees": [
+			{"id": "epee_doree", "poids": 14},
+			{"id": "veilleuse", "poids": 14},
+			{"id": "garde_du_guet", "poids": 10},
+			{"id": "grand_marteau", "poids": 10},
+			{"id": "ecu_chevalier", "poids": 10},
+			{"id": "claymore", "poids": 9},
+			{"id": "dent_d_or", "poids": 8},
+			{"id": "larme_de_givre", "poids": 7},
+			{"id": "crocs_de_cendre", "poids": 6},
+			{"id": "coeur_de_braise", "poids": 5}
+		]},
+		"armes_crypte": {"tirages": 1, "entrees": [
+			{"id": "claymore", "poids": 14},
+			{"id": "coeur_de_braise", "poids": 12},
+			{"id": "crocs_de_cendre", "poids": 12},
+			{"id": "larme_de_givre", "poids": 10},
+			{"id": "dent_d_or", "poids": 10},
+			{"id": "grand_marteau", "poids": 10},
+			{"id": "epee_obsidienne", "poids": 4},
+			{"id": "sang_du_roi", "poids": 3},
+			{"id": "croc_de_givre", "poids": 3}
 		]}
 	}
 }

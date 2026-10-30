@@ -107,6 +107,8 @@ func objet(id: String) -> Resource:
 	var s := sort_par_id(id)
 	if s != null:
 		return s
+	if CatalogueArmes.connu(id):   # armes du catalogue (famille x matériau) ; un data/armes/<id>.tres y sert de modèle
+		return CatalogueArmes.donnees(id)
 	var chemin := DOSSIER_ARMES % id   # toute DonneesArme de data/armes/ par son id (butin, bouclier…)
 	if id.is_valid_filename() and ResourceLoader.exists(chemin):
 		return load(chemin) as DonneesArme
@@ -278,6 +280,9 @@ func objets_possedes(categorie_id := "") -> Array[String]:
 	for id in objets_supplementaires:
 		if not candidats.has(String(id)):
 			candidats.append(String(id))
+	for id in CatalogueArmes.ids():   # armes du catalogue : celles du sac (toutes en période « tout disponible »)
+		if not candidats.has(id) and (test or (inventaire != null and inventaire.a(id))):
+			candidats.append(id)
 	var ordre: Array = catalogue.get("ordre_ecoles", [])
 	var sorts := sorts_connus.duplicate()
 	sorts.sort_custom(func(x: String, y: String) -> bool:
@@ -349,9 +354,11 @@ func fiche(id: String) -> Dictionary:
 				l.append("Rien en main.")
 			"arme", "arme_deux_mains":
 				f["nom"] = a.nom
+				if a.famille != "":
+					l.append("%s (%s)" % [CatalogueArmes.nom_famille(a.famille), CatalogueArmes.nom_materiau(a.materiau)] if a.materiau != "" else CatalogueArmes.nom_famille(a.famille))
 				l.append("Dégâts : %s (léger) / %s (lourd)" % [str(snappedf(a.degats_leger, 0.5)), str(snappedf(a.degats_lourd, 0.5))])
 				l.append("Vitesse : %s   Endurance : %d / %d" % [str(snappedf(a.vitesse, 0.05)), roundi(a.cout_leger), roundi(a.cout_lourd)])
-				l.append("Garde : %d %%" % roundi(a.reduction_garde * 100.0))
+				l.append("Garde : %d %%   Allonge : +%s m" % [roundi(a.reduction_garde * 100.0), str(snappedf(a.allonge, 0.01)).replace(".", ",")])
 				if a.element != "":
 					l.append("Effet : %s" % NOMS_STATUTS.get(a.element, a.element))
 				if a.deux_mains:
