@@ -57,8 +57,8 @@ var _clip := ""                 # clip du geste en cours (coups, contre, finishe
 var _epaule_g := Vector3.ZERO    # tête de upperarm_l au repos (repère des mains)
 var _avance_epaule_g: SkeletonModifier3D   # decalage_bras.gd sur clavicle_l (deux mains : l'épaule gauche s'avance)
 ## Deux mains : part de l'allonge du bras gauche (bras + avant-bras) au-delà de laquelle l'épaule s'avance, et avancée maximale (m).
-const ALLONGE_G_2M := 0.96
-const AVANCE_EPAULE_G_MAX := 0.28
+const ALLONGE_G_2M := 0.94
+const AVANCE_EPAULE_G_MAX := 0.40
 var _milieu_d := 0.03           # centre du poing droit le long de la lame (repère du modèle) : DonneesArme ou repère « prise »
 var _m := {}                    # ses marqueurs (s de clip)
 var _lourd_nom := "lourd"       # attaque puissante choisie au début de la charge (selon le déplacement)

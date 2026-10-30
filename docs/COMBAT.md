@@ -383,6 +383,18 @@ hybride n°6 `data/armes/coeur_de_braise.tres` ; n°7 et n°8 : même réglage, 
 - Limites : finishers à une main (clips « fin/ ») joués tels quels (la main gauche suit la poignée) ; pas de variante
   directionnelle (combo partout) ; frappe du coup 2 vue par la tranche à mi-course (lame pointée vers l'avant).
 
+### v2 (retour utilisateur 2026-10-30 : tenue penchée à droite, arcs circulaires, lame longue, réalisme)
+- Lame : `sources_blender/epees_hybrides/claymore_longue.py` → `assets/modeles/armes/deux_mains/claymore_longue.glb` (lame 1,30 m,
+  total 1,71 m, 1086 triangles : gouttière, talon gainé de cuir à crochets de parade, crans, runes d'or, garde fine) ;
+  `data/armes/claymore_longue.tres` (habillage « claymore », écart des mains 11 cm). L'ancienne n°05 reste (`claymore.tres`).
+- Matériaux réalistes À PART : `scripts/objets/claymore_materiaux.gd` (ClaymoreMateriaux : rubis profond translucide via
+  EpeesLongues.shader_verre, fer usé, cuir à couture) ; `scripts/objets/epees_longues.gd` NON modifié.
+- Tenues : lame penchée à droite (repos ~35°, garde ~55°). Coups : arcs de cercle denses (une clé par 1/60 s, axe fixe, temps
+  en une seule courbe douce), poing sur un petit cercle à droite-bas du centre pour que la lame balaie le réticule ; lame
+  demandée ramenée vers le plan de l'écran (sinon vue en bout) ; torsion continue ; butées « large » élargies pour ces clips.
+- Épaule gauche : avancée jusqu'à 40 cm. Limite : poing gauche à ~8 cm de la fusée au milieu de l'arc de la diagonale et
+  de la puissante (≤ 3,3 cm ailleurs).
+
 ## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)
 (≈ 35° de la verticale à l'écran, pointe vers le centre haut), tranchant (−0,9 ; 0 ; −0,6) (plat et garde en croix

@@ -48,7 +48,7 @@ TT2 = TT
 COUDE = (0.7, -1, 0.1)
 REPOS_2M = dict(nom="repos_2m", poing=E(0.16, -0.50, 0.52), lame=(0.56, 0.78, -0.28), roulis=TT2, coude=(1, -0.9, 0.2), clav=(8, 0),
                 epaule=(-0.03, 0.0, -0.03), large=True)
-SPRINT_2M = dict(nom="sprint_2m", poing=E(0.30, -0.80, 0.46), lame=(0.45, 0.50, -0.74), roulis=TT2, coude=(0.8, -1, 0.3), large=True)
+SPRINT_2M = dict(nom="sprint_2m", poing=E(0.16, -0.55, 0.50), lame=(0.45, 0.50, -0.74), roulis=TT2, coude=(0.8, -1, 0.3), large=True)
 # blocage : lame levée en travers, pointe en haut à DROITE (~55° de la verticale), poignée au centre
 GARDE_2M = dict(nom="garde_2m", poing=E(0.02, -0.30, 0.48), lame=(0.78, 0.58, -0.22), roulis=TT2 + 4, poids_roulis=1.5,
                 coude=(0.6, -1, 0.1), clav=(14, 4), epaule=(-0.05, 0.0, -0.05), large=True)
@@ -121,17 +121,17 @@ def clip_arc(depart, pose, t_arme, t_frappe, t_fin_arc, t_fin, retour=None, extr
 
 
 # 1 : diagonale haut-droite (lame au-dessus de l'épaule droite) -> bas-gauche, lame finit près du sol
-POSE_A, TH_A = arc((0.45, 0.85, 0.30), (-0.70, 0.30, -0.65), (-0.45, -0.55, -0.70), (0.10, -0.06, -0.44), 0.24,
+POSE_A, TH_A = arc((0.45, 0.85, 0.30), (-0.70, 0.30, -0.65), (-0.45, -0.55, -0.70), (0.22, -0.20, -0.44), 0.12,
                    (-6, 12), (30, -2), (0.02, 0.04, 0.02), (-0.12, 0.02, -0.12))
 # 2 : retour en arc : de bas-gauche, la lame remonte par la GAUCHE, passe en haut et finit en haut à droite (jamais cachée par
 # les bras : une lame pointée vers le bas, devant, passe derrière les avant-bras)
-POSE_B, TH_B = arc((-0.45, -0.55, -0.70), (-0.80, 0.25, -0.55), (0.45, 0.80, -0.38), (0.10, -0.08, -0.46), 0.22,
+POSE_B, TH_B = arc((-0.45, -0.55, -0.70), (-0.80, 0.25, -0.55), (0.45, 0.80, -0.38), (0.18, -0.20, -0.46), 0.12,
                    (30, -2), (6, 10), (-0.12, 0.02, -0.12), (0.0, 0.03, -0.01))
 # 3 : grand vertical tête -> pieds (lame au-dessus et derrière la tête, descend devant, finit vers le sol un peu à gauche : à la
 # verticale, elle serait cachée par les avant-bras)
-POSE_C, TH_C = arc((0.10, 0.70, 0.70), (-0.32, 0.30, -0.90), (-0.60, -0.58, -0.55), (0.08, -0.05, -0.43), 0.26,
+POSE_C, TH_C = arc((0.10, 0.70, 0.70), (-0.32, 0.30, -0.90), (-0.60, -0.58, -0.55), (0.22, -0.14, -0.43), 0.14,
                    (-4, 16), (24, 0), (0.0, 0.06, 0.0), (-0.08, 0.0, -0.10), plan_z=0.15)
-POSE_P, TH_P = arc((0.10, 0.70, 0.70), (-0.32, 0.30, -0.90), (-0.60, -0.58, -0.55), (0.08, -0.04, -0.43), 0.28,
+POSE_P, TH_P = arc((0.10, 0.70, 0.70), (-0.32, 0.30, -0.90), (-0.60, -0.58, -0.55), (0.22, -0.13, -0.43), 0.15,
                    (-6, 18), (26, 0), (0.0, 0.07, 0.01), (-0.09, 0.0, -0.11), plan_z=0.15)
 
 C_A, M_A = clip_arc(REPOS_2M, POSE_A, 0.30, 0.38, 0.80, 1.20)
