@@ -84,10 +84,10 @@ const DECHARGE_VIE := 0.13
 ## Jet de glace (couche fine) : SOUFFLE DE GIVRE, même technique que la vague de flammes (magie_givre*.gdshader) : une
 ## seule masse de brume (empreintes + champ partagé le long de _vague_axe) et cristaux qui tournoient puis s'accrochent au
 ## point touché. Portée (m), vie (s), freinage (1/s), particules vivantes (dont GIVRE_CRISTAUX de cristaux).
-## Retouche du 2026-10-30 (« plus lent, plus lourd, qui rampe ») : vie plus longue et freinage plus doux (≈ 6 m/s en
-## moyenne contre 9 pour le feu), la brume retombe (GIVRE_LOURD) et rampe au sol au contact (GIVRE_SOL).
+## Retouche du 2026-10-30 (« plus lent, plus lourd, qui rampe ») : freinage plus doux, vie à peine plus longue (≈ 7 m/s en
+## moyenne contre 9 pour le feu ; au-delà de 1,2 s le cordon se défait en boules quand on tourne), la brume retombe (GIVRE_LOURD) et rampe au sol au contact (GIVRE_SOL).
 const GIVRE_PORTEE := 8.5
-const GIVRE_VIE := 1.4
+const GIVRE_VIE := 1.2
 const GIVRE_TRAINE := 1.2
 const GIVRE_N := 120
 const GIVRE_CRISTAUX := 0.22

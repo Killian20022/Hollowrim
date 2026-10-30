@@ -404,3 +404,24 @@ Cinq retours utilisateur sur les sorts de la couche fine ; planches avant/après
   (angle + π ± 0,6 rad) : les branches ne penchent plus toutes du même côté.
 - Limites : à 1,75 m, le jet garde un peu de forme en lobes au contact ; sur le mannequin, les points carrés des dégâts
   (`GerbesPixels`) ne sont pas de la magie et restent.
+
+## Souffle de givre en vague (branche magie/givre_vague, 2026-10-30)
+
+Même technique que le jet de flammes validé (jet_vague_v2) : en couche fine, la bouffée du souffle n'est plus un volume de
+fumée Kenney (grappe de boules lisibles) mais une EMPREINTE ; couleur, turbulence et tramage viennent du champ partagé le
+long de la ligne médiane (`_vague_axe`, paramétré : constantes du givre + `chute`, la ligne retombe comme les bouffées).
+La découpe (corps, bruit n, mêmes échelles) est celle du feu : une seule masse soudée, sans lambeaux.
+- `magie_givre.gdshader` : turbulence qui défile ~2,5 × plus lentement que le feu ; autour du point touché le bruit coule
+  vers le bas ; cœur blanc-bleu pâle plafonné (jamais blanc pur), bords bleu acier qui se dissipent en brume (alpha),
+  plaques de givre (couleur seulement), paillettes fines, traîne de vapeur grise bleutée ; les bouffées âgées pâlissent
+  en vapeur transparente. Presque pas de lumière propre. Cristaux (étoiles Kenney) inchangés.
+- `magie_givre_process.gdshader` : `turb_vit`, `coule`, `lateral` (au contact la brume coule vers le bas), `sol_y` +
+  `rampe_sol` : la brume qui descend au sol y est retenue, sa chute devient un étalement et elle rampe en s'attardant.
+- `gestion_magie.gd` : `GIVRE_VIE` 1,05 → 1,2, `GIVRE_TRAINE` 1,5 → 1,2 (≈ 7 m/s en moyenne, feu 9), `GIVRE_LOURD` 1,1,
+  `GIVRE_SOL`, palette `GIVRE_PAL`/`GIVRE_BRUME` ; un matériau par jet ; `_givre_placer` cherche le sol sous le point
+  touché (rayon, 10 fois/s) ; `_givre_impact` reçoit une courte ligne le long de la normale.
+- Galerie : plan `souffle_givre_sol` ; `outils/captures_givre_vague.sh`.
+- Coût (`--perf=jet --ecole=glace`, crypte FPS 1280×720, PC partagé, 3 mesures chacune) : avant +1,11/+1,14/+1,31 ms GPU,
+  après +1,64/+1,69/+1,52 ms, soit ≈ +0,4 ms (au-dessus du +0,15 visé) ; jet de flammes dans les mêmes conditions
+  +2,0 à +2,5 ms. Levier si besoin : `GIVRE_N` (120).
+- Limite : en tournant vite (70°/s), le bout du cordon s'espace en bouffées séparées, comme le feu.

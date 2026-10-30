@@ -275,6 +275,12 @@ void fragment() {
 			al = mix(opacite * 0.62, brume, f);
 			lum = 0.0;
 		}
+		// bouffées âgées (bout, cordon qui traîne quand on tourne, où elles s'espacent) : elles PÂLISSENT en vapeur
+		// transparente au lieu de rester des boules couvrantes (alpha seulement : la découpe n'est pas touchée)
+		float vieux = smoothstep(0.5, 0.95, age);
+		c = mix(c, c_brume.rgb, vieux * 0.5);
+		al *= 1.0 - 0.65 * vieux;
+		lum *= 1.0 - vieux;
 		ALBEDO = c * (al + lum) * eclat * k;
 		ALPHA = al * k;
 	}
