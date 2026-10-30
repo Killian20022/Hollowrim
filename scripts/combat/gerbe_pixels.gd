@@ -44,6 +44,12 @@ const MATIERES := {
 	# chair vivante (bandits, mage) : sang « Laine rouge » vif à l'impact puis sombre (rouge de la palette, paliers)
 	"sang": {"couleurs": ["#c42a22", "#9c1c18", "#7a1c1c", "#5e0e0c", "#3a0605"], "n": 16, "taille": [0.03, 0.065],
 		"vitesse": [1.5, 4.0], "ecart": 50.0, "gravite": 11.0, "amorti": 3.2, "duree": 0.8, "eclair": [2.0, 1.4]},
+	# jet d'un moignon (Demembrement, bandits) : cône serré, gros pixels de sang qui filent en arc et retombent en gouttes
+	"sang_jet": {"couleurs": ["#c42a22", "#9c1c18", "#9c1c18", "#7a1c1c", "#5e0e0c", "#3a0605"], "n": 18, "taille": [0.035, 0.075],
+		"vitesse": [1.6, 3.3], "ecart": 12.0, "gravite": 11.0, "amorti": 1.5, "duree": 0.8, "eclair": [1.5, 1.2]},
+	# jet d'un moignon de draugr : fluide sombre presque noir et poussière brune de chair desséchée, plus lent, plus large
+	"draugr_jet": {"couleurs": ["#5a0e0b", "#2e0807", "#1a0c08", "#3b2a1e", "#52453f", "#2e2a26"], "n": 18, "taille": [0.035, 0.075],
+		"vitesse": [1.6, 3.4], "ecart": 20.0, "gravite": 9.0, "amorti": 1.4, "duree": 0.85, "eclair": [1.4, 1.15]},
 	# chair épaisse (troll de givre) : sang vif et lambeaux de peau grise / fourrure claire
 	"chair": {"couleurs": ["#d23a2c", "#a8201a", "#7a1c1c", "#4a0c0a", "#d8d4cc", "#8f8a86"], "n": 20, "taille": [0.04, 0.085],
 		"vitesse": [1.6, 4.4], "ecart": 55.0, "gravite": 10.0, "amorti": 3.4, "duree": 0.85, "eclair": [2.0, 1.4]},

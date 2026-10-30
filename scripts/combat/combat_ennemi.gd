@@ -47,6 +47,9 @@ func _installer() -> void:
 	if corps.is_inside_tree():   # pools des gerbes et des os créés à l'apparition, pas au premier coup
 		GerbePixels.obtenir(corps)
 		EclatsOs.obtenir(corps)
+		if Demembrement.profil_demembrable(profil):
+			Demembrement.prechauffer()
+			Demembrement.Jets.obtenir(corps)
 	if modele == null:
 		return
 	Plaies.marquer(modele)
@@ -368,9 +371,11 @@ func effets_mort(r: Dictionary, sorte: String, joueur: Node) -> void:
 	# finisher aligné (épée plantée, plongé) : le gros du sang a coulé pendant la séquence (jets, giclée au retrait) ; à la
 	# mort, une giclée de lourd seulement (une explosion de gouttes devant la caméra masquerait la chute du corps)
 	var k_sang := 2.2 / p.sang if String(i.get("mort_finisher", "")) in ["effondre", "cloue"] else 1.0
+	# tout près de la caméra, gerbes allégées (elles masquaient le corps et la coupe)
+	var k_cam := Demembrement.attenuation_camera(corps, point)
 	if profil.sang and Sang.actif():
-		Sang.giclee(corps, point, dir, p.sang * 1.3 * k_sang, profil.couleur_sang)
-		if gros and k_sang >= 1.0:
+		Sang.giclee(corps, point, dir, p.sang * 1.3 * k_sang * k_cam, profil.couleur_sang)
+		if gros and k_sang >= 1.0 and k_cam > 0.7:
 			Sang.giclee(corps, point + Vector3(0, 0.1, 0), (dir + Vector3.UP * 0.5).normalized(), p.sang, profil.couleur_sang, false)
 		# la flaque s'étale sous le corps une fois tombé
 		var c := corps
@@ -387,7 +392,7 @@ func effets_mort(r: Dictionary, sorte: String, joueur: Node) -> void:
 	if not i.has("ecole") and mat_g in ["os", "draugr"]:
 		var d_os := (dir + Vector3.UP * 0.8).normalized()
 		if mat_g == "draugr":
-			GerbePixels.emettre(corps, point, d_os, "draugr", GerbePixels.force_de(p.nom))
+			GerbePixels.emettre(corps, point, d_os, "draugr", GerbePixels.force_de(p.nom) * k_cam)
 		if mat_g == "draugr" and gros:
 			EclatsOs.lancer(corps, point, d_os, 3, 1.0)
 	# squelette : 8 à 12 vrais os (modules os_long / crâne) jaillissent du corps, quel que soit le coup (sort compris) ; le

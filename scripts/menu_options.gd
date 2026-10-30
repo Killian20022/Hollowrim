@@ -107,8 +107,9 @@ func _ready() -> void:
 		Jeu.regler("commandes", "sensibilite", v / 100.0))
 	_case(g, "Inverser l'axe Y", Jeu.option("commandes", "inverser_y"), func(v: bool) -> void:
 		Jeu.regler("commandes", "inverser_y", v))
-	# sang et gore du combat (décapitations, plaies, flaques) : complet par défaut
-	_choix(g, "Sang / gore", ["Désactivé", "Réduit", "Complet"], int(Jeu.option("combat", "gore")), func(v: int) -> void:
+	# sang et démembrement du combat (membres tranchés, plaies, jets, flaques) : complet par défaut ; réduit = moitié moins de
+	# membres coupés, pas de coupe en deux, moins de sang
+	_choix(g, "Sang et démembrement", ["Désactivé", "Réduit", "Complet"], int(Jeu.option("combat", "gore")), func(v: int) -> void:
 		Jeu.regler("combat", "gore", v))
 	# arrêt sur image / ralenti des coups qui portent : bref par défaut (l'arrêt appuyé se lisait comme des saccades)
 	_choix(g, "Arrêt sur image", ["Désactivé", "Bref", "Appuyé"], int(Jeu.option("combat", "arret_image")), func(v: int) -> void:

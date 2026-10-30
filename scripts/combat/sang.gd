@@ -1,5 +1,5 @@
 class_name Sang
-## Sang et traces (combat gore, option « Sang / gore » des options : 2 complet, 1 réduit, 0 désactivé).
+## Sang et traces (combat gore, option « Sang et démembrement » des options : 2 complet, 1 réduit, 0 désactivé).
 ##   Sang.giclee(noeud, point, direction, intensite, couleur)   giclée directionnelle (particules pixel) + traces au sol/au mur
 ##   Sang.jet(attache, transform_local, couleur, duree)          jet pulsé (cou tranché) qui goutte au sol
 ##   Sang.flaque(noeud, position, couleur, taille, croissance)   flaque qui s'étale sous un corps
@@ -318,6 +318,8 @@ static func trace(n: Node, pos: Vector3, normale: Vector3, direction: Vector3, t
 			tw.tween_callback(func() -> void: mi.visible = true)
 		tw.tween_property(mi, "scale", fin, croissance if croissance > 0.0 else 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_interval(DUREE_TRACE)
+	# disparition lente : la trace se résorbe (rétrécit) en quelques secondes au lieu de s'éteindre d'un coup
+	tw.tween_property(mi, "scale", mi.scale * Vector3(0.05, 1.0, 0.05), 6.0).set_ease(Tween.EASE_IN)
 	tw.tween_callback(mi.queue_free)
 	return mi
 
@@ -422,34 +424,30 @@ static func _img_trainee(rng: RandomNumberGenerator) -> Image:
 	return img
 
 static func _img_entaille(rng: RandomNumberGenerator) -> Image:
-	# plaie : fente sombre (chair ouverte) bordée de lèvres rouges vives, éclaboussée autour, coulures vers le bas (+Y de l'image)
+	# entaille (lot gore 2026-10-29) : fente fine et nette, cœur presque noir (chair ouverte), lèvres claires d'un texel,
+	# chair à vif autour, quelques coulures vers le bas (+Y de l'image) ; lisible en gros pixels, pas un aplat rouge
 	var w := 32
-	var h := 24
+	var h := 16
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	var pente := rng.randf_range(-0.15, 0.15)
-	for x in range(1, w - 1):
-		var k := float(x - 1) / (w - 2)
-		var ep := sin(k * PI) * rng.randf_range(3.2, 4.2) + 0.6
-		var cy := 8.0 + (x - w * 0.5) * pente
+	var pente := rng.randf_range(-0.12, 0.12)
+	for x in range(2, w - 2):
+		var k := float(x - 2) / (w - 4)
+		var ep := sin(k * PI) * rng.randf_range(2.0, 2.6) + 0.4
+		var cy := 5.0 + (x - w * 0.5) * pente
 		for y in h:
 			var d := absf(y + 0.5 - cy)
 			if d < ep:
-				var l := 0.12 if d < ep * 0.4 else (1.0 if d < ep * 0.75 else 0.7)
+				var l := 0.08 if d < ep * 0.45 else (1.0 if d < ep * 0.75 else 0.62)
 				img.set_pixel(x, y, Color(l, l, l, 1.0))
-		# coulures
-		if rng.randf() < 0.3 and k > 0.15 and k < 0.85:
-			var lg := rng.randi_range(4, 13)
+		if rng.randf() < 0.22 and k > 0.2 and k < 0.8:
+			var lg := rng.randi_range(3, 9)
 			var y0 := int(cy + ep)
 			for y in range(y0, mini(y0 + lg, h)):
-				var l := 0.85 if y < y0 + lg - 1 else 0.65
-				img.set_pixel(x, y, Color(l, l, l, 1.0))
-				if y == y0 + lg - 1 and x + 1 < w:
-					img.set_pixel(x + 1, y, Color(l, l, l, 1.0))
-		# éclaboussures autour
-		if rng.randf() < 0.18:
-			var py := clampi(int(cy + rng.randf_range(-ep - 4, ep + 4)), 0, h - 1)
-			img.set_pixel(x, py, Color(0.8, 0.8, 0.8, 1.0))
+				img.set_pixel(x, y, Color(0.7, 0.7, 0.7, 1.0))
+		if rng.randf() < 0.12:
+			var py := clampi(int(cy + rng.randf_range(-ep - 3, ep + 3)), 0, h - 1)
+			img.set_pixel(x, py, Color(0.62, 0.62, 0.62, 1.0))
 	return img
 
 static func _img_fissure(rng: RandomNumberGenerator) -> Image:

@@ -48,7 +48,9 @@ static func ajouter(modele: Node3D, point: Vector3, normale: Vector3, direction:
 	d.name = "Plaie"
 	var sorte := "entaille" if matiere == "chair" else ("fissure" if matiere == "os" else "copeau")
 	d.texture_albedo = Sang.texture(sorte, randi() % 3)
-	d.modulate = Color(minf(couleur.r * 3.0, 1.0), minf(couleur.g * 3.0, 1.0), minf(couleur.b * 3.0, 1.0)) if matiere == "chair" else couleur
+	# lèvres de la plaie en couleur de palette (le cœur de la fente est sombre dans la texture) : chair vive des vivants, chair
+	# brun-rouge éteinte des draugrs (sang sombre) ; plus de rouge saturé ×3 qui « peignait » la cotte
+	d.modulate = couleur_levres(couleur) if matiere == "chair" else couleur
 	d.albedo_mix = 1.0
 	d.cull_mask = CALQUE
 	d.normal_fade = 0.25
@@ -57,7 +59,9 @@ static func ajouter(modele: Node3D, point: Vector3, normale: Vector3, direction:
 	# filtrage des décals : réglage du projet rendering/textures/decals/filter = plus proche (texels nets)
 	var reduit := Sang.niveau() == 1 and matiere == "chair"
 	var t := taille * (0.7 if reduit else 1.0) * echelle
-	d.size = Vector3(t, 0.5, t * 0.75)   # profondeur 50 cm : le point estimé (sans info de l'épée) n'est pas toujours sur la peau
+	# entaille fine et allongée dans le sens de la lame ; profondeur 26 cm (50 cm traversait le corps et barbouillait le dos
+	# et les lambeaux) — le point vient du tracé de lame (mains.gd), sur la surface touchée
+	d.size = Vector3(t, 0.26, t * 0.5) if matiere == "chair" else Vector3(t, 0.5, t * 0.75)
 	accroche.add_child(d)
 	# repère : Y = normale (le décal projette le long de -Y), X = sens de la lame projeté sur la surface
 	var y := normale.normalized() if normale.length() > 0.01 else Vector3.UP
@@ -70,10 +74,15 @@ static func ajouter(modele: Node3D, point: Vector3, normale: Vector3, direction:
 		x = -x   # les coulures (bas de la texture = +Z du décal) descendent
 		z = -z
 	# repère local : l'inverse du BoneAttachment (qui porte l'échelle du modèle) : la plaie garde sa taille en mètres
-	d.transform = accroche.global_transform.affine_inverse() * Transform3D(Basis(x, y, z), point - y * 0.08)
+	d.transform = accroche.global_transform.affine_inverse() * Transform3D(Basis(x, y, z), point - y * (0.05 if matiere == "chair" else 0.08))
 	l.append(d)
 	modele.set_meta("plaies", l)
 	return d
+
+## Couleur des lèvres d'une entaille d'après la couleur du sang du profil : sang sombre (draugr) → chair brun-rouge éteinte,
+## sang vif (bandit) → rouge de la palette « sang » de GerbePixels.
+static func couleur_levres(sang: Color) -> Color:
+	return Color("#8a2a1c") if sang.r < 0.3 else Color("#b8261e")
 
 ## Longueur (m) du segment de chaque os, le long de son axe Y (pour trouver le membre le plus proche du point).
 const LONGUEUR := {"Head": 0.2, "neck_01": 0.1, "spine_03": 0.18, "spine_02": 0.14, "spine_01": 0.14, "pelvis": 0.12}
