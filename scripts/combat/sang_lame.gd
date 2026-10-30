@@ -101,13 +101,25 @@ func _process(dt: float) -> void:
 	_appliquer()
 	cout_us += Time.get_ticks_usec() - t0
 
+var _envoye := Vector4(-1, -1, -1, -1)
+
+## Paramètres envoyés seulement s'ils ont changé de plus d'un pas visible (chaque envoi repasse par le serveur de rendu).
 func _appliquer() -> void:
 	if mat == null:
 		return
-	mat.set_shader_parameter("sang_quantite", quantite if actif else 0.0)
-	mat.set_shader_parameter("sang_sec", sec)
-	mat.set_shader_parameter("sang_coule", coule)
-	mat.set_shader_parameter("sang_couleur", couleur)
+	var v := Vector4(quantite if actif else 0.0, sec, coule, 0.0)
+	if absf(v.x - _envoye.x) > 0.004 or (v.x == 0.0) != (_envoye.x == 0.0):
+		mat.set_shader_parameter("sang_quantite", v.x)
+		_envoye.x = v.x
+	if absf(v.y - _envoye.y) > 0.01:
+		mat.set_shader_parameter("sang_sec", v.y)
+		_envoye.y = v.y
+	if absf(v.z - _envoye.z) > 0.01:
+		mat.set_shader_parameter("sang_coule", v.z)
+		_envoye.z = v.z
+	if depuis == 0.0 or _envoye.w < 0.0:
+		mat.set_shader_parameter("sang_couleur", couleur)
+		_envoye.w = 1.0
 
 ## Remet la lame propre (tests, captures).
 func nettoyer() -> void:
@@ -148,9 +160,9 @@ const _FRAGMENT := """
 		float sg_nb = sg_b(sg_qs * vec2(0.55, 0.11)) * 0.62 + sg_b(sg_qs * vec2(1.1, 0.4) + 17.0) * 0.28 + sg_h(sg_qs) * 0.10;
 		float sg_zone = smoothstep(0.12, 0.62, sg_t) * (1.0 - smoothstep(0.985, 1.02, sg_t));
 		float sg_bord = step(0.32, abs(normalize(sg_n).x));
-		float sg_couv = sang_quantite * (0.45 + 0.7 * sg_zone) + sg_bord * 0.14 * sang_quantite;
-		float sg_m = step(1.0 - sg_couv, sg_nb);
-		float sg_caillot = step(1.0 - sg_couv * 0.55, sg_nb);
+		float sg_seuil = 0.8 - sang_quantite * (0.14 + 0.2 * sg_zone + 0.05 * sg_bord);
+		float sg_m = step(sg_seuil, sg_nb);
+		float sg_caillot = step(sg_seuil + 0.11, sg_nb);
 		float sg_col = sg_q.x + sang_graine;
 		if (sg_h(vec2(sg_col, 3.1)) > 0.62) {
 			float sg_t0 = 0.42 + sg_h(vec2(sg_col, 7.7)) * 0.5;
@@ -160,10 +172,10 @@ const _FRAGMENT := """
 			sg_m = max(sg_m, max(sg_tr, sg_bout));
 			sg_caillot = max(sg_caillot, sg_bout);
 		}
-		vec3 sg_frais = sang_couleur * 1.35;
+		vec3 sg_frais = min(sang_couleur * 1.8, vec3(1.0));
 		vec3 sg_seche = sang_couleur * vec3(0.62, 0.46, 0.42);
 		float sg_s = step(0.5, sang_sec + (sg_nb - 0.5) * 0.9 - 0.05);
-		vec3 sg_c = mix(sg_frais, sg_seche, sg_s) * mix(1.0, 0.62, sg_caillot);
+		vec3 sg_c = mix(sg_frais, sg_seche, sg_s) * mix(1.0, 0.68, sg_caillot);
 		float sg_brille = step(0.9, sg_h(sg_qs + 5.0)) * (1.0 - sg_s) * sg_caillot;
 		sg_c += sg_brille * vec3(0.22, 0.07, 0.05);
 		ALBEDO = mix(ALBEDO, sg_c, sg_m);

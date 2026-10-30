@@ -8,7 +8,7 @@ extends MultiMeshInstance3D
 
 const MAX := 48
 const GRAVITE := 9.8
-const TAILLE := Vector3(0.016, 0.034, 0.016)
+const TAILLE := Vector3(0.012, 0.026, 0.012)
 const TRACE_UNE := 3
 
 static var _instance: GouttesSang
@@ -58,7 +58,7 @@ func _ready() -> void:
 	m.vertex_color_use_as_albedo = true
 	m.roughness = 0.25
 	m.emission_enabled = true
-	m.emission = Color(0.12, 0.01, 0.01)
+	m.emission = Color(0.06, 0.005, 0.005)
 	b.material = m
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -86,7 +86,7 @@ func _lacher(pos: Vector3, couleur: Color, vitesse: Vector3, tache: bool) -> voi
 	_pos[i] = pos
 	_vit[i] = vitesse
 	_vie[i] = 2.0
-	_col[i] = Color(minf(couleur.r * 1.5, 1.0), couleur.g * 1.2, couleur.b * 1.2)
+	_col[i] = Color(minf(couleur.r * 1.3, 1.0), couleur.g * 1.1, couleur.b * 1.1)
 	_tache[i] = 1 if (tache or _n % TRACE_UNE == 0) else 0
 	var r := Sang.sol_sous(self, pos, 0.05, 3.0)
 	_sol[i] = (r["position"] as Vector3).y if not r.is_empty() else pos.y - 3.0
@@ -102,7 +102,7 @@ func _process(dt: float) -> void:
 		if _pos[i].y <= _sol[i] or _vie[i] <= 0.0:
 			if _pos[i].y <= _sol[i] + 0.02 and _tache[i] == 1:
 				var p := Vector3(_pos[i].x, _sol[i], _pos[i].z)
-				Sang.trace(self, p, Vector3.UP, Vector3.ZERO, randf_range(0.07, 0.12), _col[i] / 1.5, "giclure")
+				Sang.trace(self, p, Vector3.UP, Vector3.ZERO, randf_range(0.07, 0.12), _col[i] / 1.3, "giclure")
 			_retirer(i)
 			continue
 		i += 1

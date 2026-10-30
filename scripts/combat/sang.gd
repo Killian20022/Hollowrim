@@ -49,6 +49,7 @@ const MAX_VOISINS := 2
 static func tacher_voisins(source: Node3D, point: Vector3, direction: Vector3, intensite: float, couleur: Color) -> int:
 	if not SangLame.actif or niveau() == 0 or source == null or not source.is_inside_tree():
 		return 0
+	var t_us := Time.get_ticks_usec()
 	var plat := Vector3(direction.x, 0, direction.z)
 	plat = plat.normalized() if plat.length() > 0.05 else Vector3.ZERO
 	var portee := PORTEE_TACHE * clampf(0.75 + intensite * 0.12, 0.85, 1.35)
@@ -79,8 +80,11 @@ static func tacher_voisins(source: Node3D, point: Vector3, direction: Vector3, i
 		var delai := 0.06 + dist / 4.5
 		source.get_tree().create_timer(delai).timeout.connect(func() -> void:
 			if is_instance_valid(autre) and is_instance_valid(modele) and modele.is_inside_tree():
-				Plaies.tacher(modele, autre.global_position + decalage, normale, taille, couleur))
+				var t1 := Time.get_ticks_usec()
+				Plaies.tacher(modele, autre.global_position + decalage, normale, taille, couleur)
+				SangLame.cout_us += Time.get_ticks_usec() - t1)
 		n += 1
+	SangLame.cout_us += Time.get_ticks_usec() - t_us
 	return n
 
 ## Éclats non sanglants (os, bois, sang désactivé) : même geste, autre matière.

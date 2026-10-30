@@ -100,7 +100,10 @@ static func ecouler(d: Decal, variante: int, couleur: Color, abondance: float) -
 	var tw := d.create_tween()
 	for e in range(1, ETAPES):
 		tw.tween_interval(PAS_ECOULEMENT * (1.0 + e * 0.35))
-		tw.tween_callback(func() -> void: d.texture_albedo = Sang.texture_entaille(variante, e))
+		tw.tween_callback(func() -> void:
+			var t_us := Time.get_ticks_usec()
+			d.texture_albedo = Sang.texture_entaille(variante, e)
+			SangLame.cout_us += Time.get_ticks_usec() - t_us)
 	if Sang.niveau() < 2:
 		return
 	var tg := d.create_tween()
@@ -111,10 +114,12 @@ static func ecouler(d: Decal, variante: int, couleur: Color, abondance: float) -
 		tg.tween_callback(func() -> void:
 			if not is_instance_valid(d) or not d.is_inside_tree():
 				return
+			var t_us := Time.get_ticks_usec()
 			var b := d.global_transform.basis
 			# bas d'une coulure : sous la fente, à la surface du corps (le décal est rentré de 5 cm le long de sa normale)
 			var p := d.global_position + b.z.normalized() * d.size.z * randf_range(0.18, 0.45) + b.x.normalized() * d.size.x * randf_range(-0.3, 0.3) + b.y.normalized() * 0.07
-			GouttesSang.lacher(d, p, couleur, Vector3(randf_range(-0.1, 0.1), -0.2, randf_range(-0.1, 0.1))))
+			GouttesSang.lacher(d, p, couleur, Vector3(randf_range(-0.1, 0.1), -0.2, randf_range(-0.1, 0.1)))
+			SangLame.cout_us += Time.get_ticks_usec() - t_us)
 
 static func sang_couleur_goutte(sang: Color) -> Color:
 	return Color(sang.r * 1.15, sang.g, sang.b)
