@@ -81,16 +81,23 @@ const VAGUE_AMORCE := 0.45
 ## Décharge électrique : éclats vivants (3 à 5 images chacun) et durée de vie d'un éclat (s).
 const DECHARGE_N := 64
 const DECHARGE_VIE := 0.13
-## Jet de glace (couche fine) : SOUFFLE DE GIVRE, mêmes principes que la vague (magie_givre*.gdshader) : bouffées de
-## souffle qui roulent et cristaux qui tournoient puis s'accrochent au point touché. Portée (m), vie (s), freinage (1/s),
-## particules vivantes (dont GIVRE_CRISTAUX de cristaux).
+## Jet de glace (couche fine) : SOUFFLE DE GIVRE, même technique que la vague de flammes (magie_givre*.gdshader) : une
+## seule masse de brume (empreintes + champ partagé le long de _vague_axe) et cristaux qui tournoient puis s'accrochent au
+## point touché. Portée (m), vie (s), freinage (1/s), particules vivantes (dont GIVRE_CRISTAUX de cristaux).
+## Retouche du 2026-10-30 (« plus lent, plus lourd, qui rampe ») : freinage plus doux, vie à peine plus longue (≈ 7 m/s en
+## moyenne contre 9 pour le feu ; au-delà de 1,2 s le cordon se défait en boules quand on tourne), la brume retombe (GIVRE_LOURD) et rampe au sol au contact (GIVRE_SOL).
 const GIVRE_PORTEE := 8.5
-const GIVRE_VIE := 1.05
-const GIVRE_TRAINE := 1.5
+const GIVRE_VIE := 1.2
+const GIVRE_TRAINE := 1.2
 const GIVRE_N := 120
-const GIVRE_CRISTAUX := 0.25
-## Palette du souffle : cœur blanc → cyan → bleu profond.
-const GIVRE_PAL := ["#ffffff", "#e4f8ff", "#9fe2ff", "#4fa6e8", "#2a5cc0", "#172a66"]
+const GIVRE_CRISTAUX := 0.22
+## L'air froid retombe (m/s², croît avec l'âge) ; la ligne médiane du dessin (_vague_axe) suit cette chute.
+const GIVRE_LOURD := 1.1
+## Au contact, la brume coule vers le bas puis est retenue au sol et y rampe (1 = plein effet).
+const GIVRE_SOL := 1.0
+## Palette du souffle : cœur blanc-bleu pâle (jamais blanc pur) → bleu acier ; vapeur froide grise bleutée.
+const GIVRE_PAL := ["#dbeaf6", "#b2d0e9", "#84afd6", "#5a86b2", "#3c5e85", "#273e5b"]
+const GIVRE_BRUME := "#93a9bc"
 ## Couches de particules qui accompagnent le souffle de givre (poudre scintillante, éclats de cristal 3D, foyer de la paume).
 const GIVRE_COMPAGNONS := ["glace_fin_jet_poudre", "glace_fin_jet_cristaux", "glace_paume"]
 const AURA_ECOLE := {"feu": 0, "glace": 1, "electricite": 2, "tenebres": 3, "soin": 4, "protection": 5}
@@ -1679,19 +1686,23 @@ func _vague_placer(j: Dictionary, o: Vector3, b: Basis, fin: Vector3, vers: Vect
 	var mv := p.material_override as ShaderMaterial
 	if mv != null and mv.shader == SH_VAGUE:
 		_vague_axe(j, mv, float(pm.get_shader_parameter("vitesse")), o, vers, o.distance_to(fin) if touche else VAGUE_PORTEE)
+	elif mv != null and mv.shader == SH_GIVRE:
+		_vague_axe(j, mv, float(pm.get_shader_parameter("vitesse")), o, vers, o.distance_to(fin) if touche else GIVRE_PORTEE,
+			GIVRE_TRAINE, GIVRE_VIE, GIVRE_PORTEE, GIVRE_LOURD)
 
 ## Ligne médiane RÉELLE du jet de flammes, pour le dessin (magie_vague : champ partagé par toutes les bouffées). Une
 ## bouffée à x mètres de la paume est partie il y a a(x) secondes (freinage : x = v0/k·(1 - e^(-k·a))), de là où était la
 ## paume et dans la direction qu'elle visait alors : on garde l'historique des poses (≈ VAGUE_VIE) et on pose 8 points
 ## de x = 0 au bout (point touché, ou portée). En tournant, la ligne suit le cordon qui traîne, pas l'axe actuel.
-func _vague_axe(j: Dictionary, mv: ShaderMaterial, v0: float, o: Vector3, vers: Vector3, longueur: float) -> void:
+## (Souffle de givre : mêmes calculs avec ses constantes ; `chute` = GIVRE_LOURD, la ligne retombe comme les bouffées.)
+func _vague_axe(j: Dictionary, mv: ShaderMaterial, v0: float, o: Vector3, vers: Vector3, longueur: float,
+		k := VAGUE_TRAINE, vie := VAGUE_VIE, portee := VAGUE_PORTEE, chute := 0.0) -> void:
 	var hist: Array = j.get("vague_hist", [])
 	hist.append([horloge, o, vers])
-	while hist.size() > 2 and horloge - float(hist[1][0]) > VAGUE_VIE + 0.1:
+	while hist.size() > 2 and horloge - float(hist[1][0]) > vie + 0.1:
 		hist.pop_front()
 	j.vague_hist = hist
-	var k := VAGUE_TRAINE
-	var lg := clampf(longueur, 0.3, VAGUE_PORTEE)
+	var lg := clampf(longueur, 0.3, portee)
 	var pts := PackedVector3Array()
 	var n := hist.size()
 	var idx := n - 1
@@ -1707,7 +1718,12 @@ func _vague_axe(j: Dictionary, mv: ShaderMaterial, v0: float, o: Vector3, vers: 
 			var f := clampf((ta - float(hist[idx][0])) / maxf(float(h1[0]) - float(hist[idx][0]), 0.0001), 0.0, 1.0)
 			po = po.lerp(h1[1], f)
 			di = di.lerp(h1[2], f).normalized()
-		pts.append(po + di * x)
+		var pt := po + di * x
+		if chute > 0.0:
+			# chute des bouffées (VELOCITY.y -= chute · âge/vie · dt, freinée) : y ≈ -chute · a³ / (6 · vie), un peu moins
+			var a := horloge - ta
+			pt.y -= chute * a * a * a / (6.0 * vie) * 0.7
+		pts.append(pt)
 	mv.set_shader_parameter("jet_pts", pts)
 	mv.set_shader_parameter("jet_long", lg)
 
@@ -1873,7 +1889,9 @@ func _mat_givre() -> ShaderMaterial:
 		m.set_shader_parameter("formes", ATLAS_GIVRE)
 		for i in 6:
 			m.set_shader_parameter("c%d" % i, Color(GIVRE_PAL[i]))
+		m.set_shader_parameter("c_brume", Color(GIVRE_BRUME))
 		m.set_shader_parameter("gros_coeur", GROS_COEUR.glace)
+		m.set_shader_parameter("jet_portee", GIVRE_PORTEE)
 		_mats["givre"] = m
 	return _mats["givre"]
 
@@ -1901,8 +1919,16 @@ func _givre_creer(dbl: bool) -> GPUParticles3D:
 	pm.set_shader_parameter("ecart", 0.13 if dbl else 0.1)
 	pm.set_shader_parameter("taille1", 0.62 if dbl else 0.56)
 	pm.set_shader_parameter("part_cristaux", GIVRE_CRISTAUX)
+	# souffle lourd : il retombe, roule lentement, coule le long de ce qu'il touche et rampe au sol
+	pm.set_shader_parameter("lourd", GIVRE_LOURD)
+	pm.set_shader_parameter("turb", 2.2)
+	pm.set_shader_parameter("turb_vit", 0.45)
+	pm.set_shader_parameter("coule", 0.55)
+	pm.set_shader_parameter("lateral", 0.55)
+	pm.set_shader_parameter("rampe_sol", GIVRE_SOL)
 	p.process_material = pm
-	p.material_override = _mat_givre()
+	# un matériau par jet : le champ partagé du dessin suit l'axe de CE souffle (double incantation : deux axes)
+	p.material_override = _mat_givre().duplicate()
 	p.visible = not sans_procedural and not OS.get_cmdline_user_args().has("--sans-flux")
 	add_child(p)
 	p.emitting = true
@@ -1910,9 +1936,25 @@ func _givre_creer(dbl: bool) -> GPUParticles3D:
 	return p
 
 ## Accroche des cristaux : sur une cible, un peu devant son centre (à sa surface) ; sur un mur, contre la surface.
+## Sol sous le point touché (rayon vers le bas, 10 fois par seconde) : la brume y est retenue et y rampe.
 func _givre_placer(j: Dictionary) -> void:
 	var pm := (j.vague as GPUParticles3D).process_material as ShaderMaterial
 	pm.set_shader_parameter("colle", 0.28 if j.cible != null else 0.05)
+	if horloge - float(j.get("givre_t_sol", -1.0)) < 0.1:
+		return
+	j.givre_t_sol = horloge
+	var sol := -1.0e6
+	var origine: Node3D = j.origine
+	if j.touche and valide(origine):
+		var fin: Vector3 = j.fin_pos
+		var nrm: Vector3 = j.normale
+		if j.cible == null and nrm.y > 0.6:
+			sol = fin.y   # le souffle frappe le sol lui-même
+		else:
+			var r := point_vise(origine, fin + Vector3.UP * 0.2 - (fin - origine.global_position).normalized() * 0.6, Vector3.DOWN, 3.0)
+			if r.touche:
+				sol = (r.pos as Vector3).y
+	pm.set_shader_parameter("sol_y", sol)
 
 ## Impact de glace (couche fine) : bouffée de givre qui éclate depuis la surface (souffle qui roule et retombe, cristaux
 ## qui fusent et scintillent), même simulation que le souffle en salve unique. Libérée seule à la fin de sa vie.
@@ -1947,7 +1989,15 @@ func _givre_impact(pos: Vector3, normale: Vector3, f: float) -> void:
 	pm.set_shader_parameter("prec_base", b)
 	pm.set_shader_parameter("pas", 0.0)
 	p.process_material = pm
-	p.material_override = _mat_givre()
+	# champ partagé du dessin : une courte ligne qui sort de la surface (la bouffée éclate autour de son bout)
+	var mi := _mat_givre().duplicate() as ShaderMaterial
+	var pts := PackedVector3Array()
+	for i in 8:
+		pts.append(pos - b.z * (0.6 * kf * i / 7.0))
+	mi.set_shader_parameter("jet_pts", pts)
+	mi.set_shader_parameter("jet_long", 0.6 * kf)
+	mi.set_shader_parameter("jet_portee", 1.2)
+	p.material_override = mi
 	add_child(p)
 	p.global_transform = Transform3D(b, pos)
 	p.emitting = true

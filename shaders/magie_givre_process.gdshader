@@ -6,6 +6,9 @@
 //     qui dépend de la position ; au point touché elles s'écrasent et s'étalent en brume ;
 //   - CRISTAUX (~30 %) : petits, portent plus loin (moins freinés), tournoient vite et papillonnent dans la turbulence,
 //     retombent un peu ; au point touché ils S'ACCROCHENT (vitesse nulle, collés au plan) et scintillent jusqu'à leur fin.
+//   - SOL (2026-10-30, souffle « lourd » qui rampe) : avec rampe_sol > 0, une bouffée qui descend jusqu'au sol (sol_y,
+//     posé par GestionMagie._givre_placer sous le point touché) y est retenue, sa chute devient un étalement horizontal
+//     et elle RAMPE lentement en s'attardant (vieillit moins vite) : la brume s'étale au sol au contact.
 // CUSTOM : x = graine (+ 100 pour un cristal), y = âge (0..1), z = rotation (rad), w = vitesse de rotation.
 // COLOR.r = teinte propre, COLOR.g = variation de taille.
 shader_type particles;
@@ -27,6 +30,11 @@ uniform float etale = 2.2;        // vieillissement des bouffées après l'impac
 uniform vec3 prec_o = vec3(0.0);
 uniform mat3 prec_base = mat3(1.0);
 uniform float pas = 0.016;
+uniform float turb_vit = 1.0;     // vitesse d'évolution de la turbulence (×) : < 1 = brume lourde qui roule lentement
+uniform float coule = 0.1;        // au point touché, part de la vitesse renvoyée vers le BAS (l'air froid coule)
+uniform float lateral = 0.4;      // au point touché, part de la vitesse renvoyée sur les côtés (étalement)
+uniform float sol_y = -1.0e6;     // hauteur du sol sous le point touché (monde)
+uniform float rampe_sol = 0.0;    // 0 = pas de sol ; 1 = la brume est retenue au sol et y rampe
 
 float h1(uint n) {
 	n = (n << 13u) ^ n;
@@ -94,7 +102,7 @@ void process() {
 				float q = min(1.0, DELTA * 14.0);
 				// la brume s'écrase et s'étale (un peu vers le bas : l'air froid coule) ; étalement modéré : à pleine
 				// vitesse latérale, les bouffées étirées faisaient de grandes « ailes » pâles autour de la cible
-				VELOCITY += (dl * 0.4 + vec3(0.0, -0.1, 0.0) - arret_dir) * vp * q;
+				VELOCITY += (dl * lateral + vec3(0.0, -coule, 0.0) - arret_dir) * vp * q;
 			}
 			// elle s'y amortit (elle gonfle sur place au lieu de fuser)
 			VELOCITY *= exp(-5.0 * DELTA);
@@ -105,11 +113,28 @@ void process() {
 	if (!accroche) {
 		VELOCITY *= exp(-traine * (cristal ? 0.55 : 1.0) * DELTA);
 		VELOCITY.y -= (cristal ? 1.6 : lourd) * a * DELTA;
-		float t = TIME;
+		float t = TIME * turb_vit;
 		vec3 tu = vec3(sin(p.y * 2.1 + p.z * 0.8 + t * 3.3 + g),
 					   sin(p.z * 1.7 + p.x * 1.0 + t * 2.7 + g * 1.3),
 					   sin(p.x * 1.9 + p.y * 1.2 - t * 3.1 + g * 0.7));
 		VELOCITY += tu * turb * (cristal ? 1.7 : 1.0) * smoothstep(0.04, 0.4, a) * DELTA;
+	}
+	// SOL : la brume qui descend jusqu'au sol y est retenue ; sa chute devient un étalement, elle rampe et s'attarde
+	bool au_sol = false;
+	if (rampe_sol > 0.0 && !cristal) {
+		float rad = mix(taille0, taille1, pow(min(a, 1.0), 0.6)) * 0.45;
+		float hb = TRANSFORM[3].y - sol_y;
+		if (hb < rad && hb > -1.5) {
+			TRANSFORM[3].y = sol_y + rad;
+			vec2 hz = VELOCITY.xz;
+			float hl = length(hz);
+			vec2 dh = hl > 0.01 ? hz / hl : vec2(sin(g * 3.0), cos(g * 3.0));
+			hz += dh * max(-VELOCITY.y, 0.0) * 0.8 * rampe_sol;
+			hz *= exp(-1.6 * DELTA);
+			VELOCITY = vec3(hz.x, max(VELOCITY.y, 0.0) * 0.2, hz.y);
+			k_age *= mix(1.0, 0.75, rampe_sol);
+			au_sol = true;
+		}
 	}
 	a += DELTA / LIFETIME * k_age;
 	CUSTOM.y = a;
@@ -130,7 +155,7 @@ void process() {
 		// bouffée : gonfle vite au départ puis plus lentement ; étirée dans le sens de la vitesse (souffle, pas langue)
 		float sz = mix(taille0, taille1, pow(min(a, 1.0), 0.6)) * (0.7 + 0.6 * COLOR.g);
 		// (plus étirées en vol : un flot soudé, pas un chapelet de boules ; peu étirées une fois écrasées)
-		float el = ecrase ? 1.0 + clamp(vl * 0.12, 0.0, 1.2) : 1.0 + clamp(vl * 0.36, 0.0, 4.6);
+		float el = (ecrase || au_sol) ? 1.0 + clamp(vl * 0.12, 0.0, 1.2) : 1.0 + clamp(vl * 0.36, 0.0, 4.6);
 		TRANSFORM[0].xyz = ax * sz;
 		TRANSFORM[1].xyz = vd * sz * el;
 		TRANSFORM[2].xyz = cross(ax, vd) * sz;
