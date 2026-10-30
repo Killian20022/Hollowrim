@@ -34,7 +34,7 @@ const SH_GIVRE_PROC := preload("res://shaders/magie_givre_process.gdshader")
 const ATLAS_GIVRE := preload("res://assets/magie/givre_kenney_atlas.png")
 ## Formes des bouffées : atlas 4×3 de 128² tiré du Kenney Particle Pack (CC0, assets/LICENCES.md) : rangée 0 = volumes
 ## de flamme (flame_01-04), rangée 1 = fumée (smoke_03-06), rangée 2 = langues (flame_05-06), braises (fire_01), fumée.
-## (Plus lu par la vague depuis le 2026-10-29 soir : le dessin est un champ de feu partagé, voir magie_vague.gdshader.)
+## (Revenu le 2026-10-30 : le volume unique a été abandonné, la vague redessine ces formes Kenney.)
 const ATLAS_FEU := preload("res://assets/magie/feu_kenney_atlas.png")
 ## Bruit fractal périodique de la vague (64², 4 canaux indépendants ; outils/generer_bruit_vague.gd).
 const BRUIT_VAGUE := preload("res://assets/magie/bruit_vague.png")
@@ -1626,6 +1626,7 @@ func _mat_vague() -> ShaderMaterial:
 		var m := ShaderMaterial.new()
 		m.shader = SH_VAGUE
 		m.set_shader_parameter("bruit", BRUIT_VAGUE)
+		m.set_shader_parameter("formes", ATLAS_FEU)
 		var pal: Array = FLUX.feu
 		for i in 6:
 			m.set_shader_parameter("c%d" % i, Color(pal[i]))
@@ -1659,7 +1660,8 @@ func _vague_creer(dbl: bool) -> GPUParticles3D:
 	pm.set_shader_parameter("traine", k)
 	pm.set_shader_parameter("vitesse", VAGUE_PORTEE * (1.15 if dbl else 1.0) * k / (1.0 - exp(-k * VAGUE_VIE)))
 	pm.set_shader_parameter("ecart", 0.11 if dbl else 0.085)
-	pm.set_shader_parameter("taille1", 0.8 if dbl else 0.75)
+	# bouffées un peu plus petites (Kenney) : moins de chevauchement, chaque petite flamme se lit séparément
+	pm.set_shader_parameter("taille1", 0.66 if dbl else 0.6)
 	p.process_material = pm
 	# un matériau par jet : le champ partagé du dessin (magie_vague) suit l'axe de CE jet (double incantation : deux axes)
 	p.material_override = _mat_vague().duplicate()
