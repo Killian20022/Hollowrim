@@ -31,10 +31,10 @@ static func habiller(racine: Node, ombres := false) -> void:
 static func materiaux() -> Dictionary:
 	if not _mats.is_empty():
 		return _mats
-	var rubis := Palette.materiau(ImageTexture.create_from_image(_rubis()), Vector2.ONE, Color(1.05, 0.92, 0.92))
+	var rubis := Palette.materiau(ImageTexture.create_from_image(_rubis()), Vector2.ONE, Color(1.18, 0.96, 0.96))
 	rubis.shader = EpeesLongues.shader_verre()
-	rubis.set_shader_parameter("opacite", 0.74)
-	rubis.set_shader_parameter("lueur", 0.07)
+	rubis.set_shader_parameter("opacite", 0.86)
+	rubis.set_shader_parameter("lueur", 0.11)
 	_mats = {
 		"rubis": rubis,
 		"fer": Palette.materiau(ImageTexture.create_from_image(_fer()), Vector2.ONE, Color(0.95, 0.95, 1.02)),
@@ -62,9 +62,9 @@ static func _rubis() -> Image:
 			var u := (x + 0.5) / W
 			var au := absf(u - 0.5) * 2.0
 			var nuage := ObjetsTextures._vn(x / 6.0, y / 9.0, 6, 15, 41) * 0.6 + ObjetsTextures._vn(x / 3.0, y / 4.0, 11, 32, 43) * 0.4
-			var l := 0.18 + nuage * 0.26
+			var l := 0.32 + nuage * 0.26
 			if au < 0.26:
-				l -= 0.07                                            # gouttière : plus profonde, plus sombre
+				l -= 0.06                                            # gouttière : plus profonde, plus sombre
 			elif au > 0.64 and au <= 0.9:
 				l += 0.10 + 0.06 * float(int(v * 40.0) % 2)          # biseaux : facettes en paliers
 			if au > 0.9:

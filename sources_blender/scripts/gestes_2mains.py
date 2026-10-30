@@ -57,11 +57,15 @@ PARADE_2M = dict(GARDE_2M, nom="parade_2m", poing=E(0.04, -0.28, 0.48), lame=(0.
 BRISEE_2M = dict(nom="brisee_2m", poing=E(0.36, -0.90, 0.44), lame=(0.30, 0.25, -0.92), roulis=TT2, coude=(0.7, -1, 0.3), large=True)
 
 
+RETOUR_MI = dict(nom="retour_mi", poing=E(0.08, -0.44, 0.52), lame=(-0.15, 0.95, -0.25), roulis=TT2, coude=(1, -0.9, 0.2), clav=(14, 0),
+                 epaule=(-0.05, 0.0, -0.05), large=True)
+
+
 def _n(v):
     return Vector(v).normalized()
 
 
-def arc(s, m, e, C, R, clav0, clav1, ep0, ep1):
+def arc(s, m, e, C, R, clav0, clav1, ep0, ep1, plan_z=0.45):
     """Cercle de la lame : axe fixe (départ × milieu), angle total jusqu'à l'arrivée projetée sur le plan. Renvoie pose(u, theta)."""
     s, m, e = _n(s), _n(m), _n(e)
     ax = s.cross(m).normalized()
@@ -79,7 +83,10 @@ def arc(s, m, e, C, R, clav0, clav1, ep0, ep1):
         k = max(0.0, min(1.0, f))
         cl = tuple(clav0[i] + (clav1[i] - clav0[i]) * k for i in range(2))
         epa = tuple(ep0[i] + (ep1[i] - ep0[i]) * k for i in range(3))
-        return dict(nom="arc", poing=tuple(poing), lame=tuple(d), mouvement=tuple(tg), coude=COUDE, clav=cl, epaule=epa,
+        # la lame DEMANDÉE est ramenée vers le plan de l'écran (z × 0,45) : le solveur, en butée de poignet, la laisse sinon pointer
+        # vers l'avant (vue en bout, cachée par les mains) au milieu et à la fin des arcs (mesure --mesurer : « visee » 6-12°)
+        dl = Vector((d.x, d.y, d.z * (plan_z if d.z < 0 else 0.45))).normalized()
+        return dict(nom="arc", poing=tuple(poing), lame=tuple(dl), mouvement=tuple(tg), coude=COUDE, clav=cl, epaule=epa,
                     large=True, interp="passe", suivre=True)
     return pose, th
 
@@ -106,22 +113,26 @@ def clip_arc(depart, pose, t_arme, t_frappe, t_fin_arc, t_fin, retour=None, extr
         if i == n:
             k.update(interp="amorti")
         cles.append(cle(k, t_frappe + u * (t_fin_arc - t_frappe)))
+    if retour is None:   # retour en garde par une lame presque verticale (sinon l'interpolation la fait passer derrière la tête)
+        cles.append(cle(RETOUR_MI, t_fin_arc + 0.5 * (t_fin - t_fin_arc)))
     cles.append(cle(retour or REPOS_2M, t_fin))
     mq = {"arme": t_arme, "frappe": t_frappe, "fin_frappe": round(t_ff, 4), "suivi": t_fin_arc, "fin": t_fin}
     return cles, mq
 
 
 # 1 : diagonale haut-droite (lame au-dessus de l'épaule droite) -> bas-gauche, lame finit près du sol
-POSE_A, TH_A = arc((0.45, 0.85, 0.30), (-0.70, 0.30, -0.65), (-0.55, -0.80, -0.25), (0.10, -0.16, -0.42), 0.24,
+POSE_A, TH_A = arc((0.45, 0.85, 0.30), (-0.70, 0.30, -0.65), (-0.45, -0.55, -0.70), (0.10, -0.06, -0.44), 0.24,
                    (-6, 12), (30, -2), (0.02, 0.04, 0.02), (-0.12, 0.02, -0.12))
-# 2 : retour en arc : de bas-gauche, la lame passe par le bas devant (en bas à droite) et remonte en haut à droite
-POSE_B, TH_B = arc((-0.55, -0.80, -0.25), (0.50, -0.55, -0.67), (0.50, 0.80, -0.30), (0.12, -0.18, -0.44), 0.22,
+# 2 : retour en arc : de bas-gauche, la lame remonte par la GAUCHE, passe en haut et finit en haut à droite (jamais cachée par
+# les bras : une lame pointée vers le bas, devant, passe derrière les avant-bras)
+POSE_B, TH_B = arc((-0.45, -0.55, -0.70), (-0.80, 0.25, -0.55), (0.45, 0.80, -0.38), (0.10, -0.08, -0.46), 0.22,
                    (30, -2), (6, 10), (-0.12, 0.02, -0.12), (0.0, 0.03, -0.01))
-# 3 : grand vertical tête -> pieds (lame au-dessus et derrière la tête, descend devant, un peu à droite du centre, jusqu'au sol)
-POSE_C, TH_C = arc((0.10, 0.70, 0.70), (-0.32, 0.30, -0.90), (-0.10, -0.90, -0.42), (0.16, -0.14, -0.40), 0.26,
-                   (-4, 16), (24, 0), (0.0, 0.06, 0.0), (-0.08, 0.0, -0.10))
-POSE_P, TH_P = arc((0.10, 0.70, 0.70), (-0.32, 0.30, -0.90), (-0.10, -0.90, -0.42), (0.16, -0.12, -0.40), 0.28,
-                   (-6, 18), (26, 0), (0.0, 0.07, 0.01), (-0.09, 0.0, -0.11))
+# 3 : grand vertical tête -> pieds (lame au-dessus et derrière la tête, descend devant, finit vers le sol un peu à gauche : à la
+# verticale, elle serait cachée par les avant-bras)
+POSE_C, TH_C = arc((0.10, 0.70, 0.70), (-0.32, 0.30, -0.90), (-0.60, -0.58, -0.55), (0.08, -0.05, -0.43), 0.26,
+                   (-4, 16), (24, 0), (0.0, 0.06, 0.0), (-0.08, 0.0, -0.10), plan_z=0.15)
+POSE_P, TH_P = arc((0.10, 0.70, 0.70), (-0.32, 0.30, -0.90), (-0.60, -0.58, -0.55), (0.08, -0.04, -0.43), 0.28,
+                   (-6, 18), (26, 0), (0.0, 0.07, 0.01), (-0.09, 0.0, -0.11), plan_z=0.15)
 
 C_A, M_A = clip_arc(REPOS_2M, POSE_A, 0.30, 0.38, 0.80, 1.20)
 C_B, M_B = clip_arc(dict(POSE_A(1.0), torsion=125, poids_torsion=1.0), POSE_B, 0.20, 0.28, 0.70, 1.10)

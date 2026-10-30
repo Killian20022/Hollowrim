@@ -39,7 +39,7 @@ def construire():
     # ---- lame : rubis, gouttière (section « gorge ») ; la gouttière s'arrête au 3/4 (elle s'efface vers la pointe)
     L = Maille("lame")
     lame(L, [(Z_GARDE + st[0] * L_LAME,) + st[1:] for st in P_LONGUE], Z_GARDE, zt, "gorge", lambda k, i: "rubis", 0.026,
-         elargir=(1.55, 1.15))
+         elargir=(1.75, 1.28))
     L.creer()
     # ---- talon gainé de cuir (ricasso) + crochets de parade
     R = Maille("ricasso")
