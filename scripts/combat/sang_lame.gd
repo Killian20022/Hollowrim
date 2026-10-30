@@ -9,13 +9,15 @@ extends Node3D
 ## Le rendu est une variante du shader de la lame (shader_de : le code du shader ps1 / reflet + un masque de sang calculé dans le
 ## repère du modèle, texels de SANG_TEXEL m, bruit de valeur étiré le long de la lame + coulures d'un texel de large).
 
-## Sang déposé par un coup (× ProfilImpact.sang × part) : léger 1 → 0,16, lourd 2,2 → 0,35, finisher 4,5 → 0,72.
-const PAR_COUP := 0.16
+## Sang déposé par un coup (× ProfilImpact.sang × part) : léger 1 → 0,14, lourd 2,2 → 0,31, finisher 4,5 → 0,63.
+## Retouche 2026-10-30 : 6 coups légers ≈ 0,84 → ~40 % de la lame couverte (moitié haute ~55 %), plafond ~48 % (moitié haute ~65 %), filets compris (calibré hors
+## Godot sur une copie du masque) ; la lame n'est jamais entièrement rouge.
+const PAR_COUP := 0.14
 ## Le sang reste frais (brillant, goutte) DUREE_FRAIS s après le dernier coup, sèche en DUREE_SECHE s, puis s'efface en DUREE_EFFACE s.
 const DUREE_FRAIS := 3.0
 const DUREE_SECHE := 14.0
 const DUREE_EFFACE := 26.0
-const SANG_TEXEL := 0.0055
+const SANG_TEXEL := 0.003
 
 static var _variantes := {}
 static var instance: SangLame
@@ -147,39 +149,62 @@ float sg_b(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.
 	return mix(mix(sg_h(i), sg_h(i + vec2(1.0, 0.0)), f.x), mix(sg_h(i + vec2(0.0, 1.0)), sg_h(i + vec2(1.0)), f.x), f.y); }
 """
 
-## Masque : texels de la lame (travers, long) ; bruit étiré le long de la lame (traînées laissées par la chair) ; plus de sang sur
-## la moitié haute (la partie qui entre dans le corps) et sur les tranchants ; coulures d'un texel vers la garde, terminées par
-## une goutte ; deux tons (film / caillot), sec en paliers par plaques ; un texel clair mouillé tant que c'est frais.
+## Masque (retouche 2026-10-30, plus de pavés francs) : texels de 3 mm ; bruit fractal à 3 octaves étiré le long de la lame (taches
+## organiques, contours déchiquetés par l'octave fine + un grain d'un texel) ; plus de sang sur la moitié haute et les tranchants ;
+## ÉPAISSEUR en 3 paliers (film mince qui laisse voir l'acier, sang, caillot sombre) ; gouttelettes isolées autour des taches ;
+## FILETS : 4 coulures d'un texel qui serpentent dans la gouttière vers la garde, terminées par une perle ; sec par plaques ;
+## un texel clair mouillé tant que c'est frais. Jamais de tramage.
 const _FRAGMENT := """
 	if (sang_quantite > 0.002) {
 		vec3 sg_ax = sang_pointe - sang_garde;
 		float sg_l = max(length(sg_ax), 0.01);
-		float sg_t = dot(sg_pos - sang_garde, sg_ax / sg_l) / sg_l;
-		vec2 sg_q = floor(vec2(sg_pos.x + sg_pos.z * 0.6, sg_t * sg_l) / sang_texel);
-		vec2 sg_qs = sg_q + vec2(sang_graine, sang_graine * 1.7);
-		float sg_nb = sg_b(sg_qs * vec2(0.55, 0.11)) * 0.62 + sg_b(sg_qs * vec2(1.1, 0.4) + 17.0) * 0.28 + sg_h(sg_qs) * 0.10;
+		float sg_t0 = dot(sg_pos - sang_garde, sg_ax / sg_l);
+		vec2 sg_q = floor(vec2(sg_pos.x + sg_pos.z * 0.6, sg_t0) / sang_texel);
+		vec2 sg_p = (sg_q + 0.5) * sang_texel;
+		float sg_t = sg_p.y / sg_l;
+		vec2 sg_g = vec2(sang_graine, sang_graine * 1.7);
+		vec2 sg_uv = vec2(sg_p.x / 0.012, sg_p.y / 0.05) + sg_g;
+		float sg_nb = 0.55 * sg_b(sg_uv) + 0.30 * sg_b(sg_uv * vec2(2.3, 2.1) + 17.0) + 0.15 * sg_b(sg_uv * vec2(5.0, 4.5) + 31.0);
+		float sg_grain = sg_h(sg_q + sg_g);
+		sg_nb += (sg_grain - 0.5) * 0.05;
 		float sg_zone = smoothstep(0.12, 0.62, sg_t) * (1.0 - smoothstep(0.985, 1.02, sg_t));
 		float sg_bord = step(0.32, abs(normalize(sg_n).x));
-		float sg_seuil = 0.8 - sang_quantite * (0.14 + 0.2 * sg_zone + 0.05 * sg_bord);
-		float sg_m = step(sg_seuil, sg_nb);
-		float sg_caillot = step(sg_seuil + 0.11, sg_nb);
-		float sg_col = sg_q.x + sang_graine;
-		if (sg_h(vec2(sg_col, 3.1)) > 0.62) {
-			float sg_t0 = 0.42 + sg_h(vec2(sg_col, 7.7)) * 0.5;
-			float sg_lg = sang_coule * (0.05 + sg_h(vec2(sg_col, 1.3)) * 0.22) * min(1.0, sang_quantite * 2.5);
-			float sg_tr = step(sg_t0 - sg_lg, sg_t) * step(sg_t, sg_t0) * step(0.08, sg_t);
-			float sg_bout = step(sg_t0 - sg_lg - 1.6 * sang_texel / sg_l, sg_t) * step(sg_t, sg_t0 - sg_lg) * step(0.02, sg_lg);
-			sg_m = max(sg_m, max(sg_tr, sg_bout));
-			sg_caillot = max(sg_caillot, sg_bout);
+		float sg_seuil = 0.755 - sang_quantite * (0.12 + 0.11 * sg_zone + 0.10 * sg_bord);
+		float sg_e = sg_nb - sg_seuil;
+		float sg_m = step(0.0, sg_e);
+		float sg_film = sg_m * (1.0 - step(0.03, sg_e));
+		float sg_caillot = step(0.10, sg_e);
+		// gouttelettes isolées autour des taches
+		float sg_gt = step(-0.06, sg_e) * (1.0 - sg_m) * step(0.955, sg_h(sg_q * 1.37 + sg_g + 9.0)) * step(0.08, sang_quantite);
+		// filets dans la gouttière, vers la garde
+		float sg_fil = 0.0;
+		float sg_perle = 0.0;
+		for (int k = 0; k < 4; k++) {
+			float fk = float(k);
+			float sg_hk = sg_h(vec2(fk * 7.3 + sang_graine, 3.1));
+			if (sg_hk < 0.2) { continue; }
+			float sg_xc = (fk - 1.5) * 0.0052 + (sg_h(vec2(fk, sang_graine)) - 0.5) * 0.003
+				+ 0.0013 * sin(sg_p.y * 90.0 + fk * 2.1 + sang_graine) + 0.0007 * sin(sg_p.y * 230.0 + fk * 4.7);
+			float sg_haut = 0.48 + sg_h(vec2(fk, 7.7 + sang_graine)) * 0.42;
+			float sg_lg = sang_coule * (0.12 + sg_h(vec2(fk, 1.3 + sang_graine)) * 0.3) * min(1.0, sang_quantite * 2.2);
+			float sg_bas = sg_haut - sg_lg;
+			float sg_dx = abs(sg_p.x - sg_xc);
+			float dedans = step(sg_bas, sg_t) * step(sg_t, sg_haut) * step(0.06, sg_t) * step(0.08, sang_quantite);
+			sg_fil = max(sg_fil, dedans * step(sg_dx, sang_texel * 0.5));
+			float sg_bout = step(sg_bas - 2.0 * sang_texel / sg_l, sg_t) * step(sg_t, sg_bas + sang_texel / sg_l) * step(0.03, sg_lg);
+			sg_perle = max(sg_perle, sg_bout * step(sg_dx, sang_texel * 1.1) * step(0.06, sg_t));
 		}
+		float sg_tout = max(max(sg_m, sg_gt), max(sg_fil, sg_perle));
 		vec3 sg_frais = min(sang_couleur * 1.8, vec3(1.0));
 		vec3 sg_seche = sang_couleur * vec3(0.62, 0.46, 0.42);
 		float sg_s = step(0.5, sang_sec + (sg_nb - 0.5) * 0.9 - 0.05);
-		vec3 sg_c = mix(sg_frais, sg_seche, sg_s) * mix(1.0, 0.68, sg_caillot);
-		float sg_brille = step(0.9, sg_h(sg_qs + 5.0)) * (1.0 - sg_s) * sg_caillot;
+		vec3 sg_c = mix(sg_frais, sg_seche, sg_s) * mix(1.0, 0.68, max(sg_caillot, sg_perle)) * mix(1.0, 0.86, sg_fil * (1.0 - sg_m));
+		float sg_brille = step(0.975, sg_h(sg_q + sg_g + 5.0)) * (1.0 - sg_s) * max(sg_caillot, sg_perle);
 		sg_c += sg_brille * vec3(0.22, 0.07, 0.05);
-		ALBEDO = mix(ALBEDO, sg_c, sg_m);
-		EMISSION *= 1.0 - sg_m;
+		// film mince : l'acier transparaît (palier, pas de dégradé lissé)
+		float sg_op = sg_tout * mix(1.0, 0.6, sg_film * (1.0 - max(sg_fil, sg_perle)));
+		ALBEDO = mix(ALBEDO, sg_c, sg_op);
+		EMISSION *= 1.0 - sg_tout;
 	}
 	ROUGHNESS = 1.0;
 }"""

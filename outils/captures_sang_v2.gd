@@ -189,6 +189,7 @@ func _planches() -> void:
 			coups += 1
 			await _attendre(0.1)
 		await _attendre(1.7 if cible_n == 6 else 0.0)
+		print("LAME %d coups : quantité %.2f" % [cible_n, lame.quantite])
 		await _deux_vues(proche, jeu, "%d coup%s" % [cible_n, "s" if cible_n > 1 else ""] + (" (le sang coule)" if cible_n == 6 else ""))
 	for etape in [[14.0, "sèche (17 s)"], [8.0, "s'efface (25 s)"], [8.0, "s'efface (33 s)"], [11.0, "presque propre (44 s)"]]:
 		for k in int(etape[0]):
@@ -212,10 +213,6 @@ func _planches() -> void:
 		e.recevoir_coup(5.0, j.global_position, false, _info(e, 0.9 if genre != "bandit" else 0.98, Vector3(1, -0.3, 0)))
 		var pl: Array = e.modele.get_meta("plaies", [])
 		var dp: Decal = pl.back()
-		await process_frame
-		var nrm := dp.global_basis.y.normalized()
-		nrm.y = 0.0
-		nrm = nrm.normalized() if nrm.length() > 0.1 else Vector3(0, 0, 1)
 		# pose figée (animations en pause) : la plaie reste cadrée pendant qu'elle coule
 		e.set_process(false)
 		for ap: AnimationPlayer in e.find_children("*", "AnimationPlayer", true, false):
@@ -225,6 +222,9 @@ func _planches() -> void:
 		for m: Node in e.find_children("*", "SkeletonModifier3D", true, false):
 			m.set("active", false)
 		await process_frame
+		var nrm := e.global_basis.z
+		nrm.y = 0.0
+		nrm = nrm.normalized()
 		_cam.fov = 30.0
 		_cam.global_position = dp.global_position + nrm * 1.15 + Vector3(0, 0.12, 0)
 		_cam.look_at(dp.global_position + Vector3(0, 0.03, 0), Vector3.UP)

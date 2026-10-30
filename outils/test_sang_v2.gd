@@ -132,12 +132,16 @@ func _opaques(im: Image) -> int:
 				n += 1
 	return n
 
-## Les texels très clairs (lèvres) et très sombres (cœur) des 14 premiers rangs sont les mêmes à toutes les étapes.
+## Les texels des lèvres et du cœur (palette « sombre ») des 14 premiers rangs sont les mêmes à toutes les étapes.
 func _fente_identique(a: Image, b: Image) -> bool:
+	var levre := Color(Sang.PALETTE_PLAIE["sombre"]["levre"])
+	var coeur := Color(Sang.PALETTE_PLAIE["sombre"]["coeur"])
+	var vus := 0
 	for y in 14:
 		for x in a.get_width():
-			var la := a.get_pixel(x, y).r
-			var lb := b.get_pixel(x, y).r
-			if (la > 0.95 or la < 0.1) and a.get_pixel(x, y).a > 0.5 and absf(la - lb) > 0.01:
-				return false
-	return true
+			var ca := a.get_pixel(x, y)
+			if ca.is_equal_approx(levre) or ca.is_equal_approx(coeur):
+				vus += 1
+				if not b.get_pixel(x, y).is_equal_approx(ca):
+					return false
+	return vus > 20

@@ -57,10 +57,13 @@ static func ajouter(modele: Node3D, point: Vector3, normale: Vector3, direction:
 	var sorte := "entaille" if matiere == "chair" else ("fissure" if matiere == "os" else "copeau")
 	var variante := randi() % 3
 	var coule := matiere == "chair" and SangLame.actif
-	d.texture_albedo = Sang.texture_entaille(variante, 0) if coule else Sang.texture(sorte, variante)
+	var vif := couleur.r >= 0.3
+	d.texture_albedo = Sang.texture_entaille(variante, 0, vif) if coule else Sang.texture(sorte, variante)
 	# lèvres de la plaie en couleur de palette (le cœur de la fente est sombre dans la texture) : chair vive des vivants, chair
 	# brun-rouge éteinte des draugrs (sang sombre) ; plus de rouge saturé ×3 qui « peignait » la cotte
 	d.modulate = couleur_levres(couleur) if matiere == "chair" else couleur
+	if coule:
+		d.modulate = Color(1.0, 1.0, 1.0)   # texture v2 en couleurs (Sang.PALETTE_PLAIE)
 	d.albedo_mix = 1.0
 	d.cull_mask = CALQUE
 	d.normal_fade = 0.25
@@ -92,17 +95,17 @@ static func ajouter(modele: Node3D, point: Vector3, normale: Vector3, direction:
 	l.append(d)
 	modele.set_meta("plaies", l)
 	if coule:
-		ecouler(d, variante, sang_couleur_goutte(couleur), 1.0 if couleur.r >= 0.3 else 0.55)
+		ecouler(d, variante, sang_couleur_goutte(couleur), 1.0 if vif else 0.55, vif)
 	return d
 
 ## L'entaille coule (images successives) puis goutte depuis le bas de ses coulures (sang sombre des draugrs : moins de gouttes).
-static func ecouler(d: Decal, variante: int, couleur: Color, abondance: float) -> void:
+static func ecouler(d: Decal, variante: int, couleur: Color, abondance: float, vif := false) -> void:
 	var tw := d.create_tween()
 	for e in range(1, ETAPES):
 		tw.tween_interval(PAS_ECOULEMENT * (1.0 + e * 0.35))
 		tw.tween_callback(func() -> void:
 			var t_us := Time.get_ticks_usec()
-			d.texture_albedo = Sang.texture_entaille(variante, e)
+			d.texture_albedo = Sang.texture_entaille(variante, e, vif)
 			SangLame.cout_us += Time.get_ticks_usec() - t_us)
 	if Sang.niveau() < 2:
 		return
