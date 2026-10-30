@@ -614,7 +614,7 @@ func _x_tresor(_m: Dictionary) -> void:
 	d.lumiere(_l(-42.0, -44.0, 1.0), Color(1.0, 0.8, 0.4), 0.8, 4.5, 1.6, false)
 	d.banniere(_l(-44.65, -44.0, 3.2), Vector3(1, 0, 0), 1.8, 0.9, Color(0.7, 0.55, 0.25), "couronne", 1)
 	# props Quaternius (props/placement, lot 4) : or répandu au pied des coffres, calice et clé sur la table, vases contre les murs,
-	# urne brisée près de l'urne du coin ; rien de solide devant la porte est ni sur l'allée centrale
+	# urne renversée au pied des armes ; angles laissés aux braseros (DonjonKit les pose aux coins), rien de solide devant la porte est ni sur l'allée centrale
 	var ORQ := {"fer": "or"}
 	var ARG := {"fer": "argile"}
 	_q("q_tas_pieces", -43.4, -42.35, 0.3, 0.0, false, ORQ)
@@ -625,8 +625,8 @@ func _x_tresor(_m: Dictionary) -> void:
 	_q("q_cle_or", -38.5, -46.75, 0.7, 0.8, false, ORQ)
 	_q("q_vase_2", -43.3, -47.55, 0.4, 0.0, true, ARG)
 	_q("q_vase_4", -39.85, -40.5, 1.3, 0.0, true, ARG)
-	_q("q_tas_pieces_2", -39.6, -41.6, 2.4, 0.0, false, ORQ)
-	_q("q_urne_brisee", -37.4, -42.0, 0.2, 0.0, false, ARG)          # l'urne brisée à côté de l'urne intacte du coin nord-est
+	_q("q_tas_pieces_2", -42.8, -42.8, 2.4, 0.0, false, ORQ)
+	_q("q_urne_brisee", -40.3, -46.5, 0.2, 0.0, false, ARG)          # urne renversée au pied des armes (les angles restent aux braseros)
 
 # ------------------------------------------------------------------ aile est
 func _x_glaces(_m: Dictionary) -> void:
@@ -687,12 +687,12 @@ func _x_quartiers(_m: Dictionary) -> void:
 	d.tonneau(_l(16.2, -1.2), 0.9)
 	d.boite("bois", _l(19.5, -1.4, 0.02), Vector3(0.9, 0.02, 0.2), 0.1)     # la planche disjointe (cachette)
 	d.os_tas(_l(21.0, -4.5), 2, 0.3)
-	# props Quaternius (props/placement, lot 4) : la table de garde servie (chopes, écuelle), tabouret, caisse de vivres près de l'urne du mur sud
+	# props Quaternius (props/placement, lot 4) : la table de garde servie (chopes, écuelle), tabouret, caisse de vivres entre deux lits
 	_q("q_chope", 24.0, -1.25, 0.4, 0.8)
 	_q("q_chope", 24.9, -0.95, 2.2, 0.8)
 	_q("q_assiette", 24.1, -0.88, 0.0, 0.8)
-	_q("q_tabouret", 25.3, -1.75, 0.5, 0.0, true)
-	_q("q_caisse", 24.6, -8.3, 0.15, 0.0, true, {}, 0.9)
+	_q("q_tabouret", 23.5, -1.55, 0.5, 0.0, true)
+	_q("q_caisse", 18.9, -8.6, 0.15, 0.0, true, {}, 0.85)          # entre deux lits (les angles restent aux braseros)
 	# mur fragile : fissures et poussière au pied du mur est, courant d'air
 	d.fissures(_l(26.66, -4.0, 1.4), Vector3(-1, 0, 0), 2.2, 2.6, 3)
 	souffle(_l(26.4, -4.0, 0.3), Vector3(0.1, 0.12, 1.1), Vector3(-1, 0, 0), 12)
