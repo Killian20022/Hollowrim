@@ -76,8 +76,11 @@ static func repere(epee: Node, nom: String) -> Node3D:
 	return epee.find_child(nom, true, false) as Node3D
 
 ## Remplace les matériaux importés par les matériaux PS1, par nom. `ombres` : l'arme projette une ombre (vue à la 3e personne).
+## Métadonnée `remap_materiaux` de la racine (facultative, ex. {"lame": "fer"} : boucliers CC0 dont le dos et le cerclage
+## portent le nom « lame ») : nom Blender -> matériau PS1 à poser à la place.
 static func habiller(racine: Node, ombres := false) -> void:
 	var mats := materiaux()
+	var remap: Dictionary = racine.get_meta("remap_materiaux", {})
 	var mailles: Array = racine.find_children("*", "MeshInstance3D", true, false)
 	if racine is MeshInstance3D:
 		mailles.append(racine)
@@ -86,6 +89,7 @@ static func habiller(racine: Node, ombres := false) -> void:
 		for s in mi.mesh.get_surface_count():
 			var m := mi.mesh.surface_get_material(s)
 			var nom := m.resource_name.get_slice(".", 0) if m else ""
+			nom = String(remap.get(nom, nom))
 			if mats.has(nom):
 				mi.set_surface_override_material(s, mats[nom])
 

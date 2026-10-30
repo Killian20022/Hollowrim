@@ -15,6 +15,8 @@ var m: Node
 var ids: Array[String] = []
 var fps := {}
 var alignement: Image
+var xs: Array[float] = []   # position (m) de chaque arme sur la bande d'alignement
+const REF := "ref_bouclier"  # le bouclier rond nordique du jeu, pour comparer la tenue des boucliers
 
 func _init() -> void:
 	_lancer.call_deferred()
@@ -79,7 +81,15 @@ func _alignement() -> void:
 	cam.position = Vector3(0, 0.875 - 0.12, 3)   # bas de l'image à y = -0,12 (sous les pommeaux)
 	vp.add_child(cam)
 	var largeur := cam.size * 960.0 / (H_ALIGN / 2.0)
-	var pas := largeur / (ids.size() + 1)
+	# largeur de case : 0,2 m par arme, 0,74 m par bouclier (vus de face) ; bande centrée
+	var total := 0.0
+	for id in ids:
+		total += 0.74 if CatalogueArmes.famille_de(id) == "bouclier" else 0.2
+	var x := -total * 0.5
+	for id in ids:
+		var w := 0.74 if CatalogueArmes.famille_de(id) == "bouclier" else 0.2
+		xs.append(x + w * 0.5)
+		x += w
 	for k in ids.size():
 		var d := CatalogueArmes.donnees(ids[k])
 		var e: Node3D = (load(d.modele) as PackedScene).instantiate()
@@ -87,7 +97,7 @@ func _alignement() -> void:
 		var piv := Node3D.new()
 		vp.add_child(piv)
 		piv.add_child(e)
-		piv.position = Vector3(-largeur * 0.5 + pas * (k + 1), 0, 0)
+		piv.position = Vector3(xs[k], 0, 0)
 		if d.famille == "bouclier":
 			e.rotation = Vector3(0, deg_to_rad(-90), 0)   # face peinte (+X) vers la caméra
 			e.position = Vector3(0, 0.4, 0)
@@ -108,9 +118,19 @@ func _en_main() -> void:
 	m.cycle.heure = 12.0
 	j.rotation.y = deg_to_rad(VUE_LACET)
 	j.tete.rotation.x = deg_to_rad(-2.0)
-	for id in ids:
-		if j.inventaire != null:
-			j.inventaire.ajouter(id)
+	var liste: Array[String] = ids.duplicate()
+	liste.append(REF)
+	for id in liste:
+		if id == REF:
+			magie.equiper("droite", "epee_soldat")
+			magie.equiper("gauche", "bouclier")
+			await _attendre(100)
+			var im: Image = await _ecran()
+			im.resize(CW, CH, Image.INTERPOLATE_NEAREST)
+			fps[id] = im
+			_sauver(im, "fps_%s.png" % id)
+			await _garde(j, id)
+			continue
 		var d := CatalogueArmes.donnees(id)
 		if d.famille == "bouclier":
 			magie.equiper("droite", "epee_soldat")
@@ -125,7 +145,19 @@ func _en_main() -> void:
 		img.resize(CW, CH, Image.INTERPOLATE_NEAREST)
 		fps[id] = img
 		_sauver(img, "fps_%s.png" % id)
+		if d.famille == "bouclier":
+			await _garde(j, id)
 	m.calque.visible = true
+
+## Garde levée au bouclier (clic droit forcé) : la face peinte doit partir vers l'avant, le dos (poignées) vers la caméra.
+func _garde(j: Node, id: String) -> void:
+	j.mains.entrees.forcer_garde(3.0)
+	await _attendre(40)
+	var img: Image = await _ecran()
+	img.resize(CW, CH, Image.INTERPOLATE_NEAREST)
+	fps["garde:" + id] = img
+	_sauver(img, "fps_%s_garde.png" % id)
+	await _attendre(200)   # la garde forcée retombe
 
 func _texte(parent: Node, t: String, pos: Vector2, taille: int, couleur := Color("#f2e6c8")) -> void:
 	var l := Label.new()
@@ -146,7 +178,12 @@ func _image_rect(parent: Node, img: Image, pos: Vector2, taille: Vector2) -> voi
 	t.size = taille
 
 func _assembler() -> void:
-	var lignes := int(ceil(ids.size() / float(COLS)))
+	var cases: Array[String] = ids.duplicate()
+	cases.append(REF)
+	for id in CatalogueArmes.ids_famille("bouclier"):
+		cases.append("garde:" + id)
+	cases.append("garde:" + REF)
+	var lignes := int(ceil(cases.size() / float(COLS)))
 	var haut := 60 + H_ALIGN + 30
 	var vp := SubViewport.new()
 	vp.size = Vector2i(COLS * CW, haut + lignes * (CH + TXT))
@@ -172,14 +209,22 @@ func _assembler() -> void:
 		if c % 5 == 0:
 			_texte(vp, "%s m" % String.num(c * 0.1, 1).replace(".", ","), Vector2(4, y - 20), 15, Color("#c8c0a8"))
 	var largeur := 1.75 * 960.0 / (H_ALIGN / 2.0)
-	var pas := largeur / (ids.size() + 1)
 	for k in ids.size():
-		var x := 960.0 + (-largeur * 0.5 + pas * (k + 1)) * (1920.0 / largeur)
+		var x := 960.0 + xs[k] * (1920.0 / largeur)
 		_texte(vp, "%d" % (k + 1), Vector2(x - 8, 60 + H_ALIGN + 2), 18, Color("#ffd88a"))
-	for k in ids.size():
-		var id: String = ids[k]
+	for k in cases.size():
+		var id: String = cases[k]
 		var o := Vector2((k % COLS) * CW, haut + (k / COLS) * (CH + TXT))
 		_image_rect(vp, fps[id], o, Vector2(CW, CH))
+		if id.begins_with("garde:"):
+			var nom := "Bouclier rond nordique (réf.)" if id == "garde:" + REF else CatalogueArmes.donnees(id.substr(6)).nom
+			_texte(vp, "%s : garde levée" % nom, o + Vector2(8, CH + 2), 19, Color("#ffd88a"))
+			_texte(vp, "clic droit : face peinte vers l'avant, poignées vers soi", o + Vector2(8, CH + 28), 14, Color("#d8cfb8"))
+			continue
+		if id == REF:
+			_texte(vp, "RÉF.  Bouclier rond nordique (déjà dans le jeu)", o + Vector2(8, CH + 2), 19, Color("#ffd88a"))
+			_texte(vp, "même tenue au bras gauche : comparer les boucliers 19 et 20", o + Vector2(8, CH + 28), 14, Color("#d8cfb8"))
+			continue
 		var d := CatalogueArmes.donnees(id)
 		var s := CatalogueArmes.stats(id)
 		var f := Inventaire.objet(id)
@@ -200,6 +245,10 @@ func _assembler() -> void:
 func _inventaire() -> void:
 	var j = m.joueur
 	var magie = j.mains.magie
+	for id in ids:   # sac portable pour la capture : quelques armes seulement (les 20 pèsent 222 kg)
+		j.inventaire.retirer(id, j.inventaire.nombre(id))
+	for id in ["dague_acier", "epee_soldat", "hache_guerre", "veilleuse", "claymore", "croc_de_givre", "bouclier_cercle", "ecu_chevalier"]:
+		j.inventaire.ajouter(id)
 	magie.equiper("droite", "claymore")
 	await _attendre(30)
 	var ui: InventaireMains = m.inventaire_ui
@@ -208,6 +257,8 @@ func _inventaire() -> void:
 	await _attendre(10)
 	for b in ui._liste.get_children():
 		if b is Button and String(b.get_meta("id", "")) == "croc_de_givre":
+			if ui._liste.get_parent() is ScrollContainer:
+				(ui._liste.get_parent() as ScrollContainer).ensure_control_visible(b)
 			b.grab_focus()
 	await _attendre(10)
 	_sauver(await _ecran(), "inventaire_armes.png")

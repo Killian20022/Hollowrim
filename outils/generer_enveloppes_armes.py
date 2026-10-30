@@ -46,10 +46,13 @@ def ech(p, s):
 ID = (1, 0, 0, 0, 1, 0, 0, 0, 1)
 
 
-def scene(id_, glb, t_modele, reperes):
+def scene(id_, glb, t_modele, reperes, remap=None):
 	txt = '[gd_scene load_steps=2 format=3]\n\n'
 	txt += '[ext_resource type="PackedScene" path="res://assets/modeles/armes/cc0_essai/%s.glb" id="1_glb"]\n\n' % glb
-	txt += '[node name="%s" type="Node3D"]\n\n' % id_
+	txt += '[node name="%s" type="Node3D"]\n' % id_
+	if remap:   # EpeesLongues.habiller : nom Blender -> matériau PS1
+		txt += 'metadata/remap_materiaux = {%s}\n' % ', '.join('"%s": "%s"' % kv for kv in remap.items())
+	txt += '\n'
 	txt += '[node name="modele" parent="." instance=ExtResource("1_glb")]\ntransform = %s\n' % t_modele
 	for nom, o in reperes:
 		txt += '\n[node name="%s" type="Marker3D" parent="."]\ntransform = %s\n' % (nom, tr(ID, o))
@@ -63,5 +66,6 @@ for id_, glb, s, g, p in ARMES:
 for id_, glb, cy in BOUCLIERS:
 	# rotation +90° autour de Y : x' = z, z' = -x (la face +Z du glb devient +X)
 	t = tr((0, 0, 1, 0, 1, 0, -1, 0, 0), (0.085, -cy, 0))
-	open(D + id_ + '.tscn', 'w').write(scene(id_, glb, t, [("prise", (0, 0, 0)), ("umbo", (0.19, 0, 0))]))
+	# dos, cerclage et clous nommés « lame » dans le glb : fer forgé sombre plutôt que l'acier poli des lames
+	open(D + id_ + '.tscn', 'w').write(scene(id_, glb, t, [("prise", (0, 0, 0)), ("umbo", (0.19, 0, 0))], {"lame": "fer"}))
 print('enveloppes :', len(ARMES) + len(BOUCLIERS), '->', D)
