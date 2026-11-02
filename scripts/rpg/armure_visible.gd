@@ -6,7 +6,7 @@ extends Node
 ## d'os : il est rattaché au Skeleton3D du corps et suit toutes ses animations). Pièce sans glb : rien ne change (le héros garde sa
 ## tenue). Ce qu'une pièce recouvre est MASQUÉ sur le héros (copie filtrée des maillages, l'original est remis quand on l'ôte) :
 ##   tete  : casque, crête, camail, cheveux (la barbe et le visage restent) ;
-##   torse : cotte (triangles qui ont un sommet à |x| < 0,405 : la manche au-delà, sous le coude, reste), mante, plastron, épaulières, col, tabard, pèlerine, ceinture, surcot ;
+##   torse : cotte (triangles qui ont un sommet à |x| < 0,415 : la manche au-delà, sous le coude, reste), mante, plastron, épaulières, col, tabard, pèlerine, ceinture, surcot ;
 ##   mains : tout ce qui dépasse |x| = 0,58 en pose de repos (gants, revers fourrés, brassards, bout des manches) ;
 ##   pieds : bottes, revers fourrés, bas du pantalon (sous y = 0,40).
 ## 1re personne : les bras FPS (mains.gd, matières ab_* d'AvantBras) prennent la matière des gants / gantelets portés.
@@ -20,12 +20,11 @@ const SOL := "res://assets/modeles/armures/sol/"
 const EMPLACEMENTS := ["tete", "torse", "mains", "pieds"]
 ## Seuils de masquage (pose de repos du héros, repère du squelette : y haut, z devant).
 const MAINS_X := 0.58
-const TORSE_X := 0.405
+const TORSE_X := 0.415
 const PIEDS_Y := 0.40
-const PIEDS_Y_ACC := 0.47
+const PIEDS_Y_ACC := 0.56	# pans fourrés du héros au-dessus du genou (bottes hautes de l'agent Y) ; surface 0 seulement (la pèlerine reste)
 const TETE_Y := 1.585
 const CAMAIL_Y := 1.46
-const CAMAIL_BAS_TORSE := 1.62
 const TORSE_PANTALON_Y := 0.71	# sommet le plus haut du triangle (gros triangles du pantalon)
 ## Mèches de la nuque (cheveux sous le casque du héros) qui tombent dans le col d'une pièce de torse.
 const TORSE_CHEVEUX_Y := 1.575
@@ -269,7 +268,7 @@ static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Arra
 			return true
 		if nom == "pantalon" and c.y < PIEDS_Y:
 			return true
-		if nom == "accessoires" and c.y < PIEDS_Y_ACC:
+		if nom == "accessoires" and surface == 0 and c.y < PIEDS_Y_ACC:
 			return true
 	var acc := nom == "accessoires" and surface == 0
 	var oeil := acc and _dans(GuerrierTextures.R_OEIL, u)
@@ -278,8 +277,8 @@ static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Arra
 	if z.has("tete") and nom == "accessoires" and not oeil and (casque or camail or c.y > TETE_Y):
 		return true
 	if z.has("torse"):
-		if camail and c.y < CAMAIL_BAS_TORSE:
-			return true     # bas du camail du casque, étalé sur le col : sous la pièce de torse
+		if camail:
+			return true     # camail du casque de base : il tombe sur le col et traverserait le haut de la pièce de torse (nuque)
 		if nom == "pantalon" and haut > TORSE_PANTALON_Y:
 			return true     # haut du pantalon (hanches) : sous la pièce de torse, il passerait au travers quand la cuisse se lève
 		if nom == "tunique" and x_min < TORSE_X:     # sommet le plus proche du corps : les grands triangles de la manche

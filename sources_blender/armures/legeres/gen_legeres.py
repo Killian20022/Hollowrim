@@ -7,7 +7,7 @@ Sorties : assets/modeles/armures/porte/<id>.glb (skinné sur le squelette du hé
 
 Zones recouvertes (masquées sur le héros par scripts/rpg/armure_visible.gd, mêmes seuils) :
   tete  : casque, crête, camail et cheveux du héros (la barbe et le visage restent) ;
-  torse : cotte (triangles qui ont un sommet à |x| < 0,405), mante, plastron, épaulières, col, tabard, pèlerine, ceinture, surcot (les manches au-delà restent) ;
+  torse : cotte (triangles qui ont un sommet à |x| < 0,415), mante, plastron, épaulières, col, tabard, pèlerine, ceinture, surcot (les manches au-delà restent) ;
   mains : tout ce qui est au-delà de |x| = 0,58 (gants, revers fourrés, brassards, bout des manches) ;
   pieds : tout ce qui est sous y = 0,40 (bottes, revers fourrés, bas du pantalon).
 """
@@ -266,7 +266,7 @@ def torse_base(nom, tris, jeu=0.012):
     bm = bmesh.new()
     bm.from_mesh(o.data)
     def _fente(c):
-        return (abs(c.x) < 0.028 and c.y < 0.86) or (c.y > 1.49 and c.z > 0.03 and abs(c.x) < 0.10 - (1.58 - c.y) * 0.5)
+        return (abs(c.x) < 0.028 and c.y < 0.86) or (c.y > 1.46 and c.z > 0.03 and abs(c.x) < 0.12 - (1.58 - c.y) * 0.4)
     fentes = [f for f in bm.faces if _fente(G(f.calc_center_median()))]    # fentes de la jupe, encolure en V (la barbe)
     bmesh.ops.delete(bm, geom=fentes, context='FACES')
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')

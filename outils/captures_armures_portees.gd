@@ -11,9 +11,11 @@ const PIECES := {
 	"os": ["casque_os", "cuirasse_os", "gants_os", "bottes_os"],
 	"fer": ["casque_fer", "cuirasse_fer", "gantelets_fer", "bottes_fer"],
 	"acier": ["casque_acier_nordique", "cuirasse_acier_nordique", "gantelets_acier_nordique", "bottes_acier_nordique"],
+	"uniques": ["heaume_jarl", "cuirasse_gardiens", "gantelets_hrafn", "bottes_rodeur"],
+	"uniques2": ["capuche_thaumaturge", "brigandine_braise", "gants_cuir", "bottes_cuir"],
 }
 const NOMS := {"sans_armure": "Heros sans armure (reference)", "cuir": "CUIR", "fourrure": "FOURRURE", "os": "OS DE DRAUGR",
-	"fer": "FER", "acier": "ACIER NORDIQUE"}
+	"fer": "FER", "acier": "ACIER NORDIQUE", "uniques": "UNIQUES (Jarl, gardiens, Hrafn, rodeur)", "uniques2": "UNIQUES (thaumaturge, braise) + cuir"}
 var s: Node
 var j: CharacterBody3D
 var mains: Node3D
