@@ -24,9 +24,9 @@ void fragment() {
 	float n2 = texture(nuages, p * 2.7 + vec2(0.31, 0.17)).r;
 	float d = max(abs(pm.x), abs(pm.z));
 	float cadre = smoothstep(bord.x, bord.y, d);
-	float seuil = mix(0.62, 0.30, cadre);
+	float seuil = mix(0.68, 0.30, cadre);
 	float a = smoothstep(seuil, seuil + 0.16, n * 0.75 + n2 * 0.25);
-	a *= mix(0.42 * clair, 0.96, cadre);
+	a *= mix(0.3 * clair, 0.96, cadre);
 	float relief = clamp((n2 - 0.35) * 1.6, 0.0, 1.0);
 	ALBEDO = mix(gris, blanc, relief);
 	ALPHA = a;

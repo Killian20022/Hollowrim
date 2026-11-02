@@ -25,7 +25,7 @@ const HALO := Color("#e8e0c8")
 
 const PITCH := 55.0            # degrés sous l'horizon
 const FOV := 30.0
-const DIST_MIN := 38.0         # zoom serré (une maison remplit ~1/10 de la carte)
+const DIST_MIN := 62.0         # zoom serré : le village remplit la carte, les maisons se lisent
 const VITESSE := 0.9           # fraction de la largeur visible par seconde (clavier, stick)
 const ZOOM_PAS := 0.8
 
@@ -65,9 +65,12 @@ var _icones := {}              ## type -> ImageTexture
 var _glisse := false
 var _glisse_sol := Vector3.ZERO
 var _curseur := Vector2(-1, -1)   ## position du curseur dans la carte (-1 : centre, manette / clavier)
+var survol_impose := Vector2(-1, -1)   ## captures : point de survol imposé (repère de la carte), prioritaire sur la souris
 var _quete_idx := -1
 var _marqueurs: Array = []     ## [Vector2 écran, nom, sous-titre, ligne, rayon] : survol
 var _survol: Array = []
+var _etiquettes: Array = []    ## Rect2 des icônes et noms déjà posés (évite les chevauchements)
+var _a_nommer: Array = []      ## noms à poser après les icônes : [police, point, texte, taille, couleur, essais, facultatif]
 
 func id_onglet() -> String:
 	return "carte"
@@ -392,9 +395,13 @@ func _draw() -> void:
 		draw_line(Vector2(xr - i, r.position.y), Vector2(xr - i, r.end.y), Color(0.1, 0.06, 0.04, a))
 		draw_line(Vector2(xr + 1 + i, r.position.y), Vector2(xr + 1 + i, r.end.y), Color(0.1, 0.06, 0.04, a * 0.7))
 	_marqueurs = []
+	_etiquettes = []
+	_a_nommer = []
 	_dessiner_lieux(r)
 	_dessiner_quetes(r)
 	_dessiner_joueur(r)
+	for a: Array in _a_nommer:
+		_etiquette(a[0], a[1], a[2], a[3], a[4], r, a[5], a[6])
 	_dessiner_titre(r)
 	_dessiner_rose(r)
 	_dessiner_echelle(r)
@@ -427,6 +434,10 @@ func _dessiner_lieux(r: Rect2) -> void:
 			s = _bord(r, r.get_center() + dir.normalized() * 2000.0, 14.0)
 			_fleche(s, dir.normalized(), ENCRE)
 			s -= dir.normalized() * 10.0
+			if _dist < _dist_max * 0.6:
+				draw_texture(_icones[l["type"]], (s - Vector2(5, 5)).floor())
+				_marqueurs.append([s, l["nom"], String(Lieux.TYPES.get(l["type"], "")), String(l["note"]), 8.0, p3])
+				continue
 		elif not r.grow(-4).has_point(s):
 			continue
 		var majeur: bool = l["majeur"]
@@ -435,11 +446,12 @@ func _dessiner_lieux(r: Rect2) -> void:
 		var ic: ImageTexture = _icones.get(l["type"])
 		if ic != null and l["type"] != "lac":
 			draw_texture(ic, (s - Vector2(5, 5)).floor())
+			_etiquettes.append(Rect2(s - Vector2(5, 5), Vector2(11, 11)))
 		var nom: String = l["nom"]
 		if majeur:
-			_texte_halo(_gothique_petit, (s + Vector2(0, 16)).floor(), nom, MenuStyle.TITRE_PETIT, ENCRE, true, r)
+			_a_nommer.append([_gothique_petit, s, nom, MenuStyle.TITRE_PETIT, ENCRE, [Vector2(0, 16), Vector2(0, -9), Vector2(0, 27), Vector2(0, -20)], false])
 		elif proche or l["type"] == "lac":
-			_texte_halo(_police, (s + Vector2(0, 14 if l["type"] != "lac" else 4)).floor(), nom, 16, PALE, true, r)
+			_a_nommer.append([_police, s, nom, 16, PALE, [Vector2(0, 14 if l["type"] != "lac" else 4), Vector2(0, -8)], false])
 		_marqueurs.append([s, nom, String(Lieux.TYPES.get(l["type"], "")), String(l["note"]), 8.0, p3])
 	# bâtiments du village (noms des portes) quand on zoome
 	if _dist < DIST_MIN * 2.2:
@@ -451,7 +463,7 @@ func _dessiner_lieux(r: Rect2) -> void:
 				var pr: Vector3 = (it.racine as Node3D).global_position
 				var s := ecran(Vector3(pr.x, carte.hauteur(pr.x, pr.z) + 5.0, pr.z))
 				if r.grow(-10).has_point(s):
-					_texte_halo(_police, s.floor(), String(it.nom), 16, PALE, true, r)
+					_a_nommer.append([_police, s, String(it.nom), 16, PALE, [Vector2.ZERO, Vector2(0, -11), Vector2(0, 11)], true])
 
 func _dessiner_quetes(r: Rect2) -> void:
 	var cq := Lieux.cibles_quetes(quetes, monde)
@@ -465,7 +477,9 @@ func _dessiner_quetes(r: Rect2) -> void:
 			var vers := Vector2(p3.x - _centre.x, (p3.z - _centre.y) * sin(deg_to_rad(PITCH))).normalized()
 			s = _bord(r, s if s != Vector2.INF else r.get_center() + vers * 2000.0, 12.0)
 			_fleche(s + vers * 7.0, vers, OR_TERNI)
-		_banniere(s - Vector2(0, bond), grand)
+		var sb := s - Vector2(0, bond + (6.0 if dedans else 0.0))
+		_banniere(sb, grand)
+		_etiquettes.append(Rect2(sb + Vector2(-6, -16), Vector2(12, 17)))
 		_marqueurs.append([s, String(q["titre"]), "Quête" + (" suivie" if grand else ""), String(q["objectif"]), 9.0, p3])
 
 ## Marqueur de quête : chevron d'or cerclé d'encre, pointe sur le lieu (grand = quête suivie).
@@ -511,29 +525,12 @@ func _dessiner_joueur(r: Rect2) -> void:
 	draw_polyline(tri, ENCRE, 1.0)
 	var ss := Lieux.sous_terre(monde)
 	var nom := "Vous" if ss == "" else "Vous (sous terre)"
-	_marqueurs.append([s, nom, "Votre position", _ou_suis_je(p), 8.0, p])
-
-## Lieu le plus proche du joueur, en mots (« près de Skarnholt », « dans le Tertre de Svanhild »…).
-func _ou_suis_je(p: Vector3) -> String:
-	var ss := Lieux.sous_terre(monde)
-	if ss != "":
-		return "Sous terre : " + String(Lieux.lieu(ss)["nom"])
-	var best := ""
-	var bd := INF
-	for l: Dictionary in Lieux.liste():
-		var q: Vector2 = l["pos"]
-		var dd := q.distance_to(Vector2(p.x, p.z))
-		if dd < bd and absf(q.x) < 400.0:
-			bd = dd
-			best = l["nom"]
-	if best == "":
-		return ""
-	return ("À " if bd < 25.0 else "Près de ") + best if bd < 70.0 else "Dans les bois"
+	_marqueurs.append([s, nom, "Votre position", Lieux.ou_est(monde), 8.0, p])
 
 func _dessiner_titre(r: Rect2) -> void:
 	var t := "Val de Skarnholt"
 	var l := _gothique.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND).x
-	var sous := _ou_suis_je(Lieux.position_joueur(monde))
+	var sous := Lieux.ou_est(monde)
 	var ls := _police.get_string_size(sous, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 	var cr := _arrondi(Rect2(r.position + Vector2(6, 6), Vector2(maxf(l, ls) + 16.0, 38.0)))
 	_cartouche(cr)
@@ -595,17 +592,18 @@ func _dessiner_legende(r: Rect2) -> void:
 
 ## Fiche du marqueur sous le curseur (souris), ou au centre (clavier, manette : petit réticule).
 func _dessiner_survol(r: Rect2) -> void:
-	var c := r.position + (_curseur if _curseur.x >= 0.0 else r.size * 0.5)
-	if _curseur.x < 0.0:
+	var cur := survol_impose if survol_impose.x >= 0.0 else _curseur
+	var c := r.position + (cur if cur.x >= 0.0 else r.size * 0.5)
+	if cur.x < 0.0:
 		draw_line(c + Vector2(-4, 0), c + Vector2(-2, 0), Color(ENCRE, 0.7))
 		draw_line(c + Vector2(2, 0), c + Vector2(4, 0), Color(ENCRE, 0.7))
 		draw_line(c + Vector2(0, -4), c + Vector2(0, -2), Color(ENCRE, 0.7))
 		draw_line(c + Vector2(0, 2), c + Vector2(0, 4), Color(ENCRE, 0.7))
 	_survol = []
 	var bd := INF
-	for m: Array in _marqueurs:
+	for m: Array in _marqueurs:   # à égalité, le dernier posé gagne (quêtes et joueur passent devant les lieux)
 		var dd := (m[0] as Vector2).distance_to(c)
-		if dd < float(m[4]) + 4.0 and dd < bd:
+		if dd < float(m[4]) + 4.0 and dd <= bd:
 			bd = dd
 			_survol = m
 	if _survol.is_empty():
@@ -649,6 +647,27 @@ func _texte_halo(police: Font, c: Vector2, t: String, taille: int, col: Color, c
 	for d: Vector2 in [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1), Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
 		draw_string(police, p + d, t, HORIZONTAL_ALIGNMENT_LEFT, -1, taille, Color(HALO, 0.8))
 	draw_string(police, p, t, HORIZONTAL_ALIGNMENT_LEFT, -1, taille, col)
+
+## Nom posé au premier décalage libre (par rapport au point `s`) parmi `essais` ; sinon au premier (majeur) ou rien.
+func _etiquette(police: Font, s: Vector2, t: String, taille: int, col: Color, r: Rect2, essais: Array, facultatif := false) -> void:
+	var l := police.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, taille).x
+	var choisi := Vector2.INF
+	var tous := essais.duplicate()
+	tous.append_array([Vector2(l * 0.5 + 9.0, 4.0), Vector2(-l * 0.5 - 9.0, 4.0)])   # à droite, à gauche de l'icône
+	for d: Vector2 in tous:
+		var c := (s + d).floor()
+		var x := clampf(roundf(c.x - l * 0.5), r.position.x + 3, r.end.x - l - 3)
+		var y := clampf(c.y, r.position.y + 12, r.end.y - 3)
+		var rr := Rect2(x - 1, y - taille * 0.8, l + 2, taille * 1.0)
+		if not _etiquettes.any(func(o: Rect2) -> bool: return o.intersects(rr)):
+			choisi = c
+			_etiquettes.append(rr)
+			break
+	if choisi == Vector2.INF:
+		if facultatif:
+			return
+		choisi = (s + essais[0]).floor()
+	_texte_halo(police, choisi, t, taille, col, true, r)
 
 ## Point du bord de `r` (rentré de `marge`) sur la demi-droite centre → `vers`.
 func _bord(r: Rect2, vers: Vector2, marge: float) -> Vector2:

@@ -31,10 +31,10 @@ const EAU_LIBRE := Color("#2b4a63")
 const CHEMIN := Color("#a89a86")
 const ENCEINTE := Color("#b8b2a8")
 const SOUS_BOIS := Color("#3d4a3c")
-const SAPIN := Color("#22352b")
-const SAPIN_NEIGE := Color("#d7e0e4")
-const BOIS := Color("#5a3a20")
-const TOIT := Color("#dfe6ea")
+const SAPIN := Color("#1b2e24")
+const SAPIN_NEIGE := Color("#8fa39a")
+const BOIS := Color("#4a3020")
+const TOIT := Color("#eef0ee")
 const PIERRE := Color("#8a8f99")
 const TERRE_TERTRE := Color("#cfd5d6")
 
@@ -242,7 +242,7 @@ func _materiau(shader: Shader) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = shader
 	m.set_shader_parameter("nuages", tex_nuages)
-	m.set_shader_parameter("brume_dist", Vector2(demi - 8.0, demi + HORS))
+	m.set_shader_parameter("brume_dist", Vector2(demi - 4.0, demi + HORS * 0.55))
 	materiaux.append(m)
 	return m
 
@@ -323,18 +323,19 @@ static func _maillage_sapin() -> ArrayMesh:
 			if nrm.y < 0.0:
 				nrm = -nrm
 			st.set_normal(nrm)
-			st.set_color(SAPIN)
+			var pan := SAPIN if s % 2 == 0 else SAPIN.lightened(0.08)   # pans alternés : facettes lisibles
+			st.set_color(pan.lerp(Color("#dfe7ea"), 0.35))   # neige sur le bord des branches
 			st.add_vertex(p0)
 			st.set_color(SAPIN_NEIGE)
 			st.add_vertex(top)
-			st.set_color(SAPIN.lerp(SAPIN_NEIGE, 0.25))
+			st.set_color(pan)
 			st.add_vertex(p1)
 	# tronc (petit prisme sombre)
 	for s in 4:
 		var a0 := TAU * s / 4.0
 		var a1 := TAU * (s + 1) / 4.0
-		var q0 := Vector3(cos(a0) * 0.05, 0.0, sin(a0) * 0.05)
-		var q1 := Vector3(cos(a1) * 0.05, 0.0, sin(a1) * 0.05)
+		var q0 := Vector3(cos(a0) * 0.04, 0.0, sin(a0) * 0.04)
+		var q1 := Vector3(cos(a1) * 0.04, 0.0, sin(a1) * 0.04)
 		st.set_normal(((q0 + q1) * 0.5).normalized())
 		st.set_color(BOIS)
 		st.add_vertex(q0)
@@ -381,8 +382,8 @@ func _sapins() -> void:
 	for i in liste.size():
 		var tr: Transform3D = liste[i]
 		var ech := tr.basis.get_scale().y
-		var haut := clampf(ech, 0.5, 2.0) * 11.0   # ~11 m pour un épicéa d'échelle 1
-		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3(haut, haut, haut)), tr.origin - Vector3(0, 0.3, 0)))
+		var haut := clampf(ech, 0.5, 2.0) * 8.5   # ~8,5 m pour un épicéa d'échelle 1 (lisible : clairières et chemins restent visibles)
+		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3(haut * 0.85, haut, haut * 0.85)), tr.origin - Vector3(0, 0.3, 0)))
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = "Sapins"
 	mmi.multimesh = mm
@@ -554,7 +555,7 @@ func _nuages() -> void:
 	mat_nuages = ShaderMaterial.new()
 	mat_nuages.shader = SHADER_NUAGES
 	mat_nuages.set_shader_parameter("nuages", tex_nuages)
-	mat_nuages.set_shader_parameter("bord", Vector2(demi - 25.0, demi + HORS * 0.7))
+	mat_nuages.set_shader_parameter("bord", Vector2(demi - 4.0, demi + HORS * 0.65))
 	mi.material_override = mat_nuages
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.position = Vector3(0, h_max + 26.0, 0)
@@ -564,17 +565,17 @@ func _lumiere() -> void:
 	lumiere = DirectionalLight3D.new()
 	lumiere.name = "Soleil"
 	lumiere.light_color = Color("#fff1dc")
-	lumiere.light_energy = 1.05
+	lumiere.light_energy = 1.2
 	lumiere.shadow_enabled = false
 	add_child(lumiere)
 	# lumière du nord-ouest (convention des cartes : les reliefs se lisent en saillie), rasante (35°)
-	lumiere.basis = Basis.looking_at(Vector3(1.0, -0.95, 1.0).normalized(), Vector3.UP)
+	lumiere.basis = Basis.looking_at(Vector3(1.0, -0.75, 0.8).normalized(), Vector3.UP)
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color("#d0d5d8")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#9fb0c4")
-	env.ambient_light_energy = 0.55
+	env.ambient_light_energy = 0.42
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	var we := WorldEnvironment.new()
 	we.environment = env

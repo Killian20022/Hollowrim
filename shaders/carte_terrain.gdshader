@@ -51,15 +51,13 @@ void vertex() {
 void fragment() {
 	vec2 uv = (pm.xz - rect.xy) * rect.z;
 	float bord = max(abs(pm.x), abs(pm.z));
-	vec3 c;
+	// pourtour : neige, roche sur les pentes, forêts sombres en taches (calculé partout, fondu sur les 10 derniers mètres)
+	float pente = 1.0 - nm.y;
+	float foret = smoothstep(0.52, 0.66, vnoise(pm.xz * 0.045) * 0.7 + vnoise(pm.xz * 0.19) * 0.3) * (1.0 - smoothstep(0.18, 0.3, pente));
+	vec3 c = mix(vec3(0.86, 0.89, 0.92), vec3(0.16, 0.24, 0.2), foret * 0.85);
+	c = mix(c, vec3(0.42, 0.42, 0.45), smoothstep(0.22, 0.38, pente));
 	if (uv.x >= 0.0 && uv.y >= 0.0 && uv.x <= 1.0 && uv.y <= 1.0) {
-		c = texture(carte_couleur, uv).rgb;
-	} else {
-		// pourtour : neige, roche sur les pentes, forêts sombres en taches
-		float pente = 1.0 - nm.y;
-		float foret = smoothstep(0.52, 0.66, vnoise(pm.xz * 0.045) * 0.7 + vnoise(pm.xz * 0.19) * 0.3) * (1.0 - smoothstep(0.18, 0.3, pente));
-		c = mix(vec3(0.86, 0.89, 0.92), vec3(0.16, 0.24, 0.2), foret * 0.85);
-		c = mix(c, vec3(0.42, 0.42, 0.45), smoothstep(0.22, 0.38, pente));
+		c = mix(texture(carte_couleur, uv).rgb, c, smoothstep(rect.w - 10.0, rect.w, bord));
 	}
 	// courbes de niveau (dans l'aire de jeu seulement)
 	if (courbes > 0.0) {

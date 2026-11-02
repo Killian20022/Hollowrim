@@ -1,6 +1,6 @@
 // Carte du monde : sapins, bâtiments, palissade, pierres (couleur de sommet), même accroche PS1 et même brume que le relief.
 shader_type spatial;
-render_mode diffuse_lambert, specular_disabled, cull_back;
+render_mode diffuse_lambert, specular_disabled, cull_disabled;
 
 uniform sampler2D nuages : filter_linear, repeat_enable;
 uniform vec2 vent = vec2(0.0035, 0.0012);

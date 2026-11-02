@@ -1,6 +1,6 @@
 extends SceneTree
 ## Captures de l'onglet Carte (branche rpg/carte) dans le VRAI monde (scenes/foret_test.tscn) :
-##   godot --path . --script res://outils/captures_carte.gd -- --nouvelle --captures=<dossier>
+##   godot --path . --script res://outils/captures_carte.gd -- --nouvelle --sortie=<dossier>
 ## Si la coquille du lot C (MenuPersonnage, avec l'entrée « carte » dans ONGLETS) est présente, le menu est ouvert sur la
 ## Carte comme en jeu ; sinon l'onglet est posé seul sur un fond de vélin (essai sur la branche rpg/carte).
 ## Mode capture : la partie n'est jamais sauvegardée (--nouvelle) ; lieux marqués découverts et quêtes lancées en mémoire.
@@ -33,14 +33,14 @@ func _capture(nom: String) -> void:
 func _survoler(p: Vector3) -> void:
 	await _images(30)
 	var s := o.ecran(Vector3(p.x, o.carte.hauteur(p.x, p.z), p.z))
-	o._curseur = s - o.rect_carte().position + Vector2(0, -6)
+	o.survol_impose = s - o.rect_carte().position
 
 func _lancer() -> void:
 	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--captures="):
-			_dossier = a.substr(11)
+		if a.begins_with("--sortie="):
+			_dossier = a.substr(9)
 	if _dossier == "" or DisplayServer.get_name() == "headless":
-		print("captures : fenêtre et --captures=<dossier> nécessaires")
+		print("captures : fenêtre et --sortie=<dossier> nécessaires")
 		quit(1)
 		return
 	m = SCENE.instantiate()
@@ -95,22 +95,23 @@ func _lancer() -> void:
 	await _capture("1_ouverture_joueur")
 	# 2. vue d'ensemble
 	o.regarder(Vector2(8, 0), 9999.0, true)
-	o._curseur = Vector2(-1, -1)
+	o.survol_impose = Vector2(-1, -1)
 	o.rect_carte()
 	await _images(10)
-	o._curseur = Vector2(2000, 2000)   # hors carte : pas de réticule, pas de fiche
+	o.survol_impose = Vector2(2000, 2000)   # hors carte : pas de réticule, pas de fiche
 	await _capture("2_vue_ensemble")
 	# 3. zoom sur le village (noms des maisons)
 	o.regarder(Vector2(46, 46), OngletCarte.DIST_MIN * 1.4, true)
 	await _images(10)
 	await _capture("3_zoom_village")
-	# 4. marqueur de quête (quête suivie : le tertre), fiche au survol
-	o.regarder(Vector2(-30, -30), o._dist_max * 0.42, true)
-	var cq := Lieux.cibles_quetes(m.quetes, m)
-	for c: Dictionary in cq:
-		if c["suivie"]:
-			await _survoler(c["pos"] + Vector3(0, 0, 0))
-			o._curseur.y -= 8.0
+	# 4. marqueur de quête : F (aller à la quête suivie), fiche au survol
+	o.regarder(o.cible, o._dist_max * 0.42, true)
+	var titre := o.centrer_quete()
+	await _images(60)
+	for c: Dictionary in Lieux.cibles_quetes(m.quetes, m):
+		if c["titre"] == titre:
+			await _survoler(c["pos"])
+	print("quête suivie : ", titre)
 	await _capture("4_marqueur_quete")
 	# 5. le joueur (flèche orientée), fiche « Vous »
 	o.regarder(Vector2(pj.x, pj.z), o._dist_max * 0.3, true)
@@ -120,7 +121,7 @@ func _lancer() -> void:
 	m.hud.lieux_vus.clear()
 	m.quetes.etat.clear()
 	o.regarder(Vector2(10, 5), o._dist_max * 0.7, true)
-	o._curseur = Vector2(2000, 2000)
+	o.survol_impose = Vector2(2000, 2000)
 	await _capture("6_debut_de_partie")
 	print("captures finies (%d ms)" % (Time.get_ticks_msec() - t0))
 	quit(0)

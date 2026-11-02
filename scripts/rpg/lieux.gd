@@ -24,20 +24,20 @@ const TYPES := {
 	"feu": "Feu de camp", "ferme": "Ferme", "moulin": "Moulin", "lac": "Lac", "chateau": "Château",
 }
 
-## [id, nom, type, x, z, rayon de découverte (m), decouvrable, majeur, note]
+## [id, nom, type, x, z, rayon de découverte (m), decouvrable, majeur, note, « à » (on y est), « près de »]
 ## Positions : constantes du monde (monde.gd VILLAGE / CERCLE / TUMULUS, GrotteAcces.SITE, VillageBati.EXTERIEURS,
 ## EauVillage.LAC_CENTRE, ArrierePlan.CHATEAU_AZIMUT / CHATEAU_DIST) recopiées ici ; test_onglet_carte vérifie qu'elles
 ## n'ont pas bougé.
 const LIEUX := [
-	["skarnholt", "Skarnholt", "village", 44.0, 40.0, 30.0, true, true, "Hameau de Gunnhild"],
-	["cercle", "Cercle des pierres runiques", "cercle", -38.0, -34.0, 12.0, true, true, "Les morts y bougent"],
-	["tertre", "Tertre de Svanhild", "tertre", -38.0, -48.0, 8.0, true, true, "Crypte de la reine-guerrière"],
-	["grotte", "Grotte des bandits", "grotte", 92.0, -27.0, 10.0, true, true, "La vieille mine"],
-	["feu", "Feu de camp", "feu", 0.0, 0.0, 0.0, false, false, "Point de départ"],
-	["lac", "Lac gelé", "lac", -22.0, 46.0, 0.0, false, false, ""],
-	["moulin", "Moulin à vent", "moulin", 95.5, 13.0, 0.0, false, false, ""],
-	["fermes", "Fermes", "ferme", 76.0, 22.0, 0.0, false, false, ""],
-	["chateau", "Château lointain", "chateau", 243.9, 548.1, 0.0, false, true, "À l'horizon, au sud"],
+	["skarnholt", "Skarnholt", "village", 44.0, 40.0, 30.0, true, true, "Hameau de Gunnhild", "à Skarnholt", "aux portes de Skarnholt"],
+	["cercle", "Cercle des pierres runiques", "cercle", -38.0, -34.0, 12.0, true, true, "Les morts y bougent", "au cercle runique", "près du cercle runique"],
+	["tertre", "Tertre de Svanhild", "tertre", -38.0, -48.0, 8.0, true, true, "Crypte de la reine-guerrière", "au tertre de Svanhild", "près du tertre de Svanhild"],
+	["grotte", "Grotte des bandits", "grotte", 92.0, -27.0, 10.0, true, true, "La vieille mine", "à la grotte des bandits", "près de la vieille mine"],
+	["feu", "Feu de camp", "feu", 0.0, 0.0, 0.0, false, false, "Point de départ", "au feu de camp", "près du feu de camp"],
+	["lac", "Lac gelé", "lac", -22.0, 46.0, 0.0, false, false, "", "sur le lac gelé", "au bord du lac gelé"],
+	["moulin", "Moulin à vent", "moulin", 95.5, 13.0, 0.0, false, false, "", "au moulin à vent", "près du moulin à vent"],
+	["fermes", "Fermes", "ferme", 76.0, 22.0, 0.0, false, false, "", "aux fermes", "près des fermes"],
+	["chateau", "Château lointain", "chateau", 243.9, 548.1, 0.0, false, true, "À l'horizon, au sud", "au château", "vers le château"],
 ]
 
 ## Déclencheur de quête → lieu. Clé exacte d'abord, puis préfixe (« ramasse:fragment_sceau » couvre les trois éclats).
@@ -58,7 +58,7 @@ static func liste() -> Array:
 	if _liste.is_empty():
 		for l: Array in LIEUX:
 			_liste.append({"id": l[0], "nom": l[1], "type": l[2], "pos": Vector2(l[3], l[4]), "rayon": l[5],
-				"decouvrable": l[6], "majeur": l[7], "note": l[8]})
+				"decouvrable": l[6], "majeur": l[7], "note": l[8], "a": l[9], "pres": l[10]})
 	return _liste
 
 static func lieu(id: String) -> Dictionary:
@@ -182,6 +182,25 @@ static func position_joueur(monde: Node) -> Vector3:
 	if t != null and t.get("dedans"):
 		return _porte("tertre", monde)
 	return p
+
+## Où est le joueur, en mots (« Au feu de camp », « Près du cercle runique », « Sous terre : … », « Dans les bois »).
+static func ou_est(monde: Node) -> String:
+	var ss := sous_terre(monde)
+	if ss != "":
+		return "Sous terre : " + String(lieu(ss)["nom"])
+	var p := position_joueur(monde)
+	var best: Dictionary = {}
+	var bd := INF
+	for l: Dictionary in liste():
+		var q: Vector2 = l["pos"]
+		var dd := q.distance_to(Vector2(p.x, p.z)) - maxf(float(l["rayon"]), 10.0)
+		if dd < bd:
+			bd = dd
+			best = l
+	if best.is_empty() or bd > 45.0:
+		return "Dans les bois"
+	var t := String(best["a"] if bd < 0.0 else best["pres"])
+	return t.left(1).to_upper() + t.substr(1)
 
 ## Vrai si le joueur est sous terre (la carte le dit : « Sous terre »).
 static func sous_terre(monde: Node) -> String:
