@@ -123,7 +123,8 @@ func _tester() -> void:
 	_verif(hud._avis.size() == 1, "un avis ordinaire reste en haut à gauche")
 	_avancer(hud, 3.0)
 	fj.competences.niveau_gagne.emit("epee", 17)
-	_verif(hud.annonce_courante() == "Une main|Niveau 17", "niveau de compétence → annonce « %s »" % hud.annonce_courante())
+	# RPG lot D : un gain de compétence n'est plus une annonce centrée mais une bande discrète (EcranNiveau)
+	_verif(hud.annonce_courante() == "" and hud.ecran_niveau.bandes() == ["Une main 17"], "niveau de compétence → bande discrète %s" % str(hud.ecran_niveau.bandes()))
 	_avancer(hud, 3.0)
 
 	# --- 4. lieux découverts

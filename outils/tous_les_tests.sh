@@ -112,6 +112,7 @@ TESTS=(
 	"test_rpg_objets|--nouvelle"   # RPG lot A : armures / bijoux (données, icônes), EquipementCorps, formule d armure, sac 150, hache de Kolbeinn tenue, butin, Brodd
 	"test_migration_v2|v1;v2"   # sauvegarde v2 : migration v1 -> v2 sur une copie d'une vraie sauvegarde (niveau recalculé, points à dépenser), relue par un 2e processus
 	"test_progression|--nouvelle"   # RPG lot B : 8 compétences à l'usage, niveau (compétences + quêtes), arbre data/competences/arbre.json (achat, prérequis, réinit. Sigrún), effets des perks, sauvegarde
+	"test_onglets_rpg|--nouvelle"   # RPG lot D : onglets Compétences / Personnage / Quêtes (OngletMenu, coquille d'essai), arbre lu au mieux, choix d'attribut, annonce de niveau + gains de compétence discrets (EcranNiveau)
 )
 # tests dont le résultat dépend du pas de physique : lancés en temps réel (test_ragdoll : OK aussi en --fixed-fps depuis la correction du signe des limites de charnière, 10/10 sous charge ; gardé en temps réel par prudence)
 TEMPS_REEL="test_ragdoll test_mort_ragdoll"
