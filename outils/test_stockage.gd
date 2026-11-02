@@ -208,7 +208,18 @@ func _tester() -> void:
 	_verif(not fo.ouvert and not paused, "Échap : forge fermée")
 	# --- marchand
 	_verif(Marchand.de_quete(Stockage.CLE_MAISON) and Marchand.refus_vente("forgeron", "cle_archives").contains("quête"), "de_quete → Inventaire.est_quete (clé de la maison invendable)")
-	_verif(Marchand.prix_vente("forgeron", "dague_acier+1") > Marchand.prix_vente("forgeron", "dague_acier") and Marchand.rachete("forgeron", "casque_essai_e+1") and not Marchand.rachete("ancienne", "casque_essai_e+1"), "objet forgé vendu plus cher ; Brodd rachète les armures")
+	(Marchand.fiche("forgeron")["achete"] as Array).append("casque_essai_e")   # au lot A, Brodd rachète les armures par identifiant
+	_verif(Marchand.prix_vente("forgeron", "dague_acier+1") > Marchand.prix_vente("forgeron", "dague_acier") and Marchand.rachete("forgeron", "casque_essai_e+1") and not Marchand.rachete("ancienne", "casque_essai_e+1"), "objet forgé vendu plus cher ; Brodd rachète une armure forgée comme sa base")
+	var p_av := Marchand.prix_achat("forgeron", "minerai_fer")
+	var pv_av := Marchand.prix_vente("forgeron", "collier_or")
+	Inventaire.OBJETS["anneau_essai_e"] = {"nom": "Anneau d'essai", "categorie": "bijou", "rarete": "rare", "poids": 0.1, "valeur": 150, "emplacement": "anneau", "effets": {"prix": 0.1}}
+	inv.ajouter("anneau_essai_e", 1)
+	ec.equiper("anneau_essai_e")
+	_verif(Marchand.bonus_prix() > 0.09 and Marchand.prix_achat("forgeron", "minerai_fer") < p_av and Marchand.prix_vente("forgeron", "collier_or") > pv_av,
+		"clé « prix » portée (anneau +10 %%) : minerai %d → %d, collier racheté %d → %d" % [p_av, Marchand.prix_achat("forgeron", "minerai_fer"), pv_av, Marchand.prix_vente("forgeron", "collier_or")])
+	ec.retirer("anneau")
+	inv.retirer("anneau_essai_e", 1)
+	Inventaire.OBJETS.erase("anneau_essai_e")
 	var mb: Marchand = m.marchand
 	mb.ouvrir("forgeron")
 	await _touche(KEY_TAB)

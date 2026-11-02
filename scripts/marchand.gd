@@ -148,7 +148,7 @@ static func de_quete(oid: String, quetes: Node = null) -> bool:
 
 static func rachete(id: String, oid: String) -> bool:
 	var a: Array = fiche(id).get("achete", [])
-	return a.is_empty() or oid in a or Inventaire.categorie_de(oid) in a
+	return a.is_empty() or oid in a or Forge.base_de(oid) in a or Inventaire.categorie_de(oid) in a   # objet forgé : comme sa base
 
 ## Raison pour laquelle le marchand ne rachète pas cet objet ("" = possible).
 static func refus_vente(id: String, oid: String, quetes: Node = null) -> String:
