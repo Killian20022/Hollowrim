@@ -195,8 +195,8 @@ func _butin() -> void:
 	var enchantes := riches.keys().filter(func(id: String) -> bool: return not (Inventaire.objet(id).get("effets", {}) as Dictionary).is_empty())
 	_verif(not enchantes.is_empty(), "coffres riches / chef de la crypte : pièces enchantées %s" % str(enchantes.slice(0, 6)))
 	var bandit_c: Dictionary = vus.get("coffre_bandit", {})
-	var rares_grotte := bandit_c.keys().filter(func(id: String) -> bool: return String(Inventaire.objet(id).get("rarete", "")) in ["rare", "unique"])
-	_verif(not bandit_c.is_empty() and rares_grotte.is_empty(), "coffres de bandits (grotte) : armures communes seulement %s" % str(bandit_c.keys().slice(0, 6)))
+	var rares_grotte := bandit_c.keys().filter(func(id: String) -> bool: return Inventaire.categorie_de(id) == "armure" and String(Inventaire.objet(id).get("rarete", "")) in ["rare", "unique"])
+	_verif(not bandit_c.is_empty() and rares_grotte.is_empty(), "coffres de bandits (grotte) : pas d'armure rare (bijoux enchantés rares via « valeurs ») %s" % str(rares_grotte))
 
 # ------------------------------------------------------------------ marchand
 
