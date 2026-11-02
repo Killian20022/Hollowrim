@@ -69,28 +69,14 @@ static func _point(joueur: CharacterBody3D) -> Vector3:
 		return joueur.global_position
 	return res["position"]
 
-## Petit sac de toile noué (boule aplatie + goulot), posé sur le nœud : visible sur le Butin « lache: ».
-static func habiller(noeud: Node3D) -> void:
-	var img := Image.create(2, 1, false, Image.FORMAT_RGBA8)
-	img.set_pixel(0, 0, Color("#6a5236"))
-	img.set_pixel(1, 0, Color("#4a3824"))
-	var tex := ImageTexture.create_from_image(img)
-	var mat := Palette.materiau(tex)
-	mat.set_shader_parameter("tex_neige", tex)
-	var corps := SphereMesh.new()
-	corps.radius = 0.2
-	corps.height = 0.3
-	corps.radial_segments = 8
-	corps.rings = 4
-	var cou := SphereMesh.new()
-	cou.radius = 0.07
-	cou.height = 0.12
-	cou.radial_segments = 6
-	cou.rings = 3
-	for k in 2:
-		var mi := MeshInstance3D.new()
-		mi.mesh = corps if k == 0 else cou
-		mi.material_override = mat
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mi.position = Vector3(0, 0.15, 0) if k == 0 else Vector3(0, 0.33, 0)
-		noeud.add_child(mi)
+## Visuel du Butin « lache: » : les OBJETS EUX-MÊMES posés au sol (ObjetMonde.tas : bijou, arme couchée, armure affaissée…), au plus
+## ObjetMonde.MAX_TAS côte à côte ; les objets sans modèle 3D (potions, ingrédients…) et le surplus : une sacoche nouée.
+## `contenu` : {id: n} encore au sol (vide = sac seul). Rappelé après une fouille partielle : l'ancien visuel est remplacé.
+static func habiller(noeud: Node3D, contenu := {}) -> void:
+	var ancien := noeud.get_node_or_null("Visuel")
+	if ancien != null:
+		noeud.remove_child(ancien)
+		ancien.queue_free()
+	var v := ObjetMonde.tas(contenu, "sol") if not contenu.is_empty() else ObjetMonde.sacoche()
+	v.name = "Visuel"
+	noeud.add_child(v)
