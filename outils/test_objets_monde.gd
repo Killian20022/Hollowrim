@@ -52,7 +52,7 @@ func _tester() -> void:
 	var vg := ObjetMonde.visuel("anneau_braise", "sol")
 	var ts := ObjetMonde.boite(vs, Transform3D.IDENTITY).size.x
 	var tg := ObjetMonde.boite(vg, Transform3D.IDENTITY).size.x
-	_verif(tg > ts * 1.5, "au sol, un anneau est exagéré (×%.2f) pour rester lisible" % (tg / ts))
+	_verif(tg > ts * 2.5, "au sol, un anneau est exagéré (×%.2f) pour rester lisible" % (tg / ts))
 	vs.free()
 	vg.free()
 
@@ -88,10 +88,10 @@ func _tester() -> void:
 	# --- étal : choix des pièces exposées
 	var stock := {"epee_or": 1, "epee_rubis": 1, "minerai_fer": 5, "casque_fer": 1, "anneau_cuivre": 2, "bouclier_cercle": 1, "dague_acier": 1, "claymore": 1}
 	var ch := EtalMarchand.choisir(stock)
-	var ok_ch := ch.size() <= EtalMarchand.MAX_PIECES and ch.size() >= 3 and not ("minerai_fer" in ch)
+	var ok_ch := ch.size() <= EtalMarchand.MAX_PIECES and ch.size() >= 2 and not ("minerai_fer" in ch)
 	for oid in ch:
 		ok_ch = ok_ch and ObjetMonde.a_modele(oid)
-	_verif(ok_ch, "étal : %d pièces à modèle, variées (%s)" % [ch.size(), ", ".join(ch)])
+	_verif(ok_ch and EtalMarchand._nb_longues(ch) <= EtalMarchand.MAX_LONGUES, "étal : %d pièces à modèle, variées, 2 armes couchées au plus (%s)" % [ch.size(), ", ".join(ch)])
 	_verif(EtalMarchand.choisir({"potion_soin": 3, "tome_lance_givre": 1, "pain_seigle": 4, "champignon_lumineux": 2}).size() == 3, "étal de Grima : fiole, livre, miche (pas le champignon)")
 
 	# --- en jeu : lâcher un bijou -> l'objet au sol ; objet ramassable ; étals posés au village

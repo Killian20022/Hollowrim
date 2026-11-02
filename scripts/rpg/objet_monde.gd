@@ -16,7 +16,7 @@ extends Node3D
 ##
 ## API (statique, sans état global) :
 ##   ObjetMonde.visuel(id, pose := "sol", graine := 0) -> Node3D   modèle habillé, pivot au sol ; pose « sol » (couché, bijoux exagérés
-##                                                                ×ECHELLE_BIJOU), « etal » (couché, bijoux ×ECHELLE_ETAL), « ratelier »
+##                                                                ×ECHELLE_BIJOU, anneaux ×ECHELLE_ANNEAU), « etal » (couché, bijoux ×ECHELLE_ETAL), « ratelier »
 ##                                                                (arme debout, pointe en haut, pommeau à y = 0), « studio » (taille
 ##                                                                réelle, couché : outils/rendu_objet.gd). `graine` : petit lacet stable.
 ##   ObjetMonde.chemin_modele(id) -> String                       "" = repli sacoche
@@ -27,6 +27,7 @@ extends Node3D
 ##   ObjetMonde.tas(contenu: Dictionary, pose := "sol", max_objets := 4) -> Node3D
 ##                                                                plusieurs objets côte à côte (sac lâché, butin posé) ; au-delà de
 ##                                                                max_objets, ou si rien n'a de modèle, la sacoche en plus.
+##   ObjetMonde.hausse_sol(point, monde) -> float                à ajouter au point de sol physique (pavés du village sans collision)
 ##   ObjetMonde.exposer(parent, ids: Array, largeur, profondeur, pose := "etal") -> Array[Node3D]
 ##                                                                pièces d'un ÉTAL alignées sur un plateau (repère du parent : plateau
 ##                                                                centré en 0, dessus à y = 0).
@@ -37,6 +38,9 @@ extends Node3D
 const DOSSIER_SOL := "res://assets/modeles/armures/sol/%s.glb"
 const ECHELLE_BIJOU := 1.8     # au sol : un anneau de 3 cm fait ~1 px à 6 m en 480 x 270 ; exagéré pour rester lisible
 const ECHELLE_ETAL := 1.5
+## Anneaux : jonc de 2 mm, sous le pixel à 2 m ; seule la pierre se lirait. Exagérés davantage (au sol / sur un étal).
+const ECHELLE_ANNEAU := 3.0
+const ECHELLE_ANNEAU_ETAL := 2.2
 const PORTEE := 30.0
 const MAX_TAS := 4
 
@@ -100,6 +104,8 @@ static func visuel(oid: String, pose := "sol", graine := 0) -> Node3D:
 		d = null
 	if d != null:
 		_habiller_arme(m, d)
+	elif Inventaire.categorie_de(oid) == "armure":
+		_habiller_armure(m, chemin)
 	else:
 		BijouxMateriaux.habiller(m)
 	_sans_squelette(m)
@@ -114,7 +120,11 @@ static func visuel(oid: String, pose := "sol", graine := 0) -> Node3D:
 			pivot.basis = _coucher(m)
 	var ech := 1.0
 	if cat == "bijou":
-		ech = ECHELLE_BIJOU if pose == "sol" else (ECHELLE_ETAL if pose == "etal" else 1.0)
+		var anneau := Inventaire.emplacement_de(oid) == "anneau"
+		if pose == "sol":
+			ech = ECHELLE_ANNEAU if anneau else ECHELLE_BIJOU
+		elif pose == "etal":
+			ech = ECHELLE_ANNEAU_ETAL if anneau else ECHELLE_ETAL
 	pivot.scale = Vector3.ONE * ech
 	if pose != "ratelier":
 		pivot.rotate_y(_lacet_de(oid, graine))
@@ -144,6 +154,40 @@ static func _habiller_arme(m: Node3D, d: DonneesArme) -> void:
 			EpeesLongues.habiller(m)
 
 ## Modèle porté (skinné) importé tel quel : on garde le maillage dans sa pose de liaison (un glb « sol » n'a pas de squelette).
+## Armure au sol (glb des agents X / Y : texture cuite, alpha = brillance) : matériaux d'ArmureVisible s'il est là (même rendu
+## que la pièce portée), sinon un équivalent minimal ici (shader_matiere, preset par nom de matériau Blender).
+const MATIERES_ARMURE := {
+	"fourrure": {"bord": 0.05, "poli": 0.05}, "os": {"bord": 0.1, "poli": 0.3},
+	"fer": {"metal": 0.5, "poli": 0.35}, "acier": {"metal": 0.75, "poli": 0.7}, "or": {"metal": 0.72, "poli": 0.6},
+}
+static func _habiller_armure(m: Node3D, chemin: String) -> void:
+	var av: Script = null
+	for c: Dictionary in ProjectSettings.get_global_class_list():
+		if c["class"] == "ArmureVisible":
+			av = load(c["path"])
+	for mi: MeshInstance3D in m.find_children("*", "MeshInstance3D", true, false):
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if av != null and av.has_method("_habiller_maillage"):
+			av.call("_habiller_maillage", mi, chemin)
+			continue
+		for s in mi.mesh.get_surface_count():
+			var src := mi.mesh.surface_get_material(s)
+			var tex: Texture2D = (src as BaseMaterial3D).albedo_texture if src is BaseMaterial3D else null
+			if tex == null:
+				continue
+			var nom := src.resource_name.get_slice(".", 0)
+			var p: Dictionary = MATIERES_ARMURE.get(nom, {"bord": 0.14, "poli": 0.22})
+			var mat := Palette.materiau(tex, Vector2.ONE)
+			mat.shader = EpeesLongues.shader_matiere(false)
+			mat.set_shader_parameter("tex_neige", tex)
+			mat.set_shader_parameter("mt_boite", 0.0)
+			for k in ["metal", "poli", "bord", "profondeur", "lueur"]:
+				mat.set_shader_parameter("mt_" + k, float(p.get(k, 0.0)))
+			mat.set_shader_parameter("mt_opacite", 1.0)
+			mat.set_shader_parameter("reflet_force", 0.0)
+			mat.set_shader_parameter("reflet_fil", 0.0)
+			mi.set_surface_override_material(s, mat)
+
 static func _sans_squelette(m: Node3D) -> void:
 	for mi: MeshInstance3D in m.find_children("*", "MeshInstance3D", true, false):
 		if mi.skin != null:
@@ -344,24 +388,90 @@ static func _place(k: int, n: int) -> Vector3:
 	var rr := 0.22 + 0.04 * n
 	return Vector3(cos(a) * rr, 0.0, sin(a) * rr)
 
-## Pièces d'un étal alignées sur un plateau `largeur` x `profondeur` (centré en 0, dessus à y = 0 du parent).
+## Pièces d'un étal sur un plateau `largeur` x `profondeur` (centré en 0, dessus à y = 0 du parent) : rangement en ÉTAGÈRES (les plus
+## longues d'abord, rangs du fond vers l'avant, chaque rang centré) ; une pièce qui ne tient plus sur le plateau n'est pas posée.
 static func exposer(parent: Node3D, ids: Array, largeur: float, profondeur: float, pose := "etal") -> Array[Node3D]:
 	var res: Array[Node3D] = []
-	var n := ids.size()
-	if n == 0:
-		return res
-	var cols := mini(n, maxi(1, int(largeur / 0.38)))
-	var rangs := ceili(float(n) / cols)
-	for i in n:
-		var c := i % cols
-		var rg := i / cols
-		var v := visuel(String(ids[i]), pose, i + 1)
-		var x := (float(c) + 0.5) / cols * largeur - largeur * 0.5
-		var z := ((float(rg) + 0.5) / rangs - 0.5) * profondeur * 0.7
-		v.position = Vector3(x, 0.0, z)
-		parent.add_child(v)
-		res.append(v)
+	var items: Array = []
+	for i in ids.size():
+		var oid := String(ids[i])
+		var v := visuel(oid, pose, 0)
+		var t := boite(v, Transform3D.IDENTITY).size
+		if t.z > t.x:                      # pièce longue (lame couchée le long de z) : tournée en travers du plateau
+			v.rotation.y = PI * 0.5
+			t = Vector3(t.z, t.y, t.x)
+		items.append([v, t, i])
+	items.sort_custom(func(a: Array, c: Array) -> bool: return (a[1] as Vector3).x > (c[1] as Vector3).x)
+	var jeu := 0.04
+	var limite := profondeur * 0.5 + 0.08          # un bord de bouclier peut dépasser du plateau
+	var rangs: Array = []          # [[items], z du fond, profondeur du rang, largeur occupée]
+	var z := -profondeur * 0.5
+	for e: Array in items:
+		var t: Vector3 = e[1]
+		var place := false
+		for r: Array in rangs:
+			if float(r[3]) + jeu + t.x <= largeur and t.z <= float(r[2]) + 0.05:
+				(r[0] as Array).append(e)
+				r[3] = float(r[3]) + jeu + t.x
+				place = true
+				break
+		if not place:
+			if z + t.z <= limite:
+				rangs.append([[e], z, t.z, t.x])
+				z += t.z + jeu
+			else:
+				(e[0] as Node3D).free()            # ne tient plus sur le plateau
+	# rangs les plus HAUTS au fond (bouclier, bottes), rangs plats (lames couchées) devant : rien n'en cache un autre
+	for r: Array in rangs:
+		var hmax := 0.0
+		for e: Array in r[0]:
+			hmax = maxf(hmax, (e[1] as Vector3).y)
+		r.append(hmax)
+	rangs.sort_custom(func(a: Array, c: Array) -> bool: return float(a[4]) > float(c[4]))
+	z = -profondeur * 0.5
+	for r: Array in rangs:
+		r[1] = z
+		z += float(r[2]) + jeu
+	for r: Array in rangs:
+		var x := -float(r[3]) * 0.5
+		for e: Array in r[0]:
+			var v: Node3D = e[0]
+			var t: Vector3 = e[1]
+			v.position = Vector3(x + t.x * 0.5, 0.0, float(r[1]) + float(r[2]) * 0.5)
+			x += t.x + jeu
+			parent.add_child(v)
+			res.append(v)
 	return res
+
+## Les PAVÉS du village (RuesVillage : dalles de 2-5 cm bombées, SANS collision) suivent le MAILLAGE du terrain (triangles de 2 m),
+## pas la hauteur exacte du sol physique : un objet posé au point du rayon y est noyé (jusqu'à ~15 cm sous les pavés). Hausse à
+## ajouter à un point de sol physique `p` pour poser sur les pavés : maillage (comme RuesVillage._sol) + épaisseur des pavés - p.y.
+## `monde` : le nœud Monde (hauteur, TAILLE, CASES) ; sans lui, une hausse fixe.
+const HAUSSE_PAVES := 0.13
+const DESSUS_PAVES := 0.13   # mesuré en jeu : le dessus rendu des pavés monte jusqu'à ~13 cm au-dessus du sol physique
+static func hausse_sol(p: Vector3, monde: Node = null) -> float:
+	if RuesVillage.profondeur_pave(Vector2(p.x, p.z)) <= -0.05:
+		return 0.0
+	var cst: Dictionary = monde.get_script().get_script_constant_map() if monde != null and monde.get_script() != null else {}
+	if not monde.has_method("hauteur") or not cst.has("TAILLE") or not cst.has("CASES") if monde != null else true:
+		return HAUSSE_PAVES
+	var pas: float = float(cst["TAILLE"]) / float(cst["CASES"])
+	var demi: float = float(cst["TAILLE"]) * 0.5
+	var u := (p.x + demi) / pas
+	var v := (p.z + demi) / pas
+	var i := floori(u)
+	var j := floori(v)
+	var fu := u - i
+	var fv := v - j
+	var h := func(a: int, b: int) -> float: return float(monde.hauteur(a * pas - demi, b * pas - demi))
+	var y: float
+	if fu + fv <= 1.0:
+		var ha: float = h.call(i, j)
+		y = ha + (float(h.call(i + 1, j)) - ha) * fu + (float(h.call(i, j + 1)) - ha) * fv
+	else:
+		var hd: float = h.call(i + 1, j + 1)
+		y = hd + (float(h.call(i, j + 1)) - hd) * (1.0 - fu) + (float(h.call(i + 1, j)) - hd) * (1.0 - fv)
+	return maxf(0.0, y + DESSUS_PAVES - p.y)
 
 ## Objet ramassable posé (touche E « Prendre ») ; sans joueur / dialogue : simple décor.
 static func creer(oid: String, n := 1, joueur: CharacterBody3D = null, dialogue: Control = null) -> ObjetMonde:

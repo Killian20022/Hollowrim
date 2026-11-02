@@ -69,6 +69,9 @@ func _planche(ids: Array, vues: Array, fichier: String, titre: String) -> void:
 	var case_px := TAILLE_RENDU * AGRANDI
 	var largeur := DisplayServer.window_get_size().x - 20
 	grille.columns = clampi(int(largeur / (case_px + 8)), 1, 10)      # une colonne par objet, ses vues empilées
+	var rangs := ceili(float(ids.size()) / grille.columns)             # fenêtre assez haute pour toutes les rangées
+	DisplayServer.window_set_size(Vector2i(1100, maxi(300, 48 + rangs * (case_px * vues.size() + 26))))
+	await _att(2)
 	grille.position = Vector2(10, 38)
 	grille.add_theme_constant_override("h_separation", 8)
 	grille.add_theme_constant_override("v_separation", 4)

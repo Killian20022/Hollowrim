@@ -8,6 +8,8 @@ class_name BijouxMateriaux
 ##   cuir      lacet de cuir (EpeesLongues._cuir_fusee)       os       griffe / ivoire jauni, stries
 ##   gemme     cristal de givre pâle (translucide, lueur)     saphir / rubis   cristaux profonds d'EpeesLongues
 ##   jade      cabochon vert laiteux opaque                    amethyste  violet profond, translucide
+## LISIBILITÉ : posés au sol, de si petites pièces se fondaient dans les pavés sombres (mesuré en jeu) : métaux et os ont une
+## légère lueur propre (mt_lueur : émission = albédo² ; un bijou reste visible à l'ombre, sans halo).
 ## Usage : BijouxMateriaux.habiller(noeud) (toutes les MeshInstance3D du nœud) ; BijouxMateriaux.materiaux() -> {nom: ShaderMaterial}.
 
 const ARGENT := ["#0d0e10", "#17191c", "#23262a", "#30343a", "#40454c", "#535960", "#686f76", "#7f868c", "#989ea3", "#b3b8bc", "#cfd3d6", "#eceff0"]
@@ -20,12 +22,12 @@ const GIVRE := ["#06121c", "#0c1f2e", "#153044", "#20465e", "#2f5f7a", "#437b96"
 
 ## Presets (mêmes clés que EpeesLongues.MATIERES) ; boite = texels / m (petites pièces : forte densité).
 const PRESETS := {
-	"or": {"boite": 70.0, "metal": 0.75, "poli": 0.7, "reflet": Color(1.06, 0.9, 0.62)},
-	"argent": {"teinte": Color(1.02, 1.03, 1.06), "boite": 70.0, "metal": 0.8, "poli": 0.8, "reflet": Color(0.94, 0.98, 1.06)},
-	"bronze": {"boite": 45.0, "metal": 0.55, "poli": 0.45, "reflet": Color(1.04, 0.88, 0.66)},
-	"fer": {"teinte": Color(0.92, 0.92, 0.95), "boite": 60.0, "metal": 0.5, "poli": 0.4, "reflet": Color(0.95, 0.96, 1.0)},
+	"or": {"boite": 70.0, "metal": 0.75, "poli": 0.7, "lueur": 0.7, "reflet": Color(1.06, 0.9, 0.62)},
+	"argent": {"teinte": Color(1.02, 1.03, 1.06), "boite": 70.0, "metal": 0.8, "poli": 0.8, "lueur": 0.7, "reflet": Color(0.94, 0.98, 1.06)},
+	"bronze": {"boite": 45.0, "metal": 0.55, "poli": 0.45, "lueur": 0.6, "reflet": Color(1.04, 0.88, 0.66)},
+	"fer": {"teinte": Color(0.92, 0.92, 0.95), "boite": 60.0, "metal": 0.5, "poli": 0.4, "lueur": 0.45, "reflet": Color(0.95, 0.96, 1.0)},
 	"cuir": {"teinte": Color(1.45, 1.25, 1.05), "boite": 40.0, "bord": 0.15, "poli": 0.2},
-	"os": {"teinte": Color(1.0, 0.98, 0.94), "bord": 0.25, "poli": 0.35},
+	"os": {"teinte": Color(1.0, 0.98, 0.94), "bord": 0.25, "poli": 0.35, "lueur": 0.5},
 	"gemme": {"teinte": Color(1.0, 1.02, 1.06), "bord": 0.6, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.34, "opacite": 0.86, "reflet": Color(0.9, 0.97, 1.04)},
 	"saphir": {"teinte": Color(1.0, 1.0, 1.08), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.44, "opacite": 0.88, "reflet": Color(0.92, 0.96, 1.04)},
 	"rubis": {"teinte": Color(1.08, 1.0, 1.0), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.42, "opacite": 0.88, "reflet": Color(1.0, 0.93, 0.94)},

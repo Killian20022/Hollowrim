@@ -12,7 +12,7 @@ const PERIODE := 3.0
 const MAX_PIECES := 5
 ## id du marchand -> pose : « forge » = repère du nœud Forge (local), « monde » = coordonnées monde (x, z ; sol relu) ; table [largeur, profondeur, hauteur].
 const ETALS := {
-	"forgeron": {"repere": "forge", "pos": Vector3(-1.35, 0.0, 2.45), "lacet": 0.0, "table": Vector3(1.5, 0.62, 0.78)},
+	"forgeron": {"repere": "forge", "pos": Vector3(-1.2, 0.0, 4.3), "lacet": 0.0, "table": Vector3(1.7, 0.62, 1.0)},
 	"ancienne": {"repere": "monde", "pos": Vector3(45.9, 0.0, 38.2), "lacet": -0.45, "table": Vector3(1.1, 0.55, 0.74)},
 }
 
@@ -64,21 +64,44 @@ func _process(dt: float) -> void:
 ## Pièces exposées pour le stock `stock` ({id: n}) : objets à modèle 3D, une par famille (catégorie + emplacement) d'abord.
 static func choisir(stock: Dictionary, max_pieces := MAX_PIECES) -> Array[String]:
 	var ids: Array = stock.keys()
-	ids.sort()
+	ids.sort_custom(func(a: String, b: String) -> bool: return _rang(a) < _rang(b) or (_rang(a) == _rang(b) and a < b))   # armes, bouclier, petites pièces
 	var res: Array[String] = []
 	var familles := {}
 	for passe in 2:
 		for oid: String in ids:
 			if res.size() >= max_pieces:
 				return res
-			if oid in res or int(stock[oid]) <= 0 or not ObjetMonde.a_modele(oid):
+			if oid in res or int(stock[oid]) <= 0 or not ObjetMonde.a_modele(oid) or Inventaire.emplacement_de(oid) == "torse":
 				continue
 			var fam := Inventaire.categorie_de(oid) + ":" + Inventaire.emplacement_de(oid) + ":" + oid.get_slice("_", 0)
 			if passe == 0 and familles.has(fam):
 				continue
+			if Inventaire.categorie_de(oid) == "arme" and not _bouclier(oid) and _nb_longues(res) >= MAX_LONGUES:
+				continue                       # le plateau ne tient que deux armes couchées
 			familles[fam] = true
 			res.append(oid)
 	return res
+
+const MAX_LONGUES := 2
+
+## Ordre d'exposition : armes d'abord (un forgeron montre ses lames), bouclier, petites pièces d'armure, le reste. Les pièces de
+## torse (cuirasses, armures) ne vont pas sur un plateau : il faudrait un mannequin.
+static func _rang(oid: String) -> int:
+	if Inventaire.categorie_de(oid) == "arme":
+		return 1 if _bouclier(oid) else 0
+	if Inventaire.categorie_de(oid) == "armure":
+		return 2
+	return 3
+
+static func _bouclier(oid: String) -> bool:
+	return CatalogueArmes.connu(oid) and CatalogueArmes.famille_de(oid) == "bouclier"
+
+static func _nb_longues(ids: Array[String]) -> int:
+	var n := 0
+	for oid in ids:
+		if Inventaire.categorie_de(oid) == "arme" and not _bouclier(oid):
+			n += 1
+	return n
 
 func pieces() -> Array[String]:
 	return choisir(Marchand.stock(id_marchand))

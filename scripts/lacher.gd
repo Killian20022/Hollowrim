@@ -43,7 +43,8 @@ static func lacher(joueur: CharacterBody3D, hud: Control, id: String, n: int) ->
 	b.contenu = {id: n}
 	b.cle_sauvegarde = "lache:%d_%d" % [Time.get_unix_time_from_system() as int, Time.get_ticks_usec()]
 	parent.add_child(b)
-	b.global_position = _point(joueur)
+	var pt := _point(joueur)
+	b.global_position = pt + Vector3(0, ObjetMonde.hausse_sol(pt, parent), 0)   # sur les pavés du village (sans collision), pas dessous
 	return ""
 
 ## Devant le joueur (selon la caméra), posé sur le sol (rayon vers le bas ; le joueur est exclu).
