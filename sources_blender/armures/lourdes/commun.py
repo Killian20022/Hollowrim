@@ -453,6 +453,28 @@ def poids_fondus(ob, W_haut, W_bas, z_bas, z_haut):
                 ob.vertex_groups.new(name=k)
             ob.vertex_groups[k].add([v.index], w / tot, "REPLACE")
 
+def poids_par_proximite(ob, r, W_haut, W_bas, arbre_haut, arbre_bas, puissance=2.0, lisser=2):
+    """Mélange W_bas / W_haut selon la surface la plus proche : t = d_bas^p / (d_bas^p + d_haut^p) (près du col de la cotte -> poids
+    du col ; près du crâne -> poids de la tête)."""
+    ob.vertex_groups.clear()
+    for v in ob.data.vertices:
+        p = ob.matrix_world @ v.co
+        lh = arbre_haut.find_nearest(p, 1.0); lb = arbre_bas.find_nearest(p, 1.0)
+        dh = lh[3] if lh[0] is not None else 1.0
+        db = lb[3] if lb[0] is not None else 1.0
+        t = db ** puissance / (db ** puissance + dh ** puissance + 1e-9)
+        d = {}
+        for k, w in W_bas[v.index].items():
+            d[k] = d.get(k, 0.0) + w * (1 - t)
+        for k, w in W_haut[v.index].items():
+            d[k] = d.get(k, 0.0) + w * t
+        for k, w in d.items():
+            if w > 1e-4:
+                if k not in ob.vertex_groups:
+                    ob.vertex_groups.new(name=k)
+                ob.vertex_groups[k].add([v.index], w, "REPLACE")
+    nettoyer_poids(ob, lisser)
+
 def fondre_tete(ob, z_bas, z_haut):
     """Mélange les poids actuels (corps) avec la tête selon la hauteur : 0 sous z_bas, tout Head au-dessus de z_haut."""
     if "Head" not in ob.vertex_groups:
@@ -573,10 +595,18 @@ def rect_uv(rect, w=128, h=128):
     return ((x0 + 0.5) / w, (y0 + 0.5) / h, (x1 - 0.5) / w, (y1 - 0.5) / h)
 
 # --- peintures de matières (fonctions pour Toile.zone)
-def metal(pal, g, base=0.55, contraste=0.35, rayures=0.5, oxyde=0.0, crasse=0.0, poli=0.7, echelle=1.0):
+def metal(pal, g, base=0.55, contraste=0.35, rayures=0.5, oxyde=0.0, crasse=0.0, poli=0.7, echelle=1.0, martele=0.0):
     def fn(x, y, u, v):
         n = fbm(x / echelle, y / echelle, g)
         t = base + (n - 0.5) * contraste
+        if martele > 0:
+            # coups de marteau : cuvettes de 5 px en quinconce irrégulier, clair en haut-gauche, sombre en bas-droite
+            cx, cy = x // 5, y // 5
+            ox = int(_h(cx, cy, g + 61) * 3) - 1
+            oy = int(_h(cx, cy, g + 62) * 3) - 1
+            dx = x - (cx * 5 + 2 + ox); dy = y - (cy * 5 + 2 + oy)
+            if dx * dx + dy * dy <= 5:
+                t += martele * (0.12 if dx + dy < 0 else -0.14)
         # rayures fines obliques (brillantes)
         r = _h(int((x + y * 0.35) / 1.0), int(y / 7), g + 3)
         b = poli * (0.55 + 0.45 * n)
@@ -653,8 +683,8 @@ def ecailles(pal, g, base=0.5, braise=0.0, pal_braise=None):
         elif bord > 0.78:
             t += 0.12; b = 0.6                  # arête claire
         c = rampe(pal, t)
-        if braise > 0 and bord > 0.92 and _h(x // 3, y, g + 5) < braise * bruit(x, y, 16, g + 8):
-            c = rampe(pal_braise or BRAISE, 0.35 + 0.5 * _h(x, y, g + 6)); b = 0.0
+        if braise > 0 and bord > 0.86 and _h(x // 4, y // 2, g + 5) < braise * bruit(x, y, 16, g + 8):
+            c = rampe(pal_braise or BRAISE, 0.62 + 0.38 * _h(x, y, g + 6)); b = 0.0
         return c, b
     return fn
 
