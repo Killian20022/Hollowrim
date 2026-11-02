@@ -106,7 +106,7 @@ def _ortho(pid):
     return 1.25
 
 def version_sol(r, ob, pid):
-    """Pièce posée : copie sans peau d'os, couchée (torse sur le dos, gantelets à plat) ou debout (casque, bottes), pivot au sol."""
+    """Pièce posée : copie sans peau d'os ni corps, couchée (torse sur le dos, gantelets à plat, casque sur le côté avec doublure) ou debout (bottes), pivot au sol."""
     c = ob.copy(); c.data = ob.data.copy()
     bpy.context.scene.collection.objects.link(c)
     c.parent = None
@@ -127,6 +127,25 @@ def version_sol(r, ob, pid):
                 z = -d.x * math.sin(a) + d.z * math.cos(a)
                 v.co = o + Vector((x, d.y, z))
         me.transform(Matrix.Rotation(math.radians(90), 4, "X"))
+    elif any(k in pid for k in ("casque", "heaume", "capuche")):
+        # doublure : coque intérieure (faces retournées, rentrées de 6 mm, ombrée) : on ne voit plus à travers le casque posé
+        import bmesh
+        bm = bmesh.new(); bm.from_mesh(me)
+        col = bm.loops.layers.float_color.get("Col") or bm.loops.layers.float_color.new("Col")
+        ctr = sum((v.co for v in bm.verts), Vector()) / len(bm.verts)
+        faces = list(bm.faces)
+        ret = bmesh.ops.duplicate(bm, geom=faces)
+        nf = [g for g in ret["geom"] if isinstance(g, bmesh.types.BMFace)]
+        nv = [g for g in ret["geom"] if isinstance(g, bmesh.types.BMVert)]
+        for v in nv:
+            v.co = v.co - v.normal * 0.006
+        bmesh.ops.reverse_faces(bm, faces=nf)
+        for f in nf:
+            for lp in f.loops:
+                lp[col] = (0.22, 0.2, 0.18, 1.0)
+        bm.to_mesh(me); bm.free()
+        # posé sur le côté (couché sur la tempe), un peu basculé vers l'avant
+        me.transform(Matrix.Rotation(math.radians(-80 if "capuche" not in pid else -95), 4, "Y") @ Matrix.Rotation(math.radians(12), 4, "X"))
     elif "gant" in pid:
         me.transform(Matrix.Rotation(math.radians(90), 4, "X"))
         # rapprochés : les deux mains côte à côte
@@ -146,8 +165,11 @@ def version_sol(r, ob, pid):
     bpy.ops.object.select_all(action="DESELECT")
     c.select_set(True)
     bpy.context.view_layer.objects.active = c
-    bpy.ops.export_scene.gltf(filepath=chemin, export_format="GLB", use_selection=True, export_skins=False, export_animations=False,
-                              export_yup=True, export_materials="EXPORT")
+    kw = dict(filepath=chemin, export_format="GLB", use_selection=True, export_skins=False, export_animations=False,
+              export_yup=True, export_materials="EXPORT")
+    if "export_vertex_color" in bpy.ops.export_scene.gltf.get_rna_type().properties:
+        kw["export_vertex_color"] = "ACTIVE"
+    bpy.ops.export_scene.gltf(**kw)
     print("EXPORT SOL", chemin)
     bpy.data.objects.remove(c, do_unlink=True)
 

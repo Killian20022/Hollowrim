@@ -588,7 +588,7 @@ func _planches() -> void:
 		var sol := Node3D.new()
 		scene.add_child(sol)
 		var droite := avant.cross(Vector3.UP).normalized()
-		var x := -0.75
+		var x := -0.84
 		for id: String in ids:
 			var ch := DOSSIER_SOL + id + ".glb"
 			if ResourceLoader.exists(ch):
@@ -600,9 +600,9 @@ func _planches() -> void:
 				sol.add_child(p)
 				p.global_position = j.global_position + avant * 1.2 + droite * x
 				p.global_rotation.y = j.global_rotation.y + PI
-				x += 0.5
+				x += 0.56
 		j.visible = false
-		cam.global_position = j.global_position + avant * 2.4 + Vector3(0, 1.1, 0)
+		cam.global_position = j.global_position + avant * 3.1 + Vector3(0, 1.25, 0)
 		cam.look_at(j.global_position + avant * 1.2 + Vector3(0, 0.12, 0), Vector3.UP)
 		await _attendre(0.3)
 		await _capture("%s/%s_sol.png" % [sortie, e])

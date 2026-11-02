@@ -213,7 +213,7 @@ def cuirasse(r, st):
     # atlas : mailles (0,0)-(128,40) ; plaques (0,40)-(128,88) ; ceinture (0,88)-(128,96) ; épaulières (0,96)-(80,128) ; fourrure (80,96)-(128,128)
     R_MAILLE, R_PLAQ, R_CEINT, R_EPAUL, R_FOUR = (0, 0, 128, 40), (0, 40, 128, 88), (0, 88, 128, 96), (0, 96, 80, 128), (80, 96, 128, 128)
     MM = st.get("mat_maille", "fer.maille")
-    t.zone(R_MAILLE, st.get("peinture_maille", C.maille(st.get("pal_maille", C.FER), g, base=0.5)))
+    t.zone(R_MAILLE, st.get("peinture_maille", C.maille(st.get("pal_maille", C.FER), g, base=st.get("base_maille", 0.36))))
     t.zone(R_PLAQ, st.get("peinture_plaques", C.metal(pal, g + 1, base=st.get("base", 0.55), contraste=0.3, rayures=0.7, oxyde=st.get("oxyde", 0.0),
                            crasse=st.get("crasse", 0.25), poli=st.get("poli", 0.7), martele=st.get("martele", 0.0) * 0.6)))
     t.zone(R_CEINT, C.cuir(st.get("pal_cuir", C.CUIR), g + 2, base=0.45))
@@ -640,6 +640,14 @@ def capuche(r, st):
     ob.data.transform(mw)
     ob.matrix_world = Matrix.Identity(4)
     ob.name = st["id"]
+    # pèlerine raccourcie : le bas qui couvrait les épaules du mage est coupé (les épaules du héros, soulevées par les coups à deux mains,
+    # la traversaient) ; la capuche s'arrête en col court sur la base du cou
+    z_coupe = st.get("z_coupe", 1.61)
+    bm = bmesh.new(); bm.from_mesh(ob.data)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if max(v.co.z for v in f.verts) < z_coupe + 0.012 and
+                               sum(v.co.z for v in f.verts) / len(f.verts) < z_coupe], context="FACES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm.to_mesh(ob.data); bm.free()
     # réduction au budget
     bpy.context.view_layer.objects.active = ob
     bpy.ops.object.select_all(action="DESELECT"); ob.select_set(True)
@@ -713,12 +721,13 @@ def capuche(r, st):
             col.data[li].color = (k, k, k, 1.0)
     # le col de fourrure (mante) et la cotte du héros sont plus épais que la pèlerine du mage : bas de la capuche poussé au-dehors
     C.degager(ob, r, ["mante", "tunique", "peau", "Hair_Beard"], st.get("marge", 0.02), filtre=lambda p: p.z < 1.64)
+    C.degager(ob, r, ["mante"], 0.03, filtre=lambda p: p.z < 1.66)
     C.degager(ob, r, ["accessoires"], st.get("marge", 0.014), filtre=lambda p: p.z < 1.62,
               os_noms={"spine_03", "spine_02", "clavicle_l", "clavicle_r"})
     # poids (comme CapucheMage) : bas = pèlerine du héros (torse), haut = tête, fondu sur la hauteur du cou
     W_haut = C.poids_transferes(ob, r, ["peau"], os_permis={"Head", "neck_01"}, lisser=2)
-    W_bas = C.poids_transferes(ob, r, ["tunique"], os_permis={"neck_01", "spine_03", "spine_02", "clavicle_l", "clavicle_r", "upperarm_l", "upperarm_r"}, lisser=2)
-    C.poids_fondus(ob, W_haut, W_bas, st.get("fondu", (1.55, 1.665))[0], st.get("fondu", (1.55, 1.665))[1])
+    W_bas = C.poids_transferes(ob, r, ["mante", "tunique"], os_permis={"neck_01", "spine_03", "spine_02", "clavicle_l", "clavicle_r", "upperarm_l", "upperarm_r"}, lisser=0)
+    C.poids_fondus(ob, W_haut, W_bas, st.get("fondu", (1.62, 1.70))[0], st.get("fondu", (1.62, 1.70))[1])
     C.lier(ob, r)
     return ob
 

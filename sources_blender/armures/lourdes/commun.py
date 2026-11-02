@@ -453,6 +453,28 @@ def poids_fondus(ob, W_haut, W_bas, z_bas, z_haut):
                 ob.vertex_groups.new(name=k)
             ob.vertex_groups[k].add([v.index], w / tot, "REPLACE")
 
+def poids_par_proximite(ob, r, W_haut, W_bas, arbre_haut, arbre_bas, puissance=2.0, lisser=2):
+    """Mélange W_bas / W_haut selon la surface la plus proche : t = d_bas^p / (d_bas^p + d_haut^p) (près du col de la cotte -> poids
+    du col ; près du crâne -> poids de la tête)."""
+    ob.vertex_groups.clear()
+    for v in ob.data.vertices:
+        p = ob.matrix_world @ v.co
+        lh = arbre_haut.find_nearest(p, 1.0); lb = arbre_bas.find_nearest(p, 1.0)
+        dh = lh[3] if lh[0] is not None else 1.0
+        db = lb[3] if lb[0] is not None else 1.0
+        t = db ** puissance / (db ** puissance + dh ** puissance + 1e-9)
+        d = {}
+        for k, w in W_bas[v.index].items():
+            d[k] = d.get(k, 0.0) + w * (1 - t)
+        for k, w in W_haut[v.index].items():
+            d[k] = d.get(k, 0.0) + w * t
+        for k, w in d.items():
+            if w > 1e-4:
+                if k not in ob.vertex_groups:
+                    ob.vertex_groups.new(name=k)
+                ob.vertex_groups[k].add([v.index], w, "REPLACE")
+    nettoyer_poids(ob, lisser)
+
 def fondre_tete(ob, z_bas, z_haut):
     """Mélange les poids actuels (corps) avec la tête selon la hauteur : 0 sous z_bas, tout Head au-dessus de z_haut."""
     if "Head" not in ob.vertex_groups:
