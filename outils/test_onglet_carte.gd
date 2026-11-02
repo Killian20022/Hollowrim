@@ -87,6 +87,15 @@ func _tester() -> void:
 	_verif(par_id.has("anneau_givre") and par_id["anneau_givre"]["lieu"] == "tertre", "L'anneau de givre → tertre")
 	_verif(par_id.has("lames_brodd") and par_id["lames_brodd"]["lieu"] == "cercle", "Le fer des morts → cercle (lames des draugrs)")
 	_verif(cq.filter(func(c: Dictionary) -> bool: return c["suivie"]).size() == 1, "une seule quête suivie (celle du HUD)")
+	# boussole du HUD : même registre (lieux découverts + sceau de la quête suivie)
+	_verif(m.hud.monde == m, "boussole branchée sur le registre Lieux (hud.monde)")
+	var mq: Array = m.hud.marqueurs_registre()
+	var suivie: Dictionary = cq.filter(func(c: Dictionary) -> bool: return c["suivie"])[0]
+	var mq_q := mq.filter(func(k: Dictionary) -> bool: return k["genre"] == "quete")
+	_verif(mq_q.size() == 1 and (mq_q[0]["pos"] as Vector3).is_equal_approx(suivie["pos"]), "boussole : un sceau de quête, sur la cible de la quête suivie")
+	var noms_mq := mq.map(func(k: Dictionary) -> String: return k["nom"])
+	_verif(noms_mq.has("Skarnholt") and noms_mq.has("Feu de camp") and not noms_mq.has("Tertre de Svanhild"),
+		"boussole : lieux découverts seulement (Skarnholt, feu ; tertre caché) %s" % str(noms_mq))
 
 	# --- onglet
 	var calque := CanvasLayer.new()

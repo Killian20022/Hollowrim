@@ -38,6 +38,12 @@ var joueur: CharacterBody3D
 ## genre : "lieu" (losange plein), "quete" (sceau vermillon, reste collé au bord quand il sort du champ), "maison" (losange
 ## creux). Liste normalisée pour les autres écrans (onglet Carte) : marqueurs().
 var lieux: Array = []
+## Monde (monde.gd) : la boussole lit alors le registre Lieux au lieu de `lieux` (marqueurs()).
+var monde: Node = null
+var _marqueurs: Array = []
+var _marqueurs_t := 0.0
+const COULEURS_LIEUX := {"village": Color("#e8a64a"), "cercle": Color("#6fd8ff"), "tertre": Color("#6fd8ff"),
+	"grotte": Color("#ffb347"), "feu": Color("#e8a64a"), "chateau": Color("#c8c0b0")}
 var combat_ui: Control  # HudCombat (barres, mains, statuts, raccourcis)
 var ecran_niveau: EcranNiveau  # RPG lot D : annonce de niveau (sceau) + gains de compétence discrets
 var _a_cible := 0.0
@@ -149,6 +155,7 @@ func lieu_nomme(pos: Vector3, rayon: float, nom: String) -> void:
 ## Nouvel objectif de quête : il n'est plus répété en haut à gauche (doublon) ; la ligne sous la boussole est ravivée.
 func objectif_change() -> void:
 	_objectif_t = OBJECTIF_DUREE
+	_marqueurs_t = 0.0   # le sceau de quête de la boussole suit tout de suite la nouvelle étape
 
 ## Message en haut à gauche, qui s'efface au bout de quelques secondes.
 ## « Nouvelle quête : X » et « Quête terminée : X » (scripts/quetes.gd) deviennent des annonces centrées.
@@ -178,6 +185,7 @@ func _unhandled_input(e: InputEvent) -> void:
 func _process(dt: float) -> void:
 	EchelleUi.appliquer(self)
 	_objectif_t = maxf(0.0, _objectif_t - dt)
+	_marqueurs_t -= dt
 	if joueur == null:
 		return
 	if joueur.ennemi_vise != null:
@@ -463,20 +471,40 @@ func _boussole_fer(cx: float) -> void:
 			draw_texture_rect_region(LETTRES, Rect2(x - 2, 6, 5, 7), Rect2((i / 2) * 6, 0, 5, 7))
 		else:
 			draw_rect(Rect2(x, 8, 1, 3), Color("#8a96ad"))
-	for lieu in lieux:
-		_marqueur(lieu[0], null, lieu[1])
+	for m: Dictionary in marqueurs():
+		_marqueur(m["pos"], null, m["couleur"])
 	for e in get_tree().get_nodes_in_group("ennemis"):
 		if e.en_combat() and e.global_position.distance_to(joueur.global_position) < 50.0:
 			_marqueur(e.global_position, ENNEMI, Color.WHITE)
 	draw_texture(REPERE, Vector2(cx - 2, 0))
 
 ## Marqueurs de la boussole et de la carte, normalisés : [{pos: Vector3, couleur: Color, genre: String, nom: String}].
-## Source : `lieux` (monde.gd, tertre, grotte). Les ennemis en combat n'y sont pas (dessinés à part, en direct).
+## Source : le registre UNIQUE Lieux (scripts/rpg/lieux.gd, partagé avec l'onglet Carte) dès que `monde` est posé
+## (monde.gd) : lieux majeurs découverts + feu de camp, et la cible de la quête suivie (genre « quete », sceau vermillon).
+## Sans monde (scènes de test) : la liste `lieux`. Les ennemis en combat n'y sont pas (dessinés à part, en direct).
 func marqueurs() -> Array:
+	if monde != null:
+		if _marqueurs_t <= 0.0:
+			_marqueurs_t = 0.5   # registre relu deux fois par seconde (cibles de quête : PNJ qui marchent, étape suivante)
+			_marqueurs = marqueurs_registre()
+		return _marqueurs
 	var res := []
 	for l: Array in lieux:
 		res.append({"pos": l[0], "couleur": l[1] if l.size() > 1 else OR, "genre": str(l[2]) if l.size() > 2 else "lieu",
 			"nom": str(l[3]) if l.size() > 3 else ""})
+	return res
+
+## Marqueurs lus dans Lieux (voir marqueurs()).
+func marqueurs_registre() -> Array:
+	var res := []
+	for l: Dictionary in Lieux.liste():
+		if not (l["majeur"] or l["id"] == "feu") or not Lieux.decouvert(l["id"], self):
+			continue
+		res.append({"pos": Lieux.position(l["id"], monde), "couleur": COULEURS_LIEUX.get(l["type"], OR), "genre": "lieu",
+			"nom": l["nom"]})
+	for c: Dictionary in Lieux.cibles_quetes(quetes, monde):
+		if c["suivie"]:
+			res.append({"pos": c["pos"], "couleur": Color("#c8402e"), "genre": "quete", "nom": c["titre"]})
 	return res
 
 ## Écart horizontal (px) d'une direction de cap `deg` par rapport au regard.
