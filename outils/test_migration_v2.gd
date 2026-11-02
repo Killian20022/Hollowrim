@@ -114,13 +114,13 @@ func _charger_v1() -> void:
 	for id in reelle["inventaire"]["objets"]:
 		sac_ok = sac_ok and j.inventaire.nombre(id) == int(reelle["inventaire"]["objets"][id])
 	_verif(sac_ok, "jeu : sac relu sans perte %s" % str(j.inventaire.exporter()))
-	_verif(j.vie_max == 100.0 + (10.0 if j.benediction else 0.0) and j.mana_max == 100.0 and j.vigueur_max == 100.0 and j.inventaire.capacite() == 100.0,
+	_verif(j.vie_max == 100.0 + (10.0 if j.benediction else 0.0) and j.mana_max == 100.0 and j.vigueur_max == 100.0 and j.inventaire.capacite() == Inventaire.CAPACITE,   # 150 depuis le lot A
 		"jeu : maxima inchangés (vie %d, mana %d, vigueur %d, charge %d)" % [j.vie_max, j.mana_max, j.vigueur_max, j.inventaire.capacite()])
 	_verif(ReglagesCombat.competence("une_main") == 1.0 and ReglagesCombat.competence("armure") == 1.0, "jeu : multiplicateurs de combat à 1,0")
 	# un peu d'état v2 pour l'aller-retour : un choix d'attribut et une pièce dans le coffre de Grima
 	j.progression.gagner_xp(Progression.seuil_niveau(1) + 5.0)
-	_verif(j.progression.niveau == 2 and j.progression.choisir_attribut("vigueur") == "" and j.vigueur_max == 110.0 and j.inventaire.capacite() == 105.0,
-		"niveau 2, +10 vigueur -> vigueur max 110, charge 105")
+	_verif(j.progression.niveau == 2 and j.progression.choisir_attribut("vigueur") == "" and j.vigueur_max == 110.0 and j.inventaire.capacite() == Inventaire.CAPACITE + 5.0,
+		"niveau 2, +10 vigueur -> vigueur max 110, charge +5")
 	Stockage.conteneur("coffre_grima").ajouter("os_draugr", 2)
 	m.sauvegarder()
 	var v2 := _lire(FICHIER)
@@ -145,6 +145,6 @@ func _relire_v2() -> void:
 		meme = meme and int(e["competences"]["niveaux"].get(c, -1)) == int(pv["competences"]["niveaux"][c])
 	_verif(meme and e["competences"]["niveaux"].size() == 8,
 		"progression relue à l'identique (niveau %d, points %d)" % [j.progression.niveau, j.progression.points_perk])
-	_verif(j.progression.attributs["vigueur"] == 10 and j.vigueur_max == 110.0 and j.inventaire.capacite() == 105.0, "attribut vigueur relu : maxima recalculés")
+	_verif(j.progression.attributs["vigueur"] == 10 and j.vigueur_max == 110.0 and j.inventaire.capacite() == Inventaire.CAPACITE + 5.0, "attribut vigueur relu : maxima recalculés")
 	_verif(Stockage.conteneur("coffre_grima").nombre("os_draugr") == 2, "coffre de Grima relu")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(FICHIER))

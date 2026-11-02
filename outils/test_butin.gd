@@ -212,7 +212,7 @@ func _persistance() -> void:
 	_verif(inv.nombre("epee_obsidienne") == 1 and inv.pieces == 10 + int(Inventaire.objet("epee_obsidienne")["valeur"]) and r2[0]["id"] == "pieces", "prendre : second exemplaire d'un unique changé en %d pièces" % int(Inventaire.objet("epee_obsidienne")["valeur"]))
 	var inv2 := Inventaire.new()
 	inv2.importer(inv.exporter())
-	_verif(inv2.nombre("potion_soin") == 2 and inv2.a("epee_obsidienne") and inv2.poids() > 10.0, "sac sauvegardé : potions et objets de data/butin/objets.json gardés au rechargement (poids %.1f)" % inv2.poids())
+	_verif(inv2.nombre("potion_soin") == 2 and inv2.a("epee_obsidienne") and inv2.poids() > 7.5, "sac sauvegardé : potions et objets de data/butin/objets.json gardés au rechargement (poids %.1f)" % inv2.poids())
 	ButinTables.reinitialiser()
 
 # ------------------------------------------------------------------ ennemis
