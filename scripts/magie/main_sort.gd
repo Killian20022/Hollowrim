@@ -539,7 +539,9 @@ func _deux_sorts_repos(m: String) -> bool:
 func _vue() -> Array:
 	var cam: Camera3D = joueur.camera
 	var tp = joueur.get("camera_tp")
-	if paumes_effets["gauche"] != null and joueur.get("troisieme") and tp != null and tp.get("camera") != null:
+	# (caméra tournée autour du joueur pour les captures, camera_tp._orbite : on garde l'axe de la tête)
+	if paumes_effets["gauche"] != null and joueur.get("troisieme") and tp != null and tp.get("camera") != null \
+			and absf(float(tp.get("_orbite"))) < 0.01:
 		var c: Camera3D = tp.camera
 		var avant := -c.global_transform.basis.z
 		var o := c.global_position + avant * maxf(avant.dot(cam.global_position - c.global_position), 0.0)
