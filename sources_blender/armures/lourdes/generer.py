@@ -10,10 +10,10 @@ importlib.reload(C); importlib.reload(PC)
 from mathutils import Vector, Matrix
 
 # ------------------------------------------------------------------------------------------------ styles
-FER = dict(pal=C.FER, mat="fer", mat_rebord="fer", mat_main="fer", mat_doigts="cuir", mat_genou="fer", base=0.5, pal_cuir=C.CUIR, oxyde=0.35,
-           crasse=0.45, poli=0.45, graine=11)
-ACIER = dict(pal=C.ACIER, mat="acier", mat_maille="acier.maille", mat_rebord="acier", mat_main="acier", mat_doigts="acier", mat_genou="acier", base=0.46,
-             oxyde=0.0, crasse=0.38, poli=0.65, graver=True, graine=23, pal_maille=C.ACIER)
+FER = dict(pal=C.FER, mat="fer", mat_rebord="fer", mat_main="fer", mat_doigts="cuir", mat_genou="fer", base=0.33, pal_cuir=C.CUIR, oxyde=0.7,
+           crasse=0.6, poli=0.22, graine=11, martele=1.0, z_ourlet=0.66)
+ACIER = dict(pal=C.ACIER, mat="acier", mat_maille="acier.maille", mat_rebord="acier", mat_main="acier", mat_doigts="acier", mat_genou="acier", base=0.34,
+             oxyde=0.2, crasse=0.6, poli=0.3, graver=True, graine=23, pal_maille=C.ACIER, bord_roule=True, z_ourlet=0.66)
 
 def _s(b0, **kw):
     d = dict(b0); d.update(kw); return d
@@ -28,18 +28,18 @@ PIECES = {
     "casque_acier_nordique": lambda r: PC.casque(r, _s(ACIER, id="casque_acier_nordique", bas=(0.0, -0.25, -0.55), bandes=2,
                                                       decor=[PC.deco_joues, PC.deco_cornes], mat_rebord="acier",
                                                       peinture_corne=C.metal(["#1b1712", "#2c261e", "#423a2e", "#5c5242", "#786c58", "#958870", "#b2a58b", "#cfc3a8"], 31, base=0.6, contraste=0.4, poli=0.5))),
-    "cuirasse_acier_nordique": lambda r: PC.cuirasse(r, _s(ACIER, id="cuirasse_acier_nordique", lames=3, bombe=0.02, fourrure=True,
+    "cuirasse_acier_nordique": lambda r: PC.cuirasse(r, _s(ACIER, id="cuirasse_acier_nordique", lames=4, bombe=0.02, fourrure=True,
                                                            lames_epaule=3)),
     "gantelets_acier_nordique": lambda r: PC.gantelets(r, _s(ACIER, id="gantelets_acier_nordique", evasement=0.035)),
     "bottes_acier_nordique": lambda r: PC.bottes(r, _s(ACIER, id="bottes_acier_nordique",
-                                                       peinture_botte=C.metal(C.ACIER, 41, base=0.5, contraste=0.3, crasse=0.3, poli=0.7))),
+                                                       peinture_botte=C.metal(C.ACIER, 41, base=0.34, contraste=0.3, crasse=0.6, oxyde=0.2, poli=0.3))),
     # --- pièces uniques (ids de data/objets/armures.json)
     "heaume_jarl": lambda r: PC.casque(r, _s(FER, id="heaume_jarl", pal=C.FER_NOIR, mat="fer.noir", mat_rebord="fer.noir", base=0.5, oxyde=0.1,
                                             crasse=0.3, poli=0.6, bombe=0.006, graver=True, bandes=0,
                                             decor=[lambda *a: PC.deco_nasal(*a, mat="fer.noir"), PC.deco_couronne],
                                             peinture_corne=C.metal(C.FER_NOIR, 71, base=0.55, contraste=0.35, poli=0.7))),
-    "cuirasse_gardiens": lambda r: PC.cuirasse(r, _s(ACIER, id="cuirasse_gardiens", mat="acier.givre", lames=3, bombe=0.02, fourrure=True,
-                                                     base=0.42, givre=0.75, graine=37, pal_fourrure=C.FOURRURE_BLANCHE, base_fourrure=0.45)),
+    "cuirasse_gardiens": lambda r: PC.cuirasse(r, _s(ACIER, id="cuirasse_gardiens", mat="acier.givre", lames=4, bombe=0.02, fourrure=True,
+                                                     base=0.32, givre=0.75, graine=37, pal_fourrure=C.FOURRURE_BLANCHE, base_fourrure=0.45)),
     "gantelets_hrafn": lambda r: PC.gantelets(r, _s(FER, id="gantelets_hrafn", mat="cuir", mat_main="cuir", mat_doigts="cuir",
                                                     mat_griffes="acier", griffes=0.016, evasement=0.012, rivets=False, lames_main=False,
                                                     debut_manchette=0.6, pal=C.CUIR_ROUGE,
@@ -53,8 +53,8 @@ PIECES = {
     "capuche_thaumaturge": lambda r: PC.capuche(r, dict(id="capuche_thaumaturge")),
     "brigandine_braise": lambda r: PC.cuirasse(r, _s(FER, id="brigandine_braise", mat="cuir.braise", mat_maille="cuir.ecailles", lames=4, lames_epaule=2,
                                                      rivets=False, pal=C.CUIR_CENDRE, graine=101,
-                                                     peinture_maille=C.ecailles(C.CUIR_CENDRE, 102, base=0.45, braise=0.4),
-                                                     peinture_plaques=C.ecailles(C.CUIR_CENDRE, 103, base=0.5, braise=0.75))),
+                                                     peinture_maille=C.ecailles(C.CUIR_CENDRE, 102, base=0.45, braise=0.9),
+                                                     peinture_plaques=C.ecailles(C.CUIR_CENDRE, 103, base=0.5, braise=1.6), z_ourlet=0.74)),
 }
 # matières des bottes d'acier : la botte elle-même est en acier (solerets)
 SOLERETS = {"bottes_acier_nordique"}

@@ -215,10 +215,10 @@ def cuirasse(r, st):
     MM = st.get("mat_maille", "fer.maille")
     t.zone(R_MAILLE, st.get("peinture_maille", C.maille(st.get("pal_maille", C.FER), g, base=0.5)))
     t.zone(R_PLAQ, st.get("peinture_plaques", C.metal(pal, g + 1, base=st.get("base", 0.55), contraste=0.3, rayures=0.7, oxyde=st.get("oxyde", 0.0),
-                           crasse=st.get("crasse", 0.25), poli=st.get("poli", 0.7))))
+                           crasse=st.get("crasse", 0.25), poli=st.get("poli", 0.7), martele=st.get("martele", 0.0) * 0.6)))
     t.zone(R_CEINT, C.cuir(st.get("pal_cuir", C.CUIR), g + 2, base=0.45))
     t.zone(R_EPAUL, st.get("peinture_plaques", C.metal(pal, g + 3, base=st.get("base", 0.55) + 0.03, contraste=0.3, rayures=0.7, oxyde=st.get("oxyde", 0.0),
-                            crasse=st.get("crasse", 0.25), poli=st.get("poli", 0.7))))
+                            crasse=st.get("crasse", 0.25), poli=st.get("poli", 0.7), martele=st.get("martele", 0.0))))
     t.zone(R_FOUR, C.fourrure(st.get("pal_fourrure", C.FOURRURE_LOUP), g + 4, base=st.get("base_fourrure", 0.4)))
     axeA, axeB = Vector((0, -0.005, 0.70)), Vector((0, -0.005, 1.60))
     H = axeB.z - axeA.z
@@ -228,16 +228,21 @@ def cuirasse(r, st):
     arbre = C.bvh(r, ["tunique", "peau"], TORSE_OS, 0.5)
     arbre_jambes = C.bvh(r, ["pantalon"], {"pelvis", "thigh_l", "thigh_r", "spine_01"}, 0.3)
     # --- cotte : jupe (enveloppe des cuisses + évasement), taille, puis haut (col) ; les plaques couvrent le milieu
-    z_jupe = [st.get("z_ourlet", 0.74), 0.84, 0.94, 1.02] if not st.get("fourrure") else [st.get("z_ourlet", 0.74), 0.88, 1.02]
+    zo = st.get("z_ourlet", 0.74)
+    z_jupe = [zo, (zo + 0.94) / 2, 0.94, 1.02] if not st.get("fourrure") else [zo, (zo + 1.02) / 2, 1.02]
     zp0, zp1 = st.get("z_plaques", (1.04, 1.40))
     z_haut = [zp1 - 0.02, 1.46, 1.505, 1.535, 1.562]
     def dec_maille(j, i, a):
-        return 0.012 if j < 4 else 0.009
+        # col montant : serré devant (pas de trou noir sous la barbe), plus large sur la nuque (les mèches basses y passent)
+        return 0.012 if j < 4 else 0.009 + 0.014 * max(0.0, -math.cos(a)) ** 1.5
     # jupe : mesurée sur le pantalon (pas sur les pans de la tunique), évasée vers le bas
     Pj, Rj, _ = C.tube(arbre_jambes, axeA, axeB, [tz(z) for z in z_jupe], n,
                        lambda j, i, a: 0.03 + 0.05 * (1.0 - j / (len(z_jupe) - 1.0)) ** 1.3 + (0.012 if math.cos(a) < 0 else 0.0), r_loin=0.6, dilate=2, lisse=3)
     ids_j = P.grille(Pj, MM, C.rect_uv((0, 0, 128, 22)), inverser=True)
     Ph, Rh, _ = C.tube(arbre, axeA, axeB, [tz(z) for z in z_haut], n, dec_maille, r_loin=0.6, dilate=1, lisse=2)
+    # nuque : haut du col abaissé derrière (les cheveux de la nuque, que la tête entraîne, restent au-dessus)
+    angs_h = [math.pi + TAU * i / n for i in range(n)]
+    Ph[-1] = [p - Vector((0, 0, 0.03 * max(0.0, -math.cos(a)) ** 1.5)) for p, a in zip(Ph[-1], angs_h)]
     # col : le dernier anneau resserré autour du cou
     ids_h = P.grille(Ph, MM, C.rect_uv((0, 22, 128, 40)), inverser=True)
     # ourlet : retour vers l'intérieur
@@ -256,7 +261,7 @@ def cuirasse(r, st):
         def dec_lame(j, i, a, k=k):
             avant = max(0.0, math.cos(a)) ** 2
             # flancs minces : les bras qui pendent le long du corps ne rentrent pas dans les plaques
-            flanc = 0.4 + 0.6 * abs(math.cos(a)) ** 0.8
+            flanc = 0.3 + 0.7 * abs(math.cos(a)) ** 0.8
             return (0.024 + 0.005 * (lames - k) + (0.006 if j == 0 else 0.0)) * flanc + bomb * avant * math.sin(math.pi * (k + 0.5) / lames)
         Pl, Rl, _ = C.tube(arbre, axeA, axeB, [tz(zb), tz(za + 0.01), tz(za)], n, dec_lame, r_loin=0.6, dilate=2, lisse=3)
         v0 = 40 + int(48 * k / lames); v1 = 40 + int(48 * (k + 1) / lames)
@@ -266,8 +271,10 @@ def cuirasse(r, st):
         for i in ids[0]:
             P.ao[i] = 0.72
         for x in range(0, 128):
-            t.mul(x, v1 - 1, 1.25, 0.25)       # arête haute claire
-            t.mul(x, v0, 0.45, -0.4)           # bas de lame sombre (ombre sur la suivante)
+            p_ = t.get(x, v1 - 1)
+            t.set(x, v1 - 1, tuple(min(1.0, c_ * 1.6 + 0.05) for c_ in p_[:3]), 1.0)   # arête haute polie
+            t.mul(x, v0, 0.4, -0.5)            # bas de lame sombre (ombre sur la suivante)
+            t.mul(x, v0 + 1, 0.7, -0.3)
         if st.get("rivets", True):
             C.rivets(t, [(x, v0 + 3) for x in range(3, 128, 8)], pal)
         if st.get("graver") and k == lames - 1:
@@ -293,8 +300,8 @@ def cuirasse(r, st):
         ua, la, ha = r.os["upperarm_" + cote], r.os["lowerarm_" + cote], r.os["hand_" + cote]
         bras = C.bvh(r, ["tunique", "brassards", "peau"], {"upperarm_" + cote, "lowerarm_" + cote}, 0.5)
         A = ua + Vector((-0.03 * s, 0, 0))
-        B = Vector((st.get("x_manche", 0.42) * s, la.y, la.z))     # ArmureVisible garde la manche de la cotte au-delà de |x| = 0,42
-        Pm, Rm, _ = C.tube(bras, A, B, [0.0, 0.5, 1.0], 8, lambda j, i, a: 0.013 + 0.022 * (j / 2) ** 2, r_loin=0.3, dilate=1, lisse=2)
+        B = Vector((st.get("x_manche", 0.435) * s, la.y, la.z))     # ArmureVisible garde la manche de la cotte au-delà de |x| = 0,42
+        Pm, Rm, _ = C.tube(bras, A, B, [0.0, 0.5, 1.0], 8, lambda j, i, a: 0.013 + 0.034 * (j / 2) ** 2, r_loin=0.3, dilate=1, lisse=2)
         idm = P.grille(Pm, MM, C.rect_uv((0, 0, 64, 20)), inverser=s > 0)
         bm = [p + (A.lerp(B, 1.0) - p).normalized() * 0.01 for p in Pm[-1]]
         P.grille([Pm[-1], bm], MM, C.rect_uv((0, 0, 64, 2)), inverser=s > 0)
@@ -303,7 +310,7 @@ def cuirasse(r, st):
         epaule = C.bvh(r, ["tunique", "peau"], {"upperarm_" + cote, "clavicle_" + cote, "spine_03"}, 0.5)
         E0 = Vector((0.12 * s, -0.005, 1.47))
         E1 = Vector((0.36 * s, 0.02, 1.455))
-        arc = [math.radians(x) for x in range(140, 410, 30)]        # derrière -> dessus (270°) -> devant
+        arc = [math.radians(x) for x in (range(140, 410, 30) if not st.get("bord_roule") else range(142, 409, 38))]   # derrière -> dessus (270°) -> devant
         for k in range(nl):
             ta = k / nl * 0.95
             tb = (k + 1) / nl * 0.95 + 0.06
@@ -316,13 +323,26 @@ def cuirasse(r, st):
             u0 = int(80 * k / nl); u1 = int(80 * (k + 1) / nl)
             ide = P.grille(Pe, st["mat"], C.rect_uv((u0, 96, u1, 128)), fermer=False, inverser=s < 0)
             # tranche (bord extérieur vers le bras)
-            tr = [p + (E0.lerp(E1, tb) - p).normalized() * 0.012 for p in Pe[1]]
+            if st.get("bord_roule"):
+                # bord repoussé : bourrelet épais retourné vers le bras (tranche de 2 cm, plus large que la lame simple du fer)
+                tr = [p + (E0.lerp(E1, tb) - p).normalized() * 0.02 for p in Pe[1]]
+            else:
+                tr = [p + (E0.lerp(E1, tb) - p).normalized() * 0.012 for p in Pe[1]]
             P.grille([Pe[1], tr], st["mat"], C.rect_uv((u0, 96, u1, 98)), fermer=False, inverser=s < 0)
             for i in ide[0]:
                 P.ao[i] = 0.65
         for k in range(nl):
+            u0 = int(80 * k / nl)
             u1 = int(80 * (k + 1) / nl)
             C.ligne_v(t, u1 - 1, 96, 128, 0.5)
+            for y in range(96, 128):           # bord bas poli (seule partie brillante de la lame)
+                p_ = t.get(u1 - 2, y)
+                t.set(u1 - 2, y, tuple(min(1.0, c_ * 1.6 + 0.05) for c_ in p_[:3]), 1.0)
+            if st.get("bord_roule") and cote == "l":
+                for y in range(97, 127):       # gravure (bande d'entrelacs le long du bord)
+                    for ph in (0.0, math.pi):
+                        xx = u1 - 7 + int(round(2.2 * math.sin((y - 96) * TAU / 10 + ph)))
+                        t.mul(xx, y, 0.7, -0.3); t.mul(xx + 1, y, 1.12, 0.15)
             if st.get("rivets", True):
                 C.rivets(t, [(u1 - 4, y) for y in range(100, 128, 7)], pal)
     # --- col de fourrure (acier nordique, gardiens) : boudin autour des épaules et de la nuque
@@ -356,16 +376,22 @@ def cuirasse(r, st):
     C.orienter_dehors(ob, _centre_corps)
     C.appliquer_materiaux(ob, P, img)
     C.peau_transfert(ob, r, ["tunique", "peau"], lisser=1)
-    # manches de mailles : sur le bras seul (la manche de la cotte du héros, dessous, suit le haut du bras)
+    # manches de mailles : MÊMES poids que la manche de la cotte du héros juste dessous (transfert sans lissage, côté strict)
+    Wm = C.poids_transferes(ob, r, ["tunique"], os_permis={"upperarm_l", "upperarm_r", "lowerarm_l", "lowerarm_r", "clavicle_l", "clavicle_r"}, lisser=0)
     for v in ob.data.vertices:
         p = ob.matrix_world @ v.co
         if abs(p.x) > 0.30 and p.z > 1.28:
             cote = "l" if p.x > 0 else "r"
+            d = {k: w for k, w in Wm[v.index].items() if k.endswith("_" + cote)}
+            tot = sum(d.values())
+            if tot <= 0:
+                d, tot = {"upperarm_" + cote: 1.0}, 1.0
             for g in list(ob.vertex_groups):
                 g.remove([v.index])
-            if "upperarm_" + cote not in ob.vertex_groups:
-                ob.vertex_groups.new(name="upperarm_" + cote)
-            ob.vertex_groups["upperarm_" + cote].add([v.index], 1.0, "REPLACE")
+            for k, w in d.items():
+                if k not in ob.vertex_groups:
+                    ob.vertex_groups.new(name=k)
+                ob.vertex_groups[k].add([v.index], w / tot, "REPLACE")
     C.lier(ob, r)
     return ob
 

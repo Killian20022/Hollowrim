@@ -119,7 +119,7 @@ static func porter(modele: Node3D, id: String) -> MeshInstance3D:
 	_cacher(sq, EMPL.get(id, ""))
 	return mi
 
-## Cache ce que recouvrent les emplacements portés : MÊME règle que scripts/rpg/armure_visible.gd de l'agent X (recouvert(), copiée ici
+## Cache ce que recouvrent les emplacements portés : MÊME règle que scripts/rpg/armure_visible.gd de l'agent X (recouvert() de f38c947, copiée ici
 ## pour essayer les pièces avant la fusion de son système) : zones de repos (mains |x| > 0,58 ; pieds y < 0,40 / 0,47 ; tête : casque,
 ## crête, camail, cheveux ; torse : cotte |x| < 0,42, mante, plastron, haut du pantalon, mèches de la nuque…).
 const MAINS_X := 0.58
@@ -128,8 +128,8 @@ const PIEDS_Y := 0.40
 const PIEDS_Y_ACC := 0.47
 const TETE_Y := 1.585
 const CAMAIL_Y := 1.46
-const CAMAIL_BAS_TORSE := 1.585
-const TORSE_PANTALON_Y := 0.64
+const CAMAIL_BAS_TORSE := 1.62
+const TORSE_PANTALON_Y := 0.71
 const TORSE_CHEVEUX_Y := 1.575
 
 static func _cacher(sq: Skeleton3D, _empl: String) -> void:
@@ -169,7 +169,11 @@ static func _concerne(nom: String, z: Array) -> bool:
 static func _dans(r: Rect2i, u: Vector2) -> bool:
 	return u.x >= r.position.x and u.y >= r.position.y and u.x < r.end.x and u.y < r.end.y
 
-static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Array) -> bool:
+static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Array, haut := -INF, x_min := INF) -> bool:
+	if haut == -INF:
+		haut = c.y
+	if x_min == INF:
+		x_min = absf(c.x)
 	if z.has("mains") and absf(c.x) > MAINS_X and nom in ["tunique", "brassards", "peau", "accessoires"]:
 		return true
 	if z.has("pieds"):
@@ -188,9 +192,9 @@ static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Arra
 	if z.has("torse"):
 		if camail and c.y < CAMAIL_BAS_TORSE:
 			return true
-		if nom == "pantalon" and c.y > TORSE_PANTALON_Y:
+		if nom == "pantalon" and haut > TORSE_PANTALON_Y:
 			return true
-		if nom == "tunique" and absf(c.x) < TORSE_X:
+		if nom == "tunique" and x_min < TORSE_X:
 			return true
 		if nom == "mante":
 			return true
@@ -217,7 +221,7 @@ static func _filtrer(orig: Mesh, nom: String, z: Array) -> ArrayMesh:
 			var u := Vector2.ZERO
 			if not uv.is_empty():
 				u = (uv[idx[t]] + uv[idx[t + 1]] + uv[idx[t + 2]]) / 3.0 * atlas
-			if not recouvert(nom, s, c, u, z):
+			if not recouvert(nom, s, c, u, z, maxf(v[idx[t]].y, maxf(v[idx[t + 1]].y, v[idx[t + 2]].y)), minf(absf(v[idx[t]].x), minf(absf(v[idx[t + 1]].x), absf(v[idx[t + 2]].x)))):
 				garde.append_array([idx[t], idx[t + 1], idx[t + 2]])
 		if garde.is_empty():
 			garde = PackedInt32Array([0, 0, 0])
@@ -236,6 +240,20 @@ static func _indices(a: Array) -> PackedInt32Array:
 	return r
 
 # ================================================================================================ test de traversée
+## Camail du casque de base du héros et haut du col de la tenue de base autour du cou (accessoires) : leur masquage sous une pièce
+## de torse est l'affaire d'ArmureVisible (agent X, prévenu) ; ils ne sont pas suivis ici.
+func _sans_camail(a: Array, ids: PackedInt32Array) -> PackedInt32Array:
+	var uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var r := PackedInt32Array()
+	for i in ids:
+		if uv.size() > i and v[i].y > CAMAIL_Y and _dans(GuerrierTextures.R_PLASTRON, uv[i] * Vector2(GuerrierTextures.ATLAS)):
+			continue
+		if v[i].y > 1.50 and absf(v[i].x) < 0.2:
+			continue     # haut du col / camail de la tenue de base autour du cou (triangles au-dessus de TETE_Y, gardés par ArmureVisible)
+		r.append(i)
+	return r
+
 ## Positions posées (repère du squelette) des sommets ids d'une pièce peau d'os.
 func _poses(sq: Skeleton3D, mi: MeshInstance3D, a: Array, ids: PackedInt32Array) -> PackedVector3Array:
 	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
@@ -367,6 +385,8 @@ func _tester_piece(id: String, clips: Array) -> void:
 		var c: MeshInstance3D = e[0]
 		var a: Array = e[1]
 		var ids_c: PackedInt32Array = e[2]
+		if c.name == &"accessoires":
+			ids_c = _sans_camail(a, ids_c)
 		var p0 := _poses(sq, c, a, ids_c)
 		var ax := _axes(sq, c, a, ids_c)
 		var garde := PackedInt32Array()
