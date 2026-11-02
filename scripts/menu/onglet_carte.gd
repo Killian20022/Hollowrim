@@ -79,7 +79,7 @@ func titre() -> String:
 	return "Carte"
 
 func aide() -> Array:
-	return [["ZQSD / Stick", "Déplacer"], ["Molette / Gâch.", "Zoom"], ["Espace / Y", "Me centrer"], ["F / X", "Quête"]]
+	return [["ZQSD", "Déplacer"], ["Molette / Gâch.", "Zoom"], ["Espace / Y", "Moi"], ["F / X", "Quête"]]   # stick G / croix : déplacer
 
 func _init() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
