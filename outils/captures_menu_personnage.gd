@@ -82,10 +82,12 @@ func _lancer() -> void:
 	j.mana = j.mana_max * 0.9
 	ui.ouvrir("equipement")
 	(ui.onglet("equipement") as OngletEquipement).sel = 3
+	ui.onglet("equipement").queue_redraw()
 	await _capture("C_1_equipement", "A_1_equipement.png")
 	var oe := ui.onglet("equipement") as OngletEquipement
 	oe.sel = 0
 	oe._ouvrir_choix()
+	oe.queue_redraw()
 	await _capture("C_1b_equipement_changer", "")
 	oe.choix = []
 	ui.changer_onglet("sac")

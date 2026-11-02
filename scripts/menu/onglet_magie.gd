@@ -188,8 +188,14 @@ func _dessiner_fiche(d: Rect2) -> void:
 			texte(x + 74.0, y, String(rub[i][1]), Parchemin.ENCRE, false, d.size.x - 74.0)
 			Parchemin.regle(self, x, y + 10.0, d.size.x)
 			y += 12.0
-		if not notes.is_empty():
-			y = paragraphe(x, y + 2.0, d.size.x, " ".join(notes), Parchemin.PALE, 2)
+		y += 2.0
+		var vues := {}
+		for n: String in notes:   # une note par ligne, sans doublon (la description répète parfois la ligne de charge)
+			var cle := n.substr(0, 18)
+			if vues.has(cle) or y > d.end.y - 100.0:
+				continue
+			vues[cle] = true
+			y = paragraphe(x, y, d.size.x, n, Parchemin.PALE, 2)
 		y += 4.0
 		for m in ["droite", "gauche"]:
 			var e := eq.essai(m, choisi)
