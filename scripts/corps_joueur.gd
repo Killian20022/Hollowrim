@@ -48,6 +48,10 @@ var coups_tps: CorpsCoupsTps
 var mains_tps: CorpsMainsTps
 ## Épée fixe d'origine (epee_nordique.glb) : cachée par mains_tps, qui montre le modèle réellement équipé.
 var arme_corps: Node3D
+## Armure portée visible (scripts/rpg/armure_visible.gd, branche rpg/armures_legeres) : modèles skinnés des pièces de tête / torse /
+## mains / pieds sur le squelette du corps, parties recouvertes de la tenue masquées, gants sur les bras FPS. Branchement :
+## equiper() dans _creer_modele (après les mains), definir_vue().
+var armure: ArmureVisible
 
 func _ready() -> void:
 	_creer_modele()
@@ -91,9 +95,10 @@ func _creer_modele() -> void:
 		mains_tps.mains = mains
 		add_child(mains_tps)
 	mains_tps.installer(squelette)
+	armure = ArmureVisible.equiper(self, squelette, joueur.equipement_corps if joueur else null, mains)   # rpg/armures_legeres
 	anim = modele.get_node("Animations")
 	anim.animation_finished.connect(_fini)
-	_mailles.assign(modele.find_children("*", "MeshInstance3D", true, false))
+	_mailles.assign(modele.find_children("*", "MeshInstance3D", true, false).filter(func(m: Node) -> bool: return not m.has_meta("armure_id")))
 	_cle = ""
 	_jouer("Sword_Idle", 0.0)
 	definir_vue(_vue_3)
@@ -119,6 +124,8 @@ func definir_vue(troisieme: bool) -> void:
 	_vue_3 = troisieme
 	for mi in _mailles:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if troisieme else GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	if armure:
+		armure.definir_vue(troisieme)
 
 func _epee(squelette: Skeleton3D) -> void:
 	var accroche := BoneAttachment3D.new()
