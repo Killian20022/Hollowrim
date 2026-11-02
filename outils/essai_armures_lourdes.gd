@@ -171,6 +171,8 @@ static func _cacher(sq: Skeleton3D, empl: String) -> void:
 		for t in range(0, idx.size(), 3):
 			if dans[idx[t]] + dans[idx[t + 1]] + dans[idx[t + 2]] < 2:
 				garde.append_array([idx[t], idx[t + 1], idx[t + 2]])
+		if garde.is_empty():
+			garde.append_array([0, 0, 0])      # surface entièrement couverte : un triangle dégénéré (surface gardée pour les matériaux)
 		a[Mesh.ARRAY_INDEX] = garde
 		var fl: int = acc.mesh.surface_get_format(s) & ~Mesh.ARRAY_FORMAT_VERTEX & ~Mesh.ARRAY_FORMAT_INDEX
 		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, fl & (Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS))

@@ -2,7 +2,7 @@
 # « fer » (fer forgé brun-gris, plaques rivetées sur cotte de mailles, casque à nasal), « acier » (acier nordique : plaques bombées
 # gravées d'entrelacs, col de fourrure, heaume à cornes courtes et joues) et les variantes des pièces uniques.
 import math
-from mathutils import Vector
+from mathutils import Vector, Matrix
 import commun as C
 
 TAU = math.tau
@@ -212,12 +212,13 @@ def cuirasse(r, st):
     pal = st["pal"]
     # atlas : mailles (0,0)-(128,40) ; plaques (0,40)-(128,88) ; ceinture (0,88)-(128,96) ; épaulières (0,96)-(80,128) ; fourrure (80,96)-(128,128)
     R_MAILLE, R_PLAQ, R_CEINT, R_EPAUL, R_FOUR = (0, 0, 128, 40), (0, 40, 128, 88), (0, 88, 128, 96), (0, 96, 80, 128), (80, 96, 128, 128)
-    t.zone(R_MAILLE, C.maille(st.get("pal_maille", C.FER), g, base=0.5))
-    t.zone(R_PLAQ, C.metal(pal, g + 1, base=st.get("base", 0.55), contraste=0.3, rayures=0.7, oxyde=st.get("oxyde", 0.0),
-                           crasse=st.get("crasse", 0.25), poli=st.get("poli", 0.7)))
+    MM = st.get("mat_maille", "maille")
+    t.zone(R_MAILLE, st.get("peinture_maille", C.maille(st.get("pal_maille", C.FER), g, base=0.5)))
+    t.zone(R_PLAQ, st.get("peinture_plaques", C.metal(pal, g + 1, base=st.get("base", 0.55), contraste=0.3, rayures=0.7, oxyde=st.get("oxyde", 0.0),
+                           crasse=st.get("crasse", 0.25), poli=st.get("poli", 0.7))))
     t.zone(R_CEINT, C.cuir(st.get("pal_cuir", C.CUIR), g + 2, base=0.45))
-    t.zone(R_EPAUL, C.metal(pal, g + 3, base=st.get("base", 0.55) + 0.03, contraste=0.3, rayures=0.7, oxyde=st.get("oxyde", 0.0),
-                            crasse=st.get("crasse", 0.25), poli=st.get("poli", 0.7)))
+    t.zone(R_EPAUL, st.get("peinture_plaques", C.metal(pal, g + 3, base=st.get("base", 0.55) + 0.03, contraste=0.3, rayures=0.7, oxyde=st.get("oxyde", 0.0),
+                            crasse=st.get("crasse", 0.25), poli=st.get("poli", 0.7))))
     t.zone(R_FOUR, C.fourrure(st.get("pal_fourrure", C.FOURRURE), g + 4))
     axeA, axeB = Vector((0, -0.005, 0.70)), Vector((0, -0.005, 1.60))
     H = axeB.z - axeA.z
@@ -227,23 +228,23 @@ def cuirasse(r, st):
     arbre = C.bvh(r, ["tunique", "peau"], TORSE_OS, 0.5)
     arbre_jambes = C.bvh(r, ["pantalon"], {"pelvis", "thigh_l", "thigh_r", "spine_01"}, 0.3)
     # --- cotte : jupe (enveloppe des cuisses + évasement), taille, puis haut (col) ; les plaques couvrent le milieu
-    z_jupe = [st.get("z_ourlet", 0.74), 0.84, 0.94, 1.02]
+    z_jupe = [st.get("z_ourlet", 0.74), 0.84, 0.94, 1.02] if not st.get("fourrure") else [st.get("z_ourlet", 0.74), 0.88, 1.02]
     zp0, zp1 = st.get("z_plaques", (1.04, 1.40))
     z_haut = [zp1 - 0.02, 1.46, 1.505, 1.535]
     def dec_maille(j, i, a):
         return 0.012
     # jupe : mesurée sur le pantalon (pas sur les pans de la tunique), évasée vers le bas
     Pj, Rj, _ = C.tube(arbre_jambes, axeA, axeB, [tz(z) for z in z_jupe], n,
-                       lambda j, i, a: 0.03 + 0.05 * (1.0 - j / 3.0) ** 1.3 + (0.012 if math.cos(a) < 0 else 0.0), r_loin=0.6, dilate=2, lisse=3)
-    ids_j = P.grille(Pj, "maille", C.rect_uv((0, 0, 128, 22)), inverser=True)
+                       lambda j, i, a: 0.03 + 0.05 * (1.0 - j / (len(z_jupe) - 1.0)) ** 1.3 + (0.012 if math.cos(a) < 0 else 0.0), r_loin=0.6, dilate=2, lisse=3)
+    ids_j = P.grille(Pj, MM, C.rect_uv((0, 0, 128, 22)), inverser=True)
     Ph, Rh, _ = C.tube(arbre, axeA, axeB, [tz(z) for z in z_haut], n, dec_maille, r_loin=0.6, dilate=1, lisse=2)
     # col : le dernier anneau resserré autour du cou
-    ids_h = P.grille(Ph, "maille", C.rect_uv((0, 22, 128, 40)), inverser=True)
+    ids_h = P.grille(Ph, MM, C.rect_uv((0, 22, 128, 40)), inverser=True)
     # ourlet : retour vers l'intérieur
     ourlet = [p + (Vector((0, -0.005, p.z)) - p).normalized() * 0.015 + Vector((0, 0, 0.012)) for p in Pj[0]]
-    P.grille([ourlet, Pj[0]], "maille", C.rect_uv((0, 0, 128, 3)), inverser=True)
+    P.grille([ourlet, Pj[0]], MM, C.rect_uv((0, 0, 128, 3)), inverser=True)
     col_dedans = [p + (Vector((0, 0.0, p.z)) - p).normalized() * 0.014 - Vector((0, 0, 0.01)) for p in Ph[-1]]
-    P.grille([Ph[-1], col_dedans], "maille", C.rect_uv((0, 37, 128, 40)), inverser=True)
+    P.grille([Ph[-1], col_dedans], MM, C.rect_uv((0, 37, 128, 40)), inverser=True)
     for i in ids_j[0]:
         P.ao[i] = 0.8
     # --- plaques : lames horizontales qui se recouvrent (fer) ou plastron bombé + lames basses (acier)
@@ -265,7 +266,8 @@ def cuirasse(r, st):
         for x in range(0, 128):
             t.mul(x, v1 - 1, 1.25, 0.25)       # arête haute claire
             t.mul(x, v0, 0.45, -0.4)           # bas de lame sombre (ombre sur la suivante)
-        C.rivets(t, [(x, v0 + 3) for x in range(3, 128, 8)], pal)
+        if st.get("rivets", True):
+            C.rivets(t, [(x, v0 + 3) for x in range(3, 128, 8)], pal)
         if st.get("graver"):
             C.entrelacs(t, (0, v0 + 5, 128, v1 - 3), pal, g + k)
     # --- ceinture
@@ -291,9 +293,9 @@ def cuirasse(r, st):
         A = ua + Vector((-0.03 * s, 0, 0))
         B = la + (la - ua).normalized() * 0.06
         Pm, Rm, _ = C.tube(bras, A, B, [0.0, 0.35, 0.7, 1.0], 8, lambda j, i, a: 0.012, r_loin=0.3, dilate=1, lisse=2)
-        idm = P.grille(Pm, "maille", C.rect_uv((0, 0, 64, 20)), inverser=s > 0)
+        idm = P.grille(Pm, MM, C.rect_uv((0, 0, 64, 20)), inverser=s > 0)
         bm = [p + (A.lerp(B, 1.0) - p).normalized() * 0.01 for p in Pm[-1]]
-        P.grille([Pm[-1], bm], "maille", C.rect_uv((0, 0, 64, 2)), inverser=s > 0)
+        P.grille([Pm[-1], bm], MM, C.rect_uv((0, 0, 64, 2)), inverser=s > 0)
         # épaulières : lames sur le dessus de l'épaule (arc haut), de l'épaule vers le coude, chaque lame par-dessus la suivante
         nl = st.get("lames_epaule", 3)
         epaule = C.bvh(r, ["tunique", "peau"], {"upperarm_" + cote, "clavicle_" + cote, "spine_03"}, 0.5)
@@ -319,18 +321,22 @@ def cuirasse(r, st):
         for k in range(nl):
             u1 = int(80 * (k + 1) / nl)
             C.ligne_v(t, u1 - 1, 96, 128, 0.5)
-            C.rivets(t, [(u1 - 4, y) for y in range(100, 128, 7)], pal)
+            if st.get("rivets", True):
+                C.rivets(t, [(u1 - 4, y) for y in range(100, 128, 7)], pal)
     # --- col de fourrure (acier nordique, gardiens) : boudin autour des épaules et de la nuque
     if st.get("fourrure"):
         Pf, Rf, _ = C.tube(arbre, axeA, axeB, [tz(1.44), tz(1.50), tz(1.555)], n,
                            lambda j, i, a: (0.03, 0.055, 0.03)[j] + 0.01 * (_h_ang(i, 7) - 0.5), r_loin=0.6, dilate=2, lisse=1)
         P.grille(Pf, "fourrure", C.rect_uv(R_FOUR), inverser=True)
         # mèches qui pendent (dents) sur le bas du col
-        for i in range(n):
+        for i in range(0, n, 1 if n * 3 < 40 else 2):
             a, b = Pf[0][i], Pf[0][(i + 1) % n]
             m = (a + b) / 2 + Vector((0, 0, -0.035 - 0.015 * _h_ang(i, 3))) + ((a + b) / 2 - Vector((0, 0, a.z))).normalized() * 0.01
             ia, ib, im = P.sommet(a, 0.8), P.sommet(b, 0.8), P.sommet(m, 0.6)
             P.face([ib, ia, im], "fourrure", [(0.8, 0.8), (0.95, 0.8), (0.87, 0.76)])
+    if st.get("givre"):
+        givre(t, (0, 40, 128, 88), g + 50, st["givre"])
+        givre(t, (0, 96, 80, 128), g + 51, st["givre"])
     for dec in st.get("decor", []):
         dec(P, t, r, st)
     img = t.image()
@@ -340,6 +346,18 @@ def cuirasse(r, st):
     C.peau_transfert(ob, r, ["tunique", "peau", "brassards"], lisser=2)
     C.lier(ob, r)
     return ob
+
+def givre(t, rect, g, force=0.5):
+    """Givre éternel : croûte blanc-bleu dans les creux et en plaques (bruit), cristaux clairs 1 px ; mate (brillance basse)."""
+    x0, y0, x1, y1 = rect
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            n = C.fbm(x, y, g, oct=((14, 0.5), (6, 0.3), (2, 0.2)))
+            if n > 1.0 - force * 0.6:
+                k = min(1.0, (n - (1.0 - force * 0.6)) * 5.0)
+                p = t.get(x, y)
+                c = C.rampe(C.GIVRE, 0.35 + 0.6 * C._h(x, y, g + 1))
+                t.set(x, y, tuple(p[i] * (1 - k) + c[i] * k for i in range(3)), p[3] * (1 - k) + 0.3 * k)
 
 def _h_ang(i, g):
     return C._h(i, 0, g)
@@ -362,17 +380,20 @@ def gantelets(r, st):
     g = st.get("graine", 7)
     pal = st["pal"]
     # atlas : manchette (0,0)-(128,48) ; main (0,48)-(128,88) ; doigts (0,88)-(128,128)
-    t.zone((0, 0, 128, 48), C.metal(pal, g, base=st.get("base", 0.55), contraste=0.3, rayures=0.6, oxyde=st.get("oxyde", 0.0),
-                                    crasse=st.get("crasse", 0.25), poli=st.get("poli", 0.7)))
+    t.zone((0, 0, 128, 48), st.get("peinture_manchette", C.metal(pal, g, base=st.get("base", 0.55), contraste=0.3, rayures=0.6, oxyde=st.get("oxyde", 0.0),
+                                    crasse=st.get("crasse", 0.25), poli=st.get("poli", 0.7))))
     t.zone((0, 48, 128, 88), st.get("peinture_main", C.metal(pal, g + 1, base=st.get("base", 0.55) - 0.03, contraste=0.3, crasse=0.3,
                                                               poli=st.get("poli", 0.7))))
     t.zone((0, 88, 128, 128), st.get("peinture_doigts", C.cuir(st.get("pal_cuir", C.CUIR), g + 2, base=0.4)))
     for y in (2, 3):
         C.ligne_h(t, y, 0, 128, 0.5)
-    C.rivets(t, [(x, 6) for x in range(4, 128, 10)], pal)
+    if st.get("rivets", True):
+        C.rivets(t, [(x, 6) for x in range(4, 128, 10)], pal)
+    if st.get("griffes"):
+        t.zone((112, 120, 128, 128), C.metal(C.ACIER, g + 9, base=0.7, contraste=0.2, poli=0.9))
     if st.get("graver"):
         C.entrelacs(t, (0, 14, 128, 30), pal, g)
-    for k in range(4):                              # lames du dos de la main
+    for k in range(4 if st.get("lames_main", True) else 0):                              # lames du dos de la main
         y = 52 + k * 9
         C.ligne_h(t, y, 0, 128, 0.45)
         C.ligne_h(t, y + 1, 0, 128, 1.25, 0.2)
@@ -428,10 +449,12 @@ def gantelets(r, st):
             # bout prolongé
             idd = P.grille(anneaux, st["mat_doigts"], C.rect_uv((DOIGTS.index(d) * 25, 88, DOIGTS.index(d) * 25 + 24, 128)), inverser=s > 0)
             ct = sum(anneaux[-1], Vector()) / 4
-            tip = P.sommet(ct + (chaine[-1] - chaine[-2]).normalized() * 0.008)
+            griffe = st.get("griffes", 0.0)
+            tip = P.sommet(ct + (chaine[-1] - chaine[-2]).normalized() * (0.008 + griffe) + (Vector((0, 0, -griffe * 0.5)) if griffe else Vector()))
             for i in range(4):
                 a, b = idd[-1][i], idd[-1][(i + 1) % 4]
-                P.face([a, b, tip] if s < 0 else [b, a, tip], st["mat_doigts"], [(0.1, 0.99), (0.15, 0.99), (0.12, 0.995)])
+                P.face([a, b, tip] if s < 0 else [b, a, tip], st.get("mat_griffes", st["mat_doigts"]) if griffe else st["mat_doigts"],
+                       [(0.9, 0.95), (0.95, 0.95), (0.92, 0.99)] if griffe else [(0.1, 0.99), (0.15, 0.99), (0.12, 0.995)])
     for dec in st.get("decor", []):
         dec(P, t, r, st)
     img = t.image()
@@ -459,10 +482,10 @@ def bottes(r, st):
     pal = st["pal"]
     # atlas : botte (0,0)-(128,64) ; grève (0,64)-(64,128) ; genouillère (64,64)-(128,104) ; semelle (64,104)-(128,128)
     t.zone((0, 0, 128, 64), st.get("peinture_botte", C.cuir(st.get("pal_cuir", C.CUIR), g, base=0.42)))
-    t.zone((0, 64, 64, 128), C.metal(pal, g + 1, base=st.get("base", 0.55), contraste=0.3, rayures=0.6, oxyde=st.get("oxyde", 0.0),
+    t.zone((0, 64, 64, 128), st.get("peinture_greve") or C.metal(pal, g + 1, base=st.get("base", 0.55), contraste=0.3, rayures=0.6, oxyde=st.get("oxyde", 0.0),
                                      crasse=st.get("crasse", 0.35), poli=st.get("poli", 0.7)))
     t.zone((64, 64, 128, 104), C.metal(pal, g + 2, base=st.get("base", 0.55) + 0.04, contraste=0.3, crasse=0.25, poli=st.get("poli", 0.7)))
-    t.zone((64, 104, 128, 128), C.cuir(C.CUIR, g + 3, base=0.18))
+    t.zone((64, 104, 128, 128), st.get("peinture_revers", C.cuir(C.CUIR, g + 3, base=0.18)))
     C.rivets(t, [(4, y) for y in range(68, 128, 9)] + [(59, y) for y in range(68, 128, 9)], pal)
     C.ligne_v(t, 1, 64, 128, 0.5); C.ligne_v(t, 62, 64, 128, 0.5)
     if st.get("graver"):
@@ -483,17 +506,33 @@ def bottes(r, st):
         Pb, Rb, _ = C.tube(jambe, A, B, [(z - A.z) / (B.z - A.z) for z in zs], n, dec, r_loin=0.4, dilate=1, lisse=2)
         # semelle plate un peu sous le sol
         Pb[0] = [Vector((p.x, p.y, -0.022)) for p in Pb[0]]
-        ids = P.grille(Pb, "cuir", C.rect_uv((0, 0, 128, 64)), inverser=s < 0 and False)
+        MB = st.get("mat_botte", "cuir")
+        ids = P.grille(Pb, MB, C.rect_uv((0, 0, 128, 64)), inverser=s < 0 and False)
         c0 = sum(Pb[0], Vector()) / n
         ic = P.sommet(c0)
         for i in range(n):
             a, b = ids[0][i], ids[0][(i + 1) % n]
-            P.face([b, a, ic], "cuir", [(0.7, 0.85), (0.8, 0.85), (0.75, 0.95)])
+            P.face([b, a, ic], "cuir", [(0.7, 0.85), (0.8, 0.85), (0.75, 0.95)])     # semelle
         # revers haut (épaisseur)
         rv = [p + (Vector((B.x, B.y if p.z > 0.2 else p.y, p.z)) - p).normalized() * 0.012 for p in Pb[-1]]
-        P.grille([Pb[-1], rv], "cuir", C.rect_uv((0, 61, 128, 64)))
+        P.grille([Pb[-1], rv], MB, C.rect_uv((0, 61, 128, 64)))
         for i in ids[0]:
             P.ao[i] = 0.6
+        if st.get("revers"):
+            # revers de fourrure : boudin hirsute au haut de la botte, mèches qui retombent
+            zr = zs[-1]
+            Pr, _, _ = C.tube(jambe, A, B, [(z - A.z) / (B.z - A.z) for z in (zr - 0.07, zr - 0.02, zr + 0.01)], n,
+                              lambda j, i, a: (0.03, 0.045, 0.02)[j] + 0.008 * (C._h(i, j, 5) - 0.5), r_loin=0.4, dilate=1, lisse=1)
+            P.grille(Pr, "fourrure", C.rect_uv((64, 104, 128, 128)))
+            for i in range(n):
+                a, b = Pr[0][i], Pr[0][(i + 1) % n]
+                m = (a + b) / 2 + Vector((0, 0, -0.03 - 0.02 * C._h(i, 1, 9))) + ((a + b) / 2 - Vector((B.x, B.y, a.z))).normalized() * 0.006
+                ia, ib, im = P.sommet(a, 0.8), P.sommet(b, 0.8), P.sommet(m, 0.6)
+                P.face([ia, ib, im], "fourrure", [(0.55, 0.85), (0.95, 0.85), (0.75, 0.82)])
+        if st.get("greve") is False:
+            for dec_f in st.get("decor", []):
+                dec_f(P, t, r, st, cote, s, jambe, A, B)
+            continue
         # grève : plaque devant le tibia (arc avant), de la cheville au genou
         arc = [math.radians(x) for x in range(-80, 81, 32)]
         z0, z1 = st.get("greve", (0.12, 0.47))
@@ -529,3 +568,105 @@ def bottes(r, st):
                      os_permis={b.name for b in r.arm.data.bones if any(k in b.name for k in ("calf", "foot", "ball", "thigh"))})
     C.lier(ob, r)
     return ob
+
+# =============================================================================================================== CAPUCHE
+def capuche(r, st):
+    """Capuche du thaumaturge : forme de la capuche v3 des mages (persos/capuche_v3, validée : épouse le crâne, bord roulé, plis du col),
+    variante « visage », réduite au budget d'un casque (<= 600 triangles), re-texturée laine bleue + bordure et bandeau de runes
+    d'argent, peau d'os transférée de la tête / du cou / de la pèlerine du héros."""
+    import bpy, bmesh, os
+    avant = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=os.path.join(C.ICI, "capuche_v3_mage.glb"))
+    nouveaux = [o for o in bpy.data.objects if o not in avant]
+    ob = next(o for o in nouveaux if o.name.startswith("capuche_visage"))
+    for o in nouveaux:
+        if o != ob:
+            bpy.data.objects.remove(o, do_unlink=True)
+    mw = ob.matrix_world.copy()
+    ob.parent = None
+    ob.data.transform(mw)
+    ob.matrix_world = Matrix.Identity(4)
+    ob.name = st["id"]
+    # réduction au budget
+    bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.select_all(action="DESELECT"); ob.select_set(True)
+    tris = C.compter_tris(ob)
+    md = ob.modifiers.new("dec", "DECIMATE")
+    md.ratio = min(1.0, (st.get("budget", 590)) / max(1, tris))
+    md.use_collapse_triangulate = True
+    bpy.ops.object.modifier_apply(modifier=md.name)
+    # textures : laine (0,0)-(128,96), bordure de runes (0,96)-(128,112), bandeau (0,112)-(128,128)
+    t = C.Toile(st["id"])
+    g = st.get("graine", 61)
+    t.zone((0, 0, 128, 96), C.laine(C.LAINE_BLEUE, g, base=0.55))
+    t.zone((0, 96, 128, 128), C.laine(C.LAINE_BLEUE, g + 1, base=0.42))
+    for y in (97, 110, 113, 126):
+        C.ligne_h(t, y, 0, 128, 1.0)
+        for x in range(128):
+            t.set(x, y, C.rampe(C.ARGENT, 0.7 + 0.2 * C._h(x, y, g)), 0.8)
+    C.runes(t, (0, 100, 128, 108), C.ARGENT, g + 3)
+    C.runes(t, (0, 115, 128, 124), C.ARGENT, g + 4)
+    # plis : ombres de couleur de sommet = occlusion (gardée), UV cylindriques autour de l'axe de la tête
+    me = ob.data
+    bm = bmesh.new(); bm.from_mesh(me)
+    uvl = bm.loops.layers.uv.verify()
+    centre = Vector((0.0, 0.01, 0.0))
+    zmin = min(v.co.z for v in bm.verts); zmax = max(v.co.z for v in bm.verts)
+    # bord du visage : arêtes de bord dont le milieu est devant et haut (ouverture du visage)
+    bord_vis = set()
+    for e in bm.edges:
+        if e.is_boundary:
+            m = (e.verts[0].co + e.verts[1].co) / 2
+            if m.y < -0.03 and m.z > 1.52:
+                bord_vis.add(e.verts[0]); bord_vis.add(e.verts[1])
+    z_bandeau = st.get("z_bandeau", 1.735)
+    for f in bm.faces:
+        us = []
+        for lp in f.loops:
+            p = lp.vert.co
+            a = math.atan2(p.x - centre.x, p.y - centre.y)       # 0 = derrière (+Y), couture derrière
+            us.append((a / TAU) % 1.0)
+        if max(us) - min(us) > 0.5:
+            us = [u + 1.0 if u < 0.5 else u for u in us]
+        bordure = any(lp.vert in bord_vis for lp in f.loops)
+        cz = sum(lp.vert.co.z for lp in f.loops) / len(f.loops)
+        for lp, u in zip(f.loops, us):
+            p = lp.vert.co
+            if bordure:
+                v = (97.5 + (0.0 if lp.vert in bord_vis else 11.0)) / 128.0
+                lp[uvl].uv = (u * 3.0, v)
+            elif abs(cz - z_bandeau) < 0.022 and p.y > -0.06:
+                lp[uvl].uv = (u * 2.0, (113.5 + 12.0 * (p.z - (z_bandeau - 0.022)) / 0.044) / 128.0)
+            else:
+                lp[uvl].uv = (u * 2.0, (0.5 + 95.0 * (p.z - zmin) / (zmax - zmin)) / 128.0)
+    bm.to_mesh(me); bm.free()
+    for p in me.polygons:
+        p.use_smooth = True
+    img = t.image()
+    me.materials.clear()
+    me.materials.append(C.materiau("laine", img))
+    for p in me.polygons:
+        p.material_index = 0
+    # occlusion : couleur de sommet assombrie vers l'intérieur du capuchon (doublure) et au creux du col
+    if "Col" not in me.color_attributes:
+        me.color_attributes.new("Col", "FLOAT_COLOR", "CORNER")
+    col = me.color_attributes["Col"]
+    for poly in me.polygons:
+        nrm = poly.normal
+        c = poly.center
+        dedans = (c - Vector((0, 0.0, 1.68))).normalized().dot(nrm) < -0.2
+        for li in poly.loop_indices:
+            k = 0.55 if dedans else 1.0
+            col.data[li].color = (k, k, k, 1.0)
+    C.peau_transfert(ob, r, ["peau", "mante", "tunique"], lisser=3,
+                     os_permis={"Head", "neck_01", "spine_03", "spine_02", "clavicle_l", "clavicle_r"})
+    C.lier(ob, r)
+    return ob
+
+
+def deco_runes_bottes(P, t, r, st, cote, s, jambe, A, B):
+    """Runes de course brodées (fil bleu-gris) en bandes sur la fourrure blanche de la botte."""
+    if cote != "l":
+        return
+    for y0 in (14, 34):
+        C.runes(t, (0, y0, 128, y0 + 7), ["#1c2a3c", "#2c4058", "#3e5674", "#56708e"], 93 + y0, k=0.75)

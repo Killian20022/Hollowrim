@@ -504,16 +504,16 @@ def metal(pal, g, base=0.55, contraste=0.35, rayures=0.5, oxyde=0.0, crasse=0.0,
     return fn
 
 def maille(pal, g, base=0.5):
-    """Cotte de mailles : rangs de 2 px en quinconce (reflet 1 px clair, jour sombre), plis de crasse ; contraste bas (vu de loin :
-    un grain d'acier, pas un damier)."""
+    """Cotte de mailles : RANGS horizontaux (ligne claire des anneaux / ligne sombre des jours) au grain aléatoire par pixel, plis de
+    crasse ; jamais de quinconce régulier (damier interdit par la bible) : vu de loin, une étoffe d'acier striée."""
     def fn(x, y, u, v):
-        yy = y % 2
-        xx = (x + (y // 2) % 2) % 2
-        anneau = 1.0 if (xx == 0 and yy == 0) else (0.8 if yy == 0 else 0.62)
+        rang = 1.0 if y % 2 == 0 else 0.6
+        grain = _h(x, y, g + 29)
         n = fbm(x, y, g, oct=((10, 0.5), (5, 0.3), (2, 0.2)))
         pli = bruit(x * 0.5, y * 2.0, 8, g + 13)
-        t = base * anneau * (0.75 + 0.5 * pli) + (n - 0.5) * 0.22
-        return rampe(pal, t), (0.25 + 0.6 * n) * anneau
+        t = base * rang * (0.78 + 0.45 * pli) + (n - 0.5) * 0.2 + (grain - 0.5) * 0.12
+        b = (0.2 + 0.6 * n) * rang * (0.6 + 0.6 * grain)
+        return rampe(pal, t), min(b, 1.0)
     return fn
 
 def cuir(pal, g, base=0.5, couture=False):
@@ -538,6 +538,43 @@ def laine(pal, g, base=0.55):
         trame = 0.06 if (x + y) % 2 == 0 else -0.04
         return rampe(pal, base + (n - 0.5) * 0.4 + trame), 0.05
     return fn
+
+def ecailles(pal, g, base=0.5, braise=0.0, pal_braise=None):
+    """Écailles de cuir en rangs décalés (demi-disques de 8x6 px, bord bas sombre) ; braise : liserés incandescents dans les jours."""
+    def fn(x, y, u, v):
+        ry = y // 6
+        xx = (x + (ry % 2) * 4) % 8 - 3.5
+        yy = 5 - (y % 6)
+        d = (xx / 4.0) ** 2 + (yy / 6.0) ** 2
+        n = fbm(x, y, g, oct=((8, 0.5), (3, 0.3), (1.5, 0.2)))
+        t = base + (n - 0.5) * 0.35 + 0.2 * (1.0 - min(d, 1.0)) - (0.35 if d > 0.85 else 0.0)
+        c = rampe(pal, t)
+        b = 0.25 + 0.3 * n
+        if braise > 0 and d > 0.85 and _h(x, y, g + 5) < braise * (0.6 + 0.8 * bruit(x, y, 12, g + 8)):
+            c = rampe(pal_braise or BRAISE, 0.55 + 0.45 * _h(x, y, g + 6)); b = 0.0
+        return c, b
+    return fn
+
+def runes(toile, rect, pal, g, k=0.9):
+    """Rangée de runes (traits verticaux et obliques 1 px) brodées / gravées, claires."""
+    x0, y0, x1, y1 = rect
+    x = x0 + 1
+    i = 0
+    while x < x1 - 4:
+        motif = int(_h(i, 0, g) * 6)
+        h = y1 - y0 - 1
+        for yy in range(h):
+            toile.set(x, y0 + yy, rampe(pal, k), 0.9)
+        if motif in (0, 3):
+            for yy in range(h // 2):
+                toile.set(x + 1 + yy // 2, y1 - 2 - yy, rampe(pal, k * 0.95), 0.9)
+        if motif in (1, 4):
+            for yy in range(h // 2):
+                toile.set(x + 1 + yy // 2, y0 + 1 + yy, rampe(pal, k * 0.95), 0.9)
+        if motif in (2, 5):
+            toile.set(x + 1, y0 + h // 2, rampe(pal, k), 0.9); toile.set(x + 2, y0 + h // 2, rampe(pal, k), 0.9)
+        x += 5 + (motif % 2)
+        i += 1
 
 def rivets(toile, pts, pal_clair, pal_ombre=None, r=1):
     """Rivets : point clair 1 px + ombre portée en bas à droite (lumière du haut-gauche)."""

@@ -2,6 +2,16 @@
 import bpy, math, mathutils
 def rendre(chemin_base, cible=(0, 0, 1.0), dist=3.2, vues=("face", "34", "profil", "dos"), taille=(420, 560), ortho=1.9, couleur_obj=True):
     sc = bpy.context.scene
+    # l'alpha des textures porte la BRILLANCE (shader_matiere), pas la transparence : aperçus opaques (export déjà fait)
+    for m in bpy.data.materials:
+        try:
+            m.blend_method = "OPAQUE"
+        except Exception:
+            pass
+        if m.use_nodes:
+            for l in list(m.node_tree.links):
+                if l.to_socket.name == "Alpha":
+                    m.node_tree.links.remove(l)
     sc.render.engine = "BLENDER_WORKBENCH"
     sc.display.shading.light = "STUDIO"
     sc.display.shading.color_type = "TEXTURE" if couleur_obj else "OBJECT"
