@@ -28,9 +28,15 @@ const PALETTES := {
 	"os": ["#161208", "#5a4e36", "#8a7c5c", "#b8aa86", "#dcd0ac", "#f6f0dc"],
 	"acier": ["#080e18", "#2e4258", "#4e6a86", "#7e9cb8", "#b4cce0", "#eef6ff"],
 	"noir": ["#050608", "#1c1e24", "#30343e", "#4c525e", "#767e8c", "#a8b0bc"],
+	# ensembles par matériau (refonte HD 2026-11-02, mêmes teintes que les armes : trainee de catalogue_armes.json)
+	"or": ["#1a1004", "#6a4a12", "#a8761e", "#e0a83a", "#f4d27a", "#fff4c8"],
+	"verre": ["#06140c", "#1a5a34", "#2e8a52", "#4ad08a", "#9af0c0", "#e0fff0"],
+	"obsidienne": ["#030204", "#121016", "#221e28", "#3a3442", "#b04a22", "#ffb060"],
+	"rubis": ["#1a0406", "#5a0e14", "#9a1a22", "#e0383a", "#ff8a80", "#ffd8d0"],
+	"saphir": ["#050c1e", "#14306a", "#2456b0", "#3a8ae8", "#9ac8f8", "#e8f6ff"],
 }
 ## Palettes de matière (armes, objets, armures) : pas une école de magie.
-const PALETTES_MATIERES := ["metal", "cuir", "fourrure", "os", "acier", "noir"]
+const PALETTES_MATIERES := ["metal", "cuir", "fourrure", "os", "acier", "noir", "or", "verre", "obsidienne", "rubis", "saphir"]
 
 const FIXES := {
 	"k": "#0b0f1a", "d": "#3a4458", "m": "#56627a", "l": "#8a96ad", "s": "#c8d0dc", "w": "#f4f6fa",
@@ -948,6 +954,26 @@ const MOTIFS := {
 	"bottes_rodeur": ["protection", FORME_BOTTES_FOURRURE],
 	"capuche_thaumaturge": ["protection", FORME_CAPUCHE],
 	"torse_braise": ["feu", FORME_TORSE_LEGER],
+	"casque_or": ["or", FORME_CASQUE],
+	"torse_or": ["or", FORME_TORSE_LOURD],
+	"gants_or": ["or", FORME_GANTELETS],
+	"bottes_or": ["or", FORME_BOTTES_LOURDES],
+	"casque_verre": ["verre", FORME_CASQUE],
+	"torse_verre": ["verre", FORME_TORSE_LEGER],
+	"gants_verre": ["verre", FORME_GANTS],
+	"bottes_verre": ["verre", FORME_BOTTES],
+	"casque_obsidienne": ["obsidienne", FORME_CASQUE_CORNES],
+	"torse_obsidienne": ["obsidienne", FORME_TORSE_LOURD],
+	"gants_obsidienne": ["obsidienne", FORME_GANTELETS],
+	"bottes_obsidienne": ["obsidienne", FORME_BOTTES_LOURDES],
+	"casque_rubis": ["rubis", FORME_CASQUE_CORNES],
+	"torse_rubis": ["rubis", FORME_TORSE_LOURD],
+	"gants_rubis": ["rubis", FORME_GANTELETS],
+	"bottes_rubis": ["rubis", FORME_BOTTES_LOURDES],
+	"casque_saphir": ["saphir", FORME_CASQUE],
+	"torse_saphir": ["saphir", FORME_TORSE_LEGER],
+	"gants_saphir": ["saphir", FORME_GANTELETS],
+	"bottes_saphir": ["saphir", FORME_BOTTES],
 	"amulette_givre": ["glace", FORME_AMULETTE],
 	"amulette_ours": ["soin", FORME_AMULETTE],
 	"amulette_arcaniste": ["tenebres", FORME_AMULETTE],
