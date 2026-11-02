@@ -49,7 +49,7 @@ PIECES = {
                                                       larg_bande=0.009, haut_bande=0.0055, rivets_rebord=20, rebord=0.008, haut_rebord=0.03,
                                                       joues_arc=(15, 110), joues_z=(1.678, 1.652, 1.624, 1.594), joues_ecart=0.027,
                                                       decor=[PH.deco_joues])),
-    "cuirasse_acier_nordique": lambda r: PH.cuirasse(r, _s(ACIER, id="cuirasse_acier_nordique", z_lames=[1.04, 1.11, 1.18, 1.43], bombe=0.025,
+    "cuirasse_acier_nordique": lambda r: PH.cuirasse(r, _s(ACIER, id="cuirasse_acier_nordique", n=22, z_lames=[1.04, 1.11, 1.18, 1.43], bombe=0.025,
                                                            tablier=28, fentes=(-100, 100, 180), rivets_lame=16, rivets_milieu=True,
                                                            tassettes=(58, 100), sangles=[((40, 1.43), (-30, 1.04)), ((-40, 1.43), (30, 1.04))],
                                                            disque=(-33, 1.365), sacoche=-38, lames_epaule=3, rivets_epaule=7, bord_roule=True,

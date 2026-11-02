@@ -168,7 +168,7 @@ func _verifier_piece(id: String, e: String) -> void:
 	var tex: Texture2D = mat.get_shader_parameter("tex_base") if mat else null
 	var hd := tex != null and tex.get_width() > 256
 	ok(mat != null and mat.shader == (ArmureVisible.shader_hd() if hd else EpeesLongues.shader_matiere(false)) and tex != null and tex.get_width() <= 1024 and tex.get_height() <= 1024
-		and (not hd or tex.has_mipmaps()),
+		and (not hd or (tex.get_image() != null and tex.get_image().has_mipmaps())),
 		"%s : matériau « matière » (%s), texture %s" % [id, mat.resource_name if mat else "?", str(tex.get_size()) if tex else "absente"])
 	# masquage
 	var reste := _triangles_recouverts(sq, av.zones(), av.limites())

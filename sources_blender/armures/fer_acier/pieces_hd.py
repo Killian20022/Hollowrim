@@ -670,7 +670,7 @@ def cuirasse(r, st):
         P.boite(fb + fh, "cuir", R_SACOCHE)
     # ---------------------------------------------------------------- sangles de cuir sur le plastron (posées sur les plaques)
     for (a0, z0), (a1, z1) in st.get("sangles", []):
-        m = 12
+        m = 8
         centres = []
         for k in range(m + 1):
             t = k / m
@@ -699,7 +699,7 @@ def cuirasse(r, st):
             nn = (hit[1] if hit[1].dot(d) > 0 else -hit[1]).normalized()
             u, w = C.repere(nn)
             prof = ((0.030, -0.003), (0.030, 0.003), (0.024, 0.008), (0.012, 0.012), (0.003, 0.013))
-            rings = [[ctr + nn * hh + (u * math.cos(TAU * i / 10) + w * math.sin(TAU * i / 10)) * rr for i in range(10)] for rr, hh in prof]
+            rings = [[ctr + nn * hh + (u * math.cos(TAU * i / 8) + w * math.sin(TAU * i / 8)) * rr for i in range(8)] for rr, hh in prof]
             P.grille_v(rings, st["mat"], R_BOUCLE)
     # ---------------------------------------------------------------- manches de cuir et épaulières de lames
     for cote, s in COTES:
@@ -749,7 +749,7 @@ def cuirasse(r, st):
     if st.get("fourrure"):
         F = st["fourrure"]
         fa0, fa1 = F.get("arc", (48, 312))
-        arc_f = [math.radians(x) for x in range(fa0, fa1 + 1, 12)]
+        arc_f = [math.radians(x) for x in range(fa0, fa1 + 1, F.get("pas", 14))]
         nf = len(arc_f)
         # manteau drapé : depuis un pivot au-dessus de la base du cou, rayons lancés de l'extérieur vers le pivot dans le plan
         # vertical de chaque angle ; la 1re surface touchée (épaulières, mailles du col, corps) porte la fourrure + son épaisseur
@@ -948,7 +948,7 @@ def gantelets(r, st):
         A = la.lerp(ha, st.get("debut_manchette", 0.45))
         B = ha + (ha - la).normalized() * 0.01
         ev = st.get("evasement", 0.025)
-        nm = 14
+        nm = 12
         # profil de la manchette : lèvre de doublure, bord roulé, évasement, poignet
         Pm, Rm, _ = C.tube(avb, A, B, [0.0, 0.0, 0.04, 0.46, 0.47, 0.52, 1.0], nm,
                            lambda j, i, a: (0.004 + ev, 0.018 + ev, 0.014 + ev, 0.014 + ev * 0.55, 0.009 + ev * 0.5, 0.013 + ev * 0.45, 0.012)[j],
@@ -1009,7 +1009,7 @@ def gantelets(r, st):
                 centres.append(cc); rayons.append(rr); reps.append((u, w, tg))
             di = DOIGTS.index(d)
             rd = (di * 25.6, R_DOIGTS[1], di * 25.6 + 25.6, R_DOIGTS[3])
-            ns = 6
+            ns = st.get("cotes_doigts", 5)
             if st.get("phalanges"):
                 # acier : une plaque par phalange (tronc de cône), chacune un peu plus large que la suivante, se chevauchant
                 for k in range(3):
@@ -1049,7 +1049,7 @@ def gantelets(r, st):
                     for t_, e_ in ((0.1, 0.0), (0.2, 0.003), (0.85, 0.003), (0.95, 0.0)):
                         c = c0.lerp(c1, t_)
                         rr = rayons[0] + 0.001 + e_
-                        rings.append([c + (u * math.cos(a) + w * math.sin(a)) * rr for a in [math.radians(x) for x in (-150, -120, -90, -60, -30)]])
+                        rings.append([c + (u * math.cos(a) + w * math.sin(a)) * rr for a in [math.radians(x) for x in (-145, -105, -75, -35)]])
                     P.grille_v(rings, st["mat"], (rd[0], rd[3] - 6, rd[2], rd[3]), fermer=False, inverser=s < 0)
     # ================================================================ peinture
     peindre_plaque(T, R_MANCH, st, g, bas=True, haut=False, rivets=st.get("rivets_manchette", 0), rivet_y=6.0, larg_bis=2.5,
@@ -1125,10 +1125,10 @@ def bottes(r, st):
         jambe = C.bvh(r, ["bottes", "pantalon"], {"calf_" + cote, "foot_" + cote, "ball_" + cote}, 0.5)
         A = Vector((ca.x, -0.015, -0.025))
         B = Vector((ca.x, ca.y, ca.z))
-        zs = st.get("niveaux", [-0.02, 0.0, 0.03, 0.07, 0.12, 0.19, 0.27, 0.35, 0.43, 0.50])
+        zs = st.get("niveaux", [-0.02, 0.0, 0.05, 0.13, 0.25, 0.38, 0.50])
         zh = st.get("haut", 0.50)
         zs = [z for z in zs if z <= zh]
-        n = 16
+        n = st.get("n", 12)
 
         def dec(j, i, a):
             return 0.012 + (0.004 if j >= len(zs) - 1 else 0.0) + (0.002 if j == 1 else 0.0)
@@ -1156,14 +1156,15 @@ def bottes(r, st):
         rv_out = [p + (Vector((p.x, p.y, 0)) - Vector((ca.x, B.y if p.z > 0.2 else p.y, 0))).normalized() * 0.008 + Vector((0, 0, 0.004)) for p in top]
         rv_bas = [p + (Vector((p.x, p.y, 0)) - Vector((ca.x, B.y if p.z > 0.2 else p.y, 0))).normalized() * 0.010 - Vector((0, 0, st.get("revers_h", 0.045))) for p in top]
         rv_in = [p + (Vector((ca.x, B.y if p.z > 0.2 else p.y, p.z)) - p).normalized() * 0.010 for p in top]
-        P.grille_v([rv_bas, rv_out], MB, R_SEM, fermer=True)
+        if not st.get("revers_fourrure"):
+            P.grille_v([rv_bas, rv_out], MB, R_SEM, fermer=True)
+            P.grille_v([rv_out, top], MB, (R_SEM[0], R_SEM[3] - 1, R_SEM[2], R_SEM[3]))
         P.grille_v([top, rv_in], MB, (R_SEM[0], R_SEM[1], R_SEM[2], R_SEM[1] + 1))
-        P.grille_v([rv_out, top], MB, (R_SEM[0], R_SEM[3] - 1, R_SEM[2], R_SEM[3]))
         # sangles en relief (fer) : bandes autour de la cheville et du mollet
         for zz in st.get("sangles", ()):
-            Ps, _, _ = C.tube(jambe, A, B, [(z - A.z) / (B.z - A.z) for z in (zz - 0.013, zz - 0.010, zz + 0.010, zz + 0.013)], n,
-                              lambda j, i, a: 0.012 + (0.0, 0.004, 0.004, 0.0)[j], r_loin=0.4, dilate=1, lisse=2)
-            P.grille_v(Ps, "cuir", R_SANG, vs=[0.0, 0.15, 0.85, 1.0])
+            Ps, _, _ = C.tube(jambe, A, B, [(z - A.z) / (B.z - A.z) for z in (zz - 0.013, zz, zz + 0.013)], n,
+                              lambda j, i, a: 0.012 + (0.001, 0.005, 0.001)[j], r_loin=0.4, dilate=1, lisse=2)
+            P.grille_v(Ps, "cuir", R_SANG, vs=[0.0, 0.5, 1.0])
             # boucle sur le côté extérieur
             ib = int(round((math.pi / 2 * s + math.pi) / TAU * n)) % n
             pb = Ps[1][ib]
@@ -1190,12 +1191,12 @@ def bottes(r, st):
             # revers de fourrure sous la genouillère : boudin hirsute au haut de la tige, mèches qui retombent
             zr = zs[-1]
             ep = st.get("ep_revers", 1.0)
-            Pr, _, _ = C.tube(jambe, A, B, [(z - A.z) / (B.z - A.z) for z in (zr - 0.075, zr - 0.06, zr - 0.02, zr + 0.012, zr + 0.016)], n,
-                              lambda j, i, a: ((0.016, 0.026, 0.036, 0.022, 0.012)[j] * ep + 0.006 * (C._h(i, j, 5) - 0.5))
+            Pr, _, _ = C.tube(jambe, A, B, [(z - A.z) / (B.z - A.z) for z in (zr - 0.075, zr - 0.035, zr + 0.008, zr + 0.016)], n,
+                              lambda j, i, a: ((0.016, 0.034, 0.024, 0.012)[j] * ep + 0.006 * (C._h(i, j, 5) - 0.5))
                               * (0.6 if abs(math.sin(a) + (1 if cote == "l" else -1)) < 0.5 else 1.0), r_loin=0.4, dilate=0, lisse=1)
-            for jj, kz in ((3, 0.10), (4, 0.10), (2, 0.04)):
+            for jj, kz in ((2, 0.10), (3, 0.10), (1, 0.04)):
                 Pr[jj] = [p - Vector((0, 0, kz * max(0.0, -math.cos(a)) ** 1.5)) for p, a in zip(Pr[jj], angs)]
-            P.grille_v(Pr, "fourrure", R_FOUR_B, vs=[0.0, 0.15, 0.5, 0.85, 1.0])
+            P.grille_v(Pr, "fourrure", R_FOUR_B, vs=[0.0, 0.4, 0.85, 1.0])
             for i in range(n):
                 a_, b_ = Pr[1][i], Pr[1][(i + 1) % n]
                 m = (a_ + b_) / 2 + Vector((0, 0, -0.03 - 0.025 * C._h(i, 1, 9))) + ((a_ + b_) / 2 - Vector((B.x, B.y, a_.z))).normalized() * 0.008
