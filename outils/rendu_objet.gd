@@ -88,8 +88,8 @@ func cadrer() -> void:
 	_cam.far = _rayon * 40.0 + 2.0
 	var d := _rayon * marge / sin(deg_to_rad(champ) * 0.5)
 	var dir := Vector3(sin(lacet) * cos(tangage), -sin(tangage), cos(lacet) * cos(tangage))
-	_cam.position = _centre + dir * d
-	_cam.look_at(_centre, Vector3.UP)
+	var pos := _centre + dir * d
+	_cam.transform = Transform3D(Basis.looking_at(_centre - pos, Vector3.UP), pos)     # sans look_at : marche hors de l'arbre
 
 func _process(dt: float) -> void:
 	if tourner != 0.0 and _objet != null:

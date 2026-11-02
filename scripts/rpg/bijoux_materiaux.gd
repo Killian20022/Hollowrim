@@ -24,7 +24,7 @@ const PRESETS := {
 	"argent": {"teinte": Color(1.02, 1.03, 1.06), "boite": 70.0, "metal": 0.8, "poli": 0.8, "reflet": Color(0.94, 0.98, 1.06)},
 	"bronze": {"boite": 45.0, "metal": 0.55, "poli": 0.45, "reflet": Color(1.04, 0.88, 0.66)},
 	"fer": {"teinte": Color(0.92, 0.92, 0.95), "boite": 60.0, "metal": 0.5, "poli": 0.4, "reflet": Color(0.95, 0.96, 1.0)},
-	"cuir": {"boite": 40.0, "bord": 0.15, "poli": 0.2},
+	"cuir": {"teinte": Color(1.45, 1.25, 1.05), "boite": 40.0, "bord": 0.15, "poli": 0.2},
 	"os": {"teinte": Color(1.0, 0.98, 0.94), "bord": 0.25, "poli": 0.35},
 	"gemme": {"teinte": Color(1.0, 1.02, 1.06), "bord": 0.6, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.34, "opacite": 0.86, "reflet": Color(0.9, 0.97, 1.04)},
 	"saphir": {"teinte": Color(1.0, 1.0, 1.08), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.44, "opacite": 0.88, "reflet": Color(0.92, 0.96, 1.04)},

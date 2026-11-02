@@ -267,11 +267,11 @@ def chevaliere(nom, metal, plateau_mat, large=False):
     m = Maille(nom)
     jonc(m, metal, largeur=0.0058 if large else 0.0048, epaisseur=0.0030 if large else 0.0026)
     cx = R_DOIGT + 0.0032
-    w = 0.0062 if large else 0.0056
+    w = 0.0084 if large else 0.0076
     zc = 0.0034 if large else 0.0029
     # plateau : prisme octogonal aplati, debout (face vers +X), légèrement incliné vers le haut pour se lire de dessus
     n = 8
-    incl = 0.55
+    incl = 0.95
     def rep(lx, ly, lz):
         # lz = épaisseur vers +X ; incliné de `incl` vers +Z
         x = cx + lz * math.cos(incl) - ly * 0.0
@@ -293,7 +293,7 @@ def chevaliere(nom, metal, plateau_mat, large=False):
 
 
 # ------------------------------------------------------------------ colliers
-def chaine(m, mat, gabarit, maillons=20, r_maillon=0.0042, fil=0.0009):
+def chaine(m, mat, gabarit, maillons=22, r_maillon=0.0046, fil=0.0019):
     """Chaîne posée à plat le long de `gabarit` (fonction t -> (x, y)), maillons alternés couché / debout."""
     pts = [gabarit(i / maillons) for i in range(maillons)]
     for i in range(maillons):
@@ -302,7 +302,7 @@ def chaine(m, mat, gabarit, maillons=20, r_maillon=0.0042, fil=0.0009):
         d = v_norm((q[0] - p[0], q[1] - p[1], 0))
         c = (p[0], p[1], r_maillon * (0.95 if i % 2 else 0.45))
         # maillon : tore allongé dans la direction d ; un sur deux debout (plan vertical)
-        n = 6
+        n = 5
         chemin = []
         for k in range(n):
             a = TAU * k / n
@@ -360,7 +360,7 @@ def amulette_ours():
     # lacet de cuir (tube continu) + perles d'or près du pendentif
     g = goutte_gabarit(0.072, 0.088, 0.5)
     pts = [(*g(i / 40), 0.0016) for i in range(40)]
-    tube(m, pts, 0.0016, 4, "cuir", ferme=True)
+    tube(m, pts, 0.0030, 4, "cuir", ferme=True)
     for t in (0.42, 0.58):
         x, y = g(t)
         tore(m, (x, y, 0.0022), 0.0024, 0.0012, "or", n=6, cotes=4, plan="xz")
@@ -392,10 +392,9 @@ def amulette_arcaniste():
     # médaillon : cadre d'or ovale (tube) en relief, améthyste ovale taillée, quatre perles au cadre
     c = (0.0, -0.106, 0.0)
     rx, ry = 0.0115, 0.0150
-    cadre = [(c[0] + math.cos(TAU * i / 16) * rx, c[1] + math.sin(TAU * i / 16) * ry, 0.0026) for i in range(16)]
-    tube(m, cadre, 0.0024, 5, "or", ferme=True)
+    cadre = [(c[0] + math.cos(TAU * i / 14) * rx, c[1] + math.sin(TAU * i / 14) * ry, 0.0026) for i in range(14)]
+    tube(m, cadre, 0.0024, 4, "or", ferme=True)
     # fond du médaillon (plaque) sous la gemme
-    plaque = Maille("_p")
     ids = [m.s((c[0] + math.cos(TAU * i / 12) * rx, c[1] + math.sin(TAU * i / 12) * ry, 0.0006)) for i in range(12)]
     m.face(ids, "or", [(0.5, 0.5)] * 12)
     brillant(m, (c[0], c[1], 0.0040), 0.0092, 0.0030, 0.0030, "amethyste", n=10, etire=ry / rx * 0.82, table=0.6, axe="z")
