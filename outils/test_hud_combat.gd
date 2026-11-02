@@ -119,6 +119,26 @@ func _tester() -> void:
 	_verif(ui._v.choisi == -1, "aucune case active si l'équipement ne correspond à aucun raccourci")
 	var pres_reel: Array = ui._presets({}, {})
 	_verif(pres_reel.size() == 10 and pres_reel[2].gauche == "" and pres_reel[2].droite == "", "case vide = ids vides (grisée)")
+	# barre « cuir enluminé » (HudCuir) : les trois styles dessinent ; style a = ruban déroulé au changement puis replié
+	var cuir: GDScript = load("res://scripts/hud_cuir.gd")
+	var n0: int = ui.nb_dessins
+	for st in ["b", "c", "ancienne", "a"]:
+		cuir.style_force = st
+		ui.queue_redraw()
+		await _images(2)
+	_verif(ui.nb_dessins >= n0 + 4, "styles b, c, ancienne, a dessinés sans erreur")
+	ui._t_barre = 0.0
+	for i in 40:
+		ui._process(0.05)
+	_verif(ui._deploi < 0.01, "style a au repos : ruban replié (cartouche seul)")
+	j.emit_signal("etat_mains_change", {"id": "boule_feu", "type": "sort"}, {"id": "epee", "type": "arme"})
+	for i in 6:
+		ui._process(0.05)
+	_verif(ui._deploi > 0.99 and ui._v.choisi == 1, "changement de raccourci : ruban déroulé (%.2f), case 2 active" % ui._deploi)
+	for i in 70:
+		ui._process(0.05)
+	_verif(ui._deploi < 0.01, "ruban replié %.1f s après le changement" % (ui.DUREE_RUBAN + 1.3))
+	cuir.style_force = ""
 	ui.queue_free()
 	j.queue_free()
 

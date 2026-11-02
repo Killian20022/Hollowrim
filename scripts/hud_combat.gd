@@ -6,6 +6,10 @@ extends Control
 ##     emplacements de main (G à gauche, D à droite, cases 24 px) : icône de ce que tient la main, jauge de CHARGE
 ##     verticale côté extérieur, RECHARGE en voile sombre qui descend, « x2 » doré en double incantation,
 ##     icône assombrie + liseré rouge si le mana manque pour le sort.
+## STYLE « cuir enluminé » (scripts/hud_cuir.gd, défaut a ; --barre=a|b|c|ancienne) : la barre de fer décrite ci-dessus
+## n'est plus que le style « ancienne ». Style a : cartouche des mains tenues (G | D, jauges de charge de part et d'autre,
+## sceau de cire = touche du raccourci) ; à chaque changement de raccourci, le ruban des 10 touches se déroule depuis le
+## cartouche (DUREE_RUBAN s) puis se replie. Styles b (10 cases fines permanentes) et c (éventail de 5) : voir hud_cuir.gd.
 ## Tout s'efface hors combat quand les ressources sont pleines (comme hud.gd), réapparaît au moindre changement.
 ## Lecture seule du joueur : aucune logique de jeu ici.
 ## Icônes : IconesCombat (scripts/icones_combat.gd).

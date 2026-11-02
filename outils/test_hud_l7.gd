@@ -145,6 +145,24 @@ func _tester() -> void:
 	_avancer(hud, 1.0)
 	_verif(not hud.lieux_vus.has("Lieu de surface"), "sous terre (140 m plus bas) : le lieu de surface n'est pas découvert")
 
+	# --- 4 bis. boussole « cuir enluminé » : marqueurs normalisés (onglet Carte) et dessin des 4 styles
+	hud.lieux = [[Vector3(5, 0, -20), Color("#6fd8ff"), "lieu", "Cercle de pierres"], [Vector3(-30, 0, 4), Color("#e8a64a")],
+		[Vector3(0, 0, 40), Color.RED, "quete", "Fresque"]]
+	var mq: Array = hud.marqueurs()
+	_verif(mq.size() == 3 and mq[0]["nom"] == "Cercle de pierres" and mq[1]["genre"] == "lieu" and mq[1]["nom"] == ""
+		and mq[2]["genre"] == "quete" and mq[0]["pos"] == Vector3(5, 0, -20), "marqueurs() : {pos, couleur, genre, nom}, défauts lieu / \"\"")
+	var cuir: GDScript = load("res://scripts/hud_cuir.gd")
+	var styles_ok := true
+	for st in ["a", "b", "c", "ancienne"]:
+		cuir.style_force = st
+		hud.queue_redraw()
+		await process_frame
+		await process_frame
+		styles_ok = styles_ok and cuir.style() == st
+	cuir.style_force = ""
+	_verif(styles_ok and cuir.style() == cuir.STYLE_DEFAUT, "boussole dessinée dans les styles a, b, c, ancienne ; défaut = %s" % cuir.STYLE_DEFAUT)
+	hud.lieux = []
+
 	# --- 5. aide des touches (demarrer() l'a lancée pour 60 s)
 	_verif(hud.aide_visible(), "aide des touches visible au début de la partie")
 	hud.panneau_ouvert = true
