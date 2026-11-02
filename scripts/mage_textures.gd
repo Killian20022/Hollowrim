@@ -247,18 +247,29 @@ static func capuche_v3(femme: bool) -> Image:
 				ao = c.r
 				pt = c.b
 			# laine : grain lent + duvet fin (bruit, aucun motif périodique)
-			var l := 0.50 + (GuerrierTextures._n(x, y, W, H, 10, 5, 1301) - 0.5) * 0.10 + (GuerrierTextures._n(x, y, W, H, 32, 16, 1302) - 0.5) * 0.08
+			var l := 0.56 + (GuerrierTextures._n(x, y, W, H, 10, 5, 1301) - 0.5) * 0.10 + (GuerrierTextures._n(x, y, W, H, 32, 16, 1302) - 0.5) * 0.08
 			if v < 0.045:
 				# doublure (intérieur du capuchon) : laine sombre, sans relief
 				l = 0.14 + (l - 0.5) * 0.5
+				# finition : sous la mâchoire (pans libres qui tombent sur la poitrine), la doublure retournée prend la lumière ; sombre,
+				# elle se lisait comme de longues mèches noires
+				l = lerpf(l, 0.46 + (l - 0.14) * 0.6, smoothstep(0.50, 0.70, absf(s - 0.5) / 0.5))
 			elif v < 0.08:
 				# tranche du bord roulé : l'arête claire de la laine épaisse
-				l = 0.78 + (l - 0.5) * 0.4
+				l = 0.74 + (l - 0.5) * 0.6 + (GuerrierTextures._n(x, 0, W, 1, 20, 1, 1306) - 0.5) * 0.18
 			else:
 				var rang := (v - 0.08) / 0.91
-				l += (ao - 0.85) * 1.0 + (pt - 0.5) * 0.25
+				# finition : moins sombre et moins plat -> creux cuits adoucis, crêtes des plis plus marquées, longs plis souples
+				# (bruit 1D le long du bord, s'efface vers l'ourlet) ; jamais de trame
+				l += (ao - 0.85) * 0.8 + (pt - 0.5) * 0.40
+				l += (GuerrierTextures._n(x, 0, W, 1, 14, 1, 1307) - 0.5) * 0.20 * (1.0 - rang * 0.6)
 				if rang < 0.035:
-					l += 0.12                                       # dessus du bourrelet
+					# dessus du bourrelet : laine usée, fibres plus claires par plaques, petits creux de feutrage
+					l += 0.10 + (GuerrierTextures._n(x, y, W, H, 24, 4, 1308) - 0.5) * 0.24
+					if GuerrierTextures._h(x, y, 1309) > 0.86:
+						l += 0.08
+					elif GuerrierTextures._h(x, y, 1310) > 0.90:
+						l -= 0.10
 				elif rang < 0.065:
 					l -= 0.13 if GuerrierTextures._h(x, y, 1303) > 0.3 else 0.05     # couture du bord, piquée
 				if rang > 0.965:

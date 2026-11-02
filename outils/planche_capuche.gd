@@ -128,6 +128,11 @@ func _lancer() -> void:
 		etiquette.text = "%s  %s  %s" % [tag, perso, v[0]]
 		var img: Image = await _photo(v[1], 0.55, tete_y + 0.02, tete_y - 0.05)
 		img.get_region(Rect2i((W - H) / 2, 0, H, H)).save_png(sortie.path_join("%s_%s_%s.png" % [perso, lum, v[0]]))
+	# --rapide : gros plans seulement (itérations de finition)
+	if _arg("rapide", "") != "":
+		print("PLANCHE CAPUCHE (rapide) : ", sortie)
+		quit(0)
+		return
 	for v: Array in VUES_JEU:
 		etiquette.text = "%s  %s  %s" % [tag, perso, v[0]]
 		var img: Image = await _photo(v[1], 2.6, 1.62, 1.15)

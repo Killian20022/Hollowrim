@@ -125,11 +125,13 @@ def bord(s, var):
     # profil 2D (x, y relatif au sommet du crâne), du front au V de la poitrine
     # le bord s'arrête sous la mâchoire, au col de la pèlerine (les pans plus bas restaient dans la pèlerine et seule leur tranche
     # dépassait, comme des lacets)
-    v_x = 0.070 if ombre else 0.052
+    v_x = 0.058 if ombre else 0.052
     # visage montré : ouverture un peu plus large aux joues (le bord se décolle des pommettes, l'intérieur sombre se lit autour)
-    cles = [Vector((0.0, -0.046 if ombre else -0.040)), Vector((0.050 if ombre else 0.054, -0.058 if ombre else -0.052)),
-            Vector((0.080 if ombre else 0.086, -0.100)), Vector((0.090 if ombre else 0.095, -0.160)), Vector((0.088 if ombre else 0.090, -0.205)),
-            Vector((0.082 if ombre else 0.074, -0.235)), Vector((v_x, -0.262))]
+    # finition : le bord de la völva descend sur la racine des cheveux (plus de bande gris-blanc sous le bord) mais s'ouvre aux
+    # joues (moins « cagoule ») ; celui du mage se resserre sous la mâchoire (le cou ne se voit plus à côté de la barbe)
+    cles = [Vector((0.0, -0.046 if ombre else -0.059)), Vector((0.050 if ombre else 0.062, -0.058 if ombre else -0.069)),
+            Vector((0.080 if ombre else 0.094, -0.100 if ombre else -0.108)), Vector((0.090 if ombre else 0.104, -0.160)),
+            Vector((0.086 if ombre else 0.098, -0.205)), Vector((0.070 if ombre else 0.074, -0.235)), Vector((v_x, -0.262))]
     q = catmull(cles, t)
     x, y = q.x * sg, YTOP + q.y
     # profondeur : rayon depuis l'avant sur la tête (haut) ou sur les épaules (bas), plus un jeu ; capuche « ombre » avancée
@@ -138,12 +140,15 @@ def bord(s, var):
         z = h[0].z if h[0] is not None else 0.03
         n = h[1].normalized() if h[0] is not None else Vector((0, 0, 1))
         haut = smooth(-0.20, -0.06, q.y)          # 1 au front, 0 à la mâchoire
-        av = (0.040 * haut + 0.016) if ombre else (0.010 * haut + 0.014)
+        av = (0.040 * haut + 0.016) if ombre else (0.003 * haut + 0.006)
         p = Vector((x, y, z)) + n * 0.006 + Vector((0, 0, av))
         # bord abaissé devant le front (ombre portée) / relevé (visage)
-        p.y += (-0.010 if ombre else 0.006) * haut
+        p.y += (-0.010 if ombre else 0.0) * haut
         # côté : le bord s'écarte un peu des joues
         p.x += sg * (0.008 if ombre else 0.007) * (1 - haut)
+        # visage montré : aux joues le bord recule (de profil, le nez et le menton dépassent du capuchon)
+        if not ombre:
+            p.z -= 0.028 * (1 - haut) * smooth(-0.225, -0.170, q.y)
         return p
     h = bvh_corps.ray_cast(Vector((x, y, 0.5)), Vector((0, 0, -1)), 1.0)
     z = h[0].z if h[0] is not None else 0.06
@@ -156,7 +161,8 @@ def ourlet(s):
     dy = YTOP - 1.81                                     # suit la taille du corps
     # hauteur : sur la poitrine devant (1,50), posé sur le haut des épaulettes de la pèlerine (1,535), plus bas dans le dos (1,445)
     c = math.cos(psi)
-    y = 1.535 + 0.0275 * c - 0.0625 * c * c + dy
+    # finition : devant, l'ourlet remonte au col (les pans étroits qui pendaient sur la poitrine se lisaient comme des fils noirs)
+    y = 1.535 + 0.0500 * c - 0.0400 * c * c + dy
     d = Vector((math.sin(psi), 0.0, math.cos(psi)))
     # sur les épaules : rayon horizontal depuis l'axe du cou, dernière paroi + jeu
     o = Vector((0.0, y, -0.02))
@@ -210,7 +216,7 @@ def construire(var):
     for j in range(NS):
         if abs(0.5 - j / (NS - 1)) / 0.5 < 0.62:
             fixe[0, j] = True
-    xmin = 0.066 if var == "ombre" else 0.030
+    xmin = 0.054 if var == "ombre" else 0.030
     for it in range(260):
         # normales de la grille
         dk = np.zeros_like(X)
