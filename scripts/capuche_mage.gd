@@ -45,8 +45,8 @@ static func poser(sq: Skeleton3D, pieces: Dictionary, visage: bool, femme: bool)
 	var mante: MeshInstance3D = pieces.get("mante")
 	var tete := sq.get_bone_global_rest(sq.find_bone("Head")).origin
 	var cou := sq.get_bone_global_rest(sq.find_bone("neck_01")).origin
-	var sp := _sommets_poids(sq, peau, func(p: Vector3) -> bool: return p.y > cou.y - 0.06 and absf(p.x) < 0.16)
-	var sm := _sommets_poids(sq, mante, func(p: Vector3) -> bool: return true)
+	var sp := _grille(_sommets_poids(sq, peau, func(p: Vector3) -> bool: return p.y > cou.y - 0.06 and absf(p.x) < 0.16))
+	var sm := _grille(_sommets_poids(sq, mante, func(p: Vector3) -> bool: return true))
 	# poids bruts : tête en haut, pèlerine en bas, fondu entre le bas du crâne et la base du cou
 	var poids: Array[Dictionary] = []
 	poids.resize(v.size())
@@ -138,14 +138,39 @@ static func _sommets_poids(sq: Skeleton3D, mi: MeshInstance3D, garder: Callable)
 		res.append([v[i], d])
 	return res
 
-static func _proche(liste: Array, p: Vector3) -> Dictionary:
+const CASE := 0.04
+
+## Grille de cases de 4 cm sur une liste [position, poids] (recherche du plus proche sans tout parcourir).
+static func _grille(liste: Array) -> Dictionary:
+	var g := {}
+	for e: Array in liste:
+		var c := Vector3i(((e[0] as Vector3) / CASE).floor())
+		if not g.has(c):
+			g[c] = []
+		g[c].append(e)
+	return g
+
+static func _proche(g: Dictionary, p: Vector3) -> Dictionary:
 	var best: Dictionary = {}
 	var bd := 1e9
-	for e: Array in liste:
-		var dd := (e[0] as Vector3).distance_squared_to(p)
-		if dd < bd:
-			bd = dd
-			best = e[1]
+	var c0 := Vector3i((p / CASE).floor())
+	for r in range(0, 8):
+		for dx in range(-r, r + 1):
+			for dy in range(-r, r + 1):
+				for dz in range(-r, r + 1):
+					if maxi(absi(dx), maxi(absi(dy), absi(dz))) != r:
+						continue
+					var c := c0 + Vector3i(dx, dy, dz)
+					if not g.has(c):
+						continue
+					for e: Array in g[c]:
+						var dd := (e[0] as Vector3).distance_squared_to(p)
+						if dd < bd:
+							bd = dd
+							best = e[1]
+		# au-delà de l'anneau r, aucun point ne peut être plus proche que r * CASE
+		if bd < (r * CASE) * (r * CASE):
+			break
 	return best
 
 static func _ajouter(d: Dictionary, src: Dictionary, f: float) -> void:
