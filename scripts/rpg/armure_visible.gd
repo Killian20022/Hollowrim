@@ -43,7 +43,35 @@ const MATIERES := {
 	"fer": {"teinte": Color(1.0, 1.0, 1.02), "metal": 0.5, "poli": 0.35, "reflet": Color(0.95, 0.96, 1.0)},
 	"acier": {"teinte": Color(1.04, 1.04, 1.06), "metal": 0.75, "poli": 0.7, "reflet": Color(0.94, 0.98, 1.05)},
 	"or": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.72, "poli": 0.6, "reflet": Color(1.06, 0.9, 0.62)},
+	# --- ensembles HD rubis / saphir (sources_blender/armures/rubis_saphir) : plaques de cristal facettées (texture propre de cristal,
+	# profondeur des gemmes des armes), structure de métal sombre, sertis, gemmes ; « .enchante » = même modèle, lueur des cristaux,
+	# des gemmes et des runes plus forte.
+	"cristal_rubis": {"teinte": Color(1.06, 1.0, 1.0), "metal": 0.08, "poli": 1.0, "bord": 0.55, "profondeur": 0.03, "lueur": 0.06, "reflet": Color(1.0, 0.88, 0.9)},
+	"cristal_rubis.enchante": {"teinte": Color(1.08, 1.0, 1.0), "metal": 0.08, "poli": 1.0, "bord": 0.6, "profondeur": 0.03, "lueur": 0.2, "reflet": Color(1.0, 0.88, 0.9)},
+	"acier_rubis": {"teinte": Color(1.0, 0.97, 0.97), "metal": 0.6, "poli": 0.55, "reflet": Color(1.04, 0.9, 0.88)},
+	"acier_rubis.enchante": {"teinte": Color(1.0, 0.97, 0.97), "metal": 0.6, "poli": 0.55, "lueur": 0.22, "reflet": Color(1.04, 0.9, 0.88)},
+	"acier_rubis.maille": {"teinte": Color(1.0, 0.97, 0.97), "metal": 0.5, "poli": 0.45, "reflet": Color(1.02, 0.92, 0.9)},
+	"serti_rubis": {"teinte": Color(1.0, 0.98, 0.96), "metal": 0.68, "poli": 0.65, "reflet": Color(1.06, 0.9, 0.78)},
+	"rubis": {"teinte": Color(1.08, 1.0, 1.0), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.42, "reflet": Color(1.0, 0.93, 0.94)},
+	"rubis.enchante": {"teinte": Color(1.1, 1.0, 1.0), "bord": 0.5, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.85, "reflet": Color(1.0, 0.93, 0.94)},
+	"cristal_saphir": {"teinte": Color(1.0, 1.0, 1.06), "metal": 0.08, "poli": 1.0, "bord": 0.55, "profondeur": 0.03, "lueur": 0.06, "reflet": Color(0.9, 0.95, 1.04)},
+	"cristal_saphir.enchante": {"teinte": Color(1.0, 1.0, 1.08), "metal": 0.08, "poli": 1.0, "bord": 0.6, "profondeur": 0.03, "lueur": 0.2, "reflet": Color(0.9, 0.95, 1.04)},
+	"acier_saphir": {"teinte": Color(1.0, 1.0, 1.04), "metal": 0.7, "poli": 0.65, "reflet": Color(0.92, 0.97, 1.06)},
+	"acier_saphir.enchante": {"teinte": Color(1.0, 1.0, 1.04), "metal": 0.7, "poli": 0.65, "lueur": 0.22, "reflet": Color(0.92, 0.97, 1.06)},
+	"acier_saphir.maille": {"teinte": Color(1.0, 1.0, 1.04), "metal": 0.55, "poli": 0.5, "reflet": Color(0.92, 0.97, 1.06)},
+	"serti_saphir": {"teinte": Color(1.02, 1.02, 1.04), "metal": 0.75, "poli": 0.75, "reflet": Color(0.94, 0.98, 1.05)},
+	"saphir": {"teinte": Color(1.0, 1.0, 1.08), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.44, "reflet": Color(0.92, 0.96, 1.04)},
+	"saphir.enchante": {"teinte": Color(1.0, 1.0, 1.1), "bord": 0.5, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.85, "reflet": Color(0.92, 0.96, 1.04)},
 }
+
+## Preset d'un nom de matériau Blender `preset[.variante]` : nom complet (« acier_rubis.maille », « cristal_rubis.enchante »), puis sans
+## « .enchante », puis la base avant le premier point (« fer.maille » -> fer, « cuir.001 » -> cuir), cuir par défaut.
+static func preset(nom: String) -> Dictionary:
+	if MATIERES.has(nom):
+		return MATIERES[nom]
+	if nom.ends_with(".enchante") and MATIERES.has(nom.trim_suffix(".enchante")):
+		return MATIERES[nom.trim_suffix(".enchante")]
+	return MATIERES.get(nom.get_slice(".", 0), MATIERES["cuir"])
 ## Matière FPS (AvantBras) remplacée par famille de gants : clé de matière ab_* -> nom de matière du glb ou "" (inchangé).
 const FPS_GANTS := ["ab_gant"]
 const FPS_BRASSARD := ["ab_cuir", "ab_tresse", "ab_fourrure"]
@@ -117,10 +145,18 @@ const CHAUSSES := "res://assets/modeles/armures/chausses/"
 const CHAUSSES_PAR_TORSE := {
 	"armure_cuir": "cuir", "armure_fourrure": "fourrure", "cuirasse_os": "os",
 	"cuirasse_fer": "fer", "cuirasse_acier_nordique": "acier", "cuirasse_gardiens": "gardiens", "brigandine_braise": "braise",
+	"cuirasse_rubis": "rubis", "cuirasse_saphir": "saphir",
 }
 
 static func famille_chausses(id_torse: String) -> String:
-	return String(CHAUSSES_PAR_TORSE.get(id_torse, "cuir")) if id_torse != "" else ""
+	if id_torse == "":
+		return ""
+	if CHAUSSES_PAR_TORSE.has(id_torse):
+		return String(CHAUSSES_PAR_TORSE[id_torse])
+	for k: String in CHAUSSES_PAR_TORSE:     # variantes (« cuirasse_rubis_enchantee ») : chausses du torse de base
+		if id_torse.begins_with(k + "_"):
+			return String(CHAUSSES_PAR_TORSE[k])
+	return "cuir"
 
 func _poser_chausses() -> void:
 	var fam := famille_chausses(porte("torse"))
@@ -230,7 +266,7 @@ static func _habiller_maillage(mi: MeshInstance3D, cle: String) -> void:
 		var d := {}
 		for s in mi.mesh.get_surface_count():
 			var m := mi.mesh.surface_get_material(s)
-			var nom := m.resource_name.get_slice(".", 0) if m else "cuir"
+			var nom := m.resource_name if m else "cuir"
 			var tex: Texture2D = (m as BaseMaterial3D).albedo_texture if m is BaseMaterial3D else null
 			d[s] = materiau(nom, tex)
 		_mats[cle] = d
@@ -241,7 +277,7 @@ static func _habiller_maillage(mi: MeshInstance3D, cle: String) -> void:
 
 ## Matériau PS1 « matière » d'une pièce (texture cuite, alpha = brillance) + contour des personnages.
 static func materiau(nom: String, tex: Texture2D) -> ShaderMaterial:
-	var p: Dictionary = MATIERES.get(nom, MATIERES["cuir"])
+	var p: Dictionary = preset(nom)
 	if tex == null:
 		tex = Palette.tex("cuir", Palette.CUIR, 4, 0.5)
 	var m := Palette.materiau(tex, Vector2.ONE, p.get("teinte", Color.WHITE))
@@ -631,6 +667,8 @@ static func materiaux_fps(id: String) -> Dictionary:
 		"cuir": [Color(1.0, 0.78, 0.6), Color(0.95, 0.8, 0.66), Color(0.8, 0.7, 0.6)],
 		"fourrure": [Color(0.95, 0.8, 0.64), Color(1.25, 1.18, 1.05), Color(0.8, 0.7, 0.6)],
 		"os": [Color(0.55, 0.5, 0.48), Color(0.62, 0.55, 0.5), Color(1.35, 1.25, 1.05)],
+		"rubis": [Color(0.55, 0.34, 0.33), Color(1.1, 0.36, 0.4), Color(0.95, 0.3, 0.36)],
+		"saphir": [Color(0.42, 0.48, 0.62), Color(0.46, 0.66, 1.15), Color(0.42, 0.6, 1.1)],
 	}
 	var t: Array = teintes.get(famille, teintes["cuir"])
 	var ab := AvantBras.materiaux()

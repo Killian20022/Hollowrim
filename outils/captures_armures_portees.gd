@@ -13,9 +13,14 @@ const PIECES := {
 	"acier": ["casque_acier_nordique", "cuirasse_acier_nordique", "gantelets_acier_nordique", "bottes_acier_nordique"],
 	"uniques": ["heaume_jarl", "cuirasse_gardiens", "gantelets_hrafn", "bottes_rodeur"],
 	"uniques2": ["capuche_thaumaturge", "brigandine_braise", "gants_cuir", "bottes_cuir"],
+	"rubis": ["casque_rubis", "cuirasse_rubis", "gantelets_rubis", "bottes_rubis"],
+	"saphir": ["casque_saphir", "cuirasse_saphir", "gantelets_saphir", "bottes_saphir"],
+	"rubis_enchante": ["casque_rubis_enchante", "cuirasse_rubis_enchante", "gantelets_rubis_enchante", "bottes_rubis_enchante"],
+	"saphir_enchante": ["casque_saphir_enchante", "cuirasse_saphir_enchante", "gantelets_saphir_enchante", "bottes_saphir_enchante"],
 }
 const NOMS := {"sans_armure": "Heros sans armure (reference)", "cuir": "CUIR", "fourrure": "FOURRURE", "os": "OS DE DRAUGR",
-	"fer": "FER", "acier": "ACIER NORDIQUE", "uniques": "UNIQUES (Jarl, gardiens, Hrafn, rodeur)", "uniques2": "UNIQUES (thaumaturge, braise) + cuir"}
+	"fer": "FER", "acier": "ACIER NORDIQUE", "uniques": "UNIQUES (Jarl, gardiens, Hrafn, rodeur)", "uniques2": "UNIQUES (thaumaturge, braise) + cuir",
+	"rubis": "RUBIS", "saphir": "SAPHIR", "rubis_enchante": "RUBIS ENCHANTE", "saphir_enchante": "SAPHIR ENCHANTE"}
 var s: Node
 var j: CharacterBody3D
 var mains: Node3D

@@ -1,0 +1,143 @@
+{
+ "ensembles": {
+  "rubis": {
+   "famille_visuelle": "Claymore de rubis / Cœur-de-Braise / Sang-du-Roi",
+   "legerete": "lourde",
+   "reference": "conception_rpg/references/planche_armures_5.png (colonne RUBY)",
+   "description": "Plaques de cristal de rubis facettées sur une structure d'acier bruni rouge sombre ; pointes de cristal serties aux épaules, coudes, genoux et au heaume ; gemme-noyau en losange au centre du torse.",
+   "suggestion_effets": "spécialisation magique (feu) : bonus de dégâts de feu ou de magie de destruction ; variante enchantée : bonus plus fort + résistance au feu"
+  },
+  "saphir": {
+   "famille_visuelle": "Croc-de-Givre",
+   "legerete": "moyenne",
+   "reference": "pendant bleu du rubis (pas de référence propre)",
+   "description": "Plaques de cristal de saphir plus larges, structure d'acier argenté bleuté gravée de runes de glace et de flocons, givre dans les creux ; pointes rares et courtes ; gemme-noyau.",
+   "suggestion_effets": "mage du givre : résistance au froid + bonus de magie de givre ; variante enchantée : régénération de magie"
+  }
+ },
+ "note": "Ne pas éditer à la main les glb : regénérer avec sources_blender/armures/rubis_saphir/generer.py. ArmureVisible : CHAUSSES_PAR_TORSE (cuirasse_rubis -> rubis, cuirasse_saphir -> saphir ; les ids de variante qui commencent par l'id du torse prennent les mêmes chausses). Presets de matière dans ArmureVisible.MATIERES (cristal_*, acier_*, serti_*, rubis, saphir et leurs .enchante).",
+ "pieces": [
+  {
+   "id": "casque_rubis",
+   "nom_propose": "Heaume de rubis",
+   "emplacement": "tete",
+   "matiere": "rubis",
+   "type_armure": "lourde",
+   "poids_suggere": 6.0,
+   "modele_porte": "res://assets/modeles/armures/porte/casque_rubis.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/casque_rubis.glb",
+   "variante_enchantee": {
+    "nom_propose": "Heaume de rubis ardent",
+    "modele_porte": "res://assets/modeles/armures/porte/casque_rubis_enchante.glb",
+    "modele_sol": "res://assets/modeles/armures/sol/casque_rubis_enchante.glb"
+   }
+  },
+  {
+   "id": "cuirasse_rubis",
+   "nom_propose": "Cuirasse de rubis",
+   "emplacement": "torse",
+   "matiere": "rubis",
+   "type_armure": "lourde",
+   "poids_suggere": 19.0,
+   "modele_porte": "res://assets/modeles/armures/porte/cuirasse_rubis.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/cuirasse_rubis.glb",
+   "variante_enchantee": {
+    "nom_propose": "Cuirasse de rubis ardent",
+    "modele_porte": "res://assets/modeles/armures/porte/cuirasse_rubis_enchante.glb",
+    "modele_sol": "res://assets/modeles/armures/sol/cuirasse_rubis_enchante.glb"
+   },
+   "chausses": "res://assets/modeles/armures/chausses/rubis.glb"
+  },
+  {
+   "id": "gantelets_rubis",
+   "nom_propose": "Gantelets de rubis",
+   "emplacement": "mains",
+   "matiere": "rubis",
+   "type_armure": "lourde",
+   "poids_suggere": 4.0,
+   "modele_porte": "res://assets/modeles/armures/porte/gantelets_rubis.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/gantelets_rubis.glb",
+   "variante_enchantee": {
+    "nom_propose": "Gantelets de rubis ardent",
+    "modele_porte": "res://assets/modeles/armures/porte/gantelets_rubis_enchante.glb",
+    "modele_sol": "res://assets/modeles/armures/sol/gantelets_rubis_enchante.glb"
+   }
+  },
+  {
+   "id": "bottes_rubis",
+   "nom_propose": "Bottes de rubis",
+   "emplacement": "pieds",
+   "matiere": "rubis",
+   "type_armure": "lourde",
+   "poids_suggere": 6.0,
+   "modele_porte": "res://assets/modeles/armures/porte/bottes_rubis.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/bottes_rubis.glb",
+   "variante_enchantee": {
+    "nom_propose": "Bottes de rubis ardent",
+    "modele_porte": "res://assets/modeles/armures/porte/bottes_rubis_enchante.glb",
+    "modele_sol": "res://assets/modeles/armures/sol/bottes_rubis_enchante.glb"
+   }
+  },
+  {
+   "id": "casque_saphir",
+   "nom_propose": "Heaume de saphir",
+   "emplacement": "tete",
+   "matiere": "saphir",
+   "type_armure": "moyenne",
+   "poids_suggere": 4.0,
+   "modele_porte": "res://assets/modeles/armures/porte/casque_saphir.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/casque_saphir.glb",
+   "variante_enchantee": {
+    "nom_propose": "Heaume de saphir runique",
+    "modele_porte": "res://assets/modeles/armures/porte/casque_saphir_enchante.glb",
+    "modele_sol": "res://assets/modeles/armures/sol/casque_saphir_enchante.glb"
+   }
+  },
+  {
+   "id": "cuirasse_saphir",
+   "nom_propose": "Cuirasse de saphir",
+   "emplacement": "torse",
+   "matiere": "saphir",
+   "type_armure": "moyenne",
+   "poids_suggere": 12.0,
+   "modele_porte": "res://assets/modeles/armures/porte/cuirasse_saphir.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/cuirasse_saphir.glb",
+   "variante_enchantee": {
+    "nom_propose": "Cuirasse de saphir runique",
+    "modele_porte": "res://assets/modeles/armures/porte/cuirasse_saphir_enchante.glb",
+    "modele_sol": "res://assets/modeles/armures/sol/cuirasse_saphir_enchante.glb"
+   },
+   "chausses": "res://assets/modeles/armures/chausses/saphir.glb"
+  },
+  {
+   "id": "gantelets_saphir",
+   "nom_propose": "Gantelets de saphir",
+   "emplacement": "mains",
+   "matiere": "saphir",
+   "type_armure": "moyenne",
+   "poids_suggere": 2.5,
+   "modele_porte": "res://assets/modeles/armures/porte/gantelets_saphir.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/gantelets_saphir.glb",
+   "variante_enchantee": {
+    "nom_propose": "Gantelets de saphir runique",
+    "modele_porte": "res://assets/modeles/armures/porte/gantelets_saphir_enchante.glb",
+    "modele_sol": "res://assets/modeles/armures/sol/gantelets_saphir_enchante.glb"
+   }
+  },
+  {
+   "id": "bottes_saphir",
+   "nom_propose": "Bottes de saphir",
+   "emplacement": "pieds",
+   "matiere": "saphir",
+   "type_armure": "moyenne",
+   "poids_suggere": 4.0,
+   "modele_porte": "res://assets/modeles/armures/porte/bottes_saphir.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/bottes_saphir.glb",
+   "variante_enchantee": {
+    "nom_propose": "Bottes de saphir runique",
+    "modele_porte": "res://assets/modeles/armures/porte/bottes_saphir_enchante.glb",
+    "modele_sol": "res://assets/modeles/armures/sol/bottes_saphir_enchante.glb"
+   }
+  }
+ ]
+}
