@@ -15,6 +15,8 @@ signal change(emplacement: String)
 const ARMURE_REFERENCE := 120.0
 ## Une résistance élémentaire ne retire jamais plus de 80 % d'un coup.
 const RESISTANCE_MAX := 0.8
+## Vulnérabilité maximale (traits négatifs : obsidienne, resist_magie −10 % pour l'ensemble) : +25 % de dégâts au plus.
+const RESISTANCE_MIN := -0.25
 ## Type de dégâts d'un coup reçu (options.type de recevoir_coup, DonneesSort.type_degats) -> clé de résistance (§3).
 const RESISTANCES := {"glace": "resist_froid", "givre": "resist_froid", "froid": "resist_froid", "gel": "resist_froid",
 	"feu": "resist_feu", "brulure": "resist_feu", "electricite": "resist_choc", "choc": "resist_choc"}
@@ -78,13 +80,24 @@ func armure_totale() -> float:
 			t += float(Inventaire.objet(emplacements[e]).get("armure", 0.0))
 	return t
 
-## Somme des effets portés (clés communes : docs/RPG.md §3), lue par Progression.bonus().
+## Somme des effets portés (clés communes : docs/RPG.md §3), lue par Progression.bonus() : « traits » de matière (armures HD,
+## toujours actifs, malus négatifs permis) + « effets » (enchantements).
 func effets_totaux() -> Dictionary:
 	var t := {}
 	for e in emplacements:
 		if emplacements[e] == "":
 			continue
-		var ef: Variant = Inventaire.objet(emplacements[e]).get("effets", {})
+		var ef := effets_de(emplacements[e])
+		for k in ef:
+			t[k] = float(t.get(k, 0.0)) + float(ef[k])
+	return t
+
+## Effets d'UNE pièce : traits de matière + enchantement (valeurs numériques seulement) ; affichage des menus, comparaisons.
+static func effets_de(id: String) -> Dictionary:
+	var t := {}
+	var f := Inventaire.objet(id)
+	for champ in ["traits", "effets"]:
+		var ef: Variant = f.get(champ, {})
 		if ef is Dictionary:
 			for k in ef:
 				if typeof(ef[k]) in [TYPE_INT, TYPE_FLOAT]:
@@ -120,13 +133,13 @@ static func est_magique(type_degats: String) -> bool:
 	return type_degats in TYPES_MAGIQUES
 
 ## Part retirée d'un coup de `type_degats` par les résistances de `p` (Progression : perks + équipement) : resist_<élément> +
-## resist_magie, plafonnée à RESISTANCE_MAX ; 0 pour un coup physique ou sans progression.
+## resist_magie, bornée à RESISTANCE_MIN..RESISTANCE_MAX (négative = vulnérabilité) ; 0 pour un coup physique ou sans progression.
 static func resistance_totale(p: Progression, type_degats: String) -> float:
 	if p == null or not est_magique(type_degats):
 		return 0.0
 	var cle := cle_resistance(type_degats)
 	var r := p.bonus("resist_magie") + (p.bonus(cle) if cle != "" else 0.0)
-	return clampf(r, 0.0, RESISTANCE_MAX)
+	return clampf(r, RESISTANCE_MIN, RESISTANCE_MAX)
 
 ## Facteur appliqué aux dégâts physiques pour `armure` points (déjà multipliés par la compétence Armure).
 static func facteur_armure(armure: float) -> float:

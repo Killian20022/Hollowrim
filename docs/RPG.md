@@ -59,7 +59,12 @@ Fiche (tous les champs sauf `nom`, `poids`, `valeur`, `categorie`, `rarete` sont
 ```
 
 Champs des armures (refonte HD, 2026-11-02) : `materiau` (`or` | `verre` | `obsidienne` | `rubis` | `saphir` : ensembles par
-matériau, tables de butin par palier) ; **variante enchantée** = fiche à part (nouvel id, rare ou unique, jamais en boutique) avec
+matériau, tables de butin par palier) ; `traits` = propriétés de MATIÈRE toujours actives (mêmes clés §3 que `effets`, valeurs
+négatives permises = malus ; ce n'est PAS un enchantement : la pièce reste vendable), additionnées avec `effets` par
+`EquipementCorps.effets_totaux` / `EquipementCorps.effets_de(id)` (menus) — compromis voulus : or = magie + prix, rubis =
+résistance magique + dégâts des sorts, verre = vigueur + course, obsidienne = vigueur / course / magie en malus, saphir = froid ;
+protection physique = `armure`, protection magique = `resist_magie` (+ `resist_<élément>`, bornes −25 % / +80 %) ; pas de
+durabilité (Q8 a) ; **variante enchantée** = fiche à part (nouvel id, rare ou unique, jamais en boutique) avec
 `"base": "<id de la pièce>"` (elle en reprend `modele_porte` / `modele_sol`, l'armure, le poids et l'emplacement ; les chausses
 suivent la base : `ArmureVisible.base_de`) et `"variante_materiau": "enchante"` : `ArmureVisible` (porté) et `ObjetMonde` (sol)
 habillent alors les matériaux du glb avec le preset `<matière>.enchante` de `ArmureVisible.MATIERES` (runes / gemmes luisantes,
@@ -108,7 +113,7 @@ Additionnées par `EquipementCorps.effets_totaux()` (valeurs numériques) et par
 | `xp_<compétence canonique>` | + fraction d'XP de compétence gagnée | lot B (`Progression.pratiquer`) |
 | `degats_une_main`, `degats_deux_mains`, `degats_destruction` (équipement) | multipliés dans `Progression.mult` de la clé correspondante (× (1 + bonus)) | lot B |
 | `coup_feu`, `coup_glace`, `coup_electricite`, `coup_tenebres` | points de dégâts de l'élément AJOUTÉS à chaque coup d'arme du joueur (× résistance de la cible à ce type, × 0,5 coup affaibli) ; un coup fort (lourd / chargé / contre) pose aussi brûlure (2 s, 2/s) / gel (2 s, 0,3) / choc (0,6 s) / corruption (3 s, 0,1) si l'arme ou un sort n'en pose pas déjà un. Seulement sur des gantelets enchantés (une seule source portée) | armures HD (`Elements.coup_equipement`, appelé par `Elements.avant_coup`) |
-| `resist_magie` | fraction en moins sur TOUT coup magique reçu (glace / feu / electricite / tenebres), additionnée à la résistance propre de l'élément, plafond commun 80 % (`EquipementCorps.RESISTANCE_MAX`) | armures HD (`EquipementCorps.resistance_totale`, `joueur.recevoir_coup`) |
+| `resist_magie` | fraction en moins sur TOUT coup magique reçu (glace / feu / electricite / tenebres), additionnée à la résistance propre de l'élément, bornée à −25 % (`RESISTANCE_MIN`, trait négatif de l'obsidienne) … +80 % (`EquipementCorps.RESISTANCE_MAX`) | armures HD (`EquipementCorps.resistance_totale`, `joueur.recevoir_coup`) |
 | `vol_vie` | part des dégâts d'un coup d'arme rendue en vie, toute arme, même sans perk (s'ajoute à `vol_vie_une_main` / `_deux_mains`) | armures HD (`Progression.coup_porte`) |
 
 Un lot qui a besoin d'une clé nouvelle l'ajoute à ce tableau (une ligne) et la documente dans son rapport.

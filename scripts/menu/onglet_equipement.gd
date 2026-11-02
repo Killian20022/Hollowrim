@@ -366,8 +366,8 @@ func _dessiner_fiche(d: Rect2, y: float) -> void:
 		sous = "%s · %s" % [OngletSac.NOMS_CATEGORIES.get(String(o.get("categorie", "")), "Armure"), NOMS_EMP.get(emp, emp)]
 		stat = "Armure %d  ·  %s kg" % [roundi(float(o.get("armure", 0.0))), MenuPersonnage.poids_texte(float(o.get("poids", 0.0)))]
 		desc = String(o.get("description", ""))
-		var ef: Variant = o.get("effets", {})
-		if ef is Dictionary and not (ef as Dictionary).is_empty():
+		var ef := EquipementCorps.effets_de(id)   # traits de matière (armures HD) + enchantement
+		if not ef.is_empty():
 			var morceaux: Array = []
 			for k: String in ef:
 				morceaux.append("%s %s" % [OngletSac.NOMS_EFFETS.get(k, k), OngletSac._effet_txt(k, ef[k])])

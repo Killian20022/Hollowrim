@@ -90,19 +90,46 @@ func _ensembles() -> void:
 	var t := {}
 	for m in MATERIAUX + ANCIENS.keys():
 		t[m] = total(m)
-	_verif(t["os"].x < t["verre"].x and t["verre"].x < t["saphir"].x and t["verre"].y < t["os"].y and t["saphir"].y < t["fer"].y,
-		"léger d'élite : os %d < verre %d < saphir %d ; le verre pèse moins que l'os, le saphir moins que le fer" % [t["os"].x, t["verre"].x, t["saphir"].x])
-	_verif(t["fer"].x < t["or"].x and t["or"].x < t["acier_nordique"].x and t["acier_nordique"].x < t["rubis"].x and t["rubis"].x < t["obsidienne"].x,
-		"lourd : fer %d < or %d < acier %d < rubis %d < obsidienne %d" % [t["fer"].x, t["or"].x, t["acier_nordique"].x, t["rubis"].x, t["obsidienne"].x])
-	_verif(t["or"].y < t["acier_nordique"].y and t["acier_nordique"].y < t["rubis"].y and t["rubis"].y < t["obsidienne"].y and t["obsidienne"].y <= 40.0,
-		"poids lourds : or %.1f < acier %.1f < rubis %.1f < obsidienne %.1f (≤ 40 kg)" % [t["or"].y, t["acier_nordique"].y, t["rubis"].y, t["obsidienne"].y])
+	# COMPROMIS (profils de l'utilisateur, 2026-11-02) : acier polyvalent ; or prestige (protection moyenne, lourd, valeur, magie / prix) ;
+	# rubis magie (résistance magique, sorts ; physique moyen) ; verre mobilité (très léger, physique moyen-haut) ; obsidienne
+	# physique très haut, très lourde, vigueur / course pénalisées, magie faible ; saphir : froid
+	_verif(t["os"].x < t["saphir"].x and t["saphir"].x < t["verre"].x and t["verre"].x < t["acier_nordique"].x and t["fer"].x < t["verre"].x,
+		"verre (%d) : protection moyenne-haute, entre le fer et l'acier ; saphir %d, os %d" % [t["verre"].x, t["saphir"].x, t["os"].x])
+	_verif(t["verre"].y == MATERIAUX.map(func(m: String) -> float: return total(m).y).min() and t["verre"].y < t["cuir"].y + 2.0, "verre : le plus léger des ensembles précieux (%.1f kg)" % t["verre"].y)
+	_verif(t["fer"].x < t["or"].x and t["or"].x < t["rubis"].x and t["rubis"].x < t["acier_nordique"].x and t["acier_nordique"].x < t["obsidienne"].x,
+		"physique : fer %d < or %d < rubis %d < acier %d < obsidienne %d" % [t["fer"].x, t["or"].x, t["rubis"].x, t["acier_nordique"].x, t["obsidienne"].x])
+	_verif(t["or"].y > t["fer"].y and t["obsidienne"].y == (MATERIAUX + ANCIENS.keys()).map(func(m: String) -> float: return total(m).y).max() and t["obsidienne"].y <= 40.0,
+		"or lourd (%.1f > fer %.1f), obsidienne la plus lourde de toutes (%.1f kg ≤ 40)" % [t["or"].y, t["fer"].y, t["obsidienne"].y])
+	var tr := {}
+	for m in MATERIAUX + ANCIENS.keys():
+		tr[m] = {}
+		for id in ids_de(m):
+			var tf: Dictionary = Inventaire.objet(id).get("traits", {})
+			for k in tf:
+				tr[m][k] = float(tr[m].get(k, 0.0)) + float(tf[k])
+	print("       traits de matière par ensemble : ", tr)
+	var rm := func(m: String) -> float: return float(tr[m].get("resist_magie", 0.0))
+	_verif(rm.call("rubis") >= 0.2 and float(tr["rubis"].get("degats_destruction", 0.0)) >= 0.1 and MATERIAUX.all(func(m: String) -> bool: return m == "rubis" or rm.call(m) < rm.call("rubis")),
+		"rubis : meilleure protection MAGIQUE (%.2f) et dégâts des sorts +%d %%" % [rm.call("rubis"), roundi(float(tr["rubis"].get("degats_destruction", 0.0)) * 100.0)])
+	_verif(rm.call("obsidienne") < 0.0 and float(tr["obsidienne"].get("regen_vigueur", 0.0)) < 0.0 and float(tr["obsidienne"].get("cout_course", 0.0)) < 0.0,
+		"obsidienne : protection magique faible (%.2f), vigueur et course pénalisées" % rm.call("obsidienne"))
+	_verif(float(tr["verre"].get("vigueur_max", 0.0)) > 0.0 and float(tr["verre"].get("cout_course", 0.0)) > 0.0 and float(tr["verre"].get("regen_vigueur", 0.0)) > 0.0,
+		"verre : mobilité (vigueur, régénération de vigueur, course)")
+	_verif(float(tr["or"].get("magie_max", 0.0)) > 0.0 and float(tr["or"].get("prix", 0.0)) > 0.0 and float(tr["saphir"].get("resist_froid", 0.0)) >= 0.2,
+		"or : magie et prix (persuasion des marchands) ; saphir : froid")
+	_verif(tr["acier_nordique"].is_empty() and tr["fer"].is_empty(), "fer / acier : polyvalents, sans trait")
+	var gagnant := []
+	for m in MATERIAUX:   # aucun ensemble précieux ne bat l'acier PARTOUT (armure, poids, résistance magique)
+		if t[m].x >= t["acier_nordique"].x and t[m].y <= t["acier_nordique"].y and rm.call(m) >= 0.0:
+			gagnant.append(m)
+	_verif(gagnant.is_empty(), "compromis : aucun ensemble précieux meilleur que l'acier à la fois en armure, en poids et en magie %s" % str(gagnant))
 	var val := {}
 	for m in MATERIAUX + ANCIENS.keys():
 		val[m] = 0
 		for id in ids_de(m):
 			val[m] += int(Inventaire.objet(id).get("valeur", 0))
-	_verif(MATERIAUX.all(func(m: String) -> bool: return val[m] > val["acier_nordique"] * 2) and val["obsidienne"] == MATERIAUX.map(func(m: String) -> int: return val[m]).max(),
-		"valeurs : chaque ensemble précieux vaut plus de 2 × l'acier nordique, l'obsidienne le plus %s" % str(val))
+	_verif(MATERIAUX.all(func(m: String) -> bool: return val[m] > val["acier_nordique"] * 2) and val["or"] == MATERIAUX.map(func(m: String) -> int: return val[m]).max(),
+		"valeurs : chaque ensemble précieux vaut plus de 2 × l'acier nordique, l'or (prestige) le plus %s" % str(val))
 	var torse_part := []
 	for m in MATERIAUX:
 		var p: float = float(Inventaire.objet("cuirasse_" + m).get("armure")) / float(t[m].x)
@@ -126,7 +153,7 @@ func _variantes() -> void:
 		if b.is_empty() or f.get("variante_materiau") != "enchante" or not String(f.get("rarete")) in ["rare", "unique"] or ef.is_empty() \
 				or f.get("modele_porte") != b.get("modele_porte") or f.get("modele_sol") != b.get("modele_sol") or f.get("armure") != b.get("armure") \
 				or f.get("poids") != b.get("poids") or f.get("emplacement") != b.get("emplacement") or m != String(b.get("materiau")) \
-				or int(f.get("valeur")) <= int(b.get("valeur")) or f.get("icone") != b.get("icone"):
+				or int(f.get("valeur")) <= int(b.get("valeur")) or f.get("icone") != b.get("icone") or f.get("traits", {}) != b.get("traits", {}):
 			fautes.append(id)
 		for k in ef:
 			if k in COUPS and f.get("emplacement") != "mains":
@@ -317,16 +344,27 @@ func _joueur() -> void:
 	print("       coups pour tuer (100 PV, compétence Armure 1,0) [draugr 11, jarl 28] : ", lignes)
 	_verif(lignes["nu"][0] == 10 and lignes["obsidienne"][0] > lignes["acier_nordique"][0] and lignes["obsidienne"][0] <= 20 and lignes["obsidienne"][1] <= 8,
 		"équilibrage : obsidienne complète > acier, mais un draugr la tue en ≤ 20 coups, le jarl en ≤ 8 (%s / %s)" % [str(lignes["obsidienne"]), str(lignes["acier_nordique"])])
-	_verif(lignes["verre"][0] >= lignes["os"][0] and lignes["saphir"][0] >= lignes["verre"][0], "verre ≥ os (pour 3 kg de moins), saphir ≥ verre")
+	_verif(lignes["verre"][0] >= lignes["os"][0] and lignes["saphir"][0] >= lignes["os"][0] and lignes["or"][0] <= lignes["acier_nordique"][0], "verre, saphir ≥ os ; or ≤ acier (protection moyenne)")
 	# pire cas : obsidienne + arbre Armure au maximum (Cuir et maille 1,5 + Rempart vivant +0,2 = ×1,7)
 	var red := 1.0 - EquipementCorps.facteur_armure(total("obsidienne").x * 1.7)
 	_verif(red <= 0.65, "obsidienne + arbre Armure au maximum : −%.0f %% de dégâts physiques (≤ 65 %%, jamais invincible)" % (red * 100.0))
-	# résistance magique réelle (recevoir_coup) : Heaume de Hel (magie 0,2) sur coup de ténèbres et de feu
-	j.inventaire.ajouter("casque_obsidienne_hel")
-	j.equipement_corps.equiper("casque_obsidienne_hel")
+	# résistance magique réelle (recevoir_coup) : l'obsidienne est vulnérable à la magie
+	for id in ids_de("obsidienne"):
+		j.equipement_corps.equiper(id)
 	var dt: float = _coup(j, 20.0, {"type": "tenebres"})
 	var df: float = _coup(j, 20.0, {"type": "feu"})
-	_verif(absf(dt - 16.0) < 0.05 and absf(df - 16.0) < 0.05, "Heaume de Hel : ténèbres 20 -> %.2f, feu 20 -> %.2f (−20 %%, pas l'armure)" % [dt, df])
+	_verif(absf(dt - 22.0) < 0.05 and absf(df - 22.0) < 0.05, "obsidienne complète (résistance magique −10 %%) : ténèbres 20 -> %.2f, feu 20 -> %.2f" % [dt, df])
+	j.inventaire.ajouter("casque_obsidienne_hel")
+	j.equipement_corps.equiper("casque_obsidienne_hel")
+	dt = _coup(j, 20.0, {"type": "tenebres"})
+	_verif(absf(dt - 18.0) < 0.05, "Heaume de Hel à la place du heaume (+20 %% de magie) : obsidienne à +10 %%, ténèbres 20 -> %.2f" % dt)
+	for e in ["tete", "torse", "mains", "pieds"]:
+		j.equipement_corps.retirer(e)
+	for id in ids_de("rubis"):
+		j.inventaire.ajouter(id)
+		j.equipement_corps.equiper(id)
+	df = _coup(j, 20.0, {"type": "feu"})
+	_verif(absf(df - 16.0) < 0.05 and absf(j.progression.mult("destruction") - 1.15) < 0.001, "rubis complet : feu 20 -> %.2f (−20 %%), sorts ×%.2f" % [df, j.progression.mult("destruction")])
 	# vol de vie (Progression.coup_porte, sans aucun perk)
 	j.inventaire.ajouter("gantelets_obsidienne_nidhogg")
 	j.equipement_corps.equiper("gantelets_obsidienne_nidhogg")
