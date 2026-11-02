@@ -605,8 +605,8 @@ func _boussole_cuir(cx: float, st: String) -> void:
 				continue
 			dx = signf(dx) * (demi - 3)
 		var pos := Vector2(floorf(cx + dx), y + h + 3)
-		if quete:
-			CUIR.sceau(self, "x", pos + Vector2(0, 1), 1.0)
+		if quete:   # sceau sur le bandeau (dessous, il mordait sur la ligne de l'objectif)
+			CUIR.sceau(self, "x", Vector2(pos.x, y + floorf(h * 0.5)), 1.0)
 		else:
 			CUIR.losange(self, pos, m["couleur"], 1.0, m["genre"] == "maison")
 	for e in get_tree().get_nodes_in_group("ennemis"):
