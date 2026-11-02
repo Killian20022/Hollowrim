@@ -460,7 +460,8 @@ func _peindre_encre() -> void:
 	img.fill(Color(0, 0, 0, 0))
 	var E := Parchemin.ENCRE
 	var cx := 320
-	for f: Vector2 in [Vector2(288, 329), Vector2(298, 331), Vector2(309, 332), Vector2(331, 332), Vector2(342, 331), Vector2(352, 329)]:
+	# racines resserrées (x 298..342) : elles restaient collées à « Rang 1 / 5 » de la fiche (page droite, désormais à x 350)
+	for f: Vector2 in [Vector2(298, 329), Vector2(305, 331), Vector2(312, 332), Vector2(328, 332), Vector2(335, 331), Vector2(340, 328)]:
 		Parchemin.courbe(img, Vector2(cx, 304), Vector2((cx + f.x) * 0.5, 322), f, 1, E)
 	for y in range(252, 318):
 		var ep := 7 + int((y - 252) / 18.0)
@@ -598,7 +599,7 @@ func _fiche() -> void:
 		Parchemin.texte(self, _police, Vector2(344, 270), "L'arbre n'est pas encore gravé.", Parchemin.PALE)
 		return
 	var p: Dictionary = _par_id[choix]
-	var X := 344.0
+	var X := 350.0   # 6 px de plus que la page : « Rang 1 / 5 » ne touche plus les racines du tronc
 	var nom := Parchemin.lisible(_gothique, p["nom"])
 	draw_string(_gothique, Vector2(X, 277), nom, HORIZONTAL_ALIGNMENT_LEFT, -1, Parchemin.TITRE, Parchemin.RUBRIQUE)
 	var pr := _prog()
@@ -617,9 +618,9 @@ func _fiche() -> void:
 		effet = ("Rang %d : " % (i_rang + 1)) + effet
 	var lignes: Array = []
 	if effet != "":
-		for l in Parchemin.couper(_police, Parchemin.lisible(_police, effet), 274):
+		for l in Parchemin.couper(_police, Parchemin.lisible(_police, effet), 268):
 			lignes.append([l, Parchemin.ENCRE])
-	for l in Parchemin.couper(_police, Parchemin.lisible(_police, p["description"]), 274):
+	for l in Parchemin.couper(_police, Parchemin.lisible(_police, p["description"]), 268):
 		lignes.append([l, Parchemin.PALE])
 	var places := 2 if serre else 3
 	for j in mini(lignes.size(), places):

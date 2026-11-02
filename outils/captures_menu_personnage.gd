@@ -110,6 +110,8 @@ func _lancer() -> void:
 	await _capture("C_4_competences", "")
 	ui.changer_onglet("quetes")
 	await _capture("C_5_quetes", "")
+	ui.changer_onglet("carte")
+	await _capture("C_5b_carte", "")
 	ui.changer_onglet("personnage")
 	await _capture("C_6_personnage", "")
 	ui.fermer()

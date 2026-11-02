@@ -63,6 +63,19 @@ func _lancer() -> void:
 	m.joueur.global_position = Vector3(pj.x, m.hauteur(pj.x, pj.z) + 0.1, pj.z)
 	m.joueur.rotation.y = atan2(-(44.0 - pj.x), -(40.0 - pj.z))   # regarde vers Skarnholt (avant = -Z local)
 	await _images(10)
+	# 0. HUD en jeu : boussole (registre Lieux) avec le sceau de la quête suivie dans le champ, 25° à droite du regard
+	for c: Dictionary in Lieux.cibles_quetes(m.quetes, m):
+		if c["suivie"]:
+			var d: Vector3 = c["pos"] - m.joueur.global_position
+			m.joueur.rotation.y = atan2(-d.x, -d.z) + deg_to_rad(25.0)
+			print("HUD : quête suivie ", c["titre"], " -> ", c["lieu"])
+	m.hud._marqueurs_t = 0.0
+	if m.hud.combat_ui != null and m.hud.combat_ui.has_method("raviver"):
+		m.hud.combat_ui.raviver()
+	await _images(40)
+	await _capture("0_hud_boussole_quete")
+	m.joueur.rotation.y = atan2(-(44.0 - pj.x), -(40.0 - pj.z))
+	await _images(5)
 	# coquille du lot C si elle existe et connaît l'onglet ; sinon onglet seul sur vélin
 	var coquille: Node = null
 	for n in m.find_children("*", "CanvasLayer", true, false):

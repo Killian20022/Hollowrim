@@ -520,9 +520,10 @@ func _dessiner(L: LivreParchemin) -> void:
 			var a := degats(id)
 			var b := degats(suivant)
 			L.texte(X2, y, "Dégâts", LivreParchemin.RUBRIQUE)
-			L.texte(X2 + 64, y, "%d / %d" % [a[0], a[1]])
+			L.texte(X2 + 64, y, OngletLivre.texte_degats(a[0], a[1]))   # « 14 léger · 28 lourd », comme le menu
 			if n < NIVEAU_MAX:
-				L.texte(X2 + 120, y, "->  %d / %d" % [b[0], b[1]], LivreParchemin.VERT)
+				y += 11.0
+				L.texte(X2 + 52, y, "->  " + OngletLivre.texte_degats(b[0], b[1]), LivreParchemin.VERT)
 			y += 12.0
 		if est_armure(id):
 			L.texte(X2, y, "Armure", LivreParchemin.RUBRIQUE)
