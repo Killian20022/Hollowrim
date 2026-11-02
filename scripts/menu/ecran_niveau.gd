@@ -93,9 +93,16 @@ func _alpha(t: float, duree: float, entree := 0.3, sortie := 0.7) -> float:
 		return 1.0
 	return clampf(minf(t / entree, (duree - t) / sortie), 0.0, 1.0)
 
+## Taille de l'écran logique du HUD (le parent) : l'ancrage plein écran ne suit pas toujours la mise à l'échelle d'EchelleUi.
+func _taille() -> Vector2:
+	var h := get_parent() as Control
+	return h.size if h != null and h.size.x > 0.0 else get_viewport_rect().size
+
 func _draw() -> void:
 	if _cache():
 		return
+	if size != _taille():
+		size = _taille()
 	if not _niveaux.is_empty():
 		_dessiner_niveau(_niveaux[0])
 	for i in _bandes.size():

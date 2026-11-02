@@ -8,6 +8,13 @@ extends Control
 ##   - fermer() sur l'onglet quitté, ouvrir() sur le nouveau ; jeu en pause pendant le menu ;
 ##   - signal message(texte) des onglets → bandeau (ici : ligne sous les pages) ; aide() → bandeau des touches.
 ## Utilisé par outils/lanceur_onglets_rpg.gd (captures, essai à la main) et outils/test_onglets_rpg.gd.
+## BRANCHEMENT DANS MenuPersonnage (lot C) — rien d'autre à faire côté lot D :
+##   var oc := OngletCompetences.new() ; var oq := OngletQuetes.new() ; oq.quetes = monde.quetes ; var op := OngletPersonnage.new()
+##   pour chacun : o.joueur = joueur ; add_child(o) ; o.set_anchors_and_offsets_preset(PRESET_FULL_RECT) (640x360 logique) ;
+##   relier o.message (bandeau) et o.contenu_change ; ouvrir() / fermer() au changement d'onglet ; entree(e) d'abord.
+##   Fond : Parchemin.livre(Vector2i(640, 360)) une fois (≈ 0,5 s, garder la texture) ; signets : Parchemin.signet ;
+##   touches : Parchemin.bandeau_touches(aide() de l'onglet + celles de la coquille). Raccourcis conseillés : K = Compétences,
+##   J = Quêtes (conception §2.10). Les onglets laissent passer Tab, Échap, Q / E, LB / RB et B.
 
 signal ferme
 
@@ -37,7 +44,7 @@ func ajouter(o: OngletMenu) -> void:
 	o.visible = false
 	o.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(o)
-	o.set_anchors_preset(Control.PRESET_FULL_RECT)
+	o.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	o.message.connect(func(t: String) -> void:
 		_message = t
 		_message_t = 3.0
@@ -53,6 +60,7 @@ func ouvrir(id := "") -> void:
 			actif = i
 	ouvert = true
 	visible = true
+	size = get_viewport_rect().size
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_montrer(actif)
@@ -129,6 +137,8 @@ func traiter(e: InputEvent) -> bool:
 	return false
 
 func _draw() -> void:
+	if size != get_viewport_rect().size:
+		size = get_viewport_rect().size
 	if _livre != null:
 		draw_texture(_livre, Vector2.ZERO)
 	# en-tête sur le cuir

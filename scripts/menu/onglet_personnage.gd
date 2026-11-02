@@ -234,7 +234,7 @@ func _page_droite(pr: Progression) -> void:
 		Parchemin.texte_droite(self, _police, D, y, "%d/%d" % [roundi(float(l[1])), roundi(float(l[2]))], Parchemin.ENCRE)
 	Parchemin.filet(self, X + 8, 134, 266)
 	var inv: Inventaire = joueur.inventaire
-	_kv(X, 142, "Armure", str(joueur.equipement_corps.armure_totale()))
+	_kv(X, 142, "Armure", str(roundi(joueur.equipement_corps.armure_totale())))
 	_kv(X + 138, 142, "Charge", "%s / %s" % [nombre(inv.poids(), 1), nombre(inv.capacite())], Parchemin.RUBRIQUE if inv.surcharge() else Parchemin.ENCRE)
 	_kv(X, 156, "Pièces", nombre(inv.pieces), Parchemin.OR_TERNI)
 	_kv(X + 138, 156, "Points", "%d d'arbre" % pr.points_perk)

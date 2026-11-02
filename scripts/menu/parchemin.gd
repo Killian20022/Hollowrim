@@ -45,6 +45,17 @@ const _CC := {"k": "#0b0f1a", "h": "#8a96ad", "m": "#56627a", "s": "#3a4458", "d
 static func nom_competence(nom: String) -> String:
 	return String(NOMS_COMPETENCES.get(Progression.canonique(nom), nom.capitalize()))
 
+## Lettres absentes de la police pixel (Kenney sans « œ », noms nordiques de l'arbre : ð, ý, í, ö…) remplacées par leur
+## équivalent lisible, seulement si la police ne les a pas.
+const _REMPLACE := {"œ": "oe", "Œ": "Oe", "æ": "ae", "Æ": "Ae", "ð": "d", "Ð": "D", "þ": "th", "Þ": "Th", "ý": "y", "Ý": "Y",
+	"í": "i", "Í": "I", "ö": "o", "Ö": "O", "ó": "o", "á": "a", "ú": "u", "ø": "o", "å": "a", "ä": "a", "ü": "u"}
+static func lisible(police: Font, s: String) -> String:
+	var r := s
+	for c: String in _REMPLACE:
+		if r.contains(c) and not police.has_char(c.unicode_at(0)):
+			r = r.replace(c, String(_REMPLACE[c]))
+	return r
+
 # ------------------------------------------------------------------ géométrie du livre (écran 640x360)
 
 ## Rectangle des deux pages de vélin (marges de la maquette 480x270 × 4/3).
@@ -294,6 +305,14 @@ static func courbe(img: Image, a: Vector2, b: Vector2, c: Vector2, ep: int, col:
 ## Texte : `pos` = coin haut-gauche de la ligne (comme la maquette), la ligne de base est 11 px plus bas (police 16).
 static func texte(ci: CanvasItem, police: Font, pos: Vector2, s: String, couleur := ENCRE, largeur := -1.0, align := HORIZONTAL_ALIGNMENT_LEFT, taille := TAILLE) -> void:
 	ci.draw_string(police, Vector2(roundf(pos.x), roundf(pos.y) + 11.0), s, align, largeur, taille, couleur)
+
+## Texte cerné de vélin clair (8 voisins) : les traits d'encre de l'arbre s'interrompent autour des lettres, comme dans un
+## manuscrit, au lieu de les barrer.
+static func texte_cerne(ci: CanvasItem, police: Font, pos: Vector2, s: String, couleur := ENCRE, cerne := Color("#d8c69e")) -> void:
+	var b := Vector2(roundf(pos.x), roundf(pos.y) + 11.0)
+	for d: Vector2 in [Vector2(-1, -1), Vector2(0, -1), Vector2(1, -1), Vector2(-1, 0), Vector2(1, 0), Vector2(-1, 1), Vector2(0, 1), Vector2(1, 1)]:
+		ci.draw_string(police, b + d, s, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE, cerne)
+	ci.draw_string(police, b, s, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE, couleur)
 
 ## Texte aligné à droite sur x1.
 static func texte_droite(ci: CanvasItem, police: Font, x1: float, y: float, s: String, couleur := ENCRE) -> void:

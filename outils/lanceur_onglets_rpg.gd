@@ -74,8 +74,8 @@ static func etat_demo(j: Node, q: Node) -> void:
 	var pr: Progression = j.progression
 	pr.importer({"niveau": 9, "xp_niveau": 372.0, "points_perk": 2, "points_attribut": 1,
 		"attributs": {"vie": 20, "magie": 30, "vigueur": 20},
-		"perks": {"une_main_lame_aguerrie": 2, "une_main_coup_de_taille": 1, "une_main_rafale": 1, "parade_mur_de_bouclier": 3,
-			"parade_contre_coup": 1, "athletisme_souffle_long": 1, "destruction_econome": 3, "destruction_givre": 1, "armure_peau_de_fer": 1},
+		"perks": {"lame_aguerrie": 3, "croc_de_fer": 1, "eleve_de_tyr": 1, "bras_de_l_ours": 1, "rempart_de_tilleul": 2,
+			"souffle_du_guetteur": 1, "paroles_de_puissance": 2, "souffle_de_niflheim": 1, "pied_leger": 1},
 		"competences": {"niveaux": {"une_main": 52, "deux_mains": 18, "parade": 31, "armure": 24, "destruction": 38,
 			"restauration": 22, "furtivite": 15, "athletisme": 27}, "experience": {"epee": 3.0, "parade": 6.0, "athletisme": 2.0}}})
 	j.recalculer_stats()
@@ -116,11 +116,9 @@ func _capturer(nom: String, maquette := "") -> void:
 
 func _captures(j: Node, oc: OngletCompetences) -> void:
 	coquille.ouvrir("competences")
-	oc.choix = "une_main_saignee"
-	oc.queue_redraw()
+	oc.choisir("soif_du_loup")
 	await _capturer("D_competences", "A_4_competences.png")
-	oc.choix = "destruction_foudre"
-	oc.queue_redraw()
+	oc.choisir("colere_de_thor")
 	await _capturer("D_competences_branche")
 	coquille.aller(2)
 	await _capturer("D_personnage", "A_1_equipement.png")

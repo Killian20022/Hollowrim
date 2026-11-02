@@ -84,7 +84,7 @@ func _parchemin() -> void:
 # ------------------------------------------------------------------ 2. arbre
 
 func _formats() -> void:
-	var demo := OngletCompetences.charger_arbre(OngletCompetences.ARBRE_DEMO)
+	var demo: Array = OngletCompetences.charger_arbre(OngletCompetences.ARBRE_DEMO)["perks"]
 	var comps := {}
 	for p: Dictionary in demo:
 		comps[p["competence"]] = true
@@ -109,7 +109,7 @@ func _formats() -> void:
 		var f := FileAccess.open(chemin, FileAccess.WRITE)
 		f.store_string(JSON.stringify(essais[nom]))
 		f.close()
-		var r := OngletCompetences.charger_arbre(chemin)
+		var r: Array = OngletCompetences.charger_arbre(chemin)["perks"]
 		DirAccess.remove_absolute(chemin)
 		match nom:
 			"tableau":
@@ -158,50 +158,57 @@ func _jeu() -> void:
 	_verif(oc.source == attendu and not oc.perks.is_empty(), "arbre lu : %s (%d perks)" % [oc.source, oc.perks.size()])
 	_verif(_dessins > 0, "l'onglet se dessine (%d)" % _dessins)
 
-	# --- 3. compétences (sur la démo, ids connus)
+	# --- 3. compétences (sur la copie de l'arbre du lot B, ids connus)
 	oc.charger(OngletCompetences.ARBRE_DEMO)
-	oc.choix = "une_main_lame_aguerrie"
+	_verif(oc.ordre.size() == 8 and oc.pierres.has("une_main") and String(oc.pierres["une_main"]["nom"]).begins_with("Pierre"), "format du lot B : 8 pierres dans l'ordre, noms des pierres")
+	_verif(oc.choix == "lame_aguerrie" and oc._pierres_affichees() == ["une_main", "deux_mains"], "ouverture : racine de la 1re pierre, double page Loup | Ours")
 	pr.points_perk = 0
-	_verif(oc.etat("une_main_lame_aguerrie") == "non" and oc.raison("une_main_lame_aguerrie") == "Aucun point à dépenser.", "sans point : scellé (« %s »)" % oc.raison("une_main_lame_aguerrie"))
+	var raison0 := oc.raison("lame_aguerrie")
+	_verif(oc.etat("lame_aguerrie") == "non" and raison0 != "", "sans point : scellé (« %s »)" % raison0)
 	pr.points_perk = 1
-	_verif(oc.etat("une_main_lame_aguerrie") == "dispo" and oc.etat("une_main_coup_de_taille") == "non", "1 point : premier perk à prendre, le suivant scellé")
-	_verif(oc.raison("une_main_saignee").contains("50 requis"), "niveau requis expliqué (« %s »)" % oc.raison("une_main_saignee"))
+	_verif(oc.etat("lame_aguerrie") == "dispo" and oc.etat("croc_de_fer") == "non", "1 point : racine à prendre, le perk suivant scellé")
+	_verif(oc.raison("croc_de_fer").contains("Il faut d'abord") and oc.raison("lame_de_fenrir").contains(" ou "), "parents expliqués (« %s » / « %s »)" % [oc.raison("croc_de_fer"), oc.raison("lame_de_fenrir")])
 	co.traiter(_action("ui_up"))
-	_verif(oc.choix == "une_main_coup_de_taille", "haut : perk du rang au-dessus (%s)" % oc.choix)
+	_verif(oc.choix == "croc_de_fer", "haut : rangée au-dessus, colonne la plus proche (%s)" % oc.choix)
+	co.traiter(_action("ui_right"))
+	_verif(oc.choix == "crocs_de_fenrir", "droite : voisin de la rangée (%s)" % oc.choix)
+	co.traiter(_action("ui_right"))
+	_verif(oc.choix == "force_de_magni", "droite au bord : pierre d'en face, même rangée (%s)" % oc.choix)
 	co.traiter(_touche(KEY_S, true))
-	_verif(oc.choix == "une_main_lame_aguerrie", "S (physique) : redescend (%s)" % oc.choix)
+	_verif(oc.choix == "bras_de_l_ours", "S (physique) : redescend (%s)" % oc.choix)
 	co.traiter(_action("ui_right"))
-	_verif(oc.choix == "deux_mains_bras_de_fer", "droite : colonne suivante (%s)" % oc.choix)
-	oc.choix = "destruction_feu"
-	co.traiter(_action("ui_right"))
-	_verif(oc.choix == "destruction_givre", "droite : voisin du même rang dans la pierre (branche) (%s)" % oc.choix)
-	co.traiter(_action("ui_left"))
-	co.traiter(_action("ui_left"))
-	_verif(oc.choix == "restauration_soin" or oc.choix.begins_with("armure"), "gauche depuis la branche : colonne précédente (%s)" % oc.choix)
-	# souris : clic sur un médaillon = choisir ; re-clic = acheter
-	var pos: Vector2 = oc._place["parade_contre_coup"] + Vector2(7, 7) + Parchemin.origine(oc.size)
+	_verif(oc.choix == "rempart_de_tilleul" and oc._pierres_affichees() == ["parade", "armure"], "droite depuis la page de droite : double page suivante (%s)" % oc.choix)
+	co.traiter(_touche(KEY_PAGEDOWN))
+	_verif(oc._pierres_affichees() == ["destruction", "restauration"] and oc.choix == "paroles_de_puissance", "Page suiv. : Orage | Eir (%s)" % oc.choix)
+	# souris : clic sur un médaillon = choisir
+	await process_frame
+	var pos: Vector2 = oc._place["colere_de_thor"] + Vector2(7, 7) + Parchemin.origine(oc.size)
 	var clic := InputEventMouseButton.new()
 	clic.button_index = MOUSE_BUTTON_LEFT
 	clic.pressed = true
 	clic.position = pos
 	clic.global_position = pos
 	co.traiter(clic)
-	_verif(oc.choix == "parade_contre_coup", "clic sur un médaillon : choisi (%s)" % oc.choix)
-	oc.choix = "une_main_lame_aguerrie"
+	_verif(oc.choix == "colere_de_thor", "clic sur un médaillon : choisi (%s)" % oc.choix)
+	oc.choisir("lame_aguerrie")
 	var messages: Array = []
 	oc.message.connect(func(t: String) -> void: messages.append(t))
-	var avant := pr.rang_perk("une_main_lame_aguerrie")
+	var avant := pr.rang_perk("lame_aguerrie")
 	co.traiter(_action("ui_accept"))
-	var r_attendu := pr.rang_perk("une_main_lame_aguerrie") == avant + 1   # lot B : achat réel ; socle : refus
-	_verif(messages.size() == 1 and (r_attendu or messages[0] == pr.acheter_perk("une_main_lame_aguerrie")), "Entrée : Progression.acheter_perk appelée, réponse affichée (« %s »)" % (messages[0] if not messages.is_empty() else ""))
+	var achete := pr.rang_perk("lame_aguerrie") == avant + 1   # lot B : achat réel ; socle : refus
+	_verif(messages.size() == 1 and (achete or messages[0] == pr.acheter_perk("lame_aguerrie")), "Entrée : Progression.acheter_perk appelée, réponse affichée (« %s »)" % (messages[0] if not messages.is_empty() else ""))
 	_verif(co.onglets[co.actif] == oc and co.ouvert, "l'achat ne change pas d'onglet")
-	# états acquis / partiel (perks posés comme le ferait la progression)
-	pr.perks = {"une_main_lame_aguerrie": 5, "une_main_coup_de_taille": 1, "destruction_econome": 1}
+	# états acquis / partiel / à prendre (perks posés comme le ferait la progression)
+	pr.perks = {"lame_aguerrie": 2, "croc_de_fer": 2, "eleve_de_tyr": 1}
+	pr.points_perk = 1
+	var niv_avant := pr.competence("une_main")
 	pr.competences.niveaux["epee"] = 45
-	_verif(oc.etat("une_main_lame_aguerrie") == "ok" and oc.etat("une_main_coup_de_taille") == "ok" and oc.etat("destruction_econome") == "partiel" and oc.etat("une_main_rafale") == "dispo", \
-		"états : acquis (tous les rangs), partiel (rangs en cours), à prendre (prérequis + niveau)")
+	_verif(oc.etat("croc_de_fer") == "ok" and oc.etat("eleve_de_tyr") == "ok" and oc.etat("lame_aguerrie") == "partiel" and oc.etat("soif_du_loup") == "dispo" and oc.etat("curee") == "non", \
+		"états : acquis, partiel (rangs en cours), à prendre (un parent + niveau), scellé")
 	pr.perks = {}
-	pr.competences.niveaux["epee"] = 15
+	pr.competences.niveaux["epee"] = niv_avant
+	var lis := Parchemin.lisible(Palette.police(), "Œil de Heimdall · seiðr")
+	_verif(not lis.contains("Œ") or Palette.police().has_char("Œ".unicode_at(0)), "lettres absentes de la police remplacées (« %s »)" % lis)
 
 	# --- 4. personnage
 	co.traiter(_touche(KEY_TAB))
