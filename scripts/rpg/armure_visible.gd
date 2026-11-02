@@ -631,6 +631,10 @@ static func materiaux_fps(id: String) -> Dictionary:
 		"cuir": [Color(1.0, 0.78, 0.6), Color(0.95, 0.8, 0.66), Color(0.8, 0.7, 0.6)],
 		"fourrure": [Color(0.95, 0.8, 0.64), Color(1.25, 1.18, 1.05), Color(0.8, 0.7, 0.6)],
 		"os": [Color(0.55, 0.5, 0.48), Color(0.62, 0.55, 0.5), Color(1.35, 1.25, 1.05)],
+		# gantelets des armures lourdes (rpg/armures_lourdes) : gant de cuir sombre sous les lames, plaques claires
+		"fer": [Color(0.5, 0.48, 0.47), Color(0.6, 0.56, 0.52), Color(1.05, 1.05, 1.1)],
+		"acier": [Color(0.56, 0.6, 0.68), Color(0.66, 0.66, 0.7), Color(1.2, 1.24, 1.32)],
+		"hrafn": [Color(0.78, 0.36, 0.3), Color(0.7, 0.42, 0.36), Color(1.1, 1.1, 1.15)],   # cuir rouge sombre, ongles d'acier
 	}
 	var t: Array = teintes.get(famille, teintes["cuir"])
 	var ab := AvantBras.materiaux()
