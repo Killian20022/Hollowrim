@@ -1,7 +1,7 @@
 {
 	"_doc": "Objets de valeur sans usage (vente). Format commun : docs/RPG.md §2. Nouvel objet = nouvel identifiant, jamais de renommage (sinon Inventaire.ALIAS).",
 	"objets": {
-		"lame_antique": {"nom": "Lame antique ébréchée", "poids": 8.0, "valeur": 25, "categorie": "divers", "rarete": "commun"},
+		"lame_antique": {"nom": "Lame antique ébréchée", "poids": 4.0, "valeur": 25, "categorie": "divers", "rarete": "commun"},
 		"relique_offrande": {"nom": "Relique d’offrande royale", "poids": 1.5, "valeur": 90, "categorie": "divers", "rarete": "commun"},
 		"anneau_cuivre": {"nom": "Anneau de cuivre", "poids": 0.1, "valeur": 15, "rarete": "commun", "categorie": "divers"},
 		"coupe_argent": {"nom": "Coupe d’argent", "poids": 1.0, "valeur": 35, "rarete": "peu_commun", "categorie": "divers"},

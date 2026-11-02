@@ -36,17 +36,17 @@ func equiper(main: String, donnees: DonneesArme) -> void:
 		change.emit("gauche")
 
 ## Arme de la main droite selon l'inventaire : l'épée de Skarnholt (quête) remplace l'épée de métal. La hache de
-## Kolbeinn n'a pas de modèle tenu : elle reste un trophée qui renforce l'arme portée (bonus_trophee).
+## Kolbeinn se tient (inventaire, data/armes/hache_kolbeinn.tres) : elle ne renforce plus les autres armes.
 func choisir_selon_inventaire(inventaire: Inventaire) -> void:
 	if main_droite != EPEE_METAL and main_droite != EPEE_SKARNHOLT:
 		return   # sort, main vide ou autre arme choisis par le joueur (magie : EquipementMains) : on n'y touche pas
 	equiper("droite", EPEE_SKARNHOLT if inventaire.a("epee_skarnholt") else EPEE_METAL)
 
-## Multiplicateur des trophées (ancien _bonus_arme de mains.gd, inchangé pour la hache de Kolbeinn ; l'épée de
-## Skarnholt porte désormais son bonus dans ses propres dégâts) : jamais de cumul.
-func bonus_trophee(inventaire: Inventaire) -> float:
-	if inventaire.a("hache_kolbeinn") and not inventaire.a("epee_skarnholt"):
-		return 1.25
+## Ancien bonus des trophées (×1,25 quand la hache de Kolbeinn était dans le sac). Lot A RPG : la hache se TIENT
+## (data/armes/hache_kolbeinn.tres, son ×1,25 est dans ses propres dégâts, comme Skarnholt) → toujours 1,0. Les bonus de
+## dégâts des objets portés (degats_une_main / degats_deux_mains) passent par Progression.mult (lot B), pas ici.
+## Signature gardée (mains.gd l'appelle).
+func bonus_trophee(_inventaire: Inventaire) -> float:
 	return 1.0
 
 func gauche_sortie() -> bool:

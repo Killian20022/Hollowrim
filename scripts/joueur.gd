@@ -242,7 +242,13 @@ func depenser(quantite: float) -> void:
 func recevoir_coup(degats: float, origine: Vector3, options := {}) -> String:
 	if mort:
 		return ""
-	degats /= maxf(ReglagesCombat.competence("armure"), 0.1)   # armure / progression à venir (1,0 pour l'instant)
+	# armure (lot A, EquipementCorps) : coup physique × 120 / (120 + armure × compétence Armure) ; coup élémentaire
+	# (options.type glace / feu / electricite) : résistance resist_* de l'équipement et des perks, plafonnée à 80 %
+	var cle_res := EquipementCorps.cle_resistance(String(options.get("type", "")))
+	if cle_res != "":
+		degats *= 1.0 - clampf(progression.bonus(cle_res), 0.0, EquipementCorps.RESISTANCE_MAX)
+	else:
+		degats *= EquipementCorps.facteur_armure(equipement_corps.armure_totale() * ReglagesCombat.competence("armure"))
 	var vers := origine - global_position
 	vers.y = 0.0
 	# magie : protection (sort canalisé de face) — absorbe une part du coup contre du mana ; un coup encaissé peut couper

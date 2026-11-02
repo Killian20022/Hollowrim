@@ -8,7 +8,7 @@
 			"renouvellement_jours": 2,
 			"achat": 1.1,
 			"vente": 0.4,
-			"achete": ["arme", "lame_antique", "epee_skarnholt", "hache_kolbeinn", "ecaille_dragon", "minerai_fer", "minerai_argent", "cristal_givre", "fourrure_troll", "croc_troll", "anneau_cuivre", "coupe_argent", "collier_or", "amulette_givre", "relique_offrande"],
+			"achete": ["arme", "lame_antique", "epee_skarnholt", "hache_kolbeinn", "ecaille_dragon", "minerai_fer", "minerai_argent", "cristal_givre", "fourrure_troll", "croc_troll", "anneau_cuivre", "coupe_argent", "collier_or", "amulette_givre", "relique_offrande", "capuche_cuir", "armure_cuir", "gants_cuir", "bottes_cuir", "casque_fourrure", "armure_fourrure", "gants_fourrure", "bottes_fourrure", "casque_os", "cuirasse_os", "gants_os", "bottes_os", "casque_fer", "cuirasse_fer", "gantelets_fer", "bottes_fer", "casque_acier_nordique", "cuirasse_acier_nordique", "gantelets_acier_nordique", "bottes_acier_nordique", "heaume_jarl", "cuirasse_gardiens", "gantelets_hrafn", "bottes_rodeur", "capuche_thaumaturge", "brigandine_braise", "amulette_ours", "amulette_arcaniste", "collier_portefaix", "anneau_coureur", "anneau_adepte", "anneau_braise", "anneau_orage", "anneau_berserker", "anneau_marchand"],
 			"stock": [
 				{"id": "epee_or", "n": 1, "chance": 60},
 				{"id": "epee_rubis", "n": 1, "chance": 45},
@@ -29,7 +29,23 @@
 				{"id": "epee_doree", "n": 1, "chance": 12},
 				{"id": "ecu_chevalier", "n": 1, "chance": 15},
 				{"id": "hache_guerre", "n": 1, "chance": 30},
-				{"id": "claymore", "n": 1, "chance": 10}
+				{"id": "claymore", "n": 1, "chance": 10},
+				{"id": "capuche_cuir", "n": 1, "chance": 50},
+				{"id": "armure_cuir", "n": 1, "chance": 45},
+				{"id": "gants_cuir", "n": 1, "chance": 50},
+				{"id": "bottes_cuir", "n": 1, "chance": 50},
+				{"id": "casque_fourrure", "n": 1, "chance": 40},
+				{"id": "armure_fourrure", "n": 1, "chance": 35},
+				{"id": "gants_fourrure", "n": 1, "chance": 40},
+				{"id": "bottes_fourrure", "n": 1, "chance": 40},
+				{"id": "casque_fer", "n": 1, "chance": 35},
+				{"id": "cuirasse_fer", "n": 1, "chance": 30},
+				{"id": "gantelets_fer", "n": 1, "chance": 35},
+				{"id": "bottes_fer", "n": 1, "chance": 35},
+				{"id": "casque_acier_nordique", "n": 1, "chance": 12},
+				{"id": "cuirasse_acier_nordique", "n": 1, "chance": 8},
+				{"id": "gantelets_acier_nordique", "n": 1, "chance": 12},
+				{"id": "bottes_acier_nordique", "n": 1, "chance": 12}
 			]
 		},
 		"ancienne": {

@@ -4,9 +4,20 @@ extends RefCounted
 ## à EquipementMains (ne pas fusionner : docs/RPG.md §6). Contrat : docs/RPG.md §4.
 ## Un objet équipé RESTE dans le sac (il compte dans le poids, Q5) ; s'il quitte le sac (vendu, lâché, déposé), il est
 ## retiré de son emplacement automatiquement. Armure non visible sur le héros pour l'instant (Q4 a).
-## LOT 0 : API et règles de base ; LOT A : effets en jeu (formule d'armure dans joueur.recevoir_coup, ensembles…).
+## LOT 0 : API et règles de base ; LOT A : effets en jeu. Armure : joueur.recevoir_coup applique aux coups PHYSIQUES
+## dégâts × ARMURE_REFERENCE / (ARMURE_REFERENCE + armure_totale() × ReglagesCombat.competence("armure")) (60 d'armure =
+## −33 %, 120 = −50 %) ; coups élémentaires (options.type glace / feu / electricite) : résistance resist_* (clés §3,
+## équipement + perks via Progression.bonus), plafonnée à RESISTANCE_MAX, sans l'armure.
 
 signal change(emplacement: String)
+
+## Points d'armure qui divisent les dégâts par deux (formule ci-dessus).
+const ARMURE_REFERENCE := 120.0
+## Une résistance élémentaire ne retire jamais plus de 80 % d'un coup.
+const RESISTANCE_MAX := 0.8
+## Type de dégâts d'un coup reçu (options.type de recevoir_coup, DonneesSort.type_degats) -> clé de résistance (§3).
+const RESISTANCES := {"glace": "resist_froid", "givre": "resist_froid", "froid": "resist_froid", "gel": "resist_froid",
+	"feu": "resist_feu", "brulure": "resist_feu", "electricite": "resist_choc", "choc": "resist_choc"}
 
 var inventaire: Inventaire = null
 var emplacements := {"tete": "", "torse": "", "mains": "", "pieds": "", "cou": "", "anneau": ""}
@@ -76,6 +87,34 @@ func effets_totaux() -> Dictionary:
 				if typeof(ef[k]) in [TYPE_INT, TYPE_FLOAT]:
 					t[k] = float(t.get(k, 0.0)) + float(ef[k])
 	return t
+
+## Valeur d'un effet porté (0 si aucun) : raccourci de effets_totaux().
+func effet(cle: String) -> float:
+	return float(effets_totaux().get(cle, 0.0))
+
+## Poids des pièces portées (déjà compté dans le sac : information pour l'interface).
+func poids_porte() -> float:
+	var t := 0.0
+	for e in emplacements:
+		if emplacements[e] != "":
+			t += float(Inventaire.objet(emplacements[e]).get("poids", 0.0))
+	return t
+
+## Nombre de pièces d'armure portées du type « lourde » / « legere » (arbre « Armure », lot B).
+func nombre_pieces(type_armure: String) -> int:
+	var n := 0
+	for e in emplacements:
+		if emplacements[e] != "" and String(Inventaire.objet(emplacements[e]).get("type_armure", "")) == type_armure:
+			n += 1
+	return n
+
+## Clé de résistance (« resist_froid »…) d'un type de dégâts, "" pour un coup physique.
+static func cle_resistance(type_degats: String) -> String:
+	return String(RESISTANCES.get(type_degats, ""))
+
+## Facteur appliqué aux dégâts physiques pour `armure` points (déjà multipliés par la compétence Armure).
+static func facteur_armure(armure: float) -> float:
+	return ARMURE_REFERENCE / (ARMURE_REFERENCE + maxf(armure, 0.0))
 
 ## Le sac a changé : un objet porté qui n'y est plus est retiré.
 func _sur_sac() -> void:

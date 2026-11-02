@@ -79,8 +79,9 @@ static func emplacement_de(id: String) -> String:
 static func est_quete(id: String) -> bool:
 	return bool(objet(id).get("quete", false))
 
-## Capacité du sac (poids) : au-delà, le joueur est surchargé (marche lente, pas de course). Les poids vont de 0,1 (anneau) à 10 (épée).
-const CAPACITE := 100.0
+## Capacité du sac (poids) : au-delà, le joueur est surchargé (marche lente, pas de course). Lot A (Q5 a) : 150 + vigueur ;
+## armes allégées (1,5 à 11 kg), armures 0,5 à 17 kg : 6-8 armes + une armure lourde complète tiennent.
+const CAPACITE := 150.0
 
 ## Bonus de charge (attribut vigueur, perks, bijoux) posé par joueur.recalculer_stats() ; 0 tant que rien ne le change.
 var capacite_bonus := 0.0
