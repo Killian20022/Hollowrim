@@ -20,6 +20,9 @@ const LETTRES := preload("res://assets/ui/lettres_boussole.svg")
 const RETICULE := preload("res://assets/ui/reticule.svg")
 const ENNEMI := preload("res://assets/ui/indicateur_degat.svg")
 const HUD_COMBAT := preload("res://scripts/hud_combat.gd")
+const CUIR := preload("res://scripts/hud_cuir.gd")
+## Boussole « cuir enluminé » (styles a, b, c de HudCuir) : demi-largeur utile (px) et hauteur du bandeau.
+const BOUSSOLE_DEMI := 84.0
 
 const VIE := [Color("#e0574a"), Color("#b8322a"), Color("#7a1c1c")]
 const VIGUEUR := [Color("#5fc27f"), Color("#2f8a56"), Color("#1f5a3a")]
@@ -31,7 +34,10 @@ const PX_PAR_DEGRE := 0.8  # 150 px de bandeau ≈ 190° visibles
 const MARGE := 16.0  # marge des barres sur les bords
 
 var joueur: CharacterBody3D
-var lieux: Array = []  # [position, couleur] : points d'intérêt sur la boussole
+## Points d'intérêt de la boussole : [position: Vector3, couleur: Color, genre := "lieu", nom := ""].
+## genre : "lieu" (losange plein), "quete" (sceau vermillon, reste collé au bord quand il sort du champ), "maison" (losange
+## creux). Liste normalisée pour les autres écrans (onglet Carte) : marqueurs().
+var lieux: Array = []
 var combat_ui: Control  # HudCombat (barres, mains, statuts, raccourcis)
 var ecran_niveau: EcranNiveau  # RPG lot D : annonce de niveau (sceau) + gains de compétence discrets
 var _a_cible := 0.0
@@ -51,6 +57,9 @@ var decouverte_active := false   # posé par monde.gd une fois la partie chargé
 var _decouverte_t := 0.0
 ## Aide des touches : [touche, action] ; affichée AIDE_DUREE s au début de la partie (demarrer()), puis seulement sur F1.
 const AIDE_DUREE := 60.0
+## Objectif de quête sous la boussole : discret, ravivé OBJECTIF_DUREE s quand il change (quetes.gd → objectif_change()).
+const OBJECTIF_DUREE := 4.0
+var _objectif_t := 0.0
 var aide_lignes: Array = [["ZQSD", "marcher"], ["Maj", "courir"], ["Espace", "sauter"], ["Clic gauche", "frapper"],
 	["Clic droit", "parer"], ["E", "agir"], ["Tab", "menu"], ["I", "sac"], ["1 - 0", "raccourcis"],
 	["T", "torche"], ["V", "vue"], ["Échap", "menu"]]
@@ -90,6 +99,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS  # le panneau marche jeu en pause
 	_cadre = MenuStyle.cadre_orne()
 	EchelleUi.appliquer(self)
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED   # grain du cuir de la boussole
 	combat_ui = Control.new()
 	combat_ui.set_script(HUD_COMBAT)
 	combat_ui.joueur = joueur
@@ -136,6 +146,10 @@ func demarrer(avec_aide := true) -> void:
 func lieu_nomme(pos: Vector3, rayon: float, nom: String) -> void:
 	lieux_nommes.append([pos, rayon, nom])
 
+## Nouvel objectif de quête : il n'est plus répété en haut à gauche (doublon) ; la ligne sous la boussole est ravivée.
+func objectif_change() -> void:
+	_objectif_t = OBJECTIF_DUREE
+
 ## Message en haut à gauche, qui s'efface au bout de quelques secondes.
 ## « Nouvelle quête : X » et « Quête terminée : X » (scripts/quetes.gd) deviennent des annonces centrées.
 func avis(texte: String) -> void:
@@ -163,6 +177,7 @@ func _unhandled_input(e: InputEvent) -> void:
 
 func _process(dt: float) -> void:
 	EchelleUi.appliquer(self)
+	_objectif_t = maxf(0.0, _objectif_t - dt)
 	if joueur == null:
 		return
 	if joueur.ennemi_vise != null:
@@ -201,6 +216,9 @@ func _process(dt: float) -> void:
 func _barre(pos: Vector2, ratio: float, couleurs: Array, alpha: float) -> void:
 	if alpha < 0.02:
 		return
+	if CUIR.style() != "ancienne":
+		CUIR.jauge(self, pos, ratio, couleurs, alpha)
+		return
 	var blanc := Color(1, 1, 1, alpha)
 	draw_rect(Rect2(pos + Vector2(3, 2), Vector2(74, 3)), Color(FOND, alpha))
 	# la barre se vide vers le centre
@@ -218,24 +236,11 @@ func _draw() -> void:
 	if joueur == null:
 		return
 	var cx := _cx()
-	# --- boussole (bandeau 160 px centré) ---
-	draw_texture(BOUSSOLE, Vector2(cx - 80, 4))
-	var cap := rad_to_deg(-joueur.rotation.y)
-	for i in 8:
-		var dx := wrapf(i * 45.0 - cap, -180.0, 180.0) * PX_PAR_DEGRE
-		if absf(dx) > 72.0:
-			continue
-		var x := floorf(cx + dx)
-		if i % 2 == 0:
-			draw_texture_rect_region(LETTRES, Rect2(x - 2, 6, 5, 7), Rect2((i / 2) * 6, 0, 5, 7))
-		else:
-			draw_rect(Rect2(x, 8, 1, 3), Color("#8a96ad"))
-	for lieu in lieux:
-		_marqueur(lieu[0], null, lieu[1])
-	for e in get_tree().get_nodes_in_group("ennemis"):
-		if e.en_combat() and e.global_position.distance_to(joueur.global_position) < 50.0:
-			_marqueur(e.global_position, ENNEMI, Color.WHITE)
-	draw_texture(REPERE, Vector2(cx - 2, 0))
+	# --- boussole ---
+	if CUIR.style() == "ancienne":
+		_boussole_fer(cx)
+	else:
+		_boussole_cuir(cx, CUIR.style())
 
 	# --- réticule (5x5 centré) ; les barres sont dessinées par HudCombat ---
 	draw_texture(RETICULE, Vector2(cx - 2, floorf(size.y * 0.5) - 2), Color(1, 1, 1, 0.7))
@@ -259,8 +264,9 @@ func _draw() -> void:
 		if not obj.is_empty():
 			var texte: String = "> " + obj[-1][1]
 			var l := _police.get_string_size(texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
-			var a := 0.6 * (1.0 - a_cible)
-			draw_string(_police, Vector2(roundf(cx - l * 0.5) + 1, 28), texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(FOND, 1.0 - a_cible))
+			var vif := clampf(_objectif_t, 0.0, 1.0)   # ravivé puis fondu vers la teinte discrète
+			var a := lerpf(0.55, 1.0, vif) * (1.0 - a_cible)
+			draw_string(_police, Vector2(roundf(cx - l * 0.5) + 1, 28), texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(FOND, 0.85 * a))
 			draw_string(_police, Vector2(roundf(cx - l * 0.5), 27), texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(PARCHEMIN, a))
 	_dessiner_annonce(cx)
 	_dessiner_aide()
@@ -443,3 +449,145 @@ func _marqueur(pos: Vector3, tex: Texture2D, couleur: Color) -> void:
 	else:
 		draw_rect(Rect2(x - 1, 8, 3, 3), Color("#0b0f1a"))
 		draw_rect(Rect2(x, 9, 1, 1), couleur)
+
+## Boussole d'avant (bandeau de fer 160 px, style « ancienne »).
+func _boussole_fer(cx: float) -> void:
+	draw_texture(BOUSSOLE, Vector2(cx - 80, 4))
+	var cap := rad_to_deg(-joueur.rotation.y)
+	for i in 8:
+		var dx := wrapf(i * 45.0 - cap, -180.0, 180.0) * PX_PAR_DEGRE
+		if absf(dx) > 72.0:
+			continue
+		var x := floorf(cx + dx)
+		if i % 2 == 0:
+			draw_texture_rect_region(LETTRES, Rect2(x - 2, 6, 5, 7), Rect2((i / 2) * 6, 0, 5, 7))
+		else:
+			draw_rect(Rect2(x, 8, 1, 3), Color("#8a96ad"))
+	for lieu in lieux:
+		_marqueur(lieu[0], null, lieu[1])
+	for e in get_tree().get_nodes_in_group("ennemis"):
+		if e.en_combat() and e.global_position.distance_to(joueur.global_position) < 50.0:
+			_marqueur(e.global_position, ENNEMI, Color.WHITE)
+	draw_texture(REPERE, Vector2(cx - 2, 0))
+
+## Marqueurs de la boussole et de la carte, normalisés : [{pos: Vector3, couleur: Color, genre: String, nom: String}].
+## Source : `lieux` (monde.gd, tertre, grotte). Les ennemis en combat n'y sont pas (dessinés à part, en direct).
+func marqueurs() -> Array:
+	var res := []
+	for l: Array in lieux:
+		res.append({"pos": l[0], "couleur": l[1] if l.size() > 1 else OR, "genre": str(l[2]) if l.size() > 2 else "lieu",
+			"nom": str(l[3]) if l.size() > 3 else ""})
+	return res
+
+## Écart horizontal (px) d'une direction de cap `deg` par rapport au regard.
+func _dx_cap(deg: float) -> float:
+	return wrapf(deg - rad_to_deg(-joueur.rotation.y), -180.0, 180.0) * PX_PAR_DEGRE
+
+func _dx_pos(pos: Vector3) -> float:
+	var d := pos - joueur.global_position
+	return _dx_cap(rad_to_deg(atan2(d.x, -d.z)))
+
+## Boussole « cuir enluminé » : a = bandeau de cuir effilé à filets d'or ; b = fil d'or sans fond, lettres ombrées ;
+## c = bande de vélin à l'encre (N vermillon), embouts de cuir. Points cardinaux N E S O (N mis en avant), intercardinaux
+## en traits, graduations de 15° ; marqueurs : lieux (losange de leur couleur), quête (sceau vermillon collé au bord hors
+## champ), ennemis en combat à moins de 50 m (losange rouge). Repère central : pointe d'or au-dessus du bandeau.
+func _boussole_cuir(cx: float, st: String) -> void:
+	var demi := BOUSSOLE_DEMI
+	var y := 3.0
+	var h := 11.0
+	var x0 := cx - demi - 6
+	var larg := 2 * demi + 12
+	var lettre_c: Color = CUIR.SUR_CUIR
+	var nord_c: Color = CUIR.LETTRINE_OR
+	var tic_c: Color = Color(CUIR.SUR_CUIR, 0.75)
+	var ombre := true
+	match st:
+		"a":
+			# bandeau de cuir : corps plein, puis 10 px qui s'effacent à chaque bout (pas d'embout dur)
+			var corps := Rect2(x0 + 10, y, larg - 20, h)
+			draw_rect(Rect2(corps.position - Vector2(0, 1), Vector2(corps.size.x, h + 2)), Color(CUIR.NOIR, 0.55))
+			draw_texture_rect(CUIR.cuir(), corps, true, Color(1, 1, 1, 0.82))
+			for k in 10:
+				var a := (10 - k) / 11.0
+				for cote in [-1, 1]:
+					var x: float = corps.position.x - 1 - k if cote < 0 else corps.end.x + k
+					draw_rect(Rect2(x, y - 1, 1, h + 2), Color(CUIR.NOIR, 0.55 * a))
+					draw_texture_rect_region(CUIR.cuir(), Rect2(x, y, 1, h), Rect2(fmod(x, 64.0), 0, 1, h), Color(1, 1, 1, 0.82 * a))
+					draw_rect(Rect2(x, y, 1, 1), Color(CUIR.OR_TERNI, 0.9 * a))
+					draw_rect(Rect2(x, y + h - 1, 1, 1), Color(CUIR.OR_SOMBRE, 0.9 * a))
+			draw_rect(Rect2(corps.position, Vector2(corps.size.x, 1)), Color(CUIR.OR_TERNI, 0.9))
+			draw_rect(Rect2(corps.position + Vector2(0, h - 1), Vector2(corps.size.x, 1)), Color(CUIR.OR_SOMBRE, 0.9))
+		"b":
+			# fil d'or sous les lettres, qui s'efface aux bouts
+			for k in int(larg):
+				var t: float = absf(k - larg * 0.5) / (larg * 0.5)
+				var a := clampf((1.0 - t) * 3.0, 0.0, 1.0)
+				draw_rect(Rect2(x0 + k, y + h, 1, 1), Color(CUIR.NOIR, 0.6 * a))
+				draw_rect(Rect2(x0 + k, y + h - 1, 1, 1), Color(CUIR.OR_TERNI, 0.95 * a))
+			lettre_c = CUIR.CLAIR
+			tic_c = Color(CUIR.OR_CLAIR, 0.85)
+		"c":
+			# bande de vélin, embouts de cuir à filet d'or
+			var bande := Rect2(x0 + 4, y, larg - 8, h)
+			draw_rect(bande.grow(1), Color(CUIR.NOIR, 0.7))
+			draw_texture_rect(CUIR.velin(), bande, true, Color(1, 1, 1, 0.9))
+			draw_rect(Rect2(bande.position, Vector2(bande.size.x, 1)), Color(CUIR.OR_TERNI, 0.9))
+			draw_rect(Rect2(bande.position + Vector2(0, h - 1), Vector2(bande.size.x, 1)), Color(CUIR.OR_SOMBRE, 0.9))
+			for cote in [-1, 1]:
+				var r := Rect2(x0 - 1 if cote < 0 else x0 + larg - 6, y - 2, 7, h + 4)
+				CUIR.plaque(self, r, 1.0, CUIR.OR_TERNI)
+				CUIR.losange(self, r.get_center().floor(), CUIR.CIRE_CLAIRE, 1.0)
+			lettre_c = CUIR.ENCRE
+			nord_c = CUIR.RUBRIQUE
+			tic_c = Color(CUIR.ENCRE, 0.7)
+			ombre = false
+	# graduations de 15° (points) et intercardinaux (traits)
+	for i in 24:
+		var dx := _dx_cap(i * 15.0)
+		if absf(dx) > demi - 2 or i % 6 == 0:
+			continue
+		var x := floorf(cx + dx)
+		var fondu := clampf((demi - absf(dx)) / 14.0, 0.0, 1.0)
+		if i % 3 == 0:
+			if ombre:
+				draw_rect(Rect2(x - 1, y + 3, 3, 5), Color(CUIR.NOIR, 0.5 * fondu))
+			draw_rect(Rect2(x, y + 4, 1, 3), Color(tic_c, tic_c.a * fondu))
+		else:
+			draw_rect(Rect2(x, y + 5, 1, 1), Color(tic_c, 0.6 * tic_c.a * fondu))
+	# points cardinaux (police pixel du corps : un pixel de police = un pixel logique)
+	var noms := ["N", "E", "S", "O"]
+	for i in 4:
+		var dx := _dx_cap(i * 90.0)
+		if absf(dx) > demi - 3:
+			continue
+		var fondu := clampf((demi - absf(dx)) / 14.0, 0.0, 1.0)
+		var l := _police.get_string_size(noms[i], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
+		var p := Vector2(floorf(cx + dx - l * 0.5 + 0.5), y + 9)
+		var c: Color = nord_c if i == 0 else lettre_c
+		if ombre:
+			for o in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
+				draw_string(_police, p + o, noms[i], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(CUIR.NOIR, 0.85 * fondu))
+		draw_string(_police, p, noms[i], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(c, fondu))
+	# marqueurs
+	for m: Dictionary in marqueurs():
+		var dx := _dx_pos(m["pos"])
+		var quete: bool = m["genre"] == "quete"
+		if absf(dx) > demi - 3:
+			if not quete:
+				continue
+			dx = signf(dx) * (demi - 3)
+		var pos := Vector2(floorf(cx + dx), y + h + 3)
+		if quete:
+			CUIR.sceau(self, "x", pos + Vector2(0, 1), 1.0)
+		else:
+			CUIR.losange(self, pos, m["couleur"], 1.0, m["genre"] == "maison")
+	for e in get_tree().get_nodes_in_group("ennemis"):
+		if e.en_combat() and e.global_position.distance_to(joueur.global_position) < 50.0:
+			var dx := _dx_pos(e.global_position)
+			if absf(dx) <= demi - 3:
+				CUIR.losange(self, Vector2(floorf(cx + dx), y + h + 3), Color("#d8402e"), 1.0)
+	# repère central : pointe d'or au-dessus du bandeau
+	for k in 3:
+		draw_rect(Rect2(cx - 2 + k - 1, y - 3 + k, 5 - 2 * k + 2, 1), Color(CUIR.NOIR, 0.85))
+	for k in 3:
+		draw_rect(Rect2(cx - 2 + k, y - 3 + k, 5 - 2 * k, 1), Color(CUIR.LETTRINE_OR if k < 2 else CUIR.OR_TERNI, 1.0))

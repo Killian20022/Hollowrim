@@ -6,6 +6,10 @@ extends Control
 ##     emplacements de main (G à gauche, D à droite, cases 24 px) : icône de ce que tient la main, jauge de CHARGE
 ##     verticale côté extérieur, RECHARGE en voile sombre qui descend, « x2 » doré en double incantation,
 ##     icône assombrie + liseré rouge si le mana manque pour le sort.
+## STYLE « cuir enluminé » (scripts/hud_cuir.gd, défaut a ; --barre=a|b|c|ancienne) : la barre de fer décrite ci-dessus
+## n'est plus que le style « ancienne ». Style a : cartouche des mains tenues (G | D, jauges de charge de part et d'autre,
+## sceau de cire = touche du raccourci) ; à chaque changement de raccourci, le ruban des 10 touches se déroule depuis le
+## cartouche (DUREE_RUBAN s) puis se replie. Styles b (10 cases fines permanentes) et c (éventail de 5) : voir hud_cuir.gd.
 ## Tout s'efface hors combat quand les ressources sont pleines (comme hud.gd), réapparaît au moindre changement.
 ## Lecture seule du joueur : aucune logique de jeu ici.
 ## Icônes : IconesCombat (scripts/icones_combat.gd).
@@ -48,6 +52,12 @@ const FER_SOMBRE := Color("#3a4458")
 const BLEU_GAUCHE := Color("#6f9be8")
 const ROUGE_MANQUE := Color("#c8382a")
 const CADRE := preload("res://assets/ui/barre_cadre.svg")
+const CUIR := preload("res://scripts/hud_cuir.gd")
+## Barre « cuir enluminé » (styles a, b, c de HudCuir) : case = deux icônes 16 px (main gauche | main droite).
+const PAIRE_L := 37
+const PAIRE_H := 20
+const PAIRE_ECART := 2
+const DUREE_RUBAN := 2.2   # s d'affichage du ruban après un changement de raccourci (style a)
 const MARGE := 16.0
 const CASE_L := 34        # case de raccourci : 1 px de cadre + icône main gauche 16 + icône main droite 16
 const CASE_H := 29        # + numéro de touche (3x5 agrandi x2) dessous
@@ -88,6 +98,9 @@ var _force_visible := false
 # valeurs lues (ou démo) pour l'image en cours
 var _v := {}
 var nb_dessins := 0     # appels à _draw (tests)
+var _deploi := 0.0         # ruban des raccourcis déroulé (0..1, style a)
+var _dernier_choisi := 0   # dernière case active connue (centre de l'éventail, style c)
+var _force_deploye := false
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -97,6 +110,8 @@ func _ready() -> void:
 	demo = demo or args.has("--hud-combat-demo")
 	demo_double = demo_double or args.has("--hud-combat-double")
 	_force_visible = args.has("--hud-demo")
+	_force_deploye = args.has("--barre-deployee")
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED   # grain du cuir (HudCuir.cuir) répété
 	if joueur != null and joueur.has_signal("etat_mains_change"):
 		joueur.connect("etat_mains_change", _sur_mains)
 
@@ -108,7 +123,7 @@ func _sur_mains(g: Dictionary, d: Dictionary) -> void:
 	gauche = _normaliser(g)
 	droite = _normaliser(d)
 	_t_mains = 3.0
-	_t_barre = 3.0
+	_t_barre = DUREE_RUBAN if CUIR.style() == "a" else 3.0
 
 ## Résumé d'une main tel qu'émis par magie/sorts (EquipementMains.resume : "genre" = sort / arme / torche / bouclier /
 ## vide, "type" = type du SORT (charge, canalise…), id "vide" = main nue) → clés du contrat ci-dessus.
@@ -143,9 +158,11 @@ func _process(dt: float) -> void:
 	_t_barre = maxf(0.0, _t_barre - dt)
 	if _v.choisi != _choisi_prec:
 		if _choisi_prec != -2:
-			_t_barre = 3.0
+			_t_barre = DUREE_RUBAN if CUIR.style() == "a" else 3.0
 			_t_mains = 3.0
 		_choisi_prec = _v.choisi
+	if _v.choisi >= 0:
+		_dernier_choisi = _v.choisi
 	var actif_mains: bool = _v.charge_g > 0.0 or _v.charge_d > 0.0 or _v.rech_g > 0.0 or _v.rech_d > 0.0
 	var k := 1.0 - exp(-5.0 * dt)
 	# les trois barres apparaissent ensemble (pas de trou dans la pile) dès que l'une n'est pas pleine
@@ -154,9 +171,18 @@ func _process(dt: float) -> void:
 	_a_mana = _a_vie
 	_a_end = _a_vie
 	_a_mains = lerpf(_a_mains, 1.0 if (combat or actif_mains or _t_mains > 0.0) else 0.0, k)
-	_a_barre = lerpf(_a_barre, 1.0 if (combat or _t_barre > 0.0) else 0.6, k)   # jamais cachée : on doit voir les touches
+	match CUIR.style():
+		"a":   # cartouche toujours là (estompé au repos), ruban seulement au changement
+			_a_barre = lerpf(_a_barre, 1.0 if (combat or actif_mains or _t_barre > 0.0 or _t_mains > 0.0) else 0.62, k)
+			_deploi = move_toward(_deploi, 1.0 if _t_barre > 0.0 else 0.0, dt / (0.18 if _t_barre > 0.0 else 0.35))
+		"b", "c":
+			_a_barre = lerpf(_a_barre, 1.0 if (combat or _t_barre > 0.0) else 0.55, k)
+		_:
+			_a_barre = lerpf(_a_barre, 1.0 if (combat or _t_barre > 0.0) else 0.6, k)   # jamais cachée : on doit voir les touches
 	if demo or _force_visible:
 		_a_vie = 1.0; _a_mana = 1.0; _a_end = 1.0; _a_mains = 1.0; _a_barre = 1.0
+	if _force_deploye:
+		_deploi = 1.0
 	queue_redraw()
 
 ## Remplit _v (valeurs de l'image) depuis le joueur ou la démo.
@@ -300,6 +326,16 @@ func _draw() -> void:
 	_ligne_barre(Vector2(MARGE, bas), _v.vig / _v.vig_max, ENDURANCE, _a_end)
 	_statuts(Vector2(MARGE + 1, bas - 34))
 	# --- raccourcis au centre, mains de part et d'autre ---
+	match CUIR.style():
+		"a":
+			_dessin_ruban()
+			return
+		"b":
+			_dessin_rangee()
+			return
+		"c":
+			_dessin_eventail()
+			return
 	var cx := floorf(size.x * 0.5)
 	var larg := NB * CASE_L + (NB - 1) * ECART
 	var x0 := cx - floorf(larg * 0.5)
@@ -325,6 +361,10 @@ func _ecole(m: Dictionary) -> String:
 ## Losange 9x9 (cadre de fer, cœur coloré) + barre 80x7 qui se vide vers le centre (comme hud.gd).
 func _ligne_barre(pos: Vector2, ratio: float, couleurs: Array, alpha: float) -> void:
 	if alpha < 0.02:
+		return
+	if CUIR.style() != "ancienne":   # cuir enluminé : gemme sertie d'or + jauge de cuir à filet d'or
+		CUIR.gemme(self, pos + Vector2(4, 3), couleurs, alpha)
+		CUIR.jauge(self, pos + Vector2(11, 0), ratio, couleurs, alpha)
 		return
 	var c := pos + Vector2(4, 3)   # centre du losange (la barre fait 7 px : centre en y+3)
 	for dy in range(-4, 5):
@@ -520,3 +560,178 @@ func _mini(ch: String, pos: Vector2, couleur: Color, e := 1) -> void:
 		for x in 3:
 			if g[y][x] == "1":
 				draw_rect(Rect2(pos + Vector2(x, y) * e, u), couleur)
+
+# ------------------------------------------------- barre « cuir enluminé » (HudCuir : styles a, b, c)
+func _y_paire() -> float:
+	return size.y - 10.0 - PAIRE_H
+
+func _larg_ruban() -> int:
+	return NB * PAIRE_L + (NB - 1) * PAIRE_ECART
+
+func _double_incant() -> bool:
+	return _type(gauche) == "sort" and _type(droite) == "sort" and str(gauche.get("id", "")) == str(droite.get("id", "")) \
+		and str(gauche.get("id", "")) != ""
+
+func _touche(i: int) -> String:
+	var pr: Dictionary = _v.raccourcis[i] if i >= 0 and i < _v.raccourcis.size() else {}
+	return str(pr.get("touche", str((i + 1) % 10)))
+
+## Voile de recharge (se retire vers le bas) sur une icône 16x16.
+func _voile(q: Vector2, ratio: float, alpha: float) -> void:
+	if ratio <= 0.0:
+		return
+	var h := ceili(16.0 * ratio)
+	draw_rect(Rect2(q, Vector2(16, h)), Color(CUIR.NOIR, 0.72 * alpha))
+	draw_rect(Rect2(q + Vector2(0, h), Vector2(16, 1)), Color(CUIR.SUR_CUIR, 0.6 * alpha))
+
+## Case de raccourci : plaque de cuir 37x20, main gauche | main droite séparées par une couture, numéro gravé dessous
+## (sceau de cire vermillon si la case est active). Consommable : une icône centrée + nombre restant.
+func _case_paire(p: Vector2, pr: Dictionary, actif: bool, alpha: float, chiffre := true) -> void:
+	if alpha < 0.02:
+		return
+	var ig := str(pr.get("gauche", ""))
+	var idr := str(pr.get("droite", ""))
+	var conso := str(pr.get("conso", ""))
+	var vide := ig == "" and idr == "" and conso == ""
+	var r := Rect2(p, Vector2(PAIRE_L, PAIRE_H))
+	var filet: Color = CUIR.LETTRINE_OR if actif else Color(CUIR.OR_TERNI, 0.45 if vide else 0.8)
+	CUIR.plaque(self, r, alpha, filet, 0.75 if vide else 0.92)
+	var a_ic := alpha if actif else 0.82 * alpha
+	if conso != "":
+		var nb := int(pr.get("nombre", 0))
+		draw_texture(IconesCombat.icone(conso), p + Vector2(PAIRE_L / 2 - 8, 2), Color(1, 1, 1, a_ic if nb > 0 else 0.35 * alpha))
+		CUIR.glyphe(self, str(mini(nb, 9)), p + Vector2(PAIRE_L - 7, PAIRE_H - 8), Color(CUIR.CLAIR if nb > 0 else CUIR.SUR_CUIR, 0.95 * alpha))
+	elif not vide:
+		for k in 2:
+			var id := ig if k == 0 else idr
+			var q := p + Vector2(2 + 17 * k, 2)
+			if id != "":
+				draw_texture(IconesCombat.icone(id), q, Color(1, 1, 1, a_ic))
+				_voile(q, _recharge(_v.rech_tout, "id:" + id, id), alpha)
+			else:
+				draw_texture(IconesCombat.icone("vide"), q, Color(1, 1, 1, 0.28 * alpha))   # main nue de ce raccourci
+		# couture entre les deux mains
+		draw_rect(Rect2(p.x + 18, p.y + 2, 1, PAIRE_H - 4), Color(CUIR.NOIR, 0.8 * alpha))
+		draw_rect(Rect2(p.x + 18, p.y + PAIRE_H / 2 - 1, 1, 2), Color(filet, 0.8 * alpha))
+	if not chiffre:
+		return
+	var t := _touche(int(pr.get("_i", -1))) if pr.has("_i") else str(pr.get("touche", ""))
+	if actif:
+		CUIR.sceau(self, t, p + Vector2(18, PAIRE_H + 2), alpha)
+	else:
+		CUIR.grave(self, t, p + Vector2(17, PAIRE_H + 1), (0.55 if vide else 0.95) * alpha)
+
+## Jauge de charge verticale 3xPAIRE_H (côté extérieur d'une main) : se remplit de bas en haut à la couleur de l'école,
+## clignote en clair quand le sort est prêt ; fond vermillon sombre si le mana manque.
+func _jauge(x: float, y: float, charge: float, accent: Color, manque: bool, alpha: float) -> void:
+	draw_rect(Rect2(x, y, 3, PAIRE_H), Color(CUIR.NOIR, 0.85 * alpha))
+	draw_rect(Rect2(x + 1, y + 1, 1, PAIRE_H - 2), Color(CUIR.CIRE if manque else Color("#2a1a0e"), alpha))
+	var hc := roundi((PAIRE_H - 2) * clampf(charge, 0.0, 1.0))
+	if hc > 0:
+		var c: Color = CUIR.CLAIR if (charge >= 0.999 and fmod(_horloge, 0.5) < 0.25) else accent
+		draw_rect(Rect2(x + 1, y + PAIRE_H - 1 - hc, 1, hc), Color(c, alpha))
+
+## Cartouche des mains TENUES (même plaque qu'une case) : jauges de charge de part et d'autre, liseré vermillon sur la
+## moitié dont le sort manque de mana, « x2 » doré en double incantation, G et D gravés dessous de part et d'autre du sceau
+## (numéro du raccourci correspondant, s'il y en a un).
+func _cartouche(p: Vector2, alpha: float) -> void:
+	if alpha < 0.02:
+		return
+	var double := _double_incant()
+	var r := Rect2(p, Vector2(PAIRE_L, PAIRE_H))
+	CUIR.plaque(self, r, alpha, CUIR.LETTRINE_OR if _v.choisi >= 0 else CUIR.OR_TERNI)
+	for k in 2:
+		var m: Dictionary = gauche if k == 0 else droite
+		var id := str(m.get("id", ""))
+		var q := p + Vector2(2 + 17 * k, 2)
+		var a_ic := alpha
+		if k == 0 and id == "" and bool(droite.get("deux_mains", false)):
+			id = str(droite.get("id", ""))
+			a_ic *= 0.4
+		var est_sort := _type(m) == "sort"
+		var manque: bool = est_sort and float(m.get("cout", 0.0)) > _v.mana + 0.01
+		var teinte := Color(0.55, 0.42, 0.42, a_ic) if manque else Color(1, 1, 1, a_ic * (1.0 if id != "" else 0.3))
+		draw_texture(IconesCombat.icone(id), q, teinte)
+		_voile(q, _v.rech_g if k == 0 else _v.rech_d, alpha)
+		if manque:
+			var l := Color(CUIR.CIRE_CLAIRE, alpha)
+			draw_rect(Rect2(q - Vector2(1, 1), Vector2(18, 1)), l)
+			draw_rect(Rect2(q + Vector2(-1, 16), Vector2(18, 1)), l)
+		var charge: float = _v.charge_g if k == 0 else _v.charge_d
+		if est_sort or charge > 0.0:
+			_jauge(p.x - 5 if k == 0 else p.x + PAIRE_L + 2, p.y, charge, IconesCombat.accent(_ecole(m)), manque, alpha)
+	draw_rect(Rect2(p.x + 18, p.y + 2, 1, PAIRE_H - 4), Color(CUIR.NOIR, 0.8 * alpha))
+	CUIR.grave(self, "G", p + Vector2(7, PAIRE_H + 1), 0.8 * alpha, CUIR.BLEU_MAIN)
+	CUIR.grave(self, "D", p + Vector2(PAIRE_L - 10, PAIRE_H + 1), 0.8 * alpha, CUIR.OR_CLAIR)
+	if _v.choisi >= 0:
+		CUIR.sceau(self, _touche(_v.choisi), p + Vector2(18, PAIRE_H + 2), alpha)
+	if double:
+		var px := p + Vector2(PAIRE_L - 9, -6)
+		CUIR.glyphe(self, "x", px, Color(CUIR.LETTRINE_OR, alpha))
+		CUIR.glyphe(self, "2", px + Vector2(4, 0), Color(CUIR.LETTRINE_OR, alpha))
+
+func _preset(i: int) -> Dictionary:
+	var pr: Dictionary = (_v.raccourcis[i] as Dictionary).duplicate() if i < _v.raccourcis.size() else {}
+	pr["_i"] = i
+	return pr
+
+## Style a : au repos, le cartouche seul ; au changement de raccourci, le ruban des 10 cases se déroule depuis le
+## cartouche (DUREE_RUBAN s) puis se replie.
+func _dessin_ruban() -> void:
+	var cx := floorf(size.x * 0.5)
+	var y := _y_paire()
+	var d := smoothstep(0.0, 1.0, _deploi)
+	var xc := cx - floorf(PAIRE_L * 0.5)
+	_cartouche(Vector2(xc, y), _a_barre * (1.0 - d))
+	if d < 0.01:
+		return
+	var x0 := cx - floorf(_larg_ruban() * 0.5)
+	var a := _a_barre * d
+	for passe in 2:   # case active dessinée en dernier (son sceau passe devant)
+		for i in NB:
+			var actif: bool = i == _v.choisi
+			if actif != (passe == 1):
+				continue
+			var xf := x0 + i * (PAIRE_L + PAIRE_ECART)
+			_case_paire(Vector2(roundf(lerpf(xc, xf, d)), y), _preset(i), actif, a)
+
+## Style b : les 10 cases toujours visibles (estompées au repos), jauges des mains aux deux bouts.
+func _dessin_rangee() -> void:
+	var cx := floorf(size.x * 0.5)
+	var y := _y_paire()
+	var x0 := cx - floorf(_larg_ruban() * 0.5)
+	for passe in 2:
+		for i in NB:
+			var actif: bool = i == _v.choisi
+			if actif != (passe == 1):
+				continue
+			_case_paire(Vector2(x0 + i * (PAIRE_L + PAIRE_ECART), y), _preset(i), actif, _a_barre)
+	var am := maxf(_a_mains, 0.5 * _a_barre)
+	for k in 2:
+		var m: Dictionary = gauche if k == 0 else droite
+		var est_sort := _type(m) == "sort"
+		var charge: float = _v.charge_g if k == 0 else _v.charge_d
+		var x := x0 - 6 if k == 0 else x0 + _larg_ruban() + 3
+		if est_sort or charge > 0.0:
+			var manque: bool = est_sort and float(m.get("cout", 0.0)) > _v.mana + 0.01
+			_jauge(x, y, charge, IconesCombat.accent(_ecole(m)), manque, am)
+		CUIR.grave(self, "G" if k == 0 else "D", Vector2(x, y + PAIRE_H + 1), 0.8 * am, CUIR.BLEU_MAIN if k == 0 else CUIR.OR_CLAIR)
+	if _double_incant():
+		CUIR.glyphe(self, "x", Vector2(x0 + _larg_ruban() + 2, y - 7), Color(CUIR.LETTRINE_OR, am))
+		CUIR.glyphe(self, "2", Vector2(x0 + _larg_ruban() + 6, y - 7), Color(CUIR.LETTRINE_OR, am))
+
+## Style c : éventail — cartouche des mains au centre, deux raccourcis voisins de chaque côté, en arc et de plus en
+## plus pâles.
+func _dessin_eventail() -> void:
+	var cx := floorf(size.x * 0.5)
+	var y := _y_paire()
+	var c: int = _v.choisi if _v.choisi >= 0 else _dernier_choisi
+	var xc := cx - floorf(PAIRE_L * 0.5)
+	for k in [-2, 2, -1, 1]:
+		var i: int = c + k
+		if i < 0 or i >= NB:
+			continue
+		var s: int = signi(k)
+		var x: float = xc + k * (PAIRE_L + 3) + s * 6
+		_case_paire(Vector2(x, y + absi(k) * 2), _preset(i), false, _a_barre * (0.75 if absi(k) == 1 else 0.4))
+	_cartouche(Vector2(xc, y), maxf(_a_barre, 0.8))
