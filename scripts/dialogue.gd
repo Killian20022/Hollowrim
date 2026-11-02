@@ -8,6 +8,9 @@ extends Control
 ## pendant toute la conversation, puis, sur la dernière réplique, le choix « Commercer / Au revoir » (flèches ou Z/S, E / Entrée
 ## = valider ; T = commercer tout de suite) ; « Commercer » ferme le dialogue et ouvre la boutique (Marchand.ouvrir).
 ## Manette : A = suite / valider, B = fermer, X = commercer, croix haut/bas = choisir.
+## Lot E (RPG) : la liste de choix de la dernière réplique est ouverte aux SERVICES (ServicesPnj.options : Brodd « Forge »,
+## Gunnhild « Acheter la maison », Sigrún « Oublier mes talents ») ; « Commercer » d'abord, « Au revoir » en dernier ; un PNJ
+## sans marchand ni service n'a pas de choix (inchangé).
 
 const VITESSE_TEXTE := 45.0  # caractères par seconde
 const DIST_FERMETURE := 4.0
@@ -48,11 +51,13 @@ var _cartouche: Control
 var _fleche: Control
 var _sous_titre: Label
 var _marchand := ""        # id de marchand du PNJ en conversation ("" = il ne commerce pas)
-var _choix_vis := false    # choix « Commercer / Au revoir » affiché (dernière réplique)
-var _choix := 0            # 0 = Commercer, 1 = Au revoir
+var _choix_vis := false    # choix « Commercer / … / Au revoir » affiché (dernière réplique)
+var _choix := 0            # index dans _options (0 = Commercer chez un marchand)
 var _carte_cmd: Control    # cartouche « [T] Commercer » (haut droit de la boîte)
 var _choix_ui: Control     # panneau des choix (au-dessus de la boîte, à droite)
-const CHOIX := ["Commercer", "Au revoir"]
+## Choix de la dernière réplique : [{texte, action: Callable}] ; « Commercer » (action vide, commercer()), services du lot E,
+## « Au revoir » (sans action). Vide : pas de choix.
+var _options: Array = []
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -100,13 +105,14 @@ func _ready() -> void:
 	dessin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	dessin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dessin.draw.connect(func() -> void:
-		for i in CHOIX.size():
+		for i in _options.size():
 			var y := 15.0 + i * 13.0
 			var c := OR if i == _choix else PARCHEMIN
+			var t := String(_options[i]["texte"])
 			if i == _choix:
 				dessin.draw_string(_police, Vector2(8, y), ">", HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, c)
-			dessin.draw_string(_police, Vector2(18, y + 1), CHOIX[i], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, FOND)
-			dessin.draw_string(_police, Vector2(17, y), CHOIX[i], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, c))
+			dessin.draw_string(_police, Vector2(18, y + 1), t, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, FOND)
+			dessin.draw_string(_police, Vector2(17, y), t, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, c))
 	_choix_ui.add_child(dessin)
 
 	# sous-titre « au passage »
@@ -231,7 +237,7 @@ func _unhandled_input(e: InputEvent) -> void:
 		commercer()
 		get_viewport().set_input_as_handled()
 	elif _choix_vis and touche in [KEY_UP, KEY_DOWN, KEY_W, KEY_S, KEY_LEFT, KEY_RIGHT]:
-		_choisir(1 - _choix)
+		_choisir(_choix + (-1 if touche in [KEY_UP, KEY_W, KEY_LEFT] else 1))
 		get_viewport().set_input_as_handled()
 
 ## Manette (lot L8) : A = parler / suite / valider, B = fermer, X = commercer, croix = choisir.
@@ -255,22 +261,38 @@ func _manette(b: JoyButton) -> void:
 		JOY_BUTTON_DPAD_UP, JOY_BUTTON_DPAD_DOWN:
 			if not _choix_vis:
 				return
-			_choisir(1 - _choix)
+			_choisir(_choix + (-1 if b == JOY_BUTTON_DPAD_UP else 1))
 		_:
 			return
 	get_viewport().set_input_as_handled()
 
-## Dernière réplique d'un marchand : choix « Commercer / Au revoir » (Commercer choisi d'office).
+## Dernière réplique d'un marchand ou d'un PNJ à services : liste de choix (le premier choisi d'office).
 func _montrer_choix() -> void:
 	_choix_vis = true
 	_choix = 0
+	var lmax := 0.0
+	for o: Dictionary in _options:
+		lmax = maxf(lmax, _police.get_string_size(String(o["texte"]), HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
+	_choix_ui.size = Vector2(maxf(92.0, ceilf(lmax) + 28.0), 12.0 + 13.0 * _options.size())
+	_placer()
 	_choix_ui.visible = true
 	_carte_cmd.visible = false
 	_choix_ui.get_child(0).queue_redraw()
 
 func _choisir(i: int) -> void:
-	_choix = clampi(i, 0, CHOIX.size() - 1)
+	_choix = posmod(i, maxi(1, _options.size()))
 	_choix_ui.get_child(0).queue_redraw()
+
+## Valide le choix courant : Commercer, un service (après la fermeture du dialogue), ou Au revoir.
+func _valider_choix() -> void:
+	var o: Dictionary = _options[_choix] if _choix < _options.size() else {}
+	if String(o.get("texte", "")) == "Commercer" and _marchand != "":
+		commercer()
+		return
+	_fermer()
+	var a: Variant = o.get("action")
+	if a is Callable and (a as Callable).is_valid():
+		(a as Callable).call()
 
 ## Lot L8 : ferme la conversation et ouvre la boutique du marchand (si la boutique existe dans la scène).
 func commercer() -> bool:
@@ -294,6 +316,15 @@ func _ouvrir(pnj: Node3D) -> void:
 	_sous_titre_t = 0.0
 	_nom.text = pnj.nom_affiche()
 	_marchand = Marchand.pour_pnj(pnj)
+	_options = []
+	if _marchand != "":
+		_options.append({"texte": "Commercer"})
+	var services := ServicesPnj.trouver(self)
+	var d_pnj: Variant = pnj.get("donnees")
+	if services != null and d_pnj is Dictionary:
+		_options.append_array(services.options(String((d_pnj as Dictionary).get("id", ""))))
+	if not _options.is_empty():
+		_options.append({"texte": "Au revoir"})
 	_choix_vis = false
 	_choix_ui.visible = false
 	_carte_cmd.visible = _marchand != ""
@@ -319,13 +350,10 @@ func _suite() -> void:
 		_texte.visible_characters = _texte.text.length()
 		_t = maxf(_t, float(_texte.text.length()) / VITESSE_TEXTE)   # sinon _process remettait la machine à écrire en arrière
 		return
-	if _choix_vis:     # dernière réplique d'un marchand : E valide le choix
-		if _choix == 0:
-			commercer()
-		else:
-			_fermer()
+	if _choix_vis:     # dernière réplique d'un marchand ou d'un PNJ à services : E valide le choix
+		_valider_choix()
 		return
-	if _marchand != "" and _index >= _lignes.size() - 1:
+	if not _options.is_empty() and _index >= _lignes.size() - 1:
 		_montrer_choix()
 		return
 	_index += 1
@@ -358,7 +386,7 @@ func _process(dt: float) -> void:
 			var n := mini(int(_t * VITESSE_TEXTE), _texte.text.length())
 			_texte.visible_characters = n
 			_fleche.visible = n >= _texte.text.length() and fmod(_t, 0.8) < 0.5
-			if _marchand != "" and not _choix_vis and n >= _texte.text.length() and _index >= _lignes.size() - 1:
+			if not _options.is_empty() and not _choix_vis and n >= _texte.text.length() and _index >= _lignes.size() - 1:
 				_montrer_choix()
 			if _choix_vis:
 				_fleche.visible = false

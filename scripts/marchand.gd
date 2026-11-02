@@ -13,17 +13,17 @@ extends CanvasLayer
 ##     clavier : E / Entrée / Espace = un ; R = toute la pile ; Tab, flèches gauche/droite, Q/D = onglet ; flèches haut/bas, Z/S,
 ##     molette = choisir ; Échap, clic droit = fermer ; manette : A = un, Y = la pile, LB/RB ou croix gauche/droite = onglet,
 ##     croix haut/bas = choisir, B = fermer ; souris : survol, clic sur une carte ou un onglet.
-## Style : celui de la fenêtre de butin (FenetreButin) : cadre ornementé L7, titre en Jacquard 24, texte et chiffres en Kenney.
+## Lot E (RPG) : fenêtre dans la direction A « parchemin et cuir enluminé » (LivreParchemin, maquettes A_parchemin) : signets
+## Acheter / Vendre, page gauche = l'étal ou le sac (registre, marge des CATÉGORIES du registre Inventaire.CATEGORIES : C / X manette /
+## clic pour filtrer), page droite = fiche de l'objet choisi, prix, bourse, réassort ; objets de quête : Inventaire.est_quete ;
+## clé d'effet « prix » (docs/RPG.md §3) : fraction en faveur du joueur (achat moins cher, rachat plus cher), 0 par défaut.
 
 const GROUPE := "marchand"
 const FICHIER := "res://data/marchands.json"
-const CARTE := 24.0
-const FER := Color("#3a4458")
-const PLAQUE := Color("#121826")
-const ROUGE := Color("#d0604c")
-const VERT := Color("#8fd07a")
 const ONGLETS := ["Acheter", "Vendre"]
 const DUREE_AVIS := 2.2
+## Noms des catégories du registre (marge de la boutique).
+const NOMS_CATEGORIES := {"": "Tout", "arme": "Armes", "armure": "Armures", "bijou": "Bijoux", "consommable": "Potions", "ingredient": "Ingrédients", "quete": "Quête", "divers": "Divers"}
 
 ## Heures de jeu écoulées depuis le début de la partie (sauvegardées).
 static var heures := 0.0
@@ -41,20 +41,17 @@ var id_marchand := ""
 var titre := ""
 ## 0 = Acheter, 1 = Vendre.
 var onglet := 0
+## Filtre de catégorie (Inventaire.CATEGORIES ; "" = tout).
+var categorie := ""
 ## Cartes affichées : [{id, n, prix, refus}] (refus : "" ou raison : objet de quête, n'en veut pas).
 var lignes: Array[Dictionary] = []
 var choix := 0
 
-var _vue: Control
-var _police: FontFile
-var _gothique: FontFile
-var _cadre: StyleBox
+var _livre: LivreParchemin
 var _haut := 0
-var _zones := {}
 var _souris := Input.MOUSE_MODE_CAPTURED
-var _icones := {}
 var _avis := ""
-var _avis_couleur := MenuStyle.PARCHEMIN
+var _avis_couleur := LivreParchemin.ENCRE
 var _avis_t := 0.0
 var _heure_vue := -1.0
 
@@ -123,15 +120,21 @@ static func or_de(id: String) -> int:
 static func stock(id: String) -> Dictionary:
 	return etat(id).get("stock", {})
 
+## Clé d'effet « prix » du joueur courant (bijoux, perks : docs/RPG.md §3), bornée à 0..0,5 ; 0 sans joueur.
+static func bonus_prix() -> float:
+	var p := Progression.courante()
+	return clampf(p.bonus("prix"), 0.0, 0.5) if p != null else 0.0
+
 static func prix_achat(id: String, oid: String) -> int:
-	return maxi(1, ceili(float(Inventaire.objet(oid).get("valeur", 0)) * float(fiche(id).get("achat", 1.1)) - 0.0001))
+	return maxi(1, ceili(float(Inventaire.objet(oid).get("valeur", 0)) * float(fiche(id).get("achat", 1.1)) * (1.0 - bonus_prix()) - 0.0001))
 
 static func prix_vente(id: String, oid: String) -> int:
-	return maxi(1, floori(float(Inventaire.objet(oid).get("valeur", 0)) * float(fiche(id).get("vente", 0.4)) + 0.0001))
+	return maxi(1, floori(float(Inventaire.objet(oid).get("valeur", 0)) * float(fiche(id).get("vente", 0.4)) * (1.0 + bonus_prix()) + 0.0001))
 
-## Objet de quête (jamais vendable) : valeur 0, liste `invendables`, objet demandé par une quête en cours.
+## Objet de quête (jamais vendable) : Inventaire.est_quete (drapeau du registre), valeur 0, liste `invendables`, objet demandé
+## par une quête en cours.
 static func de_quete(oid: String, quetes: Node = null) -> bool:
-	if int(Inventaire.objet(oid).get("valeur", 0)) <= 0 or oid in donnees().get("invendables", []):
+	if Inventaire.est_quete(oid) or int(Inventaire.objet(oid).get("valeur", 0)) <= 0 or oid in donnees().get("invendables", []):
 		return true
 	if quetes != null and is_instance_valid(quetes) and quetes.get("donnees") is Dictionary:
 		for q: Dictionary in quetes.donnees.get("quetes", []):
@@ -145,7 +148,7 @@ static func de_quete(oid: String, quetes: Node = null) -> bool:
 
 static func rachete(id: String, oid: String) -> bool:
 	var a: Array = fiche(id).get("achete", [])
-	return a.is_empty() or oid in a or Inventaire.categorie_de(oid) in a
+	return a.is_empty() or oid in a or Forge.base_de(oid) in a or Inventaire.categorie_de(oid) in a   # objet forgé : comme sa base
 
 ## Raison pour laquelle le marchand ne rachète pas cet objet ("" = possible).
 static func refus_vente(id: String, oid: String, quetes: Node = null) -> String:
@@ -239,7 +242,7 @@ static func verifier() -> Array[String]:
 			elif int(Inventaire.objet(String(ent["id"])).get("valeur", 0)) <= 0:
 				err.append("%s : objet sans valeur en rayon %s" % [id, ent["id"]])
 		for a: String in fiche(id).get("achete", []):
-			if not Inventaire.connu(a) and not a in ["arme", "consommable", "divers"]:
+			if not Inventaire.connu(a) and not a in Inventaire.CATEGORIES:
 				err.append("%s : « achete » inconnu %s" % [id, a])
 	return err
 
@@ -254,14 +257,10 @@ func _ready() -> void:
 	layer = 44   # comme la fenêtre de butin : au-dessus du HUD, sous l'inventaire (45) et le menu pause (50)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group(GROUPE)
-	_police = Palette.police()
-	_gothique = MenuStyle.police_gothique(true)
-	_cadre = MenuStyle.cadre_orne()
-	_vue = Control.new()
-	_vue.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_vue.visible = false
-	_vue.draw.connect(_dessiner)
-	add_child(_vue)
+	_livre = LivreParchemin.new()
+	_livre.visible = false
+	_livre.dessin = _dessiner
+	add_child(_livre)
 
 func _quetes() -> Node:
 	return monde.get("quetes") if monde != null and is_instance_valid(monde) else null
@@ -273,6 +272,7 @@ func ouvrir(id: String, nom := "") -> bool:
 	id_marchand = id
 	titre = String(fiche(id).get("titre", nom if nom != "" else id))
 	onglet = 0
+	categorie = ""
 	choix = 0
 	_haut = 0
 	_avis_t = 0.0
@@ -284,8 +284,9 @@ func ouvrir(id: String, nom := "") -> bool:
 	_souris = Input.mouse_mode
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	_vue.visible = true
-	_vue.queue_redraw()
+	_livre.visible = true
+	_livre.echelle()
+	_livre.rafraichir()
 	Sons.jouer(self, ["handleCoins", "handleCoins2"], -12.0)
 	return true
 
@@ -293,7 +294,7 @@ func fermer() -> void:
 	if not ouvert:
 		return
 	ouvert = false
-	_vue.visible = false
+	_livre.visible = false
 	get_tree().paused = false
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = _souris if _souris != Input.MOUSE_MODE_VISIBLE else Input.MOUSE_MODE_CAPTURED
@@ -304,15 +305,43 @@ func changer_onglet(o: int) -> void:
 	var n := posmod(o, ONGLETS.size())
 	if n != onglet:
 		onglet = n
+		categorie = ""
 		choix = 0
 		_haut = 0
 		_remplir()
 		Sons.jouer(self, ["cloth1"], -16.0)
 
-## Recalcule les cartes de l'onglet (après une transaction : la carte choisie reste, ou la suivante).
+## Catégories présentes dans l'onglet (ordre de Inventaire.CATEGORIES), précédées de "" (tout).
+func categories() -> Array[String]:
+	var vues := {}
+	var src: Dictionary = stock(id_marchand) if onglet == 0 else joueur.inventaire.objets
+	for oid: String in src:
+		if int(src[oid]) > 0:
+			vues[Inventaire.categorie_de(oid)] = true
+	var r: Array[String] = [""]
+	for c: String in Inventaire.CATEGORIES:
+		if vues.has(c):
+			r.append(c)
+	return r
+
+func changer_categorie(c: String) -> void:
+	if c != categorie:
+		categorie = c
+		choix = 0
+		_haut = 0
+		_remplir()
+		Sons.jouer(self, ["cloth1"], -18.0)
+
+func categorie_suivante(sens := 1) -> void:
+	var l := categories()
+	changer_categorie(l[posmod(l.find(categorie) + sens, l.size())])
+
+## Recalcule les lignes de l'onglet (après une transaction : la ligne choisie reste, ou la suivante).
 func _remplir() -> void:
 	lignes.clear()
 	var inv: Inventaire = joueur.inventaire
+	if not categorie in categories():
+		categorie = ""
 	if onglet == 0:
 		# ordre de l'étal = ordre de data/marchands.json (stable après un chargement), puis ce que le joueur a vendu
 		var ordre: Array = (fiche(id_marchand).get("stock", []) as Array).map(func(en: Dictionary) -> String: return String(en.get("id", "")))
@@ -325,11 +354,12 @@ func _remplir() -> void:
 			ib = ib if ib >= 0 else 1000
 			return ia < ib if ia != ib else a < b)
 		for oid: String in cles:
-			lignes.append({"id": oid, "n": int(st[oid]), "prix": prix_achat(id_marchand, oid), "refus": ""})
+			if categorie == "" or Inventaire.categorie_de(oid) == categorie:
+				lignes.append({"id": oid, "n": int(st[oid]), "prix": prix_achat(id_marchand, oid), "refus": ""})
 	else:
 		var bas: Array[Dictionary] = []
 		for oid: String in inv.objets:
-			if int(inv.objets[oid]) <= 0:
+			if int(inv.objets[oid]) <= 0 or (categorie != "" and Inventaire.categorie_de(oid) != categorie):
 				continue
 			var r := refus_vente(id_marchand, oid, _quetes())
 			var l := {"id": oid, "n": int(inv.objets[oid]), "prix": prix_vente(id_marchand, oid), "refus": r}
@@ -340,9 +370,9 @@ func _remplir() -> void:
 		lignes.append_array(bas)
 	choix = clampi(choix, 0, maxi(0, lignes.size() - 1))
 	_suivre()
-	_vue.queue_redraw()
+	_livre.rafraichir()
 
-## Transaction sur la carte i (n = 1, ou toute la pile si `tout`). Renvoie la raison du refus ("" = fait).
+## Transaction sur la ligne i (n = 1, ou toute la pile si `tout`). Renvoie la raison du refus ("" = fait).
 func traiter(i := -1, tout := false) -> String:
 	if i < 0:
 		i = choix
@@ -355,11 +385,11 @@ func traiter(i := -1, tout := false) -> String:
 	var avant := inv.pieces
 	var r := acheter(id_marchand, inv, oid, n) if onglet == 0 else vendre(id_marchand, inv, oid, n, _quetes())
 	if r != "":
-		_annoncer(r, ROUGE)
+		_annoncer(r, LivreParchemin.RUBRIQUE)
 		Sons.jouer(self, ["cloth1"], -14.0)
 	else:
 		var k := absi(inv.pieces - avant) / maxi(1, int(l["prix"]))
-		_annoncer(("%s x%d : -%d pièces" if onglet == 0 else "%s x%d : +%d pièces") % [inv.nom(oid), k, absi(inv.pieces - avant)], VERT)
+		_annoncer(("%s x%d : -%d pièces" if onglet == 0 else "%s x%d : +%d pièces") % [inv.nom(oid), k, absi(inv.pieces - avant)], LivreParchemin.VERT)
 		Sons.jouer(self, ["handleCoins", "handleCoins2"], -6.0)
 		choix = i
 		_remplir()
@@ -369,7 +399,7 @@ func _annoncer(t: String, c: Color) -> void:
 	_avis = t
 	_avis_couleur = c
 	_avis_t = DUREE_AVIS
-	_vue.queue_redraw()
+	_livre.rafraichir()
 
 func _choisir(i: int) -> void:
 	if lignes.is_empty():
@@ -378,13 +408,13 @@ func _choisir(i: int) -> void:
 	if n != choix:
 		choix = n
 		_suivre()
-		_vue.queue_redraw()
+		_livre.rafraichir()
 
-func _max_cartes() -> int:
-	return clampi(int((_vue.size.y - 116.0) / CARTE), 3, 6)
+func _max_lignes() -> int:
+	return maxi(3, int((_livre.size.y - 64.0 - 52.0) / LivreParchemin.LIGNE))
 
 func _suivre() -> void:
-	var m := _max_cartes()
+	var m := _max_lignes()
 	if choix < _haut:
 		_haut = choix
 	elif choix >= _haut + m:
@@ -413,6 +443,8 @@ func _input(e: InputEvent) -> void:
 				changer_onglet(onglet - 1)
 			KEY_RIGHT, KEY_D:
 				changer_onglet(onglet + 1)
+			KEY_C:
+				categorie_suivante(-1 if k.shift_pressed else 1)
 			KEY_E, KEY_ENTER, KEY_KP_ENTER, KEY_SPACE:
 				traiter()
 			KEY_R:
@@ -430,6 +462,8 @@ func _input(e: InputEvent) -> void:
 				traiter()
 			JOY_BUTTON_Y:
 				traiter(-1, true)
+			JOY_BUTTON_X:
+				categorie_suivante()
 			JOY_BUTTON_B, JOY_BUTTON_BACK:
 				fermer()
 			JOY_BUTTON_LEFT_SHOULDER, JOY_BUTTON_DPAD_LEFT:
@@ -442,7 +476,7 @@ func _input(e: InputEvent) -> void:
 				_choisir(choix + 1)
 	elif e is InputEventMouseMotion:
 		vp.set_input_as_handled()
-		var z := _zone((e as InputEventMouseMotion).position)
+		var z := _livre.zone((e as InputEventMouseMotion).position)
 		if z.begins_with("carte:"):
 			_choisir(int(z.substr(6)))
 	elif e is InputEventMouseButton:
@@ -458,24 +492,21 @@ func _input(e: InputEvent) -> void:
 			MOUSE_BUTTON_RIGHT:
 				fermer()
 			MOUSE_BUTTON_LEFT:
-				var z := _zone(b.position)
+				var z := _livre.zone(b.position)
 				if z.begins_with("carte:"):
 					traiter(int(z.substr(6)))
 				elif z.begins_with("onglet:"):
 					changer_onglet(int(z.substr(7)))
+				elif z.begins_with("cat:"):
+					changer_categorie(z.substr(4))
 				elif z == "un":
 					traiter()
 				elif z == "tout":
 					traiter(-1, true)
+				elif z == "categorie":
+					categorie_suivante()
 				elif z == "fermer":
 					fermer()
-
-func _zone(p: Vector2) -> String:
-	var q := p / maxf(1.0, _vue.scale.x)
-	for nom: String in _zones:
-		if (_zones[nom] as Rect2).has_point(q):
-			return nom
-	return ""
 
 # ------------------------------------------------------------------ temps et dessin
 
@@ -491,13 +522,12 @@ func _process(dt: float) -> void:
 		_heure_vue = h
 	if not ouvert:
 		return
-	if EchelleUi.appliquer(_vue):
+	if _livre.echelle():
 		_suivre()
-		_vue.queue_redraw()
 	if _avis_t > 0.0:
 		_avis_t -= dt
 		if _avis_t <= 0.0:
-			_vue.queue_redraw()
+			_livre.rafraichir()
 
 ## Après un chargement : l'horloge saute, on repart de l'heure lue.
 func recaler_horloge() -> void:
@@ -509,157 +539,134 @@ static func duree_texte(h: float) -> String:
 		return "%d h" % hh
 	return "%d j %d h" % [hh / 24, hh % 24] if hh % 24 != 0 else "%d j" % (hh / 24)
 
-func _texte(pos: Vector2, texte: String, couleur := MenuStyle.PARCHEMIN, largeur := -1.0, align := HORIZONTAL_ALIGNMENT_LEFT) -> void:
-	_vue.draw_string(_police, pos + Vector2(1, 1), texte, align, largeur, Palette.TAILLE_POLICE, MenuStyle.FOND)
-	_vue.draw_string(_police, pos, texte, align, largeur, Palette.TAILLE_POLICE, couleur)
-
-func _larg(texte: String) -> float:
-	return ceilf(_police.get_string_size(texte, HORIZONTAL_ALIGNMENT_LEFT, -1, Palette.TAILLE_POLICE).x)
-
-func _couper(t: String, larg: float) -> String:
-	while t.length() > 4 and _larg(t) > larg:
-		t = t.substr(0, t.length() - 2) + "…"
-	return t
-
-## Pièce d'or 7x7 en pixels (coin haut-gauche p).
-func _piece(p: Vector2, alpha := 1.0) -> void:
-	var sombre := Color("#7a4a16", alpha)
-	var o := Color(MenuStyle.OR, alpha)
-	var clair := Color("#ffe6a0", alpha)
-	for r: Array in [[0, 2, 3], [1, 1, 5], [2, 0, 7], [3, 0, 7], [4, 0, 7], [5, 1, 5], [6, 2, 3]]:
-		_vue.draw_rect(Rect2(p.x + r[1], p.y + r[0], r[2], 1), sombre)
-	for r: Array in [[1, 2, 3], [2, 1, 5], [3, 1, 5], [4, 1, 5], [5, 2, 3]]:
-		_vue.draw_rect(Rect2(p.x + r[1], p.y + r[0], r[2], 1), o)
-	_vue.draw_rect(Rect2(p.x + 2, p.y + 2, 1, 2), clair)
-	_vue.draw_rect(Rect2(p.x + 3, p.y + 2, 1, 3), Color(sombre, 0.6 * alpha))
-
-## Prix aligné à droite (pièce comprise), renvoie le bord gauche.
-func _prix(droite: float, y: float, valeur: int, couleur: Color, alpha := 1.0) -> float:
-	var t := str(valeur)
-	var x := droite - _larg(t)
-	_texte(Vector2(x, y), t, Color(couleur, alpha))
-	_piece(Vector2(x - 10.0, y - 8.0), alpha)
-	return x - 10.0
-
-func _icone(id: String, rarete: String) -> Texture2D:
-	var motif := String(Inventaire.objet(id).get("icone", id))
-	if Inventaire.categorie_de(id) == "arme" and not IconesCombat.connu(motif):
-		motif = "epee"
-	if IconesCombat.connu(motif):
-		return IconesCombat.icone(motif)
-	var cle := "l:" + rarete
-	if not _icones.has(cle):
-		_icones[cle] = MenuStyle._icone_losange(9, Color(ButinTables.COULEURS_RARETE.get(rarete, "#c8d0dc")), false)
-	return _icones[cle]
-
+## Effet / résumé d'un objet (une ligne).
 func _description(id: String) -> String:
 	if Consommables.est(id):
 		return Consommables.description(id)
+	var base := Forge.base_de(id)
+	if CatalogueArmes.connu(base):
+		return CatalogueArmes.resume(base) if Forge.niveau_de(id) == 0 else "%s, forgée +%d" % [CatalogueArmes.resume(base), Forge.niveau_de(id)]
 	var f := Inventaire.objet(id)
-	if CatalogueArmes.connu(id):
-		return "%s, %s kg" % [CatalogueArmes.resume(id), FenetreButin.poids_texte(float(f.get("poids", 0.0)))]
-	var cat := "Arme" if Inventaire.categorie_de(id) == "arme" else "Objet"
-	return "%s, %s kg" % [cat, FenetreButin.poids_texte(float(f.get("poids", 0.0)))]
+	if float(f.get("armure", 0)) > 0.0:
+		return "Armure %d" % roundi(float(f["armure"]))
+	return String(f.get("description", ""))
 
-func _dessiner() -> void:
+func _dessiner(L: LivreParchemin) -> void:
 	if not ouvert:
 		return
-	var s := _vue.size
-	_zones.clear()
-	_vue.draw_rect(Rect2(Vector2.ZERO, s), Color(MenuStyle.FOND, 0.45))
-	var m := _max_cartes()
-	var vis := mini(lignes.size(), m)
-	var w := clampf(s.x - 150.0, 300.0, 380.0)
-	var h := 102.0 + maxi(vis, 2) * CARTE
-	var o := ((s - Vector2(w, h)) * 0.5).floor()
-	_vue.draw_rect(Rect2(o + Vector2(6, 6), Vector2(w, h) - Vector2(12, 12)), Color(MenuStyle.FOND, 0.92))
-	_vue.draw_style_box(_cadre, Rect2(o, Vector2(w, h)))
-	var gx := o.x + 16.0
-	var dx := o.x + w - 16.0
 	var inv: Inventaire = joueur.inventaire
 	var e := etat(id_marchand)
-	# titre et or du joueur
-	var t := titre
-	while t.length() > 4 and _gothique.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND).x > w - 110.0:
-		t = t.substr(0, t.length() - 2) + "…"
-	MenuStyle.texte_detoure(_vue, _gothique, Vector2(gx, o.y + 29), t, MenuStyle.TITRE_GRAND, MenuStyle.OR)
-	_prix(dx, o.y + 27.0, inv.pieces, MenuStyle.OR)
-	_vue.draw_rect(Rect2(gx, o.y + 35, w - 32.0, 1), FER)
-	# onglets ; bourse du marchand à droite
-	var x := gx
-	var y := o.y + 50.0
-	for i in ONGLETS.size():
-		var nom: String = ONGLETS[i]
-		var actif := i == onglet
-		_texte(Vector2(x, y), nom, MenuStyle.OR if actif else MenuStyle.GRIS)
-		if actif:
-			_vue.draw_rect(Rect2(x, y + 3.0, _larg(nom), 1), MenuStyle.OR)
-		_zones["onglet:%d" % i] = Rect2(x - 3.0, y - 11.0, _larg(nom) + 6.0, 16.0)
-		x += _larg(nom) + 14.0
-	var bourse := "Bourse"
-	var gb := _prix(dx, y, int(e["or"]), MenuStyle.PARCHEMIN)
-	_texte(Vector2(gb - 4.0 - _larg(bourse), y), bourse, MenuStyle.GRIS)
-	y += 7.0
-	# cartes
+	var W := L.size.x
+	var H := L.size.y
+	var m := L.milieu()
+	L.en_tete(titre, "Poids %s / %d" % [LivreParchemin.kg(inv.poids()), roundi(inv.capacite())])
+	L.onglets(ONGLETS, onglet)
+	# --- page gauche : marge des catégories, registre
+	var cats := categories()
+	var y := 56.0
+	for c: String in cats:
+		var on := c == categorie
+		var nb := 0
+		var src: Dictionary = stock(id_marchand) if onglet == 0 else inv.objets
+		for oid: String in src:
+			if int(src[oid]) > 0 and (c == "" or Inventaire.categorie_de(oid) == c):
+				nb += 1
+		if on:
+			L.ruban(Rect2(11, y - 2, 74, 12))
+		L.texte(14, y, NOMS_CATEGORIES.get(c, c), LivreParchemin.CLAIR if on else LivreParchemin.PALE)
+		L.texte_d(83, y, str(nb), LivreParchemin.CLAIR if on else LivreParchemin.PALE)
+		L.zones["cat:" + c] = Rect2(11, y - 2, 74, 12)
+		y += 14.0
+	L.encre.draw_rect(Rect2(87, 52, 1, H - 52 - 66), LivreParchemin.RUBRIQUE)
+	L.titre(16, 24, "Comptoir" if onglet == 0 else "Sac", "du marchand" if onglet == 0 else "à vendre")
+	var X := 91.0
+	var LG := m - 8.0 - X - 4.0
+	L.texte(X + 18, 52 - 9, "Objet", LivreParchemin.RUBRIQUE)
+	L.texte_d(X + LG - 40, 52 - 9, "Nb", LivreParchemin.RUBRIQUE)
+	L.texte_d(X + LG, 52 - 9, "Prix", LivreParchemin.RUBRIQUE)
+	L.regle(X, 52, LG)
+	var vis := mini(lignes.size(), _max_lignes())
 	if lignes.is_empty():
 		var vide := "Étal vide. Revenez dans %s." % duree_texte(heures_avant_reassort(id_marchand)) if onglet == 0 else "Rien à vendre dans votre sac."
-		_texte(Vector2(o.x, y + CARTE + 4.0), vide, MenuStyle.GRIS, w, HORIZONTAL_ALIGNMENT_CENTER)
+		L.paragraphe(X + 4, 62, LG - 8, vide, LivreParchemin.PALE)
 	for k in vis:
 		var i := _haut + k
 		var l: Dictionary = lignes[i]
 		var id := String(l["id"])
 		var refus := String(l["refus"])
-		var a := 0.45 if refus != "" else 1.0
-		var r := Rect2(gx - 4.0, y, w - 24.0, CARTE - 2.0)
-		_zones["carte:%d" % i] = r
-		var rar := ButinTables.rarete_de(id)
-		var col := Color(ButinTables.COULEURS_RARETE.get(rar, "#c8d0dc"))
-		_vue.draw_rect(r, Color(PLAQUE, 0.95))
-		if i == choix:
-			_vue.draw_rect(r, Color(MenuStyle.RUNE, 0.10))
-			_vue.draw_rect(r, Color(MenuStyle.RUNE, 0.7), false, 1.0)
-		else:
-			_vue.draw_rect(r, FER, false, 1.0)
-		var ico := _icone(id, rar)
-		var cote := 12.0 if ico.get_size().x > 12.0 else ico.get_size().x
-		_vue.draw_texture_rect(ico, Rect2(Vector2(gx, y + floorf((CARTE - 2.0 - cote) * 0.5)), Vector2(cote, cote)), false, Color(1, 1, 1, a))
-		var droite := dx - 4.0
-		var gauche_prix := droite
+		var yl := 55.0 + k * LivreParchemin.LIGNE
+		var r := Rect2(X, yl, LG, 17)
+		L.ligne(r, i == choix, refus != "")
+		L.zones["carte:%d" % i] = r
+		L.icone(id, Vector2(X + 1, yl + 1), 16.0, 0.6 if refus != "" else 1.0)
+		L.pastille(Vector2(X + 19, yl + 7), ButinTables.rarete_de(id))
+		var c_nom := LivreParchemin.PALE if refus != "" else LivreParchemin.ENCRE
+		L.texte(X + 25, yl + 4, L.couper(inv.nom(id), LG - 25 - 76), c_nom)
+		if int(l["n"]) > 1:
+			L.texte_d(X + LG - 40, yl + 4, "x%d" % int(l["n"]), LivreParchemin.PALE)
 		if refus == "":
 			var peut := (inv.pieces >= int(l["prix"])) if onglet == 0 else (int(e["or"]) >= int(l["prix"]))
-			gauche_prix = _prix(droite, y + 10.0, int(l["prix"]), MenuStyle.OR if peut else ROUGE)
-		var nb := "x%d" % int(l["n"])
-		_texte(Vector2(droite - _larg(nb), y + 20.0), nb, Color(MenuStyle.GRIS, maxf(a, 0.7)))
-		var nom := _couper(inv.nom(id), gauche_prix - 8.0 - (gx + 16.0))
-		_texte(Vector2(gx + 16.0, y + 10.0), nom, Color(col.lightened(0.15) if i == choix else col, a))
-		var desc := refus if refus != "" else _description(id)
-		_texte(Vector2(gx + 16.0, y + 20.0), _couper(desc, droite - _larg(nb) - 8.0 - (gx + 16.0)), Color(MenuStyle.GRIS if refus == "" else ROUGE, maxf(a, 0.8)))
-		y += CARTE
-	if lignes.size() > m:
+			L.texte_d(X + LG, yl + 4, str(int(l["prix"])), LivreParchemin.OR_TERNI if peut else LivreParchemin.RUBRIQUE)
+		else:
+			L.sceau(Vector2(X + LG - 6, yl + 8))
+		L.regle(X, yl + 17, LG)
+	if lignes.size() > vis:
 		if _haut > 0:
-			_texte(Vector2(dx + 2.0, o.y + 68.0), "^", MenuStyle.GRIS)
-		if _haut + m < lignes.size():
-			_texte(Vector2(dx + 2.0, o.y + 57.0 + vis * CARTE), "v", MenuStyle.GRIS)
-	# ligne d'information : retour de la dernière transaction, sinon « stock limité »
-	y = o.y + h - 31.0
-	if _avis_t > 0.0:
-		_texte(Vector2(gx, y), _couper(_avis, w - 32.0), _avis_couleur)
-	elif onglet == 0 and lignes.is_empty():
-		pass    # étal vide : le délai est déjà dit au centre
-	elif onglet == 0:
-		_texte(Vector2(gx, y), "Stock limité, réassort dans %s" % duree_texte(heures_avant_reassort(id_marchand)), Color(MenuStyle.OR, 0.8))
+			L.texte(X + LG - 26, 52 - 9, "^", LivreParchemin.RUBRIQUE)
+		if _haut + vis < lignes.size():
+			L.texte(X + LG + 2, 55.0 + (vis - 1) * LivreParchemin.LIGNE + 4.0, "v", LivreParchemin.RUBRIQUE)
+	L.texte(16, H - 54, "Pièces", LivreParchemin.OR_TERNI)
+	L.prix(m - 14.0, H - 54, inv.pieces)
+	if onglet == 0:
+		L.texte(16, H - 42, "Stock limité, réassort dans %s." % duree_texte(heures_avant_reassort(id_marchand)), LivreParchemin.PALE)
 	else:
-		_texte(Vector2(gx, y), "Rachat à %d %% de la valeur" % roundi(float(fiche(id_marchand).get("vente", 0.4)) * 100.0), Color(MenuStyle.OR, 0.8))
-	# pied : actions cliquables
-	y = o.y + h - 15.0
-	var x0 := gx
-	var verbe := "Acheter" if onglet == 0 else "Vendre"
-	for act: Array in [["E", verbe, "un"], ["R", "Tout", "tout"], ["Tab", ONGLETS[1 - onglet], "onglet:%d" % (1 - onglet)], ["Échap", "Fermer", "fermer"]]:
-		var cle := "[%s]" % act[0]
-		_texte(Vector2(x0, y), cle, MenuStyle.OR)
-		var lx := x0 + _larg(cle) + 3.0
-		_texte(Vector2(lx, y), act[1], MenuStyle.PARCHEMIN)
-		var fin := lx + _larg(act[1])
-		if not _zones.has(act[2]):
-			_zones[act[2]] = Rect2(x0 - 2.0, y - 11.0, fin - x0 + 4.0, 14.0)
-		x0 = fin + 10.0
+		L.texte(16, H - 42, "Rachat à %d %% de la valeur." % roundi(float(fiche(id_marchand).get("vente", 0.4)) * (1.0 + bonus_prix()) * 100.0), LivreParchemin.PALE)
+	# --- page droite : fiche de l'objet choisi, bourse du marchand
+	var X2 := m + 12.0
+	var LD := W - 14.0 - X2
+	if choix < lignes.size():
+		var l: Dictionary = lignes[choix]
+		var id := String(l["id"])
+		var f := Inventaire.objet(id)
+		var cadre := Rect2(X2, 26, 38, 38)
+		L.encre.draw_rect(cadre, Color("#1f2a44"))
+		L.encre.draw_rect(cadre, LivreParchemin.ENCRE, false, 1.0)
+		L.encre.draw_rect(cadre.grow(-1), Color("#e8a64a"), false, 1.0)
+		L.icone(id, Vector2(X2 + 3, 29), 32)
+		L.titre_simple(X2 + 44, 24, inv.nom(id), LivreParchemin.ENCRE, LD - 44)
+		var rar := ButinTables.rarete_de(id)
+		L.texte(X2 + 44, 46, String(NOMS_CATEGORIES.get(Inventaire.categorie_de(id), "Objet")), LivreParchemin.PALE)
+		L.texte(X2 + 44, 57, String(ButinTables.NOMS_RARETE.get(rar, rar)).capitalize(), LivreParchemin.RARETE.get(rar, LivreParchemin.ENCRE))
+		L.filet(X2 + 8, 72, LD - 16)
+		var yd := L.paragraphe(X2, 79, LD, _description(id), LivreParchemin.ENCRE, 4)
+		yd = maxf(yd + 4.0, 112.0)
+		var lignes_fiche: Array = [["Poids", "%s kg" % LivreParchemin.kg(float(f.get("poids", 0.0)))], ["Valeur", str(int(f.get("valeur", 0)))]]
+		if Forge.niveau_de(id) > 0:
+			lignes_fiche.append(["Forge", "+%d (Brodd)" % Forge.niveau_de(id)])
+		if joueur.get("equipement_corps") != null and joueur.equipement_corps.est_equipe(id):
+			lignes_fiche.append(["Porté", "sera retiré si vendu"])
+		for lf: Array in lignes_fiche:
+			L.texte(X2, yd, lf[0], LivreParchemin.RUBRIQUE)
+			L.texte(X2 + 64, yd, lf[1])
+			L.regle(X2, yd + 10, LD)
+			yd += 12.0
+		yd += 6.0
+		L.filet(X2 + 8, yd, LD - 16)
+		yd += 8.0
+		var refus := String(l["refus"])
+		if refus != "":
+			L.texte(X2, yd, L.couper(refus, LD), LivreParchemin.RUBRIQUE)
+		else:
+			L.texte(X2, yd, "Prix d'achat" if onglet == 0 else "Il vous en donne", LivreParchemin.RUBRIQUE)
+			var peut := (inv.pieces >= int(l["prix"])) if onglet == 0 else (int(e["or"]) >= int(l["prix"]))
+			L.prix(X2 + LD, yd, int(l["prix"]), LivreParchemin.OR_TERNI if peut else LivreParchemin.RUBRIQUE)
+			if int(l["n"]) > 1:
+				yd += 12.0
+				L.texte(X2, yd, "La pile (x%d)" % int(l["n"]), LivreParchemin.PALE)
+				L.prix(X2 + LD, yd, int(l["prix"]) * int(l["n"]), LivreParchemin.PALE)
+	L.texte(X2, H - 54, "Bourse du marchand", LivreParchemin.PALE)
+	L.prix(X2 + LD, H - 54, int(e["or"]), LivreParchemin.ENCRE)
+	if _avis_t > 0.0:
+		L.texte(X2, H - 42, L.couper(_avis, LD), _avis_couleur)
+	L.touches([["E", "Acheter" if onglet == 0 else "Vendre", "un"], ["R", "Toute la pile", "tout"], ["C", "Catégorie", "categorie"],
+		["Tab", ONGLETS[1 - onglet], "onglet:%d" % (1 - onglet)], ["Échap", "Fermer", "fermer"]])

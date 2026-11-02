@@ -14,6 +14,8 @@ extends CanvasLayer
 ## Style : cadre ornementé du lot L7 (MenuStyle.cadre_orne), titre en Jacquard 24 (MenuStyle.police_gothique), texte et chiffres en
 ## Palette.police, surbrillance bleue des boutons de MenuStyle ; dessin en pixels entiers (EchelleUi), comme le panneau Tab du HUD.
 ## Une seule instance, créée par monde._interface ; les contenants la trouvent par FenetreButin.trouver(noeud).
+## Lot E (RPG) : dessin dans la direction A « parchemin et cuir enluminé » (LivreParchemin, comme la fenêtre coffre ↔ sac) ;
+## coffres du monde = prendre seulement (rien ne se range ici) ; logique de prise inchangée.
 
 const GROUPE := "fenetre_butin"
 const LIGNE := 14.0
@@ -33,14 +35,9 @@ var choix := 0
 
 var _objets: Dictionary = {}
 var _fin: Callable
-var _vue: Control
-var _police: FontFile
-var _gothique: FontFile
-var _cadre: StyleBox
+var _livre: LivreParchemin
 var _haut := 0        # première ligne visible (défilement)
-var _zones := {}      # zones cliquables du dernier dessin (repère logique) : "ligne:i", "tout", "fermer"
 var _souris := Input.MOUSE_MODE_CAPTURED
-var _icones := {}
 
 static func trouver(n: Node) -> FenetreButin:
 	if n == null or not n.is_inside_tree():
@@ -78,14 +75,10 @@ func _ready() -> void:
 	layer = 44   # au-dessus du HUD, sous l'inventaire (45) et le menu pause (50)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group(GROUPE)
-	_police = Palette.police()
-	_gothique = MenuStyle.police_gothique(true)
-	_cadre = MenuStyle.cadre_orne()
-	_vue = Control.new()
-	_vue.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_vue.visible = false
-	_vue.draw.connect(_dessiner)
-	add_child(_vue)
+	_livre = LivreParchemin.new()
+	_livre.visible = false
+	_livre.dessin = _dessiner
+	add_child(_livre)
 
 ## Ouvre la fenêtre sur `objets` ({id: n}, modifié en place à chaque prise). Rien à montrer : false (rien n'est ouvert).
 func ouvrir(nom: String, objets: Dictionary, pieces_versees := 0, fin := Callable()) -> bool:
@@ -117,8 +110,9 @@ func ouvrir(nom: String, objets: Dictionary, pieces_versees := 0, fin := Callabl
 	_souris = Input.mouse_mode
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	_vue.visible = true
-	_vue.queue_redraw()
+	_livre.visible = true
+	_livre.echelle()
+	_livre.rafraichir()
 	Sons.jouer(self, ["cloth1", "cloth2"], -10.0)
 	return true
 
@@ -126,7 +120,7 @@ func fermer() -> void:
 	if not ouvert:
 		return
 	ouvert = false
-	_vue.visible = false
+	_livre.visible = false
 	get_tree().paused = false
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = _souris if _souris != Input.MOUSE_MODE_VISIBLE else Input.MOUSE_MODE_CAPTURED
@@ -159,7 +153,7 @@ func prendre(i := -1) -> Array[Dictionary]:
 		l["n"] = int(l["n"]) - place
 		_objets[String(l["id"])] = int(l["n"])
 		Sons.jouer(self, ["cloth1", "cloth2"], -8.0)
-		_vue.queue_redraw()
+		_livre.rafraichir()
 		return rp
 	var res := ButinTables.prendre(joueur.inventaire, [l])
 	for o: Dictionary in res:
@@ -173,7 +167,7 @@ func prendre(i := -1) -> Array[Dictionary]:
 	else:
 		choix = clampi(choix, 0, lignes.size() - 1)
 		_suivre()
-		_vue.queue_redraw()
+		_livre.rafraichir()
 	return res
 
 func tout_prendre() -> Array[Dictionary]:
@@ -193,14 +187,19 @@ func _choisir(i: int) -> void:
 	if n != choix:
 		choix = n
 		_suivre()
-		_vue.queue_redraw()
+		_livre.rafraichir()
+
+## Lignes visibles : MAX_LIGNES en 480x270, davantage en 640x360 (la page est plus haute).
+func _max_lignes() -> int:
+	return maxi(MAX_LIGNES, int((_livre.size.y - 64.0 - 74.0) / LivreParchemin.LIGNE))
 
 func _suivre() -> void:
+	var m := _max_lignes()
 	if choix < _haut:
 		_haut = choix
-	elif choix >= _haut + MAX_LIGNES:
-		_haut = choix - MAX_LIGNES + 1
-	_haut = clampi(_haut, 0, maxi(0, lignes.size() - MAX_LIGNES))
+	elif choix >= _haut + m:
+		_haut = choix - m + 1
+	_haut = clampi(_haut, 0, maxi(0, lignes.size() - m))
 
 # ------------------------------------------------------------------ entrées
 
@@ -243,7 +242,7 @@ func _input(e: InputEvent) -> void:
 				_choisir(choix + 1)
 	elif e is InputEventMouseMotion:
 		vp.set_input_as_handled()
-		var z := _zone((e as InputEventMouseMotion).position)
+		var z := _livre.zone((e as InputEventMouseMotion).position)
 		if z.begins_with("ligne:"):
 			_choisir(int(z.substr(6)))
 	elif e is InputEventMouseButton:
@@ -259,7 +258,7 @@ func _input(e: InputEvent) -> void:
 			MOUSE_BUTTON_RIGHT:
 				fermer()
 			MOUSE_BUTTON_LEFT:
-				var z := _zone(b.position)
+				var z := _livre.zone(b.position)
 				if z.begins_with("ligne:"):
 					prendre(int(z.substr(6)))
 				elif z == "prendre":
@@ -269,137 +268,102 @@ func _input(e: InputEvent) -> void:
 				elif z == "fermer":
 					fermer()
 
-## Zone cliquable sous un point de l'écran (pixels de la fenêtre → repère logique de la vue).
-func _zone(p: Vector2) -> String:
-	var q := p / maxf(1.0, _vue.scale.x)
-	for nom: String in _zones:
-		if (_zones[nom] as Rect2).has_point(q):
-			return nom
-	return ""
-
 # ------------------------------------------------------------------ dessin
 
 func _process(_dt: float) -> void:
-	if ouvert and EchelleUi.appliquer(_vue):
-		_vue.queue_redraw()
-
-func _texte(pos: Vector2, texte: String, couleur := MenuStyle.PARCHEMIN, largeur := -1.0, align := HORIZONTAL_ALIGNMENT_LEFT) -> void:
-	_vue.draw_string(_police, pos + Vector2(1, 1), texte, align, largeur, Palette.TAILLE_POLICE, MenuStyle.FOND)
-	_vue.draw_string(_police, pos, texte, align, largeur, Palette.TAILLE_POLICE, couleur)
-
-func _larg(texte: String) -> float:
-	return ceilf(_police.get_string_size(texte, HORIZONTAL_ALIGNMENT_LEFT, -1, Palette.TAILLE_POLICE).x)
+	if ouvert and _livre.echelle():
+		_suivre()
 
 static func poids_texte(p: float) -> String:
 	if p <= 0.0:
 		return "-"
 	return ("%d" % roundi(p)) if absf(p - roundf(p)) < 0.05 else ("%.1f" % p).replace(".", ",")
 
-func _icone(id: String, rarete: String) -> Texture2D:
-	var motif := String(Inventaire.objet(id).get("icone", id))
-	if Inventaire.categorie_de(id) == "arme" and not IconesCombat.connu(motif):
-		motif = "epee"
-	if IconesCombat.connu(motif):
-		return IconesCombat.icone(motif)
-	var cle := "l:" + rarete
-	if not _icones.has(cle):
-		_icones[cle] = MenuStyle._icone_losange(9, Color(ButinTables.COULEURS_RARETE.get(rarete, "#c8d0dc")), false)
-	return _icones[cle]
-
-func _dessiner() -> void:
+## Lot E : codex de la direction A. Page gauche = le contenant (registre Objet / Nb / Kg), page droite = fiche de la ligne
+## choisie (icône, nom, rareté, effet, valeur) et poids du sac avant / après la prise.
+func _dessiner(L: LivreParchemin) -> void:
 	if not ouvert:
 		return
-	var s := _vue.size
-	_zones.clear()
-	_vue.draw_rect(Rect2(Vector2.ZERO, s), Color(MenuStyle.FOND, 0.45))
-	var vis := mini(lignes.size(), MAX_LIGNES)
-	var w := clampf(s.x - 190.0, 280.0, 340.0)
-	var h := 120.0 + vis * LIGNE
-	var o := ((s - Vector2(w, h)) * 0.5).floor()
-	_vue.draw_rect(Rect2(o + Vector2(6, 6), Vector2(w, h) - Vector2(12, 12)), Color(MenuStyle.FOND, 0.9))   # l'invite « E » ne transparaît pas
-	_vue.draw_style_box(_cadre, Rect2(o, Vector2(w, h)))
-	var gx := o.x + 16.0
-	var dx := o.x + w - 16.0             # bord droit du texte
-	var c_poids := dx                    # colonne « Poids » (alignée à droite)
-	var c_nb := dx - 44.0                # colonne « Nb » (alignée à droite)
-	# titre (gothique 24) et pièces versées
-	var t := titre
-	while t.length() > 4 and _gothique.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND).x > w - 120.0:
-		t = t.substr(0, t.length() - 2) + "…"
-	MenuStyle.texte_detoure(_vue, _gothique, Vector2(gx, o.y + 29), t, MenuStyle.TITRE_GRAND, MenuStyle.OR)
+	var inv: Inventaire = joueur.inventaire
+	var W := L.size.x
+	var H := L.size.y
+	var m := L.milieu()
+	var niv := 1
+	var prog: Variant = joueur.get("progression")
+	if prog != null:
+		niv = int(prog.niveau)
+	L.en_tete("Voyageur · niveau %d" % niv, "Poids %s / %d" % [LivreParchemin.kg(inv.poids()), roundi(inv.capacite())])
+	# --- page gauche : le contenant
+	var X := 14.0
+	var LG := m - 8.0 - X - 6.0
+	var mots := titre.split(" ", false, 1)
+	L.titre(16, 24, L.couper(mots[0] if mots.size() > 0 else titre, LG - 80), mots[1] if mots.size() > 1 else "")
 	if pieces > 0:
-		var tp := "+ %d pièces" % pieces
-		_texte(Vector2(dx - _larg(tp), o.y + 27), tp, MenuStyle.OR)
-	_vue.draw_rect(Rect2(gx, o.y + 35, w - 32.0, 1), FER)
-	# en-têtes
-	var y := o.y + 47.0
-	_texte(Vector2(gx + 14.0, y), "Objet", MenuStyle.GRIS)
-	_texte(Vector2(c_nb - _larg("Nb"), y), "Nb", MenuStyle.GRIS)
-	_texte(Vector2(c_poids - _larg("Poids"), y), "Poids", MenuStyle.GRIS)
-	y += 4.0
-	# lignes
+		L.texte_d(X + LG, 30, "+ %d pièces" % pieces, LivreParchemin.OR_TERNI)
+	L.texte(X + 18, 52, "Objet", LivreParchemin.RUBRIQUE)
+	L.texte_d(X + LG - 34, 52, "Nb", LivreParchemin.RUBRIQUE)
+	L.texte_d(X + LG, 52, "Kg", LivreParchemin.RUBRIQUE)
+	L.regle(X, 61, LG)
+	var vis := mini(lignes.size(), _max_lignes())
 	for k in vis:
 		var i := _haut + k
 		var l: Dictionary = lignes[i]
-		var r := Rect2(gx - 4.0, y, w - 24.0, LIGNE)
-		_zones["ligne:%d" % i] = r
-		var col := Color(ButinTables.COULEURS_RARETE.get(String(l["rarete"]), "#c8d0dc"))
-		if i == choix:
-			_vue.draw_rect(r, Color(MenuStyle.RUNE, 0.12))
-			_vue.draw_rect(Rect2(r.position, Vector2(2, LIGNE)), Color(MenuStyle.RUNE, 0.7))
-		var ico := _icone(String(l["id"]), String(l["rarete"]))
-		var ts := ico.get_size()
-		var cote := 12.0 if ts.x > 12.0 else ts.x
-		_vue.draw_texture_rect(ico, Rect2(Vector2(gx, y + floorf((LIGNE - cote) * 0.5)), Vector2(cote, cote)), false)
-		var nom: String = joueur.inventaire.nom(String(l["id"]))
-		var larg_nom := c_nb - 30.0 - (gx + 14.0)
-		while nom.length() > 4 and _larg(nom) > larg_nom:
-			nom = nom.substr(0, nom.length() - 2) + "…"
-		var c_txt := col.lightened(0.15) if i == choix else col
-		_texte(Vector2(gx + 14.0, y + 11.0), nom, c_txt)
-		var nb := "x%d" % int(l["n"])
-		_texte(Vector2(c_nb - _larg(nb), y + 11.0), nb, MenuStyle.PARCHEMIN)
-		var pt := poids_texte(float(Inventaire.objet(String(l["id"])).get("poids", 0.0)) * int(l["n"]))
-		_texte(Vector2(c_poids - _larg(pt), y + 11.0), pt, MenuStyle.PARCHEMIN)
-		y += LIGNE
-	if lignes.size() > MAX_LIGNES:      # repères de défilement
+		var id := String(l["id"])
+		var y := 64.0 + k * LivreParchemin.LIGNE
+		var r := Rect2(X, y, LG, 17)
+		L.ligne(r, i == choix)
+		L.zones["ligne:%d" % i] = r
+		L.icone(id, Vector2(X + 1, y + 1))
+		L.pastille(Vector2(X + 19, y + 7), String(l["rarete"]))
+		L.texte(X + 25, y + 4, L.couper(inv.nom(id), LG - 25 - 76), LivreParchemin.ENCRE)
+		if int(l["n"]) > 1:
+			L.texte_d(X + LG - 34, y + 4, "x%d" % int(l["n"]), LivreParchemin.PALE)
+		L.texte_d(X + LG, y + 4, LivreParchemin.kg(float(Inventaire.objet(id).get("poids", 0.0)) * int(l["n"])))
+		L.regle(X, y + 17, LG)
+	if lignes.size() > vis:
 		if _haut > 0:
-			_texte(Vector2(dx - 6.0, o.y + 58.0), "^", MenuStyle.GRIS)
-		if _haut + MAX_LIGNES < lignes.size():
-			_texte(Vector2(dx - 6.0, y - 1.0), "v", MenuStyle.GRIS)
-	# fiche de la ligne choisie
-	y += 6.0
-	_vue.draw_rect(Rect2(gx, y, w - 32.0, 1), FER)
-	y += 13.0
+			L.texte(X + LG - 6, 42, "^", LivreParchemin.RUBRIQUE)
+		if _haut + vis < lignes.size():
+			L.texte(X + LG + 3, 64.0 + (vis - 1) * LivreParchemin.LIGNE + 4.0, "v", LivreParchemin.RUBRIQUE)
+	L.texte(16, H - 54, "%d objet%s" % [lignes.size(), "s" if lignes.size() > 1 else ""], LivreParchemin.PALE)
+	L.texte(16, H - 40, "Prendre seulement : on ne range rien ici.", LivreParchemin.PALE)
+	if choix < lignes.size():
+		L.fleche(64.0 + (choix - _haut) * LivreParchemin.LIGNE, true)
+	# --- page droite : fiche
+	var X2 := m + 12.0
+	var LD := W - 14.0 - X2
+	var delta := 0.0
 	if choix < lignes.size():
 		var l: Dictionary = lignes[choix]
 		var id := String(l["id"])
 		var f := Inventaire.objet(id)
 		var rar := String(l["rarete"])
+		var cadre := Rect2(X2, 26, 38, 38)
+		L.encre.draw_rect(cadre, Color("#1f2a44"))
+		L.encre.draw_rect(cadre, LivreParchemin.ENCRE, false, 1.0)
+		L.encre.draw_rect(cadre.grow(-1), Color("#e8a64a"), false, 1.0)
+		L.icone(id, Vector2(X2 + 3, 29), 32)
+		L.titre_simple(X2 + 44, 24, inv.nom(id), LivreParchemin.ENCRE, LD - 44)
 		var nr := String(ButinTables.NOMS_RARETE.get(rar, rar))
-		var fiche := nr.substr(0, 1).to_upper() + nr.substr(1)
-		if int(f.get("valeur", 0)) > 0:
-			fiche += "   valeur %d" % int(f.get("valeur", 0))
-		var desc := Consommables.description(id) if Consommables.est(id) else ""
-		_texte(Vector2(gx, y), fiche, Color(ButinTables.COULEURS_RARETE.get(rar, "#c8d0dc")))
-		if desc != "":
-			var x := gx + _larg(fiche) + 10.0
-			var d := desc
-			while d.length() > 4 and x + _larg(d) > dx:
-				d = d.substr(0, d.length() - 2) + "…"
-			_texte(Vector2(x, y), d, MenuStyle.PARCHEMIN)
-	# pied : actions (cliquables) et poids du sac
-	y = o.y + h - 15.0
-	var x0 := gx
-	for a: Array in [["E", "Prendre", "prendre"], ["R", "Tout prendre", "tout"], ["Échap", "Fermer", "fermer"]]:
-		var cle := "[%s]" % a[0]
-		_texte(Vector2(x0, y), cle, MenuStyle.OR)
-		var lx := x0 + _larg(cle) + 3.0
-		_texte(Vector2(lx, y), a[1], MenuStyle.PARCHEMIN)
-		var fin := lx + _larg(a[1])
-		_zones[a[2]] = Rect2(x0 - 2.0, y - 11.0, fin - x0 + 4.0, LIGNE)
-		x0 = fin + 10.0
-	# poids du sac : sa propre ligne (entre la fiche et les actions) : en 480x270 il ne tenait plus à droite des actions
-	var ps: float = joueur.inventaire.poids()
-	var sac := "Sac : %s" % (poids_texte(ps) if ps > 0.0 else "0")
-	_texte(Vector2(dx - _larg(sac), y - 15.0), sac, MenuStyle.PARCHEMIN)
+		L.texte(X2 + 44, 46, nr.substr(0, 1).to_upper() + nr.substr(1), LivreParchemin.RARETE.get(rar, LivreParchemin.ENCRE))
+		L.filet(X2 + 8, 72, LD - 16)
+		var desc := Consommables.description(id) if Consommables.est(id) else (CatalogueArmes.resume(id) if CatalogueArmes.connu(id) else String(f.get("description", "")))
+		var yd := maxf(L.paragraphe(X2, 79, LD, desc, LivreParchemin.ENCRE, 5) + 4.0, 112.0)
+		for lf: Array in [["Poids", "%s kg" % LivreParchemin.kg(float(f.get("poids", 0.0)))], ["Valeur", str(int(f.get("valeur", 0)))]]:
+			L.texte(X2, yd, lf[0], LivreParchemin.RUBRIQUE)
+			L.texte(X2 + 64, yd, lf[1], LivreParchemin.OR_TERNI if lf[0] == "Valeur" else LivreParchemin.ENCRE)
+			L.regle(X2, yd + 10, LD)
+			yd += 12.0
+		delta = float(f.get("poids", 0.0)) * mini(int(l["n"]), maxi(0, inv.place_pour(id)))
+	var yb := H - 66.0
+	var cap := inv.capacite()
+	var avant := inv.poids()
+	L.texte(X2 + 2, yb, "Poids", LivreParchemin.RUBRIQUE)
+	L.barre(X2 + 36, yb + 1, LD - 36 - 64, avant / maxf(1.0, cap), Color("#8a5a32"), (avant + delta) / maxf(1.0, cap) if delta > 0.0 else -1.0)
+	L.texte_d(X2 + LD, yb, "%s/%d" % [LivreParchemin.kg(avant), roundi(cap)])
+	if delta > 0.0:
+		var apres := "Après : %s / %d" % [LivreParchemin.kg(avant + delta), roundi(cap)]
+		L.texte(X2 + 2, yb + 14, apres)
+		L.texte(X2 + 2 + L.larg(apres) + 14, yb + 14, "+%s kg" % LivreParchemin.kg(delta), LivreParchemin.RUBRIQUE)
+	L.texte(X2 + 2, yb + 26, "Pièces %s" % LivreParchemin.nombre(inv.pieces), LivreParchemin.OR_TERNI)
+	L.touches([["E", "Prendre", "prendre"], ["R", "Tout prendre", "tout"], ["Échap", "Fermer", "fermer"]])

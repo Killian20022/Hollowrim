@@ -39,6 +39,8 @@ static func _lire_registre() -> Dictionary:
 ## Fiche d'un objet : {nom, poids, valeur, categorie, rarete, [emplacement, armure, type_armure, icone, effets, quete,
 ## description]} ; {} si inconnu. Ne pas modifier le dictionnaire rendu (partagé).
 static func objet(id: String) -> Dictionary:
+	if id.contains("+"):   # lot E : objet amélioré à la forge de Brodd, « <id>+<n> » (Forge.fiche_amelioree, docs/RPG.md §2)
+		return Forge.fiche_amelioree(id)
 	if OBJETS.has(id):
 		return OBJETS[id]
 	return CatalogueArmes.fiche_objet(id)   # armes trouvables (data/armes/catalogue_armes.json) : 20 armes, stats par famille et matériau

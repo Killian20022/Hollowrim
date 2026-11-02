@@ -1,0 +1,7 @@
+{
+	"_doc": "Lot E (stockage, marchands, forge) : objets propres au lot. cle_maison = clé de la maison des Frostmark, donnée par Gunnhild à l'achat (Stockage.acheter_maison). Ne jamais renommer un identifiant (docs/RPG.md §2).",
+	"objets": {
+		"cle_maison": {"nom": "Clé de la maison des Frostmark", "categorie": "quete", "rarete": "peu_commun", "poids": 0.1, "valeur": 0, "quete": true,
+			"description": "Une grosse clé de fer, polie par les mains d'Eirik. La maison est à vous."}
+	}
+}
