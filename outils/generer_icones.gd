@@ -23,21 +23,6 @@ const CONTOUR := Color("#1d140c")
 ## Objets de main hors registre (EquipementMains : « epee » = épée de métal ; bouclier nordique).
 const HORS_REGISTRE := ["epee_metal", "bouclier"]
 
-## Cadrage par catégorie : lacet / tangage (rad) de RenduObjet. Armes couchées vues de haut, en diagonale (pointe en haut à
-## droite, comme les icônes classiques) ; le reste en 3/4 plongeant ; fioles et vivres debout un peu moins plongés.
-const CADRAGES := {
-	"arme": [-0.785, -1.38],
-	"bouclier": [0.5, -1.0],
-	"armure": [0.45, -0.95],
-	"casque": [0.6, -0.4],
-	"bijou": [0.55, -1.0],
-	"potion": [0.55, -0.42],
-	"tome": [0.5, -0.95],
-	"autre": [0.6, -0.8],
-}
-
-## Objets posés face contre terre par ObjetMonde._coucher (axe mince -> vertical, sens arbitraire) : retournés pour l'icône.
-const RETOURNES := ["bouclier"]
 ## Exposition du studio pour les icônes (RenduObjet.exposer) : petites et posées sur vélin clair, elles veulent plus de lumière.
 const EXPOSITION := 1.7
 ## Seuil d'alpha après réduction : en dessous, transparent. Bas pour les bijoux (la chaîne d'une amulette tient en 1 px).
@@ -74,13 +59,13 @@ func _lancer() -> void:
 		if not ObjetMonde.a_modele(id):
 			sans.append(id)
 			continue
-		var c: Array = CADRAGES[cadrage_de(id)]
+		var c := RenduObjet.angles_pour(id)
 		r.montrer(id)
 		r.exposer(EXPOSITION)
-		if id in RETOURNES:
+		if id in RenduObjet.RETOURNES:
 			r.orienter(Basis(Vector3.RIGHT, PI))
-		r.lacet = c[0]
-		r.tangage = c[1]
+		r.lacet = c.x
+		r.tangage = c.y
 		r.cadrer()
 		var img: Image = await r.image()
 		var par := {}
@@ -105,21 +90,7 @@ static func ids_a_rendre() -> Array[String]:
 	return ids
 
 static func cadrage_de(id: String) -> String:
-	var cat := Inventaire.categorie_de(id)
-	var d := ObjetMonde._arme(id)
-	if d != null and d.habillage == "bouclier":
-		return "bouclier"
-	if d != null or cat == "arme":
-		return "arme"
-	if cat == "armure":
-		return "casque" if Inventaire.emplacement_de(id) == "tete" else "armure"
-	if cat == "bijou" or ObjetMonde._genre_petit(id) != "":
-		return "bijou"
-	if id.begins_with("potion_") or id in ["pain_seigle", "viande_sechee", "coupe_argent"]:
-		return "potion"
-	if id.begins_with("tome_") or id in ["registre_hrafn", "journal_sigrun"]:
-		return "tome"
-	return "autre"
+	return RenduObjet.genre_cadrage(id)
 
 ## Image de rendu (fond transparent) -> icône `t` x `t` : objet recadré serré dans (t-2) px, alpha tranché, contour 1 px.
 static func icone_depuis(src: Image, t: int, seuil := SEUIL) -> Image:
@@ -211,7 +182,7 @@ func planches(icones: Dictionary) -> void:
 		var id: String = ids[i]
 		var px := (i % cols) * case_l
 		var py := (i / cols) * case_h
-		var vieille := MenuStyle.icone_objet(id).get_image()
+		var vieille := MenuStyle.icone_pixel(id).get_image()
 		var nouvelle: Image = icones[id][16]
 		for j in 3:
 			var fond := cuir if j == 2 else velin

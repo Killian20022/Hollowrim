@@ -520,20 +520,22 @@ func _comparer_corps(id: String) -> Array:
 
 func _dessiner_fiche(d: Rect2) -> void:
 	if choisi == "":
+		cacher_apercu()
 		Parchemin.filet(self, d.position.x + 8.0, d.position.y + d.size.y * 0.5, d.size.x - 16.0)
 		return
 	var f := fiche(choisi)
 	var x := d.position.x
 	var y := d.position.y
-	MenuStyle.cadre_icone(self, Rect2(x, y + 2, 40, 40))
-	icone(MenuStyle.icone_objet(choisi), Vector2(x + 4, y + 6), 2)
-	titre_fiche(x + 46.0, y, String(f["titre"]), d.size.x - 46.0)
-	texte(x + 46.0, y + 23.0, String(f["sous"]), Parchemin.PALE, false, d.size.x - 46.0)
+	# aperçu 3D tournant (ApercuObjet) à la place de l'ancienne icône 40x40
+	apercu(Rect2(x, y + 2, COTE_APERCU, COTE_APERCU), choisi)
+	var xt := x + COTE_APERCU + 6.0
+	titre_fiche(xt, y + 4.0, String(f["titre"]), d.size.x - (xt - x))
+	texte(xt, y + 29.0, String(f["sous"]), Parchemin.PALE, false, d.size.x - (xt - x))
 	var rar := String(f["rarete"])
-	var lr := texte(x + 46.0, y + 34.0, String(ButinTables.NOMS_RARETE.get(rar, rar)).capitalize(), MenuStyle.RARETE_ENCRE.get(rar, Parchemin.PALE))
+	var lr := texte(xt, y + 41.0, String(ButinTables.NOMS_RARETE.get(rar, rar)).capitalize(), MenuStyle.RARETE_ENCRE.get(rar, Parchemin.PALE))
 	if String(f["extra"]) != "":
-		texte(x + 46.0 + lr, y + 34.0, " · " + String(f["extra"]), Parchemin.PALE)
-	y += 50.0
+		texte(xt + lr, y + 41.0, " · " + String(f["extra"]), Parchemin.PALE, false, d.size.x - (xt - x) - lr)
+	y += COTE_APERCU + 8.0
 	Parchemin.filet(self, x + 8.0, y, d.size.x - 16.0)
 	y += 6.0
 	if String(f["desc"]) != "":

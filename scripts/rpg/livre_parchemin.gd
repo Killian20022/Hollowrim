@@ -275,9 +275,10 @@ func sceau(c: Vector2) -> void:
 func pastille(p: Vector2, rarete: String) -> void:
 	encre.draw_rect(Rect2(p, Vector2(3, 3)), RARETE.get(rarete, RARETE["commun"]))
 
-## Icône d'un objet (motif IconesCombat de la fiche, sinon losange de rareté), cadrée sur `cote` px.
+## Icône d'un objet (dessinée depuis son modèle 3D : IconesObjets, 32 px si `cote` >= 32 ; sinon motif IconesCombat de la fiche,
+## sinon losange de rareté), cadrée sur `cote` px.
 func icone(id: String, p: Vector2, cote := 16.0, alpha := 1.0) -> void:
-	var tex := icone_de(id)
+	var tex := icone_de(id, cote)
 	if tex == null:
 		return
 	var ts := tex.get_size()
@@ -285,9 +286,12 @@ func icone(id: String, p: Vector2, cote := 16.0, alpha := 1.0) -> void:
 	var t := ts * k
 	encre.draw_texture_rect(tex, Rect2(p + ((Vector2(cote, cote) - t) * 0.5).floor(), t), false, Color(1, 1, 1, alpha))
 
-func icone_de(id: String) -> Texture2D:
+func icone_de(id: String, cote := 16.0) -> Texture2D:
 	if id == "pieces":
 		return null
+	var dessinee := IconesObjets.icone(id, 32 if cote >= 32.0 else 16)
+	if dessinee != null:
+		return dessinee
 	var base := Forge.base_de(id)
 	var motif := String(Inventaire.objet(id).get("icone", base))
 	if Inventaire.categorie_de(id) == "arme" and not IconesCombat.connu(motif):

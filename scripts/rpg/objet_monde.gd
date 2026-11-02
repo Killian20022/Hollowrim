@@ -19,7 +19,7 @@ extends Node3D
 ##   ObjetMonde.visuel(id, pose := "sol", graine := 0) -> Node3D   modèle habillé, pivot au sol ; pose « sol » (couché, bijoux exagérés
 ##                                                                ×ECHELLE_BIJOU, anneaux ×ECHELLE_ANNEAU), « etal » (couché, bijoux ×ECHELLE_ETAL), « ratelier »
 ##                                                                (arme debout, pointe en haut, pommeau à y = 0), « studio » (taille
-##                                                                réelle, couché : outils/rendu_objet.gd). `graine` : petit lacet stable.
+##                                                                réelle, couché : scripts/rendu_objet.gd). `graine` : petit lacet stable.
 ##   ObjetMonde.chemin_modele(id) -> String                       "" = repli sacoche
 ##   ObjetMonde.a_modele(id) -> bool
 ##   ObjetMonde.creer(id, n := 1, joueur = null, dialogue = null) -> ObjetMonde

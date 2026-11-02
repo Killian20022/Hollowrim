@@ -1,5 +1,5 @@
 extends SceneTree
-## Planches studio des objets du monde (outils/rendu_objet.gd = RenduObjet) : une case par objet, nom dessous, fond sombre.
+## Planches studio des objets du monde (scripts/rendu_objet.gd = RenduObjet) : une case par objet, nom dessous, fond sombre.
 ##   godot --path . --script res://outils/planche_objets_monde.gd -- --sortie=<dossier> [--ids=a,b,c] [--nom=planche.png]
 ##     sans --ids : planche_bijoux.png (les 10 bijoux, 2 vues) puis planche_armures_sol.png (armures qui ont un modèle au sol).
 ##   --icones=<dossier> : en plus, un PNG transparent 64 px par objet (essai des futures icônes).

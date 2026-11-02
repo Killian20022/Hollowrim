@@ -17,7 +17,24 @@ extends SubViewport
 ##   await r.enregistrer("user://icone.png", 4)     # PNG agrandi ×4 au plus proche
 ##   await RenduObjet.png(arbre_ou_noeud, "amulette_ours", "res://captures/x.png", Vector2i(128, 128), 3)   # tout-en-un
 ## Notes : un Godot SANS fenêtre (--headless) ne dessine rien (image vide) ; lancer avec fenêtre via godot_slot.sh (hors écran).
+## Dans scripts/ (et non outils/, exclu de l'export) : l'aperçu du menu (ApercuObjet) s'en sert en jeu.
 ## Rien de global n'est modifié (monde 3D propre : own_world_3d) : utilisable pendant une partie (menu) sans toucher la scène.
+
+## Cadrage par genre d'objet (lacet, tangage) partagé par les icônes (outils/generer_icones.gd) et l'aperçu du menu : armes
+## couchées vues de haut en diagonale (pointe en haut à droite), casques de face, fioles et vivres debout peu plongés, le reste
+## en 3/4 plongeant.
+const CADRAGES := {
+	"arme": Vector2(-0.785, -1.38),
+	"bouclier": Vector2(0.5, -1.0),
+	"armure": Vector2(0.45, -0.95),
+	"casque": Vector2(0.6, -0.4),
+	"bijou": Vector2(0.55, -1.0),
+	"potion": Vector2(0.55, -0.42),
+	"tome": Vector2(0.5, -0.95),
+	"autre": Vector2(0.6, -0.8),
+}
+## Objets posés face contre terre par ObjetMonde._coucher (axe mince -> vertical, sens arbitraire) : à retourner (orienter).
+const RETOURNES := ["bouclier"]
 
 var lacet := 0.65
 var tangage := -0.62
@@ -35,6 +52,27 @@ var _contre: DirectionalLight3D
 var _cam: Camera3D
 var _centre := Vector3.ZERO
 var _rayon := 0.2
+
+## Genre de cadrage d'un objet (clé de CADRAGES).
+static func genre_cadrage(oid: String) -> String:
+	var d := ObjetMonde._arme(oid)
+	if d != null and d.habillage == "bouclier":
+		return "bouclier"
+	var cat := Inventaire.categorie_de(oid)
+	if d != null or cat == "arme":
+		return "arme"
+	if cat == "armure":
+		return "casque" if Inventaire.emplacement_de(oid) == "tete" else "armure"
+	if cat == "bijou" or ObjetMonde._genre_petit(oid) != "":
+		return "bijou"
+	if oid.begins_with("potion_") or oid in ["pain_seigle", "viande_sechee", "coupe_argent"]:
+		return "potion"
+	if oid.begins_with("tome_") or oid in ["registre_hrafn", "journal_sigrun"]:
+		return "tome"
+	return "autre"
+
+static func angles_pour(oid: String) -> Vector2:
+	return CADRAGES[genre_cadrage(oid)]
 
 static func creer(taille := Vector2i(96, 96)) -> RenduObjet:
 	var r := RenduObjet.new()

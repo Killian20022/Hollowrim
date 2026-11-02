@@ -581,6 +581,15 @@ static func cadre_icone(ci: CanvasItem, r: Rect2) -> void:
 	ci.draw_rect(r.grow(-2), Parchemin.OR_TERNI)
 	ci.draw_rect(r.grow(-3), Color("#1f2a44"))
 
+## Cadre de l'aperçu 3D (ApercuObjet) : filet d'encre et d'or, fond de vélin ombré vers les bords (l'objet se détache au centre).
+static func cadre_apercu(ci: CanvasItem, r: Rect2) -> void:
+	ci.draw_rect(r, Parchemin.ENCRE)
+	ci.draw_rect(r.grow(-1), Parchemin.OR_VIF)
+	ci.draw_rect(r.grow(-2), Parchemin.OR_TERNI)
+	ci.draw_rect(r.grow(-3), Parchemin.VELIN[2])
+	ci.draw_rect(r.grow(-5), Parchemin.VELIN[3])
+	ci.draw_rect(r.grow(-8), Parchemin.VELIN[4])
+
 ## Marque d'objet porté (D, G, P) : petit carré vermillon, lettre claire (maquette : .marque).
 static func marque(ci: CanvasItem, police: Font, x: float, y: float, lettre: String) -> void:
 	ci.draw_rect(Rect2(x, y, 9, 9), Parchemin.RUBRIQUE_SOMBRE)
@@ -665,10 +674,23 @@ const ICONE_OBJET := {"hache_kolbeinn": "hache", "os_draugr": "os", "minerai_fer
 
 static var _icones_menu := {}
 
-## Icône 16x16 d'un objet (identifiant du registre, de l'équipement des mains ou d'un sort) : motif d'IconesCombat s'il existe
+## Icône 16x16 d'un objet (identifiant du registre, de l'équipement des mains ou d'un sort) : icône DESSINÉE DEPUIS LE MODÈLE 3D
+## (IconesObjets, atlas d'outils/generer_icones.gd) s'il y en a une ; sinon (icone_pixel) motif d'IconesCombat s'il existe
 ## (champ « icone » du registre, sinon l'id), sinon motif du menu ; lame teintée par le matériau (épées du catalogue et épées
 ## écrites à la main : epee_or, epee_rubis…). `pale` : silhouette d'emplacement vide (encre pâlie).
 static func icone_objet(id: String, pale := false) -> Texture2D:
+	if not pale:
+		var t := IconesObjets.icone(id, 16)
+		if t != null:
+			return t
+	return icone_pixel(id, pale)
+
+## Icône 32 px (fiches détaillées) : objet dessiné depuis son modèle, sinon l'icône pixel agrandie ×2 à l'affichage (null ici).
+static func icone_objet_32(id: String) -> Texture2D:
+	return IconesObjets.icone(id, 32)
+
+## Ancienne icône pixel 16x16 (motifs IconesCombat / MOTIFS_MENU) : repli des objets sans modèle, sorts, silhouettes pâles.
+static func icone_pixel(id: String, pale := false) -> Texture2D:
 	var cle := id + ("|p" if pale else "")
 	if _icones_menu.has(cle):
 		return _icones_menu[cle]
@@ -731,3 +753,4 @@ static func icone_emplacement(emplacement: String) -> Texture2D:
 ## Libère les textures gardées en statique (à la fermeture : voir Palette.vider).
 static func vider_menu() -> void:
 	_icones_menu.clear()
+	IconesObjets.vider()

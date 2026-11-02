@@ -330,14 +330,14 @@ func _dessiner_fiche(d: Rect2, y: float) -> void:
 	var ec: EquipementCorps = joueur.equipement_corps
 	var bas := d.end.y - 9.0
 	if id == "":
+		cacher_apercu()
 		var t := "Main nue." if est_main(emp) else "Rien n'est porté ici."
 		if emp == "gauche" and _eq() != null and _eq().categorie("droite") == "arme_deux_mains":
 			t = "L'arme à deux mains occupe aussi cette main."
 		paragraphe(x, y, d.size.x, t + "  E : choisir un objet.", Parchemin.PALE)
 		texte(d.end.x, bas, "Armure totale %d" % roundi(ec.armure_totale()), Parchemin.PALE, true)
 		return
-	MenuStyle.cadre_icone(self, Rect2(x, y, 40, 40))
-	icone(MenuStyle.icone_objet(id), Vector2(x + 4, y + 4), 2)
+	apercu(Rect2(x, y, COTE_APERCU, COTE_APERCU), id)     # aperçu 3D tournant (ApercuObjet)
 	var nom := ""
 	var sous := ""
 	var stat := ""
@@ -372,10 +372,11 @@ func _dessiner_fiche(d: Rect2, y: float) -> void:
 			for k: String in ef:
 				morceaux.append("%s %s" % [OngletSac.NOMS_EFFETS.get(k, k), OngletSac._effet_txt(k, ef[k])])
 			desc = (desc + " " if desc != "" else "") + " · ".join(morceaux)
-	texte(x + 46.0, y + 2.0, nom, Parchemin.ENCRE, false, d.size.x - 46.0)
-	texte(x + 46.0, y + 14.0, sous, Parchemin.PALE, false, d.size.x - 46.0)
-	texte(x + 46.0, y + 26.0, stat, Parchemin.ENCRE, false, d.size.x - 46.0)
-	y += 46.0
+	var xt := COTE_APERCU + 6.0
+	texte(x + xt, y + 6.0, nom, Parchemin.ENCRE, false, d.size.x - xt)
+	texte(x + xt, y + 19.0, sous, Parchemin.PALE, false, d.size.x - xt)
+	texte(x + xt, y + 32.0, stat, Parchemin.ENCRE, false, d.size.x - xt)
+	y += COTE_APERCU + 6.0
 	if desc != "":
 		paragraphe(x, y, d.size.x, desc, Parchemin.ENCRE, maxi(1, int((bas - 4.0 - y) / 10.0)))
 	if valeur > 0:
@@ -384,6 +385,7 @@ func _dessiner_fiche(d: Rect2, y: float) -> void:
 
 ## Liste « Changer » : candidats + comparaison.
 func _dessiner_choix(d: Rect2, y: float) -> void:
+	cacher_apercu()
 	var x := d.position.x
 	texte(x, y, "Choisir : %s" % String(EMPLACEMENTS[sel][1]).to_lower(), Parchemin.RUBRIQUE)
 	texte(d.end.x, y, "E équiper · Échap annuler", Parchemin.PALE, true)
