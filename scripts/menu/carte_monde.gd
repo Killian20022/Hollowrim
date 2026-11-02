@@ -181,7 +181,8 @@ func _couleurs() -> void:
 			var d := dens[j * N + i]
 			if d > 0.3:
 				c = c.lerp(SOUS_BOIS, clampf((d - 0.3) * 0.35, 0.0, 0.55))
-			if Geometry2D.is_point_in_polygon(Vector2(x, z), palissade):
+			var dans_boite := ReliefVillage.BOITE.has_point(Vector2(x, z))   # le village et sa rivière : hors de la boîte, rien à tester
+			if dans_boite and Geometry2D.is_point_in_polygon(Vector2(x, z), palissade):
 				c = c.lerp(ENCEINTE, 0.35)
 			for r: Rect2 in VillageBati.CHAMPS:
 				if r.has_point(Vector2(x, z)):
@@ -189,7 +190,7 @@ func _couleurs() -> void:
 			if chem[j * N + i] > 0:
 				c = c.lerp(CHEMIN, 0.75)
 			# eau
-			if not is_nan(ReliefVillage.niveau_eau(x, z)):
+			if dans_boite and not is_nan(ReliefVillage.niveau_eau(x, z)):
 				c = EAU
 			elif EauVillage.sous_le_lac(x, z, h) and EauVillage.LAC_RECT.has_point(Vector2(x, z)) and h < EauVillage.LAC_NIVEAU + 0.05:
 				var libre := Vector2(x, z).distance_to(EauVillage.LAC_ARRIVEE) < EauVillage.LAC_LIBRE
