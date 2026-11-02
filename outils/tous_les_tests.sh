@@ -53,6 +53,7 @@ TESTS=(
 	"test_persos_base|--nouvelle"
 	"test_guerrier|--nouvelle"
 	"test_mage|--nouvelle"
+	"test_capuche_mage|--nouvelle"   # capuche v3 des mages : ajustée au crâne, aucune traversée en animation (persos/capuche_v3)
 	"test_chasseresse|--nouvelle"
 	"test_chasseresse_homme|--nouvelle"
 	"test_gardien|--nouvelle"

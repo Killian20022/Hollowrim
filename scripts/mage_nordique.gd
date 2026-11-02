@@ -47,6 +47,7 @@ static var avec_plastron := true
 
 static func vider() -> void:
 	MageTextures.vider()
+	CapucheMage.vider()
 	GuerrierNordique.vider()
 
 static func creer(options := {}) -> Node3D:
@@ -78,7 +79,11 @@ static func creer(options := {}) -> Node3D:
 		var e := r.normalized() * 0.035 * t
 		return Vector3(p.x + e.x, p.y - 0.07 * t, p.z + e.y))
 	GuerrierNordique._filtrer(pieces["mante"], func(c: Vector3, n: Vector3) -> bool: return not (c.z > 0.03 and absf(c.x) < 0.075 + maxf(0.0, (1.50 * K) - c.y) * 0.25 and c.y < (1.52 * K)))
+	# capuche v3 (persos/capuche_v3) : capuche Blender ajustée au crâne (CapucheMage) ; sans le glb, l'ancienne cagoule retouchée
+	var capuche_v3 := false
 	if pieces.has("capuche") and options.get("capuche", true):
+		capuche_v3 = CapucheMage.poser(sq, pieces, visage, femme)
+	if pieces.has("capuche") and options.get("capuche", true) and not capuche_v3:
 		_habiller(pieces["capuche"], GuerrierNordique.materiau(MageTextures.tex("capuche")))
 		# capuche ouverte devant (le pan qui couvrait le menton et le cou est retiré : la barbe sort de la capuche comme sur la
 		# référence), sommet relevé et tiré en arrière (léger pic), bord avant avancé au-dessus du front (visage dans l'ombre)
@@ -115,6 +120,15 @@ static func creer(options := {}) -> Node3D:
 		pieces["Eyes"].visible = false
 	GuerrierNordique._filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return absf(c.x) < 0.19 or absf(c.x) > 0.69)
 	GuerrierNordique._decimer(pieces.get("peau"), func(p: Vector3) -> float: return 0.027 if absf(p.x) > 0.5 else (0.018 if p.z < 0.035 else 0.0))
+	if capuche_v3:
+		# capuche v3 : le col de la pèlerine qu'elle couvre (autour de la base du cou, hors devant) n'est jamais vu ; il ressortait à
+		# travers le col de la capuche quand les épaules bougent -> retiré (test_capuche_mage)
+		# (le devant est gardé quand le visage est montré : il se voit entre les pans ; sous la barbe du mage, il est retiré aussi)
+		GuerrierNordique._filtrer(pieces["mante"], func(c: Vector3, n: Vector3) -> bool: return not (c.y > 1.50 * K and Vector2(c.x, c.z + 0.02).length() < (0.17 if c.y > 1.56 * K else 0.15) and not (visage and c.z > 0.03 and absf(c.x) < 0.08)))
+		# capuche v3 : le crâne qu'elle couvre (dessus, arrière, oreilles ; derrière le plan des joues) n'est jamais vu -> retiré (budget)
+		var ty := sq.get_bone_global_rest(sq.find_bone("Head")).origin.y
+		# (et la peau du haut du dos, sous la robe, la pèlerine et le col : elle perçait le col quand le bras se lève)
+		GuerrierNordique._filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return not ((c.y > ty + 0.02 and c.z < 0.02) or (c.y > 1.40 * K and c.y < 1.56 * K and c.z < -0.06)))
 	if pieces.has("Eyebrows"):
 		pieces["Eyebrows"].visible = false     # 1 480 triangles : les sourcils des PNJ âgés sont peints dans la peau (PnjNordique._vieillir)
 	var tete := sq.get_bone_global_rest(sq.find_bone("Head")).origin + Vector3(0, 0.07, 0)
@@ -161,7 +175,7 @@ static func creer(options := {}) -> Node3D:
 	var blender: bool = options.get("blender", true) and acc.pieces_blender(pieces["tunique"], pieces["mante"], femme)
 	if not blender:
 		acc.frange_tissu(pieces["mante"], 1.10, 1.47, 0.06, 0.24)
-	if pieces.has("capuche") and options.get("capuche", true):
+	if pieces.has("capuche") and options.get("capuche", true) and not capuche_v3:
 		# col de fourrure au bas de la capuche ; visage montré (corps femme, sans barbe) : les mèches dressées se lisaient comme des
 		# dents de part et d'autre du menton, le col est couché (bas = 0,15 : il retombe sur la pèlerine) et plus court
 		acc.poitrine_libre = true
@@ -208,10 +222,12 @@ static func creer(options := {}) -> Node3D:
 			# assombri : vu de chaque côté du visage, il se lisait comme une vitre claire
 			var mc := (pieces["capuche"].material_override as ShaderMaterial).duplicate() as ShaderMaterial
 			mc.set_shader_parameter("appoint", Vector3(0.07, 0.08, 0.11))
-			mc.set_shader_parameter("dos_sombre", DOS_SOMBRE)
-			# pas de contour sur le capuchon : la coque inversée de son INTÉRIEUR ressortait devant le front (carré noir au milieu du
-			# front, pans noirs de chaque côté du visage) ; la silhouette garde le contour de la pèlerine et de la robe
-			mc.next_pass = null
+			if not capuche_v3:
+				mc.set_shader_parameter("dos_sombre", DOS_SOMBRE)
+				# pas de contour sur le capuchon : la coque inversée de son INTÉRIEUR ressortait devant le front (carré noir au milieu du
+				# front, pans noirs de chaque côté du visage) ; la silhouette garde le contour de la pèlerine et de la robe
+				mc.next_pass = null
+			# capuche v3 : une seule face + doublure modelée (l'intérieur est sombre par son propre éclairage), contour gardé
 			Palette.materiaux.append(mc)
 			Palette._appliquer(mc, Palette._ps1_actif)
 			pieces["capuche"].material_override = mc

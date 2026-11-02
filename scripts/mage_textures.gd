@@ -68,6 +68,8 @@ static func tex(nom: String) -> ImageTexture:
 			match nom:
 				"robe_haut": img = robe_haut()
 				"capuche": img = capuche()
+				"capuche_v3": img = capuche_v3(false)
+				"capuche_v3_femme": img = capuche_v3(true)
 				"barbe": img = barbe()
 				"fourrure": img = fourrure()
 				"accessoires": img = accessoires()
@@ -223,6 +225,66 @@ static func _poignet(img: Image, W: int, H: int) -> void:
 
 static func _p(img: Image, x: int, y: int, c: Color) -> void:
 	GuerrierTextures._p(img, x, y, c)
+
+# ------------------------------------------------------------------ capuche v3 (persos/capuche_v3 : UV de la capuche Blender, 128 x 64)
+## Cuisson Blender (assets/personnages/mage/bake_capuche[_femme].png, 128 x 64 ; u = le long du bord, v = du bord à l'ourlet, sources_blender/scripts/capuche_mage.py) : R = occlusion
+## ambiante (creux des plis, dessous de la pointe, intérieur du capuchon), G = rang (0 = bord du visage, 1 = ourlet), B = pointiness
+## (crêtes des plis), A = couverture. Tons -> palette CAPUCHE : laine épaisse (grain lent, bruit seulement), bord roulé plus clair sur
+## son arête avec une couture en creux juste derrière, ourlet sombre piqué, crêtes des plis éclaircies, creux assombris.
+static func capuche_v3(femme: bool) -> Image:
+	var W := 128
+	var H := 64
+	var img := GuerrierTextures._img(W, H, _c(CAPUCHE, 3))
+	var bake := _lire_bake("bake_capuche_femme.png" if femme else "bake_capuche.png")
+	for y in H:
+		var v := (y + 0.5) / H
+		for x in W:
+			var s := clampf(((x + 0.5) / W - 0.01) / 0.98, 0.0, 1.0)
+			var ao := 0.8
+			var pt := 0.5
+			if bake != null:
+				var c := bake.get_pixel(x, y)
+				ao = c.r
+				pt = c.b
+			# laine : grain lent + duvet fin (bruit, aucun motif périodique)
+			var l := 0.56 + (GuerrierTextures._n(x, y, W, H, 10, 5, 1301) - 0.5) * 0.10 + (GuerrierTextures._n(x, y, W, H, 32, 16, 1302) - 0.5) * 0.08
+			if v < 0.045:
+				# doublure (intérieur du capuchon) : laine sombre, sans relief
+				l = 0.14 + (l - 0.5) * 0.5
+				# finition : sous la mâchoire (pans libres qui tombent sur la poitrine), la doublure retournée prend la lumière ; sombre,
+				# elle se lisait comme de longues mèches noires
+				l = lerpf(l, 0.46 + (l - 0.14) * 0.6, smoothstep(0.50, 0.70, absf(s - 0.5) / 0.5))
+			elif v < 0.08:
+				# tranche du bord roulé : l'arête claire de la laine épaisse
+				l = 0.74 + (l - 0.5) * 0.6 + (GuerrierTextures._n(x, 0, W, 1, 20, 1, 1306) - 0.5) * 0.18
+			else:
+				var rang := (v - 0.08) / 0.91
+				# finition : moins sombre et moins plat -> creux cuits adoucis, crêtes des plis plus marquées, longs plis souples
+				# (bruit 1D le long du bord, s'efface vers l'ourlet) ; jamais de trame
+				l += (ao - 0.85) * 0.8 + (pt - 0.5) * 0.40
+				l += (GuerrierTextures._n(x, 0, W, 1, 14, 1, 1307) - 0.5) * 0.20 * (1.0 - rang * 0.6)
+				if rang < 0.035:
+					# dessus du bourrelet : laine usée, fibres plus claires par plaques, petits creux de feutrage
+					l += 0.10 + (GuerrierTextures._n(x, y, W, H, 24, 4, 1308) - 0.5) * 0.24
+					if GuerrierTextures._h(x, y, 1309) > 0.86:
+						l += 0.08
+					elif GuerrierTextures._h(x, y, 1310) > 0.90:
+						l -= 0.10
+				elif rang < 0.065:
+					l -= 0.13 if GuerrierTextures._h(x, y, 1303) > 0.3 else 0.05     # couture du bord, piquée
+				if rang > 0.965:
+					l -= 0.10                                       # ourlet replié
+				elif rang > 0.935 and GuerrierTextures._h(x / 2, y, 1304) > 0.5:
+					l -= 0.08                                       # piqûres de l'ourlet
+				# couture du milieu (du front à la nuque) : creux d'un texel, lèvres claires
+				var dx := absf(s - 0.5) * W
+				if rang > 0.06 and rang < 0.85:
+					if dx < 0.6:
+						l -= 0.14
+					elif dx < 1.6:
+						l += 0.06
+			_p(img, x, y, _c(CAPUCHE, GuerrierTextures._ton(clampf(l, 0.0, 0.999), 7, x, y, 1305, 0.25)))
+	return img
 
 # ------------------------------------------------------------------ capuche (UV empruntés à la tunique : 256 x 128)
 ## Laine gris-brun sombre, plis longs, bord (v proche de 1) sombre ; le haut de la tête prend la lumière.

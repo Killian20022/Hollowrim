@@ -1,0 +1,14 @@
+# Capuche v3 (persos/capuche_v3) : mage ennemi (--mage-pilote) ; jeu = 3 m, près = 1,1 m sur la tête
+mage_jeu_face pilote 3.0,0,1.1 heure=12 sans-mains anim=Idle:0.25
+mage_jeu_34 pilote 3.0,40,1.1 heure=12 sans-mains anim=Idle:0.25
+mage_jeu_profil pilote 3.0,90,1.1 heure=12 sans-mains anim=Idle:0.25
+mage_jeu_dos pilote 3.0,180,1.1 heure=12 sans-mains anim=Idle:0.25
+mage_pres_face pilote 1.1,0,1.62 heure=12 sans-mains anim=Idle:0.25
+mage_pres_34 pilote 1.1,40,1.62 heure=12 sans-mains anim=Idle:0.25
+mage_pres_profil pilote 1.1,90,1.62 heure=12 sans-mains anim=Idle:0.25
+mage_pres_dos pilote 1.1,180,1.62 heure=12 sans-mains anim=Idle:0.25
+mage_crep_pres_34 pilote 1.1,30,1.62 heure=17.5 sans-mains anim=Idle:0.25
+mage_marche_34 pilote 2.2,50,1.4 heure=12 sans-mains anim=Walk:0.3
+mage_marche_profil pilote 2.2,90,1.4 heure=12 sans-mains anim=Walk:0.7
+mage_sort_34 pilote 2.2,40,1.4 heure=12 sans-mains anim=Spell_Simple_Shoot:0.4
+mage_sort_profil pilote 2.2,100,1.4 heure=12 sans-mains anim=Spell_Simple_Shoot:0.6
