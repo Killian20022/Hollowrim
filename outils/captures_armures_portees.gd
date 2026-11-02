@@ -24,6 +24,7 @@ var l: Label
 var sortie := ""
 var familles: Array = ["cuir", "fourrure", "os"]
 var film := false
+var jambes := false
 
 func _init() -> void:
 	_go.call_deferred()
@@ -93,6 +94,8 @@ func _go() -> void:
 			familles = a.substr(11).split(",")
 		elif a == "--film":
 			film = true
+		elif a == "--jambes":
+			jambes = true
 	s = load("res://scenes/test_combat.tscn").instantiate()
 	s.options = {"draugr": "aucun", "sans-aide": ""}
 	root.add_child(s)
@@ -122,6 +125,8 @@ func _go() -> void:
 	await _attendre(1.0)
 	if film:
 		await _film()
+	elif jambes:
+		await _jambes()
 	else:
 		await _planches()
 	quit()
@@ -207,3 +212,28 @@ func _film() -> void:
 		await _attendre(0.8)
 		s.placer_joueur(Vector3(0, 0, 6.0), 0.0, -6.0)
 		j.camera_tp.recaler()
+
+
+## Planche « jambes » : par famille, torse seul / bottes seules / torse + bottes, de face, de profil et de dos, cadré sur le bas du
+## corps (contrôle : aucune partie de jambe ne disparaît entre les pièces).
+func _jambes() -> void:
+	DirAccess.make_dir_recursive_absolute(sortie)
+	cam = Camera3D.new()
+	cam.fov = 40.0
+	s.add_child(cam)
+	cam.current = true
+	for f in familles:
+		var ids: Array = PIECES.get(f, [])
+		var torse := ""
+		var pieds := ""
+		for id: String in ids:
+			match Inventaire.emplacement_de(id):
+				"torse": torse = id
+				"pieds": pieds = id
+		for combo in [["torse", [torse]], ["pieds", [pieds]], ["torse_pieds", [torse, pieds]]]:
+			_equiper_famille("+".join(combo[1]))
+			await _attendre(0.5)
+			for v in {"face": 0.0, "profil": 90.0, "dos": 180.0}:
+				_placer_cam({"face": 0.0, "profil": 90.0, "dos": 180.0}[v], 2.6, 0.62, 0.75)
+				await _attendre(0.12)
+				await _capture("j_%s_%s_%s" % [f, combo[0], v], Rect2i(330, 0, 300, 540), "%s %s %s" % [NOMS.get(f, f), combo[0].replace("_", "+"), v])
