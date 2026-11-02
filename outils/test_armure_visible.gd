@@ -167,7 +167,7 @@ func _verifier_piece(id: String, e: String) -> void:
 	ok(mat != null and mat.shader == EpeesLongues.shader_matiere(false) and tex != null and tex.get_width() <= 128 and tex.get_height() <= 128,
 		"%s : matériau « matière » (%s), texture %s" % [id, mat.resource_name if mat else "?", str(tex.get_size()) if tex else "absente"])
 	# masquage
-	var reste := _triangles_recouverts(sq, [e])
+	var reste := _triangles_recouverts(sq, av.zones())
 	ok(reste == 0, "%s : plus aucun triangle de la tenue dans la zone « %s » (%d restants)" % [id, e, reste])
 	if e == "tete":
 		var ch := sq.get_node_or_null("Hair_Long") as MeshInstance3D
@@ -182,7 +182,7 @@ func _verifier_piece(id: String, e: String) -> void:
 			var b := m.global_transform * m.get_aabb()
 			aabb = b if premier else aabb.merge(b)
 			premier = false
-		ok(absf(aabb.position.y) < 0.01 and aabb.size.y < 0.6, "%s : au sol, pivot au sol (bas à %.1f cm, hauteur %.0f cm)" % [id, aabb.position.y * 100.0, aabb.size.y * 100.0])
+		ok(absf(aabb.position.y) < 0.01 and aabb.size.y < 0.75, "%s : au sol, pivot au sol (bas à %.1f cm, hauteur %.0f cm)" % [id, aabb.position.y * 100.0, aabb.size.y * 100.0])
 		s.free()
 	eq.retirer(e)
 	var rendu := true

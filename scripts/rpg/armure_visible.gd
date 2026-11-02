@@ -22,8 +22,9 @@ const EMPLACEMENTS := ["tete", "torse", "mains", "pieds"]
 const MAINS_X := 0.58
 const TORSE_X := 0.415
 const PIEDS_Y := 0.40
-const PIEDS_Y_ACC := 0.56	# pans fourrés du héros au-dessus du genou (bottes hautes de l'agent Y) ; surface 0 seulement (la pèlerine reste)
+const PIEDS_Y_ACC := 0.58	# pans fourrés du héros au-dessus du genou (bottes hautes de l'agent Y) ; surface 0 seulement (la pèlerine reste)
 const TETE_Y := 1.585
+const CAPE_Y := 1.50
 const CAMAIL_Y := 1.46
 const TORSE_PANTALON_Y := 0.71	# sommet le plus haut du triangle (gros triangles du pantalon)
 ## Mèches de la nuque (cheveux sous le casque du héros) qui tombent dans le col d'une pièce de torse.
@@ -204,12 +205,16 @@ static func materiau(nom: String, tex: Texture2D) -> ShaderMaterial:
 	return m
 
 # ------------------------------------------------------------------------------------------------------------- masquage
-## Zones recouvertes par les pièces réellement posées.
+## Zones recouvertes par les pièces réellement posées ; « cape » en plus quand la pièce de tête descend sur les épaules (capuche
+## à pèlerine : son bas au repos est sous CAPE_Y) : le col de fourrure et la mante du héros passent alors dessous.
 func zones() -> Array:
 	var z := []
 	for e in EMPLACEMENTS:
 		if maillage(e) != null:
 			z.append(e)
+	var t := maillage("tete")
+	if t != null and t.get_aabb().position.y < CAPE_Y:
+		z.append("cape")
 	return z
 
 func _masquer() -> void:
@@ -241,7 +246,7 @@ static func _concerne(nom: String, z: Array) -> bool:
 		"tunique":
 			return z.has("torse") or z.has("mains")
 		"mante", "Hair_Long":
-			return z.has("torse")
+			return z.has("torse") or z.has("cape")
 		"brassards", "peau":
 			return z.has("mains")
 		"bottes":
@@ -276,6 +281,11 @@ static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Arra
 	var camail := acc and _dans(GuerrierTextures.R_PLASTRON, u) and c.y > CAMAIL_Y
 	if z.has("tete") and nom == "accessoires" and not oeil and (casque or camail or c.y > TETE_Y):
 		return true
+	if z.has("cape"):
+		if nom == "mante":
+			return true
+		if acc and not oeil and not casque and c.y > 1.38 and c.y < TETE_Y and absf(c.x) < 0.30:
+			return true     # col de fourrure, fibules, haut des épaulières : sous la pèlerine de la capuche
 	if z.has("torse"):
 		if camail:
 			return true     # camail du casque de base : il tombe sur le col et traverserait le haut de la pièce de torse (nuque)
