@@ -255,7 +255,9 @@ def cuirasse(r, st):
         bomb = st.get("bombe", 0.0)
         def dec_lame(j, i, a, k=k):
             avant = max(0.0, math.cos(a)) ** 2
-            return 0.024 + 0.005 * (lames - k) + (0.006 if j == 0 else 0.0) + bomb * avant * math.sin(math.pi * (k + 0.5) / lames)
+            # flancs minces : les bras qui pendent le long du corps ne rentrent pas dans les plaques
+            flanc = 0.4 + 0.6 * abs(math.cos(a)) ** 0.8
+            return (0.024 + 0.005 * (lames - k) + (0.006 if j == 0 else 0.0)) * flanc + bomb * avant * math.sin(math.pi * (k + 0.5) / lames)
         Pl, Rl, _ = C.tube(arbre, axeA, axeB, [tz(zb), tz(za + 0.01), tz(za)], n, dec_lame, r_loin=0.6, dilate=2, lisse=3)
         v0 = 40 + int(48 * k / lames); v1 = 40 + int(48 * (k + 1) / lames)
         ids = P.grille(Pl[:2], st["mat"], C.rect_uv((0, v0, 128, v1)), inverser=False)
@@ -328,11 +330,19 @@ def cuirasse(r, st):
         def dec_f(j, i, a):
             dos = 0.5 * (1.0 - math.cos(a))          # 0 devant, 1 derrière : col épais sur la nuque et les épaules
             return ((0.025, 0.045, 0.02)[j] + (0.03, 0.045, 0.025)[j] * dos ** 0.7) + 0.012 * (_h_ang(i, 7) - 0.5)
-        Pf, Rf, _ = C.tube(arbre, axeA, axeB, [tz(1.45), tz(1.51), tz(1.575)], n, dec_f, r_loin=0.6, dilate=2, lisse=1)
-        P.grille(Pf, "fourrure", C.rect_uv(R_FOUR), inverser=True)
+        # ouvert devant (la barbe retombe sur la poitrine) : des épaules à la nuque seulement
+        arc_f = [math.radians(x) for x in range(55, 306, 25)]
+        Pf, Rf, _ = C.tube(arbre, axeA, axeB, [tz(1.45), tz(1.51), tz(1.575)], 0, dec_f, r_loin=0.6, dilate=0, lisse=1, angles=arc_f)
+        P.grille(Pf, "fourrure", C.rect_uv(R_FOUR), fermer=False, inverser=True)
+        # bouts du col (épaisseur sur les clavicules)
+        for bout in (0, -1):
+            col_b = [row[bout] for row in Pf]
+            dedans = [p + (Vector((0, 0, p.z)) - p).normalized() * 0.025 for p in col_b]
+            P.grille([col_b, dedans] if bout == 0 else [dedans, col_b], "fourrure", C.rect_uv((80, 96, 90, 128)), fermer=False, inverser=True)
         # mèches qui pendent (dents) sur le bas du col
-        for i in range(0, n, 1 if n * 3 < 40 else 2):
-            a, b = Pf[0][i], Pf[0][(i + 1) % n]
+        nf = len(arc_f)
+        for i in range(0, nf - 1):
+            a, b = Pf[0][i], Pf[0][i + 1]
             m = (a + b) / 2 + Vector((0, 0, -0.035 - 0.015 * _h_ang(i, 3))) + ((a + b) / 2 - Vector((0, 0, a.z))).normalized() * 0.01
             ia, ib, im = P.sommet(a, 0.8), P.sommet(b, 0.8), P.sommet(m, 0.6)
             P.face([ib, ia, im], "fourrure", [(0.8, 0.8), (0.95, 0.8), (0.87, 0.76)])

@@ -593,6 +593,7 @@ func _planches() -> void:
 func _film() -> void:
 	await _scene_jeu()
 	_poser_au_soleil()
+	j.rotation.y += PI      # soleil derrière la caméra 3e personne : le dos du héros (vu en jeu) est éclairé
 	for c in root.find_children("*", "CanvasLayer", true, false):
 		c.visible = true
 	var ids: Array = ENSEMBLES.get(_arg("ensemble", "fer"), [])

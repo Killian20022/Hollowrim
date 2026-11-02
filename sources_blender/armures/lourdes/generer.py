@@ -46,7 +46,7 @@ PIECES = {
                                                     peinture_manchette=C.cuir(C.CUIR_ROUGE, 81, base=0.5),
                                                     peinture_main=C.cuir(C.CUIR_ROUGE, 82, base=0.55),
                                                     peinture_doigts=C.cuir(C.CUIR_ROUGE, 83, base=0.48))),
-    "bottes_rodeur": lambda r: PC.bottes(r, _s(FER, id="bottes_rodeur", mat_botte="fourrure", greve=False, revers=True, sangles=False,
+    "bottes_rodeur": lambda r: PC.bottes(r, _s(FER, id="bottes_rodeur", mat_botte="fourrure", greve=False, revers=True, sangles=False, haut=0.42,
                                                 peinture_botte=C.fourrure(C.FOURRURE_BLANCHE, 91, base=0.6),
                                                 peinture_revers=C.fourrure(C.FOURRURE_BLANCHE, 92, base=0.7),
                                                 decor=[PC.deco_runes_bottes])),
