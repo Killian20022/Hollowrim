@@ -43,9 +43,19 @@ LAINE = L.hexa("#121512", "#191d19", "#212621", "#2a302a", "#333b33", "#3d463c",
 LOUP = L.hexa("#15120f", "#221d18", "#302922", "#40372e", "#51463b", "#635749", "#776958", "#8c7d6a", "#a3937f", "#bcad98", "#d2c5b0")
 OURS = L.hexa("#140e0a", "#1f160f", "#2c2016", "#3a2a1d", "#4a3624", "#5b432c", "#6d5135")
 OS = L.hexa("#2a2116", "#3d3122", "#54452f", "#6c5b3e", "#85724f", "#9c8862", "#b19d76", "#c4b18a", "#d6c59f")
-FIL = np.array([0.66, 0.56, 0.40])
-OCRE = np.array([0.55, 0.40, 0.16])
-GARANCE = np.array([0.36, 0.11, 0.07])
+def terne(pal, k=0.80, sat=0.72):
+    """Palette assombrie et désaturée (le shader et le soleil de jeu poussaient le cuir vers l'orange)."""
+    res = []
+    for c in pal:
+        l = 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]
+        res.append(tuple((l + (x - l) * sat) * k for x in c))
+    return res
+
+
+CUIR, BOUILLI, SOMBRE = terne(CUIR), terne(BOUILLI, 0.80, 0.80), terne(SOMBRE, 0.9, 0.8)
+FIL = np.array([0.62, 0.54, 0.40])
+OCRE = np.array([0.46, 0.35, 0.16])
+GARANCE = np.array([0.24, 0.09, 0.06])
 
 # ---------------------------------------------------------------------------------------------------------- outils géométrie
 def plan_xy(a, b, dedans):
@@ -92,11 +102,31 @@ def surplaque(base, nom, plans, decal, ep, partie, souleve=None, symetrie=False)
             dep[v] = v.normal * (decal + (souleve(p) if souleve else 0.0))
         for v, d in dep.items():
             v.co = v.co + d
-        X.epaissir_bords(bm, ep)
+        if ep > 0:
+            X.epaissir_bords(bm, ep)
         o = X.en_objet(bm, "%s_%d" % (nom, k))
         L.ecrire_poids(o, L.normaliser(L.poids_proches(o, base, 3)))
         objs.append(o)
     return objs
+
+
+def epaissir(bm, ep, filtre):
+    """epaissir_bords de gen_legeres limité aux arêtes de bord retenues par filtre(a_godot, b_godot)."""
+    part = L.couche_partie(bm)
+    bm.normal_update()
+    bords = [e for e in bm.edges if e.is_boundary and filtre(G(e.verts[0].co), G(e.verts[1].co))]
+    nouv = {}
+    for e in bords:
+        for v in e.verts:
+            if v not in nouv:
+                nouv[v] = bm.verts.new(v.co - v.normal * ep)
+    for e in bords:
+        a, b = e.verts
+        f0 = e.link_faces[0]
+        boucle_ = [l for l in f0.loops if l.edge == e][0]
+        f = bm.faces.new((b, a, nouv[a], nouv[b]) if boucle_.vert == a else (a, b, nouv[b], nouv[a]))
+        f[part] = f0[part]
+    bm.normal_update()
 
 
 def boite(bm, centre, taille, partie, ex=(1, 0, 0), ey=(0, 1, 0)):
@@ -455,17 +485,31 @@ def fer_tex(P, N, base=0.55, g=0):
     return rgba(rgb, 0.65 + v * 0.3)
 
 
+SANS_BORD = {11, 12, 14}      # mèches, os, cordon : pas de bord peint
+
+
 class Ctx:
     """Données de bord d'une pièce (calculées sur la pièce finale) pour sa fonction de matière."""
     def __init__(self, o, coutures=(), rivets=(), pas_couture=0.0055, retrait_couture=0.0072, pas_rivet=0.034, retrait_rivet=0.012,
                  rivets_en_plus=()):
         ar = bords_ext(o)
-        self.ext = kd_de([p for a, b, d, q in ar for p in (a.lerp(b, i / max(1, int((b - a).length / 0.002))) for i in range(max(1, int((b - a).length / 0.002)) + 1))])
+        # bord visible PAR PARTIE (le galon, le biseau et les filets ne suivent que les bords de leur propre pièce)
+        par = {}
+        for a, b, d, q in ar:
+            if q in SANS_BORD:
+                continue
+            n = max(1, int((b - a).length / 0.002))
+            par.setdefault(q, []).extend(a.lerp(b, i / n) for i in range(n + 1))
+        self.ext = {q: kd_de(pts) for q, pts in par.items()}
         self.cout = kd_de(echantillons(ar, set(coutures), retrait_couture, pas_couture))
         self.riv = kd_de(echantillons(ar, set(rivets), retrait_rivet, pas_rivet) + list(rivets_en_plus))
 
-    def __call__(self, P):
-        de, _ = proches(self.ext, P)
+    def __call__(self, P, pa):
+        de = np.full(len(P), 1.0)
+        for q, kd in self.ext.items():
+            m = pa == q
+            if m.any():
+                de[m], _ = proches(kd, P[m])
         ds, dv = proches(self.cout, P)
         dr, dvr = proches(self.riv, P)
         return de, ds, dv, dr, dvr
@@ -571,7 +615,7 @@ def cuir():
 
     def mat(P, N, pa, bd):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
-        de, ds, dv, dr, dvr = ctx(P)
+        de, ds, dv, dr, dvr = ctx(P, pa)
         v, out = peau(P, N, CUIR, 0.50, 101, 0.30)
         # laçage du plastron : lacets croisés + oeillets sur la coque au milieu
         lac = (pa == 0) & (z > 0.05) & (y > 1.2) & (y < 1.44) & (np.abs(x) < 0.03)
@@ -618,21 +662,41 @@ def cuir():
     def jeu(th, ph):
         dos = max(0.0, -math.cos(th))
         haut = max(0.0, math.sin(ph))
-        return 0.015 + 0.012 * dos * haut + (0.022 * (0.4 + 0.6 * dos) if ph < -0.5 else 0.0)
+        # nuque : jeu progressif sous l'occiput (la peau du cou ressortait quand la tête se penche en avant)
+        nuque = 0.006 * dos * min(1.0, max(0.0, (-0.15 - ph) / 0.5))
+        # joues : la barbe (pondérée en partie sur le cou) frôlait l'ouverture tête penchée -> côtés du visage plus amples
+        tt = abs(math.atan2(math.sin(th), math.cos(th)))
+        joue = 0.014 * max(0.0, 1.0 - abs(tt - math.radians(70)) / math.radians(35)) * max(0.0, 1.0 - abs(ph + 0.2) / 0.5)
+        return 0.015 + 0.012 * dos * haut + (0.022 * (0.4 + 0.6 * dos) if ph < -0.5 else 0.0) + nuque + joue
 
     def garder(th, ph):
         t = abs(math.atan2(math.sin(th), math.cos(th)))
+        # ouverture du visage au même angle que l'ancienne capuche (54°) malgré les colonnes plus fines : la barbe reste dehors
         if ph < math.radians(-30):
-            return t > math.radians(50)
+            return t > math.radians(57)
         if ph < math.radians(30):
-            return t > math.radians(52 - 8 * max(0.0, -ph))
+            return t > math.radians(57 - 4 * max(0.0, -ph))
         return True
     bm = X.coque_tete("capuche_cuir", lignes, 32, jeu, garder, cibles)
     for v in bm.verts:
         p = G(v.co) - TETE
         if p.y > 0.06 and p.z < 0.0:
             v.co = B(TETE + p + Vector((0, -0.006, -0.012)) * (p.y - 0.06) / 0.05 * max(0.0, -p.z) / 0.1)
-    X.epaissir_bords(bm, 0.008)
+    # nuque DRAPÉE (pas moulée) : la capuche tombe de l'occiput vers les épaules à distance du cou (ellipse 15 x 16,5 cm autour
+    # de l'axe du cou), comme l'ancienne capuche ; moulée, la peau de la nuque la traversait dès que la tête bouge
+    for v in bm.verts:
+        p = G(v.co)
+        dz = p.z - COU.z
+        if dz >= 0.0 or not (COU.y - 0.12 < p.y < TETE.y - 0.02):
+            continue
+        k = min(1.0, max(0.0, (TETE.y - 0.02 - p.y) / 0.08))
+        e = math.sqrt((p.x / 0.15) ** 2 + (dz / 0.165) ** 2)
+        if e < 1.0:
+            s_ = 1.0 + (1.0 / max(e, 1e-3) - 1.0) * k
+            v.co = B(Vector((p.x * s_, p.y, COU.z + dz * s_)))
+    # tranche rabattue autour du visage seulement : sous la nuque, le rabat frôlait la peau du cou (traversées tête penchée)
+    # (pas sur les joues : la barbe passait sous la tranche quand la tête tourne)
+    epaissir(bm, 0.007, lambda a, b: min(a.y, b.y) > 1.645)
     o = X.en_objet(bm, "capuche_cuir")
     pw_p = L.poids_proches(o, bpy.data.objects["peau"], 4, lambda p: p.y > 1.40 and abs(p.x) < 0.2)
     pw_t = L.poids_proches(o, bpy.data.objects["tunique"], 4, lambda p: p.y > 1.30 and abs(p.x) < 0.3)
@@ -647,7 +711,9 @@ def cuir():
     res = []
     for v, d in zip(o.data.vertices, pw):
         y = G(v.co).y
-        t = min(1.0, max(0.0, (y - (COU.y + 0.03)) / 0.06))
+        # nuque : le bas de la capuche suit le COU plus haut derrière (la peau de la nuque ressortait tête penchée)
+        dosw = min(1.0, max(0.0, -(G(v.co).z - COU.z) / 0.06))
+        t = min(1.0, max(0.0, (y - (COU.y + 0.03 + 0.06 * dosw)) / 0.06))
         dd = {k: x_ * (1 - t) for k, x_ in d.items()}
         dd["Head"] = dd.get("Head", 0.0) + t
         res.append(dd)
@@ -657,7 +723,7 @@ def cuir():
 
     def mat_cap(P, N, pa, bd):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
-        de, ds, dv, dr, dvr = ctx_c(P)
+        de, ds, dv, dr, dvr = ctx_c(P, pa)
         v, out = peau(P, N, CUIR, 0.48, 141, 0.30)
         # coutures des panneaux : milieu du crâne (bourrelet) et deux coutures latérales
         r = P - np.array(TETE[:])
@@ -695,7 +761,7 @@ def cuir():
 
     def mat_g(P, N, pa, bd):
         x = np.abs(P[:, 0])
-        de, ds, dv, dr, dvr = ctx_g(P)
+        de, ds, dv, dr, dvr = ctx_g(P, pa)
         v, out = peau(P, N, CUIR, 0.46, 151, 0.30)
         # paume plus claire et usée, entre-doigts sombres
         pal_ = (pa == 0) & (N[:, 1] < -0.4)
@@ -744,7 +810,7 @@ def cuir():
 
     def mat_b(P, N, pa, bd):
         y = P[:, 1]
-        de, ds, dv, dr, dvr = ctx_b(P)
+        de, ds, dv, dr, dvr = ctx_b(P, pa)
         v, out = peau(P, N, CUIR, 0.45, 161, 0.30)
         sem = (pa == 0) & (y < 0.028)
         out[sem, :3] = L.rampe(SOMBRE, np.full(sem.sum(), 0.2)) * (0.9 + 0.2 * L.bruit(P[sem], 200.0, 3))[:, None]
@@ -770,16 +836,23 @@ def cuir():
 ## parties : 0 coque (laine sergée), 1 ceinture, 3 col, 4 pelisse (peau de loup), 11 mèches, 12 os (crocs, olive de fermeture),
 ## 13 baudrier de cuir, 14 cordon
 def fourrure():
-    base = X.torse_base("armure_fourrure", 980, jeu=lambda p: 0.013)
+    base = X.torse_base("armure_fourrure", 700, jeu=lambda p: 0.013)
+    tronc = X.torse_base("pelisse_src", 430, jeu=lambda p: 0.013)
     # pelisse de loup sur les épaules (découpée dans la coque, bord bas gonflé)
     pl = [plan((0, 1.235, 0), (0, -1, 0)), plan((0, 1.525, 0), (0, 1, 0)), plan((0.33, 0, 0), (1, 0, 0)), plan((-0.33, 0, 0), (-1, 0, 0))]
-    pel = surplaque(base, "pelisse", pl, 0.021, 0.010, 4, souleve=lambda p: 0.010 * max(0.0, min(1.0, (1.42 - p.y) / 0.18)))[0]
+    pel = surplaque(tronc, "pelisse", pl, 0.021, 0.0, 4, souleve=lambda p: 0.010 * max(0.0, min(1.0, (1.42 - p.y) / 0.18)))[0]
+    if os.environ.get("HDCF_DEBUG"):
+        zs = [G(v.co) for v in pel.data.vertices]
+        print("DEBUG pel", len(zs), "devant", sum(1 for p in zs if p.z > 0.05), "dos", sum(1 for p in zs if p.z < -0.05))
+        zt = [G(v.co) for v in tronc.data.vertices if 1.3 < G(v.co).y < 1.45 and abs(G(v.co).x) < 0.1]
+        print("DEBUG tronc devant", sum(1 for p in zt if p.z > 0.05), "dos", sum(1 for p in zt if p.z < -0.05))
+        raise SystemExit
     # baudrier de cuir en travers (épaule gauche -> hanche droite), sous la pelisse
     nb = Vector((0.62, -0.78, 0)).normalized()
     c0 = Vector((0, 1.17, 0))
-    pl = [(c0 + nb * 0.028, nb), (c0 - nb * 0.028, -nb), plan((0, 1.28, 0), (0, 1, 0)), plan((0, 0.99, 0), (0, -1, 0))]
-    baud = surplaque(base, "baudrier", pl, 0.006, 0.005, 13)
-    bel = X.ceinture("ceint", 0.935, 0.995, 0.012, 24)
+    pl = [(c0 + nb * 0.028, nb), (c0 - nb * 0.028, -nb), plan((0, 1.28, 0), (0, 1, 0)), plan((0, 0.99, 0), (0, -1, 0)), plan((0, 0, 0.0), (0, 0, -1))]
+    baud = surplaque(tronc, "baudrier", pl, 0.009, 0.005, 13)
+    bel = X.ceinture("ceint", 0.935, 0.995, 0.012, 16)
     surf = pel
     cnt = Vector((0, 1.58, COU.z - 0.01))
 
@@ -787,10 +860,10 @@ def fourrure():
         r = p - cnt
         return Vector((r.x, -0.75 * max(0.3, Vector((r.x, 0, r.z)).length * 4.0), r.z))
     # mèches : 3 couches (dessous longues qui pendent sous le bord, milieu, dessus courtes vers le col)
-    m1 = meches(surf, "m1", 120, 0.075, 0.034, 11, 5, zone=lambda c, n: c.y < 1.36 and n.y > -0.5, sens=sens_p, souleve=0.014,
-                double=lambda p, t: t.y < 1.27, src=base)
-    m2 = meches(surf, "m2", 110, 0.060, 0.030, 11, 6, zone=lambda c, n: 1.33 < c.y < 1.45 and n.y > -0.5, sens=sens_p, souleve=0.012, src=base)
-    m3 = meches(surf, "m3", 80, 0.045, 0.026, 11, 7, zone=lambda c, n: c.y > 1.43 and n.y > -0.2, sens=sens_p, souleve=0.008, src=base)
+    m1 = meches(surf, "m1", 50, 0.075, 0.034, 11, 5, zone=lambda c, n: c.y < 1.36 and n.y > -0.5, sens=sens_p, souleve=0.014,
+                double=lambda p, t: t.y < 1.25, src=tronc)
+    m2 = meches(surf, "m2", 42, 0.060, 0.030, 11, 6, zone=lambda c, n: 1.33 < c.y < 1.45 and n.y > -0.5, sens=sens_p, souleve=0.012, src=tronc)
+    m3 = meches(surf, "m3", 32, 0.045, 0.026, 11, 7, zone=lambda c, n: c.y > 1.43 and n.y > -0.2, sens=sens_p, souleve=0.008, src=tronc)
     # olive d'os qui ferme la pelisse devant, sur un cordon ; collier de crocs
     bm = bmesh.new()
     import mathutils
@@ -807,7 +880,7 @@ def fourrure():
         croc(bm, q - Vector((0, 0.004, 0)), Vector((a * 0.25, -1, 0.15)), 0.040 if a == 0 else 0.032, 0.0062 if a == 0 else 0.0052, 12,
              courbe=(0, 0, 1))
     o_os = X.en_objet(bm, "colier")
-    L.ecrire_poids(o_os, L.normaliser(L.poids_proches(o_os, base, 4)))
+    L.ecrire_poids(o_os, L.normaliser(L.poids_proches(o_os, tronc, 4)))
     # boucle de ceinture en os (deux olives) + passants
     bm = bmesh.new()
     shell = L.bvh_de(["tunique"], filtre=lambda p: abs(p.x) < 0.3)
@@ -816,16 +889,26 @@ def fourrure():
     boite(bm, c - Vector((0.016, 0, 0)), (0.026, 0.050, 0.012), 12, (1, 0, 0), (0, 1, 0))
     o_bo = X.en_objet(bm, "boucle_os")
     X.poids_de(o_bo, "tunique", lambda p: abs(p.x) < 0.3)
-    col = X.col_montant("col", n=16)
+    col = X.col_montant("col", n=12)
+    # coque cachée sous la pelisse retirée (budget) ; marge de 3 cm sous ses bords
+    bm = bmesh.new()
+    bm.from_mesh(base.data)
+    cache = [f for f in bm.faces if 1.285 < G(f.calc_center_median()).y < 1.49 and abs(G(f.calc_center_median()).x) < 0.28]
+    bmesh.ops.delete(bm, geom=cache, context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(base.data)
+    bm.free()
+    print("  fourrure torse :", [(q.name, L.nb_tris(q)) for q in [base, pel] + baud + [bel, m1, m2, m3, o_os, o_bo, col]])
+    bpy.data.objects.remove(tronc)
     o = X.fusion([base, pel] + baud + [bel, m1, m2, m3, o_os, o_bo, col], "armure_fourrure")
     ctx = Ctx(o, coutures=(0, 1, 13), rivets=(13,), pas_rivet=0.05, retrait_rivet=0.012)
 
     def mat(P, N, pa, bd):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
-        de, ds, dv, dr, dvr = ctx(P)
+        de, ds, dv, dr, dvr = ctx(P, pa)
         v, out = laine_tex(P, N, 201)
         # galon tissé aux bords de la tunique (ourlet, emmanchures)
-        out = galon(out, P, (pa == 0) & (de > 0.004) & (de < 0.024))
+        out = galon(out, P, (pa == 0) & (de > 0.004) & (de < 0.020) & ((y < 0.86) | (np.abs(x) > 0.33)))
         # cuir : ceinture, col, baudrier
         for p_, pal, base_, g_ in ((1, SOMBRE, 0.40, 203), (3, CUIR, 0.44, 205), (13, CUIR, 0.50, 207)):
             m = pa == p_
@@ -856,7 +939,7 @@ def fourrure():
     def garder_c(th, ph):
         t = abs(math.atan2(math.sin(th), math.cos(th)))
         return ph > math.radians(24) or t > math.radians(80)
-    bm = X.coque_tete("casque_fourrure", lignes, 28, lambda th, ph: 0.020, garder_c, cibles, 0)
+    bm = X.coque_tete("casque_fourrure", lignes, 24, lambda th, ph: 0.020, garder_c, cibles, 0)
     X.epaissir_bords(bm, 0.008)
     o_dome = X.en_objet(bm, "dome")
     bm = bmesh.new()
@@ -886,7 +969,7 @@ def fourrure():
         X.epaissir_bords(bm, 0.007)
         X.franges(bm, 0.016, filtre=lambda e: max(G(e.verts[0].co).y, G(e.verts[1].co).y) < TETE.y - 0.03, graine=3 + s, bas=0.8, demi=False)
         rabats.append(X.en_objet(bm, "rabat"))
-    mb = meches(o_bord, "mb", 90, 0.034, 0.024, 11, 9, zone=lambda cc, n: Vector((n.x, 0, n.z)).length > 0.5,
+    mb = meches(o_bord, "mb", 64, 0.034, 0.024, 11, 9, zone=lambda cc, n: Vector((n.x, 0, n.z)).length > 0.5,
                 sens=lambda p, n: Vector((p.x - TETE.x, -0.5, p.z - TETE.z)), souleve=0.010, crete=0.003, src=o_bord)
     bm = bmesh.new()
     for a in (-0.32, 0.0, 0.32):
@@ -903,7 +986,7 @@ def fourrure():
 
     def mat_c(P, N, pa, bd):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
-        de, ds, dv, dr, dvr = ctx_c(P)
+        de, ds, dv, dr, dvr = ctx_c(P, pa)
         v, out = peau(P, N, CUIR, 0.42, 221, 0.32)
         # bandes de cuir bouilli en croix sur la calotte, cloutées
         r = P - np.array(TETE[:])
@@ -932,7 +1015,7 @@ def fourrure():
         r_ = X.manchette("mf_" + cote, "brassards", 0.548, 0.668, 0.011, 0.007, 0.007, 14, 4, cote, 0.006)
         revs.append(r_)
         s = 1 if cote == "l" else -1
-        parts.append(meches(r_, "mg_" + cote, 36, 0.040, 0.026, 11, 13 + s,
+        parts.append(meches(r_, "mg_" + cote, 26, 0.040, 0.026, 11, 13 + s,
                             zone=lambda c, n: abs(n.x) < 0.7, sens=lambda p, n, s=s: Vector((s * 1.0, -0.15, 0)), souleve=0.009,
                             double=lambda p, t, s=s: abs(t.x) > 0.66, src=r_))
     parts += revs
@@ -940,7 +1023,7 @@ def fourrure():
     ctx_g = Ctx(o, coutures=(0,), pas_couture=0.0045, retrait_couture=0.004)
 
     def mat_g(P, N, pa, bd):
-        de, ds, dv, dr, dvr = ctx_g(P)
+        de, ds, dv, dr, dvr = ctx_g(P, pa)
         v, out = peau(P, N, CUIR, 0.42, 241, 0.3)
         pal_ = (pa == 0) & (N[:, 1] < -0.4)
         out[pal_, :3] *= 1.12
@@ -954,15 +1037,15 @@ def fourrure():
     JSON_PIECES.append({"id": "gants_fourrure", "nom": "Moufles de loup", "emplacement": "mains", "matiere": "fourrure", "poids": 1.0})
 
     # --- bottes_fourrure : bottes de cuir, revers de loup en mèches, lanière croisée à olive d'os
-    b = X.bottes_base("bottes_fourrure", 500, 0.008)
+    b = X.bottes_base("bottes_fourrure", 440, 0.008)
     parts = [b]
     for cote in ("l", "r"):
         r_ = X.revers_botte("rf_" + cote, cote, 0.31, 0.44, 0.010, 0.012, 0.008, 12, 4, evase=0.005)
         parts.append(r_)
-        parts.append(meches(r_, "mb_" + cote, 40, 0.050, 0.030, 11, 21 + (1 if cote == "l" else 0),
+        parts.append(meches(r_, "mb_" + cote, 24, 0.050, 0.030, 11, 21 + (1 if cote == "l" else 0),
                             zone=lambda c, n: abs(n.y) < 0.7, sens=lambda p, n: Vector((0, -1, 0)), souleve=0.010,
-                            double=lambda p, t: t.y < 0.33, src=r_))
-        parts.append(X.revers_botte("l1_" + cote, cote, 0.150, 0.172, 0.006, 0.006, 0.005, 12, 2))
+                            double=lambda p, t: t.y < 0.305, src=r_))
+        parts.append(X.revers_botte("l1_" + cote, cote, 0.150, 0.172, 0.006, 0.006, 0.005, 10, 2))
     bm = bmesh.new()
     for cote in ("l", "r"):
         s = 1 if cote == "l" else -1
@@ -981,7 +1064,7 @@ def fourrure():
 
     def mat_b(P, N, pa, bd):
         y = P[:, 1]
-        de, ds, dv, dr, dvr = ctx_b(P)
+        de, ds, dv, dr, dvr = ctx_b(P, pa)
         v, out = peau(P, N, CUIR, 0.42, 251, 0.3)
         sem = (pa == 0) & (y < 0.03)
         out[sem, :3] = L.rampe(SOMBRE, np.full(sem.sum(), 0.2))
@@ -1020,7 +1103,10 @@ def chausses():
         pl = [plan((0, k.y + 0.075, 0), (0, 1, 0)), plan((0, k.y - 0.055, 0), (0, -1, 0)), plan((0, 0, k.z + 0.0), (0, 0, -1)),
               plan((k.x + 0.06, 0, 0), (1, 0, 0)), plan((k.x - 0.06, 0, 0), (-1, 0, 0))]
         gen += surplaque(o, "genou", pl, 0.005, 0.005, 5, symetrie=True)
-    familles = {"cuir": gen, "fourrure": []}
+    jar = []
+    for cote in ("l", "r"):
+        jar.append(X.revers_botte("jar_" + cote, cote, 0.455, 0.49, 0.006, 0.006, 0.005, 12, 13))
+    familles = {"cuir": gen, "fourrure": jar}
     for fam, extra in familles.items():
         c = o.copy()
         c.data = o.data.copy()
@@ -1031,11 +1117,11 @@ def chausses():
         L.lisser_normales(c)
         print("PIECE chausses_%s : %d triangles" % (fam, L.nb_tris(c)))
         L.uv_auto(c, 0.012, 66)
-        ctx = Ctx(c, coutures=(0, 5), rivets=(5,), pas_rivet=0.03, retrait_rivet=0.009)
+        ctx = Ctx(c, coutures=(5, 13), rivets=(5,), pas_rivet=0.03, retrait_rivet=0.009)
         if fam == "cuir":
             def fn(P, N, pa, bd, ctx=ctx):
                 x, y, z = P[:, 0], P[:, 1], P[:, 2]
-                de, ds, dv, dr, dvr = ctx(P)
+                de, ds, dv, dr, dvr = ctx(P, pa)
                 v, out = peau(P, N, CUIR, 0.40, 301, 0.28)
                 # coutures lacées sur le côté de la cuisse, rapiéçage
                 lat = (np.abs(np.abs(x) - 0.20) < 0.0018) & (y > 0.45)
@@ -1068,6 +1154,10 @@ def chausses():
                 for sg in (1, -1):
                     l = bande_ & (np.abs(np.mod(y * 9.0 + sg * az * 0.55, 1.0) - 0.5) < 0.045)
                     _, out[l] = peau(P[l], N[l], SOMBRE, 0.38, 315, 0.3)
+                m = pa == 13
+                _, out[m] = peau(P[m], N[m], SOMBRE, 0.42, 317, 0.35)
+                de, ds, dv, dr, dvr = ctx(P, pa)
+                out = finition_bords(out, de, ds, dv, dr, dvr, m, rivets=False)
                 b = y < 0.3
                 out[b, :3] *= (0.75 + 0.25 * np.clip(y[b] / 0.3, 0, 1))[:, None]
                 return out

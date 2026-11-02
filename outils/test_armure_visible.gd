@@ -1,6 +1,6 @@
 extends SceneTree
 ## Test de l'ARMURE PORTÉE VISIBLE (scripts/rpg/armure_visible.gd, branche rpg/armures_legeres) :
-##   godot --headless --fixed-fps 60 --path . --script res://outils/test_armure_visible.gd -- --nouvelle [--detail] [--id=<id>]
+##   godot --headless --fixed-fps 60 --path . --script res://outils/test_armure_visible.gd -- --nouvelle [--detail] [--id=<id>] [--familles=cuir,fourrure]
 ## A. Héros seul (HerosSkarnholt + ArmureVisible), pour CHAQUE pièce d'armures.json dont le glb porté existe :
 ##   - posée sur le squelette du corps, skin résolu par nom d'os (aucun os manquant), pose de liaison = pose de repos du héros (< 1 mm) ;
 ##   - budget (charte HD du 2026-11-02, CHARTE_ARMURES_HD.md) : torse <= 2 500 triangles, tête <= 1 400, gants / bottes <= 1 200 ;
@@ -597,17 +597,22 @@ func _en_jeu(ps: Array) -> void:
 func _lancer() -> void:
 	var ps := pieces()
 	var seul := ""
+	var seules: PackedStringArray = []     # --familles=cuir,fourrure : seulement ces ensembles (suffixe de l'identifiant)
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--id="):
 			seul = a.substr(5)
+		elif a.begins_with("--familles="):
+			seules = a.substr(11).split(",")
 	print("pièces avec modèle porté : %d %s" % [ps.size(), ps.map(func(p: Array) -> String: return p[0])])
 	ok(ps.size() >= 12, "au moins les 12 pièces légères (cuir, fourrure, os) ont un modèle porté (%d)" % ps.size())
 	var familles := {}
 	for p: Array in ps:
 		if seul != "" and p[0] != seul:
 			continue
-		_verifier_piece(p[0], p[1])
 		var f: String = p[0].get_slice("_", p[0].get_slice_count("_") - 1)
+		if not seules.is_empty() and not seules.has(f):
+			continue
+		_verifier_piece(p[0], p[1])
 		if not familles.has(f):
 			familles[f] = []
 		familles[f].append(p[0])
