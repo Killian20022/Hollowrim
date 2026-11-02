@@ -14,7 +14,7 @@ Fichiers :
 | `data/butin/cadavres.json` | corps : `cadavre_draugr`, `cadavre_bandit`, `cadavre_mage`, `cadavre_troll` |
 | `data/butin/sous_tables.json` | sous-tables : `potions`, `nourriture`, `valeurs`, `tomes`, `armes` |
 | `data/butin/zones.json` | table de chaque type de contenant par zone + modulateurs (or, rareté) |
-| `data/butin/objets.json` | objets ajoutés au sac : consommables, épées trouvables, tomes, objets de valeur |
+| `data/objets/*.json` | (RPG lot 0, ex-`data/butin/objets.json` + `Inventaire.OBJETS`) registre unique des fiches d'objets, un fichier par catégorie : docs/RPG.md |
 | `outils/test_butin.gd` | test (dans `outils/tous_les_tests.sh`) |
 
 ## 1. Format d'une table
@@ -71,7 +71,7 @@ ButinTables.piller(id_contenant) / est_pille(id_contenant) -> bool
 ButinTables.exporter() -> Dictionary / importer(d) / reinitialiser()   # appelés par monde.gd (clé "butin" de la sauvegarde)
 ButinTables.verifier() -> Array[String]                                 # erreurs des données (test)
 
-Inventaire.objet(id) -> Dictionary      # OBJETS + data/butin/objets.json ; Inventaire.connu(id), Inventaire.categorie_de(id)
+Inventaire.objet(id) -> Dictionary      # data/objets/*.json + CatalogueArmes (docs/RPG.md) ; Inventaire.connu(id), Inventaire.categorie_de(id)
 inv.ids_de("consommable") -> Array[String] ; inv.nombre(id) -> int
 
 Consommables.est(id) / refus(joueur, id) -> String / utiliser(joueur, id) -> String / description(id) -> String
