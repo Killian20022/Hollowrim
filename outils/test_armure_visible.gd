@@ -16,6 +16,11 @@ extends SceneTree
 const TOL := 0.010
 const TRIS_MAX := 900
 const TRIS_TETE := 600
+## Budgets de la charte HD (conception_rpg/CHARTE_ARMURES_HD.md) : torse 2 500, tête 1 400, mains / pieds 1 200 ; textures jusqu'à
+## 1024² (atlas d'ensemble). Les pièces encore en budget « bas » restent sous ces plafonds.
+const TRIS_HD := {"torse": 2500, "tete": 1400, "mains": 1200, "pieds": 1200}
+const TEX_MAX := 1024
+const PiecesEssai := preload("res://outils/pieces_essai.gd")
 const CLIPS := ["Idle", "Walk", "Jog_Fwd", "Sprint", "Sword_Idle", "Sword_Attack", "Hit_Chest", "Jump", "Crouch_Fwd",
 	"coups/slash_1", "coups/slash_2", "coups/revers", "coups/estoc", "coups/vertical", "coups/q_Sword_Regular_Combo", "coups/gs_slash",
 	"coups/q_Sword_Block", "sorts/Sort_Lancer1M", "sorts/Sort_Jet2M", "sorts/Sort_Zone2M", "sorts/Spell_Simple_Shoot_D"]
@@ -38,6 +43,10 @@ static func pieces() -> Array:
 	for id: String in d["objets"]:
 		if ArmureVisible.a_modele(id):
 			res.append([id, String(d["objets"][id]["emplacement"])])
+	# pièces livrées par les branches HD, pas encore reportées dans armures.json (variantes enchantées à part : même glb)
+	for id in PiecesEssai.injecter():
+		if ArmureVisible.a_modele(id) and ArmureVisible.variante(id) == "":
+			res.append([id, Inventaire.emplacement_de(id)])
 	return res
 
 # ------------------------------------------------------------------------------------------------------ poses
@@ -160,11 +169,11 @@ func _verifier_piece(id: String, e: String) -> void:
 	var tris := 0
 	for s in mi.mesh.get_surface_count():
 		tris += mi.mesh.surface_get_array_index_len(s) / 3
-	var tmax := TRIS_TETE if e == "tete" else TRIS_MAX
+	var tmax: int = TRIS_HD.get(e, TRIS_MAX)
 	ok(tris <= tmax, "%s : %d triangles (<= %d)" % [id, tris, tmax])
 	var mat := mi.get_surface_override_material(0) as ShaderMaterial
 	var tex: Texture2D = mat.get_shader_parameter("tex_base") if mat else null
-	ok(mat != null and mat.shader == EpeesLongues.shader_matiere(false) and tex != null and tex.get_width() <= 256 and tex.get_height() <= 256,
+	ok(mat != null and ArmureVisible.est_shader_armure(mat.shader) and tex != null and tex.get_width() <= TEX_MAX and tex.get_height() <= TEX_MAX,
 		"%s : matériau « matière » (%s), texture %s" % [id, mat.resource_name if mat else "?", str(tex.get_size()) if tex else "absente"])
 	# masquage
 	var reste := _triangles_recouverts(sq, av.zones(), av.limites())
@@ -532,6 +541,34 @@ func _trous_pantalon(sq: Skeleton3D, mi: MeshInstance3D, av: ArmureVisible, tris
 			y += 0.02
 	return vides
 
+# ------------------------------------------------------------------------------------------------------ A3. variantes enchantées
+## Variante visuelle « .enchante » (fiche variante_materiau = enchante ou id *_enchante) : MÊME maillage que la pièce de base, les
+## surfaces « runes » luisent (mt_lueur > 0), la base n'en a aucune.
+func _enchantes(seul: String) -> void:
+	for id: String in Inventaire.OBJETS:
+		if ArmureVisible.variante(id) != "enchante" or not ArmureVisible.a_modele(id):
+			continue
+		var base_id := id.trim_suffix("_enchante")
+		if seul != "" and seul != base_id and seul != id:
+			continue
+		var a := ArmureVisible.charger_porte(id)
+		var b := ArmureVisible.charger_porte(base_id) if Inventaire.connu(base_id) else null
+		var lueur_a := 0.0
+		var lueur_b := 0.0
+		var runes := 0
+		for s in a.mesh.get_surface_count():
+			var m := a.mesh.surface_get_material(s)
+			if m and m.resource_name.get_slice(".", 0) == "runes":
+				runes += 1
+				lueur_a = maxf(lueur_a, float((a.get_surface_override_material(s) as ShaderMaterial).get_shader_parameter("mt_lueur")))
+				if b:
+					lueur_b = maxf(lueur_b, float((b.get_surface_override_material(s) as ShaderMaterial).get_shader_parameter("mt_lueur")))
+		ok(b != null and a.mesh == b.mesh and runes > 0 and lueur_a > 0.5 and lueur_b == 0.0,
+			"%s : variante enchantée = même maillage que %s, runes luisantes (lueur %.2f, base %.2f, %d surface(s) de runes)" % [id, base_id, lueur_a, lueur_b, runes])
+		a.free()
+		if b:
+			b.free()
+
 # ------------------------------------------------------------------------------------------------------ B. en jeu
 func _en_jeu(ps: Array) -> void:
 	var sc: Node = load("res://scenes/test_combat.tscn").instantiate()
@@ -595,14 +632,19 @@ func _en_jeu(ps: Array) -> void:
 func _lancer() -> void:
 	var ps := pieces()
 	var seul := ""
+	var fams: Array = []     # --familles=os,verre : seulement ces familles (suffixe de l'id)
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--id="):
 			seul = a.substr(5)
+		elif a.begins_with("--familles="):
+			fams = a.substr(11).split(",")
 	print("pièces avec modèle porté : %d %s" % [ps.size(), ps.map(func(p: Array) -> String: return p[0])])
 	ok(ps.size() >= 12, "au moins les 12 pièces légères (cuir, fourrure, os) ont un modèle porté (%d)" % ps.size())
 	var familles := {}
 	for p: Array in ps:
 		if seul != "" and p[0] != seul:
+			continue
+		if not fams.is_empty() and not fams.has(p[0].get_slice("_", p[0].get_slice_count("_") - 1)):
 			continue
 		_verifier_piece(p[0], p[1])
 		var f: String = p[0].get_slice("_", p[0].get_slice_count("_") - 1)
@@ -612,6 +654,9 @@ func _lancer() -> void:
 	for f in familles:
 		_traversees(f, familles[f])
 		_trous(f, familles[f])
+	_enchantes(seul)
+	if not fams.is_empty():
+		ps = ps.filter(func(p: Array) -> bool: return fams.has(p[0].get_slice("_", p[0].get_slice_count("_") - 1)))
 	await _en_jeu(ps)
 	print("TEST ARMURE VISIBLE : %s (ECHECS : %d)" % ["OK" if echecs == 0 else "ÉCHEC", echecs])
 	quit(echecs)

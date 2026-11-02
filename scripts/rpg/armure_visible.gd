@@ -43,7 +43,24 @@ const MATIERES := {
 	"fer": {"teinte": Color(1.0, 1.0, 1.02), "metal": 0.5, "poli": 0.35, "reflet": Color(0.95, 0.96, 1.0)},
 	"acier": {"teinte": Color(1.04, 1.04, 1.06), "metal": 0.75, "poli": 0.7, "reflet": Color(0.94, 0.98, 1.05)},
 	"or": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.72, "poli": 0.6, "reflet": Color(1.06, 0.9, 0.62)},
+	# --- armures HD (branche armures_hd/os_verre) : clés « preset.variante » (nom complet du matériau Blender), sinon le preset seul
+	"fer.rouille": {"teinte": Color(1.0, 0.98, 0.96), "metal": 0.28, "poli": 0.22, "reflet": Color(0.95, 0.92, 0.88)},
+	# verre : OPAQUE à faux translucide (facettes peintes + reflet vitreux rasant + couche interne relue décalée selon la vue,
+	# « profondeur », autour du même texel : shader_armure) ; aucun tri alpha (Godot et navigateur)
+	"verre": {"teinte": Color(1.0, 1.04, 1.0), "metal": 0.08, "bord": 0.85, "poli": 1.0, "profondeur": 0.004, "lueur": 0.08, "reflet": Color(0.86, 1.0, 0.9)},
+	"tissu": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.04, "poli": 0.04},
+	# runes niellées incrustées : fond presque noir, glyphes clairs ; la variante « .enchante » les fait luire (émission ∝ albédo²)
+	"runes": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.4, "poli": 0.6, "reflet": Color(1.0, 0.96, 0.85)},
+	"runes.enchante": {"teinte": Color(1.1, 1.25, 1.12), "metal": 0.2, "poli": 0.6, "lueur": 1.6, "reflet": Color(0.8, 1.0, 0.85)},
+	"verre.enchante": {"teinte": Color(1.04, 1.1, 1.04), "metal": 0.08, "bord": 0.95, "poli": 1.0, "profondeur": 0.004, "lueur": 0.16, "reflet": Color(0.8, 1.0, 0.88)},
+	"or.enchante": {"teinte": Color(1.04, 1.02, 1.0), "metal": 0.75, "poli": 0.7, "lueur": 0.05, "reflet": Color(1.08, 0.94, 0.66)},
 }
+## Variante VISUELLE enchantée (objets rares) : même modèle, matériaux « <preset>.enchante » quand la fiche porte
+## "variante_materiau": "enchante" ou que l'identifiant finit par _enchante (glb du modèle de base si la fiche n'en donne pas).
+const ENCHANTE := "enchante"
+## Textures plus grandes que 256 (armures HD, atlas 1024²) : shader_armure (mipmaps, profondeur locale) pour qu'elles ne
+## scintillent pas en mouvement au 480 x 270.
+const TEX_HD := 256
 ## Matière FPS (AvantBras) remplacée par famille de gants : clé de matière ab_* -> nom de matière du glb ou "" (inchangé).
 const FPS_GANTS := ["ab_gant"]
 const FPS_BRASSARD := ["ab_cuir", "ab_tresse", "ab_fourrure"]
@@ -73,10 +90,22 @@ static func equiper(parent: Node, sq: Skeleton3D, eq: EquipementCorps, bras: Nod
 
 ## Chemin du modèle porté : champ « modele_porte » de la fiche (data/objets/armures.json), sinon la convention porte/<id>.glb.
 static func chemin_porte(id: String) -> String:
-	return String(Inventaire.objet(id).get("modele_porte", PORTE + id + ".glb")) if Inventaire.connu(id) else PORTE + id + ".glb"
+	var c := String(Inventaire.objet(id).get("modele_porte", PORTE + id + ".glb")) if Inventaire.connu(id) else PORTE + id + ".glb"
+	if not ResourceLoader.exists(c) and id.ends_with("_" + ENCHANTE):
+		return chemin_porte(id.trim_suffix("_" + ENCHANTE))
+	return c
 
 static func chemin_sol(id: String) -> String:
-	return String(Inventaire.objet(id).get("modele_sol", SOL + id + ".glb")) if Inventaire.connu(id) else SOL + id + ".glb"
+	var c := String(Inventaire.objet(id).get("modele_sol", SOL + id + ".glb")) if Inventaire.connu(id) else SOL + id + ".glb"
+	if not ResourceLoader.exists(c) and id.ends_with("_" + ENCHANTE):
+		return chemin_sol(id.trim_suffix("_" + ENCHANTE))
+	return c
+
+## Variante de matériau d'une pièce : "enchante" (runes / gemmes luisantes) ou "".
+static func variante(id: String) -> String:
+	if Inventaire.connu(id) and Inventaire.objet(id).has("variante_materiau"):
+		return String(Inventaire.objet(id)["variante_materiau"])
+	return ENCHANTE if id.ends_with("_" + ENCHANTE) else ""
 
 static func a_modele(id: String) -> bool:
 	return id != "" and ResourceLoader.exists(chemin_porte(id))
@@ -117,9 +146,12 @@ const CHAUSSES := "res://assets/modeles/armures/chausses/"
 const CHAUSSES_PAR_TORSE := {
 	"armure_cuir": "cuir", "armure_fourrure": "fourrure", "cuirasse_os": "os",
 	"cuirasse_fer": "fer", "cuirasse_acier_nordique": "acier", "cuirasse_gardiens": "gardiens", "brigandine_braise": "braise",
+	"cuirasse_verre": "verre",
 }
 
 static func famille_chausses(id_torse: String) -> String:
+	if id_torse.ends_with("_" + ENCHANTE) and not CHAUSSES_PAR_TORSE.has(id_torse):
+		id_torse = id_torse.trim_suffix("_" + ENCHANTE)
 	return String(CHAUSSES_PAR_TORSE.get(id_torse, "cuir")) if id_torse != "" else ""
 
 func _poser_chausses() -> void:
@@ -193,9 +225,9 @@ func _poser(e: String) -> void:
 
 ## Maillage porté d'une pièce, prêt à rattacher à un Skeleton3D du héros (skin du glb, liaisons par NOM d'os ; matériaux habillés).
 static func charger_porte(id: String) -> MeshInstance3D:
-	return charger_chemin(chemin_porte(id))
+	return charger_chemin(chemin_porte(id), variante(id))
 
-static func charger_chemin(chemin: String) -> MeshInstance3D:
+static func charger_chemin(chemin: String, var_mat := "") -> MeshInstance3D:
 	var ps := load(chemin) as PackedScene
 	if ps == null:
 		return null
@@ -212,7 +244,7 @@ static func charger_chemin(chemin: String) -> MeshInstance3D:
 	src.owner = null
 	inst.free()
 	src.transform = Transform3D.IDENTITY
-	_habiller_maillage(src, chemin)
+	_habiller_maillage(src, chemin, var_mat)
 	return src
 
 ## Pièce posée au sol / présentoir (glb statique, pivot au sol), matériaux habillés ; null si absente.
@@ -221,16 +253,17 @@ static func instancier_sol(id: String) -> Node3D:
 		return null
 	var n: Node3D = (load(chemin_sol(id)) as PackedScene).instantiate()
 	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
-		_habiller_maillage(mi, chemin_sol(id))
+		_habiller_maillage(mi, chemin_sol(id), variante(id))
 	n.name = "armure_sol_" + id
 	return n
 
-static func _habiller_maillage(mi: MeshInstance3D, cle: String) -> void:
+static func _habiller_maillage(mi: MeshInstance3D, chemin: String, var_mat := "") -> void:
+	var cle := chemin + ("|" + var_mat if var_mat != "" else "")
 	if not _mats.has(cle):
 		var d := {}
 		for s in mi.mesh.get_surface_count():
 			var m := mi.mesh.surface_get_material(s)
-			var nom := m.resource_name.get_slice(".", 0) if m else "cuir"
+			var nom := nom_preset(m.resource_name if m else "cuir", var_mat)
 			var tex: Texture2D = (m as BaseMaterial3D).albedo_texture if m is BaseMaterial3D else null
 			d[s] = materiau(nom, tex)
 		_mats[cle] = d
@@ -240,12 +273,24 @@ static func _habiller_maillage(mi: MeshInstance3D, cle: String) -> void:
 			mi.set_surface_override_material(s, mats[s])
 
 ## Matériau PS1 « matière » d'une pièce (texture cuite, alpha = brillance) + contour des personnages.
+## Clé de MATIERES pour un nom de matériau Blender « preset[.variante][.001] » : « preset.variante » s'il existe, sinon « preset » ;
+## avec var_mat (ex. "enchante") : « preset.enchante » s'il existe (sinon comme sans variante).
+static func nom_preset(nom_blender: String, var_mat := "") -> String:
+	var parts := nom_blender.split(".")
+	var preset := parts[0]
+	var v := parts[1] if parts.size() > 1 and not parts[1].is_valid_int() else ""
+	if var_mat != "" and MATIERES.has(preset + "." + var_mat):
+		return preset + "." + var_mat
+	if v != "" and MATIERES.has(preset + "." + v):
+		return preset + "." + v
+	return preset
+
 static func materiau(nom: String, tex: Texture2D) -> ShaderMaterial:
-	var p: Dictionary = MATIERES.get(nom, MATIERES["cuir"])
+	var p: Dictionary = MATIERES.get(nom, MATIERES.get(nom.get_slice(".", 0), MATIERES["cuir"]))
 	if tex == null:
 		tex = Palette.tex("cuir", Palette.CUIR, 4, 0.5)
 	var m := Palette.materiau(tex, Vector2.ONE, p.get("teinte", Color.WHITE))
-	m.shader = EpeesLongues.shader_matiere(false)
+	m.shader = shader_armure() if tex.get_width() > TEX_HD else EpeesLongues.shader_matiere(false)
 	m.set_shader_parameter("tex_neige", tex)    # couleurs de sommet du glb d'alpha nul : pas de neige
 	m.set_shader_parameter("mt_boite", 0.0)
 	for k in ["metal", "poli", "bord", "profondeur", "lueur"]:
@@ -257,6 +302,22 @@ static func materiau(nom: String, tex: Texture2D) -> ShaderMaterial:
 	m.next_pass = GuerrierNordique.contour()
 	m.resource_name = "armure_" + nom
 	return m
+
+## Shader des armures HD : celui des matières (EpeesLongues.shader_matiere) avec la texture de base lue AVEC mipmaps (texels
+## nets au plus proche, mais plus de scintillement des atlas 1024² en mouvement) et la couche interne « profondeur » relue autour
+## du MÊME texel (atlas : l'ancien décalage fixe lisait une autre pièce).
+static var _shader_armure: Shader
+static func shader_armure() -> Shader:
+	if _shader_armure == null:
+		_shader_armure = Shader.new()
+		_shader_armure.code = EpeesLongues.shader_matiere(false).code \
+			.replace("uniform sampler2D tex_base : source_color, filter_nearest, repeat_enable;", "uniform sampler2D tex_base : source_color, filter_nearest_mipmap, repeat_enable;") \
+			.replace("uniform sampler2D tex_neige : source_color, filter_nearest, repeat_enable;", "uniform sampler2D tex_neige : source_color, filter_nearest_mipmap, repeat_enable;") \
+			.replace("texture(tex_base, uv * vec2(1.0, 0.7) + vec2(0.37, 0.11) - mt_vm.xy * mt_profondeur).rgb", "texture(tex_base, uv - mt_vm.xy * mt_profondeur).rgb * vec3(0.85, 1.0, 0.9)")
+	return _shader_armure
+
+static func est_shader_armure(sh: Shader) -> bool:
+	return sh == EpeesLongues.shader_matiere(false) or sh == shader_armure()
 
 # ------------------------------------------------------------------------------------------------------------- masquage
 ## Zones recouvertes par les pièces réellement posées ; « cape » en plus quand la pièce de tête descend sur les épaules (capuche
@@ -631,6 +692,7 @@ static func materiaux_fps(id: String) -> Dictionary:
 		"cuir": [Color(1.0, 0.78, 0.6), Color(0.95, 0.8, 0.66), Color(0.8, 0.7, 0.6)],
 		"fourrure": [Color(0.95, 0.8, 0.64), Color(1.25, 1.18, 1.05), Color(0.8, 0.7, 0.6)],
 		"os": [Color(0.55, 0.5, 0.48), Color(0.62, 0.55, 0.5), Color(1.35, 1.25, 1.05)],
+		"verre": [Color(0.95, 0.76, 0.58), Color(0.42, 0.62, 0.46), Color(0.55, 1.25, 0.72)],
 	}
 	var t: Array = teintes.get(famille, teintes["cuir"])
 	var ab := AvantBras.materiaux()
