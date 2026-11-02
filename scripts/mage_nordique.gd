@@ -121,9 +121,14 @@ static func creer(options := {}) -> Node3D:
 	GuerrierNordique._filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return absf(c.x) < 0.19 or absf(c.x) > 0.69)
 	GuerrierNordique._decimer(pieces.get("peau"), func(p: Vector3) -> float: return 0.027 if absf(p.x) > 0.5 else (0.018 if p.z < 0.035 else 0.0))
 	if capuche_v3:
+		# capuche v3 : le col de la pèlerine qu'elle couvre (autour de la base du cou, hors devant) n'est jamais vu ; il ressortait à
+		# travers le col de la capuche quand les épaules bougent -> retiré (test_capuche_mage)
+		# (le devant est gardé quand le visage est montré : il se voit entre les pans ; sous la barbe du mage, il est retiré aussi)
+		GuerrierNordique._filtrer(pieces["mante"], func(c: Vector3, n: Vector3) -> bool: return not (c.y > 1.50 * K and Vector2(c.x, c.z + 0.02).length() < (0.17 if c.y > 1.56 * K else 0.15) and not (visage and c.z > 0.03 and absf(c.x) < 0.08)))
 		# capuche v3 : le crâne qu'elle couvre (dessus, arrière, oreilles ; derrière le plan des joues) n'est jamais vu -> retiré (budget)
 		var ty := sq.get_bone_global_rest(sq.find_bone("Head")).origin.y
-		GuerrierNordique._filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return not (c.y > ty + 0.02 and c.z < 0.02))
+		# (et la peau du haut du dos, sous la robe, la pèlerine et le col : elle perçait le col quand le bras se lève)
+		GuerrierNordique._filtrer(pieces.get("peau"), func(c: Vector3, n: Vector3) -> bool: return not ((c.y > ty + 0.02 and c.z < 0.02) or (c.y > 1.40 * K and c.y < 1.56 * K and c.z < -0.06)))
 	if pieces.has("Eyebrows"):
 		pieces["Eyebrows"].visible = false     # 1 480 triangles : les sourcils des PNJ âgés sont peints dans la peau (PnjNordique._vieillir)
 	var tete := sq.get_bone_global_rest(sq.find_bone("Head")).origin + Vector3(0, 0.07, 0)

@@ -1,7 +1,7 @@
 extends SceneTree
 ## Planche de la capuche des mages (persos/capuche_v3) : rendu du jeu (640x360, FOV 72°, ps1_post), hors du monde.
 ##   godot --path . --script res://outils/planche_capuche.gd -- --sortie=<dossier absolu> --perso=mage|volva|ancienne
-##        [--lumiere=jour|crepuscule] [--etiquette=AVANT|APRÈS]
+##        [--lumiere=jour|crepuscule] [--etiquette=AVANT|APRÈS] [--avant (ancienne capuche)]
 ## Écrit <perso>_<lumiere>_<vue>.png (vues : pres_*, tete_* (gros plan de la tête), jeu_face, jeu_34, jeu_profil, jeu_dos,
 ## mvt_marche_a, mvt_marche_b, mvt_sort, mvt_coup, mvt_tete_a, mvt_tete_b) : vignettes carrées 360x360 (près : agrandies x2).
 ##   godot --path . --script res://outils/planche_capuche.gd -- --assembler --avant=<dossier> --apres=<dossier> --sortie=<dossier>
@@ -85,6 +85,8 @@ func _lancer() -> void:
 	etiquette.add_theme_color_override("font_outline_color", Color.BLACK)
 	etiquette.add_theme_constant_override("outline_size", 4)
 	calque2.add_child(etiquette)
+	# --avant : l'ancienne capuche (chemin d'origine de MageNordique, inchangé) pour les planches AVANT / APRÈS
+	CapucheMage.actif = _arg("avant", "") == ""
 	var perso := _arg("perso", "mage")
 	var n: Node3D
 	if perso == "mage":
@@ -182,13 +184,29 @@ func _photo(az_deg: float, dist: float, cam_h: float, cible_h: float) -> Image:
 	img.convert(Image.FORMAT_RGBA8)
 	return img
 
+func _cle_vue(f: String) -> String:
+	var g := f.get_basename()
+	for cle in ["_pres_", "_tete_", "_jeu_", "_mvt_"]:
+		if g.contains(cle):
+			return g.substr(g.find(cle) + cle.length())
+	return g
+
 ## AVANT | APRÈS : pour chaque fichier commun (trié), une paire côte à côte ; les vignettes sont regroupées par 4 paires par ligne.
 func _assembler(avant: String, apres: String, sortie: String) -> void:
 	var noms := []
 	for f in DirAccess.get_files_at(apres):
 		if f.ends_with(".png") and FileAccess.file_exists(avant.path_join(f)):
 			noms.append(f)
-	noms.sort()
+	# ordre de lecture : face, trois-quarts, profil, dos (puis le mouvement)
+	var ordre := ["face", "34", "profil", "dos", "marche_a", "marche_b", "course", "sort", "coup", "parle"]
+	noms.sort_custom(func(a: String, b: String) -> bool:
+		var ka := _cle_vue(a)
+		var kb := _cle_vue(b)
+		var ia := ordre.find(ka)
+		var ib := ordre.find(kb)
+		if ia == ib:
+			return a < b
+		return ia < ib)
 	var groupes := {}
 	for f: String in noms:
 		var g := f.get_basename()

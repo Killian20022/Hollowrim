@@ -247,16 +247,16 @@ static func capuche_v3(femme: bool) -> Image:
 				ao = c.r
 				pt = c.b
 			# laine : grain lent + duvet fin (bruit, aucun motif périodique)
-			var l := 0.50 + (GuerrierTextures._n(x, y, W, H, 10, 5, 1301) - 0.5) * 0.22 + (GuerrierTextures._n(x, y, W, H, 32, 16, 1302) - 0.5) * 0.10
+			var l := 0.50 + (GuerrierTextures._n(x, y, W, H, 10, 5, 1301) - 0.5) * 0.10 + (GuerrierTextures._n(x, y, W, H, 32, 16, 1302) - 0.5) * 0.08
 			if v < 0.045:
 				# doublure (intérieur du capuchon) : laine sombre, sans relief
-				l = 0.22 + (l - 0.5) * 0.6
+				l = 0.14 + (l - 0.5) * 0.5
 			elif v < 0.08:
 				# tranche du bord roulé : l'arête claire de la laine épaisse
-				l = 0.66 + (l - 0.5) * 0.5
+				l = 0.78 + (l - 0.5) * 0.4
 			else:
 				var rang := (v - 0.08) / 0.91
-				l += (ao - 0.85) * 1.1 + (pt - 0.5) * 0.6
+				l += (ao - 0.85) * 1.0 + (pt - 0.5) * 0.25
 				if rang < 0.035:
 					l += 0.12                                       # dessus du bourrelet
 				elif rang < 0.065:
@@ -272,7 +272,7 @@ static func capuche_v3(femme: bool) -> Image:
 						l -= 0.14
 					elif dx < 1.6:
 						l += 0.06
-			_p(img, x, y, _c(CAPUCHE, GuerrierTextures._ton(clampf(l, 0.0, 0.999), 7, x, y, 1305, 0.35)))
+			_p(img, x, y, _c(CAPUCHE, GuerrierTextures._ton(clampf(l, 0.0, 0.999), 7, x, y, 1305, 0.25)))
 	return img
 
 # ------------------------------------------------------------------ capuche (UV empruntés à la tunique : 256 x 128)

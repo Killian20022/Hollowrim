@@ -123,23 +123,27 @@ def bord(s, var):
     t = abs(0.5 - s) / 0.5            # 0 front -> 1 V
     ombre = var == "ombre"
     # profil 2D (x, y relatif au sommet du crâne), du front au V de la poitrine
-    v_x = 0.062 if ombre else 0.034
-    cles = [Vector((0.0, -0.046 if ombre else -0.040)), Vector((0.050, -0.058 if ombre else -0.052)), Vector((0.080, -0.100)),
-            Vector((0.090, -0.160)), Vector((0.088, -0.215)), Vector((0.080 if ombre else 0.070, -0.262)), Vector((v_x, -0.330))]
+    # le bord s'arrête sous la mâchoire, au col de la pèlerine (les pans plus bas restaient dans la pèlerine et seule leur tranche
+    # dépassait, comme des lacets)
+    v_x = 0.070 if ombre else 0.052
+    # visage montré : ouverture un peu plus large aux joues (le bord se décolle des pommettes, l'intérieur sombre se lit autour)
+    cles = [Vector((0.0, -0.046 if ombre else -0.040)), Vector((0.050 if ombre else 0.054, -0.058 if ombre else -0.052)),
+            Vector((0.080 if ombre else 0.086, -0.100)), Vector((0.090 if ombre else 0.095, -0.160)), Vector((0.088 if ombre else 0.090, -0.205)),
+            Vector((0.082 if ombre else 0.074, -0.235)), Vector((v_x, -0.262))]
     q = catmull(cles, t)
     x, y = q.x * sg, YTOP + q.y
     # profondeur : rayon depuis l'avant sur la tête (haut) ou sur les épaules (bas), plus un jeu ; capuche « ombre » avancée
-    if q.y > -0.225:
+    if q.y > -0.215:
         h = bvh_tete.ray_cast(Vector((x * 0.97, y, 0.5)), Vector((0, 0, -1)), 1.0)
         z = h[0].z if h[0] is not None else 0.03
         n = h[1].normalized() if h[0] is not None else Vector((0, 0, 1))
         haut = smooth(-0.20, -0.06, q.y)          # 1 au front, 0 à la mâchoire
-        av = (0.040 * haut + 0.016) if ombre else (0.010 * haut + 0.011)
+        av = (0.040 * haut + 0.016) if ombre else (0.010 * haut + 0.014)
         p = Vector((x, y, z)) + n * 0.006 + Vector((0, 0, av))
         # bord abaissé devant le front (ombre portée) / relevé (visage)
         p.y += (-0.010 if ombre else 0.006) * haut
         # côté : le bord s'écarte un peu des joues
-        p.x += sg * (0.006 if ombre else 0.002) * (1 - haut)
+        p.x += sg * (0.008 if ombre else 0.007) * (1 - haut)
         return p
     h = bvh_corps.ray_cast(Vector((x, y, 0.5)), Vector((0, 0, -1)), 1.0)
     z = h[0].z if h[0] is not None else 0.06
@@ -317,7 +321,7 @@ def forme(X, var):
             # 2. plis rayonnants du col (sous la mâchoire, vers l'ourlet) : creux et crêtes larges, irréguliers
             col = smooth(ycou + 0.02, ycou - 0.10, p.y)
             f = math.sin(2 * math.pi * 6.5 * s + ph[0] + 1.4 * math.sin(2 * math.pi * 2.0 * s + ph[1]))
-            d += 0.0105 * col * (0.55 * f + 0.45 * abs(f) - 0.2)
+            d += 0.015 * col * (0.55 * f + 0.45 * abs(f) - 0.2)
             # 3. plis de nuque (le tissu de la pointe se tasse au-dessus du col)
             nuque = smooth(-0.45, -0.85, dn.z) * smooth(ycou - 0.03, ycou + 0.06, p.y) * smooth(ycou + 0.12, ycou + 0.05, p.y)
             d += 0.0065 * nuque * math.sin((p.y - ycou) * 95.0 + 1.3 * math.sin(p.x * 40.0))
@@ -336,14 +340,14 @@ def forme(X, var):
     for j in range(NSk):
         p0 = Vector(X[0, j])
         p1 = Vector(X[1, j])
-        X[0, j] = tuple(p0 + Vector(N[0, j]) * 0.006)
-        X[1, j] = tuple(p1 + Vector(N[1, j]) * 0.0085)
+        X[0, j] = tuple(p0 + Vector(N[0, j]) * 0.008)
+        X[1, j] = tuple(p1 + Vector(N[1, j]) * 0.011)
         if NRk > 2:
             X[2, j] = tuple(Vector(X[2, j]) + Vector(N[2, j]) * 0.002)
     return X, N
 
 NI = 5           # rangs de la doublure (face intérieure, vue par l'ouverture du visage)
-EP = 0.010       # épaisseur de la laine (doublure rentrée de 1 cm)
+EP = 0.013       # épaisseur de la laine (doublure rentrée de 1,3 cm)
 
 def maillage(var):
     X = construire(var)
