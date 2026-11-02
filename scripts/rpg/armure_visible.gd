@@ -78,6 +78,17 @@ static func chemin_porte(id: String) -> String:
 static func chemin_sol(id: String) -> String:
 	return String(Inventaire.objet(id).get("modele_sol", SOL + id + ".glb")) if Inventaire.connu(id) else SOL + id + ".glb"
 
+## VARIANTE de matériau d'une pièce (champ « variante_materiau » de la fiche, ex. "enchante" pour les variantes enchantées qui
+## reprennent le glb de leur pièce « base ») : ses matériaux prennent le preset `<matière>.<variante>` (MATIERES), sinon le preset
+## de base avec une faible lueur (LUEUR_VARIANTE). "" = aucune.
+const LUEUR_VARIANTE := 0.12
+static func variante(id: String) -> String:
+	return String(Inventaire.objet(id).get("variante_materiau", "")) if Inventaire.connu(id) else ""
+
+## Pièce de base d'une variante (champ « base »), sinon l'id lui-même (chausses, tables par torse).
+static func base_de(id: String) -> String:
+	return String(Inventaire.objet(id).get("base", id)) if Inventaire.connu(id) else id
+
 static func a_modele(id: String) -> bool:
 	return id != "" and ResourceLoader.exists(chemin_porte(id))
 
@@ -120,7 +131,7 @@ const CHAUSSES_PAR_TORSE := {
 }
 
 static func famille_chausses(id_torse: String) -> String:
-	return String(CHAUSSES_PAR_TORSE.get(id_torse, "cuir")) if id_torse != "" else ""
+	return String(CHAUSSES_PAR_TORSE.get(base_de(id_torse), "cuir")) if id_torse != "" else ""
 
 func _poser_chausses() -> void:
 	var fam := famille_chausses(porte("torse"))
@@ -193,9 +204,9 @@ func _poser(e: String) -> void:
 
 ## Maillage porté d'une pièce, prêt à rattacher à un Skeleton3D du héros (skin du glb, liaisons par NOM d'os ; matériaux habillés).
 static func charger_porte(id: String) -> MeshInstance3D:
-	return charger_chemin(chemin_porte(id))
+	return charger_chemin(chemin_porte(id), variante(id))
 
-static func charger_chemin(chemin: String) -> MeshInstance3D:
+static func charger_chemin(chemin: String, var_mat := "") -> MeshInstance3D:
 	var ps := load(chemin) as PackedScene
 	if ps == null:
 		return null
@@ -212,7 +223,7 @@ static func charger_chemin(chemin: String) -> MeshInstance3D:
 	src.owner = null
 	inst.free()
 	src.transform = Transform3D.IDENTITY
-	_habiller_maillage(src, chemin)
+	_habiller_maillage(src, chemin, var_mat)
 	return src
 
 ## Pièce posée au sol / présentoir (glb statique, pivot au sol), matériaux habillés ; null si absente.
@@ -221,18 +232,19 @@ static func instancier_sol(id: String) -> Node3D:
 		return null
 	var n: Node3D = (load(chemin_sol(id)) as PackedScene).instantiate()
 	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
-		_habiller_maillage(mi, chemin_sol(id))
+		_habiller_maillage(mi, chemin_sol(id), variante(id))
 	n.name = "armure_sol_" + id
 	return n
 
-static func _habiller_maillage(mi: MeshInstance3D, cle: String) -> void:
+static func _habiller_maillage(mi: MeshInstance3D, chemin: String, var_mat := "") -> void:
+	var cle := chemin + ("|" + var_mat if var_mat != "" else "")
 	if not _mats.has(cle):
 		var d := {}
 		for s in mi.mesh.get_surface_count():
 			var m := mi.mesh.surface_get_material(s)
 			var nom := m.resource_name.get_slice(".", 0) if m else "cuir"
 			var tex: Texture2D = (m as BaseMaterial3D).albedo_texture if m is BaseMaterial3D else null
-			d[s] = materiau(nom, tex)
+			d[s] = materiau(nom, tex, var_mat)
 		_mats[cle] = d
 	var mats: Dictionary = _mats[cle]
 	for s in mi.mesh.get_surface_count():
@@ -240,8 +252,14 @@ static func _habiller_maillage(mi: MeshInstance3D, cle: String) -> void:
 			mi.set_surface_override_material(s, mats[s])
 
 ## Matériau PS1 « matière » d'une pièce (texture cuite, alpha = brillance) + contour des personnages.
-static func materiau(nom: String, tex: Texture2D) -> ShaderMaterial:
+static func materiau(nom: String, tex: Texture2D, var_mat := "") -> ShaderMaterial:
 	var p: Dictionary = MATIERES.get(nom, MATIERES["cuir"])
+	if var_mat != "":
+		if MATIERES.has(nom + "." + var_mat):
+			p = MATIERES[nom + "." + var_mat]
+		else:
+			p = p.duplicate()
+			p["lueur"] = maxf(float(p.get("lueur", 0.0)), LUEUR_VARIANTE)
 	if tex == null:
 		tex = Palette.tex("cuir", Palette.CUIR, 4, 0.5)
 	var m := Palette.materiau(tex, Vector2.ONE, p.get("teinte", Color.WHITE))
@@ -255,7 +273,7 @@ static func materiau(nom: String, tex: Texture2D) -> ShaderMaterial:
 	m.set_shader_parameter("reflet_force", 0.0)
 	m.set_shader_parameter("reflet_fil", 0.0)
 	m.next_pass = GuerrierNordique.contour()
-	m.resource_name = "armure_" + nom
+	m.resource_name = "armure_" + nom + ("." + var_mat if var_mat != "" else "")
 	return m
 
 # ------------------------------------------------------------------------------------------------------------- masquage

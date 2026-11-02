@@ -107,7 +107,7 @@ static func visuel(oid: String, pose := "sol", graine := 0) -> Node3D:
 	if d != null:
 		_habiller_arme(m, d)
 	elif Inventaire.categorie_de(oid) == "armure":
-		_habiller_armure(m, chemin)
+		_habiller_armure(m, chemin, String(Inventaire.objet(oid).get("variante_materiau", "")))   # variante enchantée : même glb que sa base
 	else:
 		BijouxMateriaux.habiller(m)
 		ObjetsDiversMateriaux.habiller(m)      # potions, vivres, tomes, ingrédients, quête (noms propres à ces objets)
@@ -176,7 +176,7 @@ const MATIERES_ARMURE := {
 	"fourrure": {"bord": 0.05, "poli": 0.05}, "os": {"bord": 0.1, "poli": 0.3},
 	"fer": {"metal": 0.5, "poli": 0.35}, "acier": {"metal": 0.75, "poli": 0.7}, "or": {"metal": 0.72, "poli": 0.6},
 }
-static func _habiller_armure(m: Node3D, chemin: String) -> void:
+static func _habiller_armure(m: Node3D, chemin: String, var_mat := "") -> void:
 	var av: Script = null
 	for c: Dictionary in ProjectSettings.get_global_class_list():
 		if c["class"] == "ArmureVisible":
@@ -184,7 +184,7 @@ static func _habiller_armure(m: Node3D, chemin: String) -> void:
 	for mi: MeshInstance3D in m.find_children("*", "MeshInstance3D", true, false):
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		if av != null and av.has_method("_habiller_maillage"):
-			av.call("_habiller_maillage", mi, chemin)
+			av.call("_habiller_maillage", mi, chemin, var_mat)
 			continue
 		for s in mi.mesh.get_surface_count():
 			var src := mi.mesh.surface_get_material(s)

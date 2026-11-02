@@ -239,3 +239,32 @@ Brodd le Large (forgeron, id `forgeron`) et Grima Cendrefroide (doyenne du puits
   riches), `armes_crypte` (coffre du Jarl ; la crypte basse multiplie les rares par 1,5). Uniques : Sang-du-Roi, Croc-de-Givre.
   Forge de Brodd : 12 armes ajoutées EN FIN de stock (les tirages des objets précédents ne changent pas).
 - Test : `outils/test_armes_catalogue.gd` ; planche : `outils/captures_armes_integrees.gd`.
+
+## 10. Armures par palier de difficulté (refonte HD, 2026-11-02 — préparé, pas encore posé dans le monde)
+
+Pour la grande carte : chaque donjon aura une difficulté 1 à 5 et tirera ses armures dans `data/butin/armures_paliers.json`.
+
+```gdscript
+ButinTables.tirer_armure(palier: int, graine: int, zone := "") -> Array[Dictionary]   # une pièce, [{id, n, rarete}] ; palier borné à 1..5
+ButinTables.table_armure(palier) -> String                                          # "armures_palier_<n>", à mettre dans une table : {"table": …, "poids": …}
+ButinTables.probabilites(table, zone := "") -> Dictionary                           # {id: p} exact pour UN tirage (sous-tables développées)
+# ex. coffre 3 du donjon « tertre_corbeaux » (difficulté 4) :
+var liste := ButinTables.tirer_armure(4, ButinTables.graine("tertre_corbeaux:coffre_3"), "crypte")
+```
+
+| Palier | Matériaux (part du tirage, %) | Enchantée (dont unique) |
+|---|---|---|
+| 1 | cuir 45, fourrure 40, fer 15 | 0 % |
+| 2 | cuir 15, fourrure 30, fer 30, os 15, acier nordique 8 | 2 % (0) |
+| 3 | fourrure 8, fer 20, os 20, acier nordique 25, or 10, verre 8 | 9 % (1 %) |
+| 4 | fer 5, os 10, acier nordique 20, or 13, verre 13, saphir 12, rubis 10, obsidienne 4 | 13 % (2 %) |
+| 5 | acier nordique 6, or 8, verre 14, saphir 16, rubis 16, obsidienne 15 | 25 % (5 %) |
+
+- `armures_ens_<matériau>` : une pièce de l'ensemble (casque 10, torse 7, mains 10, pieds 10). Enchantées : `armures_enchantees_p3`
+  (variantes rares or / verre + bottes du rôdeur, capuche du thaumaturge, brigandine de braise, cuirasse des gardiens),
+  `_p4` (toutes les variantes rares), `_uniques` (variantes uniques : une fois par partie, ensuite changées en pièces par `prendre`).
+- Les entrées portent leur rareté (`rare` pour les matériaux précieux et les enchantées) : le facteur `rarete` d'une zone
+  (ex. `crypte_basse`) les rend plus fréquentes.
+- Règle de toujours : entrée nouvelle EN FIN de table, table nouvelle en fin de fichier et ajoutée à `outils/donnees_test/butin_empreinte.json`.
+- Test : `outils/test_armures_hd.gd` (paliers croissants, déterminisme, enchantées absentes au palier 1, fréquences mesurées = probabilités).
+

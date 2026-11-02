@@ -9,6 +9,7 @@ extends RefCounted
 ##   ButinTables.resoudre(butin, id_contenant) -> Dictionary       butin fixe + tirage de sa clé « table » (DonjonKit)
 ##   ButinTables.table_pour(type, zone) -> String                  table d'un type de contenant dans une zone (zones.json)
 ##   ButinTables.piller / est_pille / exporter / importer          contenants vidés, sauvegardés avec la partie (monde.gd)
+##   ButinTables.tirer_armure(palier, graine, zone)                une pièce d'armure par difficulté de donjon 1..5 (docs/BUTIN.md §10)
 ## Aucune dépendance au hasard global (randi) : seul un RandomNumberGenerator semé ici est utilisé, dans un ordre fixe.
 
 const DOSSIER := "res://data/butin/"
@@ -170,6 +171,53 @@ static func _tirer_dans(table: String, rng: RandomNumberGenerator, z: Dictionary
 			if r == "unique" and acc.has(id):
 				continue   # un unique au plus une fois par tirage
 			_ajouter(acc, ordre, id, n, r)
+
+# ------------------------------------------------------------------ armures par difficulté (refonte HD, 2026-11-02)
+
+## ARMURE PAR PALIER DE DIFFICULTÉ — préparé pour les donjons de la grande carte, PAS encore branché dans le monde.
+## Une pièce d'armure pour un donjon de difficulté `palier` (1 = abords / grottes basses … 5 = donjon d'élite ; borné à 1..5),
+## à graine fixe (même palier + même graine + même zone = même pièce) ; `nom_zone` : facteur de rareté de zones.json en plus.
+##   var liste := ButinTables.tirer_armure(3, ButinTables.graine("donjon_x:coffre_3"))   # [{id, n, rarete}] : une pièce
+##   ButinTables.prendre(joueur.inventaire, liste)
+## Un donjon peut aussi mettre {"table": ButinTables.table_armure(n), "poids": …} dans ses propres tables. Tables :
+## data/butin/armures_paliers.json (matériaux par palier, chance d'une variante enchantée : 0 / 2 / 9 / 13 / 25 %) ; docs/BUTIN.md §10.
+const PALIERS_ARMURE := 5
+
+static func table_armure(palier: int) -> String:
+	return "armures_palier_%d" % clampi(palier, 1, PALIERS_ARMURE)
+
+static func tirer_armure(palier: int, graine_tirage: int, nom_zone := "") -> Array[Dictionary]:
+	return tirer(table_armure(palier), graine_tirage, nom_zone)
+
+## Probabilités exactes d'UN tirage de `table` (sous-tables développées, poids × facteur de rareté de la zone) : {id: p} ;
+## « rien » n'y figure pas (la somme vaut alors moins de 1). Équilibrage, tests, tableau des paliers.
+static func probabilites(table: String, nom_zone := "") -> Dictionary:
+	_charger()
+	var r := {}
+	_probas_dans(table, 1.0, zone(nom_zone), r, 0)
+	return r
+
+static func _probas_dans(table: String, p_table: float, z: Dictionary, r: Dictionary, prof: int) -> void:
+	if prof > PROFONDEUR_MAX or not _tables.has(table):
+		return
+	var t: Dictionary = _tables[table]
+	var bonus: Dictionary = z.get("rarete", {})
+	var total := float(t.get("rien", 0.0))
+	var poids := []
+	for e: Dictionary in t.get("entrees", []):
+		var p := maxf(0.0, float(e.get("poids", 1.0))) * float(bonus.get(_rarete(e), 1.0))
+		poids.append(p)
+		total += p
+	if total <= 0.0:
+		return
+	var entrees: Array = t.get("entrees", [])
+	for i in entrees.size():
+		var e: Dictionary = entrees[i]
+		var p: float = p_table * poids[i] / total
+		if e.has("table"):
+			_probas_dans(String(e["table"]), p, z, r, prof + 1)
+		else:
+			r[String(e["id"])] = float(r.get(String(e["id"]), 0.0)) + p
 
 ## Nombre fixe (int) ou intervalle [min, max] inclus.
 static func _nombre(rng: RandomNumberGenerator, v: Variant) -> int:

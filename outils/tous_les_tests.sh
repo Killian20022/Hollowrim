@@ -113,6 +113,7 @@ TESTS=(
 	"test_objets_monde|--nouvelle"   # objets physiques dans le monde : bijoux 3D, arme couchée, repli sacoche, tas, objet lâché visible, étals de Brodd et Grima
 	"test_rpg_socle|--nouvelle"   # RPG lot 0 (docs/RPG.md) : registre data/objets/, catégories, Conteneur / Stockage, EquipementCorps, Progression, butin ajouté en fin de table
 	"test_rpg_objets|--nouvelle"   # RPG lot A : armures / bijoux (données, icônes), EquipementCorps, formule d armure, sac 150, hache de Kolbeinn tenue, butin, Brodd
+	"test_armures_hd|--nouvelle"   # armures HD (données) : 5 ensembles par matériau, variantes enchantées, clés coup_* / resist_magie / vol_vie, butin par palier 1..5 (ButinTables.tirer_armure), Brodd, équilibrage
 	"test_armure_visible|--nouvelle"   # rpg/armures_legeres : armure PORTÉE visible (pièces skinnées sur le corps, masquage de la tenue, aucune traversée sur locomotion / coups / sorts tps, gants sur les bras FPS)
 	"test_migration_v2|v1;v2"   # sauvegarde v2 : migration v1 -> v2 sur une copie d'une vraie sauvegarde (niveau recalculé, points à dépenser), relue par un 2e processus
 	"test_progression|--nouvelle"   # RPG lot B : 8 compétences à l'usage, niveau (compétences + quêtes), arbre data/competences/arbre.json (achat, prérequis, réinit. Sigrún), effets des perks, sauvegarde

@@ -18,6 +18,9 @@ const RESISTANCE_MAX := 0.8
 ## Type de dégâts d'un coup reçu (options.type de recevoir_coup, DonneesSort.type_degats) -> clé de résistance (§3).
 const RESISTANCES := {"glace": "resist_froid", "givre": "resist_froid", "froid": "resist_froid", "gel": "resist_froid",
 	"feu": "resist_feu", "brulure": "resist_feu", "electricite": "resist_choc", "choc": "resist_choc"}
+## Types de dégâts MAGIQUES (refonte HD 2026-11-02) : la clé « resist_magie » s'ajoute à leur résistance propre (plafond commun
+## RESISTANCE_MAX). « tenebres » / « magie » n'ont pas de résistance propre : seulement resist_magie (et pas l'armure).
+const TYPES_MAGIQUES := ["glace", "givre", "froid", "gel", "feu", "brulure", "electricite", "choc", "tenebres", "magie"]
 
 var inventaire: Inventaire = null
 var emplacements := {"tete": "", "torse": "", "mains": "", "pieds": "", "cou": "", "anneau": ""}
@@ -111,6 +114,19 @@ func nombre_pieces(type_armure: String) -> int:
 ## Clé de résistance (« resist_froid »…) d'un type de dégâts, "" pour un coup physique.
 static func cle_resistance(type_degats: String) -> String:
 	return String(RESISTANCES.get(type_degats, ""))
+
+## Vrai si un coup de ce type est magique / élémentaire (résistances, pas l'armure).
+static func est_magique(type_degats: String) -> bool:
+	return type_degats in TYPES_MAGIQUES
+
+## Part retirée d'un coup de `type_degats` par les résistances de `p` (Progression : perks + équipement) : resist_<élément> +
+## resist_magie, plafonnée à RESISTANCE_MAX ; 0 pour un coup physique ou sans progression.
+static func resistance_totale(p: Progression, type_degats: String) -> float:
+	if p == null or not est_magique(type_degats):
+		return 0.0
+	var cle := cle_resistance(type_degats)
+	var r := p.bonus("resist_magie") + (p.bonus(cle) if cle != "" else 0.0)
+	return clampf(r, 0.0, RESISTANCE_MAX)
 
 ## Facteur appliqué aux dégâts physiques pour `armure` points (déjà multipliés par la compétence Armure).
 static func facteur_armure(armure: float) -> float:

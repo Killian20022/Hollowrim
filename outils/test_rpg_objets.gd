@@ -16,7 +16,9 @@ const MATERIAUX := {   # matériau -> pièces (tete, torse, mains, pieds)
 	"os": ["casque_os", "cuirasse_os", "gants_os", "bottes_os"],
 }
 const CLES_EFFETS := ["vie_max", "magie_max", "vigueur_max", "charge", "regen_magie", "regen_vigueur", "resist_froid", "resist_feu",
-	"resist_choc", "degats_une_main", "degats_deux_mains", "degats_destruction", "cout_sorts", "prix"]
+	"resist_choc", "degats_une_main", "degats_deux_mains", "degats_destruction", "cout_sorts", "prix",
+	# armures HD (2026-11-02, docs/RPG.md §3) : enchantements des variantes
+	"regen_vie", "cout_course", "resist_magie", "vol_vie", "coup_feu", "coup_glace", "coup_electricite", "coup_tenebres"]
 
 var _ok := true
 var _n := 0
