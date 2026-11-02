@@ -38,16 +38,16 @@ const CLIPS := {
 	# --- épée à une main : combo 1-2-3-4 (coups v6) ---
 	# 1 diagonale haut-droite -> bas-gauche (« Sword And Shield Slash (1) »)
 	"coup_a6": {"src": "slash_1", "im": [6, 15, 17, 23, 34]},
-	# 2 revers horizontal gauche -> droite (« Sword And Shield Slash (2) », début)
-	"coup_b6": {"src": "slash_2", "im": [2, 10, 12, 19, 30]},
+	# 2 revers horizontal gauche -> droite (« Sword And Shield Slash (2) », début ; la vrille qui suit l'image 22 est coupée)
+	"coup_b6": {"src": "slash_2", "im": [2, 10, 12, 19, 23]},
 	# 3 taille horizontale droite -> gauche (Quaternius UAL2 « Sword_Regular_Combo », 3e coup)
-	"coup_t6": {"src": "q_Sword_Regular_Combo", "im": [24, 31, 33, 38, 50]},
+	"coup_t6": {"src": "q_Sword_Regular_Combo", "im": [24, 31, 33, 38, 44]},
 	# 4 estoc (« Stabbing »)
 	"coup_c6": {"src": "estoc", "im": [1, 6, 8, 14, 30]},
 	# coups v5 (mêmes captures)
 	"coup_a": {"src": "slash_1", "im": [6, 15, 17, 23, 34]},
-	"coup_b": {"src": "slash_2", "im": [2, 10, 12, 19, 30]},
-	"coup_t": {"src": "q_Sword_Regular_Combo", "im": [24, 31, 33, 38, 50]},
+	"coup_b": {"src": "slash_2", "im": [2, 10, 12, 19, 23]},
+	"coup_t": {"src": "q_Sword_Regular_Combo", "im": [24, 31, 33, 38, 44]},
 	"coup_c": {"src": "estoc", "im": [1, 6, 8, 14, 30]},
 	# --- coups puissants (clic maintenu), selon le déplacement au début de la charge ---
 	# à l'arrêt / de côté gauche : frappe verticale de haut en bas (« Standing Melee Attack Downward »)
@@ -121,6 +121,11 @@ var _modele_arme: Node3D
 var _accroche: BoneAttachment3D
 var _epee_fixe: Node3D
 var ik_gauche := true
+## Bras gauche quand la main gauche tient la torche (ou un sort) : part de la capture gardée (les captures balancent le bras
+## du bouclier : la torche battait l'air). 1 = capture entière. La pose de la main gauche elle-même (torche, sorts) reste à
+## corps_joueur / branche tps/mains_sorts : ce réglage ne fait que ne pas la déranger.
+var poids_bras_gauche_occupe := 0.0
+var _gauche := {}            # os du bras gauche (clavicule -> doigts)
 var prise_corps := Transform3D()   # corps_joueur.PRISE (prise de l'épée dans hand_r)
 
 static func equiper(corps_joueur: Node3D, squelette: Skeleton3D) -> CorpsCoupsTps:
@@ -146,6 +151,13 @@ func _installer(squelette: Skeleton3D) -> void:
 			_os.append(i)
 		if sq.get_bone_name(i) in OS_BAS:
 			_bas[i] = true
+	var ic := sq.find_bone("clavicle_l")
+	for i in sq.get_bone_count():
+		var k := i
+		while k >= 0 and k != ic:
+			k = sq.get_bone_parent(k)
+		if ic >= 0 and k == ic:
+			_gauche[i] = true
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--tps-clip="):
 			_force = a.substr(11)
@@ -277,6 +289,7 @@ func _process(dt: float) -> void:
 func _process_modification() -> void:
 	if sq == null or (_poids <= 0.0 and not _actif_clip):
 		return
+	var _gauche_occupee: bool = not _deux_mains() and bool(corps.mains.torche_sortie)
 	var a := BIBLIOTHEQUE.get_animation(_src) if _src != "" else null
 	var p := _pistes_de(_src) if a != null else {}
 	var tc := clampf(_t_src, 0.0, a.length) if a != null else 0.0
@@ -293,6 +306,8 @@ func _process_modification() -> void:
 		else:
 			continue
 		var w := _poids * (_poids_jambes if _bas.has(i) else 1.0)
+		if _gauche_occupee and _gauche.has(i):
+			w *= poids_bras_gauche_occupe
 		sq.set_bone_pose_rotation(i, sous.slerp(geste, w))
 	# bassin : hauteur et décalage de la capture (à l'arrêt seulement)
 	var sous_b := sq.get_bone_pose_position(_i_bassin)
