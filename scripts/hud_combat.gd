@@ -362,6 +362,10 @@ func _ecole(m: Dictionary) -> String:
 func _ligne_barre(pos: Vector2, ratio: float, couleurs: Array, alpha: float) -> void:
 	if alpha < 0.02:
 		return
+	if CUIR.style() != "ancienne":   # cuir enluminé : gemme sertie d'or + jauge de cuir à filet d'or
+		CUIR.gemme(self, pos + Vector2(4, 3), couleurs, alpha)
+		CUIR.jauge(self, pos + Vector2(11, 0), ratio, couleurs, alpha)
+		return
 	var c := pos + Vector2(4, 3)   # centre du losange (la barre fait 7 px : centre en y+3)
 	for dy in range(-4, 5):
 		var r := 4 - absi(dy)

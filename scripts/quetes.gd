@@ -137,6 +137,8 @@ func _completer(q: Dictionary, i: int) -> void:
 			joueur.inventaire.ajouter(id, int(r["objets"][id]))
 			hud.avis("+ " + joueur.inventaire.nom(id))
 		Sons.jouer(self, ["sword-unsheathe"], -6.0)
+	elif hud.has_method("objectif_change"):
+		hud.objectif_change()   # l'objectif s'affiche sous la boussole (hud.gd), plus en double en haut à gauche
 	else:
 		hud.avis(etapes[i]["objectif"])
 	change.emit()

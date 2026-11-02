@@ -162,6 +162,11 @@ func _tester() -> void:
 	cuir.style_force = ""
 	_verif(styles_ok and cuir.style() == cuir.STYLE_DEFAUT, "boussole dessinée dans les styles a, b, c, ancienne ; défaut = %s" % cuir.STYLE_DEFAUT)
 	hud.lieux = []
+	var n_avis: int = hud._avis.size()
+	hud.objectif_change()
+	_verif(hud._avis.size() == n_avis and hud._objectif_t > 0.0, "nouvel objectif : ravivé sous la boussole, pas répété en haut à gauche")
+	_avancer(hud, hud.OBJECTIF_DUREE + 0.2)
+	_verif(hud._objectif_t == 0.0, "objectif revenu discret après %.0f s" % hud.OBJECTIF_DUREE)
 
 	# --- 5. aide des touches (demarrer() l'a lancée pour 60 s)
 	_verif(hud.aide_visible(), "aide des touches visible au début de la partie")

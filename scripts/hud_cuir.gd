@@ -183,3 +183,32 @@ static func losange(ci: CanvasItem, c: Vector2, couleur: Color, alpha: float, cr
 		ci.draw_rect(Rect2(c.x, c.y, 1, 1), Color(NOIR, 0.85 * alpha))
 	else:
 		ci.draw_rect(Rect2(c.x - 1, c.y - 1, 1, 1), Color(couleur.lerp(Color.WHITE, 0.5), alpha))
+
+## Jauge de ressource 80x7 (même encombrement que l'ancien assets/ui/barre_cadre.svg) : plaque de cuir à filet d'or,
+## remplissage 76x3 (reflet / base / ombre) qui se vide vers le centre, fond noir ; pointes d'or aux deux bouts.
+static func jauge(ci: CanvasItem, pos: Vector2, ratio: float, couleurs: Array, alpha: float) -> void:
+	if alpha < 0.02:
+		return
+	plaque(ci, Rect2(pos, Vector2(80, 7)), alpha, OR_TERNI, 0.9)
+	ci.draw_rect(Rect2(pos + Vector2(2, 2), Vector2(76, 3)), Color(NOIR, 0.9 * alpha))
+	var l := roundi(76.0 * clampf(ratio, 0.0, 1.0))
+	var x := pos.x + 2.0 + floorf((76 - l) * 0.5)
+	for ligne in 3:
+		ci.draw_rect(Rect2(x, pos.y + 2 + ligne, l, 1), Color(couleurs[ligne], alpha))
+	if l > 0 and l < 76:   # bords du remplissage soulignés d'or pâle : on lit le niveau même sur la neige
+		ci.draw_rect(Rect2(x - 1, pos.y + 2, 1, 3), Color(OR_SOMBRE, alpha))
+		ci.draw_rect(Rect2(x + l, pos.y + 2, 1, 3), Color(OR_SOMBRE, alpha))
+
+## Gemme 9x9 devant une jauge : contour noir, sertissure d'or, cœur de la couleur de la ressource, reflet.
+static func gemme(ci: CanvasItem, c: Vector2, couleurs: Array, alpha: float) -> void:
+	for dy in range(-4, 5):
+		var r := 4 - absi(dy)
+		ci.draw_rect(Rect2(c.x - r, c.y + dy, 2 * r + 1, 1), Color(NOIR, 0.9 * alpha))
+	for dy in range(-3, 4):
+		var r := 3 - absi(dy)
+		ci.draw_rect(Rect2(c.x - r, c.y + dy, 2 * r + 1, 1), Color(OR_CLAIR if dy < 0 else OR_TERNI, alpha))
+	for dy in range(-2, 3):
+		var r := 2 - absi(dy)
+		ci.draw_rect(Rect2(c.x - r, c.y + dy, 2 * r + 1, 1), Color(couleurs[0] if dy < 0 else couleurs[1], alpha))
+	ci.draw_rect(Rect2(c.x, c.y + 2, 1, 1), Color(couleurs[2], alpha))
+	ci.draw_rect(Rect2(c.x - 1, c.y - 1, 1, 1), Color(1, 1, 1, 0.6 * alpha))

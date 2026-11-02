@@ -55,6 +55,9 @@ var decouverte_active := false   # posé par monde.gd une fois la partie chargé
 var _decouverte_t := 0.0
 ## Aide des touches : [touche, action] ; affichée AIDE_DUREE s au début de la partie (demarrer()), puis seulement sur F1.
 const AIDE_DUREE := 60.0
+## Objectif de quête sous la boussole : discret, ravivé OBJECTIF_DUREE s quand il change (quetes.gd → objectif_change()).
+const OBJECTIF_DUREE := 4.0
+var _objectif_t := 0.0
 var aide_lignes: Array = [["ZQSD", "marcher"], ["Maj", "courir"], ["Espace", "sauter"], ["Clic gauche", "frapper"],
 	["Clic droit", "parer"], ["E", "agir"], ["I", "inventaire"], ["1 - 0", "raccourcis"], ["Tab", "sac et quêtes"],
 	["T", "torche"], ["V", "vue"], ["Échap", "menu"]]
@@ -118,6 +121,10 @@ func demarrer(avec_aide := true) -> void:
 func lieu_nomme(pos: Vector3, rayon: float, nom: String) -> void:
 	lieux_nommes.append([pos, rayon, nom])
 
+## Nouvel objectif de quête : il n'est plus répété en haut à gauche (doublon) ; la ligne sous la boussole est ravivée.
+func objectif_change() -> void:
+	_objectif_t = OBJECTIF_DUREE
+
 ## Message en haut à gauche, qui s'efface au bout de quelques secondes.
 ## « Nouvelle quête : X » et « Quête terminée : X » (scripts/quetes.gd) deviennent des annonces centrées.
 func avis(texte: String) -> void:
@@ -150,6 +157,7 @@ func _unhandled_input(e: InputEvent) -> void:
 
 func _process(dt: float) -> void:
 	EchelleUi.appliquer(self)
+	_objectif_t = maxf(0.0, _objectif_t - dt)
 	if joueur == null:
 		return
 	if joueur.ennemi_vise != null:
@@ -187,6 +195,9 @@ func _process(dt: float) -> void:
 
 func _barre(pos: Vector2, ratio: float, couleurs: Array, alpha: float) -> void:
 	if alpha < 0.02:
+		return
+	if CUIR.style() != "ancienne":
+		CUIR.jauge(self, pos, ratio, couleurs, alpha)
 		return
 	var blanc := Color(1, 1, 1, alpha)
 	draw_rect(Rect2(pos + Vector2(3, 2), Vector2(74, 3)), Color(FOND, alpha))
@@ -233,8 +244,9 @@ func _draw() -> void:
 		if not obj.is_empty():
 			var texte: String = "> " + obj[-1][1]
 			var l := _police.get_string_size(texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
-			var a := 0.6 * (1.0 - a_cible)
-			draw_string(_police, Vector2(roundf(cx - l * 0.5) + 1, 28), texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(FOND, 1.0 - a_cible))
+			var vif := clampf(_objectif_t, 0.0, 1.0)   # ravivé puis fondu vers la teinte discrète
+			var a := lerpf(0.55, 1.0, vif) * (1.0 - a_cible)
+			draw_string(_police, Vector2(roundf(cx - l * 0.5) + 1, 28), texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(FOND, 0.85 * a))
 			draw_string(_police, Vector2(roundf(cx - l * 0.5), 27), texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(PARCHEMIN, a))
 	_dessiner_annonce(cx)
 	_dessiner_aide()
