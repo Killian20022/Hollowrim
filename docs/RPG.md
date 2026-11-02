@@ -240,3 +240,22 @@ signalé (une fonction neuve, pas de signature changée).
 - Deux mécanismes « déjà ouvert » (`quetes.vus` / `ButinTables.pilles`) : inchangés.
 - Commentaires qui citent encore `data/butin/objets.json` dans quelques scripts (dont `equipement_mains.gd`, non touché
   exprès) : le fichier est devenu `data/objets/consommables.json` (et les autres fichiers de `data/objets/`).
+
+## 13. Carte du monde et registre des lieux (branche `rpg/carte`, 2026-11-02)
+
+- **`Lieux`** (`scripts/rpg/lieux.gd`, statique) : registre UNIQUE des lieux extérieurs (`LIEUX` : id, nom, type, x, z,
+  rayon de découverte, découvrable, majeur, note, « à … », « près de … ») et des cibles de quête (`CIBLES` : déclencheur →
+  lieu, par préfixe ; une étape de `data/quetes.json` peut aussi porter `"carte": "<id>"`). API : `liste()`, `lieu(id)`,
+  `position(id, monde)` (porte réelle du tertre / de la grotte), `decouvert(id, hud)` (suit `hud.lieux_vus`, clé = nom),
+  `declarer_au_hud(hud, monde)` (sans doublon), `cibles_quetes(quetes, monde)` (une cible par quête en cours ; « suivie »
+  = celle du HUD), `position_joueur(monde)` / `sous_terre(monde)` (sous terre : la porte d'entrée), `ou_est(monde)`.
+  **À partager avec la boussole** (branche `hud/barre_objets`) : `hud.lieux` / `monde._interface` peuvent lire
+  `Lieux.liste()` et `Lieux.cibles_quetes()` au lieu de leurs listes écrites à la main. Agrandissement : une ligne par lieu.
+- **`CarteMonde`** (`scripts/menu/carte_monde.gd`) : générateur de la maquette 3D (relief `monde.hauteurs_maillage` + pourtour
+  `monde.hauteur()`, couleurs depuis la carte de sol / eau / chemins / enceinte / champs, sapins `monde.arbres`, bâtiments
+  `village.emprises`, palissade, cercle, tertre, pont ; nuages, brume, courbes de niveau ; shaders `carte_*.gdshader`).
+  ~0,7 s à la première ouverture de l'onglet, puis gardé ; rendu seulement quand l'onglet est affiché.
+- **`OngletCarte`** (`scripts/menu/onglet_carte.gd`, `extends OngletMenu`, id `carte`) : branchement = une ligne dans
+  `MenuPersonnage.ONGLETS` : `{"id": "carte", "titre": "Carte", "script": "res://scripts/menu/onglet_carte.gd"}` (+ `KEY_M:
+  "carte"` dans `TOUCHES_ONGLETS` si voulu). Laisse passer Tab, Échap, I / K / J, Q / E, LB / RB, B, Retour.
+- Tests : `test_onglet_carte` (`--nouvelle`). Captures : `outils/captures_carte.gd -- --nouvelle --sortie=<dossier>`.
