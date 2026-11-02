@@ -384,8 +384,8 @@ func _dessiner(L: LivreParchemin) -> void:
 	L.zones["page:0"] = Rect2(X, 20, LG, H - 60)
 	# --- page gauche : le coffre
 	var maison := id_coffre == "coffre_maison"
-	L.titre(19, 24, "Coffre", "de la maison" if maison else "loué chez Grima")
-	if not maison:
+	var fin_titre := L.titre(19, 24, "Coffre", "de la maison" if maison else "loué chez Grima")
+	if not maison and fin_titre + 8.0 + L.larg("Skarnholt") <= X + LG:   # 480x270 : pas la place, on l'omet
 		L.texte_d(X + LG, 30, "Skarnholt", LivreParchemin.OR_TERNI)
 	_liste(L, 0, X, LG)
 	var nb := coffre.objets.size()

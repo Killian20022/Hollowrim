@@ -461,8 +461,9 @@ func _dessiner(L: LivreParchemin) -> void:
 	# --- page gauche : registre
 	var X := 17.0
 	var LG := m - 8.0 - X - 14.0
-	L.titre(19, 24, "Forge", "de Brodd")
-	L.texte_d(X + LG, 30, "Skarnholt", LivreParchemin.OR_TERNI)
+	var fin_titre := L.titre(19, 24, "Forge", "de Brodd")
+	if fin_titre + 8.0 + L.larg("Skarnholt") <= X + LG:
+		L.texte_d(X + LG, 30, "Skarnholt", LivreParchemin.OR_TERNI)
 	L.texte(X + 18, 52, "Objet", LivreParchemin.RUBRIQUE)
 	L.texte_d(X + LG - 34, 52, "Niv.", LivreParchemin.RUBRIQUE)
 	L.texte_d(X + LG, 52, "Kg", LivreParchemin.RUBRIQUE)
