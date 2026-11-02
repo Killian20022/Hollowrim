@@ -255,11 +255,7 @@ func _inventaire() -> void:
 	ui.categorie = "armes"
 	ui.ouvrir()
 	await _attendre(10)
-	for b in ui._liste.get_children():
-		if b is Button and String(b.get_meta("id", "")) == "croc_de_givre":
-			if ui._liste.get_parent() is ScrollContainer:
-				(ui._liste.get_parent() as ScrollContainer).ensure_control_visible(b)
-			b.grab_focus()
+	ui._choisir("croc_de_givre")   # menu du personnage (lot C) : onglet Sac, catégorie Armes
 	await _attendre(10)
 	_sauver(await _ecran(), "inventaire_armes.png")
 	ui.fermer()

@@ -1,11 +1,12 @@
 extends Control
 ## HUD pixel art : boussole en haut, NOM + barre de l'ennemi frappé ou visé (statut et « Étourdi » dessous), chiffres de dégâts
-## (option, ChiffresDegats), avis, panneau Tab.
+## (option, ChiffresDegats), avis. Le panneau Tab dessiné ici est remplacé (lot C) par le menu du personnage
+## (MenuPersonnage / InventaireMains : Tab, I, K, J) ; `panneau_ouvert` en est le reflet.
 ## Vie / mana / endurance, mains, statuts et raccourcis : enfant HudCombat (scripts/hud_combat.gd), qui s'efface
 ## quand tout est plein, comme dans Skyrim.
 ## Positions RELATIVES à `size` (écran logique, voir EchelleUi) : juste à 480x270, 640x360 et 960x540.
 ## Tailles des éléments : voir assets/ui/LISEZMOI.md.
-## Captures : --hud-demo (barres et avis affichés), --hud-cible (barre d'ennemi), --hud-panneau (panneau Tab),
+## Captures : --hud-demo (barres et avis affichés), --hud-cible (barre d'ennemi), --hud-panneau (menu du personnage ouvert),
 ## --hud-annonce (annonce centrée figée), --hud-aide (aide des touches affichée même en capture).
 ## Lot L7 : police des TITRES gothique pixel (MenuStyle.police_gothique : Jacquard, OFL) pour le nom de l'ennemi, les titres du
 ## panneau et les ANNONCES CENTRÉES (lieu découvert, nouvelle quête / quête terminée, niveau de compétence) ; AIDE DES TOUCHES
@@ -50,11 +51,25 @@ var _decouverte_t := 0.0
 ## Aide des touches : [touche, action] ; affichée AIDE_DUREE s au début de la partie (demarrer()), puis seulement sur F1.
 const AIDE_DUREE := 60.0
 var aide_lignes: Array = [["ZQSD", "marcher"], ["Maj", "courir"], ["Espace", "sauter"], ["Clic gauche", "frapper"],
-	["Clic droit", "parer"], ["E", "agir"], ["I", "inventaire"], ["1 - 0", "raccourcis"], ["Tab", "sac et quêtes"],
+	["Clic droit", "parer"], ["E", "agir"], ["Tab", "menu"], ["I", "sac"], ["1 - 0", "raccourcis"],
 	["T", "torche"], ["V", "vue"], ["Échap", "menu"]]
 var aide_t := 0.0          # secondes d'affichage restantes (fondu sur la dernière)
 var aide_forcee := false   # F1
-var panneau_ouvert := false
+## Menu du personnage (MenuPersonnage, posé par lui-même) : `panneau_ouvert` lit son état ; l'écrire l'ouvre ou le ferme
+## (fenêtre de butin, boutique, menu pause le ferment). Sans menu (scènes de test) : simple drapeau.
+var menu: Node = null
+var _panneau_brut := false
+var panneau_ouvert: bool:
+	get:
+		return bool(menu.get("ouvert")) if menu != null and is_instance_valid(menu) else _panneau_brut
+	set(v):
+		if menu != null and is_instance_valid(menu):
+			if v:
+				menu.call("ouvrir", "")
+			else:
+				menu.call("fermer")
+		else:
+			_panneau_brut = v
 var quetes: Node = null
 var _demo := false
 var _demo_cible := false
@@ -81,13 +96,14 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	_demo = args.has("--hud-demo")
 	_demo_cible = args.has("--hud-cible")
-	panneau_ouvert = args.has("--hud-panneau")
-	if panneau_ouvert:  # capture : un sac bien rempli pour vérifier la mise en page (jamais sauvegardé : mode capture)
+	if args.has("--hud-panneau"):  # capture : un sac bien rempli, menu du personnage ouvert (jamais sauvegardé : mode capture)
 		(func() -> void:
 			for id in ["os_draugr", "poussiere_tombe", "minerai_fer", "minerai_argent", "cristal_givre", "champignon_lumineux",
 					"relique_offrande", "lame_antique", "amulette_givre", "ecaille_dragon", "hache_kolbeinn", "cle_archives", "registre_hrafn"]:
 				joueur.inventaire.ajouter(id, 2)
-			joueur.inventaire.pieces = 137).call_deferred()
+			joueur.inventaire.pieces = 137
+			await get_tree().create_timer(0.5, true).timeout
+			panneau_ouvert = true).call_deferred()
 	if _demo:
 		avis("+ 22 Pièces")
 		avis("Partie sauvegardée")
@@ -135,11 +151,6 @@ func _unhandled_input(e: InputEvent) -> void:
 		aide_t = 0.0
 		get_viewport().set_input_as_handled()
 		return
-	if e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_TAB and not joueur.mort and not joueur.en_dialogue:
-		panneau_ouvert = not panneau_ouvert
-		get_tree().paused = panneau_ouvert
-		Sons.jouer(self, ["cloth1", "cloth2"], -10.0)
-		get_viewport().set_input_as_handled()
 
 func _process(dt: float) -> void:
 	EchelleUi.appliquer(self)
@@ -244,8 +255,6 @@ func _draw() -> void:
 			draw_string(_police, Vector2(roundf(cx - l * 0.5), 27), texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(PARCHEMIN, a))
 	_dessiner_annonce(cx)
 	_dessiner_aide()
-	if panneau_ouvert:
-		_panneau()
 
 ## Premier passage dans un lieu nommé (à moins de 30 m en hauteur : la crypte est sous le cercle) → annonce « Lieu découvert ».
 func _decouvrir() -> void:
@@ -413,82 +422,6 @@ func _ennemi_vise() -> Node:
 	if not r.is_empty() and r["collider"] != meilleur and float((r["position"] as Vector3).distance_to(o)) < d_min - 0.6:
 		return null
 	return meilleur
-
-func _texte(pos: Vector2, texte: String, couleur := PARCHEMIN, largeur := -1.0) -> void:
-	draw_string(_police, pos + Vector2(1, 1), texte, HORIZONTAL_ALIGNMENT_LEFT, largeur, TAILLE_POLICE, FOND)
-	draw_string(_police, pos, texte, HORIZONTAL_ALIGNMENT_LEFT, largeur, TAILLE_POLICE, couleur)
-
-## Titre de panneau : gothique pixel 24 px, or, ombre portée (ligne de base 5 px plus bas que le texte du corps).
-func _titre(pos: Vector2, texte: String) -> void:
-	MenuStyle.texte_detoure(self, _gothique, pos + Vector2(0, 5), texte, MenuStyle.TITRE_GRAND, OR)
-
-## Panneau du personnage (Tab) : compétences et quêtes à gauche, sac à droite.
-## Centré ; il s'élargit quand l'écran logique est plus grand (360x180 à 480x270, 440x220 à 640x360).
-func _panneau() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), Color(FOND, 0.45))
-	var t := Vector2(clampf(size.x - 200.0, 360.0, 440.0), clampf(size.y - 140.0, 180.0, 220.0)).floor()
-	var o := ((size - t) * 0.5).floor()
-	draw_style_box(_cadre, Rect2(o, t))
-	var gx := o.x + 16.0                  # colonne de gauche
-	var dx := o.x + floorf(t.x * 0.53)    # colonne de droite
-	var pied := o.y + t.y - 14.0          # ligne du bas
-	var larg_g := dx - gx - 8.0
-	var larg_d := o.x + t.x - 12.0 - dx
-	_titre(Vector2(gx, o.y + 22), "Compétences")
-	var y := o.y + 45.0   # 5 px de plus qu'avant le lot L7 : place pour les jambages du titre gothique
-	var c: Competences = joueur.competences
-	for nom in Competences.NOMS:
-		_texte(Vector2(gx, y), "%s  %d" % [Competences.NOMS[nom], c.niveaux[nom]])
-		draw_rect(Rect2(gx, y + 3, 100, 2), Color("#1a2233"))
-		draw_rect(Rect2(gx, y + 3, roundi(100 * c.progression(nom)), 2), Color("#6f9be8"))
-		y += 22.0
-	_titre(Vector2(dx, o.y + 22), "Sac")
-	var inv: Inventaire = joueur.inventaire
-	y = o.y + 40.0
-	y += 5.0
-	_texte(Vector2(dx, y), "Pièces : %d" % inv.pieces)
-	y += 13.0
-	if inv.objets.is_empty():
-		_texte(Vector2(dx, y), "(vide)", Color(PARCHEMIN, 0.5))
-	var ids: Array = inv.objets.keys()
-	var place := maxi(1, int((pied - 13.0 - y) / 13.0) + 1)  # lignes disponibles au-dessus du pied
-	for i in ids.size():
-		if i == place - 1 and ids.size() > place:
-			_texte(Vector2(dx, y), "… et %d autres" % (ids.size() - i), Color(PARCHEMIN, 0.6))
-			break
-		_texte(Vector2(dx, y), "%s  x%d" % [inv.nom(ids[i]), inv.objets[ids[i]]], PARCHEMIN, larg_d)
-		y += 13.0
-	if quetes != null:
-		var yq := maxf(o.y + 115.0, o.y + 45.0 + 22.0 * Competences.NOMS.size() + 4.0)
-		_titre(Vector2(gx, yq), "Quêtes")
-		yq += 6.0
-		for q in quetes.objectifs():
-			var lignes := _couper("> " + q[1], larg_g)
-			for i in lignes.size():
-				yq += 13.0
-				if yq > pied - 13.0:
-					break
-				_texte(Vector2(gx + (0.0 if i == 0 else 8.0), yq), lignes[i], PARCHEMIN, larg_g)
-	_texte(Vector2(dx, pied), "Poids : %.1f" % inv.poids(), Color(PARCHEMIN, 0.7))
-	_texte(Vector2(gx, pied), "Tab : fermer", Color(PARCHEMIN, 0.5))
-	var c2 = get_tree().current_scene.get("cycle") if get_tree().current_scene else null
-	if c2:
-		_texte(Vector2(gx + floorf((dx - gx) * 0.55), pied), c2.texte_heure(), Color(PARCHEMIN, 0.7))
-
-## Coupe un texte en lignes de largeur <= larg (aux espaces).
-func _couper(texte: String, larg: float) -> PackedStringArray:
-	var res := PackedStringArray()
-	var ligne := ""
-	for mot in texte.split(" ", false):
-		var essai := mot if ligne == "" else ligne + " " + mot
-		if ligne != "" and _police.get_string_size(essai, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x > larg - 8.0:
-			res.append(ligne)
-			ligne = mot
-		else:
-			ligne = essai
-	if ligne != "":
-		res.append(ligne)
-	return res
 
 func _marqueur(pos: Vector3, tex: Texture2D, couleur: Color) -> void:
 	var d := pos - joueur.global_position

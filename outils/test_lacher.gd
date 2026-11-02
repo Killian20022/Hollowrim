@@ -124,8 +124,8 @@ func _tester() -> void:
 	await _images(3)
 	ui._choisir("conso:potion_mana")
 	await _images(2)
-	var boutons := ui._fiche.find_children("*", "Button", true, false)
-	_verif(boutons.size() == 2, "fiche d'une pile : deux boutons « Lâcher 1 » et « Tout » (%d)" % boutons.size())
+	var boutons: Array = (ui.onglet("sac") as OngletSac).boutons_fiche().map(func(b: Array) -> String: return String(b[0]))
+	_verif(boutons.has("lacher") and boutons.has("tout"), "fiche d'une pile : boutons « Lâcher » et « Tout lâcher » (%s)" % str(boutons))
 	await _capture("lacher_inventaire.png")
 	_touche(KEY_L)
 	await _images(3)
@@ -138,15 +138,15 @@ func _tester() -> void:
 	await _images(3)
 	ui._choisir("sac:minerai_fer")
 	await _images(2)
-	var bs := ui._fiche.find_children("*", "Button", true, false)
-	if bs.size() == 2:
-		(bs[1] as Button).pressed.emit()      # « Tout (5) »
+	var sac_ui := ui.onglet("sac") as OngletSac
+	if sac_ui.boutons_fiche().any(func(b: Array) -> bool: return b[0] == "tout"):
+		sac_ui.actionner("tout")      # bouton « Tout lâcher » (5)
 		bouton_ok = true
 	await _images(3)
 	_verif(bouton_ok and inv.nombre("minerai_fer") == 0 and _sacs().size() == avant_sacs + 3, "bouton « Tout » : les 5 minerais lâchés")
 	ui._choisir("sac:fragment_sceau_os")
 	await _images(2)
-	_verif(ui._fiche.find_children("*", "Button", true, false).is_empty(), "objet de quête : aucun bouton, la raison est affichée")
+	_verif(not (ui.onglet("sac") as OngletSac).boutons_fiche().any(func(b: Array) -> bool: return b[0] == "lacher" or b[0] == "tout"), "objet de quête : aucun bouton « Lâcher », la raison est affichée")
 	var r := ui.lacher(false)
 	_verif(r.contains("quête") and ui.message.contains("quête") and inv.nombre("fragment_sceau_os") == 1, "objet de quête : refus clair dans le bandeau (« %s »)" % ui.message)
 	var jy := InputEventJoypadButton.new()

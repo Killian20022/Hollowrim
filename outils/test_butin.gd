@@ -284,18 +284,13 @@ func _inventaire() -> void:
 	await _images(2)
 	ui._changer_categorie("consommables")
 	await _images(2)
-	var ids: Array = []
-	for b in ui._liste.get_children():
-		if b is Button:
-			ids.append(String(b.get_meta("id")))
+	var ids: Array = (ui.onglet("sac") as OngletSac).lignes.map(func(l: Dictionary) -> String: return "conso:" + String(l["id"]))
 	_verif(ids.has("conso:potion_soin") and ids.has("conso:pain_seigle") and not ids.has("conso:potion_mana") and not ids.has("conso:os_draugr"), "catégorie Potions : consommables du sac seulement, les épuisés disparaissent (%s)" % str(ids))
 	ui._changer_categorie("divers")
 	await _images(2)
-	var ids_d: Array = []
-	for b in ui._liste.get_children():
-		if b is Button:
-			ids_d.append(String(b.get_meta("id")))
-	_verif(ids_d.has("sac:os_draugr") and not ids_d.has("sac:potion_soin"), "Divers : le reste du sac, sans les potions")
+	(ui.onglet("sac") as OngletSac).filtrer("ingredient")
+	var ids_d: Array = (ui.onglet("sac") as OngletSac).lignes.map(func(l: Dictionary) -> String: return "sac:" + String(l["id"]))
+	_verif(ids_d.has("sac:os_draugr") and not ids_d.has("sac:potion_soin"), "Ingrédients : os de draugr, sans les potions (filtre par catégorie du registre)")
 	ui._changer_categorie("consommables")
 	await _images(2)
 	j.vie = 20.0

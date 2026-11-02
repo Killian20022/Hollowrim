@@ -68,8 +68,9 @@ func _tester() -> void:
 
 	# --- ouverture par la touche I : jeu en pause
 	await _touche(KEY_I)
-	_verif(ui.ouvert and paused, "touche I : inventaire ouvert, jeu en pause")
-	_verif(ui.categorie == "armes", "catégorie de départ : Armes")
+	_verif(ui.ouvert and paused and ui.onglet_actif == "sac", "touche I : menu du personnage ouvert sur le Sac, jeu en pause")
+	ui.categorie = "armes"
+	_verif(ui.categorie == "armes", "catégorie Armes (onglet Sac filtré)")
 	var armes := eq.objets_possedes("armes")
 	_verif(armes.has("vide") and armes.has("epee") and armes.has("torche") and armes.has("bouclier"), "Armes : main nue, épée, torche, bouclier (%s)" % str(armes))
 	var sorts := eq.objets_possedes("sorts")
@@ -84,7 +85,7 @@ func _tester() -> void:
 	# --- équiper : main gauche / main droite
 	ui._changer_categorie("sorts")
 	await _images(2)
-	_verif(ui._liste.get_child_count() >= sorts.size(), "liste des sorts affichée (%d lignes)" % ui._liste.get_child_count())
+	_verif((ui.onglet("magie") as OngletMagie).sorts.size() == sorts.size() and ui.onglet_actif == "magie", "onglet Magie : %d sorts listés" % sorts.size())
 	_verif(ui.equiper("gauche", "jet_flammes") == "" and eq.mains["gauche"]["id"] == "jet_flammes", "clic droit : Jet de flammes dans la main gauche")
 	_verif(ui.equiper("droite", "chaine_eclairs") == "" and eq.mains["droite"]["id"] == "chaine_eclairs" and eq.mains["gauche"]["id"] == "jet_flammes", "clic gauche : Chaîne d'éclairs dans la main droite (la gauche garde son sort)")
 	_verif(ui.equiper("droite", "jet_flammes") == "" and eq.mains["droite"]["id"] == "jet_flammes", "même sort dans les deux mains (double incantation possible)")
@@ -114,7 +115,8 @@ func _tester() -> void:
 	_verif(ui.message.contains("deux mains"), "message : « %s »" % ui.message)
 	ui._changer_categorie("armes")
 	await _images(2)
-	_verif((ui._main_ui["gauche"]["nom"] as Label).text.contains("deux mains"), "aperçu : la main gauche affiche « %s »" % (ui._main_ui["gauche"]["nom"] as Label).text)
+	var oe := ui.onglet("equipement") as OngletEquipement
+	_verif(oe.objet_de("gauche") == "" and eq.categorie("droite") == "arme_deux_mains", "Équipement : main gauche vide, occupée par l'arme à deux mains")
 	await _capture("inventaire_deux_mains.png")
 	_verif(ui.equiper("gauche", "torche") == "" and eq.categorie("droite") == "vide" and eq.categorie("gauche") == "torche" and ui.message.contains("rangée"), "torche à gauche : l'arme à deux mains est rangée (« %s »)" % ui.message)
 

@@ -505,3 +505,229 @@ static func flouter(img: Image) -> void:
 	var h := maxi(1, roundi(256.0 * img.get_height() / img.get_width()))
 	img.resize(256, h, Image.INTERPOLATE_CUBIC)
 	img.resize(512, h * 2, Image.INTERPOLATE_CUBIC)
+
+# --- lot C : menu personnage, direction A « parchemin et cuir enluminé » ---------------------------------------------------
+## Le livre, les signets, les touches, les titres à lettrine, filets, barres et règles viennent de Parchemin
+## (scripts/menu/parchemin.gd, base commune du lot D reprise À L'IDENTIQUE). Ici, seulement ce qui manque au menu du lot C :
+## arche du héros, vignettes d'emplacement, cadre d'icône, marques, étoile de favori, icônes d'objets.
+const RARETE_ENCRE := {"commun": Color("#56627a"), "peu_commun": Color("#1f5a3a"), "rare": Color("#1f3a7a"), "unique": Color("#b8762a")}
+
+## Arche romane enluminée (fond d'azur semé d'or, filets encre + or, sol de terre, clé de voûte) de taille l x h : le cadre du
+## héros de l'onglet Équipement (maquette direction.js : arche). Transparente hors de l'arche. Bruit seulement (pas de Bayer).
+static func image_arche(l: int, h: int) -> Image:
+	var img := Image.create_empty(l + 2, h + 1, false, Image.FORMAT_RGBA8)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	var bruit := FastNoiseLite.new()
+	bruit.noise_type = FastNoiseLite.TYPE_VALUE
+	bruit.seed = 3
+	bruit.frequency = 1.0 / 6.0
+	var x0 := 1.0
+	var x1 := float(l)
+	var y1 := float(h)
+	var rayon := (x1 - x0) * 0.5
+	var cx := (x0 + x1) * 0.5
+	var cy := rayon
+	for y in range(0, h + 1):
+		for x in range(0, l + 2):
+			var d := minf(minf(x - x0, x1 - x), y1 - y)
+			if y < cy:
+				d = minf(d, rayon - Vector2(x - cx, y - cy).length())
+			if d < 0.0:
+				continue
+			var col: Color
+			if d < 1.0:
+				col = Parchemin.ENCRE
+			elif d < 2.0:
+				col = Parchemin.OR_VIF
+			elif d < 3.0:
+				col = Parchemin.OR_TERNI
+			elif d < 4.0:
+				col = Parchemin.ENCRE
+			else:
+				var v: float = (bruit.get_noise_2d(x, y) * 0.5 + 0.5) * 0.7 + rng.randf() * 0.3
+				col = Color("#1f2a44") if v < 0.4 else (Color("#1f3a7a") if v < 0.75 else Color("#2f5fb8"))
+				if rng.randf() < 0.012:
+					col = Parchemin.OR_VIF
+			img.set_pixel(x, y, col)
+	for x in range(int(x0) + 4, int(x1) - 3):   # sol : bande de terre sous les pieds
+		for k in 3:
+			img.set_pixel(x, int(y1) - 6 + k, Parchemin.CUIR[2] if k == 0 else Parchemin.CUIR[1])
+	for p: Vector2i in [Vector2i(0, -2), Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-2, 0), Vector2i(-1, 0), Vector2i(0, 0),
+			Vector2i(1, 0), Vector2i(2, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1), Vector2i(0, 2)]:
+		img.set_pixel(roundi(cx) + p.x, 3 + p.y, Parchemin.RUBRIQUE if p == Vector2i.ZERO else Parchemin.OR_VIF)
+	return img
+
+## Coupe un texte trop long avec « … ».
+static func raccourcir(police: Font, texte: String, larg: float) -> String:
+	if police.get_string_size(texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE).x <= larg:
+		return texte
+	var t := texte
+	while t.length() > 1 and police.get_string_size(t + "…", HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE).x > larg:
+		t = t.substr(0, t.length() - 1)
+	return t.strip_edges() + "…"
+
+## Vignette d'emplacement (maquette : .slot) : cadre encre, double liseré or / clair ; choisie = liseré vermillon.
+static func vignette(ci: CanvasItem, r: Rect2, choisie := false, vide := false) -> void:
+	ci.draw_rect(r, Parchemin.RUBRIQUE if choisie else Parchemin.ENCRE)
+	ci.draw_rect(r.grow(-1), Parchemin.OR_VIF if choisie else Parchemin.OR_TERNI)
+	ci.draw_rect(r.grow(-2), Parchemin.RUBRIQUE if choisie else Parchemin.CLAIR)
+	ci.draw_rect(r.grow(-3), Parchemin.CLAIR if choisie else (Color("#cdb88e") if vide else Color("#d8c69e")))
+
+## Cadre d'icône sur fond de nuit (maquette : .cadre-ico) pour les grandes icônes de fiche.
+static func cadre_icone(ci: CanvasItem, r: Rect2) -> void:
+	ci.draw_rect(r, Parchemin.ENCRE)
+	ci.draw_rect(r.grow(-1), Parchemin.OR_VIF)
+	ci.draw_rect(r.grow(-2), Parchemin.OR_TERNI)
+	ci.draw_rect(r.grow(-3), Color("#1f2a44"))
+
+## Marque d'objet porté (D, G, P) : petit carré vermillon, lettre claire (maquette : .marque).
+static func marque(ci: CanvasItem, police: Font, x: float, y: float, lettre: String) -> void:
+	ci.draw_rect(Rect2(x, y, 9, 9), Parchemin.RUBRIQUE_SOMBRE)
+	ci.draw_rect(Rect2(x + 1, y + 1, 7, 7), Parchemin.RUBRIQUE)
+	var l := police.get_string_size(lettre, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE).x
+	ci.draw_string(police, Vector2(roundf(x + 5.0 - l * 0.5), y + 8.0), lettre, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE, Parchemin.CLAIR)
+
+## Petite étoile or (favori).
+static func etoile(ci: CanvasItem, x: float, y: float) -> void:
+	for p: Vector2i in [Vector2i(2, 0), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1), Vector2i(0, 2), Vector2i(1, 2), Vector2i(2, 2), Vector2i(3, 2),
+			Vector2i(4, 2), Vector2i(1, 3), Vector2i(3, 3), Vector2i(0, 4), Vector2i(4, 4)]:
+		ci.draw_rect(Rect2(x + p.x, y + p.y, 1, 1), Parchemin.OR_TERNI if p.y < 3 else Parchemin.RUBRIQUE)
+
+# --- icônes du menu ----------------------------------------------------------------------------------------------------------
+## Icônes 16x16 au format d'IconesCombat (motif ASCII, contour automatique) pour ce qu'IconesCombat ne dessine pas encore :
+## emplacements d'armure (vides), bijoux, butin (maquettes_menu/commun/ui.js : AJOUTS). IconesCombat reste prioritaire.
+const MOTIFS_MENU := {
+	"casque": ["metal", ["................", "................", ".....mllllm.....", "....mlsswslm....", "...mlsssssslm...", "...mllssssllm...",
+		"...mmllllllmm...", "...ggggggggggg..", "...dmm.ll.mmd...", "...dm..ll..md...", "...dm..ll..md...", "...dm..mm..md...",
+		"....d......d....", "................", "................", "................"]],
+	"capuche": ["cuir", ["................", "......2222......", ".....233332.....", "....23344332....", "...2334..4332...", "...234....432...",
+		"...23......32...", "...23......32...", "...234....432...", "..22344..44322..", "..123344443321..", ".11223333332211.",
+		".1112222222211..", "................", "................", "................"]],
+	"plastron": ["cuir", ["................", "...ss......ss...", "..sllss..sslls..", "..s1234334321s..", "...12344443321..", "...1234gg4321...",
+		"...123444G321...", "...12344443321..", "...bBBBgBBBBb...", "...12344443321..", "...1234444321...", "...1233443321...",
+		"...1223333221...", "....11111111....", "................", "................"]],
+	"gants": ["cuir", ["................", "................", "....2.2.2.......", "....3.3.3.2.....", "....3.3.3.3.....", "....3333333.....",
+		"....3444443..2..", "....34444433.3..", "....3444444333..", "....344444433...", ".....4444443....", ".....mllllm.....",
+		".....m3333m.....", ".....222222.....", "................", "................"]],
+	"bottes": ["cuir", ["................", "...sslls........", "...sllll........", "...2333..2......", "...2343.........", "...2343.........",
+		"...2343.........", "...2343.........", "...23443........", "...234443.......", "...2344443333...", "...23444444443..",
+		"...12222222222..", "...dmmmmmmmmmd..", "................", "................"]],
+	"anneau": ["metal", ["................", "................", "................", "......uUUu......", ".....uw..Uu.....", "......UuuU......",
+		".....gGGGGg.....", "....gG....Gg....", "...gG......Gg...", "...g........g...", "...gG......Gg...", "....gG....Gg....",
+		".....gGGGGg.....", "................", "................", "................"]],
+	"amulette": ["metal", ["................", "...l........l...", "....l......l....", ".....l....l.....", "......l..l......", ".......ll.......",
+		"......gGGg......", ".....gRrrRg.....", ".....gRwrRg.....", ".....gRrrRg.....", "......gRRg......", ".......gg.......",
+		"................", "................", "................", "................"]],
+	"os": ["metal", ["................", "................", "..ss............", ".swls...........", "..slls..........", "...slls.........",
+		"....slls........", ".....slls.......", "......slls......", ".......slls.....", "........slls....", ".........sllws..",
+		"..........slws..", "...........ss...", "................", "................"]],
+	"minerai": ["metal", ["................", "................", "................", "......mml.......", "....mmllldm.....", "...mlsldmmdm....",
+		"...mdlmmgdmmm...", "..mmmdmmmmlsdm..", "..mlsdmgdmldmm..", "..dmmmdmmmmmdd..", "...ddmmmdmmdd...", ".....dddddd.....",
+		"................", "................", "................", "................"]],
+	"cristal": ["glace", ["................", ".......5........", "......545.......", "......545...4...", ".....54435.434..", ".....54435.434..",
+		"..4..5443354334.", ".434.54433543.3.", ".4433544335433..", ".44335443354333.", "..333544335433..", "..2222222222222.",
+		"...1111111111...", "................", "................", "................"]],
+	"fourrure": ["cuir", ["................", "................", "...ss.s..s.ss...", "..slllslsllsls..", "..sl444444444s..", ".sl44555555444s.",
+		"..s4455555544s..", ".sl44555555444s.", "..s4445555444ls.", ".sl44444444444s.", "..sll4ls4l4lls..", "...s.s..s..s....",
+		"................", "................", "................", "................"]],
+	"relique": ["metal", ["................", "................", "......gggg......", ".....gGGGGg.....", "....gG.uU.Gg....", "....gGuwuUGg....",
+		"....gG.uU.Gg....", ".....gGGGGg.....", "......gGGg......", ".......gg.......", ".....gggggg.....", "....gGGGGGGg....",
+		"................", "................", "................", "................"]],
+	"bourse": ["cuir", ["................", "................", "......2gg2......", ".......33.......", ".....233332.....", "....23444432....",
+		"...2344g44432...", "...2344g44432...", "...234g4g4432...", "...23444g4432...", "....23344332....", ".....222222.....",
+		"................", "................", "................", "................"]],
+	"hache": ["metal", ["................", "........llls....", ".......lssswl...", "......lsswwwl...", ".....bBlssssl...", "....bB..llsl....",
+		"...bB.....l.....", "..bB............", ".bB.............", "bB..............", "................", "................",
+		"................", "................", "................", "................"]],
+	"marteau": ["metal", ["................", ".........mlls...", "........mlswls..", ".......mlswwlsm.", "......bmllsllm..", ".....bB.mmllm...",
+		"....bB...mm.....", "...bB...........", "..bB............", ".bB.............", "................", "................",
+		"................", "................", "................", "................"]],
+	"cle": ["metal", ["................", "................", "...gggg.........", "..gG..Gg........", "..g....g........", "..gG..Gg........",
+		"...gGGgggggggg..", "..........G.G...", "..........g.g...", "................", "................", "................",
+		"................", "................", "................", "................"]],
+}
+## Teintes de lame par matériau (pixels w / s / l du motif « epee » d'IconesCombat ; maquette : LAMES).
+const LAMES := {
+	"rubis": ["#ffd8d0", "#e0473a", "#8a1c1c"], "verre": ["#d8ffe0", "#7fc87a", "#3f8a4a"], "saphir": ["#c8ecff", "#3a7fd0", "#1f4a8a"],
+	"obsidienne": ["#ec6a1f", "#3a2a3a", "#1a1018"], "or": ["#fff2c0", "#e8a64a", "#a8702a"], "fer": ["#c8d0dc", "#8a96ad", "#56627a"],
+}
+## Icône par emplacement de corps vide (silhouette pâle) et par catégorie sans motif.
+const ICONE_EMPLACEMENT := {"tete": "casque", "torse": "plastron", "mains": "gants", "pieds": "bottes", "cou": "amulette", "anneau": "anneau"}
+const ICONE_DEFAUT := {"arme": "epee", "armure": "plastron", "bijou": "anneau", "ingredient": "minerai", "quete": "cle", "divers": "relique",
+	"consommable": "potion_soin"}
+## Icônes d'objets connus sans champ « icone » dans le registre (lecture seule du registre : lot A pourra les y écrire).
+const ICONE_OBJET := {"hache_kolbeinn": "hache", "os_draugr": "os", "minerai_fer": "minerai", "minerai_argent": "minerai", "cristal_givre": "cristal",
+	"fourrure_troll": "fourrure", "relique_offrande": "relique", "lame_antique": "epee", "anneau_cuivre": "anneau", "anneau_givre": "anneau",
+	"amulette_givre": "amulette", "amulette_eirik": "amulette", "collier_or": "amulette", "cle_archives": "cle", "coupe_argent": "relique",
+	"broche_sigrun": "relique", "ecaille_dragon": "cristal", "croc_troll": "os", "poussiere_tombe": "bourse", "champignon_lumineux": "bourse",
+	"journal_sigrun": "tome", "registre_hrafn": "tome"}
+
+static var _icones_menu := {}
+
+## Icône 16x16 d'un objet (identifiant du registre, de l'équipement des mains ou d'un sort) : motif d'IconesCombat s'il existe
+## (champ « icone » du registre, sinon l'id), sinon motif du menu ; lame teintée par le matériau (épées du catalogue et épées
+## écrites à la main : epee_or, epee_rubis…). `pale` : silhouette d'emplacement vide (encre pâlie).
+static func icone_objet(id: String, pale := false) -> Texture2D:
+	var cle := id + ("|p" if pale else "")
+	if _icones_menu.has(cle):
+		return _icones_menu[cle]
+	var f := Inventaire.objet(id)
+	var motif := String(f.get("icone", ""))
+	if motif == "":
+		motif = String(ICONE_OBJET.get(id, ""))
+	if motif == "" and (IconesCombat.connu(id) or MOTIFS_MENU.has(id)):
+		motif = id
+	if motif == "" and not f.is_empty():
+		motif = String(ICONE_DEFAUT.get(String(f.get("categorie", "")), "inconnu"))
+	if motif == "":
+		motif = "inconnu"
+	var materiau := String(f.get("materiau", ""))
+	if materiau == "":
+		for m: String in LAMES:
+			if id.ends_with("_" + m):
+				materiau = m
+	var img: Image
+	if MOTIFS_MENU.has(motif) and not IconesCombat.connu(motif):
+		img = IconesCombat.image(MOTIFS_MENU[motif])
+	else:
+		img = IconesCombat.icone(motif).get_image()
+	if img == null:
+		img = IconesCombat.image(MOTIFS_MENU["relique"])
+	img = img.duplicate()
+	if materiau != "" and LAMES.has(materiau) and motif == "epee":
+		var lame: Array = LAMES[materiau]
+		var src := {Color(IconesCombat.FIXES["w"]).to_html(): Color(lame[0]), Color(IconesCombat.FIXES["s"]).to_html(): Color(lame[1]),
+			Color(IconesCombat.FIXES["l"]).to_html(): Color(lame[2])}
+		for y in img.get_height():
+			for x in img.get_width():
+				var c := img.get_pixel(x, y).to_html()
+				if src.has(c):
+					img.set_pixel(x, y, src[c])
+	if pale:
+		for y in img.get_height():
+			for x in img.get_width():
+				var c := img.get_pixel(x, y)
+				if c.a > 0.0:
+					img.set_pixel(x, y, Color(Parchemin.PALE, 0.35 + 0.25 * c.get_luminance()))
+	var tex := ImageTexture.create_from_image(img)
+	_icones_menu[cle] = tex
+	return tex
+
+## Icône d'un emplacement de corps vide.
+static func icone_emplacement(emplacement: String) -> Texture2D:
+	var m := String(ICONE_EMPLACEMENT.get(emplacement, "inconnu"))
+	var cle := "@" + emplacement
+	if not _icones_menu.has(cle):
+		var img := IconesCombat.image(MOTIFS_MENU[m]) if MOTIFS_MENU.has(m) else IconesCombat.icone(m).get_image()
+		for y in img.get_height():
+			for x in img.get_width():
+				var c := img.get_pixel(x, y)
+				if c.a > 0.0:
+					img.set_pixel(x, y, Color(Parchemin.PALE, 0.30 + 0.25 * c.get_luminance()))
+		_icones_menu[cle] = ImageTexture.create_from_image(img)
+	return _icones_menu[cle]
+
+## Libère les textures gardées en statique (à la fermeture : voir Palette.vider).
+static func vider_menu() -> void:
+	_icones_menu.clear()
