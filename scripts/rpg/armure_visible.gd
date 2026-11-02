@@ -21,6 +21,10 @@ const EMPLACEMENTS := ["tete", "torse", "mains", "pieds"]
 ## Seuils de masquage (pose de repos du héros, repère du squelette : y haut, z devant).
 const MAINS_X := 0.58
 const TORSE_X := 0.415
+## Torses à manches de mailles (armures lourdes de l'agent Y) : la cotte est coupée un peu plus loin sur l'épaule (le sommet de
+## l'épaule, |x| = 0,42, ressortait de 17 à 20 mm dans le combo d'épée et le jet de sort à deux mains).
+const TORSE_X_MANCHES := 0.445
+const TORSES_MANCHES := ["cuirasse_fer", "cuirasse_acier_nordique", "cuirasse_gardiens", "brigandine_braise"]
 const PIEDS_Y := 0.40
 const PIEDS_Y_ACC := 0.58	# pans fourrés du héros au-dessus du genou (bottes hautes de l'agent Y) ; surface 0 seulement (la pèlerine reste)
 const TETE_Y := 1.585
@@ -282,6 +286,8 @@ func zones() -> Array:
 func limites() -> Dictionary:
 	var lim := {}
 	var t := maillage("torse")
+	if porte("torse") in TORSES_MANCHES:
+		lim["torse_x"] = TORSE_X_MANCHES
 	if t != null:
 		var mins := {}
 		for p: Vector3 in t.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
@@ -428,7 +434,7 @@ static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Arra
 		# chausses portées : pantalon, cotte (hors manches) et pans du héros entièrement retirés
 		if nom == "pantalon":
 			return true
-		if nom == "tunique" and x_min < TORSE_X:
+		if nom == "tunique" and x_min < float(lim.get("torse_x", TORSE_X)):
 			return true
 		if acc and not oeil and not casque and not camail and c.y > 0.40 and c.y < TETE_Y and absf(c.x) < 0.45:
 			return true
@@ -437,7 +443,7 @@ static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Arra
 			return true     # camail du casque de base : il tombe sur le col et traverserait le haut de la pièce de torse (nuque)
 		if nom == "pantalon" and bas > ourlet_en(lim, c) + 0.035:
 			return true     # pantalon ENTIÈREMENT sous la pièce de torse (hanches) : il passerait au travers quand la cuisse se lève
-		if nom == "tunique" and x_min < TORSE_X and bas > ourlet_en(lim, c) + 0.035:     # sous la pièce ; la jupe de mailles sous une cuirasse courte reste
+		if nom == "tunique" and x_min < float(lim.get("torse_x", TORSE_X)) and bas > ourlet_en(lim, c) + 0.035:     # sous la pièce ; la jupe de mailles sous une cuirasse courte reste
 			return true
 		if nom == "mante":
 			return true
@@ -477,10 +483,11 @@ static func _filtrer(orig: Mesh, nom: String, z: Array, lim := {}) -> ArrayMesh:
 			continue
 		var a_couper := PackedInt32Array()
 		var coupe_tunique := nom == "tunique" and z.has("torse") and not z.has("jambes")
+		var torse_x: float = lim.get("torse_x", TORSE_X)
 		var coupe_acc := nom == "accessoires" and s == 0 and z.has("torse") and lim.has("ourlets") and not z.has("jambes")
 		for t in range(0, idx.size() - 2, 3):
 			var c := (v[idx[t]] + v[idx[t + 1]] + v[idx[t + 2]]) / 3.0
-			if coupe_tunique and minf(absf(v[idx[t]].x), minf(absf(v[idx[t + 1]].x), absf(v[idx[t + 2]].x))) < TORSE_X and not (z.has("mains") and absf(c.x) > MAINS_X):
+			if coupe_tunique and minf(absf(v[idx[t]].x), minf(absf(v[idx[t + 1]].x), absf(v[idx[t + 2]].x))) < torse_x and not (z.has("mains") and absf(c.x) > MAINS_X):
 				# cotte sous la pièce de torse : coupée à l'ourlet réel (la jupe de mailles reste sous une cuirasse courte)
 				a_couper.append_array([idx[t], idx[t + 1], idx[t + 2]])
 				continue
