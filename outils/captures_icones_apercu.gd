@@ -114,7 +114,10 @@ func _go() -> void:
 	hc.set("_force_visible", true)
 	j.vie = j.vie_max * 0.7
 	await _images(40)
-	await _capturer("11_barre_objets")
+	var barre := await _capturer("11_barre_objets")
+	var zoom := barre.get_region(Rect2i(110, 322, 420, 38))
+	zoom.resize(420 * 3, 38 * 3, Image.INTERPOLATE_NEAREST)
+	zoom.save_png(_dossier().path_join("11_barre_objets_x3.png"))
 	j.mains.magie.raccourci(1)
 	await _images(14)
 	await _capturer("11b_barre_objets_ruban")
