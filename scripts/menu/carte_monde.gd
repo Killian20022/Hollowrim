@@ -568,8 +568,9 @@ func _lumiere() -> void:
 	lumiere.light_energy = 1.2
 	lumiere.shadow_enabled = false
 	add_child(lumiere)
-	# lumière du nord-ouest (convention des cartes : les reliefs se lisent en saillie), rasante (35°)
-	lumiere.basis = Basis.looking_at(Vector3(1.0, -0.75, 0.8).normalized(), Vector3.UP)
+	# lumière de l'ouest-sud-ouest, assez haute : les versants ouest et les faces tournées vers le lecteur (la caméra regarde
+	# le nord) sont éclairés, les versants est restent dans l'ombre → le relief se lit sans noircir toits et façades
+	lumiere.basis = Basis.looking_at(Vector3(0.9, -1.0, -0.35).normalized(), Vector3.UP)
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color("#d0d5d8")
