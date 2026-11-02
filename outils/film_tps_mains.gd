@@ -2,7 +2,8 @@ extends SceneTree
 ## MAINS ET SORTS À LA 3e PERSONNE (branche tps/mains_sorts) : film en vue de jeu 3e personne, en UN lancement.
 ##   godot --path . --write-movie <f.avi> --fixed-fps 30 --resolution 960x540 --script res://outils/film_tps_mains.gd -- --nouvelle [--court]
 ## Scène test_combat (nuit) : marche torche en main → feu (préparation, jet) → givre → foudre → boule de feu chargée → retour torche →
-## épée + sort (coup d'épée puis sort de la main gauche) → sort de la main droite avec la torche → double incantation.
+## épée + sort (coup d'épée puis sort de la main gauche) → sort de la main droite avec la torche → double incantation → bouclier →
+## arme à deux mains → mains nues.
 ## Les passages alternent caméra de jeu (derrière l'épaule) et caméra tournée de 3/4 (camera_tp._orbite) pour voir les deux bras.
 ## N'utilise que l'interface du joueur et de la magie : tourne aussi sur une version « avant » (biome/zone-temoin).
 const DT := 1.0 / 30.0
@@ -138,6 +139,16 @@ func _film() -> void:
 	mg.relacher("gauche")
 	mg.relacher("droite")
 	await _attendre(0.8)
+	_texte("Épée et bouclier")
+	_equiper("droite", "epee")
+	_equiper("gauche", "bouclier")
+	_orbite(-110.0)
+	await _attendre(1.0)
+	await _marcher(1.2)
+	_texte("Arme à deux mains (claymore) : main gauche sur la poignée")
+	_equiper("droite", "claymore_longue")
+	await _attendre(1.2)
+	await _marcher(1.2)
 	_orbite(0.0)
 	_texte("Mains nues (sorts rangés)")
 	_equiper("droite", "vide")

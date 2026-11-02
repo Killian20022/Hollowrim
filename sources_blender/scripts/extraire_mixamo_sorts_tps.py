@@ -7,6 +7,7 @@
 #
 # Les .fbx Mixamo (usage commercial permis, redistribution des fichiers bruts INTERDITE) restent hors du dépôt
 # (references/mixamo/magic_spell_pack/). Seules les données converties sont écrites (rotations monde des os, bassin).
+# Tenue : « great sword idle » (Great Sword Pack), mêmes règles.
 # Chaque clip existe aussi en MIROIR (suffixe « _G ») : gauche <-> droite échangés, rotations réfléchies sur le plan X
 # (q = (w, x, y, z) -> (w, x, -y, -z), positions x -> -x) : le geste de la main droite de la capture fait par la main gauche.
 import bpy, sys, os, json
@@ -26,6 +27,8 @@ SOURCES = {
     "Sort_Zone2M": ("Standing 2H Magic Area Attack 01.fbx", 1, 0, 2),
     "Sort_Jet2M": ("Standing 2H Magic Attack 03.fbx", 1, 0, 2),        # jet tenu, bras tendu (~2 s)
     "Sort_Souffle2M": ("Standing 2H Magic Attack 04.fbx", 1, 0, 2),    # deux mains (double incantation)
+    # tenue d'objet (bras seuls, couche du bras de corps_mains_tps.gd) : arme à deux mains
+    "Tenue_DeuxMains": ("../great_sword_pack/great sword idle.fbx", 1, 0, 1),
 }
 # os Mixamo -> os Quaternius (le retarget aligne la direction tête -> enfant de chaque os sur celle du squelette cible)
 OS = ["Hips", "Spine", "Spine1", "Spine2", "Neck", "Head", "HeadTop_End"]

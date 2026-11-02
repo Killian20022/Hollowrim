@@ -17,7 +17,9 @@ extends Node
 ##   - jet continu (canalisé) : Sort_Jet2M (Mixamo « Standing 2H Magic Attack 03 ») bras tendu, tenu tant que le jet dure ;
 ##   - zone                   : Sort_Zone2M (Mixamo « Standing 2H Magic Area Attack 01 ») ;  enchantement : Spell_Simple_Shoot ;
 ##   - double incantation     : les deux mains suivent le même état, donc les deux bras font le geste (double jet : Sort_Souffle2M) ;
-##   - torche                 : bras gauche de Idle_Torch (Quaternius) sur toute la locomotion (bras levé, flamme visible) ; bouclier : idem.
+##   - torche                 : bras gauche de Idle_Torch (Quaternius) sur toute la locomotion (bras levé, flamme visible) ;
+##   - bouclier               : même bras levé que la torche (les tenues Mixamo « sword and shield » le mettaient de chant) ;
+##   - arme à deux mains      : Tenue_DeuxMains (Mixamo « great sword idle ») sur les deux bras + IK de la main gauche sur la poignée.
 ## La couche aligne l'orientation des os du bras dans le repère du PERSONNAGE (pas du buste) et la tourne vers la visée (lacet du corps
 ## en pas de côté, tangage de la tête) pendant la charge, le jet et le lancer. Clips : assets/modeles/humains/animations_sorts_tps.res
 ## (outils/zombie_retarget.gd --source=sorts_tps_mixamo.json puis outils/miroir_clips_tps.gd ; « _G » = miroir main gauche des clips
@@ -32,8 +34,7 @@ const LANCER_ARME := 0.48      # main reculée au plus loin, paume ouverte (pose
 const LANCER_DEPART := 0.62    # départ de la projection (le sort part au relâchement : on saute l'élan)
 const LANCER_TENDU := 1.30     # bras tendu au bout du geste
 const VITESSE_LANCER := 1.8
-const JET_ENTREE := 0.36       # Sort_Jet2M : les bras montent…
-const JET_TENDU := 1.25        # … bras tendus, tenus de 1,25 à 3,1 s
+const JET_TENDU := 1.25        # Sort_Jet2M : bras tendus, tenus de 1,25 à 3,1 s
 const JET_FIN := 3.10
 const ZONE_HAUT := 0.99        # Sort_Zone2M : bras levés (charge) ; frappe vers le sol ~1,3 s
 const ZONE_FIN := 2.0
@@ -53,6 +54,11 @@ var _arme_d: Node3D          # copie du modèle de l'arme de la main droite (mai
 var _source_d: Node3D
 var _objet_g: Node3D         # copie du bouclier tenu (mains._modele_gauche)
 var _source_g: Node3D
+## Arme à deux mains : la main gauche sur la poignée, sous la main droite (IK à deux os + orientation du poignet, comme à la 1re personne).
+var _ik_g: TwoBoneIK3D
+var _orient_g: SkeletonModifier3D
+var _cible_g: Node3D      # repère voulu pour la main gauche (enfant de l'arme du corps)
+var _pole_g: Node3D
 var _vue_effets := -1
 var _enchant_ecole := ""
 var _t := 0.0
@@ -82,6 +88,33 @@ func installer(squelette: Skeleton3D) -> void:
 	couche.name = "CoucheBrasTps"
 	sq.add_child(couche)
 	couche.preparer(sq)
+	# deux mains : IK du bras gauche (éteinte sinon), cible posée sur la poignée de l'arme du corps
+	_cible_g = Node3D.new()
+	_cible_g.name = "CibleMainG2M"
+	_pole_g = Node3D.new()
+	_pole_g.name = "CoudeG2M"
+	_pole_g.position = Vector3(0.55, 0.85, 0.05)   # repère du modèle (regarde +Z, gauche = +X) : coude en dehors et bas
+	corps.get("modele").add_child(_pole_g)
+	sq.add_child(_cible_g)
+	_ik_g = TwoBoneIK3D.new()
+	_ik_g.name = "IKMainG2M"
+	sq.add_child(_ik_g)
+	_ik_g.set_setting_count(1)
+	_ik_g.set_root_bone_name(0, "upperarm_l")
+	_ik_g.set_middle_bone_name(0, "lowerarm_l")
+	_ik_g.set_end_bone_name(0, "hand_l")
+	_ik_g.set_target_node(0, _ik_g.get_path_to(_cible_g))
+	_ik_g.set_pole_node(0, _ik_g.get_path_to(_pole_g))
+	_ik_g.active = false
+	_orient_g = SkeletonModifier3D.new()
+	_orient_g.set_script(preload("res://scripts/orientation_main.gd"))
+	_orient_g.name = "OrientMainG2M"
+	_orient_g.set("os", "hand_l")
+	_orient_g.set("cible", _cible_g)
+	var pivot = corps.get("pivot_torche")
+	_orient_g.set("prise", (pivot as Node3D).transform if pivot is Node3D else Transform3D())
+	sq.add_child(_orient_g)
+	_orient_g.active = false
 
 ## Centre de la paume dans le repère de l'os de la main : entre le poignet et la base du majeur, un peu vers l'intérieur de la main.
 func _centre_paume(c: String) -> Vector3:
@@ -124,6 +157,7 @@ func avancer(dt: float, vue_3: bool) -> void:
 	_t += dt
 	_maj_arme_d()
 	_maj_objet_g()
+	_maj_deux_mains()
 	_maj_effets(vue_3)
 	var mort: bool = joueur.mort
 	couche.active = not mort
@@ -178,6 +212,20 @@ func _maj_arme_d() -> void:
 	_arme_d.name = "ArmeTps"
 	_accroche["droite"].add_child(_arme_d)
 	_arme_d.transform = PRISE_D * Transform3D(Basis(), Vector3(0.0, -float(mains.get("_milieu_d")), 0.0))
+
+## Arme à deux mains : main gauche sous la droite (à `ecart_mains` vers le pommeau), même sens de fusée.
+func _maj_deux_mains() -> void:
+	var oui: bool = categorie("droite") == "arme_deux_mains" and _arme_d != null and not joueur.mort
+	_ik_g.active = oui
+	_orient_g.active = oui
+	if not oui:
+		return
+	var a: DonneesArme = mains.get("arme")
+	var milieu := float(mains.get("_milieu_d"))
+	var y := milieu - (a.ecart_mains if a != null else 0.1)
+	var pivot = corps.get("pivot_torche")
+	var prise_g: Transform3D = (pivot as Node3D).transform if pivot is Node3D else Transform3D()
+	_cible_g.global_transform = _arme_d.global_transform * Transform3D(Basis(), Vector3(0, y, 0)) * prise_g.affine_inverse()
 
 func _maj_objet_g() -> void:
 	var src: Node3D = mains.get("_modele_gauche") if categorie("gauche") == "bouclier" else null
@@ -239,17 +287,27 @@ func _anim(nom: String) -> Animation:
 func _geste(m: String, _dt: float) -> void:
 	var cat := categorie(m)
 	var bouge := Vector2(joueur.velocity.x, joueur.velocity.z).length() > 0.4
+	var frappe: bool = mains.combat.attaque()
+	if categorie("droite") == "arme_deux_mains":
+		# arme à deux mains : les deux bras dans la tenue « great sword idle » (Mixamo), la main gauche finit sur la poignée (IK) ;
+		# pendant un coup, le clip de coup du corps entier reprend la main (branche des coups)
+		var t2 := _anim("Tenue_DeuxMains")
+		couche.regler(m, t2, fposmod(_t, t2.length), 0.0 if frappe else 1.0, 10.0, false)
+		return
 	match cat:
 		"sort":
 			_geste_sort(m, bouge)
-		"torche", "bouclier":
-			var w := 1.0
-			if cat == "bouclier" and mains.get("bloque"):
-				w = 0.0   # garde au bouclier : pose de garde du corps entier (Sword_Attack)
-			elif mains.combat.attaque():
-				w = 0.7   # contrepoids pendant le coup d'épée de l'autre bras (comme à la 1re personne)
+		"torche":
+			# bras gauche levé (Idle_Torch, Quaternius) pendant toute la locomotion ; s'écarte un peu pendant un coup d'épée (contrepoids)
 			var a := _anim("Idle_Torch")
-			couche.regler(m, a, fposmod(_t, a.length), w, 12.0, false)
+			couche.regler(m, a, fposmod(_t, a.length), 0.7 if frappe else 1.0, 12.0, false)
+		"bouclier":
+			# bouclier tenu au poing comme la torche (avant-bras levé, Idle_Torch) : la prise au poing du bouclier (mains.gd) le présente
+			# face à l'avant dans cette pose ; les tenues Mixamo « sword and shield » le mettaient de chant (bouclier sanglé à l'avant-bras).
+			# En garde : pose de garde du corps entier (Sword_Attack figé, corps_joueur).
+			var garde: bool = mains.get("bloque")
+			var b2 := _anim("Idle_Torch")
+			couche.regler(m, b2, fposmod(_t, b2.length), 0.0 if garde else 1.0, 12.0, false)
 		_:
 			couche.regler(m, null, 0.0, 0.0, 10.0, false)
 
@@ -269,8 +327,9 @@ func _geste_sort(m: String, bouge: bool) -> void:
 			if i.etat == Incantation.CHARGE:
 				k = 1.0
 			if s.canalise():
+				# droit vers le bras tendu (le lissage fait la montée) : l'entrée capturée balance d'abord les bras en arrière
 				var jet := _anim(_clip_mixamo("Sort_Jet2M", m))
-				couche.regler(m, jet, lerpf(JET_ENTREE, JET_TENDU, k), 1.0, 14.0, true)
+				couche.regler(m, jet, JET_TENDU, 1.0, 10.0, true)
 			elif zone:
 				var z := _anim(_clip_mixamo("Sort_Zone2M", m))
 				couche.regler(m, z, lerpf(0.0, ZONE_HAUT, 0.5 * k + 0.5 * i.charge), 1.0, 14.0, false)
