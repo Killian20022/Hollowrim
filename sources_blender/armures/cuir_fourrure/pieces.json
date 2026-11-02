@@ -1,0 +1,30 @@
+[
+ {
+  "id": "armure_cuir",
+  "nom": "Justaucorps de cuir bouilli",
+  "emplacement": "torse",
+  "matiere": "cuir",
+  "poids": 6.0
+ },
+ {
+  "id": "capuche_cuir",
+  "nom": "Capuche de rôdeur",
+  "emplacement": "tete",
+  "matiere": "cuir",
+  "poids": 1.0
+ },
+ {
+  "id": "gants_cuir",
+  "nom": "Gants de cuir lacés",
+  "emplacement": "mains",
+  "matiere": "cuir",
+  "poids": 1.0
+ },
+ {
+  "id": "bottes_cuir",
+  "nom": "Bottes de rôdeur",
+  "emplacement": "pieds",
+  "matiere": "cuir",
+  "poids": 2.0
+ }
+]
