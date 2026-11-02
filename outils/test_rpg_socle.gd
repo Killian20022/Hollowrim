@@ -8,20 +8,21 @@ extends SceneTree
 const SCENE := preload("res://scenes/test_combat.tscn")
 const EMPREINTE := "res://outils/donnees_test/butin_empreinte.json"
 ## Identifiants du registre AVANT le lot 0 (ancienne constante Inventaire.OBJETS + data/butin/objets.json) : aucun ne doit
-## disparaître ni changer de nom / poids / valeur.
+## disparaître ni changer de nom / poids / valeur. Lot A RPG : armes allégées (Q5 a) — épées / hache du registre et lame antique
+## ont un poids neuf (ancien 9 / 7 / 9 / 9 / 7 / 10 / 9, lame 8) ; identifiants et valeurs inchangés.
 const ANCIENS := {
-	"os_draugr": [0.5, 2], "poussiere_tombe": [0.1, 6], "lame_antique": [8.0, 25], "amulette_givre": [0.3, 40], "anneau_givre": [0.1, 0],
-	"amulette_eirik": [0.2, 0], "epee_skarnholt": [9.0, 120], "ecaille_dragon": [2.0, 80], "fragment_sceau_os": [0.6, 0],
+	"os_draugr": [0.5, 2], "poussiere_tombe": [0.1, 6], "lame_antique": [4.0, 25], "amulette_givre": [0.3, 40], "anneau_givre": [0.1, 0],
+	"amulette_eirik": [0.2, 0], "epee_skarnholt": [6.0, 120], "ecaille_dragon": [2.0, 80], "fragment_sceau_os": [0.6, 0],
 	"fragment_sceau_givre": [0.6, 0], "fragment_sceau_eau": [0.6, 0], "cle_archives": [0.2, 0], "minerai_fer": [3.0, 12],
 	"minerai_argent": [2.5, 45], "cristal_givre": [0.8, 70], "champignon_lumineux": [0.1, 8], "relique_offrande": [1.5, 90],
-	"registre_hrafn": [0.8, 0], "journal_sigrun": [0.3, 0], "broche_sigrun": [0.1, 0], "hache_kolbeinn": [7.0, 200],
+	"registre_hrafn": [0.8, 0], "journal_sigrun": [0.3, 0], "broche_sigrun": [0.1, 0], "hache_kolbeinn": [5.0, 200],
 	"fourrure_troll": [4.0, 60], "croc_troll": [0.3, 18],
 	"potion_soin": [0.5, 30], "potion_soin_forte": [0.5, 75], "potion_mana": [0.5, 35], "potion_endurance": [0.5, 25],
 	"pain_seigle": [0.2, 3], "viande_sechee": [0.3, 5], "tome_boule_feu": [1.0, 120], "tome_lance_givre": [1.0, 120],
 	"tome_souffle_givre": [1.0, 200], "tome_drain_vie": [1.0, 150], "tome_chaine_eclairs": [1.0, 220], "tome_nova_gelee": [1.0, 160],
 	"tome_tempete_statique": [1.0, 260], "tome_explosion_incendiaire": [1.0, 240], "tome_explosion_obscure": [1.0, 240],
 	"tome_enchant_electricite": [1.0, 140], "tome_enchant_glace": [1.0, 140], "tome_enchant_tenebres": [1.0, 140],
-	"epee_or": [9.0, 180], "epee_rubis": [9.0, 220], "epee_verre": [7.0, 260], "epee_obsidienne": [10.0, 300], "epee_hrafn": [9.0, 280],
+	"epee_or": [5.0, 180], "epee_rubis": [6.0, 220], "epee_verre": [4.5, 260], "epee_obsidienne": [7.0, 300], "epee_hrafn": [6.0, 280],
 	"anneau_cuivre": [0.1, 15], "coupe_argent": [1.0, 35], "collier_or": [0.3, 85],
 }
 
@@ -145,7 +146,7 @@ func _equipement_corps() -> void:
 	_verif(ec.equiper("amulette_givre") == "" and ec.objet_a("cou") == "amulette_givre" and ec.est_equipe("amulette_givre") and signaux == ["cou"], "amulette portée au cou (signal change)")
 	_verif(ec.equiper("potion_soin") != "" and ec.equiper("epee_or") != "", "potion et arme : ne se portent pas sur le corps")
 	_verif(sac.poids() > 0.29, "l'objet porté reste dans le sac et compte dans le poids")
-	_verif(ec.armure_totale() == 0.0 and ec.effets_totaux().is_empty(), "amulette sans effet pour l'instant (lot A) : armure 0, aucun effet")
+	_verif(ec.armure_totale() == 0.0 and ec.effets_totaux() == {"resist_froid": 0.25}, "amulette de givre (lot A) : armure 0, résistance au froid 25 %")
 	var e := ec.exporter()
 	sac.retirer("amulette_givre")
 	_verif(ec.objet_a("cou") == "", "objet retiré du sac (vendu, lâché) : retiré de l'emplacement")
@@ -201,12 +202,12 @@ func _joueur() -> void:
 		await process_frame
 	var j = s.joueur
 	_verif(j.competences == j.progression.competences and Progression.courante() == j.progression, "joueur : competences = alias de progression.competences, progression courante")
-	_verif(j.vie_max == 100.0 and j.mana_max == 100.0 and j.vigueur_max == 100.0 and j.inventaire.capacite() == 100.0, "joueur neuf : maxima 100, charge 100 (jeu inchangé)")
+	_verif(j.vie_max == 100.0 and j.mana_max == 100.0 and j.vigueur_max == 100.0 and j.inventaire.capacite() == 150.0, "joueur neuf : maxima 100, charge 150 (lot A)")
 	j.regler_benediction(true, true)
 	_verif(j.vie_max == 110.0, "bénédiction : vie max 110")
 	j.progression.gagner_xp(150.0)
 	j.progression.choisir_attribut("vie")
 	_verif(j.vie_max == 120.0 and j.progression.niveau == 2, "niveau 2 + 10 vie : vie max 120 (recalculer_stats)")
 	j.inventaire.ajouter("amulette_givre")
-	_verif(j.equipement_corps.equiper("amulette_givre") == "" and j.vie_max == 120.0, "amulette portée : rien ne change tant qu'elle n'a pas d'effet")
+	_verif(j.equipement_corps.equiper("amulette_givre") == "" and j.vie_max == 120.0, "amulette portée : vie max inchangée (elle résiste au froid)")
 	_verif(ReglagesCombat.competence("une_main") == 1.0 and j.competences.multiplicateur_degats() == 1.0, "combat : multiplicateurs inchangés")

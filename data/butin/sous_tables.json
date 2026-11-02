@@ -1,5 +1,5 @@
 {
-	"_doc": "Sous-tables appelées par les autres (entrée {\"table\": id, \"poids\": n}). Format d'une table : docs/BUTIN.md. Armes du catalogue (data/armes/catalogue_armes.json, CatalogueArmes) : communes (acier, fer : corps de bandits et de draugrs, coffres de bandits et de crypte), rares (coffres riches) et armes de crypte (coffre du Jarl, étage inférieur : bonus de rareté x1,5 en crypte_basse). Uniques : Sang-du-Roi, Croc-de-Givre (une fois par partie).",
+	"_doc": "Sous-tables appelées par les autres (entrée {\"table\": id, \"poids\": n}). Format d'une table : docs/BUTIN.md. Armes du catalogue (data/armes/catalogue_armes.json, CatalogueArmes) : communes (acier, fer : corps de bandits et de draugrs, coffres de bandits et de crypte), rares (coffres riches) et armes de crypte (coffre du Jarl, étage inférieur : bonus de rareté x1,5 en crypte_basse). Uniques : Sang-du-Roi, Croc-de-Givre, Heaume du Jarl, Gantelets de Hrafn (une fois par partie). Lot A RPG (ajouts EN FIN) : armures_communes (cuir, fourrure, fer, rare acier nordique : bandits, coffres communs via armes_communes), armures_draugr (os de draugr + fer : corps de draugrs), armures_rares (acier nordique, os, pièces enchantées : coffres riches via armes / armes_rares), armures_crypte (coffre du Jarl via armes_crypte : uniques), bijoux_enchantes (bijoux à effets : jamais en boutique).",
 	"tables": {
 		"potions": {"tirages": 1, "entrees": [
 			{"id": "potion_soin", "poids": 40, "n": [1, 2]},
@@ -16,7 +16,8 @@
 			{"id": "coupe_argent", "poids": 25},
 			{"id": "amulette_givre", "poids": 12},
 			{"id": "collier_or", "poids": 10},
-			{"id": "relique_offrande", "poids": 4}
+			{"id": "relique_offrande", "poids": 4},
+			{"table": "bijoux_enchantes", "poids": 3, "rarete": "rare"}
 		]},
 		"tomes": {"tirages": 1, "entrees": [
 			{"id": "tome_boule_feu", "poids": 1},
@@ -32,7 +33,8 @@
 			{"id": "epee_or", "poids": 14},
 			{"id": "epee_rubis", "poids": 12},
 			{"id": "epee_verre", "poids": 10},
-			{"id": "epee_obsidienne", "poids": 4}
+			{"id": "epee_obsidienne", "poids": 4},
+			{"table": "armures_rares", "poids": 10}
 		]},
 		"armes_communes": {"tirages": 1, "entrees": [
 			{"id": "epee_soldat", "poids": 20},
@@ -44,7 +46,8 @@
 			{"id": "bouclier_cercle", "poids": 12},
 			{"id": "marteau_guerre", "poids": 6},
 			{"id": "ecu_chevalier", "poids": 5},
-			{"id": "garde_du_guet", "poids": 3}
+			{"id": "garde_du_guet", "poids": 3},
+			{"table": "armures_communes", "poids": 14}
 		]},
 		"armes_rares": {"tirages": 1, "entrees": [
 			{"id": "epee_doree", "poids": 14},
@@ -56,7 +59,8 @@
 			{"id": "dent_d_or", "poids": 8},
 			{"id": "larme_de_givre", "poids": 7},
 			{"id": "crocs_de_cendre", "poids": 6},
-			{"id": "coeur_de_braise", "poids": 5}
+			{"id": "coeur_de_braise", "poids": 5},
+			{"table": "armures_rares", "poids": 12}
 		]},
 		"armes_crypte": {"tirages": 1, "entrees": [
 			{"id": "claymore", "poids": 14},
@@ -67,7 +71,68 @@
 			{"id": "grand_marteau", "poids": 10},
 			{"id": "epee_obsidienne", "poids": 4},
 			{"id": "sang_du_roi", "poids": 3},
-			{"id": "croc_de_givre", "poids": 3}
+			{"id": "croc_de_givre", "poids": 3},
+			{"table": "armures_crypte", "poids": 14}
+		]},
+		"armures_communes": {"tirages": 1, "entrees": [
+			{"id": "capuche_cuir", "poids": 10},
+			{"id": "armure_cuir", "poids": 10},
+			{"id": "gants_cuir", "poids": 10},
+			{"id": "bottes_cuir", "poids": 10},
+			{"id": "casque_fourrure", "poids": 8},
+			{"id": "armure_fourrure", "poids": 8},
+			{"id": "gants_fourrure", "poids": 8},
+			{"id": "bottes_fourrure", "poids": 8},
+			{"id": "casque_fer", "poids": 6},
+			{"id": "cuirasse_fer", "poids": 5},
+			{"id": "gantelets_fer", "poids": 6},
+			{"id": "bottes_fer", "poids": 6},
+			{"id": "casque_acier_nordique", "poids": 2},
+			{"id": "cuirasse_acier_nordique", "poids": 1},
+			{"id": "gantelets_acier_nordique", "poids": 2},
+			{"id": "bottes_acier_nordique", "poids": 2}
+		]},
+		"armures_draugr": {"tirages": 1, "entrees": [
+			{"id": "casque_os", "poids": 10},
+			{"id": "cuirasse_os", "poids": 5},
+			{"id": "gants_os", "poids": 10},
+			{"id": "bottes_os", "poids": 10},
+			{"id": "casque_fer", "poids": 6},
+			{"id": "gantelets_fer", "poids": 6},
+			{"id": "bottes_fer", "poids": 5}
+		]},
+		"armures_rares": {"tirages": 1, "entrees": [
+			{"id": "casque_acier_nordique", "poids": 10},
+			{"id": "cuirasse_acier_nordique", "poids": 8},
+			{"id": "gantelets_acier_nordique", "poids": 10},
+			{"id": "bottes_acier_nordique", "poids": 10},
+			{"id": "cuirasse_os", "poids": 6},
+			{"id": "casque_os", "poids": 6},
+			{"id": "cuirasse_gardiens", "poids": 3},
+			{"id": "bottes_rodeur", "poids": 4},
+			{"id": "capuche_thaumaturge", "poids": 3},
+			{"id": "brigandine_braise", "poids": 3},
+			{"table": "bijoux_enchantes", "poids": 8}
+		]},
+		"armures_crypte": {"tirages": 1, "entrees": [
+			{"id": "cuirasse_os", "poids": 10},
+			{"id": "casque_acier_nordique", "poids": 8},
+			{"id": "cuirasse_acier_nordique", "poids": 6},
+			{"id": "cuirasse_gardiens", "poids": 6},
+			{"id": "heaume_jarl", "poids": 3},
+			{"id": "gantelets_hrafn", "poids": 3},
+			{"table": "bijoux_enchantes", "poids": 10}
+		]},
+		"bijoux_enchantes": {"tirages": 1, "entrees": [
+			{"id": "amulette_ours", "poids": 10},
+			{"id": "amulette_arcaniste", "poids": 8},
+			{"id": "collier_portefaix", "poids": 8},
+			{"id": "anneau_coureur", "poids": 10},
+			{"id": "anneau_adepte", "poids": 10},
+			{"id": "anneau_braise", "poids": 8},
+			{"id": "anneau_orage", "poids": 8},
+			{"id": "anneau_berserker", "poids": 6},
+			{"id": "anneau_marchand", "poids": 8}
 		]}
 	}
 }
