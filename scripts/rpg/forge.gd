@@ -354,7 +354,7 @@ func _choisir(i: int) -> void:
 		_livre.rafraichir()
 
 func _max_lignes() -> int:
-	return maxi(3, int((_livre.size.y - 64.0 - 52.0) / LivreParchemin.LIGNE))
+	return maxi(3, int((_livre.hauteur() - 64.0 - 52.0) / LivreParchemin.LIGNE))
 
 func _suivre() -> void:
 	var m := _max_lignes()
@@ -450,7 +450,7 @@ func _dessiner(L: LivreParchemin) -> void:
 		return
 	var inv: Inventaire = joueur.inventaire
 	var W := L.size.x
-	var H := L.size.y
+	var H := L.hauteur()
 	var m := L.milieu()
 	var niv := 1
 	var prog: Variant = joueur.get("progression")
@@ -459,9 +459,9 @@ func _dessiner(L: LivreParchemin) -> void:
 	L.en_tete("Voyageur · niveau %d" % niv, "Pièces %s" % LivreParchemin.nombre(inv.pieces))
 	L.onglets(SIGNETS, signet)
 	# --- page gauche : registre
-	var X := 14.0
+	var X := 17.0
 	var LG := m - 8.0 - X - 14.0
-	L.titre(16, 24, "Forge", "de Brodd")
+	L.titre(19, 24, "Forge", "de Brodd")
 	L.texte_d(X + LG, 30, "Skarnholt", LivreParchemin.OR_TERNI)
 	L.texte(X + 18, 52, "Objet", LivreParchemin.RUBRIQUE)
 	L.texte_d(X + LG - 34, 52, "Niv.", LivreParchemin.RUBRIQUE)
@@ -492,11 +492,11 @@ func _dessiner(L: LivreParchemin) -> void:
 			L.texte(X + LG + 2, 64, "^", LivreParchemin.RUBRIQUE)
 		if _haut + vis < lignes.size():
 			L.texte(X + LG + 2, 64.0 + (vis - 1) * LivreParchemin.LIGNE + 6.0, "v", LivreParchemin.RUBRIQUE)
-	L.texte(16, H - 54, "Sans usure : ce qui est forgé l'est pour toujours.", LivreParchemin.PALE)
-	L.texte(16, H - 42, "Fer, argent, cristal de givre : Brodd en vend aussi.", LivreParchemin.PALE)
+	L.texte(19, H - 54, "Sans usure : ce qui est forgé l'est pour toujours.", LivreParchemin.PALE)
+	L.texte(19, H - 42, "Fer, argent, cristal de givre : Brodd en vend aussi.", LivreParchemin.PALE)
 	# --- page droite : avant -> après, prix
 	var X2 := m + 12.0
-	var LD := W - 14.0 - X2
+	var LD := W - 17.0 - X2
 	if choix < lignes.size():
 		var id := lignes[choix]
 		var n := niveau_de(id)

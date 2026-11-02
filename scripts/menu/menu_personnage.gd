@@ -202,7 +202,7 @@ func _preparer_livre() -> void:
 	if _livre != null and _taille_livre == _vue.size:
 		return
 	_taille_livre = _vue.size
-	_livre = ImageTexture.create_from_image(Parchemin.livre(Vector2i(_taille_livre)))
+	_livre = Parchemin.texture_livre(self, Vector2i(_taille_livre))
 
 func _process(dt: float) -> void:
 	if not ouvert:

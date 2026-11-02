@@ -103,6 +103,15 @@ Additionnées par `EquipementCorps.effets_totaux()` (valeurs numériques) et par
 
 Un lot qui a besoin d'une clé nouvelle l'ajoute à ce tableau (une ligne) et la documente dans son rapport.
 
+**Type des coups reçus** (`joueur.recevoir_coup(…, {"type": …})`, intégration) : `glace` / `feu` / `electricite` → résistance
+`resist_*` (pas l'armure) ; `physique` (ou absent) → armure. Souffle du dragon de givre, souffle des pièges, onde de choc du
+troll de givre (pics de glace) = `glace` ; morsure / queue du dragon, fléchettes, charge et coups du troll = `physique`.
+
+**Apparence unique des fenêtres** (intégration) : menu, coffre, butin, boutique et forge sont peints par `Parchemin`
+(`scripts/menu/parchemin.gd`) : même codex (`Parchemin.texture_livre`, une image par taille d'écran, partagée), mêmes signets,
+même bandeau de touches. `LivreParchemin` n'est plus qu'un adaptateur (repère des pages décalé de `DY`, `hauteur()`) ; l'ancien
+shader `livre_parchemin.gdshader` est supprimé.
+
 ## 4. API objets, équipement, stockage
 
 ### `Conteneur` (`scripts/rpg/conteneur.gd`) — base générique
@@ -112,7 +121,7 @@ Un lot qui a besoin d'une clé nouvelle l'ajoute à ce tableau (une ligne) et la
 
 ### `Inventaire extends Conteneur` (`scripts/inventaire.gd`) — le sac ET le registre
 - Statique : `objet(id)` / `fiche(id)` → fiche ou `{}` ; `connu(id)` ; `categorie_de(id)` ; `emplacement_de(id)` ;
-  `est_quete(id)` ; `alias(id)` ; `ids_connus()` ; constantes `CATEGORIES`, `EMPLACEMENTS`, `ALIAS`, `CAPACITE` (100) ;
+  `est_quete(id)` ; `alias(id)` ; `ids_connus()` ; constantes `CATEGORIES`, `EMPLACEMENTS`, `ALIAS`, `CAPACITE` (150 depuis le lot A) ;
   `OBJETS` (toutes les fiches de `data/objets/`, nom historique gardé).
 - Instance : `capacite()` = `CAPACITE + capacite_bonus` (posé par `joueur.recalculer_stats`) ; `surcharge()`.
 
@@ -189,6 +198,7 @@ progression      {niveau, xp_niveau, points_perk, points_attribut, attributs {vi
                   competences {niveaux {8 noms canoniques}, experience {…}}}     (remplace l'ancienne clé « competences »)
 equipement_corps {tete, torse, mains, pieds, cou, anneau}
 stockage         {coffres {id: {pieces, objets}}, maison_achetee}
+menu             {favoris [ids]}      (intégration : favoris du Sac ; absente = aucun favori, sans changer de version)
 ```
 Les autres clés sont inchangées. Ordre de lecture : progression → inventaire → equipement_corps (après le sac) → stockage
 → … (avant `magie` et `quetes`, pour que les maxima soient justes quand mana / bénédiction sont relues).

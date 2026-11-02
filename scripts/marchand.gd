@@ -411,7 +411,7 @@ func _choisir(i: int) -> void:
 		_livre.rafraichir()
 
 func _max_lignes() -> int:
-	return maxi(3, int((_livre.size.y - 64.0 - 52.0) / LivreParchemin.LIGNE))
+	return maxi(3, int((_livre.hauteur() - 64.0 - 52.0) / LivreParchemin.LIGNE))
 
 func _suivre() -> void:
 	var m := _max_lignes()
@@ -557,7 +557,7 @@ func _dessiner(L: LivreParchemin) -> void:
 	var inv: Inventaire = joueur.inventaire
 	var e := etat(id_marchand)
 	var W := L.size.x
-	var H := L.size.y
+	var H := L.hauteur()
 	var m := L.milieu()
 	L.en_tete(titre, "Poids %s / %d" % [LivreParchemin.kg(inv.poids()), roundi(inv.capacite())])
 	L.onglets(ONGLETS, onglet)
@@ -572,14 +572,14 @@ func _dessiner(L: LivreParchemin) -> void:
 			if int(src[oid]) > 0 and (c == "" or Inventaire.categorie_de(oid) == c):
 				nb += 1
 		if on:
-			L.ruban(Rect2(11, y - 2, 74, 12))
-		L.texte(14, y, NOMS_CATEGORIES.get(c, c), LivreParchemin.CLAIR if on else LivreParchemin.PALE)
-		L.texte_d(83, y, str(nb), LivreParchemin.CLAIR if on else LivreParchemin.PALE)
-		L.zones["cat:" + c] = Rect2(11, y - 2, 74, 12)
+			L.ruban(Rect2(14, y - 2, 74, 12))
+		L.texte(17, y, NOMS_CATEGORIES.get(c, c), LivreParchemin.CLAIR if on else LivreParchemin.PALE)
+		L.texte_d(86, y, str(nb), LivreParchemin.CLAIR if on else LivreParchemin.PALE)
+		L.zones["cat:" + c] = Rect2(14, y - 2, 74, 12)
 		y += 14.0
-	L.encre.draw_rect(Rect2(87, 52, 1, H - 52 - 66), LivreParchemin.RUBRIQUE)
-	L.titre(16, 24, "Comptoir" if onglet == 0 else "Sac", "du marchand" if onglet == 0 else "à vendre")
-	var X := 91.0
+	L.encre.draw_rect(Rect2(90, 52, 1, H - 52 - 66), LivreParchemin.RUBRIQUE)
+	L.titre(19, 24, "Comptoir" if onglet == 0 else "Sac", "du marchand" if onglet == 0 else "à vendre")
+	var X := 94.0
 	var LG := m - 8.0 - X - 4.0
 	L.texte(X + 18, 52 - 9, "Objet", LivreParchemin.RUBRIQUE)
 	L.texte_d(X + LG - 40, 52 - 9, "Nb", LivreParchemin.RUBRIQUE)
@@ -615,15 +615,15 @@ func _dessiner(L: LivreParchemin) -> void:
 			L.texte(X + LG - 26, 52 - 9, "^", LivreParchemin.RUBRIQUE)
 		if _haut + vis < lignes.size():
 			L.texte(X + LG + 2, 55.0 + (vis - 1) * LivreParchemin.LIGNE + 4.0, "v", LivreParchemin.RUBRIQUE)
-	L.texte(16, H - 54, "Pièces", LivreParchemin.OR_TERNI)
+	L.texte(19, H - 54, "Pièces", LivreParchemin.OR_TERNI)
 	L.prix(m - 14.0, H - 54, inv.pieces)
 	if onglet == 0:
-		L.texte(16, H - 42, "Stock limité, réassort dans %s." % duree_texte(heures_avant_reassort(id_marchand)), LivreParchemin.PALE)
+		L.texte(19, H - 42, "Stock limité, réassort dans %s." % duree_texte(heures_avant_reassort(id_marchand)), LivreParchemin.PALE)
 	else:
-		L.texte(16, H - 42, "Rachat à %d %% de la valeur." % roundi(float(fiche(id_marchand).get("vente", 0.4)) * (1.0 + bonus_prix()) * 100.0), LivreParchemin.PALE)
+		L.texte(19, H - 42, "Rachat à %d %% de la valeur." % roundi(float(fiche(id_marchand).get("vente", 0.4)) * (1.0 + bonus_prix()) * 100.0), LivreParchemin.PALE)
 	# --- page droite : fiche de l'objet choisi, bourse du marchand
 	var X2 := m + 12.0
-	var LD := W - 14.0 - X2
+	var LD := W - 17.0 - X2
 	if choix < lignes.size():
 		var l: Dictionary = lignes[choix]
 		var id := String(l["id"])

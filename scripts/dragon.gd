@@ -510,7 +510,7 @@ func _tic_souffle(dt: float) -> void:
 	if d < 0.1 or d > _portee_souffle:
 		return
 	if rad_to_deg(tete.global_transform.basis.z.angle_to(v)) < _demi_cone:
-		joueur.recevoir_coup(_degats_souffle, b)
+		joueur.recevoir_coup(_degats_souffle, b, {"type": "glace"})   # souffle de givre : resist_froid (pas l'armure)
 
 func _viser(point: Vector3) -> void:
 	var dl := modele.global_transform.basis.inverse() * (point - _pos_bouche())
@@ -757,7 +757,7 @@ func _logique_sol(dt: float, jp: Vector3, vers: Vector3, dist: float) -> void:
 					var b := _pos_bouche()
 					var v := jp + Vector3(0, 1.0, 0) - b
 					if dist < 6.4 and devant > 0.25 and v.length() < 6.5:
-						joueur.recevoir_coup(30.0, b)
+						joueur.recevoir_coup(30.0, b, {"type": "physique"})   # morsure : armure
 					_son(["swing", "swing2", "swing3"], b, 4.0, 0.5)
 			if _t_act >= 1.1:
 				_fin_action(1.0)
@@ -771,7 +771,7 @@ func _logique_sol(dt: float, jp: Vector3, vers: Vector3, dist: float) -> void:
 					_coup_fait = true
 					var bout := modele.to_global(_queue_pts[N_QUEUE - 2])
 					if dist < 9.5 and devant < 0.1:
-						joueur.recevoir_coup(25.0, bout)
+						joueur.recevoir_coup(25.0, bout, {"type": "physique"})   # queue : armure
 					_son(["swing", "swing2", "swing3"], bout, 4.0, 0.5)
 			if _t_act >= 1.2:
 				_fin_action(0.9)

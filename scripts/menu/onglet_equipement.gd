@@ -313,7 +313,7 @@ func _degats() -> String:
 	if eq == null or not eq.categorie("droite").begins_with("arme"):
 		return "-"
 	var a := eq.arme("droite")
-	return "%d / %d" % [roundi(a.degats_leger), roundi(a.degats_lourd)]
+	return OngletLivre.texte_degats(a.degats_leger, a.degats_lourd)
 
 static func _pc(v: Variant) -> String:
 	var x := roundi(float(v) * 100.0)

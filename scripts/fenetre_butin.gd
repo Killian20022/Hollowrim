@@ -191,7 +191,7 @@ func _choisir(i: int) -> void:
 
 ## Lignes visibles : MAX_LIGNES en 480x270, davantage en 640x360 (la page est plus haute).
 func _max_lignes() -> int:
-	return maxi(MAX_LIGNES, int((_livre.size.y - 64.0 - 74.0) / LivreParchemin.LIGNE))
+	return maxi(MAX_LIGNES, int((_livre.hauteur() - 64.0 - 74.0) / LivreParchemin.LIGNE))
 
 func _suivre() -> void:
 	var m := _max_lignes()
@@ -286,7 +286,7 @@ func _dessiner(L: LivreParchemin) -> void:
 		return
 	var inv: Inventaire = joueur.inventaire
 	var W := L.size.x
-	var H := L.size.y
+	var H := L.hauteur()
 	var m := L.milieu()
 	var niv := 1
 	var prog: Variant = joueur.get("progression")
@@ -294,10 +294,10 @@ func _dessiner(L: LivreParchemin) -> void:
 		niv = int(prog.niveau)
 	L.en_tete("Voyageur · niveau %d" % niv, "Poids %s / %d" % [LivreParchemin.kg(inv.poids()), roundi(inv.capacite())])
 	# --- page gauche : le contenant
-	var X := 14.0
+	var X := 17.0
 	var LG := m - 8.0 - X - 6.0
 	var mots := titre.split(" ", false, 1)
-	L.titre(16, 24, L.couper(mots[0] if mots.size() > 0 else titre, LG - 80), mots[1] if mots.size() > 1 else "")
+	L.titre(19, 24, L.couper(mots[0] if mots.size() > 0 else titre, LG - 80), mots[1] if mots.size() > 1 else "")
 	if pieces > 0:
 		L.texte_d(X + LG, 30, "+ %d pièces" % pieces, LivreParchemin.OR_TERNI)
 	L.texte(X + 18, 52, "Objet", LivreParchemin.RUBRIQUE)
@@ -325,13 +325,13 @@ func _dessiner(L: LivreParchemin) -> void:
 			L.texte(X + LG - 6, 42, "^", LivreParchemin.RUBRIQUE)
 		if _haut + vis < lignes.size():
 			L.texte(X + LG + 3, 64.0 + (vis - 1) * LivreParchemin.LIGNE + 4.0, "v", LivreParchemin.RUBRIQUE)
-	L.texte(16, H - 54, "%d objet%s" % [lignes.size(), "s" if lignes.size() > 1 else ""], LivreParchemin.PALE)
-	L.texte(16, H - 40, "Prendre seulement : on ne range rien ici.", LivreParchemin.PALE)
+	L.texte(19, H - 54, "%d objet%s" % [lignes.size(), "s" if lignes.size() > 1 else ""], LivreParchemin.PALE)
+	L.texte(19, H - 40, "Prendre seulement : on ne range rien ici.", LivreParchemin.PALE)
 	if choix < lignes.size():
 		L.fleche(64.0 + (choix - _haut) * LivreParchemin.LIGNE, true)
 	# --- page droite : fiche
 	var X2 := m + 12.0
-	var LD := W - 14.0 - X2
+	var LD := W - 17.0 - X2
 	var delta := 0.0
 	if choix < lignes.size():
 		var l: Dictionary = lignes[choix]

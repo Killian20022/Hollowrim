@@ -159,7 +159,7 @@ déjà le sort à `sorts_connus` (sauvegardé).
 
 - ~~Les sacs sur le sol restent la bourse de `scripts/butin.gd`~~ : remplacés par les pièces qui jaillissent (L2) et la fenêtre de butin (L3).
 - Potions progressives (`scripts/effets_potions.gd`, `joueur.potions`) : vie/mana/vigueur versées sur `duree` s (petite 4 s, grande 6 s, pain 12 s, viande 10 s), délai de 3 s (2 s nourriture) par `famille`, icônes pot_vie/pot_mana/pot_vigueur dans la rangée de statuts du HUD ; non sauvegardé.
-- Poids du sac limité : `Inventaire.CAPACITE` = 100 ; au-delà, joueur surchargé (vitesse x0,6, pas de course, avis) ; butin (fenêtre) et marchands refusent / limitent à la capacité ; bourse du sol et récompenses de quête non limitées.
+- Poids du sac limité : `Inventaire.CAPACITE` = 150 (RPG lot A ; + vigueur, voir docs/RPG.md) ; au-delà, joueur surchargé (vitesse x0,6, pas de course, avis) ; butin (fenêtre) et marchands refusent / limitent à la capacité ; bourse du sol et récompenses de quête non limitées.
 - `graine_monde` n'est pas encore tirée au hasard pour une nouvelle partie (constante) ; si un jour elle l'est, la fixer
   **avant** la construction des donjons.
 

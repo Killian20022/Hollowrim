@@ -230,7 +230,7 @@ func _ia(dt: float) -> void:
 				var lateral := (rel - _charge_dir * devant).length()
 				if devant > -0.3 and devant < 1.9 and lateral < 1.4 and absf(joueur.global_position.y - global_position.y) < 2.0:
 					_charge_touche = true
-					var r: String = joueur.recevoir_coup(degats_charge, global_position, {"imparable": 0.35, "recul": 11.0, "secousse": 0.8})
+					var r: String = joueur.recevoir_coup(degats_charge, global_position, {"imparable": 0.35, "recul": 11.0, "secousse": 0.8, "type": "physique"})
 					RetourImpact.son(self, "chair", joueur.global_position + Vector3.UP, 0.0, 0.8)
 					if r != "touche":
 						GerbePixels.emettre(self, joueur.global_position + Vector3(0, 1.2, 0), (_charge_dir + Vector3.UP * 0.5).normalized(), "etincelles", 1.4)
@@ -315,7 +315,7 @@ func _frapper_balayage() -> void:
 	face.y = 0.0
 	if float(vj["dist"]) > PORTEE_BALAYAGE or Vector3(vj["dir"]).dot(face.normalized()) < ANGLE_BALAYAGE:
 		return
-	var r: String = joueur.recevoir_coup(degats, global_position, {"recul": 7.0, "secousse": 0.75})
+	var r: String = joueur.recevoir_coup(degats, global_position, {"recul": 7.0, "secousse": 0.75, "type": "physique"})
 	if r == "parade":
 		# parade réussie : le troll est déséquilibré (posture −45 %, fenêtre « apres_parade ») ; posture vide = étourdi
 		combat.subir_parade()
@@ -356,7 +356,7 @@ func _onde() -> void:
 	var dy := absf(rel.y)
 	rel.y = 0.0
 	if rel.length() <= RAYON_ONDE + 0.3 and dy < 1.6:
-		joueur.recevoir_coup(degats_onde, _centre_onde, {"imparable": 0.6, "recul": 9.0, "ralenti": Vector2(1.2, 0.6), "secousse": 1.0})
+		joueur.recevoir_coup(degats_onde, _centre_onde, {"imparable": 0.6, "recul": 9.0, "ralenti": Vector2(1.2, 0.6), "secousse": 1.0, "type": "glace"})
 
 func _lancer_charge(dir: Vector3) -> void:
 	derniere_attaque = "charge"

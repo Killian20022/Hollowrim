@@ -206,7 +206,7 @@ func _choisir(i: int) -> void:
 		_livre.rafraichir()
 
 func _max_lignes() -> int:
-	return maxi(3, int((_livre.size.y - 64.0 - 74.0) / LivreParchemin.LIGNE))
+	return maxi(3, int((_livre.hauteur() - 64.0 - 74.0) / LivreParchemin.LIGNE))
 
 func _suivre() -> void:
 	var m := _max_lignes()
@@ -369,7 +369,7 @@ func _dessiner(L: LivreParchemin) -> void:
 		return
 	var sac := _sac()
 	var W := L.size.x
-	var H := L.size.y
+	var H := L.hauteur()
 	var mi := L.milieu()
 	var niv := 1
 	var prog: Variant = joueur.get("progression")
@@ -377,21 +377,21 @@ func _dessiner(L: LivreParchemin) -> void:
 		niv = int(prog.niveau)
 	L.en_tete("Voyageur · niveau %d" % niv, "Poids %s / %d" % [LivreParchemin.kg(sac.poids()), roundi(sac.capacite())])
 	L.onglets(SIGNETS, cote)
-	var X := 14.0
+	var X := 17.0
 	var LG := mi - 8.0 - X - 6.0
 	var X2 := mi + 8.0
-	var LD := W - 14.0 - X2
+	var LD := W - 17.0 - X2
 	L.zones["page:0"] = Rect2(X, 20, LG, H - 60)
 	# --- page gauche : le coffre
 	var maison := id_coffre == "coffre_maison"
-	L.titre(16, 24, "Coffre", "de la maison" if maison else "loué chez Grima")
+	L.titre(19, 24, "Coffre", "de la maison" if maison else "loué chez Grima")
 	if not maison:
 		L.texte_d(X + LG, 30, "Skarnholt", LivreParchemin.OR_TERNI)
 	_liste(L, 0, X, LG)
 	var nb := coffre.objets.size()
-	L.texte(16, H - 54, "%d objet%s" % [nb, "s" if nb > 1 else ""], LivreParchemin.PALE)
+	L.texte(19, H - 54, "%d objet%s" % [nb, "s" if nb > 1 else ""], LivreParchemin.PALE)
 	L.texte_d(X + LG, H - 54, "Contenu %s kg" % LivreParchemin.kg(coffre.poids()))
-	L.texte(16, H - 40, "Sans limite de poids : le coffre ne s'use pas.", LivreParchemin.PALE)
+	L.texte(19, H - 40, "Sans limite de poids : le coffre ne s'use pas.", LivreParchemin.PALE)
 	# --- page droite : le sac
 	L.titre(X2 + 4, 24, "Sac", "du voyageur")
 	_liste(L, 1, X2, LD)

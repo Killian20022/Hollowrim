@@ -2,17 +2,12 @@ extends SceneTree
 ## Captures du menu du personnage (lot C) pour comparaison avec les maquettes A_parchemin : une image par onglet (rendu réel,
 ## 640x360) et une planche « jeu | maquette » (jeu agrandi x2 au plus proche à gauche, maquette A à droite).
 ##   godot --path . --script res://outils/captures_menu_personnage.gd -- --nouvelle --captures=<dossier> [--maquettes=<dossier png>]
-## Mode capture seulement : des armures de DÉMONSTRATION (le lot A n'a pas encore rempli data/objets/armures.json) sont
-## ajoutées au registre en mémoire, jamais écrites ; aucune sauvegarde.
+## Données RÉELLES (intégration RPG) : armures du lot A (data/objets/armures.json), arbre du lot B (data/competences/arbre.json),
+## favoris du Sac ; aucune sauvegarde. Vues : chaque onglet + l'annonce de niveau (EcranNiveau, figée).
 
 const SCENE := preload("res://scenes/test_combat.tscn")
-const DEMO := {
-	"demo_capuche": {"nom": "Capuche de laine grise", "categorie": "armure", "rarete": "commun", "poids": 1.0, "valeur": 12, "emplacement": "tete", "type_armure": "legere", "armure": 4, "icone": "capuche"},
-	"demo_gambison": {"nom": "Gambison fourré", "categorie": "armure", "rarete": "peu_commun", "poids": 6.0, "valeur": 60, "emplacement": "torse", "type_armure": "legere", "armure": 18, "icone": "plastron", "description": "Laine bouillie et fourrure de loup : chaud, souple, silencieux."},
-	"demo_gants": {"nom": "Gants de cuir clouté", "categorie": "armure", "rarete": "commun", "poids": 1.5, "valeur": 20, "emplacement": "mains", "type_armure": "legere", "armure": 6, "icone": "gants"},
-	"demo_bottes": {"nom": "Bottes en peau d'ours", "categorie": "armure", "rarete": "commun", "poids": 2.0, "valeur": 25, "emplacement": "pieds", "type_armure": "legere", "armure": 7, "icone": "bottes"},
-	"demo_casque": {"nom": "Casque de fer", "categorie": "armure", "rarete": "commun", "poids": 4.0, "valeur": 45, "emplacement": "tete", "type_armure": "lourde", "armure": 12, "icone": "casque"},
-}
+const ARMURES := ["capuche_cuir", "armure_fourrure", "gants_os", "bottes_cuir", "casque_fer", "cuirasse_acier_nordique", "heaume_jarl",
+	"bottes_rodeur"]
 
 var _dossier := ""
 var _maquettes := "C:/Users/lopezk19/Desktop/Skyrim captures/maquettes_menu/png"
@@ -58,8 +53,8 @@ func _lancer() -> void:
 		print("captures : fenêtre et --captures=<dossier> nécessaires")
 		quit(1)
 		return
-	for id in DEMO:
-		Inventaire.OBJETS[id] = DEMO[id]
+	for id in ARMURES:
+		assert(Inventaire.connu(id), "armure réelle absente : " + id)
 	var s: Node3D = SCENE.instantiate()
 	s.options = {"draugr": "aucun", "sans-aide": ""}
 	root.add_child(s)
@@ -67,14 +62,20 @@ func _lancer() -> void:
 	var ui: InventaireMains = s.inventaire_ui
 	await _images(20)
 	var inv: Inventaire = j.inventaire
-	for id in ["demo_capuche", "demo_gambison", "demo_gants", "demo_bottes", "demo_casque", "amulette_givre", "epee_verre", "epee_rubis",
+	for id in ARMURES + ["amulette_givre", "epee_verre", "epee_rubis",
 			"epee_or", "hache_kolbeinn", "potion_soin", "potion_mana", "tome_lance_givre", "minerai_argent", "cristal_givre", "fourrure_troll",
 			"relique_offrande", "anneau_givre"]:
 		inv.ajouter(id, 3 if id.begins_with("potion") else 1)
 	inv.pieces = 1280
 	j.progression.gagner_xp(2900.0, false)
-	for id in ["demo_capuche", "demo_gambison", "demo_gants", "demo_bottes", "amulette_givre"]:
-		j.equipement_corps.equiper(id)
+	for id in ["capuche_cuir", "armure_fourrure", "gants_os", "bottes_cuir", "amulette_givre"]:
+		print("EQUIPER ", id, " -> ", j.equipement_corps.equiper(id))
+	for id in ["epee_rubis", "potion_soin", "heaume_jarl"]:
+		ui.basculer_favori(id)
+	# quelques perks réels (lot B) pour un arbre vivant
+	j.progression.points_perk += 6
+	for p: String in Progression.perks_de("une_main").slice(0, 3):
+		print("PERK ", p, " -> ", j.progression.acheter_perk(p))
 	j.mains.magie.eq.apprendre_tout()
 	j.mains.magie.equiper("droite", "epee_verre")
 	j.mains.magie.equiper("gauche", "bouclier")
@@ -96,14 +97,26 @@ func _lancer() -> void:
 	sac.choisir("epee_rubis")
 	await _capture("C_2_sac", "A_2_inventaire.png")
 	sac.filtrer("armure")
-	sac.choisir("demo_casque")
+	sac.choisir("cuirasse_acier_nordique")
 	await _capture("C_2b_sac_armures", "")
+	sac.filtrer("favoris")
+	await _capture("C_2c_sac_favoris", "")
 	ui.changer_onglet("magie")
 	(ui.onglet("magie") as OngletMagie).choisir("boule_feu")
 	await _capture("C_3_magie", "")
 	ui.changer_onglet("competences")
-	await _capture("C_4_competences_branchement", "")
+	var oc := ui.onglet("competences") as OngletCompetences
+	print("ARBRE source=", oc.source, " perks=", oc.perks.size())
+	await _capture("C_4_competences", "")
+	ui.changer_onglet("quetes")
+	await _capture("C_5_quetes", "")
+	ui.changer_onglet("personnage")
+	await _capture("C_6_personnage", "")
 	ui.fermer()
-	for id in DEMO:
-		Inventaire.OBJETS.erase(id)
+	await _images(5)
+	var en: EcranNiveau = s.hud.ecran_niveau
+	en.figer = true
+	en.annoncer_niveau(j.progression.niveau)
+	await _images(30)
+	await _capture("C_7_annonce_niveau", "")
 	quit(0)

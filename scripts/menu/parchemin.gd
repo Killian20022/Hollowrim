@@ -146,6 +146,19 @@ static func livre(taille: Vector2i, graine := 7) -> Image:
 	_coins(img)
 	return img
 
+## Le codex en texture, partagé par le menu et toutes les fenêtres du livre (coffre, butin, marchand, forge) : une seule
+## image par taille d'écran logique, gardée en méta de la racine de l'arbre (jamais en variable statique : voir plus haut).
+## `n` : n'importe quel nœud dans l'arbre.
+static func texture_livre(n: Node, taille: Vector2i) -> ImageTexture:
+	var cle := "parchemin_livre_%dx%d" % [taille.x, taille.y]
+	var racine: Node = n.get_tree().root if n.is_inside_tree() else null
+	if racine != null and racine.has_meta(cle):
+		return racine.get_meta(cle)
+	var tex := ImageTexture.create_from_image(livre(taille))
+	if racine != null:
+		racine.set_meta(cle, tex)
+	return tex
+
 ## Plaques de fer à nœud d'entrelacs aux quatre coins (miroir, reflet ↔ ombre sur les côtés retournés).
 static func _coins(img: Image) -> void:
 	var W := img.get_width()

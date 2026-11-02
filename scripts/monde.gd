@@ -1306,6 +1306,7 @@ func sauvegarder() -> void:
 		"butin": ButinTables.exporter(),   # graine du monde, contenants pillés, uniques pris (docs/BUTIN.md)
 		"marchands": Marchand.exporter(),  # lot L8 : heures de jeu écoulées, stock et bourse de chaque marchand (docs/BUTIN.md §9)
 		"lieux_vus": hud.lieux_vus.keys(),   # lot L7 : lieux déjà annoncés (« Lieu découvert »)
+		"menu": inventaire_ui.exporter_menu() if inventaire_ui != null else {},   # favoris du Sac (menu du personnage)
 	}
 	var f := FileAccess.open(fichier_sauvegarde(), FileAccess.WRITE)
 	f.store_string(JSON.stringify(donnees, "\t"))
@@ -1333,6 +1334,8 @@ func charger() -> void:
 	joueur.inventaire.importer(d.get("inventaire", {}))
 	joueur.equipement_corps.importer(d.get("equipement_corps", {}))   # après le sac (objets portés = objets du sac)
 	Stockage.importer(d.get("stockage", {}))
+	if inventaire_ui != null:
+		inventaire_ui.importer_menu(d.get("menu", {}))   # favoris du Sac (absents des anciennes sauvegardes : aucun)
 	ButinTables.importer(d.get("butin", {}))
 	preload("res://scripts/butin.gd").restaurer(self, joueur, hud)      # corps fouillables d'ennemis tués (objets laissés)
 	Marchand.importer(d.get("marchands", {}))

@@ -84,7 +84,7 @@ class Fleche extends Node3D:
 			var c := ancien + seg * t
 			var v := c - (joueur.global_position + Vector3(0, 0.9, 0))
 			if Vector2(v.x, v.z).length() < 0.45 and absf(v.y) < 0.95 and (r.is_empty() or ancien.distance_to(c) < ancien.distance_to(r["position"])):
-				joueur.recevoir_coup(degats, ancien)
+				joueur.recevoir_coup(degats, ancien, {"type": "physique"})   # fléchette : armure
 				queue_free()
 				return
 		if not r.is_empty():
@@ -317,7 +317,7 @@ class Souffle extends Mecanisme.Base:
 		if _tick <= 0.0 and dans_zone(joueur.global_position):
 			_tick = 0.5
 			degats_infliges += Piege.DEGATS_SOUFFLE
-			joueur.recevoir_coup(Piege.DEGATS_SOUFFLE, global_transform * pos)
+			joueur.recevoir_coup(Piege.DEGATS_SOUFFLE, global_transform * pos, {"type": "glace"})   # souffle de givre : resist_froid
 
 	func _changer_phase(ph: String) -> void:
 		_brume.visible = ph == "souffle"

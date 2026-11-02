@@ -1,52 +1,57 @@
 class_name LivreParchemin
 extends Control
-## Fenêtres du lot E (coffre ↔ sac, butin, marchand, forge) dans la direction A « parchemin et cuir enluminé » : un codex ouvert
-## plein écran (maquette Desktop/Skyrim captures/maquettes_menu/A_parchemin/, direction.js ; png/A_3_coffre.png).
-##   - fond : shaders/livre_parchemin.gdshader (cuir à grain, couture, deux pages de vélin, reliure au milieu, tranche) ;
-##   - encre : `dessin` (Callable(livre)) appelé à chaque dessin, avec les outils ci-dessous (lettrine, signets de cuir, lignes de
-##     registre, règles, filets, barres d'encre, ruban vermillon, flèche de transfert, touches de fer) ; plaques de fer aux coins ;
-##   - repère LOGIQUE (EchelleUi : 480x270 ou 640x360) : la mise en page se recalcule d'après `size` (pages = tout l'écran) ;
-##   - `zones` : rectangles cliquables du dernier dessin (repère logique), nommés par l'appelant ; `zone(p)` traduit la souris.
+## Fenêtres du lot E (coffre ↔ sac, butin, marchand, forge) posées sur le MÊME codex que le menu du personnage : la base
+## unique est `Parchemin` (scripts/menu/parchemin.gd). Ce nœud n'en est que l'adaptateur :
+##   - fond : `Parchemin.texture_livre()` (cuir, couture, deux pages de vélin, reliure, plaques de fer : la même image que le
+##     menu, partagée par toutes les fenêtres et le menu, peinte une fois par taille d'écran) ;
+##   - cadre : en-tête sur le cuir, signets (`Parchemin.signet`) et bandeau des touches de fer (`Parchemin.touche`) aux mêmes
+##     places que dans le menu ;
+##   - encre des pages : `dessin` (Callable(livre)) appelé à chaque dessin. Les fenêtres écrivent dans le repère des pages
+##     (décalé de DY vers le bas, hauteur utile `hauteur()`), avec les outils ci-dessous (couleurs et motifs de Parchemin) ;
+##   - repère LOGIQUE (EchelleUi : 480x270 ou 640x360) ; `zones` : rectangles cliquables du dernier dessin (repère des pages),
+##     nommés par l'appelant ; `zone(p)` traduit la souris (cadre compris).
 ## Polices : Kenney (corps, chiffres) et Jacquard 24 (titres) ; une copie par instance (jamais en statique).
 
-const SHADER := preload("res://shaders/livre_parchemin.gdshader")
-const ENCRE := Color("#2b1a1e")
-const RUBRIQUE := Color("#8a1c1c")       # vermillon des rubriques
-const PALE := Color("#6a4229")           # encre pâlie
-const OR_TERNI := Color("#b8762a")
-const SUR_CUIR := Color("#cca066")       # texte sur le cuir
-const CLAIR := Color("#e8e0c8")          # parchemin clair (sur ruban)
-const CIRE := Color("#5a1a1c")
-const CIRE_CLAIRE := Color("#b3341f")
-const LETTRINE_OR := Color("#fcb53a")
-const VERT := Color("#1f5a3a")
-const BLEU := Color("#1f3a7a")
-const CUIR := [Color("#140c06"), Color("#3a2414"), Color("#5a3a20"), Color("#8a5a32")]
-const VELIN_SOMBRE := Color("#cdb88e")
+const ENCRE := Parchemin.ENCRE
+const RUBRIQUE := Parchemin.RUBRIQUE     # vermillon des rubriques
+const PALE := Parchemin.PALE             # encre pâlie
+const OR_TERNI := Parchemin.OR_TERNI
+const SUR_CUIR := Parchemin.TEXTE_CUIR   # texte sur le cuir
+const CLAIR := Parchemin.CLAIR           # parchemin clair (sur ruban)
+const CIRE := Parchemin.RUBRIQUE_SOMBRE
+const CIRE_CLAIRE := Parchemin.RUBRIQUE_VIVE
+const LETTRINE_OR := Parchemin.OR_CLAIR
+const VERT := Parchemin.VIGUEUR
+const BLEU := Parchemin.MAGIE
+const CUIR := Parchemin.CUIR
+const VELIN_SOMBRE := Parchemin.FOND_BARRE
 ## Couleur d'encre par rareté (pastilles, noms) : lisible sur le vélin (maquette : RAR).
 const RARETE := {"commun": Color("#56627a"), "peu_commun": Color("#1f5a3a"), "rare": Color("#1f3a7a"), "unique": Color("#b8762a")}
 const LIGNE := 18.0
 ## Hauteur de ligne de texte : y donné = haut de la ligne ; la ligne de base de Kenney 16 est 8 px plus bas.
 const BASE := 8.0
+## Décalage vertical du repère des pages : les pages de Parchemin commencent 7 px plus bas (et finissent 7 px plus haut)
+## que l'ancien livre du lot E, pour laisser la place aux signets du menu.
+const DY := 7.0
 
-var fond: ColorRect
+var fond: TextureRect
 var encre: Control
 var dessin: Callable
 var police: FontFile
 var gothique: FontFile
 var zones := {}
+var _zones_cadre := {}
 var _icones := {}
+var _cadre := 0   # > 0 : on dessine le cadre (repère écran, sans décalage)
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	police = Palette.police()
 	gothique = MenuStyle.police_gothique(true)
-	fond = ColorRect.new()
+	fond = TextureRect.new()
 	fond.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	fond.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var m := ShaderMaterial.new()
-	m.shader = SHADER
-	fond.material = m
+	fond.stretch_mode = TextureRect.STRETCH_KEEP
+	fond.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_child(fond)
 	encre = Control.new()
 	encre.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -57,21 +62,29 @@ func _init() -> void:
 ## Applique l'échelle entière de l'interface ; true si la taille logique a changé.
 func echelle() -> bool:
 	var change := EchelleUi.appliquer(self)
-	if change:
+	if change or fond.texture == null:
 		fond.size = size
 		encre.size = size
-		(fond.material as ShaderMaterial).set_shader_parameter("taille", size)
+		fond.texture = Parchemin.texture_livre(self, Vector2i(size))
 		encre.queue_redraw()
 	return change
 
 func rafraichir() -> void:
 	encre.queue_redraw()
 
+## Hauteur utile du repère des pages (à utiliser à la place de size.y par les fenêtres).
+func hauteur() -> float:
+	return size.y - 2.0 * DY
+
 ## Zone cliquable sous un point de l'écran (pixels de fenêtre → repère logique).
 func zone(p: Vector2) -> String:
 	var q := p / maxf(1.0, scale.x)
+	for nom: String in _zones_cadre:
+		if (_zones_cadre[nom] as Rect2).has_point(q):
+			return nom
+	var qp := q - Vector2(0, DY)
 	for nom: String in zones:
-		if (zones[nom] as Rect2).has_point(q):
+		if (zones[nom] as Rect2).has_point(qp):
 			return nom
 	return ""
 
@@ -81,9 +94,23 @@ func milieu() -> float:
 
 func _dessiner() -> void:
 	zones.clear()
-	_coins()
+	_zones_cadre.clear()
+	_cadre = 0
+	encre.draw_set_transform(Vector2(0, DY))
 	if dessin.is_valid():
 		dessin.call(self)
+	encre.draw_set_transform(Vector2.ZERO)
+
+## Le cadre (cuir, signets, touches) se dessine dans le repère de l'écran, comme le menu.
+func _debut_cadre() -> void:
+	_cadre += 1
+	encre.draw_set_transform(Vector2.ZERO)
+
+func _fin_cadre() -> void:
+	_cadre -= 1
+	if _cadre <= 0:
+		_cadre = 0
+		encre.draw_set_transform(Vector2(0, DY))
 
 # ------------------------------------------------------------------ outils d'encre
 
@@ -130,22 +157,18 @@ func paragraphe(x: float, y: float, l: float, t: String, c := ENCRE, max_lignes 
 		y += 10.0
 	return y
 
-## Titre enluminé : lettrine or dans un carré vermillon, reste du mot en Jacquard 24 à l'encre, sous-titre pâli.
+## Titre enluminé : lettrine de Parchemin (or dans un carré vermillon, 24 px), reste du mot en Jacquard 24, sous-titre pâli.
+## Renvoie le x de fin.
 func titre(x: float, y: float, mot: String, sous := "") -> float:
-	encre.draw_rect(Rect2(x, y, 20, 20), RUBRIQUE)
-	encre.draw_rect(Rect2(x, y, 20, 20), CIRE, false, 1.0)
-	encre.draw_rect(Rect2(x + 1, y + 1, 18, 18), OR_TERNI, false, 1.0)
-	var l0 := mot.substr(0, 1)
-	var wl := ceilf(gothique.get_string_size(l0, HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND).x)
-	var px := x + floorf((20.0 - wl) * 0.5) + 1.0
-	encre.draw_string(gothique, Vector2(px + 1, y + 18), l0, HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND, CIRE)
-	encre.draw_string(gothique, Vector2(px, y + 17), l0, HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND, LETTRINE_OR)
+	if mot == "":
+		return x
+	Parchemin.lettrine(encre, gothique, Rect2(x, y - 2.0, 24, 24), mot.substr(0, 1))
 	var reste := mot.substr(1)
-	var xr := x + 23.0
-	encre.draw_string(gothique, Vector2(xr, y + 19), reste, HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND, ENCRE)
+	var xr := x + 28.0
+	encre.draw_string(gothique, Vector2(xr, y + 17), reste, HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND, ENCRE)
 	var fin := xr + ceilf(gothique.get_string_size(reste, HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND).x)
 	if sous != "":
-		texte(fin + 4.0, y + 7.0, sous, PALE)
+		texte(fin + 4.0, y + 6.0, sous, PALE)
 		fin += 4.0 + larg(sous)
 	return fin
 
@@ -155,80 +178,63 @@ func titre_simple(x: float, y: float, t: String, c := ENCRE, l := -1.0) -> void:
 		t = t.substr(0, t.length() - 2) + "…"
 	encre.draw_string(gothique, Vector2(x, y + 19), t, HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND, c)
 
-## Bandeau du haut, sur le cuir : texte à gauche et à droite.
+## Bandeau du haut, sur le cuir (mêmes places que l'en-tête du menu) : texte à gauche et à droite.
 func en_tete(gauche: String, droite: String) -> void:
-	texte(16, 7, gauche, SUR_CUIR)
-	texte_d(size.x - 16.0, 7, droite, SUR_CUIR)
+	_debut_cadre()
+	Parchemin.texte(encre, police, Vector2(20, 8), gauche, SUR_CUIR)
+	Parchemin.texte_droite(encre, police, size.x - 20.0, 8, droite, SUR_CUIR)
+	_fin_cadre()
 
-## Signets de cuir centrés en haut (l'actif en ruban rouge) ; zones « onglet:i ».
+## Signets de cuir de Parchemin centrés en haut (l'actif en ruban rouge, dessiné en dernier : il mord sur la page),
+## comme ceux du menu ; zones « onglet:i ».
 func onglets(liste: Array, actif: int) -> void:
-	var largs: Array[float] = []
+	_debut_cadre()
 	var tot := 0.0
 	for l: String in liste:
-		var w := larg(l) + 16.0
-		largs.append(w)
-		tot += w
-	tot += 4.0 * (liste.size() - 1)
-	var x := roundf(milieu() - tot * 0.5)
+		tot += ceilf(Parchemin.largeur(police, l)) + 18.0 + 3.0
+	var x := roundf(milieu() - (tot - 3.0) * 0.5)
+	var x_actif := -1.0
 	for i in liste.size():
-		var w := largs[i]
-		var on := i == actif
-		var r := Rect2(x, 1.0 if on else 2.0, w, 23.0 if on else 17.0)
-		encre.draw_rect(r, RUBRIQUE if on else CUIR[1])
-		encre.draw_rect(r, CIRE if on else CUIR[0], false, 1.0)
-		encre.draw_rect(Rect2(r.position + Vector2(1, 1), Vector2(w - 2, 1)), CIRE_CLAIRE if on else CUIR[2])
-		encre.draw_rect(Rect2(r.position + Vector2(1, 1), Vector2(1, r.size.y - 2)), CIRE_CLAIRE if on else CUIR[2])
-		texte(x + 8.0, r.position.y + (5.0 if on else 4.0), liste[i], CLAIR if on else SUR_CUIR)
-		zones["onglet:%d" % i] = r
-		x += w + 4.0
+		var l := ceilf(Parchemin.largeur(police, String(liste[i]))) + 18.0
+		if i == actif:
+			x_actif = x
+		else:
+			Parchemin.signet(encre, police, x, String(liste[i]), false)
+		_zones_cadre["onglet:%d" % i] = Rect2(x, 2, l, 24)
+		x += l + 3.0
+	if x_actif >= 0.0:
+		Parchemin.signet(encre, police, x_actif, String(liste[actif]), true)
+	_fin_cadre()
 
-## Touches de fer centrées en bas ; `liste` = [[touche, libellé, zone]] ; zones cliquables.
+## Touches de fer de Parchemin centrées sur le cuir du bas (comme le bandeau du menu) ; `liste` = [[touche, libellé, zone]] ;
+## zones cliquables.
 func touches(liste: Array) -> void:
-	var y := size.y - 16.0
-	var items: Array = []
+	_debut_cadre()
 	var tot := 0.0
 	for t: Array in liste:
-		var wk := maxf(11.0, larg(t[0]) + 5.0)
-		var w := wk + 4.0 + larg(t[1])
-		items.append([wk, w])
-		tot += w
-	tot += 12.0 * (liste.size() - 1)
-	var x := roundf(milieu() - tot * 0.5)
-	for i in liste.size():
-		var t: Array = liste[i]
-		var wk: float = items[i][0]
-		var w: float = items[i][1]
-		var rk := Rect2(x, y, wk, 11.0)
-		encre.draw_rect(rk, Color("#56627a"))
-		encre.draw_rect(rk, Color("#0b0f1a"), false, 1.0)
-		encre.draw_rect(Rect2(x + 1, y + 1, wk - 2, 1), Color("#8a96ad"))
-		encre.draw_rect(Rect2(x + 1, y + 1, 1, 9), Color("#8a96ad"))
-		encre.draw_rect(Rect2(x + 1, y + 9, wk - 2, 1), Color("#3a4458"))
-		texte_centre(x + wk * 0.5, y + 1.0, t[0], CLAIR)
-		texte(x + wk + 4.0, y + 1.0, t[1], SUR_CUIR)
+		tot += ceilf(Parchemin.largeur(police, String(t[0]))) + 10.0 + ceilf(Parchemin.largeur(police, String(t[1]))) + 16.0
+	var x := roundf((size.x - tot + 16.0) * 0.5)
+	var y := size.y - 21.0
+	for t: Array in liste:
+		var w := Parchemin.touche(encre, police, Vector2(x, y), String(t[0]), String(t[1]))
 		if t.size() > 2 and String(t[2]) != "":
-			zones[String(t[2])] = Rect2(x - 2.0, y - 2.0, w + 4.0, 15.0)
-		x += w + 12.0
+			_zones_cadre[String(t[2])] = Rect2(x - 2.0, y - 2.0, w + 4.0, 17.0)
+		x += w + 16.0
+	_fin_cadre()
 
-## Fond d'une ligne de registre (choisie : vélin foncé encadré).
+## Fond d'une ligne de registre (choisie : la ligne de registre de Parchemin, comme le Sac du menu).
 func ligne(r: Rect2, choisie: bool, grise := false) -> void:
 	if choisie:
-		encre.draw_rect(r, Color("#cca066"))
-		encre.draw_rect(r, Color("#8a5a32"), false, 1.0)
-		encre.draw_rect(Rect2(r.position.x, r.end.y - 1.0, r.size.x, 1.0), PALE)
+		Parchemin.ligne_choisie(encre, r)
 	elif grise:
 		encre.draw_rect(r, Color(VELIN_SOMBRE, 0.55))
 
 func regle(x: float, y: float, l: float) -> void:
-	encre.draw_rect(Rect2(x, y, l, 1), Color("#cca066"))
+	Parchemin.regle(encre, x, y, l)
 
-## Filet ornemental à l'encre, terminé par deux petites croix vermillon.
+## Filet ornemental de Parchemin (encre pâle, petites croix vermillon aux bouts).
 func filet(x: float, y: float, l: float) -> void:
-	encre.draw_rect(Rect2(x, y, l, 1), PALE)
-	for cx in [x - 6.0, x + l + 1.0]:
-		encre.draw_rect(Rect2(cx + 2, y - 2, 1, 5), RUBRIQUE)
-		encre.draw_rect(Rect2(cx, y, 5, 1), RUBRIQUE)
-		encre.draw_rect(Rect2(cx + 1, y - 1, 3, 3), RUBRIQUE)
+	Parchemin.filet(encre, x, y, l)
 
 ## Barre d'encre (6 px) ; `marque` (0..1, -1 = aucune) : petit trait vermillon (poids après transfert).
 func barre(x: float, y: float, l: float, ratio: float, c: Color, marque := -1.0) -> void:
@@ -242,9 +248,7 @@ func barre(x: float, y: float, l: float, ratio: float, c: Color, marque := -1.0)
 		encre.draw_rect(Rect2(x + 1.0 + roundf((l - 2.0) * clampf(marque, 0.0, 1.0)) - 1.0, y + 1, 2, 4), RUBRIQUE)
 
 func ruban(r: Rect2) -> void:
-	encre.draw_rect(r, RUBRIQUE)
-	encre.draw_rect(r, CIRE, false, 1.0)
-	encre.draw_rect(Rect2(r.position + Vector2(1, 1), Vector2(r.size.x - 2, 1)), CIRE_CLAIRE)
+	Parchemin.ruban(encre, r)
 
 ## Flèche de transfert (ruban + pointe) qui enjambe la reliure, à la hauteur `y` d'une ligne ; vers la droite ou la gauche.
 func fleche(y: float, vers_droite: bool) -> void:
@@ -326,26 +330,3 @@ static func nombre(v: int) -> String:
 ## Poids lisible : 9,2 / 16,0 (une décimale, virgule).
 static func kg(p: float) -> String:
 	return ("%.1f" % p).replace(".", ",")
-
-# ------------------------------------------------------------------ coins
-
-const _CC := {"k": Color("#0b0f1a"), "h": Color("#8a96ad"), "m": Color("#56627a"), "s": Color("#3a4458"), "d": Color("#1a2233"),
-	"o": Color("#e8a64a"), "b": Color("#b8762a")}
-
-## Plaques de fer à nœud d'entrelacs aux quatre coins (motif de MenuStyle._COIN_ORNE, miroir ; reflet ↔ ombre retournés).
-func _coins() -> void:
-	var W := size.x
-	var H := size.y
-	var sw := {"h": "s", "s": "h"}
-	for y in 12:
-		var ligne_c: String = MenuStyle._COIN_ORNE[y]
-		for x in 12:
-			var ch := ligne_c[x]
-			if not _CC.has(ch):
-				continue
-			encre.draw_rect(Rect2(x, y, 1, 1), _CC[ch])
-			var c2: String = sw.get(ch, ch) if (x == 1 or x == 9) else ch
-			encre.draw_rect(Rect2(W - 1 - x, y, 1, 1), _CC[c2])
-			var c3: String = sw.get(ch, ch) if (y == 1 or y == 9) else ch
-			encre.draw_rect(Rect2(x, H - 1 - y, 1, 1), _CC[c3])
-			encre.draw_rect(Rect2(W - 1 - x, H - 1 - y, 1, 1), _CC[sw.get(ch, ch)])

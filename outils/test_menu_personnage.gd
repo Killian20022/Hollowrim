@@ -3,7 +3,7 @@ extends SceneTree
 ## scenes/test_combat.tscn :
 ##   godot --headless --path . --script res://outils/test_menu_personnage.gd -- --nouvelle
 ## Ouverture / fermeture (Tab, I, K, J, Échap, pause), signets, onglets du lot D (classe chargée ou page « à venir »),
-## Sac sans doublon d'armes (hache de Kolbeinn visible, non équipable), équiper depuis le Sac / l'Équipement / la Magie,
+## Sac sans doublon d'armes (hache de Kolbeinn visible, tenable depuis le lot A), équiper depuis le Sac / l'Équipement / la Magie,
 ## porter / retirer un objet de corps, comparaison, lâcher, favoris, raccourcis, sauvegarde (fichier de test, jamais
 ## user://sauvegarde.json), mort. Avec fenêtre (godot_slot) et --captures=<dossier> : une capture par onglet.
 
@@ -116,9 +116,19 @@ func _tester() -> void:
 		"Divers : plus de doublon des armes (%s)" % str(divers))
 	sac.filtrer("tout")
 	sac.choisir("hache_kolbeinn")
+	# intégration RPG : depuis le lot A, la hache de Kolbeinn se TIENT (data/armes/hache_kolbeinn.tres)
+	var fh := sac.fiche("hache_kolbeinn")
+	var deg := ""
+	for l: Array in fh["lignes"]:
+		if String(l[0]) == "Dégâts":
+			deg = String(l[1])
+	_verif(deg.contains(" léger · ") and deg.ends_with(" lourd") and not deg.contains(".0"), "fiche de la hache : dégâts au format du menu (« %s »)" % deg)
 	var rh := sac.action_principale()
-	_verif(rh.contains("trophée") and ui.tenu("droite") == "epee", "hache de Kolbeinn : non équipable, refus clair (« %s »)" % rh)
-	_verif(String(sac.fiche("hache_kolbeinn")["note"]).to_lower().contains("ne se tient pas"), "fiche de la hache : « trophée »")
+	_verif(ui.tenu("droite") == "hache_kolbeinn", "hache de Kolbeinn : se tient depuis le Sac (lot A) (« %s »)" % rh)
+	sac.choisir("epee")
+	sac.action_principale()
+	_verif(ui.tenu("droite") == "epee", "épée de départ reprise en main droite")
+	sac.choisir("hache_kolbeinn")
 	sac.choisir("epee_or")
 	var f := sac.fiche("epee_or")
 	_verif(not (f["compare"] as Array).is_empty() and String(f["compare"][2]).begins_with("vs "), "fiche : comparaison avec l'arme tenue (%s)" % str(f["compare"]))
@@ -223,7 +233,9 @@ func _tester() -> void:
 	_verif(not ui.ouvert and not paused, "Échap : fermé")
 	var fichier := "user://test_menu_personnage.json"
 	var sv := FileAccess.open(fichier, FileAccess.WRITE)
-	sv.store_string(JSON.stringify({"magie": j.mains.magie.exporter(), "equipement_corps": j.equipement_corps.exporter(), "inventaire": inv.exporter()}))
+	var fav_avant: Array = ui.favoris.keys()
+	sv.store_string(JSON.stringify({"magie": j.mains.magie.exporter(), "equipement_corps": j.equipement_corps.exporter(), "inventaire": inv.exporter(),
+		"menu": ui.exporter_menu()}))
 	sv.close()
 	j.equipement_corps.retirer("cou")
 	j.mains.magie.equiper("droite", "epee")
@@ -232,6 +244,15 @@ func _tester() -> void:
 	inv.importer(lu["inventaire"])
 	j.equipement_corps.importer(lu["equipement_corps"])
 	j.mains.magie.importer(lu["magie"])
+	ui.favoris.clear()
+	ui.importer_menu(lu["menu"])
+	_verif(not fav_avant.is_empty() and ui.favoris.keys().size() == fav_avant.size() and fav_avant.all(func(x): return ui.est_favori(x)),
+		"rechargement : favoris du Sac restaurés (clé menu.favoris) %s" % str(fav_avant))
+	ui.importer_menu({"favoris": {"minerai_fer": true, "objet_disparu_xyz": true, "7": 3}})
+	var tol := ui.est_favori("minerai_fer") and not ui.est_favori("objet_disparu_xyz") and ui.favoris.size() == 1
+	ui.importer_menu(null)
+	ui.importer_menu("n'importe quoi")
+	_verif(tol and ui.favoris.is_empty(), "favoris : migration tolérante (dictionnaire, inconnus ignorés, clé absente ou invalide = aucun)")
 	_verif(j.equipement_corps.objet_a("cou") == "amulette_givre" and ui.tenu("droite") == "jet_flammes" and eq.raccourcis[4].get("gauche") == "soin",
 		"rechargement : amulette portée, mains et raccourcis équipés depuis le menu restaurés")
 	# --- mort : pas de menu

@@ -121,8 +121,25 @@ static func lignes_rubriques(lignes: Array) -> Array:
 			if i < 0 or i > 12:   # « Vive et économe : … » est une description, pas une rubrique
 				res.append([morceau.strip_edges(), ""])
 			else:
-				res.append([morceau.substr(0, i).strip_edges(), morceau.substr(i + 3).strip_edges()])
+				res.append([morceau.substr(0, i).strip_edges(), valeur_lisible(morceau.substr(i + 3).strip_edges())])
 	return res
+
+## Valeur de fiche au format du menu (formatage côté menu, EquipementMains n'est pas touché) : « 11.0 (léger) / 24.0 (lourd) »
+## → « 11 léger · 24 lourd » ; nombres « 12.0 » → « 12 », « 2.5 » → « 2,5 ».
+static func valeur_lisible(v: String) -> String:
+	var re := RegEx.create_from_string("(\\d+)\\.(\\d+)")
+	var r := v
+	for m in re.search_all(v):
+		var dec := m.get_string(2).rstrip("0")
+		r = r.replace(m.get_string(), m.get_string(1) if dec == "" else m.get_string(1) + "," + dec)
+	var dl := RegEx.create_from_string("^(\\S+) \\(léger\\) / (\\S+) \\(lourd\\)$").search(r)
+	if dl != null:
+		r = "%s léger · %s lourd" % [dl.get_string(1), dl.get_string(2)]
+	return r
+
+## Dégâts d'une arme au format du menu (« 11 léger · 24 lourd »).
+static func texte_degats(leger: float, lourd: float) -> String:
+	return valeur_lisible("%s (léger) / %s (lourd)" % [str(snappedf(leger, 0.5)), str(snappedf(lourd, 0.5))])
 
 ## Touches de navigation communes : renvoie -1 / +1 (haut / bas), -2 / +2 (gauche / droite), 0 sinon.
 static func direction(e: InputEvent) -> int:

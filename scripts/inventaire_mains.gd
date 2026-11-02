@@ -188,6 +188,31 @@ func basculer_favori(id: String) -> bool:
 func est_favori(id: String) -> bool:
 	return favoris.has(id)
 
+## Sauvegarde : clé « menu » → {"favoris": [ids triés]}.
+func exporter_menu() -> Dictionary:
+	var ids: Array = favoris.keys()
+	ids.sort()
+	return {"favoris": ids}
+
+## Relecture tolérante : clé absente (sauvegardes d'avant), mauvais type, favoris en tableau ou en dictionnaire ; alias
+## traduits (Inventaire.ALIAS), identifiants inconnus ignorés.
+func importer_menu(d: Variant) -> void:
+	favoris.clear()
+	if not d is Dictionary:
+		return
+	var f: Variant = (d as Dictionary).get("favoris", [])
+	var ids: Array = []
+	if f is Array:
+		ids = f
+	elif f is Dictionary:
+		ids = (f as Dictionary).keys()
+	for v: Variant in ids:
+		if not (v is String or v is StringName):
+			continue
+		var id := Inventaire.alias(String(v))
+		if Inventaire.connu(id) or id in ["epee", "torche", "bouclier"]:
+			favoris[id] = true
+
 ## Range les deux mains actuelles dans le raccourci i (0..9 = touches 1..0) ; potion choisie dans le Sac : la potion.
 func memoriser(i: int) -> String:
 	var eq := _eq()
