@@ -387,7 +387,8 @@ def uv_auto(o, marge=0.02):
     o.select_set(True)
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
-    bpy.ops.uv.smart_project(angle_limit=math.radians(55), island_margin=marge, area_weight=0.6, scale_to_bounds=True)
+    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=marge, area_weight=1.0, scale_to_bounds=True)
+    bpy.ops.uv.pack_islands(margin=marge, rotate=True)
     bpy.ops.object.mode_set(mode='OBJECT')
 
 
@@ -466,6 +467,29 @@ def cuire(o, matiere, taille=128, nom_img=None):
             rempli = rempli | m
             vide = ~rempli
     flat = rempli.reshape(-1)
+    # distance au bord libre calculée PAR TEXEL (points échantillonnés tous les 4 mm sur les arêtes de bord, en 3D) : liserés nets
+    # même sur les bandes étroites (l'interpolation par sommet y faisait des taches triangulaires)
+    nb = {}
+    for p_ in me.polygons:
+        for k in p_.edge_keys:
+            nb[k] = nb.get(k, 0) + 1
+    ech = []
+    for (a_, b_), c_ in nb.items():
+        if c_ != 1:
+            continue
+        pa_, pb_ = G(me.vertices[a_].co), G(me.vertices[b_].co)
+        n_ = max(1, int((pb_ - pa_).length / 0.004))
+        for i_ in range(n_ + 1):
+            ech.append(pa_.lerp(pb_, i_ / n_))
+    if ech:
+        kd = KDTree(len(ech))
+        for i_, q_ in enumerate(ech):
+            kd.insert(q_, i_)
+        kd.balance()
+        Pf = P.reshape(-1, 3)
+        Bf = Bd.reshape(-1)
+        for i_ in np.nonzero(flat)[0]:
+            Bf[i_] = min(kd.find(Pf[i_])[2], 0.08)
     rgba = np.zeros((H * W, 4))
     rgba[:, 3] = 1.0
     nn = Nn.reshape(-1, 3)
@@ -473,6 +497,11 @@ def cuire(o, matiere, taille=128, nom_img=None):
     rgba[flat] = matiere(P.reshape(-1, 3)[flat], nn[flat], Pa.reshape(-1)[flat], Bd.reshape(-1)[flat])
     img = bpy.data.images.new(nom_img or (o.name + "_tex"), W, H, alpha=True)
     img.pixels = rgba.reshape(-1).tolist()   # ligne 0 = bas de l'image = v 0 : même convention que les UV Blender
+    dossier = os.path.join(ROOT, "sources_blender", "armures", "textures")
+    os.makedirs(dossier, exist_ok=True)
+    img.filepath_raw = os.path.join(dossier, (nom_img or o.name) + ".png")
+    img.file_format = 'PNG'
+    img.save()
     img.pack()
     return img
 
@@ -552,6 +581,7 @@ def apercu(objs, dossier, cible_godot=(0, 1.0, 0), taille=2.0, prefixe=""):
     sc.render.engine = 'BLENDER_WORKBENCH'
     sc.display.shading.light = 'STUDIO'
     sc.display.shading.color_type = 'TEXTURE'
+    sc.display.shading.show_backface_culling = True     # faces retournées = trous (comme en jeu)
     sc.render.resolution_x = 600
     sc.render.resolution_y = 600
     cam = bpy.data.objects.get("cam_apercu")

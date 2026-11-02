@@ -212,6 +212,8 @@ func _triangles_recouverts(sq: Skeleton3D, z: Array) -> int:
 				var u := (uv[idx[t]] + uv[idx[t + 1]] + uv[idx[t + 2]]) / 3.0 * atlas if not uv.is_empty() else Vector2.ZERO
 				if ArmureVisible.recouvert(nom, s, c, u, z):
 					n += 1
+					if detail:
+						print("    reste %s/%d %s" % [nom, s, c.snapped(Vector3.ONE * 0.01)])
 	return n
 
 ## Traversées : famille complète portée, tous les clips.
@@ -252,7 +254,10 @@ func _traversees(famille: String, liste: Array) -> void:
 				continue
 			var s_arr := a.duplicate()
 			pts.append({"mi": mi, "a": s_arr, "ids": ids, "nom": String(mi.name), "os": os_dominant(sq, mi, s_arr, ids)})
-	# au repos : points SOUS une pièce (le segment os -> point coupe la pièce) ; t le long de l'os gardé
+	# au repos : points SOUS une pièce = le segment os -> point est libre ET son prolongement au-delà du point (12 cm, vers
+	# l'extérieur) rencontre la pièce ; t le long de l'os gardé
+	for A: Dictionary in armures:
+		A["p0"] = poses(sq, A["mi"], A["a"], A["ids"])
 	var dedans := []   # [groupe, k, armure, t]
 	for g in pts.size():
 		var P: Dictionary = pts[g]
@@ -262,17 +267,21 @@ func _traversees(famille: String, liste: Array) -> void:
 			var seg := segment_os(sq, b)
 			var t := proche_segment(seg[0], seg[1], pp[k])
 			var c: Vector3 = (seg[0] as Vector3).lerp(seg[1], t)
+			var dn := (pp[k] - c).normalized()
+			var dehors := pp[k] + dn * 0.12
 			for ai in armures.size():
 				var A: Dictionary = armures[ai]
-				var pa: PackedVector3Array = poses(sq, A["mi"], A["a"], A["ids"]) if not A.has("p0") else A["p0"]
-				A["p0"] = pa
+				var pa: PackedVector3Array = A["p0"]
 				var idx: PackedInt32Array = A["idx"]
-				var coupe := false
+				var libre := true
+				var couvert := false
 				for i in range(0, idx.size(), 3):
-					if Geometry3D.segment_intersects_triangle(c, pp[k], pa[idx[i]], pa[idx[i + 1]], pa[idx[i + 2]]) != null:
-						coupe = true
+					if libre and Geometry3D.segment_intersects_triangle(c, pp[k], pa[idx[i]], pa[idx[i + 1]], pa[idx[i + 2]]) != null:
+						libre = false
 						break
-				if coupe:
+					if not couvert and Geometry3D.segment_intersects_triangle(pp[k], dehors, pa[idx[i]], pa[idx[i + 1]], pa[idx[i + 2]]) != null:
+						couvert = true
+				if libre and couvert:
 					dedans.append([g, k, ai, t])
 					break
 	print("  %s : %d points de la tenue sous les pièces au repos" % [famille, dedans.size()])

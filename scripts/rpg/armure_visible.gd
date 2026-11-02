@@ -20,11 +20,15 @@ const SOL := "res://assets/modeles/armures/sol/"
 const EMPLACEMENTS := ["tete", "torse", "mains", "pieds"]
 ## Seuils de masquage (pose de repos du héros, repère du squelette : y haut, z devant).
 const MAINS_X := 0.58
-const TORSE_X := 0.42
+const TORSE_X := 0.40
 const PIEDS_Y := 0.40
 const PIEDS_Y_ACC := 0.47
 const TETE_Y := 1.585
 const CAMAIL_Y := 1.46
+const CAMAIL_BAS_TORSE := 1.62
+const TORSE_PANTALON_Y := 0.64
+## Mèches de la nuque (cheveux sous le casque du héros) qui tombent dans le col d'une pièce de torse.
+const TORSE_CHEVEUX_Y := 1.575
 
 ## Preset par nom de matériau Blender (même sens que EpeesLongues.MATIERES ; l'alpha de la texture porte la brillance).
 const MATIERES := {
@@ -219,7 +223,6 @@ func _masquer() -> void:
 			if not _cheveux_visibles.has(mi):
 				_cheveux_visibles[mi] = mi.visible
 			mi.visible = bool(_cheveux_visibles[mi]) and not z.has("tete")
-			continue
 		if not mi.visible and not _originaux.has(mi):
 			continue
 		if not _originaux.has(mi):
@@ -237,12 +240,14 @@ static func _concerne(nom: String, z: Array) -> bool:
 	match nom:
 		"tunique":
 			return z.has("torse") or z.has("mains")
-		"mante":
+		"mante", "Hair_Long":
 			return z.has("torse")
 		"brassards", "peau":
 			return z.has("mains")
-		"bottes", "pantalon":
+		"bottes":
 			return z.has("pieds")
+		"pantalon":
+			return z.has("pieds") or z.has("torse")
 		"accessoires":
 			return true
 	return false
@@ -261,15 +266,22 @@ static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Arra
 			return true
 		if nom == "accessoires" and c.y < PIEDS_Y_ACC:
 			return true
-	var oeil := surface == 0 and _dans(GuerrierTextures.R_OEIL, u)
-	var casque := surface == 0 and (_dans(GardienTextures.R_CASQUE, u) or _dans(GardienTextures.R_BANDEAU, u))
-	var camail := surface == 0 and _dans(GuerrierTextures.R_PLASTRON, u) and c.y > CAMAIL_Y
+	var acc := nom == "accessoires" and surface == 0
+	var oeil := acc and _dans(GuerrierTextures.R_OEIL, u)
+	var casque := acc and (_dans(GardienTextures.R_CASQUE, u) or _dans(GardienTextures.R_BANDEAU, u))
+	var camail := acc and _dans(GuerrierTextures.R_PLASTRON, u) and c.y > CAMAIL_Y
 	if z.has("tete") and nom == "accessoires" and not oeil and (casque or camail or c.y > TETE_Y):
 		return true
 	if z.has("torse"):
+		if camail and c.y < CAMAIL_BAS_TORSE:
+			return true     # bas du camail du casque, étalé sur le col : sous la pièce de torse
+		if nom == "pantalon" and c.y > TORSE_PANTALON_Y:
+			return true     # haut du pantalon (hanches) : sous la pièce de torse, il passerait au travers quand la cuisse se lève
 		if nom == "tunique" and absf(c.x) < TORSE_X:
 			return true
 		if nom == "mante":
+			return true
+		if nom == "Hair_Long" and c.y < TORSE_CHEVEUX_Y:
 			return true
 		if nom == "accessoires":
 			if surface == 1:

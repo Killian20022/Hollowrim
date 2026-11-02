@@ -1,0 +1,182 @@
+extends SceneTree
+## Captures de l'ARMURE PORTÉE (scripts/rpg/armure_visible.gd) sur le héros à la 3e personne, scène de combat de jour :
+##   planches : godot --path . --resolution 960x540 --script res://outils/captures_armures_portees.gd -- --nouvelle --sortie=<dossier>
+##              [--familles=cuir,fourrure,os] -> <famille>_face.png, _tq.png, _dos.png, _profil.png, _sol.png, (+ sans_armure_*.png)
+##   film     : godot --path . --write-movie <f.avi> --fixed-fps 30 --resolution 960x540 --script res://outils/captures_armures_portees.gd
+##              -- --nouvelle --film [--familles=…] : par famille, marche (caméra de jeu, de dos puis de 3/4 face) + combo 1-2-3-4.
+const DT := 1.0 / 30.0
+const PIECES := {
+	"cuir": ["capuche_cuir", "armure_cuir", "gants_cuir", "bottes_cuir"],
+	"fourrure": ["casque_fourrure", "armure_fourrure", "gants_fourrure", "bottes_fourrure"],
+	"os": ["casque_os", "cuirasse_os", "gants_os", "bottes_os"],
+	"fer": ["casque_fer", "cuirasse_fer", "gantelets_fer", "bottes_fer"],
+	"acier": ["casque_acier_nordique", "cuirasse_acier_nordique", "gantelets_acier_nordique", "bottes_acier_nordique"],
+}
+var s: Node
+var j: CharacterBody3D
+var mains: Node3D
+var cam: Camera3D
+var l: Label
+var sortie := ""
+var familles: Array = ["cuir", "fourrure", "os"]
+var film := false
+
+func _init() -> void:
+	_go.call_deferred()
+
+func _attendre(sec: float) -> void:
+	for i in maxi(1, roundi(sec / DT)):
+		j.mana = j.mana_max
+		j.vigueur = j.vigueur_max
+		await process_frame
+
+func _equiper_famille(f: String) -> void:
+	for e in ["tete", "torse", "mains", "pieds"]:
+		j.equipement_corps.retirer(e)
+	for id: String in PIECES.get(f, f.split("+")):
+		if Inventaire.connu(id):
+			j.inventaire.ajouter(id, 1)
+			var r: String = j.equipement_corps.equiper(id)
+			if r != "":
+				print("REFUS ", id, " : ", r)
+	print("FAMILLE ", f, " portées : ", j.corps.armure.zones())
+
+func _capture(nom: String, rect := Rect2i()) -> void:
+	await process_frame
+	await process_frame
+	var img := root.get_viewport().get_texture().get_image()
+	if rect.size != Vector2i.ZERO:
+		# rect donné pour 960x540 : mis à l'échelle de l'image réelle
+		var k := img.get_height() / 540.0
+		img = img.get_region(Rect2i(Vector2i(Vector2(rect.position) * k), Vector2i(Vector2(rect.size) * k)))
+		if k != 1.0:
+			img.resize(rect.size.x, rect.size.y, Image.INTERPOLATE_NEAREST)
+	print("  image ", root.get_viewport().get_texture().get_size())
+	img.save_png(sortie.path_join(nom + ".png"))
+	print("CAPTURE ", nom)
+
+## Caméra fixe : regarde le héros depuis la direction `deg` (0 = de face, 180 = de dos), à `dist` m, visée à `h` m.
+func _placer_cam(deg: float, dist := 2.5, h := 1.0, hc := 1.15) -> void:
+	var p := j.global_position
+	var devant := -j.global_transform.basis.z
+	var dir := devant.rotated(Vector3.UP, deg_to_rad(deg))
+	cam.global_position = p + dir * dist + Vector3(0, hc, 0)
+	cam.look_at(p + Vector3(0, h, 0), Vector3.UP)
+
+func _go() -> void:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--sortie="):
+			sortie = a.substr(9)
+		elif a.begins_with("--familles="):
+			familles = a.substr(11).split(",")
+		elif a == "--film":
+			film = true
+	s = load("res://scenes/test_combat.tscn").instantiate()
+	s.options = {"draugr": "aucun", "sans-aide": ""}
+	root.add_child(s)
+	j = s.joueur
+	mains = j.mains
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	s.mannequin.visible = false
+	s.mannequin.process_mode = Node.PROCESS_MODE_DISABLED
+	var calque := CanvasLayer.new()
+	calque.layer = 60
+	s.add_child(calque)
+	l = Label.new()
+	l.add_theme_font_override("font", Palette.police())
+	l.add_theme_font_size_override("font_size", 18)
+	l.add_theme_color_override("font_outline_color", Color.BLACK)
+	l.add_theme_constant_override("outline_size", 6)
+	l.position = Vector2(10, 8)
+	calque.add_child(l)
+	s.placer_joueur(Vector3(0, 0, 6.0), 0.0, -6.0)
+	j.basculer_vue(true)
+	if not film:
+		for n in root.find_children("*", "CanvasLayer", true, false):
+			if n != calque:
+				(n as CanvasLayer).visible = false   # planches : sans l'interface
+	mains.magie.equiper("droite", "epee")
+	mains.magie.equiper("gauche", "vide")
+	await _attendre(1.0)
+	if film:
+		await _film()
+	else:
+		await _planches()
+	quit()
+
+func _planches() -> void:
+	DirAccess.make_dir_recursive_absolute(sortie)
+	cam = Camera3D.new()
+	cam.fov = 40.0
+	s.add_child(cam)
+	cam.current = true
+	var vues := {"face": 0.0, "tq": 40.0, "profil": 90.0, "dos": 180.0}
+	var cadre := Rect2i(300, 0, 360, 540)
+	for f in ["sans_armure"] + familles:
+		if f == "sans_armure":
+			_equiper_famille("")
+		else:
+			_equiper_famille(f)
+		l.text = ""
+		await _attendre(0.6)
+		for v in vues:
+			_placer_cam(vues[v], 3.6, 0.95, 1.2)
+			await _attendre(0.15)
+			await _capture("%s_%s" % [f, v], cadre)
+		if f == "sans_armure":
+			continue
+		# pièces posées au sol, devant le héros (vue plongeante)
+		var poses: Array[Node3D] = []
+		var ids: Array = PIECES.get(f, [])
+		for i in ids.size():
+			var n := ArmureVisible.instancier_sol(ids[i])
+			if n == null:
+				continue
+			s.add_child(n)
+			var devant := -j.global_transform.basis.z
+			var cote := devant.cross(Vector3.UP)
+			n.global_position = j.global_position + devant * 1.6 + cote * (-0.75 + 0.5 * i)
+			n.rotation.y = j.rotation.y + PI
+			poses.append(n)
+		j.visible = false
+		var c := j.global_position + (-j.global_transform.basis.z) * 1.6
+		cam.global_position = c + (-j.global_transform.basis.z) * 1.3 + Vector3(0, 1.1, 0)
+		cam.look_at(c + Vector3(0, 0.1, 0), Vector3.UP)
+		await _attendre(0.2)
+		await _capture("%s_sol" % f, Rect2i(120, 70, 720, 400))
+		for n in poses:
+			n.queue_free()
+		j.visible = true
+
+func _film() -> void:
+	for f in familles:
+		_equiper_famille(f)
+		j.camera_tp.set("_orbite", 0.0)
+		l.text = "Armure %s : marche (de dos)" % f
+		await _attendre(0.6)
+		Input.action_press("avant")
+		await _attendre(2.2)
+		Input.action_release("avant")
+		await _attendre(0.4)
+		l.text = "Armure %s : combo 1-2-3-4" % f
+		for k in 4:
+			mains.entrees.appuyer()
+			await _attendre(0.05)
+			mains.entrees.relacher()
+			await _attendre(0.42)
+		await _attendre(0.6)
+		j.camera_tp.set("_orbite", deg_to_rad(150.0))
+		l.text = "Armure %s : de 3/4 face" % f
+		await _attendre(0.5)
+		Input.action_press("avant")
+		await _attendre(1.6)
+		Input.action_release("avant")
+		await _attendre(0.3)
+		for k in 4:
+			mains.entrees.appuyer()
+			await _attendre(0.05)
+			mains.entrees.relacher()
+			await _attendre(0.42)
+		await _attendre(0.8)
+		s.placer_joueur(Vector3(0, 0, 6.0), 0.0, -6.0)
+		j.camera_tp.recaler()

@@ -25,7 +25,7 @@ FAMILLE = next((a for a in ARGS if "=" not in a), "tout")
 APERCU = next((a.split("=", 1)[1] for a in ARGS if a.startswith("apercu=")), "")
 
 # ---------------------------------------------------------------------------------------------------------- palettes
-CUIR = L.hexa("#140c07", "#21140b", "#301e11", "#422a18", "#553720", "#69462a", "#7e5735", "#956a43")
+CUIR = L.hexa("#120d0a", "#1c1510", "#271d16", "#33271d", "#403125", "#4e3c2d", "#5e4937", "#705843", "#836a53")
 CUIR_SOMBRE = L.hexa("#0d0907", "#17100b", "#21170f", "#2d2015", "#3a2a1c", "#493525")
 FER = L.hexa("#1b1b1d", "#2c2c30", "#424349", "#5c5e66", "#7c7f88", "#a3a6ae")
 FOURRURE = L.hexa("#2a241d", "#3d352b", "#53493c", "#6b604f", "#857862", "#9f9178", "#b8aa8f", "#cfc3a8")
@@ -67,33 +67,33 @@ def mat_fer(P, N, v0=0.55):
 
 
 def mat_fourrure(P, N, pa, bd, pal=FOURRURE, base=0.55, g=0, sens=None):
-    """Mèches : bruit étiré dans le sens du poil (vers le bas par défaut), racines sombres aux bords."""
+    """Fourrure : mèches fines très étirées dans le sens du poil (vers le bas par défaut), faible contraste d'ensemble (pas de
+    taches), pointes plus claires, racines sombres au bord libre."""
     if sens is None:
         sens = np.array([0.0, 1.0, 0.0])
-    # étirement : composante le long du poil écrasée
     s = sens / np.linalg.norm(sens)
-    Q = P - np.outer(P @ s, s) * 0.85
-    m = L.fbm(Q * np.array([1, 1, 1]), 38.0, g) - 0.5
-    fines = L.bruit(Q, 120.0, g + 5) - 0.5
-    v = base + m * 0.55 + fines * 0.3 + np.clip(N[:, 1], -1, 1) * 0.08
-    v = np.where(bd < 0.008, v - 0.12, v)
+    Q = P - np.outer(P @ s, s) * 0.93          # presque constant le long du poil : des stries
+    m = L.bruit(Q, 55.0, g) - 0.5
+    fines = L.bruit(Q, 140.0, g + 5) - 0.5
+    lent = L.fbm(P, 4.0, g + 9) - 0.5
+    v = base + m * 0.10 + fines * 0.06 + lent * 0.12 + np.clip(N[:, 1], -1, 1) * 0.07
+    v = np.where(bd < 0.010, v - 0.10, v)
     rgb = L.rampe(pal, np.clip(v, 0, 0.999))
-    a = np.clip(0.05 + v * 0.15, 0, 0.3)
+    a = np.clip(0.04 + v * 0.12, 0, 0.25)
     return np.concatenate([rgb, a[:, None]], 1)
 
 
 def mat_os(P, N, pa, bd, base=0.6, g=0):
-    v = base + (L.fbm(P, 16.0, g) - 0.5) * 0.30 + (L.bruit(P, 90.0, g + 3) - 0.5) * 0.12 + np.clip(N[:, 1], -1, 1) * 0.08
-    # fissures : vallées étroites d'un bruit (lignes sombres ramifiées)
-    f = np.abs(L.fbm(P, 11.0, g + 8) - 0.5)
-    v = np.where(f < 0.018, v - 0.32, v)
-    # crasse dans les creux près des bords, arêtes usées plus claires
-    v = np.where(bd < 0.005, v - 0.2, np.where(bd < 0.012, v + 0.08, v))
-    # taches brunes (terre de crypte)
-    t = L.fbm(P, 5.0, g + 12)
-    v = np.where(t > 0.66, v - 0.14, v)
+    """Os patiné : ivoire jauni lisse (variations lentes et douces), pores fins, rares fissures fines, creux crasseux au bord."""
+    v = base + (L.fbm(P, 5.0, g) - 0.5) * 0.12 + (L.bruit(P, 45.0, g + 3) - 0.5) * 0.06 + np.clip(N[:, 1], -1, 1) * 0.07
+    f = np.abs(L.fbm(P, 9.0, g + 8) - 0.5)
+    v = np.where((f < 0.008) & (L.fbm(P, 3.0, g + 11) > 0.62), v - 0.12, v)
+    v = np.where(bd < 0.006, v - 0.16, np.where(bd < 0.014, v + 0.05, v))
     rgb = L.rampe(OS, np.clip(v, 0, 0.999))
-    a = np.clip(0.2 + v * 0.5, 0, 0.75)
+    # patine brune très légère dans les zones basses (pas de taches franches)
+    t = np.clip((L.fbm(P, 3.0, g + 12) - 0.5) * 1.2, 0, 1)[:, None]
+    rgb = rgb * (1 - 0.18 * t) + np.array([0.30, 0.24, 0.16]) * 0.18 * t
+    a = np.clip(0.25 + v * 0.45, 0, 0.75)
     return np.concatenate([rgb, a[:, None]], 1)
 
 
@@ -209,7 +209,27 @@ def bande(bm, centres, rayon_in, epaisseur, n, partie, arc=None, bombe=0.0):
           lambda t: f1(t) + epaisseur,
           lambda t: f1(t) + 0.001]
     cs = [(c0, a0, r0), (c0, a0, r0), (cm, a0, r0), (c1, a1, r1), (c1, a1, r1)]
-    return L.anneau(bm, cs, rs, n, partie, ferme=arc is None, arc=arc)
+    avant = set(bm.faces)
+    lignes = L.anneau(bm, cs, rs, n, partie, ferme=arc is None, arc=arc)
+    orienter(bm, [f for f in bm.faces if f not in avant], Vector(c0), Vector(c1))
+    return lignes
+
+
+def orienter(bm, faces, c0, c1):
+    """Normales vers l'extérieur d'une bande d'axe c0 -> c1 : à l'opposé du point de l'axe (segment resserré de 30 % vers son
+    milieu, pour que les tranches haute et basse regardent vers le haut / le bas)."""
+    cm = (c0 + c1) / 2
+    a = c0.lerp(cm, 0.3)
+    b = c1.lerp(cm, 0.3)
+    ab = b - a
+    bm.normal_update()
+    for f in faces:
+        p = G(f.calc_center_median())
+        t = max(0.0, min(1.0, (p - a).dot(ab) / max(ab.length_squared, 1e-9)))
+        q = a + ab * t
+        if G(f.normal).dot(p - q) < 0:
+            f.normal_flip()
+    bm.normal_update()
 
 
 def en_objet(bm, nom):
@@ -237,8 +257,36 @@ def torse_base(nom, tris, jeu=0.012):
     """Coque du torse dérivée de la cotte Quaternius (poids hérités) : |x| < 0,43, hanches à l'encolure."""
     o = L.copie("tunique", nom, lambda c, n: abs(c.x) < 0.43)
     bvh = L.bvh_de(["tunique", "SuperHero_Male"])
-    L.ajuster(o, bvh, (lambda p: jeu) if not callable(jeu) else jeu, lissage=3)
+    j0 = (lambda p: jeu) if not callable(jeu) else jeu
+    # bout de manche évasé (la manche de la cotte qui continue dessous ne ressort pas quand le bras plie)
+    L.ajuster(o, bvh, lambda p: j0(p) + max(0.0, abs(p.x) - 0.33) * 0.30, lissage=3)
     L.decimer(o, tris)
+    # jupe : fentes devant et derrière (chaque pan suit sa cuisse) et poids du PANTALON dessous (le pan bouge comme la jambe qu'il
+    # couvre : pas de traversée quand la cuisse se lève), fondus vers ceux de la cotte au-dessus des hanches
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    def _fente(c):
+        return (abs(c.x) < 0.028 and c.y < 0.86) or (c.y > 1.49 and c.z > 0.03 and abs(c.x) < 0.10 - (1.58 - c.y) * 0.5)
+    fentes = [f for f in bm.faces if _fente(G(f.calc_center_median()))]    # fentes de la jupe, encolure en V (la barbe)
+    bmesh.ops.delete(bm, geom=fentes, context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(o.data)
+    bm.free()
+    pw_t = L.poids(o)
+    pw_p = L.poids_proches(o, bpy.data.objects["pantalon"], 3, lambda p: p.y > 0.5)
+    res = []
+    for v, a, b in zip(o.data.vertices, pw_t, pw_p):
+        y = G(v.co).y
+        x = G(v.co).x
+        t = min(1.0, max(0.0, (0.96 - y) / 0.12))
+        # côté de la fente : les poids de la jambe de CE côté seulement
+        if t > 0:
+            b = {k: w for k, w in b.items() if not (k.endswith("_r") if x > 0 else k.endswith("_l"))} or b
+        d = {k: w * (1 - t) for k, w in a.items()}
+        for k, w in b.items():
+            d[k] = d.get(k, 0.0) + w * t
+        res.append(d)
+    L.ecrire_poids(o, L.normaliser(res))
     return o
 
 
@@ -281,14 +329,15 @@ def epauliere(nom, cote, couches, partie=2, n=8):
     return o
 
 
-def col_montant(nom, h0=1.495, h1=1.565, ep=0.010, n=14, jeu=0.016):
+def col_montant(nom, h0=1.495, h1=1.565, ep=0.010, n=14, jeu=0.016, ouvert=1.05):
     bm = bmesh.new()
     axe, ref = (0, 1, 0), (0, 0, 1)
     peau = L.bvh_de(noms_heros=["peau", "Hair_Beard"], filtre=lambda p: abs(p.x) < 0.16 and 1.40 < p.y < 1.62)
     c0, c1 = Vector((0, h1, COU.z - 0.01)), Vector((0, h0, COU.z - 0.01))
     f0 = L.rayon_sur(peau, c0, axe, ref, jeu)
     f1 = L.rayon_sur(peau, c1, axe, ref, lambda t: jeu + 0.012)
-    bande(bm, [(c0, axe, ref), (c1, axe, ref)], [f0, f1], ep, n, 3)
+    # col ouvert devant (la barbe tombe dessus quand la tête se penche) : arc du côté gauche par la nuque au côté droit
+    bande(bm, [(c0, axe, ref), (c1, axe, ref)], [f0, f1], ep, n, 3, arc=(ouvert, 2 * math.pi - ouvert))
     o = en_objet(bm, nom)
     poids_de(o, "tunique", lambda p: abs(p.x) < 0.25 and p.y > 1.35)
     return o
@@ -394,10 +443,13 @@ def cuir():
         # panneaux de cuir bouilli sur le ventre (bandes horizontales cousues) et le dos
         tronc = (pa == 0) & (np.abs(x) < 0.21) & (y > 1.0) & (y < 1.30)
         for yb in (1.06, 1.13, 1.20, 1.27):
-            l = tronc & (np.abs(y - yb) < 0.007)
-            out[l, :3] *= 0.45
-            p2 = tronc & (y - yb > 0.007) & (y - yb < 0.016)
-            out[p2, :3] *= 1.18
+            l = tronc & (np.abs(y - yb) < 0.011)
+            out[l, :3] *= 0.62
+            p2 = tronc & (y - yb > 0.011) & (y - yb < 0.024)
+            out[p2, :3] *= 1.12
+        # coutures : côtés (sous les bras) et milieu du dos
+        cou = (pa == 0) & (((np.abs(np.abs(x) - 0.17) < 0.008) & (np.abs(z) < 0.06)) | ((np.abs(x) < 0.008) & (z < -0.05) & (y > 0.86)))
+        out[cou, :3] *= 0.6
         # laçage devant (x ~ 0, de la poitrine au col) : œillets et lacets croisés
         lac = (pa == 0) & (z > 0.05) & (y > 1.30) & (y < 1.50)
         fente = lac & (np.abs(x) < 0.006)
@@ -561,22 +613,44 @@ def mantelet(nom, y_cou=1.56, y_bas=1.30, n=20, rangs=5, jeu=0.035, partie=4, fr
     return o
 
 
+def mantelet_coque(base, nom, partie=4, y_bas=1.27, decal=0.026):
+    """Mantelet de fourrure : copie des faces hautes de la coque du torse (épaules, haut de poitrine et du dos), poussée de `decal`
+    vers l'extérieur, bord bas déchiqueté (mèches de longueurs inégales). Poids de la coque (mêmes sommets)."""
+    me = base.data.copy()
+    o = bpy.data.objects.new(nom, me)
+    bpy.context.scene.collection.objects.link(o)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    suppr = [f for f in bm.faces if G(f.calc_center_median()).y < y_bas or abs(G(f.calc_center_median()).x) > 0.31]
+    bmesh.ops.delete(bm, geom=suppr, context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.normal_update()
+    part = L.couche_partie(bm)
+    for f in bm.faces:
+        f[part] = partie
+    for v in bm.verts:
+        v.co = v.co + v.normal * decal * (0.6 + 0.4 * min(1.0, max(0.0, (1.55 - G(v.co).y) / 0.2)))
+    bords = [v for v in bm.verts if v.is_boundary and G(v.co).y < y_bas + 0.06 and abs(G(v.co).x) < 0.24]
+    for i, v in enumerate(bords):
+        k = L._h3(i, 7, 3, 1)
+        v.co = v.co + B(0, -0.035 * k - 0.01, 0)
+    epaissir_bords(bm, 0.012)
+    bm.to_mesh(me)
+    bm.free()
+    return o
+
+
 def fourrure():
     # --- armure_fourrure : peau de loup lacée sur cuir, mantelet de fourrure, ceinture, bas fourré
-    base = torse_base("armure_fourrure", 470, jeu=lambda p: 0.014)
-    man = mantelet("man")
+    base = torse_base("armure_fourrure", 350, jeu=lambda p: 0.014)
+    man = mantelet_coque(base, "man")
     bel = ceinture("ceint", 0.94, 1.0, 0.012, 16)
     o = fusion([base, man, bel], "armure_fourrure")
 
     def mat(P, N, pa, bd):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
-        # pièces de fourrure (ventre, dos, jupe) cousues sur le cuir (côtés et manches en cuir)
-        out = mat_cuir(P, N, pa, bd, 0.42, CUIR, 41)
-        fz = (pa == 0) & ((np.abs(x) < 0.17 + 0.03 * np.sin(y * 40.0)) | (y < 0.90))
-        out[fz] = mat_fourrure(P[fz], N[fz], pa[fz], bd[fz], FOURRURE, 0.55, 43)
-        # couture grossière du bord de la fourrure (lanières)
-        lim = (pa == 0) & (np.abs(np.abs(x) - (0.17 + 0.03 * np.sin(y * 40.0))) < 0.006) & (y >= 0.90)
-        out[lim, :3] = L.rampe(CUIR_SOMBRE, np.full(lim.sum(), 0.2))
+        # cuir clair de chasseur (plus clair que l'armure de cuir), mantelet de loup sur les épaules
+        out = mat_cuir(P, N, pa, bd, 0.62, CUIR, 41)
         m = pa == 4
         out[m] = mat_fourrure(P[m], N[m], pa[m], bd[m], FOURRURE, 0.62, 47)
         c = pa == 1
@@ -588,7 +662,7 @@ def fourrure():
 
     # --- casque_fourrure : bonnet de cuir, bordure épaisse de fourrure, rabats d'oreilles
     cibles = L.bvh_de(["SuperHero_Male"], noms_heros=["peau"], filtre=lambda p: p.y > 1.50 and abs(p.x) < 0.2)
-    lignes = [90, 70, 50, 32, 18]
+    lignes = [90, 70, 52, 36, 26]
 
     def jeu(th, ph):
         return 0.020
@@ -597,13 +671,14 @@ def fourrure():
     # bordure de fourrure : tore autour du front (du sourcil à la nuque)
     bm = bmesh.new()
     axe, ref = (0, 1, 0), (0, 0, 1)
-    c = TETE + Vector((0, -0.005, -0.005))
-    cbas = TETE + Vector((0, -0.045, -0.005))
+    c = TETE + Vector((0, 0.072, -0.008))
+    cbas = TETE + Vector((0, 0.040, -0.008))
     f0 = L.rayon_sur(cibles, c, axe, ref, 0.02)
     f1 = L.rayon_sur(cibles, cbas, axe, ref, 0.022)
     rs = [lambda t: f0(t) - 0.002, lambda t: f0(t) + 0.022, lambda t: (f0(t) + f1(t)) / 2 + 0.034, lambda t: f1(t) + 0.024, lambda t: f1(t) - 0.002]
     cs = [(c + Vector((0, 0.02, 0)), axe, ref), (c + Vector((0, 0.012, 0)), axe, ref), ((c + cbas) / 2, axe, ref), (cbas, axe, ref), (cbas + Vector((0, 0.004, 0)), axe, ref)]
     L.anneau(bm, cs, rs, 18, 4)
+    orienter(bm, list(bm.faces), TETE + Vector((0, 0.2, 0)), TETE - Vector((0, 0.2, 0)))
     o_bord = en_objet(bm, "bord")
     # rabats d'oreilles (cuir doublé de fourrure)
     rabats = []
@@ -612,13 +687,14 @@ def fourrure():
         axe2 = Vector((0, 1, 0))
         cs = []
         rs = []
-        for k, dy in enumerate([-0.03, -0.075, -0.115]):
-            cc = TETE + Vector((0, dy, -0.01))
+        for k, dy in enumerate([0.045, -0.01, -0.07]):
+            cc = TETE + Vector((0, dy, -0.012))
             cs.append((cc, axe2, (0, 0, 1)))
             rs.append(L.rayon_sur(cibles, cc, axe2, (0, 0, 1), 0.026 + 0.004 * k))
         th0 = math.pi / 2 if s > 0 else -math.pi / 2
         # arc autour de l'oreille (theta mesuré depuis +z vers +x)
         L.anneau(bm, cs, rs, 4, 5, ferme=False, arc=(th0 - 0.45, th0 + 0.45))
+        orienter(bm, list(bm.faces), TETE + Vector((0, 0.3, 0)), TETE - Vector((0, 0.3, 0)))
         epaissir_bords(bm, 0.008)
         rabats.append(en_objet(bm, "rabat"))
     o = fusion([o_dome, o_bord] + rabats, "casque_fourrure")
@@ -688,7 +764,7 @@ def plaque_torse(bm, y_haut, y_bas, arc_deg, partie, cible, ep=0.010, n=8, dos=F
 
 def os_draugr():
     # --- cuirasse_os : cuir noirci, côtes d'os en plaques sur la poitrine, échine d'os dans le dos, épaulières (omoplates)
-    base = torse_base("cuirasse_os", 430, jeu=0.012)
+    base = torse_base("cuirasse_os", 360, jeu=0.012)
     L.lisser_normales(base)
     base.data.update()
     cible = L.bvh_de(noms_heros=[], noms_quaternius=[], filtre=None) if False else None
@@ -697,19 +773,19 @@ def os_draugr():
     cible = mathutils.bvhtree.BVHTree.FromObject(base, bpy.context.evaluated_depsgraph_get())
     bm = bmesh.new()
     for i, (yh, yb, arc) in enumerate([(1.40, 1.35, 62), (1.33, 1.28, 66), (1.26, 1.21, 64), (1.19, 1.14, 58)]):
-        plaque_torse(bm, yh, yb, arc, 6, cible, 0.010, 8, False, 0.002 * i)
+        plaque_torse(bm, yh, yb, arc, 6, cible, 0.010, 6, False, 0.002 * i)
     # sternum
     for i, (yh, yb) in enumerate([(1.45, 1.40)]):
         plaque_torse(bm, yh, yb, 22, 6, cible, 0.012, 3)
     # échine (dos) : vertèbres
-    for i in range(4):
-        y = 1.40 - i * 0.075
+    for i in range(3):
+        y = 1.40 - i * 0.09
         plaque_torse(bm, y, y - 0.05, 16, 6, cible, 0.012, 2, True)
     o_pl = en_objet(bm, "plaques")
     poids_de(o_pl, "tunique", lambda p: abs(p.x) < 0.3, 1)
-    ep_l = epauliere("epo_l", "l", [(0.14, 0.30, 0.012, 100), (0.22, 0.37, 0.010, 85)], 7, 7)
-    ep_r = epauliere("epo_r", "r", [(0.14, 0.30, 0.012, 100), (0.22, 0.37, 0.010, 85)], 7, 7)
-    bel = ceinture("ceint", 0.935, 0.99, 0.012, 16)
+    ep_l = epauliere("epo_l", "l", [(0.14, 0.30, 0.012, 100), (0.22, 0.37, 0.010, 85)], 7, 5)
+    ep_r = epauliere("epo_r", "r", [(0.14, 0.30, 0.012, 100), (0.22, 0.37, 0.010, 85)], 7, 5)
+    bel = ceinture("ceint", 0.935, 0.99, 0.012, 12)
     o = fusion([base, o_pl, ep_l, ep_r, bel], "cuirasse_os")
 
     def mat(P, N, pa, bd):
@@ -728,24 +804,24 @@ def os_draugr():
 
     # --- casque_os : crâne de draugr en casque (orbites au-dessus du front), arcade, pommettes / mâchoire en couvre-joues
     cibles = L.bvh_de(["SuperHero_Male"], noms_heros=["peau"], filtre=lambda p: p.y > 1.50 and abs(p.x) < 0.2)
-    lignes = [90, 70, 50, 32, 16, 4]
+    lignes = [90, 70, 52, 38, 26, 10, -6]
 
     def jeu(th, ph):
         devant = max(0.0, math.cos(th))
-        return 0.018 + 0.012 * devant * max(0.0, 1 - abs(ph - 0.3) * 2)
+        return 0.018 + 0.010 * devant * max(0.0, 1 - abs(ph - 0.45) * 2)
 
     def garder(th, ph):
         t = abs(math.atan2(math.sin(th), math.cos(th)))
-        return not (t < math.radians(48) and ph < math.radians(10))
+        return not (t < math.radians(55) and ph < math.radians(24))
     bm = coque_tete("casque_os", lignes, 18, jeu, garder, cibles, 6)
     epaissir_bords(bm, 0.010)
     o_dome = en_objet(bm, "dome")
     # arcade (bourrelet sur le front) et couvre-joues
     bm = bmesh.new()
     axe, ref = (0, 1, 0), (0, 0, 1)
-    c0 = TETE + Vector((0, 0.035, 0))
-    c1 = TETE + Vector((0, 0.005, 0))
-    f0 = L.rayon_sur(cibles, c0, axe, ref, 0.026)
+    c0 = TETE + Vector((0, 0.128, -0.004))
+    c1 = TETE + Vector((0, 0.106, -0.004))
+    f0 = L.rayon_sur(cibles, c0, axe, ref, 0.024)
     f1 = L.rayon_sur(cibles, c1, axe, ref, 0.030)
     bande(bm, [(c0, axe, ref), (c1, axe, ref)], [f0, f1], 0.012, 10, 7, arc=(-1.1, 1.1), bombe=0.008)
     for s in (1, -1):
@@ -756,6 +832,7 @@ def os_draugr():
             rs.append(L.rayon_sur(cibles, cc, (0, 1, 0), (0, 0, 1), 0.022 + 0.004 * k))
         th0 = 0.95 * s
         L.anneau(bm, cs, rs, 3, 8, ferme=False, arc=(th0 - 0.32, th0 + 0.32))
+    orienter(bm, list(bm.faces), TETE + Vector((0, 0.3, 0)), TETE - Vector((0, 0.3, 0)))
     epaissir_bords(bm, 0.008)
     o_det = en_objet(bm, "arcade")
     o = fusion([o_dome, o_det], "casque_os")
@@ -766,10 +843,13 @@ def os_draugr():
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
         # orbites et cavité nasale du crâne, au-dessus du front du porteur
         ox = np.abs(x) - 0.038
-        orb = (pa == 6) & (z > 0.03) & ((ox ** 2) / 0.022 ** 2 + ((y - (TETE.y + 0.075)) ** 2) / 0.018 ** 2 < 1)
+        orb = (pa == 6) & (z > 0.03) & ((ox ** 2) / 0.021 ** 2 + ((y - (TETE.y + 0.088)) ** 2) / 0.016 ** 2 < 1)
         out[orb, :3] = L.rampe(OS, np.full(orb.sum(), 0.02))
-        nez = (pa == 6) & (z > 0.03) & (np.abs(x) < 0.012 - (TETE.y + 0.05 - y) * 0.3) & (y < TETE.y + 0.055) & (y > TETE.y + 0.025)
+        nez = (pa == 6) & (z > 0.03) & (np.abs(x) < 0.011 - (TETE.y + 0.07 - y) * 0.25) & (y < TETE.y + 0.072) & (y > TETE.y + 0.052)
         out[nez, :3] = L.rampe(OS, np.full(nez.sum(), 0.04))
+        # rangée de dents au bord de l'ouverture (mâchoire supérieure du crâne)
+        dents = (pa == 6) & (z > 0.04) & (bd < 0.022) & (bd > 0.004) & (y > TETE.y + 0.02)
+        out[dents & (np.mod(x * 90.0, 1.0) < 0.22), :3] *= 0.45
         # dents (couvre-joues : mâchoire) en alternance claire/sombre
         j = pa == 8
         den = j & (np.mod(y * 70.0, 1.0) < 0.25)
