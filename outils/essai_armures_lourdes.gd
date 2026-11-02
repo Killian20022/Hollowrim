@@ -503,6 +503,7 @@ func _scene_jeu() -> void:
 	j.basculer_vue(true)
 	var mg = j.mains.magie
 	mg.equiper("droite", "epee")
+	mg.equiper("gauche", Equipement.MAIN_VIDE)
 	await _attendre(1.0)
 
 func _equiper_ensemble(ids: Array) -> void:
@@ -523,31 +524,51 @@ func _capture(chemin: String) -> void:
 	img.save_png(chemin)
 	print("CAPTURE ", chemin)
 
+## Le héros face au soleil (vue de face éclairée), HUD caché.
+func _poser_au_soleil() -> void:
+	for c in root.find_children("*", "CanvasLayer", true, false):
+		c.visible = false
+	for l: DirectionalLight3D in root.find_children("*", "DirectionalLight3D", true, false):
+		if l.visible and l.light_energy > 0.3:
+			var sd := -l.global_transform.basis.z
+			sd.y = 0.0
+			if sd.length() > 0.01:
+				sd = sd.normalized()
+				j.rotation.y = atan2(sd.x, sd.z) + deg_to_rad(float(_arg("decal", "25")))
+			break
+
 func _planches() -> void:
 	await _scene_jeu()
+	_poser_au_soleil()
+	# mains vides pour les planches (pose de repos lisible, pas de torche devant l'armure) ; le film garde l'épée
+	j.mains.magie.equiper("gauche", Equipement.MAIN_VIDE)
+	if not args.has("--epee"):
+		j.mains.magie.equiper("droite", Equipement.MAIN_VIDE)
 	var sortie := _arg("sortie", ProjectSettings.globalize_path("res://captures/armures_lourdes"))
 	var ens := _arg("ensembles", "fer,acier,uniques_lourds,uniques_legers").split(",", false)
-	# caméra libre : face / 3-4 / dos autour du héros, hauteur de la caméra 3e personne
+	# caméra libre : face / 3-4 / dos autour du héros, puis buste en 3/4 ; vue de jeu (caméra 3e personne) à la fin
 	var cam := Camera3D.new()
-	cam.fov = 40.0
+	cam.fov = 38.0
 	root.add_child(cam)
 	for e in ens:
 		var ids: Array = ENSEMBLES.get(e, e.split("+"))
 		await _equiper_ensemble(ids)
 		await _attendre(0.6)
-		var c := j.global_position + Vector3(0, 1.0, 0)
+		var c := j.global_position + Vector3(0, 0.92, 0)
 		var avant := -j.global_transform.basis.z
-		for v in [["face", 0.0], ["34", 40.0], ["dos", 180.0]]:
+		for v in [["face", 0.0, 3.1, 0.0], ["34", 40.0, 3.1, 0.0], ["dos", 180.0, 3.1, 0.0], ["buste", 30.0, 1.35, 0.55], ["34dos", 140.0, 3.1, 0.0]]:
 			var d := avant.rotated(Vector3.UP, deg_to_rad(v[1]))
-			cam.global_position = c + d * 3.1 + Vector3(0, 0.35, 0)
-			cam.look_at(c, Vector3.UP)
+			var cc := c + Vector3(0, v[3], 0)
+			cam.global_position = cc + d * float(v[2]) + Vector3(0, 0.25, 0)
+			cam.look_at(cc, Vector3.UP)
 			cam.make_current()
-			await _attendre(0.25)
+			await _attendre(0.2)
 			await _capture("%s/%s_%s.png" % [sortie, e, v[0]])
 		# pièces au sol, posées devant le héros
 		var sol := Node3D.new()
 		scene.add_child(sol)
-		var x := -0.9
+		var droite := avant.cross(Vector3.UP).normalized()
+		var x := -0.75
 		for id: String in ids:
 			var ch := DOSSIER_SOL + id + ".glb"
 			if ResourceLoader.exists(ch):
@@ -557,22 +578,23 @@ func _planches() -> void:
 						var m0 := m.mesh.surface_get_material(s) as BaseMaterial3D
 						m.set_surface_override_material(s, materiau(m0.resource_name if m0 else "fer", m0.albedo_texture if m0 else null))
 				sol.add_child(p)
-				p.global_position = j.global_position + avant * 1.6 + avant.cross(Vector3.UP) * x
+				p.global_position = j.global_position + avant * 1.2 + droite * x
 				p.global_rotation.y = j.global_rotation.y + PI
-				x += 0.6
-		cam.global_position = j.global_position + avant * 3.2 + Vector3(0, 1.6, 0)
-		cam.look_at(j.global_position + avant * 1.6 + Vector3(0, 0.15, 0), Vector3.UP)
+				x += 0.5
+		j.visible = false
+		cam.global_position = j.global_position + avant * 2.4 + Vector3(0, 1.1, 0)
+		cam.look_at(j.global_position + avant * 1.2 + Vector3(0, 0.12, 0), Vector3.UP)
 		await _attendre(0.3)
 		await _capture("%s/%s_sol.png" % [sortie, e])
+		j.visible = true
 		sol.queue_free()
 		cam.clear_current()
-		# vue de jeu (caméra 3e personne du joueur, de dos)
-		j.camera_tp.set("_orbite", 0.0)
-		await _attendre(0.4)
-		await _capture("%s/%s_jeu.png" % [sortie, e])
 
 func _film() -> void:
 	await _scene_jeu()
+	_poser_au_soleil()
+	for c in root.find_children("*", "CanvasLayer", true, false):
+		c.visible = true
 	var ids: Array = ENSEMBLES.get(_arg("ensemble", "fer"), [])
 	await _equiper_ensemble(ids)
 	var mains = j.mains

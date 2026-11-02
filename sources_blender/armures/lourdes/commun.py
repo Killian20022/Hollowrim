@@ -502,6 +502,7 @@ FER_NOIR = ["#060607", "#0b0b0d", "#111214", "#18191c", "#202226", "#2a2c31", "#
 CUIR = ["#0f0905", "#190f09", "#25160d", "#321e12", "#402717", "#4f301d", "#603b24", "#72472c"]
 CUIR_ROUGE = ["#0e0404", "#1a0706", "#290b09", "#3a100c", "#4c1610", "#5e1d15", "#71261b", "#853224"]
 CUIR_CENDRE = ["#060505", "#0c0a09", "#14110f", "#1d1916", "#27221e", "#322c27", "#3e3731", "#4b423a"]
+FOURRURE_LOUP = ["#100e0c", "#1b1815", "#28231f", "#36302a", "#463e36", "#574d43", "#6a5e52", "#7d7063", "#918373"]
 FOURRURE = ["#1a1510", "#2a2219", "#3b3023", "#4d3f2e", "#605039", "#746246", "#887454", "#9c8865", "#b09c79"]
 FOURRURE_BLANCHE = ["#4a4a4c", "#5f5f62", "#757578", "#8b8b8e", "#a1a1a3", "#b6b5b5", "#c9c7c4", "#dad8d3", "#e8e6e0"]
 OXYDE = ["#24130a", "#3a1e0e", "#552c14", "#6e3a1b", "#87502a"]
@@ -601,7 +602,10 @@ def cuir(pal, g, base=0.5, couture=False):
         n = fbm(x, y, g, oct=((10, 0.5), (4, 0.3), (2, 0.2)))
         t = base + (n - 0.5) * 0.5
         t -= 0.15 * (1 if _h(x, y, g + 9) > 0.93 else 0)
-        return rampe(pal, t), 0.15 + 0.25 * n
+        use = fbm(x, y, g + 31, oct=((14, 0.6), (5, 0.4)))
+        if use > 0.68:                      # cuir élimé (plus clair, mat)
+            t += (use - 0.68) * 1.2
+        return rampe(pal, t), 0.08 + 0.18 * n * (1.0 if use < 0.68 else 0.4)
     return fn
 
 def fourrure(pal, g, base=0.55):
@@ -620,18 +624,23 @@ def laine(pal, g, base=0.55):
     return fn
 
 def ecailles(pal, g, base=0.5, braise=0.0, pal_braise=None):
-    """Écailles de cuir en rangs décalés (demi-disques de 8x6 px, bord bas sombre) ; braise : liserés incandescents dans les jours."""
+    """Écailles de cuir en rangs décalés qui se recouvrent (10x7 px) : chaque écaille s'éclaircit vers son bord bas arrondi (arête qui
+    accroche la lumière), ombre portée juste dessous, grain du cuir ; braise : fins liserés incandescents dans quelques jours."""
     def fn(x, y, u, v):
-        ry = y // 6
-        xx = (x + (ry % 2) * 4) % 8 - 3.5
-        yy = 5 - (y % 6)
-        d = (xx / 4.0) ** 2 + (yy / 6.0) ** 2
+        ry = y // 7
+        xx = (x + (ry % 2) * 5) % 10 - 4.5
+        yy = 6 - (y % 7)                       # 0 = bas de l'écaille (bord libre), 6 = haut (sous l'écaille du dessus)
+        bord = (xx / 5.0) ** 2 + ((yy - 6) / 7.0) ** 2   # ellipse ancrée en haut : bord bas arrondi
         n = fbm(x, y, g, oct=((8, 0.5), (3, 0.3), (1.5, 0.2)))
-        t = base + (n - 0.5) * 0.35 + 0.2 * (1.0 - min(d, 1.0)) - (0.35 if d > 0.85 else 0.0)
-        c = rampe(pal, t)
+        t = base + (n - 0.5) * 0.3 + 0.18 * (1.0 - yy / 6.0)
         b = 0.25 + 0.3 * n
-        if braise > 0 and d > 0.85 and _h(x, y, g + 5) < braise * (0.6 + 0.8 * bruit(x, y, 12, g + 8)):
-            c = rampe(pal_braise or BRAISE, 0.55 + 0.45 * _h(x, y, g + 6)); b = 0.0
+        if bord > 0.92:
+            t -= 0.28; b = 0.05                 # jour entre écailles (ombre)
+        elif bord > 0.78:
+            t += 0.12; b = 0.6                  # arête claire
+        c = rampe(pal, t)
+        if braise > 0 and bord > 0.92 and _h(x // 3, y, g + 5) < braise * bruit(x, y, 16, g + 8):
+            c = rampe(pal_braise or BRAISE, 0.35 + 0.5 * _h(x, y, g + 6)); b = 0.0
         return c, b
     return fn
 

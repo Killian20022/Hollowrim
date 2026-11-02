@@ -219,7 +219,7 @@ def cuirasse(r, st):
     t.zone(R_CEINT, C.cuir(st.get("pal_cuir", C.CUIR), g + 2, base=0.45))
     t.zone(R_EPAUL, st.get("peinture_plaques", C.metal(pal, g + 3, base=st.get("base", 0.55) + 0.03, contraste=0.3, rayures=0.7, oxyde=st.get("oxyde", 0.0),
                             crasse=st.get("crasse", 0.25), poli=st.get("poli", 0.7))))
-    t.zone(R_FOUR, C.fourrure(st.get("pal_fourrure", C.FOURRURE), g + 4))
+    t.zone(R_FOUR, C.fourrure(st.get("pal_fourrure", C.FOURRURE_LOUP), g + 4, base=st.get("base_fourrure", 0.4)))
     axeA, axeB = Vector((0, -0.005, 0.70)), Vector((0, -0.005, 1.60))
     H = axeB.z - axeA.z
     def tz(z):
@@ -230,9 +230,9 @@ def cuirasse(r, st):
     # --- cotte : jupe (enveloppe des cuisses + évasement), taille, puis haut (col) ; les plaques couvrent le milieu
     z_jupe = [st.get("z_ourlet", 0.74), 0.84, 0.94, 1.02] if not st.get("fourrure") else [st.get("z_ourlet", 0.74), 0.88, 1.02]
     zp0, zp1 = st.get("z_plaques", (1.04, 1.40))
-    z_haut = [zp1 - 0.02, 1.46, 1.505, 1.535]
+    z_haut = [zp1 - 0.02, 1.46, 1.505, 1.535, 1.562]
     def dec_maille(j, i, a):
-        return 0.012
+        return 0.012 if j < 4 else 0.009
     # jupe : mesurée sur le pantalon (pas sur les pans de la tunique), évasée vers le bas
     Pj, Rj, _ = C.tube(arbre_jambes, axeA, axeB, [tz(z) for z in z_jupe], n,
                        lambda j, i, a: 0.03 + 0.05 * (1.0 - j / (len(z_jupe) - 1.0)) ** 1.3 + (0.012 if math.cos(a) < 0 else 0.0), r_loin=0.6, dilate=2, lisse=3)
@@ -325,8 +325,10 @@ def cuirasse(r, st):
                 C.rivets(t, [(u1 - 4, y) for y in range(100, 128, 7)], pal)
     # --- col de fourrure (acier nordique, gardiens) : boudin autour des épaules et de la nuque
     if st.get("fourrure"):
-        Pf, Rf, _ = C.tube(arbre, axeA, axeB, [tz(1.44), tz(1.50), tz(1.555)], n,
-                           lambda j, i, a: (0.03, 0.055, 0.03)[j] + 0.01 * (_h_ang(i, 7) - 0.5), r_loin=0.6, dilate=2, lisse=1)
+        def dec_f(j, i, a):
+            dos = 0.5 * (1.0 - math.cos(a))          # 0 devant, 1 derrière : col épais sur la nuque et les épaules
+            return ((0.025, 0.045, 0.02)[j] + (0.03, 0.045, 0.025)[j] * dos ** 0.7) + 0.012 * (_h_ang(i, 7) - 0.5)
+        Pf, Rf, _ = C.tube(arbre, axeA, axeB, [tz(1.45), tz(1.51), tz(1.575)], n, dec_f, r_loin=0.6, dilate=2, lisse=1)
         P.grille(Pf, "fourrure", C.rect_uv(R_FOUR), inverser=True)
         # mèches qui pendent (dents) sur le bas du col
         for i in range(0, n, 1 if n * 3 < 40 else 2):
@@ -491,7 +493,7 @@ def bottes(r, st):
     g = st.get("graine", 9)
     pal = st["pal"]
     # atlas : botte (0,0)-(128,64) ; grève (0,64)-(64,128) ; genouillère (64,64)-(128,104) ; semelle (64,104)-(128,128)
-    t.zone((0, 0, 128, 64), st.get("peinture_botte", C.cuir(st.get("pal_cuir", C.CUIR), g, base=0.42)))
+    t.zone((0, 0, 128, 64), st.get("peinture_botte", C.cuir(st.get("pal_cuir", C.CUIR), g, base=0.36)))
     t.zone((0, 64, 64, 128), st.get("peinture_greve") or C.metal(pal, g + 1, base=st.get("base", 0.55), contraste=0.3, rayures=0.6, oxyde=st.get("oxyde", 0.0),
                                      crasse=st.get("crasse", 0.35), poli=st.get("poli", 0.7)))
     t.zone((64, 64, 128, 104), C.metal(pal, g + 2, base=st.get("base", 0.55) + 0.04, contraste=0.3, crasse=0.25, poli=st.get("poli", 0.7)))
