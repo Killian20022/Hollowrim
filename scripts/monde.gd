@@ -681,6 +681,7 @@ func _villageois() -> void:
 	add_child(quetes)
 	hud.quetes = quetes
 	village.activer_interieurs(joueur, dialogue)   # portes des maisons (touche E)
+	services.poser(village, dialogue)              # lot E RPG : coffre loué chez Grima, coffre et râtelier de la maison
 	_uniques_village()
 	var promenade: Array = village.promenade
 	var rng_pts := RandomNumberGenerator.new()
@@ -1191,6 +1192,7 @@ func _neige() -> void:
 var inventaire_ui: InventaireMains
 var fenetre_butin: FenetreButin
 var marchand: Marchand
+var services: ServicesPnj
 func _interface() -> void:
 	calque = CanvasLayer.new()
 	add_child(calque)
@@ -1222,6 +1224,11 @@ func _interface() -> void:
 	marchand.hud = hud
 	marchand.monde = self
 	add_child(marchand)
+	services = ServicesPnj.new()   # lot E RPG : coffre sûr ↔ sac, forge de Brodd, maison, réinitialisation (scripts/rpg/services_pnj.gd)
+	services.joueur = joueur
+	services.hud = hud
+	services.monde = self
+	add_child(services)
 	var pause := CanvasLayer.new()   # menu pause (Échap) : scripts/menu_pause.gd
 	pause.set_script(preload("res://scripts/menu_pause.gd"))
 	pause.monde = self

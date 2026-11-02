@@ -3,8 +3,11 @@ extends RefCounted
 ## Coffres sûrs du joueur (Q9 c) : coffre loué chez Grima dès le début, coffre de la maison (à acheter, ~1500 pièces).
 ## Contenu sauvegardé tel quel (clé « stockage », version 2), jamais renouvelé. Les coffres du monde restent « prendre
 ## seulement » (ButinTables, FenetreButin). État statique comme Marchand (une seule partie à la fois).
-## LOT 0 : registre, transfert, sauvegarde. LOT E (propriétaire de ce fichier) : fenêtre de transfert à deux colonnes, coffre
-## posé dans un intérieur, achat de la maison, râtelier. Contrat : docs/RPG.md §4.
+## LOT 0 : registre, transfert, sauvegarde. LOT E (propriétaire de ce fichier) : fenêtre de transfert à deux pages (FenetreCoffre),
+## coffres posés dans les intérieurs, achat de la maison, râtelier (ServicesPnj). Contrat : docs/RPG.md §4.
+## Maison à acheter : la maison des Frostmark (intérieur « chasseurs » du village : Ylva loge aux séchoirs depuis qu'Eirik a
+## disparu), vendue par Gunnhild, la cheffe, PRIX_MAISON pièces ; l'acheteur reçoit la clé (objet de quête cle_maison,
+## data/objets/stockage.json) ; coffre et râtelier de la maison accessibles ensuite.
 
 
 ## Coffres connus : id -> {nom, acces}. acces = « depart » (dispo dès le début) | « maison » (après achat).
@@ -13,6 +16,10 @@ const COFFRES := {
 	"coffre_maison": {"nom": "Coffre de la maison", "acces": "maison"},
 }
 const PRIX_MAISON := 1500
+## Intérieur du village (Village.interieur(id)) qui devient la maison du joueur, et son nom une fois achetée.
+const MAISON := "chasseurs"
+const NOM_MAISON := "Maison des Frostmark"
+const CLE_MAISON := "cle_maison"
 
 static var _coffres := {}          # id -> Conteneur
 static var maison_achetee := false
@@ -49,6 +56,25 @@ static func transferer(de: Conteneur, vers: Conteneur, id: String, n := 1) -> St
 		return r
 	de.retirer(id, n)
 	vers.ajouter(id, n)
+	return ""
+
+## "" si le joueur peut acheter la maison maintenant, sinon la raison.
+static func refus_achat_maison(inv: Conteneur) -> String:
+	if maison_achetee:
+		return "La maison est déjà à vous."
+	if inv == null or inv.pieces < PRIX_MAISON:
+		return "Il faut %d pièces (vous en avez %d)." % [PRIX_MAISON, 0 if inv == null else inv.pieces]
+	return ""
+
+## Achète la maison : paie PRIX_MAISON, donne la clé, ouvre le coffre de la maison. "" si fait, sinon la raison.
+static func acheter_maison(inv: Conteneur) -> String:
+	var r := refus_achat_maison(inv)
+	if r != "":
+		return r
+	inv.retirer("pieces", PRIX_MAISON)
+	if Inventaire.connu(CLE_MAISON) and not inv.a(CLE_MAISON):
+		inv.ajouter(CLE_MAISON, 1)
+	maison_achetee = true
 	return ""
 
 ## Nouvelle partie.
