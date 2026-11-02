@@ -80,7 +80,7 @@ func _tester() -> void:
 	var d: Vector3 = sac.global_position - j.global_position
 	var devant: float = d.x * av.x + d.z * av.z
 	_verif(devant > 0.8 and devant < 1.6 and sac.contenu == {"potion_soin": 1}, "il tombe devant le joueur (%.2f m) avec 1 potion" % devant)
-	_verif(sac.a_fouille() and sac.find_children("*", "MeshInstance3D", true, false).size() >= 2, "sac visible et invite « Fouiller » posée")
+	_verif(sac.a_fouille() and sac.find_children("*", "MeshInstance3D", true, false).size() >= 1, "objet lâché visible (glb de la potion : 1 maillage) et invite « Fouiller » posée")
 	_verif(ButinTables.a_reste(sac.cle_sauvegarde) and ButinTables.corps.has(sac.cle_sauvegarde), "sac enregistré pour la sauvegarde (clé %s)" % sac.cle_sauvegarde)
 
 	await _capture("lacher_sac_au_sol.png")      # (le sac est devant, sous la ligne de visée : peu visible en vue subjective)
@@ -99,7 +99,7 @@ func _tester() -> void:
 	await _images(3)
 	var apres := _sacs()
 	_verif(apres.size() == 1 and apres[0].global_position.distance_to(pos) < 0.05 and apres[0].contenu == {"potion_soin": 1}, "partie rechargée : le sac est reposé au même endroit, même contenu")
-	_verif(apres[0].find_children("*", "MeshInstance3D", true, false).size() >= 2, "le sac rechargé est visible")
+	_verif(apres[0].find_children("*", "MeshInstance3D", true, false).size() >= 1, "l'objet lâché rechargé est visible")
 
 	# --- ramasser : le sac se vide dans l'inventaire
 	var avant_p := inv.nombre("potion_soin")

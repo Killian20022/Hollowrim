@@ -1,8 +1,11 @@
 extends SceneTree
-## Objets physiques dans le monde (scripts/rpg/objet_monde.gd, etal_marchand.gd, bijoux_materiaux.gd ; Lacher / Butin « lache: ») :
+## Objets physiques dans le monde (scripts/rpg/objet_monde.gd, etal_marchand.gd, bijoux_materiaux.gd, objets_divers_materiaux.gd ;
+## Lacher / Butin « lache: ») :
 ##   godot --headless --path . --script res://outils/test_objets_monde.gd -- --nouvelle
 
 const SCENE := preload("res://scenes/foret_test.tscn")
+## Fichiers dont CHAQUE fiche a un modèle glb (objets divers : sources_blender/objets/objets_divers.py).
+const DIVERS := ["consommables", "ingredients", "divers", "quete"]
 const BIJOUX := ["amulette_givre", "amulette_ours", "amulette_arcaniste", "collier_portefaix", "anneau_coureur", "anneau_adepte",
 	"anneau_braise", "anneau_orage", "anneau_berserker", "anneau_marchand"]
 
@@ -24,6 +27,55 @@ func _images(n: int) -> void:
 
 func _mailles(n: Node) -> Array:
 	return n.find_children("*", "MeshInstance3D", true, false)
+
+## Objets divers (potions, vivres, tomes, ingrédients, divers, quête) : chaque fiche a son glb (champ modele), pivot au sol, taille
+## réelle, 80-650 triangles, toutes les surfaces en shader_matiere (aucun matériau importé brut), pas de repli sacoche.
+func _tester_divers() -> void:
+	var ids: Array = []
+	for f: String in DIVERS:
+		var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/objets/%s.json" % f))
+		ids.append_array((d["objets"] as Dictionary).keys())
+	var manque: Array = []
+	var mats: Array = []
+	var budget: Array = []
+	for oid: String in ids:
+		var c := String(Inventaire.objet(oid).get("modele", ""))
+		if c != "res://assets/modeles/objets/%s.glb" % oid or ObjetMonde.chemin_modele(oid) != c:
+			manque.append(oid)
+			continue
+		var v := ObjetMonde.visuel(oid, "studio")
+		root.add_child(v)
+		if v.has_meta("repli"):
+			manque.append(oid + " (repli)")
+		var tris := 0
+		for mi: MeshInstance3D in _mailles(v):
+			for s in mi.mesh.get_surface_count():
+				tris += mi.mesh.surface_get_array_index_len(s) / 3
+				var m := mi.get_surface_override_material(s) as ShaderMaterial
+				if m == null or m.shader == null or m.get_shader_parameter("mt_metal") == null:
+					mats.append("%s:%s" % [oid, mi.mesh.surface_get_material(s).resource_name if mi.mesh.surface_get_material(s) else "?"])
+		if tris < 80 or tris > 650:
+			budget.append("%s=%d" % [oid, tris])
+		var bx := ObjetMonde.boite(v, Transform3D.IDENTITY)
+		if absf(bx.position.y) > 0.002 or maxf(bx.size.x, bx.size.z) > 0.65 or maxf(bx.size.x, bx.size.z) < 0.02:
+			manque.append("%s (boîte %s)" % [oid, bx])
+		v.free()
+	_verif(ids.size() >= 41 and manque.is_empty(), "%d objets divers : champ modele = glb, pivot au sol, taille réelle (%s)" % [ids.size(), str(manque)])
+	_verif(mats.is_empty(), "objets divers : toutes les surfaces en shader_matiere (%s)" % str(mats))
+	_verif(budget.is_empty(), "objets divers : 80 à 650 triangles chacun (%s)" % str(budget))
+	var vv := ObjetMonde.visuel("potion_soin", "sol")
+	var noms := []
+	for mi: MeshInstance3D in _mailles(vv):
+		for s in mi.mesh.get_surface_count():
+			noms.append(mi.mesh.surface_get_material(s).resource_name)
+	var verre := ObjetsDiversMateriaux.materiaux()["verre"] as ShaderMaterial
+	_verif("verre" in noms and "liquide_soin" in noms and float(verre.get_shader_parameter("mt_opacite")) < 0.5,
+		"potion : fiole de verre translucide + liquide rouge visible au travers (%s)" % str(noms))
+	vv.free()
+	var a0 := ObjetMonde.boite(ObjetMonde.visuel("anneau_cuivre", "studio"), Transform3D.IDENTITY).size.x
+	var a1 := ObjetMonde.boite(ObjetMonde.visuel("anneau_cuivre", "sol"), Transform3D.IDENTITY).size.x
+	_verif(a1 > a0 * 2.5, "anneau de cuivre (divers) exagéré au sol comme un bijou (×%.2f)" % (a1 / a0))
+	await _images(1)
 
 func _tester() -> void:
 	# --- bijoux : fiche, glb, matériaux, pivot au sol
@@ -67,11 +119,9 @@ func _tester() -> void:
 	var br := ObjetMonde.boite(ra, Transform3D.IDENTITY)
 	_verif(br.size.y > 0.7 and absf(br.position.y) < 0.002, "épée au râtelier : debout, pommeau à y = 0 (hauteur %.2f)" % br.size.y)
 	ra.free()
-	var po := ObjetMonde.visuel("potion_soin", "sol")
-	_verif(not po.has_meta("repli") and _mailles(po).size() >= 3, "potion : fiole en primitives (pas la sacoche)")
-	po.free()
-	var mi := ObjetMonde.visuel("minerai_fer", "sol")
-	_verif(mi.has_meta("repli") and _mailles(mi).size() >= 3, "objet sans modèle (minerai) : repli sacoche")
+	await _tester_divers()
+	var mi := ObjetMonde.visuel("objet_inconnu_test", "sol")
+	_verif(mi.has_meta("repli") and _mailles(mi).size() >= 3, "objet sans modèle : repli sacoche")
 	mi.free()
 	var nb_armures := 0
 	var avec_sol := 0
@@ -88,11 +138,12 @@ func _tester() -> void:
 	# --- étal : choix des pièces exposées
 	var stock := {"epee_or": 1, "epee_rubis": 1, "minerai_fer": 5, "casque_fer": 1, "anneau_cuivre": 2, "bouclier_cercle": 1, "dague_acier": 1, "claymore": 1}
 	var ch := EtalMarchand.choisir(stock)
-	var ok_ch := ch.size() <= EtalMarchand.MAX_PIECES and ch.size() >= 2 and not ("minerai_fer" in ch)
+	var ok_ch := ch.size() <= EtalMarchand.MAX_PIECES and ch.size() >= 2
 	for oid in ch:
 		ok_ch = ok_ch and ObjetMonde.a_modele(oid)
 	_verif(ok_ch and EtalMarchand._nb_longues(ch) <= EtalMarchand.MAX_LONGUES, "étal : %d pièces à modèle, variées, 2 armes couchées au plus (%s)" % [ch.size(), ", ".join(ch)])
-	_verif(EtalMarchand.choisir({"potion_soin": 3, "tome_lance_givre": 1, "pain_seigle": 4, "champignon_lumineux": 2}).size() == 3, "étal de Grima : fiole, livre, miche (pas le champignon)")
+	var gr := EtalMarchand.choisir({"potion_soin": 3, "tome_lance_givre": 1, "pain_seigle": 4, "champignon_lumineux": 2})
+	_verif(gr.size() == 4, "étal de Grima : fiole, livre, miche et champignon, tous en glb (%s)" % ", ".join(gr))
 
 	# --- en jeu : lâcher un bijou -> l'objet au sol ; objet ramassable ; étals posés au village
 	ButinTables.reinitialiser()
