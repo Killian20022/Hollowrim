@@ -91,8 +91,10 @@ const COMPETENCES := {
 ## du niveau 15 au niveau 100) : 0,6 avant ; ramené à 0,3 pour ne pas écraser l'équilibrage en fin de partie.
 const GAIN_COMPETENCE_EPEE := 0.3
 
+## Valeur de base × multiplicateur de l'arbre du joueur courant (Progression.mult_global : 1,0 sans joueur ou sans perk).
+## Tous les appelants (DegatsCombat, LanceurSorts, CalculDegats, joueur.recevoir_coup) reçoivent ainsi les perks sans changer.
 static func competence(nom: String) -> float:
-	return float(COMPETENCES.get(nom, 1.0))
+	return float(COMPETENCES.get(nom, 1.0)) * Progression.mult_global(nom)
 
 ## Compétence d'arme d'une famille de DonneesArme.
 static func competence_arme(famille: String, deux_mains := false) -> float:

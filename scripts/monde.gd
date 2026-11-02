@@ -227,6 +227,7 @@ func _ready() -> void:
 		_musique()
 	ButinTables.reinitialiser()   # nouvelle partie : aucun contenant pillé (charger() relit l'état de la sauvegarde)
 	Marchand.reinitialiser()      # lot L8 : stocks et bourses des marchands neufs, horloge à 0
+	Stockage.reinitialiser()      # RPG : coffres sûrs vides
 	if not _arguments().has("capture") and not _arguments().has("nouvelle") and not _arguments().has("persos-tous") and not Jeu.nouvelle_partie:
 		charger()
 	if not _arguments().has("capture"):
@@ -1279,13 +1280,15 @@ func sauvegarder() -> void:
 		if v.get("deja_parle"):
 			parles.append(v.donnees.get("id", ""))
 	var donnees := {
-		"version": 1,
+		"version": Migration.VERSION,   # 2 : RPG (docs/RPG.md §7) ; les v1 sont migrées à la lecture (Migration)
 		"joueur": {
 			"position": [joueur.position.x, joueur.position.y, joueur.position.z],
 			"lacet": joueur.rotation.y, "vie": joueur.vie, "vigueur": joueur.vigueur,
 		},
 		"heure": cycle.heure,
-		"competences": joueur.competences.exporter(),
+		"progression": joueur.progression.exporter(),   # niveau, points, attributs, perks, compétences (noms canoniques)
+		"equipement_corps": joueur.equipement_corps.exporter(),
+		"stockage": Stockage.exporter(),   # coffres sûrs (Grima, maison) : lot E
 		"quetes": quetes.exporter(),
 		"herse": tertre._herse_ouverte,
 		"dragon_vaincu": dragon_vaincu,
@@ -1309,6 +1312,7 @@ func charger() -> void:
 	if not d is Dictionary:
 		push_warning("Sauvegarde illisible, nouvelle partie.")
 		return
+	d = Migration.migrer(d)   # v1 -> v2 (niveau recalculé, points à dépenser) avant tout importer()
 	var j: Dictionary = d.get("joueur", {})
 	var p: Array = j.get("position", [])
 	if p.size() == 3:
@@ -1318,8 +1322,10 @@ func charger() -> void:
 	joueur.vie = float(j.get("vie", joueur.vie_max))
 	joueur.vigueur = float(j.get("vigueur", joueur.vigueur_max))
 	cycle.heure = float(d.get("heure", cycle.heure))
-	joueur.competences.importer(d.get("competences", {}))
+	joueur.progression.importer(d.get("progression", {}))
 	joueur.inventaire.importer(d.get("inventaire", {}))
+	joueur.equipement_corps.importer(d.get("equipement_corps", {}))   # après le sac (objets portés = objets du sac)
+	Stockage.importer(d.get("stockage", {}))
 	ButinTables.importer(d.get("butin", {}))
 	preload("res://scripts/butin.gd").restaurer(self, joueur, hud)      # corps fouillables d'ennemis tués (objets laissés)
 	Marchand.importer(d.get("marchands", {}))

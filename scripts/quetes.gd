@@ -130,6 +130,7 @@ func _completer(q: Dictionary, i: int) -> void:
 		for id in remis:
 			joueur.inventaire.retirer(id, remis[id])
 		var r: Dictionary = q.get("recompense", {})
+		joueur.progression.gagner_xp(float(r.get("xp", Progression.XP_QUETE_DEFAUT)))   # RPG : XP de niveau (lot B : recompense.xp)
 		if int(r.get("pieces", 0)) > 0:
 			joueur.inventaire.ajouter("pieces", int(r["pieces"]))
 			hud.avis("+ %d pièces" % int(r["pieces"]))

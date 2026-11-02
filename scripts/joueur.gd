@@ -28,10 +28,12 @@ var vie := 100.0
 var vie_max := 100.0
 const VIE_BASE := 100.0
 const BONUS_BENEDICTION := 10.0
+var benediction := false
 
 ## Bénédiction des ancêtres (choix « respecter les offrandes », quetes.gd) : +10 vie max permanents, jamais cumulés.
 func regler_benediction(active: bool, soigner := false) -> void:
-	vie_max = VIE_BASE + (BONUS_BENEDICTION if active else 0.0)
+	benediction = active
+	recalculer_stats()
 	if soigner and active:
 		vie = minf(vie_max, vie + BONUS_BENEDICTION)
 	vie = minf(vie, vie_max)
@@ -86,8 +88,10 @@ var degats_dernier_coup := 0.0
 ## Ralentissement (givre du mage, onde du troll) : durée restante (s) et facteur de vitesse (le plus fort l'emporte).
 var lenteur := 0.0
 var lenteur_facteur := 1.0
-var competences := Competences.new()
+var progression := Progression.new()   # RPG (docs/RPG.md) : niveau, points, attributs, perks, compétences
+var competences: Competences = progression.competences   # alias historique (mains.gd, hud.gd…)
 var inventaire := Inventaire.new()
+var equipement_corps := EquipementCorps.new(inventaire)   # tete, torse, mains, pieds, cou, anneau (lot A : effets)
 ## Potions et nourriture en cours (effets progressifs, délais) : scripts/effets_potions.gd.
 var potions := EffetsPotions.new()
 ## Poids du sac au-dessus de la capacité : marche lente, pas de course. `avis` : texte pour le HUD (branché par le monde).
@@ -115,6 +119,10 @@ var _t := 0.0
 
 func _ready() -> void:
 	_actions()
+	progression.equipement_corps = equipement_corps
+	progression.activer()   # ReglagesCombat.competence() lit les perks de ce joueur
+	progression.change.connect(recalculer_stats)
+	equipement_corps.change.connect(func(_e: String) -> void: recalculer_stats())
 	floor_snap_length = 0.4
 	var forme := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
@@ -206,6 +214,17 @@ func retenir_mana() -> void:
 	_repos_mana = maxf(_repos_mana, DELAI_MANA)
 
 ## Soin (sort de soin, drain, combo « moisson »).
+## Maxima recalculés (jamais stockés) : base + attributs du niveau + bonus (équipement, perks) + bénédiction ; charge du
+## sac. Appelé sur Progression.change et EquipementCorps.change. Les jauges courantes sont seulement bornées.
+func recalculer_stats() -> void:
+	vie_max = VIE_BASE + progression.bonus_vie() + (BONUS_BENEDICTION if benediction else 0.0)
+	mana_max = 100.0 + progression.bonus_magie()
+	vigueur_max = 100.0 + progression.bonus_vigueur()
+	inventaire.capacite_bonus = progression.bonus_charge()
+	vie = minf(vie, vie_max)
+	mana = minf(mana, mana_max)
+	vigueur = minf(vigueur, vigueur_max)
+
 func soigner(quantite: float) -> void:
 	if mort or quantite <= 0.0:
 		return

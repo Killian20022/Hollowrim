@@ -1,124 +1,92 @@
 class_name Inventaire
-extends RefCounted
-## Sac du joueur : objets empilés par identifiant, plus les pièces.
-## Catalogue = OBJETS (ci-dessous) + data/butin/objets.json (consommables, armes et tomes trouvables : docs/BUTIN.md)
-## + CatalogueArmes (data/armes/catalogue_armes.json : hybrides et armes CC0, stats par famille x matériau) ;
-## lire un objet par Inventaire.objet(id) / Inventaire.connu(id), jamais OBJETS seul.
+extends Conteneur
+## Sac du joueur (Conteneur : objets empilés par identifiant + pièces) ET registre unique des fiches d'objets.
+## Registre = data/objets/*.json (un fichier par catégorie, docs/RPG.md §2) + CatalogueArmes (data/armes/catalogue_armes.json :
+## les 20 armes famille x matériau, fiches calculées). Lire une fiche par Inventaire.objet(id) / Inventaire.connu(id).
+## (Avant le lot 0 RPG : constante OBJETS du code + data/butin/objets.json ; mêmes identifiants, mêmes fiches.)
 
-signal change
+const DOSSIER_OBJETS := "res://data/objets/"
+## Catégories (champ `categorie` des fiches) ; absent = « divers ».
+const CATEGORIES := ["arme", "armure", "bijou", "consommable", "ingredient", "quete", "divers"]
+## Emplacements de corps (champ `emplacement` des armures et bijoux) : EquipementCorps. Les mains restent à EquipementMains.
+const EMPLACEMENTS := ["tete", "torse", "mains", "pieds", "cou", "anneau"]
+## Identifiants renommés : ancien -> nouveau (sauvegardes, conteneurs). Aucun renommage à ce jour ; ne jamais en retirer une ligne.
+const ALIAS := {}
 
-const OBJETS := {
-	"os_draugr": {"nom": "Os de draugr", "poids": 0.5, "valeur": 2},
-	"poussiere_tombe": {"nom": "Poussière de tombe", "poids": 0.1, "valeur": 6},
-	"lame_antique": {"nom": "Lame antique ébréchée", "poids": 8.0, "valeur": 25},
-	"amulette_givre": {"nom": "Amulette de givre", "poids": 0.3, "valeur": 40},
-	"anneau_givre": {"nom": "Anneau de givre", "poids": 0.1, "valeur": 0},
-	"amulette_eirik": {"nom": "Amulette d’Eirik", "poids": 0.2, "valeur": 0},
-	"epee_skarnholt": {"nom": "Épée de Skarnholt", "poids": 9.0, "valeur": 120, "rarete": "unique"},      # L9 : uniques posés dans le monde (ObjetUnique)
-	"ecaille_dragon": {"nom": "Écaille de dragon", "poids": 2.0, "valeur": 80},
-	# donjons : objets de quête (valeur 0) et objets de valeur ; consommables (potions, nourriture) : data/butin/objets.json
-	"fragment_sceau_os": {"nom": "Fragment du sceau des Os", "poids": 0.6, "valeur": 0},
-	"fragment_sceau_givre": {"nom": "Fragment du sceau du Givre", "poids": 0.6, "valeur": 0},
-	"fragment_sceau_eau": {"nom": "Fragment du sceau de l’Eau", "poids": 0.6, "valeur": 0},
-	"cle_archives": {"nom": "Clé des archives", "poids": 0.2, "valeur": 0},
-	"minerai_fer": {"nom": "Minerai de fer", "poids": 3.0, "valeur": 12},
-	"minerai_argent": {"nom": "Minerai d’argent", "poids": 2.5, "valeur": 45},
-	"cristal_givre": {"nom": "Cristal de givre", "poids": 0.8, "valeur": 70},
-	"champignon_lumineux": {"nom": "Champignon lumineux", "poids": 0.1, "valeur": 8},
-	"relique_offrande": {"nom": "Relique d’offrande royale", "poids": 1.5, "valeur": 90},
-	"registre_hrafn": {"nom": "Registre de Hrafn", "poids": 0.8, "valeur": 0},
-	"journal_sigrun": {"nom": "Journal de Solveig", "poids": 0.3, "valeur": 0},
-	"broche_sigrun": {"nom": "Broche de Solveig", "poids": 0.1, "valeur": 0},
-	"hache_kolbeinn": {"nom": "Hache de Kolbeinn le Gelé", "poids": 7.0, "valeur": 200, "rarete": "unique"},
-	"fourrure_troll": {"nom": "Fourrure de troll givrée", "poids": 4.0, "valeur": 60},
-	"croc_troll": {"nom": "Croc de troll", "poids": 0.3, "valeur": 18},
-}
+## Toutes les fiches de data/objets/ (id -> fiche), lues une fois au chargement du script. Garde le nom historique OBJETS
+## (dragon.gd, quetes.gd, mecanisme.gd, tests) ; _butin = même dictionnaire (compatibilité de test_marchands).
+static var OBJETS: Dictionary = _lire_registre()
+static var _butin: Dictionary = OBJETS
 
-const FICHIER_BUTIN := "res://data/butin/objets.json"
-static var _butin := {}
-static var _butin_lu := false
+static func _lire_registre() -> Dictionary:
+	var tout := {}
+	var fichiers := Array(DirAccess.get_files_at(DOSSIER_OBJETS))
+	fichiers.sort()
+	for f: String in fichiers:
+		if not f.ends_with(".json"):
+			continue
+		var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(DOSSIER_OBJETS + f))
+		if not d is Dictionary:
+			push_warning("Objets : %s illisible" % f)
+			continue
+		var o: Dictionary = d.get("objets", {})
+		for id in o:
+			if tout.has(id):
+				push_warning("Objets : %s défini deux fois (%s)" % [id, f])
+			tout[id] = o[id]
+	return tout
 
-var pieces := 0
-var objets := {}
-
-## Fiche d'un objet : {nom, poids, valeur, [rarete, categorie, icone, effets]} ; {} si inconnu.
+## Fiche d'un objet : {nom, poids, valeur, categorie, rarete, [emplacement, armure, type_armure, icone, effets, quete,
+## description]} ; {} si inconnu. Ne pas modifier le dictionnaire rendu (partagé).
 static func objet(id: String) -> Dictionary:
 	if OBJETS.has(id):
 		return OBJETS[id]
-	if not _butin_lu:   # publié d'un coup puis marqué lu (lecture possible depuis le fil de construction de la crypte)
-		var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(FICHIER_BUTIN)) if FileAccess.file_exists(FICHIER_BUTIN) else null
-		_butin = d.get("objets", {}) if d is Dictionary else {}
-		_butin_lu = true
-	if _butin.has(id):
-		return _butin[id]
 	return CatalogueArmes.fiche_objet(id)   # armes trouvables (data/armes/catalogue_armes.json) : 20 armes, stats par famille et matériau
+
+static func fiche(id: String) -> Dictionary:
+	return objet(id)
 
 static func connu(id: String) -> bool:
 	return not objet(id).is_empty()
 
-## Catégorie d'un objet du sac : « consommable », « arme » ou « divers » (défaut).
-static func categorie_de(id: String) -> String:
-	return String(objet(id).get("categorie", "divers"))
+## Identifiant actuel d'un identifiant peut-être renommé (ALIAS).
+static func alias(id: String) -> String:
+	var vu := 0
+	while ALIAS.has(id) and vu < 8:
+		id = String(ALIAS[id])
+		vu += 1
+	return id
 
-## Identifiants du sac d'une catégorie, dans l'ordre d'arrivée.
-func ids_de(categorie: String) -> Array[String]:
+## Tous les identifiants connus (registre + catalogue d'armes), registre d'abord.
+static func ids_connus() -> Array[String]:
 	var r: Array[String] = []
-	for id in objets:
-		if categorie_de(id) == categorie:
+	for id in OBJETS:
+		r.append(String(id))
+	for id in CatalogueArmes.ids():
+		if not OBJETS.has(id):
 			r.append(String(id))
 	return r
 
-func nombre(id: String) -> int:
-	return pieces if id == "pieces" else int(objets.get(id, 0))
+## Catégorie d'un objet : une de CATEGORIES (« divers » par défaut).
+static func categorie_de(id: String) -> String:
+	return String(objet(id).get("categorie", "divers"))
 
-func ajouter(id: String, nombre := 1) -> void:
-	if id == "pieces":
-		pieces += nombre
-	else:
-		objets[id] = objets.get(id, 0) + nombre
-	change.emit()
+## Emplacement de corps ("" si l'objet ne se porte pas sur le corps).
+static func emplacement_de(id: String) -> String:
+	return String(objet(id).get("emplacement", ""))
 
-func retirer(id: String, nombre := 1) -> void:
-	objets[id] = objets.get(id, 0) - nombre
-	if objets[id] <= 0:
-		objets.erase(id)
-	change.emit()
-
-func a(id: String) -> bool:
-	return objets.get(id, 0) > 0
-
-func nom(id: String) -> String:
-	return "pièces" if id == "pieces" else String(objet(id).get("nom", id))
-
-func poids() -> float:
-	var total := 0.0
-	for id in objets:
-		total += float(objet(id).get("poids", 0.0)) * objets[id]
-	return total
+## Objet de quête : invendable, impossible à lâcher ou à déposer.
+static func est_quete(id: String) -> bool:
+	return bool(objet(id).get("quete", false))
 
 ## Capacité du sac (poids) : au-delà, le joueur est surchargé (marche lente, pas de course). Les poids vont de 0,1 (anneau) à 10 (épée).
 const CAPACITE := 100.0
 
+## Bonus de charge (attribut vigueur, perks, bijoux) posé par joueur.recalculer_stats() ; 0 tant que rien ne le change.
+var capacite_bonus := 0.0
+
 func capacite() -> float:
-	return CAPACITE
+	return CAPACITE + capacite_bonus
 
 func surcharge() -> bool:
 	return poids() > capacite() + 0.001
-
-## Combien d'exemplaires de `id` le sac peut encore recevoir sans dépasser la capacité (grand nombre si l'objet ne pèse rien).
-func place_pour(id: String) -> int:
-	var w := float(objet(id).get("poids", 0.0))
-	if id == "pieces" or w <= 0.0:
-		return 9999
-	return maxi(0, int(floorf((capacite() - poids() + 0.001) / w)))
-
-func exporter() -> Dictionary:
-	return {"pieces": pieces, "objets": objets.duplicate()}
-
-func importer(d: Dictionary) -> void:
-	pieces = int(d.get("pieces", 0))
-	objets = {}
-	for id in d.get("objets", {}):
-		if connu(id):
-			objets[id] = int(d["objets"][id])
-	change.emit()

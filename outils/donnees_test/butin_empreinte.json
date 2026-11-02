@@ -1,0 +1,155 @@
+{
+	"_doc": "Empreinte des tables de butin au lot 0 RPG (2026-11-02) : test_rpg_socle vérifie que chaque table COMMENCE toujours par ces entrées, dans cet ordre (graine fixe : une entrée insérée au milieu change le contenu des coffres déjà vus). Nouvelle entrée = EN FIN de table. Ne modifier ce fichier que pour y ajouter des tables neuves.",
+	"tables": {
+		"cadavre_draugr": [
+			"poussiere_tombe",
+			"lame_antique",
+			"potion_soin",
+			"table:armes_communes",
+			"table:valeurs"
+		],
+		"cadavre_bandit": [
+			"table:nourriture",
+			"table:potions",
+			"anneau_cuivre",
+			"lame_antique",
+			"table:armes_communes"
+		],
+		"cadavre_mage": [
+			"potion_mana",
+			"amulette_givre",
+			"table:tomes"
+		],
+		"cadavre_troll": [
+			"croc_troll",
+			"cristal_givre"
+		],
+		"coffre_crypte": [
+			"os_draugr",
+			"poussiere_tombe",
+			"table:potions",
+			"table:valeurs",
+			"lame_antique",
+			"table:armes_communes",
+			"table:tomes"
+		],
+		"coffre_crypte_riche": [
+			"table:potions",
+			"table:valeurs",
+			"poussiere_tombe",
+			"table:armes",
+			"table:armes_rares",
+			"table:tomes"
+		],
+		"coffre_boss": [
+			"table:valeurs",
+			"table:potions",
+			"table:armes",
+			"table:armes_crypte",
+			"table:tomes"
+		],
+		"coffre_bandit": [
+			"table:nourriture",
+			"table:potions",
+			"minerai_fer",
+			"table:valeurs",
+			"lame_antique",
+			"table:armes_communes"
+		],
+		"coffre_mine": [
+			"minerai_fer",
+			"minerai_argent",
+			"table:nourriture",
+			"potion_endurance"
+		],
+		"urne": [
+			"poussiere_tombe",
+			"os_draugr",
+			"anneau_cuivre",
+			"potion_soin"
+		],
+		"tonneau": [
+			"table:nourriture",
+			"potion_endurance",
+			"minerai_fer"
+		],
+		"caisse": [
+			"table:nourriture",
+			"minerai_fer",
+			"potion_soin",
+			"anneau_cuivre"
+		],
+		"sac": [
+			"table:nourriture",
+			"table:potions"
+		],
+		"potions": [
+			"potion_soin",
+			"potion_mana",
+			"potion_endurance",
+			"potion_soin_forte"
+		],
+		"nourriture": [
+			"pain_seigle",
+			"viande_sechee"
+		],
+		"valeurs": [
+			"anneau_cuivre",
+			"coupe_argent",
+			"amulette_givre",
+			"collier_or",
+			"relique_offrande"
+		],
+		"tomes": [
+			"tome_boule_feu",
+			"tome_lance_givre",
+			"tome_drain_vie",
+			"tome_chaine_eclairs",
+			"tome_tempete_statique",
+			"tome_explosion_incendiaire",
+			"tome_explosion_obscure"
+		],
+		"armes": [
+			"lame_antique",
+			"epee_or",
+			"epee_rubis",
+			"epee_verre",
+			"epee_obsidienne"
+		],
+		"armes_communes": [
+			"epee_soldat",
+			"dague_acier",
+			"sabre_pillard",
+			"hachette",
+			"masse_cloutee",
+			"hache_guerre",
+			"bouclier_cercle",
+			"marteau_guerre",
+			"ecu_chevalier",
+			"garde_du_guet"
+		],
+		"armes_rares": [
+			"epee_doree",
+			"veilleuse",
+			"garde_du_guet",
+			"grand_marteau",
+			"ecu_chevalier",
+			"claymore",
+			"dent_d_or",
+			"larme_de_givre",
+			"crocs_de_cendre",
+			"coeur_de_braise"
+		],
+		"armes_crypte": [
+			"claymore",
+			"coeur_de_braise",
+			"crocs_de_cendre",
+			"larme_de_givre",
+			"dent_d_or",
+			"grand_marteau",
+			"epee_obsidienne",
+			"sang_du_roi",
+			"croc_de_givre"
+		]
+	}
+}

@@ -1,0 +1,6 @@
+{
+	"_doc": "Bijoux : emplacement cou | anneau (EquipementCorps). Effets : clés de docs/RPG.md §3 (lot A). Format commun : docs/RPG.md §2. Nouvel objet = nouvel identifiant, jamais de renommage (sinon Inventaire.ALIAS).",
+	"objets": {
+		"amulette_givre": {"nom": "Amulette de givre", "poids": 0.3, "valeur": 40, "categorie": "bijou", "rarete": "commun", "emplacement": "cou"}
+	}
+}

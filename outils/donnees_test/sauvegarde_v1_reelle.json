@@ -1,0 +1,219 @@
+{
+	"butin": {
+		"corps": {
+			"ennemi:cr_niches_2": {
+				"nom": "Draugr",
+				"pos": [
+					-38.62,
+					-140.0,
+					-38.39
+				]
+			},
+			"ennemi:guerrier_0": {
+				"nom": "Draugr ancien",
+				"pos": [
+					-34.67,
+					-2.01,
+					-33.7
+				]
+			},
+			"ennemi:sbire_1": {
+				"nom": "Draugr",
+				"pos": [
+					-32.8,
+					-2.01,
+					-32.2
+				]
+			},
+			"ennemi:sbire_2": {
+				"nom": "Draugr",
+				"pos": [
+					-33.42,
+					-2.01,
+					-31.73
+				]
+			},
+			"ennemi:sbire_4": {
+				"nom": "Draugr",
+				"pos": [
+					-24.24,
+					-3.88,
+					-23.46
+				]
+			}
+		},
+		"graine": 20261028,
+		"pilles": [],
+		"restes": {
+			"ennemi:cr_niches_2": {
+				"os_draugr": 1,
+				"poussiere_tombe": 1
+			},
+			"ennemi:guerrier_0": {
+				"os_draugr": 1,
+				"poussiere_tombe": 1
+			},
+			"ennemi:sbire_1": {
+				"os_draugr": 2,
+				"poussiere_tombe": 2
+			},
+			"ennemi:sbire_2": {
+				"os_draugr": 2
+			},
+			"ennemi:sbire_4": {
+				"os_draugr": 2
+			}
+		},
+		"uniques": []
+	},
+	"competences": {
+		"experience": {
+			"athletisme": 1.072,
+			"epee": 1.890597741634,
+			"parade": 0.0
+		},
+		"niveaux": {
+			"athletisme": 15,
+			"epee": 16,
+			"parade": 15
+		}
+	},
+	"dragon_vaincu": false,
+	"draugrs_morts": [
+		"guerrier_0",
+		"sbire_1",
+		"sbire_2",
+		"guerrier_3",
+		"sbire_4",
+		"cr_niches_1",
+		"cr_niches_2"
+	],
+	"herse": false,
+	"heure": 22.2882963744338,
+	"inventaire": {
+		"objets": {
+			"os_draugr": 2,
+			"potion_soin": 1,
+			"poussiere_tombe": 1
+		},
+		"pieces": 68
+	},
+	"joueur": {
+		"lacet": -0.774399876594543,
+		"position": [
+			-38.5883674621582,
+			-140.0,
+			-42.7767372131348
+		],
+		"vie": 81.6773333333442,
+		"vigueur": 100.0
+	},
+	"lieux_vus": [
+		"Cercle des pierres runiques",
+		"Tertre de Svanhild"
+	],
+	"magie": {
+		"droite": "jet_flammes",
+		"gauche": "jet_flammes",
+		"mana": 1.35499999999835,
+		"raccourcis": [
+			{
+				"droite": "epee",
+				"gauche": "torche",
+				"nom": "Explorateur",
+				"touche": "1"
+			},
+			{
+				"droite": "epee",
+				"gauche": "jet_flammes",
+				"nom": "Guerrier-mage (feu)",
+				"touche": "2"
+			},
+			{
+				"droite": "jet_flammes",
+				"gauche": "jet_flammes",
+				"nom": "Pyromancien",
+				"touche": "3"
+			},
+			{
+				"droite": "chaine_eclairs",
+				"gauche": "lance_givre",
+				"nom": "Élémentaire",
+				"touche": "4"
+			},
+			{
+				"droite": "boule_feu",
+				"gauche": "drain_vie",
+				"nom": "Hybride",
+				"touche": "5"
+			},
+			{
+				"droite": "epee",
+				"gauche": "bouclier",
+				"nom": "Défensif",
+				"touche": "6"
+			},
+			{
+				"droite": "epee",
+				"gauche": "vide",
+				"nom": "Bretteur",
+				"touche": "7"
+			},
+			{
+				"droite": "chaine_eclairs",
+				"gauche": "vide",
+				"nom": "Mage à une main",
+				"touche": "8"
+			},
+			{
+				"droite": "trait_ombre",
+				"gauche": "soin",
+				"nom": "Mage de survie",
+				"touche": "9"
+			},
+			{
+				"droite": "epee",
+				"gauche": "protection",
+				"nom": "Garde arcanique",
+				"touche": "0"
+			}
+		],
+		"sorts_connus": [
+			"arc_electrique",
+			"eclat_glace",
+			"enchant_feu",
+			"jet_flammes",
+			"protection",
+			"soin",
+			"trait_ombre"
+		]
+	},
+	"marchands": {
+		"etats": {},
+		"heures": 1.28829637443377
+	},
+	"quetes": {
+		"etat": {
+			"sceaux_brises": 1
+		},
+		"journal": [
+			"Le tertre cache une crypte tenue par trois sceaux : l’Os, le Givre, l’Eau. Eirik les a brisés. Leurs éclats ouvrent la porte de la reine."
+		],
+		"vus": [
+			"tue:guerrier_3",
+			"ramasse:os_draugr",
+			"ramasse:poussiere_tombe",
+			"tue:sbire_4",
+			"tue:sbire_2",
+			"tue:sbire_1",
+			"tue:guerrier_0",
+			"lieu:tertre",
+			"lieu:vestibule_crypte",
+			"tue:cr_niches_1",
+			"tue:cr_niches_2",
+			"ramasse:potion_soin"
+		]
+	},
+	"version": 1,
+	"villageois_parles": []
+}

@@ -1,0 +1,14 @@
+{
+	"_doc": "Ingrédients et matériaux : vente, quêtes, forge (lot E). Pas d'alchimie. Format commun : docs/RPG.md §2. Nouvel objet = nouvel identifiant, jamais de renommage (sinon Inventaire.ALIAS).",
+	"objets": {
+		"os_draugr": {"nom": "Os de draugr", "poids": 0.5, "valeur": 2, "categorie": "ingredient", "rarete": "commun"},
+		"poussiere_tombe": {"nom": "Poussière de tombe", "poids": 0.1, "valeur": 6, "categorie": "ingredient", "rarete": "commun"},
+		"ecaille_dragon": {"nom": "Écaille de dragon", "poids": 2.0, "valeur": 80, "categorie": "ingredient", "rarete": "commun"},
+		"minerai_fer": {"nom": "Minerai de fer", "poids": 3.0, "valeur": 12, "categorie": "ingredient", "rarete": "commun"},
+		"minerai_argent": {"nom": "Minerai d’argent", "poids": 2.5, "valeur": 45, "categorie": "ingredient", "rarete": "commun"},
+		"cristal_givre": {"nom": "Cristal de givre", "poids": 0.8, "valeur": 70, "categorie": "ingredient", "rarete": "commun"},
+		"champignon_lumineux": {"nom": "Champignon lumineux", "poids": 0.1, "valeur": 8, "categorie": "ingredient", "rarete": "commun"},
+		"fourrure_troll": {"nom": "Fourrure de troll givrée", "poids": 4.0, "valeur": 60, "categorie": "ingredient", "rarete": "commun"},
+		"croc_troll": {"nom": "Croc de troll", "poids": 0.3, "valeur": 18, "categorie": "ingredient", "rarete": "commun"}
+	}
+}

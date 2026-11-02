@@ -1,5 +1,5 @@
 {
-	"_doc": "Objets du sac ajoutés par le butin (en plus de Inventaire.OBJETS) : consommables, armes et tomes trouvables. Lu par Inventaire.objet(id). Champs : nom, poids, valeur, rarete (commun | peu_commun | rare | unique), categorie (consommable | arme | divers), icone (motif de IconesCombat), effets (consommables : vie, mana, vigueur = points rendus PROGRESSIVEMENT sur `duree` secondes (EffetsPotions) ; famille = délai de réutilisation partagé (soin | mana | endurance | nourriture) ; apprendre = id d'un sort de data/sorts/). Les armes (categorie arme) portent l'id de leur DonneesArme (data/armes/) : quand data/magie/inventaire.json passera à tout_disponible=false, la condition `inventaire` de l'épée y renverra.",
+	"_doc": "Potions, nourriture, tomes : effets vie / mana / vigueur sur `duree` s (EffetsPotions), famille = délai partagé, apprendre = id de sort (data/sorts/). Format commun : docs/RPG.md §2. Nouvel objet = nouvel identifiant, jamais de renommage (sinon Inventaire.ALIAS).",
 	"objets": {
 		"potion_soin": {"nom": "Potion de soin", "poids": 0.5, "valeur": 30, "rarete": "commun", "categorie": "consommable", "icone": "potion_soin", "effets": {"vie": 40, "duree": 4, "famille": "soin"}},
 		"potion_soin_forte": {"nom": "Grande potion de soin", "poids": 0.5, "valeur": 75, "rarete": "peu_commun", "categorie": "consommable", "icone": "potion_soin_forte", "effets": {"vie": 100, "duree": 6, "famille": "soin"}},
@@ -18,14 +18,6 @@
 		"tome_explosion_obscure": {"nom": "Tome : Explosion obscure", "poids": 1.0, "valeur": 240, "rarete": "rare", "categorie": "consommable", "icone": "tome", "effets": {"apprendre": "explosion_obscure"}},
 		"tome_enchant_electricite": {"nom": "Tome : Enchantement d'électricité", "poids": 1.0, "valeur": 140, "rarete": "rare", "categorie": "consommable", "icone": "tome", "effets": {"apprendre": "enchant_electricite"}},
 		"tome_enchant_glace": {"nom": "Tome : Enchantement de glace", "poids": 1.0, "valeur": 140, "rarete": "rare", "categorie": "consommable", "icone": "tome", "effets": {"apprendre": "enchant_glace"}},
-		"tome_enchant_tenebres": {"nom": "Tome : Enchantement de ténèbres", "poids": 1.0, "valeur": 140, "rarete": "rare", "categorie": "consommable", "icone": "tome", "effets": {"apprendre": "enchant_tenebres"}},
-		"epee_or": {"nom": "Épée en or", "poids": 9.0, "valeur": 180, "rarete": "rare", "categorie": "arme"},
-		"epee_rubis": {"nom": "Épée en rubis", "poids": 9.0, "valeur": 220, "rarete": "rare", "categorie": "arme"},
-		"epee_verre": {"nom": "Épée en verre", "poids": 7.0, "valeur": 260, "rarete": "rare", "categorie": "arme"},
-		"epee_obsidienne": {"nom": "Épée en obsidienne", "poids": 10.0, "valeur": 300, "rarete": "unique", "categorie": "arme"},
-		"epee_hrafn": {"nom": "Croc-Rouge, l’épée de Hrafn", "poids": 9.0, "valeur": 280, "rarete": "unique", "categorie": "arme"},
-		"anneau_cuivre": {"nom": "Anneau de cuivre", "poids": 0.1, "valeur": 15, "rarete": "commun", "categorie": "divers"},
-		"coupe_argent": {"nom": "Coupe d’argent", "poids": 1.0, "valeur": 35, "rarete": "peu_commun", "categorie": "divers"},
-		"collier_or": {"nom": "Collier d’or", "poids": 0.3, "valeur": 85, "rarete": "rare", "categorie": "divers"}
+		"tome_enchant_tenebres": {"nom": "Tome : Enchantement de ténèbres", "poids": 1.0, "valeur": 140, "rarete": "rare", "categorie": "consommable", "icone": "tome", "effets": {"apprendre": "enchant_tenebres"}}
 	}
 }
