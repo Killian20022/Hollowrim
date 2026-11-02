@@ -124,6 +124,7 @@ static func calculer(i: Dictionary, p: ProfilCible, etat: Dictionary) -> Diction
 		if boss and float(etat.get("vie_max", 0.0)) > 0.0:
 			d = minf(d, float(etat["vie_max"]) * ReglagesCombat.FURTIF_PLAFOND_BOSS)
 		r["furtif"] = true
+		Progression.attaque_furtive(d)   # seul effet de bord : pratique de la Furtivité + perk de récupération (lot B)
 	r["degats"] = maxf(d, 1.0)
 	r["critique"] = critique
 	if type == "contondant" and p.matiere == "os":

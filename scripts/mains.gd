@@ -1343,7 +1343,7 @@ func _resoudre_impact(e: Dictionary) -> String:
 	match e["type"]:
 		"cible":
 			var cible: Node = e["objet"]
-			var degats := DegatsCombat.calculer(arme, _lourd, _charge, _affaibli, joueur.competences.multiplicateur_degats(), equipement.bonus_trophee(joueur.inventaire)) * float(_geste.get("force", 1.0))
+			var degats := DegatsCombat.calculer(arme, _lourd, _charge, _affaibli, joueur.competences.multiplicateur_degats(Progression.competence_arme(arme)), equipement.bonus_trophee(joueur.inventaire)) * float(_geste.get("force", 1.0))
 			var info := _info_coup(e)
 			degats += _element(cible, info)
 			var r := DegatsCombat.appliquer(cible, degats, joueur.global_position, _puissant, info)
@@ -1356,7 +1356,7 @@ func _resoudre_impact(e: Dictionary) -> String:
 				(cible.get("combat") as CombatEnnemi).fenetre_parade = 0.0   # l'ouverture de la parade est dépensée par la contre-attaque
 			if r == "touche" or r == "tue":
 				_mordre()
-				joueur.competences.pratiquer("epee", 1.8 if _lourd or _contre else 1.0)
+				Progression.coup_porte(joueur, cible, arme, degats, r, _lourd or _contre)   # pratique + perks (lot B)
 				if not gere:
 					RetourCoups.touche(joueur, _lourd or _contre)
 			elif r == "bloque":
@@ -1689,7 +1689,7 @@ func _avancer_sequence(dt: float) -> void:
 		_fin_frappe = true
 		dernier_finisher["resultat"] = _seq.resultat
 		if not interrompu:
-			joueur.competences.pratiquer("epee", 2.5)
+			Progression.pratiquer_de(joueur, Progression.competence_arme(arme), 2.5)
 			joueur.ennemi_vise = _fin_cible
 	if au_suivi:
 		if not _seq.mort:
@@ -1743,7 +1743,7 @@ func _frapper_finisher() -> void:
 	}
 	var r := String(_fin_cible.subir_finisher(_fin_cat, info))
 	dernier_finisher = {"cible": _fin_cible, "categorie": _fin_cat, "resultat": r}
-	joueur.competences.pratiquer("epee", 2.5)
+	Progression.pratiquer_de(joueur, Progression.competence_arme(arme), 2.5)
 	joueur.ennemi_vise = _fin_cible
 
 ## Torche : pose de repos (miroir), suit les animations passives ; baissée pendant la garde, rangée avec T, recule

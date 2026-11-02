@@ -257,8 +257,7 @@ func recevoir_coup(degats: float, origine: Vector3, options := {}) -> String:
 	var imparable := float(options.get("imparable", 0.0))
 	var g: Dictionary = mains.defendre(degats, origine, imparable > 0.0)
 	if not g.is_empty():
-		var parade: bool = g["issue"] == "parade"
-		competences.pratiquer("parade", 0.6 + degats * 0.08 + (0.6 if parade else 0.0))
+		Progression.garde_tenue(self, g, degats, origine)   # pratique de la Parade + perks de parade parfaite (lot B)
 		if g["issue"] != "brisee":
 			vie = maxf(minf(vie, 1.0), vie - float(g["degats"]))   # un coup bloqué ne tue pas
 			if imparable > 0.0:
@@ -278,6 +277,7 @@ func recevoir_coup(degats: float, origine: Vector3, options := {}) -> String:
 			return String(g["issue"])
 		degats = float(g["degats"])
 	vie -= degats
+	progression.pratiquer("armure", 0.3 + degats * 0.04)   # coup encaissé sans garde (lot B)
 	origine_dernier_coup = origine
 	degats_dernier_coup = degats
 	secousse = maxf(secousse, maxf(0.7, float(options.get("secousse", 0.0))))
@@ -375,7 +375,7 @@ func _physics_process(dt: float) -> void:
 			lenteur_facteur = 1.0
 	if court and dir != Vector3.ZERO:
 		vigueur = maxf(0.0, vigueur - COUT_COURSE * competences.cout_course() * dt)
-		competences.pratiquer("athletisme", dt * 0.12)
+		progression.pratiquer("athletisme", dt * 0.12)
 		_repos_vigueur = 0.6
 	var cible := dir * vitesse + _recul
 	_recul = _recul.lerp(Vector3.ZERO, 1.0 - exp(-8.0 * dt))
@@ -390,12 +390,16 @@ func _physics_process(dt: float) -> void:
 	# récupération
 	_repos_vigueur -= dt
 	if _repos_vigueur <= 0.0:
-		vigueur = minf(vigueur_max, vigueur + 22.0 * dt)
+		vigueur = minf(vigueur_max, vigueur + 22.0 * progression.facteur("regen_vigueur") * dt)
 	if not mort:
-		vie = minf(vie_max, vie + 0.8 * dt)
+		vie = minf(vie_max, vie + 0.8 * progression.facteur("regen_vie") * dt)
 	_repos_mana -= dt
 	if _repos_mana <= 0.0 and not mort:
-		mana = minf(mana_max, mana + REGEN_MANA * dt)
+		mana = minf(mana_max, mana + REGEN_MANA * progression.facteur("regen_magie") * dt)
+	var recup := progression.prendre_recup_furtive()   # perk Mémoire de Muninn (attaque furtive)
+	if recup > 0.0 and not mort:
+		vigueur = minf(vigueur_max, vigueur + recup)
+		mana = minf(mana_max, mana + recup)
 
 	# pas dans la neige
 	var vitesse_sol := Vector2(velocity.x, velocity.z).length()

@@ -42,7 +42,7 @@
           "journal": "J’ai tout raconté à Gunnhild : Eirik, la note, Svanhild. Elle a gardé le silence un long moment, puis m’a remis sa récompense. Les morts dorment."
         }
       ],
-      "recompense": { "pieces": 150, "objets": { "amulette_givre": 1 } }
+      "recompense": { "xp": 200, "pieces": 150, "objets": { "amulette_givre": 1 } }
     },
     {
       "id": "frere_ylva",
@@ -68,7 +68,7 @@
           "journal": "J’ai remis l’amulette à Ylva et je lui ai dit ce que j’avais vu. Elle n’a pas pleuré devant moi. Elle m’a donné de quoi payer ma route."
         }
       ],
-      "recompense": { "pieces": 60, "objets": {} }
+      "recompense": { "xp": 120, "pieces": 60, "objets": {} }
     },
     {
       "id": "lames_brodd",
@@ -100,7 +100,7 @@
           "journal": "J’ai décroché l’Épée de Skarnholt du râtelier de Brodd. Garde et pommeau sont gravés d’entrelacs. Elle est à moi."
         }
       ],
-      "recompense": { "pieces": 0, "objets": {} }
+      "recompense": { "xp": 150, "pieces": 0, "objets": {} }
     },
     {
       "id": "repaire_hrafn",
@@ -138,7 +138,7 @@
           "journal": "Haldor a lu le registre sans un mot, puis m’a remis sa bourse. Les convois passeront, au moins jusqu’à la prochaine neige."
         }
       ],
-      "recompense": { "pieces": 120, "objets": {} }
+      "recompense": { "xp": 200, "pieces": 120, "objets": {} }
     },
     {
       "id": "expedition_sigrun",
@@ -170,7 +170,7 @@
           "journal": "J’ai rendu la broche à Grima et dit ce que j’avais lu. Elle a serré la broche longtemps. Elle m’a payé, à sa façon."
         }
       ],
-      "recompense": { "pieces": 90, "objets": {} }
+      "recompense": { "xp": 150, "pieces": 90, "objets": {} }
     },
     {
       "id": "sceaux_brises",
@@ -208,7 +208,7 @@
           "journal": "Les trois éclats reposent sur leurs socles. La porte de l’arène s’est ouverte avec un soupir. Svanhild attend derrière."
         }
       ],
-      "recompense": { "pieces": 50, "objets": {} }
+      "recompense": { "xp": 250, "pieces": 50, "objets": {} }
     },
     {
       "id": "jarl_gele",
@@ -234,7 +234,7 @@
           "journal": "J’ai pris la hache de Kolbeinn. Elle pèse comme un serment. Elle est à moi."
         }
       ],
-      "recompense": { "pieces": 0, "objets": {} }
+      "recompense": { "xp": 400, "pieces": 0, "objets": {} }
     }
   ],
   "dialogues": {
