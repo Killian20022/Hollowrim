@@ -38,6 +38,10 @@ var _debug := ""
 var _mailles: Array[MeshInstance3D] = []
 var _pieds: PiedsAuSol
 var _ragdoll: Ragdoll
+## Coups d'arme à la 3e personne (scripts/combat/corps_coups_tps.gd, branche tps/coups) : le corps joue le même geste que
+## les bras FPS (combo, puissants, deux mains, armes lourdes, garde, parade). Branchement : création ici, et tant que
+## coups_tps.pilote() est vrai, l'ancien coup (Sword_Attack) et la pose armée / garde tenue ne sont plus joués.
+var coups_tps: CorpsCoupsTps
 
 func _ready() -> void:
 	_creer_modele()
@@ -72,6 +76,7 @@ func _creer_modele() -> void:
 	_pieds = PiedsAuSol.equiper(modele, joueur) as PiedsAuSol
 	_epee(squelette)
 	_torche(squelette)
+	coups_tps = CorpsCoupsTps.equiper(self, squelette)   # tps/coups
 	anim = modele.get_node("Animations")
 	anim.animation_finished.connect(_fini)
 	_mailles.assign(modele.find_children("*", "MeshInstance3D", true, false))
@@ -237,7 +242,7 @@ func _process(dt: float) -> void:
 
 	var etat: int = mains.etat
 	if etat != _etat_mains:
-		if etat == mains.FRAPPE:
+		if etat == mains.FRAPPE and not coups_tps.pilote():   # tps/coups : le geste vient de CorpsCoupsTps
 			_coup()
 		_etat_mains = etat
 
@@ -272,11 +277,11 @@ func _locomotion(plat: Vector2, vitesse: float, sol: bool, etat: int) -> float:
 	if not sol and _en_l_air > 0.2:
 		_jouer("Jump", 0.2)
 		return 0.0
-	var arme_levee: bool = etat in [mains.ARMER, mains.CHARGE]
+	var arme_levee: bool = etat in [mains.ARMER, mains.CHARGE] and not coups_tps.pilote()   # tps/coups
 	if arme_levee:
 		_jouer("Sword_Attack", 0.1, 1.0, IMG_ARMER, IMG_ARMER)
 		return 0.0
-	if mains.bloque and vitesse < 0.5:
+	if mains.bloque and vitesse < 0.5 and not coups_tps.pilote():   # tps/coups
 		_jouer("Sword_Attack", 0.12, 1.0, IMG_GARDE, IMG_GARDE)
 		return 0.0
 	if vitesse < 0.4:
