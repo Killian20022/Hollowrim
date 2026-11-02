@@ -38,6 +38,16 @@ var _debug := ""
 var _mailles: Array[MeshInstance3D] = []
 var _pieds: PiedsAuSol
 var _ragdoll: Ragdoll
+## Coups d'arme à la 3e personne (scripts/combat/corps_coups_tps.gd, branche tps/coups) : le corps joue le même geste que
+## les bras FPS (combo, puissants, deux mains, armes lourdes, garde, parade). Branchement : création ici, et tant que
+## coups_tps.pilote() est vrai, l'ancien coup (Sword_Attack) et la pose armée / garde tenue ne sont plus joués.
+var coups_tps: CorpsCoupsTps
+## Mains du corps (scripts/corps_mains_tps.gd, branche tps/mains_sorts) : ce que tient chaque main comme à la 1re personne (vrai modèle
+## d'arme, torche seulement si la main gauche tient la torche, bouclier, sort), gestes d'incantation par bras, effets depuis les paumes.
+## Branchements ici : installer() dans _creer_modele, avancer() et torche_tenue() dans _process, clip_repos() dans _locomotion.
+var mains_tps: CorpsMainsTps
+## Épée fixe d'origine (epee_nordique.glb) : cachée par mains_tps, qui montre le modèle réellement équipé.
+var arme_corps: Node3D
 
 func _ready() -> void:
 	_creer_modele()
@@ -72,6 +82,15 @@ func _creer_modele() -> void:
 	_pieds = PiedsAuSol.equiper(modele, joueur) as PiedsAuSol
 	_epee(squelette)
 	_torche(squelette)
+	coups_tps = CorpsCoupsTps.equiper(self, squelette)   # tps/coups
+	if mains_tps == null:
+		mains_tps = CorpsMainsTps.new()
+		mains_tps.name = "MainsTps"
+		mains_tps.corps = self
+		mains_tps.joueur = joueur
+		mains_tps.mains = mains
+		add_child(mains_tps)
+	mains_tps.installer(squelette)
 	anim = modele.get_node("Animations")
 	anim.animation_finished.connect(_fini)
 	_mailles.assign(modele.find_children("*", "MeshInstance3D", true, false))
@@ -107,6 +126,7 @@ func _epee(squelette: Skeleton3D) -> void:
 	squelette.add_child(accroche)
 	var arme: Node3D = EPEE.instantiate()
 	arme.transform = PRISE
+	arme_corps = arme
 	accroche.add_child(arme)
 	# acier et cuir en matériaux PS1, par nom de matériau Blender (comme les mains)
 	var acier := Palette.tex("acier", Palette.ACIER, 4, 0.3)
@@ -207,7 +227,8 @@ func _process(dt: float) -> void:
 		anim.pause()
 		return
 	# reflet de la torche et de la lumière : seulement visibles à la troisième personne
-	var allumee: bool = mains.torche_sortie
+	mains_tps.avancer(dt, _vue_3)
+	var allumee: bool = mains_tps.torche_tenue()   # (mains.torche_sortie est VRAI aussi avec un sort ou un bouclier en main gauche)
 	pivot_torche.visible = allumee
 	for f in flammes:
 		f.emitting = allumee and _vue_3
@@ -237,7 +258,7 @@ func _process(dt: float) -> void:
 
 	var etat: int = mains.etat
 	if etat != _etat_mains:
-		if etat == mains.FRAPPE:
+		if etat == mains.FRAPPE and not coups_tps.pilote():   # tps/coups : le geste vient de CorpsCoupsTps
 			_coup()
 		_etat_mains = etat
 
@@ -272,15 +293,15 @@ func _locomotion(plat: Vector2, vitesse: float, sol: bool, etat: int) -> float:
 	if not sol and _en_l_air > 0.2:
 		_jouer("Jump", 0.2)
 		return 0.0
-	var arme_levee: bool = etat in [mains.ARMER, mains.CHARGE]
+	var arme_levee: bool = etat in [mains.ARMER, mains.CHARGE] and not coups_tps.pilote()   # tps/coups
 	if arme_levee:
 		_jouer("Sword_Attack", 0.1, 1.0, IMG_ARMER, IMG_ARMER)
 		return 0.0
-	if mains.bloque and vitesse < 0.5:
+	if mains.bloque and vitesse < 0.5 and not coups_tps.pilote():   # tps/coups
 		_jouer("Sword_Attack", 0.12, 1.0, IMG_GARDE, IMG_GARDE)
 		return 0.0
 	if vitesse < 0.4:
-		_jouer("Idle_Torch" if mains.torche_sortie else "Sword_Idle", 0.25)
+		_jouer(mains_tps.clip_repos(), 0.25)   # torche, sort, bouclier : posés par mains_tps (couche du bras)
 		return 0.0
 	# direction du mouvement dans le repère du joueur : 0 = en avant, ±π = en arrière
 	var local := joueur.global_transform.basis.inverse() * Vector3(plat.x, 0.0, plat.y)

@@ -21,10 +21,14 @@ func _ready() -> void:
 	bras = SpringArm3D.new()
 	bras.shape = SphereShape3D.new()
 	(bras.shape as SphereShape3D).radius = 0.22
-	bras.spring_length = DISTANCE
+	# le bras part du CENTRE de la tête et file en biais vers l'épaule droite (avant : il partait de 0,5 m à droite de la tête ; dos au
+	# mur à droite, son origine était DANS le mur et la caméra passait au travers) ; la caméra est retournée pour regarder droit devant
+	var biais := atan2(EPAULE, DISTANCE)
+	bras.spring_length = Vector2(EPAULE, DISTANCE).length()
 	bras.margin = 0.05
 	bras.collision_mask = 1
-	bras.position = Vector3(EPAULE, HAUTEUR, 0.0)
+	bras.position = Vector3(0.0, HAUTEUR, 0.0)
+	bras.rotation.y = biais
 	add_child(bras)
 	bras.add_excluded_object(joueur.get_rid())
 	camera = Camera3D.new()
@@ -32,10 +36,14 @@ func _ready() -> void:
 	camera.near = 0.05
 	camera.far = 90.0  # lot 7 : au-delà de la fin du brouillard (75 m max) rien n'est visible
 	bras.add_child(camera)
+	camera.rotation.y = -biais
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--tp-orbite="):
 			_orbite = deg_to_rad(float(a.substr(12)))
 			bras.position = Vector3.ZERO
+			bras.rotation.y = 0.0
+			bras.spring_length = DISTANCE
+			camera.rotation.y = 0.0
 
 ## Recale la caméra sans lissage (à la bascule de vue ou après une téléportation).
 func recaler() -> void:

@@ -33,6 +33,9 @@ var journal: Array = []
 var regles := {}
 
 var paume := {"gauche": null, "droite": null}
+## 3e personne (scripts/corps_mains_tps.gd, via definir_paumes_effets) : paumes du CORPS visible d'où partent auras, runes, jets
+## et projectiles ; null = paumes des mains FPS (`paume`, qui restent posées par _poser_mains).
+var paumes_effets := {"gauche": null, "droite": null}
 var _orient := {"gauche": null, "droite": null}
 var _pose := {"gauche": {}, "droite": {}}
 var _xf := {"gauche": Transform3D(), "droite": Transform3D()}
@@ -289,7 +292,7 @@ func _couper(main: String, interruption: bool) -> void:
 	if i.etat == Incantation.REPOS:
 		return
 	var s := i.sort
-	lanceur.arreter_jet(s, paume[main], main)
+	lanceur.arreter_jet(s, _p(main), main)
 	if i.double:
 		EffetsMagie.double(s.ecole if s != null else "", false)
 		i.double = false
@@ -298,7 +301,7 @@ func _couper(main: String, interruption: bool) -> void:
 		if o.double:
 			o.double = false
 			if o.active():
-				lanceur.arreter_jet(o.sort, paume[autre], autre)
+				lanceur.arreter_jet(o.sort, _p(autre), autre)
 				o.duree_recup = 0.25
 				o.changer(Incantation.RECUPERATION)
 	if i.active():
@@ -320,6 +323,34 @@ func _sur_touche(degats: float) -> void:
 		var i: Incantation = inc[m]
 		if i.active() and i.sort != null and degats >= i.sort.seuil_interruption:
 			_couper(m, true)
+
+## Paume d'où partent les effets de la main `m` : celle du corps à la 3e personne si elle est donnée, sinon celle des mains FPS.
+func _p(m: String) -> Node3D:
+	var pe = paumes_effets[m]
+	if pe != null and is_instance_valid(pe):
+		return pe
+	return paume[m]
+
+## Bascule de vue (corps_mains_tps.gd) : effets depuis les paumes du corps (3e personne) ou des mains FPS (null). L'aura, le jet et les
+## runes en cours sont éteints sur l'ancienne paume et repartent de la nouvelle à l'image suivante.
+func definir_paumes_effets(gauche: Node3D, droite: Node3D) -> void:
+	var nouv := {"gauche": gauche, "droite": droite}
+	for m in MAINS:
+		var ancien := _p(m)
+		paumes_effets[m] = nouv[m]
+		if ancien == _p(m):
+			continue
+		if ancien != null and is_instance_valid(ancien):
+			EffetsMagie.aura_main(ancien, "", 0.0)
+			var i: Incantation = inc[m]
+			if i.etat == Incantation.CANALISE and i.sort != null:
+				lanceur.arreter_jet(i.sort, ancien, m)
+		_ecole_aura[m] = ""
+		_aura[m] = -1.0
+		var r = _runes[m]
+		if r != null and is_instance_valid(r):
+			r.queue_free()
+		_runes[m] = null
 
 func charge(main: String) -> float:
 	var i: Incantation = inc[main]
@@ -417,7 +448,7 @@ func _avancer_main(m: String, dt: float, deux_canal: bool) -> void:
 				_refuser(m, "Mana épuisé.")
 				return
 			var vue := _vue()
-			lanceur.canaliser(sd, paume[m], vue[0], vue[1], dt, m)
+			lanceur.canaliser(sd, _p(m), vue[0], vue[1], dt, m)
 			if not i.tenu and i.t >= 0.0:
 				_couper(m, false)
 				_noter("fin canalisation %s" % m)
@@ -451,8 +482,8 @@ func _aura_vers(m: String, ecole: String, k: float, _dt: float) -> void:
 	if ecole != _ecole_aura[m] or absf(k - _aura[m]) > 0.02:
 		_aura[m] = k
 		_ecole_aura[m] = ecole
-		if paume[m] != null:
-			EffetsMagie.aura_main(paume[m], ecole, k)
+		if _p(m) != null:
+			EffetsMagie.aura_main(_p(m), ecole, k)
 
 ## Runes en orbite autour de l'énergie tenue (RunesOrbite) : une orbite par main qui tient un sort de feu, glace,
 ## électricité ou ténèbres, de son éclat à la charge.
@@ -460,7 +491,7 @@ func _runes_vers(m: String, ecole: String, k: float) -> void:
 	var r = _runes[m]
 	if r != null and not is_instance_valid(r):
 		r = null
-	var voulu := ecole != "" and k > 0.001 and paume[m] != null and RunesOrbite.ECOLES.has(ecole) and not EffetsMagie.muet
+	var voulu := ecole != "" and k > 0.001 and _p(m) != null and RunesOrbite.ECOLES.has(ecole) and not EffetsMagie.muet
 	if r != null and (not voulu or r.ecole != ecole):
 		r.queue_free()
 		r = null
@@ -471,9 +502,9 @@ func _runes_vers(m: String, ecole: String, k: float) -> void:
 		r = RunesOrbite.new()
 		r.name = "Runes_" + m
 		r.ecole = ecole
-		r.suivi = paume[m]
+		r.suivi = _p(m)
 		r.cote = 1.0 if m == "gauche" else -1.0
-		mains.add_child(r)
+		(mains if paumes_effets[m] == null else _p(m)).add_child(r)   # 3e personne : les mains FPS sont cachées
 		_runes[m] = r
 	var i: Incantation = inc[m]
 	r.intensite = k
@@ -482,7 +513,7 @@ func _runes_vers(m: String, ecole: String, k: float) -> void:
 	# `echelles_aura` vivent dans gestion_magie.gd (branche fps/avant_bras_runes, pas encore portés) : sans elles, rien.
 	var g = GestionMagie.obtenir()
 	if g != null and "echelles_aura" in g:
-		var id: int = (paume[m] as Node).get_instance_id()
+		var id: int = (_p(m) as Node).get_instance_id()
 		if _tenue_runes(m):
 			g.echelles_aura[id] = ECHELLE_FLAMMES_TENUE if ecole == "feu" else 1.0
 		else:
@@ -503,8 +534,18 @@ func _deux_sorts_repos(m: String) -> bool:
 	return not TENUE_RUNES and inc[m].etat == Incantation.REPOS and eq.categorie(eq.autre(m)) in ["sort", "vide"]
 
 ## Œil et direction de visée (caméra du joueur).
+## 3e personne (paumes du corps actives) : visée de la caméra à l'épaule — le centre de l'écran, pas l'axe de la tête décalé de
+## 0,5 m — avec un œil ramené sur ce rayon à hauteur de la tête (portée inchangée, rien entre la caméra et le joueur n'est visé).
 func _vue() -> Array:
 	var cam: Camera3D = joueur.camera
+	var tp = joueur.get("camera_tp")
+	# (caméra tournée autour du joueur pour les captures, camera_tp._orbite : on garde l'axe de la tête)
+	if paumes_effets["gauche"] != null and joueur.get("troisieme") and tp != null and tp.get("camera") != null \
+			and absf(float(tp.get("_orbite"))) < 0.01:
+		var c: Camera3D = tp.camera
+		var avant := -c.global_transform.basis.z
+		var o := c.global_position + avant * maxf(avant.dot(cam.global_position - c.global_position), 0.0)
+		return [o, avant]
 	return [cam.global_position, -cam.global_transform.basis.z]
 
 func _lancer(m: String, s: DonneesSort, charge: float) -> void:
@@ -524,7 +565,7 @@ func _lancer(m: String, s: DonneesSort, charge: float) -> void:
 		_enchanter(s)
 	else:
 		var vue := _vue()
-		lanceur.lancer(s, paume[m], vue[0], vue[1], charge)
+		lanceur.lancer(s, _p(m), vue[0], vue[1], charge)
 	if s.recharge > 0.0:
 		recharges[s.id] = s.recharge
 	i.depuis_lancement = 0.0
