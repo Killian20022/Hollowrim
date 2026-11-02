@@ -32,6 +32,7 @@ const MARGE := 16.0  # marge des barres sur les bords
 var joueur: CharacterBody3D
 var lieux: Array = []  # [position, couleur] : points d'intérêt sur la boussole
 var combat_ui: Control  # HudCombat (barres, mains, statuts, raccourcis)
+var ecran_niveau: EcranNiveau  # RPG lot D : annonce de niveau (sceau) + gains de compétence discrets
 var _a_cible := 0.0
 var _cible: Node = null
 var _avis: Array = []  # [texte, temps restant] : « Épée : niveau 16 »…
@@ -96,9 +97,17 @@ func _ready() -> void:
 		annonce("Tertre de Svanhild", "Lieu découvert", PARCHEMIN)
 	if args.has("--hud-aide"):
 		aide_forcee = true
-	joueur.competences.niveau_gagne.connect(func(nom: String, niveau: int) -> void:
-		annonce(Competences.NOMS[nom], "Niveau %d" % niveau)
-		Sons.jouer(self, ["sword-unsheathe"], -10.0))
+	# RPG lot D : niveau du personnage = feuille « Niveau supérieur » au sceau de cire ; gain de compétence = bande discrète
+	# à droite (scripts/menu/ecran_niveau.gd), plus d'annonce centrée pour les compétences.
+	ecran_niveau = EcranNiveau.new()
+	ecran_niveau.joueur = joueur
+	add_child(ecran_niveau)
+	var prog = joueur.get("progression")
+	if prog is Progression:
+		prog.niveau_competence.connect(ecran_niveau.annoncer_competence)
+		prog.niveau_perso.connect(ecran_niveau.annoncer_niveau)
+	else:
+		joueur.competences.niveau_gagne.connect(ecran_niveau.annoncer_competence)
 
 ## Début de partie (monde.gd, une fois la sauvegarde relue) : découverte des lieux active, aide des touches pour AIDE_DUREE s.
 func demarrer(avec_aide := true) -> void:

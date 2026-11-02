@@ -107,6 +107,7 @@ TESTS=(
 	"test_lacher|--nouvelle"   # Lâcher dans l inventaire (L, Maj+L, boutons) : sac au sol sauvegardé, uniques et quête refusés
 	"test_rpg_socle|--nouvelle"   # RPG lot 0 (docs/RPG.md) : registre data/objets/, catégories, Conteneur / Stockage, EquipementCorps, Progression, butin ajouté en fin de table
 	"test_migration_v2|v1;v2"   # sauvegarde v2 : migration v1 -> v2 sur une copie d'une vraie sauvegarde (niveau recalculé, points à dépenser), relue par un 2e processus
+	"test_onglets_rpg|--nouvelle"   # RPG lot D : onglets Compétences / Personnage / Quêtes (OngletMenu, coquille d'essai), arbre lu au mieux, choix d'attribut, annonce de niveau + gains de compétence discrets (EcranNiveau)
 )
 # tests dont le résultat dépend du pas de physique : lancés en temps réel (test_ragdoll : OK aussi en --fixed-fps depuis la correction du signe des limites de charnière, 10/10 sous charge ; gardé en temps réel par prudence)
 TEMPS_REEL="test_ragdoll test_mort_ragdoll"

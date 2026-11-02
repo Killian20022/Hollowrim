@@ -1,0 +1,41 @@
+{
+  "_doc": "LOT D : arbre de DÉMONSTRATION lu par onglet_competences.gd tant que data/competences/arbre.json (lot B) n'existe pas. Format de docs/CONCEPTION_RPG.md §2.9 : {id, competence, nom, description, niveau_requis, prerequis: [ids], rangs, effets: {cle: valeur par rang}, position: [x, y]} ; position = [colonne dans la pierre (0 = tige, 1, 2… à droite), rang depuis le bas (0 = premier)]. Chiffres indicatifs, non branchés.",
+  "perks": [
+    {"id": "une_main_lame_aguerrie", "competence": "une_main", "nom": "Lame aguerrie", "description": "Les armes à une main font 20 % de dégâts en plus par rang.", "niveau_requis": 15, "prerequis": [], "rangs": 5, "effets": {"une_main": 0.2}, "position": [0, 0]},
+    {"id": "une_main_coup_de_taille", "competence": "une_main", "nom": "Coup de taille", "description": "Les coups puissants à une main font 25 % de dégâts en plus.", "niveau_requis": 30, "prerequis": ["une_main_lame_aguerrie"], "rangs": 1, "effets": {}, "position": [0, 1]},
+    {"id": "une_main_rafale", "competence": "une_main", "nom": "Rafale", "description": "Les coups du combo coûtent 25 % de vigueur en moins.", "niveau_requis": 40, "prerequis": ["une_main_coup_de_taille"], "rangs": 1, "effets": {}, "position": [0, 2]},
+    {"id": "une_main_saignee", "competence": "une_main", "nom": "Saignée", "description": "Les coups puissants ouvrent une plaie : 6 dégâts/s pendant 4 s. Sans effet sur les draugrs.", "niveau_requis": 50, "prerequis": ["une_main_rafale"], "rangs": 1, "effets": {}, "position": [0, 3]},
+
+    {"id": "deux_mains_bras_de_fer", "competence": "deux_mains", "nom": "Bras de fer", "description": "Les armes à deux mains font 20 % de dégâts en plus par rang.", "niveau_requis": 15, "prerequis": [], "rangs": 5, "effets": {"deux_mains": 0.2}, "position": [0, 0]},
+    {"id": "deux_mains_fauche", "competence": "deux_mains", "nom": "Fauche", "description": "Les coups larges touchent une cible de plus.", "niveau_requis": 30, "prerequis": ["deux_mains_bras_de_fer"], "rangs": 1, "effets": {}, "position": [0, 1]},
+    {"id": "deux_mains_brise_garde", "competence": "deux_mains", "nom": "Brise-garde", "description": "Les coups puissants déséquilibrent 30 % plus vite.", "niveau_requis": 50, "prerequis": ["deux_mains_fauche"], "rangs": 1, "effets": {}, "position": [0, 2]},
+
+    {"id": "parade_mur_de_bouclier", "competence": "parade", "nom": "Mur de boucliers", "description": "Les coups bloqués font 10 % de dégâts en moins par rang.", "niveau_requis": 15, "prerequis": [], "rangs": 3, "effets": {"parade": 0.1}, "position": [0, 0]},
+    {"id": "parade_contre_coup", "competence": "parade", "nom": "Contre-coup", "description": "Le contre après une parade parfaite frappe à ×1,6 au lieu de ×1,3.", "niveau_requis": 30, "prerequis": ["parade_mur_de_bouclier"], "rangs": 1, "effets": {}, "position": [0, 1]},
+    {"id": "parade_riposte", "competence": "parade", "nom": "Riposte", "description": "Les sorts bloqués au bouclier font moitié moins de dégâts.", "niveau_requis": 50, "prerequis": ["parade_contre_coup"], "rangs": 1, "effets": {}, "position": [0, 2]},
+
+    {"id": "armure_peau_de_fer", "competence": "armure", "nom": "Peau de fer", "description": "Chaque rang ajoute 20 % à la valeur d'armure portée.", "niveau_requis": 15, "prerequis": [], "rangs": 5, "effets": {"armure": 0.2}, "position": [0, 0]},
+    {"id": "armure_fourrure", "competence": "armure", "nom": "Fourrure", "description": "Résistance au froid +25 % avec une armure légère.", "niveau_requis": 30, "prerequis": ["armure_peau_de_fer"], "rangs": 1, "effets": {"resist_froid": 0.25}, "position": [0, 1]},
+    {"id": "armure_ensemble", "competence": "armure", "nom": "Ensemble assorti", "description": "+25 % d'armure si les quatre pièces sont du même type.", "niveau_requis": 50, "prerequis": ["armure_fourrure"], "rangs": 1, "effets": {}, "position": [0, 2]},
+
+    {"id": "destruction_econome", "competence": "destruction", "nom": "Économe", "description": "Les sorts de destruction coûtent 15 % de magie en moins par rang.", "niveau_requis": 15, "prerequis": [], "rangs": 3, "effets": {"cout_sorts": 0.15}, "position": [0, 0]},
+    {"id": "destruction_feu", "competence": "destruction", "nom": "Braise", "description": "Les sorts de feu font 25 % de dégâts en plus.", "niveau_requis": 20, "prerequis": ["destruction_econome"], "rangs": 1, "effets": {}, "position": [0, 1]},
+    {"id": "destruction_givre", "competence": "destruction", "nom": "Givre", "description": "Les sorts de givre font 25 % de dégâts en plus.", "niveau_requis": 20, "prerequis": ["destruction_econome"], "rangs": 1, "effets": {}, "position": [1, 1]},
+    {"id": "destruction_foudre", "competence": "destruction", "nom": "Foudre", "description": "Les sorts de foudre font 25 % de dégâts en plus.", "niveau_requis": 30, "prerequis": ["destruction_econome"], "rangs": 1, "effets": {}, "position": [0, 2]},
+    {"id": "destruction_ombre", "competence": "destruction", "nom": "Ombre", "description": "Les sorts de ténèbres font 25 % de dégâts en plus.", "niveau_requis": 30, "prerequis": ["destruction_econome"], "rangs": 1, "effets": {}, "position": [1, 2]},
+    {"id": "destruction_double_impact", "competence": "destruction", "nom": "Double impact", "description": "Les brûlures, gels et chocs durent deux fois plus longtemps.", "niveau_requis": 50, "prerequis": ["destruction_feu", "destruction_givre"], "rangs": 1, "effets": {}, "position": [0, 3]},
+
+    {"id": "restauration_soin", "competence": "restauration", "nom": "Soin renforcé", "description": "Les sorts de soin rendent 25 % de vie en plus par rang.", "niveau_requis": 15, "prerequis": [], "rangs": 2, "effets": {}, "position": [0, 0]},
+    {"id": "restauration_egide", "competence": "restauration", "nom": "Égide", "description": "La protection dure moitié plus longtemps.", "niveau_requis": 30, "prerequis": ["restauration_soin"], "rangs": 1, "effets": {}, "position": [0, 1]},
+    {"id": "restauration_flux", "competence": "restauration", "nom": "Flux", "description": "La magie se régénère 25 % plus vite.", "niveau_requis": 40, "prerequis": ["restauration_egide"], "rangs": 1, "effets": {"regen_magie": 0.25}, "position": [0, 2]},
+    {"id": "restauration_second_souffle", "competence": "restauration", "nom": "Second souffle", "description": "Une fois par minute, sous 15 % de vie, un soin part tout seul.", "niveau_requis": 70, "prerequis": ["restauration_flux"], "rangs": 1, "effets": {}, "position": [0, 3]},
+
+    {"id": "furtivite_pas_feutre", "competence": "furtivite", "nom": "Pas feutré", "description": "Les ennemis te repèrent moins vite.", "niveau_requis": 15, "prerequis": [], "rangs": 1, "effets": {}, "position": [0, 0]},
+    {"id": "furtivite_assassin", "competence": "furtivite", "nom": "Assassin", "description": "L'attaque surprise passe de ×2,5 à ×3 puis ×4 (chefs plafonnés).", "niveau_requis": 30, "prerequis": ["furtivite_pas_feutre"], "rangs": 2, "effets": {"furtivite": 0.2}, "position": [0, 1]},
+    {"id": "furtivite_dans_l_ombre", "competence": "furtivite", "nom": "Dans l'ombre", "description": "Courir ne trahit plus ta présence.", "niveau_requis": 50, "prerequis": ["furtivite_assassin"], "rangs": 1, "effets": {}, "position": [0, 2]},
+
+    {"id": "athletisme_souffle_long", "competence": "athletisme", "nom": "Souffle long", "description": "Vigueur maximale +25 par rang.", "niveau_requis": 15, "prerequis": [], "rangs": 2, "effets": {"vigueur_max": 25}, "position": [0, 0]},
+    {"id": "athletisme_bete_de_somme", "competence": "athletisme", "nom": "Bête de somme", "description": "+25 de charge par rang.", "niveau_requis": 30, "prerequis": ["athletisme_souffle_long"], "rangs": 2, "effets": {"charge": 25}, "position": [0, 1]},
+    {"id": "athletisme_pied_sur", "competence": "athletisme", "nom": "Pied sûr", "description": "La course coûte moins de vigueur sur la neige.", "niveau_requis": 40, "prerequis": ["athletisme_bete_de_somme"], "rangs": 1, "effets": {}, "position": [0, 2]}
+  ]
+}
