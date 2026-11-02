@@ -139,5 +139,6 @@
     "modele_sol": "res://assets/modeles/armures/sol/bottes_saphir_enchante.glb"
    }
   }
- ]
+ ],
+ "note_type_armure": "Saphir = armure MOYENNE selon la charte ; le jeu ne connaît aujourd'hui que « légère » / « lourde » (onglet_sac.gd, equipement_corps.nombre_pieces) : à trancher par l'agent DONNÉES."
 }

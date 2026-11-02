@@ -314,7 +314,7 @@ def deco_torse(ens):
                 poser_pointe(P, (0.255 * s, 0.065, 1.9), (0, 0, -1), (0.35 * s, 0.62, 0.7), 0.07, 0.017, ens, k=5, graine=12)
                 # coude : pointe vers l'arrière et le dehors, sertie au bout de la manche
                 la = r.os["lowerarm_" + ("l" if s > 0 else "r")]
-                poser_pointe(P, (la.x - 0.035 * s, 0.5, la.z + 0.005), (0, -1, 0), (0.35 * s, 1.0, 0.1), 0.07, 0.016, ens, k=5, graine=13)
+                poser_pointe(P, ((X_MANCHE - 0.035) * s, 0.5, la.z + 0.005), (0, -1, 0), (0.35 * s, 1.0, 0.1), 0.07, 0.016, ens, k=5, graine=13)
             else:
                 poser_pointe(P, (0.23 * s, 0.0, 1.9), (0, 0, -1), (0.4 * s, 0.05, 0.92), 0.065, 0.02, ens, k=6, graine=14)
         tassettes(P, r, st, ens)
@@ -374,13 +374,17 @@ SAPHIR = dict(pal=P_SAP, mat="cristal_saphir", mat_maille="acier_saphir.maille",
               mat_doigts="acier_saphir", mat_genou="cristal_saphir", mat_botte="acier_saphir", base=0.5, oxyde=0.0, crasse=0.2, poli=0.7,
               graine=307, pal_maille=P_SAP, pal_cuir=["#08090c", "#171a21", "#2a2f3a", "#424a59"], bord_roule=True, z_ourlet=0.66)
 
+# Bout des manches de mailles (constructeur : 0,435). Au-delà de |x| = 0,41 la manche de tunique du héros suit l'AVANT-bras : un
+# bout de manche plus long l'enfermait et, coude plié (Sort_Jet2M, combo), elle ressortait de 17 à 20 mm (test_armure_visible).
+X_MANCHE = 0.405
+
 PIECES = {
     "casque_rubis": ("rubis", lambda r: PC.casque(r, _s(RUBIS, id="casque_rubis", n=14, bas=(0.0, -0.3, -0.6), bandes=0, ecart=0.021,
                                                         bombe=0.05, decor=[lambda *a: PC.deco_nasal(*a, mat="acier_rubis", long=0.07, larg=0.015),
                                                                             lambda *a: PC.deco_joues(*a, mat="cristal_rubis"),
                                                                             deco_bandeau("acier_rubis"), deco_masque("rubis"), deco_casque("rubis")]))),
     "cuirasse_rubis": ("rubis", lambda r: PC.cuirasse(r, _s(RUBIS, id="cuirasse_rubis", n=24, lames=4, bombe=0.026, lames_epaule=4,
-                                                            z_coeur=1.31, decor=[deco_torse("rubis")]))),
+                                                            z_coeur=1.31, x_manche=X_MANCHE, decor=[deco_torse("rubis")]))),
     "gantelets_rubis": ("rubis", lambda r: PC.gantelets(r, _s(RUBIS, id="gantelets_rubis", evasement=0.034, debut_manchette=0.35,
                                                               decor=[deco_gant("rubis")]))),
     "bottes_rubis": ("rubis", lambda r: PC.bottes(r, _s(RUBIS, id="bottes_rubis", decor=[deco_genou("rubis")]))),
@@ -390,7 +394,7 @@ PIECES = {
                                                                  lambda *a: PC.deco_joues(*a, mat="cristal_saphir"),
                                                                  deco_bandeau("acier_saphir"), deco_masque("saphir", 1.615), deco_casque("saphir")]))),
     "cuirasse_saphir": ("saphir", lambda r: PC.cuirasse(r, _s(SAPHIR, id="cuirasse_saphir", n=24, lames=3, bombe=0.03, lames_epaule=3,
-                                                              z_coeur=1.31, decor=[deco_torse("saphir")]))),
+                                                              z_coeur=1.31, x_manche=X_MANCHE, decor=[deco_torse("saphir")]))),
     "gantelets_saphir": ("saphir", lambda r: PC.gantelets(r, _s(SAPHIR, id="gantelets_saphir", evasement=0.03, debut_manchette=0.35,
                                                                 decor=[deco_gant("saphir")]))),
     "bottes_saphir": ("saphir", lambda r: PC.bottes(r, _s(SAPHIR, id="bottes_saphir", decor=[deco_genou("saphir")]))),
@@ -914,11 +918,27 @@ def chausses(familles=("rubis", "saphir"), rapide=False):
 
 
 # ------------------------------------------------------------------------------------------------ principal
+EVASE_MANCHE = 0.0      # m ajoutés au DOS du bout des manches de mailles (cf. construire ; essai sans effet)
+
+
 def construire(pid, rapide=False):
     GEMMES.clear()
     ens, fab = PIECES[pid]
     r = C.charger_reference()
-    ob = fab(r)
+    # Manches de mailles de la cuirasse (constructeur commun : tube à 8 côtés, ts 0 / 0,5 / 1) : bout évasé AU DOS. Dans les sorts à
+    # deux mains (Sort_Jet2M) et le combo, le dos de la manche de tunique du héros (x = ±0,42, juste avant la coupe du masquage)
+    # ressortait de 17 à 20 mm à travers le bout de la manche (défaut commun à toutes les cuirasses du constructeur lourd).
+    tube0 = C.tube
+    def tube(arbre, A, B, ts, n, decalage, **kw):
+        if n == 8 and list(ts) == [0.0, 0.5, 1.0] and kw.get("r_loin") == 0.3:
+            dec0 = decalage
+            decalage = lambda j, i, a: dec0(j, i, a) + EVASE_MANCHE * (j / 2.0) ** 2 * max(0.0, -math.cos(a)) ** 0.8
+        return tube0(arbre, A, B, ts, n, decalage, **kw)
+    C.tube = tube
+    try:
+        ob = fab(r)
+    finally:
+        C.tube = tube0
     reorienter_gemmes(ob, {"rubis", "saphir", "serti_rubis", "serti_saphir", "cristal_rubis", "cristal_saphir"})
     plats = {i for i, m in enumerate(ob.data.materials) if m and m.name.split(".")[0] in ("rubis", "saphir", "cristal_rubis", "cristal_saphir")}
     for p in ob.data.polygons:
