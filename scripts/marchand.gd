@@ -572,14 +572,14 @@ func _dessiner(L: LivreParchemin) -> void:
 			if int(src[oid]) > 0 and (c == "" or Inventaire.categorie_de(oid) == c):
 				nb += 1
 		if on:
-			L.ruban(Rect2(11, y - 2, 58, 12))
+			L.ruban(Rect2(11, y - 2, 74, 12))
 		L.texte(14, y, NOMS_CATEGORIES.get(c, c), LivreParchemin.CLAIR if on else LivreParchemin.PALE)
-		L.texte_d(67, y, str(nb), LivreParchemin.CLAIR if on else LivreParchemin.PALE)
-		L.zones["cat:" + c] = Rect2(11, y - 2, 58, 12)
+		L.texte_d(83, y, str(nb), LivreParchemin.CLAIR if on else LivreParchemin.PALE)
+		L.zones["cat:" + c] = Rect2(11, y - 2, 74, 12)
 		y += 14.0
-	L.encre.draw_rect(Rect2(70, 52, 1, H - 52 - 66), LivreParchemin.RUBRIQUE)
-	L.titre(16, 24, "Étal" if onglet == 0 else "Sac", "du marchand" if onglet == 0 else "à vendre")
-	var X := 74.0
+	L.encre.draw_rect(Rect2(87, 52, 1, H - 52 - 66), LivreParchemin.RUBRIQUE)
+	L.titre(16, 24, "Comptoir" if onglet == 0 else "Sac", "du marchand" if onglet == 0 else "à vendre")
+	var X := 91.0
 	var LG := m - 8.0 - X - 4.0
 	L.texte(X + 18, 52 - 9, "Objet", LivreParchemin.RUBRIQUE)
 	L.texte_d(X + LG - 40, 52 - 9, "Nb", LivreParchemin.RUBRIQUE)
