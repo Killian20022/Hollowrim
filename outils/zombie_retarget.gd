@@ -1,7 +1,9 @@
 extends SceneTree
 ## Clips « Zombie_* » des draugrs : données Mixamo du « Not So Scary Zombie Pack » (sources_blender/mixamo/zombie_mixamo.json, écrites
 ## par sources_blender/scripts/extraire_mixamo_zombie.py) reportées sur le squelette Quaternius (65 os) des humains et des draugrs.
-##   godot --headless --path . --script res://outils/zombie_retarget.gd
+##   godot --headless --path . --script res://outils/zombie_retarget.gd [-- --source=res://…json --sortie=res://….res]
+## (--source/--sortie : autre pack, ex. clips d'incantation du corps à la 3e personne, sources_blender/mixamo/sorts_tps_mixamo.json
+##  -> assets/modeles/humains/animations_sorts_tps.res, lus par scripts/corps_mains_tps.gd)
 ## -> assets/modeles/humains/animations_zombie.res (AnimationLibrary, fusionnée par Humain.bibliotheque()).
 ##
 ## Report : chaque os cible prend la rotation MONDE de l'os Mixamo correspondant, corrigée de l'écart de pose de repos
@@ -43,10 +45,18 @@ static func _q(a: Array) -> Quaternion:
 static func _v(a: Array) -> Vector3:
 	return Vector3(float(a[0]), float(a[1]), float(a[2]))
 
+var source := SOURCE
+var sortie := SORTIE
+
 func _init() -> void:
-	var f := FileAccess.open(SOURCE, FileAccess.READ)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--source="):
+			source = a.substr(9)
+		elif a.begins_with("--sortie="):
+			sortie = a.substr(9)
+	var f := FileAccess.open(source, FileAccess.READ)
 	if f == null:
-		print("ECHEC source introuvable ", SOURCE)
+		print("ECHEC source introuvable ", source)
 		quit(1)
 		return
 	var data: Dictionary = JSON.parse_string(f.get_as_text())
@@ -145,8 +155,8 @@ func _init() -> void:
 		anim.set_meta("impact", impact)
 		lib.add_animation(nom, anim)
 		print("CLIP %s : %d images, %.2f s, impact %.2f, boucle %s, %d os reportés, k_bassin %.3f" % [nom, nimg, anim.length, impact, clip["boucle"], droite.size(), k_bassin])
-	var err := ResourceSaver.save(lib, SORTIE, ResourceSaver.FLAG_COMPRESS)
-	print("ECRIT " if err == OK else "ECHEC écriture ", SORTIE, " ", err)
+	var err := ResourceSaver.save(lib, sortie, ResourceSaver.FLAG_COMPRESS)
+	print("ECRIT " if err == OK else "ECHEC écriture ", sortie, " ", err)
 	_controler.call_deferred(racine, sq, lib, m_sq, err)
 
 ## Contrôle (arbre en marche) : quelques images appliquées au squelette -> tête, mains, pieds dans le modèle.
@@ -157,7 +167,7 @@ func _controler(racine: Node3D, sq: Skeleton3D, lib: AnimationLibrary, m_sq: Tra
 	ap.add_animation_library("z", lib)
 	get_root().add_child(racine)
 	await process_frame
-	for nom: String in ["Zombie_Attente", "Zombie_Reveil", "Zombie_Marche", "Zombie_Poing"]:
+	for nom: String in lib.get_animation_list().slice(0, 4):
 		for f: float in [0.0, 0.5, 1.0]:
 			ap.play("z/" + nom)
 			ap.seek(ap.current_animation_length * f, true)
