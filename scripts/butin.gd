@@ -47,8 +47,8 @@ var _son_fait := false
 var _pret := false
 
 func _ready() -> void:
-	if cle_sauvegarde.begins_with("lache:"):      # objet lâché depuis l'inventaire (scripts/lacher.gd) : petit sac visible au sol
-		Lacher.habiller(self)
+	if cle_sauvegarde.begins_with("lache:"):      # objet lâché depuis l'inventaire (scripts/lacher.gd) : l'objet lui-même au sol (ObjetMonde)
+		Lacher.habiller(self, contenu)
 	var n_or := int(contenu.get("pieces", 0))
 	for id in contenu:
 		if id != "pieces" and int(contenu[id]) > 0:
@@ -137,6 +137,8 @@ func fouiller() -> bool:
 	return false
 
 func _apres_fouille() -> void:
+	if cle_sauvegarde.begins_with("lache:") and not objets.is_empty():
+		Lacher.habiller(self, objets)               # fouille partielle : ne montrer que ce qui reste au sol
 	if objets.is_empty() and _inter != null and is_instance_valid(_inter):
 		_inter.actif = false
 		dialogue.retirer_invite(_inter)

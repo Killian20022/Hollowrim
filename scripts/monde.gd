@@ -683,6 +683,7 @@ func _villageois() -> void:
 	village.activer_interieurs(joueur, dialogue)   # portes des maisons (touche E)
 	services.poser(village, dialogue)              # lot E RPG : coffre loué chez Grima, coffre et râtelier de la maison
 	_uniques_village()
+	EtalMarchand.poser_village(village, self)   # objets monde : étals de Brodd et de Grima (stock du moment en 3D)
 	var promenade: Array = village.promenade
 	var rng_pts := RandomNumberGenerator.new()
 	rng_pts.seed = 20261020          # promenades des villageois reproductibles (captures)

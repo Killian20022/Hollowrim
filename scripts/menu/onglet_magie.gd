@@ -170,7 +170,7 @@ func _dessiner_fiche(d: Rect2) -> void:
 	if choisi != "":
 		var f := eq.fiche(choisi)
 		MenuStyle.cadre_icone(self, Rect2(x, y + 2, 40, 40))
-		icone(MenuStyle.icone_objet(choisi), Vector2(x + 4, y + 6), 2)
+		icone_grande(choisi, Vector2(x + 4, y + 6))
 		titre_fiche(x + 46.0, y, String(f["nom"]), d.size.x - 46.0, Parchemin.ENCRE)
 		var rub := OngletLivre.lignes_rubriques(f["lignes"])
 		var notes: Array = []

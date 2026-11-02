@@ -5,6 +5,8 @@ extends OngletMenu
 ## les actions passent par la coquille (InventaireMains). Les onglets du lot D peuvent en hériter (facultatif).
 
 const H_LIGNE := 18.0   # hauteur d'une ligne de registre (icône 16 + 2)
+## Côté du cadre de l'aperçu 3D d'une fiche (Sac, Équipement ; px en 640x360).
+const COTE_APERCU := 72.0
 
 var coquille: MenuPersonnage = null
 var _police: FontFile
@@ -60,6 +62,29 @@ func icone(tex: Texture2D, pos: Vector2, k := 1, teinte := Color.WHITE) -> void:
 	if tex == null:
 		return
 	draw_texture_rect(tex, Rect2(pos, Vector2(16 * k, 16 * k)), false, teinte)
+
+## Grande icône 32 px d'un objet (dessinée depuis son modèle : IconesObjets), sinon l'icône 16 px agrandie ×2.
+func icone_grande(id: String, pos: Vector2, teinte := Color.WHITE) -> void:
+	var t := MenuStyle.icone_objet_32(id)
+	if t != null:
+		draw_texture_rect(t, Rect2(pos, Vector2(32, 32)), false, teinte)
+	else:
+		icone(MenuStyle.icone_objet(id), pos, 2, teinte)
+
+## Aperçu 3D tournant (ApercuObjet) de l'objet `id` dans un cadre de vélin `r` ; sans modèle 3D : grande icône au centre.
+var _apercu: ApercuObjet = null
+func apercu(r: Rect2, id: String) -> void:
+	MenuStyle.cadre_apercu(self, r)
+	if _apercu == null:
+		_apercu = ApercuObjet.new()
+		_apercu.name = "Apercu"
+		add_child(_apercu)
+	if not _apercu.placer(r.grow(-3), id):
+		icone_grande(id, (r.get_center() - Vector2(16, 16)).floor())
+
+func cacher_apercu() -> void:
+	if _apercu != null:
+		_apercu.cacher()
 
 ## Titre de fiche : gothique 24 px s'il tient dans `larg`, sinon police du corps (noms longs : « Croc-Rouge, l'épée de Hrafn »).
 func titre_fiche(x: float, haut: float, t: String, larg: float, couleur := Parchemin.ENCRE) -> void:

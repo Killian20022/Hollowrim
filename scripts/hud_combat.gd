@@ -12,7 +12,7 @@ extends Control
 ## cartouche (DUREE_RUBAN s) puis se replie. Styles b (10 cases fines permanentes) et c (éventail de 5) : voir hud_cuir.gd.
 ## Tout s'efface hors combat quand les ressources sont pleines (comme hud.gd), réapparaît au moindre changement.
 ## Lecture seule du joueur : aucune logique de jeu ici.
-## Icônes : IconesCombat (scripts/icones_combat.gd).
+## Icônes : objets dessinés depuis leurs modèles 3D (IconesObjets, scripts/icones_objets.gd), sorts / statuts / main nue : IconesCombat.
 ##
 ## ===== CONTRAT DE DONNÉES (supposé ; l'agent logique s'y aligne). Tout est facultatif : membre absent = défaut. =====
 ## Lu par `joueur.get(nom)` à chaque image (donc propriétés ou variables du joueur ; jamais de méthode appelée) :
@@ -117,6 +117,7 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	IconesCombat.vider()
+	IconesObjets.vider()
 
 func _sur_mains(g: Dictionary, d: Dictionary) -> void:
 	_signal_recu = true
@@ -459,7 +460,7 @@ func _main(pos: Vector2, m: Dictionary, charge: float, recharge: float, sens: in
 		a_icone *= 0.4
 	var teinte := Color(0.55, 0.42, 0.42, a_icone) if manque else Color(1, 1, 1, a_icone)
 	var p_icone := pos + Vector2(4, 4)
-	draw_texture(IconesCombat.icone(icone_id), p_icone, teinte)
+	draw_texture(IconesObjets.icone_main(icone_id), p_icone, teinte)
 	# recharge : voile qui se retire vers le bas
 	if recharge > 0.0:
 		var h := ceili(16.0 * recharge)
@@ -504,7 +505,7 @@ func _raccourcis(pos: Vector2, alpha: float) -> void:
 			var nb := int(pr.get("nombre", 0))
 			draw_rect(Rect2(p, Vector2(CASE_L, CASE_H)), Color(FER, alpha))
 			draw_rect(Rect2(p + Vector2(1, 1), Vector2(CASE_L - 2, CASE_H - 2)), Color(FOND, 0.88 * alpha))
-			draw_texture(IconesCombat.icone(conso), p + Vector2(CASE_L / 2 - 8, 1), Color(1, 1, 1, (alpha if nb > 0 else 0.35 * alpha)))
+			draw_texture(IconesObjets.icone_main(conso), p + Vector2(CASE_L / 2 - 8, 1), Color(1, 1, 1, (alpha if nb > 0 else 0.35 * alpha)))
 			var txt := str(mini(nb, 9))
 			_mini(txt, p + Vector2(CASE_L - 5, 12), Color(PARCHEMIN if nb > 0 else FER_CLAIR, 0.95 * alpha))
 			var tc := str(pr.get("touche", str((i + 1) % 10)))
@@ -519,7 +520,7 @@ func _raccourcis(pos: Vector2, alpha: float) -> void:
 			var id := ig if k == 0 else idr
 			var q := p + Vector2(1 + 16 * k, 1)
 			if id != "":
-				draw_texture(IconesCombat.icone(id), q, Color(1, 1, 1, alpha if (actif or (k == 0 and en_g) or (k == 1 and en_d)) else 0.7 * alpha))
+				draw_texture(IconesObjets.icone_main(id), q, Color(1, 1, 1, alpha if (actif or (k == 0 and en_g) or (k == 1 and en_d)) else 0.7 * alpha))
 				var rh := _recharge(_v.rech_tout, "id:" + id, id)
 				if rh > 0.0:
 					var h := ceili(16.0 * rh)
@@ -599,14 +600,14 @@ func _case_paire(p: Vector2, pr: Dictionary, actif: bool, alpha: float, chiffre 
 	var a_ic := alpha if actif else 0.82 * alpha
 	if conso != "":
 		var nb := int(pr.get("nombre", 0))
-		draw_texture(IconesCombat.icone(conso), p + Vector2(PAIRE_L / 2 - 8, 2), Color(1, 1, 1, a_ic if nb > 0 else 0.35 * alpha))
+		draw_texture(IconesObjets.icone_main(conso), p + Vector2(PAIRE_L / 2 - 8, 2), Color(1, 1, 1, a_ic if nb > 0 else 0.35 * alpha))
 		CUIR.glyphe(self, str(mini(nb, 9)), p + Vector2(PAIRE_L - 7, PAIRE_H - 8), Color(CUIR.CLAIR if nb > 0 else CUIR.SUR_CUIR, 0.95 * alpha))
 	elif not vide:
 		for k in 2:
 			var id := ig if k == 0 else idr
 			var q := p + Vector2(2 + 17 * k, 2)
 			if id != "":
-				draw_texture(IconesCombat.icone(id), q, Color(1, 1, 1, a_ic))
+				draw_texture(IconesObjets.icone_main(id), q, Color(1, 1, 1, a_ic))
 				_voile(q, _recharge(_v.rech_tout, "id:" + id, id), alpha)
 			else:
 				draw_texture(IconesCombat.icone("vide"), q, Color(1, 1, 1, 0.28 * alpha))   # main nue de ce raccourci
@@ -651,7 +652,7 @@ func _cartouche(p: Vector2, alpha: float) -> void:
 		var est_sort := _type(m) == "sort"
 		var manque: bool = est_sort and float(m.get("cout", 0.0)) > _v.mana + 0.01
 		var teinte := Color(0.55, 0.42, 0.42, a_ic) if manque else Color(1, 1, 1, a_ic * (1.0 if id != "" else 0.3))
-		draw_texture(IconesCombat.icone(id), q, teinte)
+		draw_texture(IconesObjets.icone_main(id), q, teinte)
 		_voile(q, _v.rech_g if k == 0 else _v.rech_d, alpha)
 		if manque:
 			var l := Color(CUIR.CIRE_CLAIRE, alpha)
