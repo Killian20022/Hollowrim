@@ -42,15 +42,12 @@ func choisir_selon_inventaire(inventaire: Inventaire) -> void:
 		return   # sort, main vide ou autre arme choisis par le joueur (magie : EquipementMains) : on n'y touche pas
 	equiper("droite", EPEE_SKARNHOLT if inventaire.a("epee_skarnholt") else EPEE_METAL)
 
-## Multiplicateur d'équipement des coups d'arme (nom historique : ancien bonus des trophées). Lot A RPG : la hache de
-## Kolbeinn se TIENT (data/armes/hache_kolbeinn.tres, son ×1,25 est dans ses propres dégâts, comme Skarnholt) : plus de
-## bonus « dans le sac ». Reste le bonus des objets portés (EquipementCorps → Progression.bonus) : degats_deux_mains si
-## l'arme de droite est à deux mains, sinon degats_une_main. Signature inchangée (mains.gd l'appelle).
+## Ancien bonus des trophées (×1,25 quand la hache de Kolbeinn était dans le sac). Lot A RPG : la hache se TIENT
+## (data/armes/hache_kolbeinn.tres, son ×1,25 est dans ses propres dégâts, comme Skarnholt) → toujours 1,0. Les bonus de
+## dégâts des objets portés (degats_une_main / degats_deux_mains) passent par Progression.mult (lot B), pas ici.
+## Signature gardée (mains.gd l'appelle).
 func bonus_trophee(_inventaire: Inventaire) -> float:
-	var p := Progression.courante()
-	if p == null:
-		return 1.0
-	return 1.0 + maxf(p.bonus("degats_deux_mains" if main_droite.deux_mains else "degats_une_main"), 0.0)
+	return 1.0
 
 func gauche_sortie() -> bool:
 	return main_gauche != MAIN_VIDE

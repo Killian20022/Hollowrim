@@ -146,15 +146,17 @@ func _refus_et_mort() -> void:
 func _poids() -> void:
 	_vider_sac()
 	var inv: Inventaire = j.inventaire
-	_verif(is_equal_approx(inv.capacite(), 100.0) and not inv.surcharge(), "capacité du sac : %.0f, sac vide pas surchargé" % inv.capacite())
-	inv.ajouter("minerai_fer", 30)   # 90
-	_verif(not inv.surcharge() and inv.place_pour("minerai_fer") == 3 and inv.place_pour("epee_or") == 1 and inv.place_pour("pieces") > 1000, "90 / 100 : place pour 3 minerais, 1 épée, les pièces ne pèsent rien")
+	# lot A RPG : capacité 150 (Inventaire.CAPACITE), épée en or 5 kg ; les quantités suivent la capacité
+	var n0 := int(Inventaire.CAPACITE / 3.0) - 3
+	_verif(is_equal_approx(inv.capacite(), Inventaire.CAPACITE) and not inv.surcharge(), "capacité du sac : %.0f, sac vide pas surchargé" % inv.capacite())
+	inv.ajouter("minerai_fer", n0)   # capacité - 9
+	_verif(not inv.surcharge() and inv.place_pour("minerai_fer") == 3 and inv.place_pour("epee_or") == 1 and inv.place_pour("pieces") > 1000, "%.0f / %.0f : place pour 3 minerais, 1 épée, les pièces ne pèsent rien" % [inv.poids(), inv.capacite()])
 	_avis.clear()
 	await _images(5)
-	_verif(not j.surcharge and _avis.is_empty(), "joueur : pas surchargé à 90")
-	inv.ajouter("minerai_fer", 4)    # 102
+	_verif(not j.surcharge and _avis.is_empty(), "joueur : pas surchargé à %.0f" % inv.poids())
+	inv.ajouter("minerai_fer", 4)    # capacité + 3
 	await _images(5)
-	_verif(inv.surcharge() and j.surcharge, "102 / 100 : surchargé")
+	_verif(inv.surcharge() and j.surcharge, "%.0f / %.0f : surchargé" % [inv.poids(), inv.capacite()])
 	_verif(_avis.size() == 1 and _avis[0].contains("Surchargé") and _avis[0].contains("course"), "message clair (« %s »)" % (_avis[0] if not _avis.is_empty() else "aucun"))
 	inv.retirer("minerai_fer", 4)
 	await _images(5)
@@ -164,7 +166,8 @@ func _poids() -> void:
 func _butin_et_marchands() -> void:
 	_vider_sac()
 	var inv: Inventaire = j.inventaire
-	inv.ajouter("minerai_fer", 31)   # 93 → place pour 2 minerais
+	var n0 := int(Inventaire.CAPACITE / 3.0) - 2
+	inv.ajouter("minerai_fer", n0)   # capacité - 6 → place pour 2 minerais
 	var fb := FenetreButin.new()
 	fb.joueur = j
 	fb.hud = s.hud
@@ -176,12 +179,12 @@ func _butin_et_marchands() -> void:
 		if String(fb.lignes[k]["id"]) == "minerai_fer":
 			i_fer = k
 	fb.prendre(i_fer)
-	_verif(inv.nombre("minerai_fer") == 33 and int(objets.get("minerai_fer", 0)) == 3 and not inv.surcharge(), "butin : seulement 2 minerais sur 5 emportés, 3 restent (sac %.1f)" % inv.poids())
+	_verif(inv.nombre("minerai_fer") == n0 + 2 and int(objets.get("minerai_fer", 0)) == 3 and not inv.surcharge(), "butin : seulement 2 minerais sur 5 emportés, 3 restent (sac %.1f)" % inv.poids())
 	fb.prendre(fb.lignes.map(func(l: Dictionary) -> String: return String(l["id"])).find("minerai_fer"))
-	_verif(inv.nombre("minerai_fer") == 33 and int(objets.get("minerai_fer", 0)) == 3, "butin : sac plein, rien de plus ne passe")
+	_verif(inv.nombre("minerai_fer") == n0 + 2 and int(objets.get("minerai_fer", 0)) == 3, "butin : sac plein, rien de plus ne passe")
 	var n_av := fb.lignes.size()
 	fb.tout_prendre()
-	_verif(fb.ouvert and inv.nombre("minerai_fer") == 33 and not inv.surcharge(), "« tout prendre » ne boucle pas et respecte la limite (reste : %d ligne(s))" % fb.lignes.size())
+	_verif(fb.ouvert and inv.nombre("minerai_fer") == n0 + 2 and not inv.surcharge(), "« tout prendre » ne boucle pas et respecte la limite (reste : %d ligne(s))" % fb.lignes.size())
 	fb.fermer()
 	# marchand : achat refusé quand le sac est plein
 	Marchand.reinitialiser()
@@ -189,14 +192,14 @@ func _butin_et_marchands() -> void:
 	var r := Marchand.acheter("forgeron", inv, "minerai_fer", 1)
 	var stock := Marchand.stock("forgeron")
 	if stock.has("minerai_fer"):
-		inv.ajouter("minerai_fer", 1)   # 34 = 102 : plein
+		inv.ajouter("minerai_fer", 1)   # capacité + 3 : plein
 		r = Marchand.acheter("forgeron", inv, "minerai_fer", 1)
 		_verif(r.begins_with("Trop lourd"), "marchand : achat refusé sac plein (« %s »)" % r)
-		_verif(not inv.surcharge() or inv.nombre("minerai_fer") == 34, "marchand : le sac n'a pas grossi")
+		_verif(not inv.surcharge() or inv.nombre("minerai_fer") == n0 + 3, "marchand : le sac n'a pas grossi")
 	else:
 		_verif(true, "(Brodd n'a pas de minerai en stock cette période : refus testé sur un autre objet)")
 		inv.objets.clear()
-		inv.ajouter("minerai_fer", 33)
+		inv.ajouter("minerai_fer", n0 + 2)
 		inv.ajouter("pieces", 500)
 		var oid := String(stock.keys()[0]) if not stock.is_empty() else ""
 		if oid != "":
@@ -209,10 +212,10 @@ func _anciennes_sauvegardes() -> void:
 	var inv: Inventaire = j.inventaire
 	_verif(not inv.exporter().has("potions") and (inv.exporter()["objets"] as Dictionary).size() >= 0, "la sauvegarde du sac reste {pieces, objets} (aucun champ nouveau)")
 	var vieux := Inventaire.new()
-	vieux.importer({"pieces": 12, "objets": {"epee_or": 6, "minerai_fer": 10, "potion_soin": 3}})   # 84 : ancienne partie lourde
-	_verif(vieux.nombre("epee_or") == 6 and vieux.poids() > 84.0 - 0.1, "ancienne sauvegarde chargée telle quelle (poids %.1f)" % vieux.poids())
-	vieux.importer({"pieces": 0, "objets": {"epee_or": 20}})
-	_verif(vieux.nombre("epee_or") == 20 and vieux.surcharge(), "un vieux sac trop lourd se charge, simplement surchargé")
+	vieux.importer({"pieces": 12, "objets": {"epee_or": 6, "minerai_fer": 10, "potion_soin": 3}})   # ancienne partie lourde
+	_verif(vieux.nombre("epee_or") == 6 and vieux.poids() > 6.0 * float(Inventaire.objet("epee_or")["poids"]) + 30.0 + 1.5 - 0.1, "ancienne sauvegarde chargée telle quelle (poids %.1f)" % vieux.poids())
+	vieux.importer({"pieces": 0, "objets": {"epee_or": 40}})
+	_verif(vieux.nombre("epee_or") == 40 and vieux.surcharge(), "un vieux sac trop lourd se charge, simplement surchargé")
 	var v2 := Inventaire.new()
 	v2.importer({})
 	_verif(v2.poids() == 0.0 and not v2.surcharge(), "ancien format vide accepté")
@@ -233,7 +236,7 @@ func _captures_demo() -> void:
 	await _capture("potions_effet_hud.png")
 	j.potions.vider()
 	inv.ajouter("epee_or", 5)
-	inv.ajouter("minerai_fer", 20)
+	inv.ajouter("minerai_fer", 45)
 	_avis.clear()
 	await _images(5)
 	_verif(j.surcharge, "démo : sac surchargé (%.0f / %.0f)" % [inv.poids(), inv.capacite()])
