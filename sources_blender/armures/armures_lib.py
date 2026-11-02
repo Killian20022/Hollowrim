@@ -524,6 +524,16 @@ def exporter(o, arm, ident, sol_transformer=None):
     """Exporte <id>.glb porté (armature + maillage skinné) et, si sol_transformer, la pose au sol statique."""
     os.makedirs(PORTE, exist_ok=True)
     os.makedirs(SOL, exist_ok=True)
+    # groupes de sommets qui ne sont pas des os (restes d'outils) : retirés, poids renormalisés
+    os_ = {b.name for b in arm.data.bones}
+    pw = [{k: w for k, w in d.items() if k in os_} for d in poids(o)]
+    etrangers = [g.name for g in o.vertex_groups if g.name not in os_]
+    if etrangers:
+        print("  groupes retirés (pas des os) :", etrangers)
+    pw = normaliser(pw)
+    vides = [i for i, d in enumerate(pw) if not d]
+    assert not vides, "%s : %d sommets sans poids d'os" % (ident, len(vides))
+    ecrire_poids(o, pw)
     o.parent = arm
     o.matrix_parent_inverse = arm.matrix_world.inverted()
     for m in list(o.modifiers):

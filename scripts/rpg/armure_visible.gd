@@ -6,7 +6,7 @@ extends Node
 ## d'os : il est rattaché au Skeleton3D du corps et suit toutes ses animations). Pièce sans glb : rien ne change (le héros garde sa
 ## tenue). Ce qu'une pièce recouvre est MASQUÉ sur le héros (copie filtrée des maillages, l'original est remis quand on l'ôte) :
 ##   tete  : casque, crête, camail, cheveux (la barbe et le visage restent) ;
-##   torse : cotte (|x| < 0,42 : les manches au-delà restent), mante, plastron, épaulières, col, tabard, pèlerine, ceinture, surcot ;
+##   torse : cotte (triangles qui ont un sommet à |x| < 0,405 : la manche au-delà, sous le coude, reste), mante, plastron, épaulières, col, tabard, pèlerine, ceinture, surcot ;
 ##   mains : tout ce qui dépasse |x| = 0,58 en pose de repos (gants, revers fourrés, brassards, bout des manches) ;
 ##   pieds : bottes, revers fourrés, bas du pantalon (sous y = 0,40).
 ## 1re personne : les bras FPS (mains.gd, matières ab_* d'AvantBras) prennent la matière des gants / gantelets portés.
@@ -20,13 +20,13 @@ const SOL := "res://assets/modeles/armures/sol/"
 const EMPLACEMENTS := ["tete", "torse", "mains", "pieds"]
 ## Seuils de masquage (pose de repos du héros, repère du squelette : y haut, z devant).
 const MAINS_X := 0.58
-const TORSE_X := 0.40
+const TORSE_X := 0.405
 const PIEDS_Y := 0.40
 const PIEDS_Y_ACC := 0.47
 const TETE_Y := 1.585
 const CAMAIL_Y := 1.46
 const CAMAIL_BAS_TORSE := 1.62
-const TORSE_PANTALON_Y := 0.64
+const TORSE_PANTALON_Y := 0.71	# sommet le plus haut du triangle (gros triangles du pantalon)
 ## Mèches de la nuque (cheveux sous le casque du héros) qui tombent dans le col d'une pièce de torse.
 const TORSE_CHEVEUX_Y := 1.575
 
@@ -66,11 +66,12 @@ static func equiper(parent: Node, sq: Skeleton3D, eq: EquipementCorps, bras: Nod
 	a.installer(sq, eq)
 	return a
 
+## Chemin du modèle porté : champ « modele_porte » de la fiche (data/objets/armures.json), sinon la convention porte/<id>.glb.
 static func chemin_porte(id: String) -> String:
-	return PORTE + id + ".glb"
+	return String(Inventaire.objet(id).get("modele_porte", PORTE + id + ".glb")) if Inventaire.connu(id) else PORTE + id + ".glb"
 
 static func chemin_sol(id: String) -> String:
-	return SOL + id + ".glb"
+	return String(Inventaire.objet(id).get("modele_sol", SOL + id + ".glb")) if Inventaire.connu(id) else SOL + id + ".glb"
 
 static func a_modele(id: String) -> bool:
 	return id != "" and ResourceLoader.exists(chemin_porte(id))
@@ -256,7 +257,11 @@ static func _dans(r: Rect2i, u: Vector2) -> bool:
 	return u.x >= r.position.x and u.y >= r.position.y and u.x < r.end.x and u.y < r.end.y
 
 ## true si le triangle (centre c au repos, centre UV u en texels de l'atlas des accessoires) est recouvert.
-static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Array) -> bool:
+static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Array, haut := -INF, x_min := INF) -> bool:
+	if haut == -INF:
+		haut = c.y
+	if x_min == INF:
+		x_min = absf(c.x)
 	if z.has("mains") and absf(c.x) > MAINS_X and nom in ["tunique", "brassards", "peau", "accessoires"]:
 		return true
 	if z.has("pieds"):
@@ -275,9 +280,9 @@ static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Arra
 	if z.has("torse"):
 		if camail and c.y < CAMAIL_BAS_TORSE:
 			return true     # bas du camail du casque, étalé sur le col : sous la pièce de torse
-		if nom == "pantalon" and c.y > TORSE_PANTALON_Y:
+		if nom == "pantalon" and haut > TORSE_PANTALON_Y:
 			return true     # haut du pantalon (hanches) : sous la pièce de torse, il passerait au travers quand la cuisse se lève
-		if nom == "tunique" and absf(c.x) < TORSE_X:
+		if nom == "tunique" and x_min < TORSE_X:     # sommet le plus proche du corps : les grands triangles de la manche
 			return true
 		if nom == "mante":
 			return true
@@ -309,7 +314,7 @@ static func _filtrer(orig: Mesh, nom: String, z: Array) -> ArrayMesh:
 			var u := Vector2.ZERO
 			if not uv.is_empty():
 				u = (uv[idx[t]] + uv[idx[t + 1]] + uv[idx[t + 2]]) / 3.0 * atlas
-			if not recouvert(nom, s, c, u, z):
+			if not recouvert(nom, s, c, u, z, maxf(v[idx[t]].y, maxf(v[idx[t + 1]].y, v[idx[t + 2]].y)), minf(absf(v[idx[t]].x), minf(absf(v[idx[t + 1]].x), absf(v[idx[t + 2]].x)))):
 				garde.append(idx[t])
 				garde.append(idx[t + 1])
 				garde.append(idx[t + 2])

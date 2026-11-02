@@ -210,7 +210,7 @@ func _triangles_recouverts(sq: Skeleton3D, z: Array) -> int:
 					continue
 				var c := (v[idx[t]] + v[idx[t + 1]] + v[idx[t + 2]]) / 3.0
 				var u := (uv[idx[t]] + uv[idx[t + 1]] + uv[idx[t + 2]]) / 3.0 * atlas if not uv.is_empty() else Vector2.ZERO
-				if ArmureVisible.recouvert(nom, s, c, u, z):
+				if ArmureVisible.recouvert(nom, s, c, u, z, maxf(v[idx[t]].y, maxf(v[idx[t + 1]].y, v[idx[t + 2]].y)), minf(absf(v[idx[t]].x), minf(absf(v[idx[t + 1]].x), absf(v[idx[t + 2]].x)))):
 					n += 1
 					if detail:
 						print("    reste %s/%d %s" % [nom, s, c.snapped(Vector3.ONE * 0.01)])
@@ -274,15 +274,24 @@ func _traversees(famille: String, liste: Array) -> void:
 				var pa: PackedVector3Array = A["p0"]
 				var idx: PackedInt32Array = A["idx"]
 				var libre := true
-				var couvert := false
+				var couvert := Vector3.INF
 				for i in range(0, idx.size(), 3):
-					if libre and Geometry3D.segment_intersects_triangle(c, pp[k], pa[idx[i]], pa[idx[i + 1]], pa[idx[i + 2]]) != null:
+					if Geometry3D.segment_intersects_triangle(c, pp[k], pa[idx[i]], pa[idx[i + 1]], pa[idx[i + 2]]) != null:
 						libre = false
 						break
-					if not couvert and Geometry3D.segment_intersects_triangle(pp[k], dehors, pa[idx[i]], pa[idx[i + 1]], pa[idx[i + 2]]) != null:
-						couvert = true
-				if libre and couvert:
-					dedans.append([g, k, ai, t])
+					if couvert == Vector3.INF:
+						var hc: Variant = Geometry3D.segment_intersects_triangle(pp[k], dehors, pa[idx[i]], pa[idx[i + 1]], pa[idx[i + 2]])
+						if hc != null:
+							couvert = hc
+				if libre and couvert != Vector3.INF:
+					# triangles de la pièce AUTOUR du point qui le couvre (8 cm) : on mesure la sortie à travers CETTE surface (un
+					# point qui rentre dans une autre partie de la pièce, ex. le bras qui frôle le flanc, reste caché : ce n'est pas
+					# une traversée visible)
+					var voisins := PackedInt32Array()
+					for i in range(0, idx.size(), 3):
+						if ((pa[idx[i]] + pa[idx[i + 1]] + pa[idx[i + 2]]) / 3.0).distance_to(couvert) < 0.08:
+							voisins.append(i)
+					dedans.append([g, k, ai, t, voisins])
 					break
 	print("  %s : %d points de la tenue sous les pièces au repos" % [famille, dedans.size()])
 	var pire := 0.0
@@ -314,12 +323,7 @@ func _traversees(famille: String, liste: Array) -> void:
 				var A: Dictionary = armures[d[2]]
 				var pa: PackedVector3Array = pa_cour[d[2]]
 				var idx: PackedInt32Array = A["idx"]
-				var dn := (p - c).normalized()
-				var lgp := c.distance_to(p)
-				for i in range(0, idx.size(), 3):
-					var q := (pa[idx[i]] + pa[idx[i + 1]] + pa[idx[i + 2]]) / 3.0
-					if (q - c).normalized().dot(dn) < 0.6 or (q - c).length() > lgp + 0.05:
-						continue
+				for i: int in d[4]:
 					var hit: Variant = Geometry3D.segment_intersects_triangle(c, p, pa[idx[i]], pa[idx[i + 1]], pa[idx[i + 2]])
 					if hit != null:
 						var prof := p.distance_to(hit as Vector3)

@@ -12,6 +12,8 @@ const PIECES := {
 	"fer": ["casque_fer", "cuirasse_fer", "gantelets_fer", "bottes_fer"],
 	"acier": ["casque_acier_nordique", "cuirasse_acier_nordique", "gantelets_acier_nordique", "bottes_acier_nordique"],
 }
+const NOMS := {"sans_armure": "Heros sans armure (reference)", "cuir": "CUIR", "fourrure": "FOURRURE", "os": "OS DE DRAUGR",
+	"fer": "FER", "acier": "ACIER NORDIQUE"}
 var s: Node
 var j: CharacterBody3D
 var mains: Node3D
@@ -41,7 +43,10 @@ func _equiper_famille(f: String) -> void:
 				print("REFUS ", id, " : ", r)
 	print("FAMILLE ", f, " portées : ", j.corps.armure.zones())
 
-func _capture(nom: String, rect := Rect2i()) -> void:
+func _capture(nom: String, rect := Rect2i(), texte := "") -> void:
+	var k0 := root.get_viewport().get_visible_rect().size.y / 540.0
+	l.text = texte
+	l.position = Vector2(rect.position) * k0 + Vector2(4, 2)
 	await process_frame
 	await process_frame
 	var img := root.get_viewport().get_texture().get_image()
@@ -84,7 +89,7 @@ func _go() -> void:
 	s.add_child(calque)
 	l = Label.new()
 	l.add_theme_font_override("font", Palette.police())
-	l.add_theme_font_size_override("font_size", 18)
+	l.add_theme_font_size_override("font_size", 12 if not film else 18)
 	l.add_theme_color_override("font_outline_color", Color.BLACK)
 	l.add_theme_constant_override("outline_size", 6)
 	l.position = Vector2(10, 8)
@@ -122,7 +127,12 @@ func _planches() -> void:
 		for v in vues:
 			_placer_cam(vues[v], 3.6, 0.95, 1.2)
 			await _attendre(0.15)
-			await _capture("%s_%s" % [f, v], cadre)
+			await _capture("%s_%s" % [f, v], cadre, "%s - %s" % [NOMS.get(f, f), {"face": "face", "tq": "3/4", "profil": "profil", "dos": "dos"}[v]])
+		# gros plan du haut du corps (tête, épaules, mains) de 3/4 face et de 3/4 dos
+		for v in {"buste": 30.0, "buste_dos": 150.0}:
+			_placer_cam({"buste": 30.0, "buste_dos": 150.0}[v], 1.5, 1.35, 1.55)
+			await _attendre(0.15)
+			await _capture("%s_%s" % [f, v], Rect2i(240, 0, 480, 540), "buste " + ("3/4 face" if v == "buste" else "3/4 dos"))
 		if f == "sans_armure":
 			continue
 		# pièces posées au sol, devant le héros (vue plongeante)
@@ -135,15 +145,15 @@ func _planches() -> void:
 			s.add_child(n)
 			var devant := -j.global_transform.basis.z
 			var cote := devant.cross(Vector3.UP)
-			n.global_position = j.global_position + devant * 1.6 + cote * (-0.75 + 0.5 * i)
+			n.global_position = j.global_position + devant * 1.6 + cote * (-1.05 + 0.7 * i)
 			n.rotation.y = j.rotation.y + PI
 			poses.append(n)
 		j.visible = false
 		var c := j.global_position + (-j.global_transform.basis.z) * 1.6
-		cam.global_position = c + (-j.global_transform.basis.z) * 1.3 + Vector3(0, 1.1, 0)
+		cam.global_position = c + (-j.global_transform.basis.z) * 2.3 + Vector3(0, 1.7, 0)
 		cam.look_at(c + Vector3(0, 0.1, 0), Vector3.UP)
 		await _attendre(0.2)
-		await _capture("%s_sol" % f, Rect2i(120, 70, 720, 400))
+		await _capture("%s_sol" % f, Rect2i(120, 70, 720, 400), "pieces posees au sol (sol/<id>.glb)")
 		for n in poses:
 			n.queue_free()
 		j.visible = true
