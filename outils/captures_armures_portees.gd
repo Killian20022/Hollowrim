@@ -25,6 +25,7 @@ var sortie := ""
 var familles: Array = ["cuir", "fourrure", "os"]
 var film := false
 var jambes := false
+var chevilles := false     # gros plans des chevilles (bottes portées), sert au contrôle des fentes
 
 func _init() -> void:
 	_go.call_deferred()
@@ -96,6 +97,8 @@ func _go() -> void:
 			film = true
 		elif a == "--jambes":
 			jambes = true
+		elif a == "--chevilles":
+			chevilles = true
 	s = load("res://scenes/test_combat.tscn").instantiate()
 	s.options = {"draugr": "aucun", "sans-aide": ""}
 	root.add_child(s)
@@ -125,6 +128,8 @@ func _go() -> void:
 	await _attendre(1.0)
 	if film:
 		await _film()
+	elif chevilles:
+		await _chevilles()
 	elif jambes:
 		await _jambes()
 	else:
@@ -216,6 +221,20 @@ func _film() -> void:
 
 ## Planche « jambes » : par famille, torse seul / bottes seules / torse + bottes, de face, de profil et de dos, cadré sur le bas du
 ## corps (contrôle : aucune partie de jambe ne disparaît entre les pièces).
+func _chevilles() -> void:
+	DirAccess.make_dir_recursive_absolute(sortie)
+	cam = Camera3D.new()
+	cam.fov = 40.0
+	s.add_child(cam)
+	cam.current = true
+	for f in familles:
+		_equiper_famille(f)
+		await _attendre(0.5)
+		for v in {"face": 0.0, "g": -35.0, "d": 35.0, "dos": 180.0}:
+			_placer_cam({"face": 0.0, "g": -35.0, "d": 35.0, "dos": 180.0}[v], 0.9, 0.16, 0.30)
+			await _attendre(0.12)
+			await _capture("c_%s_%s" % [f, v], Rect2i(240, 0, 480, 540), "%s chevilles %s" % [NOMS.get(f, f), v])
+
 func _jambes() -> void:
 	DirAccess.make_dir_recursive_absolute(sortie)
 	cam = Camera3D.new()

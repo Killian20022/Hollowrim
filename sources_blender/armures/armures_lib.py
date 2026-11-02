@@ -381,13 +381,13 @@ def hexa(*cs):
     return [tuple(int(c[i:i + 2], 16) / 255.0 for i in (1, 3, 5)) for c in cs]
 
 
-def uv_auto(o, marge=0.02):
+def uv_auto(o, marge=0.02, angle=66):
     bpy.context.view_layer.objects.active = o
     bpy.ops.object.select_all(action='DESELECT')
     o.select_set(True)
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
-    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=marge, area_weight=1.0, scale_to_bounds=True)
+    bpy.ops.uv.smart_project(angle_limit=math.radians(angle), island_margin=marge, area_weight=1.0, scale_to_bounds=True)
     bpy.ops.uv.pack_islands(margin=marge, rotate=True)
     bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -578,8 +578,10 @@ def materiau(nom, img):
 
 
 # ----------------------------------------------------------------------------------------------------------- export
-def exporter(o, arm, ident, sol_transformer=None):
+def exporter(o, arm, ident, sol_transformer=None, dossier=None):
     """Exporte <id>.glb porté (armature + maillage skinné) et, si sol_transformer, la pose au sol statique."""
+    dossier = dossier or PORTE
+    os.makedirs(dossier, exist_ok=True)
     os.makedirs(PORTE, exist_ok=True)
     os.makedirs(SOL, exist_ok=True)
     # groupes de sommets qui ne sont pas des os (restes d'outils) : retirés, poids renormalisés
@@ -602,7 +604,7 @@ def exporter(o, arm, ident, sol_transformer=None):
     o.select_set(True)
     arm.select_set(True)
     bpy.context.view_layer.objects.active = arm
-    bpy.ops.export_scene.gltf(filepath=os.path.join(PORTE, ident + ".glb"), export_format='GLB', use_selection=True,
+    bpy.ops.export_scene.gltf(filepath=os.path.join(dossier, ident + ".glb"), export_format='GLB', use_selection=True,
                               export_skins=True, export_animations=False, export_yup=True, export_apply=False,
                               export_materials='EXPORT', export_image_format='AUTO', export_vertex_color='NONE')
     if sol_transformer is None:

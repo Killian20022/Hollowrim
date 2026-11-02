@@ -138,7 +138,8 @@ def finir_famille(nom):
     atlas[:, :, 3] = 1.0
     for piece, (x, y, w, h) in zip(FAM, ZONES):
         o = piece["o"]
-        L.uv_auto(o, 3.0 / min(w, h))
+        # îlots plus grands (angle 80°) : moins de petits morceaux, plus de texels utiles, mèches continues sur la fourrure
+        L.uv_auto(o, 3.0 / min(w, h), 80 if nom == "fourrure" else 66)
         rgba = L.cuire(o, piece["matiere"], (w, h), piece["ident"], tableau=True)
         atlas[y:y + h, x:x + w] = rgba
         for uv in o.data.uv_layers.active.data:
@@ -443,8 +444,20 @@ def gants_base(nom, tris, jeu=0.004):
     return o
 
 
-def bottes_base(nom, tris, jeu=0.005):
+def bottes_base(nom, tris, jeu=0.005, souder=0.010):
     o = L.copie("bottes", nom)
+    # fentes de la botte du héros (cheville intérieure) bouchées : la botte du héros disparaît entièrement sous la botte portée
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    # tige et pied sont deux coques qui se chevauchent à la cheville : on soude leurs bords libres (hors ourlet du haut et
+    # semelle), puis on bouche les petits trous restants
+    libres = [v for v in bm.verts if any(e.is_boundary for e in v.link_edges) and 0.02 < G(v.co).y < 0.35]
+    bmesh.ops.remove_doubles(bm, verts=libres, dist=souder)
+    bords = [e for e in bm.edges if e.is_boundary]
+    bmesh.ops.holes_fill(bm, edges=bords, sides=12)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(o.data)
+    bm.free()
     bvh = L.bvh_de(["bottes"])
     L.ajuster(o, bvh, lambda p: jeu, lissage=1, force=0.3)
     L.decimer(o, tris)
@@ -1024,7 +1037,99 @@ def os_draugr():
     finir(o, mat_b, "os", "bottes_os", 900, sol_paire_pieds)
 
 
-# ============================================================================================================
+# ============================================================================================================ CHAUSSES
+## Chausses portées avec les pièces de torse (décision du 2026-11-02 : comme les armures de Skyrim qui couvrent les jambes). Dérivées
+## du PANTALON du héros (même topologie, mêmes poids : aucune traversée possible avec ce qu'il remplace), un peu gonflées, coupées
+## sous la ceinture (le haut est sous la pièce de torse). Une texture par famille -> assets/modeles/armures/chausses/<famille>.glb ;
+## armure_visible.gd associe chaque torse à sa famille de chausses (y compris les torses de l'agent Y).
+CHAUSSES = os.path.join(L.ROOT, "assets", "modeles", "armures", "chausses")
+
+
+def mat_mailles(P, N, pa, bd, pal, base=0.5, givre=0.0, g=0):
+    """Mailles : rangées d'anneaux (période 1,2 cm, rangées décalées), creux sombres, reflets sur le haut des anneaux, rouille douce."""
+    y = P[:, 1]
+    a = np.arctan2(P[:, 0] - np.sign(P[:, 0]) * 0.11, P[:, 2] - 0.02) * 0.06
+    r = np.floor(y / 0.012)
+    u = np.mod(a / 0.012 + 0.5 * np.mod(r, 2), 1.0)
+    w = np.mod(y / 0.012, 1.0)
+    anneau = np.abs(np.hypot(u - 0.5, (w - 0.5) * 1.2) - 0.33) < 0.14
+    v = base + (L.fbm(P, 8.0, g) - 0.5) * 0.18
+    v = np.where(anneau, v + 0.16 * (1 - w), v - 0.22)
+    rgb = L.rampe(pal, np.clip(v, 0, 0.999))
+    t = np.clip((L.fbm(P, 4.0, g + 3) - 0.55) * 2.5, 0, 1)[:, None]
+    rgb = rgb * (1 - 0.25 * t) + np.array([0.30, 0.17, 0.08]) * 0.25 * t     # rouille
+    if givre > 0:
+        k = np.clip((L.fbm(P, 6.0, g + 7) - 0.45) * 3.0, 0, 1)[:, None] * givre
+        rgb = rgb * (1 - k) + np.array([0.78, 0.86, 0.95]) * k
+    al = np.where(anneau, 0.85, 0.3)
+    return np.concatenate([rgb, al[:, None]], 1)
+
+
+def chausses():
+    o = L.copie("pantalon", "chausses", lambda c, n: c.y < 0.93)
+    bvh = L.bvh_de(["pantalon"])
+    L.ajuster(o, bvh, lambda p: 0.004, lissage=1, force=0.2)
+    pw = L.poids(o)
+    L.ecrire_poids(o, L.normaliser(pw))
+    L.lisser_normales(o)
+    print("PIECE chausses : %d triangles" % L.nb_tris(o))
+    L.uv_auto(o, 0.02, 80)
+
+    def cuir_lace(P, N, pa, bd):
+        out = mat_cuir(P, N, pa, bd, 0.42, CUIR, 201)
+        x, y, z = P[:, 0], P[:, 1], P[:, 2]
+        lat = np.abs(np.abs(x) - 0.20) < 0.012
+        out[lat & (y > 0.45), :3] *= 0.55                                   # couture lacée sur le côté de la cuisse
+        lac = (np.abs(np.abs(x) - 0.20) < 0.02) & (np.mod(y * 30.0, 1.0) < 0.3) & (y > 0.45)
+        out[lac, :3] = L.rampe(CUIR, np.full(lac.sum(), 0.7))
+        return out
+
+    def laine_molletieres(P, N, pa, bd):
+        y = P[:, 1]
+        v = 0.45 + (L.fbm(P, 9.0, 211) - 0.5) * 0.2 + (L.bruit(P, 60.0, 213) - 0.5) * 0.12
+        out = np.concatenate([L.rampe(LAINE + L.hexa("#4a4136", "#5a4f42"), np.clip(v, 0, 0.999)), np.full((len(P), 1), 0.08)], 1)
+        bande = (y < 0.50) & (y > 0.12)
+        diag = np.mod(y * 14.0 + np.arctan2(P[:, 0] - np.sign(P[:, 0]) * 0.11, P[:, 2]) * 0.35, 1.0)
+        b = bande & (diag < 0.78)
+        out[b] = mat_cuir(P[b], N[b], pa[b], bd[b], 0.5, CUIR, 215)
+        out[bande & (diag >= 0.78), :3] *= 0.45                                # recouvrement des bandes
+        return out
+
+    def os_cuisses(P, N, pa, bd):
+        out = mat_cuir(P, N, pa, bd, 0.28, CUIR_SOMBRE, 221)
+        y, z = P[:, 1], P[:, 2]
+        pl = (y > 0.58) & (y < 0.86) & (z > 0.02) & (np.mod(y * 18.0, 1.0) > 0.18)
+        out[pl] = mat_os(P[pl], N[pl], pa[pl], bd[pl], 0.55, 223)
+        return out
+
+    def cendre(P, N, pa, bd):
+        out = mat_cuir(P, N, pa, bd, 0.30, L.hexa("#0e0d0c", "#1a1816", "#292522", "#3a3430", "#4a433d"), 231)
+        br = L.bruit(P, 90.0, 233) > 0.93
+        out[br, :3] = np.array([0.75, 0.30, 0.08])
+        return out
+
+    familles = {
+        "cuir": ("cuir", cuir_lace), "fourrure": ("cuir", laine_molletieres), "os": ("cuir", os_cuisses),
+        "fer": ("fer", lambda P, N, pa, bd: mat_mailles(P, N, pa, bd, FER, 0.5, 0.0, 241)),
+        "acier": ("acier", lambda P, N, pa, bd: mat_mailles(P, N, pa, bd, FER, 0.62, 0.0, 243)),
+        "gardiens": ("acier", lambda P, N, pa, bd: mat_mailles(P, N, pa, bd, FER, 0.6, 0.6, 245)),
+        "braise": ("cuir", cendre),
+    }
+    for fam, (nom_mat, fn) in familles.items():
+        c = o.copy()
+        c.data = o.data.copy()
+        bpy.context.scene.collection.objects.link(c)
+        c.name = "chausses_" + fam
+        img = L.cuire(c, fn, 128, "chausses_" + fam)
+        c.data.materials.clear()
+        c.data.materials.append(L.materiau(nom_mat, img))
+        L.exporter(c, ARM, fam, None, CHAUSSES)
+        if APERCU:
+            PIECES.append(c)
+
+
+if FAMILLE in ("chausses", "tout"):
+    chausses()
 if FAMILLE in ("cuir", "tout"):
     cuir()
     finir_famille("cuir")

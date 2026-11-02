@@ -104,9 +104,55 @@ func appliquer() -> void:
 		return
 	for e in EMPLACEMENTS:
 		_poser(e)
+	_poser_chausses()
 	_masquer()
 	_habiller_fps()
 	definir_vue(vue_3)
+
+## CHAUSSES (décision du 2026-11-02) : une pièce de torse portée apporte des chausses assorties (dérivées du pantalon du héros, mêmes
+## poids : sources_blender/armures/legeres/gen_legeres.py -- chausses) ; le pantalon, la cotte et les pans du héros disparaissent
+## alors entièrement (plus d'étoffe qui traverse les jupes, silhouette nette). Avec des bottes, les chausses sont coupées à leur haut.
+## Torse inconnu de la table : chausses de cuir.
+const CHAUSSES := "res://assets/modeles/armures/chausses/"
+const CHAUSSES_PAR_TORSE := {
+	"armure_cuir": "cuir", "armure_fourrure": "fourrure", "cuirasse_os": "os",
+	"cuirasse_fer": "fer", "cuirasse_acier_nordique": "acier", "cuirasse_gardiens": "gardiens", "brigandine_braise": "braise",
+}
+
+static func famille_chausses(id_torse: String) -> String:
+	return String(CHAUSSES_PAR_TORSE.get(id_torse, "cuir")) if id_torse != "" else ""
+
+func _poser_chausses() -> void:
+	var fam := famille_chausses(porte("torse"))
+	var chemin := CHAUSSES + fam + ".glb"
+	var ancien: MeshInstance3D = _portees.get("jambes")
+	if ancien != null and is_instance_valid(ancien):
+		if String(ancien.get_meta("armure_id", "")) == "chausses_" + fam:
+			return
+		ancien.get_parent().remove_child(ancien)
+		ancien.queue_free()
+	_portees.erase("jambes")
+	if fam == "" or not ResourceLoader.exists(chemin):
+		return
+	var mi := charger_chemin(chemin)
+	if mi == null:
+		return
+	mi.name = "armure_jambes"
+	mi.set_meta("armure_id", "chausses_" + fam)
+	mi.set_meta("armure_emplacement", "jambes")
+	mi.set_meta("maillage_origine", mi.mesh)
+	squelette.add_child(mi)
+	mi.skeleton = NodePath("..")
+	_portees["jambes"] = mi
+
+## Toutes les pièces posées (chausses comprises).
+func maillages() -> Array[MeshInstance3D]:
+	var r: Array[MeshInstance3D] = []
+	for e in _portees:
+		var mi: MeshInstance3D = _portees[e]
+		if is_instance_valid(mi):
+			r.append(mi)
+	return r
 
 ## Identifiant porté et visible (glb présent) à un emplacement, "" sinon.
 func porte(e: String) -> String:
@@ -147,7 +193,10 @@ func _poser(e: String) -> void:
 
 ## Maillage porté d'une pièce, prêt à rattacher à un Skeleton3D du héros (skin du glb, liaisons par NOM d'os ; matériaux habillés).
 static func charger_porte(id: String) -> MeshInstance3D:
-	var ps := load(chemin_porte(id)) as PackedScene
+	return charger_chemin(chemin_porte(id))
+
+static func charger_chemin(chemin: String) -> MeshInstance3D:
+	var ps := load(chemin) as PackedScene
 	if ps == null:
 		return null
 	var inst := ps.instantiate()
@@ -163,7 +212,7 @@ static func charger_porte(id: String) -> MeshInstance3D:
 	src.owner = null
 	inst.free()
 	src.transform = Transform3D.IDENTITY
-	_habiller_maillage(src, chemin_porte(id))
+	_habiller_maillage(src, chemin)
 	return src
 
 ## Pièce posée au sol / présentoir (glb statique, pivot au sol), matériaux habillés ; null si absente.
@@ -217,6 +266,8 @@ func zones() -> Array:
 	for e in EMPLACEMENTS:
 		if maillage(e) != null:
 			z.append(e)
+	if maillage("jambes") != null:
+		z.append("jambes")
 	var t := maillage("tete")
 	if t != null and (t.get_aabb().position.y < CAPE_Y or MASQUES_PIECE.get(porte("tete"), []).has("cape")):
 		z.append("cape")
@@ -265,12 +316,29 @@ func limites() -> Dictionary:
 			h = minf(h, maxs[k])
 		if h < INF:
 			lim["bottes"] = h
+			lim["bottes_max"] = (maxs.values() as Array).max()
 	return lim
 
 func _masquer() -> void:
 	var z := zones()
 	var lim := limites()
 	var cle_z := ",".join(z) + "|" + str(lim)
+	var ch := maillage("jambes")
+	if ch != null:
+		var orig_ch: Mesh = ch.get_meta("maillage_origine")
+		if lim.has("bottes"):
+			var cle_ch := "%d|bottes|%.3f" % [orig_ch.get_instance_id(), lim["bottes"]]
+			if not _filtres.has(cle_ch):
+				var a := orig_ch.surface_get_arrays(0)
+				var ix: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+				a = _couper(a, ix, float(lim["bottes"]) - 0.02, INF)
+				var m := ArrayMesh.new()
+				m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+				m.surface_set_material(0, orig_ch.surface_get_material(0))
+				_filtres[cle_ch] = m
+			ch.mesh = _filtres[cle_ch]
+		else:
+			ch.mesh = orig_ch
 	for mi: MeshInstance3D in squelette.find_children("*", "MeshInstance3D", false, false):
 		if mi.has_meta("armure_id"):
 			continue
@@ -313,7 +381,7 @@ static func _concerne(nom: String, z: Array) -> bool:
 		"bottes":
 			return z.has("pieds")
 		"pantalon":
-			return z.has("pieds") or z.has("torse")
+			return z.has("pieds") or z.has("torse") or z.has("jambes")
 		"accessoires":
 			return true
 	return false
@@ -335,12 +403,14 @@ static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Arra
 		return true
 	if z.has("pieds"):
 		# seulement les triangles ENTIÈREMENT sous le haut des bottes portées
-		if nom == "bottes" and haut < h_bottes + 0.06:
-			return true
+		if nom == "bottes":
+			return true     # les bottes du héros disparaissent entièrement sous les bottes portées (sinon la semelle et la cheville percent)
 		if nom == "pantalon" and haut < h_bottes - 0.015:
 			return true
-		if nom == "accessoires" and surface == 0 and haut < h_bottes - 0.005:
-			return true
+		if nom == "accessoires" and surface == 0 and (haut < h_bottes - 0.005 or (bas < h_bottes - 0.02 and c.y < h_bottes + 0.02)):
+			return true     # revers fourrés des bottes du héros : y compris ceux qui dépassent juste au-dessus des bottes portées
+		if nom == "accessoires" and surface == 1 and haut < float(lim.get("bottes_max", h_bottes)) - 0.005:
+			return true     # pointe des pans (tabard) qui pend entre des bottes hautes
 	var acc := nom == "accessoires" and surface == 0
 	var oeil := acc and _dans(GuerrierTextures.R_OEIL, u)
 	var casque := acc and (_dans(GardienTextures.R_CASQUE, u) or _dans(GardienTextures.R_BANDEAU, u))
@@ -354,6 +424,14 @@ static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Arra
 			return true     # col de fourrure, fibules, haut des épaulières : sous la pèlerine de la capuche
 		if nom == "accessoires" and surface == 1 and c.z < 0.0:
 			return true     # pèlerine du héros (dos) : elle passait à travers la pèlerine de la capuche
+	if z.has("jambes"):
+		# chausses portées : pantalon, cotte (hors manches) et pans du héros entièrement retirés
+		if nom == "pantalon":
+			return true
+		if nom == "tunique" and x_min < TORSE_X:
+			return true
+		if acc and not oeil and not casque and not camail and c.y > 0.40 and c.y < TETE_Y and absf(c.x) < 0.45:
+			return true
 	if z.has("torse"):
 		if camail:
 			return true     # camail du casque de base : il tombe sur le col et traverserait le haut de la pièce de torse (nuque)
@@ -386,7 +464,7 @@ static func _filtrer(orig: Mesh, nom: String, z: Array, lim := {}) -> ArrayMesh:
 				idx[i] = i
 		var atlas := Vector2(GuerrierTextures.ATLAS) if s == 0 else Vector2(GuerrierTextures.DECOUPES)
 		var garde := PackedInt32Array()
-		if nom == "pantalon" and (z.has("torse") or z.has("pieds")):
+		if nom == "pantalon" and (z.has("torse") or z.has("pieds")) and not z.has("jambes"):
 			# pantalon : COUPÉ exactement aux bords des pièces (ses grands triangles traversaient l'ourlet ; les masquer entiers
 			# laissait voir le fond à travers la cuisse) : on garde la tranche entre le haut des bottes et le bas de la pièce de torse
 			var bas_g: float = lim.get("bottes", PIEDS_Y) - 0.02 if z.has("pieds") else -INF
@@ -398,8 +476,8 @@ static func _filtrer(orig: Mesh, nom: String, z: Array, lim := {}) -> ArrayMesh:
 			m.surface_set_material(s, orig.surface_get_material(s))
 			continue
 		var a_couper := PackedInt32Array()
-		var coupe_tunique := nom == "tunique" and z.has("torse")
-		var coupe_acc := nom == "accessoires" and s == 0 and z.has("torse") and lim.has("ourlets")
+		var coupe_tunique := nom == "tunique" and z.has("torse") and not z.has("jambes")
+		var coupe_acc := nom == "accessoires" and s == 0 and z.has("torse") and lim.has("ourlets") and not z.has("jambes")
 		for t in range(0, idx.size() - 2, 3):
 			var c := (v[idx[t]] + v[idx[t + 1]] + v[idx[t + 2]]) / 3.0
 			if coupe_tunique and minf(absf(v[idx[t]].x), minf(absf(v[idx[t + 1]].x), absf(v[idx[t + 2]].x))) < TORSE_X and not (z.has("mains") and absf(c.x) > MAINS_X):

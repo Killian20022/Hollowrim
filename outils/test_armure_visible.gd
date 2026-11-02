@@ -169,6 +169,11 @@ func _verifier_piece(id: String, e: String) -> void:
 	# masquage
 	var reste := _triangles_recouverts(sq, av.zones(), av.limites())
 	ok(reste == 0, "%s : plus aucun triangle de la tenue dans la zone « %s » (%d restants)" % [id, e, reste])
+	if e == "torse":
+		var jb := av.maillage("jambes")
+		ok(jb != null and String(jb.get_meta("armure_id")) == "chausses_" + ArmureVisible.famille_chausses(id), "%s : chausses assorties posées (%s)" % [id, jb.get_meta("armure_id") if jb else "aucune"])
+		var p := sq.get_node_or_null("pantalon") as MeshInstance3D
+		ok(p != null and (p.mesh.surface_get_array_index_len(0) <= 3), "%s : pantalon du héros entièrement retiré sous les chausses" % id)
 	if e == "tete":
 		var ch := sq.get_node_or_null("Hair_Long") as MeshInstance3D
 		ok(ch == null or not ch.visible, "%s : cheveux cachés sous la pièce de tête" % id)
@@ -189,7 +194,7 @@ func _verifier_piece(id: String, e: String) -> void:
 	for m: MeshInstance3D in origine:
 		if is_instance_valid(m) and m.mesh != origine[m]:
 			rendu = false
-	ok(rendu and av.maillage(e) == null, "%s : ôtée, la tenue d'origine revient (mêmes maillages)" % id)
+	ok(rendu and av.maillage(e) == null and av.maillage("jambes") == null, "%s : ôtée, la tenue d'origine revient (mêmes maillages)" % id)
 	h.free()
 
 ## Triangles visibles de la tenue du héros encore situés dans une zone recouverte (repos).
@@ -232,13 +237,10 @@ func _traversees(famille: String, liste: Array) -> void:
 	sq.reset_bone_poses()
 	# pièces portées : sommets et triangles
 	var armures := []
-	for e in ArmureVisible.EMPLACEMENTS:
-		var mi := av.maillage(e)
-		if mi == null:
-			continue
+	for mi: MeshInstance3D in av.maillages():
 		var a := mi.mesh.surface_get_arrays(0)
 		var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
-		armures.append({"mi": mi, "a": a, "idx": idx, "ids": tous((a[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()), "e": e})
+		armures.append({"mi": mi, "a": a, "idx": idx, "ids": tous((a[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()), "e": String(mi.get_meta("armure_emplacement", ""))})
 	# points visibles de la tenue restante
 	var pts := []
 	for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", false, false):
@@ -366,13 +368,20 @@ func _trous(famille: String, liste: Array) -> void:
 		var av: ArmureVisible = r[3]
 		sq.reset_bone_poses()
 		var tris_p := []
-		for e in ArmureVisible.EMPLACEMENTS:
-			var mi := av.maillage(e)
-			if mi != null:
+		for mi: MeshInstance3D in av.maillages():
+			if true:
 				var a := mi.mesh.surface_get_arrays(0)
 				tris_p.append([poses(sq, mi, a, tous((a[Mesh.ARRAY_VERTEX] as PackedVector3Array).size())), a[Mesh.ARRAY_INDEX]])
+		for mb: MeshInstance3D in sq.find_children("bottes", "MeshInstance3D", false, false):     # ce qui reste des bottes du héros couvre aussi
+			var ab := mb.mesh.surface_get_arrays(0)
+			var vb: PackedVector3Array = ab[Mesh.ARRAY_VERTEX]
+			if vb.size() >= 3:
+				tris_p.append([poses(sq, mb, ab, tous(vb.size())), ab[Mesh.ARRAY_INDEX] if ab[Mesh.ARRAY_INDEX] != null else tous(vb.size())])
 		var masques := 0
 		var vides := 0
+		if detail:
+			for mi: MeshInstance3D in av.maillages():
+				print("    pièce ", mi.get_meta("armure_id"), " aabb ", mi.mesh.get_aabb(), " tris ", mi.mesh.surface_get_array_index_len(0) / 3)
 		var ou := ""
 		for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", false, false):
 			var nom := String(mi.name)
@@ -404,6 +413,8 @@ func _trous(famille: String, liste: Array) -> void:
 				masques += 1
 				var seg := segment_os(sq, dom[io[t]])
 				var axe: Vector3 = (seg[0] as Vector3).lerp(seg[1], proche_segment(seg[0], seg[1], c))
+				if (c - axe).normalized().y < -0.6:
+					continue     # face tournée vers le sol (dessous du pied, sous la semelle ouverte) : invisible
 				var fin := c + (c - axe).normalized() * 0.15
 				var couvert := false
 				for tp: Array in tris_p:
@@ -415,6 +426,56 @@ func _trous(famille: String, liste: Array) -> void:
 							break
 					if couvert:
 						break
+				if not couvert:     # rayon tombé pile sur une arête : 3 rayons voisins sur 4 (à 5 mm) suffisent
+					var nh := 0
+					for dd: Vector3 in [Vector3(0.005, 0, 0), Vector3(-0.005, 0, 0), Vector3(0, 0.005, 0), Vector3(0, -0.005, 0)]:
+						var ff := c + dd + (c + dd - axe).normalized() * 0.15
+						var touche := false
+						for tp: Array in tris_p:
+							var pa: PackedVector3Array = tp[0]
+							var ip: PackedInt32Array = tp[1]
+							for i in range(0, ip.size(), 3):
+								if Geometry3D.segment_intersects_triangle(axe, ff, pa[ip[i]], pa[ip[i + 1]], pa[ip[i + 2]]) != null:
+									touche = true
+									break
+							if touche:
+								break
+						nh += int(touche)
+					couvert = nh >= 3
+					if not couvert and detail:
+						var carte := ""
+						for gy in range(-4, 5):
+							for gx in range(-4, 5):
+								var dd := Vector3(gx * 0.0025, gy * 0.0025, 0)
+								var ff := c + dd + (c + dd - axe).normalized() * 0.15
+								var touche := false
+								for tp: Array in tris_p:
+									var pa: PackedVector3Array = tp[0]
+									var ip: PackedInt32Array = tp[1]
+									for i in range(0, ip.size(), 3):
+										if Geometry3D.segment_intersects_triangle(axe, ff, pa[ip[i]], pa[ip[i + 1]], pa[ip[i + 2]]) != null:
+											touche = true
+											break
+									if touche:
+										break
+								carte += "#" if touche else "."
+							carte += "\n"
+						print("    trou ", c, " :\n", carte)
+						for tp: Array in tris_p:
+							var pa: PackedVector3Array = tp[0]
+							var ip: PackedInt32Array = tp[1]
+							var aretes := {}
+							for i in range(0, ip.size(), 3):
+								for e in 3:
+									var u0: Vector3 = pa[ip[i + e]].snapped(Vector3.ONE * 0.0005)
+									var u1: Vector3 = pa[ip[i + (e + 1) % 3]].snapped(Vector3.ONE * 0.0005)
+									var cle := [u0, u1] if str(u0) < str(u1) else [u1, u0]
+									aretes[str(cle)] = aretes.get(str(cle), [0, u0, u1])
+									aretes[str(cle)][0] += 1
+							for k in aretes:
+								var ar: Array = aretes[k]
+								if ar[0] == 1 and ((ar[1] + ar[2]) / 2.0).distance_to(c) < 0.05:
+									print("      bord ouvert ", ar[1], " ", ar[2])
 				if not couvert:
 					vides += 1
 					ou = "%s %s" % [nom, c.snapped(Vector3.ONE * 0.01)]
@@ -432,6 +493,15 @@ func _trous_pantalon(sq: Skeleton3D, mi: MeshInstance3D, av: ArmureVisible, tris
 		var y := 0.18
 		while y < 0.98:
 			var c := Vector3(0.10 * cote, y, 0.02)
+			var somme := Vector3.ZERO     # centre de la section : moyenne des sommets couvrants à cette hauteur, de ce côté
+			var nb := 0
+			for tp: Array in tris_p:
+				for q: Vector3 in (tp[0] as PackedVector3Array):
+					if absf(q.y - y) < 0.025 and q.x * cote > 0.03 and q.x * cote < 0.25:
+						somme += q
+						nb += 1
+			if nb > 2:
+				c = Vector3(somme.x / nb, y, somme.z / nb)
 			# du pantalon reste-t-il à cette hauteur sur cette jambe ?
 			var reste := false
 			for t in range(0, ix.size() - 2, 3):
