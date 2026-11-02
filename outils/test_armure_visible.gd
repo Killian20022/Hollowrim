@@ -3,7 +3,7 @@ extends SceneTree
 ##   godot --headless --fixed-fps 60 --path . --script res://outils/test_armure_visible.gd -- --nouvelle [--detail] [--id=<id>]
 ## A. Héros seul (HerosSkarnholt + ArmureVisible), pour CHAQUE pièce d'armures.json dont le glb porté existe :
 ##   - posée sur le squelette du corps, skin résolu par nom d'os (aucun os manquant), pose de liaison = pose de repos du héros (< 1 mm) ;
-##   - budget : <= 900 triangles (casque / capuche <= 600), texture <= 256² (atlas peint par famille, 4 pièces), matériau « matière » ;
+##   - budget : <= 900 triangles (casque / capuche <= 600), texture <= 256² (atlas peint par famille), ou 512²–1024² avec mipmaps (shader HD), matériau « matière » ;
 ##   - masquage : plus aucun triangle de la tenue dans la zone recouverte (cotte |x| < 0,42, gants au-delà de |x| 0,58, bottes,
 ##     casque / cheveux) ; ôter la pièce rend les maillages d'origine ;
 ##   - AUCUNE TRAVERSÉE pendant les animations jouées (locomotion, coups 3e personne, sorts 3e personne ; 8 instants par clip) :
@@ -14,8 +14,10 @@ extends SceneTree
 ## B. En jeu (scène de combat) : équiper / ôter par EquipementCorps (signal change) habille et rhabille le corps ; vue 1re personne :
 ##   les bras FPS prennent la matière des gants portés, et la retrouvent quand on les ôte ; ombre seule à la 1re personne.
 const TOL := 0.010
-const TRIS_MAX := 900
-const TRIS_TETE := 600
+## Budgets de la charte HD (conception_rpg/CHARTE_ARMURES_HD.md) : torse <= 2 500, tête <= 1 400, mains / pieds <= 1 200.
+const TRIS_MAX := 2500
+const TRIS_TETE := 1400
+const TRIS_EXTREMITES := 1200
 const CLIPS := ["Idle", "Walk", "Jog_Fwd", "Sprint", "Sword_Idle", "Sword_Attack", "Hit_Chest", "Jump", "Crouch_Fwd",
 	"coups/slash_1", "coups/slash_2", "coups/revers", "coups/estoc", "coups/vertical", "coups/q_Sword_Regular_Combo", "coups/gs_slash",
 	"coups/q_Sword_Block", "sorts/Sort_Lancer1M", "sorts/Sort_Jet2M", "sorts/Sort_Zone2M", "sorts/Spell_Simple_Shoot_D"]
@@ -160,11 +162,13 @@ func _verifier_piece(id: String, e: String) -> void:
 	var tris := 0
 	for s in mi.mesh.get_surface_count():
 		tris += mi.mesh.surface_get_array_index_len(s) / 3
-	var tmax := TRIS_TETE if e == "tete" else TRIS_MAX
+	var tmax := TRIS_TETE if e == "tete" else (TRIS_EXTREMITES if e in ["mains", "pieds"] else TRIS_MAX)
 	ok(tris <= tmax, "%s : %d triangles (<= %d)" % [id, tris, tmax])
 	var mat := mi.get_surface_override_material(0) as ShaderMaterial
 	var tex: Texture2D = mat.get_shader_parameter("tex_base") if mat else null
-	ok(mat != null and mat.shader == EpeesLongues.shader_matiere(false) and tex != null and tex.get_width() <= 256 and tex.get_height() <= 256,
+	var hd := tex != null and tex.get_width() > 256
+	ok(mat != null and mat.shader == (ArmureVisible.shader_hd() if hd else EpeesLongues.shader_matiere(false)) and tex != null and tex.get_width() <= 1024 and tex.get_height() <= 1024
+		and (not hd or tex.has_mipmaps()),
 		"%s : matériau « matière » (%s), texture %s" % [id, mat.resource_name if mat else "?", str(tex.get_size()) if tex else "absente"])
 	# masquage
 	var reste := _triangles_recouverts(sq, av.zones(), av.limites())
@@ -597,12 +601,12 @@ func _lancer() -> void:
 	var seul := ""
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--id="):
-			seul = a.substr(5)
+			seul = a.substr(5)    # un id ou plusieurs séparés par des virgules
 	print("pièces avec modèle porté : %d %s" % [ps.size(), ps.map(func(p: Array) -> String: return p[0])])
 	ok(ps.size() >= 12, "au moins les 12 pièces légères (cuir, fourrure, os) ont un modèle porté (%d)" % ps.size())
 	var familles := {}
 	for p: Array in ps:
-		if seul != "" and p[0] != seul:
+		if seul != "" and not (seul.split(",") as Array).has(p[0]):
 			continue
 		_verifier_piece(p[0], p[1])
 		var f: String = p[0].get_slice("_", p[0].get_slice_count("_") - 1)
