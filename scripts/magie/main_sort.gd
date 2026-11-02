@@ -256,7 +256,7 @@ func _raison_indisponible(main: String, s: DonneesSort) -> String:
 		return "Impossible maintenant."
 	if recharges.get(s.id, 0.0) > 0.0:
 		return "Recharge : %.1f s" % recharges[s.id]
-	var besoin := s.cout_par_seconde * 0.25 if s.canalise() else LanceurSorts.cout(s, 0.0)
+	var besoin := (s.cout_par_seconde * 0.25 if s.canalise() else LanceurSorts.cout(s, 0.0)) * Progression.facteur_cout_sort(s.ecole)
 	if joueur.mana + 0.001 < besoin:
 		return "Pas assez de mana."
 	if s.type == DonneesSort.Type.ENCHANT and eq.refus(main, s) != "":
@@ -442,7 +442,7 @@ func _avancer_main(m: String, dt: float, deux_canal: bool) -> void:
 				_lancer(m, sd, i.charge)
 		Incantation.CANALISE:
 			var mult := float(regles.get("simultane", {}).get("mult_deux_canalisations", 1.15)) if deux_canal else 1.0
-			var cout := sd.cout_par_seconde * dt * mult
+			var cout := sd.cout_par_seconde * dt * mult * Progression.facteur_cout_sort(s.ecole, i.double)   # perks de coût (lot B)
 			if not joueur.depenser_mana(cout):
 				_couper(m, false)
 				_refuser(m, "Mana épuisé.")
@@ -550,13 +550,14 @@ func _vue() -> Array:
 
 func _lancer(m: String, s: DonneesSort, charge: float) -> void:
 	var i: Incantation = inc[m]
-	var cout := LanceurSorts.cout(s, charge)
+	var fc := Progression.facteur_cout_sort(s.ecole, i.double)   # perks de coût (lot B) ; 1,0 sans perk
+	var cout := LanceurSorts.cout(s, charge) * fc
 	if not joueur.depenser_mana(cout):
 		# pas assez pour la charge atteinte : on lance ce que le mana permet (au minimum la charge nulle)
-		var c0 := LanceurSorts.cout(s, 0.0)
+		var c0 := LanceurSorts.cout(s, 0.0) * fc
 		if s.se_charge() and joueur.mana >= c0:
-			charge = clampf((joueur.mana - c0) / maxf(LanceurSorts.cout(s, 1.0) - c0, 0.01), 0.0, 1.0)
-			joueur.depenser_mana(LanceurSorts.cout(s, charge))
+			charge = clampf((joueur.mana - c0) / maxf(LanceurSorts.cout(s, 1.0) * fc - c0, 0.01), 0.0, 1.0)
+			joueur.depenser_mana(LanceurSorts.cout(s, charge) * fc)
 		else:
 			_couper(m, false)
 			_refuser(m, "Pas assez de mana.")
@@ -634,11 +635,13 @@ func absorber(degats: float, origine: Vector3, options: Dictionary) -> float:
 		var magique := String(options.get("type", "")) in ["feu", "glace", "electricite", "tenebres", "magique"]
 		var part := sd.reduction_magique if magique else sd.reduction_physique
 		var absorbe := degats * part
-		var cout := absorbe * sd.mana_par_absorbe
+		var mpa := sd.mana_par_absorbe * maxf(0.0, 1.0 - Progression.bonus_global("cout_protection"))   # perk Garde runique (lot B)
+		var cout := absorbe * mpa
 		if joueur.mana < cout:
-			absorbe = joueur.mana / maxf(sd.mana_par_absorbe, 0.001)
+			absorbe = joueur.mana / maxf(mpa, 0.001)
 			cout = joueur.mana
 		joueur.depenser_mana(cout)
+		Progression.pratiquer_global("restauration", absorbe * 0.06)   # coup absorbé par la protection (lot B)
 		EffetsMagie.impact("protection", joueur.global_position + Vector3(0, 1.4, 0) + vers.normalized() * 0.6, vers.normalized(), absorbe / 10.0)
 		_noter("protection absorbe %.1f" % absorbe)
 		return degats - absorbe

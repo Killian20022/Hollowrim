@@ -84,7 +84,10 @@ func _pures() -> void:
 		"quetes": {"etat": {"anneau_givre": 6, "frere_ylva": 3, "lames_brodd": 2}, "vus": [], "journal": []},
 		"inventaire": {"pieces": 512, "objets": {"epee_skarnholt": 1, "hache_kolbeinn": 1, "amulette_givre": 3, "potion_soin": 4, "fragment_sceau_os": 1}}}
 	var ma := Migration.migrer(av)
-	var xp := (16 + 35) * 20 / 2.0 + (16 + 28) * 13 / 2.0 + (16 + 40) * 25 / 2.0 + 2 * Progression.XP_QUETE_DEFAUT   # 1496 + 300 = 1796
+	# XP des 2 quêtes finies : recompense.xp de data/quetes.json (lot B : anneau_givre 200, frere_ylva 120 ; défaut 150)
+	var xp_q := Migration.xp_quetes_terminees({"etat": {"anneau_givre": 6, "frere_ylva": 3, "lames_brodd": 2}})
+	_verif(xp_q == 320.0, "XP des quêtes finies lue dans data/quetes.json (200 + 120) : %.0f" % xp_q)
+	var xp := (16 + 35) * 20 / 2.0 + (16 + 28) * 13 / 2.0 + (16 + 40) * 25 / 2.0 + xp_q   # 1496 + 320 = 1816
 	var p := Progression.new()
 	p.gagner_xp(xp, false)
 	var pg: Dictionary = ma["progression"]

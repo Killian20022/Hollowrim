@@ -1,0 +1,1564 @@
+{
+ "_doc": "Arbre de compétences (lot B, docs/RPG.md §13). 8 pierres runiques (une par compétence) ; chaque perk : pierre, pos [colonne, rangée] (rangée 0 = racine, en bas ; colonne -2..2) pour l'affichage (lot D), parents (il suffit d'en posséder UN ; vide = racine), rangs [{niveau (de la compétence de la pierre), effets (TOTAUX à ce rang, clés docs/RPG.md §3), texte}]. Un rang = 1 point d'arbre. Ajouter un perk : nouvel id EN FIN de pierre ; jamais de renommage (les perks achetés sont sauvegardés par id).",
+ "pierres": {
+  "une_main": {
+   "nom": "Pierre du Loup",
+   "competence": "une_main",
+   "titre": "Une main",
+   "description": "Épées, haches, masses et dagues tenues d'une main."
+  },
+  "deux_mains": {
+   "nom": "Pierre de l'Ours",
+   "competence": "deux_mains",
+   "titre": "Deux mains",
+   "description": "Grandes épées, haches et marteaux de guerre."
+  },
+  "parade": {
+   "nom": "Pierre du Rempart",
+   "competence": "parade",
+   "titre": "Parade",
+   "description": "Garde, parade parfaite et riposte."
+  },
+  "armure": {
+   "nom": "Pierre de la Montagne",
+   "competence": "armure",
+   "titre": "Armure",
+   "description": "Encaisser les coups, résister au froid, au feu et à la foudre."
+  },
+  "destruction": {
+   "nom": "Pierre de l'Orage",
+   "competence": "destruction",
+   "titre": "Destruction",
+   "description": "Feu, givre, foudre et ténèbres."
+  },
+  "restauration": {
+   "nom": "Pierre d'Eir",
+   "competence": "restauration",
+   "titre": "Restauration",
+   "description": "Soin, protection et mana."
+  },
+  "furtivite": {
+   "nom": "Pierre du Corbeau",
+   "competence": "furtivite",
+   "titre": "Furtivité",
+   "description": "Attaques furtives : frapper un ennemi qui ne t'a pas vu."
+  },
+  "athletisme": {
+   "nom": "Pierre du Cerf",
+   "competence": "athletisme",
+   "titre": "Athlétisme",
+   "description": "Course, souffle, vigueur et charge portée."
+  }
+ },
+ "ordre_pierres": [
+  "une_main",
+  "deux_mains",
+  "parade",
+  "armure",
+  "destruction",
+  "restauration",
+  "furtivite",
+  "athletisme"
+ ],
+ "perks": {
+  "lame_aguerrie": {
+   "nom": "Lame aguerrie",
+   "pierre": "une_main",
+   "pos": [
+    0,
+    0
+   ],
+   "parents": [],
+   "description": "Le loup ne frappe pas plus fort : il frappe juste.",
+   "rangs": [
+    {
+     "niveau": 15,
+     "effets": {
+      "une_main": 0.1
+     },
+     "texte": "+10 % de dégâts aux armes à une main."
+    },
+    {
+     "niveau": 25,
+     "effets": {
+      "une_main": 0.2
+     },
+     "texte": "+20 % de dégâts aux armes à une main."
+    },
+    {
+     "niveau": 40,
+     "effets": {
+      "une_main": 0.3
+     },
+     "texte": "+30 % de dégâts aux armes à une main."
+    },
+    {
+     "niveau": 55,
+     "effets": {
+      "une_main": 0.4
+     },
+     "texte": "+40 % de dégâts aux armes à une main."
+    },
+    {
+     "niveau": 75,
+     "effets": {
+      "une_main": 0.5
+     },
+     "texte": "+50 % de dégâts aux armes à une main."
+    }
+   ]
+  },
+  "eleve_de_tyr": {
+   "nom": "Élève de Týr",
+   "pierre": "une_main",
+   "pos": [
+    -1,
+    1
+   ],
+   "parents": [
+    "lame_aguerrie"
+   ],
+   "description": "Týr a donné sa main au loup ; toi, tu apprends de chaque coup.",
+   "rangs": [
+    {
+     "niveau": 20,
+     "effets": {
+      "xp_une_main": 0.25
+     },
+     "texte": "La compétence Une main progresse 25 % plus vite."
+    }
+   ]
+  },
+  "croc_de_fer": {
+   "nom": "Croc de fer",
+   "pierre": "une_main",
+   "pos": [
+    0,
+    1
+   ],
+   "parents": [
+    "lame_aguerrie"
+   ],
+   "description": "La lame mord et la plaie reste ouverte (pas sur les squelettes).",
+   "rangs": [
+    {
+     "niveau": 30,
+     "effets": {
+      "saignement_une_main": 0.15
+     },
+     "texte": "Les coups à une main font saigner : 15 % des dégâts en 3 s."
+    },
+    {
+     "niveau": 50,
+     "effets": {
+      "saignement_une_main": 0.3
+     },
+     "texte": "Saignement : 30 % des dégâts en 3 s."
+    }
+   ]
+  },
+  "crocs_de_fenrir": {
+   "nom": "Crocs de Fenrir",
+   "pierre": "une_main",
+   "pos": [
+    1,
+    1
+   ],
+   "parents": [
+    "lame_aguerrie"
+   ],
+   "description": "Un coup lourd bien placé fait vaciller l'adversaire.",
+   "rangs": [
+    {
+     "niveau": 35,
+     "effets": {
+      "etourdir_une_main": 0.2
+     },
+     "texte": "Coup puissant à une main : 20 % de chances d'étourdir."
+    },
+    {
+     "niveau": 60,
+     "effets": {
+      "etourdir_une_main": 0.35
+     },
+     "texte": "35 % de chances d'étourdir."
+    }
+   ]
+  },
+  "curee": {
+   "nom": "Curée",
+   "pierre": "une_main",
+   "pos": [
+    1,
+    2
+   ],
+   "parents": [
+    "crocs_de_fenrir"
+   ],
+   "description": "La meute reprend son souffle sur la proie abattue.",
+   "rangs": [
+    {
+     "niveau": 40,
+     "effets": {
+      "vigueur_tue_une_main": 25
+     },
+     "texte": "Tuer à une main rend 25 de vigueur."
+    }
+   ]
+  },
+  "soif_du_loup": {
+   "nom": "Soif du loup",
+   "pierre": "une_main",
+   "pos": [
+    0,
+    2
+   ],
+   "parents": [
+    "croc_de_fer"
+   ],
+   "description": "Le sang versé te rend des forces.",
+   "rangs": [
+    {
+     "niveau": 45,
+     "effets": {
+      "vol_vie_une_main": 0.04
+     },
+     "texte": "Les coups à une main rendent 4 % des dégâts en vie."
+    }
+   ]
+  },
+  "lame_de_fenrir": {
+   "nom": "Lame de Fenrir",
+   "pierre": "une_main",
+   "pos": [
+    0,
+    3
+   ],
+   "parents": [
+    "soif_du_loup",
+    "curee"
+   ],
+   "description": "Le loup brise ses chaînes.",
+   "rangs": [
+    {
+     "niveau": 85,
+     "effets": {
+      "une_main": 0.15,
+      "saignement_une_main": 0.15
+     },
+     "texte": "+15 % de dégâts à une main et +15 % de saignement."
+    }
+   ]
+  },
+  "bras_de_l_ours": {
+   "nom": "Bras de l'ours",
+   "pierre": "deux_mains",
+   "pos": [
+    0,
+    0
+   ],
+   "parents": [],
+   "description": "La force de l'ours passe dans le manche.",
+   "rangs": [
+    {
+     "niveau": 15,
+     "effets": {
+      "deux_mains": 0.1
+     },
+     "texte": "+10 % de dégâts aux armes à deux mains."
+    },
+    {
+     "niveau": 25,
+     "effets": {
+      "deux_mains": 0.2
+     },
+     "texte": "+20 % de dégâts aux armes à deux mains."
+    },
+    {
+     "niveau": 40,
+     "effets": {
+      "deux_mains": 0.3
+     },
+     "texte": "+30 % de dégâts aux armes à deux mains."
+    },
+    {
+     "niveau": 55,
+     "effets": {
+      "deux_mains": 0.4
+     },
+     "texte": "+40 % de dégâts aux armes à deux mains."
+    },
+    {
+     "niveau": 75,
+     "effets": {
+      "deux_mains": 0.5
+     },
+     "texte": "+50 % de dégâts aux armes à deux mains."
+    }
+   ]
+  },
+  "force_de_magni": {
+   "nom": "Force de Magni",
+   "pierre": "deux_mains",
+   "pos": [
+    -1,
+    1
+   ],
+   "parents": [
+    "bras_de_l_ours"
+   ],
+   "description": "Le fils de Thor soulevait ce que nul ne soulevait.",
+   "rangs": [
+    {
+     "niveau": 20,
+     "effets": {
+      "xp_deux_mains": 0.25
+     },
+     "texte": "La compétence Deux mains progresse 25 % plus vite."
+    }
+   ]
+  },
+  "hache_sanglante": {
+   "nom": "Hache sanglante",
+   "pierre": "deux_mains",
+   "pos": [
+    0,
+    1
+   ],
+   "parents": [
+    "bras_de_l_ours"
+   ],
+   "description": "Une entaille large qui ne se referme pas (pas sur les squelettes).",
+   "rangs": [
+    {
+     "niveau": 30,
+     "effets": {
+      "saignement_deux_mains": 0.2
+     },
+     "texte": "Les coups à deux mains font saigner : 20 % des dégâts en 3 s."
+    },
+    {
+     "niveau": 50,
+     "effets": {
+      "saignement_deux_mains": 0.35
+     },
+     "texte": "Saignement : 35 % des dégâts en 3 s."
+    }
+   ]
+  },
+  "marteau_de_thor": {
+   "nom": "Marteau de Thor",
+   "pierre": "deux_mains",
+   "pos": [
+    1,
+    1
+   ],
+   "parents": [
+    "bras_de_l_ours"
+   ],
+   "description": "Le choc résonne jusque dans les os.",
+   "rangs": [
+    {
+     "niveau": 30,
+     "effets": {
+      "etourdir_deux_mains": 0.25
+     },
+     "texte": "Coup puissant à deux mains : 25 % de chances d'étourdir."
+    },
+    {
+     "niveau": 55,
+     "effets": {
+      "etourdir_deux_mains": 0.4
+     },
+     "texte": "40 % de chances d'étourdir."
+    }
+   ]
+  },
+  "festin_des_corbeaux": {
+   "nom": "Festin des corbeaux",
+   "pierre": "deux_mains",
+   "pos": [
+    1,
+    2
+   ],
+   "parents": [
+    "marteau_de_thor"
+   ],
+   "description": "Chaque ennemi abattu nourrit ta rage.",
+   "rangs": [
+    {
+     "niveau": 40,
+     "effets": {
+      "vigueur_tue_deux_mains": 30
+     },
+     "texte": "Tuer à deux mains rend 30 de vigueur."
+    }
+   ]
+  },
+  "rage_du_berserker": {
+   "nom": "Rage du berserker",
+   "pierre": "deux_mains",
+   "pos": [
+    0,
+    2
+   ],
+   "parents": [
+    "hache_sanglante"
+   ],
+   "description": "Le berserker ne sent plus ses blessures.",
+   "rangs": [
+    {
+     "niveau": 50,
+     "effets": {
+      "vol_vie_deux_mains": 0.05
+     },
+     "texte": "Les coups à deux mains rendent 5 % des dégâts en vie."
+    }
+   ]
+  },
+  "fendeur_de_cranes": {
+   "nom": "Fendeur de crânes",
+   "pierre": "deux_mains",
+   "pos": [
+    0,
+    3
+   ],
+   "parents": [
+    "rage_du_berserker",
+    "festin_des_corbeaux"
+   ],
+   "description": "Nul casque ne tient.",
+   "rangs": [
+    {
+     "niveau": 85,
+     "effets": {
+      "deux_mains": 0.2,
+      "etourdir_deux_mains": 0.1
+     },
+     "texte": "+20 % de dégâts à deux mains et +10 % de chances d'étourdir."
+    }
+   ]
+  },
+  "rempart_de_tilleul": {
+   "nom": "Rempart de tilleul",
+   "pierre": "parade",
+   "pos": [
+    0,
+    0
+   ],
+   "parents": [],
+   "description": "Le bouclier de tilleul a sauvé plus de Nordiques que toutes les épées.",
+   "rangs": [
+    {
+     "niveau": 15,
+     "effets": {
+      "parade": 0.1
+     },
+     "texte": "Garde renforcée de 10 % : moins de dégâts bloqués et de vigueur dépensée."
+    },
+    {
+     "niveau": 25,
+     "effets": {
+      "parade": 0.2
+     },
+     "texte": "Garde renforcée de 20 % : moins de dégâts bloqués et de vigueur dépensée."
+    },
+    {
+     "niveau": 40,
+     "effets": {
+      "parade": 0.3
+     },
+     "texte": "Garde renforcée de 30 % : moins de dégâts bloqués et de vigueur dépensée."
+    },
+    {
+     "niveau": 55,
+     "effets": {
+      "parade": 0.4
+     },
+     "texte": "Garde renforcée de 40 % : moins de dégâts bloqués et de vigueur dépensée."
+    },
+    {
+     "niveau": 75,
+     "effets": {
+      "parade": 0.5
+     },
+     "texte": "Garde renforcée de 50 % : moins de dégâts bloqués et de vigueur dépensée."
+    }
+   ]
+  },
+  "oeil_de_heimdall": {
+   "nom": "Œil de Heimdall",
+   "pierre": "parade",
+   "pos": [
+    -1,
+    1
+   ],
+   "parents": [
+    "rempart_de_tilleul"
+   ],
+   "description": "Le gardien du pont voit venir chaque coup.",
+   "rangs": [
+    {
+     "niveau": 20,
+     "effets": {
+      "xp_parade": 0.25
+     },
+     "texte": "La compétence Parade progresse 25 % plus vite."
+    }
+   ]
+  },
+  "riposte_de_heimdall": {
+   "nom": "Riposte de Heimdall",
+   "pierre": "parade",
+   "pos": [
+    0,
+    1
+   ],
+   "parents": [
+    "rempart_de_tilleul"
+   ],
+   "description": "La parade qui renvoie : l'arme adverse revient vers son maître.",
+   "rangs": [
+    {
+     "niveau": 30,
+     "effets": {
+      "riposte": 0.5
+     },
+     "texte": "Une parade parfaite renvoie 50 % du coup à l'attaquant."
+    },
+    {
+     "niveau": 55,
+     "effets": {
+      "riposte": 1.0
+     },
+     "texte": "La parade parfaite renvoie 100 % du coup."
+    }
+   ]
+  },
+  "souffle_du_guetteur": {
+   "nom": "Souffle du guetteur",
+   "pierre": "parade",
+   "pos": [
+    1,
+    1
+   ],
+   "parents": [
+    "rempart_de_tilleul"
+   ],
+   "description": "Bien parer, c'est déjà respirer.",
+   "rangs": [
+    {
+     "niveau": 25,
+     "effets": {
+      "vigueur_parade": 10
+     },
+     "texte": "Une parade parfaite rend 10 de vigueur."
+    },
+    {
+     "niveau": 45,
+     "effets": {
+      "vigueur_parade": 20
+     },
+     "texte": "Une parade parfaite rend 20 de vigueur."
+    }
+   ]
+  },
+  "garde_de_fer": {
+   "nom": "Garde de fer",
+   "pierre": "parade",
+   "pos": [
+    0,
+    2
+   ],
+   "parents": [
+    "riposte_de_heimdall"
+   ],
+   "description": "Le choc remonte le bras de l'ennemi.",
+   "rangs": [
+    {
+     "niveau": 50,
+     "effets": {
+      "etourdir_parade": 0.5
+     },
+     "texte": "Une parade parfaite a 50 % de chances d'étourdir l'attaquant."
+    }
+   ]
+  },
+  "chene_inebranlable": {
+   "nom": "Chêne inébranlable",
+   "pierre": "parade",
+   "pos": [
+    1,
+    2
+   ],
+   "parents": [
+    "souffle_du_guetteur"
+   ],
+   "description": "Planté comme un chêne, tu ne recules pas.",
+   "rangs": [
+    {
+     "niveau": 35,
+     "effets": {
+      "vigueur_max": 20
+     },
+     "texte": "+20 de vigueur maximale."
+    }
+   ]
+  },
+  "mur_de_boucliers": {
+   "nom": "Mur de boucliers",
+   "pierre": "parade",
+   "pos": [
+    0,
+    3
+   ],
+   "parents": [
+    "garde_de_fer",
+    "chene_inebranlable"
+   ],
+   "description": "Seul, tu vaux un mur entier.",
+   "rangs": [
+    {
+     "niveau": 80,
+     "effets": {
+      "parade": 0.2,
+      "riposte": 0.25
+     },
+     "texte": "Garde renforcée de 20 % de plus et riposte +25 %."
+    }
+   ]
+  },
+  "cuir_et_maille": {
+   "nom": "Cuir et maille",
+   "pierre": "armure",
+   "pos": [
+    0,
+    0
+   ],
+   "parents": [],
+   "description": "Chaque anneau de maille compte.",
+   "rangs": [
+    {
+     "niveau": 15,
+     "effets": {
+      "armure": 0.1
+     },
+     "texte": "Dégâts reçus divisés par 1,1 (−9 %)."
+    },
+    {
+     "niveau": 25,
+     "effets": {
+      "armure": 0.2
+     },
+     "texte": "Dégâts reçus divisés par 1,2 (−17 %)."
+    },
+    {
+     "niveau": 40,
+     "effets": {
+      "armure": 0.3
+     },
+     "texte": "Dégâts reçus divisés par 1,3 (−23 %)."
+    },
+    {
+     "niveau": 55,
+     "effets": {
+      "armure": 0.4
+     },
+     "texte": "Dégâts reçus divisés par 1,4 (−29 %)."
+    },
+    {
+     "niveau": 75,
+     "effets": {
+      "armure": 0.5
+     },
+     "texte": "Dégâts reçus divisés par 1,5 (−33 %)."
+    }
+   ]
+  },
+  "endurci": {
+   "nom": "Endurci",
+   "pierre": "armure",
+   "pos": [
+    -1,
+    1
+   ],
+   "parents": [
+    "cuir_et_maille"
+   ],
+   "description": "Les coups t'apprennent à les encaisser.",
+   "rangs": [
+    {
+     "niveau": 20,
+     "effets": {
+      "xp_armure": 0.25
+     },
+     "texte": "La compétence Armure progresse 25 % plus vite."
+    }
+   ]
+  },
+  "sang_de_jotunn": {
+   "nom": "Sang de Jötunn",
+   "pierre": "armure",
+   "pos": [
+    0,
+    1
+   ],
+   "parents": [
+    "cuir_et_maille"
+   ],
+   "description": "Le sang des géants du givre coule en toi.",
+   "rangs": [
+    {
+     "niveau": 25,
+     "effets": {
+      "resist_froid": 0.15
+     },
+     "texte": "Résistance au froid +15 %."
+    },
+    {
+     "niveau": 50,
+     "effets": {
+      "resist_froid": 0.3
+     },
+     "texte": "Résistance au froid +30 %."
+    }
+   ]
+  },
+  "ecailles_de_jormungandr": {
+   "nom": "Écailles de Jörmungandr",
+   "pierre": "armure",
+   "pos": [
+    1,
+    1
+   ],
+   "parents": [
+    "cuir_et_maille"
+   ],
+   "description": "La peau du serpent du monde ne brûle pas.",
+   "rangs": [
+    {
+     "niveau": 30,
+     "effets": {
+      "resist_feu": 0.15,
+      "resist_choc": 0.15
+     },
+     "texte": "Résistance au feu et à la foudre +15 %."
+    },
+    {
+     "niveau": 55,
+     "effets": {
+      "resist_feu": 0.3,
+      "resist_choc": 0.3
+     },
+     "texte": "Résistance au feu et à la foudre +30 %."
+    }
+   ]
+  },
+  "corps_de_colosse": {
+   "nom": "Corps de colosse",
+   "pierre": "armure",
+   "pos": [
+    -1,
+    2
+   ],
+   "parents": [
+    "cuir_et_maille"
+   ],
+   "description": "Plus large, plus lourd, plus dur à abattre.",
+   "rangs": [
+    {
+     "niveau": 30,
+     "effets": {
+      "vie_max": 20
+     },
+     "texte": "+20 de vie maximale."
+    },
+    {
+     "niveau": 60,
+     "effets": {
+      "vie_max": 40
+     },
+     "texte": "+40 de vie maximale."
+    }
+   ]
+  },
+  "sang_de_troll": {
+   "nom": "Sang de troll",
+   "pierre": "armure",
+   "pos": [
+    0,
+    2
+   ],
+   "parents": [
+    "corps_de_colosse"
+   ],
+   "description": "Comme le troll, tes plaies se referment.",
+   "rangs": [
+    {
+     "niveau": 45,
+     "effets": {
+      "regen_vie": 1.0
+     },
+     "texte": "Régénération de vie doublée (+100 %)."
+    }
+   ]
+  },
+  "rempart_vivant": {
+   "nom": "Rempart vivant",
+   "pierre": "armure",
+   "pos": [
+    0,
+    3
+   ],
+   "parents": [
+    "sang_de_jotunn",
+    "ecailles_de_jormungandr",
+    "sang_de_troll"
+   ],
+   "description": "La montagne marche.",
+   "rangs": [
+    {
+     "niveau": 80,
+     "effets": {
+      "armure": 0.2,
+      "vie_max": 20
+     },
+     "texte": "Armure +20 % de plus et +20 de vie maximale."
+    }
+   ]
+  },
+  "paroles_de_puissance": {
+   "nom": "Paroles de puissance",
+   "pierre": "destruction",
+   "pos": [
+    0,
+    0
+   ],
+   "parents": [],
+   "description": "Les runes grondent sous ta langue.",
+   "rangs": [
+    {
+     "niveau": 15,
+     "effets": {
+      "destruction": 0.1
+     },
+     "texte": "+10 % de dégâts des sorts de destruction."
+    },
+    {
+     "niveau": 25,
+     "effets": {
+      "destruction": 0.2
+     },
+     "texte": "+20 % de dégâts des sorts de destruction."
+    },
+    {
+     "niveau": 40,
+     "effets": {
+      "destruction": 0.3
+     },
+     "texte": "+30 % de dégâts des sorts de destruction."
+    },
+    {
+     "niveau": 55,
+     "effets": {
+      "destruction": 0.4
+     },
+     "texte": "+40 % de dégâts des sorts de destruction."
+    },
+    {
+     "niveau": 75,
+     "effets": {
+      "destruction": 0.5
+     },
+     "texte": "+50 % de dégâts des sorts de destruction."
+    }
+   ]
+  },
+  "apprenti_du_seidr": {
+   "nom": "Apprenti du seiðr",
+   "pierre": "destruction",
+   "pos": [
+    -2,
+    1
+   ],
+   "parents": [
+    "paroles_de_puissance"
+   ],
+   "description": "La magie des völvas s'apprend en la pratiquant.",
+   "rangs": [
+    {
+     "niveau": 20,
+     "effets": {
+      "xp_destruction": 0.25
+     },
+     "texte": "La compétence Destruction progresse 25 % plus vite."
+    }
+   ]
+  },
+  "runes_econes": {
+   "nom": "Runes économes",
+   "pierre": "destruction",
+   "pos": [
+    2,
+    1
+   ],
+   "parents": [
+    "paroles_de_puissance"
+   ],
+   "description": "Moins de souffle pour le même feu.",
+   "rangs": [
+    {
+     "niveau": 20,
+     "effets": {
+      "cout_destruction": 0.15
+     },
+     "texte": "Sorts de destruction : coût −15 %."
+    },
+    {
+     "niveau": 50,
+     "effets": {
+      "cout_destruction": 0.3
+     },
+     "texte": "Sorts de destruction : coût −30 %."
+    }
+   ]
+  },
+  "double_jet": {
+   "nom": "Double jet",
+   "pierre": "destruction",
+   "pos": [
+    2,
+    2
+   ],
+   "parents": [
+    "runes_econes"
+   ],
+   "description": "Les deux mains chantent ensemble.",
+   "rangs": [
+    {
+     "niveau": 40,
+     "effets": {
+      "cout_double": 0.25
+     },
+     "texte": "Double incantation (le même sort dans les deux mains) : coût −25 %."
+    }
+   ]
+  },
+  "coeur_de_muspell": {
+   "nom": "Cœur de Muspell",
+   "pierre": "destruction",
+   "pos": [
+    -1,
+    1
+   ],
+   "parents": [
+    "paroles_de_puissance"
+   ],
+   "description": "Le feu du monde de Surtr répond à ton appel.",
+   "rangs": [
+    {
+     "niveau": 30,
+     "effets": {
+      "destruction_feu": 0.25
+     },
+     "texte": "Sorts de feu : +25 % de dégâts."
+    },
+    {
+     "niveau": 55,
+     "effets": {
+      "destruction_feu": 0.5
+     },
+     "texte": "Sorts de feu : +50 % de dégâts."
+    }
+   ]
+  },
+  "souffle_de_niflheim": {
+   "nom": "Souffle de Niflheim",
+   "pierre": "destruction",
+   "pos": [
+    0,
+    1
+   ],
+   "parents": [
+    "paroles_de_puissance"
+   ],
+   "description": "Le froid du premier monde.",
+   "rangs": [
+    {
+     "niveau": 30,
+     "effets": {
+      "destruction_glace": 0.25
+     },
+     "texte": "Sorts de givre : +25 % de dégâts."
+    },
+    {
+     "niveau": 55,
+     "effets": {
+      "destruction_glace": 0.5
+     },
+     "texte": "Sorts de givre : +50 % de dégâts."
+    }
+   ]
+  },
+  "colere_de_thor": {
+   "nom": "Colère de Thor",
+   "pierre": "destruction",
+   "pos": [
+    1,
+    1
+   ],
+   "parents": [
+    "paroles_de_puissance"
+   ],
+   "description": "L'éclair choisit ta main.",
+   "rangs": [
+    {
+     "niveau": 30,
+     "effets": {
+      "destruction_electricite": 0.25
+     },
+     "texte": "Sorts de foudre : +25 % de dégâts."
+    },
+    {
+     "niveau": 55,
+     "effets": {
+      "destruction_electricite": 0.5
+     },
+     "texte": "Sorts de foudre : +50 % de dégâts."
+    }
+   ]
+  },
+  "ombre_de_hel": {
+   "nom": "Ombre de Hel",
+   "pierre": "destruction",
+   "pos": [
+    -1,
+    2
+   ],
+   "parents": [
+    "paroles_de_puissance"
+   ],
+   "description": "La reine des morts prête son ombre.",
+   "rangs": [
+    {
+     "niveau": 30,
+     "effets": {
+      "destruction_tenebres": 0.25
+     },
+     "texte": "Sorts de ténèbres : +25 % de dégâts."
+    },
+    {
+     "niveau": 55,
+     "effets": {
+      "destruction_tenebres": 0.5
+     },
+     "texte": "Sorts de ténèbres : +50 % de dégâts."
+    }
+   ]
+  },
+  "mains_d_eir": {
+   "nom": "Mains d'Eir",
+   "pierre": "restauration",
+   "pos": [
+    0,
+    0
+   ],
+   "parents": [],
+   "description": "Eir, la guérisseuse des dieux, guide tes mains.",
+   "rangs": [
+    {
+     "niveau": 15,
+     "effets": {
+      "restauration": 0.15
+     },
+     "texte": "Sorts de soin : +15 % de vie rendue."
+    },
+    {
+     "niveau": 30,
+     "effets": {
+      "restauration": 0.3
+     },
+     "texte": "Sorts de soin : +30 % de vie rendue."
+    },
+    {
+     "niveau": 50,
+     "effets": {
+      "restauration": 0.45
+     },
+     "texte": "Sorts de soin : +45 % de vie rendue."
+    },
+    {
+     "niveau": 70,
+     "effets": {
+      "restauration": 0.6
+     },
+     "texte": "Sorts de soin : +60 % de vie rendue."
+    }
+   ]
+  },
+  "disciple_de_la_volva": {
+   "nom": "Disciple de la völva",
+   "pierre": "restauration",
+   "pos": [
+    -1,
+    1
+   ],
+   "parents": [
+    "mains_d_eir"
+   ],
+   "description": "Sigrún t'a montré les gestes.",
+   "rangs": [
+    {
+     "niveau": 20,
+     "effets": {
+      "xp_restauration": 0.25
+     },
+     "texte": "La compétence Restauration progresse 25 % plus vite."
+    }
+   ]
+  },
+  "souffle_econome": {
+   "nom": "Souffle économe",
+   "pierre": "restauration",
+   "pos": [
+    1,
+    1
+   ],
+   "parents": [
+    "mains_d_eir"
+   ],
+   "description": "Une prière brève suffit.",
+   "rangs": [
+    {
+     "niveau": 20,
+     "effets": {
+      "cout_restauration": 0.15
+     },
+     "texte": "Soin et protection : coût −15 %."
+    },
+    {
+     "niveau": 50,
+     "effets": {
+      "cout_restauration": 0.3
+     },
+     "texte": "Soin et protection : coût −30 %."
+    }
+   ]
+  },
+  "garde_runique": {
+   "nom": "Garde runique",
+   "pierre": "restauration",
+   "pos": [
+    1,
+    2
+   ],
+   "parents": [
+    "souffle_econome"
+   ],
+   "description": "Les runes boivent le coup à ta place.",
+   "rangs": [
+    {
+     "niveau": 30,
+     "effets": {
+      "cout_protection": 0.25
+     },
+     "texte": "Protection : chaque coup absorbé coûte 25 % de mana en moins."
+    },
+    {
+     "niveau": 55,
+     "effets": {
+      "cout_protection": 0.5
+     },
+     "texte": "Protection : 50 % de mana en moins par coup absorbé."
+    }
+   ]
+  },
+  "source_d_urd": {
+   "nom": "Source d'Urd",
+   "pierre": "restauration",
+   "pos": [
+    0,
+    1
+   ],
+   "parents": [
+    "mains_d_eir"
+   ],
+   "description": "L'eau du puits des Nornes ne tarit pas.",
+   "rangs": [
+    {
+     "niveau": 25,
+     "effets": {
+      "regen_magie": 0.25
+     },
+     "texte": "Régénération de mana +25 %."
+    },
+    {
+     "niveau": 50,
+     "effets": {
+      "regen_magie": 0.5
+     },
+     "texte": "Régénération de mana +50 %."
+    }
+   ]
+  },
+  "puits_de_mimir": {
+   "nom": "Puits de Mímir",
+   "pierre": "restauration",
+   "pos": [
+    0,
+    2
+   ],
+   "parents": [
+    "source_d_urd"
+   ],
+   "description": "Odin y a laissé un œil ; tu y puises la sagesse.",
+   "rangs": [
+    {
+     "niveau": 30,
+     "effets": {
+      "magie_max": 20
+     },
+     "texte": "+20 de mana maximal."
+    },
+    {
+     "niveau": 60,
+     "effets": {
+      "magie_max": 40
+     },
+     "texte": "+40 de mana maximal."
+    }
+   ]
+  },
+  "benediction_de_frigg": {
+   "nom": "Bénédiction de Frigg",
+   "pierre": "restauration",
+   "pos": [
+    0,
+    3
+   ],
+   "parents": [
+    "garde_runique",
+    "puits_de_mimir"
+   ],
+   "description": "La reine d'Asgard veille sur toi.",
+   "rangs": [
+    {
+     "niveau": 80,
+     "effets": {
+      "restauration": 0.25,
+      "regen_vie": 0.5
+     },
+     "texte": "Sorts de soin +25 % et régénération de vie +50 %."
+    }
+   ]
+  },
+  "lame_dans_l_ombre": {
+   "nom": "Lame dans l'ombre",
+   "pierre": "furtivite",
+   "pos": [
+    0,
+    0
+   ],
+   "parents": [],
+   "description": "Frapper avant d'être vu.",
+   "rangs": [
+    {
+     "niveau": 15,
+     "effets": {
+      "furtivite": 0.15
+     },
+     "texte": "Attaques furtives : +15 % de dégâts."
+    },
+    {
+     "niveau": 30,
+     "effets": {
+      "furtivite": 0.3
+     },
+     "texte": "Attaques furtives : +30 % de dégâts."
+    },
+    {
+     "niveau": 50,
+     "effets": {
+      "furtivite": 0.45
+     },
+     "texte": "Attaques furtives : +45 % de dégâts."
+    },
+    {
+     "niveau": 70,
+     "effets": {
+      "furtivite": 0.6
+     },
+     "texte": "Attaques furtives : +60 % de dégâts."
+    }
+   ]
+  },
+  "pensee_de_huginn": {
+   "nom": "Pensée de Huginn",
+   "pierre": "furtivite",
+   "pos": [
+    -1,
+    1
+   ],
+   "parents": [
+    "lame_dans_l_ombre"
+   ],
+   "description": "Le corbeau d'Odin observe et retient tout.",
+   "rangs": [
+    {
+     "niveau": 15,
+     "effets": {
+      "xp_furtivite": 0.5
+     },
+     "texte": "La compétence Furtivité progresse 50 % plus vite."
+    }
+   ]
+  },
+  "memoire_de_muninn": {
+   "nom": "Mémoire de Muninn",
+   "pierre": "furtivite",
+   "pos": [
+    1,
+    1
+   ],
+   "parents": [
+    "lame_dans_l_ombre"
+   ],
+   "description": "Le second corbeau se souvient du chemin de retour.",
+   "rangs": [
+    {
+     "niveau": 30,
+     "effets": {
+      "recup_furtif": 15
+     },
+     "texte": "Une attaque furtive rend 15 de vigueur et 15 de mana."
+    },
+    {
+     "niveau": 50,
+     "effets": {
+      "recup_furtif": 30
+     },
+     "texte": "Une attaque furtive rend 30 de vigueur et 30 de mana."
+    }
+   ]
+  },
+  "voile_de_hel": {
+   "nom": "Voile de Hel",
+   "pierre": "furtivite",
+   "pos": [
+    0,
+    2
+   ],
+   "parents": [
+    "pensee_de_huginn",
+    "memoire_de_muninn"
+   ],
+   "description": "Tu frappes comme la mort : sans bruit.",
+   "rangs": [
+    {
+     "niveau": 50,
+     "effets": {
+      "furtivite": 0.25
+     },
+     "texte": "Attaques furtives : +25 % de dégâts de plus."
+    }
+   ]
+  },
+  "manteau_d_odin": {
+   "nom": "Manteau d'Odin",
+   "pierre": "furtivite",
+   "pos": [
+    0,
+    3
+   ],
+   "parents": [
+    "voile_de_hel"
+   ],
+   "description": "Le Voyageur va parmi les hommes sans être reconnu.",
+   "rangs": [
+    {
+     "niveau": 80,
+     "effets": {
+      "furtivite": 0.35,
+      "recup_furtif": 15
+     },
+     "texte": "Attaques furtives +35 % et +15 de vigueur et de mana rendus."
+    }
+   ]
+  },
+  "pied_leger": {
+   "nom": "Pied léger",
+   "pierre": "athletisme",
+   "pos": [
+    0,
+    0
+   ],
+   "parents": [],
+   "description": "Le cerf court sur la neige sans s'y enfoncer.",
+   "rangs": [
+    {
+     "niveau": 15,
+     "effets": {
+      "cout_course": 0.15
+     },
+     "texte": "La course coûte 15 % de vigueur en moins."
+    },
+    {
+     "niveau": 35,
+     "effets": {
+      "cout_course": 0.3
+     },
+     "texte": "La course coûte 30 % de vigueur en moins."
+    }
+   ]
+  },
+  "coureur_des_neiges": {
+   "nom": "Coureur des neiges",
+   "pierre": "athletisme",
+   "pos": [
+    -1,
+    1
+   ],
+   "parents": [
+    "pied_leger"
+   ],
+   "description": "Chaque course te rend plus endurant.",
+   "rangs": [
+    {
+     "niveau": 20,
+     "effets": {
+      "xp_athletisme": 0.25
+     },
+     "texte": "La compétence Athlétisme progresse 25 % plus vite."
+    }
+   ]
+  },
+  "souffle_long": {
+   "nom": "Souffle long",
+   "pierre": "athletisme",
+   "pos": [
+    0,
+    1
+   ],
+   "parents": [
+    "pied_leger"
+   ],
+   "description": "Ton souffle revient plus vite.",
+   "rangs": [
+    {
+     "niveau": 25,
+     "effets": {
+      "regen_vigueur": 0.2
+     },
+     "texte": "Régénération de vigueur +20 %."
+    },
+    {
+     "niveau": 50,
+     "effets": {
+      "regen_vigueur": 0.4
+     },
+     "texte": "Régénération de vigueur +40 %."
+    }
+   ]
+  },
+  "dos_du_boeuf": {
+   "nom": "Dos du bœuf",
+   "pierre": "athletisme",
+   "pos": [
+    1,
+    1
+   ],
+   "parents": [
+    "pied_leger"
+   ],
+   "description": "Ton sac pèse moins lourd sur tes épaules.",
+   "rangs": [
+    {
+     "niveau": 20,
+     "effets": {
+      "charge": 25
+     },
+     "texte": "+25 de charge portée."
+    },
+    {
+     "niveau": 45,
+     "effets": {
+      "charge": 50
+     },
+     "texte": "+50 de charge portée."
+    }
+   ]
+  },
+  "coeur_du_cerf": {
+   "nom": "Cœur du cerf",
+   "pierre": "athletisme",
+   "pos": [
+    0,
+    2
+   ],
+   "parents": [
+    "souffle_long"
+   ],
+   "description": "Un cœur qui ne s'essouffle jamais.",
+   "rangs": [
+    {
+     "niveau": 30,
+     "effets": {
+      "vigueur_max": 20
+     },
+     "texte": "+20 de vigueur maximale."
+    },
+    {
+     "niveau": 60,
+     "effets": {
+      "vigueur_max": 40
+     },
+     "texte": "+40 de vigueur maximale."
+    }
+   ]
+  },
+  "sabot_de_sleipnir": {
+   "nom": "Sabot de Sleipnir",
+   "pierre": "athletisme",
+   "pos": [
+    1,
+    2
+   ],
+   "parents": [
+    "coeur_du_cerf",
+    "dos_du_boeuf"
+   ],
+   "description": "Le cheval à huit jambes d'Odin ne se fatigue pas.",
+   "rangs": [
+    {
+     "niveau": 55,
+     "effets": {
+      "cout_course": 0.2
+     },
+     "texte": "La course coûte encore 20 % de vigueur en moins."
+    }
+   ]
+  },
+  "vent_du_nord": {
+   "nom": "Vent du nord",
+   "pierre": "athletisme",
+   "pos": [
+    0,
+    3
+   ],
+   "parents": [
+    "sabot_de_sleipnir"
+   ],
+   "description": "Tu cours comme le vent qui descend des montagnes.",
+   "rangs": [
+    {
+     "niveau": 80,
+     "effets": {
+      "regen_vigueur": 0.3,
+      "vigueur_max": 20
+     },
+     "texte": "Régénération de vigueur +30 % et +20 de vigueur maximale."
+    }
+   ]
+  }
+ }
+}

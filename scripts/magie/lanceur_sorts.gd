@@ -147,8 +147,10 @@ func frapper(cible: Node, quantite: float, s: DonneesSort, point: Vector3, direc
 		return ""
 	var origine := lanceur.global_position if lanceur != null else point - direction
 	var res := ""
+	var base := quantite
 	if vise != "joueur":
-		quantite *= ReglagesCombat.competence("destruction")   # progression à venir (1,0 pour l'instant)
+		# arbre (lot B) : perks « destruction » (ReglagesCombat.competence) × perks de l'école (« destruction_feu »…)
+		quantite *= ReglagesCombat.competence("destruction") * Progression.mult_global("destruction_" + s.ecole)
 	if vise == "joueur":
 		# statuts sur le JOUEUR : gel = ralentissement (joueur.ralentir), choc = secousse, corruption = mana volé
 		var opt := {"type": s.type_degats, "recul": 1.5 if continu else 2.5}
@@ -170,6 +172,7 @@ func frapper(cible: Node, quantite: float, s: DonneesSort, point: Vector3, direc
 		res = DegatsCombat.appliquer(cible, quantite, origine, st >= 24.0, info)
 		if res in ["touche", "tue"]:
 			derniers_coups[cible.get_instance_id()] = horloge
+			Progression.pratiquer_global("destruction", base * 0.06)   # sort du joueur qui porte (lot B)
 	journal.append({"sort": s.id, "cible": cible, "degats": quantite, "resultat": res, "continu": continu})
 	return res
 
@@ -312,7 +315,14 @@ func canaliser(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, dt:
 	var touchees := []
 	if s.portee_mode == DonneesSort.Portee.SOI:
 		if s.soin > 0.0 and lanceur.has_method("soigner"):
-			lanceur.soigner(s.soin * dt)
+			if vise == "joueur":
+				lanceur.soigner(s.soin * dt)   # lanceur ennemi : pas de perks
+			else:
+				# joueur (lot B) : perks « restauration » ; la Restauration progresse selon la vie vraiment rendue
+				var vie_avant := float(lanceur.get("vie")) if lanceur.get("vie") != null else 0.0
+				lanceur.soigner(s.soin * dt * Progression.mult_global("restauration"))
+				if lanceur.get("vie") != null:
+					Progression.pratiquer_global("restauration", (float(lanceur.get("vie")) - vie_avant) * 0.06)
 		return touchees
 	var v := viser(oeil, avant, s.portee)
 	var fin: Vector3 = v["point"]
