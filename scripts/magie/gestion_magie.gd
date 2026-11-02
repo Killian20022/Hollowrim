@@ -101,8 +101,14 @@ const GIVRE_BRUME := "#93a9bc"
 ## Couches de particules qui accompagnent le souffle de givre (poudre scintillante, éclats de cristal 3D, foyer de la paume).
 const GIVRE_COMPAGNONS := ["glace_fin_jet_poudre", "glace_fin_jet_cristaux", "glace_paume"]
 const AURA_ECOLE := {"feu": 0, "glace": 1, "electricite": 2, "tenebres": 3, "soin": 4, "protection": 5}
-## Rayon (m) de la boule de feu tenue au creux de la main (cœur de l'aura de feu).
-const AURA_BOULE := 0.095
+## Rayon (m) du carré de la FLAMME TENUE au creux de la main (cœur de l'aura de feu, magie_aura forme 2) : la goutte
+## y occupe ~0,9 × 1,25 rayon (≈ 13 × 18 cm), braises et fumée au-dessus. Remplace la boule lisse (« trop plastique »).
+const AURA_BOULE := 0.14
+## La paume est à la base de la flamme : le carré est remonté de cette fraction de son rayon.
+const FLAMME_ASSISE := 0.3
+## Lueur de la flamme tenue sur la main et l'avant-bras (calque CALQUE_AVANT_BRAS seulement, que la lumière d'aura
+## n'éclaire pas) : faible, courte portée, qui vacille.
+const LUEUR_MAIN := {"energie": 0.55, "portee": 0.45}
 ## Tenue « runes » (main gantée agrandie, MainSort.ECHELLE_MAIN_TENUE) : la boule tenue grandit d'autant.
 const BOULE_TENUE := 0.8
 ## Calque de rendu 18 des avant-bras FPS (= AvantBras.CALQUE, branche fps/avant_bras_*) : la lumière des auras ne l'éclaire
@@ -1168,7 +1174,7 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 	ancre.name = "AuraMagie"
 	add_child(ancre)
 	ancre.position = main.global_position
-	var a := {"main": main, "ancre": ancre, "ecole": ecole, "i": 0.0, "emit": [], "eclair": {}, "disque": {}, "extra": [], "fine": null, "boule": null}
+	var a := {"main": main, "ancre": ancre, "ecole": ecole, "i": 0.0, "emit": [], "eclair": {}, "disque": {}, "extra": [], "fine": null, "boule": null, "lueur": null}
 	var noms: Array = []
 	match ecole:
 		"feu": noms = ["feu_aura", "feu_aura_coeur", "feu_aura_braise"]
@@ -1184,17 +1190,28 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 	if fin_actif:
 		# couche fine : l'aura est d'abord un motif procédural au pixel (flammes, givre, plasma, vortex) ; les
 		# particules et les arcs en font les éclats autour
-		a.fine = _aura_fine(ancre, ecole, AURA_RAYON.get(ecole, 0.09))
-		# pas d'avance vers l'œil : la main (devant la paume en vue FPS) se découpe en silhouette dans les flammes
-		(a.fine as MeshInstance3D).set_instance_shader_parameter("avance", 0.0)
-		a.extra.append(a.fine)
 		if ecole == "feu":
-			# cœur : une boule de feu bouillonnante tenue au creux de la main, d'où partent les langues (référence
-			# Jeux/references/avant_bras_magie/bras_feu_1100.jpg) ; les doigts la masquent en partie (profondeur)
+			# feu : UNE flamme vivante tenue au creux de la main (cœur blanc-jaune, langues, braises, fumée ; magie_aura
+			# forme 2), d'un seul carré : plus de boule lisse posée sur un halo de flammes (deux couches transparentes)
 			a.boule = _aura_fine(ancre, ecole, AURA_BOULE, 2)
-			# le cœur lisse passe DEVANT les langues de la couche fine (même centre) : pas de flammes sombres sur le cœur
-			(a.boule as MeshInstance3D).sorting_offset = 0.05
 			a.extra.append(a.boule)
+		else:
+			a.fine = _aura_fine(ancre, ecole, AURA_RAYON.get(ecole, 0.09))
+			# pas d'avance vers l'œil : la main (devant la paume en vue FPS) se découpe en silhouette dans les flammes
+			(a.fine as MeshInstance3D).set_instance_shader_parameter("avance", 0.0)
+			a.extra.append(a.fine)
+	if ecole == "feu":
+		var lu := OmniLight3D.new()
+		lu.name = "LueurMain"
+		lu.light_color = Color(1.0, 0.6, 0.28)
+		lu.omni_range = LUEUR_MAIN.portee
+		lu.light_energy = 0.0
+		lu.shadow_enabled = false
+		lu.light_cull_mask = CALQUE_AVANT_BRAS
+		lu.light_specular = 0.0
+		ancre.add_child(lu)
+		a.lueur = lu
+		a.extra.append(lu)
 	if ecole == "electricite":
 		a.eclair = eclair(ancre, "electricite", 2.0, -1.0, 0.05, _gen_aura_arcs.bind(a))
 	elif ecole == "tenebres" and not fin_actif:
@@ -1298,15 +1315,23 @@ func _maj_auras() -> void:
 			fm.set_instance_shader_parameter("force", clampf(0.25 + 0.75 * i, 0.0, 1.3))
 		if a.boule != null and is_instance_valid(a.boule):
 			var bm: MeshInstance3D = a.boule
-			bm.set_instance_shader_parameter("rayon", AURA_BOULE * k * (BOULE_TENUE if tenue else 1.0))
-			bm.set_instance_shader_parameter("force", clampf(0.7 + 0.4 * i, 0.0, 1.3))
+			var rb := AURA_BOULE * (0.85 + 0.25 * minf(i, 1.0)) * (BOULE_TENUE if tenue else 1.0)
+			bm.set_instance_shader_parameter("rayon", rb * k)
+			bm.position = Vector3.UP * rb * FLAMME_ASSISE
+			# sous un jet (i réduit), la flamme se résorbe en foyer ; au repos elle brûle franchement
+			bm.set_instance_shader_parameter("force", clampf(0.78 + 0.35 * i, 0.0, 1.3))
+		if a.get("lueur") != null and is_instance_valid(a.lueur):
+			var lu: OmniLight3D = a.lueur
+			lu.position = Vector3.UP * 0.04
+			lu.light_energy = LUEUR_MAIN.energie * (0.6 + 0.4 * minf(i, 1.0)) * (0.75 + 0.25 * sin(horloge * 19.0) * sin(horloge * 7.3) + 0.15 * rng.randf())
 		for n_e in a.emit.size():
 			var p: GPUParticles3D = a.emit[n_e]
 			if is_instance_valid(p):
 				var ratio := clampf(0.3 + 0.7 * i, 0.05, 1.0)
-				if tenue and a.ecole == "feu":
-					# boule tenue : pas de traits blancs (flammèches étirées, cœur) devant le cœur lisse, des braises
-					ratio *= [0.12, 0.0, 1.0][mini(n_e, 2)]
+				if a.ecole == "feu" and a.boule != null:
+					# flamme tenue (couche fine) : elle a son cœur, ses langues et ses braises ; les particules n'ajoutent que
+					# quelques flammèches et braises autour (pas de carrés blancs du cœur devant elle)
+					ratio *= [0.1, 0.0, 0.5][mini(n_e, 2)]
 				p.amount_ratio = ratio
 		var c: Color = LUMIERE[a.ecole]
 		var scint := 1.0

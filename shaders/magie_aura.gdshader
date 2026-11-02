@@ -7,7 +7,7 @@
 //   ténèbres   : vortex (spirale noire aux bras violets), aspiré vers le centre
 //   soin / protection : halo doré / bleu pâle qui ondule
 // `forme` 1 = boule (projectile, explosion) : masque rond bouillonnant au lieu des flammes montantes.
-// `forme` 2 = boule de feu TENUE (cœur de l'aura de feu) : sphère lisse et lumineuse, langues au bord.
+// `forme` 2 = FLAMME TENUE (cœur de l'aura de feu, sort prêt) : goutte vivante, langues, braises et fumée au sommet.
 shader_type spatial;
 render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
 #include "res://shaders/magie_occ.gdshaderinc"
@@ -75,17 +75,61 @@ void fragment() {
 		vec2 f = q;
 		float n;
 		if (forme == 2) {
-			// boule TENUE au creux de la main (avant-bras « runes », bras_feu_1100.jpg) : sphère lisse et lumineuse, cœur
-			// blanc-jaune, orange franc, petites langues qui lèchent le bord vers le haut ; peu de bruit (pas de taches)
-			float hy = f.y / rp;
-			float lang = mfbm2(vec2(f.x / 2.5 + tt * 0.15, (f.y - tt * rp * 1.3) / 6.0) + graine) - 0.5;
-			float rr = r - max(hy, 0.0) * 0.18 * (1.0 + lang * 2.0);
-			if (rr > 1.0) {
+			// FLAMME TENUE au creux de la main (sort de feu prêt, retour « elle fait trop plastique », 2026-11-02) : plus de
+			// sphère lisse, une flamme VIVANTE en paliers francs. Repère normalisé u (1 = rayon du carré) ; la flamme est
+			// assise sous le centre (la paume), ses langues montent, la fumée passe au-dessus.
+			//   - goutte qui ondule (la colonne se tord, plus fort vers la pointe), largeur qui respire ;
+			//   - langues : bruit qui MONTE vite, déchiré au bord (trous, pointes qui se détachent) ;
+			//   - cœur blanc-jaune petit (palier c0), orange et rouge francs, liseré sombre ;
+			//   - braises : pixels isolés qui montent en zigzag ; fumée : volutes sombres au sommet, 2 paliers d'opacité.
+			vec2 u = q / rp;
+			float sv = 1.0 + 0.07 * sin(tt * 9.0) * sin(tt * 3.7 + graine);           // respiration
+			float monte = clamp((u.y + 0.45) / 1.3, 0.0, 1.0);                         // 0 base, 1 pointe
+			float ond = (mbruit(vec2(u.y * 1.6 - tt * 2.2, graine * 3.0)) - 0.5) * 0.4 * monte * monte;
+			float x = u.x - ond;
+			// goutte : base ronde centrée en y = -0.3, pointe vers y = +0.62
+			float cy = -0.3;
+			float larg = mix(0.46, 0.16, smoothstep(cy, 0.65, u.y)) * sv;
+			float dy = u.y < cy ? (u.y - cy) / 0.32 : (u.y - cy) / (0.95 * sv);
+			float d = length(vec2(x / larg, dy));
+			// déformation du domaine : les langues se tordent et se déchirent (pas de bandes concentriques)
+			vec2 w = vec2(mbruit(vec2(x * 2.5, u.y * 2.0 - tt * 2.4) + graine), mbruit(vec2(x * 2.5 + 5.2, u.y * 2.0 - tt * 2.9) + graine)) - 0.5;
+			vec2 fl = vec2(x * 3.4 + w.x * 0.9, u.y * 2.3 - tt * 3.4 + w.y * 0.8) + graine;
+			n = mfbm2(fl);
+			// langues : bruit étiré en hauteur (colonnes qui montent), fort vers la pointe
+			float lg = mbruit(vec2(x * 6.5 + w.x * 1.5, u.y * 1.6 - tt * 4.2) + graine * 1.7);
+			// stries verticales qui fendent le haut de la goutte en plusieurs langues séparées
+			float st = mbruit(vec2(x * 4.8 + w.x, u.y * 0.8 - tt * 2.6) + graine * 2.9);
+			// grain fin (au pixel du monde) : bords des paliers déchirés, jamais de courbe lisse
+			float gr = mbruit(vec2(q.x / 1.7, (q.y - tt * rp * 2.2) / 1.4) + graine * 5.0);
+			i = (1.0 - d) * 1.18 + (n - 0.5) * (0.6 + monte * 1.0) + (lg - 0.5) * (0.25 + monte * 0.8) + (gr - 0.5) * 0.13
+				- monte * smoothstep(0.4, 0.85, 1.0 - st) * 0.6 + 0.1;
+			i *= force * (0.92 + 0.1 * sin(tt * 17.0 + graine) * sin(tt * 6.1));
+			if (i > 0.3) {
+				// flamme : cœur blanc-jaune resserré (seuil du blanc relevé), puis jaune, orange, rouge, liseré sombre
+				c = i > 1.24 ? c0.rgb : palier(min(i, 1.14));
+			} else {
+				// braises : un pixel du MONDE, rares, qui montent en zigzag au-dessus et autour de la flamme
+				vec2 qb = vec2(q.x + sin(q.y * 0.35 + tt * 4.0) * 1.2, q.y - tt * rp * 0.75);
+				vec2 cb = floor(qb);
+				float hb = mh2(cb + floor(graine * 13.0));
+				float zone_b = smoothstep(-0.15, 0.2, u.y) * (1.0 - smoothstep(0.6, 0.92, u.y)) * (1.0 - smoothstep(0.2, 0.42, abs(u.x)));
+				// fumée : quelques volutes sombres juste au-dessus de la pointe, qui montent et s'effilochent
+				float sf = mfbm2(vec2(u.x * 3.0 + sin(u.y * 4.0 + tt * 1.3) * 0.3, u.y * 2.4 - tt * 1.2) + graine * 2.3);
+				float zone_f = smoothstep(0.25, 0.48, u.y) * (1.0 - smoothstep(0.65, 0.9, u.y)) * (1.0 - smoothstep(0.08 + u.y * 0.12, 0.2 + u.y * 0.2, abs(u.x - ond * 1.4)));
+				float fum = sf * zone_f * force * 1.3;
+				if (hb > 1.0 - 0.006 * zone_b * force) {
+					c = mh2(cb + 3.1) > 0.5 ? c1.rgb : c2.rgb;
+				} else if (fum > 0.44) {
+					c = vec3(0.12, 0.095, 0.09) / eclat;
+					al = fum > 0.56 ? 0.66 : 0.33;
+				} else {
+					discard;
+				}
+			}
+			if (carre > 0.97) {
 				discard;
 			}
-			n = mfbm2(f / 7.0 + vec2(tt * 0.35, -tt * 0.55) + graine);
-			// cœur blanc-jaune large et LISSE qui domine (bruit faible), orange franc puis langues au bord seulement
-			i = (1.0 - rr) * 1.95 + (n - 0.5) * 0.16 * smoothstep(0.25, 0.6, rr) + lang * 0.35 * smoothstep(0.5, 0.9, rr);
 		} else if (forme == 1) {
 			if (r > 1.0) {
 				discard;
@@ -106,11 +150,13 @@ void fragment() {
 			float n2 = mbruit(vec2(f.x / 1.4, (f.y - tt * rp * 2.4) / 4.0) + graine * 3.0);
 			i = (1.0 - d) * 1.35 + (n - 0.5) * (1.3 + max(hy, 0.0) * 1.2) + (n2 - 0.5) * 0.55 - max(hy, 0.0) * 0.2;
 		}
-		i *= force * garde;
-		if (i < 0.3) {
-			discard;
+		if (forme != 2) {
+			i *= force * garde;
+			if (i < 0.3) {
+				discard;
+			}
+			c = palier(i);
 		}
-		c = palier(i);
 	} else if (ecole == 1) {
 		// GLACE : brume qui tourne lentement + paillettes + aiguilles de givre (crêtes fines)
 		if (r > 1.05) {
