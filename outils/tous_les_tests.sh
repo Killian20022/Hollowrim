@@ -79,6 +79,7 @@ TESTS=(
 	"test_collisions_lame|--nouvelle"   # collisions de la lame dans la zone de test (ZoneCollisions) : murs fins, coin, porte, serrés, poteau, 20/30/60/144 i/s
 	"test_magie|--nouvelle"   # magie et deux mains : compatibilité, mana, 12 sorts + soin + protection, double, réactions, interruption, épée + magie, enchantement, sauvegarde (docs/MAGIE.md)
 	"test_gestes_magie|--nouvelle"   # gestes de magie capturés (Mixamo) : données, paume dans l'écran, départ et retour au repos, gestes joués par sort, main sans saut (docs/MAGIE.md)
+	"test_tps_mains|--nouvelle"   # 3e personne : le corps tient ce que tient chaque main (torche seulement si équipée, vraie arme, bouclier, deux mains), effets depuis les paumes du corps, gestes d'incantation par bras (corps_mains_tps.gd)
 	"test_articulations_magie|--nouvelle"   # gestes de magie : bras sans avant-bras « disloqué » (longueurs, torsion par image, plan et accélération du coude, pronation bornée, retour au repos ; deux bras, 60 et 30 i/s)
 	"test_torsion_avant_bras|--nouvelle"   # os de torsion des avant-bras (TorsionAvantBras) : rig, poids, main inchangée, coude sans torsion propre, torsion répartie et continue (clips des coups)
 	"test_effets_magie|--nouvelle"   # visuels de la magie (EffetsMagie / GestionMagie) : contrat, plafonds, retour au pool (docs/MAGIE_EFFETS.md)

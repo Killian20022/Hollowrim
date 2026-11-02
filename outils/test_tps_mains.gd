@@ -7,7 +7,9 @@ extends SceneTree
 ## - 3e personne : auras / jets / projectiles partent des paumes du CORPS ; 1re personne : des mains FPS ;
 ## - gestes : la main qui incante quitte sa pose de repos (charge : main reculée ; jet : bras tendu devant, à hauteur d'épaule ; lancer :
 ##   bras projeté), sans saut d'une image à l'autre ; l'autre bras n'est pas touché ;
-## - arme à deux mains : main gauche sur la poignée.
+## - arme à deux mains : main gauche sur la poignée ;
+## - caméra : épaule droite contre un mur, la caméra reste devant le mur (le bras du ressort part du centre de la tête) ;
+## - visée à la 3e personne : rayon de la caméra à l'épaule (centre de l'écran).
 
 const DT := 1.0 / 60.0
 ## Saut maximal admis de la main du corps entre deux images à 60 i/s (m).
@@ -76,6 +78,7 @@ func _tester() -> void:
 	await _effets()
 	await _gestes()
 	await _deux_mains()
+	await _camera_mur()
 	print("ECHECS : %d" % (0 if _ok else 1), "  (", _n, " vérifications)")
 	quit(0 if _ok else 1)
 
@@ -204,3 +207,18 @@ func _deux_mains() -> void:
 	print("  2 mains : cible ", (j.global_transform.affine_inverse() * cible.global_position).snappedf(0.01), " main g ", _main("gauche").snappedf(0.01), " main d ", _main("droite").snappedf(0.01), " ik ", tps.get("_ik_g").active)
 	_verif(d < 0.08, "arme à deux mains : main gauche sur la poignée (%.3f m)" % d)
 	_verif(not corps.pivot_torche.visible, "arme à deux mains : pas de torche")
+
+func _camera_mur() -> void:
+	# mur de test_combat : face tournée vers +X en x = -3,05 (z de -0,5 à 2,5) ; joueur tourné vers +Z (lacet 180°) : le mur est à sa droite
+	s.placer_joueur(Vector3(-2.72, 0.0, 1.0), 180.0, 0.0)
+	j.camera_tp.recaler()
+	await _images(20)
+	var c: Vector3 = j.camera_tp.camera.global_position
+	_verif(c.x > -3.03, "caméra, épaule droite contre un mur : devant le mur (x caméra %.2f, face du mur -3,05)" % c.x)
+	s.placer_joueur(Vector3(0, 0, 6.0), 0.0, 0.0)
+	j.camera_tp.recaler()
+	await _images(10)
+	var v: Array = mg._vue()
+	var cam: Camera3D = j.camera_tp.camera
+	var avant := -cam.global_transform.basis.z
+	_verif((v[1] as Vector3).distance_to(avant) < 0.01 and (v[0] as Vector3).distance_to(j.camera.global_position) < 0.7, "visée 3e personne : axe de la caméra à l'épaule, œil près de la tête (%.2f m)" % (v[0] as Vector3).distance_to(j.camera.global_position))

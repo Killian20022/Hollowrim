@@ -534,8 +534,16 @@ func _deux_sorts_repos(m: String) -> bool:
 	return not TENUE_RUNES and inc[m].etat == Incantation.REPOS and eq.categorie(eq.autre(m)) in ["sort", "vide"]
 
 ## Œil et direction de visée (caméra du joueur).
+## 3e personne (paumes du corps actives) : visée de la caméra à l'épaule — le centre de l'écran, pas l'axe de la tête décalé de
+## 0,5 m — avec un œil ramené sur ce rayon à hauteur de la tête (portée inchangée, rien entre la caméra et le joueur n'est visé).
 func _vue() -> Array:
 	var cam: Camera3D = joueur.camera
+	var tp = joueur.get("camera_tp")
+	if paumes_effets["gauche"] != null and joueur.get("troisieme") and tp != null and tp.get("camera") != null:
+		var c: Camera3D = tp.camera
+		var avant := -c.global_transform.basis.z
+		var o := c.global_position + avant * maxf(avant.dot(cam.global_position - c.global_position), 0.0)
+		return [o, avant]
 	return [cam.global_position, -cam.global_transform.basis.z]
 
 func _lancer(m: String, s: DonneesSort, charge: float) -> void:
