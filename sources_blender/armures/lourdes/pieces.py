@@ -490,7 +490,7 @@ def gantelets(r, st):
         return a + ab * tt
     C.orienter_dehors(ob, ctr)
     C.appliquer_materiaux(ob, P, img)
-    C.peau_transfert(ob, r, ["accessoires", "brassards", "peau"], lisser=1,
+    C.peau_transfert(ob, r, ["accessoires", "brassards", "peau"], lisser=1, cote_strict=True,
                      os_permis={b.name for b in r.arm.data.bones if any(k in b.name for k in ("hand", "lowerarm", "index", "middle", "ring", "pinky", "thumb"))})
     C.lier(ob, r)
     return ob
@@ -548,7 +548,8 @@ def bottes(r, st):
             # revers de fourrure : boudin hirsute au haut de la botte, mèches qui retombent
             zr = zs[-1]
             Pr, _, _ = C.tube(jambe, A, B, [(z - A.z) / (B.z - A.z) for z in (zr - 0.07, zr - 0.02, zr + 0.01)], n,
-                              lambda j, i, a: (0.03, 0.045, 0.02)[j] + 0.008 * (C._h(i, j, 5) - 0.5), r_loin=0.4, dilate=1, lisse=1)
+                              lambda j, i, a: ((0.016, 0.026, 0.012)[j] + 0.006 * (C._h(i, j, 5) - 0.5)) * (0.55 if abs(math.sin(a) + (1 if cote == "l" else -1)) < 0.6 else 1.0),
+                              r_loin=0.4, dilate=0, lisse=1)
             P.grille(Pr, "fourrure", C.rect_uv((64, 104, 128, 128)))
             for i in range(n):
                 a, b = Pr[0][i], Pr[0][(i + 1) % n]
@@ -590,7 +591,7 @@ def bottes(r, st):
         return Vector((ca.x, ca.y if c.z > 0.2 else 0.02, c.z))
     C.orienter_dehors(ob, ctr)
     C.appliquer_materiaux(ob, P, img)
-    C.peau_transfert(ob, r, ["bottes", "pantalon"], lisser=1,
+    C.peau_transfert(ob, r, ["bottes", "pantalon"], lisser=1, cote_strict=True,
                      os_permis={b.name for b in r.arm.data.bones if any(k in b.name for k in ("calf", "foot", "ball", "thigh"))})
     C.lier(ob, r)
     return ob

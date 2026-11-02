@@ -314,7 +314,7 @@ def degager(ob, r, pieces, marge, filtre=None, os_noms=None, passes=2):
     print("DEGAGER", ob.name, n, "sommets poussés")
 
 # ------------------------------------------------------------------------------------------------ peau d'os
-def peau_transfert(ob, r, sources, lisser=1, os_permis=None, os_force=None):
+def peau_transfert(ob, r, sources, lisser=1, os_permis=None, os_force=None, cote_strict=False):
     """Poids transférés depuis les pièces du corps (face la plus proche, interpolée), limités à 4, normalisés.
     os_permis : seuls ces os gardent un poids (les autres sont reversés au plus proche permis) ; os_force : {os: poids min}."""
     src = []
@@ -348,7 +348,7 @@ def peau_transfert(ob, r, sources, lisser=1, os_permis=None, os_force=None):
     ob.select_set(True)
     bpy.ops.object.modifier_apply(modifier=md.name)
     bpy.data.objects.remove(s, do_unlink=True)
-    nettoyer_poids(ob, lisser, os_permis, os_force)
+    nettoyer_poids(ob, lisser, os_permis, os_force, cote_strict)
 
 def peau_rigide(ob, r, os_nom):
     for b in r.arm.data.bones:
@@ -367,10 +367,18 @@ def peau_fonction(ob, r, fn):
                 ob.vertex_groups[k].add([v.index], w, "ADD")
     nettoyer_poids(ob, 0)
 
-def nettoyer_poids(ob, lisser=1, os_permis=None, os_force=None):
+def nettoyer_poids(ob, lisser=1, os_permis=None, os_force=None, cote_strict=False):
+    """cote_strict : un sommet à gauche (x > 0) ne garde que les os _l (et inversement) : l'intérieur d'une botte décalée vers l'autre
+    jambe ne prend pas les poids de l'autre jambe (sinon il s'étire vers elle en marchant)."""
     me = ob.data
     noms = [g.name for g in ob.vertex_groups]
     W = [{noms[g.group]: g.weight for g in v.groups if g.weight > 1e-4} for v in me.vertices]
+    if cote_strict:
+        for v, d in zip(me.vertices, W):
+            autre = "_r" if (ob.matrix_world @ v.co).x > 0 else "_l"
+            for k in list(d):
+                if k.endswith(autre):
+                    d.pop(k)
     if os_permis:
         for d in W:
             for k in list(d):
@@ -390,6 +398,12 @@ def nettoyer_poids(ob, lisser=1, os_permis=None, os_force=None):
                         acc[k] = acc.get(k, 0.0) + w
                 N.append(acc)
             W = N
+    if cote_strict:
+        for v, d in zip(me.vertices, W):
+            autre = "_r" if (ob.matrix_world @ v.co).x > 0 else "_l"
+            for k in list(d):
+                if k.endswith(autre):
+                    d.pop(k)
     for i, d in enumerate(W):
         if os_force:
             for k, w in os_force.items():
