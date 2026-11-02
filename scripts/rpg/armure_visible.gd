@@ -45,14 +45,14 @@ const MATIERES := {
 	"or": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.72, "poli": 0.6, "reflet": Color(1.06, 0.9, 0.62)},
 	# --- armures HD (branche armures_hd/os_verre) : clés « preset.variante » (nom complet du matériau Blender), sinon le preset seul
 	"fer.rouille": {"teinte": Color(1.0, 0.98, 0.96), "metal": 0.28, "poli": 0.22, "reflet": Color(0.95, 0.92, 0.88)},
-	# verre : OPAQUE à faux translucide (facettes peintes + reflet vitreux rasant + couche interne relue décalée selon la vue,
-	# « profondeur », autour du même texel : shader_armure) ; aucun tri alpha (Godot et navigateur)
-	"verre": {"teinte": Color(1.0, 1.04, 1.0), "metal": 0.08, "bord": 0.85, "poli": 1.0, "profondeur": 0.004, "lueur": 0.08, "reflet": Color(0.86, 1.0, 0.9)},
+	# verre : OPAQUE à faux translucide (facettes en dégradé, veines internes et filets peints dans l'atlas + reflet vitreux rasant
+	# « bord ») ; aucun tri alpha (Godot et navigateur)
+	"verre": {"teinte": Color(0.96, 1.0, 0.97), "metal": 0.06, "bord": 0.7, "poli": 0.95, "reflet": Color(0.86, 1.0, 0.9)},
 	"tissu": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.04, "poli": 0.04},
 	# runes niellées incrustées : fond presque noir, glyphes clairs ; la variante « .enchante » les fait luire (émission ∝ albédo²)
 	"runes": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.4, "poli": 0.6, "reflet": Color(1.0, 0.96, 0.85)},
 	"runes.enchante": {"teinte": Color(1.1, 1.25, 1.12), "metal": 0.2, "poli": 0.6, "lueur": 1.6, "reflet": Color(0.8, 1.0, 0.85)},
-	"verre.enchante": {"teinte": Color(1.04, 1.1, 1.04), "metal": 0.08, "bord": 0.95, "poli": 1.0, "profondeur": 0.004, "lueur": 0.16, "reflet": Color(0.8, 1.0, 0.88)},
+	"verre.enchante": {"teinte": Color(1.0, 1.06, 1.0), "metal": 0.06, "bord": 0.85, "poli": 0.95, "lueur": 0.06, "reflet": Color(0.8, 1.0, 0.88)},
 	"or.enchante": {"teinte": Color(1.04, 1.02, 1.0), "metal": 0.75, "poli": 0.7, "lueur": 0.05, "reflet": Color(1.08, 0.94, 0.66)},
 }
 ## Variante VISUELLE enchantée (objets rares) : même modèle, matériaux « <preset>.enchante » quand la fiche porte

@@ -13,9 +13,15 @@ const PIECES := {
 	"acier": ["casque_acier_nordique", "cuirasse_acier_nordique", "gantelets_acier_nordique", "bottes_acier_nordique"],
 	"uniques": ["heaume_jarl", "cuirasse_gardiens", "gantelets_hrafn", "bottes_rodeur"],
 	"uniques2": ["capuche_thaumaturge", "brigandine_braise", "gants_cuir", "bottes_cuir"],
+	"verre": ["casque_verre", "cuirasse_verre", "gantelets_verre", "bottes_verre"],
+	"verre_enchante": ["casque_verre_enchante", "cuirasse_verre_enchante", "gantelets_verre_enchante", "bottes_verre_enchante"],
 }
+const PiecesEssai := preload("res://outils/pieces_essai.gd")
+## --avant : les pièces d'os d'AVANT la refonte HD (glb de 7ebe79a copiés dans assets/modeles/armures/_avant_os/, non suivis).
+const AVANT := "res://assets/modeles/armures/_avant_os/"
+var avant := false
 const NOMS := {"sans_armure": "Heros sans armure (reference)", "cuir": "CUIR", "fourrure": "FOURRURE", "os": "OS DE DRAUGR",
-	"fer": "FER", "acier": "ACIER NORDIQUE", "uniques": "UNIQUES (Jarl, gardiens, Hrafn, rodeur)", "uniques2": "UNIQUES (thaumaturge, braise) + cuir"}
+	"verre": "VERRE", "verre_enchante": "VERRE RUNIQUE (enchante)", "fer": "FER", "acier": "ACIER NORDIQUE", "uniques": "UNIQUES (Jarl, gardiens, Hrafn, rodeur)", "uniques2": "UNIQUES (thaumaturge, braise) + cuir"}
 var s: Node
 var j: CharacterBody3D
 var mains: Node3D
@@ -59,6 +65,18 @@ func _equiper_famille(f: String) -> void:
 			var r: String = j.equipement_corps.equiper(id)
 			if r != "":
 				print("REFUS ", id, " : ", r)
+	if avant and f == "os":
+		# chausses d'os d'avant la refonte
+		var av: ArmureVisible = j.corps.armure
+		var ch := av.maillage("jambes")
+		var vieux := ArmureVisible.charger_chemin(AVANT + "chausses/os.glb")
+		if ch != null and vieux != null:
+			ch.mesh = vieux.mesh
+			ch.set_meta("maillage_origine", vieux.mesh)
+			for k in vieux.mesh.get_surface_count():
+				ch.set_surface_override_material(k, vieux.get_surface_override_material(k))
+			av._masquer()
+			vieux.free()
 	print("FAMILLE ", f, " portées : ", j.corps.armure.zones())
 
 func _capture(nom: String, rect := Rect2i(), texte := "") -> void:
@@ -99,6 +117,14 @@ func _go() -> void:
 			jambes = true
 		elif a == "--chevilles":
 			chevilles = true
+		elif a == "--avant":
+			avant = true
+	PiecesEssai.injecter()
+	if avant:
+		for id in PIECES["os"]:
+			var fi: Dictionary = Inventaire.OBJETS[id]
+			fi["modele_porte"] = AVANT + "porte/" + id + ".glb"
+			fi["modele_sol"] = AVANT + "sol/" + id + ".glb"
 	s = load("res://scenes/test_combat.tscn").instantiate()
 	s.options = {"draugr": "aucun", "sans-aide": ""}
 	root.add_child(s)

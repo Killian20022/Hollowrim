@@ -43,7 +43,7 @@ CHAUSSES = os.path.join(L.ROOT, "assets", "modeles", "armures", "chausses")
 P_COQUE, P_CUIR2, P_OS, P_OS2, P_OS3, P_FER, P_RUNES, P_VERRE, P_ARGENT, P_OR, P_TISSU = 0, 1, 6, 7, 8, 9, 10, 11, 12, 13, 14
 
 # ------------------------------------------------------------------------------------------------------------- palettes
-OS = L.hexa("#1b140c", "#2b2115", "#3f321f", "#56462b", "#6d5b39", "#847047", "#988456", "#aa9765", "#bba976", "#cbbb8b", "#dacca2")
+OS = L.hexa("#16110b", "#231a11", "#33281a", "#453723", "#58472d", "#6b5836", "#7e6a42", "#917c50", "#a28e60", "#b3a074", "#c4b28a")
 CUIR_NOIRCI = L.hexa("#080706", "#0f0c0a", "#16120e", "#1e1813", "#271f18", "#31271e", "#3c3025", "#493a2d")
 FER_ROUILLE = L.hexa("#100e0d", "#1a1715", "#24201d", "#302a26", "#3d3630", "#4c443d", "#5d554d", "#716860")
 ROUILLE = L.hexa("#2a1206", "#41200c", "#5a2e12", "#743d18", "#8c4f22", "#a3632f")
@@ -136,7 +136,7 @@ def m_cuir_noirci(P, N, bd, base=0.42, g=0):
     return rgba(rgb, np.clip(0.12 + v * 0.35, 0.05, 0.45))
 
 
-def m_os(P, N, bd, base=0.60, g=0, stries=None):
+def m_os(P, N, bd, base=0.56, g=0, stries=None):
     """Os jauni patiné HD : variations lentes, pores, stries de croissance (le long de `stries`), fissures fines, arêtes usées claires,
     patine brune et crasse de crypte dans les creux."""
     v = base + (L.fbm(P, 6.0, g) - 0.5) * 0.14 + (L.bruit(P, 70.0, g + 3) - 0.5) * 0.05 + (L.bruit(P, 190.0, g + 4) - 0.5) * 0.05
@@ -150,10 +150,13 @@ def m_os(P, N, bd, base=0.60, g=0, stries=None):
     zone = L.fbm(P, 3.5, g + 11) > 0.47
     v = np.where((f < 0.007) & zone, v - 0.30, v)
     v = np.where((f >= 0.007) & (f < 0.013) & zone, v - 0.07, v)
-    v = np.where(bd < 0.0025, v - 0.12, np.where(bd < 0.007, v + 0.09, v))       # tranche sombre, arête polie
+    v = np.where(bd < 0.0035, v - 0.16, np.where(bd < 0.009, v + 0.10, v))       # tranche sombre, arête polie (lisible au 480x270)
     rgb = L.rampe(OS, np.clip(v, 0, 0.999))
-    t = np.clip((L.fbm(P, 3.0, g + 12) - 0.45) * 1.6, 0, 1)[:, None]
-    rgb = rgb * (1 - 0.40 * t) + np.array([0.22, 0.15, 0.08]) * 0.40 * t
+    t = np.clip((L.fbm(P, 3.0, g + 12) - 0.40) * 1.8, 0, 1)[:, None]
+    rgb = rgb * (1 - 0.50 * t) + np.array([0.20, 0.13, 0.07]) * 0.50 * t
+    # taches de terre de tombe et coulures sombres (vers le bas)
+    tc = np.clip((L.fbm(P * np.array([1.0, 0.35, 1.0]), 14.0, g + 13) - 0.62) * 4.0, 0, 1)[:, None]
+    rgb = rgb * (1 - 0.55 * tc) + np.array([0.09, 0.07, 0.05]) * 0.55 * tc
     return rgba(rgb, np.clip(0.20 + v * 0.50, 0, 0.8))
 
 
@@ -359,6 +362,12 @@ BUDGET = {"torse": 2500, "tete": 1400, "mains": 1200, "pieds": 1200}
 def finir(o, matiere, mats, ident, empl, sol):
     """mats : [(nom_matériau, {parties})], le premier = surface 0 (coque)."""
     L.lisser_normales(o)
+    # cristal : facettes à plat (ombrage net de pierre taillée, éclats du reflet par facette)
+    attr = o.data.attributes.get("partie")
+    if attr is not None:
+        for p in o.data.polygons:
+            if attr.data[p.index].value == P_VERRE:
+                p.use_smooth = False
     nb = L.nb_tris(o)
     print("PIECE %s : %d triangles (budget %d)" % (ident, nb, BUDGET[empl]))
     if nb > BUDGET[empl]:
@@ -566,13 +575,13 @@ def os_draugr():
         out = m_os(P, N, bd, 0.64, 321, stries=(0, 0.3, 1))
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
         # orbites profondes du crâne au-dessus du front + cavité nasale, rebord clair
-        ox = np.abs(x) - 0.040
-        e = (ox ** 2) / 0.022 ** 2 + ((y - YO) ** 2) / 0.018 ** 2
+        ox = np.abs(x) - 0.041
+        e = (ox ** 2) / 0.027 ** 2 + ((y - YO) ** 2) / 0.022 ** 2
         orb = (z > 0.03) & (e < 1)
         out[orb, :3] = L.rampe(OS, np.clip(0.02 + e[orb] * 0.08, 0, 1))
-        bord = (z > 0.03) & (e >= 1) & (e < 1.5)
-        out[bord, :3] *= 1.12
-        nez = (z > 0.03) & (np.abs(x) < 0.012 - (YO - 0.012 - y) * 0.3) & (y < YO - 0.008) & (y > YO - 0.04)
+        bord = (z > 0.03) & (e >= 1) & (e < 1.7)
+        out[bord, :3] *= (0.62 + 0.25 * (e[bord] - 1))[:, None]
+        nez = (z > 0.03) & (np.abs(x) < 0.016 - (YO - 0.012 - y) * 0.35) & (y < YO - 0.006) & (y > YO - 0.045)
         out[nez, :3] = L.rampe(OS, np.full(nez.sum(), 0.03))
         # sutures crâniennes (zigzag) au sommet
         sut = np.abs(x + 0.004 * np.sin(z * 260.0)) < 0.0018
@@ -673,7 +682,7 @@ def os_draugr():
 ## panneaux de cristal émeraude en couches, liserés et filets DORÉS, casque à crête effilée, écharpe de tissu clair, ceintures de cuir
 ## brun à boucle d'or, pan de tissu crème brodé, combinaison vert sombre, silhouette fine. Transparence : FAUX translucide peint
 ## (opaque : facettes en dégradé, veines claires, reflets internes du shader « profondeur », arêtes claires) -> aucun tri alpha.
-VERT = L.hexa("#03140a", "#062312", "#0a321b", "#0f4425", "#145730", "#1a6c3b", "#218347", "#2a9b54", "#38b262", "#52c677", "#7fd99a", "#b8edc8")
+VERT = L.hexa("#03110b", "#051d10", "#082a17", "#0c381f", "#114728", "#175832", "#1e6a3c", "#277e47", "#339354", "#48a967", "#73c48d", "#b0e2c0")
 OR = L.hexa("#151009", "#241b0f", "#352816", "#4a391e", "#614b27", "#7a5f31", "#94753d", "#ad8c4c", "#c5a462", "#dabd7e", "#ead6a4")
 VERT_SOMBRE = L.hexa("#060d09", "#09130d", "#0d1a12", "#122217", "#172b1e", "#1e3526", "#26402f")
 CREME = L.hexa("#3e3a2e", "#5a5546", "#787160", "#938c77", "#aaa38c", "#bdb79f", "#cec9b2", "#dcd8c3")
@@ -705,7 +714,7 @@ def voronoi(P, c, g=0):
     return f1 * c, f2 * c, idc, fpm * c
 
 
-def m_cristal(P, N, bd, g=0, base=0.50, c=0.058):
+def m_cristal(P, N, bd, g=0, base=0.44, c=0.075):
     """Cristal émeraude à faux translucide : facettes (Voronoï) de tons différents en dégradé, veines claires dont une part dorées,
     éclats internes, filet d'OR au bord, puis arête claire et liseré sombre (épaisseur du verre)."""
     f1, f2, idc, fp = voronoi(P, c, g)
@@ -717,23 +726,26 @@ def m_cristal(P, N, bd, g=0, base=0.50, c=0.058):
     dirc = np.stack([np.cos(ang), np.sin(ang) * 0.8, np.sin(ang * 1.7)], 1)
     v += np.clip(((P - fp) * dirc).sum(1) / c, -0.6, 0.6) * 0.40       # facette : plan incliné, clair d'un côté, sombre de l'autre
     v += (L.fbm(P, 9.0, g + 3) - 0.5) * 0.12 + np.clip(N[:, 1], -1, 1) * 0.06
+    # reflets internes : un second réseau de veines, plus large et plus doux, « sous » la surface (faux translucide)
+    g1, g2, _, _ = voronoi(P + np.array([0.013, -0.021, 0.008]), c * 0.7, g + 31)
+    v += np.clip(1.0 - (g2 - g1) / 0.006, 0, 1) * 0.10
     vein = f2 - f1
-    clair = vein < 0.0011
-    dore = clair & (hc > 0.70)
-    v = np.where(clair & ~dore, v + 0.34, v)
-    v = np.where((vein >= 0.0011) & (vein < 0.0026), v - 0.07, v)       # creux sombre le long des veines (taille)
+    clair = vein < 0.0024
+    dore = clair & (hc > 0.68)
+    v = np.where(clair & ~dore, v + 0.30, v)
+    v = np.where((vein >= 0.0024) & (vein < 0.005), v - 0.08, v)       # creux sombre le long des veines (taille)
     rgb = L.rampe(VERT, np.clip(v, 0, 0.999))
     rgb[dore] = L.rampe(OR, np.clip(0.72 + (L.bruit(P[dore], 90.0, g + 4) - 0.5) * 0.3, 0, 0.999))
     ec = L.bruit(P, 330.0, g + 7) > 0.935
     rgb[ec] = rgb[ec] * 0.35 + np.array([0.80, 1.0, 0.84]) * 0.65
     a = np.clip(0.80 + (v - 0.5) * 0.3, 0.4, 1.0)
-    # bord : filet d'or (1,5 mm), arête claire, liseré sombre
-    fo = bd < 0.0017
-    rgb[fo] = L.rampe(OR, np.clip(0.78 + (L.bruit(P[fo], 120.0, g + 5) - 0.5) * 0.25 + N[fo, 1] * 0.05, 0, 0.999))
-    cl = (bd >= 0.0017) & (bd < 0.0032)
-    rgb[cl] = rgb[cl] * 0.4 + np.array([0.72, 0.95, 0.76]) * 0.6
-    so = (bd >= 0.0032) & (bd < 0.007)
-    rgb[so] *= 0.72
+    # bord : filet d'or (4 mm : lisible au 480x270), arête claire, liseré sombre (épaisseur du verre)
+    fo = bd < 0.0040
+    rgb[fo] = L.rampe(OR, np.clip(0.74 + (L.bruit(P[fo], 120.0, g + 5) - 0.5) * 0.25 + N[fo, 1] * 0.06 - (bd[fo] < 0.0012) * 0.25, 0, 0.999))
+    cl = (bd >= 0.0040) & (bd < 0.0068)
+    rgb[cl] = rgb[cl] * 0.45 + np.array([0.70, 0.93, 0.74]) * 0.55
+    so = (bd >= 0.0068) & (bd < 0.012)
+    rgb[so] *= 0.70
     a = np.where(fo, 0.95, a)
     return rgba(rgb, a)
 
@@ -788,7 +800,7 @@ def entrelacs_vertical(x, y, larg, g=0):
     return (b1 | b2 | fil).astype(float)
 
 
-def plaque2(bm, c, axe, ref, cible, ys, arc, n, ep, jeu, partie, dy=None, taper=None, bombe=0.004, biseau=0.55, rmax=0.40, lisse=2):
+def plaque2(bm, c, axe, ref, cible, ys, arc, n, ep, jeu, partie, dy=None, taper=None, bombe=0.004, biseau=0.55, rmax=0.40, lisse=2, arete=None):
     """Plaque de cristal ÉPAISSE qui suit le corps, de forme libre : sections aux abscisses `ys` le long de `axe` depuis `c`, arc
     (t0, t1) ; dy(u) décale la section en hauteur selon u = position dans l'arc (-1..1) -> pointe en V, biais ; taper(v) (v = 0..1 le
     long de la plaque) rétrécit l'arc -> éclat effilé. Rangées : dessous haut, dessus (biseaux aux bouts), dessous bas ; côtés fermés."""
@@ -837,7 +849,9 @@ def plaque2(bm, c, axe, ref, cible, ys, arc, n, ep, jeu, partie, dy=None, taper=
             if dr0 is None:
                 e = ep * (biseau if i in (0, k - 1) else 1.0)
                 w = 1 - (2 * v - 1) ** 2
-                dr = j_ + e + bombe * max(0.0, 1 - u * u) * (0.4 + 0.6 * w)
+                ar = arete if arete is not None else (partie == P_VERRE)
+                prof = max(0.0, 1 - abs(u)) if ar else max(0.0, 1 - u * u)      # cristal : arête vive au milieu, pans plats
+                dr = j_ + e + bombe * prof * ((0.25 + 0.75 * min(1.0, 2.5 * min(v, 1 - v) + 0.2)) if ar else (0.4 + 0.6 * w))
             else:
                 dr = j_ + dr0
             ligne.append(bm.verts.new(B(cc + d * (R[i, j] + dr))))
@@ -967,10 +981,10 @@ def verre():
         c_ep = Vector((s * 0.10, a.y, a.z))
         cb = L.bvh_de(["tunique", "SuperHero_Male"], filtre=lambda p: abs(p.x) > 0.10)
         bm = bmesh.new()
-        plaque2(bm, c_ep, Vector((s, 0, 0)), (0, 1, 0), cb, ys_entre(0.02, 0.27, 0.06), (-1.55, 1.45), 7, 0.008, 0.026, P_VERRE,
-                taper=lambda v: 1.0 - 0.55 * v ** 1.6, bombe=0.012)
-        plaque2(bm, c_ep, Vector((s, 0, 0)), (0, 1, 0), cb, ys_entre(0.05, 0.21, 0.055), (-1.05, 1.05), 5, 0.008, 0.040, P_VERRE,
-                taper=lambda v: 1.0 - 0.6 * v ** 1.4, bombe=0.010)
+        plaque2(bm, c_ep, Vector((s, 0, 0)), (0, 1, 0), cb, ys_entre(0.03, 0.27, 0.06), (-1.45, 1.35), 4, 0.007, 0.022, P_VERRE,
+                taper=lambda v: 1.0 - 0.75 * v ** 1.3, bombe=0.010, lisse=4, dy=lambda u: 0.0)
+        plaque2(bm, c_ep, Vector((s, 0, 0)), (0, 1, 0), cb, ys_entre(0.05, 0.20, 0.05), (-0.95, 0.85), 2, 0.007, 0.036, P_VERRE,
+                taper=lambda v: 1.0 - 0.8 * v ** 1.2, bombe=0.009, lisse=4)
         top = c_ep + Vector((s * 0.12, 0.0, 0.0))
         hit = cb.ray_cast(B(top + Vector((0, 0.4, 0))), B(Vector((0, -1, 0))), 0.4)
         ytop = G(hit[0]).y if hit[0] is not None else top.y + 0.06
@@ -1035,7 +1049,7 @@ def verre():
         X.bande(bm, [(c0, (0, 1, 0), (0, 0, 1)), (c1, (0, 1, 0), (0, 0, 1))], [f0, f1], ep, 18, part, arc=(-1.35, 1.35))
     o_band = X.en_objet(bm, "bandeau_v")
     bm = bmesh.new()
-    for k, (a0, a1, h, larg) in enumerate([(58, 168, 0.075, 0.012), (66, 158, 0.058, 0.010), (76, 150, 0.042, 0.009)]):
+    for k, (a0, a1, h, larg) in enumerate([(58, 168, 0.070, 0.007), (68, 160, 0.052, 0.006), (78, 152, 0.038, 0.006)]):
         for s in ((0,) if k == 0 else (1, -1)):
             bmc = bmesh.new()
             crete(bmc, cibles, a0, a1, 1, h, larg, 0.024, P_VERRE, 1.0, 8)
@@ -1064,7 +1078,7 @@ def verre():
         m = runes(s_, np.clip((ax - 0.03) / 0.006, -1.2, 1.2), 0.013, 23, 0.13)
         return m_runes(P, N, bd, m, (0.62, 0.95, 0.66))
 
-    mat = dispatch({P_VERRE: lambda P, N, bd: m_cristal(P, N, bd, 371, 0.52, 0.045), P_OR: lambda P, N, bd: m_or(P, N, bd, 373), P_RUNES: m_runes_cas},
+    mat = dispatch({P_VERRE: lambda P, N, bd: m_cristal(P, N, bd, 371, 0.46, 0.055), P_OR: lambda P, N, bd: m_or(P, N, bd, 373), P_RUNES: m_runes_cas},
                    lambda P, N, bd: m_vert_sombre(P, N, bd, 375))
     finir(o, mat, [("verre", {P_VERRE}), ("cuir.vert", {P_COQUE}), ("or", {P_OR}), ("runes", {P_RUNES})], "casque_verre", "tete", X.sol_tete)
 
@@ -1121,7 +1135,7 @@ def verre():
             out[m_] = m_runes(P[m_], N[m_], bd[m_], mk, (0.62, 0.95, 0.66))
         return out
 
-    mat = dispatch({P_VERRE: lambda P, N, bd: m_cristal(P, N, bd, 381, 0.52, 0.040), P_OR: lambda P, N, bd: m_or(P, N, bd, 383),
+    mat = dispatch({P_VERRE: lambda P, N, bd: m_cristal(P, N, bd, 381, 0.46, 0.05), P_OR: lambda P, N, bd: m_or(P, N, bd, 383),
                     P_RUNES: m_runes_g}, lambda P, N, bd: np.where((np.abs(P[:, 0]) > 0.68)[:, None], m_cuir_brun(P, N, bd, 385, 0.46), m_vert_sombre(P, N, bd, 387)))
     finir(o, mat, [("cuir", {P_COQUE}), ("verre", {P_VERRE}), ("or", {P_OR}), ("runes", {P_RUNES})], "gantelets_verre", "mains", X.sol_paire_mains)
 
@@ -1181,7 +1195,7 @@ def verre():
             out[m_] = m_runes(P[m_], N[m_], bd[m_], mk, (0.62, 0.95, 0.66))
         return out
 
-    mat = dispatch({P_VERRE: lambda P, N, bd: m_cristal(P, N, bd, 391, 0.52, 0.045), P_OR: lambda P, N, bd: m_or(P, N, bd, 393),
+    mat = dispatch({P_VERRE: lambda P, N, bd: m_cristal(P, N, bd, 391, 0.46, 0.055), P_OR: lambda P, N, bd: m_or(P, N, bd, 393),
                     P_RUNES: m_runes_b}, lambda P, N, bd: m_cuir_brun(P, N, bd, 395, 0.44))
     finir(o, mat, [("cuir", {P_COQUE, P_CUIR2}), ("verre", {P_VERRE}), ("or", {P_OR}), ("runes", {P_RUNES})], "bottes_verre", "pieds", X.sol_paire_pieds)
 
