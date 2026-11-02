@@ -624,9 +624,10 @@ def bottes(r, st):
 
 # =============================================================================================================== CAPUCHE
 def capuche(r, st):
-    """Capuche du thaumaturge : forme de la capuche v3 des mages (persos/capuche_v3, validée : épouse le crâne, bord roulé, plis du col),
-    variante « visage », réduite au budget d'un casque (<= 600 triangles), re-texturée laine bleue + bordure et bandeau de runes
-    d'argent, peau d'os transférée de la tête / du cou / de la pèlerine du héros."""
+    """Capuche du thaumaturge v3 : la capuche v3 des mages (persos/capuche_v3, validée) TELLE QUELLE (variante « visage » : volume de
+    laine autour du crâne, pointe molle vers l'arrière, bord roulé épais qui encadre le visage jusqu'au menton), seule la pèlerine
+    est retirée (rangs du bas, coupe le long des UV « du bord à l'ourlet » et non à une hauteur : le tour du visage reste entier) ;
+    ses propres UV + sa cuisson d'occlusion, laine bleu nuit, runes d'argent discrètes derrière le bord, aucune bande claire."""
     import bpy, bmesh, os
     avant = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=os.path.join(C.ICI, "capuche_v3_mage.glb"))
@@ -640,67 +641,134 @@ def capuche(r, st):
     ob.data.transform(mw)
     ob.matrix_world = Matrix.Identity(4)
     ob.name = st["id"]
-    # pèlerine raccourcie : le bas qui couvrait les épaules du mage est coupé (les épaules du héros, soulevées par les coups à deux mains,
-    # la traversaient) ; la capuche s'arrête en col court sur la base du cou
-    z_coupe = st.get("z_coupe", 1.61)
-    bm = bmesh.new(); bm.from_mesh(ob.data)
-    bmesh.ops.delete(bm, geom=[f for f in bm.faces if max(v.co.z for v in f.verts) < z_coupe + 0.012 and
-                               sum(v.co.z for v in f.verts) / len(f.verts) < z_coupe], context="FACES")
-    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
-    bm.to_mesh(ob.data); bm.free()
-    # réduction au budget
+    me = ob.data
+    for ca in list(me.color_attributes):
+        me.color_attributes.remove(ca)
+    # normales personnalisées du glTF retirées : sinon, une fois les sommets écartés et les colonnes dissoutes, elles gardent
+    # l'ancienne direction (plaques claires et sombres sur le crâne)
     bpy.context.view_layer.objects.active = ob
     bpy.ops.object.select_all(action="DESELECT"); ob.select_set(True)
-    tris = C.compter_tris(ob)
-    md = ob.modifiers.new("dec", "DECIMATE")
-    md.ratio = min(1.0, (st.get("budget", 590)) / max(1, tris))
-    md.use_collapse_triangulate = True
-    bpy.ops.object.modifier_apply(modifier=md.name)
-    # textures : laine (0,0)-(128,96), bordure de runes (0,96)-(128,112), bandeau (0,112)-(128,128)
-    t = C.Toile(st["id"])
-    g = st.get("graine", 61)
-    t.zone((0, 0, 128, 96), C.laine(C.LAINE_BLEUE, g, base=0.55))
-    t.zone((0, 96, 128, 128), C.laine(C.LAINE_BLEUE, g + 1, base=0.42))
-    for y in (97, 110, 113, 126):
-        C.ligne_h(t, y, 0, 128, 1.0)
-        for x in range(128):
-            t.set(x, y, C.rampe(C.ARGENT, 0.7 + 0.2 * C._h(x, y, g)), 0.8)
-    C.runes(t, (0, 100, 128, 108), C.ARGENT, g + 3)
-    C.runes(t, (0, 115, 128, 124), C.ARGENT, g + 4)
-    # plis : ombres de couleur de sommet = occlusion (gardée), UV cylindriques autour de l'axe de la tête
-    me = ob.data
+    if me.has_custom_normals:
+        bpy.ops.mesh.customdata_custom_splitnormals_clear()
+    # col court : on retire les rangs de la pèlerine (v Blender petit = ourlet ; v = 1 : bord du visage)
+    v_coupe = st.get("v_coupe", 0.15)
     bm = bmesh.new(); bm.from_mesh(me)
     uvl = bm.loops.layers.uv.verify()
-    centre = Vector((0.0, 0.01, 0.0))
-    zmin = min(v.co.z for v in bm.verts); zmax = max(v.co.z for v in bm.verts)
-    # bord du visage : arêtes de bord dont le milieu est devant et haut (ouverture du visage)
-    bord_vis = set()
-    for e in bm.edges:
-        if e.is_boundary:
-            m = (e.verts[0].co + e.verts[1].co) / 2
-            if m.y < -0.03 and m.z > 1.52:
-                bord_vis.add(e.verts[0]); bord_vis.add(e.verts[1])
-    z_bandeau = st.get("z_bandeau", 1.735)
-    for f in bm.faces:
-        us = []
-        for lp in f.loops:
-            p = lp.vert.co
-            a = math.atan2(p.x - centre.x, p.y - centre.y)       # 0 = derrière (+Y), couture derrière
-            us.append((a / TAU) % 1.0)
-        if max(us) - min(us) > 0.5:
-            us = [u + 1.0 if u < 0.5 else u for u in us]
-        bordure = any(lp.vert in bord_vis for lp in f.loops)
-        cz = sum(lp.vert.co.z for lp in f.loops) / len(f.loops)
-        for lp, u in zip(f.loops, us):
-            p = lp.vert.co
-            if bordure:
-                v = (97.5 + (0.0 if lp.vert in bord_vis else 11.0)) / 128.0
-                lp[uvl].uv = (u * 3.0, v)
-            elif abs(cz - z_bandeau) < 0.022 and p.y > -0.06:
-                lp[uvl].uv = (u * 2.0, (113.5 + 12.0 * (p.z - (z_bandeau - 0.022)) / 0.044) / 128.0)
-            else:
-                lp[uvl].uv = (u * 2.0, (0.5 + 95.0 * (p.z - zmin) / (zmax - zmin)) / 128.0)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if min(lp[uvl].uv[1] for lp in f.loops) < v_coupe], context="FACES")   # rang entier : ourlet net
+    # rang suivant gardé seulement sur la nuque (il couvre le cou derrière), retiré au-dessus des épaules (col de fourrure)
+    v_nuque, x_nuque = st.get("v_nuque", 0.15), st.get("x_nuque", 0.10)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if min(lp[uvl].uv[1] for lp in f.loops) < v_nuque
+                               and abs(f.calc_center_median().x) > x_nuque], context="FACES")
+    # pans libres du devant (ils pendaient sous les oreilles) : retirés sous la mâchoire
+    z_pans = st.get("z_pans", 1.545)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.calc_center_median().y < 0.02 and min(v.co.z for v in f.verts) < z_pans],
+                     context="FACES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
     bm.to_mesh(me); bm.free()
+    # budget d'un casque (<= 600) : la capuche v3 est une grille régulière (28 colonnes le long du bord x 19 rangs du bord à l'ourlet) ;
+    # une colonne sur deux est dissoute (les rangs, donc le profil du volume, du bourrelet et de la doublure, restent tous ; les UV
+    # restent exactes, rien ne passe à travers)
+    bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.select_all(action="DESELECT"); ob.select_set(True)
+    budget = st.get("budget", 600)
+    print("CAPUCHE apres coupe", C.compter_tris(ob), "tris")
+    bm = bmesh.new(); bm.from_mesh(me)
+    uvl = bm.loops.layers.uv.verify()
+    u_de, v_de = {}, {}
+    for f in bm.faces:
+        for lp in f.loops:
+            u_de[lp.vert] = round(lp[uvl].uv[0], 3)
+            v_de[lp.vert] = round(lp[uvl].uv[1], 3)
+    us = sorted(set(u_de.values())); vs = sorted(set(v_de.values()))
+    col = {v: us.index(u) for v, u in u_de.items()}
+    rang = {v: vs.index(x) for v, x in v_de.items()}
+    # triangles réunis en quadrilatères de la grille (diagonales seulement)
+    diag = [e for e in bm.edges if not e.is_boundary and col[e.verts[0]] != col[e.verts[1]] and rang[e.verts[0]] != rang[e.verts[1]]]
+    if st.get("reduire", True):
+        bmesh.ops.dissolve_edges(bm, edges=diag, use_verts=False)
+        impairs = [e for e in bm.edges if col[e.verts[0]] == col[e.verts[1]] and col[e.verts[0]] % 2 == 1]
+        bmesh.ops.dissolve_edges(bm, edges=impairs, use_verts=True)
+        bmesh.ops.triangulate(bm, faces=bm.faces[:])
+    # sens des faces : le glb du mage a un enroulement incohérent (ses normales personnalisées le cachaient) ; le jeu élimine les
+    # faces de dos -> trous à la nuque, plaques grises sur le crâne. Dessus et bord roulé tournés vers l'extérieur, doublure (rangs
+    # v > 0,955) vers la tête
+    centre_t = Vector((0.0, 0.01, 1.68))
+    a_retourner = []
+    for f in bm.faces:
+        dedans = min(lp[uvl].uv[1] for lp in f.loops) > st.get("v_doublure", 0.955)
+        dehors = f.normal.dot(f.calc_center_median() - centre_t) > 0.0
+        if dehors == dedans:
+            a_retourner.append(f)
+    bmesh.ops.reverse_faces(bm, faces=a_retourner)
+    print("CAPUCHE faces retournées", len(a_retourner), "sur", len(bm.faces))
+    bm.to_mesh(me); bm.free()
+    print("CAPUCHE apres reduction (%d colonnes)" % len(us), C.compter_tris(ob), "tris")
+    if C.compter_tris(ob) > budget:
+        md = ob.modifiers.new("dec", "DECIMATE")
+        md.ratio = budget / C.compter_tris(ob)
+        md.use_collapse_triangulate = True
+        bpy.ops.object.modifier_apply(modifier=md.name)
+    # texture : portage de MageTextures.capuche_v3 (cuisson Blender R = occlusion, B = crêtes des plis), 128 x 64, palette bleu nuit
+    W, H = 128, 64
+    bake = bpy.data.images.load(os.path.join(C.ICI, "bake_capuche_v3.png"))
+    bp = list(bake.pixels)                           # Blender : ligne 0 en bas, comme Toile et nos UV
+    bw = bake.size[0]
+    t = C.Toile(st["id"], W, H)
+    g = st.get("graine", 61)
+    pal = BLEU_NUIT
+    for y in range(H):
+        vg = 1.0 - (y + 0.5) / H                     # v « Godot » de la cuisson : 0 = bord du visage, 1 = ourlet
+        for x in range(W):
+            s = min(max(((x + 0.5) / W - 0.01) / 0.98, 0.0), 1.0)
+            i = (y * bw + x) * 4
+            ao, pt = (bp[i], bp[i + 2]) if bp[i + 3] > 0.5 else (0.8, 0.5)     # texels hors cuisson : valeurs neutres
+            l = 0.56 + (C.bruit(x, y, 10, g, W, H) - 0.5) * 0.10 + (C.bruit(x, y, 4, g + 1, W, H) - 0.5) * 0.08
+            if vg < 0.045:
+                l = 0.14 + (l - 0.5) * 0.5          # doublure
+                l = l + (0.40 - l) * _lisse(0.50, 0.70, abs(s - 0.5) / 0.5)
+            elif vg < 0.08:
+                l = 0.70 + (l - 0.5) * 0.6 + (C.bruit(x, 0, 6, g + 6, W, 1) - 0.5) * 0.18      # tranche du bord roulé
+            else:
+                rang = (vg - 0.08) / 0.91
+                l += (ao - 0.85) * 0.55 + (pt - 0.5) * 0.40
+                l += (C.bruit(x, 0, 9, g + 7, W, 1) - 0.5) * 0.20 * (1.0 - rang * 0.6)
+                if rang < 0.035:
+                    l += 0.08 + (C.bruit(x, y, 5, g + 8, W, H) - 0.5) * 0.2
+                elif rang < 0.065:
+                    l -= 0.13 if C._h(x, y, g + 3) > 0.3 else 0.05
+                if rang > 0.93:
+                    l -= 0.10
+                dx = abs(s - 0.5) * W
+                if 0.06 < rang < 0.85:
+                    if dx < 0.6:
+                        l -= 0.14
+                    elif dx < 1.6:
+                        l += 0.05
+            l += (C._h(x, y, g + 9) - 0.5) * 0.05     # duvet (bruit blanc léger, aucune trame)
+            if vg >= 0.045:
+                l = max(l, 0.34)                        # le dessus reste de la laine bleu nuit, jamais un trou noir
+            t.set(x, y, C.rampe(pal, l), 0.04)
+    bpy.data.images.remove(bake)
+    # runes d'argent discrètes, brodées juste derrière le bourrelet, sur le front et les tempes seulement (pas de bande pleine)
+    rang0, rang1 = st.get("runes_rang", (0.10, 0.15))
+    y1 = int(round((1.0 - (0.08 + rang0 * 0.91)) * H)); y0 = int(round((1.0 - (0.08 + rang1 * 0.91)) * H))
+    i = 0
+    x = 28
+    while x < 100:
+        if abs(x - 64) > 3 and C._h(i, 1, g + 11) > 0.25:
+            motif = int(C._h(i, 0, g + 12) * 4)
+            k = 0.34 + 0.08 * C._h(i, 2, g + 13)
+            for yy in range(y0, y1):
+                t.set(x, yy, C.rampe(C.ARGENT, k), 0.5)
+            mid = (y0 + y1) // 2
+            if motif == 0:
+                t.set(x + 1, mid + 1, C.rampe(C.ARGENT, k * 0.9), 0.5)
+            elif motif == 1:
+                t.set(x + 1, mid - 1, C.rampe(C.ARGENT, k * 0.9), 0.5)
+            elif motif == 2:
+                t.set(x - 1, mid, C.rampe(C.ARGENT, k * 0.9), 0.5); t.set(x + 1, mid, C.rampe(C.ARGENT, k * 0.9), 0.5)
+        x += 6
+        i += 1
     for p in me.polygons:
         p.use_smooth = True
     img = t.image()
@@ -708,28 +776,138 @@ def capuche(r, st):
     me.materials.append(C.materiau("fourrure.laine", img))
     for p in me.polygons:
         p.material_index = 0
-    # occlusion : couleur de sommet assombrie vers l'intérieur du capuchon (doublure) et au creux du col
     if "Col" not in me.color_attributes:
         me.color_attributes.new("Col", "FLOAT_COLOR", "CORNER")
     col = me.color_attributes["Col"]
-    for poly in me.polygons:
-        nrm = poly.normal
-        c = poly.center
-        dedans = (c - Vector((0, 0.0, 1.68))).normalized().dot(nrm) < -0.2
-        for li in poly.loop_indices:
-            k = 0.55 if dedans else 1.0
-            col.data[li].color = (k, k, k, 1.0)
-    # le col de fourrure (mante) et la cotte du héros sont plus épais que la pèlerine du mage : bas de la capuche poussé au-dehors
-    C.degager(ob, r, ["mante", "tunique", "peau", "Hair_Beard"], st.get("marge", 0.02), filtre=lambda p: p.z < 1.64)
-    C.degager(ob, r, ["mante"], 0.03, filtre=lambda p: p.z < 1.66)
-    C.degager(ob, r, ["accessoires"], st.get("marge", 0.014), filtre=lambda p: p.z < 1.62,
-              os_noms={"spine_03", "spine_02", "clavicle_l", "clavicle_r"})
-    # poids (comme CapucheMage) : bas = pèlerine du héros (torse), haut = tête, fondu sur la hauteur du cou
+    for d in col.data:
+        d.color = (1.0, 1.0, 1.0, 1.0)
+    # écartée de la peau et de la barbe (le crâne du héros est plus gros que celui du mage, le bord du visage frôle les favoris) ;
+    # la doublure poussée entraîne le dessus (chaque sommet suit le plus grand déplacement de ses voisins à moins de 3 cm) : les deux
+    # épaisseurs de laine bougent ensemble, la doublure ne ressort jamais à travers
+    from mathutils import kdtree
+    avant_deg = [v.co.copy() for v in me.vertices]
+    C.degager(ob, r, ["peau", "Hair_Beard"], st.get("marge_tete", 0.022))
+    # angle de la mâchoire : plus de jeu (la tête tourne entre le col qui suit les clavicules et la barbe qui suit la tête)
+    C.degager(ob, r, ["peau", "Hair_Beard"], st.get("marge_machoire", 0.035), filtre=lambda p: abs(p.x) > 0.06 and p.z < 1.70)
+    dep = [v.co - avant_deg[i] for i, v in enumerate(me.vertices)]
+    kd = kdtree.KDTree(len(avant_deg))
+    for i, p in enumerate(avant_deg):
+        kd.insert(p, i)
+    kd.balance()
+    rayon = st.get("rayon_epaisseur", 0.03)
+    for i, v in enumerate(me.vertices):
+        meilleur = dep[i]
+        for (_, j, d) in kd.find_range(avant_deg[i], rayon):
+            dj = dep[j] * (1.0 - d / rayon)
+            if dj.length > meilleur.length:
+                meilleur = dj
+        dep[i] = meilleur
+    # pousser le long de la normale du point de barbe le plus proche froissait les parois des joues (mèches = normales en tous
+    # sens -> pointes noires devant l'oreille) : on garde l'AMPLEUR (lissée sur les voisins) et on pousse en rayon horizontal depuis
+    # l'axe de la tête (dessus : vers le haut), les deux épaisseurs dans la même direction
+    amp = [d.length for d in dep]
+    voisins = [[] for _ in me.vertices]
+    for e in me.edges:
+        a, b = e.vertices
+        voisins[a].append(b); voisins[b].append(a)
+    for _ in range(st.get("lisse_ampleur", 3)):
+        amp = [max(amp[i], sum(amp[j] for j in voisins[i]) / max(1, len(voisins[i]))) if voisins[i] else amp[i] for i in range(len(amp))]
+    for i, v in enumerate(me.vertices):
+        p0 = avant_deg[i]
+        rad = Vector((p0.x, p0.y - 0.01, max(0.0, p0.z - 1.70) * 1.5))
+        rad = rad.normalized() if rad.length > 1e-6 else Vector((0, 0, 1))
+        v.co = p0 + rad * amp[i]
+    C.degager(ob, r, ["peau", "Hair_Beard"], st.get("marge_fin", 0.010))
+    # col : écarté de la cotte et du col de fourrure
+    avant_col = [v.co.copy() for v in me.vertices]
+    C.degager(ob, r, ["mante", "tunique"], st.get("marge", 0.015), filtre=lambda p: p.z < 1.62)
+    C.degager(ob, r, ["mante"], 0.045, filtre=lambda p: p.z < 1.65)
+    C.degager(ob, r, ["accessoires"], 0.012, filtre=lambda p: p.z < 1.60, os_noms={"spine_03", "spine_02", "clavicle_l", "clavicle_r"})
+    # même froissement contre les mèches du col de fourrure : ampleur gardée, poussée en rayon horizontal
+    amp = [(v.co - avant_col[i]).length for i, v in enumerate(me.vertices)]
+    for _ in range(st.get("lisse_ampleur", 3)):
+        amp = [max(amp[i], sum(amp[j] for j in voisins[i]) / max(1, len(voisins[i]))) if voisins[i] else amp[i] for i in range(len(amp))]
+    for i, v in enumerate(me.vertices):
+        p0 = avant_col[i]
+        rad = Vector((p0.x, p0.y - 0.01, 0.0))
+        rad = rad.normalized() if rad.length > 1e-6 else Vector((0, 1, 0))
+        v.co = p0 + rad * amp[i]
+    # rabats des côtés (sous l'angle de la mâchoire, une fois écartés de la barbe) : posés sur le col de fourrure que l'épaule
+    # soulève dans les coups à deux mains -> retirés ; la capuche s'arrête là en col court
+    bm = bmesh.new(); bm.from_mesh(me)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if abs(f.calc_center_median().x) > st.get("x_rabat", 0.135)
+                               and f.calc_center_median().y < 0.06 and f.calc_center_median().z < st.get("z_rabat", 1.63)], context="FACES")
+    # dessus des épaules, derrière aussi : la clavicule soulève le col de fourrure dans les parades à deux mains
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if abs(f.calc_center_median().x) > st.get("x_epaule", 0.15)
+                               and f.calc_center_median().z < st.get("z_rabat", 1.63)], context="FACES")
+    # îlots laissés par les coupes (bouts de pans flottant sous les oreilles) : seule la pièce principale reste
+    reste, ilots = set(bm.faces), []
+    while reste:
+        pile = [reste.pop()]; ilot = set(pile)
+        while pile:
+            f = pile.pop()
+            for e in f.edges:
+                for g in e.link_faces:
+                    if g in reste:
+                        reste.discard(g); ilot.add(g); pile.append(g)
+        ilots.append(ilot)
+    ilots.sort(key=len)
+    print("CAPUCHE ilots retires", [len(i) for i in ilots[:-1]])
+    bmesh.ops.delete(bm, geom=[f for i in ilots[:-1] for f in i], context="FACES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    # arêtes vives au pli du bord roulé (dessus <-> doublure, sommets partagés) : sans elles la normale lissée y moyenne deux faces
+    # opposées -> plaques claires et noires sur le front et le crâne en jeu
+    for e in bm.edges:
+        e.smooth = not (len(e.link_faces) == 2 and e.calc_face_angle(0.0) > math.radians(st.get("angle_vif", 70)))
+    bm.to_mesh(me); bm.free()
+    # en jeu, le ciel et le soleil éclairent fort le dessus (le bleu nuit y virait au gris pâle, faces par faces) : ombre cuite dans
+    # la couleur de sommet (RVB seulement, alpha 1 = pas de neige), plus sombre vers le haut, comme la capuche du mage
+    me.update()
+    for ca in [a for a in me.color_attributes if a.name != "Col"]:
+        me.color_attributes.remove(ca)
+    col = me.color_attributes["Col"]
+    me.color_attributes.active_color = col
+    me.color_attributes.render_color_index = me.color_attributes.active_color_index
+    for lp in me.loops:
+        nz = me.vertices[lp.vertex_index].normal.z
+        k = 1.0 - st.get("ombre_dessus", 0.75) * _lisse(0.1, 0.8, nz)
+        col.data[lp.index].color = (k * (1.0 - 0.2 * (1.0 - k)), k * (1.0 - 0.1 * (1.0 - k)), k, 1.0)   # l'ombre reste bleutée
+    # poids (comme CapucheMage) : haut = tête, bas = col de fourrure / cotte ; le fondu descend sous le menton (le cadre du
+    # visage suit la mâchoire) et reste haut sur les côtés et la nuque (le col suit les clavicules)
     W_haut = C.poids_transferes(ob, r, ["peau"], os_permis={"Head", "neck_01"}, lisser=2)
     W_bas = C.poids_transferes(ob, r, ["mante", "tunique"], os_permis={"neck_01", "spine_03", "spine_02", "clavicle_l", "clavicle_r", "upperarm_l", "upperarm_r"}, lisser=0)
-    C.poids_fondus(ob, W_haut, W_bas, st.get("fondu", (1.62, 1.70))[0], st.get("fondu", (1.62, 1.70))[1])
+    (fa0, fa1), (fd0, fd1) = st.get("fondu_avant", (1.50, 1.58)), st.get("fondu_dos", (1.60, 1.66))
+    fc0, fc1 = st.get("fondu_cote", (1.56, 1.62))
+    ob.vertex_groups.clear()
+    for v in me.vertices:
+        p = v.co
+        # trois fondus : sous le menton (bas), sur les côtés du visage (moyen : la joue tourne contre la paroi), sur la nuque (haut)
+        ks = _lisse(0.06, 0.10, abs(p.x)); kd = _lisse(0.02, 0.08, p.y)
+        z0 = fa0 + (fc0 - fa0) * ks; z1 = fa1 + (fc1 - fa1) * ks
+        z0 += (fd0 - z0) * kd; z1 += (fd1 - z1) * kd
+        t = _lisse(z0, z1, p.z)
+        d = {}
+        for n, w in W_bas[v.index].items():
+            d[n] = d.get(n, 0.0) + w * (1 - t)
+        for n, w in W_haut[v.index].items():
+            d[n] = d.get(n, 0.0) + w * t
+        it = sorted(d.items(), key=lambda kv: -kv[1])[:4]
+        tot = sum(w for _, w in it) or 1.0
+        for n, w in it:
+            if w > 0:
+                if n not in ob.vertex_groups:
+                    ob.vertex_groups.new(name=n)
+                ob.vertex_groups[n].add([v.index], w / tot, "REPLACE")
     C.lier(ob, r)
     return ob
+
+
+def _lisse(a, b, x):
+    t = min(max((x - a) / (b - a), 0.0), 1.0)
+    return t * t * (3 - 2 * t)
+
+
+BLEU_NUIT = ["#05070c", "#0a0e18", "#101626", "#171f36", "#1e2945", "#273454", "#324063", "#3f4e74"]
 
 
 def deco_runes_bottes(P, t, r, st, cote, s, jambe, A, B):

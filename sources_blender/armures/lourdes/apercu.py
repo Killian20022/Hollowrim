@@ -12,6 +12,14 @@ def rendre(chemin_base, cible=(0, 0, 1.0), dist=3.2, vues=("face", "34", "profil
             for l in list(m.node_tree.links):
                 if l.to_socket.name == "Alpha":
                     m.node_tree.links.remove(l)
+    # Workbench (mode texture) lit l'alpha de l'image même sans lien : alpha ignoré le temps des rendus, rétabli à la fin (export du sol)
+    modes = {}
+    for im in bpy.data.images:
+        modes[im.name] = im.alpha_mode
+        try:
+            im.alpha_mode = "NONE"
+        except Exception:
+            pass
     sc.render.engine = "BLENDER_WORKBENCH"
     sc.display.shading.light = "STUDIO"
     sc.display.shading.color_type = "TEXTURE" if couleur_obj else "OBJECT"
@@ -38,3 +46,6 @@ def rendre(chemin_base, cible=(0, 0, 1.0), dist=3.2, vues=("face", "34", "profil
         cam.rotation_euler = (c - cam.location).to_track_quat("-Z", "Y" if abs(d.z) < 0.95 else "X").to_euler()
         sc.render.filepath = "%s_%s.png" % (chemin_base, v)
         bpy.ops.render.render(write_still=True)
+    for im in bpy.data.images:
+        if im.name in modes:
+            im.alpha_mode = modes[im.name]

@@ -117,6 +117,10 @@ static func porter(modele: Node3D, id: String) -> MeshInstance3D:
 	sq.add_child(mi)
 	mi.skeleton = NodePath("..")
 	_cacher(sq, EMPL.get(id, ""))
+	# débogage : --invisible=<id> garde le masquage de l'emplacement mais cache la pièce (voir ce qui reste du héros dessous)
+	for a in OS.get_cmdline_user_args():
+		if a == "--invisible=" + id:
+			mi.visible = false
 	return mi
 
 ## Cache ce que recouvrent les emplacements portés : MÊME règle que scripts/rpg/armure_visible.gd de l'agent X (recouvert() de f38c947, copiée ici
@@ -442,6 +446,9 @@ func _tester_piece(id: String, clips: Array) -> void:
 							mauvais += 1
 							var p0r: Vector3 = (e[1][Mesh.ARRAY_VERTEX] as PackedVector3Array)[e[2][q]]
 							var cle := "%s @ (%.2f, %.2f, %.2f) os %s" % [e[0].name, snappedf(p0r.x, 0.05), snappedf(p0r.y, 0.05), snappedf(p0r.z, 0.05), sq.get_bone_name(o)]
+							if args.has("--detail") and _tri_touche.size() == 2:
+								var pa: Vector3 = (v_arm[_tri_touche[0]][Mesh.ARRAY_VERTEX] as PackedVector3Array)[_tri_touche[1]]
+								cle += " <- armure (%.2f, %.2f, %.2f)" % [snappedf(pa.x, 0.02), snappedf(pa.y, 0.02), snappedf(pa.z, 0.02)]
 							var d0: Array = detail.get(cle, [0, 0.0, ""])
 							detail[cle] = [d0[0] + 1, maxf(d0[1], prof), clip if prof > d0[1] else d0[2]]
 						pire_clip = maxf(pire_clip, prof)
@@ -497,8 +504,14 @@ func _coupe_t(arm: Array, a: Vector3, b: Vector3) -> float:
 				continue
 			var hit: Variant = Geometry3D.segment_intersects_triangle(a, b, p0, p1, p2)
 			if hit != null:
-				best = maxf(best, ((hit as Vector3) - a).length() / L)
+				var th := ((hit as Vector3) - a).length() / L
+				if th > best:
+					best = th
+					_tri_touche = [arm.find(s), idx[t]]
 	return best
+
+## --detail : dernier triangle de l'armure touché par _coupe_t (surface, 1er sommet) -> sommet de l'armure au repos dans le détail
+var _tri_touche := []
 
 # ================================================================================================ planches et film en jeu
 var scene: Node
