@@ -5,7 +5,8 @@ extends Node3D
 ##
 ## MODÈLE d'un identifiant (ObjetMonde.chemin_modele), dans cet ordre :
 ##   1. champ `modele_sol` de la fiche (armures : posé par l'agent X, convention docs CONVENTION_ARMURES_3D) ;
-##   2. champ `modele` de la fiche (bijoux : assets/modeles/bijoux/<id>.glb, déjà en pose au sol) ;
+##   2. champ `modele` de la fiche (bijoux : assets/modeles/bijoux/<id>.glb ; potions, vivres, tomes, ingrédients, divers, quête :
+##      assets/modeles/objets/<id>.glb, source sources_blender/objets/objets_divers.py, matériaux ObjetsDiversMateriaux ; pose au sol) ;
 ##   3. assets/modeles/armures/sol/<id>.glb (armures dont la fiche n'a pas encore le champ) ;
 ##   4. armes : modèle de la DonneesArme (CatalogueArmes.donnees / data/armes/<id>.tres), COUCHÉ à plat ;
 ##   5. petits objets de boutique sans glb, en primitives ps1 (ObjetMonde.accessoire) : fioles (potion_*), livres (tome_*), miche
@@ -108,6 +109,7 @@ static func visuel(oid: String, pose := "sol", graine := 0) -> Node3D:
 		_habiller_armure(m, chemin)
 	else:
 		BijouxMateriaux.habiller(m)
+		ObjetsDiversMateriaux.habiller(m)      # potions, vivres, tomes, ingrédients, quête (noms propres à ces objets)
 	_sans_squelette(m)
 	var pivot := Node3D.new()      # porte la pose (rotation) ; le recalage au sol se fait sur la racine
 	pivot.add_child(m)
@@ -119,8 +121,9 @@ static func visuel(oid: String, pose := "sol", graine := 0) -> Node3D:
 		else:
 			pivot.basis = _coucher(m)
 	var ech := 1.0
-	if cat == "bijou":
-		var anneau := Inventaire.emplacement_de(oid) == "anneau"
+	var genre := _genre_petit(oid)
+	if genre != "":
+		var anneau := genre == "anneau"
 		if pose == "sol":
 			ech = ECHELLE_ANNEAU if anneau else ECHELLE_BIJOU
 		elif pose == "etal":
@@ -133,6 +136,18 @@ static func visuel(oid: String, pose := "sol", graine := 0) -> Node3D:
 		(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		(g as GeometryInstance3D).visibility_range_end = PORTEE if pose != "studio" else 0.0
 	return racine
+
+## Bijou (ou bijou-objet de quête / divers : anneau_cuivre, anneau_givre, collier_or, amulette_eirik, broche_sigrun) : « anneau »,
+## « bijou » ou "" ; sert à l'exagération au sol / sur un étal (ECHELLE_*), sinon taille réelle.
+static func _genre_petit(oid: String) -> String:
+	if Inventaire.categorie_de(oid) == "bijou":
+		return "anneau" if Inventaire.emplacement_de(oid) == "anneau" else "bijou"
+	if oid.begins_with("anneau_"):
+		return "anneau"
+	for p in ["collier_", "amulette_", "broche_"]:
+		if oid.begins_with(p):
+			return "bijou"
+	return ""
 
 ## Petit lacet stable (aucun hasard global) : objets d'un tas ou d'un étal pas tous alignés.
 static func _lacet_de(oid: String, graine: int) -> float:
