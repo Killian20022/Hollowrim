@@ -310,31 +310,46 @@ func _dessiner() -> void:
 	var niv := 1
 	if joueur != null and joueur.get("progression") != null:
 		niv = int(joueur.progression.niveau)
-	Parchemin.texte(_vue, _police, Vector2(20, 8), "Voyageur · niveau %d" % niv, Parchemin.TEXTE_CUIR)
+	var en_tete := "Voyageur · niveau %d" % niv
+	Parchemin.texte(_vue, _police, Vector2(20, 8), en_tete, Parchemin.TEXTE_CUIR)
+	var x_droite := t.x - 20.0
 	if joueur != null:
 		var inv: Inventaire = joueur.inventaire
-		Parchemin.texte_droite(_vue, _police, t.x - 20.0, 8, "Poids %s / %d" % [poids_texte(inv.poids()), roundi(inv.capacite())],
-			ROUGE_CUIR if inv.surcharge() else Parchemin.TEXTE_CUIR)
-	# signets centrés ; l'actif en dernier (il mord sur la page)
-	var tot := 0.0
+		var poids := "Poids %s / %d" % [poids_texte(inv.poids()), roundi(inv.capacite())]
+		Parchemin.texte_droite(_vue, _police, t.x - 20.0, 8, poids, ROUGE_CUIR if inv.surcharge() else Parchemin.TEXTE_CUIR)
+		x_droite -= ceilf(Parchemin.largeur(_police, poids))
+	# signets entre l'en-tête et le poids (7 signets : ils ne mordent plus sur « Voyageur · niveau N ») ; marge intérieure
+	# resserrée (18 → 12 → 8 px) seulement si la rangée ne tient pas. L'actif est dessiné en dernier (il mord sur la page).
+	var x_gauche := 20.0 + ceilf(Parchemin.largeur(_police, en_tete)) + 8.0
+	x_droite -= 8.0
+	var lt := 0.0
 	for o: Dictionary in ONGLETS:
-		tot += ceilf(Parchemin.largeur(_police, String(o["titre"]))) + 18.0 + 3.0
-	var x := roundf((t.x - tot + 3.0) * 0.5)
+		lt += ceilf(Parchemin.largeur(_police, String(o["titre"])))
+	var marge := 18.0
+	var ecart := 3.0
+	for essai: Array in [[18.0, 3.0], [14.0, 2.0], [12.0, 2.0], [10.0, 1.0], [8.0, 1.0]]:
+		marge = essai[0]
+		ecart = essai[1]
+		if lt + ONGLETS.size() * (marge + ecart) - ecart <= x_droite - x_gauche:
+			break
+	var tot := lt + ONGLETS.size() * (marge + ecart) - ecart
+	# centré sur la page si possible, sinon glissé dans l'espace libre entre l'en-tête et le poids
+	var x := clampf(roundf((t.x - tot) * 0.5), x_gauche, maxf(x_gauche, x_droite - tot))
 	_signets.clear()
 	var x_actif := -1.0
 	for o: Dictionary in ONGLETS:
 		var id := String(o["id"])
-		var l := ceilf(Parchemin.largeur(_police, String(o["titre"]))) + 18.0
+		var l := ceilf(Parchemin.largeur(_police, String(o["titre"]))) + marge
 		if id == onglet_actif:
 			x_actif = x
 		else:
-			Parchemin.signet(_vue, _police, x, String(o["titre"]), false)
+			Parchemin.signet(_vue, _police, x, String(o["titre"]), false, marge)
 			if id == _survol_signet:
 				_vue.draw_rect(Rect2(x + 2, 21, l - 4, 1), Parchemin.TEXTE_CUIR)
 		_signets.append([Rect2(x, 2, l, 24), id])
-		x += l + 3.0
+		x += l + ecart
 	if x_actif >= 0.0:
-		Parchemin.signet(_vue, _police, x_actif, _titre_de(onglet_actif), true)
+		Parchemin.signet(_vue, _police, x_actif, _titre_de(onglet_actif), true, marge)
 	# pied de page : message (quelques secondes) ou touches de l'onglet + celles de la coquille
 	if _message_t > 0.0 and message != "":
 		var txt := MenuStyle.raccourcir(_police, message, t.x - 40.0)

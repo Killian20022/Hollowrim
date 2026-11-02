@@ -406,22 +406,23 @@ static func ruban(ci: CanvasItem, r: Rect2) -> void:
 	ci.draw_rect(Rect2(r.position.x + 1, r.position.y + 1, r.size.x - 2, 1), RUBRIQUE_VIVE)
 
 ## Signet de cuir (onglet) ; l'actif est un ruban rouge plus haut. Renvoie sa largeur.
-static func signet(ci: CanvasItem, police: Font, x: float, s: String, actif: bool) -> float:
-	var l := ceilf(largeur(police, s)) + 18.0
+static func signet(ci: CanvasItem, police: Font, x: float, s: String, actif: bool, marge := 18.0) -> float:
+	var l := ceilf(largeur(police, s)) + marge
+	var mx := roundf(marge * 0.5)
 	if actif:
 		var r := Rect2(x, 2, l, 26)
 		ci.draw_rect(r, RUBRIQUE_SOMBRE)
 		ci.draw_rect(r.grow(-1), RUBRIQUE)
 		ci.draw_rect(Rect2(x + 1, 3, l - 2, 1), RUBRIQUE_VIVE)
 		ci.draw_rect(Rect2(x + 1, 3, 1, 24), RUBRIQUE_VIVE)
-		texte(ci, police, Vector2(x + 9, 8), s, CLAIR)
+		texte(ci, police, Vector2(x + mx, 8), s, CLAIR)
 	else:
 		var r := Rect2(x, 3, l, 21)
 		ci.draw_rect(r, CUIR[0])
 		ci.draw_rect(r.grow(-1), CUIR[1])
 		ci.draw_rect(Rect2(x + 1, 4, l - 2, 1), CUIR[2])
 		ci.draw_rect(Rect2(x + 1, 4, 1, 19), CUIR[2])
-		texte(ci, police, Vector2(x + 9, 7), s, TEXTE_CUIR)
+		texte(ci, police, Vector2(x + mx, 7), s, TEXTE_CUIR)
 	return l
 
 ## Touche de fer (comme assets/ui/touche_e.svg) suivie de son action ; renvoie la largeur occupée.

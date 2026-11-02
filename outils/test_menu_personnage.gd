@@ -97,6 +97,17 @@ func _tester() -> void:
 	for o: Dictionary in MenuPersonnage.ONGLETS:
 		nb_signets += 1 if ui.onglet(o["id"]) != null else 0
 	_verif(nb_signets == 7, "7 signets : Équipement, Sac, Magie, Compétences, Quêtes, Carte, Personnage")
+	ui._vue.queue_redraw()
+	await _images(2)
+	var x_en_tete := 20.0 + Parchemin.largeur(Palette.police(), "Voyageur · niveau %d" % int(j.progression.niveau))
+	var chevauche := ui._signets.size() != 7
+	for k in ui._signets.size():
+		var r: Rect2 = ui._signets[k][0]
+		chevauche = chevauche or r.position.x < x_en_tete + 4.0 or r.end.x > ui._vue.size.x - 60.0
+		if k > 0:
+			chevauche = chevauche or r.position.x < (ui._signets[k - 1][0] as Rect2).end.x
+	_verif(not chevauche, "7 signets entre l'en-tête « Voyageur · niveau N » et le poids, sans chevauchement (%s)" %
+		str(ui._signets.map(func(s: Array) -> String: return "%d-%d" % [int(s[0].position.x), int(s[0].end.x)])))
 	await _touche(KEY_ESCAPE)
 
 	# --- Sac : une arme une seule fois, la hache de Kolbeinn visible
