@@ -16,6 +16,7 @@ const COFFRE_GRIMA := Vector3(3.01, Interieurs.F + 0.45, 0.6)
 const COFFRE_MAISON := Vector3(2.5, Interieurs.F + 0.45, 2.05)
 const RATELIER := Vector3(-3.84, Interieurs.F, -0.35)
 const RATELIER_PLACES := 4
+const RATELIER_POMMEAU_Y := 0.185   # dessus de la ferrure de la traverse basse (encoches des pommeaux)
 
 var joueur: CharacterBody3D
 var hud: Control
@@ -191,15 +192,14 @@ func _actualiser_ratelier() -> void:
 	_armes_rack.name = "Armes"
 	ratelier.add_child(_armes_rack)
 	for i in ex.size():
-		var d := Forge.arme_de_base(Forge.base_de(ex[i]))
-		var scene: Variant = load(d.modele)
-		var m: Node3D = (scene as PackedScene).instantiate() if scene is PackedScene else null
-		if m == null:
+		# ObjetMonde : modèle habillé selon sa matière (épée, hache, masse…), debout, pommeau à y = 0
+		var m := ObjetMonde.visuel(ex[i], "ratelier")
+		if m.has_meta("repli"):
+			m.queue_free()
 			continue
-		EpeesLongues.habiller(m)
 		var z := (i - (RATELIER_PLACES - 1) * 0.5) * 0.36
-		# lame en haut, tranchant le long du mur, appuyée contre la traverse haute
-		m.transform = Transform3D(Basis(Vector3.BACK, 0.1) * Basis(Vector3.UP, PI * 0.5), Vector3(0.16, 0.38, z))
+		# lame en haut, tranchant le long du mur, pommeau sur la traverse basse, appuyée contre la traverse haute
+		m.transform = Transform3D(Basis(Vector3.BACK, 0.1) * Basis(Vector3.UP, PI * 0.5), Vector3(0.15, RATELIER_POMMEAU_Y, z))
 		_armes_rack.add_child(m)
 
 ## Râtelier simple : deux montants, une traverse basse à encoches (pommeaux), une traverse haute contre le mur.
