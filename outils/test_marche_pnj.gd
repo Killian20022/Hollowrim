@@ -7,7 +7,7 @@ class FauxJoueur extends CharacterBody3D:
 	var en_dialogue := false
 	var mort := false
 	var camera: Camera3D
-	func recevoir_coup(_d: float, _o: Vector3) -> String:
+	func recevoir_coup(_d: float, _o: Vector3, _options := {}) -> String:
 		return "touche"
 
 var _echecs := 0

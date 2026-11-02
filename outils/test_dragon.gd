@@ -20,7 +20,7 @@ class FauxJoueur extends CharacterBody3D:
 	var secousse := 0.0
 	var inventaire := FauxInventaire.new()
 	var coups: Array = []
-	func recevoir_coup(degats: float, origine: Vector3) -> String:
+	func recevoir_coup(degats: float, origine: Vector3, _options := {}) -> String:
 		coups.append([degats, origine])
 		return "touche"
 
