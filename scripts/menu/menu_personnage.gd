@@ -20,10 +20,11 @@ const ONGLETS := [
 	{"id": "magie", "titre": "Magie", "script": "res://scripts/menu/onglet_magie.gd"},
 	{"id": "competences", "titre": "Compétences", "script": "res://scripts/menu/onglet_competences.gd"},
 	{"id": "quetes", "titre": "Quêtes", "script": "res://scripts/menu/onglet_quetes.gd"},
+	{"id": "carte", "titre": "Carte", "script": "res://scripts/menu/onglet_carte.gd"},
 	{"id": "personnage", "titre": "Personnage", "script": "res://scripts/menu/onglet_personnage.gd"},
 ]
 ## Touches (physiques) qui ouvrent directement un onglet ; Tab rouvre le dernier.
-const TOUCHES_ONGLETS := {KEY_I: "sac", KEY_K: "competences", KEY_J: "quetes"}
+const TOUCHES_ONGLETS := {KEY_I: "sac", KEY_K: "competences", KEY_J: "quetes", KEY_M: "carte"}
 const DUREE_MESSAGE := 3.5
 const ROUGE_CUIR := Color("#f0806a")
 

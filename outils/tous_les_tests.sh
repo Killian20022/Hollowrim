@@ -115,6 +115,7 @@ TESTS=(
 	"test_progression|--nouvelle"   # RPG lot B : 8 compétences à l'usage, niveau (compétences + quêtes), arbre data/competences/arbre.json (achat, prérequis, réinit. Sigrún), effets des perks, sauvegarde
 	"test_onglets_rpg|--nouvelle"   # RPG lot D : onglets Compétences / Personnage / Quêtes (OngletMenu, coquille d'essai), arbre lu au mieux, choix d'attribut, annonce de niveau + gains de compétence discrets (EcranNiveau)
 	"test_stockage|--nouvelle"   # RPG lot E : coffre loué chez Grima (fenêtre coffre ↔ sac, quête refusée), achat de la maison, râtelier, forge +1/+2/+3, Sigrún, marchand (catégories, est_quete), sauvegarde
+	"test_onglet_carte|--nouvelle"   # onglet Carte (rpg/carte) : registre Lieux (positions, découverte, cibles de quête), maquette 3D du terrain, zoom, déplacement, centrage, touches de la coquille
 )
 # tests dont le résultat dépend du pas de physique : lancés en temps réel (test_ragdoll : OK aussi en --fixed-fps depuis la correction du signe des limites de charnière, 10/10 sous charge ; gardé en temps réel par prudence)
 TEMPS_REEL="test_ragdoll test_mort_ragdoll"

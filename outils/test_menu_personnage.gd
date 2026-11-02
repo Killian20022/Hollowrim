@@ -96,7 +96,7 @@ func _tester() -> void:
 	var nb_signets := 0
 	for o: Dictionary in MenuPersonnage.ONGLETS:
 		nb_signets += 1 if ui.onglet(o["id"]) != null else 0
-	_verif(nb_signets == 6, "6 signets : Équipement, Sac, Magie, Compétences, Quêtes, Personnage")
+	_verif(nb_signets == 7, "7 signets : Équipement, Sac, Magie, Compétences, Quêtes, Carte, Personnage")
 	await _touche(KEY_ESCAPE)
 
 	# --- Sac : une arme une seule fois, la hache de Kolbeinn visible
