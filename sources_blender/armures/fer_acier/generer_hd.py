@@ -14,8 +14,8 @@ from mathutils import Vector, Matrix
 
 # ------------------------------------------------------------------------------------------------ styles
 # ACIER NORDIQUE : acier gris usé et riveté (planche), arêtes polies, peu de rouille ; cuir brun ; fourrure beige.
-ACIER = dict(pal=H.ACIER, mat="acier", mat_rebord="acier", mat_main="cuir", mat_doigts="cuir", mat_genou="acier", base=0.50, contraste=0.26,
-             martele=0.22, cellule=3.0, oxyde=0.0, crasse=0.35, poli=0.55, patine=0.18, rouille=0.08, sale=0.65, poli_arete=1.0,
+ACIER = dict(pal=H.ACIER, mat="acier", mat_rebord="acier", mat_main="cuir", mat_doigts="cuir", mat_genou="acier", base=0.44, contraste=0.26,
+             martele=0.22, cellule=3.0, oxyde=0.0, crasse=0.4, poli=0.5, patine=0.18, rouille=0.08, sale=0.65, poli_arete=1.0,
              rayures=1.0, r_rivet=0.72, k_rivet=0.66, graine=23, pal_cuir=H.CUIR, base_cuir=0.44, pal_maille=H.FER, base_maille=0.55,
              oxyde_maille=0.1, mat_maille="acier.maille")
 # FER : même famille, plus simple et rustique : fer sombre piqué et martelé, rouille dans les creux, cuir plus sombre.
@@ -34,11 +34,11 @@ def _s(b0, **kw):
 PIECES = {
     # --- fer : casque à nasal (spangenhelm riveté) et camail ; cuirasse à deux lames, baudrier, col de fourrure brune
     "casque_fer": lambda r: PH.casque(r, _s(FER, id="casque_fer", bombe=0.012, rivets_rebord=16, larg_bande=0.014,
-                                           decor=[PH.deco_nasal, PH.deco_camail])),
+                                           camail_arc=(100, 260), decor=[PH.deco_nasal, PH.deco_camail])),
     "cuirasse_fer": lambda r: PH.cuirasse(r, _s(FER, id="cuirasse_fer", z_lames=[1.06, 1.17, 1.42], bombe=0.012, tablier=26,
                                                fentes=(-95, 95, 180), dechire=0.03, rivets_lame=12, sangles=[((36, 1.42), (-30, 1.04))],
                                                lames_epaule=2, rivets_epaule=6, epaule_ecart=0.024,
-                                               fourrure=dict(gonfle=0.8, meches=0.04, cote=0.1, phis=(-40, -32, -12, 12, 34, 50), phis_cote=(-14, -9, 4, 20, 36, 50)),
+                                               fourrure=dict(gonfle=0.7, meches=0.035, cote=0.1, r_max=0.16, r_max_cote=0.06, phis=(-40, -32, -12, 12, 34, 50), phis_cote=(-4, 2, 12, 24, 38, 52)),
                                                pal_fourrure=H.FOURRURE_BRUNE_CLAIRE, base_fourrure=0.5)),
     "gantelets_fer": lambda r: PH.gantelets(r, _s(FER, id="gantelets_fer", main_cuir=True, lames_main=1, rivets_manchette=7, rivets_lames=4,
                                                   evasement=0.022, jointures=False)),
@@ -53,7 +53,7 @@ PIECES = {
                                                            tablier=28, fentes=(-100, 100, 180), rivets_lame=16, rivets_milieu=True,
                                                            tassettes=(58, 100), sangles=[((40, 1.43), (-30, 1.04)), ((-40, 1.43), (30, 1.04))],
                                                            disque=(-33, 1.365), sacoche=-38, lames_epaule=3, rivets_epaule=7, bord_roule=True,
-                                                           fourrure=dict(gonfle=1.15, meches=0.05, cote=0.3),
+                                                           fourrure=dict(gonfle=0.9, meches=0.045, cote=0.2, r_max=0.17, r_max_cote=0.08, phis_cote=(-6, 0, 10, 24, 38, 52)),
                                                            pal_fourrure=H.FOURRURE_BEIGE, base_fourrure=0.68)),
     "gantelets_acier_nordique": lambda r: PH.gantelets(r, _s(ACIER, id="gantelets_acier_nordique", main_cuir=True, lames_main=2, rivets_manchette=9,
                                                              rivets_lames=5, evasement=0.03, jointures=True)),

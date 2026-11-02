@@ -72,7 +72,7 @@ class PieceHD(C.Piece):
         for q in ((0, 1, 2, 3), (4, 7, 6, 5), (0, 4, 5, 1), (1, 5, 6, 2), (2, 6, 7, 3), (3, 7, 4, 0)):
             self.face([ids[k] for k in q], mat, uv, dedans)
 
-    def objet_oriente(self, centre_fn):
+    def objet_oriente(self, centre_fn, centres_mat=None):
         """Objet Blender ; faces orientées vers l'extérieur (loin de centre_fn) sauf les faces « dedans » (vers centre_fn)."""
         import bpy
         me = bpy.data.meshes.new(self.nom)
@@ -99,7 +99,8 @@ class PieceHD(C.Piece):
         flip = []
         for f in bm.faces:
             c = f.calc_center_median()
-            dehors = f.normal.dot(c - centre_fn(c)) >= 0
+            fn = (centres_mat or {}).get(self.mats[f.material_index], centre_fn)
+            dehors = f.normal.dot(c - fn(c)) >= 0
             if dehors == bool(f[ded]):
                 flip.append(f)
         bmesh.ops.reverse_faces(bm, faces=flip)
@@ -795,6 +796,15 @@ def cuirasse(r, st):
             rows.append(row)
         # bord extérieur un peu rabattu vers le bas (poids de la peau) ; dessous rentré vers le support
         rows[0] = [p + Vector((0, 0, -0.008)) for p in rows[0]]
+        # emprise limitée au haut des épaules et à la nuque (planche : col sur les épaules, épaulières visibles dessous)
+        for row in rows:
+            for k, p in enumerate(row):
+                hz = Vector((p.x, p.y, 0.0))
+                a_ = math.atan2(p.x, -p.y)
+                rmax = F.get("r_max", 0.17) + F.get("r_max_cote", 0.07) * abs(math.sin(a_))
+                if hz.length > rmax:
+                    row[k] = Vector((p.x * rmax / hz.length, p.y * rmax / hz.length, p.z))
+        pousser(rows, [support, corps_t], 0.010)
         P.grille_v(rows, "fourrure", R_FOUR, vs=[0.0, 0.1, 0.4, 0.68, 0.88, 1.0], fermer=False, inverser=True)
         for bout in (0, -1):
             col_b = [row[bout] for row in rows]
@@ -802,9 +812,15 @@ def cuirasse(r, st):
             ids_b = [P.sommet(p) for p in col_b]
             ic_ = P.sommet(ctr)
             u0, v0, u1, v1 = C.rect_uv((84, 92, 90, 128))
+            # bouchon des deux côtés (deux faces opposées, la seconde décalée de 1,5 mm vers l'intérieur du col) : jamais de trou
+            voisin = [row[1 if bout == 0 else -2] for row in rows]
+            dec = (sum(voisin, Vector()) / len(voisin) - ctr).normalized() * 0.0015
+            ids_b2 = [P.sommet(p + dec) for p in col_b]
+            ic2 = P.sommet(ctr + dec)
             for k in range(len(col_b) - 1):
-                q = [ids_b[k], ids_b[k + 1], ic_] if bout == -1 else [ids_b[k + 1], ids_b[k], ic_]
-                P.face(q, "fourrure", [(u0, v0 + (v1 - v0) * k / 5), (u0, v0 + (v1 - v0) * (k + 1) / 5), (u1, (v0 + v1) / 2)])
+                uvq = [(u0, v0 + (v1 - v0) * k / 5), (u0, v0 + (v1 - v0) * (k + 1) / 5), (u1, (v0 + v1) / 2)]
+                P.face([ids_b[k], ids_b[k + 1], ic_], "fourrure", uvq)
+                P.face([ids_b2[k], ids_b2[k + 1], ic2], "fourrure", uvq, dedans=True)
         # mèches qui pendent du bord (deux rangs décalés) et mèches dressées au sommet
         for rang, (src, long, out_) in enumerate(((1, F.get("meches", 0.06), 0.012), (2, F.get("meches", 0.06) * 0.6, 0.02))):
             for i in range(nf - 1):
@@ -898,7 +914,7 @@ def cuirasse(r, st):
         p(T, st, g)
     T.finir(g=g)
     img = T.image()
-    ob = P.objet_oriente(_centre_corps)
+    ob = P.objet_oriente(_centre_corps, {"fourrure": lambda c: Vector((0.0, 0.0, c.z - 0.12))})
     aretes_vives(ob, 60)
     occlusion_sommets(ob, portee=0.06)
     C.appliquer_materiaux(ob, P, img)
@@ -918,6 +934,26 @@ def cuirasse(r, st):
                 if k not in ob.vertex_groups:
                     ob.vertex_groups.new(name=k)
                 ob.vertex_groups[k].add([v.index], w / tot, "REPLACE")
+    # fourrure : jamais les os du bras (elle reste sur les épaules quand le bras se lève) -> clavicule du même côté
+    if "fourrure" in P.mats:
+        mi = [i for i, m in enumerate(ob.data.materials) if m.name.split(".")[0] == "fourrure" or m.name == "fourrure"]
+        vf = {vi for p in ob.data.polygons if p.material_index in mi for vi in p.vertices}
+        noms = {g.index: g.name for g in ob.vertex_groups}
+        for vi in vf:
+            v = ob.data.vertices[vi]
+            d = {}
+            for gg in v.groups:
+                k = noms[gg.group]
+                if k.startswith("upperarm_") or k.startswith("lowerarm_"):
+                    k = "clavicle_" + k[-1]
+                d[k] = d.get(k, 0.0) + gg.weight
+            for gg in list(v.groups):
+                ob.vertex_groups[noms[gg.group]].remove([vi])
+            tot = sum(d.values()) or 1.0
+            for k, w in d.items():
+                if k not in ob.vertex_groups:
+                    ob.vertex_groups.new(name=k)
+                ob.vertex_groups[k].add([vi], w / tot, "REPLACE")
     C.lier(ob, r)
     return ob
 

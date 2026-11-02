@@ -1,0 +1,13 @@
+{
+  "_note": "Armures HD fer / acier nordique (planche de référence conception_rpg/references/planche_armures_5.png, colonne STEEL/IRON). Pour l'agent DONNÉES : ids existants inchangés ; noms et poids SUGGÉRÉS. Chausses : chausses/fer.glb (laine brune + genoux de cuir), chausses/acier.glb (cuir brun matelassé).",
+  "pieces": [
+    {"id": "casque_fer", "nom": "Casque à nasal en fer", "emplacement": "tete", "matiere": "fer", "poids": 5.0},
+    {"id": "cuirasse_fer", "nom": "Cuirasse de fer", "emplacement": "torse", "matiere": "fer", "poids": 28.0},
+    {"id": "gantelets_fer", "nom": "Gantelets de fer", "emplacement": "mains", "matiere": "fer", "poids": 5.0},
+    {"id": "bottes_fer", "nom": "Bottes ferrées", "emplacement": "pieds", "matiere": "fer", "poids": 6.0},
+    {"id": "casque_acier_nordique", "nom": "Heaume nordique à visière en T", "emplacement": "tete", "matiere": "acier", "poids": 5.0},
+    {"id": "cuirasse_acier_nordique", "nom": "Cuirasse de huscarl", "emplacement": "torse", "matiere": "acier", "poids": 30.0},
+    {"id": "gantelets_acier_nordique", "nom": "Gantelets d'acier nordique", "emplacement": "mains", "matiere": "acier", "poids": 4.5},
+    {"id": "bottes_acier_nordique", "nom": "Bottes d'acier nordique", "emplacement": "pieds", "matiere": "acier", "poids": 6.0}
+  ]
+}
