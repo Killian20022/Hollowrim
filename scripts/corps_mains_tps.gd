@@ -27,6 +27,9 @@ extends Node
 
 const SORTS := preload("res://assets/modeles/humains/animations_sorts_tps.res")
 ## Prise de la main droite du corps (la même que corps_joueur.PRISE) : le modèle de l'arme y est décalé de son milieu de poignée.
+## Le centre du poing droit tombe à 4 cm de PRISE_D le long de la lame (milieu de la poignée de epee_nordique.glb, mesuré par
+## la branche tps/coups : CorpsCoupsTps.PRISE_EPEE_CORPS) : le milieu de poignée de l'arme y est placé.
+const POING_D := 0.04
 const PRISE_D := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
 ## Instants clés des clips (s), mesurés sur les positions des mains (outils de la branche) :
 const LANCER_DEBUT := 0.19     # Sort_Lancer1M : main encore devant
@@ -56,6 +59,7 @@ var _objet_g: Node3D         # copie du bouclier tenu (mains._modele_gauche)
 var _source_g: Node3D
 ## Arme à deux mains : la main gauche sur la poignée, sous la main droite (IK à deux os + orientation du poignet, comme à la 1re personne).
 var _ik_g: TwoBoneIK3D
+var _cible_maj: SkeletonModifier3D   # recale _cible_g sur la pose de l'image (pas celle de l'image d'avant)
 var _orient_g: SkeletonModifier3D
 var _cible_g: Node3D      # repère voulu pour la main gauche (enfant de l'arme du corps)
 var _pole_g: Node3D
@@ -96,6 +100,10 @@ func installer(squelette: Skeleton3D) -> void:
 	_pole_g.position = Vector3(0.55, 0.85, 0.05)   # repère du modèle (regarde +Z, gauche = +X) : coude en dehors et bas
 	corps.get("modele").add_child(_pole_g)
 	sq.add_child(_cible_g)
+	_cible_maj = CibleSurArme.new()
+	_cible_maj.name = "CibleMainG2M_Maj"
+	_cible_maj.set("tps", self)
+	sq.add_child(_cible_maj)
 	_ik_g = TwoBoneIK3D.new()
 	_ik_g.name = "IKMainG2M"
 	sq.add_child(_ik_g)
@@ -202,8 +210,7 @@ func _maj_arme_d() -> void:
 	if src == _source_d:
 		return
 	_source_d = src
-	if _arme_d != null and is_instance_valid(_arme_d):
-		_arme_d.queue_free()
+	_retirer(_arme_d)
 	_arme_d = null
 	_enchant_ecole = ""
 	if src == null:
@@ -211,21 +218,63 @@ func _maj_arme_d() -> void:
 	_arme_d = _copie(src)
 	_arme_d.name = "ArmeTps"
 	_accroche["droite"].add_child(_arme_d)
-	_arme_d.transform = PRISE_D * Transform3D(Basis(), Vector3(0.0, -float(mains.get("_milieu_d")), 0.0))
+	_arme_d.transform = PRISE_D * Transform3D(Basis(), Vector3(0.0, POING_D - float(mains.get("_milieu_d")), 0.0))
+	_inscrire(_arme_d)
+
+## Mailles d'un objet tenu ajoutées à celles du corps : à la 1re personne elles ne projettent que leur ombre (corps_joueur.definir_vue).
+func _inscrire(o: Node3D) -> void:
+	var l = corps.get("_mailles")
+	if l is Array:
+		for mi in o.find_children("*", "MeshInstance3D", true, false):
+			(l as Array).append(mi)
+		corps.definir_vue(corps.get("_vue_3"))
+
+func _retirer(o: Node3D) -> void:
+	if o == null or not is_instance_valid(o):
+		return
+	var l = corps.get("_mailles")
+	if l is Array:
+		for mi in o.find_children("*", "MeshInstance3D", true, false):
+			(l as Array).erase(mi)
+	o.queue_free()
 
 ## Arme à deux mains : main gauche sous la droite (à `ecart_mains` vers le pommeau), même sens de fusée.
 func _maj_deux_mains() -> void:
 	var oui: bool = categorie("droite") == "arme_deux_mains" and _arme_d != null and not joueur.mort
 	_ik_g.active = oui
 	_orient_g.active = oui
+	_cible_maj.active = oui
 	if not oui:
 		return
+	# pendant un coup, CorpsCoupsTps pose lui-même la main gauche sur la poignée (IK au coude de la capture, sans retard d'image) :
+	# cette IK (pôle fixe, pensé pour la tenue au repos) lui cède la place au prorata du geste
+	var w := 1.0 - _poids_coup()
+	_ik_g.influence = w
+	_orient_g.influence = w
 	var a: DonneesArme = mains.get("arme")
 	var milieu := float(mains.get("_milieu_d"))
 	var y := milieu - (a.ecart_mains if a != null else 0.1)
 	var pivot = corps.get("pivot_torche")
 	var prise_g: Transform3D = (pivot as Node3D).transform if pivot is Node3D else Transform3D()
 	_cible_g.global_transform = _arme_d.global_transform * Transform3D(Basis(), Vector3(0, y, 0)) * prise_g.affine_inverse()
+
+## Repère voulu pour la main gauche (deux mains) dans le repère du squelette, d'après la pose de hand_r `main_d` (repère du squelette).
+func cible_gauche_locale(main_d: Transform3D) -> Transform3D:
+	var a: DonneesArme = mains.get("arme")
+	var y := float(mains.get("_milieu_d")) - (a.ecart_mains if a != null else 0.1)
+	var pivot = corps.get("pivot_torche")
+	var prise_g: Transform3D = (pivot as Node3D).transform if pivot is Node3D else Transform3D()
+	return main_d * _arme_d.transform * Transform3D(Basis(), Vector3(0, y, 0)) * prise_g.affine_inverse()
+
+## Part du geste de combat de CorpsCoupsTps dans la pose (0 hors coup).
+func _poids_coup() -> float:
+	var ct = corps.get("coups_tps")
+	return float(ct.poids_geste()) if ct != null and is_instance_valid(ct) else 0.0
+
+## Un coup / une garde capturés pilotent le corps (CorpsCoupsTps) : les couches de bras qui le gêneraient s'effacent.
+func _coup_en_cours() -> bool:
+	var ct = corps.get("coups_tps")
+	return ct != null and is_instance_valid(ct) and ct.pilote()
 
 func _maj_objet_g() -> void:
 	var src: Node3D = mains.get("_modele_gauche") if categorie("gauche") == "bouclier" else null
@@ -234,8 +283,7 @@ func _maj_objet_g() -> void:
 	if src == _source_g:
 		return
 	_source_g = src
-	if _objet_g != null and is_instance_valid(_objet_g):
-		_objet_g.queue_free()
+	_retirer(_objet_g)
 	_objet_g = null
 	if src == null:
 		return
@@ -246,6 +294,7 @@ func _maj_objet_g() -> void:
 	var g = mains.get("equipement")
 	var milieu: float = g.gauche_rangee.milieu_poignee if g != null else 0.0
 	_objet_g.transform = ((pivot as Node3D).transform if pivot is Node3D else Transform3D()) * Transform3D(Basis(), Vector3(0, -milieu, 0))
+	_inscrire(_objet_g)
 
 ## Effets de magie : depuis les paumes du corps à la 3e personne, depuis les mains FPS sinon. Enchantement de lame recopié sur l'arme du corps.
 func _maj_effets(vue_3: bool) -> void:
@@ -287,12 +336,13 @@ func _anim(nom: String) -> Animation:
 func _geste(m: String, _dt: float) -> void:
 	var cat := categorie(m)
 	var bouge := Vector2(joueur.velocity.x, joueur.velocity.z).length() > 0.4
-	var frappe: bool = mains.combat.attaque()
+	# coup ou garde capturés (CorpsCoupsTps, qui suit tout le clip FPS : armé, suivi, garde, parade) ou attaque en cours
+	var frappe: bool = mains.combat.attaque() or _coup_en_cours()
 	if categorie("droite") == "arme_deux_mains":
 		# arme à deux mains : les deux bras dans la tenue « great sword idle » (Mixamo), la main gauche finit sur la poignée (IK) ;
 		# pendant un coup, le clip de coup du corps entier reprend la main (branche des coups)
 		var t2 := _anim("Tenue_DeuxMains")
-		couche.regler(m, t2, fposmod(_t, t2.length), 0.0 if frappe else 1.0, 10.0, false)
+		couche.regler(m, t2, fposmod(_t, t2.length), 0.0 if frappe else 1.0, 25.0 if frappe else 10.0, false)
 		return
 	match cat:
 		"sort":
@@ -300,7 +350,7 @@ func _geste(m: String, _dt: float) -> void:
 		"torche":
 			# bras gauche levé (Idle_Torch, Quaternius) pendant toute la locomotion ; s'écarte un peu pendant un coup d'épée (contrepoids)
 			var a := _anim("Idle_Torch")
-			couche.regler(m, a, fposmod(_t, a.length), 0.7 if frappe else 1.0, 12.0, false)
+			couche.regler(m, a, fposmod(_t, a.length), 1.0, 12.0, false)
 		"bouclier":
 			# bouclier tenu au poing comme la torche (avant-bras levé, Idle_Torch) : la prise au poing du bouclier (mains.gd) le présente
 			# face à l'avant dans cette pose ; les tenues Mixamo « sword and shield » le mettaient de chant (bouclier sanglé à l'avant-bras).
@@ -468,33 +518,57 @@ class CoucheBras extends SkeletonModifier3D:
 			var a: Animation = r.get("a")
 			var t: float = r.get("t", 0.0)
 			var k := 1.0 - exp(-float(r.get("vif", 10.0)) * dt)
+			# poids lissé à part : quand le geste s'efface, le bras rejoint la pose posée AVANT la couche (locomotion, coup capturé de
+			# CorpsCoupsTps) sans traîner derrière elle (le lissage de la pose elle-même suivait le coup avec retard)
+			var wl: float = lisse.get("_w", 0.0)
+			wl = lerpf(wl, w, k)
+			lisse["_w"] = wl
 			# orientations du clip (repère du squelette) de la racine à la main
 			var g_clip := {}
-			if a != null:
+			if a != null and w > 0.0:
 				var g := Basis()
 				for i in _ancetres[m]:
 					g = g * Basis(_locale(a, t, i))
 					g_clip[i] = g
-			var ecart := 0.0
 			var orientes: Dictionary = _orientes[m]
 			for i in _chaines[m]:
 				var base := _sq.get_bone_pose_rotation(i)
-				var cible := base
+				var oriente: bool = orientes.has(i)   # (les os orientés sont sur la chaîne racine -> main : toujours dans g_clip)
+				# pose voulue lissée : orientation dans le repère du SQUELETTE pour clavicule / bras / avant-bras / main (le buste peut
+				# tourner vite sous le bras sans le faire traîner), rotation locale pour les doigts et os de torsion
 				if a != null and w > 0.0:
 					var voulue: Quaternion
 					if orientes.has(i) and g_clip.has(i):
 						var gv: Basis = g_clip[i]
 						if orientes[i] and r.get("viser", false):
 							gv = visee * gv
-						var parent := _global_actuel(_sq.get_bone_parent(i))
-						voulue = (parent.inverse() * gv).get_rotation_quaternion()
+						voulue = gv.get_rotation_quaternion()
 					else:
 						voulue = _locale(a, t, i)
-					cible = base.slerp(voulue.normalized(), w)
-				var q: Quaternion = lisse.get(i, base)
-				q = q.slerp(cible, k).normalized()
-				ecart = maxf(ecart, q.angle_to(base))
-				lisse[i] = q
-				_sq.set_bone_pose_rotation(i, q)
-			if w <= 0.0 and ecart < 0.01:
+					voulue = voulue.normalized()
+					lisse[i] = (lisse[i] as Quaternion).slerp(voulue, k).normalized() if lisse.has(i) else voulue
+				if not lisse.has(i):
+					continue
+				var q: Quaternion = lisse[i]
+				if oriente:
+					q = (_global_actuel(_sq.get_bone_parent(i)).inverse() * Basis(q)).get_rotation_quaternion()
+				_sq.set_bone_pose_rotation(i, base.slerp(q.normalized(), wl).normalized())
+			if w <= 0.0 and wl < 0.01:
 				lisse.clear()
+
+# ======================================================================== cible de la main gauche (deux mains)
+
+## Juste avant l'IK de la main gauche : recale _cible_g sur la pose de hand_r de CETTE image (dans _process, la poignée du corps est
+## celle de l'image précédente : la main gauche traînait derrière la poignée pendant les gestes vifs).
+class CibleSurArme extends SkeletonModifier3D:
+	var tps: Node
+
+	func _process_modification_with_delta(_dt: float) -> void:
+		var s := get_skeleton()
+		if s == null or tps == null or tps.get("_arme_d") == null or not is_instance_valid(tps.get("_arme_d")):
+			return
+		var i := s.find_bone("hand_r")
+		if i < 0:
+			return
+		var cible: Node3D = tps.get("_cible_g")
+		cible.global_transform = s.global_transform * tps.cible_gauche_locale(PiedsAuSol.pose_globale(s, i))

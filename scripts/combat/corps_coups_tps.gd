@@ -21,8 +21,10 @@ extends SkeletonModifier3D
 ## modificateur passe AVANT PiedsAuSol : les pieds restent posés au sol par-dessus le geste.
 ## Jambes : à l'arrêt, le corps entier suit la capture (appuis, poids) ; en marche, seul le haut du corps (bassin et jambes
 ## laissés à la marche) : on frappe en avançant sans patiner.
-## Arme : le modèle de l'arme équipée (mains.arme) remplace l'épée fixe du corps, tenue au même point de prise que la 1re
-## personne (repère « prise » du modèle) ; à deux mains, la main gauche est ramenée sur la poignée (IK analytique).
+## Arme (fusion integration/tps) : le modèle tenu par le corps appartient à CorpsMainsTps (corps_joueur.mains_tps.arme_tenue(),
+## seul à connaître les deux mains : arme cachée quand la main droite tient un sort, enchantement, bouclier) ; ici on ne fait
+## que le LIRE : à deux mains, la main gauche est ramenée sur SA poignée (IK analytique, pendant le geste ; hors geste, c'est
+## l'IK de CorpsMainsTps), et les mesures (poignet, écart main gauche) partent de sa prise.
 
 const BIBLIOTHEQUE := preload("res://assets/animations/corps_coups_tps.res")
 const FONDU := 0.1          # s : passage d'un geste à l'autre (pose affichée -> nouvelle capture)
@@ -116,10 +118,6 @@ var _bassin_dernier := Vector3.ZERO
 var _poids_jambes := 1.0
 var _actif_clip := false
 var _force := ""             # captures : --tps-clip=src:image
-var _arme_id := ""
-var _modele_arme: Node3D
-var _accroche: BoneAttachment3D
-var _epee_fixe: Node3D
 var ik_gauche := true
 ## Bras gauche quand la main gauche tient la torche (ou un sort) : part de la capture gardée (les captures balancent le bras
 ## du bouclier : la torche battait l'air). 1 = capture entière. La pose de la main gauche elle-même (torche, sorts) reste à
@@ -161,11 +159,6 @@ func _installer(squelette: Skeleton3D) -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--tps-clip="):
 			_force = a.substr(11)
-	for c in sq.get_children():
-		if c is BoneAttachment3D and (c as BoneAttachment3D).bone_name == "hand_r":
-			_accroche = c
-			if c.get_child_count() > 0:
-				_epee_fixe = c.get_child(0)
 
 ## Pistes d'une capture (indices par os), calculées une fois.
 func _pistes_de(src: String) -> Dictionary:
@@ -192,6 +185,10 @@ static func existe(clip: String) -> bool:
 ## Le corps est piloté par un geste de combat (corps_joueur ne joue alors ni son ancien coup ni sa pose armée / garde).
 func pilote() -> bool:
 	return _force != "" or _clip_courant() != ""
+
+## Part du geste dans la pose (0 : locomotion seule, 1 : capture entière) : CorpsMainsTps y règle ses couches de bras et son IK.
+func poids_geste() -> float:
+	return _poids
 
 ## Clip FPS en cours s'il a sa capture (nom réel), sinon "" (repos, course : la locomotion du corps).
 func _clip_courant() -> String:
@@ -238,7 +235,6 @@ func _process(dt: float) -> void:
 		return
 	var mains: Node3D = corps.mains
 	var joueur: CharacterBody3D = corps.joueur
-	_suivre_arme(mains)
 	if joueur.mort:
 		_poids = 0.0
 		_actif_clip = false
@@ -289,7 +285,7 @@ func _process(dt: float) -> void:
 func _process_modification() -> void:
 	if sq == null or (_poids <= 0.0 and not _actif_clip):
 		return
-	var _gauche_occupee: bool = not _deux_mains() and bool(corps.mains.torche_sortie)
+	var _gauche_occupee: bool = not _deux_mains() and _main_gauche_occupee()
 	var a := BIBLIOTHEQUE.get_animation(_src) if _src != "" else null
 	var p := _pistes_de(_src) if a != null else {}
 	var tc := clampf(_t_src, 0.0, a.length) if a != null else 0.0
@@ -334,10 +330,10 @@ func _mesurer() -> void:
 	if _deux_mains():
 		var md := PiedsAuSol.pose_globale(sq, im)
 		var mg := PiedsAuSol.pose_globale(sq, sq.find_bone("hand_l"))
-		var axe := (md.basis * prise_corps.basis.y).normalized()
-		var but := md * (prise_corps * Vector3(0, PRISE_EPEE_CORPS, 0)) - axe * float(corps.mains.arme.ecart_mains)
-		var pl := prise_corps * Vector3(0, PRISE_EPEE_CORPS, 0)
-		pl.x = -pl.x
+		var pr := _prise_arme()
+		var axe := (md.basis * pr.basis.y).normalized()
+		var but := md * pr.origin - axe * float(corps.mains.arme.ecart_mains)
+		var pl := _poing_gauche_local()
 		ecart_gauche = (mg * pl).distance_to(but)
 
 # --- arme tenue ---------------------------------------------------------------------------------------------------
@@ -346,62 +342,42 @@ func _deux_mains() -> bool:
 	var m: Node3D = corps.mains
 	return m != null and m.arme != null and m.arme.deux_mains
 
-## L'arme équipée (mains.arme) dans la main droite du corps, au même point de prise que la 1re personne.
-func _suivre_arme(mains: Node3D) -> void:
-	var arme: DonneesArme = mains.arme
-	if arme == null or _accroche == null:
-		return
-	var id := str(arme.get_instance_id())
-	if id == _arme_id:
-		return
-	_arme_id = id
-	if is_instance_valid(_modele_arme):
-		if "_mailles" in corps:
-			for mi in _modele_arme.find_children("*", "MeshInstance3D", true, false):
-				(corps._mailles as Array).erase(mi)
-		_modele_arme.queue_free()
-		_modele_arme = null
-	if arme.modele == "" or not ResourceLoader.exists(arme.modele) or not arme.est_arme():
-		if _epee_fixe:
-			_epee_fixe.visible = arme.est_arme()
-		return
-	var m: Node3D = (load(arme.modele) as PackedScene).instantiate()
-	if arme.habillage == "epees_longues":
-		EpeesLongues.habiller(m)
-	elif arme.habillage == "claymore":
-		ClaymoreMateriaux.habiller(m)
-	else:
-		mains.call("_habiller", m)
-	for mi: MeshInstance3D in m.find_children("*", "MeshInstance3D", true, false):
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	var milieu := arme.milieu_poignee
-	if arme.reperes_du_modele:
-		var r: Node3D = m.find_child("prise", true, false)
-		if r != null:
-			var t := Transform3D()
-			var n: Node = r
-			while n != null and n != m:
-				t = (n as Node3D).transform * t
-				n = n.get_parent()
-			milieu = t.origin.y
-	milieu += GestesLourds.decalage_prise(arme)
-	var prise := prise_corps
-	var poing := prise * Vector3(0.0, PRISE_EPEE_CORPS, 0.0)
-	m.transform = Transform3D(prise.basis, poing - prise.basis * Vector3(0.0, milieu, 0.0))
-	_accroche.add_child(m)
-	_modele_arme = m
-	if _epee_fixe:
-		_epee_fixe.visible = false
-	# ombre / visibilité : comme les autres mailles du corps (corps_joueur.definir_vue)
-	if "_mailles" in corps:
-		for mi: MeshInstance3D in m.find_children("*", "MeshInstance3D", true, false):
-			(corps._mailles as Array).append(mi)
-		corps.definir_vue(corps._vue_3)
+## Point de la main gauche (repère de hand_l) posé sur la poignée à deux mains : prise de la torche (corps_joueur.pivot_torche),
+## comme l'IK de repos de CorpsMainsTps ; à défaut, le centre du poing droit en miroir.
+func _poing_gauche_local() -> Vector3:
+	var pv = corps.get("pivot_torche")
+	if pv is Node3D and is_instance_valid(pv):
+		return (pv as Node3D).transform.origin
+	var p := prise_corps * Vector3(0.0, PRISE_EPEE_CORPS, 0.0)
+	p.x = -p.x
+	return p
+
+## Modèle de l'arme tenue par le corps : celui de CorpsMainsTps (seul propriétaire), ou null (main droite nue ou sort).
+func modele_arme() -> Node3D:
+	var mt = corps.get("mains_tps") if corps != null else null
+	var m: Node3D = mt.arme_tenue() if mt != null else null
+	return m if is_instance_valid(m) else null
+
+## La main gauche tient autre chose que l'arme (torche, sort, bouclier) : le bras gauche reste à CorpsMainsTps.
+func _main_gauche_occupee() -> bool:
+	var mt = corps.get("mains_tps")
+	if mt != null:
+		return mt.categorie("gauche") in ["torche", "sort", "bouclier"]
+	return bool(corps.mains.torche_sortie)
+
+## Prise de l'arme dans le repère de hand_r : origine = centre du poing droit sur la poignée, Y = axe de la lame (vers la
+## pointe). Lue sur le modèle de CorpsMainsTps (enfant d'une accroche hand_r : son transform est déjà dans ce repère).
+func _prise_arme() -> Transform3D:
+	var m := modele_arme()
+	if m == null:
+		return Transform3D(prise_corps.basis, prise_corps * Vector3(0.0, PRISE_EPEE_CORPS, 0.0))
+	var milieu := float(corps.mains.get("_milieu_d"))
+	return Transform3D(m.transform.basis.orthonormalized(), m.transform * Vector3(0.0, milieu, 0.0))
 
 ## Deux mains : la main gauche est ramenée sur la poignée, sous la droite (IK analytique à deux os, coude vers le bas et
 ## l'extérieur). `w` : poids (0 : la capture seule).
 func _main_gauche_sur_poignee(w: float) -> void:
-	if w <= 0.0 or _modele_arme == null:
+	if w <= 0.0 or modele_arme() == null:
 		return
 	var m: Node3D = corps.mains
 	var ecart: float = m.arme.ecart_mains
@@ -413,18 +389,18 @@ func _main_gauche_sur_poignee(w: float) -> void:
 		return
 	var g_main_d := PiedsAuSol.pose_globale(sq, i_main_d)
 	var prise := prise_corps
-	# poignée : axe de la lame (Y du modèle) ; la main gauche se place `ecart` m plus bas que la droite, même orientation
-	# que la droite tournée de 180° autour de l'axe de la lame (le pouce gauche face au droit)
-	var axe := (g_main_d.basis * prise.basis.y).normalized()
-	var but_pos := g_main_d * (prise * Vector3(0.0, PRISE_EPEE_CORPS, 0.0)) - axe * ecart
+	# poignée : axe de la lame (Y du modèle tenu par CorpsMainsTps) ; la main gauche se place `ecart` m plus bas que la droite
+	var pa := _prise_arme()
+	var axe := (g_main_d.basis * pa.basis.y).normalized()
+	var but_pos := g_main_d * pa.origin - axe * ecart
 	var g_bras := PiedsAuSol.pose_globale(sq, i_bras)
 	var g_avant := PiedsAuSol.pose_globale(sq, i_avant)
 	var g_main := PiedsAuSol.pose_globale(sq, i_main)
 	var la := g_bras.origin.distance_to(g_avant.origin)
 	var lb := g_avant.origin.distance_to(g_main.origin)
-	# point de la main qui doit tomber sur la poignée : centre du poing (même décalage que la droite)
-	var poing_local := prise * Vector3(0.0, PRISE_EPEE_CORPS, 0.0)
-	poing_local.x = -poing_local.x
+	# point de la main qui doit tomber sur la poignée : celui de l'IK de CorpsMainsTps (prise de la torche, pivot_torche), pour que
+	# les deux IK (coup / repos) posent la main au même endroit
+	var poing_local := _poing_gauche_local()
 	var poing_monde := g_main * poing_local
 	var cible := g_main.origin + (but_pos - poing_monde)
 	cible = g_main.origin.lerp(cible, w)
