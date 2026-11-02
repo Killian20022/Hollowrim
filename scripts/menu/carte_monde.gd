@@ -435,6 +435,12 @@ static func _tri(st: SurfaceTool, tr: Transform3D, a: Vector3, b: Vector3, c: Ve
 	var pb := tr * b
 	var pc := tr * c
 	var nrm := (pc - pa).cross(pb - pa).normalized()
+	# normale tournée vers l'extérieur (vers le haut pour les toits, hors du volume pour les murs) : l'ordre des sommets
+	# varie d'une face à l'autre et le matériau n'élimine aucune face
+	var dehors := (pa + pb + pc) / 3.0 - tr.origin
+	dehors.y = 0.0
+	if nrm.y < -0.05 or (absf(nrm.y) < 0.5 and nrm.dot(dehors) < 0.0):
+		nrm = -nrm
 	st.set_color(col)
 	st.set_normal(nrm)
 	st.add_vertex(pa)
@@ -507,12 +513,12 @@ func _reperes() -> void:
 			var t1 := float(r + 1) / anneaux
 			var f := func(t: float, a: float) -> Vector3:
 				var rr := cos(t * PI * 0.5) * 7.5
-				return Vector3(td.x + cos(a) * rr * 1.2, base + sin(t * PI * 0.5) * 4.0, td.y + sin(a) * rr)
+				return Vector3(cos(a) * rr * 1.2, sin(t * PI * 0.5) * 4.0, sin(a) * rr)
 			var p00: Vector3 = f.call(t0, a0)
 			var p01: Vector3 = f.call(t0, a1)
 			var p10: Vector3 = f.call(t1, a0)
 			var p11: Vector3 = f.call(t1, a1)
-			_quad(st, Transform3D(), p00, p01, p11, p10, TERRE_TERTRE)
+			_quad(st, Transform3D(Basis(), Vector3(td.x, base, td.y)), p00, p01, p11, p10, TERRE_TERTRE)
 	# façade de pierre du tertre (côté sud, vers le cercle)
 	var fa := Vector2(-38.0, -48.0)
 	if monde.get("TUMULUS") is Vector3:
