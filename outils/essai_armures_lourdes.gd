@@ -25,29 +25,15 @@ const EMPL := {"casque_fer": "tete", "cuirasse_fer": "torse", "gantelets_fer": "
 	"casque_acier_nordique": "tete", "cuirasse_acier_nordique": "torse", "gantelets_acier_nordique": "mains", "bottes_acier_nordique": "pieds",
 	"heaume_jarl": "tete", "cuirasse_gardiens": "torse", "gantelets_hrafn": "mains", "bottes_rodeur": "pieds",
 	"capuche_thaumaturge": "tete", "brigandine_braise": "torse"}
-## pièces du corps cachées par emplacement ; « accessoires » (une seule maille : casque de base, plastron, épaulières, ceinture, gants,
-## revers des bottes) : seuls les triangles portés par les os de la zone sont retirés
-const CACHE := {"tete": ["Hair_Long"], "torse": ["tunique", "mante"], "mains": ["brassards"], "pieds": ["bottes"]}
-const OS_ZONE := {
-	"tete": ["Head"],
-	"torse": ["pelvis", "spine_01", "spine_02", "spine_03", "neck_01", "clavicle_l", "clavicle_r", "upperarm_l", "upperarm_r", "thigh_l", "thigh_r"],
-	"mains": ["hand_l", "hand_r", "lowerarm_l", "lowerarm_r", "*doigts"],
-	"pieds": ["calf_l", "calf_r", "foot_l", "foot_r", "ball_l", "ball_r"],
-}
-## matières (nom du matériau Blender -> preset shader_matiere ; UV propres : pas de projection boîte)
+## matières : MÊMES presets que scripts/rpg/armure_visible.gd de l'agent X (branche rpg/armures_legeres) ; le nom du matériau Blender
+## est « preset[.variante] » (fer.maille, acier.givre, cuir.braise, fourrure.laine, os.corne, fer.noir…) : seul le préfixe compte.
 const MATIERES := {
-	"fer": {"metal": 0.5, "poli": 0.38, "reflet": Color(0.95, 0.96, 1.0)},
-	"fer_noir": {"metal": 0.55, "poli": 0.5, "reflet": Color(0.9, 0.93, 1.0)},
-	"acier": {"metal": 0.78, "poli": 0.8, "reflet": Color(0.94, 0.98, 1.05)},
-	"maille": {"metal": 0.6, "poli": 0.45, "reflet": Color(0.95, 0.97, 1.02)},
-	"cuir": {"bord": 0.15, "poli": 0.2},
-	"fourrure": {"bord": 0.04, "poli": 0.05},
-	"laine": {"bord": 0.03, "poli": 0.05},
-	"corne": {"bord": 0.2, "poli": 0.45, "metal": 0.1},
-	"or": {"metal": 0.72, "poli": 0.6, "reflet": Color(1.06, 0.9, 0.62)},
-	"argent": {"metal": 0.8, "poli": 0.75, "reflet": Color(0.96, 0.98, 1.04)},
-	"givre": {"metal": 0.35, "poli": 0.9, "bord": 0.6, "reflet": Color(0.9, 0.97, 1.06), "lueur": 0.04},
-	"braise": {"bord": 0.1, "poli": 0.2, "lueur": 0.0},
+	"cuir": {"teinte": Color(1.04, 1.0, 0.98), "bord": 0.14, "poli": 0.22},
+	"fourrure": {"teinte": Color(1.02, 1.0, 0.98), "bord": 0.05, "poli": 0.05},
+	"os": {"teinte": Color(1.02, 1.0, 0.97), "bord": 0.10, "poli": 0.30},
+	"fer": {"teinte": Color(1.0, 1.0, 1.02), "metal": 0.5, "poli": 0.35, "reflet": Color(0.95, 0.96, 1.0)},
+	"acier": {"teinte": Color(1.04, 1.04, 1.06), "metal": 0.75, "poli": 0.7, "reflet": Color(0.94, 0.98, 1.05)},
+	"or": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.72, "poli": 0.6, "reflet": Color(1.06, 0.9, 0.62)},
 }
 
 var echecs := 0
@@ -84,8 +70,8 @@ static func materiau(nom: String, tex: Texture2D) -> Material:
 	var cle := "%s|%d" % [nom, tex.get_instance_id() if tex else 0]
 	if _mats.has(cle):
 		return _mats[cle]
-	var p: Dictionary = MATIERES.get(nom.get_slice(".", 0), MATIERES["fer"])
-	var m := Palette.materiau(tex, Vector2.ONE, Color.WHITE)
+	var p: Dictionary = MATIERES.get(nom.get_slice(".", 0), MATIERES["cuir"])
+	var m := Palette.materiau(tex, Vector2.ONE, p.get("teinte", Color.WHITE))
 	m.shader = EpeesLongues.shader_matiere(false)
 	m.set_shader_parameter("tex_neige", tex)
 	m.set_shader_parameter("mt_boite", 0.0)
@@ -95,6 +81,7 @@ static func materiau(nom: String, tex: Texture2D) -> Material:
 	m.set_shader_parameter("mt_reflet", p.get("reflet", Color.WHITE))
 	m.set_shader_parameter("reflet_force", 0.0)
 	m.set_shader_parameter("reflet_fil", 0.0)
+	m.next_pass = GuerrierNordique.contour()
 	_mats[cle] = m
 	return m
 
@@ -132,60 +119,112 @@ static func porter(modele: Node3D, id: String) -> MeshInstance3D:
 	_cacher(sq, EMPL.get(id, ""))
 	return mi
 
-## Cache les pièces du corps recouvertes par l'emplacement (et les triangles d'« accessoires » portés par ses os).
-static func _cacher(sq: Skeleton3D, empl: String) -> void:
-	for nom in CACHE.get(empl, []):
-		var n := sq.get_node_or_null(NodePath(nom)) as MeshInstance3D
-		if n:
-			n.visible = false
-	var acc := sq.get_node_or_null("accessoires") as MeshInstance3D
-	if acc == null or not OS_ZONE.has(empl):
-		return
-	var zone := {}
-	for nom: String in OS_ZONE[empl]:
-		if nom == "*doigts":
-			for b in sq.get_bone_count():
-				var bn := sq.get_bone_name(b)
-				for d in ["index", "middle", "ring", "pinky", "thumb"]:
-					if bn.begins_with(d):
-						zone[b] = true
-		else:
-			zone[sq.find_bone(nom)] = true
-	var am := ArrayMesh.new()
-	for s in acc.mesh.get_surface_count():
-		var a := acc.mesh.surface_get_arrays(s)
-		var bones: PackedInt32Array = a[Mesh.ARRAY_BONES]
-		var w: PackedFloat32Array = a[Mesh.ARRAY_WEIGHTS]
+## Cache ce que recouvrent les emplacements portés : MÊME règle que scripts/rpg/armure_visible.gd de l'agent X (recouvert(), copiée ici
+## pour essayer les pièces avant la fusion de son système) : zones de repos (mains |x| > 0,58 ; pieds y < 0,40 / 0,47 ; tête : casque,
+## crête, camail, cheveux ; torse : cotte |x| < 0,42, mante, plastron, haut du pantalon, mèches de la nuque…).
+const MAINS_X := 0.58
+const TORSE_X := 0.42
+const PIEDS_Y := 0.40
+const PIEDS_Y_ACC := 0.47
+const TETE_Y := 1.585
+const CAMAIL_Y := 1.46
+const CAMAIL_BAS_TORSE := 1.585
+const TORSE_PANTALON_Y := 0.64
+const TORSE_CHEVEUX_Y := 1.575
+
+static func _cacher(sq: Skeleton3D, _empl: String) -> void:
+	var z := []
+	for c in sq.get_children():
+		if c.has_meta("armure"):
+			z.append(EMPL.get(String(c.get_meta("armure")), ""))
+	for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", false, false):
+		if mi.has_meta("armure"):
+			continue
+		var nom := String(mi.name)
+		if not mi.has_meta("orig"):
+			mi.set_meta("orig", mi.mesh)
+			mi.set_meta("vis", mi.visible)
+		if nom.begins_with("Hair_Long"):
+			mi.visible = bool(mi.get_meta("vis")) and not z.has("tete")
+		if not mi.visible or not _concerne(nom, z):
+			continue
+		mi.mesh = _filtrer(mi.get_meta("orig"), nom, z)
+
+static func _concerne(nom: String, z: Array) -> bool:
+	match nom:
+		"tunique":
+			return z.has("torse") or z.has("mains")
+		"mante", "Hair_Long":
+			return z.has("torse")
+		"brassards", "peau":
+			return z.has("mains")
+		"bottes":
+			return z.has("pieds")
+		"pantalon":
+			return z.has("pieds") or z.has("torse")
+		"accessoires":
+			return true
+	return false
+
+static func _dans(r: Rect2i, u: Vector2) -> bool:
+	return u.x >= r.position.x and u.y >= r.position.y and u.x < r.end.x and u.y < r.end.y
+
+static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Array) -> bool:
+	if z.has("mains") and absf(c.x) > MAINS_X and nom in ["tunique", "brassards", "peau", "accessoires"]:
+		return true
+	if z.has("pieds"):
+		if nom == "bottes":
+			return true
+		if nom == "pantalon" and c.y < PIEDS_Y:
+			return true
+		if nom == "accessoires" and c.y < PIEDS_Y_ACC:
+			return true
+	var acc := nom == "accessoires" and surface == 0
+	var oeil := acc and _dans(GuerrierTextures.R_OEIL, u)
+	var casque := acc and (_dans(GardienTextures.R_CASQUE, u) or _dans(GardienTextures.R_BANDEAU, u))
+	var camail := acc and _dans(GuerrierTextures.R_PLASTRON, u) and c.y > CAMAIL_Y
+	if z.has("tete") and nom == "accessoires" and not oeil and (casque or camail or c.y > TETE_Y):
+		return true
+	if z.has("torse"):
+		if camail and c.y < CAMAIL_BAS_TORSE:
+			return true
+		if nom == "pantalon" and c.y > TORSE_PANTALON_Y:
+			return true
+		if nom == "tunique" and absf(c.x) < TORSE_X:
+			return true
+		if nom == "mante":
+			return true
+		if nom == "Hair_Long" and c.y < TORSE_CHEVEUX_Y:
+			return true
+		if nom == "accessoires":
+			if surface == 1:
+				return true
+			if not oeil and not casque and not camail and c.y > 0.55 and c.y < TETE_Y and absf(c.x) < 0.45:
+				return true
+	return false
+
+static func _filtrer(orig: Mesh, nom: String, z: Array) -> ArrayMesh:
+	var m := ArrayMesh.new()
+	for s in orig.get_surface_count():
+		var a := orig.surface_get_arrays(s)
 		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
-		var nb := bones.size() / v.size()
-		var dans := PackedByteArray()
-		dans.resize(v.size())
-		for i in v.size():
-			var t := 0.0
-			for j in nb:
-				if zone.has(GuerrierNordique._os_de_bind(acc.skin, sq, bones[i * nb + j])):
-					t += w[i * nb + j]
-			dans[i] = 1 if t >= 0.5 else 0
+		var uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV] if a[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
 		var idx := _indices(a)
+		var atlas := Vector2(GuerrierTextures.ATLAS) if s == 0 else Vector2(GuerrierTextures.DECOUPES)
 		var garde := PackedInt32Array()
-		for t in range(0, idx.size(), 3):
-			if dans[idx[t]] + dans[idx[t + 1]] + dans[idx[t + 2]] < 2:
+		for t in range(0, idx.size() - 2, 3):
+			var c := (v[idx[t]] + v[idx[t + 1]] + v[idx[t + 2]]) / 3.0
+			var u := Vector2.ZERO
+			if not uv.is_empty():
+				u = (uv[idx[t]] + uv[idx[t + 1]] + uv[idx[t + 2]]) / 3.0 * atlas
+			if not recouvert(nom, s, c, u, z):
 				garde.append_array([idx[t], idx[t + 1], idx[t + 2]])
 		if garde.is_empty():
-			garde.append_array([0, 0, 0])      # surface entièrement couverte : un triangle dégénéré (surface gardée pour les matériaux)
+			garde = PackedInt32Array([0, 0, 0])
 		a[Mesh.ARRAY_INDEX] = garde
-		var fl: int = acc.mesh.surface_get_format(s) & ~Mesh.ARRAY_FORMAT_VERTEX & ~Mesh.ARRAY_FORMAT_INDEX
-		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, fl & (Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS))
-		var mat := acc.get_surface_override_material(s)
-		am.surface_set_material(s, mat if mat else acc.mesh.surface_get_material(s))
-		if mat:
-			pass
-	var ovs := []
-	for s in acc.mesh.get_surface_count():
-		ovs.append(acc.get_surface_override_material(s))
-	acc.mesh = am
-	for s in ovs.size():
-		acc.set_surface_override_material(s, ovs[s])
+		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+		m.surface_set_material(s, orig.surface_get_material(s))
+	return m
 
 ## Indices des triangles (surfaces sans tableau d'indices : sommets pris trois par trois).
 static func _indices(a: Array) -> PackedInt32Array:
@@ -356,6 +395,7 @@ func _tester_piece(id: String, clips: Array) -> void:
 	var pire := 0.0
 	var pire_ou := ""
 	var total_mauvais := 0
+	var detail := {}      # « pièce du corps @ position de repos arrondie » -> [nb, pire]
 	for clip: String in clips:
 		if not ap.has_animation(clip):
 			continue
@@ -380,12 +420,21 @@ func _tester_piece(id: String, clips: Array) -> void:
 						var prof := (pts[q] - cp).length() * (1.0 - tcut)
 						if prof > TOL:
 							mauvais += 1
+							var p0r: Vector3 = (e[1][Mesh.ARRAY_VERTEX] as PackedVector3Array)[e[2][q]]
+							var cle := "%s @ (%.2f, %.2f, %.2f) os %s" % [e[0].name, snappedf(p0r.x, 0.05), snappedf(p0r.y, 0.05), snappedf(p0r.z, 0.05), sq.get_bone_name(o)]
+							var d0: Array = detail.get(cle, [0, 0.0, ""])
+							detail[cle] = [d0[0] + 1, maxf(d0[1], prof), clip if prof > d0[1] else d0[2]]
 						pire_clip = maxf(pire_clip, prof)
 		if pire_clip > pire:
 			pire = pire_clip
 			pire_ou = clip
 		total_mauvais += mauvais
 		print("   %s / %s : %d points ressortis > %.1f cm, pire %.1f cm (main droite déplacée de %.0f cm : clip bien joué)" % [id, clip, mauvais, TOL * 100.0, pire_clip * 100.0, bouge * 100.0])
+	if args.has("--detail"):
+		var cles := detail.keys()
+		cles.sort_custom(func(a, b) -> bool: return detail[a][0] > detail[b][0])
+		for c in cles.slice(0, 12):
+			print("      DETAIL %s : %d fois, pire %.1f cm (%s)" % [c, detail[c][0], detail[c][1] * 100.0, detail[c][2]])
 	# tolérance : quelques points sur des centaines de poses (aisselle en garde haute…) ; la profondeur reste bornée
 	ok(total_mauvais <= maxi(3, n_suivis / 200) and pire < 0.04, "%s : traversées %d points > %.1f cm sur %d poses, pire %.1f cm (%s)" % [id, total_mauvais, TOL * 100.0, clips.size() * 8, pire * 100.0, pire_ou])
 	g.free()

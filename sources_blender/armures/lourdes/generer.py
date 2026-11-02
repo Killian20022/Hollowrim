@@ -12,7 +12,7 @@ from mathutils import Vector, Matrix
 # ------------------------------------------------------------------------------------------------ styles
 FER = dict(pal=C.FER, mat="fer", mat_rebord="fer", mat_main="fer", mat_doigts="cuir", mat_genou="fer", base=0.5, oxyde=0.35,
            crasse=0.45, poli=0.45, graine=11)
-ACIER = dict(pal=C.ACIER, mat="acier", mat_rebord="acier", mat_main="acier", mat_doigts="acier", mat_genou="acier", base=0.58,
+ACIER = dict(pal=C.ACIER, mat="acier", mat_maille="acier.maille", mat_rebord="acier", mat_main="acier", mat_doigts="acier", mat_genou="acier", base=0.58,
              oxyde=0.0, crasse=0.2, poli=0.8, graver=True, graine=23, pal_maille=C.ACIER)
 
 def _s(b0, **kw):
@@ -34,11 +34,11 @@ PIECES = {
     "bottes_acier_nordique": lambda r: PC.bottes(r, _s(ACIER, id="bottes_acier_nordique",
                                                        peinture_botte=C.metal(C.ACIER, 41, base=0.5, contraste=0.3, crasse=0.3, poli=0.7))),
     # --- pièces uniques (ids de data/objets/armures.json)
-    "heaume_jarl": lambda r: PC.casque(r, _s(FER, id="heaume_jarl", pal=C.FER_NOIR, mat="fer_noir", mat_rebord="fer_noir", base=0.5, oxyde=0.1,
+    "heaume_jarl": lambda r: PC.casque(r, _s(FER, id="heaume_jarl", pal=C.FER_NOIR, mat="fer.noir", mat_rebord="fer.noir", base=0.5, oxyde=0.1,
                                             crasse=0.3, poli=0.6, bombe=0.006, graver=True, bandes=0,
-                                            decor=[lambda *a: PC.deco_nasal(*a, mat="fer_noir"), PC.deco_couronne],
+                                            decor=[lambda *a: PC.deco_nasal(*a, mat="fer.noir"), PC.deco_couronne],
                                             peinture_corne=C.metal(C.FER_NOIR, 71, base=0.55, contraste=0.35, poli=0.7))),
-    "cuirasse_gardiens": lambda r: PC.cuirasse(r, _s(ACIER, id="cuirasse_gardiens", mat="givre", lames=3, bombe=0.02, fourrure=True,
+    "cuirasse_gardiens": lambda r: PC.cuirasse(r, _s(ACIER, id="cuirasse_gardiens", mat="acier.givre", lames=3, bombe=0.02, fourrure=True,
                                                      base=0.5, givre=0.75, graine=37, pal_fourrure=C.FOURRURE_BLANCHE)),
     "gantelets_hrafn": lambda r: PC.gantelets(r, _s(FER, id="gantelets_hrafn", mat="cuir", mat_main="cuir", mat_doigts="cuir",
                                                     mat_griffes="acier", griffes=0.016, evasement=0.012, rivets=False, lames_main=False,
@@ -46,12 +46,12 @@ PIECES = {
                                                     peinture_manchette=C.cuir(C.CUIR_ROUGE, 81, base=0.5),
                                                     peinture_main=C.cuir(C.CUIR_ROUGE, 82, base=0.55),
                                                     peinture_doigts=C.cuir(C.CUIR_ROUGE, 83, base=0.48))),
-    "bottes_rodeur": lambda r: PC.bottes(r, _s(FER, id="bottes_rodeur", mat_botte="fourrure", greve=False, revers=True,
+    "bottes_rodeur": lambda r: PC.bottes(r, _s(FER, id="bottes_rodeur", mat_botte="fourrure", greve=False, revers=True, sangles=False,
                                                 peinture_botte=C.fourrure(C.FOURRURE_BLANCHE, 91, base=0.6),
                                                 peinture_revers=C.fourrure(C.FOURRURE_BLANCHE, 92, base=0.7),
                                                 decor=[PC.deco_runes_bottes])),
     "capuche_thaumaturge": lambda r: PC.capuche(r, dict(id="capuche_thaumaturge")),
-    "brigandine_braise": lambda r: PC.cuirasse(r, _s(FER, id="brigandine_braise", mat="braise", mat_maille="cuir", lames=4, lames_epaule=2,
+    "brigandine_braise": lambda r: PC.cuirasse(r, _s(FER, id="brigandine_braise", mat="cuir.braise", mat_maille="cuir.ecailles", lames=4, lames_epaule=2,
                                                      rivets=False, pal=C.CUIR_CENDRE, graine=101,
                                                      peinture_maille=C.ecailles(C.CUIR_CENDRE, 102, base=0.45, braise=0.25),
                                                      peinture_plaques=C.ecailles(C.CUIR_CENDRE, 103, base=0.5, braise=0.45))),

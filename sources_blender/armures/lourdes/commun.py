@@ -284,6 +284,35 @@ def rebord(P_bord, centre_fn, epaisseur, dehors=True):
         out.append(p - d * epaisseur if dehors else p + d * epaisseur)
     return out
 
+def degager(ob, r, pieces, marge, filtre=None, os_noms=None, passes=2):
+    """Pousse dehors les sommets de ob (repère monde au repos) qui sont sous la surface des pièces du corps ou à moins de marge :
+    sommet ramené à point_proche + normale * marge, puis le déplacement est lissé (pas de bosses)."""
+    arbre = bvh(r, pieces, os_noms, 0.5)
+    me = ob.data
+    dep = [Vector() for _ in me.vertices]
+    for v in me.vertices:
+        p = ob.matrix_world @ v.co
+        if filtre and not filtre(p):
+            continue
+        loc, nrm, _, dist = arbre.find_nearest(p, 0.2)
+        if loc is None:
+            continue
+        sgn = (p - loc).dot(nrm)
+        if sgn < marge:
+            dep[v.index] = nrm * (marge - sgn)
+    voisins = [[] for _ in me.vertices]
+    for e in me.edges:
+        a, b = e.vertices
+        voisins[a].append(b); voisins[b].append(a)
+    for _ in range(passes):
+        dep = [max([dep[i]] + [dep[j] * 0.7 for j in voisins[i]], key=lambda d: d.length) for i in range(len(dep))]
+    n = 0
+    for v in me.vertices:
+        if dep[v.index].length > 0:
+            v.co += dep[v.index]
+            n += 1
+    print("DEGAGER", ob.name, n, "sommets poussés")
+
 # ------------------------------------------------------------------------------------------------ peau d'os
 def peau_transfert(ob, r, sources, lisser=1, os_permis=None, os_force=None):
     """Poids transférés depuis les pièces du corps (face la plus proche, interpolée), limités à 4, normalisés.
@@ -377,6 +406,57 @@ def nettoyer_poids(ob, lisser=1, os_permis=None, os_force=None):
     for g in list(ob.vertex_groups):
         if not any(g.index in [x.group for x in v.groups] for v in me.vertices):
             ob.vertex_groups.remove(g)
+
+def poids_transferes(ob, r, sources, os_permis=None, lisser=1):
+    """Poids transférés (sans toucher ob) : liste de {os: poids} par sommet."""
+    c = ob.copy(); c.data = ob.data.copy()
+    bpy.context.scene.collection.objects.link(c)
+    c.vertex_groups.clear()
+    peau_transfert(c, r, sources, lisser=lisser, os_permis=os_permis)
+    noms = {g.index: g.name for g in c.vertex_groups}
+    W = [{noms[g.group]: g.weight for g in v.groups} for v in c.data.vertices]
+    bpy.data.objects.remove(c, do_unlink=True)
+    return W
+
+def poids_fondus(ob, W_haut, W_bas, z_bas, z_haut):
+    """Écrit dans ob le mélange W_bas (sous z_bas) -> W_haut (au-dessus de z_haut), limite 4 os."""
+    ob.vertex_groups.clear()
+    for v in ob.data.vertices:
+        z = (ob.matrix_world @ v.co).z
+        t = min(max((z - z_bas) / (z_haut - z_bas), 0.0), 1.0)
+        t = t * t * (3 - 2 * t)
+        d = {}
+        for k, w in W_bas[v.index].items():
+            d[k] = d.get(k, 0.0) + w * (1 - t)
+        for k, w in W_haut[v.index].items():
+            d[k] = d.get(k, 0.0) + w * t
+        it = sorted(d.items(), key=lambda kv: -kv[1])[:4]
+        tot = sum(w for _, w in it)
+        for k, w in it:
+            if w <= 0:
+                continue
+            if k not in ob.vertex_groups:
+                ob.vertex_groups.new(name=k)
+            ob.vertex_groups[k].add([v.index], w / tot, "REPLACE")
+
+def fondre_tete(ob, z_bas, z_haut):
+    """Mélange les poids actuels (corps) avec la tête selon la hauteur : 0 sous z_bas, tout Head au-dessus de z_haut."""
+    if "Head" not in ob.vertex_groups:
+        ob.vertex_groups.new(name="Head")
+    noms = {g.index: g.name for g in ob.vertex_groups}
+    for v in ob.data.vertices:
+        z = (ob.matrix_world @ v.co).z
+        t = min(max((z - z_bas) / (z_haut - z_bas), 0.0), 1.0)
+        t = t * t * (3 - 2 * t)
+        d = {noms[g.group]: g.weight * (1 - t) for g in v.groups}
+        d["Head"] = d.get("Head", 0.0) + t
+        for g in list(v.groups):
+            ob.vertex_groups[noms[g.group]].remove([v.index])
+        it = sorted(d.items(), key=lambda kv: -kv[1])[:4]
+        tot = sum(w for _, w in it)
+        for k, w in it:
+            if w > 0:
+                ob.vertex_groups[k].add([v.index], w / tot, "REPLACE")
 
 def lier(ob, r):
     ob.parent = r.arm
@@ -602,8 +682,8 @@ def entrelacs(toile, rect, pal, g, k_creux=0.55):
         for ph in (0.0, math.pi):
             yc = y0 + h / 2 + (h / 2 - 1.5) * math.sin((x - x0) * TAU / max(8, h * 1.6) + ph)
             yi = int(round(yc))
-            toile.mul(x, yi, k_creux, -0.4)
-            toile.mul(x, yi + 1, 1.25, 0.2)
+            toile.mul(x, yi, k_creux, -0.3)
+            toile.mul(x, yi + 1, 1.12, 0.15)
 
 # ------------------------------------------------------------------------------------------------ matériaux, export
 def materiau(nom, img):
