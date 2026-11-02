@@ -30,7 +30,7 @@ CUIR_SOMBRE = L.hexa("#0d0907", "#17100b", "#21170f", "#2d2015", "#3a2a1c", "#49
 FER = L.hexa("#1b1b1d", "#2c2c30", "#424349", "#5c5e66", "#7c7f88", "#a3a6ae")
 FOURRURE = L.hexa("#1d1a17", "#2b2621", "#3a332c", "#4a4138", "#5b5046", "#6e6256", "#837567", "#9a8b7b", "#b0a291")
 FOURRURE_BRUNE = L.hexa("#1f1710", "#2e2218", "#3f3022", "#523f2d", "#665039", "#7b6247")
-OS = L.hexa("#2e271d", "#463c2e", "#62553f", "#7e7054", "#998a6b", "#b2a383", "#c8ba9b", "#dbcfb3")
+OS = L.hexa("#241c13", "#352a1d", "#4a3c29", "#605036", "#766444", "#8b7752", "#9d8960", "#ae9a6f", "#bdaa7f")
 LAINE = L.hexa("#1a1714", "#25211c", "#312b24", "#3e362d")
 
 
@@ -73,11 +73,13 @@ def mat_fourrure(P, N, pa, bd, pal=FOURRURE, base=0.55, g=0, sens=None):
         sens = np.array([0.0, 1.0, 0.0])
     s = sens / np.linalg.norm(sens)
     Q = P - np.outer(P @ s, s) * 0.93          # presque constant le long du poil : des stries
-    m = L.bruit(Q, 55.0, g) - 0.5
-    fines = L.bruit(Q, 140.0, g + 5) - 0.5
+    m = L.bruit(Q, 70.0, g) - 0.5
+    fines = L.bruit(Q, 160.0, g + 5) - 0.5
     lent = L.fbm(P, 4.0, g + 9) - 0.5
-    v = base + m * 0.18 + fines * 0.10 + lent * 0.12 + np.clip(N[:, 1], -1, 1) * 0.07
-    v = np.where(bd < 0.010, v - 0.10, v)
+    meches = L.fbm(Q, 22.0, g + 13) - 0.5                 # touffes : groupes de poils plus clairs / plus sombres
+    v = base + m * 0.26 + fines * 0.12 + meches * 0.22 + lent * 0.10 + np.clip(N[:, 1], -1, 1) * 0.07
+    v = np.where((bd > 0.006) & (bd < 0.03), v + 0.07, v)   # pointes claires vers les bords
+    v = np.where(bd < 0.006, v - 0.10, v)
     rgb = L.rampe(pal, np.clip(v, 0, 0.999))
     a = np.clip(0.04 + v * 0.12, 0, 0.25)
     return np.concatenate([rgb, a[:, None]], 1)
@@ -87,12 +89,13 @@ def mat_os(P, N, pa, bd, base=0.6, g=0):
     """Os patiné : ivoire jauni lisse (variations lentes et douces), pores fins, rares fissures fines, creux crasseux au bord."""
     v = base + (L.fbm(P, 5.0, g) - 0.5) * 0.12 + (L.bruit(P, 45.0, g + 3) - 0.5) * 0.06 + np.clip(N[:, 1], -1, 1) * 0.07
     f = np.abs(L.fbm(P, 9.0, g + 8) - 0.5)
-    v = np.where((f < 0.008) & (L.fbm(P, 3.0, g + 11) > 0.62), v - 0.12, v)
+    v = np.where((f < 0.011) & (L.fbm(P, 3.0, g + 11) > 0.45), v - 0.26, v)      # fissures
+    v = np.where((f >= 0.011) & (f < 0.018) & (L.fbm(P, 3.0, g + 11) > 0.45), v - 0.08, v)
     v = np.where(bd < 0.006, v - 0.16, np.where(bd < 0.014, v + 0.05, v))
     rgb = L.rampe(OS, np.clip(v, 0, 0.999))
     # patine brune très légère dans les zones basses (pas de taches franches)
     t = np.clip((L.fbm(P, 3.0, g + 12) - 0.5) * 1.2, 0, 1)[:, None]
-    rgb = rgb * (1 - 0.18 * t) + np.array([0.30, 0.24, 0.16]) * 0.18 * t
+    rgb = rgb * (1 - 0.35 * t) + np.array([0.24, 0.17, 0.10]) * 0.35 * t           # patine brune de crypte
     a = np.clip(0.25 + v * 0.45, 0, 0.75)
     return np.concatenate([rgb, a[:, None]], 1)
 
@@ -114,21 +117,41 @@ def tete_rigide(o):
 
 
 def finir(o, matiere, nom_mat, ident, tris_max, sol, taille=128, poids_src=None, lisse_poids=0):
-    """UV, cuisson, matériau, contrôle du budget, poids, export porté + sol."""
+    """Contrôle du budget ; la pièce attend la fin de sa famille (atlas commun) : finir_famille()."""
     L.lisser_normales(o)
     nb = L.nb_tris(o)
     print("PIECE %s : %d triangles (max %d)" % (ident, nb, tris_max))
     assert nb <= tris_max, ident
-    L.uv_auto(o)
-    img = L.cuire(o, matiere, taille, ident)
-    o.data.materials.clear()
-    o.data.materials.append(L.materiau(nom_mat, img))
-    if APERCU:
-        PIECES.append(o)
-    L.exporter(o, ARM, ident, sol)
+    FAM.append({"o": o, "matiere": matiere, "nom_mat": nom_mat, "ident": ident, "sol": sol})
 
 
 PIECES = []
+FAM = []
+## ATLAS PEINT PAR FAMILLE (convention : « texture <= 128² par pièce ou atlas par famille ») : une image 256² partagée par les 4 pièces,
+## dans l'ordre torse, tête, mains, pieds (rectangles en texels, origine en bas à gauche) : le torse a 2,5 fois plus de texels qu'avant.
+ATLAS = 256
+ZONES = [(0, 0, 256, 144), (0, 144, 96, 112), (96, 144, 72, 112), (168, 144, 88, 112)]
+
+
+def finir_famille(nom):
+    atlas = np.zeros((ATLAS, ATLAS, 4))
+    atlas[:, :, 3] = 1.0
+    for piece, (x, y, w, h) in zip(FAM, ZONES):
+        o = piece["o"]
+        L.uv_auto(o, 3.0 / min(w, h))
+        rgba = L.cuire(o, piece["matiere"], (w, h), piece["ident"], tableau=True)
+        atlas[y:y + h, x:x + w] = rgba
+        for uv in o.data.uv_layers.active.data:
+            uv.uv = ((x + uv.uv[0] * w) / ATLAS, (y + uv.uv[1] * h) / ATLAS)
+    img = L.image_atlas("atlas_" + nom, atlas)
+    for piece in FAM:
+        o = piece["o"]
+        o.data.materials.clear()
+        o.data.materials.append(L.materiau(piece["nom_mat"], img))
+        if APERCU:
+            PIECES.append(o)
+        L.exporter(o, ARM, piece["ident"], piece["sol"])
+    FAM.clear()
 
 
 # ---------------------------------------------------------------------------------------------------------- coques
@@ -232,6 +255,29 @@ def orienter(bm, faces, c0, c1):
     bm.normal_update()
 
 
+def franges(bm, longueur, filtre=None, graine=0, bas=0.5, demi=True):
+    """Mèches de fourrure le long des bords libres : deux languettes triangulaires par arête (recto et verso), longueurs et
+    directions irrégulières (silhouette effrangée au lieu d'un tube lisse). Direction : normale de la tranche voisine + vers le bas."""
+    part = L.couche_partie(bm)
+    bm.normal_update()
+    bords = [e for e in bm.edges if e.is_boundary and (filtre is None or filtre(e))]
+    for i, e in enumerate(bords):
+        f0 = e.link_faces[0]
+        pa = f0[part]
+        a, b = e.verts[0].co.copy(), e.verts[1].co.copy()
+        m = (a + b) / 2
+        for k, (p, q) in enumerate(((a, m), (m, b)) if demi else ((a, b),)):
+            h = L._h3(i, k, graine, 5)
+            h2 = L._h3(i, k, graine, 9) - 0.5
+            d = (f0.normal + B(0, -1, 0) * bas + (q - p).normalized() * h2 * 0.6).normalized()
+            pt = (p + q) / 2 + d * longueur * (0.5 + 0.9 * h)
+            for sens in (0, 1):
+                v1, v2, vt = bm.verts.new(p), bm.verts.new(q), bm.verts.new(pt)
+                f = bm.faces.new((v1, v2, vt) if sens == 0 else (v2, v1, vt))
+                f[part] = pa
+    bm.normal_update()
+
+
 def en_objet(bm, nom):
     bm.normal_update()
     o = L.bm_vers_objet(bm, nom)
@@ -259,14 +305,15 @@ def torse_base(nom, tris, jeu=0.012):
     bvh = L.bvh_de(["tunique", "SuperHero_Male"])
     j0 = (lambda p: jeu) if not callable(jeu) else jeu
     # bout de manche évasé (la manche de la cotte qui continue dessous ne ressort pas quand le bras plie)
-    L.ajuster(o, bvh, lambda p: j0(p) + max(0.0, abs(p.x) - 0.34) * 0.35, lissage=3)
+    # + jeu à la nuque (trapèzes : la peau du cou remontait au travers quand les bras se lèvent)
+    L.ajuster(o, bvh, lambda p: j0(p) + max(0.0, abs(p.x) - 0.34) * 0.35 + (0.010 if p.y > 1.44 and p.z < -0.04 and abs(p.x) < 0.17 else 0.0), lissage=3)
     L.decimer(o, tris)
     # jupe : fentes devant et derrière (chaque pan suit sa cuisse) et poids du PANTALON dessous (le pan bouge comme la jambe qu'il
     # couvre : pas de traversée quand la cuisse se lève), fondus vers ceux de la cotte au-dessus des hanches
     bm = bmesh.new()
     bm.from_mesh(o.data)
     def _fente(c):
-        return (abs(c.x) < 0.028 and c.y < 0.86) or (c.y > 1.46 and c.z > 0.03 and abs(c.x) < 0.12 - (1.58 - c.y) * 0.4)
+        return (c.y > 1.46 and c.z > 0.03 and abs(c.x) < 0.12 - (1.58 - c.y) * 0.4)
     fentes = [f for f in bm.faces if _fente(G(f.calc_center_median()))]    # fentes de la jupe, encolure en V (la barbe)
     bmesh.ops.delete(bm, geom=fentes, context='FACES')
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
@@ -288,7 +335,27 @@ def torse_base(nom, tris, jeu=0.012):
             d[k] = d.get(k, 0.0) + w * t
         res.append(d)
     L.ecrire_poids(o, L.normaliser(res))
+    # pan arrière qui tombe DROIT depuis le point le plus saillant du fessier (la coque moulait les fesses : « bosse »)
+    me = o.data
+    zp = {}
+    for v in me.vertices:
+        g = G(v.co)
+        if g.z < -0.02 and 0.70 < g.y < 1.0:
+            k = round(g.x / 0.03)
+            zp[k] = min(zp.get(k, 0.0), g.z)
+    for v in me.vertices:
+        g = G(v.co)
+        k = round(g.x / 0.03)
+        if g.z < -0.02 and g.y < 1.02 and k in zp:
+            t = min(1.0, max(0.0, (1.02 - g.y) / 0.12))
+            g.z = g.z + (min(g.z, zp[k] - 0.004) - g.z) * t
+            v.co = B(g)
+    lisser(o, 2, 0.4, garder=lambda p: p.z < -0.02 and 0.62 < p.y < 1.05)
     return o
+
+
+def lisser(o, it, f, garder=None):
+    L.lisser(o, it, f, garder)
 
 
 def ceinture(nom, y0=0.935, y1=0.995, ep=0.012, n=18):
@@ -344,7 +411,7 @@ def col_montant(nom, h0=1.495, h1=1.565, ep=0.010, n=14, jeu=0.016, ouvert=1.05)
     return o
 
 
-def manchette(nom, src_poids, x0, x1, jeu0, jeu1, ep, n=12, partie=1, cote="l", evase=0.0):
+def manchette(nom, src_poids, x0, x1, jeu0, jeu1, ep, n=12, partie=1, cote="l", evase=0.0, frange=0.0):
     """Revers / manchette autour de l'avant-bras, de |x| = x0 à x1."""
     bm = bmesh.new()
     s = 1 if cote == "l" else -1
@@ -361,6 +428,8 @@ def manchette(nom, src_poids, x0, x1, jeu0, jeu1, ep, n=12, partie=1, cote="l", 
     f0 = L.rayon_sur(cible, c0, axe, ref, jeu0 + evase)
     f1 = L.rayon_sur(cible, c1, axe, ref, jeu1)
     bande(bm, [(c0, axe, ref), (c1, axe, ref)], [f0, f1], ep, n, partie)
+    if frange > 0:
+        franges(bm, frange, graine=3 + s, bas=0.0)
     o = en_objet(bm, nom)
     poids_de(o, src_poids, lambda p: abs(p.x) > 0.45 and (p.x > 0) == (s > 0))
     return o
@@ -382,7 +451,7 @@ def bottes_base(nom, tris, jeu=0.005):
     return o
 
 
-def revers_botte(nom, cote, y0, y1, jeu0, jeu1, ep, n=12, partie=1, evase=0.0):
+def revers_botte(nom, cote, y0, y1, jeu0, jeu1, ep, n=12, partie=1, evase=0.0, frange=0.0):
     bm = bmesh.new()
     s = 1 if cote == "l" else -1
     k = os_g("calf_" + cote)
@@ -398,6 +467,8 @@ def revers_botte(nom, cote, y0, y1, jeu0, jeu1, ep, n=12, partie=1, evase=0.0):
     f1 = L.rayon_sur(cible, c0, axe, ref, jeu1 + evase)
     f0 = L.rayon_sur(cible, c1, axe, ref, jeu0)
     bande(bm, [(c0, axe, ref), (c1, axe, ref)], [f1, f0], ep, n, partie)
+    if frange > 0:
+        franges(bm, frange, graine=7 + s, bas=0.2)
     o = en_objet(bm, nom)
     poids_de(o, "bottes", lambda p: (p.x > 0) == (s > 0))
     return o
@@ -540,8 +611,8 @@ def cuir():
 
     # --- gants_cuir : gants de travail, jointures renforcées, manchette lacée
     g = gants_base("gants_cuir", 560)
-    m_l = manchette("m_l", "brassards", 0.552, 0.665, 0.010, 0.006, 0.006, 12, 1, "l", 0.012)
-    m_r = manchette("m_r", "brassards", 0.552, 0.665, 0.010, 0.006, 0.006, 12, 1, "r", 0.012)
+    m_l = manchette("m_l", "brassards", 0.552, 0.665, 0.008, 0.005, 0.004, 12, 1, "l", 0.004)
+    m_r = manchette("m_r", "brassards", 0.552, 0.665, 0.008, 0.005, 0.004, 12, 1, "r", 0.004)
     o = fusion([g, m_l, m_r], "gants_cuir")
 
     def mat_g(P, N, pa, bd):
@@ -561,7 +632,7 @@ def cuir():
     b = bottes_base("bottes_cuir", 480)
     parts = [b]
     for cote in ("l", "r"):
-        parts.append(revers_botte("rv_" + cote, cote, 0.355, 0.43, 0.008, 0.010, 0.007, 12, 1, evase=0.008))
+        parts.append(revers_botte("rv_" + cote, cote, 0.36, 0.43, 0.007, 0.008, 0.004, 12, 1, evase=0.003))
         parts.append(revers_botte("s1_" + cote, cote, 0.20, 0.235, 0.004, 0.004, 0.006, 10, 2))
     o = fusion(parts, "bottes_cuir")
 
@@ -635,7 +706,8 @@ def mantelet_coque(base, nom, partie=4, y_bas=1.27, decal=0.026):
             o.vertex_groups.new(name=vg.name)
     bm = bmesh.new()
     bm.from_mesh(me)
-    suppr = [f for f in bm.faces if G(f.calc_center_median()).y < y_bas or abs(G(f.calc_center_median()).x) > 0.31]
+    suppr = [f for f in bm.faces if G(f.calc_center_median()).y < y_bas or abs(G(f.calc_center_median()).x) > 0.31
+             or G(f.calc_center_median()).y > 1.52]     # le col reste au cuir : la fourrure ne frotte pas le cou
     bmesh.ops.delete(bm, geom=suppr, context='FACES')
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
     bm.normal_update()
@@ -644,11 +716,21 @@ def mantelet_coque(base, nom, partie=4, y_bas=1.27, decal=0.026):
         f[part] = partie
     for v in bm.verts:
         v.co = v.co + v.normal * decal * (0.6 + 0.4 * min(1.0, max(0.0, (1.55 - G(v.co).y) / 0.2)))
+    # mantelet allégé (la coque dessous reste dense pour suivre l'épaule) : décimé avant le bord et les mèches
+    bm.to_mesh(me)
+    bm.free()
+    L.decimer(o, 80)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.normal_update()
     bords = [v for v in bm.verts if v.is_boundary and G(v.co).y < y_bas + 0.06 and abs(G(v.co).x) < 0.24]
-    for i, v in enumerate(bords):
-        k = L._h3(i, 7, 3, 1)
-        v.co = v.co + B(0, -0.035 * k - 0.01, 0)
-    epaissir_bords(bm, 0.012)
+    for v in bords:
+        g = G(v.co)
+        a = math.atan2(g.x, g.z)
+        k = 0.5 + 0.3 * math.sin(a * 5.0 + 1.3) + 0.2 * math.sin(a * 11.0 + 0.4)    # bord ondulé organique, pas de dents de scie
+        v.co = v.co + B(0, -0.010 - 0.022 * k, 0)
+    epaissir_bords(bm, 0.010)
+    franges(bm, 0.032, filtre=lambda e: max(G(e.verts[0].co).y, G(e.verts[1].co).y) < y_bas + 0.08 and abs(G(e.verts[0].co).x) < 0.27, graine=11, demi=False)
     bm.to_mesh(me)
     bm.free()
     # poids : ceux du sommet de la coque le plus proche (les sommets des tranches n'en ont pas)
@@ -658,9 +740,10 @@ def mantelet_coque(base, nom, partie=4, y_bas=1.27, decal=0.026):
 
 def fourrure():
     # --- armure_fourrure : peau de loup lacée sur cuir, mantelet de fourrure, ceinture, bas fourré
-    base = torse_base("armure_fourrure", 350, jeu=lambda p: 0.014)
+    base = torse_base("armure_fourrure", 410, jeu=lambda p: 0.014)
     man = mantelet_coque(base, "man")
-    bel = ceinture("ceint", 0.94, 1.0, 0.012, 16)
+    bel = ceinture("ceint", 0.94, 1.0, 0.012, 10)
+    print("  fourrure : coque %d, mantelet %d, ceinture %d" % (L.nb_tris(base), L.nb_tris(man), L.nb_tris(bel)))
     o = fusion([base, man, bel], "armure_fourrure")
 
     def mat(P, N, pa, bd):
@@ -739,7 +822,7 @@ def fourrure():
     g = gants_base("gants_fourrure", 520, 0.005)
     parts = [g]
     for cote in ("l", "r"):
-        parts.append(manchette("mf_" + cote, "brassards", 0.548, 0.668, 0.016, 0.010, 0.020, 12, 4, cote, 0.02))
+        parts.append(manchette("mf_" + cote, "brassards", 0.552, 0.665, 0.010, 0.007, 0.007, 10, 4, cote, 0.005, 0.022))
     o = fusion(parts, "gants_fourrure")
 
     def mat_g(P, N, pa, bd):
@@ -750,10 +833,10 @@ def fourrure():
     finir(o, mat_g, "fourrure", "gants_fourrure", 900, sol_paire_mains)
 
     # --- bottes_fourrure : bottes enveloppées de fourrure, lanières croisées
-    b = bottes_base("bottes_fourrure", 470, 0.008)
+    b = bottes_base("bottes_fourrure", 400, 0.008)
     parts = [b]
     for cote in ("l", "r"):
-        parts.append(revers_botte("rf_" + cote, cote, 0.30, 0.445, 0.014, 0.016, 0.018, 12, 4, evase=0.014))
+        parts.append(revers_botte("rf_" + cote, cote, 0.33, 0.44, 0.010, 0.012, 0.008, 10, 4, evase=0.005, frange=0.03))
         parts.append(revers_botte("l1_" + cote, cote, 0.13, 0.155, 0.006, 0.006, 0.005, 10, 2))
     o = fusion(parts, "bottes_fourrure")
 
@@ -883,7 +966,7 @@ def os_draugr():
     parts = [g]
     for cote in ("l", "r"):
         s = 1 if cote == "l" else -1
-        parts.append(manchette("mc_" + cote, "brassards", 0.552, 0.66, 0.008, 0.006, 0.006, 10, 1, cote, 0.008))
+        parts.append(manchette("mc_" + cote, "brassards", 0.552, 0.66, 0.007, 0.005, 0.004, 10, 1, cote, 0.004))
         # canon d'os (demi-tube sur le dessus de l'avant-bras)
         bm = bmesh.new()
         a = os_g("lowerarm_" + cote)
@@ -916,7 +999,7 @@ def os_draugr():
     parts = [b]
     for cote in ("l", "r"):
         s = 1 if cote == "l" else -1
-        parts.append(revers_botte("ro_" + cote, cote, 0.36, 0.42, 0.008, 0.008, 0.006, 10, 1))
+        parts.append(revers_botte("ro_" + cote, cote, 0.36, 0.42, 0.007, 0.007, 0.004, 10, 1))
         bm = bmesh.new()
         k = os_g("calf_" + cote)
         f = os_g("foot_" + cote)
@@ -944,10 +1027,13 @@ def os_draugr():
 # ============================================================================================================
 if FAMILLE in ("cuir", "tout"):
     cuir()
+    finir_famille("cuir")
 if FAMILLE in ("fourrure", "tout"):
     fourrure()
+    finir_famille("fourrure")
 if FAMILLE in ("os", "tout"):
     os_draugr()
+    finir_famille("os")
 if APERCU:
     os.makedirs(APERCU, exist_ok=True)
     corps = [bpy.data.objects[n] for n in ("SuperHero_Male",) if n in bpy.data.objects]

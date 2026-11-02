@@ -3,7 +3,7 @@ extends SceneTree
 ##   godot --headless --fixed-fps 60 --path . --script res://outils/test_armure_visible.gd -- --nouvelle [--detail] [--id=<id>]
 ## A. Héros seul (HerosSkarnholt + ArmureVisible), pour CHAQUE pièce d'armures.json dont le glb porté existe :
 ##   - posée sur le squelette du corps, skin résolu par nom d'os (aucun os manquant), pose de liaison = pose de repos du héros (< 1 mm) ;
-##   - budget : <= 900 triangles (casque / capuche <= 600), texture <= 128², matériau « matière » ;
+##   - budget : <= 900 triangles (casque / capuche <= 600), texture <= 256² (atlas peint par famille, 4 pièces), matériau « matière » ;
 ##   - masquage : plus aucun triangle de la tenue dans la zone recouverte (cotte |x| < 0,42, gants au-delà de |x| 0,58, bottes,
 ##     casque / cheveux) ; ôter la pièce rend les maillages d'origine ;
 ##   - AUCUNE TRAVERSÉE pendant les animations jouées (locomotion, coups 3e personne, sorts 3e personne ; 8 instants par clip) :
@@ -164,10 +164,10 @@ func _verifier_piece(id: String, e: String) -> void:
 	ok(tris <= tmax, "%s : %d triangles (<= %d)" % [id, tris, tmax])
 	var mat := mi.get_surface_override_material(0) as ShaderMaterial
 	var tex: Texture2D = mat.get_shader_parameter("tex_base") if mat else null
-	ok(mat != null and mat.shader == EpeesLongues.shader_matiere(false) and tex != null and tex.get_width() <= 128 and tex.get_height() <= 128,
+	ok(mat != null and mat.shader == EpeesLongues.shader_matiere(false) and tex != null and tex.get_width() <= 256 and tex.get_height() <= 256,
 		"%s : matériau « matière » (%s), texture %s" % [id, mat.resource_name if mat else "?", str(tex.get_size()) if tex else "absente"])
 	# masquage
-	var reste := _triangles_recouverts(sq, av.zones())
+	var reste := _triangles_recouverts(sq, av.zones(), av.limites())
 	ok(reste == 0, "%s : plus aucun triangle de la tenue dans la zone « %s » (%d restants)" % [id, e, reste])
 	if e == "tete":
 		var ch := sq.get_node_or_null("Hair_Long") as MeshInstance3D
@@ -193,12 +193,14 @@ func _verifier_piece(id: String, e: String) -> void:
 	h.free()
 
 ## Triangles visibles de la tenue du héros encore situés dans une zone recouverte (repos).
-func _triangles_recouverts(sq: Skeleton3D, z: Array) -> int:
+func _triangles_recouverts(sq: Skeleton3D, z: Array, lim := {}) -> int:
 	var n := 0
 	for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", false, false):
 		if not mi.visible or mi.has_meta("armure_id"):
 			continue
 		var nom := String(mi.name)
+		if nom in ["pantalon", "tunique"] and lim.has("ourlet"):
+			continue     # coupés à l'ourlet réel : vérifiés par _trous / traversées
 		for s in mi.mesh.get_surface_count():
 			var a := mi.mesh.surface_get_arrays(s)
 			var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
@@ -210,7 +212,10 @@ func _triangles_recouverts(sq: Skeleton3D, z: Array) -> int:
 					continue
 				var c := (v[idx[t]] + v[idx[t + 1]] + v[idx[t + 2]]) / 3.0
 				var u := (uv[idx[t]] + uv[idx[t + 1]] + uv[idx[t + 2]]) / 3.0 * atlas if not uv.is_empty() else Vector2.ZERO
-				if ArmureVisible.recouvert(nom, s, c, u, z, maxf(v[idx[t]].y, maxf(v[idx[t + 1]].y, v[idx[t + 2]].y)), minf(absf(v[idx[t]].x), minf(absf(v[idx[t + 1]].x), absf(v[idx[t + 2]].x)))):
+				var ys := [v[idx[t]].y, v[idx[t + 1]].y, v[idx[t + 2]].y]
+				if nom == "accessoires" and c.y < 1.2 and lim.has("ourlets"):
+					continue     # pans coupés à l'ourlet réel (sous-triangles de découpe)
+				if ArmureVisible.recouvert(nom, s, c, u, z, ys.max(), minf(absf(v[idx[t]].x), minf(absf(v[idx[t + 1]].x), absf(v[idx[t + 2]].x))), ys.min(), lim):
 					n += 1
 					if detail:
 						print("    reste %s/%d %s" % [nom, s, c.snapped(Vector3.ONE * 0.01)])
@@ -338,6 +343,125 @@ func _traversees(famille: String, liste: Array) -> void:
 	ok(pire <= TOL, "%s : aucune traversée de la tenue à travers les pièces > %.0f mm (%d clips x 8 instants, %d points ; pire %.1f mm %s)" % [famille, TOL * 1000.0, nb_clips, dedans.size(), pire * 1000.0, ou])
 	h.free()
 
+# ------------------------------------------------------------------------------------------------------ A2. pas de trou
+## Combinaisons torse seul / pieds seuls / torse + pieds de chaque famille : tout triangle MASQUÉ du pantalon, de la cotte et des
+## bottes du héros doit être réellement COUVERT par une pièce portée au repos (le rayon de l'os vers le centre du triangle, prolongé
+## de 15 cm vers l'extérieur, rencontre une pièce) : sinon on verrait le fond à travers la jambe (« jambes qui disparaissent »).
+func _trous(famille: String, liste: Array) -> void:
+	var par_e := {}
+	for id: String in liste:
+		par_e[Inventaire.emplacement_de(id)] = id
+	var combos := []
+	if par_e.has("torse"):
+		combos.append([par_e["torse"]])
+	if par_e.has("pieds"):
+		combos.append([par_e["pieds"]])
+	if par_e.has("torse") and par_e.has("pieds"):
+		combos.append([par_e["torse"], par_e["pieds"]])
+	for combo in combos:
+		var eq := _eq_avec(combo)
+		var r := _heros(eq)
+		var h: Node3D = r[0]
+		var sq: Skeleton3D = r[1]
+		var av: ArmureVisible = r[3]
+		sq.reset_bone_poses()
+		var tris_p := []
+		for e in ArmureVisible.EMPLACEMENTS:
+			var mi := av.maillage(e)
+			if mi != null:
+				var a := mi.mesh.surface_get_arrays(0)
+				tris_p.append([poses(sq, mi, a, tous((a[Mesh.ARRAY_VERTEX] as PackedVector3Array).size())), a[Mesh.ARRAY_INDEX]])
+		var masques := 0
+		var vides := 0
+		var ou := ""
+		for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", false, false):
+			var nom := String(mi.name)
+			if not nom in ["pantalon", "tunique", "bottes"] or not av._originaux.has(mi):
+				continue
+			if nom in ["pantalon", "tunique"]:     # coupés (pas masqués par triangles) : contrôle par bandes ci-dessous
+				if nom == "pantalon":
+					vides += _trous_pantalon(sq, mi, av, tris_p)
+				continue
+				continue
+			var orig: Mesh = av._originaux[mi]
+			var ao := orig.surface_get_arrays(0)
+			var v: PackedVector3Array = ao[Mesh.ARRAY_VERTEX]
+			var io: PackedInt32Array = ao[Mesh.ARRAY_INDEX] if ao[Mesh.ARRAY_INDEX] != null else tous(v.size())
+			var gardes := {}
+			var af := mi.mesh.surface_get_arrays(0)
+			var ifl: PackedInt32Array = af[Mesh.ARRAY_INDEX]
+			for t in range(0, ifl.size() - 2, 3):
+				gardes[Vector3i(ifl[t], ifl[t + 1], ifl[t + 2])] = true
+			var dom := os_dominant(sq, mi, ao, tous(v.size()))
+			for t in range(0, io.size() - 2, 3):
+				if gardes.has(Vector3i(io[t], io[t + 1], io[t + 2])):
+					continue
+				if absf(((v[io[t]] + v[io[t + 1]] + v[io[t + 2]]) / 3.0).x) > ArmureVisible.MAINS_X:
+					continue     # mains : hors sujet ici
+				var c := (v[io[t]] + v[io[t + 1]] + v[io[t + 2]]) / 3.0
+				if c.y > 1.10 or c.y < 0.10 or absf(c.x) < 0.06:
+					continue     # jambes et hanches seulement (le haut du corps reste sous la pièce, les semelles sous les bottes)
+				masques += 1
+				var seg := segment_os(sq, dom[io[t]])
+				var axe: Vector3 = (seg[0] as Vector3).lerp(seg[1], proche_segment(seg[0], seg[1], c))
+				var fin := c + (c - axe).normalized() * 0.15
+				var couvert := false
+				for tp: Array in tris_p:
+					var pa: PackedVector3Array = tp[0]
+					var ix: PackedInt32Array = tp[1]
+					for i in range(0, ix.size(), 3):
+						if Geometry3D.segment_intersects_triangle(axe, fin, pa[ix[i]], pa[ix[i + 1]], pa[ix[i + 2]]) != null:
+							couvert = true
+							break
+					if couvert:
+						break
+				if not couvert:
+					vides += 1
+					ou = "%s %s" % [nom, c.snapped(Vector3.ONE * 0.01)]
+		ok(vides == 0, "%s %s : aucune zone vide (%d triangles du pantalon / de la cotte / des bottes masqués, %d non couverts %s)" % [famille, combo, masques, vides, ou])
+		h.free()
+
+## Pantalon coupé : chaque bande horizontale de 2 cm de la jambe (repos) qui n'a plus de pantalon doit être couverte par une pièce
+## (échantillons autour de la jambe gauche et droite) ; renvoie le nombre d'échantillons vides.
+func _trous_pantalon(sq: Skeleton3D, mi: MeshInstance3D, av: ArmureVisible, tris_p: Array) -> int:
+	var a := mi.mesh.surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var ix: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+	var vides := 0
+	for cote: float in [1.0, -1.0]:
+		var y := 0.18
+		while y < 0.98:
+			var c := Vector3(0.10 * cote, y, 0.02)
+			# du pantalon reste-t-il à cette hauteur sur cette jambe ?
+			var reste := false
+			for t in range(0, ix.size() - 2, 3):
+				var y0 := minf(v[ix[t]].y, minf(v[ix[t + 1]].y, v[ix[t + 2]].y))
+				var y1 := maxf(v[ix[t]].y, maxf(v[ix[t + 1]].y, v[ix[t + 2]].y))
+				if y0 <= y and y1 >= y and signf(v[ix[t]].x) == cote and y1 > y0:
+					reste = true
+					break
+			if not reste:
+				var couvert := false
+				for d: Vector3 in [Vector3(0, 0, 1), Vector3(0, 0, -1), Vector3(cote, 0, 0)]:
+					var fin := c + d * 0.3
+					for tp: Array in tris_p:
+						var pa: PackedVector3Array = tp[0]
+						var ip: PackedInt32Array = tp[1]
+						for i in range(0, ip.size(), 3):
+							if Geometry3D.segment_intersects_triangle(c, fin, pa[ip[i]], pa[ip[i + 1]], pa[ip[i + 2]]) != null:
+								couvert = true
+								break
+						if couvert:
+							break
+					if not couvert:
+						break
+				if not couvert:
+					vides += 1
+					if detail:
+						print("    jambe vide y=%.2f cote=%d" % [y, cote])
+			y += 0.02
+	return vides
+
 # ------------------------------------------------------------------------------------------------------ B. en jeu
 func _en_jeu(ps: Array) -> void:
 	var sc: Node = load("res://scenes/test_combat.tscn").instantiate()
@@ -417,6 +541,7 @@ func _lancer() -> void:
 		familles[f].append(p[0])
 	for f in familles:
 		_traversees(f, familles[f])
+		_trous(f, familles[f])
 	await _en_jeu(ps)
 	print("TEST ARMURE VISIBLE : %s (ECHECS : %d)" % ["OK" if echecs == 0 else "ÉCHEC", echecs])
 	quit(echecs)

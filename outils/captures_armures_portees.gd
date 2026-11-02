@@ -32,7 +32,21 @@ func _attendre(sec: float) -> void:
 	for i in maxi(1, roundi(sec / DT)):
 		j.mana = j.mana_max
 		j.vigueur = j.vigueur_max
+		_soleil_de_face()
 		await process_frame
+
+## Éclairage de face : le soleil vient de derrière la caméra active (un peu au-dessus, un peu de côté).
+func _soleil_de_face() -> void:
+	var c := root.get_viewport().get_camera_3d()
+	if c == null or s.soleil == null:
+		return
+	var avant := -c.global_transform.basis.z
+	avant.y = 0.0
+	if avant.length() < 0.01:
+		return
+	avant = avant.normalized().rotated(Vector3.UP, deg_to_rad(-25.0))
+	var dir := (avant + Vector3(0, -0.85, 0)).normalized()
+	s.soleil.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP), s.soleil.global_position)
 
 func _equiper_famille(f: String) -> void:
 	for e in ["tete", "torse", "mains", "pieds"]:
@@ -46,6 +60,7 @@ func _equiper_famille(f: String) -> void:
 	print("FAMILLE ", f, " portées : ", j.corps.armure.zones())
 
 func _capture(nom: String, rect := Rect2i(), texte := "") -> void:
+	_soleil_de_face()
 	var k0 := root.get_viewport().get_visible_rect().size.y / 540.0
 	l.text = texte
 	l.position = Vector2(rect.position) * k0 + Vector2(4, 2)

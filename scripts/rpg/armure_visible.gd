@@ -25,6 +25,11 @@ const PIEDS_Y := 0.40
 const PIEDS_Y_ACC := 0.58	# pans fourrés du héros au-dessus du genou (bottes hautes de l'agent Y) ; surface 0 seulement (la pèlerine reste)
 const TETE_Y := 1.585
 const CAPE_Y := 1.50
+## Secteurs angulaires autour du bassin pour l'ourlet réel de la pièce de torse.
+const SECTEURS := 16
+## Masquages propres à une pièce (en plus de son emplacement) : la capuche du thaumaturge (agent Y) retombe en pèlerine sur le col de
+## fourrure et la mante du héros, qui la traversaient (46 mm) quand elle est portée seule.
+const MASQUES_PIECE := {"capuche_thaumaturge": ["cape"]}
 const CAMAIL_Y := 1.46
 const TORSE_PANTALON_Y := 0.71	# sommet le plus haut du triangle (gros triangles du pantalon)
 ## Mèches de la nuque (cheveux sous le casque du héros) qui tombent dans le col d'une pièce de torse.
@@ -213,13 +218,59 @@ func zones() -> Array:
 		if maillage(e) != null:
 			z.append(e)
 	var t := maillage("tete")
-	if t != null and t.get_aabb().position.y < CAPE_Y:
+	if t != null and (t.get_aabb().position.y < CAPE_Y or MASQUES_PIECE.get(porte("tete"), []).has("cape")):
 		z.append("cape")
 	return z
 
+## Limites RÉELLES des pièces portées (repos) : on ne masque que ce qu'elles recouvrent (pas de seuil global : une cuirasse courte
+## ou des bottes basses laissent voir le pantalon dessous).
+##   ourlets : bas de la pièce de torse PAR SECTEUR autour du bassin (16, fentes comblées), interpolé selon l'angle : la cotte, le
+##             pantalon et les pans du héros sont COUPÉS à cette hauteur + 2 cm (ni trou sous un ourlet qui remonte, ni étoffe qui
+##             dépasse sous un ourlet bas) ; « ourlet » = le plus haut ;
+##   bottes : haut des bottes, prudent = le plus BAS des points hauts par secteur autour de chaque jambe.
+func limites() -> Dictionary:
+	var lim := {}
+	var t := maillage("torse")
+	if t != null:
+		var mins := {}
+		for p: Vector3 in t.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+			# hors des fentes de jupe (milieu devant / derrière, comblées par les secteurs voisins)
+			if absf(p.x) < 0.26 and absf(p.x) > 0.045 and p.y < 1.1:
+				var k := int(floor((atan2(p.x, p.z) + PI) / TAU * SECTEURS)) % SECTEURS
+				mins[k] = minf(mins.get(k, INF), p.y)
+		if not mins.is_empty():
+			lim["ourlet"] = (mins.values() as Array).max()
+			var h := PackedFloat32Array()
+			h.resize(SECTEURS)
+			for k in SECTEURS:
+				if mins.has(k):
+					h[k] = mins[k]
+					continue
+				var d := 1
+				while not mins.has((k + d) % SECTEURS) and not mins.has((k - d + SECTEURS) % SECTEURS) and d < SECTEURS:
+					d += 1
+				h[k] = maxf(mins.get((k + d) % SECTEURS, -INF), mins.get((k - d + SECTEURS) % SECTEURS, -INF))
+			lim["ourlets"] = h
+	var b := maillage("pieds")
+	if b != null:
+		var maxs := {}
+		for p: Vector3 in b.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+			if p.y > 0.7:
+				continue
+			var cx := 0.114 * signf(p.x)
+			var k := int(floor((atan2(p.x - cx, p.z - 0.03) + PI) / TAU * 8.0)) + (100 if p.x > 0 else 0)
+			maxs[k] = maxf(maxs.get(k, -INF), p.y)
+		var h := INF
+		for k in maxs:
+			h = minf(h, maxs[k])
+		if h < INF:
+			lim["bottes"] = h
+	return lim
+
 func _masquer() -> void:
 	var z := zones()
-	var cle_z := ",".join(z)
+	var lim := limites()
+	var cle_z := ",".join(z) + "|" + str(lim)
 	for mi: MeshInstance3D in squelette.find_children("*", "MeshInstance3D", false, false):
 		if mi.has_meta("armure_id"):
 			continue
@@ -238,8 +289,18 @@ func _masquer() -> void:
 			continue
 		var cle := "%d|%s" % [orig.get_instance_id(), cle_z]
 		if not _filtres.has(cle):
-			_filtres[cle] = _filtrer(orig, nom, z)
+			_filtres[cle] = _filtrer(orig, nom, z, lim)
 		mi.mesh = _filtres[cle]
+
+## Hauteur de l'ourlet (pièce de torse) au-dessus du point p (interpolée entre secteurs).
+static func ourlet_en(lim: Dictionary, p: Vector3) -> float:
+	if not lim.has("ourlets"):
+		return float(lim.get("ourlet", TORSE_PANTALON_Y))
+	var h: PackedFloat32Array = lim["ourlets"]
+	var f := (atan2(p.x, p.z) + PI) / TAU * SECTEURS - 0.5
+	var k0 := int(floor(f))
+	var t := f - k0
+	return lerpf(h[posmod(k0, SECTEURS)], h[posmod(k0 + 1, SECTEURS)], t)
 
 static func _concerne(nom: String, z: Array) -> bool:
 	match nom:
@@ -261,19 +322,24 @@ static func _dans(r: Rect2i, u: Vector2) -> bool:
 	return u.x >= r.position.x and u.y >= r.position.y and u.x < r.end.x and u.y < r.end.y
 
 ## true si le triangle (centre c au repos, centre UV u en texels de l'atlas des accessoires) est recouvert.
-static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Array, haut := -INF, x_min := INF) -> bool:
+static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Array, haut := -INF, x_min := INF, bas := INF, lim := {}) -> bool:
 	if haut == -INF:
 		haut = c.y
 	if x_min == INF:
 		x_min = absf(c.x)
+	if bas == INF:
+		bas = c.y
+	var ourlet: float = lim.get("ourlet", TORSE_PANTALON_Y)
+	var h_bottes: float = lim.get("bottes", PIEDS_Y_ACC)
 	if z.has("mains") and absf(c.x) > MAINS_X and nom in ["tunique", "brassards", "peau", "accessoires"]:
 		return true
 	if z.has("pieds"):
-		if nom == "bottes":
+		# seulement les triangles ENTIÈREMENT sous le haut des bottes portées
+		if nom == "bottes" and haut < h_bottes + 0.06:
 			return true
-		if nom == "pantalon" and c.y < PIEDS_Y:
+		if nom == "pantalon" and haut < h_bottes - 0.015:
 			return true
-		if nom == "accessoires" and surface == 0 and c.y < PIEDS_Y_ACC:
+		if nom == "accessoires" and surface == 0 and haut < h_bottes - 0.005:
 			return true
 	var acc := nom == "accessoires" and surface == 0
 	var oeil := acc and _dans(GuerrierTextures.R_OEIL, u)
@@ -284,14 +350,16 @@ static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Arra
 	if z.has("cape"):
 		if nom == "mante":
 			return true
-		if acc and not oeil and not casque and c.y > 1.38 and c.y < TETE_Y and absf(c.x) < 0.30:
+		if acc and not oeil and not casque and c.y > 1.36 and c.y < TETE_Y and absf(c.x) < 0.34:
 			return true     # col de fourrure, fibules, haut des épaulières : sous la pèlerine de la capuche
+		if nom == "accessoires" and surface == 1 and c.z < 0.0:
+			return true     # pèlerine du héros (dos) : elle passait à travers la pèlerine de la capuche
 	if z.has("torse"):
 		if camail:
 			return true     # camail du casque de base : il tombe sur le col et traverserait le haut de la pièce de torse (nuque)
-		if nom == "pantalon" and haut > TORSE_PANTALON_Y:
-			return true     # haut du pantalon (hanches) : sous la pièce de torse, il passerait au travers quand la cuisse se lève
-		if nom == "tunique" and x_min < TORSE_X:     # sommet le plus proche du corps : les grands triangles de la manche
+		if nom == "pantalon" and bas > ourlet_en(lim, c) + 0.035:
+			return true     # pantalon ENTIÈREMENT sous la pièce de torse (hanches) : il passerait au travers quand la cuisse se lève
+		if nom == "tunique" and x_min < TORSE_X and bas > ourlet_en(lim, c) + 0.035:     # sous la pièce ; la jupe de mailles sous une cuirasse courte reste
 			return true
 		if nom == "mante":
 			return true
@@ -300,12 +368,12 @@ static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Arra
 		if nom == "accessoires":
 			if surface == 1:
 				return true
-			if not oeil and not casque and not camail and c.y > 0.55 and c.y < TETE_Y and absf(c.x) < 0.45:
+			if not oeil and not casque and not camail and bas > maxf(0.40, ourlet_en(lim, c) + 0.01) and c.y < TETE_Y and absf(c.x) < 0.45:
 				return true
 	return false
 
 ## Copie du maillage sans les triangles recouverts (mêmes surfaces, mêmes sommets : les matériaux surchargés restent valables).
-static func _filtrer(orig: Mesh, nom: String, z: Array) -> ArrayMesh:
+static func _filtrer(orig: Mesh, nom: String, z: Array, lim := {}) -> ArrayMesh:
 	var m := ArrayMesh.new()
 	for s in orig.get_surface_count():
 		var a := orig.surface_get_arrays(s)
@@ -318,21 +386,135 @@ static func _filtrer(orig: Mesh, nom: String, z: Array) -> ArrayMesh:
 				idx[i] = i
 		var atlas := Vector2(GuerrierTextures.ATLAS) if s == 0 else Vector2(GuerrierTextures.DECOUPES)
 		var garde := PackedInt32Array()
+		if nom == "pantalon" and (z.has("torse") or z.has("pieds")):
+			# pantalon : COUPÉ exactement aux bords des pièces (ses grands triangles traversaient l'ourlet ; les masquer entiers
+			# laissait voir le fond à travers la cuisse) : on garde la tranche entre le haut des bottes et le bas de la pièce de torse
+			var bas_g: float = lim.get("bottes", PIEDS_Y) - 0.02 if z.has("pieds") else -INF
+			var haut_g: float = (0.02 if lim.has("ourlets") else float(lim.get("ourlet", TORSE_PANTALON_Y)) + 0.03) if z.has("torse") else INF
+			a = _couper(a, idx, bas_g, haut_g, lim)
+			if (a[Mesh.ARRAY_INDEX] as PackedInt32Array).is_empty():
+				a[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 0, 0])
+			m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+			m.surface_set_material(s, orig.surface_get_material(s))
+			continue
+		var a_couper := PackedInt32Array()
+		var coupe_tunique := nom == "tunique" and z.has("torse")
+		var coupe_acc := nom == "accessoires" and s == 0 and z.has("torse") and lim.has("ourlets")
 		for t in range(0, idx.size() - 2, 3):
 			var c := (v[idx[t]] + v[idx[t + 1]] + v[idx[t + 2]]) / 3.0
+			if coupe_tunique and minf(absf(v[idx[t]].x), minf(absf(v[idx[t + 1]].x), absf(v[idx[t + 2]].x))) < TORSE_X and not (z.has("mains") and absf(c.x) > MAINS_X):
+				# cotte sous la pièce de torse : coupée à l'ourlet réel (la jupe de mailles reste sous une cuirasse courte)
+				a_couper.append_array([idx[t], idx[t + 1], idx[t + 2]])
+				continue
 			var u := Vector2.ZERO
 			if not uv.is_empty():
 				u = (uv[idx[t]] + uv[idx[t + 1]] + uv[idx[t + 2]]) / 3.0 * atlas
-			if not recouvert(nom, s, c, u, z, maxf(v[idx[t]].y, maxf(v[idx[t + 1]].y, v[idx[t + 2]].y)), minf(absf(v[idx[t]].x), minf(absf(v[idx[t + 1]].x), absf(v[idx[t + 2]].x)))):
+			if coupe_acc and absf(c.x) < 0.45 and c.y < 1.2 and c.y > 0.40 and not _dans(GuerrierTextures.R_OEIL, u) \
+					and minf(v[idx[t]].y, minf(v[idx[t + 1]].y, v[idx[t + 2]].y)) <= ourlet_en(lim, c) + 0.01 \
+					and not (z.has("pieds") and maxf(v[idx[t]].y, maxf(v[idx[t + 1]].y, v[idx[t + 2]].y)) < float(lim.get("bottes", -INF)) - 0.005):
+				a_couper.append_array([idx[t], idx[t + 1], idx[t + 2]])     # surcot, pans : coupés à l'ourlet réel
+				continue
+			var ys := [v[idx[t]].y, v[idx[t + 1]].y, v[idx[t + 2]].y]
+			if not recouvert(nom, s, c, u, z, ys.max(), minf(absf(v[idx[t]].x), minf(absf(v[idx[t + 1]].x), absf(v[idx[t + 2]].x))), ys.min(), lim):
 				garde.append(idx[t])
 				garde.append(idx[t + 1])
 				garde.append(idx[t + 2])
+		if not a_couper.is_empty():
+			a = _couper(a, a_couper, -INF, (0.01 if coupe_acc else 0.02) if lim.has("ourlets") else float(lim.get("ourlet", TORSE_PANTALON_Y)) + 0.02, lim)
+			var ic: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+			garde.append_array(ic)
 		if garde.is_empty():
 			garde = PackedInt32Array([0, 0, 0])     # surface gardée (index des matériaux surchargés), sans aire
 		a[Mesh.ARRAY_INDEX] = garde
 		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
 		m.surface_set_material(s, orig.surface_get_material(s))
 	return m
+
+## Découpe des triangles par les plans horizontaux y = bas et y = haut (on garde l'entre-deux) ; sommets créés interpolés (position,
+## normale, tangente, couleur, UV, poids d'os mêlés et renormalisés).
+static func _couper(a: Array, idx: PackedInt32Array, bas: float, haut: float, lim := {}) -> Array:
+	var v: PackedVector3Array = (a[Mesh.ARRAY_VERTEX] as PackedVector3Array).duplicate()
+	var n: PackedVector3Array = (a[Mesh.ARRAY_NORMAL] as PackedVector3Array).duplicate() if a[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
+	var tg: PackedFloat32Array = (a[Mesh.ARRAY_TANGENT] as PackedFloat32Array).duplicate() if a[Mesh.ARRAY_TANGENT] != null else PackedFloat32Array()
+	var col: PackedColorArray = (a[Mesh.ARRAY_COLOR] as PackedColorArray).duplicate() if a[Mesh.ARRAY_COLOR] != null else PackedColorArray()
+	var uv: PackedVector2Array = (a[Mesh.ARRAY_TEX_UV] as PackedVector2Array).duplicate() if a[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
+	var uv2: PackedVector2Array = (a[Mesh.ARRAY_TEX_UV2] as PackedVector2Array).duplicate() if a[Mesh.ARRAY_TEX_UV2] != null else PackedVector2Array()
+	var bo: PackedInt32Array = (a[Mesh.ARRAY_BONES] as PackedInt32Array).duplicate() if a[Mesh.ARRAY_BONES] != null else PackedInt32Array()
+	var we: PackedFloat32Array = (a[Mesh.ARRAY_WEIGHTS] as PackedFloat32Array).duplicate() if a[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
+	var nv0 := (a[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	var nb := bo.size() / maxi(nv0, 1)
+	var cache := {}
+	var mi_ := func(i: int, j: int, t: float) -> int:
+		var cle := Vector3(mini(i, j), maxi(i, j), snappedf(t if i < j else 1.0 - t, 0.0001))
+		if cache.has(cle):
+			return cache[cle]
+		v.append(v[i].lerp(v[j], t))
+		if not n.is_empty():
+			n.append(n[i].lerp(n[j], t).normalized())
+		if not tg.is_empty():
+			for k in 4:
+				tg.append(lerpf(tg[i * 4 + k], tg[j * 4 + k], t))
+		if not col.is_empty():
+			col.append(col[i].lerp(col[j], t))
+		if not uv.is_empty():
+			uv.append(uv[i].lerp(uv[j], t))
+		if not uv2.is_empty():
+			uv2.append(uv2[i].lerp(uv2[j], t))
+		if nb > 0:
+			var d := {}
+			for k in nb:
+				d[bo[i * nb + k]] = float(d.get(bo[i * nb + k], 0.0)) + we[i * nb + k] * (1.0 - t)
+				d[bo[j * nb + k]] = float(d.get(bo[j * nb + k], 0.0)) + we[j * nb + k] * t
+			var paires := []
+			for b in d:
+				paires.append([d[b], b])
+			paires.sort_custom(func(x: Array, y: Array) -> bool: return x[0] > y[0])
+			var somme := 0.0
+			for k in mini(nb, paires.size()):
+				somme += paires[k][0]
+			for k in nb:
+				bo.append(paires[k][1] if k < paires.size() else 0)
+				we.append(paires[k][0] / maxf(somme, 1e-6) if k < paires.size() else 0.0)
+		cache[cle] = v.size() - 1
+		return v.size() - 1
+	var sortie := PackedInt32Array()
+	for t in range(0, idx.size() - 2, 3):
+		var poly: Array = [idx[t], idx[t + 1], idx[t + 2]]
+		for plan in [[bas, 1.0], [haut, -1.0]]:     # garder y >= bas, puis y <= haut (haut : + ourlet réel par secteur si lim)
+			var h: float = plan[0]
+			if is_inf(h) or poly.is_empty():
+				continue
+			var sg: float = plan[1]
+			var parsecteur := sg < 0.0 and lim.has("ourlets")
+			var res := []
+			for k in poly.size():
+				var i: int = poly[k]
+				var j: int = poly[(k + 1) % poly.size()]
+				var hi_ := ourlet_en(lim, v[i]) + h if parsecteur else h
+				var hj_ := ourlet_en(lim, v[j]) + h if parsecteur else h
+				var di := (v[i].y - hi_) * sg
+				var dj := (v[j].y - hj_) * sg
+				if di >= 0.0:
+					res.append(i)
+				if (di >= 0.0) != (dj >= 0.0):
+					res.append(mi_.call(i, j, di / (di - dj)))
+			poly = res
+		for k in range(1, poly.size() - 1):
+			sortie.append(poly[0])
+			sortie.append(poly[k])
+			sortie.append(poly[k + 1])
+	var b := a.duplicate()
+	b[Mesh.ARRAY_VERTEX] = v
+	if not n.is_empty(): b[Mesh.ARRAY_NORMAL] = n
+	if not tg.is_empty(): b[Mesh.ARRAY_TANGENT] = tg
+	if not col.is_empty(): b[Mesh.ARRAY_COLOR] = col
+	if not uv.is_empty(): b[Mesh.ARRAY_TEX_UV] = uv
+	if not uv2.is_empty(): b[Mesh.ARRAY_TEX_UV2] = uv2
+	if nb > 0:
+		b[Mesh.ARRAY_BONES] = bo
+		b[Mesh.ARRAY_WEIGHTS] = we
+	b[Mesh.ARRAY_INDEX] = sortie
+	return b
 
 # ------------------------------------------------------------------------------------------------------------- 1re personne
 func _habiller_fps() -> void:

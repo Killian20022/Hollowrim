@@ -409,15 +409,48 @@ def distance_bords(o, rmax=0.08):
     return [min(kd.find(v.co)[2], rmax) for v in me.vertices]
 
 
-def cuire(o, matiere, taille=128, nom_img=None):
+def occlusion(o, rayons=14, portee=0.07):
+    """Occlusion ambiante par sommet (0 = creux fermé, 1 = à l'air) : rayons dans l'hémisphère de la normale contre la pièce
+    elle-même (sous la ceinture, sous les lames, entre les plaques, plis) : la salissure se dépose dans les creux."""
+    import random
+    me = o.data
+    me.update()
+    bvh = BVHTree.FromPolygons([v.co for v in me.vertices], [tuple(p.vertices) for p in me.polygons], epsilon=0.0)
+    rnd = random.Random(7)
+    dirs = []
+    while len(dirs) < rayons:
+        d = Vector((rnd.uniform(-1, 1), rnd.uniform(-1, 1), rnd.uniform(-1, 1)))
+        if 0.1 < d.length <= 1.0:
+            dirs.append(d.normalized())
+    res = []
+    for v in me.vertices:
+        n = v.normal
+        libres = 0
+        tot = 0
+        for d in dirs:
+            if d.dot(n) < 0:
+                d = -d
+            if d.dot(n) < 0.15:
+                continue
+            tot += 1
+            hit = bvh.ray_cast(v.co + n * 0.002, d, portee)
+            if hit[0] is None:
+                libres += 1
+        res.append(libres / max(tot, 1))
+    return res
+
+
+def cuire(o, matiere, taille=128, nom_img=None, tableau=False):
     """Rastérise chaque triangle dans ses UV et appelle matiere(P_godot (N,3), N_godot (N,3), partie (N,), bord (N,)) -> RGBA (N,4)
     (bord = distance au bord libre le plus proche, m). Débord de 3 texels autour des îles. Retourne l'image Blender (empaquetée)."""
     me = o.data
     me.calc_loop_triangles()
     dist = np.array(distance_bords(o))
+    ao_v = np.array(occlusion(o))
     uvl = me.uv_layers.active.data
     attr = me.attributes.get("partie")
-    W = H = taille
+    W, H = (taille, taille) if isinstance(taille, int) else taille
+    Ao = np.ones((H, W))
     P = np.zeros((H, W, 3))
     Nn = np.zeros((H, W, 3))
     Pa = np.zeros((H, W), dtype=np.int64)
@@ -429,6 +462,7 @@ def cuire(o, matiere, taille=128, nom_img=None):
         ns = np.array([G(me.vertices[v].normal)[:] for v in t.vertices]) if t.use_smooth else np.array([G(t.normal)[:]] * 3)
         pa = attr.data[t.polygon_index].value if attr is not None else 0
         bs = dist[list(t.vertices)]
+        aos = ao_v[list(t.vertices)]
         x0, y0 = np.floor(uv.min(0)).astype(int)
         x1, y1 = np.ceil(uv.max(0)).astype(int)
         x0, y0 = max(x0 - 1, 0), max(y0 - 1, 0)
@@ -453,6 +487,7 @@ def cuire(o, matiere, taille=128, nom_img=None):
         Nn[yy, xx] = L @ ns
         Pa[yy, xx] = pa
         Bd[yy, xx] = L @ bs
+        Ao[yy, xx] = L @ aos
         rempli[yy, xx] = True
     # débord : chaque texel vide prend la valeur d'un voisin rempli (3 passes)
     for _ in range(3):
@@ -464,6 +499,7 @@ def cuire(o, matiere, taille=128, nom_img=None):
             Nn[m] = np.roll(np.roll(Nn, dy, 0), dx, 1)[m]
             Pa[m] = np.roll(np.roll(Pa, dy, 0), dx, 1)[m]
             Bd[m] = np.roll(np.roll(Bd, dy, 0), dx, 1)[m]
+            Ao[m] = np.roll(np.roll(Ao, dy, 0), dx, 1)[m]
             rempli = rempli | m
             vide = ~rempli
     flat = rempli.reshape(-1)
@@ -495,11 +531,33 @@ def cuire(o, matiere, taille=128, nom_img=None):
     nn = Nn.reshape(-1, 3)
     nn = nn / np.maximum(np.linalg.norm(nn, axis=1, keepdims=True), 1e-6)
     rgba[flat] = matiere(P.reshape(-1, 3)[flat], nn[flat], Pa.reshape(-1)[flat], Bd.reshape(-1)[flat])
+    # salissure et ombre dans les creux (occlusion), brillance éteinte dans la crasse
+    ao = np.clip(Ao.reshape(-1)[flat], 0.0, 1.0)
+    k = 0.50 + 0.50 * ao ** 1.4
+    rgba[flat, :3] *= k[:, None]
+    rgba[flat, :3] = rgba[flat, :3] * (1 - 0.25 * (1 - ao))[:, None] + np.array([0.10, 0.08, 0.06]) * (0.25 * (1 - ao))[:, None]
+    rgba[flat, 3] *= 0.4 + 0.6 * ao
+    if tableau:
+        return rgba.reshape(H, W, 4)
     img = bpy.data.images.new(nom_img or (o.name + "_tex"), W, H, alpha=True)
     img.pixels = rgba.reshape(-1).tolist()   # ligne 0 = bas de l'image = v 0 : même convention que les UV Blender
     dossier = os.path.join(ROOT, "sources_blender", "armures", "textures")
     os.makedirs(dossier, exist_ok=True)
     img.filepath_raw = os.path.join(dossier, (nom_img or o.name) + ".png")
+    img.file_format = 'PNG'
+    img.save()
+    img.pack()
+    return img
+
+
+def image_atlas(nom, atlas):
+    """Image Blender empaquetée depuis un tableau (H, W, 4) (ligne 0 = bas), copie dans sources_blender/armures/textures/."""
+    H, W = atlas.shape[:2]
+    img = bpy.data.images.new(nom, W, H, alpha=True)
+    img.pixels = atlas.reshape(-1).tolist()
+    dossier = os.path.join(ROOT, "sources_blender", "armures", "textures")
+    os.makedirs(dossier, exist_ok=True)
+    img.filepath_raw = os.path.join(dossier, nom + ".png")
     img.file_format = 'PNG'
     img.save()
     img.pack()
