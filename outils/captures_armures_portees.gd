@@ -13,9 +13,16 @@ const PIECES := {
 	"acier": ["casque_acier_nordique", "cuirasse_acier_nordique", "gantelets_acier_nordique", "bottes_acier_nordique"],
 	"uniques": ["heaume_jarl", "cuirasse_gardiens", "gantelets_hrafn", "bottes_rodeur"],
 	"uniques2": ["capuche_thaumaturge", "brigandine_braise", "gants_cuir", "bottes_cuir"],
+	# armures HD (branche armures_hd/obsidienne_or ; fiches de sources_blender/armures/obsidienne_or/pieces.json tant que l'agent
+	# DONNÉES ne les a pas reportées dans armures.json)
+	"obsidienne": ["casque_obsidienne", "cuirasse_obsidienne", "gantelets_obsidienne", "bottes_obsidienne"],
+	"or": ["casque_or", "cuirasse_or", "gantelets_or", "bottes_or"],
+	"obsidienne_enchante": ["casque_obsidienne_enchante", "cuirasse_obsidienne_enchante", "gantelets_obsidienne_enchante", "bottes_obsidienne_enchante"],
+	"or_enchante": ["casque_or_enchante", "cuirasse_or_enchante", "gantelets_or_enchante", "bottes_or_enchante"],
 }
 const NOMS := {"sans_armure": "Heros sans armure (reference)", "cuir": "CUIR", "fourrure": "FOURRURE", "os": "OS DE DRAUGR",
-	"fer": "FER", "acier": "ACIER NORDIQUE", "uniques": "UNIQUES (Jarl, gardiens, Hrafn, rodeur)", "uniques2": "UNIQUES (thaumaturge, braise) + cuir"}
+	"fer": "FER", "acier": "ACIER NORDIQUE", "obsidienne": "OBSIDIENNE", "or": "OR", "obsidienne_enchante": "OBSIDIENNE RUNIQUE",
+	"or_enchante": "OR CONSACRE", "uniques": "UNIQUES (Jarl, gardiens, Hrafn, rodeur)", "uniques2": "UNIQUES (thaumaturge, braise) + cuir"}
 var s: Node
 var j: CharacterBody3D
 var mains: Node3D
@@ -87,7 +94,22 @@ func _placer_cam(deg: float, dist := 2.5, h := 1.0, hc := 1.15) -> void:
 	cam.global_position = p + dir * dist + Vector3(0, hc, 0)
 	cam.look_at(p + Vector3(0, h, 0), Vector3.UP)
 
+## Fiches des pièces HD pas encore dans armures.json (sources_blender/armures/<ensemble>/pieces.json), variantes comprises.
+func _fiches_hd() -> void:
+	var dossier := "res://sources_blender/armures/"
+	for sous in DirAccess.get_directories_at(dossier):
+		var chemin := dossier + sous + "/pieces.json"
+		if not FileAccess.file_exists(chemin):
+			continue
+		var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(chemin))
+		if d is Dictionary:
+			var o: Dictionary = d.get("objets", {})
+			for id: String in o:
+				if not Inventaire.OBJETS.has(id):
+					Inventaire.OBJETS[id] = o[id]
+
 func _go() -> void:
+	_fiches_hd()
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--sortie="):
 			sortie = a.substr(9)

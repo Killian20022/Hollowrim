@@ -16,6 +16,10 @@ extends SceneTree
 const TOL := 0.010
 const TRIS_MAX := 900
 const TRIS_TETE := 600
+## Budgets de la charte des armures HD (conception_rpg/CHARTE_ARMURES_HD.md, 2026-11-02) : torse 1 500-2 500, casque 800-1 400,
+## gants / bottes 600-1 200 ; textures 512² par pièce (ou atlas 1024²), lues avec mipmaps (ArmureVisible.shader_hd).
+const TRIS_HD := {"torse": 2500, "tete": 1400, "mains": 1200, "pieds": 1200}
+const TEX_MAX := 1024
 const CLIPS := ["Idle", "Walk", "Jog_Fwd", "Sprint", "Sword_Idle", "Sword_Attack", "Hit_Chest", "Jump", "Crouch_Fwd",
 	"coups/slash_1", "coups/slash_2", "coups/revers", "coups/estoc", "coups/vertical", "coups/q_Sword_Regular_Combo", "coups/gs_slash",
 	"coups/q_Sword_Block", "sorts/Sort_Lancer1M", "sorts/Sort_Jet2M", "sorts/Sort_Zone2M", "sorts/Spell_Simple_Shoot_D"]
@@ -38,7 +42,32 @@ static func pieces() -> Array:
 	for id: String in d["objets"]:
 		if ArmureVisible.a_modele(id):
 			res.append([id, String(d["objets"][id]["emplacement"])])
+	for id: String in fiches_hd():
+		if ArmureVisible.a_modele(id) and not d["objets"].has(id):
+			res.append([id, Inventaire.emplacement_de(id)])
 	return res
+
+## Pièces HD livrées par les agents armures avant leur report dans armures.json (sources_blender/armures/<ensemble>/pieces.json,
+## pour l'agent DONNÉES) : fiches injectées dans le registre le temps du test (rien n'est écrit). Variantes (« variante_de » : même
+## maillage, autre texture / matériau) non testées en famille.
+static func fiches_hd() -> Array:
+	var ids := []
+	var dossier := "res://sources_blender/armures/"
+	for sous in DirAccess.get_directories_at(dossier):
+		var chemin := dossier + sous + "/pieces.json"
+		if not FileAccess.file_exists(chemin):
+			continue
+		var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(chemin))
+		if not d is Dictionary:
+			continue
+		var o: Dictionary = d.get("objets", {})
+		for id: String in o:
+			if o[id].has("variante_de"):
+				continue
+			if not Inventaire.OBJETS.has(id):
+				Inventaire.OBJETS[id] = o[id]
+			ids.append(id)
+	return ids
 
 # ------------------------------------------------------------------------------------------------------ poses
 static func _os_bind(mi: MeshInstance3D, sq: Skeleton3D, b: int) -> int:
@@ -161,10 +190,19 @@ func _verifier_piece(id: String, e: String) -> void:
 	for s in mi.mesh.get_surface_count():
 		tris += mi.mesh.surface_get_array_index_len(s) / 3
 	var tmax := TRIS_TETE if e == "tete" else TRIS_MAX
+	var hd := false
+	for s in mi.mesh.get_surface_count():
+		var ms := mi.get_surface_override_material(s) as ShaderMaterial
+		var tx: Texture2D = ms.get_shader_parameter("tex_base") if ms else null
+		hd = hd or (tx != null and tx.get_width() > ArmureVisible.TEX_HD)
+	if hd:
+		tmax = int(TRIS_HD.get(e, TRIS_MAX))
 	ok(tris <= tmax, "%s : %d triangles (<= %d)" % [id, tris, tmax])
 	var mat := mi.get_surface_override_material(0) as ShaderMaterial
 	var tex: Texture2D = mat.get_shader_parameter("tex_base") if mat else null
-	ok(mat != null and mat.shader == EpeesLongues.shader_matiere(false) and tex != null and tex.get_width() <= 256 and tex.get_height() <= 256,
+	var tex_max := TEX_MAX if hd else 256
+	ok(mat != null and (mat.shader == EpeesLongues.shader_matiere(false) or (hd and mat.shader == ArmureVisible.shader_hd())) and tex != null
+		and tex.get_width() <= tex_max and tex.get_height() <= tex_max,
 		"%s : matériau « matière » (%s), texture %s" % [id, mat.resource_name if mat else "?", str(tex.get_size()) if tex else "absente"])
 	# masquage
 	var reste := _triangles_recouverts(sq, av.zones(), av.limites())
