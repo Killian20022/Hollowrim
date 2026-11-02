@@ -70,10 +70,11 @@ static func a_accessoire(oid: String) -> bool:
 	return oid.begins_with("potion_") or oid.begins_with("tome_") or oid in ["pain_seigle", "viande_sechee"]
 
 static func _arme(oid: String) -> DonneesArme:
-	if Inventaire.categorie_de(oid) != "arme" and not CatalogueArmes.connu(oid):
-		return null
 	if CatalogueArmes.connu(oid):
 		return CatalogueArmes.donnees(oid)
+	# arme du registre, ou objet de main hors registre (epee_metal, bouclier, torche : data/armes/<id>.tres ; icônes, aperçu 3D)
+	if Inventaire.categorie_de(oid) != "arme" and Inventaire.connu(oid):
+		return null
 	var c := "res://data/armes/%s.tres" % oid
 	if oid.is_valid_filename() and ResourceLoader.exists(c):
 		return load(c) as DonneesArme

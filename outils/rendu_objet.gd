@@ -12,6 +12,7 @@ extends SubViewport
 ##   r.lacet = 0.6 ; r.tangage = -0.6 ; r.cadrer()  # angle de vue (rad) : lacet autour de Y, tangage (négatif = vu de dessus)
 ##   r.tourner = 0.8                                # aperçu de menu : tour lent (rad / s) ; 0 = fixe
 ##   TextureRect.texture = r.get_texture()          # aperçu vivant
+##   r.exposer(1.5) ; r.orienter(Basis(Vector3.RIGHT, PI))   # plus de lumière ; retourner l'objet (face contre terre)
 ##   var img: Image = await r.image()               # une image (attend un dessin) : fond transparent (alpha)
 ##   await r.enregistrer("user://icone.png", 4)     # PNG agrandi ×4 au plus proche
 ##   await RenduObjet.png(arbre_ou_noeud, "amulette_ours", "res://captures/x.png", Vector2i(128, 128), 3)   # tout-en-un
@@ -28,6 +29,9 @@ var id := ""
 
 var _scene: Node3D
 var _objet: Node3D
+var _env: Environment
+var _cle: DirectionalLight3D
+var _contre: DirectionalLight3D
 var _cam: Camera3D
 var _centre := Vector3.ZERO
 var _rayon := 0.2
@@ -52,6 +56,7 @@ func _init() -> void:
 	env.ambient_light_color = Color(0.62, 0.66, 0.74)
 	env.ambient_light_energy = 0.55
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	_env = env
 	var we := WorldEnvironment.new()
 	we.environment = env
 	_scene.add_child(we)
@@ -60,11 +65,13 @@ func _init() -> void:
 	cle.light_energy = 1.35
 	cle.rotation = Vector3(deg_to_rad(-52), deg_to_rad(-38), 0)
 	_scene.add_child(cle)
+	_cle = cle
 	var contre := DirectionalLight3D.new()    # contre-jour froid : détache le bord
 	contre.light_color = Color(0.7, 0.8, 1.0)
 	contre.light_energy = 0.6
 	contre.rotation = Vector3(deg_to_rad(-20), deg_to_rad(150), 0)
 	_scene.add_child(contre)
+	_contre = contre
 	_cam = Camera3D.new()
 	_cam.current = true
 	_scene.add_child(_cam)
@@ -79,6 +86,23 @@ func montrer(oid: String) -> void:
 	var b := ObjetMonde.boite(_objet, _objet.transform)
 	_centre = b.get_center()
 	_rayon = maxf(b.size.length() * 0.5, 0.005)
+	cadrer()
+
+## Exposition du studio : multiplie la clé, le contre-jour et l'ambiance (1 = réglage d'origine). Les icônes (petites, posées sur
+## le vélin clair du menu) veulent plus de lumière que l'aperçu : outils/generer_icones.gd.
+func exposer(k: float, ambiance := -1.0) -> void:
+	_cle.light_energy = 1.35 * k
+	_contre.light_energy = 0.6 * k
+	_env.ambient_light_energy = 0.55 * (k if ambiance < 0.0 else ambiance)
+
+## Tourne l'OBJET (pas la caméra) puis recadre : ex. bouclier posé face contre terre -> Basis(Vector3.RIGHT, PI).
+func orienter(b: Basis) -> void:
+	if _objet == null:
+		return
+	_objet.transform = Transform3D(b, Vector3.ZERO) * _objet.transform
+	var bb := ObjetMonde.boite(_objet, _objet.transform)
+	_centre = bb.get_center()
+	_rayon = maxf(bb.size.length() * 0.5, 0.005)
 	cadrer()
 
 ## Recadre la caméra sur l'objet selon lacet / tangage / marge / champ.
