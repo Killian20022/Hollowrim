@@ -258,6 +258,9 @@ signalé (une fonction neuve, pas de signature changée).
 - `Marchand.de_quete` lit encore `valeur == 0` (équivalent au drapeau `quete` aujourd'hui) → lot E peut passer à
   `Inventaire.est_quete`.
 - Deux mécanismes « déjà ouvert » (`quetes.vus` / `ButinTables.pilles`) : inchangés.
+- **Lot B → lot C** : le panneau Tab actuel (`hud._panneau`) liste maintenant les 8 compétences (`Competences.NOMS`) ; à
+  22 px par ligne il n'y a plus la place pour les quêtes dessous : le remplacer par l'onglet Compétences (lot D) / MenuPersonnage.
+  L'annonce de niveau affiche « Une main » au lieu de « Épée » (test_hud_l7 adapté).
 - Commentaires qui citent encore `data/butin/objets.json` dans quelques scripts (dont `equipement_mains.gd`, non touché
   exprès) : le fichier est devenu `data/objets/consommables.json` (et les autres fichiers de `data/objets/`).
 
