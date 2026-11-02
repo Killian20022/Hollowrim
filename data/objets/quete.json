@@ -1,14 +1,14 @@
 {
 	"_doc": "Objets de quête : quete = true, valeur 0, invendables, impossibles à lâcher. Format commun : docs/RPG.md §2. Nouvel objet = nouvel identifiant, jamais de renommage (sinon Inventaire.ALIAS).",
 	"objets": {
-		"anneau_givre": {"nom": "Anneau de givre", "poids": 0.1, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true},
-		"amulette_eirik": {"nom": "Amulette d’Eirik", "poids": 0.2, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true},
-		"fragment_sceau_os": {"nom": "Fragment du sceau des Os", "poids": 0.6, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true},
-		"fragment_sceau_givre": {"nom": "Fragment du sceau du Givre", "poids": 0.6, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true},
-		"fragment_sceau_eau": {"nom": "Fragment du sceau de l’Eau", "poids": 0.6, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true},
-		"cle_archives": {"nom": "Clé des archives", "poids": 0.2, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true},
-		"registre_hrafn": {"nom": "Registre de Hrafn", "poids": 0.8, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true},
-		"journal_sigrun": {"nom": "Journal de Solveig", "poids": 0.3, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true},
-		"broche_sigrun": {"nom": "Broche de Solveig", "poids": 0.1, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true}
+		"anneau_givre": {"nom": "Anneau de givre", "poids": 0.1, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true, "modele": "res://assets/modeles/objets/anneau_givre.glb"},
+		"amulette_eirik": {"nom": "Amulette d’Eirik", "poids": 0.2, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true, "modele": "res://assets/modeles/objets/amulette_eirik.glb"},
+		"fragment_sceau_os": {"nom": "Fragment du sceau des Os", "poids": 0.6, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true, "modele": "res://assets/modeles/objets/fragment_sceau_os.glb"},
+		"fragment_sceau_givre": {"nom": "Fragment du sceau du Givre", "poids": 0.6, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true, "modele": "res://assets/modeles/objets/fragment_sceau_givre.glb"},
+		"fragment_sceau_eau": {"nom": "Fragment du sceau de l’Eau", "poids": 0.6, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true, "modele": "res://assets/modeles/objets/fragment_sceau_eau.glb"},
+		"cle_archives": {"nom": "Clé des archives", "poids": 0.2, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true, "modele": "res://assets/modeles/objets/cle_archives.glb"},
+		"registre_hrafn": {"nom": "Registre de Hrafn", "poids": 0.8, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true, "modele": "res://assets/modeles/objets/registre_hrafn.glb"},
+		"journal_sigrun": {"nom": "Journal de Solveig", "poids": 0.3, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true, "modele": "res://assets/modeles/objets/journal_sigrun.glb"},
+		"broche_sigrun": {"nom": "Broche de Solveig", "poids": 0.1, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true, "modele": "res://assets/modeles/objets/broche_sigrun.glb"}
 	}
 }

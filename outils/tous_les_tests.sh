@@ -109,6 +109,7 @@ TESTS=(
 	"test_objets_uniques|ecrire;verifier"   # lot L9 : objets uniques posés (hache de Kolbeinn sur le trône, épées sur râteliers / chevalet), prise sauvegardée, jamais deux fois, marchand, reflet de lame, « tout disponible » préparé
 	"test_potions|--nouvelle"   # potions à effet progressif (durée, délai par famille, HUD) et poids du sac limité (surcharge, butin, marchands, anciennes sauvegardes)
 	"test_lacher|--nouvelle"   # Lâcher dans l inventaire (L, Maj+L, boutons) : sac au sol sauvegardé, uniques et quête refusés
+	"test_objets_monde|--nouvelle"   # objets physiques dans le monde : bijoux 3D, arme couchée, repli sacoche, tas, objet lâché visible, étals de Brodd et Grima
 	"test_rpg_socle|--nouvelle"   # RPG lot 0 (docs/RPG.md) : registre data/objets/, catégories, Conteneur / Stockage, EquipementCorps, Progression, butin ajouté en fin de table
 	"test_rpg_objets|--nouvelle"   # RPG lot A : armures / bijoux (données, icônes), EquipementCorps, formule d armure, sac 150, hache de Kolbeinn tenue, butin, Brodd
 	"test_migration_v2|v1;v2"   # sauvegarde v2 : migration v1 -> v2 sur une copie d'une vraie sauvegarde (niveau recalculé, points à dépenser), relue par un 2e processus
