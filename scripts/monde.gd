@@ -943,7 +943,7 @@ func _tertre() -> void:
 	quetes.change.connect(func() -> void:
 		if quetes.etat.get("anneau_givre", 0) >= 6 and dragon == null and not dragon_vaincu:
 			_dragon())
-	hud.lieux.append([tertre.porte_dehors, Color("#6fd8ff")])
+	hud.lieux.append([tertre.porte_dehors, Color("#6fd8ff"), "lieu", "Tertre de Svanhild"])
 	hud.lieu_nomme(tertre.porte_dehors, 8.0, "Tertre de Svanhild")
 
 ## Entrée de la grotte des bandits (flanc est) : bouche de roche, passage fondu, grotte bâtie en fil d'exécution.
@@ -962,7 +962,7 @@ func _grotte_acces() -> void:
 		_sous_terre(dedans)
 		if dedans:
 			grotte_acces.grotte.ambiance(_env))
-	hud.lieux.append([grotte_acces.porte_dehors, Color("#ffb347")])
+	hud.lieux.append([grotte_acces.porte_dehors, Color("#ffb347"), "lieu", "Grotte des bandits"])
 	hud.lieu_nomme(grotte_acces.porte_dehors, 10.0, "Grotte des bandits")
 
 func _dragon() -> void:
@@ -1203,7 +1203,7 @@ func _interface() -> void:
 	hud = Control.new()   # aide des touches : cartouche du HUD (lot L7, 60 s puis F1 ; hud.demarrer en fin de chargement)
 	hud.set_script(HUD)
 	hud.joueur = joueur
-	hud.lieux = [[Vector3(CERCLE.x, 0, CERCLE.z), Color("#6fd8ff")], [Vector3.ZERO, Color("#e8a64a")]]
+	hud.lieux = [[Vector3(CERCLE.x, 0, CERCLE.z), Color("#6fd8ff"), "lieu", "Cercle de pierres"], [Vector3.ZERO, Color("#e8a64a"), "lieu", "Village"]]
 	calque.add_child(hud)
 	joueur.avis.connect(hud.avis)   # surcharge du sac (joueur.gd)
 	hud.lieu_nomme(Vector3(VILLAGE.x, h_village, VILLAGE.z), 30.0, "Skarnholt")   # lot L7 : annonces « Lieu découvert »
