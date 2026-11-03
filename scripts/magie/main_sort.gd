@@ -846,7 +846,14 @@ func _poser_mains(dt: float) -> void:
 			var d_cam := Vector3(EPAULE_TENUE.x * sx, EPAULE_TENUE.y, EPAULE_TENUE.z) * we
 			_epaules.decalages["upperarm_" + ("l" if m == "gauche" else "r")] = sq.global_basis.inverse() * cam.global_basis * d_cam
 		if p.is_empty():
-			_xf_ok[m] = false
+			var pas = mains.get("passifs")
+			if m == "droite" and _xf_ok[m] and _infl_d > 0.0 and pas != null:
+				# sort -> épée : le manche (pivot_epee, réécrit chaque image par le clip dans mains.gd) retombe en fondu sur la
+				# même courbe que l'IK du bras, au lieu de sauter d'un coup de la pose du sort au clip ; _xf_ok reste vrai jusqu'à la fin du fondu
+				var dernier: Transform3D = (pas.decalage_d as Transform3D) * (_xf[m] as Transform3D) * (mains.get("PRISE_D") as Transform3D)
+				pivot.transform = dernier.interpolate_with(pivot.transform, 1.0 - _infl_d)
+			else:
+				_xf_ok[m] = false
 			_echelle(sq, m, 1.0)
 			if o != null and not (m == "droite" and _infl_d > 0.0):
 				o.angle_min = -1.0
