@@ -79,3 +79,16 @@ vent_monde={
 "type": "vec3",
 "value": Vector3(0.45, 0, 0.2)
 }
+
+effets_masque={
+"type": "sampler2D",
+"value": ""
+}
+effets_rect={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+effets_temps={
+"type": "float",
+"value": 0.0
+}

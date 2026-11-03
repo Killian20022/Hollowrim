@@ -277,6 +277,8 @@ func _rayon_neant(s: DonneesSort, paume: Node3D, depart: Vector3, oeil: Vector3,
 			cercle.tirer(RayonNeant.DUREE)
 		else:
 			rayon.cercle_secours(avant)
+		if touche:
+			EffetsSol.sort_impact(s.ecole, fin, normale, k)   # tache d'ombre au sol, comme les autres sorts de ténèbres
 	return {"genre": "rayon", "cibles": touchees, "point": fin, "rayon": rayon}
 
 func _impact_projectile(s: DonneesSort, k: float, cible: Node, point: Vector3, normale: Vector3, dir: Vector3) -> void:

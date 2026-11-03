@@ -269,6 +269,7 @@ func surface_m2() -> float:
 # --- ciel et temps -------------------------------------------------------------------------
 
 func _ready() -> void:
+	add_to_group("eaux")   # EffetsSol : aucun effet de sol (empreinte, fonte, brûlure) sous l'eau
 	if cycle == null and get_parent() != null and get_parent().get("cycle") is Node:
 		cycle = get_parent().get("cycle")
 	_synchroniser()

@@ -68,6 +68,8 @@ const LIEVRES := 2
 
 ## Durée du dernier calcul (ms), pour les mesures.
 static var temps_ms := 0.0
+## Carte de matières (R = matière × 16, 0,25 m/texel) gardée côté CPU : sol enneigé sous les pas, impacts de sorts (EffetsSol).
+static var _octets_carte := PackedByteArray()
 
 # Cartes précalculées (assets/sol/carte_sol.res + carte_traces.res) : le calcul dépend de tout le monde (relief, arbres,
 # rochers, chemins) mais il est déterministe ; on le remplace donc par la lecture du fichier SI la signature des
@@ -123,6 +125,7 @@ static func appliquer(mat_terrain: ShaderMaterial, monde: Node, arbres: Array) -
 	var t0 := Time.get_ticks_usec()
 	var cartes := _calculer(monde, arbres)
 	var carte := ImageTexture.create_from_image(cartes[0])
+	_octets_carte = (cartes[0] as Image).get_data()
 	var tuiles := SolTuiles.charger()
 	mat_terrain.set_shader_parameter("carte_sol", carte)
 	mat_terrain.set_shader_parameter("carte_relief", carte)
@@ -138,6 +141,22 @@ static func appliquer(mat_terrain: ShaderMaterial, monde: Node, arbres: Array) -
 	mat_terrain.set_shader_parameter("sol_carte", true)
 	temps_ms = (Time.get_ticks_usec() - t0) / 1000.0
 	print("Sol : carte de sol %s en %.0f ms" % ["lue (cache)" if cache_statut == "lu" else "calculée (cache %s)" % cache_statut, temps_ms])
+
+## Matière du sol (NEIGE, PIETINEE, TERRE… voir constantes) au point (x, z) en m ; -1 hors carte ou carte absente.
+static func matiere_en(x: float, z: float) -> int:
+	if _octets_carte.is_empty():
+		return -1
+	var i := floori((x - ORIGINE) / TEXEL)
+	var j := floori((z - ORIGINE) / TEXEL)
+	if i < 0 or j < 0 or i >= TAILLE or j >= TAILLE:
+		return -1
+	return _octets_carte[(j * TAILLE + i) * 4] >> 4
+
+## Vrai si le sol est de la neige (fraîche ou croûtée) au point (x, z). La neige piétinée (chemins, abords du feu) en est exclue :
+## le shader y mêle de la terre, une empreinte n'y serait pas lisible.
+static func est_neige(x: float, z: float) -> bool:
+	var m := matiere_en(x, z)
+	return m == NEIGE or m == CROUTE
 
 ## Obstacles qui retiennent la neige : [Vector2 centre, rayon (m)].
 static func _obstacles(monde: Node, arbres_zone: Array) -> Array:
