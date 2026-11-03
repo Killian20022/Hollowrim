@@ -225,6 +225,45 @@ def meches(surf, nom, n, longueur, largeur, partie, graine, zone=None, sens=None
     return o
 
 
+def bras_bandes(nom, cote, couches, partie, n=14, src="tunique"):
+    """Anneaux complets sur le haut du bras (de l'épaule |x| 0.21 au coude 0.46) : couches = [(x0, x1, ep, jeu)] (rangs superposés)."""
+    bm = bmesh.new()
+    a, axe, sg = X.axe_bras(cote)
+    ref = Vector((0, 1, 0))
+    cible = L.bvh_de(["tunique", "SuperHero_Male"], filtre=lambda p: abs(p.x) > 0.12)
+    for (x0, x1, ep, jeu) in couches:
+        c0 = Vector((sg * x0, a.y, a.z + (-0.008) * (x0 - 0.2) / 0.26))
+        c1 = Vector((sg * x1, a.y, a.z + (-0.008) * (x1 - 0.2) / 0.26))
+        f0 = L.rayon_sur(cible, c0, axe, ref, jeu)
+        f1 = L.rayon_sur(cible, c1, axe, ref, jeu + 0.003)
+        X.bande(bm, [(c0, axe, ref), (c1, axe, ref)], [f0, f1], ep, n, partie, bombe=0.003)
+    o = X.en_objet(bm, nom)
+    X.poids_de(o, src, lambda p: abs(p.x) > 0.12 and (p.x > 0) == (sg > 0))
+    return o
+
+
+def jambe_bandes(nom, cote, couches, partie, n=14):
+    """Sangles / rangs sur la cuisse (couches = [(y_haut, y_bas, ep, jeu)]), cible = pantalon du héros."""
+    bm = bmesh.new()
+    sg = 1 if cote == "l" else -1
+    t_ = X.os_g("thigh_" + cote)
+    k = X.os_g("calf_" + cote)
+    axe = (k - t_).normalized()
+    ref = Vector((0, 0, 1))
+    cible = L.bvh_de(["pantalon"], filtre=lambda p: (p.x > 0) == (sg > 0))
+
+    def c_at(y):
+        return t_.lerp(k, (t_.y - y) / (t_.y - k.y))
+    for (yh, yb, ep, jeu) in couches:
+        c0, c1 = c_at(yh), c_at(yb)
+        f0 = L.rayon_sur(cible, c0, axe, ref, jeu)
+        f1 = L.rayon_sur(cible, c1, axe, ref, jeu + 0.002)
+        X.bande(bm, [(c0, axe, ref), (c1, axe, ref)], [f0, f1], ep, n, partie, bombe=0.002)
+    o = X.en_objet(bm, nom)
+    X.poids_de(o, "pantalon", lambda p: (p.x > 0) == (sg > 0))
+    return o
+
+
 def croc(bm, racine, direction, longueur, rayon, partie, courbe=None):
     """Croc / griffe d'os : cône à 4 pans en 2 segments, légèrement courbé (vers `courbe`)."""
     d = Vector(direction).normalized()
@@ -571,7 +610,7 @@ def finir_famille(nom):
 ## parties : 0 coque (cuir souple), 1 ceinture, 2 épaulières (bouilli), 3 col, 5 plastron (bouilli gravé), 6 lames du ventre,
 ## 7 plaque du dos, 8 tassettes, 9 fer (boucles), 10 sacoche
 def cuir():
-    base = X.torse_base("armure_cuir", 700)
+    base = X.torse_base("armure_cuir", 675)
     tronc = X.torse_base("plaques_src", 430)      # source plus légère des plaques (bords découpés nets, peu de triangles)
     plaques = []
     # plastron en deux pièces de cuir bouilli (laçage au milieu), coins abattus
@@ -614,8 +653,10 @@ def cuir():
     ep_l = X.epauliere("ep_l", "l", [(0.14, 0.31, 0.008, 110), (0.19, 0.37, 0.008, 100), (0.245, 0.43, 0.008, 90)], n=6)
     ep_r = X.epauliere("ep_r", "r", [(0.14, 0.31, 0.008, 110), (0.19, 0.37, 0.008, 100), (0.245, 0.43, 0.008, 90)], n=6)
     col = X.col_montant("col", n=12)
+    # haut du bras : deux brassards de cuir bouilli superposés sous l'épaulière, puis coudière (rangs qui se recouvrent)
+    bras = [bras_bandes("rb_" + c, c, [(0.34, 0.395, 0.006, 0.040), (0.375, 0.425, 0.007, 0.030)], 6, 6) for c in ("l", "r")]
     bpy.data.objects.remove(tronc)
-    o = X.fusion([base] + plaques + [bel, o_fer, o_sac, ep_l, ep_r, col], "armure_cuir")
+    o = X.fusion([base] + plaques + [bel, o_fer, o_sac, ep_l, ep_r, col] + bras, "armure_cuir")
     ctx = Ctx(o, coutures=(0, 1, 2, 3, 5, 6, 7, 8, 10), rivets=(2, 6, 8), pas_rivet=0.038, retrait_rivet=0.013)
 
     def mat(P, N, pa, bd):
@@ -637,7 +678,7 @@ def cuir():
             if m.any():
                 _, o2 = peau(P[m], N[m], BOUILLI, base_, g_, 0.55, 0.8)
                 out[m] = o2
-        out = gravure(out, P, N, (pa == 5) | (pa == 7), de, 0.010)
+        out = gravure(out, P, N, (pa == 5) | (pa == 7) | (pa == 2), de, 0.010)
         # lames du ventre et tassettes : un seul filet gravé
         m = (pa == 6) | (pa == 8)
         out[m & (np.abs(de - 0.008) < 0.001), :3] *= 0.55
@@ -753,10 +794,12 @@ def cuir():
     JSON_PIECES.append({"id": "capuche_cuir", "nom": "Capuche de rôdeur", "emplacement": "tete", "matiere": "cuir", "poids": 1.0})
 
     # --- gants_cuir : gants entiers (sans décimation), brassards lacés, plaques de jointures en cuir bouilli rivetées
-    g = X.gants_base("gants_cuir", 620)
+    g = X.gants_base("gants_cuir", 470)
     parts = [g]
     for cote in ("l", "r"):
-        parts.append(X.manchette("m_" + cote, "brassards", 0.548, 0.676, 0.009, 0.006, 0.005, 16, 1, cote, 0.005))
+        parts.append(X.manchette("m_" + cote, "brassards", 0.486, 0.690, 0.009, 0.006, 0.005, 10, 1, cote, 0.005))
+        parts.append(X.manchette("mp1_" + cote, "brassards", 0.500, 0.572, 0.014, 0.011, 0.006, 10, 5, cote, 0.004))
+        parts.append(X.manchette("mp2_" + cote, "brassards", 0.560, 0.640, 0.017, 0.013, 0.006, 10, 5, cote, 0.004))
     hl = X.os_g("hand_l")
     pl = [plan((hl.x + 0.02, 0, 0), (-1, 0, 0)), plan((hl.x + 0.095, 0, 0), (1, 0, 0)), plan((0, hl.y + 0.004, 0), (0, -1, 0)),
           plan((0, 0, hl.z + 0.036), (0, 0, 1)), plan((0, 0, hl.z - 0.036), (0, 0, -1))]
@@ -867,10 +910,10 @@ def fourrure():
         r = p - cnt
         return Vector((r.x, -0.75 * max(0.3, Vector((r.x, 0, r.z)).length * 4.0), r.z))
     # mèches : 3 couches (dessous longues qui pendent sous le bord, milieu, dessus courtes vers le col)
-    m1 = meches(surf, "m1", 120, 0.062, 0.030, 11, 5, zone=lambda c, n: c.y < 1.36 and n.y > -0.5, sens=sens_p, souleve=0.006,
+    m1 = meches(surf, "m1", 60, 0.062, 0.030, 11, 5, zone=lambda c, n: c.y < 1.36 and n.y > -0.5, sens=sens_p, souleve=0.006,
                 double=lambda p, t: t.y < 1.245 + abs(t.x) * 0.383, src=base, simple=True)
-    m2 = meches(surf, "m2", 90, 0.050, 0.027, 11, 6, zone=lambda c, n: 1.33 < c.y < 1.45 and n.y > -0.5, sens=sens_p, souleve=0.005, src=base, simple=True)
-    m3 = meches(surf, "m3", 70, 0.040, 0.024, 11, 7, zone=lambda c, n: c.y > 1.43 and n.y > -0.2, sens=sens_p, souleve=0.004, src=base, simple=True)
+    m2 = meches(surf, "m2", 42, 0.050, 0.027, 11, 6, zone=lambda c, n: 1.33 < c.y < 1.45 and n.y > -0.5, sens=sens_p, souleve=0.005, src=base, simple=True)
+    m3 = meches(surf, "m3", 36, 0.040, 0.024, 11, 7, zone=lambda c, n: c.y > 1.43 and n.y > -0.2, sens=sens_p, souleve=0.004, src=base, simple=True)
     # olive d'os qui ferme la pelisse devant, sur un cordon ; collier de crocs
     bm = bmesh.new()
     import mathutils
@@ -906,9 +949,18 @@ def fourrure():
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
     bm.to_mesh(base.data)
     bm.free()
-    print("  fourrure torse :", [(q.name, L.nb_tris(q)) for q in [base, pel] + baud + [bel, m1, m2, m3, o_os, o_bo, col]])
+    # bras : épaulières de cuir en trois rangs sous la pelisse, brassard de cuir et manchon de loup au-dessus du coude
+    eps = [X.epauliere("ep_" + c, c, [(0.22, 0.36, 0.007, 100), (0.28, 0.41, 0.007, 92)], partie=13, n=4) for c in ("l", "r")]
+    brs = [bras_bandes("bb_" + c, c, [(0.36, 0.415, 0.006, 0.040)], 13, 8) for c in ("l", "r")]
+    mans = [bras_bandes("mf_" + c, c, [(0.39, 0.432, 0.012, 0.052)], 4, 8) for c in ("l", "r")]
+    mm = []
+    for c_, mo in zip(("l", "r"), mans):
+        sg_ = 1 if c_ == "l" else -1
+        mm.append(meches(mo, "mm_" + c_, 16, 0.032, 0.022, 11, 21 + sg_, zone=lambda c, n: True,
+                         sens=lambda p, n, sg_=sg_: Vector((sg_ * 1.0, -0.2, 0)), souleve=0.005, double=lambda p, t: True, src=mo, simple=True))
+    print("  fourrure torse :", [(q.name, L.nb_tris(q)) for q in [base, pel] + baud + [bel, m1, m2, m3, o_os, o_bo, col] + eps + brs + mans + mm])
     bpy.data.objects.remove(tronc)
-    o = X.fusion([base, pel] + baud + [bel, m1, m2, m3, o_os, o_bo, col], "armure_fourrure")
+    o = X.fusion([base, pel] + baud + [bel, m1, m2, m3, o_os, o_bo, col] + eps + brs + mans + mm, "armure_fourrure")
     ctx = Ctx(o, coutures=(0, 1, 13), rivets=(13,), pas_rivet=0.05, retrait_rivet=0.012)
 
     def mat(P, N, pa, bd):
@@ -1016,10 +1068,11 @@ def fourrure():
     JSON_PIECES.append({"id": "casque_fourrure", "nom": "Bonnet de loup", "emplacement": "tete", "matiere": "fourrure", "poids": 1.5})
 
     # --- gants_fourrure : gants de cuir, gros revers de loup en mèches, lanière croisée
-    g = X.gants_base("gants_fourrure", 560, 0.005)
+    g = X.gants_base("gants_fourrure", 380, 0.005)
     parts = [g]
     revs = []
     for cote in ("l", "r"):
+        parts.append(X.manchette("bl_" + cote, "brassards", 0.484, 0.552, 0.010, 0.008, 0.005, 10, 0, cote, 0.004))
         r_ = X.manchette("mf_" + cote, "brassards", 0.548, 0.668, 0.011, 0.007, 0.007, 14, 4, cote, 0.006)
         revs.append(r_)
         s = 1 if cote == "l" else -1
@@ -1114,6 +1167,11 @@ def chausses():
     jar = []
     for cote in ("l", "r"):
         jar.append(X.revers_botte("jar_" + cote, cote, 0.455, 0.49, 0.006, 0.006, 0.005, 12, 13))
+    # cuisses : deux sangles de cuir sombre par jambe (haut et bas) + cuissot superposé pour le cuir
+    def sangles(suf):
+        return [jambe_bandes("sg%s_%s" % (suf, c), c, [(0.64, 0.60, 0.006, 0.010), (0.58, 0.545, 0.006, 0.010)], 13, 7) for c in ("l", "r")]
+    gen += [jambe_bandes("cu_" + c, c, [(0.86, 0.62, 0.006, 0.016)], 5, 8) for c in ("l", "r")] + sangles("a")
+    jar += sangles("b") + [X.revers_botte("gf_" + c, c, 0.505, 0.560, 0.012, 0.010, 0.008, 8, 13) for c in ("l", "r")]
     familles = {"cuir": gen, "fourrure": jar}
     for fam, extra in familles.items():
         c = o.copy()
