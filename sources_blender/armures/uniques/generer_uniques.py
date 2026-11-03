@@ -48,6 +48,9 @@ def hook_gardiens(T, st, g):
         if h > 5:
             ligne_y = v_l[k] + h * 0.42
             DU.ligne_runes(T, 36, 92, ligne_y, min(3.4, h * 0.34), g + k, larg=0.2, pal=DU.ARGENT, k=0.7, bri=0.6, creux=0.05)
+    # col de fourrure : mèches en couches blanc-gris, racines dans l'ombre ; petites mèches 3D dégradées
+    T.zone(PH.R_FOUR, DU.fourrure_meches(DU.BLANCHE, g + 300, lw=2.5, rh=2.1), sale=0.2, relief=0.9)
+    T.zone((92, 92, 128, 100), DU.fourrure_touffe(DU.BLANCHE, g + 301, 92, 100), sale=0.15)
     DU.givre(T, [(0, v_l[0], 128, v_l[-1]), PH.R_TASS, PH.R_EPAUL], g + 200, force=0.30)
     DU.givre(T, [PH.R_JUPE, PH.R_HAUT], g + 210, force=0.18)
 
@@ -108,44 +111,81 @@ def hook_hrafn(T, st, g):
 # ---------------------------------------------------------------------------------------------- bottes du rôdeur
 def hook_rodeur(T, st, g):
     R = st["_R"]
-    # tige : fourrure blanche en mèches ; lanières de cuir clair croisées ; runes de course brodées bleu glace
-    T.zone(R["botte"], H.fourrure(DU.BLANCHE, g + 10, base=0.62, meches=0.6, longueur=3.2), sale=0.30, relief=0.8)
+    GLACE = ("#12304c", "#2d6a9a", "#6cb6e4", "#bfe9ff", "#f0fbff")
+    # tige : peau en mèches blanc-gris (racines sombres, pointes claires) ; panneau de cuir clair lacé en croix sur le devant ;
+    # runes de course bleu glace de chaque côté (matériau « fourrure.runes » : légère lueur)
+    T.zone(R["botte"], DU.fourrure_meches(DU.BLANCHE, g + 10, lw=3.0, rh=2.6), sale=0.25, relief=0.9)
     x0, y0, x1, y1 = R["botte"]
-    for xs in (x0 + 32, x0 + 96):
-        # lanière verticale cousue (devant de chaque botte : u = 32 / 96)
-        rect = (xs - 3.0, y0 + 2, xs + 3.0, y1 - 1)
-        T.zone(rect, H.cuir(DU.CUIR_PALE, g + 11, base=0.5, use=0.5), sale=0.5)
-        T.biseau(rect, larg=0.7, haut=0.35, cotes="gd", poli=0.2)
-        T.couture((xs - 2.0, y0 + 3), (xs - 2.0, y1 - 2), pas=0.8)
-        T.couture((xs + 2.0, y0 + 3), (xs + 2.0, y1 - 2), pas=0.8)
-        for yy in range(int(y0 + 6), int(y1 - 4), 6):
-            T.rivets([(xs, yy)], r=0.8, pal=H.LAITON, k=0.55)
-        # bande de runes brodées de chaque côté
-        for xr0, xr1 in ((xs - 25, xs - 6), (xs + 6, xs + 25)):
-            DU.ligne_runes(T, xr0, xr1, y0 + 29.5, 6.4, g + int(xs), pas=5.4, larg=0.3, pal=("#1a3a5a", "#3b7aa8", "#7fc0e6", "#c9ecfb"), k=0.85, bri=0.7, saillie=0.16)
-            for yy in (y0 + 27.0, y0 + 37.5):
-                trait(T, (xr0, yy), (xr1, yy), larg=0.24, pal=("#1a3a5a", "#3b7aa8", "#7fc0e6", "#c9ecfb"), k=0.65, bri=0.45, saillie=0.12)
-    # revers (haut de tige) : fourrure plus longue, bords irréguliers
-    T.zone(R["fourb"], H.fourrure(DU.BLANCHE, g + 12, base=0.66, meches=0.7, longueur=2.4), sale=0.25, relief=0.8)
+    for xf in (x0 + 64,):
+        pan = (xf - 10, y0 + 4, xf + 10, y1 - 3)
+        T.zone(pan, H.cuir(DU.CUIR_PALE, g + 11, base=0.62, use=0.4), sale=0.5)
+        T.biseau(pan, larg=1.2, haut=0.45, cotes="bhgd", poli=0.15)
+        T.couture((pan[0] + 1.6, pan[1] + 2), (pan[0] + 1.6, pan[3] - 2), pas=0.8)
+        T.couture((pan[2] - 1.6, pan[1] + 2), (pan[2] - 1.6, pan[3] - 2), pas=0.8)
+        for yy in range(int(pan[1] + 5), int(pan[3] - 8), 8):
+            trait(T, (xf - 7.2, yy), (xf + 7.2, yy + 8), larg=0.95, pal=DU.CUIR_NOIR, k=0.62, bri=0.05, saillie=0.30)
+            trait(T, (xf + 7.2, yy), (xf - 7.2, yy + 8), larg=0.95, pal=DU.CUIR_NOIR, k=0.62, bri=0.05, saillie=0.34)
+            T.rivets([(xf - 8.0, yy), (xf + 8.0, yy), (xf - 8.0, yy + 8), (xf + 8.0, yy + 8)], r=0.75, pal=H.LAITON, k=0.55)
+        # sangle de cheville et de mollet : bande de cuir clair par-dessus la lacée
+        for yy in (y0 + 11, y0 + 38):
+            T.zone((xf - 12, yy - 1.5, xf + 12, yy + 1.5), H.cuir(DU.CUIR_PALE, g + 12, base=0.5), sale=0.5)
+            T.biseau((xf - 12, yy - 1.5, xf + 12, yy + 1.5), larg=0.5, haut=0.3, cotes="bhgd", poli=0.2)
+            T.rivets([(xf, yy)], r=1.0, pal=H.LAITON, k=0.6)
+    # runes de course : deux bandes (côté extérieur et intérieur de la jambe), traits brodés en relief, très lumineux
+    for xr0, xr1 in ((x0 + 14, x0 + 50), (x0 + 78, x0 + 114)):
+        for yy in (y0 + 21.0, y0 + 44.0):
+            DU.ligne_runes(T, xr0, xr1, yy, 7.0, g + int(xr0 + yy), pas=6.2, larg=0.42, pal=GLACE, k=0.9, bri=0.8, saillie=0.20)
+            for ly in (yy - 1.7, yy + 8.6):
+                trait(T, (xr0, ly), (xr1, ly), larg=0.32, pal=GLACE, k=0.75, bri=0.7, saillie=0.14)
+    # revers : fourrure plus longue ; petites mèches 3D dégradées
+    T.zone(R["fourb"], DU.fourrure_meches(DU.BLANCHE, g + 13, lw=2.8, rh=2.5), sale=0.2, relief=0.9)
+    T.zone((0, 60, 64, 72), DU.fourrure_touffe(DU.BLANCHE, g + 14, 60, 72), sale=0.15)
     # semelle et ourlet : cuir brun, passepoil
-    T.zone(R["sem"], H.cuir(DU.CUIR_PALE, g + 13, base=0.45), sale=0.6)
+    T.zone(R["sem"], H.cuir(DU.CUIR_PALE, g + 15, base=0.42), sale=0.6)
     T.couture((R["sem"][0] + 1, R["sem"][1] + 2), (R["sem"][2] - 1, R["sem"][1] + 2), pas=0.8)
-    T.zone(R["sol"], H.cuir(DU.CUIR_NOIR, g + 14, base=0.3), sale=0.9)
-    T.zone(R["sang"], H.cuir(DU.CUIR_PALE, g + 15, base=0.45), sale=0.6)
+    T.zone(R["sol"], H.cuir(DU.CUIR_NOIR, g + 16, base=0.3), sale=0.9)
+    T.zone(R["sang"], H.cuir(DU.CUIR_PALE, g + 17, base=0.45), sale=0.6)
     T.biseau(R["sang"], larg=1.0, haut=0.25, cotes="bh", poli=0.2)
-    # genouillère : cuir clair matelassé, bordée de fourrure, rune de course au centre
+    # genouillère : cuir clair matelassé bordé de couture, rune de course
     xk0, yk0, xk1, yk1 = R["genou"]
     hk = (yk1 - yk0) / 2
     rk = (xk0, yk0, xk1, yk0 + hk)
-    T.zone(rk, H.cuir(DU.CUIR_PALE, g + 16, base=0.42, use=0.5), sale=0.5)
+    T.zone(rk, H.cuir(DU.CUIR_PALE, g + 18, base=0.5, use=0.5), sale=0.5)
     T.biseau(rk, larg=2.0, haut=0.5, cotes="bhgd", poli=0.3)
     T.couture((xk0 + 3, yk0 + 3), (xk1 - 3, yk0 + 3), pas=0.9)
     T.couture((xk0 + 3, yk0 + hk - 3), (xk1 - 3, yk0 + hk - 3), pas=0.9)
-    rune(T, (xk0 + xk1) / 2 - 3, yk0 + hk / 2 - 3.5, 7, "raido", larg=0.35, pal=("#1a3a5a", "#3b7aa8", "#7fc0e6", "#c9ecfb"), k=0.8, bri=0.55, saillie=0.14)
-    T.zone((xk0, yk0 + hk, xk1, yk1), H.cuir(DU.CUIR_PALE, g + 17, base=0.5), sale=0.5)
+    rune(T, (xk0 + xk1) / 2 - 3, yk0 + hk / 2 - 4.5, 9, "raido", larg=0.45, pal=GLACE, k=0.9, bri=0.8, saillie=0.2)
+    T.zone((xk0, yk0 + hk, xk1, yk1), H.cuir(DU.CUIR_PALE, g + 19, base=0.5), sale=0.5)
+    # le cuir ne luit pas : arêtes polies plafonnées partout sauf sur les runes
+    T.poli[:] = np.minimum(T.poli, 0.25)
 
 
 # ---------------------------------------------------------------------------------------------- brigandine de braise
+def plaque_poitrine(T, st, g):
+    """Plaque de poitrine : plastron de fer noir riveté au centre de la brigandine, fentes de braise en chevrons et noyau incandescent."""
+    v_l = st["_v_l"]
+    y0, y1 = v_l[-2] + 0.4, v_l[-1] - 0.4
+    x0, x1 = 64 - 17, 64 + 17
+    rect = (x0, y0, x1, y1)
+    T.zone(rect, H.metal(H.FER, g + 90, base=0.34, contraste=0.30, martele=0.5, cellule=2.4, crasse=0.5, poli=0.45, patine=0.2), sale=0.6, poli=0.3)
+    T.biseau(rect, larg=1.6, haut=0.55, cotes="bhgd", poli=0.9)
+    cx, cy = 64.0, (y0 + y1) / 2
+    hh = (y1 - y0)
+    T.rivets([(x0 + 2.0, y0 + 2.0 + q * (hh - 4.0) / 5) for q in range(6)] + [(x1 - 2.0, y0 + 2.0 + q * (hh - 4.0) / 5) for q in range(6)], r=0.7, pal=H.FER, k=0.62)
+    fl = DU.BRAISE
+    # chevrons de braise descendant vers le noyau, fentes étroites
+    for k in range(3):
+        d = hh * (0.14 + 0.13 * k)
+        DU.poly(T, [(cx - 11 + k * 1.4, cy + hh * 0.30 - d * 0.15), (cx, cy + hh * 0.30 - d), (cx + 11 - k * 1.4, cy + hh * 0.30 - d * 0.15)],
+                larg=0.42, pal=fl, k=0.72 - 0.06 * k, bri=0.0, creux=0.22)
+    DU.trait(T, (cx, y0 + 2.0), (cx, cy + hh * 0.28), larg=0.38, pal=fl, k=0.66, bri=0.0, creux=0.2)
+    # noyau : losange incandescent serti dans un cadre de fer
+    r_ = 4.4
+    DU.poly(T, [(cx, cy - r_), (cx + r_ * 0.75, cy), (cx, cy + r_), (cx - r_ * 0.75, cy)], fermer=True, larg=0.9, pal=("#3a2a22", "#6b5648", "#9b8575"), k=0.55, bri=0.7, saillie=0.35)
+    DU.cercle(T, cx, cy, 1.5, larg=1.3, pal=fl, k=0.95, bri=0.0)
+    DU.cercle(T, cx, cy, 2.8, larg=0.55, pal=fl, k=0.78, bri=0.0)
+
+
 def hook_braise(T, st, g):
     v_l = st["_v_l"]
     E = DU.ecailles
@@ -176,6 +216,7 @@ def hook_braise(T, st, g):
     T.biseau(PH.R_BOUCLE, larg=0.5, haut=0.35, cotes="bhgd", poli=1.0)
     T.rivets([(128 / 16 * (q + 0.5), v_l[0] + 1.4) for q in range(16)], r=0.6, pal=H.FER, k=0.6)
     T.zone(PH.R_TASS, E(DU.CENDRE, g + 44, tip=3.4, base=0.5, braise=0.7), sale=0.4)
+    plaque_poitrine(T, st, g)
 
 
 def capuche_thaumaturge(r):
@@ -192,26 +233,26 @@ PIECES = {
                                             contraste=0.28, martele=0.3, cellule=2.6, oxyde=0.0, crasse=0.35, poli=0.65, patine=0.2, bombe=0.008,
                                             rivets_rebord=18, larg_bande=0.012, haut_bande=0.0045, rayures=0.8, graine=71,
                                             bandes=[0.0, math.pi / 2, math.pi, 3 * math.pi / 2],
-                                            decor=[PH.deco_nasal, DU.deco_couronne])),
+                                            decor=[PH.deco_nasal, DU.deco_couronne], mat_couronne="fer")),
     # --- Cuirasse des gardiens du serment : acier ancien bleuté pris par le givre, col de fourrure blanche, sceau gravé
     "cuirasse_gardiens": lambda r: PH.cuirasse(r, _s(ACIER, id="cuirasse_gardiens", mat="acier.givre", pal=DU.ACIER_GIVRE, pal_cuir=DU.CUIR_NOIR,
                                                      pal_maille=DU.ACIER_GIVRE, base_maille=0.42, base_cuir=0.5, base=0.40, graine=37,
-                                                     n=22, z_lames=[1.04, 1.11, 1.18, 1.43], bombe=0.025, tablier=28, fentes=(-100, 100, 180),
+                                                     n=20, z_lames=[1.04, 1.11, 1.18, 1.43], bombe=0.025, tablier=28, fentes=(-100, 100, 180),
                                                      rivets_lame=16, rivets_milieu=True, tassettes=(58, 100),
                                                      sangles=[((40, 1.43), (-30, 1.04)), ((-40, 1.43), (30, 1.04))], disque=(-33, 1.365),
                                                      lames_epaule=3, rivets_epaule=7, bord_roule=True, mat_maille="acier.maille",
-                                                     fourrure=dict(gonfle=0.9, meches=0.045, cote=0.2, r_max=0.17, r_max_cote=0.08, phis_cote=(-6, 0, 10, 24, 38, 52)),
+                                                     fourrure=dict(gonfle=0.9, meches=0.06, cote=0.2, r_max=0.17, r_max_cote=0.08, phis_cote=(-6, 0, 10, 24, 38, 52), touffes=2, long_touffes=0.055),
                                                      pal_fourrure=DU.BLANCHE, base_fourrure=0.7, peintures=[hook_gardiens])),
     # --- Gantelets de Hrafn : cuir rouge sombre, clous et lames d'acier, griffes d'acier aux doigts
     "gantelets_hrafn": lambda r: PH.gantelets(r, _s(ACIER, id="gantelets_hrafn", pal=H.ACIER, mat="cuir", mat_rebord="cuir", mat_main="cuir",
                                                     mat_doigts="cuir", mat_griffes="acier", griffes=0.034, main_cuir=True, lames_main=2,
                                                     evasement=0.02, jointures=False, debut_manchette=0.5, graine=81, peintures=[hook_hrafn])),
     # --- Bottes du rôdeur des neiges : fourrure blanche, lanières de cuir clair, runes de course
-    "bottes_rodeur": lambda r: PH.bottes(r, _s(ACIER, id="bottes_rodeur", pal=H.ACIER, mat="fourrure", mat_botte="fourrure", mat_genou="cuir",
+    "bottes_rodeur": lambda r: PH.bottes(r, _s(ACIER, id="bottes_rodeur", pal=H.ACIER, mat="fourrure", mat_botte="fourrure.runes", mat_genou="cuir", touffes_tige=True, long_touffes=0.042,
                                                greve=False, revers_fourrure=True, ep_revers=1.0, sangles=(0.10, 0.26), ailette=0.0, graine=91,
                                                pal_fourrure=DU.BLANCHE, base_fourrure=0.62, peintures=[hook_rodeur])),
     # --- Brigandine de braise : écailles de cuir cendré, jours de braise, ceinture de cuir noir
-    "brigandine_braise": lambda r: PH.cuirasse(r, _s(ACIER, id="brigandine_braise", mat="cuir.braise", mat_maille="cuir.ecailles", pal=DU.CENDRE,
+    "brigandine_braise": lambda r: PH.cuirasse(r, _s(ACIER, id="brigandine_braise", mat="cuir.braise", mat_maille="cuir.braise", pal=DU.CENDRE,
                                                      pal_cuir=DU.CUIR_NOIR, graine=101, base=0.5, n=22, z_lames=[1.04, 1.12, 1.20, 1.43], bombe=0.02,
                                                      tablier=30, fentes=(-100, 100, 180), dechire=0.02, rivets_lame=0, tassettes=(58, 100),
                                                      sangles=[((40, 1.43), (-30, 1.04))], sacoche=-38, lames_epaule=2, rivets_epaule=0,
@@ -290,6 +331,14 @@ def version_sol(r, ob, pid):
         for v in me.vertices:
             s = 1 if v.co.x > 0 else -1
             v.co.x -= s * 0.05
+    # NEIGE : le shader ps1 fait tenir la neige du monde sur les faces tournées vers le haut des objets dont la couleur de sommet a
+    # alpha >= 0,5 (blocs blancs / noirs lus dans la texture à des cases du monde). Pièce posée à plat = faces vers le haut : alpha 0.
+    ca = me.color_attributes.get("Col")
+    if ca is not None:
+        for d in ca.data:
+            d.color = (d.color[0], d.color[1], d.color[2], 0.0)
+        me.color_attributes.active_color = ca
+        me.color_attributes.render_color_index = list(me.color_attributes).index(ca)
     zmin = min(v.co.z for v in me.vertices)
     cx = sum(v.co.x for v in me.vertices) / len(me.vertices)
     cy = sum(v.co.y for v in me.vertices) / len(me.vertices)

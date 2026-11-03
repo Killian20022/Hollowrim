@@ -11,6 +11,7 @@ TAU = math.tau
 
 # ------------------------------------------------------------------------------------------------------------ palettes
 FER_NOIR = ["#040405", "#08090b", "#0e1013", "#15181d", "#1d2128", "#272c35", "#333a45", "#424a58", "#555f70", "#6d7889"]
+ARGENT_ANCIEN = ["#1d1f22", "#35383d", "#54585f", "#7a7f87", "#9da3ac", "#bcc2ca", "#d8dde3", "#eef1f4"]
 ARGENT = ["#2a2c31", "#444850", "#656a74", "#8a909a", "#adb3bc", "#cdd2d9", "#e6e9ed"]
 ACIER_GIVRE = ["#080c11", "#0e141b", "#161f29", "#1f2b38", "#2a3a4a", "#384b5e", "#496074", "#5d768b", "#748ea3", "#8fa8bb", "#adc3d3"]
 BLANCHE = ["#3a3e44", "#50555c", "#686d75", "#82878f", "#9da2a9", "#b7bcc2", "#cfd3d7", "#e1e4e7", "#eff1f3"]
@@ -126,6 +127,7 @@ def ecailles(pal, g, tip=2.8, base=0.5, braise=0.0, brillant=0.2, pal_braise=BRA
         k0 = np.floor(Y / rh)
         res_rgb = np.zeros(X.shape + (3,)); res_h = np.full(X.shape, -0.3); res_bri = np.zeros(X.shape)
         couvert = np.zeros(X.shape, dtype=bool)
+        rimm = np.zeros(X.shape)
         for dk in (0, -1, -2):
             k = k0 + dk
             dec = 0.5 * np.mod(k, 2)
@@ -152,25 +154,29 @@ def ecailles(pal, g, tip=2.8, base=0.5, braise=0.0, brillant=0.2, pal_braise=BRA
             res_rgb = np.where(cov[..., None], col, res_rgb)
             res_h = np.where(cov, 0.34 * dome + 0.05 * dk, res_h)
             res_bri = np.where(cov, brillant * (0.6 + 0.8 * dome), res_bri)
+            rimm = np.where(cov, np.clip(1 - np.minimum(e / 0.30, np.clip(yl / (r * 0.50), 0, 4)), 0, 1) * (yl < r * 1.1), rimm)
             couvert |= cov
         jours = ~couvert
         n2 = H.fbm(X, Y, g + 11, oct=((5, 0.6), (1.6, 0.4)))
         fond = H.rampe(pal, 0.04 + 0.05 * n2)
         res_rgb = np.where(jours[..., None], fond, res_rgb)
         if braise > 0:
-            # braise : jours + liseré des écailles par endroits (plaques de bruit), jamais partout
-            plaque = H.lisse(0.5, 0.72, H.fbm(X, Y, g + 21, oct=((14, 0.6), (5, 0.4)))) * braise
-            lis = jours * plaque
-            res_rgb = np.where((lis > 0.05)[..., None], res_rgb * (1 - lis[..., None]) + H.rampe(pal_braise, np.clip(0.35 + 0.5 * n2 + 0.15 * lis, 0, 1)) * lis[..., None], res_rgb)
+            # braise : fentes entre les écailles (jours) et liseré incandescent sous la pointe des écailles, par plaques de bruit
+            plaque = H.lisse(0.28, 0.48, H.fbm(X, Y, g + 21, oct=((14, 0.6), (5, 0.4)))) * min(1.0, braise)
+            chaud = np.clip(0.38 + 0.45 * n2 + 0.25 * H.bruit(X, Y, 0.8, g + 23), 0, 1)
+            glow = np.clip(jours * plaque * 1.3 + rimm * plaque * 1.1, 0, 1)
+            cb = H.rampe(pal_braise, chaud)
+            res_rgb = res_rgb * (1 - glow[..., None]) + cb * glow[..., None]
+            res_bri = res_bri * (1 - glow)
         return res_rgb, res_bri, res_h
     return fn
 
 
 # ------------------------------------------------------------------------------------------------------------ couronne
-def deco_couronne(P, T, r, centre, Pts, point, st, R=(56, 82, 128, 128), pointes=9, haut=0.112, j_ring=2):
+def deco_couronne(P, T, r, centre, Pts, point, st, R=(56, 82, 128, 128), pointes=9, haut=0.135, j_ring=2):
     """Couronne de fer noir du Jarl : diadème épais (bord roulé) autour du heaume, neuf pointes taillées à facettes (la pointe
     de devant, la plus haute, entre les deux autres), filets d'argent incrustés."""
-    mat = st["mat"]
+    mat = st.get("mat_couronne", st["mat"])
     R_BAND = (R[0], R[1], R[2], R[1] + 14)
     R_SP = (R[0], R[1] + 14, R[2], R[3])
     n = len(Pts[0])
@@ -192,8 +198,8 @@ def deco_couronne(P, T, r, centre, Pts, point, st, R=(56, 82, 128, 128), pointes
         ci = point(j_ring, lo, 0.0)
         out = Vector((math.sin(lo), -math.cos(lo), 0.0))
         tan = Vector((math.cos(lo), math.sin(lo), 0.0))
-        h = haut * (1.0 if k == 0 else 0.60 + 0.26 * (k % 2))
-        w = 0.024 if k == 0 else 0.019
+        h = haut * (1.0 if k == 0 else 0.62 + 0.24 * (k % 2))
+        w = 0.030 if k == 0 else 0.023
         base = ci + Vector((0, 0, 0.030)) + out * 0.0075
         # trois étages : base large, taille, pointe
         etages = []
@@ -208,23 +214,30 @@ def deco_couronne(P, T, r, centre, Pts, point, st, R=(56, 82, 128, 128), pointes
             P.face([sid[-1][i], sid[-1][(i + 1) % 4], apex], mat, [(u0 + (u1 - u0) * i / 4, v1 * 0.99), (u0 + (u1 - u0) * (i + 1) / 4, v1 * 0.99), (u0 + (u1 - u0) * (i + 0.5) / 4, v1)])
 
     def peint(T, st, g):
+        # coque : fer noir ; bandes de renfort : filets d'argent larges
         for kb in range(4):
-            bx0 = 0 + 40 * kb / 4; bx1 = 40 * (kb + 1) / 4
-            for dx in (-1.1, 1.1):
-                trait(T, ((bx0 + bx1) / 2 + dx, 84), ((bx0 + bx1) / 2 + dx, 126), larg=0.22, pal=ARGENT, k=0.5, bri=0.6, creux=0.0, saillie=0.05)
-        T.zone(R_BAND, H.metal(FER_NOIR, g + 50, base=0.50, contraste=0.28, martele=0.35, cellule=2.4, crasse=0.35, poli=0.65, patine=0.2),
-               sale=0.6, poli=0.3)
+            bx0 = 40 * kb / 4; bx1 = 40 * (kb + 1) / 4
+            for dx in (-1.4, 1.4):
+                trait(T, ((bx0 + bx1) / 2 + dx, 83), ((bx0 + bx1) / 2 + dx, 127), larg=0.5, pal=ARGENT, k=0.62, bri=0.7, saillie=0.06)
+        # nasal : liserés d'argent sur les deux arêtes
+        for x in (41.2, 54.8):
+            trait(T, (x, 84), (x, 127), larg=0.5, pal=ARGENT, k=0.62, bri=0.7, saillie=0.05)
+        # rebord : deux gros filets d'argent et rangée de runes
+        for yy in (71.4, 80.6):
+            trait(T, (1, yy), (127, yy), larg=0.55, pal=ARGENT, k=0.62, bri=0.7, saillie=0.06)
+        ligne_runes(T, 3, 125, 73.4, 5.2, g + 3, pas=4.6, larg=0.28, pal=ARGENT, k=0.7, bri=0.7, saillie=0.08)
+        # couronne : argent ancien patiné (sombre dans les creux), biseaux vifs
+        for rect in (R_BAND, R_SP):
+            T.zone(rect, H.metal(ARGENT_ANCIEN, g + 50, base=0.37, contraste=0.30, martele=0.30, cellule=2.4, crasse=0.35, poli=0.85, patine=0.25),
+                   sale=0.55, poli=0.6)
         T.biseau(R_BAND, larg=1.8, haut=0.4, cotes="bh", poli=1.0)
-        trait(T, (R[0] + 1, R[1] + 3.6), (R[2] - 1, R[1] + 3.6), larg=0.28, pal=ARGENT, k=0.55, bri=0.7, creux=0.12)
-        trait(T, (R[0] + 1, R[1] + 10.4), (R[2] - 1, R[1] + 10.4), larg=0.28, pal=ARGENT, k=0.55, bri=0.7, creux=0.12)
-        T.entrelacs((R[0] + 1, R[1] + 4.6, R[2] - 1, R[1] + 9.4), brins=2, larg_ruban=1.0, pas=4.6, prof=0.2)
-        T.zone(R_SP, H.metal(FER_NOIR, g + 51, base=0.52, contraste=0.3, martele=0.15, crasse=0.25, poli=0.7, patine=0.2), sale=0.5, poli=0.5)
-        # facettes : le ruban clair d'une arête médiane sur chaque pointe (u centré sur chaque face), liseré d'argent en pied
         T.biseau(R_SP, larg=1.2, haut=0.4, cotes="bh", poli=1.0)
+        trait(T, (R[0] + 1, R[1] + 3.6), (R[2] - 1, R[1] + 3.6), larg=0.30, pal=("#2a2418", "#4a4030"), k=0.4, bri=0.1, creux=0.12)
+        trait(T, (R[0] + 1, R[1] + 10.4), (R[2] - 1, R[1] + 10.4), larg=0.30, pal=("#2a2418", "#4a4030"), k=0.4, bri=0.1, creux=0.12)
+        T.entrelacs((R[0] + 1, R[1] + 4.6, R[2] - 1, R[1] + 9.4), brins=2, larg_ruban=1.0, pas=4.6, prof=0.2)
         for k in range(pointes):
-            for q in range(4):
-                x = R_SP[0] + (R_SP[2] - R_SP[0]) * (k * 4 + q) / (pointes * 4)
-        trait(T, (R_SP[0] + 1, R_SP[1] + 1.6), (R_SP[2] - 1, R_SP[1] + 1.6), larg=0.25, pal=ARGENT, k=0.5, bri=0.65, creux=0.1)
+            x = R_SP[0] + (R_SP[2] - R_SP[0]) * (k + 0.5) / pointes
+        trait(T, (R[0] + 1, R[1] + 1.8), (R[2] - 1, R[1] + 1.8), larg=0.4, pal=ARGENT, k=0.85, bri=0.8, creux=0.1)
     st.setdefault("peintures", []).append(peint)
 
 
@@ -327,3 +340,52 @@ def capuche_hd(ob, bake_png, graine=61, W=512, Hh=256):
             if n.type == "TEX_IMAGE":
                 n.image = img
     return img
+
+
+# ------------------------------------------------------------------------------------------------------------ fourrure
+def fourrure_meches(pal, g, lw=3.4, rh=2.6, contraste=1.0):
+    """Peau en MÈCHES pointues en rangs imbriqués (pointes vers le bas de la pièce) : chaque mèche part d'une racine sombre (ombre
+    de la rangée du dessus) vers une pointe claire, poils fins en filets, bord de mèche plus sombre ; jours très sombres."""
+    def fn(X, Y, U, V):
+        k0 = np.floor(Y / rh)
+        rgb = np.zeros(X.shape + (3,)); h = np.full(X.shape, -0.35); bri = np.zeros(X.shape)
+        couvert = np.zeros(X.shape, dtype=bool)
+        for dk in (0, -1, -2):
+            k = k0 + dk
+            dec = 0.5 * np.mod(k, 2)
+            c = np.floor(X / lw - dec)
+            cx = (c + 0.5 + dec) * lw + (H._hash(c, k, g) - 0.5) * 0.25 * lw
+            lx = (X - cx) / (lw / 2)
+            yl = Y - k * rh + (H._hash(c, k, g + 1) - 0.5) * 0.35 * rh
+            longueur = rh * (2.0 + 0.8 * H._hash(c, k, g + 3))
+            hw = np.clip(yl / (longueur * 0.9), 0, 1) ** 0.65
+            cov = (np.abs(lx) < hw) & (yl > 0) & (yl < longueur) & ~couvert
+            if not cov.any():
+                continue
+            tt = np.clip(yl / longueur, 0, 1)                   # 0 pointe, 1 racine
+            ide = H._hash(c, k, g + 2)
+            fil = H.bruit(X * 13.0, Y * 0.6, 1.0, g + 6) - 0.5 + 0.5 * (H.bruit(X * 31.0, Y * 1.1, 1.0, g + 8) - 0.5)
+            bord = np.clip(np.abs(lx) / np.maximum(hw, 1e-3), 0, 1) ** 3
+            v = (0.84 - 0.60 * tt ** 0.85) * contraste + (ide - 0.5) * 0.12 + fil * 0.34 - 0.14 * bord
+            col = H.rampe(pal, np.clip(v, 0, 0.999))
+            rgb = np.where(cov[..., None], col, rgb)
+            h = np.where(cov, 0.30 * (1 - tt) + 0.05 * dk - 0.10 * bord, h)
+            bri = np.where(cov, 0.04, bri)
+            couvert |= cov
+        fond = H.rampe(pal, 0.05 + 0.05 * H.fbm(X, Y, g + 9, oct=((3, 0.6), (1, 0.4))))
+        rgb = np.where(couvert[..., None], rgb, fond)
+        return rgb, bri, h
+    return fn
+
+
+def fourrure_touffe(pal, g, y_pointe, y_racine):
+    """Bande des petites mèches 3D (apex en haut de la bande, racine en bas) : dégradé blanc-gris à la pointe -> ombre à la base,
+    filets de poils dans le sens de la mèche."""
+    def fn(X, Y, U, V):
+        t = np.clip((Y - y_pointe) / (y_racine - y_pointe), 0, 1)          # 0 pointe, 1 racine
+        fil = H.bruit(X * 7.0, Y * 0.5, 1.0, g) - 0.5
+        fin = H.bruit(X * 17.0, Y * 1.0, 1.0, g + 3) - 0.5
+        v = 0.90 - 0.78 * t ** 0.8 + fil * 0.28 + fin * 0.14
+        rgb = H.rampe(pal, np.clip(v, 0, 0.999))
+        return rgb, np.full(X.shape, 0.04), 0.35 * (1 - t) + fil * 0.2
+    return fn

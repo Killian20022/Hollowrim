@@ -43,6 +43,9 @@ const MATIERES := {
 	"fer": {"teinte": Color(1.0, 1.0, 1.02), "metal": 0.5, "poli": 0.35, "reflet": Color(0.95, 0.96, 1.0)},
 	"acier": {"teinte": Color(1.04, 1.04, 1.06), "metal": 0.75, "poli": 0.7, "reflet": Color(0.94, 0.98, 1.05)},
 	"or": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.72, "poli": 0.6, "reflet": Color(1.06, 0.9, 0.62)},
+	# variantes à lueur propre (émission = albédo² : seuls les texels clairs rougeoient, le reste de la pièce reste mat)
+	"cuir.braise": {"teinte": Color(1.04, 1.0, 0.98), "bord": 0.14, "poli": 0.22, "lueur": 0.35},
+	"fourrure.runes": {"teinte": Color(1.02, 1.0, 0.98), "bord": 0.05, "poli": 0.05, "lueur": 0.14},
 }
 ## Matière FPS (AvantBras) remplacée par famille de gants : clé de matière ab_* -> nom de matière du glb ou "" (inchangé).
 const FPS_GANTS := ["ab_gant"]
@@ -230,7 +233,9 @@ static func _habiller_maillage(mi: MeshInstance3D, cle: String) -> void:
 		var d := {}
 		for s in mi.mesh.get_surface_count():
 			var m := mi.mesh.surface_get_material(s)
-			var nom := m.resource_name.get_slice(".", 0) if m else "cuir"
+			var nom := "cuir"
+			if m != null:
+				nom = m.resource_name if MATIERES.has(m.resource_name) else m.resource_name.get_slice(".", 0)
 			var tex: Texture2D = (m as BaseMaterial3D).albedo_texture if m is BaseMaterial3D else null
 			d[s] = materiau(nom, tex)
 		_mats[cle] = d

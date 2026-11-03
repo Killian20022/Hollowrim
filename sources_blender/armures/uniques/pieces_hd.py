@@ -843,6 +843,24 @@ def cuirasse(r, st):
             ia, ib, im = P.sommet(a_, 0.9), P.sommet(b_, 0.9), P.sommet(pm, 1.0)
             u0, v0, u1, v1 = C.rect_uv((92, 120, 128, 128))
             P.face([ia, ib, im], "fourrure", [(u0, v0), (u1, v0), ((u0 + u1) / 2, v1)])
+        # touffes : petites mèches serrées (3 sommets chacune) sur les rangs du bas du col, couchées vers l'extérieur, pointes
+        # à des longueurs variées ; dégradé racine sombre -> pointe claire peint dans la bande (92, 92)-(128, 100)
+        tf = F.get("touffes", 0)
+        for k_row in range(1, 4 if tf else 1):
+            for i in range(nf - 1):
+                for sub in range(tf):
+                    t0 = (sub + 0.6 * _h(i, k_row * 7 + sub, g + 31)) / tf
+                    a_ = rows[k_row][i].lerp(rows[k_row][i + 1], min(t0, 0.95))
+                    b_ = rows[k_row][i].lerp(rows[k_row][i + 1], min(t0 + 1.5 / tf, 1.0))
+                    mid = (a_ + b_) / 2
+                    out = (mid - Vector((0, -0.005, mid.z))).normalized()
+                    L_ = F.get("long_touffes", 0.05) * (1.0 - 0.14 * k_row) * (0.6 + 0.8 * _h(i, k_row * 5 + sub, g + 33))
+                    pm = mid + Vector((0, 0, -L_)) + out * (0.010 + 0.012 * _h(i, sub, g + 35)) + Vector((0.012 * (_h(i, sub + 9, g + 37) - 0.5), 0, 0))
+                    ia, ib, im = P.sommet(a_, 0.8), P.sommet(b_, 0.8), P.sommet(pm, 0.5)
+                    u0, v0, u1, v1 = C.rect_uv((92, 92, 128, 100))
+                    ua = u0 + (u1 - u0) * 0.6 * _h(i, sub + 2, g + 39)
+                    ub = ua + (u1 - u0) * 0.4
+                    P.face([ib, ia, im], "fourrure", [(ub, v1), (ua, v1), ((ua + ub) / 2, v0)])
     # ================================================================ peinture
     pm = st.get("pal_maille", H.FER)
     pc = st.get("pal_cuir", H.CUIR)
@@ -1273,6 +1291,23 @@ def bottes(r, st):
             for jj, kz in ((2, 0.10), (3, 0.10), (1, 0.04)):
                 Pr[jj] = [p - Vector((0, 0, kz * max(0.0, -math.cos(a)) ** 1.5)) for p, a in zip(Pr[jj], angs)]
             P.grille_v(Pr, "fourrure", R_FOUR_B, vs=[0.0, 0.4, 0.85, 1.0])
+            if st.get("touffes_tige"):
+                # mèches en tuiles sur le mollet (hors du devant de la jambe : le cuir lacé reste visible) et un 2e rang au revers
+                u0, v0, u1, v1 = C.rect_uv((0, 60, 64, 72))
+                lst = [(Pb[j], zs[j]) for j in range(len(Pb)) if zs[j] >= 0.12] + [(Pr[2], zr)]
+                for rr_, (ring, zlev) in enumerate(lst):
+                    for i in range(n):
+                        if i in (n // 2 - 1, n // 2, n // 2 + 1):
+                            continue
+                        a_, b_ = ring[i], ring[(i + 1) % n]
+                        mid = (a_ + b_) / 2
+                        out = (mid - Vector((B.x, B.y, mid.z))).normalized()
+                        Lm = st.get("long_touffes", 0.04) * (0.7 + 0.8 * C._h(i, rr_, 17))
+                        pm_ = mid + Vector((0, 0, -Lm)) + out * (0.008 + 0.006 * C._h(i, rr_, 19))
+                        ia, ib, im = P.sommet(a_, 0.8), P.sommet(b_, 0.8), P.sommet(pm_, 0.5)
+                        ua = u0 + (u1 - u0) * 0.55 * C._h(i, rr_, 23)
+                        ub = ua + (u1 - u0) * 0.45
+                        P.face([ia, ib, im], "fourrure", [(ua, v1), (ub, v1), ((ua + ub) / 2, v0)])
             for i in range(n):
                 a_, b_ = Pr[1][i], Pr[1][(i + 1) % n]
                 m = (a_ + b_) / 2 + Vector((0, 0, -0.03 - 0.025 * C._h(i, 1, 9))) + ((a_ + b_) / 2 - Vector((B.x, B.y, a_.z))).normalized() * 0.008
