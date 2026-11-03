@@ -1036,7 +1036,7 @@ def gantelets(r, st):
     for cote, s in COTES:
         la, ha = r.os["lowerarm_" + cote], r.os["hand_" + cote]
         avb = C.bvh(r, ["brassards", "tunique", "peau", "accessoires"], {"lowerarm_" + cote}, 0.5)
-        A = la.lerp(ha, st.get("debut_manchette", 0.45))
+        A = la.lerp(ha, st.get("debut_manchette", 0.45))  # 0.45 : poignet ; 0.1 : canon d avant-bras complet
         B = ha + (ha - la).normalized() * 0.01
         ev = st.get("evasement", 0.025)
         nm = 12
@@ -1274,13 +1274,13 @@ def bottes(r, st):
         P.grille_v([top, rv_in], MB, (R_SEM[0], R_SEM[1], R_SEM[2], R_SEM[1] + 1))
         # sangles en relief (fer) : bandes autour de la cheville et du mollet
         for zz in st.get("sangles", ()):
-            Ps, _, _ = C.tube(jambe, A, B, [(z - A.z) / (B.z - A.z) for z in (zz - 0.013, zz, zz + 0.013)], n,
-                              lambda j, i, a: 0.008 + (0.001, 0.005, 0.001)[j], r_loin=0.4, dilate=1, lisse=2)
+            Ps, _, _ = C.tube(jambe, A, B, [(z - A.z) / (B.z - A.z) for z in (zz - 0.012, zz + 0.012)], n,
+                              lambda j, i, a: 0.012, r_loin=0.4, dilate=1, lisse=2)
             Ps = galbe(Ps)
-            P.grille_v(Ps, "cuir", R_SANG, vs=[0.0, 0.5, 1.0])
+            P.grille_v(Ps, "cuir", R_SANG, vs=[0.0, 1.0])
             # boucle sur le côté extérieur
             ib = int(round((math.pi / 2 * s + math.pi) / TAU * n)) % n
-            pb = Ps[1][ib]
+            pb = Ps[0].__getitem__(ib).lerp(Ps[1][ib], 0.5)
             nrm = (pb - Vector((ca.x, ca.y, pb.z))).normalized()
             tgt = Vector((0, 0, 1)).cross(nrm).normalized()
             q = [pb + tgt * x + Vector((0, 0, z)) + nrm * 0.001 for (x, z) in ((-0.012, -0.011), (0.012, -0.011), (0.012, 0.011), (-0.012, 0.011))]
@@ -1368,6 +1368,21 @@ def bottes(r, st):
             bord = Pk[row_i]
             tr = [p + (Kc - p).normalized() * 0.008 for p in bord]
             P.grille_v([bord, tr] if row_i == -1 else [tr, bord], st["mat_genou"], (R_GENOU[0], R_GENOU[1], R_GENOU[2], R_GENOU[1] + 0.6), fermer=False, inverser=True)
+        # CUISSOTS en lames articulées sur la cuisse (genou -> hanche), chaque lame du bas recouvre la suivante ; bord bas roulé
+        if st.get("cuissots", 0):
+            nc = st["cuissots"]
+            cuisse = C.bvh(r, ["pantalon"], {"thigh_" + cote}, 0.5)
+            Ac, Bc = Vector((ca.x, ca.y, ca.z + 0.02)), Vector((th.x, th.y, th.z - 0.04))
+            arc_c = [math.radians(x) for x in range(-100, 101, 40)]
+            hs = (R_GENOU[3] - R_GENOU[1]) / 2 / nc
+            for k in range(nc):
+                ta, tb = 0.03 + 0.80 * k / nc, 0.03 + 0.80 * (k + 1) / nc + 0.11
+
+                def dec_c(j, i, a, k=k):
+                    return 0.010 + 0.003 * (nc - k) + (0.0, 0.004, 0.003)[j] + 0.004 * max(0.0, math.cos(a)) * (1 if j == 1 else 0)
+                Pc, _, _ = C.tube(cuisse, Ac, Bc, [ta, (ta + tb) * 0.5, tb], 0, dec_c, r_loin=0.4, dilate=1, lisse=1, angles=arc_c)
+                rs = (R_GENOU[0], R_GENOU[1] + (R_GENOU[3] - R_GENOU[1]) / 2 + hs * k, R_GENOU[2], R_GENOU[1] + (R_GENOU[3] - R_GENOU[1]) / 2 + hs * (k + 1))
+                P.grille_v(Pc, st["mat"], rs, vs=[0.0, 0.5, 1.0], fermer=False, inverser=True)
     # ================================================================ peinture
     if st.get("mat_botte", "cuir") == "cuir":
         T.zone(R_BOTTE, H.cuir(st.get("pal_cuir", H.CUIR), g, base=st.get("base_cuir", 0.38)), sale=0.75)
@@ -1398,6 +1413,11 @@ def bottes(r, st):
     peindre_plaque(T, (R_GENOU[0], R_GENOU[1], R_GENOU[2], R_GENOU[1] + hk), st, g + 2, bas=True, haut=True, larg_bis=2.0,
                    rivets=4 if st.get("rivets_greve") else 0, rivet_y=R_GENOU[1] + hk - 3,
                    graver=(R_GENOU[0] + 6, R_GENOU[1] + 4, R_GENOU[2] - 6, R_GENOU[1] + 10) if st.get("graver") else None)
+    for nls in ([st["cuissots"]] if st.get("cuissots") else []):
+        for k in range(nls):
+            hy = hk / nls
+            rs = (R_GENOU[0], R_GENOU[1] + hk + hy * k, R_GENOU[2], R_GENOU[1] + hk + hy * (k + 1))
+            peindre_plaque(T, rs, st, g + 60 + k, bas=True, haut=True, rivets=5, rivet_y=rs[3] - 1.6, larg_bis=1.0)
     if st.get("solerets"):
         nls = 4
         for k in range(nls):

@@ -35,14 +35,14 @@ PIECES = {
     # --- fer : casque à nasal (spangenhelm riveté) et camail ; cuirasse à deux lames, baudrier, col de fourrure brune
     "casque_fer": lambda r: PH.casque(r, _s(FER, id="casque_fer", bombe=0.012, rivets_rebord=16, larg_bande=0.014,
                                            camail_arc=(100, 260), decor=[PH.deco_nasal, PH.deco_camail])),
-    "cuirasse_fer": lambda r: PH.cuirasse(r, _s(FER, id="cuirasse_fer", z_lames=[1.06, 1.17, 1.42], bombe=0.012, tablier=26,
-                                               fentes=(-95, 95, 180), dechire=0.03, rivets_lame=12, sangles=[((36, 1.42), (-30, 1.04))],
-                                               lames_epaule=2, rivets_epaule=6, epaule_ecart=0.024,
-                                               fourrure=dict(gonfle=0.95, meches=0.045, cote=0.15, r_max=0.16, r_max_cote=0.07, phis=(-14, -8, 4, 16, 34, 50), phis_cote=(-4, 2, 12, 24, 38, 52)),
+    "cuirasse_fer": lambda r: PH.cuirasse(r, _s(FER, id="cuirasse_fer", z_lames=[1.06, 1.17, 1.42], bombe=0.012, tablier=20,
+                                               fentes=(-95, 95, 180), dechire=0.03, rivets_lame=12, sangles=[((36, 1.42), (-30, 1.04)),],
+                                               lames_epaule=3, rivets_epaule=6, epaule_ecart=0.024, bord_roule=True,
+                                               fourrure=dict(gonfle=0.95, pas=18, meches=0.045, cote=0.15, r_max=0.16, r_max_cote=0.07, phis=(-14, -8, 4, 16, 34, 50), phis_cote=(-4, 2, 12, 24, 38, 52)),
                                                pal_fourrure=H.FOURRURE_BRUNE_CLAIRE, base_fourrure=0.5)),
     "gantelets_fer": lambda r: PH.gantelets(r, _s(FER, id="gantelets_fer", main_cuir=True, lames_main=1, rivets_manchette=7, rivets_lames=4,
-                                                  evasement=0.022, jointures=False)),
-    "bottes_fer": lambda r: PH.bottes(r, _s(FER, id="bottes_fer", greve=False, revers_fourrure=True, ep_revers=1.1, sangles=(0.10, 0.26),
+                                                  evasement=0.022, jointures=False, debut_manchette=0.08)),
+    "bottes_fer": lambda r: PH.bottes(r, _s(FER, id="bottes_fer", greve=False, revers_fourrure=True, ep_revers=1.1, sangles=(0.10, 0.26), cuissots=3,
                                            ailette=0.0, rivets_greve=True, pal_fourrure=H.FOURRURE_BRUNE_CLAIRE, base_fourrure=0.5)),
     # --- acier nordique : la colonne STEEL de la planche
     "casque_acier_nordique": lambda r: PH.casque(r, _s(ACIER, id="casque_acier_nordique", bas=(0.26, -0.2, -0.55), bandes=[0.0, math.pi],
@@ -56,8 +56,8 @@ PIECES = {
                                                            fourrure=dict(gonfle=1.2, pas=18, meches=0.06, cote=0.25, r_max=0.165, r_max_cote=0.085, phis=(-12, -6, 6, 18, 36, 52), phis_cote=(-6, 0, 10, 24, 38, 52)),
                                                            pal_fourrure=H.FOURRURE_GRISE, base_fourrure=0.74, degrade_fourrure=0.5)),
     "gantelets_acier_nordique": lambda r: PH.gantelets(r, _s(ACIER, id="gantelets_acier_nordique", main_cuir=True, lames_main=2, rivets_manchette=9,
-                                                             rivets_lames=5, evasement=0.03, jointures=True)),
-    "bottes_acier_nordique": lambda r: PH.bottes(r, _s(ACIER, id="bottes_acier_nordique", greve=False, revers_fourrure=True, sangles=(0.08, 0.20, 0.32), ep_revers=1.35,
+                                                             rivets_lames=5, evasement=0.03, jointures=True, debut_manchette=0.08)),
+    "bottes_acier_nordique": lambda r: PH.bottes(r, _s(ACIER, id="bottes_acier_nordique", greve=False, revers_fourrure=True, sangles=(0.08, 0.20, 0.32), ep_revers=1.35, cuissots=3,
                                                        embout=False, ailette=0.032, rivets_greve=True, pal_fourrure=H.FOURRURE_BEIGE, base_fourrure=0.6)),
 }
 
@@ -133,6 +133,7 @@ def version_sol(r, ob, pid):
         for v in me.vertices:
             s = 1 if v.co.x > 0 else -1
             v.co.x -= s * 0.05
+        me.transform(Matrix.Scale(0.72, 4))      # cuissots compris : la pièce au sol reste sous 75 cm (test)
     zmin = min(v.co.z for v in me.vertices)
     cx = sum(v.co.x for v in me.vertices) / len(me.vertices)
     cy = sum(v.co.y for v in me.vertices) / len(me.vertices)
@@ -165,6 +166,11 @@ def main():
         ob = PIECES[pid](r)
         print("PIECE", pid, C.compter_tris(ob), "tris", "groupes", len(ob.vertex_groups),
               "texture", next(n for n in ob.data.materials[0].node_tree.nodes if n.type == "TEX_IMAGE").image.size[:])
+        _rep = {}
+        for _p in ob.data.polygons:
+            _m = ob.data.materials[_p.material_index].name.split(".")[0]
+            _rep[_m] = _rep.get(_m, 0) + len(_p.vertices) - 2
+        print("REPARTITION", pid, _rep)
         if exporter:
             C.exporter([ob], r, os.path.join(C.PORTE, pid + ".glb"))
         if sol and exporter:
