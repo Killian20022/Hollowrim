@@ -44,7 +44,7 @@ func _go() -> void:
 	var tot := 0
 	var points := {}   # nom → image de jeu (depuis l'appui) où capturer
 	if not film:
-		points = {"debut": 14, "mi": 72, "plein": 100, "rayon": 100 + 14, "rayon2": 100 + 30, "impact": 100 + 62, "apres": 100 + 140}
+		points = {"debut": 14, "mi": 72, "plein": 100, "rayon": 100 + 14, "rayon2": 100 + 30, "impact": 100 + 42, "apres": 100 + 120}
 	var appui := 0
 	var fin_film := 100 + 200 + (60 if film else 0)
 	var boutons: Array = ["gauche", "droite"] if main == "double" else [main]
