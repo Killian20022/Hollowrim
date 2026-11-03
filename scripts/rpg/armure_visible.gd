@@ -242,6 +242,9 @@ static func instancier_sol(id: String) -> Node3D:
 
 static func _habiller_maillage(mi: MeshInstance3D, chemin: String, var_mat := "") -> void:
 	var cle := chemin + ("|" + var_mat if var_mat != "" else "")
+	# LOD automatiques de l'import (generate_lods) : en 480x270 le moteur choisissait des niveaux très simplifiés qui mangeaient les
+	# plaques fines et la pelisse posées sur la coque (charte HD : la géométrie détaillée doit rester visible)
+	mi.lod_bias = 64.0
 	if not _mats.has(cle):
 		var d := {}
 		for s in mi.mesh.get_surface_count():
@@ -255,6 +258,18 @@ static func _habiller_maillage(mi: MeshInstance3D, chemin: String, var_mat := ""
 		if mats.has(s):
 			mi.set_surface_override_material(s, mats[s])
 
+## Shader des armures (charte HD du 2026-11-02) : le shader « matière » des armes, mais la texture de la pièce est lue avec ses
+## MIPMAPS (filtrage linéaire + anisotrope) : les atlas peints 1024² ne scintillent plus en mouvement quand la pièce est loin (sans
+## mipmaps, un pixel de l'écran PS1 en couvre des dizaines de texels) et ne montrent plus de gros texels de près.
+static var _shader_armure: Shader
+static func shader_armure() -> Shader:
+	if _shader_armure == null:
+		_shader_armure = Shader.new()
+		_shader_armure.code = EpeesLongues.shader_matiere(false).code \
+			.replace("uniform sampler2D tex_base : source_color, filter_nearest, repeat_enable;", "uniform sampler2D tex_base : source_color, filter_linear_mipmap_anisotropic, repeat_enable;") \
+			.replace("uniform sampler2D tex_neige : source_color, filter_nearest, repeat_enable;", "uniform sampler2D tex_neige : source_color, filter_linear_mipmap_anisotropic, repeat_enable;")
+	return _shader_armure
+
 ## Matériau PS1 « matière » d'une pièce (texture cuite, alpha = brillance) + contour des personnages.
 static func materiau(nom: String, tex: Texture2D, var_mat := "") -> ShaderMaterial:
 	var p: Dictionary = MATIERES.get(nom, MATIERES["cuir"])
@@ -267,7 +282,7 @@ static func materiau(nom: String, tex: Texture2D, var_mat := "") -> ShaderMateri
 	if tex == null:
 		tex = Palette.tex("cuir", Palette.CUIR, 4, 0.5)
 	var m := Palette.materiau(tex, Vector2.ONE, p.get("teinte", Color.WHITE))
-	m.shader = EpeesLongues.shader_matiere(false)
+	m.shader = shader_armure()
 	m.set_shader_parameter("tex_neige", tex)    # couleurs de sommet du glb d'alpha nul : pas de neige
 	m.set_shader_parameter("mt_boite", 0.0)
 	for k in ["metal", "poli", "bord", "profondeur", "lueur"]:

@@ -1,0 +1,58 @@
+[
+ {
+  "id": "armure_cuir",
+  "nom": "Justaucorps de cuir bouilli",
+  "emplacement": "torse",
+  "matiere": "cuir",
+  "poids": 6.0
+ },
+ {
+  "id": "capuche_cuir",
+  "nom": "Capuche de rôdeur",
+  "emplacement": "tete",
+  "matiere": "cuir",
+  "poids": 1.0
+ },
+ {
+  "id": "gants_cuir",
+  "nom": "Gants de cuir lacés",
+  "emplacement": "mains",
+  "matiere": "cuir",
+  "poids": 1.0
+ },
+ {
+  "id": "bottes_cuir",
+  "nom": "Bottes de rôdeur",
+  "emplacement": "pieds",
+  "matiere": "cuir",
+  "poids": 2.0
+ },
+ {
+  "id": "armure_fourrure",
+  "nom": "Pelisse de loup du chasseur",
+  "emplacement": "torse",
+  "matiere": "fourrure",
+  "poids": 7.0
+ },
+ {
+  "id": "casque_fourrure",
+  "nom": "Bonnet de loup",
+  "emplacement": "tete",
+  "matiere": "fourrure",
+  "poids": 1.5
+ },
+ {
+  "id": "gants_fourrure",
+  "nom": "Moufles de loup",
+  "emplacement": "mains",
+  "matiere": "fourrure",
+  "poids": 1.0
+ },
+ {
+  "id": "bottes_fourrure",
+  "nom": "Bottes fourrées",
+  "emplacement": "pieds",
+  "matiere": "fourrure",
+  "poids": 2.5
+ }
+]
