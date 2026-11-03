@@ -860,28 +860,42 @@ def cuirasse(r, st):
                 uvq = [(u0, v0 + (v1 - v0) * k / 5), (u0, v0 + (v1 - v0) * (k + 1) / 5), (u1, (v0 + v1) / 2)]
                 P.face([ids_b[k], ids_b[k + 1], ic_], "fourrure", uvq)
                 P.face([ids_b2[k], ids_b2[k + 1], ic2], "fourrure", uvq, dedans=True)
-        # mèches qui pendent du bord (deux rangs décalés) et mèches dressées au sommet
-        for rang, (src, long, out_) in enumerate(((1, F.get("meches", 0.06), 0.012), (2, F.get("meches", 0.06) * 0.6, 0.02))):
+        # doublure intérieure (faces « dedans », maillage clairsemé) : plus de face noire vue de l'intérieur du col
+        lig = [[rows[k][i] - Vector((rows[k][i].x, rows[k][i].y + 0.005, 0.0)).normalized() * 0.004 for i in range(0, nf, 2)] for k in (0, 2, 5)]
+        P.grille_v(lig, "fourrure", R_FOUR, vs=[0.0, 0.4, 1.0], fermer=False, inverser=True, dedans=True)
+        # MÈCHES (technique de la fourrure loup, 3 triangles par mèche : bande pliée + pointe) : petites, denses, couchées vers le
+        # bas et l'extérieur, plus nombreuses sur le bord et le dessus du col ; teinte et dégradé portés par la texture
+        u0, v0, u1, v1 = C.rect_uv(R_FOUR)
+        L0 = F.get("long_meche", 0.055)
+        dens = F.get("densite", (3, 1, 1, 1, 1))
+        for k in range(1, len(rows)):
             for i in range(nf - 1):
-                if rang == 1 and i % 2 == 1:
-                    continue
-                a_, b_ = rows[src][i], rows[src][i + 1]
-                if rang == 1:
-                    b_ = rows[src][min(i + 2, nf - 1)]
-                mid = (a_ + b_) / 2
-                out = (mid - Vector((0, -0.005, mid.z))).normalized()
-                pm = mid + Vector((0, 0, -long * (0.7 + 0.6 * _h(i, rang, 3)))) + out * out_ + Vector((0.01 * (_h(i, rang, 4) - 0.5), 0, 0))
-                ia, ib, im = P.sommet(a_, 0.85), P.sommet(b_, 0.85), P.sommet(pm, 0.55)
-                u0, v0, u1, v1 = C.rect_uv((92, 92, 128, 100))
-                P.face([ib, ia, im], "fourrure", [(u1, v1), (u0, v1), ((u0 + u1) / 2, v0)])
-        for i in range(nf - 1):
-            a_, b_ = rows[3][i], rows[3][i + 1]
-            mid = (a_ + b_) / 2
-            out = (mid - Vector((0, -0.005, mid.z))).normalized()
-            pm = mid + Vector((0, 0, 0.016 + 0.014 * _h(i, 9, 5))) + out * 0.010
-            ia, ib, im = P.sommet(a_, 0.9), P.sommet(b_, 0.9), P.sommet(pm, 1.0)
-            u0, v0, u1, v1 = C.rect_uv((92, 120, 128, 128))
-            P.face([ia, ib, im], "fourrure", [(u0, v0), (u1, v0), ((u0 + u1) / 2, v1)])
+                for q in range(dens[k - 1]):
+                    h1, h2, h3 = _h(i, k * 7 + q, 21), _h(i, k * 7 + q, 22), _h(i, k * 7 + q, 23)
+                    fu, fv = (q + h1) / dens[k - 1], 0.25 + 0.7 * h2
+                    top = lambda g_: rows[k][i].lerp(rows[k][i + 1], g_)
+                    bot = lambda g_: rows[k - 1][i].lerp(rows[k - 1][i + 1], g_)
+                    pos = top(fu).lerp(bot(fu), fv)
+                    desc = (bot(fu) - top(fu))
+                    desc = desc.normalized() if desc.length > 1e-6 else Vector((0, 0, -1))
+                    lat = (rows[k][i + 1] - rows[k][i]).normalized()
+                    out = (pos - Vector((0, -0.005, pos.z))).normalized()
+                    L = L0 * (0.7 + 0.6 * h3) * (1.15 if k == 1 else 1.0)
+                    w = 0.016 * (0.8 + 0.5 * h2)
+                    sens = desc * (1.0 if k >= 3 else 0.8)
+                    a_ = pos - lat * w / 2 + out * 0.002
+                    b_ = pos + lat * w / 2 + out * 0.002
+                    mid = pos + sens * L * 0.5 + out * (0.012 + 0.006 * h1) + Vector((0, 0, -0.004))
+                    ma, mb = mid - lat * w * 0.35, mid + lat * w * 0.35
+                    tip = pos + sens * L + out * (0.020 + 0.010 * h3) + Vector((0, 0, -0.016 - 0.008 * h2)) + lat * (h1 - 0.5) * 0.008
+                    ia, ib = P.sommet(a_, 0.7), P.sommet(b_, 0.7)
+                    ima, imb = P.sommet(ma, 0.85), P.sommet(mb, 0.85)
+                    it = P.sommet(tip, 1.0)
+                    uu = u0 + (u1 - u0) * (0.1 + 0.8 * h1)
+                    uw = (u1 - u0) * 0.05
+                    va, vm, vt = v0 + (v1 - v0) * 0.85, v0 + (v1 - v0) * 0.5, v0 + (v1 - v0) * 0.1
+                    P.face([ia, ib, imb, ima], "fourrure", [(uu - uw, va), (uu + uw, va), (uu + uw * 0.7, vm), (uu - uw * 0.7, vm)])
+                    P.face([ima, imb, it], "fourrure", [(uu - uw * 0.7, vm), (uu + uw * 0.7, vm), (uu, vt)])
     # ================================================================ peinture
     pm = st.get("pal_maille", H.FER)
     pc = st.get("pal_cuir", H.CUIR)
