@@ -52,7 +52,6 @@ const MATIERES := {
 	# verre : OPAQUE à faux translucide (facettes en dégradé, veines internes et filets peints dans l'atlas + reflet vitreux rasant
 	# « bord ») ; aucun tri alpha (Godot et navigateur)
 	"verre": {"teinte": Color(0.96, 1.0, 0.97), "metal": 0.06, "bord": 0.7, "poli": 0.95, "reflet": Color(0.86, 1.0, 0.9)},
-	"tissu": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.04, "poli": 0.04},
 	# runes niellées incrustées : fond presque noir, glyphes clairs ; la variante « .enchante » les fait luire (émission ∝ albédo²)
 	"runes": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.4, "poli": 0.6, "reflet": Color(1.0, 0.96, 0.85)},
 	"runes.enchante": {"teinte": Color(1.1, 1.25, 1.12), "metal": 0.2, "poli": 0.6, "lueur": 2.4, "reflet": Color(0.8, 1.0, 0.85)},
@@ -64,6 +63,17 @@ const MATIERES := {
 	"fer.argent.p": {"teinte": Color(1.0, 1.0, 1.02), "metal": 0.25, "poli": 0.5, "reflet": Color(0.95, 0.97, 1.0)},
 	"cuir.braise.c": {"teinte": Color(1.04, 1.0, 0.98), "bord": 0.14, "poli": 0.22, "lueur": 0.7},
 	"fourrure.runes": {"teinte": Color(1.02, 1.0, 0.98), "bord": 0.05, "poli": 0.05, "lueur": 0.14},
+	# Armures HD obsidienne + or (planche planche_armures_5.png ; branche armures_hd/obsidienne_or). Clé = nom COMPLET du matériau
+	# (« preset.variante ») quand elle existe, sinon le préfixe. lueur : émission = albédo² × lueur (seuls les texels clairs,
+	# magma / fente / runes / broderies, rayonnent : la pierre noire et le bleu nuit restent éteints).
+	"obsidienne": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.1, "bord": 0.6, "poli": 0.6, "reflet": Color(0.9, 0.86, 1.0), "lueur": 0.75},
+	"obsidienne.enchante": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.1, "bord": 0.6, "poli": 0.6, "reflet": Color(0.9, 0.86, 1.0), "lueur": 1.1},
+	"or.patine": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.0, "poli": 0.0, "reflet": Color(1.0, 0.95, 0.82)},
+	"or.lion": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.0, "poli": 0.0, "reflet": Color(1.0, 0.95, 0.82)},
+	"tissu": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.12, "poli": 0.08},
+	"tissu.enchante": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.12, "poli": 0.08, "lueur": 0.8},
+	"gemme": {"teinte": Color(1.05, 1.0, 1.0), "metal": 0.05, "bord": 0.45, "poli": 1.0, "lueur": 0.25, "reflet": Color(1.0, 0.93, 0.94)},
+	"gemme.enchante": {"teinte": Color(1.05, 1.0, 1.0), "metal": 0.05, "bord": 0.45, "poli": 1.0, "lueur": 0.6, "reflet": Color(1.0, 0.93, 0.94)},
 }
 ## Variante VISUELLE enchantée (objets rares) : même modèle, matériaux « <preset>.enchante » quand la fiche porte
 ## "variante_materiau": "enchante" ou que l'identifiant finit par _enchante (glb du modèle de base si la fiche n'en donne pas).
@@ -71,6 +81,33 @@ const ENCHANTE := "enchante"
 ## Textures plus grandes que 256 (armures HD, atlas 1024²) : shader_armure (mipmaps, profondeur locale) pour qu'elles ne
 ## scintillent pas en mouvement au 480 x 270.
 const TEX_HD := 256
+
+static var _shader_or: Shader
+
+## Shader de l'or des armures (sans toucher au shader « matière » des épées) : matière HD + faux reflet d'environnement (ciel clair en
+## haut -> brun-or sombre en bas, selon la normale réfléchie), éclat spéculaire serré jaune pâle, liseré de fresnel doré.
+static func shader_or() -> Shader:
+	if _shader_or == null:
+		_shader_or = Shader.new()
+		var bloc := """	{
+		vec3 or_n = normalize(NORMAL);
+		vec3 or_v = normalize(VIEW);
+		vec3 or_r = normalize((INV_VIEW_MATRIX * vec4(reflect(-or_v, or_n), 0.0)).xyz);
+		float or_b = texture(tex_base, uv).a;
+		float or_h = smoothstep(-0.35, 0.75, or_r.y);
+		vec3 or_env = mix(vec3(0.10, 0.06, 0.02), vec3(1.05, 0.95, 0.70), or_h);
+		ALBEDO = mix(ALBEDO, ALBEDO * or_env * 1.25, 0.85 * or_b);
+		float or_s = pow(max(dot(or_r, normalize(vec3(-0.45, 0.72, 0.52))), 0.0), 36.0);
+		or_s = step(0.45, or_s) + 0.4 * step(0.12, or_s) * (1.0 - step(0.45, or_s));
+		EMISSION += vec3(1.0, 0.97, 0.80) * or_s * 0.9 * or_b;
+		float or_f = 1.0 - clamp(dot(or_n, or_v), 0.0, 1.0);
+		or_f = floor(or_f * or_f * or_f * 4.0) / 4.0;
+		EMISSION += vec3(1.0, 0.80, 0.30) * or_f * 0.22 * or_b;
+	}
+	ROUGHNESS = 1.0;
+}"""
+		_shader_or.code = shader_armure().code.replace("\tROUGHNESS = 1.0;\n}", bloc)
+	return _shader_or
 ## Matière FPS (AvantBras) remplacée par famille de gants : clé de matière ab_* -> nom de matière du glb ou "" (inchangé).
 const FPS_GANTS := ["ab_gant"]
 const FPS_BRASSARD := ["ab_cuir", "ab_tresse", "ab_fourrure"]
@@ -165,6 +202,7 @@ const CHAUSSES_PAR_TORSE := {
 	"armure_cuir": "cuir", "armure_fourrure": "fourrure", "cuirasse_os": "os",
 	"cuirasse_fer": "fer", "cuirasse_acier_nordique": "acier", "cuirasse_gardiens": "gardiens", "brigandine_braise": "braise",
 	"cuirasse_verre": "verre",
+	"cuirasse_obsidienne": "obsidienne", "cuirasse_or": "or",
 }
 
 static func famille_chausses(id_torse: String) -> String:
@@ -316,6 +354,8 @@ static func materiau(nom: String, tex: Texture2D, var_mat := "") -> ShaderMateri
 		tex = Palette.tex("cuir", Palette.CUIR, 4, 0.5)
 	var m := Palette.materiau(tex, Vector2.ONE, p.get("teinte", Color.WHITE))
 	m.shader = shader_armure() if tex.get_width() > TEX_HD else EpeesLongues.shader_matiere(false)
+	if nom.begins_with("or") and tex.get_width() > TEX_HD:
+		m.shader = shader_or()
 	m.set_shader_parameter("tex_neige", tex)    # couleurs de sommet du glb d'alpha nul : pas de neige
 	m.set_shader_parameter("mt_boite", 0.0)
 	for k in ["metal", "poli", "bord", "profondeur", "lueur"]:
@@ -342,7 +382,7 @@ static func shader_armure() -> Shader:
 	return _shader_armure
 
 static func est_shader_armure(sh: Shader) -> bool:
-	return sh == EpeesLongues.shader_matiere(false) or sh == shader_armure()
+	return sh == EpeesLongues.shader_matiere(false) or sh == shader_armure() or sh == shader_or()
 
 # ------------------------------------------------------------------------------------------------------------- masquage
 ## Zones recouvertes par les pièces réellement posées ; « cape » en plus quand la pièce de tête descend sur les épaules (capuche
@@ -725,6 +765,8 @@ static func materiaux_fps(id: String) -> Dictionary:
 		"acier": [Color(0.56, 0.6, 0.68), Color(0.66, 0.66, 0.7), Color(1.2, 1.24, 1.32)],
 		"hrafn": [Color(0.78, 0.36, 0.3), Color(0.7, 0.42, 0.36), Color(1.1, 1.1, 1.15)],   # cuir rouge sombre, ongles d'acier
 		"verre": [Color(0.95, 0.76, 0.58), Color(0.42, 0.62, 0.46), Color(0.55, 1.25, 0.72)],
+		"obsidienne": [Color(0.3, 0.29, 0.33), Color(0.34, 0.32, 0.36), Color(0.42, 0.4, 0.46)],
+		"or": [Color(1.25, 1.02, 0.62), Color(0.45, 0.5, 0.85), Color(1.35, 1.1, 0.65)],
 	}
 	var t: Array = teintes.get(famille, teintes["cuir"])
 	var ab := AvantBras.materiaux()

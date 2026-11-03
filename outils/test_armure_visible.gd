@@ -641,6 +641,8 @@ func _lancer() -> void:
 			fams = a.substr(11).split(",")
 	print("pièces avec modèle porté : %d %s" % [ps.size(), ps.map(func(p: Array) -> String: return p[0])])
 	ok(ps.size() >= 12, "au moins les 12 pièces légères (cuir, fourrure, os) ont un modèle porté (%d)" % ps.size())
+	if not fams.is_empty():
+		ps = ps.filter(func(p: Array) -> bool: return fams.has(String(p[0]).get_slice("_", String(p[0]).get_slice_count("_") - 1)))
 	var familles := {}
 	for p: Array in ps:
 		if seul != "" and not (seul.split(",") as Array).has(p[0]):

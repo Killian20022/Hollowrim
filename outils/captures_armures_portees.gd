@@ -15,13 +15,20 @@ const PIECES := {
 	"uniques2": ["capuche_thaumaturge", "brigandine_braise", "gants_cuir", "bottes_cuir"],
 	"verre": ["casque_verre", "cuirasse_verre", "gantelets_verre", "bottes_verre"],
 	"verre_enchante": ["casque_verre_enchante", "cuirasse_verre_enchante", "gantelets_verre_enchante", "bottes_verre_enchante"],
+	# armures HD (branche armures_hd/obsidienne_or ; fiches de sources_blender/armures/obsidienne_or/pieces.json tant que l'agent
+	# DONNÉES ne les a pas reportées dans armures.json)
+	"obsidienne": ["casque_obsidienne", "cuirasse_obsidienne", "gantelets_obsidienne", "bottes_obsidienne"],
+	"or": ["casque_or", "cuirasse_or", "gantelets_or", "bottes_or"],
+	"obsidienne_enchante": ["casque_obsidienne_enchante", "cuirasse_obsidienne_enchante", "gantelets_obsidienne_enchante", "bottes_obsidienne_enchante"],
+	"or_enchante": ["casque_or_enchante", "cuirasse_or_enchante", "gantelets_or_enchante", "bottes_or_enchante"],
 }
 const PiecesEssai := preload("res://outils/pieces_essai.gd")
 ## --avant : les pièces d'os d'AVANT la refonte HD (glb de 7ebe79a copiés dans assets/modeles/armures/_avant_os/, non suivis).
 const AVANT := "res://assets/modeles/armures/_avant_os/"
 var avant := false
 const NOMS := {"sans_armure": "Heros sans armure (reference)", "cuir": "CUIR", "fourrure": "FOURRURE", "os": "OS DE DRAUGR",
-	"verre": "VERRE", "verre_enchante": "VERRE RUNIQUE (enchante)", "fer": "FER", "acier": "ACIER NORDIQUE", "uniques": "UNIQUES (Jarl, gardiens, Hrafn, rodeur)", "uniques2": "UNIQUES (thaumaturge, braise) + cuir"}
+	"verre": "VERRE", "verre_enchante": "VERRE RUNIQUE (enchante)", "fer": "FER", "acier": "ACIER NORDIQUE", "obsidienne": "OBSIDIENNE", "or": "OR",
+	"obsidienne_enchante": "OBSIDIENNE RUNIQUE", "or_enchante": "OR CONSACRE", "uniques": "UNIQUES (Jarl, gardiens, Hrafn, rodeur)", "uniques2": "UNIQUES (thaumaturge, braise) + cuir"}
 var s: Node
 var j: CharacterBody3D
 var mains: Node3D
@@ -33,6 +40,8 @@ var film := false
 var jambes := false
 var tete := false          # gros plans du casque de face / 3/4 / profil
 var v2 := false
+var casque := false        # gros plans du casque (face, profil, dos)
+var studio := false        # vue studio de face, pose neutre (mains vides), fond uni
 var chevilles := false     # gros plans des chevilles (bottes portées), sert au contrôle des fentes
 
 func _init() -> void:
@@ -125,6 +134,10 @@ func _go() -> void:
 			avant = true
 		elif a == "--v2":
 			v2 = true
+		elif a == "--studio":
+			studio = true
+		elif a == "--casque":
+			casque = true
 	PiecesEssai.injecter()
 	if avant:
 		for id in PIECES["os"]:
@@ -164,6 +177,10 @@ func _go() -> void:
 		await _tete()
 	elif v2:
 		await _v2()
+	elif casque:
+		await _casque()
+	elif studio:
+		await _studio()
 	elif chevilles:
 		await _chevilles()
 	elif jambes:
@@ -171,6 +188,51 @@ func _go() -> void:
 	else:
 		await _planches()
 	quit()
+
+## Studio : de face, pose neutre (repos, mains vides), fond gris uni derriere le heros.
+func _studio() -> void:
+	DirAccess.make_dir_recursive_absolute(sortie)
+	cam = Camera3D.new()
+	cam.fov = 34.0
+	s.add_child(cam)
+	cam.current = true
+	mains.magie.equiper("droite", "vide")
+	var fond := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(8, 5)
+	fond.mesh = q
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.42, 0.43, 0.46)
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fond.material_override = m
+	s.add_child(fond)
+	var devant := -j.global_transform.basis.z
+	fond.global_position = j.global_position - devant * 1.5 + Vector3(0, 1.6, 0)
+	fond.look_at(j.global_position + devant * 5.0 + Vector3(0, 1.6, 0), Vector3.UP)
+	fond.rotate_object_local(Vector3.UP, PI)
+	for f in familles:
+		_equiper_famille(f)
+		l.text = ""
+		await _attendre(0.8)
+		_placer_cam(0.0, 4.3, 0.95, 1.1)
+		await _attendre(0.2)
+		await _capture("%s_studio_face" % f, Rect2i(300, 0, 360, 540), "%s - studio" % NOMS.get(f, f))
+
+func _casque() -> void:
+	DirAccess.make_dir_recursive_absolute(sortie)
+	cam = Camera3D.new()
+	cam.fov = 30.0
+	s.add_child(cam)
+	cam.current = true
+	mains.magie.equiper("droite", "vide")
+	for f in familles:
+		_equiper_famille(f)
+		l.text = ""
+		await _attendre(0.8)
+		for v in {"face": 0.0, "profil": 90.0, "dos": 180.0}:
+			_placer_cam({"face": 0.0, "profil": 90.0, "dos": 180.0}[v], 1.3, 1.66, 1.68)
+			await _attendre(0.2)
+			await _capture("gros_plan_casque_%s_%s" % [f, v], Rect2i(180, 0, 600, 540), "%s casque %s" % [NOMS.get(f, f), v])
 
 func _planches() -> void:
 	DirAccess.make_dir_recursive_absolute(sortie)

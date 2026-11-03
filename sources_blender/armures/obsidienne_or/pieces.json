@@ -1,0 +1,261 @@
+{
+ "_doc": "Pièces HD des ensembles OBSIDIENNE et OR (branche armures_hd/obsidienne_or, planche conception_rpg/references/planche_armures_5.png). Pour l'agent DONNÉES : à reporter dans data/objets/armures.json (stats = suggestions : obsidienne très protectrice mais très lourde ; or = prestige, valeur, protection moyenne, lourd, bonus de magie/persuasion à décider). Variantes enchantées : MÊME maillage, matériaux « obsidienne.enchante » / « tissu.enchante » + « gemme.enchante » (runes de magma / broderies d'or luisantes) : un id libre (ex. <id>_enchante) avec modele_porte / modele_sol ci-dessous ; ArmureVisible donne aux torses <base>_... les chausses de la base. Les chausses (assets/modeles/armures/chausses/obsidienne.glb, or.glb) sont posées d'office avec la cuirasse.",
+ "objets": {
+  "casque_obsidienne": {
+   "nom": "Heaume d'obsidienne",
+   "categorie": "armure",
+   "rarete": "rare",
+   "emplacement": "tete",
+   "type_armure": "lourde",
+   "matiere": "obsidienne",
+   "poids": 7.0,
+   "armure": 24,
+   "valeur": 900,
+   "icone": "casque_acier",
+   "modele_porte": "res://assets/modeles/armures/porte/casque_obsidienne.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/casque_obsidienne.glb"
+  },
+  "casque_obsidienne_enchante": {
+   "nom": "Heaume d'obsidienne runique",
+   "categorie": "armure",
+   "rarete": "epique",
+   "emplacement": "tete",
+   "type_armure": "lourde",
+   "matiere": "obsidienne",
+   "poids": 7.0,
+   "armure": 24,
+   "valeur": 1980,
+   "icone": "casque_acier",
+   "modele_porte": "res://assets/modeles/armures/porte/casque_obsidienne_enchante.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/casque_obsidienne_enchante.glb",
+   "variante_de": "casque_obsidienne",
+   "effets_suggeres": {
+    "resist_feu": 0.15
+   }
+  },
+  "cuirasse_obsidienne": {
+   "nom": "Cuirasse d'obsidienne",
+   "categorie": "armure",
+   "rarete": "rare",
+   "emplacement": "torse",
+   "type_armure": "lourde",
+   "matiere": "obsidienne",
+   "poids": 22.0,
+   "armure": 50,
+   "valeur": 2400,
+   "icone": "torse_acier",
+   "modele_porte": "res://assets/modeles/armures/porte/cuirasse_obsidienne.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/cuirasse_obsidienne.glb"
+  },
+  "cuirasse_obsidienne_enchante": {
+   "nom": "Cuirasse d'obsidienne runique",
+   "categorie": "armure",
+   "rarete": "epique",
+   "emplacement": "torse",
+   "type_armure": "lourde",
+   "matiere": "obsidienne",
+   "poids": 22.0,
+   "armure": 50,
+   "valeur": 5280,
+   "icone": "torse_acier",
+   "modele_porte": "res://assets/modeles/armures/porte/cuirasse_obsidienne_enchante.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/cuirasse_obsidienne_enchante.glb",
+   "variante_de": "cuirasse_obsidienne",
+   "effets_suggeres": {
+    "resist_feu": 0.15
+   }
+  },
+  "gantelets_obsidienne": {
+   "nom": "Gantelets d'obsidienne",
+   "categorie": "armure",
+   "rarete": "rare",
+   "emplacement": "mains",
+   "type_armure": "lourde",
+   "matiere": "obsidienne",
+   "poids": 5.0,
+   "armure": 18,
+   "valeur": 650,
+   "icone": "gants_acier",
+   "modele_porte": "res://assets/modeles/armures/porte/gantelets_obsidienne.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/gantelets_obsidienne.glb"
+  },
+  "gantelets_obsidienne_enchante": {
+   "nom": "Gantelets d'obsidienne runiques",
+   "categorie": "armure",
+   "rarete": "epique",
+   "emplacement": "mains",
+   "type_armure": "lourde",
+   "matiere": "obsidienne",
+   "poids": 5.0,
+   "armure": 18,
+   "valeur": 1430,
+   "icone": "gants_acier",
+   "modele_porte": "res://assets/modeles/armures/porte/gantelets_obsidienne_enchante.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/gantelets_obsidienne_enchante.glb",
+   "variante_de": "gantelets_obsidienne",
+   "effets_suggeres": {
+    "resist_feu": 0.15
+   }
+  },
+  "bottes_obsidienne": {
+   "nom": "Bottes d'obsidienne",
+   "categorie": "armure",
+   "rarete": "rare",
+   "emplacement": "pieds",
+   "type_armure": "lourde",
+   "matiere": "obsidienne",
+   "poids": 7.0,
+   "armure": 21,
+   "valeur": 800,
+   "icone": "bottes_acier",
+   "modele_porte": "res://assets/modeles/armures/porte/bottes_obsidienne.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/bottes_obsidienne.glb"
+  },
+  "bottes_obsidienne_enchante": {
+   "nom": "Bottes d'obsidienne runiques",
+   "categorie": "armure",
+   "rarete": "epique",
+   "emplacement": "pieds",
+   "type_armure": "lourde",
+   "matiere": "obsidienne",
+   "poids": 7.0,
+   "armure": 21,
+   "valeur": 1760,
+   "icone": "bottes_acier",
+   "modele_porte": "res://assets/modeles/armures/porte/bottes_obsidienne_enchante.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/bottes_obsidienne_enchante.glb",
+   "variante_de": "bottes_obsidienne",
+   "effets_suggeres": {
+    "resist_feu": 0.15
+   }
+  },
+  "casque_or": {
+   "nom": "Heaume couronné d'or",
+   "categorie": "armure",
+   "rarete": "rare",
+   "emplacement": "tete",
+   "type_armure": "lourde",
+   "matiere": "or",
+   "poids": 5.5,
+   "armure": 16,
+   "valeur": 1100,
+   "icone": "heaume_jarl",
+   "modele_porte": "res://assets/modeles/armures/porte/casque_or.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/casque_or.glb"
+  },
+  "casque_or_enchante": {
+   "nom": "Heaume couronné consacré",
+   "categorie": "armure",
+   "rarete": "epique",
+   "emplacement": "tete",
+   "type_armure": "lourde",
+   "matiere": "or",
+   "poids": 5.5,
+   "armure": 16,
+   "valeur": 2420,
+   "icone": "heaume_jarl",
+   "modele_porte": "res://assets/modeles/armures/porte/casque_or_enchante.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/casque_or_enchante.glb",
+   "variante_de": "casque_or",
+   "effets_suggeres": {
+    "magie_max": 15
+   }
+  },
+  "cuirasse_or": {
+   "nom": "Cuirasse d'or du jarl",
+   "categorie": "armure",
+   "rarete": "rare",
+   "emplacement": "torse",
+   "type_armure": "lourde",
+   "matiere": "or",
+   "poids": 17.0,
+   "armure": 34,
+   "valeur": 2800,
+   "icone": "torse_acier",
+   "modele_porte": "res://assets/modeles/armures/porte/cuirasse_or.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/cuirasse_or.glb"
+  },
+  "cuirasse_or_enchante": {
+   "nom": "Cuirasse d'or consacrée",
+   "categorie": "armure",
+   "rarete": "epique",
+   "emplacement": "torse",
+   "type_armure": "lourde",
+   "matiere": "or",
+   "poids": 17.0,
+   "armure": 34,
+   "valeur": 6160,
+   "icone": "torse_acier",
+   "modele_porte": "res://assets/modeles/armures/porte/cuirasse_or_enchante.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/cuirasse_or_enchante.glb",
+   "variante_de": "cuirasse_or",
+   "effets_suggeres": {
+    "magie_max": 15
+   }
+  },
+  "gantelets_or": {
+   "nom": "Gantelets d'or",
+   "categorie": "armure",
+   "rarete": "rare",
+   "emplacement": "mains",
+   "type_armure": "lourde",
+   "matiere": "or",
+   "poids": 3.5,
+   "armure": 12,
+   "valeur": 750,
+   "icone": "gants_acier",
+   "modele_porte": "res://assets/modeles/armures/porte/gantelets_or.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/gantelets_or.glb"
+  },
+  "gantelets_or_enchante": {
+   "nom": "Gantelets d'or consacrés",
+   "categorie": "armure",
+   "rarete": "epique",
+   "emplacement": "mains",
+   "type_armure": "lourde",
+   "matiere": "or",
+   "poids": 3.5,
+   "armure": 12,
+   "valeur": 1650,
+   "icone": "gants_acier",
+   "modele_porte": "res://assets/modeles/armures/porte/gantelets_or_enchante.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/gantelets_or_enchante.glb",
+   "variante_de": "gantelets_or",
+   "effets_suggeres": {
+    "magie_max": 15
+   }
+  },
+  "bottes_or": {
+   "nom": "Solerets d'or",
+   "categorie": "armure",
+   "rarete": "rare",
+   "emplacement": "pieds",
+   "type_armure": "lourde",
+   "matiere": "or",
+   "poids": 5.0,
+   "armure": 14,
+   "valeur": 900,
+   "icone": "bottes_acier",
+   "modele_porte": "res://assets/modeles/armures/porte/bottes_or.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/bottes_or.glb"
+  },
+  "bottes_or_enchante": {
+   "nom": "Solerets d'or consacrés",
+   "categorie": "armure",
+   "rarete": "epique",
+   "emplacement": "pieds",
+   "type_armure": "lourde",
+   "matiere": "or",
+   "poids": 5.0,
+   "armure": 14,
+   "valeur": 1980,
+   "icone": "bottes_acier",
+   "modele_porte": "res://assets/modeles/armures/porte/bottes_or_enchante.glb",
+   "modele_sol": "res://assets/modeles/armures/sol/bottes_or_enchante.glb",
+   "variante_de": "bottes_or",
+   "effets_suggeres": {
+    "magie_max": 15
+   }
+  }
+ }
+}
