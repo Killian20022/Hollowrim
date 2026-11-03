@@ -230,6 +230,7 @@ func _ready() -> void:
 	Stockage.reinitialiser()      # RPG : coffres sûrs vides
 	if not _arguments().has("capture") and not _arguments().has("nouvelle") and not _arguments().has("persos-tous") and not Jeu.nouvelle_partie:
 		charger()
+	_test_butin()
 	if not _arguments().has("capture"):
 		_audio()
 	await _souffle()
@@ -1299,6 +1300,7 @@ func sauvegarder() -> void:
 		"herse": tertre._herse_ouverte,
 		"dragon_vaincu": dragon_vaincu,
 		"inventaire": joueur.inventaire.exporter(),
+		"test_butin_fait": _test_butin_fait,   # --test-butin : le sac n'est rempli qu'une fois par partie
 		"magie": joueur.mains.magie.exporter() if joueur.mains.get("magie") != null else {},   # mains, sorts connus, mana (docs/MAGIE.md)
 		"draugrs_morts": morts,
 		"villageois_parles": parles,
@@ -1311,6 +1313,29 @@ func sauvegarder() -> void:
 	f.store_string(JSON.stringify(donnees, "\t"))
 	f.close()
 	Jeu.copie_secours(fichier_sauvegarde())   # copie de secours (dossier choisi dans les options ; échec = simple avertissement)
+
+## --test-butin : remplit le sac (pièces, toutes les armures de armures.json, tous les tomes de sorts) et apprend tous les sorts.
+## Une seule fois par partie (drapeau « test_butin_fait » dans la sauvegarde) : pas de doublons au rechargement.
+var _test_butin_fait := false
+func _test_butin() -> void:
+	if not Jeu.test_butin() or _test_butin_fait:
+		return
+	_test_butin_fait = true
+	var inv: Inventaire = joueur.inventaire
+	inv.pieces += 5000
+	var armures = JSON.parse_string(FileAccess.get_file_as_string("res://data/objets/armures.json"))
+	if armures is Dictionary:
+		for id in armures.get("objets", {}):
+			inv.ajouter(String(id))
+	for id in Inventaire.OBJETS:   # tomes : fiches dont l'effet apprend un sort
+		var effets = Inventaire.OBJETS[id].get("effets", {})
+		if effets is Dictionary and effets.has("apprendre"):
+			inv.ajouter(String(id))
+	if joueur.mains.get("magie") != null:
+		joueur.mains.magie.eq.apprendre_tout()
+	inv.capacite_bonus += 10000.0
+	if hud != null:
+		hud.avis("Mode test : tout l'équipement est dans le sac")
 
 func charger() -> void:
 	if not FileAccess.file_exists(fichier_sauvegarde()):
@@ -1331,6 +1356,7 @@ func charger() -> void:
 	cycle.heure = float(d.get("heure", cycle.heure))
 	joueur.progression.importer(d.get("progression", {}))
 	joueur.inventaire.importer(d.get("inventaire", {}))
+	_test_butin_fait = bool(d.get("test_butin_fait", false))
 	joueur.equipement_corps.importer(d.get("equipement_corps", {}))   # après le sac (objets portés = objets du sac)
 	Stockage.importer(d.get("stockage", {}))
 	if inventaire_ui != null:

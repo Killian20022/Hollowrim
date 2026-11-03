@@ -32,9 +32,13 @@ static func mode_outil() -> bool:
 	if "--script" in args or "-s" in args:
 		return true
 	for a in OS.get_cmdline_user_args():
-		if a != "--hors-ecran" and not a.begins_with("--test-titre"):
+		if a != "--hors-ecran" and a != "--test-butin" and not a.begins_with("--test-titre"):
 			return true
 	return false
+
+## Argument --test-butin (Hollowrim.exe -- --test-butin, outils/Hollowrim_test.bat) : sac plein d'armures, tomes et pièces au départ.
+static func test_butin() -> bool:
+	return "--test-butin" in OS.get_cmdline_user_args()
 
 ## Argument --test-titre=<étape> (test automatique des menus, outils/test_menus.sh) ; "" sinon.
 static func test_titre() -> String:
