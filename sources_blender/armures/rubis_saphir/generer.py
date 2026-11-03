@@ -277,6 +277,11 @@ def deco_masque(ens, z_bas=1.60):
                 if rb < ra:
                     grid[k][i] = Vector((b.x * ra / rb, b.y * ra / rb, b.z))
         P.grille(grid, mc, (0.0, 0.0, 1.0, 1.0), fermer=False, inverser=True)
+        # fente lumineuse : bande de gemme émissive juste au-dessus du masque (derrière le rebord), sur toute la largeur de la visière
+        mg = ENSEMBLES[ens]["gemme"]
+        haut = [p + Vector((0, 0, 0.014)) for p in grid[0]]
+        bas = [p + Vector((0, 0, 0.002)) for p in grid[0]]
+        P.grille([bas, haut], mg, (0.0, 0.0, 1.0, 1.0), fermer=False, inverser=True)
         # tranches haute (bord de la fente) et basse : épaisseur vers le visage
         for row, inv in ((grid[0], False), (grid[-1], True)):
             dedans = [p + (Vector((0, 0.004, p.z)) - p).normalized() * 0.009 for p in row]
@@ -318,7 +323,21 @@ def deco_torse(ens):
             la = r.os["lowerarm_" + ("l" if s > 0 else "r")]
             poser_pointe(P, ((X_MANCHE - 0.035) * s, 0.5, la.z + 0.005), (0, -1, 0), (0.35 * s, 1.0, 0.1), 0.15, 0.021, ens, k=5, graine=13)
             poser_pointe(P, ((X_MANCHE - 0.06) * s, 0.5, la.z + 0.03), (0, -1, 0), (0.1 * s, 0.8, 0.6), 0.10, 0.015, ens, k=4, serti=False, graine=15)
+            # haut du bras : deux brassards de cristal en couches sous l'épaulière (couverture complète)
+            ua = r.os["upperarm_" + ("l" if s > 0 else "r")]
+            bras = C.bvh(r, ["tunique", "brassards", "peau"], {"upperarm_" + ("l" if s > 0 else "r")}, 0.5)
+            _plaques_membre(P, st, bras, ua, la, [(0.50, 0.74), (0.68, 0.92)], [math.radians(x) for x in range(0, 361, 36)], 0.030, 0.0, st["mat"])
+        # gorgerin de cristal : deux anneaux de plaques évasées autour du cou, par-dessus le col de mailles
+        cou = C.bvh(r, ["tunique", "peau"], PC.TORSE_OS, 0.5)
+        def dec_g(j, i, a):
+            return 0.030
+        for (z0, z1, ev) in ((1.43, 1.50, 0.0), (1.48, 1.545, 0.012)):
+            def dec_c(j, i, a, ev=ev):
+                return 0.026 + ev + 0.012 * j
+            Pg, _, _ = C.tube(cou, Vector((0, -0.005, 1.40)), Vector((0, -0.005, 1.60)), [(z0 - 1.40) / 0.2, (z1 - 1.40) / 0.2], 12, dec_c, r_loin=0.4, dilate=1, lisse=1)
+            P.grille(Pg, st["mat"], C.rect_uv((0, 40, 128, 88)), inverser=True)
         tassettes(P, r, st, ens)
+        pan_brode(P, st)
     return dec
 
 
@@ -405,6 +424,23 @@ PIECES = {
 }
 
 
+def pan_brode(P, st):
+    """Pan de cuir sombre (tabard court) qui pend devant, de la ceinture à mi-cuisse, avec liseré clair peint par la matière « cuir »."""
+    zt = st.get("z_ceinture", 1.0) - 0.03
+    rows = []
+    for z, h in ((zt, 0.085), (0.84, 0.085), (0.68, 0.075), (0.54, 0.012)):
+        pts = []
+        for dx in (-h, 0.0, h):
+            p, n = surface(P, (dx, -0.7, z), (0, 1, 0))
+            pts.append(p + Vector((0, -0.03, 0)) if p is not None else Vector((dx, -0.2, z)))
+        rows.append(pts)
+    F = [[P.sommet(p) for p in row] for row in rows]
+    uv = [(0, 0), (0.1, 0), (0.1, 0.1), (0, 0.1)]
+    for j in range(len(rows) - 1):
+        for i in range(2):
+            P.face([F[j][i], F[j + 1][i], F[j + 1][i + 1], F[j][i + 1]], "cuir", uv)
+
+
 def deco_gant(ens):
     """Manchette de cristal : gemme sur le dessus du poignet ; éclats sur l'avant-bras (dehors, dos, vers le coude)."""
     def dec(P, t, r, st):
@@ -413,6 +449,8 @@ def deco_gant(ens):
             p = la.lerp(ha, 0.8)
             poser_gemme(P, p + Vector((0, 0, 0.3)), (0, 0, -1), Vector((s, 0, 0)), 0.0095, ens, k=8, rayons=0, griffes=4)
             q = la.lerp(ha, 0.5)
+            avb = C.bvh(r, ["tunique", "brassards", "peau"], {"lowerarm_" + cote}, 0.5)
+            _plaques_membre(P, st, avb, la, ha, [(0.06, 0.26), (0.22, 0.42)], [math.radians(x) for x in range(0, 361, 36)], 0.022, 0.0, st["mat"])
             poser_pointe(P, q + Vector((0, 0.3, 0.05)), (0, -1, -0.15), (-0.55 * s, 0.75, 0.35), 0.13, 0.018, ens, k=5, graine=20)
             poser_pointe(P, q + Vector((0, 0.0, 0.3)), (0, 0, -1), (0.2 * s, -0.25, 1.0), 0.11, 0.016, ens, k=4, serti=False, graine=21)
             poser_pointe(P, la.lerp(ha, 0.6) + Vector((0.3 * s, 0.0, 0.0)), (-s, 0, 0), (1.0 * s, -0.2, 0.25), 0.10, 0.015, ens, k=4, serti=False, graine=22)
@@ -607,10 +645,11 @@ CRISTAL_SAPHIR = L.hexa("#01020a", "#020615", "#040c26", "#071538", "#0b1f50", "
 
 
 def peindre_cristal(P, N, bd, ens, ench):
-    """Cristal facetté : cellules de Voronoï 3D (facettes de valeurs différentes, éclats des arêtes), voiles intérieurs et
-    inclusions (bruit), arête claire au bord des plaques, cœur plus sombre et plus saturé loin des bords."""
+    """Cristal v_detail : PEU de grandes facettes planes, chacune d'une valeur nette (4 niveaux selon l'orientation : clair, moyen,
+    sombre), arêtes fines plus claires, CADRE de métal sombre (brun-noir / acier) serti autour de chaque plaque avec un filet clair."""
     pal = CRISTAL_RUBIS if ens == "rubis" else CRISTAL_SAPHIR
-    s = 0.045
+    metal = ACIER_RUBIS if ens == "rubis" else ACIER_SAPHIR
+    s = 0.13
     q = P / s
     base = np.floor(q)
     d1 = np.full(len(P), 9.0); d2 = np.full(len(P), 9.0); idv = np.zeros(len(P))
@@ -625,20 +664,26 @@ def peindre_cristal(P, N, bd, ens, ench):
                 d2 = np.where(m, d1, np.minimum(d2, d))
                 idv = np.where(m, _hash1(key, 211), idv)
                 d1 = np.where(m, d, d1)
-    v = (0.11 + 0.31 * idv) if ens == "rubis" else (0.06 + 0.27 * idv)                                          # grenat / cramoisi profond : une valeur franche par facette
-    v = np.where(idv > 0.82, v + 0.34, v)                           # quelques facettes captent la lumière (reflet clair net)
-    arete = np.clip(1.0 - (d2 - d1) / 0.05, 0, 1)
-    v -= arete ** 1.5 * 0.20                                        # arêtes entre facettes plus sombres
-    voile = L.fbm(P, 16.0, 221, 3)
-    v += (voile - 0.5) * 0.10
-    incl = L.bruit(P, 260.0, 223) > 0.93
-    v = np.where(incl, v + 0.16, v)
-    v = np.where(bd < 0.003, v + 0.34, v)                       # arête du bord de plaque : la lumière y accroche
-    v = np.where((bd >= 0.004) & (bd < 0.0065), v - 0.12, v)
-    if ench:
-        v = v * 1.06 + 0.07
-    al = 0.85 + 0.15 * arete
-    return _rgba(L.rampe(pal, np.clip(v, 0, 1)), al)
+    lum = np.array([0.35, 0.75, 0.55]); lum /= np.linalg.norm(lum)
+    t = np.clip(0.5 + 0.60 * (N * lum).sum(1), 0, 1)
+    niv = np.floor(t * 4.0) / 3.0                                  # 4 valeurs nettes selon l'orientation de la facette
+    v = (0.10 + 0.30 * np.clip(niv, 0, 1)) + 0.10 * (idv - 0.5)
+    v = np.where(idv > 0.88, v + 0.22, v)                         # de rares éclats clairs
+    arete = np.clip(1.0 - (d2 - d1) / 0.035, 0, 1)
+    v += arete ** 2 * 0.30                                        # arêtes fines plus claires
+    v += (L.fbm(P, 16.0, 221, 2) - 0.5) * 0.04
+    rgb = L.rampe(pal, np.clip(v * (1.06 if ench else 1.0) + (0.05 if ench else 0.0), 0, 1))
+    # cadre de métal sombre autour des plaques (serti) : filet clair, creux sombre, métal brossé
+    mv = 0.10 + (L.fbm(P, 30.0, 227, 2) - 0.5) * 0.14 + (L.bruit(P * np.array([1.0, 9.0, 1.0]), 42.0, 229) - 0.5) * 0.06
+    cadre = L.rampe(metal, np.clip(mv, 0, 1))
+    rim = bd < 0.0028
+    gorge = (bd >= 0.0028) & (bd < 0.0040)
+    corps = (bd >= 0.0040) & (bd < 0.0125)
+    rgb = np.where(corps[:, None], cadre, rgb)
+    rgb = np.where(gorge[:, None], cadre * 0.35, rgb)
+    rgb = np.where(rim[:, None], L.rampe(metal, np.clip(0.72 + 0.1 * (idv - 0.5), 0, 1)), rgb)
+    al = np.where(corps | rim, 0.9, 0.85 + 0.15 * arete)
+    return _rgba(rgb, al)
 
 
 def peindre_maille(P, N, pal, base, givre=0.0, g=0):
@@ -732,7 +777,7 @@ def image_gemme(ens, ench, taille=256):
                 second = np.where(m, best, np.minimum(second, d))
                 idx = np.where(m, k, idx)
                 best = np.where(m, d, best)
-    v = 0.34 + 0.42 * vals[idx]
+    v = 0.48 + 0.40 * vals[idx]
     arete = np.clip(1 - (second - best) / 0.012, 0, 1)
     v += arete * 0.32
     P3 = np.stack([xs.ravel(), ys.ravel(), np.zeros(xs.size)], 1)

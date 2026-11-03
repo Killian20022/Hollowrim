@@ -52,7 +52,7 @@ const MATIERES := {
 	"acier_rubis.enchante": {"teinte": Color(1.0, 0.97, 0.97), "metal": 0.6, "poli": 0.55, "lueur": 0.22, "reflet": Color(1.04, 0.9, 0.88)},
 	"acier_rubis.maille": {"teinte": Color(1.0, 0.97, 0.97), "metal": 0.5, "poli": 0.45, "reflet": Color(1.02, 0.92, 0.9)},
 	"serti_rubis": {"teinte": Color(1.0, 0.98, 0.96), "metal": 0.68, "poli": 0.65, "reflet": Color(1.06, 0.9, 0.78)},
-	"rubis": {"teinte": Color(1.12, 1.0, 1.0), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 1.0, "reflet": Color(1.0, 0.93, 0.94)},
+	"rubis": {"teinte": Color(1.12, 1.0, 1.0), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 1.6, "reflet": Color(1.0, 0.93, 0.94)},
 	"rubis.enchante": {"teinte": Color(1.15, 1.0, 1.0), "bord": 0.5, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 1.3, "reflet": Color(1.0, 0.93, 0.94)},
 	"cristal_saphir": {"teinte": Color(1.0, 1.0, 1.06), "metal": 0.08, "poli": 1.0, "bord": 0.55, "profondeur": 0.03, "lueur": 0.06, "reflet": Color(0.9, 0.95, 1.04)},
 	"cristal_saphir.enchante": {"teinte": Color(1.0, 1.0, 1.08), "metal": 0.08, "poli": 1.0, "bord": 0.6, "profondeur": 0.03, "lueur": 0.2, "reflet": Color(0.9, 0.95, 1.04)},
@@ -60,7 +60,7 @@ const MATIERES := {
 	"acier_saphir.enchante": {"teinte": Color(1.0, 1.0, 1.04), "metal": 0.7, "poli": 0.65, "lueur": 0.22, "reflet": Color(0.92, 0.97, 1.06)},
 	"acier_saphir.maille": {"teinte": Color(1.0, 1.0, 1.04), "metal": 0.55, "poli": 0.5, "reflet": Color(0.92, 0.97, 1.06)},
 	"serti_saphir": {"teinte": Color(1.02, 1.02, 1.04), "metal": 0.75, "poli": 0.75, "reflet": Color(0.94, 0.98, 1.05)},
-	"saphir": {"teinte": Color(1.0, 1.0, 1.12), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 1.0, "reflet": Color(0.92, 0.96, 1.04)},
+	"saphir": {"teinte": Color(1.0, 1.0, 1.12), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 1.6, "reflet": Color(0.92, 0.96, 1.04)},
 	"saphir.enchante": {"teinte": Color(1.0, 1.0, 1.15), "bord": 0.5, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 1.3, "reflet": Color(0.92, 0.96, 1.04)},
 }
 
