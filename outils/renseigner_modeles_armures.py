@@ -35,6 +35,8 @@ for i, l in enumerate(lignes):
     fiche = json.loads(m.group(3))
     if fiche.get("categorie") != "armure":
         continue
+    if fiche.get("base") or fiche.get("emplacement") == "jambes":
+        continue  # variantes « enchante » et jambières : modèles hérités de la base / des chausses (ne pas écraser)
     corps = m.group(3)
     corps = re.sub(r', "modele_(porte|sol)": "[^"]*"', "", corps)
     ajout = ""

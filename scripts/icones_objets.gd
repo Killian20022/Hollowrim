@@ -25,7 +25,14 @@ static func cle(id: String) -> String:
 	var i := id.rfind("+")
 	if i > 0 and id.substr(i + 1).is_valid_int():
 		id = id.substr(0, i)
-	return String(ALIAS.get(id, id))
+	var c := String(ALIAS.get(id, id))
+	_lire()
+	if not _index.has(c):
+		# variante « enchante » d'une armure : même glb que sa base, donc même icône
+		var b := String(Inventaire.objet(c).get("base", ""))
+		if b != "" and _index.has(b):
+			return b
+	return c
 
 static func _lire() -> void:
 	if _lu:
