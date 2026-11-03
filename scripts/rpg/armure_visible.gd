@@ -47,6 +47,7 @@ const MATIERES := {
 	"cuir.braise": {"teinte": Color(1.04, 1.0, 0.98), "bord": 0.14, "poli": 0.22, "lueur": 0.7},
 	"fer.argent": {"teinte": Color(1.0, 1.0, 1.02), "metal": 0.25, "poli": 0.5, "reflet": Color(0.95, 0.97, 1.0)},
 	"fer.argent.p": {"teinte": Color(1.0, 1.0, 1.02), "metal": 0.25, "poli": 0.5, "reflet": Color(0.95, 0.97, 1.0)},
+	"cuir.braise.c": {"teinte": Color(1.04, 1.0, 0.98), "bord": 0.14, "poli": 0.22, "lueur": 0.7},
 	"fourrure.runes": {"teinte": Color(1.02, 1.0, 0.98), "bord": 0.05, "poli": 0.05, "lueur": 0.14},
 }
 ## Matière FPS (AvantBras) remplacée par famille de gants : clé de matière ab_* -> nom de matière du glb ou "" (inchangé).

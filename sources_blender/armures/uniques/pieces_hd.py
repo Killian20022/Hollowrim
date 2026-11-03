@@ -718,7 +718,7 @@ def cuirasse(r, st):
         epaule = C.bvh(r, ["tunique", "peau"], {"upperarm_" + cote, "clavicle_" + cote, "spine_03"}, 0.5)
         E0 = Vector((0.12 * s, -0.005, 1.47))
         E1 = Vector((0.36 * s, 0.02, 1.455))
-        arc = [math.radians(x) for x in range(142, 409, 24)]
+        arc = [math.radians(x) for x in range(142, 409, st.get("pas_epaule", 24))]
         wl = (R_EPAUL[2] - R_EPAUL[0]) / nl
         roule = st.get("bord_roule", False)
         t_dep = st.get("epaule_debut", 0.18)
@@ -745,6 +745,57 @@ def cuirasse(r, st):
                 P.grille_v([bord, bord_in], st["mat"], (re[0], re[1], re[0] + 0.8, re[3]), fermer=False, inverser=(inv != (s < 0)))
             for i in ide[0]:
                 P.ao[i] = 0.6
+    # ---------------------------------------------------------------- BRASSARDS : plaques d'avant-bras en couches (le poignet est pris
+    # par les gantelets), et CUISSOTS : plaques en couches sur les cuisses (au-dessus des chausses), pour que ni manche ni pantalon du
+    # héros ne restent visibles sous la cuirasse. Même texture que les épaulières (brassards) et les tassettes (cuissots).
+    BR = st.get("brassards")
+    if BR:
+        nb = BR.get("n", 2)
+        wlb = (R_EPAUL[2] - R_EPAUL[0]) / st.get("lames_epaule", 3)
+        for cote, s in COTES:
+            la, ha = r.os["lowerarm_" + cote], r.os["hand_" + cote]
+            avb = C.bvh(r, ["tunique", "brassards", "peau"], {"lowerarm_" + cote}, 0.5)
+            A = Vector((BR.get("x0", 0.40) * s, la.y, la.z))
+            B = Vector((BR.get("x1", 0.585) * s, ha.y, ha.z))
+            for k in range(nb):
+                ta = 0.80 * k / nb
+                tb = 0.80 * (k + 1) / nb + 0.22
+
+                def dec_b(j, i, a, k=k):
+                    return BR.get("ecart", 0.016) + 0.004 * (nb - k) + (0.0, 0.004, 0.0)[j]
+                Pb, _, _ = C.tube(avb, A, B, [ta, tb - 0.05, tb], BR.get("anneau", 8), dec_b, r_loin=0.3, dilate=1, lisse=1)
+                reb = (R_EPAUL[0] + wlb * (k % 3), R_EPAUL[1], R_EPAUL[0] + wlb * (k % 3 + 1), R_EPAUL[3])
+                idb = P.grille_v(Pb, st["mat"], reb, vs=[0.0, 0.8, 1.0], inverser=s > 0)
+                lip = [p + (A.lerp(B, tb) - p).normalized() * 0.008 for p in Pb[-1]]
+                P.grille_v([Pb[-1], lip], st["mat"], (reb[0], reb[3] - 0.8, reb[2], reb[3]), inverser=s > 0)
+                for i in idb[0]:
+                    P.ao[i] = 0.65
+    CU = st.get("cuissots")
+    cuisse_pts = []
+    mat_cu = st.get("mat_cuissot", st["mat"])
+    if CU:
+        nc = CU.get("n", 2)
+        i_cu0 = len(P.v)
+        for cote, s in COTES:
+            th, ca = r.os["thigh_" + cote], r.os["calf_" + cote]
+            jam = C.bvh(r, ["pantalon"], {"thigh_" + cote, "calf_" + cote, "pelvis"}, 0.4)
+            A = Vector((th.x, th.y, CU.get("z0", 0.86)))
+            B = Vector((ca.x, ca.y, CU.get("z1", 0.56)))
+            for k in range(nc):
+                ta = 0.90 * k / nc
+                tb = 0.90 * (k + 1) / nc + 0.16
+
+                def dec_c(j, i, a, k=k):
+                    return CU.get("ecart", 0.020) + 0.004 * (nc - k) + (0.0, 0.004, 0.0)[j]
+                Pc_, _, _ = C.tube(jam, A, B, [ta, tb - 0.06, tb], CU.get("anneau", 10), dec_c, r_loin=0.3, dilate=1, lisse=1)
+                hyc = (R_TASS[3] - R_TASS[1]) / max(1, nc)
+                rcu = (R_TASS[0], R_TASS[1] + hyc * k, R_TASS[2], R_TASS[1] + hyc * (k + 1))
+                idc = P.grille_v(Pc_, mat_cu, rcu, vs=[0.0, 0.8, 1.0], inverser=s > 0)
+                lip = [p + (A.lerp(B, tb) - p).normalized() * 0.008 for p in Pc_[-1]]
+                P.grille_v([Pc_[-1], lip], mat_cu, (rcu[0], rcu[3] - 0.6, rcu[2], rcu[3]), inverser=s > 0)
+                for i in idc[0]:
+                    P.ao[i] = 0.65
+        cuisse_pts = [P.v[i] for i in range(i_cu0, len(P.v))]
     # ---------------------------------------------------------------- GROS COL DE FOURRURE : manteau sur le haut des épaules et la
     # nuque, ouvert devant (la barbe), volume en boudin, bord en mèches ; écarté du corps et des épaulières
     if st.get("fourrure"):
@@ -933,7 +984,10 @@ def cuirasse(r, st):
         p(T, st, g)
     T.finir(g=g)
     img = T.image()
-    ob = P.objet_oriente(_centre_corps, {"fourrure": lambda c: Vector((0.0, 0.0, c.z - 0.12))})
+    cm = {"fourrure": lambda c: Vector((0.0, 0.0, c.z - 0.12))}
+    if CU:
+        cm[mat_cu] = lambda c: Vector((r.os["thigh_l"].x * (1.0 if c.x > 0 else -1.0), r.os["thigh_l"].y, c.z))
+    ob = P.objet_oriente(_centre_corps, cm)
     aretes_vives(ob, 60)
     occlusion_sommets(ob, portee=0.06)
     C.appliquer_materiaux(ob, P, img)
@@ -973,6 +1027,25 @@ def cuirasse(r, st):
                 if k not in ob.vertex_groups:
                     ob.vertex_groups.new(name=k)
                 ob.vertex_groups[k].add([vi], w / tot, "REPLACE")
+    if cuisse_pts:
+        from mathutils import kdtree
+        kd = kdtree.KDTree(len(cuisse_pts))
+        for i, p in enumerate(cuisse_pts):
+            kd.insert(p, i)
+        kd.balance()
+        Wp = C.poids_transferes(ob, r, ["pantalon"], os_permis={"thigh_l", "thigh_r", "calf_l", "calf_r", "pelvis"}, lisser=0)
+        noms = {g.index: g.name for g in ob.vertex_groups}
+        for v in ob.data.vertices:
+            p = ob.matrix_world @ v.co
+            if kd.find(p)[2] < 0.0006 and Wp[v.index]:
+                d = Wp[v.index]
+                tot = sum(d.values()) or 1.0
+                for gg in list(ob.vertex_groups):
+                    gg.remove([v.index])
+                for k_, w in d.items():
+                    if k_ not in ob.vertex_groups:
+                        ob.vertex_groups.new(name=k_)
+                    ob.vertex_groups[k_].add([v.index], w / tot, "REPLACE")
     C.lier(ob, r)
     return ob
 

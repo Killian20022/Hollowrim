@@ -231,13 +231,14 @@ PIECES = {
     # --- Heaume du Jarl : couronne de fer noir à neuf pointes sur un heaume à nasal
     "heaume_jarl": lambda r: PH.casque(r, _s(ACIER, id="heaume_jarl", pal=DU.FER_NOIR, mat="fer.noir", mat_rebord="fer.noir", base=0.5,
                                             contraste=0.28, martele=0.3, cellule=2.6, oxyde=0.0, crasse=0.35, poli=0.65, patine=0.2, bombe=0.008,
-                                            rivets_rebord=18, larg_bande=0.012, haut_bande=0.0045, rayures=0.8, graine=71,
+                                            n=22, rivets_rebord=18, larg_bande=0.012, haut_bande=0.0045, rayures=0.8, graine=71,
                                             bandes=[0.0, math.pi / 2, math.pi, 3 * math.pi / 2],
-                                            decor=[PH.deco_nasal, DU.deco_couronne], mat_couronne="fer.argent")),
+                                            decor=[PH.deco_nasal, lambda *a: DU.deco_couronne(*a, R=(56, 82, 100, 128)), lambda *a: PH.deco_joues(*a, R=(100, 82, 128, 128))],
+                                            joues_arc=(15, 110), joues_z=(1.690, 1.670, 1.650, 1.630), joues_ecart=0.027, mat_couronne="fer.argent")),
     # --- Cuirasse des gardiens du serment : acier ancien bleuté pris par le givre, col de fourrure blanche, sceau gravé
     "cuirasse_gardiens": lambda r: PH.cuirasse(r, _s(ACIER, id="cuirasse_gardiens", mat="acier.givre", pal=DU.ACIER_GIVRE, pal_cuir=DU.CUIR_NOIR,
                                                      pal_maille=DU.ACIER_GIVRE, base_maille=0.42, base_cuir=0.5, base=0.40, graine=37,
-                                                     n=20, z_lames=[1.04, 1.11, 1.18, 1.43], bombe=0.025, tablier=28, fentes=(-100, 100, 180),
+                                                     n=16, brassards=dict(n=2, anneau=7), cuissots=dict(n=2, anneau=8), mat_cuissot="acier.givre.c", pas_epaule=32, z_lames=[1.04, 1.11, 1.18, 1.43], bombe=0.025, tablier=28, fentes=(-100, 100, 180),
                                                      rivets_lame=16, rivets_milieu=True, tassettes=(58, 100),
                                                      sangles=[((40, 1.43), (-30, 1.04)), ((-40, 1.43), (30, 1.04))], disque=(-33, 1.365),
                                                      lames_epaule=3, rivets_epaule=7, bord_roule=True, mat_maille="acier.maille",
@@ -253,7 +254,7 @@ PIECES = {
                                                pal_fourrure=DU.BLANCHE, base_fourrure=0.62, peintures=[hook_rodeur])),
     # --- Brigandine de braise : écailles de cuir cendré, jours de braise, ceinture de cuir noir
     "brigandine_braise": lambda r: PH.cuirasse(r, _s(ACIER, id="brigandine_braise", mat="cuir.braise", mat_maille="cuir.braise", pal=DU.CENDRE,
-                                                     pal_cuir=DU.CUIR_NOIR, graine=101, base=0.5, n=22, z_lames=[1.04, 1.12, 1.20, 1.43], bombe=0.02,
+                                                     pal_cuir=DU.CUIR_NOIR, graine=101, base=0.5, n=22, brassards=dict(n=2), cuissots=dict(n=2), mat_cuissot="cuir.braise.c", z_lames=[1.04, 1.12, 1.20, 1.43], bombe=0.02,
                                                      tablier=30, fentes=(-100, 100, 180), dechire=0.02, rivets_lame=0, tassettes=(58, 100),
                                                      sangles=[((40, 1.43), (-30, 1.04))], sacoche=-38, lames_epaule=2, rivets_epaule=0,
                                                      z_ourlet=0.72, peintures=[hook_braise])),
