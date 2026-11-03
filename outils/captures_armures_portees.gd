@@ -32,6 +32,7 @@ var sortie := ""
 var familles: Array = ["cuir", "fourrure", "os"]
 var film := false
 var jambes := false
+var casque := false        # gros plans du casque (face, profil, dos)
 var studio := false        # vue studio de face, pose neutre (mains vides), fond uni
 var chevilles := false     # gros plans des chevilles (bottes portées), sert au contrôle des fentes
 
@@ -124,6 +125,8 @@ func _go() -> void:
 			chevilles = true
 		elif a == "--studio":
 			studio = true
+		elif a == "--casque":
+			casque = true
 	s = load("res://scenes/test_combat.tscn").instantiate()
 	s.options = {"draugr": "aucun", "sans-aide": ""}
 	root.add_child(s)
@@ -153,6 +156,8 @@ func _go() -> void:
 	await _attendre(1.0)
 	if film:
 		await _film()
+	elif casque:
+		await _casque()
 	elif studio:
 		await _studio()
 	elif chevilles:
@@ -191,6 +196,22 @@ func _studio() -> void:
 		_placer_cam(0.0, 4.3, 0.95, 1.1)
 		await _attendre(0.2)
 		await _capture("%s_studio_face" % f, Rect2i(300, 0, 360, 540), "%s - studio" % NOMS.get(f, f))
+
+func _casque() -> void:
+	DirAccess.make_dir_recursive_absolute(sortie)
+	cam = Camera3D.new()
+	cam.fov = 30.0
+	s.add_child(cam)
+	cam.current = true
+	mains.magie.equiper("droite", "vide")
+	for f in familles:
+		_equiper_famille(f)
+		l.text = ""
+		await _attendre(0.8)
+		for v in {"face": 0.0, "profil": 90.0, "dos": 180.0}:
+			_placer_cam({"face": 0.0, "profil": 90.0, "dos": 180.0}[v], 1.3, 1.66, 1.68)
+			await _attendre(0.2)
+			await _capture("gros_plan_casque_%s_%s" % [f, v], Rect2i(180, 0, 600, 540), "%s casque %s" % [NOMS.get(f, f), v])
 
 func _planches() -> void:
 	DirAccess.make_dir_recursive_absolute(sortie)

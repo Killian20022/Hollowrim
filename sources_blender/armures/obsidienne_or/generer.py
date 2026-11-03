@@ -340,12 +340,20 @@ def obs_torse(P, t, r, st):
     for s in (1, -1):
         pts = [(s * (16 + 28 * u), 0.968 - 0.17 * 4 * u * (1 - u) - 0.01 * u) for u in [k / 12 for k in range(13)]]
         chaine(P, A(), PROJ_T, pts)
+    # éclats de bas de jupe (pointes vers le bas, par-dessus les tassettes)
+    arbj = [hd.bvh_piece(P), B]
+    for sg in (1, -1):
+        for a in (30, 82, 138):
+            o, d = PROJ_T(sg * a, 0.80)
+            hit, n = hd.lancer(arbj, o, d)
+            if hit is not None:
+                hd.eclat(P, hit, (-Vector(d) * 0.45 + Vector((0, 0, -0.9))).normalized(), 0.075, 0.016, 0.008, M, UV_D, cote_w=GAUCHE)
     # épaulières : trois lames (la plus éloignée de l'épaule sous les autres), bords dentés, trois éclats sur le dôme
     for s in (1.0, -1.0):
         Aep = Vector((0.10 * s, 0.0, 1.47)); Bep = Vector((0.385 * s, 0.02, 1.44))
         pj = hd.proj_axe(Aep, Bep)
         bras = C.bvh(r, ["tunique", "peau"], {"upperarm_l" if s > 0 else "upperarm_r", "clavicle_l" if s > 0 else "clavicle_r", "spine_03"}, 0.3)
-        for (t0, t1, a, dec, bom, g) in ((0.66, 0.96, 100, 0.014, 0.005, 41), (0.40, 0.74, 106, 0.019, 0.007, 43), (0.02, 0.50, 114, 0.025, 0.014, 45)):
+        for (t0, t1, a, dec, bom, g) in ((0.90, 1.16, 92, 0.011, 0.004, 47), (0.66, 0.96, 100, 0.014, 0.005, 41), (0.40, 0.74, 106, 0.019, 0.007, 43), (0.02, 0.50, 114, 0.025, 0.014, 45)):
             c = [(-a, t0), (0, t0 - 0.02), (a, t0)] + arete((a + 4, (t0 + t1) / 2), (a, t1), 0) + arete((a, t1), (-a, t1), 4, 0.06, axe=1, signe=1, g=g) + \
                 [(-a - 4, (t0 + t1) / 2)]
             hd.plaque(P, [hd.bvh_piece(P), bras], pj, c, dec, 0.009, M, UV_D, bombe=bom, anneaux=2)
@@ -447,6 +455,13 @@ def or_torse(P, t, r, st):
             if s < 0:
                 c = miroir(c)
             hd.plaque(P, A(), PROJ_T, c, dec, 0.008, M, UV_D, bombe=0.006, anneaux=2)
+    # 3e rang de tassettes (le plus bas, recouvert par les deux autres)
+    for s_ in (1, -1):
+        for (a0, a1) in ((114, 166), (58, 108), (16, 54)):
+            c = [(a0, 0.80), (a1, 0.80), (a1 + 3, 0.74), (a1, 0.66), ((a0 + a1) / 2, 0.645), (a0, 0.66), (a0 - 2, 0.74)]
+            if s_ < 0:
+                c = miroir(c)
+            hd.plaque(P, A(), PROJ_T, c, 0.007, 0.008, M, UV_D, bombe=0.005, anneaux=1)
     # ceinture d'or (deux moitiés) + soleil + rubis
     for (a0, a1) in ((-180, 0), (0, 180)):
         c = [(a0, 1.032), ((a0 + a1) / 2, 1.032), (a1, 1.032), (a1, 0.966), ((a0 + a1) / 2, 0.966), (a0, 0.966)]
@@ -464,7 +479,7 @@ def or_torse(P, t, r, st):
         Aep = Vector((0.10 * s, 0.0, 1.47)); Bep = Vector((0.385 * s, 0.02, 1.44))
         pj = hd.proj_axe(Aep, Bep)
         bras = C.bvh(r, ["tunique", "peau"], {"upperarm_l" if s > 0 else "upperarm_r", "clavicle_l" if s > 0 else "clavicle_r", "spine_03"}, 0.3)
-        for (t0, t1, a, dec, bom) in ((0.66, 0.95, 100, 0.013, 0.005), (0.42, 0.75, 106, 0.018, 0.006), (0.02, 0.52, 114, 0.024, 0.013)):
+        for (t0, t1, a, dec, bom) in ((0.90, 1.15, 92, 0.010, 0.004), (0.66, 0.95, 100, 0.013, 0.005), (0.42, 0.75, 106, 0.018, 0.006), (0.02, 0.52, 114, 0.024, 0.013)):
             c = [(-a, t0), (0, t0 - 0.02), (a, t0), (a + 5, (t0 + t1) / 2), (a, t1), (0, t1 + 0.03), (-a, t1), (-a - 5, (t0 + t1) / 2)]
             hd.plaque(P, [hd.bvh_piece(P), bras], pj, c, dec, 0.009, M, UV_D, bombe=bom, anneaux=2)
         arb = [hd.bvh_piece(P)]
@@ -533,6 +548,69 @@ def genou_eclats(P, t, r, st, cote, s, jambe, A, B, mat="obsidienne"):
             hd.eclat(P, hit, (GAUCHE * s + HAUT * 0.6 + DOS * 0.2).normalized(), L, 0.011, 0.005, mat, UV_D, cote_w=HAUT)
 
 
+# ============================================================================================================== NIVEAU DE DETAIL v_detail
+PROJ_H = hd.proj_torse(0.0, 0.0, 0.5)
+
+
+def _arc(a0, a1, t, n=3):
+    return [(a0 + (a1 - a0) * k / n, t) for k in range(n + 1)]
+
+
+def _lame_membre(P, arbres, pj, a, t0, t1, dec, bom, mat, dents=0, g=0, ang=3, anneaux=2):
+    """Lame enroulée sur un membre : arc d'angles [-a, a] entre t0 (haut) et t1 (bas), bord bas denté (obsidienne) ou arrondi (or)."""
+    haut = _arc(-a, a, t0, ang)
+    cote_d = [(a + 4, (t0 + t1) / 2)]
+    if dents:
+        bas = arete((a, t1), (-a, t1), dents, 0.05, axe=1, signe=1, g=g)
+    else:
+        bas = [(a * 0.5, t1 + 0.012), (0, t1 + 0.02), (-a * 0.5, t1 + 0.012)]
+        bas = [(a, t1)] + bas + [(-a, t1)]
+    c = haut + cote_d + bas + [(-a - 4, (t0 + t1) / 2)]
+    hd.plaque(P, arbres, pj, c, dec, 0.008, mat, UV_D, bombe=bom, anneaux=anneaux)
+
+
+def cuissots(P, t, r, st, cote, s, jambe, A, B, mat="obsidienne", dents=0, rangs=3):
+    """Cuissots en lames qui se recouvrent (de la hanche au genou), puis la lame du genou : les cuisses ne sont plus nues."""
+    th, ca = r.os["thigh_" + cote], r.os["calf_" + cote]
+    pj = hd.proj_axe(th, ca, haut=DEVANT, r=0.3)
+    cuisse = C.bvh(r, ["pantalon"], {"thigh_" + cote, "calf_" + cote, "pelvis"}, 0.3)
+    arb = [hd.bvh_piece(P), cuisse]
+    # lames de haut en bas : chacune recouvre un peu la suivante
+    bornes = [(0.04, 0.40), (0.30, 0.66), (0.56, 0.92)][:rangs]
+    for k, (t0, t1) in enumerate(bornes):
+        _lame_membre(P, arb, pj, 78 - 6 * k, t0, t1, 0.012 + 0.005 * (rangs - 1 - k), 0.006, mat, dents=dents, g=90 + k + (3 if s < 0 else 0), anneaux=1, ang=2)
+    # petits éclats / rivets : flancs de la cuisse
+    if dents:
+        arbre = hd.bvh_piece(P)
+        for tt, L in ((0.25, 0.05), (0.55, 0.045)):
+            o, d = pj(-92 * 1.0, tt)
+            hit, n = hd.lancer([cuisse], o, d)
+            if hit is not None:
+                hd.eclat(P, hit, (-Vector(d) + HAUT * 0.4 + DOS * 0.2).normalized(), L, 0.013, 0.006, mat, UV_D, cote_w=HAUT)
+
+
+def brassards(P, t, r, st, mat="obsidienne", dents=0, rangs=2):
+    """Brassards d'avant-bras en lames qui se recouvrent, par-dessus la manchette (avant-bras entièrement couvert)."""
+    for cote, s in (("l", 1.0), ("r", -1.0)):
+        la, ha = r.os["lowerarm_" + cote], r.os["hand_" + cote]
+        pj = hd.proj_axe(la, ha, haut=HAUT, r=0.2)
+        arb = [hd.bvh_piece(P)]
+        bornes = [(0.02, 0.50), (0.38, 0.86)][:rangs]
+        for k, (t0, t1) in enumerate(bornes):
+            _lame_membre(P, arb, pj, 100, t0, t1, 0.010 + 0.006 * (rangs - 1 - k), 0.005, mat, dents=dents, g=110 + k + (3 if s < 0 else 0))
+
+
+def joues(P, t, r, centre, Pts, R_NAS, R_CORNE, mat="obsidienne", dents=0):
+    """Paragnathides : plaques de joue qui encadrent le visage (ouverture libre devant), bord bas denté ou arrondi."""
+    arb = [hd.bvh_piece(P), C.bvh(r, ["peau"], {"Head", "neck_01"}, 0.5)]
+    for sg in (1, -1):
+        bas = arete((100, 1.575), (66, 1.560), dents, 0.025, axe=1, signe=-1, g=120 + sg) if dents else [(82, 1.555)]
+        c = [(58, 1.690), (84, 1.700), (108, 1.680), (114, 1.62)] + [(104, 1.575)] + bas + [(60, 1.60)]
+        if sg < 0:
+            c = miroir(c)
+        hd.plaque(P, arb, PROJ_H, c, 0.011, 0.006, mat, UV_D, bombe=0.006, anneaux=2)
+
+
 # ============================================================================================================== styles
 OBS = dict(pal=C.FER_NOIR, mat="obsidienne", mat_rebord="fer.noir", mat_main="obsidienne", mat_doigts="fer.noir", mat_genou="obsidienne",
            mat_maille="fer.maille", base=0.4, oxyde=0.0, crasse=0.3, poli=0.6, graine=131, z_ourlet=0.66)
@@ -543,22 +621,22 @@ NIV_BOTTES = [-0.02, 0.01, 0.04, 0.08, 0.13, 0.19, 0.26, 0.33, 0.40, 0.46, 0.50]
 PIECES = {
     "casque_obsidienne": lambda r: PC.casque(r, _s(OBS, id="casque_obsidienne", n=30, bas=(0.03, -0.40, -0.62), bombe=0.016, ecart=0.019,
                                                    bandes=0, rebord=0.009,
-                                                   decor=[lambda *a: visiere(*a, mat="obsidienne", crete=0.016), cornes_obsidienne,
+                                                   decor=[lambda *a: visiere(*a, mat="obsidienne", crete=0.016), cornes_obsidienne, lambda *a: joues(*a, mat="obsidienne", dents=2),
                                                           lambda *a: quille(*a, mat="obsidienne", h=0.010, dents=True)])),
-    "cuirasse_obsidienne": lambda r: PC.cuirasse(r, _s(OBS, id="cuirasse_obsidienne", mat="fer.noir", n=20, lames=3, bombe=0.02,
+    "cuirasse_obsidienne": lambda r: PC.cuirasse(r, _s(OBS, id="cuirasse_obsidienne", mat="fer.noir", n=14, lames=3, bombe=0.02,
                                                        lames_epaule=0, x_manche=0.418, decor=[obs_torse])),
     "gantelets_obsidienne": lambda r: PC.gantelets(r, _s(OBS, id="gantelets_obsidienne", evasement=0.038, griffes=0.011, debut_manchette=0.16,
                                                          mat_griffes="obsidienne",
-                                                         decor=[manchettes_eclats, lambda *a: plaques_mains(*a, mat="obsidienne", dents=2)])),
+                                                         decor=[manchettes_eclats, lambda *a: plaques_mains(*a, mat="obsidienne", dents=2), lambda P_, t_, r_, st_: brassards(P_, t_, r_, st_, "obsidienne", dents=3)])),
     "bottes_obsidienne": lambda r: PC.bottes(r, _s(OBS, id="bottes_obsidienne", mat_botte="obsidienne", niveaux=NIV_BOTTES,
-                                                   decor=[genou_eclats])),
+                                                   decor=[genou_eclats, lambda *a: cuissots(*a, mat="obsidienne", dents=2, rangs=2)])),
     "casque_or": lambda r: PC.casque(r, _s(OR, id="casque_or", n=30, bas=(0.03, -0.40, -0.60), bombe=0.004, ecart=0.019, bandes=0,
                                            rebord=0.008,
-                                           decor=[lambda *a: visiere(*a, mat="or.patine", crete=0.012), couronne])),
-    "cuirasse_or": lambda r: PC.cuirasse(r, _s(OR, id="cuirasse_or", n=20, lames=4, bombe=0.02, lames_epaule=0, x_manche=0.418, decor=[or_torse])),
+                                           decor=[lambda *a: visiere(*a, mat="or.patine", crete=0.012), couronne, lambda *a: joues(*a, mat="or.patine")])),
+    "cuirasse_or": lambda r: PC.cuirasse(r, _s(OR, id="cuirasse_or", n=14, lames=4, bombe=0.02, lames_epaule=0, x_manche=0.418, decor=[or_torse])),
     "gantelets_or": lambda r: PC.gantelets(r, _s(OR, id="gantelets_or", evasement=0.042, debut_manchette=0.16,
-                                                   decor=[plaques_mains])),
-    "bottes_or": lambda r: PC.bottes(r, _s(OR, id="bottes_or", mat_botte="or.patine", niveaux=NIV_BOTTES)),
+                                                   decor=[plaques_mains, lambda P_, t_, r_, st_: brassards(P_, t_, r_, st_, "or.patine", rangs=2)])),
+    "bottes_or": lambda r: PC.bottes(r, _s(OR, id="bottes_or", mat_botte="or.patine", niveaux=NIV_BOTTES, decor=[lambda *a: cuissots(*a, mat="or.patine", dents=0, rangs=3)])),
 }
 ENSEMBLE = {pid: ("obsidienne" if pid.endswith("obsidienne") else "or") for pid in PIECES}
 VARIANTE = {"obsidienne": {"obsidienne": "obsidienne.enchante"}, "or": {"tissu.bleu": "tissu.enchante", "tissu.cape": "tissu.enchante", "tissu.tabard": "tissu.enchante", "tissu.doublure": "tissu.enchante", "gemme": "gemme.enchante"}}
@@ -618,6 +696,11 @@ def version_sol(r, ob, pid, suffixe=""):
             s = 1 if v.co.x > 0 else -1
             v.co.x -= s * 0.52
     elif "botte" in pid:
+        # pose au sol : sans les cuissots (au-dessus du genou)
+        import bmesh
+        bm = bmesh.new(); bm.from_mesh(me)
+        bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.calc_center_median().z > 0.52], context="FACES")
+        bm.to_mesh(me); bm.free()
         for v in me.vertices:
             s = 1 if v.co.x > 0 else -1
             v.co.x -= s * 0.05

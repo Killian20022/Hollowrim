@@ -279,7 +279,7 @@ def or_patine(D, g=61, lion=False):
     piece = D.get("piece", "")
     n = fbm(P, 12.0, g)
     brosse = bruit(P, np.array([30.0, 500.0, 30.0]), g + 3)
-    t = 0.70 + (n - 0.5) * 0.14 + (brosse - 0.5) * 0.06 + (fbm(P, 140.0, g + 4) - 0.5) * 0.04
+    t = 0.83 + (n - 0.5) * 0.12 + (brosse - 0.5) * 0.06 + (fbm(P, 140.0, g + 4) - 0.5) * 0.04
     b = 0.82 + 0.15 * brosse
     tern = np.clip((0.6 - ao) * 2.0, 0, 1)
     t = t - 0.22 * tern
