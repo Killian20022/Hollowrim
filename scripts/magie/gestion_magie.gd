@@ -1187,19 +1187,20 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 		var p := emettre(nom, ancre, Transform3D.IDENTITY, true)
 		if p != null:
 			a.emit.append(p)
-	if fin_actif:
+	if ecole == "feu":
+		# feu : UNE flamme vivante tenue au creux de la main (cœur blanc-jaune, langues, braises, fumée ; magie_aura
+		# forme 2), d'un seul carré : plus de boule lisse posée sur un halo de flammes (deux couches transparentes).
+		# Aussi en rétro (dessinée alors dans le monde, au pixel du monde) : l'ancien amas de particules blanches
+		# faisait la même boule lumineuse.
+		a.boule = _aura_fine(ancre, ecole, AURA_BOULE, 2)
+		a.extra.append(a.boule)
+	elif fin_actif:
 		# couche fine : l'aura est d'abord un motif procédural au pixel (flammes, givre, plasma, vortex) ; les
 		# particules et les arcs en font les éclats autour
-		if ecole == "feu":
-			# feu : UNE flamme vivante tenue au creux de la main (cœur blanc-jaune, langues, braises, fumée ; magie_aura
-			# forme 2), d'un seul carré : plus de boule lisse posée sur un halo de flammes (deux couches transparentes)
-			a.boule = _aura_fine(ancre, ecole, AURA_BOULE, 2)
-			a.extra.append(a.boule)
-		else:
-			a.fine = _aura_fine(ancre, ecole, AURA_RAYON.get(ecole, 0.09))
-			# pas d'avance vers l'œil : la main (devant la paume en vue FPS) se découpe en silhouette dans les flammes
-			(a.fine as MeshInstance3D).set_instance_shader_parameter("avance", 0.0)
-			a.extra.append(a.fine)
+		a.fine = _aura_fine(ancre, ecole, AURA_RAYON.get(ecole, 0.09))
+		# pas d'avance vers l'œil : la main (devant la paume en vue FPS) se découpe en silhouette dans les flammes
+		(a.fine as MeshInstance3D).set_instance_shader_parameter("avance", 0.0)
+		a.extra.append(a.fine)
 	if ecole == "feu":
 		var lu := OmniLight3D.new()
 		lu.name = "LueurMain"
@@ -1331,7 +1332,7 @@ func _maj_auras() -> void:
 				if a.ecole == "feu" and a.boule != null:
 					# flamme tenue (couche fine) : elle a son cœur, ses langues et ses braises ; les particules n'ajoutent que
 					# quelques flammèches et braises autour (pas de carrés blancs du cœur devant elle)
-					ratio *= [0.1, 0.0, 0.5][mini(n_e, 2)]
+					ratio *= [0.1, 0.0, 0.5 if fin_actif else 0.25][mini(n_e, 2)]
 				p.amount_ratio = ratio
 		var c: Color = LUMIERE[a.ecole]
 		var scint := 1.0
@@ -2369,7 +2370,8 @@ func projectile_visuel(ecole: String, forme: String) -> Node3D:
 			_boule(visuel, 0.07 * k, _mat_coeur(Color("#06030c"), false, 1.0))
 			if ecole == "tenebres":
 				coeur.append(emettre("ten_coeur", visuel, Transform3D.IDENTITY, true))
-		"boule", "orbe" when fin_actif:
+		"boule", "orbe" when fin_actif or ecole == "feu":
+			# feu : la boule bouillonnante procédurale aussi en rétro (les sphères additives empilées faisaient « plastique »)
 			_aura_fine(visuel, ecole, (0.3 if forme == "boule" else 0.18) * k, 1)
 			if ecole == "feu":
 				coeur.append(emettre("feu_boule_coeur", visuel, Transform3D.IDENTITY, true))
