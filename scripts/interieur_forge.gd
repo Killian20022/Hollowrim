@@ -115,14 +115,13 @@ static func _foyer(b: Interieurs) -> void:
 	b.bx(Vector3(xh, 1.5, zh + 0.45), Vector3(1.7, 0.1, 0.12), "bois_sombre")                        # sablière de la hotte
 	# feu ENFERMÉ sous la hotte : trois langues (tons « cuits », plus rouges), lit de braises vif, lueur intense par l'ouverture (+Z),
 	# étincelles en continu et gerbe quand Brodd forge (groupe « foyer_forge », Forge.ameliorer → FeuFixe.activer)
-	b.flamme(Vector3(xh - 0.45, 1.08, zh), 2.1, 0.7)
-	b.flamme(Vector3(xh + 0.05, 1.08, zh + 0.05), 2.4, 0.7)
-	b.flamme(Vector3(xh + 0.5, 1.08, zh - 0.05), 1.9, 0.7)
+	b.flamme(Vector3(xh - 0.45, 1.08, zh), 2.1, 1.0)
+	b.flamme(Vector3(xh + 0.05, 1.08, zh + 0.05), 2.4, 1.0)
+	b.flamme(Vector3(xh + 0.5, 1.08, zh - 0.05), 1.9, 1.0)
 	b.lit_braises(Vector3(xh, 1.04, zh), Vector2(1.5, 0.9))
-	b.halo(Vector3(xh, 0.075, zh + 1.0), Vector3.UP, 5.4, 4.2, Color(1, 0.88, 0.75, 1))
-	b.halo(Vector3(xh, 0.08, zh + 0.8), Vector3.UP, 3.0, 2.2, Color(1, 0.8, 0.6, 1))
-	b.halo(Vector3(xh, 1.3, zh + 0.5), Vector3.BACK, 2.6, 1.5, Color(1, 0.72, 0.45, 1))     # lueur par l'ouverture de la hotte
-	b.lumiere(Vector3(xh, 1.5, zh + 0.9), 4.2, 8.0)
+	b.halo(Vector3(xh, 0.075, zh + 1.0), Vector3.UP, 4.4, 3.4, Color(1, 0.88, 0.75, 1))
+	b.halo(Vector3(xh, 1.3, zh + 0.5), Vector3.BACK, 2.6, 1.5, Color(0.8, 0.5, 0.28, 1))     # lueur par l'ouverture de la hotte
+	b.lumiere(Vector3(xh, 1.5, zh + 0.9), 3.4, 8.0)
 	FeuFixe.forge(b.ip.racine, Vector3(xh, 1.25, zh + 0.1), 1.2)
 	# outils du foyer : tisonnier et pelle contre la hotte, panier de bûches
 	b.bx(Vector3(xh - 1.0, 0.55, zh + 0.65), Vector3(0.03, 1.1, 0.03), "fer_noir", 0.0, false, Vector3(0, 0, 0.12))

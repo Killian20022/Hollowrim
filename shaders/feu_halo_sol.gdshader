@@ -7,7 +7,7 @@ render_mode unshaded, blend_add, cull_disabled, depth_draw_never, fog_disabled;
 uniform vec3 teinte : source_color = vec3(1.0, 0.50, 0.16);
 uniform float intensite = 0.5;
 uniform float pouls = 1.0;
-uniform float niveaux = 5.0;
+uniform float niveaux = 6.0;
 uniform float case_m = 0.12;
 
 varying vec3 v_monde;
@@ -23,10 +23,12 @@ void vertex() {
 void fragment() {
 	vec2 q = (UV - 0.5) * 2.0;
 	float r = length(q);
-	float b = (h21(floor(v_monde.xz / case_m)) - 0.5) * 0.10;
-	float v = clamp(1.0 - (r + b), 0.0, 1.0);
-	v = v * v;                                  // concentré près du feu
-	float pal = ceil(v * niveaux * pouls - 0.001) / niveaux;
+	// décroissance DOUCE jusqu'à zéro au bord de la carte (aucun bord net), gonflée près du feu
+	float v = 1.0 - smoothstep(0.0, 1.0, r);
+	v = pow(v, 2.4);
+	// quantification en gros pixels MAIS tramée par un bruit de valeur en cases de monde (jamais de Bayer) : les paliers se mêlent
+	float bruit = mix(h21(floor(v_monde.xz / case_m)), h21(floor(v_monde.xz / (case_m * 2.0)) + 7.0), 0.5);
+	float pal = floor(v * niveaux * pouls + bruit) / niveaux;
 	if (pal <= 0.0) {
 		discard;
 	}

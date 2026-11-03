@@ -1331,6 +1331,7 @@ func _process(dt: float) -> void:
 	neige.global_position = joueur.global_position + Vector3(0, 10, 0)
 	# le vent des feux (mêmes rafales lentes que le son du vent) ; nul sous terre
 	var rafale := 0.45 + 0.55 * absf(sin(_t_audio * 0.23) * sin(_t_audio * 0.071 + 1.3))
+	FeuFixe.jour = smoothstep(7.5, 10.0, cycle.heure) * (1.0 - smoothstep(16.5, 18.5, cycle.heure)) if cycle != null else 0.0
 	FeuFixe.regler_vent(Vector3.ZERO if _sous_terre_actif else Vector3(0.82, 0.0, 0.36) * rafale)
 	_remplir_audio()
 	_minuterie_sauvegarde += dt

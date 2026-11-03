@@ -21,6 +21,7 @@ const MAX_LUMIERES := 4
 const COULEUR_LUMIERE := Color(1.0, 0.55, 0.22)
 
 static var vent := Vector3(0.45, 0.0, 0.2)
+static var jour := 0.0                  # 0 nuit .. 1 plein jour (monde.gd) : halos au sol presque éteints sur la neige
 static var _actifs: Array[FeuFixe] = []
 static var _dernier_classement := 0
 
@@ -180,9 +181,9 @@ static func camp(parent: Node3D, sol: Vector3) -> FeuFixe:
 	var lit := lit_de_braises(f, Vector3(0, 0.115, 0), Vector2(1.0, 1.0), 0.05)
 	f.braises_mats.append(lit.material_override as ShaderMaterial)
 	f.cachables.append(lit)
-	var hs := halo_sol(f, Vector3(0, 0.07, 0), 11.0, 0.55)
+	var hs := halo_sol(f, Vector3(0, 0.07, 0), 12.0, 0.60)
 	f.halo_sol_mat = hs.material_override as ShaderMaterial
-	f.halo_sol_base = 0.55
+	f.halo_sol_base = 0.60
 	f.cachables.append(hs)
 	var hf := halo_face(f, Vector3(0, 0.6, 0), 2.6, 0.28)
 	f.halo_sprite_mat = hf.material_override as ShaderMaterial
@@ -190,11 +191,11 @@ static func camp(parent: Node3D, sol: Vector3) -> FeuFixe:
 	f.cachables.append(hf)
 	# langues : une grande au centre, quatre autour (hauteurs et phases différentes), pieds dans les bûches
 	var langues := [
-		[Vector3(0.0, 0.10, 0.0), 0.110, 1.3, 0.9],
-		[Vector3(0.22, 0.10, 0.05), 0.080, 1.15, 0.6],
-		[Vector3(-0.20, 0.10, 0.12), 0.088, 1.15, 0.6],
-		[Vector3(0.05, 0.10, -0.22), 0.072, 1.05, 0.5],
-		[Vector3(-0.1, 0.12, -0.08), 0.096, 1.2, 0.8],
+		[Vector3(0.0, 0.10, 0.0), 0.110, 1.7, 0.25],
+		[Vector3(0.22, 0.10, 0.05), 0.080, 1.45, 0.15],
+		[Vector3(-0.20, 0.10, 0.12), 0.088, 1.45, 0.15],
+		[Vector3(0.05, 0.10, -0.22), 0.072, 1.35, 0.1],
+		[Vector3(-0.1, 0.12, -0.08), 0.096, 1.55, 0.2],
 	]
 	for i in langues.size():
 		var l: Array = langues[i]
@@ -328,9 +329,9 @@ func _process(dt: float) -> void:
 	var pas := floorf(k * 6.0 + 0.5) / 6.0      # paliers de 1/6 pour les halos et le lit de braises
 	if halo_sol_mat != null:
 		halo_sol_mat.set_shader_parameter("pouls", pas)
-		halo_sol_mat.set_shader_parameter("intensite", halo_sol_base)
+		halo_sol_mat.set_shader_parameter("intensite", halo_sol_base * lerpf(1.0, 0.10, jour))
 	if halo_sprite_mat != null:
-		halo_sprite_mat.set_shader_parameter("intensite", halo_sprite_base * pas)
+		halo_sprite_mat.set_shader_parameter("intensite", halo_sprite_base * pas * lerpf(1.0, 0.2, jour))
 	var pouls := 0.85 + 0.25 * (0.5 + 0.5 * sin(_t * 1.7 + phase)) + (0.35 if _boost > 0.0 else 0.0)
 	pouls = floorf(pouls * 8.0 + 0.5) / 8.0
 	for m in braises_mats:
