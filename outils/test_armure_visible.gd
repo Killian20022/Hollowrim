@@ -20,6 +20,8 @@ const TRIS_TETE := 1400
 ## Budgets de la charte HD (conception_rpg/CHARTE_ARMURES_HD.md) : torse 2 500, tête 1 400, mains / pieds 1 200 ; textures jusqu'à
 ## 1024² (atlas d'ensemble). Les pièces encore en budget « bas » restent sous ces plafonds.
 const TRIS_HD := {"torse": 2500, "tete": 1400, "mains": 1200, "pieds": 1200}
+## Budgets propres à certaines pièces HD au niveau de détail du verre v5 (armure d'or v3 : lames articulées, genouillères, lions en relief).
+const TRIS_HD_ID := {"cuirasse_or": 3000, "cuirasse_or_enchante": 3000, "bottes_or": 3200, "bottes_or_enchante": 3200}
 const TEX_MAX := 1024
 const PiecesEssai := preload("res://outils/pieces_essai.gd")
 const CLIPS := ["Idle", "Walk", "Jog_Fwd", "Sprint", "Sword_Idle", "Sword_Attack", "Hit_Chest", "Jump", "Crouch_Fwd",
@@ -170,7 +172,7 @@ func _verifier_piece(id: String, e: String) -> void:
 	var tris := 0
 	for s in mi.mesh.get_surface_count():
 		tris += mi.mesh.surface_get_array_index_len(s) / 3
-	var tmax: int = TRIS_HD.get(e, TRIS_MAX)
+	var tmax: int = int(TRIS_HD_ID.get(id, TRIS_HD.get(e, TRIS_MAX)))
 	ok(tris <= tmax, "%s : %d triangles (<= %d)" % [id, tris, tmax])
 	var mat := mi.get_surface_override_material(0) as ShaderMaterial
 	var tex: Texture2D = mat.get_shader_parameter("tex_base") if mat else null

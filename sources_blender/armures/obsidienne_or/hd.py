@@ -187,7 +187,67 @@ def _godot(v):
     return (v[0], v[2], -v[1])
 
 
-def cuire(ob, taille, peintre, debord=10):
+def _composantes(me):
+    """Composante connexe (plaque) de chaque polygone + drapeau « tranche » (face dont les UV sémantiques sont dégénérées)."""
+    par = list(range(len(me.vertices)))
+    def rac(i):
+        while par[i] != i:
+            par[i] = par[par[i]]; i = par[i]
+        return i
+    for p in me.polygons:
+        v = list(p.vertices)
+        for a in v[1:]:
+            ra, r0 = rac(a), rac(v[0])
+            if ra != r0:
+                par[ra] = r0
+    uvs = me.uv_layers["UVsem"].data
+    comp = np.zeros(len(me.polygons), dtype=np.int64); tr = np.zeros(len(me.polygons), dtype=np.int64)
+    for p in me.polygons:
+        comp[p.index] = rac(p.vertices[0])
+        u = np.array([uvs[l].uv[:] for l in p.loop_indices])
+        a = 0.0
+        for k in range(1, len(u) - 1):
+            a += abs(np.cross(u[k] - u[0], u[k + 1] - u[0]))
+        tr[p.index] = 1 if a < 1e-9 else 0
+    return comp, tr
+
+
+def _bord_rim(me, Pf, comp, tr, tranche_poly):
+    """Distance (m) de chaque texel à l'ARÊTE VIVE de SA plaque (jonction face du dessus / tranche, ou bord libre des pièces sans
+    tranche) : jamais celle d'une plaque voisine ; 0 sur la tranche. Largeur de filet constante quelle que soit la plaque."""
+    ed = {}
+    for p_ in me.polygons:
+        for k in p_.edge_keys:
+            ed.setdefault(k, []).append(p_.index)
+    cp, _ = _composantes(me)
+    ech = {}
+    avec_tranche = set(int(cp[i]) for i in range(len(cp)) if tranche_poly[i])
+    for (a_, b_), ps in ed.items():
+        c = int(cp[ps[0]])
+        if c in avec_tranche:
+            vive = len(ps) == 2 and tranche_poly[ps[0]] != tranche_poly[ps[1]]
+        else:
+            vive = len(ps) == 1
+        if not vive:
+            continue
+        pa_, pb_ = Vector(_godot(me.vertices[a_].co)), Vector(_godot(me.vertices[b_].co))
+        n_ = max(1, int((pb_ - pa_).length / 0.002))
+        ech.setdefault(c, []).extend(pa_.lerp(pb_, i_ / n_) for i_ in range(n_ + 1))
+    bord = np.full(len(Pf), 0.08)
+    for c, pts in ech.items():
+        idx = np.nonzero(comp == c)[0]
+        if len(idx) == 0:
+            continue
+        kd = KDTree(len(pts))
+        for i_, q_ in enumerate(pts):
+            kd.insert(q_, i_)
+        kd.balance()
+        bord[idx] = [min(kd.find(Pf[i])[2], 0.08) for i in idx]
+    bord[tr == 1] = 0.0
+    return bord
+
+
+def cuire(ob, taille, peintre, debord=10, bord_rim=False):
     """Texture (H, W, 4) cuite : peintre(D) -> RGBA (N, 4), D = {P, N (godot), mat (noms), uv (sémantiques), bord (m), ao}."""
     me = ob.data
     me.calc_loop_triangles()
@@ -197,6 +257,9 @@ def cuire(ob, taille, peintre, debord=10):
     ao_v = occlusion(me)
     P = np.zeros((H, W, 3)); Nn = np.zeros((H, W, 3)); S = np.zeros((H, W, 2)); A = np.ones((H, W))
     M = np.full((H, W), -1, dtype=np.int64)
+    CP = np.full((H, W), -1, dtype=np.int64)      # composante connexe (plaque) du texel
+    TR = np.zeros((H, W), dtype=np.int64)        # 1 = texel de tranche (face de UV sémantique dégénérée)
+    comp_poly, tranche_poly = _composantes(me)
     rempli = np.zeros((H, W), dtype=bool)
     for t in me.loop_triangles:
         uv = np.array([uvb[l].uv[:] for l in t.loops]) * [W, H]
@@ -224,6 +287,8 @@ def cuire(ob, taille, peintre, debord=10):
         L /= L.sum(1, keepdims=True)
         P[yy, xx] = L @ ps; Nn[yy, xx] = L @ ns; S[yy, xx] = L @ su; A[yy, xx] = L @ aos
         M[yy, xx] = t.material_index
+        CP[yy, xx] = comp_poly[t.polygon_index]
+        TR[yy, xx] = tranche_poly[t.polygon_index]
         rempli[yy, xx] = True
     vrai = rempli.copy()
     for _ in range(debord):
@@ -237,30 +302,35 @@ def cuire(ob, taille, peintre, debord=10):
                 T[m] = np.roll(np.roll(T, dy, 0), dx, 1)[m]
             A[m] = np.roll(np.roll(A, dy, 0), dx, 1)[m]
             M[m] = np.roll(np.roll(M, dy, 0), dx, 1)[m]
+            CP[m] = np.roll(np.roll(CP, dy, 0), dx, 1)[m]
+            TR[m] = np.roll(np.roll(TR, dy, 0), dx, 1)[m]
             rempli = rempli | m
             vide = ~rempli
     flat = rempli.reshape(-1)
     Pf = P.reshape(-1, 3)[flat]
     # distance au bord libre par texel (arêtes de bord échantillonnées tous les 3 mm)
-    nb = {}
-    for p_ in me.polygons:
-        for k in p_.edge_keys:
-            nb[k] = nb.get(k, 0) + 1
-    ech = []
-    for (a_, b_), c_ in nb.items():
-        if c_ != 1:
-            continue
-        pa_, pb_ = Vector(_godot(me.vertices[a_].co)), Vector(_godot(me.vertices[b_].co))
-        n_ = max(1, int((pb_ - pa_).length / 0.003))
-        for i_ in range(n_ + 1):
-            ech.append(pa_.lerp(pb_, i_ / n_))
-    bord = np.full(len(Pf), 0.08)
-    if ech:
-        kd = KDTree(len(ech))
-        for i_, q_ in enumerate(ech):
-            kd.insert(q_, i_)
-        kd.balance()
-        bord = np.array([min(kd.find(q)[2], 0.08) for q in Pf])
+    if bord_rim:
+        bord = _bord_rim(me, Pf, CP.reshape(-1)[flat], TR.reshape(-1)[flat], tranche_poly)
+    else:
+        nb = {}
+        for p_ in me.polygons:
+            for k in p_.edge_keys:
+                nb[k] = nb.get(k, 0) + 1
+        ech = []
+        for (a_, b_), c_ in nb.items():
+            if c_ != 1:
+                continue
+            pa_, pb_ = Vector(_godot(me.vertices[a_].co)), Vector(_godot(me.vertices[b_].co))
+            n_ = max(1, int((pb_ - pa_).length / 0.003))
+            for i_ in range(n_ + 1):
+                ech.append(pa_.lerp(pb_, i_ / n_))
+        bord = np.full(len(Pf), 0.08)
+        if ech:
+            kd = KDTree(len(ech))
+            for i_, q_ in enumerate(ech):
+                kd.insert(q_, i_)
+            kd.balance()
+            bord = np.array([min(kd.find(q)[2], 0.08) for q in Pf])
     nn = Nn.reshape(-1, 3)[flat]
     nn = nn / np.maximum(np.linalg.norm(nn, axis=1, keepdims=True), 1e-6)
     noms = np.array([m.name.split(".0")[0] if m else "" for m in me.materials] + [""])

@@ -21,9 +21,11 @@ import peintres as PE
 for m in (C, PC, hd, PE):
     importlib.reload(m)
 from mathutils import Vector, Matrix
+from mathutils.bvhtree import BVHTree
 
 TEXTURES = os.path.join(ICI, "textures")
 TAILLE = 512
+TAILLE_OR = 1024      # l'or est peint en aplats nets anti-aliasés : 1024² (l'obsidienne reste à 512²)
 TAU = math.tau
 DEVANT = Vector((0, -1, 0)); HAUT = Vector((0, 0, 1)); GAUCHE = Vector((1, 0, 0)); DOS = Vector((0, 1, 0))
 UV_D = (0.0, 89.5 / 128, 0.05, 90.5 / 128)       # 2e atlas (sémantique) des décors : hors des bandes de l'agent Y
@@ -142,27 +144,33 @@ def corne(P, racine, d0, courbe, longueur, rayon, mat="obsidienne", seg=6, cotes
         P.ao[i] = 0.55
 
 
+RELIEF = 1.0
+
+
 def tete_lion(P, c, dehors, haut, rayon, mat="or.lion"):
     """Tête de lion en relief (champ de hauteur polaire) : crinière en mèches rayonnantes, front, arcades, yeux creusés, museau,
     nez ; `haut` = sens du front (vers l'épaule)."""
     d = Vector(dehors).normalized()
     hv = Vector(haut); hv = (hv - d * hv.dot(d)).normalized()
     wv = hv.cross(d).normalized()
-    R = [0.0, 0.18, 0.36, 0.52, 0.66, 0.80, 0.92, 1.0]
-    NS = 12
+    R = [0.0, 0.18, 0.36, 0.52, 0.64, 0.75, 0.85, 0.93, 1.0]
+    NS = 22
     def h(r, th):
         x, y = r * math.cos(th), r * math.sin(th)
-        if r > 0.6:
-            meche = abs(math.sin(th * 6.0 + r * 3.0))
-            v = 0.42 * (1.0 - (r - 0.6) / 0.4) ** 0.8 + 0.16 * meche * (1.0 - abs(r - 0.8) / 0.25)
+        if r > 0.58:
+            # crinière : 7 mèches pointues qui rayonnent, creux profonds entre elles, bord extérieur biseauté
+            meche = abs(math.sin(th * 3.5 + r * 1.6)) ** 1.4
+            ex = max(0.0, (r - 0.58) / 0.42)
+            v = 0.30 * max(0.0, 1.0 - ex) ** 0.7 + 0.40 * meche * max(0.0, math.sin(math.pi * min(1.0, ex * 1.15))) ** 0.8
         else:
-            v = 0.58 + 0.22 * (1.0 - (r / 0.6) ** 2)
-        v += 0.30 * max(0.0, 1.0 - math.hypot(x, y + 0.24) / 0.26)          # museau
-        v += 0.10 * max(0.0, 1.0 - math.hypot(x, y - 0.02) / 0.12)          # nez
-        v += 0.10 * max(0.0, 1.0 - abs(y - 0.2) / 0.08) * (abs(x) < 0.4)    # arcades
+            v = 0.42 + 0.12 * (1.0 - (r / 0.58) ** 2)
+        v += 0.34 * max(0.0, 1.0 - math.hypot(x, y + 0.26) / 0.28)          # museau
+        v += 0.14 * max(0.0, 1.0 - abs(x) / 0.07) * (0.0 < y + 0.05 < 0.34)  # arête du nez
+        v += 0.18 * max(0.0, 1.0 - math.hypot(x, y + 0.12) / 0.10)          # truffe
+        v += 0.24 * max(0.0, 1.0 - abs(y - 0.20) / 0.07) * (abs(x) < 0.46)  # arcades en bourrelet
         for sx in (-1, 1):
-            v -= 0.16 * max(0.0, 1.0 - math.hypot(x - 0.2 * sx, y - 0.1) / 0.1)   # yeux
-        v -= 0.10 * max(0.0, 1.0 - math.hypot(x, y + 0.42) / 0.1)           # gueule
+            v -= 0.20 * max(0.0, 1.0 - math.hypot((x - 0.23 * sx) * 0.7, y - 0.09) / 0.10)   # yeux en fente
+        v -= 0.16 * max(0.0, 1.0 - abs(y + 0.47) / 0.04) * (abs(x) < 0.16)  # gueule
         return max(0.0, v)
     ids = []
     for r in R:
@@ -170,7 +178,7 @@ def tete_lion(P, c, dehors, haut, rayon, mat="or.lion"):
         for k in range(NS):
             th = TAU * k / NS
             x, y = r * math.cos(th), r * math.sin(th)
-            p = c + (wv * x + hv * y) * rayon + d * (h(r, th) * rayon * 0.95 - 0.004)
+            p = c + (wv * x + hv * y) * rayon + d * (h(r, th) * rayon * 0.95 * RELIEF - 0.004)
             row.append(P.sommet(p, 0.9 if r < 0.9 else 0.7))
         ids.append(row)
     ctr = ids[0][0]
@@ -219,6 +227,38 @@ def visiere(P, t, r, centre, Pts, R_NAS, R_CORNE, mat="obsidienne", crete=0.014,
     P.grille([gauche, [dedans(p) for p in gauche]], mat, (0.0, 92.0 / 128, 0.05, 96.0 / 128), fermer=False)
     P.grille([[dedans(p) for p in droite], droite], mat, (0.0, 92.0 / 128, 0.05, 96.0 / 128), fermer=False)
     P.grille([[dedans(p) for p in bas], bas], mat, (0.0, 92.0 / 128, 0.5, 92.5 / 128), fermer=False)
+
+
+def nasal(P, t, r, centre, Pts, R_NAS, R_CORNE, mat="or.patine"):
+    """Nasal : barre verticale en relief le long de la visière (du bandeau au menton), section en trapèze, évasée en bas."""
+    arbre = hd.bvh_piece(P)
+    rangs = []
+    for z in (1.676, 1.662, 1.640, 1.610, 1.580, 1.556, 1.543):
+        o = Vector((0, -0.5, z))
+        hit, n = hd.poser_sur(arbre, o, Vector((0, 1, 0)))
+        if hit is None:
+            continue
+        lw = 0.0075 + (0.0045 if z < 1.56 else 0.0)
+        rangs.append([hit + Vector((lw, 0.001, 0)), hit + Vector((lw * 0.55, -0.014, 0)), hit + Vector((-lw * 0.55, -0.014, 0)),
+                      hit + Vector((-lw, 0.001, 0))])
+    P.grille(rangs, mat, (0.0, 92.5 / 128, 0.06, 93.5 / 128), fermer=False)
+    for bout, inv in ((rangs[0], True), (rangs[-1], False)):
+        ids = [P.sommet(p) for p in bout]
+        P.face(ids if not inv else list(reversed(ids)), mat, [(0.0, 0.73)] * 4)
+
+
+def bavolet(P, t, r, centre, Pts, R_NAS, R_CORNE, mat="or.patine"):
+    """Bavolet : jupe de deux rangs de lames festonnées qui pend du bord du heaume sur les côtés et la nuque (ouverte devant)."""
+    ring = Pts[0]
+    n = len(ring)
+    a, b, c = [], [], []
+    for i in range(5, n - 4):
+        p = ring[i]
+        o = Vector((p.x - centre.x, p.y - centre.y, 0)).normalized()
+        a.append(p + o * 0.008 + Vector((0, 0, 0.004)))
+        b.append(p + o * 0.030 - Vector((0, 0, 0.034)))
+        c.append(p + o * 0.040 - Vector((0, 0, 0.060 if i % 2 else 0.082)))
+    P.grille([a, b, c], mat, (0.0, 92.0 / 128, 1.0, 93.0 / 128), fermer=False)
 
 
 def cornes_obsidienne(P, t, r, centre, Pts, R_NAS, R_CORNE):
@@ -445,8 +485,8 @@ def or_torse(P, t, r, st):
     hd.plaque(P, A(), PROJ_T, c, 0.010, 0.009, M, UV_D, bombe=0.016, anneaux=2)
     # tabard bleu nuit LARGE (devant : largeur des hanches, jusqu'aux mollets, pointe en bas) + cape bleue statique derrière
     drap(P, B, "tissu.tabard", True, 0.165, 0.150, 0.985, 0.42, 7, 6, 0.036, 0.05, pointe=0.10, courbe=0.012)
-    drap(P, B, "tissu.cape", False, 0.17, 0.27, 1.50, 0.42, 7, 5, 0.078, 0.105, pointe=0.0, courbe=0.0)
-    drap(P, B, "tissu.doublure", False, 0.17, 0.27, 1.50, 0.42, 7, 5, 0.071, 0.098, pointe=0.0, courbe=0.0)   # face intérieure (retournée après coup)
+    drap(P, B, "tissu.cape", False, 0.27, 0.47, 1.50, 0.40, 7, 5, 0.085, 0.130, pointe=0.0, courbe=0.045)
+    drap(P, B, "tissu.doublure", False, 0.27, 0.47, 1.50, 0.40, 7, 5, 0.078, 0.123, pointe=0.0, courbe=0.045)   # face intérieure (retournée après coup)
     # tassettes : rang bas puis rang haut, dos, côtés, devant
     for s in (1, -1):
         for (a0, a1, zh, zb, dec) in ((114, 166, 0.90, 0.75, 0.010), (58, 108, 0.90, 0.735, 0.011), (16, 54, 0.90, 0.72, 0.012),
@@ -484,10 +524,19 @@ def or_torse(P, t, r, st):
             hd.plaque(P, [hd.bvh_piece(P), bras], pj, c, dec, 0.009, M, UV_D, bombe=bom, anneaux=2)
         arb = [hd.bvh_piece(P)]
         ax = (Bep - Aep).normalized()
-        o, d = pj(0, 0.30)
-        hit, n = hd.lancer(arb, o, d)
+        # tête de lion tournée vers l'avant et le haut (de face, elle se lit sur le dessus de l'épaule) : rayon visé sur l'axe
+        cible = Aep + ax * (Bep - Aep).length * 0.58
+        dl = Vector((0.20 * s, -0.78, 0.62)).normalized()
+        hit, n = hd.lancer(arb, cible + dl * 0.5, -dl)
         if hit is not None:
-            tete_lion(P, hit, -Vector(d), -ax, 0.082)
+            # rondel d'or repoussé sous la tête (ombre portée, anneau en saillie) : la tête lit comme un médaillon de métal
+            wv = dl.cross(-ax).normalized(); hv = wv.cross(dl).normalized()
+            def pl(s_, t_, wv=wv, hv=hv, dl=dl, hit=hit):
+                return hit + dl * 0.4 + wv * s_ + hv * t_, -dl
+            rond = [(0.132 * math.cos(TAU * k / 16), 0.132 * math.sin(TAU * k / 16)) for k in range(16)]
+            hd.plaque(P, arb, pl, rond, 0.006, 0.011, "or.lion", (0.80, 0.9, 0.85, 0.91), bombe=0.012, anneaux=1, centre=(0.0, 0.0), biseau=1.0)
+            hit2, n2 = hd.lancer([hd.bvh_piece(P)], cible + dl * 0.5, -dl)
+            tete_lion(P, hit2 if hit2 is not None else hit, dl, -ax, 0.108)
         o, d = pj(-78, 0.20)
         hit, n = hd.lancer(arb, o, d)
         if hit is not None:
@@ -556,8 +605,23 @@ def _arc(a0, a1, t, n=3):
     return [(a0 + (a1 - a0) * k / n, t) for k in range(n + 1)]
 
 
-def _lame_membre(P, arbres, pj, a, t0, t1, dec, bom, mat, dents=0, g=0, ang=3, anneaux=2):
+def _lame_membre(P, arbres, pj, a, t0, t1, dec, bom, mat, dents=0, g=0, ang=3, anneaux=2, pointe=0.0, a0=None):
     """Lame enroulée sur un membre : arc d'angles [-a, a] entre t0 (haut) et t1 (bas), bord bas denté (obsidienne) ou arrondi (or)."""
+    if a0 is not None:                       # lame centrée sur l'angle a0 (ex. 180 = arrière)
+        haut = [(a0 + u, t0) for u, _ in _arc(-a, a, t0, ang)]
+        cote_d = [(a0 + a + 4, (t0 + t1) / 2)]
+        bas = [(a0 + a, t1), (a0 + a * 0.5, t1 + pointe * 0.45), (a0, t1 + pointe), (a0 - a * 0.5, t1 + pointe * 0.45), (a0 - a, t1)]
+        c = haut + cote_d + bas + [(a0 - a - 4, (t0 + t1) / 2)]
+        c = c[::-1]                          # côté arrière : le sens de l'angle s'inverse vu de l'extérieur
+        hd.plaque(P, arbres, pj, c, dec, 0.008, mat, UV_D, bombe=bom, anneaux=anneaux)
+        return
+    if pointe:
+        haut = _arc(-a, a, t0, ang)
+        cote_d = [(a + 4, (t0 + t1) / 2)]
+        bas = [(a, t1), (a * 0.5, t1 + pointe * 0.45), (0, t1 + pointe), (-a * 0.5, t1 + pointe * 0.45), (-a, t1)]
+        c = haut + cote_d + bas + [(-a - 4, (t0 + t1) / 2)]
+        hd.plaque(P, arbres, pj, c, dec, 0.008, mat, UV_D, bombe=bom, anneaux=anneaux)
+        return
     haut = _arc(-a, a, t0, ang)
     cote_d = [(a + 4, (t0 + t1) / 2)]
     if dents:
@@ -611,6 +675,72 @@ def joues(P, t, r, centre, Pts, R_NAS, R_CORNE, mat="obsidienne", dents=0):
         hd.plaque(P, arb, PROJ_H, c, 0.011, 0.006, mat, UV_D, bombe=0.006, anneaux=2)
 
 
+def jambes_or(P, t, r, st, cote, s, jambe, A, B):
+    """Jambe d'or articulée : grève en 6 lames qui se recouvrent (pointe vers le bas) + 4 lames de mollet, genouillère bombée
+    (dôme, arête, ailette latérale, rubis serti), sabaton en lames sur le pied ; la botte dessous est en cuir sombre (visible
+    entre les lames)."""
+    ca = r.os["calf_" + cote]
+    sg = 1.0 if ca.x > 0 else -1.0
+    # BVH de CETTE jambe seulement (les rayons latéraux ne doivent pas toucher la botte voisine)
+    fs = [f for f in P.f if sum(P.v[i].x for i in f[0]) / len(f[0]) * sg > 0.0]
+    arb = [BVHTree.FromPolygons([Vector(v) for v in P.v], [f[0] for f in fs], epsilon=0.0)]
+    M = "or.patine"
+    Ah = Vector((ca.x, ca.y - 0.005, 0.47)); Bb = Vector((ca.x, -0.02, 0.05))
+    pj = hd.proj_axe(Ah, Bb, haut=DEVANT, r=0.3)
+    n = 6
+    for k in range(n):
+        t0 = -0.04 + 0.15 * k; t1 = t0 + 0.215
+        _lame_membre(P, arb, pj, 92 - 2.5 * k, t0, t1, 0.010 + 0.0036 * (n - 1 - k), 0.008, M, anneaux=2, ang=4, pointe=0.022)
+    pjr = hd.proj_axe(Ah + Vector((0, 0.07, 0)), Bb + Vector((0, 0.07, 0)), haut=DEVANT, r=0.4)     # axe du mollet (la cuve de la botte est reculée)
+    for k in range(4):
+        t0 = 0.0 + 0.2 * k; t1 = t0 + 0.28
+        _lame_membre(P, arb, pjr, 66 - 3 * k, t0, t1, 0.009 + 0.004 * (3 - k), 0.007, M, anneaux=2, ang=3, pointe=0.0, a0=180)
+    # genouillère : dôme, arête médiane, ailette extérieure
+    corps_k = C.bvh(r, ["pantalon"], {"thigh_" + cote, "calf_" + cote}, 0.3)
+    # manchette d'or au haut de la botte : quatre lames qui en font le tour (sous la genouillère)
+    for a0, pjx, a, h0 in ((0, pj, 50, -0.13), (88, pj, 42, -0.06), (-88, pj, 42, -0.06), (180, pjr, 52, -0.06)):
+        kw = {"a0": a0} if a0 else {}
+        _lame_membre(P, arb + [corps_k], pjx, a, h0, -0.01, 0.017, 0.006, M, anneaux=1, ang=3, **kw)
+    Ak = Vector((ca.x, ca.y, ca.z - 0.10)); Bk = Vector((ca.x, ca.y, ca.z + 0.10))
+    pk = hd.proj_axe(Ak, Bk, haut=DEVANT, r=0.3)
+    c = [(0, 0.10), (30, 0.20), (50, 0.40), (52, 0.55), (36, 0.76), (0, 0.90), (-36, 0.76), (-52, 0.55), (-50, 0.40), (-30, 0.20)]
+    arb = arb + [corps_k]
+    hd.plaque(P, arb, pk, c, 0.020, 0.010, M, UV_D, bombe=0.026, anneaux=3, biseau=1.0)
+    corps_k = C.bvh(r, ["pantalon"], {"thigh_" + cote, "calf_" + cote}, 0.3)
+    fs = [f for f in P.f if sum(P.v[i].x for i in f[0]) / len(f[0]) * sg > 0.0]
+    arb2 = [BVHTree.FromPolygons([Vector(v) for v in P.v], [f[0] for f in fs], epsilon=0.0), corps_k]
+    c = [(0, 0.20), (14, 0.42), (0, 0.80), (-14, 0.42)]
+    hd.plaque(P, arb2, pk, c, 0.012, 0.006, M, UV_D, bombe=0.012, anneaux=2)
+    c = [(66, 0.30), (92, 0.40), (96, 0.55), (92, 0.70), (66, 0.78), (60, 0.55)]
+    hd.plaque(P, arb, pk, c, 0.016, 0.008, M, UV_D, bombe=0.012, anneaux=2)
+    if cote == "l":
+        c = [(-66, 0.30), (-92, 0.40), (-96, 0.55), (-92, 0.70), (-66, 0.78), (-60, 0.55)]
+    else:
+        c = [(-66, 0.30), (-92, 0.40), (-96, 0.55), (-92, 0.70), (-66, 0.78), (-60, 0.55)]
+    hd.plaque(P, arb, pk, c, 0.016, 0.008, M, UV_D, bombe=0.012, anneaux=2)
+    # jarretière d'or au-dessus du genou (bande fine qui fait tout le tour de la cuisse, par-dessus les lames du cuissot)
+    th = r.os["thigh_" + cote]
+    cuisse_b = C.bvh(r, ["pantalon"], {"thigh_" + cote, "calf_" + cote}, 0.3)
+    arb_j = [BVHTree.FromPolygons([Vector(v) for v in P.v], [f[0] for f in fs], epsilon=0.0), cuisse_b]
+    anneaux_j = []
+    for zj in (0.646, 0.626):
+        f_ = (th.z - zj) / (th.z - ca.z)
+        ax = th.lerp(ca, f_)
+        row = []
+        for i in range(24):
+            an = TAU * (i + 0.5) / 24
+            dj = Vector((math.cos(an), math.sin(an), 0.0))
+            hit, nrm = hd.lancer(arb_j, Vector((ax.x, ax.y, zj)) + dj * 0.3, -dj)
+            row.append((hit + dj * 0.009) if hit is not None else Vector((ax.x, ax.y, zj)) + dj * 0.10)
+        anneaux_j.append([Vector((p.x, p.y, zj)) for p in row])
+    P.grille(anneaux_j, M, (UV_D[0], UV_D[1], UV_D[2], UV_D[3]), fermer=True)
+    # sabaton : trois lames qui enveloppent le devant du pied (dessus + côtés), la plus haute recouvre la suivante
+    Af = Vector((ca.x, -0.07, 0.17)); Bf = Vector((ca.x, -0.07, -0.01))
+    pf = hd.proj_axe(Af, Bf, haut=DEVANT, r=0.45)
+    for k, (t0, t1) in enumerate(((0.02, 0.50), (0.38, 0.80), (0.66, 1.02))):
+        _lame_membre(P, arb, pf, 84 - 3 * k, t0, t1, 0.008 + 0.004 * (2 - k), 0.007, M, anneaux=2, ang=4, pointe=0.0)
+
+
 # ============================================================================================================== styles
 OBS = dict(pal=C.FER_NOIR, mat="obsidienne", mat_rebord="fer.noir", mat_main="obsidienne", mat_doigts="fer.noir", mat_genou="obsidienne",
            mat_maille="fer.maille", base=0.4, oxyde=0.0, crasse=0.3, poli=0.6, graine=131, z_ourlet=0.66)
@@ -632,11 +762,12 @@ PIECES = {
                                                    decor=[genou_eclats, lambda *a: cuissots(*a, mat="obsidienne", dents=2, rangs=2)])),
     "casque_or": lambda r: PC.casque(r, _s(OR, id="casque_or", n=30, bas=(0.03, -0.40, -0.60), bombe=0.004, ecart=0.019, bandes=0,
                                            rebord=0.008,
-                                           decor=[lambda *a: visiere(*a, mat="or.patine", crete=0.012), couronne, lambda *a: joues(*a, mat="or.patine")])),
+                                           decor=[lambda *a: visiere(*a, mat="or.patine", crete=0.012), couronne, nasal, bavolet, lambda *a: joues(*a, mat="or.patine")])),
     "cuirasse_or": lambda r: PC.cuirasse(r, _s(OR, id="cuirasse_or", n=14, lames=4, bombe=0.02, lames_epaule=0, x_manche=0.418, decor=[or_torse])),
     "gantelets_or": lambda r: PC.gantelets(r, _s(OR, id="gantelets_or", evasement=0.042, debut_manchette=0.16,
                                                    decor=[plaques_mains, lambda P_, t_, r_, st_: brassards(P_, t_, r_, st_, "or.patine", rangs=2)])),
-    "bottes_or": lambda r: PC.bottes(r, _s(OR, id="bottes_or", mat_botte="or.patine", niveaux=NIV_BOTTES, decor=[lambda *a: cuissots(*a, mat="or.patine", dents=0, rangs=3)])),
+    "bottes_or": lambda r: PC.bottes(r, _s(OR, id="bottes_or", mat_botte="cuir", niveaux=NIV_BOTTES, greve=False,
+                                           decor=[jambes_or, lambda *a: cuissots(*a, mat="or.patine", dents=0, rangs=3)])),
 }
 ENSEMBLE = {pid: ("obsidienne" if pid.endswith("obsidienne") else "or") for pid in PIECES}
 VARIANTE = {"obsidienne": {"obsidienne": "obsidienne.enchante"}, "or": {"tissu.bleu": "tissu.enchante", "tissu.cape": "tissu.enchante", "tissu.tabard": "tissu.enchante", "tissu.doublure": "tissu.enchante", "gemme": "gemme.enchante"}}
@@ -704,11 +835,14 @@ def version_sol(r, ob, pid, suffixe=""):
         for v in me.vertices:
             s = 1 if v.co.x > 0 else -1
             v.co.x -= s * 0.05
-    # NEIGE : pièce posée à plat = faces vers le haut ; alpha de couleur de sommet 0 (« déjà neigé ») pour que le shader ps1 ne pose
-    # pas la neige du monde dessus (voir sol_sans_neige.py). Écrit ICI pour qu'une régénération n'annule pas le correctif.
-    for ca in me.color_attributes:
+    # NEIGE : le shader ps1 pose la neige du monde sur les faces tournées vers le haut si l'alpha de la couleur de sommet >= 0,5 :
+    # pièce posée à plat = alpha 0 (sols sans neige)
+    ca = me.color_attributes.get("Col")
+    if ca is not None:
         for d in ca.data:
             d.color = (d.color[0], d.color[1], d.color[2], 0.0)
+        me.color_attributes.active_color = ca
+        me.color_attributes.render_color_index = list(me.color_attributes).index(ca)
     zmin = min(v.co.z for v in me.vertices)
     cx = sum(v.co.x for v in me.vertices) / len(me.vertices)
     cy = sum(v.co.y for v in me.vertices) / len(me.vertices)
@@ -768,19 +902,37 @@ def evaser_manches(ob, r, x0=0.36, x1=0.437, plus=0.024):
         v.co = p + d.normalized() * plus * k
 
 
+def or_en_premier(ob):
+    """Le matériau d'or devient la surface 0 : les limites de masquage du jeu (armure_visible.limites) sont lues sur la surface 0,
+    qui doit contenir les plaques de la jambe (pas seulement la cuve de botte en cuir)."""
+    mats = list(ob.data.materials)
+    k = [i for i, m in enumerate(mats) if m and m.name.startswith("or.")]
+    if not k or k[0] == 0:
+        return
+    ordre = [k[0]] + [i for i in range(len(mats)) if i != k[0]]
+    nouveau = {ancien: n for n, ancien in enumerate(ordre)}
+    for p in ob.data.polygons:
+        p.material_index = nouveau[p.material_index]
+    ob.data.materials.clear()
+    for i in ordre:
+        ob.data.materials.append(mats[i])
+
+
 def construire(pid, dossier=None, enchante=True):
     r = C.charger_reference()
     ob = PIECES[pid](r)
+    if pid == "bottes_or":
+        or_en_premier(ob)
     if pid == "cuirasse_or":
         peau_cape(ob, r)
     tris = C.compter_tris(ob)
     print("PIECE", pid, tris, "tris", "matériaux", [m.name for m in ob.data.materials])
     hd.uv_uniques(ob)
-    tab, _ = hd.cuire(ob, TAILLE, peintre(pid, False))
+    tab, _ = hd.cuire(ob, TAILLE_OR if ENSEMBLE[pid] == "or" else TAILLE, peintre(pid, False), bord_rim=ENSEMBLE[pid] == "or")
     img = hd.image(pid, tab, TEXTURES)
     tab_e = None
     if enchante:
-        tab_e, _ = hd.cuire(ob, TAILLE, peintre(pid, True))
+        tab_e, _ = hd.cuire(ob, TAILLE_OR if ENSEMBLE[pid] == "or" else TAILLE, peintre(pid, True), bord_rim=ENSEMBLE[pid] == "or")
     hd.retirer_uv_sem(ob)
     hd.poser_image(ob, img)
     hd.couleur_blanche(ob)
