@@ -70,7 +70,8 @@
 				{"id": "viande_sechee", "n": [2, 4]},
 				{"id": "champignon_lumineux", "n": [2, 5]},
 				{"id": "poussiere_tombe", "n": [1, 2], "chance": 50},
-				{"id": "tome_souffle_givre", "n": 1, "chance": 80}
+				{"id": "tome_souffle_givre", "n": 1, "chance": 80},
+				{"id": "tome_rayon_neant", "n": 1, "chance": 25}
 			]
 		}
 	}

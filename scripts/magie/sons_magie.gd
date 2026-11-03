@@ -75,6 +75,7 @@ static func tous_les_noms() -> Array:
 		l.append("magie/reaction_" + r)
 	l.append("magie/refus_mana")
 	l.append("magie/double")
+	l.append("magie/rayon_neant_lancer")
 	return l
 
 static func _chemin(nom: String) -> String:
@@ -148,6 +149,11 @@ static func lancement(ecole: String, pos: Vector3, k := 1.0) -> void:
 	_compter("lancement")
 	var t := _t(ecole_sure(ecole))
 	_coup(_variante(t["lancer"]), pos, VOL_LANCER + 3.0 * clampf(k - 1.0, -0.5, 1.0), randf_range(0.95, 1.05), t["c_lancer"], 0.06)
+
+## Rayon du néant (scripts/magie/rayon_neant.gd) : montée sombre, tir grave et queue ; plus fort à pleine charge.
+static func rayon_neant(pos: Vector3, force: float) -> void:
+	_compter("rayon_neant")
+	_coup("magie/rayon_neant_lancer", pos, VOL_LANCER + 2.0 + 3.0 * clampf(force - 1.0, -0.6, 0.0), randf_range(0.97, 1.03), "rayon_neant", 0.3)
 
 static func impact(ecole: String, pos: Vector3, force: float) -> void:
 	_compter("impact")

@@ -194,6 +194,9 @@ func lancer(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, charge
 			return _projectiles(s, depart, oeil, avant, k)
 		DonneesSort.Portee.CHAINE:
 			return _chaine(s, depart, oeil, avant, k, s.rebonds)
+		DonneesSort.Portee.JET:
+			# jet À CHARGE (type CHARGE + portée JET) : le rayon du néant, un coup traversant puis un faisceau visuel court
+			return _rayon_neant(s, paume, depart, oeil, avant, k)
 		DonneesSort.Portee.ZONE_VISEE:
 			var v := viser(oeil, avant, s.portee, 1.6)
 			return _zone(s, _au_sol(v["point"]), k)
@@ -226,6 +229,53 @@ func _projectiles(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3
 		p.cible_joueur = cible_joueur
 		tirs.append(p)
 	return {"genre": "projectile", "projectiles": tirs, "point": v["point"]}
+
+## RAYON DU NÉANT (sort à charge, portée JET) : traverse jusqu'à 1 + `traverse` cibles dans le couloir de visée, derrière
+## aucun mur ; les dégâts croissent avec la charge (`k`). Le faisceau (RayonNeant) part du centre du cercle runique et finit
+## au premier décor ; sa largeur suit `s.largeur` (la double magie l'élargit via LanceurSorts.version_double).
+func _rayon_neant(s: DonneesSort, paume: Node3D, depart: Vector3, oeil: Vector3, avant: Vector3, k: float) -> Dictionary:
+	var fin := oeil + avant * s.portee
+	var normale := -avant
+	var touche := false
+	var monde := _monde()
+	if monde != null:
+		var q := PhysicsRayQueryParameters3D.create(oeil, oeil + avant * s.portee)
+		q.exclude = _exclus_rids()
+		var r := monde.intersect_ray(q)
+		if not r.is_empty():
+			fin = r["position"]
+			normale = r["normal"]
+			touche = true
+	var touchees := []
+	if vise == "joueur":
+		if cible_joueur != null and not bool(cible_joueur.get("mort")) and _dans_jet(oeil, avant, s, cible_joueur.global_position + Vector3(0, 1.0, 0)):
+			frapper(cible_joueur, s.degats * k, s, cible_joueur.global_position, avant, false, s.stagger * k)
+			touchees.append(cible_joueur)
+	else:
+		var candidats := []
+		for c in Elements.cibles_dans(oeil, s.portee + 0.5):
+			var ce: Vector3 = Elements._centre(c)
+			if _dans_jet(oeil, avant, s, ce) and oeil.distance_to(ce) <= oeil.distance_to(fin) + 0.8 and not _mur_entre(oeil, ce):
+				candidats.append(c)
+		candidats.sort_custom(func(a: Node, b: Node) -> bool: return oeil.distance_to(Elements._centre(a)) < oeil.distance_to(Elements._centre(b)))
+		for c in candidats:
+			if touchees.size() >= 1 + s.traverse:
+				break
+			touchees.append(c)
+			frapper(c, s.degats * k, s, Elements._centre(c), avant, false, s.stagger * k)
+	var rayon: RayonNeant = null
+	if not EffetsMagie.muet:
+		var origine := depart + avant * 0.5
+		var cercle := CercleNeant.existant(paume)
+		if cercle != null:
+			origine = cercle.centre()
+		rayon = RayonNeant.tirer(lanceur.get_parent(), origine, fin, normale, touche, s.largeur, k, lanceur if vise == "ennemis" else null)
+		if cercle != null:
+			rayon.rayon_depart = cercle.rayon * 0.95
+			cercle.tirer(RayonNeant.DUREE)
+		else:
+			rayon.cercle_secours(avant)
+	return {"genre": "rayon", "cibles": touchees, "point": fin, "rayon": rayon}
 
 func _impact_projectile(s: DonneesSort, k: float, cible: Node, point: Vector3, normale: Vector3, dir: Vector3) -> void:
 	EffetsMagie.impact(s.ecole, point, normale, k * (1.6 if s.rayon > 0.0 else 0.8))
