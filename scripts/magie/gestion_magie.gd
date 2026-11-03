@@ -106,6 +106,10 @@ const AURA_ECOLE := {"feu": 0, "glace": 1, "electricite": 2, "tenebres": 3, "soi
 const AURA_BOULE := 0.15
 ## La paume est à la base de la flamme : le carré est remonté de cette fraction de son rayon.
 const FLAMME_ASSISE := 0.72
+## v3 : la flamme tenue flotte 4,5 cm plus haut (halo lumineux entre la paume et son pied)
+const FLAMME_HAUT := 0.045
+## charge (0..1) par aura : agrandit la flamme tenue (x1,4 en rayon)
+var charges_aura := {}
 ## Lueur de la flamme tenue sur la main et l'avant-bras (calque CALQUE_AVANT_BRAS seulement, que la lumière d'aura
 ## n'éclaire pas) : faible, courte portée, qui vacille.
 const LUEUR_MAIN := {"energie": 0.55, "portee": 0.45}
@@ -1317,8 +1321,11 @@ func _maj_auras() -> void:
 		if a.boule != null and is_instance_valid(a.boule):
 			var bm: MeshInstance3D = a.boule
 			var rb := AURA_BOULE * (0.85 + 0.25 * minf(i, 1.0)) * (BOULE_TENUE if tenue else 1.0)
-			bm.set_instance_shader_parameter("rayon", rb * k)
-			bm.position = Vector3.UP * rb * FLAMME_ASSISE
+			var chg: float = float(charges_aura.get(id, 0.0))
+			a.ch = lerpf(float(a.get("ch", 0.0)), chg, 0.12)
+			bm.set_instance_shader_parameter("rayon", rb * k * (1.0 + 0.1 * float(a.ch)))
+			bm.set_instance_shader_parameter("charge", float(a.ch))
+			bm.position = Vector3.UP * (rb * FLAMME_ASSISE * (1.0 + 0.1 * float(a.ch)) + FLAMME_HAUT)
 			# sous un jet (i réduit), la flamme se résorbe en foyer ; au repos elle brûle franchement
 			bm.set_instance_shader_parameter("force", clampf(0.78 + 0.35 * i, 0.0, 1.3))
 		if a.get("lueur") != null and is_instance_valid(a.lueur):

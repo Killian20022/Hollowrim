@@ -11,7 +11,7 @@ const SH := preload("res://shaders/runes_orbite.gdshader")
 ## Par école : couleurs, signes (shader), rayon moyen des orbites (m), taille d'une rune (m), hauteur du centre des
 ## orbites au-dessus de la paume (m : le milieu de la flamme / du cristal tenu).
 const ECOLES := {
-	"feu": {"couleur": Color("#ff6a1a"), "coeur": Color("#ffc27a"), "signes": [6, 7, 8, 9, 1, 10, 6, 7], "rayon": 0.115, "taille": 0.03, "centre": 0.105},
+	"feu": {"couleur": Color("#ff6a1a"), "coeur": Color("#ffc27a"), "signes": [6, 7, 8, 9, 1, 10, 6, 7], "rayon": 0.115, "taille": 0.026, "centre": 0.15},
 	"glace": {"couleur": Color("#4fb4ff"), "coeur": Color("#e2f6ff"), "signes": [5, 3, 10, 0, 5, 3, 9, 8], "rayon": 0.108, "taille": 0.029, "centre": 0.075},
 	"electricite": {"couleur": Color("#8a6cff"), "coeur": Color("#e6deff"), "signes": [2, 4, 2, 9, 2, 4, 8, 10], "rayon": 0.108, "taille": 0.029, "centre": 0.075},
 	"tenebres": {"couleur": Color("#a23cff"), "coeur": Color("#e7b8ff"), "signes": [4, 1, 5, 7, 4, 1, 5, 6], "rayon": 0.108, "taille": 0.029, "centre": 0.075},

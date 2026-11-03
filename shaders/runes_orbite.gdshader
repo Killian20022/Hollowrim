@@ -6,7 +6,7 @@ render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, fog_disabled, 
 
 uniform vec3 couleur : source_color = vec3(1.0, 0.45, 0.12);
 uniform vec3 coeur : source_color = vec3(1.0, 0.86, 0.55);
-uniform float texels = 11.0;          // texels par rune (pixel art)
+uniform float texels = 30.0;          // texels par rune (pixel art)
 uniform bool cercle_rune = false;      // true : ancien médaillon (cercle autour du signe)
 uniform bool ligne = false;           // false = rune (quad), true = fil d'orbite (ruban, UV.x le long du tour)
 instance uniform float symbole = 0.0; // 0..5 : signe dans le cercle
@@ -83,8 +83,8 @@ void fragment() {
 		float px = 2.0 / texels;
 		float cercle = abs(r - 0.58);
 		float trait = cercle_rune ? min(cercle, signe(q, symbole)) : signe(q * 1.05, symbole);
-		float plein = 1.0 - step(px * 0.55, trait);
-		float halo = clamp(1.0 - r, 0.0, 1.0) * 0.18;
+		float plein = 1.0 - step(px * 0.6, trait);
+		float halo = exp(-r * r * 3.2) * 0.3;
 		vec3 c = mix(couleur, coeur, 0.2 * plein) * (1.1 + 0.6 * plein);
 		ALBEDO = c;
 		ALPHA = clamp(plein * eclat + halo * eclat, 0.0, 1.0);

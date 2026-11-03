@@ -513,6 +513,8 @@ func _runes_vers(m: String, ecole: String, k: float) -> void:
 	# tenue « runes » : les flammes de l'aura serrées autour de la boule tenue (cœur de l'aura de feu). La boule et
 	# `echelles_aura` vivent dans gestion_magie.gd (branche fps/avant_bras_runes, pas encore portés) : sans elles, rien.
 	var g = GestionMagie.obtenir()
+	if g != null and "charges_aura" in g:
+		g.charges_aura[(_p(m) as Node).get_instance_id()] = clampf(i.charge, 0.0, 1.0) if i.etat == Incantation.CHARGE else 0.0
 	if g != null and "echelles_aura" in g:
 		var id: int = (_p(m) as Node).get_instance_id()
 		if _tenue_runes(m):
@@ -531,6 +533,7 @@ func _tenue_runes(m: String) -> bool:
 ## (repère caméra, main gauche ; miroir en X à droite) et un peu plus ouverte.
 const DEUX_SORTS_DECALAGE := Vector3(-0.05, -0.015, 0.0)
 const DEUX_SORTS_FERMETURE := -0.06
+const DEUX_SORTS_DROITE_ANCIEN := 0.85   # part de l'ancienne pose (main droite, deux sorts)
 func _deux_sorts_repos(m: String) -> bool:
 	return not TENUE_RUNES and inc[m].etat == Incantation.REPOS and eq.categorie(eq.autre(m)) in ["sort", "vide"]
 
@@ -767,6 +770,14 @@ func _pose_voulue(m: String, dt := 0.0) -> Dictionary:
 	if not capture:
 		p = PosesIncantation.pour(i.nom(), s.profil if s != null else "paume", i.charge, i.depuis_lancement, i.t, m)
 		if _deux_sorts_repos(m):
+			if m == "droite":
+				# deux sorts : pose intermédiaire entre la paume-en-haut de la flamme runique et l'ancienne pose (miroir de la
+				# gauche) : le départ des gestes à deux mains (double jet) ne vrille pas le poignet de plus de 140°
+				var v0: Dictionary = PosesIncantation.POSES["repos"]
+				var ancien := {"pos": Vector3(-Vector3(v0["pos"]).x, Vector3(v0["pos"]).y, Vector3(v0["pos"]).z),
+					"paume": Vector3(-Vector3(v0["paume"]).x, Vector3(v0["paume"]).y, Vector3(v0["paume"]).z),
+					"doigts": Vector3(-Vector3(v0["doigts"]).x, Vector3(v0["doigts"]).y, Vector3(v0["doigts"]).z), "fermeture": v0["fermeture"]}
+				p = PosesIncantation.melange(p, ancien, DEUX_SORTS_DROITE_ANCIEN)
 			p = p.duplicate()
 			var dx := DEUX_SORTS_DECALAGE
 			p["pos"] = Vector3(p["pos"]) + Vector3(dx.x * (1.0 if m == "gauche" else -1.0), dx.y, dx.z)
