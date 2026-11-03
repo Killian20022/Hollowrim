@@ -80,7 +80,7 @@ def couper(bm, plans):
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
 
 
-def surplaque(base, nom, plans, decal, ep, partie, souleve=None, symetrie=False):
+def surplaque(base, nom, plans, decal, ep, partie, souleve=None, symetrie=False, src=None):
     """Plaque découpée dans la surface de `base` par des plans, poussée de `decal` vers l'extérieur (+ souleve(p_godot)), épaisseur
     rabattue sous les bords ; poids du sommet de `base` le plus proche. symetrie : aussi le miroir en x (plans miroités)."""
     jeux = [plans] + ([[(Vector((-co.x, co.y, co.z)), Vector((-no.x, no.y, no.z))) for co, no in plans]] if symetrie else [])
@@ -105,7 +105,9 @@ def surplaque(base, nom, plans, decal, ep, partie, souleve=None, symetrie=False)
         if ep > 0:
             X.epaissir_bords(bm, ep)
         o = X.en_objet(bm, "%s_%d" % (nom, k))
-        L.ecrire_poids(o, L.normaliser(L.poids_proches(o, base, 3)))
+        # poids : la coque DENSE (src) ; la source allégée des plaques n'a que quelques sommets sur la poitrine, dont certains de
+        # la manche (poids du bras : la plaque se soulevait avec le bras)
+        L.ecrire_poids(o, L.normaliser(L.poids_proches(o, src or base, 4)))
         objs.append(o)
     return objs
 
@@ -572,21 +574,21 @@ def cuir():
     # plastron en deux pièces de cuir bouilli (laçage au milieu), coins abattus
     pl = [plan((0.016, 0, 0), (-1, 0, 0)), plan((0.158, 0, 0), (1, 0, 0)), plan((0, 1.43, 0), (0, 1, 0)), plan((0, 1.205, 0), (0, -1, 0)),
           plan((0, 0, 0.02), (0, 0, -1)), plan_xy((0.158, 1.27), (0.105, 1.205), (0.05, 1.3)), plan_xy((0.016, 1.38), (0.06, 1.43), (0.1, 1.3))]
-    plaques += surplaque(tronc, "plastron", pl, 0.017, 0.007, 5, symetrie=True)
+    plaques += surplaque(tronc, "plastron", pl, 0.017, 0.007, 5, symetrie=True, src=base)
     # trois lames de ventre qui se chevauchent (la plus haute par-dessus), bord bas soulevé
     for i, (yh, yb, dc) in enumerate([(1.21, 1.135, 0.014), (1.142, 1.07, 0.011), (1.077, 1.0, 0.008)]):
         pl = [plan((0, yh, 0), (0, 1, 0)), plan((0, yb, 0), (0, -1, 0)), plan((0.185, 0, 0), (1, 0, 0)), plan((-0.185, 0, 0), (-1, 0, 0)),
               plan((0, 0, -0.03), (0, 0, -1))]
-        plaques += surplaque(tronc, "lame%d" % i, pl, dc, 0.006, 6, souleve=lambda p, yh=yh, yb=yb: 0.004 * max(0.0, min(1.0, (yh - p.y) / (yh - yb))))
+        plaques += surplaque(tronc, "lame%d" % i, pl, dc, 0.006, 6, src=base, souleve=lambda p, yh=yh, yb=yb: 0.004 * max(0.0, min(1.0, (yh - p.y) / (yh - yb))))
     # plaque du dos (omoplates), coins abattus
     pl = [plan((0.155, 0, 0), (1, 0, 0)), plan((-0.155, 0, 0), (-1, 0, 0)), plan((0, 1.43, 0), (0, 1, 0)), plan((0, 1.17, 0), (0, -1, 0)),
           plan((0, 0, -0.03), (0, 0, 1)), plan_xy((0.155, 1.24), (0.09, 1.17), (0, 1.3)), plan_xy((-0.155, 1.24), (-0.09, 1.17), (0, 1.3))]
-    plaques += surplaque(tronc, "dos", pl, 0.012, 0.007, 7)
+    plaques += surplaque(tronc, "dos", pl, 0.012, 0.007, 7, src=base)
     # tassettes : quatre pans de cuir bouilli sur la jupe (devant et derrière), suivent les cuisses
     for zs in (1,):
         pl = [plan((0.03, 0, 0), (-1, 0, 0)), plan((0.175, 0, 0), (1, 0, 0)), plan((0, 0.925, 0), (0, 1, 0)), plan((0, 0.70, 0), (0, -1, 0)),
               plan((0, 0, 0.0), (0, 0, -zs))]
-        plaques += surplaque(tronc, "tass", pl, 0.009, 0.006, 8, symetrie=True,
+        plaques += surplaque(tronc, "tass", pl, 0.009, 0.006, 8, symetrie=True, src=base,
                              souleve=lambda p: 0.006 * max(0.0, min(1.0, (0.90 - p.y) / 0.2)))
     bel = X.ceinture("ceint", 0.930, 0.996, 0.012, 20)
     # boucle de fer devant + sacoche au flanc arrière droit
@@ -839,8 +841,10 @@ def fourrure():
     base = X.torse_base("armure_fourrure", 700, jeu=lambda p: 0.013)
     tronc = X.torse_base("pelisse_src", 430, jeu=lambda p: 0.013)
     # pelisse de loup sur les épaules (découpée dans la coque, bord bas gonflé)
-    pl = [plan((0, 1.235, 0), (0, -1, 0)), plan((0, 1.525, 0), (0, 1, 0)), plan((0.33, 0, 0), (1, 0, 0)), plan((-0.33, 0, 0), (-1, 0, 0))]
-    pel = surplaque(tronc, "pelisse", pl, 0.021, 0.0, 4, souleve=lambda p: 0.010 * max(0.0, min(1.0, (1.42 - p.y) / 0.18)))[0]
+    # peau de loup en pointe devant et derrière (bas en V), épaules arrondies
+    pl = [plan_xy((-0.30, 1.32), (0.0, 1.205), (0, 1.4)), plan_xy((0.30, 1.32), (0.0, 1.205), (0, 1.4)), plan((0, 1.525, 0), (0, 1, 0)),
+          plan_xy((0.355, 1.47), (0.30, 1.30), (0, 1.4)), plan_xy((-0.355, 1.47), (-0.30, 1.30), (0, 1.4))]
+    pel = surplaque(tronc, "pelisse", pl, 0.021, 0.0, 4, souleve=lambda p: 0.010 * max(0.0, min(1.0, (1.42 - p.y) / 0.18)), src=base)[0]
     if os.environ.get("HDCF_DEBUG"):
         zs = [G(v.co) for v in pel.data.vertices]
         print("DEBUG pel", len(zs), "devant", sum(1 for p in zs if p.z > 0.05), "dos", sum(1 for p in zs if p.z < -0.05))
@@ -851,7 +855,7 @@ def fourrure():
     nb = Vector((0.62, -0.78, 0)).normalized()
     c0 = Vector((0, 1.17, 0))
     pl = [(c0 + nb * 0.028, nb), (c0 - nb * 0.028, -nb), plan((0, 1.28, 0), (0, 1, 0)), plan((0, 0.99, 0), (0, -1, 0)), plan((0, 0, 0.0), (0, 0, -1))]
-    baud = surplaque(tronc, "baudrier", pl, 0.009, 0.005, 13)
+    baud = surplaque(tronc, "baudrier", pl, 0.009, 0.005, 13, src=base)
     bel = X.ceinture("ceint", 0.935, 0.995, 0.012, 16)
     surf = pel
     cnt = Vector((0, 1.58, COU.z - 0.01))
@@ -860,10 +864,10 @@ def fourrure():
         r = p - cnt
         return Vector((r.x, -0.75 * max(0.3, Vector((r.x, 0, r.z)).length * 4.0), r.z))
     # mèches : 3 couches (dessous longues qui pendent sous le bord, milieu, dessus courtes vers le col)
-    m1 = meches(surf, "m1", 50, 0.075, 0.034, 11, 5, zone=lambda c, n: c.y < 1.36 and n.y > -0.5, sens=sens_p, souleve=0.014,
-                double=lambda p, t: t.y < 1.25, src=tronc)
-    m2 = meches(surf, "m2", 42, 0.060, 0.030, 11, 6, zone=lambda c, n: 1.33 < c.y < 1.45 and n.y > -0.5, sens=sens_p, souleve=0.012, src=tronc)
-    m3 = meches(surf, "m3", 32, 0.045, 0.026, 11, 7, zone=lambda c, n: c.y > 1.43 and n.y > -0.2, sens=sens_p, souleve=0.008, src=tronc)
+    m1 = meches(surf, "m1", 50, 0.085, 0.046, 11, 5, zone=lambda c, n: c.y < 1.36 and n.y > -0.5, sens=sens_p, souleve=0.014,
+                double=lambda p, t: t.y < 1.245 + abs(t.x) * 0.383, src=base)
+    m2 = meches(surf, "m2", 42, 0.070, 0.042, 11, 6, zone=lambda c, n: 1.33 < c.y < 1.45 and n.y > -0.5, sens=sens_p, souleve=0.012, src=base)
+    m3 = meches(surf, "m3", 32, 0.055, 0.036, 11, 7, zone=lambda c, n: c.y > 1.43 and n.y > -0.2, sens=sens_p, souleve=0.008, src=base)
     # olive d'os qui ferme la pelisse devant, sur un cordon ; collier de crocs
     bm = bmesh.new()
     import mathutils
@@ -880,7 +884,7 @@ def fourrure():
         croc(bm, q - Vector((0, 0.004, 0)), Vector((a * 0.25, -1, 0.15)), 0.040 if a == 0 else 0.032, 0.0062 if a == 0 else 0.0052, 12,
              courbe=(0, 0, 1))
     o_os = X.en_objet(bm, "colier")
-    L.ecrire_poids(o_os, L.normaliser(L.poids_proches(o_os, tronc, 4)))
+    L.ecrire_poids(o_os, L.normaliser(L.poids_proches(o_os, base, 4)))
     # boucle de ceinture en os (deux olives) + passants
     bm = bmesh.new()
     shell = L.bvh_de(["tunique"], filtre=lambda p: abs(p.x) < 0.3)
@@ -893,7 +897,8 @@ def fourrure():
     # coque cachée sous la pelisse retirée (budget) ; marge de 3 cm sous ses bords
     bm = bmesh.new()
     bm.from_mesh(base.data)
-    cache = [f for f in bm.faces if 1.285 < G(f.calc_center_median()).y < 1.49 and abs(G(f.calc_center_median()).x) < 0.28]
+    cache = [f for f in bm.faces if 1.245 + abs(G(f.calc_center_median()).x) * 0.383 < G(f.calc_center_median()).y < 1.49
+             and abs(G(f.calc_center_median()).x) < 0.27]
     bmesh.ops.delete(bm, geom=cache, context='FACES')
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
     bm.to_mesh(base.data)
@@ -1185,6 +1190,8 @@ if JSON_PIECES:
     json.dump(tout, open(chemin, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 if APERCU:
     os.makedirs(APERCU, exist_ok=True)
+    for im in bpy.data.images:
+        im.alpha_mode = 'NONE'          # aperçu Workbench : l'alpha (brillance) n'est pas une transparence
     corps = [bpy.data.objects[n] for n in ("SuperHero_Male",) if n in bpy.data.objects]
     L.apercu(PIECES + corps, APERCU, (0, 0.95, 0), 2.0, FAMILLE + "_")
     L.apercu(PIECES + corps, APERCU, (0, 1.35, 0), 0.8, FAMILLE + "_haut_")

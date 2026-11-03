@@ -226,6 +226,9 @@ static func instancier_sol(id: String) -> Node3D:
 	return n
 
 static func _habiller_maillage(mi: MeshInstance3D, cle: String) -> void:
+	# LOD automatiques de l'import (generate_lods) : en 480x270 le moteur choisissait des niveaux très simplifiés qui mangeaient les
+	# plaques fines et la pelisse posées sur la coque (charte HD : la géométrie détaillée doit rester visible)
+	mi.lod_bias = 64.0
 	if not _mats.has(cle):
 		var d := {}
 		for s in mi.mesh.get_surface_count():
