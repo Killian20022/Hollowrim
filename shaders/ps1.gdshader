@@ -369,6 +369,73 @@ void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out ve
 
 // Empreintes, neige fondue (terre sombre ou mouillée, flaque), brûlures et taches d'ombre lues dans le masque. Tout s'efface
 // par texels (seuil bruité par amas + grain), jamais en fondu lisse ni en damier.
+// ---------------------------------------------------------------------------------------------
+// RELIEF DE LA NEIGE (scripts/couche_neige.gd) : variantes « terrain » (RELIEF_TERRAIN : troue le sol là où la couche est plus
+// bas) et « couche » (RELIEF_COUCHE : grille fine de 6 cm posée sur le sol, creusée dans le vertex shader). Le champ de
+// profondeur D (m, > 0 creux, < 0 bourrelet) vient de relief_masque (R amplitude, G fin) et de la fonte du feu (effets_masque).
+// ---------------------------------------------------------------------------------------------
+global uniform sampler2D relief_masque : filter_nearest;
+global uniform vec4 relief_zone;   // x0, z0 (m), côté (m), actif
+#ifdef RELIEF
+uniform sampler2D relief_hauteurs : filter_nearest, repeat_disable;   // 121² nœuds du maillage du terrain (R32F)
+
+float relief_texel(ivec2 q) {
+	int n = int(effets_rect.z);
+	ivec2 r = q - ivec2(effets_rect.xy);
+	if (r.x < 0 || r.y < 0 || r.x >= n || r.y >= n) {
+		return 0.0;
+	}
+	ivec2 u = ivec2(((q.x % n) + n) % n, ((q.y % n) + n) % n);
+	vec2 e = texelFetch(relief_masque, u, 0).rg;
+	float d = e.x * smoothstep(0.0, 1.0, clamp((e.y - effets_temps) / 10.0, 0.0, 1.0));
+	vec4 m = texelFetch(effets_masque, u, 0);
+	float fm = clamp((m.r - effets_temps) / max(abs(m.g), 1.0), 0.0, 1.0);
+	return max(d, 0.11 * smoothstep(0.0, 0.6, fm));   // trou de la neige fondue : se rebouche en remontant
+}
+
+// profondeur bilinéaire (aux centres des texels de 1/16 m) et son gradient : x = D, yz = dD/dx, dD/dz
+vec3 relief_champ(vec2 p) {
+	vec2 z0 = relief_zone.xy;
+	if (p.x < z0.x || p.y < z0.y || p.x > z0.x + relief_zone.z || p.y > z0.y + relief_zone.z) {
+		return vec3(0.0);
+	}
+	vec2 u = p * 16.0 - 0.5;
+	ivec2 i = ivec2(floor(u));
+	vec2 f = u - vec2(i);
+	float a = relief_texel(i);
+	float b = relief_texel(i + ivec2(1, 0));
+	float c = relief_texel(i + ivec2(0, 1));
+	float d = relief_texel(i + ivec2(1, 1));
+	return vec3(mix(mix(a, b, f.x), mix(c, d, f.x), f.y), mix(b - a, d - c, f.y) * 16.0, mix(c - a, d - b, f.x) * 16.0);
+}
+#endif
+#ifdef RELIEF_COUCHE
+float rel_h(ivec2 i) {
+	return texelFetch(relief_hauteurs, clamp(i, ivec2(0), ivec2(120)), 0).r;
+}
+vec3 rel_n(ivec2 i) {   // normale lissée du nœud (comme monde.gd : différences centrées, 2 × pas = 4 m)
+	return normalize(vec3(rel_h(i - ivec2(1, 0)) - rel_h(i + ivec2(1, 0)), 4.0, rel_h(i - ivec2(0, 1)) - rel_h(i + ivec2(0, 1))));
+}
+// hauteur et normale EXACTES du maillage du terrain (cases de 2 m, triangles a-b-c / b-d-c) au point p
+void rel_maillage(vec2 p, out float h, out vec3 nrm) {
+	vec2 u = (p + 120.0) * 0.5;
+	ivec2 i = clamp(ivec2(floor(u)), ivec2(0), ivec2(119));
+	vec2 f = u - vec2(i);
+	float a = rel_h(i);
+	float b = rel_h(i + ivec2(1, 0));
+	float c = rel_h(i + ivec2(0, 1));
+	float d = rel_h(i + ivec2(1, 1));
+	if (f.x + f.y <= 1.0) {
+		h = a + (b - a) * f.x + (c - a) * f.y;
+		nrm = rel_n(i) * (1.0 - f.x - f.y) + rel_n(i + ivec2(1, 0)) * f.x + rel_n(i + ivec2(0, 1)) * f.y;
+	} else {
+		h = d + (c - d) * (1.0 - f.x) + (b - d) * (1.0 - f.y);
+		nrm = rel_n(i + ivec2(1, 1)) * (f.x + f.y - 1.0) + rel_n(i + ivec2(0, 1)) * (1.0 - f.x) + rel_n(i + ivec2(1, 0)) * (1.0 - f.y);
+	}
+	nrm = normalize(nrm);
+}
+#endif
+
 void effets_sol(inout vec3 albedo, vec2 pm) {
 	ivec2 qi = ivec2(floor(pm * 16.0));
 	ivec2 rel = qi - ivec2(effets_rect.xy);
@@ -384,15 +451,21 @@ void effets_sol(inout vec3 albedo, vec2 pm) {
 	vec2 q = vec2(qi);
 	float h = nt_hash(q + 3.7);
 	float amas = nt_bruit(q * 0.22 + 7.0);
+	// là où la couche de neige en relief existe, les traces peintes ne sont qu'un ombrage léger ; elles reprennent en s'éloignant
+	float wp = 1.0;
+	if (relief_zone.w > 0.5) {
+		vec2 dz = abs(pm - (relief_zone.xy + 0.5 * relief_zone.z));
+		wp = mix(0.3, 1.0, smoothstep(0.5 * relief_zone.z - 2.5, 0.5 * relief_zone.z - 0.5, max(dz.x, dz.y)));
+	}
 	if (m.b > t) {   // empreinte : creux bleu-gris ombré ; s'efface texel par texel
 		float e = clamp((m.b - t) / 24.0, 0.0, 1.0);
 		if (e > h * 0.85) {
-			albedo = albedo * vec3(0.16, 0.25, 0.52);   // la neige du jeu est éclairée très fort : il faut assombrir franchement
+			albedo = mix(albedo, albedo * vec3(0.16, 0.25, 0.52), wp);   // la neige du jeu est éclairée très fort : il faut assombrir franchement
 		}
 	} else if (m.b < -t) {   // bourrelet de neige repoussée : plus clair
 		float e = clamp((-m.b - t) / 24.0, 0.0, 1.0);
 		if (e > h * 0.85) {
-			albedo = mix(albedo, vec3(1.0), 0.55);
+			albedo = mix(albedo, vec3(1.0), 0.55 * wp);
 		}
 	}
 	if (m.r > t) {   // neige fondue
@@ -424,6 +497,16 @@ void effets_sol(inout vec3 albedo, vec2 pm) {
 }
 
 void vertex() {
+#ifdef RELIEF_COUCHE
+	{
+		vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+		float h;
+		vec3 nm;
+		rel_maillage(wp.xz, h, nm);
+		VERTEX.y = h - relief_texel(ivec2(floor(wp.xz * 16.0)));
+		NORMAL = nm;
+	}
+#endif
 	VERTEX += NORMAL * gonfle;
 	vec2 uv = UV * uv_echelle;
 	if (uv_monde) {
@@ -440,6 +523,11 @@ void vertex() {
 		vec2 g = VIEWPORT_SIZE * (grille / 270.0);  // grille exprimée pour 270 lignes : même pas en pixels à toute résolution
 		clip.xy = round(clip.xy / clip.w * g) / g * clip.w;
 	}
+#ifdef RELIEF_COUCHE
+	if (relief_zone.w < 0.5) {
+		clip = vec4(2.0, 2.0, 2.0, 1.0);   // couche au repos : tous les sommets au même point, rien n'est dessiné
+	}
+#endif
 	POSITION = clip;
 	// UV multipliés par w puis redivisés au fragment = interpolation affine.
 	float w = mix(1.0, clip.w, affine);
@@ -447,6 +535,17 @@ void vertex() {
 }
 
 void fragment() {
+#ifdef RELIEF_TERRAIN
+	if (sol_carte && relief_zone.w > 0.5 && relief_champ(pos_monde).x > 0.012) {
+		discard;   // la couche de neige est plus bas ici : elle dessine le creux
+	}
+#endif
+#ifdef RELIEF_COUCHE
+	vec3 rc = relief_champ(pos_monde);
+	if (abs(rc.x) < 0.002) {
+		discard;   // couche au niveau du sol : le terrain s'en charge
+	}
+#endif
 	vec2 uv = uv_aff.xy / uv_aff.z;
 	vec3 base = texture(tex_base, uv).rgb;
 	vec3 neige = texture(tex_neige, uv).rgb;
@@ -641,6 +740,16 @@ void fragment() {
 	if (sol_carte && effets_rect.w > 0.5 && normale_monde.y > 0.5) {
 		effets_sol(ALBEDO, pos_monde);
 	}
+#ifdef RELIEF_COUCHE
+	{
+		// normale du relief : celle du sol + la pente de la profondeur (différences finies bilinéaires du masque)
+		vec3 n0 = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+		float ny = max(n0.y, 0.2);
+		vec3 n = normalize(vec3(n0.x / ny + rc.y, 1.0, n0.z / ny + rc.z));
+		NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
+		ALBEDO *= mix(vec3(1.0), vec3(0.66, 0.74, 0.9), smoothstep(0.0, 0.09, rc.x));   // fond du creux : ombre portée du rebord
+	}
+#endif
 	// neige qui tient (objets dehors) : jamais sur le terrain (sol validé), ni sur les parties déjà neigées, ni sur les personnages
 	if (!sol_carte && !uv_monde && COLOR.a >= 0.5 && peau < 0.5) {
 		vec3 nm = normalize(normale_monde);
