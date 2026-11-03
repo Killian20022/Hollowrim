@@ -357,6 +357,7 @@ static func materiau(nom: String, tex: Texture2D, var_mat := "") -> ShaderMateri
 	if nom.begins_with("or") and tex.get_width() > TEX_HD:
 		m.shader = shader_or()
 	m.set_shader_parameter("tex_neige", tex)    # couleurs de sommet du glb d'alpha nul : pas de neige
+	m.set_shader_parameter("neige_tient", 0.0)   # au sol : jamais la neige du monde sur les faces vers le haut (glb sans couleur de sommet inclus)
 	m.set_shader_parameter("mt_boite", 0.0)
 	for k in ["metal", "poli", "bord", "profondeur", "lueur"]:
 		m.set_shader_parameter("mt_" + k, float(p.get(k, 0.0)))

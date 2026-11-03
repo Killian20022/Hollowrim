@@ -46,7 +46,7 @@ static func pieces() -> Array:
 			res.append([id, String(d["objets"][id]["emplacement"])])
 	# pièces livrées par les branches HD, pas encore reportées dans armures.json (variantes enchantées à part : même glb)
 	for id in PiecesEssai.injecter():
-		if ArmureVisible.a_modele(id) and ArmureVisible.variante(id) == "":
+		if ArmureVisible.a_modele(id) and ArmureVisible.variante(id) == "" and not Inventaire.objet(id).has("variante_de"):
 			res.append([id, Inventaire.emplacement_de(id)])
 	return res
 
@@ -543,13 +543,13 @@ func _trous_pantalon(sq: Skeleton3D, mi: MeshInstance3D, av: ArmureVisible, tris
 	return vides
 
 # ------------------------------------------------------------------------------------------------------ A3. variantes enchantées
-## Variante visuelle « .enchante » (fiche variante_materiau = enchante ou id *_enchante) : MÊME maillage que la pièce de base, les
-## surfaces « runes » luisent (mt_lueur > 0), la base n'en a aucune.
+## Variante visuelle « .enchante » (fiche variante_materiau = enchante ou id *_enchante) : MÊME structure (surfaces) que la pièce de base (fiche
+## « base » sinon id sans _enchante), des surfaces qui luisent (mt_lueur) là où la base n'a pas la même lueur (runes, gemmes, tissu, pierre).
 func _enchantes(seul: String) -> void:
 	for id: String in Inventaire.OBJETS:
 		if ArmureVisible.variante(id) != "enchante" or not ArmureVisible.a_modele(id):
 			continue
-		var base_id := id.trim_suffix("_enchante")
+		var base_id := ArmureVisible.base_de(id) if ArmureVisible.base_de(id) != id else id.trim_suffix("_enchante")
 		if seul != "" and seul != base_id and seul != id:
 			continue
 		var a := ArmureVisible.charger_porte(id)
@@ -558,13 +558,17 @@ func _enchantes(seul: String) -> void:
 		var lueur_b := 0.0
 		var runes := 0
 		for s in a.mesh.get_surface_count():
-			var m := a.mesh.surface_get_material(s)
-			if m and m.resource_name.get_slice(".", 0) == "runes":
+			var ma := a.get_surface_override_material(s) as ShaderMaterial
+			var la := float(ma.get_shader_parameter("mt_lueur")) if ma else 0.0
+			var lb := 0.0
+			if b and s < b.mesh.get_surface_count():
+				var mb := b.get_surface_override_material(s) as ShaderMaterial
+				lb = float(mb.get_shader_parameter("mt_lueur")) if mb else 0.0
+			lueur_a = maxf(lueur_a, la)
+			lueur_b = maxf(lueur_b, lb)
+			if la > lb + 0.04:
 				runes += 1
-				lueur_a = maxf(lueur_a, float((a.get_surface_override_material(s) as ShaderMaterial).get_shader_parameter("mt_lueur")))
-				if b:
-					lueur_b = maxf(lueur_b, float((b.get_surface_override_material(s) as ShaderMaterial).get_shader_parameter("mt_lueur")))
-		ok(b != null and a.mesh == b.mesh and runes > 0 and lueur_a > 0.5 and lueur_b == 0.0,
+		ok(b != null and a.mesh.get_surface_count() == b.mesh.get_surface_count() and runes > 0 and lueur_a > lueur_b,
 			"%s : variante enchantée = même maillage que %s, runes luisantes (lueur %.2f, base %.2f, %d surface(s) de runes)" % [id, base_id, lueur_a, lueur_b, runes])
 		a.free()
 		if b:
@@ -650,6 +654,8 @@ func _lancer() -> void:
 		if not fams.is_empty() and not fams.has(p[0].get_slice("_", p[0].get_slice_count("_") - 1)):
 			continue
 		_verifier_piece(p[0], p[1])
+		if ArmureVisible.base_de(p[0]) != p[0]:
+			continue     # variante nommée (même glb que sa base, testée dans la famille de la base)
 		var f: String = p[0].get_slice("_", p[0].get_slice_count("_") - 1)
 		if not familles.has(f):
 			familles[f] = []

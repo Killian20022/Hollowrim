@@ -174,10 +174,10 @@ func _variantes() -> void:
 		and ArmureVisible.famille_chausses("cuirasse_saphir_hiver") == ArmureVisible.famille_chausses("cuirasse_saphir")
 		and ArmureVisible.chemin_porte("cuirasse_saphir_hiver") == ArmureVisible.chemin_porte("cuirasse_saphir"),
 		"ArmureVisible : variante « enchante », base, mêmes chausses et même glb porté que la base")
-	var m1 := ArmureVisible.materiau("or", null, "enchante")
+	var m1 := ArmureVisible.materiau(ArmureVisible.nom_preset("or", "enchante"), null)
 	var m0 := ArmureVisible.materiau("or", null)
-	_verif(float(m1.get_shader_parameter("mt_lueur")) >= ArmureVisible.LUEUR_VARIANTE and float(m0.get_shader_parameter("mt_lueur")) < ArmureVisible.LUEUR_VARIANTE
-		and m1.resource_name == "armure_or.enchante", "matériau `or.enchante` : preset de base + lueur faible tant que le preset dédié n'existe pas")
+	_verif(float(m1.get_shader_parameter("mt_lueur")) > float(m0.get_shader_parameter("mt_lueur")) and float(m0.get_shader_parameter("mt_lueur")) < ArmureVisible.LUEUR_VARIANTE
+		and m1.resource_name == "armure_or.enchante", "matériau `or.enchante` : preset dédié, plus lumineux que le preset de base")
 	var bad := []
 	for id: String in vs:
 		if String(Inventaire.objet(id).get("rarete")) == "unique" and Inventaire.objet(id).get("effets", {}).size() < 2:
