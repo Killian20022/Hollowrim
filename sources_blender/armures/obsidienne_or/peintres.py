@@ -9,12 +9,12 @@ from hd import bruit, fbm, voronoi, rampe, hexa, lisse
 
 TAU = math.tau
 
-OBSIDIENNE = hexa("#030305", "#07060a", "#0d0c11", "#151419", "#1e1c23", "#28262e", "#34313b", "#433f4b", "#57525f", "#726c7a", "#96909e")
+OBSIDIENNE = hexa("#050506", "#0a0a0c", "#111114", "#18181c", "#202025", "#29292f", "#33333a", "#3f3e47", "#4f4d58", "#67646f", "#8a8794", "#b0adb8")
 VEINE = hexa("#2a0402", "#4e0904", "#7a1406", "#a8240a", "#d44412", "#f2782a", "#ffb35a", "#ffe0a0")
 FER_NOIR = hexa("#060607", "#0b0b0d", "#111214", "#18191c", "#202226", "#2a2c31", "#36393f", "#454950", "#5a5f66", "#767b82")
 CUIR_NOIR = hexa("#070504", "#0d0907", "#140e0a", "#1c140e", "#251a12", "#2f2217", "#3a2a1d", "#463324")
 OXYDE = hexa("#1e1008", "#2e180c", "#442412", "#5a311a")
-OR_PATINE = hexa("#120d07", "#1f170c", "#302312", "#45331a", "#5c4522", "#765a2c", "#907038", "#a98846", "#bf9f58", "#d3b673", "#e3cb93", "#efdfb8")
+OR_PATINE = hexa("#1a1208", "#2e200e", "#473217", "#634721", "#7f5e2d", "#9c783c", "#b8934f", "#cfad68", "#e0c587", "#ecd9a8", "#f5ebcc")
 BLEU_NUIT = hexa("#03040b", "#060814", "#0a0e20", "#0f152d", "#151d3c", "#1c264b", "#25315b", "#2f3d6c")
 ROUGE_SOMBRE = hexa("#0d0303", "#1a0505", "#280808", "#380c0b", "#48110f", "#591814", "#6b201a", "#7c2a22")
 BEIGE = hexa("#5a4a38", "#76624a", "#94805f", "#b09c79")
@@ -126,42 +126,39 @@ FOYERS = {
                  ((0.13, 0.86, 0.13), 0.08), ((-0.02, 1.30, -0.19), 0.10)],
     "gantelets": [((0.50, 1.50, 0.0), 0.075), ((-0.52, 1.50, 0.0), 0.06)],
     "bottes": [((0.11, 0.26, 0.09), 0.10), ((-0.11, 0.18, 0.09), 0.08)],
-    "casque": [((0.07, 1.74, 0.06), 0.05)],
+    "casque": [((0.075, 1.745, 0.05), 0.035)],
 }
 
 
 def obsidienne(D, g=31, enchante=False):
-    """Pierre de verre volcanique noire taillée : facettes anguleuses (Voronoï 3D, ton propre par facette), arêtes d'éclat
-    gris clair, ondes conchoïdales, fil taillé des bords ; fissures de magma orange seulement dans les foyers ; visière : fente
-    incandescente. Enchantée : runes taillées qui rougeoient sur toutes les plaques."""
+    """Pierre de verre volcanique noire (planche OBSIDIAN) : grands plans anthracite à peine nuancés (le volume vient des plaques),
+    fil taillé gris clair sur chaque bord + biseau sombre, rares éclats et rayures ; fissures de magma orange fines et
+    LOCALISÉES (foyers) ; visière : fente incandescente. Enchantée : runes taillées qui rougeoient."""
     P, N, bord, ao = D["P"], D["N"], D["bord"], D["ao"]
     piece = D.get("piece", "")
-    f1, f2, cid, d1 = voronoi(P, 0.026, g)
-    arete = f2 - f1
-    inclin = hd._hash((cid * 9973).astype(np.int64), 3, 5, g) - 0.5
-    t = 0.36 + (cid - 0.5) * 0.16 + inclin * 0.14
-    onde = np.sin(f1 / 0.0038 * TAU + cid * 20.0)
-    t += 0.03 * onde * (f1 < 0.018)
-    t += (fbm(P, 240.0, g + 2) - 0.5) * 0.07
-    b = 0.62 + 0.25 * (inclin + 0.5)
-    crete = arete < 0.0017
-    t = np.where(crete, 0.66 + 0.12 * cid, t)
-    b = np.where(crete, 1.0, b)
-    t = np.where((arete >= 0.0017) & (arete < 0.0032), t - 0.08, t)
-    t = np.where(bord < 0.0028, t + 0.26, t)                   # fil taillé des bords : gris clair (planche)
-    b = np.where(bord < 0.0028, 1.0, b)
+    f1, f2, cid, d1 = voronoi(P, 0.05, g)
+    t = 0.40 + (fbm(P, 9.0, g + 1) - 0.5) * 0.12 + (cid - 0.5) * 0.05 + (fbm(P, 160.0, g + 2) - 0.5) * 0.05
+    b = 0.35 + 0.25 * cid
+    # rares éclats conchoïdaux (petites arêtes claires) et rayures fines
+    eclat = ((f2 - f1) < 0.0008) & (cid > 0.55) & (bord > 0.008)
+    t = np.where(eclat, t + 0.16, t)
+    raye = (bruit(P, np.array([420.0, 35.0, 420.0]), g + 4) > 0.9) & (bruit(P, 12.0, g + 5) > 0.6)
+    t = np.where(raye, t + 0.1, t)
+    # fil taillé des bords (gris clair) et biseau sombre juste derrière
+    t = np.where(bord < 0.0035, t + 0.30 * (1.0 - bord / 0.0035) + 0.08, t)
+    b = np.where(bord < 0.0035, 1.0, b)
+    t = np.where((bord >= 0.0035) & (bord < 0.0065), t - 0.07, t)
     c = rampe(OBSIDIENNE, t)
     # magma localisé
     w = np.zeros(len(P))
     for (cx, cy, cz), rr in FOYERS.get(piece, []):
         dd = np.sqrt((P[:, 0] - cx) ** 2 + (P[:, 1] - cy) ** 2 + (P[:, 2] - cz) ** 2)
-        w = np.maximum(w, np.clip(1.0 - dd / rr, 0, 1) ** 1.2)
-    F1, F2, CID, _ = voronoi(P, 0.045, g + 9)
+        w = np.maximum(w, np.clip(1.0 - dd / rr, 0, 1) ** 1.1)
+    F1, F2, CID, _ = voronoi(P, 0.042, g + 9)
     ar2 = F2 - F1
-    fiss = (ar2 < 0.0012 + 0.0022 * w) & (w > 0.04)
-    fiss |= (arete < 0.0009 + 0.0012 * w) & (w > 0.35)
-    k = np.where(fiss, 0.45 + 0.55 * w, 0.0)
-    chaleur = np.clip((0.0045 + 0.004 * w - ar2) / 0.004, 0, 1) * w * 0.35
+    fiss = (ar2 < 0.0007 + 0.0016 * w) & (w > 0.12)
+    k = np.where(fiss, 0.55 + 0.45 * w, 0.0)
+    chaleur = np.clip((0.0028 + 0.002 * w - ar2) / 0.0025, 0, 1) * w * 0.3
     k = np.maximum(k, chaleur * (~fiss))
     if piece == "casque":
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
@@ -169,8 +166,8 @@ def obsidienne(D, g=31, enchante=False):
         fente_h = devant & (np.abs(y - 1.637) < 0.0085) & (np.abs(x) < 0.058)
         fente_v = devant & (np.abs(x) < 0.0055) & (y > 1.565) & (y < 1.64)
         fente = fente_h | fente_v
-        halo = devant & (np.abs(y - 1.637) < 0.016) & (np.abs(x) < 0.066) & ~fente
-        k = np.where(fente, 1.0, np.maximum(k, halo * 0.35))
+        halo = devant & (np.abs(y - 1.637) < 0.015) & (np.abs(x) < 0.064) & ~fente
+        k = np.where(fente, 1.0, np.maximum(k, halo * 0.3))
     if enchante:
         k = np.maximum(k, runes(P) * 0.85 * (bord > 0.006))
     m = k > 0.03
@@ -268,46 +265,45 @@ def _bandes_or(D):
 
 
 def or_patine(D, g=61, lion=False):
-    """Or patiné (planche GOLD, pas de plastique) : or pâle brossé, creux sombres (occlusion), bord repoussé clair et filet gravé
-    sombre le long de chaque bord, poinçons épars, bandes d'entrelacs gravés (haut du plastron, bande centrale, manchettes,
-    grèves, front du heaume) ; visière du heaume : fente en T noire. Lion : mèches de crinière gravées."""
+    """Or patiné (planche GOLD, pas de plastique) : faces d'or pâle à peine brossées, bande de bordure plus sombre (or ocre gravé)
+    le long de chaque bord avec bourrelet clair et filet noir, poinçons épars, creux ternis, bandes d'entrelacs gravés (haut du
+    plastron, bande centrale, manchettes, grèves, front du heaume) ; visière : fente en T noire. Lion : crinière ciselée."""
     P, N, bord, ao, uv = D["P"], D["N"], D["bord"], D["ao"], D["uv"]
     piece = D.get("piece", "")
-    n = fbm(P, 70.0, g)
+    n = fbm(P, 12.0, g)
     brosse = bruit(P, np.array([30.0, 500.0, 30.0]), g + 3)
-    t = 0.66 + (n - 0.5) * 0.14 + (brosse - 0.5) * 0.06
-    b = 0.55 + 0.2 * brosse
-    tern = np.clip((0.72 - ao) * 1.6, 0, 1)
-    t = t - 0.42 * tern
-    b = b * (1 - 0.7 * tern)
-    # bord repoussé : bourrelet clair puis filet gravé
-    t = np.where(bord < 0.0035, t + 0.12 * (1 - bord / 0.0035), t)
-    bande = (bord >= 0.0035) & (bord < 0.012)
-    t = np.where(bande, t - 0.05, t)
-    gr = (bord >= 0.012) & (bord < 0.0142)
-    t = np.where(gr, t - 0.34, t)
-    b = np.where(gr, 0.2, b)
-    # poinçons épars (planche : petits motifs sombres sur les plaques)
-    f1, f2, cid, d1 = voronoi(P, 0.022, g + 7)
-    poincon = (f1 < 0.0016) & (bord > 0.016) & (cid > 0.35)
-    t = np.where(poincon, t - 0.3, t)
+    t = 0.63 + (n - 0.5) * 0.12 + (brosse - 0.5) * 0.05 + (fbm(P, 140.0, g + 4) - 0.5) * 0.04
+    b = 0.5 + 0.15 * brosse
+    tern = np.clip((0.6 - ao) * 2.0, 0, 1)
+    t = t - 0.22 * tern
+    b = b * (1 - 0.6 * tern)
+    t = np.where(bord < 0.0035, t + 0.08 * (1 - bord / 0.0035), t)
+    bande = (bord >= 0.0035) & (bord < 0.0135)
+    t = np.where(bande, t - 0.2, t)
+    gr = (bord >= 0.0135) & (bord < 0.0155)
+    t = np.where(gr, t - 0.42, t)
+    b = np.where(gr, 0.15, b)
+    f1, f2, cid, d1 = voronoi(P, 0.03, g + 7)
+    poincon = (f1 < 0.0014) & (bord > 0.018) & (cid > 0.5)
+    t = np.where(poincon, t - 0.32, t)
     if not lion:
         zone, s, tt, h = _bandes_or(D)
         rub, lise, fil = entrelacs(s, tt, h)
         z = zone & (bord > 0.006)
-        t = np.where(z & rub, t + 0.08, np.where(z & (lise | fil), t - 0.36, np.where(z, t - 0.12, t)))
+        t = np.where(z & rub, t + 0.02, np.where(z & (lise | fil), t - 0.42, np.where(z, t - 0.2, t)))
         b = np.where(z & (lise | fil), 0.15, b)
     else:
-        meche = bruit(P, 260.0, g + 9) > 0.62
-        t = np.where(meche & (ao < 0.92), t - 0.18, t)
+        meche = bruit(P, np.array([260.0, 260.0, 260.0]), g + 9) > 0.6
+        t = np.where(meche, t - 0.16, t)
+        t = t - 0.35 * np.clip((0.8 - ao) * 2.5, 0, 1)
     if piece == "casque":
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
         devant = (z > 0.07) & (y < 1.69)
-        fente = devant & (((np.abs(y - 1.637) < 0.0085) & (np.abs(x) < 0.056)) | ((np.abs(x) < 0.0075) & (y > 1.565) & (y < 1.64)))
+        fente = devant & (((np.abs(y - 1.637) < 0.010) & (np.abs(x) < 0.058)) | ((np.abs(x) < 0.009) & (y > 1.562) & (y < 1.64)))
         t = np.where(fente, 0.02, t)
         b = np.where(fente, 0.0, b)
-        bordf = devant & ~fente & (((np.abs(y - 1.637) < 0.012) & (np.abs(x) < 0.06)) | ((np.abs(x) < 0.011) & (y > 1.56) & (y < 1.645)))
-        t = np.where(bordf, t + 0.1, t)
+        bordf = devant & ~fente & (((np.abs(y - 1.637) < 0.0135) & (np.abs(x) < 0.062)) | ((np.abs(x) < 0.0125) & (y > 1.558) & (y < 1.645)))
+        t = np.where(bordf, t - 0.18, t)
     return _rgba(rampe(OR_PATINE, t), b)
 
 

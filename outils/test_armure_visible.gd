@@ -1,6 +1,7 @@
 extends SceneTree
 ## Test de l'ARMURE PORTÉE VISIBLE (scripts/rpg/armure_visible.gd, branche rpg/armures_legeres) :
 ##   godot --headless --fixed-fps 60 --path . --script res://outils/test_armure_visible.gd -- --nouvelle [--detail] [--id=<id>]
+##   [--familles=obsidienne,or]
 ## A. Héros seul (HerosSkarnholt + ArmureVisible), pour CHAQUE pièce d'armures.json dont le glb porté existe :
 ##   - posée sur le squelette du corps, skin résolu par nom d'os (aucun os manquant), pose de liaison = pose de repos du héros (< 1 mm) ;
 ##   - budget : <= 900 triangles (casque / capuche <= 600), texture <= 256² (atlas peint par famille, 4 pièces), matériau « matière » ;
@@ -633,11 +634,16 @@ func _en_jeu(ps: Array) -> void:
 func _lancer() -> void:
 	var ps := pieces()
 	var seul := ""
+	var fams := PackedStringArray()     # --familles=obsidienne,or : seulement ces familles (dernier mot de l'id)
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--id="):
 			seul = a.substr(5)
+		elif a.begins_with("--familles="):
+			fams = a.substr(11).split(",")
 	print("pièces avec modèle porté : %d %s" % [ps.size(), ps.map(func(p: Array) -> String: return p[0])])
 	ok(ps.size() >= 12, "au moins les 12 pièces légères (cuir, fourrure, os) ont un modèle porté (%d)" % ps.size())
+	if not fams.is_empty():
+		ps = ps.filter(func(p: Array) -> bool: return fams.has(String(p[0]).get_slice("_", String(p[0]).get_slice_count("_") - 1)))
 	var familles := {}
 	for p: Array in ps:
 		if seul != "" and p[0] != seul:

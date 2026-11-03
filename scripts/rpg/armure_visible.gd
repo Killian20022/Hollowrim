@@ -46,10 +46,10 @@ const MATIERES := {
 	# Armures HD obsidienne + or (planche planche_armures_5.png ; branche armures_hd/obsidienne_or). Clé = nom COMPLET du matériau
 	# (« preset.variante ») quand elle existe, sinon le préfixe. lueur : émission = albédo² × lueur (seuls les texels clairs,
 	# magma / fente / runes / broderies, rayonnent : la pierre noire et le bleu nuit restent éteints).
-	"obsidienne": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.1, "bord": 0.7, "poli": 0.85, "reflet": Color(0.9, 0.86, 1.0), "lueur": 0.75},
-	"obsidienne.enchante": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.1, "bord": 0.7, "poli": 0.85, "reflet": Color(0.9, 0.86, 1.0), "lueur": 1.1},
-	"or.patine": {"teinte": Color(1.0, 0.98, 0.95), "metal": 0.6, "poli": 0.45, "reflet": Color(1.04, 0.92, 0.7)},
-	"or.lion": {"teinte": Color(1.0, 0.98, 0.95), "metal": 0.6, "poli": 0.45, "reflet": Color(1.04, 0.92, 0.7)},
+	"obsidienne": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.1, "bord": 0.6, "poli": 0.6, "reflet": Color(0.9, 0.86, 1.0), "lueur": 0.75},
+	"obsidienne.enchante": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.1, "bord": 0.6, "poli": 0.6, "reflet": Color(0.9, 0.86, 1.0), "lueur": 1.1},
+	"or.patine": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.42, "poli": 0.4, "reflet": Color(1.0, 0.95, 0.85)},
+	"or.lion": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.42, "poli": 0.4, "reflet": Color(1.0, 0.95, 0.85)},
 	"tissu": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.12, "poli": 0.08},
 	"tissu.enchante": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.12, "poli": 0.08, "lueur": 0.8},
 	"gemme": {"teinte": Color(1.05, 1.0, 1.0), "metal": 0.05, "bord": 0.45, "poli": 1.0, "lueur": 0.25, "reflet": Color(1.0, 0.93, 0.94)},
