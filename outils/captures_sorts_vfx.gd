@@ -38,6 +38,19 @@ const VUES := {
 	"fr_proche": [false, "boule_feu", "repos", "vide", 0.0, false, "droite"],
 	"fr_glace": [false, "eclat_glace", "repos", "vide", 0.0, true, "droite"],
 	"fr_elec": [false, "arc_electrique", "repos", "vide", 0.0, true, "droite"],
+	# écoles runiques (glace, électricité, ténèbres), même cadrage que la flamme
+	"ec_glace_repos": [false, "eclat_glace", "repos", "vide", 0.0, true, "droite"],
+	"ec_glace_incante": [false, "eclat_glace", "incante", "vide", 0.0, true, "droite"],
+	"ec_glace_charge": [false, "eclat_glace", "charge", "vide", 0.0, true, "droite"],
+	"ec_glace_lance": [false, "eclat_glace", "lance", "vide", 0.0, true, "droite"],
+	"ec_elec_repos": [false, "arc_electrique", "repos", "vide", 0.0, true, "droite"],
+	"ec_elec_incante": [false, "arc_electrique", "incante", "vide", 0.0, true, "droite"],
+	"ec_elec_charge": [false, "arc_electrique", "charge", "vide", 0.0, true, "droite"],
+	"ec_elec_lance": [false, "arc_electrique", "lance", "vide", 0.0, true, "droite"],
+	"ec_ten_repos": [false, "trait_ombre", "repos", "vide", 0.0, true, "droite"],
+	"ec_ten_incante": [false, "trait_ombre", "incante", "vide", 0.0, true, "droite"],
+	"ec_ten_charge": [false, "trait_ombre", "charge", "vide", 0.0, true, "droite"],
+	"ec_ten_lance": [false, "trait_ombre", "lance", "vide", 0.0, true, "droite"],
 	"fr_tps": [true, "boule_feu", "repos", "vide", -125.0, false, "droite"],
 }
 
@@ -73,6 +86,14 @@ func _go() -> void:
 		_planche()
 		quit(0)
 		return
+	await _preparer()
+	var pref := _arg("prefixe", "apres")
+	for v in _vues():
+		await _vue(v, pref)
+	quit(0)
+
+## Scène de test, crépuscule, interface masquée, caméra de gros plan (aussi utilisée par outils/film_ecoles_runiques.gd).
+func _preparer() -> void:
 	s = SCENE.instantiate()
 	s.options = {"draugr": "aucun", "sans-aide": ""}
 	root.add_child(s)
@@ -107,10 +128,6 @@ func _go() -> void:
 	cam_gp.fov = 40.0
 	cam_gp.near = 0.01
 	s.add_child(cam_gp)
-	var pref := _arg("prefixe", "apres")
-	for v in _vues():
-		await _vue(v, pref)
-	quit(0)
 
 func _attendre(n: int) -> void:
 	for i in n:

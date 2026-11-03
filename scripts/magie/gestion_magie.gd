@@ -1187,6 +1187,10 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 		"tenebres": noms = ["ten_aura", "ten_aura_lueur"]
 		"soin": noms = ["soin_aura"]
 		"protection": noms = ["prot_aura"]
+	# glace / électricité / ténèbres : l'énergie tenue est le NOYAU 3D de RunesOrbite (NoyauEcole), pas l'ancienne aura
+	var noyau := NoyauEcole.possede(ecole)
+	if noyau:
+		noms = []
 	for nom in noms:
 		var p := emettre(nom, ancre, Transform3D.IDENTITY, true)
 		if p != null:
@@ -1198,7 +1202,7 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 		# faisait la même boule lumineuse.
 		a.boule = _aura_fine(ancre, ecole, AURA_BOULE, 2)
 		a.extra.append(a.boule)
-	elif fin_actif:
+	elif fin_actif and not noyau:
 		# couche fine : l'aura est d'abord un motif procédural au pixel (flammes, givre, plasma, vortex) ; les
 		# particules et les arcs en font les éclats autour
 		a.fine = _aura_fine(ancre, ecole, AURA_RAYON.get(ecole, 0.09))
@@ -1217,7 +1221,9 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 		ancre.add_child(lu)
 		a.lueur = lu
 		a.extra.append(lu)
-	if ecole == "electricite":
+	if noyau:
+		pass
+	elif ecole == "electricite":
 		a.eclair = eclair(ancre, "electricite", 2.0, -1.0, 0.05, _gen_aura_arcs.bind(a))
 	elif ecole == "tenebres" and not fin_actif:
 		# vortex noir et violet DANS la paume (spirale), bien visible en vue FPS
