@@ -28,6 +28,17 @@ const VUES := {
 	"gros_feu_repos": [false, "boule_feu", "repos", "mannequin", 0.0, true],
 	"gros_feu_lance": [false, "boule_feu", "lance", "mannequin", 0.0, true],
 	"gros_elec": [false, "arc_electrique", "canal", "mannequin", 0.0, true],
+	# flamme runique, main DROITE (7e champ), cadrage proche de references/flamme_runique.png (gros plan sur la paume)
+	"fr_repos": [false, "boule_feu", "repos", "vide", 0.0, true, "droite"],
+	"fr_incante": [false, "boule_feu", "incante", "vide", 0.0, true, "droite"],
+	"fr_charge": [false, "boule_feu", "charge", "vide", 0.0, true, "droite"],
+	"fr_marche": [false, "boule_feu", "marche", "vide", 0.0, true, "droite"],
+	"fr_lance": [false, "boule_feu", "lance", "vide", 0.0, true, "droite"],
+	"fr_retour": [false, "boule_feu", "retour", "vide", 0.0, true, "droite"],
+	"fr_proche": [false, "boule_feu", "repos", "vide", 0.0, false, "droite"],
+	"fr_glace": [false, "eclat_glace", "repos", "vide", 0.0, true, "droite"],
+	"fr_elec": [false, "arc_electrique", "repos", "vide", 0.0, true, "droite"],
+	"fr_tps": [true, "boule_feu", "repos", "vide", -125.0, false, "droite"],
 }
 
 var s: Node3D
@@ -114,8 +125,14 @@ func _image() -> Image:
 	return im   # taille de la fenêtre (couche fine de la magie au pixel de l'écran)
 
 ## Gros plan : de côté et un peu au-dessus de la paume gauche (vue FPS), cadré sur elle et ce qui en sort.
-func _cadrer() -> void:
-	var p: Node3D = m.paume["gauche"]
+func _cadrer(main := "gauche") -> void:
+	var p: Node3D = m.paume[main]
+	if main == "droite":
+		# vrai point de vue du joueur, zoomé sur la paume (comme references/flamme_runique.png) : les mains ne bougent pas
+		var cible := p.global_position + Vector3(0.0, 0.035, 0.0)
+		cam_gp.fov = 40.0
+		cam_gp.global_transform = Transform3D(Basis.looking_at(cible - j.camera.global_position, Vector3.UP), j.camera.global_position)
+		return
 	var b: Basis = j.camera.global_transform.basis
 	var c := p.global_position - b.z * 0.25
 	var pos := c - b.x * 0.55 + b.y * 0.12 + b.z * 0.25
@@ -124,10 +141,12 @@ func _cadrer() -> void:
 func _vue(v: String, pref: String) -> void:
 	var c: Array = VUES[v]
 	var tps: bool = c[0]
+	var main: String = c[6] if c.size() > 6 else "gauche"
+	var autre := "gauche" if main == "droite" else "droite"
 	m.relacher("gauche")
 	m.relacher("droite")
-	m.equiper("droite", "epee")
-	m.equiper("gauche", String(c[1]))
+	m.equiper(autre, "epee" if main == "gauche" else "")
+	m.equiper(main, String(c[1]))
 	if String(c[3]) == "vide":
 		s.placer_joueur(Vector3(0, 0, 1.6), 180.0, 6.0)
 	else:
@@ -143,20 +162,31 @@ func _vue(v: String, pref: String) -> void:
 	var action: String = c[2]
 	match action:
 		"charge":
-			m.appuyer("gauche")
+			m.appuyer(main)
 			await _attendre(42)
+		"incante":
+			m.appuyer(main)
+			await _attendre(8)
 		"lance":
-			m.appuyer("gauche")
+			m.appuyer(main)
 			await _attendre(40)
-			m.relacher("gauche")
+			m.relacher(main)
 			await _attendre(3)
 		"canal":
-			m.appuyer("gauche")
+			m.appuyer(main)
 			await _attendre(36)
+		"retour":
+			m.appuyer(main)
+			await _attendre(40)
+			m.relacher(main)
+			await _attendre(30)
+		"marche":
+			Input.action_press("avant")
+			await _attendre(30)
 	var gros: bool = c.size() > 5 and c[5]
 	for k in N:
 		if gros:
-			_cadrer()
+			_cadrer(main)
 			cam_gp.current = true
 		var im := await _image()
 		im.save_png(sortie.path_join("%s_%s_%d.png" % [pref, v, k]))
@@ -166,7 +196,9 @@ func _vue(v: String, pref: String) -> void:
 	j.camera.current = true
 	if tps:
 		j.camera_tp.camera.current = true
-	m.relacher("gauche")
+	if action == "marche":
+		Input.action_release("avant")
+	m.relacher(main)
 	await _attendre(150)
 
 func _planche() -> void:

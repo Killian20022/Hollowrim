@@ -509,6 +509,7 @@ func _runes_vers(m: String, ecole: String, k: float) -> void:
 	var i: Incantation = inc[m]
 	r.intensite = k
 	r.charge = i.charge if i.etat == Incantation.CHARGE else 0.0
+	r.etat = i.etat
 	# tenue « runes » : les flammes de l'aura serrées autour de la boule tenue (cœur de l'aura de feu). La boule et
 	# `echelles_aura` vivent dans gestion_magie.gd (branche fps/avant_bras_runes, pas encore portés) : sans elles, rien.
 	var g = GestionMagie.obtenir()

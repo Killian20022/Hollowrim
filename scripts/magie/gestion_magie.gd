@@ -103,9 +103,9 @@ const GIVRE_COMPAGNONS := ["glace_fin_jet_poudre", "glace_fin_jet_cristaux", "gl
 const AURA_ECOLE := {"feu": 0, "glace": 1, "electricite": 2, "tenebres": 3, "soin": 4, "protection": 5}
 ## Rayon (m) du carré de la FLAMME TENUE au creux de la main (cœur de l'aura de feu, magie_aura forme 2) : la goutte
 ## y occupe ~0,9 × 1,25 rayon (≈ 13 × 18 cm), braises et fumée au-dessus. Remplace la boule lisse (« trop plastique »).
-const AURA_BOULE := 0.14
+const AURA_BOULE := 0.15
 ## La paume est à la base de la flamme : le carré est remonté de cette fraction de son rayon.
-const FLAMME_ASSISE := 0.3
+const FLAMME_ASSISE := 0.7
 ## Lueur de la flamme tenue sur la main et l'avant-bras (calque CALQUE_AVANT_BRAS seulement, que la lumière d'aura
 ## n'éclaire pas) : faible, courte portée, qui vacille.
 const LUEUR_MAIN := {"energie": 0.55, "portee": 0.45}

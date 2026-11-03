@@ -82,47 +82,73 @@ void fragment() {
 			//   - langues : bruit qui MONTE vite, déchiré au bord (trous, pointes qui se détachent) ;
 			//   - cœur blanc-jaune petit (palier c0), orange et rouge francs, liseré sombre ;
 			//   - braises : pixels isolés qui montent en zigzag ; fumée : volutes sombres au sommet, 2 paliers d'opacité.
+			// FLAMME RUNIQUE (brief 2026-11-03, référence flamme_runique.png) : colonne VERTICALE qui se tord (pas une boule) ;
+			// 4 langues qui s'enroulent en spirale autour d'un axe qui ondule, une petite spirale vive à la base, fils fins
+			// qui s'échappent en volutes, braises. Tout en paliers francs au pixel du monde.
 			vec2 u = q / rp;
-			float sv = 1.0 + 0.07 * sin(tt * 9.0) * sin(tt * 3.7 + graine);           // respiration
-			float monte = clamp((u.y + 0.45) / 1.3, 0.0, 1.0);                         // 0 base, 1 pointe
-			float ond = (mbruit(vec2(u.y * 1.6 - tt * 2.2, graine * 3.0)) - 0.5) * 0.4 * monte * monte;
-			float x = u.x - ond;
-			// goutte : base ronde centrée en y = -0.3, pointe vers y = +0.62
-			float cy = -0.3;
-			float larg = mix(0.46, 0.16, smoothstep(cy, 0.65, u.y)) * sv;
-			float dy = u.y < cy ? (u.y - cy) / 0.32 : (u.y - cy) / (0.95 * sv);
-			float d = length(vec2(x / larg, dy));
-			// déformation du domaine : les langues se tordent et se déchirent (pas de bandes concentriques)
-			vec2 w = vec2(mbruit(vec2(x * 2.5, u.y * 2.0 - tt * 2.4) + graine), mbruit(vec2(x * 2.5 + 5.2, u.y * 2.0 - tt * 2.9) + graine)) - 0.5;
-			vec2 fl = vec2(x * 3.4 + w.x * 0.9, u.y * 2.3 - tt * 3.4 + w.y * 0.8) + graine;
-			n = mfbm2(fl);
-			// langues : bruit étiré en hauteur (colonnes qui montent), fort vers la pointe
-			float lg = mbruit(vec2(x * 6.5 + w.x * 1.5, u.y * 1.6 - tt * 4.2) + graine * 1.7);
-			// stries verticales qui fendent le haut de la goutte en plusieurs langues séparées
-			float st = mbruit(vec2(x * 4.8 + w.x, u.y * 0.8 - tt * 2.6) + graine * 2.9);
-			// grain fin (au pixel du monde) : bords des paliers déchirés, jamais de courbe lisse
-			float gr = mbruit(vec2(q.x / 1.7, (q.y - tt * rp * 2.2) / 1.4) + graine * 5.0);
-			i = (1.0 - d) * 1.18 + (n - 0.5) * (0.6 + monte * 1.0) + (lg - 0.5) * (0.25 + monte * 0.8) + (gr - 0.5) * 0.13
-				- monte * smoothstep(0.4, 0.85, 1.0 - st) * 0.6 + 0.1;
-			i *= force * (0.92 + 0.1 * sin(tt * 17.0 + graine) * sin(tt * 6.1));
-			if (i > 0.3) {
-				// flamme : cœur blanc-jaune resserré (seuil du blanc relevé), puis jaune, orange, rouge, liseré sombre
-				c = i > 1.24 ? c0.rgb : palier(min(i, 1.14));
+			float h = clamp((u.y + 0.62) / (1.5 * (0.82 + 0.26 * clamp(force, 0.0, 1.3))), 0.0, 1.0);   // 0 paume, 1 pointe (plus haute quand l'aura monte : charge)
+			float sv = 1.0 + 0.06 * sin(tt * 7.0) * sin(tt * 2.9 + graine);             // respiration
+			// axe de la colonne : S qui ondule et dérive, de plus en plus libre vers la pointe
+			float sway = ((mbruit(vec2(h * 1.8 - tt * 0.9, graine * 3.0)) - 0.5) * 0.5 + 0.10 * sin(tt * 1.9 + h * 3.4 + graine)) * h * (0.4 + 0.6 * h);
+			float renv = (0.12 + 0.40 * sin(3.14159 * pow(h, 0.55))) * sv;              // rayon de l'enveloppe : ventre bas, pointe fine
+			float best = 0.0;
+			float lum = 0.0;
+			float pied = smoothstep(-0.64, -0.5, u.y);   // pas de colonnes sous la flamme : elle naît au-dessus de la paume
+			for (int k = 0; k < 6; k++) {
+				float fk = float(k);
+				float lk = 0.5 + 0.5 * mh2(vec2(fk * 7.3, floor(graine) + 2.0 + floor(tt * 0.35 + fk * 1.7)));   // longueur propre à la langue, qui change : silhouette irrégulière
+				float hk = min(h / lk, 1.0);
+				float ang = fk * 1.0472 + graine * 2.0 + h * (3.4 + 0.5 * fk) - tt * (2.0 + 0.3 * fk);
+				float zf = cos(ang);                                                    // > 0 : face à l'œil
+				float xk = sway + renv * 0.72 * sin(ang) * (1.0 - 0.3 * hk);
+				float wk = renv * (0.3 + 0.14 * zf) * pow(1.0 - hk, 0.75) * lk + 0.01;
+				float dn = (mbruit(vec2(xk * 5.0 + fk * 3.1 + graine, h * 4.2 - tt * (3.0 + fk * 0.4))) - 0.5) * 0.12 * (0.3 + h) * renv * 3.0;
+				float it = 1.0 - abs(u.x - xk + dn) / wk;
+				// arête brillante au milieu de la langue, plus vive côté œil
+				float arete = smoothstep(0.35, 0.9, it) * (0.5 + 0.5 * zf);
+				float v = clamp(it, 0.0, 1.0) * (0.78 + 0.22 * zf) + arete * 0.25;
+				if (v > best) {
+					best = v;
+					lum = arete;
+				}
+			}
+			// corps de la flamme : masse orange irrégulière qui remplit le pied entre les langues (une seule flamme, pas un éventail)
+			float cx = abs(u.x - sway * 0.5 + (mbruit(vec2(h * 5.0 - tt * 2.6, graine + 4.0)) - 0.5) * 0.18) / (renv * 0.95 + 0.02);
+			float corps = clamp(1.0 - cx, 0.0, 1.0) * pow(1.0 - h, 1.1) * (0.8 + 0.4 * mbruit(vec2(u.x * 7.0, h * 5.0 - tt * 3.4 + graine)));
+			if (corps > best) {
+				best = corps;
+			}
+			best *= pied;
+			lum *= pied;
+			// fils fins qui s'échappent en volutes de part et d'autre de la colonne
+			float fil = 0.0;
+			for (int k = 0; k < 2; k++) {
+				float fk = float(k);
+				float xf = sway + (0.20 + 0.18 * h) * sin(h * 7.0 + fk * 3.1 - tt * (1.7 + fk * 0.6) + graine) * smoothstep(0.1, 0.5, h);
+				float df = abs(u.x - xf) * rp / 1.0;
+				float tr = smoothstep(0.35, 0.5, h) * (1.0 - smoothstep(0.78, 1.0, h));
+				fil = max(fil, tr * (1.0 - smoothstep(0.7, 1.7, df)) * (0.55 + 0.35 * mbruit(vec2(h * 6.0 - tt * 2.0, fk))));
+			}
+			// petite spirale vive à la base (cœur blanc-jaune au centre, bras qui tournent autour)
+			vec2 bq = vec2(u.x - sway * 0.2, (u.y + 0.32) * 1.15);
+			float rb = length(bq);
+			float ab = atan(bq.y, bq.x);
+			float bras = 0.5 + 0.5 * sin(ab * 3.0 + rb * 17.0 - tt * 6.0);
+			float base = (1.0 - smoothstep(0.0, 0.26, rb)) * (0.9 + 0.12 * bras);
+			// bord déchiré au grain du pixel du monde
+			float gr = mbruit(vec2(q.x / 1.6, (q.y - tt * rp * 2.4) / 1.3) + graine * 5.0) - 0.5;
+			i = max(best * (0.98 - 0.42 * h) + lum * 0.1, max(base * 1.18, fil * 0.62)) + gr * 0.16 * (0.4 + h);
+			i *= force * (0.93 + 0.09 * sin(tt * 15.0 + graine) * sin(tt * 5.3));
+			if (i > 0.32) {
+				c = i > 1.2 ? c0.rgb : palier(min(i, 1.14));
 			} else {
-				// braises : un pixel du MONDE, rares, qui montent en zigzag au-dessus et autour de la flamme
+				// braises : un pixel du MONDE, rares, qui montent en zigzag
 				vec2 qb = vec2(q.x + sin(q.y * 0.35 + tt * 4.0) * 1.2, q.y - tt * rp * 0.75);
 				vec2 cb = floor(qb);
 				float hb = mh2(cb + floor(graine * 13.0));
-				float zone_b = smoothstep(-0.15, 0.2, u.y) * (1.0 - smoothstep(0.6, 0.92, u.y)) * (1.0 - smoothstep(0.2, 0.42, abs(u.x)));
-				// fumée : quelques volutes sombres juste au-dessus de la pointe, qui montent et s'effilochent
-				float sf = mfbm2(vec2(u.x * 3.0 + sin(u.y * 4.0 + tt * 1.3) * 0.3, u.y * 2.4 - tt * 1.2) + graine * 2.3);
-				float zone_f = smoothstep(0.25, 0.48, u.y) * (1.0 - smoothstep(0.65, 0.9, u.y)) * (1.0 - smoothstep(0.08 + u.y * 0.12, 0.2 + u.y * 0.2, abs(u.x - ond * 1.4)));
-				float fum = sf * zone_f * force * 1.3;
-				if (hb > 1.0 - 0.006 * zone_b * force) {
+				float zone_b = smoothstep(-0.2, 0.25, u.y) * (1.0 - smoothstep(0.7, 0.95, u.y)) * (1.0 - smoothstep(0.25, 0.6, abs(u.x)));
+				if (hb > 1.0 - 0.012 * zone_b * force) {
 					c = mh2(cb + 3.1) > 0.5 ? c1.rgb : c2.rgb;
-				} else if (fum > 0.44) {
-					c = vec3(0.12, 0.095, 0.09) / eclat;
-					al = fum > 0.56 ? 0.66 : 0.33;
 				} else {
 					discard;
 				}
