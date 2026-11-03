@@ -158,7 +158,7 @@ static func construire(parent: Node3D) -> Dictionary:
 	# flamme en gros pixels : un pilote (inertie, braises, lumière) au pied de la flamme, un quad au shader flamme_pixels ;
 	# halo net (anneaux posterisés) derrière
 	var pilote := preload("res://scripts/flamme_torche.gd").new() as Node3D
-	pilote.position = Vector3(0, HAUT_TETE, 0)
+	pilote.position = Vector3(0, HAUT_TETE - 0.03, 0)   # le pied est enfoncé dans la calotte : la tête bombée le cache et l'arrondit
 	parent.add_child(pilote)
 	var fm := ShaderMaterial.new()
 	fm.shader = FLAMME_PIXELS

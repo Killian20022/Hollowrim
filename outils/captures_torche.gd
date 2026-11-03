@@ -57,6 +57,21 @@ func _photo(nom: String) -> void:
 	im.save_png(c)
 	print("CAPTURE ", c)
 
+## Gros plan 6x sur la tête de la torche (région de 160x90 px du rendu 640x360, centrée sur le haut de la tête).
+func _gros_plan(nom: String) -> void:
+	await RenderingServer.frame_post_draw
+	var im := root.get_viewport().get_texture().get_image()
+	im.convert(Image.FORMAT_RGBA8)
+	var cam := root.get_viewport().get_camera_3d()
+	var pt: Vector3 = mains.pivot_torche.global_transform * Vector3(0, 0.55, 0)
+	var e := cam.unproject_position(pt) * Vector2(im.get_size()) / Vector2(root.get_viewport().get_visible_rect().size)
+	var x := clampi(int(e.x) - 80, 0, im.get_width() - 160)
+	var y := clampi(int(e.y) - 55, 0, im.get_height() - 90)
+	var c := im.get_region(Rect2i(x, y, 160, 90))
+	c.resize(960, 540, Image.INTERPOLATE_NEAREST)
+	DirAccess.make_dir_recursive_absolute(sortie)
+	c.save_png(sortie.path_join("%s_zoom_%s.png" % [prefixe, nom]))
+
 func _penombre() -> void:
 	var env: Environment = s.env
 	env.background_color = Color(0.05, 0.06, 0.09)
@@ -112,12 +127,23 @@ func _go() -> void:
 		return
 	await _attendre(60)
 	await _photo("1p_arret")
+	await _gros_plan("arret")
+	j.tete.rotation.x = -0.7
+	await _attendre(20)
+	await _photo("1p_plongee")
+	j.tete.rotation.x = 0.5
+	await _attendre(20)
+	await _photo("1p_contreplongee")
+	j.tete.rotation.x = 0.0
+	await _attendre(20)
 	await _tenir(["avant"], 70)
 	await _photo("1p_marche")
 	await _tenir(["avant", "course"], 100)
 	await _photo("1p_course")
+	await _gros_plan("course")
 	await _tenir(["avant", "course"], 45, 1300.0 / 60.0)
 	await _photo("1p_virage")
+	await _gros_plan("virage")
 	await _tenir([], 4)
 	await _attendre(90)
 	await _photo("1p_arret2")

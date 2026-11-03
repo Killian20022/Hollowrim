@@ -18,7 +18,8 @@ uniform float cell_m = 0.014;                  // taille d'une case au repos (m)
 uniform float cases_h = 14.0;                  // hauteur nominale de la flamme (cases)
 uniform float agitation = 0.0;
 uniform float phase = 0.0;
-uniform float pos_biais = 0.07;                // recul vers la caméra (m) : la flamme passe devant la tête de torche
+uniform float pos_biais = 0.015;               // recul vers la caméra (m) : faible, la tête bombée de la torche cache le pied de la flamme
+uniform float base_cases = 4.5;                // hauteur (cases) de l'arrondi du pied
 const float CX = 24.0;
 const float CY = 34.0;
 
@@ -74,7 +75,9 @@ void fragment() {
 	float n2 = h21(vec2(cx + f * 3.0, cy * 1.7));
 	float lie = clamp(length(v_tip) / (cases_h * 1.0) - 1.0, 0.0, 1.0);   // étirement : plus de langues détachées
 	float larg = (4.4 + 0.6 * lie) * pow(max(1.0 - t, 0.0), 0.75) * (0.9 + 0.22 * h21(vec2(cy, floor(f * 0.5))));
-	larg += 0.9 * smoothstep(0.0, 0.12, 0.12 - t) * 1.0;   // pied un peu plus large
+	// pied ARRONDI (arc d'ellipse) : la flamme naît dans la tête bombée de la torche, elle ne repose pas sur une ligne droite
+	float k0 = clamp(y / base_cases, 0.0, 1.0);
+	larg *= sqrt(max(1.0 - (1.0 - k0) * (1.0 - k0), 0.0)) * (1.0 + 0.25 * (1.0 - k0));
 	float dx = abs(x - c);
 	float bord = (n1 - 0.5) * (1.4 + 1.2 * a) * smoothstep(0.05, 0.45, t);
 	bool dedans = t < 1.0 + (n2 - 0.5) * 0.3 && dx < larg + bord && y > 0.0;
