@@ -36,7 +36,7 @@ static func creer(parent: Node, pos: Vector3, normale: Vector3, echelle: float, 
 	for k in pics:
 		var a := TAU * (k + rng.randf() * 0.6) / maxi(pics, 1) + rng.randf() * 0.5
 		var d := rng.randf_range(0.25, 0.55) * echelle
-		var h := rng.randf_range(0.9, 1.5) * echelle
+		var h := rng.randf_range(0.6, 0.9)
 		g._ajouter("pic%d" % rng.randi_range(0, 2), base, Vector3(cos(a) * d, 0.0, sin(a) * d),
 			rng.randf() * TAU, Vector3(0.28, h, 0.28) * echelle * rng.randf_range(0.9, 1.4), (haut + Vector3(cos(a), 0, sin(a)) * 0.25).normalized(), rng)
 	g.rayon = 0.45 * echelle + (0.5 * echelle if pics > 0 else 0.0)

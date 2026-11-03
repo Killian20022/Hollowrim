@@ -17,7 +17,7 @@ const N := 320                       # texels par côté (20 m)
 const RES := 16.0                    # texels par mètre
 const DUREE_PAS := 24.0              # s : mêmes constantes que shaders/ps1.gdshader (effets_sol)
 const DUREE_BRULURE := 26.0
-const DUREE_OMBRE := 14.0
+const DUREE_OMBRE := 18.0
 const FONTE_MIN := 30.0              # s : la neige fondue se reforme en 30 à 60 s
 const FONTE_MAX := 60.0
 const MAX_BLOCS := 10                # amas de glace vivants (le plus ancien est écrasé)
@@ -237,7 +237,7 @@ static func pas(j: Node3D, vitesse: Vector2, gauche: bool, court: bool) -> void:
 	e._suivre_joueur(j)
 	e._empreinte(p, vitesse.normalized() if vitesse.length() > 0.05 else Vector2(0, 1), gauche, court)
 	var dir3 := Vector3(-vitesse.x, 0.0, -vitesse.y).normalized() * 0.35 if vitesse.length() > 0.05 else Vector3.ZERO
-	GerbePixels.emettre(e, p + Vector3(0, 0.04, 0), Vector3.UP + dir3, "neige", 1.5 if court else 0.55)
+	GerbePixels.emettre(e, p + Vector3(0, 0.04, 0), Vector3.UP + dir3, "neige", 2.2 if court else 1.1)
 
 ## Saut : deux empreintes côte à côte à l'appel et une gerbe.
 static func saut(j: Node3D) -> void:
@@ -253,7 +253,7 @@ static func saut(j: Node3D) -> void:
 	var dir := Vector2(-sin(j.rotation.y), -cos(j.rotation.y))
 	e._empreinte(p, dir, true, true)
 	e._empreinte(p, dir, false, true)
-	GerbePixels.emettre(e, p + Vector3(0, 0.04, 0), Vector3.UP, "neige", 1.5)
+	GerbePixels.emettre(e, p + Vector3(0, 0.04, 0), Vector3.UP, "neige", 2.4)
 
 ## Atterrissage à `vitesse` m/s de chute : cuvette plus marquée (anneau d'empreintes) et grosse gerbe.
 static func atterrissage(j: Node3D, vitesse: float) -> void:
@@ -268,23 +268,28 @@ static func atterrissage(j: Node3D, vitesse: float) -> void:
 	e._suivre_joueur(j)
 	var force := clampf((vitesse - 3.0) / 8.0, 0.0, 1.0)
 	e._cuvette(p, lerpf(0.28, 0.6, force))
-	GerbePixels.emettre(e, p + Vector3(0, 0.05, 0), Vector3.UP, "neige", lerpf(1.2, 2.8, force))
+	GerbePixels.emettre(e, p + Vector3(0, 0.05, 0), Vector3.UP, "neige", lerpf(2.0, 3.6, force))
 
 ## Marque une empreinte de botte (rectangle arrondi, 5×11 échantillons de 3 cm) au pied gauche ou droit.
 func _empreinte(pos: Vector3, dir: Vector2, gauche: bool, court: bool) -> void:
 	var lat := Vector2(-dir.y, dir.x)
-	var c := Vector2(pos.x, pos.z) + lat * (0.14 if gauche else -0.14)
+	var c := Vector2(pos.x, pos.z) + lat * (0.24 if gauche else -0.24)
 	if not _assurer(c.x, c.y):
 		return
-	var demi_l := 6 if court else 5
-	var demi_w := 3 if court else 2
+	# creux (B = fin) entouré d'un bourrelet clair (B = -fin) ; en course : plus long, plus large, sillon plus net
+	var demi_l := 7 if court else 5
+	var demi_w := 4 if court else 3
 	var fin := t + DUREE_PAS
-	for a in range(-demi_w, demi_w + 1):
-		for b in range(-demi_l, demi_l + 1):
-			if absi(a) == demi_w and absi(b) >= demi_l - 1:
-				continue   # bout arrondi
-			var q := c + lat * (a * 0.03) + dir * (b * 0.03)
-			_ecrire_empreinte(q.x, q.y, fin)
+	for a in range(-demi_w - 1, demi_w + 2):
+		for b in range(-demi_l - 1, demi_l + 2):
+			var bord := absi(a) > demi_w or absi(b) > demi_l
+			var coin := absi(a) >= demi_w and absi(b) >= demi_l - 1   # bout arrondi
+			if coin and not bord:
+				continue
+			if bord and absi(a) > demi_w and absi(b) > demi_l - 1:
+				continue
+			var q := c + lat * (a * 0.035) + dir * (b * 0.04)
+			_ecrire_empreinte(q.x, q.y, -fin if bord else fin)
 	stats["pas"] = int(stats["pas"]) + 1
 	_vivre(fin)
 
@@ -307,7 +312,10 @@ func _ecrire_empreinte(x: float, z: float, fin: float) -> void:
 	var tz := floori(z * RES)
 	if not dans_fenetre(tx, tz) or not est_neige((tx + 0.5) / RES, (tz + 0.5) / RES):
 		return
-	_donnees[_indice(tx, tz) + 2] = fin
+	var i := _indice(tx, tz) + 2
+	if fin < 0.0 and _donnees[i] > t:
+		return   # le bourrelet ne recouvre pas un creux vivant
+	_donnees[i] = fin
 	stats["texels"] = int(stats["texels"]) + 1
 
 ## Ennemis et villageois proches : une empreinte par foulée (sans toucher à leurs scripts).
@@ -410,15 +418,18 @@ func bruler(x: float, z: float, rayon: float) -> void:
 			if d <= 0.55 + 0.3 * _hash(cx + dx, cz + dz) and dans_fenetre(cx + dx, cz + dz):
 				_donnees[_indice(cx + dx, cz + dz) + 3] = fin
 				stats["texels"] = int(stats["texels"]) + 1
-	for k in 4:
-		var a := _rng.randf() * TAU
-		var longueur := int(rayon * RES * _rng.randf_range(1.4, 2.4))
+	for k in 7:   # branches de l'étoile, larges de 2 texels, qui rayonnent et bifurquent
+		var a := TAU * (k + _rng.randf() * 0.5) / 7.0
+		var longueur := int(rayon * RES * _rng.randf_range(2.2, 3.6))
 		var p := Vector2(cx, cz)
 		for s in longueur:
-			a += _rng.randf_range(-0.35, 0.35)
+			a += _rng.randf_range(-0.3, 0.3)
 			p += Vector2(cos(a), sin(a))
-			if dans_fenetre(int(p.x), int(p.y)):
-				_donnees[_indice(int(p.x), int(p.y)) + 3] = fin
+			for o: Vector2i in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1)]:
+				var tx := int(p.x) + o.x
+				var tz := int(p.y) + o.y
+				if dans_fenetre(tx, tz):
+					_donnees[_indice(tx, tz) + 3] = fin
 	_vivre(fin)
 
 ## Tache d'ombre : disque qui se résorbe du bord vers le centre en 14 s.
@@ -437,6 +448,9 @@ func ombrer(x: float, z: float, rayon: float) -> void:
 				_donnees[_indice(cx + dx, cz + dz) + 3] = -fin
 				plus_long = maxf(plus_long, fin)
 				stats["texels"] = int(stats["texels"]) + 1
+			elif d <= 1.2 and _hash(cx + dx * 7, cz + dz * 3) < 0.35 and dans_fenetre(cx + dx, cz + dz):
+				var fin2 := t + DUREE_OMBRE * 0.35   # bord qui fume : texels épars, vite résorbés
+				_donnees[_indice(cx + dx, cz + dz) + 3] = -fin2
 	_vivre(plus_long)
 
 # ------------------------------------------------------------------ glace
@@ -449,7 +463,7 @@ func bloc_glace(pos: Vector3, normale: Vector3, echelle: float, pics: int, avec_
 		if is_instance_valid(vieux):
 			vieux.queue_free()
 	_blocs = _blocs.filter(func(b) -> bool: return is_instance_valid(b))
-	var g := GlaceFondante.creer(self, pos, normale, echelle, pics, avec_bloc, _rng.randi())
+	var g := GlaceFondante.creer(self, pos, normale, minf(echelle * 1.8, 2.2), pics, avec_bloc, _rng.randi())
 	_blocs.append(g)
 	stats["blocs"] = int(stats["blocs"]) + 1
 
@@ -493,10 +507,15 @@ static func sort_impact(ecole: String, pos: Vector3, normale: Vector3, force: fl
 		"glace":
 			e.bloc_glace(sol, n, clampf(0.55 + 0.35 * force, 0.6, 1.4), 2 + int(force))
 		"electricite":
-			e.bruler(sol.x, sol.z, clampf(0.2 + 0.12 * force, 0.2, 0.6))
-			GerbePixels.emettre(e, sol + Vector3(0, 0.05, 0), Vector3.UP, "etincelles", clampf(force, 0.6, 1.6))
+			e.bruler(sol.x, sol.z, clampf(0.3 + 0.15 * force, 0.3, 0.75))
+			var f := clampf(force, 0.8, 1.8) * 1.6
+			GerbePixels.emettre(e, sol + Vector3(0, 0.05, 0), Vector3.UP, "etincelles", f)
+			for k in range(1, 4):   # étincelles qui crépitent encore quelques secondes
+				e.get_tree().create_timer(0.5 * k).timeout.connect(func() -> void:
+					if is_instance_valid(e):
+						GerbePixels.emettre(e, sol + Vector3(0, 0.05, 0), Vector3.UP, "etincelles", f * 0.8))
 		"tenebres":
-			e.ombrer(sol.x, sol.z, clampf(0.4 + 0.25 * force, 0.4, 1.2))
+			e.ombrer(sol.x, sol.z, clampf(0.7 + 0.3 * force, 0.7, 1.6))
 
 static func sort_zone(ecole: String, pos: Vector3, rayon: float, duree: float) -> void:
 	if not actif or ecole in ["soin", "protection"]:
@@ -530,7 +549,7 @@ static func sort_zone(ecole: String, pos: Vector3, rayon: float, duree: float) -
 				var d := e._rng.randf_range(0.2, 0.8) * rr
 				e.bruler(sol.x + cos(a) * d, sol.z + sin(a) * d, 0.28)
 		"tenebres":
-			e.ombrer(sol.x, sol.z, rr * 0.8)
+			e.ombrer(sol.x, sol.z, rr)
 
 ## Jet canalisé (appelé chaque image) : au plus un traitement tous les 0,1 s et par main. Le feu creuse une traînée.
 static func sort_jet(ecole: String, origine: Node3D, direction: Vector3, portee: float, largeur: float, actif_jet: bool) -> void:

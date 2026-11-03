@@ -378,16 +378,21 @@ void effets_sol(inout vec3 albedo, vec2 pm) {
 	}
 	vec4 m = texelFetch(effets_masque, ivec2(((qi.x % n) + n) % n, ((qi.y % n) + n) % n), 0);
 	float t = effets_temps;
-	if (max(max(m.r, m.b), abs(m.a)) <= t) {
+	if (max(max(m.r, abs(m.b)), abs(m.a)) <= t) {
 		return;
 	}
 	vec2 q = vec2(qi);
 	float h = nt_hash(q + 3.7);
 	float amas = nt_bruit(q * 0.22 + 7.0);
-	if (m.b > t) {   // empreinte : neige tassée, plus froide ; s'efface texel par texel
+	if (m.b > t) {   // empreinte : creux bleu-gris ombré ; s'efface texel par texel
 		float e = clamp((m.b - t) / 24.0, 0.0, 1.0);
 		if (e > h * 0.85) {
-			albedo *= vec3(0.70, 0.77, 0.90);
+			albedo = mix(albedo * vec3(0.50, 0.60, 0.80), vec3(0.45, 0.55, 0.75), 0.25);
+		}
+	} else if (m.b < -t) {   // bourrelet de neige repoussée : plus clair
+		float e = clamp((-m.b - t) / 24.0, 0.0, 1.0);
+		if (e > h * 0.85) {
+			albedo = mix(albedo, vec3(1.0), 0.55);
 		}
 	}
 	if (m.r > t) {   // neige fondue
@@ -407,13 +412,13 @@ void effets_sol(inout vec3 albedo, vec2 pm) {
 	}
 	if (m.a > t) {   // brûlure (électricité)
 		float e = clamp((m.a - t) / 26.0, 0.0, 1.0);
-		if (e > h * 0.9) {
-			albedo = mix(albedo * 0.2, vec3(0.04, 0.035, 0.045), 0.6);
+		if (e > h * 0.6) {
+			albedo = e > 0.8 ? vec3(0.02, 0.02, 0.025) : mix(albedo * 0.15, vec3(0.05, 0.04, 0.05), 0.7);
 		}
 	} else if (m.a < -t) {   // tache d'ombre (ténèbres) : se résorbe vers son centre
-		float e = clamp((-m.a - t) / 14.0, 0.0, 1.0);
-		if (e > h * 0.8) {
-			albedo = mix(albedo * 0.35, vec3(0.10, 0.05, 0.16), 0.55);
+		float e = clamp((-m.a - t) / 18.0, 0.0, 1.0);
+		if (e > h * 0.5) {
+			albedo = mix(albedo * 0.2, vec3(0.12, 0.03, 0.20), 0.75);
 		}
 	}
 }
