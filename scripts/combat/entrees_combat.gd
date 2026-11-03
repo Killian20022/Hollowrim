@@ -16,8 +16,13 @@ var tampon_relache := false
 var garde_tenue := false
 var _garde_forcee_fin := -1.0
 
+## Vrai pendant un coup : le tampon ne vieillit pas (le clic n'expire qu'une fois le coup fini).
+var gele := false
+
 func avancer(dt: float) -> void:
 	horloge += dt
+	if gele and tampon >= 0.0:
+		tampon += dt
 	if tampon >= 0.0 and horloge - tampon > TAMPON:
 		tampon = -1.0
 
