@@ -142,6 +142,9 @@ def corne(P, racine, d0, courbe, longueur, rayon, mat="obsidienne", seg=6, cotes
         P.ao[i] = 0.55
 
 
+RELIEF = 1.0
+
+
 def tete_lion(P, c, dehors, haut, rayon, mat="or.lion"):
     """Tête de lion en relief (champ de hauteur polaire) : crinière en mèches rayonnantes, front, arcades, yeux creusés, museau,
     nez ; `haut` = sens du front (vers l'épaule)."""
@@ -149,20 +152,21 @@ def tete_lion(P, c, dehors, haut, rayon, mat="or.lion"):
     hv = Vector(haut); hv = (hv - d * hv.dot(d)).normalized()
     wv = hv.cross(d).normalized()
     R = [0.0, 0.18, 0.36, 0.52, 0.66, 0.80, 0.92, 1.0]
-    NS = 12
+    NS = 14
     def h(r, th):
         x, y = r * math.cos(th), r * math.sin(th)
         if r > 0.6:
-            meche = abs(math.sin(th * 6.0 + r * 3.0))
-            v = 0.42 * (1.0 - (r - 0.6) / 0.4) ** 0.8 + 0.16 * meche * (1.0 - abs(r - 0.8) / 0.25)
+            # crinière : grosses mèches rayonnantes, nettement séparées (creux profonds entre les mèches)
+            meche = abs(math.sin(th * 3.0 + r * 2.0))
+            v = 0.34 * (1.0 - (r - 0.6) / 0.4) ** 0.8 + 0.34 * meche ** 1.5 * (1.0 - abs(r - 0.8) / 0.25)
         else:
-            v = 0.58 + 0.22 * (1.0 - (r / 0.6) ** 2)
-        v += 0.30 * max(0.0, 1.0 - math.hypot(x, y + 0.24) / 0.26)          # museau
-        v += 0.10 * max(0.0, 1.0 - math.hypot(x, y - 0.02) / 0.12)          # nez
-        v += 0.10 * max(0.0, 1.0 - abs(y - 0.2) / 0.08) * (abs(x) < 0.4)    # arcades
+            v = 0.40 + 0.10 * (1.0 - (r / 0.6) ** 2)
+        v += 0.42 * max(0.0, 1.0 - math.hypot(x, y + 0.24) / 0.30)          # museau (gros)
+        v += 0.20 * max(0.0, 1.0 - math.hypot(x, y - 0.02) / 0.16)          # nez
+        v += 0.22 * max(0.0, 1.0 - abs(y - 0.22) / 0.10) * (abs(x) < 0.45)  # arcades en bourrelet
         for sx in (-1, 1):
-            v -= 0.16 * max(0.0, 1.0 - math.hypot(x - 0.2 * sx, y - 0.1) / 0.1)   # yeux
-        v -= 0.10 * max(0.0, 1.0 - math.hypot(x, y + 0.42) / 0.1)           # gueule
+            v -= 0.34 * max(0.0, 1.0 - math.hypot(x - 0.24 * sx, y - 0.10) / 0.15)   # yeux creusés
+        v -= 0.22 * max(0.0, 1.0 - math.hypot(x, y + 0.46) / 0.12)          # gueule
         return max(0.0, v)
     ids = []
     for r in R:
@@ -170,7 +174,7 @@ def tete_lion(P, c, dehors, haut, rayon, mat="or.lion"):
         for k in range(NS):
             th = TAU * k / NS
             x, y = r * math.cos(th), r * math.sin(th)
-            p = c + (wv * x + hv * y) * rayon + d * (h(r, th) * rayon * 0.95 - 0.004)
+            p = c + (wv * x + hv * y) * rayon + d * (h(r, th) * rayon * 0.95 * RELIEF - 0.004)
             row.append(P.sommet(p, 0.9 if r < 0.9 else 0.7))
         ids.append(row)
     ctr = ids[0][0]
@@ -219,6 +223,38 @@ def visiere(P, t, r, centre, Pts, R_NAS, R_CORNE, mat="obsidienne", crete=0.014,
     P.grille([gauche, [dedans(p) for p in gauche]], mat, (0.0, 92.0 / 128, 0.05, 96.0 / 128), fermer=False)
     P.grille([[dedans(p) for p in droite], droite], mat, (0.0, 92.0 / 128, 0.05, 96.0 / 128), fermer=False)
     P.grille([[dedans(p) for p in bas], bas], mat, (0.0, 92.0 / 128, 0.5, 92.5 / 128), fermer=False)
+
+
+def nasal(P, t, r, centre, Pts, R_NAS, R_CORNE, mat="or.patine"):
+    """Nasal : barre verticale en relief le long de la visière (du bandeau au menton), section en trapèze, évasée en bas."""
+    arbre = hd.bvh_piece(P)
+    rangs = []
+    for z in (1.676, 1.662, 1.640, 1.610, 1.580, 1.556, 1.543):
+        o = Vector((0, -0.5, z))
+        hit, n = hd.poser_sur(arbre, o, Vector((0, 1, 0)))
+        if hit is None:
+            continue
+        lw = 0.0075 + (0.0045 if z < 1.56 else 0.0)
+        rangs.append([hit + Vector((lw, 0.001, 0)), hit + Vector((lw * 0.55, -0.014, 0)), hit + Vector((-lw * 0.55, -0.014, 0)),
+                      hit + Vector((-lw, 0.001, 0))])
+    P.grille(rangs, mat, (0.0, 92.5 / 128, 0.06, 93.5 / 128), fermer=False)
+    for bout, inv in ((rangs[0], True), (rangs[-1], False)):
+        ids = [P.sommet(p) for p in bout]
+        P.face(ids if not inv else list(reversed(ids)), mat, [(0.0, 0.73)] * 4)
+
+
+def bavolet(P, t, r, centre, Pts, R_NAS, R_CORNE, mat="or.patine"):
+    """Bavolet : jupe de deux rangs de lames festonnées qui pend du bord du heaume sur les côtés et la nuque (ouverte devant)."""
+    ring = Pts[0]
+    n = len(ring)
+    a, b, c = [], [], []
+    for i in range(5, n - 4):
+        p = ring[i]
+        o = Vector((p.x - centre.x, p.y - centre.y, 0)).normalized()
+        a.append(p + o * 0.008 + Vector((0, 0, 0.004)))
+        b.append(p + o * 0.030 - Vector((0, 0, 0.034)))
+        c.append(p + o * 0.040 - Vector((0, 0, 0.060 if i % 2 else 0.082)))
+    P.grille([a, b, c], mat, (0.0, 92.0 / 128, 1.0, 93.0 / 128), fermer=False)
 
 
 def cornes_obsidienne(P, t, r, centre, Pts, R_NAS, R_CORNE):
@@ -445,8 +481,8 @@ def or_torse(P, t, r, st):
     hd.plaque(P, A(), PROJ_T, c, 0.010, 0.009, M, UV_D, bombe=0.016, anneaux=2)
     # tabard bleu nuit LARGE (devant : largeur des hanches, jusqu'aux mollets, pointe en bas) + cape bleue statique derrière
     drap(P, B, "tissu.tabard", True, 0.165, 0.150, 0.985, 0.42, 7, 6, 0.036, 0.05, pointe=0.10, courbe=0.012)
-    drap(P, B, "tissu.cape", False, 0.17, 0.27, 1.50, 0.42, 7, 5, 0.078, 0.105, pointe=0.0, courbe=0.0)
-    drap(P, B, "tissu.doublure", False, 0.17, 0.27, 1.50, 0.42, 7, 5, 0.071, 0.098, pointe=0.0, courbe=0.0)   # face intérieure (retournée après coup)
+    drap(P, B, "tissu.cape", False, 0.27, 0.47, 1.50, 0.40, 7, 5, 0.085, 0.130, pointe=0.0, courbe=0.045)
+    drap(P, B, "tissu.doublure", False, 0.27, 0.47, 1.50, 0.40, 7, 5, 0.078, 0.123, pointe=0.0, courbe=0.045)   # face intérieure (retournée après coup)
     # tassettes : rang bas puis rang haut, dos, côtés, devant
     for s in (1, -1):
         for (a0, a1, zh, zb, dec) in ((114, 166, 0.90, 0.75, 0.010), (58, 108, 0.90, 0.735, 0.011), (16, 54, 0.90, 0.72, 0.012),
@@ -484,10 +520,12 @@ def or_torse(P, t, r, st):
             hd.plaque(P, [hd.bvh_piece(P), bras], pj, c, dec, 0.009, M, UV_D, bombe=bom, anneaux=2)
         arb = [hd.bvh_piece(P)]
         ax = (Bep - Aep).normalized()
-        o, d = pj(0, 0.30)
-        hit, n = hd.lancer(arb, o, d)
+        # tête de lion tournée vers l'avant et le haut (de face, elle se lit sur le dessus de l'épaule) : rayon visé sur l'axe
+        cible = Aep + ax * (Bep - Aep).length * 0.58
+        dl = Vector((0.20 * s, -0.78, 0.62)).normalized()
+        hit, n = hd.lancer(arb, cible + dl * 0.5, -dl)
         if hit is not None:
-            tete_lion(P, hit, -Vector(d), -ax, 0.082)
+            tete_lion(P, hit, dl, -ax, 0.112)
         o, d = pj(-78, 0.20)
         hit, n = hd.lancer(arb, o, d)
         if hit is not None:
@@ -632,7 +670,7 @@ PIECES = {
                                                    decor=[genou_eclats, lambda *a: cuissots(*a, mat="obsidienne", dents=2, rangs=2)])),
     "casque_or": lambda r: PC.casque(r, _s(OR, id="casque_or", n=30, bas=(0.03, -0.40, -0.60), bombe=0.004, ecart=0.019, bandes=0,
                                            rebord=0.008,
-                                           decor=[lambda *a: visiere(*a, mat="or.patine", crete=0.012), couronne, lambda *a: joues(*a, mat="or.patine")])),
+                                           decor=[lambda *a: visiere(*a, mat="or.patine", crete=0.012), couronne, nasal, bavolet, lambda *a: joues(*a, mat="or.patine")])),
     "cuirasse_or": lambda r: PC.cuirasse(r, _s(OR, id="cuirasse_or", n=14, lames=4, bombe=0.02, lames_epaule=0, x_manche=0.418, decor=[or_torse])),
     "gantelets_or": lambda r: PC.gantelets(r, _s(OR, id="gantelets_or", evasement=0.042, debut_manchette=0.16,
                                                    decor=[plaques_mains, lambda P_, t_, r_, st_: brassards(P_, t_, r_, st_, "or.patine", rangs=2)])),
@@ -704,6 +742,14 @@ def version_sol(r, ob, pid, suffixe=""):
         for v in me.vertices:
             s = 1 if v.co.x > 0 else -1
             v.co.x -= s * 0.05
+    # NEIGE : le shader ps1 pose la neige du monde sur les faces tournées vers le haut si l'alpha de la couleur de sommet >= 0,5 :
+    # pièce posée à plat = alpha 0 (sols sans neige)
+    ca = me.color_attributes.get("Col")
+    if ca is not None:
+        for d in ca.data:
+            d.color = (d.color[0], d.color[1], d.color[2], 0.0)
+        me.color_attributes.active_color = ca
+        me.color_attributes.render_color_index = list(me.color_attributes).index(ca)
     zmin = min(v.co.z for v in me.vertices)
     cx = sum(v.co.x for v in me.vertices) / len(me.vertices)
     cy = sum(v.co.y for v in me.vertices) / len(me.vertices)
