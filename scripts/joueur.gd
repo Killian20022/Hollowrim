@@ -108,6 +108,7 @@ var camera_tp: Node3D
 var troisieme := false  # V : bascule première / troisième personne
 var _pas := 0.0
 var _dernier_pas := 0
+var _etait_au_sol := true
 var _repos_vigueur := 0.0
 var _recul := Vector3.ZERO
 var _bruit_secousse := FastNoiseLite.new()
@@ -364,6 +365,7 @@ func _physics_process(dt: float) -> void:
 	elif Input.is_action_just_pressed("saut") and not mort and not en_dialogue and vigueur > 5.0:
 		velocity.y = SAUT
 		depenser(6.0)
+		EffetsSol.saut(self)
 	var entree := Vector2.ZERO if (mort or en_dialogue) else Input.get_vector("gauche", "droite", "avant", "arriere")
 	var dir := (transform.basis * Vector3(entree.x, 0.0, entree.y)).normalized()
 	potions.avancer(self, dt)
@@ -388,7 +390,11 @@ func _physics_process(dt: float) -> void:
 	var reactivite := 1.0 - exp(-(10.0 if is_on_floor() else 2.0) * dt)
 	velocity.x = lerpf(velocity.x, cible.x, reactivite)
 	velocity.z = lerpf(velocity.z, cible.z, reactivite)
+	var vy_avant := velocity.y
 	move_and_slide()
+	if is_on_floor() and not _etait_au_sol and vy_avant < -3.0 and not mort:
+		EffetsSol.atterrissage(self, -vy_avant)   # gerbe et cuvette dans la neige
+	_etait_au_sol = is_on_floor()
 	position.x = clampf(position.x, -LIMITE, LIMITE)
 	position.z = clampf(position.z, -LIMITE, LIMITE)
 	_filet(dt)
@@ -415,6 +421,7 @@ func _physics_process(dt: float) -> void:
 		if n != _dernier_pas:
 			_dernier_pas = n
 			Sons.jouer(self, ["footstep_snow_000", "footstep_snow_001", "footstep_snow_002", "footstep_snow_003", "footstep_snow_004"], -12.0 if not court else -8.0, 0.1)
+			EffetsSol.pas(self, Vector2(velocity.x, velocity.z), n % 2 == 0, court)   # empreinte et gerbe (sol enneigé seulement)
 	# caméra « corps » (CameraCorps) : options Mouvement de tête / Secousses, « Réduire les mouvements » compris
 	var f := CameraCorps.facteurs()
 	camera_corps.tete = f["tete"]

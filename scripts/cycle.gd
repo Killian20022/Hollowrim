@@ -237,6 +237,7 @@ func _regler_neige_objets(dt: float) -> void:
 	if v != _neige_objets:
 		_neige_objets = v
 		RenderingServer.global_shader_parameter_set("neige_objets", v)
+		EffetsSol.dehors = v > 0.5   # empreintes et fonte seulement dehors
 
 func _sous_abri() -> bool:
 	var m := get_parent()

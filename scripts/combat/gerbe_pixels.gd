@@ -79,6 +79,15 @@ const MATIERES := {
 	# braise (troll touché par le feu) : pixels de la palette du feu, lumineux, qui montent un peu
 	"braise": {"couleurs": ["#fff0a8", "#fcb53a", "#ec6a1f", "#b3341f"], "n": 12, "taille": [0.025, 0.045],
 		"vitesse": [1.0, 3.0], "ecart": 70.0, "gravite": -1.0, "amorti": 3.0, "duree": 0.7, "eclair": [1.5, 1.2], "rendu": "lueur"},
+	# monde réactif (EffetsSol) : gerbe de neige soulevée par un pas, une course, un saut ; blanc et bleu pâle, opaques
+	"neige": {"couleurs": ["#ffffff", "#f2f8ff", "#e8f6ff", "#d0e4f4", "#a8c8e8"], "n": 10, "taille": [0.03, 0.06],
+		"vitesse": [0.7, 2.4], "ecart": 85.0, "gravite": 6.5, "amorti": 3.0, "duree": 0.6, "eclair": [1.0, 1.0]},
+	# vapeur d'une neige qui fond : gros pixels gris clair qui montent et se dissipent
+	"vapeur": {"couleurs": ["#f4f8fc", "#dce4ec", "#c4d0dc", "#aab8c8"], "n": 8, "taille": [0.05, 0.1],
+		"vitesse": [0.4, 1.1], "ecart": 35.0, "gravite": -1.5, "amorti": 1.6, "duree": 1.2, "eclair": [1.0, 1.0]},
+	# eau de fonte d'un bloc de glace : gouttes bleues qui tombent
+	"goutte": {"couleurs": ["#e8f6ff", "#a8d8f8", "#5f9fe8", "#5f9fe8"], "n": 3, "taille": [0.02, 0.035],
+		"vitesse": [0.1, 0.5], "ecart": 90.0, "gravite": 9.0, "amorti": 0.5, "duree": 0.7, "eclair": [1.0, 1.0]},
 }
 const FORCES := {"leger": 1.0, "moyen": 1.3, "lourd": 1.8, "critique": 2.3, "finisher": 2.8}
 

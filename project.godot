@@ -74,3 +74,15 @@ neige_objets={
 "type": "float",
 "value": 1.0
 }
+effets_masque={
+"type": "sampler2D",
+"value": ""
+}
+effets_rect={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+effets_temps={
+"type": "float",
+"value": 0.0
+}

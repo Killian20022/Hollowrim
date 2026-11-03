@@ -42,6 +42,13 @@ uniform int sol_debug = 0;   // diagnostic du sol (--sol-debug=N) : 1 = grilles 
 instance uniform float eclair = 0.0; // flash quand l'objet est touché (par instance)
 #include "res://shaders/neige_tient.gdshaderinc"
 
+// Effets du monde sur le sol enneigé (scripts/effets_sol.gd) : masque basse résolution, 1 texel = 1/16 m, fenêtre torique de
+// N texels autour du joueur. R = fin de la fonte, |G| = sa durée (G < 0 : flaque), B = fin d'une empreinte,
+// A = fin d'une brûlure (> 0) ou d'une tache d'ombre (< 0). Aucun coût quand effets_rect.w == 0 (rien de vivant).
+global uniform sampler2D effets_masque : filter_nearest;
+global uniform vec4 effets_rect;
+global uniform float effets_temps;
+
 varying vec3 uv_aff;
 varying vec2 uv_macro;
 varying vec2 pos_monde;  // position monde (interpolation normale, non affine)
@@ -360,6 +367,57 @@ void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out ve
 	}
 }
 
+// Empreintes, neige fondue (terre sombre ou mouillée, flaque), brûlures et taches d'ombre lues dans le masque. Tout s'efface
+// par texels (seuil bruité par amas + grain), jamais en fondu lisse ni en damier.
+void effets_sol(inout vec3 albedo, vec2 pm) {
+	ivec2 qi = ivec2(floor(pm * 16.0));
+	ivec2 rel = qi - ivec2(effets_rect.xy);
+	int n = int(effets_rect.z);
+	if (rel.x < 0 || rel.y < 0 || rel.x >= n || rel.y >= n) {
+		return;
+	}
+	vec4 m = texelFetch(effets_masque, ivec2(((qi.x % n) + n) % n, ((qi.y % n) + n) % n), 0);
+	float t = effets_temps;
+	if (max(max(m.r, m.b), abs(m.a)) <= t) {
+		return;
+	}
+	vec2 q = vec2(qi);
+	float h = nt_hash(q + 3.7);
+	float amas = nt_bruit(q * 0.22 + 7.0);
+	if (m.b > t) {   // empreinte : neige tassée, plus froide ; s'efface texel par texel
+		float e = clamp((m.b - t) / 24.0, 0.0, 1.0);
+		if (e > h * 0.85) {
+			albedo *= vec3(0.70, 0.77, 0.90);
+		}
+	}
+	if (m.r > t) {   // neige fondue
+		float f = clamp((m.r - t) / max(abs(m.g), 1.0), 0.0, 1.0);
+		float seuil = 0.04 + 0.62 * (0.55 * amas + 0.45 * h);   // la neige revient d'abord là où le seuil est haut
+		if (f > seuil) {
+			float prof = f - seuil;
+			vec3 terre = texelFetch(sol_lut, ivec2(1 + int(h * 2.99), 3), 0).rgb;
+			if (prof < 0.05) {
+				albedo *= vec3(0.74, 0.79, 0.88);                 // lèvre : neige détrempée, grise
+			} else if (m.g < 0.0) {
+				albedo = prof > 0.12 ? mix(vec3(0.10, 0.16, 0.26), vec3(0.22, 0.34, 0.48), step(0.82, h)) : terre * 0.55;   // flaque
+			} else {
+				albedo = prof > 0.20 ? terre * vec3(0.50, 0.53, 0.58) : terre;   // terre mouillée puis qui sèche
+			}
+		}
+	}
+	if (m.a > t) {   // brûlure (électricité)
+		float e = clamp((m.a - t) / 26.0, 0.0, 1.0);
+		if (e > h * 0.9) {
+			albedo = mix(albedo * 0.2, vec3(0.04, 0.035, 0.045), 0.6);
+		}
+	} else if (m.a < -t) {   // tache d'ombre (ténèbres) : se résorbe vers son centre
+		float e = clamp((-m.a - t) / 14.0, 0.0, 1.0);
+		if (e > h * 0.8) {
+			albedo = mix(albedo * 0.35, vec3(0.10, 0.05, 0.16), 0.55);
+		}
+	}
+}
+
 void vertex() {
 	VERTEX += NORMAL * gonfle;
 	vec2 uv = UV * uv_echelle;
@@ -575,6 +633,9 @@ void fragment() {
 		ALBEDO *= mix(1.0, 0.8 + m * 0.36, macro_force * macro_sol);
 	}
 	ALBEDO = mix(vec3(dot(ALBEDO, vec3(0.3, 0.59, 0.11))), ALBEDO, saturation);
+	if (sol_carte && effets_rect.w > 0.5 && normale_monde.y > 0.5) {
+		effets_sol(ALBEDO, pos_monde);
+	}
 	// neige qui tient (objets dehors) : jamais sur le terrain (sol validé), ni sur les parties déjà neigées, ni sur les personnages
 	if (!sol_carte && !uv_monde && COLOR.a >= 0.5 && peau < 0.5) {
 		vec3 nm = normalize(normale_monde);

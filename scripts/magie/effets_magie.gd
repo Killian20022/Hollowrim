@@ -48,6 +48,7 @@ static func jet(ecole: String, origine: Node3D, direction: Vector3, portee: floa
 	if muet:
 		return
 	_g().jet(ecole, origine, direction, portee, largeur, actif)
+	EffetsSol.sort_jet(ecole, origine, direction, portee, largeur, actif)   # monde réactif : traînée de fonte, brûlure
 
 ## Visuel d'un projectile (formes : "boule", "eclat", "lance", "trait", "orbe"). La logique l'ajoute à la scène, le
 ## déplace et le libère (queue_free) à l'impact ; la traînée et la lumière sont gérées ici (elles s'éteignent seules).
@@ -66,6 +67,7 @@ static func impact(ecole: String, position: Vector3, normale: Vector3, force: fl
 	if muet:
 		return
 	_g().impact(ecole, position, normale, force)
+	EffetsSol.sort_impact(ecole, position, normale, force)   # neige fondue, bloc de glace, brûlure, ombre
 
 ## Zone : explosion incendiaire (sol en feu), nova gelée (pics de glace), tempête statique (éclairs du ciel),
 ## explosion obscure (épines), cercle de soin, cercle de protection. Dure `duree` s.
@@ -75,6 +77,7 @@ static func zone(ecole: String, position: Vector3, rayon: float, duree: float) -
 	if muet:
 		return
 	_g().zone(ecole, position, rayon, duree)
+	EffetsSol.sort_zone(ecole, position, rayon, duree)
 
 ## Chaîne d'éclairs entre des points (0,45 s, redessinée toutes les 0,05 s). `ecole` "tenebres" = arcs violets.
 static func chaine(ecole: String, points: Array[Vector3]) -> void:
@@ -83,6 +86,7 @@ static func chaine(ecole: String, points: Array[Vector3]) -> void:
 	if muet:
 		return
 	_g().chaine(ecole, points)
+	EffetsSol.sort_points(ecole, points)
 
 ## Décharge d'un sort à charge, d'un coup, de `depart` (paume) à `fin` : forme "orage" = éclairs de Force ramifiés qui
 ## frappent `fin` et ses abords (éclair du ciel au sol, arcs rampants, flash). `k` ~1 (0,5 à 1,4) : charge atteinte ;
@@ -93,6 +97,7 @@ static func decharge(ecole: String, forme: String, depart: Vector3, fin: Vector3
 	if muet:
 		return
 	_g().decharge(ecole, forme, depart, fin, k, normale)
+	EffetsSol.sort_impact(ecole, fin, normale, k)
 
 ## Statut visible sur une cible (statuts : "brulure", "gel", "choc", "corruption") pendant `duree` s (rappeler
 ## prolonge ; duree <= 0 retire). Couche additive sur le modèle (gel bleuté, choc, corruption) + particules.
