@@ -1323,9 +1323,9 @@ func _maj_auras() -> void:
 			var rb := AURA_BOULE * (0.85 + 0.25 * minf(i, 1.0)) * (BOULE_TENUE if tenue else 1.0)
 			var chg: float = float(charges_aura.get(id, 0.0))
 			a.ch = lerpf(float(a.get("ch", 0.0)), chg, 0.12)
-			bm.set_instance_shader_parameter("rayon", rb * k * (1.0 + 0.1 * float(a.ch)))
+			bm.set_instance_shader_parameter("rayon", rb * k * (1.0 + 0.3 * float(a.ch)))
 			bm.set_instance_shader_parameter("charge", float(a.ch))
-			bm.position = Vector3.UP * (rb * FLAMME_ASSISE * (1.0 + 0.1 * float(a.ch)) + FLAMME_HAUT)
+			bm.position = Vector3.UP * (rb * FLAMME_ASSISE * (1.0 + 0.3 * float(a.ch)) + FLAMME_HAUT)
 			# sous un jet (i réduit), la flamme se résorbe en foyer ; au repos elle brûle franchement
 			bm.set_instance_shader_parameter("force", clampf(0.78 + 0.35 * i, 0.0, 1.3))
 		if a.get("lueur") != null and is_instance_valid(a.lueur):
@@ -1477,13 +1477,13 @@ func _jet_courbe(o: Vector3, j: Dictionary, l: float, t: float) -> Vector3:
 
 ## Arc d'éclair le long de la courbe du jet : 9 points de passage tirés au hasard autour de la courbe, puis zigzag fin
 ## entre eux (déplacement du point milieu) ; nerveux mais orienté (pas une pelote).
-func _arc_courbe(o: Vector3, j: Dictionary, l: float, ampl: float, decal: Vector3) -> PackedVector3Array:
+func _arc_courbe(o: Vector3, j: Dictionary, l: float, ampl: float, decal: Vector3, bulbe := 0.0) -> PackedVector3Array:
 	var pts := PackedVector3Array()
 	var n := 9
 	var prec := o
 	for i in range(1, n + 1):
 		var t := float(i) / n
-		var q := _jet_courbe(o, j, l, t) + decal * t * t
+		var q := _jet_courbe(o, j, l, t) + decal * t * t + decal * bulbe * sin(PI * t)
 		if i < n:
 			q += Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * ampl * (0.12 + 0.28 * t)
 		# zigzag serré à haute fréquence (cf. electricite_fps_1100.jpg) plutôt que de grandes ondulations à angle droit
@@ -1605,7 +1605,7 @@ func _arcs_force(j: Dictionary, o: Vector3, l: float, dir: Vector3, traits: Arra
 		# rétro : pas de shader de faisceau, l'éventail est fait d'arcs CPU (3-4), avec leurs branches
 		if k >= 4:
 			continue
-		var p := _arc_courbe(o, j, l, l * 0.04, fin_pt - _jet_courbe(o, j, l, 1.0))
+		var p := _arc_courbe(o, j, l, l * 0.04, fin_pt - _jet_courbe(o, j, l, 1.0), 0.0 if k == 0 else 0.9)
 		traits.append([p, rng.randf_range(0.5, 1.0), rng.randf_range(0.6, 1.0)])
 		if p.size() < 6:
 			continue

@@ -43,8 +43,8 @@ const POSES_DROITE := {
 	# vers l'œil, doigts écartés un peu fléchis, pointant vers le centre de l'écran ; la main reste entièrement visible
 	"repos": {"pos": Vector3(0.20, -0.235, -0.40), "paume": Vector3(-0.2, 0.92, 0.32), "doigts": Vector3(-0.32, 0.3, -0.9), "fermeture": 0.24},
 	# charge du sort tenu (flamme runique) : la main se rapproche et se resserre un peu, TOUJOURS paume vers le haut
-	"charge": {"pos": Vector3(0.19, -0.22, -0.37), "paume": Vector3(-0.2, 0.9, 0.34), "doigts": Vector3(-0.3, 0.42, -0.86), "fermeture": 0.4},
-	"poing": {"pos": Vector3(0.19, -0.22, -0.37), "paume": Vector3(-0.2, 0.9, 0.34), "doigts": Vector3(-0.3, 0.42, -0.86), "fermeture": 0.46},
+	"charge": {"pos": Vector3(0.195, -0.23, -0.39), "paume": Vector3(-0.2, 0.92, 0.32), "doigts": Vector3(-0.32, 0.3, -0.9), "fermeture": 0.2},
+	"poing": {"pos": Vector3(0.195, -0.23, -0.39), "paume": Vector3(-0.2, 0.92, 0.32), "doigts": Vector3(-0.32, 0.3, -0.9), "fermeture": 0.2},
 	"repos_runes": {"pos": Vector3(0.27, -0.155, -0.31), "paume": Vector3(-0.42, 0.04, -0.9), "doigts": Vector3(-0.12, 0.66, -0.74), "fermeture": 0.56, "griffe": 1.0},
 }
 

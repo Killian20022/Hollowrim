@@ -86,66 +86,73 @@ void fragment() {
 			// FLAMME RUNIQUE (brief 2026-11-03, référence flamme_runique.png) : colonne VERTICALE qui se tord (pas une boule) ;
 			// 4 langues qui s'enroulent en spirale autour d'un axe qui ondule, une petite spirale vive à la base, fils fins
 			// qui s'échappent en volutes, braises. Tout en paliers francs au pixel du monde.
-			vec2 u = q / rp;
-			// v3 (2026-11-03) : chaque volute n'est plus un ruban lisse mais un faisceau de langues et de filets qui
-			// s'effilochent : bruit déformé (domain warp) étiré dans le sens de la montée qui défile vers le haut À
-			// L'INTÉRIEUR de la forme, bords en petites flammèches, palier selon la densité (blanc-jaune au cœur dense,
-			// orange, rouge aux franges). `charge` (0..1) : flamme plus haute, plus dense, une volute de plus.
+			// v4 (2026-11-03) : le VOLUME de la v2 (base ronde pleine, 3 volutes en S, filets orange, cœur) + le détail de la v3
+			// (filets et flammèches qui défilent vers le haut DANS les volutes et sur leurs bords). Le détail ne retire jamais de
+			// matière : il module la densité (palier) et déchire un peu le bord. `charge` (0..1) : x1,3 en hauteur et x1,15 en
+			// largeur au plus (le carré grandit de 1,3 côté GDScript ; la largeur est ramenée à 1,15 ici).
 			float ch = clamp(charge, 0.0, 1.0);
-			float hauteur = 1.3 * (0.84 + 0.22 * clamp(force, 0.0, 1.3)) * (1.0 + 0.18 * ch);
-			float h = clamp((u.y + 0.62) / hauteur, 0.0, 1.0);   // 0 base, 1 pointe
+			vec2 u = q / rp;
+			u.x *= (1.0 + 0.3 * ch) / (1.0 + 0.15 * ch);
+			float fo = min(force, 1.0 + 0.0 * ch);
+			float h = clamp((u.y + 0.62) / (1.3 * (0.84 + 0.22 * clamp(fo, 0.0, 1.3))), 0.0, 1.0);
 			float sv = 1.0 + 0.05 * sin(tt * 7.0) * sin(tt * 2.9 + graine);
 			float sway = ((mbruit(vec2(h * 1.6 - tt * 0.8, graine * 3.0)) - 0.5) * 0.6 + 0.12 * sin(tt * 1.7 + h * 3.0 + graine)) * h * (0.3 + 0.7 * h);
-			float renv = (0.26 + 0.26 * sin(3.14159 * pow(h, 0.7))) * (1.0 - 0.45 * h) * sv * (1.0 - 0.05 * ch);
+			float renv = (0.26 + 0.26 * sin(3.14159 * pow(h, 0.7))) * (1.0 - 0.45 * h) * sv;
 			float pied = smoothstep(-0.66, -0.56, u.y);
 			float best = 0.0;
+			float lum = 0.0;
 			float filet = 0.0;
-			float wv = mbruit(vec2(u.x * 3.0 + graine, h * 2.4 - tt * 1.2)) - 0.5;   // déformation commune
-			for (int k = 0; k < 4; k++) {
+			float wv = mbruit(vec2(u.x * 3.0 + graine, h * 2.4 - tt * 1.2)) - 0.5;
+			for (int k = 0; k < 3; k++) {
 				float fk = float(k);
-				float actif = k < 3 ? 1.0 : smoothstep(0.05, 0.5, ch);
 				float lk = 0.72 + 0.28 * mh2(vec2(fk * 7.3, floor(graine) + 2.0 + floor(tt * 0.3 + fk * 2.1)));
 				float hk = min(h / lk, 1.0);
-				float ang = fk * 2.0944 + (k == 3 ? 0.9 : 0.0) + graine * 2.0 + h * 4.2 - tt * (1.7 + 0.25 * fk);
+				float ang = fk * 2.0944 + graine * 2.0 + h * 4.2 - tt * (1.7 + 0.25 * fk);
 				float zf = cos(ang);
 				float xk = sway + renv * 0.95 * sin(ang) * (1.0 - 0.45 * hk);
-				float wk = renv * (0.56 + 0.16 * zf) * pow(1.0 - hk, 0.7) * lk * actif + 0.008;
-				float dx0 = u.x - xk + (mbruit(vec2(xk * 5.0 + fk * 3.1 + graine, h * 4.0 - tt * (2.6 + fk * 0.4))) - 0.5) * 0.28 * (0.3 + h) * renv;
-				// bords : flammèches (largeur modulée par un bruit étiré verticalement qui monte)
-				float se = mbruit(vec2(dx0 * 11.0 + fk * 5.3 + graine, h * 2.6 - tt * (2.8 + 0.5 * fk) + wv * 1.5));
+				float wk = renv * (0.46 + 0.16 * zf) * pow(1.0 - hk, 0.7) * lk * (1.0 + 0.15 * ch) + 0.01;
+				float dn = (mbruit(vec2(xk * 5.0 + fk * 3.1 + graine, h * 4.0 - tt * (2.6 + fk * 0.4))) - 0.5) * 0.28 * (0.3 + h) * renv;
+				float dx0 = u.x - xk + dn;
 				float dx = abs(dx0);
-				float it = 1.0 - dx / (wk * (0.6 + 0.8 * se));
-				// intérieur : filets fins qui défilent vers le haut (deux échelles)
+				// bord : légèrement déchiré (flammèches), sans amincir le volume
+				float se = mbruit(vec2(dx0 * 11.0 + fk * 5.3 + graine, h * 2.6 - tt * (2.8 + 0.5 * fk) + wv * 1.5));
+				float it = 1.0 - dx / (wk * (0.88 + 0.3 * se));
+				// détail interne : filets qui montent (modulent la densité autour de 1)
 				float s1 = mbruit(vec2(dx0 * 24.0 + fk * 9.1, h * 5.0 - tt * (3.6 + 0.4 * fk) + wv * 2.5));
 				float s2 = mbruit(vec2(dx0 * 47.0 + fk * 2.7 + graine, h * 9.0 - tt * 5.2 + wv * 3.0));
-				float tex = 0.36 + 0.95 * s1 + 0.35 * (s2 - 0.5);
-				float v = clamp(it, 0.0, 1.0) * tex * (0.95 + 0.25 * zf) * (1.15 + 0.1 * ch);
+				float tex = 0.78 + 0.5 * s1 + 0.2 * (s2 - 0.5);
+				float arete = smoothstep(0.4, 0.95, it) * (0.5 + 0.5 * zf);
+				float v = (clamp(it, 0.0, 1.0) * (0.8 + 0.2 * zf) + arete * 0.2) * tex;
 				// petites flammèches détachées juste hors du bord
-				float fl = step(0.74, s1) * smoothstep(-0.5, 0.0, it) * (1.0 - step(0.0, it)) * (1.0 - hk) * actif;
-				v = max(v, fl * 0.62);
-				best = max(best, v);
-				// quelques filets orange fins qui longent la volute
-				float fo = wk * 1.5 + 0.02;
-				float f1 = 1.0 - smoothstep(0.0, 0.011, abs(dx - fo));
-				filet = max(filet, f1 * smoothstep(0.08, 0.3, h) * (1.0 - smoothstep(0.75, 1.0, hk)) * (0.55 + 0.3 * zf) * actif);
+				float fl = step(0.76, s1) * smoothstep(-0.4, 0.0, it) * (1.0 - step(0.0, it)) * (1.0 - hk);
+				v = max(v, fl * 0.55);
+				if (v > best) {
+					best = v;
+					lum = arete;
+				}
+				float fof = wk * 1.5 + 0.02;
+				float f1 = 1.0 - smoothstep(0.0, 0.012, abs(dx - fof));
+				filet = max(filet, f1 * smoothstep(0.08, 0.3, h) * (1.0 - smoothstep(0.75, 1.0, hk)) * (0.6 + 0.3 * zf));
 			}
-			// corps : masse ronde au pied (effilochée aussi), qui relie les volutes
+			// corps : masse orange ronde au pied qui relie les volutes (une seule flamme)
 			float cx = abs(u.x - sway * 0.5 + (mbruit(vec2(h * 5.0 - tt * 2.4, graine + 4.0)) - 0.5) * 0.16) / (renv * 1.0 + 0.02);
-			float corps = clamp(1.0 - cx, 0.0, 1.0) * pow(1.0 - h, 1.1) * 1.1 * (0.35 + 0.8 * mbruit(vec2(u.x * 15.0, h * 2.6 - tt * 3.0 + graine)));
+			float corps = clamp(1.0 - cx, 0.0, 1.0) * pow(1.0 - h, 1.3 - 0.3 * ch) * (0.8 + 0.2 * ch) * (0.8 + 0.3 * mbruit(vec2(u.x * 9.0, h * 4.0 - tt * 3.4 + graine)));
 			best = max(best, corps);
 			best *= pied;
+			lum *= pied;
 			filet *= pied;
-			// cœur : point chaud DIFFUS (chute douce, bruité), blanc seulement au centre, pris dans les volutes
+			// cœur : point chaud diffus en bas-centre, pris dans les volutes
 			vec2 bq = vec2(u.x - sway * 0.2, (u.y + 0.40) * 1.1);
 			float rb = length(bq);
-			float noy = 1.0 - smoothstep(0.0, 0.27 + 0.02 * ch, rb);
-			float base = noy * noy * (0.55 + 0.7 * mbruit(vec2(bq.x * 9.0, bq.y * 9.0 - tt * 4.0 + graine)));
-			base *= 1.0 + 0.1 * ch;
+			float noy = 1.0 - smoothstep(0.0, 0.26, rb);
+			float base = noy * (0.75 + 0.45 * mbruit(vec2(bq.x * 8.0, bq.y * 8.0 - tt * 4.0 + graine)));
 			float gr = mbruit(vec2(q.x / 1.6, (q.y - tt * rp * 2.4) / 1.3) + graine * 5.0) - 0.5;
-			i = max(best * (1.0 - 0.38 * h), max(base * 1.0, filet * 0.8)) + gr * 0.12 * (0.4 + h);
-			i *= force * (0.93 + 0.09 * sin(tt * 15.0 + graine) * sin(tt * 5.3));
+			// la masse des volutes plafonne à l'orange-jaune (le blanc reste au cœur) ; plus encore en charge
+			float vol = min(best * (0.98 - 0.4 * h) + lum * 0.1, 1.12 - 0.12 * ch);
+			i = max(vol, max(base * 1.15, filet * 0.8)) + gr * 0.14 * (0.4 + h);
+			i *= fo * (0.93 + 0.09 * sin(tt * 15.0 + graine) * sin(tt * 5.3));
 			i *= 1.0 - smoothstep(0.72, 0.94, carre);
-			// halo : lueur douce entre la paume et le pied de la flamme (demi-transparent, 2 paliers)
+			// halo : lueur douce entre la paume et le pied de la flamme (demi-transparent, lisse)
 			vec2 hq = vec2(u.x / 0.45, (u.y + 0.78) / 0.17);
 			float hd = dot(hq, hq);
 			if (i > 0.32) {
@@ -153,19 +160,19 @@ void fragment() {
 			} else if (hd < 1.0) {
 				c = c3.rgb;
 				float hf = 1.0 - hd;
-				al = hf * hf * 0.5 * clamp(force, 0.0, 1.0);
+				al = hf * hf * 0.5 * clamp(fo, 0.0, 1.0);
 			} else {
 				vec2 qb = vec2(q.x + sin(q.y * 0.35 + tt * 4.0) * 1.2, q.y - tt * rp * 0.75);
 				vec2 cb = floor(qb);
 				float hb = mh2(cb + floor(graine * 13.0));
 				float zone_b = smoothstep(-0.2, 0.2, u.y) * (1.0 - smoothstep(0.65, 0.9, u.y)) * (1.0 - smoothstep(0.3, 0.7, abs(u.x)));
-				if (hb > 1.0 - 0.008 * zone_b * force) {
+				if (hb > 1.0 - 0.008 * zone_b * fo) {
 					c = mh2(cb + 3.1) > 0.5 ? c1.rgb : c2.rgb;
 				} else {
 					discard;
 				}
 			}
-			c = mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))), 0.14);   // couleurs un peu moins saturées
+			c = mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))), 0.14);
 			if (carre > 0.97) {
 				discard;
 			}

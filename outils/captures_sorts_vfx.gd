@@ -129,8 +129,8 @@ func _cadrer(main := "gauche") -> void:
 	var p: Node3D = m.paume[main]
 	if main == "droite":
 		# vrai point de vue du joueur, zoomé sur la paume (comme references/flamme_runique.png) : les mains ne bougent pas
-		var cible := p.global_position + Vector3(0.0, 0.035, 0.0)
-		cam_gp.fov = 40.0
+		var cible := p.global_position + Vector3(0.0, float(_arg("cible_y", "0.035")), 0.0)
+		cam_gp.fov = float(_arg("fov", "40"))
 		cam_gp.global_transform = Transform3D(Basis.looking_at(cible - j.camera.global_position, Vector3.UP), j.camera.global_position)
 		return
 	var b: Basis = j.camera.global_transform.basis
