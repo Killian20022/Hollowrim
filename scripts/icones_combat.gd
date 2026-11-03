@@ -1002,6 +1002,8 @@ const MOTIFS := {
 	"jambieres_verre": ["verre", FORME_JAMBIERES],
 	"jambieres_obsidienne": ["obsidienne", FORME_JAMBIERES],
 	"jambieres_or": ["or", FORME_JAMBIERES],
+	"jambieres_rubis": ["rubis", FORME_JAMBIERES],
+	"jambieres_saphir": ["saphir", FORME_JAMBIERES],
 	"amulette_givre": ["glace", FORME_AMULETTE],
 	"amulette_ours": ["soin", FORME_AMULETTE],
 	"amulette_arcaniste": ["tenebres", FORME_AMULETTE],

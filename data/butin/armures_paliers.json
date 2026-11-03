@@ -54,13 +54,15 @@
 			{"id": "casque_saphir", "poids": 10},
 			{"id": "cuirasse_saphir", "poids": 7},
 			{"id": "gantelets_saphir", "poids": 10},
-			{"id": "bottes_saphir", "poids": 10}
+			{"id": "bottes_saphir", "poids": 10},
+			{"id": "jambieres_saphir", "poids": 10}
 		]},
 		"armures_ens_rubis": {"tirages": 1, "entrees": [
 			{"id": "casque_rubis", "poids": 10},
 			{"id": "cuirasse_rubis", "poids": 7},
 			{"id": "gantelets_rubis", "poids": 10},
-			{"id": "bottes_rubis", "poids": 10}
+			{"id": "bottes_rubis", "poids": 10},
+			{"id": "jambieres_rubis", "poids": 10}
 		]},
 		"armures_ens_obsidienne": {"tirages": 1, "entrees": [
 			{"id": "casque_obsidienne", "poids": 10},

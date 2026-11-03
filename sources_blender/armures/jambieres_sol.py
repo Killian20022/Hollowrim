@@ -11,9 +11,13 @@ import armures_lib as L
 
 CHAUSSES = os.path.join(L.ROOT, "assets", "modeles", "armures", "chausses")
 FAMILLES = {"cuir": "cuir", "fourrure": "fourrure", "os": "os", "fer": "fer", "acier": "acier_nordique", "gardiens": "gardiens",
-            "braise": "braise", "verre": "verre", "obsidienne": "obsidienne", "or": "or"}
+            "braise": "braise", "verre": "verre", "obsidienne": "obsidienne", "or": "or", "rubis": "rubis", "saphir": "saphir"}
+# familles données après « -- » : seulement celles-ci (ex. ... -- rubis saphir) ; sinon toutes
+SEL = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 
 for fam, ident in FAMILLES.items():
+    if SEL and fam not in SEL:
+        continue
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=os.path.join(CHAUSSES, fam + ".glb"))
     mi = next(o for o in bpy.data.objects if o.type == 'MESH')

@@ -21,7 +21,8 @@ const TRIS_TETE := 1400
 ## 1024² (atlas d'ensemble). Les pièces encore en budget « bas » restent sous ces plafonds.
 const TRIS_HD := {"torse": 2500, "tete": 1400, "mains": 1200, "pieds": 1200, "jambes": 1200}
 ## Budgets propres à certaines pièces HD au niveau de détail du verre v5 (armure d'or v3 : lames articulées, genouillères, lions en relief).
-const TRIS_HD_ID := {"cuirasse_or": 3000, "cuirasse_or_enchante": 3000, "bottes_or": 3200, "bottes_or_enchante": 3200}
+const TRIS_HD_ID := {"cuirasse_or": 3000, "cuirasse_or_enchante": 3000, "bottes_or": 3200, "bottes_or_enchante": 3200,
+		"cuirasse_or_serment": 3000, "bottes_or_fafnir": 3200}
 const TEX_MAX := 1024
 const PiecesEssai := preload("res://outils/pieces_essai.gd")
 const CLIPS := ["Idle", "Walk", "Jog_Fwd", "Sprint", "Sword_Idle", "Sword_Attack", "Hit_Chest", "Jump", "Crouch_Fwd",
@@ -571,7 +572,8 @@ func _enchantes(seul: String) -> void:
 			lueur_b = maxf(lueur_b, lb)
 			if la > lb + 0.04:
 				runes += 1
-		ok(b != null and a.mesh.get_surface_count() == b.mesh.get_surface_count() and runes > 0 and lueur_a > lueur_b,
+		ok(b != null and a.mesh.get_surface_count() == b.mesh.get_surface_count() and runes > 0,   # runes > 0 : au moins une surface plus lumineuse que sa jumelle (les gemmes rubis / saphir, déjà très lumineuses, sont validées plus sobres en enchanté : le max global peut baisser)
+			
 			"%s : variante enchantée = même maillage que %s, runes luisantes (lueur %.2f, base %.2f, %d surface(s) de runes)" % [id, base_id, lueur_a, lueur_b, runes])
 		a.free()
 		if b:

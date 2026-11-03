@@ -473,17 +473,6 @@ static func _habiller_maillage(mi: MeshInstance3D, chemin: String, var_mat := ""
 		if mats.has(s):
 			mi.set_surface_override_material(s, mats[s])
 
-## Shader « matière » des armes (EpeesLongues.shader_matiere) lu AVEC MIPMAPS (filtre nearest_mipmap, comme les humains) : les
-## textures HD des armures (512² à 1024², charte du 2026-11-02) ne scintillent plus en mouvement dans le rendu 480x270.
-static var _shader_armure: Shader
-static func shader_armure() -> Shader:
-	if _shader_armure == null:
-		_shader_armure = Shader.new()
-		_shader_armure.code = EpeesLongues.shader_matiere(false).code \
-			.replace("uniform sampler2D tex_base : source_color, filter_nearest, repeat_enable;", "uniform sampler2D tex_base : source_color, filter_nearest_mipmap, repeat_enable;") \
-			.replace("uniform sampler2D tex_neige : source_color, filter_nearest, repeat_enable;", "uniform sampler2D tex_neige : source_color, filter_nearest_mipmap, repeat_enable;")
-	return _shader_armure
-
 ## Shader des PIERRES (rubis / saphir) : faux translucide SANS alpha (pas de tri, le corps ne transparaît pas). Le masque « pierre » est
 ## porté par l'alpha de la texture (>= 0,6 : incrustation de grenat / de saphir nuit ou éclat ; < 0,5 : structure de métal, qui garde la
 ## matière de l'acier). Sur les pierres : désaturation, reflet d'environnement (ciel clair en haut, sombre en bas), cœur qui s'éclaire

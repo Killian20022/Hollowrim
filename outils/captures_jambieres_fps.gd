@@ -16,6 +16,12 @@ const COMBOS := {
 	"acier_seules": ["", "jambieres_acier_nordique"],
 	"torse_sans_jambieres": ["cuirasse_os", ""],
 }
+## --ensembles : héros de face (puis dos, profil) en ensemble complet de métal précieux + jambières assorties (planche de fusion armures_hd).
+const ENSEMBLES := {
+	"or": ["casque_or", "cuirasse_or", "gantelets_or", "bottes_or", "jambieres_or"],
+	"rubis": ["casque_rubis", "cuirasse_rubis", "gantelets_rubis", "bottes_rubis", "jambieres_rubis"],
+	"saphir": ["casque_saphir", "cuirasse_saphir", "gantelets_saphir", "bottes_saphir", "jambieres_saphir"],
+}
 var s: Node3D
 var j: CharacterBody3D
 var mains: Node3D
@@ -194,8 +200,9 @@ func _heros() -> void:
 	s.add_child(cam)
 	cam.current = true
 	await _attendre(60)
-	for k in COMBOS:
-		_equiper(COMBOS[k])
+	var combos: Dictionary = ENSEMBLES if _arg("ensembles") != "" else COMBOS
+	for k in combos:
+		_equiper(combos[k])
 		var mj := j.corps.armure.maillage("jambes") as MeshInstance3D
 		print(k, " zones ", j.corps.armure.zones(), " jambes=", j.corps.armure.porte("jambes"), " mat=", mj.get_surface_override_material(0).resource_name if mj else "-", " tris=", mj.mesh.surface_get_array_index_len(0) / 3 if mj else 0)
 		await _attendre(40)
@@ -207,7 +214,7 @@ func _heros() -> void:
 			await _attendre(10)
 			await _image("heros_%s_%s" % [k, v[0]])
 	# paires posées au sol
-	var ids := ["jambieres_cuir", "jambieres_fer", "jambieres_os", "jambieres_verre", "jambieres_obsidienne", "jambieres_or"]
+	var ids := ["jambieres_cuir", "jambieres_fer", "jambieres_os", "jambieres_verre", "jambieres_obsidienne", "jambieres_or", "jambieres_rubis", "jambieres_saphir"]
 	for i in ids.size():
 		var n := ArmureVisible.instancier_sol(ids[i])
 		if n == null:

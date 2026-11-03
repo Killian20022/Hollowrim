@@ -1,7 +1,7 @@
 extends SceneTree
 ## Test des JAMBIÈRES (emplacement « jambes » d'EquipementCorps, scripts/rpg/armure_visible.gd _poser_chausses) :
 ##   godot --headless --fixed-fps 60 --path . --script res://outils/test_jambieres.gd -- --nouvelle
-##   - données : 10 paires, emplacement « jambes », glb porté (chausses/) et glb au sol (sol/), préset de matière valide, butin et boutique ;
+##   - données : 12 paires, emplacement « jambes », glb porté (chausses/) et glb au sol (sol/), préset de matière valide, butin et boutique ;
 ##   - équipement : une paire va à « jambes » et à nul autre emplacement, se retire, se retrouve à l'export / l'import ;
 ##     SAUVEGARDE ANCIENNE (sans clé « jambes ») : valide, le torse reste porté ;
 ##   - affichage : torse sans jambières = chausses par défaut du torse ; jambières équipées = les remplacent (avec ou sans torse), la
@@ -26,7 +26,7 @@ func _heros(eq: EquipementCorps) -> Array:
 
 func _lancer() -> void:
 	var ids: Array = Inventaire.ids_connus().filter(func(id: String) -> bool: return Inventaire.emplacement_de(id) == "jambes")
-	ok(ids.size() == 10, "10 paires de jambières au registre (%d)" % ids.size())
+	ok(ids.size() == 12, "12 paires de jambières au registre (%d)" % ids.size())
 	var fautes := []
 	for id: String in ids:
 		var f := Inventaire.objet(id)
@@ -41,7 +41,7 @@ func _lancer() -> void:
 	var tables := 0
 	for f in ["res://data/butin/armures_paliers.json", "res://data/butin/sous_tables.json"]:
 		tables += FileAccess.get_file_as_string(f).count("jambieres_")
-	ok(tables >= 12, "jambières dans les tables de butin (%d entrées)" % tables)
+	ok(tables >= 14, "jambières dans les tables de butin (%d entrées)" % tables)
 	var stock := false
 	for e: Dictionary in Marchand.fiche("forgeron").get("stock", []):
 		stock = stock or String(e.get("id", "")).begins_with("jambieres_")
