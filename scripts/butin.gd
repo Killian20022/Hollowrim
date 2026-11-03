@@ -70,6 +70,41 @@ func _ready() -> void:
 		_verser()                                   # rien à montrer : contenu versé tel quel (repli)
 		queue_free()
 
+## Vrai tant que `b` (bourse laissée sur un cadavre) a encore une invite de fouille : le cadavre ne doit pas disparaître,
+## sinon le joueur peut fouiller un corps qui n'a plus de modèle.
+static func corps_a_fouiller(b: Node3D) -> bool:
+	return b != null and is_instance_valid(b) and not b.is_queued_for_deletion() and b.a_fouille()
+
+## Corps allongé simple (torse, tête, bras, jambes en blocs) posé sur une dépouille restaurée d'une sauvegarde : le cadavre
+## d'origine (ragdoll) n'existe plus après un rechargement, mais l'invite de fouille, elle, revient.
+static func modele_depouille(graine: int) -> Node3D:
+	var racine := Node3D.new()
+	racine.name = "ModeleDepouille"
+	var img := Image.create(4, 1, false, Image.FORMAT_RGBA8)
+	for i in 4:
+		img.set_pixel(i, 0, [Color("#4a4238"), Color("#3a342c"), Color("#5a5044"), Color("#6a6050")][i])
+	var m := Palette.materiau(ImageTexture.create_from_image(img))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = graine
+	racine.rotation.y = rng.randf() * TAU
+	var blocs := [   # [taille, position, lacet]
+		[Vector3(0.42, 0.2, 0.62), Vector3(0, 0.12, 0), 0.0],            # torse
+		[Vector3(0.26, 0.22, 0.26), Vector3(0.03, 0.14, -0.46), 0.2],    # tête
+		[Vector3(0.14, 0.12, 0.5), Vector3(-0.3, 0.08, -0.05), 0.4],     # bras
+		[Vector3(0.14, 0.12, 0.46), Vector3(0.32, 0.08, 0.1), -0.5],
+		[Vector3(0.16, 0.14, 0.62), Vector3(-0.12, 0.09, 0.62), 0.1],    # jambes
+		[Vector3(0.16, 0.14, 0.6), Vector3(0.14, 0.09, 0.66), -0.15]]
+	for b: Array in blocs:
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = b[0]
+		mi.mesh = bm
+		mi.material_override = m
+		mi.position = b[1]
+		mi.rotation.y = b[2]
+		racine.add_child(mi)
+	return racine
+
 ## Position du corps (posée par l'appelant après add_child) notée pour la sauvegarde.
 func _noter_corps() -> void:
 	if is_inside_tree() and cle_sauvegarde != "":
@@ -94,6 +129,7 @@ static func restaurer(parent: Node, joueur_: CharacterBody3D, hud_: Control) -> 
 		b.nom_corps = String(e.get("nom", "Dépouille"))
 		b.contenu = (ButinTables.restes[cle] as Dictionary).duplicate()
 		b.cle_sauvegarde = cle
+		b.add_child(modele_depouille(hash(cle)))      # le cadavre d'origine n'est pas sauvegardé : corps simple à sa place
 		parent.add_child(b)
 		b.global_position = Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
 

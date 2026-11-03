@@ -460,7 +460,7 @@ func _physics_process(dt: float) -> void:
 	_t += dt
 	if etat == MORT:
 		# le cadavre est un ragdoll : plus de déplacement ni d'orientation
-		if _t > 30.0:
+		if _t > 30.0 and not BUTIN.corps_a_fouiller(_butin):      # un cadavre encore fouillable ne disparaît pas (sinon : invite sans modèle)
 			queue_free()
 		return
 	_recharge -= dt
@@ -1113,8 +1113,11 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, 
 func table_butin() -> String:
 	return ButinTables.table_pour("bandit" if _humain else "draugr")
 
+var _butin: Node3D      # bourse laissée sur le corps (le cadavre reste tant qu'il y a des objets à fouiller)
+
 func _laisser_butin() -> void:
 	var b := Node3D.new()
+	_butin = b
 	b.set_script(BUTIN)
 	b.joueur = joueur
 	b.hud = hud
