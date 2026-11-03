@@ -942,9 +942,9 @@ const FPS_STYLES := {
 	"or": {"gant": ["maille", ["#0a1030", "#14204a", "#1f3070", "#2c4294", "#3a56b8"], "tissu", 0.2],
 		"plaque": ["plaque", ["#5a3f10", "#a4741c", "#d9a52e", "#f3cf5c", "#fff0a8"], "or", 0.9]},
 	"rubis": {"gant": ["cuir", ["#150608", "#2a0c10", "#45141a", "#65202a", "#85303a"], "cuir", 0.1],
-		"plaque": ["plaque", ["#2a060a", "#6a1018", "#b02430", "#e8505a", "#ffb0a8"], "gemme", 1.0]},
+		"plaque": ["plaque", ["#2a060a", "#6a1018", "#b02430", "#e8505a", "#ffb0a8"], "plaque_rubis", 1.0]},
 	"saphir": {"gant": ["cuir", ["#050c1c", "#0a1a38", "#122c5a", "#1c4488", "#2c60b4"], "cuir", 0.1],
-		"plaque": ["plaque", ["#061430", "#0e3a7a", "#2a6ad0", "#7ab0f0", "#d8ecff"], "gemme", 1.0]},
+		"plaque": ["plaque", ["#061430", "#0e3a7a", "#2a6ad0", "#7ab0f0", "#d8ecff"], "plaque_saphir", 1.0]},
 }
 static var _fps_mats := {}      # "famille|rôle" -> ShaderMaterial
 static var _fps_double := {}    # Shader -> même shader en double face
