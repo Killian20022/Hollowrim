@@ -14,7 +14,7 @@ VEINE = hexa("#2a0402", "#4e0904", "#7a1406", "#a8240a", "#d44412", "#f2782a", "
 FER_NOIR = hexa("#060607", "#0b0b0d", "#111214", "#18191c", "#202226", "#2a2c31", "#36393f", "#454950", "#5a5f66", "#767b82")
 CUIR_NOIR = hexa("#070504", "#0d0907", "#140e0a", "#1c140e", "#251a12", "#2f2217", "#3a2a1d", "#463324")
 OXYDE = hexa("#1e1008", "#2e180c", "#442412", "#5a311a")
-OR_PATINE = hexa("#1a1208", "#2e200e", "#473217", "#634721", "#7f5e2d", "#9c783c", "#b8934f", "#cfad68", "#e0c587", "#ecd9a8", "#f5ebcc")
+OR_PATINE = hexa("#150d03", "#2a1b07", "#47300e", "#6a4a14", "#8f6b1c", "#a87c20", "#c9972a", "#dfb340", "#eecb66", "#f8e08f", "#fff3c4")
 BLEU_NUIT = hexa("#03040b", "#060814", "#0a0e20", "#0f152d", "#151d3c", "#1c264b", "#25315b", "#2f3d6c")
 ROUGE_SOMBRE = hexa("#0d0303", "#1a0505", "#280808", "#380c0b", "#48110f", "#591814", "#6b201a", "#7c2a22")
 BEIGE = hexa("#5a4a38", "#76624a", "#94805f", "#b09c79")
@@ -303,7 +303,7 @@ def or_patine(D, g=61, lion=False):
         zone, s, tt, h = _bandes_or(D)
         rub, lise, fil = entrelacs(s, tt, h)
         z = zone & (bord > 0.006)
-        t = np.where(z & rub, t + 0.08, np.where(z & (lise | fil), t - 0.55, np.where(z, t - 0.3, t)))
+        t = np.where(z & rub, t + 0.06, np.where(z & (lise | fil), t - 0.62, np.where(z, t - 0.36, t)))
         b = np.where(z & (lise | fil), 0.15, b)
     else:
         meche = bruit(P, np.array([260.0, 260.0, 260.0]), g + 9) > 0.6
@@ -345,10 +345,12 @@ def tissu_bleu(D, g=81, enchante=False):
     est_tab = mat == "tissu.tabard"
     est_cape = mat == "tissu.cape"
     drap = est_tab | est_cape
-    piq = ~drap & (np.abs(np.mod(y / 0.022, 1.0) - 0.5) < 0.06)
+    est_dbl = mat == "tissu.doublure"
+    piq = ~drap & ~est_dbl & (np.abs(np.mod(y / 0.022, 1.0) - 0.5) < 0.06)
     t = np.where(piq, t - 0.14, t)
     t = np.where(drap, t + 0.04 * (np.abs(np.mod(x / 0.012, 1.0) - 0.5) < 0.2), t)       # plis fins
     c = rampe(BLEU_NUIT, t)
+    c = np.where(est_dbl[:, None], c * 0.6, c)
     b = np.full(len(P), 0.12)
     fil = rampe(OR_PATINE, 0.74 + 0.12 * bruit(P, 900.0, g + 5))
     # bordure dorée large le long des bords libres + frise d'entrelacs dans la bordure + frange d'or en bas

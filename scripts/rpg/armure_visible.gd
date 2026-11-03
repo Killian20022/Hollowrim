@@ -48,8 +48,8 @@ const MATIERES := {
 	# magma / fente / runes / broderies, rayonnent : la pierre noire et le bleu nuit restent éteints).
 	"obsidienne": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.1, "bord": 0.6, "poli": 0.6, "reflet": Color(0.9, 0.86, 1.0), "lueur": 0.75},
 	"obsidienne.enchante": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.1, "bord": 0.6, "poli": 0.6, "reflet": Color(0.9, 0.86, 1.0), "lueur": 1.1},
-	"or.patine": {"teinte": Color(0.70, 0.66, 0.62), "metal": 0.5, "poli": 0.5, "reflet": Color(1.0, 0.95, 0.82)},
-	"or.lion": {"teinte": Color(0.70, 0.66, 0.62), "metal": 0.5, "poli": 0.5, "reflet": Color(1.0, 0.95, 0.82)},
+	"or.patine": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.0, "poli": 0.0, "reflet": Color(1.0, 0.95, 0.82)},
+	"or.lion": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.0, "poli": 0.0, "reflet": Color(1.0, 0.95, 0.82)},
 	"tissu": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.12, "poli": 0.08},
 	"tissu.enchante": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.12, "poli": 0.08, "lueur": 0.8},
 	"gemme": {"teinte": Color(1.05, 1.0, 1.0), "metal": 0.05, "bord": 0.45, "poli": 1.0, "lueur": 0.25, "reflet": Color(1.0, 0.93, 0.94)},
@@ -59,6 +59,33 @@ const MATIERES := {
 ## de l'écran 480 x 270 : sans mipmaps, l'armure scintille en mouvement).
 const TEX_HD := 256
 static var _shader_hd: Shader
+
+static var _shader_or: Shader
+
+## Shader de l'or des armures (sans toucher au shader « matière » des épées) : matière HD + faux reflet d'environnement (ciel clair en
+## haut -> brun-or sombre en bas, selon la normale réfléchie), éclat spéculaire serré jaune pâle, liseré de fresnel doré.
+static func shader_or() -> Shader:
+	if _shader_or == null:
+		_shader_or = Shader.new()
+		var bloc := """	{
+		vec3 or_n = normalize(NORMAL);
+		vec3 or_v = normalize(VIEW);
+		vec3 or_r = normalize((INV_VIEW_MATRIX * vec4(reflect(-or_v, or_n), 0.0)).xyz);
+		float or_b = texture(tex_base, uv).a;
+		float or_h = smoothstep(-0.35, 0.75, or_r.y);
+		vec3 or_env = mix(vec3(0.10, 0.06, 0.02), vec3(1.05, 0.95, 0.70), or_h);
+		ALBEDO = mix(ALBEDO, ALBEDO * or_env * 1.25, 0.85 * or_b);
+		float or_s = pow(max(dot(or_r, normalize(vec3(-0.45, 0.72, 0.52))), 0.0), 36.0);
+		or_s = step(0.45, or_s) + 0.4 * step(0.12, or_s) * (1.0 - step(0.45, or_s));
+		EMISSION += vec3(1.0, 0.97, 0.80) * or_s * 0.9 * or_b;
+		float or_f = 1.0 - clamp(dot(or_n, or_v), 0.0, 1.0);
+		or_f = floor(or_f * or_f * or_f * 4.0) / 4.0;
+		EMISSION += vec3(1.0, 0.80, 0.30) * or_f * 0.22 * or_b;
+	}
+	ROUGHNESS = 1.0;
+}"""
+		_shader_or.code = shader_hd().code.replace("\tROUGHNESS = 1.0;\n}", bloc)
+	return _shader_or
 
 static func shader_hd() -> Shader:
 	if _shader_hd == null:
@@ -280,6 +307,8 @@ static func materiau(nom: String, tex: Texture2D) -> ShaderMaterial:
 		tex = Palette.tex("cuir", Palette.CUIR, 4, 0.5)
 	var m := Palette.materiau(tex, Vector2.ONE, p.get("teinte", Color.WHITE))
 	m.shader = shader_hd() if tex.get_width() > TEX_HD else EpeesLongues.shader_matiere(false)
+	if nom.begins_with("or") and tex.get_width() > TEX_HD:
+		m.shader = shader_or()
 	m.set_shader_parameter("tex_neige", tex)    # couleurs de sommet du glb d'alpha nul : pas de neige
 	m.set_shader_parameter("mt_boite", 0.0)
 	for k in ["metal", "poli", "bord", "profondeur", "lueur"]:

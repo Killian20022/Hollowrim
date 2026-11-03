@@ -270,7 +270,7 @@ def couronne(P, t, r, centre, Pts, R_NAS, R_CORNE, mat="or.patine"):
     for k in range(nf):
         i0 = int(round((k - 0.5) * n / nf)) % n; i1 = int(round(k * n / nf)) % n; i2 = int(round((k + 0.5) * n / nf)) % n
         a, b = hautb[i0], hautb[i2]
-        hh = (0.05 if k == 0 else (0.038 if k % 2 == 0 else 0.026))
+        hh = (0.088 if k == 0 else (0.066 if k % 2 == 0 else 0.046))
         m = hautb[i1] + Vector((0, 0, hh)) + (hautb[i1] - centre).normalized() * 0.004
         a2, b2 = dedans_h[i0], dedans_h[i2]
         m2 = m - (hautb[i1] - centre).normalized() * 0.006
@@ -398,7 +398,13 @@ def drap(P, B, mat, devant, hw0, hw1, z0, z1, nc, nr, ecart0, ecart1, pointe=0.0
 
 def peau_cape(ob, r):
     """Cape statique : poids rigides sur la colonne (spine_03 en haut -> spine_01 en bas), aucun poids sur les jambes."""
-    k = [i for i, m in enumerate(ob.data.materials) if m and m.name.startswith("tissu.cape")]
+    import bmesh
+    kd = [i for i, m in enumerate(ob.data.materials) if m and m.name == "tissu.doublure"]
+    if kd:
+        bm = bmesh.new(); bm.from_mesh(ob.data); bm.faces.ensure_lookup_table()
+        bmesh.ops.reverse_faces(bm, faces=[f for f in bm.faces if f.material_index in kd])
+        bm.to_mesh(ob.data); bm.free()
+    k = [i for i, m in enumerate(ob.data.materials) if m and m.name.startswith("tissu.cape") or m and m.name == "tissu.doublure"]
     if not k:
         return
     vs = set()
@@ -431,7 +437,8 @@ def or_torse(P, t, r, st):
     hd.plaque(P, A(), PROJ_T, c, 0.010, 0.009, M, UV_D, bombe=0.016, anneaux=2)
     # tabard bleu nuit LARGE (devant : largeur des hanches, jusqu'aux mollets, pointe en bas) + cape bleue statique derrière
     drap(P, B, "tissu.tabard", True, 0.165, 0.150, 0.985, 0.42, 7, 6, 0.036, 0.05, pointe=0.10, courbe=0.012)
-    drap(P, B, "tissu.cape", False, 0.17, 0.27, 1.50, 0.42, 9, 7, 0.078, 0.105, pointe=0.0, courbe=0.0)
+    drap(P, B, "tissu.cape", False, 0.17, 0.27, 1.50, 0.42, 7, 5, 0.078, 0.105, pointe=0.0, courbe=0.0)
+    drap(P, B, "tissu.doublure", False, 0.17, 0.27, 1.50, 0.42, 7, 5, 0.071, 0.098, pointe=0.0, courbe=0.0)   # face intérieure (retournée après coup)
     # tassettes : rang bas puis rang haut, dos, côtés, devant
     for s in (1, -1):
         for (a0, a1, zh, zb, dec) in ((114, 166, 0.90, 0.75, 0.010), (58, 108, 0.90, 0.735, 0.011), (16, 54, 0.90, 0.72, 0.012),
@@ -554,7 +561,7 @@ PIECES = {
     "bottes_or": lambda r: PC.bottes(r, _s(OR, id="bottes_or", mat_botte="or.patine", niveaux=NIV_BOTTES)),
 }
 ENSEMBLE = {pid: ("obsidienne" if pid.endswith("obsidienne") else "or") for pid in PIECES}
-VARIANTE = {"obsidienne": {"obsidienne": "obsidienne.enchante"}, "or": {"tissu.bleu": "tissu.enchante", "tissu.cape": "tissu.enchante", "tissu.tabard": "tissu.enchante", "gemme": "gemme.enchante"}}
+VARIANTE = {"obsidienne": {"obsidienne": "obsidienne.enchante"}, "or": {"tissu.bleu": "tissu.enchante", "tissu.cape": "tissu.enchante", "tissu.tabard": "tissu.enchante", "tissu.doublure": "tissu.enchante", "gemme": "gemme.enchante"}}
 
 
 def _piece(pid):
