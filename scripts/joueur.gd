@@ -108,6 +108,8 @@ var camera_tp: Node3D
 var troisieme := false  # V : bascule première / troisième personne
 var _pas := 0.0
 var _dernier_pas := 0
+var _dist_trace := 0.0
+var _pied_trace := false
 var _etait_au_sol := true
 var _repos_vigueur := 0.0
 var _recul := Vector3.ZERO
@@ -421,7 +423,13 @@ func _physics_process(dt: float) -> void:
 		if n != _dernier_pas:
 			_dernier_pas = n
 			Sons.jouer(self, ["footstep_snow_000", "footstep_snow_001", "footstep_snow_002", "footstep_snow_003", "footstep_snow_004"], -12.0 if not court else -8.0, 0.1)
-			EffetsSol.pas(self, Vector2(velocity.x, velocity.z), n % 2 == 0, court)   # empreinte et gerbe (sol enneigé seulement)
+			EffetsSol.pas(self, Vector2(velocity.x, velocity.z), n % 2 == 0, court)   # gerbe (sol enneigé seulement)
+	if is_on_floor() and vitesse_sol > 0.3:   # empreintes : un pas réel tous les ~0,7 m (0,95 m en courant), pied gauche puis droit
+		_dist_trace += vitesse_sol * dt
+		if _dist_trace >= (0.95 if court else 0.7):
+			_dist_trace = 0.0
+			_pied_trace = not _pied_trace
+			EffetsSol.empreinte_pas(self, Vector2(velocity.x, velocity.z), _pied_trace, court)
 	# caméra « corps » (CameraCorps) : options Mouvement de tête / Secousses, « Réduire les mouvements » compris
 	var f := CameraCorps.facteurs()
 	camera_corps.tete = f["tete"]

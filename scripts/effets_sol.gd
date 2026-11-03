@@ -247,9 +247,21 @@ static func pas(j: Node3D, vitesse: Vector2, gauche: bool, court: bool) -> void:
 	if e == null or not e.is_node_ready():
 		return
 	e._suivre_joueur(j)
-	e._empreinte(p, vitesse.normalized() if vitesse.length() > 0.05 else Vector2(0, 1), gauche, court)
 	var dir3 := Vector3(-vitesse.x, 0.0, -vitesse.y).normalized() * 0.35 if vitesse.length() > 0.05 else Vector3.ZERO
 	GerbePixels.emettre(e, p + Vector3(0, 0.04, 0), Vector3.UP + dir3, "neige", 2.2 if court else 1.1)
+
+## Une empreinte de botte (appelée par le joueur tous les ~0,7 m de marche, indépendamment du rythme des sons).
+static func empreinte_pas(j: Node3D, vitesse: Vector2, gauche: bool, court: bool) -> void:
+	if not actif or j == null:
+		return
+	var p := j.global_position
+	if not est_neige(p.x, p.z):
+		return
+	var e := obtenir()
+	if e == null or not e.is_node_ready():
+		return
+	e._suivre_joueur(j)
+	e._empreinte(p, vitesse.normalized() if vitesse.length() > 0.05 else Vector2(0, 1), gauche, court)
 
 ## Saut : deux empreintes côte à côte à l'appel et une gerbe.
 static func saut(j: Node3D) -> void:
@@ -285,11 +297,12 @@ static func atterrissage(j: Node3D, vitesse: float) -> void:
 ## Marque une empreinte de botte (rectangle arrondi, 5×11 échantillons de 3 cm) au pied gauche ou droit.
 func _empreinte(pos: Vector3, dir: Vector2, gauche: bool, court: bool) -> void:
 	var lat := Vector2(-dir.y, dir.x)
-	var c := Vector2(pos.x, pos.z) + lat * (0.27 if gauche else -0.27)
+	var ecart := 0.34 if court else 0.27   # demi-écart entre les pieds : piste de deux files de bottes
+	var c := Vector2(pos.x, pos.z) + lat * (ecart if gauche else -ecart)
 	if not _assurer(c.x, c.y):
 		return
 	# creux (B = fin) entouré d'un bourrelet clair (B = -fin) ; en course : plus long, plus large, sillon plus net
-	var demi_l := 7 if court else 5
+	var demi_l := 7 if court else 5   # marche : ~55×27 cm, ovale allongé (texels de 6 cm : plus petit ne se lit plus) ; course : sillon ~75×36 cm
 	var demi_w := 4 if court else 3
 	var fin := t + DUREE_PAS
 	for a in range(-demi_w - 1, demi_w + 2):

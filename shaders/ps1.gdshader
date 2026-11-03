@@ -387,7 +387,7 @@ void effets_sol(inout vec3 albedo, vec2 pm) {
 	if (m.b > t) {   // empreinte : creux bleu-gris ombré ; s'efface texel par texel
 		float e = clamp((m.b - t) / 24.0, 0.0, 1.0);
 		if (e > h * 0.85) {
-			albedo = albedo * vec3(0.24, 0.34, 0.62);   // la neige du jeu est éclairée très fort : il faut assombrir franchement
+			albedo = albedo * vec3(0.16, 0.25, 0.52);   // la neige du jeu est éclairée très fort : il faut assombrir franchement
 		}
 	} else if (m.b < -t) {   // bourrelet de neige repoussée : plus clair
 		float e = clamp((-m.b - t) / 24.0, 0.0, 1.0);

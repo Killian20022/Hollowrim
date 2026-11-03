@@ -296,6 +296,10 @@ func _go() -> void:
 	cam_vise = Vector3(0, -0.2, 2.6)
 	await _att(10)
 	await _photo("01c_traces_gros_plan")
+	cam_decal = Vector3(6.0, 2.6, 3.0)        # vue de jeu à 6 m, de côté : la piste derrière le joueur
+	cam_vise = Vector3(0, 0.0, 3.0)
+	await _att(10)
+	await _photo("01d_piste_vue_de_jeu")
 	await _att(20)
 
 	# ---------------------------------------------------------------- 2. course, gerbes, saut
@@ -335,6 +339,10 @@ func _go() -> void:
 	cam_vise = Vector3(0, 0.0, 3.6)
 	await _att(10)
 	await _photo("04b_traces_de_course")
+	cam_decal = Vector3(6.0, 2.6, 3.0)
+	cam_vise = Vector3(0, 0.0, 3.0)
+	await _att(10)
+	await _photo("04c_piste_de_course_vue_de_jeu")
 
 	# ---------------------------------------------------------------- 3. feu : jet qui creuse une traînée
 	cam_suit = false

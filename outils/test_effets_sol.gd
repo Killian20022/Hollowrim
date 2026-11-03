@@ -51,8 +51,8 @@ func _lancer() -> void:
 	# --- empreintes
 	e._joueur = joueur
 	e._centrer(Vector2(2, 2))
-	EffetsSol.pas(joueur, Vector2(0, -4), true, false)
-	EffetsSol.pas(joueur, Vector2(0, -4), false, true)
+	EffetsSol.empreinte_pas(joueur, Vector2(0, -4), true, false)
+	EffetsSol.empreinte_pas(joueur, Vector2(0, -4), false, true)
 	var v := e.lire(2.27, 2.0)
 	verifier(v.z > e.t + 20.0, "pas : empreinte au pied gauche (fin dans %.1f s)" % (absf(v.z) - e.t))
 	verifier(e.lire(2.0, 2.0).z == 0.0, "pas : le centre entre les deux pieds reste intact")
@@ -145,18 +145,18 @@ func _lancer() -> void:
 	EffetsMagie.impact("feu", Vector3(4, 0.05, 4), Vector3.UP, 1.0)
 	verifier(e.lire(4.0, 4.0).x > e.t, "fenêtre : fonte posée")
 	joueur.position = Vector3(40, 0, 40)
-	EffetsSol.pas(joueur, Vector2(0, -4), true, false)
+	EffetsSol.empreinte_pas(joueur, Vector2(0, -4), true, false)
 	verifier(e.lire(4.0, 4.0) == Vector4.ZERO, "fenêtre : hors fenêtre après déplacement du joueur")
 	verifier(e.lire(40.27, 40.0).z > e.t, "fenêtre : empreinte posée dans la nouvelle fenêtre")
 	# --- hors neige : rien
 	EffetsSol.forcer_neige = false
 	var n0 := int(EffetsSol.stats["pas"])
-	EffetsSol.pas(joueur, Vector2(0, -4), true, false)
+	EffetsSol.empreinte_pas(joueur, Vector2(0, -4), true, false)
 	verifier(int(EffetsSol.stats["pas"]) == n0, "hors neige : aucune empreinte")
 	EffetsSol.actif = false
 	EffetsSol.forcer_neige = true
 	var n1 := int(EffetsSol.stats["pas"])
-	EffetsSol.pas(joueur, Vector2(0, -4), true, false)
+	EffetsSol.empreinte_pas(joueur, Vector2(0, -4), true, false)
 	verifier(int(EffetsSol.stats["pas"]) == n1, "désactivé : aucun effet")
 	EffetsSol.actif = true
 	print("stats : ", EffetsSol.stats)
