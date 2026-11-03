@@ -46,6 +46,8 @@ var _blocs: Array = []
 var _joueur: Node3D
 var _marcheurs := {}                 # id -> {pos: Vector3, reste: float, pied: bool}
 var _acc := 0.0
+var _eaux: Array = []                # nœuds Eau (groupe « eaux »), relus toutes les 2 s
+var _acc_eaux := 99.0
 var _jets := {}                      # id de la main -> {fin: Vector3, t: float, vapeur: float}
 var _rng := RandomNumberGenerator.new()
 
@@ -84,6 +86,10 @@ func _exit_tree() -> void:
 func _process(dt: float) -> void:
 	t += dt
 	_acc += dt
+	_acc_eaux += dt
+	if _acc_eaux >= 2.0:
+		_acc_eaux = 0.0
+		_eaux = get_tree().get_nodes_in_group("eaux")
 	if _acc >= 0.1:
 		_acc = 0.0
 		_sonder_marcheurs()
@@ -216,7 +222,13 @@ static func neige_dehors() -> bool:
 static func est_neige(x: float, z: float) -> bool:
 	if forcer_neige:
 		return true
-	return Sol.est_neige(x, z) and neige_dehors()
+	if not (Sol.est_neige(x, z) and neige_dehors()):
+		return false
+	if instance != null:
+		for w in instance._eaux:
+			if is_instance_valid(w) and w.contient(x, z):
+				return false   # le sol sous un lac ou une mare n'est pas de la neige
+	return true
 
 func _vivre(fin: float) -> void:
 	_fin_vie = maxf(_fin_vie, fin)
@@ -273,7 +285,7 @@ static func atterrissage(j: Node3D, vitesse: float) -> void:
 ## Marque une empreinte de botte (rectangle arrondi, 5×11 échantillons de 3 cm) au pied gauche ou droit.
 func _empreinte(pos: Vector3, dir: Vector2, gauche: bool, court: bool) -> void:
 	var lat := Vector2(-dir.y, dir.x)
-	var c := Vector2(pos.x, pos.z) + lat * (0.24 if gauche else -0.24)
+	var c := Vector2(pos.x, pos.z) + lat * (0.27 if gauche else -0.27)
 	if not _assurer(c.x, c.y):
 		return
 	# creux (B = fin) entouré d'un bourrelet clair (B = -fin) ; en course : plus long, plus large, sillon plus net
@@ -288,7 +300,7 @@ func _empreinte(pos: Vector3, dir: Vector2, gauche: bool, court: bool) -> void:
 				continue
 			if bord and absi(a) > demi_w and absi(b) > demi_l - 1:
 				continue
-			var q := c + lat * (a * 0.035) + dir * (b * 0.04)
+			var q := c + lat * (a * 0.045) + dir * (b * 0.05)
 			_ecrire_empreinte(q.x, q.y, -fin if bord else fin)
 	stats["pas"] = int(stats["pas"]) + 1
 	_vivre(fin)

@@ -53,7 +53,7 @@ func _lancer() -> void:
 	e._centrer(Vector2(2, 2))
 	EffetsSol.pas(joueur, Vector2(0, -4), true, false)
 	EffetsSol.pas(joueur, Vector2(0, -4), false, true)
-	var v := e.lire(2.24, 2.0)
+	var v := e.lire(2.27, 2.0)
 	verifier(v.z > e.t + 20.0, "pas : empreinte au pied gauche (fin dans %.1f s)" % (absf(v.z) - e.t))
 	verifier(e.lire(2.0, 2.0).z == 0.0, "pas : le centre entre les deux pieds reste intact")
 	verifier(e._rect_actif or e._fin_vie > e.t, "pas : le masque devient vivant")
@@ -61,7 +61,7 @@ func _lancer() -> void:
 	verifier(e._rect_actif and int(EffetsSol.stats["envois"]) > envois0, "pas : masque envoyé et lu par le shader")
 	EffetsSol.saut_de_temps(DUREE_PAS_PLUS)
 	await _images(5)
-	verifier(e.lire(2.24, 2.0).z <= e.t, "pas : l'empreinte est expirée après %.0f s" % DUREE_PAS_PLUS)
+	verifier(e.lire(2.27, 2.0).z <= e.t, "pas : l'empreinte est expirée après %.0f s" % DUREE_PAS_PLUS)
 	verifier(not e._rect_actif, "tout effacé : le shader ne lit plus rien")
 
 	# --- saut / atterrissage
@@ -147,7 +147,7 @@ func _lancer() -> void:
 	joueur.position = Vector3(40, 0, 40)
 	EffetsSol.pas(joueur, Vector2(0, -4), true, false)
 	verifier(e.lire(4.0, 4.0) == Vector4.ZERO, "fenêtre : hors fenêtre après déplacement du joueur")
-	verifier(e.lire(40.24, 40.0).z > e.t, "fenêtre : empreinte posée dans la nouvelle fenêtre")
+	verifier(e.lire(40.27, 40.0).z > e.t, "fenêtre : empreinte posée dans la nouvelle fenêtre")
 	# --- hors neige : rien
 	EffetsSol.forcer_neige = false
 	var n0 := int(EffetsSol.stats["pas"])

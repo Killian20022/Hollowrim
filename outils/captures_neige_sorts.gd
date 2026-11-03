@@ -75,6 +75,12 @@ func _acceler(s: float, frames: int) -> void:
 
 ## Meilleur emplacement de la zone témoin (forêt enneigée) : quatre couloirs de travail (x, z haut, z bas, demi-largeur) relatifs au
 ## spot — marche, feu, glace, électricité — le plus enneigé, plat et dégagé (arbres, rochers, disques réservés de la zone).
+func _sur_eau(x: float, z: float) -> bool:
+	for w in root.get_tree().get_nodes_in_group("eaux"):
+		if w.contient(x, z):
+			return true
+	return false
+
 func _chercher_spot() -> Vector3:
 	var obstacles: Array = []   # [Vector2, rayon]
 	for t in monde.arbres:
@@ -104,12 +110,12 @@ func _chercher_spot() -> Vector3:
 				var x1: float = cx + co[0] + co[3]
 				var z0: float = cz + co[2]
 				var z1: float = cz + co[1]
-				for dz in range(int(co[2]), int(co[1]) + 1, 2):
-					for dx in [-co[3], 0.0, co[3]]:
+				for dz in range(int(co[2]), int(co[1]) + 1, 1):
+					for dx in [-co[3], -co[3] * 0.5, 0.0, co[3] * 0.5, co[3]]:
 						var px: float = cx + co[0] + dx
 						var pz: float = cz + dz
 						pts += 1
-						neige += int(Sol.est_neige(px, pz))
+						neige += int(Sol.est_neige(px, pz) and not _sur_eau(px, pz))
 						pente = maxf(pente, absf(float(monde.hauteur(px, pz)) - h0))
 				for o in obstacles:
 					var q: Vector2 = o[0]
@@ -170,6 +176,42 @@ func _go() -> void:
 	print("DEPART ", monde.depart_joueur, " matiere ", Sol.matiere_en(monde.depart_joueur.x, monde.depart_joueur.z), " neige_dehors ", EffetsSol.neige_dehors())
 	spot = _chercher_spot()
 	print("SPOT ", spot)
+	if _arg("scan") != "":   # grandes plaques de neige (hors eau, plates) : candidats pour --spot=x,z
+		var res: Array = []
+		var troncs: Array = []
+		for t in monde.arbres:
+			if t is Transform3D:
+				troncs.append(Vector2(t.origin.x, t.origin.z))
+			elif t is Dictionary and t.has("pos"):
+				troncs.append(Vector2(t["pos"].x, t["pos"].z))
+		var dep := Vector2(56.0, 50.0)   # village (vu en capture) ; le départ du joueur est ailleurs
+		for cx in range(-100, 101, 4):
+			for cz in range(-100, 101, 4):
+				if Vector2(cx, cz).distance_to(dep) < 45.0:
+					continue   # village et ses abords
+				var gene := 0
+				for q: Vector2 in troncs:
+					if absf(q.x - cx) < 9.0 and q.y > cz - 16.0 and q.y < cz + 6.0:
+						gene += 1
+				var h0: float = monde.hauteur(cx, cz)
+				var ok := 0
+				var pente := 0.0
+				var piste := 0
+				for dx in range(-2, 3):
+					for dz in range(-10, 1):
+						piste += int(not (Sol.est_neige(cx + dx, cz + dz) and not _sur_eau(cx + dx, cz + dz)))
+				if piste > 3:
+					continue   # la piste de marche doit être de la neige franche
+				for dx in range(-8, 9, 2):
+					for dz in range(-14, 5, 2):
+						ok += int(Sol.est_neige(cx + dx, cz + dz) and not _sur_eau(cx + dx, cz + dz))
+						pente = maxf(pente, absf(float(monde.hauteur(cx + dx, cz + dz)) - h0))
+				res.append([float(ok) / (9 * 10) - 0.4 * maxf(pente - 0.8, 0.0) - 0.15 * gene, Vector2(cx, cz), pente, gene])
+		res.sort_custom(func(a, b) -> bool: return a[0] > b[0])
+		for i in 8:
+			print("SCAN ", res[i])
+		quit(0)
+		return
 	if _arg("sonde") != "":
 		var h := {}
 		var d0: Vector3 = monde.depart_joueur
@@ -206,6 +248,36 @@ func _go() -> void:
 	j.basculer_vue(true)
 	cam.current = true
 	await _att(60)
+	if _arg("diag") != "":   # diagnostic : motifs posés à la main devant le joueur (empreintes, brûlure, ombre)
+		var e := EffetsSol.obtenir()
+		e._suivre_joueur(j)
+		cam_decal = Vector3(0.0, 4.5, 2.0)
+		cam_vise = Vector3(0, 0.0, -4.5)
+		for k in 3:
+			var o := Vector3(-2.5 + 2.5 * k, 0, -4.0)
+			var pj := j.global_position + o
+			if k == 0:
+				for s in 6:
+					e._empreinte(pj + Vector3(0, 0, -s * 0.8), Vector2(0, -1), s % 2 == 0, false)
+			elif k == 1:
+				e.bruler(pj.x, pj.z, 0.5)
+			else:
+				e.ombrer(pj.x, pj.z, 1.0)
+		e._envoyer()
+		print("DIAG masque ", e.lire(j.global_position.x + 2.5, j.global_position.z - 4.0), " rect ", e._rect_actif, " fin_vie ", e._fin_vie, " t ", e.t, " neige ", EffetsSol.est_neige(j.global_position.x, j.global_position.z - 4.0))
+		await _att(90)
+		await _photo("diag")
+		var nb_eau := 0
+		for mi in root.find_children("*", "MeshInstance3D", true, false):
+			var mo: Material = (mi as MeshInstance3D).material_override
+			if mo is ShaderMaterial and (mo as ShaderMaterial).shader != null and (mo as ShaderMaterial).shader.resource_path.ends_with("eau.gdshader"):
+				(mi as MeshInstance3D).visible = false
+				nb_eau += 1
+		print("DIAG eau cachée : ", nb_eau)
+		await _att(10)
+		await _photo("diag_sans_eau")
+		quit(0)
+		return
 
 	# ---------------------------------------------------------------- 1. marche, traces
 	_dire("Marche : traces de pas dans la neige")
@@ -220,6 +292,10 @@ func _go() -> void:
 	cam_vise = Vector3(0, 0.0, 3.6)
 	await _att(20)
 	await _photo("01_traces_de_pas")
+	cam_decal = Vector3(0.6, 2.6, 0.4)        # plongée sur la piste de pas, juste derrière le joueur
+	cam_vise = Vector3(0, -0.2, 2.6)
+	await _att(10)
+	await _photo("01c_traces_gros_plan")
 	await _att(20)
 
 	# ---------------------------------------------------------------- 2. course, gerbes, saut
@@ -364,6 +440,7 @@ func _go() -> void:
 	j.global_position = spot + Vector3(0.0, 0.15, -9.0)
 	j.velocity = Vector3.ZERO
 	j.rotation.y = deg_to_rad(-8)
+	j.tete.rotation.x = deg_to_rad(-26)   # vise le sol à 5-6 m : l'impact reste dans le cadre
 	_dire("Électricité : brûlure et étincelles")
 	m.equiper("droite", "arc_electrique")
 	await _att(20)
@@ -373,15 +450,28 @@ func _go() -> void:
 	m.relacher("droite")
 	await _att(30)
 	await _photo("17b_electricite_brulure")
+	var _d := cam_decal
+	var _v := cam_vise
+	cam_decal = Vector3(0.0, 4.2, -0.8)       # plongée sur le point d'impact
+	cam_vise = Vector3(0, -0.5, -5.5)
+	await _att(10)
+	await _photo("17c_brulure_gros_plan")
+	cam_decal = _d
+	cam_vise = _v
 	_dire("Ténèbres : tache d'ombre qui se résorbe")
 	m.equiper("droite", "trait_ombre")
 	await _att(20)
 	j.rotation.y = deg_to_rad(10)
+	j.tete.rotation.x = deg_to_rad(-26)
 	m.appuyer("droite")
 	await _att(45)
 	m.relacher("droite")
 	await _att(40)
 	await _photo("18_tenebres")
+	cam_decal = Vector3(0.0, 4.2, -0.8)
+	cam_vise = Vector3(0, -0.5, -5.5)
+	await _att(10)
+	await _photo("18c_tenebres_gros_plan")
 	await _acceler(14.0, 40)
 	await _photo("19_tenebres_resorbees")
 	print("FILM %d images ; stats %s" % [n_film, EffetsSol.stats])
