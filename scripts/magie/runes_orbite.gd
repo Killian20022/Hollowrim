@@ -12,9 +12,9 @@ const SH := preload("res://shaders/runes_orbite.gdshader")
 ## orbites au-dessus de la paume (m : le milieu de la flamme / du cristal tenu).
 const ECOLES := {
 	"feu": {"couleur": Color("#ff6a1a"), "coeur": Color("#ffc27a"), "signes": [6, 7, 8, 9, 1, 10, 6, 7], "rayon": 0.115, "taille": 0.026, "centre": 0.15},
-	"glace": {"couleur": Color("#4fb4ff"), "coeur": Color("#e2f6ff"), "signes": [5, 3, 10, 0, 5, 3, 9, 8], "rayon": 0.108, "taille": 0.029, "centre": 0.075},
-	"electricite": {"couleur": Color("#8a6cff"), "coeur": Color("#e6deff"), "signes": [2, 4, 2, 9, 2, 4, 8, 10], "rayon": 0.108, "taille": 0.029, "centre": 0.075},
-	"tenebres": {"couleur": Color("#a23cff"), "coeur": Color("#e7b8ff"), "signes": [4, 1, 5, 7, 4, 1, 5, 6], "rayon": 0.108, "taille": 0.029, "centre": 0.075},
+	"glace": {"lueur_k": 2.0, "couleur": Color("#4fb4ff"), "coeur": Color("#e2f6ff"), "signes": [5, 3, 10, 0, 5, 3, 9, 8], "rayon": 0.115, "taille": 0.029, "centre": 0.15},
+	"electricite": {"lueur_k": 1.7, "couleur": Color("#8a6cff"), "coeur": Color("#e6deff"), "signes": [2, 4, 2, 9, 2, 4, 8, 10], "rayon": 0.115, "taille": 0.029, "centre": 0.15},
+	"tenebres": {"lueur_k": 1.8, "couleur": Color("#a23cff"), "coeur": Color("#e7b8ff"), "signes": [4, 1, 5, 7, 4, 1, 5, 6], "rayon": 0.115, "taille": 0.029, "centre": 0.15},
 }
 ## Deux anneaux très fins, PARTIELS (un arc qui tourne, ni cercle complet ni grand cercle devant la caméra) : rayon (m),
 ## inclinaison (rad), fraction du tour visible, vitesse de rotation propre (rad/s), épaisseur du trait.
@@ -36,6 +36,9 @@ const LARGEUR_FIL := 0.0016
 const NB_RUNES := 7
 
 var ecole := "feu"
+## Outil de capture (outils/captures_sorts_vfx.gd, film_ecoles_runiques.gd) : >= 0 impose l'état CHARGE à cette charge (0..1),
+## sans lancer de sort. Les sorts canalisés (arc électrique) tirent dès qu'on les tient : jamais de vraie « charge ».
+static var forcer_charge := -1.0
 var suivi: Node3D
 ## +1 main gauche, -1 main droite (sens et inclinaison en miroir : gauche ≠ droite).
 var cote := 1.0
@@ -74,6 +77,8 @@ const LUEUR_AVANCE := 0.025
 ## Reflet plus faible et plus large posé sous la main, côté poignet : les arêtes des rouleaux, des plaques et des clous du
 ## brassard prennent l'orange de l'énergie (références : bras sombres mais lisibles), sans brûler le gant.
 var lueur_bras: OmniLight3D
+## Noyau 3D propre à l'école (glace, électricité, ténèbres ; la flamme du feu est dessinée par l'aura) : NoyauEcole.
+var noyau: NoyauEcole
 const LUEUR_BRAS := 0.45
 const LUEUR_BRAS_POS := Vector3(-0.14, -0.02, 0.3)   # main gauche (x en miroir pour la droite), repère caméra
 
@@ -134,6 +139,14 @@ func _ready() -> void:
 	lueur_bras.omni_attenuation = 1.6
 	lueur_bras.light_energy = LUEUR_BRAS
 	add_child(lueur_bras)
+	if NoyauEcole.possede(ecole):
+		noyau = NoyauEcole.new()
+		noyau.ecole = ecole
+		noyau.runes = self
+		noyau.taille_k = taille_k
+		noyau.lumi_k = lumi_k
+		noyau.vitesse_k = vitesse_k
+		add_child(noyau)
 	_suivre()
 
 func _h(i: int) -> float:
@@ -170,6 +183,9 @@ func _suivre() -> void:
 
 func _process(dt: float) -> void:
 	_t += dt
+	if forcer_charge >= 0.0:
+		etat = 2
+		charge = forcer_charge
 	_suivre()
 	var e: Dictionary = ECOLES.get(ecole, ECOLES["feu"])
 	# cible de l'état, lissée : jamais de saut (charge : resserre et accélère selon `charge`)
@@ -192,7 +208,7 @@ func _process(dt: float) -> void:
 	var resserre := _k_rayon * (1.0 - 0.55 * conv) * echelle * ouvre
 	var acc := _k_vit * vitesse_k
 	var force := clampf(0.7 + 0.6 * intensite, 0.0, 1.8) * _k_eclat * lumi_k * (1.0 + 0.4 * conv)
-	var vif := _k_eclat * (1.0 + 0.4 * kc)
+	var vif := _k_eclat * (1.0 + 0.4 * kc) * float(e.get("lueur_k", 1.0))
 	if lueur != null:
 		lueur.position = Vector3(0.025 * cote, 0.0, LUEUR_AVANCE)
 		lueur_bras.position = Vector3(LUEUR_BRAS_POS.x * cote, LUEUR_BRAS_POS.y, LUEUR_BRAS_POS.z)

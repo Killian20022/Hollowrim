@@ -1187,6 +1187,10 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 		"tenebres": noms = ["ten_aura", "ten_aura_lueur"]
 		"soin": noms = ["soin_aura"]
 		"protection": noms = ["prot_aura"]
+	# glace / électricité / ténèbres : l'énergie tenue est le NOYAU 3D de RunesOrbite (NoyauEcole), pas l'ancienne aura
+	var noyau := NoyauEcole.possede(ecole)
+	if noyau:
+		noms = []
 	for nom in noms:
 		var p := emettre(nom, ancre, Transform3D.IDENTITY, true)
 		if p != null:
@@ -1198,7 +1202,7 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 		# faisait la même boule lumineuse.
 		a.boule = _aura_fine(ancre, ecole, AURA_BOULE, 2)
 		a.extra.append(a.boule)
-	elif fin_actif:
+	elif fin_actif and not noyau:
 		# couche fine : l'aura est d'abord un motif procédural au pixel (flammes, givre, plasma, vortex) ; les
 		# particules et les arcs en font les éclats autour
 		a.fine = _aura_fine(ancre, ecole, AURA_RAYON.get(ecole, 0.09))
@@ -1217,7 +1221,9 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 		ancre.add_child(lu)
 		a.lueur = lu
 		a.extra.append(lu)
-	if ecole == "electricite":
+	if noyau:
+		pass
+	elif ecole == "electricite":
 		a.eclair = eclair(ancre, "electricite", 2.0, -1.0, 0.05, _gen_aura_arcs.bind(a))
 	elif ecole == "tenebres" and not fin_actif:
 		# vortex noir et violet DANS la paume (spirale), bien visible en vue FPS
@@ -1262,6 +1268,37 @@ func _vortex_main(parent: Node3D, rayon: float) -> MeshInstance3D:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 	return mi
+
+## Arcs ramifiés du NOYAU d'électricité tenu en main (NoyauEcole) : les mêmes traits que les éclairs de Force (foudre +
+## ramifications à trois niveaux, matériau « electricite », refaits 30 fois par seconde), mais courts, qui partent du
+## cœur et s'écartent dans toutes les directions. `etat` renvoie {r: échelle, ch: charge 0..1, f: force}.
+func eclair_noyau(parent: Node3D, etat: Callable) -> Dictionary:
+	return eclair(parent, "electricite", 2.0, -1.0, 0.033, _gen_noyau_arcs.bind(etat))
+
+func _gen_noyau_arcs(etat: Callable) -> Array:
+	var traits: Array = []
+	var st: Dictionary = etat.call()
+	var r := float(st.r)
+	var ch := float(st.ch)
+	var n := 6 + int(ch * 3.0) + (1 if rng.randf() < 0.5 else 0)
+	for _k in n:
+		var o := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized() * 0.012 * r
+		var d := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.7, 1), rng.randf_range(-1, 1)).normalized()
+		var b := d * rng.randf_range(0.1, 0.19) * r * (1.0 + 0.3 * ch)
+		var p := foudre(o, b, 0.03 * r, 3)
+		traits.append([p, rng.randf_range(0.6, 1.0), 1.0])
+		if p.size() < 6:
+			continue
+		for _q in 2:
+			var i := rng.randi_range(p.size() / 4, p.size() - 3)
+			var dev := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
+			var fin := p[i] + (d * 0.5 + dev).normalized() * rng.randf_range(0.03, 0.07) * r
+			var br := foudre(p[i], fin, 0.02 * r, 3)
+			traits.append([br, 0.4, 0.6])
+			if br.size() > 3 and rng.randf() < 0.5:
+				var o2 := br[br.size() / 2]
+				traits.append([foudre(o2, o2 + (fin - p[i]).normalized().slerp(dev, 0.5) * 0.03 * r, 0.012 * r, 2), 0.3, 0.5])
+	return traits
 
 func _gen_aura_arcs(a: Dictionary) -> Array:
 	var traits: Array = []

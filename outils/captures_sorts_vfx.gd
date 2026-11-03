@@ -49,6 +49,19 @@ const VUES := {
 	"fr_vol": [false, "boule_feu", "vol", "vide", 0.0, false, "droite"],
 	"fr_vol_g": [false, "boule_feu", "vol", "vide", 0.0, false, "gauche"],
 	"fr_vol_impact": [false, "boule_feu", "vol_impact", "mannequin", 0.0, false, "droite"],
+	# écoles runiques (glace, électricité, ténèbres), même cadrage que la flamme
+	"ec_glace_repos": [false, "eclat_glace", "repos", "vide", 0.0, true, "droite"],
+	"ec_glace_incante": [false, "eclat_glace", "incante", "vide", 0.0, true, "droite"],
+	"ec_glace_charge": [false, "eclat_glace", "chargeplein", "vide", 0.0, true, "droite"],
+	"ec_glace_lance": [false, "eclat_glace", "lance", "vide", 0.0, true, "droite"],
+	"ec_elec_repos": [false, "arc_electrique", "repos", "vide", 0.0, true, "droite"],
+	"ec_elec_incante": [false, "arc_electrique", "incante", "vide", 0.0, true, "droite"],
+	"ec_elec_charge": [false, "arc_electrique", "chargeplein", "vide", 0.0, true, "droite"],
+	"ec_elec_lance": [false, "arc_electrique", "lance", "vide", 0.0, true, "droite"],
+	"ec_ten_repos": [false, "trait_ombre", "repos", "vide", 0.0, true, "droite"],
+	"ec_ten_incante": [false, "trait_ombre", "incante", "vide", 0.0, true, "droite"],
+	"ec_ten_charge": [false, "trait_ombre", "chargeplein", "vide", 0.0, true, "droite"],
+	"ec_ten_lance": [false, "trait_ombre", "lance", "vide", 0.0, true, "droite"],
 	"fr_tps": [true, "boule_feu", "repos", "vide", -125.0, false, "droite"],
 }
 
@@ -87,6 +100,14 @@ func _go() -> void:
 		_planche()
 		quit(0)
 		return
+	await _preparer()
+	var pref := _arg("prefixe", "apres")
+	for v in _vues():
+		await _vue(v, pref)
+	quit(0)
+
+## Scène de test, crépuscule, interface masquée, caméra de gros plan (aussi utilisée par outils/film_ecoles_runiques.gd).
+func _preparer() -> void:
 	s = SCENE.instantiate()
 	s.options = {"draugr": "aucun", "sans-aide": ""}
 	root.add_child(s)
@@ -121,10 +142,6 @@ func _go() -> void:
 	cam_gp.fov = 40.0
 	cam_gp.near = 0.01
 	s.add_child(cam_gp)
-	var pref := _arg("prefixe", "apres")
-	for v in _vues():
-		await _vue(v, pref)
-	quit(0)
 
 func _attendre(n: int) -> void:
 	for i in n:
@@ -189,6 +206,10 @@ func _vue(v: String, pref: String) -> void:
 		"charge":
 			for h in mains: m.appuyer(h)
 			await _attendre(42)
+		"chargeplein":
+			# CHARGE imposée sans lancer le sort (RunesOrbite.forcer_charge) : l'arc électrique, canalisé, tire dès qu'on le tient
+			RunesOrbite.forcer_charge = 1.0
+			await _attendre(70)
 		"incante":
 			for h in mains: m.appuyer(h)
 			await _attendre(8)
@@ -235,6 +256,7 @@ func _vue(v: String, pref: String) -> void:
 		print("CAPTURE %s_%s_%d" % [pref, v, k])
 		if k < N - 1:
 			await _attendre(PAS)
+	RunesOrbite.forcer_charge = -1.0
 	j.camera.current = true
 	if tps:
 		j.camera_tp.camera.current = true
