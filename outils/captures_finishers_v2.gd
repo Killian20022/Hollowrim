@@ -98,8 +98,8 @@ func _ennemi(genre: String, pos: Vector3, lacet: float) -> CharacterBody3D:
 	d.position = pos
 	d.rotation.y = lacet
 	s.add_child(d)
-	d.vie = 300.0
 	d.vie_max = 300.0
+	d.vie = 90.0   # équilibrage : le finisher exige une vie entamée (ReglagesCombat.FINISHER_POSTURE_VIE)
 	d.combat.profil.chance_blocage = 0.0
 	d.set_physics_process(false)
 	return d

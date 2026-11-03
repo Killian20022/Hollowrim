@@ -47,6 +47,8 @@ var _t_trainee := 0.0
 var _anim: AnimationPlayer
 var _clip_v := ""
 var _reac_lancee := false
+## Décalage horizontal de la victime pendant la tenue plantée : sa réaction en capture bouge le buste, la lame doit y rester.
+var _corr := Vector3.ZERO
 
 const RAYON_TORSE := 0.17       # m à l'échelle 1 (draugr, bandit, squelette : cage, cotte comprise)
 
@@ -150,7 +152,8 @@ func avancer(dt: float) -> bool:
 	joueur.tete.rotation.x = tg
 	mains.anim.regler(t)
 	if not mort and is_instance_valid(cible) and cible.is_inside_tree():
-		cible.global_position = racine
+		_suivre_lame()
+		cible.global_position = racine + _corr
 		cible.rotation.y = lerp_angle(_lacet_cible0, _lacet_cible, _lisse(0.0, t0 * 0.8, t))
 		var c := Finishers.pose_a(d["pose"], t)
 		_reaction(dt)
@@ -198,6 +201,18 @@ func _reaction(dt: float) -> void:
 	if absf(_anim.current_animation_position - tc) > 0.25:
 		_anim.seek(tc, true)
 	_anim.speed_scale = clampf(pente + 12.0 * (tc - _anim.current_animation_position), 0.05, 4.0)
+
+## Pendant la tenue plantée, ramène le buste de la victime sous la pointe (correction horizontale douce, cumulée).
+func _suivre_lame() -> void:
+	if not m.has("plante") or t < float(m["plante"]) + 0.02 or t > float(m.get("retrait", 0.0)):
+		return
+	var sp := _accroche("spine_03")
+	if sp == null:
+		return
+	var tip: Vector3 = _epee() * Vector3(0, Finishers.POINTE, 0)
+	var dl := tip - sp.global_position
+	dl.y = 0.0
+	_corr += dl * 0.3
 
 ## Annule (cible disparue, joueur mort) : la cible reprend sa vie.
 func annuler() -> void:

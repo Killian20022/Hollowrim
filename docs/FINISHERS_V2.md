@@ -22,7 +22,7 @@ main : « poignet qui se casse »). Les anciens clips à clés écrites à la ma
 | plantee | `fin_plantee` | Mixamo `Stabbing.fbx` (images 2 -> 14 estoc, 14 -> 26 tenue plantée, 26 -> 50 retrait) | même capture, `marq` calé sur les marqueurs du clip FPS | `Fin_Agonie` = `zombie_pack/zombie agonizing.fbx` (courbé sur la lame, mains au ventre), ragdoll à « mort » |
 | dos | `fin_plantee` | idem | idem | `Fin_ArriereGS` = `great_sword_pack/two handed sword death (2).fbx` (cambré, tête rejetée, tombe à genoux), ragdoll à « mort » |
 | decapitation | `fin_decapitation` | Quaternius UAL2 `Sword_Regular_Combo` 3e coup (celui du coup v6 « taille », validé), armé ralenti | idem | ragdoll + décapitation au contact (le corps ne peut pas rester debout sans tête) |
-| plonge | `fin_plonge` | Mixamo `Standing Melee Attack Downward.fbx` (l'épée monte 2 -> 19, s'abat 21 -> 27, reste enfoncée, retrait 27 -> 40) | idem | cadavre au sol : `PoseFinisher` conservé (spasmes), aucune capture de victime au sol dans les packs |
+| plonge | `fin_plonge` | Mixamo `Stabbing.fbx` aussi (la caméra baissée le fait plonger ; `Standing Melee Attack Downward` essayé : pointe à 1,4 m du torse, écarté) | idem | cadavre au sol : `PoseFinisher` conservé (spasmes), aucune capture de victime au sol dans les packs |
 | pommeau | `fin_pommeau` (ancien, écrit à la main) | aucune capture de coup de pommeau dans les packs téléchargés | ancien | `PoseFinisher` ; RETIRÉ de la rotation (reste forçable : `Finishers.force`) ; « après parade » joue maintenant `plantee` |
 
 Candidates examinées (planches de squelette, vue de côté) puis écartées : `sword and shield death` (chute en arrière : se prête à un
@@ -52,3 +52,9 @@ recul, pas à une lame plantée), `two handed sword death` (assis puis chute arr
 
 `outils/captures_finishers_v2.gd -- --film --vue=fps|tps|cote [--ancien] [--finishers=...]` : `--ancien` rejoue les clips `_main` et
 les clés de pose (comparaison dans le même build). Vidéos : `Desktop\\Skyrim captures\\finishers_v2\\`.
+
+## 5. Vérifications (2026-11-04)
+
+- Tests (GODOT_MAX=3) : test_finishers (lame DANS le torse pendant la tenue : correction horizontale douce `_suivre_lame`), test_demembrement, test_sang_v2, test_degats, test_coups_tps, test_combat_epee : tous OK.
+- Films : `outils/captures_finishers_v2.gd` fixe la vie de la victime à 30 % (équilibrage : sans cela le clic donne un coup normal, pas un finisher). Films avant (gauche) / après (droite), 3 lignes = FPS, 3e personne, vue de côté.
+- Limites connues : pas de capture de coup de pommeau ni de victime au sol (plonge garde `PoseFinisher`) ; la caméra 3e personne par défaut est loin (le corps est petit à l'écran).

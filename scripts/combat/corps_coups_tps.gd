@@ -67,11 +67,11 @@ const CLIPS := {
 	# --- finishers v2 (branche combat/finishers_v2) : mêmes captures que les clips FPS fin_* (gestes_finishers.py) ; « marq » = noms
 	# des marqueurs du clip FPS auxquels « im » (une image de plus : le début) est calé, tenue plantée comprise ---
 	# épée plantée / dans le dos : « Stabbing » (images 2 -> 14 estoc, 14 -> 26 tenue, 26 -> 50 retrait et retour)
-	"fin_plantee": {"src": "estoc", "marq": ["arme", "frappe", "contact", "plante", "retrait", "sortie", "suivi", "fin"], "im": [2, 8, 10, 14, 14, 26, 33, 38, 50]},
+	"fin_plantee": {"src": "estoc", "marq": ["arme", "frappe", "contact", "plante", "retrait", "sortie", "suivi", "fin"], "im": [2, 8, 10, 14, 14, 15, 23, 33, 50]},
 	# décapitation : taille horizontale (UAL2 « Sword_Regular_Combo », 3e coup)
 	"fin_decapitation": {"src": "q_Sword_Regular_Combo", "im": [24, 31, 33, 38, 44]},
-	# coup plongé : « Standing Melee Attack Downward »
-	"fin_plonge": {"src": "vertical", "marq": ["arme", "frappe", "contact", "plante", "retrait", "sortie", "suivi", "fin"], "im": [2, 19, 21, 27, 27, 28, 34, 40, 46]},
+	# coup plongé : même estoc (la caméra baissée le fait plonger)
+	"fin_plonge": {"src": "estoc", "marq": ["arme", "frappe", "contact", "plante", "retrait", "sortie", "suivi", "fin"], "im": [2, 8, 10, 14, 14, 15, 23, 33, 50]},
 	# --- défense ---
 	"garde": {"src": "q_Sword_Block", "im": [8, 8], "tenue": true},
 	"parade": {"src": "q_Sword_Block", "im": [4, 14]},

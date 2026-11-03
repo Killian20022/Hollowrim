@@ -106,8 +106,8 @@ POIGNET_FIN = ((-28, 8), (-29, -18))     # même verrou que les coups v6 (gestes
 # lunge reste tendue (14 -> 26 : le corps pousse encore de 4 cm, c'est la tenue plantée), puis retrait sec et recul (26 -> 36) et
 # retour en garde (fondu).
 SPEC_PLANTEE = dict(source="estoc", ref=0,
-                    temps=[(2, 0.0), (6, 0.14), (8, 0.19), (14, 0.30), (20, 0.58), (26, 0.86), (33, 0.95), (38, 1.08), (45, 1.30), (50, 1.45)],
-                    fondu=(0.10, 1.00), cadrage=(-15, -18, 0), decalage=(0.0, 0.06, -0.15), plein=(0.10, 1.10), amplitude=0.3, centre=14,
+                    temps=[(2, 0.0), (6, 0.14), (8, 0.19), (14, 0.30), (15, 0.58), (15, 0.86), (23, 0.95), (33, 1.08), (40, 1.20), (50, 1.45)],
+                    fondu=(0.10, 1.00), cadrage=(-15, -40, 0), decalage=(0.0, 0.06, -0.15), plein=(0.10, 1.10), amplitude=0.3, centre=14,
                     main=(20, 10, 20), continuite=0.3, torsion=(0, 85), poignet=POIGNET_FIN)
 
 # 2. DÉCAPITATION : taille horizontale droite -> gauche (UAL2 « Sword_Regular_Combo », 3e coup : celui des coups v6, validé), armé
@@ -116,12 +116,11 @@ _T = G.CLIPS_MIXAMO["coup_t6"]
 SPEC_DECAP = dict(_T, temps=[(27, 0.0), (31.5, 0.27), (33, 0.31), (38, 0.42), (38.5, 0.50), (38.5, 0.95)], fondu=(0.12, 0.50),
                   plein=(0.12, 0.50), balayage=(0, 40, 0.31, 0.42), arc=(0.31, 0.42, 0.6), poignet=((-28, 45), (-29, -18)))
 
-# 3. COUP PLONGÉ (ennemi à terre) : « Standing Melee Attack Downward » (le coup puissant) : l'épée monte (2 -> 19), s'abat (21 -> 27)
-# et reste enfoncée (27), le retrait ramène l'arme vers le haut (27 -> 38).
-SPEC_PLONGE = dict(source="vertical", ref=0,
-                   temps=[(2, 0.0), (12, 0.14), (19, 0.26), (21, 0.30), (27, 0.34), (28, 0.60), (28, 0.78), (34, 0.92), (40, 1.06), (46, 1.40)],
-                   fondu=(0.10, 0.95), cadrage=(30, -37, 0), decalage=(0.0, 0.06, -0.15), plein=(0.10, 1.00), amplitude=0.4, centre=23,
-                   poignet=POIGNET_FIN)
+# 3. COUP PLONGÉ (ennemi à terre) : même capture que l'épée plantée (« Stabbing » : la pointe vers le centre de l'écran, la caméra baissée
+# la fait plonger vers le corps), calée sur les marqueurs du coup plongé. (Essayé et écarté : « Standing Melee Attack Downward » : la
+# pointe finissait à 1,4 m du torse, test_finishers.)
+SPEC_PLONGE = dict(SPEC_PLANTEE, temps=[(2, 0.0), (6, 0.18), (8, 0.26), (10, 0.30), (14, 0.34), (15, 0.78), (23, 0.92), (33, 1.06), (50, 1.40)],
+                   fondu=(0.10, 0.95), plein=(0.10, 1.00))
 
 CLIPS_MIXAMO_FIN = {"fin_plantee": SPEC_PLANTEE, "fin_decapitation": SPEC_DECAP, "fin_plonge": SPEC_PLONGE}
 

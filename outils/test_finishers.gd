@@ -126,7 +126,7 @@ func _tester() -> void:
 	await _ouvrir(d, false)
 	_verif(Finishers.choisir(d, "etourdi", j) == "plantee", "de face, étourdi : épée plantée d'abord")
 	Finishers.dernier = "plantee"
-	_verif(Finishers.choisir(d, "etourdi", j) == "pommeau", "de face, ensuite : pommeau puis estoc (variété)")
+	_verif(Finishers.choisir(d, "etourdi", j) == "decapitation", "de face, ensuite : décapitation (variété ; le pommeau n'est plus dans la rotation, v2)")
 	_verif(Finishers.choisir(d, "lateral", j) == "decapitation", "pris de côté : décapitation latérale")
 	_verif(Finishers.choisir(d, "sol", j) == "plonge", "à terre : coup plongé")
 	d.rotation.y = PI
