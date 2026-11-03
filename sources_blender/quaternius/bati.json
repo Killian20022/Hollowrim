@@ -1,0 +1,5 @@
+[
+{"nom": "b_h1", "recette": "h1", "mats": {"MI_Plaster": "lin", "MI_WoodTrim": "bois", "MI_UnevenBrick": "pierre", "MI_Brick": "pierre", "MI_RockTrim": "pierre", "MI_RoundTiles": "bois", "MI_WindowGlass": "fer", "MI_MetalOrnaments": "fer"}},
+{"nom": "b_h2", "recette": "h2", "mats": {"MI_Plaster": "lin", "MI_WoodTrim": "bois", "MI_UnevenBrick": "pierre", "MI_Brick": "pierre", "MI_RockTrim": "pierre", "MI_RoundTiles": "bois", "MI_WindowGlass": "fer", "MI_MetalOrnaments": "fer"}},
+{"nom": "b_h4", "recette": "h4", "mats": {"MI_Plaster": "lin", "MI_WoodTrim": "bois", "MI_UnevenBrick": "pierre", "MI_Brick": "pierre", "MI_RockTrim": "pierre", "MI_RoundTiles": "bois", "MI_WindowGlass": "fer", "MI_MetalOrnaments": "fer"}}
+]

@@ -216,6 +216,9 @@ static func tas_de_bois(v, p: Node3D, c: Vector3, lacet: float, longueur := 2.0)
 ## grenier | grange), pente (°), porte (+Z | -Z | +X | -X), fenetres [[côté, abscisse]], dragons, cheminee (x local),
 ## fumee, torche, porche, appentis, enseigne, bois. Collision : une boîte (corps du bâtiment).
 static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary) -> Node3D:
+	var modele_q := VillageBatiQ.modele_de(x, z)      # essai `--bati-quaternius` : corps de la maison en pièces Quaternius (sinon inchangé)
+	if modele_q != "":
+		return VillageBatiQ.maison(v, g, x, z, lacet, o, modele_q)
 	var L: float = o.get("L", 6.0)
 	var W: float = o.get("W", 5.0)
 	var h: float = o.get("h", 2.3)

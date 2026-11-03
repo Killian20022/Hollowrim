@@ -300,9 +300,12 @@ def adapter(e):
     if "hauteur" in e:
         ech = e["hauteur"] / max(1e-4, hi.y - lo.y)
     c0 = Vector(((lo.x + hi.x) / 2, lo.y, (lo.z + hi.z) / 2))
+    if "origine" in e:                     # [x, z] repère Godot : origine imposée (bâtiments assemblés autour de (0, 0))
+        c0 = Vector((e["origine"][0], lo.y, e["origine"][1]))
     R = Matrix.Rotation(math.radians(e.get("lacet", 0)), 3, 'Y')
     P = Prop(e["nom"])
     P.sol = e.get("sol", True)
+    P.bandes = e.get("bandes", P.bandes)      # « aucune » : pas de liserés d'arête (grands assemblages, bâtiments)
     stat = {}
     fam = tuple(e["famille"]) if "famille" in e else None       # matières candidates imposées par prop (props.json)
     cl = [classer(col, indice_mat(mn, e.get("mats", {})) if e.get("mats") else None, fam or famille(mn)) for p, col, mn, il in tris]
@@ -319,6 +322,8 @@ def adapter(e):
         choix[il] = (m, d[m][1] / d[m][0])
     for (p, col, mn, il), (m0, ton0) in zip(tris, cl):
         m, tmoy = choix[il]
+        if e.get("par_face"):                 # bâtiments : la matière de chaque face (plâtre / bois / pierre d'une même pièce), pas le vote de l'îlot
+            m, tmoy = m0, ton0
         ton = tmoy + 0.35 * ((ton0 if m0 == m else tmoy) - tmoy)      # garde un peu de la variation de la texture, sans taches
         if e.get("forcer", {}).get(m):
             m = e["forcer"][m]
