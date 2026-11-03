@@ -42,6 +42,7 @@ var tete := false          # gros plans du casque de face / 3/4 / profil
 var v2 := false
 var casque := false        # gros plans du casque (face, profil, dos)
 var studio := false        # vue studio de face, pose neutre (mains vides), fond uni
+var brillance := false     # --brillance : AVANT/APRÈS de la brillance (3/4 plein cadre, gros plan à 3 angles, pièces au sol)
 var chevilles := false     # gros plans des chevilles (bottes portées), sert au contrôle des fentes
 
 func _init() -> void:
@@ -138,6 +139,8 @@ func _go() -> void:
 			studio = true
 		elif a == "--casque":
 			casque = true
+		elif a == "--brillance":
+			brillance = true
 	PiecesEssai.injecter()
 	if avant:
 		for id in PIECES["os"]:
@@ -177,6 +180,8 @@ func _go() -> void:
 		await _tete()
 	elif v2:
 		await _v2()
+	elif brillance:
+		await _brillance()
 	elif casque:
 		await _casque()
 	elif studio:
@@ -217,6 +222,53 @@ func _studio() -> void:
 		_placer_cam(0.0, 4.3, 0.95, 1.1)
 		await _attendre(0.2)
 		await _capture("%s_studio_face" % f, Rect2i(300, 0, 360, 540), "%s - studio" % NOMS.get(f, f))
+
+## Brillance : même pose, même lumière (soleil de face), 960x540 plein cadre ; par famille : 3/4 d'ensemble, gros plan du buste à
+## 3 angles de caméra (le reflet doit bouger), pièces posées au sol (aucune neige dessus).
+func _brillance() -> void:
+	DirAccess.make_dir_recursive_absolute(sortie)
+	root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED     # vrai 960x540 (le projet étire un 640x360)
+	root.size = Vector2i(960, 540)
+	await process_frame
+	cam = Camera3D.new()
+	cam.fov = 34.0
+	s.add_child(cam)
+	cam.current = true
+	mains.magie.equiper("droite", "vide")
+	var plein := Rect2i(0, 0, 960, 540)
+	for f in familles:
+		_equiper_famille(f)
+		l.text = ""
+		await _attendre(0.8)
+		j.rotation.y = 0.0
+		_placer_cam(215.0, 3.0, 1.0, 1.15)
+		await _attendre(0.2)
+		await _capture("%s_ensemble" % f, plein)
+		for a in [-25.0, 15.0, 55.0]:
+			_placer_cam(a + 180.0, 1.9, 1.3, 1.5)
+			await _attendre(0.2)
+			await _capture("%s_gros_plan_%+d" % [f, int(a)], plein)
+		var poses: Array[Node3D] = []
+		var ids: Array = PIECES.get(f, [])
+		for i in ids.size():
+			var n := ArmureVisible.instancier_sol(ids[i])
+			if n == null:
+				continue
+			s.add_child(n)
+			var devant := -j.global_transform.basis.z
+			var cote := devant.cross(Vector3.UP)
+			n.global_position = j.global_position + devant * 1.6 + cote * (-1.05 + 0.7 * i)
+			n.rotation.y = j.rotation.y + PI
+			poses.append(n)
+		j.visible = false
+		var c := j.global_position + (-j.global_transform.basis.z) * 1.6
+		cam.global_position = c + (-j.global_transform.basis.z) * 1.5 + Vector3(0, 1.1, 0)
+		cam.look_at(c + Vector3(0, 0.08, 0), Vector3.UP)
+		await _attendre(0.2)
+		await _capture("%s_sol" % f, plein)
+		for n in poses:
+			n.queue_free()
+		j.visible = true
 
 func _casque() -> void:
 	DirAccess.make_dir_recursive_absolute(sortie)

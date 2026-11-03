@@ -108,6 +108,98 @@ static func shader_or() -> Shader:
 }"""
 		_shader_or.code = shader_armure().code.replace("\tROUGHNESS = 1.0;\n}", bloc)
 	return _shader_or
+## --- Brillance des métaux précieux et des gemmes (shaders communs, dérivés de shader_armure ; 2026-11-03) ---------------------
+## Même principe que shader_or : on greffe un bloc avant la fin du fragment de shader_armure() (donc ps1 : quantification, mipmaps, masque
+## « brillance » = alpha de la texture de base conservés). Pas de PBR lisse, pas d'alpha : tout en paliers (3 à 5 niveaux), ALU seule
+## (une lecture de texture en plus pour la gemme), utilisable sur Iris Xe. Uniform br_eclat (clé "eclat" du preset, 1 par défaut) = force.
+const BR_UNIFORMS := "uniform float mt_lueur = 0.0;\nuniform float br_eclat = 1.0;"
+static var _shader_metal: Shader
+static var _shader_gemme: Shader
+
+static func _derive(bloc: String) -> Shader:
+	var sh := Shader.new()
+	sh.code = shader_armure().code.replace("uniform float mt_lueur = 0.0;", BR_UNIFORMS).replace("\tROUGHNESS = 1.0;\n}", bloc)
+	return sh
+
+## MÉTAL PRÉCIEUX (acier nordique, obsidienne, argent, éléments métalliques des uniques ; or via shader_or). Brillance :
+##  1. reflet d'environnement en paliers : ciel clair / horizon / sol sombre selon la normale réfléchie (4 paliers) + bandes d'azimut
+##     (nuages, fenêtres) ; il glisse quand la caméra tourne ; teinte = mt_reflet du preset ;
+##  2. éclats spéculaires NETS (deux sources, seuil dur) qui se déplacent avec la caméra ;
+##  3. liseré de fresnel en paliers ;
+##  4. veine de lumière qui balaie la pièce quand on tourne autour (bande étroite, repère modèle) ;
+##  5. scintillement discret : quelques cellules de 4 texels s'allument brièvement selon l'angle de vue (+ lente dérive du temps).
+static func shader_metal() -> Shader:
+	if _shader_metal == null:
+		_shader_metal = _derive("""	{
+		vec3 bp_n = normalize(NORMAL);
+		vec3 bp_v = normalize(VIEW);
+		vec3 bp_r = normalize((INV_VIEW_MATRIX * vec4(reflect(-bp_v, bp_n), 0.0)).xyz);
+		float bp_k = br_eclat * step(0.15, texture(tex_base, uv).a) * mix(0.55, 1.0, texture(tex_base, uv).a);
+		float bp_e = bp_r.y > 0.6 ? 1.0 : (bp_r.y > 0.2 ? 0.7 : (bp_r.y > -0.15 ? 0.4 : 0.1));
+		float bp_az = floor(fract(atan(bp_r.z, bp_r.x) * 0.159155 + 0.5) * 6.0);
+		bp_e *= 0.8 + 0.4 * step(0.5, fract(bp_az * 0.5));
+		float bp_f = 1.0 - clamp(dot(bp_n, bp_v), 0.0, 1.0);
+		float bp_fq = floor(bp_f * bp_f * 4.0) / 4.0;
+		ALBEDO = mix(ALBEDO, ALBEDO * (0.4 + 1.5 * bp_e) * mt_reflet, 0.8 * bp_k);
+		EMISSION += mt_reflet * bp_e * bp_e * (0.08 + 0.14 * bp_fq) * bp_k;
+		float bp_s1 = pow(max(dot(bp_r, normalize(vec3(-0.45, 0.72, 0.52))), 0.0), 200.0);
+		float bp_s2 = pow(max(dot(bp_r, normalize(vec3(0.62, 0.45, -0.64))), 0.0), 120.0);
+		EMISSION += vec3(1.0, 0.97, 0.92) * (step(0.45, bp_s1) + 0.6 * step(0.45, bp_s2)) * 0.85 * bp_k;
+		EMISSION += mt_reflet * bp_fq * 0.14 * bp_k;
+		vec3 bp_m = normalize(l9_vue);
+		float bp_ph = dot(l9_pos, vec3(2.3, 3.1, 1.7)) + dot(bp_m, vec3(2.2, 3.4, 1.5));
+		EMISSION += mt_reflet * step(0.93, fract(bp_ph)) * 0.45 * bp_k * step(0.25, bp_f);
+		vec2 bp_c = floor(uv * 160.0);
+		float bp_h = fract(sin(dot(bp_c, vec2(12.9898, 78.233))) * 43758.5453);
+		float bp_t = fract(bp_h * 7.0 + dot(bp_v, vec3(5.0, 7.0, 3.0)) + TIME * 0.25);
+		EMISSION += vec3(1.0, 0.98, 0.9) * step(0.55, bp_h) * step(0.99, bp_t) * 0.9 * bp_k;
+	}
+	ROUGHNESS = 1.0;
+}""")
+	return _shader_metal
+
+## GEMME / VERRE : aucun alpha (pas de tri). Ajoute, SANS toucher aux couleurs de base (tout est additif, en émission, teinté par
+## l'albédo lui-même et éclairci vers le blanc) : fresnel en paliers (bords plus clairs), lueur interne décalée par parallaxe selon
+## l'angle de vue (relecture de la texture : profondeur, donne l'impression de voir à travers), reflet de ciel pâle, éclats
+## spéculaires nets et quelques facettes qui s'allument selon l'angle.
+static func shader_gemme() -> Shader:
+	if _shader_gemme == null:
+		_shader_gemme = _derive("""	{
+		vec3 gm_n = normalize(NORMAL);
+		vec3 gm_v = normalize(VIEW);
+		vec3 gm_r = normalize((INV_VIEW_MATRIX * vec4(reflect(-gm_v, gm_n), 0.0)).xyz);
+		float gm_k = br_eclat * step(0.1, texture(tex_base, uv).a);
+		float gm_f = 1.0 - clamp(dot(gm_n, gm_v), 0.0, 1.0);
+		float gm_fq = floor(gm_f * gm_f * 5.0) / 5.0;
+		vec3 gm_cl = mix(ALBEDO, vec3(dot(ALBEDO, vec3(0.33))), 0.35);
+		EMISSION += mix(gm_cl, vec3(1.0), 0.3) * gm_fq * 0.3 * gm_k;
+		vec3 gm_vm = normalize(l9_vue);
+		vec3 gm_in = texture(tex_base, uv - gm_vm.xy * 0.012).rgb;
+		vec3 gm_ic = mix(gm_in, vec3(dot(gm_in, vec3(0.33))), 0.4);
+		EMISSION += gm_ic * gm_ic * (0.45 - 0.2 * gm_f) * gm_k;
+		float gm_e = gm_r.y > 0.45 ? 1.0 : (gm_r.y > -0.1 ? 0.55 : 0.15);
+		EMISSION += vec3(0.78, 0.88, 1.0) * gm_e * gm_e * (0.04 + 0.08 * gm_fq) * gm_k;
+		float gm_s = pow(max(dot(gm_r, normalize(vec3(-0.45, 0.72, 0.52))), 0.0), 120.0);
+		EMISSION += vec3(1.0, 0.99, 0.96) * step(0.5, gm_s) * 0.9 * gm_k;
+		vec2 gm_c = floor(uv * 128.0);
+		float gm_h = fract(sin(dot(gm_c, vec2(12.9898, 78.233))) * 43758.5453);
+		float gm_t = fract(gm_h * 5.0 + dot(gm_v, vec3(3.0, 4.0, 2.0)));
+		EMISSION += vec3(1.0, 0.99, 0.96) * step(0.5, gm_h) * step(0.965, gm_t) * 0.55 * gm_k;
+	}
+	ROUGHNESS = 1.0;
+}""")
+	return _shader_gemme
+
+## Shader de brillance d'un preset : gemme (verre, gemme), métal précieux (acier, obsidienne, argent), or (shader_or) ; null = matériau
+## mat (cuir, fourrure, os, fer, tissu, runes). Seulement pour les atlas HD.
+static func shader_brillance(nom: String) -> Shader:
+	if nom.begins_with("or"):
+		return shader_or()
+	if nom.begins_with("verre") or nom.begins_with("gemme"):
+		return shader_gemme()
+	if nom.begins_with("acier") or nom.begins_with("obsidienne") or nom.begins_with("fer.argent"):
+		return shader_metal()
+	return null
 ## Matière FPS (AvantBras) remplacée par famille de gants : clé de matière ab_* -> nom de matière du glb ou "" (inchangé).
 const FPS_GANTS := ["ab_gant"]
 const FPS_BRASSARD := ["ab_cuir", "ab_tresse", "ab_fourrure"]
@@ -354,14 +446,17 @@ static func materiau(nom: String, tex: Texture2D, var_mat := "") -> ShaderMateri
 		tex = Palette.tex("cuir", Palette.CUIR, 4, 0.5)
 	var m := Palette.materiau(tex, Vector2.ONE, p.get("teinte", Color.WHITE))
 	m.shader = shader_armure() if tex.get_width() > TEX_HD else EpeesLongues.shader_matiere(false)
-	if nom.begins_with("or") and tex.get_width() > TEX_HD:
-		m.shader = shader_or()
+	if tex.get_width() > TEX_HD:
+		var sh_b := shader_brillance(nom)
+		if sh_b != null:
+			m.shader = sh_b
 	m.set_shader_parameter("tex_neige", tex)    # couleurs de sommet du glb d'alpha nul : pas de neige
 	m.set_shader_parameter("neige_tient", 0.0)   # au sol : jamais la neige du monde sur les faces vers le haut (glb sans couleur de sommet inclus)
 	m.set_shader_parameter("mt_boite", 0.0)
 	for k in ["metal", "poli", "bord", "profondeur", "lueur"]:
 		m.set_shader_parameter("mt_" + k, float(p.get(k, 0.0)))
 	m.set_shader_parameter("mt_opacite", 1.0)
+	m.set_shader_parameter("br_eclat", float(p.get("eclat", 1.0)))
 	m.set_shader_parameter("mt_reflet", p.get("reflet", Color.WHITE))
 	m.set_shader_parameter("reflet_force", 0.0)
 	m.set_shader_parameter("reflet_fil", 0.0)
@@ -383,7 +478,7 @@ static func shader_armure() -> Shader:
 	return _shader_armure
 
 static func est_shader_armure(sh: Shader) -> bool:
-	return sh == EpeesLongues.shader_matiere(false) or sh == shader_armure() or sh == shader_or()
+	return sh == EpeesLongues.shader_matiere(false) or sh == shader_armure() or sh == shader_or() or sh == shader_metal() or sh == shader_gemme()
 
 # ------------------------------------------------------------------------------------------------------------- masquage
 ## Zones recouvertes par les pièces réellement posées ; « cape » en plus quand la pièce de tête descend sur les épaules (capuche

@@ -704,6 +704,11 @@ def version_sol(r, ob, pid, suffixe=""):
         for v in me.vertices:
             s = 1 if v.co.x > 0 else -1
             v.co.x -= s * 0.05
+    # NEIGE : pièce posée à plat = faces vers le haut ; alpha de couleur de sommet 0 (« déjà neigé ») pour que le shader ps1 ne pose
+    # pas la neige du monde dessus (voir sol_sans_neige.py). Écrit ICI pour qu'une régénération n'annule pas le correctif.
+    for ca in me.color_attributes:
+        for d in ca.data:
+            d.color = (d.color[0], d.color[1], d.color[2], 0.0)
     zmin = min(v.co.z for v in me.vertices)
     cx = sum(v.co.x for v in me.vertices) / len(me.vertices)
     cy = sum(v.co.y for v in me.vertices) / len(me.vertices)
