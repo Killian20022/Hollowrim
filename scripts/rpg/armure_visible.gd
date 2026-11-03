@@ -9,7 +9,9 @@ extends Node
 ##   torse : cotte (triangles qui ont un sommet à |x| < 0,415 : la manche au-delà, sous le coude, reste), mante, plastron, épaulières, col, tabard, pèlerine, ceinture, surcot ;
 ##   mains : tout ce qui dépasse |x| = 0,58 en pose de repos (gants, revers fourrés, brassards, bout des manches) ;
 ##   pieds : bottes, revers fourrés, bas du pantalon (sous y = 0,40).
-## 1re personne : les bras FPS (mains.gd, matières ab_* d'AvantBras) prennent la matière des gants / gantelets portés.
+## 1re personne : les gants / gantelets portés (modèle porté HD, matière et brillance comprises) sont posés sur le squelette des bras FPS (mains.gd,
+## matières ab_* d'AvantBras) à la place des mains d'origine : voir _habiller_fps.
+## JAMBIÈRES : emplacement « jambes » d'EquipementCorps (fiche data/objets/armures.json, glb de chausses/) ; _poser_chausses.
 ## Matériaux : texture cuite du glb (alpha = brillance) + preset de matière (cuir, fourrure, os, fer, acier, or) rendu par le shader
 ## « matière » des armes (EpeesLongues.shader_matiere : ps1 + reflets en paliers), contour des personnages.
 ##   ArmureVisible.equiper(corps, squelette, equipement_corps, mains) -> ArmureVisible   (corps_joueur._creer_modele)
@@ -28,6 +30,7 @@ const TORSES_MANCHES := ["cuirasse_fer", "cuirasse_acier_nordique", "cuirasse_ga
 const PIEDS_Y := 0.40
 const PIEDS_Y_ACC := 0.58	# pans fourrés du héros au-dessus du genou (bottes hautes de l'agent Y) ; surface 0 seulement (la pèlerine reste)
 const TETE_Y := 1.585
+const JAMBES_Y := 0.93	# haut des chausses (gen_legeres.py : triangles du pantalon sous y = 0,93)
 const CAPE_Y := 1.50
 ## Secteurs angulaires autour du bassin pour l'ourlet réel de la pièce de torse.
 const SECTEURS := 16
@@ -297,7 +300,7 @@ func installer(sq: Skeleton3D, eq: EquipementCorps) -> void:
 	appliquer()
 
 func _sur_change(e: String) -> void:
-	if e in EMPLACEMENTS:
+	if e in EMPLACEMENTS or e == "jambes" or e == "":
 		appliquer()
 
 ## Pose les modèles portés de toutes les pièces et met à jour le masquage et les bras FPS.
@@ -315,6 +318,8 @@ func appliquer() -> void:
 ## poids : sources_blender/armures/legeres/gen_legeres.py -- chausses) ; le pantalon, la cotte et les pans du héros disparaissent
 ## alors entièrement (plus d'étoffe qui traverse les jupes, silhouette nette). Avec des bottes, les chausses sont coupées à leur haut.
 ## Torse inconnu de la table : chausses de cuir.
+## JAMBIÈRES (emplacement « jambes » d'EquipementCorps, 2026-11-03) : une paire équipée (fiche « modele_porte » = un glb de chausses/) REMPLACE
+## les chausses par défaut du torse, avec ou sans pièce de torse ; sans jambières équipées, rien ne change (chausses par torse).
 const CHAUSSES := "res://assets/modeles/armures/chausses/"
 const CHAUSSES_PAR_TORSE := {
 	"armure_cuir": "cuir", "armure_fourrure": "fourrure", "cuirasse_os": "os",
@@ -331,22 +336,34 @@ static func famille_chausses(id_torse: String) -> String:
 	return String(CHAUSSES_PAR_TORSE.get(id_torse, "cuir")) if id_torse != "" else ""
 
 func _poser_chausses() -> void:
-	var fam := famille_chausses(porte("torse"))
-	var chemin := CHAUSSES + fam + ".glb"
+	var jb := equipement.objet_a("jambes") if equipement != null else ""
+	var id := ""
+	var chemin := ""
+	var var_mat := ""
+	if jb != "" and a_modele(jb):
+		id = jb
+		chemin = chemin_porte(jb)
+		var_mat = variante(jb)
+	else:
+		var fam := famille_chausses(porte("torse"))
+		id = "chausses_" + fam
+		chemin = CHAUSSES + fam + ".glb"
+		if fam == "":
+			id = ""
 	var ancien: MeshInstance3D = _portees.get("jambes")
 	if ancien != null and is_instance_valid(ancien):
-		if String(ancien.get_meta("armure_id", "")) == "chausses_" + fam:
+		if String(ancien.get_meta("armure_id", "")) == id:
 			return
 		ancien.get_parent().remove_child(ancien)
 		ancien.queue_free()
 	_portees.erase("jambes")
-	if fam == "" or not ResourceLoader.exists(chemin):
+	if id == "" or not ResourceLoader.exists(chemin):
 		return
-	var mi := charger_chemin(chemin)
+	var mi := charger_chemin(chemin, var_mat, preset_de(jb) if jb != "" else "")
 	if mi == null:
 		return
 	mi.name = "armure_jambes"
-	mi.set_meta("armure_id", "chausses_" + fam)
+	mi.set_meta("armure_id", id)
 	mi.set_meta("armure_emplacement", "jambes")
 	mi.set_meta("maillage_origine", mi.mesh)
 	squelette.add_child(mi)
@@ -401,9 +418,14 @@ func _poser(e: String) -> void:
 
 ## Maillage porté d'une pièce, prêt à rattacher à un Skeleton3D du héros (skin du glb, liaisons par NOM d'os ; matériaux habillés).
 static func charger_porte(id: String) -> MeshInstance3D:
-	return charger_chemin(chemin_porte(id), variante(id))
+	return charger_chemin(chemin_porte(id), variante(id), preset_de(id))
 
-static func charger_chemin(chemin: String, var_mat := "") -> MeshInstance3D:
+## Preset de matière imposé par la fiche (champ « preset_materiau », ex. "acier") : les chausses de fer, d'acier, des gardiens et de verre
+## sont livrées avec un matériau Blender « cuir » (rendu mat) ; la fiche des jambières correspondantes leur donne la bonne matière.
+static func preset_de(id: String) -> String:
+	return String(Inventaire.objet(id).get("preset_materiau", "")) if Inventaire.connu(id) else ""
+
+static func charger_chemin(chemin: String, var_mat := "", preset := "") -> MeshInstance3D:
 	var ps := load(chemin) as PackedScene
 	if ps == null:
 		return null
@@ -420,7 +442,7 @@ static func charger_chemin(chemin: String, var_mat := "") -> MeshInstance3D:
 	src.owner = null
 	inst.free()
 	src.transform = Transform3D.IDENTITY
-	_habiller_maillage(src, chemin, var_mat)
+	_habiller_maillage(src, chemin, var_mat, preset)
 	return src
 
 ## Pièce posée au sol / présentoir (glb statique, pivot au sol), matériaux habillés ; null si absente.
@@ -429,12 +451,12 @@ static func instancier_sol(id: String) -> Node3D:
 		return null
 	var n: Node3D = (load(chemin_sol(id)) as PackedScene).instantiate()
 	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
-		_habiller_maillage(mi, chemin_sol(id), variante(id))
+		_habiller_maillage(mi, chemin_sol(id), variante(id), preset_de(id))
 	n.name = "armure_sol_" + id
 	return n
 
-static func _habiller_maillage(mi: MeshInstance3D, chemin: String, var_mat := "") -> void:
-	var cle := chemin + ("|" + var_mat if var_mat != "" else "")
+static func _habiller_maillage(mi: MeshInstance3D, chemin: String, var_mat := "", preset := "") -> void:
+	var cle := chemin + ("|" + var_mat if var_mat != "" else "") + ("|=" + preset if preset != "" else "")
 	# LOD automatiques de l'import (generate_lods) : en 480x270 le moteur choisissait des niveaux très simplifiés qui mangeaient les
 	# plaques fines et la pelisse posées sur la coque (charte HD : la géométrie détaillée doit rester visible)
 	mi.lod_bias = 64.0
@@ -442,7 +464,7 @@ static func _habiller_maillage(mi: MeshInstance3D, chemin: String, var_mat := ""
 		var d := {}
 		for s in mi.mesh.get_surface_count():
 			var m := mi.mesh.surface_get_material(s)
-			var nom := nom_preset(m.resource_name if m else "cuir", var_mat)
+			var nom := nom_preset(preset if preset != "" else (m.resource_name if m else "cuir"), var_mat)
 			var tex: Texture2D = (m as BaseMaterial3D).albedo_texture if m is BaseMaterial3D else null
 			d[s] = materiau(nom, tex, var_mat)
 		_mats[cle] = d
@@ -668,7 +690,7 @@ static func ourlet_en(lim: Dictionary, p: Vector3) -> float:
 static func _concerne(nom: String, z: Array) -> bool:
 	match nom:
 		"tunique":
-			return z.has("torse") or z.has("mains")
+			return z.has("torse") or z.has("mains") or z.has("jambes")
 		"mante", "Hair_Long":
 			return z.has("torse") or z.has("cape")
 		"brassards", "peau":
@@ -723,9 +745,14 @@ static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Arra
 		# chausses portées : pantalon, cotte (hors manches) et pans du héros entièrement retirés
 		if nom == "pantalon":
 			return true
-		if nom == "tunique" and x_min < float(lim.get("torse_x", TORSE_X)):
+		# cotte et pans du héros : entièrement retirés sous une pièce de torse ; avec des jambières SEULES, seulement ce qui descend sur
+		# les jambes (sous JAMBES_Y, haut des chausses) : la tenue du héros au-dessus reste
+		var sous := z.has("torse") or bas < JAMBES_Y
+		if sous and nom == "tunique" and x_min < float(lim.get("torse_x", TORSE_X)):
 			return true
-		if acc and not oeil and not casque and not camail and c.y > 0.40 and c.y < TETE_Y and absf(c.x) < 0.45:
+		if acc and haut < PIEDS_Y_ACC - 0.005:
+			return true     # revers fourrés des bottes du héros : sous les chausses (les os et le verre descendent jusqu'à la cheville)
+		if sous and acc and not oeil and not casque and not camail and c.y > 0.40 and c.y < TETE_Y and absf(c.x) < 0.45:
 			return true
 	if z.has("torse"):
 		if camail:
@@ -891,6 +918,37 @@ static func _couper(a: Array, idx: PackedInt32Array, bas: float, haut: float, li
 	return b
 
 # ------------------------------------------------------------------------------------------------------------- 1re personne
+## Gants / gantelets en 1re personne (v2, 2026-11-03) : les bras FPS d'origine (bras_fps.glb : mains aux doigts lisibles, plaques sur le dos
+## de la main et les phalanges, brassards) GARDENT leur géométrie, donc leur emprise à l'écran (le modèle porté de la 3e personne, essayé en v1,
+## était énorme à cette distance). Seules leurs matières changent, selon la famille de la paire équipée :
+##   gant (ab_gant)          : cuir, maille ou étoffe de la matière ;
+##   plaques (ab_metal, ab_fer) : plaques de la matière (acier gris clair, verre vert-cristal, obsidienne à veines de magma, or…), avec le
+##                              shader de brillance du preset (shader_brillance) ;
+##   brassards (ab_cuir, ab_tresse, ab_fourrure) : teinte seulement.
+## Les textures sont repeintes depuis celles d'AvantBras (le relief peint reste : la luminance passe dans la rampe de la matière).
+## Shaders des bras : double face (comme les ab_*), sans contour.
+const FPS_LUEUR := 0.6
+const FPS_ECLAT := 1.0
+## famille -> {"gant": [motif, rampe, preset, brillance], "plaque": [...]} ; motif "cuir" | "maille" ; rampe = couleurs sombre -> claire.
+const FPS_STYLES := {
+	"fer": {"gant": ["maille", ["#2a2929", "#4a4846", "#6e6a66", "#938e88", "#b8b2aa"], "fer", 0.4],
+		"plaque": ["plaque", ["#2a2927", "#4a4744", "#726e69", "#9b968f", "#c4beb5"], "fer", 0.55]},
+	"acier": {"gant": ["maille", ["#363b42", "#5b626b", "#7f8790", "#a0a8b0", "#c4cbd1"], "acier", 0.6],
+		"plaque": ["plaque", ["#3a4048", "#626972", "#8a919a", "#adb4bc", "#d2d8de"], "acier", 0.9]},
+	"verre": {"gant": ["cuir", ["#0e2a1a", "#184a2e", "#26704a", "#3a9a66", "#58c488"], "cuir", 0.1],
+		"plaque": ["plaque", ["#0c4a2a", "#1f8a52", "#3fd08a", "#98f4c4", "#e6fff2"], "verre", 1.0]},
+	"obsidienne": {"gant": ["cuir", ["#030204", "#0a090d", "#15131b", "#221e2a", "#2f2a3a"], "cuir", 0.1],
+		"plaque": ["obsidienne", ["#050408", "#0f0d14", "#1c1824", "#2e2938", "#463f55"], "obsidienne", 0.9]},
+	"or": {"gant": ["maille", ["#0a1030", "#14204a", "#1f3070", "#2c4294", "#3a56b8"], "tissu", 0.2],
+		"plaque": ["plaque", ["#5a3f10", "#a4741c", "#d9a52e", "#f3cf5c", "#fff0a8"], "or", 0.9]},
+	"rubis": {"gant": ["cuir", ["#150608", "#2a0c10", "#45141a", "#65202a", "#85303a"], "cuir", 0.1],
+		"plaque": ["plaque", ["#2a060a", "#6a1018", "#b02430", "#e8505a", "#ffb0a8"], "gemme", 1.0]},
+	"saphir": {"gant": ["cuir", ["#050c1c", "#0a1a38", "#122c5a", "#1c4488", "#2c60b4"], "cuir", 0.1],
+		"plaque": ["plaque", ["#061430", "#0e3a7a", "#2a6ad0", "#7ab0f0", "#d8ecff"], "gemme", 1.0]},
+}
+static var _fps_mats := {}      # "famille|rôle" -> ShaderMaterial
+static var _fps_double := {}    # Shader -> même shader en double face
+
 func _habiller_fps() -> void:
 	if mains == null or not is_instance_valid(mains):
 		return
@@ -917,6 +975,58 @@ func _habiller_fps() -> void:
 			if mats.has(nom):
 				_fps_origine[[mi, s]] = mi.get_surface_override_material(s)
 				mi.set_surface_override_material(s, mats[nom])
+
+static func _double_face(sh: Shader) -> Shader:
+	if not _fps_double.has(sh):
+		var d := Shader.new()
+		d.code = sh.code.replace("render_mode ", "render_mode cull_disabled, ")
+		_fps_double[sh] = d
+	return _fps_double[sh]
+
+## Texture 64² d'un rôle (« gant », « plaque ») : luminance de la texture d'origine d'AvantBras passée dans la rampe de la matière ; alpha = brillance.
+static func _texture_fps(source: String, motif: String, rampe: Array, brillance: float) -> ImageTexture:
+	var cols: Array = rampe.map(func(h: String) -> Color: return Color(h))
+	var src := AvantBras.peindre(source)
+	var img := Image.create(AvantBras.T, AvantBras.T, false, Image.FORMAT_RGBA8)
+	for y in AvantBras.T:
+		for x in AvantBras.T:
+			var k := clampf((src.get_pixel(x, y).get_luminance() - 0.06) / 0.55, 0.0, 1.0)
+			var a := brillance
+			if motif == "maille":
+				var bx := (x + 2 * ((y / 4) % 2)) % 4
+				var by := y % 4
+				var bord := bx == 0 or bx == 3 or by == 0 or by == 3
+				k = clampf(k * 0.45 + (0.55 if bord else 0.12), 0.0, 1.0)
+				a = brillance * (1.0 if bord else 0.4)
+			var c: Color = AvantBras._rampe(cols, k, 9)
+			if motif == "obsidienne" and AvantBras._fbm(x, y, 77) > 0.74:
+				c = Color("#e0561c").lerp(Color("#ffb060"), AvantBras._h(x, y, 3))     # veine de magma
+				a = 1.0
+			c.a = a
+			img.set_pixel(x, y, c)
+	return ImageTexture.create_from_image(img)
+
+static func _materiau_fps(famille: String, role: String) -> ShaderMaterial:
+	var cle := famille + "|" + role
+	if _fps_mats.has(cle):
+		return _fps_mats[cle]
+	var st: Array = FPS_STYLES[famille][role]
+	var source := "gant" if role == "gant" else "metal"
+	var tex := _texture_fps(source, String(st[0]), st[1], float(st[3]))
+	var nom := String(st[2])
+	var m := materiau(nom, tex)
+	m.next_pass = null
+	var sh: Shader = shader_brillance(nom)
+	if sh == null:
+		sh = shader_armure()
+	m.shader = _double_face(sh)
+	for k: Array in [["mt_lueur", FPS_LUEUR], ["br_eclat", FPS_ECLAT]]:
+		var v: Variant = m.get_shader_parameter(k[0])
+		if v is float:
+			m.set_shader_parameter(k[0], float(v) * float(k[1]))
+	m.resource_name = "fps_" + cle
+	_fps_mats[cle] = m
+	return m
 
 ## Matières des bras FPS pour une paire de gants portée : texture et matière du glb, tons de la pièce (gants, revers, plaques).
 static func materiaux_fps(id: String) -> Dictionary:
@@ -945,6 +1055,13 @@ static func materiaux_fps(id: String) -> Dictionary:
 		d[k] = _teinter(ab[k], t[1])
 	for k in FPS_PLAQUES:
 		d[k] = _teinter(ab[k], t[2])
+	if FPS_STYLES.has(famille):      # matière HD : gant et plaques repeints (les brassards gardent la teinte)
+		for k in FPS_GANTS:
+			d[k] = _materiau_fps(famille, "gant")
+		for k in FPS_PLAQUES:
+			d[k] = _materiau_fps(famille, "plaque")
+		d["ab_cuir"] = _materiau_fps(famille, "plaque")      # brassard : plaque de la matière (la fourrure du bord garde sa teinte)
+		d["ab_tresse"] = _materiau_fps(famille, "plaque")
 	return d
 
 static func _teinter(m: ShaderMaterial, c: Color) -> ShaderMaterial:

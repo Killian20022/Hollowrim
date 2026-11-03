@@ -90,7 +90,11 @@
 			{"id": "casque_acier_nordique", "poids": 2},
 			{"id": "cuirasse_acier_nordique", "poids": 1},
 			{"id": "gantelets_acier_nordique", "poids": 2},
-			{"id": "bottes_acier_nordique", "poids": 2}
+			{"id": "bottes_acier_nordique", "poids": 2},
+			{"id": "jambieres_cuir", "poids": 8},
+			{"id": "jambieres_fourrure", "poids": 8},
+			{"id": "jambieres_fer", "poids": 6},
+			{"id": "jambieres_acier_nordique", "poids": 2}
 		]},
 		"armures_draugr": {"tirages": 1, "entrees": [
 			{"id": "casque_os", "poids": 10},
@@ -99,7 +103,9 @@
 			{"id": "bottes_os", "poids": 10},
 			{"id": "casque_fer", "poids": 6},
 			{"id": "gantelets_fer", "poids": 6},
-			{"id": "bottes_fer", "poids": 5}
+			{"id": "bottes_fer", "poids": 5},
+			{"id": "jambieres_os", "poids": 10},
+			{"id": "jambieres_fer", "poids": 5}
 		]},
 		"armures_rares": {"tirages": 1, "entrees": [
 			{"id": "casque_acier_nordique", "poids": 10},
@@ -112,7 +118,10 @@
 			{"id": "bottes_rodeur", "poids": 4},
 			{"id": "capuche_thaumaturge", "poids": 3},
 			{"id": "brigandine_braise", "poids": 3},
-			{"table": "bijoux_enchantes", "poids": 8}
+			{"table": "bijoux_enchantes", "poids": 8},
+			{"id": "jambieres_acier_nordique", "poids": 10},
+			{"id": "jambieres_gardiens", "poids": 3},
+			{"id": "jambieres_braise", "poids": 3}
 		]},
 		"armures_crypte": {"tirages": 1, "entrees": [
 			{"id": "cuirasse_os", "poids": 10},
@@ -121,7 +130,8 @@
 			{"id": "cuirasse_gardiens", "poids": 6},
 			{"id": "heaume_jarl", "poids": 3},
 			{"id": "gantelets_hrafn", "poids": 3},
-			{"table": "bijoux_enchantes", "poids": 10}
+			{"table": "bijoux_enchantes", "poids": 10},
+			{"id": "jambieres_gardiens", "poids": 4}
 		]},
 		"bijoux_enchantes": {"tirages": 1, "entrees": [
 			{"id": "amulette_ours", "poids": 10},

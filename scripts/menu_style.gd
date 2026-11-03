@@ -622,6 +622,7 @@ const MOTIFS_MENU := {
 	"bottes": ["cuir", ["................", "...sslls........", "...sllll........", "...2333..2......", "...2343.........", "...2343.........",
 		"...2343.........", "...2343.........", "...23443........", "...234443.......", "...2344443333...", "...23444444443..",
 		"...12222222222..", "...dmmmmmmmmmd..", "................", "................"]],
+	"jambieres": ["cuir", ["................", "...BBBBBBBBBB...", "...3444444443...", "...3444334443...", "...3444..4443...", "...3444..4443...", "...344....443...", "...344....443...", "...344....443...", "...344....443...", "...3444..4443...", "...3444..4443...", "...244....442...", "...222....222...", "................", "................"]],
 	"anneau": ["metal", ["................", "................", "................", "......uUUu......", ".....uw..Uu.....", "......UuuU......",
 		".....gGGGGg.....", "....gG....Gg....", "...gG......Gg...", "...g........g...", "...gG......Gg...", "....gG....Gg....",
 		".....gGGGGg.....", "................", "................", "................"]],
@@ -662,7 +663,7 @@ const LAMES := {
 	"obsidienne": ["#ec6a1f", "#3a2a3a", "#1a1018"], "or": ["#fff2c0", "#e8a64a", "#a8702a"], "fer": ["#c8d0dc", "#8a96ad", "#56627a"],
 }
 ## Icône par emplacement de corps vide (silhouette pâle) et par catégorie sans motif.
-const ICONE_EMPLACEMENT := {"tete": "casque", "torse": "plastron", "mains": "gants", "pieds": "bottes", "cou": "amulette", "anneau": "anneau"}
+const ICONE_EMPLACEMENT := {"tete": "casque", "torse": "plastron", "mains": "gants", "pieds": "bottes", "cou": "amulette", "anneau": "anneau", "jambes": "jambieres"}
 const ICONE_DEFAUT := {"arme": "epee", "armure": "plastron", "bijou": "anneau", "ingredient": "minerai", "quete": "cle", "divers": "relique",
 	"consommable": "potion_soin"}
 ## Icônes d'objets connus sans champ « icone » dans le registre (lecture seule du registre : lot A pourra les y écrire).

@@ -59,10 +59,10 @@ func _donnees() -> void:
 	var fautes := []
 	for id: String in armures:
 		var f := Inventaire.objet(id)
-		if not String(f.get("emplacement", "")) in ["tete", "torse", "mains", "pieds"] or float(f.get("armure", 0)) <= 0.0 \
+		if not String(f.get("emplacement", "")) in ["tete", "torse", "mains", "pieds", "jambes"] or float(f.get("armure", 0)) <= 0.0 \
 				or not String(f.get("type_armure", "")) in ["lourde", "legere"]:
 			fautes.append(id)
-	_verif(fautes.is_empty(), "armures : emplacement tete/torse/mains/pieds, points d'armure, type lourde/legere %s" % str(fautes))
+	_verif(fautes.is_empty(), "armures : emplacement tete/torse/mains/pieds/jambes, points d'armure, type lourde/legere %s" % str(fautes))
 	var empl := {}
 	for id: String in bijoux:
 		empl[Inventaire.emplacement_de(id)] = true

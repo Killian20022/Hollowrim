@@ -5,43 +5,50 @@
 			{"id": "capuche_cuir", "poids": 10},
 			{"id": "armure_cuir", "poids": 7},
 			{"id": "gants_cuir", "poids": 10},
-			{"id": "bottes_cuir", "poids": 10}
+			{"id": "bottes_cuir", "poids": 10},
+			{"id": "jambieres_cuir", "poids": 10}
 		]},
 		"armures_ens_fourrure": {"tirages": 1, "entrees": [
 			{"id": "casque_fourrure", "poids": 10},
 			{"id": "armure_fourrure", "poids": 7},
 			{"id": "gants_fourrure", "poids": 10},
-			{"id": "bottes_fourrure", "poids": 10}
+			{"id": "bottes_fourrure", "poids": 10},
+			{"id": "jambieres_fourrure", "poids": 10}
 		]},
 		"armures_ens_os": {"tirages": 1, "entrees": [
 			{"id": "casque_os", "poids": 10},
 			{"id": "cuirasse_os", "poids": 7},
 			{"id": "gants_os", "poids": 10},
-			{"id": "bottes_os", "poids": 10}
+			{"id": "bottes_os", "poids": 10},
+			{"id": "jambieres_os", "poids": 10}
 		]},
 		"armures_ens_fer": {"tirages": 1, "entrees": [
 			{"id": "casque_fer", "poids": 10},
 			{"id": "cuirasse_fer", "poids": 7},
 			{"id": "gantelets_fer", "poids": 10},
-			{"id": "bottes_fer", "poids": 10}
+			{"id": "bottes_fer", "poids": 10},
+			{"id": "jambieres_fer", "poids": 10}
 		]},
 		"armures_ens_acier_nordique": {"tirages": 1, "entrees": [
 			{"id": "casque_acier_nordique", "poids": 10},
 			{"id": "cuirasse_acier_nordique", "poids": 7},
 			{"id": "gantelets_acier_nordique", "poids": 10},
-			{"id": "bottes_acier_nordique", "poids": 10}
+			{"id": "bottes_acier_nordique", "poids": 10},
+			{"id": "jambieres_acier_nordique", "poids": 10}
 		]},
 		"armures_ens_or": {"tirages": 1, "entrees": [
 			{"id": "casque_or", "poids": 10},
 			{"id": "cuirasse_or", "poids": 7},
 			{"id": "gantelets_or", "poids": 10},
-			{"id": "bottes_or", "poids": 10}
+			{"id": "bottes_or", "poids": 10},
+			{"id": "jambieres_or", "poids": 10}
 		]},
 		"armures_ens_verre": {"tirages": 1, "entrees": [
 			{"id": "casque_verre", "poids": 10},
 			{"id": "cuirasse_verre", "poids": 7},
 			{"id": "gantelets_verre", "poids": 10},
-			{"id": "bottes_verre", "poids": 10}
+			{"id": "bottes_verre", "poids": 10},
+			{"id": "jambieres_verre", "poids": 10}
 		]},
 		"armures_ens_saphir": {"tirages": 1, "entrees": [
 			{"id": "casque_saphir", "poids": 10},
@@ -59,7 +66,8 @@
 			{"id": "casque_obsidienne", "poids": 10},
 			{"id": "cuirasse_obsidienne", "poids": 7},
 			{"id": "gantelets_obsidienne", "poids": 10},
-			{"id": "bottes_obsidienne", "poids": 10}
+			{"id": "bottes_obsidienne", "poids": 10},
+			{"id": "jambieres_obsidienne", "poids": 10}
 		]},
 		"armures_enchantees_p3": {"tirages": 1, "entrees": [
 			{"id": "bottes_rodeur", "poids": 10},

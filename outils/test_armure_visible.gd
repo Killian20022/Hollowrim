@@ -19,7 +19,7 @@ const TRIS_MAX := 2500
 const TRIS_TETE := 1400
 ## Budgets de la charte HD (conception_rpg/CHARTE_ARMURES_HD.md) : torse 2 500, tête 1 400, mains / pieds 1 200 ; textures jusqu'à
 ## 1024² (atlas d'ensemble). Les pièces encore en budget « bas » restent sous ces plafonds.
-const TRIS_HD := {"torse": 2500, "tete": 1400, "mains": 1200, "pieds": 1200}
+const TRIS_HD := {"torse": 2500, "tete": 1400, "mains": 1200, "pieds": 1200, "jambes": 1200}
 ## Budgets propres à certaines pièces HD au niveau de détail du verre v5 (armure d'or v3 : lames articulées, genouillères, lions en relief).
 const TRIS_HD_ID := {"cuirasse_or": 3000, "cuirasse_or_enchante": 3000, "bottes_or": 3200, "bottes_or_enchante": 3200}
 const TEX_MAX := 1024
@@ -620,6 +620,23 @@ func _en_jeu(ps: Array) -> void:
 					if m.get_surface_override_material(s) != AvantBras.materiaux()["ab_gant"]:
 						n_arm += 1
 		ok(n_ab > 0 and n_arm == n_ab, "1re personne : gants %s sur les bras FPS (%d / %d surfaces de gant)" % [gants, n_arm, n_ab])
+		ok(bras.find_child("gants_fps", true, false) == null, "1re personne : bras FPS d'origine gardés (pas de modèle de 3e personne posé dessus)")
+		for g2 in ["gantelets_acier_nordique", "gantelets_verre", "gantelets_obsidienne", "gantelets_or"]:
+			j.inventaire.ajouter(g2, 1)
+			j.equipement_corps.equiper(g2)
+			await process_frame
+			var plaques := 0
+			var bons := 0
+			for m: MeshInstance3D in bras.find_children("avant_bras*", "MeshInstance3D", true, false):
+				for s in m.mesh.get_surface_count():
+					var mm := m.mesh.surface_get_material(s)
+					if mm and mm.resource_name.get_slice(".", 0) in ["ab_metal", "ab_fer"]:
+						plaques += 1
+						var ov := m.get_surface_override_material(s) as ShaderMaterial
+						if ov != null and ov.resource_name.begins_with("fps_") and ov.shader.code.contains("cull_disabled") and ov.next_pass == null:
+							bons += 1
+			ok(plaques > 0 and bons == plaques, "1re personne : plaques de %s repeintes (matière HD, double face) : %d / %d" % [g2, bons, plaques])
+		j.equipement_corps.equiper(gants)
 		j.equipement_corps.retirer("mains")
 		await process_frame
 		var revenu := 0

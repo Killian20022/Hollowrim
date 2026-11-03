@@ -14,7 +14,7 @@ const CATEGORIES := [["tout", "Tout"], ["favoris", "Favoris"], ["arme", "Armes"]
 const ORDRE := ["arme", "armure", "bijou", "consommable", "ingredient", "quete", "divers"]
 const NOMS_CATEGORIES := {"arme": "Arme", "armure": "Armure", "bijou": "Bijou", "consommable": "Consommable", "ingredient": "Ingrédient",
 	"quete": "Objet de quête", "divers": "Objet de valeur"}
-const NOMS_EMPLACEMENTS := {"tete": "tête", "torse": "torse", "mains": "mains", "pieds": "pieds", "cou": "cou", "anneau": "anneau"}
+const NOMS_EMPLACEMENTS := {"tete": "tête", "torse": "torse", "mains": "mains", "pieds": "pieds", "cou": "cou", "anneau": "anneau", "jambes": "jambes"}
 const NOMS_EFFETS := {"resist_froid": "Froid", "resist_feu": "Feu", "resist_choc": "Choc", "vie_max": "Vie", "magie_max": "Magie",
 	"vigueur_max": "Vigueur", "charge": "Charge", "regen_magie": "Régén. magie", "regen_vigueur": "Régén. vigueur", "cout_sorts": "Coût des sorts",
 	"prix": "Prix", "degats_une_main": "Dégâts à une main", "degats_deux_mains": "Dégâts à deux mains", "degats_destruction": "Dégâts de destruction",

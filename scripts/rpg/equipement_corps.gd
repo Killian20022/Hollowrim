@@ -1,6 +1,7 @@
 class_name EquipementCorps
 extends RefCounted
-## Équipement de corps (Q3 b) : tete, torse, mains, pieds, cou, anneau. Les mains (armes, bouclier, sorts, torche) restent
+## Équipement de corps (Q3 b) : tete, torse, mains, pieds, cou, anneau, jambes (jambières : emplacement ajouté après coup, une sauvegarde
+## sans cette clé reste valide : importer() la laisse vide, le torse porté garde alors ses chausses par défaut). Les mains (armes, bouclier, sorts, torche) restent
 ## à EquipementMains (ne pas fusionner : docs/RPG.md §6). Contrat : docs/RPG.md §4.
 ## Un objet équipé RESTE dans le sac (il compte dans le poids, Q5) ; s'il quitte le sac (vendu, lâché, déposé), il est
 ## retiré de son emplacement automatiquement. Armure non visible sur le héros pour l'instant (Q4 a).
@@ -25,7 +26,7 @@ const RESISTANCES := {"glace": "resist_froid", "givre": "resist_froid", "froid":
 const TYPES_MAGIQUES := ["glace", "givre", "froid", "gel", "feu", "brulure", "electricite", "choc", "tenebres", "magie"]
 
 var inventaire: Inventaire = null
-var emplacements := {"tete": "", "torse": "", "mains": "", "pieds": "", "cou": "", "anneau": ""}
+var emplacements := {"tete": "", "torse": "", "mains": "", "pieds": "", "cou": "", "anneau": "", "jambes": ""}
 
 func _init(inv: Inventaire = null) -> void:
 	lier(inv)
