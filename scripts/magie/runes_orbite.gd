@@ -11,10 +11,10 @@ const SH := preload("res://shaders/runes_orbite.gdshader")
 ## Par école : couleurs, signes (shader), rayon moyen des orbites (m), taille d'une rune (m), hauteur du centre des
 ## orbites au-dessus de la paume (m : le milieu de la flamme / du cristal tenu).
 const ECOLES := {
-	"feu": {"couleur": Color("#ff6a1a"), "coeur": Color("#ffc27a"), "signes": [6, 7, 8, 9, 1, 10, 6, 7], "rayon": 0.105, "taille": 0.022, "centre": 0.085},
-	"glace": {"couleur": Color("#4fb4ff"), "coeur": Color("#e2f6ff"), "signes": [5, 3, 10, 0, 5, 3, 9, 8], "rayon": 0.10, "taille": 0.021, "centre": 0.06},
-	"electricite": {"couleur": Color("#8a6cff"), "coeur": Color("#e6deff"), "signes": [2, 4, 2, 9, 2, 4, 8, 10], "rayon": 0.10, "taille": 0.021, "centre": 0.06},
-	"tenebres": {"couleur": Color("#a23cff"), "coeur": Color("#e7b8ff"), "signes": [4, 1, 5, 7, 4, 1, 5, 6], "rayon": 0.10, "taille": 0.021, "centre": 0.06},
+	"feu": {"couleur": Color("#ff6a1a"), "coeur": Color("#ffc27a"), "signes": [6, 7, 8, 9, 1, 10, 6, 7], "rayon": 0.115, "taille": 0.03, "centre": 0.105},
+	"glace": {"couleur": Color("#4fb4ff"), "coeur": Color("#e2f6ff"), "signes": [5, 3, 10, 0, 5, 3, 9, 8], "rayon": 0.108, "taille": 0.029, "centre": 0.075},
+	"electricite": {"couleur": Color("#8a6cff"), "coeur": Color("#e6deff"), "signes": [2, 4, 2, 9, 2, 4, 8, 10], "rayon": 0.108, "taille": 0.029, "centre": 0.075},
+	"tenebres": {"couleur": Color("#a23cff"), "coeur": Color("#e7b8ff"), "signes": [4, 1, 5, 7, 4, 1, 5, 6], "rayon": 0.108, "taille": 0.029, "centre": 0.075},
 }
 ## Deux anneaux très fins, PARTIELS (un arc qui tourne, ni cercle complet ni grand cercle devant la caméra) : rayon (m),
 ## inclinaison (rad), fraction du tour visible, vitesse de rotation propre (rad/s), épaisseur du trait.
@@ -61,7 +61,7 @@ var _t := 0.0
 ## Lueur courte de l'énergie tenue : n'éclaire QUE les avant-bras (AvantBras.CALQUE), creux de la paume et intérieur des
 ## doigts orangés, brassard dans la pénombre (références) ; l'aura du sort éclaire le monde, pas les bras.
 var lueur: OmniLight3D
-const LUEUR := 1.0              # énergie au repos (atténuation 1/d)
+const LUEUR := 1.7              # énergie au repos (atténuation 1/d)
 ## La lueur est avancée vers l'œil (m) : le dos de la main et les jointures, tournés vers la caméra, prennent le reflet
 ## orangé de l'énergie comme sur les références, au lieu d'une silhouette noire.
 const LUEUR_AVANCE := 0.025
@@ -113,7 +113,7 @@ func _ready() -> void:
 	lueur.light_cull_mask = AvantBras.CALQUE
 	lueur.shadow_enabled = false
 	lueur.light_specular = 0.25
-	lueur.omni_range = 0.24
+	lueur.omni_range = 0.32
 	lueur.light_energy = LUEUR
 	add_child(lueur)
 	lueur_bras = OmniLight3D.new()
@@ -181,7 +181,7 @@ func _process(dt: float) -> void:
 	var conv := sin(minf(_conv, 1.0) * PI * 0.5)
 	var resserre := _k_rayon * (1.0 - 0.55 * conv)
 	var acc := _k_vit * vitesse_k
-	var force := clampf(0.55 + 0.6 * intensite, 0.0, 1.6) * _k_eclat * lumi_k * (1.0 + 0.4 * conv)
+	var force := clampf(0.7 + 0.6 * intensite, 0.0, 1.8) * _k_eclat * lumi_k * (1.0 + 0.4 * conv)
 	lueur.position = Vector3(0.025 * cote, 0.0, LUEUR_AVANCE)
 	lueur_bras.position = Vector3(LUEUR_BRAS_POS.x * cote, LUEUR_BRAS_POS.y, LUEUR_BRAS_POS.z)
 	var vif := _k_eclat * (1.0 + 0.4 * kc)
@@ -199,7 +199,7 @@ func _process(dt: float) -> void:
 		var a: float = float(r.phase) + _t * float(r.vit) * acc
 		var rr: float = float(r.rayon) * resserre
 		var p: Vector3 = (r.base as Basis) * Vector3(cos(a) * rr, sin(a) * rr, 0.0)
-		p.y += float(r.haut) + 0.003 * sin(_t * 1.7 + float(r.bat))
+		p.y = p.y * 0.6 + float(r.haut) + 0.003 * sin(_t * 1.7 + float(r.bat))
 		var mi: MeshInstance3D = r.mi
 		# profondeur : les runes devant (vers l'œil, +Z caméra) sont plus grandes et plus vives, celles du fond plus petites et pâles
 		var dev := clampf(p.z / maxf(rr, 0.01), -1.0, 1.0)

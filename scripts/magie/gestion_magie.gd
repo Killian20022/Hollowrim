@@ -105,7 +105,7 @@ const AURA_ECOLE := {"feu": 0, "glace": 1, "electricite": 2, "tenebres": 3, "soi
 ## y occupe ~0,9 × 1,25 rayon (≈ 13 × 18 cm), braises et fumée au-dessus. Remplace la boule lisse (« trop plastique »).
 const AURA_BOULE := 0.15
 ## La paume est à la base de la flamme : le carré est remonté de cette fraction de son rayon.
-const FLAMME_ASSISE := 0.7
+const FLAMME_ASSISE := 0.72
 ## Lueur de la flamme tenue sur la main et l'avant-bras (calque CALQUE_AVANT_BRAS seulement, que la lumière d'aura
 ## n'éclaire pas) : faible, courte portée, qui vacille.
 const LUEUR_MAIN := {"energie": 0.55, "portee": 0.45}
@@ -1519,6 +1519,7 @@ func _gen_jet_arc(j: Dictionary) -> Array:
 			var b: Vector3 = j.fin_pos
 			var fin: Vector3 = b + Vector3(rng.randf_range(-0.35, 0.35), rng.randf_range(-0.7, 0.45), rng.randf_range(-0.35, 0.35))
 			traits.append([foudre(b, fin, 0.05, 3), 0.5, 0.7])
+	_arcs_force(j, o, l, dir, traits)
 	return traits
 
 ## Arc maître de la décharge (couche fine) : la colonne vertébrale fine qui relie TOUJOURS la paume au bout (on voit
@@ -1547,13 +1548,13 @@ func _gen_jet_arc_vif(j: Dictionary) -> Array:
 			traits.append([p, 1.0 if k == 0 else 0.5, a])
 		if hoquet:
 			break
-		for _r in (4 if k == 0 else 1):
+		for _r in (0 if j.get("faisceau") != null else (4 if k == 0 else 1)):
 			var i := rng.randi_range(p.size() * 2 / 5, maxi(p.size() * 2 / 5, p.size() - 3))
 			var kt := float(i) / p.size()
 			var dev := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
 			var fin := p[i] + (dir + dev * 0.9).normalized() * l * kt * rng.randf_range(0.04, 0.1)
 			traits.append([foudre(p[i], fin, l * 0.02, 3), 0.5, 0.55])
-	if j.touche:
+	if j.touche and j.get("faisceau") == null:
 		for _k in (4 if dbl else 3):
 			var b: Vector3 = j.fin_pos
 			var fin: Vector3 = b + Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(-0.8, 0.5), rng.randf_range(-0.4, 0.4))
@@ -1592,10 +1593,13 @@ func _arcs_force(j: Dictionary, o: Vector3, l: float, dir: Vector3, traits: Arra
 			if not r.is_empty() and (r.position as Vector3).distance_to(o) > 0.15:
 				fin_pt = r.position
 		fx_fin.append(fin_pt)
-		if j.get("faisceaux") == null or k >= (j.faisceaux as Array).size() + 1:
+		if j.get("faisceaux") != null:
+			continue   # couche fine : le corps ET les fourches de cet éclair sont dessinés par le shader magie_faisceau
+		# rétro : pas de shader de faisceau, l'éventail est fait d'arcs CPU (3-4), avec leurs branches
+		if k >= 4:
 			continue
-		# le corps de cet éclair est un faisceau du shader (_faisceaux_force_placer) ; ici : branches et fourche d'impact
 		var p := _arc_courbe(o, j, l, l * 0.04, fin_pt - _jet_courbe(o, j, l, 1.0))
+		traits.append([p, rng.randf_range(0.5, 1.0), rng.randf_range(0.6, 1.0)])
 		if p.size() < 6:
 			continue
 		for _r in 2:

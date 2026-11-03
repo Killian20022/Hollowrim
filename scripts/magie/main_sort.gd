@@ -756,7 +756,13 @@ func _pose_voulue(m: String, dt := 0.0) -> Dictionary:
 	var i: Incantation = inc[m]
 	var s := eq.sort(m)
 	# geste capturé (Mixamo) s'il y en a un pour ce sort et cet état, sinon pose fixe
-	var p := gestes.pose(m, i, s, dt)
+	var p := {}
+	if m == "droite" and i.etat == Incantation.CHARGE and s != null and s.profil == "poing":
+		# flamme runique tenue pendant la charge : on garde la paume ouverte vers le haut (PosesIncantation « charge »),
+		# le geste capturé la basculait derrière le poignet et cachait la flamme
+		gestes.oublier(m)
+	else:
+		p = gestes.pose(m, i, s, dt)
 	var capture := not p.is_empty()
 	if not capture:
 		p = PosesIncantation.pour(i.nom(), s.profil if s != null else "paume", i.charge, i.depuis_lancement, i.t, m)

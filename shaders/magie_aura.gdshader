@@ -86,68 +86,65 @@ void fragment() {
 			// 4 langues qui s'enroulent en spirale autour d'un axe qui ondule, une petite spirale vive à la base, fils fins
 			// qui s'échappent en volutes, braises. Tout en paliers francs au pixel du monde.
 			vec2 u = q / rp;
-			float h = clamp((u.y + 0.62) / (1.5 * (0.82 + 0.26 * clamp(force, 0.0, 1.3))), 0.0, 1.0);   // 0 paume, 1 pointe (plus haute quand l'aura monte : charge)
-			float sv = 1.0 + 0.06 * sin(tt * 7.0) * sin(tt * 2.9 + graine);             // respiration
-			// axe de la colonne : S qui ondule et dérive, de plus en plus libre vers la pointe
-			float sway = ((mbruit(vec2(h * 1.8 - tt * 0.9, graine * 3.0)) - 0.5) * 0.5 + 0.10 * sin(tt * 1.9 + h * 3.4 + graine)) * h * (0.4 + 0.6 * h);
-			float renv = (0.12 + 0.40 * sin(3.14159 * pow(h, 0.55))) * sv;              // rayon de l'enveloppe : ventre bas, pointe fine
+			float h = clamp((u.y + 0.62) / (1.3 * (0.84 + 0.22 * clamp(force, 0.0, 1.3))), 0.0, 1.0);   // 0 base, 1 pointe (plus haute en charge)
+			float sv = 1.0 + 0.05 * sin(tt * 7.0) * sin(tt * 2.9 + graine);             // respiration
+			// axe : S ample qui ondule et dérive, la pointe se détache et flotte
+			float sway = ((mbruit(vec2(h * 1.6 - tt * 0.8, graine * 3.0)) - 0.5) * 0.6 + 0.12 * sin(tt * 1.7 + h * 3.0 + graine)) * h * (0.3 + 0.7 * h);
+			// enveloppe : base LARGE et ronde, qui monte et s'effile en pointe
+			float renv = (0.26 + 0.26 * sin(3.14159 * pow(h, 0.7))) * (1.0 - 0.45 * h) * sv;
+			float pied = smoothstep(-0.66, -0.56, u.y);
 			float best = 0.0;
 			float lum = 0.0;
-			float pied = smoothstep(-0.64, -0.5, u.y);   // pas de colonnes sous la flamme : elle naît au-dessus de la paume
-			for (int k = 0; k < 6; k++) {
+			float filet = 0.0;
+			// 3 grandes volutes qui s'enroulent l'une dans l'autre
+			for (int k = 0; k < 3; k++) {
 				float fk = float(k);
-				float lk = 0.5 + 0.5 * mh2(vec2(fk * 7.3, floor(graine) + 2.0 + floor(tt * 0.35 + fk * 1.7)));   // longueur propre à la langue, qui change : silhouette irrégulière
+				float lk = 0.72 + 0.28 * mh2(vec2(fk * 7.3, floor(graine) + 2.0 + floor(tt * 0.3 + fk * 2.1)));
 				float hk = min(h / lk, 1.0);
-				float ang = fk * 1.0472 + graine * 2.0 + h * (3.4 + 0.5 * fk) - tt * (2.0 + 0.3 * fk);
-				float zf = cos(ang);                                                    // > 0 : face à l'œil
-				float xk = sway + renv * 0.72 * sin(ang) * (1.0 - 0.3 * hk);
-				float wk = renv * (0.3 + 0.14 * zf) * pow(1.0 - hk, 0.75) * lk + 0.01;
-				float dn = (mbruit(vec2(xk * 5.0 + fk * 3.1 + graine, h * 4.2 - tt * (3.0 + fk * 0.4))) - 0.5) * 0.12 * (0.3 + h) * renv * 3.0;
-				float it = 1.0 - abs(u.x - xk + dn) / wk;
-				// arête brillante au milieu de la langue, plus vive côté œil
-				float arete = smoothstep(0.35, 0.9, it) * (0.5 + 0.5 * zf);
-				float v = clamp(it, 0.0, 1.0) * (0.78 + 0.22 * zf) + arete * 0.25;
+				float ang = fk * 2.0944 + graine * 2.0 + h * 4.2 - tt * (1.7 + 0.25 * fk);
+				float zf = cos(ang);
+				float xk = sway + renv * 0.95 * sin(ang) * (1.0 - 0.45 * hk);
+				float wk = renv * (0.46 + 0.16 * zf) * pow(1.0 - hk, 0.7) * lk + 0.01;
+				float dn = (mbruit(vec2(xk * 5.0 + fk * 3.1 + graine, h * 4.0 - tt * (2.6 + fk * 0.4))) - 0.5) * 0.28 * (0.3 + h) * renv;
+				float dx = abs(u.x - xk + dn);
+				float it = 1.0 - dx / wk;
+				float arete = smoothstep(0.4, 0.95, it) * (0.5 + 0.5 * zf);
+				float v = clamp(it, 0.0, 1.0) * (0.8 + 0.2 * zf) + arete * 0.2;
 				if (v > best) {
 					best = v;
 					lum = arete;
 				}
+				// filets fins orange qui longent la volute, de chaque côté
+				float fo = wk * 1.5 + 0.02;
+				float f1 = 1.0 - smoothstep(0.0, 0.012, abs(dx - fo));
+				filet = max(filet, f1 * smoothstep(0.08, 0.3, h) * (1.0 - smoothstep(0.75, 1.0, hk)) * (0.6 + 0.3 * zf));
 			}
-			// corps de la flamme : masse orange irrégulière qui remplit le pied entre les langues (une seule flamme, pas un éventail)
-			float cx = abs(u.x - sway * 0.5 + (mbruit(vec2(h * 5.0 - tt * 2.6, graine + 4.0)) - 0.5) * 0.18) / (renv * 0.95 + 0.02);
-			float corps = clamp(1.0 - cx, 0.0, 1.0) * pow(1.0 - h, 1.1) * (0.8 + 0.4 * mbruit(vec2(u.x * 7.0, h * 5.0 - tt * 3.4 + graine)));
-			if (corps > best) {
-				best = corps;
-			}
+			// corps : masse orange ronde au pied, qui relie les volutes (une seule flamme)
+			float cx = abs(u.x - sway * 0.5 + (mbruit(vec2(h * 5.0 - tt * 2.4, graine + 4.0)) - 0.5) * 0.16) / (renv * 1.0 + 0.02);
+			float corps = clamp(1.0 - cx, 0.0, 1.0) * pow(1.0 - h, 1.3) * 0.8 * (0.7 + 0.4 * mbruit(vec2(u.x * 7.0, h * 5.0 - tt * 3.4 + graine)));
+			best = max(best, corps);
 			best *= pied;
 			lum *= pied;
-			// fils fins qui s'échappent en volutes de part et d'autre de la colonne
-			float fil = 0.0;
-			for (int k = 0; k < 2; k++) {
-				float fk = float(k);
-				float xf = sway + (0.20 + 0.18 * h) * sin(h * 7.0 + fk * 3.1 - tt * (1.7 + fk * 0.6) + graine) * smoothstep(0.1, 0.5, h);
-				float df = abs(u.x - xf) * rp / 1.0;
-				float tr = smoothstep(0.35, 0.5, h) * (1.0 - smoothstep(0.78, 1.0, h));
-				fil = max(fil, tr * (1.0 - smoothstep(0.7, 1.7, df)) * (0.55 + 0.35 * mbruit(vec2(h * 6.0 - tt * 2.0, fk))));
-			}
-			// petite spirale vive à la base (cœur blanc-jaune au centre, bras qui tournent autour)
-			vec2 bq = vec2(u.x - sway * 0.2, (u.y + 0.32) * 1.15);
+			filet *= pied;
+			// cœur blanc-jaune en bas-centre : point chaud rond, quelques bras de spirale sur son pourtour
+			vec2 bq = vec2(u.x - sway * 0.2, (u.y + 0.40) * 1.1);
 			float rb = length(bq);
 			float ab = atan(bq.y, bq.x);
-			float bras = 0.5 + 0.5 * sin(ab * 3.0 + rb * 17.0 - tt * 6.0);
-			float base = (1.0 - smoothstep(0.0, 0.26, rb)) * (0.9 + 0.12 * bras);
-			// bord déchiré au grain du pixel du monde
+			float bras = 0.5 + 0.5 * sin(ab * 2.0 + rb * 16.0 - tt * 5.0);
+			float base = (1.0 - smoothstep(0.0, 0.24, rb)) * (0.92 + 0.1 * bras);
 			float gr = mbruit(vec2(q.x / 1.6, (q.y - tt * rp * 2.4) / 1.3) + graine * 5.0) - 0.5;
-			i = max(best * (0.98 - 0.42 * h) + lum * 0.1, max(base * 1.18, fil * 0.62)) + gr * 0.16 * (0.4 + h);
+			i = max(best * (0.98 - 0.4 * h) + lum * 0.1, max(base * 1.2, filet * 0.8)) + gr * 0.16 * (0.4 + h);
 			i *= force * (0.93 + 0.09 * sin(tt * 15.0 + graine) * sin(tt * 5.3));
+			i *= 1.0 - smoothstep(0.72, 0.94, carre);        // fondu avant le bord du carré : jamais de langue tranchée
 			if (i > 0.32) {
 				c = i > 1.2 ? c0.rgb : palier(min(i, 1.14));
 			} else {
-				// braises : un pixel du MONDE, rares, qui montent en zigzag
+				// braises : petites, éparses, qui montent autour de la flamme
 				vec2 qb = vec2(q.x + sin(q.y * 0.35 + tt * 4.0) * 1.2, q.y - tt * rp * 0.75);
 				vec2 cb = floor(qb);
 				float hb = mh2(cb + floor(graine * 13.0));
-				float zone_b = smoothstep(-0.2, 0.25, u.y) * (1.0 - smoothstep(0.7, 0.95, u.y)) * (1.0 - smoothstep(0.25, 0.6, abs(u.x)));
-				if (hb > 1.0 - 0.012 * zone_b * force) {
+				float zone_b = smoothstep(-0.2, 0.2, u.y) * (1.0 - smoothstep(0.65, 0.9, u.y)) * (1.0 - smoothstep(0.3, 0.7, abs(u.x)));
+				if (hb > 1.0 - 0.008 * zone_b * force) {
 					c = mh2(cb + 3.1) > 0.5 ? c1.rgb : c2.rgb;
 				} else {
 					discard;
