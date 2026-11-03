@@ -166,7 +166,7 @@ func _verifier_piece(id: String, e: String) -> void:
 	ok(tris <= tmax, "%s : %d triangles (<= %d)" % [id, tris, tmax])
 	var mat := mi.get_surface_override_material(0) as ShaderMaterial
 	var tex: Texture2D = mat.get_shader_parameter("tex_base") if mat else null
-	ok(mat != null and mat.shader == ArmureVisible.shader_armure() and tex != null and tex.get_width() <= TEX_MAX and tex.get_height() <= TEX_MAX,
+	ok(mat != null and (mat.shader == ArmureVisible.shader_armure() or mat.shader == ArmureVisible.shader_pierre(false) or mat.shader == ArmureVisible.shader_pierre(true)) and tex != null and tex.get_width() <= TEX_MAX and tex.get_height() <= TEX_MAX,
 		"%s : matériau « matière » (%s), texture %s" % [id, mat.resource_name if mat else "?", str(tex.get_size()) if tex else "absente"])
 	# masquage
 	var reste := _triangles_recouverts(sq, av.zones(), av.limites())

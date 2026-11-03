@@ -51,8 +51,8 @@ P_RUB = ["#070505", "#180d0c", "#2e1714", "#4a241f", "#6e3730", "#a05e55", "#e0b
 P_SAP = ["#080a0e", "#171d26", "#2c3644", "#485567", "#6d7c91", "#9fb0c4", "#e4eef8"]
 
 ENSEMBLES = {
-    "rubis": dict(acier="acier_rubis", maille="acier_rubis.maille", serti="serti_rubis", gemme="rubis", cristal="cristal_rubis"),
-    "saphir": dict(acier="acier_saphir", maille="acier_saphir.maille", serti="serti_saphir", gemme="saphir", cristal="cristal_saphir"),
+    "rubis": dict(acier="acier_rubis", maille="acier_rubis.maille", serti="serti_rubis", gemme="rubis", cristal="cristal_rubis", plaque="plaque_rubis"),
+    "saphir": dict(acier="acier_saphir", maille="acier_saphir.maille", serti="serti_saphir", gemme="saphir", cristal="cristal_saphir", plaque="plaque_saphir"),
 }
 
 # ------------------------------------------------------------------------------------------------ outils géométriques
@@ -239,12 +239,11 @@ def deco_casque(ens):
     def dec(P, t, r, centre, Pts, R_NAS, R_CORNE):
         z = Pts[0][0].z + 0.042
         poser_gemme(P, (0, -0.5, z), (0, 1, 0), Vector((0, 0, 1)), 0.0105, ens, rayons=0, k=8)
-        poser_pointe(P, centre + Vector((0, -0.03, 0.5)), (0, 0, -1), (0, 0.12, 1), 0.26, 0.030, ens, k=6, graine=1)
-        poser_pointe(P, centre + Vector((0, 0.045, 0.5)), (0, 0, -1), (0, 0.55, 1), 0.19, 0.024, ens, k=5, graine=2)
-        poser_pointe(P, centre + Vector((0, 0.11, 0.45)), (0, 0, -1), (0, 0.85, 0.7), 0.13, 0.018, ens, k=4, serti=False, graine=5)
+        poser_pointe(P, centre + Vector((0, -0.03, 0.5)), (0, 0, -1), (0, 0.08, 1), 0.30, 0.024, ens, k=5, graine=1)
+        poser_pointe(P, centre + Vector((0, 0.045, 0.5)), (0, 0, -1), (0, 0.40, 1), 0.21, 0.019, ens, k=4, graine=2)
+        poser_pointe(P, centre + Vector((0, 0.11, 0.45)), (0, 0, -1), (0, 0.75, 0.8), 0.14, 0.014, ens, k=4, serti=False, graine=5)
         for s in (1.0, -1.0):
-            poser_pointe(P, centre + Vector((0.5 * s, -0.01, 0.07)), (-s, 0, 0), (0.85 * s, 0.1, 0.55), 0.13, 0.019, ens, k=5, graine=3)
-            poser_pointe(P, centre + Vector((0.45 * s, 0.07, 0.2)), (-s, 0, 0), (0.55 * s, 0.4, 0.8), 0.10, 0.015, ens, k=4, serti=False, graine=6)
+            poser_pointe(P, centre + Vector((0.5 * s, 0.0, 0.07)), (-s, 0, 0), (0.45 * s, 0.1, 1.0), 0.15, 0.015, ens, k=4, serti=False, graine=3)
     return dec
 
 
@@ -290,6 +289,44 @@ def deco_masque(ens, z_bas=1.60):
 
 
 
+def deco_nervures(ens):
+    """Heaume facetté : nervures de métal sombre en relief sur les arêtes de la coque (une sur deux), du rebord au cimier."""
+    ms = ENSEMBLES[ens]["acier"]
+    def dec(P, t, r, centre, Pts, R_NAS, R_CORNE):
+        n = len(Pts[0])
+        for i in range(0, n, 2):
+            lignes = [[], [], []]
+            for j in range(1, len(Pts)):
+                p = Pts[j][i]
+                d = (p - centre).normalized()
+                a, b = Pts[j][(i - 1) % n], Pts[j][(i + 1) % n]
+                lignes[0].append(p.lerp(a, 0.16) + d * 0.002)
+                lignes[1].append(p + d * 0.011)
+                lignes[2].append(p.lerp(b, 0.16) + d * 0.002)
+            P.grille(lignes, ms, C.rect_uv((0, 92, 64, 128)), fermer=False)
+    return dec
+
+
+def deco_visiere(ens):
+    """Visière : auvent de métal sombre en V qui avance sur le front et descend en pointe au-dessus de la fente des yeux."""
+    ms = ENSEMBLES[ens]["acier"]
+    def dec(P, t, r, centre, Pts, R_NAS, R_CORNE):
+        n = len(Pts[0])
+        idx = [-2, -1, 0, 1, 2]
+        haut, dehors, dessous = [], [], []
+        for k in idx:
+            p = Pts[0][k % n]
+            d = Vector((p.x - centre.x, p.y - centre.y, 0)).normalized()
+            cr = 1.0 - abs(k) / 2.0                       # 1 au centre : pointe en V vers le bas
+            haut.append(p + d * 0.010 + Vector((0, 0, 0.030)))
+            dehors.append(p + d * (0.030 + 0.012 * cr) + Vector((0, 0, 0.004 - 0.034 * cr)))
+            dessous.append(p + d * 0.004 + Vector((0, 0, -0.010 - 0.012 * cr)))
+        uv = C.rect_uv((0, 92, 64, 128))
+        P.grille([haut, dehors], ms, uv, fermer=False)
+        P.grille([dehors, dessous], ms, uv, fermer=False)
+    return dec
+
+
 def deco_bandeau(mat):
     """Bandeau de front rapporté : bande de métal en relief (épaisseur, bords biseautés) autour du heaume, au-dessus du rebord."""
     def dec(P, t, r, centre, Pts, R_NAS, R_CORNE):
@@ -312,9 +349,9 @@ def deco_torse(ens):
             noyau(P, p + n * 0.002, n, Vector((0, 0, 1)), 0.082, 0.05, 0.04, ens)
         for s in (1.0, -1.0):
             # gerbe d'épaule : 5 éclats en éventail, vers le haut et le dehors (le plus grand ~0,3 m)
-            gerbe = [((0.215, 0.0), (0.50, 0.04, 0.86), 0.30, 0.034), ((0.29, -0.025), (0.88, -0.15, 0.45), 0.22, 0.026),
-                     ((0.255, 0.065), (0.38, 0.62, 0.69), 0.20, 0.024), ((0.17, 0.03), (0.15, 0.1, 1.0), 0.19, 0.022),
-                     ((0.32, 0.03), (1.0, 0.1, 0.18), 0.15, 0.020)]
+            gerbe = [((0.215, 0.0), (0.34, 0.04, 1.0), 0.36, 0.028), ((0.29, -0.025), (0.75, -0.12, 0.7), 0.26, 0.022),
+                     ((0.255, 0.065), (0.30, 0.45, 0.9), 0.24, 0.020), ((0.17, 0.03), (0.08, 0.08, 1.0), 0.23, 0.019),
+                     ((0.32, 0.03), (1.0, 0.1, 0.30), 0.16, 0.016)]
             for k, ((x, y), ax, lg, ry) in enumerate(gerbe):
                 poser_pointe(P, (x * s, y, 1.9), (0, 0, -1), (ax[0] * s, ax[1], ax[2]), lg, ry, ens, k=6 if k < 1 else 4, serti=k < 1, graine=10 + k)
             # petite gemme sertie sur le dessus de l'épaule (devant la gerbe)
@@ -390,32 +427,34 @@ def _s(b0, **kw):
 
 # plaques (lames, épaulières, coque du heaume, manchettes, grèves, genouillères) = CRISTAL ; structure, mailles, mains, solerets,
 # rebords, nasal et joues = métal sombre.
-RUBIS = dict(pal=P_RUB, mat="cristal_rubis", mat_maille="acier_rubis.maille", mat_rebord="acier_rubis", mat_main="acier_rubis",
-             mat_doigts="acier_rubis", mat_genou="cristal_rubis", mat_botte="acier_rubis", base=0.4, oxyde=0.0, crasse=0.3, poli=0.6,
-             graine=211, pal_maille=P_RUB, pal_cuir=["#0b0505", "#1e0d0c", "#351815", "#50261f"], bord_roule=True, z_ourlet=0.64)
-SAPHIR = dict(pal=P_SAP, mat="cristal_saphir", mat_maille="acier_saphir.maille", mat_rebord="acier_saphir", mat_main="acier_saphir",
-              mat_doigts="acier_saphir", mat_genou="cristal_saphir", mat_botte="acier_saphir", base=0.5, oxyde=0.0, crasse=0.2, poli=0.7,
-              graine=307, pal_maille=P_SAP, pal_cuir=["#08090c", "#171a21", "#2a2f3a", "#424a59"], bord_roule=True, z_ourlet=0.66)
+RUBIS = dict(pal=P_RUB, mat="plaque_rubis", mat_maille="acier_rubis.maille", mat_rebord="acier_rubis", mat_main="acier_rubis",
+             mat_doigts="acier_rubis", mat_genou="plaque_rubis", mat_botte="acier_rubis", base=0.4, oxyde=0.0, crasse=0.3, poli=0.6,
+             graine=211, pal_maille=P_RUB, pal_cuir=["#0b0505", "#1e0d0c", "#351815", "#50261f"], bord_roule=True, z_ourlet=0.68,
+             ep_lames=[0.015, 0.019, 0.027, 0.030, 0.030], ep_epaule=(0.026, 0.008, 0.016), jupe_ev=(0.022, 0.032))
+SAPHIR = dict(pal=P_SAP, mat="plaque_saphir", mat_maille="acier_saphir.maille", mat_rebord="acier_saphir", mat_main="acier_saphir",
+              mat_doigts="acier_saphir", mat_genou="plaque_saphir", mat_botte="acier_saphir", base=0.5, oxyde=0.0, crasse=0.2, poli=0.7,
+              graine=307, pal_maille=P_SAP, pal_cuir=["#08090c", "#171a21", "#2a2f3a", "#424a59"], bord_roule=True, z_ourlet=0.70,
+              ep_lames=[0.015, 0.019, 0.027, 0.030, 0.030], ep_epaule=(0.026, 0.008, 0.016), jupe_ev=(0.022, 0.032))
 
 # Bout des manches de mailles (constructeur : 0,435). Au-delà de |x| = 0,41 la manche de tunique du héros suit l'AVANT-bras : un
 # bout de manche plus long l'enfermait et, coude plié (Sort_Jet2M, combo), elle ressortait de 17 à 20 mm (test_armure_visible).
 X_MANCHE = 0.405
 
 PIECES = {
-    "casque_rubis": ("rubis", lambda r: PC.casque(r, _s(RUBIS, id="casque_rubis", n=14, bas=(0.0, -0.3, -0.6), bandes=0, ecart=0.021,
-                                                        bombe=0.05, decor=[lambda *a: PC.deco_nasal(*a, mat="acier_rubis", long=0.07, larg=0.015),
-                                                                            lambda *a: PC.deco_joues(*a, mat="cristal_rubis"),
-                                                                            deco_bandeau("acier_rubis"), deco_masque("rubis"), deco_casque("rubis")]))),
+    "casque_rubis": ("rubis", lambda r: PC.casque(r, _s(RUBIS, id="casque_rubis", n=10, lats=[0.0, 0.28, 0.56, 0.80, 1.0], bas=(0.0, -0.3, -0.6), bandes=0, ecart=0.021,
+                                                        bombe=0.075, decor=[lambda *a: PC.deco_nasal(*a, mat="acier_rubis", long=0.07, larg=0.015),
+                                                                            lambda *a: PC.deco_joues(*a, mat="plaque_rubis"),
+                                                                            deco_nervures("rubis"), deco_visiere("rubis"), deco_bandeau("acier_rubis"), deco_masque("rubis"), deco_casque("rubis")]))),
     "cuirasse_rubis": ("rubis", lambda r: PC.cuirasse(r, _s(RUBIS, id="cuirasse_rubis", n=24, lames=5, bombe=0.012, lames_epaule=4, z_plaques=(1.04, 1.47),
                                                             z_coeur=1.30, x_manche=X_MANCHE, decor=[deco_torse("rubis")]))),
     "gantelets_rubis": ("rubis", lambda r: PC.gantelets(r, _s(RUBIS, id="gantelets_rubis", evasement=0.034, debut_manchette=0.35,
                                                               decor=[deco_gant("rubis")]))),
     "bottes_rubis": ("rubis", lambda r: PC.bottes(r, _s(RUBIS, id="bottes_rubis", decor=[deco_genou("rubis")]))),
-    "casque_saphir": ("saphir", lambda r: PC.casque(r, _s(SAPHIR, id="casque_saphir", n=16, bas=(0.05, -0.26, -0.55), bandes=0,
-                                                          ecart=0.021, bombe=0.025,
+    "casque_saphir": ("saphir", lambda r: PC.casque(r, _s(SAPHIR, id="casque_saphir", n=10, lats=[0.0, 0.28, 0.56, 0.80, 1.0], bas=(0.05, -0.26, -0.55), bandes=0,
+                                                          ecart=0.021, bombe=0.06,
                                                           decor=[lambda *a: PC.deco_nasal(*a, mat="acier_saphir", long=0.06, larg=0.016),
-                                                                 lambda *a: PC.deco_joues(*a, mat="cristal_saphir"),
-                                                                 deco_bandeau("acier_saphir"), deco_masque("saphir", 1.615), deco_casque("saphir")]))),
+                                                                 lambda *a: PC.deco_joues(*a, mat="plaque_saphir"),
+                                                                 deco_nervures("saphir"), deco_visiere("saphir"), deco_bandeau("acier_saphir"), deco_masque("saphir", 1.615), deco_casque("saphir")]))),
     "cuirasse_saphir": ("saphir", lambda r: PC.cuirasse(r, _s(SAPHIR, id="cuirasse_saphir", n=24, lames=5, bombe=0.012, lames_epaule=4, z_plaques=(1.04, 1.47),
                                                               z_coeur=1.30, x_manche=X_MANCHE, decor=[deco_torse("saphir")]))),
     "gantelets_saphir": ("saphir", lambda r: PC.gantelets(r, _s(SAPHIR, id="gantelets_saphir", evasement=0.03, debut_manchette=0.35,
@@ -475,15 +514,15 @@ def deco_genou(ens):
             return
         ca = r.os["calf_" + cote]
         th = r.os["thigh_" + cote]
-        arc_c = [math.radians(x) for x in range(-150, 151, 30)]
+        arc_c = [math.radians(x) for x in range(-180, 181, 36)]     # tour complet : l'arrière de la cuisse est couvert
         # cuisse : de la hanche (th) au genou (ca), plaques du genou vers la hanche
         cuisse = C.bvh(r, ["pantalon"], {"thigh_" + cote}, 0.5)
         Ac, Bc = Vector((th.x, th.y, th.z)), Vector((ca.x, ca.y, ca.z + 0.03))
-        _plaques_membre(P, st, cuisse, Ac, Bc, [(0.80, 1.0), (0.62, 0.86)], arc_c, 0.026, 0.012, st["mat"])
+        _plaques_membre(P, st, cuisse, Ac, Bc, [(0.88, 1.0), (0.76, 0.92), (0.64, 0.80)], arc_c, 0.016, 0.003, st["mat"])
         # tibia : plaques larges (flancs compris) par-dessus la grève du constructeur
-        arc_t = [math.radians(x) for x in range(-100, 101, 25)]
+        arc_t = [math.radians(x) for x in range(-180, 181, 30)]     # tour complet : mollet couvert par derrière
         z0 = lambda z: (z - A.z) / (B.z - A.z)
-        _plaques_membre(P, st, jambe, A, B, [(z0(0.21), z0(0.31)), (z0(0.29), z0(0.40)), (z0(0.37), z0(0.48))], arc_t, 0.034, 0.008, st["mat"])
+        _plaques_membre(P, st, jambe, A, B, [(z0(0.21), z0(0.31)), (z0(0.29), z0(0.40)), (z0(0.37), z0(0.48))], arc_t, 0.026, 0.004, st["mat"])
         poser_pointe(P, (ca.x, -0.5, ca.z + 0.015), (0, 1, 0), (0.15 * s, -0.8, 0.6), 0.16, 0.024, ens, k=5, graine=30 + int(s))
         poser_pointe(P, (ca.x, -0.5, ca.z - 0.12), (0, 1, 0), (0.1 * s, -0.7, 0.7), 0.10, 0.017, ens, k=4, serti=False, graine=33 + int(s))
         poser_pointe(P, (ca.x, -0.5, ca.z - 0.22), (0, 1, 0), (0.1 * s, -0.55, 0.85), 0.08, 0.014, ens, k=4, serti=False, graine=36 + int(s))
@@ -527,26 +566,26 @@ def peindre_rubis(P, N, bd, U, ench):
     v = 0.20 + (n1 - 0.5) * 0.22 + (n2 - 0.5) * 0.06 + (brosse - 0.5) * 0.10
     martele = L.bruit(P, 55.0, 9)
     v += (martele - 0.5) * 0.06
-    al = 0.45 + 0.35 * n1
+    al = 0.20 + 0.16 * n1
     rayure = np.abs(L.bruit(P * np.array([30.0, 3.0, 30.0]), 9.0, 11) - 0.5) < 0.004
     v = np.where(rayure, v + 0.16, v)
-    al = np.where(rayure, 0.95, al)
+    al = np.where(rayure, 0.6, al)
     rgb = L.rampe(ACIER_RUBIS, np.clip(v, 0, 1))
     trempe = np.clip((L.fbm(P, 3.5, 13, 2) - 0.42) * 2.2, 0, 1)[:, None] * 0.45
     rgb = rgb * (1 - trempe) + L.rampe(TREMPE_RUBIS, np.clip(v * 1.15, 0, 1)) * trempe
     # bords : biseau poli, gorge, liseré d'or à rivets, filet gravé
     bis = bd < 0.0032
-    rgb[bis] = np.minimum(1, rgb[bis] * 1.75 + 0.06); al[bis] = 1.0
+    rgb[bis] = np.minimum(1, rgb[bis] * 1.5 + 0.04); al[bis] = 0.65
     gorge = (bd >= 0.0032) & (bd < 0.0046)
     rgb[gorge] *= 0.42; al[gorge] = 0.1
     lis = (bd >= 0.0046) & (bd < 0.0098)
     vo = 0.36 + (L.fbm(P, 30.0, 17, 2)[lis] - 0.5) * 0.25 + (0.0072 - np.abs(bd[lis] - 0.0072)) * 18
-    rgb[lis] = L.rampe(OR_SOMBRE, np.clip(vo, 0, 1)); al[lis] = 0.85
+    rgb[lis] = L.rampe(BRONZE_SOMBRE, np.clip(vo, 0, 1)) * 0.75; al[lis] = 0.5
     per = 0.032
     fu = np.mod(U / per, 1.0) - 0.5
     riv = np.hypot(fu * per, bd - 0.0072) < 0.0021
     dome = np.clip(1.0 - np.hypot(fu * per + 0.0006, bd - 0.0078) / 0.0021, 0, 1)
-    rgb[riv] = L.rampe(OR_SOMBRE, np.clip(0.35 + 0.65 * dome[riv], 0, 1)); al[riv] = 1.0
+    rgb[riv] = L.rampe(BRONZE_SOMBRE, np.clip(0.30 + 0.5 * dome[riv], 0, 1)) * 0.8; al[riv] = 0.6
     filet = (bd >= 0.0098) & (bd < 0.0110)
     rgb[filet] *= 0.38; al[filet] = 0.15
     # flammes gravées qui montent des bords, émail rouge sombre et filet d'émail ardent au cœur (lueur de l'enchantement)
@@ -559,14 +598,14 @@ def peindre_rubis(P, N, bd, U, ench):
     dedans = (f > 0) & (f < h)
     bord_f = dedans & (h - f < 0.0013)
     hors_f = (f >= h) & (f - h < 0.0010)
-    rgb[hors_f] = np.minimum(1, rgb[hors_f] * 1.45 + 0.03); al[hors_f] = 0.9
+    rgb[hors_f] = np.minimum(1, rgb[hors_f] * 1.3 + 0.02); al[hors_f] = 0.6
     plein = dedans & ~bord_f
-    emaille = np.array([0.30, 0.035, 0.03])
+    emaille = np.array([0.20, 0.025, 0.03])
     rgb[plein] = rgb[plein] * 0.45 + emaille * (0.55 + 0.25 * (L.bruit(P[plein], 160.0, 23) - 0.5))[:, None]
     al[plein] = 0.55
     rgb[bord_f] *= 0.30; al[bord_f] = 0.05
     coeur = dedans & (np.abs(f - 0.52 * h) < 0.0009) & (h > 0.012)
-    ardent = np.array([1.0, 0.46, 0.13]) if ench else np.array([0.66, 0.17, 0.06])
+    ardent = np.array([1.0, 0.46, 0.13]) if ench else np.array([0.42, 0.10, 0.04])
     rgb[coeur] = ardent; al[coeur] = 0.7
     return _rgba(rgb, al)
 
@@ -575,19 +614,19 @@ def peindre_saphir(P, N, bd, U, ench):
     n1 = L.fbm(P, 7.0, 31, 3)
     n2 = L.bruit(P, 90.0, 33)
     brosse = L.bruit(P * np.array([1.0, 9.0, 1.0]), 40.0, 35)
-    v = 0.28 + (n1 - 0.5) * 0.22 + (n2 - 0.5) * 0.05 + (brosse - 0.5) * 0.10
-    al = 0.55 + 0.35 * n1
+    v = 0.20 + (n1 - 0.5) * 0.22 + (n2 - 0.5) * 0.05 + (brosse - 0.5) * 0.10
+    al = 0.25 + 0.16 * n1
     rayure = np.abs(L.bruit(P * np.array([30.0, 3.0, 30.0]), 9.0, 37) - 0.5) < 0.004
     v = np.where(rayure, v + 0.14, v)
     al = np.where(rayure, 1.0, al)
     rgb = L.rampe(ACIER_SAPHIR, np.clip(v, 0, 1))
     bis = bd < 0.003
-    rgb[bis] = np.minimum(1, rgb[bis] * 1.5 + 0.08); al[bis] = 1.0
+    rgb[bis] = np.minimum(1, rgb[bis] * 1.5 + 0.08); al[bis] = 0.65
     gorge = (bd >= 0.003) & (bd < 0.0042)
     rgb[gorge] *= 0.45; al[gorge] = 0.1
     lis = (bd >= 0.0042) & (bd < 0.0082)
     va = 0.62 + (L.fbm(P, 30.0, 39, 2)[lis] - 0.5) * 0.25 + (0.0062 - np.abs(bd[lis] - 0.0062)) * 16
-    rgb[lis] = L.rampe(ARGENT, np.clip(va, 0, 1)); al[lis] = 0.95
+    rgb[lis] = L.rampe(ARGENT, np.clip(va, 0, 1)) * 0.8; al[lis] = 0.55
     filet = ((bd >= 0.0082) & (bd < 0.0094)) | ((bd >= 0.0178) & (bd < 0.019))
     rgb[filet] *= 0.4; al[filet] = 0.15
     # bande de runes de glace gravées entre deux filets
@@ -640,16 +679,15 @@ def peindre_saphir(P, N, bd, U, ench):
     return _rgba(rgb, al)
 
 
-CRISTAL_RUBIS = L.hexa("#0a0003", "#180106", "#2c030b", "#44060f", "#5d0a16", "#780f1f", "#921728", "#ad2236", "#c93548", "#e25b6a", "#f79aa4", "#ffd6da")
-CRISTAL_SAPHIR = L.hexa("#01020a", "#020615", "#040c26", "#071538", "#0b1f50", "#112c68", "#183b82", "#234e9c", "#3668b8", "#5a8ad4", "#94b8ec", "#dcecff")
+# v3 matière : GRENAT / BLEU NUIT profonds (jamais vifs), facettes à arêtes claires serties dans une structure de métal brun-noir.
+GRENAT = L.hexa("#090405", "#160a0b", "#271013", "#3a181b", "#4f2124", "#652b2e", "#7c3739", "#954548", "#af5b5c", "#cc8484", "#e6b9b6")
+NUIT = L.hexa("#03040a", "#070a14", "#0c1226", "#121b38", "#1a2849", "#243759", "#314a70", "#425f8a", "#5f7fa6", "#8da8c6", "#c1d3e6")
+CRISTAL_RUBIS = GRENAT
+CRISTAL_SAPHIR = NUIT
 
 
-def peindre_cristal(P, N, bd, ens, ench):
-    """Cristal v_detail : PEU de grandes facettes planes, chacune d'une valeur nette (4 niveaux selon l'orientation : clair, moyen,
-    sombre), arêtes fines plus claires, CADRE de métal sombre (brun-noir / acier) serti autour de chaque plaque avec un filet clair."""
-    pal = CRISTAL_RUBIS if ens == "rubis" else CRISTAL_SAPHIR
-    metal = ACIER_RUBIS if ens == "rubis" else ACIER_SAPHIR
-    s = 0.13
+def _voronoi(P, s, g):
+    """Voronoï 3D (cellules de côté s) : distance au plus proche (d1) et au 2e (d2) en unités de cellule, identifiant aléatoire."""
     q = P / s
     base = np.floor(q)
     d1 = np.full(len(P), 9.0); d2 = np.full(len(P), 9.0); idv = np.zeros(len(P))
@@ -658,31 +696,83 @@ def peindre_cristal(P, N, bd, ens, ench):
             for dz in (-1, 0, 1):
                 cell = base + np.array([dx, dy, dz])
                 key = cell[:, 0] * 7 + cell[:, 1] * 131 + cell[:, 2] * 977
-                jp = np.stack([_hash1(key, 201 + k) for k in range(3)], 1)
+                jp = np.stack([_hash1(key, g + k) for k in range(3)], 1)
                 d = np.linalg.norm(q - (cell + jp), axis=1)
                 m = d < d1
                 d2 = np.where(m, d1, np.minimum(d2, d))
-                idv = np.where(m, _hash1(key, 211), idv)
+                idv = np.where(m, _hash1(key, g + 10), idv)
                 d1 = np.where(m, d, d1)
-    lum = np.array([0.35, 0.75, 0.55]); lum /= np.linalg.norm(lum)
-    t = np.clip(0.5 + 0.60 * (N * lum).sum(1), 0, 1)
-    niv = np.floor(t * 4.0) / 3.0                                  # 4 valeurs nettes selon l'orientation de la facette
-    v = (0.10 + 0.30 * np.clip(niv, 0, 1)) + 0.10 * (idv - 0.5)
-    v = np.where(idv > 0.88, v + 0.22, v)                         # de rares éclats clairs
-    arete = np.clip(1.0 - (d2 - d1) / 0.035, 0, 1)
-    v += arete ** 2 * 0.30                                        # arêtes fines plus claires
-    v += (L.fbm(P, 16.0, 221, 2) - 0.5) * 0.04
-    rgb = L.rampe(pal, np.clip(v * (1.06 if ench else 1.0) + (0.05 if ench else 0.0), 0, 1))
-    # cadre de métal sombre autour des plaques (serti) : filet clair, creux sombre, métal brossé
-    mv = 0.10 + (L.fbm(P, 30.0, 227, 2) - 0.5) * 0.14 + (L.bruit(P * np.array([1.0, 9.0, 1.0]), 42.0, 229) - 0.5) * 0.06
-    cadre = L.rampe(metal, np.clip(mv, 0, 1))
-    rim = bd < 0.0028
-    gorge = (bd >= 0.0028) & (bd < 0.0040)
-    corps = (bd >= 0.0040) & (bd < 0.0125)
-    rgb = np.where(corps[:, None], cadre, rgb)
-    rgb = np.where(gorge[:, None], cadre * 0.35, rgb)
-    rgb = np.where(rim[:, None], L.rampe(metal, np.clip(0.72 + 0.1 * (idv - 0.5), 0, 1)), rgb)
-    al = np.where(corps | rim, 0.9, 0.85 + 0.15 * arete)
+    return d1, d2, idv
+
+
+_LUM = np.array([0.35, 0.75, 0.55]); _LUM /= np.linalg.norm(_LUM)
+
+
+def peindre_cristal(P, N, bd, ens, ench):
+    """Éclats (pointes, crête) : cristal profond à facettes nettes (4 valeurs selon l'orientation), arêtes fines claires, éclat limité."""
+    pal = GRENAT if ens == "rubis" else NUIT
+    d1, d2, idv = _voronoi(P, 0.07, 201)
+    t = np.clip(0.5 + 0.60 * (N * _LUM).sum(1), 0, 1)
+    niv = np.floor(t * 4.0) / 3.0
+    v = 0.24 + 0.30 * niv + 0.12 * (idv - 0.5)
+    arete = np.clip(1.0 - (d2 - d1) / 0.10, 0, 1)
+    v += arete ** 2 * 0.24
+    v = np.where(idv > 0.93, v + 0.10, v)
+    v += (L.fbm(P, 16.0, 221, 2) - 0.5) * 0.03
+    rgb = L.rampe(pal, np.clip(v * (1.1 if ench else 1.0) + (0.04 if ench else 0.0), 0, 1))
+    al = 0.66 + 0.30 * arete          # alpha >= 0,6 = « pierre » pour shader_pierre (armure_visible.gd)
+    return _rgba(rgb, al)
+
+
+def peindre_plaque(P, N, bd, U, ens, ench):
+    """Plaques v3 : base de métal brun-noir (ou acier nuit) DOMINANTE, brossée ; incrustations de grenat (ou de saphir nuit) à facettes,
+    arêtes claires fines, cadre de métal avec filet clair autour de chaque incrustation ; bord de plaque : biseau, rainure, filet de bronze, rivets."""
+    pal = GRENAT if ens == "rubis" else NUIT
+    metal = ACIER_RUBIS if ens == "rubis" else ACIER_SAPHIR
+    bronze = BRONZE_SOMBRE if ens == "rubis" else ARGENT
+    n = len(P)
+    # structure de métal
+    brosse = L.bruit(P * np.array([1.0, 9.0, 1.0]), 42.0, 229)
+    mv = 0.21 + (L.fbm(P, 9.0, 227, 3) - 0.5) * 0.18 + (brosse - 0.5) * 0.08 + (L.bruit(P, 95.0, 231) - 0.5) * 0.05
+    rgb = L.rampe(metal, np.clip(mv, 0, 1))
+    al = np.full(n, 0.28)
+    # incrustations facettées
+    d1, d2, idv = _voronoi(P, 0.095, 301)
+    marge = d2 - d1
+    inc = (idv < 0.80) & (marge > 0.14)
+    e1, e2, ev = _voronoi(P, 0.047, 401)
+    t = np.clip(0.5 + 0.60 * (N * _LUM).sum(1), 0, 1)
+    niv = np.floor(t * 4.0) / 3.0
+    v = 0.30 + 0.22 * niv + 0.17 * (ev - 0.5) + 0.07 * (idv - 0.5)
+    arete = np.clip(1.0 - (e2 - e1) / 0.09, 0, 1)
+    v += arete ** 2 * 0.26
+    v += (L.fbm(P, 16.0, 237, 2) - 0.5) * 0.03
+    gem = L.rampe(pal, np.clip(v * (1.12 if ench else 1.0) + (0.04 if ench else 0.0), 0, 1))
+    rgb = np.where(inc[:, None], gem, rgb)
+    al = np.where(inc, 0.64 + 0.30 * arete, al)     # alpha >= 0,6 = « pierre » (shader_pierre), < 0,5 = métal
+    # filet clair du cadre autour de l'incrustation
+    fil = (marge > 0.14) & (marge < 0.175) & (idv < 0.80)
+    rgb = np.where(fil[:, None], L.rampe(metal, np.full(n, 0.50) + (idv[:, None][:, 0] - 0.5) * 0.1), rgb)
+    al = np.where(fil, 0.45, al)
+    # creux sombre autour des cellules de métal
+    creux = (~inc) & (marge < 0.06)
+    rgb = np.where(creux[:, None], rgb * 0.55, rgb)
+    # bord de plaque : biseau clair, rainure, filet de bronze sombre à rivets, cadre de métal large
+    larg = 0.0125
+    bis = bd < 0.0030
+    rgb[bis] = L.rampe(metal, np.clip(0.62 + 0.1 * (mv[bis] - 0.21), 0, 1)); al[bis] = 0.45
+    gorge = (bd >= 0.0030) & (bd < 0.0042)
+    rgb[gorge] = rgb[gorge] * 0.30; al[gorge] = 0.1
+    corps = (bd >= 0.0042) & (bd < larg)
+    rgb[corps] = L.rampe(metal, np.clip(mv[corps] * 0.9, 0, 1)); al[corps] = 0.3
+    lis = (bd >= 0.0050) & (bd < 0.0072)
+    vo = 0.34 + (L.fbm(P, 30.0, 17, 2)[lis] - 0.5) * 0.25
+    rgb[lis] = L.rampe(bronze, np.clip(vo, 0, 1)) * (0.6 if ens == "rubis" else 0.85); al[lis] = 0.40
+    per = 0.034
+    fu = np.mod(U / per, 1.0) - 0.5
+    riv = np.hypot(fu * per, bd - 0.0094) < 0.0016
+    dome = np.clip(1.0 - np.hypot(fu * per + 0.0005, bd - 0.0098) / 0.0016, 0, 1)
+    rgb[riv] = L.rampe(bronze, np.clip(0.30 + 0.45 * dome[riv], 0, 1)); al[riv] = 0.45
     return _rgba(rgb, al)
 
 
@@ -736,7 +826,7 @@ def matiere_piece(pid, ens, mats, ench, tout_cristal=False):
         out = np.zeros((len(P), 4))
         U = U_fn(P)
         if tout_cristal:
-            return peindre_cristal(P, N, bd, ens, ench)
+            return peindre_cristal(P, N, bd, ens, ench)    # (texture des éclats seuls ; les plaques sont dans l'atlas principal)
         for i, m in enumerate(mats):
             sel = pa == i
             if not sel.any():
@@ -747,6 +837,8 @@ def matiere_piece(pid, ens, mats, ench, tout_cristal=False):
                                           0.0 if ens == "rubis" else 0.2, 81)
             elif m.startswith("cristal_"):
                 out[sel] = peindre_cristal(Ps, Ns, bs, ens, ench)
+            elif m.startswith("plaque_"):
+                out[sel] = peindre_plaque(Ps, Ns, bs, Us, ens, ench)
             elif m.startswith("acier_"):
                 out[sel] = (peindre_rubis if ens == "rubis" else peindre_saphir)(Ps, Ns, bs, Us, ench)
             elif m == "cuir":
@@ -905,6 +997,13 @@ def version_sol(ob, pid, nom_fichier):
         for v in me.vertices:
             s = 1 if v.co.x > 0 else -1
             v.co.x -= s * 0.05
+    # PIÈGE SOL : alpha des couleurs de sommet à 0 (sinon le shader ps1 y pose de la neige)
+    for ca in me.color_attributes:
+        buf = np.zeros(len(ca.data) * 4, dtype=np.float32)
+        ca.data.foreach_get("color", buf)
+        buf[3::4] = 0.0
+        ca.data.foreach_set("color", buf)
+    me.update()
     zmin = min(v.co.z for v in me.vertices)
     cx = sum(v.co.x for v in me.vertices) / len(me.vertices)
     cy = sum(v.co.y for v in me.vertices) / len(me.vertices)
@@ -1010,8 +1109,8 @@ def construire(pid, rapide=False):
         ob = fab(r)
     finally:
         C.tube = tube0
-    reorienter_gemmes(ob, {"rubis", "saphir", "serti_rubis", "serti_saphir", "cristal_rubis", "cristal_saphir"})
-    plats = {i for i, m in enumerate(ob.data.materials) if m and m.name.split(".")[0] in ("rubis", "saphir", "cristal_rubis", "cristal_saphir")}
+    reorienter_gemmes(ob, {"rubis", "saphir", "serti_rubis", "serti_saphir", "cristal_rubis", "cristal_saphir", "plaque_rubis", "plaque_saphir"})
+    plats = {i for i, m in enumerate(ob.data.materials) if m and m.name.split(".")[0] in ("rubis", "saphir", "cristal_rubis", "cristal_saphir", "plaque_rubis", "plaque_saphir")}
     for p in ob.data.polygons:
         if p.material_index in plats:
             p.use_smooth = False
