@@ -31,6 +31,7 @@ var sortie := ""
 var familles: Array = ["cuir", "fourrure", "os"]
 var film := false
 var jambes := false
+var tete := false          # gros plans du casque de face / 3/4 / profil
 var chevilles := false     # gros plans des chevilles (bottes portées), sert au contrôle des fentes
 
 func _init() -> void:
@@ -115,6 +116,8 @@ func _go() -> void:
 			film = true
 		elif a == "--jambes":
 			jambes = true
+		elif a == "--tete":
+			tete = true
 		elif a == "--chevilles":
 			chevilles = true
 		elif a == "--avant":
@@ -154,6 +157,8 @@ func _go() -> void:
 	await _attendre(1.0)
 	if film:
 		await _film()
+	elif tete:
+		await _tete()
 	elif chevilles:
 		await _chevilles()
 	elif jambes:
@@ -215,6 +220,21 @@ func _planches() -> void:
 		for n in poses:
 			n.queue_free()
 		j.visible = true
+
+func _tete() -> void:
+	DirAccess.make_dir_recursive_absolute(sortie)
+	cam = Camera3D.new()
+	cam.fov = 28.0
+	s.add_child(cam)
+	cam.current = true
+	for f in familles:
+		_equiper_famille(f)
+		l.text = ""
+		await _attendre(0.6)
+		for v in {"face": 0.0, "tq": 30.0, "profil": 90.0}:
+			_placer_cam({"face": 0.0, "tq": 30.0, "profil": 90.0}[v], 2.0, 1.40, 1.42)
+			await _attendre(0.15)
+			await _capture("%s_tete_%s" % [f, v], Rect2i(240, 40, 480, 460), "casque " + v)
 
 func _film() -> void:
 	for f in familles:

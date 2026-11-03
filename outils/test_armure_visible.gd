@@ -15,7 +15,7 @@ extends SceneTree
 ## B. En jeu (scène de combat) : équiper / ôter par EquipementCorps (signal change) habille et rhabille le corps ; vue 1re personne :
 ##   les bras FPS prennent la matière des gants portés, et la retrouvent quand on les ôte ; ombre seule à la 1re personne.
 const TOL := 0.010
-const TRIS_MAX := 1200
+const TRIS_MAX := 2500
 const TRIS_TETE := 1400
 ## Budgets de la charte HD (conception_rpg/CHARTE_ARMURES_HD.md) : torse 2 500, tête 1 400, mains / pieds 1 200 ; textures jusqu'à
 ## 1024² (atlas d'ensemble). Les pièces encore en budget « bas » restent sous ces plafonds.
@@ -643,7 +643,7 @@ func _lancer() -> void:
 	ok(ps.size() >= 12, "au moins les 12 pièces légères (cuir, fourrure, os) ont un modèle porté (%d)" % ps.size())
 	var familles := {}
 	for p: Array in ps:
-		if seul != "" and p[0] != seul:
+		if seul != "" and not (seul.split(",") as Array).has(p[0]):
 			continue
 		if not fams.is_empty() and not fams.has(p[0].get_slice("_", p[0].get_slice_count("_") - 1)):
 			continue
