@@ -1310,7 +1310,7 @@ func _maj_auras() -> void:
 			# là) au lieu d'une boule de flammes qui couvre la naissance du flux
 			i *= 0.4 if a.ecole == "feu" else 0.15
 		var dbl: bool = _double.get(a.ecole, false)
-		var k := (0.75 + 0.5 * minf(i, 1.0)) * (1.25 if dbl else 1.0)
+		var k := (0.75 + 0.5 * minf(i, 1.0)) * ((1.1 if a.ecole == "feu" else 1.25) if dbl else 1.0)
 		var ech: float = echelles_aura.get(id, 1.0)
 		var tenue := echelles_aura.has(id)
 		ancre.transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * k), (main as Node3D).global_position)
@@ -2440,6 +2440,24 @@ func _maj_jets() -> void:
 
 # ====================================================================== projectiles
 
+## Carré de la boule runique en vol (m) : la boule occupe ~la moitié, la queue le reste.
+const PROJ_RAYON := 0.62
+
+## Runes d'orbite du projectile : le MÊME composant que celui des mains (RunesOrbite), à l'échelle de la boule.
+func _runes_projectile(racine: Node3D, ecole: String, k: float) -> void:
+	var r := RunesOrbite.new()
+	r.name = "RunesProjectile"
+	r.ecole = ecole
+	r.suivi = racine
+	r.centre_force = 0.0
+	r.avec_lueurs = false
+	r.echelle = 4.4 * k
+	r.germe = 0.18
+	r.intensite = 1.0
+	r.etat = 3
+	racine.add_child(r)
+
+
 func projectile_visuel(ecole: String, forme: String) -> Node3D:
 	ecole = _ecole_ok(ecole)
 	var racine := Node3D.new()
@@ -2451,6 +2469,7 @@ func projectile_visuel(ecole: String, forme: String) -> Node3D:
 	var dbl: bool = _double.get(ecole, false)
 	var k := 1.4 if dbl else 1.0
 	var coeur: Array = []
+	var aura_proj: MeshInstance3D = null
 	match forme:
 		"eclat", "lance":
 			var lance := forme == "lance"
@@ -2479,8 +2498,13 @@ func projectile_visuel(ecole: String, forme: String) -> Node3D:
 				coeur.append(emettre("ten_coeur", visuel, Transform3D.IDENTITY, true))
 		"boule", "orbe" when fin_actif or ecole == "feu":
 			# feu : la boule bouillonnante procédurale aussi en rétro (les sphères additives empilées faisaient « plastique »)
-			_aura_fine(visuel, ecole, (0.3 if forme == "boule" else 0.18) * k, 1)
-			if ecole == "feu":
+			if ecole == "feu" and forme == "boule":
+				# boule RUNIQUE (v5) : tourbillon + queue (aura forme 3), et les mêmes runes en orbite que la flamme tenue
+				aura_proj = _aura_fine(visuel, ecole, PROJ_RAYON * k, 3)
+				_runes_projectile(racine, ecole, k)
+			else:
+				_aura_fine(visuel, ecole, (0.3 if forme == "boule" else 0.18) * k, 1)
+			if ecole == "feu" and aura_proj == null:
 				coeur.append(emettre("feu_boule_coeur", visuel, Transform3D.IDENTITY, true))
 			elif ecole == "tenebres":
 				coeur.append(emettre("ten_coeur", visuel, Transform3D.IDENTITY, true))
@@ -2502,7 +2526,7 @@ func projectile_visuel(ecole: String, forme: String) -> Node3D:
 	if _projectiles.size() >= MAX_PROJECTILES:
 		refus += 1
 	else:
-		var e := {"noeud": racine, "visuel": visuel, "ecole": ecole, "forme": forme, "emit": [], "coeur": coeur, "prec": null, "entre": false, "eclair": {}, "dbl": dbl}
+		var e := {"noeud": racine, "visuel": visuel, "ecole": ecole, "forme": forme, "emit": [], "coeur": coeur, "prec": null, "entre": false, "eclair": {}, "dbl": dbl, "aura": aura_proj}
 		if forme in ["eclat", "lance"]:
 			# cristal : sa queue dépasse de 0,25 × sa longueur DERRIÈRE le point de départ. Né dans la paume (~0,5 m de
 			# l'œil), l'éclat (0,43 m de queue) ou la lance (1 m) traversait le plan proche de la caméra pendant la
@@ -2552,7 +2576,10 @@ func _maj_projectiles() -> void:
 			if not e.entre:
 				e.entre = true
 				var noms: Array = [PresetsMagie.de(e.ecole, "trainee")]
-				if e.ecole == "feu":
+				if e.ecole == "feu" and e.get("aura") != null:
+					# boule runique : la queue est dessinée par le shader ; seules de fines braises s'en échappent
+					noms = ["feu_trainee_braise"]
+				elif e.ecole == "feu":
 					noms.append("feu_trainee_fumee")
 					noms.append("feu_trainee_braise")
 				elif e.ecole == "glace":
@@ -2576,6 +2603,8 @@ func _maj_projectiles() -> void:
 					vis.global_basis = base_vers(v).scaled(Vector3.ONE * ech)
 			elif ech != 1.0:
 				(e.visuel as Node3D).scale = Vector3.ONE * ech
+			if e.get("aura") != null and is_instance_valid(e.aura) and e.prec != null and (pos - (e.prec as Vector3)).length() > 0.0005:
+				(e.aura as MeshInstance3D).set_instance_shader_parameter("trace", -(pos - (e.prec as Vector3)).normalized())
 			e.prec = pos
 			var c: Color = LUMIERE[e.ecole]
 			lumiere("proj%d" % (n as Node).get_instance_id(), pos, c, 3.6 if e.forme in ["boule", "orbe", "trait"] else 2.2, 6.0, 3.0)
@@ -3142,9 +3171,22 @@ func _maj_double() -> void:
 					if p != null:
 						v.emit.append(p)
 				"feu":
-					var p := emettre("feu_aura", n, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * 2.2), Vector3.ZERO), true, 1.5)
-					if p != null:
-						v.emit.append(p)
+					# double magie de feu (v5) : plus de gros nuage de particules entre les mains (« un bloc ») ; un petit chapelet de
+					# runes (le MÊME RunesOrbite que les mains) relie les deux flammes, et les deux mains brillent davantage
+					var pont := RunesOrbite.new()
+					pont.name = "RunesPont"
+					pont.ecole = "feu"
+					pont.suivi = n
+					pont.centre_force = 0.1
+					pont.avec_lueurs = false
+					pont.nombre = 4
+					pont.taille_k = 0.8
+					pont.lumi_k = 0.9
+					pont.intensite = 0.9
+					pont.etat = 1
+					pont.germe = 0.4
+					n.add_child(pont)
+					v.pont = pont
 				"electricite":
 					v.eclair = eclair(null, "electricite", 2.0, -1.0, 0.05, func() -> Array:
 						var t: Array = []
@@ -3176,6 +3218,10 @@ func _maj_double() -> void:
 			if is_instance_valid(p):
 				(p as GPUParticles3D).emitting = not v.jette
 		(v.noeud as Node3D).position = milieu
+		if v.get("pont") != null and is_instance_valid(v.pont):
+			var pt: Node3D = v.pont
+			pt.set("echelle", clampf(p0.distance_to(p1) * 3.0, 0.8, 2.2))
+			pt.visible = not v.jette
 		lumiere("double" + ecole, milieu, LUMIERE[ecole], 3.5, 6.0, 6.0)
 
 func _double_fin(v: Dictionary) -> void:

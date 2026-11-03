@@ -38,6 +38,17 @@ const VUES := {
 	"fr_proche": [false, "boule_feu", "repos", "vide", 0.0, false, "droite"],
 	"fr_glace": [false, "eclat_glace", "repos", "vide", 0.0, true, "droite"],
 	"fr_elec": [false, "arc_electrique", "repos", "vide", 0.0, true, "droite"],
+	# v5 : main GAUCHE (miroir), DOUBLE magie (deux mains), projectile lancé (suivi de la boule)
+	"fr_g_repos": [false, "boule_feu", "repos", "vide", 0.0, true, "gauche"],
+	"fr_g_incante": [false, "boule_feu", "incante", "vide", 0.0, true, "gauche"],
+	"fr_g_charge": [false, "boule_feu", "charge", "vide", 0.0, true, "gauche"],
+	"fr_g_lance": [false, "boule_feu", "lance", "vide", 0.0, true, "gauche"],
+	"fr_d_repos": [false, "boule_feu", "repos", "vide", 0.0, true, "double"],
+	"fr_d_charge": [false, "boule_feu", "charge", "vide", 0.0, true, "double"],
+	"fr_d_lance": [false, "boule_feu", "lance", "vide", 0.0, true, "double"],
+	"fr_vol": [false, "boule_feu", "vol", "vide", 0.0, false, "droite"],
+	"fr_vol_g": [false, "boule_feu", "vol", "vide", 0.0, false, "gauche"],
+	"fr_vol_impact": [false, "boule_feu", "vol_impact", "mannequin", 0.0, false, "droite"],
 	"fr_tps": [true, "boule_feu", "repos", "vide", -125.0, false, "droite"],
 }
 
@@ -68,6 +79,9 @@ func _vues() -> Array:
 
 func _go() -> void:
 	sortie = _arg("sortie", "user://sorts_vfx")
+	if _arg("taille") != "" and DisplayServer.get_name() != "headless":
+		var wh := _arg("taille").split("x")
+		root.size = Vector2i(int(wh[0]), int(wh[1]))   # couche fine (détail Élevé) : fenêtre ≥ 1280x720
 	DirAccess.make_dir_recursive_absolute(sortie)
 	if _arg("planche") != "":
 		_planche()
@@ -126,8 +140,14 @@ func _image() -> Image:
 
 ## Gros plan : de côté et un peu au-dessus de la paume gauche (vue FPS), cadré sur elle et ce qui en sort.
 func _cadrer(main := "gauche") -> void:
+	if main == "double":
+		var mil: Vector3 = ((m.paume["gauche"] as Node3D).global_position + (m.paume["droite"] as Node3D).global_position) * 0.5
+		var cible2 := mil + Vector3(0.0, float(_arg("cible_y", "0.11")), 0.0)
+		cam_gp.fov = float(_arg("fov_double", "58"))
+		cam_gp.global_transform = Transform3D(Basis.looking_at(cible2 - j.camera.global_position, Vector3.UP), j.camera.global_position)
+		return
 	var p: Node3D = m.paume[main]
-	if main == "droite":
+	if main == "droite" or main == "gauche" and _arg("miroir", "1") == "1":
 		# vrai point de vue du joueur, zoomé sur la paume (comme references/flamme_runique.png) : les mains ne bougent pas
 		var cible := p.global_position + Vector3(0.0, float(_arg("cible_y", "0.035")), 0.0)
 		cam_gp.fov = float(_arg("fov", "40"))
@@ -143,10 +163,15 @@ func _vue(v: String, pref: String) -> void:
 	var tps: bool = c[0]
 	var main: String = c[6] if c.size() > 6 else "gauche"
 	var autre := "gauche" if main == "droite" else "droite"
+	var mains: Array = ["gauche", "droite"] if main == "double" else [main]
 	m.relacher("gauche")
 	m.relacher("droite")
-	m.equiper(autre, "epee" if main == "gauche" else "")
-	m.equiper(main, String(c[1]))
+	if main == "double":
+		m.equiper("gauche", String(c[1]))
+		m.equiper("droite", String(c[1]))
+	else:
+		m.equiper(autre, "")
+		m.equiper(main, String(c[1]))
 	if String(c[3]) == "vide":
 		s.placer_joueur(Vector3(0, 0, 1.6), 180.0, 6.0)
 	else:
@@ -162,16 +187,22 @@ func _vue(v: String, pref: String) -> void:
 	var action: String = c[2]
 	match action:
 		"charge":
-			m.appuyer(main)
+			for h in mains: m.appuyer(h)
 			await _attendre(42)
 		"incante":
-			m.appuyer(main)
+			for h in mains: m.appuyer(h)
 			await _attendre(8)
 		"lance":
-			m.appuyer(main)
+			for h in mains: m.appuyer(h)
 			await _attendre(40)
-			m.relacher(main)
+			for h in mains: m.relacher(h)
 			await _attendre(3)
+		"vol", "vol_impact":
+			# le projectile en vol : suivi de la boule (caméra FPS qui regarde ce qui part de la main)
+			for h in mains: m.appuyer(h)
+			await _attendre(40)
+			for h in mains: m.relacher(h)
+			await _attendre(int(_arg("vol_delai", "6")))
 		"canal":
 			m.appuyer(main)
 			await _attendre(36)
@@ -184,7 +215,18 @@ func _vue(v: String, pref: String) -> void:
 			Input.action_press("avant")
 			await _attendre(30)
 	var gros: bool = c.size() > 5 and c[5]
+	var vol: bool = action.begins_with("vol")
+	if vol:
+		cam_gp.fov = 55.0
+		cam_gp.current = true
 	for k in N:
+		if vol:
+			var pr := _projectile()
+			if pr != null:
+				var eye: Vector3 = j.camera.global_position
+				var tgt: Vector3 = pr.global_position
+				cam_gp.fov = float(_arg("fov_vol", "50"))
+				cam_gp.global_transform = Transform3D(Basis.looking_at(tgt - eye, Vector3.UP), eye)
 		if gros:
 			_cadrer(main)
 			cam_gp.current = true
@@ -198,8 +240,15 @@ func _vue(v: String, pref: String) -> void:
 		j.camera_tp.camera.current = true
 	if action == "marche":
 		Input.action_release("avant")
-	m.relacher(main)
+	for h in mains: m.relacher(h)
 	await _attendre(150)
+
+func _projectile() -> Node3D:
+	for n in s.get_tree().get_nodes_in_group("projectiles"):
+		if n is Node3D:
+			return n
+	var l := root.find_children("*", "ProjectileSort", true, false)
+	return l[0] if not l.is_empty() else null
 
 func _planche() -> void:
 	var cols := _arg("colonnes", "avant,apres").split(",", false)

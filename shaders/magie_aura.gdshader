@@ -7,6 +7,8 @@
 //   ténèbres   : vortex (spirale noire aux bras violets), aspiré vers le centre
 //   soin / protection : halo doré / bleu pâle qui ondule
 // `forme` 1 = boule (projectile, explosion) : masque rond bouillonnant au lieu des flammes montantes.
+// `forme` 3 = BOULE RUNIQUE (projectile de feu lancé, même identité que la flamme tenue : tourbillon de langues en spirale,
+//   cœur chaud, queue effilochée dans l'axe du vol ; les runes d'orbite sont portées par RunesOrbite, commun aux 4 écoles).
 // `forme` 2 = FLAMME TENUE (cœur de l'aura de feu, sort prêt) : goutte vivante, langues, braises et fumée au sommet.
 shader_type spatial;
 render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
@@ -17,6 +19,7 @@ instance uniform float rayon = 0.12;
 instance uniform float force = 1.0;
 instance uniform float graine = 0.0;
 instance uniform float charge = 0.0;   // 0..1 : flamme tenue en charge (plus haute, plus dense)
+instance uniform vec3 trace = vec3(0.0);   // forme 3 : direction DERRIÈRE le projectile (monde) ; nul = pas de queue
 instance uniform float avance = 0.0;   // m vers l'œil : l'aura passe devant le dos de la main (flammes qui l'enveloppent)
 uniform int ecole = 0;
 uniform int forme = 0;
@@ -31,6 +34,7 @@ uniform vec4 c5 : source_color = vec4(0.35, 0.10, 0.11, 1.0);
 varying vec2 v_px;      // position dans le carré, en pixels de la couche (0 = centre)
 varying float v_rpx;    // rayon en pixels de la couche
 varying vec2 v_haut;    // « haut » du monde projeté à l'écran (les flammes montent même main penchée)
+varying float v_queue;  // forme 3 : longueur apparente de la queue (1 = vue de côté, 0 = vue dans l'axe)
 
 void vertex() {
 	vec3 centre = MODEL_MATRIX[3].xyz;
@@ -44,6 +48,17 @@ void vertex() {
 	vec2 ph = (ch.xy / max(ch.w, 0.0001) * 0.5 + 0.5) * vp;
 	vec2 hd = ph - pc;
 	v_haut = dot(hd, hd) > 0.0001 ? normalize(hd) : vec2(0.0, 1.0);
+	v_queue = 1.0;
+	if (dot(trace, trace) > 0.0001) {
+		// projectile : le « haut » du motif est l'arrière du vol, raccourci quand on le regarde dans l'axe
+		vec3 tn = normalize(trace);
+		vec4 ct = PROJECTION_MATRIX * (VIEW_MATRIX * vec4(centre + tn * 0.05, 1.0));
+		vec2 pt = (ct.xy / max(ct.w, 0.0001) * 0.5 + 0.5) * vp;
+		vec2 td = pt - pc;
+		float ref = 0.05 * abs(PROJECTION_MATRIX[1][1]) / w * vp.y * 0.5;
+		v_queue = clamp(length(td) / max(ref, 0.0001), 0.0, 1.0);
+		v_haut = v_queue > 0.02 ? normalize(td) : vec2(0.0, 1.0);
+	}
 	float rpx = rayon * abs(PROJECTION_MATRIX[1][1]) / w * vp.y * 0.5;
 	vec2 p = floor(pc) + 0.5 + VERTEX.xy * 2.0 * (rpx + 1.0);
 	POSITION = vec4((p / vp * 2.0 - 1.0) * cc.w, cc.z, cc.w);
@@ -176,6 +191,56 @@ void fragment() {
 			if (carre > 0.97) {
 				discard;
 			}
+		} else if (forme == 3) {
+			// BOULE RUNIQUE : tourbillon de 3 bras qui s'enroulent autour d'un cœur chaud, queue en volutes derrière (+y = arrière).
+			vec2 u = q / rp;
+			float lq = clamp(v_queue, 0.0, 1.0);
+			float rr = length(u);
+			float an = atan(u.y, u.x);
+			float th = an + rr * 5.0 - tt * 4.2;
+			float arm = 0.5 + 0.5 * cos(th * 3.0);
+			float nz = mbruit(vec2(th * 1.3 + graine, rr * 5.0 - tt * 2.6)) - 0.5;
+			float nz2 = mbruit(vec2(u.x * 14.0 + graine, u.y * 14.0 - tt * 3.0)) - 0.5;
+			float reach = 0.34 + 0.4 * pow(arm, 1.6) + nz * 0.2;
+			float ib = (1.0 - rr / max(reach, 0.1)) * 1.45 + nz2 * 0.22;
+			// cœur blanc-jaune
+			float noy = 1.0 - smoothstep(0.0, 0.22 + 0.04 * sin(tt * 9.0), rr);
+			ib = max(ib, noy * 1.25);
+			// queue : 3 volutes qui s'enroulent, de plus en plus fines
+			float tq = 0.0;
+			if (u.y > 0.0 && lq > 0.05) {
+				float len = (0.3 + 0.65 * lq);
+				float ty = u.y / len;
+				float vtail = 1.0 - clamp(ty, 0.0, 1.0);
+				for (int k = 0; k < 3; k++) {
+					float fk = float(k);
+					float ang = fk * 2.0944 + graine + ty * 5.5 - tt * (3.0 + fk * 0.5);
+					float xk = 0.2 * sin(ang) * (0.4 + ty) + (mbruit(vec2(ty * 3.0 - tt * 2.0, fk * 5.0 + graine)) - 0.5) * 0.25 * ty;
+					float wk = 0.26 * pow(vtail, 0.8) * (0.7 + 0.3 * cos(ang)) + 0.01;
+					float itk = (1.0 - abs(u.x - xk) / wk) * (0.55 + 0.6 * vtail) * (0.9 + 0.4 * nz2);
+					tq = max(tq, itk);
+				}
+				tq *= smoothstep(0.1, 0.45, u.y + 0.2);
+			}
+			i = max(ib, tq);
+			i *= (0.95 + 0.07 * sin(tt * 13.0 + graine)) * clamp(force, 0.0, 1.3);
+			// braises : pixels isolés qui s'échappent vers l'arrière
+			if (i < 0.32) {
+				vec2 qb = vec2(q.x, q.y - tt * rp * 1.4);
+				vec2 cb = floor(qb / 1.5);
+				float hb = mh2(cb + floor(graine * 13.0));
+				float zb = smoothstep(0.1, 0.5, u.y) * (1.0 - smoothstep(0.5, 0.9, rr + 0.0)) * lq;
+				if (hb > 1.0 - 0.02 * zb) {
+					c = mh2(cb + 3.1) > 0.5 ? c1.rgb : c2.rgb;
+				} else {
+					discard;
+				}
+			} else {
+				c = i > 1.2 ? c0.rgb : palier(min(i, 1.14));
+			}
+			if (carre > 0.97) {
+				discard;
+			}
 		} else if (forme == 1) {
 			if (r > 1.0) {
 				discard;
@@ -196,7 +261,7 @@ void fragment() {
 			float n2 = mbruit(vec2(f.x / 1.4, (f.y - tt * rp * 2.4) / 4.0) + graine * 3.0);
 			i = (1.0 - d) * 1.35 + (n - 0.5) * (1.3 + max(hy, 0.0) * 1.2) + (n2 - 0.5) * 0.55 - max(hy, 0.0) * 0.2;
 		}
-		if (forme != 2) {
+		if (forme != 2 && forme != 3) {
 			i *= force * garde;
 			if (i < 0.3) {
 				discard;

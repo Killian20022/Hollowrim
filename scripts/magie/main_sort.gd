@@ -510,6 +510,9 @@ func _runes_vers(m: String, ecole: String, k: float) -> void:
 	r.intensite = k
 	r.charge = i.charge if i.etat == Incantation.CHARGE else 0.0
 	r.etat = i.etat
+	# double magie : les runes de chaque main vont un peu plus vite et brillent un peu plus (la flamme, elle, reste à peu près la même)
+	r.vitesse_k = 1.2 if i.double else 1.0
+	r.lumi_k = 1.3 if i.double else 1.0
 	# tenue « runes » : les flammes de l'aura serrées autour de la boule tenue (cœur de l'aura de feu). La boule et
 	# `echelles_aura` vivent dans gestion_magie.gd (branche fps/avant_bras_runes, pas encore portés) : sans elles, rien.
 	var g = GestionMagie.obtenir()
@@ -760,7 +763,7 @@ func _pose_voulue(m: String, dt := 0.0) -> Dictionary:
 	var s := eq.sort(m)
 	# geste capturé (Mixamo) s'il y en a un pour ce sort et cet état, sinon pose fixe
 	var p := {}
-	if m == "droite" and i.etat == Incantation.CHARGE and s != null and s.profil == "poing":
+	if i.etat == Incantation.CHARGE and s != null and s.profil == "poing":
 		# flamme runique tenue pendant la charge : on garde la paume ouverte vers le haut (PosesIncantation « charge »),
 		# le geste capturé la basculait derrière le poignet et cachait la flamme
 		gestes.oublier(m)
@@ -768,15 +771,14 @@ func _pose_voulue(m: String, dt := 0.0) -> Dictionary:
 		p = gestes.pose(m, i, s, dt)
 	var capture := not p.is_empty()
 	if not capture:
+		PosesIncantation.gauche_miroir = not eq.categorie(eq.autre(m)).begins_with("arme")
 		p = PosesIncantation.pour(i.nom(), s.profil if s != null else "paume", i.charge, i.depuis_lancement, i.t, m)
 		if _deux_sorts_repos(m):
-			if m == "droite":
-				# deux sorts : pose intermédiaire entre la paume-en-haut de la flamme runique et l'ancienne pose (miroir de la
+			if true:
+				# deux sorts (les DEUX mains, en miroir) : pose intermédiaire entre la paume-en-haut de la flamme runique et l'ancienne pose (miroir de la
 				# gauche) : le départ des gestes à deux mains (double jet) ne vrille pas le poignet de plus de 140°
 				var v0: Dictionary = PosesIncantation.POSES["repos"]
-				var ancien := {"pos": Vector3(-Vector3(v0["pos"]).x, Vector3(v0["pos"]).y, Vector3(v0["pos"]).z),
-					"paume": Vector3(-Vector3(v0["paume"]).x, Vector3(v0["paume"]).y, Vector3(v0["paume"]).z),
-					"doigts": Vector3(-Vector3(v0["doigts"]).x, Vector3(v0["doigts"]).y, Vector3(v0["doigts"]).z), "fermeture": v0["fermeture"]}
+				var ancien: Dictionary = v0 if m == "gauche" else PosesIncantation.miroir(v0)
 				p = PosesIncantation.melange(p, ancien, DEUX_SORTS_DROITE_ANCIEN)
 			p = p.duplicate()
 			var dx := DEUX_SORTS_DECALAGE

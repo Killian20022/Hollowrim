@@ -48,6 +48,12 @@ var nombre := NB_RUNES
 var vitesse_k := 1.0
 var taille_k := 1.0
 var lumi_k := 1.0
+## Réutilisation hors main (projectile lancé, pont de la double magie) : échelle des orbites et des runes, hauteur du centre
+## (-1 = celle de l'école), sans les lueurs d'avant-bras, apparition progressive (orbites qui s'ouvrent en `germe` s).
+var echelle := 1.0
+var centre_force := -1.0
+var avec_lueurs := true
+var germe := 0.0
 var _runes: Array = []          # [{mi, base, vit, rayon, phase, taille, eclat, bat, haut}]
 var _fils: Array[MeshInstance3D] = []
 var _etat_prec := 0
@@ -108,6 +114,9 @@ func _ready() -> void:
 			"rayon": float(e.rayon) * (0.72 + 0.62 * _h(k * 31 + 3)), "phase": TAU * h,
 			"taille": float(e.taille) * (0.85 + 0.3 * _h(k * 13 + 1)), "haut": 0.03 * (_h(k * 5 + 2) - 0.5),
 			"eclat": 0.75 + 0.45 * _h(k * 11 + 4), "bat": TAU * _h(k * 3 + 9)})
+	if not avec_lueurs:
+		_suivre()
+		return
 	lueur = OmniLight3D.new()
 	lueur.light_color = (e.couleur as Color).lerp(e.coeur, 0.35)
 	lueur.light_cull_mask = AvantBras.CALQUE
@@ -157,7 +166,7 @@ func _suivre() -> void:
 	var b := cam.global_basis if cam != null else Basis.IDENTITY
 	var e: Dictionary = ECOLES.get(ecole, ECOLES["feu"])
 	# centre des orbites : le milieu de l'énergie tenue, AU-DESSUS de la paume (haut du monde, main penchée ou non)
-	global_transform = Transform3D(b, suivi.global_position + Vector3.UP * float(e.centre))
+	global_transform = Transform3D(b, suivi.global_position + Vector3.UP * (float(e.centre) if centre_force < 0.0 else centre_force))
 
 func _process(dt: float) -> void:
 	_t += dt
@@ -179,14 +188,16 @@ func _process(dt: float) -> void:
 	_etat_prec = etat
 	_conv = maxf(_conv - dt * 3.2, 0.0)
 	var conv := sin(minf(_conv, 1.0) * PI * 0.5)
-	var resserre := _k_rayon * (1.0 - 0.55 * conv)
+	var ouvre := 1.0 if germe <= 0.0 else clampf(0.35 + 0.65 * _t / germe, 0.35, 1.0)
+	var resserre := _k_rayon * (1.0 - 0.55 * conv) * echelle * ouvre
 	var acc := _k_vit * vitesse_k
 	var force := clampf(0.7 + 0.6 * intensite, 0.0, 1.8) * _k_eclat * lumi_k * (1.0 + 0.4 * conv)
-	lueur.position = Vector3(0.025 * cote, 0.0, LUEUR_AVANCE)
-	lueur_bras.position = Vector3(LUEUR_BRAS_POS.x * cote, LUEUR_BRAS_POS.y, LUEUR_BRAS_POS.z)
 	var vif := _k_eclat * (1.0 + 0.4 * kc)
-	lueur_bras.light_energy = LUEUR_BRAS * (0.5 + 0.8 * intensite) * vif
-	lueur.light_energy = LUEUR * (0.5 + 0.8 * intensite) * vif * (0.94 + 0.06 * sin(_t * 17.0) * sin(_t * 6.3))
+	if lueur != null:
+		lueur.position = Vector3(0.025 * cote, 0.0, LUEUR_AVANCE)
+		lueur_bras.position = Vector3(LUEUR_BRAS_POS.x * cote, LUEUR_BRAS_POS.y, LUEUR_BRAS_POS.z)
+		lueur_bras.light_energy = LUEUR_BRAS * (0.5 + 0.8 * intensite) * vif
+		lueur.light_energy = LUEUR * (0.5 + 0.8 * intensite) * vif * (0.94 + 0.06 * sin(_t * 17.0) * sin(_t * 6.3))
 	for o in _fils.size():
 		var f := _fils[o]
 		var an: Dictionary = ANNEAUX[o]
@@ -203,7 +214,7 @@ func _process(dt: float) -> void:
 		var mi: MeshInstance3D = r.mi
 		# profondeur : les runes devant (vers l'œil, +Z caméra) sont plus grandes et plus vives, celles du fond plus petites et pâles
 		var dev := clampf(p.z / maxf(rr, 0.01), -1.0, 1.0)
-		var s: float = float(r.taille) * taille_k * (0.9 + 0.2 * dev) * (1.0 + 0.06 * sin(_t * 2.9 + float(r.bat)))
+		var s: float = float(r.taille) * taille_k * echelle * (0.9 + 0.2 * dev) * (1.0 + 0.06 * sin(_t * 2.9 + float(r.bat)))
 		mi.transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * s), p)
 		var pulse := 0.8 + 0.2 * sin(_t * 3.3 + float(r.bat) * 2.0)
 		mi.set_instance_shader_parameter("eclat", float(r.eclat) * pulse * force * (0.7 + 0.3 * dev))
