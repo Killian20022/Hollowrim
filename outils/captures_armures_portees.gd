@@ -32,6 +32,7 @@ var sortie := ""
 var familles: Array = ["cuir", "fourrure", "os"]
 var film := false
 var jambes := false
+var studio := false        # vue studio de face, pose neutre (mains vides), fond uni
 var chevilles := false     # gros plans des chevilles (bottes portées), sert au contrôle des fentes
 
 func _init() -> void:
@@ -121,6 +122,8 @@ func _go() -> void:
 			jambes = true
 		elif a == "--chevilles":
 			chevilles = true
+		elif a == "--studio":
+			studio = true
 	s = load("res://scenes/test_combat.tscn").instantiate()
 	s.options = {"draugr": "aucun", "sans-aide": ""}
 	root.add_child(s)
@@ -150,6 +153,8 @@ func _go() -> void:
 	await _attendre(1.0)
 	if film:
 		await _film()
+	elif studio:
+		await _studio()
 	elif chevilles:
 		await _chevilles()
 	elif jambes:
@@ -157,6 +162,35 @@ func _go() -> void:
 	else:
 		await _planches()
 	quit()
+
+## Studio : de face, pose neutre (repos, mains vides), fond gris uni derriere le heros.
+func _studio() -> void:
+	DirAccess.make_dir_recursive_absolute(sortie)
+	cam = Camera3D.new()
+	cam.fov = 34.0
+	s.add_child(cam)
+	cam.current = true
+	mains.magie.equiper("droite", "vide")
+	var fond := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(8, 5)
+	fond.mesh = q
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.42, 0.43, 0.46)
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fond.material_override = m
+	s.add_child(fond)
+	var devant := -j.global_transform.basis.z
+	fond.global_position = j.global_position - devant * 1.5 + Vector3(0, 1.6, 0)
+	fond.look_at(j.global_position + devant * 5.0 + Vector3(0, 1.6, 0), Vector3.UP)
+	fond.rotate_object_local(Vector3.UP, PI)
+	for f in familles:
+		_equiper_famille(f)
+		l.text = ""
+		await _attendre(0.8)
+		_placer_cam(0.0, 4.3, 0.95, 1.1)
+		await _attendre(0.2)
+		await _capture("%s_studio_face" % f, Rect2i(300, 0, 360, 540), "%s - studio" % NOMS.get(f, f))
 
 func _planches() -> void:
 	DirAccess.make_dir_recursive_absolute(sortie)

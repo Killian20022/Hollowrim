@@ -149,7 +149,7 @@ def tete_lion(P, c, dehors, haut, rayon, mat="or.lion"):
     hv = Vector(haut); hv = (hv - d * hv.dot(d)).normalized()
     wv = hv.cross(d).normalized()
     R = [0.0, 0.18, 0.36, 0.52, 0.66, 0.80, 0.92, 1.0]
-    NS = 14
+    NS = 12
     def h(r, th):
         x, y = r * math.cos(th), r * math.sin(th)
         if r > 0.6:
@@ -170,7 +170,7 @@ def tete_lion(P, c, dehors, haut, rayon, mat="or.lion"):
         for k in range(NS):
             th = TAU * k / NS
             x, y = r * math.cos(th), r * math.sin(th)
-            p = c + (wv * x + hv * y) * rayon + d * (h(r, th) * rayon * 0.7 - 0.004)
+            p = c + (wv * x + hv * y) * rayon + d * (h(r, th) * rayon * 0.95 - 0.004)
             row.append(P.sommet(p, 0.9 if r < 0.9 else 0.7))
         ids.append(row)
     ctr = ids[0][0]
@@ -319,15 +319,15 @@ def obs_torse(P, t, r, st):
         c = [(5, 1.468), (32, 1.478), (56, 1.452), (69, 1.385), (67, 1.30)] + arete((63, 1.27), (9, 1.215), 3, 0.032, g=11 + s) + [(5, 1.30)]
         if s < 0:
             c = miroir(c)
-        hd.plaque(P, A(), PROJ_T, c, 0.012, 0.009, M, UV_D, bombe=0.012, anneaux=3)
+        hd.plaque(P, A(), PROJ_T, c, 0.012, 0.009, M, UV_D, bombe=0.012, anneaux=2)
     # arête du sternum (par-dessus)
     hd.plaque(P, A(), PROJ_T, [(-7, 1.472), (7, 1.472), (10, 1.32), (0, 1.17), (-10, 1.32)], 0.012, 0.009, M, UV_D, bombe=0.009, anneaux=2)
     # boucle de ceinture
     hd.plaque(P, A(), PROJ_T, [(0, 1.06), (12, 1.0), (0, 0.94), (-12, 1.0)], 0.012, 0.007, M, UV_D, bombe=0.008, anneaux=2)
     gorgerin(P, A(), M, dents=3)
     # pan de tissu rouge déchiré (sous les tassettes)
-    bas = arete((17, 0.64), (0, 0.50), 3, 0.06, g=21) + arete((0, 0.50), (-17, 0.62), 3, 0.07, g=22)
-    c = [(-15, 0.972), (15, 0.972), (17, 0.80)] + bas + [(-17, 0.62), (-17, 0.80)]
+    bas = arete((17, 0.50), (3, 0.34), 4, 0.10, g=21) + arete((3, 0.34), (-17, 0.46), 4, 0.11, g=22)
+    c = [(-15, 0.972), (15, 0.972), (17, 0.80)] + bas + [(-17, 0.50), (-17, 0.80)]
     hd.plaque(P, A(), PROJ_T, c, 0.007, 0.003, "tissu.rouge", UV_D, bombe=0.0, anneaux=3, biseau=0.3)
     # tassettes : dos, côtés, devant
     for s in (1, -1):
@@ -351,16 +351,69 @@ def obs_torse(P, t, r, st):
             hd.plaque(P, [hd.bvh_piece(P), bras], pj, c, dec, 0.009, M, UV_D, bombe=bom, anneaux=2)
         arb = [hd.bvh_piece(P)]
         ax = (Bep - Aep).normalized()
-        for (a, tt, L) in ((-20, 0.16, 0.065), (4, 0.30, 0.085), (26, 0.43, 0.068)):
+        for (a, tt, L) in ((-24, 0.14, 0.085), (-4, 0.24, 0.11), (22, 0.20, 0.09), (-30, 0.36, 0.08), (12, 0.38, 0.115), (36, 0.34, 0.075)):
             o, d = pj(a, tt)
             hit, n = hd.lancer(arb, o, d)
             if hit is None:
                 continue
             dirn = (-Vector(d) + ax * 0.5 + DOS * 0.15).normalized()
-            hd.eclat(P, hit, dirn, L, 0.017, 0.0075, M, UV_D, cote_w=ax)
+            hd.eclat(P, hit, dirn, L, 0.020, 0.009, M, UV_D, cote_w=ax)
 
 
 # ============================================================================================================== CUIRASSE OR
+def _hit_y(B, x, z, depuis_devant=True):
+    o = Vector((x, -0.9 if depuis_devant else 0.9, z))
+    d = Vector((0, 1, 0)) if depuis_devant else Vector((0, -1, 0))
+    h = B.ray_cast(o, d, 2.0)
+    return None if h[0] is None else h[0].y
+
+
+def drap(P, B, mat, devant, hw0, hw1, z0, z1, nc, nr, ecart0, ecart1, pointe=0.0, courbe=0.0):
+    """Drap (tabard devant, cape derriere) : grille nc x nr, largeur hw0 -> hw1 de z0 a z1, a `ecart` du corps (mesure par lancer),
+    bas en V (pointe), bords releves (courbe). Retourne les indices de sommets."""
+    zs = [z0 + (z1 - z0) * j / (nr - 1) for j in range(nr)]
+    ids = []
+    for j, z in enumerate(zs):
+        f = j / (nr - 1.0)
+        hw = hw0 + (hw1 - hw0) * f
+        ec = ecart0 + (ecart1 - ecart0) * f
+        ys = [_hit_y(B, hw * (2.0 * i / (nc - 1) - 1.0) * 0.9, z, devant) for i in range(nc)]
+        ys = [y for y in ys if y is not None]
+        if not ys:
+            ys = [-0.12] if devant else [0.12]
+        yb = (min(ys) - ec) if devant else (max(ys) + ec)
+        row = []
+        for i in range(nc):
+            u = 2.0 * i / (nc - 1) - 1.0
+            zz = z - pointe * f * (1.0 - abs(u))           # bas en V : le centre descend plus bas
+            y = yb + (courbe * u * u * (1 if devant else -1)) * (0.5 + f)
+            row.append(P.sommet(Vector((hw * u, y, zz)), 0.85 + 0.15 * (1 - f)))
+        ids.append(row)
+    for j in range(nr - 1):
+        for i in range(nc - 1):
+            q = [ids[j][i], ids[j][i + 1], ids[j + 1][i + 1], ids[j + 1][i]]
+            P.face(q, mat, [(UV_D[0], UV_D[1]), (UV_D[2], UV_D[1]), (UV_D[2], UV_D[3]), (UV_D[0], UV_D[3])])
+    return ids
+
+
+def peau_cape(ob, r):
+    """Cape statique : poids rigides sur la colonne (spine_03 en haut -> spine_01 en bas), aucun poids sur les jambes."""
+    k = [i for i, m in enumerate(ob.data.materials) if m and m.name.startswith("tissu.cape")]
+    if not k:
+        return
+    vs = set()
+    for p in ob.data.polygons:
+        if p.material_index in k:
+            vs.update(p.vertices)
+    for g in ob.vertex_groups:
+        g.remove(list(vs))
+    for i in vs:
+        z = ob.data.vertices[i].co.z
+        f = max(0.0, min(1.0, (z - 0.95) / (1.30 - 0.95)))
+        ob.vertex_groups["spine_03"].add([i], f, "REPLACE") if f > 0 else None
+        ob.vertex_groups["spine_01"].add([i], 1.0 - f, "REPLACE") if f < 1 else None
+
+
 def or_torse(P, t, r, st):
     """Plastron d'or : cuirasse bombée, dossière, ceinture d'or à soleil et rubis, tassettes à deux rangs, tabard bleu nuit devant
     et derrière ; épaulières à dôme et deux lames, tête de lion, cabochon de rubis serti."""
@@ -371,15 +424,14 @@ def or_torse(P, t, r, st):
     gorgerin(P, A(), M)
     # dossière
     c = [(126, 1.47), (180, 1.48), (234, 1.47), (238, 1.30), (232, 1.13), (180, 1.10), (128, 1.13), (122, 1.30)]
-    hd.plaque(P, A(), PROJ_T, c, 0.010, 0.008, M, UV_D, bombe=0.010, anneaux=3)
+    hd.plaque(P, A(), PROJ_T, c, 0.010, 0.008, M, UV_D, bombe=0.010, anneaux=2)
     # plastron
     c = [(-56, 1.445), (-30, 1.476), (0, 1.482), (30, 1.476), (56, 1.445), (66, 1.33), (58, 1.215), (32, 1.155), (0, 1.135),
          (-32, 1.155), (-58, 1.215), (-66, 1.33)]
-    hd.plaque(P, A(), PROJ_T, c, 0.010, 0.009, M, UV_D, bombe=0.016, anneaux=3)
-    # tabard bleu nuit (devant et derrière), pointe en bas
-    for (a, zb) in ((0, 0.47), (180, 0.50)):
-        c = [(a - 14, 0.975), (a + 14, 0.975), (a + 14, zb + 0.08), (a, zb), (a - 14, zb + 0.08)]
-        hd.plaque(P, A(), PROJ_T, c, 0.007, 0.003, "tissu.bleu", UV_D, bombe=0.0, anneaux=3, biseau=0.3)
+    hd.plaque(P, A(), PROJ_T, c, 0.010, 0.009, M, UV_D, bombe=0.016, anneaux=2)
+    # tabard bleu nuit LARGE (devant : largeur des hanches, jusqu'aux mollets, pointe en bas) + cape bleue statique derrière
+    drap(P, B, "tissu.tabard", True, 0.165, 0.150, 0.985, 0.42, 7, 6, 0.036, 0.05, pointe=0.10, courbe=0.012)
+    drap(P, B, "tissu.cape", False, 0.17, 0.27, 1.50, 0.42, 9, 7, 0.078, 0.105, pointe=0.0, courbe=0.0)
     # tassettes : rang bas puis rang haut, dos, côtés, devant
     for s in (1, -1):
         for (a0, a1, zh, zb, dec) in ((114, 166, 0.90, 0.75, 0.010), (58, 108, 0.90, 0.735, 0.011), (16, 54, 0.90, 0.72, 0.012),
@@ -407,13 +459,13 @@ def or_torse(P, t, r, st):
         bras = C.bvh(r, ["tunique", "peau"], {"upperarm_l" if s > 0 else "upperarm_r", "clavicle_l" if s > 0 else "clavicle_r", "spine_03"}, 0.3)
         for (t0, t1, a, dec, bom) in ((0.66, 0.95, 100, 0.013, 0.005), (0.42, 0.75, 106, 0.018, 0.006), (0.02, 0.52, 114, 0.024, 0.013)):
             c = [(-a, t0), (0, t0 - 0.02), (a, t0), (a + 5, (t0 + t1) / 2), (a, t1), (0, t1 + 0.03), (-a, t1), (-a - 5, (t0 + t1) / 2)]
-            hd.plaque(P, [hd.bvh_piece(P), bras], pj, c, dec, 0.009, M, UV_D, bombe=bom, anneaux=3 if t0 < 0.1 else 2)
+            hd.plaque(P, [hd.bvh_piece(P), bras], pj, c, dec, 0.009, M, UV_D, bombe=bom, anneaux=2)
         arb = [hd.bvh_piece(P)]
         ax = (Bep - Aep).normalized()
         o, d = pj(0, 0.30)
         hit, n = hd.lancer(arb, o, d)
         if hit is not None:
-            tete_lion(P, hit, -Vector(d), -ax, 0.056)
+            tete_lion(P, hit, -Vector(d), -ax, 0.082)
         o, d = pj(-78, 0.20)
         hit, n = hd.lancer(arb, o, d)
         if hit is not None:
@@ -427,7 +479,7 @@ def manchettes_eclats(P, t, r, st, mat="obsidienne"):
     arbre = hd.bvh_piece(P)
     for cote, s in (("l", 1.0), ("r", -1.0)):
         la, ha = r.os["lowerarm_" + cote], r.os["hand_" + cote]
-        for tt, L in ((0.40, 0.058), (0.60, 0.050), (0.80, 0.040)):
+        for tt, L in ((0.22, 0.075), (0.42, 0.085), (0.60, 0.075), (0.78, 0.062)):
             o = la.lerp(ha, tt) + Vector((0, 0, 0.25))
             hit, nrm = hd.poser_sur(arbre, o, Vector((0, 0, -1)))
             if hit is None:
@@ -502,7 +554,7 @@ PIECES = {
     "bottes_or": lambda r: PC.bottes(r, _s(OR, id="bottes_or", mat_botte="or.patine", niveaux=NIV_BOTTES)),
 }
 ENSEMBLE = {pid: ("obsidienne" if pid.endswith("obsidienne") else "or") for pid in PIECES}
-VARIANTE = {"obsidienne": {"obsidienne": "obsidienne.enchante"}, "or": {"tissu.bleu": "tissu.enchante", "gemme": "gemme.enchante"}}
+VARIANTE = {"obsidienne": {"obsidienne": "obsidienne.enchante"}, "or": {"tissu.bleu": "tissu.enchante", "tissu.cape": "tissu.enchante", "tissu.tabard": "tissu.enchante", "gemme": "gemme.enchante"}}
 
 
 def _piece(pid):
@@ -624,6 +676,8 @@ def evaser_manches(ob, r, x0=0.36, x1=0.437, plus=0.024):
 def construire(pid, dossier=None, enchante=True):
     r = C.charger_reference()
     ob = PIECES[pid](r)
+    if pid == "cuirasse_or":
+        peau_cape(ob, r)
     tris = C.compter_tris(ob)
     print("PIECE", pid, tris, "tris", "matériaux", [m.name for m in ob.data.materials])
     hd.uv_uniques(ob)

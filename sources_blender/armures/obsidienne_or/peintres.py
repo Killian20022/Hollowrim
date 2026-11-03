@@ -122,11 +122,12 @@ def runes(P, pas=0.026, h=0.032, g=71):
 # Foyers de magma (repère Godot) : les fissures incandescentes restent LOCALISÉES (planche : poitrine, une épaule, un avant-bras,
 # un flanc, les tibias), le reste est de la pierre de verre noire.
 FOYERS = {
-    "cuirasse": [((0.0, 1.36, 0.16), 0.13), ((0.22, 1.50, 0.02), 0.10), ((-0.26, 1.52, -0.02), 0.07), ((-0.09, 1.13, 0.15), 0.09),
-                 ((0.13, 0.86, 0.13), 0.08), ((-0.02, 1.30, -0.19), 0.10)],
-    "gantelets": [((0.50, 1.50, 0.0), 0.075), ((-0.52, 1.50, 0.0), 0.06)],
-    "bottes": [((0.11, 0.26, 0.09), 0.10), ((-0.11, 0.18, 0.09), 0.08)],
-    "casque": [((0.075, 1.745, 0.05), 0.035)],
+    "cuirasse": [((0.0, 1.34, 0.12), 0.30), ((0.24, 1.50, 0.0), 0.22), ((-0.24, 1.50, 0.0), 0.22), ((0.0, 1.12, 0.10), 0.22),
+                 ((0.14, 0.90, 0.12), 0.18), ((-0.14, 0.90, 0.12), 0.18), ((0.0, 1.30, -0.15), 0.30), ((0.0, 1.10, -0.14), 0.2)],
+    "gantelets": [((0.50, 1.50, 0.0), 0.22), ((-0.50, 1.50, 0.0), 0.22), ((0.30, 1.50, 0.0), 0.12), ((-0.30, 1.50, 0.0), 0.12)],
+    "bottes": [((0.11, 0.28, 0.09), 0.28), ((-0.11, 0.28, 0.09), 0.28), ((0.11, 0.08, 0.1), 0.12), ((-0.11, 0.08, 0.1), 0.12)],
+    "chausses": [((0.105, 0.68, 0.10), 0.34), ((-0.105, 0.68, 0.10), 0.34), ((0.105, 0.55, -0.02), 0.2), ((-0.105, 0.55, -0.02), 0.2)],
+    "casque": [((0.075, 1.745, 0.05), 0.05), ((-0.075, 1.745, 0.05), 0.04)],
 }
 
 
@@ -154,12 +155,18 @@ def obsidienne(D, g=31, enchante=False):
     for (cx, cy, cz), rr in FOYERS.get(piece, []):
         dd = np.sqrt((P[:, 0] - cx) ** 2 + (P[:, 1] - cy) ** 2 + (P[:, 2] - cz) ** 2)
         w = np.maximum(w, np.clip(1.0 - dd / rr, 0, 1) ** 1.1)
-    F1, F2, CID, _ = voronoi(P, 0.042, g + 9)
+    # réseau CONTINU de veines (arêtes de Voronoï 3D, deux échelles) : cœur jaune-orangé émissif, bord rouge sombre, halo de chaleur
+    w = np.clip(0.30 + 0.8 * w, 0, 1)
+    F1, F2, CID, _ = voronoi(P, 0.062, g + 9)
     ar2 = F2 - F1
-    fiss = (ar2 < 0.0007 + 0.0016 * w) & (w > 0.12)
-    k = np.where(fiss, 0.55 + 0.45 * w, 0.0)
-    chaleur = np.clip((0.0028 + 0.002 * w - ar2) / 0.0025, 0, 1) * w * 0.3
-    k = np.maximum(k, chaleur * (~fiss))
+    G1, G2, GID, _ = voronoi(P, 0.026, g + 19)
+    ar3 = G2 - G1
+    cover = np.clip(w * 1.1, 0, 1) * (fbm(P, 7.0, g + 11) > 0.42)
+    demi = 0.0011 + 0.0026 * w                       # demi-largeur des veines (m)
+    d = np.minimum(ar2, np.where(cover > 0.8, ar3 * 2.4, 9.0))
+    k = np.clip(1.0 - d / demi, 0, 1) ** 0.55 * cover
+    halo = np.clip(1.0 - d / (demi * 2.6), 0, 1) * cover * 0.16
+    k = np.maximum(k, halo)
     if piece == "casque":
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
         devant = (z > 0.07) & (y < 1.69)
@@ -272,17 +279,23 @@ def or_patine(D, g=61, lion=False):
     piece = D.get("piece", "")
     n = fbm(P, 12.0, g)
     brosse = bruit(P, np.array([30.0, 500.0, 30.0]), g + 3)
-    t = 0.63 + (n - 0.5) * 0.12 + (brosse - 0.5) * 0.05 + (fbm(P, 140.0, g + 4) - 0.5) * 0.04
-    b = 0.5 + 0.15 * brosse
+    t = 0.70 + (n - 0.5) * 0.14 + (brosse - 0.5) * 0.06 + (fbm(P, 140.0, g + 4) - 0.5) * 0.04
+    b = 0.82 + 0.15 * brosse
     tern = np.clip((0.6 - ao) * 2.0, 0, 1)
     t = t - 0.22 * tern
     b = b * (1 - 0.6 * tern)
-    t = np.where(bord < 0.0035, t + 0.08 * (1 - bord / 0.0035), t)
-    bande = (bord >= 0.0035) & (bord < 0.0135)
-    t = np.where(bande, t - 0.2, t)
-    gr = (bord >= 0.0135) & (bord < 0.0155)
-    t = np.where(gr, t - 0.42, t)
-    b = np.where(gr, 0.15, b)
+    # arete : liseré crème / argent net et brillant (reflet spéculaire), bande d'or plus sombre, filet crème intérieur
+    aret = bord < 0.0042
+    t = np.where(aret, 0.97, t)
+    b = np.where(aret, 1.0, b)
+    bande = (bord >= 0.0042) & (bord < 0.0125)
+    t = np.where(bande, t - 0.18, t)
+    gr = (bord >= 0.0125) & (bord < 0.0140)
+    t = np.where(gr, t - 0.5, t)
+    b = np.where(gr, 0.2, b)
+    fil2 = (bord >= 0.0140) & (bord < 0.0165)
+    t = np.where(fil2, 0.93, t)
+    b = np.where(fil2, 1.0, b)
     f1, f2, cid, d1 = voronoi(P, 0.03, g + 7)
     poincon = (f1 < 0.0014) & (bord > 0.018) & (cid > 0.5)
     t = np.where(poincon, t - 0.32, t)
@@ -290,7 +303,7 @@ def or_patine(D, g=61, lion=False):
         zone, s, tt, h = _bandes_or(D)
         rub, lise, fil = entrelacs(s, tt, h)
         z = zone & (bord > 0.006)
-        t = np.where(z & rub, t + 0.02, np.where(z & (lise | fil), t - 0.42, np.where(z, t - 0.2, t)))
+        t = np.where(z & rub, t + 0.08, np.where(z & (lise | fil), t - 0.55, np.where(z, t - 0.3, t)))
         b = np.where(z & (lise | fil), 0.15, b)
     else:
         meche = bruit(P, np.array([260.0, 260.0, 260.0]), g + 9) > 0.6
@@ -328,28 +341,33 @@ def tissu_bleu(D, g=81, enchante=False):
     n = fbm(P, 40.0, g)
     trame = bruit(P, np.array([800.0, 150.0, 800.0]), g + 1) * 0.5 + bruit(P, np.array([150.0, 800.0, 150.0]), g + 2) * 0.5
     t = 0.5 + (n - 0.5) * 0.2 + (trame - 0.5) * 0.1
-    tabard = (y < 0.985) & (np.abs(x) < 0.06)
-    piq = ~tabard & (np.abs(np.mod(y / 0.022, 1.0) - 0.5) < 0.06)
+    mat = D["mat"]
+    est_tab = mat == "tissu.tabard"
+    est_cape = mat == "tissu.cape"
+    drap = est_tab | est_cape
+    piq = ~drap & (np.abs(np.mod(y / 0.022, 1.0) - 0.5) < 0.06)
     t = np.where(piq, t - 0.14, t)
+    t = np.where(drap, t + 0.04 * (np.abs(np.mod(x / 0.012, 1.0) - 0.5) < 0.2), t)       # plis fins
     c = rampe(BLEU_NUIT, t)
     b = np.full(len(P), 0.12)
-    fil = rampe(OR_PATINE, 0.66 + 0.12 * bruit(P, 900.0, g + 5))
-    # filets d'or le long des bords du tabard, frange en bas
-    filets = tabard & (((bord > 0.005) & (bord < 0.0075)) | ((bord > 0.0105) & (bord < 0.012)))
-    frange = tabard & (bord < 0.016) & (np.mod(x / 0.0042, 1.0) < 0.55) & (y < 0.60)
-    # nœud au milieu du tabard (devant et dos)
-    yc = 0.70
-    u = x / 0.034
-    v = (y - yc) / 0.075
-    knot = tabard & noeud(u, v)
-    brode = filets | frange | knot
+    fil = rampe(OR_PATINE, 0.74 + 0.12 * bruit(P, 900.0, g + 5))
+    # bordure dorée large le long des bords libres + frise d'entrelacs dans la bordure + frange d'or en bas
+    filets = drap & (((bord > 0.004) & (bord < 0.0095)) | ((bord > 0.0300) & (bord < 0.0335)))
+    rub, lise, fl = entrelacs(y + np.abs(x), bord - 0.0135, 0.0165, larg=0.0021)
+    frise = drap & (bord > 0.0135) & (bord < 0.0300) & (rub | lise | fl)
+    frange = drap & (bord < 0.02) & (np.mod(x / 0.0042, 1.0) < 0.55) & (y < 0.55)
+    yc = np.where(est_cape, 0.98, 0.68)
+    u = x / np.where(est_cape, 0.085, 0.075)
+    v = (y - yc) / np.where(est_cape, 0.12, 0.10)
+    knot = drap & (bord > 0.04) & noeud(u, v)
+    brode = filets | frise | frange | knot
     if enchante:
-        rn = runes(P, pas=0.02, h=0.022) & ~tabard
-        rt = tabard & (np.abs(y - 0.88) < 0.012) & (np.abs(np.mod(x / 0.012, 1.0) - 0.5) < 0.18)
+        rn = runes(P, pas=0.02, h=0.022) & ~drap
+        rt = drap & (np.abs(np.mod(y / 0.16, 1.0) - 0.5) < 0.05) & (np.abs(np.mod(x / 0.012, 1.0) - 0.5) < 0.18) & (bord > 0.04)
         brode |= rn | rt
         fil = np.where((rn | rt)[:, None], rampe(RUNE_OR, np.full(len(P), 0.8)), fil)
     c = np.where(brode[:, None], fil, c)
-    b = np.where(brode, 0.5, b)
+    b = np.where(brode, 0.8, b)
     return _rgba(c, b)
 
 
