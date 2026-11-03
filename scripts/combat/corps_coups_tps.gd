@@ -64,6 +64,14 @@ const CLIPS := {
 	# en reculant : revers court (« Standing Melee Attack Backhand »)
 	"charge_revers": {"src": "revers_b", "im": [1, 18, 20]},
 	"lourd_revers": {"src": "revers_b", "im": [20, 20, 21, 30, 50]},
+	# --- finishers v2 (branche combat/finishers_v2) : mêmes captures que les clips FPS fin_* (gestes_finishers.py) ; « marq » = noms
+	# des marqueurs du clip FPS auxquels « im » (une image de plus : le début) est calé, tenue plantée comprise ---
+	# épée plantée / dans le dos : « Stabbing » (images 2 -> 14 estoc, 14 -> 26 tenue, 26 -> 50 retrait et retour)
+	"fin_plantee": {"src": "estoc", "marq": ["arme", "frappe", "contact", "plante", "retrait", "sortie", "suivi", "fin"], "im": [2, 8, 10, 14, 14, 26, 33, 38, 50]},
+	# décapitation : taille horizontale (UAL2 « Sword_Regular_Combo », 3e coup)
+	"fin_decapitation": {"src": "q_Sword_Regular_Combo", "im": [24, 31, 33, 38, 44]},
+	# coup plongé : « Standing Melee Attack Downward »
+	"fin_plonge": {"src": "vertical", "marq": ["arme", "frappe", "contact", "plante", "retrait", "sortie", "suivi", "fin"], "im": [2, 19, 21, 27, 27, 28, 34, 40, 46]},
 	# --- défense ---
 	"garde": {"src": "q_Sword_Block", "im": [8, 8], "tenue": true},
 	"parade": {"src": "q_Sword_Block", "im": [4, 14]},
@@ -214,7 +222,10 @@ static func temps_capture(spec: Dictionary, m: Dictionary, t: float, longueur: f
 		var fin := float(m.get("fin", longueur))
 		return (a + (b - a) * clampf(t / maxf(fin, 1e-3), 0.0, 1.0)) / fps
 	var cles: Array[float] = [0.0]
-	if im.size() == 3:
+	if spec.has("marq"):
+		for n: String in spec["marq"]:
+			cles.append(float(m.get(n, longueur)))
+	elif im.size() == 3:
 		cles.append(float(m.get("arme", longueur * 0.5)))
 		cles.append(float(m.get("fin", longueur)))
 	else:

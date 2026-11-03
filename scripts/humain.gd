@@ -15,6 +15,8 @@ const CORPS := {
 }
 const ANIMATIONS := preload("res://assets/modeles/humains/animations.glb")
 const ANIMATIONS_ZOMBIE := "res://assets/modeles/humains/animations_zombie.res"
+## Réactions de victime des finishers (clips Fin_*, captures Mixamo : outils/zombie_retarget.gd --source=finishers_mixamo.json)
+const ANIMATIONS_FINISHERS := "res://assets/modeles/humains/animations_finishers.res"
 const BOUCLE := ["Idle", "Walk", "Walk_Formal", "Jog_Fwd", "Sprint", "Sword_Idle", "Idle_Talking", "Idle_Torch",
 	"Sitting_Idle", "Fixing_Kneeling", "Spell_Simple_Idle", "Crouch_Idle", "Crouch_Fwd", "Sitting_Talking"]
 const PIECES := ["tunique", "pantalon", "bottes", "ceinture", "mante", "brassards", "gants",
@@ -62,6 +64,10 @@ static func bibliotheque() -> AnimationLibrary:
 			var z := load(ANIMATIONS_ZOMBIE) as AnimationLibrary
 			for nom: StringName in z.get_animation_list():
 				_bibliotheque.add_animation(nom, z.get_animation(nom))
+		if ResourceLoader.exists(ANIMATIONS_FINISHERS):
+			var f := load(ANIMATIONS_FINISHERS) as AnimationLibrary
+			for nom: StringName in f.get_animation_list():
+				_bibliotheque.add_animation(nom, f.get_animation(nom))
 	return _bibliotheque
 
 ## Scènes importées (corps ~16 Mo, cheveux, casques, bouclier) gardées en mémoire : `load(x).instantiate()` seul relâchait la

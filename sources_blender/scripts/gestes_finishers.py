@@ -7,6 +7,10 @@
 # chargées dans un espace de noms, son main() n'est pas lancé) ; la pose de repos est celle validée (gestes_bras_epee.REPOS :
 # tenue « tranche »), chaque clip part et revient sur elle. Sortie : assets/animations/bras_finishers.tres (AnimationLibrary,
 # préfixe « fin/ » dans le jeu, AnimateurBras.FINISHERS). Ne touche ni bras_epee.tres ni gestes_bras_epee.py.
+# FINISHERS V2 (branche combat/finishers_v2, 2026-11-03) : fin_plantee, fin_decapitation, fin_plonge sont maintenant des CAPTURES
+# MIXAMO / UAL2 RECIBLÉES (anim_bras_epee.creer_action_mixamo, méthode des coups v6 : directions du bras et de l'avant-bras de la
+# capture, main anatomique, POIGNET VERROUILLÉ autour de la tenue, fondu depuis / vers la garde) ; les anciens clips à clés écrites
+# à la main sont gardés sous « <nom>_main » (poignet qui casse : REJETÉS par l'utilisateur, conservés pour comparaison).
 # Marqueurs (s, vitesse 1) : arme, frappe (début du geste qui porte), contact (la lame entre / tranche / le pommeau frappe),
 # plante (début de la tenue lame plantée), retrait (début du retrait), sortie (la lame est dehors), mort (la cible meurt),
 # suivi, fin ; « contact2 » pour un second contact (pommeau puis estoc). Lus par scripts/combat/finishers.gd.
@@ -72,19 +76,19 @@ PM_IMPACT = dict(PL_IMPACT, nom="PM_impact", poing=E(0.36, -0.44, 0.64))
 PM_TIENT = dict(PL_POUSSE, nom="PM_tient", poing=E(0.35, -0.47, 0.66))
 
 CLIPS = {
-    "fin_plantee": [cle(REPOS, 0.0), cle(PL_ARME, 0.16), cle(PL_TENSION, 0.22), cle(PL_ENTREE, 0.27), cle(PL_IMPACT, 0.30, interp="lin"),
+    "fin_plantee_main": [cle(REPOS, 0.0), cle(PL_ARME, 0.16), cle(PL_TENSION, 0.22), cle(PL_ENTREE, 0.27), cle(PL_IMPACT, 0.30, interp="lin"),
                     cle(PL_POUSSE, 0.45), cle(PL_TIENT, 0.70), cle(PL_TIRE, 0.86), cle(PL_RETRAIT, 0.95), cle(PL_SECOUE, 1.08),
                     cle(REPOS, 1.45)],
-    "fin_decapitation": [cle(REPOS, 0.0), cle(D_ARME, 0.24), cle(D_TENSION, 0.30), cle(D_ENTREE, 0.335), cle(D_MILIEU, 0.37),
+    "fin_decapitation_main": [cle(REPOS, 0.0), cle(D_ARME, 0.24), cle(D_TENSION, 0.30), cle(D_ENTREE, 0.335), cle(D_MILIEU, 0.37),
                          cle(D_FIN, 0.42), cle(D_SUIVI, 0.56), cle(REPOS, 1.00)],
-    "fin_plonge": [cle(REPOS, 0.0), cle(PG_ARME, 0.20), cle(PG_TENSION, 0.27), cle(PG_ENTREE, 0.31), cle(PG_IMPACT, 0.34, interp="lin"),
+    "fin_plonge_main": [cle(REPOS, 0.0), cle(PG_ARME, 0.20), cle(PG_TENSION, 0.27), cle(PG_ENTREE, 0.31), cle(PG_IMPACT, 0.34, interp="lin"),
                    cle(PG_POUSSE, 0.50), cle(PG_TIENT, 0.78), cle(PG_RETRAIT, 0.92), cle(PG_SECOUE, 1.06), cle(REPOS, 1.40)],
     "fin_pommeau": [cle(REPOS, 0.0), cle(PM_ARME, 0.13), cle(PM_TENSION, 0.17), cle(PM_FRAPPE, 0.23, interp="lin"), cle(PM_REBOND, 0.32),
                     cle(PM_ARME2, 0.48), cle(PL_TENSION, 0.53), cle(PL_ENTREE, 0.575), cle(PM_IMPACT, 0.60, interp="lin"),
                     cle(PM_TIENT, 0.74), cle(PL_TIRE, 0.86), cle(PL_RETRAIT, 0.95), cle(PL_SECOUE, 1.08), cle(REPOS, 1.42)],
 }
 
-MARQUEURS = {
+MARQUEURS_MAIN = {
     "fin_plantee": {"arme": 0.16, "frappe": 0.24, "contact": 0.30, "plante": 0.30, "retrait": 0.86, "sortie": 0.95, "mort": 1.02,
                     "suivi": 1.08, "fin": 1.45},
     "fin_decapitation": {"arme": 0.24, "frappe": 0.31, "contact": 0.36, "fin_frappe": 0.42, "mort": 0.36, "suivi": 0.56, "fin": 1.00},
@@ -94,14 +98,53 @@ MARQUEURS = {
                     "mort": 1.02, "suivi": 1.08, "fin": 1.42},
 }
 
+# =====================================================================================================================
+# CLIPS EN CAPTURE (finishers v2). temps = [(image source à 30 i/s, instant du clip en s)] ; les images répétées = tenue.
+POIGNET_FIN = ((-28, 8), (-29, -18))     # même verrou que les coups v6 (gestes_une_main.POIGNET_V6)
+
+# 1. ÉPÉE PLANTÉE : « Stabbing » (le coup 4 du combo, déjà validé en FPS) : le poing recule (images 2-8), l'estoc part (8 -> 14), la
+# lunge reste tendue (14 -> 26 : le corps pousse encore de 4 cm, c'est la tenue plantée), puis retrait sec et recul (26 -> 36) et
+# retour en garde (fondu).
+SPEC_PLANTEE = dict(source="estoc", ref=0,
+                    temps=[(2, 0.0), (6, 0.14), (8, 0.19), (14, 0.30), (20, 0.58), (26, 0.86), (33, 0.95), (38, 1.08), (45, 1.30), (50, 1.45)],
+                    fondu=(0.10, 1.00), cadrage=(-15, -18, 0), decalage=(0.0, 0.06, -0.15), plein=(0.10, 1.10), amplitude=0.3, centre=14,
+                    main=(20, 10, 20), continuite=0.3, torsion=(0, 85), poignet=POIGNET_FIN)
+
+# 2. DÉCAPITATION : taille horizontale droite -> gauche (UAL2 « Sword_Regular_Combo », 3e coup : celui des coups v6, validé), armé
+# plus lent (0,27 s) pour que le coup soit lisible, suivi plus long.
+_T = G.CLIPS_MIXAMO["coup_t6"]
+SPEC_DECAP = dict(_T, temps=[(27, 0.0), (31.5, 0.27), (33, 0.31), (38, 0.42), (38.5, 0.50), (38.5, 0.95)], fondu=(0.12, 0.50),
+                  plein=(0.12, 0.50), balayage=(0, 40, 0.31, 0.42), arc=(0.31, 0.42, 0.6), poignet=((-28, 45), (-29, -18)))
+
+# 3. COUP PLONGÉ (ennemi à terre) : « Standing Melee Attack Downward » (le coup puissant) : l'épée monte (2 -> 19), s'abat (21 -> 27)
+# et reste enfoncée (27), le retrait ramène l'arme vers le haut (27 -> 38).
+SPEC_PLONGE = dict(source="vertical", ref=0,
+                   temps=[(2, 0.0), (12, 0.14), (19, 0.26), (21, 0.30), (27, 0.34), (28, 0.60), (28, 0.78), (34, 0.92), (40, 1.06), (46, 1.40)],
+                   fondu=(0.10, 0.95), cadrage=(30, -37, 0), decalage=(0.0, 0.06, -0.15), plein=(0.10, 1.00), amplitude=0.4, centre=23,
+                   poignet=POIGNET_FIN)
+
+CLIPS_MIXAMO_FIN = {"fin_plantee": SPEC_PLANTEE, "fin_decapitation": SPEC_DECAP, "fin_plonge": SPEC_PLONGE}
+
+
+MARQUEURS = dict(MARQUEURS_MAIN)
+MARQUEURS.update({k + "_main": dict(v) for k, v in MARQUEURS_MAIN.items() if k != "fin_pommeau"})
+MARQUEURS["fin_plantee"] = {"arme": 0.19, "frappe": 0.24, "contact": 0.30, "plante": 0.30, "retrait": 0.86, "sortie": 0.95, "mort": 1.02,
+                            "suivi": 1.08, "fin": 1.45}
+MARQUEURS["fin_decapitation"] = {"arme": 0.27, "frappe": 0.31, "contact": 0.36, "fin_frappe": 0.42, "mort": 0.36, "suivi": 0.50, "fin": 0.95}
+MARQUEURS["fin_plonge"] = {"arme": 0.26, "frappe": 0.30, "contact": 0.34, "plante": 0.34, "retrait": 0.78, "sortie": 0.92, "mort": 0.98,
+                           "suivi": 1.06, "fin": 1.40}
+
 
 def main():
     ARGS = NS["ARGS"]
     NS["poings"]()
     NS["poser_torche"]()
-    noms = [c for c in ARGS.get("clips", "").split(",") if c] or list(CLIPS)
+    noms = [c for c in ARGS.get("clips", "").split(",") if c] or (list(CLIPS) + list(CLIPS_MIXAMO_FIN))
     actions = {}
     for nom in noms:
+        if nom in CLIPS_MIXAMO_FIN:
+            actions[nom] = NS["creer_action_mixamo"](nom, CLIPS_MIXAMO_FIN[nom])
+            continue
         cles = CLIPS[nom]
         act = NS["creer_action"](nom, cles)
         actions[nom] = (act, cles[-1]["t"])

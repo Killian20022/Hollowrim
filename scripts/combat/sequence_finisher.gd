@@ -43,6 +43,10 @@ var _y_modele := 0.0
 var _accroche_entree: Node3D
 var _entree_locale := Vector3.ZERO
 var _t_trainee := 0.0
+## Réaction de la victime en CAPTURE (catalogue « victime ») : lecteur d'animation de la victime, clip joué, démarré ?
+var _anim: AnimationPlayer
+var _clip_v := ""
+var _reac_lancee := false
 
 const RAYON_TORSE := 0.17       # m à l'échelle 1 (draugr, bandit, squelette : cage, cotte comprise)
 
@@ -55,6 +59,8 @@ func demarrer(p_mains: Node3D, p_cible: Node3D, p_categorie: String, p_nom: Stri
 	nom = p_nom
 	d = Finishers.donnees(nom)
 	clip = String(d["clip"])
+	if Finishers.ancien and AnimateurBras.FINISHERS.has_animation(clip + "_main"):
+		clip = clip + "_main"
 	m = mains.anim.marqueurs(clip)
 	Finishers.dernier = nom
 	_pos_joueur = joueur.global_position
@@ -66,6 +72,12 @@ func demarrer(p_mains: Node3D, p_cible: Node3D, p_categorie: String, p_nom: Stri
 	_lacet_cible0 = cible.rotation.y
 	_y_modele = combat.modele.position.y
 	_pose = combat.commencer_finisher(bool(d.get("sol", false)))
+	var vic: Dictionary = d.get("victime", {})
+	if not vic.is_empty() and not Finishers.ancien:
+		var ap: Variant = cible.get("anim")
+		if ap is AnimationPlayer and (ap as AnimationPlayer).has_animation(String(vic["clip"])):
+			_anim = ap as AnimationPlayer
+			_clip_v = String(vic["clip"])
 	_planifier()
 
 ## Lacet de la cible (rotation.y) pour qu'elle présente sa face / son dos au joueur depuis `racine`.
@@ -141,7 +153,8 @@ func avancer(dt: float) -> bool:
 		cible.global_position = racine
 		cible.rotation.y = lerp_angle(_lacet_cible0, _lacet_cible, _lisse(0.0, t0 * 0.8, t))
 		var c := Finishers.pose_a(d["pose"], t)
-		if _pose != null:
+		_reaction(dt)
+		if _pose != null and _anim == null:
 			_pose.repere = cible.global_transform.basis
 			for canal: String in c:
 				_pose.set(canal, float(c[canal]))
@@ -155,6 +168,36 @@ func avancer(dt: float) -> bool:
 			_faits[cle] = true
 			_evenement(String(e[1]))
 	return t >= float(m.get("suivi", m["fin"]))
+
+## Temps (s) dans la capture de la victime à l'instant `ts` du finisher (carte [[instant, temps clip], …], linéaire par morceaux).
+static func temps_clip(carte: Array, ts: float) -> float:
+	if ts <= float(carte[0][0]):
+		return float(carte[0][1])
+	for i in range(1, carte.size()):
+		if ts <= float(carte[i][0]):
+			var u := (ts - float(carte[i - 1][0])) / maxf(float(carte[i][0]) - float(carte[i - 1][0]), 1e-4)
+			return lerpf(float(carte[i - 1][1]), float(carte[i][1]), u)
+	return float(carte[carte.size() - 1][1])
+
+## Réaction de la victime : la capture démarre au premier instant de la carte (fondu de 0,12 s depuis son attente), puis un
+## asservissement règle la vitesse de lecture pour que son temps suive la carte (le geste du joueur et la réaction restent
+## calés quel que soit le ralenti).
+func _reaction(dt: float) -> void:
+	if _anim == null:
+		return
+	var carte: Array = (d["victime"] as Dictionary)["carte"]
+	if t < float(carte[0][0]):
+		return
+	var tc := temps_clip(carte, t)
+	var pente := (temps_clip(carte, t + 0.05) - tc) / 0.05
+	if not _reac_lancee:
+		_reac_lancee = true
+		_anim.play(_clip_v, 0.12)
+		_anim.speed_scale = maxf(pente, 0.2)
+		return
+	if absf(_anim.current_animation_position - tc) > 0.25:
+		_anim.seek(tc, true)
+	_anim.speed_scale = clampf(pente + 12.0 * (tc - _anim.current_animation_position), 0.05, 4.0)
 
 ## Annule (cible disparue, joueur mort) : la cible reprend sa vie.
 func annuler() -> void:
@@ -264,7 +307,7 @@ func _evenement(sorte: String) -> void:
 			RetourImpact.cri(corps, "douleur", entree, combat.profil.matiere, combat.profil.mort_vivant)
 			RetourImpact.jouer(corps, p, joueur)
 			if "tassement" in joueur:
-				joueur.tassement = maxf(joueur.tassement, 0.7)
+				joueur.tassement = maxf(joueur.tassement, 0.45)
 		"pommeau":
 			var tete := _accroche("Head")
 			var pt := (tete.global_position if tete != null else corps.global_position + Vector3(0, 1.6, 0)) + (joueur.global_position - corps.global_position).normalized() * 0.1
@@ -305,7 +348,7 @@ func _evenement(sorte: String) -> void:
 			if combat.profil.matiere == "chair":
 				RetourImpact.son(corps, "chair_gore", pt, -1.0, 0.8)
 			if "secousse" in joueur:
-				joueur.secousse = maxf(float(joueur.secousse), 0.35)
+				joueur.secousse = maxf(float(joueur.secousse), 0.2)
 		"mort", "tranche":
 			_tuer(sorte == "tranche")
 		"secoue":
