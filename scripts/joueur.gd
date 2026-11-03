@@ -220,7 +220,7 @@ func recalculer_stats() -> void:
 	vie_max = VIE_BASE + progression.bonus_vie() + (BONUS_BENEDICTION if benediction else 0.0)
 	mana_max = 100.0 + progression.bonus_magie()
 	vigueur_max = 100.0 + progression.bonus_vigueur()
-	inventaire.capacite_bonus = progression.bonus_charge()
+	inventaire.capacite_bonus = progression.bonus_charge() + (10000.0 if Jeu.test_butin() else 0.0)   # --test-butin : jamais surchargé
 	vie = minf(vie, vie_max)
 	mana = minf(mana, mana_max)
 	vigueur = minf(vigueur, vigueur_max)
