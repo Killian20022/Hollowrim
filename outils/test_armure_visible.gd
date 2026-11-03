@@ -348,7 +348,8 @@ func _traversees(famille: String, liste: Array) -> void:
 						var prof := p.distance_to(hit as Vector3)
 						pire_clip = maxf(pire_clip, prof)
 						if prof > TOL and detail:
-							print("    > %.1f mm %s t=%.2f %s sous %s (repos %s)" % [prof * 1000.0, clip, n / 8.0, pts[g]["nom"], A["e"], (pts[g]["a"][Mesh.ARRAY_VERTEX][pts[g]["ids"][d[1]]] as Vector3).snapped(Vector3.ONE * 0.005)])
+							var p0: PackedVector3Array = A["p0"]
+							print("    > %.1f mm %s t=%.2f %s sous %s (repos %s ; triangle traversé au repos %s, os %s)" % [prof * 1000.0, clip, n / 8.0, pts[g]["nom"], A["e"], (pts[g]["a"][Mesh.ARRAY_VERTEX][pts[g]["ids"][d[1]]] as Vector3).snapped(Vector3.ONE * 0.005), ((p0[idx[i]] + p0[idx[i + 1]] + p0[idx[i + 2]]) / 3.0).snapped(Vector3.ONE * 0.005), sq.get_bone_name(b)])
 						if prof > pire:
 							pire = prof
 							ou = "%s t=%.2f %s sous %s" % [clip, n / 8.0, pts[g]["nom"], A["e"]]

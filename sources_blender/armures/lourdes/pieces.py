@@ -36,7 +36,7 @@ def casque(r, st):
     arbre = C.bvh(r, ["peau"], {"Head", "neck_01"}, 0.5)
     centre = Vector((0.0, 0.004, 1.685))
     n = st.get("n", 18)
-    lats_t = [0.0, 0.16, 0.34, 0.52, 0.70, 0.86, 1.0]
+    lats_t = st.get("lats", [0.0, 0.16, 0.34, 0.52, 0.70, 0.86, 1.0])
     # bas de la coque selon la longitude (0 = devant) : front au-dessus des sourcils, tempes, nuque plus bas
     bas_front, bas_cote, bas_nuque = st.get("bas", (0.26, -0.12, -0.45))
     def bas(lo):
@@ -237,7 +237,7 @@ def cuirasse(r, st):
         return 0.012 if j < 4 else 0.009 + 0.014 * max(0.0, -math.cos(a)) ** 1.5
     # jupe : mesurée sur le pantalon (pas sur les pans de la tunique), évasée vers le bas
     Pj, Rj, _ = C.tube(arbre_jambes, axeA, axeB, [tz(z) for z in z_jupe], n,
-                       lambda j, i, a: 0.03 + 0.05 * (1.0 - j / (len(z_jupe) - 1.0)) ** 1.3 + (0.012 if math.cos(a) < 0 else 0.0), r_loin=0.6, dilate=2, lisse=3)
+                       lambda j, i, a: st.get("jupe_ev", (0.03, 0.05))[0] + st.get("jupe_ev", (0.03, 0.05))[1] * (1.0 - j / (len(z_jupe) - 1.0)) ** 1.3 + (0.012 if math.cos(a) < 0 else 0.0), r_loin=0.6, dilate=2, lisse=3)
     ids_j = P.grille(Pj, MM, C.rect_uv((0, 0, 128, 22)), inverser=True)
     Ph, Rh, _ = C.tube(arbre, axeA, axeB, [tz(z) for z in z_haut], n, dec_maille, r_loin=0.6, dilate=1, lisse=2)
     # nuque : haut du col abaissé derrière (les cheveux de la nuque, que la tête entraîne, restent au-dessus)
@@ -262,7 +262,8 @@ def cuirasse(r, st):
             avant = max(0.0, math.cos(a)) ** 2
             # flancs minces : les bras qui pendent le long du corps ne rentrent pas dans les plaques
             flanc = 0.3 + 0.7 * abs(math.cos(a)) ** 0.8
-            return (0.024 + 0.005 * (lames - k) + (0.006 if j == 0 else 0.0)) * flanc + bomb * avant * math.sin(math.pi * (k + 0.5) / lames)
+            ep0 = st["ep_lames"][k] if st.get("ep_lames") else 0.024 + 0.005 * (lames - k)
+            return (ep0 + (0.006 if j == 0 else 0.0)) * flanc + bomb * avant * math.sin(math.pi * (k + 0.5) / lames)
         Pl, Rl, _ = C.tube(arbre, axeA, axeB, [tz(zb), tz(za + 0.01), tz(za)], n, dec_lame, r_loin=0.6, dilate=2, lisse=3)
         v0 = 40 + int(48 * k / lames); v1 = 40 + int(48 * (k + 1) / lames)
         ids = P.grille(Pl[:2], st["mat"], C.rect_uv((0, v0, 128, v1)), inverser=False)
@@ -316,7 +317,8 @@ def cuirasse(r, st):
             tb = (k + 1) / nl * 0.95 + 0.06
             def dec_e(j, i, a, k=k):
                 dessus = max(0.0, -math.sin(a))        # w = bas : -sin = haut
-                return 0.03 + 0.012 * (nl - k) + 0.025 * dessus ** 0.5 + (0.005 if j == 1 else 0.0)
+                ee = st.get("ep_epaule", (0.03, 0.012, 0.025))
+                return ee[0] + ee[1] * (nl - k) + ee[2] * dessus ** 0.5 + (0.005 if j == 1 else 0.0)
             Pe, Re, rep = C.tube(epaule, E0, E1, [ta, tb], 0, dec_e, r_loin=0.4, dilate=0, lisse=1, angles=arc)
             if s < 0:
                 Pe = [list(reversed(row)) for row in Pe]

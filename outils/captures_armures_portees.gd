@@ -21,6 +21,10 @@ const PIECES := {
 	"or": ["casque_or", "cuirasse_or", "gantelets_or", "bottes_or"],
 	"obsidienne_enchante": ["casque_obsidienne_enchante", "cuirasse_obsidienne_enchante", "gantelets_obsidienne_enchante", "bottes_obsidienne_enchante"],
 	"or_enchante": ["casque_or_enchante", "cuirasse_or_enchante", "gantelets_or_enchante", "bottes_or_enchante"],
+	"rubis": ["casque_rubis", "cuirasse_rubis", "gantelets_rubis", "bottes_rubis"],
+	"saphir": ["casque_saphir", "cuirasse_saphir", "gantelets_saphir", "bottes_saphir"],
+	"rubis_enchante": ["casque_rubis_enchante", "cuirasse_rubis_enchante", "gantelets_rubis_enchante", "bottes_rubis_enchante"],
+	"saphir_enchante": ["casque_saphir_enchante", "cuirasse_saphir_enchante", "gantelets_saphir_enchante", "bottes_saphir_enchante"],
 }
 const PiecesEssai := preload("res://outils/pieces_essai.gd")
 ## --avant : les pièces d'os d'AVANT la refonte HD (glb de 7ebe79a copiés dans assets/modeles/armures/_avant_os/, non suivis).
@@ -28,7 +32,8 @@ const AVANT := "res://assets/modeles/armures/_avant_os/"
 var avant := false
 const NOMS := {"sans_armure": "Heros sans armure (reference)", "cuir": "CUIR", "fourrure": "FOURRURE", "os": "OS DE DRAUGR",
 	"verre": "VERRE", "verre_enchante": "VERRE RUNIQUE (enchante)", "fer": "FER", "acier": "ACIER NORDIQUE", "obsidienne": "OBSIDIENNE", "or": "OR",
-	"obsidienne_enchante": "OBSIDIENNE RUNIQUE", "or_enchante": "OR CONSACRE", "uniques": "UNIQUES (Jarl, gardiens, Hrafn, rodeur)", "uniques2": "UNIQUES (thaumaturge, braise) + cuir"}
+	"obsidienne_enchante": "OBSIDIENNE RUNIQUE", "or_enchante": "OR CONSACRE", "uniques": "UNIQUES (Jarl, gardiens, Hrafn, rodeur)", "uniques2": "UNIQUES (thaumaturge, braise) + cuir",
+	"rubis": "RUBIS", "saphir": "SAPHIR", "rubis_enchante": "RUBIS ENCHANTE", "saphir_enchante": "SAPHIR ENCHANTE"}
 var s: Node
 var j: CharacterBody3D
 var mains: Node3D
@@ -484,4 +489,54 @@ func _v2() -> void:
 			await _attendre(0.2)
 			await _capture("sol_%s" % id, Rect2i(240, 0, 480, 540), "sol : " + id)
 			n.queue_free()
+		j.visible = true
+
+
+## Studio rubis / saphir (ancienne version de la branche rubis_saphir : mains vides, gros plans gemme-noyau, heaume, jambes).
+func _studio_gemme() -> void:
+	DirAccess.make_dir_recursive_absolute(sortie)
+	cam = Camera3D.new()
+	cam.fov = 30.0
+	s.add_child(cam)
+	cam.current = true
+	mains.magie.equiper("droite", "vide")
+	mains.magie.equiper("gauche", "vide")
+	for f in familles:
+		_equiper_famille(f)
+		await _attendre(1.0)
+		_placer_cam(0.0, 5.2, 0.95, 1.1)
+		await _attendre(0.2)
+		await _capture("%s_studio" % f, Rect2i(300, 0, 360, 540), "%s - studio" % NOMS.get(f, f))
+		_placer_cam(0.0, 5.2, 0.95, 1.1)
+		_placer_cam(-25.0, 5.2, 0.95, 1.1)
+		await _attendre(0.2)
+		await _capture("%s_studio_tq" % f, Rect2i(300, 0, 360, 540), "%s - studio 3/4" % NOMS.get(f, f))
+		_placer_cam(-20.0, 3.0, 1.0, 1.25)
+		await _attendre(0.2)
+		await _capture("%s_a3m" % f, Rect2i(240, 0, 480, 540), "vue a 3 m")
+		_placer_cam(0.0, 1.5, 1.38, 1.4)
+		await _attendre(0.2)
+		await _capture("%s_gp_torse" % f, Rect2i(240, 0, 480, 540), "torse (gemme-noyau)")
+		_placer_cam(0.0, 1.3, 1.70, 1.72)
+		await _attendre(0.2)
+		await _capture("%s_gp_tete" % f, Rect2i(240, 0, 480, 540), "heaume")
+		_placer_cam(0.0, 2.4, 0.55, 0.6)
+		await _attendre(0.2)
+		await _capture("%s_gp_jambes" % f, Rect2i(240, 0, 480, 540), "jambes")
+		# cuirasse seule, posée de face
+		var ids: Array = PIECES.get(f, [])
+		var n := ArmureVisible.instancier_sol(ids[1])
+		if n == null:
+			continue
+		s.add_child(n)
+		var devant := -j.global_transform.basis.z
+		var c := j.global_position + devant * 1.6
+		n.global_position = c
+		n.rotation.y = j.rotation.y + PI
+		j.visible = false
+		cam.global_position = c + devant * 0.9 + Vector3(0, 2.6, 0)
+		cam.look_at(c + Vector3(0, 0.05, 0), Vector3.UP)
+		await _attendre(0.2)
+		await _capture("%s_sol_cuirasse" % f, Rect2i(240, 0, 480, 540), "cuirasse posee")
+		n.queue_free()
 		j.visible = true

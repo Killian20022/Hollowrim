@@ -74,6 +74,30 @@ const MATIERES := {
 	"tissu.enchante": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.12, "poli": 0.08, "lueur": 0.8},
 	"gemme": {"teinte": Color(1.05, 1.0, 1.0), "metal": 0.05, "bord": 0.45, "poli": 1.0, "lueur": 0.25, "reflet": Color(1.0, 0.93, 0.94)},
 	"gemme.enchante": {"teinte": Color(1.05, 1.0, 1.0), "metal": 0.05, "bord": 0.45, "poli": 1.0, "lueur": 0.6, "reflet": Color(1.0, 0.93, 0.94)},
+	# --- ensembles HD rubis / saphir (sources_blender/armures/rubis_saphir) : plaques de cristal facettées (texture propre de cristal,
+	# profondeur des gemmes des armes), structure de métal sombre, sertis, gemmes ; « .enchante » = même modèle, lueur des cristaux,
+	# des gemmes et des runes plus forte.
+	# v3 : plaques = métal sombre + incrustations de grenat / de saphir nuit (matière mate, éclat limité) ; « cristal_* » = éclats seuls.
+	"plaque_rubis": {"teinte": Color(1.0, 0.98, 0.97), "metal": 0.35, "poli": 0.4, "bord": 0.2, "profondeur": 0.02, "lueur": 0.04, "reflet": Color(1.0, 0.82, 0.8)},
+	"plaque_rubis.enchante": {"teinte": Color(1.02, 0.98, 0.97), "metal": 0.35, "poli": 0.45, "bord": 0.25, "profondeur": 0.02, "lueur": 0.16, "reflet": Color(1.0, 0.82, 0.8)},
+	"plaque_saphir": {"teinte": Color(0.98, 0.99, 1.02), "metal": 0.4, "poli": 0.4, "bord": 0.2, "profondeur": 0.02, "lueur": 0.04, "reflet": Color(0.88, 0.94, 1.04)},
+	"plaque_saphir.enchante": {"teinte": Color(1.0, 1.0, 1.04), "metal": 0.4, "poli": 0.45, "bord": 0.25, "profondeur": 0.02, "lueur": 0.16, "reflet": Color(0.88, 0.94, 1.04)},
+	"cristal_rubis": {"teinte": Color(1.0, 0.98, 0.98), "metal": 0.08, "poli": 0.6, "bord": 0.35, "profondeur": 0.03, "lueur": 0.06, "reflet": Color(1.0, 0.72, 0.74)},
+	"cristal_rubis.enchante": {"teinte": Color(1.06, 1.0, 1.0), "metal": 0.08, "poli": 0.7, "bord": 0.45, "profondeur": 0.03, "lueur": 0.2, "reflet": Color(1.0, 0.72, 0.74)},
+	"acier_rubis": {"teinte": Color(1.0, 0.97, 0.97), "metal": 0.6, "poli": 0.55, "reflet": Color(1.04, 0.9, 0.88)},
+	"acier_rubis.enchante": {"teinte": Color(1.0, 0.97, 0.97), "metal": 0.6, "poli": 0.55, "lueur": 0.22, "reflet": Color(1.04, 0.9, 0.88)},
+	"acier_rubis.maille": {"teinte": Color(1.0, 0.97, 0.97), "metal": 0.5, "poli": 0.45, "reflet": Color(1.02, 0.92, 0.9)},
+	"serti_rubis": {"teinte": Color(1.0, 0.98, 0.96), "metal": 0.68, "poli": 0.65, "reflet": Color(1.06, 0.9, 0.78)},
+	"rubis": {"teinte": Color(1.12, 1.0, 1.0), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 1.6, "reflet": Color(1.0, 0.93, 0.94)},
+	"rubis.enchante": {"teinte": Color(1.15, 1.0, 1.0), "bord": 0.5, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 1.3, "reflet": Color(1.0, 0.93, 0.94)},
+	"cristal_saphir": {"teinte": Color(0.98, 0.98, 1.02), "metal": 0.08, "poli": 0.6, "bord": 0.35, "profondeur": 0.03, "lueur": 0.06, "reflet": Color(0.9, 0.95, 1.04)},
+	"cristal_saphir.enchante": {"teinte": Color(1.0, 1.0, 1.06), "metal": 0.08, "poli": 0.7, "bord": 0.45, "profondeur": 0.03, "lueur": 0.2, "reflet": Color(0.9, 0.95, 1.04)},
+	"acier_saphir": {"teinte": Color(1.0, 1.0, 1.04), "metal": 0.7, "poli": 0.65, "reflet": Color(0.92, 0.97, 1.06)},
+	"acier_saphir.enchante": {"teinte": Color(1.0, 1.0, 1.04), "metal": 0.7, "poli": 0.65, "lueur": 0.22, "reflet": Color(0.92, 0.97, 1.06)},
+	"acier_saphir.maille": {"teinte": Color(1.0, 1.0, 1.04), "metal": 0.55, "poli": 0.5, "reflet": Color(0.92, 0.97, 1.06)},
+	"serti_saphir": {"teinte": Color(1.02, 1.02, 1.04), "metal": 0.75, "poli": 0.75, "reflet": Color(0.94, 0.98, 1.05)},
+	"saphir": {"teinte": Color(1.0, 1.0, 1.12), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 1.6, "reflet": Color(0.92, 0.96, 1.04)},
+	"saphir.enchante": {"teinte": Color(1.0, 1.0, 1.15), "bord": 0.5, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 1.3, "reflet": Color(0.92, 0.96, 1.04)},
 }
 ## Variante VISUELLE enchantée (objets rares) : même modèle, matériaux « <preset>.enchante » quand la fiche porte
 ## "variante_materiau": "enchante" ou que l'identifiant finit par _enchante (glb du modèle de base si la fiche n'en donne pas).
@@ -193,6 +217,8 @@ static func shader_gemme() -> Shader:
 ## Shader de brillance d'un preset : gemme (verre, gemme), métal précieux (acier, obsidienne, argent), or (shader_or) ; null = matériau
 ## mat (cuir, fourrure, os, fer, tissu, runes). Seulement pour les atlas HD.
 static func shader_brillance(nom: String) -> Shader:
+	if nom.begins_with("plaque_") or nom.begins_with("cristal_"):
+		return shader_pierre(nom.contains("saphir"))
 	if nom.begins_with("or"):
 		return shader_or()
 	if nom.begins_with("verre") or nom.begins_with("gemme"):
@@ -295,6 +321,7 @@ const CHAUSSES_PAR_TORSE := {
 	"cuirasse_fer": "fer", "cuirasse_acier_nordique": "acier", "cuirasse_gardiens": "gardiens", "brigandine_braise": "braise",
 	"cuirasse_verre": "verre",
 	"cuirasse_obsidienne": "obsidienne", "cuirasse_or": "or",
+	"cuirasse_rubis": "rubis", "cuirasse_saphir": "saphir",
 }
 
 static func famille_chausses(id_torse: String) -> String:
@@ -424,6 +451,50 @@ static func _habiller_maillage(mi: MeshInstance3D, chemin: String, var_mat := ""
 		if mats.has(s):
 			mi.set_surface_override_material(s, mats[s])
 
+## Shader « matière » des armes (EpeesLongues.shader_matiere) lu AVEC MIPMAPS (filtre nearest_mipmap, comme les humains) : les
+## textures HD des armures (512² à 1024², charte du 2026-11-02) ne scintillent plus en mouvement dans le rendu 480x270.
+static var _shader_armure: Shader
+static func shader_armure() -> Shader:
+	if _shader_armure == null:
+		_shader_armure = Shader.new()
+		_shader_armure.code = EpeesLongues.shader_matiere(false).code \
+			.replace("uniform sampler2D tex_base : source_color, filter_nearest, repeat_enable;", "uniform sampler2D tex_base : source_color, filter_nearest_mipmap, repeat_enable;") \
+			.replace("uniform sampler2D tex_neige : source_color, filter_nearest, repeat_enable;", "uniform sampler2D tex_neige : source_color, filter_nearest_mipmap, repeat_enable;")
+	return _shader_armure
+
+## Shader des PIERRES (rubis / saphir) : faux translucide SANS alpha (pas de tri, le corps ne transparaît pas). Le masque « pierre » est
+## porté par l'alpha de la texture (>= 0,6 : incrustation de grenat / de saphir nuit ou éclat ; < 0,5 : structure de métal, qui garde la
+## matière de l'acier). Sur les pierres : désaturation, reflet d'environnement (ciel clair en haut, sombre en bas), cœur qui s'éclaire
+## (lumière qui traverse, plus fort face à la caméra), liseré de fresnel clair en paliers, deux petits éclats spéculaires nets.
+static var _shaders_pierre := {}
+static func shader_pierre(saphir: bool) -> Shader:
+	if not _shaders_pierre.has(saphir):
+		var pale := "vec3(0.66, 0.82, 1.0)" if saphir else "vec3(0.95, 0.52, 0.50)"
+		var bloc := """	{
+		vec3 gm_n = normalize(NORMAL);
+		vec3 gm_v = normalize(VIEW);
+		float gm_m = smoothstep(0.50, 0.60, texture(tex_base, uv).a);
+		vec3 gm_r = normalize((INV_VIEW_MATRIX * vec4(reflect(-gm_v, gm_n), 0.0)).xyz);
+		float gm_f = 1.0 - clamp(dot(gm_n, gm_v), 0.0, 1.0);
+		float gm_l = dot(ALBEDO, vec3(0.3, 0.59, 0.11));
+		ALBEDO = mix(ALBEDO, vec3(gm_l) * PALE * 1.1, 0.22 * gm_m);
+		float gm_h = smoothstep(-0.25, 0.8, gm_r.y);
+		ALBEDO = mix(ALBEDO, ALBEDO * mix(vec3(0.55), vec3(1.4), gm_h), 0.55 * gm_m);
+		float gm_c = 1.0 - gm_f;
+		EMISSION += ALBEDO * (0.30 + 0.55 * gm_c * gm_c) * EMIF * gm_m;
+		float gm_fr = floor(gm_f * gm_f * gm_f * 4.0) / 4.0;
+		EMISSION += PALE * gm_fr * 0.3 * gm_m;
+		float gm_s1 = pow(max(dot(gm_r, normalize(vec3(-0.45, 0.72, 0.52))), 0.0), 70.0);
+		float gm_s2 = pow(max(dot(gm_r, normalize(vec3(0.62, 0.45, -0.35))), 0.0), 110.0);
+		EMISSION += mix(PALE, vec3(1.0), 0.45) * (step(0.5, gm_s1) + 0.8 * step(0.5, gm_s2)) * 0.5 * gm_m;
+	}
+	ROUGHNESS = 1.0;
+}""".replace("PALE", pale).replace("EMIF", "1.0" if saphir else "1.5")
+		var sh := Shader.new()
+		sh.code = shader_armure().code.replace("\tROUGHNESS = 1.0;\n}", bloc)
+		_shaders_pierre[saphir] = sh
+	return _shaders_pierre[saphir]
+
 ## Matériau PS1 « matière » d'une pièce (texture cuite, alpha = brillance) + contour des personnages.
 ## Clé de MATIERES pour un nom de matériau Blender « preset[.variante][.001] » : « preset.variante » s'il existe, sinon « preset » ;
 ## avec var_mat (ex. "enchante") : « preset.enchante » s'il existe (sinon comme sans variante).
@@ -478,7 +549,7 @@ static func shader_armure() -> Shader:
 	return _shader_armure
 
 static func est_shader_armure(sh: Shader) -> bool:
-	return sh == EpeesLongues.shader_matiere(false) or sh == shader_armure() or sh == shader_or() or sh == shader_metal() or sh == shader_gemme()
+	return sh == EpeesLongues.shader_matiere(false) or sh == shader_armure() or sh == shader_or() or sh == shader_metal() or sh == shader_gemme() or sh == shader_pierre(false) or sh == shader_pierre(true)
 
 # ------------------------------------------------------------------------------------------------------------- masquage
 ## Zones recouvertes par les pièces réellement posées ; « cape » en plus quand la pièce de tête descend sur les épaules (capuche
@@ -863,6 +934,8 @@ static func materiaux_fps(id: String) -> Dictionary:
 		"verre": [Color(0.95, 0.76, 0.58), Color(0.42, 0.62, 0.46), Color(0.55, 1.25, 0.72)],
 		"obsidienne": [Color(0.3, 0.29, 0.33), Color(0.34, 0.32, 0.36), Color(0.42, 0.4, 0.46)],
 		"or": [Color(1.25, 1.02, 0.62), Color(0.45, 0.5, 0.85), Color(1.35, 1.1, 0.65)],
+		"rubis": [Color(0.55, 0.34, 0.33), Color(1.1, 0.36, 0.4), Color(0.95, 0.3, 0.36)],
+		"saphir": [Color(0.42, 0.48, 0.62), Color(0.46, 0.66, 1.15), Color(0.42, 0.6, 1.1)],
 	}
 	var t: Array = teintes.get(famille, teintes["cuir"])
 	var ab := AvantBras.materiaux()
