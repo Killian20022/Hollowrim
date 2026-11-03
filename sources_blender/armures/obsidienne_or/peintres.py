@@ -273,63 +273,134 @@ def _bandes_or(D):
     return zone, s, t, h
 
 
-def _aa(x, a, largeur=0.0009):
-    """Seuil anti-aliasé : 0 sous a, 1 au-dessus, transition douce sur `largeur` mètres (≈ 1,5 texel à 1024²)."""
+def _aa(x, a, largeur=0.0007):
+    """Seuil anti-aliasé : 0 sous a, 1 au-dessus, transition douce sur `largeur` mètres (< 1 texel à 1024²)."""
     return lisse(a - largeur, a + largeur, x)
 
 
+def _env_or(P, N, cam=None):
+    """Éclairage d'atelier cuit dans l'or, valable sous TOUS les angles (la pièce se voit de partout) : hémisphère ciel / sol, trois
+    lumières (clé devant-gauche, remplissage droite, contre-jour derrière) en diffus, deux éclats spéculaires durs calculés avec un
+    spectateur « en face de chaque surface » -> forte variation clair / sombre sur les surfaces courbes. Retourne t (0..1, rampe OR)."""
+    nh = N.copy(); nh[:, 1] = 0.0
+    nh = nh / np.maximum(np.linalg.norm(nh, axis=1, keepdims=True), 1e-6)
+    v = nh + np.array([0.0, 0.30, 0.0])
+    v = v / np.linalg.norm(v, axis=1, keepdims=True)
+    r = 2.0 * np.sum(N * v, axis=1, keepdims=True) * N - v
+    L1 = np.array([-0.45, 0.70, 0.55]); L2 = np.array([0.62, 0.25, 0.60]); L3 = np.array([0.10, 0.45, -0.88])
+    L1, L2, L3 = (L / np.linalg.norm(L) for L in (L1, L2, L3))
+    hemi = 0.5 + 0.5 * N[:, 1]
+    diff = 0.22 * hemi + 0.50 * np.clip(N @ L1, 0, 1) + 0.22 * np.clip(N @ L2, 0, 1) + 0.18 * np.clip(N @ L3, 0, 1)
+    t = 0.10 + 0.78 * diff
+    for L, k, p in ((L1, 0.62, 22.0), (L2, 0.28, 12.0), (L3, 0.22, 14.0)):
+        sp = np.clip(r @ L, 0, 1) ** p
+        t = t + k * lisse(0.30, 0.80, sp)
+    return np.clip(t, 0.04, 1.0)
+
+
+def _plan_uv(P, N):
+    """Coordonnées planes (triplanaire) pour les gravures."""
+    an = np.abs(N)
+    ax = np.argmax(an, axis=1)
+    u = np.where(ax == 0, P[:, 2], P[:, 0])
+    v = np.where(ax == 1, P[:, 2], P[:, 1])
+    return u, v
+
+
+def rinceau(P, N, T=0.085, w=0.034):
+    """Rinceaux gravés très fins (tige ondulée + volutes alternées) : masque 0..1 (traits ~2,5 mm)."""
+    u, v = _plan_uv(P, N)
+    i = np.floor(u / T)
+    lu = np.mod(u / T, 1.0) - 0.5
+    lv = np.mod(v / T, 1.0) - 0.5
+    sg = np.where(np.mod(i, 2) == 0, 1.0, -1.0)
+    tige = np.abs(lv - 0.20 * np.sin(lu * TAU)) < w * 0.7
+    cx, cy = 0.0, 0.26 * sg
+    r = np.hypot(lu - cx, lv - cy)
+    th = np.arctan2(lv - cy, lu - cx)
+    spir = np.abs(r - (0.07 + 0.020 * np.mod(th * sg, TAU) / TAU * 3.0)) < w * 0.65
+    spir &= r < 0.22
+    feuille = (np.abs(np.hypot(lu - 0.0, lv + 0.30 * sg) - 0.10) < w * 0.55) & (lv * sg < -0.08)
+    return (tige | spir | feuille).astype(float)
+
+
 def or_patine(D, g=61, lion=False):
-    """Or propre (planche GOLD) : or lisse (dégradé de lumière seul, aucun bruit d'usure), panneaux crème / argentés en aplats nets
-    alignés sur les plaques (cuirasse, brassards, cuissots), large bordure d'or régulière (arête claire, bande, rainure sombre, filet
-    clair) à transitions anti-aliasées ; lames horizontales sur les grèves ; visière : fente en T noire. Lion : relief cuit
-    (lumière de face, creux sombres, arêtes claires)."""
+    """Or METAL (planche GOLD) : faux environnement cuit (ciel / horizon sombre / boîtes à lumière) -> variation clair / sombre
+    forte, éclats spéculaires ; filets d'arête constants (reflet clair, liseré sombre, bande bombée, liseré sombre, filet clair) ;
+    panneaux champagne en dégradé, rinceaux gravés fins ; lames des pièces de jambe sans panneau. Lion : relief repoussé."""
     P, N, bord, ao = D["P"], D["N"], D["bord"], D["ao"]
     piece = D.get("piece", "")
+    mat = D.get("mat")
+    uv = D.get("uv")
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    n = len(P)
     L = np.array([-0.35, 0.65, 0.68]); L = L / np.linalg.norm(L)
     sh = np.clip(N @ L, 0, 1)
-    creux = np.clip((0.78 - ao) * 2.2, 0, 1)
+    creux = np.clip((0.80 - ao) * 2.4, 0, 1)
+    sombre = rampe(OR_PATINE, np.full(n, 0.10))
+    clair = rampe(OR_PATINE, np.full(n, 0.99))
+    def mix(c, m, col):
+        return c * (1 - m[:, None]) + col * m[:, None]
+    # --- métal de base
+    env = _env_or(P, N)
     if lion:
-        tl = 0.22 + 0.80 * sh ** 1.3 - 0.75 * np.clip((0.88 - ao) * 3.0, 0, 1)
-        tl = np.where(bord < 0.0050, 0.98, tl)
-        return _rgba(rampe(OR_PATINE, np.clip(tl, 0, 1)), 0.9)
-    # or : dégradé lisse
-    t = 0.66 + 0.20 * sh - 0.30 * creux
+        rondel = uv[:, 0] > 0.78 if uv is not None else np.zeros(n, bool)
+        # relief repoussé : lumière rasante + creux noirs + arêtes qui accrochent
+        tl = 0.10 + 0.55 * sh ** 1.2 + 0.45 * env * (0.4 + 0.6 * sh) - 0.85 * np.clip((0.90 - ao) * 3.2, 0, 1)
+        tl = np.where(bord < 0.0035, tl + 0.35, tl)
+        c = rampe(OR_PATINE, np.clip(tl, 0, 1))
+        # rondel (socle de la tête) : fond sombre, anneau d'or
+        fond = rampe(OR_PATINE, np.clip(0.16 + 0.22 * env, 0, 1))
+        c = np.where(rondel[:, None], fond, c)
+        b = np.full(n, 0.95)
+        return _rgba(c, b)
+    t = 0.12 + 0.88 * env * (0.55 + 0.45 * sh) - 0.30 * creux
     c = rampe(OR_PATINE, np.clip(t, 0, 1))
-    b = np.full(len(P), 0.9) * (1 - 0.5 * creux)
-    # bordure : arête claire | bande d'or | rainure sombre | filet clair
-    arete = 1 - _aa(bord, 0.0045)
-    rain = _aa(bord, 0.0185) * (1 - _aa(bord, 0.0225))
-    fil = _aa(bord, 0.0225) * (1 - _aa(bord, 0.0265))
-    bande = _aa(bord, 0.0045) * (1 - _aa(bord, 0.0185))
-    sombre = rampe(OR_PATINE, np.full(len(P), 0.12))
-    clair = rampe(OR_PATINE, np.full(len(P), 0.97))
-    orb = rampe(OR_PATINE, np.clip(0.60 + 0.12 * sh - 0.2 * creux, 0, 1))
-    c = c * (1 - bande[:, None]) + orb * bande[:, None]
-    c = c * (1 - rain[:, None]) + sombre * rain[:, None]
-    c = c * (1 - fil[:, None]) + clair * fil[:, None]
-    c = c * (1 - arete[:, None]) + clair * arete[:, None]
-    # panneau crème : aplat net à l'intérieur du filet
+    b = np.full(n, 0.95) * (1 - 0.5 * creux)
+    # --- filets d'arête : reflet | liseré sombre | bande bombée | liseré sombre | filet clair (largeurs constantes)
+    e1, e2, e3, e4, e5 = 0.0030, 0.0058, 0.0178, 0.0204, 0.0232
+    m_arete = 1 - _aa(bord, e1)
+    m_lis1 = _aa(bord, e1) * (1 - _aa(bord, e2))
+    m_bande = _aa(bord, e2) * (1 - _aa(bord, e3))
+    m_lis2 = _aa(bord, e3) * (1 - _aa(bord, e4))
+    m_fil = _aa(bord, e4) * (1 - _aa(bord, e5))
+    cs = np.sin(np.clip((bord - e2) / (e3 - e2), 0, 1) * math.pi)           # section bombée de la bande
+    tb = np.clip(0.30 + 0.62 * env + 0.28 * cs - 0.25 * creux, 0, 1)
+    c = mix(c, m_bande, rampe(OR_PATINE, tb))
+    c = mix(c, m_lis1, sombre)
+    c = mix(c, m_lis2, sombre)
+    c = mix(c, m_fil, clair)
+    c = mix(c, m_arete, clair)
+    # --- panneaux champagne : dégradé (plus sombre vers le filet, lumière au centre), gravure fine
+    cuisse = (piece == "bottes") * (y > 0.58)
     if piece in ("cuirasse", "gantelets"):
-        pan = _aa(bord, 0.0265)
+        pan = _aa(bord, e5)
     elif piece == "bottes":
-        pan = _aa(bord, 0.0265) * _aa(y, 0.45)
+        pan = _aa(bord, e5) * _aa(y, 0.58)
     else:
-        pan = np.zeros(len(P))
-    tc = 0.70 + 0.22 * sh - 0.30 * creux
-    c = c * (1 - pan[:, None]) + rampe(CREME, np.clip(tc, 0, 1)) * pan[:, None]
+        pan = np.zeros(n)
+    if pan.max() > 0:
+        prof = lisse(e5, 0.070, bord)
+        tc = 0.10 + 0.16 * prof + 0.30 * env * (0.5 + 0.5 * sh) - 0.22 * creux
+        grav = rinceau(P, N)
+        # la gravure est creusée (sombre) avec un petit reflet : rien sur les 6 premiers mm du panneau (reste net)
+        grav = grav * lisse(e5 + 0.004, e5 + 0.009, bord)
+        tc = tc - 0.16 * grav
+        c = mix(c, pan, rampe(CREME, np.clip(tc, 0, 1)))
+        # ombre portée du filet sur le panneau (liseré sombre intérieur)
+        omb = pan * (1 - lisse(e5, e5 + 0.004, bord)) * 0.45
+        inc = pan * _aa(bord, e5 + 0.0075) * (1 - _aa(bord, e5 + 0.0095)) * 0.5
+        c = mix(c, inc, rampe(CREME, np.full(n, 0.20)))
+        c = mix(c, omb, rampe(CREME, np.full(n, 0.12)))
+        b = np.where(pan > 0.5, 0.60, b)
     if piece == "bottes":
-        # grève et pied : lames horizontales régulières (rainure sombre + filet clair tous les 6 cm), sous le genou
-        ph = np.mod(y, 0.06) / 0.06
-        rl = (1 - _aa(np.abs(ph - 0.5), 0.05, 0.02)) * (y < 0.45)
-        fl = (1 - _aa(np.abs(ph - 0.62), 0.03, 0.015)) * (y < 0.45)
-        c = c * (1 - rl[:, None]) + sombre * rl[:, None]
-        c = c * (1 - fl[:, None]) + clair * fl[:, None]
-    b = np.where(pan > 0.5, 0.55, b)
+        # volutes gravées discrètes sur l'or des lames de jambe
+        gr = rinceau(P, N, T=0.09, w=0.03) * lisse(e5 + 0.002, e5 + 0.006, bord) * (1 - pan)
+        c = c * (1 - 0.22 * gr[:, None])
     if piece == "casque":
         devant = (z > 0.07) & (y < 1.69)
         fente = devant & (((np.abs(y - 1.637) < 0.010) & (np.abs(x) < 0.058)) | ((np.abs(x) < 0.009) & (y > 1.562) & (y < 1.64)))
-        c = np.where(fente[:, None], rampe(OR_PATINE, np.full(len(P), 0.0)), c)
+        c = np.where(fente[:, None], rampe(OR_PATINE, np.full(n, 0.0)), c)
         b = np.where(fente, 0.0, b)
         bordf = devant & ~fente & (((np.abs(y - 1.637) < 0.0135) & (np.abs(x) < 0.062)) | ((np.abs(x) < 0.0125) & (y > 1.558) & (y < 1.645)))
         c = np.where(bordf[:, None], c * 0.7, c)

@@ -20,6 +20,8 @@ const TRIS_TETE := 600
 ## Budgets de la charte des armures HD (conception_rpg/CHARTE_ARMURES_HD.md, 2026-11-02) : torse 1 500-2 500, casque 800-1 400,
 ## gants / bottes 600-1 200 ; textures 512² par pièce (ou atlas 1024²), lues avec mipmaps (ArmureVisible.shader_hd).
 const TRIS_HD := {"torse": 2500, "tete": 1400, "mains": 1200, "pieds": 1200}
+## Budgets propres à certaines pièces HD au niveau de détail du verre v5 (armure d'or v3 : lames articulées, genouillères, lions en relief).
+const TRIS_HD_ID := {"cuirasse_or": 3000, "cuirasse_or_enchante": 3000, "bottes_or": 3200, "bottes_or_enchante": 3200}
 const TEX_MAX := 1024
 const CLIPS := ["Idle", "Walk", "Jog_Fwd", "Sprint", "Sword_Idle", "Sword_Attack", "Hit_Chest", "Jump", "Crouch_Fwd",
 	"coups/slash_1", "coups/slash_2", "coups/revers", "coups/estoc", "coups/vertical", "coups/q_Sword_Regular_Combo", "coups/gs_slash",
@@ -197,7 +199,7 @@ func _verifier_piece(id: String, e: String) -> void:
 		var tx: Texture2D = ms.get_shader_parameter("tex_base") if ms else null
 		hd = hd or (tx != null and tx.get_width() > ArmureVisible.TEX_HD)
 	if hd:
-		tmax = int(TRIS_HD.get(e, TRIS_MAX))
+		tmax = int(TRIS_HD_ID.get(id, TRIS_HD.get(e, TRIS_MAX)))
 	ok(tris <= tmax, "%s : %d triangles (<= %d)" % [id, tris, tmax])
 	var mat := mi.get_surface_override_material(0) as ShaderMaterial
 	var tex: Texture2D = mat.get_shader_parameter("tex_base") if mat else null
