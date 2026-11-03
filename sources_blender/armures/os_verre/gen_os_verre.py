@@ -682,7 +682,7 @@ def os_draugr():
 ## panneaux de cristal émeraude en couches, liserés et filets DORÉS, casque à crête effilée, écharpe de tissu clair, ceintures de cuir
 ## brun à boucle d'or, pan de tissu crème brodé, combinaison vert sombre, silhouette fine. Transparence : FAUX translucide peint
 ## (opaque : facettes en dégradé, veines claires, reflets internes du shader « profondeur », arêtes claires) -> aucun tri alpha.
-VERT = L.hexa("#03110b", "#051d10", "#082a17", "#0c381f", "#114728", "#175832", "#1e6a3c", "#277e47", "#339354", "#48a967", "#73c48d", "#b0e2c0")
+VERT = L.hexa("#020c07", "#05150d", "#091f13", "#0d2a1a", "#123622", "#17432b", "#1d5234", "#25623e", "#30744b", "#468b5e", "#74ad88", "#bbdcc6")
 OR = L.hexa("#151009", "#241b0f", "#352816", "#4a391e", "#614b27", "#7a5f31", "#94753d", "#ad8c4c", "#c5a462", "#dabd7e", "#ead6a4")
 VERT_SOMBRE = L.hexa("#060d09", "#09130d", "#0d1a12", "#122217", "#172b1e", "#1e3526", "#26402f")
 CREME = L.hexa("#3e3a2e", "#5a5546", "#787160", "#938c77", "#aaa38c", "#bdb79f", "#cec9b2", "#dcd8c3")
@@ -724,7 +724,7 @@ def m_cristal(P, N, bd, g=0, base=0.44, c=0.075):
     # dégradé dans la facette (plan incliné : direction pseudo-aléatoire par cellule)
     ang = hd * math.tau
     dirc = np.stack([np.cos(ang), np.sin(ang) * 0.8, np.sin(ang * 1.7)], 1)
-    v += np.clip(((P - fp) * dirc).sum(1) / c, -0.6, 0.6) * 0.40       # facette : plan incliné, clair d'un côté, sombre de l'autre
+    v += np.clip(((P - fp) * dirc).sum(1) / c, -0.6, 0.6) * 0.55       # facette : plan incliné, clair d'un côté, sombre de l'autre
     v += (L.fbm(P, 9.0, g + 3) - 0.5) * 0.12 + np.clip(N[:, 1], -1, 1) * 0.06
     # reflets internes : un second réseau de veines, plus large et plus doux, « sous » la surface (faux translucide)
     g1, g2, _, _ = voronoi(P + np.array([0.013, -0.021, 0.008]), c * 0.7, g + 31)
@@ -733,7 +733,7 @@ def m_cristal(P, N, bd, g=0, base=0.44, c=0.075):
     clair = vein < 0.0024
     dore = clair & (hc > 0.68)
     v = np.where(clair & ~dore, v + 0.30, v)
-    v = np.where((vein >= 0.0024) & (vein < 0.005), v - 0.08, v)       # creux sombre le long des veines (taille)
+    v = np.where((vein >= 0.0024) & (vein < 0.006), v - 0.16, v)       # creux sombre le long des veines (taille) : plus de contraste
     rgb = L.rampe(VERT, np.clip(v, 0, 0.999))
     rgb[dore] = L.rampe(OR, np.clip(0.72 + (L.bruit(P[dore], 90.0, g + 4) - 0.5) * 0.3, 0, 0.999))
     ec = L.bruit(P, 330.0, g + 7) > 0.935
@@ -897,6 +897,45 @@ def eclat(bm, base, direction, longueur, larg, partie, tour=0.0):
     return fs
 
 
+def lame(bm, cibles, sg, th0, th1, ph0, ph1, w, gap, jeu_fn, n=8, ep=0.004, deborde=0.35):
+    """Lame cristalline plate et fine couchée sur le heaume : chemin sur la sphère du crâne de (th0, ph0) à (th1, ph1) (degrés,
+    th 0 = devant, côté sg), rayon = coque + jeu_fn + gap ; la pointe dépasse (deborde : fraction de plus) et se relève ; largeur en
+    feuille (base étroite, ventre, pointe) ; section : arête médiane, dessous plat, tranches."""
+    part = L.couche_partie(bm)
+    rangs = []
+    for i in range(n + 1):
+        t = i / n * (1 + deborde)
+        th = math.radians(th0 + (th1 - th0) * min(t, 1.0) + (th1 - th0) * 0.25 * max(0.0, t - 1.0)) * sg
+        ph = math.radians(ph0 + (ph1 - ph0) * min(t, 1.0) + 6.0 * max(0.0, t - 1.0))
+        d = Vector((math.sin(th) * math.cos(ph), math.sin(ph), math.cos(th) * math.cos(ph)))
+        hit = cibles.ray_cast(B(TETE + d * 0.45), B(-d), 0.45)
+        r = (B(TETE) - hit[0]).length if hit[0] is not None else 0.11
+        r += jeu_fn(th, ph) + gap + 0.12 * max(0.0, t - 0.7) ** 1.3
+        rangs.append((TETE + d * r, d))
+    for i in range(len(rangs)):
+        p, d = rangs[i]
+        q = rangs[min(i + 1, n)][0] - rangs[max(i - 1, 0)][0]
+        tr = d.cross(q).normalized()
+        u = i / n
+        larg = w * (0.35 + 0.65 * math.sin(min(1.0, u * 1.25) * math.pi * 0.5) ** 0.6) * (1 - u) ** 0.8 + 0.0008
+        rangs[i] = (p, d, tr, larg)
+    lignes = []
+    for (p, d, tr, larg) in rangs:
+        lignes.append([bm.verts.new(B(p + tr * larg)), bm.verts.new(B(p + d * 0.0025)), bm.verts.new(B(p - tr * larg)),
+                       bm.verts.new(B(p - tr * larg - d * ep)), bm.verts.new(B(p + tr * larg - d * ep))])
+    fs = []
+    for i in range(n):
+        A, Bv = lignes[i], lignes[i + 1]
+        for j in range(5):
+            fs.append(bm.faces.new((A[j], A[(j + 1) % 5], Bv[(j + 1) % 5], Bv[j])))
+    fs.append(bm.faces.new(list(reversed(lignes[0]))))
+    fs.append(bm.faces.new(lignes[-1]))
+    for f in fs:
+        f[part] = P_VERRE
+    bmesh.ops.recalc_face_normals(bm, faces=fs)
+    return fs
+
+
 def poids_moyens_cuisses(o, haut=0.93, bas=0.80):
     """Pan central (devant / derrière) : poids = moyenne des deux cuisses (pantalon), fondus vers la cotte au-dessus des hanches."""
     pl = L.poids_proches(o, bpy.data.objects["pantalon"], 3, lambda p: p.x > 0.02 and p.y > 0.4)
@@ -914,11 +953,51 @@ def poids_moyens_cuisses(o, haut=0.93, bas=0.80):
     L.ecrire_poids(o, L.normaliser(res))
 
 
+COU_Z = 0.0
+
+
+def pelerine(base, nom, y_bas, decal):
+    """Pèlerine de l'écharpe : copie des faces hautes de la coque (épaules, haut du dos et de la poitrine), poussée de `decal`, bord
+    bas ondulé, tranche épaissie ; poids de la coque (mêmes sommets)."""
+    me = base.data.copy()
+    o = bpy.data.objects.new(nom, me)
+    bpy.context.scene.collection.objects.link(o)
+    for vg in base.vertex_groups:
+        if o.vertex_groups.get(vg.name) is None:
+            o.vertex_groups.new(name=vg.name)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    suppr = [f for f in bm.faces if G(f.calc_center_median()).y < y_bas or abs(G(f.calc_center_median()).x) > 0.215
+             or G(f.calc_center_median()).y > 1.53]
+    bmesh.ops.delete(bm, geom=suppr, context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.normal_update()
+    part = L.couche_partie(bm)
+    for f in bm.faces:
+        f[part] = P_TISSU
+    for v in bm.verts:
+        v.co = v.co + v.normal * decal
+    bm.to_mesh(me)
+    bm.free()
+    L.decimer(o, 200)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    for v in [v for v in bm.verts if v.is_boundary and G(v.co).y < y_bas + 0.05]:
+        g = G(v.co)
+        a = math.atan2(g.x, g.z)
+        v.co = v.co + B(0, -0.012 - 0.018 * (0.5 + 0.5 * math.sin(a * 4.0 + 0.7)), 0)
+    X.epaissir_bords(bm, 0.010)
+    bm.to_mesh(me)
+    bm.free()
+    L.ecrire_poids(o, L.normaliser(L.poids_proches(o, base, 3)))
+    return o
+
+
 def verre():
     up = (0, 1, 0)
     O = Vector((0, 0, 0))
     # ------------------------------------------------------------------ cuirasse_verre
-    base = X.torse_base("cuirasse_verre", 600, jeu=0.010)
+    base = X.torse_base("cuirasse_verre", 520, jeu=0.010)
     L.lisser_normales(base)
     cible = cible_de(base)
     bm = bmesh.new()
@@ -973,7 +1052,8 @@ def verre():
     plaque2(bm, O, up, (0, 0, 1), cible, [1.395, 1.365], (-0.95, 0.55), 10, 0.004, 0.0185, P_CUIR2, dy=lambda u: 0.10 * u, biseau=1.0)
     plaque2(bm, O, up, (0, 0, 1), cible, ys_entre(1.462, 1.432, 0.03), (-0.52, -0.38), 3, 0.005, 0.0245, P_OR, bombe=0.004)
     o_bou = en_objet_poids(bm, "boucle_v", "tunique", lambda p: abs(p.x) < 0.3, 1)
-    # épaulières : deux lames de cristal effilées vers le coude + un éclat qui sort vers le haut
+    # épaulières (planche GLASS) : trois lames de cristal plates en tuiles (la plus haute par-dessus), facettes nettes, et trois
+    # éclats qui sortent vers le haut et l'extérieur ; mesurées : pas de « sac » rond
     eps = []
     for cote in ("l", "r"):
         s = 1 if cote == "l" else -1
@@ -981,22 +1061,24 @@ def verre():
         c_ep = Vector((s * 0.10, a.y, a.z))
         cb = L.bvh_de(["tunique", "SuperHero_Male"], filtre=lambda p: abs(p.x) > 0.10)
         bm = bmesh.new()
-        plaque2(bm, c_ep, Vector((s, 0, 0)), (0, 1, 0), cb, ys_entre(0.03, 0.27, 0.06), (-1.45, 1.35), 4, 0.007, 0.022, P_VERRE,
-                taper=lambda v: 1.0 - 0.75 * v ** 1.3, bombe=0.010, lisse=4, dy=lambda u: 0.0)
-        plaque2(bm, c_ep, Vector((s, 0, 0)), (0, 1, 0), cb, ys_entre(0.05, 0.20, 0.05), (-0.95, 0.85), 2, 0.007, 0.036, P_VERRE,
-                taper=lambda v: 1.0 - 0.8 * v ** 1.2, bombe=0.009, lisse=4)
-        top = c_ep + Vector((s * 0.12, 0.0, 0.0))
-        hit = cb.ray_cast(B(top + Vector((0, 0.4, 0))), B(Vector((0, -1, 0))), 0.4)
-        ytop = G(hit[0]).y if hit[0] is not None else top.y + 0.06
-        eclat(bm, Vector((s * 0.22, ytop + 0.05, a.z - 0.01)), (s * 0.35, 1.0, -0.25), 0.055, 0.016, P_VERRE)
+        for (y0, y1, jeu_, arc) in [(0.17, 0.27, 0.020, (-1.15, 1.00)), (0.10, 0.21, 0.027, (-1.25, 1.10)), (0.03, 0.14, 0.034, (-1.30, 1.15))]:
+            plaque2(bm, c_ep, Vector((s, 0, 0)), (0, 1, 0), cb, ys_entre(y0, y1, 0.05), arc, 2, 0.006, jeu_, P_VERRE,
+                    taper=lambda v: 1.0 - 0.45 * v, dy=None, bombe=0.006, lisse=4)
+        for (x, d, lg, la) in [(0.17, (0.30, 1.0, -0.10), 0.080, 0.016), (0.23, (0.65, 0.85, 0.05), 0.060, 0.014), (0.12, (0.05, 1.0, -0.45), 0.045, 0.012)]:
+            top = Vector((s * x, a.y + 0.4, a.z))
+            hit = cb.ray_cast(B(top), B(Vector((0, -1, 0))), 0.5)
+            ytop = G(hit[0]).y if hit[0] is not None else a.y + 0.08
+            eclat(bm, Vector((s * x, ytop + 0.030, a.z - 0.005)), (s * d[0], d[1], d[2]), lg, la, P_VERRE)
         o_e = X.en_objet(bm, "epv_" + cote)
         X.poids_de(o_e, "tunique", lambda p, s=s: abs(p.x) > 0.12 and (p.x > 0) == (s > 0), 1)
         eps.append(o_e)
-    # écharpe : col épais de tissu clair, retombant devant
-    col = X.col_montant("col_v", 1.43, 1.575, 0.016, 16, 0.020, 0.55)
+    # écharpe crème bien visible : col épais enroulé + pèlerine courte sur les épaules et le haut du dos
+    col = X.col_montant("col_v", 1.40, 1.585, 0.022, 16, 0.026, 0.45)
     attr = col.data.attributes.get("partie")
     for p in col.data.polygons:
         attr.data[p.index].value = P_TISSU
+    o_drap = pelerine(base, "pelerine", 1.395, 0.030)
+    col = joindre([col, o_drap], "echarpe")
     o = joindre([base, o_pl, o_tas, o_pan, bel, o_bel2, o_bou, col] + eps, "cuirasse_verre")
 
     def m_runes_st(P, N, bd):
@@ -1028,49 +1110,39 @@ def verre():
 
     def ouvert(th, ph):
         t = abs(math.atan2(math.sin(th), math.cos(th)))
-        if ph < math.radians(-14) and t < math.radians(120):
-            return False
-        return not (t < math.radians(48) and ph < math.radians(18))
-    # capuche-casque : coque de cristal qui descend sur la nuque et les joues (comme une capuche), visage dans l'ombre
-    bm = X.coque_tete("casque_verre", [90, 74, 58, 43, 30, 18, 6, -6, -18, -30], 22,
-                      lambda th, ph: 0.016 + 0.010 * max(0.0, -math.cos(th)) * max(0.0, 1 - ph / 0.8) + (0.008 if ph < -0.05 else 0.0), ouvert, cibles, P_VERRE)
+        return not (t < math.radians(46) and ph < math.radians(16))
+
+    def jeu_heaume(th, ph):
+        t = abs(math.atan2(math.sin(th), math.cos(th)))
+        arriere = max(0.0, -math.cos(th))
+        # profil effilé vers l'arrière (bosse en pointe derrière le crâne), front qui avance au-dessus du visage (ombre)
+        pointe = 0.058 * arriere ** 2.5 * max(0.0, 1 - abs(ph - 0.40) / 0.70)
+        visiere = 0.014 * max(0.0, math.cos(th)) ** 3 * max(0.0, 1 - abs(ph - 0.30) / 0.25)
+        return 0.017 + pointe + visiere + (0.006 if ph < -0.1 else 0.0)
+    # heaume-capuche de cristal : enveloppe le crâne, les joues et la nuque ; visage dans l'ombre
+    bm = X.coque_tete("casque_verre", [90, 72, 56, 42, 30, 18, 8, -4, -16, -28], 24, jeu_heaume, ouvert, cibles, P_VERRE)
     X.epaissir_bords(bm, 0.008)
     o_dome = X.en_objet(bm, "dome_v")
-    # doublure vert sombre visible dans l'ouverture du visage
-    bm = X.coque_tete("doublure", [30, 18, 6, -6, -18, -28], 14, lambda th, ph: 0.008, ouvert, cibles, P_COQUE)
+    # doublure presque noire dans l'ouverture : le visage reste dans l'ombre du heaume
+    bm = X.coque_tete("doublure", [26, 14, 2, -10, -22, -34], 14, lambda th, ph: 0.007, ouvert, cibles, P_COQUE)
     o_dbl = X.en_objet(bm, "doublure")
-    # bandeau d'or frontal + runes, crête de cinq lames effilées couchées vers l'arrière, joues en pointe
+    # bandeau d'or frontal + runes (variante enchantée)
     bm = bmesh.new()
     yb = TETE.y + 0.03
-    for (h, jeu_, ep, part) in [(0.012, 0.0245, 0.004, P_OR), (0.0065, 0.0288, 0.0012, P_RUNES)]:
+    for (h, jeu_, ep, part) in [(0.010, 0.0285, 0.004, P_OR), (0.0055, 0.0328, 0.0012, P_RUNES)]:
         c0, c1 = Vector((0, yb + h, TETE.z)), Vector((0, yb - h, TETE.z))
         f0 = L.rayon_sur(cibles, c0, (0, 1, 0), (0, 0, 1), jeu_)
         f1 = L.rayon_sur(cibles, c1, (0, 1, 0), (0, 0, 1), jeu_)
-        X.bande(bm, [(c0, (0, 1, 0), (0, 0, 1)), (c1, (0, 1, 0), (0, 0, 1))], [f0, f1], ep, 18, part, arc=(-1.35, 1.35))
+        X.bande(bm, [(c0, (0, 1, 0), (0, 0, 1)), (c1, (0, 1, 0), (0, 0, 1))], [f0, f1], ep, 14, part, arc=(-1.30, 1.30))
     o_band = X.en_objet(bm, "bandeau_v")
+    # couronne de feuilles : quatre lames cristallines plates et fines, des tempes vers l'arrière, pointes qui dépassent la nuque
     bm = bmesh.new()
-    for k, (a0, a1, h, larg) in enumerate([(58, 168, 0.070, 0.007), (68, 160, 0.052, 0.006), (78, 152, 0.038, 0.006)]):
-        for s in ((0,) if k == 0 else (1, -1)):
-            bmc = bmesh.new()
-            crete(bmc, cibles, a0, a1, 1, h, larg, 0.024, P_VERRE, 1.0, 8)
-            # décalage latéral et inclinaison vers l'extérieur
-            for v in bmc.verts:
-                p = G(v.co)
-                hh = max(0.0, (p - TETE).length - 0.13)
-                p.x += s * (0.020 * k + hh * 0.5)
-                p.z -= hh * 0.9          # lames couchées vers l'arrière (effilées)
-                v.co = B(p)
-            me = bpy.data.meshes.new("tmp")
-            bmc.to_mesh(me)
-            bmc.free()
-            bm.from_mesh(me)
-            bpy.data.meshes.remove(me)
-    o_cre = X.en_objet(bm, "crete_v")
-    bm = bmesh.new()
-    for s in (1, -1):
-        eclat(bm, TETE + Vector((s * 0.085, -0.075, 0.055)), (s * 0.15, -1.0, 0.25), 0.05, 0.020, P_VERRE)
-    o_jou = X.en_objet(bm, "joues_v")
-    o = joindre([o_dome, o_dbl, o_band, o_cre, o_jou], "casque_verre")
+    for sg in (1, -1):
+        for (th0, th1, ph0, ph1, w, gap) in [(20, 170, 52, 44, 0.036, 0.013), (32, 162, 32, 20, 0.030, 0.012)]:
+            lame(bm, cibles, sg, th0, th1, ph0, ph1, w, gap, jeu_heaume)
+    o_cre = X.en_objet(bm, "feuilles_v")
+    o_jou = None
+    o = joindre([o_dome, o_dbl, o_band, o_cre], "casque_verre")
     X.tete_rigide(o)
 
     def m_runes_cas(P, N, bd):
@@ -1079,7 +1151,7 @@ def verre():
         return m_runes(P, N, bd, m, (0.62, 0.95, 0.66))
 
     mat = dispatch({P_VERRE: lambda P, N, bd: m_cristal(P, N, bd, 371, 0.46, 0.055), P_OR: lambda P, N, bd: m_or(P, N, bd, 373), P_RUNES: m_runes_cas},
-                   lambda P, N, bd: m_vert_sombre(P, N, bd, 375))
+                   lambda P, N, bd: m_vert_sombre(P, N, bd, 375) * np.array([0.35, 0.35, 0.35, 1.0]))
     finir(o, mat, [("verre", {P_VERRE}), ("cuir.vert", {P_COQUE}), ("or", {P_OR}), ("runes", {P_RUNES})], "casque_verre", "tete", X.sol_tete)
 
     # ------------------------------------------------------------------ gantelets_verre

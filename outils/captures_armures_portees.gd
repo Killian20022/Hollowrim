@@ -207,6 +207,11 @@ func _planches() -> void:
 		cam.look_at(c + Vector3(0, 0.1, 0), Vector3.UP)
 		await _attendre(0.2)
 		await _capture("%s_sol" % f, Rect2i(120, 70, 720, 400), "pieces posees au sol (sol/<id>.glb)")
+		# gros plan des pièces posées (contrôle : pas de gros pixels sur les pièces elles-mêmes)
+		cam.global_position = c + (-j.global_transform.basis.z) * 1.05 + Vector3(0, 0.75, 0)
+		cam.look_at(c + Vector3(0, 0.08, 0), Vector3.UP)
+		await _attendre(0.2)
+		await _capture("%s_sol_proche" % f, Rect2i(0, 0, 960, 540), "pieces au sol, gros plan")
 		for n in poses:
 			n.queue_free()
 		j.visible = true
