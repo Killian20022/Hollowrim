@@ -189,19 +189,19 @@ def plaque_poitrine(T, st, g):
 def hook_braise(T, st, g):
     v_l = st["_v_l"]
     E = DU.ecailles
-    T.zone(PH.R_JUPE, E(DU.CENDRE, g + 20, tip=3.2, base=0.58, braise=1.6), sale=0.4, relief=1.0)
-    T.zone(PH.R_HAUT, E(DU.CENDRE, g + 21, tip=2.4, base=0.55, braise=1.0), sale=0.4)
+    T.zone(PH.R_JUPE, E(DU.CENDRE, g + 20, tip=3.2, base=0.58, braise=1.8, ecart=0.72), sale=0.4, relief=1.0)
+    T.zone(PH.R_HAUT, E(DU.CENDRE, g + 21, tip=2.4, base=0.55, braise=1.4, ecart=0.74), sale=0.4)
     for k in range(len(v_l) - 1):
         rect = (0, v_l[k], 128, v_l[k + 1])
-        T.zone(rect, E(DU.CENDRE, g + 22 + k, tip=4.0, base=0.60, braise=2.0, brillant=0.28), sale=0.35)
+        T.zone(rect, E(DU.CENDRE, g + 22 + k, tip=4.0, base=0.60, braise=2.0, brillant=0.28, ecart=0.72), sale=0.35)
         T.biseau(rect, larg=min(1.4, (v_l[k + 1] - v_l[k]) * 0.14), haut=0.4, cotes="b", poli=0.5)
         # liseré de braise le long de l'ourlet de chaque lame (fil incandescent localisé)
         for x0 in range(0, 128, 16):
-            if H._hash(x0, k, g + 5) > 0.45:
-                trait(T, (x0 + 1, rect[1] + 0.7), (x0 + 11 + 5 * H._hash(x0, k, g + 6), rect[1] + 0.7), larg=0.3, pal=DU.BRAISE, k=0.55, bri=0.0, creux=0.0, saillie=0.0)
+            if H._hash(x0, k, g + 5) > 0.18:
+                trait(T, (x0 + 1, rect[1] + 1.0), (x0 + 12 + 4 * H._hash(x0, k, g + 6), rect[1] + 1.0), larg=0.85, pal=DU.BRAISE, k=0.62, bri=0.0, creux=0.0, saillie=0.0)
     # rivets de fer noir le long des lames et des épaulières
     nl = st.get("lames_epaule", 2)
-    T.zone(PH.R_EPAUL, E(DU.CENDRE, g + 40, tip=4.2, base=0.6, braise=1.4, brillant=0.28), sale=0.35)
+    T.zone(PH.R_EPAUL, E(DU.CENDRE, g + 40, tip=4.2, base=0.6, braise=1.8, brillant=0.28, ecart=0.72), sale=0.35)
     T.biseau(PH.R_EPAUL, larg=1.2, haut=0.35, cotes="gd", poli=0.4)
     # manches : cuir cendré matelassé
     T.zone(PH.R_MANCHE, H.cuir(DU.CENDRE, g + 41, base=0.5, use=0.6), sale=0.6)
@@ -215,7 +215,7 @@ def hook_braise(T, st, g):
     T.zone(PH.R_BOUCLE, H.metal(H.FER, g + 43, base=0.45, contraste=0.25, crasse=0.3, poli=0.6), sale=0.5, poli=0.6)
     T.biseau(PH.R_BOUCLE, larg=0.5, haut=0.35, cotes="bhgd", poli=1.0)
     T.rivets([(128 / 16 * (q + 0.5), v_l[0] + 1.4) for q in range(16)], r=0.6, pal=H.FER, k=0.6)
-    T.zone(PH.R_TASS, E(DU.CENDRE, g + 44, tip=3.4, base=0.5, braise=0.7), sale=0.4)
+    T.zone(PH.R_TASS, E(DU.CENDRE, g + 44, tip=3.4, base=0.5, braise=1.2, ecart=0.74), sale=0.4)
     plaque_poitrine(T, st, g)
 
 
@@ -233,7 +233,7 @@ PIECES = {
                                             contraste=0.28, martele=0.3, cellule=2.6, oxyde=0.0, crasse=0.35, poli=0.65, patine=0.2, bombe=0.008,
                                             rivets_rebord=18, larg_bande=0.012, haut_bande=0.0045, rayures=0.8, graine=71,
                                             bandes=[0.0, math.pi / 2, math.pi, 3 * math.pi / 2],
-                                            decor=[PH.deco_nasal, DU.deco_couronne], mat_couronne="fer")),
+                                            decor=[PH.deco_nasal, DU.deco_couronne], mat_couronne="fer.argent")),
     # --- Cuirasse des gardiens du serment : acier ancien bleuté pris par le givre, col de fourrure blanche, sceau gravé
     "cuirasse_gardiens": lambda r: PH.cuirasse(r, _s(ACIER, id="cuirasse_gardiens", mat="acier.givre", pal=DU.ACIER_GIVRE, pal_cuir=DU.CUIR_NOIR,
                                                      pal_maille=DU.ACIER_GIVRE, base_maille=0.42, base_cuir=0.5, base=0.40, graine=37,

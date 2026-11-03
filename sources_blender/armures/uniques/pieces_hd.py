@@ -299,7 +299,7 @@ def casque(r, st):
         p(T, st, g)
     T.finir(g=g)
     img = T.image()
-    ob = P.objet_oriente(lambda c: centre if c.z > centre.z - 0.12 or abs(c.y + 0.09) > 0.05 else c + Vector((0, 0.05, 0)))
+    ob = P.objet_oriente(lambda c: centre if c.z > centre.z - 0.12 or abs(c.y + 0.09) > 0.05 else c + Vector((0, 0.05, 0)), st.get("centres_mat"))
     aretes_vives(ob, 60)
     occlusion_sommets(ob, portee=0.04)
     C.appliquer_materiaux(ob, P, img)

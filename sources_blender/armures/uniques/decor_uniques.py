@@ -11,7 +11,7 @@ TAU = math.tau
 
 # ------------------------------------------------------------------------------------------------------------ palettes
 FER_NOIR = ["#040405", "#08090b", "#0e1013", "#15181d", "#1d2128", "#272c35", "#333a45", "#424a58", "#555f70", "#6d7889"]
-ARGENT_ANCIEN = ["#1d1f22", "#35383d", "#54585f", "#7a7f87", "#9da3ac", "#bcc2ca", "#d8dde3", "#eef1f4"]
+ARGENT_ANCIEN = ["#16181b", "#2a2d32", "#42464d", "#5f646c", "#7d838b", "#9aa0a8", "#b6bcc4", "#d4d9df"]
 ARGENT = ["#2a2c31", "#444850", "#656a74", "#8a909a", "#adb3bc", "#cdd2d9", "#e6e9ed"]
 ACIER_GIVRE = ["#080c11", "#0e141b", "#161f29", "#1f2b38", "#2a3a4a", "#384b5e", "#496074", "#5d768b", "#748ea3", "#8fa8bb", "#adc3d3"]
 BLANCHE = ["#3a3e44", "#50555c", "#686d75", "#82878f", "#9da2a9", "#b7bcc2", "#cfd3d7", "#e1e4e7", "#eff1f3"]
@@ -118,7 +118,7 @@ def givre(T, rects, g, force=0.8, pal=("#8fa6b8", "#b4c8d6", "#d5e3ec", "#eef5f9
 
 
 # ------------------------------------------------------------------------------------------------------------ écailles
-def ecailles(pal, g, tip=2.8, base=0.5, braise=0.0, brillant=0.2, pal_braise=BRAISE):
+def ecailles(pal, g, tip=2.8, base=0.5, braise=0.0, brillant=0.2, pal_braise=BRAISE, ecart=1.0):
     """Écailles de cuir cendré en rangs imbriqués (pointe vers le bas de la pièce) : chaque écaille bombée, biseau clair en
     haut, bord sombre, pointe arrondie, légère teinte propre ; dessous brasillant (liserés de braise) dans les jours."""
     rh = tip * 0.52
@@ -138,7 +138,7 @@ def ecailles(pal, g, tip=2.8, base=0.5, braise=0.0, brillant=0.2, pal_braise=BRA
             yl = yl + (H._hash(c, k, g + 1) - 0.5) * 0.1
             r = tip / 2
             hw = np.where(yl < r, np.sqrt(np.clip(1 - ((r - yl) / r) ** 2, 0, 1)), 1.0)
-            cov = (np.abs(lx) < hw) & (yl > 0) & (yl < rh * 3.4) & ~couvert
+            cov = (np.abs(lx) < hw * ecart) & (yl > 0) & (yl < rh * 3.4) & ~couvert
             if not cov.any():
                 continue
             e = np.clip(1 - np.abs(lx) / np.maximum(hw, 1e-3), 0, 1)
@@ -163,7 +163,7 @@ def ecailles(pal, g, tip=2.8, base=0.5, braise=0.0, brillant=0.2, pal_braise=BRA
         if braise > 0:
             # braise : fentes entre les écailles (jours) et liseré incandescent sous la pointe des écailles, par plaques de bruit
             plaque = H.lisse(0.28, 0.48, H.fbm(X, Y, g + 21, oct=((14, 0.6), (5, 0.4)))) * min(1.0, braise)
-            chaud = np.clip(0.38 + 0.45 * n2 + 0.25 * H.bruit(X, Y, 0.8, g + 23), 0, 1)
+            chaud = np.clip(0.34 + 0.34 * n2 + 0.2 * H.bruit(X, Y, 0.8, g + 23), 0, 0.74)
             glow = np.clip(jours * plaque * 1.3 + rimm * plaque * 1.1, 0, 1)
             cb = H.rampe(pal_braise, chaud)
             res_rgb = res_rgb * (1 - glow[..., None]) + cb * glow[..., None]
@@ -173,10 +173,11 @@ def ecailles(pal, g, tip=2.8, base=0.5, braise=0.0, brillant=0.2, pal_braise=BRA
 
 
 # ------------------------------------------------------------------------------------------------------------ couronne
-def deco_couronne(P, T, r, centre, Pts, point, st, R=(56, 82, 128, 128), pointes=9, haut=0.135, j_ring=2):
+def deco_couronne(P, T, r, centre, Pts, point, st, R=(56, 82, 128, 128), pointes=8, haut=0.135, j_ring=2):
     """Couronne de fer noir du Jarl : diadème épais (bord roulé) autour du heaume, neuf pointes taillées à facettes (la pointe
     de devant, la plus haute, entre les deux autres), filets d'argent incrustés."""
     mat = st.get("mat_couronne", st["mat"])
+    mat_p = mat + ".p"          # pointes : matériau à part (leurs faces sont orientées par rapport à l'axe de chaque pointe)
     R_BAND = (R[0], R[1], R[2], R[1] + 14)
     R_SP = (R[0], R[1] + 14, R[2], R[3])
     n = len(Pts[0])
@@ -203,15 +204,25 @@ def deco_couronne(P, T, r, centre, Pts, point, st, R=(56, 82, 128, 128), pointes
         base = ci + Vector((0, 0, 0.030)) + out * 0.0075
         # trois étages : base large, taille, pointe
         etages = []
-        for f, ww, ee, dx in ((0.0, w, 0.0065, 0.0), (0.5, w * 0.70, 0.0055, 0.002), (0.88, w * 0.28, 0.0030, 0.005)):
+        NF = 5       # section pentagonale : 5 facettes taillées
+        for f, ww, ee, dx in ((0.0, w, 0.0075, 0.0), (0.58, w * 0.80, 0.0068, 0.002), (0.88, w * 0.42, 0.0042, 0.005)):
             c = base + Vector((0, 0, h * f)) + out * dx
-            etages.append([c - tan * ww, c + out * ee, c + tan * ww, c - out * ee])
-        sid = P.grille_v(etages, mat, R_SP, fermer=True, us=None,
+            etages.append([c + tan * (ww * math.cos(TAU * q / NF + 0.3)) + out * (ee * 1.25 * math.sin(TAU * q / NF + 0.3)) for q in range(NF)])
+        sid = P.grille_v(etages, mat_p, R_SP, fermer=True, us=None,
                          vs=[0.0, 0.5, 0.85])
         apex = P.sommet(base + Vector((0, 0, h)) + out * 0.0055)
         u0, v0, u1, v1 = C.rect_uv(R_SP)
-        for i in range(4):
-            P.face([sid[-1][i], sid[-1][(i + 1) % 4], apex], mat, [(u0 + (u1 - u0) * i / 4, v1 * 0.99), (u0 + (u1 - u0) * (i + 1) / 4, v1 * 0.99), (u0 + (u1 - u0) * (i + 0.5) / 4, v1)])
+        for i in range(NF):
+            P.face([sid[-1][i], sid[-1][(i + 1) % NF], apex], mat_p, [(u0 + (u1 - u0) * i / NF, v1 * 0.99), (u0 + (u1 - u0) * (i + 1) / NF, v1 * 0.99), (u0 + (u1 - u0) * (i + 0.5) / NF, v1)])
+
+
+    r0 = Vector((point(j_ring, 0.0, 0.0).x - centre.x, point(j_ring, 0.0, 0.0).y - centre.y, 0.0)).length
+
+    def ctr(c):
+        lo = math.atan2(c.x - centre.x, -(c.y - centre.y))
+        lo_k = round(lo / (TAU / pointes)) * (TAU / pointes)
+        return Vector((centre.x + math.sin(lo_k) * r0, centre.y - math.cos(lo_k) * r0, c.z - 0.03))
+    st.setdefault("centres_mat", {})[mat_p] = ctr
 
     def peint(T, st, g):
         # coque : fer noir ; bandes de renfort : filets d'argent larges
@@ -228,10 +239,14 @@ def deco_couronne(P, T, r, centre, Pts, point, st, R=(56, 82, 128, 128), pointes
         ligne_runes(T, 3, 125, 73.4, 5.2, g + 3, pas=4.6, larg=0.28, pal=ARGENT, k=0.7, bri=0.7, saillie=0.08)
         # couronne : argent ancien patiné (sombre dans les creux), biseaux vifs
         for rect in (R_BAND, R_SP):
-            T.zone(rect, H.metal(ARGENT_ANCIEN, g + 50, base=0.37, contraste=0.30, martele=0.30, cellule=2.4, crasse=0.35, poli=0.85, patine=0.25),
+            T.zone(rect, H.metal(ARGENT_ANCIEN, g + 50, base=0.52, contraste=0.30, martele=0.30, cellule=2.4, crasse=0.35, poli=0.85, patine=0.25),
                    sale=0.55, poli=0.6)
         T.biseau(R_BAND, larg=1.8, haut=0.4, cotes="bh", poli=1.0)
         T.biseau(R_SP, larg=1.2, haut=0.4, cotes="bh", poli=1.0)
+        # patine : base des pointes plus sombre, pointe claire
+        def patine(t, sl, X, Y, U, V):
+            t.rgb[sl] *= (0.58 + 0.55 * V ** 0.9)[..., None]
+        T.appliquer(R_SP, patine)
         trait(T, (R[0] + 1, R[1] + 3.6), (R[2] - 1, R[1] + 3.6), larg=0.30, pal=("#2a2418", "#4a4030"), k=0.4, bri=0.1, creux=0.12)
         trait(T, (R[0] + 1, R[1] + 10.4), (R[2] - 1, R[1] + 10.4), larg=0.30, pal=("#2a2418", "#4a4030"), k=0.4, bri=0.1, creux=0.12)
         T.entrelacs((R[0] + 1, R[1] + 4.6, R[2] - 1, R[1] + 9.4), brins=2, larg_ruban=1.0, pas=4.6, prof=0.2)
