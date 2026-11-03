@@ -16,6 +16,10 @@ const SH_BOUFFEE := preload("res://shaders/magie_bouffee.gdshader")
 const DUREE := 0.85
 const DUREE_TACHE := 5.0
 const DUREE_BRAISES := 1.5
+## NAISSANCE (fumée de la main) : la fumée volumétrique de la main (LancerTenebres.volute_rayon) entre dans le cercle ; le faisceau
+## ne paraît qu'après ce DELAI (s) et sa tête met AVANCE (s) à filer jusqu'à l'impact (avant : 0,085 s, « apparu d'un coup »).
+const DELAI := 0.07
+const AVANCE := 0.26
 const NB_BRAISES := 24
 const NB_VOLUTES := 9
 const PAL_FUMEE := ["#07030c", "#2a0f45", "#6a2aa8", "#b070f0"]
@@ -82,6 +86,29 @@ func _ready() -> void:
 		_construire_impact()
 	_placer_faisceau()
 	SonsMagie.rayon_neant(debut, force)
+	if not EffetsMagie.muet:
+		LancerTenebres.volute_rayon(_palme(), debut, (fin - debut).normalized(), largeur, DUREE, force)
+
+## La paume dont le cercle runique vient de partir (la plus proche du centre du cercle), ou null.
+func _palme() -> Node3D:
+	var meilleur: Node3D = null
+	var d_min := 1.2
+	for id in CercleNeant.par_paume.keys():
+		var n := instance_from_id(int(id)) as Node3D
+		if n != null and is_instance_valid(n) and n.is_inside_tree():
+			var d := n.global_position.distance_to(debut)
+			if d < d_min:
+				d_min = d
+				meilleur = n
+	return meilleur
+
+## Avancement du faisceau remappé pour le shader (`vie`) : attente DELAI, tête qui file en AVANCE, puis plateau et extinction.
+func _vie_faisceau() -> float:
+	var tt := maxf(_t - DELAI, 0.0)
+	var reste := maxf(DUREE - DELAI - AVANCE, 0.1)
+	if tt < AVANCE:
+		return 0.1 * tt / AVANCE
+	return clampf(0.1 + 0.9 * (tt - AVANCE) / reste, 0.0, 1.0)
 
 func _construire_impact() -> void:
 	_mat_tache = ShaderMaterial.new()
@@ -194,8 +221,8 @@ func _placer_faisceau() -> void:
 func _process(dt: float) -> void:
 	_t += dt
 	var g := GestionMagie.obtenir()
-	var vie := clampf(_t / DUREE, 0.0, 1.0)
-	_faisceau.visible = _t < DUREE
+	var vie := _vie_faisceau()
+	_faisceau.visible = _t < DUREE and _t >= DELAI * 0.5
 	if _faisceau.visible:
 		_placer_faisceau()
 		_mat.set_shader_parameter("vie", vie)
@@ -210,7 +237,7 @@ func _process(dt: float) -> void:
 		queue_free()
 
 func _maj_impact(dt: float, g: GestionMagie) -> void:
-	var tete := 0.1 * DUREE
+	var tete := DELAI + AVANCE * 0.9
 	if not _impact_fait and _t >= tete:
 		_impact_fait = true
 		_t_impact = 0.0

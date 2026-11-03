@@ -29,6 +29,36 @@ static func _compter(f: String) -> void:
 static func _g() -> GestionMagie:
 	return GestionMagie.obtenir()
 
+## Jets en cours (id de la paume → {debut, vu}) : le geste de départ et le retour au repos des écoles à lancer propre
+## (LancerEcole) s'enchaînent sur le front montant / descendant de `jet`.
+static var _jets_lancer := {}
+const _ECOLES_LANCER := ["glace", "electricite", "tenebres"]
+
+static func _lancer_jet(ecole: String, origine: Node3D, direction: Vector3, portee: float, actif: bool) -> void:
+	if origine == null or not is_instance_valid(origine) or not _ECOLES_LANCER.has(ecole) or direction.length() < 0.01:
+		return
+	var id := origine.get_instance_id()
+	var maintenant := Time.get_ticks_msec() / 1000.0
+	if actif:
+		var j: Dictionary = _jets_lancer.get(id, {})
+		if j.is_empty() or maintenant - float(j.vu) > 0.4:
+			if ecole == "electricite":
+				var l := LancerEcole.mains_de(ecole, origine.global_position)
+				LancerElec.tension(origine, origine.global_position + direction.normalized() * minf(portee, 6.0), 1.0, 0.45, l[1] if l.size() > 1 and l[0] == origine and bool(_g()._double.get(ecole, false)) else null)
+			else:
+				LancerEcole.depart(ecole, origine, direction, 1.0)
+		_jets_lancer[id] = {"vu": maintenant, "ecole": ecole}
+	elif _jets_lancer.has(id):
+		_jets_lancer.erase(id)
+		# BRANCHEMENT PROVISOIRE (fin du jet) : le repos se reforme dans la main
+		match ecole:
+			"glace":
+				LancerGlace.reformer(origine)
+			"electricite":
+				LancerElec.reformer(origine)
+			"tenebres":
+				LancerTenebres.reformer(origine)
+
 ## Aura autour de la main (flammes, givre, arcs, volutes, motes dorées, anneau runique) et lumière colorée légère.
 ## `intensite` 0 = éteinte ; 0..1 = charge croissante (taille, densité, lumière) ; jusqu'à 1,5 pour un pic. Persistante :
 ## inutile de rappeler chaque image si rien ne change. Suit `main` (repère du viewmodel) sans retard.
@@ -47,6 +77,7 @@ static func jet(ecole: String, origine: Node3D, direction: Vector3, portee: floa
 	SonsMagie.jet(ecole, origine, actif)
 	if muet:
 		return
+	_lancer_jet(ecole, origine, direction, portee, actif)
 	_g().jet(ecole, origine, direction, portee, largeur, actif)
 	EffetsSol.sort_jet(ecole, origine, direction, portee, largeur, actif)   # monde réactif : traînée de fonte, brûlure
 
@@ -57,6 +88,10 @@ static func projectile_visuel(ecole: String, forme: String) -> Node3D:
 	_compter("projectile_visuel")
 	if muet:
 		return Node3D.new()
+	# glace, électricité, ténèbres : le sort lancé NAÎT de l'effet au repos (scripts/magie/lancer_ecole.gd)
+	var lancer := LancerEcole.projectile(ecole, forme)
+	if lancer != null:
+		return lancer
 	return _g().projectile_visuel(ecole, forme)
 
 ## Impact : explosion de feu, éclats de glace, onde électrique, éruption obscure, éclat doré, onde runique.
@@ -85,6 +120,8 @@ static func chaine(ecole: String, points: Array[Vector3]) -> void:
 	SonsMagie.chaine(ecole, points)
 	if muet:
 		return
+	if ecole == "electricite" and points.size() > 1:
+		LancerElec.tension(null, points[1], 1.0, 0.3, null, points[0])   # les arcs de la paume se tendent vers la première cible
 	_g().chaine(ecole, points)
 	EffetsSol.sort_points(ecole, points)
 
@@ -96,6 +133,9 @@ static func decharge(ecole: String, forme: String, depart: Vector3, fin: Vector3
 	SonsMagie.decharge(forme, depart, k)
 	if muet:
 		return
+	if ecole == "electricite":
+		var l := LancerEcole.mains_de(ecole, depart, 0.5)
+		LancerElec.tension(l[0] if not l.is_empty() else null, fin, k, 0.55, l[1] if l.size() > 1 and bool(_g()._double.get(ecole, false)) else null, depart)
 	_g().decharge(ecole, forme, depart, fin, k, normale)
 	EffetsSol.sort_impact(ecole, fin, normale, k)
 

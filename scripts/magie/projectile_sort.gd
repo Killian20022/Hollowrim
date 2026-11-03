@@ -16,6 +16,12 @@ var vise := "ennemis"
 var cible_joueur: Node3D
 var _touches: Array = []
 var _exclus: Array[RID] = []
+## Lancer d'école (glace, électricité, ténèbres) : le visuel naît de la main (LancerEcole) ; le projectile accélère depuis la paume
+## pendant la naissance (au lieu de partir à pleine vitesse : on voit le sort se détacher de la main).
+var _lancer: LancerEcole
+var _age_vol := 0.0
+const DEPART_K := 0.4       # fraction de la vitesse au départ
+const DUREE_DEPART := 0.16  # s pour atteindre la pleine vitesse
 
 static func tirer_sort(parent: Node, depart: Vector3, direction: Vector3, vitesse_: float, visuel: Node3D, rappel_: Callable, exclus: Array = [], traverse_ := 0) -> ProjectileSort:
 	var p := ProjectileSort.new()
@@ -32,7 +38,15 @@ static func tirer_sort(parent: Node, depart: Vector3, direction: Vector3, vitess
 	parent.add_child(p)
 	p.global_position = depart
 	p._orienter()
+	if visuel is LancerEcole:
+		p._lancer = visuel
+		p._lancer.demarrer(1.0)   # BRANCHEMENT PROVISOIRE : l'API commune de transition appellera demarrer(charge) avant le tir
 	return p
+
+## Fin du vol : le lancer d'école se détache (traînée qui s'efface seule) avant la libération du projectile.
+func _finir_visuel() -> void:
+	if _lancer != null and is_instance_valid(_lancer):
+		_lancer.terminer(global_position)
 
 func _ready() -> void:
 	pass   # pas de flèche : le visuel est fourni (EffetsMagie)
@@ -40,10 +54,16 @@ func _ready() -> void:
 func _physics_process(dt: float) -> void:
 	_t += dt
 	if _t > VIE_SORT:
+		_finir_visuel()
 		queue_free()
 		return
 	var de := global_position
-	var vers := de + vitesse * dt
+	var vk := 1.0
+	if _lancer != null:
+		_age_vol += dt
+		vk = lerpf(DEPART_K, 1.0, smoothstep(0.0, DUREE_DEPART, _age_vol))
+		_lancer.maintenir(global_position, vitesse)
+	var vers := de + vitesse * dt * vk
 	# cibles touchées sur le segment parcouru
 	for c in _candidats():
 		if _touches.has(c):
@@ -60,6 +80,7 @@ func _physics_process(dt: float) -> void:
 				rappel.call(c, proche, -vitesse.normalized())
 			touche.emit("touche")
 			if _touches.size() > traverse:
+				_finir_visuel()
 				queue_free()
 				return
 	# décor
@@ -81,6 +102,7 @@ func _physics_process(dt: float) -> void:
 		if rappel.is_valid():
 			rappel.call(null, r["position"], r["normal"])
 		plante.emit(r["position"])
+		_finir_visuel()
 		queue_free()
 		return
 	global_position = vers
