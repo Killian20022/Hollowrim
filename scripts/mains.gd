@@ -230,6 +230,7 @@ var _pointe_lame := Vector3(0, 0.84, 0)
 var _doigts := {}
 var torche_lumiere: OmniLight3D
 var flammes: Array[GPUParticles3D] = []
+var _pilote_torche: Node3D     # pilote de la flamme en gros pixels (inertie, lumière) : scripts/flamme_torche.gd
 var _visuels_torche: Array = []   # sprite de flamme et halo (lot 6)
 var _halo_mat: ShaderMaterial
 var _scint := 0.0
@@ -655,6 +656,7 @@ func _torche() -> void:
 	flammes.assign(t["flamme"])
 	torche_lumiere = t["lumiere"]
 	_visuels_torche = t["visuels"]
+	_pilote_torche = t["pilote"]
 	_halo_mat = t["halo_mat"]
 
 
@@ -1777,10 +1779,8 @@ func _poser_torche(dt: float) -> void:
 	for n: Node3D in _visuels_torche:
 		n.visible = allumee
 	torche_lumiere.visible = allumee
-	# lumière vacillante : sinus incommensurables + scintillement par paliers (14 par seconde), sans hasard par image
-	var palier := floorf(_respiration * 14.0)
-	var scint := fposmod(sin(palier * 12.9898) * 43758.5453, 1.0)
-	torche_lumiere.light_energy = 1.4 + sin(_respiration * 13.0) * 0.12 + sin(_respiration * 29.0) * 0.08 + scint * 0.14
+	# lumière vacillante : le pilote de la flamme (taille de la flamme + paliers à 14/s, sans hasard par image) donne le facteur
+	torche_lumiere.light_energy = 1.4 * float(_pilote_torche.get("facteur_lumiere"))
 	_halo_mat.set_shader_parameter("intensite", 0.65 + (torche_lumiere.light_energy - 1.4) * 0.7)
 
 ## Arme à DEUX MAINS (famille générique « deux_mains ») : la main gauche tient la poignée SOUS la main droite, quel que soit le

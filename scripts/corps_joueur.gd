@@ -20,6 +20,7 @@ var mains: Node3D
 var modele: Node3D
 var anim: AnimationPlayer
 var pivot_torche: Node3D
+var _pilote_torche: Node3D   # flamme en gros pixels (scripts/flamme_torche.gd) : facteur de lumière
 var flammes: Array[GPUParticles3D] = []
 var lumiere: OmniLight3D
 
@@ -183,6 +184,7 @@ func _torche(squelette: Skeleton3D) -> void:
 	var t := Torche.construire(pivot_torche)
 	flammes.assign(t["flamme"])
 	lumiere = t["lumiere"]
+	_pilote_torche = t["pilote"]
 	lumiere.light_energy = 0.0
 
 # --- animations ------------------------------------------------------------------
@@ -240,7 +242,7 @@ func _process(dt: float) -> void:
 	for f in flammes:
 		f.emitting = allumee and _vue_3
 	lumiere.visible = allumee and _vue_3
-	lumiere.light_energy = 1.4 + sin(_t * 13.0) * 0.12 + sin(_t * 29.0) * 0.08 + randf() * 0.12
+	lumiere.light_energy = 1.4 * float(_pilote_torche.get("facteur_lumiere"))
 
 	if joueur.mort:
 		if not _mort_jouee:
