@@ -186,6 +186,120 @@ def plaque_poitrine(T, st, g):
     DU.cercle(T, cx, cy, 2.8, larg=0.55, pal=fl, k=0.78, bri=0.0)
 
 
+def usure_bords(T, rect, g, cotes="bhgd", larg=1.3, force=0.85):
+    """Usure des bords : liseré clair et poli, rongé par plaques de bruit (cuir et fer éraillés là où ça frotte)."""
+    def fn(t, sl, X, Y, U, V):
+        x0, y0, x1, y1 = rect
+        d = np.full(X.shape, 99.0)
+        if "b" in cotes: d = np.minimum(d, Y - y0)
+        if "h" in cotes: d = np.minimum(d, y1 - Y)
+        if "g" in cotes: d = np.minimum(d, X - x0)
+        if "d" in cotes: d = np.minimum(d, x1 - X)
+        n = H.fbm(X, Y, g + 5, oct=((7, 0.6), (2.5, 0.4)))
+        w = np.clip(1 - d / larg, 0, 1) * H.lisse(0.38, 0.55, n) * force
+        clair = H.rampe(DU.CENDRE, np.clip(0.93 + 0.1 * n, 0, 1))
+        t.rgb[sl] = t.rgb[sl] * (1 - w[..., None]) + clair * w[..., None]
+        t.poli[sl] = np.maximum(t.poli[sl], 0.7 * w)
+        t.h[sl] = t.h[sl] - 0.12 * w
+    T.appliquer(rect, fn)
+
+
+def bande_cuir(T, rect, g, riv=0, base=0.42, bas=True, haut=True):
+    """Bande de cuir teinté (rouge brûlé) cousue, rivetée, bords usés."""
+    T.zone(rect, H.cuir(DU.CUIR_ROUGE, g, base=base, use=0.7), sale=0.55)
+    T.biseau(rect, larg=min(0.7, (rect[3] - rect[1]) * 0.3), haut=0.28, cotes=("b" if bas else "") + ("h" if haut else ""), poli=0.35)
+    ym = (rect[1] + rect[3]) / 2
+    if (rect[3] - rect[1]) > 3.4:
+        T.couture((rect[0] + 0.5, rect[1] + 1.0), (rect[2] - 0.5, rect[1] + 1.0), pas=0.9)
+        T.couture((rect[0] + 0.5, rect[3] - 1.0), (rect[2] - 0.5, rect[3] - 1.0), pas=0.9)
+    if riv:
+        pas = (rect[2] - rect[0]) / riv
+        T.rivets([(rect[0] + pas * (q + 0.5), ym) for q in range(riv)], r=0.7, pal=H.ACIER, k=0.68)
+    usure_bords(T, rect, g + 3, cotes="gd" if not riv else "bhgd", larg=0.9, force=0.6)
+
+
+def plaques_inegales(T, rect, g, larges=(7, 12, 16, 9, 13, 10)):
+    """Rangée de plaques de fer verticales de largeurs différentes (rivets haut et bas, biseau, bords usés)."""
+    x, i = 0.0, 0
+    x0, y0, x1, y1 = rect
+    while x < 128:
+        w = larges[(i + int(H._hash(i, 3, g) * 6)) % len(larges)]
+        xe = min(128.0, x + w)
+        if 128.0 - xe < 4:
+            xe = 128.0
+        r_ = (x, y0, xe, y1)
+        h_ = H._hash(i, 9, g)
+        T.zone(r_, H.metal(H.FER, g + 10 + i, base=0.26 + 0.14 * h_, contraste=0.30, martele=0.4, cellule=2.4, crasse=0.5, poli=0.4, patine=0.2),
+               sale=0.55, poli=0.3)
+        T.biseau(r_, larg=0.9, haut=0.5, cotes="bhgd", poli=0.95)
+        cx = (x + xe) / 2
+        pts = [(cx, y0 + 1.8), (cx, y1 - 1.8)]
+        if xe - x > 10:
+            pts = [(x + 2.2, y0 + 1.8), (xe - 2.2, y0 + 1.8), (x + 2.2, y1 - 1.8), (xe - 2.2, y1 - 1.8)]
+        T.rivets(pts, r=0.65, pal=H.ACIER, k=0.7)
+        usure_bords(T, r_, g + 20 + i, larg=1.1, force=0.8)
+        x = xe; i += 1
+
+
+def variete_brigandine(T, st, g):
+    """Variété lisible : jupe en rangs d'écailles de tailles différentes sous une bande de cuir teinté rivetée, ventre en plaques de
+    fer inégales, épaulières asymétriques (grande plaque rivetée à blason + écailles), dos renforcé, usure sur les bords."""
+    E = DU.ecailles
+    y = st["_v_l"]
+    R_T = PH.R_TASS
+    # --- jupe : ourlet en bande de cuir rivetée, grosses écailles en haut, fines en bas, bande de jonction rivetée
+    T.zone((0, 3.4, 128, 10.5), E(DU.CENDRE, g + 51, tip=2.4, base=0.56, braise=1.5, ecart=0.74), sale=0.4)
+    T.zone((0, 10.5, 128, 22), E(DU.CENDRE, g + 52, tip=5.4, base=0.62, braise=1.8, brillant=0.3, ecart=0.74), sale=0.35, relief=1.2)
+    T.biseau((0, 10.5, 128, 22), larg=1.0, haut=0.35, cotes="b", poli=0.5)
+    usure_bords(T, (0, 3.4, 128, 22), g + 54, cotes="b", larg=1.4, force=0.7)
+    bande_cuir(T, (0, 0, 128, 3.4), g + 50, riv=32)
+    bande_cuir(T, (0, 22, 128, 25.5), g + 53, riv=24)
+    # --- ventre : bas = grandes écailles, milieu = plaques de fer inégales, haut = écailles moyennes (+ plastron)
+    T.zone((0, y[0], 128, y[1]), E(DU.CENDRE, g + 55, tip=5.6, base=0.62, braise=2.0, brillant=0.3, ecart=0.74), sale=0.35, relief=1.2)
+    T.biseau((0, y[0], 128, y[1]), larg=1.0, haut=0.4, cotes="b", poli=0.6)
+    usure_bords(T, (0, y[0], 128, y[1]), g + 59, cotes="bh", larg=1.2, force=0.7)
+    plaques_inegales(T, (0, y[1] + 1.4, 128, y[2] - 1.4), g + 56)
+    bande_cuir(T, (0, y[1], 128, y[1] + 1.4), g + 57)
+    bande_cuir(T, (0, y[2] - 1.4, 128, y[2]), g + 58)
+    # --- épaulières : grande plaque de fer rivetée à blason + plaque d'écailles, bordées de cuir teinté
+    pa, pb = (0, 92, 42, 112), (42, 92, 84, 112)
+    T.zone(pa, H.metal(H.FER, g + 60, base=0.34, contraste=0.30, martele=0.5, cellule=2.6, crasse=0.5, poli=0.45, patine=0.2), sale=0.55, poli=0.3)
+    T.biseau(pa, larg=1.4, haut=0.5, cotes="bhgd", poli=0.95)
+    for yy in (95.0, 109.0):
+        T.rivets([(4.0 + q * 6.8, yy) for q in range(6)], r=0.7, pal=H.ACIER, k=0.7)
+    usure_bords(T, pa, g + 62, larg=1.4, force=0.9)
+    DU.poly(T, [(15, 105.0), (21, 109.0), (27, 105.0)], larg=0.55, pal=DU.BRAISE, k=0.74, bri=0.0, creux=0.2)
+    DU.poly(T, [(17, 103.6), (21, 106.6), (25, 103.6)], larg=0.55, pal=DU.BRAISE, k=0.68, bri=0.0, creux=0.2)
+    DU.cercle(T, 21, 101.8, 1.2, larg=0.8, pal=DU.BRAISE, k=0.9, bri=0.0)
+    T.zone(pb, E(DU.CENDRE, g + 63, tip=3.0, base=0.58, braise=1.6, brillant=0.28, ecart=0.74), sale=0.35)
+    T.biseau(pb, larg=1.2, haut=0.35, cotes="gd", poli=0.4)
+    usure_bords(T, pb, g + 66, cotes="gd", larg=1.2, force=0.8)
+    bande_cuir(T, (42, 92, 84, 95.4), g + 64, riv=7)
+    bande_cuir(T, (42, 108.6, 84, 112), g + 65, riv=7)
+    # --- cuissots (atlas tassettes) : rangée de rivets en haut, bords usés
+    T.rivets([(114 + 4.0 * q, 90.6) for q in range(4)], r=0.55, pal=H.ACIER, k=0.7)
+    usure_bords(T, R_T, g + 67, larg=1.2, force=0.8)
+    # --- dos : plaque de fer de part et d'autre du raccord x = 0 / 128
+    for (a, b) in ((0, 15), (113, 128)):
+        r_ = (a, y[1] + 1.4, b, y[3] - 0.6)
+        T.zone(r_, H.metal(H.FER, g + 70, base=0.32, contraste=0.3, martele=0.5, cellule=2.4, crasse=0.5, poli=0.4, patine=0.2), sale=0.55, poli=0.3)
+        T.biseau(r_, larg=1.2, haut=0.45, cotes="bhgd", poli=0.95)
+        usure_bords(T, r_, g + 71 + a, larg=1.2, force=0.9)
+        T.rivets([((a + b) / 2 + dx, yy) for yy in (y[1] + 4.0, (y[1] + y[3]) / 2 + 1, y[3] - 3.4) for dx in (-3.5, 3.5)], r=0.65, pal=H.ACIER, k=0.7)
+
+
+def cotes_plastron(T, st, g):
+    """Sangles de cuir teinté rivetées de part et d'autre du plastron (blason encadré)."""
+    v_l = st["_v_l"]
+    y0, y1 = v_l[-2] + 0.4, v_l[-1] - 0.4
+    for xc in (64 - 20.8, 64 + 20.8):
+        r_ = (xc - 1.6, y0, xc + 1.6, y1)
+        T.zone(r_, H.cuir(DU.CUIR_ROUGE, g + 80, base=0.44, use=0.7), sale=0.5)
+        T.biseau(r_, larg=0.6, haut=0.3, cotes="gd", poli=0.35)
+        T.rivets([(xc, y0 + 2.0 + q * (y1 - y0 - 4.0) / 4) for q in range(5)], r=0.6, pal=H.ACIER, k=0.7)
+        usure_bords(T, r_, g + 81, cotes="gd", larg=0.7, force=0.6)
+
+
 def hook_braise(T, st, g):
     v_l = st["_v_l"]
     E = DU.ecailles
@@ -216,7 +330,9 @@ def hook_braise(T, st, g):
     T.biseau(PH.R_BOUCLE, larg=0.5, haut=0.35, cotes="bhgd", poli=1.0)
     T.rivets([(128 / 16 * (q + 0.5), v_l[0] + 1.4) for q in range(16)], r=0.6, pal=H.FER, k=0.6)
     T.zone(PH.R_TASS, E(DU.CENDRE, g + 44, tip=3.4, base=0.5, braise=1.2, ecart=0.74), sale=0.4)
+    variete_brigandine(T, st, g)
     plaque_poitrine(T, st, g)
+    cotes_plastron(T, st, g)
 
 
 def capuche_thaumaturge(r):
