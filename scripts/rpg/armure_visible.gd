@@ -298,7 +298,7 @@ static func shader_armure() -> Shader:
 static var _shaders_pierre := {}
 static func shader_pierre(saphir: bool) -> Shader:
 	if not _shaders_pierre.has(saphir):
-		var pale := "vec3(0.66, 0.82, 1.0)" if saphir else "vec3(1.0, 0.72, 0.68)"
+		var pale := "vec3(0.66, 0.82, 1.0)" if saphir else "vec3(0.95, 0.52, 0.50)"
 		var bloc := """	{
 		vec3 gm_n = normalize(NORMAL);
 		vec3 gm_v = normalize(VIEW);
@@ -310,15 +310,15 @@ static func shader_pierre(saphir: bool) -> Shader:
 		float gm_h = smoothstep(-0.25, 0.8, gm_r.y);
 		ALBEDO = mix(ALBEDO, ALBEDO * mix(vec3(0.55), vec3(1.4), gm_h), 0.55 * gm_m);
 		float gm_c = 1.0 - gm_f;
-		EMISSION += ALBEDO * (0.30 + 0.55 * gm_c * gm_c) * gm_m;
+		EMISSION += ALBEDO * (0.30 + 0.55 * gm_c * gm_c) * EMIF * gm_m;
 		float gm_fr = floor(gm_f * gm_f * gm_f * 4.0) / 4.0;
-		EMISSION += PALE * gm_fr * 0.5 * gm_m;
+		EMISSION += PALE * gm_fr * 0.3 * gm_m;
 		float gm_s1 = pow(max(dot(gm_r, normalize(vec3(-0.45, 0.72, 0.52))), 0.0), 70.0);
 		float gm_s2 = pow(max(dot(gm_r, normalize(vec3(0.62, 0.45, -0.35))), 0.0), 110.0);
-		EMISSION += vec3(1.0, 0.97, 0.95) * (step(0.5, gm_s1) + 0.8 * step(0.5, gm_s2)) * 0.8 * gm_m;
+		EMISSION += mix(PALE, vec3(1.0), 0.45) * (step(0.5, gm_s1) + 0.8 * step(0.5, gm_s2)) * 0.5 * gm_m;
 	}
 	ROUGHNESS = 1.0;
-}""".replace("PALE", pale)
+}""".replace("PALE", pale).replace("EMIF", "1.0" if saphir else "1.5")
 		var sh := Shader.new()
 		sh.code = shader_armure().code.replace("\tROUGHNESS = 1.0;\n}", bloc)
 		_shaders_pierre[saphir] = sh

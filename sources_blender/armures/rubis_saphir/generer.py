@@ -241,7 +241,6 @@ def deco_casque(ens):
         poser_gemme(P, (0, -0.5, z), (0, 1, 0), Vector((0, 0, 1)), 0.0105, ens, rayons=0, k=8)
         poser_pointe(P, centre + Vector((0, -0.03, 0.5)), (0, 0, -1), (0, 0.08, 1), 0.30, 0.024, ens, k=5, graine=1)
         poser_pointe(P, centre + Vector((0, 0.045, 0.5)), (0, 0, -1), (0, 0.40, 1), 0.21, 0.019, ens, k=4, graine=2)
-        poser_pointe(P, centre + Vector((0, 0.11, 0.45)), (0, 0, -1), (0, 0.75, 0.8), 0.14, 0.014, ens, k=4, serti=False, graine=5)
         for s in (1.0, -1.0):
             poser_pointe(P, centre + Vector((0.5 * s, 0.0, 0.07)), (-s, 0, 0), (0.45 * s, 0.1, 1.0), 0.15, 0.015, ens, k=4, serti=False, graine=3)
     return dec
@@ -349,9 +348,8 @@ def deco_torse(ens):
             noyau(P, p + n * 0.002, n, Vector((0, 0, 1)), 0.082, 0.05, 0.04, ens)
         for s in (1.0, -1.0):
             # gerbe d'épaule : 5 éclats en éventail, vers le haut et le dehors (le plus grand ~0,3 m)
-            gerbe = [((0.215, 0.0), (0.34, 0.04, 1.0), 0.36, 0.028), ((0.29, -0.025), (0.75, -0.12, 0.7), 0.26, 0.022),
-                     ((0.255, 0.065), (0.30, 0.45, 0.9), 0.24, 0.020), ((0.17, 0.03), (0.08, 0.08, 1.0), 0.23, 0.019),
-                     ((0.32, 0.03), (1.0, 0.1, 0.30), 0.16, 0.016)]
+            gerbe = [((0.215, 0.0), (0.34, 0.0, 1.0), 0.34, 0.028), ((0.285, 0.0), (0.75, 0.0, 0.7), 0.25, 0.022),
+                     ((0.17, 0.0), (0.08, 0.0, 1.0), 0.22, 0.019)]
             for k, ((x, y), ax, lg, ry) in enumerate(gerbe):
                 poser_pointe(P, (x * s, y, 1.9), (0, 0, -1), (ax[0] * s, ax[1], ax[2]), lg, ry, ens, k=6 if k < 1 else 4, serti=k < 1, graine=10 + k)
             # petite gemme sertie sur le dessus de l'épaule (devant la gerbe)
@@ -359,7 +357,6 @@ def deco_torse(ens):
             # coude : deux éclats vers l'arrière et le dehors, sertis au bout de la manche
             la = r.os["lowerarm_" + ("l" if s > 0 else "r")]
             poser_pointe(P, ((X_MANCHE - 0.035) * s, 0.5, la.z + 0.005), (0, -1, 0), (0.35 * s, 1.0, 0.1), 0.15, 0.021, ens, k=5, graine=13)
-            poser_pointe(P, ((X_MANCHE - 0.06) * s, 0.5, la.z + 0.03), (0, -1, 0), (0.1 * s, 0.8, 0.6), 0.10, 0.015, ens, k=4, serti=False, graine=15)
             # haut du bras : deux brassards de cristal en couches sous l'épaulière (couverture complète)
             ua = r.os["upperarm_" + ("l" if s > 0 else "r")]
             bras = C.bvh(r, ["tunique", "brassards", "peau"], {"upperarm_" + ("l" if s > 0 else "r")}, 0.5)
@@ -416,7 +413,7 @@ def tassettes(P, r, st, ens):
             q = [P.sommet(tour[i]), P.sommet(dedans[i]), P.sommet(dedans[i + 1]), P.sommet(tour[i + 1])]
             P.face(q, mc, uv)
         GEMMES.append((rows[1][1], Vector((math.sin(a0), -math.cos(a0), 0)), 0.09))
-        if abs(a_deg) in (68, 100):    # éclat de hanche : vers le dehors et un peu vers le bas
+        if abs(a_deg) == 68:    # éclat de hanche : vers le dehors et un peu vers le bas
             d0 = Vector((math.sin(a0), -math.cos(a0), 0))
             poser_pointe(P, Vector((0, 0, zt - 0.03)) + d0 * 0.6, -d0, d0 * 1.0 + Vector((0, 0, 0.25)), 0.15, 0.022, ens, k=4, serti=False, graine=40 + a_deg)
 
@@ -492,7 +489,6 @@ def deco_gant(ens):
             _plaques_membre(P, st, avb, la, ha, [(0.06, 0.26), (0.22, 0.42)], [math.radians(x) for x in range(0, 361, 36)], 0.022, 0.0, st["mat"])
             poser_pointe(P, q + Vector((0, 0.3, 0.05)), (0, -1, -0.15), (-0.55 * s, 0.75, 0.35), 0.13, 0.018, ens, k=5, graine=20)
             poser_pointe(P, q + Vector((0, 0.0, 0.3)), (0, 0, -1), (0.2 * s, -0.25, 1.0), 0.11, 0.016, ens, k=4, serti=False, graine=21)
-            poser_pointe(P, la.lerp(ha, 0.6) + Vector((0.3 * s, 0.0, 0.0)), (-s, 0, 0), (1.0 * s, -0.2, 0.25), 0.10, 0.015, ens, k=4, serti=False, graine=22)
     return dec
 
 
@@ -525,7 +521,6 @@ def deco_genou(ens):
         _plaques_membre(P, st, jambe, A, B, [(z0(0.21), z0(0.31)), (z0(0.29), z0(0.40)), (z0(0.37), z0(0.48))], arc_t, 0.026, 0.004, st["mat"])
         poser_pointe(P, (ca.x, -0.5, ca.z + 0.015), (0, 1, 0), (0.15 * s, -0.8, 0.6), 0.16, 0.024, ens, k=5, graine=30 + int(s))
         poser_pointe(P, (ca.x, -0.5, ca.z - 0.12), (0, 1, 0), (0.1 * s, -0.7, 0.7), 0.10, 0.017, ens, k=4, serti=False, graine=33 + int(s))
-        poser_pointe(P, (ca.x, -0.5, ca.z - 0.22), (0, 1, 0), (0.1 * s, -0.55, 0.85), 0.08, 0.014, ens, k=4, serti=False, graine=36 + int(s))
     return dec
 
 
@@ -680,7 +675,7 @@ def peindre_saphir(P, N, bd, U, ench):
 
 
 # v3 matière : GRENAT / BLEU NUIT profonds (jamais vifs), facettes à arêtes claires serties dans une structure de métal brun-noir.
-GRENAT = L.hexa("#090405", "#160a0b", "#271013", "#3a181b", "#4f2124", "#652b2e", "#7c3739", "#954548", "#af5b5c", "#cc8484", "#e6b9b6")
+GRENAT = L.hexa("#0b0506", "#1c0c0f", "#341219", "#501b25", "#6d2733", "#8b3542", "#a64553", "#bd5b68", "#cf7783", "#e09aa2", "#f1c4c8")
 NUIT = L.hexa("#03040a", "#070a14", "#0c1226", "#121b38", "#1a2849", "#243759", "#314a70", "#425f8a", "#5f7fa6", "#8da8c6", "#c1d3e6")
 CRISTAL_RUBIS = GRENAT
 CRISTAL_SAPHIR = NUIT
@@ -714,7 +709,7 @@ def peindre_cristal(P, N, bd, ens, ench):
     d1, d2, idv = _voronoi(P, 0.07, 201)
     t = np.clip(0.5 + 0.60 * (N * _LUM).sum(1), 0, 1)
     niv = np.floor(t * 4.0) / 3.0
-    v = 0.24 + 0.30 * niv + 0.12 * (idv - 0.5)
+    v = (0.38 if ens == "rubis" else 0.24) + 0.30 * niv + 0.12 * (idv - 0.5)
     arete = np.clip(1.0 - (d2 - d1) / 0.10, 0, 1)
     v += arete ** 2 * 0.24
     v = np.where(idv > 0.93, v + 0.10, v)
@@ -739,11 +734,11 @@ def peindre_plaque(P, N, bd, U, ens, ench):
     # incrustations facettées
     d1, d2, idv = _voronoi(P, 0.095, 301)
     marge = d2 - d1
-    inc = (idv < 0.80) & (marge > 0.14)
+    inc = (idv < (0.92 if ens == "rubis" else 0.80)) & (marge > (0.11 if ens == "rubis" else 0.14))
     e1, e2, ev = _voronoi(P, 0.047, 401)
     t = np.clip(0.5 + 0.60 * (N * _LUM).sum(1), 0, 1)
     niv = np.floor(t * 4.0) / 3.0
-    v = 0.30 + 0.22 * niv + 0.17 * (ev - 0.5) + 0.07 * (idv - 0.5)
+    v = (0.42 if ens == "rubis" else 0.30) + 0.22 * niv + 0.17 * (ev - 0.5) + 0.07 * (idv - 0.5)
     arete = np.clip(1.0 - (e2 - e1) / 0.09, 0, 1)
     v += arete ** 2 * 0.26
     v += (L.fbm(P, 16.0, 237, 2) - 0.5) * 0.03
