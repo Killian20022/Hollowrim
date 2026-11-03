@@ -342,7 +342,7 @@ static func importer(d: Dictionary) -> void:
 		for id in c:
 			var e: Variant = c[id]
 			if e is Dictionary and (e as Dictionary).get("pos", []) is Array and ((e as Dictionary)["pos"] as Array).size() == 3 and a_reste(String(id)):
-				corps[String(id)] = {"pos": ((e as Dictionary)["pos"] as Array).duplicate(), "nom": String((e as Dictionary).get("nom", "Dépouille"))}
+				corps[String(id)] = {"pos": ((e as Dictionary)["pos"] as Array).duplicate(), "nom": String((e as Dictionary).get("nom", "Dépouille")), "modele": ((e as Dictionary).get("modele", {}) as Dictionary).duplicate() if (e as Dictionary).get("modele", {}) is Dictionary else {}}
 
 ## Nouvelle partie.
 static func reinitialiser() -> void:

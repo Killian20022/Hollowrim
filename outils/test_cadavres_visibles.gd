@@ -54,57 +54,87 @@ func _tester() -> void:
 	for i in 4:
 		t._gerer_zones()
 		await physics_frame
-	# --- 1. cadavre d'ennemi fouillable : il reste après 30 s
-	var gardien = null
+	# --- 1. cadavres d'ennemis fouillables ; plafond à 1 cadavre non fouillé par zone (2e mort : le 1er devient une dépouille statique)
+	var gardiens := []
 	for id: String in m.draugrs:
 		if id.begins_with("cr_") and is_instance_valid(m.draugrs[id]):
-			gardien = m.draugrs[id]
-			break
-	_verif(gardien != null, "un gardien de la crypte est apparu")
-	if gardien == null:
+			gardiens.append(m.draugrs[id])
+	_verif(gardiens.size() >= 2, "au moins deux gardiens de la crypte sont apparus (%d)" % gardiens.size())
+	if gardiens.size() < 2:
 		quit(1)
 		return
-	gardien._mourir()
+	BUTIN.max_cadavres = 1
+	var ga = gardiens[0]
+	var gb = gardiens[1]
+	var butins := []
+	for g in [ga, gb]:
+		g._mourir()
+		for i in 5:
+			await physics_frame
+		var bu: Node3D = g._butin if "_butin" in g else null
+		if bu == null:      # code sans le correctif : on retrouve la bourse parmi les enfants du parent
+			for n in g.get_parent().get_children():
+				if n.get_script() == BUTIN and n.has_method("a_fouille") and n.a_fouille():
+					bu = n
+		butins.append(bu)
+		_verif(bu != null and bu.a_fouille(), "le cadavre laisse un corps fouillable (invite présente)")
+	BUTIN.max_cadavres = 10
+	# 1er cadavre : plafond dépassé -> ragdoll remplacé par sa dépouille statique (même endroit, modèle visible, sans physique)
+	_verif(not is_instance_valid(ga) or ga.is_queued_for_deletion(), "plafond : le plus ancien ragdoll est retiré")
+	var dep: Node = butins[0].get_node_or_null("ModeleDepouille") if butins[0] != null and is_instance_valid(butins[0]) else null
+	_verif(dep != null, "plafond : sa dépouille statique est posée sur la bourse")
+	if dep != null:
+		_verif(not _mailles_visibles(dep).is_empty() and dep.find_children("*", "Skeleton3D", true, false).size() > 0, "dépouille du plafond : vrai modèle (squelette) visible")
+		_verif(_au_dessus_du_sol(dep, (dep as Node3D).global_position.y), "dépouille du plafond : au-dessus du sol")
+		_verif(Vector3((dep as Node3D).global_position).distance_to(butins[0].global_position) < 1.0, "dépouille du plafond : au pied de la bourse")
+	_verif(butins[0] != null and is_instance_valid(butins[0]) and butins[0].a_fouille(), "plafond : la dépouille reste fouillable")
+	# 2e cadavre : toujours un ragdoll, encore là après 30 s
+	_verif(is_instance_valid(gb) and not gb.is_queued_for_deletion(), "dernier cadavre : ragdoll conservé")
+	gb._t = 31.0
 	for i in 5:
 		await physics_frame
-	var butin: Node3D = gardien._butin if "_butin" in gardien else null
-	if butin == null:      # code sans le correctif : on retrouve la bourse parmi les enfants du parent
-		for n in gardien.get_parent().get_children():
-			if n.get_script() == BUTIN and n.has_method("a_fouille") and n.a_fouille():
-				butin = n
-	_verif(butin != null and butin.a_fouille(), "le cadavre laisse un corps fouillable (invite présente)")
-	gardien._t = 31.0
-	for i in 5:
-		await physics_frame
-	_verif(is_instance_valid(gardien) and not gardien.is_queued_for_deletion(), "cadavre fouillable encore là après 30 s")
-	if is_instance_valid(gardien):
-		var y_sol: float = gardien.global_position.y
-		_verif(not _mailles_visibles(gardien).is_empty(), "cadavre : maillage visible et non vide (%d maillages)" % _mailles_visibles(gardien).size())
-		_verif(_au_dessus_du_sol(gardien, y_sol - 1.0), "cadavre : au-dessus du sol")
+	_verif(is_instance_valid(gb) and not gb.is_queued_for_deletion(), "cadavre fouillable encore là après 30 s")
+	if is_instance_valid(gb):
+		_verif(not _mailles_visibles(gb).is_empty(), "cadavre : maillage visible et non vide (%d maillages)" % _mailles_visibles(gb).size())
+		_verif(_au_dessus_du_sol(gb, gb.global_position.y - 1.0), "cadavre : au-dessus du sol")
 	# fouillé en entier : plus d'invite, le cadavre part
-	if butin != null and is_instance_valid(butin):
-		butin.objets.clear()
-		butin._apres_fouille()
-	if is_instance_valid(gardien):
-		gardien._t = 31.0
+	if butins[1] != null and is_instance_valid(butins[1]):
+		butins[1].objets.clear()
+		butins[1]._apres_fouille()
+	if is_instance_valid(gb):
+		gb._t = 31.0
 	for i in 5:
 		await physics_frame
-	_verif(not is_instance_valid(gardien) or gardien.is_queued_for_deletion(), "cadavre fouillé : il disparaît au bout de 30 s")
-	# --- 2. dépouille restaurée d'une sauvegarde
+	_verif(not is_instance_valid(gb) or gb.is_queued_for_deletion(), "cadavre fouillé : il disparaît au bout de 30 s")
+	# --- 2. dépouille restaurée d'une sauvegarde : vrai modèle d'après le type sauvegardé (squelette, guerrier) ; ancienne sauvegarde : draugr
 	ButinTables.reinitialiser()
-	var pos: Vector3 = m.joueur.global_position + Vector3(3, 0, 0)
-	ButinTables.corps["ennemi:essai_cadavre"] = {"pos": [pos.x, pos.y, pos.z], "nom": "Draugr d'essai"}
-	ButinTables.restes["ennemi:essai_cadavre"] = {"os_draugr": 1}
+	var base: Vector3 = m.joueur.global_position + Vector3(3, 0, 0)
+	var specs := {"essai_sq": {"type": "squelette", "ident": "essai_sq", "lacet": 1.0}, "essai_gu": {"type": "guerrier", "lacet": 2.0}, "essai_vieux": null}
+	var k := 0
+	for id: String in specs:
+		var cle := "ennemi:" + id
+		var e := {"pos": [base.x + k * 2.0, base.y, base.z], "nom": "Draugr d'essai"}
+		if specs[id] != null:
+			e["modele"] = specs[id]
+		ButinTables.corps[cle] = e
+		ButinTables.restes[cle] = {"os_draugr": 1}
+		k += 1
+	# aller-retour JSON : le type survit à la sauvegarde
+	var json := JSON.parse_string(JSON.stringify(ButinTables.exporter())) as Dictionary
+	ButinTables.reinitialiser()
+	ButinTables.importer(json)
+	_verif(ButinTables.corps["ennemi:essai_sq"].get("modele", {}).get("type", "") == "squelette", "sauvegarde : le type du corps survit à l'export/import JSON")
 	BUTIN.restaurer(m, m.joueur, m.hud)
 	for i in 3:
 		await physics_frame
-	var rest: Node3D = null
-	for n in m.get_tree().get_nodes_in_group("corps_butin"):
-		rest = n
-	_verif(rest != null and rest.a_fouille(), "dépouille restaurée : invite de fouille")
-	if rest != null:
-		_verif(not _mailles_visibles(rest).is_empty(), "dépouille restaurée : maillage visible et non vide")
-		_verif(_au_dessus_du_sol(rest, rest.global_position.y), "dépouille restaurée : au-dessus du sol")
+	var restaures := m.get_tree().get_nodes_in_group("corps_butin")
+	_verif(restaures.size() == 3, "3 dépouilles restaurées (%d)" % restaures.size())
+	for rest: Node3D in restaures:
+		var dm := rest.get_node_or_null("ModeleDepouille") as Node3D
+		_verif(rest.a_fouille() and dm != null, "dépouille restaurée %s : invite de fouille + modèle" % rest.cle_sauvegarde)
+		if dm != null:
+			_verif(not _mailles_visibles(dm).is_empty() and dm.find_children("*", "Skeleton3D", true, false).size() > 0, "dépouille restaurée %s : vrai modèle visible (squelette)" % rest.cle_sauvegarde)
+			_verif(dm.find_children("*", "MeshInstance3D", true, false).all(func(mi: MeshInstance3D) -> bool: return not (mi.mesh is BoxMesh)) and _au_dessus_du_sol(dm, dm.global_position.y), "dépouille restaurée %s : pas un bonhomme en blocs, au-dessus du sol" % rest.cle_sauvegarde)
 	# --- 3. corps posés de la crypte (interactions « corps »)
 	t.salles.tout_reveler()      # SalleActive cache le décor des salles éloignées : on se place « dans toutes les salles »
 	var corps := 0
