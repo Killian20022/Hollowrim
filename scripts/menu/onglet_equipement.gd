@@ -9,10 +9,14 @@ extends OngletLivre
 ## haut / bas, E = équiper, Échap / B = annuler.
 
 const HEROS := preload("res://assets/ui/menu_heros.png")
-## [id, libellé] ; colonne de gauche puis de droite (4 rangs chacune), comme la maquette.
+## [id, libellé] ; l'ORDRE est celui des indices (sel) ; la disposition à l'écran est COLONNES. Les jambières (ajoutées après la maquette)
+## sont en dernier pour ne pas déplacer les indices existants.
 const EMPLACEMENTS := [["tete", "Tête"], ["torse", "Torse"], ["mains", "Mains"], ["droite", "Main droite"],
-	["cou", "Amulette"], ["anneau", "Anneau"], ["pieds", "Pieds"], ["gauche", "Main gauche"]]
-const NOMS_EMP := {"tete": "tête", "torse": "torse", "mains": "mains", "pieds": "pieds", "cou": "cou", "anneau": "anneau"}
+	["cou", "Amulette"], ["anneau", "Anneau"], ["pieds", "Pieds"], ["gauche", "Main gauche"], ["jambes", "Jambes"]]
+const NOMS_EMP := {"tete": "tête", "torse": "torse", "mains": "mains", "pieds": "pieds", "cou": "cou", "anneau": "anneau", "jambes": "jambes"}
+## Indices (dans EMPLACEMENTS) rangés par colonne, de haut en bas : le corps à gauche (tête → pieds), le cou et les mains à droite.
+const COLONNES := [[0, 1, 2, 8, 6], [4, 5, 3, 7]]
+const PAS_RANG := 50.0
 
 var sel := 3   # main droite (comme la maquette)
 ## Liste « Changer » ouverte : candidats [{id, nom, delta, couleur}] ; vide = fermée.
@@ -157,13 +161,15 @@ func entree(e: InputEvent) -> bool:
 			return true
 		return k != KEY_TAB and b != JOY_BUTTON_LEFT_SHOULDER and b != JOY_BUTTON_RIGHT_SHOULDER and k != KEY_NONE
 	if d != 0:
-		var col := sel / 4
-		var rang := sel % 4
+		var col := _col_de(sel)
+		var rang := (COLONNES[col] as Array).find(sel)
 		if d == -1 or d == 1:
-			rang = (rang + d + 4) % 4
+			var n := (COLONNES[col] as Array).size()
+			rang = (rang + d + n) % n
 		else:
 			col = 1 - col
-		sel = col * 4 + rang
+			rang = mini(rang, (COLONNES[col] as Array).size() - 1)
+		sel = int(COLONNES[col][rang])
 		Sons.jouer(self, ["cloth1"], -24.0)
 		return true
 	if k in [KEY_E, KEY_ENTER, KEY_KP_ENTER] or b == JOY_BUTTON_A:
@@ -249,7 +255,7 @@ func _draw() -> void:
 		var ll := largeur(lib)
 		texte(rs.get_center().x - ll * 0.5, rs.end.y + 3.0, lib, Parchemin.RUBRIQUE)
 		if i == sel:
-			if i < 4:
+			if _col_de(i) == 0:
 				Parchemin.ruban(self, Rect2(rs.position.x - 17.0, rs.position.y + 9.0, 14, 8))
 			else:
 				Parchemin.ruban(self, Rect2(rs.end.x + 3.0, rs.position.y + 9.0, 14, 8))
@@ -257,10 +263,14 @@ func _draw() -> void:
 	_dessiner_registre(d)
 
 func _rect_emplacement(i: int, g: Rect2) -> Rect2:
-	var col := i / 4
-	var rang := i % 4
+	var col := _col_de(i)
+	var rang := (COLONNES[col] as Array).find(i)
 	var x := g.position.x + 40.0 if col == 0 else g.end.x - 66.0
-	return Rect2(x, g.position.y + 44.0 + rang * 62.0, 26, 26)
+	return Rect2(x, g.position.y + 44.0 + rang * PAS_RANG, 26, 26)
+
+## Colonne (0 gauche, 1 droite) de l'emplacement d'indice i.
+func _col_de(i: int) -> int:
+	return 0 if (COLONNES[0] as Array).has(i) else 1
 
 func _dessiner_registre(d: Rect2) -> void:
 	var x := d.position.x

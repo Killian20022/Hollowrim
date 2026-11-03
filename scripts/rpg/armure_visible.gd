@@ -9,7 +9,9 @@ extends Node
 ##   torse : cotte (triangles qui ont un sommet à |x| < 0,415 : la manche au-delà, sous le coude, reste), mante, plastron, épaulières, col, tabard, pèlerine, ceinture, surcot ;
 ##   mains : tout ce qui dépasse |x| = 0,58 en pose de repos (gants, revers fourrés, brassards, bout des manches) ;
 ##   pieds : bottes, revers fourrés, bas du pantalon (sous y = 0,40).
-## 1re personne : les bras FPS (mains.gd, matières ab_* d'AvantBras) prennent la matière des gants / gantelets portés.
+## 1re personne : les gants / gantelets portés (modèle porté HD, matière et brillance comprises) sont posés sur le squelette des bras FPS (mains.gd,
+## matières ab_* d'AvantBras) à la place des mains d'origine : voir _habiller_fps.
+## JAMBIÈRES : emplacement « jambes » d'EquipementCorps (fiche data/objets/armures.json, glb de chausses/) ; _poser_chausses.
 ## Matériaux : texture cuite du glb (alpha = brillance) + preset de matière (cuir, fourrure, os, fer, acier, or) rendu par le shader
 ## « matière » des armes (EpeesLongues.shader_matiere : ps1 + reflets en paliers), contour des personnages.
 ##   ArmureVisible.equiper(corps, squelette, equipement_corps, mains) -> ArmureVisible   (corps_joueur._creer_modele)
@@ -28,6 +30,7 @@ const TORSES_MANCHES := ["cuirasse_fer", "cuirasse_acier_nordique", "cuirasse_ga
 const PIEDS_Y := 0.40
 const PIEDS_Y_ACC := 0.58	# pans fourrés du héros au-dessus du genou (bottes hautes de l'agent Y) ; surface 0 seulement (la pèlerine reste)
 const TETE_Y := 1.585
+const JAMBES_Y := 0.93	# haut des chausses (gen_legeres.py : triangles du pantalon sous y = 0,93)
 const CAPE_Y := 1.50
 ## Secteurs angulaires autour du bassin pour l'ourlet réel de la pièce de torse.
 const SECTEURS := 16
@@ -271,7 +274,7 @@ func installer(sq: Skeleton3D, eq: EquipementCorps) -> void:
 	appliquer()
 
 func _sur_change(e: String) -> void:
-	if e in EMPLACEMENTS:
+	if e in EMPLACEMENTS or e == "jambes" or e == "":
 		appliquer()
 
 ## Pose les modèles portés de toutes les pièces et met à jour le masquage et les bras FPS.
@@ -289,6 +292,8 @@ func appliquer() -> void:
 ## poids : sources_blender/armures/legeres/gen_legeres.py -- chausses) ; le pantalon, la cotte et les pans du héros disparaissent
 ## alors entièrement (plus d'étoffe qui traverse les jupes, silhouette nette). Avec des bottes, les chausses sont coupées à leur haut.
 ## Torse inconnu de la table : chausses de cuir.
+## JAMBIÈRES (emplacement « jambes » d'EquipementCorps, 2026-11-03) : une paire équipée (fiche « modele_porte » = un glb de chausses/) REMPLACE
+## les chausses par défaut du torse, avec ou sans pièce de torse ; sans jambières équipées, rien ne change (chausses par torse).
 const CHAUSSES := "res://assets/modeles/armures/chausses/"
 const CHAUSSES_PAR_TORSE := {
 	"armure_cuir": "cuir", "armure_fourrure": "fourrure", "cuirasse_os": "os",
@@ -304,22 +309,34 @@ static func famille_chausses(id_torse: String) -> String:
 	return String(CHAUSSES_PAR_TORSE.get(id_torse, "cuir")) if id_torse != "" else ""
 
 func _poser_chausses() -> void:
-	var fam := famille_chausses(porte("torse"))
-	var chemin := CHAUSSES + fam + ".glb"
+	var jb := equipement.objet_a("jambes") if equipement != null else ""
+	var id := ""
+	var chemin := ""
+	var var_mat := ""
+	if jb != "" and a_modele(jb):
+		id = jb
+		chemin = chemin_porte(jb)
+		var_mat = variante(jb)
+	else:
+		var fam := famille_chausses(porte("torse"))
+		id = "chausses_" + fam
+		chemin = CHAUSSES + fam + ".glb"
+		if fam == "":
+			id = ""
 	var ancien: MeshInstance3D = _portees.get("jambes")
 	if ancien != null and is_instance_valid(ancien):
-		if String(ancien.get_meta("armure_id", "")) == "chausses_" + fam:
+		if String(ancien.get_meta("armure_id", "")) == id:
 			return
 		ancien.get_parent().remove_child(ancien)
 		ancien.queue_free()
 	_portees.erase("jambes")
-	if fam == "" or not ResourceLoader.exists(chemin):
+	if id == "" or not ResourceLoader.exists(chemin):
 		return
-	var mi := charger_chemin(chemin)
+	var mi := charger_chemin(chemin, var_mat)
 	if mi == null:
 		return
 	mi.name = "armure_jambes"
-	mi.set_meta("armure_id", "chausses_" + fam)
+	mi.set_meta("armure_id", id)
 	mi.set_meta("armure_emplacement", "jambes")
 	mi.set_meta("maillage_origine", mi.mesh)
 	squelette.add_child(mi)
@@ -597,7 +614,7 @@ static func ourlet_en(lim: Dictionary, p: Vector3) -> float:
 static func _concerne(nom: String, z: Array) -> bool:
 	match nom:
 		"tunique":
-			return z.has("torse") or z.has("mains")
+			return z.has("torse") or z.has("mains") or z.has("jambes")
 		"mante", "Hair_Long":
 			return z.has("torse") or z.has("cape")
 		"brassards", "peau":
@@ -652,9 +669,14 @@ static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Arra
 		# chausses portées : pantalon, cotte (hors manches) et pans du héros entièrement retirés
 		if nom == "pantalon":
 			return true
-		if nom == "tunique" and x_min < float(lim.get("torse_x", TORSE_X)):
+		# cotte et pans du héros : entièrement retirés sous une pièce de torse ; avec des jambières SEULES, seulement ce qui descend sur
+		# les jambes (sous JAMBES_Y, haut des chausses) : la tenue du héros au-dessus reste
+		var sous := z.has("torse") or bas < JAMBES_Y
+		if sous and nom == "tunique" and x_min < float(lim.get("torse_x", TORSE_X)):
 			return true
-		if acc and not oeil and not casque and not camail and c.y > 0.40 and c.y < TETE_Y and absf(c.x) < 0.45:
+		if acc and haut < PIEDS_Y_ACC - 0.005:
+			return true     # revers fourrés des bottes du héros : sous les chausses (les os et le verre descendent jusqu'à la cheville)
+		if sous and acc and not oeil and not casque and not camail and c.y > 0.40 and c.y < TETE_Y and absf(c.x) < 0.45:
 			return true
 	if z.has("torse"):
 		if camail:
@@ -820,6 +842,18 @@ static func _couper(a: Array, idx: PackedInt32Array, bas: float, haut: float, li
 	return b
 
 # ------------------------------------------------------------------------------------------------------------- 1re personne
+## Gants / gantelets en 1re personne (2026-11-03) : le modèle PORTÉ de la paire équipée (même glb skinné que le héros à la 3e personne : mêmes
+## noms d'os, même pose de repos que bras_fps.glb) est posé sur le squelette des bras FPS ; il suit donc tout ce que les os font (IK de
+## l'épée et de la torche, poses d'incantation de PosesIncantation, doigts serrés sur l'arme). Les mains, brassards et plaques d'origine des
+## bras FPS (triangles au-delà de |x| = MAINS_X au repos, comme le masquage de la 3e personne) sont retirés ; ce qui reste du poignet est
+## teinté vers la matière portée (materiaux_fps). Même calque de rendu que les bras (AvantBras.CALQUE : la lueur des auras ne l'éclaire pas).
+## Les effets de sort restent lisibles : lueur propre et éclat de brillance réduits (FPS_LUEUR, FPS_ECLAT) et jamais d'ombre portée.
+const FPS_LUEUR := 0.35
+const FPS_ECLAT := 0.7
+var _fps_gants: MeshInstance3D
+var _fps_meshes := {}         # MeshInstance3D des bras FPS -> Mesh d'origine (avant retrait des mains)
+static var _fps_filtres := {} # Mesh d'origine -> ArrayMesh sans les mains
+
 func _habiller_fps() -> void:
 	if mains == null or not is_instance_valid(mains):
 		return
@@ -830,22 +864,80 @@ func _habiller_fps() -> void:
 	if not a_modele(id):
 		id = ""
 	_fps_id = id
-	# remettre les matières d'origine
+	# remettre les matières et les maillages d'origine, ôter la paire précédente
 	for k in _fps_origine:
 		var mi: MeshInstance3D = k[0]
 		if is_instance_valid(mi):
 			mi.set_surface_override_material(k[1], _fps_origine[k])
 	_fps_origine.clear()
+	for mi: MeshInstance3D in _fps_meshes:
+		if is_instance_valid(mi):
+			mi.mesh = _fps_meshes[mi]
+	_fps_meshes.clear()
+	if _fps_gants != null and is_instance_valid(_fps_gants):
+		if _fps_gants.get_parent() != null:
+			_fps_gants.get_parent().remove_child(_fps_gants)
+		_fps_gants.queue_free()
+	_fps_gants = null
 	if id == "":
 		return
 	var mats := materiaux_fps(id)
 	for mi: MeshInstance3D in bras.find_children("*", "MeshInstance3D", true, false):
+		if not String(mi.name).begins_with("avant_bras"):
+			continue
+		if not _fps_meshes.has(mi):
+			_fps_meshes[mi] = mi.mesh
+			mi.mesh = _sans_mains(mi.mesh)
 		for s in mi.mesh.get_surface_count():
 			var m := mi.mesh.surface_get_material(s)
 			var nom := m.resource_name.get_slice(".", 0) if m else ""
 			if mats.has(nom):
 				_fps_origine[[mi, s]] = mi.get_surface_override_material(s)
 				mi.set_surface_override_material(s, mats[nom])
+	var g := charger_porte(id)
+	var sq_fps: Skeleton3D = bras.find_child("Skeleton3D", true, false)
+	if g == null or sq_fps == null:
+		return
+	g.name = "gants_fps"
+	g.set_meta("armure_fps", id)
+	g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	g.extra_cull_margin = 2.0
+	g.layers = AvantBras.CALQUE
+	for s in g.mesh.get_surface_count():
+		var m := g.get_surface_override_material(s) as ShaderMaterial
+		if m == null:
+			continue
+		m = m.duplicate() as ShaderMaterial      # les matières de la pièce sont partagées avec la 3e personne
+		for k: Array in [["mt_lueur", FPS_LUEUR], ["br_eclat", FPS_ECLAT]]:
+			var v: Variant = m.get_shader_parameter(k[0])
+			if v is float:
+				m.set_shader_parameter(k[0], float(v) * float(k[1]))
+		g.set_surface_override_material(s, m)
+	sq_fps.add_child(g)
+	g.skeleton = NodePath("..")
+	_fps_gants = g
+
+## Maillage des avant-bras FPS privé de ses mains / brassards / plaques (centre du triangle au-delà de MAINS_X au repos).
+static func _sans_mains(orig: Mesh) -> Mesh:
+	if _fps_filtres.has(orig):
+		return _fps_filtres[orig]
+	var m := ArrayMesh.new()
+	for s in orig.get_surface_count():
+		var a := orig.surface_get_arrays(s)
+		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+		var garde := PackedInt32Array()
+		for t in range(0, idx.size() - 2, 3):
+			var cx := (v[idx[t]].x + v[idx[t + 1]].x + v[idx[t + 2]].x) / 3.0
+			if absf(cx) <= MAINS_X:
+				garde.append_array(PackedInt32Array([idx[t], idx[t + 1], idx[t + 2]]))
+		if garde.is_empty():
+			garde = PackedInt32Array([0, 0, 0])
+		a[Mesh.ARRAY_INDEX] = garde
+		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+		m.surface_set_material(s, orig.surface_get_material(s))
+	_fps_filtres[orig] = m
+	return m
 
 ## Matières des bras FPS pour une paire de gants portée : texture et matière du glb, tons de la pièce (gants, revers, plaques).
 static func materiaux_fps(id: String) -> Dictionary:

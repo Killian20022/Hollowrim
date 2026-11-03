@@ -9,7 +9,7 @@ const DOSSIER_OBJETS := "res://data/objets/"
 ## Catégories (champ `categorie` des fiches) ; absent = « divers ».
 const CATEGORIES := ["arme", "armure", "bijou", "consommable", "ingredient", "quete", "divers"]
 ## Emplacements de corps (champ `emplacement` des armures et bijoux) : EquipementCorps. Les mains restent à EquipementMains.
-const EMPLACEMENTS := ["tete", "torse", "mains", "pieds", "cou", "anneau"]
+const EMPLACEMENTS := ["tete", "torse", "mains", "pieds", "cou", "anneau", "jambes"]
 ## Identifiants renommés : ancien -> nouveau (sauvegardes, conteneurs). Aucun renommage à ce jour ; ne jamais en retirer une ligne.
 const ALIAS := {}
 

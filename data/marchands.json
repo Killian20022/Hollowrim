@@ -51,7 +51,12 @@
 				{"id": "bottes_verre", "n": 1, "chance": 8},
 				{"id": "gantelets_verre", "n": 1, "chance": 6},
 				{"id": "casque_saphir", "n": 1, "chance": 6},
-				{"id": "bottes_saphir", "n": 1, "chance": 5}
+				{"id": "bottes_saphir", "n": 1, "chance": 5},
+				{"id": "jambieres_cuir", "n": 1, "chance": 50},
+				{"id": "jambieres_fourrure", "n": 1, "chance": 40},
+				{"id": "jambieres_fer", "n": 1, "chance": 35},
+				{"id": "jambieres_acier_nordique", "n": 1, "chance": 12},
+				{"id": "jambieres_verre", "n": 1, "chance": 6}
 			]
 		},
 		"ancienne": {
