@@ -443,7 +443,7 @@ def cuir(pal, g, base=0.45, use=0.5, grain_ech=0.38):
     return fn
 
 
-def fourrure(pal, g, base=0.5, meches=0.55, longueur=3.0):
+def fourrure(pal, g, base=0.5, meches=0.55, longueur=3.0, degrade=0.0):
     """Fourrure : mèches allongées dans le sens de V (pointes en bas de zone claires, racines sombres), relief en brins."""
     def fn(X, Y, U, V):
         b1 = bruit(X * 3.2, Y / longueur * 1.0, 1.0, g)
@@ -451,7 +451,7 @@ def fourrure(pal, g, base=0.5, meches=0.55, longueur=3.0):
         b3 = bruit(X * 16.0, Y / longueur * 4.0, 1.0, g + 9)
         m = b1 * 0.5 + b2 * 0.32 + b3 * 0.18
         touffe = fbm(X, Y, g + 13, oct=((6, 0.7), (2, 0.3)))
-        t = base + (m - 0.5) * meches * 1.6 + (touffe - 0.5) * 0.35 + (0.5 - V) * 0.10
+        t = base + (m - 0.5) * meches * 1.6 + (touffe - 0.5) * 0.35 + (0.5 - V) * 0.10 + degrade * (V - 0.5)
         rgb = rampe(pal, t)
         bri = 0.05 + 0.18 * m
         h = (m - 0.5) * 0.5 + (touffe - 0.5) * 0.4
@@ -481,4 +481,5 @@ FOURRURE_LOUP = ["#0f0e0d", "#1a1817", "#282523", "#373330", "#48433e", "#5b554e
 CORNE = ["#15110c", "#251e15", "#382e21", "#4e412f", "#665640", "#7f6d53", "#998668", "#b29f80", "#c9b89a"]
 FOURRURE_BEIGE = ["#2a231b", "#3b3227", "#4f4436", "#655746", "#7b6b57", "#918069", "#a7957c", "#bba98f", "#cdbca2", "#dccdb5"]
 FOURRURE_BRUNE_CLAIRE = ["#1c150e", "#2a2016", "#3a2d1f", "#4c3c2a", "#5f4c36", "#735d43", "#876f52", "#9a8162", "#ab9374"]
+FOURRURE_GRISE = ["#1a1612", "#272119", "#372f25", "#4a4034", "#5d5244", "#706455", "#837667", "#968979", "#a89c8b", "#b9ae9d"]
 ACIER_NEUTRE = ["#0c0c0c", "#161615", "#21201f", "#2d2c2a", "#3a3937", "#4a4846", "#5c5a57", "#706e6a", "#878480", "#a19e99", "#c2bfba", "#e0ddd8"]

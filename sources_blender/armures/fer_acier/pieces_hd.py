@@ -947,7 +947,7 @@ def cuirasse(r, st):
         T.couture((x, 112.5), (x, 127.5), pas=0.9)
     T.couture((0, 126.6), (84, 126.6), pas=0.9)
     if st.get("fourrure"):
-        T.zone(R_FOUR, H.fourrure(st.get("pal_fourrure", H.FOURRURE_BEIGE), g + 5, base=st.get("base_fourrure", 0.55), longueur=st.get("long_meches", 2.4)),
+        T.zone(R_FOUR, H.fourrure(st.get("pal_fourrure", H.FOURRURE_BEIGE), g + 5, base=st.get("base_fourrure", 0.55), longueur=st.get("long_meches", 2.4), degrade=st.get("degrade_fourrure", 0.0)),
                sale=0.25, relief=0.8)
     for p in st.get("peintures", []):
         p(T, st, g)
