@@ -5,7 +5,8 @@ extends "res://outils/captures_sorts_vfx.gd"
 ##       --sort=eclat_glace|arc_electrique|trait_ombre|boule_feu --sortie=<dossier> [--fov=40 --cible_y=0.035]
 ## (via godot_slot.sh : fenêtre hors écran.) Images : <dossier>/f_00000.png …
 ## Phases (images de jeu à 60 /s) : repos 120, début 24, charge 130, lancer 36, retour 110.
-const PHASES := [["repos", 120], ["debut", 24], ["charge", 130], ["lance", 36], ["retour", 110]]
+## « charge » : CHARGE imposée sans lancer (RunesOrbite.forcer_charge, montée de 0 à 1) ; « lance » : le vrai sort, tenu 36 images.
+const PHASES := [["repos", 110], ["debut", 20], ["charge", 130], ["lance", 40], ["retour", 110]]
 
 func _go() -> void:
 	sortie = _arg("sortie", "user://film")
@@ -23,11 +24,16 @@ func _go() -> void:
 	var tot := 0
 	for ph in PHASES:
 		match String(ph[0]):
-			"debut":
-				m.appuyer("droite")
 			"lance":
+				RunesOrbite.forcer_charge = -1.0
+				m.appuyer("droite")
+			"retour":
 				m.relacher("droite")
 		for k in int(ph[1]):
+			if String(ph[0]) == "debut":
+				RunesOrbite.forcer_charge = 0.0
+			elif String(ph[0]) == "charge":
+				RunesOrbite.forcer_charge = clampf(float(k) / 70.0, 0.0, 1.0)
 			await _attendre(1)
 			tot += 1
 			if tot % 2 == 0:

@@ -12,9 +12,9 @@ const SH := preload("res://shaders/runes_orbite.gdshader")
 ## orbites au-dessus de la paume (m : le milieu de la flamme / du cristal tenu).
 const ECOLES := {
 	"feu": {"couleur": Color("#ff6a1a"), "coeur": Color("#ffc27a"), "signes": [6, 7, 8, 9, 1, 10, 6, 7], "rayon": 0.115, "taille": 0.026, "centre": 0.15},
-	"glace": {"couleur": Color("#4fb4ff"), "coeur": Color("#e2f6ff"), "signes": [5, 3, 10, 0, 5, 3, 9, 8], "rayon": 0.1, "taille": 0.029, "centre": 0.11},
-	"electricite": {"lueur_k": 0.55, "couleur": Color("#8a6cff"), "coeur": Color("#e6deff"), "signes": [2, 4, 2, 9, 2, 4, 8, 10], "rayon": 0.1, "taille": 0.029, "centre": 0.11},
-	"tenebres": {"lueur_k": 0.4, "couleur": Color("#a23cff"), "coeur": Color("#e7b8ff"), "signes": [4, 1, 5, 7, 4, 1, 5, 6], "rayon": 0.1, "taille": 0.029, "centre": 0.11},
+	"glace": {"lueur_k": 2.0, "couleur": Color("#4fb4ff"), "coeur": Color("#e2f6ff"), "signes": [5, 3, 10, 0, 5, 3, 9, 8], "rayon": 0.115, "taille": 0.029, "centre": 0.15},
+	"electricite": {"lueur_k": 1.7, "couleur": Color("#8a6cff"), "coeur": Color("#e6deff"), "signes": [2, 4, 2, 9, 2, 4, 8, 10], "rayon": 0.115, "taille": 0.029, "centre": 0.15},
+	"tenebres": {"lueur_k": 1.8, "couleur": Color("#a23cff"), "coeur": Color("#e7b8ff"), "signes": [4, 1, 5, 7, 4, 1, 5, 6], "rayon": 0.115, "taille": 0.029, "centre": 0.15},
 }
 ## Deux anneaux très fins, PARTIELS (un arc qui tourne, ni cercle complet ni grand cercle devant la caméra) : rayon (m),
 ## inclinaison (rad), fraction du tour visible, vitesse de rotation propre (rad/s), épaisseur du trait.
@@ -36,6 +36,9 @@ const LARGEUR_FIL := 0.0016
 const NB_RUNES := 7
 
 var ecole := "feu"
+## Outil de capture (outils/captures_sorts_vfx.gd, film_ecoles_runiques.gd) : >= 0 impose l'état CHARGE à cette charge (0..1),
+## sans lancer de sort. Les sorts canalisés (arc électrique) tirent dès qu'on les tient : jamais de vraie « charge ».
+static var forcer_charge := -1.0
 var suivi: Node3D
 ## +1 main gauche, -1 main droite (sens et inclinaison en miroir : gauche ≠ droite).
 var cote := 1.0
@@ -171,6 +174,9 @@ func _suivre() -> void:
 
 func _process(dt: float) -> void:
 	_t += dt
+	if forcer_charge >= 0.0:
+		etat = 2
+		charge = forcer_charge
 	_suivre()
 	var e: Dictionary = ECOLES.get(ecole, ECOLES["feu"])
 	# cible de l'état, lissée : jamais de saut (charge : resserre et accélère selon `charge`)

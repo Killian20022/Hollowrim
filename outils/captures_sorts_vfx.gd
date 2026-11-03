@@ -41,15 +41,15 @@ const VUES := {
 	# écoles runiques (glace, électricité, ténèbres), même cadrage que la flamme
 	"ec_glace_repos": [false, "eclat_glace", "repos", "vide", 0.0, true, "droite"],
 	"ec_glace_incante": [false, "eclat_glace", "incante", "vide", 0.0, true, "droite"],
-	"ec_glace_charge": [false, "eclat_glace", "charge", "vide", 0.0, true, "droite"],
+	"ec_glace_charge": [false, "eclat_glace", "chargeplein", "vide", 0.0, true, "droite"],
 	"ec_glace_lance": [false, "eclat_glace", "lance", "vide", 0.0, true, "droite"],
 	"ec_elec_repos": [false, "arc_electrique", "repos", "vide", 0.0, true, "droite"],
 	"ec_elec_incante": [false, "arc_electrique", "incante", "vide", 0.0, true, "droite"],
-	"ec_elec_charge": [false, "arc_electrique", "charge", "vide", 0.0, true, "droite"],
+	"ec_elec_charge": [false, "arc_electrique", "chargeplein", "vide", 0.0, true, "droite"],
 	"ec_elec_lance": [false, "arc_electrique", "lance", "vide", 0.0, true, "droite"],
 	"ec_ten_repos": [false, "trait_ombre", "repos", "vide", 0.0, true, "droite"],
 	"ec_ten_incante": [false, "trait_ombre", "incante", "vide", 0.0, true, "droite"],
-	"ec_ten_charge": [false, "trait_ombre", "charge", "vide", 0.0, true, "droite"],
+	"ec_ten_charge": [false, "trait_ombre", "chargeplein", "vide", 0.0, true, "droite"],
 	"ec_ten_lance": [false, "trait_ombre", "lance", "vide", 0.0, true, "droite"],
 	"fr_tps": [true, "boule_feu", "repos", "vide", -125.0, false, "droite"],
 }
@@ -181,6 +181,10 @@ func _vue(v: String, pref: String) -> void:
 		"charge":
 			m.appuyer(main)
 			await _attendre(42)
+		"chargeplein":
+			# CHARGE imposée sans lancer le sort (RunesOrbite.forcer_charge) : l'arc électrique, canalisé, tire dès qu'on le tient
+			RunesOrbite.forcer_charge = 1.0
+			await _attendre(70)
 		"incante":
 			m.appuyer(main)
 			await _attendre(8)
@@ -210,6 +214,7 @@ func _vue(v: String, pref: String) -> void:
 		print("CAPTURE %s_%s_%d" % [pref, v, k])
 		if k < N - 1:
 			await _attendre(PAS)
+	RunesOrbite.forcer_charge = -1.0
 	j.camera.current = true
 	if tps:
 		j.camera_tp.camera.current = true
