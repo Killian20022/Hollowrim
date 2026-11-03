@@ -40,7 +40,7 @@ BOUILLI = L.hexa("#170d08", "#22130b", "#2f1a0e", "#3e2312", "#4d2c17", "#5e371c
 SOMBRE = L.hexa("#0c0806", "#140d09", "#1d140d", "#281b12", "#342418", "#412d1e")
 FER = L.hexa("#121214", "#1c1c20", "#2a2b30", "#3c3e45", "#52555d", "#6c7079", "#8b8f99", "#aeb2bc", "#d0d3da")
 LAINE = L.hexa("#121512", "#191d19", "#212621", "#2a302a", "#333b33", "#3d463c", "#495347")
-LOUP = L.hexa("#15120f", "#221d18", "#302922", "#40372e", "#51463b", "#635749", "#776958", "#8c7d6a", "#a3937f", "#bcad98", "#d2c5b0")
+LOUP = L.hexa("#100e0c", "#1a1714", "#25201b", "#302a24", "#3b342d", "#463e35", "#51483e", "#5c5247", "#675c50", "#716557", "#7b6e5f")
 OURS = L.hexa("#140e0a", "#1f160f", "#2c2016", "#3a2a1d", "#4a3624", "#5b432c", "#6d5135")
 OS = L.hexa("#2a2116", "#3d3122", "#54452f", "#6c5b3e", "#85724f", "#9c8862", "#b19d76", "#c4b18a", "#d6c59f")
 def terne(pal, k=0.80, sat=0.72):
@@ -169,7 +169,7 @@ def boucle(bm, centre, normale, haut, larg, haute, ep, partie):
     boite(bm, c + n * ep * 0.3, (larg * 0.62, 0.0035, ep * 0.7), partie, s, u)      # ardillon
 
 
-def meches(surf, nom, n, longueur, largeur, partie, graine, zone=None, sens=None, souleve=0.012, double=None, src=None, crete=0.004):
+def meches(surf, nom, n, longueur, largeur, partie, graine, zone=None, sens=None, souleve=0.012, double=None, src=None, crete=0.004, simple=False):
     """Fourrure en MÈCHES : n tuiles effilées réparties à l'aire sur les faces de `surf` retenues par zone(c, n) (repère Godot),
     pointées selon sens(p, n) (projeté sur la surface, ± 25°), racine collée, pointe soulevée ; crête centrale (volume) ; double(p)
     -> mèche double face (celles qui pendent sous un bord). Poids : sommets les plus proches de `src` (ou `surf`)."""
@@ -208,6 +208,9 @@ def meches(surf, nom, n, longueur, largeur, partie, graine, zone=None, sens=None
         cr = nn * crete
         pts = [r0 - sd * w / 2, r0 + cr, r0 + sd * w / 2, mid - sd * w * 0.32, mid + cr * 0.8, mid + sd * w * 0.32, tip]
         faces = [(0, 3, 4, 1), (1, 4, 5, 2), (3, 6, 4), (4, 6, 5)]
+        if simple:      # petite mèche : 3 triangles (lame en deux segments, sans crête)
+            pts = [r0 - sd * w / 2, r0 + sd * w / 2, mid - sd * w * 0.32, mid + sd * w * 0.32, tip]
+            faces = [(0, 2, 3, 1), (2, 4, 3)]
         dbl = double(p, tip) if double else False
         for sens_f in ((1, -1) if dbl else (1,)):
             V = [bm.verts.new(B(q)) for q in pts]
@@ -435,9 +438,9 @@ def fourrure_tex(P, N, bd, pal, base, g, sens=(0.0, 1.0, 0.0), meche=False):
     v = base + (L.bruit(Q, 140.0, g) - 0.5) * 0.24 + (L.bruit(Q, 330.0, g + 1) - 0.5) * 0.14 + (L.fbm(Q, 26.0, g + 2) - 0.5) * 0.20 \
         + (L.fbm(P, 4.0, g + 3) - 0.5) * 0.10 + np.clip(N[:, 1], -1, 1) * 0.06
     jarre = L.bruit(Q, 520.0, g + 4) > 0.86                     # poils de jarre clairs, rares
-    v = np.where(jarre, v + 0.14, v)
+    v = np.where(jarre, v + 0.08, v)
     if meche:
-        v = np.where(bd < 0.0016, v - 0.16, np.where(bd < 0.006, v + 0.06, v))   # chaque mèche se détache (bord sombre, coeur clair)
+        v = np.where(bd < 0.0016, v - 0.16, np.where(bd < 0.006, v + 0.03, v))   # chaque mèche se détache (bord sombre, coeur clair)
     rgb = L.rampe(pal, np.clip(v, 0, 0.999))
     return rgba(rgb, 0.04 + v * 0.10)
 
@@ -864,10 +867,10 @@ def fourrure():
         r = p - cnt
         return Vector((r.x, -0.75 * max(0.3, Vector((r.x, 0, r.z)).length * 4.0), r.z))
     # mèches : 3 couches (dessous longues qui pendent sous le bord, milieu, dessus courtes vers le col)
-    m1 = meches(surf, "m1", 50, 0.085, 0.046, 11, 5, zone=lambda c, n: c.y < 1.36 and n.y > -0.5, sens=sens_p, souleve=0.014,
-                double=lambda p, t: t.y < 1.245 + abs(t.x) * 0.383, src=base)
-    m2 = meches(surf, "m2", 42, 0.070, 0.042, 11, 6, zone=lambda c, n: 1.33 < c.y < 1.45 and n.y > -0.5, sens=sens_p, souleve=0.012, src=base)
-    m3 = meches(surf, "m3", 32, 0.055, 0.036, 11, 7, zone=lambda c, n: c.y > 1.43 and n.y > -0.2, sens=sens_p, souleve=0.008, src=base)
+    m1 = meches(surf, "m1", 120, 0.062, 0.030, 11, 5, zone=lambda c, n: c.y < 1.36 and n.y > -0.5, sens=sens_p, souleve=0.006,
+                double=lambda p, t: t.y < 1.245 + abs(t.x) * 0.383, src=base, simple=True)
+    m2 = meches(surf, "m2", 90, 0.050, 0.027, 11, 6, zone=lambda c, n: 1.33 < c.y < 1.45 and n.y > -0.5, sens=sens_p, souleve=0.005, src=base, simple=True)
+    m3 = meches(surf, "m3", 70, 0.040, 0.024, 11, 7, zone=lambda c, n: c.y > 1.43 and n.y > -0.2, sens=sens_p, souleve=0.004, src=base, simple=True)
     # olive d'os qui ferme la pelisse devant, sur un cordon ; collier de crocs
     bm = bmesh.new()
     import mathutils
