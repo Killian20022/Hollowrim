@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_neant"]
+
+[resource]
+script = ExtResource("1_neant")
+id = "rayon_neant"
+nom = "Rayon du néant"
+ecole = "tenebres"
+type = 2
+portee_mode = 1
+icone = "rayon_neant"
+description = "Maintenir pour charger (cercle runique à mi-charge) ; relâcher lance un rayon noir qui traverse."
+cout = 52.0
+cout_charge_min = 0.55
+incantation = 0.2
+temps_charge = 1.4
+recuperation = 0.7
+recharge = 3.0
+degats = 78.0
+degats_charge_min = 0.4
+type_degats = "tenebres"
+statut = "corruption"
+duree_statut = 6.0
+puissance_statut = 0.2
+stagger = 40.0
+portee = 32.0
+largeur = 1.0
+traverse = 3
+forme = "rayon"
+double = {
+"cout": 2.4,
+"degats": 2.0,
+"duree_statut": 1.5,
+"largeur": 1.4,
+"stagger": 1.6
+}
+profil = "poing"
+seuil_interruption = 12.0

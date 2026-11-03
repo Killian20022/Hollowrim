@@ -170,11 +170,11 @@ func _mana() -> void:
 	_verif(magie.inc["gauche"].etat == Incantation.REPOS and magie.refus["gauche"].contains("mana"), "sans mana : refus expliqué (« %s »)" % magie.refus["gauche"])
 	magie.relacher("gauche")
 
-# ------------------------------------------------------------------ les 13 sorts offensifs
+# ------------------------------------------------------------------ les 14 sorts offensifs
 
 func _sorts() -> void:
 	var ids := ["jet_flammes", "boule_feu", "explosion_incendiaire", "eclat_glace", "lance_givre", "nova_gelee", "souffle_givre", "arc_electrique",
-		"chaine_eclairs", "tempete_statique", "trait_ombre", "drain_vie", "explosion_obscure", "orage_runique"]
+		"chaine_eclairs", "tempete_statique", "trait_ombre", "drain_vie", "explosion_obscure", "orage_runique", "rayon_neant"]
 	for id in ids:
 		magie.equiper("gauche", "vide")
 		magie.equiper("droite", id)
@@ -209,6 +209,11 @@ func _sorts() -> void:
 			_verif(LanceurSorts.facteur_charge(sd, 1.0) > LanceurSorts.facteur_charge(sd, 0.2) * 1.3, "%s : dégâts croissants avec la charge (x%.2f à x%.2f)" % [id, LanceurSorts.facteur_charge(sd, 0.2), LanceurSorts.facteur_charge(sd, 1.0)])
 		if sd.recharge > 0.5:
 			_verif(magie.recharges.has(id) or sd.recharge < 1.3, "%s : recharge en cours" % id)
+		if id == "rayon_neant":
+			# les dégâts croissent avec la charge ; la double magie élargit le rayon
+			_verif(LanceurSorts.facteur_charge(sd, 1.0) > LanceurSorts.facteur_charge(sd, 0.3) * 1.5, "rayon du néant : dégâts croissants avec la charge")
+			_verif(sd.type == DonneesSort.Type.CHARGE and sd.forme == "rayon" and sd.traverse >= 1, "rayon du néant : sort à charge, traversant")
+			_verif(LanceurSorts.version_double(sd).largeur > sd.largeur, "rayon du néant : la double magie élargit le rayon")
 	await _sim(4.0)   # fin de la tempête
 
 # ------------------------------------------------------------------ soin et protection

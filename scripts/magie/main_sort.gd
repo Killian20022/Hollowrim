@@ -458,9 +458,33 @@ func _avancer_main(m: String, dt: float, deux_canal: bool) -> void:
 				i.changer(Incantation.REPOS)
 				i.tampon = tampon
 	_aura_vers(m, s.ecole, _intensite(i, s), dt)
+	_cercle_neant(m, s, i)
 	if i.double and i.etat in [Incantation.RECUPERATION, Incantation.REPOS]:
 		EffetsMagie.double(s.ecole, false)
 		i.double = false
+
+## Sort à jet chargé (forme « rayon » : le rayon du néant) : le GRAND CERCLE RUNIQUE se trace devant la main, face à la visée, de la
+## mi-charge à la pleine charge (CercleNeant). Posé ici à chaque image ; le tir le reprend (LanceurSorts._rayon_neant).
+## Double magie : un seul cercle, plus grand, entre les deux paumes (posé par la main meneuse).
+func _cercle_neant(m: String, s: DonneesSort, i: Incantation) -> void:
+	if s.forme != "rayon" or s.type != DonneesSort.Type.CHARGE or _p(m) == null or EffetsMagie.muet:
+		return
+	if i.etat != Incantation.CHARGE or i.charge < CercleNeant.DEBUT * 0.8:
+		return
+	var c := CercleNeant.pour(_p(m), mains if paumes_effets[m] == null else _p(m), 1.0 if m == "gauche" else -1.0)
+	c.charge = i.charge
+	c.rayon = CercleNeant.RAYON * (1.3 if i.double else 1.0)
+	var vue := _vue()
+	var avant: Vector3 = vue[1]
+	var centre: Vector3 = _p(m).global_position
+	if i.double:
+		var autre := eq.autre(m)
+		if _p(autre) != null:
+			centre = (centre + _p(autre).global_position) * 0.5
+	# devant la main, ramené à moitié vers la ligne de visée : le cercle encadre la cible sans la masquer
+	centre += avant * 0.5
+	var sur_visee: Vector3 = vue[0] + avant * (centre - vue[0]).dot(avant)
+	c.placer(centre.lerp(sur_visee, 0.2), avant)
 
 func _intensite(i: Incantation, s: DonneesSort) -> float:
 	# repos : l'énergie reste bien visible dans la main (flammes orange, givre, arcs, volutes : références
