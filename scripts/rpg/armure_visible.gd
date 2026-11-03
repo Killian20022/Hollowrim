@@ -332,7 +332,7 @@ func _poser_chausses() -> void:
 	_portees.erase("jambes")
 	if id == "" or not ResourceLoader.exists(chemin):
 		return
-	var mi := charger_chemin(chemin, var_mat)
+	var mi := charger_chemin(chemin, var_mat, preset_de(jb) if jb != "" else "")
 	if mi == null:
 		return
 	mi.name = "armure_jambes"
@@ -391,9 +391,14 @@ func _poser(e: String) -> void:
 
 ## Maillage porté d'une pièce, prêt à rattacher à un Skeleton3D du héros (skin du glb, liaisons par NOM d'os ; matériaux habillés).
 static func charger_porte(id: String) -> MeshInstance3D:
-	return charger_chemin(chemin_porte(id), variante(id))
+	return charger_chemin(chemin_porte(id), variante(id), preset_de(id))
 
-static func charger_chemin(chemin: String, var_mat := "") -> MeshInstance3D:
+## Preset de matière imposé par la fiche (champ « preset_materiau », ex. "acier") : les chausses de fer, d'acier, des gardiens et de verre
+## sont livrées avec un matériau Blender « cuir » (rendu mat) ; la fiche des jambières correspondantes leur donne la bonne matière.
+static func preset_de(id: String) -> String:
+	return String(Inventaire.objet(id).get("preset_materiau", "")) if Inventaire.connu(id) else ""
+
+static func charger_chemin(chemin: String, var_mat := "", preset := "") -> MeshInstance3D:
 	var ps := load(chemin) as PackedScene
 	if ps == null:
 		return null
@@ -410,7 +415,7 @@ static func charger_chemin(chemin: String, var_mat := "") -> MeshInstance3D:
 	src.owner = null
 	inst.free()
 	src.transform = Transform3D.IDENTITY
-	_habiller_maillage(src, chemin, var_mat)
+	_habiller_maillage(src, chemin, var_mat, preset)
 	return src
 
 ## Pièce posée au sol / présentoir (glb statique, pivot au sol), matériaux habillés ; null si absente.
@@ -419,12 +424,12 @@ static func instancier_sol(id: String) -> Node3D:
 		return null
 	var n: Node3D = (load(chemin_sol(id)) as PackedScene).instantiate()
 	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
-		_habiller_maillage(mi, chemin_sol(id), variante(id))
+		_habiller_maillage(mi, chemin_sol(id), variante(id), preset_de(id))
 	n.name = "armure_sol_" + id
 	return n
 
-static func _habiller_maillage(mi: MeshInstance3D, chemin: String, var_mat := "") -> void:
-	var cle := chemin + ("|" + var_mat if var_mat != "" else "")
+static func _habiller_maillage(mi: MeshInstance3D, chemin: String, var_mat := "", preset := "") -> void:
+	var cle := chemin + ("|" + var_mat if var_mat != "" else "") + ("|=" + preset if preset != "" else "")
 	# LOD automatiques de l'import (generate_lods) : en 480x270 le moteur choisissait des niveaux très simplifiés qui mangeaient les
 	# plaques fines et la pelisse posées sur la coque (charte HD : la géométrie détaillée doit rester visible)
 	mi.lod_bias = 64.0
@@ -432,7 +437,7 @@ static func _habiller_maillage(mi: MeshInstance3D, chemin: String, var_mat := ""
 		var d := {}
 		for s in mi.mesh.get_surface_count():
 			var m := mi.mesh.surface_get_material(s)
-			var nom := nom_preset(m.resource_name if m else "cuir", var_mat)
+			var nom := nom_preset(preset if preset != "" else (m.resource_name if m else "cuir"), var_mat)
 			var tex: Texture2D = (m as BaseMaterial3D).albedo_texture if m is BaseMaterial3D else null
 			d[s] = materiau(nom, tex, var_mat)
 		_mats[cle] = d
