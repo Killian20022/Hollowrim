@@ -58,6 +58,12 @@ const MATIERES := {
 	"runes.enchante": {"teinte": Color(1.1, 1.25, 1.12), "metal": 0.2, "poli": 0.6, "lueur": 2.4, "reflet": Color(0.8, 1.0, 0.85)},
 	"verre.enchante": {"teinte": Color(1.0, 1.06, 1.0), "metal": 0.06, "bord": 0.85, "poli": 0.95, "lueur": 0.06, "reflet": Color(0.8, 1.0, 0.88)},
 	"or.enchante": {"teinte": Color(1.04, 1.02, 1.0), "metal": 0.75, "poli": 0.7, "lueur": 0.05, "reflet": Color(1.08, 0.94, 0.66)},
+	# variantes à lueur propre (émission = albédo² : seuls les texels clairs rougeoient, le reste de la pièce reste mat)
+	"cuir.braise": {"teinte": Color(1.04, 1.0, 0.98), "bord": 0.14, "poli": 0.22, "lueur": 0.7},
+	"fer.argent": {"teinte": Color(1.0, 1.0, 1.02), "metal": 0.25, "poli": 0.5, "reflet": Color(0.95, 0.97, 1.0)},
+	"fer.argent.p": {"teinte": Color(1.0, 1.0, 1.02), "metal": 0.25, "poli": 0.5, "reflet": Color(0.95, 0.97, 1.0)},
+	"cuir.braise.c": {"teinte": Color(1.04, 1.0, 0.98), "bord": 0.14, "poli": 0.22, "lueur": 0.7},
+	"fourrure.runes": {"teinte": Color(1.02, 1.0, 0.98), "bord": 0.05, "poli": 0.05, "lueur": 0.14},
 }
 ## Variante VISUELLE enchantée (objets rares) : même modèle, matériaux « <preset>.enchante » quand la fiche porte
 ## "variante_materiau": "enchante" ou que l'identifiant finit par _enchante (glb du modèle de base si la fiche n'en donne pas).

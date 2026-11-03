@@ -32,6 +32,7 @@ var familles: Array = ["cuir", "fourrure", "os"]
 var film := false
 var jambes := false
 var tete := false          # gros plans du casque de face / 3/4 / profil
+var v2 := false
 var chevilles := false     # gros plans des chevilles (bottes portées), sert au contrôle des fentes
 
 func _init() -> void:
@@ -122,6 +123,8 @@ func _go() -> void:
 			chevilles = true
 		elif a == "--avant":
 			avant = true
+		elif a == "--v2":
+			v2 = true
 	PiecesEssai.injecter()
 	if avant:
 		for id in PIECES["os"]:
@@ -159,6 +162,8 @@ func _go() -> void:
 		await _film()
 	elif tete:
 		await _tete()
+	elif v2:
+		await _v2()
 	elif chevilles:
 		await _chevilles()
 	elif jambes:
@@ -307,3 +312,62 @@ func _jambes() -> void:
 				_placer_cam({"face": 0.0, "profil": 90.0, "dos": 180.0}[v], 2.6, 0.62, 0.75)
 				await _attendre(0.12)
 				await _capture("j_%s_%s_%s" % [f, combo[0], v], Rect2i(330, 0, 300, 540), "%s %s %s" % [NOMS.get(f, f), combo[0].replace("_", "+"), v])
+
+
+## Planche v2 des armures uniques : gros plans de face en pose « tête droite » (sans épée en main : le héros reprend l'Idle debout),
+## gros plan des mains (griffes), chaque cuirasse / pièce au sol seule en vue plongeante.
+##   godot --path . --resolution 960x540 --script res://outils/captures_armures_portees.gd -- --nouvelle --v2 --sortie=<dossier> --familles=uniques,uniques2
+func _v2() -> void:
+	DirAccess.make_dir_recursive_absolute(sortie)
+	cam = Camera3D.new()
+	cam.fov = 30.0
+	s.add_child(cam)
+	cam.current = true
+	mains.magie.equiper("droite", "vide")
+	await _attendre(1.0)
+	for f in familles:
+		_equiper_famille(f)
+		await _attendre(1.0)
+		_placer_cam(0.0, 1.0, 1.66, 1.68)
+		await _attendre(0.2)
+		await _capture("%s_tete_face" % f, Rect2i(300, 0, 360, 540), "%s - tete droite, face" % f)
+		_placer_cam(25.0, 1.0, 1.66, 1.68)
+		await _attendre(0.2)
+		await _capture("%s_tete_34" % f, Rect2i(300, 0, 360, 540), "%s - tete droite, 3/4" % f)
+		_placer_cam(90.0, 1.0, 1.66, 1.68)
+		await _attendre(0.2)
+		await _capture("%s_tete_profil" % f, Rect2i(300, 0, 360, 540), "%s - tete droite, profil" % f)
+		_placer_cam(0.0, 1.6, 1.15, 1.2)
+		await _attendre(0.2)
+		await _capture("%s_buste_face" % f, Rect2i(300, 0, 360, 540), "%s - buste, face" % f)
+		_placer_cam(0.0, 1.1, 0.95, 0.98)
+		await _attendre(0.2)
+		await _capture("%s_mains_face" % f, Rect2i(240, 0, 480, 540), "%s - mains, face" % f)
+		_placer_cam(60.0, 0.9, 0.95, 0.98)
+		await _attendre(0.2)
+		await _capture("%s_mains_34" % f, Rect2i(240, 0, 480, 540), "%s - mains, 3/4" % f)
+		_placer_cam(0.0, 1.2, 0.35, 0.5)
+		await _attendre(0.2)
+		await _capture("%s_bas_face" % f, Rect2i(240, 0, 480, 540), "%s - jambes, face" % f)
+		_placer_cam(90.0, 1.2, 0.35, 0.5)
+		await _attendre(0.2)
+		await _capture("%s_bas_profil" % f, Rect2i(240, 0, 480, 540), "%s - jambes, profil" % f)
+		# chaque pièce au sol, seule, vue plongeante
+		j.visible = false
+		if OS.get_cmdline_user_args().has("--sans-ombre"):
+			s.soleil.shadow_enabled = false
+		for id: String in PIECES.get(f, []):
+			var n := ArmureVisible.instancier_sol(id)
+			if n == null:
+				continue
+			s.add_child(n)
+			var devant := -j.global_transform.basis.z
+			n.global_position = j.global_position + devant * 1.6
+			n.rotation.y = j.rotation.y + PI
+			var c := n.global_position
+			cam.global_position = c + devant * 1.6 + Vector3(0, 1.3, 0)
+			cam.look_at(c + Vector3(0, 0.05, 0), Vector3.UP)
+			await _attendre(0.2)
+			await _capture("sol_%s" % id, Rect2i(240, 0, 480, 540), "sol : " + id)
+			n.queue_free()
+		j.visible = true
