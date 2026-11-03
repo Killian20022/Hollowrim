@@ -918,9 +918,50 @@ def or_en_premier(ob):
         ob.data.materials.append(mats[i])
 
 
+def bavolet_sur_cou(ob, r):
+    """Le bavolet et le bas des joues (côtés et nuque) pendent sur le cou : leurs sommets bas prennent les poids de la PEAU la plus
+    proche (neck_01 + Head), fondus depuis la tête (1,615 m -> 1,585 m) ; sinon, quand la tête s'incline (sorts de zone, accroupi), la
+    peau du cou sortait de 52 mm à travers le bavolet (test_armure_visible, traversée de l'or). Devant (barbe), rien ne change."""
+    from mathutils.kdtree import KDTree
+    peau = r.corps["peau"]
+    mw = peau.matrix_world
+    kd = KDTree(len(peau.data.vertices))
+    for v in peau.data.vertices:
+        kd.insert(mw @ v.co, v.index)
+    kd.balance()
+    gn = {g.index: g.name for g in peau.vertex_groups}
+    n = 0
+    plan = []
+    for v in ob.data.vertices:
+        if v.co.z < 1.615 and v.co.y > -0.025:
+            t = min(1.0, (1.615 - v.co.z) / 0.03) * min(1.0, (v.co.y + 0.025) / 0.02)
+            q = ob.matrix_world @ v.co
+            i = kd.find(Vector((q.x, q.y, min(q.z, 1.56))))[1]      # peau du cou à la hauteur de la mâchoire, pas l'oreille
+            W = {gn[g.group]: g.weight for g in peau.data.vertices[i].groups if g.weight > 1e-4}
+            d = {"Head": 1.0 - t}
+            for k, w in W.items():
+                d[k] = d.get(k, 0.0) + w * t
+            plan.append((v.index, d))
+    for idx, d in plan:
+        it = sorted(d.items(), key=lambda kv: -kv[1])[:4]
+        tot = sum(w for _, w in it)
+        for g in ob.vertex_groups:
+            g.remove([idx])
+        for k, w in it:
+            if w <= 0:
+                continue
+            if k not in ob.vertex_groups:
+                ob.vertex_groups.new(name=k)
+            ob.vertex_groups[k].add([idx], w / tot, "REPLACE")
+        n += 1
+    print("BAVOLET sur le cou :", n, "sommets")
+
+
 def construire(pid, dossier=None, enchante=True):
     r = C.charger_reference()
     ob = PIECES[pid](r)
+    if pid == "casque_or":
+        bavolet_sur_cou(ob, r)
     if pid == "bottes_or":
         or_en_premier(ob)
     if pid == "cuirasse_or":
