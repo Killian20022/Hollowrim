@@ -74,3 +74,8 @@ neige_objets={
 "type": "float",
 "value": 1.0
 }
+
+vent_monde={
+"type": "vec3",
+"value": Vector3(0.45, 0, 0.2)
+}

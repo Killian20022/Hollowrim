@@ -11,7 +11,7 @@ extends RefCounted
 ## plafond sous charpente, entraits, poteaux) et accessoires courants (table, banc, coffre, tonneau, lit…).
 
 const SHADER := preload("res://shaders/ps1_interieur.gdshader")
-const FLAMME_SHADER := preload("res://shaders/crypte_flamme.gdshader")
+const FLAMME_SHADER := preload("res://shaders/flamme_fixe.gdshader")
 const RAI_SHADER := preload("res://shaders/ps1_rai.gdshader")
 const F := 0.42
 const AMBIANT := Color(0.29, 0.24, 0.25)
@@ -340,8 +340,12 @@ static func lacet_libre(pos: Vector3) -> float:
 
 # ------------------------------------------------------------------------------------------------ feu et lumière
 
-func flamme(pos: Vector3, echelle := 1.0) -> void:
-	_flammes.append([pos, echelle, rng.randf() * 4.0])
+func flamme(pos: Vector3, echelle := 1.0, cuit := 0.0) -> void:
+	_flammes.append([pos, echelle, rng.randf() * 4.0, cuit])
+
+## Lit de braises incandescent (cases de monde qui pulsent, shaders/feu_lit_braises.gdshader) posé sur les braises d'un foyer.
+func lit_braises(pos: Vector3, taille: Vector2) -> void:
+	FeuFixe.lit_de_braises(ip.racine, pos, taille, 0.04)
 
 ## Carte additive posée (halo au sol ou sur un mur, rai de lumière) ; `normale` horizontale ou verticale.
 func halo(centre: Vector3, normale: Vector3, w: float, h: float, couleur := Color(1, 1, 1, 1), nom := "halo") -> void:
@@ -769,10 +773,10 @@ func finir() -> void:
 		mm.instance_count = _flammes.size()
 		for i in _flammes.size():
 			mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, _flammes[i][0]))
-			mm.set_instance_custom_data(i, Color(_flammes[i][2], _flammes[i][1], 0.0, 0.0))
+			mm.set_instance_custom_data(i, Color(_flammes[i][2], _flammes[i][1], _flammes[i][3], 0.0))
 		var sm := ShaderMaterial.new()
 		sm.shader = FLAMME_SHADER
-		sm.set_shader_parameter("atlas", _atlas)
+		sm.set_shader_parameter("vent_k", 0.0)      # à l'abri du toit
 		var mmi := MultiMeshInstance3D.new()
 		mmi.multimesh = mm
 		mmi.material_override = sm

@@ -45,6 +45,7 @@ static func _colonne_foyer(b: Interieurs, xch: float) -> void:
 	b.rondin(Vector3(xch - 0.12, F + 0.22, -0.12), 0.15, 0.62, 0.065, 351, "rondin_sombre")
 	b.rondin(Vector3(xch - 0.1, F + 0.22, 0.14), -0.2, 0.62, 0.06, 352, "rondin_sombre")
 	b.flamme(Vector3(xch - 0.12, F + 0.17, 0), 1.5)
+	b.lit_braises(Vector3(xch - 0.14, F + 0.16, 0), Vector2(0.62, 0.52))
 	# âtre : dalle de pierre devant la bouche, halos, lumière
 	b.dallage(Rect2(xch - 1.5, -0.85, 1.1, 1.7), "pierre_sombre", F + 0.03)
 	b.halo(Vector3(xch - 0.85, F + 0.05, 0), Vector3.UP, 3.4, 3.4, Color(1, 0.9, 0.8, 1))

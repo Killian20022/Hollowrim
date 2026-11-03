@@ -1,10 +1,10 @@
 class_name Torche
-## Torche tenue en main (lot 6) : manche de bois noueux à bague de fer et lanière de cuir, tête de chiffons goudronnés
+## Torche tenue en main (lot 6 ; flamme en GROS PIXELS avec inertie : scripts/flamme_torche.gd + shaders/flamme_pixels.gdshader) : manche de bois noueux à bague de fer et lanière de cuir, tête de chiffons goudronnés
 ## (bandes, bouts qui pendent, coulures de goudron), braises incandescentes, flamme en SPRITES pixel art animés (6 images,
 ## même famille que les torches murales de la crypte), halo net additif, quelques étincelles carrées nettes, lumière vacillante.
 ## Repère : +Y le long du manche, origine au poing. Plus aucune particule floue : la flamme est un sprite, partout.
 
-const FLAMME_SHADER := preload("res://shaders/flamme_sprite.gdshader")
+const FLAMME_PIXELS := preload("res://shaders/flamme_pixels.gdshader")
 const HALO_SHADER := preload("res://shaders/halo_sprite.gdshader")
 const BRAISE_SHADER := preload("res://shaders/braise.gdshader")
 const HAUT_TETE := 0.53   # hauteur du pied de la flamme
@@ -41,46 +41,48 @@ static func _boite(parent: Node3D, taille: Vector3, pos: Vector3, rot: Vector3, 
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 
-## Étincelles : petits carrés NETS (pas de fondu), qui montent et rétrécissent jusqu'à disparaître.
+## Braises : carrés NETS de 3 à 5 px (shader des gerbes de pixels), tons de la flamme ; monde (local_coords faux) : quand la torche
+## avance, elles restent derrière et dessinent la traînée ; elles montent un peu, ralentissent puis s'éteignent par paliers.
 static func _etincelles(parent: Node3D, pos: Vector3) -> GPUParticles3D:
 	var p := GPUParticles3D.new()
-	p.amount = 7
-	p.lifetime = 1.0
+	p.amount = 14
+	p.lifetime = 1.1
 	p.local_coords = false
 	p.position = pos
-	p.fixed_fps = 30
-	p.visibility_aabb = AABB(Vector3(-1, -1, -1), Vector3(2, 3, 2))
+	p.fixed_fps = 24
+	p.visibility_aabb = AABB(Vector3(-2, -2, -2), Vector3(4, 5, 4))
 	var pm := ParticleProcessMaterial.new()
 	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	pm.emission_sphere_radius = 0.025
+	pm.emission_sphere_radius = 0.03
 	pm.direction = Vector3.UP
-	pm.spread = 30.0
-	pm.initial_velocity_min = 0.25
-	pm.initial_velocity_max = 0.6
-	pm.gravity = Vector3(0, 0.25, 0)
-	pm.scale_min = 0.7
-	pm.scale_max = 1.2
+	pm.spread = 35.0
+	pm.initial_velocity_min = 0.12
+	pm.initial_velocity_max = 0.4
+	pm.gravity = Vector3(0, 0.12, 0)
+	pm.damping_min = 0.4
+	pm.damping_max = 1.2
+	pm.scale_min = 0.012
+	pm.scale_max = 0.022
 	var g := Gradient.new()
-	g.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
-	g.colors = PackedColorArray([Color("#ffd862"), Color("#ffa52c"), Color("#e5601a")])
 	g.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CONSTANT
+	g.offsets = PackedFloat32Array([0.0, 0.25, 0.6, 0.85])
+	g.colors = PackedColorArray([Color("#fff5b0"), Color("#ffc83a"), Color("#f07319"), Color("#c43014")])
 	var gt := GradientTexture1D.new()
 	gt.gradient = g
-	pm.color_ramp = gt
-	var c := Curve.new()
-	c.add_point(Vector2(0, 1.0))
-	c.add_point(Vector2(0.7, 0.8))
-	c.add_point(Vector2(1, 0.0))
-	var ct := CurveTexture.new()
-	ct.curve = c
-	pm.scale_curve = ct
+	gt.width = 64
+	pm.color_initial_ramp = gt
+	var ga := Gradient.new()
+	ga.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
+	ga.colors = PackedColorArray([Color(1, 1, 1, 1), Color(0.8, 0.45, 0.3, 1), Color(0.4, 0.15, 0.1, 0)])
+	var gat := GradientTexture1D.new()
+	gat.gradient = ga
+	pm.color_ramp = gat
 	p.process_material = pm
 	var q := QuadMesh.new()
-	q.size = Vector2(0.011, 0.011)
-	var mq := StandardMaterial3D.new()
-	mq.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mq.vertex_color_use_as_albedo = true
-	mq.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	var mq := ShaderMaterial.new()
+	mq.shader = preload("res://shaders/gerbe_pixels.gdshader")
+	mq.set_shader_parameter("taille_min", 3.0)
+	mq.set_shader_parameter("taille_max", 5.0)
 	q.material = mq
 	p.draw_pass_1 = q
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -99,16 +101,14 @@ static func _carte(parent: Node3D, pos: Vector3, mat: ShaderMaterial) -> MeshIns
 	parent.add_child(mi)
 	return mi
 
-## Même flamme (même atlas, même rythme brouillé à 10 i/s) pour une applique ou un feu fixe : shader crypte_flamme (mêmes images,
-## phase propre à l'instance). `echelle` 1 = flamme de torche murale de la crypte.
+## Même flamme en gros pixels que la torche tenue, pour une applique ou un feu fixe (phase propre à l'instance).
 static func flamme_fixe(parent: Node3D, pos: Vector3, echelle := 1.0, phase := 0.0) -> MeshInstance3D:
-	var sm := ShaderMaterial.new()
-	sm.shader = preload("res://shaders/crypte_flamme.gdshader")
-	sm.set_shader_parameter("atlas", ObjetsTextures.tex("flamme"))
+	# flamme en gros pixels (shaders/flamme_fixe.gdshader) : mêmes cases, mêmes 5 tons que la torche tenue ; `echelle` 1 = 0,45 m de haut
+	var sm := FeuFixe.materiau_flamme(0.032, phase)
 	sm.set_shader_parameter("echelle_u", echelle)
-	sm.set_shader_parameter("phase_u", phase)
 	var mi := _carte(parent, pos, sm)
 	(mi.mesh as QuadMesh).center_offset = Vector3(0, 0.5, 0)
+	mi.extra_cull_margin = 3.0
 	return mi
 
 ## Construit la torche sous `parent`. Renvoie {"flamme": Array[GPUParticles3D] (étincelles), "lumiere": OmniLight3D,
@@ -153,12 +153,22 @@ static func construire(parent: Node3D) -> Dictionary:
 	bm.set_shader_parameter("tex", ObjetsTextures.tex("braise"))
 	_cone(parent, 0.035, 0.022, 0.02, 9, 0.52, bm)
 
-	# flamme : sprite pixel art animé ; halo net (anneaux posterisés) derrière
+	# flamme en gros pixels : un pilote (inertie, braises, lumière) au pied de la flamme, un quad au shader flamme_pixels ;
+	# halo net (anneaux posterisés) derrière
+	var pilote := preload("res://scripts/flamme_torche.gd").new() as Node3D
+	pilote.position = Vector3(0, HAUT_TETE - 0.03, 0)   # le pied est enfoncé dans la calotte : la tête bombée le cache et l'arrondit
+	parent.add_child(pilote)
 	var fm := ShaderMaterial.new()
-	fm.shader = FLAMME_SHADER
-	fm.set_shader_parameter("atlas", ObjetsTextures.tex("flamme"))
-	var flamme := _carte(parent, Vector3(0, HAUT_TETE, 0), fm)
-	(flamme.mesh as QuadMesh).center_offset = Vector3(0, 0.5, 0)
+	fm.shader = FLAMME_PIXELS
+	var flamme := MeshInstance3D.new()
+	var fq := QuadMesh.new()
+	fq.size = Vector2(1, 1)
+	fq.center_offset = Vector3(0, 0.5, 0)
+	flamme.mesh = fq
+	flamme.material_override = fm
+	flamme.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	flamme.extra_cull_margin = 2.0
+	pilote.add_child(flamme)
 	var hm := ShaderMaterial.new()
 	hm.shader = HALO_SHADER
 	hm.set_shader_parameter("halo", ObjetsTextures.tex("halo"))
@@ -166,7 +176,8 @@ static func construire(parent: Node3D) -> Dictionary:
 	hm.set_shader_parameter("intensite", 0.75)
 	var halo := _carte(parent, Vector3(0, HAUT_TETE + 0.1, 0), hm)
 
-	var systemes: Array[GPUParticles3D] = [_etincelles(parent, Vector3(0, HAUT_TETE + 0.05, 0))]
+	var braises := _etincelles(pilote, Vector3(0, 0.05, 0))
+	var systemes: Array[GPUParticles3D] = [braises]
 
 	var lum := OmniLight3D.new()
 	lum.light_color = Color(1.0, 0.58, 0.28)
@@ -176,4 +187,10 @@ static func construire(parent: Node3D) -> Dictionary:
 	lum.position = Vector3(0, 0.58, 0.06)
 	lum.shadow_enabled = false
 	parent.add_child(lum)
-	return {"flamme": systemes, "lumiere": lum, "haut": lum.position, "visuels": [flamme, halo], "halo_mat": hm}
+	pilote.set("mat", fm)
+	pilote.set("lumiere", lum)
+	pilote.set("halo", halo)
+	pilote.set("braises", braises)
+	pilote.set("lumiere_base", lum.position)
+	pilote.set("halo_base", halo.position)
+	return {"flamme": systemes, "lumiere": lum, "haut": lum.position, "visuels": [pilote, halo], "halo_mat": hm, "pilote": pilote}
