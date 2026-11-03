@@ -24,6 +24,7 @@ from mathutils import Vector, Matrix
 
 TEXTURES = os.path.join(ICI, "textures")
 TAILLE = 512
+TAILLE_OR = 1024      # l'or est peint en aplats nets anti-aliasés : 1024² (l'obsidienne reste à 512²)
 TAU = math.tau
 DEVANT = Vector((0, -1, 0)); HAUT = Vector((0, 0, 1)); GAUCHE = Vector((1, 0, 0)); DOS = Vector((0, 1, 0))
 UV_D = (0.0, 89.5 / 128, 0.05, 90.5 / 128)       # 2e atlas (sémantique) des décors : hors des bandes de l'agent Y
@@ -817,11 +818,11 @@ def construire(pid, dossier=None, enchante=True):
     tris = C.compter_tris(ob)
     print("PIECE", pid, tris, "tris", "matériaux", [m.name for m in ob.data.materials])
     hd.uv_uniques(ob)
-    tab, _ = hd.cuire(ob, TAILLE, peintre(pid, False))
+    tab, _ = hd.cuire(ob, TAILLE_OR if ENSEMBLE[pid] == "or" else TAILLE, peintre(pid, False))
     img = hd.image(pid, tab, TEXTURES)
     tab_e = None
     if enchante:
-        tab_e, _ = hd.cuire(ob, TAILLE, peintre(pid, True))
+        tab_e, _ = hd.cuire(ob, TAILLE_OR if ENSEMBLE[pid] == "or" else TAILLE, peintre(pid, True))
     hd.retirer_uv_sem(ob)
     hd.poser_image(ob, img)
     hd.couleur_blanche(ob)

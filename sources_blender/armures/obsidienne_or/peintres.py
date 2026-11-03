@@ -273,63 +273,59 @@ def _bandes_or(D):
     return zone, s, t, h
 
 
+def _aa(x, a, largeur=0.0009):
+    """Seuil anti-aliasé : 0 sous a, 1 au-dessus, transition douce sur `largeur` mètres (≈ 1,5 texel à 1024²)."""
+    return lisse(a - largeur, a + largeur, x)
+
+
 def or_patine(D, g=61, lion=False):
-    """Or patiné (planche GOLD) : panneaux crème / argentés (cuirasse, brassards, cuissots) bordés d'une large bande d'or franc
-    (arête crème, bande, rainure noire, filet clair), rivets, rubans d'entrelacs d'or sur fond sombre (grands, lisibles à distance
-    de jeu) ; visière : fente en T noire. Lion : relief cuit (lumière de face, creux sombres, arêtes claires)."""
-    P, N, bord, ao, uv = D["P"], D["N"], D["bord"], D["ao"], D["uv"]
+    """Or propre (planche GOLD) : or lisse (dégradé de lumière seul, aucun bruit d'usure), panneaux crème / argentés en aplats nets
+    alignés sur les plaques (cuirasse, brassards, cuissots), large bordure d'or régulière (arête claire, bande, rainure sombre, filet
+    clair) à transitions anti-aliasées ; lames horizontales sur les grèves ; visière : fente en T noire. Lion : relief cuit
+    (lumière de face, creux sombres, arêtes claires)."""
+    P, N, bord, ao = D["P"], D["N"], D["bord"], D["ao"]
     piece = D.get("piece", "")
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
-    n = fbm(P, 12.0, g)
-    brosse = bruit(P, np.array([30.0, 500.0, 30.0]), g + 3)
-    t = 0.83 + (n - 0.5) * 0.12 + (brosse - 0.5) * 0.06 + (fbm(P, 140.0, g + 4) - 0.5) * 0.04
-    b = 0.82 + 0.15 * brosse
-    tern = np.clip((0.6 - ao) * 2.0, 0, 1)
-    t = t - 0.22 * tern
-    b = b * (1 - 0.6 * tern)
-    aret = bord < 0.0050
+    L = np.array([-0.35, 0.65, 0.68]); L = L / np.linalg.norm(L)
+    sh = np.clip(N @ L, 0, 1)
+    creux = np.clip((0.78 - ao) * 2.2, 0, 1)
     if lion:
-        L = np.array([-0.45, 0.62, 0.65]); L = L / np.linalg.norm(L)
-        sh = np.clip(N @ L, 0, 1)
-        meche = bruit(P, np.array([180.0, 180.0, 180.0]), g + 9)
-        tl = 0.22 + 0.80 * sh ** 1.3 + 0.10 * (meche - 0.5)
-        tl = tl - 0.75 * np.clip((0.88 - ao) * 3.0, 0, 1)
-        tl = np.where(aret, 0.98, tl)
-        return _rgba(rampe(OR_PATINE, np.clip(tl, 0, 1)), np.where(aret, 1.0, 0.9))
-    # bordure : arête crème brillante, bande d'or franc et sombre (large), rainure noire, filet clair
-    t = np.where(aret, 0.98, t)
-    b = np.where(aret, 1.0, b)
-    bande = (bord >= 0.0050) & (bord < 0.0185)
-    t = np.where(bande, 0.60 + (n - 0.5) * 0.10 + 0.10 * brosse, t)
-    gr = (bord >= 0.0185) & (bord < 0.0220)
-    t = np.where(gr, 0.04, t)
-    b = np.where(gr, 0.1, b)
-    fil2 = (bord >= 0.0220) & (bord < 0.0255)
-    t = np.where(fil2, 0.97, t)
-    b = np.where(fil2, 1.0, b)
-    f1, f2, cid, d1 = voronoi(P, 0.026, g + 7)
-    poincon = (f1 < 0.0034) & (bord > 0.027) & (cid > 0.45)
+        tl = 0.22 + 0.80 * sh ** 1.3 - 0.75 * np.clip((0.88 - ao) * 3.0, 0, 1)
+        tl = np.where(bord < 0.0050, 0.98, tl)
+        return _rgba(rampe(OR_PATINE, np.clip(tl, 0, 1)), 0.9)
+    # or : dégradé lisse
+    t = 0.66 + 0.20 * sh - 0.30 * creux
+    c = rampe(OR_PATINE, np.clip(t, 0, 1))
+    b = np.full(len(P), 0.9) * (1 - 0.5 * creux)
+    # bordure : arête claire | bande d'or | rainure sombre | filet clair
+    arete = 1 - _aa(bord, 0.0045)
+    rain = _aa(bord, 0.0185) * (1 - _aa(bord, 0.0225))
+    fil = _aa(bord, 0.0225) * (1 - _aa(bord, 0.0265))
+    bande = _aa(bord, 0.0045) * (1 - _aa(bord, 0.0185))
+    sombre = rampe(OR_PATINE, np.full(len(P), 0.12))
+    clair = rampe(OR_PATINE, np.full(len(P), 0.97))
+    orb = rampe(OR_PATINE, np.clip(0.60 + 0.12 * sh - 0.2 * creux, 0, 1))
+    c = c * (1 - bande[:, None]) + orb * bande[:, None]
+    c = c * (1 - rain[:, None]) + sombre * rain[:, None]
+    c = c * (1 - fil[:, None]) + clair * fil[:, None]
+    c = c * (1 - arete[:, None]) + clair * arete[:, None]
+    # panneau crème : aplat net à l'intérieur du filet
     if piece in ("cuirasse", "gantelets"):
-        panneau = bord >= 0.0255
+        pan = _aa(bord, 0.0265)
     elif piece == "bottes":
-        panneau = (bord >= 0.0255) & (y > 0.45)
+        pan = _aa(bord, 0.0265) * _aa(y, 0.45)
     else:
-        panneau = np.zeros(len(P), dtype=bool)
-    zone, s, tt, h = _bandes_or(D)
-    rub, lise, fil = entrelacs(s, tt, h)
-    z_ = zone & (bord > 0.006)
-    t = np.where(poincon & ~panneau, t - 0.40, t)
-    c = rampe(OR_PATINE, t)
-    tc = 0.66 + (n - 0.5) * 0.18 + (brosse - 0.5) * 0.10 + 0.14 * np.clip(N[:, 1], -1, 1) - 0.28 * tern
-    c = np.where(panneau[:, None], rampe(CREME, np.clip(tc, 0, 1)), c)
-    b = np.where(panneau, 0.55, b)
-    riv = panneau & (f1 < 0.0036) & (cid > 0.7)
-    c = np.where(riv[:, None], rampe(OR_PATINE, np.full(len(P), 0.30)), c)
-    gold = rampe(OR_PATINE, np.full(len(P), 0.86))
-    sombre = rampe(OR_PATINE, np.full(len(P), 0.10))
-    c = np.where((z_ & rub)[:, None], gold, np.where((z_ & (lise | fil))[:, None], sombre * 0.5,
-                 np.where(z_[:, None], sombre * 1.8, c)))
-    b = np.where(z_ & (lise | fil), 0.15, np.where(z_ & rub, 1.0, b))
+        pan = np.zeros(len(P))
+    tc = 0.70 + 0.22 * sh - 0.30 * creux
+    c = c * (1 - pan[:, None]) + rampe(CREME, np.clip(tc, 0, 1)) * pan[:, None]
+    if piece == "bottes":
+        # grève et pied : lames horizontales régulières (rainure sombre + filet clair tous les 6 cm), sous le genou
+        ph = np.mod(y, 0.06) / 0.06
+        rl = (1 - _aa(np.abs(ph - 0.5), 0.05, 0.02)) * (y < 0.45)
+        fl = (1 - _aa(np.abs(ph - 0.62), 0.03, 0.015)) * (y < 0.45)
+        c = c * (1 - rl[:, None]) + sombre * rl[:, None]
+        c = c * (1 - fl[:, None]) + clair * fl[:, None]
+    b = np.where(pan > 0.5, 0.55, b)
     if piece == "casque":
         devant = (z > 0.07) & (y < 1.69)
         fente = devant & (((np.abs(y - 1.637) < 0.010) & (np.abs(x) < 0.058)) | ((np.abs(x) < 0.009) & (y > 1.562) & (y < 1.64)))
