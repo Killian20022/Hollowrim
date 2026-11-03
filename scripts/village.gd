@@ -1488,6 +1488,9 @@ func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_m
 	if cheffe:
 		# boucliers peints accrochés au mur, de part et d'autre de la porte, et bancs
 		for x in [-2.6, -1.7, 1.9, 2.7]:
+			if PropsQuaternius.remplace and PropsQuaternius.existe("q_bouclier_bois"):      # props/remplacement : Shield_Wooden Quaternius
+				PropsQuaternius.village(self, p, "q_bouclier_bois", Transform3D(Basis.from_scale(Vector3.ONE * 1.15), Vector3(x, 0.4 + 1.3 - 0.36, zf + 0.04)), false, {"fer": "fer", "bois": "bois" if x < 0 else "or"})
+				continue
 			_cylindre(p, 0.38, 0.38, 0.06, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(x, 0.4 + 1.3, zf + 0.06)), m_cuir if x < 0 else m_fer, 8)
 			_cylindre(p, 0.09, 0.09, 0.09, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(x, 0.4 + 1.3, zf + 0.1)), m_fer, 8)
 		_banc(p, Vector3(-2.2, 0, zf + 0.75), 2.0)
@@ -1578,6 +1581,9 @@ func _vitre(parent: Node3D, pos: Vector3, taille: Vector2, lacet: float) -> void
 
 ## Banc : planche épaisse sur deux pieds.
 func _banc(parent: Node3D, pos: Vector3, longueur: float) -> void:
+	if PropsQuaternius.remplace and PropsQuaternius.existe("q_banc"):      # props/remplacement : Bench Quaternius
+		PropsQuaternius.village(self, parent, "q_banc", Transform3D(Basis.from_scale(Vector3(longueur / 2.34, 1.1, 0.9)), pos))
+		return
 	_boite(parent, Vector3(longueur, 0.1, 0.4), Transform3D(Basis(), pos + Vector3(0, 0.5, 0)), m_poutres_h)
 	for dx in [-0.42, 0.42]:
 		_boite(parent, Vector3(0.1, 0.5, 0.36), Transform3D(Basis(), pos + Vector3(dx * longueur * 0.5 / 0.42 * 0.8, 0.25, 0)), m_poutres)

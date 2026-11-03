@@ -1,0 +1,13 @@
+# props/remplacement : crypte (repère crypte x,z,lacet°,tangage°) et grotte (s,décalage,lacet°,tangage°)
+c_quartiers1 crypte 16.5,0.5,-50,-5 ouvre=s1,s2,s3,secret,herse
+c_quartiers2 crypte 25.5,-8,150,-5 ouvre=s1,s2,s3,secret,herse
+c_tresor crypte -52,-59,90,-5 ouvre=s1,s2,s3,secret,herse
+c_salle crypte 0,-19.5,0,-5 ouvre=s1,s2,s3,secret,herse
+c_archives crypte -26,-47,90,-5 ouvre=s1,s2,s3,secret,herse
+c_rit crypte 0,-43,0,-4 ouvre=s1,s2,s3,secret,herse
+c_arene crypte 0,-60,0,-8 ouvre=s1,s2,s3,secret,herse
+g_repaire1 grotte 306,2.5,48,-2 sans-mains
+g_repaire2 grotte 315,-2,-130,-3 sans-mains
+g_mine1 grotte 114,0,0,-4 sans-mains
+g_mine2 grotte 135,0.5,20,-4 sans-mains
+g_mine3 grotte 145,-0.5,-40,-4 sans-mains

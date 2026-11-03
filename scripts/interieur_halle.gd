@@ -60,7 +60,11 @@ static func construire(b: Interieurs) -> void:
 		b.bouclier(Vector3(x, 1.75, zb), 0.0, 0.36, mats[k])
 	b.applique(Vector3(-1.2, 1.8, zb), 0.0, 1.5, 5.5)
 	b.applique(Vector3(1.2, 1.8, zb), 0.0, 1.5, 5.5)
-	b.bx(Vector3(-5.9, 0.9, -3.0), Vector3(0.9, 1.0, 0.5), "bois_v", 0.0, true)       # dressoir d'angle
+	if Interieurs.rempl("q_etabli_tiroirs"):      # dressoir d'angle = établi à tiroirs Quaternius (Workbench_Drawers), même collision
+		b.solide(Vector3(-5.9, 0.9, -3.0), Vector3(0.9, 1.0, 0.5))
+		b.qf("q_etabli_tiroirs", Vector3(-5.9, F, -3.0), 0.0, Vector3(0.9, 0.98, 0.5))
+	else:
+		b.bx(Vector3(-5.9, 0.9, -3.0), Vector3(0.9, 1.0, 0.5), "bois_v", 0.0, true)       # dressoir d'angle
 	_dressoir_garni(b, Vector3(-5.9, 0.9 + 0.5, -3.0))
 
 	# --- long pan avant (z = +3.31, lacet PI) : râteliers, tentures, barils
@@ -83,7 +87,7 @@ static func construire(b: Interieurs) -> void:
 	b.coffre(Vector3(xw + 0.4, F + 0.52, 0.6), PI * 0.5, Vector3(0.8, 0.42, 0.5))
 	b.etagere(Vector3(xw + 0.17, F, 2.55), PI * 0.5, 1.4, 1.9, 4, 0.32)
 	for k in 4:
-		b.cruche(Vector3(xw + 0.2, F + 0.52 + 0.46 * (k % 3), 2.2 + 0.28 * (k % 2) + int(k / 3) * 0.2))
+		b.cruche(Vector3(xw + 0.2, F + b.niv(k % 3), 2.2 + 0.28 * (k % 2) + int(k / 3) * 0.2))
 	for k in 3:
 		b.sac(Vector3(xw + 0.55 + k * 0.5, F, 2.9), 0.3 + k * 0.7)
 	b.tenture(Vector3(xw + 0.04, 1.7, -0.3), PI * 0.5, 1.5, 2.0, "tenture_r")
@@ -157,12 +161,23 @@ static func _estrade(b: Interieurs) -> void:
 	var F := Interieurs.F
 	b.solide(Vector3(0, F + 0.11, -2.65), Vector3(3.1, 0.22, 1.3))
 	b.solide(Vector3(0, F + 0.05, -1.85), Vector3(3.1, 0.1, 0.34))
-	b.modele("estrade_halle", Vector3(0, F, -2.65))
+	if Interieurs.rempl("q_planches_sol"):      # KITBASH : caisson de planches Quaternius (Floor_WoodDark) : dessus, face avant et côtés, marche devant
+		b.qf("q_planches_sol", Vector3(0, F + 0.22, -2.65), 0.0, Vector3(3.1, 0, 1.3))
+		b.qf("q_planches_sol", Vector3(0, F + 0.1, -2.0), 0.0, Vector3(3.1, 0, 0.34))
+		b._q_xf("q_planches_sol", Transform3D(Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3(3.1, 1.0, 0.11)), Vector3(0, F + 0.11, -2.0)))
+		for sx in [-1.0, 1.0]:
+			b._q_xf("q_planches_sol", Transform3D(Basis(Vector3.UP, PI * 0.5) * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3(1.3, 1.0, 0.11)), Vector3(sx * 1.55, F + 0.11, -2.65)))
+	else:
+		b.modele("estrade_halle", Vector3(0, F, -2.65))
 	# peau d'ours devant le trône
 	b.peau_sol(Vector3(0, F + 0.23, -2.45), Vector2(1.5, 1.1), 0.0, "peau_sombre")
 	var y := F + 0.22
 	b.solide(Vector3(0, y + 0.45, -2.95), Vector3(0.78, 0.1, 0.66))
-	b.modele("trone_halle", Vector3(0, y, -2.95))
+	if Interieurs.rempl("q_chaise"):      # KITBASH : haut-siège = chaise Quaternius agrandie, écu de bois (Shield_Wooden) au dossier, fourrures sur l'accoudoir
+		b.qf("q_chaise", Vector3(0, y, -2.95), 0.0, Vector3(0.78, 1.5, 0.7))
+		b.qf("q_bouclier_bois", Vector3(0, y + 1.25, -3.2), 0.0, Vector3(0.5, 0.5, 0), {"bois": "bouclier_j"})
+	else:
+		b.modele("trone_halle", Vector3(0, y, -2.95))
 	b.solide(Vector3(0, y + 1.2, -3.1), Vector3(1.0, 2.4, 0.5))
 
 static func _couvert(b: Interieurs, cx: float, cz: float, long: float) -> void:
@@ -186,14 +201,20 @@ static func _couvert(b: Interieurs, cx: float, cz: float, long: float) -> void:
 				b.cruche(Vector3(x, y, z), 0.28)
 			_:
 				b.parchemin(Vector3(x, y, z), b.rng.randf() * 3.0)
+	if Interieurs.rempl("q_chandelier_table"):      # densification : chandelier de table Quaternius au milieu de chaque table
+		b.q("q_chandelier_table", Vector3(cx, y, cz), b.rng.randf() * 3.0, 1.2, {"fer": "etain"})
 	b.bougie(Vector3(cx - long * 0.25, y, cz), 0.15)
 	b.bougie(Vector3(cx + long * 0.2, y, cz - 0.1), 0.12)
 
 static func _rateau_armes(b: Interieurs, pos: Vector3, lacet: float, quoi: String) -> void:
 	var d := Basis(Vector3.UP, lacet) * Vector3.BACK
 	var dr := Basis(Vector3.UP, lacet) * Vector3.RIGHT
-	b.bx(pos + d * 0.07, Vector3(1.3, 0.1, 0.07), "bois_sombre", lacet)
-	b.bx(pos + d * 0.07 - Vector3(0, 0.5, 0), Vector3(1.3, 0.1, 0.07), "bois_sombre", lacet)
+	if Interieurs.rempl("q_porte_manteau"):
+		b.qf("q_porte_manteau", pos + d * 0.05 - Vector3(0, 0.05, 0), lacet, Vector3(1.3, 0.2, 0))
+		b.qf("q_porte_manteau", pos + d * 0.05 - Vector3(0, 0.55, 0), lacet, Vector3(1.3, 0.2, 0))
+	else:
+		b.bx(pos + d * 0.07, Vector3(1.3, 0.1, 0.07), "bois_sombre", lacet)
+		b.bx(pos + d * 0.07 - Vector3(0, 0.5, 0), Vector3(1.3, 0.1, 0.07), "bois_sombre", lacet)
 	for k in 5:
 		var x := -0.5 + k * 0.25
 		if quoi == "lances":

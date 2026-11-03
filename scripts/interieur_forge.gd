@@ -47,6 +47,9 @@ static func construire(b: Interieurs) -> void:
 	# --- props Quaternius (props/placement, lot 2) : caisse ferrée sous le râtelier de l'Épée, seau de fer près du bac de trempe
 	b.q("q_caisse_fer", Vector3(1.78, Y, -0.3), -PI * 0.5 + 0.08, 0.9, {}, true)
 	b.q("q_seau_fer", Vector3(-1.22, Y, 0.28), 0.5)
+	if Interieurs.rempl("q_chaine"):      # densification : rouleau de chaîne au pied de l'enclume, marmite sur le bord du foyer
+		b.q("q_chaine", Vector3(0.5, Y, 0.95), 0.6, 0.45, {"fer": "fer_noir"})
+		b.q("q_marmite", Vector3(-1.5, 0.99, -0.78), 0.3, 0.6)
 	_ratelier_unique(b)       # L9 : après les tirages (aucun tirage ici : le reste de la forge ne bouge pas)
 
 ## Repère (dans l'intérieur) de l'Épée de Skarnholt posée sur son râtelier.
@@ -131,6 +134,11 @@ static func _foyer(b: Interieurs) -> void:
 ## Billot cerclé et enclume à bigorne (module L6 « enclume ») ; collisions inchangées.
 static func _enclume(b: Interieurs, pos: Vector3) -> void:
 	b.solide_cyl(pos + Vector3(0, 0.3, 0), 0.28, 0.6)
+	if Interieurs.rempl("q_billot_enclume"):      # Anvil_Log (enclume sur son billot) ; hache d'abattage couchée au pied (Axe_Bronze)
+		b.q("q_billot_enclume", pos, 0.3)
+		b._q_xf("q_hache_outil", Transform3D(Basis(Vector3.UP, 0.9) * Basis(Vector3.BACK, PI * 0.5) * Basis.from_scale(Vector3.ONE * 0.55), pos + Vector3(0.55, 0.05, 0.2)))
+		b.solide(pos + Vector3(0, 0.5, 0), Vector3(0.6, 1.0, 0.8))
+		return
 	b.modele("enclume", pos)
 	b.bx(pos + Vector3(0.4, 0.06, 0.15), Vector3(0.05, 0.04, 0.5), "bois", 0.3)        # marteau au pied du billot
 	b.bx(pos + Vector3(0.4, 0.07, 0.38), Vector3(0.09, 0.09, 0.14), "fer", 0.3)
@@ -139,24 +147,42 @@ static func _enclume(b: Interieurs, pos: Vector3) -> void:
 ## Soufflet sur tréteau : planches en poire, cuir plissé, buse vers le foyer (-x) (module L6 « soufflet »).
 static func _soufflet(b: Interieurs, pos: Vector3) -> void:
 	b.solide(pos + Vector3(0.0, 0.3, 0), Vector3(0.7, 0.6, 0.12))
+	if Interieurs.rempl("q_planches_sol"):      # KITBASH : tréteau = banc Quaternius, planches = Floor_WoodDark, cuir plissé = sac de jute teinté cuir, buse = poutre ronde de fer
+		b.qf("q_banc", pos, 0.0, Vector3(0.7, 0.28, 0.2))
+		b.qf("q_planches_sol", pos + Vector3(0, 0.3, 0), 0.0, Vector3(0.7, 0.04, 0.5))
+		b.qf("q_sac", pos + Vector3(0, 0.34, 0), 0.0, Vector3(0.6, 0.26, 0.42), {"jute": "cuir", "lin": "cuir"})
+		b.qf("q_planches_sol", pos + Vector3(0, 0.6, 0), 0.0, Vector3(0.7, 0.04, 0.5))
+		b._q_xf("q_poutre_ronde", Transform3D(Basis.from_scale(Vector3(0.5, 0.8, 0.8)), pos + Vector3(-0.5, 0.42, 0.0)), {"bois": "fer_noir"})
+		return
 	b.modele("soufflet", pos)
 
 ## Bac de trempe de planches cerclé, eau noire, tenailles (module L6 « bac_trempe ») ; seau à côté.
 static func _bac_trempe(b: Interieurs, pos: Vector3) -> void:
 	b.solide(pos + Vector3(0, 0.22, 0), Vector3(0.55, 0.44, 1.1))
+	if Interieurs.rempl("q_cageot_vide"):      # KITBASH : bac = cageot de ferme Quaternius (planches, ferrures) rempli d'eau noire ; seau Quaternius posé à côté
+		b.qf("q_cageot_vide", pos, PI * 0.5, Vector3(1.1, 0.44, 0.55))
+		b.bx(pos + Vector3(0, 0.36, 0), Vector3(0.45, 0.02, 1.0), "eau")
+		b.q("q_seau_bois", pos + Vector3(0.0, 0.0, -0.95), 0.4, 0.8)
+		return
 	b.modele("bac_trempe", pos)
 	b.cyl(pos + Vector3(0.0, 0.47, -0.5), 0.07, 0.1, "bois", 8, false, 0.06)      # seau
 
 static func _charbon(b: Interieurs, pos: Vector3) -> void:
-	for sz in [-1.0, 1.0]:
-		b.bx(pos + Vector3(0, 0.3, sz * 0.45), Vector3(0.9, 0.6, 0.06), "bois_v")
-	b.bx(pos + Vector3(0.45, 0.3, 0), Vector3(0.06, 0.6, 0.9), "bois_v")
+	if Interieurs.rempl("q_cageot_vide"):      # contenant = cageot Quaternius haut ; le tas de charbon reste dedans
+		b.qf("q_cageot_vide", pos + Vector3(0.0, 0, 0), 0.0, Vector3(0.95, 0.58, 0.95))
+	else:
+		for sz in [-1.0, 1.0]:
+			b.bx(pos + Vector3(0, 0.3, sz * 0.45), Vector3(0.9, 0.6, 0.06), "bois_v")
+		b.bx(pos + Vector3(0.45, 0.3, 0), Vector3(0.06, 0.6, 0.9), "bois_v")
 	b.bx(pos + Vector3(-0.05, 0.25, 0), Vector3(0.8, 0.5, 0.82), "charbon", 0.0, true)
 	b.bx(pos + Vector3(-0.05, 0.42, 0), Vector3(0.6, 0.12, 0.6), "charbon", 0.4)
 	for k in 5:
 		b.bloc(Vector3(0.12, 0.1, 0.1), 4500 + k, pos + Vector3(-0.3 + k * 0.14, 0.52, b.rng.randf_range(-0.25, 0.25)), "charbon", k)
 	b.bx(pos + Vector3(-0.7, 0.04, 0.4), Vector3(0.35, 0.05, 0.25), "charbon", 0.4)
-	b.bx(pos + Vector3(-0.55, 0.15, 0.5), Vector3(0.05, 0.3, 0.05), "bois", 0.0, false, Vector3(0.0, 0, 0.3))     # pelle
+	if Interieurs.rempl("q_pioche"):      # pelle à charbon = pioche Quaternius appuyée au cageot
+		b._q_xf("q_pioche", Transform3D(Basis(Vector3.UP, 0.6) * Basis(Vector3.BACK, 0.35) * Basis.from_scale(Vector3.ONE * 0.6), pos + Vector3(-0.7, 0.0, 0.62)))
+	else:
+		b.bx(pos + Vector3(-0.55, 0.15, 0.5), Vector3(0.05, 0.3, 0.05), "bois", 0.0, false, Vector3(0.0, 0, 0.3))     # pelle
 
 static func _etabli(b: Interieurs, pos: Vector3) -> void:
 	b.table(pos, 1.6, 0.62, 0.0, 0.86)
@@ -179,12 +205,24 @@ static func _meule(b: Interieurs, pos: Vector3) -> void:
 	f.radius = 0.31
 	f.height = 0.12
 	b.v._collision(b.ip.racine, f, Transform3D(Basis(Vector3.UP, PI * 0.5) * Basis(Vector3.BACK, PI * 0.5), pos + Vector3(0, 0.62, 0)), Vector3.ZERO)
-	b.modele("meule", pos)
+	if Interieurs.rempl("q_pierre_aiguiser"):      # Whetstone : meule sur son bâti
+		b.qf("q_pierre_aiguiser", pos, PI * 0.5, Vector3(0.95, 0.95, 0.72))
+	else:
+		b.modele("meule", pos)
 	b.solide(pos + Vector3(0, 0.45, 0), Vector3(0.5, 0.9, 0.7))
 
 static func _outils(b: Interieurs, pos: Vector3, lacet: float) -> void:
 	var d := Basis(Vector3.UP, lacet) * Vector3.BACK
 	var dr := Basis(Vector3.UP, lacet) * Vector3.RIGHT
+	if Interieurs.rempl("q_porte_manteau") and Interieurs.rempl("q_hache_outil") and Interieurs.rempl("q_pioche"):
+		# Râtelier d'outils : deux patères Quaternius (Peg_Rack) ; hache, pioche et chaîne Quaternius accrochées
+		b.qf("q_porte_manteau", pos + d * 0.04 - Vector3(0, 0.1, 0), lacet, Vector3(1.4, 0.3, 0))
+		b.qf("q_porte_manteau", pos + d * 0.04 - Vector3(0, 0.7, 0), lacet, Vector3(1.4, 0.3, 0))
+		for k in 3:
+			b._q_xf("q_hache_outil", Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(Vector3.ONE * 0.62), pos + dr * (-0.5 + k * 0.28) + d * 0.1 - Vector3(0, 0.62, 0)))
+		b._q_xf("q_pioche", Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(Vector3.ONE * 0.55), pos + dr * 0.42 + d * 0.1 - Vector3(0, 0.66, 0)))
+		b._q_xf("q_chaine", Transform3D(Basis(Vector3.UP, lacet) * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3.ONE * 0.3), pos + dr * 0.55 + d * 0.13 - Vector3(0, 0.22, 0)))
+		return
 	b.bx(pos + d * 0.04, Vector3(1.4, 0.1, 0.06), "bois_sombre", lacet)
 	b.bx(pos + d * 0.04 - Vector3(0, 0.6, 0), Vector3(1.4, 0.1, 0.06), "bois_sombre", lacet)
 	for k in 6:
@@ -202,8 +240,12 @@ static func _outils(b: Interieurs, pos: Vector3, lacet: float) -> void:
 static func _lames(b: Interieurs, pos: Vector3, lacet: float) -> void:
 	var d := Basis(Vector3.UP, lacet) * Vector3.BACK
 	var dr := Basis(Vector3.UP, lacet) * Vector3.RIGHT
-	b.bx(pos + d * 0.04, Vector3(1.0, 0.06, 0.06), "bois_sombre", lacet)
-	b.bx(pos + d * 0.04 - Vector3(0, 0.7, 0), Vector3(1.0, 0.06, 0.06), "bois_sombre", lacet)
+	if Interieurs.rempl("q_porte_manteau"):
+		b.qf("q_porte_manteau", pos + d * 0.04 - Vector3(0, 0.1, 0), lacet, Vector3(1.0, 0.25, 0))
+		b.qf("q_porte_manteau", pos + d * 0.04 - Vector3(0, 0.8, 0), lacet, Vector3(1.0, 0.25, 0))
+	else:
+		b.bx(pos + d * 0.04, Vector3(1.0, 0.06, 0.06), "bois_sombre", lacet)
+		b.bx(pos + d * 0.04 - Vector3(0, 0.7, 0), Vector3(1.0, 0.06, 0.06), "bois_sombre", lacet)
 	for k in 3:
 		b.epee(pos + dr * (-0.3 + k * 0.3) + d * 0.1 - Vector3(0, 0.3, 0), lacet, 0.0, 1.0)
 	b.hache(pos + dr * 0.45 + d * 0.1 - Vector3(0, 0.3, 0), lacet, 0.0, 0.9)

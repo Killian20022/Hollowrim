@@ -17,6 +17,13 @@ const MATS_CRYPTE := {"fer": "fer_mat"}
 
 ## `-- --sans-props-q` : rien n'est posé (captures « avant » et mesures A/B du coût, même lancement que le jeu).
 static var actif := not ("--sans-props-q" in OS.get_cmdline_user_args())
+## `-- --sans-remplacement` : ANCIENS props faits maison (mobilier procédural / modules Blender maison) à la place des Quaternius qui les
+## remplacent (props/remplacement, 2026-11-03) ; sert aux captures « avant » et aux mesures A/B. Implique actif.
+static var remplace := actif and not ("--sans-remplacement" in OS.get_cmdline_user_args())
+## Compteur de props posés par les remplacements (zone -> nombre) : « PropsQuaternius : remplacements … » dans le journal (bilan du rapport).
+static var compte := {}
+static func compter(zone: String, n := 1) -> void:
+	compte[zone] = int(compte.get(zone, 0)) + n
 static var _mods := {}        # nom -> [[matière, arrays indexés (ordre Godot, normales plates)]]
 static var _boites := {}      # nom -> AABB (repère du prop : origine au sol, au centre de l'emprise)
 static var _brut := {}        # nom -> [[matière, PackedVector3Array, PackedColorArray]] (ordre Godot)
@@ -126,9 +133,7 @@ static func nb_triangles(nom: String) -> int:
 
 ## Pose un prop dans la crypte (repère local du module en cours de `d`), fondu dans les tampons du décor, emprise automatique
 ## (la pose aléatoire des détritus l'évite). `solide` : boîte de collision (gros objets). `mats` s'ajoute à MATS_CRYPTE.
-static func crypte(d: CrypteDecor, nom: String, pos: Vector3, lacet := 0.0, e := 1.0, solide := false, mats := {}) -> void:
-	if not actif:
-		return
+static func preparer_crypte() -> void:
 	_verrou.lock()
 	if not _crypte_lu:
 		_crypte_lu = true
@@ -137,6 +142,11 @@ static func crypte(d: CrypteDecor, nom: String, pos: Vector3, lacet := 0.0, e :=
 		CrypteDecor._lire_dat(DAT)
 		CrypteDecor._modeles_verrou.unlock()
 	_verrou.unlock()
+
+static func crypte(d: CrypteDecor, nom: String, pos: Vector3, lacet := 0.0, e := 1.0, solide := false, mats := {}) -> void:
+	if not actif:
+		return
+	preparer_crypte()
 	if pos.y < 0.05:      # au sol : écarté du soubassement des murs (même règle que le mobilier de la crypte)
 		var bb0 := boite(nom)
 		pos = d._ecarter(pos, Vector2(bb0.size.x, bb0.size.z) * 0.5 * e, lacet)

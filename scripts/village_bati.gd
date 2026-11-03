@@ -122,10 +122,15 @@ static func porte(v, p: Node3D, c: Vector3, n: Vector3, larg := 1.1, haut := 1.9
 	for sx in [-1.0, 1.0]:
 		v._boite(p, Vector3(0.18, haut + 0.12, 0.3), f * Transform3D(Basis(), Vector3(sx * (larg * 0.5 + 0.09), (haut + 0.12) * 0.5, 0.04)), v.m_poutres_h)
 	v._boite(p, Vector3(larg + 0.56, 0.2, 0.34), f * Transform3D(Basis(), Vector3(0, haut + 0.16, 0.05)), v.m_poutres_h)
-	v._boite(p, Vector3(larg, haut, 0.08), f * Transform3D(Basis(), Vector3(0, haut * 0.5, 0.0)), v.m_poutres)
-	for by in [0.28, haut * 0.74]:
-		v._boite(p, Vector3(larg - 0.04, 0.12, 0.03), f * Transform3D(Basis(), Vector3(0, by, 0.05)), v.m_fer)
-	v._boite(p, Vector3(0.08, 0.2, 0.05), f * Transform3D(Basis(), Vector3(larg * 0.3, haut * 0.5, 0.07)), v.m_fer)
+	if PropsQuaternius.remplace and PropsQuaternius.existe("q_porte_4_plate"):      # props/remplacement : vantail Door_4 Quaternius (planches, ferrures)
+		var vq: String = ["q_porte_1_plate", "q_porte_4_plate", "q_porte_8_plate", "q_porte_2_plate"][graine % 4]
+		var bq := PropsQuaternius.boite(vq)
+		PropsQuaternius.village(v, p, vq, f * Transform3D(Basis.from_scale(Vector3(larg / bq.size.x, haut / bq.size.y, 1.0)), Vector3(0, 0, 0.04)))
+	else:
+		v._boite(p, Vector3(larg, haut, 0.08), f * Transform3D(Basis(), Vector3(0, haut * 0.5, 0.0)), v.m_poutres)
+		for by in [0.28, haut * 0.74]:
+			v._boite(p, Vector3(larg - 0.04, 0.12, 0.03), f * Transform3D(Basis(), Vector3(0, by, 0.05)), v.m_fer)
+		v._boite(p, Vector3(0.08, 0.2, 0.05), f * Transform3D(Basis(), Vector3(larg * 0.3, haut * 0.5, 0.07)), v.m_fer)
 	if marches:
 		var r := RandomNumberGenerator.new()
 		r.seed = graine
@@ -146,9 +151,12 @@ static func fenetre(v, p: Node3D, c: Vector3, n: Vector3, larg := 0.62, haut := 
 		v._boite(p, Vector3(larg + 0.3, 0.08, 0.24), f * Transform3D(Basis(Vector3.RIGHT, 0.12), Vector3(0, -haut * 0.5 - 0.04, 0.1)), bois)
 	for sx in [-1.0, 1.0]:
 		v._boite(p, Vector3(0.09, haut + 0.1, 0.12), f * Transform3D(Basis(), Vector3(sx * (larg * 0.5 + 0.045), 0, 0.05)), bois)
-		if volets:
+		if volets and not (PropsQuaternius.remplace and PropsQuaternius.existe("q_volets_thin_flat_open")):
 			v._boite(p, Vector3(larg * 0.5, haut + 0.02, 0.04), f * Transform3D(Basis(Vector3.UP, sx * 1.15), Vector3(sx * (larg * 0.5 + 0.12 + larg * 0.18), 0, 0.12 + larg * 0.2)), v.m_poutres)
 	v._boite(p, Vector3(0.04, haut, 0.05), f * Transform3D(Basis(), Vector3(0, 0, 0.05)), bois)   # meneau
+	if volets and PropsQuaternius.remplace and PropsQuaternius.existe("q_volets_thin_flat_open"):      # props/remplacement : WindowShutters Quaternius (battants ouverts)
+		var bs := PropsQuaternius.boite("q_volets_thin_flat_open")
+		PropsQuaternius.village(v, p, "q_volets_thin_flat_open", f * Transform3D(Basis.from_scale(Vector3((larg + 0.9) / bs.size.x, (haut + 0.1) / bs.size.y, 0.8)), Vector3(0, -haut * 0.5 - 0.05, 0.1)))
 
 ## Lanterne pendue (émissive : réglée par l'heure avec les fenêtres de pignon ; pas de lumière dynamique).
 static func lanterne(v, p: Node3D, pos: Vector3, lacet := 0.0) -> void:
@@ -193,7 +201,10 @@ static func tas_de_bois(v, p: Node3D, c: Vector3, lacet: float, longueur := 2.0)
 		var k := 0
 		var x := -longueur * 0.5 + 0.14 + (rang % 2) * 0.13
 		while x < longueur * 0.5 - 0.1:
-			v._cylindre(p, 0.12, 0.12, 0.62, Transform3D(b * Basis(Vector3.RIGHT, PI * 0.5), c + b * Vector3(x, 0.13 + rang * 0.24, 0)), v.m_ecorce, 6)
+			if PropsQuaternius.remplace and PropsQuaternius.existe("q_buche"):      # props/remplacement : bûche Quaternius/kitbash
+				PropsQuaternius.village(v, p, "q_buche", Transform3D(b * Basis(Vector3.UP, PI * 0.5) * Basis.from_scale(Vector3(1.03, 1.2, 1.2)), c + b * Vector3(x, 0.13 + rang * 0.24, 0)))
+			else:
+				v._cylindre(p, 0.12, 0.12, 0.62, Transform3D(b * Basis(Vector3.RIGHT, PI * 0.5), c + b * Vector3(x, 0.13 + rang * 0.24, 0)), v.m_ecorce, 6)
 			x += 0.26
 			k += 1
 	v._collision(p, BoxShape3D.new(), Transform3D(b, c + Vector3(0, 0.5, 0)), Vector3(longueur, 1.0, 0.7))

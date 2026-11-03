@@ -2287,9 +2287,53 @@ static func _est_structure(nom: String) -> bool:
 ## Lots L2/L3 : une matière absente de MAT_MODELE garde son nom si c'est une matière du décor (bois, os, argile…) ; mats["@<matière>"] =
 ## Color teinte les sommets de cette matière du module (bannières, boucliers peints) ; emp = false : pas d'emprise propre (l'objet qui
 ## pose le module a déjà la sienne : os, crânes, mobilier).
+## props/remplacement : modules maison de la crypte et de la grotte remplacés par des props Quaternius (Fantasy Props, Modular Dungeon),
+## ajustés aux bornes de l'ancien module : [prop, quart de tour (1 = grand axe du prop le long de Z), matières]. "" = retiré (le prop porte
+## déjà son contenu). Restent en place : coffres L1, luminaires L8, sarcophages, statues, ossuaire, armes (modèles validés).
+const SUBST := {
+	"tonneau_a": ["q_tonneau", 0], "tonneau_b": ["q_tonneau", 0], "tonneau_c": ["q_tonneau_2", 0],
+	"table_a": ["q_grande_table", 0], "table_b": ["q_grande_table", 0], "table_c": ["q_grande_table", 0],
+	"lit_a": ["q_lit", 1], "lit_b": ["q_lit_2", 1], "g_couchage_a": ["q_lit", 0], "g_couchage_b": ["q_lit_2", 0],
+	"etagere_cadre_a": ["q_bibliotheque", 0], "etagere_cadre_b": ["q_bibliotheque", 0],
+	"etagere_contenu_a": ["", 0], "etagere_contenu_b": ["", 0], "etagere_contenu_c": ["", 0],
+	"ratelier_cadre_a": ["q_rack_armes", 0], "ratelier_cadre_b": ["q_rack_armes", 0], "g_ratelier": ["q_rack_armes", 0],
+	"sac_a": ["q_sac_pieces", 0], "sac_b": ["q_sac_pieces", 0],
+	"urne_a": ["q_vase_4", 0], "urne_b": ["q_vase_5", 0], "urne_c": ["q_vase_2", 0],
+	"crane_a": ["q_crane", 0], "crane_b": ["q_crane", 0],
+	"or_tas_a": ["q_tas_pieces", 0, {"fer": "or"}], "or_tas_b": ["q_tas_pieces_2", 0, {"fer": "or"}], "or_tas_c": ["q_tas_pieces", 0, {"fer": "or"}],
+	"g_caisse_a": ["q_caisse_2", 0], "g_caisse_b": ["q_caisse", 0], "g_sac_a": ["q_sac", 0], "g_sac_b": ["q_sac", 0], "g_sac_c": ["q_sac", 0],
+	"g_tabouret_a": ["q_tabouret", 0], "g_tabouret_b": ["q_tabouret", 0],
+}
+
+func _modele_subst(nom: String, pos: Vector3, lacet: float, ech: Vector3, emp: bool) -> Variant:
+	var s: Array = SUBST[nom]
+	if s[0] == "":
+		return []
+	PropsQuaternius.preparer_crypte()
+	if not _modeles_de.has(s[0]):
+		return null
+	var ob := bornes_modele(nom)
+	var pb := PropsQuaternius.boite(s[0])
+	if ob.size.x <= 0.001 or pb.size.x <= 0.001:
+		return null
+	PropsQuaternius.compter("crypte_grotte")
+	var rot: bool = s[1] == 1
+	var sc := Vector3(ob.size.z / pb.size.x, ob.size.y / maxf(pb.size.y, 0.001), ob.size.x / pb.size.z) if rot else ob.size / pb.size
+	var e2 := (Vector3(ech.z, ech.y, ech.x) if rot else ech) * sc
+	var c := ob.get_center()
+	var p2 := pos + Basis(Vector3.UP, lacet) * Vector3(c.x * ech.x, ob.position.y * ech.y - pb.position.y * e2.y, c.z * ech.z)
+	var m := PropsQuaternius.MATS_CRYPTE.duplicate()
+	if s.size() > 2:
+		m.merge(s[2], true)
+	return modele(s[0], p2, lacet + (PI * 0.5 if rot else 0.0), e2, m, emp)
+
 func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats := {}, emp := true) -> Array:
 	if muet:
 		return []
+	if PropsQuaternius.remplace and SUBST.has(nom):
+		var rs: Variant = _modele_subst(nom, pos, lacet, ech, emp)
+		if rs != null:
+			return rs
 	var jn := not pose_sol
 	if jn:
 		j0(nom, lacet)

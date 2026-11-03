@@ -190,6 +190,9 @@ func solide_cyl(pos: Vector3, rayon: float, h: float) -> void:
 
 ## Rondin à 8 pans (fût + bouts). `lacet` 0 = le long de X, PI/2 = le long de Z ; `pente` = inclinaison autour de Z (rad).
 func rondin(pos: Vector3, lacet: float, longueur: float, rayon: float, graine: int, mat := "rondin", pente := 0.0, sag := 0.015) -> void:
+	if longueur <= 1.3 and rayon <= 0.12 and rempl("q_buche"):      # bûche : pièce Quaternius/kitbash étirée à la longueur et au rayon voulus
+		_q_xf("q_buche", Transform3D(Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, pente) * Basis.from_scale(Vector3(longueur / 0.6, rayon / 0.1, rayon / 0.1)), pos), {"bois": mat})
+		return
 	var r := BatiGeo.rondin(longueur, rayon, graine, sag, graine % 4, float(graine % 9), 1.0)
 	var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, pente), pos)
 	v._ajouter(_p(), (r[0] as BatiGeo.Maillage).arrays(), xf, M[mat])
@@ -329,6 +332,48 @@ func q(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, mats := {}, solide_ :=
 		var bb := PropsQuaternius.boite(nom)
 		solide(pos + Basis(Vector3.UP, lacet) * (bb.get_center() * e), bb.size * e, lacet)
 
+## Prop Quaternius AJUSTÉ à une boîte cible `taille` (X largeur, Y hauteur, Z profondeur du prop ; 0 = axe libre, échelle moyenne des autres) :
+## échelle non uniforme, collision éventuelle = la boîte cible. Remplace les anciens modules maison (props/remplacement).
+func qf(nom: String, pos: Vector3, lacet: float, taille: Vector3, mats := {}, solide_ := false) -> void:
+	if not PropsQuaternius.existe(nom):
+		return
+	var bb := PropsQuaternius.boite(nom)
+	var sc := Vector3.ONE
+	var somme := 0.0
+	var n := 0
+	for a in 3:
+		if taille[a] > 0.0:
+			sc[a] = taille[a] / maxf(bb.size[a], 0.001)
+			somme += sc[a]
+			n += 1
+	for a in 3:
+		if taille[a] <= 0.0:
+			sc[a] = somme / maxf(n, 1)
+	pos = _sol(pos)
+	PropsQuaternius.compter("interieurs")
+	var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(sc), pos)
+	for m: Array in PropsQuaternius.morceaux(nom):
+		var cible: String = mats.get(m[0], MATS_Q.get(m[0], "bois"))
+		v._ajouter(_p(), m[1], xf, M[cible])
+	if solide_:
+		solide(pos + Basis(Vector3.UP, lacet) * (bb.get_center() * sc), bb.size * sc, lacet)
+
+## Prop posé par une transformation complète (repère de la pièce), sans recalage au sol.
+func _q_xf(nom: String, xf: Transform3D, mats := {}) -> void:
+	PropsQuaternius.compter("interieurs")
+	for m: Array in PropsQuaternius.morceaux(nom):
+		v._ajouter(_p(), m[1], xf, M[mats.get(m[0], MATS_Q.get(m[0], "bois"))])
+
+## Hauteur (au-dessus du pied) du plateau n°i de l'étagère à 4 niveaux : plateaux de l'étagère à arche Quaternius, sinon ceux de l'ancien module.
+func niv(i: int) -> float:
+	if rempl("q_etagere_arche"):
+		return [0.2, 0.74, 1.26][mini(i, 2)]
+	return 0.52 + 0.46 * i
+
+## Prop de remplacement disponible (option `--sans-remplacement` : anciens modules maison).
+static func rempl(nom: String) -> bool:
+	return PropsQuaternius.remplace and PropsQuaternius.existe(nom)
+
 ## Variante tirée de la position (stable d'un lancement à l'autre) : "a", "b" ou "c".
 static func variante(pos: Vector3, n: int, sel := 0) -> String:
 	var h := absi(int(floorf(pos.x * 7.31 + pos.z * 13.17 + pos.y * 3.7)) + sel)
@@ -375,6 +420,12 @@ func applique(pos: Vector3, vers_lacet: float, energie := 1.6, portee := 5.0, av
 		lumiere(pos + d * 0.55 + Vector3(0, 0.45, 0), energie, portee, FEU, 1.8)
 
 func bougie(pos: Vector3, h := 0.14, avec_lumiere := false) -> void:
+	if rempl("q_bougie_1"):      # Candle_1 (bougie sur sa soucoupe) ; flamme et lumière inchangées
+		qf("q_bougie_1", pos, lacet_libre(pos), Vector3(0, h + 0.01, 0), {"os": "cire"})
+		flamme(pos + Vector3(0, h, 0), 0.4)
+		if avec_lumiere:
+			lumiere(pos + Vector3(0, h + 0.35, 0), 0.9, 3.6, FEU, 1.8)
+		return
 	cyl(pos + Vector3(0, h * 0.5, 0), 0.026, h, "cire", 6)
 	cyl(pos + Vector3(0, 0.008, 0), 0.06, 0.016, "etain", 6)
 	flamme(pos + Vector3(0, h, 0), 0.4)
@@ -500,6 +551,11 @@ func _sol(pos: Vector3) -> Vector3:
 ## Table sur tréteaux (long le long de X pour lacet 0) : plateau de planches, tréteaux, entretoise (modules L6).
 func table(pos: Vector3, long: float, larg: float, lacet := 0.0, haut := 0.78, solide_ := true) -> void:
 	pos = _sol(pos)
+	if rempl("q_grande_table"):      # props/remplacement : Table_Large (ou établi Workbench si plan de travail haut)
+		if solide_:
+			solide(pos + Vector3(0, haut - 0.05, 0), Vector3(long, 0.1, larg), lacet)
+		qf("q_etabli" if haut > 0.83 else "q_grande_table", pos, lacet, Vector3(long, haut, larg))
+		return
 	var b := Basis(Vector3.UP, lacet)
 	if solide_:
 		solide(pos + Vector3(0, haut - 0.05, 0), Vector3(long, 0.1, larg), lacet)
@@ -513,6 +569,11 @@ func table(pos: Vector3, long: float, larg: float, lacet := 0.0, haut := 0.78, s
 
 func banc(pos: Vector3, long: float, lacet := 0.0, haut := 0.46, prof := 0.34, solide_ := true) -> void:
 	pos = _sol(pos)
+	if rempl("q_banc"):
+		if solide_:
+			solide(pos + Vector3(0, haut - 0.04, 0), Vector3(long, 0.08, prof), lacet)
+		qf("q_banc", pos, lacet, Vector3(long, haut, prof))
+		return
 	var b := Basis(Vector3.UP, lacet)
 	if solide_:
 		solide(pos + Vector3(0, haut - 0.04, 0), Vector3(long, 0.08, prof), lacet)
@@ -522,17 +583,30 @@ func banc(pos: Vector3, long: float, lacet := 0.0, haut := 0.46, prof := 0.34, s
 
 func tabouret(pos: Vector3, haut := 0.45) -> void:
 	pos = _sol(pos)
+	if rempl("q_tabouret"):
+		qf("q_tabouret", pos, lacet_libre(pos), Vector3(0, haut, 0))
+		solide_cyl(pos + Vector3(0, haut * 0.5, 0), 0.2, haut)
+		return
 	modele("tabouret_" + variante(pos, 2), pos, lacet_libre(pos), Vector3(1.0, haut / 0.45, 1.0))
 	solide_cyl(pos + Vector3(0, haut * 0.5, 0), 0.2, haut)
 
 ## Coffre ferré : caisse de planches, couvercle bombé / plat / en bâtière, ferrures, serrure (modules L6).
 func coffre(pos: Vector3, lacet := 0.0, taille := Vector3(0.9, 0.46, 0.55), _ouvert := false) -> void:
+	if rempl("q_coffre"):      # décor (les coffres de butin interactifs sont posés par le monde, pas ici)
+		solide(pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
+		qf("q_coffre", pos, lacet, Vector3(taille.x, taille.y, taille.z))
+		return
 	solide(pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
 	modele("coffre_" + variante(pos, 3), pos, lacet, taille / Vector3(0.9, 0.46, 0.55))
 
 ## Tonneau de douelles cerclé ; la variante à cannelle tourne sa cannelle vers le centre de la pièce.
 func tonneau(pos: Vector3, h := 0.9, r := 0.34, solide_ := true) -> void:
 	pos = _sol(pos)
+	if rempl("q_tonneau"):
+		if solide_:
+			solide_cyl(pos + Vector3(0, h * 0.5, 0), r, h)
+		qf("q_tonneau", pos, lacet_libre(pos), Vector3(r * 2.0, h, r * 2.0))
+		return
 	if solide_:
 		solide_cyl(pos + Vector3(0, h * 0.5, 0), r, h)
 	var va := variante(pos, 3)
@@ -540,6 +614,11 @@ func tonneau(pos: Vector3, h := 0.9, r := 0.34, solide_ := true) -> void:
 	modele("tonneau_" + va, pos, lac, Vector3(r / 0.34, h / 0.9, r / 0.34))
 
 func etagere(pos: Vector3, lacet: float, larg: float, haut: float, niveaux := 3, prof := 0.32) -> void:
+	if rempl("q_etagere_arche"):      # étagère à arche : plateaux à NIV_ETAGERE (m au-dessus du pied), à respecter par les objets posés dessus
+		pos = _sol(pos)
+		qf("q_etagere_arche", pos, lacet, Vector3(larg, 0, prof))
+		solide(pos + Vector3(0, haut * 0.5, 0), Vector3(larg, haut, prof), lacet)
+		return
 	if niveaux != 4:
 		_etagere_boites(pos, lacet, larg, haut, niveaux, prof)
 		return
@@ -551,6 +630,9 @@ func etagere(pos: Vector3, lacet: float, larg: float, haut: float, niveaux := 3,
 func lit(pos: Vector3, lacet: float, long := 1.95, larg := 0.95, peau_mat := "peau", etat := 0) -> void:
 	var b := Basis(Vector3.UP, lacet)
 	solide(pos + Vector3(0, 0.3, 0), Vector3(long, 0.12, larg), lacet)
+	if rempl("q_lit"):      # Bed_Twin : longueur le long de Z du prop → tourné d'un quart de tour (tête vers -X local comme avant)
+		qf("q_lit" if variante(pos, 2) == "a" else "q_lit_2", pos, lacet + PI * 0.5, Vector3(larg, 0.75, long))
+		return
 	modele("lit_" + variante(pos, 2), pos, lacet, Vector3(long / 2.0, 1.0, larg / 1.0), {"PEAU": peau_mat})
 	if etat == 1:   # défait
 		modele("fourrure_froissee", pos + b * Vector3(0.25, 0.0, 0.1), lacet + 0.3, Vector3.ONE, {"PEAU": peau_mat})
@@ -567,6 +649,9 @@ func _etagere_boites(pos: Vector3, lacet: float, larg: float, haut: float, nivea
 	solide(pos + Vector3(0, haut * 0.5, 0), Vector3(larg, haut, prof), lacet)
 
 func bouclier(pos: Vector3, lacet: float, rayon := 0.36, mat := "bouclier_r") -> void:
+	if rempl("q_bouclier_bois"):      # Shield_Wooden : plaques de bois teintes par `mat`, ferrures en fer mat
+		qf("q_bouclier_bois", pos, lacet, Vector3(rayon * 1.75, rayon * 1.75, 0), {"bois": mat})
+		return
 	modele("bouclier_" + variante(pos, 2), pos, lacet, Vector3.ONE * (rayon / 0.36), {"BOUCLIER": mat})
 
 func crane(pos: Vector3, lacet := 0.0, e := 1.0) -> void:
@@ -585,12 +670,25 @@ func ramure(pos: Vector3, lacet: float, e := 1.0) -> void:
 			bx(base + b * Vector3(sx * (0.2 + k * 0.045) * e, (0.32 + k * 0.07) * e, 0.05 * e), Vector3(0.028, 0.22, 0.028) * e, "os", lacet, false, Vector3(0.5, 0, -sx * 0.15))
 
 func hache(pos: Vector3, lacet: float, inclin := 0.0, e := 1.0) -> void:
+	if rempl("q_hache_outil"):      # Axe_Bronze (manche de bois, fer mat), debout comme l'ancien module
+		var b := Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, inclin) * Basis.from_scale(Vector3.ONE * e)
+		_q_xf("q_hache_outil", Transform3D(b, pos + b * Vector3(0, -0.4, 0)))
+		return
 	modele_xf("hache", Transform3D(Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, inclin) * Basis.from_scale(Vector3.ONE * e), pos))
 
 func epee(pos: Vector3, lacet: float, inclin := 0.0, e := 1.0) -> void:
+	if rempl("q_epee_mur"):      # Sword_Bronze
+		var b := Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, inclin) * Basis.from_scale(Vector3.ONE * e)
+		_q_xf("q_epee_mur", Transform3D(b, pos + b * Vector3(0, -0.55, 0)))
+		return
 	modele_xf("epee", Transform3D(Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, inclin) * Basis.from_scale(Vector3.ONE * e), pos))
 
 func lance(pos: Vector3, lacet: float, inclin := 0.0, long := 1.9) -> void:
+	if rempl("q_poutre_ronde"):      # lance = hampe (poutre ronde Quaternius/kitbash étirée) + pointe (épée mur réduite en fer de lance)
+		var b := Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, inclin)
+		_q_xf("q_poutre_ronde", Transform3D(b * Basis(Vector3.BACK, PI * 0.5) * Basis.from_scale(Vector3(long, 0.5, 0.5)), pos + b * Vector3(0, long * 0.5, 0)))
+		_q_xf("q_epee_mur", Transform3D(b * Basis.from_scale(Vector3(0.7, 0.28, 0.7)), pos + b * Vector3(0, long, 0)), {"bois": "fer_mat"})
+		return
 	var b := Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, inclin)
 	modele_xf("lance_hampe", Transform3D(b * Basis.from_scale(Vector3(1.0, long, 1.0)), pos))
 	modele_xf("lance_fer", Transform3D(b, pos + b * Vector3(0, long * 0.5, 0)))
@@ -611,6 +709,17 @@ func carquois(pos: Vector3, lacet: float) -> void:
 
 ## Viande ou poisson séchés qui pendent d'une corde (à accrocher sous un entrait).
 func viande_seche(pos: Vector3, k := 3, lacet := 0.0) -> void:
+	if rempl("q_bourse") and rempl("q_carotte"):      # kitbash : jambons = bourse Quaternius, saucissons = carotte retournée, ficelle = poutre ronde fine
+		var bz := Basis(Vector3.UP, lacet)
+		for i in k:
+			var off := bz * Vector3(float(i - (k - 1) * 0.5) * 0.2, 0, 0)
+			var hh := 0.26 + rng.randf() * 0.16
+			_q_xf("q_poutre_ronde", Transform3D(Basis(Vector3.BACK, PI * 0.5) * Basis.from_scale(Vector3(0.2, 0.07, 0.07)), pos + off + Vector3(0, -0.1, 0)), {"bois": "cuir"})
+			if i % 2 == 0:
+				_q_xf("q_bourse", Transform3D(bz * Basis.from_scale(Vector3.ONE * (hh / 0.30)), pos + off + Vector3(0, -0.2 - hh, 0)), {"fer": "peau_sombre", "os": "os"})
+			else:
+				_q_xf("q_carotte", Transform3D(bz * Basis(Vector3.RIGHT, PI) * Basis.from_scale(Vector3(1.0, hh * 0.9 / 0.30, 1.0) * Vector3(0.9, 1.0, 0.9)), pos + off + Vector3(0, -0.2, 0)), {"fer": "cuir"})
+		return
 	var b := Basis(Vector3.UP, lacet)
 	for i in k:
 		var off := b * Vector3(float(i - (k - 1) * 0.5) * 0.2, 0, 0)
@@ -626,6 +735,13 @@ func viande_seche(pos: Vector3, k := 3, lacet := 0.0) -> void:
 			cyl(pos + off + Vector3(0, -0.22, 0), 0.04, 0.025, "foin", 6)
 
 func herbes(pos: Vector3, lacet := 0.0, e := 1.0) -> void:
+	if rempl("q_carotte"):      # kitbash : bouquet = cinq feuilles-carottes retournées (teinte herbe / foin) liées à une barre fine
+		_q_xf("q_poutre_ronde", Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(Vector3(0.2, 0.07, 0.07)), pos + Vector3(0, -0.01, 0)), {"bois": "cuir"})
+		for i in 5:
+			var dx := (i - 2) * 0.04
+			var hq := (0.3 + 0.05 * (i % 2)) * e
+			_q_xf("q_carotte", Transform3D(Basis(Vector3.UP, lacet + i * 0.9) * Basis(Vector3.RIGHT, PI) * Basis.from_scale(Vector3(1.0, hq / 0.30, 1.0) * Vector3(0.7, 1.0, 0.7)) , pos + Basis(Vector3.UP, lacet) * Vector3(dx, -0.02, 0)), {"fer": "herbe" if i % 2 == 0 else "foin"})
+		return
 	bx(pos + Vector3(0, -0.01, 0), Vector3(0.2, 0.02, 0.02), "cuir", lacet)
 	for i in 5:
 		var dx := (i - 2) * 0.04
@@ -637,6 +753,14 @@ func herbes(pos: Vector3, lacet := 0.0, e := 1.0) -> void:
 
 ## Petite balance de marchand (herboriste) : fût, fléau, deux plateaux de cuivre.
 func balance(pos: Vector3) -> void:
+	if rempl("q_assiette"):      # kitbash : fût et fléau = poutre ronde fine (fer mat), plateaux = assiettes Quaternius
+		_q_xf("q_poutre_ronde", Transform3D(Basis(Vector3.BACK, PI * 0.5) * Basis.from_scale(Vector3(0.24, 0.1, 0.1)), pos + Vector3(0, 0.12, 0)), {"bois": "fer_mat"})
+		_q_xf("q_poutre_ronde", Transform3D(Basis.from_scale(Vector3(0.3, 0.1, 0.1)), pos + Vector3(0, 0.24, 0)), {"bois": "fer_mat"})
+		for sx in [-1.0, 1.0]:
+			cyl(pos + Vector3(sx * 0.14, 0.15, 0), 0.004, 0.18, "fer", 4)
+			qf("q_assiette", pos + Vector3(sx * 0.14, 0.055, 0), 0.0, Vector3(0.12, 0, 0.12), {"fer": "etain"})
+		qf("q_assiette", pos + Vector3(0, 0.0, 0), 0.0, Vector3(0.1, 0, 0.1))
+		return
 	cyl(pos + Vector3(0, 0.12, 0), 0.012, 0.24, "fer", 4)
 	bx(pos + Vector3(0, 0.24, 0), Vector3(0.3, 0.012, 0.012), "fer")
 	for sx in [-1.0, 1.0]:
@@ -645,28 +769,59 @@ func balance(pos: Vector3) -> void:
 	cyl(pos + Vector3(0, 0.005, 0), 0.04, 0.01, "fer", 6)
 
 func assiette(pos: Vector3, mat := "etain") -> void:
+	if rempl("q_assiette"):
+		qf("q_assiette", pos, 0.0, Vector3(0.24, 0, 0.24), {"fer": mat})
+		return
 	modele("assiette", pos, 0.0, Vector3.ONE, {"MAT": mat})
 
 func chope(pos: Vector3, mat := "bois") -> void:
+	if rempl("q_chope"):
+		qf("q_chope", pos, lacet_libre(pos), Vector3(0.12, 0, 0), {"bois": mat, "fer": "etain" if mat == "etain" else "fer_mat"})
+		return
 	modele("chope_" + variante(pos, 2), pos, lacet_libre(pos), Vector3.ONE, {"MAT": mat})
 
 func chaudron(pos: Vector3, r := 0.3) -> void:
+	if rempl("q_chaudron"):
+		qf("q_chaudron", pos, lacet_libre(pos), Vector3(r * 2.0, 0, 0))
+		return
 	modele("chaudron", pos, lacet_libre(pos), Vector3.ONE * (r / 0.3))
 
 func bol(pos: Vector3) -> void:
+	if rempl("q_marmite"):      # bol = petite marmite d'argile (Pot_1)
+		qf("q_marmite", pos, lacet_libre(pos), Vector3(0.2, 0, 0), {"fer": "argile"})
+		return
 	modele("bol", pos, lacet_libre(pos))
 
 func cruche(pos: Vector3, h := 0.3) -> void:
+	if rempl("q_vase_4"):
+		if variante(pos, 2) == "a":
+			qf("q_vase_4", pos, lacet_libre(pos), Vector3(0, h, 0), {"fer": "argile"})
+		else:
+			qf("q_vase_2", pos, lacet_libre(pos), Vector3(h * 0.9, h, h * 0.9), {"fer": "argile"})
+		return
 	modele("cruche_" + variante(pos, 2), pos, lacet_libre(pos), Vector3.ONE * (h / 0.3))
 
 func livre(pos: Vector3, lacet := 0.0) -> void:
+	if rempl("q_livre_7"):
+		qf("q_livre_7", pos, lacet, Vector3(0.2, 0, 0), {"fer": "cuir"})
+		return
 	modele("livre", pos, lacet)
 
 func parchemin(pos: Vector3, lacet := 0.0) -> void:
+	if rempl("q_parchemin"):
+		qf("q_parchemin", pos, lacet, Vector3(0.2, 0, 0), {"fer": "bois"})
+		return
 	modele("parchemin", pos, lacet)
 
 ## Peau posée au sol (y = 0 : sur le plancher).
 func peau_sol(pos: Vector3, taille: Vector2, lacet := 0.0, mat := "peau") -> void:
+	if rempl("q_banniere_toile"):      # kitbash : tissu de bannière Quaternius couché sur le plancher, teinte de la peau voulue
+		var yy := (F if pos.y < 0.01 else pos.y) + 0.025
+		var bb := PropsQuaternius.boite("q_banniere_toile")
+		var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3(taille.x / bb.size.x, taille.y / bb.size.y, 3.0)), Vector3(pos.x, yy, pos.z))
+		for m: Array in PropsQuaternius.morceaux("q_banniere_toile"):
+			v._ajouter(_p(), m[1], xf, M[mat])
+		return
 	var y := (F if pos.y < 0.01 else pos.y) + 0.02
 	bx(Vector3(pos.x, y, pos.z), Vector3(taille.x, 0.035, taille.y), mat, lacet)
 	bx(Vector3(pos.x, y + 0.012, pos.z), Vector3(taille.x * 0.8, 0.03, taille.y * 0.8), mat, lacet + 0.2)
@@ -679,6 +834,10 @@ func paille(pos: Vector3, taille: Vector2) -> void:
 
 func sac(pos: Vector3, graine := 0.0, h := 0.5) -> void:
 	var lac := graine * 1.7
+	if rempl("q_sac"):
+		v._collision(_p(), BoxShape3D.new(), Transform3D(Basis.from_euler(Vector3(0, lac, 0.05)), pos + Vector3(0, h * 0.5, 0)), Vector3(0.42, h, 0.3))
+		qf("q_sac", pos, lac, Vector3(0, h, 0))
+		return
 	v._collision(_p(), BoxShape3D.new(), Transform3D(Basis.from_euler(Vector3(0, lac, 0.05)), pos + Vector3(0, h * 0.5, 0)), Vector3(0.42, h, 0.3))
 	modele("sac_" + "abc"[int(absf(graine) * 3.0) % 3], pos, lac, Vector3(1.0, h / 0.5, 1.0))
 
@@ -688,6 +847,14 @@ func os_sol(pos: Vector3, lacet := 0.0) -> void:
 
 ## Tas de bûches (fendues) empilées contre un mur.
 func buches(pos: Vector3, lacet := 0.0) -> void:
+	if rempl("q_buche"):      # kitbash : bûches (pièce Quaternius/kitbash) empilées 4-3-2, même emprise et même collision
+		var bs := Basis(Vector3.UP, lacet)
+		for rang in 3:
+			for k in 4 - rang:
+				var d := bs * Vector3((k + rang * 0.5) * 0.24 - 0.4, 0.1 + rang * 0.2, 0)
+				_q_xf("q_buche", Transform3D(bs * Basis(Vector3.UP, PI * 0.5 + 0.05 * (k + rang)) * Basis.from_scale(Vector3(1.0, 1.0, 1.0)), pos + d))
+		solide(pos + bs * Vector3(0, 0.3, 0), Vector3(1.05, 0.6, 0.62), lacet)
+		return
 	var bs := Basis(Vector3.UP, lacet)
 	for rang in 3:
 		for k in 4 - rang:
