@@ -34,6 +34,22 @@ static func _g() -> GestionMagie:
 static var _jets_lancer := {}
 const _ECOLES_LANCER := ["glace", "electricite", "tenebres"]
 
+## Zone lancée par le joueur (nova, tempête, explosion obscure) : geste de départ de la main qui tient le sort, vers le point visé.
+static func _lancer_zone(ecole: String, position: Vector3) -> void:
+	if not _ECOLES_LANCER.has(ecole):
+		return
+	var l := LancerEcole.mains_de(ecole, position, 1000.0)
+	if l.is_empty():
+		return
+	var main: Node3D = l[0]
+	var d := position - main.global_position
+	if d.length() < 0.3:
+		d = Vector3.DOWN + Vector3.FORWARD * 0.3
+	if ecole == "electricite":
+		LancerElec.tension(main, position, 1.0, 0.5, l[1] if l.size() > 1 and bool(_g()._double.get(ecole, false)) else null)
+	else:
+		LancerEcole.depart(ecole, main, d, 1.0)
+
 static func _lancer_jet(ecole: String, origine: Node3D, direction: Vector3, portee: float, actif: bool) -> void:
 	if origine == null or not is_instance_valid(origine) or not _ECOLES_LANCER.has(ecole) or direction.length() < 0.01:
 		return
@@ -111,6 +127,7 @@ static func zone(ecole: String, position: Vector3, rayon: float, duree: float) -
 	SonsMagie.zone(ecole, position, rayon)
 	if muet:
 		return
+	_lancer_zone(ecole, position)
 	_g().zone(ecole, position, rayon, duree)
 	EffetsSol.sort_zone(ecole, position, rayon, duree)
 

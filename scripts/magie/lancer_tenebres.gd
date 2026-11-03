@@ -13,7 +13,7 @@ extends LancerEcole
 
 const PAL_FUMEE := ["#07030c", "#4a1a78", "#b070f0", "#f0d8ff"]
 const PAL_BRAISE := ["#07030c", "#9a3ae0", "#d08aff", "#f6e4ff"]
-const NB_FUMEE := 150
+const NB_FUMEE := 260
 const NB_ADD := 70
 
 var _rayon := false
@@ -38,7 +38,7 @@ func _spirale_main(src: Vector3, n: int, vers: Vector3, suit: float, vel2: Vecto
 		var off: Vector3 = (pr[0] * cos(a) + pr[1] * sin(a)) * r + Vector3.UP * (h(k * 7 + 3) - 0.3) * 0.1
 		var tang: Vector3 = (pr[1] * cos(a) - pr[0] * sin(a))
 		semer({"pos": src + Vector3.UP * 0.06 + off, "vel": tang * 0.6, "vie": 0.5 + 0.35 * h(k * 9 + 4), "suit": suit * (0.7 + 0.3 * h(k)),
-			"vers": vers, "vel2": vel2 + tang * 1.2 + dir * h(k * 11) * 2.0, "s0": 0.09, "s1": 0.17, "a": 0.8, "ton": 0.25 + 0.5 * h(k * 13), "freine": 1.6,
+			"vers": vers, "vel2": vel2 + tang * 1.2 + dir * h(k * 11) * 2.0, "s0": 0.12, "s1": 0.22, "a": 0.85, "ton": 0.25 + 0.5 * h(k * 13), "freine": 1.6,
 			"delai": h(k * 17 + 5) * delai_max})
 	# braises aspirées avec elle
 	for k in int(n / 3):
@@ -76,6 +76,11 @@ func _maj(dt: float, cb: Basis) -> void:
 		var rc := 0.05 * bat * ech * (0.8 + 0.4 * s)
 		semer({"pos": tete, "vie": 0.045, "sorte": 2, "s0": rc, "s1": rc, "a": 0.8})
 		semer({"pos": tete, "vie": 0.045, "sorte": 2, "s0": rc * 2.3, "s1": rc * 2.3, "a": 0.2})
+		# corps de la tête : nuage dense de fumée (même densité que le repos), plus gros qu'un point
+		for q in 3:
+			var a0 := randf() * TAU
+			var o0: Vector3 = (pr[0] * cos(a0) + pr[1] * sin(a0)) * randf_range(0.0, 0.07) * ech + pr[0] * 0.0
+			semer({"pos": tete + o0 - dir * randf_range(0.0, 0.12) * ech, "vel": o0 * 3.0 - dir * 0.3, "vie": randf_range(0.2, 0.32), "s0": 0.13 * ech, "s1": 0.2 * ech, "a": 0.9, "ton": randf() * 0.5, "freine": 3.0})
 		# colonne de la 2e main (double) : aspirée vers la tête
 		if double and mains.size() > 1 and t < DUREE_NAISSANCE * 1.4:
 			var pd := pos_main(1, origine)
@@ -98,15 +103,15 @@ func _maj(dt: float, cb: Basis) -> void:
 		var semis := func(pos: Vector3) -> void:
 			_acc += 2.3
 			var a3 := _acc
-			var off2: Vector3 = (pr[0] * cos(a3) + pr[1] * sin(a3)) * 0.075 * ech
+			var off2: Vector3 = (pr[0] * cos(a3) + pr[1] * sin(a3)) * 0.11 * ech
 			var tang: Vector3 = (pr[1] * cos(a3) - pr[0] * sin(a3))
-			semer({"pos": pos + off2, "vel": tang * 0.9 - dir * 0.45 + off2 * 2.0, "vie": randf_range(0.7, 1.05), "s0": 0.07 * ech, "s1": 0.19 * ech, "a": 0.85 * dens,
+			semer({"pos": pos + off2, "vel": tang * 1.1 - dir * 0.45 + off2 * 2.5, "vie": randf_range(0.8, 1.2), "s0": 0.12 * ech, "s1": 0.36 * ech, "a": 0.9 * dens,
 				"ton": randf() * 0.7, "freine": 1.3, "grav": -0.15})
 			if randf() < 0.45:
 				semer({"pos": pos + off2 * 1.3, "vel": tang * 1.6 - dir * 1.8, "vie": randf_range(0.28, 0.42), "sorte": 1, "long": randf_range(0.18, 0.3) * ech, "ton": 0.3 + 0.7 * randf(), "a": 0.9, "freine": 1.0})
 			if randf() < 0.35:
 				semer({"pos": pos + off2 * 1.5, "vel": off2 * 4.0 - dir * 0.5, "vie": randf_range(0.3, 0.6), "sorte": 3, "s0": 0.014, "s1": 0.006, "a": 1.0, "ton": randf(), "freine": 2.0})
-		le_long(semis, 0.095)
+		le_long(semis, 0.07)
 	lumiere(Color(0.62, 0.25, 1.0), 2.4 * fin_k, 5.0)
 	puffs(dt, cb)
 	if _runes != null and is_instance_valid(_runes):

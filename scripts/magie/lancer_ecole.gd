@@ -183,6 +183,20 @@ func demarrer(progression := 1.0) -> void:
 	if double and mains.size() > 1 and fusion == Vector3.INF:
 		fusion = tete
 	_naissance()
+	if suit_parent and not mains.is_empty() and is_inside_tree():
+		# BRANCHEMENT PROVISOIRE (fin du lancer) : 0,4 s après le départ, le repos se reforme dans la main (à remplacer par la récupération de MainSort)
+		get_tree().create_timer(0.4).timeout.connect(_reformer_mains.bind(mains.duplicate()))
+
+func _reformer_mains(l: Array) -> void:
+	for m in l:
+		if is_instance_valid(m) and (m as Node).is_inside_tree():
+			match ecole:
+				"glace":
+					LancerGlace.reformer(m)
+				"electricite":
+					LancerElec.reformer(m)
+				"tenebres":
+					LancerTenebres.reformer(m)
 
 func maintenir(tete_: Vector3, direction: Vector3) -> void:
 	tete = tete_
@@ -313,7 +327,7 @@ func semer(d: Dictionary) -> void:
 	var e := {"pos": Vector3.ZERO, "vel": Vector3.ZERO, "grav": 0.0, "freine": 1.0, "vie": 0.8, "s0": 0.05, "s1": 0.1, "a": 0.5,
 		"ton": 0.5, "sorte": 0, "long": 0.2, "suit": 0.0, "vers": Vector3.INF, "vel2": Vector3.ZERO, "age": 0.0, "h": randf(), "delai": 0.0}
 	e.merge(d, true)
-	if _p.size() < 260:
+	if _p.size() < 420:
 		_p.append(e)
 
 ## Avance et dessine les puffs (tous : mélange alpha dans `_mix`, additifs dans `_add`).

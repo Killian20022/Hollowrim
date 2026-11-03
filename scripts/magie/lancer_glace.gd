@@ -157,8 +157,8 @@ func _maj(dt: float, cb: Basis) -> void:
 		var g := pg.lerp(fus, u)
 		var d := pd.lerp(fus, u)
 		var sep := 1.0 - u
-		_regler_bouquet(_bq2, _pieds2, d, (fus - pd).normalized() if sep > 0.02 else dir, s * 0.7, ech * 0.7, sep)
-		_regler_bouquet(_bouquet, _pieds, g, (fus - pg).normalized() if sep > 0.02 else dir, s * 0.7 + 0.3 * u, ech * (0.7 + 0.3 * u), 1.0)
+		_regler_bouquet(_bq2, _pieds2, d, (fus - pd).normalized() if sep > 0.02 else dir, s * 0.3, ech * 0.55, sep)
+		_regler_bouquet(_bouquet, _pieds, g, (fus - pg).normalized() if sep > 0.02 else dir, s * 0.3 + 0.7 * u * u, ech * (0.55 + 0.45 * u), 1.0)
 		_semer_flux(pd, fus, sep)
 	else:
 		_bq2.visible = false

@@ -18,6 +18,9 @@ const SCEN := {
 	"ten_trait": ["trait_ombre", 6, 44],
 	"ten_drain": ["drain_vie", 48, 36],
 	"ten_rayon": ["rayon_neant", 100, 70],
+	"glace_nova": ["nova_gelee", 8, 50],
+	"elec_tempete": ["tempete_statique", 8, 50],
+	"ten_explosion": ["explosion_obscure", 60, 56],
 }
 const TPS_PAS := 3
 
@@ -64,7 +67,7 @@ func _regler_cam(cam: String, main: String) -> void:
 		"suit":
 			var pr := _projectile()
 			var eye: Vector3 = j.camera.global_position
-			var tgt: Vector3 = pr.global_position if pr != null else (m.paume[main] as Node3D).global_position + (-j.camera.global_basis.z) * 2.0
+			var tgt: Vector3 = pr.global_position if pr != null else (m.paume[main] as Node3D).global_position + (-j.camera.global_basis.z) * 0.9
 			cam_gp.fov = float(_arg("fov_vol", "50"))
 			cam_gp.global_transform = Transform3D(Basis.looking_at(tgt - eye, Vector3.UP), eye)
 			cam_gp.current = true
@@ -160,7 +163,7 @@ func _combiner(ecole: String, film: bool) -> void:
 	for k in 70:
 		await _attendre(1)
 		if k > 14:
-			tete += avant * 0.2
+			tete += avant * 0.07
 		n.maintenir(tete, avant)
 		if k == 54:
 			n.terminer(tete)
