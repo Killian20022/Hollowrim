@@ -174,7 +174,7 @@ func _mana() -> void:
 
 func _sorts() -> void:
 	var ids := ["jet_flammes", "boule_feu", "explosion_incendiaire", "eclat_glace", "lance_givre", "nova_gelee", "souffle_givre", "arc_electrique",
-		"chaine_eclairs", "tempete_statique", "trait_ombre", "drain_vie", "explosion_obscure"]
+		"chaine_eclairs", "tempete_statique", "trait_ombre", "drain_vie", "explosion_obscure", "orage_runique"]
 	for id in ids:
 		magie.equiper("gauche", "vide")
 		magie.equiper("droite", id)
@@ -204,6 +204,9 @@ func _sorts() -> void:
 				if e["sort"] == id:
 					touches[e["cible"]] = true
 			_verif(touches.size() >= 2, "chaîne d'éclairs : saute de cible en cible (%d cibles)" % touches.size())
+		if sd.portee_mode == DonneesSort.Portee.DECHARGE:
+			# sorts à décharge : le relâchement est UN seul départ, les dégâts croissent avec la charge (facteur_charge)
+			_verif(LanceurSorts.facteur_charge(sd, 1.0) > LanceurSorts.facteur_charge(sd, 0.2) * 1.3, "%s : dégâts croissants avec la charge (x%.2f à x%.2f)" % [id, LanceurSorts.facteur_charge(sd, 0.2), LanceurSorts.facteur_charge(sd, 1.0)])
 		if sd.recharge > 0.5:
 			_verif(magie.recharges.has(id) or sd.recharge < 1.3, "%s : recharge en cours" % id)
 	await _sim(4.0)   # fin de la tempête
@@ -468,4 +471,4 @@ func _sauvegarde() -> void:
 	magie.importer(JSON.parse_string(texte))
 	_verif(magie.eq.mains["gauche"]["id"] == "drain_vie" and magie.eq.mains["droite"]["id"] == "epee" and absf(j.mana - 42.0) < 0.01,
 		"sauvegarde : mains (%s / %s) et mana restaurés" % [magie.eq.mains["gauche"]["id"], magie.eq.mains["droite"]["id"]])
-	_verif(magie.eq.sorts_connus.size() == 19, "sauvegarde : 19 sorts connus")
+	_verif(magie.eq.sorts_connus.size() == 20, "sauvegarde : 20 sorts connus")

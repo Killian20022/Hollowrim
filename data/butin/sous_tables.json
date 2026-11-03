@@ -26,7 +26,8 @@
 			{"id": "tome_chaine_eclairs", "poids": 1},
 			{"id": "tome_tempete_statique", "poids": 1},
 			{"id": "tome_explosion_incendiaire", "poids": 1},
-			{"id": "tome_explosion_obscure", "poids": 1}
+			{"id": "tome_explosion_obscure", "poids": 1},
+			{"id": "tome_orage_runique", "poids": 1}
 		]},
 		"armes": {"tirages": 1, "entrees": [
 			{"id": "lame_antique", "poids": 60},

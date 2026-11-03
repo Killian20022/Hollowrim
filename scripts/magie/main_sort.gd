@@ -513,6 +513,7 @@ func _runes_vers(m: String, ecole: String, k: float) -> void:
 	# double magie : les runes de chaque main vont un peu plus vite et brillent un peu plus (la flamme, elle, reste à peu près la même)
 	r.vitesse_k = 1.2 if i.double else 1.0
 	r.lumi_k = 1.3 if i.double else 1.0
+	r.double = i.double
 	# tenue « runes » : les flammes de l'aura serrées autour de la boule tenue (cœur de l'aura de feu). La boule et
 	# `echelles_aura` vivent dans gestion_magie.gd (branche fps/avant_bras_runes, pas encore portés) : sans elles, rien.
 	var g = GestionMagie.obtenir()

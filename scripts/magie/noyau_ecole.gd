@@ -97,8 +97,8 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	if not _arcs.is_empty():
-		var g := GestionMagie.obtenir()
-		if g != null:
+		var g := GestionMagie.instance   # pas obtenir() : à la fermeture, l'arbre est en train de se défaire
+		if g != null and is_instance_valid(g):
 			g.eclair_fin(_arcs)
 
 ## Matériau des bouffées : palette (corps, bord sombre, bord clair, cœur) et mode (0 mélange, 1 additif).
@@ -311,6 +311,10 @@ func _process(dt: float) -> void:
 		return
 	_t += dt
 	_naiss = minf(_naiss + dt * 3.0, 1.0)
+	# réglages de la main (double magie : runes plus vives et plus rapides) relus à chaque image : MainSort les change après la naissance
+	taille_k = runes.taille_k
+	lumi_k = runes.lumi_k
+	vitesse_k = runes.vitesse_k
 	global_transform = Transform3D(Basis.IDENTITY, runes.global_position)
 	var ch: float = runes.charge if runes.etat == 2 else 0.0
 	var conv := sin(minf(runes._conv, 1.0) * PI * 0.5)

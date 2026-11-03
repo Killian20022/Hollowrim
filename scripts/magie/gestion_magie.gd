@@ -1280,11 +1280,11 @@ func _gen_noyau_arcs(etat: Callable) -> Array:
 	var st: Dictionary = etat.call()
 	var r := float(st.r)
 	var ch := float(st.ch)
-	var n := 6 + int(ch * 3.0) + (1 if rng.randf() < 0.5 else 0)
+	var n := 6 + int(ch * 6.0) + (1 if rng.randf() < 0.5 else 0)
 	for _k in n:
 		var o := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized() * 0.012 * r
 		var d := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.7, 1), rng.randf_range(-1, 1)).normalized()
-		var b := d * rng.randf_range(0.1, 0.19) * r * (1.0 + 0.3 * ch)
+		var b := d * rng.randf_range(0.1, 0.19) * r * (1.0 + 0.5 * ch)
 		var p := foudre(o, b, 0.03 * r, 3)
 		traits.append([p, rng.randf_range(0.6, 1.0), 1.0])
 		if p.size() < 6:
@@ -2885,6 +2885,65 @@ func chaine(ecole: String, points: Array) -> void:
 			get_tree().create_timer(pas * (i - 1), false).timeout.connect(func() -> void: emettre(sp, null, xf, false, 0.5))
 	lumiere("chaine%d" % rng.randi(), pts[0].lerp(pts[pts.size() - 1], 0.5), LUMIERE.get(ecole, LUMIERE.electricite), 8.0, 9.0, 7.0, 0.45)
 
+# ====================================================================== décharges des sorts à charge
+
+## Décharge d'un sort à charge (EffetsMagie.decharge) : « orage » (électricité).
+func decharge(ecole: String, forme: String, depart: Vector3, fin: Vector3, k: float, normale: Vector3) -> void:
+	_orage(depart, fin, k, normale)
+
+## ORAGE RUNIQUE : les éclairs de Force (foudre / foudre_ramifiee, même matériau « electricite », refaits 30 fois par seconde) :
+## l'éclair maître de la paume au point visé, 3 à 6 éclairs d'appoint qui retombent autour (accrochés au sol ou au décor par un
+## rayon), l'éclair du ciel sur l'impact et des arcs qui rampent au sol. Plus la charge est forte, plus il y en a et plus ils durent.
+func _orage(depart: Vector3, fin: Vector3, k: float, normale: Vector3) -> void:
+	var kk := clampf(k, 0.4, 1.5)
+	var duree := 0.55 + 0.35 * kk
+	var t0 := horloge
+	var espace := get_world_3d().direct_space_state if is_inside_tree() else null
+	var dist := depart.distance_to(fin)
+	var n_app := 3 + int(kk * 3.0)
+	var rayon_sol := 1.2 + 1.3 * kk
+	eclair(null, "electricite", 3.0, duree, 0.033, func() -> Array:
+		var traits: Array = []
+		var age := (horloge - t0) / duree
+		# l'orage s'éteint par à-coups : de moins en moins d'éclairs gardés sur la fin
+		var garde := 1.0 if age < 0.5 else clampf(1.0 - (age - 0.5) * 1.6, 0.0, 1.0)
+		if rng.randf() < garde:
+			foudre_ramifiee(traits, depart, fin, dist * 0.06, 3.0, 3, 5)
+		if rng.randf() < garde:
+			foudre_ramifiee(traits, depart, fin + Vector3(rng.randf_range(-0.3, 0.3), 0, rng.randf_range(-0.3, 0.3)), dist * 0.1, 1.5, 1, 5)
+		for _i in n_app:
+			if rng.randf() > garde:
+				continue
+			var a := rng.randf() * TAU
+			var f := fin + Vector3(cos(a), 0.0, sin(a)) * rayon_sol * rng.randf_range(0.35, 1.0) + Vector3.UP * 0.5
+			if espace != null:
+				var q := PhysicsRayQueryParameters3D.create(f + Vector3.UP * 1.5, f + Vector3.DOWN * 4.0)
+				var r := espace.intersect_ray(q)
+				if not r.is_empty():
+					f = r.position
+			var o := depart if rng.randf() < 0.45 else fin + Vector3.UP * rng.randf_range(2.0, 5.0) + Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1))
+			foudre_ramifiee(traits, o, f, o.distance_to(f) * 0.08, 1.5, 2, 4)
+		# l'éclair du ciel sur l'impact
+		if rng.randf() < garde * 0.85:
+			var haut := fin + Vector3.UP * rng.randf_range(6.0, 9.0) + Vector3(rng.randf_range(-1.5, 1.5), 0, rng.randf_range(-1.5, 1.5))
+			foudre_ramifiee(traits, haut, fin, 0.9, 3.0, 3, 5)
+		# arcs qui rampent au sol autour de l'impact
+		var sol := fin + normale.normalized() * 0.06
+		for _i in 4:
+			if rng.randf() > garde:
+				continue
+			var a := rng.randf() * TAU
+			var f := sol + Vector3(cos(a), 0.0, sin(a)) * rayon_sol * rng.randf_range(0.4, 0.9)
+			traits.append([foudre(sol, f, rayon_sol * 0.12, 3), 1.0, 0.9])
+		return traits)
+	emettre("elec_impact", null, Transform3D(Basis.IDENTITY, fin), false, 0.5 + 0.3 * kk)
+	_decharge_ponctuelle(depart, fin, duree, 0.0, 40, 1.0)
+	lumiere("orage_impact", fin + normale.normalized() * 1.2, Color(0.7, 0.65, 1.0), 4.5 * kk, 8.0 + 2.0 * kk, 10.0, duree)
+	lumiere("orage_main", depart, Color(0.7, 0.65, 1.0), 2.5, 4.0, 8.0, 0.3)
+	disque(fin, normale, 0.3, rayon_sol, 1.6, {"couleur": "#6a5af0", "coeur": "#f0f2ff", "anneau": 0.9, "epaisseur": 0.06, "remplissage": 0.15, "texels": 56.0, "eclat": 0.9}, false, false, 0.5)
+	disque(fin, normale, 0.2, rayon_sol * 0.7, 3.5, {"couleur": "#1a1230", "coeur": "#06030c", "anneau": 0.0, "remplissage": 0.7, "texels": 48.0, "eclat": 0.6, "opacite": 0.6}, true, false, 0.7)
+	_teinte_demande("electricite", 0.8)
+
 # ====================================================================== statuts des cibles
 
 func statut_cible(cible: Node3D, statut: String, duree: float) -> void:
@@ -3200,30 +3259,26 @@ func _maj_double() -> void:
 			v = {"noeud": Node3D.new(), "emit": [], "eclair": {}, "p0": p0, "p1": p1}
 			add_child(v.noeud)
 			var n: Node3D = v.noeud
+			if NoyauEcole.ECOLES.has(ecole) or ecole == "feu":
+				# double magie (v5, toutes les écoles à noyau) : plus de gros nuage entre les mains (« un bloc ») ; un petit
+				# chapelet de runes (le MÊME RunesOrbite que les mains, sans noyau) relie les deux énergies
+				var pont := RunesOrbite.new()
+				pont.name = "RunesPont"
+				pont.ecole = ecole
+				pont.suivi = n
+				pont.centre_force = 0.1
+				pont.avec_lueurs = false
+				pont.nombre = 4
+				pont.taille_k = 0.8
+				pont.lumi_k = 0.9
+				pont.intensite = 0.9
+				pont.etat = 1
+				pont.germe = 0.4
+				n.add_child(pont)
+				v.pont = pont
 			match ecole:
-				"tenebres":
-					_vortex_main(n, 0.16)
-				"glace":
-					var p := emettre("glace_double_orbite", n, Transform3D.IDENTITY, true)
-					if p != null:
-						v.emit.append(p)
-				"feu":
-					# double magie de feu (v5) : plus de gros nuage de particules entre les mains (« un bloc ») ; un petit chapelet de
-					# runes (le MÊME RunesOrbite que les mains) relie les deux flammes, et les deux mains brillent davantage
-					var pont := RunesOrbite.new()
-					pont.name = "RunesPont"
-					pont.ecole = "feu"
-					pont.suivi = n
-					pont.centre_force = 0.1
-					pont.avec_lueurs = false
-					pont.nombre = 4
-					pont.taille_k = 0.8
-					pont.lumi_k = 0.9
-					pont.intensite = 0.9
-					pont.etat = 1
-					pont.germe = 0.4
-					n.add_child(pont)
-					v.pont = pont
+				"feu", "glace", "tenebres":
+					pass   # le chapelet de runes suffit
 				"electricite":
 					v.eclair = eclair(null, "electricite", 2.0, -1.0, 0.05, func() -> Array:
 						var t: Array = []

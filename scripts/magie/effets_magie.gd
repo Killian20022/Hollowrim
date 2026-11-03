@@ -84,6 +84,16 @@ static func chaine(ecole: String, points: Array[Vector3]) -> void:
 		return
 	_g().chaine(ecole, points)
 
+## Décharge d'un sort à charge, d'un coup, de `depart` (paume) à `fin` : forme "orage" = éclairs de Force ramifiés qui
+## frappent `fin` et ses abords (éclair du ciel au sol, arcs rampants, flash). `k` ~1 (0,5 à 1,4) : charge atteinte ;
+## `normale` : celle de la surface touchée. Dure 0,6 à 1 s.
+static func decharge(ecole: String, forme: String, depart: Vector3, fin: Vector3, k: float, normale := Vector3.UP) -> void:
+	_compter("decharge")
+	SonsMagie.decharge(forme, depart, k)
+	if muet:
+		return
+	_g().decharge(ecole, forme, depart, fin, k, normale)
+
 ## Statut visible sur une cible (statuts : "brulure", "gel", "choc", "corruption") pendant `duree` s (rappeler
 ## prolonge ; duree <= 0 retire). Couche additive sur le modèle (gel bleuté, choc, corruption) + particules.
 static func statut_cible(cible: Node3D, statut: String, duree: float) -> void:

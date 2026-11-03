@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_orage"]
+
+[resource]
+script = ExtResource("1_orage")
+id = "orage_runique"
+nom = "Orage runique"
+ecole = "electricite"
+type = 2
+portee_mode = 6
+description = "Maintenir pour charger ; relâcher déchaîne des éclairs de Force."
+cout = 30.0
+temps_charge = 1.0
+recuperation = 0.45
+recharge = 1.0
+degats = 38.0
+degats_charge_min = 0.5
+type_degats = "electricite"
+statut = "choc"
+duree_statut = 0.6
+puissance_statut = 0.5
+stagger = 20.0
+portee = 22.0
+rayon = 3.0
+forme = "orage"
+double = {
+"cout": 2.4,
+"degats": 2.1,
+"duree_statut": 1.4,
+"rayon": 1.4,
+"stagger": 1.7
+}
+profil = "poing"

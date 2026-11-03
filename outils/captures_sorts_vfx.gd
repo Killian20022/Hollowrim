@@ -62,6 +62,22 @@ const VUES := {
 	"ec_ten_incante": [false, "trait_ombre", "incante", "vide", 0.0, true, "droite"],
 	"ec_ten_charge": [false, "trait_ombre", "chargeplein", "vide", 0.0, true, "droite"],
 	"ec_ten_lance": [false, "trait_ombre", "lance", "vide", 0.0, true, "droite"],
+	# intégration (integration/sorts) : les 4 écoles en main GAUCHE et en DOUBLE (vraie charge d'un sort à charge de l'école)
+	"in_feu_g": [false, "boule_feu", "charge", "vide", 0.0, true, "gauche"],
+	"in_glace_g": [false, "lance_givre", "charge", "vide", 0.0, true, "gauche"],
+	"in_elec_g": [false, "orage_runique", "charge", "vide", 0.0, true, "gauche"],
+	"in_ten_g": [false, "explosion_obscure", "charge", "vide", 0.0, true, "gauche"],
+	"in_ten_d": [false, "explosion_obscure", "charge", "vide", 0.0, true, "double"],
+	"in_feu_d": [false, "boule_feu", "charge", "vide", 0.0, true, "double"],
+	"in_glace_d": [false, "lance_givre", "charge", "vide", 0.0, true, "double"],
+	"in_elec_d": [false, "orage_runique", "charge", "vide", 0.0, true, "double"],
+	# orage runique, main droite : début, mi-charge, plein, décharge (mannequin) puis main gauche et double
+	"or_debut": [false, "orage_runique", "charge:6", "vide", 0.0, true, "droite"],
+	"or_mi": [false, "orage_runique", "charge:24", "vide", 0.0, true, "droite"],
+	"or_plein": [false, "orage_runique", "charge:44", "vide", 0.0, true, "droite"],
+	"or_decharge": [false, "orage_runique", "lance:44", "mannequin", 0.0, false, "droite"],
+	"or_decharge_g": [false, "orage_runique", "lance:44", "mannequin", 0.0, false, "gauche"],
+	"or_decharge_d": [false, "orage_runique", "lance:44", "mannequin", 0.0, false, "double"],
 	"fr_tps": [true, "boule_feu", "repos", "vide", -125.0, false, "droite"],
 }
 
@@ -201,11 +217,13 @@ func _vue(v: String, pref: String) -> void:
 		j.camera_tp.set("_orbite", deg_to_rad(float(c[4])))
 		j.camera_tp.recaler()
 	await _attendre(75)
-	var action: String = c[2]
+	var action_ln: String = c[2]
+	var action: String = action_ln.get_slice(":", 0)
+	var n_act := int(action_ln.get_slice(":", 1)) if action_ln.contains(":") else 0
 	match action:
 		"charge":
 			for h in mains: m.appuyer(h)
-			await _attendre(42)
+			await _attendre(n_act if n_act > 0 else 42)
 		"chargeplein":
 			# CHARGE imposée sans lancer le sort (RunesOrbite.forcer_charge) : l'arc électrique, canalisé, tire dès qu'on le tient
 			RunesOrbite.forcer_charge = 1.0
@@ -215,7 +233,7 @@ func _vue(v: String, pref: String) -> void:
 			await _attendre(8)
 		"lance":
 			for h in mains: m.appuyer(h)
-			await _attendre(40)
+			await _attendre(n_act if n_act > 0 else 40)
 			for h in mains: m.relacher(h)
 			await _attendre(3)
 		"vol", "vol_impact":

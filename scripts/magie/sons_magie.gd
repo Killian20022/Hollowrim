@@ -26,6 +26,8 @@ const VOL_REFUS := -4.0
 const VOL_CHARGE_MIN := -26.0
 const VOL_CHARGE_MAX := -9.0
 const VOL_JET := -3.0
+## Décharge des sorts à charge (forme du sort -> fichier) : orage runique (éclairs de Force).
+const DECHARGES := {"orage": "magie/electricite_decharge"}
 const HAUTEUR_DOUBLE := {"feu": 0.85, "glace": 1.15, "electricite": 1.0, "tenebres": 0.7, "soin": 1.2, "protection": 0.95}
 
 ## Compteurs d'appels (tests) ; `joues` = lectures réellement lancées ; `sync` = flux chargés en synchrone (doit rester 0 après precharger()).
@@ -75,6 +77,7 @@ static func tous_les_noms() -> Array:
 		l.append("magie/reaction_" + r)
 	l.append("magie/refus_mana")
 	l.append("magie/double")
+	l.append_array(DECHARGES.values())
 	return l
 
 static func _chemin(nom: String) -> String:
@@ -166,6 +169,13 @@ static func chaine(ecole: String, points: Array) -> void:
 		return
 	var t := _t(ecole_sure(ecole))
 	_coup(_variante(t["lancer"]), points[0], VOL_LANCER - 3.0, randf_range(1.0, 1.12), t["c_chaine"], 0.15)
+
+## Départ d'une décharge (LanceurSorts, Portee.DECHARGE) : craquement et tonnerre de l'orage.
+static func decharge(forme: String, pos: Vector3, k := 1.0) -> void:
+	_compter("decharge")
+	if not DECHARGES.has(forme):
+		return
+	_coup(DECHARGES[forme], pos, VOL_LANCER + 2.0 + 3.0 * clampf(k - 1.0, -0.5, 1.0), randf_range(0.97, 1.03), "decharge_" + forme, 0.2)
 
 static func reaction(nom: String, pos: Vector3) -> void:
 	_compter("reaction")

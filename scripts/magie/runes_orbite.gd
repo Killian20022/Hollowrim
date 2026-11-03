@@ -53,6 +53,8 @@ var taille_k := 1.0
 var lumi_k := 1.0
 ## Réutilisation hors main (projectile lancé, pont de la double magie) : échelle des orbites et des runes, hauteur du centre
 ## (-1 = celle de l'école), sans les lueurs d'avant-bras, apparition progressive (orbites qui s'ouvrent en `germe` s).
+## Double magie (les deux mains lancent ce sort) : posé par MainSort.
+var double := false
 var echelle := 1.0
 var centre_force := -1.0
 var avec_lueurs := true

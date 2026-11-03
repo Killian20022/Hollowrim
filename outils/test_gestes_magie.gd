@@ -54,7 +54,8 @@ func _donnees() -> void:
 		"double": ["entree", "depart"], "double_charge": ["entree", "tenue", "depart"], "double_jet": ["entree", "boucle", "fin"],
 		"zone": ["entree", "tenue", "depart"]}
 	_verif(d.size() == attendus.size(), "données : %d gestes (attendu %d)" % [d.size(), attendus.size()])
-	var repos_g: Dictionary = PosesIncantation.pose("repos", "gauche")
+	# les captures partent de la pose de repos d'ORIGINE de la main gauche (pas de la pose miroir de la flamme runique v5 : PosesIncantation.pose)
+	var repos_g: Dictionary = PosesIncantation.POSES["repos"]
 	for g in attendus:
 		var ok_phases := d.has(g)
 		var pire_cadre := 0
@@ -137,7 +138,7 @@ func _jouer(gauche: String, droite: String, actions: Array, duree: float, main :
 func _en_jeu() -> void:
 	var cas := [
 		["lance", "eclat_glace", "epee", [[0.1, "appui"], [0.15, "relache"]], 1.3, "gauche", ["lance:entree", "lance:depart"]],
-		["charge", "boule_feu", "epee", [[0.1, "appui"], [1.3, "relache"]], 2.3, "gauche", ["charge:entree", "charge:tenue", "charge:depart"]],
+		["charge", "boule_feu", "epee", [[0.1, "appui"], [1.3, "relache"]], 2.3, "gauche", ["charge:entree"]],   # flamme runique v5 : pendant la charge d'un sort « poing », la paume reste ouverte (le geste capturé est oublié)
 		["jet", "jet_flammes", "epee", [[0.1, "appui"], [1.6, "relache"]], 2.4, "gauche", ["jet:entree", "jet:boucle", "jet:fin"]],
 		["zone", "explosion_obscure", "epee", [[0.1, "appui"], [1.4, "relache"]], 2.4, "gauche", ["zone:entree", "zone:tenue", "zone:depart"]],
 		["nova (zone sans charge)", "nova_gelee", "epee", [[0.1, "appui"], [0.15, "relache"]], 1.5, "gauche", ["zone:entree", "zone:depart"]],
@@ -145,8 +146,8 @@ func _en_jeu() -> void:
 		["double (gauche)", "eclat_glace", "eclat_glace", [[0.1, "appui2"], [0.15, "relache2"]], 1.5, "gauche", ["double:entree", "double:depart"]],
 		["double (droite)", "eclat_glace", "eclat_glace", [[0.1, "appui2"], [0.15, "relache2"]], 1.5, "droite", ["double:entree", "double:depart"]],
 		["double jet", "jet_flammes", "jet_flammes", [[0.1, "appui2"], [1.4, "relache2"]], 2.3, "gauche", ["double_jet:entree", "double_jet:boucle", "double_jet:fin"]],
-		["double charge", "boule_feu", "boule_feu", [[0.1, "appui2"], [1.3, "relache2"]], 2.3, "droite", ["double_charge:entree", "double_charge:tenue", "double_charge:depart"]],
-		["interruption pendant la charge", "boule_feu", "epee", [[0.1, "appui"], [0.6, "coup"], [0.7, "relache"]], 1.4, "gauche", ["charge:entree", "charge:tenue"]],
+		["double charge", "boule_feu", "boule_feu", [[0.1, "appui2"], [1.3, "relache2"]], 2.3, "droite", ["double_charge:entree"]],
+		["interruption pendant la charge", "boule_feu", "epee", [[0.1, "appui"], [0.6, "coup"], [0.7, "relache"]], 1.4, "gauche", ["charge:entree"]],
 	]
 	for c in cas:
 		var r: Array = await _jouer(c[1], c[2], c[3], c[4], c[5])

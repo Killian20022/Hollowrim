@@ -20,7 +20,7 @@ const ANCIENS := {
 	"potion_soin": [0.5, 30], "potion_soin_forte": [0.5, 75], "potion_mana": [0.5, 35], "potion_endurance": [0.5, 25],
 	"pain_seigle": [0.2, 3], "viande_sechee": [0.3, 5], "tome_boule_feu": [1.0, 120], "tome_lance_givre": [1.0, 120],
 	"tome_souffle_givre": [1.0, 200], "tome_drain_vie": [1.0, 150], "tome_chaine_eclairs": [1.0, 220], "tome_nova_gelee": [1.0, 160],
-	"tome_tempete_statique": [1.0, 260], "tome_explosion_incendiaire": [1.0, 240], "tome_explosion_obscure": [1.0, 240],
+	"tome_tempete_statique": [1.0, 260], "tome_explosion_incendiaire": [1.0, 240], "tome_explosion_obscure": [1.0, 240], "tome_orage_runique": [1.0, 280],
 	"tome_enchant_electricite": [1.0, 140], "tome_enchant_glace": [1.0, 140], "tome_enchant_tenebres": [1.0, 140],
 	"epee_or": [5.0, 180], "epee_rubis": [6.0, 220], "epee_verre": [4.5, 260], "epee_obsidienne": [7.0, 300], "epee_hrafn": [6.0, 280],
 	"anneau_cuivre": [0.1, 15], "coupe_argent": [1.0, 35], "collier_or": [0.3, 85],
