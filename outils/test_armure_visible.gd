@@ -202,7 +202,7 @@ func _verifier_piece(id: String, e: String) -> void:
 	var mat := mi.get_surface_override_material(0) as ShaderMaterial
 	var tex: Texture2D = mat.get_shader_parameter("tex_base") if mat else null
 	var tex_max := TEX_MAX if hd else 256
-	ok(mat != null and (mat.shader == EpeesLongues.shader_matiere(false) or (hd and mat.shader == ArmureVisible.shader_hd())) and tex != null
+	ok(mat != null and (mat.shader == EpeesLongues.shader_matiere(false) or (hd and (mat.shader == ArmureVisible.shader_hd() or mat.shader == ArmureVisible.shader_or()))) and tex != null
 		and tex.get_width() <= tex_max and tex.get_height() <= tex_max,
 		"%s : matériau « matière » (%s), texture %s" % [id, mat.resource_name if mat else "?", str(tex.get_size()) if tex else "absente"])
 	# masquage
