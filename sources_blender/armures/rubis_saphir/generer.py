@@ -32,14 +32,14 @@ CHAUSSES = os.path.join(C.DEPOT, "assets", "modeles", "armures", "chausses")
 TEX = os.path.join(C.DEPOT, "sources_blender", "armures", "textures")
 
 # ------------------------------------------------------------------------------------------------ palettes (numpy : listes de rgb)
-ACIER_RUBIS = L.hexa("#070505", "#0f0909", "#180d0c", "#221210", "#2e1714", "#3b1d19", "#4a241f", "#5b2c26", "#6e3730", "#85463e",
-                     "#a05e55", "#c08880", "#e0bcb4")
+ACIER_RUBIS = L.hexa("#050403", "#0a0706", "#110c0a", "#181110", "#201513", "#2a1c18", "#35241e", "#432e26", "#553a30", "#6b4a3d",
+                     "#86604f", "#a88070", "#cdb0a2")
 TREMPE_RUBIS = L.hexa("#0a0507", "#170a10", "#241019", "#331722", "#43202c", "#552b36", "#6a3842", "#83494f")   # reflets de trempe
 OR_SOMBRE = L.hexa("#120c05", "#21160a", "#332210", "#4a3317", "#62461f", "#7c5b29", "#977236", "#b28b47", "#cba560", "#e2c587", "#f2e0b0")
 BRONZE_SOMBRE = L.hexa("#0e0806", "#1c110c", "#2c1b13", "#3e271b", "#523425", "#684330", "#80553e", "#9a6a50", "#b88a6c")
 CUIR_RUBIS = L.hexa("#0b0505", "#140909", "#1e0d0c", "#291210", "#351815", "#421e19", "#50261f")
-ACIER_SAPHIR = L.hexa("#080a0e", "#0f131a", "#171d26", "#212935", "#2c3644", "#394555", "#485567", "#59677b", "#6d7c91", "#8494a9",
-                      "#9fb0c4", "#bfcfe0", "#e4eef8")
+ACIER_SAPHIR = L.hexa("#050609", "#0a0c11", "#101319", "#171b24", "#1f2530", "#292f3d", "#353d4d", "#444e61", "#586478", "#6f7d93",
+                      "#8d9bb0", "#b4c2d4", "#dde8f4")
 ARGENT = L.hexa("#2a3038", "#3f4752", "#56606d", "#6f7a88", "#8a96a4", "#a7b2bf", "#c5cfd9", "#e3eaf1", "#f6fafd")
 CUIR_SAPHIR = L.hexa("#08090c", "#0f1116", "#171a21", "#20242d", "#2a2f3a", "#353b48", "#424a59")
 FOURRURE_NEIGE = L.hexa("#4c5058", "#62666e", "#7a7e86", "#92969d", "#aaaeb4", "#c0c3c8", "#d3d5d9", "#e3e4e7", "#f0f1f2")
@@ -234,17 +234,17 @@ def noyau(P, c, n, haut, h, l, saillie, ens):
 
 
 def deco_casque(ens):
-    """Heaume : visière en T (bandeau de front + nasal de métal sombre), gemme au front, pointe centrale et pointes de tempes."""
+    """Heaume : visière en T (bandeau de front + nasal de métal sombre), gemme au front, CRÊTE de cristal haute (trois éclats alignés
+    sur le cimier, penchés vers l'arrière) et éclats de tempes. Même forme pour le saphir (v2)."""
     def dec(P, t, r, centre, Pts, R_NAS, R_CORNE):
         z = Pts[0][0].z + 0.042
         poser_gemme(P, (0, -0.5, z), (0, 1, 0), Vector((0, 0, 1)), 0.0105, ens, rayons=0, k=8)
-        if ens == "rubis":
-            poser_pointe(P, centre + Vector((0, -0.02, 0.5)), (0, 0, -1), (0, -0.12, 1), 0.12, 0.024, ens, k=6, graine=1)
-            poser_pointe(P, centre + Vector((0, 0.075, 0.5)), (0, 0, -1), (0, 0.45, 1), 0.065, 0.016, ens, k=5, graine=2)
-            for s in (1.0, -1.0):
-                poser_pointe(P, centre + Vector((0.5 * s, -0.01, 0.07)), (-s, 0, 0), (0.75 * s, 0.1, 0.62), 0.06, 0.015, ens, k=5, graine=3)
-        else:
-            poser_pointe(P, centre + Vector((0, -0.01, 0.5)), (0, 0, -1), (0, 0.05, 1), 0.065, 0.02, ens, k=6, graine=4)
+        poser_pointe(P, centre + Vector((0, -0.03, 0.5)), (0, 0, -1), (0, 0.12, 1), 0.26, 0.030, ens, k=6, graine=1)
+        poser_pointe(P, centre + Vector((0, 0.045, 0.5)), (0, 0, -1), (0, 0.55, 1), 0.19, 0.024, ens, k=5, graine=2)
+        poser_pointe(P, centre + Vector((0, 0.11, 0.45)), (0, 0, -1), (0, 0.85, 0.7), 0.13, 0.018, ens, k=4, serti=False, graine=5)
+        for s in (1.0, -1.0):
+            poser_pointe(P, centre + Vector((0.5 * s, -0.01, 0.07)), (-s, 0, 0), (0.85 * s, 0.1, 0.55), 0.13, 0.019, ens, k=5, graine=3)
+            poser_pointe(P, centre + Vector((0.45 * s, 0.07, 0.2)), (-s, 0, 0), (0.55 * s, 0.4, 0.8), 0.10, 0.015, ens, k=4, serti=False, graine=6)
     return dec
 
 
@@ -302,21 +302,22 @@ def deco_bandeau(mat):
 
 def deco_torse(ens):
     def dec(P, t, r, st):
-        rub = ens == "rubis"
         p, n = surface(P, (0, -0.6, st.get("z_coeur", 1.31)), (0, 1, 0))
         if p is not None:
-            noyau(P, p + n * 0.002, n, Vector((0, 0, 1)), 0.056 if rub else 0.046, 0.034 if rub else 0.03, 0.03, ens)
+            noyau(P, p + n * 0.002, n, Vector((0, 0, 1)), 0.082, 0.05, 0.04, ens)
         for s in (1.0, -1.0):
-            if rub:
-                # grappe d'épaule : une grande pointe vers le haut et le dehors, deux plus petites (devant-dehors, derrière)
-                poser_pointe(P, (0.215 * s, 0.0, 1.9), (0, 0, -1), (0.45 * s, 0.05, 0.89), 0.125, 0.027, ens, k=6, graine=10)
-                poser_pointe(P, (0.29 * s, -0.025, 1.9), (0, 0, -1), (0.85 * s, -0.2, 0.5), 0.085, 0.02, ens, k=5, graine=11)
-                poser_pointe(P, (0.255 * s, 0.065, 1.9), (0, 0, -1), (0.35 * s, 0.62, 0.7), 0.07, 0.017, ens, k=5, graine=12)
-                # coude : pointe vers l'arrière et le dehors, sertie au bout de la manche
-                la = r.os["lowerarm_" + ("l" if s > 0 else "r")]
-                poser_pointe(P, ((X_MANCHE - 0.035) * s, 0.5, la.z + 0.005), (0, -1, 0), (0.35 * s, 1.0, 0.1), 0.07, 0.016, ens, k=5, graine=13)
-            else:
-                poser_pointe(P, (0.23 * s, 0.0, 1.9), (0, 0, -1), (0.4 * s, 0.05, 0.92), 0.065, 0.02, ens, k=6, graine=14)
+            # gerbe d'épaule : 5 éclats en éventail, vers le haut et le dehors (le plus grand ~0,3 m)
+            gerbe = [((0.215, 0.0), (0.50, 0.04, 0.86), 0.30, 0.034), ((0.29, -0.025), (0.88, -0.15, 0.45), 0.22, 0.026),
+                     ((0.255, 0.065), (0.38, 0.62, 0.69), 0.20, 0.024), ((0.17, 0.03), (0.15, 0.1, 1.0), 0.19, 0.022),
+                     ((0.32, 0.03), (1.0, 0.1, 0.18), 0.15, 0.020)]
+            for k, ((x, y), ax, lg, ry) in enumerate(gerbe):
+                poser_pointe(P, (x * s, y, 1.9), (0, 0, -1), (ax[0] * s, ax[1], ax[2]), lg, ry, ens, k=6 if k < 1 else 4, serti=k < 1, graine=10 + k)
+            # petite gemme sertie sur le dessus de l'épaule (devant la gerbe)
+            poser_gemme(P, (0.24 * s, -0.075, 1.9), (0, 0, -1), Vector((s, 0, 0)), 0.013, ens, k=8, rayons=0, griffes=4)
+            # coude : deux éclats vers l'arrière et le dehors, sertis au bout de la manche
+            la = r.os["lowerarm_" + ("l" if s > 0 else "r")]
+            poser_pointe(P, ((X_MANCHE - 0.035) * s, 0.5, la.z + 0.005), (0, -1, 0), (0.35 * s, 1.0, 0.1), 0.15, 0.021, ens, k=5, graine=13)
+            poser_pointe(P, ((X_MANCHE - 0.06) * s, 0.5, la.z + 0.03), (0, -1, 0), (0.1 * s, 0.8, 0.6), 0.10, 0.015, ens, k=4, serti=False, graine=15)
         tassettes(P, r, st, ens)
     return dec
 
@@ -325,15 +326,15 @@ def tassettes(P, r, st, ens):
     """Tassettes : plaques de cristal en écu pointu qui pendent de la ceinture sur la jupe de mailles (facettées par une arête
     médiane en relief), avec une tranche d'épaisseur. Rubis : 7 étroites et pointues ; saphir : 5 larges, pointe émoussée."""
     mc = ENSEMBLES[ens]["cristal"]
-    rub = ens == "rubis"
-    angles = [0, 45, -45, 92, -92, 150, -150] if rub else [0, 62, -62, 125, -125, 180]
-    demi = math.radians(19 if rub else 27)
+    rub = True     # v2 : le saphir reprend les mêmes formes que le rubis
+    angles = [0, 34, -34, 68, -68, 100, -100, 140, -140, 180]
+    demi = math.radians(15)
     zt = st.get("z_ceinture", 1.0) - 0.02
     for a_deg in angles:
         a0 = math.radians(a_deg)
         cote = abs(a_deg) > 70 and abs(a_deg) < 120
-        z_tip = (0.70 if rub else 0.74) + (0.05 if cote else 0.0)
-        z_sb = z_tip + (0.11 if rub else 0.06)
+        z_tip = 0.60 + (0.06 if cote else 0.0)
+        z_sb = z_tip + 0.16
         zm = (zt + z_sb) / 2 + 0.02
         def pt(a, z, haut=0.0):
             d = Vector((math.sin(a), -math.cos(a), 0))
@@ -359,6 +360,9 @@ def tassettes(P, r, st, ens):
             q = [P.sommet(tour[i]), P.sommet(dedans[i]), P.sommet(dedans[i + 1]), P.sommet(tour[i + 1])]
             P.face(q, mc, uv)
         GEMMES.append((rows[1][1], Vector((math.sin(a0), -math.cos(a0), 0)), 0.09))
+        if abs(a_deg) in (68, 100):    # éclat de hanche : vers le dehors et un peu vers le bas
+            d0 = Vector((math.sin(a0), -math.cos(a0), 0))
+            poser_pointe(P, Vector((0, 0, zt - 0.03)) + d0 * 0.6, -d0, d0 * 1.0 + Vector((0, 0, 0.25)), 0.15, 0.022, ens, k=4, serti=False, graine=40 + a_deg)
 
 
 # ------------------------------------------------------------------------------------------------ styles
@@ -383,8 +387,8 @@ PIECES = {
                                                         bombe=0.05, decor=[lambda *a: PC.deco_nasal(*a, mat="acier_rubis", long=0.07, larg=0.015),
                                                                             lambda *a: PC.deco_joues(*a, mat="cristal_rubis"),
                                                                             deco_bandeau("acier_rubis"), deco_masque("rubis"), deco_casque("rubis")]))),
-    "cuirasse_rubis": ("rubis", lambda r: PC.cuirasse(r, _s(RUBIS, id="cuirasse_rubis", n=24, lames=4, bombe=0.026, lames_epaule=4,
-                                                            z_coeur=1.31, x_manche=X_MANCHE, decor=[deco_torse("rubis")]))),
+    "cuirasse_rubis": ("rubis", lambda r: PC.cuirasse(r, _s(RUBIS, id="cuirasse_rubis", n=24, lames=5, bombe=0.012, lames_epaule=4, z_plaques=(1.04, 1.47),
+                                                            z_coeur=1.30, x_manche=X_MANCHE, decor=[deco_torse("rubis")]))),
     "gantelets_rubis": ("rubis", lambda r: PC.gantelets(r, _s(RUBIS, id="gantelets_rubis", evasement=0.034, debut_manchette=0.35,
                                                               decor=[deco_gant("rubis")]))),
     "bottes_rubis": ("rubis", lambda r: PC.bottes(r, _s(RUBIS, id="bottes_rubis", decor=[deco_genou("rubis")]))),
@@ -393,8 +397,8 @@ PIECES = {
                                                           decor=[lambda *a: PC.deco_nasal(*a, mat="acier_saphir", long=0.06, larg=0.016),
                                                                  lambda *a: PC.deco_joues(*a, mat="cristal_saphir"),
                                                                  deco_bandeau("acier_saphir"), deco_masque("saphir", 1.615), deco_casque("saphir")]))),
-    "cuirasse_saphir": ("saphir", lambda r: PC.cuirasse(r, _s(SAPHIR, id="cuirasse_saphir", n=24, lames=3, bombe=0.03, lames_epaule=3,
-                                                              z_coeur=1.31, x_manche=X_MANCHE, decor=[deco_torse("saphir")]))),
+    "cuirasse_saphir": ("saphir", lambda r: PC.cuirasse(r, _s(SAPHIR, id="cuirasse_saphir", n=24, lames=5, bombe=0.012, lames_epaule=4, z_plaques=(1.04, 1.47),
+                                                              z_coeur=1.30, x_manche=X_MANCHE, decor=[deco_torse("saphir")]))),
     "gantelets_saphir": ("saphir", lambda r: PC.gantelets(r, _s(SAPHIR, id="gantelets_saphir", evasement=0.03, debut_manchette=0.35,
                                                                 decor=[deco_gant("saphir")]))),
     "bottes_saphir": ("saphir", lambda r: PC.bottes(r, _s(SAPHIR, id="bottes_saphir", decor=[deco_genou("saphir")]))),
@@ -402,28 +406,49 @@ PIECES = {
 
 
 def deco_gant(ens):
-    """Manchette de cristal : gemme sur le dessus du poignet ; rubis : pointe courte vers le coude sur le dos de l'avant-bras."""
+    """Manchette de cristal : gemme sur le dessus du poignet ; éclats sur l'avant-bras (dehors, dos, vers le coude)."""
     def dec(P, t, r, st):
         for cote, s in PC.COTES:
             la, ha = r.os["lowerarm_" + cote], r.os["hand_" + cote]
             p = la.lerp(ha, 0.8)
             poser_gemme(P, p + Vector((0, 0, 0.3)), (0, 0, -1), Vector((s, 0, 0)), 0.0095, ens, k=8, rayons=0, griffes=4)
-            if ens == "rubis":
-                q = la.lerp(ha, 0.5)
-                poser_pointe(P, q + Vector((0, 0.3, 0.05)), (0, -1, -0.15), (-0.55 * s, 0.75, 0.35), 0.055, 0.013, ens, k=5, graine=20)
+            q = la.lerp(ha, 0.5)
+            poser_pointe(P, q + Vector((0, 0.3, 0.05)), (0, -1, -0.15), (-0.55 * s, 0.75, 0.35), 0.13, 0.018, ens, k=5, graine=20)
+            poser_pointe(P, q + Vector((0, 0.0, 0.3)), (0, 0, -1), (0.2 * s, -0.25, 1.0), 0.11, 0.016, ens, k=4, serti=False, graine=21)
+            poser_pointe(P, la.lerp(ha, 0.6) + Vector((0.3 * s, 0.0, 0.0)), (-s, 0, 0), (1.0 * s, -0.2, 0.25), 0.10, 0.015, ens, k=4, serti=False, graine=22)
     return dec
 
 
+def _plaques_membre(P, st, arbre, A, B, plages, arc, base, bomb, mat, rep_h=0.012):
+    """Plaques facettées qui se recouvrent autour d'un membre (arc d'angles, repère de la grève du constructeur) : plages = liste de
+    (t0, t1) le long de A -> B, la plaque du dessus (t plus grand) descend sur celle du dessous."""
+    for k, (t0, t1) in enumerate(plages):
+        def dec(j, i, a, k=k):
+            return base + 0.004 * k + (0.006 if j == 0 else 0.0) + bomb * max(0.0, math.cos(a)) * math.sin(math.pi * (j + 0.5) / 2.0)
+        Pg, _, _ = C.tube(arbre, A, B, [t0, t1], 0, dec, r_loin=0.4, dilate=0, lisse=1, angles=arc)
+        P.grille(Pg, mat, C.rect_uv((0, 64, 64, 128)), fermer=False, inverser=True)
+
+
 def deco_genou(ens):
-    """Genouillère : rubis = pointe de cristal sertie vers l'avant et le haut ; saphir = gemme sertie (plus sobre)."""
+    """Jambe v2 : cuissards (trois plaques facettées sur la cuisse), tibias couverts (trois plaques), genouillère à grand éclat,
+    deux éclats sur le tibia. Même forme pour le saphir."""
     def dec(P, t, r, st, cote, s, jambe, A, B):
         if st.get("greve") is False:
             return
         ca = r.os["calf_" + cote]
-        if ens == "rubis":
-            poser_pointe(P, (ca.x, -0.5, ca.z + 0.015), (0, 1, 0), (0.15 * s, -0.85, 0.5), 0.07, 0.016, ens, k=5, graine=30 + int(s))
-        else:
-            poser_gemme(P, (ca.x, -0.5, ca.z + 0.012), (0, 1, 0), Vector((0, 0, 1)), 0.0105, ens, k=8, rayons=0)
+        th = r.os["thigh_" + cote]
+        arc_c = [math.radians(x) for x in range(-150, 151, 30)]
+        # cuisse : de la hanche (th) au genou (ca), plaques du genou vers la hanche
+        cuisse = C.bvh(r, ["pantalon"], {"thigh_" + cote}, 0.5)
+        Ac, Bc = Vector((th.x, th.y, th.z)), Vector((ca.x, ca.y, ca.z + 0.03))
+        _plaques_membre(P, st, cuisse, Ac, Bc, [(0.80, 1.0), (0.62, 0.86)], arc_c, 0.026, 0.012, st["mat"])
+        # tibia : plaques larges (flancs compris) par-dessus la grève du constructeur
+        arc_t = [math.radians(x) for x in range(-100, 101, 25)]
+        z0 = lambda z: (z - A.z) / (B.z - A.z)
+        _plaques_membre(P, st, jambe, A, B, [(z0(0.21), z0(0.31)), (z0(0.29), z0(0.40)), (z0(0.37), z0(0.48))], arc_t, 0.034, 0.008, st["mat"])
+        poser_pointe(P, (ca.x, -0.5, ca.z + 0.015), (0, 1, 0), (0.15 * s, -0.8, 0.6), 0.16, 0.024, ens, k=5, graine=30 + int(s))
+        poser_pointe(P, (ca.x, -0.5, ca.z - 0.12), (0, 1, 0), (0.1 * s, -0.7, 0.7), 0.10, 0.017, ens, k=4, serti=False, graine=33 + int(s))
+        poser_pointe(P, (ca.x, -0.5, ca.z - 0.22), (0, 1, 0), (0.1 * s, -0.55, 0.85), 0.08, 0.014, ens, k=4, serti=False, graine=36 + int(s))
     return dec
 
 
@@ -461,7 +486,7 @@ def peindre_rubis(P, N, bd, U, ench):
     n1 = L.fbm(P, 7.0, 3, 3)
     n2 = L.bruit(P, 95.0, 5)
     brosse = L.bruit(P * np.array([1.0, 9.0, 1.0]), 42.0, 7)
-    v = 0.30 + (n1 - 0.5) * 0.26 + (n2 - 0.5) * 0.06 + (brosse - 0.5) * 0.10
+    v = 0.20 + (n1 - 0.5) * 0.22 + (n2 - 0.5) * 0.06 + (brosse - 0.5) * 0.10
     martele = L.bruit(P, 55.0, 9)
     v += (martele - 0.5) * 0.06
     al = 0.45 + 0.35 * n1
@@ -512,7 +537,7 @@ def peindre_saphir(P, N, bd, U, ench):
     n1 = L.fbm(P, 7.0, 31, 3)
     n2 = L.bruit(P, 90.0, 33)
     brosse = L.bruit(P * np.array([1.0, 9.0, 1.0]), 40.0, 35)
-    v = 0.40 + (n1 - 0.5) * 0.24 + (n2 - 0.5) * 0.05 + (brosse - 0.5) * 0.10
+    v = 0.28 + (n1 - 0.5) * 0.22 + (n2 - 0.5) * 0.05 + (brosse - 0.5) * 0.10
     al = 0.55 + 0.35 * n1
     rayure = np.abs(L.bruit(P * np.array([30.0, 3.0, 30.0]), 9.0, 37) - 0.5) < 0.004
     v = np.where(rayure, v + 0.14, v)
@@ -577,8 +602,8 @@ def peindre_saphir(P, N, bd, U, ench):
     return _rgba(rgb, al)
 
 
-CRISTAL_RUBIS = L.hexa("#140105", "#2a030a", "#470712", "#670c1c", "#8a1428", "#a91e34", "#c42f44", "#da4f5e", "#ec7f86", "#f8b4b4", "#ffe2dc")
-CRISTAL_SAPHIR = L.hexa("#01040c", "#030a1c", "#06142f", "#0b2046", "#132e60", "#1d3f7c", "#2a5498", "#3d6cb4", "#5b8ccc", "#8db4e2", "#d2e6f8")
+CRISTAL_RUBIS = L.hexa("#0a0003", "#180106", "#2c030b", "#44060f", "#5d0a16", "#780f1f", "#921728", "#ad2236", "#c93548", "#e25b6a", "#f79aa4", "#ffd6da")
+CRISTAL_SAPHIR = L.hexa("#01020a", "#020615", "#040c26", "#071538", "#0b1f50", "#112c68", "#183b82", "#234e9c", "#3668b8", "#5a8ad4", "#94b8ec", "#dcecff")
 
 
 def peindre_cristal(P, N, bd, ens, ench):
@@ -600,15 +625,16 @@ def peindre_cristal(P, N, bd, ens, ench):
                 d2 = np.where(m, d1, np.minimum(d2, d))
                 idv = np.where(m, _hash1(key, 211), idv)
                 d1 = np.where(m, d, d1)
-    v = 0.40 + 0.30 * idv
-    arete = np.clip(1.0 - (d2 - d1) / 0.07, 0, 1)
-    v += arete ** 2 * 0.16
+    v = (0.11 + 0.31 * idv) if ens == "rubis" else (0.06 + 0.27 * idv)                                          # grenat / cramoisi profond : une valeur franche par facette
+    v = np.where(idv > 0.82, v + 0.34, v)                           # quelques facettes captent la lumière (reflet clair net)
+    arete = np.clip(1.0 - (d2 - d1) / 0.05, 0, 1)
+    v -= arete ** 1.5 * 0.20                                        # arêtes entre facettes plus sombres
     voile = L.fbm(P, 16.0, 221, 3)
-    v += (voile - 0.5) * 0.22
-    incl = L.bruit(P, 260.0, 223) > 0.9
-    v = np.where(incl, v + 0.18, v)
-    v = np.where(bd < 0.003, v + 0.18, v)                       # arête du bord de plaque : la lumière y accroche
-    v = np.where((bd >= 0.004) & (bd < 0.0065), v - 0.08, v)
+    v += (voile - 0.5) * 0.10
+    incl = L.bruit(P, 260.0, 223) > 0.93
+    v = np.where(incl, v + 0.16, v)
+    v = np.where(bd < 0.003, v + 0.34, v)                       # arête du bord de plaque : la lumière y accroche
+    v = np.where((bd >= 0.004) & (bd < 0.0065), v - 0.12, v)
     if ench:
         v = v * 1.06 + 0.07
     al = 0.85 + 0.15 * arete
@@ -672,8 +698,8 @@ def matiere_piece(pid, ens, mats, ench, tout_cristal=False):
                 continue
             Ps, Ns, bs, Us = P[sel], N[sel], bd[sel], U[sel]
             if m.endswith(".maille"):
-                out[sel] = peindre_maille(Ps, Ns, ACIER_RUBIS if ens == "rubis" else ACIER_SAPHIR, 0.42 if ens == "rubis" else 0.55,
-                                          0.0 if ens == "rubis" else 0.3, 81)
+                out[sel] = peindre_maille(Ps, Ns, ACIER_RUBIS if ens == "rubis" else ACIER_SAPHIR, 0.30 if ens == "rubis" else 0.40,
+                                          0.0 if ens == "rubis" else 0.2, 81)
             elif m.startswith("cristal_"):
                 out[sel] = peindre_cristal(Ps, Ns, bs, ens, ench)
             elif m.startswith("acier_"):
@@ -886,7 +912,7 @@ def chausses(familles=("rubis", "saphir"), rapide=False):
     L.uv_auto(o, 0.006, 80)
 
     def rubis(P, N, pa, bd):
-        out = peindre_maille(P, N, ACIER_RUBIS, 0.44, 0.0, 111)
+        out = peindre_maille(P, N, ACIER_RUBIS, 0.30, 0.0, 111)
         y, z = P[:, 1], P[:, 2]
         # bandes de cuir rouge sombre cloutées d'or le long de l'extérieur de la cuisse
         cote = np.abs(np.abs(P[:, 0]) - 0.19) < 0.018

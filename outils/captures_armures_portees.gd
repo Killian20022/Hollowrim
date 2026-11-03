@@ -30,6 +30,7 @@ var sortie := ""
 var familles: Array = ["cuir", "fourrure", "os"]
 var film := false
 var jambes := false
+var studio := false        # --studio : pose de repos (mains vides), face + gros plans (gemme-noyau, heaume, jambes) + cuirasse posée de face
 var chevilles := false     # gros plans des chevilles (bottes portées), sert au contrôle des fentes
 
 func _init() -> void:
@@ -104,6 +105,8 @@ func _go() -> void:
 			jambes = true
 		elif a == "--chevilles":
 			chevilles = true
+		elif a == "--studio":
+			studio = true
 	s = load("res://scenes/test_combat.tscn").instantiate()
 	s.options = {"draugr": "aucun", "sans-aide": ""}
 	root.add_child(s)
@@ -133,6 +136,8 @@ func _go() -> void:
 	await _attendre(1.0)
 	if film:
 		await _film()
+	elif studio:
+		await _studio()
 	elif chevilles:
 		await _chevilles()
 	elif jambes:
@@ -261,3 +266,51 @@ func _jambes() -> void:
 				_placer_cam({"face": 0.0, "profil": 90.0, "dos": 180.0}[v], 2.6, 0.62, 0.75)
 				await _attendre(0.12)
 				await _capture("j_%s_%s_%s" % [f, combo[0], v], Rect2i(330, 0, 300, 540), "%s %s %s" % [NOMS.get(f, f), combo[0].replace("_", "+"), v])
+
+
+## Studio : mains vides (pose de repos), de face : silhouette entière, gros plans du torse (gemme-noyau), de la tête et des jambes ;
+## puis la cuirasse seule posée au sol, vue de face d'en haut.
+func _studio() -> void:
+	DirAccess.make_dir_recursive_absolute(sortie)
+	cam = Camera3D.new()
+	cam.fov = 30.0
+	s.add_child(cam)
+	cam.current = true
+	mains.magie.equiper("droite", "vide")
+	mains.magie.equiper("gauche", "vide")
+	for f in familles:
+		_equiper_famille(f)
+		await _attendre(1.0)
+		_placer_cam(0.0, 5.2, 0.95, 1.1)
+		await _attendre(0.2)
+		await _capture("%s_studio" % f, Rect2i(300, 0, 360, 540), "%s - studio" % NOMS.get(f, f))
+		_placer_cam(0.0, 5.2, 0.95, 1.1)
+		_placer_cam(-25.0, 5.2, 0.95, 1.1)
+		await _attendre(0.2)
+		await _capture("%s_studio_tq" % f, Rect2i(300, 0, 360, 540), "%s - studio 3/4" % NOMS.get(f, f))
+		_placer_cam(0.0, 1.5, 1.38, 1.4)
+		await _attendre(0.2)
+		await _capture("%s_gp_torse" % f, Rect2i(240, 0, 480, 540), "torse (gemme-noyau)")
+		_placer_cam(0.0, 1.3, 1.70, 1.72)
+		await _attendre(0.2)
+		await _capture("%s_gp_tete" % f, Rect2i(240, 0, 480, 540), "heaume")
+		_placer_cam(0.0, 2.4, 0.55, 0.6)
+		await _attendre(0.2)
+		await _capture("%s_gp_jambes" % f, Rect2i(240, 0, 480, 540), "jambes")
+		# cuirasse seule, posée de face
+		var ids: Array = PIECES.get(f, [])
+		var n := ArmureVisible.instancier_sol(ids[1])
+		if n == null:
+			continue
+		s.add_child(n)
+		var devant := -j.global_transform.basis.z
+		var c := j.global_position + devant * 1.6
+		n.global_position = c
+		n.rotation.y = j.rotation.y + PI
+		j.visible = false
+		cam.global_position = c + devant * 0.9 + Vector3(0, 2.6, 0)
+		cam.look_at(c + Vector3(0, 0.05, 0), Vector3.UP)
+		await _attendre(0.2)
+		await _capture("%s_sol_cuirasse" % f, Rect2i(240, 0, 480, 540), "cuirasse posee")
+		n.queue_free()
+		j.visible = true
