@@ -617,22 +617,25 @@ func _en_jeu(ps: Array) -> void:
 					if m.get_surface_override_material(s) != AvantBras.materiaux()["ab_gant"]:
 						n_arm += 1
 		ok(n_ab > 0 and n_arm == n_ab, "1re personne : gants %s sur les bras FPS (%d / %d surfaces de gant)" % [gants, n_arm, n_ab])
-		var gfps := bras.find_child("gants_fps", true, false) as MeshInstance3D
-		ok(gfps != null and gfps.get_meta("armure_fps") == gants and gfps.skin != null and gfps.layers == AvantBras.CALQUE
-			and gfps.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF and gfps.get_parent() is Skeleton3D,
-			"1re personne : le modèle porté de %s est posé sur le squelette des bras FPS (calque des bras, sans ombre)" % gants)
-		var mains_restantes := 0
-		for m: MeshInstance3D in bras.find_children("avant_bras*", "MeshInstance3D", true, false):
-			for s in m.mesh.get_surface_count():
-				var ix: PackedInt32Array = m.mesh.surface_get_arrays(s)[Mesh.ARRAY_INDEX]
-				var vv: PackedVector3Array = m.mesh.surface_get_arrays(s)[Mesh.ARRAY_VERTEX]
-				for t in range(0, ix.size() - 2, 3):
-					if ix[t] != ix[t + 1] and absf((vv[ix[t]].x + vv[ix[t + 1]].x + vv[ix[t + 2]].x) / 3.0) > ArmureVisible.MAINS_X:
-						mains_restantes += 1
-		ok(mains_restantes == 0, "1re personne : les mains d'origine des bras FPS sont retirées sous les gants (%d triangles restants)" % mains_restantes)
+		ok(bras.find_child("gants_fps", true, false) == null, "1re personne : bras FPS d'origine gardés (pas de modèle de 3e personne posé dessus)")
+		for g2 in ["gantelets_acier_nordique", "gantelets_verre", "gantelets_obsidienne", "gantelets_or"]:
+			j.inventaire.ajouter(g2, 1)
+			j.equipement_corps.equiper(g2)
+			await process_frame
+			var plaques := 0
+			var bons := 0
+			for m: MeshInstance3D in bras.find_children("avant_bras*", "MeshInstance3D", true, false):
+				for s in m.mesh.get_surface_count():
+					var mm := m.mesh.surface_get_material(s)
+					if mm and mm.resource_name.get_slice(".", 0) in ["ab_metal", "ab_fer"]:
+						plaques += 1
+						var ov := m.get_surface_override_material(s) as ShaderMaterial
+						if ov != null and ov.resource_name.begins_with("fps_") and ov.shader.code.contains("cull_disabled") and ov.next_pass == null:
+							bons += 1
+			ok(plaques > 0 and bons == plaques, "1re personne : plaques de %s repeintes (matière HD, double face) : %d / %d" % [g2, bons, plaques])
+		j.equipement_corps.equiper(gants)
 		j.equipement_corps.retirer("mains")
 		await process_frame
-		ok(bras.find_child("gants_fps", true, false) == null, "1re personne : gants ôtés, le modèle porté quitte les bras FPS")
 		var revenu := 0
 		for m: MeshInstance3D in bras.find_children("*", "MeshInstance3D", true, false):
 			for s in m.mesh.get_surface_count():

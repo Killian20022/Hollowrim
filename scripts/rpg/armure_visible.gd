@@ -847,17 +847,36 @@ static func _couper(a: Array, idx: PackedInt32Array, bas: float, haut: float, li
 	return b
 
 # ------------------------------------------------------------------------------------------------------------- 1re personne
-## Gants / gantelets en 1re personne (2026-11-03) : le modèle PORTÉ de la paire équipée (même glb skinné que le héros à la 3e personne : mêmes
-## noms d'os, même pose de repos que bras_fps.glb) est posé sur le squelette des bras FPS ; il suit donc tout ce que les os font (IK de
-## l'épée et de la torche, poses d'incantation de PosesIncantation, doigts serrés sur l'arme). Les mains, brassards et plaques d'origine des
-## bras FPS (triangles au-delà de |x| = MAINS_X au repos, comme le masquage de la 3e personne) sont retirés ; ce qui reste du poignet est
-## teinté vers la matière portée (materiaux_fps). Même calque de rendu que les bras (AvantBras.CALQUE : la lueur des auras ne l'éclaire pas).
-## Les effets de sort restent lisibles : lueur propre et éclat de brillance réduits (FPS_LUEUR, FPS_ECLAT) et jamais d'ombre portée.
-const FPS_LUEUR := 0.35
-const FPS_ECLAT := 0.7
-var _fps_gants: MeshInstance3D
-var _fps_meshes := {}         # MeshInstance3D des bras FPS -> Mesh d'origine (avant retrait des mains)
-static var _fps_filtres := {} # Mesh d'origine -> ArrayMesh sans les mains
+## Gants / gantelets en 1re personne (v2, 2026-11-03) : les bras FPS d'origine (bras_fps.glb : mains aux doigts lisibles, plaques sur le dos
+## de la main et les phalanges, brassards) GARDENT leur géométrie, donc leur emprise à l'écran (le modèle porté de la 3e personne, essayé en v1,
+## était énorme à cette distance). Seules leurs matières changent, selon la famille de la paire équipée :
+##   gant (ab_gant)          : cuir, maille ou étoffe de la matière ;
+##   plaques (ab_metal, ab_fer) : plaques de la matière (acier gris clair, verre vert-cristal, obsidienne à veines de magma, or…), avec le
+##                              shader de brillance du preset (shader_brillance) ;
+##   brassards (ab_cuir, ab_tresse, ab_fourrure) : teinte seulement.
+## Les textures sont repeintes depuis celles d'AvantBras (le relief peint reste : la luminance passe dans la rampe de la matière).
+## Shaders des bras : double face (comme les ab_*), sans contour.
+const FPS_LUEUR := 0.6
+const FPS_ECLAT := 1.0
+## famille -> {"gant": [motif, rampe, preset, brillance], "plaque": [...]} ; motif "cuir" | "maille" ; rampe = couleurs sombre -> claire.
+const FPS_STYLES := {
+	"fer": {"gant": ["maille", ["#2a2929", "#4a4846", "#6e6a66", "#938e88", "#b8b2aa"], "fer", 0.4],
+		"plaque": ["plaque", ["#2a2927", "#4a4744", "#726e69", "#9b968f", "#c4beb5"], "fer", 0.55]},
+	"acier": {"gant": ["maille", ["#363b42", "#5b626b", "#7f8790", "#a0a8b0", "#c4cbd1"], "acier", 0.6],
+		"plaque": ["plaque", ["#3a4048", "#626972", "#8a919a", "#adb4bc", "#d2d8de"], "acier", 0.9]},
+	"verre": {"gant": ["cuir", ["#0e2a1a", "#184a2e", "#26704a", "#3a9a66", "#58c488"], "cuir", 0.1],
+		"plaque": ["plaque", ["#0c4a2a", "#1f8a52", "#3fd08a", "#98f4c4", "#e6fff2"], "verre", 1.0]},
+	"obsidienne": {"gant": ["cuir", ["#030204", "#0a090d", "#15131b", "#221e2a", "#2f2a3a"], "cuir", 0.1],
+		"plaque": ["obsidienne", ["#050408", "#0f0d14", "#1c1824", "#2e2938", "#463f55"], "obsidienne", 0.9]},
+	"or": {"gant": ["maille", ["#0a1030", "#14204a", "#1f3070", "#2c4294", "#3a56b8"], "tissu", 0.2],
+		"plaque": ["plaque", ["#5a3f10", "#a4741c", "#d9a52e", "#f3cf5c", "#fff0a8"], "or", 0.9]},
+	"rubis": {"gant": ["cuir", ["#150608", "#2a0c10", "#45141a", "#65202a", "#85303a"], "cuir", 0.1],
+		"plaque": ["plaque", ["#2a060a", "#6a1018", "#b02430", "#e8505a", "#ffb0a8"], "gemme", 1.0]},
+	"saphir": {"gant": ["cuir", ["#050c1c", "#0a1a38", "#122c5a", "#1c4488", "#2c60b4"], "cuir", 0.1],
+		"plaque": ["plaque", ["#061430", "#0e3a7a", "#2a6ad0", "#7ab0f0", "#d8ecff"], "gemme", 1.0]},
+}
+static var _fps_mats := {}      # "famille|rôle" -> ShaderMaterial
+static var _fps_double := {}    # Shader -> même shader en double face
 
 func _habiller_fps() -> void:
 	if mains == null or not is_instance_valid(mains):
@@ -869,79 +888,73 @@ func _habiller_fps() -> void:
 	if not a_modele(id):
 		id = ""
 	_fps_id = id
-	# remettre les matières et les maillages d'origine, ôter la paire précédente
+	# remettre les matières d'origine
 	for k in _fps_origine:
 		var mi: MeshInstance3D = k[0]
 		if is_instance_valid(mi):
 			mi.set_surface_override_material(k[1], _fps_origine[k])
 	_fps_origine.clear()
-	for mi: MeshInstance3D in _fps_meshes:
-		if is_instance_valid(mi):
-			mi.mesh = _fps_meshes[mi]
-	_fps_meshes.clear()
-	if _fps_gants != null and is_instance_valid(_fps_gants):
-		if _fps_gants.get_parent() != null:
-			_fps_gants.get_parent().remove_child(_fps_gants)
-		_fps_gants.queue_free()
-	_fps_gants = null
 	if id == "":
 		return
 	var mats := materiaux_fps(id)
 	for mi: MeshInstance3D in bras.find_children("*", "MeshInstance3D", true, false):
-		if not String(mi.name).begins_with("avant_bras"):
-			continue
-		if not _fps_meshes.has(mi):
-			_fps_meshes[mi] = mi.mesh
-			mi.mesh = _sans_mains(mi.mesh)
 		for s in mi.mesh.get_surface_count():
 			var m := mi.mesh.surface_get_material(s)
 			var nom := m.resource_name.get_slice(".", 0) if m else ""
 			if mats.has(nom):
 				_fps_origine[[mi, s]] = mi.get_surface_override_material(s)
 				mi.set_surface_override_material(s, mats[nom])
-	var g := charger_porte(id)
-	var sq_fps: Skeleton3D = bras.find_child("Skeleton3D", true, false)
-	if g == null or sq_fps == null:
-		return
-	g.name = "gants_fps"
-	g.set_meta("armure_fps", id)
-	g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	g.extra_cull_margin = 2.0
-	g.layers = AvantBras.CALQUE
-	for s in g.mesh.get_surface_count():
-		var m := g.get_surface_override_material(s) as ShaderMaterial
-		if m == null:
-			continue
-		m = m.duplicate() as ShaderMaterial      # les matières de la pièce sont partagées avec la 3e personne
-		for k: Array in [["mt_lueur", FPS_LUEUR], ["br_eclat", FPS_ECLAT]]:
-			var v: Variant = m.get_shader_parameter(k[0])
-			if v is float:
-				m.set_shader_parameter(k[0], float(v) * float(k[1]))
-		g.set_surface_override_material(s, m)
-	sq_fps.add_child(g)
-	g.skeleton = NodePath("..")
-	_fps_gants = g
 
-## Maillage des avant-bras FPS privé de ses mains / brassards / plaques (centre du triangle au-delà de MAINS_X au repos).
-static func _sans_mains(orig: Mesh) -> Mesh:
-	if _fps_filtres.has(orig):
-		return _fps_filtres[orig]
-	var m := ArrayMesh.new()
-	for s in orig.get_surface_count():
-		var a := orig.surface_get_arrays(s)
-		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
-		var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
-		var garde := PackedInt32Array()
-		for t in range(0, idx.size() - 2, 3):
-			var cx := (v[idx[t]].x + v[idx[t + 1]].x + v[idx[t + 2]].x) / 3.0
-			if absf(cx) <= MAINS_X:
-				garde.append_array(PackedInt32Array([idx[t], idx[t + 1], idx[t + 2]]))
-		if garde.is_empty():
-			garde = PackedInt32Array([0, 0, 0])
-		a[Mesh.ARRAY_INDEX] = garde
-		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
-		m.surface_set_material(s, orig.surface_get_material(s))
-	_fps_filtres[orig] = m
+static func _double_face(sh: Shader) -> Shader:
+	if not _fps_double.has(sh):
+		var d := Shader.new()
+		d.code = sh.code.replace("render_mode ", "render_mode cull_disabled, ")
+		_fps_double[sh] = d
+	return _fps_double[sh]
+
+## Texture 64² d'un rôle (« gant », « plaque ») : luminance de la texture d'origine d'AvantBras passée dans la rampe de la matière ; alpha = brillance.
+static func _texture_fps(source: String, motif: String, rampe: Array, brillance: float) -> ImageTexture:
+	var cols: Array = rampe.map(func(h: String) -> Color: return Color(h))
+	var src := AvantBras.peindre(source)
+	var img := Image.create(AvantBras.T, AvantBras.T, false, Image.FORMAT_RGBA8)
+	for y in AvantBras.T:
+		for x in AvantBras.T:
+			var k := clampf((src.get_pixel(x, y).get_luminance() - 0.06) / 0.55, 0.0, 1.0)
+			var a := brillance
+			if motif == "maille":
+				var bx := (x + 2 * ((y / 4) % 2)) % 4
+				var by := y % 4
+				var bord := bx == 0 or bx == 3 or by == 0 or by == 3
+				k = clampf(k * 0.45 + (0.55 if bord else 0.12), 0.0, 1.0)
+				a = brillance * (1.0 if bord else 0.4)
+			var c: Color = AvantBras._rampe(cols, k, 9)
+			if motif == "obsidienne" and AvantBras._fbm(x, y, 77) > 0.74:
+				c = Color("#e0561c").lerp(Color("#ffb060"), AvantBras._h(x, y, 3))     # veine de magma
+				a = 1.0
+			c.a = a
+			img.set_pixel(x, y, c)
+	return ImageTexture.create_from_image(img)
+
+static func _materiau_fps(famille: String, role: String) -> ShaderMaterial:
+	var cle := famille + "|" + role
+	if _fps_mats.has(cle):
+		return _fps_mats[cle]
+	var st: Array = FPS_STYLES[famille][role]
+	var source := "gant" if role == "gant" else "metal"
+	var tex := _texture_fps(source, String(st[0]), st[1], float(st[3]))
+	var nom := String(st[2])
+	var m := materiau(nom, tex)
+	m.next_pass = null
+	var sh: Shader = shader_brillance(nom)
+	if sh == null:
+		sh = shader_armure()
+	m.shader = _double_face(sh)
+	for k: Array in [["mt_lueur", FPS_LUEUR], ["br_eclat", FPS_ECLAT]]:
+		var v: Variant = m.get_shader_parameter(k[0])
+		if v is float:
+			m.set_shader_parameter(k[0], float(v) * float(k[1]))
+	m.resource_name = "fps_" + cle
+	_fps_mats[cle] = m
 	return m
 
 ## Matières des bras FPS pour une paire de gants portée : texture et matière du glb, tons de la pièce (gants, revers, plaques).
@@ -969,6 +982,13 @@ static func materiaux_fps(id: String) -> Dictionary:
 		d[k] = _teinter(ab[k], t[1])
 	for k in FPS_PLAQUES:
 		d[k] = _teinter(ab[k], t[2])
+	if FPS_STYLES.has(famille):      # matière HD : gant et plaques repeints (les brassards gardent la teinte)
+		for k in FPS_GANTS:
+			d[k] = _materiau_fps(famille, "gant")
+		for k in FPS_PLAQUES:
+			d[k] = _materiau_fps(famille, "plaque")
+		d["ab_cuir"] = _materiau_fps(famille, "plaque")      # brassard : plaque de la matière (la fourrure du bord garde sa teinte)
+		d["ab_tresse"] = _materiau_fps(famille, "plaque")
 	return d
 
 static func _teinter(m: ShaderMaterial, c: Color) -> ShaderMaterial:
