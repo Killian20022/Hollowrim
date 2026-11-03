@@ -38,7 +38,7 @@ PIECES = {
     "cuirasse_fer": lambda r: PH.cuirasse(r, _s(FER, id="cuirasse_fer", z_lames=[1.06, 1.17, 1.42], bombe=0.012, tablier=20,
                                                fentes=(-95, 95, 180), dechire=0.03, rivets_lame=12, sangles=[((36, 1.42), (-30, 1.04)),],
                                                lames_epaule=3, rivets_epaule=6, epaule_ecart=0.024, bord_roule=True,
-                                               fourrure=dict(gonfle=0.95, pas=18, meches=0.045, cote=0.15, r_max=0.16, r_max_cote=0.07, phis=(-14, -8, 4, 16, 34, 50), phis_cote=(-4, 2, 12, 24, 38, 52)),
+                                               fourrure=dict(gonfle=0.95, arc=(0, 360), ferme=True, devant=0.55, pas=22.5, meches=0.045, cote=0.15, r_max=0.16, r_max_cote=0.07, phis=(-14, -8, 4, 16, 34, 50), phis_cote=(-4, 2, 12, 24, 38, 52)),
                                                pal_fourrure=H.FOURRURE_BRUNE_CLAIRE, base_fourrure=0.5)),
     "gantelets_fer": lambda r: PH.gantelets(r, _s(FER, id="gantelets_fer", main_cuir=True, lames_main=1, rivets_manchette=7, rivets_lames=4,
                                                   evasement=0.022, jointures=False, debut_manchette=0.08)),
@@ -53,7 +53,7 @@ PIECES = {
                                                            tablier=22, fentes=(-100, 100, 180), rivets_lame=16, rivets_milieu=True,
                                                            tassettes=(58, 100), sangles=[((40, 1.43), (-30, 1.04)), ((-40, 1.43), (30, 1.04))],
                                                            disque=(-33, 1.365), sacoche=-38, lames_epaule=3, rivets_epaule=7, bord_roule=True,
-                                                           fourrure=dict(gonfle=1.2, pas=18, meches=0.06, cote=0.25, r_max=0.165, r_max_cote=0.085, phis=(-12, -6, 6, 18, 36, 52), phis_cote=(-6, 0, 10, 24, 38, 52)),
+                                                           fourrure=dict(gonfle=1.2, arc=(0, 360), ferme=True, devant=0.55, pas=22.5, densite=(2, 1, 1, 1, 1), meches=0.06, cote=0.25, r_max=0.165, r_max_cote=0.085, phis=(-12, -6, 6, 18, 36, 52), phis_cote=(-6, 0, 10, 24, 38, 52)),
                                                            pal_fourrure=H.FOURRURE_GRISE, base_fourrure=0.74, degrade_fourrure=0.5)),
     "gantelets_acier_nordique": lambda r: PH.gantelets(r, _s(ACIER, id="gantelets_acier_nordique", main_cuir=True, lames_main=2, rivets_manchette=9,
                                                              rivets_lames=5, evasement=0.03, jointures=True, debut_manchette=0.08)),
@@ -178,6 +178,13 @@ def main():
         if dossier:
             os.makedirs(dossier, exist_ok=True)
             apercu(r, dossier, pid)
+            if "--gros" in sys.argv and _famille(pid) in ("torse", "pieds"):
+                # gros plans (col de fourrure / cuissots), corps du héros visible
+                import apercu as AP
+                for n, o in r.corps.items():
+                    o.hide_render = (n in MASQUE[_famille(pid)]) or (_famille(pid) == "pieds" and n not in ("pantalon",))
+                cible, ortho = ((0, 0, 1.52), 0.55) if _famille(pid) == "torse" else ((0.1, 0, 0.72), 0.75)
+                AP.rendre(os.path.join(dossier, pid + "_gros"), cible=cible, ortho=ortho, dist=3.0, vues=("face", "34", "profil", "dos"), taille=(640, 640))
             for o in r.corps.values():
                 o.hide_render = True
             import apercu as AP

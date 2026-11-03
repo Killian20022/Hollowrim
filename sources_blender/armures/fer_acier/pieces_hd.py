@@ -830,7 +830,10 @@ def cuirasse(r, st):
                 ph = phi(k, a_)
                 d = _dir(a_) * math.cos(ph) + haut_v * math.sin(ph)
                 s_ = abs(math.sin(a_))
-                e = ep[k] * (1.0 + F.get("cote", 0.25) * s_) + 0.012 * (_h(min(i, nf - 1 - i), k, g + 7) - 0.5) * (1 if 0 < k < len(phis) - 1 else 0)
+                # manchon fermé : plus mince sous le menton (devant), plein sur les épaules et la nuque
+                dv = F.get("devant", 1.0)
+                f_dev = dv + (1.0 - dv) * min(1.0, abs(math.sin(a_)) * 1.6) if F.get("ferme") else 1.0
+                e = ep[k] * f_dev * (1.0 + F.get("cote", 0.25) * s_) + 0.012 * (_h(min(i, nf - 1 - i), k, g + 7) - 0.5) * (1 if 0 < k < len(phis) - 1 else 0)
                 row.append(O + d * (R[k][i] + F.get("marge", 0.012) + e))
             rows.append(row)
         # bord extérieur un peu rabattu vers le bas (poids de la peau) ; dessous rentré vers le support
@@ -845,7 +848,7 @@ def cuirasse(r, st):
                     row[k] = Vector((p.x * rmax / hz.length, p.y * rmax / hz.length, p.z))
         pousser(rows, [support, corps_t], 0.010)
         P.grille_v(rows, "fourrure", R_FOUR, vs=[0.0, 0.1, 0.4, 0.68, 0.88, 1.0], fermer=False, inverser=True)
-        for bout in (0, -1):
+        for bout in ((0, -1) if not F.get("ferme") else ()):
             col_b = [row[bout] for row in rows]
             ctr = sum(col_b, Vector()) / len(col_b)
             ids_b = [P.sommet(p) for p in col_b]
@@ -1379,7 +1382,7 @@ def bottes(r, st):
                 ta, tb = 0.03 + 0.80 * k / nc, 0.03 + 0.80 * (k + 1) / nc + 0.11
 
                 def dec_c(j, i, a, k=k):
-                    return 0.010 + 0.003 * (nc - k) + (0.0, 0.004, 0.003)[j] + 0.004 * max(0.0, math.cos(a)) * (1 if j == 1 else 0)
+                    return 0.007 + 0.002 * (nc - k) + (0.0, 0.003, 0.002)[j] + 0.003 * max(0.0, math.cos(a)) * (1 if j == 1 else 0)
                 Pc, _, _ = C.tube(cuisse, Ac, Bc, [ta, (ta + tb) * 0.5, tb], 0, dec_c, r_loin=0.4, dilate=1, lisse=1, angles=arc_c)
                 rs = (R_GENOU[0], R_GENOU[1] + (R_GENOU[3] - R_GENOU[1]) / 2 + hs * k, R_GENOU[2], R_GENOU[1] + (R_GENOU[3] - R_GENOU[1]) / 2 + hs * (k + 1))
                 P.grille_v(Pc, st["mat"], rs, vs=[0.0, 0.5, 1.0], fermer=False, inverser=True)
