@@ -7,7 +7,9 @@
 //   ténèbres   : vortex (spirale noire aux bras violets), aspiré vers le centre
 //   soin / protection : halo doré / bleu pâle qui ondule
 // `forme` 1 = boule (projectile, explosion) : masque rond bouillonnant au lieu des flammes montantes.
-// `forme` 2 = boule de feu TENUE (cœur de l'aura de feu) : sphère lisse et lumineuse, langues au bord.
+// `forme` 3 = BOULE RUNIQUE (projectile de feu lancé, même identité que la flamme tenue : tourbillon de langues en spirale,
+//   cœur chaud, queue effilochée dans l'axe du vol ; les runes d'orbite sont portées par RunesOrbite, commun aux 4 écoles).
+// `forme` 2 = FLAMME TENUE (cœur de l'aura de feu, sort prêt) : goutte vivante, langues, braises et fumée au sommet.
 shader_type spatial;
 render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
 #include "res://shaders/magie_occ.gdshaderinc"
@@ -16,6 +18,8 @@ global uniform float magie_echelle;
 instance uniform float rayon = 0.12;
 instance uniform float force = 1.0;
 instance uniform float graine = 0.0;
+instance uniform float charge = 0.0;   // 0..1 : flamme tenue en charge (plus haute, plus dense)
+instance uniform vec3 trace = vec3(0.0);   // forme 3 : direction DERRIÈRE le projectile (monde) ; nul = pas de queue
 instance uniform float avance = 0.0;   // m vers l'œil : l'aura passe devant le dos de la main (flammes qui l'enveloppent)
 uniform int ecole = 0;
 uniform int forme = 0;
@@ -30,6 +34,7 @@ uniform vec4 c5 : source_color = vec4(0.35, 0.10, 0.11, 1.0);
 varying vec2 v_px;      // position dans le carré, en pixels de la couche (0 = centre)
 varying float v_rpx;    // rayon en pixels de la couche
 varying vec2 v_haut;    // « haut » du monde projeté à l'écran (les flammes montent même main penchée)
+varying float v_queue;  // forme 3 : longueur apparente de la queue (1 = vue de côté, 0 = vue dans l'axe)
 
 void vertex() {
 	vec3 centre = MODEL_MATRIX[3].xyz;
@@ -43,6 +48,17 @@ void vertex() {
 	vec2 ph = (ch.xy / max(ch.w, 0.0001) * 0.5 + 0.5) * vp;
 	vec2 hd = ph - pc;
 	v_haut = dot(hd, hd) > 0.0001 ? normalize(hd) : vec2(0.0, 1.0);
+	v_queue = 1.0;
+	if (dot(trace, trace) > 0.0001) {
+		// projectile : le « haut » du motif est l'arrière du vol, raccourci quand on le regarde dans l'axe
+		vec3 tn = normalize(trace);
+		vec4 ct = PROJECTION_MATRIX * (VIEW_MATRIX * vec4(centre + tn * 0.05, 1.0));
+		vec2 pt = (ct.xy / max(ct.w, 0.0001) * 0.5 + 0.5) * vp;
+		vec2 td = pt - pc;
+		float ref = 0.05 * abs(PROJECTION_MATRIX[1][1]) / w * vp.y * 0.5;
+		v_queue = clamp(length(td) / max(ref, 0.0001), 0.0, 1.0);
+		v_haut = v_queue > 0.02 ? normalize(td) : vec2(0.0, 1.0);
+	}
 	float rpx = rayon * abs(PROJECTION_MATRIX[1][1]) / w * vp.y * 0.5;
 	vec2 p = floor(pc) + 0.5 + VERTEX.xy * 2.0 * (rpx + 1.0);
 	POSITION = vec4((p / vp * 2.0 - 1.0) * cc.w, cc.z, cc.w);
@@ -75,17 +91,156 @@ void fragment() {
 		vec2 f = q;
 		float n;
 		if (forme == 2) {
-			// boule TENUE au creux de la main (avant-bras « runes », bras_feu_1100.jpg) : sphère lisse et lumineuse, cœur
-			// blanc-jaune, orange franc, petites langues qui lèchent le bord vers le haut ; peu de bruit (pas de taches)
-			float hy = f.y / rp;
-			float lang = mfbm2(vec2(f.x / 2.5 + tt * 0.15, (f.y - tt * rp * 1.3) / 6.0) + graine) - 0.5;
-			float rr = r - max(hy, 0.0) * 0.18 * (1.0 + lang * 2.0);
-			if (rr > 1.0) {
+			// FLAMME TENUE au creux de la main (sort de feu prêt, retour « elle fait trop plastique », 2026-11-02) : plus de
+			// sphère lisse, une flamme VIVANTE en paliers francs. Repère normalisé u (1 = rayon du carré) ; la flamme est
+			// assise sous le centre (la paume), ses langues montent, la fumée passe au-dessus.
+			//   - goutte qui ondule (la colonne se tord, plus fort vers la pointe), largeur qui respire ;
+			//   - langues : bruit qui MONTE vite, déchiré au bord (trous, pointes qui se détachent) ;
+			//   - cœur blanc-jaune petit (palier c0), orange et rouge francs, liseré sombre ;
+			//   - braises : pixels isolés qui montent en zigzag ; fumée : volutes sombres au sommet, 2 paliers d'opacité.
+			// FLAMME RUNIQUE (brief 2026-11-03, référence flamme_runique.png) : colonne VERTICALE qui se tord (pas une boule) ;
+			// 4 langues qui s'enroulent en spirale autour d'un axe qui ondule, une petite spirale vive à la base, fils fins
+			// qui s'échappent en volutes, braises. Tout en paliers francs au pixel du monde.
+			// v4 (2026-11-03) : le VOLUME de la v2 (base ronde pleine, 3 volutes en S, filets orange, cœur) + le détail de la v3
+			// (filets et flammèches qui défilent vers le haut DANS les volutes et sur leurs bords). Le détail ne retire jamais de
+			// matière : il module la densité (palier) et déchire un peu le bord. `charge` (0..1) : x1,3 en hauteur et x1,15 en
+			// largeur au plus (le carré grandit de 1,3 côté GDScript ; la largeur est ramenée à 1,15 ici).
+			float ch = clamp(charge, 0.0, 1.0);
+			vec2 u = q / rp;
+			u.x *= (1.0 + 0.3 * ch) / (1.0 + 0.15 * ch);
+			float fo = min(force, 1.0 + 0.0 * ch);
+			float h = clamp((u.y + 0.62) / (1.3 * (0.84 + 0.22 * clamp(fo, 0.0, 1.3))), 0.0, 1.0);
+			float sv = 1.0 + 0.05 * sin(tt * 7.0) * sin(tt * 2.9 + graine);
+			float sway = ((mbruit(vec2(h * 1.6 - tt * 0.8, graine * 3.0)) - 0.5) * 0.6 + 0.12 * sin(tt * 1.7 + h * 3.0 + graine)) * h * (0.3 + 0.7 * h);
+			float renv = (0.26 + 0.26 * sin(3.14159 * pow(h, 0.7))) * (1.0 - 0.45 * h) * sv;
+			float pied = smoothstep(-0.66, -0.56, u.y);
+			float best = 0.0;
+			float lum = 0.0;
+			float filet = 0.0;
+			float wv = mbruit(vec2(u.x * 3.0 + graine, h * 2.4 - tt * 1.2)) - 0.5;
+			for (int k = 0; k < 3; k++) {
+				float fk = float(k);
+				float lk = 0.72 + 0.28 * mh2(vec2(fk * 7.3, floor(graine) + 2.0 + floor(tt * 0.3 + fk * 2.1)));
+				float hk = min(h / lk, 1.0);
+				float ang = fk * 2.0944 + graine * 2.0 + h * 4.2 - tt * (1.7 + 0.25 * fk);
+				float zf = cos(ang);
+				float xk = sway + renv * 0.95 * sin(ang) * (1.0 - 0.45 * hk);
+				float wk = renv * (0.46 + 0.16 * zf) * pow(1.0 - hk, 0.7) * lk * (1.0 + 0.15 * ch) + 0.01;
+				float dn = (mbruit(vec2(xk * 5.0 + fk * 3.1 + graine, h * 4.0 - tt * (2.6 + fk * 0.4))) - 0.5) * 0.28 * (0.3 + h) * renv;
+				float dx0 = u.x - xk + dn;
+				float dx = abs(dx0);
+				// bord : légèrement déchiré (flammèches), sans amincir le volume
+				float se = mbruit(vec2(dx0 * 11.0 + fk * 5.3 + graine, h * 2.6 - tt * (2.8 + 0.5 * fk) + wv * 1.5));
+				float it = 1.0 - dx / (wk * (0.88 + 0.3 * se));
+				// détail interne : filets qui montent (modulent la densité autour de 1)
+				float s1 = mbruit(vec2(dx0 * 24.0 + fk * 9.1, h * 5.0 - tt * (3.6 + 0.4 * fk) + wv * 2.5));
+				float s2 = mbruit(vec2(dx0 * 47.0 + fk * 2.7 + graine, h * 9.0 - tt * 5.2 + wv * 3.0));
+				float tex = 0.78 + 0.5 * s1 + 0.2 * (s2 - 0.5);
+				float arete = smoothstep(0.4, 0.95, it) * (0.5 + 0.5 * zf);
+				float v = (clamp(it, 0.0, 1.0) * (0.8 + 0.2 * zf) + arete * 0.2) * tex;
+				// petites flammèches détachées juste hors du bord
+				float fl = step(0.76, s1) * smoothstep(-0.4, 0.0, it) * (1.0 - step(0.0, it)) * (1.0 - hk);
+				v = max(v, fl * 0.55);
+				if (v > best) {
+					best = v;
+					lum = arete;
+				}
+				float fof = wk * 1.5 + 0.02;
+				float f1 = 1.0 - smoothstep(0.0, 0.012, abs(dx - fof));
+				filet = max(filet, f1 * smoothstep(0.08, 0.3, h) * (1.0 - smoothstep(0.75, 1.0, hk)) * (0.6 + 0.3 * zf));
+			}
+			// corps : masse orange ronde au pied qui relie les volutes (une seule flamme)
+			float cx = abs(u.x - sway * 0.5 + (mbruit(vec2(h * 5.0 - tt * 2.4, graine + 4.0)) - 0.5) * 0.16) / (renv * 1.0 + 0.02);
+			float corps = clamp(1.0 - cx, 0.0, 1.0) * pow(1.0 - h, 1.3 - 0.3 * ch) * (0.8 + 0.2 * ch) * (0.8 + 0.3 * mbruit(vec2(u.x * 9.0, h * 4.0 - tt * 3.4 + graine)));
+			best = max(best, corps);
+			best *= pied;
+			lum *= pied;
+			filet *= pied;
+			// cœur : point chaud diffus en bas-centre, pris dans les volutes
+			vec2 bq = vec2(u.x - sway * 0.2, (u.y + 0.40) * 1.1);
+			float rb = length(bq);
+			float noy = 1.0 - smoothstep(0.0, 0.26, rb);
+			float base = noy * (0.75 + 0.45 * mbruit(vec2(bq.x * 8.0, bq.y * 8.0 - tt * 4.0 + graine)));
+			float gr = mbruit(vec2(q.x / 1.6, (q.y - tt * rp * 2.4) / 1.3) + graine * 5.0) - 0.5;
+			// la masse des volutes plafonne à l'orange-jaune (le blanc reste au cœur) ; plus encore en charge
+			float vol = min(best * (0.98 - 0.4 * h) + lum * 0.1, 1.12 - 0.12 * ch);
+			i = max(vol, max(base * 1.15, filet * 0.8)) + gr * 0.14 * (0.4 + h);
+			i *= fo * (0.93 + 0.09 * sin(tt * 15.0 + graine) * sin(tt * 5.3));
+			i *= 1.0 - smoothstep(0.72, 0.94, carre);
+			// halo : lueur douce entre la paume et le pied de la flamme (demi-transparent, lisse)
+			vec2 hq = vec2(u.x / 0.45, (u.y + 0.78) / 0.17);
+			float hd = dot(hq, hq);
+			if (i > 0.32) {
+				c = i > 1.2 ? c0.rgb : palier(min(i, 1.14));
+			} else if (hd < 1.0) {
+				c = c3.rgb;
+				float hf = 1.0 - hd;
+				al = hf * hf * 0.5 * clamp(fo, 0.0, 1.0);
+			} else {
+				vec2 qb = vec2(q.x + sin(q.y * 0.35 + tt * 4.0) * 1.2, q.y - tt * rp * 0.75);
+				vec2 cb = floor(qb);
+				float hb = mh2(cb + floor(graine * 13.0));
+				float zone_b = smoothstep(-0.2, 0.2, u.y) * (1.0 - smoothstep(0.65, 0.9, u.y)) * (1.0 - smoothstep(0.3, 0.7, abs(u.x)));
+				if (hb > 1.0 - 0.008 * zone_b * fo) {
+					c = mh2(cb + 3.1) > 0.5 ? c1.rgb : c2.rgb;
+				} else {
+					discard;
+				}
+			}
+			c = mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))), 0.14);
+			if (carre > 0.97) {
 				discard;
 			}
-			n = mfbm2(f / 7.0 + vec2(tt * 0.35, -tt * 0.55) + graine);
-			// cœur blanc-jaune large et LISSE qui domine (bruit faible), orange franc puis langues au bord seulement
-			i = (1.0 - rr) * 1.95 + (n - 0.5) * 0.16 * smoothstep(0.25, 0.6, rr) + lang * 0.35 * smoothstep(0.5, 0.9, rr);
+		} else if (forme == 3) {
+			// BOULE RUNIQUE : tourbillon de 3 bras qui s'enroulent autour d'un cœur chaud, queue en volutes derrière (+y = arrière).
+			vec2 u = q / rp;
+			float lq = clamp(v_queue, 0.0, 1.0);
+			float rr = length(u);
+			float an = atan(u.y, u.x);
+			float th = an + rr * 5.0 - tt * 4.2;
+			float arm = 0.5 + 0.5 * cos(th * 3.0);
+			float nz = mbruit(vec2(th * 1.3 + graine, rr * 5.0 - tt * 2.6)) - 0.5;
+			float nz2 = mbruit(vec2(u.x * 14.0 + graine, u.y * 14.0 - tt * 3.0)) - 0.5;
+			float reach = 0.34 + 0.4 * pow(arm, 1.6) + nz * 0.2;
+			float ib = (1.0 - rr / max(reach, 0.1)) * 1.45 + nz2 * 0.22;
+			// cœur blanc-jaune
+			float noy = 1.0 - smoothstep(0.0, 0.22 + 0.04 * sin(tt * 9.0), rr);
+			ib = max(ib, noy * 1.25);
+			// queue : 3 volutes qui s'enroulent, de plus en plus fines
+			float tq = 0.0;
+			if (u.y > 0.0 && lq > 0.05) {
+				float len = (0.3 + 0.65 * lq);
+				float ty = u.y / len;
+				float vtail = 1.0 - clamp(ty, 0.0, 1.0);
+				for (int k = 0; k < 3; k++) {
+					float fk = float(k);
+					float ang = fk * 2.0944 + graine + ty * 5.5 - tt * (3.0 + fk * 0.5);
+					float xk = 0.2 * sin(ang) * (0.4 + ty) + (mbruit(vec2(ty * 3.0 - tt * 2.0, fk * 5.0 + graine)) - 0.5) * 0.25 * ty;
+					float wk = 0.26 * pow(vtail, 0.8) * (0.7 + 0.3 * cos(ang)) + 0.01;
+					float itk = (1.0 - abs(u.x - xk) / wk) * (0.55 + 0.6 * vtail) * (0.9 + 0.4 * nz2);
+					tq = max(tq, itk);
+				}
+				tq *= smoothstep(0.1, 0.45, u.y + 0.2);
+			}
+			i = max(ib, tq);
+			i *= (0.95 + 0.07 * sin(tt * 13.0 + graine)) * clamp(force, 0.0, 1.3);
+			// braises : pixels isolés qui s'échappent vers l'arrière
+			if (i < 0.32) {
+				vec2 qb = vec2(q.x, q.y - tt * rp * 1.4);
+				vec2 cb = floor(qb / 1.5);
+				float hb = mh2(cb + floor(graine * 13.0));
+				float zb = smoothstep(0.1, 0.5, u.y) * (1.0 - smoothstep(0.5, 0.9, rr + 0.0)) * lq;
+				if (hb > 1.0 - 0.02 * zb) {
+					c = mh2(cb + 3.1) > 0.5 ? c1.rgb : c2.rgb;
+				} else {
+					discard;
+				}
+			} else {
+				c = i > 1.2 ? c0.rgb : palier(min(i, 1.14));
+			}
+			if (carre > 0.97) {
+				discard;
+			}
 		} else if (forme == 1) {
 			if (r > 1.0) {
 				discard;
@@ -106,11 +261,13 @@ void fragment() {
 			float n2 = mbruit(vec2(f.x / 1.4, (f.y - tt * rp * 2.4) / 4.0) + graine * 3.0);
 			i = (1.0 - d) * 1.35 + (n - 0.5) * (1.3 + max(hy, 0.0) * 1.2) + (n2 - 0.5) * 0.55 - max(hy, 0.0) * 0.2;
 		}
-		i *= force * garde;
-		if (i < 0.3) {
-			discard;
+		if (forme != 2 && forme != 3) {
+			i *= force * garde;
+			if (i < 0.3) {
+				discard;
+			}
+			c = palier(i);
 		}
-		c = palier(i);
 	} else if (ecole == 1) {
 		// GLACE : brume qui tourne lentement + paillettes + aiguilles de givre (crêtes fines)
 		if (r > 1.05) {

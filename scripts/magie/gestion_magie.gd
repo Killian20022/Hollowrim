@@ -101,8 +101,18 @@ const GIVRE_BRUME := "#93a9bc"
 ## Couches de particules qui accompagnent le souffle de givre (poudre scintillante, éclats de cristal 3D, foyer de la paume).
 const GIVRE_COMPAGNONS := ["glace_fin_jet_poudre", "glace_fin_jet_cristaux", "glace_paume"]
 const AURA_ECOLE := {"feu": 0, "glace": 1, "electricite": 2, "tenebres": 3, "soin": 4, "protection": 5}
-## Rayon (m) de la boule de feu tenue au creux de la main (cœur de l'aura de feu).
-const AURA_BOULE := 0.095
+## Rayon (m) du carré de la FLAMME TENUE au creux de la main (cœur de l'aura de feu, magie_aura forme 2) : la goutte
+## y occupe ~0,9 × 1,25 rayon (≈ 13 × 18 cm), braises et fumée au-dessus. Remplace la boule lisse (« trop plastique »).
+const AURA_BOULE := 0.15
+## La paume est à la base de la flamme : le carré est remonté de cette fraction de son rayon.
+const FLAMME_ASSISE := 0.72
+## v3 : la flamme tenue flotte 4,5 cm plus haut (halo lumineux entre la paume et son pied)
+const FLAMME_HAUT := 0.045
+## charge (0..1) par aura : agrandit la flamme tenue (x1,4 en rayon)
+var charges_aura := {}
+## Lueur de la flamme tenue sur la main et l'avant-bras (calque CALQUE_AVANT_BRAS seulement, que la lumière d'aura
+## n'éclaire pas) : faible, courte portée, qui vacille.
+const LUEUR_MAIN := {"energie": 0.55, "portee": 0.45}
 ## Tenue « runes » (main gantée agrandie, MainSort.ECHELLE_MAIN_TENUE) : la boule tenue grandit d'autant.
 const BOULE_TENUE := 0.8
 ## Calque de rendu 18 des avant-bras FPS (= AvantBras.CALQUE, branche fps/avant_bras_*) : la lumière des auras ne l'éclaire
@@ -1168,7 +1178,7 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 	ancre.name = "AuraMagie"
 	add_child(ancre)
 	ancre.position = main.global_position
-	var a := {"main": main, "ancre": ancre, "ecole": ecole, "i": 0.0, "emit": [], "eclair": {}, "disque": {}, "extra": [], "fine": null, "boule": null}
+	var a := {"main": main, "ancre": ancre, "ecole": ecole, "i": 0.0, "emit": [], "eclair": {}, "disque": {}, "extra": [], "fine": null, "boule": null, "lueur": null}
 	var noms: Array = []
 	match ecole:
 		"feu": noms = ["feu_aura", "feu_aura_coeur", "feu_aura_braise"]
@@ -1177,25 +1187,43 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 		"tenebres": noms = ["ten_aura", "ten_aura_lueur"]
 		"soin": noms = ["soin_aura"]
 		"protection": noms = ["prot_aura"]
+	# glace / électricité / ténèbres : l'énergie tenue est le NOYAU 3D de RunesOrbite (NoyauEcole), pas l'ancienne aura
+	var noyau := NoyauEcole.possede(ecole)
+	if noyau:
+		noms = []
 	for nom in noms:
 		var p := emettre(nom, ancre, Transform3D.IDENTITY, true)
 		if p != null:
 			a.emit.append(p)
-	if fin_actif:
+	if ecole == "feu":
+		# feu : UNE flamme vivante tenue au creux de la main (cœur blanc-jaune, langues, braises, fumée ; magie_aura
+		# forme 2), d'un seul carré : plus de boule lisse posée sur un halo de flammes (deux couches transparentes).
+		# Aussi en rétro (dessinée alors dans le monde, au pixel du monde) : l'ancien amas de particules blanches
+		# faisait la même boule lumineuse.
+		a.boule = _aura_fine(ancre, ecole, AURA_BOULE, 2)
+		a.extra.append(a.boule)
+	elif fin_actif and not noyau:
 		# couche fine : l'aura est d'abord un motif procédural au pixel (flammes, givre, plasma, vortex) ; les
 		# particules et les arcs en font les éclats autour
 		a.fine = _aura_fine(ancre, ecole, AURA_RAYON.get(ecole, 0.09))
 		# pas d'avance vers l'œil : la main (devant la paume en vue FPS) se découpe en silhouette dans les flammes
 		(a.fine as MeshInstance3D).set_instance_shader_parameter("avance", 0.0)
 		a.extra.append(a.fine)
-		if ecole == "feu":
-			# cœur : une boule de feu bouillonnante tenue au creux de la main, d'où partent les langues (référence
-			# Jeux/references/avant_bras_magie/bras_feu_1100.jpg) ; les doigts la masquent en partie (profondeur)
-			a.boule = _aura_fine(ancre, ecole, AURA_BOULE, 2)
-			# le cœur lisse passe DEVANT les langues de la couche fine (même centre) : pas de flammes sombres sur le cœur
-			(a.boule as MeshInstance3D).sorting_offset = 0.05
-			a.extra.append(a.boule)
-	if ecole == "electricite":
+	if ecole == "feu":
+		var lu := OmniLight3D.new()
+		lu.name = "LueurMain"
+		lu.light_color = Color(1.0, 0.6, 0.28)
+		lu.omni_range = LUEUR_MAIN.portee
+		lu.light_energy = 0.0
+		lu.shadow_enabled = false
+		lu.light_cull_mask = CALQUE_AVANT_BRAS
+		lu.light_specular = 0.0
+		ancre.add_child(lu)
+		a.lueur = lu
+		a.extra.append(lu)
+	if noyau:
+		pass
+	elif ecole == "electricite":
 		a.eclair = eclair(ancre, "electricite", 2.0, -1.0, 0.05, _gen_aura_arcs.bind(a))
 	elif ecole == "tenebres" and not fin_actif:
 		# vortex noir et violet DANS la paume (spirale), bien visible en vue FPS
@@ -1240,6 +1268,37 @@ func _vortex_main(parent: Node3D, rayon: float) -> MeshInstance3D:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 	return mi
+
+## Arcs ramifiés du NOYAU d'électricité tenu en main (NoyauEcole) : les mêmes traits que les éclairs de Force (foudre +
+## ramifications à trois niveaux, matériau « electricite », refaits 30 fois par seconde), mais courts, qui partent du
+## cœur et s'écartent dans toutes les directions. `etat` renvoie {r: échelle, ch: charge 0..1, f: force}.
+func eclair_noyau(parent: Node3D, etat: Callable) -> Dictionary:
+	return eclair(parent, "electricite", 2.0, -1.0, 0.033, _gen_noyau_arcs.bind(etat))
+
+func _gen_noyau_arcs(etat: Callable) -> Array:
+	var traits: Array = []
+	var st: Dictionary = etat.call()
+	var r := float(st.r)
+	var ch := float(st.ch)
+	var n := 6 + int(ch * 6.0) + (1 if rng.randf() < 0.5 else 0)
+	for _k in n:
+		var o := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized() * 0.012 * r
+		var d := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.7, 1), rng.randf_range(-1, 1)).normalized()
+		var b := d * rng.randf_range(0.1, 0.19) * r * (1.0 + 0.5 * ch)
+		var p := foudre(o, b, 0.03 * r, 3)
+		traits.append([p, rng.randf_range(0.6, 1.0), 1.0])
+		if p.size() < 6:
+			continue
+		for _q in 2:
+			var i := rng.randi_range(p.size() / 4, p.size() - 3)
+			var dev := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
+			var fin := p[i] + (d * 0.5 + dev).normalized() * rng.randf_range(0.03, 0.07) * r
+			var br := foudre(p[i], fin, 0.02 * r, 3)
+			traits.append([br, 0.4, 0.6])
+			if br.size() > 3 and rng.randf() < 0.5:
+				var o2 := br[br.size() / 2]
+				traits.append([foudre(o2, o2 + (fin - p[i]).normalized().slerp(dev, 0.5) * 0.03 * r, 0.012 * r, 2), 0.3, 0.5])
+	return traits
 
 func _gen_aura_arcs(a: Dictionary) -> Array:
 	var traits: Array = []
@@ -1288,7 +1347,7 @@ func _maj_auras() -> void:
 			# là) au lieu d'une boule de flammes qui couvre la naissance du flux
 			i *= 0.4 if a.ecole == "feu" else 0.15
 		var dbl: bool = _double.get(a.ecole, false)
-		var k := (0.75 + 0.5 * minf(i, 1.0)) * (1.25 if dbl else 1.0)
+		var k := (0.75 + 0.5 * minf(i, 1.0)) * ((1.1 if a.ecole == "feu" else 1.25) if dbl else 1.0)
 		var ech: float = echelles_aura.get(id, 1.0)
 		var tenue := echelles_aura.has(id)
 		ancre.transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * k), (main as Node3D).global_position)
@@ -1298,15 +1357,26 @@ func _maj_auras() -> void:
 			fm.set_instance_shader_parameter("force", clampf(0.25 + 0.75 * i, 0.0, 1.3))
 		if a.boule != null and is_instance_valid(a.boule):
 			var bm: MeshInstance3D = a.boule
-			bm.set_instance_shader_parameter("rayon", AURA_BOULE * k * (BOULE_TENUE if tenue else 1.0))
-			bm.set_instance_shader_parameter("force", clampf(0.7 + 0.4 * i, 0.0, 1.3))
+			var rb := AURA_BOULE * (0.85 + 0.25 * minf(i, 1.0)) * (BOULE_TENUE if tenue else 1.0)
+			var chg: float = float(charges_aura.get(id, 0.0))
+			a.ch = lerpf(float(a.get("ch", 0.0)), chg, 0.12)
+			bm.set_instance_shader_parameter("rayon", rb * k * (1.0 + 0.3 * float(a.ch)))
+			bm.set_instance_shader_parameter("charge", float(a.ch))
+			bm.position = Vector3.UP * (rb * FLAMME_ASSISE * (1.0 + 0.3 * float(a.ch)) + FLAMME_HAUT)
+			# sous un jet (i réduit), la flamme se résorbe en foyer ; au repos elle brûle franchement
+			bm.set_instance_shader_parameter("force", clampf(0.78 + 0.35 * i, 0.0, 1.3))
+		if a.get("lueur") != null and is_instance_valid(a.lueur):
+			var lu: OmniLight3D = a.lueur
+			lu.position = Vector3.UP * 0.04
+			lu.light_energy = LUEUR_MAIN.energie * (0.6 + 0.4 * minf(i, 1.0)) * (0.75 + 0.25 * sin(horloge * 19.0) * sin(horloge * 7.3) + 0.15 * rng.randf())
 		for n_e in a.emit.size():
 			var p: GPUParticles3D = a.emit[n_e]
 			if is_instance_valid(p):
 				var ratio := clampf(0.3 + 0.7 * i, 0.05, 1.0)
-				if tenue and a.ecole == "feu":
-					# boule tenue : pas de traits blancs (flammèches étirées, cœur) devant le cœur lisse, des braises
-					ratio *= [0.12, 0.0, 1.0][mini(n_e, 2)]
+				if a.ecole == "feu" and a.boule != null:
+					# flamme tenue (couche fine) : elle a son cœur, ses langues et ses braises ; les particules n'ajoutent que
+					# quelques flammèches et braises autour (pas de carrés blancs du cœur devant elle)
+					ratio *= [0.1, 0.0, 0.5 if fin_actif else 0.25][mini(n_e, 2)]
 				p.amount_ratio = ratio
 		var c: Color = LUMIERE[a.ecole]
 		var scint := 1.0
@@ -1367,6 +1437,12 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 		dch.amount = int(DECHARGE_N * (0.8 if dbl else 0.65))
 		(dch.process_material as ShaderMaterial).set_shader_parameter("force", 1.1 if dbl else 1.0)
 		j.faisceau = _faisceau_creer(dbl)
+		# éclairs de Force : 4 faisceaux d'appoint (5 en double) qui partent de la même paume vers leurs points d'accroche
+		var fa: Array = []
+		for _k in (5 if dbl else 4):
+			fa.append(_faisceau_creer(dbl, true))
+		j.faisceaux = fa
+		j.fx_fin = []
 	elif fin_actif and ecole == "glace":
 		# couche fine : le corps du jet de glace est un SOUFFLE DE GIVRE (même machinerie que la vague : j.vague)
 		j.vague = _givre_creer(dbl)
@@ -1438,13 +1514,13 @@ func _jet_courbe(o: Vector3, j: Dictionary, l: float, t: float) -> Vector3:
 
 ## Arc d'éclair le long de la courbe du jet : 9 points de passage tirés au hasard autour de la courbe, puis zigzag fin
 ## entre eux (déplacement du point milieu) ; nerveux mais orienté (pas une pelote).
-func _arc_courbe(o: Vector3, j: Dictionary, l: float, ampl: float, decal: Vector3) -> PackedVector3Array:
+func _arc_courbe(o: Vector3, j: Dictionary, l: float, ampl: float, decal: Vector3, bulbe := 0.0) -> PackedVector3Array:
 	var pts := PackedVector3Array()
 	var n := 9
 	var prec := o
 	for i in range(1, n + 1):
 		var t := float(i) / n
-		var q := _jet_courbe(o, j, l, t) + decal * t * t
+		var q := _jet_courbe(o, j, l, t) + decal * t * t + decal * bulbe * sin(PI * t)
 		if i < n:
 			q += Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * ampl * (0.12 + 0.28 * t)
 		# zigzag serré à haute fréquence (cf. electricite_fps_1100.jpg) plutôt que de grandes ondulations à angle droit
@@ -1487,6 +1563,7 @@ func _gen_jet_arc(j: Dictionary) -> Array:
 			var b: Vector3 = j.fin_pos
 			var fin: Vector3 = b + Vector3(rng.randf_range(-0.35, 0.35), rng.randf_range(-0.7, 0.45), rng.randf_range(-0.35, 0.35))
 			traits.append([foudre(b, fin, 0.05, 3), 0.5, 0.7])
+	_arcs_force(j, o, l, dir, traits)
 	return traits
 
 ## Arc maître de la décharge (couche fine) : la colonne vertébrale fine qui relie TOUJOURS la paume au bout (on voit
@@ -1515,18 +1592,98 @@ func _gen_jet_arc_vif(j: Dictionary) -> Array:
 			traits.append([p, 1.0 if k == 0 else 0.5, a])
 		if hoquet:
 			break
-		for _r in (4 if k == 0 else 1):
+		for _r in (0 if j.get("faisceau") != null else (4 if k == 0 else 1)):
 			var i := rng.randi_range(p.size() * 2 / 5, maxi(p.size() * 2 / 5, p.size() - 3))
 			var kt := float(i) / p.size()
 			var dev := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
 			var fin := p[i] + (dir + dev * 0.9).normalized() * l * kt * rng.randf_range(0.04, 0.1)
 			traits.append([foudre(p[i], fin, l * 0.02, 3), 0.5, 0.55])
-	if j.touche:
+	if j.touche and j.get("faisceau") == null:
 		for _k in (4 if dbl else 3):
 			var b: Vector3 = j.fin_pos
 			var fin: Vector3 = b + Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(-0.8, 0.5), rng.randf_range(-0.4, 0.4))
 			traits.append([foudre(b, fin, 0.06, 3), 0.5, rng.randf_range(0.5, 0.9)])
+	if not hoquet:
+		_arcs_force(j, o, l, dir, traits)
 	return traits
+
+## Éclairs de Force : 3 à 5 arcs fins (4 à 6 en double) qui partent TOUS de la paume et s'écartent en cône autour de l'arc
+## maître ; chacun vise son propre point d'accroche (anneau qui tourne lentement + tirage au sort à chaque image : ils
+## crépitent et se renouvellent), s'arrête sur le décor ou la cible touchés (rayon physique), a ses ramifications et une
+## fourche d'impact. Refaits à chaque régénération (30 /s), dessinés par le même ImmediateMesh que l'arc maître.
+func _arcs_force(j: Dictionary, o: Vector3, l: float, dir: Vector3, traits: Array) -> void:
+	var dbl: bool = j.dbl
+	var n := rng.randi_range(3, 5) + (1 if dbl else 0)
+	var u := dir.cross(Vector3.UP if absf(dir.y) < 0.9 else Vector3.RIGHT).normalized()
+	var w := dir.cross(u)
+	var rayon := clampf(l * 0.24, 0.2, 1.1)
+	var bout: Vector3 = o + dir * l
+	var espace: PhysicsDirectSpaceState3D = null
+	if valide(j.origine) and (j.origine as Node3D).is_inside_tree():
+		espace = (j.origine as Node3D).get_world_3d().direct_space_state
+	var excl: Array[RID] = _exclus_depuis(j.origine) if espace != null else []
+	var fx_fin: Array = []
+	for k in n:
+		var ang := float(k) / n * TAU + horloge * 2.2 + rng.randf_range(-0.5, 0.5)
+		var d := (u * cos(ang) + w * sin(ang)) * rayon * rng.randf_range(0.35, 1.0)
+		var cible_pt := bout + d
+		if j.touche and j.cible != null:
+			cible_pt += Vector3(0.0, rng.randf_range(-0.25, 0.3), 0.0)   # s'étalent sur la hauteur du corps
+		var fin_pt := cible_pt
+		if espace != null:
+			# l'arc s'accroche à la première surface rencontrée vers son point visé (décor ou cible), un peu au-delà
+			var q := PhysicsRayQueryParameters3D.create(o, o + (cible_pt - o) * 1.12, 0xFFFFFFFF, excl)
+			var r := espace.intersect_ray(q)
+			if not r.is_empty() and (r.position as Vector3).distance_to(o) > 0.15:
+				fin_pt = r.position
+		fx_fin.append(fin_pt)
+		if j.get("faisceaux") != null:
+			continue   # couche fine : le corps ET les fourches de cet éclair sont dessinés par le shader magie_faisceau
+		# rétro : pas de shader de faisceau, l'éventail est fait d'arcs CPU (3-4), avec leurs branches
+		if k >= 4:
+			continue
+		var p := _arc_courbe(o, j, l, l * 0.04, fin_pt - _jet_courbe(o, j, l, 1.0), 0.0 if k == 0 else 0.9)
+		traits.append([p, rng.randf_range(0.5, 1.0), rng.randf_range(0.6, 1.0)])
+		if p.size() < 6:
+			continue
+		for _r in 2:
+			var i := rng.randi_range(p.size() / 4, p.size() - 3)
+			var dev := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
+			var fin := p[i] + (dir * 0.5 + dev).normalized() * l * rng.randf_range(0.05, 0.11)
+			var br := foudre(p[i], fin, l * 0.018, 3)
+			traits.append([br, 0.4, 0.6])
+			if br.size() > 3 and rng.randf() < 0.5:
+				var o2 := br[br.size() / 2]
+				traits.append([foudre(o2, o2 + (fin - p[i]).normalized().slerp(dev, 0.5) * l * 0.04, l * 0.012, 2), 0.3, 0.5])
+		# l'impact s'accroche : petite fourche qui court sur la surface touchée
+		var pe := p[p.size() - 1]
+		traits.append([foudre(pe, pe + Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized() * rng.randf_range(0.08, 0.2), 0.03, 3), 0.4, 0.8])
+	j.fx_fin = fx_fin
+
+## Place les faisceaux d'appoint : chacun va de la paume à son point d'accroche (fx_fin, retiré 30 fois par seconde par
+## _arcs_force), le contrôle de la courbe est dévié pour qu'ils s'écartent de l'arc maître avant de converger.
+func _faisceaux_force_placer(j: Dictionary, o: Vector3, l: float) -> void:
+	var fa: Array = j.get("faisceaux", [])
+	var fin: Array = j.get("fx_fin", [])
+	var dir: Vector3 = j.dir
+	for k in fa.size():
+		var mi: MeshInstance3D = fa[k]
+		if not is_instance_valid(mi):
+			continue
+		if k + 1 >= fin.size():
+			mi.visible = false
+			continue
+		mi.visible = not sans_procedural
+		var b: Vector3 = fin[k + 1]
+		var m := mi.material_override as ShaderMaterial
+		var mil := o.lerp(b, 0.5)
+		var lat := (mil - (o + dir * l * 0.5))
+		m.set_shader_parameter("arc_o", o)
+		m.set_shader_parameter("arc_c", mil + lat * 0.4)
+		m.set_shader_parameter("arc_b", b)
+		m.set_shader_parameter("touche", 1.0)
+		m.set_shader_parameter("force", clampf((horloge - float(j.debut) - 0.02 * k) / 0.08, 0.0, 1.0))
+		m.set_shader_parameter("jour", _jour())
 
 func _gen_drain(j: Dictionary) -> Array:
 	var traits: Array = []
@@ -1831,7 +1988,7 @@ func _creer_faisceau() -> ArrayMesh:
 	return m
 
 ## Corps épais de l'arc électrique (un par jet : matériau propre, ses uniformes sont la courbe de CE jet).
-func _faisceau_creer(dbl: bool) -> MeshInstance3D:
+func _faisceau_creer(dbl: bool, appoint := false) -> MeshInstance3D:
 	if _mesh_faisceau == null:
 		_mesh_faisceau = _creer_faisceau()
 	var mi := MeshInstance3D.new()
@@ -1846,6 +2003,14 @@ func _faisceau_creer(dbl: bool) -> MeshInstance3D:
 		m.set_shader_parameter("c%d" % i, Color(pal[i]))
 	m.set_shader_parameter("dbl", 1.0 if dbl else 0.0)
 	m.set_shader_parameter("graine", rng.randf() * 100.0)
+	if appoint:
+		# éclair de Force secondaire : plus fin et moins couvrant que l'arc maître
+		m.set_shader_parameter("enveloppe", 0.11)
+		m.set_shader_parameter("px_min", 4.0)
+		m.set_shader_parameter("px_max", 11.0)
+		m.set_shader_parameter("coeur_px", 1.2)
+		m.set_shader_parameter("ombre", 0.45)
+		m.set_shader_parameter("dbl", 0.0)
 	mi.material_override = m
 	mi.visible = not sans_procedural and not OS.get_cmdline_user_args().has("--sans-flux")
 	add_child(mi)
@@ -2215,6 +2380,7 @@ func _jet_placer(j: Dictionary) -> void:
 		_decharge_placer(j, o, l)
 	if j.get("faisceau") != null and is_instance_valid(j.faisceau):
 		_faisceau_placer(j, o, l)
+		_faisceaux_force_placer(j, o, l)
 	if not j.bouclier.is_empty():
 		var d: Dictionary = j.bouclier
 		d.pos = o + dir * 0.35
@@ -2293,6 +2459,10 @@ func _jet_arreter(j: Dictionary) -> void:
 	if j.get("faisceau") != null and is_instance_valid(j.faisceau):
 		(j.faisceau as Node).queue_free()
 	j.erase("faisceau")
+	for f in j.get("faisceaux", []):
+		if is_instance_valid(f):
+			(f as Node).queue_free()
+	j.erase("faisceaux")
 	if not j.bouclier.is_empty():
 		j.bouclier.duree = 0.0
 
@@ -2307,6 +2477,24 @@ func _maj_jets() -> void:
 
 # ====================================================================== projectiles
 
+## Carré de la boule runique en vol (m) : la boule occupe ~la moitié, la queue le reste.
+const PROJ_RAYON := 0.62
+
+## Runes d'orbite du projectile : le MÊME composant que celui des mains (RunesOrbite), à l'échelle de la boule.
+func _runes_projectile(racine: Node3D, ecole: String, k: float) -> void:
+	var r := RunesOrbite.new()
+	r.name = "RunesProjectile"
+	r.ecole = ecole
+	r.suivi = racine
+	r.centre_force = 0.0
+	r.avec_lueurs = false
+	r.echelle = 4.4 * k
+	r.germe = 0.18
+	r.intensite = 1.0
+	r.etat = 3
+	racine.add_child(r)
+
+
 func projectile_visuel(ecole: String, forme: String) -> Node3D:
 	ecole = _ecole_ok(ecole)
 	var racine := Node3D.new()
@@ -2318,6 +2506,7 @@ func projectile_visuel(ecole: String, forme: String) -> Node3D:
 	var dbl: bool = _double.get(ecole, false)
 	var k := 1.4 if dbl else 1.0
 	var coeur: Array = []
+	var aura_proj: MeshInstance3D = null
 	match forme:
 		"eclat", "lance":
 			var lance := forme == "lance"
@@ -2344,9 +2533,15 @@ func projectile_visuel(ecole: String, forme: String) -> Node3D:
 			_boule(visuel, 0.07 * k, _mat_coeur(Color("#06030c"), false, 1.0))
 			if ecole == "tenebres":
 				coeur.append(emettre("ten_coeur", visuel, Transform3D.IDENTITY, true))
-		"boule", "orbe" when fin_actif:
-			_aura_fine(visuel, ecole, (0.3 if forme == "boule" else 0.18) * k, 1)
-			if ecole == "feu":
+		"boule", "orbe" when fin_actif or ecole == "feu":
+			# feu : la boule bouillonnante procédurale aussi en rétro (les sphères additives empilées faisaient « plastique »)
+			if ecole == "feu" and forme == "boule":
+				# boule RUNIQUE (v5) : tourbillon + queue (aura forme 3), et les mêmes runes en orbite que la flamme tenue
+				aura_proj = _aura_fine(visuel, ecole, PROJ_RAYON * k, 3)
+				_runes_projectile(racine, ecole, k)
+			else:
+				_aura_fine(visuel, ecole, (0.3 if forme == "boule" else 0.18) * k, 1)
+			if ecole == "feu" and aura_proj == null:
 				coeur.append(emettre("feu_boule_coeur", visuel, Transform3D.IDENTITY, true))
 			elif ecole == "tenebres":
 				coeur.append(emettre("ten_coeur", visuel, Transform3D.IDENTITY, true))
@@ -2368,7 +2563,7 @@ func projectile_visuel(ecole: String, forme: String) -> Node3D:
 	if _projectiles.size() >= MAX_PROJECTILES:
 		refus += 1
 	else:
-		var e := {"noeud": racine, "visuel": visuel, "ecole": ecole, "forme": forme, "emit": [], "coeur": coeur, "prec": null, "entre": false, "eclair": {}, "dbl": dbl}
+		var e := {"noeud": racine, "visuel": visuel, "ecole": ecole, "forme": forme, "emit": [], "coeur": coeur, "prec": null, "entre": false, "eclair": {}, "dbl": dbl, "aura": aura_proj}
 		if forme in ["eclat", "lance"]:
 			# cristal : sa queue dépasse de 0,25 × sa longueur DERRIÈRE le point de départ. Né dans la paume (~0,5 m de
 			# l'œil), l'éclat (0,43 m de queue) ou la lance (1 m) traversait le plan proche de la caméra pendant la
@@ -2418,7 +2613,10 @@ func _maj_projectiles() -> void:
 			if not e.entre:
 				e.entre = true
 				var noms: Array = [PresetsMagie.de(e.ecole, "trainee")]
-				if e.ecole == "feu":
+				if e.ecole == "feu" and e.get("aura") != null:
+					# boule runique : la queue est dessinée par le shader ; seules de fines braises s'en échappent
+					noms = ["feu_trainee_braise"]
+				elif e.ecole == "feu":
 					noms.append("feu_trainee_fumee")
 					noms.append("feu_trainee_braise")
 				elif e.ecole == "glace":
@@ -2442,6 +2640,8 @@ func _maj_projectiles() -> void:
 					vis.global_basis = base_vers(v).scaled(Vector3.ONE * ech)
 			elif ech != 1.0:
 				(e.visuel as Node3D).scale = Vector3.ONE * ech
+			if e.get("aura") != null and is_instance_valid(e.aura) and e.prec != null and (pos - (e.prec as Vector3)).length() > 0.0005:
+				(e.aura as MeshInstance3D).set_instance_shader_parameter("trace", -(pos - (e.prec as Vector3)).normalized())
 			e.prec = pos
 			var c: Color = LUMIERE[e.ecole]
 			lumiere("proj%d" % (n as Node).get_instance_id(), pos, c, 3.6 if e.forme in ["boule", "orbe", "trait"] else 2.2, 6.0, 3.0)
@@ -2684,6 +2884,65 @@ func chaine(ecole: String, points: Array) -> void:
 		else:
 			get_tree().create_timer(pas * (i - 1), false).timeout.connect(func() -> void: emettre(sp, null, xf, false, 0.5))
 	lumiere("chaine%d" % rng.randi(), pts[0].lerp(pts[pts.size() - 1], 0.5), LUMIERE.get(ecole, LUMIERE.electricite), 8.0, 9.0, 7.0, 0.45)
+
+# ====================================================================== décharges des sorts à charge
+
+## Décharge d'un sort à charge (EffetsMagie.decharge) : « orage » (électricité).
+func decharge(ecole: String, forme: String, depart: Vector3, fin: Vector3, k: float, normale: Vector3) -> void:
+	_orage(depart, fin, k, normale)
+
+## ORAGE RUNIQUE : les éclairs de Force (foudre / foudre_ramifiee, même matériau « electricite », refaits 30 fois par seconde) :
+## l'éclair maître de la paume au point visé, 3 à 6 éclairs d'appoint qui retombent autour (accrochés au sol ou au décor par un
+## rayon), l'éclair du ciel sur l'impact et des arcs qui rampent au sol. Plus la charge est forte, plus il y en a et plus ils durent.
+func _orage(depart: Vector3, fin: Vector3, k: float, normale: Vector3) -> void:
+	var kk := clampf(k, 0.4, 1.5)
+	var duree := 0.55 + 0.35 * kk
+	var t0 := horloge
+	var espace := get_world_3d().direct_space_state if is_inside_tree() else null
+	var dist := depart.distance_to(fin)
+	var n_app := 3 + int(kk * 3.0)
+	var rayon_sol := 1.2 + 1.3 * kk
+	eclair(null, "electricite", 3.0, duree, 0.033, func() -> Array:
+		var traits: Array = []
+		var age := (horloge - t0) / duree
+		# l'orage s'éteint par à-coups : de moins en moins d'éclairs gardés sur la fin
+		var garde := 1.0 if age < 0.5 else clampf(1.0 - (age - 0.5) * 1.6, 0.0, 1.0)
+		if rng.randf() < garde:
+			foudre_ramifiee(traits, depart, fin, dist * 0.06, 3.0, 3, 5)
+		if rng.randf() < garde:
+			foudre_ramifiee(traits, depart, fin + Vector3(rng.randf_range(-0.3, 0.3), 0, rng.randf_range(-0.3, 0.3)), dist * 0.1, 1.5, 1, 5)
+		for _i in n_app:
+			if rng.randf() > garde:
+				continue
+			var a := rng.randf() * TAU
+			var f := fin + Vector3(cos(a), 0.0, sin(a)) * rayon_sol * rng.randf_range(0.35, 1.0) + Vector3.UP * 0.5
+			if espace != null:
+				var q := PhysicsRayQueryParameters3D.create(f + Vector3.UP * 1.5, f + Vector3.DOWN * 4.0)
+				var r := espace.intersect_ray(q)
+				if not r.is_empty():
+					f = r.position
+			var o := depart if rng.randf() < 0.45 else fin + Vector3.UP * rng.randf_range(2.0, 5.0) + Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1))
+			foudre_ramifiee(traits, o, f, o.distance_to(f) * 0.08, 1.5, 2, 4)
+		# l'éclair du ciel sur l'impact
+		if rng.randf() < garde * 0.85:
+			var haut := fin + Vector3.UP * rng.randf_range(6.0, 9.0) + Vector3(rng.randf_range(-1.5, 1.5), 0, rng.randf_range(-1.5, 1.5))
+			foudre_ramifiee(traits, haut, fin, 0.9, 3.0, 3, 5)
+		# arcs qui rampent au sol autour de l'impact
+		var sol := fin + normale.normalized() * 0.06
+		for _i in 4:
+			if rng.randf() > garde:
+				continue
+			var a := rng.randf() * TAU
+			var f := sol + Vector3(cos(a), 0.0, sin(a)) * rayon_sol * rng.randf_range(0.4, 0.9)
+			traits.append([foudre(sol, f, rayon_sol * 0.12, 3), 1.0, 0.9])
+		return traits)
+	emettre("elec_impact", null, Transform3D(Basis.IDENTITY, fin), false, 0.5 + 0.3 * kk)
+	_decharge_ponctuelle(depart, fin, duree, 0.0, 40, 1.0)
+	lumiere("orage_impact", fin + normale.normalized() * 1.2, Color(0.7, 0.65, 1.0), 4.5 * kk, 8.0 + 2.0 * kk, 10.0, duree)
+	lumiere("orage_main", depart, Color(0.7, 0.65, 1.0), 2.5, 4.0, 8.0, 0.3)
+	disque(fin, normale, 0.3, rayon_sol, 1.6, {"couleur": "#6a5af0", "coeur": "#f0f2ff", "anneau": 0.9, "epaisseur": 0.06, "remplissage": 0.15, "texels": 56.0, "eclat": 0.9}, false, false, 0.5)
+	disque(fin, normale, 0.2, rayon_sol * 0.7, 3.5, {"couleur": "#1a1230", "coeur": "#06030c", "anneau": 0.0, "remplissage": 0.7, "texels": 48.0, "eclat": 0.6, "opacite": 0.6}, true, false, 0.7)
+	_teinte_demande("electricite", 0.8)
 
 # ====================================================================== statuts des cibles
 
@@ -3000,17 +3259,26 @@ func _maj_double() -> void:
 			v = {"noeud": Node3D.new(), "emit": [], "eclair": {}, "p0": p0, "p1": p1}
 			add_child(v.noeud)
 			var n: Node3D = v.noeud
+			if NoyauEcole.ECOLES.has(ecole) or ecole == "feu":
+				# double magie (v5, toutes les écoles à noyau) : plus de gros nuage entre les mains (« un bloc ») ; un petit
+				# chapelet de runes (le MÊME RunesOrbite que les mains, sans noyau) relie les deux énergies
+				var pont := RunesOrbite.new()
+				pont.name = "RunesPont"
+				pont.ecole = ecole
+				pont.suivi = n
+				pont.centre_force = 0.1
+				pont.avec_lueurs = false
+				pont.nombre = 4
+				pont.taille_k = 0.8
+				pont.lumi_k = 0.9
+				pont.intensite = 0.9
+				pont.etat = 1
+				pont.germe = 0.4
+				n.add_child(pont)
+				v.pont = pont
 			match ecole:
-				"tenebres":
-					_vortex_main(n, 0.16)
-				"glace":
-					var p := emettre("glace_double_orbite", n, Transform3D.IDENTITY, true)
-					if p != null:
-						v.emit.append(p)
-				"feu":
-					var p := emettre("feu_aura", n, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * 2.2), Vector3.ZERO), true, 1.5)
-					if p != null:
-						v.emit.append(p)
+				"feu", "glace", "tenebres":
+					pass   # le chapelet de runes suffit
 				"electricite":
 					v.eclair = eclair(null, "electricite", 2.0, -1.0, 0.05, func() -> Array:
 						var t: Array = []
@@ -3042,6 +3310,10 @@ func _maj_double() -> void:
 			if is_instance_valid(p):
 				(p as GPUParticles3D).emitting = not v.jette
 		(v.noeud as Node3D).position = milieu
+		if v.get("pont") != null and is_instance_valid(v.pont):
+			var pt: Node3D = v.pont
+			pt.set("echelle", clampf(p0.distance_to(p1) * 3.0, 0.8, 2.2))
+			pt.visible = not v.jette
 		lumiere("double" + ecole, milieu, LUMIERE[ecole], 3.5, 6.0, 6.0)
 
 func _double_fin(v: Dictionary) -> void:

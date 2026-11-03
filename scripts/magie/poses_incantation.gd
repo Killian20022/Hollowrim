@@ -39,17 +39,40 @@ const POSES := {
 
 ## Variantes propres à la main droite (déjà écrites pour la droite, pas en miroir) : gauche ≠ droite.
 const POSES_DROITE := {
+	# sort équipé, main droite (flamme runique, references/flamme_runique.png) : paume ouverte tournée vers le HAUT et
+	# vers l'œil, doigts écartés un peu fléchis, pointant vers le centre de l'écran ; la main reste entièrement visible
+	"repos": {"pos": Vector3(0.20, -0.235, -0.40), "paume": Vector3(-0.2, 0.92, 0.32), "doigts": Vector3(-0.32, 0.3, -0.9), "fermeture": 0.24},
+	# charge du sort tenu (flamme runique) : la main se rapproche et se resserre un peu, TOUJOURS paume vers le haut
+	"charge": {"pos": Vector3(0.195, -0.23, -0.39), "paume": Vector3(-0.2, 0.92, 0.32), "doigts": Vector3(-0.32, 0.3, -0.9), "fermeture": 0.2},
+	"poing": {"pos": Vector3(0.195, -0.23, -0.39), "paume": Vector3(-0.2, 0.92, 0.32), "doigts": Vector3(-0.32, 0.3, -0.9), "fermeture": 0.2},
 	"repos_runes": {"pos": Vector3(0.27, -0.155, -0.31), "paume": Vector3(-0.42, 0.04, -0.9), "doigts": Vector3(-0.12, 0.66, -0.74), "fermeture": 0.56, "griffe": 1.0},
 }
 
 ## Double incantation : les deux mains se rapprochent du centre (décalage en X vers l'axe, pour la main gauche).
-const RAPPROCHE_DOUBLE := 0.07
+const RAPPROCHE_DOUBLE := 0.02   # v5 : 0,07 collait les deux flammes en un bloc
 ## Tremblement de la canalisation et de la pleine charge (m, rad/s).
 const TREMBLE := 0.003
+
+## Poses de la flamme tenue (repos, charge) : la main GAUCHE est le miroir exact de la droite (POSES_DROITE).
+const MIROIR_DE_DROITE := ["repos", "charge", "poing"]
+
+## Faux quand l'autre main tient une arme : la gauche garde alors sa pose d'origine (à la place de la torche, hors de la
+## trajectoire de l'épée). Réglé par MainSort avant chaque calcul de pose.
+static var gauche_miroir := true
+
+static func miroir(p: Dictionary) -> Dictionary:
+	var m := {}
+	for k in ["pos", "paume", "doigts"]:
+		var v: Vector3 = p[k]
+		m[k] = Vector3(-v.x, v.y, v.z)
+	m["fermeture"] = p["fermeture"]
+	return m
 
 static func pose(nom: String, main := "gauche") -> Dictionary:
 	var p: Dictionary = POSES.get(nom, POSES["repos"])
 	if main == "gauche":
+		if gauche_miroir and MIROIR_DE_DROITE.has(nom) and POSES_DROITE.has(nom):
+			return miroir(POSES_DROITE[nom])
 		return p
 	if POSES_DROITE.has(nom):
 		return POSES_DROITE[nom]

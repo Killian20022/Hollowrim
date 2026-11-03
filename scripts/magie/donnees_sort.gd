@@ -9,7 +9,9 @@ extends Resource
 ## ZONE : zone posée au point visé ou autour du joueur ; ENCHANT : enchante l'arme de l'autre main.
 enum Type { RAPIDE, CANALISE, CHARGE, ZONE, ENCHANT }
 ## Comment le sort atteint ses cibles.
-enum Portee { PROJECTILE, JET, CHAINE, ZONE_VISEE, ZONE_SOI, SOI }
+## DECHARGE : sort à charge qui part au relâchement en une décharge instantanée (forme « orage » : éclairs de Force ramifiés
+## qui frappent le point visé et ses abords).
+enum Portee { PROJECTILE, JET, CHAINE, ZONE_VISEE, ZONE_SOI, SOI, DECHARGE }
 
 @export var id := ""
 @export var nom := ""

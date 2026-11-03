@@ -8,40 +8,79 @@ extends Node3D
 ## et accélère (état de charge, à brancher à l'étape suivante). Shader : shaders/runes_orbite.gdshader (additif, WebGL2).
 
 const SH := preload("res://shaders/runes_orbite.gdshader")
-## Par école : couleurs, signes (shader), nombre de runes (orbite principale, orbite inverse), rayon (m), taille d'une rune (m).
+## Par école : couleurs, signes (shader), rayon moyen des orbites (m), taille d'une rune (m), hauteur du centre des
+## orbites au-dessus de la paume (m : le milieu de la flamme / du cristal tenu).
 const ECOLES := {
-	"feu": {"couleur": Color("#ff4a12"), "coeur": Color("#ffb066"), "signes": [0, 0, 3, 0, 1, 0, 2], "n": [5, 2], "rayon": 0.122, "taille": 0.028},
-	"glace": {"couleur": Color("#4fb4ff"), "coeur": Color("#e2f6ff"), "signes": [5, 3, 5, 0, 5, 3], "n": [4, 2], "rayon": 0.115, "taille": 0.025},
-	"electricite": {"couleur": Color("#8a6cff"), "coeur": Color("#e6deff"), "signes": [2, 4, 2, 0, 2, 4], "n": [4, 2], "rayon": 0.115, "taille": 0.025},
-	"tenebres": {"couleur": Color("#a23cff"), "coeur": Color("#e7b8ff"), "signes": [4, 1, 5, 4, 1, 5], "n": [4, 2], "rayon": 0.112, "taille": 0.025},
+	"feu": {"couleur": Color("#ff6a1a"), "coeur": Color("#ffc27a"), "signes": [6, 7, 8, 9, 1, 10, 6, 7], "rayon": 0.115, "taille": 0.026, "centre": 0.15},
+	"glace": {"lueur_k": 2.0, "couleur": Color("#4fb4ff"), "coeur": Color("#e2f6ff"), "signes": [5, 3, 10, 0, 5, 3, 9, 8], "rayon": 0.115, "taille": 0.029, "centre": 0.15},
+	"electricite": {"lueur_k": 1.7, "couleur": Color("#8a6cff"), "coeur": Color("#e6deff"), "signes": [2, 4, 2, 9, 2, 4, 8, 10], "rayon": 0.115, "taille": 0.029, "centre": 0.15},
+	"tenebres": {"lueur_k": 1.8, "couleur": Color("#a23cff"), "coeur": Color("#e7b8ff"), "signes": [4, 1, 5, 7, 4, 1, 5, 6], "rayon": 0.115, "taille": 0.029, "centre": 0.15},
 }
-## Inclinaison des orbites par rapport au plan de l'écran (rad) : principale penchée vers l'avant, seconde vers l'autre côté.
-const INCLINAISON := [Vector3(-0.42, 0.18, 0.12), Vector3(0.55, -0.35, -0.5)]
-const VITESSE := [0.32, -0.48]      # rad/s (sens horaire / antihoraire vus de l'œil)
-const RAYON_RELATIF := [1.0, 0.72]
-const LARGEUR_FIL := 0.0021
+## Deux anneaux très fins, PARTIELS (un arc qui tourne, ni cercle complet ni grand cercle devant la caméra) : rayon (m),
+## inclinaison (rad), fraction du tour visible, vitesse de rotation propre (rad/s), épaisseur du trait.
+const ANNEAUX := [
+	{"rayon": 0.115, "incl": Vector3(-0.95, 0.25, 0.15), "arc": 0.55, "vit": 0.34},
+	{"rayon": 0.082, "incl": Vector3(0.7, -0.5, -0.7), "arc": 0.4, "vit": -0.5},
+]
+## États : cibles (rayon des orbites, vitesse, éclat) vers lesquelles les runes glissent sans à-coup.
+## REPOS : lentes ; INCANTE : elles s'emballent un peu ; CHARGE : se resserrent et brillent (cf. `charge` 0..1) ;
+## CANALISE : serrées et vives ; RECUPERATION : retour doux (elles regagnent leurs orbites).
+const ETAT := {
+	0: {"rayon": 1.0, "vit": 1.0, "eclat": 1.0},
+	1: {"rayon": 0.96, "vit": 1.9, "eclat": 1.3},
+	2: {"rayon": 0.9, "vit": 2.2, "eclat": 1.35},
+	3: {"rayon": 0.8, "vit": 2.4, "eclat": 1.45},
+	4: {"rayon": 1.0, "vit": 1.3, "eclat": 1.1},
+}
+const LARGEUR_FIL := 0.0016
+const NB_RUNES := 7
 
 var ecole := "feu"
+## Outil de capture (outils/captures_sorts_vfx.gd, film_ecoles_runiques.gd) : >= 0 impose l'état CHARGE à cette charge (0..1),
+## sans lancer de sort. Les sorts canalisés (arc électrique) tirent dès qu'on les tient : jamais de vraie « charge ».
+static var forcer_charge := -1.0
 var suivi: Node3D
 ## +1 main gauche, -1 main droite (sens et inclinaison en miroir : gauche ≠ droite).
 var cote := 1.0
 var intensite := 0.35
 var charge := 0.0
-var _runes: Array = []          # [{mi, orbite, phase, taille, haut, eclat}]
+## État d'incantation de la main (Incantation.REPOS..RECUPERATION) : MainSort le recopie à chaque image.
+var etat := 0
+## Réglages (composant réutilisable) : nombre de runes (≤ 8), vitesse, taille, luminosité.
+var nombre := NB_RUNES
+var vitesse_k := 1.0
+var taille_k := 1.0
+var lumi_k := 1.0
+## Réutilisation hors main (projectile lancé, pont de la double magie) : échelle des orbites et des runes, hauteur du centre
+## (-1 = celle de l'école), sans les lueurs d'avant-bras, apparition progressive (orbites qui s'ouvrent en `germe` s).
+## Double magie (les deux mains lancent ce sort) : posé par MainSort.
+var double := false
+var echelle := 1.0
+var centre_force := -1.0
+var avec_lueurs := true
+var germe := 0.0
+var _runes: Array = []          # [{mi, base, vit, rayon, phase, taille, eclat, bat, haut}]
 var _fils: Array[MeshInstance3D] = []
+var _etat_prec := 0
+var _k_rayon := 1.0             # valeurs lissées vers la cible de l'état
+var _k_vit := 1.0
+var _k_eclat := 1.0
+var _conv := 0.0                # convergence brève des runes au départ du sort (1 → 0)
 var _mat_rune: ShaderMaterial
 var _mat_fil: ShaderMaterial
 var _t := 0.0
 ## Lueur courte de l'énergie tenue : n'éclaire QUE les avant-bras (AvantBras.CALQUE), creux de la paume et intérieur des
 ## doigts orangés, brassard dans la pénombre (références) ; l'aura du sort éclaire le monde, pas les bras.
 var lueur: OmniLight3D
-const LUEUR := 1.0              # énergie au repos (atténuation 1/d)
+const LUEUR := 1.7              # énergie au repos (atténuation 1/d)
 ## La lueur est avancée vers l'œil (m) : le dos de la main et les jointures, tournés vers la caméra, prennent le reflet
 ## orangé de l'énergie comme sur les références, au lieu d'une silhouette noire.
 const LUEUR_AVANCE := 0.025
 ## Reflet plus faible et plus large posé sous la main, côté poignet : les arêtes des rouleaux, des plaques et des clous du
 ## brassard prennent l'orange de l'énergie (références : bras sombres mais lisibles), sans brûler le gant.
 var lueur_bras: OmniLight3D
+## Noyau 3D propre à l'école (glace, électricité, ténèbres ; la flamme du feu est dessinée par l'aura) : NoyauEcole.
+var noyau: NoyauEcole
 const LUEUR_BRAS := 0.45
 const LUEUR_BRAS_POS := Vector3(-0.14, -0.02, 0.3)   # main gauche (x en miroir pour la droite), repère caméra
 
@@ -57,36 +96,40 @@ func _ready() -> void:
 	var quad := QuadMesh.new()
 	quad.size = Vector2.ONE
 	var signes: Array = e.signes
-	var k := 0
-	for o in 2:
-		var n: int = (e.n as Array)[o]
-		if o == 0:
-			var fil := MeshInstance3D.new()
-			fil.mesh = _ruban(float(e.rayon) * RAYON_RELATIF[o])
-			fil.material_override = _mat_fil
-			fil.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			fil.extra_cull_margin = 1.0
-			add_child(fil)
-			_fils.append(fil)
-		for i in n:
-			var mi := MeshInstance3D.new()
-			mi.mesh = quad
-			mi.material_override = _mat_rune
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			mi.extra_cull_margin = 1.0
-			mi.set_instance_shader_parameter("symbole", float(signes[k % signes.size()]))
-			add_child(mi)
-			var h := _h(k * 7 + (0 if cote > 0.0 else 3))
-			_runes.append({"mi": mi, "orbite": o, "phase": TAU * (i + 0.37 * o + 0.15 * h) / n,
-				"taille": float(e.taille) * (0.82 + 0.36 * _h(k * 13 + 1)) * (0.85 if o == 1 else 1.0),
-				"haut": 0.006 * (_h(k * 5 + 2) - 0.5), "eclat": 0.75 + 0.5 * _h(k * 11 + 4), "bat": TAU * _h(k * 3 + 9)})
-			k += 1
+	for o in ANNEAUX.size():
+		var fil := MeshInstance3D.new()
+		fil.mesh = _ruban(float(ANNEAUX[o].rayon))
+		fil.material_override = _mat_fil
+		fil.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		fil.extra_cull_margin = 1.0
+		fil.set_instance_shader_parameter("arc", float(ANNEAUX[o].arc))
+		add_child(fil)
+		_fils.append(fil)
+	for k in mini(nombre, 8):
+		var mi := MeshInstance3D.new()
+		mi.mesh = quad
+		mi.material_override = _mat_rune
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.extra_cull_margin = 1.0
+		mi.set_instance_shader_parameter("symbole", float(signes[k % signes.size()]))
+		add_child(mi)
+		var h := _h(k * 7 + (0 if cote > 0.0 else 3))
+		# orbite propre : plan incliné au hasard (mais stable), rayon et hauteur variés, sens alterné (horaire / antihoraire)
+		var incl := Vector3(lerpf(-1.1, 1.1, _h(k * 17 + 5)), lerpf(-0.8, 0.8, _h(k * 19 + 8)), lerpf(-1.5, 1.5, _h(k * 23 + 2)))
+		_runes.append({"mi": mi, "base": Basis.from_euler(incl),
+			"vit": (0.42 + 0.5 * _h(k * 29 + 6)) * (1.0 if k % 2 == 0 else -1.0) * cote,
+			"rayon": float(e.rayon) * (0.72 + 0.62 * _h(k * 31 + 3)), "phase": TAU * h,
+			"taille": float(e.taille) * (0.85 + 0.3 * _h(k * 13 + 1)), "haut": 0.03 * (_h(k * 5 + 2) - 0.5),
+			"eclat": 0.75 + 0.45 * _h(k * 11 + 4), "bat": TAU * _h(k * 3 + 9)})
+	if not avec_lueurs:
+		_suivre()
+		return
 	lueur = OmniLight3D.new()
 	lueur.light_color = (e.couleur as Color).lerp(e.coeur, 0.35)
 	lueur.light_cull_mask = AvantBras.CALQUE
 	lueur.shadow_enabled = false
 	lueur.light_specular = 0.25
-	lueur.omni_range = 0.24
+	lueur.omni_range = 0.32
 	lueur.light_energy = LUEUR
 	add_child(lueur)
 	lueur_bras = OmniLight3D.new()
@@ -98,6 +141,14 @@ func _ready() -> void:
 	lueur_bras.omni_attenuation = 1.6
 	lueur_bras.light_energy = LUEUR_BRAS
 	add_child(lueur_bras)
+	if NoyauEcole.possede(ecole):
+		noyau = NoyauEcole.new()
+		noyau.ecole = ecole
+		noyau.runes = self
+		noyau.taille_k = taille_k
+		noyau.lumi_k = lumi_k
+		noyau.vitesse_k = vitesse_k
+		add_child(noyau)
 	_suivre()
 
 func _h(i: int) -> float:
@@ -123,43 +174,65 @@ func _ruban(r: float) -> ArrayMesh:
 			st.add_vertex(p[t])
 	return st.commit()
 
-func _base_orbite(o: int) -> Basis:
-	var e: Vector3 = INCLINAISON[o]
-	return Basis.from_euler(Vector3(e.x, e.y * cote, e.z * cote))
-
 func _suivre() -> void:
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	if suivi == null or not is_instance_valid(suivi) or not suivi.is_inside_tree():
 		return
 	var b := cam.global_basis if cam != null else Basis.IDENTITY
-	global_transform = Transform3D(b, suivi.global_position)
+	var e: Dictionary = ECOLES.get(ecole, ECOLES["feu"])
+	# centre des orbites : le milieu de l'énergie tenue, AU-DESSUS de la paume (haut du monde, main penchée ou non)
+	global_transform = Transform3D(b, suivi.global_position + Vector3.UP * (float(e.centre) if centre_force < 0.0 else centre_force))
 
 func _process(dt: float) -> void:
 	_t += dt
+	if forcer_charge >= 0.0:
+		etat = 2
+		charge = forcer_charge
 	_suivre()
 	var e: Dictionary = ECOLES.get(ecole, ECOLES["feu"])
-	var resserre := 1.0 - 0.35 * charge
-	var acc := 1.0 + 3.0 * charge
-	var force := clampf(0.55 + 0.6 * intensite, 0.0, 1.6)
-	lueur.position = Vector3(0.025 * cote, 0.0, LUEUR_AVANCE)
-	lueur_bras.position = Vector3(LUEUR_BRAS_POS.x * cote, LUEUR_BRAS_POS.y, LUEUR_BRAS_POS.z)
-	lueur_bras.light_energy = LUEUR_BRAS * (0.5 + 0.8 * intensite) * (1.0 + 0.8 * charge)
-	lueur.light_energy = LUEUR * (0.5 + 0.8 * intensite) * (1.0 + 1.5 * charge) * (0.92 + 0.08 * sin(_t * 17.0) * sin(_t * 6.3))
+	# cible de l'état, lissée : jamais de saut (charge : resserre et accélère selon `charge`)
+	var cib: Dictionary = ETAT.get(etat, ETAT[0])
+	var kc := charge if etat == 2 else 0.0
+	var v_rayon := float(cib.rayon) * (1.0 - 0.15 * kc)
+	var v_vit := float(cib.vit) * (1.0 + 1.6 * kc)
+	var v_eclat := float(cib.eclat) * (1.0 + 0.4 * kc)
+	var lis := 1.0 - exp(-dt * 5.0)
+	_k_rayon = lerpf(_k_rayon, v_rayon, lis)
+	_k_vit = lerpf(_k_vit, v_vit, lis)
+	_k_eclat = lerpf(_k_eclat, v_eclat, lis)
+	# départ du sort : les runes convergent brièvement vers le centre puis regagnent leurs orbites
+	if etat == 4 and _etat_prec in [1, 2, 3]:
+		_conv = 1.0
+	_etat_prec = etat
+	_conv = maxf(_conv - dt * 3.2, 0.0)
+	var conv := sin(minf(_conv, 1.0) * PI * 0.5)
+	var ouvre := 1.0 if germe <= 0.0 else clampf(0.35 + 0.65 * _t / germe, 0.35, 1.0)
+	var resserre := _k_rayon * (1.0 - 0.55 * conv) * echelle * ouvre
+	var acc := _k_vit * vitesse_k
+	var force := clampf(0.7 + 0.6 * intensite, 0.0, 1.8) * _k_eclat * lumi_k * (1.0 + 0.4 * conv)
+	var vif := _k_eclat * (1.0 + 0.4 * kc) * float(e.get("lueur_k", 1.0))
+	if lueur != null:
+		lueur.position = Vector3(0.025 * cote, 0.0, LUEUR_AVANCE)
+		lueur_bras.position = Vector3(LUEUR_BRAS_POS.x * cote, LUEUR_BRAS_POS.y, LUEUR_BRAS_POS.z)
+		lueur_bras.light_energy = LUEUR_BRAS * (0.5 + 0.8 * intensite) * vif
+		lueur.light_energy = LUEUR * (0.5 + 0.8 * intensite) * vif * (0.94 + 0.06 * sin(_t * 17.0) * sin(_t * 6.3))
 	for o in _fils.size():
 		var f := _fils[o]
-		f.basis = _base_orbite(o).scaled(Vector3.ONE * resserre)
-		f.set_instance_shader_parameter("defile", _t * 0.02 * signf(VITESSE[o]) * cote)
-		f.set_instance_shader_parameter("eclat", force * (0.85 + 0.15 * sin(_t * 2.3)))
+		var an: Dictionary = ANNEAUX[o]
+		var ie: Vector3 = an.incl
+		var bs := Basis.from_euler(Vector3(ie.x, ie.y * cote, ie.z * cote)) * Basis(Vector3.BACK, _t * float(an.vit) * acc * cote)
+		f.basis = bs.scaled(Vector3.ONE * resserre)
+		f.set_instance_shader_parameter("defile", _t * 0.02 * signf(float(an.vit)) * cote)
+		f.set_instance_shader_parameter("eclat", force * 0.8 * (0.85 + 0.15 * sin(_t * 2.3 + o)))
 	for r: Dictionary in _runes:
-		var o: int = r.orbite
-		var a: float = float(r.phase) + _t * VITESSE[o] * acc * cote
-		var rr: float = float(e.rayon) * RAYON_RELATIF[o] * resserre
-		var p := _base_orbite(o) * Vector3(cos(a) * rr, sin(a) * rr, 0.0)
-		p.y += float(r.haut) + 0.003 * sin(_t * 1.7 + float(r.bat))
+		var a: float = float(r.phase) + _t * float(r.vit) * acc
+		var rr: float = float(r.rayon) * resserre
+		var p: Vector3 = (r.base as Basis) * Vector3(cos(a) * rr, sin(a) * rr, 0.0)
+		p.y = p.y * 0.6 + float(r.haut) + 0.003 * sin(_t * 1.7 + float(r.bat))
 		var mi: MeshInstance3D = r.mi
-		# les runes restent dans le plan de l'écran (face à l'œil), celles du fond un peu plus petites et plus pâles
-		var prof := clampf(-p.z / rr, -1.0, 1.0)
-		var s: float = float(r.taille) * (1.0 + 0.08 * prof) * (1.0 + 0.06 * sin(_t * 2.9 + float(r.bat)))
+		# profondeur : les runes devant (vers l'œil, +Z caméra) sont plus grandes et plus vives, celles du fond plus petites et pâles
+		var dev := clampf(p.z / maxf(rr, 0.01), -1.0, 1.0)
+		var s: float = float(r.taille) * taille_k * echelle * (0.9 + 0.2 * dev) * (1.0 + 0.06 * sin(_t * 2.9 + float(r.bat)))
 		mi.transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * s), p)
 		var pulse := 0.8 + 0.2 * sin(_t * 3.3 + float(r.bat) * 2.0)
-		mi.set_instance_shader_parameter("eclat", float(r.eclat) * pulse * force * (0.8 + 0.2 * prof))
+		mi.set_instance_shader_parameter("eclat", float(r.eclat) * pulse * force * (0.7 + 0.3 * dev))

@@ -194,6 +194,8 @@ func lancer(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, charge
 			return _projectiles(s, depart, oeil, avant, k)
 		DonneesSort.Portee.CHAINE:
 			return _chaine(s, depart, oeil, avant, k, s.rebonds)
+		DonneesSort.Portee.DECHARGE:
+			return _decharge(s, depart, oeil, avant, k)
 		DonneesSort.Portee.ZONE_VISEE:
 			var v := viser(oeil, avant, s.portee, 1.6)
 			return _zone(s, _au_sol(v["point"]), k)
@@ -273,6 +275,35 @@ func _chaine(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3, k: 
 		courante = suivante
 	EffetsMagie.chaine(s.ecole, points)
 	return {"genre": "chaine", "cibles": touchees}
+
+## Décharge d'un sort à charge (Portee.DECHARGE), au relâchement. Forme « orage » : éclairs de Force sur le point visé (la cible
+## visée plein dégâts, les voisins dans `rayon` PART_EXPLOSION, qui croissent avec la charge `k`).
+func _decharge(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3, k: float) -> Dictionary:
+	var v := viser(oeil, avant, s.portee, 1.2)
+	var point: Vector3 = v["point"]
+	var normale: Vector3 = v["normale"]
+	var touchees := []
+	# orage : la foudre tombe sur le point visé (au sol si le tir part dans le vide)
+	if not v["decor"] and v["cible"] == null:
+		point = _au_sol(point)
+	var direction := (point - depart).normalized()
+	EffetsMagie.decharge(s.ecole, s.forme, depart, point, k, normale)
+	EffetsMagie.impact(s.ecole, point, normale, 0.5 + 0.8 * k)
+	var rayon := maxf(s.rayon, 1.0)
+	if vise == "joueur":
+		if cible_joueur != null and not bool(cible_joueur.get("mort")) and cible_joueur.global_position.distance_to(point) <= rayon + 0.5:
+			frapper(cible_joueur, s.degats * k, s, cible_joueur.global_position, direction)
+			touchees.append(cible_joueur)
+		return {"genre": "decharge", "cibles": touchees, "point": point}
+	var premiere: Node = v["cible"]
+	if premiere != null:
+		touchees.append(premiere)
+		frapper(premiere, s.degats * k, s, Elements._centre(premiere), direction, false, s.stagger * k)
+	for c in Elements.cibles_dans(point, rayon):
+		if c != premiere:
+			touchees.append(c)
+			frapper(c, s.degats * k * (1.0 if premiere == null else PART_EXPLOSION * 1.2), s, Elements._centre(c), Elements._centre(c) - point, false, s.stagger * k * 0.7)
+	return {"genre": "decharge", "cibles": touchees, "point": point}
 
 ## Zone posée à un point choisi par l'appelant (sort de zone télégraphié du mage ennemi).
 func zone_en(s: DonneesSort, centre: Vector3, k := 1.0) -> Dictionary:
