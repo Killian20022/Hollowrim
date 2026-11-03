@@ -998,7 +998,7 @@ def verre():
     up = (0, 1, 0)
     O = Vector((0, 0, 0))
     # ------------------------------------------------------------------ cuirasse_verre
-    base = X.torse_base("cuirasse_verre", 360, jeu=0.010)
+    base = X.torse_base("cuirasse_verre", 350, jeu=0.010)
     L.lisser_normales(base)
     cible = cible_de(base)
     bm = bmesh.new()
@@ -1031,7 +1031,7 @@ def verre():
                                                (-1.10, 0.28, 0.96, 0.54, 0.006), (1.65, 0.30, 0.95, 0.54, 0.006), (-1.65, 0.30, 0.95, 0.54, 0.006),
                                                (2.35, 0.34, 0.95, 0.54, 0.006), (-2.35, 0.34, 0.95, 0.54, 0.006), (3.0, 0.34, 0.95, 0.56, 0.006),
                                                (0.85, 0.20, 0.92, 0.62, 0.015), (-0.85, 0.20, 0.92, 0.62, 0.015), (1.40, 0.22, 0.92, 0.62, 0.015),
-                                               (-1.40, 0.22, 0.92, 0.62, 0.015), (2.00, 0.24, 0.92, 0.62, 0.015), (-2.00, 0.24, 0.92, 0.62, 0.015)]):
+                                               (-1.40, 0.22, 0.92, 0.62, 0.015)]):
         plaque2(bm, O, up, (0, 0, 1), cible, ys_entre(yh, yb, 0.075), (c0 - larg, c0 + larg), 3 if j < 0.01 else 2, 0.006, j, P_VERRE,
                 taper=lambda v: 1.0 - 0.88 * v ** 1.8, bombe=0.004, rmax=0.5)
     o_tas = X.en_objet(bm, "tassettes")
@@ -1064,7 +1064,7 @@ def verre():
         c_ep = Vector((s * 0.10, a.y, a.z))
         cb = L.bvh_de(["tunique", "SuperHero_Male"], filtre=lambda p: abs(p.x) > 0.10)
         bm = bmesh.new()
-        for (y0, y1, jeu_, arc) in [(0.17, 0.27, 0.020, (-1.15, 1.00)), (0.10, 0.21, 0.027, (-1.25, 1.10)), (0.03, 0.14, 0.034, (-1.30, 1.15))]:
+        for (y0, y1, jeu_, arc) in [(0.17, 0.27, 0.020, (-1.15, 1.00)), (0.10, 0.21, 0.027, (-1.25, 1.10)), (0.03, 0.14, 0.034, (-1.30, 1.15)), (0.22, 0.31, 0.030, (-1.9, 1.9)), (0.28, 0.37, 0.026, (-2.0, 2.0))]:
             plaque2(bm, c_ep, Vector((s, 0, 0)), (0, 1, 0), cb, ys_entre(y0, y1, 0.05), arc, 2, 0.006, jeu_, P_VERRE,
                     taper=lambda v: 1.0 - 0.45 * v, dy=None, bombe=0.006, lisse=4)
         for (x, d, lg, la) in [(0.17, (0.30, 1.0, -0.10), 0.150, 0.024), (0.25, (0.75, 0.75, 0.05), 0.115, 0.020), (0.12, (0.05, 1.0, -0.45), 0.090, 0.017), (0.21, (0.50, 0.9, -0.40), 0.080, 0.015)]:
@@ -1124,17 +1124,22 @@ def verre():
         t = abs(math.atan2(math.sin(th), math.cos(th)))
         arriere = max(0.0, -math.cos(th))
         # profil effilé vers l'arrière (bosse en pointe derrière le crâne), front qui avance au-dessus du visage (ombre)
-        pointe = 0.058 * arriere ** 2.5 * max(0.0, 1 - abs(ph - 0.40) / 0.70)
+        pointe = 0.125 * arriere ** 5 * max(0.0, 1 - abs(ph - 0.22) / 0.60)       # longue pointe de capuche vers l'arrière
+        sommet = 0.060 * max(0.0, (ph - 0.95) / 0.62) ** 1.6                      # le dessus monte en pointe (profil en goutte)
         visiere = 0.014 * max(0.0, math.cos(th)) ** 3 * max(0.0, 1 - abs(ph - 0.30) / 0.25)
         joue = 0.010 * min(1.0, max(0.0, (t - 0.35) / 0.5)) * (1.0 if ph < 0.2 else 0.0)       # joues : volume vers l'extérieur
         evase = 0.020 * min(1.0, max(0.0, -ph / 0.5))                                         # bas du heaume évasé (pas d'anneau dans la peau)
-        return 0.017 + pointe + visiere + joue + evase
+        return 0.017 + pointe + sommet + visiere + joue + evase
     # heaume-capuche de cristal : enveloppe le crâne, les joues et la nuque ; visage dans l'ombre
     bm = X.coque_tete("casque_verre", [90, 72, 56, 42, 30, 18, 8, -4, -16, -28], 24, jeu_heaume, ouvert, cibles, P_VERRE)
     X.epaissir_bords(bm, 0.008)
     o_dome = X.en_objet(bm, "dome_v")
     # doublure presque noire dans l'ouverture : le visage reste dans l'ombre du heaume
-    bm = X.coque_tete("doublure", [26, 14, 2, -10, -22, -34], 14, lambda th, ph: 0.007, ouvert, cibles, P_COQUE)
+    def ouvert_large(th, ph):
+        t = abs(math.atan2(math.sin(th), math.cos(th)))
+        return not (t < math.radians(36) and ph < math.radians(16))
+    # la doublure avance de ~3 cm devant le visage : vue de face, la peau ne se voit plus (visage dans l'ombre)
+    bm = X.coque_tete("doublure", [26, 14, 2, -10, -22, -34], 14, lambda th, ph: 0.007 + 0.024 * max(0.0, math.cos(th)) ** 2, ouvert_large, cibles, P_COQUE)
     o_dbl_ = None
     o_dbl = X.en_objet(bm, "doublure")
     # bandeau d'or frontal + runes (variante enchantée)
@@ -1146,19 +1151,11 @@ def verre():
         f1 = L.rayon_sur(cibles, c1, (0, 1, 0), (0, 0, 1), jeu_)
         X.bande(bm, [(c0, (0, 1, 0), (0, 0, 1)), (c1, (0, 1, 0), (0, 0, 1))], [f0, f1], ep, 14, part, arc=(-1.30, 1.30))
     o_band = X.en_objet(bm, "bandeau_v")
-    # couronne de feuilles : quatre lames cristallines plates et fines, des tempes vers l'arrière, pointes qui dépassent la nuque
+    # plaques en écailles qui se chevauchent du front vers l'arrière : trois rangées de lames par côté
     bm = bmesh.new()
     for sg in (1, -1):
-        for (th0, th1, ph0, ph1, w, gap) in [(20, 170, 52, 44, 0.036, 0.013), (32, 162, 32, 20, 0.030, 0.012)]:
-            lame(bm, cibles, sg, th0, th1, ph0, ph1, w, gap, jeu_heaume)
-    # crête : éclats effilés le long de la ligne médiane, du front au sommet puis couchés vers l'arrière
-    for k, (e, lg, la) in enumerate([(62, 0.060, 0.016), (78, 0.090, 0.019), (94, 0.120, 0.021), (110, 0.115, 0.020), (126, 0.095, 0.017), (142, 0.070, 0.014)]):
-        er = math.radians(e)
-        d = Vector((0, math.sin(er), math.cos(er)))
-        hit = cibles.ray_cast(B(TETE + d * 0.45), B(-d), 0.45)
-        r = (B(TETE) - hit[0]).length if hit[0] is not None else 0.11
-        base_ = TETE + d * (r + jeu_heaume(0.0 if math.cos(er) > 0 else math.pi, math.radians(90 - abs(90 - e)) * 0.9) + 0.004)
-        eclat(bm, base_, (0, 0.55 + 0.4 * math.sin(er) , -0.75 + 0.5 * math.cos(er)), lg, la, P_VERRE, tour=math.pi / 2)
+        for (th0, th1, ph0, ph1, w, gap) in [(24, 172, 62, 46, 0.034, 0.012), (28, 170, 44, 26, 0.036, 0.015), (32, 166, 26, 8, 0.036, 0.018)]:
+            lame(bm, cibles, sg, th0, th1, ph0, ph1, w, gap, jeu_heaume, n=6, deborde=0.2)
     o_cre = X.en_objet(bm, "feuilles_v")
     o_jou = None
     o = joindre([o_dome, o_dbl, o_band, o_cre], "casque_verre")
@@ -1197,6 +1194,10 @@ def verre():
                 taper=lambda v: 1.0 - 0.85 * v ** 1.8, bombe=0.008)
         plaque2(bm, a, ax, (0, 1, 0), br, ys_entre(d(0.64), d(0.53), 0.055), (1.9, 3.0), 3, 0.006, 0.011, P_VERRE,
                 taper=lambda v: 1.0 - 0.7 * v, bombe=0.004)
+        plaque2(bm, a, ax, (0, 1, 0), br, ys_entre(d(0.60), d(0.50), 0.045), (-1.9, 1.9), 3, 0.006, 0.020, P_VERRE,
+                taper=lambda v: 1.0 - 0.6 * v, bombe=0.005)
+        # lame de coude qui dépasse vers l'arrière et l'extérieur
+        eclat(bm, a + Vector((0, 0.012, -0.040)), (s * 0.30, 0.30, -1.0), 0.125, 0.024, P_VERRE)
         # bracelet d'or au poignet + runes
         for (jeu_, ep, part, hh) in [(0.0125, 0.004, P_OR, 0.011), (0.0168, 0.0012, P_RUNES, 0.0065)]:
             plaque(bm, [d(0.655) + hh, d(0.655) - hh], a, ax, (0, 1, 0), br, lambda th, j=jeu_: j, ep, 8, part, (-math.pi + 0.01, math.pi - 0.01), 0.0005, 1.0)
@@ -1244,10 +1245,12 @@ def verre():
         for (jeu_, ep, part, hh) in [(0.0075, 0.004, P_OR, 0.012), (0.0118, 0.0012, P_RUNES, 0.007)]:
             plaque(bm, [y_(0.385) + hh, y_(0.385) - hh], f, ax, (0, 0, 1), cible, lambda th, j=jeu_: j, ep, 10, part, (-math.pi + 0.01, math.pi - 0.01), 0.0005, 1.0)
         # grève de cristal (pointe vers le genou) + genouillère en losange qui déborde + plaque du cou-de-pied
-        plaque2(bm, f, ax, (0, 0, 1), cible, ys_entre(y_(0.13), y_(0.44), 0.06), (-1.05, 1.05), 6, 0.008, 0.012, P_VERRE,
+        plaque2(bm, f, ax, (0, 0, 1), cible, ys_entre(y_(0.13), y_(0.44), 0.06), (-1.45, 1.45), 6, 0.008, 0.012, P_VERRE,
                 taper=lambda v: 1.0 - 0.80 * max(0.0, v - 0.35) ** 1.2 / 0.65 ** 1.2, bombe=0.008)
         plaque2(bm, f, ax, (0, 0, 1), cible, ys_entre(y_(0.465), y_(0.615), 0.05), (-0.90, 0.90), 4, 0.009, 0.020, P_VERRE,
                 taper=lambda v: 0.25 + 0.75 * math.sin(v * math.pi) ** 0.8, bombe=0.012)
+        for yy in (0.25, 0.37):
+            eclat(bm, f + ax * y_(yy) + Vector((s * 0.058, 0, 0.0)), (s * 0.75, 0.65, 0.05), 0.095, 0.020, P_VERRE)
         o_j = X.en_objet(bm, "greve_v")
         X.poids_de(o_j, "bottes", lambda p, s=s: (p.x > 0) == (s > 0) and p.y < 0.5, 1)
         # genouillère : poids du GENOU (pantalon autour de y = 0,54)
@@ -1259,6 +1262,7 @@ def verre():
         cp = L.bvh_de(["bottes"], filtre=lambda p, s=s: (p.x > 0) == (s > 0) and p.y < 0.2)
         plaque2(bm, ft, axp, (0, 1, 0), cp, ys_entre(0.02, (bl - ft).length + 0.05, 0.05), (-0.9, 0.9), 4, 0.006, 0.004, P_VERRE,
                 taper=lambda v: 1.0 - 0.6 * v ** 1.5, bombe=0.006)
+        eclat(bm, bl + Vector((0, 0.03, 0.09)), (0, 0.18, 1.0), 0.10, 0.030, P_VERRE)
         o_p = X.en_objet(bm, "pied_v")
         X.poids_de(o_p, "bottes", lambda p, s=s: (p.x > 0) == (s > 0) and p.y < 0.2, 0)
         parts.append(o_p)
