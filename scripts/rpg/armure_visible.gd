@@ -245,7 +245,7 @@ static func materiau(nom: String, tex: Texture2D) -> ShaderMaterial:
 	if tex == null:
 		tex = Palette.tex("cuir", Palette.CUIR, 4, 0.5)
 	var m := Palette.materiau(tex, Vector2.ONE, p.get("teinte", Color.WHITE))
-	m.shader = EpeesLongues.shader_matiere(false)
+	m.shader = shader_hd() if tex.get_width() > 256 else EpeesLongues.shader_matiere(false)
 	m.set_shader_parameter("tex_neige", tex)    # couleurs de sommet du glb d'alpha nul : pas de neige
 	m.set_shader_parameter("mt_boite", 0.0)
 	for k in ["metal", "poli", "bord", "profondeur", "lueur"]:
@@ -257,6 +257,18 @@ static func materiau(nom: String, tex: Texture2D) -> ShaderMaterial:
 	m.next_pass = GuerrierNordique.contour()
 	m.resource_name = "armure_" + nom
 	return m
+
+static var _shader_hd: Shader
+
+## ARMURES HD (charte du 2026-11-02 : textures 512²–1024²) : shader « matière » des armes dont la texture de base est lue avec mipmaps
+## (plus proche voisin) ; sans mipmaps, une texture fine sur un personnage vu à 480x270 scintille en mouvement. Les textures
+## <= 256² gardent le shader d'origine.
+static func shader_hd() -> Shader:
+	if _shader_hd == null:
+		_shader_hd = Shader.new()
+		_shader_hd.code = EpeesLongues.shader_matiere(false).code.replace("uniform sampler2D tex_base : source_color, filter_nearest, repeat_enable;",
+			"uniform sampler2D tex_base : source_color, filter_nearest_mipmap, repeat_enable;")
+	return _shader_hd
 
 # ------------------------------------------------------------------------------------------------------------- masquage
 ## Zones recouvertes par les pièces réellement posées ; « cape » en plus quand la pièce de tête descend sur les épaules (capuche

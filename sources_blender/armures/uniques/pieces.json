@@ -1,0 +1,11 @@
+{
+  "_note": "Armures UNIQUES HD (ids inchangés). Noms/poids = ceux de data/objets/armures.json (non modifiés par cette branche).",
+  "pieces": [
+    {"id": "heaume_jarl", "nom": "Heaume du Jarl", "emplacement": "tete", "matiere": "fer noir"},
+    {"id": "cuirasse_gardiens", "nom": "Cuirasse des gardiens du serment", "emplacement": "torse", "matiere": "acier givré"},
+    {"id": "gantelets_hrafn", "nom": "Gantelets de Hrafn", "emplacement": "mains", "matiere": "cuir rouge, griffes d'acier"},
+    {"id": "bottes_rodeur", "nom": "Bottes du rôdeur des neiges", "emplacement": "pieds", "matiere": "fourrure blanche"},
+    {"id": "capuche_thaumaturge", "nom": "Capuche du thaumaturge", "emplacement": "tete", "matiere": "laine bleu nuit"},
+    {"id": "brigandine_braise", "nom": "Brigandine de braise", "emplacement": "torse", "matiere": "écailles de cuir cendré"}
+  ]
+}
