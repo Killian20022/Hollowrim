@@ -68,6 +68,7 @@ var tex_ecorce: ImageTexture
 var joueur: CharacterBody3D
 var neige: GPUParticles3D
 var feu_lumiere: OmniLight3D
+var feu_pixels: FeuFixe
 var post: ShaderMaterial
 var hud: Control
 var sbire: CharacterBody3D
@@ -580,53 +581,9 @@ func _feu_de_camp() -> void:
 		corps.add_child(forme)
 	add_child(MobilierVillage.noeud_modules(poses, "FeuDeCamp"))
 
-	feu_lumiere = OmniLight3D.new()
-	feu_lumiere.light_color = Color(1.0, 0.55, 0.22)
-	feu_lumiere.light_energy = 3.0
-	feu_lumiere.omni_range = 14.0
-	feu_lumiere.omni_attenuation = 1.4
-	feu_lumiere.position = sol + Vector3(0, 0.9, 0)
-	add_child(feu_lumiere)
-
-	add_child(_particules_feu(sol, 70, 1.0, Vector2(0.32, 0.32), 1.6, 0.25, [Color(3.0, 2.2, 0.8), Color(2.6, 1.0, 0.25), Color(1.2, 0.25, 0.05), Color(0.3, 0.05, 0.0, 0.0)]))
-	add_child(_particules_feu(sol, 18, 2.8, Vector2(0.06, 0.06), 1.8, 0.35, [Color(3.0, 1.8, 0.6), Color(2.0, 0.6, 0.1), Color(1.0, 0.2, 0.0, 0.0)]))
-
-func _particules_feu(sol: Vector3, nombre: int, duree: float, taille: Vector2, vitesse: float, rayon: float, couleurs: Array) -> GPUParticles3D:
-	var p := GPUParticles3D.new()
-	p.amount = nombre
-	p.lifetime = duree
-	p.position = sol + Vector3(0, 0.15, 0)
-	var pm := ParticleProcessMaterial.new()
-	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	pm.emission_sphere_radius = rayon
-	pm.direction = Vector3.UP
-	pm.spread = 12.0
-	pm.initial_velocity_min = vitesse * 0.6
-	pm.initial_velocity_max = vitesse
-	pm.gravity = Vector3(0.15, 0.6, 0)
-	pm.scale_min = 0.6
-	pm.scale_max = 1.3
-	var g := Gradient.new()
-	var decalages := PackedFloat32Array()
-	for i in couleurs.size():
-		decalages.append(float(i) / (couleurs.size() - 1))
-	g.offsets = decalages
-	g.colors = PackedColorArray(couleurs)
-	var gt := GradientTexture1D.new()
-	gt.gradient = g
-	pm.color_ramp = gt
-	p.process_material = pm
-	var q := QuadMesh.new()
-	q.size = taille
-	var mq := StandardMaterial3D.new()
-	mq.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mq.vertex_color_use_as_albedo = true
-	mq.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mq.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	mq.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	q.material = mq
-	p.draw_pass_1 = q
-	return p
+	# grand feu en gros pixels (scripts/feu_fixe.gd) : cinq langues, lit de braises, braises qui montent, fumée, halo de chaleur, lumière à paliers
+	feu_pixels = FeuFixe.camp(self, sol)
+	feu_lumiere = feu_pixels.lumiere
 
 # --- joueur, neige, interface ------------------------------------------------
 
@@ -1372,8 +1329,9 @@ func _process(dt: float) -> void:
 	if cycle != null and joueur != null and not _sous_terre_actif:
 		cycle.orienter_brume(-joueur.camera.global_transform.basis.z)  # lot 2 : brouillard chaud côté soleil couchant
 	neige.global_position = joueur.global_position + Vector3(0, 10, 0)
-	# le feu vacille : deux sinus désaccordés + un peu de hasard
-	feu_lumiere.light_energy = 3.2 + sin(_t * 11.0) * 0.25 + sin(_t * 23.7) * 0.18 + randf() * 0.25
+	# le vent des feux (mêmes rafales lentes que le son du vent) ; nul sous terre
+	var rafale := 0.45 + 0.55 * absf(sin(_t_audio * 0.23) * sin(_t_audio * 0.071 + 1.3))
+	FeuFixe.regler_vent(Vector3.ZERO if _sous_terre_actif else Vector3(0.82, 0.0, 0.36) * rafale)
 	_remplir_audio()
 	_minuterie_sauvegarde += dt
 	if _minuterie_sauvegarde > 120.0 and not _arguments().has("capture"):
@@ -1446,7 +1404,7 @@ func _audio() -> void:
 	gf.reference()
 	feu.stream = gf
 	feu.unit_size = 2.5
-	feu.position = feu_lumiere.position
+	feu.position = feu_pixels.position + Vector3(0, 0.9, 0)
 	add_child(feu)
 	feu.play()
 	_audio_feu = feu.get_stream_playback()

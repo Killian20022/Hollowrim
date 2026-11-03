@@ -139,6 +139,7 @@ static func _foyer(b: Interieurs, xh: float) -> void:
 	# flammes
 	for k in 4:
 		b.flamme(Vector3(xh - 1.6 + k * 1.07, F + 0.16, b.rng.randf_range(-0.12, 0.12)), 2.3 - 0.25 * (k % 2))
+	b.lit_braises(Vector3(xh, F + 0.145, 0), Vector2(lg - 0.3, lz - 0.2))
 	b.halo(Vector3(xh, F + 0.04, 0), Vector3.UP, 6.4, 3.4, Color(1, 0.9, 0.8, 1))
 	b.halo(Vector3(xh, F + 0.04, 0), Vector3.UP, 4.4, 2.2, Color(1, 0.85, 0.7, 1))
 	b.lumiere(Vector3(xh - 1.3, F + 1.0, 0), 2.6, 8.5)

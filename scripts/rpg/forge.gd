@@ -209,6 +209,9 @@ static func ameliorer(joueur: Object, id: String) -> String:
 	inv.pieces -= int(c["pieces"])
 	for m: String in c["minerais"]:
 		inv.retirer(m, int(c["minerais"][m]))
+	var arbre := Engine.get_main_loop() as SceneTree
+	if arbre != null:
+		arbre.call_group("foyer_forge", "activer")     # le foyer de Brodd s'avive : gerbe d'étincelles
 	inv.ajouter(neuf, 1)
 	if eq != null:
 		synchroniser(joueur as Node)     # la variante est équipable avant que l'ancienne ne quitte le sac

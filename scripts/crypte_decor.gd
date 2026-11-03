@@ -83,7 +83,7 @@ static func shader_brillant() -> Shader:
 		s.code = CRYPTE_SHADER.code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_schlick_ggx;\n#define BRILLANT")
 		_shader_brillant = s
 	return _shader_brillant
-const FLAMME_SHADER := preload("res://shaders/crypte_flamme.gdshader")
+const FLAMME_SHADER := preload("res://shaders/flamme_fixe.gdshader")
 
 var racine: Node3D
 var corps: StaticBody3D
@@ -1574,8 +1574,8 @@ func flamme(pos: Vector3, echelle := 1.0) -> void:
 
 func _mat_flamme() -> ShaderMaterial:
 	var sm := ShaderMaterial.new()
-	sm.shader = FLAMME_SHADER
-	sm.set_shader_parameter("atlas", ObjetsTextures.tex("flamme"))    # même atlas que la torche tenue
+	sm.shader = FLAMME_SHADER                  # flamme en gros pixels (shaders/flamme_fixe.gdshader), même famille que la torche tenue
+	sm.set_shader_parameter("vent_k", 0.0)     # sous terre : pas de vent
 	return sm
 
 ## Même flamme, isolée, accrochée à un parent (torche tenue en main).
