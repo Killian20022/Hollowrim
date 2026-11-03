@@ -102,6 +102,13 @@ static func _chrono(etape: String) -> void:
 		print("  sol %s : %d ms" % [etape, (Time.get_ticks_usec() - _t) / 1000])
 	_t = Time.get_ticks_usec()
 
+## Plateau du feu à bord doux : de RAYON_FEU - 2 à RAYON_FEU + 2,2 m la terre piétinée cède la place à la neige par plaques
+## (bruit en cases de texel, jamais Bayer) ; 50 % de terre à RAYON_FEU : taille de la clairière inchangée.
+static func _bord_feu(d: float, x: float, z: float, t: float, bruit: FastNoiseLite) -> bool:
+	if d > RAYON_FEU + 2.2:
+		return false
+	return 0.5 + 0.45 * bruit.get_noise_2d(x, z) + 0.5 * t < 1.0 - (d - (RAYON_FEU - 2.0)) / 4.2
+
 static func _bruit(graine: int, freq: float, octaves := 1) -> FastNoiseLite:
 	var b := FastNoiseLite.new()
 	b.seed = graine
@@ -310,7 +317,7 @@ static func _calculer(monde: Node, arbres: Array) -> Array:
 						dchemin[k] = dv
 					elif mv >= 0:
 						mt = mv
-					elif p.distance_to(stele) < RAYON_STELE + 0.8 * t or p.distance_to(porte) < RAYON_PORTE + 0.8 * t or p.length() < RAYON_FEU + 0.8 * t:
+					elif p.distance_to(stele) < RAYON_STELE + 0.8 * t or p.distance_to(porte) < RAYON_PORTE + 0.8 * t or _bord_feu(p.length(), x, z, t, bruit_tache):
 						mt = PIETINEE
 					elif creux[k] < CROUTE_BOSSE + 0.02 * t or bruit_croute.get_noise_2d(x, z) > CROUTE_BRUIT + 0.15 * t:
 						mt = CROUTE
