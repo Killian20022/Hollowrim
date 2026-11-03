@@ -1393,6 +1393,12 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 		dch.amount = int(DECHARGE_N * (0.8 if dbl else 0.65))
 		(dch.process_material as ShaderMaterial).set_shader_parameter("force", 1.1 if dbl else 1.0)
 		j.faisceau = _faisceau_creer(dbl)
+		# éclairs de Force : 4 faisceaux d'appoint (5 en double) qui partent de la même paume vers leurs points d'accroche
+		var fa: Array = []
+		for _k in (5 if dbl else 4):
+			fa.append(_faisceau_creer(dbl, true))
+		j.faisceaux = fa
+		j.fx_fin = []
 	elif fin_actif and ecole == "glace":
 		# couche fine : le corps du jet de glace est un SOUFFLE DE GIVRE (même machinerie que la vague : j.vague)
 		j.vague = _givre_creer(dbl)
@@ -1552,7 +1558,84 @@ func _gen_jet_arc_vif(j: Dictionary) -> Array:
 			var b: Vector3 = j.fin_pos
 			var fin: Vector3 = b + Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(-0.8, 0.5), rng.randf_range(-0.4, 0.4))
 			traits.append([foudre(b, fin, 0.06, 3), 0.5, rng.randf_range(0.5, 0.9)])
+	if not hoquet:
+		_arcs_force(j, o, l, dir, traits)
 	return traits
+
+## Éclairs de Force : 3 à 5 arcs fins (4 à 6 en double) qui partent TOUS de la paume et s'écartent en cône autour de l'arc
+## maître ; chacun vise son propre point d'accroche (anneau qui tourne lentement + tirage au sort à chaque image : ils
+## crépitent et se renouvellent), s'arrête sur le décor ou la cible touchés (rayon physique), a ses ramifications et une
+## fourche d'impact. Refaits à chaque régénération (30 /s), dessinés par le même ImmediateMesh que l'arc maître.
+func _arcs_force(j: Dictionary, o: Vector3, l: float, dir: Vector3, traits: Array) -> void:
+	var dbl: bool = j.dbl
+	var n := rng.randi_range(3, 5) + (1 if dbl else 0)
+	var u := dir.cross(Vector3.UP if absf(dir.y) < 0.9 else Vector3.RIGHT).normalized()
+	var w := dir.cross(u)
+	var rayon := clampf(l * 0.24, 0.2, 1.1)
+	var bout: Vector3 = o + dir * l
+	var espace: PhysicsDirectSpaceState3D = null
+	if valide(j.origine) and (j.origine as Node3D).is_inside_tree():
+		espace = (j.origine as Node3D).get_world_3d().direct_space_state
+	var excl: Array[RID] = _exclus_depuis(j.origine) if espace != null else []
+	var fx_fin: Array = []
+	for k in n:
+		var ang := float(k) / n * TAU + horloge * 2.2 + rng.randf_range(-0.5, 0.5)
+		var d := (u * cos(ang) + w * sin(ang)) * rayon * rng.randf_range(0.35, 1.0)
+		var cible_pt := bout + d
+		if j.touche and j.cible != null:
+			cible_pt += Vector3(0.0, rng.randf_range(-0.25, 0.3), 0.0)   # s'étalent sur la hauteur du corps
+		var fin_pt := cible_pt
+		if espace != null:
+			# l'arc s'accroche à la première surface rencontrée vers son point visé (décor ou cible), un peu au-delà
+			var q := PhysicsRayQueryParameters3D.create(o, o + (cible_pt - o) * 1.12, 0xFFFFFFFF, excl)
+			var r := espace.intersect_ray(q)
+			if not r.is_empty() and (r.position as Vector3).distance_to(o) > 0.15:
+				fin_pt = r.position
+		fx_fin.append(fin_pt)
+		if j.get("faisceaux") == null or k >= (j.faisceaux as Array).size() + 1:
+			continue
+		# le corps de cet éclair est un faisceau du shader (_faisceaux_force_placer) ; ici : branches et fourche d'impact
+		var p := _arc_courbe(o, j, l, l * 0.04, fin_pt - _jet_courbe(o, j, l, 1.0))
+		if p.size() < 6:
+			continue
+		for _r in 2:
+			var i := rng.randi_range(p.size() / 4, p.size() - 3)
+			var dev := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
+			var fin := p[i] + (dir * 0.5 + dev).normalized() * l * rng.randf_range(0.05, 0.11)
+			var br := foudre(p[i], fin, l * 0.018, 3)
+			traits.append([br, 0.4, 0.6])
+			if br.size() > 3 and rng.randf() < 0.5:
+				var o2 := br[br.size() / 2]
+				traits.append([foudre(o2, o2 + (fin - p[i]).normalized().slerp(dev, 0.5) * l * 0.04, l * 0.012, 2), 0.3, 0.5])
+		# l'impact s'accroche : petite fourche qui court sur la surface touchée
+		var pe := p[p.size() - 1]
+		traits.append([foudre(pe, pe + Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized() * rng.randf_range(0.08, 0.2), 0.03, 3), 0.4, 0.8])
+	j.fx_fin = fx_fin
+
+## Place les faisceaux d'appoint : chacun va de la paume à son point d'accroche (fx_fin, retiré 30 fois par seconde par
+## _arcs_force), le contrôle de la courbe est dévié pour qu'ils s'écartent de l'arc maître avant de converger.
+func _faisceaux_force_placer(j: Dictionary, o: Vector3, l: float) -> void:
+	var fa: Array = j.get("faisceaux", [])
+	var fin: Array = j.get("fx_fin", [])
+	var dir: Vector3 = j.dir
+	for k in fa.size():
+		var mi: MeshInstance3D = fa[k]
+		if not is_instance_valid(mi):
+			continue
+		if k + 1 >= fin.size():
+			mi.visible = false
+			continue
+		mi.visible = not sans_procedural
+		var b: Vector3 = fin[k + 1]
+		var m := mi.material_override as ShaderMaterial
+		var mil := o.lerp(b, 0.5)
+		var lat := (mil - (o + dir * l * 0.5))
+		m.set_shader_parameter("arc_o", o)
+		m.set_shader_parameter("arc_c", mil + lat * 0.4)
+		m.set_shader_parameter("arc_b", b)
+		m.set_shader_parameter("touche", 1.0)
+		m.set_shader_parameter("force", clampf((horloge - float(j.debut) - 0.02 * k) / 0.08, 0.0, 1.0))
+		m.set_shader_parameter("jour", _jour())
 
 func _gen_drain(j: Dictionary) -> Array:
 	var traits: Array = []
@@ -1857,7 +1940,7 @@ func _creer_faisceau() -> ArrayMesh:
 	return m
 
 ## Corps épais de l'arc électrique (un par jet : matériau propre, ses uniformes sont la courbe de CE jet).
-func _faisceau_creer(dbl: bool) -> MeshInstance3D:
+func _faisceau_creer(dbl: bool, appoint := false) -> MeshInstance3D:
 	if _mesh_faisceau == null:
 		_mesh_faisceau = _creer_faisceau()
 	var mi := MeshInstance3D.new()
@@ -1872,6 +1955,14 @@ func _faisceau_creer(dbl: bool) -> MeshInstance3D:
 		m.set_shader_parameter("c%d" % i, Color(pal[i]))
 	m.set_shader_parameter("dbl", 1.0 if dbl else 0.0)
 	m.set_shader_parameter("graine", rng.randf() * 100.0)
+	if appoint:
+		# éclair de Force secondaire : plus fin et moins couvrant que l'arc maître
+		m.set_shader_parameter("enveloppe", 0.11)
+		m.set_shader_parameter("px_min", 4.0)
+		m.set_shader_parameter("px_max", 11.0)
+		m.set_shader_parameter("coeur_px", 1.2)
+		m.set_shader_parameter("ombre", 0.45)
+		m.set_shader_parameter("dbl", 0.0)
 	mi.material_override = m
 	mi.visible = not sans_procedural and not OS.get_cmdline_user_args().has("--sans-flux")
 	add_child(mi)
@@ -2241,6 +2332,7 @@ func _jet_placer(j: Dictionary) -> void:
 		_decharge_placer(j, o, l)
 	if j.get("faisceau") != null and is_instance_valid(j.faisceau):
 		_faisceau_placer(j, o, l)
+		_faisceaux_force_placer(j, o, l)
 	if not j.bouclier.is_empty():
 		var d: Dictionary = j.bouclier
 		d.pos = o + dir * 0.35
@@ -2319,6 +2411,10 @@ func _jet_arreter(j: Dictionary) -> void:
 	if j.get("faisceau") != null and is_instance_valid(j.faisceau):
 		(j.faisceau as Node).queue_free()
 	j.erase("faisceau")
+	for f in j.get("faisceaux", []):
+		if is_instance_valid(f):
+			(f as Node).queue_free()
+	j.erase("faisceaux")
 	if not j.bouclier.is_empty():
 		j.bouclier.duree = 0.0
 
