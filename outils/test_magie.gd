@@ -476,4 +476,4 @@ func _sauvegarde() -> void:
 	magie.importer(JSON.parse_string(texte))
 	_verif(magie.eq.mains["gauche"]["id"] == "drain_vie" and magie.eq.mains["droite"]["id"] == "epee" and absf(j.mana - 42.0) < 0.01,
 		"sauvegarde : mains (%s / %s) et mana restaurés" % [magie.eq.mains["gauche"]["id"], magie.eq.mains["droite"]["id"]])
-	_verif(magie.eq.sorts_connus.size() == 20, "sauvegarde : 20 sorts connus")
+	_verif(magie.eq.sorts_connus.size() == 21, "sauvegarde : 21 sorts connus")
