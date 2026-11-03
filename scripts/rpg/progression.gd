@@ -325,7 +325,13 @@ static func coup_porte(joueur: Node, cible: Node, arme: DonneesArme, degats: flo
 	var c := competence_arme(arme)
 	pratiquer_de(joueur, c, 1.8 if fort else 1.0)
 	var p := de_joueur(joueur)
-	if p == null or p.perks.is_empty() or not resultat in ["touche", "tue"]:
+	if p == null or not resultat in ["touche", "tue"]:
+		return
+	# vol de vie de l'équipement (« vol_vie » : toute arme, armures enchantées 2026-11-02), même sans perk
+	var vol_eq := p.bonus("vol_vie")
+	if vol_eq > 0.0 and joueur.has_method("soigner"):
+		joueur.soigner(degats * vol_eq)
+	if p.perks.is_empty():
 		return
 	var sang := p.bonus("saignement_" + c)
 	if sang > 0.0 and resultat == "touche":

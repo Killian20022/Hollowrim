@@ -14,6 +14,18 @@ class_name Elements
 
 const FICHIER := "res://data/magie/reactions.json"
 const ATTAQUES_EPEE := ["legere", "lourde", "chargee_max", "contre"]
+## Coups forts (posent le statut des enchantements d'équipement).
+const ATTAQUES_FORTES := ["lourde", "chargee_max", "contre"]
+## ENCHANTEMENTS D'ÉQUIPEMENT (armures enchantées, refonte HD 2026-11-02 ; clés docs/RPG.md §3) : clé d'effet -> [type de
+## dégâts, statut, durée (s), puissance]. La valeur de la clé (somme de l'équipement porté, Progression.bonus) = dégâts de
+## l'élément AJOUTÉS à chaque coup d'arme du joueur (× résistance de la cible à ce type, × 0,5 si le coup est affaibli) ; un
+## coup FORT (lourd, chargé, contre) pose aussi le statut, seulement si l'arme ou un sort n'en pose pas déjà un.
+const COUPS_EQUIPEMENT := {
+	"coup_feu": ["feu", "brulure", 2.0, 2.0],
+	"coup_glace": ["glace", "gel", 2.0, 0.3],
+	"coup_electricite": ["electricite", "choc", 0.6, 0.6],
+	"coup_tenebres": ["tenebres", "corruption", 3.0, 0.1],
+}
 
 static var _table := {}
 ## Le joueur (posé par MainSort) : lame enchantée, soin des combos.
@@ -45,6 +57,9 @@ static func avant_coup(cible: Node, degats: float, info: Dictionary) -> float:
 	if cible == null or info.has("reaction_de"):
 		return degats
 	var epee: bool = String(info.get("attaque", "")) in ATTAQUES_EPEE and String(info.get("type", "tranchant")) == "tranchant" and not info.has("ecole")
+	# armures enchantées : tout coup d'ARME du joueur (lame, masse, marteau ; pas un sort), avant la lame enchantée (dont le statut l'emporte)
+	if String(info.get("attaque", "")) in ATTAQUES_EPEE and info.has("arme") and not info.has("ecole"):
+		degats += coup_equipement(cible, info)
 	if epee:
 		var magie := _magie()
 		# phase 5 : lame enchantée (dégâts de l'école en plus, selon la résistance de la cible, et son statut)
@@ -86,6 +101,32 @@ static func avant_coup(cible: Node, degats: float, info: Dictionary) -> float:
 			degats *= float(m2.bonus_apres_sort(cible))
 	degats *= Statuts.multiplicateur_recu(cible)
 	return degats
+
+## Dégâts ajoutés au coup d'arme `info` par l'équipement du joueur courant (clés COUPS_EQUIPEMENT) ; écrit dans `info` le
+## statut d'un coup fort (si aucun n'est déjà posé) et « enchant_equipement » (liste des types). 0 sans joueur / sans enchantement.
+## `bonus` : facultatif, {clé: valeur} à la place de l'équipement (tests).
+static func coup_equipement(cible: Node, info: Dictionary, bonus := {}) -> float:
+	var p := Progression.courante()
+	var total := 0.0
+	var types := []
+	var fort: bool = String(info.get("attaque", "")) in ATTAQUES_FORTES
+	for cle: String in COUPS_EQUIPEMENT:
+		var v := float(bonus.get(cle, 0.0)) if not bonus.is_empty() else (p.bonus(cle) if p != null else 0.0)
+		if v <= 0.0:
+			continue
+		var c: Array = COUPS_EQUIPEMENT[cle]
+		total += v * resistance(cible, String(c[0]))
+		types.append(c[0])
+		if fort and String(info.get("statut", "")) == "":
+			info["statut"] = c[1]
+			info["duree_statut"] = c[2]
+			info["puissance_statut"] = c[3]
+			if joueur != null and is_instance_valid(joueur):
+				info["lanceur"] = joueur
+	if types.is_empty():
+		return 0.0
+	info["enchant_equipement"] = types
+	return total * (0.5 if info.get("affaibli", false) else 1.0)
 
 ## Après recevoir_coup : réaction élémentaire (consomme le statut présent) sinon pose du statut du coup, drain.
 static func apres_coup(cible: Node, resultat: String, info: Dictionary, degats: float) -> void:

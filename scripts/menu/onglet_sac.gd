@@ -17,7 +17,10 @@ const NOMS_CATEGORIES := {"arme": "Arme", "armure": "Armure", "bijou": "Bijou", 
 const NOMS_EMPLACEMENTS := {"tete": "tête", "torse": "torse", "mains": "mains", "pieds": "pieds", "cou": "cou", "anneau": "anneau"}
 const NOMS_EFFETS := {"resist_froid": "Froid", "resist_feu": "Feu", "resist_choc": "Choc", "vie_max": "Vie", "magie_max": "Magie",
 	"vigueur_max": "Vigueur", "charge": "Charge", "regen_magie": "Régén. magie", "regen_vigueur": "Régén. vigueur", "cout_sorts": "Coût des sorts",
-	"prix": "Prix", "degats_une_main": "Dégâts à une main", "degats_deux_mains": "Dégâts à deux mains", "degats_destruction": "Dégâts de destruction"}
+	"prix": "Prix", "degats_une_main": "Dégâts à une main", "degats_deux_mains": "Dégâts à deux mains", "degats_destruction": "Dégâts de destruction",
+	# armures HD (2026-11-02)
+	"resist_magie": "Magie reçue", "regen_vie": "Régén. vie", "cout_course": "Coût de course", "vol_vie": "Vol de vie", "coup_feu": "Feu par coup",
+	"coup_glace": "Givre par coup", "coup_electricite": "Foudre par coup", "coup_tenebres": "Ténèbres par coup"}
 
 var filtre := "tout"
 ## Objet choisi (identifiant du registre ou de l'équipement des mains).
@@ -460,10 +463,9 @@ func fiche(id: String) -> Dictionary:
 			lignes_f.append(["Armure", str(roundi(float(o["armure"])))])
 		if o.has("type_armure"):
 			lignes_f.append(["Type", "lourde" if String(o["type_armure"]) == "lourde" else "légère"])
-		var ef: Variant = o.get("effets", {})
-		if ef is Dictionary:
-			for k: String in ef:
-				lignes_f.append([NOMS_EFFETS.get(k, k), _effet_txt(k, ef[k])])
+		var ef := EquipementCorps.effets_de(id)   # traits de matière (armures HD) + enchantement
+		for k: String in ef:
+			lignes_f.append([NOMS_EFFETS.get(k, k), _effet_txt(k, ef[k])])
 		f["compare"] = _comparer_corps(id)
 		var porte: bool = joueur.equipement_corps.est_equipe(id)
 		f["note"] = "Porté : il reste dans le sac (il pèse)." if porte else "Se porte : %s (E)." % NOMS_EMPLACEMENTS.get(emp, emp)
@@ -482,8 +484,11 @@ func fiche(id: String) -> Dictionary:
 
 static func _effet_txt(k: String, v: Variant) -> String:
 	var x := float(v)
-	if k.begins_with("resist_") or k.begins_with("regen_") or k.begins_with("degats_") or k in ["cout_sorts", "prix"]:
-		return "%s%d %%" % ["-" if k.begins_with("resist_") or k == "cout_sorts" else "+", roundi(absf(x) * 100.0)]
+	# « fraction en moins » (résistance, coût) : positif = −x % de dégâts / de coût, négatif (malus de matière) = +x %
+	if k.begins_with("resist_") or k.begins_with("cout_"):
+		return "%s%d %%" % ["-" if x >= 0.0 else "+", roundi(absf(x) * 100.0)]
+	if k.begins_with("regen_") or k.begins_with("degats_") or k in ["prix", "vol_vie"]:
+		return "%s%d %%" % ["+" if x >= 0.0 else "-", roundi(absf(x) * 100.0)]
 	return "%+d" % roundi(x)
 
 ## Comparaison d'une arme / d'un bouclier avec ce que tient la main concernée : [texte, couleur, « vs nom »] ou [].

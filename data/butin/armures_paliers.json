@@ -1,0 +1,148 @@
+{
+	"_doc": "ARMURES PAR PALIER DE DIFFICULTÉ (refonte HD, 2026-11-02) — préparation des donjons de la grande carte, PAS encore posées dans le monde. Un donjon de difficulté 1 (abords) à 5 (élite) appelle ButinTables.tirer_armure(palier, graine) (= une pièce de armures_palier_<n>), ou met {\"table\": \"armures_palier_<n>\", \"poids\": …} dans ses propres tables. Poids des paliers = pourcentages (somme 100) ; chance d'une pièce ENCHANTÉE : palier 1 0 %, 2 2 %, 3 9 % (dont 1 % unique), 4 13 % (2 %), 5 25 % (5 %) ; le facteur « rarete » de la zone s'applique en plus. armures_ens_<matériau> : une pièce de l'ensemble (torse un peu plus rare) ; armures_enchantees_p3 : variantes rares or / verre + 4 anciennes pièces rares enchantées ; _p4 : toutes les variantes rares ; _uniques : variantes uniques (une fois par partie, ensuite pièces). RÈGLE : toute nouvelle entrée EN FIN de table (graine fixe), nouvelle table EN FIN de fichier ; tables ajoutées à outils/donnees_test/butin_empreinte.json. Détail : docs/BUTIN.md §10.",
+	"tables": {
+		"armures_ens_cuir": {"tirages": 1, "entrees": [
+			{"id": "capuche_cuir", "poids": 10},
+			{"id": "armure_cuir", "poids": 7},
+			{"id": "gants_cuir", "poids": 10},
+			{"id": "bottes_cuir", "poids": 10}
+		]},
+		"armures_ens_fourrure": {"tirages": 1, "entrees": [
+			{"id": "casque_fourrure", "poids": 10},
+			{"id": "armure_fourrure", "poids": 7},
+			{"id": "gants_fourrure", "poids": 10},
+			{"id": "bottes_fourrure", "poids": 10}
+		]},
+		"armures_ens_os": {"tirages": 1, "entrees": [
+			{"id": "casque_os", "poids": 10},
+			{"id": "cuirasse_os", "poids": 7},
+			{"id": "gants_os", "poids": 10},
+			{"id": "bottes_os", "poids": 10}
+		]},
+		"armures_ens_fer": {"tirages": 1, "entrees": [
+			{"id": "casque_fer", "poids": 10},
+			{"id": "cuirasse_fer", "poids": 7},
+			{"id": "gantelets_fer", "poids": 10},
+			{"id": "bottes_fer", "poids": 10}
+		]},
+		"armures_ens_acier_nordique": {"tirages": 1, "entrees": [
+			{"id": "casque_acier_nordique", "poids": 10},
+			{"id": "cuirasse_acier_nordique", "poids": 7},
+			{"id": "gantelets_acier_nordique", "poids": 10},
+			{"id": "bottes_acier_nordique", "poids": 10}
+		]},
+		"armures_ens_or": {"tirages": 1, "entrees": [
+			{"id": "casque_or", "poids": 10},
+			{"id": "cuirasse_or", "poids": 7},
+			{"id": "gantelets_or", "poids": 10},
+			{"id": "bottes_or", "poids": 10}
+		]},
+		"armures_ens_verre": {"tirages": 1, "entrees": [
+			{"id": "casque_verre", "poids": 10},
+			{"id": "cuirasse_verre", "poids": 7},
+			{"id": "gantelets_verre", "poids": 10},
+			{"id": "bottes_verre", "poids": 10}
+		]},
+		"armures_ens_saphir": {"tirages": 1, "entrees": [
+			{"id": "casque_saphir", "poids": 10},
+			{"id": "cuirasse_saphir", "poids": 7},
+			{"id": "gantelets_saphir", "poids": 10},
+			{"id": "bottes_saphir", "poids": 10}
+		]},
+		"armures_ens_rubis": {"tirages": 1, "entrees": [
+			{"id": "casque_rubis", "poids": 10},
+			{"id": "cuirasse_rubis", "poids": 7},
+			{"id": "gantelets_rubis", "poids": 10},
+			{"id": "bottes_rubis", "poids": 10}
+		]},
+		"armures_ens_obsidienne": {"tirages": 1, "entrees": [
+			{"id": "casque_obsidienne", "poids": 10},
+			{"id": "cuirasse_obsidienne", "poids": 7},
+			{"id": "gantelets_obsidienne", "poids": 10},
+			{"id": "bottes_obsidienne", "poids": 10}
+		]},
+		"armures_enchantees_p3": {"tirages": 1, "entrees": [
+			{"id": "bottes_rodeur", "poids": 10},
+			{"id": "capuche_thaumaturge", "poids": 10},
+			{"id": "brigandine_braise", "poids": 10},
+			{"id": "cuirasse_gardiens", "poids": 10},
+			{"id": "casque_or_scalde", "poids": 10},
+			{"id": "cuirasse_or_serment", "poids": 10},
+			{"id": "bottes_or_fafnir", "poids": 10},
+			{"id": "casque_verre_voyant", "poids": 10},
+			{"id": "cuirasse_verre_aurore", "poids": 10},
+			{"id": "gantelets_verre_larme", "poids": 10}
+		]},
+		"armures_enchantees_p4": {"tirages": 1, "entrees": [
+			{"id": "bottes_rodeur", "poids": 10},
+			{"id": "capuche_thaumaturge", "poids": 10},
+			{"id": "brigandine_braise", "poids": 10},
+			{"id": "cuirasse_gardiens", "poids": 10},
+			{"id": "casque_or_scalde", "poids": 10},
+			{"id": "cuirasse_or_serment", "poids": 10},
+			{"id": "bottes_or_fafnir", "poids": 10},
+			{"id": "casque_verre_voyant", "poids": 10},
+			{"id": "cuirasse_verre_aurore", "poids": 10},
+			{"id": "gantelets_verre_larme", "poids": 10},
+			{"id": "cuirasse_obsidienne_cendre", "poids": 10},
+			{"id": "gantelets_obsidienne_nidhogg", "poids": 10},
+			{"id": "cuirasse_rubis_muspell", "poids": 10},
+			{"id": "gantelets_rubis_braise", "poids": 10},
+			{"id": "casque_saphir_ymir", "poids": 10},
+			{"id": "gantelets_saphir_morsure", "poids": 10},
+			{"id": "bottes_saphir_glacier", "poids": 10}
+		]},
+		"armures_enchantees_uniques": {"tirages": 1, "entrees": [
+			{"id": "gantelets_or_jarngreipr", "poids": 10},
+			{"id": "bottes_verre_skadi", "poids": 10},
+			{"id": "casque_obsidienne_hel", "poids": 10},
+			{"id": "casque_rubis_surt", "poids": 10},
+			{"id": "cuirasse_saphir_hiver", "poids": 10}
+		]},
+		"armures_palier_1": {"tirages": 1, "entrees": [
+			{"table": "armures_ens_cuir", "poids": 45, "rarete": "commun"},
+			{"table": "armures_ens_fourrure", "poids": 40, "rarete": "commun"},
+			{"table": "armures_ens_fer", "poids": 15, "rarete": "commun"}
+		]},
+		"armures_palier_2": {"tirages": 1, "entrees": [
+			{"table": "armures_ens_cuir", "poids": 15, "rarete": "commun"},
+			{"table": "armures_ens_fourrure", "poids": 30, "rarete": "commun"},
+			{"table": "armures_ens_fer", "poids": 30, "rarete": "commun"},
+			{"table": "armures_ens_os", "poids": 15, "rarete": "peu_commun"},
+			{"table": "armures_ens_acier_nordique", "poids": 8, "rarete": "peu_commun"},
+			{"table": "armures_enchantees_p3", "poids": 2, "rarete": "rare"}
+		]},
+		"armures_palier_3": {"tirages": 1, "entrees": [
+			{"table": "armures_ens_fourrure", "poids": 8, "rarete": "commun"},
+			{"table": "armures_ens_fer", "poids": 20, "rarete": "commun"},
+			{"table": "armures_ens_os", "poids": 20, "rarete": "peu_commun"},
+			{"table": "armures_ens_acier_nordique", "poids": 25, "rarete": "peu_commun"},
+			{"table": "armures_ens_or", "poids": 10, "rarete": "rare"},
+			{"table": "armures_ens_verre", "poids": 8, "rarete": "rare"},
+			{"table": "armures_enchantees_p3", "poids": 8, "rarete": "rare"},
+			{"table": "armures_enchantees_uniques", "poids": 1, "rarete": "unique"}
+		]},
+		"armures_palier_4": {"tirages": 1, "entrees": [
+			{"table": "armures_ens_fer", "poids": 5, "rarete": "commun"},
+			{"table": "armures_ens_os", "poids": 10, "rarete": "peu_commun"},
+			{"table": "armures_ens_acier_nordique", "poids": 20, "rarete": "peu_commun"},
+			{"table": "armures_ens_or", "poids": 13, "rarete": "rare"},
+			{"table": "armures_ens_verre", "poids": 13, "rarete": "rare"},
+			{"table": "armures_ens_saphir", "poids": 12, "rarete": "rare"},
+			{"table": "armures_ens_rubis", "poids": 10, "rarete": "rare"},
+			{"table": "armures_ens_obsidienne", "poids": 4, "rarete": "rare"},
+			{"table": "armures_enchantees_p4", "poids": 11, "rarete": "rare"},
+			{"table": "armures_enchantees_uniques", "poids": 2, "rarete": "unique"}
+		]},
+		"armures_palier_5": {"tirages": 1, "entrees": [
+			{"table": "armures_ens_acier_nordique", "poids": 6, "rarete": "peu_commun"},
+			{"table": "armures_ens_or", "poids": 8, "rarete": "rare"},
+			{"table": "armures_ens_verre", "poids": 14, "rarete": "rare"},
+			{"table": "armures_ens_saphir", "poids": 16, "rarete": "rare"},
+			{"table": "armures_ens_rubis", "poids": 16, "rarete": "rare"},
+			{"table": "armures_ens_obsidienne", "poids": 15, "rarete": "rare"},
+			{"table": "armures_enchantees_p4", "poids": 20, "rarete": "rare"},
+			{"table": "armures_enchantees_uniques", "poids": 5, "rarete": "unique"}
+		]}
+	}
+}

@@ -150,6 +150,149 @@
 			"epee_obsidienne",
 			"sang_du_roi",
 			"croc_de_givre"
+		],
+		"armures_ens_cuir": [
+			"capuche_cuir",
+			"armure_cuir",
+			"gants_cuir",
+			"bottes_cuir"
+		],
+		"armures_ens_fourrure": [
+			"casque_fourrure",
+			"armure_fourrure",
+			"gants_fourrure",
+			"bottes_fourrure"
+		],
+		"armures_ens_os": [
+			"casque_os",
+			"cuirasse_os",
+			"gants_os",
+			"bottes_os"
+		],
+		"armures_ens_fer": [
+			"casque_fer",
+			"cuirasse_fer",
+			"gantelets_fer",
+			"bottes_fer"
+		],
+		"armures_ens_acier_nordique": [
+			"casque_acier_nordique",
+			"cuirasse_acier_nordique",
+			"gantelets_acier_nordique",
+			"bottes_acier_nordique"
+		],
+		"armures_ens_or": [
+			"casque_or",
+			"cuirasse_or",
+			"gantelets_or",
+			"bottes_or"
+		],
+		"armures_ens_verre": [
+			"casque_verre",
+			"cuirasse_verre",
+			"gantelets_verre",
+			"bottes_verre"
+		],
+		"armures_ens_saphir": [
+			"casque_saphir",
+			"cuirasse_saphir",
+			"gantelets_saphir",
+			"bottes_saphir"
+		],
+		"armures_ens_rubis": [
+			"casque_rubis",
+			"cuirasse_rubis",
+			"gantelets_rubis",
+			"bottes_rubis"
+		],
+		"armures_ens_obsidienne": [
+			"casque_obsidienne",
+			"cuirasse_obsidienne",
+			"gantelets_obsidienne",
+			"bottes_obsidienne"
+		],
+		"armures_enchantees_p3": [
+			"bottes_rodeur",
+			"capuche_thaumaturge",
+			"brigandine_braise",
+			"cuirasse_gardiens",
+			"casque_or_scalde",
+			"cuirasse_or_serment",
+			"bottes_or_fafnir",
+			"casque_verre_voyant",
+			"cuirasse_verre_aurore",
+			"gantelets_verre_larme"
+		],
+		"armures_enchantees_p4": [
+			"bottes_rodeur",
+			"capuche_thaumaturge",
+			"brigandine_braise",
+			"cuirasse_gardiens",
+			"casque_or_scalde",
+			"cuirasse_or_serment",
+			"bottes_or_fafnir",
+			"casque_verre_voyant",
+			"cuirasse_verre_aurore",
+			"gantelets_verre_larme",
+			"cuirasse_obsidienne_cendre",
+			"gantelets_obsidienne_nidhogg",
+			"cuirasse_rubis_muspell",
+			"gantelets_rubis_braise",
+			"casque_saphir_ymir",
+			"gantelets_saphir_morsure",
+			"bottes_saphir_glacier"
+		],
+		"armures_enchantees_uniques": [
+			"gantelets_or_jarngreipr",
+			"bottes_verre_skadi",
+			"casque_obsidienne_hel",
+			"casque_rubis_surt",
+			"cuirasse_saphir_hiver"
+		],
+		"armures_palier_1": [
+			"table:armures_ens_cuir",
+			"table:armures_ens_fourrure",
+			"table:armures_ens_fer"
+		],
+		"armures_palier_2": [
+			"table:armures_ens_cuir",
+			"table:armures_ens_fourrure",
+			"table:armures_ens_fer",
+			"table:armures_ens_os",
+			"table:armures_ens_acier_nordique",
+			"table:armures_enchantees_p3"
+		],
+		"armures_palier_3": [
+			"table:armures_ens_fourrure",
+			"table:armures_ens_fer",
+			"table:armures_ens_os",
+			"table:armures_ens_acier_nordique",
+			"table:armures_ens_or",
+			"table:armures_ens_verre",
+			"table:armures_enchantees_p3",
+			"table:armures_enchantees_uniques"
+		],
+		"armures_palier_4": [
+			"table:armures_ens_fer",
+			"table:armures_ens_os",
+			"table:armures_ens_acier_nordique",
+			"table:armures_ens_or",
+			"table:armures_ens_verre",
+			"table:armures_ens_saphir",
+			"table:armures_ens_rubis",
+			"table:armures_ens_obsidienne",
+			"table:armures_enchantees_p4",
+			"table:armures_enchantees_uniques"
+		],
+		"armures_palier_5": [
+			"table:armures_ens_acier_nordique",
+			"table:armures_ens_or",
+			"table:armures_ens_verre",
+			"table:armures_ens_saphir",
+			"table:armures_ens_rubis",
+			"table:armures_ens_obsidienne",
+			"table:armures_enchantees_p4",
+			"table:armures_enchantees_uniques"
 		]
 	}
 }
