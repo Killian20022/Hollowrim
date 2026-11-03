@@ -49,6 +49,8 @@ func _tester() -> void:
 	var sorts := DirAccess.get_files_at("res://data/sorts/").size()
 	var magie = m.joueur.mains.magie
 	_verif(magie.eq.sorts_connus.size() >= sorts / 2 and magie.eq.sorts_connus.size() > 5, "sorts appris : %d" % magie.eq.sorts_connus.size())
+	_verif(magie.eq.sorts_connus.has("orage_runique"), "orage runique appris")
+	_verif(inv.nombre("tome_orage_runique") == 1, "tome de l'orage runique dans le sac")
 	_verif(not inv.surcharge(), "pas de surcharge (%.0f kg / %.0f)" % [inv.poids(), inv.capacite()])
 	# sauvegarde puis rechargement dans un monde neuf : aucun doublon
 	m.sauvegarder()
