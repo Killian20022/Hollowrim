@@ -14,13 +14,13 @@ from mathutils import Vector, Matrix
 
 # ------------------------------------------------------------------------------------------------ styles
 # ACIER NORDIQUE : acier gris usé et riveté (planche), arêtes polies, peu de rouille ; cuir brun ; fourrure beige.
-ACIER = dict(pal=H.ACIER, mat="acier", mat_rebord="acier", mat_main="cuir", mat_doigts="cuir", mat_genou="acier", base=0.44, contraste=0.26,
-             martele=0.22, cellule=3.0, oxyde=0.0, crasse=0.4, poli=0.5, patine=0.18, rouille=0.08, sale=0.65, poli_arete=1.0,
-             rayures=1.0, r_rivet=0.72, k_rivet=0.66, graine=23, pal_cuir=H.CUIR, base_cuir=0.44, pal_maille=H.FER, base_maille=0.55,
+ACIER = dict(pal=H.ACIER_NEUTRE, mat="acier", mat_rebord="acier", mat_main="cuir", mat_doigts="cuir", mat_genou="acier", base=0.46, contraste=0.30,
+             martele=0.15, cellule=3.2, oxyde=0.0, crasse=0.45, poli=0.22, patine=0.18, rouille=0.06, sale=0.85, poli_arete=1.0, poli_bord=0.5,
+             rayures=2.2, r_rivet=0.8, k_rivet=0.74, graine=23, pal_cuir=H.CUIR, base_cuir=0.44, pal_maille=H.FER, base_maille=0.55,
              oxyde_maille=0.1, mat_maille="acier.maille")
 # FER : même famille, plus simple et rustique : fer sombre piqué et martelé, rouille dans les creux, cuir plus sombre.
 FER = dict(pal=H.FER, mat="fer", mat_rebord="fer", mat_main="cuir", mat_doigts="cuir", mat_genou="fer", base=0.42, contraste=0.30,
-           martele=1.0, cellule=2.2, oxyde=0.55, crasse=0.55, poli=0.28, patine=0.22, rouille=0.85, sale=0.7, poli_arete=0.55,
+           martele=0.42, cellule=3.0, oxyde=0.5, crasse=0.55, poli=0.28, patine=0.22, rouille=0.85, sale=0.7, poli_arete=0.55,
            rayures=0.6, r_rivet=0.85, k_rivet=0.6, graine=11, pal_cuir=H.CUIR, base_cuir=0.36, pal_maille=H.FER, base_maille=0.46,
            oxyde_maille=0.55, mat_maille="fer.maille")
 
@@ -42,13 +42,13 @@ PIECES = {
                                                pal_fourrure=H.FOURRURE_BRUNE_CLAIRE, base_fourrure=0.5)),
     "gantelets_fer": lambda r: PH.gantelets(r, _s(FER, id="gantelets_fer", main_cuir=True, lames_main=1, rivets_manchette=7, rivets_lames=4,
                                                   evasement=0.022, jointures=False)),
-    "bottes_fer": lambda r: PH.bottes(r, _s(FER, id="bottes_fer", greve=False, revers_fourrure=True, ep_revers=0.8, sangles=(0.10, 0.26),
+    "bottes_fer": lambda r: PH.bottes(r, _s(FER, id="bottes_fer", greve=False, revers_fourrure=True, ep_revers=1.1, sangles=(0.10, 0.26),
                                            ailette=0.0, rivets_greve=True, pal_fourrure=H.FOURRURE_BRUNE_CLAIRE, base_fourrure=0.5)),
     # --- acier nordique : la colonne STEEL de la planche
     "casque_acier_nordique": lambda r: PH.casque(r, _s(ACIER, id="casque_acier_nordique", bas=(0.26, -0.2, -0.55), bandes=[0.0, math.pi],
                                                       larg_bande=0.009, haut_bande=0.0055, rivets_rebord=20, rebord=0.008, haut_rebord=0.03,
-                                                      joues_arc=(15, 110), joues_z=(1.678, 1.652, 1.624, 1.594), joues_ecart=0.027,
-                                                      decor=[PH.deco_joues])),
+                                                      joues_arc=(13, 92), joues_z=(1.676, 1.650, 1.622, 1.590), joues_ecart=0.027,
+                                                      decor=[PH.deco_masque_t, PH.deco_joues])),
     "cuirasse_acier_nordique": lambda r: PH.cuirasse(r, _s(ACIER, id="cuirasse_acier_nordique", n=22, z_lames=[1.04, 1.11, 1.18, 1.43], bombe=0.025,
                                                            tablier=28, fentes=(-100, 100, 180), rivets_lame=16, rivets_milieu=True,
                                                            tassettes=(58, 100), sangles=[((40, 1.43), (-30, 1.04)), ((-40, 1.43), (30, 1.04))],
@@ -57,7 +57,7 @@ PIECES = {
                                                            pal_fourrure=H.FOURRURE_BEIGE, base_fourrure=0.68)),
     "gantelets_acier_nordique": lambda r: PH.gantelets(r, _s(ACIER, id="gantelets_acier_nordique", main_cuir=True, lames_main=2, rivets_manchette=9,
                                                              rivets_lames=5, evasement=0.03, jointures=True)),
-    "bottes_acier_nordique": lambda r: PH.bottes(r, _s(ACIER, id="bottes_acier_nordique", greve=False, revers_fourrure=True, sangles=(0.08, 0.20, 0.32),
+    "bottes_acier_nordique": lambda r: PH.bottes(r, _s(ACIER, id="bottes_acier_nordique", greve=False, revers_fourrure=True, sangles=(0.08, 0.20, 0.32), ep_revers=1.35,
                                                        embout=False, ailette=0.032, rivets_greve=True, pal_fourrure=H.FOURRURE_BEIGE, base_fourrure=0.6)),
 }
 

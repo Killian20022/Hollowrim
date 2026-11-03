@@ -414,6 +414,45 @@ def deco_joues(P, T, r, centre, Pts, point, st, R=(56, 82, 92, 128)):
     st.setdefault("peintures", []).append(peint)
 
 
+def deco_masque_t(P, T, r, centre, Pts, point, st, R=(92, 82, 128, 128)):
+    """Fond de la visière en T : coque intérieure noircie, juste devant le visage, derrière la fente des yeux et la fente
+    verticale ; à distance de jeu le T se lit en noir franc (on ne voit plus la peau à travers)."""
+    arbre = C.bvh(r, ["peau", "Hair_Beard"], {"Head"}, 0.5)
+    la0, la1 = st.get("masque_arc", (-24, 24))
+    zs = st.get("masque_z", (1.575, 1.61, 1.645, 1.68, 1.715))
+    m = 7
+    grid = []
+    rad = []
+    for z in zs:
+        rrow = []
+        for a in range(m):
+            lo = math.radians(_lerp(la0, la1, a / (m - 1)))
+            d = Vector((math.sin(lo), -math.cos(lo), 0))
+            hit = arbre.ray_cast(Vector((0, 0.004, z)) + d * 0.4, -d, 0.4)
+            rrow.append((0.4 - hit[3]) if hit[0] is not None else 0.1)
+        rad.append(rrow)
+    # coque lisse qui passe DEVANT le nez : rayon = max de la rangée (et des voisines), adouci vers les bords
+    rows = []
+    for k, z in enumerate(zs):
+        rm = max(max(rad[kk]) for kk in range(max(0, k - 1), min(len(zs), k + 2)))
+        row = []
+        for a in range(m):
+            lo = math.radians(_lerp(la0, la1, a / (m - 1)))
+            d = Vector((math.sin(lo), -math.cos(lo), 0))
+            f = abs(_lerp(-1.0, 1.0, a / (m - 1)))
+            rr = max(rad[k][a], rm - 0.022 * f * f)
+            row.append(Vector((0, 0.004, z)) + d * (rr + st.get("masque_ecart", 0.013)))
+        rows.append(row)
+    P.grille_v(rows, st["mat"], R, fermer=False)
+
+    def peint(T, st, g):
+        def noir(X, Y, U, V):
+            n = H.fbm(X, Y, g + 90, oct=((4, 0.6), (1.5, 0.4)))
+            return H.rampe(["#030303", "#070707", "#0c0c0c", "#121212"], 0.3 + 0.4 * n), np.full(X.shape, 0.02), None
+        T.zone(R, noir, sale=0.0)
+    st.setdefault("peintures", []).append(peint)
+
+
 def deco_cornes(P, T, r, centre, Pts, point, st, R=(92, 82, 128, 128), longueur=0.115, base=0.026):
     """Cornes courtes recourbées (vers l'extérieur puis l'avant et le haut), 8 côtés, 6 tronçons, virole d'acier à la base."""
     for cote in (1.0, -1.0):
@@ -750,8 +789,8 @@ def cuirasse(r, st):
     if st.get("fourrure"):
         F = st["fourrure"]
         fa0, fa1 = F.get("arc", (48, 312))
-        arc_f = [math.radians(x) for x in range(fa0, fa1 + 1, F.get("pas", 14))]
-        nf = len(arc_f)
+        nf = int((fa1 - fa0) / F.get("pas", 14)) + 1      # linspace : arc EXACTEMENT symétrique (range() s'arrêtait à 300°)
+        arc_f = [math.radians(fa0 + (fa1 - fa0) * q / (nf - 1)) for q in range(nf)]
         # manteau drapé : depuis un pivot au-dessus de la base du cou, rayons lancés de l'extérieur vers le pivot dans le plan
         # vertical de chaque angle ; la 1re surface touchée (épaulières, mailles du col, corps) porte la fourrure + son épaisseur
         O = Vector((0, 0.0, F.get("z_pivot", 1.60)))
@@ -791,7 +830,7 @@ def cuirasse(r, st):
                 ph = phi(k, a_)
                 d = _dir(a_) * math.cos(ph) + haut_v * math.sin(ph)
                 s_ = abs(math.sin(a_))
-                e = ep[k] * (1.0 + F.get("cote", 0.25) * s_) + 0.012 * (_h(i, k, g + 7) - 0.5) * (1 if 0 < k < len(phis) - 1 else 0)
+                e = ep[k] * (1.0 + F.get("cote", 0.25) * s_) + 0.012 * (_h(min(i, nf - 1 - i), k, g + 7) - 0.5) * (1 if 0 < k < len(phis) - 1 else 0)
                 row.append(O + d * (R[k][i] + F.get("marge", 0.012) + e))
             rows.append(row)
         # bord extérieur un peu rabattu vers le bas (poids de la peau) ; dessous rentré vers le support
@@ -946,6 +985,8 @@ def cuirasse(r, st):
                 k = noms[gg.group]
                 if k.startswith("upperarm_") or k.startswith("lowerarm_"):
                     k = "clavicle_" + k[-1]
+                elif k == "Head":
+                    k = "neck_01"
                 d[k] = d.get(k, 0.0) + gg.weight
             for gg in list(v.groups):
                 ob.vertex_groups[noms[gg.group]].remove([vi])
@@ -1147,6 +1188,26 @@ def _ctr_main(r):
 
 
 # ======================================================================================================== BOTTES
+GALBE = ((-0.1, 0.97), (0.03, 0.95), (0.10, 0.70), (0.20, 0.79), (0.32, 0.85), (0.42, 0.89), (0.52, 0.91), (1.0, 0.91))
+
+
+def galbe(rows, table=GALBE, k=1.0):
+    """Botte galbée : chaque anneau resserré autour de son centre selon sa hauteur (cheville marquée, mollet évasé)."""
+    out = []
+    for row in rows:
+        c = sum(row, Vector()) / len(row)
+        z = c.z
+        f = table[-1][1]
+        for (z0, f0), (z1, f1) in zip(table[:-1], table[1:]):
+            if z0 <= z <= z1:
+                t = (z - z0) / (z1 - z0)
+                f = f0 + (f1 - f0) * t
+                break
+        f = 1.0 - (1.0 - f) * k
+        out.append([Vector((c.x + (p.x - c.x) * f, c.y + (p.y - c.y) * f, p.z)) for p in row])
+    return out
+
+
 def bottes(r, st):
     """Botte ajustée (cuir, n = 16), semelle, revers ; grève épaisse à arête (fer : rivetée ; acier : nervure gravée),
     genouillère bombée à ailette, sangles à boucle (fer) ou solerets articulés sur le pied (acier)."""
@@ -1161,14 +1222,15 @@ def bottes(r, st):
         jambe = C.bvh(r, ["bottes", "pantalon"], {"calf_" + cote, "foot_" + cote, "ball_" + cote}, 0.5)
         A = Vector((ca.x, -0.015, -0.025))
         B = Vector((ca.x, ca.y, ca.z))
-        zs = st.get("niveaux", [-0.02, 0.0, 0.05, 0.13, 0.25, 0.38, 0.50])
+        zs = st.get("niveaux", [-0.02, 0.0, 0.04, 0.10, 0.20, 0.32, 0.42, 0.50])
         zh = st.get("haut", 0.50)
         zs = [z for z in zs if z <= zh]
         n = st.get("n", 12)
 
         def dec(j, i, a):
-            return 0.012 + (0.004 if j >= len(zs) - 1 else 0.0) + (0.002 if j == 1 else 0.0)
+            return 0.008 + (0.004 if j >= len(zs) - 1 else 0.0) + (0.002 if j == 1 else 0.0)
         Pb, Rb, _ = C.tube(jambe, A, B, [(z - A.z) / (B.z - A.z) for z in zs], n, dec, r_loin=0.4, dilate=1, lisse=2)
+        Pb = galbe(Pb)
         Pb[0] = [Vector((p.x, p.y, -0.022)) for p in Pb[0]]
         Pb[1] = [Vector((p.x, p.y, -0.006)) + (p - Vector((ca.x, p.y, p.z))).normalized() * 0.003 for p in Pb[1]]
         angs = [math.pi + TAU * i / n for i in range(n)]
@@ -1199,7 +1261,8 @@ def bottes(r, st):
         # sangles en relief (fer) : bandes autour de la cheville et du mollet
         for zz in st.get("sangles", ()):
             Ps, _, _ = C.tube(jambe, A, B, [(z - A.z) / (B.z - A.z) for z in (zz - 0.013, zz, zz + 0.013)], n,
-                              lambda j, i, a: 0.012 + (0.001, 0.005, 0.001)[j], r_loin=0.4, dilate=1, lisse=2)
+                              lambda j, i, a: 0.008 + (0.001, 0.005, 0.001)[j], r_loin=0.4, dilate=1, lisse=2)
+            Ps = galbe(Ps)
             P.grille_v(Ps, "cuir", R_SANG, vs=[0.0, 0.5, 1.0])
             # boucle sur le côté extérieur
             ib = int(round((math.pi / 2 * s + math.pi) / TAU * n)) % n
@@ -1230,6 +1293,7 @@ def bottes(r, st):
             Pr, _, _ = C.tube(jambe, A, B, [(z - A.z) / (B.z - A.z) for z in (zr - 0.075, zr - 0.035, zr + 0.008, zr + 0.016)], n,
                               lambda j, i, a: ((0.016, 0.034, 0.024, 0.012)[j] * ep + 0.006 * (C._h(i, j, 5) - 0.5))
                               * (0.6 if abs(math.sin(a) + (1 if cote == "l" else -1)) < 0.5 else 1.0), r_loin=0.4, dilate=0, lisse=1)
+            Pr = galbe(Pr, k=0.8)
             for jj, kz in ((2, 0.10), (3, 0.10), (1, 0.04)):
                 Pr[jj] = [p - Vector((0, 0, kz * max(0.0, -math.cos(a)) ** 1.5)) for p, a in zip(Pr[jj], angs)]
             P.grille_v(Pr, "fourrure", R_FOUR_B, vs=[0.0, 0.4, 0.85, 1.0])
