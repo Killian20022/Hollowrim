@@ -184,17 +184,17 @@ static func camp(parent: Node3D, sol: Vector3) -> FeuFixe:
 	f.halo_sol_mat = hs.material_override as ShaderMaterial
 	f.halo_sol_base = 0.55
 	f.cachables.append(hs)
-	var hf := halo_face(f, Vector3(0, 0.6, 0), 4.2, 0.55)
+	var hf := halo_face(f, Vector3(0, 0.6, 0), 2.6, 0.28)
 	f.halo_sprite_mat = hf.material_override as ShaderMaterial
-	f.halo_sprite_base = 0.55
+	f.halo_sprite_base = 0.28
 	f.cachables.append(hf)
 	# langues : une grande au centre, quatre autour (hauteurs et phases différentes), pieds dans les bûches
 	var langues := [
-		[Vector3(0.0, 0.10, 0.0), 0.080, 1.25, 0.9],
-		[Vector3(0.20, 0.10, 0.05), 0.058, 1.1, 0.6],
-		[Vector3(-0.18, 0.10, 0.12), 0.064, 1.1, 0.6],
-		[Vector3(0.05, 0.10, -0.2), 0.052, 1.0, 0.5],
-		[Vector3(-0.1, 0.12, -0.08), 0.070, 1.15, 0.8],
+		[Vector3(0.0, 0.10, 0.0), 0.110, 1.3, 0.9],
+		[Vector3(0.22, 0.10, 0.05), 0.080, 1.15, 0.6],
+		[Vector3(-0.20, 0.10, 0.12), 0.088, 1.15, 0.6],
+		[Vector3(0.05, 0.10, -0.22), 0.072, 1.05, 0.5],
+		[Vector3(-0.1, 0.12, -0.08), 0.096, 1.2, 0.8],
 	]
 	for i in langues.size():
 		var l: Array = langues[i]
