@@ -5,7 +5,9 @@
 - Repli automatique si les props Quaternius manquent (`_quai_quaternius()`).
 
 ## Resté maison
-- Pont, gué, moulin, berges, eau : inchangés (acceptable pour ce lot).
+- Pont, gué, moulin, berges, eau : inchangés.
+- **Pont** : arche de pierre en un seul maillage texturé (maçonnerie, pierre taillée, dalles) ; aucun garde-corps ni charpente, et les props Quaternius (poutres, bordures, roc_*) n'apportent rien de mieux que la pierre maison. Gardé.
+- **Gué** : essai avec q_roc_1..3 aplatis (mêmes cotes, collisions inchangées) : en gros plan les rochers Quaternius ressortent en coques anguleuses à bords clairs et intérieur sombre, moins naturels que les pierres maison. Rejeté, maison gardé.
 
 ## Option de repli
 - `-- --eau-ancienne` : ancien quai maison (planches + pieux du modèle).
