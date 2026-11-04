@@ -53,7 +53,7 @@ q_table_petite_2, q_piege_pieux, q_vase_5, q_bucher, q_tronc, q_souche.
 | porte de maison close (vantail, bandes, loquet) | q_porte_1/4/8/2_plate (Door_* Medieval Village) | — | maisons closes | selon le village |
 | volets des fenêtres (boîtes) | q_volets_thin_flat_open (WindowShutters) | — | maisons closes | selon le village |
 | boucliers du porche (cylindres) | q_bouclier_bois (Shield_Wooden) | — | halle | 4 |
-| densification marché/ruelles | q_tonneau_pommes x2, q_cageot_vide + q_cageot_pommes, q_corde_2, q_bourse, q_sac_debout, q_sac, q_support_tonneau, q_souche + q_hache_outil, q_tronc, q_seau_bois, q_caisse, q_cageot_carottes, q_corde_1 | — | marché, ruelles | **+17** |
+| densification marché/ruelles | q_tonneau_pommes x2, q_cageot_vide + q_cageot_pommes, q_corde_2, q_bourse, q_sac_debout, q_sac, q_support_tonneau, q_souche + q_hache_outil, q_tronc, q_seau_bois, q_caisse, q_cageot_carottes, q_corde_1 | — | marché, ruelles | **+14 entrées de POSES_D** (allégé après mesure) |
 | brasero (3) | **gardé** | — | luminaire validé (feu, lumière) | 3 |
 | vantaux des portes ouvrables (`_vantail`) | **gardés** | — | objet interactif (charnière) : logique inchangée | — |
 | lanternes pendues, enseignes, torches murales | **gardés** | — | luminaires / architecture (émissif réglé par l'heure) | — |
@@ -129,3 +129,20 @@ Les ~110 pièces de bâti du Medieval Village (murs, toits, planchers, balcons, 
 tout le bâti (non demandé). `q_marches_ext`, `q_bordure_*`, `q_palissade*`, `q_colonne_*`, `q_piedestal_*`, `q_pieux`, `q_piege_pieux`,
 `q_epee_support`, `q_banniere_mur`, `q_toile_araignee_*`, `q_table_*_2`, `q_chaise_2`, `q_coffre_2`, `q_seau_2`, `q_sac_debout` sont convertis et
 disponibles dans le .dat (utilisés : voir ci-dessus ; les autres sont prêts pour les prochains décors).
+
+## Mesures (outils/mesure_perf.gd, 2 répétitions avant/après, GPU partagé donc bruité)
+
+Compteurs : village_marche = 132 remplacements ; MobilierVillage 26 701 -> 49 356 triangles (construction 133 -> 305 ms).
+Les « Appels (sites) » ci-dessus sont des estimations par grep, pas des comptes d'exécution.
+
+| Zone | GPU médian avant -> après (ms) | Primitives | Draw calls |
+|---|---|---|---|
+| place | 10,8 -> 10,9 / 10,8 -> 11,7 | 938k -> 1,06M | 750 -> 736 |
+| marché | 10,5 -> 10,4 / 10,3 -> 10,6 | 878k -> 1,0M (+14 %) | 674 -> 666 |
+| forge | 8,8 -> 10,4 / 8,5 -> 8,5 | 527k -> 533k | 501 -> 500 |
+| halle | 8,6 -> 8,5 / 8,6 -> 10,1 | 527k -> 533k | 501 -> 500 |
+| crypte | 1,36 -> 1,36 / 1,35 -> 1,34 | 50,8k -> 50,8k | 123 -> 123 |
+
+Lecture : les écarts de +1,5 ms isolés sont du bruit de GPU partagé (un run « après » seul, l'autre identique à l'avant). Sur la 2e série, marché
++0,0 à +0,3 ms, place +0,1 à +0,9 ms (budget +0,5 ms tenu en moyenne, pas garanti). Limite : forge, halle et crypte mesurent un cadrage
+dont le contenu remplacé est peu visible (primitives quasi identiques) ; le coût réel de ces intérieurs est donc sous-mesuré.
