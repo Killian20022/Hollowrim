@@ -480,7 +480,10 @@ def convertir(item, sortie):
             if o.type != 'MESH':
                 continue
             pat = extra.get("garder_tete") or extra.get("garder")
-            if pat and not re.search(pat, o.name):
+            pm = extra.get("garder_mat")               # vêtements du jeu (homme_vetu.glb) : pièces choisies par NOM DE MATÉRIAU (mante, cape…)
+            if pm and not any(m and re.search(pm, m.name) for m in o.data.materials):
+                bpy.data.objects.remove(o, do_unlink=True)
+            elif pat and not re.search(pat, o.name):
                 bpy.data.objects.remove(o, do_unlink=True)
             elif extra.get("garder_tete"):
                 garder_tete(o)

@@ -1,6 +1,6 @@
-# Personnages Quaternius en PS1 (essai/persos_quaternius, 2026-11-03)
+# Personnages Quaternius en PS1 (essai/persos_quaternius 2026-11-03, BRANCHÉ en jeu sur persos/quaternius_jeu 2026-11-04)
 
-ESSAI à montrer : rien n'est branché dans le jeu, rien n'est fusionné. Ce document : ce qui a été fait, la chaîne, le mapping rôles -> modèles, le plan d'intégration.
+L'essai (§1-5) a converti 11 modèles ; la branche persos/quaternius_jeu les BRANCHE en jeu (§6). Ce document : la chaîne, le mapping rôles -> modèles, ce qui est en jeu, l'interrupteur avant/après.
 Catalogue des packs (licences, rigs, manquants) : `Jeux/references/quaternius_persos/CATALOGUE.md`. Captures : `Desktop/Skyrim captures/persos_quaternius/`.
 
 ## 1. La chaîne (une seule commande par lot)
@@ -72,3 +72,49 @@ Côté Godot : `scripts/persos_quat.gd` (`PersosQuat.creer("pq_loup")`) pose `sh
 - **Démon (pq_demon)** : NON MONTRÉ. L'export glTF de Blender fait coucher ce rig (CharacterArmature, aussi un aller-retour import/export sans traitement) : le Root perd sa rotation de 90°. À régler (autre importeur, ou éditer le glb) avant usage ; le fichier est conservé.
 - **Idle du géant et du squelette** : dans le pack d'origine c'est la pose en T ; `PersosQuat.clip` joue la marche à la place (à remplacer par un vrai idle).
 - Les originaux de la planche sont à l'échelle native du fichier (non normalisée) : seule la comparaison de rendu compte, pas de taille.
+
+## 6. En jeu (persos/quaternius_jeu, 2026-11-04)
+
+Interrupteur avant/après : `-- --persos-anciens` (habitants aux mêmes postes avec les corps `Humain.creer`, aucune bête Quaternius) ;
+`--sans-habitants`, `--sans-betes` pour les retirer.
+
+### Habitants anonymes du village (10)
+- `data/habitants.json` : id `hab_*`, type (paysan, paysanne, chasseur, chasseresse : répliques communes dans `roles`), `pq` (modèle),
+  `pos` (x, z monde), `cap`, `activite` (Idle_Talking, Fixing_Kneeling…), `sedentaire`, `ancien` (apparence Humain pour l'avant/après).
+- Chargés par `Villageois.charger()` APRÈS les PNJ nommés (`Villageois.habitants()`) : même script `villageois.gd`, donc mêmes routines
+  (poste, promenade, regard, interpellation), même dialogue (`parler()`), même sauvegarde (`villageois_parles` par id), même gel sous terre.
+  Les tirages de promenade des PNJ nommés sont inchangés (habitants tirés après).
+- Postes : place (deux paysans qui causent au brasero), puits, pont (le vieux), quai (lavandière à genoux), rue est, maison des
+  chasseurs (2), abords de l'enclos d'Ylva, porte nord de la place (pisteuse).
+- PNJ nommés, gardes, mages : INCHANGÉS (archétypes nordiques, plus riches que les Quaternius ; rien de convenable pour garde/mage).
+
+### Variantes salies (`sources_blender/persos_quaternius/habitants.json`, ids `pq_hab_*`)
+Peasant H/F x 3, Ranger H/F x 2 (avec / sans capuche), 6 coupes et teintes de cheveux, 10 tuniques. Nouveautés de `pq_convertir.py` :
+- `accroche: "pnj"` : étoffes, cuirs, fourrures, cheveux accrochés aux couleurs des PNJ EN JEU (`palette_pnj.json`, 62 couleurs
+  + 6 teints, tirées des tenues teintes `assets/pnj/*.res` par `outils/pq_palette_pnj.gd` ; à relancer si les tenues changent) ;
+  peau et yeux : teints des PNJ, SANS le virage froid (visages bleus sinon) ;
+- `parts` : teinte par pièce / matériau / clarté (la chemise crème devient laine teinte terne, à la luminance de la cible) ;
+- `boue` : boue brune au bas (jambes, bottes) + éclaboussures ; `usure` : variation de valeur par face ;
+- import FBX (packs « Ultimate ») et clips en plus `Eat`, `Idle_2`, `Jump`.
+Commande : `blender.exe -b --python sources_blender/scripts/pq_convertir.py -- liste=sources_blender/persos_quaternius/habitants.json sortie=assets/modeles/persos_quat [seulement=…]`
+
+### Bêtes et faune (`scripts/bete_quat.gd`, `BeteQuat extends EnnemiBase`)
+- `ESPECES` : loup (`pq_loup2`, Wolf FBX du pack Ultimate Animated Animals, 67 os, 9 clips), araignée (`pq_araignee`), cerf (`pq_cerf2`),
+  biche (`pq_biche`), renard (`pq_renard`) : vie, dégâts, vitesses, références de clip, détection, portée, et pour le FUTUR système
+  d'apparition `biomes`, `heures`, `groupe` (non codé : un générateur tirera dans cette table et appellera `monde.creer_ennemi`).
+- Contrat des ennemis : groupe `ennemis`, `CombatEnnemi` (profils `loup`, `araignee`, `gibier` dans `ProfilCible._defaut`), signal `mort`
+  (sauvegarde `draugrs_morts`), gel, butin ; `monde.SCRIPTS_IA` (« ia »: "loup"…) et `EnnemisNordiques._fabriquer_ia` (préchauffage) ;
+  AnimationPlayer « Animations » + alias `Jog_Fwd`/`Death01`/`Hit_Chest`. Pas de PiedsAuSol ni de ragdoll (squelettes d'animaux) : la mort
+  joue le clip `Death` ; pas de finisher.
+- IA : loup = traque, MEUTE (une alerte réveille la meute ; chacun tient un angle autour du joueur à 3,2 m et bondit à son tour) ;
+  araignée = embuscade (voit à 60 % de sa portée) ; faune (groupe `faune`) = broute (`Eat`) / erre / FUIT, jamais en combat.
+  L'IA attend au repos tant que le monde charge (`monde.pret`).
+- Placement (`monde.BETES`, `_betes()`) : meute de 3 loups dans le bois entre le feu et le cercle (≈ -14, -28) ; cerf + 2 biches au champ
+  nord F3 (lisière, ≈ 61, -8) ; renard au bord du champ de la ferme A (75, 29) ; 2 araignées en embuscade dans la galerie du retour de la
+  vieille mine (`grotte_donnees`, zone `mine_retour`).
+- NON placés : géant, squelette, spectre (style jouet), démon (rig cassé).
+
+### Tests et captures
+- `outils/test_betes_quat.gd` (28 vérifications : modèles, contrat, meute, morsure, mort, fuite du cerf, embuscade, rig des habitants).
+- `outils/poses_persos_jeu.txt` : lot de captures (place, puits, chasseurs, enclos, pont, quai, loups, cerfs, renard, araignées, gros plans,
+  jour 12 h / nuit 22 h) ; `Desktop/Skyrim captures/persos_jeu/` (avant/ = `--persos-anciens`, apres/, planches, film).
