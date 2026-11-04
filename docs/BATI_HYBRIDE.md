@@ -60,3 +60,30 @@ Principe : les pièces Quaternius ne gardent PAS leurs teintes ; elles prennent 
 | Vue à travers | — | âme sombre dans chaque façade (de près, on voyait à travers les vitrages translucides) |
 
 Planche dédiée : `Desktop/Skyrim captures/bati_hybride/planches/accord_couleurs_jour.png` et `_crepuscule.png`.
+
+## Mesures de perf
+
+`outils/perf_bati_hybride.sh` (outils/mesure_perf.gd, Iris Xe, 3 poses, avant `--bati-ancien` / après alternés). GPU partagé
+avec d'autres agents pendant la mesure : bruit de ±1 ms, lire les médianes et la tendance plutôt que l'écart brut.
+
+| Pose | Série | Avant gpu moy / méd (ms) | Après gpu moy / méd (ms) | Draw calls | Primitives |
+|---|---|---|---|---|---|
+| place | 1 | 15.60 / 15.16 | 15.85 / 15.80 | 566 → 555 | 911 k → 932 k |
+| place | 2 | 15.72 / 15.39 | 14.41 / 14.41 | 572 → 552 | 909 k → 928 k |
+| rue | 1 | 16.22 / 15.88 | 16.26 / 16.61 | 417 → 408 | 707 k → 736 k |
+| rue | 2 | 15.06 / 15.11 | 15.38 / 14.99 | 417 → 410 | 707 k → 735 k |
+| haute_rue | 1 | 18.82 / 18.78 | 17.81 / 17.89 | 325 → 320 | 616 k → 652 k |
+| haute_rue | 2 | 16.37 / 16.51 | (mesure non sortie) | — | — |
+
+Bilan : moins de draw calls (−5 à −20, les façades sont fondues dans les lots), +3 à +6 % de primitives ; écart GPU entre
+−1,3 et +0,7 ms selon la série, dans le bruit, en moyenne ≈ 0 à +0,3 ms : dans le budget de +0,5 ms. CPU inchangé.
+
+## Limites
+
+- Volets q_volets_* : ceux des props validés, mais grands et un peu verdâtres à côté des fenêtres du kit.
+- Fenêtres du kit plus chargées (jusqu'à 12 carreaux) que celles des maisons de rondins.
+- Pignons du kit en pierre unie : pas de bardage ni de croix aux pignons.
+- H3 : le brasero de la haute rue masque encore en partie la porte ; Ferme B : le tas de bois devant la porte (déjà avant).
+- Halle, maisons visitables, H5, fermes à rondins : seulement cheminée et cadre de porte du kit (choix : identité nordique).
+- Film : quelques images frôlent un mur ou la neige (vers (44, 61) avant les escaliers, et à la fin devant H5).
+- Le jeu de test `test_menus` (fenêtre requise) n'a pas été lancé.
