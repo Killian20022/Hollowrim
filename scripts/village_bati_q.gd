@@ -176,6 +176,8 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	v._soubassement(p, L, W, graine)
 	# le modèle : posé sur le soubassement (y_sol), un lot par matière (fondu dans les lots du groupe comme le bâti d'origine)
 	var mats := _mats(v)
+	if style == "grange":      # gen/bati2 : bardage, pignons et sous-face des granges en planches debout du village (comme avant)
+		mats["bois"] = v.m_planches
 	for mc: Array in PropsQuaternius.morceaux(nom):
 		var mat: Material = mats.get(mc[0], v.m_poutres_h)
 		v._ajouter(p, mc[1], Transform3D(Basis(), Vector3(0, y_sol, 0)), mat)
@@ -274,6 +276,14 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 		VillageBati.enseigne(v, p, pe, nporte, o["enseigne"])
 	if style == "grange":      # gen/bati2 : grandes portes en kitbash sur le côté de la porte d'origine
 		portes_grange(v, p, Vector3(nporte.x * (L * 0.5 + 0.22), y_sol, nporte.z * (W * 0.5 + 0.22)), nporte, graine)
+		# lucarne de fenil (émissive le soir) sur le pignon +X, comme les granges d'avant
+		var xg: float = float(m["pignon_ext"]) + 0.1
+		var yl := y0 + (faite_y - y0) * 0.36
+		v._quad_x(p, Vector3(xg + 0.02, yl, 0), 0.42, 0.36, 1.0, v.m_fen_pignon)
+		for sz in [-1.0, 1.0]:
+			v._boite(p, Vector3(0.1, 0.46, 0.08), Transform3D(Basis(), Vector3(xg, yl, sz * 0.25)), v.m_colombage)
+		v._boite(p, Vector3(0.12, 0.08, 0.6), Transform3D(Basis(), Vector3(xg, yl + 0.23, 0)), v.m_colombage)
+		v._boite(p, Vector3(0.18, 0.07, 0.64), Transform3D(Basis(), Vector3(xg + 0.03, yl - 0.22, 0)), v.m_colombage)
 	if o.get("appentis", false):
 		VillageBati._appentis(v, p, g, L, W, graine)
 	if o.get("bois", false):

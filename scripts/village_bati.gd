@@ -648,10 +648,12 @@ static func tour(v, g: Node3D, x: float, z: float) -> void:
 	var hf := 6.4   # flèche élancée comme sur la planche (vue d'en bas, 4,6 m paraissait plate)
 	if tour_q:      # bâti hybride : coyau d'essentes enneigé gardé, flèche du kit (Roof_Tower_RoundTiles) élancée au-dessus
 		_fleche(v, p, sb + 0.5, y_f, hf, true)
-		VillageBatiQ.kit(v, p, "bq_toit_tour", Transform3D(Basis.from_scale(Vector3(0.98, hf / 7.36, 0.98)), Vector3(0, y_f + 0.3, 0)), v.m_colombage, v.m_brute)
-		v._cylindre(p, 2.1, 2.75, 0.32, Transform3D(Basis(), Vector3(0, y_f + 0.62, 0)), v.m_neige, 12)
-	else:
-		_fleche(v, p, sb + 0.5, y_f, hf)
+		# la pièce : pyramide carrée à coyau de 4,5 m (dont la pointe) + épi de fer de 2,9 m ; étirée à 1,35 : flèche de ~6 m
+		VillageBatiQ.kit(v, p, "bq_toit_tour", Transform3D(Basis.from_scale(Vector3(0.98, 1.35, 0.98)), Vector3(0, y_f + 0.3, 0)), v.m_colombage, v.m_brute)
+		v._collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(0, (yb + hb) * 0.5, 0)), Vector3(S + 0.4, yb + hb, S + 0.4))
+		v._emprise(p, Vector2(S * 0.5 + 0.6, S * 0.5 + 0.6))
+		return      # épi : celui du kit
+	_fleche(v, p, sb + 0.5, y_f, hf)
 	v._cylindre(p, 0.03, 0.04, 1.1, Transform3D(Basis(), Vector3(0, y_f + hf + 0.85, 0)), v.m_fer, 6)
 	v._boite(p, Vector3(0.5, 0.05, 0.05), Transform3D(Basis(), Vector3(0, y_f + hf + 1.0, 0)), v.m_fer)
 	v._cylindre(p, 0.09, 0.09, 0.12, Transform3D(Basis(), Vector3(0, y_f + hf + 0.4, 0)), v.m_fer, 8)
@@ -722,9 +724,9 @@ static func moulin_vent(v, g: Node3D, x: float, z: float) -> void:
 	var yc := 0.6 + ht + 0.14
 	var moulin_q := VillageBatiQ.detail("bq_toit_tour") and VillageBatiQ.detail("bq_claire_voie") and VillageBatiQ.detail("bq_poutre")
 	if moulin_q:    # bâti hybride (gen/bati2) : calotte Roof_Tower_RoundTiles du kit (tuiles en bois sombre), neige du village dessus
-		VillageBatiQ.kit(v, p, "bq_toit_tour", Transform3D(Basis.from_scale(Vector3(0.88, 2.7 / 7.36, 0.88)), Vector3(0, yc - 0.05, 0)), v.m_colombage, v.m_brute)
-		v._cylindre(p, 0.1, 0.75, 0.55, Transform3D(Basis(), Vector3(0, yc + 2.2, 0)), v.m_neige, 10)
-		v._cylindre(p, 1.15, 1.85, 0.42, Transform3D(Basis(), Vector3(0, yc + 1.05, 0)), v.m_neige, 10)
+		VillageBatiQ.kit(v, p, "bq_toit_tour", Transform3D(Basis.from_scale(Vector3(0.86, 0.55, 0.86)), Vector3(0, yc - 0.05, 0)), v.m_colombage, v.m_brute)
+		v._cylindre(p, 0.12, 0.62, 0.5, Transform3D(Basis(), Vector3(0, yc + 1.75, 0)), v.m_neige, 10)
+		v._cylindre(p, 1.85, 2.35, 0.42, Transform3D(Basis(), Vector3(0, yc + 1.05, 0)), v.m_neige, 10)
 	else:
 		v._cylindre(p, 0.5, 2.45, 2.0, Transform3D(Basis(), Vector3(0, yc + 1.0, 0)), v.m_poutres_h, 10)
 		v._cylindre(p, 0.08, 0.6, 0.5, Transform3D(Basis(), Vector3(0, yc + 2.24, 0)), v.m_neige, 10)
