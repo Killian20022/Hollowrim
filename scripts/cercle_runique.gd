@@ -176,16 +176,31 @@ static func _composition(monde: Node, centre: Vector3, m: Material) -> void:
 			forme.shape = bf
 			forme.transform = mi.transform
 			corps.add_child(forme)
-	# rochers bas, sans collision (on les enjambe)
+	# rochers bas, sans collision (on les enjambe) ; gen/abords : rochers Quaternius (lot 4) fondus en un maillage, mêmes tirages
+	var rocs_q: Array = []
 	for k in ROCHERS.size():
 		var p := _polaire(centre, ROCHERS[k][0], ROCHERS[k][1])
 		var s := rng.randf_range(0.7, 1.2)
+		if AbordsQ.actif:
+			var nom: String = ["q_roc_1", "q_roc_3", "q_roc_2", "q_roc_4"][k % 4]
+			var bb := PropsQuaternius.boite(nom)
+			var lacet := rng.randf() * TAU
+			var ez := s * rng.randf_range(0.8, 1.2)
+			rocs_q.append([nom, Transform3D(Basis(Vector3.UP, lacet).scaled(Vector3(s * 1.7 / bb.size.x, s * 0.75 / bb.size.y, ez * 1.7 / bb.size.z)), Vector3(p.x, monde.hauteur(p.x, p.y) - s * 0.08, p.y))])
+			continue
 		var mesh := Rochers.rocher_mesh(60 + k)
 		mesh.surface_set_material(0, m)
 		var mi := MeshInstance3D.new()
 		mi.mesh = mesh
 		mi.transform = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * 0.45, s * rng.randf_range(0.8, 1.2))), Vector3(p.x, monde.hauteur(p.x, p.y) - s * 0.1, p.y))
 		racine.add_child(mi)
+	if not rocs_q.is_empty():
+		var mq := MeshInstance3D.new()
+		mq.name = "RochersQ"
+		mq.mesh = AbordsQ.mesh_fondu(rocs_q, Color(1.12, 1.12, 1.15), 0.62)
+		mq.material_override = m
+		racine.add_child(mq)
+		PropsQuaternius.compter("cercle_runique", rocs_q.size())
 	# arbres morts : silhouette lisible au-dessus des pierres (collision mince)
 	var rng_tex := RandomNumberGenerator.new()
 	rng_tex.seed = ZoneBiome.graine("composition") + 1
@@ -223,14 +238,28 @@ static func _offrandes(monde: Node, racine: Node3D, centre: Vector3, rng: Random
 	_os(bois, Vector3(0.9, 0.05, 0.06), Vector3(0, 0.02, 0), 0.0, 0.0, m_os)
 	for t in 3:
 		_os(bois, Vector3(0.3, 0.04, 0.045), Vector3(-0.3 + t * 0.3, 0.03, 0.12), 0.0, 0.9 + t * 0.2, m_os)
-	# trois os épars
+	# trois os épars ; gen/abords : os longs Quaternius (Bones2, Medieval Dungeon : fémurs et côtes ÉPARS, pas le tas « en boule »),
+	# un seul maillage, mêmes tirages
+	var os_q: Array = []
 	for k in 3:
 		var q := _polaire(centre, rng.randf_range(2.0, 3.0), a0 + rng.randf_range(-0.9, 0.9))
+		if AbordsQ.actif:
+			var lacet := rng.randf() * TAU
+			var e := rng.randf_range(0.25, 0.45) * 4.2
+			os_q.append(["q_os_tas_2", Transform3D(Basis(Vector3.UP, lacet).scaled(Vector3(e, e * 0.8, e)), Vector3(q.x, monde.hauteur(q.x, q.y) - 0.02, q.y))])
+			continue
 		var os := Node3D.new()
 		os.position = Vector3(q.x, monde.hauteur(q.x, q.y) + 0.03, q.y)
 		os.rotation.y = rng.randf() * TAU
 		pied.add_child(os)
 		_os(os, Vector3(rng.randf_range(0.25, 0.45), 0.05, 0.05), Vector3.ZERO, 0.0, 0.0, m_os)
+	if not os_q.is_empty():
+		var mo := MeshInstance3D.new()
+		mo.name = "OsQ"
+		mo.mesh = AbordsQ.mesh_fondu(os_q, Color(1.05, 1.0, 0.92), 0.75)
+		mo.material_override = m_os
+		pied.add_child(mo)
+		PropsQuaternius.compter("cercle_runique", os_q.size())
 
 static func _os(parent: Node3D, taille: Vector3, pos: Vector3, _x: float, lacet: float, m: Material) -> void:
 	var mi := MeshInstance3D.new()

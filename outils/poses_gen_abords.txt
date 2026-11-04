@@ -1,0 +1,8 @@
+# gen/abords : poses AVANT (-- --abords-anciens) / APRÈS, monde x,z,lacet°,tangage°
+sentier_12 monde 21.80,19.82,-132.3,-6 heure=12
+champs_12 monde 72.0,30.0,-114,-8 heure=12
+cercle_12 monde -30.0,-36.0,123.5,-12 heure=12
+tumulus_12 monde -28.0,-44.0,43.6,-8 heure=12
+grotte_12 monde 79.0,-28.0,-90,-8 heure=12
+sentier_17h5 monde 21.80,19.82,-132.3,-6 heure=17.5
+grotte_17h5 monde 79.0,-28.0,-90,-8 heure=17.5

@@ -97,28 +97,58 @@ static func _arbres(monde: Node, racine: Node3D, corps: StaticBody3D, rng: Rando
 		forme.position = Vector3(p.x, h + 1.8, p.y)
 		corps.add_child(forme)
 
-## Rochers bas au pied de la butte (sans collision).
+## Rochers bas au pied de la butte (sans collision). gen/abords : rochers Quaternius (lot 4) fondus en un seul maillage (AbordsQ),
+## mêmes tirages, mêmes positions et mêmes emprises ; `-- --abords-anciens` : rochers maison.
 static func _rochers(monde: Node, racine: Node3D, m: Material, rng: RandomNumberGenerator) -> void:
+	var liste: Array = []
 	for k in ROCHERS.size():
 		var p := BUTTE + Vector2(cos(ROCHERS[k][1]), sin(ROCHERS[k][1])) * float(ROCHERS[k][0])
 		var s := rng.randf_range(0.8, 1.3)
+		if AbordsQ.actif:
+			var nom: String = ["q_roc_2", "q_roc_4", "q_roc_1", "q_roc_3"][k % 4]
+			var bb := PropsQuaternius.boite(nom)
+			var lacet := rng.randf() * TAU
+			var ez := s * rng.randf_range(0.8, 1.2)
+			liste.append([nom, Transform3D(Basis(Vector3.UP, lacet).scaled(Vector3(s * 1.7 / bb.size.x, s * 0.75 / bb.size.y, ez * 1.7 / bb.size.z)), Vector3(p.x, monde.hauteur(p.x, p.y) - s * 0.08, p.y))])
+			continue
 		var mesh := Rochers.rocher_mesh(70 + k)
 		mesh.surface_set_material(0, m)
 		var mi := MeshInstance3D.new()
 		mi.mesh = mesh
 		mi.transform = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * 0.45, s * rng.randf_range(0.8, 1.2))), Vector3(p.x, monde.hauteur(p.x, p.y) - s * 0.1, p.y))
 		racine.add_child(mi)
+	_poser_q(racine, liste, m, "RochersQ")
+
+## Un MeshInstance pour une liste de props Quaternius [[nom, Transform3D]] (une matière, faces du dessus enneigées).
+static func _poser_q(racine: Node3D, liste: Array, m: Material, nom: String) -> void:
+	if liste.is_empty():
+		return
+	var mi := MeshInstance3D.new()
+	mi.name = nom
+	mi.mesh = AbordsQ.mesh_fondu(liste, Color(1.12, 1.12, 1.15), 0.62)
+	mi.material_override = m
+	racine.add_child(mi)
+	PropsQuaternius.compter("abords_tumulus", liste.size())
 
 ## Pierres de bordure basses autour de la butte, avec un vide devant la porte (sans collision).
+## gen/abords : dalles de bordure Quaternius (Prop_ExteriorBorder, Medieval Village) relevées en blocs bas, mêmes tirages et emprises.
 static func _bordure(monde: Node, racine: Node3D, m: Material, rng: RandomNumberGenerator) -> void:
+	var liste: Array = []
 	for k in NB_BORDURE:
 		var a := TAU * k / NB_BORDURE + rng.randf_range(-0.12, 0.12)
 		if absf(angle_difference(a, PORTE_ANGLE)) < 0.75:
 			continue  # on ne barre pas l'accès à la porte
 		var p := BUTTE + Vector2(cos(a), sin(a)) * rng.randf_range(8.0, 8.6)
 		var taille := Vector3(rng.randf_range(0.55, 0.85), rng.randf_range(0.3, 0.45), rng.randf_range(0.4, 0.55))
+		if AbordsQ.actif:
+			var nom := "q_bordure_1" if k % 2 == 0 else "q_bordure_2"
+			var bb := PropsQuaternius.boite(nom)
+			var b := Basis(Vector3.UP, -a + PI * 0.5 + rng.randf_range(-0.3, 0.3)).rotated(Vector3.BACK, rng.randf_range(-0.12, 0.12))
+			liste.append([nom, Transform3D(b * Basis.from_scale(Vector3(taille.x / bb.size.x, taille.y / bb.size.y, taille.z / bb.size.z)), Vector3(p.x, monde.hauteur(p.x, p.y) - 0.1, p.y))])
+			continue
 		var mi := MeshInstance3D.new()
 		mi.mesh = CercleRunique.boite_neige(taille, 500 + k, 0.12)
 		mi.material_override = m
 		mi.transform = Transform3D(Basis(Vector3.UP, -a + PI * 0.5 + rng.randf_range(-0.3, 0.3)).rotated(Vector3.BACK, rng.randf_range(-0.12, 0.12)), Vector3(p.x, monde.hauteur(p.x, p.y) + taille.y * 0.5 - 0.1, p.y))
 		racine.add_child(mi)
+	_poser_q(racine, liste, m, "BordureQ")
