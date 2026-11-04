@@ -20,6 +20,9 @@ static var actif := not ("--sans-props-q" in OS.get_cmdline_user_args())
 ## `-- --sans-remplacement` : ANCIENS props faits maison (mobilier procédural / modules Blender maison) à la place des Quaternius qui les
 ## remplacent (props/remplacement, 2026-11-03) ; sert aux captures « avant » et aux mesures A/B. Implique actif.
 static var remplace := actif and not ("--sans-remplacement" in OS.get_cmdline_user_args())
+## `-- --sans-lot4` : état de l'exe 3 (props du lot 3) sans les pièces du lot 4 (Medieval Dungeon, Survival, Ultimate Food ; props/lot4,
+## 2026-11-04) : captures « avant » et mesures A/B du lot 4. Toute pose ou substitution du lot 4 teste `PropsQuaternius.lot4`.
+static var lot4 := remplace and not ("--sans-lot4" in OS.get_cmdline_user_args())
 ## Compteur de props posés par les remplacements (zone -> nombre) : « PropsQuaternius : remplacements … » dans le journal (bilan du rapport).
 static var compte := {}
 static func compter(zone: String, n := 1) -> void:
