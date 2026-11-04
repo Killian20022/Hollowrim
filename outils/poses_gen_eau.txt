@@ -1,0 +1,9 @@
+# gen/eau : poses AVANT (-- --eau-ancienne) / APRÈS
+PONT_J monde 37.5,58.6,245,-6 y=3.35 heure=12
+PONT_S_J monde 37,65.5,300,-6 heure=12
+PONT_DESSUS_J monde 44,60.5,180,-12 y=4.75 heure=12
+QUAI_MOULIN_J monde 36,65.5,60,-7 heure=12
+QUAI_PROCHE_J monde 33,61.5,95,-10 y=3.35 heure=12
+GUE_J monde 73,62.5,303,-12 heure=12
+QUAI_MOULIN_C monde 36,65.5,60,-7 heure=17
+PONT_C monde 37.5,58.6,245,-6 y=3.35 heure=17

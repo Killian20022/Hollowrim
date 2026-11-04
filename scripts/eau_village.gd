@@ -444,9 +444,67 @@ func _quai(modele: Node) -> void:
 	n.name = "Quai"
 	n.transform = xf
 	add_child(n)
-	_piece(modele, "Quai_Planches", n, "planches")
-	_piece(modele, "Quai_Pieux", n, "rondins")
+	if _quai_quaternius() and not _args_eau().has("eau-ancienne"):
+		_quai_kit(n)      # gen/eau : planches et poutres Quaternius (docs/GEN_EAU.md)
+	else:
+		_piece(modele, "Quai_Planches", n, "planches")
+		_piece(modele, "Quai_Pieux", n, "rondins")
 	_boite(QUAI + Vector3(4.5, -0.06, 1.1), Vector3(9.0, 0.12, 2.25))
+
+func _args_eau() -> Dictionary:
+	return monde.call("_arguments")
+
+func _quai_quaternius() -> bool:
+	return PropsQuaternius.existe("q_planches_sol") and PropsQuaternius.existe("q_poutre_ronde")
+
+## Pose le prop `nom` (repère : origine au sol, centre de l'emprise) dans le SurfaceTool `st`, étiré à `taille` (m, emprise) après rotation `rot`.
+func _kit(st: SurfaceTool, nom: String, pos: Vector3, rot: Basis, taille: Vector3) -> void:
+	var bb := PropsQuaternius.boite(nom)
+	var sc := Vector3(taille.x / bb.size.x, taille.y / bb.size.y, taille.z / bb.size.z)
+	var xf := Transform3D(rot * Basis.from_scale(sc), pos)
+	for m: Array in PropsQuaternius.morceaux(nom):
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, m[1])
+		st.append_from(mesh, 0, xf)
+
+func _kit_mesh(parent: Node3D, st: SurfaceTool, nom: String, mat: String) -> void:
+	var mi := MeshInstance3D.new()
+	mi.name = nom
+	mi.mesh = st.commit()
+	mi.material_override = _mat(mat)
+	mi.visibility_range_end = 85.0
+	parent.add_child(mi)
+
+## Quai sur pieux en pièces Quaternius : plancher Floor_WoodDark, longerons / pieux / croisillons / chasse-roue en poutres rondes.
+## Mêmes cotes que l'ancien quai (9 m en x, 2,2 m en z, dessus à y 0, collision inchangée).
+func _quai_kit(n: Node3D) -> void:
+	var rg := RandomNumberGenerator.new()
+	rg.seed = 3712
+	var pl := SurfaceTool.new()
+	pl.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var po := SurfaceTool.new()
+	po.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in 9:      # plancher : 9 dalles de 1 m, épaisseur 0,12 (dessus à y 0)
+		_kit(pl, "q_planches_sol", Vector3(0.5 + i, -0.12, 1.1), Basis.IDENTITY, Vector3(1.0, 0.12, 2.2))
+	for zl in [0.18, 1.1, 2.02]:      # longerons
+		_kit(po, "q_poutre_ronde", Vector3(4.5, -0.27, zl), Basis.IDENTITY, Vector3(9.1, 0.18, 0.18))
+	_kit(po, "q_poutre_ronde", Vector3(4.5, 0.0, 2.2), Basis.IDENTITY, Vector3(9.0, 0.16, 0.16))      # chasse-roue côté eau
+	var vert := Basis(Vector3.BACK, PI * 0.5)      # l'axe long (x) du prop devient vertical
+	for zr in [0.18, 2.06]:
+		for i in 7:
+			var xp := 0.2 + i * (8.6 / 6.0) + rg.randf_range(-0.06, 0.06)
+			var haut := 0.5 + rg.randf_range(-0.05, 0.12) if (zr > 1.0 and i in [0, 3, 6]) else -0.1
+			var h := haut + 2.4
+			_kit(po, "q_poutre_ronde", Vector3(xp, haut - h * 0.5, zr), vert, Vector3(h, 0.24, 0.24))
+	for i in 6:      # croisillons côté eau
+		var xa := 0.2 + i * (8.6 / 6.0)
+		var dx := 8.6 / 6.0
+		var dy := 1.3
+		var lg := sqrt(dx * dx + dy * dy)
+		var ang := atan2(dy, dx)
+		_kit(po, "q_poutre_ronde", Vector3(xa + dx * 0.5, -0.95, 2.2), Basis(Vector3.BACK, ang), Vector3(lg, 0.1, 0.1))
+	_kit_mesh(n, pl, "Quai_Planches_Q", "planches")
+	_kit_mesh(n, po, "Quai_Poutres_Q", "rondins")
 
 # ------------------------------------------------------------------ gué : pierres plates en travers du ruisseau
 
