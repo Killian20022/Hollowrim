@@ -23,6 +23,8 @@ static func construire(b: Interieurs) -> void:
 	_estrade(b)
 
 	# --- tables, bancs
+	if PropsQuaternius.lot4:
+		b.mats_table = {"bois": "bois_table"}      # lot 4 : plateaux plus clairs, la nourriture ressort
 	for sx in [-1.0, 1.0]:
 		b.table(Vector3(sx * 3.9, 0, -1.75), 4.3, 0.8, 0.0)
 		_couvert(b, sx * 3.9, -1.75, 4.3)
@@ -33,6 +35,7 @@ static func construire(b: Interieurs) -> void:
 	b.table(Vector3(3.9, 0, 1.75), 4.2, 0.8, 0.0)
 	_couvert(b, 3.9, 1.75, 4.2)
 	b.banc(Vector3(3.9, 0, 2.55), 4.0, 0.0)
+	b.mats_table = {}
 	# bancs côté foyer, tabourets
 	b.banc(Vector3(-3.7, 0, 1.12), 3.4, 0.0, 0.44, 0.3)
 	b.banc(Vector3(xh - 0.5, 0, -1.1), 3.0, 0.0, 0.44, 0.3)
@@ -228,8 +231,11 @@ static func _couvert(b: Interieurs, cx: float, cz: float, long: float) -> void:
 	b.bougie(Vector3(cx + long * 0.2, y, cz - 0.1), 0.12)
 	if PropsQuaternius.lot4:      # lot 4 : la table est servie (miche, pommes, écuelle de soupe avec sa cuillère, fromage-tranche), sans surcharge
 		var sg := 1.0 if cx > 0.0 or cz > 0.0 else -1.0
-		b.nq("q_pain", Vector3(cx - long * 0.08, y, cz + 0.2), 1.6)
-		b.nq("q_tranche_pain", Vector3(cx - long * 0.08 + 0.2, y, cz + 0.18), 0.4 + sg, 0.8)
+		var xp := cx - long * 0.12      # trois miches groupées (deux côte à côte, une posée en travers devant) + une tranche
+		b.nq("q_pain", Vector3(xp, y, cz + 0.2), 1.6)
+		b.nq("q_pain", Vector3(xp + 0.27, y, cz + 0.22), 1.45)
+		b.nq("q_pain", Vector3(xp + 0.13, y, cz - 0.04), 0.2 + sg * 0.3)
+		b.nq("q_tranche_pain", Vector3(xp + 0.46, y, cz + 0.05), 0.4 + sg, 0.8)
 		for j in 3:
 			b.nq("q_pomme" if j != 1 else "q_pomme_verte", Vector3(cx + long * 0.07 + j * 0.09, y, cz + 0.2 + (j % 2) * 0.05), j * 1.3)
 		b.mets(Vector3(cx + long * 0.32, y, cz + 0.12), 0.0, true)

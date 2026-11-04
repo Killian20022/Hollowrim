@@ -76,6 +76,20 @@ const POSES_L4 := [
 	["q_lard", 1, Vector3(0.2, 0.9, -0.8), 5.0, false], ["q_cuisse", 1, Vector3(0.55, 0.92, -0.78), 70.0, false, {"argile": "cuir"}],
 	["q_saucisse", 1, Vector3(0.45, 0.9, -0.38), 20.0, false, {"argile": "peau"}], ["q_saucisse_crue", 1, Vector3(0.58, 0.9, -0.4), -10.0, false],
 	["q_jarre", 1, Vector3(1.2, 0.0, 0.5), 0.0, false],
+	# étal 1 : barre sous l'auvent, côté clients, avec quatre cuisses fumées et quatre grappes de saucisses PENDUES (6e = matières, 7e = pré-rotation, 8e = échelle avant le x1,3)
+	["q_poutre_ronde", 1, Vector3(0.0, 1.87, -0.62), 0.0, false, {"bois": "cuir"}, Basis.IDENTITY, Vector3(2.15, 0.5, 0.5)],
+	["q_cuisse", 1, Vector3(-1.1, 1.66, -0.62), 0.0, false, {"argile": "laine_q"}, Basis(Vector3.BACK, -PI * 0.5), Vector3.ONE * 2.0],
+	["q_cuisse", 1, Vector3(-0.4, 1.66, -0.62), 0.0, false, {"argile": "laine_q"}, Basis(Vector3.BACK, -PI * 0.5), Vector3.ONE * 2.0],
+	["q_cuisse", 1, Vector3(0.3, 1.66, -0.62), 0.0, false, {"argile": "laine_q"}, Basis(Vector3.BACK, -PI * 0.5), Vector3.ONE * 2.0],
+	["q_cuisse", 1, Vector3(1.0, 1.66, -0.62), 0.0, false, {"argile": "laine_q"}, Basis(Vector3.BACK, -PI * 0.5), Vector3.ONE * 2.0],
+	["q_saucisse", 1, Vector3(-0.79, 1.64, -0.62), -24.0, false, {"argile": "laine_q"}, Basis(Vector3.RIGHT, PI * 0.5), Vector3.ONE * 1.7],
+	["q_saucisse_crue", 1, Vector3(-0.71, 1.64, -0.62), 24.0, false, {"argile": "laine_q"}, Basis(Vector3.RIGHT, PI * 0.5), Vector3.ONE * 1.7],
+	["q_saucisse", 1, Vector3(-0.09, 1.64, -0.62), -24.0, false, {"argile": "laine_q"}, Basis(Vector3.RIGHT, PI * 0.5), Vector3.ONE * 1.7],
+	["q_saucisse_crue", 1, Vector3(-0.010000000000000002, 1.64, -0.62), 24.0, false, {"argile": "laine_q"}, Basis(Vector3.RIGHT, PI * 0.5), Vector3.ONE * 1.7],
+	["q_saucisse", 1, Vector3(0.61, 1.64, -0.62), -24.0, false, {"argile": "laine_q"}, Basis(Vector3.RIGHT, PI * 0.5), Vector3.ONE * 1.7],
+	["q_saucisse_crue", 1, Vector3(0.6900000000000001, 1.64, -0.62), 24.0, false, {"argile": "laine_q"}, Basis(Vector3.RIGHT, PI * 0.5), Vector3.ONE * 1.7],
+	["q_saucisse", 1, Vector3(1.26, 1.64, -0.62), -24.0, false, {"argile": "laine_q"}, Basis(Vector3.RIGHT, PI * 0.5), Vector3.ONE * 1.7],
+	["q_saucisse_crue", 1, Vector3(1.34, 1.64, -0.62), 24.0, false, {"argile": "laine_q"}, Basis(Vector3.RIGHT, PI * 0.5), Vector3.ONE * 1.7],
 	# étal 2 : poissonnier (poissons et arêtes sur la planche, jarres de saumure derrière)
 	["q_poisson", 2, Vector3(0.1, 0.9, -0.55), 10.0, false], ["q_poisson", 2, Vector3(0.3, 0.9, -0.72), -15.0, false],
 	["q_poisson", 2, Vector3(0.15, 0.9, -0.9), 170.0, false], ["q_aretes", 2, Vector3(0.6, 0.9, -0.5), 20.0, false],
@@ -159,7 +173,7 @@ static func substitut(mod: String) -> Array:
 					r.append(["q_buche", Transform3D(Basis(Vector3.UP, PI * 0.5 + 0.04 * ((c + rg) % 3)) * Basis.from_scale(Vector3(1.7, 1.15, 1.15)), Vector3(x, 0.12 + rg * 0.22, 0.0)), {}])
 		"etal":      # deux étals Quaternius côte à côte (3,1 m de comptoir), clients côté -Z
 			for sx in [-0.78, 0.78]:
-				r.append(["q_etal", _fit("q_etal", Vector3(sx, 0, -0.45), 0.0, Vector3(1.55, 2.4, 1.1)), {}])
+				r.append(["q_etal", _fit("q_etal", Vector3(sx, 0, -0.45), 0.0, Vector3(1.55, 2.4, 1.1)), {"bois": "planches_l4", "lin": "lin_l4"} if PropsQuaternius.lot4 else {}])
 		"banniere":
 			r = [["q_banniere", _fit("q_banniere", Vector3.ZERO, 0.0, Vector3(1.8, 3.95, 0.4)), {}]]
 		"puits":      # KITBASH : margelle = 8 dalles de bordure Quaternius debout + chapiteaux de briques, 4 poteaux et poutres rondes, toit de planches, seau et corde
@@ -206,7 +220,7 @@ static func substitut(mod: String) -> Array:
 				r.append(["q_rondin", Transform3D(Basis(Vector3.UP, 0.5), Vector3(1.35, 0, 1.15)), {}])
 				r.append(["q_rondin", Transform3D(Basis(Vector3.UP, 0.35), Vector3(1.4, 0.3, 1.15)), {}])
 				r.append(["q_hache_camp", Transform3D(Basis(Vector3.UP, 0.9) * Basis(Vector3.RIGHT, -PI * 0.5), Vector3(1.2, 0.68, 1.3)), {"laine": "cuir"}])
-				r.append(["q_tente", Transform3D(Basis(Vector3.UP, PI), Vector3(0.5, 0, -5.4)), {"jute": "lin"}])      # tente de toile, entrée vers le feu
+				r.append(["q_tente", Transform3D(Basis(Vector3.UP, 0.0), Vector3(0.5, 0, -5.4)), {"jute": "lin"}])      # tente de toile, entrée vers le feu
 			else:
 				r.append(["q_bucher", _fit("q_bucher", Vector3.ZERO, 0.6, Vector3(0.9, 0.55, 0.9)), {}])
 		"forge_foyer":      # KITBASH : muret de briques Quaternius (deux rangs), braises de l'ancien module gardées
@@ -242,6 +256,7 @@ static func _materiau(nom: String) -> Material:
 		# L7 : bois plus clair (était (0.85, 0.8, 0.75) : tonneaux presque noirs à distance de jeu), proche des planches du bâti
 		"planches_h": return TexturesBati.m_planches_e(Color(1.0, 0.95, 0.88))
 		"planches_v": return TexturesBati.m_bois_debout_e(Color(1.0, 0.95, 0.88))
+		"planches_l4": return TexturesBati.m_planches_e(Color(1.75, 1.6, 1.4))      # lot 4 : comptoir et montants des étals plus clairs (sans lumière en plus)
 		"fer": return TexturesBati.m_fer_e(Color(0.7, 0.7, 0.75))
 		"cuir": return TexturesBati.m_cuir_e()
 		"foin": return TexturesBati.m_foin_e()
@@ -253,10 +268,16 @@ static func _materiau(nom: String) -> Material:
 			var ml := TexturesBati.materiau(nom, Color(1.35, 1.1, 0.92) if nom == "argile" else Color(1.0, 0.96, 0.9), 64.0, 0.4, "neige_e")      # primeurs plus vives à l'ombre de l'auvent
 			ml.set_shader_parameter("proche", Vector2(4.0, 14.0))
 			return ml
+		"lin_l4":      # lot 4 : toile des auvents plus claire (même texture que « lin », teinte relevée, sans lumière)
+			if not TexturesBati._cache.has("lin"):
+				TexturesBati._cache["lin"] = [ImageTexture.create_from_image(ResourceLoader.load("res://assets/crypte/lin.res")), TexturesBati.relief_neutre()]
+			var mc := TexturesBati.materiau("lin", Color(1.3, 1.24, 1.14), 64.0, 0.4, "neige_e")
+			mc.set_shader_parameter("proche", Vector2(4.0, 14.0))
+			return mc
 		"laine_q":      # lot 4 : viande, pommes, lard (laine rouge sourde de la crypte, comme les intérieurs)
 			if not TexturesBati._cache.has("laine"):
 				TexturesBati._cache["laine"] = [ImageTexture.create_from_image(ResourceLoader.load("res://assets/crypte/laine.res")), TexturesBati.relief_neutre()]
-			var mw := TexturesBati.materiau("laine", Color(0.92, 0.86, 0.84), 64.0, 0.4, "neige_e")
+			var mw := TexturesBati.materiau("laine", Color(1.6, 1.2, 1.05), 64.0, 0.4, "neige_e")
 			mw.set_shader_parameter("proche", Vector2(4.0, 14.0))
 			return mw
 		"herbe":      # lot 4 : légumes (foin teinté vert, comme les bouquets des intérieurs)
@@ -609,6 +630,8 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 			p.y = _sol_bas(p.x, p.z, 0.3)
 		var xf := Transform3D(xe.basis * Basis(Vector3.UP, deg_to_rad(e[3])), p)
 		if est_l4:
+			if e.size() > 7:      # pose suspendue : rotation propre à la pièce (os en haut…) et échelle avant le x1,3
+				xf.basis = xf.basis * (e[6] as Basis) * Basis.from_scale(e[7] as Vector3)
 			xf.basis = xf.basis.scaled(Vector3.ONE * 1.3)      # lot 4 : nourriture des étals un peu plus grosse (lisible en vue de jeu)
 		for t: Array in PropsQuaternius.triangles(nom):
 			var mat: String = "argile" if t[0] == "fer" and nom in PRIMEURS else MATS_Q.get(t[0], "planches_h")

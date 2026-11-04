@@ -62,6 +62,7 @@ static func materiaux() -> Dictionary:
 	d["bois_sombre"] = _m("planches_h_int", Color(0.74, 0.66, 0.62), 64.0)
 	d["bois_suie"] = _m("planches_v_int", Color(0.42, 0.38, 0.38), 64.0)
 	d["bois_clair"] = _m("planches_v_int", Color(1.15, 1.08, 0.98), 64.0)
+	d["bois_table"] = _m("planches_h_int", Color(2.0, 1.8, 1.6), 64.0)      # lot 4 : plateaux de la halle plus clairs (la nourriture ressort)
 	d["ame"] = _m("planches_h_int", Color(0.3, 0.29, 0.32), 64.0)
 	d["rondin"] = _m("rondins_int", Color(1.12, 1.05, 1.0), 64.0, 0.9, true)
 	d["rondin_sombre"] = _m("rondins_int", Color(0.95, 0.87, 0.82), 64.0, 0.9, true)
@@ -382,7 +383,10 @@ func nq(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, mats := {}) -> void:
 	if not PropsQuaternius.lot4 or not PropsQuaternius.existe(nom):
 		return
 	PropsQuaternius.compter("lot4_interieurs")
-	q(nom, pos, lacet, e * 1.25, MATS_NOURRITURE.merged(mats))   # x1,25 : lisible en vue de jeu
+	var m := MATS_NOURRITURE.duplicate()
+	if nom == "q_pain" or nom == "q_tranche_pain":      # croûte dorée en terre cuite claire (le bois sombre faisait des bûches, le foin un camouflage)
+		m.merge({"bois": "argile", "jute": "argile"})
+	q(nom, pos, lacet, e * 1.25, m.merged(mats))   # x1,25 : lisible en vue de jeu
 
 ## Lot 4 : couvert posé (écuelle de bois ou d'argile, cuillère de bois, couteau) ; `pos` = centre de l'écuelle.
 func mets(pos: Vector3, lacet := 0.0, argile := false) -> void:
@@ -572,12 +576,13 @@ func _sol(pos: Vector3) -> Vector3:
 	return Vector3(pos.x, ip.sol_y, pos.z) if pos.y < 0.2 else pos
 
 ## Table sur tréteaux (long le long de X pour lacet 0) : plateau de planches, tréteaux, entretoise (modules L6).
+var mats_table := {}      # matières imposées aux tables Quaternius (lot 4 : halle plus claire) ; vide = comme avant
 func table(pos: Vector3, long: float, larg: float, lacet := 0.0, haut := 0.78, solide_ := true) -> void:
 	pos = _sol(pos)
 	if rempl("q_grande_table"):      # props/remplacement : Table_Large (ou établi Workbench si plan de travail haut)
 		if solide_:
 			solide(pos + Vector3(0, haut - 0.05, 0), Vector3(long, 0.1, larg), lacet)
-		qf("q_etabli" if haut > 0.83 else "q_grande_table", pos, lacet, Vector3(long, haut, larg))
+		qf("q_etabli" if haut > 0.83 else "q_grande_table", pos, lacet, Vector3(long, haut, larg), mats_table)
 		return
 	var b := Basis(Vector3.UP, lacet)
 	if solide_:
