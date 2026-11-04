@@ -157,5 +157,20 @@
 "MI_MetalOrnaments": "fer"
 },
 "budget": 600
+},
+{
+"nom": "bq_escalier",
+"recette": "escalier",
+"mats": {
+"MI_Plaster": "lin",
+"MI_WoodTrim": "bois",
+"MI_UnevenBrick": "pierre",
+"MI_Brick": "pierre",
+"MI_RockTrim": "pierre",
+"MI_RoundTiles": "bois",
+"MI_WindowGlass": "fer",
+"MI_MetalOrnaments": "fer"
+},
+"budget": 600
 }
 ]

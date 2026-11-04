@@ -1,0 +1,25 @@
+# Poses du bâti hybride (nom x,z,lacet,tangage) : jour = heure 12, crépuscule = 17,5. Lot : outils/captures_bati_hybride.sh
+# vues d'ensemble
+entree 31.4,28.6,-168,3
+place 42.5,38.7,-132,0
+place_nord 47,30,170,2
+rue_h1 32,40,-163,2
+rue 40,56,-146,8
+haute_rue 44,66,-160,6
+ruelle_est 50,62,150,4
+# maisons Quaternius
+h1 36,46.5,180,4
+h1_pignon 29,53,-90,3
+h2 54,49.5,180,4
+h3 42.5,71,90,4
+h4 47.5,78.5,-90,4
+moulin 32.5,55.5,90,4
+ferme_b 53.5,3.5,-90,3
+# maisons restées en rondins (détails Quaternius)
+halle 44,30,0,4
+sigrun 59.5,40.5,180,4
+chasseurs 56,29,-90,4
+grima 35,47,90,4
+h5 36,78.5,180,4
+h6_grenier 56.5,26.6,-30,4
+ferme_a 79.5,33,0,3

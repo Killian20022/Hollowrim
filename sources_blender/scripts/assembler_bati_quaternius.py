@@ -59,6 +59,7 @@ RECETTES = {
     "cadre_porte": {"piece": "DoorFrame_Flat_WoodDark"},
     "cadre_porte_rond": {"piece": "DoorFrame_Round_WoodDark"},
     "balcon": {"piece": "Balcony_Simple_Straight"},
+    "escalier": {"piece": "Stairs_Exterior_Straight"},
 }
 
 _cache = {}

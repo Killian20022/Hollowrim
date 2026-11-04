@@ -368,5 +368,8 @@
  },
  "bq_balcon": {
   "piece": "Balcony_Simple_Straight"
+ },
+ "bq_escalier": {
+  "piece": "Stairs_Exterior_Straight"
  }
 }
