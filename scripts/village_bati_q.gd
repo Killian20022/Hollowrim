@@ -129,6 +129,15 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	if o.get("dragons", false):
 		for cote in [-1.0, 1.0]:
 			dragons(v, p, cote * (Lx * 0.5 - 0.1), faite_y + 0.1, egout_y, demi, graine + int(cote) * 17)
+	# vantaux : planches et ferrures des portes de props validées (q_porte_*, celles des maisons closes d'avant), dans l'ouverture du kit
+	var k := 0
+	for d: Array in m.get("portes", []):
+		var vq: String = (["q_porte_1_%s", "q_porte_4_%s", "q_porte_8_%s", "q_porte_2_%s"][(graine + k) % 4] as String) % ("ronde" if d[6] else "plate")
+		k += 1
+		if not PropsQuaternius.existe(vq):
+			continue
+		var bq := PropsQuaternius.boite(vq)
+		PropsQuaternius.village(v, p, vq, Transform3D(Basis(Vector3.UP, d[5]) * Basis.from_scale(Vector3(d[3] / bq.size.x, d[4] / bq.size.y, 1.0)), Vector3(d[0], y_sol + float(d[1]), d[2])))
 	# fumée, torche, enseigne, appentis, tas de bois : comme le bâtiment d'origine
 	if m.has("cheminee") and o.get("fumee", false):
 		var c: Array = m["cheminee"]

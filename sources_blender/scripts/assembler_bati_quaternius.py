@@ -21,6 +21,7 @@ MURS = {"S": "Straight", "D": "Door_Round", "Df": "Door_Flat", "W": "Window_Wide
 # fenêtres : volets fermés posés devant le trou (le trou donne sur l'intérieur vide de la façade)
 VOLETS = {"W": "WindowShutters_Wide_Round_Open", "Wf": "WindowShutters_Wide_Flat_Open", "T": "WindowShutters_Thin_Round_Open"}
 LARG_VITRE = {"W": 1.15, "Wf": 1.15, "T": 0.6}      # vitrage plaqué dans l'ouverture (m, avant échelle), lueur la nuit (village._vitre)
+PORTES = []        # [x, y, z (repère Godot, milieu du seuil), larg, haut, lacet rad, cintrée] : vantaux posés par le jeu
 VITRES = []        # [x, y, z (repère Godot, centre du vitrage), larg, haut, lacet rad] de l'assemblage en cours
 
 # côté : angle autour de Z (façade = -Y : +Z Godot ; +X Godot = +X ; -Z Godot = +Y ; -X Godot = -X)
@@ -118,12 +119,19 @@ def mur_cote(rec, cote, modules, z0, sz, L, W, decal=0.0, mur=None):
         if m == "S" and rec.get("plein") and not mur:          # pans pleins d'un autre modèle (plâtre à pans de bois)
             nom = rec["plein"]
         objs += poser(nom, pos, ang, (sx, SY, sz))
-        if m in ("D", "Df"):                  # vantail dans l'ouverture (charnière à gauche de l'ouverture, 1,1 m)
-            pd = R @ Vector((t - 0.54 * sx, -ds + 0.09 * SY + 0.1, z0))
-            objs += poser("Door_1_Round" if m == "D" else "Door_1_Flat", pd, ang, (sx, SY, sz))
+        if m in ("D", "Df"):                  # vantail : PAS celui du kit (il sortait en trou noir) ; le jeu pose dans l'ouverture le
+            pc = R @ Vector((t - 0.03 * sx, -ds + 0.09 * SY + 0.1, z0))      # vantail de planches des props validés (q_porte_*)
+            PORTES.append([round(pc.x, 3), round(pc.z, 3), round(-pc.y, 3), round(1.1 * sx, 3), round(2.13 * sz, 3), round(math.radians(ang), 4), m == "D"])
         if m in VOLETS:
             pg = R @ Vector((t, -ds + 0.09 * SY + 0.12, z0 + 1.9 * sz))
-            VITRES.append([round(pg.x, 3), round(pg.z, 3), round(-pg.y, 3), round(LARG_VITRE[m] * sx, 3), round(1.35 * sz, 3), round(math.radians(ang), 4)])
+            # vitrage en carreaux de la taille de ceux du village (0,7 x 0,55 m) : la croix du vitrage garde la même échelle que
+            # sur les maisons de rondins (un seul grand vitrage étiré faisait un gros cadre orange)
+            lv, hv = LARG_VITRE[m] * sx, 1.35 * sz
+            nx, ny = max(1, round(lv / 0.68)), max(1, round(hv / 0.56))
+            for ix in range(nx):
+                for iy in range(ny):
+                    q = R @ Vector((t - lv * 0.5 + (ix + 0.5) * lv / nx, -ds + 0.09 * SY + 0.12, 0))
+                    VITRES.append([round(q.x, 3), round(z0 + 1.9 * sz - hv * 0.5 + (iy + 0.5) * hv / ny, 3), round(-q.y, 3), round(lv / nx, 3), round(hv / ny, 3), round(math.radians(ang), 4)])
             pv = R @ Vector((t, -ds - 0.02, z0))
             objs += poser(VOLETS[m], pv, ang, (sx, SY, sz))
     return objs
@@ -137,6 +145,7 @@ def assembler(nom_recette):
         return objs, 0.0
     L, W = rec["L"], rec["W"]
     VITRES.clear()
+    PORTES.clear()
     objs = []
     z = 0.0
     for k, hh in enumerate(rec["niveaux"]):
@@ -184,7 +193,7 @@ def assembler(nom_recette):
             objs += poser(rec["pignon"], (sg * (L * 0.5 + EXT - 0.1), 0, ztop), ang, (sx_g, SY, s_larg))
     zf, ze = Z_FAITE[nom_toit]
     META[nom_recette] = {"L": L, "W": W, "ztop": ztop, "faite": ztop + zf * s_larg, "egout": ztop + ze * s_larg, "demi_toit": span * 0.5,
-                         "long_toit": long_pc * s_long, "vitres": VITRES[:]}
+                         "long_toit": long_pc * s_long, "vitres": VITRES[:], "portes": PORTES[:]}
     if rec.get("cheminee"):
         nom_c, xc = rec["cheminee"]
         objs += poser(nom_c, (xc, 0.7, ztop + 1.6), 0, (1.0, 1.0, 1.35))
