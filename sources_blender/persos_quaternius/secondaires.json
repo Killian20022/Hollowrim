@@ -33,7 +33,14 @@
    "force": 0.5,
    "taches": 0.25
   },
-  "accroche": "pnj"
+  "mats": {
+   "Main": "#d9cfb6",
+   "Main_Light": "#e8e0cc",
+   "Muzzle": "#cdbea2",
+   "Hooves": "#4a3c2e",
+   "Hair": "#a69a80"
+  },
+  "accroche": "bible"
  },
  {
   "nom": "pq_vache",
@@ -99,7 +106,7 @@
  {
   "nom": "pq_husky",
   "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/ultimate_animated_animals/FBX/Husky.fbx",
-  "hauteur": 0.65,
+  "hauteur": 0.74,
   "budget": 2000,
   "sat": 0.55,
   "val": 0.76,
@@ -112,6 +119,14 @@
    "force": 0.35,
    "taches": 0.2
   },
-  "accroche": "pnj"
+  "mats": {
+   "Material": "#4a4038",
+   "Material.006": "#2e2824",
+   "Material.001": "#7a6e60",
+   "Material.002": "#16110e",
+   "Material.003": "#ddd5c4",
+   "Material.004": "#4f86ae"
+  },
+  "accroche": "bible"
  }
 ]

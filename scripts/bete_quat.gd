@@ -50,7 +50,7 @@ const ESPECES := {
 	"taureau": {"pq": "pq_taureau", "nom": "Taureau", "vie": 70.0, "degats": 0.0, "rayon": 0.5, "haut": 1.5, "profil": "gibier", "hostile": false,
 		"domestique": true, "marche": 0.8, "course": 5.5, "ref_marche": 1.0, "ref_course": 5.5, "detection": 0.0, "impact": 1.0,
 		"biomes": ["village"], "heures": "toujours", "groupe": [1, 1]},
-	"husky": {"pq": "pq_husky", "nom": "Husky", "vie": 24.0, "degats": 0.0, "rayon": 0.24, "haut": 0.65, "profil": "gibier", "hostile": false,
+	"husky": {"pq": "pq_husky", "nom": "Husky", "vie": 24.0, "degats": 0.0, "rayon": 0.27, "haut": 0.74, "profil": "gibier", "hostile": false,
 		"domestique": true, "marche": 1.1, "course": 6.0, "ref_marche": 1.0, "ref_course": 5.5, "detection": 0.0, "impact": 0.4,
 		"biomes": ["village"], "heures": "toujours", "groupe": [1, 2]},
 }
