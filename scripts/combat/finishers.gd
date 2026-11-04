@@ -35,6 +35,10 @@ const CATALOGUE := {
 		],
 		"evenements": [["contact", "entree"], ["plante", "jet"], ["sortie", "retrait"], ["mort", "mort"], ["suivi", "secoue"]],
 		"mort": "effondre",
+		# v2 : la victime joue une CAPTURE Mixamo reciblée (« zombie agonizing » : courbée sur la lame, mains au ventre) ; carte =
+		# [instant du finisher, temps dans la capture (s)] ; le ragdoll prend le relais à « mort ». Les clés de pose ci-dessus ne
+		# servent plus que si le clip manque (autre squelette).
+		"victime": {"clip": "Fin_Agonie", "carte": [[0.30, 0.0], [0.40, 0.20], [0.86, 1.05], [1.0, 1.43]]},
 	},
 	"dos": {
 		"clip": "fin_plantee", "orientation": "dos",
@@ -49,6 +53,8 @@ const CATALOGUE := {
 		],
 		"evenements": [["contact", "entree"], ["plante", "jet"], ["sortie", "retrait"], ["mort", "mort"], ["suivi", "secoue"]],
 		"mort": "effondre",
+		# v2 : « two handed sword death (2) » (Great Sword Pack) : cambré, tête rejetée, s'affaisse à genoux
+		"victime": {"clip": "Fin_ArriereGS", "carte": [[0.30, 0.0], [0.45, 0.27], [0.86, 0.55], [1.0, 0.9]]},
 	},
 	"pommeau": {
 		"clip": "fin_pommeau", "orientation": "face",
@@ -104,6 +110,9 @@ const CATALOGUE := {
 static var dernier := ""
 ## Finisher imposé (tests, captures) : "" = choix selon le contexte.
 static var force := ""
+## Anciens finishers (avant v2 : clips à clés écrites à la main « <clip>_main », victime posée par PoseFinisher) : comparaisons
+## « avant / après » des captures uniquement.
+static var ancien := false
 
 static func existe(nom: String) -> bool:
 	return CATALOGUE.has(nom)
@@ -141,9 +150,10 @@ static func choisir(cible: Node3D, categorie: String, joueur: Node3D) -> String:
 	if categorie == "lateral":
 		return "decapitation"
 	if categorie == "apres_parade":
-		return "pommeau"     # après une parade : la garde adverse est ouverte, coup de pommeau puis estoc
-	# de face : l'épée plantée d'abord (demande de l'utilisateur), puis on varie sans répéter le dernier
-	var ordre := ["plantee", "pommeau", "decapitation"]
+		return "plantee"     # après une parade : la garde adverse est ouverte, estoc planté (v2 : plus de pommeau, voir ci-dessous)
+	# de face : l'épée plantée d'abord (demande de l'utilisateur), puis on varie sans répéter le dernier. v2 : le pommeau (geste écrit
+	# à la main, poignet qui casse) n'est plus dans la rotation faute de capture de coup de pommeau ; il reste forçable (`force`).
+	var ordre := ["plantee", "decapitation"]
 	var i := (ordre.find(dernier) + 1) % ordre.size() if dernier in ordre else 0
 	return ordre[i]
 
