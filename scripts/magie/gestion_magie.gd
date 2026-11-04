@@ -2435,6 +2435,12 @@ func _jet_placer(j: Dictionary) -> void:
 	# lumière : forte sur la main (un peu devant, pour éclairer main et sol) et à l'arrivée, couleur de l'école
 	var c: Color = LUMIERE[j.ecole]
 	var kd := 1.2 if j.dbl else 1.0   # deux jets = deux lumières : multiplicateur modéré (neige surexposée sinon)
+	var tro: TransitionSort = transitions_aura.get(origine.get_instance_id()) if valide(origine) else null
+	var fusionne: bool = tro != null and tro.fusion > 0.5 and j.ecole != "feu"   # feu : réglage validé, inchangé
+	if fusionne:
+		# double fusionné : une seule source au point de fusion, tout près de l'œil -> seule la meneuse éclaire
+		# (deux lumières superposées surexposaient les avant-bras et la neige ; la largeur du jet dit déjà le double)
+		kd = 1.0 if tro.meneuse else 0.0
 	var sc := 1.0
 	if j.ecole == "electricite":
 		sc = 0.55 + 0.9 * rng.randf()
@@ -2443,7 +2449,7 @@ func _jet_placer(j: Dictionary) -> void:
 	var id := origine.get_instance_id()
 	lumiere("aura%d" % id, o + vers * 0.5, c, 5.0 * kd * sc, 7.5 + 1.5 * kd, 9.0)
 	lumiere("jet%d" % id, fin - vers * minf(0.7, l * 0.3) + Vector3.UP * 0.3, c, 7.0 * kd * sc, 7.0 + 2.0 * kd, 8.0)
-	_teinte_demande(j.ecole, 1.0 if not j.dbl else 1.4)
+	_teinte_demande(j.ecole, 1.0 if not j.dbl else (1.15 if fusionne else 1.4))
 
 ## Couche fine : flammes (ou givre) procédurales qui lèchent la surface touchée par le jet (mur, sol), hors cible.
 func _jet_eclabousse(j: Dictionary, fin: Vector3) -> void:
@@ -3312,7 +3318,17 @@ func _maj_double() -> void:
 					v.eclair = eclair(null, "electricite", 2.0, -1.0, 0.05, func() -> Array:
 						var t: Array = []
 						if not v.get("jette", false):
-							foudre_ramifiee(t, v.p0, v.p1, (v.p0 as Vector3).distance_to(v.p1) * 0.15, 2.0, 2, 4)
+							# double qui fusionne (TransitionSort) : l'arc entre les paumes se resserre vers le point de fusion et
+							# s'éteint avant que les deux sources ne se rejoignent (plus de trait horizontal en bas de l'écran)
+							var kf := smoothstep(0.0, 0.3, float(v.get("fus", 0.0)))
+							if kf < 0.98:
+								var mi_p: Vector3 = (v.p0 as Vector3).lerp(v.p1, 0.5)
+								var a0: Vector3 = (v.p0 as Vector3).lerp(mi_p, kf)
+								var a1: Vector3 = (v.p1 as Vector3).lerp(mi_p, kf)
+								var av := t.size()
+								foudre_ramifiee(t, a0, a1, a0.distance_to(a1) * 0.15, 2.0 * (1.0 - 0.5 * kf), 2, 4)
+								for q in range(av, t.size()):
+									t[q][2] = float(t[q][2]) * (1.0 - kf)
 						return t)
 				_:
 					var mi := MeshInstance3D.new()
@@ -3336,6 +3352,7 @@ func _maj_double() -> void:
 		v.jette = _jets.has((mains[0].main as Node).get_instance_id()) or _jets.has((mains[1].main as Node).get_instance_id())
 		# sources en train de fusionner (TransitionSort) : le pont de runes cède la place à l'anneau commun des deux mains
 		var tr0: TransitionSort = transitions_aura.get((mains[0].main as Node).get_instance_id())
+		v.fus = tr0.fusion if tr0 != null else 0.0
 		if tr0 != null and tr0.fusion > 0.3:
 			v.jette = true
 		(v.noeud as Node3D).visible = not v.jette
@@ -3347,7 +3364,9 @@ func _maj_double() -> void:
 			var pt: Node3D = v.pont
 			pt.set("echelle", clampf(p0.distance_to(p1) * 3.0, 0.8, 2.2))
 			pt.visible = not v.jette
-		lumiere("double" + ecole, milieu, LUMIERE[ecole], 3.5, 6.0, 6.0)
+		# la lumière entre les mains s'efface quand les sources fusionnent : le jet / le sort parti du point de fusion porte la
+		# sienne (sinon trois lumières au même point surexposent les bras et la masse fusionnée)
+		lumiere("double" + ecole, milieu, LUMIERE[ecole], 3.5 * (1.0 - smoothstep(0.2, 0.7, float(v.fus))), 6.0, 6.0)
 
 func _double_fin(v: Dictionary) -> void:
 	for p in v.emit:

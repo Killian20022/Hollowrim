@@ -118,29 +118,37 @@ func _gen() -> Array:
 
 func _gen_tension(g: GestionMagie, traits: Array, o: Vector3) -> Array:
 	var src := pos_main(0, o)
+	var fade := 1.0 - smoothstep(_duree * 0.55, _duree, t)
+	var avance := clampf(t / 0.12, 0.0, 1.0)
+	if mains.size() > 1:
+		# DOUBLE (point de fusion commun, comme le feu) : les arcs des deux sources se rejoignent d'abord au point de fusion
+		# (0,06 s), puis UN seul arc, plus épais, part de ce point vers la cible
+		var src2 := pos_main(1, o)
+		var pf := (src + src2) * 0.5 + Vector3.UP * 0.05
+		var conv := clampf(t / 0.06, 0.0, 1.0)
+		for sx: Vector3 in [src, src2]:
+			if sx.distance_to(pf) > 0.03:
+				var av0 := traits.size()
+				g.foudre_ramifiee(traits, sx - o, sx.lerp(pf, conv) - o, sx.distance_to(pf) * 0.18 + 0.01, 1.6, 1, 3)
+				for q in range(av0, traits.size()):
+					traits[q][2] = float(traits[q][2]) * fade
+		src = pf
+		avance = clampf((t - 0.04) / 0.12, 0.0, 1.0)
+		if avance <= 0.0:
+			return traits
 	var l := src.distance_to(_vers)
 	if l < 0.05:
 		return traits
 	var d := (_vers - src) / l
-	# le bout avance de la paume vers la cible en 0,12 s ; l'arc reste tendu, puis s'efface
-	var avance := clampf(t / 0.12, 0.0, 1.0)
+	# le bout avance de la source vers la cible en 0,12 s ; l'arc reste tendu, puis s'efface
 	var front := src + d * l * avance
-	var fade := 1.0 - smoothstep(_duree * 0.55, _duree, t)
-	var n := 3 + (2 if double else 0)
+	var n := 3 + (1 if double else 0)   # double : un seul faisceau plus épais (pas une pelote blanche au point de fusion)
 	for i in n:
 		var av := traits.size()
-		var dec := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * 0.03
-		g.foudre_ramifiee(traits, src + dec - o, front - o, l * avance * 0.07 + 0.03, 2.0 if i == 0 else 1.2, 2, 4)
+		var dec := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * (0.045 if double else 0.03)
+		g.foudre_ramifiee(traits, src + dec - o, front - o, l * avance * 0.07 + 0.03, (2.4 if double else 2.0) if i == 0 else 1.2, 2, 4)
 		for q in range(av, traits.size()):
 			traits[q][2] = float(traits[q][2]) * fade
-	if mains.size() > 1:
-		var src2 := pos_main(1, o)
-		var front2 := src2 + (_vers - src2).normalized() * src2.distance_to(_vers) * avance
-		for i in 2:
-			var av2 := traits.size()
-			g.foudre_ramifiee(traits, src2 - o, front2 - o, src2.distance_to(_vers) * avance * 0.07 + 0.03, 2.0, 2, 4)
-			for q in range(av2, traits.size()):
-				traits[q][2] = float(traits[q][2]) * fade
 	return traits
 
 func _gen_reforme(g: GestionMagie, traits: Array, o: Vector3) -> Array:
@@ -239,7 +247,16 @@ static func tension(main: Node3D, vers: Vector3, k := 1.0, duree := 0.5, main2: 
 	n.duree_geste = duree + 0.1
 	if main != null and is_instance_valid(main):
 		n.mains = [main]
-	if main2 != null:
+		# double magie posée par MainSort : meneuse puis suiveuse, sources au point de fusion commun
+		var dbl := LancerEcole.double_transition("electricite", main.global_position)
+		if not dbl.is_empty():
+			n._poser_double(dbl.meneuse, dbl.suiveuse, dbl.point)
+			main2 = null
+	elif depart_pos != Vector3.INF:
+		var dbl2 := LancerEcole.double_transition("electricite", depart_pos, 0.6)
+		if not dbl2.is_empty():
+			n._poser_double(dbl2.meneuse, dbl2.suiveuse, dbl2.point)
+	if main2 != null and is_instance_valid(main2):
 		n.mains.append(main2)
 		n.double = true
 	n.name = "TensionElec"

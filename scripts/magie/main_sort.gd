@@ -430,14 +430,19 @@ func _avancer_main_etat(m: String, dt: float, deux_canal: bool) -> void:
 		# la main suiveuse reprend l'état de la meneuse ; si la meneuse a fini, elle se repose
 		if not o.double:
 			i.double = false
-			i.changer(Incantation.RECUPERATION if i.active() else i.etat)
+			if i.active():
+				i.changer(Incantation.RECUPERATION)
+				i.duree_recup = o.duree_recup
+				i.depuis_lancement = o.depuis_lancement
 		else:
 			i.etat = o.etat
 			i.charge = o.charge
 			i.depuis_lancement = o.depuis_lancement
 			if not i.tenu and o.tenu and i.etat in [Incantation.CHARGE, Incantation.CANALISE]:
 				o.tenu = false   # double : relâcher l'une des deux mains termine le sort
-		_aura_vers(m, s.ecole, _intensite(o, s) if o.double else 0.0, dt)
+		# la meneuse vient de lancer (elle quitte le double) : la suiveuse garde son énergie (récupération) au lieu de tomber
+		# à 0 une image — ses runes, son noyau et la lueur de l'avant-bras étaient détruits puis recréés : main noire, éclat
+		_aura_vers(m, s.ecole, _intensite(o, s) if o.double else _intensite(i, s), dt)
 		return
 	var sd := LanceurSorts.version_double(s) if i.double else s
 	if i.double and not o.tenu and i.etat in [Incantation.CHARGE, Incantation.CANALISE]:

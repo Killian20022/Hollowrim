@@ -51,6 +51,9 @@ var _add: NoyauEcole.Bouffees
 var _p: Array = []             # puffs en monde (voir _semer)
 var _runes: RunesOrbite
 var _libre := false
+## Position de la caméra (image courante) : les filaments s'effacent près de l'œil (un trait de quelques cm devant l'objectif
+## couvrirait l'écran : « aiguille » en travers de la vue FPS).
+var _oeil := Vector3.INF
 var _debut_fait := false
 
 ## Nœud prêt à l'emploi pour une école (null si l'école n'a pas de lancer propre : feu, soin, protection).
@@ -84,18 +87,53 @@ static func projectile(ecole_: String, forme_: String) -> Node3D:
 ## Double magie : même sort dans les deux mains. Deux flux partent des paumes, convergent vers `point_fusion` et fusionnent en
 ## un seul, plus large (un seul anneau de runes commun). `intensite` ~1 (0,5 à 1,5). Renvoie le nœud (déjà démarré, ajouté à
 ## la scène courante) : la tête fusionnée suit `maintenir(tete, dir)` comme un sort simple, ou reste au point de fusion.
-static func combiner(main_g: Node3D, main_d: Node3D, point_fusion: Vector3, intensite_ := 1.0, ecole_ := "glace", forme_ := "eclat") -> LancerEcole:
+## `direction` non nulle : geste de départ combiné (sorts sans projectile : souffle, drain, zone…) ; sinon la tête suit `maintenir`.
+## Branchée sur le point de fusion commun (TransitionSort) : `depart` l'appelle en double ; un projectile double s'y accorde seul
+## (`_poser_double` dans `demarrer`).
+static func combiner(main_g: Node3D, main_d: Node3D, point_fusion: Vector3, intensite_ := 1.0, ecole_ := "glace", forme_ := "eclat", direction := Vector3.ZERO) -> LancerEcole:
 	var n := creer(ecole_, forme_)
 	if n == null:
 		return null
-	n.double = true
-	n.mains = [main_g, main_d]
-	n.fusion = point_fusion
+	n._poser_double(main_g, main_d, point_fusion)
 	_scene().add_child(n)
 	n.global_position = point_fusion
 	n.tete = point_fusion
+	if direction.length() > 0.001:
+		n.dir = direction.normalized()
+		n.set_meta("geste", true)
 	n.demarrer(intensite_)
 	return n
+
+## Double magie : les deux flux partent des SOURCES (le noyau de chaque main, déjà ramené vers le point de fusion par TransitionSort)
+## et se rejoignent en un seul ; `mains[0]` = la meneuse.
+func _poser_double(meneuse: Node3D, suiveuse: Node3D, point_fusion: Vector3) -> void:
+	double = true
+	mains = [meneuse, suiveuse]
+	fusion = point_fusion
+
+## Double magie posée par MainSort (TransitionSort, docs/MAGIE_TRANSITIONS.md) pour les mains de cette école proches de `pos` :
+## {"meneuse", "suiveuse", "tr" (transition de la meneuse), "point" (point de fusion, au cœur de l'énergie tenue)} ou {} hors double.
+static func double_transition(ecole_: String, pos: Vector3, rayon := 1.0) -> Dictionary:
+	var g := GestionMagie.obtenir()
+	if g == null:
+		return {}
+	var men: Node3D = null
+	var sui: Node3D = null
+	var trm: TransitionSort = null
+	for a: Dictionary in g._auras.values():
+		if a.ecole != ecole_ or not g.valide(a.main):
+			continue
+		var tr: TransitionSort = g.transitions_aura.get((a.main as Node).get_instance_id())
+		if tr == null or not tr.double or (a.main as Node3D).global_position.distance_to(pos) > rayon:
+			continue
+		if tr.meneuse:
+			men = a.main
+			trm = tr
+		else:
+			sui = a.main
+	if men == null or sui == null:
+		return {}
+	return {"meneuse": men, "suiveuse": sui, "tr": trm, "point": trm.point + Vector3.UP * TransitionSort.LEVEE}
 
 ## « Geste de départ » d'un sort sans projectile (souffle de givre, arc, chaîne, orage, drain, rayon) : la tête fictive part de
 ## la main dans `direction` à 7 m/s pendant la naissance puis s'éteint ; la main et ce qui la tient se rassemblent dedans.
@@ -103,8 +141,14 @@ static func depart(ecole_: String, main: Node3D, direction: Vector3, k := 1.0) -
 	if ecole_ == "electricite" and main != null and is_instance_valid(main):
 		var l := mains_de(ecole_, main.global_position)
 		return LancerElec.tension(main, main.global_position + direction.normalized() * 4.0, k, 0.45, l[1] if l.size() > 1 and l[0] == main else null)
+	if main == null or not is_instance_valid(main):
+		return null
+	var dbl := double_transition(ecole_, main.global_position)
+	if not dbl.is_empty():
+		# double : UN seul geste, né au point de fusion des deux sources (la suiveuse n'en lance pas de second)
+		return combiner(dbl.meneuse, dbl.suiveuse, dbl.point, k * 1.15, ecole_, "geste", direction)
 	var n := creer(ecole_, "geste")
-	if n == null or main == null or not is_instance_valid(main):
+	if n == null:
 		return null
 	n.mains = [main]
 	n.double = false
@@ -174,6 +218,10 @@ func demarrer(progression := 1.0) -> void:
 	elif tete == Vector3.ZERO:
 		tete = global_position
 	origine = tete
+	if mains.is_empty():
+		var dbl := double_transition(ecole, tete)
+		if not dbl.is_empty():
+			_poser_double(dbl.meneuse, dbl.suiveuse, dbl.point)
 	if mains.is_empty():
 		var l := mains_de(ecole, tete)
 		if not l.is_empty():
@@ -252,6 +300,7 @@ func _process(dt: float) -> void:
 			phase = Phase.VOL
 	var cam := get_viewport().get_camera_3d()
 	var cb := cam.global_basis if cam != null else Basis.IDENTITY
+	_oeil = cam.global_position if cam != null else Vector3.INF
 	_maj(dt, cb)
 	_prec = tete
 	var g := GestionMagie.obtenir()
@@ -372,7 +421,10 @@ func puffs(dt: float, cb: Basis, amorti_al := 1.0) -> void:
 				var v := vel if vel.length() > 0.05 else dir
 				var ang := atan2(v.dot(cb.y), v.dot(cb.x))
 				var lg := float(e.long) * (1.0 - 0.5 * p)
-				lot_m.append([pos, NoyauEcole._bb(cb, ang, lg, lg * 0.11), Color(1, 1, 1, al), Color(hh, float(e.ton), 1.0, 0.0)])
+				if _oeil != Vector3.INF:
+					al *= smoothstep(0.7, 1.6, pos.distance_to(_oeil))
+				if al > 0.01:
+					lot_m.append([pos, NoyauEcole._bb(cb, ang, lg, lg * 0.11), Color(1, 1, 1, al), Color(hh, float(e.ton), 1.0, 0.0)])
 			2:
 				lot_a.append([pos, NoyauEcole._bb(cb, 0.0, s, s), Color(1, 1, 1, al), Color(hh, 1.0, 2.0, 0.0)])
 			3:
@@ -406,7 +458,10 @@ func lumiere(couleur: Color, energie: float, portee := 5.0) -> void:
 		g.lumiere("lancer%d" % get_instance_id(), tete, couleur, energie, portee, 3.0)
 
 ## Position d'une paume (monde), ou `repli` si elle a disparu.
+## En double magie, c'est la SOURCE (paume + TransitionSort.decalage : là où le noyau de la main a glissé vers le point de fusion),
+## pour que les flux partent de l'énergie tenue et non d'une paume vide ; la paume elle-même hors double (décalage nul).
 func pos_main(i: int, repli: Vector3) -> Vector3:
 	if i < mains.size() and is_instance_valid(mains[i]) and mains[i].is_inside_tree():
-		return mains[i].global_position
+		var g := GestionMagie.obtenir()
+		return mains[i].global_position + (g.decalage_de(mains[i]) if g != null else Vector3.ZERO)
 	return repli

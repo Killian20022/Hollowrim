@@ -97,7 +97,7 @@ func _maj(dt: float, cb: Basis) -> void:
 				var f2 := randf()
 				var a2 := randf() * TAU
 				var o: Vector3 = (pr[0] * cos(a2) + pr[1] * sin(a2)) * 0.05
-				semer({"pos": src.lerp(tete, f2) + o, "vel": (tete - src).normalized() * 0.5, "vie": 0.3, "sorte": 1, "long": minf(l * 0.3, 0.9), "ton": 0.4 + 0.6 * randf(), "a": 0.9})
+				semer({"pos": src.lerp(tete, f2) + o, "vel": (tete - src).normalized() * 0.5, "vie": 0.3, "sorte": 1, "long": minf(l * 0.15, 0.3), "ton": 0.3 + 0.4 * randf(), "a": 0.9})
 		# volute : la fumée s'enroule en hélice autour de l'axe
 		var dens := (0.6 + 0.4 * s)
 		var semis := func(pos: Vector3) -> void:
@@ -108,7 +108,9 @@ func _maj(dt: float, cb: Basis) -> void:
 			semer({"pos": pos + off2, "vel": tang * 1.1 - dir * 0.45 + off2 * 2.5, "vie": randf_range(0.8, 1.2), "s0": 0.12 * ech, "s1": 0.36 * ech, "a": 0.9 * dens,
 				"ton": randf() * 0.7, "freine": 1.3, "grav": -0.15})
 			if randf() < 0.45:
-				semer({"pos": pos + off2 * 1.3, "vel": tang * 1.6 - dir * 1.8, "vie": randf_range(0.28, 0.42), "sorte": 1, "long": randf_range(0.18, 0.3) * ech, "ton": 0.3 + 0.7 * randf(), "a": 0.9, "freine": 1.0})
+				# filaments effilochés : ils restent dans la volute (léger recul, freinés) au lieu de filer vers l'œil, où un trait de
+				# 0,3 m devenait une longue aiguille blanche en travers de l'écran ; tons violets (pas de blanc pur)
+				semer({"pos": pos + off2 * 1.3, "vel": tang * 1.2 - dir * 0.35, "vie": randf_range(0.28, 0.42), "sorte": 1, "long": randf_range(0.1, 0.17) * ech, "ton": 0.3 + 0.45 * randf(), "a": 0.85, "freine": 3.0})
 			if randf() < 0.35:
 				semer({"pos": pos + off2 * 1.5, "vel": off2 * 4.0 - dir * 0.5, "vie": randf_range(0.3, 0.6), "sorte": 3, "s0": 0.014, "s1": 0.006, "a": 1.0, "ton": randf(), "freine": 2.0})
 		le_long(semis, 0.07)
