@@ -1,0 +1,447 @@
+{
+ "couleurs": [
+  {
+   "hex": "#2e2a26",
+   "poids": 2.423,
+   "s": 0.17,
+   "source": "ancienne_accessoires_1",
+   "v": 0.18
+  },
+  {
+   "hex": "#38332f",
+   "poids": 2.173,
+   "s": 0.17,
+   "source": "ancienne_capuche_0",
+   "v": 0.22
+  },
+  {
+   "hex": "#2e313a",
+   "poids": 2.098,
+   "s": 0.21,
+   "source": "chasseuse_tresses_0",
+   "v": 0.23
+  },
+  {
+   "hex": "#534a41",
+   "poids": 1.661,
+   "s": 0.21,
+   "source": "eirik_accessoires_0",
+   "v": 0.33
+  },
+  {
+   "hex": "#221d29",
+   "poids": 1.556,
+   "s": 0.27,
+   "source": "volva_accessoires_1",
+   "v": 0.16
+  },
+  {
+   "hex": "#352523",
+   "poids": 1.482,
+   "s": 0.33,
+   "source": "chef_accessoires_0",
+   "v": 0.21
+  },
+  {
+   "hex": "#3c3547",
+   "poids": 1.325,
+   "s": 0.26,
+   "source": "volva_accessoires_1",
+   "v": 0.28
+  },
+  {
+   "hex": "#57504a",
+   "poids": 1.315,
+   "s": 0.14,
+   "source": "ancienne_capuche_0",
+   "v": 0.34
+  },
+  {
+   "hex": "#36353b",
+   "poids": 1.185,
+   "s": 0.1,
+   "source": "eirik_pantalon_0",
+   "v": 0.23
+  },
+  {
+   "hex": "#29201a",
+   "poids": 1.084,
+   "s": 0.37,
+   "source": "chasseuse_tresses_0",
+   "v": 0.16
+  },
+  {
+   "hex": "#4b4540",
+   "poids": 0.987,
+   "s": 0.15,
+   "source": "ancienne_accessoires_1",
+   "v": 0.29
+  },
+  {
+   "hex": "#7c6f5e",
+   "poids": 0.949,
+   "s": 0.24,
+   "source": "ancienne_accessoires_1",
+   "v": 0.49
+  },
+  {
+   "hex": "#6d655f",
+   "poids": 0.854,
+   "s": 0.13,
+   "source": "ancienne_mante_0",
+   "v": 0.43
+  },
+  {
+   "hex": "#403b36",
+   "poids": 0.824,
+   "s": 0.16,
+   "source": "ancienne_capuche_0",
+   "v": 0.25
+  },
+  {
+   "hex": "#503b2a",
+   "poids": 0.788,
+   "s": 0.47,
+   "source": "chasseuse_tresses_0",
+   "v": 0.31
+  },
+  {
+   "hex": "#5b4e42",
+   "poids": 0.724,
+   "s": 0.28,
+   "source": "chef_accessoires_1",
+   "v": 0.36
+  },
+  {
+   "hex": "#60564b",
+   "poids": 0.53,
+   "s": 0.22,
+   "source": "ancienne_foulard",
+   "v": 0.38
+  },
+  {
+   "hex": "#3c2d22",
+   "poids": 0.514,
+   "s": 0.43,
+   "source": "eirik_bottes_0",
+   "v": 0.24
+  },
+  {
+   "hex": "#8a8176",
+   "poids": 0.495,
+   "s": 0.14,
+   "source": "chef_cheveux",
+   "v": 0.54
+  },
+  {
+   "hex": "#333a33",
+   "poids": 0.466,
+   "s": 0.12,
+   "source": "eirik_accessoires_0",
+   "v": 0.23
+  },
+  {
+   "hex": "#46454a",
+   "poids": 0.432,
+   "s": 0.07,
+   "source": "eirik_pantalon_0",
+   "v": 0.29
+  },
+  {
+   "hex": "#662220",
+   "poids": 0.351,
+   "s": 0.69,
+   "source": "garde_cape",
+   "v": 0.4
+  },
+  {
+   "hex": "#3d583d",
+   "poids": 0.344,
+   "s": 0.31,
+   "source": "eirik_accessoires_1",
+   "v": 0.35
+  },
+  {
+   "hex": "#6c5745",
+   "poids": 0.335,
+   "s": 0.36,
+   "source": "chef_accessoires_0",
+   "v": 0.42
+  },
+  {
+   "hex": "#483729",
+   "poids": 0.33,
+   "s": 0.43,
+   "source": "chef_tunique_0",
+   "v": 0.28
+  },
+  {
+   "hex": "#52495f",
+   "poids": 0.314,
+   "s": 0.23,
+   "source": "volva_mante_0",
+   "v": 0.37
+  },
+  {
+   "hex": "#3e3c41",
+   "poids": 0.269,
+   "s": 0.08,
+   "source": "eirik_pantalon_0",
+   "v": 0.26
+  },
+  {
+   "hex": "#75695b",
+   "poids": 0.257,
+   "s": 0.23,
+   "source": "eirik_accessoires_0",
+   "v": 0.46
+  },
+  {
+   "hex": "#897b6a",
+   "poids": 0.252,
+   "s": 0.22,
+   "source": "ancienne_foulard",
+   "v": 0.54
+  },
+  {
+   "hex": "#55452f",
+   "poids": 0.248,
+   "s": 0.45,
+   "source": "ancienne_accessoires_1",
+   "v": 0.33
+  },
+  {
+   "hex": "#ae9d87",
+   "poids": 0.244,
+   "s": 0.22,
+   "source": "eirik_accessoires_0",
+   "v": 0.68
+  },
+  {
+   "hex": "#69523b",
+   "poids": 0.241,
+   "s": 0.44,
+   "source": "chef_tunique_0",
+   "v": 0.41
+  },
+  {
+   "hex": "#5d7d5b",
+   "poids": 0.241,
+   "s": 0.27,
+   "source": "eirik_accessoires_1",
+   "v": 0.49
+  },
+  {
+   "hex": "#756051",
+   "poids": 0.235,
+   "s": 0.31,
+   "source": "chasseuse_tresses_0",
+   "v": 0.46
+  },
+  {
+   "hex": "#b4a18c",
+   "poids": 0.227,
+   "s": 0.22,
+   "source": "ancienne_foulard",
+   "v": 0.71
+  },
+  {
+   "hex": "#2b412d",
+   "poids": 0.226,
+   "s": 0.34,
+   "source": "eirik_accessoires_1",
+   "v": 0.25
+  },
+  {
+   "hex": "#4b1515",
+   "poids": 0.224,
+   "s": 0.72,
+   "source": "garde_cape",
+   "v": 0.29
+  },
+  {
+   "hex": "#9a2b2b",
+   "poids": 0.224,
+   "s": 0.72,
+   "source": "garde_cape",
+   "v": 0.6
+  },
+  {
+   "hex": "#292331",
+   "poids": 0.206,
+   "s": 0.28,
+   "source": "volva_capuche_0",
+   "v": 0.19
+  },
+  {
+   "hex": "#2c1417",
+   "poids": 0.19,
+   "s": 0.55,
+   "source": "chef_accessoires_1",
+   "v": 0.17
+  },
+  {
+   "hex": "#584c53",
+   "poids": 0.186,
+   "s": 0.13,
+   "source": "volva_jupe_0",
+   "v": 0.35
+  },
+  {
+   "hex": "#9d8d7a",
+   "poids": 0.179,
+   "s": 0.22,
+   "source": "ancienne_foulard",
+   "v": 0.62
+  },
+  {
+   "hex": "#1c0c0d",
+   "poids": 0.167,
+   "s": 0.58,
+   "source": "chef_accessoires_1",
+   "v": 0.11
+  },
+  {
+   "hex": "#988070",
+   "poids": 0.138,
+   "s": 0.26,
+   "source": "chef_accessoires_1",
+   "v": 0.6
+  },
+  {
+   "hex": "#bfac95",
+   "poids": 0.134,
+   "s": 0.22,
+   "source": "ancienne_accessoires_1",
+   "v": 0.75
+  },
+  {
+   "hex": "#9f9188",
+   "poids": 0.133,
+   "s": 0.15,
+   "source": "ancienne_tunique_0",
+   "v": 0.62
+  },
+  {
+   "hex": "#2f0d0c",
+   "poids": 0.123,
+   "s": 0.74,
+   "source": "garde_cape",
+   "v": 0.19
+  },
+  {
+   "hex": "#1a291c",
+   "poids": 0.121,
+   "s": 0.36,
+   "source": "eirik_accessoires_1",
+   "v": 0.16
+  },
+  {
+   "hex": "#1b1714",
+   "poids": 0.12,
+   "s": 0.24,
+   "source": "ancienne_jupe_0",
+   "v": 0.1
+  },
+  {
+   "hex": "#7d6e82",
+   "poids": 0.108,
+   "s": 0.15,
+   "source": "volva_accessoires_1",
+   "v": 0.51
+  },
+  {
+   "hex": "#b0a599",
+   "poids": 0.102,
+   "s": 0.13,
+   "source": "chef_accessoires_0",
+   "v": 0.69
+  },
+  {
+   "hex": "#988a70",
+   "poids": 0.077,
+   "s": 0.26,
+   "source": "garde_cape",
+   "v": 0.6
+  },
+  {
+   "hex": "#b1aca3",
+   "poids": 0.076,
+   "s": 0.08,
+   "source": "chasseuse_tresses_0",
+   "v": 0.7
+  },
+  {
+   "hex": "#93887e",
+   "poids": 0.072,
+   "s": 0.14,
+   "source": "ancienne_jupe_0",
+   "v": 0.57
+  },
+  {
+   "hex": "#6c6055",
+   "poids": 0.071,
+   "s": 0.21,
+   "source": "chef_tresses_0",
+   "v": 0.42
+  },
+  {
+   "hex": "#a9a792",
+   "poids": 0.068,
+   "s": 0.13,
+   "source": "eirik_accessoires_1",
+   "v": 0.66
+  },
+  {
+   "hex": "#a7a69d",
+   "poids": 0.062,
+   "s": 0.06,
+   "source": "eirik_bottes_0",
+   "v": 0.66
+  },
+  {
+   "hex": "#786b8f",
+   "poids": 0.059,
+   "s": 0.26,
+   "source": "volva_tunique_0",
+   "v": 0.56
+  },
+  {
+   "hex": "#9d8768",
+   "poids": 0.058,
+   "s": 0.34,
+   "source": "chef_tunique_0",
+   "v": 0.62
+  },
+  {
+   "hex": "#241412",
+   "poids": 0.055,
+   "s": 0.51,
+   "source": "chef_accessoires_0",
+   "v": 0.14
+  },
+  {
+   "hex": "#110e16",
+   "poids": 0.035,
+   "s": 0.35,
+   "source": "volva_jupe_0",
+   "v": 0.09
+  },
+  {
+   "hex": "#9b9195",
+   "poids": 0.031,
+   "s": 0.06,
+   "source": "volva_jupe_0",
+   "v": 0.61
+  }
+ ],
+ "note": "outils/pq_palette_pnj.gd : couleurs des tenues des PNJ en jeu (assets/pnj), sRGB",
+ "peaux": [
+  "#9c765c",
+  "#7f614e",
+  "#8c6b55",
+  "#9c755c",
+  "#7f614e",
+  "#8c6a55"
+ ]
+}

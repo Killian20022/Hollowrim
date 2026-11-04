@@ -243,7 +243,12 @@ static func zones_hrafn() -> Array:
 			]},
 		{"id": "mine_retour", "branche": "A", "s": [63.5, 74.93], "theme": "mine", "role": "repos", "graine": 205, "densite": 0.8, "n_lum": 2,
 			"params": {"etais": [67.5], "rails": [64.0, 72.0], "chariots": [69.8]},
-			"teinte": [Color(0.38, 0.8, 0.72), Color(1.0, 0.6, 0.28)]},
+			"teinte": [Color(0.38, 0.8, 0.72), Color(1.0, 0.6, 0.28)],
+			# nid d'araignées des cavernes (BeteQuat, persos/quaternius_jeu 2026-11-04) : en embuscade dans la galerie du retour, hors des rails
+			"ennemis": [
+				{"id": "araignee_mine_a", "ia": "araignee", "s": 66.0, "lat": 1.7, "face": "entree", "nom": "Araignée des cavernes"},
+				{"id": "araignee_mine_b", "ia": "araignee", "s": 71.0, "lat": -1.8, "face": "entree", "nom": "Araignée des cavernes"},
+			]},
 		# --- caverne du lac (branche B, à gauche)
 		{"id": "lac_acces", "branche": "B", "s": [0.0, 11.5], "theme": "lac", "role": "transition", "graine": 301, "densite": 0.8, "n_lum": 1,
 			"teinte": [Color(0.5, 0.8, 0.68), Color(0.56, 0.8, 0.74)],

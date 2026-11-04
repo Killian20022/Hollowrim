@@ -192,6 +192,8 @@ func _ready() -> void:
 	await _souffle()
 	await _draugrs()
 	_chrono("draugrs du cercle")
+	await _betes()
+	_chrono("betes")
 	await _souffle()
 	await _villageois()
 	_chrono("villageois")
@@ -648,8 +650,11 @@ func _villageois() -> void:
 	rng_pts.seed = 20261020          # promenades des villageois reproductibles (captures)
 	for d in VILLAGEOIS.charger():
 		var poste: Vector3 = village.lieux.get(d.get("lieu", "place"), village.lieux["place"])
+		if d.has("pos"):          # habitant anonyme (data/habitants.json) : poste propre en (x, z) monde
+			var pz: Array = d["pos"]
+			poste = Vector3(float(pz[0]), hauteur(float(pz[0]), float(pz[1])), float(pz[1]))
 		var points: Array[Vector3] = [poste]
-		if not village.sedentaires.has(d.get("lieu", "place")):   # le forgeron reste dans sa forge (porte fermée la nuit, murs)
+		if not village.sedentaires.has(d.get("lieu", "place")) and not d.get("sedentaire", false):   # le forgeron reste dans sa forge (porte fermée la nuit, murs)
 			for p in promenade.duplicate():
 				if p != poste and rng_pts.randf() < 0.4 and points.size() < 4:
 					points.append(p)
@@ -1090,7 +1095,9 @@ func creer_ennemi(script: Script, position_: Vector3, lacet: float, options := {
 	return d
 
 ## Scripts des ennemis à IA propre cités par nom dans les données des lieux (grotte_donnees « ia », crypte_donjon extra « ia »).
-const SCRIPTS_IA := {"troll_givre": "res://scripts/troll_givre_ia.gd", "mage_nordique": "res://scripts/mage_nordique_ia.gd"}
+const SCRIPTS_IA := {"troll_givre": "res://scripts/troll_givre_ia.gd", "mage_nordique": "res://scripts/mage_nordique_ia.gd",
+	"loup": "res://scripts/bete_quat.gd", "araignee": "res://scripts/bete_quat.gd", "cerf": "res://scripts/bete_quat.gd",
+	"biche": "res://scripts/bete_quat.gd", "renard": "res://scripts/bete_quat.gd"}
 
 static func script_ia(nom: String) -> Script:
 	assert(SCRIPTS_IA.has(nom), "ennemi à IA inconnu : " + nom)
@@ -1108,6 +1115,36 @@ func _draugrs() -> void:
 	await _souffle()
 	# un rôdeur dans la forêt, entre le feu et le cercle
 	sbire = _draugr("sbire", -16.0, -15.0, false, 0.6)
+
+## Bêtes et faune Quaternius (BeteQuat, persos/quaternius_jeu 2026-11-04) posées à quelques endroits logiques de la surface :
+## une meute de loups dans la forêt entre le feu et le cercle de pierres, un cerf et deux biches qui broutent au champ nord (F3,
+## lisière du bois, au-dessus de la ferme B), un renard au bord du champ de la ferme A. Les araignées sont dans la grotte (grotte_donnees, « ia »). `--persos-anciens` / `--sans-betes` : aucune.
+## Positions fixes pour l'instant ; le futur système d'apparition par biome / jour-nuit tirera dans BeteQuat.ESPECES.
+const BETES := [
+	# [espèce, ident, x, z, lacet°, meute]
+	["loup", "loup_bois_a", -14.0, -27.0, 40.0, "bois"],
+	["loup", "loup_bois_b", -11.5, -29.5, 70.0, "bois"],
+	["loup", "loup_bois_c", -16.5, -30.0, 20.0, "bois"],
+	["cerf", "cerf_pre", 61.0, -9.5, 200.0, ""],
+	["biche", "biche_pre_a", 64.0, -6.5, 160.0, ""],
+	["biche", "biche_pre_b", 58.5, -5.0, 230.0, ""],
+	["renard", "renard_fermes", 82.0, 33.5, 120.0, ""],
+]
+const BETE := preload("res://scripts/bete_quat.gd")
+
+func _betes() -> void:
+	if PersosQuat.anciens() or _arguments().has("sans-betes"):
+		return
+	for b: Array in BETES:
+		var x: float = b[2]
+		var z: float = b[3]
+		var opts := {"espece": b[0], "ident": b[1]}
+		if String(b[5]) != "":
+			opts["meute"] = b[5]
+		var e := creer_ennemi(BETE, Vector3(x, hauteur(x, z) + 0.05, z), deg_to_rad(float(b[4])), opts)
+		if _paisible():
+			e.process_mode = Node.PROCESS_MODE_DISABLED
+	await _souffle()
 
 func _neige() -> void:
 	neige = GPUParticles3D.new()
@@ -1696,8 +1733,11 @@ func _lot_captures(fichier: String) -> void:
 				# son poste (physique coupée), son animation d'activité continue (ou anim=Clip:t pour une pose figée)
 				var cible_v: Node3D = null
 				for pv in get_tree().get_nodes_in_group("villageois"):
-					if pv.donnees.get("id") == String(opt.get("id", "volva")):
+					if pv.get("donnees") is Dictionary and pv.donnees.get("id") == String(opt.get("id", "volva")):
 						cible_v = pv
+				for pb in get_tree().get_nodes_in_group("bete_quat"):     # bêtes et faune (BeteQuat) : même vue, par ident
+					if pb.ident == String(opt.get("id", "")):
+						cible_v = pb
 				if cible_v == null:
 					push_error("--captures : vue « pnj » : villageois introuvable " + String(opt.get("id", "")))
 					continue
@@ -1949,17 +1989,26 @@ func _scenario(nom: String) -> void:
 				if id == "draugr":
 					tenues.append({"corps": "homme", "draugr": true, "casque": "casque_draugr", "etoffes": {"tunique": "mailles_rouille", "brassards": "draugr"},
 						"tenue": {"tunique": Color.WHITE, "ceinture": Color.WHITE, "brassards": Color.WHITE, "mante": Color.WHITE, "bottes": Color.WHITE, "epaulieres": Color.WHITE, "pteruges": Color.WHITE, "cape_courte": Color.WHITE}})
+				elif id.begins_with("pq_") or id.begins_with("pnj:"):
+					tenues.append(id)     # persos/quaternius_jeu : habitant Quaternius (pq_hab_…) ou PNJ nommé du jeu (pnj:forgeron) côte à côte
 				elif VILLAGEOIS.APPARENCES.has(id):
 					tenues.append(VILLAGEOIS.APPARENCES[id])
 			for i in tenues.size():
-				var h := Humain.creer(tenues[i])
+				var h: Node3D
+				if tenues[i] is String and String(tenues[i]).begins_with("pq_"):
+					h = PersosQuat.creer(tenues[i])
+				elif tenues[i] is String:
+					h = PnjNordique.creer(String(tenues[i]).trim_prefix("pnj:"))
+				else:
+					h = Humain.creer(tenues[i])
 				add_child(h)
-				var x := -1.6 * (tenues.size() - 1) * 0.5 + i * 1.6
+				var pas_g := 1.6 if tenues.size() <= 6 else 1.1
+				var x := -pas_g * (tenues.size() - 1) * 0.5 + i * pas_g
 				h.global_position = Vector3(x, hauteur(x, -4.6), -4.6)
 				h.rotation.y = 0.0
 				(h.get_node("Animations") as AnimationPlayer).play(["Idle", "Idle_Talking", "Idle", "Idle_Talking", "Sword_Idle"][i % 5])
 			joueur.mains.visible = false
-			_placer(Vector3(0, 0, -1.3), Vector3(0, 1.1, -4.6))
+			_placer(Vector3(0, 0, -4.6 + maxf(3.3, 0.62 * 1.1 * tenues.size())), Vector3(0, 1.1, -4.6))   # recule pour cadrer toute la rangée
 			await get_tree().create_timer(1.0).timeout
 		"crypte", "tombe":
 			tertre._passer(true)

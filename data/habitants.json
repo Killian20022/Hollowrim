@@ -1,0 +1,432 @@
+{
+ "note": "Habitants anonymes du village (scripts/villageois.gd habitants(), persos/quaternius_jeu 2026-11-04). pq : corps Quaternius sali (PersosQuat.HABITANTS) ; ancien : corps Humain.creer (--persos-anciens) ; pos : (x, z) monde ; cap : degrés (0 = vers +Z) ; activite : clip au poste ; sedentaire : ne se promène pas. Répliques communes par type dans roles. Postes HORS des rondes de la garde (data/gardes.json : ronde_place, ronde_rue).",
+ "roles": {
+  "paysan": {
+   "nom": "Paysan",
+   "role": "Paysan",
+   "interpellations": [
+    "Le froid mord tôt, cette année.",
+    "Pas le temps, l’étranger. Le bois ne se fend pas tout seul.",
+    "Tu viens d’où, avec ces bottes-là ?"
+   ],
+   "lignes": [
+    "On gratte la terre gelée et on prie pour que l’orge tienne.",
+    "Depuis les lueurs du cercle, les bêtes ne dorment plus la nuit.",
+    "Si tu vas vers le tertre, ne reviens pas avec ce qui y dort."
+   ],
+   "apres": [
+    "Bon. Le travail attend.",
+    "Reste près des feux à la nuit tombée.",
+    "Que les dieux te gardent les pieds au sec."
+   ]
+  },
+  "paysanne": {
+   "nom": "Fermière",
+   "role": "Fermière",
+   "interpellations": [
+    "Attention aux poules, voyageur. Enfin, à ce qu’il en reste.",
+    "Encore un qui cherche la gloire. Elle ne se mange pas.",
+    "Tu as faim ? Moi aussi."
+   ],
+   "lignes": [
+    "Les loups ont pris deux brebis à l’enclos, le mois dernier.",
+    "Grima dit que l’hiver sera long. Grima a toujours raison.",
+    "Mon homme est parti chercher du sel à la côte. Il tarde."
+   ],
+   "apres": [
+    "Va, va. J’ai du linge qui gèle.",
+    "Si tu croises des loups, frappe le premier.",
+    "La soupe sera claire, ce soir."
+   ]
+  },
+  "chasseur": {
+   "nom": "Chasseur",
+   "role": "Chasseur",
+   "interpellations": [
+    "Tu marches comme un sanglier.",
+    "Les cerfs sont descendus de la crête. Mauvais signe.",
+    "Ne va pas dans le bois seul à la nuit."
+   ],
+   "lignes": [
+    "Une meute rôde entre le village et le cercle de pierres. Quatre bêtes, peut-être plus.",
+    "Les cerfs se laissent approcher face au vent. Les loups, jamais.",
+    "Dans la grotte, il y a des toiles larges comme des voiles. Je n’y retourne pas."
+   ],
+   "apres": [
+    "Garde ta lame sèche.",
+    "Si tu ramènes une peau de loup, Ylva t’en donnera un bon prix.",
+    "Bonne chasse."
+   ]
+  },
+  "chasseresse": {
+   "nom": "Pisteuse",
+   "role": "Pisteuse",
+   "interpellations": [
+    "Chut. Tu fais fuir le gibier jusqu’ici.",
+    "Traces fraîches au nord. Pas de moi.",
+    "Tu sais lire la neige ?"
+   ],
+   "lignes": [
+    "Les loups chassent en meute : quand l’un te regarde, les autres te contournent.",
+    "Le renard rôde près des granges. Il est plus malin que nous tous.",
+    "Les araignées de la grotte tissent jusqu’au plafond. Prends du feu."
+   ],
+   "apres": [
+    "Va doucement, et regarde où tu poses les pieds.",
+    "Ylva est meilleure que moi. Ne lui dis pas.",
+    "Que la neige couvre tes pas."
+   ]
+  }
+ },
+ "habitants": [
+  {
+   "id": "hab_paysan_1",
+   "type": "paysan",
+   "pq": "pq_hab_paysan_a",
+   "pos": [
+    38.0,
+    38.4
+   ],
+   "cap": 90,
+   "activite": "Idle_Talking",
+   "sedentaire": true,
+   "ancien": {
+    "corps": "homme",
+    "tenue": {
+     "tunique": "#ffffff",
+     "pantalon": "#ffffff",
+     "bottes": "#ffffff",
+     "ceinture": "#ffffff"
+    },
+    "etoffes": {
+     "tunique": "brun",
+     "pantalon": "noir",
+     "bottes": "cuir_b",
+     "ceinture": "cuir_b"
+    },
+    "cheveux": "Hair_SimpleParted",
+    "teinte_cheveux": [
+     0.35,
+     0.22,
+     0.12
+    ],
+    "barbe": true
+   }
+  },
+  {
+   "id": "hab_paysanne_1",
+   "type": "paysanne",
+   "pq": "pq_hab_paysanne_a",
+   "pos": [
+    39.3,
+    38.4
+   ],
+   "cap": 270,
+   "activite": "Idle_Talking",
+   "sedentaire": true,
+   "ancien": {
+    "corps": "femme",
+    "tenue": {
+     "tunique": "#ffffff",
+     "pantalon": "#ffffff",
+     "bottes": "#ffffff",
+     "ceinture": "#ffffff",
+     "robe": "#ffffff"
+    },
+    "etoffes": {
+     "tunique": "rouge",
+     "pantalon": "brun",
+     "bottes": "cuir_b",
+     "ceinture": "cuir_b",
+     "robe": "brun"
+    },
+    "cheveux": "Hair_Buns",
+    "teinte_cheveux": [
+     0.55,
+     0.35,
+     0.2
+    ]
+   }
+  },
+  {
+   "id": "hab_paysanne_2",
+   "type": "paysanne",
+   "pq": "pq_hab_paysanne_b",
+   "lieu": "puits",
+   "pos": [
+    46.0,
+    38.2
+   ],
+   "cap": 300,
+   "ancien": {
+    "corps": "femme",
+    "tenue": {
+     "tunique": "#ffffff",
+     "pantalon": "#ffffff",
+     "bottes": "#ffffff",
+     "ceinture": "#ffffff",
+     "robe": "#ffffff"
+    },
+    "etoffes": {
+     "tunique": "gris",
+     "pantalon": "gris",
+     "bottes": "cuir_b",
+     "ceinture": "cuir_b",
+     "robe": "gris"
+    },
+    "cheveux": "Hair_Long",
+    "teinte_cheveux": [
+     0.95,
+     0.8,
+     0.5
+    ]
+   }
+  },
+  {
+   "id": "hab_paysan_2",
+   "type": "paysan",
+   "nom": "Vieux paysan",
+   "pq": "pq_hab_paysan_c",
+   "pos": [
+    43.0,
+    53.5
+   ],
+   "cap": 200,
+   "ancien": {
+    "corps": "homme",
+    "tenue": {
+     "tunique": "#ffffff",
+     "pantalon": "#ffffff",
+     "bottes": "#ffffff",
+     "ceinture": "#ffffff"
+    },
+    "etoffes": {
+     "tunique": "lin",
+     "pantalon": "brun",
+     "bottes": "cuir_b",
+     "ceinture": "cuir_b"
+    },
+    "cheveux": "Hair_Long",
+    "teinte_cheveux": [
+     0.8,
+     0.78,
+     0.76
+    ],
+    "barbe": true
+   }
+  },
+  {
+   "id": "hab_paysanne_3",
+   "type": "paysanne",
+   "nom": "Lavandière",
+   "pq": "pq_hab_paysanne_c",
+   "pos": [
+    34.5,
+    56.6
+   ],
+   "cap": 0,
+   "activite": "Fixing_Kneeling",
+   "sedentaire": true,
+   "ancien": {
+    "corps": "femme",
+    "tenue": {
+     "tunique": "#ffffff",
+     "pantalon": "#ffffff",
+     "bottes": "#ffffff",
+     "ceinture": "#ffffff",
+     "robe": "#ffffff"
+    },
+    "etoffes": {
+     "tunique": "bleu",
+     "pantalon": "lin",
+     "bottes": "cuir_b",
+     "ceinture": "cuir_b",
+     "robe": "lin"
+    },
+    "cheveux": "Hair_Long",
+    "teinte_cheveux": [
+     0.3,
+     0.2,
+     0.15
+    ]
+   }
+  },
+  {
+   "id": "hab_paysan_3",
+   "type": "paysan",
+   "pq": "pq_hab_paysan_b",
+   "pos": [
+    46.6,
+    44.6
+   ],
+   "cap": 180,
+   "ancien": {
+    "corps": "homme",
+    "tenue": {
+     "tunique": "#ffffff",
+     "pantalon": "#ffffff",
+     "bottes": "#ffffff",
+     "ceinture": "#ffffff"
+    },
+    "etoffes": {
+     "tunique": "bleu",
+     "pantalon": "gris",
+     "bottes": "cuir_b",
+     "ceinture": "cuir_b"
+    },
+    "cheveux": "Hair_Buzzed",
+    "teinte_cheveux": [
+     0.6,
+     0.4,
+     0.25
+    ],
+    "barbe": true
+   },
+   "sedentaire": true,
+   "activite": "Idle"
+  },
+  {
+   "id": "hab_chasseur_1",
+   "type": "chasseur",
+   "pq": "pq_hab_chasseur_a",
+   "pos": [
+    57.4,
+    30.4
+   ],
+   "cap": 270,
+   "ancien": {
+    "corps": "homme",
+    "tenue": {
+     "tunique": "#ffffff",
+     "pantalon": "#ffffff",
+     "bottes": "#ffffff",
+     "ceinture": "#ffffff",
+     "capuche": "#ffffff",
+     "mante": "#ffffff"
+    },
+    "etoffes": {
+     "tunique": "vert",
+     "pantalon": "brun",
+     "bottes": "cuir_b",
+     "ceinture": "cuir_b",
+     "capuche": "vert",
+     "mante": "brun"
+    },
+    "cheveux": "Hair_Buzzed",
+    "teinte_cheveux": [
+     0.2,
+     0.15,
+     0.1
+    ]
+   }
+  },
+  {
+   "id": "hab_chasseresse_1",
+   "type": "chasseresse",
+   "pq": "pq_hab_chasseresse_b",
+   "pos": [
+    57.2,
+    28.4
+   ],
+   "cap": 300,
+   "activite": "Idle_Talking",
+   "sedentaire": true,
+   "ancien": {
+    "corps": "femme",
+    "tenue": {
+     "tunique": "#ffffff",
+     "pantalon": "#ffffff",
+     "bottes": "#ffffff",
+     "ceinture": "#ffffff",
+     "mante": "#ffffff",
+     "robe": "#ffffff"
+    },
+    "etoffes": {
+     "tunique": "brun",
+     "pantalon": "brun",
+     "bottes": "cuir_b",
+     "ceinture": "cuir_b",
+     "mante": "brun",
+     "robe": "brun"
+    },
+    "cheveux": "Hair_Buns",
+    "teinte_cheveux": [
+     0.55,
+     0.25,
+     0.15
+    ]
+   }
+  },
+  {
+   "id": "hab_chasseur_2",
+   "type": "chasseur",
+   "pq": "pq_hab_chasseur_b",
+   "pos": [
+    60.0,
+    36.4
+   ],
+   "cap": 70,
+   "ancien": {
+    "corps": "homme",
+    "tenue": {
+     "tunique": "#ffffff",
+     "pantalon": "#ffffff",
+     "bottes": "#ffffff",
+     "ceinture": "#ffffff",
+     "mante": "#ffffff"
+    },
+    "etoffes": {
+     "tunique": "brun",
+     "pantalon": "noir",
+     "bottes": "cuir_b",
+     "ceinture": "cuir_b",
+     "mante": "brun"
+    },
+    "cheveux": "Hair_SimpleParted",
+    "teinte_cheveux": [
+     0.5,
+     0.35,
+     0.2
+    ],
+    "barbe": true
+   }
+  },
+  {
+   "id": "hab_chasseresse_2",
+   "type": "chasseresse",
+   "pq": "pq_hab_chasseresse_a",
+   "pos": [
+    42.5,
+    36.2
+   ],
+   "cap": 200,
+   "ancien": {
+    "corps": "femme",
+    "tenue": {
+     "tunique": "#ffffff",
+     "pantalon": "#ffffff",
+     "bottes": "#ffffff",
+     "ceinture": "#ffffff",
+     "capuche": "#ffffff",
+     "mante": "#ffffff",
+     "robe": "#ffffff"
+    },
+    "etoffes": {
+     "tunique": "vert",
+     "pantalon": "brun",
+     "bottes": "cuir_b",
+     "ceinture": "cuir_b",
+     "capuche": "vert",
+     "mante": "brun",
+     "robe": "brun"
+    },
+    "cheveux": "Hair_Long",
+    "teinte_cheveux": [
+     0.3,
+     0.2,
+     0.12
+    ]
+   }
+  }
+ ]
+}

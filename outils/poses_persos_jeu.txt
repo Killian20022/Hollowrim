@@ -1,0 +1,26 @@
+# persos/quaternius_jeu (2026-11-04) : habitants Quaternius salis et bêtes en vue de jeu, jour (12 h) et nuit (22 h)
+# lancer avec --paisible --sans-mains --sans-hud ; avant/après : même fichier avec -- --persos-anciens
+place_jour monde 32.5,44.5,-54,-4 heure=12
+place_nuit monde 32.5,44.5,-54,-4 heure=22
+place2_jour monde 41,47.5,28,-4 heure=12
+puits_jour monde 42,35,-131,-4 heure=12
+chasseurs_jour monde 53.5,31.5,-61,-4 heure=12
+chasseurs_nuit monde 53.5,31.5,-61,-4 heure=22
+enclos_jour monde 60,39.5,-90,-4 heure=12
+pont_jour monde 43,58.5,0,-4 heure=12
+quai_jour monde 38,53.6,131,-8 heure=12
+renard_jour pnj 4,40,0.3 id=renard_fermes heure=17
+gp_paysan pnj 2.6,25,1.0 id=hab_paysan_1 heure=12
+gp_vieux pnj 2.4,15,1.1 id=hab_paysan_2 heure=12
+gp_chasseur pnj 2.6,20,1.0 id=hab_chasseur_2 heure=12
+gp_pisteuse pnj 2.6,-20,1.0 id=hab_chasseresse_2 heure=12
+gp_volva pnj 3.2,-25,1.0 id=volva heure=12
+gp_ylva pnj 3.0,20,1.0 id=chasseuse heure=12
+gp_loup pnj 3.0,30,0.4 id=loup_bois_a heure=12
+gp_cerf pnj 4.0,60,1.0 id=cerf_pre heure=12
+loups_jour pnj 8,200,0.4 id=loup_bois_b heure=12
+loups_nuit pnj 8,200,0.4 id=loup_bois_b heure=23
+cerfs_jour pnj 9,150,0.9 id=cerf_pre heure=12
+cerfs_jour_b pnj 12,120,0.9 id=biche_pre_a heure=16
+cerfs_nuit pnj 9,150,0.9 id=cerf_pre heure=23
+araignees_grotte grotte 162.5,0,0,-5 attente=420

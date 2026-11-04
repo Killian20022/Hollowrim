@@ -1,0 +1,849 @@
+[
+ {
+  "nom": "pq_hab_paysan_a",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/Male_Peasant.gltf",
+  "hauteur": 0,
+  "budget": 4600,
+  "caps": {
+   "SuperHero": 1000,
+   "Eyes": 70,
+   "Eyebrows": 40,
+   "Hair": 380
+  },
+  "extras": [
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/Superhero_Male_FullBody.gltf",
+    "garder_tete": "SuperHero|Eyes|Eyebrows"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_SimpleParted.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Beard.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Modular Parts/Male_Ranger_Arms.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/homme_vetu.glb",
+    "garder_mat": "^mante$"
+   }
+  ],
+  "mats": {
+   "MI_Hair": "#54402f",
+   "mante": "#4b4540"
+  },
+  "sat": 0.5,
+  "val": 0.64,
+  "froid": 0.22,
+  "pied": 0.55,
+  "parts": [
+   {
+    "objet": "Body|Arms",
+    "mat": "Peasant|Ranger",
+    "min_v": 0.5,
+    "vers": "#69523b",
+    "force": 0.9,
+    "val": 0.95
+   },
+   {
+    "objet": "Legs",
+    "mat": "Peasant|Ranger",
+    "vers": "#3c2d22",
+    "force": 0.45,
+    "val": 0.9
+   },
+   {
+    "mat": "Peasant|Ranger",
+    "max_v": 0.5,
+    "vers": "#3a2a2a",
+    "force": 0.25,
+    "val": 0.9
+   }
+  ],
+  "boue": {
+   "haut": 0.3,
+   "couleur": "#3c2d22",
+   "force": 0.75,
+   "taches": 0.3,
+   "courbe": 0.7
+  },
+  "usure": 0.1,
+  "accroche": "pnj",
+  "retirer": [
+   "Peasant_Arms"
+  ]
+ },
+ {
+  "nom": "pq_hab_paysan_b",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/Male_Peasant.gltf",
+  "hauteur": 0,
+  "budget": 4600,
+  "caps": {
+   "SuperHero": 1000,
+   "Eyes": 70,
+   "Eyebrows": 40,
+   "Hair": 380
+  },
+  "extras": [
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/Superhero_Male_FullBody.gltf",
+    "garder_tete": "SuperHero|Eyes|Eyebrows"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Buzzed.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Beard.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Modular Parts/Male_Ranger_Arms.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/homme_vetu.glb",
+    "garder_mat": "^(cape|capuche)$"
+   }
+  ],
+  "mats": {
+   "MI_Hair": "#92613a",
+   "cape": "#36353b",
+   "capuche": "#38332f"
+  },
+  "sat": 0.5,
+  "val": 0.64,
+  "froid": 0.22,
+  "pied": 0.55,
+  "parts": [
+   {
+    "objet": "Body|Arms",
+    "mat": "Peasant|Ranger",
+    "min_v": 0.5,
+    "vers": "#46454a",
+    "force": 0.9,
+    "val": 0.95
+   },
+   {
+    "objet": "Legs",
+    "mat": "Peasant|Ranger",
+    "vers": "#36353b",
+    "force": 0.45,
+    "val": 0.9
+   },
+   {
+    "mat": "Peasant|Ranger",
+    "max_v": 0.5,
+    "vers": "#3a2a2a",
+    "force": 0.25,
+    "val": 0.9
+   }
+  ],
+  "boue": {
+   "haut": 0.3,
+   "couleur": "#3c2d22",
+   "force": 0.75,
+   "taches": 0.3,
+   "courbe": 0.7
+  },
+  "usure": 0.1,
+  "accroche": "pnj",
+  "retirer": [
+   "Peasant_Arms"
+  ]
+ },
+ {
+  "nom": "pq_hab_paysan_c",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/Male_Peasant.gltf",
+  "hauteur": 0,
+  "budget": 4600,
+  "caps": {
+   "SuperHero": 1000,
+   "Eyes": 70,
+   "Eyebrows": 40,
+   "Hair": 380
+  },
+  "extras": [
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/Superhero_Male_FullBody.gltf",
+    "garder_tete": "SuperHero|Eyes|Eyebrows"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Long.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Beard.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Modular Parts/Male_Ranger_Arms.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/homme_vetu.glb",
+    "garder_mat": "^(cape|mante)$"
+   }
+  ],
+  "mats": {
+   "MI_Hair": "#8e8688",
+   "cape": "#352523",
+   "mante": "#403b36"
+  },
+  "sat": 0.5,
+  "val": 0.64,
+  "froid": 0.22,
+  "pied": 0.55,
+  "parts": [
+   {
+    "objet": "Body|Arms",
+    "mat": "Peasant|Ranger",
+    "min_v": 0.5,
+    "vers": "#483729",
+    "force": 0.9,
+    "val": 0.95
+   },
+   {
+    "objet": "Legs",
+    "mat": "Peasant|Ranger",
+    "vers": "#3c2d22",
+    "force": 0.45,
+    "val": 0.9
+   },
+   {
+    "mat": "Peasant|Ranger",
+    "max_v": 0.5,
+    "vers": "#3a2a2a",
+    "force": 0.25,
+    "val": 0.9
+   }
+  ],
+  "boue": {
+   "haut": 0.3,
+   "couleur": "#3c2d22",
+   "force": 0.75,
+   "taches": 0.3,
+   "courbe": 0.7
+  },
+  "usure": 0.1,
+  "accroche": "pnj",
+  "retirer": [
+   "Peasant_Arms"
+  ]
+ },
+ {
+  "nom": "pq_hab_paysanne_a",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/Female_Peasant.gltf",
+  "hauteur": 0,
+  "budget": 4600,
+  "caps": {
+   "SuperHero": 1000,
+   "Eyes": 70,
+   "Eyebrows": 40,
+   "Hair": 380
+  },
+  "extras": [
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/Superhero_Female_FullBody.gltf",
+    "garder_tete": "SuperHero|Eyes|Eyebrows"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Long.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Modular Parts/Female_Ranger_Arms.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/femme_vetue.glb",
+    "garder_mat": "^(mante|capuche)$"
+   }
+  ],
+  "mats": {
+   "MI_Hair": "#6a4229",
+   "mante": "#503b2a",
+   "capuche": "#503b2a"
+  },
+  "sat": 0.5,
+  "val": 0.64,
+  "froid": 0.22,
+  "pied": 0.55,
+  "parts": [
+   {
+    "objet": "Body|Arms",
+    "mat": "Peasant|Ranger",
+    "min_v": 0.5,
+    "vers": "#5b4e42",
+    "force": 0.9,
+    "val": 0.95
+   },
+   {
+    "objet": "Legs",
+    "mat": "Peasant|Ranger",
+    "vers": "#352523",
+    "force": 0.45,
+    "val": 0.9
+   },
+   {
+    "mat": "Peasant|Ranger",
+    "max_v": 0.5,
+    "vers": "#3a2a2a",
+    "force": 0.25,
+    "val": 0.9
+   }
+  ],
+  "boue": {
+   "haut": 0.3,
+   "couleur": "#3c2d22",
+   "force": 0.75,
+   "taches": 0.3,
+   "courbe": 0.7
+  },
+  "usure": 0.1,
+  "accroche": "pnj",
+  "retirer": [
+   "Peasant_Arms"
+  ]
+ },
+ {
+  "nom": "pq_hab_paysanne_b",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/Female_Peasant.gltf",
+  "hauteur": 0,
+  "budget": 4600,
+  "caps": {
+   "SuperHero": 1000,
+   "Eyes": 70,
+   "Eyebrows": 40,
+   "Hair": 380
+  },
+  "extras": [
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/Superhero_Female_FullBody.gltf",
+    "garder_tete": "SuperHero|Eyes|Eyebrows"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Long.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Modular Parts/Female_Ranger_Arms.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/femme_vetue.glb",
+    "garder_mat": "^(cape|capuche)$"
+   }
+  ],
+  "mats": {
+   "MI_Hair": "#a98638",
+   "cape": "#3c3547",
+   "capuche": "#3c3547"
+  },
+  "sat": 0.5,
+  "val": 0.64,
+  "froid": 0.22,
+  "pied": 0.55,
+  "parts": [
+   {
+    "objet": "Body|Arms",
+    "mat": "Peasant|Ranger",
+    "min_v": 0.5,
+    "vers": "#4b4540",
+    "force": 0.9,
+    "val": 0.95
+   },
+   {
+    "objet": "Legs",
+    "mat": "Peasant|Ranger",
+    "vers": "#36353b",
+    "force": 0.45,
+    "val": 0.9
+   },
+   {
+    "mat": "Peasant|Ranger",
+    "max_v": 0.5,
+    "vers": "#3a2a2a",
+    "force": 0.25,
+    "val": 0.9
+   }
+  ],
+  "boue": {
+   "haut": 0.3,
+   "couleur": "#3c2d22",
+   "force": 0.75,
+   "taches": 0.3,
+   "courbe": 0.7
+  },
+  "usure": 0.1,
+  "accroche": "pnj",
+  "retirer": [
+   "Peasant_Arms"
+  ]
+ },
+ {
+  "nom": "pq_hab_paysanne_c",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/Female_Peasant.gltf",
+  "hauteur": 0,
+  "budget": 4600,
+  "caps": {
+   "SuperHero": 1000,
+   "Eyes": 70,
+   "Eyebrows": 40,
+   "Hair": 380
+  },
+  "extras": [
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/Superhero_Female_FullBody.gltf",
+    "garder_tete": "SuperHero|Eyes|Eyebrows"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Long.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Modular Parts/Female_Ranger_Arms.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/femme_vetue.glb",
+    "garder_mat": "^mante$"
+   }
+  ],
+  "mats": {
+   "MI_Hair": "#2b1a1e",
+   "mante": "#403b36"
+  },
+  "sat": 0.5,
+  "val": 0.64,
+  "froid": 0.22,
+  "pied": 0.55,
+  "parts": [
+   {
+    "objet": "Body|Arms",
+    "mat": "Peasant|Ranger",
+    "min_v": 0.5,
+    "vers": "#52495f",
+    "force": 0.9,
+    "val": 0.95
+   },
+   {
+    "objet": "Legs",
+    "mat": "Peasant|Ranger",
+    "vers": "#3c3547",
+    "force": 0.45,
+    "val": 0.9
+   },
+   {
+    "mat": "Peasant|Ranger",
+    "max_v": 0.5,
+    "vers": "#3a2a2a",
+    "force": 0.25,
+    "val": 0.9
+   }
+  ],
+  "boue": {
+   "haut": 0.3,
+   "couleur": "#3c2d22",
+   "force": 0.75,
+   "taches": 0.3,
+   "courbe": 0.7
+  },
+  "usure": 0.1,
+  "accroche": "pnj",
+  "retirer": [
+   "Peasant_Arms"
+  ]
+ },
+ {
+  "nom": "pq_hab_chasseur_a",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/Male_Ranger.gltf",
+  "hauteur": 0,
+  "budget": 4600,
+  "caps": {
+   "SuperHero": 1000,
+   "Eyes": 70,
+   "Eyebrows": 40,
+   "Hair": 380
+  },
+  "extras": [
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/Superhero_Male_FullBody.gltf",
+    "garder_tete": "SuperHero|Eyes|Eyebrows"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Buzzed.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/homme_vetu.glb",
+    "garder_mat": "^mante$"
+   }
+  ],
+  "mats": {
+   "MI_Hair": "#2b1a1e",
+   "mante": "#503b2a"
+  },
+  "sat": 0.5,
+  "val": 0.64,
+  "froid": 0.22,
+  "pied": 0.55,
+  "parts": [
+   {
+    "objet": "Body|Arms",
+    "mat": "Peasant|Ranger",
+    "min_v": 0.5,
+    "vers": "#333a33",
+    "force": 0.9,
+    "val": 0.95
+   },
+   {
+    "objet": "Legs",
+    "mat": "Peasant|Ranger",
+    "vers": "#3c2d22",
+    "force": 0.45,
+    "val": 0.9
+   },
+   {
+    "mat": "Peasant|Ranger",
+    "max_v": 0.5,
+    "vers": "#3a2a2a",
+    "force": 0.25,
+    "val": 0.9
+   }
+  ],
+  "boue": {
+   "haut": 0.3,
+   "couleur": "#3c2d22",
+   "force": 0.75,
+   "taches": 0.3,
+   "courbe": 0.7
+  },
+  "usure": 0.1,
+  "accroche": "pnj"
+ },
+ {
+  "nom": "pq_hab_chasseur_b",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/Male_Ranger.gltf",
+  "hauteur": 0,
+  "budget": 4600,
+  "caps": {
+   "SuperHero": 1000,
+   "Eyes": 70,
+   "Eyebrows": 40,
+   "Hair": 380
+  },
+  "extras": [
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/Superhero_Male_FullBody.gltf",
+    "garder_tete": "SuperHero|Eyes|Eyebrows"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_SimpleParted.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Beard.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/homme_vetu.glb",
+    "garder_mat": "^cape$"
+   }
+  ],
+  "mats": {
+   "MI_Hair": "#86603a",
+   "cape": "#333a33"
+  },
+  "sat": 0.5,
+  "val": 0.64,
+  "froid": 0.22,
+  "pied": 0.55,
+  "parts": [
+   {
+    "objet": "Body|Arms",
+    "mat": "Peasant|Ranger",
+    "min_v": 0.5,
+    "vers": "#503b2a",
+    "force": 0.9,
+    "val": 0.95
+   },
+   {
+    "objet": "Legs",
+    "mat": "Peasant|Ranger",
+    "vers": "#29201a",
+    "force": 0.45,
+    "val": 0.9
+   },
+   {
+    "mat": "Peasant|Ranger",
+    "max_v": 0.5,
+    "vers": "#3a2a2a",
+    "force": 0.25,
+    "val": 0.9
+   }
+  ],
+  "boue": {
+   "haut": 0.3,
+   "couleur": "#3c2d22",
+   "force": 0.75,
+   "taches": 0.3,
+   "courbe": 0.7
+  },
+  "usure": 0.1,
+  "retirer": [
+   "Head_Hood"
+  ],
+  "accroche": "pnj"
+ },
+ {
+  "nom": "pq_hab_chasseresse_a",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/Female_Ranger.gltf",
+  "hauteur": 0,
+  "budget": 4600,
+  "caps": {
+   "SuperHero": 1000,
+   "Eyes": 70,
+   "Eyebrows": 40,
+   "Hair": 380
+  },
+  "extras": [
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/Superhero_Female_FullBody.gltf",
+    "garder_tete": "SuperHero|Eyes|Eyebrows"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Long.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/femme_vetue.glb",
+    "garder_mat": "^mante$"
+   }
+  ],
+  "mats": {
+   "MI_Hair": "#3a261b",
+   "mante": "#403b36"
+  },
+  "sat": 0.5,
+  "val": 0.64,
+  "froid": 0.22,
+  "pied": 0.55,
+  "parts": [
+   {
+    "objet": "Body|Arms",
+    "mat": "Peasant|Ranger",
+    "min_v": 0.5,
+    "vers": "#333a33",
+    "force": 0.9,
+    "val": 0.95
+   },
+   {
+    "objet": "Legs",
+    "mat": "Peasant|Ranger",
+    "vers": "#3c2d22",
+    "force": 0.45,
+    "val": 0.9
+   },
+   {
+    "mat": "Peasant|Ranger",
+    "max_v": 0.5,
+    "vers": "#3a2a2a",
+    "force": 0.25,
+    "val": 0.9
+   }
+  ],
+  "boue": {
+   "haut": 0.3,
+   "couleur": "#3c2d22",
+   "force": 0.75,
+   "taches": 0.3,
+   "courbe": 0.7
+  },
+  "usure": 0.1,
+  "accroche": "pnj"
+ },
+ {
+  "nom": "pq_hab_chasseresse_b",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/Female_Ranger.gltf",
+  "hauteur": 0,
+  "budget": 4600,
+  "caps": {
+   "SuperHero": 1000,
+   "Eyes": 70,
+   "Eyebrows": 40,
+   "Hair": 380
+  },
+  "extras": [
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/Superhero_Female_FullBody.gltf",
+    "garder_tete": "SuperHero|Eyes|Eyebrows"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Long.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/femme_vetue.glb",
+    "garder_mat": "^(cape_courte|mante)$"
+   }
+  ],
+  "mats": {
+   "MI_Hair": "#6a3524",
+   "cape_courte": "#352523",
+   "mante": "#503b2a"
+  },
+  "sat": 0.5,
+  "val": 0.64,
+  "froid": 0.22,
+  "pied": 0.55,
+  "parts": [
+   {
+    "objet": "Body|Arms",
+    "mat": "Peasant|Ranger",
+    "min_v": 0.5,
+    "vers": "#483729",
+    "force": 0.9,
+    "val": 0.95
+   },
+   {
+    "objet": "Legs",
+    "mat": "Peasant|Ranger",
+    "vers": "#29201a",
+    "force": 0.45,
+    "val": 0.9
+   },
+   {
+    "mat": "Peasant|Ranger",
+    "max_v": 0.5,
+    "vers": "#3a2a2a",
+    "force": 0.25,
+    "val": 0.9
+   }
+  ],
+  "boue": {
+   "haut": 0.3,
+   "couleur": "#3c2d22",
+   "force": 0.75,
+   "taches": 0.3,
+   "courbe": 0.7
+  },
+  "usure": 0.1,
+  "retirer": [
+   "Head_Hood"
+  ],
+  "accroche": "pnj"
+ },
+ {
+  "nom": "pq_loup2",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/ultimate_animated_animals/FBX/Wolf.fbx",
+  "hauteur": 0.85,
+  "budget": 2200,
+  "sat": 0.5,
+  "val": 0.7300000000000001,
+  "froid": 0.22,
+  "pied": 0.6,
+  "usure": 0.08,
+  "boue": {
+   "haut": 0.25,
+   "couleur": "#3b3322",
+   "force": 0.4,
+   "taches": 0.2
+  },
+  "accroche": "pnj"
+ },
+ {
+  "nom": "pq_cerf2",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/ultimate_animated_animals/FBX/Stag.fbx",
+  "hauteur": 1.95,
+  "budget": 2800,
+  "sat": 0.45,
+  "val": 0.77,
+  "froid": 0.25,
+  "pied": 0.6,
+  "usure": 0.18,
+  "accroche": "pnj",
+  "facettes": true,
+  "parts": [
+   {
+    "nz_min": 0.45,
+    "z_min": 0.3,
+    "vers": "#483729",
+    "force": 0.6
+   },
+   {
+    "nz_max": -0.35,
+    "vers": "#9d8d7a",
+    "force": 0.6
+   },
+   {
+    "os": "LowerLeg|UpperLeg|BackLeg\\.",
+    "vers": "#3c2d22",
+    "force": 0.75
+   }
+  ],
+  "taches": [
+   {
+    "part": 0.12,
+    "couleur": "#6c5745",
+    "force": 0.4,
+    "graine": 21
+   }
+  ]
+ },
+ {
+  "nom": "pq_biche",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/ultimate_animated_animals/FBX/Deer.fbx",
+  "hauteur": 1.45,
+  "budget": 2400,
+  "sat": 0.45,
+  "val": 0.77,
+  "froid": 0.25,
+  "pied": 0.6,
+  "usure": 0.18,
+  "accroche": "pnj",
+  "facettes": true,
+  "parts": [
+   {
+    "nz_min": 0.45,
+    "z_min": 0.3,
+    "vers": "#483729",
+    "force": 0.6
+   },
+   {
+    "nz_max": -0.35,
+    "vers": "#9d8d7a",
+    "force": 0.6
+   },
+   {
+    "os": "LowerLeg|UpperLeg|BackLeg\\.",
+    "vers": "#3c2d22",
+    "force": 0.75
+   }
+  ],
+  "taches": [
+   {
+    "part": 0.12,
+    "couleur": "#6c5745",
+    "force": 0.4,
+    "graine": 21
+   }
+  ]
+ },
+ {
+  "nom": "pq_renard",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/ultimate_animated_animals/FBX/Fox.fbx",
+  "hauteur": 0.45,
+  "budget": 2000,
+  "sat": 0.6,
+  "val": 0.77,
+  "froid": 0.12,
+  "pied": 0.6,
+  "usure": 0.08,
+  "accroche": "pnj"
+ }
+]

@@ -1,0 +1,205 @@
+[
+ {
+  "nom": "pq_villageois",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/Male_Peasant.gltf",
+  "hauteur": 0,
+  "budget": 3600,
+  "caps": {
+   "SuperHero": 1000,
+   "Eyes": 70,
+   "Eyebrows": 40,
+   "Hair": 380
+  },
+  "extras": [
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_quat/assets/modeles/humains/Superhero_Male_FullBody.gltf",
+    "garder_tete": "SuperHero|Eyes|Eyebrows"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_quat/assets/modeles/humains/cheveux/Hair_SimpleParted.gltf",
+    "garder": ".*"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_quat/assets/modeles/humains/cheveux/Hair_Beard.gltf",
+    "garder": ".*"
+   }
+  ],
+  "mats": {
+   "MI_Hair": "#5b3d27"
+  },
+  "sat": 0.7,
+  "val": 0.9
+ },
+ {
+  "nom": "pq_chasseresse",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/Female_Ranger.gltf",
+  "hauteur": 0,
+  "budget": 3800,
+  "caps": {
+   "SuperHero": 1000,
+   "Eyes": 70,
+   "Eyebrows": 40,
+   "Hair": 380
+  },
+  "extras": [
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_quat/assets/modeles/humains/Superhero_Female_FullBody.gltf",
+    "garder_tete": "SuperHero|Eyes|Eyebrows"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_quat/assets/modeles/humains/cheveux/Hair_Long.gltf",
+    "garder": ".*"
+   }
+  ],
+  "mats": {
+   "MI_Hair": "#3a261b"
+  },
+  "sat": 0.5,
+  "val": 0.78,
+  "froid": 0.18
+ },
+ {
+  "nom": "pq_chasseur",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/Male_Ranger.gltf",
+  "hauteur": 0,
+  "budget": 3800,
+  "caps": {
+   "SuperHero": 1000,
+   "Eyes": 70,
+   "Eyebrows": 40,
+   "Hair": 300
+  },
+  "extras": [
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_quat/assets/modeles/humains/Superhero_Male_FullBody.gltf",
+    "garder_tete": "SuperHero|Eyes|Eyebrows"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_quat/assets/modeles/humains/cheveux/Hair_Buzzed.gltf",
+    "garder": ".*"
+   }
+  ],
+  "mats": {
+   "MI_Hair": "#2b1a1e"
+  },
+  "sat": 0.5,
+  "val": 0.78,
+  "froid": 0.18
+ },
+ {
+  "nom": "pq_villageoise",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/Female_Peasant.gltf",
+  "hauteur": 0,
+  "budget": 3600,
+  "caps": {
+   "SuperHero": 1000,
+   "Eyes": 70,
+   "Eyebrows": 40,
+   "Hair": 380
+  },
+  "extras": [
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_quat/assets/modeles/humains/Superhero_Female_FullBody.gltf",
+    "garder_tete": "SuperHero|Eyes|Eyebrows"
+   },
+   {
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_quat/assets/modeles/humains/cheveux/Hair_Buns.gltf",
+    "garder": ".*"
+   }
+  ],
+  "mats": {
+   "MI_Hair": "#6a4229"
+  },
+  "sat": 0.7,
+  "val": 0.9
+ },
+ {
+  "nom": "pq_loup",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/polypizza_cc0/Wolf_P1gU3Qkr9r.glb",
+  "hauteur": 0.9,
+  "budget": 2200,
+  "sat": 0.55,
+  "val": 0.8
+ },
+ {
+  "nom": "pq_araignee",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/polypizza_cc0/Spider_yRYJiAJyiM.glb",
+  "hauteur": 1.1,
+  "budget": 1500,
+  "sat": 0.45,
+  "val": 0.6,
+  "froid": 0.15,
+  "pied": 0.8,
+  "accroche": "pnj",
+  "facettes": true,
+  "gonfler": [
+   {
+    "os": "Leg\\.",
+    "d": 0.03
+   },
+   {
+    "os": "Leg2\\.",
+    "d": 0.024
+   },
+   {
+    "os": "Leg3\\.",
+    "d": 0.012
+   }
+  ],
+  "parts": [
+   {
+    "os": "Thorax|Head|Body",
+    "vers": "#29201a",
+    "force": 0.85
+   },
+   {
+    "os": "Abdomen",
+    "vers": "#352523",
+    "force": 0.85
+   },
+   {
+    "os": "Leg",
+    "vers": "#29201a",
+    "force": 0.85
+   },
+   {
+    "os": "Leg2\\.",
+    "vers": "#483729",
+    "force": 0.55
+   }
+  ],
+  "taches": [
+   {
+    "os": "Abdomen",
+    "part": 0.22,
+    "couleur": "#55452f",
+    "force": 0.7,
+    "graine": 5
+   },
+   {
+    "os": "Abdomen|Thorax",
+    "part": 0.15,
+    "couleur": "#1c1512",
+    "force": 0.6,
+    "graine": 9
+   },
+   {
+    "os": "Leg",
+    "part": 0.2,
+    "couleur": "#3c2d22",
+    "force": 0.5,
+    "graine": 13
+   }
+  ],
+  "usure": 0.25,
+  "note": "v2 2026-11-04 : facettes plates, pattes épaissies (gonfler), brun-noir de grotte, taches et poils en couleurs de sommet"
+ },
+ {
+  "nom": "pq_cerf",
+  "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/polypizza_cc0/Stag_tQdzbZ1Cmw.glb",
+  "hauteur": 1.9,
+  "budget": 2600,
+  "sat": 0.6,
+  "val": 0.8
+ }
+]

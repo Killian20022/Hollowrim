@@ -127,6 +127,36 @@ static func _defaut(n: String) -> ProfilCible:
 			p.poids = 0.9
 			p.duree_etourdi = 3.0
 			p.seuil_finisher_vie = 0.25
+		"loup":
+			# bête (BeteQuat) : fourrure, pas d'armure, légère (reculée par les coups lourds), sang vivant
+			p.mort_vivant = false
+			p.decapitable = false
+			p.couleur_sang = Color(0.38, 0.03, 0.02)
+			p.zones = {"tete": 1.3, "torse": 1.0, "bras": 0.9, "jambes": 0.9}
+			p.resistances = {"tranchant": 1.0, "contondant": 1.0, "feu": 1.4, "glace": 0.8, "magique": 1.0, "electricite": 1.0, "tenebres": 1.0}
+			p.posture_max = 30.0
+			p.seuil_moyen = 8.0
+			p.seuil_lourd = 18.0
+			p.seuil_chute = 999.0
+			p.poids = 0.7
+		"araignee":
+			# araignée des cavernes : carapace (un peu d'armure), sang verdâtre, craint le feu
+			p.mort_vivant = false
+			p.decapitable = false
+			p.armure_part = 0.08
+			p.couleur_sang = Color(0.22, 0.28, 0.08)
+			p.resistances = {"tranchant": 1.0, "contondant": 1.2, "feu": 1.6, "glace": 1.2, "magique": 1.0, "electricite": 1.0, "tenebres": 0.8}
+			p.posture_max = 35.0
+			p.seuil_chute = 999.0
+			p.poids = 0.8
+		"gibier":
+			# faune non hostile (cerf, biche, renard) : fragile, aucune posture
+			p.mort_vivant = false
+			p.decapitable = false
+			p.couleur_sang = Color(0.40, 0.03, 0.02)
+			p.posture_max = 15.0
+			p.seuil_chute = 999.0
+			p.poids = 0.8
 		"mannequin":
 			p.matiere = "bois"
 			p.sang = false

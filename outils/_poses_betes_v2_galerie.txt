@@ -1,0 +1,2 @@
+galerie_jour scenario galerie heure=12
+galerie_soir scenario galerie heure=18
