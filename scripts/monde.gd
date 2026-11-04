@@ -1989,17 +1989,26 @@ func _scenario(nom: String) -> void:
 				if id == "draugr":
 					tenues.append({"corps": "homme", "draugr": true, "casque": "casque_draugr", "etoffes": {"tunique": "mailles_rouille", "brassards": "draugr"},
 						"tenue": {"tunique": Color.WHITE, "ceinture": Color.WHITE, "brassards": Color.WHITE, "mante": Color.WHITE, "bottes": Color.WHITE, "epaulieres": Color.WHITE, "pteruges": Color.WHITE, "cape_courte": Color.WHITE}})
+				elif id.begins_with("pq_") or id.begins_with("pnj:"):
+					tenues.append(id)     # persos/quaternius_jeu : habitant Quaternius (pq_hab_…) ou PNJ nommé du jeu (pnj:forgeron) côte à côte
 				elif VILLAGEOIS.APPARENCES.has(id):
 					tenues.append(VILLAGEOIS.APPARENCES[id])
 			for i in tenues.size():
-				var h := Humain.creer(tenues[i])
+				var h: Node3D
+				if tenues[i] is String and String(tenues[i]).begins_with("pq_"):
+					h = PersosQuat.creer(tenues[i])
+				elif tenues[i] is String:
+					h = PnjNordique.creer(String(tenues[i]).trim_prefix("pnj:"))
+				else:
+					h = Humain.creer(tenues[i])
 				add_child(h)
-				var x := -1.6 * (tenues.size() - 1) * 0.5 + i * 1.6
+				var pas_g := 1.6 if tenues.size() <= 6 else 1.1
+				var x := -pas_g * (tenues.size() - 1) * 0.5 + i * pas_g
 				h.global_position = Vector3(x, hauteur(x, -4.6), -4.6)
 				h.rotation.y = 0.0
 				(h.get_node("Animations") as AnimationPlayer).play(["Idle", "Idle_Talking", "Idle", "Idle_Talking", "Sword_Idle"][i % 5])
 			joueur.mains.visible = false
-			_placer(Vector3(0, 0, -1.3), Vector3(0, 1.1, -4.6))
+			_placer(Vector3(0, 0, -4.6 + maxf(3.3, 0.62 * 1.1 * tenues.size())), Vector3(0, 1.1, -4.6))   # recule pour cadrer toute la rangée
 			await get_tree().create_timer(1.0).timeout
 		"crypte", "tombe":
 			tertre._passer(true)
