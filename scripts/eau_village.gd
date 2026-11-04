@@ -445,7 +445,8 @@ func _quai(modele: Node) -> void:
 	n.transform = xf
 	add_child(n)
 	if _quai_quaternius() and not _args_eau().has("eau-ancienne"):
-		_quai_kit(n)      # gen/eau : planches et poutres Quaternius (docs/GEN_EAU.md)
+		_piece(modele, "Quai_Planches", n, "planches")      # plancher maison (lattes lisibles)
+		_quai_kit(n)      # gen/eau : charpente Quaternius (docs/GEN_EAU.md)
 	else:
 		_piece(modele, "Quai_Planches", n, "planches")
 		_piece(modele, "Quai_Pieux", n, "rondins")
@@ -480,12 +481,8 @@ func _kit_mesh(parent: Node3D, st: SurfaceTool, nom: String, mat: String) -> voi
 func _quai_kit(n: Node3D) -> void:
 	var rg := RandomNumberGenerator.new()
 	rg.seed = 3712
-	var pl := SurfaceTool.new()
-	pl.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var po := SurfaceTool.new()
 	po.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i in 9:      # plancher : 9 dalles de 1 m, épaisseur 0,12 (dessus à y 0)
-		_kit(pl, "q_planches_sol", Vector3(0.5 + i, -0.12, 1.1), Basis.IDENTITY, Vector3(1.0, 0.12, 2.2))
 	for zl in [0.18, 1.1, 2.02]:      # longerons
 		_kit(po, "q_poutre_ronde", Vector3(4.5, -0.27, zl), Basis.IDENTITY, Vector3(9.1, 0.18, 0.18))
 	_kit(po, "q_poutre_ronde", Vector3(4.5, 0.0, 2.2), Basis.IDENTITY, Vector3(9.0, 0.16, 0.16))      # chasse-roue côté eau
@@ -503,7 +500,6 @@ func _quai_kit(n: Node3D) -> void:
 		var lg := sqrt(dx * dx + dy * dy)
 		var ang := atan2(dy, dx)
 		_kit(po, "q_poutre_ronde", Vector3(xa + dx * 0.5, -0.95, 2.2), Basis(Vector3.BACK, ang), Vector3(lg, 0.1, 0.1))
-	_kit_mesh(n, pl, "Quai_Planches_Q", "planches")
 	_kit_mesh(n, po, "Quai_Poutres_Q", "rondins")
 
 # ------------------------------------------------------------------ gué : pierres plates en travers du ruisseau

@@ -1,7 +1,7 @@
 # GEN_EAU : lot eau / ponts / quais / gué (généralisation Quaternius)
 
 ## Remplacé
-- **Quai du moulin** (`scripts/eau_village.gd`, `_quai_kit`) : plancher en 9 dalles `q_planches_sol`, longerons, pieux, croisillons et chasse-roue en `q_poutre_ronde`. Même emprise que l'ancien (9 x 2,2 m, dessus à y 0), collision `_boite` inchangée, matériaux existants `planches` / `rondins`.
+- **Quai du moulin** (`scripts/eau_village.gd`, `_quai_kit`) : quai MIXTE. Charpente en `q_poutre_ronde` (longerons, pieux, croisillons, chasse-roue) ; plancher = pièce maison `Quai_Planches` (lattes lisibles, les dalles `q_planches_sol` donnaient une grille plate sans UV). Les anciens pieux `Quai_Pieux` ne sont pas ajoutés. Emprise inchangée (9 x 2,2 m, dessus à y 0), collision `_boite` inchangée.
 - Repli automatique si les props Quaternius manquent (`_quai_quaternius()`).
 
 ## Resté maison
