@@ -1716,7 +1716,7 @@ func os_tas(pos: Vector3, n := 4, rayon := 0.4) -> void:
 	_sans_maison = false
 	j0("os_tas")
 	var r := _alea_pos(pos)
-	for k in clampi((n + 1) / 2, 1, 3):
+	for k in clampi((n + 2) / 3, 1, 2):      # 1 squelette (n <= 3) ou 2 : ~450 triangles pièce
 		var a := r.randf() * TAU
 		var d := r.randf_range(0.25, 1.0) * rayon
 		_q4("q_os_tas" if (k + n) % 2 == 0 else "q_os_tas_2", pos + Vector3(cos(a) * d, 0.0, sin(a) * d), r.randf() * TAU, Vector3.ONE * r.randf_range(0.95, 1.25))
