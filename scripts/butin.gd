@@ -70,11 +70,54 @@ func _ready() -> void:
 		_verser()                                   # rien à montrer : contenu versé tel quel (repli)
 		queue_free()
 
+## Vrai tant que `b` (bourse laissée sur un cadavre) a encore une invite de fouille : le cadavre ne doit pas disparaître,
+## sinon le joueur peut fouiller un corps qui n'a plus de modèle.
+static func corps_a_fouiller(b: Node3D) -> bool:
+	return b != null and is_instance_valid(b) and not b.is_queued_for_deletion() and b.a_fouille()
+
+## Cadavres d'ennemis non fouillés encore en scène (plafond par zone, voir enregistrer_cadavre) : [{e: ennemi, b: bourse}], du plus ancien au plus récent.
+static var max_cadavres := 10
+static var _cadavres: Array = []
+
+## Décrit le modèle d'un corps pour la sauvegarde et pour la dépouille statique (voir Draugr.spec_depouille) : JSON-compatible.
+var modele_spec := {}
+
+## Dépouille statique : le vrai modèle de l'ennemi (même type, même arme) en pose Death01 allongée, sans physique, comme le corps d'Eirik.
+## Posée au même endroit que le cadavre (la bourse est à 0,6 m devant lui). Sans description (ancienne sauvegarde) : draugr guerrier.
+static func modele_depouille(spec: Dictionary) -> Node3D:
+	var sp: Dictionary = spec if not spec.is_empty() else {"type": "guerrier"}
+	var m: Node3D = (load("res://scripts/draugr.gd") as GDScript).call("modele_depouille", sp)
+	m.name = "ModeleDepouille"
+	var l := float(sp.get("lacet", 0.0))
+	m.rotation.y = l
+	m.position = -Vector3(sin(l), 0.0, cos(l)) * 0.6
+	return m
+
+## Un ennemi vient de laisser sa bourse `b` : au-delà de `max_cadavres` cadavres non fouillés dans la même zone (même parent),
+## le plus ancien perd son ragdoll au profit de sa dépouille statique (même endroit, plus de physique ni d'os simulés).
+static func enregistrer_cadavre(e: Node3D, b: Node3D) -> void:
+	_cadavres = _cadavres.filter(func(c: Dictionary) -> bool:
+		return is_instance_valid(c["e"]) and is_instance_valid(c["b"]) and corps_a_fouiller(c["b"]))
+	_cadavres.append({"e": e, "b": b})
+	var zone := e.get_parent()
+	var memes: Array = _cadavres.filter(func(c: Dictionary) -> bool: return c["e"].get_parent() == zone)
+	while memes.size() > max_cadavres:
+		var vieux: Dictionary = memes.pop_front()
+		_cadavres.erase(vieux)
+		var ve: Node3D = vieux["e"]
+		var vb: Node3D = vieux["b"]
+		vb.add_child(modele_depouille(ve.call("spec_depouille")))
+		ve.queue_free()
+
+## Tests : nombre de cadavres d'ennemis encore en scène (ragdoll) suivis par le plafond.
+static func nb_cadavres_suivis() -> int:
+	return _cadavres.filter(func(c: Dictionary) -> bool: return is_instance_valid(c["e"]) and not c["e"].is_queued_for_deletion()).size()
+
 ## Position du corps (posée par l'appelant après add_child) notée pour la sauvegarde.
 func _noter_corps() -> void:
 	if is_inside_tree() and cle_sauvegarde != "":
 		var p := global_position
-		ButinTables.corps[cle_sauvegarde] = {"pos": [snappedf(p.x, 0.01), snappedf(p.y, 0.01), snappedf(p.z, 0.01)], "nom": nom_corps}
+		ButinTables.corps[cle_sauvegarde] = {"pos": [snappedf(p.x, 0.01), snappedf(p.y, 0.01), snappedf(p.z, 0.01)], "nom": nom_corps, "modele": modele_spec.duplicate()}
 
 ## Partie chargée (monde.gd) : repose les corps encore fouillables de la sauvegarde (ButinTables.corps) ; ceux déjà présents sont retirés
 ## d'abord (chargement en cours de partie). Pas de pièces : elles étaient versées ou perdues avant la sauvegarde.
@@ -94,6 +137,8 @@ static func restaurer(parent: Node, joueur_: CharacterBody3D, hud_: Control) -> 
 		b.nom_corps = String(e.get("nom", "Dépouille"))
 		b.contenu = (ButinTables.restes[cle] as Dictionary).duplicate()
 		b.cle_sauvegarde = cle
+		b.modele_spec = (e.get("modele", {}) as Dictionary).duplicate()
+		b.add_child(modele_depouille(b.modele_spec))      # le cadavre d'origine (ragdoll) n'est pas sauvegardé : même modèle, posé
 		parent.add_child(b)
 		b.global_position = Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
 

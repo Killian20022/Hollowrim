@@ -168,7 +168,7 @@ func _physics_process(dt: float) -> void:
 	_t_sans_coup += dt
 	if est_mort:
 		_t_mort += dt
-		if _t_mort > DUREE_CADAVRE:
+		if _t_mort > DUREE_CADAVRE and not BUTIN.corps_a_fouiller(_butin):      # cadavre fouillable : il reste (sinon invite sans modèle)
 			queue_free()
 		return
 	if not is_on_floor():
@@ -620,8 +620,11 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, 
 	_special_mort(sorte, r)
 	_laisser_butin()
 
+var _butin: Node3D      # bourse laissée sur le corps
+
 func _laisser_butin() -> void:
 	var b := Node3D.new()
+	_butin = b
 	b.set_script(BUTIN)
 	b.joueur = joueur
 	b.hud = hud

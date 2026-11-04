@@ -766,6 +766,7 @@ func _x_barricade(_m: Dictionary) -> void:
 	# barricade de l'intérieur contre la porte, brèche à l'est ; les compagnons d'Eirik sont morts ici
 	d.barricade(_l(-14.0, -49.1, y), PI, 3.0, 1.3, -0.9)      # tonneau et table renversée côté salle (ils entraient dans le mur) ; même brèche
 	d.os_tas(_l(-16.0, -53.0, y), 5, 0.6)
+	_compagnon_mort(Vector3(-16.0, y + 0.02, -53.0), 0.9)      # « Corps d'un compagnon » (interaction note_compagnon_2) : il lui fallait un corps
 	d.os_tas(_l(-12.6, -54.2, y), 4, 0.5)
 	d.os_tas(_l(-15.0, -51.4, y), 4, 0.5)
 	d.sac_dechire(_l(-16.8, -52.2, y), 0.5)
@@ -776,6 +777,19 @@ func _x_barricade(_m: Dictionary) -> void:
 	d.boite("parchemin", _l(-11.9, -52.5, y + 0.82), Vector3(0.3, 0.012, 0.22), 0.1)
 	d.etagere_renversee(_l(-16.6, -50.4, y), PI * 0.5, 1.4)
 	d.tonneau(_l(-11.2, -54.8, y), 0.8)
+
+## Compagnon d'Eirik mort (pos dans le repère de la crypte, pas du module : le nœud est posé sous la racine) : personnage allongé (dernière image de Death01, comme le corps d'Eirik dans l'alcôve).
+func _compagnon_mort(pos: Vector3, lacet: float) -> void:
+	var c: Node3D = PnjNordique.creer("garde")      # même fabrique que le corps d'Eirik (tertre.gd) : tenue complète, pièces visibles
+	c.name = "CorpsCompagnon"
+	c.position = pos
+	c.rotation.y = lacet
+	d.racine.add_child(c)
+	var ap := c.get_node_or_null("Animations") as AnimationPlayer
+	if ap != null and ap.has_animation("Death01"):
+		ap.play("Death01")
+		ap.seek(ap.get_animation("Death01").length - 0.05, true)
+		ap.pause()
 
 func _x_piege_lb2w(_m: Dictionary) -> void:
 	_indice_dalle(-25.0, -43.0, BAS, PI * 0.5, Vector3(-25.0, BAS + 1.1, -44.3))

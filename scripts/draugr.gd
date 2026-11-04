@@ -460,7 +460,7 @@ func _physics_process(dt: float) -> void:
 	_t += dt
 	if etat == MORT:
 		# le cadavre est un ragdoll : plus de déplacement ni d'orientation
-		if _t > 30.0:
+		if _t > 30.0 and not BUTIN.corps_a_fouiller(_butin):      # un cadavre encore fouillable ne disparaît pas (sinon : invite sans modèle)
 			queue_free()
 		return
 	_recharge -= dt
@@ -1113,8 +1113,39 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, 
 func table_butin() -> String:
 	return ButinTables.table_pour("bandit" if _humain else "draugr")
 
+var _butin: Node3D      # bourse laissée sur le corps (le cadavre reste tant qu'il y a des objets à fouiller)
+
+## Ce qu'il faut pour refaire le modèle du corps (sauvegarde du butin, dépouille statique) : type, arme, teinte, boss, échelle, lacet.
+func spec_depouille() -> Dictionary:
+	return {"type": type, "archer": archer, "boss": boss, "zombie": zombie, "variante": variante, "teinte_os": teinte_os, "ident": ident,
+		"echelle": echelle, "lacet": snappedf(global_rotation.y, 0.01)}
+
+## Modèle seul d'un corps (voir spec_depouille) en pose Death01 allongée : mêmes fabriques que _ready, aucune physique ni IA.
+static func modele_depouille(spec: Dictionary) -> Node3D:
+	var t := String(spec.get("type", "guerrier"))
+	var arch := bool(spec.get("archer", false)) or t == "squelette_archer"
+	var app := EnnemisNordiques.apparence_defaut(t, {})
+	var m: Node3D
+	if t.begins_with("squelette"):
+		m = EnnemisNordiques.squelette({"type": t, "archer": arch, "ident": String(spec.get("ident", "")), "variante": String(spec.get("variante", "")), "teinte": String(spec.get("teinte_os", ""))})
+	else:
+		var sp := {"type": t, "archer": arch, "boss": String(spec.get("boss", "")), "ident": String(spec.get("ident", "")), "apparence": app}
+		if bool(spec.get("zombie", false)):
+			sp["zombie"] = true
+		m = EnnemisNordiques.creer(sp)
+		if m == null:
+			m = Humain.creer(app)
+	m.scale = Vector3.ONE * float(spec.get("echelle", 1.0))
+	var ap := m.get_node_or_null("Animations") as AnimationPlayer
+	if ap != null and ap.has_animation("Death01"):
+		ap.play("Death01")
+		ap.seek(ap.get_animation("Death01").length - 0.05, true)
+		ap.pause()
+	return m
+
 func _laisser_butin() -> void:
 	var b := Node3D.new()
+	_butin = b
 	b.set_script(BUTIN)
 	b.joueur = joueur
 	b.hud = hud
@@ -1128,5 +1159,7 @@ func _laisser_butin() -> void:
 		b.contenu["pieces"] = rng.randi_range(90, 140)
 	elif boss == "jarl":
 		b.contenu["pieces"] = rng.randi_range(70, 110)
+	b.modele_spec = spec_depouille()
 	get_parent().add_child(b)
 	b.global_position = global_position + global_transform.basis.z * 0.6
+	BUTIN.enregistrer_cadavre(self, b)
