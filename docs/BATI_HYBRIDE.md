@@ -41,3 +41,22 @@ d'avant (VillageBati.maison et Village._maison reprennent leur code d'origine). 
 | Ferme A (79.5, 24.5) | rondins, têtes de dragon | kit : cheminée Prop_Chimney2 | rondins, têtes de dragon, tas de bois |
 | Granges A et B | planches, grandes portes | — | tout (le kit n'a pas de portes de grange) |
 | Tour-clocher, moulin à vent, forge, palissade, crypte, grotte | — | — | inchangés |
+
+## Accord des couleurs (retour utilisateur du 2026-11-04 sur l'essai)
+
+Principe : les pièces Quaternius ne gardent PAS leurs teintes ; elles prennent les matières du village et, quand une pièce
+équivalente a déjà été validée, c'est cette pièce-là qui est posée.
+
+| Point | Essai (essai/bati_quaternius) | Bâti hybride |
+|---|---|---|
+| Vantaux | Door_1 du kit, fondu dans le bois sombre : trou noir | vantail de planches q_porte_* des props validés (mêmes que les maisons closes d'avant) + deux marches de pierre |
+| Volets | WindowShutters du kit en bois sombre : plaques noires | volets q_volets_* des props validés, posés à la place exacte de ceux du kit (`origine_prop` dans l'assembleur) |
+| Vitrages | un grand vitrage étiré : gros cadre orange | vitrage du village en carreaux de 0,7 x 0,55 m (la croix garde l'échelle des fenêtres de rondins) ; cadre teinté bois froid par couleur de sommet (`TEINTE_CADRE`, lue par `ps1_vitre` : blanc = inchangé partout ailleurs) ; lueur de nuit = même matière que toutes les fenêtres du village |
+| Pierre | roche du village | inchangé (mesuré à l'écran : rez de H2 L=68 contre 66 pour le mur de pierre d'avant ; H4 L=51 contre 60 pour le mur voisin) ; embrasures en plâtre du kit passées en pierre sur les maisons de pierre |
+| Bois du bâti | poutres du village | inchangé ; planches de rive sombres ajoutées aux pignons (le kit laissait un fil de ciel blanc sous la neige) |
+| Colombage | perdu sur H2 | croix de Saint-André reposées sur les pans pleins de l'étage de H2 (`pans` du .json) |
+| Neige des toits | celle du village | inchangé (dalle épaisse, rouleau de faîte, glaçons) |
+| Escalier du grenier | — | Stairs_Exterior_Straight du kit en bois sombre (la pierre du kit, enneigée, sortait blanche) |
+| Vue à travers | — | âme sombre dans chaque façade (de près, on voyait à travers les vitrages translucides) |
+
+Planche dédiée : `Desktop/Skyrim captures/bati_hybride/planches/accord_couleurs_jour.png` et `_crepuscule.png`.
