@@ -148,7 +148,7 @@ static func materiau_herbe(tex: Texture2D, teinte := Color.WHITE) -> ShaderMater
 	m.set_shader_parameter("tex_base", tex)
 	m.set_shader_parameter("teinte", teinte)
 	Palette._appliquer(m, Palette._ps1_actif)
-	Palette.materiaux.append(m)
+	Palette.suivre(m)
 	return m
 
 # --- placement -------------------------------------------------------------------

@@ -35,40 +35,62 @@ const DEFAUT_DRAUGR := {"tunique": "draugr", "pantalon": "draugr", "bottes": "dr
 	"haillons": "draugr", "pteruges": "draugr", "sacoche": "draugr", "carquois": "draugr", "manchettes": "draugr"}
 
 static var _shaders_perso := {}
+## Verrou des caches static ci-dessous (shaders, bibliothèque d'animations, matériaux de peau) : le fil de préparation des ennemis
+## (WorkerThreadPool) et le fil principal bâtissent des corps en même temps ; deux écritures concurrentes d'un Dictionary → rc=5.
+## Sections courtes, sans appel au serveur de rendu sous verrou (pas d'interblocage avec le fil principal).
+static var _mx_caches := Mutex.new()
 
 ## Variante de ps1.gdshader pour les personnages : mipmaps plus proche voisin sur la texture de base (à 8 m le tissage à 64 texels/m
 ## est réduit ~3 fois : sans mipmaps, il scintille). Les autres textures du jeu gardent le shader d'origine.
 static func shader_perso(double_face: bool) -> Shader:
-	if not _shaders_perso.has(double_face):
+	_mx_caches.lock()
+	var deja: Shader = _shaders_perso.get(double_face)
+	_mx_caches.unlock()
+	if deja == null:
 		var sh := Shader.new()
 		var code: String = Palette.PS1.code.replace("uniform sampler2D tex_base : source_color, filter_nearest, repeat_enable;", "uniform sampler2D tex_base : source_color, filter_nearest_mipmap, repeat_enable;")
 		if double_face:
 			code = code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_disabled, cull_disabled;")
 		sh.code = code
-		_shaders_perso[double_face] = sh
-	return _shaders_perso[double_face]
+		_mx_caches.lock()
+		if not _shaders_perso.has(double_face):
+			_shaders_perso[double_face] = sh
+		deja = _shaders_perso[double_face]
+		_mx_caches.unlock()
+	return deja
 
 static var _bibliotheque: AnimationLibrary
 
 static func bibliotheque() -> AnimationLibrary:
+	_mx_caches.lock()
+	var pret := _bibliotheque
+	_mx_caches.unlock()
+	if pret != null:
+		return pret
+	# construite hors verrou dans une variable locale, publiée d'un coup (si deux fils la bâtissent, le premier publié gagne)
+	var bib: AnimationLibrary
+	var source: Node = ANIMATIONS.instantiate()
+	var ap: AnimationPlayer = source.find_child("AnimationPlayer", true, false)
+	bib = ap.get_animation_library("").duplicate(true)
+	for nom in BOUCLE:
+		if bib.has_animation(nom):
+			bib.get_animation(nom).loop_mode = Animation.LOOP_LINEAR
+	source.free()
+	# clips Zombie_* des draugrs (Mixamo « Not So Scary Zombie Pack » reporté sur ce squelette : outils/zombie_retarget.gd)
+	if ResourceLoader.exists(ANIMATIONS_ZOMBIE):
+		var z := load(ANIMATIONS_ZOMBIE) as AnimationLibrary
+		for nom: StringName in z.get_animation_list():
+			bib.add_animation(nom, z.get_animation(nom))
+	if ResourceLoader.exists(ANIMATIONS_FINISHERS):
+		var f := load(ANIMATIONS_FINISHERS) as AnimationLibrary
+		for nom: StringName in f.get_animation_list():
+			bib.add_animation(nom, f.get_animation(nom))
+	_mx_caches.lock()
 	if _bibliotheque == null:
-		var source: Node = ANIMATIONS.instantiate()
-		var ap: AnimationPlayer = source.find_child("AnimationPlayer", true, false)
-		_bibliotheque = ap.get_animation_library("").duplicate(true)
-		for nom in BOUCLE:
-			if _bibliotheque.has_animation(nom):
-				_bibliotheque.get_animation(nom).loop_mode = Animation.LOOP_LINEAR
-		source.free()
-		# clips Zombie_* des draugrs (Mixamo « Not So Scary Zombie Pack » reporté sur ce squelette : outils/zombie_retarget.gd)
-		if ResourceLoader.exists(ANIMATIONS_ZOMBIE):
-			var z := load(ANIMATIONS_ZOMBIE) as AnimationLibrary
-			for nom: StringName in z.get_animation_list():
-				_bibliotheque.add_animation(nom, z.get_animation(nom))
-		if ResourceLoader.exists(ANIMATIONS_FINISHERS):
-			var f := load(ANIMATIONS_FINISHERS) as AnimationLibrary
-			for nom: StringName in f.get_animation_list():
-				_bibliotheque.add_animation(nom, f.get_animation(nom))
-	return _bibliotheque
+		_bibliotheque = bib
+	pret = _bibliotheque
+	_mx_caches.unlock()
+	return pret
 
 ## Scènes importées (corps ~16 Mo, cheveux, casques, bouclier) gardées en mémoire : `load(x).instantiate()` seul relâchait la
 ## PackedScene aussitôt (le nœud créé ne la retient pas) et le personnage suivant relisait tout le fichier (corps : 0,6-1 s ; une
@@ -169,14 +191,21 @@ static func _peau(squelette: Skeleton3D, corps: String, draugr: bool, teinte: Co
 				continue
 			var t_mat := teinte_sourcils if tex_nom == "sourcils" else teinte
 			var cle := "%s:%s" % [tex_nom, t_mat.to_html()]
-			if not _mats_peau.has(cle):
+			_mx_caches.lock()
+			var m_peau: Material = _mats_peau.get(cle)
+			_mx_caches.unlock()
+			if m_peau == null:
 				var m := Palette.materiau(PersonnagesTextures.tex(tex_nom), Vector2.ONE, t_mat)
 				m.shader = shader_perso(false)
 				m.set_shader_parameter("saturation", 0.55 if draugr else 0.9)
 				if tex_nom.begins_with("peau"):
 					m.set_shader_parameter("emission", Color(0.03, 0.04, 0.05) if draugr else Color(0.05, 0.04, 0.04))
-				_mats_peau[cle] = m
-			mi.set_surface_override_material(s, _mats_peau[cle])
+				_mx_caches.lock()
+				if not _mats_peau.has(cle):
+					_mats_peau[cle] = m
+				m_peau = _mats_peau[cle]
+				_mx_caches.unlock()
+			mi.set_surface_override_material(s, m_peau)
 
 ## Sous-couche : le corps entier, rentré de 1,6 cm (les vêtements sont à 1 à 5 cm de la peau), sous
 ## l'étoffe. Les vêtements sont découpés dans le corps : sans elle, la moindre fissure entre deux
@@ -257,6 +286,8 @@ static func vider() -> void:
 	_scenes_mx.lock()
 	_scenes.clear()
 	_scenes_mx.unlock()
+	_mx_caches.lock()
 	_mats_peau.clear()
 	_shaders_perso.clear()
+	_mx_caches.unlock()
 	PersonnagesTextures.vider()

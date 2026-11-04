@@ -258,12 +258,11 @@ func _sous_abri() -> bool:
 var _nb_mat_vus := 0
 
 func _exclure_neige() -> void:
-	var mats: Array = Palette.materiaux
-	if mats.size() == _nb_mat_vus:
+	var nouveaux: Array = Palette.materiaux_depuis(_nb_mat_vus)
+	if nouveaux.is_empty():
 		return
-	var eau = Palette._cache.get("eau")
-	for i in range(mini(_nb_mat_vus, mats.size()), mats.size()):
-		var m: ShaderMaterial = mats[i]
+	var eau = Palette.en_cache("eau")
+	for m: ShaderMaterial in nouveaux:
 		if eau != null and m.get_shader_parameter("tex_base") == eau:
 			m.set_shader_parameter("neige_tient", 0.0)
-	_nb_mat_vus = mats.size()
+	_nb_mat_vus += nouveaux.size()

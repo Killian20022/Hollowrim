@@ -1011,7 +1011,7 @@ static func materiau_kit(tex: Texture2D, relief: Texture2D, texels: float, teint
 	m.set_shader_parameter("relief", 0.8)
 	m.set_shader_parameter("uv_maillage", uv_maillage)
 	Palette._appliquer(m, Palette._ps1_actif)
-	Palette.materiaux.append(m)
+	Palette.suivre(m)
 	return m
 
 ## Pierre mouchetée tuilable (64 px) : bruit périodique 3 octaves quantifié dans `palette` (6-7 tons), moucheture en amas de

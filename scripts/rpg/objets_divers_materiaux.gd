@@ -141,7 +141,7 @@ static func materiaux() -> Dictionary:
 	for nom: String in ["or", "argent", "bronze", "fer", "cuir"]:
 		var d := (bm[nom] as ShaderMaterial).duplicate() as ShaderMaterial
 		d.set_shader_parameter("mt_texels", 9.0)
-		Palette.materiaux.append(d)                      # suit le réglage ps1 (regler_ps1) comme les autres
+		Palette.suivre(d)                      # suit le réglage ps1 (regler_ps1) comme les autres
 		_mats[nom + "_m"] = d
 	var g := 241
 	for nom: String in RELIURES:

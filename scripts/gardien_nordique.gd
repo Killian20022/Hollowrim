@@ -113,7 +113,7 @@ static func _creer(options := {}) -> Node3D:
 				m2.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * Color(1.18, 1.12, 1.08))
 				m2.set_shader_parameter("appoint", Vector3(0.15, 0.14, 0.16))
 				m2.set_shader_parameter("contour_froid", Vector3(0.24, 0.29, 0.40))
-				Palette.materiaux.append(m2)
+				Palette.suivre(m2)
 				Palette._appliquer(m2, Palette._ps1_actif)
 				_mats[cle] = m2
 			mi.set_surface_override_material(s, _mats[cle])

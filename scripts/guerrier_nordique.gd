@@ -39,7 +39,7 @@ static func contour() -> ShaderMaterial:
 		_contour = ShaderMaterial.new()
 		_contour.shader = CONTOUR
 		_contour.set_shader_parameter("epaisseur", 1.2)
-		Palette.materiaux.append(_contour)
+		Palette.suivre(_contour)
 		Palette._appliquer(_contour, Palette._ps1_actif)
 	return _contour
 
@@ -56,7 +56,7 @@ static func materiau(tex: Texture2D, double_face := true, decoupe := false, avec
 	m.set_shader_parameter("decoupe", decoupe)
 	if avec_contour:
 		m.next_pass = contour()
-	Palette.materiaux.append(m)
+	Palette.suivre(m)
 	Palette._appliquer(m, Palette._ps1_actif)
 	_mats[k] = m
 	return m
@@ -210,7 +210,7 @@ static func _creer(options := {}) -> Node3D:
 					m2.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * Color(1.24, 1.13, 1.01))   # finition : plus chaud
 					m2.set_shader_parameter("appoint", Vector3(0.17, 0.145, 0.13))
 					m2.set_shader_parameter("contour_froid", Vector3(0.22, 0.25, 0.34))
-				Palette.materiaux.append(m2)
+				Palette.suivre(m2)
 				Palette._appliquer(m2, Palette._ps1_actif)
 				_mats[cle] = m2
 			mi.set_surface_override_material(s, _mats[cle])

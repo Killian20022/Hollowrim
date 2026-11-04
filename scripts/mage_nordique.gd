@@ -228,7 +228,7 @@ static func creer(options := {}) -> Node3D:
 				# front, pans noirs de chaque côté du visage) ; la silhouette garde le contour de la pèlerine et de la robe
 				mc.next_pass = null
 			# capuche v3 : une seule face + doublure modelée (l'intérieur est sombre par son propre éclairage), contour gardé
-			Palette.materiaux.append(mc)
+			Palette.suivre(mc)
 			Palette._appliquer(mc, Palette._ps1_actif)
 			pieces["capuche"].material_override = mc
 		else:
@@ -359,7 +359,7 @@ static func _peau(pieces: Dictionary, visage := false) -> void:
 					m2.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * Color(0.86, 0.84, 0.86))
 					m2.set_shader_parameter("appoint", Vector3(0.05, 0.05, 0.07))
 					m2.set_shader_parameter("contour_froid", Vector3(0.22, 0.27, 0.38))
-				Palette.materiaux.append(m2)
+				Palette.suivre(m2)
 				Palette._appliquer(m2, Palette._ps1_actif)
 				_mats[cle] = m2
 			mi.set_surface_override_material(s, _mats[cle])
@@ -898,7 +898,7 @@ static func materiau_cristal() -> ShaderMaterial:
 	m.shader = SHADER_ORBE
 	m.set_shader_parameter("tex_base", MageTextures.tex("orbe"))
 	m.set_shader_parameter("emission", Color(0.04, 0.08, 0.16))
-	Palette.materiaux.append(m)
+	Palette.suivre(m)
 	Palette._appliquer(m, Palette._ps1_actif)
 	_mats["cristal"] = m
 	return m

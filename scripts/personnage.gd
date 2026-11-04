@@ -43,7 +43,7 @@ static func materiau(sexe: String, double: bool) -> ShaderMaterial:
 		m.shader = sh
 		m.set_shader_parameter("atlas", PersoAtlas.texture(sexe))
 		Palette._appliquer(m, Palette._ps1_actif)
-		Palette.materiaux.append(m)
+		Palette.suivre(m)
 		_mats[cle] = m
 	return _mats[cle]
 

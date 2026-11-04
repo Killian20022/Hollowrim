@@ -182,7 +182,7 @@ func construire(zone: Rect2, niveau_m: float, hauteur: Callable, options := {}) 
 	for k in params:
 		materiau.set_shader_parameter(k, params[k])
 	materiau.set_shader_parameter("carte_glace", ImageTexture.create_from_image(_gel))
-	Palette.materiaux.append(materiau)
+	Palette.suivre(materiau)
 	_maillage()
 	var veut_brume: bool = options.get("brume", reg.get("_brume", false))
 	if veut_brume:

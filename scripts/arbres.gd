@@ -105,7 +105,7 @@ static func materiau_tronc(haut: String, pied: String, teinte := Color.WHITE, mo
 	m.set_shader_parameter("teinte", teinte)
 	m.set_shader_parameter("mousse_force", mousse)
 	Palette._appliquer(m, Palette._ps1_actif)
-	Palette.materiaux.append(m)
+	Palette.suivre(m)
 	return m
 
 ## Abscisse de texture autour d'un tronc, en miroir (0 → 1 → 0) : continue partout, sans couture (cotes pair).
@@ -263,7 +263,7 @@ static func materiau_rameau(tex: Texture2D, teinte := Color.WHITE, teinte_neige 
 	m.set_shader_parameter("teinte", teinte)
 	m.set_shader_parameter("teinte_neige", teinte_neige)
 	Palette._appliquer(m, Palette._ps1_actif)
-	Palette.materiaux.append(m)
+	Palette.suivre(m)
 	return m
 
 ## Matériaux partagés des épicéas : [tronc (ps1, écorce pixel art), rameaux (atlas)].
