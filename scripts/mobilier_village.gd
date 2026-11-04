@@ -74,7 +74,7 @@ const POSES_L4 := [
 	# étal 1 : boucher (viande, lard, saucisses, cuisses) à côté des cordes
 	["q_viande", 1, Vector3(0.15, 0.9, -0.55), 15.0, false], ["q_viande", 1, Vector3(0.38, 0.9, -0.6), -30.0, false],
 	["q_lard", 1, Vector3(0.2, 0.9, -0.8), 5.0, false], ["q_cuisse", 1, Vector3(0.55, 0.92, -0.78), 70.0, false, {"argile": "cuir"}],
-	["q_saucisse", 1, Vector3(0.45, 0.9, -0.38), 20.0, false, {"argile": "cuir"}], ["q_saucisse_crue", 1, Vector3(0.58, 0.9, -0.4), -10.0, false],
+	["q_saucisse", 1, Vector3(0.45, 0.9, -0.38), 20.0, false, {"argile": "peau"}], ["q_saucisse_crue", 1, Vector3(0.58, 0.9, -0.4), -10.0, false],
 	["q_jarre", 1, Vector3(1.2, 0.0, 0.5), 0.0, false],
 	# étal 2 : poissonnier (poissons et arêtes sur la planche, jarres de saumure derrière)
 	["q_poisson", 2, Vector3(0.1, 0.9, -0.55), 10.0, false], ["q_poisson", 2, Vector3(0.3, 0.9, -0.72), -15.0, false],

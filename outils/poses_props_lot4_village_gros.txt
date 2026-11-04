@@ -1,13 +1,13 @@
 # gros plans lot 4 village (nourriture a cote des props existants)
-v_etal0 monde 51.5,32.6,0,-42 heure=12
-v_etal1 monde 53.0,33.4,-90,-42 heure=12
-v_etal2 monde 51.0,41.9,-120,-42 heure=12
-h_table interieur -3.9,-0.9,0,-42 bat=halle heure=12
-h_table2 interieur 3.9,-0.9,0,-42 bat=halle heure=12
-h_garde interieur -5.3,2.0,-90,-14 bat=halle heure=12
-g_cuisine interieur 1.4,0.1,0,-34 bat=grima heure=12
-c_table interieur 0.6,0.1,0,-34 bat=chasseurs heure=12
-c_coffre interieur 2.2,0.6,35,-30 bat=chasseurs heure=12
-s_table interieur 0.1,-0.5,0,-36 bat=sigrun heure=12
+v_etal0 monde 50.9,32.5,0,-45 heure=12
+v_etal1 monde 53.1,33.0,-90,-45 heure=12
+v_etal2 monde 51.0,41.3,-120,-45 heure=12
+h_table interieur -3.9,-0.8,0,-55 bat=halle heure=12
+h_table2 interieur 3.9,-0.8,0,-55 bat=halle heure=12
+h_garde interieur -5.6,2.0,-90,-22 bat=halle heure=12
+g_cuisine interieur 1.0,-0.2,0,-48 bat=grima heure=12
+c_table interieur 0.9,-0.4,0,-50 bat=chasseurs heure=12
+c_coffre interieur 2.0,0.9,35,-45 bat=chasseurs heure=12
+c_viandes interieur 0.2,0.4,0,-12 bat=chasseurs heure=12
+s_table interieur 0.1,-1.0,0,-55 bat=sigrun heure=12
 v_camp_pres monde 2.5,3.5,35,-24 heure=12
-v_camp_tente monde 0,1.5,0,-8 heure=12

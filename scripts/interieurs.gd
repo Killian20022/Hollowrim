@@ -742,7 +742,7 @@ func viande_seche(pos: Vector3, k := 3, lacet := 0.0) -> void:
 				if i % 2 == 0:
 					_q_xf("q_cuisse", Transform3D(bz * Basis(Vector3.BACK, -PI * 0.5) * Basis.from_scale(Vector3.ONE * (0.8 + hh * 0.6)), pos + off + Vector3(0, -0.2 - hh * 0.35, 0)), MATS_NOURRITURE.merged({"argile": "peau_sombre"}))
 				else:
-					_q_xf("q_saucisse" if i % 4 == 1 else "q_saucisse_crue", Transform3D(bz * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3.ONE * (hh * 1.1 / 0.18)), pos + off + Vector3(0, -0.2 - hh * 0.5, 0)), MATS_NOURRITURE.merged({"argile": "cuir"}))
+					_q_xf("q_saucisse" if i % 4 == 1 else "q_saucisse_crue", Transform3D(bz * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3.ONE * (hh * 0.8 / 0.18)), pos + off + Vector3(0, -0.2 - hh * 0.4, 0)), MATS_NOURRITURE.merged({"argile": "peau_sombre"}))
 			elif i % 2 == 0:
 				_q_xf("q_bourse", Transform3D(bz * Basis.from_scale(Vector3.ONE * (hh / 0.30)), pos + off + Vector3(0, -0.2 - hh, 0)), {"fer": "peau_sombre", "os": "os"})
 			else:
