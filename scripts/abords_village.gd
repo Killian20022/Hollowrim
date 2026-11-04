@@ -404,7 +404,7 @@ func _rocher_q(p: Vector2, y0: float, s: float, sx: float, sy: float, sz: float,
 	var bb := PropsQuaternius.boite(nom)
 	var ech := Vector3(sx * 2.15 / bb.size.x, sy * 1.55 / bb.size.y, sz * 2.15 / bb.size.z)
 	var xf := Transform3D(base * Basis.from_scale(ech), _l(p, y0 - 0.06 * s))
-	AbordsQ.vers_maillage(_pierre, nom, xf, Color(1.18, 1.18, 1.2), 0.62)
+	AbordsQ.vers_maillage(_pierre, nom, xf, Color(1.18, 1.18, 1.2), 0.38)
 	PropsQuaternius.compter("abords")
 
 func _rocher_maison(p: Vector2, y0: float, s: float, sx: float, sy: float, sz: float, base: Basis, n: FastNoiseLite) -> void:

@@ -125,7 +125,7 @@ static func _poser_q(racine: Node3D, liste: Array, m: Material, nom: String) -> 
 		return
 	var mi := MeshInstance3D.new()
 	mi.name = nom
-	mi.mesh = AbordsQ.mesh_fondu(liste, Color(1.12, 1.12, 1.15), 0.62)
+	mi.mesh = AbordsQ.mesh_fondu(liste, Color(1.12, 1.12, 1.15), 0.4)
 	mi.material_override = m
 	racine.add_child(mi)
 	PropsQuaternius.compter("abords_tumulus", liste.size())

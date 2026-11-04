@@ -197,7 +197,7 @@ static func _composition(monde: Node, centre: Vector3, m: Material) -> void:
 	if not rocs_q.is_empty():
 		var mq := MeshInstance3D.new()
 		mq.name = "RochersQ"
-		mq.mesh = AbordsQ.mesh_fondu(rocs_q, Color(1.12, 1.12, 1.15), 0.62)
+		mq.mesh = AbordsQ.mesh_fondu(rocs_q, Color(1.12, 1.12, 1.15), 0.4)
 		mq.material_override = m
 		racine.add_child(mq)
 		PropsQuaternius.compter("cercle_runique", rocs_q.size())
