@@ -34,7 +34,7 @@
   ],
   "mats": {
    "MI_Hair": "#54402f",
-   "mante": "#6d655f"
+   "mante": "#4b4540"
   },
   "sat": 0.5,
   "val": 0.64,
@@ -46,7 +46,7 @@
     "mat": "Peasant|Ranger",
     "min_v": 0.5,
     "vers": "#69523b",
-    "force": 0.8,
+    "force": 0.9,
     "val": 0.95
    },
    {
@@ -125,7 +125,7 @@
     "mat": "Peasant|Ranger",
     "min_v": 0.5,
     "vers": "#46454a",
-    "force": 0.8,
+    "force": 0.9,
     "val": 0.95
    },
    {
@@ -192,7 +192,7 @@
   "mats": {
    "MI_Hair": "#8e8688",
    "cape": "#352523",
-   "mante": "#57504a"
+   "mante": "#403b36"
   },
   "sat": 0.5,
   "val": 0.64,
@@ -203,8 +203,8 @@
     "objet": "Body|Arms",
     "mat": "Peasant|Ranger",
     "min_v": 0.5,
-    "vers": "#57504a",
-    "force": 0.8,
+    "vers": "#483729",
+    "force": 0.9,
     "val": 0.95
    },
    {
@@ -252,7 +252,7 @@
     "garder_tete": "SuperHero|Eyes|Eyebrows"
    },
    {
-    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Buns.gltf",
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Long.gltf",
     "garder": ".*"
    },
    {
@@ -261,12 +261,13 @@
    },
    {
     "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/femme_vetue.glb",
-    "garder_mat": "^mante$"
+    "garder_mat": "^(mante|capuche)$"
    }
   ],
   "mats": {
    "MI_Hair": "#6a4229",
-   "mante": "#503b2a"
+   "mante": "#503b2a",
+   "capuche": "#503b2a"
   },
   "sat": 0.5,
   "val": 0.64,
@@ -278,7 +279,7 @@
     "mat": "Peasant|Ranger",
     "min_v": 0.5,
     "vers": "#5b4e42",
-    "force": 0.8,
+    "force": 0.9,
     "val": 0.95
    },
    {
@@ -352,8 +353,8 @@
     "objet": "Body|Arms",
     "mat": "Peasant|Ranger",
     "min_v": 0.5,
-    "vers": "#6d655f",
-    "force": 0.8,
+    "vers": "#4b4540",
+    "force": 0.9,
     "val": 0.95
    },
    {
@@ -415,7 +416,7 @@
   ],
   "mats": {
    "MI_Hair": "#2b1a1e",
-   "mante": "#6d655f"
+   "mante": "#403b36"
   },
   "sat": 0.5,
   "val": 0.64,
@@ -427,7 +428,7 @@
     "mat": "Peasant|Ranger",
     "min_v": 0.5,
     "vers": "#52495f",
-    "force": 0.8,
+    "force": 0.9,
     "val": 0.95
    },
    {
@@ -497,7 +498,7 @@
     "mat": "Peasant|Ranger",
     "min_v": 0.5,
     "vers": "#333a33",
-    "force": 0.8,
+    "force": 0.9,
     "val": 0.95
    },
    {
@@ -568,7 +569,7 @@
     "mat": "Peasant|Ranger",
     "min_v": 0.5,
     "vers": "#503b2a",
-    "force": 0.8,
+    "force": 0.9,
     "val": 0.95
    },
    {
@@ -626,7 +627,7 @@
   ],
   "mats": {
    "MI_Hair": "#3a261b",
-   "mante": "#57504a"
+   "mante": "#403b36"
   },
   "sat": 0.5,
   "val": 0.64,
@@ -638,7 +639,7 @@
     "mat": "Peasant|Ranger",
     "min_v": 0.5,
     "vers": "#333a33",
-    "force": 0.8,
+    "force": 0.9,
     "val": 0.95
    },
    {
@@ -683,7 +684,7 @@
     "garder_tete": "SuperHero|Eyes|Eyebrows"
    },
    {
-    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Buns.gltf",
+    "src": "C:/Users/lopezk19/Jeux/nordique_persos_jeu/assets/modeles/humains/cheveux/Hair_Long.gltf",
     "garder": ".*"
    },
    {
@@ -706,7 +707,7 @@
     "mat": "Peasant|Ranger",
     "min_v": 0.5,
     "vers": "#483729",
-    "force": 0.8,
+    "force": 0.9,
     "val": 0.95
    },
    {
