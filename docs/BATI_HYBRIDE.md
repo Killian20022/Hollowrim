@@ -23,4 +23,21 @@ d'avant (VillageBati.maison et Village._maison reprennent leur code d'origine). 
 
 ## Maison par maison
 
-(tableau rempli plus bas)
+« Kit » = pièces du Medieval Village MegaKit assemblées ; « props » = props Quaternius déjà validés (docs/PROPS_REMPLACEMENT.md) ;
+« maison » = géométrie faite main d'origine, gardée.
+
+| Bâtiment (x, z monde) | Avant | Quaternius (kit / props) | Gardé fait maison (identité nordique) |
+|---|---|---|---|
+| H1 (36, 53), bord de place | rondins, pignons à têtes de dragon | kit : murs plâtre (Wall_Plaster_*), baies Window_Wide/Thin, poteaux d'angle Corner_Exterior_Wood, toit Roof_RoundTiles_6x8, pignons Roof_Front_Brick6, cheminée Prop_Chimney2 ; props : vantail q_porte_*, volets q_volets_* | **têtes de dragon** croisées au faîte (Village._dragon), soubassement, neige du toit (dalle épaisse, rouleau de faîte, glaçons), torche, fumée |
+| H2 (54, 55.5), auberge | rez de pierre, étage à colombages en encorbellement | kit : rez Wall_UnevenBrick, étage plâtre en encorbellement (Wall_BottomCover), baies, toit, pignons, cheminée Prop_Chimney ; props : vantail, volets | **colombage en croix** (poteaux, lisses, croix de Saint-André) sur les pans pleins de l'étage, enseigne « chope », soubassement, socle de pente, neige |
+| H3 (35.5, 71), haute rue | planches, porte sur le pignon est, appentis | kit : murs plâtre, baies, toit, pignons ; props : vantail, volets | appentis à bois, soubassement, neige (le plâtre à pans de bois `Wall_Plaster_WoodGrid` a été essayé : grille trop chargée en PS1) |
+| H4 (54, 77), haute rue | pierre, porte ouest | kit : Wall_UnevenBrick (embrasures en pierre), baies, toit, pignons, cheminée Prop_Chimney2 ; props : vantail, volets | soubassement, fumée, neige |
+| Maison du moulin (25.5, 55.5) | pierre | kit : Wall_UnevenBrick, mur de berge plein (l'arbre de la roue y entre), baies, toit, pignons, cheminée Prop_Chimney ; props : vantail, volets | enseigne « roue », roue et arbre (C7c), neige |
+| Ferme B (61, 3.5) | pierre, porte ouest | kit : Wall_UnevenBrick, baies, toit, pignons, cheminée Prop_Chimney2 ; props : vantail, volets | terrasse de la ferme, tas de bois (q_buche), fumée, neige |
+| Halle du jarl (44, 21) | rondins | kit : cadre de porte DoorFrame_Flat_WoodDark | **tout en rondins** : lanterne de fumée, têtes de dragon, boucliers, bancs, porte sur charnière, intérieur |
+| Sigrún (59.5, 47), chasseurs (63, 29), Grima (28, 47) | rondins, maisons visitables | kit : cadre de porte DoorFrame_Flat_WoodDark (autour du vantail sur charnière), cheminée Prop_Chimney2 | rondins vus des deux côtés, têtes de dragon, fenêtres et intérieurs, vantail sur charnière, collisions de coque |
+| H5 (36, 85), haute rue | rondins, porche | kit : cheminée Prop_Chimney2 | rondins, porche, banc |
+| H6, grenier sur pierres levées (60, 20.5) | stabbur de planches, escalier détaché | kit : escalier extérieur Stairs_Exterior_Straight (en bois sombre) | tout le grenier (pierres levées, étage en surplomb) |
+| Ferme A (79.5, 24.5) | rondins, têtes de dragon | kit : cheminée Prop_Chimney2 | rondins, têtes de dragon, tas de bois |
+| Granges A et B | planches, grandes portes | — | tout (le kit n'a pas de portes de grange) |
+| Tour-clocher, moulin à vent, forge, palissade, crypte, grotte | — | — | inchangés |
