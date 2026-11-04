@@ -146,3 +146,14 @@ Les « Appels (sites) » ci-dessus sont des estimations par grep, pas des compte
 Lecture : les écarts de +1,5 ms isolés sont du bruit de GPU partagé (un run « après » seul, l'autre identique à l'avant). Sur la 2e série, marché
 +0,0 à +0,3 ms, place +0,1 à +0,9 ms (budget +0,5 ms tenu en moyenne, pas garanti). Limite : forge, halle et crypte mesurent un cadrage
 dont le contenu remplacé est peu visible (primitives quasi identiques) ; le coût réel de ces intérieurs est donc sous-mesuré.
+
+## Lot 4 (props/lot4)
+
+Sources : Medieval Dungeon, Survival et Ultimate Food (Quaternius, CC0), matières de nourriture MATS_NOURRITURE passées par le shader ps1.
+
+- **Crypte** (`CrypteDecor`, table `SUBST` + nouveaux groupes) : os épars maison d'origine gardés (pas de squelette entier) avec un crâne en plus, piles de livres et groupes de fioles à l'échelle x1,3, toiles/gravats inchangés. Le module `assets/crypte/modules/props_quaternius.dat` est régénéré.
+- **Village** : étal du boucher avec viandes pendues, miches groupées, étals de la place éclaircis (légumes, choux), tables de la halle, de Sigrun, des chasseurs et de Grima garnies de nourriture et vaisselle (`interieurs.gd`, `interieur_halle.gd`, helper nourriture/vaisselle posée sur `pos`), tente du camp tournée vers le feu.
+- **Grotte** (`grotte_decor.gd`, `grotte_modules.gd`) : camp (tente, rondins, ustensiles), mine et repaire ; les rondins du camp n'ont pas de collision (ils barraient la capsule de test), les autres pièces ont une boîte `solide_b`.
+- **Interrupteur** : `-- --sans-lot4` (exe 3 = lot 3 seul), lu dans `PropsQuaternius.lot4` ; `--sans-remplacement` coupe tout.
+- **Perf** : non remesurée sur ce lot (marché/place/intérieurs mesurés au lot 2 seulement) ; la nourriture ajoute des dizaines de petites instances par table, à surveiller en intérieur.
+- **Limites** : sous l'éclairage sombre des intérieurs et à distance, la nourriture est peu lisible (silhouettes brunes sur bois brun) ; plusieurs pièces de la crypte (livres) restent petites et grisâtres comparées à l'ancien décor brun ; mêmes tests headless OK (crypte, cassables, butin, interieurs, grotte). Planches : `Skyrim captures/props_lot4/planches_v2/{crypte_v2,village_v2,grotte}`.
