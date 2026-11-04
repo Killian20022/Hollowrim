@@ -1718,15 +1718,7 @@ func crane(pos: Vector3, lacet := 0.0) -> void:
 	ObjPetitMobilier.crane(self, pos, lacet)
 
 func os_tas(pos: Vector3, n := 4, rayon := 0.4) -> void:
-	ObjPetitMobilier.os_tas(self, pos, n, rayon)
-	if not _lot4() or n < 4:
-		return
-	j0("os_tas")      # props/lot4 : os épars maison gardés (pas de squelette entier) ; un crâne Quaternius de plus dans les grands tas
-	var r := _alea_pos(pos)
-	var a := r.randf() * TAU
-	var d := r.randf_range(0.3, 1.0) * rayon
-	_q4("q_crane", pos + Vector3(cos(a) * d, 0.0, sin(a) * d), r.randf() * TAU, Vector3.ONE)
-	j1()
+	ObjPetitMobilier.os_tas(self, pos, n, rayon)      # props/lot4 : os épars et crâne anatomique maison gardés (q_crane, q_os_tas : lisent comme une boule / une bête)
 
 # ------------------------------------------------------------------ C7 : ossuaire en relief (panneaux d'os)
 ## Les panneaux d'os (DonjonKit.panneau_os) n'étaient qu'une texture de crânes peints (ossuaire.res) : à 1-3 m, « papier peint ».
