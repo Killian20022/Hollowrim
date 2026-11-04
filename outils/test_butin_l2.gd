@@ -35,6 +35,9 @@ func _gerbe(pos: Vector3, contenu: Dictionary) -> Node3D:
 	return b
 
 func _tester() -> void:
+	# sans --fixed-fps, un Godot sans fenêtre tourne bien plus vite que le temps réel : 18 images ne durent alors que quelques
+	# millisecondes de jeu et la gerbe n'a pas décollé à « 0,3 s ». Images plafonnées à 60 i/s = temps de jeu fiable.
+	Engine.max_fps = 60
 	m = SCENE.instantiate()
 	m.set_meta("test", true)
 	root.add_child(m)
