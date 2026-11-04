@@ -168,6 +168,13 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 			continue
 		var bq := PropsQuaternius.boite(vq)
 		PropsQuaternius.village(v, p, vq, Transform3D(Basis(Vector3.UP, d[5]) * Basis.from_scale(Vector3(d[3] / bq.size.x, d[4] / bq.size.y, 1.0)), Vector3(d[0], y_sol + float(d[1]), d[2])))
+		# deux marches de pierre devant le seuil (comme VillageBati.porte) : le seuil est au-dessus du soubassement
+		var nd := Basis(Vector3.UP, d[5]) * Vector3.BACK
+		var fd := Transform3D(Basis(Vector3.UP, d[5]), Vector3(d[0], y_sol, d[2]) + nd * 0.17)
+		var rd := RandomNumberGenerator.new()
+		rd.seed = graine + k * 7
+		v._bloc(p, Vector3(float(d[3]) + 0.85, 0.2, 0.62), rd.randi(), fd * Vector3(0, -0.3, 0.42), v.m_brute, d[5], 0.5, 0.2, 0.05)
+		v._bloc(p, Vector3(float(d[3]) + 0.55, 0.2, 0.42), rd.randi(), fd * Vector3(0, -0.1, 0.24), v.m_brute, d[5], 0.5, 0.2, 0.05)
 	# colombage en croix (identité de l'H2 d'avant) sur les pans pleins de l'étage : poteaux, lisses et croix de Saint-André sombres
 	for pn: Array in m.get("pans", []):
 		var bp := Basis(Vector3.UP, pn[5])
