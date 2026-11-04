@@ -1,6 +1,6 @@
 class_name AbordsQ
 ## Lot « abords + enceinte » (gen/abords, 2026-11-04) : props Quaternius DÉJÀ convertis (props_quaternius.dat, API PropsQuaternius)
-## fondus dans les maillages existants des abords (rochers, barrières, bordures, os, camp des bandits). Aucun nœud par prop.
+## fondus dans les maillages existants des abords (barrières des abords, camp des bandits). Aucun nœud par prop.
 ## Interrupteur : `-- --abords-anciens` rend les anciennes pièces maison (captures « avant », mesures A/B) ; `--sans-remplacement`
 ## et `--sans-lot4` les rendent aussi (les rochers et les pièges viennent du lot 4).
 ## Doc : docs/ABORDS_QUATERNIUS.md.

@@ -374,10 +374,7 @@ func _rocher(u: float, v: float, s: float) -> void:
 	var sz := s * 0.5 * rng.randf_range(0.7, 0.95)
 	var sy := s * 0.42 * rng.randf_range(0.8, 1.15)
 	var base := Basis(Vector3.UP, rng.randf() * TAU)
-	if AbordsQ.actif:
-		_rocher_q(p, y0, s, sx, sy, sz, base, int(n.seed))
-	else:
-		_rocher_maison(p, y0, s, sx, sy, sz, base, n)
+	_rocher_maison(p, y0, s, sx, sy, sz, base, n)   # gen/abords : rochers maison GARDÉS (les rochers Quaternius font « pâte à modeler »)
 	# congère au pied, du côté opposé à la piste
 	var dehors := (droite * signf(v)).normalized()
 	var dir := dehors.rotated(rng.randf_range(-0.6, 0.6))
@@ -395,17 +392,6 @@ func _rocher(u: float, v: float, s: float) -> void:
 	for i in rng.randi_range(1, 3):
 		var a2 := dehors.rotated(rng.randf_range(-1.4, 1.4))
 		_touffe(p + a2 * (maxf(sx, sz) + rng.randf_range(0.05, 0.3)), rng.randf_range(0.7, 1.1))
-
-## gen/abords : bloc de granit Quaternius (Medieval Dungeon Rock1-4, lot 4) à la place du polyèdre maison, même emprise (sx, sy, sz),
-## fondu dans `_pierre` (même texture de granit, même teinte froide) ; faces du dessus en neige (alpha 0), comme la calotte maison.
-const ROCS_Q := ["q_roc_2", "q_roc_4", "q_roc_1", "q_roc_3"]
-func _rocher_q(p: Vector2, y0: float, s: float, sx: float, sy: float, sz: float, base: Basis, graine: int) -> void:
-	var nom: String = ROCS_Q[absi(graine) % ROCS_Q.size()]
-	var bb := PropsQuaternius.boite(nom)
-	var ech := Vector3(sx * 2.15 / bb.size.x, sy * 1.55 / bb.size.y, sz * 2.15 / bb.size.z)
-	var xf := Transform3D(base * Basis.from_scale(ech), _l(p, y0 - 0.06 * s))
-	AbordsQ.vers_maillage(_pierre, nom, xf, Color(1.18, 1.18, 1.2), 0.38)
-	PropsQuaternius.compter("abords")
 
 func _rocher_maison(p: Vector2, y0: float, s: float, sx: float, sy: float, sz: float, base: Basis, n: FastNoiseLite) -> void:
 	# passe 4 : bloc de granit à FACETTES (intersection de demi-espaces à arêtes adoucies) au lieu d'une boule bosselée ;
@@ -674,6 +660,14 @@ func _barriere(pts: Array) -> void:
 		var xf := Transform3D(AbordsQ.base_segment(a, b, bb.size.x * 0.97, 1.32, 1.5), (a + b) * 0.5)
 		AbordsQ.vers_maillage(_bois, nom, xf, Color(0.95, 0.9, 0.86), 0.7, true)
 		PropsQuaternius.compter("abords")
+		# neige posée sur la lisse haute (y 0,755 du prop) et calottes sur les montants, générateur à part (tirages de `rng` inchangés)
+		var sauve := rng
+		rng = RandomNumberGenerator.new()
+		rng.seed = sauve.seed ^ (0x6a2b + i * 97 + int(pa.x * 13.0))
+		_neige_sur(xf * Vector3(-0.99, 0.765, 0.02), xf * Vector3(0.99, 0.765, 0.02), 0.11, 0.06)
+		for sx in [-0.95, 0.95]:
+			_calotte(xf * Vector3(sx, 0.845, 0.0), 0.075, 0.07)
+		rng = sauve
 
 func _barriere_maison(pts: Array) -> Array[Vector2]:
 	var tetes: Array[Vector3] = []

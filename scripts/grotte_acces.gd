@@ -330,23 +330,13 @@ func _signes_des_bandits() -> void:
 	decor.sac(_sol(5.6, 3.0), 0.8)
 	# foyer éteint : cercle de pierres, bûches noircies, os
 	var f := _sol(-1.6, 5.3)
-	if AbordsQ.actif and _q_pret():
-		# gen/abords : couronne de rochers Quaternius (lot 4), bûches Bonfire (Survival) noircies, os épars (Bones2)
-		for k in 7:
-			var a := TAU * k / 7.0
-			var q := f + Vector3(cos(a) * 0.66, 0.0, sin(a) * 0.66)
-			_q(["q_roc_1", "q_roc_3", "q_roc_2", "q_roc_4", "q_roc_5"][k % 5], Vector3(q.x, _hl(q.x, q.z) - 0.03, q.z), Basis(Vector3.UP, -a).scaled(Vector3(1.0, 0.9, 0.85)), {"pierre": "c_roche_nu"})
-		_q("q_feu_bois", f + Vector3(0, -0.02, 0), Basis(Vector3.UP, 0.7).scaled(Vector3(0.85, 0.7, 0.85)), {"@bois": Color(0.32, 0.29, 0.27)})
-		var o := f + Vector3(0.9, 0, 0.6)
-		_q("q_os_tas_2", Vector3(o.x, _hl(o.x, o.z) - 0.02, o.z), Basis(Vector3.UP, 1.1).scaled(Vector3(1.6, 1.3, 1.6)))
-	else:
-		for k in 7:
-			var a := TAU * k / 7.0
-			decor.rocher("c_roche_nu", f + Vector3(cos(a) * 0.62, 0.0, sin(a) * 0.62), 0.2, 0.18, 4200 + k, 0.35, false, 5)
-		for k in 3:
-			var a := 0.5 + k * 2.1
-			decor.prisme("fer", f + Vector3(cos(a) * 0.35, 0.1, sin(a) * 0.35), f + Vector3(-cos(a) * 0.3, 0.16, -sin(a) * 0.3), 0.05, 5)
-		decor.os_tas(f + Vector3(0.9, 0, 0.6), 3, 0.35)
+	for k in 7:
+		var a := TAU * k / 7.0
+		decor.rocher("c_roche_nu", f + Vector3(cos(a) * 0.62, 0.0, sin(a) * 0.62), 0.2, 0.18, 4200 + k, 0.35, false, 5)
+	for k in 3:
+		var a := 0.5 + k * 2.1
+		decor.prisme("fer", f + Vector3(cos(a) * 0.35, 0.1, sin(a) * 0.35), f + Vector3(-cos(a) * 0.3, 0.16, -sin(a) * 0.3), 0.05, 5)
+	decor.os_tas(f + Vector3(0.9, 0, 0.6), 3, 0.35)
 	decor.arme(_sol(2.4, 4.2) + Vector3(0, 0.03, 0), 0.9)
 	# torche éteinte plantée dans la neige (tête noircie)
 	var t := _sol(-5.0, 1.9)
@@ -467,26 +457,18 @@ func _piste() -> void:
 		var xl := w.y - SITE.y
 		var zl := SITE.x - w.x
 		var base := _sol(xl, zl)
-		if AbordsQ.actif and _q_pret():
-			# gen/abords : cairn de trois rochers Quaternius (lot 4) empilés, pierre givrée de la grotte ; collision du bas gardée
-			var mq := {"pierre": "c_roche_neige"}
-			_q("q_roc_2", base + Vector3(0, -0.05, 0), Basis(Vector3.UP, 0.4 + k).scaled(Vector3(2.4, 2.6, 2.4)), mq)
-			_q("q_roc_4", base + Vector3(0.05, 0.42, 0.0), Basis(Vector3.UP, 1.3 + k).scaled(Vector3(1.9, 1.7, 1.9)), mq)
-			_q("q_roc_5", base + Vector3(-0.03, 0.78, 0.02), Basis(Vector3.UP, 2.2 + k).scaled(Vector3(1.8, 1.9, 1.8)), mq)
-			decor.solide_rond(base + Vector3(0, 0.45, 0), 0.55, 0.9)
-		else:
-			decor.rocher("c_roche_neige", base, 0.62, 0.5, 4300 + k, 0.6, true, 6)
-			decor.rocher("c_roche_neige", base + Vector3(0.05, 0.42, 0.0), 0.42, 0.4, 4310 + k, 0.7, false, 6)
-			decor.rocher("c_roche_neige", base + Vector3(-0.03, 0.74, 0.02), 0.26, 0.3, 4320 + k, 0.9, false, 5)
+		decor.rocher("c_roche_neige", base, 0.62, 0.5, 4300 + k, 0.6, true, 6)
+		decor.rocher("c_roche_neige", base + Vector3(0.05, 0.42, 0.0), 0.42, 0.4, 4310 + k, 0.7, false, 6)
+		decor.rocher("c_roche_neige", base + Vector3(-0.03, 0.74, 0.02), 0.26, 0.3, 4320 + k, 0.9, false, 5)
 		k += 1
 
 ## gen/abords : un prop Quaternius posé tel quel (base quelconque : inclinaison, cisaillement) dans les tampons du décor, sans nœud.
 func _q_pret() -> bool:
 	PropsQuaternius.preparer_crypte()
-	return CrypteDecor.modele_existe("q_poutre_ronde") and CrypteDecor.modele_existe("q_roc_1")
+	return CrypteDecor.modele_existe("q_poutre_ronde") and CrypteDecor.modele_existe("q_banniere_toile")
 
 func _q(nom: String, pos: Vector3, b: Basis, mats := {}) -> void:
-	# matières DÉJÀ employées par l'entrée (fer, bois, os, peau, roches) : une matière neuve lance un chargement de texture en tâche,
+	# matières DÉJÀ employées par l'entrée (fer, bois, peau) : une matière neuve lance un chargement de texture en tâche,
 	# attendu sous FilVerrou par ce fil de construction (interblocage en --headless) ; d'où fer -> fer et non fer_mat
 	var m := {"fer": "fer", "herbe": "bois"}
 	m.merge(mats, true)
