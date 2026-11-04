@@ -1127,7 +1127,8 @@
 "lot3": true,
 "famille": [
 "bois"
-]
+],
+"eclairer": 2.2
 },
 {
 "nom": "q_poutre_ronde",
@@ -1138,7 +1139,8 @@
 "lot3": true,
 "famille": [
 "bois"
-]
+],
+"eclairer": 2.2
 },
 {
 "nom": "q_sac_pieces",

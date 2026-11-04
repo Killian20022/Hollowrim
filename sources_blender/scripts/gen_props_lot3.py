@@ -49,6 +49,8 @@ for nom, src, bud, cat, h, fam in L3:
         e["hauteur"] = h
     if fam:
         e["famille"] = fam
+    if nom in ("q_buche", "q_poutre_ronde"):
+        e["eclairer"] = 2.2      # pièces basses : sortaient presque noires (pied sombre sur toute la hauteur)
     d.append(e)
 json.dump(d, open(p, "w", encoding="utf8"), ensure_ascii=False, indent=0)
 print(len(d), "props")

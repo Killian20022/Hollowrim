@@ -529,6 +529,9 @@ def main():
             apercu_original(e, objs, os.path.join(dossier, e["nom"] + "_orig.png"))
         st = {}
         res = aretes.appliquer(P.finir(), bandes=P.bandes, stats=st)
+        k_ecl = e.get("eclairer")      # facteur sur les couleurs de sommet (pièces posées à plat au ras du sol : le « pied sombre » les noircit en entier)
+        if k_ecl:
+            res = {m: [(p, tuple((min(1.0, c[0] * k_ecl), min(1.0, c[1] * k_ecl), min(1.0, c[2] * k_ecl), c[3]) for c in cs)) for (p, cs) in faces] for m, faces in res.items()}
         for mat, faces in res.items():
             donnees["%s__%s" % (P.nom, mat)] = faces
         pts = [q for (_, p, _) in P.tris for q in p]

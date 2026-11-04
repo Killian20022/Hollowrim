@@ -54,15 +54,14 @@ const POSES_Q := [
 ## props/remplacement : DENSIFICATION du marché et des ruelles (props Quaternius supplémentaires, coordonnées MONDE : étal = -1 ; y = hauteur
 ## au-dessus du sol), en petits groupes contre les tas existants (rien sur les passages). [prop, -1, Vector3(x, y, z), lacet°, collision]
 const POSES_D := [
-	["q_tonneau_pommes", -1, Vector3(51.0, 0.0, 45.9), 0.0, true], ["q_tonneau_pommes", -1, Vector3(40.2, 0.0, 55.4), 30.0, true],
-	["q_cageot_vide", -1, Vector3(55.7, 0.0, 42.3), 10.0, false], ["q_cageot_pommes", -1, Vector3(55.7, 0.24, 42.3), 10.0, false],
+	["q_tonneau", -1, Vector3(51.0, 0.0, 45.9), 0.0, true], ["q_tonneau_2", -1, Vector3(40.2, 0.0, 55.4), 30.0, true],
+	["q_cageot_vide", -1, Vector3(55.7, 0.0, 42.3), 10.0, false], ["q_cageot_vide", -1, Vector3(55.7, 0.24, 42.3), 40.0, false],
 	["q_corde_2", -1, Vector3(49.1, 0.0, 32.4), 40.0, false], ["q_bourse", -1, Vector3(52.0, 0.0, 44.0), 30.0, false],
 	["q_sac_debout", -1, Vector3(47.3, 0.0, 55.2), 0.0, false], ["q_sac", -1, Vector3(46.0, 0.0, 55.0), 60.0, false],
-	["q_support_tonneau", -1, Vector3(57.4, 0.0, 54.3), 90.0, true],
 	["q_souche", -1, Vector3(56.2, 0.0, 49.6), 0.0, true], ["q_hache_outil", -1, Vector3(56.2, 0.6, 49.6), 70.0, false],
 	["q_tronc", -1, Vector3(55.6, 0.0, 47.2), 80.0, false],
 	["q_seau_bois", -1, Vector3(41.6, 0.0, 55.4), 0.0, false], ["q_caisse", -1, Vector3(38.4, 0.0, 70.0), 20.0, true],
-	["q_cageot_carottes", -1, Vector3(48.4, 0.0, 78.2), 5.0, false], ["q_corde_1", -1, Vector3(50.6, 0.0, 80.4), 100.0, false],
+	["q_corde_1", -1, Vector3(50.6, 0.0, 80.4), 100.0, false],
 ]
 ## Matières des props Quaternius -> matières du mobilier (fer MAT : fer du village, déjà terne ; voir _materiau pour lin et os).
 ## Même table pour les props posés par substitut() dans le village (matière du prop -> matière de PropsQuaternius.mats_village).
@@ -156,7 +155,7 @@ static func substitut(mod: String) -> Array:
 			r.append(["q_poutre_ronde", Transform3D(Basis.from_scale(Vector3(2.9, 0.9, 0.9)), Vector3(0, 2.9, 0)), {}])
 			r.append(["q_poutre_ronde", Transform3D(Basis.from_scale(Vector3(2.9, 0.6, 0.6)), Vector3(0, 1.9, 0)), {}])
 			for sg in [-1.0, 1.0]:
-				r.append(["q_planches_sol", Transform3D(Basis(Vector3.RIGHT, sg * 0.62) * Basis.from_scale(Vector3(3.2, 1.0, 0.95)), Vector3(0, 3.25 - 0.0, sg * 0.5)), {}])
+				r.append(["q_planches_sol", Transform3D(Basis(Vector3.RIGHT, sg * 0.62) * Basis.from_scale(Vector3(3.2, 1.0, 0.95)), Vector3(0, 3.25 - 0.0, sg * 0.5)), {}, Vector3(1, -1, 1)])
 			r.append(["q_seau_bois", _fit("q_seau_bois", Vector3(0.55, 0.88, 0.7), 0.5, Vector3(0.43, 0.29, 0.39)), {}])
 			r.append(["q_corde_1", _fit("q_corde_1", Vector3(-0.85, 0.88, -0.9), 0.0, Vector3(0.6, 0, 0.6)), {}])
 		"enclos_poteau":
@@ -175,7 +174,7 @@ static func substitut(mod: String) -> Array:
 				r.append(["q_poutre_ronde", Transform3D(Basis(Vector3.BACK, PI * 0.5) * Basis.from_scale(Vector3(1.9, 0.8, 0.8)), Vector3(sx, 0.95, 0)), {}])
 			r.append(["q_poutre_ronde", Transform3D(Basis.from_scale(Vector3(2.7, 0.7, 0.7)), Vector3(0, 1.75, 0)), {}])
 			for k in 3:
-				r.append(["q_banniere_toile", Transform3D(Basis(Vector3.UP, 0.1 * k) * Basis.from_scale(Vector3(1.1, 0.55, 1.0)), Vector3(-0.8 + k * 0.8, 0.5, 0.04)), {"toile": "lin"}])
+				r.append(["q_banniere_toile", Transform3D(Basis(Vector3.UP, 0.15 * (k - 1)) * Basis.from_scale(Vector3(0.7, 0.45, 1.0)), Vector3(-0.8 + k * 0.8, 0.7, 0.04)), {"toile": "jute"}, Vector3(1, 1, -1)])
 		"feu_camp":      # KITBASH : couronne de briques Quaternius (9) + bûcher Woodfire ; braises de l'ancien module gardées
 			for i in 9:
 				var a := i * TAU / 9.0
@@ -333,6 +332,8 @@ static func poser_dans(v, parent: Node3D, mod: String, xf: Transform3D, mats := 
 		for m: Array in PropsQuaternius.morceaux(e[0]):
 			var cible: String = (e[2] as Dictionary).get(m[0], MATS_Q_V.get(m[0], m[0]))
 			v._ajouter(parent, m[1], xf * (e[1] as Transform3D), mv[cible] if mv.has(cible) else mv["bois"])
+			if e.size() > 3:      # pièce plane : seconde face (même plan, orientation inverse)
+				v._ajouter(parent, m[1], xf * (e[1] as Transform3D) * Transform3D(Basis.from_scale(e[3]), Vector3.ZERO), mv[cible] if mv.has(cible) else mv["bois"])
 	for nom: String in charger():
 		if nom.begins_with(pre):
 			if not sub.is_empty() and not (nom.substr(pre.length()) in garde):
@@ -359,6 +360,8 @@ static func noeud_modules(poses: Array, nom_noeud: String) -> Node3D:
 					stq.begin(Mesh.PRIMITIVE_TRIANGLES)
 					st_par[mq] = stq
 				(st_par[mq] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(e[0], t[0]), 0, (p[1] as Transform3D) * (e[1] as Transform3D))
+				if e.size() > 3:
+					(st_par[mq] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(e[0], t[0]), 0, (p[1] as Transform3D) * (e[1] as Transform3D) * Transform3D(Basis.from_scale(e[3]), Vector3.ZERO))
 		for nom: String in donnees:
 			if not nom.begins_with(pre):
 				continue
@@ -443,6 +446,7 @@ func _construire() -> void:
 					var stq := SurfaceTool.new()
 					stq.begin(Mesh.PRIMITIVE_TRIANGLES)
 					stq.append_from(PropsQuaternius.maillage_brut("q_banniere_toile", t[0]), 0, Transform3D(xt.basis, Vector3(0, -3.7, 0.0)))
+					stq.append_from(PropsQuaternius.maillage_brut("q_banniere_toile", t[0]), 0, Transform3D(xt.basis * Basis.from_scale(Vector3(1, 1, -1)), Vector3(0, -3.7, 0.0)))
 					stq.generate_normals()
 					var mq := MeshInstance3D.new()
 					mq.mesh = stq.commit()
@@ -528,6 +532,8 @@ func _poser_sub(fusion: Dictionary, sub: Array, xf: Transform3D, _mod: String) -
 				st.begin(Mesh.PRIMITIVE_TRIANGLES)
 				fusion[mat] = st
 			(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(e[0], t[0]), 0, xf * (e[1] as Transform3D))
+			if e.size() > 3:
+				(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(e[0], t[0]), 0, xf * (e[1] as Transform3D) * Transform3D(Basis.from_scale(e[3]), Vector3.ZERO))
 			tris += (t[1] as PackedVector3Array).size() / 3
 	return tris
 

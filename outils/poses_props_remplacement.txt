@@ -5,10 +5,10 @@ v_marche1 monde 46,36,-56,-6 heure=12
 v_marche2 monde 47,48,-45,-6 heure=12
 v_marche3 monde 54,28,0,-6 heure=12
 v_charrette monde 52,23.5,-116,-5 heure=12
-v_boisA monde 54,48,-132,-8 heure=12
+v_boisA monde 50,84,218,-8 heure=12
 v_ruelle monde 31,55,39,-6 heure=12
 v_forge monde 34,37,90,-6 heure=12
-v_enclos monde 59,41,-90,-8 heure=12
+v_enclos monde 59,44,-70,-8 heure=12
 v_camp monde 6,6,45,-10 heure=12
 h_porte interieur 0,3.0,0,-4 bat=halle heure=12
 h_ouest interieur -5.8,0.2,-90,-6 bat=halle heure=12

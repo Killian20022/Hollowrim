@@ -164,9 +164,9 @@ static func _estrade(b: Interieurs) -> void:
 	if Interieurs.rempl("q_planches_sol"):      # KITBASH : caisson de planches Quaternius (Floor_WoodDark) : dessus, face avant et côtés, marche devant
 		b.qf("q_planches_sol", Vector3(0, F + 0.22, -2.65), 0.0, Vector3(3.1, 0, 1.3))
 		b.qf("q_planches_sol", Vector3(0, F + 0.1, -2.0), 0.0, Vector3(3.1, 0, 0.34))
-		b._q_xf("q_planches_sol", Transform3D(Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3(3.1, 1.0, 0.11)), Vector3(0, F + 0.11, -2.0)))
+		b._q_xf("q_planches_sol", Transform3D(Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3(3.1, 1.0, 0.11)), Vector3(0, F + 0.11, -2.0)), {}, Vector3(1, -1, 1))
 		for sx in [-1.0, 1.0]:
-			b._q_xf("q_planches_sol", Transform3D(Basis(Vector3.UP, PI * 0.5) * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3(1.3, 1.0, 0.11)), Vector3(sx * 1.55, F + 0.11, -2.65)))
+			b._q_xf("q_planches_sol", Transform3D(Basis(Vector3.UP, PI * 0.5) * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3(1.3, 1.0, 0.11)), Vector3(sx * 1.55, F + 0.11, -2.65)), {}, Vector3(1, -1, 1))
 	else:
 		b.modele("estrade_halle", Vector3(0, F, -2.65))
 	# peau d'ours devant le trône

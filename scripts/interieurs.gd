@@ -359,10 +359,12 @@ func qf(nom: String, pos: Vector3, lacet: float, taille: Vector3, mats := {}, so
 		solide(pos + Basis(Vector3.UP, lacet) * (bb.get_center() * sc), bb.size * sc, lacet)
 
 ## Prop posé par une transformation complète (repère de la pièce), sans recalage au sol.
-func _q_xf(nom: String, xf: Transform3D, mats := {}) -> void:
+func _q_xf(nom: String, xf: Transform3D, mats := {}, double_ := Vector3.ONE) -> void:
 	PropsQuaternius.compter("interieurs")
 	for m: Array in PropsQuaternius.morceaux(nom):
 		v._ajouter(_p(), m[1], xf, M[mats.get(m[0], MATS_Q.get(m[0], "bois"))])
+		if double_ != Vector3.ONE:      # pièce plane : seconde face (axe de la normale mis à -1)
+			v._ajouter(_p(), m[1], xf * Transform3D(Basis.from_scale(double_), Vector3.ZERO), M[mats.get(m[0], MATS_Q.get(m[0], "bois"))])
 
 ## Hauteur (au-dessus du pied) du plateau n°i de l'étagère à 4 niveaux : plateaux de l'étagère à arche Quaternius, sinon ceux de l'ancien module.
 func niv(i: int) -> float:
@@ -815,12 +817,11 @@ func parchemin(pos: Vector3, lacet := 0.0) -> void:
 
 ## Peau posée au sol (y = 0 : sur le plancher).
 func peau_sol(pos: Vector3, taille: Vector2, lacet := 0.0, mat := "peau") -> void:
-	if rempl("q_banniere_toile"):      # kitbash : tissu de bannière Quaternius couché sur le plancher, teinte de la peau voulue
+	if rempl("q_banniere_toile"):      # kitbash : tissu de bannière Quaternius couché sur le plancher (deux faces), teinte de la peau voulue
 		var yy := (F if pos.y < 0.01 else pos.y) + 0.025
 		var bb := PropsQuaternius.boite("q_banniere_toile")
-		var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3(taille.x / bb.size.x, taille.y / bb.size.y, 3.0)), Vector3(pos.x, yy, pos.z))
-		for m: Array in PropsQuaternius.morceaux("q_banniere_toile"):
-			v._ajouter(_p(), m[1], xf, M[mat])
+		var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3(taille.x / bb.size.x, taille.y / bb.size.y, 3.0)), Vector3(pos.x, yy, pos.z) + Basis(Vector3.UP, lacet) * Vector3(0, 0, -taille.y * 0.5))
+		_q_xf("q_banniere_toile", xf, {"toile": mat, "laine": mat}, Vector3(1, 1, -1))
 		return
 	var y := (F if pos.y < 0.01 else pos.y) + 0.02
 	bx(Vector3(pos.x, y, pos.z), Vector3(taille.x, 0.035, taille.y), mat, lacet)

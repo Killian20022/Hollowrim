@@ -1,3 +1,5 @@
+mtllib poutre_ronde.mtl
+usemtl bois_clair
 o buche
 v -0.5000 0.0135 0.0666
 v -0.5000 0.0567 0.0376
