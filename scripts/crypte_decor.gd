@@ -1728,6 +1728,476 @@ func os_tas(pos: Vector3, n := 4, rayon := 0.4) -> void:
 	_q4("q_crane", pos + Vector3(cos(a) * d, 0.0, sin(a) * d), r.randf() * TAU, Vector3.ONE)
 	j1()
 
+# ------------------------------------------------------------------ C7 : ossuaire en relief (panneaux d'os)
+## Les panneaux d'os (DonjonKit.panneau_os) n'étaient qu'une texture de crânes peints (ossuaire.res) : à 1-3 m, « papier peint ».
+## Version en relief : de y0 à y0 + 1,5 m (0,8 -> 2,3 m, hauteur d'yeux), 3 rangées de niches de 0,5 m en vraie pierre (modules de
+## ossuaire.py : tablette, montant, fond NOIR), garnies de crânes et de fagots d'os en volume ; au-dessus, corniche puis la texture
+## `ossuaire` gardée (2,3 -> y1 : vue de loin et en contre-plongée, elle suffit), ses niches calées sur les colonnes du relief.
+## Tout passe par modele() : fusionné dans les tampons de la case de 8 m (pas un nœud par crâne). Le contenu est posé PLUS TARD
+## (remplir_niches_os, après le récit de la salle) : sarcophages, estrade et meubles posés après les panneaux sont alors connus, et
+## une niche qu'ils masquent reste vide (pas de crâne dans un couvercle). Tirages : générateur à part (graine = position du panneau),
+## rng / rng_deco intouchés : le reste du décor ne bouge pas. `-- --os-plat` : ancien panneau peint (captures « avant » à code égal).
+## Portée : le contenu (crânes, fagots) n'est dessiné qu'à moins de 10 m (lot « os_proche ») ; au-delà, une case de la texture peinte
+## au fond de chaque niche (lot « os_loin ») ; cadres et corniche restent en volume. Mesure (mesure_vues, 640x360, 4 paires, moyenne) :
+## +0,02 à +0,16 ms GPU sur 4 vues de l'ossuaire (sans portée : +0,41 ms à 12 m) ; +62 k triangles dans la crypte.
+const OS_RANGEES := 3
+const OS_CASE := 0.5
+const OS_PROF := 0.28        # saillie du cadre (ossuaire.py PROF)
+var niches_os: Array = []    # poses différées : [genre (case | corniche | poteau), pied (repère local, plan du mur), lacet, largeur, rangée, graine, variante]
+
+static func ossuaire_relief() -> bool:
+	return not OS.get_cmdline_user_args().has("--os-plat") and modele_existe("niche_os_cadre_a")
+
+## Renvoie la nouvelle hauteur du haut du panneau (la rangée peinte au-dessus de la corniche est entière : 0,5 m).
+func panneau_os_v3(axe: String, fixe: float, a0: float, a1: float, y0: float, y1: float, signe: float) -> float:
+	var vers := Vector3(0, 0, signe) if axe == "x" else Vector3(signe, 0, 0)
+	var lac := atan2(vers.x, vers.z)
+	var P := func(u: float, y: float) -> Vector3: return Vector3(u, y, fixe) if axe == "x" else Vector3(fixe, y, u)
+	var n := maxi(1, floori((a1 - a0) / OS_CASE + 0.001))
+	var w := (a1 - a0) / n
+	var ex := w / OS_CASE
+	# sens de l'axe du module (+x local) le long du mur : les colonnes vont de a0 à a1 quel que soit le signe
+	var sx := (Basis(Vector3.UP, lac) * Vector3.RIGHT).dot(Vector3.RIGHT if axe == "x" else Vector3.BACK)
+	var r := RandomNumberGenerator.new()
+	var pw: Vector3 = xf * (P.call(a0, y0) as Vector3)
+	r.seed = hash(Vector3i(roundi(pw.x * 10.0), roundi(pw.y * 10.0), roundi(pw.z * 10.0))) + 7070
+	var yr := y0 + OS_RANGEES * OS_CASE
+	# cases, corniche et montants de bout : posés plus tard (remplir_niches_os), chacun son objet du journal (audit : une boîte par case,
+	# pas une boîte de 0,31 m de saillie sur tout le panneau qui « entrerait » dans les sarcophages posés devant)
+	for i in n:
+		var u := a0 + (i + 0.5) * w
+		for k in OS_RANGEES:
+			var t := r.randf()
+			niches_os.append(["case", P.call(u, y0 + k * OS_CASE), lac, w, k, r.randi(), "a" if t < 0.55 else ("b" if t < 0.82 else "c")])
+		niches_os.append(["corniche", P.call(u, yr), lac, w, OS_RANGEES, r.randi(), "b" if r.randf() < 0.3 else "a"])
+	for k in OS_RANGEES:      # montant de bout (côté où les cases n'en ont pas : le montant d'une case est à sa gauche, -x du module)
+		niches_os.append(["poteau", P.call(a1 if sx > 0.0 else a0, y0 + k * OS_CASE), lac, w, k, 0, ""])
+	j0("panneau_os")
+	# texture au-dessus de la corniche : une rangée entière de niches de 0,5 m (2,43 -> 2,93 m), calée sur la corniche et sur les colonnes
+	var yt := yr + 0.13
+	y1 = maxf(y1, yt + OS_CASE)
+	var f := fixe + signe * 0.11
+	var pts := _pas(a0, a1, 4.0)
+	for i in pts.size() - 1:
+		var u0: float = pts[i]
+		var u1: float = pts[i + 1]
+		var t0 := a0 + (u0 - a0) * OS_CASE / w
+		var t1 := a0 + (u1 - a0) * OS_CASE / w
+		var dy := ceilf(yt / OS_CASE) * OS_CASE - yt
+		if axe == "x":
+			quad("ossuaire", Vector3(u0, yt, f), Vector3(u1, yt, f), Vector3(u1, y1, f), Vector3(u0, y1, f), Vector3(0, 0, signe), [],
+				[Vector3(t0, yt + dy, f), Vector3(t1, yt + dy, f), Vector3(t1, y1 + dy, f), Vector3(t0, y1 + dy, f)])
+		else:
+			quad("ossuaire", Vector3(f, yt, u0), Vector3(f, yt, u1), Vector3(f, y1, u1), Vector3(f, y1, u0), Vector3(signe, 0, 0), [],
+				[Vector3(f, yt + dy, t0), Vector3(f, yt + dy, t1), Vector3(f, y1 + dy, t1), Vector3(f, y1 + dy, t0)])
+	j1()
+	return y1
+
+## Une emprise posée (sarcophage, estrade, meuble…) entre-t-elle dans le volume de la niche (pied p, lacet du module, largeur w) ?
+func _niche_masquee(p: Vector3, lac: float, w: float) -> bool:
+	var v := Basis(Vector3.UP, lac) * Vector3.BACK
+	var c := p + v * (OS_PROF * 0.5)
+	for e: Array in emprises:
+		var t: String = e[4]
+		if t == "panneau_os" or t.begins_with("niche_os") or t.begins_with("oss_"):
+			continue
+		var y0e := float((e[0] as Vector3).y)
+		if y0e + float(e[3]) < p.y + 0.02 or y0e > p.y + 0.4:
+			continue
+		if dist_emprise(e, c) < maxf(w * 0.5, OS_PROF * 0.5) - 0.02:
+			return true
+	return false
+
+## Garnit les niches notées par panneau_os_v3 (appelé par DonjonKit.module après le récit de la salle). Rangée du bas : surtout des
+## fagots (bouts d'os vers la salle) ; rangée des yeux : crânes (seuls, par deux, percés, couchés) ; rangée du haut : mélange.
+func remplir_niches_os() -> void:
+	if niches_os.is_empty():
+		return
+	var liste := niches_os
+	niches_os = []
+	for nn: Array in liste:
+		var genre: String = nn[0]
+		var p: Vector3 = nn[1]
+		var lac: float = nn[2]
+		var w: float = nn[3]
+		var rangee: int = nn[4]
+		var ex := Vector3(w / OS_CASE, 1.0, 1.0)
+		# une case garnie = UN objet du journal, de genre « niche_os » (structure) : crânes et fagots reposent sur la tablette du cadre,
+		# qui n'est pas une collision (l'audit les jugerait « sans appui » un par un)
+		if genre == "corniche":
+			j0("niche_os", lac)
+			modele("niche_os_corniche_" + String(nn[6]), p, lac, ex, {}, false)
+			j1()
+			continue
+		# case masquée (couvercle de sarcophage, estrade, dos d'un meuble posés après le panneau) : ni cadre ni contenu, le mur nu
+		if _niche_masquee(p + Vector3(0, 0.06, 0), lac, w):
+			continue
+		j0("niche_os", lac)
+		if genre == "poteau":
+			modele("niche_os_poteau", p, lac, Vector3.ONE, {}, false)
+		else:
+			var r := RandomNumberGenerator.new()
+			r.seed = int(nn[5])
+			modele("niche_os_cadre_" + String(nn[6]), p, lac, ex, {}, false)
+			lot = "os_proche"
+			if _garnir_niche(r, p + Vector3(0, 0.06, 0), lac, w, rangee):
+				lot = "os_loin"
+				_niche_peinte(r, p, lac, w)
+			lot = ""
+		j1()
+
+## Version lointaine du contenu d'une case : une case de la texture `ossuaire` (crâne ou fagot peint, tirée au hasard dans la tuile de
+## 8 x 8 niches) collée au fond de la niche, calée sur le cadre en volume (qui, lui, reste dessiné à toute distance).
+func _niche_peinte(r: RandomNumberGenerator, p: Vector3, lac: float, w: float) -> void:
+	var bs := Basis(Vector3.UP, lac)
+	var ax := bs * Vector3.RIGHT
+	var av := bs * Vector3.BACK
+	var tx := r.randi_range(0, 7) * OS_CASE + OS_CASE * 0.5
+	var ty := r.randi_range(0, 7) * OS_CASE
+	var q: Array = []
+	var uvp: Array = []
+	for c: Vector2 in [Vector2(-1, 0), Vector2(1, 0), Vector2(1, 1), Vector2(-1, 1)]:
+		var pt := p + ax * (c.x * w * 0.5) + Vector3(0, c.y * OS_CASE, 0) + av * 0.012
+		q.append(pt)
+		var t := tx + c.x * OS_CASE * 0.5
+		var y := ty + c.y * OS_CASE
+		uvp.append(Vector3(t, y, 0.0) if absf(av.z) > absf(av.x) else Vector3(0.0, y, t))
+	quad("ossuaire", q[0], q[1], q[2], q[3], av, [], uvp)
+
+## Contenu d'une case (lot « os_proche » : dessiné de près seulement). Faux si la niche est murée (moellons dessinés à toute distance,
+## pas de version peinte).
+func _garnir_niche(r: RandomNumberGenerator, p: Vector3, lac: float, w: float, rangee: int) -> bool:
+	if r.randf() < 0.03:
+		# niche murée : moellons devant le fond, rien dedans
+		lot = ""
+		modele("niche_os_muree_" + ("a" if r.randf() < 0.6 else "b"), p - Vector3(0, 0.06, 0), lac, Vector3(w / OS_CASE, 1.0, 1.0), {}, false)
+		return false
+	var bs := Basis(Vector3.UP, lac)
+	var ax := bs * Vector3.RIGHT
+	var av := bs * Vector3.BACK
+	var t := r.randf()
+	var genre: String
+	match rangee:
+		0: genre = "fagot" if t < 0.5 else ("fagot_crane" if t < 0.72 else ("couche" if t < 0.9 else "crane"))
+		1: genre = "crane" if t < 0.6 else ("deux" if t < 0.78 else ("fagot_crane" if t < 0.88 else "fagot"))
+		_: genre = "crane" if t < 0.42 else ("fagot" if t < 0.7 else ("deux" if t < 0.8 else ("couche" if t < 0.92 else "vide")))
+	if genre == "vide":
+		_os_crane(r, p + ax * r.randf_range(-0.08, 0.08) + av * 0.1, lac, 0.8, true)      # un éclat de calotte, rien d'autre
+		return true
+	if genre == "fagot" or genre == "fagot_crane":
+		var v := "a" if r.randf() < 0.55 else "b"
+		_os_teint(r, "oss_fagot_" + v, p + ax * r.randf_range(-0.03, 0.03) + av * r.randf_range(0.0, 0.02), lac + r.randf_range(-0.08, 0.08),
+			Vector3(r.randf_range(1.05, 1.2) * (1.0 if r.randf() < 0.5 else -1.0), r.randf_range(0.95, 1.15), 1.0))
+		if genre == "fagot_crane":
+			_os_crane(r, p + Vector3(0, 0.12, 0) + ax * r.randf_range(-0.06, 0.06) + av * 0.1, lac, r.randf_range(0.95, 1.08))
+	elif genre == "couche":
+		_os_teint(r, "oss_fagot_c", p + ax * r.randf_range(-0.02, 0.02), lac + r.randf_range(-0.06, 0.06),
+			Vector3((w / OS_CASE) * (1.0 if r.randf() < 0.5 else -1.0), 1.0, 1.0))
+		if r.randf() < 0.45:
+			_os_crane(r, p + Vector3(0, 0.1, 0) + ax * r.randf_range(-0.1, 0.1) + av * 0.1, lac, r.randf_range(0.9, 1.0))
+	elif genre == "deux":
+		for sgn: float in [-1.0, 1.0]:
+			_os_crane(r, p + ax * (sgn * w * 0.21 + r.randf_range(-0.015, 0.015)) + av * 0.12, lac, r.randf_range(0.92, 1.02))
+	else:
+		_os_crane(r, p + ax * r.randf_range(-0.05, 0.05) + av * 0.12, lac, r.randf_range(1.12, 1.3))
+	return true
+
+## Pose d'un module d'os avec une teinte d'os tirée (jauni / pâle / sali) : la rangée ne se lit pas comme un tampon répété.
+func _os_teint(r: RandomNumberGenerator, nom: String, pos: Vector3, lacet: float, ech: Vector3) -> void:
+	var k := r.randf_range(0.82, 1.06)
+	var j := r.randf_range(-0.04, 0.05)
+	modele(nom, pos, lacet, ech, {"@os": Color(k, k * (0.98 - j * 0.5), k * (0.93 - j))}, false)
+
+## Crâne de niche : variante (entier, sans mâchoire, percé, couché), tourné vers la salle à ±20° (parfois de trois quarts), miroir tiré.
+func _os_crane(r: RandomNumberGenerator, pos: Vector3, lac: float, s: float, eclat := false) -> void:
+	var t := r.randf()
+	var v := "d" if eclat else ("a" if t < 0.36 else ("b" if t < 0.66 else ("c" if t < 0.84 else "d")))
+	var dl := r.randf_range(-0.35, 0.35) + (r.randf_range(0.5, 0.9) * (1.0 if r.randf() < 0.5 else -1.0) if r.randf() < 0.18 else 0.0)
+	if eclat:
+		s *= 0.8
+	_os_teint(r, "oss_crane_" + v, pos, lac + dl, Vector3(s * (1.0 if r.randf() < 0.5 else -1.0), s, s))
+
+func arme(pos: Vector3, lacet := 0.0) -> void:
+	ObjPetitMobilier.arme(self, pos, lacet)
+
+func toile(coin: Vector3, a: Vector3, b: Vector3, l := 1.1) -> void:
+	j0("toile")
+	# triangle incliné : le coin, un point le long du mur A, un point le long du mur B plus bas
+	var p0 := coin
+	var p1 := coin + a.normalized() * l - Vector3(0, 0.1 * l, 0)
+	var p2 := coin + b.normalized() * l - Vector3(0, 0.85 * l, 0)
+	var n := (p1 - p0).cross(p2 - p0).normalized()
+	p0 = xf * p0
+	p1 = xf * p1
+	p2 = xf * p2
+	n = xf.basis * n
+	if _j_prof > 0:
+		_jp(p0); _jp(p1); _jp(p2)
+	var buf := _buf((p0 + p1 + p2) / 3.0, "toile")
+	_tri(buf, p0, p1, p2, n, Vector2(0, 0), Vector2(1, 0), Vector2(0, 1))
+	j1()
+
+func rai(pos_bas: Vector3, haut: float, largeur := 1.4) -> void:
+	j0("rai")
+	for k in 2:
+		var n := Vector3(1, 0, 0) if k == 0 else Vector3(0, 0, 1)
+		carte("rai", pos_bas + Vector3(0, haut * 0.5, 0), n, largeur, haut)
+	j1()
+
+## Flaque de lumière froide au sol sous un rai.
+func flaque_froide(pos: Vector3, diametre := 3.0) -> void:
+	j0("flaque_froide")
+	if v2:
+		eau_slot(pos, diametre * 0.5, "flaque_froide")
+	carte("halo_f", pos + Vector3(0, 0.02, 0), Vector3.UP, diametre, diametre)
+	j1()
+
+func oculus(pos: Vector3, cote := 1.6) -> void:
+	j0("oculus")
+	# trou carré au plafond : fond noir, cadre de pierre en saillie
+	quad("noir", pos + Vector3(-cote * 0.5, -0.01, -cote * 0.5), pos + Vector3(cote * 0.5, -0.01, -cote * 0.5), pos + Vector3(cote * 0.5, -0.01, cote * 0.5), pos + Vector3(-cote * 0.5, -0.01, cote * 0.5), Vector3.DOWN)
+	for s in [-1.0, 1.0]:
+		boite("mur1", pos + Vector3(s * (cote * 0.5 + 0.12), -0.08, 0), Vector3(0.24, 0.16, cote + 0.48))
+		boite("mur1", pos + Vector3(0, -0.08, s * (cote * 0.5 + 0.12)), Vector3(cote, 0.16, 0.24))
+	j1()
+
+func poussiere(centre: Vector3, ext: Vector3, nombre := 28) -> void:
+	var p := GPUParticles3D.new()
+	p.amount = nombre
+	p.lifetime = 7.0
+	p.position = xf * centre
+	ext = (xf.basis * ext).abs()
+	p.visibility_aabb = AABB(-ext - Vector3.ONE, ext * 2.0 + Vector3(2, 2, 2))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pm.emission_box_extents = ext
+	pm.direction = Vector3(0, -1, 0)
+	pm.spread = 60.0
+	pm.initial_velocity_min = 0.02
+	pm.initial_velocity_max = 0.08
+	pm.gravity = Vector3.ZERO
+	FilVerrou.sur_fil_principal(p, &"set_process_material", [pm])   # matériaux neufs : compilés sur le fil principal (voir FilVerrou.sur_fil_principal)
+	var q := QuadMesh.new()
+	q.size = Vector2(0.022, 0.022)
+	var mq := StandardMaterial3D.new()
+	mq.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mq.albedo_color = Color(0.7, 0.8, 1.0, 0.8)
+	mq.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mq.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	q.material = mq
+	FilVerrou.sur_fil_principal(p, &"set_draw_pass_mesh", [0, q])
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	racine.add_child(p)
+
+
+# ------------------------------------------------------------------ récit : statues, bannières, gravures, pillage (kit de donjon)
+## Repère d'un plan décoré : [droite, haut] pour une normale `vers` (mur vertical ou sol/plafond).
+func _axes(vers: Vector3) -> Array:
+	var n := vers.normalized()
+	if absf(n.y) > 0.9:
+		return [Vector3.RIGHT, Vector3.FORWARD * signf(n.y)]
+	var dr := Vector3.UP.cross(n).normalized()
+	return [dr, Vector3.UP]
+
+## Rectangle tourné dans un plan (décalque) : centre c, axes dr/ha, décalé de (cx, cy), taille w x h, angle ang.
+func _rect(nom: String, c: Vector3, dr: Vector3, ha: Vector3, cx: float, cy: float, w: float, h: float, ang: float, n: Vector3, col := Color.WHITE) -> void:
+	var s := sin(ang)
+	var co := cos(ang)
+	var pts: Array = []
+	for k: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		var lx := k.x * w * 0.5
+		var ly := k.y * h * 0.5
+		pts.append(c + dr * (cx + lx * co - ly * s) + ha * (cy + lx * s + ly * co))
+	quad(nom, pts[0], pts[1], pts[2], pts[3], n, [], [], [col, col, col, col])
+
+## Cercle rituel GRAVÉ au sol (crypte v2) : anneaux fins de petits tronçons (72 par anneau) + 12 repères radiaux, à la place des douze grosses
+## barres de l'emblème « cercle » (les « gros carrés » clairs vus du sol). Teinte froide et sombre : la gravure se lit, elle ne brille pas.
+func cercle_grave(centre: Vector3, rayon: float, teinte := Color(0.46, 0.5, 0.58)) -> void:
+	var n := Vector3.UP
+	var dr: Vector3 = _axes(n)[0]
+	var ha: Vector3 = _axes(n)[1]
+	var c := centre + Vector3(0, 0.02, 0)
+	for anneau: Array in [[rayon, 0.07, 72], [rayon * 1.32, 0.045, 96], [rayon * 0.62, 0.035, 56]]:
+		var R: float = anneau[0]
+		var seg: int = anneau[2]
+		var long := TAU * R / seg * 1.12
+		for k in seg:
+			var a := TAU * k / seg
+			_rect("gravure", c, dr, ha, cos(a) * R, sin(a) * R, long, anneau[1], a + PI * 0.5, n, teinte)
+	for k in 12:
+		var a := TAU * k / 12.0
+		var R := rayon * 0.97
+		_rect("gravure", c, dr, ha, cos(a) * R * 1.16, sin(a) * R * 1.16, rayon * 0.34, 0.05, a, n, teinte)
+
+## Barres [cx, cy, w, h, angle] d'un symbole sur [-0.5, 0.5] : sceaux (os, givre, eau), formes des énigmes, scènes des gravures.
+func _symbole(sujet: String) -> Array:
+	var r: Array = []
+	match sujet:
+		"cercle":
+			for k in 12:
+				var a := TAU * k / 12.0
+				r.append([cos(a) * 0.34, sin(a) * 0.34, 0.07, 0.2, a + PI * 0.5])
+		"disque":
+			r.append([0.0, 0.0, 0.5, 0.5, 0.0])
+			r.append([0.0, 0.0, 0.5, 0.5, PI * 0.25])
+		"triangle":
+			r.append([0.0, -0.25, 0.72, 0.08, 0.0])
+			r.append([-0.18, 0.03, 0.66, 0.08, 1.0])
+			r.append([0.18, 0.03, 0.66, 0.08, -1.0])
+		"croix":
+			r.append([0.0, 0.0, 0.09, 0.78, 0.0])
+			r.append([0.0, 0.0, 0.78, 0.09, 0.0])
+			r.append([0.0, 0.0, 0.24, 0.24, PI * 0.25])
+		"vague":
+			for row in [-1, 0, 1]:
+				for k in 4:
+					var up := k % 2 == 0
+					r.append([-0.3 + k * 0.2, row * 0.22 + (0.05 if up else -0.05), 0.24, 0.06, 0.4 if up else -0.4])
+		"eau":
+			for row in [-1, 0, 1]:
+				for k in 5:
+					var up := k % 2 == 0
+					r.append([-0.32 + k * 0.16, row * 0.2 + (0.04 if up else -0.04), 0.2, 0.06, 0.45 if up else -0.45])
+		"os":
+			r.append([0.0, 0.12, 0.44, 0.38, 0.0])
+			r.append([0.0, -0.1, 0.24, 0.12, 0.0])
+			r.append([0.0, -0.3, 0.8, 0.08, 0.55])
+			r.append([0.0, -0.3, 0.8, 0.08, -0.55])
+		"givre":
+			for k in 3:
+				r.append([0.0, 0.0, 0.84, 0.07, PI * k / 3.0])
+			for k in 6:
+				var a := TAU * k / 6.0
+				r.append([cos(a) * 0.3, sin(a) * 0.3, 0.2, 0.05, a + 1.0])
+				r.append([cos(a) * 0.3, sin(a) * 0.3, 0.2, 0.05, a - 1.0])
+		"soleil":
+			r.append([0.0, 0.0, 0.34, 0.34, 0.0])
+			r.append([0.0, 0.0, 0.34, 0.34, PI * 0.25])
+			for k in 8:
+				var a := TAU * k / 8.0
+				r.append([cos(a) * 0.38, sin(a) * 0.38, 0.16, 0.05, a])
+		"couronne":
+			r.append([0.0, -0.18, 0.72, 0.14, 0.0])
+			for k in [-1, 0, 1]:
+				r.append([k * 0.27, 0.1, 0.1, 0.4, 0.0])
+				r.append([k * 0.27, 0.34, 0.14, 0.1, PI * 0.25])
+		"navire":
+			r.append([0.0, -0.22, 0.72, 0.1, 0.0])
+			r.append([-0.38, -0.12, 0.2, 0.08, 0.9])
+			r.append([0.38, -0.12, 0.2, 0.08, -0.9])
+			r.append([0.0, 0.05, 0.05, 0.6, 0.0])
+			r.append([0.17, 0.1, 0.3, 0.42, 0.0])
+		"hache":
+			r.append([0.0, -0.05, 0.07, 0.86, 0.3])
+			r.append([0.13, 0.25, 0.32, 0.3, 0.3])
+		"epee":
+			r.append([0.0, 0.08, 0.07, 0.74, 0.0])
+			r.append([0.0, -0.2, 0.42, 0.07, 0.0])
+			r.append([0.0, -0.34, 0.1, 0.12, 0.0])
+		_:
+			r.append([0.0, 0.0, 0.4, 0.4, 0.0])
+	return r
+
+## Emblème gravé : plaque de pierre sombre et symbole clair en relief (matière « os », teintable). `vers` = normale du plan (mur, ou UP pour le sol).
+func embleme(sujet: String, centre: Vector3, vers: Vector3, taille := 0.9, teinte := Color(0.95, 0.88, 0.7)) -> void:
+	j0("embleme", atan2(vers.x, vers.z))
+	var n := vers.normalized()
+	centre += _saillie(centre, n, 0.33)
+	var ax := _axes(n)
+	var dr: Vector3 = ax[0]
+	var ha: Vector3 = ax[1]
+	_rect("mur2", centre + n * 0.012, dr, ha, 0.0, 0.0, taille * 1.2, taille * 1.2, 0.0, n, Color(0.3, 0.3, 0.36))
+	for b: Array in _symbole(sujet):
+		_rect("os", centre + n * 0.026, dr, ha, b[0] * taille, b[1] * taille, b[2] * taille, b[3] * taille, b[4], n, teinte)
+	j1()
+
+## Bas-relief : plusieurs symboles sur une frise (liste de sujets) ; sert aux fresques et aux gravures murales.
+func frise(sujets: Array, centre: Vector3, vers: Vector3, taille := 0.9, pas := 1.2, teinte := Color(0.95, 0.88, 0.7)) -> void:
+	j0("frise", atan2(vers.x, vers.z))
+	var n := vers.normalized()
+	centre += _saillie(centre, n, 0.33)
+	var cb := saillie_cb
+	saillie_cb = Callable()      # les emblèmes de la frise suivent son cadre (déjà avancé)
+	var dr: Vector3 = _axes(n)[0]
+	var x0 := -(sujets.size() - 1) * pas * 0.5
+	for i in sujets.size():
+		embleme(sujets[i], centre + dr * (x0 + i * pas), n, taille, teinte)
+	# cadre de la frise
+	var ha: Vector3 = _axes(n)[1]
+	var l := (sujets.size() - 1) * pas + taille * 1.5
+	_rect("mur0", centre + n * 0.006, dr, ha, 0.0, 0.0, l, taille * 1.5, 0.0, n, Color(0.7, 0.7, 0.78))
+	saillie_cb = cb
+	j1()
+
+## Socle de pierre (collision). `taille` = largeur x hauteur x profondeur.
+func socle(pos: Vector3, taille := Vector3(0.9, 0.9, 0.9), lacet := 0.0, mat := "mur1") -> void:
+	ObjPierreStatuaire.socle(self, pos, taille, lacet, mat)
+
+## Statue de pierre sur socle (visage vers +Z local, tourné de `lacet`). type : guerrier (casque, lance, bouclier), jarl (couronne, épée plantée),
+## ancetre (capuche, mains jointes), gardienne (voile).
+func statue(pos: Vector3, lacet := 0.0, e := 1.0, type := "guerrier", collision := true, mat := "mur1") -> void:
+	ObjPierreStatuaire.statue(self, pos, lacet, e, type, collision, mat)
+
+## Bannière accrochée à une tringle : `haut` = point du mur (hauteur de la tringle), `vers` = normale vers la pièce, usure 0 intacte, 1 déchirée, 2 en lambeaux.
+func banniere(haut: Vector3, vers: Vector3, long := 1.7, larg := 0.75, couleur := Color(0.62, 0.3, 0.26), sujet := "", usure := 1, teinte_embleme := Color(0.9, 0.85, 0.7)) -> void:
+	ObjMobilierBois.banniere(self, haut, vers, long, larg, couleur, sujet, usure, teinte_embleme)
+
+## Chaîne verticale (lot L8 : maillons ovales ouverts, ObjLuminaires) du point `haut` au point `bas`.
+func chaine(haut: Vector3, bas: Vector3) -> void:
+	ObjLuminaires.chaine(self, haut, bas)
+
+## Table d'embaumement : dalle de pierre sur deux piliers, rigole, bandelettes, bol d'huiles ; `corps` : dépouille enveloppée dessus.
+func table_embaumement(pos: Vector3, lacet := 0.0, corps := false) -> void:
+	ObjPierreStatuaire.table_embaumement(self, pos, lacet, corps)
+
+## Barricade de planches, tonneaux et table renversée en travers d'un passage (largeur `largeur`) ; `trou` > 0 : brèche de cette largeur,
+## décalée de `decal` le long du passage (jamais bloquée : les deux blocs de collision laissent la brèche libre).
+func barricade(pos: Vector3, lacet := 0.0, largeur := 3.0, trou := 1.3, decal := 0.0) -> void:
+	ObjMobilierBois.barricade(self, pos, lacet, largeur, trou, decal)
+
+## Lit de caserne : cadre de bois, paillasse, couverture (teinte) ; collision.
+func lit(pos: Vector3, lacet := 0.0, teinte := Color(0.5, 0.4, 0.36)) -> void:
+	ObjMobilierBois.lit(self, pos, lacet, teinte)
+
+## Râtelier d'armes contre un mur (dos vers -Z local) : épées, lances, haches.
+func ratelier_armes(pos: Vector3, lacet := 0.0, largeur := 1.8) -> void:
+	ObjMobilierBois.ratelier_armes(self, pos, lacet, largeur)
+
+## Bouclier rond accroché au mur (octogone de bois cerclé de fer).
+func bouclier_mural(centre: Vector3, vers: Vector3, rayon := 0.32, teinte := Color(0.6, 0.4, 0.3)) -> void:
+	ObjMobilierBois.bouclier_mural(self, centre, vers, rayon, teinte)
+
+## Autel de chapelle : massif de pierre, nappe, dessus gravé, deux bougies sans lumière.
+func autel(pos: Vector3, lacet := 0.0, largeur := 2.0) -> void:
+	ObjPierreStatuaire.autel(self, pos, lacet, largeur)
+
+## Bassin : margelle de pierre (collision, h de haut) et surface noire en retrait.
+func bassin(centre: Vector3, w: float, p: float, h := 0.5) -> void:
+	ObjPierreStatuaire.bassin(self, centre, w, p, h)
+
+## Parchemins, feuillets et livres éparpillés au sol (archives pillées).
+func parchemins_epars(centre: Vector3, rayon: float, n := 12) -> void:
+	if not _lot4():
+		ObjPetitMobilier.parchemins_epars(self, centre, rayon, n)
+		return
+	j0("parchemins_epars")      # props/lot4 : mêmes tirages ; les « livres » (boîtes de bois) deviennent de vrais livres Quaternius
+	var nb := 0
+	for k in n:
+		var a := rng.randf() * TAU
+		var r := sqrt(rng.randf()) * rayon
+		var p := centre + Vector3(cos(a) * r, 0.01 + 0.004 * (k % 3), sin(a) * r)
+		if k % 4 == 0:
+			_q4(["q_livre_ouvert", "q_livre_d1", "q_livre_d2", "q_livre_ouvert"][nb % 4], p, rng.randf() * TAU, Vector3.ONE)
+			nb += 1
+		else:
+			boite("parchemin", p, Vector3(rng.randf_range(0.2, 0.34), 0.01, rng.randf_range(0.14, 0.24)), rng.randf() * TAU)
+	j1()
+
+## Étagère renversée (cadre couché et rayons obliques) : décor d'archives en ruine.
+func etagere_renversee(pos: Vector3, lacet := 0.0, largeur := 1.8) -> void:
+	ObjMobilierBois.etagere_renversee(self, pos, lacet, largeur)
+
+## Tas de gravats (roche effondrée) : cône irrégulier et blocs ; collision facultative.
 func gravats(pos: Vector3, r := 1.0, h := 0.7, avec_collision := true, mat := "mur2") -> void:
 	if not _lot4():
 		ObjPetitMobilier.gravats(self, pos, r, h, avec_collision, mat)
