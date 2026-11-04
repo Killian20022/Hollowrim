@@ -47,6 +47,8 @@ var arriere_plan: Node3D  # montagnes/château lointains (ArrierePlan), masqués
 var calque: CanvasLayer
 var dialogue: Control
 var quetes: Node
+var aides: Aides
+var narration: Narration
 var tertre: Node3D
 var chemins: Chemins
 var arbres: Array = []  # transforms de tous les arbres (pour Sol)
@@ -245,11 +247,39 @@ func _ready() -> void:
 	Chrono.total()
 	pret = true
 	if not _arguments().has("capture"):
-		hud.demarrer()   # lot L7 : découverte des lieux + aide des touches (60 s) une fois la partie chargée
+		_accueil()   # prologue (nouvelle partie), premier objectif, bulles d'aide ; sinon hud.demarrer() seul (lot L7)
 	_aller_crypte()
 	_aller_interieur()
 	if _arguments().has("grotte") and not _arguments().has("capture"):
 		_aller_grotte(_arguments()["grotte"])
+
+## Accueil du joueur. Nouvelle partie (jamais en mode outil/test, sauf --prologue) : courte arrivée passable, puis le premier
+## objectif (quête « bienvenue » : aller voir Gunnhild, marqueur de la boussole), le cartouche des touches et les bulles d'aide.
+## Partie chargée : comme avant (cartouche 60 s) ; les aides ne reviennent que si la sauvegarde les connaît.
+func _accueil() -> void:
+	var narre := not Jeu.mode_outil() or _arguments().has("prologue")
+	aides.dialogue = dialogue
+	quetes.evenement.connect(_sur_evenement_histoire)
+	if narre and (Jeu.nouvelle_partie or _arguments().has("prologue")) and not quetes.vus.has("prologue_vu"):
+		hud.demarrer(false)
+		narration.fini.connect(func() -> void:
+			quetes.signaler("prologue_vu")
+			hud.aide_t = hud.AIDE_DUREE
+			aides.actif = true, CONNECT_ONE_SHOT)
+		narration.lancer(quetes.texte("prologue_titre")[0], quetes.texte("prologue"))
+		return
+	hud.demarrer()
+	aides.actif = narre or _arguments().has("aides")
+
+## Fin de l'histoire du premier chapitre : une fois l'anneau rendu et Gunnhild écoutée, court écran de fin avec le teaser du sud.
+func _sur_evenement_histoire(evt: String) -> void:
+	if evt != "fini:anneau_givre" or quetes.vus.has("epilogue_vu") or (Jeu.mode_outil() and not _arguments().has("prologue")):
+		return
+	quetes.vus["epilogue_vu"] = true
+	while bool(joueur.en_dialogue):
+		await get_tree().process_frame
+	await get_tree().create_timer(0.8).timeout
+	narration.lancer(quetes.texte("epilogue_titre")[0], quetes.texte("epilogue"), quetes.texte("epilogue_sous_titre")[0])
 
 func _chrono(etape: String) -> void:
 	Chrono.marque(etape)
@@ -1234,6 +1264,13 @@ func _interface() -> void:
 	hud.monde = self   # boussole : lieux et cible de quête lus dans le registre Lieux (scripts/rpg/lieux.gd), comme l'onglet Carte
 	calque.add_child(hud)
 	joueur.avis.connect(hud.avis)   # surcharge du sac (joueur.gd)
+	aides = Aides.new()   # bulles d'aide contextuelles, une fois chacune (scripts/aides.gd) ; actives en fin de chargement
+	aides.hud = hud
+	aides.joueur = joueur
+	calque.add_child(aides)
+	narration = Narration.new()   # prologue de la nouvelle partie et fin du premier chapitre (scripts/narration.gd)
+	narration.joueur = joueur
+	calque.add_child(narration)
 	hud.lieu_nomme(Vector3(VILLAGE.x, h_village, VILLAGE.z), 30.0, "Skarnholt")   # lot L7 : annonces « Lieu découvert »
 	hud.lieu_nomme(Vector3(CERCLE.x, hauteur(CERCLE.x, CERCLE.z), CERCLE.z), 12.0, "Cercle des pierres runiques")
 	inventaire_ui = InventaireMains.new()   # inventaire des deux mains (I) : scripts/inventaire_mains.gd
@@ -1322,6 +1359,7 @@ func sauvegarder() -> void:
 		"equipement_corps": joueur.equipement_corps.exporter(),
 		"stockage": Stockage.exporter(),   # coffres sûrs (Grima, maison) : lot E
 		"quetes": quetes.exporter(),
+		"aides_vues": aides.exporter(),   # bulles d'aide déjà montrées (absent des anciennes sauvegardes : tout est considéré vu)
 		"herse": tertre._herse_ouverte,
 		"dragon_vaincu": dragon_vaincu,
 		"inventaire": joueur.inventaire.exporter(),
@@ -1395,6 +1433,10 @@ func charger() -> void:
 		joueur.mains.magie.importer(d.get("magie", {}))
 	dragon_vaincu = bool(d.get("dragon_vaincu", false))
 	quetes.importer(d.get("quetes", {}))
+	if d.has("aides_vues"):
+		aides.importer(d["aides_vues"])
+	else:
+		aides.tout_vu()
 	_actualiser_uniques_village()      # L9 : épée de la forge selon la quête et le butin relus
 	tertre.restaurer(bool(d.get("herse", false)))
 	grotte_acces.morts_charges = d.get("draugrs_morts", [])

@@ -152,6 +152,10 @@ func demarrer(avec_aide := true) -> void:
 func lieu_nomme(pos: Vector3, rayon: float, nom: String) -> void:
 	lieux_nommes.append([pos, rayon, nom])
 
+## Ennemi dont la barre est à l'écran (visé ou frappé), null sinon : déclencheur de l'aide « premier combat » (aides.gd).
+func cible_actuelle() -> Node:
+	return _cible if _cible != null and is_instance_valid(_cible) and _a_cible > 0.0 else null
+
 ## Nouvel objectif de quête : il n'est plus répété en haut à gauche (doublon) ; la ligne sous la boussole est ravivée.
 func objectif_change() -> void:
 	_objectif_t = OBJECTIF_DUREE

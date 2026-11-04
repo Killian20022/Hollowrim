@@ -55,6 +55,7 @@ const OPTIONS_DEFAUT := {
 	"son": {"general": 1.0, "musique": 0.8, "effets": 1.0},
 	"commandes": {"sensibilite": 1.0, "inverser_y": false},
 	"sauvegarde": {"dossier_secours": ""},   # "" = copie de secours désactivée
+	"jeu": {"aides": true},   # bulles d'aide contextuelles, une fois chacune (scripts/aides.gd) ; le cartouche des touches (F1) reste
 	"combat": {"gore": 2, "arret_image": 1, "chiffres_degats": false},   # sang et gore : 2 complet (défaut), 1 réduit, 0 désactivé (scripts/combat/sang.gd) ; arrêt sur image des coups : 0 désactivé, 1 bref (défaut), 2 appuyé (scripts/effets.gd) ; chiffres de dégâts flottants : désactivés par défaut (scripts/combat/chiffres_degats.gd)
 }
 static var options := {}

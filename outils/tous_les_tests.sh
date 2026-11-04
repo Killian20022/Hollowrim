@@ -17,6 +17,7 @@ MOTIF="${1:-}"
 TESTS=(
 	"test_filet|--nouvelle"
 	"test_quetes|--nouvelle"
+	"test_prologue|--nouvelle --prologue --aides"   # accueil (arrivée, premier objectif, bulles d'aide), quêtes qui se répondent, répliques « après », fin du chapitre
 	"test_archer|--nouvelle"
 	"test_patrouille|--nouvelle"
 	"test_boss_phases|--nouvelle"

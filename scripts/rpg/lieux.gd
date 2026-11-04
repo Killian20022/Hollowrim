@@ -49,7 +49,7 @@ const CIBLES := {
 	"lieu:camp_hrafn": "grotte", "lieu:ilot_sigrun": "grotte", "lieu:grotte": "grotte", "tue:hrafn": "grotte",
 	"ramasse:registre_hrafn": "grotte", "ramasse:journal_sigrun": "grotte", "ramasse:broche_sigrun": "grotte",
 	"objet:lame_antique": "cercle", "ramasse:lame_antique": "cercle",
-	"ramasse:epee_skarnholt": "skarnholt", "parle:": "skarnholt",
+	"ramasse:epee_skarnholt": "skarnholt", "parle:": "skarnholt", "lieu:chateau": "chateau",
 }
 
 static var _liste: Array = []

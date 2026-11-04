@@ -1,4 +1,5 @@
 {
+  "_doc": "Textes et quêtes. Les identifiants (quêtes, étapes, objets) ne changent JAMAIS (sauvegardes) : « expedition_sigrun » et les objets « *_sigrun » désignent l’expédition de SOLVEIG (le joueur ne voit que Solveig) et n’ont rien à voir avec Sigrún la Völva (id « volva »). « discrete » : ni annonce ni fanfare. Une quête peut commencer par « fini:<quête> » (suite d’histoire). « apres » : répliques des villageois selon l’état du monde (Quetes.apres).",
   "quetes": [
     {
       "id": "anneau_givre",
@@ -21,7 +22,7 @@
           "id": "eirik",
           "declencheur": "ramasse:anneau_givre",
           "objectif": "Fouiller le tertre",
-          "journal": "Eirik gît dans le tertre, l’anneau de givre serré dans sa main raide. Une note dépasse de sa ceinture. Il a compris trop tard ce qu’il avait pris."
+          "journal": "Eirik gît dans le tertre, l’anneau de givre serré dans sa main raide. Une note dépasse de sa ceinture, et dans sa bourse, une lettre cachetée d’un sceau de cire : un croissant fendu. Il a compris trop tard ce qu’il avait pris."
         },
         {
           "id": "tombe",
@@ -39,10 +40,31 @@
           "id": "fin",
           "declencheur": "parle:chef",
           "objectif": "Raconter tout à Gunnhild",
-          "journal": "J’ai tout raconté à Gunnhild : Eirik, la note, Svanhild. Elle a gardé le silence un long moment, puis m’a remis sa récompense. Les morts dorment."
+          "journal": "J’ai tout raconté à Gunnhild : Eirik, la note, la lettre au sceau de cire en croissant fendu, Svanhild. Elle a gardé le silence un long moment, puis a reconnu le sceau : celui de la dîme de Kaldborg. Elle m’a remis sa récompense. Les morts dorment."
         }
       ],
       "recompense": { "xp": 200, "pieces": 150, "objets": { "amulette_givre": 1 } }
+    },
+    {
+      "id": "bienvenue",
+      "titre": "Skarnholt",
+      "donneur": "chef",
+      "discrete": true,
+      "etapes": [
+        {
+          "id": "arrivee",
+          "declencheur": "prologue_vu",
+          "objectif": "Parler à Gunnhild, à la longue maison",
+          "journal": "Je suis arrivé de nuit près d’un feu de camp, dans la neige. Au sud-est, les toits bas de Skarnholt. Sa cheffe, Gunnhild, dispose de la longue maison : c’est elle qu’il faut voir."
+        },
+        {
+          "id": "gunnhild",
+          "declencheur": "parle:chef",
+          "objectif": "Écouter Gunnhild",
+          "journal": "J’ai franchi le seuil de la longue maison. Gunnhild m’a offert une place au feu, puis ses ennuis."
+        }
+      ],
+      "recompense": { "xp": 0, "pieces": 0, "objets": {} }
     },
     {
       "id": "frere_ylva",
@@ -68,7 +90,7 @@
           "journal": "J’ai remis l’amulette à Ylva et je lui ai dit ce que j’avais vu. Elle n’a pas pleuré devant moi. Elle m’a donné de quoi payer ma route."
         }
       ],
-      "recompense": { "xp": 120, "pieces": 60, "objets": {} }
+      "recompense": { "xp": 120, "pieces": 60, "objets": { "manteau_loup_ylva": 1 } }
     },
     {
       "id": "lames_brodd",
@@ -138,7 +160,7 @@
           "journal": "Haldor a lu le registre sans un mot, puis m’a remis sa bourse. Les convois passeront, au moins jusqu’à la prochaine neige."
         }
       ],
-      "recompense": { "xp": 200, "pieces": 120, "objets": {} }
+      "recompense": { "xp": 200, "pieces": 120, "objets": { "potion_soin": 3 } }
     },
     {
       "id": "expedition_sigrun",
@@ -170,7 +192,7 @@
           "journal": "J’ai rendu la broche à Grima et dit ce que j’avais lu. Elle a serré la broche longtemps. Elle m’a payé, à sa façon."
         }
       ],
-      "recompense": { "xp": 150, "pieces": 90, "objets": {} }
+      "recompense": { "xp": 150, "pieces": 90, "objets": { "potion_soin_forte": 1 } }
     },
     {
       "id": "sceaux_brises",
@@ -179,9 +201,9 @@
       "etapes": [
         {
           "id": "debut",
-          "declencheur": "lieu:tertre|lieu:vestibule_crypte",
+          "declencheur": "parle:volva|lieu:tertre|lieu:vestibule_crypte",
           "objectif": "Lire la fresque des sceaux, dans le vestibule",
-          "journal": "Le tertre cache une crypte tenue par trois sceaux : l’Os, le Givre, l’Eau. Eirik les a brisés. Leurs éclats ouvrent la porte de la reine."
+          "journal": "Le tertre cache une crypte tenue par trois sceaux : l’Os, le Givre, l’Eau. Eirik et sa bande les ont brisés. Leurs éclats ouvrent la porte de la reine, et Sigrún m’a prévenu : rien n’avance sans eux."
         },
         {
           "id": "os",
@@ -208,7 +230,7 @@
           "journal": "Les trois éclats reposent sur leurs socles. La porte de l’arène s’est ouverte avec un soupir. Svanhild attend derrière."
         }
       ],
-      "recompense": { "xp": 250, "pieces": 50, "objets": {} }
+      "recompense": { "xp": 250, "pieces": 50, "objets": { "potion_mana": 2 } }
     },
     {
       "id": "jarl_gele",
@@ -235,31 +257,62 @@
         }
       ],
       "recompense": { "xp": 400, "pieces": 0, "objets": {} }
+    },
+    {
+      "id": "horizon_sud",
+      "titre": "La lueur du sud",
+      "donneur": "volva",
+      "discrete": true,
+      "etapes": [
+        {
+          "id": "signe",
+          "declencheur": "fini:anneau_givre",
+          "objectif": "Écouter Sigrún, sur la place",
+          "journal": "Svanhild dort de nouveau, mais Gunnhild m’a glissé en me payant que le ciel avait changé de côté. Elle veut que je voie Sigrún avant de me reposer."
+        },
+        {
+          "id": "cendres",
+          "declencheur": "parle:volva",
+          "objectif": "Kaldborg, le château du sud, s’est allumé. À suivre…",
+          "carte": "chateau",
+          "journal": "Sigrún a jeté les os sur la pierre : ils pointent tous vers le sud, vers Kaldborg, le château du Sire Ottar, que l’on ne voit que les nuits claires. Le croissant fendu vient de là-bas, et une lueur rouge y brûle. Le froid de Svanhild n’était qu’un premier souffle."
+        },
+        {
+          "id": "chateau",
+          "declencheur": "lieu:chateau",
+          "objectif": "Marcher vers le château du sud",
+          "journal": "Je suis arrivé au pied du château. Mais ceci est une autre histoire."
+        }
+      ],
+      "recompense": { "xp": 0, "pieces": 0, "objets": {} }
     }
   ],
   "dialogues": {
     "chef": {
       "anneau_givre:debut": [
-        "Écoute-moi bien, étranger. Va au cercle runique, au nord-ouest.",
-        "Trouve qui a pris l’anneau de Svanhild. Et rapporte-le, s’il est encore temps.",
-        "Je te paierai. Je préfère payer que pleurer."
+        "Écoute-moi bien, étranger. Va au cercle runique, au nord-ouest. Trouve qui a pris l’anneau de Svanhild.",
+        "Mais ne descends pas à l’aveugle. Passe d’abord voir Sigrún, sur la place : la tombe est tenue par des sceaux, et elle seule sait les lire.",
+        "Rapporte l’anneau, s’il est encore temps. Je te paierai. Je préfère payer que pleurer."
       ],
       "anneau_givre:pendant": [
         "Le cercle est au nord-ouest. Cherche un escalier dans le tertre, juste au nord des pierres.",
         "Tu es encore là ? Les morts n’attendent pas.",
+        "Si tu n’as pas encore vu Sigrún, fais-le : les sceaux, ça ne se devine pas.",
         "Reviens entier. Je déteste les enterrements."
       ],
       "anneau_givre:fin": [
         "Eirik… Pauvre garçon. Grima et Ylva devront l’apprendre.",
         "Tu as rendu l’anneau et scellé Svanhild. Skarnholt te doit une dette.",
-        "Prends cet or et cette amulette. Le givre te reconnaîtra."
+        "Prends cet or, et cette amulette : elle était à ma mère, elle a tenu tous les hivers de Skarnholt. Le givre te reconnaîtra.",
+        "Une lettre, dis-tu, scellée d’un croissant de cire fendu ? … Je connais ce sceau. C’est celui de la dîme. Celui de Kaldborg.",
+        "Voilà ce que je cachais : nos réserves vont au château du sud, et les convois volés l’étaient pour lui. Va voir Sigrún avant de dormir. Elle dit que le ciel a changé de côté."
       ]
     },
     "chasseuse": {
       "frere_ylva:debut": [
         "Mon frère Eirik n’est pas revenu du cercle. Retrouve-le.",
         "Si tu croises ses affaires, rapporte-les-moi. Même une botte.",
-        "Je te devrai une peau de loup. Et bien plus."
+        "Si tu me le ramènes, ou ce qu’il en reste, je te devrai une peau de loup. Et bien plus."
       ],
       "frere_ylva:pendant": [
         "Cherche vers les pierres. Les traces s’y arrêtent.",
@@ -269,7 +322,8 @@
       "frere_ylva:fin": [
         "Son amulette. Donc c’est vrai.",
         "Merci de me l’avoir dit en face. Il était têtu. Il n’a jamais su s’arrêter.",
-        "Prends ces pièces. Et si tu vas là-bas, ne le laisse pas seul."
+        "Prends ces pièces, et cette calotte : c’est la peau de loup que je te devais, cousue de ma main.",
+        "Et si tu retournes là-bas, ne le laisse pas seul."
       ]
     },
     "forgeron": {
@@ -312,7 +366,7 @@
       "expedition_sigrun:fin": [
         "Sa broche… et ses mots. Donc c’est fini.",
         "Merci d’être allé jusqu’au bout. Elle aurait ri de te voir ramper dans ses galeries.",
-        "Prends cet or. Elle t’aurait offert mieux."
+        "Prends cet or, et cette tisane forte que je garde pour les grands froids. Elle t’aurait offert mieux."
       ]
     },
     "garde": {
@@ -334,10 +388,25 @@
       "repaire_hrafn:fin": [
         "Le registre de Hrafn… Voilà les noms, les dates, les parts.",
         "En une journée, tu as plus fait pour cette porte que moi en un an.",
-        "Prends cette bourse. Les convois passeront, pour une saison au moins."
+        "Ce croissant fendu, au bas des pages… je l’ai déjà vu, sur les sacs de la dîme. Je ne dirai rien avant d’être sûr.",
+        "Prends cette bourse, et ces trois fioles de la garde. Les convois passeront, pour une saison au moins."
       ]
     },
     "volva": {
+      "sceaux_brises:debut": [
+        "Tu vas au tertre ? Écoute-moi, avant de descendre.",
+        "Trois sceaux tiennent la maison de la reine : l’Os pour la mémoire, le Givre pour le silence, l’Eau pour l’oubli.",
+        "Eirik et sa bande les ont brisés sans comprendre. Chaque éclat est un morceau de la porte de l’arène : retrouve-les, pose-les sur les socles de la salle rituelle.",
+        "Et retiens ceci : l’anneau n’a pas été volé pour sa valeur. Quelqu’un voulait ce qu’il commande.",
+        "Pas avant. Et prends ces fioles : l’obscurité mange le mana."
+      ],
+      "horizon_sud:cendres": [
+        "Gunnhild t’envoie, je le vois. Assieds-toi près du feu, enfant du froid.",
+        "J’ai jeté les os ce matin. Ils ne tournent plus vers le cercle. Ils pointent le sud, tous.",
+        "Kaldborg dort là-bas, derrière les collines : le château du Sire Ottar. On ne le voit que les nuits claires, et cette nuit, une lueur rouge y brûle.",
+        "Le croissant fendu est le sien. Il ne voulait pas l’anneau : il voulait ce que l’anneau commande.",
+        "Le froid de Svanhild n’était qu’un premier souffle. La Porte du Sud est fermée, pour l’instant. Quand elle s’ouvrira, marche vers midi."
+      ],
       "anneau_givre:pendant": [
         "L’anneau a une volonté. Ne le glisse pas à ton doigt.",
         "Svanhild se lèvera si tu viens les mains vides. Rapporte l’anneau.",
@@ -345,7 +414,7 @@
       ],
       "anneau_givre:fin": [
         "Les aurores se calment. Tu as scellé le sommeil de la reine.",
-        "Garde ton amulette. Le givre te protégera, mais ne te réchauffera pas.",
+        "Garde le pendentif de Gunnhild. Le givre te protégera, mais ne te réchauffera pas.",
         "Les morts rendent peu de dettes. Toi, tu as payé la leur."
       ],
       "sceaux_brises:pendant": [
@@ -355,12 +424,124 @@
       ]
     }
   },
+  "apres": {
+    "chef": [
+      { "si": "fini:anneau_givre&etape:horizon_sud:cendres", "lignes": [
+        "Sigrún t’a tout dit, alors. Kaldborg, le Sire Ottar… Skarnholt n’a jamais eu d’armée, étranger. Il n’a eu que des voisins courageux.",
+        "Prends du lard et des bottes sèches. Ma porte te sera ouverte quand tu reviendras."
+      ] },
+      { "si": "fini:anneau_givre", "lignes": [
+        "Le hameau respire. Les enfants osent de nouveau aller jusqu’au puits.",
+        "Va voir Sigrún : elle dit que le ciel a changé de côté, et le croissant fendu m’empêche de dormir."
+      ] },
+      { "si": "etape:anneau_givre:tombe", "lignes": [
+        "Tu as couché la reine ? Alors rends-lui son anneau, vite. Elle ne restera pas tranquille longtemps."
+      ] },
+      { "si": "etape:anneau_givre:eirik", "lignes": [
+        "Tu as vu Eirik, je le lis sur ton visage. Rapporte l’anneau d’abord. Les mots viendront après."
+      ] },
+      { "si": "vu:choix:piller_offrandes", "lignes": [
+        "On dit que tu as vidé les offrandes du roi. Garde ton or. Je n’en toucherai pas une pièce."
+      ] },
+      { "si": "maison", "lignes": [
+        "La maison des Frostmark a de nouveau quelqu’un qui allume son feu. Ça fait plaisir à voir."
+      ] },
+      { "si": "fini:repaire_hrafn", "lignes": [
+        "Haldor dit que les convois passent grâce à toi. Une bière t’attend, quand le cercle sera calmé."
+      ] }
+    ],
+    "forgeron": [
+      { "si": "vu:choix:piller_offrandes", "lignes": [
+        "Tu as pillé les offrandes ? Le fer ne ment pas, l’or des morts si. Les gardiens ont de la mémoire."
+      ] },
+      { "si": "vu:choix:respecter_offrandes", "lignes": [
+        "Tu as laissé l’or aux morts ? C’est du respect, ou de la bêtise. Je ne tranche pas, mais je boirais bien un coup à ça."
+      ] },
+      { "si": "fini:anneau_givre&etape:lames_brodd:epee", "lignes": [
+        "Svanhild couchée, et mon épée sur ton flanc : c’est une bonne fin d’hiver, ça.",
+        "Si le fil s’émousse, reviens. Je ne m’occupe que de ce qui mérite d’être aiguisé."
+      ] },
+      { "si": "etape:lames_brodd:epee", "lignes": [
+        "Alors, mon épée ? Elle coupe le vent, la neige et les morts. Fais-lui voir du pays."
+      ] },
+      { "si": "fini:anneau_givre", "lignes": [
+        "Eirik est mort avec mon anneau gris serré dans la main, en somme. J’aurais dû le chauffer, ce fichu métal… ou le jeter au puits."
+      ] }
+    ],
+    "chasseuse": [
+      { "si": "fini:frere_ylva&fini:anneau_givre", "lignes": [
+        "Svanhild dort, mon frère aussi. Les cerfs reviennent, doucement, depuis le sud.",
+        "Garde la calotte sur ta tête. La peau de loup te tiendra chaud, là où les mots ne servent à rien."
+      ] },
+      { "si": "fini:frere_ylva", "lignes": [
+        "Je n’ai plus de traces à suivre. J’ai accroché son arc au mur, et je n’ai pas eu le cœur de le tendre.",
+        "Tu as bien fait de me le dire en face."
+      ] },
+      { "si": "etape:frere_ylva:amulette", "lignes": [
+        "Tu as son amulette. Je vois le cerf taillé d’ici. Dis-moi ce que tu as vu, sans détour."
+      ] }
+    ],
+    "volva": [
+      { "si": "etape:horizon_sud:cendres", "lignes": [
+        "Les os restent tournés vers Kaldborg. Je ne les ai jamais vus si obstinés.",
+        "Quand la Porte du Sud s’ouvrira, marche vers midi. Et emporte du feu : là-bas, il manquera."
+      ] },
+      { "si": "vu:choix:piller_offrandes&fini:sceaux_brises", "lignes": [
+        "L’or des morts pèse plus lourd qu’il n’en a l’air. Les gardiens se sont levés pour toi : je l’ai senti d’ici."
+      ] },
+      { "si": "vu:choix:respecter_offrandes", "lignes": [
+        "Les ancêtres t’ont béni. Je l’ai lu sur ton front avant que tu ne le saches."
+      ] },
+      { "si": "fini:sceaux_brises", "lignes": [
+        "Les sceaux sont brisés pour de bon, et la porte de la reine est ouverte. Que les runes te couvrent là-dedans."
+      ] }
+    ],
+    "garde": [
+      { "si": "fini:repaire_hrafn&fini:anneau_givre", "lignes": [
+        "Plus de bandits, plus de morts qui marchent. Je m’ennuierais presque. Presque.",
+        "Le registre de Hrafn dort dans mon coffre. Quand les noms qui y figurent passent la porte, je les regarde un peu plus longtemps."
+      ] },
+      { "si": "fini:repaire_hrafn", "lignes": [
+        "Les convois passent, grâce à toi. Le registre fait déjà pâlir deux ou trois marchands, ici."
+      ] },
+      { "si": "fini:anneau_givre", "lignes": [
+        "Les lueurs vertes se sont éteintes. J’ai dormi quatre heures de suite hier. Quatre. Je ne m’y fais pas."
+      ] }
+    ],
+    "ancienne": [
+      { "si": "fini:expedition_sigrun&fini:anneau_givre", "lignes": [
+        "J’ai posé la broche de Solveig près de mon lit, et laissé une chaise vide à table pour Eirik. Les morts du hameau ont de quoi tenir compagnie.",
+        "Le puits est moins froid, depuis. Il a fini de se plaindre."
+      ] },
+      { "si": "fini:expedition_sigrun", "lignes": [
+        "Solveig est revenue par ta main, en somme. Je ne pleure plus, je range."
+      ] },
+      { "si": "fini:anneau_givre", "lignes": [
+        "Eirik repose enfin. Je ne garde plus sa soupe au chaud, mais je garde sa place à table."
+      ] }
+    ]
+  },
   "textes": {
+    "prologue_titre": ["Skarnholt"],
+    "prologue": [
+      "Tu marches depuis des jours. La route s’est perdue sous la neige, et la nuit a fini par te rattraper.",
+      "Devant toi, un feu de camp. Plus loin, les toits bas d’un hameau : Skarnholt, au bout de la dernière forêt, où l’on ne pose pas de questions aux étrangers qui arrivent à pied.",
+      "Au nord-ouest, des lueurs vertes dansent au-dessus de vieilles pierres. Les anciens disent que les morts y dorment. Ils dorment moins bien, depuis peu.",
+      "Va voir Gunnhild, la cheffe. Sa longue maison est au cœur du hameau."
+    ],
+    "epilogue_titre": ["Svanhild dort"],
+    "epilogue_sous_titre": ["Fin du premier chapitre"],
+    "epilogue": [
+      "L’anneau repose de nouveau sur la pierre. Les aurores se calment, et Skarnholt dort enfin sans compter ses morts.",
+      "Mais le sommeil de Svanhild n’était peut-être qu’un premier souffle. Loin au sud, par-delà la forêt et les collines, une lueur rouge vient de s’allumer sur Kaldborg, le château du Sire Ottar, celui dont le sceau de cire portait un croissant fendu.",
+      "Ton voyage ne fait que commencer."
+    ],
     "note_eirik": [
       "Je n’aurais pas dû l’emporter. Elle me suit depuis la tombe.",
       "L’anneau est lourd, il me parle. Il veut retourner à sa main.",
       "Si on me trouve, qu’on le rende à Svanhild. Dites à Ylva…",
-      "Dites à Ylva que j’ai voulu bien faire. Je me suis trompé."
+      "Dites à Ylva que j’ai voulu bien faire. Je me suis trompé.",
+      "Dans ma bourse, la lettre de la colporteuse. Un croissant fendu, en cire rouge. Ce signe-là, je ne l’ai jamais vu au village."
     ],
     "inscription_tombe": [
       "Ici dort Svanhild, reine-guerrière, Dame de givre.",
@@ -397,7 +578,7 @@
     ],
     "note_compagnon_3": [
       "Si quelqu’un lit ceci : n’ouvre pas aux morts, même s’ils ont notre voix.",
-      "Dis à Ylva que son frère a tenu jusqu’au bout."
+      "Dis à Ylva que son frère est parti nous chercher du secours."
     ],
     "journal_gardien": [
       "Troisième jour de garde. Le Jarl ne dort plus. Il parle à son bouclier comme à un fils.",
@@ -439,7 +620,8 @@
     "registre_hrafn": [
       "Convoi de Skarnholt : douze peaux, trois barils, un coffre de sel. Pris au gué.",
       "Part de Hrafn : la moitié. Part des archers : ce qu’ils osent réclamer.",
-      "Prochain convoi : après la première neige. Les gardes comptent mal le soir."
+      "Prochain convoi : après la première neige. Les gardes comptent mal le soir.",
+      "Au bas de la page, un sceau de cire en croissant fendu. Celui qui paie ne signe pas de son nom."
     ],
     "hrafn_cri": [
       "Archers ! Descendez-le avant qu’il touche à mon or !"

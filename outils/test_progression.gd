@@ -109,6 +109,8 @@ func _niveau() -> void:
 	var xp_ok := true
 	var somme := 0.0
 	for qd: Dictionary in lu["quetes"]:
+		if qd.get("discrete", false):
+			continue   # prologue et suite du récit : sans fanfare ni XP
 		var x := float(qd.get("recompense", {}).get("xp", -1))
 		xp_ok = xp_ok and x >= 100.0 and x <= 500.0
 		somme += x
