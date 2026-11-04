@@ -370,7 +370,7 @@ func _signes_des_bandits() -> void:
 	_portique()
 	# gen/abords : piège à ours (Survival, lot 4) tendu sur la terrasse, entre les chevaux de frise et le foyer
 	if AbordsQ.actif:
-		decor.q4("q_piege_ours", _sol(-4.3, 6.6), 0.4, 1.25)
+		decor.q4("q_piege_ours", _sol(-4.3, 6.6), 0.4, 1.25, false, false, {"fer": "fer"})
 
 ## C2 : portique de bois à la bouche (poteaux, linteau, jambes de force) et lanterne chaude pendue au linteau, comme la planche
 ## grotte_v2 (vues 1-2) : la bouche se lit de loin par sa lueur orange au milieu des roches froides, et la lumière se prolonge dedans.
@@ -486,7 +486,9 @@ func _q_pret() -> bool:
 	return CrypteDecor.modele_existe("q_poutre_ronde") and CrypteDecor.modele_existe("q_roc_1")
 
 func _q(nom: String, pos: Vector3, b: Basis, mats := {}) -> void:
-	var m := PropsQuaternius.MATS_CRYPTE.duplicate()
+	# matières DÉJÀ employées par l'entrée (fer, bois, os, peau, roches) : une matière neuve lance un chargement de texture en tâche,
+	# attendu sous FilVerrou par ce fil de construction (interblocage en --headless) ; d'où fer -> fer et non fer_mat
+	var m := {"fer": "fer", "herbe": "bois"}
 	m.merge(mats, true)
 	var x0 := decor.xf
 	decor.xf = x0 * Transform3D(b, pos)
