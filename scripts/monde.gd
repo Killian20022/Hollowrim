@@ -1137,7 +1137,23 @@ const BETES := [
 	["biche", "biche_pre_b", 58.5, -5.0, 230.0, ""],
 	["renard", "renard_fermes", 82.0, 33.5, 120.0, ""],
 ]
+## Animaux DOMESTIQUES du village (gen/animaux 2026-11-04) : vaches et taureau dans l'enclos d'Ylva (66,5 ; 41,3), chevaux et âne dans le second enclos
+## (73,3 ; 41,3, village.gd, plat à l'est du premier), husky devant la maison des chasseurs. Paisibles : broutent, errent dans un petit rayon, ne
+## fuient que blessés. `-- --animaux-anciens` (ou `--persos-anciens` / `--sans-betes`) : aucun.
+const DOMESTIQUES := [
+	# [espèce, ident, x, z, lacet°, rayon d'errance]
+	["vache", "vache_enclos_a", 65.7, 40.0, 100.0, 0.9],
+	["vache", "vache_enclos_b", 66.0, 43.3, 250.0, 0.9],
+	["taureau", "taureau_enclos", 66.9, 41.6, 60.0, 0.8],
+	["cheval", "cheval_pre", 72.2, 40.2, 30.0, 1.2],
+	["cheval_blanc", "cheval_blanc_pre", 74.6, 42.4, 200.0, 1.0],
+	["ane", "ane_pre", 73.4, 43.4, 120.0, 0.8],
+	["husky", "husky_chasseurs", 59.0, 32.2, 150.0, 2.0],
+]
 const BETE := preload("res://scripts/bete_quat.gd")
+
+func _animaux_anciens() -> bool:
+	return _arguments().has("animaux-anciens")
 
 func _betes() -> void:
 	if PersosQuat.anciens() or _arguments().has("sans-betes"):
@@ -1151,6 +1167,13 @@ func _betes() -> void:
 		var e := creer_ennemi(BETE, Vector3(x, hauteur(x, z) + 0.05, z), deg_to_rad(float(b[4])), opts)
 		if _paisible():
 			e.process_mode = Node.PROCESS_MODE_DISABLED
+	if not _animaux_anciens():
+		for b: Array in DOMESTIQUES:
+			var x: float = b[2]
+			var z: float = b[3]
+			var e := creer_ennemi(BETE, Vector3(x, hauteur(x, z) + 0.05, z), deg_to_rad(float(b[4])), {"espece": b[0], "ident": b[1], "rayon_errance": float(b[5])})
+			if _paisible():
+				e.process_mode = Node.PROCESS_MODE_DISABLED
 	await _souffle()
 
 func _neige() -> void:

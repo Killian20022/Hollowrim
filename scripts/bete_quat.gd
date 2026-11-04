@@ -34,11 +34,30 @@ const ESPECES := {
 	"renard": {"pq": "pq_renard", "nom": "Renard", "vie": 14.0, "degats": 0.0, "rayon": 0.22, "haut": 0.45, "profil": "gibier", "hostile": false,
 		"marche": 0.9, "course": 6.5, "ref_marche": 0.8, "ref_course": 5.0, "detection": 10.0, "impact": 0.3,
 		"biomes": ["foret", "abords_village"], "heures": "crepuscule+nuit", "groupe": [1, 1]},
+	# animaux domestiques du village (gen/animaux 2026-11-04) : paisibles, ne fuient que s'ils sont blessés, restent dans leur zone
+	"cheval": {"pq": "pq_cheval", "nom": "Cheval", "vie": 60.0, "degats": 0.0, "rayon": 0.42, "haut": 1.6, "profil": "gibier", "hostile": false,
+		"domestique": true, "marche": 1.2, "course": 7.5, "ref_marche": 1.3, "ref_course": 7.0, "detection": 0.0, "impact": 1.2,
+		"biomes": ["village"], "heures": "toujours", "groupe": [1, 2]},
+	"cheval_blanc": {"pq": "pq_cheval_blanc", "nom": "Cheval blanc", "vie": 60.0, "degats": 0.0, "rayon": 0.42, "haut": 1.6, "profil": "gibier",
+		"hostile": false, "domestique": true, "marche": 1.2, "course": 7.5, "ref_marche": 1.3, "ref_course": 7.0, "detection": 0.0, "impact": 1.2,
+		"biomes": ["village"], "heures": "toujours", "groupe": [1, 1]},
+	"ane": {"pq": "pq_ane", "nom": "Âne", "vie": 40.0, "degats": 0.0, "rayon": 0.36, "haut": 1.3, "profil": "gibier", "hostile": false,
+		"domestique": true, "marche": 1.0, "course": 5.5, "ref_marche": 1.1, "ref_course": 5.5, "detection": 0.0, "impact": 0.9,
+		"biomes": ["village"], "heures": "toujours", "groupe": [1, 1]},
+	"vache": {"pq": "pq_vache", "nom": "Vache", "vie": 50.0, "degats": 0.0, "rayon": 0.45, "haut": 1.4, "profil": "gibier", "hostile": false,
+		"domestique": true, "marche": 0.8, "course": 5.0, "ref_marche": 1.0, "ref_course": 5.0, "detection": 0.0, "impact": 0.9,
+		"biomes": ["village"], "heures": "toujours", "groupe": [1, 3]},
+	"taureau": {"pq": "pq_taureau", "nom": "Taureau", "vie": 70.0, "degats": 0.0, "rayon": 0.5, "haut": 1.5, "profil": "gibier", "hostile": false,
+		"domestique": true, "marche": 0.8, "course": 5.5, "ref_marche": 1.0, "ref_course": 5.5, "detection": 0.0, "impact": 1.0,
+		"biomes": ["village"], "heures": "toujours", "groupe": [1, 1]},
+	"husky": {"pq": "pq_husky", "nom": "Husky", "vie": 24.0, "degats": 0.0, "rayon": 0.24, "haut": 0.65, "profil": "gibier", "hostile": false,
+		"domestique": true, "marche": 1.1, "course": 6.0, "ref_marche": 1.0, "ref_course": 5.5, "detection": 0.0, "impact": 0.4,
+		"biomes": ["village"], "heures": "toujours", "groupe": [1, 2]},
 }
 
 var espece := ""
 var meute := ""            # même valeur = même meute : une alerte réveille toute la meute
-var rayon_errance := 7.0
+var rayon_errance := 7.0      # domestiques : posé par monde._betes (zone de l'enclos)
 var etat := REPOS
 var fiche: Dictionary = {}
 var _cible_errance := Vector3.ZERO
@@ -224,7 +243,10 @@ func _ia(dt: float) -> void:
 			vitesse = float(fiche["course"])
 			loco = "Jog_Fwd" if anim.has_animation("Jog_Fwd") else "Walk"
 			if dist > float(fiche["detection"]) * 2.5 and _t > 4.0:
-				origine = global_position      # il se calme là où il s'est enfui
+				if not bool(fiche.get("domestique", false)):
+					origine = global_position      # il se calme là où il s'est enfui (un domestique rentre chez lui)
+				else:
+					_cible_errance = origine
 				_changer(REPOS)
 				_choisir_repos()
 	_bouger(dt, mv, vitesse, loco, face, 6.0 if hostile else 4.0, _repos)
