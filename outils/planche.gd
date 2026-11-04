@@ -4,7 +4,7 @@ extends SceneTree
 ## (lot 2 : [poses] = liste séparée par des virgules, défaut POSES ; ex. A2,A10,A30,A90)
 ## Lit <dossier>/avant_<pose>_<jour|nuit>.png et apres_… ; écrit <dossier>/planche_<pose>.png (jour au-dessus,
 ## nuit en dessous) et planche_recap_jour.png / planche_recap_nuit.png (poses_recap séparées par des virgules,
-## 2 paires par ligne, images réduites de moitié). Largeur ≤ 1920 px.
+## 2 paires par ligne, images réduites de moitié, colonnes à la largeur d'une paire).
 var apres := "apres"
 var sortie := "planche"
 const POSES := ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "Q1", "Q2", "Q3", "Q4"]
@@ -53,12 +53,18 @@ func _init() -> void:
 				paires.append(im)
 		if paires.is_empty():
 			continue
-		var h := paires[0].get_height()
+		# colonnes à la largeur réelle d'une paire (avant : colonnes fixes de 960 px, une paire de captures 1280 px réduites de
+		# moitié en fait 1280 : l'image APRÈS était rognée de moitié)
+		var h := 0
+		var pw := 0
+		for im in paires:
+			h = maxi(h, im.get_height())
+			pw = maxi(pw, im.get_width())
 		var lignes := (paires.size() + 1) / 2
-		var out := Image.create(1920, lignes * h, false, Image.FORMAT_RGBA8)
+		var out := Image.create(pw * mini(2, paires.size()), lignes * h, false, Image.FORMAT_RGBA8)
 		out.fill(FOND)
 		for i in paires.size():
-			out.blit_rect(paires[i], Rect2i(Vector2i.ZERO, paires[i].get_size()), Vector2i((i % 2) * 960, (i / 2) * h))
+			out.blit_rect(paires[i], Rect2i(Vector2i.ZERO, paires[i].get_size()), Vector2i((i % 2) * pw, (i / 2) * h))
 		out.save_png("%s/%s_recap_%s.png" % [dossier, sortie, phase])
 		print("%s_recap_%s.png %dx%d" % [sortie, phase, out.get_width(), out.get_height()])
 	quit()

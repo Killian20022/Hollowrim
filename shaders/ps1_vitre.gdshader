@@ -27,7 +27,7 @@ void fragment() {
 	bool carreau = t.a < 0.5;
 	float f = smoothstep(fondu.x, fondu.y, dist);
 	vec3 verre = FRONT_FACING ? mix(vec3(0.16, 0.2, 0.3), lueur * t.rgb * 1.5, nuit) : vec3(0.1, 0.14, 0.2);
-	vec3 c = carreau ? verre : t.rgb * (FRONT_FACING ? 0.8 : 0.28);
+	vec3 c = carreau ? verre : t.rgb * COLOR.rgb * (FRONT_FACING ? 0.8 : 0.28);   // COLOR : teinte du cadre (blanc = inchangé ; bâti hybride : bois froid)
 	if (carreau && FRONT_FACING) {
 		c = mix(c, lueur * t.rgb * 1.5, f * (1.0 - nuit));   // de jour, de loin : verre pâle
 	}

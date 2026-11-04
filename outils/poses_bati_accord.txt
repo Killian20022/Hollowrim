@@ -1,0 +1,8 @@
+# Gros plans « accord des couleurs » : jonctions pièce Quaternius / pièce existante (nom x,z,lacet,tangage)
+h2_coin 52,51.3,164,6
+h1_fenetre 34.5,48,162,6
+sigrun_porte 59.5,41.8,180,10
+grima_cheminee 37,44,108,12
+h4_mur 48,74,-124,4
+ferme_b_porte 56,4.5,-80,5
+sigrun_cheminee 52,42,-124,10

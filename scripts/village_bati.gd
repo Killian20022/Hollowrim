@@ -216,6 +216,9 @@ static func tas_de_bois(v, p: Node3D, c: Vector3, lacet: float, longueur := 2.0)
 ## grenier | grange), pente (°), porte (+Z | -Z | +X | -X), fenetres [[côté, abscisse]], dragons, cheminee (x local),
 ## fumee, torche, porche, appentis, enseigne, bois. Collision : une boîte (corps du bâtiment).
 static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary) -> Node3D:
+	var modele_q := VillageBatiQ.modele_de(x, z)      # bâti hybride (défaut ; `--bati-ancien` : inchangé) : corps de la maison en pièces Quaternius
+	if modele_q != "":
+		return VillageBatiQ.maison(v, g, x, z, lacet, o, modele_q)
 	var L: float = o.get("L", 6.0)
 	var W: float = o.get("W", 5.0)
 	var h: float = o.get("h", 2.3)
@@ -325,7 +328,10 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	if o.has("cheminee"):
 		var xch: float = o["cheminee"]
 		var h_ch := faite + 0.95
-		v._cheminee(p, xch, y0 - 0.2, h_ch, graine + 5)
+		if VillageBatiQ.detail("bq_cheminee_2"):      # bâti hybride : cheminée Quaternius sur la maison restée en rondins / planches
+			VillageBatiQ.cheminee(v, p, xch, y0 - 0.2, h_ch)
+		else:
+			v._cheminee(p, xch, y0 - 0.2, h_ch, graine + 5)
 		if o.get("fumee", false):
 			v._fumee(p, Vector3(xch, y0 + h_ch + 0.2, 0))
 	if o.get("torche", false):
@@ -429,6 +435,10 @@ static func _grenier(v, p: Node3D, L: float, W: float, h: float, graine: int) ->
 		for sx in [-1.0, 1.0]:
 			piece(v, p, Vector3(sx * (L * 0.5 - 0.3), yh - 0.55, sz * (W * 0.5 + 0.1)), Vector3(sx * (L * 0.5 - 0.7), yh, sz * (W * 0.5 + 0.22)), Vector2(0.1, 0.1), Vector3(0, 0, sz), v.m_colombage)
 	porte(v, p, Vector3(0, 1.0, W * 0.5 + 0.12), Vector3.BACK, 0.9, 1.7, graine, false)
+	if VillageBatiQ.detail("bq_escalier"):      # bâti hybride : escalier extérieur Quaternius (Stairs_Exterior_Straight), 1 m de large
+		for mc: Array in PropsQuaternius.morceaux("bq_escalier"):      # en bois sombre comme le grenier (la pierre du kit, enneigée, sortait blanche)
+			v._ajouter(p, mc[1], Transform3D(Basis.from_scale(Vector3(0.5, 1.0, 0.6)), Vector3(0, -0.2, W * 0.5 + 1.0)), v.m_poutres_h)
+		return
 	for k in 4:
 		v._boite(p, Vector3(1.0, 0.08, 0.3), Transform3D(Basis(), Vector3(0, 0.2 + k * 0.22, W * 0.5 + 1.4 - k * 0.3)), v.m_poutres_h)
 	for sx in [-1.0, 1.0]:

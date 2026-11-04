@@ -1,0 +1,11 @@
+# Poses de l'essai bâti Quaternius (nom x,z,lacet,tangage) : jour = heure 12, crépuscule = 17,5. Lot : captures_bati_quaternius.sh
+entree 31.4,28.6,-168,3
+place 42.5,38.7,-132,0
+rue_h1 32,40,-163,2
+h1_loin 33,46,-157,3
+h2_loin 51,47,-161,3
+rue 40,56,-146,8
+h4_face 47.5,78.5,-90,4
+h1_gp 36,46.5,180,4
+h2_gp 54,49.5,180,4
+h1_pignon 29,53,-90,3

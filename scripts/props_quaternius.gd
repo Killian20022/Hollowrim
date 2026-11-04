@@ -11,6 +11,8 @@ class_name PropsQuaternius
 ## Règle fer → fer_mat (CATALOGUE §6) : le fer des props se pose MAT partout (la variante brillante sortait beige-doré).
 
 const DAT := "res://assets/crypte/modules/props_quaternius.dat"
+## Essai bâti (`--bati-quaternius`, scripts/village_bati_q.gd) : façades assemblées, chargées SEULEMENT avec l'option.
+const DAT_BATI := "res://assets/modeles/bati_quaternius.dat"
 
 ## Crypte : matières des props → matières de CrypteDecor (pierre → pierre_v2 par MAT_MODELE ; lin, jute, os, or… gardés : TUILE).
 const MATS_CRYPTE := {"fer": "fer_mat"}
@@ -33,38 +35,39 @@ static var _crypte_lu := false
 static func _charger() -> void:
 	_verrou.lock()
 	if _brut.is_empty():
-		var f := FileAccess.open(DAT, FileAccess.READ)
-		if f == null:
-			push_error("PropsQuaternius : %s introuvable" % DAT)
-		else:
-			var n := f.get_32()
-			for _k in n:
-				var cle := f.get_buffer(f.get_8()).get_string_from_utf8()
-				var nb := f.get_32()
-				var fl := f.get_buffer(nb * 28).to_float32_array()
-				var pos := PackedVector3Array()
-				var col := PackedColorArray()
-				pos.resize(nb)
-				col.resize(nb)
-				for q in nb:
-					var o := q * 7
-					pos[q] = Vector3(fl[o], fl[o + 1], fl[o + 2])
-					col[q] = Color(fl[o + 3], fl[o + 4], fl[o + 5], 1.0)
-				for t in range(0, nb, 3):     # Godot : face avant = sens horaire → a, c, b
-					var p := pos[t + 1]
-					pos[t + 1] = pos[t + 2]
-					pos[t + 2] = p
-					var c := col[t + 1]
-					col[t + 1] = col[t + 2]
-					col[t + 2] = c
-				var mc := cle.split("__")
-				if not _brut.has(mc[0]):
-					_brut[mc[0]] = []
-				(_brut[mc[0]] as Array).append([mc[1], pos, col])
-				var bb: AABB = _boites.get(mc[0], AABB(pos[0], Vector3.ZERO)) if nb > 0 else _boites.get(mc[0], AABB())
-				for q in nb:
-					bb = bb.expand(pos[q])
-				_boites[mc[0]] = bb
+		for chemin: String in [DAT] + ([DAT_BATI] if VillageBatiQ.actif else []):
+			var f := FileAccess.open(chemin, FileAccess.READ)
+			if f == null:
+				push_error("PropsQuaternius : %s introuvable" % chemin)
+			else:
+				var n := f.get_32()
+				for _k in n:
+					var cle := f.get_buffer(f.get_8()).get_string_from_utf8()
+					var nb := f.get_32()
+					var fl := f.get_buffer(nb * 28).to_float32_array()
+					var pos := PackedVector3Array()
+					var col := PackedColorArray()
+					pos.resize(nb)
+					col.resize(nb)
+					for q in nb:
+						var o := q * 7
+						pos[q] = Vector3(fl[o], fl[o + 1], fl[o + 2])
+						col[q] = Color(fl[o + 3], fl[o + 4], fl[o + 5], 1.0)
+					for t in range(0, nb, 3):     # Godot : face avant = sens horaire → a, c, b
+						var p := pos[t + 1]
+						pos[t + 1] = pos[t + 2]
+						pos[t + 2] = p
+						var c := col[t + 1]
+						col[t + 1] = col[t + 2]
+						col[t + 2] = c
+					var mc := cle.split("__")
+					if not _brut.has(mc[0]):
+						_brut[mc[0]] = []
+					(_brut[mc[0]] as Array).append([mc[1], pos, col])
+					var bb: AABB = _boites.get(mc[0], AABB(pos[0], Vector3.ZERO)) if nb > 0 else _boites.get(mc[0], AABB())
+					for q in nb:
+						bb = bb.expand(pos[q])
+					_boites[mc[0]] = bb
 	_verrou.unlock()
 
 static func existe(nom: String) -> bool:
