@@ -82,6 +82,9 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 		v._stalactites(p, -Lx * 0.5 + 0.3, Lx * 0.5 - 0.3, bord.y, bord.z, graine * 31 + int(cote))
 	var roul := BatiGeo.rondin(Lx - 0.2, 0.3, graine + 11, 0.05, 0, 0.0, 1.0)
 	v._ajouter(p, (roul[0] as BatiGeo.Maillage).arrays(), Transform3D(Basis(), Rp + Vector3(0, 0.38, 0)), v.m_neige)
+	# vitrages des fenêtres (volets ouverts sur le vitrage du village : lueur chaude la nuit, comme les fenêtres d'origine)
+	for w: Array in m.get("vitres", []):
+		v._vitre(p, Vector3(w[0], y_sol + float(w[1]), w[2]), Vector2(w[3], w[4]), w[5])
 	# fumée, torche, enseigne : comme le bâtiment d'origine
 	if m.has("cheminee") and o.get("fumee", false):
 		var c: Array = m["cheminee"]

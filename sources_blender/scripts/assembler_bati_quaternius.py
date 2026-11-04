@@ -19,7 +19,9 @@ EXT = 0.2           # face extérieure du mur = demi-emprise + EXT (la collision
 
 MURS = {"S": "Straight", "D": "Door_Round", "Df": "Door_Flat", "W": "Window_Wide_Round", "Wf": "Window_Wide_Flat", "T": "Window_Thin_Round"}
 # fenêtres : volets fermés posés devant le trou (le trou donne sur l'intérieur vide de la façade)
-VOLETS = {"W": "WindowShutters_Wide_Round_Closed", "Wf": "WindowShutters_Wide_Flat_Closed", "T": "WindowShutters_Thin_Round_Closed"}
+VOLETS = {"W": "WindowShutters_Wide_Round_Open", "Wf": "WindowShutters_Wide_Flat_Open", "T": "WindowShutters_Thin_Round_Open"}
+LARG_VITRE = {"W": 1.15, "Wf": 1.15, "T": 0.6}      # vitrage plaqué dans l'ouverture (m, avant échelle), lueur la nuit (village._vitre)
+VITRES = []        # [x, y, z (repère Godot, centre du vitrage), larg, haut, lacet rad] de l'assemblage en cours
 
 # côté : angle autour de Z (façade = -Y : +Z Godot ; +X Godot = +X ; -Z Godot = +Y ; -X Godot = -X)
 COTES = {"+Z": 0, "+X": 90, "-Z": 180, "-X": 270}
@@ -98,6 +100,8 @@ def mur_cote(rec, cote, modules, z0, sz, L, W, decal=0.0, mur=None):
             pd = R @ Vector((t - 0.54 * sx, -ds + 0.09 * SY + 0.1, z0))
             objs += poser("Door_1_Round" if m == "D" else "Door_1_Flat", pd, ang, (sx, SY, sz))
         if m in VOLETS:
+            pg = R @ Vector((t, -ds + 0.09 * SY + 0.12, z0 + 1.9 * sz))
+            VITRES.append([round(pg.x, 3), round(pg.z, 3), round(-pg.y, 3), round(LARG_VITRE[m] * sx, 3), round(1.35 * sz, 3), round(math.radians(ang), 4)])
             pv = R @ Vector((t, -ds - 0.02, z0))
             objs += poser(VOLETS[m], pv, ang, (sx, SY, sz))
     return objs
@@ -106,6 +110,7 @@ def mur_cote(rec, cote, modules, z0, sz, L, W, decal=0.0, mur=None):
 def assembler(nom_recette):
     rec = RECETTES[nom_recette]
     L, W = rec["L"], rec["W"]
+    VITRES.clear()
     objs = []
     z = 0.0
     for k, hh in enumerate(rec["niveaux"]):
@@ -153,11 +158,11 @@ def assembler(nom_recette):
             objs += poser(rec["pignon"], (sg * (L * 0.5 + EXT - 0.1), 0, ztop), ang, (sx_g, SY, s_larg))
     zf, ze = Z_FAITE[nom_toit]
     META[nom_recette] = {"L": L, "W": W, "ztop": ztop, "faite": ztop + zf * s_larg, "egout": ztop + ze * s_larg, "demi_toit": span * 0.5,
-                         "long_toit": long_pc * s_long}
+                         "long_toit": long_pc * s_long, "vitres": VITRES[:]}
     if rec.get("cheminee"):
         nom_c, xc = rec["cheminee"]
-        objs += poser(nom_c, (xc, 0.7, ztop + 2.0), 0, (1.0, 1.0, 0.8))
-        META[nom_recette]["cheminee"] = [xc, ztop + 2.0 + {"Prop_Chimney": 3.18, "Prop_Chimney2": 3.0}[nom_c] * 0.8, -0.7]   # repère Godot (x, y, z)
+        objs += poser(nom_c, (xc, 0.7, ztop + 1.6), 0, (1.0, 1.0, 1.35))
+        META[nom_recette]["cheminee"] = [xc, ztop + 1.6 + {"Prop_Chimney": 3.18, "Prop_Chimney2": 3.0}[nom_c] * 1.35, -0.7]   # repère Godot (x, y, z)
     return objs, ztop
 
 
