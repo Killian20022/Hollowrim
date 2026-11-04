@@ -205,7 +205,7 @@ static func _couvert(b: Interieurs, cx: float, cz: float, long: float) -> void:
 				b.assiette(Vector3(x, y, z))
 				var lac := b.rng.randf() * 3.0
 				if PropsQuaternius.lot4:      # lot 4 : cuisse rôtie dans l'assiette, couteau à côté (au lieu du pavé de cuir)
-					b.nq("q_cuisse", Vector3(x, y + 0.03, z), lac, 1.0, {"argile": "cuir"})
+					b.nq("q_cuisse", Vector3(x, y + 0.03, z), lac, 1.0)
 					b.nq("q_couteau_f", Vector3(x - 0.2, y, z + 0.02), 1.6)
 				else:
 					b.bx(Vector3(x, y + 0.04, z), Vector3(0.12, 0.05, 0.1), "cuir", lac)      # pain / viande
@@ -232,13 +232,19 @@ static func _couvert(b: Interieurs, cx: float, cz: float, long: float) -> void:
 	if PropsQuaternius.lot4:      # lot 4 : la table est servie (miche, pommes, écuelle de soupe avec sa cuillère, fromage-tranche), sans surcharge
 		var sg := 1.0 if cx > 0.0 or cz > 0.0 else -1.0
 		var xp := cx - long * 0.12      # trois miches groupées (deux côte à côte, une posée en travers devant) + une tranche
-		b.nq("q_pain", Vector3(xp, y, cz + 0.2), 1.6)
-		b.nq("q_pain", Vector3(xp + 0.27, y, cz + 0.22), 1.45)
-		b.nq("q_pain", Vector3(xp + 0.13, y, cz - 0.04), 0.2 + sg * 0.3)
-		b.nq("q_tranche_pain", Vector3(xp + 0.46, y, cz + 0.05), 0.4 + sg, 0.8)
-		for j in 3:
-			b.nq("q_pomme" if j != 1 else "q_pomme_verte", Vector3(cx + long * 0.07 + j * 0.09, y, cz + 0.2 + (j % 2) * 0.05), j * 1.3)
-		b.mets(Vector3(cx + long * 0.32, y, cz + 0.12), 0.0, true)
+		# v3 : chemin de table en lin clair sous le repas servi, planche à pain claire sous les miches (la nourriture se détache du bois sombre)
+		var yn := y + 0.008
+		b.nappe(Vector3(cx + long * 0.1, y, cz + 0.1), Vector2(long * 0.62, 0.52))
+		b.nappe(Vector3(xp + 0.2, yn, cz + 0.1), Vector2(0.78, 0.5), 0.05, true)
+		var yp := yn + 0.024
+		b.nq("q_pain", Vector3(xp + 0.04, yp, cz + 0.2), 1.6)
+		b.nq("q_pain", Vector3(xp + 0.24, yp, cz + 0.22), 1.45)
+		b.nq("q_pain", Vector3(xp + 0.14, yp, cz - 0.02), 0.2 + sg * 0.3)
+		b.nq("q_tranche_pain", Vector3(xp + 0.4, yp, cz + 0.05), 0.4 + sg, 0.7)
+		for j in 5:      # tas de pommes (3 au fond, 2 devant)
+			b.nq("q_pomme" if j != 1 else "q_pomme_verte", Vector3(cx + long * 0.07 + (j % 3) * 0.09 + int(j / 3) * 0.045, yn, cz + 0.22 - int(j / 3) * 0.09), j * 1.3)
+		b.fromage(Vector3(cx + long * 0.2, yn, cz + 0.18), sg)
+		b.mets(Vector3(cx + long * 0.32, yn, cz + 0.02), 0.0, true)
 
 static func _rateau_armes(b: Interieurs, pos: Vector3, lacet: float, quoi: String) -> void:
 	var d := Basis(Vector3.UP, lacet) * Vector3.BACK

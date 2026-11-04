@@ -18,7 +18,7 @@ const FEU := Color(1.0, 0.56, 0.24)
 
 const TUILE := {
 	"mur0": 4.0, "mur1": 4.0, "mur2": 4.0, "dalle0": 4.0, "dalle1": 4.0, "voute": 4.0,
-	"bois": 2.0, "fer": 1.0, "lame": 1.0, "gravure": 2.0, "argile": 1.0, "os": 1.0, "parchemin": 1.0, "laine": 1.0, "lin": 1.0, "jute": 1.0,
+	"bois": 2.0, "cuir_livre": 2.0, "cuir_livre_r": 2.0, "fer": 1.0, "lame": 1.0, "gravure": 2.0, "argile": 1.0, "os": 1.0, "parchemin": 1.0, "laine": 1.0, "lin": 1.0, "jute": 1.0,
 	"toile": 1.0, "noir": 1.0, "halo": 1.0, "halo_f": 1.0, "rai": 1.0, "braise": 1.0,
 	# donjon (agrandissement) : pierre givrée / glace, ossuaire, or
 	"mur3": 4.0, "mur4": 4.0, "dalle3": 4.0, "dalle4": 4.0, "ossuaire": 4.0, "or": 0.5, "neige": 2.0,
@@ -55,7 +55,7 @@ const TEINTE_STATUE := Color(1.12, 1.16, 1.18)
 const LUEUR_STATUE_HAUT := Vector3(0.11, 0.14, 0.2)
 const LUEUR_STATUE_BAS := Vector3(0.05, 0.028, 0.012)
 ## Matières qui réutilisent la texture d'une autre (même dessin, réglages d'éclairage différents).
-const ALIAS_TEXTURE := {"statue_v2": "pierre_v2", "pierre_sol": "pierre_v2", "fer_mat": "fer"}      # C2 : sol en relief = texture de pierre_v2 ; fer_mat : voir MAT_BOITE
+const ALIAS_TEXTURE := {"statue_v2": "pierre_v2", "pierre_sol": "pierre_v2", "fer_mat": "fer", "cuir_livre": "bois", "cuir_livre_r": "bois"}      # C2 : sol en relief = texture de pierre_v2 ; fer_mat : voir MAT_BOITE
 const GAIN_LUMIERE := 1.7          # pierre plus sombre (rampe donjon) : les feux portent plus loin et plus fort
 const GRILLE_CRYPTE := 180.0      # accroche des sommets : H / 2 à 640 x 360 (DIRECTION_ARTISTIQUE §3)
 
@@ -509,6 +509,9 @@ func mat(nom: String) -> Material:
 					sm.set_shader_parameter("emission", Vector3(0.012, 0.03, 0.05))
 				elif nom == "bois":
 					sm.set_shader_parameter("saturation", SATURATION_BOIS)
+				elif nom == "cuir_livre" or nom == "cuir_livre_r":      # props/lot4 v3 : couvertures de cuir brun / rouge sourd (texture du bois)
+					sm.set_shader_parameter("saturation", SATURATION_BOIS)
+					sm.set_shader_parameter("teinte", Color(1.55, 1.1, 0.78) if nom == "cuir_livre" else Color(1.6, 0.72, 0.55))
 				if nom in PIERRE_NEUTRE:
 					sm.set_shader_parameter("teinte", TEINTE_PIERRE)
 				if nom == "pierre_v2" or nom == "dalle_v2" or nom == "pierre_sol":      # crypte v2 : plus de fond bleuté (planche : pierre lisible dans l'ombre)
@@ -1707,8 +1710,18 @@ func _q4(nom: String, pos: Vector3, lacet: float, ech: Vector3, mats := {}) -> v
 		return
 	PropsQuaternius.compter("crypte_lot4")
 	var m := PropsQuaternius.MATS_CRYPTE.duplicate()
+	if LIVRES_L4.has(nom):
+		m.merge(LIVRES_L4[nom], true)
 	m.merge(mats, true)
 	modele(nom, pos, lacet, ech, m, false)
+
+## props/lot4 v3 : couvertures des livres Quaternius en cuir (texture du bois, comme les anciens livres-boîtes, teinte de mat()) brun ou rouge sourd,
+## pages du livre ouvert en parchemin vieilli : la laine et le lin de la crypte les faisaient virer au gris pâle.
+const LIVRES_L4 := {
+	"q_livre_d1": {"laine": "cuir_livre_r", "lin": "cuir_livre"},      # le « papier » Quaternius couvre presque tout le livre fermé : cuir aussi
+	"q_livre_d2": {"laine": "cuir_livre", "lin": "cuir_livre_r"},
+	"q_livre_ouvert": {"laine": "cuir_livre", "lin": "parchemin", "@lin": Color(0.85, 0.74, 0.58)},
+}
 
 func etagere(pos: Vector3, lacet: float, largeur := 1.8, haut := 2.0) -> void:
 	ObjMobilierBois.etagere(self, pos, lacet, largeur, haut)

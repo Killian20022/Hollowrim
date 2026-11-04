@@ -173,9 +173,11 @@ static func _chasseurs(b: Interieurs, xch: float) -> void:
 	b.bx(Vector3(1.0, y + 0.02, zb + 0.7), Vector3(0.22, 0.03, 0.06), "etain", 0.4)            # couteau
 	b.bx(Vector3(1.2, y + 0.03, zb + 0.5), Vector3(0.16, 0.05, 0.08), "brute", 0.1)           # pierre à aiguiser
 	b.os_sol(Vector3(0.0, y, zb + 0.75), 0.7)
-	b.nq("q_viande", Vector3(0.88, y, zb + 0.5), 0.5, 1.2)      # lot 4 : morceaux de la chasse sur la table de dépeçage
-	b.nq("q_lard", Vector3(1.05, y, zb + 0.32), 0.2, 1.0)
-	b.nq("q_cuisse", Vector3(0.82, y + 0.03, zb + 0.82), 2.6, 1.2, {"argile": "cuir"})
+	b.nappe(Vector3(0.92, y, zb + 0.56), Vector2(0.5, 0.62), 0.15, true)      # v3 : planche claire sous les morceaux (détachés du plateau sombre)
+	var yv := y + (0.024 if PropsQuaternius.lot4 else 0.0)
+	b.nq("q_viande", Vector3(0.88, yv, zb + 0.5), 0.5, 1.2)      # lot 4 : morceaux de la chasse sur la table de dépeçage
+	b.nq("q_lard", Vector3(1.05, yv, zb + 0.32), 0.2, 1.0)
+	b.nq("q_cuisse", Vector3(0.82, yv + 0.03, zb + 0.78), 2.6, 1.2)
 	b.bougie(Vector3(1.5, y, zb + 0.4), 0.14, true)
 	b.tabouret(Vector3(0.6, 0, zb + 1.3))
 	# --- bout est : deux cadres de peaux tendues, tonneau de viande salée, caisses
@@ -183,8 +185,9 @@ static func _chasseurs(b: Interieurs, xch: float) -> void:
 		_cadre_peau(b, Vector3(3.2, 0, -1.6 + k * 1.5), PI * 0.5 + 0.1 * k)
 	b.tonneau(Vector3(3.45, 0, 1.7), 0.9, 0.34)
 	b.coffre(Vector3(2.5, F, 2.05), 0.0, Vector3(0.9, 0.5, 0.55))
-	b.mets(Vector3(2.35, F + 0.5, 2.05), 0.0)      # lot 4 : le repas des chasseurs sur le coffre (écuelle, cuillère, couteau, miche)
-	b.nq("q_pain", Vector3(2.75, F + 0.5, 2.0), 1.2, 0.9)
+	b.nappe(Vector3(2.5, F + 0.5, 2.05), Vector2(0.84, 0.46))      # v3 : linge clair sous le repas
+	b.mets(Vector3(2.35, F + 0.508, 2.05), 0.0)      # lot 4 : le repas des chasseurs sur le coffre (écuelle, cuillère, couteau, miche)
+	b.nq("q_pain", Vector3(2.75, F + 0.508, 2.0), 1.2, 0.9)
 	b.sac(Vector3(3.2, F, 0.55), 2.1, 0.5)
 	b.ramure(Vector3(3.78, 2.0, -0.3), -PI * 0.5, 1.0)
 	b.peau_murale(Vector3(3.8, 1.5, 0.6), -PI * 0.5, 0.9, 1.3, "peau_sombre")
@@ -263,10 +266,13 @@ static func _grima(b: Interieurs, xch: float) -> void:
 	b.cyl_h(Vector3(xch - 0.9, y + 0.025, zb + 0.55), 0.025, 0.4, "bois_clair", 0.2, 6)       # rouleau
 	b.bougie(Vector3(xch + 0.4, y, zb + 0.55), 0.13, true)
 	if PropsQuaternius.lot4:      # lot 4 : plan de travail de la doyenne (miche, navets, oeufs dans un bol, écuelle et cuillère) + garde-manger
-		b.nq("q_pain", Vector3(xch - 0.1, y, zb + 0.66), 0.4)
-		b.nq("q_navet", Vector3(xch - 0.85, y, zb + 0.72), 0.3)
-		b.nq("q_navet", Vector3(xch - 0.72, y, zb + 0.76), 1.4)
-		b.nq("q_chou", Vector3(xch - 0.4, y, zb + 0.78), 0.6)
+		b.nappe(Vector3(xch - 0.12, y, zb + 0.67), Vector2(0.4, 0.22), 0.0, true)      # v3 : planches claires sous la miche et les légumes
+		b.nappe(Vector3(xch - 0.62, y, zb + 0.68), Vector2(0.62, 0.2), 0.0, true)
+		b.nq("q_pain", Vector3(xch - 0.1, y + 0.024, zb + 0.66), 0.4)
+		b.nq("q_navet", Vector3(xch - 0.85, y + 0.024, zb + 0.7), 0.3)
+		b.nq("q_navet", Vector3(xch - 0.72, y + 0.024, zb + 0.72), 1.4)
+		b.nq("q_chou", Vector3(xch - 0.42, y + 0.024, zb + 0.7), 0.6)
+		b.fromage(Vector3(xch - 0.2, y, zb + 0.22), 0.4)
 		b.nq("q_oeuf", Vector3(xch + 0.22, y + 0.05, zb + 0.35), 0.0)
 		b.nq("q_oeuf_blanc", Vector3(xch + 0.28, y + 0.05, zb + 0.37), 1.0)
 		b.mets(Vector3(xch + 0.62, y, zb + 0.28), 0.0, true)

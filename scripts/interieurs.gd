@@ -93,7 +93,15 @@ static func materiaux() -> Dictionary:
 	d["lin"] = _m("lin", Color(1.0, 0.96, 0.9), 64.0, 0.4)
 	d["or"] = _m("or", Color(1.0, 0.95, 0.85), 64.0, 0.3)
 	# lot 4 (props/lot4) : nourriture Quaternius (viande, pommes, navets) : laine rouge sourde de la crypte, pas la tenture à motifs
-	d["laine_q"] = _m("laine", Color(0.92, 0.86, 0.84), 64.0, 0.4)
+	d["laine_q"] = _m("laine", Color(1.4, 1.1, 1.02), 64.0, 0.4)
+	# lot 4 v3 : nourriture plus claire EN VALEUR (pas en saturation) pour se détacher du bois sombre sous les feux ; nappes et planches claires
+	d["pain_q"] = _m("lin", Color(1.5, 1.12, 0.62), 64.0, 0.4)             # croûte dorée (lin : sans les cernes de la terre tournée)
+	d["mie_q"] = _m("lin", Color(1.35, 1.24, 1.02), 64.0, 0.3)            # mie et tranche claires
+	d["viande_q"] = _m("peau", Color(1.3, 0.92, 0.82), 64.0)               # viande crue, lard : rose-brun
+	d["roti_q"] = _m("peau", Color(1.2, 0.9, 0.7), 64.0)                   # cuisse rôtie : brun doré
+	d["fromage_q"] = _m("lin", Color(1.45, 1.32, 0.95), 64.0, 0.3)         # fromage crème
+	d["nappe_q"] = _m("lin", Color(1.3, 1.25, 1.12), 64.0, 0.5)            # nappe de lin écru
+	d["planche_q"] = _m("planches_h_int", Color(1.9, 1.72, 1.5), 64.0)     # planche à pain de bois clair
 	var eau := _m("fer", Color(0.1, 0.14, 0.22), 32.0, 0.0)
 	eau.set_shader_parameter("emission", Color(0.03, 0.06, 0.12))
 	d["eau"] = eau
@@ -384,9 +392,30 @@ func nq(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, mats := {}) -> void:
 		return
 	PropsQuaternius.compter("lot4_interieurs")
 	var m := MATS_NOURRITURE.duplicate()
-	if nom == "q_pain" or nom == "q_tranche_pain":      # croûte dorée en terre cuite claire (le bois sombre faisait des bûches, le foin un camouflage)
-		m.merge({"bois": "argile", "jute": "argile"})
+	if nom == "q_pain" or nom == "q_tranche_pain":      # croûte dorée claire, mie écrue (v3 : la terre cuite seule restait brune sur le bois)
+		m.merge({"bois": "pain_q", "jute": "mie_q"})
+		if nom == "q_pain":
+			e *= 0.65      # v3 : miche de ~25 cm (à x1,25 elle faisait un billot de bois sur la table)
+	elif nom == "q_viande" or nom == "q_lard":
+		m.merge({"lin": "viande_q"})
+	elif nom == "q_cuisse":
+		m.merge({"argile": "roti_q"})
+	elif nom == "q_ecuelle" or nom == "q_cuillere_bois":
+		m.merge({"bois": "bois_clair"})
 	q(nom, pos, lacet, e * 1.25, m.merged(mats))   # x1,25 : lisible en vue de jeu
+
+## Lot 4 v3 : nappe de lin claire (ou planche de bois clair) posée sous la nourriture, qui la détache du plateau sombre ; `pos` = centre, au dessus.
+func nappe(pos: Vector3, taille: Vector2, lacet := 0.0, planche := false) -> void:
+	if not PropsQuaternius.lot4:
+		return
+	bx(pos + Vector3(0, 0.012 if planche else 0.004, 0), Vector3(taille.x, 0.024 if planche else 0.008, taille.y), "planche_q" if planche else "nappe_q", lacet)
+
+## Lot 4 v3 : meule de fromage crème entamée (meule + quartier).
+func fromage(pos: Vector3, lacet := 0.0) -> void:
+	if not PropsQuaternius.lot4:
+		return
+	cyl(pos + Vector3(0, 0.045, 0), 0.11, 0.09, "fromage_q", 8)
+	bx(pos + Basis(Vector3.UP, lacet) * Vector3(0.17, 0.03, 0.02), Vector3(0.09, 0.06, 0.06), "fromage_q", lacet + 0.5)
 
 ## Lot 4 : couvert posé (écuelle de bois ou d'argile, cuillère de bois, couteau) ; `pos` = centre de l'écuelle.
 func mets(pos: Vector3, lacet := 0.0, argile := false) -> void:

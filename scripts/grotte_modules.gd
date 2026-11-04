@@ -895,13 +895,15 @@ static func _camp_lot4(g: Grotte, id: String, feu_s: float, feu: Vector3, r: Ran
 				if fait:
 					d._empreinte(pp, 1.5, 1.6)
 	# bancs-rondins autour du feu, hachette plantée, couteau, vivres
-	var b1 := d.q4("q_rondin", feu + Vector3(-0.3, 0, 1.3), 0.25, 1.0, false)
+	# v3 : rondins x0,7 et bois refroidi vers celui de la tente et des outils (l'ancien rondin x1 brun saturé écrasait le feu)
+	var mr := {"@bois": Color(0.74, 0.76, 0.9)}
+	var b1 := d.q4("q_rondin", feu + Vector3(-0.3, 0, 1.3), 0.25, 0.7, false, false, mr)
 	if b1 != Vector3.INF:
-		d.q4("q_hachette", b1 + Vector3(0.25, 0.3, 0.0), 0.2, 1.0, false, true)
-		d.q4("q_poisson", b1 + Vector3(-0.3, 0.4, 0.02), 0.8, 1.0, false, true)
-	var b2 := d.q4("q_rondin", feu + Vector3(1.2, 0, -0.9), 2.0, 1.0, false)
+		d.q4("q_hachette", b1 + Vector3(0.2, 0.21, 0.0), 0.2, 1.0, false, true)
+		d.q4("q_poisson", b1 + Vector3(-0.22, 0.28, 0.02), 0.8, 1.0, false, true)
+	var b2 := d.q4("q_rondin", feu + Vector3(1.2, 0, -0.9), 2.0, 0.7, false, false, mr)
 	if b2 != Vector3.INF:
-		d.q4("q_couteau_camp", b2 + Vector3(0.0, 0.34, 0.0), 1.0, 1.0, false, true)
+		d.q4("q_couteau_camp", b2 + Vector3(0.0, 0.24, 0.0), 1.0, 1.0, false, true)
 	var pf := d.q4("q_poele", feu + Vector3(-0.85, 0, -0.55), 0.6)
 	if pf != Vector3.INF:
 		d.q4("q_viande", pf + Vector3(0.0, 0.05, 0.1), 0.3, 1.0, false, true)

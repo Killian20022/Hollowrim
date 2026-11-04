@@ -66,16 +66,25 @@ const POSES_D := [
 ## Lot 4 (props/lot4) : NOURRITURE des étals, mêmes conventions que POSES_Q (étal i, position locale dans le repère de l'étal ; les hauteurs 0,9
 ## sont ramenées à 0,8 comme les autres) : étal 0 = maraîcher, étal 1 = boucher/cordier, étal 2 = poissonnier. Posé seulement si PropsQuaternius.lot4.
 const POSES_L4 := [
-	# étal 0 : maraîcher (choux, navets, pommes en vrac entre les cageots et les peaux d'avant)
-	["q_chou", 0, Vector3(0.3, 0.9, -0.58), 20.0, false], ["q_chou", 0, Vector3(0.45, 0.9, -0.72), 80.0, false],
-	["q_navet", 0, Vector3(0.62, 0.9, -0.5), 0.0, false], ["q_navet", 0, Vector3(0.7, 0.9, -0.66), 40.0, false],
-	["q_pomme", 0, Vector3(0.3, 0.9, -0.88), 0.0, false], ["q_pomme_verte", 0, Vector3(0.4, 0.9, -0.9), 0.0, false],
+	# étal 0 : maraîcher, v3 en TAS lisibles devant le poteau : choux au fond (3 + 1 dessus), navets (4 + 1), pommes en pyramide devant (6 + 3)
+	["q_chou", 0, Vector3(0.3, 0.9, -0.52), 20.0, false], ["q_chou", 0, Vector3(0.5, 0.9, -0.54), 80.0, false],
+	["q_chou", 0, Vector3(0.4, 0.9, -0.68), 140.0, false], ["q_chou", 0, Vector3(0.4, 1.04, -0.58), 50.0, false],
+	["q_navet", 0, Vector3(0.66, 0.9, -0.5), 0.0, false], ["q_navet", 0, Vector3(0.77, 0.9, -0.6), 40.0, false],
+	["q_navet", 0, Vector3(0.66, 0.9, -0.7), 110.0, false], ["q_navet", 0, Vector3(0.62, 0.9, -0.84), 200.0, false],
+	["q_navet", 0, Vector3(0.71, 0.97, -0.62), 70.0, false],
+	["q_pomme", 0, Vector3(0.12, 0.9, -0.84), 0.0, false], ["q_pomme", 0, Vector3(0.22, 0.9, -0.84), 60.0, false],
+	["q_pomme_verte", 0, Vector3(0.32, 0.9, -0.84), 0.0, false], ["q_pomme", 0, Vector3(0.12, 0.9, -0.95), 120.0, false],
+	["q_pomme", 0, Vector3(0.22, 0.9, -0.95), 200.0, false], ["q_pomme", 0, Vector3(0.32, 0.9, -0.95), 30.0, false],
+	["q_pomme", 0, Vector3(0.17, 0.98, -0.895), 90.0, false], ["q_pomme_verte", 0, Vector3(0.27, 0.98, -0.895), 10.0, false],
+	["q_pomme", 0, Vector3(0.22, 1.05, -0.895), 150.0, false],
 	["q_jarre", 0, Vector3(-0.55, 0.0, 0.5), 10.0, false], ["q_bouteille_1", 0, Vector3(-0.2, 0.0, 0.5), 0.0, false],
 	# étal 1 : boucher (viande, lard, saucisses, cuisses) à côté des cordes
 	["q_viande", 1, Vector3(0.15, 0.9, -0.55), 15.0, false], ["q_viande", 1, Vector3(0.38, 0.9, -0.6), -30.0, false],
 	["q_lard", 1, Vector3(0.2, 0.9, -0.8), 5.0, false], ["q_cuisse", 1, Vector3(0.55, 0.92, -0.78), 70.0, false, {"argile": "cuir"}],
 	["q_saucisse", 1, Vector3(0.45, 0.9, -0.38), 20.0, false, {"argile": "peau"}], ["q_saucisse_crue", 1, Vector3(0.58, 0.9, -0.4), -10.0, false],
 	["q_jarre", 1, Vector3(1.2, 0.0, 0.5), 0.0, false],
+	["q_viande", 1, Vector3(0.26, 0.93, -0.58), 60.0, false], ["q_viande", 1, Vector3(0.0, 0.9, -0.62), 100.0, false],      # v3 : pile de pièces
+	["q_lard", 1, Vector3(0.05, 0.92, -0.82), -15.0, false], ["q_saucisse", 1, Vector3(0.5, 0.9, -0.35), 25.0, false, {"argile": "peau"}],
 	# étal 1 : barre sous l'auvent, côté clients, avec quatre cuisses fumées et quatre grappes de saucisses PENDUES (6e = matières, 7e = pré-rotation, 8e = échelle avant le x1,3)
 	["q_poutre_ronde", 1, Vector3(0.0, 1.87, -0.62), 0.0, false, {"bois": "cuir"}, Basis.IDENTITY, Vector3(2.15, 0.5, 0.5)],
 	["q_cuisse", 1, Vector3(-1.1, 1.66, -0.62), 0.0, false, {"argile": "laine_q"}, Basis(Vector3.BACK, -PI * 0.5), Vector3.ONE * 2.0],
@@ -93,6 +102,8 @@ const POSES_L4 := [
 	# étal 2 : poissonnier (poissons et arêtes sur la planche, jarres de saumure derrière)
 	["q_poisson", 2, Vector3(0.1, 0.9, -0.55), 10.0, false], ["q_poisson", 2, Vector3(0.3, 0.9, -0.72), -15.0, false],
 	["q_poisson", 2, Vector3(0.15, 0.9, -0.9), 170.0, false], ["q_aretes", 2, Vector3(0.6, 0.9, -0.5), 20.0, false],
+	["q_poisson", 2, Vector3(0.2, 0.93, -0.63), 30.0, false], ["q_poisson", 2, Vector3(0.0, 0.9, -0.72), -40.0, false],      # v3 : tas de poissons
+	["q_poisson", 2, Vector3(0.12, 0.95, -0.7), 160.0, false], ["q_poisson", 2, Vector3(0.35, 0.92, -0.85), 5.0, false],
 	["q_jarre", 2, Vector3(-0.2, 0.0, 0.5), 20.0, false], ["q_jarre", 2, Vector3(0.1, 0.0, 0.55), 100.0, false],
 ]
 ## Matières du lot 4 -> matières du mobilier (la laine des viandes et pommes = rouge sourd ; l'herbe des légumes = foin teinté vert).
