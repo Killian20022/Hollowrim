@@ -73,8 +73,8 @@ const POSES_L4 := [
 	["q_jarre", 0, Vector3(-0.55, 0.0, 0.5), 10.0, false], ["q_bouteille_1", 0, Vector3(-0.2, 0.0, 0.5), 0.0, false],
 	# étal 1 : boucher (viande, lard, saucisses, cuisses) à côté des cordes
 	["q_viande", 1, Vector3(0.15, 0.9, -0.55), 15.0, false], ["q_viande", 1, Vector3(0.38, 0.9, -0.6), -30.0, false],
-	["q_lard", 1, Vector3(0.2, 0.9, -0.8), 5.0, false], ["q_cuisse", 1, Vector3(0.55, 0.92, -0.78), 70.0, false],
-	["q_saucisse", 1, Vector3(0.45, 0.9, -0.38), 20.0, false], ["q_saucisse_crue", 1, Vector3(0.58, 0.9, -0.4), -10.0, false],
+	["q_lard", 1, Vector3(0.2, 0.9, -0.8), 5.0, false], ["q_cuisse", 1, Vector3(0.55, 0.92, -0.78), 70.0, false, {"argile": "cuir"}],
+	["q_saucisse", 1, Vector3(0.45, 0.9, -0.38), 20.0, false, {"argile": "cuir"}], ["q_saucisse_crue", 1, Vector3(0.58, 0.9, -0.4), -10.0, false],
 	["q_jarre", 1, Vector3(1.2, 0.0, 0.5), 0.0, false],
 	# étal 2 : poissonnier (poissons et arêtes sur la planche, jarres de saumure derrière)
 	["q_poisson", 2, Vector3(0.1, 0.9, -0.55), 10.0, false], ["q_poisson", 2, Vector3(0.3, 0.9, -0.72), -15.0, false],
@@ -199,7 +199,16 @@ static func substitut(mod: String) -> Array:
 			for i in 9:
 				var a := i * TAU / 9.0
 				r.append(["q_brique_" + str(1 + i % 4), Transform3D(Basis(Vector3.UP, -a) * Basis.from_scale(Vector3(1.5, 1.2, 1.3)), Vector3(cos(a), 0, sin(a)) * 0.85), {}])
-			r.append(["q_bucher", _fit("q_bucher", Vector3.ZERO, 0.6, Vector3(0.9, 0.55, 0.9)), {}])
+			if PropsQuaternius.lot4 and PropsQuaternius.existe("q_feu_bois"):      # lot 4 : bûches de feu de camp Quaternius (Survival) à la place du bûcher
+				r.append(["q_feu_bois", _fit("q_feu_bois", Vector3.ZERO, 0.6, Vector3(0.95, 0.5, 0.95)), {}])
+				# marmite de camp posée contre la couronne, tas de rondins et hache plantée dans un rondin (sobre : 3 pièces + la tente un peu plus loin)
+				r.append(["q_marmite_camp", Transform3D(Basis(Vector3.UP, 2.2), Vector3(-1.35, 0, 0.55)), {}])
+				r.append(["q_rondin", Transform3D(Basis(Vector3.UP, 0.5), Vector3(1.35, 0, 1.15)), {}])
+				r.append(["q_rondin", Transform3D(Basis(Vector3.UP, 0.35), Vector3(1.4, 0.3, 1.15)), {}])
+				r.append(["q_hache_camp", Transform3D(Basis(Vector3.UP, 0.9) * Basis(Vector3.RIGHT, -PI * 0.5), Vector3(1.2, 0.68, 1.3)), {"laine": "cuir"}])
+				r.append(["q_tente", Transform3D(Basis(Vector3.UP, PI), Vector3(0.5, 0, -5.4)), {"jute": "lin"}])      # tente de toile, entrée vers le feu
+			else:
+				r.append(["q_bucher", _fit("q_bucher", Vector3.ZERO, 0.6, Vector3(0.9, 0.55, 0.9)), {}])
 		"forge_foyer":      # KITBASH : muret de briques Quaternius (deux rangs), braises de l'ancien module gardées
 			for rg in 2:
 				for i in 7:
@@ -603,6 +612,8 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 			var mat: String = "argile" if t[0] == "fer" and nom in PRIMEURS else MATS_Q.get(t[0], "planches_h")
 			if est_l4:
 				mat = MATS_L4.get(t[0], mat)
+				if e.size() > 5:      # matière imposée par la pose (ex. {"argile": "cuir"} : viande fumée, pas de terre cuite orangée)
+					mat = (e[5] as Dictionary).get(t[0], mat)
 			if not fusion.has(mat):
 				var st := SurfaceTool.new()
 				st.begin(Mesh.PRIMITIVE_TRIANGLES)

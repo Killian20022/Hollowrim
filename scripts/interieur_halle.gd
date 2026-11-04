@@ -202,7 +202,7 @@ static func _couvert(b: Interieurs, cx: float, cz: float, long: float) -> void:
 				b.assiette(Vector3(x, y, z))
 				var lac := b.rng.randf() * 3.0
 				if PropsQuaternius.lot4:      # lot 4 : cuisse rôtie dans l'assiette, couteau à côté (au lieu du pavé de cuir)
-					b.nq("q_cuisse", Vector3(x, y + 0.03, z), lac, 1.0)
+					b.nq("q_cuisse", Vector3(x, y + 0.03, z), lac, 1.0, {"argile": "cuir"})
 					b.nq("q_couteau_f", Vector3(x - 0.2, y, z + 0.02), 1.6)
 				else:
 					b.bx(Vector3(x, y + 0.04, z), Vector3(0.12, 0.05, 0.1), "cuir", lac)      # pain / viande

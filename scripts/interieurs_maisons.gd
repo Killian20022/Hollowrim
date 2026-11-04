@@ -175,7 +175,7 @@ static func _chasseurs(b: Interieurs, xch: float) -> void:
 	b.os_sol(Vector3(0.0, y, zb + 0.75), 0.7)
 	b.nq("q_viande", Vector3(0.88, y, zb + 0.5), 0.5, 1.2)      # lot 4 : morceaux de la chasse sur la table de dépeçage
 	b.nq("q_lard", Vector3(1.05, y, zb + 0.32), 0.2, 1.0)
-	b.nq("q_cuisse", Vector3(0.82, y + 0.03, zb + 0.82), 2.6, 1.2)
+	b.nq("q_cuisse", Vector3(0.82, y + 0.03, zb + 0.82), 2.6, 1.2, {"argile": "cuir"})
 	b.bougie(Vector3(1.5, y, zb + 0.4), 0.14, true)
 	b.tabouret(Vector3(0.6, 0, zb + 1.3))
 	# --- bout est : deux cadres de peaux tendues, tonneau de viande salée, caisses

@@ -22,10 +22,12 @@ f_ouest interieur -0.9,0.9,-60,-3 bat=forge heure=12
 f_brodd interieur 1.4,1.3,48,-5 bat=forge heure=12
 f_brodd2 interieur -1.0,1.0,-64,-3 bat=forge heure=12
 # gros plans (nourriture a cote des props existants)
-v_etal0 monde 51.5,32.3,0,-16 heure=12
-v_etal1 monde 52.6,33.4,-90,-16 heure=12
-v_etal2 monde 51.3,41.6,-120,-16 heure=12
-h_table interieur -3.9,0.3,0,-28 bat=halle heure=12
+v_etal0 monde 51.5,34.0,0,-22 heure=12
+v_etal1 monde 50.8,33.4,-90,-22 heure=12
+v_etal2 monde 50.2,41.0,-120,-22 heure=12
+h_table interieur -3.9,-0.4,0,-38 bat=halle heure=12
 h_garde interieur -5.0,2.2,-90,-12 bat=halle heure=12
 g_cuisine interieur 1.2,-0.4,0,-22 bat=grima heure=12
 c_table interieur 0.6,-0.4,0,-26 bat=chasseurs heure=12
+v_camp_pres monde 2.5,3.5,35,-24 heure=12
+v_camp_tente monde 0,1.5,0,-8 heure=12

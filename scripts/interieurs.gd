@@ -740,9 +740,9 @@ func viande_seche(pos: Vector3, k := 3, lacet := 0.0) -> void:
 			_q_xf("q_poutre_ronde", Transform3D(Basis(Vector3.BACK, PI * 0.5) * Basis.from_scale(Vector3(0.2, 0.07, 0.07)), pos + off + Vector3(0, -0.1, 0)), {"bois": "cuir"})
 			if PropsQuaternius.lot4 and rempl("q_cuisse"):      # lot 4 : vraies pièces, cuisse fumée (os en haut, noué) / saucisses pendues
 				if i % 2 == 0:
-					_q_xf("q_cuisse", Transform3D(bz * Basis(Vector3.BACK, -PI * 0.5) * Basis.from_scale(Vector3.ONE * (hh / 0.17)), pos + off + Vector3(0, -0.2 - hh * 0.45, 0)), MATS_NOURRITURE)
+					_q_xf("q_cuisse", Transform3D(bz * Basis(Vector3.BACK, -PI * 0.5) * Basis.from_scale(Vector3.ONE * (0.8 + hh * 0.6)), pos + off + Vector3(0, -0.2 - hh * 0.35, 0)), MATS_NOURRITURE.merged({"argile": "peau_sombre"}))
 				else:
-					_q_xf("q_saucisse" if i % 4 == 1 else "q_saucisse_crue", Transform3D(bz * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3.ONE * (hh * 1.1 / 0.18)), pos + off + Vector3(0, -0.2 - hh * 0.5, 0)), MATS_NOURRITURE)
+					_q_xf("q_saucisse" if i % 4 == 1 else "q_saucisse_crue", Transform3D(bz * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3.ONE * (hh * 1.1 / 0.18)), pos + off + Vector3(0, -0.2 - hh * 0.5, 0)), MATS_NOURRITURE.merged({"argile": "cuir"}))
 			elif i % 2 == 0:
 				_q_xf("q_bourse", Transform3D(bz * Basis.from_scale(Vector3.ONE * (hh / 0.30)), pos + off + Vector3(0, -0.2 - hh, 0)), {"fer": "peau_sombre", "os": "os"})
 			else:
