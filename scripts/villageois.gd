@@ -128,7 +128,38 @@ static func charger() -> Array:
 	if not (json is Dictionary) or not (json as Dictionary).get("villageois") is Array:
 		push_warning("Villageois : JSON invalide : " + chemin)
 		return []
-	return (json as Dictionary)["villageois"]
+	var liste: Array = (json as Dictionary)["villageois"]
+	liste.append_array(habitants())
+	return liste
+
+## Habitants anonymes du village (persos/quaternius_jeu, 2026-11-04) : paysans, fermières, chasseurs ; corps Quaternius salis
+## (PersosQuat, clé « pq »), mêmes routines, dialogues et sauvegarde (par id) que les villageois nommés. res://data/habitants.json ;
+## `--sans-habitants` : aucun ; `--persos-anciens` : mêmes habitants aux mêmes postes, corps Humain.creer (« ancien »).
+static func habitants() -> Array:
+	var chemin := "res://data/habitants.json"
+	if OS.get_cmdline_user_args().has("--sans-habitants") or not FileAccess.file_exists(chemin):
+		return []
+	var json: Variant = JSON.parse_string(FileAccess.get_file_as_string(chemin))
+	if not (json is Dictionary) or not (json as Dictionary).get("habitants") is Array:
+		push_warning("Villageois : JSON invalide : " + chemin)
+		return []
+	var communs: Dictionary = (json as Dictionary).get("roles", {})
+	var out: Array = []
+	for h: Dictionary in (json as Dictionary)["habitants"]:
+		var d := h.duplicate(true)
+		var r: Dictionary = communs.get(String(d.get("type", "")), {})
+		for cle in ["role", "interpellations", "lignes", "apres", "nom"]:
+			if not d.has(cle) and r.has(cle):
+				d[cle] = r[cle]
+		var anc: Dictionary = d.get("ancien", {})      # JSON -> types de Humain.creer (couleurs)
+		if anc.get("teinte_cheveux") is Array:
+			var tc: Array = anc["teinte_cheveux"]
+			anc["teinte_cheveux"] = Color(float(tc[0]), float(tc[1]), float(tc[2]))
+		if anc.get("tenue") is Dictionary:
+			for k in anc["tenue"]:
+				anc["tenue"][k] = Color.WHITE
+		out.append(d)
+	return out
 
 func _ready() -> void:
 	add_to_group("villageois")
@@ -143,7 +174,9 @@ func _ready() -> void:
 
 	var id: String = donnees.get("id", "")
 	# corps Humain (Quaternius) par défaut ; --persos-kit : personnage de base unifié (PersoDefs)
-	if Personnage.kit_actif():
+	if donnees.has("pq"):        # habitant anonyme (data/habitants.json) : corps Quaternius sali, ou l'ancien corps Humain pour l'avant/après
+		modele = Humain.creer(donnees.get("ancien", APPARENCES["chef"])) if PersosQuat.anciens() else PersosQuat.creer(String(donnees["pq"]))
+	elif Personnage.kit_actif():
 		modele = Personnage.creer(PersoDefs.villageois(id))
 	elif not PnjNordique.ancien() and id in PnjNordique.IDS:
 		modele = PnjNordique.creer(id)
@@ -239,10 +272,13 @@ func _jouer(nom: String, fondu := 0.2) -> void:
 	if nom != "Walk":  # Walk est réglé à chaque image sur la vitesse réelle
 		anim.speed_scale = _var
 
+## Activité du poste : « activite » des données (habitants) sinon celle du lieu.
+func _act() -> String:
+	return String(donnees.get("activite", ACTIVITES.get(donnees.get("lieu", ""), "Idle")))
+
 ## Animation d'activité du poste (PickUp : ponctuelle, entre deux Idle).
 func _activite(immediat := false) -> void:
-	var lieu: String = donnees.get("lieu", "")
-	var nom: String = ACTIVITES.get(lieu, "Idle")
+	var nom := _act()
 	if nom == "PickUp_Table":
 		nom = "Idle"
 		_delai_activite = randf_range(4.0, 9.0)
@@ -289,7 +325,7 @@ func _physics_process(dt: float) -> void:
 			RETOUR:
 				cap = _vers_point(points[0], dt)
 		if cap == Vector3.ZERO and etat == POSTE and anim != null and _anim == "Idle" \
-				and ACTIVITES.get(donnees.get("lieu", ""), "") == "PickUp_Table":
+				and _act() == "PickUp_Table":
 			_delai_activite -= dt
 			if _delai_activite <= 0.0:
 				_jouer("PickUp_Table", 0.2)
@@ -350,7 +386,7 @@ func _variete(dt: float) -> void:
 	if _delai_variete > 0.0 or _variete_fin > 0.0 or _autour > 0.0 or anim == null:
 		return
 	_delai_variete = randf_range(8.0, 20.0)
-	var base_repos: bool = ACTIVITES.get(donnees.get("lieu", ""), "Idle") in ["Idle", "PickUp_Table"] and _anim == "Idle"
+	var base_repos: bool = _act() in ["Idle", "PickUp_Table"] and _anim == "Idle"
 	var choix: Array = ["autour", "autour"]
 	if base_repos:
 		choix += ["Interact", "Idle_Talking"]

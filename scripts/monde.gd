@@ -192,6 +192,8 @@ func _ready() -> void:
 	await _souffle()
 	await _draugrs()
 	_chrono("draugrs du cercle")
+	await _betes()
+	_chrono("betes")
 	await _souffle()
 	await _villageois()
 	_chrono("villageois")
@@ -648,8 +650,11 @@ func _villageois() -> void:
 	rng_pts.seed = 20261020          # promenades des villageois reproductibles (captures)
 	for d in VILLAGEOIS.charger():
 		var poste: Vector3 = village.lieux.get(d.get("lieu", "place"), village.lieux["place"])
+		if d.has("pos"):          # habitant anonyme (data/habitants.json) : poste propre en (x, z) monde
+			var pz: Array = d["pos"]
+			poste = Vector3(float(pz[0]), hauteur(float(pz[0]), float(pz[1])), float(pz[1]))
 		var points: Array[Vector3] = [poste]
-		if not village.sedentaires.has(d.get("lieu", "place")):   # le forgeron reste dans sa forge (porte fermée la nuit, murs)
+		if not village.sedentaires.has(d.get("lieu", "place")) and not d.get("sedentaire", false):   # le forgeron reste dans sa forge (porte fermée la nuit, murs)
 			for p in promenade.duplicate():
 				if p != poste and rng_pts.randf() < 0.4 and points.size() < 4:
 					points.append(p)
@@ -1090,7 +1095,9 @@ func creer_ennemi(script: Script, position_: Vector3, lacet: float, options := {
 	return d
 
 ## Scripts des ennemis à IA propre cités par nom dans les données des lieux (grotte_donnees « ia », crypte_donjon extra « ia »).
-const SCRIPTS_IA := {"troll_givre": "res://scripts/troll_givre_ia.gd", "mage_nordique": "res://scripts/mage_nordique_ia.gd"}
+const SCRIPTS_IA := {"troll_givre": "res://scripts/troll_givre_ia.gd", "mage_nordique": "res://scripts/mage_nordique_ia.gd",
+	"loup": "res://scripts/bete_quat.gd", "araignee": "res://scripts/bete_quat.gd", "cerf": "res://scripts/bete_quat.gd",
+	"biche": "res://scripts/bete_quat.gd", "renard": "res://scripts/bete_quat.gd"}
 
 static func script_ia(nom: String) -> Script:
 	assert(SCRIPTS_IA.has(nom), "ennemi à IA inconnu : " + nom)
@@ -1108,6 +1115,36 @@ func _draugrs() -> void:
 	await _souffle()
 	# un rôdeur dans la forêt, entre le feu et le cercle
 	sbire = _draugr("sbire", -16.0, -15.0, false, 0.6)
+
+## Bêtes et faune Quaternius (BeteQuat, persos/quaternius_jeu 2026-11-04) posées à quelques endroits logiques de la surface :
+## une meute de loups dans la forêt entre le feu et le cercle de pierres, un cerf et deux biches dans le pré à l'est du feu, un
+## renard près des fermes. Les araignées sont dans la grotte (grotte_donnees, « ia »). `--persos-anciens` / `--sans-betes` : aucune.
+## Positions fixes pour l'instant ; le futur système d'apparition par biome / jour-nuit tirera dans BeteQuat.ESPECES.
+const BETES := [
+	# [espèce, ident, x, z, lacet°, meute]
+	["loup", "loup_bois_a", -14.0, -27.0, 40.0, "bois"],
+	["loup", "loup_bois_b", -11.5, -29.5, 70.0, "bois"],
+	["loup", "loup_bois_c", -16.5, -30.0, 20.0, "bois"],
+	["cerf", "cerf_pre", 21.0, -6.0, 200.0, ""],
+	["biche", "biche_pre_a", 23.5, -3.5, 160.0, ""],
+	["biche", "biche_pre_b", 19.0, -2.0, 230.0, ""],
+	["renard", "renard_fermes", 17.0, 22.0, 120.0, ""],
+]
+const BETE := preload("res://scripts/bete_quat.gd")
+
+func _betes() -> void:
+	if PersosQuat.anciens() or _arguments().has("sans-betes"):
+		return
+	for b: Array in BETES:
+		var x: float = b[2]
+		var z: float = b[3]
+		var opts := {"espece": b[0], "ident": b[1]}
+		if String(b[5]) != "":
+			opts["meute"] = b[5]
+		var e := creer_ennemi(BETE, Vector3(x, hauteur(x, z) + 0.05, z), deg_to_rad(float(b[4])), opts)
+		if _paisible():
+			e.process_mode = Node.PROCESS_MODE_DISABLED
+	await _souffle()
 
 func _neige() -> void:
 	neige = GPUParticles3D.new()
@@ -1696,8 +1733,11 @@ func _lot_captures(fichier: String) -> void:
 				# son poste (physique coupée), son animation d'activité continue (ou anim=Clip:t pour une pose figée)
 				var cible_v: Node3D = null
 				for pv in get_tree().get_nodes_in_group("villageois"):
-					if pv.donnees.get("id") == String(opt.get("id", "volva")):
+					if pv.get("donnees") is Dictionary and pv.donnees.get("id") == String(opt.get("id", "volva")):
 						cible_v = pv
+				for pb in get_tree().get_nodes_in_group("bete_quat"):     # bêtes et faune (BeteQuat) : même vue, par ident
+					if pb.ident == String(opt.get("id", "")):
+						cible_v = pb
 				if cible_v == null:
 					push_error("--captures : vue « pnj » : villageois introuvable " + String(opt.get("id", "")))
 					continue

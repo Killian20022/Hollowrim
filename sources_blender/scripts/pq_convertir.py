@@ -67,6 +67,28 @@ def accrocher(c):
     return PALETTE[bi]
 
 
+_PNJ = {}
+
+
+def palette_pnj(chemin):
+    """Couleurs des tenues des PNJ en jeu (outils/pq_palette_pnj.gd -> palette_pnj.json) : [(srgb, oklab)]."""
+    if chemin not in _PNJ:
+        d = json.load(open(chemin, encoding="utf8"))
+        cs = [H(c["hex"]) for c in d["couleurs"]]
+        _PNJ[chemin] = [(c, oklab(c)) for c in cs]
+    return _PNJ[chemin]
+
+
+def accrocher_pnj(c, pal):
+    lab = oklab(c)
+    best, bc = 9e9, c
+    for col, p in pal:
+        d = 1.2 * (lab[0] - p[0]) ** 2 + (lab[1] - p[1]) ** 2 + (lab[2] - p[2]) ** 2
+        if d < best:
+            best, bc = d, col
+    return bc
+
+
 def virage(c, sat, val, froid):
     h, s, v = colorsys.rgb_to_hsv(*c)
     c2 = colorsys.hsv_to_rgb(h, min(1, s * sat), min(1, v * val))
@@ -80,7 +102,10 @@ def vider():
 
 def importer(src):
     avant = set(bpy.context.scene.objects)
-    bpy.ops.import_scene.gltf(filepath=src)
+    if src.lower().endswith(".fbx"):                     # packs « Ultimate » (animaux, chevalier, Yeti) : FBX à couleurs de matériau
+        bpy.ops.import_scene.fbx(filepath=src)
+    else:
+        bpy.ops.import_scene.gltf(filepath=src)
     for o in list(bpy.context.scene.objects):          # « Icosphere » : forme d'os créée par l'importeur (pas du contenu)
         if o not in avant and o.type == 'MESH' and o.name.startswith("Icosphere"):
             bpy.data.objects.remove(o, do_unlink=True)
@@ -217,6 +242,54 @@ def echantillon(img, uv):
     return tuple(lin2srgb(v) for v in c) if srgb else tuple(c)
 
 
+def _lum(c):
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+
+def _hash(i, k=0):
+    x = (i * 2654435761 + k * 40503 + 12345) & 0xFFFFFFFF
+    x ^= x >> 15
+    x = (x * 2246822519) & 0xFFFFFFFF
+    x ^= x >> 13
+    return (x & 0xFFFF) / 65535.0
+
+
+def teindre(c, vers, force, val=1.0):
+    """Teinte vers une couleur cible en GARDANT la luminance (laine teinte : les ombres de la texture restent)."""
+    t = H(vers)
+    k = _lum(c) / max(_lum(t), 1e-3) * val
+    tc = tuple(min(1.0, x * k) for x in t)
+    return tuple(c[i] * (1 - force) + tc[i] * force for i in range(3))
+
+
+def salir(o, p, cfg, gradé, brut, z, zmin, hauteur, nom_mat):
+    """Salissure (2026-11-04, persos/quaternius_jeu) : teintes par pièce (« parts »), boue au bas (« boue »), usure par face (« usure »)."""
+    for r in cfg.get("parts", []):
+        if r.get("objet") and not re.search(r["objet"], o.name):
+            continue
+        if r.get("mat") and not re.search(r["mat"], nom_mat):
+            continue
+        v0 = colorsys.rgb_to_hsv(*brut)[2]
+        if v0 < r.get("min_v", 0.0) or v0 > r.get("max_v", 1.01):
+            continue
+        gradé = teindre(gradé, r["vers"], r.get("force", 0.7), r.get("val", 1.0))
+    b = cfg.get("boue")
+    if b:
+        hb = b.get("haut", 0.3) * hauteur
+        k = max(0.0, min(1.0, 1.0 - (z - zmin) / max(hb, 1e-3)))
+        k = k ** b.get("courbe", 0.8)
+        tache = _hash(p.index, 7)                       # éclaboussures : la boue mord plus haut sur certaines faces
+        if tache > 1.0 - b.get("taches", 0.25):
+            k = max(k, min(1.0, k + 0.45))
+        if k > 0.0:
+            gradé = teindre(gradé, b.get("couleur", "#3b3322"), b.get("force", 0.6) * k, 1.0 - 0.35 * k)
+    u = cfg.get("usure", 0.0)
+    if u:
+        f = 1.0 + (_hash(p.index, 3) - 0.5) * 2.0 * u
+        gradé = tuple(max(0.0, min(1.0, x * f)) for x in gradé)
+    return gradé
+
+
 def colorier(o, cfg, zmin, hauteur):
     """Une couleur (accrochée à la palette) par face -> attribut de couleur par coin (COLOR_0 linéaire)."""
     me = o.data
@@ -225,6 +298,8 @@ def colorier(o, cfg, zmin, hauteur):
     pied = cfg.get("pied", 0.7)
     mats = list(me.materials)
     cache = [tex_base(m) for m in mats]
+    pal = palette_pnj(cfg["_palette_pnj"]) if cfg.get("accroche") == "pnj" else None
+    peau = cfg.get("accroche_bible", r"Regular|SuperHero|Eye")
     uvl = me.uv_layers.active
     for c_ in list(me.color_attributes):         # couleurs d'origine (COLOR_0 blanc des glb) : retirées, seule « Col » reste
         me.color_attributes.remove(c_)
@@ -252,9 +327,13 @@ def colorier(o, cfg, zmin, hauteur):
                 c = col
             gradé = virage(c, sat, val, froid)
         z = (mw @ p.center).z
+        gradé = salir(o, p, cfg, gradé, c, z, zmin, hauteur, nom)
         f = pied + (1.0 - pied) * max(0.0, min(1.0, (z - zmin) / max(0.15 * hauteur, 0.05)))
         gradé = tuple(max(0.0, min(1.0, x * f)) for x in gradé)
-        s = accrocher(gradé)
+        if pal is not None and not re.search(peau, nom) and not re.search(peau, o.name):
+            s = accrocher_pnj(gradé, pal)      # étoffes, cuirs, fourrures, cheveux : couleurs des PNJ en jeu
+        else:
+            s = accrocher(gradé)               # peau, yeux : palette de la bible
         l = (lin(s[0]), lin(s[1]), lin(s[2]), 1.0)
         for li in p.loop_indices:
             ca.data[li].color = l
@@ -273,7 +352,11 @@ CLIPS = {
     "Run": [r"^Run$", r"Running", r"^Gallop$", r"Jog_Fwd", r"Run2"],
     "Attack": [r"^Attack$", r"_Attack$", r"Bite_Front", r"^Punch$", r"Headbutt", r"Attack_Headbutt", r"Attack_Kick", r"Weapon"],
     "Death": [r"^Death$", r"_Death$", r"Death01"],
-    "Hit": [r"HitRecieve", r"HitReact$", r"^HitReact", r"_Hit$", r"Hit_Chest"],
+    "Hit": [r"HitRecieve", r"HitReact$", r"^HitReact", r"_Hit$", r"Hit_Chest", r"HitReact_Left", r"^RecieveHit$", r"^HitReact"],
+    # clips en plus (animaux « Ultimate ») : faune qui broute, deuxième repos, saut
+    "Eat": [r"^Eating$"],
+    "Idle_2": [r"^Idle_2$"],
+    "Jump": [r"^Gallop_Jump$"],
 }
 
 
@@ -339,6 +422,36 @@ def peau_os(o, arm):
         md.object = arm
 
 
+def attacher(at, arm):
+    """« attaches » (2026-11-04, secondaires) : pièce SANS squelette (casque, épaulières du pack Knight, exportées à l'origine)
+    posée en unités de la source (« pos », « echelle », « rot » en degrés) puis skinnée à un os (« os »), ou par côté
+    (« os_g » pour x > 0, « os_d » pour x < 0 : côtés .L / .R d'un rig Blender, x > 0 = gauche du perso)."""
+    ex = importer(at["src"])
+    for o in list(ex):
+        if o.type != 'MESH':
+            bpy.data.objects.remove(o, do_unlink=True)
+            continue
+        e = at.get("echelle", 1.0)
+        o.scale = tuple(s * e for s in o.scale)
+        r = at.get("rot", (0, 0, 0))
+        o.rotation_euler = tuple(o.rotation_euler[i] + math.radians(r[i]) for i in range(3))
+        o.location = o.location + Vector(at.get("pos", (0, 0, 0)))
+        bpy.context.view_layer.update()
+        mw = o.matrix_world.copy()
+        o.parent = arm
+        o.matrix_parent_inverse = arm.matrix_world.inverted()
+        o.matrix_world = mw
+        if at.get("os_g") and at.get("os_d"):
+            g = o.vertex_groups.new(name=at["os_g"])
+            d = o.vertex_groups.new(name=at["os_d"])
+            for v in o.data.vertices:
+                (g if (mw @ v.co).x > 0 else d).add([v.index], 1.0, 'REPLACE')
+        else:
+            o.vertex_groups.new(name=at["os"]).add(list(range(len(o.data.vertices))), 1.0, 'REPLACE')
+        md = o.modifiers.new("Armature", 'ARMATURE')
+        md.object = arm
+
+
 # ------------------------------------------------------------------ un personnage
 def convertir(item, sortie):
     nom = item["nom"]
@@ -358,6 +471,8 @@ def convertir(item, sortie):
                 garder_tete(o)
         ex = [o for o in bpy.context.scene.objects if o in ex]
         rattacher(ex, arm)
+    for at in item.get("attaches", []):
+        attacher(at, arm)
     meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
     for o in meshes:
         peau_os(o, arm)
@@ -474,6 +589,7 @@ def main():
     for it in liste:
         if seul and it["nom"] not in seul:
             continue
+        it["_palette_pnj"] = os.path.join(os.path.dirname(os.path.abspath(a["liste"])), it.get("palette_pnj", "palette_pnj.json"))
         try:
             convertir(it, a["sortie"])
         except Exception as e:
