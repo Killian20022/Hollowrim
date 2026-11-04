@@ -160,12 +160,14 @@ func _tester() -> void:
 	_verif(r == "touche", "2 args : %s" % r)
 	_verif(Plaies.nombre(u.modele) >= 1, "plaie posée sur le troll (%d)" % Plaies.nombre(u.modele))
 	u.etat = u.TRAQUE
+	var vh: float = u.vie
 	r = u.recevoir_coup(14.0, j.global_position, false, {"attaque": "legere", "zone": "torse", "type": "tranchant"})
+	var dtr: float = vh - u.vie   # référence tranchant EN COMBAT (le coup dans le dos ci-dessus est une attaque furtive ×1,5 de chef)
 	_verif(u.etat != u.TITUBE and u.combat.derniere_reaction == "leger", "hyper-armure : coup léger sans titube (%s)" % u.combat.derniere_reaction)
 	var v1: float = u.vie
 	u.recevoir_coup(14.0, j.global_position, false, {"attaque": "legere", "zone": "torse", "type": "feu"})
 	var dfeu: float = v1 - u.vie
-	_verif(dfeu > dt0 * 1.4 and u._brule > 0.0, "feu : %.1f dégâts (tranchant %.1f) et régénération coupée (%.1f s)" % [dfeu, dt0, u._brule])
+	_verif(dfeu > dtr * 1.4 and u._brule > 0.0, "feu : %.1f dégâts (tranchant en combat %.1f) et régénération coupée (%.1f s)" % [dfeu, dtr, u._brule])
 
 	# --- H. régénération (5 s sans coup, pas de feu)
 	u._brule = 0.0
