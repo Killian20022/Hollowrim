@@ -360,11 +360,10 @@
    "type": "chasseur",
    "pq": "pq_hab_chasseur_b",
    "pos": [
-    63.6,
-    38.6
+    60.0,
+    36.4
    ],
-   "cap": 90,
-   "lieu": "enclos",
+   "cap": 70,
    "ancien": {
     "corps": "homme",
     "tenue": {

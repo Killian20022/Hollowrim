@@ -76,6 +76,7 @@ def palette_pnj(chemin):
         d = json.load(open(chemin, encoding="utf8"))
         cs = [H(c["hex"]) for c in d["couleurs"]]
         _PNJ[chemin] = [(c, oklab(c)) for c in cs]
+        _PNJ[chemin + "#peaux"] = [(H(c), oklab(H(c))) for c in d.get("peaux", [])]
     return _PNJ[chemin]
 
 
@@ -257,7 +258,8 @@ def _hash(i, k=0):
 def teindre(c, vers, force, val=1.0):
     """Teinte vers une couleur cible en GARDANT la luminance (laine teinte : les ombres de la texture restent)."""
     t = H(vers)
-    k = _lum(c) / max(_lum(t), 1e-3) * val
+    # luminance surtout CELLE DE LA CIBLE (laine teinte et salie : la chemise crème ne reste pas claire), un peu du relief d'origine
+    k = (_lum(c) / max(_lum(t), 1e-3)) ** 0.3 * val
     tc = tuple(min(1.0, x * k) for x in t)
     return tuple(c[i] * (1 - force) + tc[i] * force for i in range(3))
 
@@ -272,6 +274,13 @@ def salir(o, p, cfg, gradé, brut, z, zmin, hauteur, nom_mat):
         v0 = colorsys.rgb_to_hsv(*brut)[2]
         if v0 < r.get("min_v", 0.0) or v0 > r.get("max_v", 1.01):
             continue
+        zr = (z - zmin) / max(hauteur, 1e-3)              # « z_min » / « z_max » : bande de hauteur (fraction de la taille), ex. tabard
+        if zr < r.get("z_min", -1.0) or zr > r.get("z_max", 2.0):
+            continue
+        if "r_max" in r:                                    # « r_max » : distance à l'axe vertical (fraction de la taille) : tronc sans les bras en T
+            pc = o.matrix_world @ p.center
+            if (pc.x ** 2 + pc.y ** 2) ** 0.5 / max(hauteur, 1e-3) > r["r_max"]:
+                continue
         gradé = teindre(gradé, r["vers"], r.get("force", 0.7), r.get("val", 1.0))
     b = cfg.get("boue")
     if b:
@@ -327,11 +336,17 @@ def colorier(o, cfg, zmin, hauteur):
                 c = col
             gradé = virage(c, sat, val, froid)
         z = (mw @ p.center).z
+        est_peau = pal is not None and (re.search(peau, nom) or re.search(peau, o.name)) and not re.search("Eye", nom + o.name)
+        if est_peau and ov is None:
+            pv = cfg.get("peau_virage", [0.8, 0.82, 0.03])    # peau : PAS le virage froid des étoffes (visages bleus sinon)
+            gradé = virage(c, pv[0], pv[1], pv[2])
         gradé = salir(o, p, cfg, gradé, c, z, zmin, hauteur, nom)
         f = pied + (1.0 - pied) * max(0.0, min(1.0, (z - zmin) / max(0.15 * hauteur, 0.05)))
         gradé = tuple(max(0.0, min(1.0, x * f)) for x in gradé)
         if pal is not None and not re.search(peau, nom) and not re.search(peau, o.name):
             s = accrocher_pnj(gradé, pal)      # étoffes, cuirs, fourrures, cheveux : couleurs des PNJ en jeu
+        elif est_peau and _PNJ.get(cfg["_palette_pnj"] + "#peaux"):
+            s = accrocher_pnj(gradé, _PNJ[cfg["_palette_pnj"] + "#peaux"])   # teints des PNJ en jeu
         else:
             s = accrocher(gradé)               # peau, yeux : palette de la bible
         l = (lin(s[0]), lin(s[1]), lin(s[2]), 1.0)
@@ -473,6 +488,11 @@ def convertir(item, sortie):
         rattacher(ex, arm)
     for at in item.get("attaches", []):
         attacher(at, arm)
+    if item.get("texture"):          # FBX dont l'atlas pointe vers le disque de l'auteur (Yeti) : on le recharge depuis le pack
+        for img in bpy.data.images:
+            if img.source == 'FILE' and (img.size[0] == 0 or not os.path.exists(bpy.path.abspath(img.filepath))):
+                img.filepath = item["texture"]
+                img.reload()
     meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
     for o in meshes:
         peau_os(o, arm)

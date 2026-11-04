@@ -11,8 +11,9 @@ const K := 5
 
 func _init() -> void:
 	var couleurs: Array = []      # [Color, poids, source]
+	var peaux: Array = []         # teints des PNJ (visages montrés) : la peau des habitants s'y accroche
 	for f in DirAccess.get_files_at(DOSSIER):
-		if not f.ends_with(".res") or f.contains("peau") or f.contains("yeux"):
+		if not f.ends_with(".res") or f.contains("yeux"):
 			continue
 		var r := load(DOSSIER + "/" + f)
 		var img: Image = null
@@ -37,7 +38,11 @@ func _init() -> void:
 		if px.size() < 16:
 			continue
 		for g: Array in _kmoyennes(px, K):
-			couleurs.append([g[0], g[1], f.get_basename()])
+			if f.contains("peau"):
+				if g[1] > 0.08:
+					peaux.append("#" + (g[0] as Color).to_html(false))
+			else:
+				couleurs.append([g[0], g[1], f.get_basename()])
 	# fusion des quasi-doublons (distance < 0.035) : poids cumulés
 	var fus: Array = []
 	for c: Array in couleurs:
@@ -57,7 +62,7 @@ func _init() -> void:
 		var c: Color = g[0]
 		out.append({"hex": "#" + c.to_html(false), "poids": snappedf(g[1], 0.001), "source": g[2], "v": snappedf(c.v, 0.01), "s": snappedf(c.s, 0.01)})
 	var fa := FileAccess.open(SORTIE + ".json", FileAccess.WRITE)
-	fa.store_string(JSON.stringify({"note": "outils/pq_palette_pnj.gd : couleurs des tenues des PNJ en jeu (assets/pnj), sRGB", "couleurs": out}, " "))
+	fa.store_string(JSON.stringify({"note": "outils/pq_palette_pnj.gd : couleurs des tenues des PNJ en jeu (assets/pnj), sRGB", "couleurs": out, "peaux": peaux}, " "))
 	fa.close()
 	var nuancier := Image.create(16 * 12, 16 * ((out.size() + 11) / 12), false, Image.FORMAT_RGBA8)
 	for i in out.size():

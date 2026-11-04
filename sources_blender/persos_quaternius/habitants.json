@@ -27,8 +27,8 @@
   "mats": {
    "MI_Hair": "#54402f"
   },
-  "sat": 0.55,
-  "val": 0.78,
+  "sat": 0.5,
+  "val": 0.64,
   "froid": 0.22,
   "pied": 0.55,
   "parts": [
@@ -38,7 +38,7 @@
     "min_v": 0.5,
     "vers": "#69523b",
     "force": 0.8,
-    "val": 0.85
+    "val": 0.95
    },
    {
     "objet": "Legs",
@@ -93,8 +93,8 @@
   "mats": {
    "MI_Hair": "#92613a"
   },
-  "sat": 0.55,
-  "val": 0.78,
+  "sat": 0.5,
+  "val": 0.64,
   "froid": 0.22,
   "pied": 0.55,
   "parts": [
@@ -104,7 +104,7 @@
     "min_v": 0.5,
     "vers": "#46454a",
     "force": 0.8,
-    "val": 0.85
+    "val": 0.95
    },
    {
     "objet": "Legs",
@@ -159,8 +159,8 @@
   "mats": {
    "MI_Hair": "#8e8688"
   },
-  "sat": 0.55,
-  "val": 0.78,
+  "sat": 0.5,
+  "val": 0.64,
   "froid": 0.22,
   "pied": 0.55,
   "parts": [
@@ -170,7 +170,7 @@
     "min_v": 0.5,
     "vers": "#57504a",
     "force": 0.8,
-    "val": 0.85
+    "val": 0.95
    },
    {
     "objet": "Legs",
@@ -221,8 +221,8 @@
   "mats": {
    "MI_Hair": "#6a4229"
   },
-  "sat": 0.55,
-  "val": 0.78,
+  "sat": 0.5,
+  "val": 0.64,
   "froid": 0.22,
   "pied": 0.55,
   "parts": [
@@ -232,7 +232,7 @@
     "min_v": 0.5,
     "vers": "#5b4e42",
     "force": 0.8,
-    "val": 0.85
+    "val": 0.95
    },
    {
     "objet": "Legs",
@@ -283,8 +283,8 @@
   "mats": {
    "MI_Hair": "#a98638"
   },
-  "sat": 0.55,
-  "val": 0.78,
+  "sat": 0.5,
+  "val": 0.64,
   "froid": 0.22,
   "pied": 0.55,
   "parts": [
@@ -294,7 +294,7 @@
     "min_v": 0.5,
     "vers": "#6d655f",
     "force": 0.8,
-    "val": 0.85
+    "val": 0.95
    },
    {
     "objet": "Legs",
@@ -345,8 +345,8 @@
   "mats": {
    "MI_Hair": "#2b1a1e"
   },
-  "sat": 0.55,
-  "val": 0.78,
+  "sat": 0.5,
+  "val": 0.64,
   "froid": 0.22,
   "pied": 0.55,
   "parts": [
@@ -356,7 +356,7 @@
     "min_v": 0.5,
     "vers": "#52495f",
     "force": 0.8,
-    "val": 0.85
+    "val": 0.95
    },
    {
     "objet": "Legs",
@@ -407,8 +407,8 @@
   "mats": {
    "MI_Hair": "#2b1a1e"
   },
-  "sat": 0.55,
-  "val": 0.78,
+  "sat": 0.5,
+  "val": 0.64,
   "froid": 0.22,
   "pied": 0.55,
   "parts": [
@@ -416,9 +416,9 @@
     "objet": "Body|Arms",
     "mat": "Peasant|Ranger",
     "min_v": 0.5,
-    "vers": "#3d583d",
+    "vers": "#333a33",
     "force": 0.8,
-    "val": 0.85
+    "val": 0.95
    },
    {
     "objet": "Legs",
@@ -473,8 +473,8 @@
   "mats": {
    "MI_Hair": "#86603a"
   },
-  "sat": 0.55,
-  "val": 0.78,
+  "sat": 0.5,
+  "val": 0.64,
   "froid": 0.22,
   "pied": 0.55,
   "parts": [
@@ -484,7 +484,7 @@
     "min_v": 0.5,
     "vers": "#503b2a",
     "force": 0.8,
-    "val": 0.85
+    "val": 0.95
    },
    {
     "objet": "Legs",
@@ -538,8 +538,8 @@
   "mats": {
    "MI_Hair": "#3a261b"
   },
-  "sat": 0.55,
-  "val": 0.78,
+  "sat": 0.5,
+  "val": 0.64,
   "froid": 0.22,
   "pied": 0.55,
   "parts": [
@@ -549,7 +549,7 @@
     "min_v": 0.5,
     "vers": "#333a33",
     "force": 0.8,
-    "val": 0.85
+    "val": 0.95
    },
    {
     "objet": "Legs",
@@ -600,8 +600,8 @@
   "mats": {
    "MI_Hair": "#6a3524"
   },
-  "sat": 0.55,
-  "val": 0.78,
+  "sat": 0.5,
+  "val": 0.64,
   "froid": 0.22,
   "pied": 0.55,
   "parts": [
@@ -611,7 +611,7 @@
     "min_v": 0.5,
     "vers": "#483729",
     "force": 0.8,
-    "val": 0.85
+    "val": 0.95
    },
    {
     "objet": "Legs",

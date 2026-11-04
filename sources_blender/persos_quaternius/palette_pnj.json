@@ -435,5 +435,13 @@
    "v": 0.61
   }
  ],
- "note": "outils/pq_palette_pnj.gd : couleurs des tenues des PNJ en jeu (assets/pnj), sRGB"
+ "note": "outils/pq_palette_pnj.gd : couleurs des tenues des PNJ en jeu (assets/pnj), sRGB",
+ "peaux": [
+  "#9c765c",
+  "#7f614e",
+  "#8c6b55",
+  "#9c755c",
+  "#7f614e",
+  "#8c6a55"
+ ]
 }
