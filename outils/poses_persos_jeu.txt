@@ -19,8 +19,8 @@ gp_ylva pnj 3.0,20,1.0 id=chasseuse heure=12
 gp_loup pnj 3.0,30,0.4 id=loup_bois_a heure=12
 gp_cerf pnj 4.0,60,1.0 id=cerf_pre heure=12
 loups_jour pnj 8,200,0.4 id=loup_bois_b heure=12
-loups_nuit pnj 8,200,0.4 id=loup_bois_b heure=22
-cerfs_jour pnj 11,200,0.9 id=biche_pre_a heure=10
-cerfs_jour_b pnj 9,150,0.9 id=cerf_pre heure=10
-cerfs_nuit pnj 11,200,0.9 id=biche_pre_a heure=22
-araignees_grotte grotte 161,0,0,-5 attente=420
+loups_nuit pnj 8,200,0.4 id=loup_bois_b heure=23
+cerfs_jour pnj 9,150,0.9 id=cerf_pre heure=12
+cerfs_jour_b pnj 12,120,0.9 id=biche_pre_a heure=16
+cerfs_nuit pnj 9,150,0.9 id=cerf_pre heure=23
+araignees_grotte grotte 162.5,0,0,-5 attente=420

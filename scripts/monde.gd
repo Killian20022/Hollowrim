@@ -1128,7 +1128,7 @@ const BETES := [
 	["cerf", "cerf_pre", 61.0, -9.5, 200.0, ""],
 	["biche", "biche_pre_a", 64.0, -6.5, 160.0, ""],
 	["biche", "biche_pre_b", 58.5, -5.0, 230.0, ""],
-	["renard", "renard_fermes", 75.0, 29.0, 120.0, ""],
+	["renard", "renard_fermes", 82.0, 33.5, 120.0, ""],
 ]
 const BETE := preload("res://scripts/bete_quat.gd")
 

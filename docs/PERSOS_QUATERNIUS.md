@@ -110,7 +110,7 @@ Commande : `blender.exe -b --python sources_blender/scripts/pq_convertir.py -- l
   araignée = embuscade (voit à 60 % de sa portée) ; faune (groupe `faune`) = broute (`Eat`) / erre / FUIT, jamais en combat.
   L'IA attend au repos tant que le monde charge (`monde.pret`).
 - Placement (`monde.BETES`, `_betes()`) : meute de 3 loups dans le bois entre le feu et le cercle (≈ -14, -28) ; cerf + 2 biches au champ
-  nord F3 (lisière, ≈ 61, -8) ; renard au bord du champ de la ferme A (75, 29) ; 2 araignées en embuscade dans la galerie du retour de la
+  nord F3 (lisière, ≈ 61, -8) ; renard au bord du champ de la ferme A (82, 33,5) ; 2 araignées en embuscade dans la galerie du retour de la
   vieille mine (`grotte_donnees`, zone `mine_retour`).
 - NON placés : géant, squelette, spectre (style jouet), démon (rig cassé).
 
