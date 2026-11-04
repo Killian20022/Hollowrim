@@ -31,7 +31,7 @@
 "nom": "b_h4",
 "recette": "h4",
 "mats": {
-"MI_Plaster": "lin",
+"MI_Plaster": "pierre",
 "MI_WoodTrim": "bois",
 "MI_UnevenBrick": "pierre",
 "MI_Brick": "pierre",
@@ -59,7 +59,7 @@
 "nom": "b_moulin",
 "recette": "moulin",
 "mats": {
-"MI_Plaster": "lin",
+"MI_Plaster": "pierre",
 "MI_WoodTrim": "bois",
 "MI_UnevenBrick": "pierre",
 "MI_Brick": "pierre",
@@ -73,7 +73,7 @@
 "nom": "b_ferme_b",
 "recette": "ferme_b",
 "mats": {
-"MI_Plaster": "lin",
+"MI_Plaster": "pierre",
 "MI_WoodTrim": "bois",
 "MI_UnevenBrick": "pierre",
 "MI_Brick": "pierre",

@@ -21,6 +21,8 @@ MURS = {"S": "Straight", "D": "Door_Round", "Df": "Door_Flat", "W": "Window_Wide
 # fenêtres : volets fermés posés devant le trou (le trou donne sur l'intérieur vide de la façade)
 VOLETS = {"W": "WindowShutters_Wide_Round_Open", "Wf": "WindowShutters_Wide_Flat_Open", "T": "WindowShutters_Thin_Round_Open"}
 LARG_VITRE = {"W": 1.15, "Wf": 1.15, "T": 0.6}      # vitrage plaqué dans l'ouverture (m, avant échelle), lueur la nuit (village._vitre)
+PANS = []          # [x, y0, z (repère Godot, nu extérieur du pan), larg, haut, lacet rad] : pans pleins à colombage en croix
+VOLETS_P = []      # [prop, x, y, z (repère Godot), lacet rad, sx, sy, sz] : volets des props validés posés par le jeu
 PORTES = []        # [x, y, z (repère Godot, milieu du seuil), larg, haut, lacet rad, cintrée] : vantaux posés par le jeu
 VITRES = []        # [x, y, z (repère Godot, centre du vitrage), larg, haut, lacet rad] de l'assemblage en cours
 
@@ -35,7 +37,7 @@ RECETTES = {
     # H2 : rez de pierre, étage à colombages en encorbellement (6 x 4,5)
     "h2": {"L": 6.0, "W": 4.5, "mur": "UnevenBrick", "niveaux": [2.5, 1.9], "etage_mur": "Plaster", "encorbellement": 0.25,
            "cotes": {"+Z": ["Wf", "Df", "Wf"], "-Z": ["Wf", "S", "Wf"], "+X": ["S", "Wf"], "-X": ["S", "Wf"]},
-           "cotes_etage": {"+Z": ["Wf", "W", "Wf"], "-Z": ["Wf", "S", "Wf"], "+X": ["S", "Wf"], "-X": ["S", "Wf"]},
+           "cotes_etage": {"+Z": ["Wf", "S", "Wf"], "-Z": ["Wf", "S", "Wf"], "+X": ["S", "Wf"], "-X": ["S", "Wf"]}, "croix": "etage",
            "toit": ("Roof_RoundTiles_6x8", 6.0), "pignon": "Roof_Front_Brick6", "cheminee": ("Prop_Chimney", -1.6)},
     # H4 : petite maison de pierre de la haute rue (6 x 5), porte à l'ouest (-X)
     "h4": {"L": 6.0, "W": 5.0, "mur": "UnevenBrick", "niveaux": [2.5],
@@ -101,6 +103,17 @@ def poser(nom, pos, lacet=0.0, ech=(1, 1, 1), budget=None, objets=None):
     return res
 
 
+def origine_prop(nom, pos, lacet, ech):
+    """Point où le jeu doit poser le prop converti de la pièce `nom` (importer_quaternius : origine = milieu de l'emprise, au sol)
+    pour qu'il tombe exactement sur la pièce posée par poser(nom, pos, lacet, ech)."""
+    pts = [mw @ v.co for data, mw, _ in charger(nom) for v in data.vertices]
+    lo = [min(p[i] for p in pts) for i in range(3)]
+    hi = [max(p[i] for p in pts) for i in range(3)]
+    loc = Vector(((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, lo[2]))
+    M = Matrix.Translation(Vector(pos)) @ Matrix.Rotation(math.radians(lacet), 4, 'Z') @ Matrix.Diagonal(Vector((ech[0], ech[1], ech[2], 1)))
+    return M @ loc
+
+
 def mur_cote(rec, cote, modules, z0, sz, L, W, decal=0.0, mur=None):
     """Une rangée de murs sur un côté. L, W : emprise ; decal : encorbellement (mur reculé vers l'extérieur)."""
     ang = COTES[cote]
@@ -118,6 +131,9 @@ def mur_cote(rec, cote, modules, z0, sz, L, W, decal=0.0, mur=None):
         nom = "Wall_%s_%s" % (mur or rec["mur"], MURS[m])
         if m == "S" and rec.get("plein") and not mur:          # pans pleins d'un autre modèle (plâtre à pans de bois)
             nom = rec["plein"]
+        if m == "S" and rec.get("croix") and (mur is not None) == (rec["croix"] == "etage"):   # colombage en croix gardé (posé par le jeu)
+            q = R @ Vector((t, -ds, 0))
+            PANS.append([round(q.x, 3), round(z0, 3), round(-q.y, 3), round(long_cote / n, 3), round(3.12 * sz, 3), round(math.radians(ang), 4)])
         objs += poser(nom, pos, ang, (sx, SY, sz))
         if m in ("D", "Df"):                  # vantail : PAS celui du kit (il sortait en trou noir) ; le jeu pose dans l'ouverture le
             pc = R @ Vector((t - 0.03 * sx, -ds + 0.09 * SY + 0.1, z0))      # vantail de planches des props validés (q_porte_*)
@@ -132,8 +148,12 @@ def mur_cote(rec, cote, modules, z0, sz, L, W, decal=0.0, mur=None):
                 for iy in range(ny):
                     q = R @ Vector((t - lv * 0.5 + (ix + 0.5) * lv / nx, -ds + 0.09 * SY + 0.12, 0))
                     VITRES.append([round(q.x, 3), round(z0 + 1.9 * sz - hv * 0.5 + (iy + 0.5) * hv / ny, 3), round(-q.y, 3), round(lv / nx, 3), round(hv / ny, 3), round(math.radians(ang), 4)])
+            # volets : PAS ceux du kit (fondus dans le bois sombre du bâti, ils sortaient en plaques noires) ; le jeu pose les volets
+            # des props validés (q_volets_*, mêmes pièces, mêmes matières que les maisons d'avant) à la même place
             pv = R @ Vector((t, -ds - 0.02, z0))
-            objs += poser(VOLETS[m], pv, ang, (sx, SY, sz))
+            o = origine_prop(VOLETS[m], pv, ang, (sx, SY, sz))
+            VOLETS_P.append(["q_volets_" + VOLETS[m][len("WindowShutters_"):].lower(), round(o.x, 3), round(o.z, 3), round(-o.y, 3),
+                             round(math.radians(ang), 4), round(sx, 3), round(sz, 3), SY])
     return objs
 
 
@@ -146,6 +166,8 @@ def assembler(nom_recette):
     L, W = rec["L"], rec["W"]
     VITRES.clear()
     PORTES.clear()
+    VOLETS_P.clear()
+    PANS.clear()
     objs = []
     z = 0.0
     for k, hh in enumerate(rec["niveaux"]):
@@ -193,7 +215,7 @@ def assembler(nom_recette):
             objs += poser(rec["pignon"], (sg * (L * 0.5 + EXT - 0.1), 0, ztop), ang, (sx_g, SY, s_larg))
     zf, ze = Z_FAITE[nom_toit]
     META[nom_recette] = {"L": L, "W": W, "ztop": ztop, "faite": ztop + zf * s_larg, "egout": ztop + ze * s_larg, "demi_toit": span * 0.5,
-                         "long_toit": long_pc * s_long, "vitres": VITRES[:], "portes": PORTES[:]}
+                         "long_toit": long_pc * s_long, "vitres": VITRES[:], "portes": PORTES[:], "volets": VOLETS_P[:], "pans": PANS[:]}
     if rec.get("cheminee"):
         nom_c, xc = rec["cheminee"]
         objs += poser(nom_c, (xc, 0.7, ztop + 1.6), 0, (1.0, 1.0, 1.35))

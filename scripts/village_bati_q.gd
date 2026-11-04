@@ -138,6 +138,25 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 			continue
 		var bq := PropsQuaternius.boite(vq)
 		PropsQuaternius.village(v, p, vq, Transform3D(Basis(Vector3.UP, d[5]) * Basis.from_scale(Vector3(d[3] / bq.size.x, d[4] / bq.size.y, 1.0)), Vector3(d[0], y_sol + float(d[1]), d[2])))
+	# colombage en croix (identité de l'H2 d'avant) sur les pans pleins de l'étage : poteaux, lisses et croix de Saint-André sombres
+	for pn: Array in m.get("pans", []):
+		var bp := Basis(Vector3.UP, pn[5])
+		var nrm := bp * Vector3.BACK
+		var tg := bp * Vector3.RIGHT
+		var o0 := Vector3(pn[0], y_sol + float(pn[1]), pn[2]) + nrm * 0.04
+		var lg: float = float(pn[3]) * 0.5 - 0.06
+		var hh: float = pn[4]
+		var A := o0 - tg * lg + Vector3(0, 0.06, 0)
+		var B := o0 + tg * lg + Vector3(0, 0.06, 0)
+		var C := o0 + tg * lg + Vector3(0, hh - 0.08, 0)
+		var D := o0 - tg * lg + Vector3(0, hh - 0.08, 0)
+		for ab: Array in [[A, D], [B, C], [A, B], [D, C]]:
+			VillageBati.piece(v, p, ab[0], ab[1], Vector2(0.15, 0.08), nrm, v.m_colombage)
+		VillageBati.piece(v, p, A, C, Vector2(0.12, 0.07), nrm, v.m_colombage)
+		VillageBati.piece(v, p, B, D, Vector2(0.12, 0.07), nrm, v.m_colombage)
+	# volets : ceux des props validés (q_volets_*), à la place exacte des volets du kit (assembleur : origine_prop)
+	for w: Array in m.get("volets", []):
+		PropsQuaternius.village(v, p, w[0], Transform3D(Basis(Vector3.UP, w[4]) * Basis.from_scale(Vector3(w[5], w[6], w[7])), Vector3(w[1], y_sol + float(w[2]), w[3])))
 	# fumée, torche, enseigne, appentis, tas de bois : comme le bâtiment d'origine
 	if m.has("cheminee") and o.get("fumee", false):
 		var c: Array = m["cheminee"]
