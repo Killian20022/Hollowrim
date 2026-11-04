@@ -294,6 +294,10 @@ func _go() -> void:
 	cam_vise = Vector3(0, 0.0, 2.4)
 	await _att(10)
 	await _photo("02_piste_vue_de_derriere")
+	cam_decal = Vector3(0.5, 2.0, 5.5)                  # de dos, dans l'axe de la piste
+	cam_vise = Vector3(0, 0.3, 0.0)
+	await _att(10)
+	await _photo("02b_marche_de_dos_dans_l_axe")
 	cam_decal = Vector3(4.5, 1.2, 2.5)                  # côté, basse : lumière rasante sur le relief
 	cam_vise = Vector3(0, -0.2, 2.5)
 	await _att(10)
@@ -308,13 +312,17 @@ func _go() -> void:
 	await _photo("05_gros_plan_empreinte")
 	# 2. course
 	_dire("Relief : course, sillon plus profond")
-	j.global_position = spot + Vector3(-4.0, 0.15, 6.0)
+	var rx: float = spot.x - 2.5
+	var rz: float = spot.z + 8.0
+	j.global_position = Vector3(rx, float(monde.hauteur(rx, rz)) + 0.3, rz)
 	j.velocity = Vector3.ZERO
 	j.rotation.y = 0.0
 	await _att(20)
+	print("COURSE depart ", j.global_position, " pas ", EffetsSol.stats["pas"], " vigueur ", j.vigueur)
 	Input.action_press("avant")
 	Input.action_press("course")
 	await _att(90)
+	print("COURSE fin ", j.global_position, " v ", j.velocity, " pas ", EffetsSol.stats["pas"], " vigueur ", j.vigueur)
 	Input.action_release("course")
 	Input.action_release("avant")
 	await _att(40)
@@ -322,6 +330,14 @@ func _go() -> void:
 	cam_vise = Vector3(0, 0.0, 2.4)
 	await _att(10)
 	await _photo("06_course_vue_de_derriere")
+	cam_decal = Vector3(0.5, 2.0, 5.5)
+	cam_vise = Vector3(0, 0.3, 0.0)
+	await _att(10)
+	await _photo("06b_course_de_dos_dans_l_axe")
+	cam_decal = Vector3(3.2, 1.9, 3.6)
+	cam_vise = Vector3(0, 0.0, 1.2)
+	await _att(10)
+	await _photo("06c_course_trois_quarts")
 	cam_decal = Vector3(4.5, 1.2, 2.5)
 	cam_vise = Vector3(0, -0.2, 2.5)
 	await _att(10)

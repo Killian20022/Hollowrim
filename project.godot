@@ -94,3 +94,7 @@ relief_zone={
 "type": "vec4",
 "value": Vector4(0, 0, 0, 0)
 }
+relief_boite={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}

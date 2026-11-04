@@ -376,6 +376,7 @@ void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out ve
 // ---------------------------------------------------------------------------------------------
 global uniform sampler2D relief_masque : filter_nearest;
 global uniform vec4 relief_zone;   // x0, z0 (m), côté (m), actif
+global uniform vec4 relief_boite;  // boîte englobante du relief écrit (m) : x0, z0, x1, z1
 #ifdef RELIEF
 uniform sampler2D relief_hauteurs : filter_nearest, repeat_disable;   // 121² nœuds du maillage du terrain (R32F)
 
@@ -396,7 +397,8 @@ float relief_texel(ivec2 q) {
 // profondeur bilinéaire (aux centres des texels de 1/16 m) et son gradient : x = D, yz = dD/dx, dD/dz
 vec3 relief_champ(vec2 p) {
 	vec2 z0 = relief_zone.xy;
-	if (p.x < z0.x || p.y < z0.y || p.x > z0.x + relief_zone.z || p.y > z0.y + relief_zone.z) {
+	if (p.x < relief_boite.x || p.y < relief_boite.y || p.x > relief_boite.z || p.y > relief_boite.w
+			|| p.x < z0.x || p.y < z0.y || p.x > z0.x + relief_zone.z || p.y > z0.y + relief_zone.z) {
 		return vec3(0.0);
 	}
 	vec2 u = p * 16.0 - 0.5;
@@ -455,7 +457,7 @@ void effets_sol(inout vec3 albedo, vec2 pm) {
 	float wp = 1.0;
 	if (relief_zone.w > 0.5) {
 		vec2 dz = abs(pm - (relief_zone.xy + 0.5 * relief_zone.z));
-		wp = mix(0.3, 1.0, smoothstep(0.5 * relief_zone.z - 2.5, 0.5 * relief_zone.z - 0.5, max(dz.x, dz.y)));
+		wp = mix(0.0, 1.0, smoothstep(0.5 * relief_zone.z - 2.5, 0.5 * relief_zone.z - 0.5, max(dz.x, dz.y)));
 	}
 	if (m.b > t) {   // empreinte : creux bleu-gris ombré ; s'efface texel par texel
 		float e = clamp((m.b - t) / 24.0, 0.0, 1.0);
@@ -745,9 +747,13 @@ void fragment() {
 		// normale du relief : celle du sol + la pente de la profondeur (différences finies bilinéaires du masque)
 		vec3 n0 = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 		float ny = max(n0.y, 0.2);
-		vec3 n = normalize(vec3(n0.x / ny + rc.y, 1.0, n0.z / ny + rc.z));
+		// gradient lissé : différence centrée sur ~2 texels (le gradient bilinéaire brut escalade en marches d'escalier)
+		const float ge = 0.075;
+		vec2 gr = vec2(relief_champ(pos_monde + vec2(ge, 0.0)).x - relief_champ(pos_monde - vec2(ge, 0.0)).x,
+				relief_champ(pos_monde + vec2(0.0, ge)).x - relief_champ(pos_monde - vec2(0.0, ge)).x) / (2.0 * ge);
+		vec3 n = normalize(vec3(n0.x / ny + gr.x * 2.2, 1.0, n0.z / ny + gr.y * 2.2));
 		NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
-		ALBEDO *= mix(vec3(1.0), vec3(0.66, 0.74, 0.9), smoothstep(0.0, 0.09, rc.x));   // fond du creux : ombre portée du rebord
+		ALBEDO *= mix(vec3(1.0), vec3(0.34, 0.48, 0.8), smoothstep(0.005, 0.07, rc.x)) * (1.0 + 0.25 * smoothstep(0.0, -0.04, rc.x));   // fond du creux : occlusion bleutée ; sommet du bourrelet plus clair
 	}
 #endif
 	// neige qui tient (objets dehors) : jamais sur le terrain (sol validé), ni sur les parties déjà neigées, ni sur les personnages

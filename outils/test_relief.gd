@@ -37,8 +37,8 @@ func _lancer() -> void:
 	var cx := 2.17
 	var talon := e.profondeur(cx, 2.0 + 0.145)   # vers l'arrière (dir = -z) : le talon est à +z
 	var avant := e.profondeur(cx, 2.0 - 0.085)
-	verifier(avant > 0.05 and avant < 0.11, "marche : creux de l'avant-pied %.3f m (5 à 11 cm)" % avant)
-	verifier(talon > 0.05 and talon < 0.11, "marche : creux du talon %.3f m" % talon)
+	verifier(avant > 0.08 and avant < 0.13, "marche : creux de l'avant-pied %.3f m (8 à 13 cm)" % avant)
+	verifier(talon > 0.07 and talon < 0.13, "marche : creux du talon %.3f m" % talon)
 	verifier(e.profondeur(cx, 2.0 + 0.145) > 0.0 and e.profondeur(cx + 0.45, 2.0) == 0.0, "marche : rien loin de la botte")
 	var haut := 0.0
 	for k in 40:
@@ -51,10 +51,10 @@ func _lancer() -> void:
 	e.reinitialiser()
 	e._empreinte(Vector3(10, 0, 10), Vector2(0, -1), true, true)
 	var course := e.profondeur(10.21, 10.0 - 0.1)
-	verifier(course > 0.09 and course < 0.14, "course : creux %.3f m (9 à 14 cm)" % course)
+	verifier(course > 0.11 and course < 0.19, "course : creux %.3f m (11 à 19 cm)" % course)
 	e._empreinte(Vector3(10, 0, 8.1), Vector2(0, -1), true, true)
-	var milieu := e.profondeur(10.21, 9.05)
-	verifier(milieu > 0.03, "course : sillon traîné entre les deux empreintes (%.3f m)" % milieu)
+	var milieu := e.profondeur(10.0, 9.05)
+	verifier(milieu > 0.05, "course : tranchée continue entre les deux pas (%.3f m)" % milieu)
 
 	# --- fin de vie : le creux se rebouche (fondu sur 10 s) puis disparaît
 	EffetsSol.saut_de_temps(EffetsSol.DUREE_RELIEF - 5.0)
@@ -89,11 +89,11 @@ func _lancer() -> void:
 	monde.add_child(g)
 	var p := g.placer(Vector2(3.337, -1.249))
 	verifier(is_equal_approx(p.x * 16.0, roundf(p.x * 16.0)) and is_equal_approx(p.y * 16.0, roundf(p.y * 16.0)), "grille : coin aligné sur les texels de 1/16 m")
-	verifier(absf(p.x + 7.0 - 3.337) <= 1.0 / 16.0 and absf(p.y + 7.0 + 1.249) <= 1.0 / 16.0, "grille : centrée sur le joueur (à un texel près)")
+	verifier(absf(p.x + 6.0 - 3.337) <= 1.0 / 16.0 and absf(p.y + 6.0 + 1.249) <= 1.0 / 16.0, "grille : centrée sur le joueur (à un texel près)")
 	g.free()
 	var maillage := CoucheNeige._grille()
-	verifier(maillage.get_surface_count() == 1 and maillage.surface_get_array_len(0) == 225 * 225, "grille : %d sommets (14 m, cases de 6,25 cm)" % maillage.surface_get_array_len(0))
+	verifier(maillage.get_surface_count() == 1 and maillage.surface_get_array_len(0) == 33 * 33, "tuile : %d sommets (2 m, cases de 6,25 cm)" % maillage.surface_get_array_len(0))
 	var cle := CoucheNeige._grille().get_aabb()
-	verifier(cle.size.x > 13.5 and cle.size.x < 14.5, "grille : emprise 14 m")
+	verifier(cle.size.x > 1.9 and cle.size.x < 2.1, "tuile : emprise 2 m")
 	print("ECHECS : ", echecs)
 	quit(0)
