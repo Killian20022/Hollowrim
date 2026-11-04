@@ -1,5 +1,5 @@
 {
- "note": "Habitants anonymes du village (scripts/villageois.gd habitants(), persos/quaternius_jeu 2026-11-04). pq : corps Quaternius sali (PersosQuat.HABITANTS) ; ancien : corps Humain.creer (--persos-anciens) ; pos : (x, z) monde ; cap : degrés (0 = vers +Z) ; activite : clip au poste ; sedentaire : ne se promène pas. Répliques communes par type dans roles.",
+ "note": "Habitants anonymes du village (scripts/villageois.gd habitants(), persos/quaternius_jeu 2026-11-04). pq : corps Quaternius sali (PersosQuat.HABITANTS) ; ancien : corps Humain.creer (--persos-anciens) ; pos : (x, z) monde ; cap : degrés (0 = vers +Z) ; activite : clip au poste ; sedentaire : ne se promène pas. Répliques communes par type dans roles. Postes HORS des rondes de la garde (data/gardes.json : ronde_place, ronde_rue).",
  "roles": {
   "paysan": {
    "nom": "Paysan",
@@ -84,8 +84,8 @@
    "type": "paysan",
    "pq": "pq_hab_paysan_a",
    "pos": [
-    36.6,
-    39.4
+    38.0,
+    38.4
    ],
    "cap": 90,
    "activite": "Idle_Talking",
@@ -118,8 +118,8 @@
    "type": "paysanne",
    "pq": "pq_hab_paysanne_a",
    "pos": [
-    37.9,
-    39.4
+    39.3,
+    38.4
    ],
    "cap": 270,
    "activite": "Idle_Talking",
@@ -256,8 +256,8 @@
    "type": "paysan",
    "pq": "pq_hab_paysan_b",
    "pos": [
-    48.5,
-    40.5
+    46.6,
+    44.6
    ],
    "cap": 180,
    "ancien": {
@@ -281,7 +281,9 @@
      0.25
     ],
     "barbe": true
-   }
+   },
+   "sedentaire": true,
+   "activite": "Idle"
   },
   {
    "id": "hab_chasseur_1",
@@ -394,10 +396,10 @@
    "type": "chasseresse",
    "pq": "pq_hab_chasseresse_a",
    "pos": [
-    40.0,
-    33.4
+    42.5,
+    36.2
    ],
-   "cap": 180,
+   "cap": 200,
    "ancien": {
     "corps": "femme",
     "tenue": {

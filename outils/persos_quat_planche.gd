@@ -8,6 +8,7 @@ const POST := preload("res://shaders/ps1_post.gdshader")
 const REF := "C:/Users/lopezk19/Jeux/references/quaternius_persos/"
 const OUTFITS := REF + "modular-character-outfits-fantasy/Modular Character Outfits - Fantasy[Standard]/Exports/glTF (Godot-Unreal)/Outfits/"
 const UBC := "res://assets/modeles/humains/"
+const ANIMAUX := REF + "ultimate_animated_animals/FBX/"
 const ORIGINAUX := {
 	"pq_villageois": [OUTFITS + "Male_Peasant.gltf", UBC + "Superhero_Male_FullBody.gltf", UBC + "cheveux/Hair_SimpleParted.gltf"],
 	"pq_villageoise": [OUTFITS + "Female_Peasant.gltf", UBC + "Superhero_Female_FullBody.gltf", UBC + "cheveux/Hair_Buns.gltf"],
@@ -19,7 +20,17 @@ const ORIGINAUX := {
 	"pq_squelette": [REF + "polypizza_cc0/Skeleton_DM4QScSmbS.glb"],
 	"pq_cerf": [REF + "polypizza_cc0/Stag_tQdzbZ1Cmw.glb"],
 	"pq_spectre": [REF + "polypizza_cc0/Ghost_Iip30bDHmu.glb"],
+	# secondaires (2026-11-04, sources_blender/persos_quaternius/secondaires.json) : FBX « Ultimate », chargés par FBXDocument
+	"pq_cheval": [ANIMAUX + "Horse.fbx"],
+	"pq_cheval_blanc": [ANIMAUX + "Horse_White.fbx"],
+	"pq_vache": [ANIMAUX + "Cow.fbx"],
+	"pq_taureau": [ANIMAUX + "Bull.fbx"],
+	"pq_ane": [ANIMAUX + "Donkey.fbx"],
+	"pq_husky": [ANIMAUX + "Husky.fbx"],
+	"pq_yeti": [REF + "ultimate_monsters/Big/FBX/Yeti.fbx"],
+	"pq_chevalier": [REF + "knight_character/FBX/KnightCharacter.fbx"],
 }
+
 ## id -> [hauteur du dessin du héros pour l'échelle (m)] : seulement pour info
 var sv: SubViewport
 var cam: Camera3D
@@ -44,6 +55,9 @@ func _charger_brut(chemin: String) -> Node3D:
 		return (load(chemin) as PackedScene).instantiate()
 	var st := GLTFState.new()
 	var doc := GLTFDocument.new()
+	if chemin.get_extension().to_lower() == "fbx":
+		st = FBXState.new()
+		doc = FBXDocument.new()
 	var err := doc.append_from_file(chemin, st)
 	if err != OK:
 		push_error("gltf %s : %d" % [chemin, err])
@@ -59,7 +73,13 @@ func _original(id: String) -> Node3D:
 ## Dimensions nominales (largeur d'encombrement, hauteur, m) : l'AABB d'un maillage skinné est celle de la pose de liaison, pas de la pose vue.
 const DIMS := {"pq_villageois": Vector2(0.9, 1.84), "pq_villageoise": Vector2(0.9, 1.8), "pq_chasseur": Vector2(0.9, 1.87), "pq_chasseresse": Vector2(0.9, 1.8),
 	"pq_loup": Vector2(1.5, 0.9), "pq_araignee": Vector2(2.6, 1.1), "pq_geant": Vector2(1.7, 3.3), "pq_demon": Vector2(1.4, 2.3),
-	"pq_squelette": Vector2(0.9, 1.85), "pq_cerf": Vector2(1.5, 1.9), "pq_spectre": Vector2(1.3, 1.9)}
+	"pq_squelette": Vector2(0.9, 1.85), "pq_cerf": Vector2(1.5, 1.9), "pq_spectre": Vector2(1.3, 1.9),
+	"pq_cheval": Vector2(2.7, 2.2), "pq_cheval_blanc": Vector2(2.7, 2.2), "pq_vache": Vector2(2.8, 1.5), "pq_taureau": Vector2(3.0, 1.6),
+	"pq_ane": Vector2(1.7, 1.3), "pq_husky": Vector2(1.0, 0.65), "pq_yeti": Vector2(1.9, 2.6), "pq_chevalier": Vector2(1.0, 1.9)}
+## originaux FBX : unités de l'auteur (cm, x100…) -> ramenés à la hauteur du PS1 pour la comparaison
+## quadrupèdes « Ultimate » : le glb regarde +z (face caméra) ; tournés de profil (tête à gauche, comme l'original FBX)
+const PROFIL := ["pq_cheval", "pq_cheval_blanc", "pq_vache", "pq_taureau", "pq_ane", "pq_husky"]
+const NORMALISER := ["pq_cheval", "pq_cheval_blanc", "pq_vache", "pq_taureau", "pq_ane", "pq_husky", "pq_yeti", "pq_chevalier"]
 
 func _dim(n: Node3D) -> Vector2:
 	return DIMS.get(String(n.get_meta("pq", "")), Vector2(1.0, 1.8))
@@ -184,8 +204,14 @@ func _planche(ids: Array) -> void:
 		o.position.x = -ecart
 		p.position.x = ecart
 		o.rotation.y = 0.0
-		p.rotation.y = 0.0
+		p.rotation.y = -PI * 0.5 if id in PROFIL else 0.0
 		await process_frame
+		if id in NORMALISER:
+			var ao := _aabb(o)
+			if ao.size.y > 0.01:
+				o.scale = Vector3.ONE * (ech / ao.size.y)
+				await process_frame
+				o.position.y -= _aabb(o).position.y
 		hp = _aabb(p)
 		print("ECHELLE %-16s PS1 hauteur=%.2f largeur=%.2f prof=%.2f | original hauteur=%.2f" % [id, hp.size.y, hp.size.x, hp.size.z, _aabb(o).size.y])
 		var d := maxf(ech * 2.3, ecart * 2.6)
@@ -219,9 +245,14 @@ func _echelle(ids: Array) -> void:
 		["pq_villageois", "pq_chasseresse", "pq_chasseur", "pq_villageoise"],
 		["pq_loup", "pq_squelette", "pq_geant"],
 		["pq_araignee", "pq_cerf", "pq_spectre"],
+		["pq_cheval", "pq_cheval_blanc", "pq_ane"],
+		["pq_vache", "pq_taureau", "pq_husky"],
+		["pq_chevalier", "pq_yeti"],
 	]
 	var vues: Array = []
 	for g: Array in groupes:
+		if g.filter(func(i: String) -> bool: return ids.has(i)).is_empty():
+			continue
 		var noeuds: Array[Node3D] = []
 		var x := -2.2
 		h.position = Vector3(x, 0, 0)
@@ -236,6 +267,8 @@ func _echelle(ids: Array) -> void:
 			await process_frame
 			var lg := _dim(p).x
 			p.position = Vector3(x + lg * 0.5, 0, 0)
+			if id in PROFIL:
+				p.rotation.y = -PI * 0.5
 			x += lg + 0.5
 			noeuds.append(p)
 		var largeur := x + 2.2
