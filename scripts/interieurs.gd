@@ -376,6 +376,23 @@ func niv(i: int) -> float:
 		return [0.2, 0.74, 1.26][mini(i, 2)]
 	return 0.52 + 0.46 * i
 
+## Lot 4 (props/lot4) : nourriture et vaisselle Quaternius posées sur `pos` (y < 0,2 = au sol), matières MATS_NOURRITURE ; rien avec `--sans-lot4`.
+## N'utilise JAMAIS `rng` (la mise en place du reste de la pièce reste celle de l'exe 3).
+func nq(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, mats := {}) -> void:
+	if not PropsQuaternius.lot4 or not PropsQuaternius.existe(nom):
+		return
+	PropsQuaternius.compter("lot4_interieurs")
+	q(nom, pos, lacet, e, MATS_NOURRITURE.merged(mats))
+
+## Lot 4 : couvert posé (écuelle de bois ou d'argile, cuillère de bois, couteau) ; `pos` = centre de l'écuelle.
+func mets(pos: Vector3, lacet := 0.0, argile := false) -> void:
+	if not PropsQuaternius.lot4:
+		return
+	var bz := Basis(Vector3.UP, lacet)
+	nq("q_ecuelle_2" if argile else "q_ecuelle", pos, lacet + 0.7)
+	nq("q_cuillere_bois", pos + bz * Vector3(0.2, 0, 0.05), lacet + 1.5)
+	nq("q_couteau_f", pos + bz * Vector3(-0.2, 0, 0.0), lacet + 1.62)
+
 ## Prop de remplacement disponible (option `--sans-remplacement` : anciens modules maison).
 static func rempl(nom: String) -> bool:
 	return PropsQuaternius.remplace and PropsQuaternius.existe(nom)
@@ -721,7 +738,12 @@ func viande_seche(pos: Vector3, k := 3, lacet := 0.0) -> void:
 			var off := bz * Vector3(float(i - (k - 1) * 0.5) * 0.2, 0, 0)
 			var hh := 0.26 + rng.randf() * 0.16
 			_q_xf("q_poutre_ronde", Transform3D(Basis(Vector3.BACK, PI * 0.5) * Basis.from_scale(Vector3(0.2, 0.07, 0.07)), pos + off + Vector3(0, -0.1, 0)), {"bois": "cuir"})
-			if i % 2 == 0:
+			if PropsQuaternius.lot4 and rempl("q_cuisse"):      # lot 4 : vraies pièces, cuisse fumée (os en haut, noué) / saucisses pendues
+				if i % 2 == 0:
+					_q_xf("q_cuisse", Transform3D(bz * Basis(Vector3.BACK, -PI * 0.5) * Basis.from_scale(Vector3.ONE * (hh / 0.17)), pos + off + Vector3(0, -0.2 - hh * 0.45, 0)), MATS_NOURRITURE)
+				else:
+					_q_xf("q_saucisse" if i % 4 == 1 else "q_saucisse_crue", Transform3D(bz * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3.ONE * (hh * 1.1 / 0.18)), pos + off + Vector3(0, -0.2 - hh * 0.5, 0)), MATS_NOURRITURE)
+			elif i % 2 == 0:
 				_q_xf("q_bourse", Transform3D(bz * Basis.from_scale(Vector3.ONE * (hh / 0.30)), pos + off + Vector3(0, -0.2 - hh, 0)), {"fer": "peau_sombre", "os": "os"})
 			else:
 				_q_xf("q_carotte", Transform3D(bz * Basis(Vector3.RIGHT, PI) * Basis.from_scale(Vector3(1.0, hh * 0.9 / 0.30, 1.0) * Vector3(0.9, 1.0, 0.9)), pos + off + Vector3(0, -0.2, 0)), {"fer": "cuir"})
@@ -787,6 +809,10 @@ func chope(pos: Vector3, mat := "bois") -> void:
 	modele("chope_" + variante(pos, 2), pos, lacet_libre(pos), Vector3.ONE, {"MAT": mat})
 
 func chaudron(pos: Vector3, r := 0.3) -> void:
+	if PropsQuaternius.lot4 and rempl("q_marmite_soupe"):      # lot 4 : marmite de soupe (pot de fer, bouillon) à la place du chaudron vide
+		PropsQuaternius.compter("lot4_interieurs")
+		qf("q_marmite_soupe", pos, lacet_libre(pos), Vector3(r * 1.9, 0, 0), {"fer": "fer_noir"})
+		return
 	if rempl("q_chaudron"):
 		qf("q_chaudron", pos, lacet_libre(pos), Vector3(r * 2.0, 0, 0))
 		return

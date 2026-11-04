@@ -63,6 +63,26 @@ const POSES_D := [
 	["q_seau_bois", -1, Vector3(41.6, 0.0, 55.4), 0.0, false], ["q_caisse", -1, Vector3(38.4, 0.0, 70.0), 20.0, true],
 	["q_corde_1", -1, Vector3(50.6, 0.0, 80.4), 100.0, false],
 ]
+## Lot 4 (props/lot4) : NOURRITURE des étals, mêmes conventions que POSES_Q (étal i, position locale dans le repère de l'étal ; les hauteurs 0,9
+## sont ramenées à 0,8 comme les autres) : étal 0 = maraîcher, étal 1 = boucher/cordier, étal 2 = poissonnier. Posé seulement si PropsQuaternius.lot4.
+const POSES_L4 := [
+	# étal 0 : maraîcher (choux, navets, pommes en vrac entre les cageots et les peaux d'avant)
+	["q_chou", 0, Vector3(-0.1, 0.9, -0.58), 20.0, false], ["q_chou", 0, Vector3(0.05, 0.9, -0.7), 80.0, false],
+	["q_navet", 0, Vector3(0.78, 0.9, -0.5), 0.0, false], ["q_navet", 0, Vector3(0.86, 0.9, -0.64), 40.0, false],
+	["q_pomme", 0, Vector3(-0.2, 0.9, -0.85), 0.0, false], ["q_pomme_verte", 0, Vector3(-0.1, 0.9, -0.87), 0.0, false],
+	["q_jarre", 0, Vector3(-0.55, 0.0, 0.5), 10.0, false], ["q_bouteille_1", 0, Vector3(-0.2, 0.0, 0.5), 0.0, false],
+	# étal 1 : boucher (viande, lard, saucisses, cuisses) à côté des cordes
+	["q_viande", 1, Vector3(0.15, 0.9, -0.55), 15.0, false], ["q_viande", 1, Vector3(0.38, 0.9, -0.6), -30.0, false],
+	["q_lard", 1, Vector3(0.2, 0.9, -0.8), 5.0, false], ["q_cuisse", 1, Vector3(0.55, 0.92, -0.78), 70.0, false],
+	["q_saucisse", 1, Vector3(0.45, 0.9, -0.38), 20.0, false], ["q_saucisse_crue", 1, Vector3(0.58, 0.9, -0.4), -10.0, false],
+	["q_jarre", 1, Vector3(1.2, 0.0, 0.5), 0.0, false],
+	# étal 2 : poissonnier (poissons et arêtes sur la planche, jarres de saumure derrière)
+	["q_poisson", 2, Vector3(0.1, 0.9, -0.55), 10.0, false], ["q_poisson", 2, Vector3(0.3, 0.9, -0.72), -15.0, false],
+	["q_poisson", 2, Vector3(0.15, 0.9, -0.9), 170.0, false], ["q_aretes", 2, Vector3(0.6, 0.9, -0.5), 20.0, false],
+	["q_jarre", 2, Vector3(-0.2, 0.0, 0.5), 20.0, false], ["q_jarre", 2, Vector3(0.1, 0.0, 0.55), 100.0, false],
+]
+## Matières du lot 4 -> matières du mobilier (la laine des viandes et pommes = rouge sourd ; l'herbe des légumes = foin teinté vert).
+const MATS_L4 := {"laine": "laine_q", "herbe": "herbe", "argile": "argile"}
 ## Matières des props Quaternius -> matières du mobilier (fer MAT : fer du village, déjà terne ; voir _materiau pour lin et os).
 ## Même table pour les props posés par substitut() dans le village (matière du prop -> matière de PropsQuaternius.mats_village).
 const MATS_Q_V := {"fer": "fer", "bois": "bois", "jute": "jute", "lin": "lin", "os": "os", "pierre": "pierre", "or": "fer", "noir": "fer", "toile": "lin", "laine": "lin", "argile": "argile"}
@@ -224,6 +244,14 @@ static func _materiau(nom: String) -> Material:
 			var ml := TexturesBati.materiau(nom, Color(1.35, 1.1, 0.92) if nom == "argile" else Color(1.0, 0.96, 0.9), 64.0, 0.4, "neige_e")      # primeurs plus vives à l'ombre de l'auvent
 			ml.set_shader_parameter("proche", Vector2(4.0, 14.0))
 			return ml
+		"laine_q":      # lot 4 : viande, pommes, lard (laine rouge sourde de la crypte, comme les intérieurs)
+			if not TexturesBati._cache.has("laine"):
+				TexturesBati._cache["laine"] = [ImageTexture.create_from_image(ResourceLoader.load("res://assets/crypte/laine.res")), TexturesBati.relief_neutre()]
+			var mw := TexturesBati.materiau("laine", Color(0.92, 0.86, 0.84), 64.0, 0.4, "neige_e")
+			mw.set_shader_parameter("proche", Vector2(4.0, 14.0))
+			return mw
+		"herbe":      # lot 4 : légumes (foin teinté vert, comme les bouquets des intérieurs)
+			return TexturesBati.m_foin_e(Color(0.55, 0.78, 0.45))
 		"tenture_rouge", "peau":
 			return TexturesBati.materiau(nom, Color.WHITE, 32.0, 0.6)   # tissus modélisés double face
 	return TexturesBati.m_planches_e()
@@ -548,11 +576,15 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 			etals.append(Transform3D(Basis(Vector3.UP, deg_to_rad(pose[3])), Vector3(pose[1], _sol_bas(pose[1], pose[2], 1.4), pose[2])))
 	var tris := 0
 	var num := 0
-	var liste: Array = POSES_Q + (POSES_D if PropsQuaternius.remplace else [])
+	var liste: Array = POSES_Q + (POSES_D if PropsQuaternius.remplace else []) + (POSES_L4 if PropsQuaternius.lot4 else [])
+	var n_l4 := POSES_Q.size() + (POSES_D.size() if PropsQuaternius.remplace else 0)
+	var idx := -1
 	for e: Array in liste:
+		idx += 1
 		var nom: String = e[0]
 		if not PropsQuaternius.existe(nom):
 			continue
+		var est_l4 := idx >= n_l4
 		num += 1
 		var xe: Transform3D = Transform3D.IDENTITY if e[1] < 0 else etals[e[1]]
 		var lp: Vector3 = e[2]
@@ -569,6 +601,8 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 		var xf := Transform3D(xe.basis * Basis(Vector3.UP, deg_to_rad(e[3])), p)
 		for t: Array in PropsQuaternius.triangles(nom):
 			var mat: String = "argile" if t[0] == "fer" and nom in PRIMEURS else MATS_Q.get(t[0], "planches_h")
+			if est_l4:
+				mat = MATS_L4.get(t[0], mat)
 			if not fusion.has(mat):
 				var st := SurfaceTool.new()
 				st.begin(Mesh.PRIMITIVE_TRIANGLES)
