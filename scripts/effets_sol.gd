@@ -24,10 +24,17 @@ const MAX_BLOCS := 10                # amas de glace vivants (le plus ancien est
 const PORTEE_MARCHEURS := 14.0       # m : ennemis et villageois qui laissent des traces
 const FOULEE := 0.9                  # m entre deux empreintes d'un marcheur
 const MAX_MARCHEURS := 8
+# relief de la neige (couche déformable, CoucheNeige) : profondeurs en m, durées en s (mêmes constantes que le shader : fondu sur 10 s)
+const DUREE_RELIEF := 26.0
+const CREUX_MARCHE := 0.12          # empreinte de botte à la marche
+const CREUX_COURSE := 0.17           # sillon à la course
+const BOURRELET := 0.045             # neige repoussée sur le pourtour (m de hauteur)
+const BOURRELET_FEU := 0.045         # lèvre épaisse autour du trou de la neige fondue
 
 ## Faux = aucun effet (mesures de coût). `forcer_neige` : tout le sol compte comme neige (tests sans carte de sol).
 static var actif := true
 static var forcer_neige := false
+static var sans_couche := false   # mesures de perf : relief désactivé (traces peintes seules, comme avant la v5)
 static var instance: EffetsSol
 ## Compteurs (tests, mesures) : écritures de texels, envois du masque, empreintes, fontes, blocs.
 static var stats := {"texels": 0, "envois": 0, "pas": 0, "fontes": 0, "blocs": 0}
@@ -36,6 +43,14 @@ var t := 10.0                        # horloge du masque (s) ; le shader reçoit
 var _donnees := PackedFloat32Array()
 var _img: Image
 var _tex: ImageTexture
+var _rdonnees := PackedFloat32Array()   # relief : N×N × (amplitude, fin) ; amplitude > 0 creux, < 0 bourrelet
+var _rimg: Image
+var _rtex: ImageTexture
+var _boite := Vector4(1e9, 1e9, -1e9, -1e9)   # boîte englobante (m) du relief écrit : x0, z0, x1, z1 (les shaders sortent tôt hors de la boîte)
+var _relief_fin := 0.0                  # instant après lequel plus aucun relief n'est vivant
+var _couche: CoucheNeige
+var _acc_couche := 99.0
+var _prec_pied := {}                    # pied (bool) -> {pos: Vector2, t: float} : dernier sillon de course
 var _ox := 0                         # coin (texels monde) de la fenêtre
 var _oz := 0
 var _fin_vie := 0.0                  # instant après lequel tout est effacé
@@ -75,6 +90,11 @@ func _ready() -> void:
 	_img = Image.create_from_data(N, N, false, Image.FORMAT_RGBAF, _donnees.to_byte_array())
 	_tex = ImageTexture.create_from_image(_img)
 	RenderingServer.global_shader_parameter_set("effets_masque", _tex)
+	_rdonnees.resize(N * N * 2)
+	_rimg = Image.create_from_data(N, N, false, Image.FORMAT_RGF, _rdonnees.to_byte_array())
+	_rtex = ImageTexture.create_from_image(_rimg)
+	RenderingServer.global_shader_parameter_set("relief_masque", _rtex)
+	RenderingServer.global_shader_parameter_set("relief_zone", Vector4(0, 0, 0, 0))
 	_regler_rect(false)
 	_centrer(Vector2.ZERO)
 
@@ -82,6 +102,7 @@ func _exit_tree() -> void:
 	if instance == self:
 		instance = null
 		RenderingServer.global_shader_parameter_set("effets_rect", Vector4(0, 0, 0, 0))
+		RenderingServer.global_shader_parameter_set("relief_zone", Vector4(0, 0, 0, 0))
 
 func _process(dt: float) -> void:
 	t += dt
@@ -93,6 +114,7 @@ func _process(dt: float) -> void:
 	if _acc >= 0.1:
 		_acc = 0.0
 		_sonder_marcheurs()
+	_gerer_couche(dt)
 	if _fin_vie > t:
 		if not _rect_actif:
 			_regler_rect(true)
@@ -101,6 +123,35 @@ func _process(dt: float) -> void:
 			_envoyer()
 	elif _rect_actif:
 		_regler_rect(false)   # tout est effacé : le shader ne lit plus rien
+
+## Couche de neige en relief : créée dès que le monde existe, visible (et la zone envoyée aux shaders) seulement tant qu'un relief vit.
+func _gerer_couche(dt: float) -> void:
+	if _couche == null or not is_instance_valid(_couche):
+		_acc_couche += dt
+		if _acc_couche >= 1.0:
+			_acc_couche = 0.0
+			var cands: Array = [get_tree().current_scene] + get_tree().root.get_children()
+			for c in cands:
+				if c != null and c.get("mat_terrain") != null and c.get("hauteurs_maillage") != null:
+					_couche = CoucheNeige.creer(c)
+					if _couche != null:
+						break
+		return
+	if not _couche.is_inside_tree():
+		return
+	var actif_r := actif and _relief_fin > t and _joueur != null and is_instance_valid(_joueur) and neige_dehors() and not sans_couche
+	if actif_r:
+		var pj := Vector2(_joueur.global_position.x, _joueur.global_position.z)
+		var p := _couche.placer(pj)
+		_couche.visible = true
+		RenderingServer.global_shader_parameter_set("relief_zone", Vector4(p.x, p.y, CoucheNeige.COTE / RES, 1.0))
+		RenderingServer.global_shader_parameter_set("relief_boite", _boite)
+		_couche.filtrer(_boite)
+	elif _couche.visible:
+		_boite = Vector4(1e9, 1e9, -1e9, -1e9)
+		RenderingServer.global_shader_parameter_set("relief_boite", _boite)
+		_couche.visible = false
+		RenderingServer.global_shader_parameter_set("relief_zone", Vector4(0, 0, 0, 0))
 
 ## Avance l'horloge de `s` secondes d'un coup (captures « 30 s plus tard », tests) : masque, blocs de glace.
 static func saut_de_temps(s: float) -> void:
@@ -115,6 +166,10 @@ static func saut_de_temps(s: float) -> void:
 ## Efface tout (tests, changement de scène).
 func reinitialiser() -> void:
 	_donnees.fill(0.0)
+	_rdonnees.fill(0.0)
+	_relief_fin = 0.0
+	_boite = Vector4(1e9, 1e9, -1e9, -1e9)
+	_prec_pied.clear()
 	_fin_vie = 0.0
 	_sale = true
 	for b in _blocs:
@@ -134,6 +189,8 @@ func _regler_rect(on: bool) -> void:
 func _envoyer() -> void:
 	_img.set_data(N, N, false, Image.FORMAT_RGBAF, _donnees.to_byte_array())
 	_tex.update(_img)
+	_rimg.set_data(N, N, false, Image.FORMAT_RGF, _rdonnees.to_byte_array())
+	_rtex.update(_rimg)
 	_sale = false
 	_dernier_envoi = t
 	stats["envois"] = int(stats["envois"]) + 1
@@ -155,6 +212,20 @@ func lire(x: float, z: float) -> Vector4:
 	var i := _indice(tx, tz)
 	return Vector4(_donnees[i], _donnees[i + 1], _donnees[i + 2], _donnees[i + 3])
 
+## Relief au point monde (x, z) : Vector2(amplitude en m, fin) ; amplitude > 0 = creux, < 0 = bourrelet. Zéro hors fenêtre.
+func lire_relief(x: float, z: float) -> Vector2:
+	var tx := floori(x * RES)
+	var tz := floori(z * RES)
+	if not dans_fenetre(tx, tz):
+		return Vector2.ZERO
+	var i := _indice(tx, tz) / 2
+	return Vector2(_rdonnees[i], _rdonnees[i + 1])
+
+## Profondeur effective (m) au texel (fondu de fin compris), comme le shader.
+func profondeur(x: float, z: float) -> float:
+	var r := lire_relief(x, z)
+	return r.x * smoothstep(0.0, 1.0, clampf((r.y - t) / 10.0, 0.0, 1.0))
+
 ## Recentre la fenêtre sur `c` (x, z en m) : seules les bandes qui ENTRENT sont vidées (le reste est conservé).
 func _centrer(c: Vector2) -> void:
 	var nx := floori(c.x * RES) - N / 2
@@ -163,6 +234,7 @@ func _centrer(c: Vector2) -> void:
 	var dz := nz - _oz
 	if absi(dx) >= N or absi(dz) >= N:
 		_donnees.fill(0.0)
+		_rdonnees.fill(0.0)
 	else:
 		for k in absi(dx):
 			var tx := (nx + N - 1 - k) if dx > 0 else (nx + k)
@@ -172,6 +244,8 @@ func _centrer(c: Vector2) -> void:
 				_donnees[i + 1] = 0.0
 				_donnees[i + 2] = 0.0
 				_donnees[i + 3] = 0.0
+				_rdonnees[i / 2] = 0.0
+				_rdonnees[i / 2 + 1] = 0.0
 		for k in absi(dz):
 			var tz := (nz + N - 1 - k) if dz > 0 else (nz + k)
 			for tx in range(nx, nx + N):
@@ -180,6 +254,8 @@ func _centrer(c: Vector2) -> void:
 				_donnees[i + 1] = 0.0
 				_donnees[i + 2] = 0.0
 				_donnees[i + 3] = 0.0
+				_rdonnees[i / 2] = 0.0
+				_rdonnees[i / 2 + 1] = 0.0
 	_ox = nx
 	_oz = nz
 	_sale = true
@@ -204,7 +280,7 @@ func _suivre_joueur(j: Node3D) -> void:
 	var p := Vector2(j.global_position.x, j.global_position.z)
 	var cx := (_ox + N / 2) / RES
 	var cz := (_oz + N / 2) / RES
-	if absf(p.x - cx) > 4.0 or absf(p.y - cz) > 4.0:
+	if absf(p.x - cx) > 2.5 or absf(p.y - cz) > 2.5:   # la grille de relief (±7 m) reste dans la fenêtre (±10 m)
 		_centrer(p)
 
 static func _hash(tx: int, tz: int) -> float:
@@ -315,8 +391,116 @@ func _empreinte(pos: Vector3, dir: Vector2, gauche: bool, court: bool) -> void:
 				continue
 			var q := c + lat * (a * 0.045) + dir * (b * 0.05)
 			_ecrire_empreinte(q.x, q.y, -fin if bord else fin)
+	var cr := Vector2(pos.x, pos.z) + lat * ((0.21 if gauche else -0.21) if court else (0.17 if gauche else -0.17))
+	_relief_botte(cr, dir, gauche, court, Vector2(pos.x, pos.z))
 	stats["pas"] = int(stats["pas"]) + 1
 	_vivre(fin)
+
+# ------------------------------------------------------------------ relief : bottes, sillon, lèvre du trou de feu
+
+## Écrit un texel de relief : `amp` > 0 creuse, < 0 relève. Un creux vivant n'est jamais recouvert par un bourrelet ;
+## un creux plus profond remplace un creux moins profond ; l'eau et le sol sans neige n'en reçoivent jamais.
+func _relief_ecrire(tx: int, tz: int, amp: float, fin: float) -> void:
+	if not dans_fenetre(tx, tz) or not est_neige((tx + 0.5) / RES, (tz + 0.5) / RES):
+		return
+	var i := _indice(tx, tz) / 2
+	var vivant := _rdonnees[i + 1] > t
+	var a_old := _rdonnees[i] if vivant else 0.0
+	if amp > 0.0:
+		if a_old > 0.0 and a_old > amp:
+			_rdonnees[i + 1] = maxf(_rdonnees[i + 1], fin)   # déjà plus profond : on rafraîchit seulement
+			return
+	elif a_old > 0.0 or (a_old < 0.0 and a_old < amp):
+		return
+	_rdonnees[i] = amp
+	_rdonnees[i + 1] = fin
+	_boite = Vector4(minf(_boite.x, tx / RES - 0.1), minf(_boite.y, tz / RES - 0.1), maxf(_boite.z, (tx + 1) / RES + 0.1), maxf(_boite.w, (tz + 1) / RES + 0.1))
+	_relief_fin = maxf(_relief_fin, fin)
+	stats["texels"] = int(stats["texels"]) + 1
+
+## Forme d'une botte en coordonnées locales (u : latéral, v : vers l'avant, en m) : > 0 à l'intérieur (1 au centre d'une
+## ellipse). Avant-pied large, talon plus étroit, cambrure entre les deux.
+static func _forme_botte(u: float, v: float, e: float) -> float:
+	var avant := 1.0 - (pow(u / (0.105 * e), 2.0) + pow((v - 0.085 * e) / (0.135 * e), 2.0))
+	var talon := 1.0 - (pow(u / (0.08 * e), 2.0) + pow((v + 0.145 * e) / (0.095 * e), 2.0))
+	return maxf(avant, talon)
+
+## Bruit lent et déterministe (-1..1) : rebords irréguliers, tranchée qui serpente.
+static func _bruit(x: float, z: float) -> float:
+	return sin(x * 19.0 + z * 11.0) * sin(z * 17.0 - x * 9.0) * 0.6 + sin(x * 31.0 - z * 25.0) * 0.4
+
+## Garde le maximum d'une valeur par texel.
+static func _max_cell(d: Dictionary, k: Vector2i, v: float) -> void:
+	if v > float(d.get(k, 0.0)):
+		d[k] = v
+
+## Empreinte en relief : cuvette évasée en forme de botte (talon + avant-pied, rebord irrégulier) entourée d'un bourrelet
+## doux ; en course, plus profonde à l'avant-pied et reliée au pas précédent par une tranchée continue.
+func _relief_botte(c: Vector2, dir: Vector2, gauche: bool, court: bool, corps: Vector2) -> void:
+	var lat := Vector2(-dir.y, dir.x)
+	var e := 1.3 if court else 1.2
+	var amp := CREUX_COURSE if court else CREUX_MARCHE
+	var fin := t + DUREE_RELIEF
+	var creux: Dictionary = {}   # Vector2i -> profondeur (m)
+	var bourr: Dictionary = {}   # Vector2i -> hauteur du bourrelet (m)
+	var r := ceili(0.62 * e * RES) + 1
+	var c0 := Vector2i(floori(c.x * RES), floori(c.y * RES))
+	for dz in range(-r, r + 1):
+		for dx in range(-r, r + 1):
+			var k := Vector2i(c0.x + dx, c0.y + dz)
+			var p := Vector2((k.x + 0.5) / RES, (k.y + 0.5) / RES)
+			var q := p - c
+			var s := _forme_botte(q.dot(lat), q.dot(dir), e) + 0.14 * _bruit(p.x, p.y)
+			if s > 0.0:
+				var v := q.dot(dir) / e
+				var kv := 0.8 + 0.2 * clampf((v + 0.15) / 0.3, 0.0, 1.0) if court else 1.0 - 0.15 * clampf((v + 0.15) / 0.3, 0.0, 1.0)
+				_max_cell(creux, k, amp * kv * smoothstep(0.0, 0.9, s))
+			elif s > -1.0:
+				_max_cell(bourr, k, BOURRELET * (1.5 if court else 1.0) * sin(PI * -s))
+	if court:
+		_tranchee(corps, dir, creux, bourr, amp)
+	for k: Vector2i in creux:
+		_relief_ecrire(k.x, k.y, creux[k], fin)
+	for k: Vector2i in bourr:
+		if not creux.has(k):
+			_relief_ecrire(k.x, k.y, -bourr[k], fin)
+	_vivre(fin)
+
+## Tranchée continue de course : du centre du corps au pas précédent jusqu'au pas actuel (les deux pieds dedans),
+## largeur et profondeur irrégulières, neige projetée en bourrelet de chaque côté.
+func _tranchee(corps: Vector2, dir: Vector2, creux: Dictionary, bourr: Dictionary, amp: float) -> void:
+	var prec: Variant = _prec_pied.get(true)
+	_prec_pied[true] = {"pos": corps, "t": t}
+	if prec == null or t - float(prec["t"]) > 1.5:
+		return
+	var a: Vector2 = prec["pos"]
+	var d := corps - a
+	var L := d.length()
+	if L < 0.25 or L > 2.0 or d.dot(dir) < 0.7 * L:
+		return
+	var dn := d / L
+	var nl := Vector2(-dn.y, dn.x)
+	var larg := 0.2
+	var marge := 0.24
+	var r := ceili((larg + marge) * RES) + 1
+	var pas_n := int(L * RES * 1.5)
+	for i in pas_n:
+		var q0 := a.lerp(corps, (i + 0.5) / pas_n)
+		var c0 := Vector2i(floori(q0.x * RES), floori(q0.y * RES))
+		for dz in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				var k := Vector2i(c0.x + dx, c0.y + dz)
+				var p := Vector2((k.x + 0.5) / RES, (k.y + 0.5) / RES)
+				var along := (p - a).dot(dn)
+				if along < -0.1 or along > L + 0.1:
+					continue
+				var n := _bruit(p.x * 0.6, p.y * 0.6)
+				var dist := absf((p - a).dot(nl))
+				var w := larg * (1.0 + 0.18 * n)
+				if dist < w:
+					_max_cell(creux, k, amp * (0.62 + 0.12 * n) * (1.0 - smoothstep(0.0, w, dist)) )
+				elif dist < w + marge:
+					_max_cell(bourr, k, BOURRELET * 1.6 * (0.8 + 0.3 * n) * sin(PI * (dist - w) / marge))
 
 ## Cuvette d'atterrissage : disque de rayon `r`, creux au centre.
 func _cuvette(pos: Vector3, r: float) -> void:
@@ -398,6 +582,7 @@ func fondre(x: float, z: float, rayon: float, flaque := false, duree := -1.0) ->
 	var ecrits := 0
 	var cellule := Vector2i(-99999, -99999)
 	var neige := false
+	var fondus: Dictionary = {}
 	for dz in range(-n, n + 1):
 		for dx in range(-n, n + 1):
 			var tx := cx + dx
@@ -420,6 +605,17 @@ func fondre(x: float, z: float, rayon: float, flaque := false, duree := -1.0) ->
 				_donnees[i] = fin
 				_donnees[i + 1] = -dur if flaque else dur
 			ecrits += 1
+			fondus[Vector2i(tx, tz)] = true
+	# lèvre épaisse : la neige repoussée par la chaleur forme un bourrelet autour du trou (relief seulement)
+	var fin_lev := t + dur * 0.85
+	var vus: Dictionary = {}
+	for k: Vector2i in fondus:
+		for o: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)]:
+			var q := k + o
+			if not fondus.has(q) and not vus.has(q):
+				vus[q] = true
+				_relief_ecrire(q.x, q.y, -BOURRELET_FEU, fin_lev)
+	_relief_fin = maxf(_relief_fin, t + dur)
 	stats["fontes"] = int(stats["fontes"]) + 1
 	stats["texels"] = int(stats["texels"]) + ecrits
 	_vivre(t + dur)

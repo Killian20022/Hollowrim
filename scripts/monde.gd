@@ -514,6 +514,7 @@ func _terrain() -> void:
 	m.set_shader_parameter("monde_echelle", 0.11)
 	m.set_shader_parameter("tex_macro", Palette.texture_macro())
 	m.set_shader_parameter("macro_force", 1.0)
+	m.shader = Palette.shader_terrain()   # variante qui laisse la couche de neige en relief (CoucheNeige) creuser le sol
 	mat_terrain = m
 	# terrain découpé en morceaux : chacun reçoit ses propres lumières (8 max par objet
 	# avec le rendu Mobile) et les morceaux hors champ ne sont pas dessinés

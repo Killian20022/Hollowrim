@@ -189,6 +189,24 @@ static func shader_double_face() -> Shader:
 		_ps1_double.code = PS1.code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_disabled, cull_disabled;")
 	return _ps1_double
 
+static var _ps1_terrain: Shader
+static var _ps1_couche: Shader
+
+## Variante de ps1.gdshader pour le TERRAIN : troue le sol là où la couche de neige en relief est plus bas (couche_neige.gd).
+## Une variante à part : `discard` fait perdre le test de profondeur précoce, il ne doit pas toucher les autres matériaux.
+static func shader_terrain() -> Shader:
+	if _ps1_terrain == null:
+		_ps1_terrain = Shader.new()
+		_ps1_terrain.code = "#define RELIEF\n#define RELIEF_TERRAIN\n" + PS1.code
+	return _ps1_terrain
+
+## Variante pour la COUCHE de neige déformable (grille posée sur le sol, creusée dans le vertex shader).
+static func shader_couche() -> Shader:
+	if _ps1_couche == null:
+		_ps1_couche = Shader.new()
+		_ps1_couche.code = "#define RELIEF\n#define RELIEF_COUCHE\n" + PS1.code
+	return _ps1_couche
+
 static func materiau(base: Texture2D, echelle_uv := Vector2.ONE, teinte := Color.WHITE, double_face := false) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = shader_double_face() if double_face else PS1
