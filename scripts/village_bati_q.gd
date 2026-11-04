@@ -143,6 +143,11 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 		v._ajouter(p, BatiGeo.dalle_neige_epaisse(Lx, Sl, graine * 7 + int(cote) + 3, v.EPAISSEUR_NEIGE, 0.26, 0.2, Vector2.ZERO).surface_get_arrays(0), xf, v.m_toit)
 		var bord := xf * Vector3(0, -0.02, Sl + 0.16)
 		v._stalactites(p, -Lx * 0.5 + 0.3, Lx * 0.5 - 0.3, bord.y, bord.z, graine * 31 + int(cote))
+	# planches de rive sombres aux deux pignons (comme les toits du village) : ferment le jour entre la neige et les tuiles du kit
+	for cx in [-1.0, 1.0]:
+		var xr: float = cx * (Lx * 0.5 - 0.04)
+		for cz in [-1.0, 1.0]:
+			VillageBati.piece(v, p, Vector3(xr, faite_y + 0.12, 0), Vector3(xr, egout_y - 0.04, cz * (demi + 0.12)), Vector2(0.28, 0.1), Vector3(cx, 0, 0), v.m_colombage)
 	var roul := BatiGeo.rondin(Lx - 0.2, 0.3, graine + 11, 0.05, 0, 0.0, 1.0)
 	v._ajouter(p, (roul[0] as BatiGeo.Maillage).arrays(), Transform3D(Basis(), Rp + Vector3(0, 0.38, 0)), v.m_neige)
 	# vitrages des fenêtres (volets ouverts sur le vitrage du village : lueur chaude la nuit, comme les fenêtres d'origine)
