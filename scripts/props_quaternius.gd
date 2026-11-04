@@ -13,7 +13,7 @@ class_name PropsQuaternius
 const DAT := "res://assets/crypte/modules/props_quaternius.dat"
 
 ## Crypte : matières des props → matières de CrypteDecor (pierre → pierre_v2 par MAT_MODELE ; lin, jute, os, or… gardés : TUILE).
-const MATS_CRYPTE := {"fer": "fer_mat"}
+const MATS_CRYPTE := {"fer": "fer_mat", "herbe": "jute"}      # herbe (lot 4 : légumes, verre vert) : pas de matière verte dans la crypte
 
 ## `-- --sans-props-q` : rien n'est posé (captures « avant » et mesures A/B du coût, même lancement que le jeu).
 static var actif := not ("--sans-props-q" in OS.get_cmdline_user_args())
@@ -181,6 +181,11 @@ static func mats_village(v) -> Dictionary:
 			"or": TexturesBati.materiau("or", Color(1.0, 0.95, 0.85), 64.0, 0.3),
 			"argile": TexturesBati.materiau("argile", Color(1.05, 0.95, 0.9), 64.0, 0.4)}
 		_mats_v["laine"] = _mats_v["lin"]
+		# lot 4 : nourriture des étals (mats {"laine": "laine_q", "herbe": "herbe"}) : laine rouge sourde et foin teinté vert
+		if not TexturesBati._cache.has("laine"):
+			TexturesBati._cache["laine"] = [ImageTexture.create_from_image(ResourceLoader.load("res://assets/crypte/laine.res")), TexturesBati.relief_neutre()]
+		_mats_v["laine_q"] = TexturesBati.materiau("laine", Color(0.92, 0.86, 0.84), 64.0, 0.4)
+		_mats_v["herbe"] = TexturesBati.m_foin_e(Color(0.55, 0.78, 0.45))
 		_mats_v["toile"] = _mats_v["lin"]
 	return _mats_v
 

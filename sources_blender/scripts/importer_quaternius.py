@@ -51,6 +51,7 @@ RAMPES = {
     "toile": ["#1b2a52", "#2a4382", "#4468ac", "#7b9ad0"],      # laine bleue : la « toile » du jeu (à vérifier en jeu)
     "noir": ["#14161a", "#0f0b08"],
     "os": ["#8e8688", "#b9ae9f", "#dbd0b6", "#efe7d0"],          # os, cire (même rampe Écru que le lin, autre matière en jeu)
+    "herbe": ["#10272a", "#1a3d32", "#2c5a41", "#5b866f", "#6e9172"],   # lot 4 : légumes verts, verre de bouteille (Interieurs « herbe », village : foin teinté)
 }
 # Familles : le nom du matériau Quaternius (trim sheets des megakits) restreint les matières candidates
 FAMILLES = {"metal": ("fer", "or", "noir"), "furniture": ("bois", "fer", "or", "lin", "laine", "noir"),
@@ -318,8 +319,11 @@ def adapter(e):
         m = max(d, key=lambda k: d[k][0])
         choix[il] = (m, d[m][1] / d[m][0])
     for (p, col, mn, il), (m0, ton0) in zip(tris, cl):
-        m, tmoy = choix[il]
-        ton = tmoy + 0.35 * ((ton0 if m0 == m else tmoy) - tmoy)      # garde un peu de la variation de la texture, sans taches
+        if e.get("par_mat"):      # lot 4 : FBX à couleurs unies par matériau (Dungeon, Survival, Food) : matière du matériau, pas de vote par îlot
+            m, ton = m0, ton0
+        else:
+            m, tmoy = choix[il]
+            ton = tmoy + 0.35 * ((ton0 if m0 == m else tmoy) - tmoy)      # garde un peu de la variation de la texture, sans taches
         if e.get("forcer", {}).get(m):
             m = e["forcer"][m]
         stat[m] = stat.get(m, 0) + 1

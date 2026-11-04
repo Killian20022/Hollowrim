@@ -1,0 +1,64 @@
+q_os_tas               src   788 ->  498 tris (budget  500) ->  498 apres aretes  0.43x0.21x0.33 m  os:498
+q_os_tas_2             src   576 ->  400 tris (budget  400) ->  400 apres aretes  0.29x0.14x0.37 m  os:400
+q_roc_1                src    24 ->   24 tris (budget   60) ->   68 apres aretes  0.43x0.21x0.58 m  pierre:24
+q_roc_2                src    20 ->   20 tris (budget   60) ->   52 apres aretes  0.54x0.21x0.53 m  pierre:20
+q_roc_3                src    28 ->   28 tris (budget   60) ->   60 apres aretes  0.41x0.21x0.53 m  pierre:28
+q_roc_4                src    20 ->   20 tris (budget   60) ->   52 apres aretes  0.43x0.25x0.41 m  pierre:20
+q_roc_5                src     8 ->    8 tris (budget   60) ->   24 apres aretes  0.31x0.16x0.26 m  pierre:8
+q_colonne_brisee       src   140 ->  140 tris (budget  200) ->  252 apres aretes  0.61x0.62x1.11 m  pierre:140
+q_colonne_brisee_2     src   172 ->  172 tris (budget  200) ->  300 apres aretes  0.90x1.28x0.90 m  pierre:172
+q_fiole_1              src   444 ->  160 tris (budget  160) ->  160 apres aretes  0.09x0.17x0.08 m  toile:76 or:58 bois:26
+q_fiole_2              src   372 ->  159 tris (budget  160) ->  159 apres aretes  0.07x0.16x0.07 m  fer:111 laine:34 bois:14
+q_fiole_3              src   478 ->  160 tris (budget  160) ->  160 apres aretes  0.07x0.16x0.08 m  toile:129 fer:31
+q_fiole_4              src   232 ->  120 tris (budget  120) ->  120 apres aretes  0.02x0.14x0.02 m  fer:55 bois:33 laine:32
+q_fiole_5              src   162 ->  118 tris (budget  120) ->  118 apres aretes  0.07x0.12x0.07 m  fer:61 bois:31 laine:26
+q_fiole_6              src   292 ->  160 tris (budget  160) ->  160 apres aretes  0.11x0.15x0.11 m  or:141 bois:19
+q_livre_d1             src   888 ->   76 tris (budget  200) ->   76 apres aretes  0.24x0.10x0.25 m  lin:38 laine:32 noir:6
+q_livre_d2             src   888 ->  100 tris (budget  200) ->  100 apres aretes  0.24x0.13x0.20 m  laine:48 lin:48 noir:4
+q_livre_ouvert         src   888 ->   56 tris (budget  200) ->   56 apres aretes  0.24x0.03x0.27 m  lin:36 laine:18 noir:2
+q_tapis                src   158 ->  158 tris (budget  160) ->  294 apres aretes  1.27x0.15x3.21 m  laine:118 or:40
+q_coffre_d             src   336 ->  336 tris (budget  340) ->  392 apres aretes  0.45x0.57x0.67 m  bois:158 fer:152 noir:26
+q_coffre_or            src   436 ->  436 tris (budget  440) ->  556 apres aretes  0.47x0.69x0.67 m  bois:158 fer:152 or:100 noir:26
+q_candelabre_d         src   988 ->  600 tris (budget  600) ->  792 apres aretes  0.84x1.65x0.81 m  fer:454 os:131 noir:15
+q_bougie_d             src   272 ->  200 tris (budget  200) ->  200 apres aretes  0.09x0.27x0.11 m  fer:166 os:29 noir:5
+q_tente                src   788 ->  492 tris (budget  700) ->  532 apres aretes  2.92x2.06x4.97 m  jute:236 bois:224 noir:32
+q_feu_bois             src   616 ->  450 tris (budget  450) ->  530 apres aretes  0.98x0.30x0.89 m  bois:450
+q_piege_ours           src   608 ->  350 tris (budget  350) ->  350 apres aretes  0.39x0.09x0.46 m  fer:350
+q_piege_ours_ferme     src   608 ->  350 tris (budget  350) ->  350 apres aretes  0.37x0.22x0.46 m  fer:350
+q_marmite_camp         src   326 ->  260 tris (budget  260) ->  260 apres aretes  0.38x0.23x0.45 m  noir:184 fer:76
+q_marmite_camp_petite  src   326 ->  260 tris (budget  260) ->  260 apres aretes  0.26x0.09x0.31 m  noir:184 fer:76
+q_poele                src   246 ->  200 tris (budget  200) ->  200 apres aretes  0.28x0.05x0.45 m  noir:166 bois:24 fer:10
+q_poele_petite         src   246 ->  199 tris (budget  200) ->  199 apres aretes  0.19x0.04x0.35 m  noir:160 bois:28 fer:11
+q_hache_camp           src   236 ->  162 tris (budget  200) ->  162 apres aretes  0.32x0.81x0.05 m  laine:92 bois:54 fer:16
+q_hachette             src   176 ->  120 tris (budget  160) ->  120 apres aretes  0.20x0.54x0.03 m  bois:60 fer:60
+q_pelle                src   322 ->  220 tris (budget  220) ->  220 apres aretes  0.23x1.08x0.05 m  fer:190 bois:30
+q_couteau_camp         src   450 ->  160 tris (budget  160) ->  160 apres aretes  0.04x0.25x0.01 m  fer:90 bois:70
+q_rondin               src   202 ->  170 tris (budget  200) ->  226 apres aretes  1.39x0.40x0.41 m  bois:170
+q_pomme                src   440 ->   89 tris (budget   90) ->   89 apres aretes  0.08x0.08x0.08 m  laine:72 bois:9 herbe:8
+q_pomme_verte          src   440 ->   89 tris (budget   90) ->   89 apres aretes  0.08x0.08x0.08 m  herbe:80 bois:9
+q_pain                 src   412 ->  124 tris (budget  160) ->  124 apres aretes  0.17x0.21x0.30 m  bois:124
+q_tranche_pain         src   368 ->  110 tris (budget  120) ->  110 apres aretes  0.17x0.21x0.03 m  bois:76 jute:34
+q_carotte_f            src   864 ->  160 tris (budget  160) ->  160 apres aretes  0.07x0.20x0.07 m  herbe:138 argile:22
+q_cuisse               src   288 ->  140 tris (budget  140) ->  140 apres aretes  0.18x0.08x0.08 m  argile:76 os:64
+q_marmite_soupe        src   260 ->  220 tris (budget  220) ->  220 apres aretes  0.51x0.23x0.42 m  fer:212 argile:8
+q_marmite_soupe_2      src   260 ->  220 tris (budget  220) ->  220 apres aretes  0.48x0.13x0.42 m  fer:212 argile:8
+q_oeuf                 src   288 ->   60 tris (budget   60) ->   60 apres aretes  0.05x0.06x0.05 m  lin:60
+q_oeuf_blanc           src   288 ->   60 tris (budget   60) ->   60 apres aretes  0.05x0.06x0.05 m  lin:60
+q_poisson              src   438 ->  198 tris (budget  200) ->  198 apres aretes  0.40x0.03x0.13 m  jute:87 fer:57 lin:54
+q_aretes               src   588 ->  200 tris (budget  200) ->  200 apres aretes  0.25x0.04x0.11 m  os:200
+q_jarre                src   216 ->  160 tris (budget  160) ->  160 apres aretes  0.29x0.30x0.28 m  argile:88 lin:48 laine:24
+q_champignon           src    92 ->   60 tris (budget   60) ->   60 apres aretes  0.05x0.06x0.06 m  jute:60
+q_citrouille           src   644 ->  198 tris (budget  200) ->  198 apres aretes  0.34x0.21x0.35 m  argile:186 bois:12
+q_saucisse             src   140 ->   60 tris (budget   60) ->   60 apres aretes  0.03x0.03x0.18 m  argile:60
+q_saucisse_crue        src   140 ->   60 tris (budget   60) ->   60 apres aretes  0.03x0.03x0.18 m  laine:60
+q_viande               src   412 ->  160 tris (budget  160) ->  160 apres aretes  0.15x0.04x0.22 m  lin:142 laine:18
+q_navet                src   976 ->  180 tris (budget  180) ->  180 apres aretes  0.11x0.22x0.11 m  herbe:146 lin:30 laine:4
+q_chou                 src   592 ->  200 tris (budget  200) ->  200 apres aretes  0.20x0.16x0.20 m  herbe:200
+q_lard                 src   564 ->  120 tris (budget  120) ->  120 apres aretes  0.20x0.00x0.05 m  lin:62 laine:58
+q_bouteille_1          src   220 ->  120 tris (budget  120) ->  120 apres aretes  0.08x0.30x0.08 m  herbe:92 bois:22 lin:6
+q_bouteille_2          src   220 ->  120 tris (budget  120) ->  120 apres aretes  0.09x0.31x0.09 m  noir:66 bois:28 laine:24 lin:2
+q_ecuelle              src   156 ->  100 tris (budget  100) ->  100 apres aretes  0.23x0.03x0.24 m  bois:100
+q_ecuelle_2            src   196 ->  100 tris (budget  100) ->  100 apres aretes  0.27x0.03x0.28 m  argile:100
+q_cuillere_bois        src   128 ->   59 tris (budget   60) ->   59 apres aretes  0.04x0.01x0.18 m  bois:59
+q_fourchette_f         src   188 ->   60 tris (budget   60) ->   60 apres aretes  0.02x0.00x0.18 m  fer:60
+q_couteau_f            src   112 ->   36 tris (budget   40) ->   36 apres aretes  0.02x0.00x0.20 m  fer:36
