@@ -20,7 +20,7 @@ blender.exe -b --python sources_blender/scripts/pq_convertir.py -- liste=sources
 
 Côté Godot : `scripts/persos_quat.gd` (`PersosQuat.creer("pq_loup")`) pose `shaders/ps1_perso.gdshader` (grille d'écran 135, affine, liseré froid) sur le maillage, crée l'AnimationPlayer « Animations » (contrat des ennemis) et ajoute les alias `Jog_Fwd`/`Sprint` (= Run), `Sword_Idle` (= Idle), `Death01` (= Death), `Hit_Chest` (= Hit) que demandent `EnnemiBase._bouger` / `_jouer` et `Humain`.
 
-## 2. Convertis (11)
+## 2. Convertis (7 restants, géant/démon/squelette/spectre retirés)
 
 | id | Source (licence) | Rôle proposé | Triangles | Hauteur | Clips |
 |---|---|---|---|---|---|
@@ -89,6 +89,12 @@ Peasant H/F x 3, Ranger H/F x 2 (avec / sans capuche), 6 coupes et teintes de ch
 - `parts` : teinte par pièce / matériau / clarté (la chemise crème devient laine teinte terne, à la luminance de la cible) ;
 - `boue` : boue brune au bas (jambes, bottes) + éclaboussures ; `usure` : variation de valeur par face ;
 - import FBX (packs « Ultimate ») et clips en plus `Eat`, `Idle_2`, `Jump`.
+- contre le rendu lisse « pâte à modeler » (bêtes v2, 2026-11-04) : `facettes: true` (ombrage PLAT, une normale par face : les facettes
+  se lisent sous le lambert du jeu) ; `gonfler: [{"os": regex, "d": m}]` (sommets de ces os poussés le long de la normale : pattes de
+  l'araignée épaissies) ; dans `parts`, conditions `os` (os dominant de la face) et `nz_min`/`nz_max` (orientation : dos vers le ciel, ventre
+  vers le sol) ; `taches: [{"os", "part", "couleur", "force", "graine"}]` (faces tirées au hasard : poils, taches).
+  Araignée v2 (`persos.json`) : 1 500 triangles facettés, brun-noir de grotte, segment médian des pattes plus clair (articulations lisibles),
+  taches sur l'abdomen ; cerf / biches v2 (`habitants.json`) : dos plus sombre, ventre clair, pattes foncées, virage plus froid.
 Commande : `blender.exe -b --python sources_blender/scripts/pq_convertir.py -- liste=sources_blender/persos_quaternius/habitants.json sortie=assets/modeles/persos_quat [seulement=…]`
 
 ### Bêtes et faune (`scripts/bete_quat.gd`, `BeteQuat extends EnnemiBase`)

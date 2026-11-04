@@ -264,6 +264,60 @@ def teindre(c, vers, force, val=1.0):
     return tuple(c[i] * (1 - force) + tc[i] * force for i in range(3))
 
 
+_OS = {}
+
+
+def os_face(o, p):
+    """Nom de l'os qui pèse le plus sur la face (somme des poids de ses sommets) ; '' sans groupes."""
+    cle = o.name
+    if cle not in _OS:
+        noms = {g.index: g.name for g in o.vertex_groups}
+        dom = []
+        for v in o.data.vertices:
+            best, bn = 0.0, ""
+            for g in v.groups:
+                if g.weight > best and g.group in noms:
+                    best, bn = g.weight, noms[g.group]
+            dom.append(bn)
+        _OS[cle] = dom
+    dom = _OS[cle]
+    compte = {}
+    for vi in p.vertices:
+        compte[dom[vi]] = compte.get(dom[vi], 0) + 1
+    return max(compte, key=compte.get) if compte else ""
+
+
+def gonfler(o, regles):
+    """« gonfler » : [{"os": regex, "d": m}] — sommets dont l'os dominant correspond poussés le long de leur normale (pattes plus épaisses)."""
+    noms = {g.index: g.name for g in o.vertex_groups}
+    me = o.data
+    ech = max(o.matrix_world.to_scale()) or 1.0          # d en mètres monde
+    for v in me.vertices:
+        best, bn = 0.0, ""
+        for g in v.groups:
+            if g.weight > best and g.group in noms:
+                best, bn = g.weight, noms[g.group]
+        for r in regles:
+            if bn and re.search(r["os"], bn):
+                v.co = v.co + v.normal * (r["d"] / ech)
+                break
+    me.update()
+
+
+def facetter(o):
+    """« facettes » : ombrage PLAT (une normale par face) -> facettes lisibles sous le lambert du jeu, plus de rendu lissé « pâte »."""
+    me = o.data
+    for p in me.polygons:
+        p.use_smooth = False
+    if hasattr(me, "has_custom_normals") and me.has_custom_normals:
+        bpy.context.view_layer.objects.active = o
+        try:
+            bpy.ops.mesh.customdata_custom_splitnormals_clear()
+        except Exception as e:
+            print("normales perso", e)
+    me.update()
+
+
 def salir(o, p, cfg, gradé, brut, z, zmin, hauteur, nom_mat):
     """Salissure (2026-11-04, persos/quaternius_jeu) : teintes par pièce (« parts »), boue au bas (« boue »), usure par face (« usure »)."""
     for r in cfg.get("parts", []):
@@ -276,6 +330,12 @@ def salir(o, p, cfg, gradé, brut, z, zmin, hauteur, nom_mat):
             continue
         zr = (z - zmin) / max(hauteur, 1e-3)              # « z_min » / « z_max » : bande de hauteur (fraction de la taille), ex. tabard
         if zr < r.get("z_min", -1.0) or zr > r.get("z_max", 2.0):
+            continue
+        if "nz_min" in r or "nz_max" in r:                  # « nz_min » / « nz_max » : orientation de la face (dos vers le ciel, ventre vers le sol)
+            nz = (o.matrix_world.to_3x3() @ p.normal).normalized().z
+            if nz < r.get("nz_min", -2.0) or nz > r.get("nz_max", 2.0):
+                continue
+        if r.get("os") and not re.search(r["os"], os_face(o, p)):   # « os » : os dominant de la face (pattes, abdomen…)
             continue
         if "r_max" in r:                                    # « r_max » : distance à l'axe vertical (fraction de la taille) : tronc sans les bras en T
             pc = o.matrix_world @ p.center
@@ -292,6 +352,11 @@ def salir(o, p, cfg, gradé, brut, z, zmin, hauteur, nom_mat):
             k = max(k, min(1.0, k + 0.45))
         if k > 0.0:
             gradé = teindre(gradé, b.get("couleur", "#3b3322"), b.get("force", 0.6) * k, 1.0 - 0.35 * k)
+    for t in cfg.get("taches", []):                       # taches / poils : faces tirées au hasard, teintes vers une couleur
+        if t.get("os") and not re.search(t["os"], os_face(o, p)):
+            continue
+        if _hash(p.index, t.get("graine", 11)) > 1.0 - t.get("part", 0.15):
+            gradé = teindre(gradé, t["couleur"], t.get("force", 0.6), t.get("val", 1.0))
     u = cfg.get("usure", 0.0)
     if u:
         f = 1.0 + (_hash(p.index, 3) - 0.5) * 2.0 * u
@@ -554,7 +619,11 @@ def convertir(item, sortie):
     zmin, zmax = etendue(meshes, arm)
     haut = zmax - zmin
     for o in meshes:
+        if item.get("gonfler"):
+            gonfler(o, item["gonfler"])
         colorier(o, item, zmin, haut)
+        if item.get("facettes"):
+            facetter(o)
     if item.get("rot_x"):            # rig dont l'export Blender perd une rotation de 90° de l'os Root (démon) : on la remet sur l'armature
         for o in meshes:
             if o.parent != arm:

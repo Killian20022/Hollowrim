@@ -761,24 +761,78 @@
   "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/ultimate_animated_animals/FBX/Stag.fbx",
   "hauteur": 1.95,
   "budget": 2800,
-  "sat": 0.6,
+  "sat": 0.45,
   "val": 0.77,
-  "froid": 0.15,
+  "froid": 0.25,
   "pied": 0.6,
-  "usure": 0.08,
-  "accroche": "pnj"
+  "usure": 0.18,
+  "accroche": "pnj",
+  "facettes": true,
+  "parts": [
+   {
+    "nz_min": 0.45,
+    "z_min": 0.3,
+    "vers": "#483729",
+    "force": 0.6
+   },
+   {
+    "nz_max": -0.35,
+    "vers": "#9d8d7a",
+    "force": 0.6
+   },
+   {
+    "os": "LowerLeg|UpperLeg|BackLeg\\.",
+    "vers": "#3c2d22",
+    "force": 0.75
+   }
+  ],
+  "taches": [
+   {
+    "part": 0.12,
+    "couleur": "#6c5745",
+    "force": 0.4,
+    "graine": 21
+   }
+  ]
  },
  {
   "nom": "pq_biche",
   "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/ultimate_animated_animals/FBX/Deer.fbx",
   "hauteur": 1.45,
   "budget": 2400,
-  "sat": 0.6,
+  "sat": 0.45,
   "val": 0.77,
-  "froid": 0.15,
+  "froid": 0.25,
   "pied": 0.6,
-  "usure": 0.08,
-  "accroche": "pnj"
+  "usure": 0.18,
+  "accroche": "pnj",
+  "facettes": true,
+  "parts": [
+   {
+    "nz_min": 0.45,
+    "z_min": 0.3,
+    "vers": "#483729",
+    "force": 0.6
+   },
+   {
+    "nz_max": -0.35,
+    "vers": "#9d8d7a",
+    "force": 0.6
+   },
+   {
+    "os": "LowerLeg|UpperLeg|BackLeg\\.",
+    "vers": "#3c2d22",
+    "force": 0.75
+   }
+  ],
+  "taches": [
+   {
+    "part": 0.12,
+    "couleur": "#6c5745",
+    "force": 0.4,
+    "graine": 21
+   }
+  ]
  },
  {
   "nom": "pq_renard",

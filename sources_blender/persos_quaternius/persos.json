@@ -125,9 +125,74 @@
   "nom": "pq_araignee",
   "src": "C:/Users/lopezk19/Jeux/references/quaternius_persos/polypizza_cc0/Spider_yRYJiAJyiM.glb",
   "hauteur": 1.1,
-  "budget": 2800,
-  "sat": 0.5,
-  "val": 0.75
+  "budget": 1500,
+  "sat": 0.45,
+  "val": 0.6,
+  "froid": 0.15,
+  "pied": 0.8,
+  "accroche": "pnj",
+  "facettes": true,
+  "gonfler": [
+   {
+    "os": "Leg\\.",
+    "d": 0.03
+   },
+   {
+    "os": "Leg2\\.",
+    "d": 0.024
+   },
+   {
+    "os": "Leg3\\.",
+    "d": 0.012
+   }
+  ],
+  "parts": [
+   {
+    "os": "Thorax|Head|Body",
+    "vers": "#29201a",
+    "force": 0.85
+   },
+   {
+    "os": "Abdomen",
+    "vers": "#352523",
+    "force": 0.85
+   },
+   {
+    "os": "Leg",
+    "vers": "#29201a",
+    "force": 0.85
+   },
+   {
+    "os": "Leg2\\.",
+    "vers": "#483729",
+    "force": 0.55
+   }
+  ],
+  "taches": [
+   {
+    "os": "Abdomen",
+    "part": 0.22,
+    "couleur": "#55452f",
+    "force": 0.7,
+    "graine": 5
+   },
+   {
+    "os": "Abdomen|Thorax",
+    "part": 0.15,
+    "couleur": "#1c1512",
+    "force": 0.6,
+    "graine": 9
+   },
+   {
+    "os": "Leg",
+    "part": 0.2,
+    "couleur": "#3c2d22",
+    "force": 0.5,
+    "graine": 13
+   }
+  ],
+  "usure": 0.25,
+  "note": "v2 2026-11-04 : facettes plates, pattes épaissies (gonfler), brun-noir de grotte, taches et poils en couleurs de sommet"
  },
  {
   "nom": "pq_cerf",
