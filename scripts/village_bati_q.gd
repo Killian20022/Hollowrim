@@ -20,6 +20,29 @@ const MODELES := {"36,53": "b_h1", "54,55.5": "b_h2", "54,77": "b_h4", "35.5,71"
 static func detail(nom: String) -> bool:
 	return actif and PropsQuaternius.existe(nom)
 
+## Teinte du cadre des vitrages Quaternius (couleur de sommet lue par ps1_vitre) : bois sombre et froid des rondins, au lieu du brun
+## orangé du vitrage (qui, sur les grandes baies du kit, faisait de gros cadres orange).
+const TEINTE_CADRE := Color(0.5, 0.56, 0.78)
+
+## Vitrage dans le lot `_vitres` du village (même matière, même lueur réglée par l'heure que les autres fenêtres), cadre teinté.
+static func vitre(v, parent: Node3D, pos: Vector3, taille: Vector2, lacet: float) -> void:
+	if v._sans_refonte:
+		v._vitre(parent, pos, taille, lacet)
+		return
+	var hx := taille.x * 0.5
+	var hy := taille.y * 0.5
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3(-hx, -hy, 0), Vector3(hx, hy, 0), Vector3(hx, -hy, 0), Vector3(-hx, -hy, 0), Vector3(-hx, hy, 0), Vector3(hx, hy, 0)])
+	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.BACK, Vector3.BACK, Vector3.BACK, Vector3.BACK, Vector3.BACK, Vector3.BACK])
+	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(0, 1), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1), Vector2(0, 0), Vector2(1, 0)])
+	var c := PackedColorArray()
+	c.resize(6)
+	c.fill(TEINTE_CADRE)
+	arrays[Mesh.ARRAY_COLOR] = c
+	var xf: Transform3D = (parent.transform if parent.get_parent() == v else (v.transform.affine_inverse() * parent.global_transform)) * Transform3D(Basis(Vector3.UP, lacet), pos)
+	v._ajouter(v._vitres, arrays, xf, v.m_vitre_ext, false)
+
 ## Cheminée Quaternius (Prop_Chimney2) à la place de la souche de pierre faite maison : même pied (`y_base`), même hauteur (`h_ch`).
 static func cheminee(v, p: Node3D, xch: float, y_base: float, h_ch: float) -> void:
 	var nom := "bq_cheminee_2"
@@ -124,7 +147,9 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	v._ajouter(p, (roul[0] as BatiGeo.Maillage).arrays(), Transform3D(Basis(), Rp + Vector3(0, 0.38, 0)), v.m_neige)
 	# vitrages des fenêtres (volets ouverts sur le vitrage du village : lueur chaude la nuit, comme les fenêtres d'origine)
 	for w: Array in m.get("vitres", []):
-		v._vitre(p, Vector3(w[0], y_sol + float(w[1]), w[2]), Vector2(w[3], w[4]), w[5])
+		vitre(v, p, Vector3(w[0], y_sol + float(w[1]), w[2]), Vector2(w[3], w[4]), w[5])
+	# âme sombre : l'intérieur de la façade est vide ; sans elle, de près, on voyait à travers les vitrages translucides
+	v._boite(p, Vector3(L - 0.3, y0 - y_sol - 0.1, W - 0.3), Transform3D(Basis(), Vector3(0, (y0 + y_sol) * 0.5, 0)), v.m_poutres)
 	# têtes de dragon (identité nordique gardée) sur les pignons des maisons qui en avaient
 	if o.get("dragons", false):
 		for cote in [-1.0, 1.0]:
