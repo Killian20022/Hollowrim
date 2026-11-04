@@ -82,7 +82,7 @@ Recovery (pas d'attaque infinie).
 | Lourd : grand arc (après la charge) | 0,06 s | — | 0,14 (×2,8) | 0,10 | 0,46 | ×1 (+charge) + tassement |
 
 La lame blesse sur toute la frappe (fenêtre 0 → 100 %, estoc 25 → 100 %).
-Durées divisées par `vitesse` de l'arme. Combo : 1 → 2 → 3 → 1 ; il repart de 1 après 0,9 s sans coup.
+Durées divisées par `vitesse` de l'arme. Combo STRICT (2026-11-03) : le n-ième clic joue TOUJOURS combo[(n-1) % taille] (épée : coup_a6, coup_b6, coup_t6, coup_c6), sans miroir ni variante ; un clic pendant un coup est mis en tampon (il ne vieillit pas tant que le coup dure) ; le compteur repart de 1 après le dernier coup, après une pause ≥ 2 s (`mains.PAUSE_COMBO`), au changement d'arme, à la mort ; jamais sur un coup bloqué (mur, parade ennemie), une garde, un puissant, une contre-attaque ou un finisher. Test : `test_combo_ordre`.
 Charge : seuil 0,28 s d'appui, plafond atteint 0,9 s plus tard ; dégâts lourds × (1 → 1,3) selon la charge ;
 à pleine charge : tintement discret, reflet sur la lame, léger tremblement.
 
@@ -465,7 +465,7 @@ Les gestes contextuels suivent les mêmes règles écran : `diag_gd` (revers) a 
 gauche, finit en bas à droite, lame levée — un miroir du coup 1 tordrait le bras droit), `horizontale` est le miroir de
 `horizontale_gd`, l'estoc pousse la main de la hanche droite vers le centre, lame à ≥ 50° du regard.
 Fenêtres de combo par geste (début en s, fin en part de la récupération) : diagonales et horizontales 0,05 → 90 % ;
-vertical léger 0,06 → 85 % ; estoc 0,06 → 80 % ; lourd 0,08 → 80 %. Un appui hors fenêtre relance le combo au geste 1.
+vertical léger 0,06 → 85 % ; estoc 0,06 → 80 % ; lourd 0,08 → 80 %. Un appui hors fenêtre ne relance PLUS le combo (combo strict : seule une pause ≥ 2 s le fait) ; la fenêtre ne règle que la fluidité de la transition (préparation plus courte / plus longue si la lame finit du côté opposé).
 
 | Geste | Préparation | Tenue | Frappe | Suivi | Récupération |
 |---|---|---|---|---|---|

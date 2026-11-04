@@ -201,12 +201,12 @@ func _tester() -> void:
 			mains.avancer(1.0 / 60.0)
 	j.velocity = Vector3.ZERO
 	_verif(suite == combo_ref.slice(0, 3), "pas à droite enchaîné = combo : %s" % [suite])
-	# hors de la fenêtre de combo, le combo repart du premier geste
+	# après une VRAIE pause (≥ 2 s, mains.PAUSE_COMBO), le combo repart du premier geste (depuis la fin du coup ; 1,2 s : il continue au coup 2)
 	await _reset(Vector3.ZERO, 0.0)
 	mains.entrees.appuyer()
 	await _simuler(0.05, 1.0 / 60.0)
 	mains.entrees.relacher()
-	await _simuler(1.2, 1.0 / 60.0)
+	await _simuler(3.2, 1.0 / 60.0)
 	mains.entrees.appuyer()
 	for k in 3:
 		mains.avancer(1.0 / 60.0)

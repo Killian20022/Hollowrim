@@ -13,6 +13,19 @@ extends Node3D
 ##   RetourCoups       sons, étincelles, arrêt sur image, secousse
 ## Ce script orchestre : il lit les entrées, fait avancer la machine à états, choisit et cadence le clip du bras droit
 ## (fondus courts), pose la couche additive des mouvements passifs, l'IK de la main gauche (torche) et lance le tracé.
+##
+## COMBO D'ÉPÉE STRICT (exigence utilisateur, 2026-11-03) : le coup LÉGER joué au n-ième clic est TOUJOURS combo[(n-1) % taille]
+## (épée à une main : coup_a6, coup_b6, coup_t6, coup_c6, puis retour au 1er), sans AUCUNE substitution (ni miroir, ni variante
+## contextuelle de souris / déplacement). Le compteur `_combo` ne change QUE :
+##   - +1 à la fin d'un coup léger, qu'il ait été au bout ou arrêté (mur, parade ennemie, bouclier : rebond) ; modulo la taille du combo ;
+##   - retour au coup 1 : après le dernier coup (modulo), après une VRAIE pause d'au moins PAUSE_COMBO (2 s) sans attaquer
+##     (mesurée depuis la fin du dernier coup), au changement d'arme / rengainage (_sur_equipement), à la mort, au chargement
+##     d'une partie (mains neuves) ;
+##   - JAMAIS remis à zéro par : fenêtre d'enchaînement manquée, garde qui annule un coup en préparation, contre-attaque, finisher,
+##     coup puissant (clic maintenu : il ne touche pas au compteur des légers), coup bloqué par un mur ou par une parade ennemie.
+## Un clic pendant un coup est gardé en TAMPON (un seul, EntreesCombat.gele : il ne vieillit pas tant que le coup dure) et
+## lance le coup suivant dès que la machine à états l'accepte. Si le coup suivant part du côté opposé à celui où la lame a fini,
+## la transition s'adapte (préparation plus longue + départ depuis la pose courante), jamais le coup.
 ## L'interface publique d'avant est conservée : etat (ancien enum, lu par corps_joueur.gd), bloque, temps_garde,
 ## torche_sortie, _puissant, attaquer(), encaisser(), pivot_epee, pivot_torche, porte_torche, _accroche_d/_g.
 
@@ -33,6 +46,10 @@ const CHARGE_MAX := 0.9
 const FENETRE_PARADE := DefenseJoueur.FENETRE_PARADE
 ## Fenêtre de combo par défaut (un geste sans « enchainement ») : début (s) et fin (part de la récupération).
 const DELAI_COMBO := 0.06
+## Pause sans attaquer (s, depuis la fin du dernier coup léger) au-delà de laquelle le combo repart du coup 1.
+const PAUSE_COMBO := 2.0
+## Allongement de la préparation quand le coup suivant part du côté opposé à la fin du précédent (la lame traverse l'écran).
+const PREP_COTE_OPPOSE := 1.3
 ## Mouvement de souris récent (pixels, oubli exponentiel ~0,1 s) au-delà duquel il choisit la direction du coup.
 const SEUIL_SOURIS := 40.0
 ## Vitesses locales du joueur (m/s) qui choisissent la direction : de côté → horizontal, en avant → vertical,
@@ -139,6 +156,9 @@ var _g_lisse_ok := false
 var _geste := {}
 var _geste_nom := ""
 var _combo := 0
+## Appui (EntreesCombat.appui_debut) qui a lancé le coup léger en cours (-1 = pas de restriction) : un clic ultérieur pendant
+## le coup ne le fige pas et ne le transforme pas en charge, il est seulement mis en tampon.
+var _appui_coup := -1.0
 ## Côté où le dernier coup a fini (+1 droite, -1 gauche, 0 centre) et dernier geste : continuité des enchaînements.
 var _cote_fin := 0
 var _geste_prec := ""
@@ -449,6 +469,7 @@ func _repere(racine: Node3D, nom: String) -> Vector3:
 
 func _sur_equipement(main: String) -> void:
 	if main == "droite":
+		reinitialiser_combo()
 		_installer_arme()
 		if combat.calme():
 			combat.changer(EtatCombat.EQUIPER)
@@ -829,24 +850,25 @@ func _commencer_attaque(enchaine := false) -> void:
 	if _tenter_finisher():
 		return
 	if not enchaine:
-		_combo = 0
 		_cote_fin = 0
 		_geste_prec = ""
+	if _depuis_coup >= PAUSE_COMBO:
+		_combo = 0   # vraie pause (≥ 2 s sans attaquer) : le combo repart du coup 1 (seul cas, avec le changement d'arme)
 	if not combat.changer(EtatCombat.ATTAQUE_LEGERE):
 		return
+	_appui_coup = entrees.appui_debut
 	var c := _choisir_geste()
 	var nom: String = c[0]
 	var depart := int(ProfilsAnimation.geste(arme.profil, nom).get("cotes", [0, 0])[0])
-	# continuité : un geste qui partirait du côté opposé à la fin du précédent est remplacé par son miroir (combo à
-	# l'arrêt), ou un geste contextuel répété alterne de sens (pas de côté prolongé : gauche-droite-gauche…)
-	if enchaine and _cote_fin != 0 and depart != 0 and depart != _cote_fin and ProfilsAnimation.MIROIRS.has(nom):
-		if not c[1] or nom == _geste_prec:
-			nom = ProfilsAnimation.MIROIRS[nom]
-			depart = -depart
+	# combo strict : le coup n'est JAMAIS remplacé (plus de miroir). Continuité : si la lame est déjà du bon côté, la
+	# préparation est plus courte ; si elle finit du côté opposé, elle est plus longue (la lame traverse l'écran) et le coup
+	# repart de la pose courante (_enchainer_depuis_pose).
 	_geste_nom = nom
 	_preparer_geste(false)
 	if enchaine and depart != 0 and depart == _cote_fin:
 		_duree_prep *= 0.75   # la lame est déjà du bon côté : transition plus courte
+	elif enchaine and depart != 0 and _cote_fin != 0 and depart != _cote_fin:
+		_duree_prep *= PREP_COTE_OPPOSE
 	if enchaine:
 		_enchainer_depuis_pose()
 
@@ -969,14 +991,28 @@ func _finir_geste() -> void:
 	if _geste.has("tassement") and "tassement" in joueur:
 		joueur.tassement = maxf(joueur.tassement, float(_geste["tassement"]) * (0.6 if _affaibli else 1.0))
 	_pose_fin = _pose_courante
-	_combo += 1
+	_valider_coup_leger()
 	_cote_fin = int(_geste.get("cotes", [0, 0])[1])
 	_geste_prec = _geste_nom
 	_depuis_coup = 0.0
 	combat.changer(EtatCombat.RECUPERATION)
 
+## Un coup LÉGER vient de se terminer (au bout ou arrêté) : le compteur passe au coup suivant (modulo la taille du combo).
+## Les coups puissants et les contre-attaques n'y touchent pas.
+func _valider_coup_leger() -> void:
+	if _lourd or _contre:
+		return
+	_combo = (_combo + 1) % maxi(_profil()["combo"].size(), 1)
+
+## Retour au coup 1 (changement d'arme, rengainage, mort).
+func reinitialiser_combo() -> void:
+	_combo = 0
+	_cote_fin = 0
+	_geste_prec = ""
+
 ## La lame est arrêtée (mur, bouclier, cassable qui tient) : rebond, petite ouverture.
 func _rebondir() -> void:
+	_valider_coup_leger()   # un coup arrêté (mur, parade ennemie, bouclier) compte : le clic suivant joue le coup suivant
 	accompagnement.oublier()
 	trainee.couper()
 	_pose_fin = _pose_courante
@@ -995,6 +1031,10 @@ func avancer(dt: float) -> void:
 	_respiration += dt
 	_depuis_coup += dt
 	_offset_d = Transform3D()
+	if joueur.mort:
+		reinitialiser_combo()
+	# un clic pendant un coup reste en tampon tant que le coup dure (il ne vieillit qu'ensuite)
+	entrees.gele = combat.etat in [EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE, EtatCombat.CONTRE, EtatCombat.FINISHER, EtatCombat.RECUPERATION]
 	entrees.garde_tenue = (magie.garde_tenue() if magie != null else Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)) and _peut_agir()
 	if not _peut_agir():
 		entrees.attaque_tenue = false
@@ -1179,7 +1219,8 @@ func regler_poignet(coup: bool) -> void:
 
 ## Préparation (vers la pose armée), attente du relâchement (le coup peut devenir lourd), phase active avec tracé.
 func _avancer_geste(dt: float) -> void:
-	var tenu := combat.etat == EtatCombat.ATTAQUE_LEGERE and entrees.attaque_tenue
+	# `tenu` : le bouton tenu est celui qui a lancé CE coup (un clic en plus pendant le coup est seulement mis en tampon)
+	var tenu := combat.etat == EtatCombat.ATTAQUE_LEGERE and entrees.attaque_tenue and (_appui_coup < 0.0 or is_equal_approx(entrees.appui_debut, _appui_coup))
 	if tenu and entrees.duree_appui() >= SEUIL_CHARGE:
 		if combat.changer(EtatCombat.CHARGE_LOURDE):
 			# l'attaque puissante se choisit ici (selon le déplacement) : son armé se voit pendant la charge
@@ -1198,7 +1239,6 @@ func _avancer_geste(dt: float) -> void:
 		# annulation : la garde demandée pendant la préparation d'une attaque légère (lame pas encore active) la coupe
 		if combat.etat == EtatCombat.ATTAQUE_LEGERE and entrees.veut_garde() and not joueur.mort and defense.peut_garder():
 			entrees.tampon = -1.0
-			_combo = 0
 			if combat.changer(EtatCombat.PARADE):
 				defense.lever()
 				annulations += 1
@@ -1535,7 +1575,6 @@ func _commencer_contre() -> bool:
 	_geste_nom = "contre"
 	_preparer_geste(false)
 	_contre = true
-	_combo = 0
 	_cote_fin = 0
 	return true
 
@@ -1675,7 +1714,6 @@ func _avancer_finisher(dt: float) -> void:
 		_duree_recup = float(_m["fin"]) - fin_frappe
 		_issue_arret = ""
 		_depuis_coup = 0.0
-		_combo = 0
 		_cote_fin = 0
 		combat.changer(EtatCombat.RECUPERATION)
 
@@ -1707,7 +1745,6 @@ func _avancer_sequence(dt: float) -> void:
 		_duree_recup = maxf(float(_m["fin"]) - suivi, 0.05)
 		_issue_arret = ""
 		_depuis_coup = 0.0
-		_combo = 0
 		_cote_fin = 0
 		_seq = null
 		combat.changer(EtatCombat.RECUPERATION)
