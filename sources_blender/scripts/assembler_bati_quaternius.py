@@ -65,6 +65,22 @@ RECETTES = {
     "cadre_porte_rond": {"piece": "DoorFrame_Round_WoodDark"},
     "balcon": {"piece": "Balcony_Simple_Straight"},
     "escalier": {"piece": "Stairs_Exterior_Straight"},
+    # --- lot bâti restant (gen/bati2, 2026-11-04) : tour-clocher, moulin à vent, granges, forge ouverte ---
+    # granges A et B : bardage de planches sombres (Floor_WoodDark debout, kitbash : le kit n'a pas de mur de planches), poteaux
+    # d'angle, toit et pignons du kit ; les grandes portes sont posées par le jeu (planches du kit + cadre DoorFrame, en bois sombre)
+    "grange_a": {"L": 7.0, "W": 5.0, "bardage": True, "h0": 2.7,
+           "toit": ("Roof_RoundTiles_6x8", 7.0), "pignon": "Roof_Front_Brick6"},
+    "grange_b": {"L": 6.0, "W": 5.0, "bardage": True, "h0": 2.4,
+           "toit": ("Roof_RoundTiles_6x8", 6.0), "pignon": "Roof_Front_Brick6"},
+    "toit_tour": {"piece": "Roof_Tower_RoundTiles"},          # flèche de la tour-clocher, calotte du moulin à vent
+    "planches": {"piece": "Floor_WoodDark"},                  # vantaux des portes de grange, bardage
+    "poteau": {"piece": "Corner_Exterior_Wood"},              # poteaux de l'auvent de la forge
+    "aisselier": {"piece": "Roof_Support2"},                  # aisseliers (forge, beffroi)
+    "auvent": {"piece": "Roof_Wooden_2x1"},                   # pan de l'auvent de la forge (bardeaux)
+    "garde_corps": {"piece": "Balcony_Cross_Straight"},       # garde-corps à croix de Saint-André du beffroi
+    "claire_voie": {"piece": "Prop_WoodenFence_Single"},      # claires-voies des ailes du moulin
+    "poutre": {"piece": "Roof_Log"},                          # vergues des ailes du moulin
+    "cadre_rond_pierre": {"piece": "DoorFrame_Round_Brick"},  # encadrement de la porte de la tour
 }
 
 _cache = {}
@@ -103,6 +119,27 @@ def poser(nom, pos, lacet=0.0, ech=(1, 1, 1), budget=None, objets=None):
                 md.ratio = budget / n
                 md.use_collapse_triangulate = True
     return res
+
+
+def bardage(rec, L, W, h):
+    """Granges : chaque côté couvert de planches debout (Floor_WoodDark, 2 x 2 m, tourné à la verticale) jusqu'à `h`."""
+    objs = []
+    for cote, ang in COTES.items():
+        long_c = L if cote in ("+Z", "-Z") else W
+        ds = (W if cote in ("+Z", "-Z") else L) * 0.5 + EXT
+        n = max(1, round(long_c / 2.0))
+        R = Matrix.Rotation(math.radians(ang), 4, 'Z')
+        for i in range(n):
+            t = -long_c * 0.5 + (i + 0.5) * long_c / n
+            M = R @ Matrix.Translation(Vector((t, -ds, h * 0.5))) @ Matrix.Rotation(math.radians(90), 4, 'X') \
+                @ Matrix.Diagonal(Vector((long_c / n / 2.0 + 0.01, h / 2.0, 1.0, 1)))
+            sc = bpy.context.scene
+            for data, mw, _ in charger("Floor_WoodDark"):
+                o = bpy.data.objects.new("bardage", data.copy())
+                sc.collection.objects.link(o)
+                o.matrix_world = M @ mw
+                objs.append(o)
+    return objs
 
 
 def origine_prop(nom, pos, lacet, ech):
@@ -175,7 +212,10 @@ def assembler(nom_recette):
     PANS.clear()
     objs = []
     z = 0.0
-    for k, hh in enumerate(rec["niveaux"]):
+    if rec.get("bardage"):
+        objs += bardage(rec, L, W, rec["h0"])
+        z = rec["h0"]
+    for k, hh in enumerate(rec.get("niveaux", [])):
         sz = hh / 3.0 if k else SZ
         sz = SZ if k == 0 else max(0.5, hh / 3.12)
         if k == 0:

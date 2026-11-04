@@ -172,5 +172,179 @@
 "MI_MetalOrnaments": "fer"
 },
 "budget": 600
+},
+{
+"nom": "b_grange_a",
+"recette": "grange_a",
+"mats": {
+"MI_Plaster": "lin",
+"MI_WoodTrim": "bois",
+"MI_WoodTrim_Wear": "bois",
+"MI_UnevenBrick": "pierre",
+"MI_Brick": "bois",
+"MI_RockTrim": "pierre",
+"MI_RoundTiles": "bois",
+"MI_WindowGlass": "fer",
+"MI_MetalOrnaments": "fer"
+}
+},
+{
+"nom": "b_grange_b",
+"recette": "grange_b",
+"mats": {
+"MI_Plaster": "lin",
+"MI_WoodTrim": "bois",
+"MI_WoodTrim_Wear": "bois",
+"MI_UnevenBrick": "pierre",
+"MI_Brick": "bois",
+"MI_RockTrim": "pierre",
+"MI_RoundTiles": "bois",
+"MI_WindowGlass": "fer",
+"MI_MetalOrnaments": "fer"
+}
+},
+{
+"nom": "bq_toit_tour",
+"recette": "toit_tour",
+"mats": {
+"MI_Plaster": "lin",
+"MI_WoodTrim": "bois",
+"MI_WoodTrim_Wear": "bois",
+"MI_UnevenBrick": "pierre",
+"MI_Brick": "pierre",
+"MI_RockTrim": "pierre",
+"MI_RoundTiles": "bois",
+"MI_WindowGlass": "fer",
+"MI_MetalOrnaments": "fer"
+},
+"budget": 1500
+},
+{
+"nom": "bq_planches",
+"recette": "planches",
+"mats": {
+"MI_Plaster": "lin",
+"MI_WoodTrim": "bois",
+"MI_WoodTrim_Wear": "bois",
+"MI_UnevenBrick": "pierre",
+"MI_Brick": "pierre",
+"MI_RockTrim": "pierre",
+"MI_RoundTiles": "bois",
+"MI_WindowGlass": "fer",
+"MI_MetalOrnaments": "fer"
+},
+"budget": 200
+},
+{
+"nom": "bq_poteau",
+"recette": "poteau",
+"mats": {
+"MI_Plaster": "lin",
+"MI_WoodTrim": "bois",
+"MI_WoodTrim_Wear": "bois",
+"MI_UnevenBrick": "pierre",
+"MI_Brick": "pierre",
+"MI_RockTrim": "pierre",
+"MI_RoundTiles": "bois",
+"MI_WindowGlass": "fer",
+"MI_MetalOrnaments": "fer"
+},
+"budget": 300
+},
+{
+"nom": "bq_aisselier",
+"recette": "aisselier",
+"mats": {
+"MI_Plaster": "lin",
+"MI_WoodTrim": "bois",
+"MI_WoodTrim_Wear": "bois",
+"MI_UnevenBrick": "pierre",
+"MI_Brick": "pierre",
+"MI_RockTrim": "pierre",
+"MI_RoundTiles": "bois",
+"MI_WindowGlass": "fer",
+"MI_MetalOrnaments": "fer"
+},
+"budget": 200
+},
+{
+"nom": "bq_auvent",
+"recette": "auvent",
+"mats": {
+"MI_Plaster": "lin",
+"MI_WoodTrim": "bois",
+"MI_WoodTrim_Wear": "bois",
+"MI_UnevenBrick": "pierre",
+"MI_Brick": "pierre",
+"MI_RockTrim": "pierre",
+"MI_RoundTiles": "bois",
+"MI_WindowGlass": "fer",
+"MI_MetalOrnaments": "fer"
+},
+"budget": 600
+},
+{
+"nom": "bq_garde_corps",
+"recette": "garde_corps",
+"mats": {
+"MI_Plaster": "lin",
+"MI_WoodTrim": "bois",
+"MI_WoodTrim_Wear": "bois",
+"MI_UnevenBrick": "pierre",
+"MI_Brick": "pierre",
+"MI_RockTrim": "pierre",
+"MI_RoundTiles": "bois",
+"MI_WindowGlass": "fer",
+"MI_MetalOrnaments": "fer"
+},
+"budget": 600
+},
+{
+"nom": "bq_claire_voie",
+"recette": "claire_voie",
+"mats": {
+"MI_Plaster": "lin",
+"MI_WoodTrim": "bois",
+"MI_WoodTrim_Wear": "bois",
+"MI_UnevenBrick": "pierre",
+"MI_Brick": "pierre",
+"MI_RockTrim": "pierre",
+"MI_RoundTiles": "bois",
+"MI_WindowGlass": "fer",
+"MI_MetalOrnaments": "fer"
+},
+"budget": 400
+},
+{
+"nom": "bq_poutre",
+"recette": "poutre",
+"mats": {
+"MI_Plaster": "lin",
+"MI_WoodTrim": "bois",
+"MI_WoodTrim_Wear": "bois",
+"MI_UnevenBrick": "pierre",
+"MI_Brick": "pierre",
+"MI_RockTrim": "pierre",
+"MI_RoundTiles": "bois",
+"MI_WindowGlass": "fer",
+"MI_MetalOrnaments": "fer"
+},
+"budget": 300
+},
+{
+"nom": "bq_cadre_rond_pierre",
+"recette": "cadre_rond_pierre",
+"mats": {
+"MI_Plaster": "lin",
+"MI_WoodTrim": "bois",
+"MI_WoodTrim_Wear": "bois",
+"MI_UnevenBrick": "pierre",
+"MI_Brick": "pierre",
+"MI_RockTrim": "pierre",
+"MI_RoundTiles": "bois",
+"MI_WindowGlass": "fer",
+"MI_MetalOrnaments": "fer"
+},
+"budget": 600
 }
 ]
