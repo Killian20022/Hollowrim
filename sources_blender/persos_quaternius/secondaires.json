@@ -69,7 +69,14 @@
    "force": 0.5,
    "taches": 0.25
   },
-  "accroche": "pnj"
+  "mats": {
+   "Main": "#5a3c28",
+   "Main_Light": "#8a6c4c",
+   "Muzzle": "#9a7e62",
+   "Horns": "#cdbf9a",
+   "Hooves": "#3a2a1e"
+  },
+  "accroche": "bible"
  },
  {
   "nom": "pq_ane",
