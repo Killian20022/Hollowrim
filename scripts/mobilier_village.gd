@@ -31,6 +31,9 @@ const POSES := [
 	["caisse_c", 55.3, 41.2, -25.0, 1.0], ["sacs", 51.4, 44.9, 80.0, 1.0], ["caisse_c", 46.4, 55.0, 10.0, 1.0],
 	["sacs", 40.4, 54.6, -60.0, 1.0], ["caisse_c", 40.0, 68.8, 30.0, 1.0], ["tonneau_c", 49.3, 79.9, 0.0, 1.0],
 ]
+## Bâti hybride (bati/hybride) : poses déplacées quand le bâti Quaternius est actif (« module x z » -> nouvelle position x, z) :
+## le brasero de la haute rue était juste devant la porte est de H3 (porte du kit sur le pignon, marches comprises).
+const DEPLACES_Q := {"brasero 39.6 71.2": Vector2(39.9, 73.6), "caisse_a 38.9 70.3": Vector2(39.1, 69.7)}
 ## Lot 3 (props/placement) : props Quaternius du marché, dans le repère d'un étal de POSES (indice parmi les « etal », 0 = 51,5 ; 30,5) :
 ## [prop, étal, position locale (y 0 = au sol, recalé sur le relief ; 0,9 = sur la planche avant du comptoir), lacet° local, collision].
 ## Repère de l'étal : comptoir z -0,96 .. -0,14, dessus 0,9 / 0,83 (côté client, au nord pour lacet 0), marchand entre le comptoir et les poteaux arrière (z 0,95).
@@ -415,6 +418,10 @@ func _construire() -> void:
 		var mod: String = pose[0]
 		var x: float = pose[1]
 		var z: float = pose[2]
+		var cle_q := "%s %s %s" % [mod, x, z]
+		if VillageBatiQ.actif and DEPLACES_Q.has(cle_q):   # bâti hybride : objet sorti d'une porte du kit
+			x = DEPLACES_Q[cle_q].x
+			z = DEPLACES_Q[cle_q].y
 		var s: float = pose[4]
 		var r_emprise: float = {"puits": 1.6, "etal": 1.4, "charrette": 1.2, "tas_bois": 0.9, "banc": 0.8, "sacs": 0.4}.get(mod, 0.3)
 		var xf := Transform3D(Basis(Vector3.UP, deg_to_rad(pose[3])).scaled(Vector3.ONE * s), Vector3(x, _sol_bas(x, z, r_emprise), z))

@@ -20,28 +20,35 @@ const MODELES := {"36,53": "b_h1", "54,55.5": "b_h2", "54,77": "b_h4", "35.5,71"
 static func detail(nom: String) -> bool:
 	return actif and PropsQuaternius.existe(nom)
 
-## Teinte du cadre des vitrages Quaternius (couleur de sommet lue par ps1_vitre) : bois sombre et froid des rondins, au lieu du brun
-## orangé du vitrage (qui, sur les grandes baies du kit, faisait de gros cadres orange).
-const TEINTE_CADRE := Color(0.5, 0.56, 0.78)
+## Fenêtre dans une baie du kit : la fenêtre des maisons d'avant (VillageBati.fenetre : vitrage du lot `_vitres` à 4 carreaux,
+## même cadre, linteau, appui, jambages et meneau en bois sombre que les autres fenêtres), un panneau de planches sombres
+## fermant le reste de la baie, et deux volets de planches sombres entrouverts (comme les fenêtres faites maison).
+## `c` = milieu de la baie sur le nu extérieur, `ouv` = taille de la baie, `lacet` = orientation de la façade (0 : face +Z).
+static func fenetre(v, p: Node3D, c: Vector3, ouv: Vector2, lacet: float) -> void:
+	var n := Basis(Vector3.UP, lacet) * Vector3.BACK
+	var larg := minf(ouv.x - 0.36, 0.78)
+	var haut := minf(ouv.y - 0.36, 0.64)
+	var f := VillageBati._face(c, n)
+	v._boite(p, Vector3(ouv.x - 0.04, ouv.y - 0.04, 0.06), f * Transform3D(Basis(), Vector3(0, 0, -0.06)), v.m_poutres)
+	VillageBati.fenetre(v, p, c, n, larg, haut, false, false)
+	for sx in [-1.0, 1.0]:
+		v._boite(p, Vector3(larg * 0.5, haut + 0.02, 0.04), f * Transform3D(Basis(Vector3.UP, sx * 1.15), Vector3(sx * (larg * 0.5 + 0.12 + larg * 0.18), 0, 0.12 + larg * 0.2)), v.m_poutres)
 
-## Vitrage dans le lot `_vitres` du village (même matière, même lueur réglée par l'heure que les autres fenêtres), cadre teinté.
-static func vitre(v, parent: Node3D, pos: Vector3, taille: Vector2, lacet: float) -> void:
-	if v._sans_refonte:
-		v._vitre(parent, pos, taille, lacet)
-		return
-	var hx := taille.x * 0.5
-	var hy := taille.y * 0.5
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3(-hx, -hy, 0), Vector3(hx, hy, 0), Vector3(hx, -hy, 0), Vector3(-hx, -hy, 0), Vector3(-hx, hy, 0), Vector3(hx, hy, 0)])
-	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.BACK, Vector3.BACK, Vector3.BACK, Vector3.BACK, Vector3.BACK, Vector3.BACK])
-	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(0, 1), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1), Vector2(0, 0), Vector2(1, 0)])
-	var c := PackedColorArray()
-	c.resize(6)
-	c.fill(TEINTE_CADRE)
-	arrays[Mesh.ARRAY_COLOR] = c
-	var xf: Transform3D = (parent.transform if parent.get_parent() == v else (v.transform.affine_inverse() * parent.global_transform)) * Transform3D(Basis(Vector3.UP, lacet), pos)
-	v._ajouter(v._vitres, arrays, xf, v.m_vitre_ext, false)
+## Colombage de bois sombre sur un pignon du kit (pierre unie sinon) : entrait au pied, poinçon jusqu'au faîte et croix de
+## Saint-André, comme les pignons à colombage du village. `xg` = nu extérieur du pignon (côté +X ; `cx` = ±1), pied à `y0`.
+static func colombage_pignon(v, p: Node3D, cx: float, xg: float, y0: float, faite_y: float, egout_y: float, demi: float) -> void:
+	var nrm := Vector3(cx, 0, 0)
+	var x := cx * (xg + 0.03)
+	var hw := func(y: float) -> float: return demi * (faite_y - y) / (faite_y - egout_y)
+	var y1 := y0 + 0.12
+	var w1: float = hw.call(y1) - 0.35
+	VillageBati.piece(v, p, Vector3(x, y1, -w1), Vector3(x, y1, w1), Vector2(0.2, 0.1), nrm, v.m_colombage)
+	VillageBati.piece(v, p, Vector3(x, y1, 0), Vector3(x, faite_y - 0.35, 0), Vector2(0.18, 0.1), nrm, v.m_colombage)
+	var y2 := y0 + (faite_y - y0) * 0.55
+	var w2: float = hw.call(y2) - 0.3
+	VillageBati.piece(v, p, Vector3(x, y1 + 0.08, -w1 + 0.1), Vector3(x, y2, w2), Vector2(0.15, 0.09), nrm, v.m_colombage)
+	VillageBati.piece(v, p, Vector3(x, y1 + 0.08, w1 - 0.1), Vector3(x, y2, -w2), Vector2(0.15, 0.09), nrm, v.m_colombage)
+	VillageBati.piece(v, p, Vector3(x, y2, -w2), Vector3(x, y2, w2), Vector2(0.15, 0.09), nrm, v.m_colombage)
 
 ## Cheminée Quaternius (Prop_Chimney2) à la place de la souche de pierre faite maison : même pied (`y_base`), même hauteur (`h_ch`).
 static func cheminee(v, p: Node3D, xch: float, y_base: float, h_ch: float) -> void:
@@ -150,9 +157,9 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 			VillageBati.piece(v, p, Vector3(xr, faite_y + 0.12, 0), Vector3(xr, egout_y - 0.04, cz * (demi + 0.12)), Vector2(0.28, 0.1), Vector3(cx, 0, 0), v.m_colombage)
 	var roul := BatiGeo.rondin(Lx - 0.2, 0.3, graine + 11, 0.05, 0, 0.0, 1.0)
 	v._ajouter(p, (roul[0] as BatiGeo.Maillage).arrays(), Transform3D(Basis(), Rp + Vector3(0, 0.38, 0)), v.m_neige)
-	# vitrages des fenêtres (volets ouverts sur le vitrage du village : lueur chaude la nuit, comme les fenêtres d'origine)
-	for w: Array in m.get("vitres", []):
-		vitre(v, p, Vector3(w[0], y_sol + float(w[1]), w[2]), Vector2(w[3], w[4]), w[5])
+	# fenêtres : celles des maisons d'avant (4 carreaux, cadre et volets de bois sombre, lueur chaude la nuit) dans les baies du kit
+	for w: Array in m.get("fenetres", []):
+		fenetre(v, p, Vector3(w[0], y_sol + float(w[1]), w[2]), Vector2(w[3], w[4]), w[5])
 	# âme sombre : l'intérieur de la façade est vide ; sans elle, de près, on voyait à travers les vitrages translucides
 	v._boite(p, Vector3(L - 0.3, y0 - y_sol - 0.1, W - 0.3), Transform3D(Basis(), Vector3(0, (y0 + y_sol) * 0.5, 0)), v.m_poutres)
 	# têtes de dragon (identité nordique gardée) sur les pignons des maisons qui en avaient
@@ -180,20 +187,26 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 		var bp := Basis(Vector3.UP, pn[5])
 		var nrm := bp * Vector3.BACK
 		var tg := bp * Vector3.RIGHT
-		var o0 := Vector3(pn[0], y_sol + float(pn[1]), pn[2]) + nrm * 0.04
+		var o0 := Vector3(pn[0], y_sol + float(pn[1]), pn[2]) + nrm * 0.09
 		var lg: float = float(pn[3]) * 0.5 - 0.06
-		var hh: float = pn[4]
+		var hh: float = minf(pn[4], egout_y - 0.08 - (y_sol + float(pn[1])))   # le haut du pan sous l'égout ne se voit pas
 		var A := o0 - tg * lg + Vector3(0, 0.06, 0)
 		var B := o0 + tg * lg + Vector3(0, 0.06, 0)
 		var C := o0 + tg * lg + Vector3(0, hh - 0.08, 0)
 		var D := o0 - tg * lg + Vector3(0, hh - 0.08, 0)
 		for ab: Array in [[A, D], [B, C], [A, B], [D, C]]:
-			VillageBati.piece(v, p, ab[0], ab[1], Vector2(0.15, 0.08), nrm, v.m_colombage)
-		VillageBati.piece(v, p, A, C, Vector2(0.12, 0.07), nrm, v.m_colombage)
-		VillageBati.piece(v, p, B, D, Vector2(0.12, 0.07), nrm, v.m_colombage)
-	# volets : ceux des props validés (q_volets_*), à la place exacte des volets du kit (assembleur : origine_prop)
-	for w: Array in m.get("volets", []):
-		PropsQuaternius.village(v, p, w[0], Transform3D(Basis(Vector3.UP, w[4]) * Basis.from_scale(Vector3(w[5], w[6], w[7])), Vector3(w[1], y_sol + float(w[2]), w[3])))
+			VillageBati.piece(v, p, ab[0], ab[1], Vector2(0.2, 0.12), nrm, v.m_colombage)
+		VillageBati.piece(v, p, A, C, Vector2(0.18, 0.11), nrm, v.m_colombage)
+		VillageBati.piece(v, p, B, D, Vector2(0.18, 0.11), nrm, v.m_colombage)
+	# pignons du kit (pierre unie) : colombage de bois sombre, comme les pignons du village
+	if m.has("pignon_ext"):
+		for cx in [-1.0, 1.0]:
+			colombage_pignon(v, p, cx, float(m["pignon_ext"]), y0 + float(m.get("toit_dz", 0.0)), faite_y, egout_y, demi)
+	# toit relevé (H2) : sablière haute de bois sombre entre le haut de l'étage et le toit (ferme le jour sous l'égout et aux pignons)
+	var dz: float = m.get("toit_dz", 0.0)
+	if dz > 0.0:
+		var lp: float = m["larg_pignon"]
+		v._boite(p, Vector3(L + lp - W + 0.04, dz + 0.15, lp + 0.04), Transform3D(Basis(), Vector3(0, y0 + dz * 0.5 - 0.05, 0)), v.m_poutres_h)
 	# fumée, torche, enseigne, appentis, tas de bois : comme le bâtiment d'origine
 	if m.has("cheminee") and o.get("fumee", false):
 		var c: Array = m["cheminee"]
@@ -209,7 +222,11 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	if o.get("appentis", false):
 		VillageBati._appentis(v, p, g, L, W, graine)
 	if o.get("bois", false):
-		VillageBati.tas_de_bois(v, p, o.get("bois_pos", Vector3(L * 0.5 + 0.55, 0, -0.6)), PI * 0.5, 2.2)
+		# ferme B : porte du kit au milieu du pignon ouest ; le tas d'avant (z -2,1..0,1) la bouchait -> poussé vers l'angle sud-ouest
+		if nom == "b_ferme_b":
+			VillageBati.tas_de_bois(v, p, Vector3(-4.6, 0, -1.85), PI * 0.5, 1.4)
+		else:
+			VillageBati.tas_de_bois(v, p, o.get("bois_pos", Vector3(L * 0.5 + 0.55, 0, -0.6)), PI * 0.5, 2.2)
 	# collision et emprise : celles du bâtiment d'origine (même boîte : accès, PNJ, tests inchangés)
 	var Wt: float = W + (0.9 if style == "colombage" else 0.0)
 	var bas_c := minf(socle, 0.0) - 0.3

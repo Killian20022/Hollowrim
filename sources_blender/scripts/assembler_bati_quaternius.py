@@ -24,6 +24,8 @@ LARG_VITRE = {"W": 1.15, "Wf": 1.15, "T": 0.6}      # vitrage plaqué dans l'ouv
 PANS = []          # [x, y0, z (repère Godot, nu extérieur du pan), larg, haut, lacet rad] : pans pleins à colombage en croix
 VOLETS_P = []      # [prop, x, y, z (repère Godot), lacet rad, sx, sy, sz] : volets des props validés posés par le jeu
 PORTES = []        # [x, y, z (repère Godot, milieu du seuil), larg, haut, lacet rad, cintrée] : vantaux posés par le jeu
+PIGNON_X = [0.0]   # x du nu extérieur du pignon +X (repère Godot = Blender en x)
+FENETRES = []      # [x, y (milieu de l'ouverture), z (repère Godot, nu extérieur), larg, haut (de l'ouverture), lacet rad] : fenêtres posées par le jeu
 VITRES = []        # [x, y, z (repère Godot, centre du vitrage), larg, haut, lacet rad] de l'assemblage en cours
 
 # côté : angle autour de Z (façade = -Y : +Z Godot ; +X Godot = +X ; -Z Godot = +Y ; -X Godot = -X)
@@ -37,7 +39,7 @@ RECETTES = {
     # H2 : rez de pierre, étage à colombages en encorbellement (6 x 4,5)
     "h2": {"L": 6.0, "W": 4.5, "mur": "UnevenBrick", "niveaux": [2.5, 1.9], "etage_mur": "Plaster", "encorbellement": 0.25,
            "cotes": {"+Z": ["Wf", "Df", "Wf"], "-Z": ["Wf", "S", "Wf"], "+X": ["S", "Wf"], "-X": ["S", "Wf"]},
-           "cotes_etage": {"+Z": ["Wf", "S", "Wf"], "-Z": ["Wf", "S", "Wf"], "+X": ["S", "Wf"], "-X": ["S", "Wf"]}, "croix": "etage",
+           "toit_dz": 0.55, "cotes_etage": {"+Z": ["S", "Wf", "S"], "-Z": ["S", "Wf", "S"], "+X": ["S", "Wf"], "-X": ["S", "Wf"]}, "croix": "etage",
            "toit": ("Roof_RoundTiles_6x8", 6.0), "pignon": "Roof_Front_Brick6", "cheminee": ("Prop_Chimney", -1.6)},
     # H4 : petite maison de pierre de la haute rue (6 x 5), porte à l'ouest (-X)
     "h4": {"L": 6.0, "W": 5.0, "mur": "UnevenBrick", "niveaux": [2.5],
@@ -143,6 +145,8 @@ def mur_cote(rec, cote, modules, z0, sz, L, W, decal=0.0, mur=None):
             # vitrage en carreaux de la taille de ceux du village (0,7 x 0,55 m) : la croix du vitrage garde la même échelle que
             # sur les maisons de rondins (un seul grand vitrage étiré faisait un gros cadre orange)
             lv, hv = LARG_VITRE[m] * sx, 1.35 * sz
+            qf = R @ Vector((t, -ds, 0))
+            FENETRES.append([round(qf.x, 3), round(z0 + 1.9 * sz, 3), round(-qf.y, 3), round(lv, 3), round(hv, 3), round(math.radians(ang), 4)])
             nx, ny = max(1, round(lv / 0.68)), max(1, round(hv / 0.56))
             for ix in range(nx):
                 for iy in range(ny):
@@ -165,6 +169,7 @@ def assembler(nom_recette):
         return objs, 0.0
     L, W = rec["L"], rec["W"]
     VITRES.clear()
+    FENETRES.clear()
     PORTES.clear()
     VOLETS_P.clear()
     PANS.clear()
@@ -192,6 +197,7 @@ def assembler(nom_recette):
                     objs += poser("Wall_BottomCover", R @ Vector((t, -d + 0.1, z)), COTES[cote], (long_c / nb / 2.0, 1.0, 1.0))
         z += 3.0 * sz
     ztop = z
+    zt = ztop + rec.get("toit_dz", 0.0)     # toit (et pignons) relevé : H2, l'égout du kit couvrait le haut de l'étage à colombage
     # poteaux d'angle
     for sx_ in (-1, 1):
         for sy_ in (-1, 1):
@@ -206,20 +212,24 @@ def assembler(nom_recette):
     s_larg = span / larg_pc
     s_long = (L + 2 * EXT + 1.5) / long_pc
     # la pièce a son faîtage sur Y : on la tourne de 90° autour de Z (faîtage sur X) -> x_piece = largeur => y monde ; y_piece = longueur => x monde
-    objs += poser(nom_toit, (0, 0, ztop), 90, (s_larg, s_long, s_larg), budget=900)
+    objs += poser(nom_toit, (0, 0, zt), 90, (s_larg, s_long, s_larg), budget=900)
     # pignons plâtrés sous le toit (Roof_Front_Brick6 : 6,7 m de large sur 4,4 de haut)
     if rec.get("pignon"):
         for sg in (-1, 1):
             ang = 90 if sg > 0 else 270          # la face -Y de la pièce regarde vers l'extérieur
             sx_g = (Wt + 2 * EXT - 0.1) / 6.7
-            objs += poser(rec["pignon"], (sg * (L * 0.5 + EXT - 0.1), 0, ztop), ang, (sx_g * 1.04, SY, s_larg * 1.07))   # un peu plus grand : pas de jour (fil de ciel) sous les rives
+            pg = poser(rec["pignon"], (sg * (L * 0.5 + EXT - 0.1), 0, zt), ang, (sx_g * 1.04, SY, s_larg * 1.07))   # un peu plus grand : pas de jour (fil de ciel) sous les rives
+            objs += pg
+            if sg > 0:      # nu extérieur du pignon (le jeu y pose un colombage de bois sombre)
+                PIGNON_X[0] = max((o.matrix_world @ v.co).x for o in pg for v in o.data.vertices)
     zf, ze = Z_FAITE[nom_toit]
-    META[nom_recette] = {"L": L, "W": W, "ztop": ztop, "faite": ztop + zf * s_larg, "egout": ztop + ze * s_larg, "demi_toit": span * 0.5,
-                         "long_toit": long_pc * s_long, "vitres": VITRES[:], "portes": PORTES[:], "volets": VOLETS_P[:], "pans": PANS[:]}
+    META[nom_recette] = {"L": L, "W": W, "ztop": ztop, "faite": zt + zf * s_larg, "egout": zt + ze * s_larg, "toit_dz": zt - ztop, "demi_toit": span * 0.5,
+                         "long_toit": long_pc * s_long, "vitres": VITRES[:], "portes": PORTES[:], "volets": VOLETS_P[:], "pans": PANS[:],
+                         "fenetres": FENETRES[:], "pignon_ext": PIGNON_X[0], "larg_pignon": Wt + 2 * EXT}
     if rec.get("cheminee"):
         nom_c, xc = rec["cheminee"]
-        objs += poser(nom_c, (xc, 0.7, ztop + 1.6), 0, (1.0, 1.0, 1.35))
-        META[nom_recette]["cheminee"] = [xc, ztop + 1.6 + {"Prop_Chimney": 3.18, "Prop_Chimney2": 3.0}[nom_c] * 1.35, -0.7]   # repère Godot (x, y, z)
+        objs += poser(nom_c, (xc, 0.7, zt + 1.6), 0, (1.0, 1.0, 1.35))
+        META[nom_recette]["cheminee"] = [xc, zt + 1.6 + {"Prop_Chimney": 3.18, "Prop_Chimney2": 3.0}[nom_c] * 1.35, -0.7]   # repère Godot (x, y, z)
     return objs, ztop
 
 
