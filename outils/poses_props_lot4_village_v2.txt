@@ -1,0 +1,10 @@
+v_etal0 monde 50.9,32.5,0,-45 heure=12
+v_etal1 monde 53.1,33.0,-90,-45 heure=12
+v_etal2 monde 51.0,41.3,-120,-45 heure=12
+h_table interieur -3.9,-0.8,0,-55 bat=halle heure=12
+g_cuisine interieur 1.0,-0.2,0,-48 bat=grima heure=12
+c_table interieur 0.9,-0.4,0,-50 bat=chasseurs heure=12
+c_viandes interieur 0.2,0.4,0,-12 bat=chasseurs heure=12
+s_table interieur 0.1,-1.0,0,-55 bat=sigrun heure=12
+v_camp_pres monde 2.5,3.5,35,-24 heure=12
+v_camp_tente monde 0,-1.5,180,-6 heure=12

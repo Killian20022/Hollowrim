@@ -582,6 +582,13 @@ func _feu_de_camp() -> void:
 		forme.transform = xf_banc
 		corps.add_child(forme)
 	add_child(MobilierVillage.noeud_modules(poses, "FeuDeCamp"))
+	if PropsQuaternius.lot4 and PropsQuaternius.existe("q_tente"):      # lot 4 : tente du camp (posée par MobilierVillage.substitut("feu_camp"), lacet PI)
+		var ft := CollisionShape3D.new()
+		var bt := BoxShape3D.new()
+		bt.size = Vector3(2.9, 2.1, 5.0)
+		ft.shape = bt
+		ft.transform = Transform3D(Basis(Vector3.UP, PI), sol + Vector3(0.5, 1.05, -5.4))
+		corps.add_child(ft)
 
 	# grand feu en gros pixels (scripts/feu_fixe.gd) : cinq langues, lit de braises, braises qui montent, fumée, halo de chaleur, lumière à paliers
 	feu_pixels = FeuFixe.camp(self, sol)

@@ -67,9 +67,9 @@ const POSES_D := [
 ## sont ramenées à 0,8 comme les autres) : étal 0 = maraîcher, étal 1 = boucher/cordier, étal 2 = poissonnier. Posé seulement si PropsQuaternius.lot4.
 const POSES_L4 := [
 	# étal 0 : maraîcher (choux, navets, pommes en vrac entre les cageots et les peaux d'avant)
-	["q_chou", 0, Vector3(-0.1, 0.9, -0.58), 20.0, false], ["q_chou", 0, Vector3(0.05, 0.9, -0.7), 80.0, false],
-	["q_navet", 0, Vector3(0.78, 0.9, -0.5), 0.0, false], ["q_navet", 0, Vector3(0.86, 0.9, -0.64), 40.0, false],
-	["q_pomme", 0, Vector3(-0.2, 0.9, -0.85), 0.0, false], ["q_pomme_verte", 0, Vector3(-0.1, 0.9, -0.87), 0.0, false],
+	["q_chou", 0, Vector3(0.3, 0.9, -0.58), 20.0, false], ["q_chou", 0, Vector3(0.45, 0.9, -0.72), 80.0, false],
+	["q_navet", 0, Vector3(0.62, 0.9, -0.5), 0.0, false], ["q_navet", 0, Vector3(0.7, 0.9, -0.66), 40.0, false],
+	["q_pomme", 0, Vector3(0.3, 0.9, -0.88), 0.0, false], ["q_pomme_verte", 0, Vector3(0.4, 0.9, -0.9), 0.0, false],
 	["q_jarre", 0, Vector3(-0.55, 0.0, 0.5), 10.0, false], ["q_bouteille_1", 0, Vector3(-0.2, 0.0, 0.5), 0.0, false],
 	# étal 1 : boucher (viande, lard, saucisses, cuisses) à côté des cordes
 	["q_viande", 1, Vector3(0.15, 0.9, -0.55), 15.0, false], ["q_viande", 1, Vector3(0.38, 0.9, -0.6), -30.0, false],
@@ -608,6 +608,8 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 		elif lp.y < 0.01:      # au sol : recalé sur le relief (le plus bas de l'emprise, rien ne flotte)
 			p.y = _sol_bas(p.x, p.z, 0.3)
 		var xf := Transform3D(xe.basis * Basis(Vector3.UP, deg_to_rad(e[3])), p)
+		if est_l4:
+			xf.basis = xf.basis.scaled(Vector3.ONE * 1.3)      # lot 4 : nourriture des étals un peu plus grosse (lisible en vue de jeu)
 		for t: Array in PropsQuaternius.triangles(nom):
 			var mat: String = "argile" if t[0] == "fer" and nom in PRIMEURS else MATS_Q.get(t[0], "planches_h")
 			if est_l4:

@@ -382,7 +382,7 @@ func nq(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, mats := {}) -> void:
 	if not PropsQuaternius.lot4 or not PropsQuaternius.existe(nom):
 		return
 	PropsQuaternius.compter("lot4_interieurs")
-	q(nom, pos, lacet, e, MATS_NOURRITURE.merged(mats))
+	q(nom, pos, lacet, e * 1.25, MATS_NOURRITURE.merged(mats))   # x1,25 : lisible en vue de jeu
 
 ## Lot 4 : couvert posé (écuelle de bois ou d'argile, cuillère de bois, couteau) ; `pos` = centre de l'écuelle.
 func mets(pos: Vector3, lacet := 0.0, argile := false) -> void:
