@@ -71,7 +71,7 @@ func _double(sort: String, ecole: String, tenir: float, obs: float) -> Dictionar
 		var l := _lancers(ecole)
 		max_simul = maxi(max_simul, l.size())
 		for n in l:
-			vus[n.get_instance_id()] = n
+			vus[n.get_instance_id()] = {"name": String(n.name), "double": n.double, "mains": n.mains.duplicate(), "tension": n.get("_tension") == true}
 	magie.relacher("gauche")
 	magie.relacher("droite")
 	return {"vus": vus.values(), "max": max_simul}
@@ -95,17 +95,26 @@ func _tester() -> void:
 		var r := await _double(c[0], c[1], c[2], c[3])
 		var vus: Array = r.vus
 		_verif(magie.inc["gauche"].double or not vus.is_empty(), "%s double : double incantation" % c[0])
-		_verif(vus.size() == 1, "%s double : UN seul lancer combiné (%d vus, %d simultanés)" % [c[0], vus.size(), r.max])
-		if vus.size() >= 1:
-			var n: LancerEcole = vus[0]
-			_verif(n.double and n.mains.size() == 2, "%s double : le lancer porte les deux sources" % c[0])
-			_verif(n.mains.size() == 2 and n.mains.has(pg) and n.mains.has(pd), "%s double : sources = les deux paumes (meneuse puis suiveuse)" % c[0])
+		# un lancer par projectile du sort double (éclats : éventail de `nombre`), aucun second jeu lancé par la suiveuse
+		var sd := LanceurSorts.version_double(magie.eq.sort("droite"))
+		var attendu := maxi(1, sd.nombre) if sd.portee_mode == DonneesSort.Portee.PROJECTILE else 1
+		_verif(vus.size() == attendu, "%s double : un seul lancer combiné par tir (%d vus, %d attendus)" % [c[0], vus.size(), attendu])
+		var deux := not vus.is_empty()
+		var paumes := not vus.is_empty()
+		for n: Dictionary in vus:
+			deux = deux and n.double and n.mains.size() == 2
+			paumes = paumes and n.mains.size() == 2 and n.mains.has(pg) and n.mains.has(pd)
+		_verif(deux, "%s double : chaque lancer porte les deux sources" % c[0])
+		_verif(paumes, "%s double : sources = les deux paumes (meneuse puis suiveuse)" % c[0])
 	# électricité : la tension double part du point de fusion (un seul nœud, deux sources)
 	var re := await _double("arc_electrique", "electricite", 0.6, 0.6)
 	var ve: Array = re.vus
-	_verif(ve.size() == 1, "arc_electrique double : UNE seule tension combinée (%d vus)" % ve.size())
-	if ve.size() == 1:
-		_verif((ve[0] as LancerEcole).mains.size() == 2 and (ve[0] as LancerEcole).double, "arc_electrique double : deux sources fusionnées")
+	for n: Dictionary in ve:
+		print("  vu : ", n.name, " double=", n.double, " sources=", n.mains.size(), " tension=", n.tension)
+	# tensions nées des mains (les rebonds de la chaîne entre cibles partent d'une cible : sans source de main, hors sujet)
+	var tensions := ve.filter(func(n: Dictionary) -> bool: return n.tension and not n.mains.is_empty())
+	_verif(tensions.size() == 1, "arc_electrique double : UNE seule tension combinée (%d)" % tensions.size())
+	_verif(tensions.all(func(n: Dictionary) -> bool: return n.double and n.mains.size() == 2), "arc_electrique double : deux sources fusionnées")
 	# simple : rien ne change (une main, pas de double)
 	magie.equiper("gauche", "")
 	magie.equiper("droite", "eclat_glace")
@@ -117,7 +126,8 @@ func _tester() -> void:
 	for k in 20:
 		await _sim(DT)
 		for n in _lancers("glace"):
-			vs[n.get_instance_id()] = n
-	_verif(vs.size() == 1 and not (vs.values()[0] as LancerEcole).double and (vs.values()[0] as LancerEcole).mains.size() == 1, "eclat_glace simple : un lancer, une source")
+			vs[n.get_instance_id()] = {"double": n.double, "mains": n.mains.size()}
+	var simples := vs.values().filter(func(n: Dictionary) -> bool: return not n.double and n.mains == 1)
+	_verif(vs.size() == 3 and simples.size() == 3, "eclat_glace simple : 3 éclats, une source chacun, pas de double (%d/%d)" % [simples.size(), vs.size()])
 	print("ECHECS : %d" % (0 if _ok else 1), "  (", _n, " vérifications)")
 	quit(0 if _ok else 1)
