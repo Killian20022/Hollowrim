@@ -305,13 +305,23 @@ func _signes_des_bandits() -> void:
 	# crânes sur piques de part et d'autre de la voûte
 	decor.trophee(_sol(-3.4, 2.4), 1.9, 0.5)
 	decor.trophee(_sol(3.5, 2.9), 1.65, -0.4)
-	# chevaux de frise : cinq pieux taillés, penchés vers l'extérieur, devant la terrasse
+	# chevaux de frise : cinq pieux taillés, penchés vers l'extérieur, devant la terrasse ; gen/abords : vrais chevaux de frise en poutres
+	# rondes Quaternius (une longrine basse, des paires de pieux croisés en X), mêmes collisions
+	var frise_q: bool = AbordsQ.actif and _q_pret()
 	for k in 5:
 		var x := -7.6 + k * 1.2
 		var z := 5.2 + 0.4 * sin(k * 1.7)
 		var pied := _sol(x, z)
-		decor.prisme("bois", pied + Vector3(0, -0.1, 0), pied + Vector3(0.06 * (k % 2 - 0.5), 1.35 + 0.15 * (k % 3), 0.55), 0.06, 5, 0.012)
+		if frise_q:
+			for sg: float in [-1.0, 1.0]:
+				_poutre(pied + Vector3(0.0, 0.0, -0.55 * sg), pied + Vector3(0.05 * sg, 1.25 + 0.1 * (k % 3), 0.62 * sg), 0.055)
+		else:
+			decor.prisme("bois", pied + Vector3(0, -0.1, 0), pied + Vector3(0.06 * (k % 2 - 0.5), 1.35 + 0.15 * (k % 3), 0.55), 0.06, 5, 0.012)
 		decor.solide_rond(pied + Vector3(0, 0.6, 0.15), 0.1, 1.2)
+	if frise_q:
+		var a0 := _sol(-8.1, 5.2)
+		var a1 := _sol(-2.5, 5.2 + 0.4 * sin(4 * 1.7))
+		_poutre(a0 + Vector3(0, 0.42, 0.0), a1 + Vector3(0, 0.42, 0.0), 0.075)
 	# butin et campement léger à droite de la voûte
 	var c := _sol(5.2, 1.4)
 	decor.caisse(c, Vector3(0.85, 0.55, 0.6), 0.35)
@@ -335,13 +345,22 @@ func _signes_des_bandits() -> void:
 	decor.solide_rond(t + Vector3(0, 0.9, 0), 0.07, 1.8)
 	# étendard de peau tendue sur deux perches, à gauche
 	var e := _sol(-6.4, 2.6)
-	decor.prisme("bois", e + Vector3(0, -0.1, 0), e + Vector3(0, 3.2, 0), 0.045, 5)
-	decor.prisme("bois", e + Vector3(0, 3.0, 0), e + Vector3(1.0, 3.05, 0), 0.03, 5)
-	decor.boite_b("peau", e + Vector3(0.5, 2.45, 0.03), Vector3(0.9, 1.1, 0.03), Basis(Vector3(0, 0, 1), 0.04))
+	if AbordsQ.actif and _q_pret():
+		# gen/abords : perches en poutres rondes, peau = tissu de bannière Quaternius (Banner_1_Cloth) teint en cuir sombre
+		_poutre(e + Vector3(0, -0.1, 0), e + Vector3(0, 3.2, 0), 0.05)
+		_poutre(e + Vector3(-0.08, 3.02, 0), e + Vector3(1.08, 3.05, 0), 0.035)
+		_q("q_banniere_toile", e + Vector3(0.5, 3.0 - 2.25 * 0.62, 0.05), Basis(Vector3(0, 0, 1), 0.03).scaled(Vector3(1.15, 0.62, 1.0)), {"toile": "peau"})
+	else:
+		decor.prisme("bois", e + Vector3(0, -0.1, 0), e + Vector3(0, 3.2, 0), 0.045, 5)
+		decor.prisme("bois", e + Vector3(0, 3.0, 0), e + Vector3(1.0, 3.05, 0), 0.03, 5)
+		decor.boite_b("peau", e + Vector3(0.5, 2.45, 0.03), Vector3(0.9, 1.1, 0.03), Basis(Vector3(0, 0, 1), 0.04))
 	decor.solide_rond(e + Vector3(0, 1.5, 0), 0.07, 3.0)
 	# brasero allumé : repère de nuit, rayon court
 	_brasero(_sol(3.0, 4.6))
 	_portique()
+	# gen/abords : piège à ours (Survival, lot 4) tendu sur la terrasse, entre les chevaux de frise et le foyer
+	if AbordsQ.actif:
+		decor.q4("q_piege_ours", _sol(-4.3, 6.6), 0.4, 1.25, false, false, {"fer": "fer"})
 
 ## C2 : portique de bois à la bouche (poteaux, linteau, jambes de force) et lanterne chaude pendue au linteau, comme la planche
 ## grotte_v2 (vues 1-2) : la bouche se lit de loin par sa lueur orange au milieu des roches froides, et la lumière se prolonge dedans.
@@ -352,15 +371,25 @@ func _portique() -> void:
 	var h := 3.5
 	var pg := _sol(xg, zp)
 	var pd := _sol(xd, zp)
-	decor.prisme("bois", pg + Vector3(0, -0.2, 0), pg + Vector3(0, h, 0), 0.15, 6)
-	decor.prisme("bois", pd + Vector3(0, -0.2, 0), pd + Vector3(0, h, 0), 0.15, 6)
+	var pq: bool = AbordsQ.actif and _q_pret()      # gen/abords : poteaux, linteau et jambes de force en poutres rondes Quaternius
+	for pp: Vector3 in [pg, pd]:
+		if pq:
+			_poutre(pp + Vector3(0, -0.2, 0), pp + Vector3(0, h, 0), 0.16)
+		else:
+			decor.prisme("bois", pp + Vector3(0, -0.2, 0), pp + Vector3(0, h, 0), 0.15, 6)
 	decor.solide_rond(pg + Vector3(0, 1.5, 0), 0.17, 3.0)
 	decor.solide_rond(pd + Vector3(0, 1.5, 0), 0.17, 3.0)
 	var yl := maxf(pg.y, pd.y) + h - 0.1
-	decor.prisme("bois", Vector3(xg - 0.35, yl, zp), Vector3(xd + 0.35, yl, zp), 0.13, 6)
+	if pq:
+		_poutre(Vector3(xg - 0.35, yl, zp), Vector3(xd + 0.35, yl, zp), 0.14)
+	else:
+		decor.prisme("bois", Vector3(xg - 0.35, yl, zp), Vector3(xd + 0.35, yl, zp), 0.13, 6)
 	for s: float in [-1.0, 1.0]:
 		var p := pg if s < 0.0 else pd
-		decor.prisme("bois", p + Vector3(0, h - 0.9, 0), Vector3(p.x - s * 0.9, yl - 0.05, zp), 0.07, 5)
+		if pq:
+			_poutre(p + Vector3(0, h - 0.9, 0), Vector3(p.x - s * 0.9, yl - 0.05, zp), 0.075)
+		else:
+			decor.prisme("bois", p + Vector3(0, h - 0.9, 0), Vector3(p.x - s * 0.9, yl - 0.05, zp), 0.07, 5)
 		decor.boite("fer", Vector3(p.x, yl, zp), Vector3(0.34, 0.05, 0.3))
 	var lx := 1.7
 	var ch := decor.lanterne(Vector3(lx, yl - 0.1, zp + 0.1), 0.45)
@@ -432,6 +461,31 @@ func _piste() -> void:
 		decor.rocher("c_roche_neige", base + Vector3(0.05, 0.42, 0.0), 0.42, 0.4, 4310 + k, 0.7, false, 6)
 		decor.rocher("c_roche_neige", base + Vector3(-0.03, 0.74, 0.02), 0.26, 0.3, 4320 + k, 0.9, false, 5)
 		k += 1
+
+## gen/abords : un prop Quaternius posé tel quel (base quelconque : inclinaison, cisaillement) dans les tampons du décor, sans nœud.
+func _q_pret() -> bool:
+	PropsQuaternius.preparer_crypte()
+	return CrypteDecor.modele_existe("q_poutre_ronde") and CrypteDecor.modele_existe("q_banniere_toile")
+
+func _q(nom: String, pos: Vector3, b: Basis, mats := {}) -> void:
+	# matières DÉJÀ employées par l'entrée (fer, bois, peau) : une matière neuve lance un chargement de texture en tâche,
+	# attendu sous FilVerrou par ce fil de construction (interblocage en --headless) ; d'où fer -> fer et non fer_mat
+	var m := {"fer": "fer", "herbe": "bois"}
+	m.merge(mats, true)
+	var x0 := decor.xf
+	decor.xf = x0 * Transform3D(b, pos)
+	decor.modele(nom, Vector3.ZERO, 0.0, Vector3.ONE, m, false)
+	decor.xf = x0
+	PropsQuaternius.compter("grotte_abords")
+
+## Poutre ronde Quaternius (kitbash 8 pans, 1 m le long de X, rayon 0,08) étirée de `a` à `b`, rayon `r`.
+func _poutre(a: Vector3, b: Vector3, r: float) -> void:
+	var x := b - a
+	var ref := Vector3.UP if absf(x.normalized().y) < 0.9 else Vector3.RIGHT
+	var z := x.cross(ref).normalized()
+	var y := z.cross(x).normalized()
+	var k := r / 0.08
+	_q("q_poutre_ronde", (a + b) * 0.5 - y * r, Basis(x, y * k, z * k))
 
 # ------------------------------------------------------------------ vie et passage
 func _ready() -> void:

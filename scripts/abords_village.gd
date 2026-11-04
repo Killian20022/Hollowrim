@@ -374,6 +374,26 @@ func _rocher(u: float, v: float, s: float) -> void:
 	var sz := s * 0.5 * rng.randf_range(0.7, 0.95)
 	var sy := s * 0.42 * rng.randf_range(0.8, 1.15)
 	var base := Basis(Vector3.UP, rng.randf() * TAU)
+	_rocher_maison(p, y0, s, sx, sy, sz, base, n)   # gen/abords : rochers maison GARDÉS (les rochers Quaternius font « pâte à modeler »)
+	# congère au pied, du côté opposé à la piste
+	var dehors := (droite * signf(v)).normalized()
+	var dir := dehors.rotated(rng.randf_range(-0.6, 0.6))
+	_congere(p + dir * (minf(sx, sz) * 0.75), dir.orthogonal(), s * 0.95, s * 0.55, s * 0.2)
+	_occupe.append([p, maxf(sx, sz) * 0.9])
+	if s >= 0.7:
+		var forme := CollisionShape3D.new()
+		var cyl := CylinderShape3D.new()
+		cyl.radius = minf(sx, sz) * 0.85
+		cyl.height = sy * 1.3
+		forme.shape = cyl
+		forme.position = _l(p, y0 + sy * 0.55)
+		_corps.add_child(forme)
+	# touffes et buissons collés au rocher (côté dehors)
+	for i in rng.randi_range(1, 3):
+		var a2 := dehors.rotated(rng.randf_range(-1.4, 1.4))
+		_touffe(p + a2 * (maxf(sx, sz) + rng.randf_range(0.05, 0.3)), rng.randf_range(0.7, 1.1))
+
+func _rocher_maison(p: Vector2, y0: float, s: float, sx: float, sy: float, sz: float, base: Basis, n: FastNoiseLite) -> void:
 	# passe 4 : bloc de granit à FACETTES (intersection de demi-espaces à arêtes adoucies) au lieu d'une boule bosselée ;
 	# plans tirés par un générateur privé (la graine du bruit) : le `rng` partagé n'est pas touché.
 	var S := 20
@@ -450,23 +470,6 @@ func _rocher(u: float, v: float, s: float) -> void:
 	var cs: PackedColorArray = cols[R]
 	for k in S:
 		_pierre.tri(xf * dernier[k], xf * dernier[(k + 1) % S], xf * sommet, cs[k], cs[(k + 1) % S], cs[k], xf * centre)
-	# congère au pied, du côté opposé à la piste
-	var dehors := (droite * signf(v)).normalized()
-	var dir := dehors.rotated(rng.randf_range(-0.6, 0.6))
-	_congere(p + dir * (minf(sx, sz) * 0.75), dir.orthogonal(), s * 0.95, s * 0.55, s * 0.2)
-	_occupe.append([p, maxf(sx, sz) * 0.9])
-	if s >= 0.7:
-		var forme := CollisionShape3D.new()
-		var cyl := CylinderShape3D.new()
-		cyl.radius = minf(sx, sz) * 0.85
-		cyl.height = sy * 1.3
-		forme.shape = cyl
-		forme.position = _l(p, y0 + sy * 0.55)
-		_corps.add_child(forme)
-	# touffes et buissons collés au rocher (côté dehors)
-	for i in rng.randi_range(1, 3):
-		var a2 := dehors.rotated(rng.randf_range(-1.4, 1.4))
-		_touffe(p + a2 * (maxf(sx, sz) + rng.randf_range(0.05, 0.3)), rng.randf_range(0.7, 1.1))
 
 ## Congère : butte de neige allongée (L le long de `dir`), plus raide côté vent, collée au relief.
 func _congere(c: Vector2, dir: Vector2, L: float, W: float, H: float) -> void:
@@ -516,8 +519,9 @@ func _neige_sur(a: Vector3, b: Vector3, l: float, h: float) -> void:
 		var cur := [p + lat * 1.05 - Vector3(0, 0.012, 0), p + Vector3(0, hh, 0) + lat * rng.randf_range(-0.2, 0.2), p - lat * 1.05 - Vector3(0, 0.012, 0)]
 		if not prec.is_empty():
 			var ctr := p - Vector3(0, 0.3, 0)
-			_pierre.quad(prec[0], cur[0], cur[1], prec[1], blanc, blanc, blanc, blanc, ctr)
-			_pierre.quad(prec[1], cur[1], cur[2], prec[2], blanc, blanc, blanc, blanc, ctr)
+			if not _jeter:
+				_pierre.quad(prec[0], cur[0], cur[1], prec[1], blanc, blanc, blanc, blanc, ctr)
+				_pierre.quad(prec[1], cur[1], cur[2], prec[2], blanc, blanc, blanc, blanc, ctr)
 		prec = cur
 	# bouchons aux extrémités
 	pass
@@ -530,6 +534,8 @@ func _calotte(c: Vector3, r: float, h: float) -> void:
 	for k in 6:
 		var a := TAU * k / 6.0
 		anneau.append(c + Vector3(cos(a), 0, sin(a)) * r * 1.15 + Vector3(0, -0.015, 0))
+	if _jeter:
+		return
 	for k in 6:
 		_pierre.tri(anneau[k], anneau[(k + 1) % 6], top, blanc, blanc, blanc, c - Vector3(0, 0.3, 0))
 
@@ -626,7 +632,44 @@ func _poteau_lanterne(u: float, v: float, bras: float, reelle: bool) -> void:
 
 ## Barrière rustique : piquets à chaque point (u, v), deux lisses irrégulières par travée, neige sur le dessus,
 ## congère le long de la travée. Collision : les piquets seulement.
+## gen/abords : avec AbordsQ.actif, la barrière est faite de travées Quaternius (Prop_WoodenFence_Single, Medieval Village) d'un piquet
+## au suivant, qui suivent la pente ; le code maison tourne quand même (mêmes tirages de `rng`, mêmes collisions, congères et touffes)
+## mais ses rondins et sa neige vont dans des maillages jetés. Les travées vont dans `_bois` (UV en mètres) : rien de neuf à dessiner,
+## et RuesVillage (clôtures des champs) en hérite sans changer son fichier.
+var _jeter := false
 func _barriere(pts: Array) -> void:
+	if not AbordsQ.actif:
+		_barriere_maison(pts)
+		return
+	var bois := _bois
+	var bouts := _bouts
+	_bois = BatiGeo.Maillage.new()
+	_bouts = BatiGeo.Maillage.new()
+	_jeter = true
+	var pieds := _barriere_maison(pts)
+	_jeter = false
+	_bois = bois
+	_bouts = bouts
+	var bb := PropsQuaternius.boite("q_barriere_bois")
+	for i in pieds.size() - 1:
+		var pa: Vector2 = pieds[i]
+		var pb: Vector2 = pieds[i + 1]
+		var a := _l(pa, _sol(pa) - 0.12)
+		var b := _l(pb, _sol(pb) - 0.12)
+		var nom := "q_barriere_bois" if (i % 3) != 2 else "q_barriere_ext_2"
+		var xf := Transform3D(AbordsQ.base_segment(a, b, bb.size.x * 0.97, 1.32, 1.5), (a + b) * 0.5)
+		AbordsQ.vers_maillage(_bois, nom, xf, Color(0.95, 0.9, 0.86), 0.7, true)
+		PropsQuaternius.compter("abords")
+		# neige posée sur la lisse haute (y 0,755 du prop) et calottes sur les montants, générateur à part (tirages de `rng` inchangés)
+		var sauve := rng
+		rng = RandomNumberGenerator.new()
+		rng.seed = sauve.seed ^ (0x6a2b + i * 97 + int(pa.x * 13.0))
+		_neige_sur(xf * Vector3(-0.99, 0.765, 0.02), xf * Vector3(0.99, 0.765, 0.02), 0.11, 0.06)
+		for sx in [-0.95, 0.95]:
+			_calotte(xf * Vector3(sx, 0.845, 0.0), 0.075, 0.07)
+		rng = sauve
+
+func _barriere_maison(pts: Array) -> Array[Vector2]:
 	var tetes: Array[Vector3] = []
 	var pieds: Array[Vector2] = []
 	for q: Vector2 in pts:
@@ -667,6 +710,7 @@ func _barriere(pts: Array) -> void:
 		_congere(mil + Vector2(-d.y, d.x) * rng.randf_range(-0.15, 0.15), d, pa.distance_to(pb) * 1.05, 0.7, 0.2)
 		for t in rng.randi_range(1, 3):
 			_touffe(pa.lerp(pb, rng.randf()) + Vector2(-d.y, d.x) * rng.randf_range(-0.4, 0.4), rng.randf_range(0.8, 1.2))
+	return pieds
 
 ## Pierre levée sculptée d'entrelacs en losange, coiffée de neige, face gravée tournée vers `face` (x, z).
 ## Gravure PEINTE dans la texture (brins en relief clairs, creux sombres, arêtes éclairées par le haut) : UV en projection
