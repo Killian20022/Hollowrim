@@ -153,6 +153,8 @@ func _ready() -> void:
 	Chrono.marque("  village : forge")
 	await _souffle()
 	var enclos := _enclos(_repere(66.5, 41.3, -PI * 0.5, y0).origin, -PI * 0.5 - rotation.y)  # enclos et séchoirs d'Ylva, ouverts à l'ouest
+	if not PersosQuat.anciens() and not OS.get_cmdline_user_args().has("--animaux-anciens") and not OS.get_cmdline_user_args().has("--sans-betes"):
+		_enclos(_repere(73.3, 41.3, 0.0).origin, -rotation.y, false)   # gen/animaux : enclos des chevaux et de l'âne (monde.DOMESTIQUES), ouvert au sud
 	# (puits, brasero de la place, tonneaux, caisses et tas de bois : lot C7a, scripts/mobilier_village.gd)
 	await VillageBati.construire(self)
 	Chrono.marque("  village : bâti v2 (façades, tour, moulins, fermes)")
@@ -1989,7 +1991,7 @@ func _brasero(centre: Vector3) -> void:
 
 ## Lot L7 : pieux, lisses, meules de foin et séchoir en modules Blender (mobilier_village.py) fondus avec le bâti ; mêmes positions et
 ## mêmes collisions qu'avant (lisses basses solides, pieux et meules sans collision).
-func _enclos(centre: Vector3, lacet := 0.0) -> Node3D:
+func _enclos(centre: Vector3, lacet := 0.0, sechoir := true) -> Node3D:
 	var p := _pivot(centre, lacet)
 	var demi := Vector2(3.5, 2.5)
 	var r := RandomNumberGenerator.new()
@@ -2014,7 +2016,8 @@ func _enclos(centre: Vector3, lacet := 0.0) -> Node3D:
 	# meules de foin et séchoir à peaux
 	for pos in [Vector3(-2.0, 0, -1.2), Vector3(-0.6, 0, -1.6), Vector3(1.8, 0, -1.0)]:
 		MobilierVillage.poser_dans(self, p, "meule_foin", Transform3D(Basis(Vector3.UP, pos.x * 1.3), pos))
-	MobilierVillage.poser_dans(self, p, "sechoir_peaux", Transform3D(Basis(), Vector3(0, 0, demi.y + 2.2)))
+	if sechoir:
+		MobilierVillage.poser_dans(self, p, "sechoir_peaux", Transform3D(Basis(), Vector3(0, 0, demi.y + 2.2)))
 	return p
 
 ## Tonneau cerclé (module tonneau_c de mobilier_village.py, lot L7) ; même collision qu'avant (cylindre r 0,3 x 0,8).

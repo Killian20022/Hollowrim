@@ -1,0 +1,5 @@
+# gen/animaux : animaux domestiques du village en vue de jeu (jour)
+enclos_vaches monde 60,36,-127,-4 heure=12
+enclos_chevaux monde 73,32,175,-4 heure=12
+enclos_deux monde 70,35,-155,-6 heure=12
+husky monde 55.5,33.5,-66,-4 heure=12

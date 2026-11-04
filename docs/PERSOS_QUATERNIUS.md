@@ -117,3 +117,9 @@ Commande : `blender.exe -b --python sources_blender/scripts/pq_convertir.py -- l
 - `outils/test_betes_quat.gd` (28 vérifications : modèles, contrat, meute, morsure, mort, fuite du cerf, embuscade, rig des habitants).
 - `outils/poses_persos_jeu.txt` : lot de captures (place, puits, chasseurs, enclos, pont, quai, loups, cerfs, renard, araignées, gros plans,
   jour 12 h / nuit 22 h) ; `Desktop/Skyrim captures/persos_jeu/` (avant/ = `--persos-anciens`, apres/, planches, film).
+
+### Animaux domestiques du village
+- Six espèces Quaternius ajoutées à `scripts/bete_quat.gd` (cheval, cheval_blanc, ane, vache, taureau, husky) : non hostiles (`domestique`, détection 0), même IA que la faune (errance courte autour de l'origine, fuite si on les frappe).
+- Placement : `DOMESTIQUES` dans `scripts/monde.gd` (vaches et taureau dans l'enclos d'Ylva, chevaux et âne dans un second enclos à l'est, husky devant la maison des chasseurs) ; le second enclos est créé par `scripts/village.gd`.
+- Repli : `--animaux-anciens` retire les domestiques et le second enclos.
+- Films : `outils/films_animaux.sh <dossier> [animaux] [--cap=N]` (script `outils/film_animaux.gd`), sortie dans `Desktop/Skyrim captures/animaux/` avec `ANIMAUX.html`.
