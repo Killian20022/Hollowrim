@@ -185,9 +185,10 @@ func bonus_apres_sort(cible: Node, fenetre: float, bonus: float) -> float:
 
 ## Lance un sort à départ (RAPIDE, CHARGE, ZONE, ENCHANT). `paume` : nœud d'où part le visuel ; `oeil`/`avant` : visée.
 ## Renvoie un résumé {genre, cibles…} (tests).
-func lancer(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, charge := 1.0) -> Dictionary:
+## `decalage` (TransitionSort.source) : déplacement du départ vers le point de fusion de la double magie (TransitionSort.decalage ; nul sinon).
+func lancer(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, charge := 1.0, decalage := Vector3.ZERO) -> Dictionary:
 	var k := facteur_charge(s, charge)
-	var depart := paume.global_position if paume != null else oeil
+	var depart := (paume.global_position + decalage) if paume != null else oeil
 	SonsMagie.lancement(s.ecole, depart, k)
 	match s.portee_mode:
 		DonneesSort.Portee.PROJECTILE:
@@ -409,7 +410,7 @@ func canaliser(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, dt:
 		return touchees
 	var v := viser(oeil, avant, s.portee)
 	var fin: Vector3 = v["point"]
-	var depart := paume.global_position if paume != null else oeil
+	var depart := EffetsMagie.pos_origine(paume) if paume != null else oeil
 	var portee_vue := minf(s.portee, depart.distance_to(fin) + 0.3)
 	EffetsMagie.jet(s.ecole, paume, (fin - depart).normalized(), portee_vue, s.largeur, true)
 	_accum[cle] = float(_accum.get(cle, 0.0)) + dt

@@ -325,6 +325,15 @@ func _process(dt: float) -> void:
 	var ech := ECH
 	var haut_k := (1.0 + 0.3 * ch) * (1.0 - 0.35 * conv) * taille_k * nais * ech
 	var larg_k := (1.0 + 0.15 * ch) * (1.0 - 0.3 * conv) * taille_k * nais
+	# transition au lancer (TransitionSort, docs/MAGIE_TRANSITIONS.md) : le noyau se resserre en jet (l'énergie part dans le sort), gonfle
+	# à l'instant du départ, et en double magie la suiveuse se fond dans le noyau de la meneuse. Valeur par défaut, à affiner par école.
+	var tr := runes.transition
+	if tr != null:
+		var mod := (1.0 - 0.3 * TransitionSort.lisse(tr.canal)) * (1.0 + 0.3 * sin(clampf(tr.depart_p * 3.0, 0.0, 1.0) * PI)) * (1.0 + 0.2 * (tr.puissance - 1.0))
+		if tr.double and not tr.meneuse:
+			mod *= 1.0 - 0.9 * TransitionSort.lisse((tr.intensite_fusion() - 0.4) / 0.6)
+		haut_k *= mod
+		larg_k *= mod
 	var larg_c := larg_k * ech
 	var forc := clampf(0.78 + 0.35 * runes.intensite, 0.0, 1.3) * (0.97 + 0.04 * sin(_t * 9.0)) * minf(vif, 1.45)
 	if ecole == "glace":

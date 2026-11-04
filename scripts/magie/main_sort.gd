@@ -21,6 +21,9 @@ var joueur: CharacterBody3D
 var eq: EquipementMains
 var lanceur: LanceurSorts
 var inc := {"gauche": Incantation.new(), "droite": Incantation.new()}
+## Transition repos → charge → lancer / jet → fin de chaque main (TransitionSort, docs/MAGIE_TRANSITIONS.md) : lue par les runes, l'aura
+## et les effets de lancer ; mise à jour à chaque image par `_maj_transition`.
+var transitions := {"gauche": TransitionSort.new(), "droite": TransitionSort.new()}
 ## Recharges en cours {id_sort: s restantes} (lu par le HUD).
 var recharges := {}
 ## Enchantement de la lame : {"sort": DonneesSort, "reste": s} ou vide.
@@ -377,6 +380,34 @@ func avancer(dt: float) -> void:
 	_poser_mains(dt)
 
 func _avancer_main(m: String, dt: float, deux_canal: bool) -> void:
+	_avancer_main_etat(m, dt, deux_canal)
+	_maj_transition(m, dt)
+
+## Transition de la main `m` (TransitionSort) : à lire pour accorder un effet de lancer à la main.
+func transition(m: String) -> TransitionSort:
+	return transitions[m]
+
+## Met à jour la transition : état, fusion des deux sources en double magie, visée pendant le jet / le départ.
+func _maj_transition(m: String, dt: float) -> void:
+	var tr: TransitionSort = transitions[m]
+	var i: Incantation = inc[m]
+	var s := eq.sort(m)
+	tr.maj(dt, i, s)
+	var p := _p(m)
+	if p == null or not is_instance_valid(p):
+		return
+	var autre := _p(eq.autre(m))
+	tr.poser_fusion(p.global_position, autre.global_position if autre != null and is_instance_valid(autre) else p.global_position)
+	if s != null and (tr.canal > 0.001 or tr.depart_p < 1.0 or tr.fin_p < 1.0 or i.etat in [Incantation.CHARGE, Incantation.CANALISE]):
+		var vue := _vue()
+		var portee := minf(s.portee, 12.0)
+		var v := lanceur.viser(vue[0], vue[1], portee)
+		tr.viser(p.global_position + tr.source, v["point"], portee)
+	var g = GestionMagie.obtenir()
+	if g != null and "transitions_aura" in g:
+		g.transitions_aura[p.get_instance_id()] = tr
+
+func _avancer_main_etat(m: String, dt: float, deux_canal: bool) -> void:
 	var i: Incantation = inc[m]
 	var s := eq.sort(m)
 	i.t += dt
@@ -498,7 +529,8 @@ func _intensite(i: Incantation, s: DonneesSort) -> float:
 		Incantation.CANALISE:
 			k = 1.0
 		Incantation.RECUPERATION:
-			k = 0.25
+			# la flamme et les runes reviennent en montant (et non en marche d'escalier) : fin de jet et lancer en douceur
+			k = lerpf(0.3, 0.6, clampf(i.t / maxf(i.duree_recup, 0.05), 0.0, 1.0))
 	return k * (1.5 if i.double else 1.0)
 
 func _aura_vers(m: String, ecole: String, k: float, _dt: float) -> void:
@@ -532,6 +564,7 @@ func _runes_vers(m: String, ecole: String, k: float) -> void:
 		_runes[m] = r
 	var i: Incantation = inc[m]
 	r.intensite = k
+	r.transition = transitions[m]
 	r.charge = i.charge if i.etat == Incantation.CHARGE else 0.0
 	r.etat = i.etat
 	# double magie : les runes de chaque main vont un peu plus vite et brillent un peu plus (la flamme, elle, reste à peu près la même)
@@ -598,7 +631,7 @@ func _lancer(m: String, s: DonneesSort, charge: float) -> void:
 		_enchanter(s)
 	else:
 		var vue := _vue()
-		lanceur.lancer(s, _p(m), vue[0], vue[1], charge)
+		lanceur.lancer(s, _p(m), vue[0], vue[1], charge, (transitions[m] as TransitionSort).source)
 	if s.recharge > 0.0:
 		recharges[s.id] = s.recharge
 	i.depuis_lancement = 0.0

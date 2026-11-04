@@ -190,6 +190,9 @@ var _auras := {}
 ## Échelle des auras par main (id du nœud porteur -> facteur) : la tenue « runes » des avant-bras (MainSort) resserre les
 ## flammes autour de la boule tenue, comme sur les références (bras_feu_1100.jpg) ; 1 par défaut.
 var echelles_aura := {}
+## Transitions (TransitionSort) par main (id du nœud paume -> TransitionSort) : posées par MainSort. L'aura, l'origine des jets et la double
+## magie s'y accordent (jet qui naît de la flamme sans saut, fusion des deux sources) ; vide = comportement d'avant.
+var transitions_aura := {}
 var _jets := {}
 var _projectiles: Array = []
 var _statuts := {}
@@ -1101,6 +1104,16 @@ static func base_normale(n: Vector3) -> Basis:
 	var x := y.cross(Vector3.FORWARD if absf(y.z) < 0.9 else Vector3.RIGHT).normalized()
 	return Basis(x, y, x.cross(y))
 
+## Décalage (monde) de la source d'une main vers le point de fusion de la double magie (TransitionSort.decalage) ; nul sinon.
+func decalage_de(n: Node3D) -> Vector3:
+	var tr: TransitionSort = transitions_aura.get(n.get_instance_id())
+	return tr.decalage if tr != null else Vector3.ZERO
+
+## Position de la source d'un jet / d'un projectile : la paume, ramenée vers le point de fusion en double magie.
+func pos_origine(n: Node3D) -> Vector3:
+	var tr: TransitionSort = transitions_aura.get(n.get_instance_id())
+	return n.global_position + (tr.source if tr != null else Vector3.ZERO)
+
 func valide(n: Variant) -> bool:
 	return n != null and is_instance_valid(n) and (n as Node).is_inside_tree()
 
@@ -1341,16 +1354,32 @@ func _maj_auras() -> void:
 			_auras.erase(id)
 			continue
 		var ancre: Node3D = a.ancre
-		var i := float(a.i)
-		if _jets.has(id):
-			# un jet part de cette main : l'aura se résorbe en un petit foyer dans la paume (c'est le jet qui naît
-			# là) au lieu d'une boule de flammes qui couvre la naissance du flux
+		# intensité demandée par MainSort (marches d'escalier : repos, charge, jet, récupération) lissée sur ~0,1 s : la flamme
+		# gonfle et se résorbe sans à-coup au lancer et à la fin du jet
+		a.il = lerpf(float(a.get("il", a.i)), float(a.i), 1.0 - exp(-get_process_delta_time() * 10.0))
+		var i := float(a.il)
+		var tr: TransitionSort = transitions_aura.get(id)
+		var pop := 0.0
+		var decal := Vector3.ZERO
+		var fus := 0.0
+		if tr != null:
+			# un jet part de cette main : l'aura se résorbe EN DOUCEUR (TransitionSort.canal, 0,2 s) en un petit foyer dans la
+			# paume (c'est le jet qui naît là) au lieu d'une boule de flammes qui couvre la naissance du flux
+			i *= lerpf(1.0, 0.4 if a.ecole == "feu" else 0.15, TransitionSort.lisse(tr.canal))
+			# lancer d'un sort à départ : la boule gonfle d'un coup (elle part), puis retombe avec l'intensité de récupération
+			pop = sin(clampf(tr.depart_p * 3.0, 0.0, 1.0) * PI)
+			# double magie : les deux sources vont au même point ; la suiveuse se fond dans la flamme de la meneuse
+			fus = tr.intensite_fusion()
+			decal = tr.decalage
+			if tr.double and not tr.meneuse:
+				i *= 1.0 - 0.92 * TransitionSort.lisse((fus - 0.4) / 0.6)
+		elif _jets.has(id):
 			i *= 0.4 if a.ecole == "feu" else 0.15
 		var dbl: bool = _double.get(a.ecole, false)
-		var k := (0.75 + 0.5 * minf(i, 1.0)) * ((1.1 if a.ecole == "feu" else 1.25) if dbl else 1.0)
+		var k := (0.75 + 0.5 * minf(i, 1.0)) * ((1.1 if a.ecole == "feu" else 1.25) if dbl else 1.0) * (1.0 + 0.3 * fus) * (1.0 + 0.3 * pop)
 		var ech: float = echelles_aura.get(id, 1.0)
 		var tenue := echelles_aura.has(id)
-		ancre.transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * k), (main as Node3D).global_position)
+		ancre.transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * k), (main as Node3D).global_position + decal)
 		if a.fine != null and is_instance_valid(a.fine):
 			var fm: MeshInstance3D = a.fine
 			fm.set_instance_shader_parameter("rayon", float(AURA_RAYON.get(a.ecole, 0.09)) * k * ech)
@@ -1533,7 +1562,7 @@ func _arc_courbe(o: Vector3, j: Dictionary, l: float, ampl: float, decal: Vector
 
 func _gen_jet_arc(j: Dictionary) -> Array:
 	var traits: Array = []
-	var o: Vector3 = (j.origine as Node3D).global_position if valide(j.origine) else Vector3.ZERO
+	var o: Vector3 = pos_origine(j.origine) if valide(j.origine) else Vector3.ZERO
 	var l := o.distance_to(j.fin_pos)
 	if l < 0.05:
 		return traits
@@ -1573,7 +1602,7 @@ func _gen_jet_arc(j: Dictionary) -> Array:
 ## cible, des doigts qui courent sur le corps.
 func _gen_jet_arc_vif(j: Dictionary) -> Array:
 	var traits: Array = []
-	var o: Vector3 = (j.origine as Node3D).global_position if valide(j.origine) else Vector3.ZERO
+	var o: Vector3 = pos_origine(j.origine) if valide(j.origine) else Vector3.ZERO
 	var l := o.distance_to(j.fin_pos)
 	if l < 0.05:
 		return traits
@@ -1689,7 +1718,7 @@ func _gen_drain(j: Dictionary) -> Array:
 	var traits: Array = []
 	if not valide(j.origine):
 		return traits
-	var o: Vector3 = (j.origine as Node3D).global_position
+	var o: Vector3 = pos_origine(j.origine)
 	var b: Vector3 = j.fin_pos
 	var axe := b - o
 	var l := axe.length()
@@ -2118,7 +2147,7 @@ func _givre_placer(j: Dictionary) -> void:
 		if j.cible == null and nrm.y > 0.6:
 			sol = fin.y   # le souffle frappe le sol lui-même
 		else:
-			var r := point_vise(origine, fin + Vector3.UP * 0.2 - (fin - origine.global_position).normalized() * 0.6, Vector3.DOWN, 3.0)
+			var r := point_vise(origine, fin + Vector3.UP * 0.2 - (fin - pos_origine(origine)).normalized() * 0.6, Vector3.DOWN, 3.0)
 			if r.touche:
 				sol = (r.pos as Vector3).y
 	pm.set_shader_parameter("sol_y", sol)
@@ -2317,7 +2346,7 @@ func _jet_placer(j: Dictionary) -> void:
 	var origine: Node3D = j.origine
 	if not valide(origine):
 		return
-	var o := origine.global_position
+	var o := pos_origine(origine)
 	var dir: Vector3 = j.dir
 	if horloge - float(j.t_rayon) > 0.08:
 		j.t_rayon = horloge
@@ -3305,6 +3334,10 @@ func _maj_double() -> void:
 		v.p1 = p1
 		# pendant les jets des deux mains, rien entre les mains : le centre de l'écran reste dégagé pour les flux
 		v.jette = _jets.has((mains[0].main as Node).get_instance_id()) or _jets.has((mains[1].main as Node).get_instance_id())
+		# sources en train de fusionner (TransitionSort) : le pont de runes cède la place à l'anneau commun des deux mains
+		var tr0: TransitionSort = transitions_aura.get((mains[0].main as Node).get_instance_id())
+		if tr0 != null and tr0.fusion > 0.3:
+			v.jette = true
 		(v.noeud as Node3D).visible = not v.jette
 		for p in v.emit:
 			if is_instance_valid(p):

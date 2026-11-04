@@ -75,6 +75,13 @@ static func _lancer_jet(ecole: String, origine: Node3D, direction: Vector3, port
 			"tenebres":
 				LancerTenebres.reformer(origine)
 
+## Position de la source d'un jet ou d'un projectile : la paume, ramenée vers le point de fusion en double magie
+## (TransitionSort.decalage, posé par MainSort) ; la paume elle-même quand rien n'est fusionné.
+static func pos_origine(n: Node3D) -> Vector3:
+	if muet:
+		return n.global_position
+	return _g().pos_origine(n)
+
 ## Aura autour de la main (flammes, givre, arcs, volutes, motes dorées, anneau runique) et lumière colorée légère.
 ## `intensite` 0 = éteinte ; 0..1 = charge croissante (taille, densité, lumière) ; jusqu'à 1,5 pour un pic. Persistante :
 ## inutile de rappeler chaque image si rien ne change. Suit `main` (repère du viewmodel) sans retard.
