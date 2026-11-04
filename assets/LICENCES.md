@@ -129,4 +129,4 @@ Convertis par `sources_blender/scripts/pq_convertir.py` (couleurs accrochées à
 | Fichier(s) | Source | Licence |
 |---|---|---|
 | pq_villageois, pq_villageoise, pq_chasseur, pq_chasseresse | Modular Character Outfits - Fantasy [Standard], Quaternius (quaternius.itch.io/modular-character-outfits-fantasy) + tête/cheveux UBC déjà dans le jeu | CC0 1.0 (License_Standard.txt du pack) |
-| pq_loup, pq_araignee, pq_geant, pq_demon, pq_squelette, pq_cerf, pq_spectre | Quaternius sur Poly Pizza (poly.pizza/u/Quaternius : Wolf P1gU3Qkr9r, Spider yRYJiAJyiM, Giant BldaiPtyJa, Demon LnfIziKv4o, Skeleton DM4QScSmbS, Stag tQdzbZ1Cmw, Ghost Iip30bDHmu) | CC0 1.0 (champ « Licence » de chaque page) |
+| pq_loup, pq_araignee, pq_cerf | Quaternius sur Poly Pizza (poly.pizza/u/Quaternius : Wolf P1gU3Qkr9r, Spider yRYJiAJyiM, Stag tQdzbZ1Cmw) | CC0 1.0 (champ « Licence » de chaque page) |

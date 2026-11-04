@@ -78,7 +78,4 @@ static func creer(id: String) -> Node3D:
 static func clip(id: String, role: String) -> String:
 	if est_humain(id):
 		return {"idle": "Idle", "marche": "Walk", "attaque": "Sword_Attack", "mort": "Death01"}.get(role, "Idle")
-	# Idle des rigs « EnemyArmature » (géant, squelette) = pose de liaison en T dans le pack d'origine : on joue la marche à la place
-	if role == "idle" and id in ["pq_geant", "pq_squelette"]:
-		return "Walk"
 	return {"idle": "Idle", "marche": "Walk", "attaque": "Attack", "mort": "Death"}.get(role, "Idle")

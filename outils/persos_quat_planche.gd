@@ -1,7 +1,7 @@
 extends SceneTree
 ## Présentation des persos Quaternius PS1 (essai/persos_quaternius) : planche ORIGINAL | PS1, échelle en vue de jeu à côté du héros et d'un draugr,
 ## animations (images pour un film). Fenêtre hors écran via godot_slot.sh :
-##   godot --path . --script res://outils/persos_quat_planche.gd -- --sortie=<dossier> [--mode=planche|echelle|anims|tout] [--seul=pq_loup,pq_geant]
+##   godot --path . --script res://outils/persos_quat_planche.gd -- --sortie=<dossier> [--mode=planche|echelle|anims|tout] [--seul=pq_loup,pq_cerf]
 const W := 640
 const H := 400
 const POST := preload("res://shaders/ps1_post.gdshader")
@@ -16,10 +16,7 @@ const ORIGINAUX := {
 	"pq_chasseresse": [OUTFITS + "Female_Ranger.gltf", UBC + "Superhero_Female_FullBody.gltf", UBC + "cheveux/Hair_Long.gltf"],
 	"pq_loup": [REF + "polypizza_cc0/Wolf_P1gU3Qkr9r.glb"],
 	"pq_araignee": [REF + "polypizza_cc0/Spider_yRYJiAJyiM.glb"],
-	"pq_geant": [REF + "polypizza_cc0/Giant_BldaiPtyJa.glb"],
-	"pq_squelette": [REF + "polypizza_cc0/Skeleton_DM4QScSmbS.glb"],
 	"pq_cerf": [REF + "polypizza_cc0/Stag_tQdzbZ1Cmw.glb"],
-	"pq_spectre": [REF + "polypizza_cc0/Ghost_Iip30bDHmu.glb"],
 	# secondaires (2026-11-04, sources_blender/persos_quaternius/secondaires.json) : FBX « Ultimate », chargés par FBXDocument
 	"pq_cheval": [ANIMAUX + "Horse.fbx"],
 	"pq_cheval_blanc": [ANIMAUX + "Horse_White.fbx"],
@@ -27,8 +24,6 @@ const ORIGINAUX := {
 	"pq_taureau": [ANIMAUX + "Bull.fbx"],
 	"pq_ane": [ANIMAUX + "Donkey.fbx"],
 	"pq_husky": [ANIMAUX + "Husky.fbx"],
-	"pq_yeti": [REF + "ultimate_monsters/Big/FBX/Yeti.fbx"],
-	"pq_chevalier": [REF + "knight_character/FBX/KnightCharacter.fbx"],
 }
 
 ## id -> [hauteur du dessin du héros pour l'échelle (m)] : seulement pour info
@@ -72,14 +67,13 @@ func _original(id: String) -> Node3D:
 
 ## Dimensions nominales (largeur d'encombrement, hauteur, m) : l'AABB d'un maillage skinné est celle de la pose de liaison, pas de la pose vue.
 const DIMS := {"pq_villageois": Vector2(0.9, 1.84), "pq_villageoise": Vector2(0.9, 1.8), "pq_chasseur": Vector2(0.9, 1.87), "pq_chasseresse": Vector2(0.9, 1.8),
-	"pq_loup": Vector2(1.5, 0.9), "pq_araignee": Vector2(2.6, 1.1), "pq_geant": Vector2(1.7, 3.3), "pq_demon": Vector2(1.4, 2.3),
-	"pq_squelette": Vector2(0.9, 1.85), "pq_cerf": Vector2(1.5, 1.9), "pq_spectre": Vector2(1.3, 1.9),
+	"pq_loup": Vector2(1.5, 0.9), "pq_araignee": Vector2(2.6, 1.1), "pq_cerf": Vector2(1.5, 1.9),
 	"pq_cheval": Vector2(2.7, 2.2), "pq_cheval_blanc": Vector2(2.7, 2.2), "pq_vache": Vector2(2.8, 1.5), "pq_taureau": Vector2(3.0, 1.6),
-	"pq_ane": Vector2(1.7, 1.3), "pq_husky": Vector2(1.0, 0.65), "pq_yeti": Vector2(1.9, 2.6), "pq_chevalier": Vector2(1.0, 1.9)}
+	"pq_ane": Vector2(1.7, 1.3), "pq_husky": Vector2(1.0, 0.65)}
 ## originaux FBX : unités de l'auteur (cm, x100…) -> ramenés à la hauteur du PS1 pour la comparaison
 ## quadrupèdes « Ultimate » : le glb regarde +z (face caméra) ; tournés de profil (tête à gauche, comme l'original FBX)
 const PROFIL := ["pq_cheval", "pq_cheval_blanc", "pq_vache", "pq_taureau", "pq_ane", "pq_husky"]
-const NORMALISER := ["pq_cheval", "pq_cheval_blanc", "pq_vache", "pq_taureau", "pq_ane", "pq_husky", "pq_yeti", "pq_chevalier"]
+const NORMALISER := ["pq_cheval", "pq_cheval_blanc", "pq_vache", "pq_taureau", "pq_ane", "pq_husky"]
 
 func _dim(n: Node3D) -> Vector2:
 	return DIMS.get(String(n.get_meta("pq", "")), Vector2(1.0, 1.8))
@@ -243,11 +237,9 @@ func _echelle(ids: Array) -> void:
 	refs = [h, dr]
 	var groupes := [
 		["pq_villageois", "pq_chasseresse", "pq_chasseur", "pq_villageoise"],
-		["pq_loup", "pq_squelette", "pq_geant"],
-		["pq_araignee", "pq_cerf", "pq_spectre"],
+		["pq_loup", "pq_araignee", "pq_cerf"],
 		["pq_cheval", "pq_cheval_blanc", "pq_ane"],
 		["pq_vache", "pq_taureau", "pq_husky"],
-		["pq_chevalier", "pq_yeti"],
 	]
 	var vues: Array = []
 	for g: Array in groupes:
@@ -324,8 +316,7 @@ func _film(ids: Array) -> void:
 	root.add_child(lab)
 	var groupes := [
 		["pq_villageois", "pq_chasseresse", "pq_chasseur", "pq_villageoise"],
-		["pq_loup", "pq_araignee", "pq_squelette"],
-		["pq_geant", "pq_cerf", "pq_spectre"],
+		["pq_loup", "pq_araignee", "pq_cerf"],
 	]
 	for g: Array in groupes:
 		var noeuds: Array[Node3D] = []
