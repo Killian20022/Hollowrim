@@ -212,7 +212,7 @@ def assembler(nom_recette):
         for sg in (-1, 1):
             ang = 90 if sg > 0 else 270          # la face -Y de la pièce regarde vers l'extérieur
             sx_g = (Wt + 2 * EXT - 0.1) / 6.7
-            objs += poser(rec["pignon"], (sg * (L * 0.5 + EXT - 0.1), 0, ztop), ang, (sx_g, SY, s_larg))
+            objs += poser(rec["pignon"], (sg * (L * 0.5 + EXT - 0.1), 0, ztop), ang, (sx_g * 1.04, SY, s_larg * 1.07))   # un peu plus grand : pas de jour (fil de ciel) sous les rives
     zf, ze = Z_FAITE[nom_toit]
     META[nom_recette] = {"L": L, "W": W, "ztop": ztop, "faite": ztop + zf * s_larg, "egout": ztop + ze * s_larg, "demi_toit": span * 0.5,
                          "long_toit": long_pc * s_long, "vitres": VITRES[:], "portes": PORTES[:], "volets": VOLETS_P[:], "pans": PANS[:]}

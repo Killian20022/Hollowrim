@@ -436,9 +436,8 @@ static func _grenier(v, p: Node3D, L: float, W: float, h: float, graine: int) ->
 			piece(v, p, Vector3(sx * (L * 0.5 - 0.3), yh - 0.55, sz * (W * 0.5 + 0.1)), Vector3(sx * (L * 0.5 - 0.7), yh, sz * (W * 0.5 + 0.22)), Vector2(0.1, 0.1), Vector3(0, 0, sz), v.m_colombage)
 	porte(v, p, Vector3(0, 1.0, W * 0.5 + 0.12), Vector3.BACK, 0.9, 1.7, graine, false)
 	if VillageBatiQ.detail("bq_escalier"):      # bâti hybride : escalier extérieur Quaternius (Stairs_Exterior_Straight), 1 m de large
-		var mats := VillageBatiQ._mats(v)
-		for mc: Array in PropsQuaternius.morceaux("bq_escalier"):
-			v._ajouter(p, mc[1], Transform3D(Basis.from_scale(Vector3(0.5, 1.0, 0.6)), Vector3(0, -0.2, W * 0.5 + 1.0)), mats.get(mc[0], v.m_poutres_h))
+		for mc: Array in PropsQuaternius.morceaux("bq_escalier"):      # en bois sombre comme le grenier (la pierre du kit, enneigée, sortait blanche)
+			v._ajouter(p, mc[1], Transform3D(Basis.from_scale(Vector3(0.5, 1.0, 0.6)), Vector3(0, -0.2, W * 0.5 + 1.0)), v.m_poutres_h)
 		return
 	for k in 4:
 		v._boite(p, Vector3(1.0, 0.08, 0.3), Transform3D(Basis(), Vector3(0, 0.2 + k * 0.22, W * 0.5 + 1.4 - k * 0.3)), v.m_poutres_h)
