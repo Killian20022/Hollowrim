@@ -242,17 +242,26 @@ static func forge(parent: Node3D, pos: Vector3, largeur: float) -> FeuFixe:
 	f.dist_max = 14.0
 	f.add_to_group("foyer_forge")
 	parent.add_child(f)
+	# Les particules (ParticleProcessMaterial, rampes) ne se construisent QUE sur le fil principal : cette fabrique est appelée depuis
+	# le fil des intérieurs du village, en même temps que `camp()` sur le fil principal ; le matériau de particules partage un
+	# compilateur de shader global, et deux fils qui le sollicitent ensemble le font échouer (« Unknown identifier 'alt_seed' »).
+	if OS.get_thread_caller_id() == OS.get_main_thread_id():
+		f._particules_forge(largeur)
+	else:
+		f._particules_forge.call_deferred(largeur)
+	return f
+
+func _particules_forge(largeur: float) -> void:
 	var couleurs := PackedColorArray([Color("#fff5b0"), Color("#ffc83a"), Color("#f07319"), Color("#c43014")])
 	var alphas := PackedColorArray([Color(1, 1, 1, 1), Color(0.8, 0.45, 0.3, 1), Color(0.4, 0.15, 0.1, 0)])
-	var filet := particules(f, Vector3.ZERO, 8, 1.2, 0.5, 1.3, largeur * 0.35, Vector2(0.012, 0.02), Vector2(2.0, 4.0), couleurs, alphas, Vector3(0, -0.4, 0), 35.0)
-	f.cachables.append(filet)
-	var gerbe := particules(f, Vector3.ZERO, 36, 1.4, 1.2, 3.2, largeur * 0.3, Vector2(0.012, 0.024), Vector2(2.0, 4.0), couleurs, alphas, Vector3(0, -3.2, 0.5), 55.0)
+	var filet := particules(self, Vector3.ZERO, 8, 1.2, 0.5, 1.3, largeur * 0.35, Vector2(0.012, 0.02), Vector2(2.0, 4.0), couleurs, alphas, Vector3(0, -0.4, 0), 35.0)
+	cachables.append(filet)
+	var gerbe := particules(self, Vector3.ZERO, 36, 1.4, 1.2, 3.2, largeur * 0.3, Vector2(0.012, 0.024), Vector2(2.0, 4.0), couleurs, alphas, Vector3(0, -3.2, 0.5), 55.0)
 	gerbe.one_shot = true
 	gerbe.explosiveness = 0.95
 	gerbe.emitting = false
-	f.rafale_etincelles = gerbe
-	f.cachables.append(gerbe)
-	return f
+	rafale_etincelles = gerbe
+	cachables.append(gerbe)
 
 ## La forge s'active (amélioration d'un objet chez Brodd) : gerbe d'étincelles + les braises du foyer s'avivent 2,5 s.
 func activer() -> void:

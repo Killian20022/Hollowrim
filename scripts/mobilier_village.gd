@@ -61,9 +61,9 @@ const POSES_D := [
 	["q_cageot_vide", -1, Vector3(55.7, 0.0, 42.3), 10.0, false], ["q_cageot_vide", -1, Vector3(55.7, 0.24, 42.3), 40.0, false],
 	["q_corde_2", -1, Vector3(49.1, 0.0, 32.4), 40.0, false], ["q_bourse", -1, Vector3(52.0, 0.0, 44.0), 30.0, false],
 	["q_sac_debout", -1, Vector3(47.3, 0.0, 55.2), 0.0, false], ["q_sac", -1, Vector3(46.0, 0.0, 55.0), 60.0, false],
-	["q_souche", -1, Vector3(56.2, 0.0, 49.6), 0.0, true], ["q_hache_outil", -1, Vector3(56.2, 0.6, 49.6), 70.0, false],
+	["q_souche", -1, Vector3(54.4, 0.0, 50.6), 0.0, true], ["q_hache_outil", -1, Vector3(54.4, 0.6, 50.6), 70.0, false],   # audit 2026-11-04 : à 56,2 / 49,6 la souche entrait de 67 % dans la pile de bois voisine
 	["q_tronc", -1, Vector3(55.6, 0.0, 47.2), 80.0, false],
-	["q_seau_bois", -1, Vector3(41.6, 0.0, 55.4), 0.0, false], ["q_caisse", -1, Vector3(38.4, 0.0, 70.0), 20.0, true],
+	["q_seau_bois", -1, Vector3(41.6, 0.0, 55.4), 0.0, false], ["q_caisse", -1, Vector3(41.0, 0.0, 70.0), 20.0, true],   # audit : à (38,4 ; 70,0) elle était DANS la maison voisine (boîte de collision x 32,3-38,7)
 	["q_corde_1", -1, Vector3(50.6, 0.0, 80.4), 100.0, false],
 ]
 ## Lot 4 (props/lot4) : NOURRITURE des étals, mêmes conventions que POSES_Q (étal i, position locale dans le repère de l'étal ; les hauteurs 0,9

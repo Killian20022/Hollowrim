@@ -197,7 +197,7 @@ func _etape2() -> void:
 	dg.vie = 1.0
 	dg.recevoir_coup(40.0, s.joueur.global_position, false, {"type": "glace", "ecole": "glace", "attaque": "sort", "point": dg.global_position + Vector3(0, 1.2, 0.2)})
 	await _attendre(40)
-	ok(String(dg.modele.get_meta("mode_jambe_l", "")) == "glace" and dg.modele.get_meta("morceau_jambe_l", null) == null, "glace : la jambe gelée éclate (pas de morceau)")
+	ok(String(dg.modele.get_meta("mode_jambe_l", "")) == "glace" and not dg.modele.has_meta("morceau_jambe_l"), "glace : la jambe gelée éclate (pas de morceau)")
 	var capg: Array = dg.modele.find_children("*Capuchon*", "MeshInstance3D", true, false)
 	ok(capg.size() >= 1 and ((capg[0] as MeshInstance3D).material_override as ShaderMaterial).get_shader_parameter("c_chair") == Demembrement.CHAIRS["glace"][0], "glace : moignon de glace")
 	# sons du démembrement présents (banque RetourImpact, fichiers importés)

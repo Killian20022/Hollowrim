@@ -520,7 +520,7 @@ func _x_s1(_m: Dictionary) -> void:
 	interaction("s1_barree", _l(-0.7, -9.0, 1.2), "Porte barrée", "Pousser la porte", "texte", {"texte": ["La porte est barrée de l’autre côté. Il doit y avoir une barre que l’on soulève."], "condition_non": "s1"})
 	interaction("s1", _l(-3.0, -9.0, 1.2), "Barre de la porte", "Soulever la barre", "porte", {"condition_non": "s1"})
 	d.os_tas(_l(-5.0, -9.4), 3, 0.4)
-	d.sac_dechire(_l(-9.0, -8.2), 2.0)
+	d.sac_dechire(_l(-9.0, -9.2), 2.0)      # audit : à (-9 ; -8,2) il entrait de 17 cm dans le panneau de mur
 
 func _x_ossuaire(_m: Dictionary) -> void:
 	# autel d'os central, où repose le fragment du sceau des Os
@@ -603,7 +603,7 @@ func _x_galerie(_m: Dictionary) -> void:
 
 func _x_tresor(_m: Dictionary) -> void:
 	or_tas(_l(-42.4, -42.0), 0.9, 0.5)
-	or_tas(_l(-42.8, -46.2), 0.7, 0.4)
+	or_tas(_l(-42.4, -45.4), 0.7, 0.4)      # audit 2026-11-04 : à (-42,8 ; -46,2) il chevauchait le vase q_vase_2 (0,41 m)
 	or_tas(_l(-38.6, -41.2), 0.6, 0.3)
 	d.table(_l(-38.2, -46.6), 0.0)
 	for k in 4:
@@ -682,6 +682,11 @@ func _x_quartiers(_m: Dictionary) -> void:
 	d.bouclier_mural(_l(15.3, -4.0, 1.7), Vector3(1, 0, 0), 0.34, Color(0.55, 0.3, 0.25))
 	d.bouclier_mural(_l(15.3, -5.2, 1.7), Vector3(1, 0, 0), 0.34, Color(0.3, 0.38, 0.55))
 	d.bouclier_mural(_l(22.0, -8.7, 1.8), Vector3(0, 0, 1), 0.34, Color(0.5, 0.4, 0.3))
+	# audit 2026-11-04 : la garniture de la table (livres, fioles) évite les chopes posées plus bas (leurs disques sont déclarés AVANT la table, à la hauteur du pied de la table : voir CrypteDecor._table_lot4)
+	var disques_table: Array = d.get_meta("c6_disques", [])
+	for pc: Vector3 in [_l(24.0, -1.25), _l(24.9, -0.95)]:
+		disques_table.append([pc, 0.12, []])
+	d.set_meta("c6_disques", disques_table)
 	d.table(_l(24.4, -1.1), 0.0)      # hors du lit (le lit, écarté du mur, y entrait)
 	d.boite("parchemin", _l(24.4, -1.1, 0.82), Vector3(0.34, 0.012, 0.26), 0.4)
 	d.bougie(_l(24.7, -1.2, 0.8), false)
@@ -694,7 +699,7 @@ func _x_quartiers(_m: Dictionary) -> void:
 	_q("q_chope", 24.9, -0.95, 2.2, 0.8)
 	_q("q_assiette", 24.1, -0.88, 0.0, 0.8)
 	_q("q_tabouret", 23.5, -1.55, 0.5, 0.0, true)
-	_q("q_caisse", 18.9, -8.6, 0.15, 0.0, true, {}, 0.85)          # entre deux lits (les angles restent aux braseros)
+	_q("q_caisse", 18.9, -6.6, 0.15, 0.0, true, {}, 0.85)          # au pied des lits (entre eux elle entrait dans leurs boîtes de collision ; les angles restent aux braseros)
 	if PropsQuaternius.lot4:      # props/lot4 : coffre de soldat décoratif (fermé) au pied du lit sud
 		_q("q_coffre_d", 22.0, -8.5, PI, 0.0, true)
 	# mur fragile : fissures et poussière au pied du mur est, courant d'air

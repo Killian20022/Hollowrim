@@ -25,11 +25,13 @@ static func fil_principal() -> bool:
 ## construction fait des appels au serveur de rendu qui attendent une réponse (surface_get_arrays, get_image, get_aabb…) ; avec une
 ## fenêtre, ces appels passent par la file de commandes que SEUL le fil principal vide. Un wait_for_task_completion nu sur le fil
 ## principal l'empêchait de la vider : interblocage. Sur le fil principal avec fenêtre, on vide donc la file en attendant (force_sync) ;
-## dans un fil de travail (ou en --headless, serveur factice synchrone), attente nue.
+## dans un fil de travail, attente nue. Même en --headless : un fil de construction (donjon de la crypte, extérieur de la grotte) peut
+## attendre la file de commandes du serveur de rendu (sorties de partie et de test pendant le chargement, ex. test_filet : « TOUT OK »
+## puis quit() figé pour toujours dans GrotteAcces._exit_tree) ; une attente nue du fil principal l'empêchait de la vider.
 static func attendre(tache: int) -> void:
 	if tache < 0:
 		return
-	if fil_principal() and DisplayServer.get_name() != "headless":
+	if fil_principal():
 		while not WorkerThreadPool.is_task_completed(tache):
 			RenderingServer.force_sync()
 			OS.delay_usec(500)
