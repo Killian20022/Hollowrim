@@ -125,7 +125,11 @@ static func porte(v, p: Node3D, c: Vector3, n: Vector3, larg := 1.1, haut := 1.9
 	if PropsQuaternius.remplace and PropsQuaternius.existe("q_porte_4_plate"):      # props/remplacement : vantail Door_4 Quaternius (planches, ferrures)
 		var vq: String = ["q_porte_1_plate", "q_porte_4_plate", "q_porte_8_plate", "q_porte_2_plate"][graine % 4]
 		var bq := PropsQuaternius.boite(vq)
-		PropsQuaternius.village(v, p, vq, f * Transform3D(Basis.from_scale(Vector3(larg / bq.size.x, haut / bq.size.y, 1.0)), Vector3(0, 0, 0.04)))
+		var xv := f * Transform3D(Basis.from_scale(Vector3(larg / bq.size.x, haut / bq.size.y, 1.0)), Vector3(0, 0, 0.04))
+		if VillageBatiQ.actif:      # gen/bati2 : bois sombre (la teinte mousse du prop sortait verdâtre)
+			VillageBatiQ.vantail(v, p, vq, xv)
+		else:
+			PropsQuaternius.village(v, p, vq, xv)
 	else:
 		v._boite(p, Vector3(larg, haut, 0.08), f * Transform3D(Basis(), Vector3(0, haut * 0.5, 0.0)), v.m_poutres)
 		for by in [0.28, haut * 0.74]:
@@ -303,7 +307,7 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	var nporte := _normale(cote_porte)
 	var cporte := Vector3(nporte.x * (L * 0.5 + e_mur), y_sol, nporte.z * (W * 0.5 + e_mur))   # sur le nu du mur (rondins : dans l'ouverture)
 	if style == "grange":
-		_portes_grange(v, p, cporte, nporte, graine)
+		_portes_grange(v, p, cporte, nporte, graine)   # (bâti hybride : VillageBatiQ.portes_grange, sur la grange en bardage du kit)
 	elif style != "grenier":
 		porte(v, p, cporte, nporte, 1.1, 1.95, graine)
 	# fenêtres
@@ -484,14 +488,17 @@ static func _appentis(v, p: Node3D, g: Node3D, L: float, W: float, graine: int) 
 ## l'égout du toit, enseigne à l'enclume vers la rue, poste de travail dehors (enclume sur billot, meule, bac, braises).
 static func forge_ouverte(v, p: Node3D) -> void:
 	var zf := 4.35
-	for sx in [-1.0, 1.0]:
-		v._poteau(p, Vector3(sx * 2.75, 0, 1.95), 0.12, 2.95, v.m_poutres, true)
-		v._poteau(p, Vector3(sx * 2.75, 0, zf), 0.13, 2.5, v.m_poutres, true)
-		v._bloc(p, Vector3(0.5, 0.22, 0.5), 4700 + int(sx * 3.0), Vector3(sx * 2.75, 0.06, zf), v.m_brute, 0.2, 0.6, 0.2, 0.06)
-		piece(v, p, Vector3(sx * 2.75, 2.0, zf), Vector3(sx * 2.75, 2.48, zf - 0.55), Vector2(0.1, 0.1), Vector3(sx, 0, 0), v.m_poutres)
-	v._boite(p, Vector3(5.9, 0.2, 0.24), Transform3D(Basis(), Vector3(0, 2.5, zf)), v.m_poutres_h)
-	v._boite(p, Vector3(5.9, 0.2, 0.24), Transform3D(Basis(), Vector3(0, 2.94, 1.95)), v.m_poutres_h)
-	v._pan(p, Vector3(0, 3.12, 1.55), Vector3(0, -0.5, 3.1), 6.4, 4790, 5.8, true, Vector2.ZERO, true)
+	if VillageBatiQ.detail("bq_auvent") and VillageBatiQ.detail("bq_poteau"):
+		_forge_auvent_q(v, p, zf)
+	else:
+		for sx in [-1.0, 1.0]:
+			v._poteau(p, Vector3(sx * 2.75, 0, 1.95), 0.12, 2.95, v.m_poutres, true)
+			v._poteau(p, Vector3(sx * 2.75, 0, zf), 0.13, 2.5, v.m_poutres, true)
+			v._bloc(p, Vector3(0.5, 0.22, 0.5), 4700 + int(sx * 3.0), Vector3(sx * 2.75, 0.06, zf), v.m_brute, 0.2, 0.6, 0.2, 0.06)
+			piece(v, p, Vector3(sx * 2.75, 2.0, zf), Vector3(sx * 2.75, 2.48, zf - 0.55), Vector2(0.1, 0.1), Vector3(sx, 0, 0), v.m_poutres)
+		v._boite(p, Vector3(5.9, 0.2, 0.24), Transform3D(Basis(), Vector3(0, 2.5, zf)), v.m_poutres_h)
+		v._boite(p, Vector3(5.9, 0.2, 0.24), Transform3D(Basis(), Vector3(0, 2.94, 1.95)), v.m_poutres_h)
+		v._pan(p, Vector3(0, 3.12, 1.55), Vector3(0, -0.5, 3.1), 6.4, 4790, 5.8, true, Vector2.ZERO, true)
 	enseigne(v, p, Vector3(2.75, 2.35, zf + 0.1), Vector3.BACK, "enclume")
 	# poste de travail dehors, côté gauche (la porte est à droite : x 0,55 .. 2,15). Lot L7 : modules Blender (mobilier_village.py :
 	# forge_billot, forge_foyer, forge_meule, tonneau_c) fondus avec le bâti (MobilierVillage.poser_dans) ; collisions d'avant inchangées.
@@ -516,6 +523,40 @@ static func forge_ouverte(v, p: Node3D) -> void:
 	PropsQuaternius.village(v, p, "q_brique_3", Transform3D(Basis(Vector3.UP, -0.4), Vector3(-2.15, 0, 3.08)))
 	PropsQuaternius.village(v, p, "q_brique_2", Transform3D(Basis(Vector3.UP, 1.2), Vector3(-2.3, 0.21, 3.1)))
 	PropsQuaternius.village(v, p, "q_mannequin", Transform3D(Basis(Vector3.UP, -0.5), Vector3(2.42, 0, 3.25)), true)
+
+## Bâti hybride (gen/bati2) : auvent de la forge en kitbash — poteaux Corner_Exterior_Wood sur dés de pierre, aisseliers
+## Roof_Support2, sablières, pan de bardeaux Roof_Wooden_2x1 (3 pièces) sous la neige épaisse du village (même pente, même
+## débord que l'auvent d'avant), planches de rive sombres. Collisions des poteaux conservées.
+static func _forge_auvent_q(v, p: Node3D, zf: float) -> void:
+	for sx in [-1.0, 1.0]:
+		for pz: Array in [[1.95, 2.95], [zf, 2.5]]:
+			var c := Vector3(sx * 2.75, 0, pz[0])
+			VillageBatiQ.kit(v, p, "bq_poteau", Transform3D(Basis.from_scale(Vector3(1.15, float(pz[1]) / 3.0, 1.15)), c), v.m_poutres)
+			v._collision(p, BoxShape3D.new(), Transform3D(Basis(), c + Vector3(0, float(pz[1]) * 0.5, 0)), Vector3(0.28, pz[1], 0.28))
+		v._bloc(p, Vector3(0.5, 0.22, 0.5), 4700 + int(sx * 3.0), Vector3(sx * 2.75, 0.06, zf), v.m_brute, 0.2, 0.6, 0.2, 0.06)
+		# aisseliers du kit (Roof_Support2 : pied contre le poteau, tête sous la sablière), de part et d'autre du poteau avant
+		for dx in [-1.0, 1.0]:
+			if sx * dx > 0.0:
+				continue
+			VillageBatiQ.kit(v, p, "bq_aisselier", Transform3D(Basis(Vector3.UP, dx * PI * 0.5), Vector3(sx * 2.75 + dx * 0.08, 1.76, zf)), v.m_poutres)
+		VillageBatiQ.kit(v, p, "bq_aisselier", Transform3D(Basis(Vector3.UP, PI), Vector3(sx * 2.75, 1.76, zf - 0.1)), v.m_poutres)
+	v._boite(p, Vector3(5.9, 0.2, 0.24), Transform3D(Basis(), Vector3(0, 2.5, zf)), v.m_poutres_h)
+	v._boite(p, Vector3(5.9, 0.2, 0.24), Transform3D(Basis(), Vector3(0, 2.94, 1.95)), v.m_poutres_h)
+	# pan : de (z 1,55 ; y 3,12) à (z 4,65 ; y 2,62), 6,4 m de long ; bardeaux du kit (2,26 x 1,52, haut côté -Z) étirés
+	var Rp := Vector3(0, 3.12, 1.55)
+	var d := Vector3(0, -0.5, 3.1)
+	for i in 3:
+		var x := -6.4 * 0.5 + (i + 0.5) * 6.4 / 3.0
+		VillageBatiQ.kit(v, p, "bq_auvent", Transform3D(Basis.from_scale(Vector3(6.4 / 3.0 / 2.2, 0.5 / 1.25, 3.25 / 1.52)), Vector3(x, Rp.y - 0.5 - 0.14, Rp.z - 0.08)), v.m_poutres_h)
+	var Sl := d.length()
+	var t := d / Sl
+	var nrm := Vector3(0, t.z, -t.y)
+	var xf := Transform3D(Basis(Vector3.RIGHT, nrm, t), Rp)
+	v._ajouter(p, BatiGeo.dalle_neige_epaisse(6.4, Sl, 4790, v.EPAISSEUR_NEIGE, 0.26, 0.2, Vector2.ZERO).surface_get_arrays(0), xf, v.m_toit)
+	var bord := xf * Vector3(0, -0.02, Sl + 0.16)
+	v._stalactites(p, -2.9, 2.9, bord.y, bord.z, 4791)
+	for sx in [-1.0, 1.0]:
+		piece(v, p, Vector3(sx * 3.2, Rp.y + 0.02, Rp.z - 0.05), Vector3(sx * 3.2, Rp.y - 0.54, Rp.z + Sl + 0.12), Vector2(0.24, 0.1), Vector3(sx, 0, 0), v.m_colombage)
 
 # --- tour-clocher ----------------------------------------------------------------------------------------------
 
@@ -555,9 +596,16 @@ static func tour(v, g: Node3D, x: float, z: float) -> void:
 	# porte au nord (+Z) : arc approché par deux claveaux, vantail, marches
 	var zp := S * 0.5
 	porte(v, p, Vector3(0, 0.7, zp + 0.06), Vector3.BACK, 1.25, 2.25, 8801)
-	for sx in [-1.0, 1.0]:
-		v._bloc(p, Vector3(0.55, 0.32, 0.36), r.randi(), Vector3(sx * 0.42, 3.25, zp + 0.1), v.m_brute, sx * 0.35, 0.5, 0.16, 0.04)
-	v._bloc(p, Vector3(0.42, 0.38, 0.38), r.randi(), Vector3(0, 3.42, zp + 0.12), v.m_brute, 0.0, 0.7, 0.16, 0.04)
+	var tour_q := VillageBatiQ.detail("bq_toit_tour") and VillageBatiQ.detail("bq_cadre_rond_pierre")
+	if tour_q:      # bâti hybride (gen/bati2) : encadrement cintré de pierre du kit (DoorFrame_Round_Brick) autour de la porte
+		VillageBatiQ.kit(v, p, "bq_cadre_rond_pierre", Transform3D(Basis.from_scale(Vector3(1.75 / 1.59, 3.05 / 2.59, 1.1)), Vector3(0, 0.62, zp + 0.08)), null, v.m_brute)
+		for sx in [-1.0, 1.0]:
+			r.randi()
+		r.randi()
+	else:
+		for sx in [-1.0, 1.0]:
+			v._bloc(p, Vector3(0.55, 0.32, 0.36), r.randi(), Vector3(sx * 0.42, 3.25, zp + 0.1), v.m_brute, sx * 0.35, 0.5, 0.16, 0.04)
+		v._bloc(p, Vector3(0.42, 0.38, 0.38), r.randi(), Vector3(0, 3.42, zp + 0.12), v.m_brute, 0.0, 0.7, 0.16, 0.04)
 	# meurtrières : deux éclairées (nord), les autres sombres
 	for m in [[Vector3(0, 5.0, zp + 0.01), 1.0, true], [Vector3(0, 9.3, zp - 0.14), 1.0, true], [Vector3(1.2, 8.6, -zp + 0.14), -1.0, false]]:
 		var c: Vector3 = m[0]
@@ -578,8 +626,16 @@ static func tour(v, g: Node3D, x: float, z: float) -> void:
 			v._boite(p, Vector3(0.95, hb, 0.95), Transform3D(Basis(), Vector3(sx * (sb * 0.5 - 0.47), yb + hb * 0.5, sz * (sb * 0.5 - 0.47))), v.m_roche)
 	for cote in 4:
 		var bb := Basis(Vector3.UP, cote * PI * 0.5)
-		v._boite(p, Vector3(sb - 1.9, 0.75, 0.4), Transform3D(bb, bb * Vector3(0, yb + 0.37, sb * 0.5 - 0.2)), v.m_roche)
-		v._boite(p, Vector3(sb - 1.9, 0.12, 0.5), Transform3D(bb, bb * Vector3(0, yb + 0.8, sb * 0.5 - 0.2)), v.m_brute)
+		if tour_q and VillageBatiQ.detail("bq_garde_corps"):
+			# bâti hybride : garde-corps de bois sombre à croix de Saint-André (Balcony_Cross_Straight) entre les piles, sur un
+			# muret bas ; aisseliers Roof_Support2 sous le linteau de chaque baie
+			v._boite(p, Vector3(sb - 1.9, 0.3, 0.42), Transform3D(bb, bb * Vector3(0, yb + 0.15, sb * 0.5 - 0.2)), v.m_roche)
+			VillageBatiQ.kit(v, p, "bq_garde_corps", Transform3D(bb * Basis.from_scale(Vector3((sb - 1.9) / 2.0, 0.85 / 1.23, 1.3)), bb * Vector3(0, yb + 0.28, sb * 0.5 - 0.2 - 1.3)), v.m_poutres)
+			for sx in [-1.0, 1.0]:
+				VillageBatiQ.kit(v, p, "bq_aisselier", Transform3D(bb * Basis(Vector3.UP, -sx * PI * 0.5), bb * Vector3(sx * (sb * 0.5 - 0.95), yb + hb - 1.3, sb * 0.5 - 0.22)), v.m_poutres)
+		else:
+			v._boite(p, Vector3(sb - 1.9, 0.75, 0.4), Transform3D(bb, bb * Vector3(0, yb + 0.37, sb * 0.5 - 0.2)), v.m_roche)
+			v._boite(p, Vector3(sb - 1.9, 0.12, 0.5), Transform3D(bb, bb * Vector3(0, yb + 0.8, sb * 0.5 - 0.2)), v.m_brute)
 		v._boite(p, Vector3(sb, 0.55, 0.45), Transform3D(bb, bb * Vector3(0, yb + hb - 0.27, sb * 0.5 - 0.22)), v.m_roche)
 	v._boite(p, Vector3(sb - 0.4, 0.15, sb - 0.4), Transform3D(Basis(), Vector3(0, yb + 0.05, 0)), v.m_poutres_h)
 	v._boite(p, Vector3(sb - 0.3, 0.22, 0.24), Transform3D(Basis(), Vector3(0, yb + 2.7, 0)), v.m_poutres_h)
@@ -590,6 +646,13 @@ static func tour(v, g: Node3D, x: float, z: float) -> void:
 	# flèche : pyramide d'essentes (bois sombre), arêtes et pied enneigés, épi de fer
 	var y_f := yb + hb + 0.22
 	var hf := 6.4   # flèche élancée comme sur la planche (vue d'en bas, 4,6 m paraissait plate)
+	if tour_q:      # bâti hybride : coyau d'essentes enneigé gardé, flèche du kit (Roof_Tower_RoundTiles) élancée au-dessus
+		_fleche(v, p, sb + 0.5, y_f, hf, true)
+		# la pièce : pyramide carrée à coyau de 4,5 m (dont la pointe) + épi de fer de 2,9 m ; étirée à 1,35 : flèche de ~6 m
+		VillageBatiQ.kit(v, p, "bq_toit_tour", Transform3D(Basis.from_scale(Vector3(0.98, 1.35, 0.98)), Vector3(0, y_f + 0.3, 0)), v.m_colombage, v.m_brute)
+		v._collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(0, (yb + hb) * 0.5, 0)), Vector3(S + 0.4, yb + hb, S + 0.4))
+		v._emprise(p, Vector2(S * 0.5 + 0.6, S * 0.5 + 0.6))
+		return      # épi : celui du kit
 	_fleche(v, p, sb + 0.5, y_f, hf)
 	v._cylindre(p, 0.03, 0.04, 1.1, Transform3D(Basis(), Vector3(0, y_f + hf + 0.85, 0)), v.m_fer, 6)
 	v._boite(p, Vector3(0.5, 0.05, 0.05), Transform3D(Basis(), Vector3(0, y_f + hf + 1.0, 0)), v.m_fer)
@@ -598,7 +661,7 @@ static func tour(v, g: Node3D, x: float, z: float) -> void:
 	v._emprise(p, Vector2(S * 0.5 + 0.6, S * 0.5 + 0.6))
 
 ## Flèche pyramidale de base `b`, du haut du beffroi `y0`, hauteur `h` : 4 pans à coyau (base évasée), arêtiers enneigés.
-static func _fleche(v, p: Node3D, b: float, y0: float, h: float) -> void:
+static func _fleche(v, p: Node3D, b: float, y0: float, h: float, coyau_seul := false) -> void:
 	var m := BatiGeo.Maillage.new()
 	var sombre := Color(1, 1, 1, 1)
 	var neige := Color(1, 1, 1, 0)
@@ -613,13 +676,20 @@ static func _fleche(v, p: Node3D, b: float, y0: float, h: float) -> void:
 		var j := (i + 1) % 4
 		# coyau (pied évasé, neige posée sur le bas) puis pan raide
 		m.quad(coins_bas[i], coins_bas[j], coins_k[j], coins_k[i], neige, neige, sombre, sombre, c - Vector3(0, 0.5, 0))
-		m.tri(coins_k[i], coins_k[j], apex, sombre, sombre, sombre, c)
+		if not coyau_seul:
+			m.tri(coins_k[i], coins_k[j], apex, sombre, sombre, sombre, c)
+		else:      # bâti hybride : dessus du coyau fermé (la flèche du kit, ronde, s'y pose)
+			m.tri(coins_k[i], coins_k[j], Vector3(0, yk + 0.25, 0), sombre, sombre, sombre, c)
 	v._ajouter(p, m.arrays(), Transform3D(), v.m_colombage)   # essentes de bois sombre ; alpha 0 (coyau) = neige
+	if coyau_seul:
+		return
 	for i in 4:
 		var a: Vector3 = coins_k[i]
 		piece(v, p, a + (apex - a) * 0.02 + Vector3(0, 0.04, 0), apex + Vector3(0, -0.15, 0), Vector2(0.14, 0.1), Vector3(a.x, 0, a.z).normalized() + Vector3(0, 0.6, 0), v.m_neige)
 
 # --- moulin à vent -------------------------------------------------------------------------------------------
+
+const MOULIN_KIT := false   # moulin du kit rejeté (voir moulin_vent)
 
 ## Moulin à vent (hors enceinte, butte nord-est) : socle de pierre qui rattrape la pente, tour de pierre tronconique à
 ## 10 pans, cordon, porte au sud, deux fenêtres chaudes, calotte de bois enneigée, arbre et 4 ailes à claires-voies et toile,
@@ -654,9 +724,17 @@ static func moulin_vent(v, g: Node3D, x: float, z: float) -> void:
 	v._quad_z(p, Vector3(0.0, 6.6, -(2.2 + 0.08)), 0.38, 0.48, -1.0, v.m_fen_pignon)
 	# calotte de bois (cône à 10 pans) coiffée de neige
 	var yc := 0.6 + ht + 0.14
-	v._cylindre(p, 0.5, 2.45, 2.0, Transform3D(Basis(), Vector3(0, yc + 1.0, 0)), v.m_poutres_h, 10)
-	v._cylindre(p, 0.08, 0.6, 0.5, Transform3D(Basis(), Vector3(0, yc + 2.24, 0)), v.m_neige, 10)
-	v._cylindre(p, 1.5, 2.1, 0.45, Transform3D(Basis(), Vector3(0, yc + 0.9, 0)), v.m_neige, 10)
+	# Moulin du kit (gen/bati2) : essayé puis REJETÉ après comparaison (calotte évasée à épi, effet pagode, moins nordique
+	# que le cône enneigé d'origine ; ailes à peine différentes) — MOULIN_KIT le rebranche pour un essai.
+	var moulin_q := MOULIN_KIT and VillageBatiQ.detail("bq_toit_tour") and VillageBatiQ.detail("bq_claire_voie") and VillageBatiQ.detail("bq_poutre")
+	if moulin_q:    # bâti hybride (gen/bati2) : calotte Roof_Tower_RoundTiles du kit (tuiles en bois sombre), neige du village dessus
+		VillageBatiQ.kit(v, p, "bq_toit_tour", Transform3D(Basis.from_scale(Vector3(0.86, 0.55, 0.86)), Vector3(0, yc - 0.05, 0)), v.m_colombage, v.m_brute)
+		v._cylindre(p, 0.12, 0.62, 0.5, Transform3D(Basis(), Vector3(0, yc + 1.75, 0)), v.m_neige, 10)
+		v._cylindre(p, 1.85, 2.35, 0.42, Transform3D(Basis(), Vector3(0, yc + 1.05, 0)), v.m_neige, 10)
+	else:
+		v._cylindre(p, 0.5, 2.45, 2.0, Transform3D(Basis(), Vector3(0, yc + 1.0, 0)), v.m_poutres_h, 10)
+		v._cylindre(p, 0.08, 0.6, 0.5, Transform3D(Basis(), Vector3(0, yc + 2.24, 0)), v.m_neige, 10)
+		v._cylindre(p, 1.5, 2.1, 0.45, Transform3D(Basis(), Vector3(0, yc + 0.9, 0)), v.m_neige, 10)
 	# arbre des ailes (vers +Z) et ailes animées
 	var hub := Vector3(0, yc + 0.85, 2.6)
 	v._cylindre(p, 0.2, 0.24, 2.2, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), hub + Vector3(0, 0, -0.95)), v.m_poutres, 8)
@@ -668,12 +746,21 @@ static func moulin_vent(v, g: Node3D, x: float, z: float) -> void:
 	for k in 4:
 		var b := Basis(Vector3.BACK, k * PI * 0.5 + 0.35)
 		# vergue : de l'axe au bout (6,2 m), claires-voies d'un côté, toile tendue
-		v._boite(ailes, Vector3(0.16, 6.1, 0.14), Transform3D(b, b * Vector3(0, 3.15, 0)), v.m_poutres)
-		var yy := 1.5
-		while yy <= 6.05:
-			v._boite(ailes, Vector3(1.35, 0.05, 0.05), Transform3D(b, b * Vector3(0.72, yy, 0.05)), v.m_poutres_h)
-			yy += 0.5
-		v._boite(ailes, Vector3(0.06, 4.6, 0.06), Transform3D(b, b * Vector3(1.38, 3.75, 0.05)), v.m_poutres_h)
+		if moulin_q:
+			# bâti hybride : vergue = poutre ronde du kit (Roof_Log, 10,7 m) réduite ; claires-voies = deux barrières du kit
+			# (Prop_WoodenFence_Single : lisses et barreaux) couchées le long de la vergue (barreaux en travers, comme avant)
+			VillageBatiQ.kit(v, ailes, "bq_poutre", Transform3D(b * Basis(Vector3.RIGHT, -PI * 0.5) * Basis.from_scale(Vector3(0.15, 0.11, 6.1 / 10.7)), b * Vector3(0, 3.15, 0.07)), v.m_poutres)
+			for k2 in 2:
+				var yc2 := 2.65 + k2 * 2.3
+				var bf := Basis(Vector3(0, 2.3 / 2.06, 0), Vector3(1.38 / 0.84, 0, 0), Vector3(0, 0, -1.0))
+				VillageBatiQ.kit(v, ailes, "bq_claire_voie", Transform3D(b * bf, b * Vector3(0.04, yc2, 0.06)), v.m_poutres_h)
+		else:
+			v._boite(ailes, Vector3(0.16, 6.1, 0.14), Transform3D(b, b * Vector3(0, 3.15, 0)), v.m_poutres)
+			var yy := 1.5
+			while yy <= 6.05:
+				v._boite(ailes, Vector3(1.35, 0.05, 0.05), Transform3D(b, b * Vector3(0.72, yy, 0.05)), v.m_poutres_h)
+				yy += 0.5
+			v._boite(ailes, Vector3(0.06, 4.6, 0.06), Transform3D(b, b * Vector3(1.38, 3.75, 0.05)), v.m_poutres_h)
 		v._boite(ailes, Vector3(1.2, 4.4, 0.02), Transform3D(b, b * Vector3(0.74, 3.8, 0.02)), m_toile)
 		v._boite(ailes, Vector3(0.14, 1.0, 0.04), Transform3D(b, b * Vector3(0, 6.0, 0.09)), v.m_neige)
 	v.ailes_moulin = ailes

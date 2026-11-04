@@ -39,8 +39,9 @@ d'avant (VillageBati.maison et Village._maison reprennent leur code d'origine). 
 | H5 (36, 85), haute rue | rondins, porche | kit : cheminée Prop_Chimney2 | rondins, porche, banc |
 | H6, grenier sur pierres levées (60, 20.5) | stabbur de planches, escalier détaché | kit : escalier extérieur Stairs_Exterior_Straight (en bois sombre) | tout le grenier (pierres levées, étage en surplomb) |
 | Ferme A (79.5, 24.5) | rondins, têtes de dragon | kit : cheminée Prop_Chimney2 | rondins, têtes de dragon, tas de bois |
-| Granges A et B | planches, grandes portes | — | tout (le kit n'a pas de portes de grange) |
-| Tour-clocher, moulin à vent, forge, palissade, crypte, grotte | — | — | inchangés |
+| Granges A et B | planches, grandes portes | gen/bati2 : essayées puis rejetées (voir plus bas) | — |
+| Tour-clocher, moulin à vent, forge ouverte | — | **gen/bati2** : voir plus bas | — |
+| Palissade, crypte, grotte | — | — | inchangés |
 
 ## Accord des couleurs (retour utilisateur du 2026-11-04 sur l'essai)
 
@@ -90,3 +91,27 @@ Bilan : moins de draw calls (−5 à −20, les façades sont fondues dans les l
 - Halle, maisons visitables, H5, fermes à rondins : seulement cheminée et cadre de porte du kit (choix : identité nordique).
 - Film : quelques images frôlent un mur ou la neige (vers (44, 61) avant les escaliers, et à la fin devant H5).
 - Le jeu de test `test_menus` (fenêtre requise) n'a pas été lancé.
+
+## Lot bâti restant (branche gen/bati2, depuis f90d3756)
+
+Même méthode (pièces du kit converties dans `bati_quaternius.dat`, fondues dans les lots du village, matières du village,
+aucun nœud par objet, collisions d'origine). Interrupteur : `--bati-ancien` rend aussi ces quatre bâtiments d'avant (chaque
+branche teste `VillageBatiQ.actif` / `VillageBatiQ.detail(<pièce>)`). Nouvelles entrées du .dat : `b_grange_a`, `b_grange_b`,
+`bq_toit_tour`, `bq_planches`, `bq_poteau`, `bq_aisselier`, `bq_auvent`, `bq_garde_corps`, `bq_claire_voie`, `bq_poutre`,
+`bq_cadre_rond_pierre` (relance rapide : liste réduite à ces entrées, l'assembleur garde les autres du .dat).
+
+| Bâtiment | Kit (kitbash) | Gardé fait maison |
+|---|---|---|
+| Tour-clocher (45, 87), ~31 m | flèche `Roof_Tower_RoundTiles` (étirée en hauteur x1,35, tuiles en bois sombre des essentes, son épi de fer remplace l'ancien) sur le coyau carré enneigé d'avant ; garde-corps du beffroi `Balcony_Cross_Straight` (croix de Saint-André, bois sombre) sur un muret bas ; aisseliers `Roof_Support2` sous les linteaux ; encadrement cintré `DoorFrame_Round_Brick` (pierre brute) à la place des claveaux | fût de pierre, chaînages, cordons enneigés, meurtrières éclairées, cloche, collision |
+| Moulin à vent (95.5, 13) | **rejeté** : calotte `Roof_Tower_RoundTiles` + ailes en `Roof_Log` / `Prop_WoodenFence_Single` (code gardé derrière `VillageBati.MOULIN_KIT = false`) — la calotte évasée à épi faisait pagode, moins nordique que le cône enneigé | tout (moulin d'origine, ailes animées) |
+| Granges A (87.5, 24.5) et B (67.5, 6) | **rejetées** : l'assemblage `b_grange_a/_b` (bardage `Floor_WoodDark`, toit `Roof_RoundTiles_6x8`, portes du kit, `VillageBatiQ.portes_grange`) reste dans le .dat et le code, mais n'est pas branché dans `MODELES` — ses planches horizontales sont moins naturelles que les planches verticales d'origine | tout (granges d'origine) |
+| Forge ouverte (27, 36) | auvent : 4 poteaux `Corner_Exterior_Wood`, aisseliers `Roof_Support2`, 3 pans de bardeaux `Roof_Wooden_2x1` sous la neige épaisse du village (dalle + glaçons), rives sombres | **enseigne à l'enclume**, sablières, dés de pierre, poste de travail (billot, foyer, meule, props), collisions des poteaux (boîtes 0,28 m) |
+
+Corrections de la v2 :
+- Vantaux de porte (`q_porte_*`) : la teinte mousse des couleurs de sommet est ramenée à sa luminance, sur le bois sombre
+  (`VillageBatiQ.vantail`) — maisons du kit, et en mode hybride toutes les portes `VillageBati.porte` (tour, moulin…).
+- Fils de ciel le long des rives de pignon : les tuiles du kit, vues d'en dessous, laissaient passer le ciel ; une sous-face
+  de planches sombres (1,15 m) suit chaque rive dans le plan du toit.
+
+Captures : `Desktop/Skyrim captures/gen_bati2/planches/`. Règle appliquée : un remplacement moins beau ou moins nordique que
+l'original est rejeté ; seuls la tour-clocher et la forge passent au kit (moulin et granges rejetés).

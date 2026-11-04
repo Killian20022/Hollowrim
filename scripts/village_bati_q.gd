@@ -15,6 +15,8 @@ static var actif := not ("--bati-ancien" in OS.get_cmdline_user_args())
 
 ## Position monde (x, z) arrondie -> modèle du .dat (une entrée par bâtiment remplacé).
 const MODELES := {"36,53": "b_h1", "54,55.5": "b_h2", "54,77": "b_h4", "35.5,71": "b_h3", "25.5,55.5": "b_moulin", "61,3.5": "b_ferme_b"}
+# Granges A (87.5, 24.5) et B (67.5, 6) : assemblées en bardage du kit (`b_grange_a/_b` du .dat) mais REJETÉES après
+# comparaison (planches horizontales moins naturelles que les planches verticales d'avant) : elles restent faites maison.
 
 ## Détails Quaternius sur les maisons restées en rondins (hybride) : vrai si la pièce isolée est chargée.
 static func detail(nom: String) -> bool:
@@ -79,6 +81,53 @@ static func dragons(v, p: Node3D, xr: float, faite_y: float, egout_y: float, dem
 		v._piece(p, Rf - d * 0.15, b, Vector2(0.14, 0.22), v.m_colombage)
 		v._dragon(p, b, phi, -c, r)
 
+## Pièce isolée du kit (lot bâti restant : tour, moulin à vent, granges, forge) fondue dans les lots du village : matières du
+## village (bois -> `bois`, défaut bois clair des poutres ; pierre -> `pierre`, défaut roche ; fer -> fer).
+static func kit(v, p: Node3D, nom: String, xf: Transform3D, bois: Material = null, pierre: Material = null) -> void:
+	var mats := _mats(v)
+	for mc: Array in PropsQuaternius.morceaux(nom):
+		var m: Material = mats.get(mc[0], v.m_poutres_h)
+		if mc[0] == "bois" and bois != null:
+			m = bois
+		elif mc[0] == "pierre" and pierre != null:
+			m = pierre
+		v._ajouter(p, mc[1], xf, m)
+
+static var _vantaux := {}
+## Vantail de planches des props validés (q_porte_*) en BOIS SOMBRE : les couleurs de sommet du prop (ton + teinte mousse, qui
+## sortait verdâtre sur les portes) sont ramenées à leur seule luminance, sur la matière sombre des volets et des colombages.
+static func vantail(v, p: Node3D, nom: String, xf: Transform3D) -> void:
+	if not _vantaux.has(nom):
+		var l := []
+		for mc: Array in PropsQuaternius.morceaux(nom):
+			var a: Array = (mc[1] as Array).duplicate()
+			var cs: PackedColorArray = (a[Mesh.ARRAY_COLOR] as PackedColorArray).duplicate()
+			for i in cs.size():
+				var c := cs[i]
+				var lum := minf(1.0, (c.r * 0.3 + c.g * 0.59 + c.b * 0.11) * 1.1)
+				cs[i] = Color(lum, lum * 0.94, lum * 0.86, c.a)
+			a[Mesh.ARRAY_COLOR] = cs
+			l.append([mc[0], a])
+		_vantaux[nom] = l
+	for e: Array in _vantaux[nom]:
+		v._ajouter(p, e[1], xf, v.m_fer if e[0] in ["fer", "noir"] else v.m_poutres)
+
+## Grandes portes de grange en kitbash (remplace VillageBati._portes_grange en mode hybride) : cadre DoorFrame_Flat_WoodDark du
+## kit étiré à 2,9 x 2,6 m, deux vantaux de planches du kit (Floor_WoodDark debout) en bois sombre, traverses et écharpes en Z
+## comme avant, seuil de pierre. `c` = milieu du seuil sur le nu du mur, `n` = normale sortante.
+static func portes_grange(v, p: Node3D, c: Vector3, n: Vector3, graine: int) -> void:
+	var f := VillageBati._face(c, n)
+	v._boite(p, Vector3(2.7, 2.5, 0.06), f * Transform3D(Basis(), Vector3(0, 1.25, -0.04)), v.m_ame)   # fond : pas de jour entre les vantaux
+	kit(v, p, "bq_cadre_porte", f * Transform3D(Basis.from_scale(Vector3(2.95 / 1.58, 2.62 / 2.31, 1.3)), Vector3(0, 0, 0.04)), v.m_poutres_h)
+	for sx in [-1.0, 1.0]:
+		# planches du kit (2 x 2 m, à plat) dressées : 1,28 x 2,5 m
+		kit(v, p, "bq_planches", f * Transform3D(Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3(0.64, 1.0, 1.25)), Vector3(sx * 0.65, 1.25, 0.03)), v.m_poutres)
+		for by in [0.3, 2.2]:
+			v._boite(p, Vector3(1.2, 0.14, 0.05), f * Transform3D(Basis(), Vector3(sx * 0.65, by, 0.07)), v.m_poutres_h)
+		VillageBati.piece(v, p, f * Vector3(sx * 0.1, 0.35, 0.08), f * Vector3(sx * 1.2, 2.15, 0.08), Vector2(0.13, 0.05), n, v.m_poutres_h)
+		v._boite(p, Vector3(0.1, 0.22, 0.05), f * Transform3D(Basis(), Vector3(sx * 0.12, 1.25, 0.1)), v.m_fer)   # poignées
+	v._bloc(p, Vector3(3.2, 0.16, 0.9), graine + 2, f * Vector3(0, -0.32, 0.5), v.m_brute, atan2(n.x, n.z), 0.6, 0.2, 0.04)
+
 static var _meta := {}
 
 static func modele_de(x: float, z: float) -> String:
@@ -128,6 +177,8 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	v._soubassement(p, L, W, graine)
 	# le modèle : posé sur le soubassement (y_sol), un lot par matière (fondu dans les lots du groupe comme le bâti d'origine)
 	var mats := _mats(v)
+	if style == "grange":      # gen/bati2 : bardage, pignons et sous-face des granges en planches debout du village (comme avant)
+		mats["bois"] = v.m_planches
 	for mc: Array in PropsQuaternius.morceaux(nom):
 		var mat: Material = mats.get(mc[0], v.m_poutres_h)
 		v._ajouter(p, mc[1], Transform3D(Basis(), Vector3(0, y_sol, 0)), mat)
@@ -155,6 +206,11 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 		var xr: float = cx * (Lx * 0.5 - 0.04)
 		for cz in [-1.0, 1.0]:
 			VillageBati.piece(v, p, Vector3(xr, faite_y + 0.12, 0), Vector3(xr, egout_y - 0.04, cz * (demi + 0.12)), Vector2(0.28, 0.1), Vector3(cx, 0, 0), v.m_colombage)
+			# gen/bati2 : sous-face de planches sombres le long de la rive, dans le plan du toit (les tuiles du kit, vues d'en
+			# dessous, laissaient passer le ciel : fils blancs le long des rives de pignon)
+			var nr := Vector3(0, demi, cz * (faite_y - egout_y)).normalized()
+			var xi: float = cx * (Lx * 0.5 - 0.6)
+			VillageBati.piece(v, p, Vector3(xi, faite_y - 0.16, 0), Vector3(xi, egout_y - 0.14, cz * (demi + 0.1)), Vector2(1.15, 0.06), nr, v.m_poutres)
 	var roul := BatiGeo.rondin(Lx - 0.2, 0.3, graine + 11, 0.05, 0, 0.0, 1.0)
 	v._ajouter(p, (roul[0] as BatiGeo.Maillage).arrays(), Transform3D(Basis(), Rp + Vector3(0, 0.38, 0)), v.m_neige)
 	# fenêtres : celles des maisons d'avant (4 carreaux, cadre et volets de bois sombre, lueur chaude la nuit) dans les baies du kit
@@ -174,7 +230,7 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 		if not PropsQuaternius.existe(vq):
 			continue
 		var bq := PropsQuaternius.boite(vq)
-		PropsQuaternius.village(v, p, vq, Transform3D(Basis(Vector3.UP, d[5]) * Basis.from_scale(Vector3(d[3] / bq.size.x, d[4] / bq.size.y, 1.0)), Vector3(d[0], y_sol + float(d[1]), d[2])))
+		vantail(v, p, vq, Transform3D(Basis(Vector3.UP, d[5]) * Basis.from_scale(Vector3(d[3] / bq.size.x, d[4] / bq.size.y, 1.0)), Vector3(d[0], y_sol + float(d[1]), d[2])))
 		# deux marches de pierre devant le seuil (comme VillageBati.porte) : le seuil est au-dessus du soubassement
 		var nd := Basis(Vector3.UP, d[5]) * Vector3.BACK
 		var fd := Transform3D(Basis(Vector3.UP, d[5]), Vector3(d[0], y_sol, d[2]) + nd * 0.17)
@@ -219,6 +275,16 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 		var cporte := Vector3(nporte.x * (L * 0.5 + 0.2), y_sol, nporte.z * (W * 0.5 + 0.2))
 		var pe := cporte + Vector3(0, 2.0, 0) + (Vector3(1.0, 0, 0) if absf(nporte.z) > 0.5 else Vector3(0, 0, 1.0))
 		VillageBati.enseigne(v, p, pe, nporte, o["enseigne"])
+	if style == "grange":      # gen/bati2 : grandes portes en kitbash sur le côté de la porte d'origine
+		portes_grange(v, p, Vector3(nporte.x * (L * 0.5 + 0.22), y_sol, nporte.z * (W * 0.5 + 0.22)), nporte, graine)
+		# lucarne de fenil (émissive le soir) sur le pignon +X, comme les granges d'avant
+		var xg: float = float(m["pignon_ext"]) + 0.1
+		var yl := y0 + (faite_y - y0) * 0.36
+		v._quad_x(p, Vector3(xg + 0.02, yl, 0), 0.42, 0.36, 1.0, v.m_fen_pignon)
+		for sz in [-1.0, 1.0]:
+			v._boite(p, Vector3(0.1, 0.46, 0.08), Transform3D(Basis(), Vector3(xg, yl, sz * 0.25)), v.m_colombage)
+		v._boite(p, Vector3(0.12, 0.08, 0.6), Transform3D(Basis(), Vector3(xg, yl + 0.23, 0)), v.m_colombage)
+		v._boite(p, Vector3(0.18, 0.07, 0.64), Transform3D(Basis(), Vector3(xg + 0.03, yl - 0.22, 0)), v.m_colombage)
 	if o.get("appentis", false):
 		VillageBati._appentis(v, p, g, L, W, graine)
 	if o.get("bois", false):

@@ -1637,5 +1637,66 @@
  },
  "bq_escalier": {
   "piece": "Stairs_Exterior_Straight"
+ },
+ "b_grange_a": {
+  "L": 7.0,
+  "W": 5.0,
+  "ztop": 2.7,
+  "faite": 6.7947815533980584,
+  "egout": 2.046844660194175,
+  "toit_dz": 0.0,
+  "demi_toit": 3.45,
+  "long_toit": 8.9,
+  "vitres": [],
+  "portes": [],
+  "volets": [],
+  "pans": [],
+  "fenetres": [],
+  "pignon_ext": 4.235312461853027,
+  "larg_pignon": 5.4
+ },
+ "b_grange_b": {
+  "L": 6.0,
+  "W": 5.0,
+  "ztop": 2.4,
+  "faite": 6.494781553398058,
+  "egout": 1.7468446601941747,
+  "toit_dz": 0.0,
+  "demi_toit": 3.45,
+  "long_toit": 7.900000000000001,
+  "vitres": [],
+  "portes": [],
+  "volets": [],
+  "pans": [],
+  "fenetres": [],
+  "pignon_ext": 3.7353122234344482,
+  "larg_pignon": 5.4
+ },
+ "bq_toit_tour": {
+  "piece": "Roof_Tower_RoundTiles"
+ },
+ "bq_planches": {
+  "piece": "Floor_WoodDark"
+ },
+ "bq_poteau": {
+  "piece": "Corner_Exterior_Wood"
+ },
+ "bq_aisselier": {
+  "piece": "Roof_Support2"
+ },
+ "bq_auvent": {
+  "piece": "Roof_Wooden_2x1"
+ },
+ "bq_garde_corps": {
+  "piece": "Balcony_Cross_Straight"
+ },
+ "bq_claire_voie": {
+  "piece": "Prop_WoodenFence_Single"
+ },
+ "bq_poutre": {
+  "piece": "Roof_Log"
+ },
+ "bq_cadre_rond_pierre": {
+  "piece": "DoorFrame_Round_Brick"
  }
 }
