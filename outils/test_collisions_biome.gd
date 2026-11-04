@@ -122,6 +122,8 @@ func _tester() -> void:
 		if c is StaticBody3D and c.get_child_count() > 0 and (c.get_child(0) as CollisionShape3D).shape is CylinderShape3D:
 			for cs: CollisionShape3D in c.get_children():
 				var cyl := cs.shape as CylinderShape3D
+				if cyl == null:      # corps mixtes (feu de camp : bancs en cylindres + boîte de la tente du lot 4) : seuls les cylindres comptent
+					continue
 				if ZoneBiome.masque(cs.position.x, cs.position.z) > 0.0:
 					n_zone += 1
 					if cyl.radius < 0.15 - 0.0001 or cyl.height < 4.0 * 0.3:
