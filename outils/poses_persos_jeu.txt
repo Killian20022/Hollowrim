@@ -9,7 +9,7 @@ chasseurs_nuit monde 53.5,31.5,-61,-4 heure=22
 enclos_jour monde 60,39.5,-90,-4 heure=12
 pont_jour monde 43,58.5,0,-4 heure=12
 quai_jour monde 38,53.6,131,-8 heure=12
-renard_jour monde 14,19,-135,-14 heure=17
+renard_jour pnj 4,40,0.3 id=renard_fermes heure=17
 gp_paysan pnj 2.6,25,1.0 id=hab_paysan_1 heure=12
 gp_vieux pnj 2.4,15,1.1 id=hab_paysan_2 heure=12
 gp_chasseur pnj 2.6,20,1.0 id=hab_chasseur_2 heure=12
@@ -18,10 +18,9 @@ gp_volva pnj 3.2,-25,1.0 id=volva heure=12
 gp_ylva pnj 3.0,20,1.0 id=chasseuse heure=12
 gp_loup pnj 3.0,30,0.4 id=loup_bois_a heure=12
 gp_cerf pnj 4.0,60,1.0 id=cerf_pre heure=12
-loups_jour pnj 8,20,0.4 id=loup_bois_a heure=12
-loups_jour_b pnj 8,200,0.4 id=loup_bois_b heure=12
-loups_nuit pnj 8,20,0.4 id=loup_bois_a heure=22
-cerfs_jour pnj 10,30,0.9 id=biche_pre_a heure=10
-cerfs_jour_b pnj 10,210,0.9 id=biche_pre_a heure=10
-cerfs_nuit pnj 10,30,0.9 id=biche_pre_a heure=22
-araignees_grotte grotte 159.5,0,0,-5 attente=420
+loups_jour pnj 8,200,0.4 id=loup_bois_b heure=12
+loups_nuit pnj 8,200,0.4 id=loup_bois_b heure=22
+cerfs_jour pnj 11,200,0.9 id=biche_pre_a heure=10
+cerfs_jour_b pnj 9,150,0.9 id=cerf_pre heure=10
+cerfs_nuit pnj 11,200,0.9 id=biche_pre_a heure=22
+araignees_grotte grotte 161,0,0,-5 attente=420

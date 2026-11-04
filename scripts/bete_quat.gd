@@ -129,6 +129,9 @@ func _alerter_meute() -> void:
 # ------------------------------------------------------------------ IA
 
 func _ia(dt: float) -> void:
+	if get_parent() != null and get_parent().get("pret") == false:      # monde en chargement : la bête attend au repos
+		_bouger(dt, Vector3.ZERO, 0.0, "", Vector3.ZERO, 0.0, _repos)
+		return
 	_cd_attaque -= dt
 	_t_choix -= dt
 	var vj := _vers_joueur()

@@ -1117,18 +1117,18 @@ func _draugrs() -> void:
 	sbire = _draugr("sbire", -16.0, -15.0, false, 0.6)
 
 ## Bêtes et faune Quaternius (BeteQuat, persos/quaternius_jeu 2026-11-04) posées à quelques endroits logiques de la surface :
-## une meute de loups dans la forêt entre le feu et le cercle de pierres, un cerf et deux biches dans le pré à l'est du feu, un
-## renard près des fermes. Les araignées sont dans la grotte (grotte_donnees, « ia »). `--persos-anciens` / `--sans-betes` : aucune.
+## une meute de loups dans la forêt entre le feu et le cercle de pierres, un cerf et deux biches qui broutent au champ nord (F3,
+## lisière du bois, au-dessus de la ferme B), un renard au bord du champ de la ferme A. Les araignées sont dans la grotte (grotte_donnees, « ia »). `--persos-anciens` / `--sans-betes` : aucune.
 ## Positions fixes pour l'instant ; le futur système d'apparition par biome / jour-nuit tirera dans BeteQuat.ESPECES.
 const BETES := [
 	# [espèce, ident, x, z, lacet°, meute]
 	["loup", "loup_bois_a", -14.0, -27.0, 40.0, "bois"],
 	["loup", "loup_bois_b", -11.5, -29.5, 70.0, "bois"],
 	["loup", "loup_bois_c", -16.5, -30.0, 20.0, "bois"],
-	["cerf", "cerf_pre", 21.0, -6.0, 200.0, ""],
-	["biche", "biche_pre_a", 23.5, -3.5, 160.0, ""],
-	["biche", "biche_pre_b", 19.0, -2.0, 230.0, ""],
-	["renard", "renard_fermes", 17.0, 22.0, 120.0, ""],
+	["cerf", "cerf_pre", 61.0, -9.5, 200.0, ""],
+	["biche", "biche_pre_a", 64.0, -6.5, 160.0, ""],
+	["biche", "biche_pre_b", 58.5, -5.0, 230.0, ""],
+	["renard", "renard_fermes", 75.0, 29.0, 120.0, ""],
 ]
 const BETE := preload("res://scripts/bete_quat.gd")
 
