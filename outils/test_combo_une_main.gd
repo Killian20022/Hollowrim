@@ -80,10 +80,10 @@ func _tester() -> void:
 	_verif(gestes == CoupsUneMain.COMBO + [CoupsUneMain.COMBO[0]], "4 coups dans l'ordre puis retour au coup 1 : %s" % [gestes])
 	_verif(touches.size() == 5 and touches.all(func(t: Array) -> bool: return not t[2]), "une touche légère par coup (%d)" % touches.size())
 
-	# --- 2. trop lent : le 2e clic tombe après le retour au repos
+	# --- 2. vraie pause (>= PAUSE_COMBO = 2 s, combo strict) : le 2e clic repart du coup 1
 	print("-- clic trop lent")
 	await _reset()
-	var a := await _clic(1.2)
+	var a := await _clic(2.3)
 	var b := await _clic(0.6)
 	_verif(a == CoupsUneMain.COMBO[0] and b == CoupsUneMain.COMBO[0] and mains.combat.etat in [EtatCombat.REPOS, EtatCombat.MOUVEMENT, EtatCombat.RECUPERATION], "clic après le repos : le combo repart au coup 1 (%s, %s)" % [a, b])
 
