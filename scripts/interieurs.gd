@@ -52,7 +52,7 @@ static func _m(nom: String, teinte := Color.WHITE, texels := 32.0, relief := 0.8
 ## Toutes les matières d'intérieur (une fois par village).
 static func materiaux() -> Dictionary:
 	# os et parchemin : peints pour la crypte (images à mipmaps), réutilisés tels quels
-	for nom in ["os", "parchemin", "argile", "lin", "or"]:
+	for nom in ["os", "parchemin", "argile", "lin", "or", "laine"]:
 		if not TexturesBati._cache.has(nom):
 			var img: Image = ResourceLoader.load("res://assets/crypte/%s.res" % nom)
 			TexturesBati._cache[nom] = [ImageTexture.create_from_image(img), TexturesBati.relief_neutre()]
@@ -62,6 +62,7 @@ static func materiaux() -> Dictionary:
 	d["bois_sombre"] = _m("planches_h_int", Color(0.74, 0.66, 0.62), 64.0)
 	d["bois_suie"] = _m("planches_v_int", Color(0.42, 0.38, 0.38), 64.0)
 	d["bois_clair"] = _m("planches_v_int", Color(1.15, 1.08, 0.98), 64.0)
+	d["bois_table"] = _m("planches_h_int", Color(2.0, 1.8, 1.6), 64.0)      # lot 4 : plateaux de la halle plus clairs (la nourriture ressort)
 	d["ame"] = _m("planches_h_int", Color(0.3, 0.29, 0.32), 64.0)
 	d["rondin"] = _m("rondins_int", Color(1.12, 1.05, 1.0), 64.0, 0.9, true)
 	d["rondin_sombre"] = _m("rondins_int", Color(0.95, 0.87, 0.82), 64.0, 0.9, true)
@@ -91,6 +92,16 @@ static func materiaux() -> Dictionary:
 	d["fer_mat"] = _m("fer", Color(0.72, 0.74, 0.8), 32.0, 0.6)
 	d["lin"] = _m("lin", Color(1.0, 0.96, 0.9), 64.0, 0.4)
 	d["or"] = _m("or", Color(1.0, 0.95, 0.85), 64.0, 0.3)
+	# lot 4 (props/lot4) : nourriture Quaternius (viande, pommes, navets) : laine rouge sourde de la crypte, pas la tenture à motifs
+	d["laine_q"] = _m("laine", Color(1.4, 1.1, 1.02), 64.0, 0.4)
+	# lot 4 v3 : nourriture plus claire EN VALEUR (pas en saturation) pour se détacher du bois sombre sous les feux ; nappes et planches claires
+	d["pain_q"] = _m("lin", Color(1.5, 1.12, 0.62), 64.0, 0.4)             # croûte dorée (lin : sans les cernes de la terre tournée)
+	d["mie_q"] = _m("lin", Color(1.35, 1.24, 1.02), 64.0, 0.3)            # mie et tranche claires
+	d["viande_q"] = _m("peau", Color(1.3, 0.92, 0.82), 64.0)               # viande crue, lard : rose-brun
+	d["roti_q"] = _m("peau", Color(1.2, 0.9, 0.7), 64.0)                   # cuisse rôtie : brun doré
+	d["fromage_q"] = _m("lin", Color(1.45, 1.32, 0.95), 64.0, 0.3)         # fromage crème
+	d["nappe_q"] = _m("lin", Color(1.3, 1.25, 1.12), 64.0, 0.5)            # nappe de lin écru
+	d["planche_q"] = _m("planches_h_int", Color(1.9, 1.72, 1.5), 64.0)     # planche à pain de bois clair
 	var eau := _m("fer", Color(0.1, 0.14, 0.22), 32.0, 0.0)
 	eau.set_shader_parameter("emission", Color(0.03, 0.06, 0.12))
 	d["eau"] = eau
@@ -312,7 +323,9 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 
 ## Props Quaternius (scripts/props_quaternius.gd) : matière du prop -> matière de l'intérieur. Fer MAT ; pierre chaude (les briques
 ## sortaient bleutées sur la rampe pierre de la bible) ; laine = tenture rouge, toile = tenture bleue.
-const MATS_Q := {"bois": "bois", "fer": "fer_mat", "lin": "lin", "jute": "jute", "os": "os", "pierre": "pierre", "or": "or",
+## Lot 4 : nourriture et vaisselle Quaternius (Ultimate Food) : laine = rouge sourd de la crypte (viande, pommes), pas la tenture.
+const MATS_NOURRITURE := {"laine": "laine_q"}
+const MATS_Q := {"bois": "bois", "herbe": "herbe", "fer": "fer_mat", "lin": "lin", "jute": "jute", "os": "os", "pierre": "pierre", "or": "or",
 	"argile": "argile", "laine": "tenture_r", "toile": "tenture_b", "noir": "noir", "lame": "etain"}
 
 ## Pose un prop Quaternius fondu dans les lots de la pièce : `pos` (y < 0,2 = posé sur le sol), lacet, échelle uniforme ; `mats` remplace
@@ -371,6 +384,47 @@ func niv(i: int) -> float:
 	if rempl("q_etagere_arche"):
 		return [0.2, 0.74, 1.26][mini(i, 2)]
 	return 0.52 + 0.46 * i
+
+## Lot 4 (props/lot4) : nourriture et vaisselle Quaternius posées sur `pos` (y < 0,2 = au sol), matières MATS_NOURRITURE ; rien avec `--sans-lot4`.
+## N'utilise JAMAIS `rng` (la mise en place du reste de la pièce reste celle de l'exe 3).
+func nq(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, mats := {}) -> void:
+	if not PropsQuaternius.lot4 or not PropsQuaternius.existe(nom):
+		return
+	PropsQuaternius.compter("lot4_interieurs")
+	var m := MATS_NOURRITURE.duplicate()
+	if nom == "q_pain" or nom == "q_tranche_pain":      # croûte dorée claire, mie écrue (v3 : la terre cuite seule restait brune sur le bois)
+		m.merge({"bois": "pain_q", "jute": "mie_q"})
+		if nom == "q_pain":
+			e *= 0.65      # v3 : miche de ~25 cm (à x1,25 elle faisait un billot de bois sur la table)
+	elif nom == "q_viande" or nom == "q_lard":
+		m.merge({"lin": "viande_q"})
+	elif nom == "q_cuisse":
+		m.merge({"argile": "roti_q"})
+	elif nom == "q_ecuelle" or nom == "q_cuillere_bois":
+		m.merge({"bois": "bois_clair"})
+	q(nom, pos, lacet, e * 1.25, m.merged(mats))   # x1,25 : lisible en vue de jeu
+
+## Lot 4 v3 : nappe de lin claire (ou planche de bois clair) posée sous la nourriture, qui la détache du plateau sombre ; `pos` = centre, au dessus.
+func nappe(pos: Vector3, taille: Vector2, lacet := 0.0, planche := false) -> void:
+	if not PropsQuaternius.lot4:
+		return
+	bx(pos + Vector3(0, 0.012 if planche else 0.004, 0), Vector3(taille.x, 0.024 if planche else 0.008, taille.y), "planche_q" if planche else "nappe_q", lacet)
+
+## Lot 4 v3 : meule de fromage crème entamée (meule + quartier).
+func fromage(pos: Vector3, lacet := 0.0) -> void:
+	if not PropsQuaternius.lot4:
+		return
+	cyl(pos + Vector3(0, 0.045, 0), 0.11, 0.09, "fromage_q", 8)
+	bx(pos + Basis(Vector3.UP, lacet) * Vector3(0.17, 0.03, 0.02), Vector3(0.09, 0.06, 0.06), "fromage_q", lacet + 0.5)
+
+## Lot 4 : couvert posé (écuelle de bois ou d'argile, cuillère de bois, couteau) ; `pos` = centre de l'écuelle.
+func mets(pos: Vector3, lacet := 0.0, argile := false) -> void:
+	if not PropsQuaternius.lot4:
+		return
+	var bz := Basis(Vector3.UP, lacet)
+	nq("q_ecuelle_2" if argile else "q_ecuelle", pos, lacet + 0.7)
+	nq("q_cuillere_bois", pos + bz * Vector3(0.2, 0, 0.05), lacet + 1.5)
+	nq("q_couteau_f", pos + bz * Vector3(-0.2, 0, 0.0), lacet + 1.62)
 
 ## Prop de remplacement disponible (option `--sans-remplacement` : anciens modules maison).
 static func rempl(nom: String) -> bool:
@@ -551,12 +605,13 @@ func _sol(pos: Vector3) -> Vector3:
 	return Vector3(pos.x, ip.sol_y, pos.z) if pos.y < 0.2 else pos
 
 ## Table sur tréteaux (long le long de X pour lacet 0) : plateau de planches, tréteaux, entretoise (modules L6).
+var mats_table := {}      # matières imposées aux tables Quaternius (lot 4 : halle plus claire) ; vide = comme avant
 func table(pos: Vector3, long: float, larg: float, lacet := 0.0, haut := 0.78, solide_ := true) -> void:
 	pos = _sol(pos)
 	if rempl("q_grande_table"):      # props/remplacement : Table_Large (ou établi Workbench si plan de travail haut)
 		if solide_:
 			solide(pos + Vector3(0, haut - 0.05, 0), Vector3(long, 0.1, larg), lacet)
-		qf("q_etabli" if haut > 0.83 else "q_grande_table", pos, lacet, Vector3(long, haut, larg))
+		qf("q_etabli" if haut > 0.83 else "q_grande_table", pos, lacet, Vector3(long, haut, larg), mats_table)
 		return
 	var b := Basis(Vector3.UP, lacet)
 	if solide_:
@@ -717,7 +772,12 @@ func viande_seche(pos: Vector3, k := 3, lacet := 0.0) -> void:
 			var off := bz * Vector3(float(i - (k - 1) * 0.5) * 0.2, 0, 0)
 			var hh := 0.26 + rng.randf() * 0.16
 			_q_xf("q_poutre_ronde", Transform3D(Basis(Vector3.BACK, PI * 0.5) * Basis.from_scale(Vector3(0.2, 0.07, 0.07)), pos + off + Vector3(0, -0.1, 0)), {"bois": "cuir"})
-			if i % 2 == 0:
+			if PropsQuaternius.lot4 and rempl("q_cuisse"):      # lot 4 : vraies pièces, cuisse fumée (os en haut, noué) / saucisses pendues
+				if i % 2 == 0:
+					_q_xf("q_cuisse", Transform3D(bz * Basis(Vector3.BACK, -PI * 0.5) * Basis.from_scale(Vector3.ONE * (0.8 + hh * 0.6)), pos + off + Vector3(0, -0.2 - hh * 0.35, 0)), MATS_NOURRITURE.merged({"argile": "peau_sombre"}))
+				else:
+					_q_xf("q_saucisse" if i % 4 == 1 else "q_saucisse_crue", Transform3D(bz * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3.ONE * (hh * 0.8 / 0.18)), pos + off + Vector3(0, -0.2 - hh * 0.4, 0)), MATS_NOURRITURE.merged({"argile": "peau_sombre"}))
+			elif i % 2 == 0:
 				_q_xf("q_bourse", Transform3D(bz * Basis.from_scale(Vector3.ONE * (hh / 0.30)), pos + off + Vector3(0, -0.2 - hh, 0)), {"fer": "peau_sombre", "os": "os"})
 			else:
 				_q_xf("q_carotte", Transform3D(bz * Basis(Vector3.RIGHT, PI) * Basis.from_scale(Vector3(1.0, hh * 0.9 / 0.30, 1.0) * Vector3(0.9, 1.0, 0.9)), pos + off + Vector3(0, -0.2, 0)), {"fer": "cuir"})
@@ -783,6 +843,10 @@ func chope(pos: Vector3, mat := "bois") -> void:
 	modele("chope_" + variante(pos, 2), pos, lacet_libre(pos), Vector3.ONE, {"MAT": mat})
 
 func chaudron(pos: Vector3, r := 0.3) -> void:
+	if PropsQuaternius.lot4 and rempl("q_marmite_soupe"):      # lot 4 : marmite de soupe (pot de fer, bouillon) à la place du chaudron vide
+		PropsQuaternius.compter("lot4_interieurs")
+		qf("q_marmite_soupe", pos, lacet_libre(pos), Vector3(r * 1.9, 0, 0), {"fer": "fer_noir"})
+		return
 	if rempl("q_chaudron"):
 		qf("q_chaudron", pos, lacet_libre(pos), Vector3(r * 2.0, 0, 0))
 		return

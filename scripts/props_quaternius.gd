@@ -15,13 +15,16 @@ const DAT := "res://assets/crypte/modules/props_quaternius.dat"
 const DAT_BATI := "res://assets/modeles/bati_quaternius.dat"
 
 ## Crypte : matières des props → matières de CrypteDecor (pierre → pierre_v2 par MAT_MODELE ; lin, jute, os, or… gardés : TUILE).
-const MATS_CRYPTE := {"fer": "fer_mat"}
+const MATS_CRYPTE := {"fer": "fer_mat", "herbe": "jute"}      # herbe (lot 4 : légumes, verre vert) : pas de matière verte dans la crypte
 
 ## `-- --sans-props-q` : rien n'est posé (captures « avant » et mesures A/B du coût, même lancement que le jeu).
 static var actif := not ("--sans-props-q" in OS.get_cmdline_user_args())
 ## `-- --sans-remplacement` : ANCIENS props faits maison (mobilier procédural / modules Blender maison) à la place des Quaternius qui les
 ## remplacent (props/remplacement, 2026-11-03) ; sert aux captures « avant » et aux mesures A/B. Implique actif.
 static var remplace := actif and not ("--sans-remplacement" in OS.get_cmdline_user_args())
+## `-- --sans-lot4` : état de l'exe 3 (props du lot 3) sans les pièces du lot 4 (Medieval Dungeon, Survival, Ultimate Food ; props/lot4,
+## 2026-11-04) : captures « avant » et mesures A/B du lot 4. Toute pose ou substitution du lot 4 teste `PropsQuaternius.lot4`.
+static var lot4 := remplace and not ("--sans-lot4" in OS.get_cmdline_user_args())
 ## Compteur de props posés par les remplacements (zone -> nombre) : « PropsQuaternius : remplacements … » dans le journal (bilan du rapport).
 static var compte := {}
 static func compter(zone: String, n := 1) -> void:
@@ -184,6 +187,11 @@ static func mats_village(v) -> Dictionary:
 			"or": TexturesBati.materiau("or", Color(1.0, 0.95, 0.85), 64.0, 0.3),
 			"argile": TexturesBati.materiau("argile", Color(1.05, 0.95, 0.9), 64.0, 0.4)}
 		_mats_v["laine"] = _mats_v["lin"]
+		# lot 4 : nourriture des étals (mats {"laine": "laine_q", "herbe": "herbe"}) : laine rouge sourde et foin teinté vert
+		if not TexturesBati._cache.has("laine"):
+			TexturesBati._cache["laine"] = [ImageTexture.create_from_image(ResourceLoader.load("res://assets/crypte/laine.res")), TexturesBati.relief_neutre()]
+		_mats_v["laine_q"] = TexturesBati.materiau("laine", Color(0.92, 0.86, 0.84), 64.0, 0.4)
+		_mats_v["herbe"] = TexturesBati.m_foin_e(Color(0.55, 0.78, 0.45))
 		_mats_v["toile"] = _mats_v["lin"]
 	return _mats_v
 

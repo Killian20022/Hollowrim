@@ -1407,5 +1407,1240 @@
 "famille": [
 "bois"
 ]
+},
+{
+"nom": "q_os_tas",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Bones.fbx",
+"ech": 0.2,
+"budget": 500,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Bones": "os"
+},
+"famille": [
+"os"
+]
+},
+{
+"nom": "q_os_tas_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Bones2.fbx",
+"ech": 0.2,
+"budget": 400,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Bones": "os"
+},
+"famille": [
+"os"
+]
+},
+{
+"nom": "q_roc_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Rock1.fbx",
+"ech": 0.5,
+"budget": 60,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Rock": "pierre"
+},
+"famille": [
+"pierre"
+]
+},
+{
+"nom": "q_roc_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Rock2.fbx",
+"ech": 0.5,
+"budget": 60,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Rock": "pierre"
+},
+"famille": [
+"pierre"
+]
+},
+{
+"nom": "q_roc_3",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Rock3.fbx",
+"ech": 0.5,
+"budget": 60,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Rock": "pierre"
+},
+"famille": [
+"pierre"
+]
+},
+{
+"nom": "q_roc_4",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Rock4.fbx",
+"ech": 0.5,
+"budget": 60,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Rock": "pierre"
+},
+"famille": [
+"pierre"
+]
+},
+{
+"nom": "q_roc_5",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Rock5.fbx",
+"ech": 0.5,
+"budget": 60,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Rock": "pierre"
+},
+"famille": [
+"pierre"
+]
+},
+{
+"nom": "q_colonne_brisee",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Column_Broken.fbx",
+"ech": 0.45,
+"budget": 200,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Rock": "pierre"
+},
+"famille": [
+"pierre"
+]
+},
+{
+"nom": "q_colonne_brisee_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Column_Broken2.fbx",
+"ech": 0.45,
+"budget": 200,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Rock": "pierre"
+},
+"famille": [
+"pierre"
+]
+},
+{
+"nom": "q_fiole_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Potion.fbx",
+"ech": 0.15,
+"budget": 160,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Liquid": "laine",
+"Glass": "fer",
+"Cork": "bois",
+"Gold": "or",
+"Blue": "toile",
+"Ice": "toile",
+"Grey": "fer",
+"Yellow": "or"
+},
+"famille": [
+"bois",
+"fer",
+"laine",
+"or",
+"toile"
+]
+},
+{
+"nom": "q_fiole_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Potion2.fbx",
+"ech": 0.15,
+"budget": 160,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Liquid": "laine",
+"Glass": "fer",
+"Cork": "bois",
+"Gold": "or",
+"Blue": "toile",
+"Ice": "toile",
+"Grey": "fer",
+"Yellow": "or"
+},
+"famille": [
+"bois",
+"fer",
+"laine",
+"or",
+"toile"
+]
+},
+{
+"nom": "q_fiole_3",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Potion3.fbx",
+"ech": 0.15,
+"budget": 160,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Liquid": "laine",
+"Glass": "fer",
+"Cork": "bois",
+"Gold": "or",
+"Blue": "toile",
+"Ice": "toile",
+"Grey": "fer",
+"Yellow": "or"
+},
+"famille": [
+"bois",
+"fer",
+"laine",
+"or",
+"toile"
+]
+},
+{
+"nom": "q_fiole_4",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Potion4.fbx",
+"ech": 0.15,
+"budget": 120,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Liquid": "laine",
+"Glass": "fer",
+"Cork": "bois",
+"Gold": "or",
+"Blue": "toile",
+"Ice": "toile",
+"Grey": "fer",
+"Yellow": "or"
+},
+"famille": [
+"bois",
+"fer",
+"laine",
+"or",
+"toile"
+]
+},
+{
+"nom": "q_fiole_5",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Potion5.fbx",
+"ech": 0.15,
+"budget": 120,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Liquid": "laine",
+"Glass": "fer",
+"Cork": "bois",
+"Gold": "or",
+"Blue": "toile",
+"Ice": "toile",
+"Grey": "fer",
+"Yellow": "or"
+},
+"famille": [
+"bois",
+"fer",
+"laine",
+"or",
+"toile"
+]
+},
+{
+"nom": "q_fiole_6",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Potion6.fbx",
+"ech": 0.15,
+"budget": 160,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Liquid": "laine",
+"Glass": "fer",
+"Cork": "bois",
+"Gold": "or",
+"Blue": "toile",
+"Ice": "toile",
+"Grey": "fer",
+"Yellow": "or"
+},
+"famille": [
+"bois",
+"fer",
+"laine",
+"or",
+"toile"
+]
+},
+{
+"nom": "q_livre_d1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Book2.fbx",
+"ech": 0.2,
+"budget": 200,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Cover": "laine",
+"Paper": "lin",
+"Ink": "noir"
+},
+"famille": [
+"laine",
+"lin",
+"noir"
+]
+},
+{
+"nom": "q_livre_d2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Book3.fbx",
+"ech": 0.2,
+"budget": 200,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Cover": "laine",
+"Paper": "lin",
+"Ink": "noir"
+},
+"famille": [
+"laine",
+"lin",
+"noir"
+]
+},
+{
+"nom": "q_livre_ouvert",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Book_Open.fbx",
+"ech": 0.2,
+"budget": 200,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Cover": "laine",
+"Paper": "lin",
+"Ink": "noir"
+},
+"famille": [
+"laine",
+"lin",
+"noir"
+]
+},
+{
+"nom": "q_tapis",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Carpet.fbx",
+"ech": 0.6,
+"budget": 160,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Red": "laine",
+"Gold": "or"
+},
+"famille": [
+"laine",
+"or"
+],
+"eclairer": 0.85
+},
+{
+"nom": "q_coffre_d",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Chest.fbx",
+"ech": 0.6,
+"budget": 340,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"DarkSteel": "noir",
+"Steel": "fer",
+"Wood": "bois"
+},
+"famille": [
+"bois",
+"fer",
+"noir"
+]
+},
+{
+"nom": "q_coffre_or",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Chest_gold.fbx",
+"ech": 0.6,
+"budget": 440,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"DarkSteel": "noir",
+"Steel": "fer",
+"Gold": "or",
+"Wood": "bois"
+},
+"famille": [
+"bois",
+"fer",
+"noir",
+"or"
+]
+},
+{
+"nom": "q_candelabre_d",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Candelabrum_tall.fbx",
+"ech": 0.9,
+"budget": 600,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Black": "noir",
+"Candle": "os",
+"Gold": "fer"
+},
+"famille": [
+"fer",
+"noir",
+"os"
+]
+},
+{
+"nom": "q_bougie_d",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_dungeon/FBX/Candle.fbx",
+"ech": 0.35,
+"budget": 200,
+"role": "crypte_l4",
+"categorie": "crypte_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Black": "noir",
+"Candle": "os",
+"Gold": "fer"
+},
+"famille": [
+"fer",
+"noir",
+"os"
+]
+},
+{
+"nom": "q_tente",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/survival/FBX/Tent.fbx",
+"ech": 0.2,
+"budget": 700,
+"role": "camp_l4",
+"categorie": "camp_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"DarkWood": "bois",
+"LightGreen": "jute",
+"Green": "jute",
+"Black": "noir"
+},
+"famille": [
+"bois",
+"jute",
+"noir"
+]
+},
+{
+"nom": "q_feu_bois",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/survival/FBX/Bonfire.fbx",
+"ech": 0.45,
+"budget": 450,
+"role": "camp_l4",
+"categorie": "camp_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"LightWood": "bois",
+"Wood": "bois"
+},
+"famille": [
+"bois"
+]
+},
+{
+"nom": "q_piege_ours",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/survival/FBX/BearTrap_Open.fbx",
+"ech": 0.13,
+"budget": 350,
+"role": "camp_l4",
+"categorie": "camp_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Grey": "fer"
+},
+"famille": [
+"fer"
+]
+},
+{
+"nom": "q_piege_ours_ferme",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/survival/FBX/BearTrap_Closed.fbx",
+"ech": 0.13,
+"budget": 350,
+"role": "camp_l4",
+"categorie": "camp_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Grey": "fer"
+},
+"famille": [
+"fer"
+]
+},
+{
+"nom": "q_marmite_camp",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/survival/FBX/Pot.fbx",
+"ech": 0.22,
+"budget": 260,
+"role": "camp_l4",
+"categorie": "camp_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Black": "noir",
+"Grey": "fer"
+},
+"famille": [
+"fer",
+"noir"
+]
+},
+{
+"nom": "q_marmite_camp_petite",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/survival/FBX/Pot_Small.fbx",
+"ech": 0.22,
+"budget": 260,
+"role": "camp_l4",
+"categorie": "camp_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Black": "noir",
+"Grey": "fer"
+},
+"famille": [
+"fer",
+"noir"
+]
+},
+{
+"nom": "q_poele",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/survival/FBX/Pan.fbx",
+"ech": 0.16,
+"budget": 200,
+"role": "camp_l4",
+"categorie": "camp_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"DarkWood": "bois",
+"LightGrey": "fer",
+"Grey": "fer",
+"Black": "noir",
+"Red": "laine",
+"Yellow": "bois"
+},
+"famille": [
+"bois",
+"fer",
+"laine",
+"noir"
+]
+},
+{
+"nom": "q_poele_petite",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/survival/FBX/Pan_Small.fbx",
+"ech": 0.16,
+"budget": 200,
+"role": "camp_l4",
+"categorie": "camp_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"DarkWood": "bois",
+"LightGrey": "fer",
+"Grey": "fer",
+"Black": "noir",
+"Red": "laine",
+"Yellow": "bois"
+},
+"famille": [
+"bois",
+"fer",
+"laine",
+"noir"
+]
+},
+{
+"nom": "q_hache_camp",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/survival/FBX/Axe.fbx",
+"ech": 0.25,
+"budget": 200,
+"role": "camp_l4",
+"categorie": "camp_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"DarkWood": "bois",
+"LightGrey": "fer",
+"Grey": "fer",
+"Black": "noir",
+"Red": "fer",
+"Yellow": "bois"
+},
+"famille": [
+"bois",
+"fer",
+"noir"
+]
+},
+{
+"nom": "q_hachette",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/survival/FBX/Axe_Small.fbx",
+"ech": 0.22,
+"budget": 160,
+"role": "camp_l4",
+"categorie": "camp_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"DarkWood": "bois",
+"LightGrey": "fer",
+"Grey": "fer",
+"Black": "noir",
+"Red": "laine",
+"Yellow": "bois"
+},
+"famille": [
+"bois",
+"fer",
+"laine",
+"noir"
+]
+},
+{
+"nom": "q_pelle",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/survival/FBX/Shovel.fbx",
+"ech": 0.28,
+"budget": 220,
+"role": "camp_l4",
+"categorie": "camp_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"DarkWood": "bois",
+"LightGrey": "fer",
+"Grey": "fer",
+"Black": "noir",
+"Red": "fer",
+"Yellow": "bois"
+},
+"famille": [
+"bois",
+"fer",
+"noir"
+]
+},
+{
+"nom": "q_couteau_camp",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/survival/FBX/Knife.fbx",
+"ech": 0.16,
+"budget": 160,
+"role": "camp_l4",
+"categorie": "camp_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"DarkWood": "bois",
+"LightGrey": "fer",
+"Grey": "fer",
+"Black": "noir",
+"Red": "laine",
+"Yellow": "bois"
+},
+"famille": [
+"bois",
+"fer",
+"laine",
+"noir"
+]
+},
+{
+"nom": "q_rondin",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/survival/FBX/WoodLog.fbx",
+"ech": 0.37,
+"budget": 200,
+"role": "camp_l4",
+"categorie": "camp_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"LightWood": "bois",
+"Wood": "bois"
+},
+"famille": [
+"bois"
+]
+},
+{
+"nom": "q_pomme",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Apple.fbx",
+"ech": 0.1,
+"budget": 90,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"DarkRed": "laine",
+"DarkBrown": "bois",
+"DarkGreen": "herbe"
+},
+"famille": [
+"bois",
+"herbe",
+"laine"
+],
+"eclairer": 0.85
+},
+{
+"nom": "q_pomme_verte",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Apple_Green.fbx",
+"ech": 0.1,
+"budget": 90,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"PaleGreen": "herbe",
+"DarkBrown": "bois",
+"DarkGreen": "herbe"
+},
+"famille": [
+"bois",
+"herbe"
+]
+},
+{
+"nom": "q_pain",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Bread.fbx",
+"ech": 0.25,
+"budget": 160,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Brown": "bois",
+"Light": "jute"
+},
+"famille": [
+"bois",
+"jute"
+]
+},
+{
+"nom": "q_tranche_pain",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Bread_Slice.fbx",
+"ech": 0.25,
+"budget": 120,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Brown": "bois",
+"Light": "jute"
+},
+"famille": [
+"bois",
+"jute"
+]
+},
+{
+"nom": "q_carotte_f",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Carrot.fbx",
+"ech": 0.072,
+"budget": 160,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Orange": "argile",
+"DarkGreen": "herbe"
+},
+"famille": [
+"argile",
+"herbe"
+],
+"eclairer": 0.85
+},
+{
+"nom": "q_cuisse",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/ChickenLeg.fbx",
+"ech": 0.13,
+"budget": 140,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Beige": "os",
+"DarkBrown": "argile"
+},
+"famille": [
+"argile",
+"os"
+],
+"eclairer": 0.88
+},
+{
+"nom": "q_marmite_soupe",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/CookingPot_Soup.fbx",
+"ech": 0.21,
+"budget": 220,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Brown": "argile",
+"Grey": "fer"
+},
+"famille": [
+"argile",
+"fer"
+]
+},
+{
+"nom": "q_marmite_soupe_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/CookingPot2_Soup.fbx",
+"ech": 0.21,
+"budget": 220,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Brown": "argile",
+"Grey": "fer"
+},
+"famille": [
+"argile",
+"fer"
+]
+},
+{
+"nom": "q_oeuf",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Egg_Whole.fbx",
+"ech": 0.13,
+"budget": 60,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"LightYellow": "lin"
+},
+"famille": [
+"lin"
+]
+},
+{
+"nom": "q_oeuf_blanc",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Egg_Whole_White.fbx",
+"ech": 0.13,
+"budget": 60,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"White": "lin"
+},
+"famille": [
+"lin"
+]
+},
+{
+"nom": "q_poisson",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Fish.fbx",
+"ech": 0.125,
+"budget": 200,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Bottom": "lin",
+"Fins": "jute",
+"Top": "fer"
+},
+"famille": [
+"fer",
+"jute",
+"lin"
+]
+},
+{
+"nom": "q_aretes",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/FishBone.fbx",
+"ech": 0.13,
+"budget": 200,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Beige": "os"
+},
+"famille": [
+"os"
+]
+},
+{
+"nom": "q_jarre",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Jar_Large.fbx",
+"ech": 0.47,
+"budget": 160,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"LightYellow": "argile",
+"PaleRed": "laine",
+"White": "lin"
+},
+"famille": [
+"argile",
+"laine",
+"lin"
+],
+"eclairer": 0.85
+},
+{
+"nom": "q_champignon",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Mushroom.fbx",
+"ech": 0.15,
+"budget": 60,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"LightBrown": "jute"
+},
+"famille": [
+"jute"
+]
+},
+{
+"nom": "q_citrouille",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Pumpkin.fbx",
+"ech": 0.23,
+"budget": 200,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Orange": "argile",
+"Brown": "bois"
+},
+"famille": [
+"argile",
+"bois"
+],
+"eclairer": 0.72
+},
+{
+"nom": "q_saucisse",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Sausage_Cooked.fbx",
+"ech": 0.11,
+"budget": 60,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"DarkBrown": "argile"
+},
+"famille": [
+"argile"
+],
+"eclairer": 0.85
+},
+{
+"nom": "q_saucisse_crue",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Sausage_Raw.fbx",
+"ech": 0.11,
+"budget": 60,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Hotdog": "laine"
+},
+"famille": [
+"laine"
+],
+"eclairer": 0.8
+},
+{
+"nom": "q_viande",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Steak.fbx",
+"ech": 0.115,
+"budget": 160,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"DarkRed": "laine",
+"White": "lin"
+},
+"famille": [
+"laine",
+"lin"
+]
+},
+{
+"nom": "q_navet",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Turnip.fbx",
+"ech": 0.09,
+"budget": 180,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"PalePink2": "laine",
+"White": "lin",
+"DarkGreen": "herbe"
+},
+"famille": [
+"herbe",
+"laine",
+"lin"
+]
+},
+{
+"nom": "q_chou",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Lettuce_Whole.fbx",
+"ech": 0.12,
+"budget": 200,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"PaleGreen": "herbe"
+},
+"famille": [
+"herbe"
+]
+},
+{
+"nom": "q_lard",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Bacon_Uncooked.fbx",
+"ech": 0.17,
+"budget": 120,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"LightYellow": "lin",
+"Meat": "laine"
+},
+"famille": [
+"laine",
+"lin"
+]
+},
+{
+"nom": "q_bouteille_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Bottle1.fbx",
+"ech": 0.19,
+"budget": 120,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"BottleCap": "bois",
+"DarkGreen": "herbe",
+"LightBrown": "lin"
+},
+"famille": [
+"bois",
+"herbe",
+"lin"
+]
+},
+{
+"nom": "q_bouteille_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Bottle2.fbx",
+"ech": 0.19,
+"budget": 120,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"BottleCap": "bois",
+"DarkGrey": "noir",
+"DarkRed": "laine",
+"LightBrown": "lin"
+},
+"famille": [
+"bois",
+"laine",
+"lin",
+"noir"
+]
+},
+{
+"nom": "q_ecuelle",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Plate.fbx",
+"ech": 0.13,
+"budget": 100,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"White": "bois"
+},
+"famille": [
+"bois"
+]
+},
+{
+"nom": "q_ecuelle_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Plate2.fbx",
+"ech": 0.135,
+"budget": 100,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"White": "argile"
+},
+"famille": [
+"argile"
+],
+"eclairer": 0.78
+},
+{
+"nom": "q_cuillere_bois",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Spoon.fbx",
+"ech": 0.095,
+"budget": 60,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Metal": "bois"
+},
+"famille": [
+"bois"
+]
+},
+{
+"nom": "q_fourchette_f",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Fork.fbx",
+"ech": 0.09,
+"budget": 60,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Metal": "fer"
+},
+"famille": [
+"fer"
+]
+},
+{
+"nom": "q_couteau_f",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_food/FBX/Knife.fbx",
+"ech": 0.1,
+"budget": 40,
+"role": "nourriture_l4",
+"categorie": "nourriture_l4",
+"lot4": true,
+"par_mat": true,
+"mats": {
+"Metal": "fer"
+},
+"famille": [
+"fer"
+]
 }
 ]

@@ -1,0 +1,9 @@
+# props/lot4 : grotte (s,décalage,lacet°,tangage°). Camp de Hrafn = branche T2, décalage 300 (feu vers 308).
+g_repaire1 grotte 306,2.5,48,-2 sans-mains
+g_repaire2 grotte 315,-2,-130,-3 sans-mains
+g_camp_feu grotte 305.5,0.5,0,-14 sans-mains
+g_camp_tente grotte 305,-0.5,-70,-10 sans-mains
+g_camp_large grotte 300.5,0,0,-6 sans-mains
+g_mine1 grotte 114,0,0,-4 sans-mains
+g_mine2 grotte 135,0.5,20,-4 sans-mains
+g_mine3 grotte 145,-0.5,-40,-4 sans-mains
