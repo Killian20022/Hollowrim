@@ -824,9 +824,13 @@ static func _repaire(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: S
 	for k in 3:
 		var a := TAU * k / 3.0 + 0.3
 		d.prisme("bois", feu + Vector3(cos(a) * 0.62, 0.0, sin(a) * 0.62), feu + Vector3(0, 1.25, 0), 0.028, 5)
-	d.tour("fer", feu + Vector3(0, 0.7, 0), [Vector2(0.15, 0.0), Vector2(0.24, 0.1), Vector2(0.27, 0.26), Vector2(0.24, 0.34), Vector2(0.2, 0.36)], 8, 0.0, false)
+	if PropsQuaternius.lot4:
+		d.q4("q_marmite_camp", feu + Vector3(0, 0.8, 0), 0.0, 1.0, false, true)     # lot 4 : marmite Survival pendue à la crémaillère
+	else:
+		d.tour("fer", feu + Vector3(0, 0.7, 0), [Vector2(0.15, 0.0), Vector2(0.24, 0.1), Vector2(0.27, 0.26), Vector2(0.24, 0.34), Vector2(0.2, 0.36)], 8, 0.0, false)
 	d.prisme("fer", feu + Vector3(0, 1.25, 0), feu + Vector3(0, 1.0, 0), 0.01, 4)
 	g._l(id, feu_s, 0.4, 1.0, FEU_C, 4.6, 13.0, 1.4, true)
+	_camp_lot4(g, id, feu_s, feu, r)
 	for c in [[4.6, -4.5], [8.2, -4.6]]:      # finitions : 3e couchage retiré (masquait le grand autel)
 		d.couchage(_p(g, id, float(c[0]) + r.randf_range(-0.3, 0.3), float(c[1])), 1.57 + r.randf_range(-0.05, 0.05), r.randf() < 0.6)
 	# caisses empilées, tonneaux et sacs au fond droit
@@ -867,6 +871,44 @@ static func _repaire(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: S
 	d.applique(g.mur_en(id, 13.0, 1.0), -g.droite(id, 13.0), _p(g, id, 13.0, 3.0).y + 2.0, 5.0, 1.8, true)
 	pointes(g, r, id, 0.5, s1, int(14.0 * dens), 0.25, 1.0, false, 0.0, "c_strate_suie")
 	rochers(g, r, id, 1.0, s1 - 1.0, int(5.0 * dens), 0.45, 0.9, true, "c_strate_suie")
+
+## props/lot4 : le campement de Hrafn (tente adossée, bancs-rondins, outils, vivres, piège à ours). Rien sans `PropsQuaternius.lot4`.
+## Tirages de `r` : aucun (le décor d'avant n'est pas déplacé).
+static func _vers(dir: Vector3) -> float:
+	return atan2(dir.x, dir.z)
+
+static func _camp_lot4(g: Grotte, id: String, feu_s: float, feu: Vector3, r: RandomNumberGenerator) -> void:
+	if not PropsQuaternius.lot4:
+		return
+	var d := g.decor
+	# tente adossée à la paroi de droite (essais de places : le camp est dense)
+	var fait := false
+	for cote: float in [1.0, -1.0]:
+		for st: float in [9.8, 11.4, 6.6, 12.8, 5.0]:
+			if fait:
+				break
+			var dl := g.demi_l(id, st)
+			var dd := g.droite(id, st) * cote
+			var pp := _p(g, id, st, cote * minf((dl.y if cote > 0.0 else dl.x) - 1.3, 2.4))
+			if d.place_libre(pp, 1.5, 1.6):
+				fait = d.q4("q_tente", pp, _lacet(g, id, st) + (PI if cote > 0.0 else 0.0), 0.6, true, true, {"jute": "peau"}) != Vector3.INF
+				if fait:
+					d._empreinte(pp, 1.5, 1.6)
+	# bancs-rondins autour du feu, hachette plantée, couteau, vivres
+	var b1 := d.q4("q_rondin", feu + Vector3(-0.3, 0, 1.3), 0.25, 1.0, true)
+	if b1 != Vector3.INF:
+		d.q4("q_hachette", b1 + Vector3(0.25, 0.3, 0.0), 0.2, 1.0, false, true)
+		d.q4("q_poisson", b1 + Vector3(-0.3, 0.4, 0.02), 0.8, 1.0, false, true)
+	var b2 := d.q4("q_rondin", feu + Vector3(1.2, 0, -0.9), 2.0, 1.0, true)
+	if b2 != Vector3.INF:
+		d.q4("q_couteau_camp", b2 + Vector3(0.0, 0.34, 0.0), 1.0, 1.0, false, true)
+	var pf := d.q4("q_poele", feu + Vector3(-0.85, 0, -0.55), 0.6)
+	if pf != Vector3.INF:
+		d.q4("q_viande", pf + Vector3(0.0, 0.05, 0.1), 0.3, 1.0, false, true)
+	d.q4("q_aretes", feu + Vector3(0.9, 0, 0.7), 1.2, 1.0, false, false, {}, GrotteDecor.PETIT)
+	d.q4("q_cuisse", feu + Vector3(-1.1, 0, 0.6), 0.4, 1.0, false, false, {}, GrotteDecor.PETIT)
+	# piège à ours aux abords du camp (décor)
+	d.q4("q_piege_ours", _p(g, id, feu_s - 4.5, 2.6), 0.5, 1.2)
 
 ## Goulet du camp : portique de bois et rideau de peaux fendu (on passe par la fente, sans collision) : il ferme la vue sur la salle
 ## des cristaux, dont le bleu se découpait comme un portail depuis le camp.

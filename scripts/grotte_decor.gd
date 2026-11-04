@@ -1309,6 +1309,42 @@ func trophee(pos: Vector3, hauteur := 1.6, lacet := 0.0) -> void:
 	_empreinte(pos, 0.1, hauteur)
 	objet_fin()
 
+## props/lot4 : pose un prop Quaternius du camp (Survival, Ultimate Food, Medieval Dungeon) fondu dans les tampons du décor (aucun nœud).
+## Sans `absolu`, passe par pose_objet (écart des parois, pente, chevauchement) ; `absolu` : posé tel quel (sur un rondin, accroché).
+## `solide_b` : boîte de collision de l'emprise. Rien sans `PropsQuaternius.lot4` (-- --sans-lot4 = exe 3).
+func q4(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, solide_b := false, absolu := false, mats := {}, mode := DROIT) -> Vector3:
+	if not PropsQuaternius.lot4 or muet:
+		return Vector3.INF
+	PropsQuaternius.preparer_crypte()
+	if not _modeles_de.has(nom):
+		return Vector3.INF
+	var bb := PropsQuaternius.boite(nom)
+	var hx := bb.size.x * 0.5 * e
+	var hz := bb.size.z * 0.5 * e
+	var h := bb.size.y * e
+	var x0 := xf
+	var b := Basis(Vector3.UP, lacet)
+	var cl := (b * Vector3(hx, 0, 0)).abs() + (b * Vector3(0, 0, hz)).abs()
+	if not absolu:
+		var pz := pose_objet(pos, maxf(cl.x, 0.1), maxf(cl.z, 0.1), lacet, h, mode, 0.5, 0.45, solide_b)
+		if not pz["ok"]:
+			return Vector3.INF
+		pos = pz["p"]
+		x0 = _incliner(pz)
+	var m := PropsQuaternius.MATS_CRYPTE.duplicate()
+	m.merge(mats, true)
+	modele(nom, pos, lacet, Vector3.ONE * e, m, true)
+	if solide_b:
+		solide(pos + b * (bb.get_center() * e), Vector3(cl.x * 2.0, h, cl.z * 2.0))
+	xf = x0
+	if not absolu:
+		_empreinte(pos, maxf(cl.x, cl.z), h)
+	PropsQuaternius.compter("grotte_lot4")
+	_tris_lot4 += PropsQuaternius.nb_triangles(nom)
+	return pos
+
+var _tris_lot4 := 0
+
 func feu_camp(pos: Vector3) -> void:
 	objet_debut("feu_camp")
 	var pz := pose_objet(pos, 0.75, 0.75, 0.0, 0.3, DROIT)
@@ -1321,7 +1357,12 @@ func feu_camp(pos: Vector3) -> void:
 		for k in 9:
 			var a := TAU * k / 9.0 + 0.2
 			modele("q_brique_" + str(1 + k % 4), pos + Vector3(cos(a) * 0.62, 0.0, sin(a) * 0.62), -a, Vector3(1.3, 1.1, 1.1), PropsQuaternius.MATS_CRYPTE, false)
-		modele("q_bucher", pos, 0.5, Vector3(0.85, 0.5, 0.85), PropsQuaternius.MATS_CRYPTE, false)
+		if PropsQuaternius.lot4 and _modeles_de.has("q_feu_bois"):
+			# props/lot4 : bûches Bonfire (Survival) à la place du bûcher ; braises, flammes, halo et lumière inchangés
+			modele("q_feu_bois", pos, 0.5, Vector3(1.0, 1.0, 1.0), PropsQuaternius.MATS_CRYPTE, false)
+			_tris_lot4 += PropsQuaternius.nb_triangles("q_feu_bois")
+		else:
+			modele("q_bucher", pos, 0.5, Vector3(0.85, 0.5, 0.85), PropsQuaternius.MATS_CRYPTE, false)
 	else:
 		for k in 9:
 			var a := TAU * k / 9.0 + 0.2
