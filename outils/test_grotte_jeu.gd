@@ -87,7 +87,7 @@ func _tester() -> void:
 	_verif(jeu.ennemis.has("bandit_4") == false or true, "(info) ennemis déjà apparus : %d" % jeu.ennemis.size())
 	jeu.reinitialiser([])
 	j.global_position = g.monde_sol(306.0, 0.0) + Vector3(0, 0.2, 0)
-	for i in 8:
+	for i in 12:      # 12 passages (était 8) : les araignées de la mine (IA propre : un passage chacune) sont aussi à portée
 		jeu._t = 1.0
 		jeu.tick(0.0)
 	var attendus := ["bandit_0", "bandit_1", "bandit_2", "bandit_3", "bandit_archer_0", "bandit_archer_1", "hrafn"]
