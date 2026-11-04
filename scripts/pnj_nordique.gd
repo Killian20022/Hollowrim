@@ -467,7 +467,7 @@ static func _tresses_teinte(sq: Skeleton3D, cle: String, col: Color, v: float) -
 			_teinte_tex(acc, s, "%s_%d" % [cle, s], {"col": col, "v": v, "rect": GuerrierTextures.R_TRESSE})
 
 static func _enreg(m: ShaderMaterial) -> void:
-	Palette.materiaux.append(m)
+	Palette.suivre(m)
 	Palette._appliquer(m, Palette._ps1_actif)
 
 static func _materiau_de(mi: MeshInstance3D, s: int) -> ShaderMaterial:

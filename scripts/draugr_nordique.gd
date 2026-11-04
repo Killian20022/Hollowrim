@@ -31,22 +31,35 @@ const APPOINT := Vector3(0.13, 0.12, 0.11)
 
 static var _shaders := {}
 static var _mats := {}
+## Verrou de _shaders, _mats et _tex_q : le fil de préparation des ennemis et le fil principal bâtissent des draugrs en même temps
+## (écritures concurrentes d'un Dictionary → rc=5). Sections courtes, jamais d'appel au serveur de rendu sous verrou.
+static var _mx_caches := Mutex.new()
 
 static func shader(double_face: bool) -> Shader:
-	if not _shaders.has(double_face):
+	_mx_caches.lock()
+	var r: Shader = _shaders.get(double_face)
+	_mx_caches.unlock()
+	if r == null:
 		if not double_face:
-			_shaders[false] = SHADER
+			r = SHADER
 		else:
-			var sh := Shader.new()
-			sh.code = SHADER.code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_disabled, cull_disabled;")
-			_shaders[true] = sh
-	return _shaders[double_face]
+			r = Shader.new()
+			r.code = SHADER.code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_disabled, cull_disabled;")
+		_mx_caches.lock()
+		if not _shaders.has(double_face):
+			_shaders[double_face] = r
+		r = _shaders[double_face]
+		_mx_caches.unlock()
+	return r
 
 ## Matériau du draugr (partagé entre draugrs).
 static func materiau(tex: Texture2D, double_face := true, decoupe := false, avec_contour := true, cle := "") -> ShaderMaterial:
 	var k := "%s|%s|%s|%s" % [cle if cle != "" else str(tex.get_rid()), double_face, decoupe, avec_contour]
-	if _mats.has(k):
-		return _mats[k]
+	_mx_caches.lock()
+	var deja: ShaderMaterial = _mats.get(k)
+	_mx_caches.unlock()
+	if deja != null:
+		return deja
 	var m := ShaderMaterial.new()
 	m.shader = shader(double_face)
 	m.set_shader_parameter("tex_base", tex)
@@ -56,14 +69,21 @@ static func materiau(tex: Texture2D, double_face := true, decoupe := false, avec
 	m.set_shader_parameter("appoint", APPOINT)
 	if avec_contour:
 		m.next_pass = GuerrierNordique.contour()
-	Palette.materiaux.append(m)
+	Palette.suivre(m)
 	Palette._appliquer(m, Palette._ps1_actif)
-	_mats[k] = m
-	return m
+	_mx_caches.lock()
+	if not _mats.has(k):
+		_mats[k] = m
+	deja = _mats[k]
+	_mx_caches.unlock()
+	return deja
 
 static func vider() -> void:
+	_mx_caches.lock()
 	_mats.clear()
 	_shaders.clear()
+	_tex_q.clear()
+	_mx_caches.unlock()
 	DraugrTextures.vider()
 
 # ======================================================================================================== fabrique
@@ -107,7 +127,10 @@ static func _creer(options := {}) -> Node3D:
 		if m == null:
 			continue
 		var cle := "peau_draugr_%d" % s
-		if not _mats.has(cle):
+		_mx_caches.lock()
+		var m_peau: ShaderMaterial = _mats.get(cle)
+		_mx_caches.unlock()
+		if m_peau == null:
 			var m2 := ShaderMaterial.new()
 			m2.shader = shader(false)
 			m2.set_shader_parameter("tex_base", m.get_shader_parameter("tex_base"))
@@ -115,10 +138,14 @@ static func _creer(options := {}) -> Node3D:
 			m2.set_shader_parameter("saturation", 0.12)
 			m2.set_shader_parameter("appoint", APPOINT)
 			m2.next_pass = GuerrierNordique.contour()
-			Palette.materiaux.append(m2)
+			Palette.suivre(m2)
 			Palette._appliquer(m2, Palette._ps1_actif)
-			_mats[cle] = m2
-		pe.set_surface_override_material(s, _mats[cle])
+			_mx_caches.lock()
+			if not _mats.has(cle):
+				_mats[cle] = m2
+			m_peau = _mats[cle]
+			_mx_caches.unlock()
+		pe.set_surface_override_material(s, m_peau)
 	var yeux := GuerrierNordique._centres_yeux(pieces.get("Eyes"))
 	for nom in ["Eyes", "Eyebrows"]:
 		if pieces.has(nom):
@@ -257,8 +284,11 @@ static func _tex_cheveux(mi: MeshInstance3D) -> Texture2D:
 	var src: Texture2D = m.get_shader_parameter("tex_base") if m else null
 	if src == null:
 		return DraugrTextures.tex("cheveux")
-	if _tex_q.has(src.resource_path):
-		return _tex_q[src.resource_path]
+	_mx_caches.lock()
+	var deja: Texture2D = _tex_q.get(src.resource_path)
+	_mx_caches.unlock()
+	if deja != null:
+		return deja
 	var cle_res := "cheveux_q_" + src.resource_path.get_file().get_basename()
 	var img := DraugrTextures.charger(cle_res)
 	if img == null:
@@ -281,7 +311,11 @@ static func _tex_cheveux(mi: MeshInstance3D) -> Texture2D:
 		img = GuerrierTextures.mips_pixel(img)
 		DraugrTextures.sauver(cle_res, img)
 	var t := ImageTexture.create_from_image(img)
-	_tex_q[src.resource_path] = t
+	_mx_caches.lock()
+	if not _tex_q.has(src.resource_path):
+		_tex_q[src.resource_path] = t
+	t = _tex_q[src.resource_path]
+	_mx_caches.unlock()
 	return t
 
 # ======================================================================================================== accessoires
@@ -646,13 +680,18 @@ class AccDraugr extends GuerrierNordique.Accessoires:
 	## Lit lambeaux.glb (pièces légères « lambeaux_jupe » et « lambeaux_cape », UV de lambeaux_bake.png) et les verse dans la
 	## troisième surface (lam), poids d'os copiés du sommet le plus proche de la mante (haut) ou de la tunique (bas).
 	func lambeaux_blender(mante: MeshInstance3D, tunique: MeshInstance3D) -> void:
-		if not _lamb_cache.has("arrays"):
+		DraugrNordique._mx_caches.lock()
+		var lus: bool = _lamb_cache.has("arrays")
+		DraugrNordique._mx_caches.unlock()
+		if not lus:
 			var scene := (load(DraugrNordique.LAMBEAUX_BLENDER) as PackedScene).instantiate()
 			var res := []
 			for mi: MeshInstance3D in scene.find_children("*", "MeshInstance3D", true, false):
 				res.append([mi.mesh.surface_get_arrays(0), String(mi.name).contains("cape")])
 			scene.free()
+			DraugrNordique._mx_caches.lock()
 			_lamb_cache["arrays"] = res
+			DraugrNordique._mx_caches.unlock()
 		var am := mante.mesh.surface_get_arrays(0)
 		var at := tunique.mesh.surface_get_arrays(0)
 		var cache := {}

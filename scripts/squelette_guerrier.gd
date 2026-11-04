@@ -135,7 +135,7 @@ static func _cloner(m: ShaderMaterial, d: Dictionary, os_: bool) -> ShaderMateri
 		c.set_shader_parameter("motif_lueur", d["braise"])
 		if d.has("saturation"):
 			c.set_shader_parameter("saturation", d["saturation"])
-	Palette.materiaux.append(c)
+	Palette.suivre(c)
 	Palette._appliquer(c, Palette._ps1_actif)
 	return c
 

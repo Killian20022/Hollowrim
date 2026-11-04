@@ -148,7 +148,7 @@ static func _contour() -> ShaderMaterial:
 		c.shader = preload("res://shaders/contour_troll.gdshader")
 		c.set_shader_parameter("epaisseur", 1.2)
 		c.set_shader_parameter("recul", 0.10)
-		Palette.materiaux.append(c)
+		Palette.suivre(c)
 		Palette._appliquer(c, Palette._ps1_actif)
 		_mats["contour"] = c
 	return _mats["contour"]

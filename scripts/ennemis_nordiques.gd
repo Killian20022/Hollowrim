@@ -483,7 +483,7 @@ static func _cloner(m: ShaderMaterial, f: Color, lueur := Vector3(-1, -1, -1)) -
 	c.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * f)
 	if lueur.x >= 0.0 and m.get_shader_parameter("lueur") != null:
 		c.set_shader_parameter("lueur", lueur)
-	Palette.materiaux.append(c)
+	Palette.suivre(c)
 	Palette._appliquer(c, Palette._ps1_actif)
 	_clones[k] = c
 	return c

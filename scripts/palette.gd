@@ -22,6 +22,10 @@ const AIGUILLES_SOL := ["#78726f", "#898386", "#9a959a", "#aba8b1"]  # neige sal
 const MOUSSE := ["#1c2a20", "#25372a", "#304433", "#3d5240"]
 
 static var materiaux: Array[ShaderMaterial] = []
+## Verrou de `materiaux` : des fils de construction (préparation des ennemis, donjon, grotte) créent des matériaux pendant que le fil
+## principal en crée aussi ou parcourt la liste (bascule PS1, neige) ; un append concurrent réalloue le tableau en pleine lecture (rc=5).
+## Ajouter via suivre(), lire via materiaux_depuis() (copie), jamais en parcourant `materiaux` directement.
+static var _mx_mats := Mutex.new()
 static var tex_neige: ImageTexture
 static var _cache := {}
 static var _rng := RandomNumberGenerator.new()
@@ -184,10 +188,14 @@ static var _ps1_double: Shader
 ## Variante de ps1.gdshader sans élimination des faces arrière : pour les pièces fines et ouvertes
 ## (vêtements découpés dans le corps, cheveux) dont on verrait sinon le vide à travers l'étoffe.
 static func shader_double_face() -> Shader:
+	_mx_mats.lock()
 	if _ps1_double == null:
-		_ps1_double = Shader.new()
-		_ps1_double.code = PS1.code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_disabled, cull_disabled;")
-	return _ps1_double
+		var sh := Shader.new()
+		sh.code = PS1.code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_disabled, cull_disabled;")
+		_ps1_double = sh
+	var r := _ps1_double
+	_mx_mats.unlock()
+	return r
 
 static var _ps1_terrain: Shader
 static var _ps1_couche: Shader
@@ -215,8 +223,21 @@ static func materiau(base: Texture2D, echelle_uv := Vector2.ONE, teinte := Color
 	m.set_shader_parameter("uv_echelle", echelle_uv)
 	m.set_shader_parameter("teinte", teinte)
 	_appliquer(m, _ps1_actif)
-	materiaux.append(m)
+	suivre(m)
 	return m
+
+## Inscrit un matériau pour suivre le réglage ps1 (utilisable depuis un fil).
+static func suivre(m: ShaderMaterial) -> void:
+	_mx_mats.lock()
+	materiaux.append(m)
+	_mx_mats.unlock()
+
+## Copie des matériaux inscrits à partir de l'indice `debut` (sûre à parcourir pendant que des fils en ajoutent).
+static func materiaux_depuis(debut := 0) -> Array:
+	_mx_mats.lock()
+	var r: Array = materiaux.slice(debut)
+	_mx_mats.unlock()
+	return r
 
 static func _appliquer(m: ShaderMaterial, actif: bool) -> void:
 	m.set_shader_parameter("grille", 135.0 if actif else 0.0)
@@ -224,7 +245,7 @@ static func _appliquer(m: ShaderMaterial, actif: bool) -> void:
 
 static func regler_ps1(actif: bool) -> void:
 	_ps1_actif = actif
-	for m in materiaux:
+	for m: ShaderMaterial in materiaux_depuis():
 		_appliquer(m, actif)
 
 static var _conversions := {}
@@ -276,7 +297,9 @@ static func police() -> FontFile:
 ## À appeler quand le monde se ferme : les ressources gardées dans des variables statiques
 ## seraient sinon libérées après l'arrêt du moteur de rendu (plantage à la fermeture).
 static func vider() -> void:
+	_mx_mats.lock()
 	materiaux.clear()
+	_mx_mats.unlock()
 	_verrou.lock()
 	_cache.clear()
 	_images_peintes.clear()

@@ -186,7 +186,7 @@ static func _mat_teinte(m: Material, cle: String, c: Color) -> Material:
 	if not _mats.has(cle):
 		var m2 := (m as ShaderMaterial).duplicate() as ShaderMaterial
 		m2.set_shader_parameter("teinte", c)
-		Palette.materiaux.append(m2)
+		Palette.suivre(m2)
 		Palette._appliquer(m2, Palette._ps1_actif)
 		_mats[cle] = m2
 	return _mats[cle]

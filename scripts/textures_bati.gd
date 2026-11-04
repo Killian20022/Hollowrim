@@ -55,7 +55,7 @@ static func materiau(nom: String, teinte := Color.WHITE, texels := 32.0, force_r
 		m.set_shader_parameter("neige_propre", true)   # la neige se lit à SA taille, pas à celle de la matière
 	m.set_shader_parameter("relief", force_relief if (c[1] != relief_neutre()) else 0.0)
 	Palette._appliquer(m, Palette._ps1_actif)
-	Palette.materiaux.append(m)
+	Palette.suivre(m)
 	return m
 
 static func vider() -> void:

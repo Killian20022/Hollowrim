@@ -37,7 +37,7 @@ static func materiau() -> ShaderMaterial:
 		m.set_shader_parameter("tex_base", ImageTexture.create_from_image(img))
 		m.set_shader_parameter("grille", 135.0)
 		m.set_shader_parameter("affine", Palette.AFFINE)
-		Palette.materiaux.append(m)
+		Palette.suivre(m)
 		_materiau = m
 	return _materiau
 

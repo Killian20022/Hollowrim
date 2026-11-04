@@ -126,7 +126,7 @@ func _ready() -> void:
 	m_vitre_ext = mats_int["vitre"]
 	if not _sans_refonte:
 		m_vitre_ext = (mats_int["vitre"] as ShaderMaterial).duplicate()
-		Palette.materiaux.append(m_vitre_ext)
+		Palette.suivre(m_vitre_ext)
 	Chrono.marque("  village : matières intérieur")
 	await _souffle()
 	# Village v2 (lot C7b, plan docs/PLAN_VILLAGE_V2.md) : tout est placé en coordonnées MONDE (x est, z sud) ; le nœud du

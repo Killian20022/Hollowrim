@@ -249,7 +249,7 @@ static func _etat(racine: Node3D, noeuds: Array[Node]) -> Dictionary:
 						anims[nom] = a
 	# matières inscrites dans Palette.materiaux (bascule PS1) : marquées pour être réinscrites
 	var palette := {}
-	for m: ShaderMaterial in Palette.materiaux:
+	for m: ShaderMaterial in Palette.materiaux_depuis():
 		palette[m] = true
 	var mats: Array = []
 	var params: Array = []     # [matière, {nom: valeur}] : réappliqués après lecture (un vec3 « source_color » posé en Vector3 ne se relit pas)
@@ -343,7 +343,7 @@ static func _restituer(n: Node3D) -> void:
 	_mx.lock()
 	for m: Variant in etat.get("palette", []):
 		if m is ShaderMaterial:
-			Palette.materiaux.append(m)
+			Palette.suivre(m)
 	_mx.unlock()
 	_reposer(etat.get("params", []))
 

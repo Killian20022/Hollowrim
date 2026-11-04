@@ -126,7 +126,7 @@ static func materiaux() -> Dictionary:
 	vit.shader = preload("res://shaders/ps1_vitre.gdshader")
 	vit.set_shader_parameter("tex_vitrage", TexturesBati.tex("vitrage"))
 	d["vitre"] = vit
-	Palette.materiaux.append(vit)
+	Palette.suivre(vit)
 	return d
 
 static func _textures_feu() -> void:
