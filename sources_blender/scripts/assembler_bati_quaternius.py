@@ -41,8 +41,8 @@ RECETTES = {
            "cotes": {"+Z": ["Wf", "S", "Wf"], "-Z": ["S", "Wf", "S"], "+X": ["S", "T", "S"], "-X": ["S", "D", "S"]},
            "toit": ("Roof_RoundTiles_6x8", 6.0), "pignon": "Roof_Front_Brick6", "cheminee": ("Prop_Chimney2", 2.2)},
     # --- généralisation (bati/hybride, 2026-11-04) ---
-    # H3 : maison de planches de la haute rue (6 x 5), porte sur le pignon est (+X) vers l'escalier -> plâtre à pans de bois (WoodGrid)
-    "h3": {"L": 6.0, "W": 5.0, "mur": "Plaster", "niveaux": [2.5], "plein": "Wall_Plaster_WoodGrid",
+    # H3 : maison de planches de la haute rue (6 x 5), porte sur le pignon est (+X) vers l'escalier -> plâtre (le WoodGrid, essayé, fait une grille trop chargée en PS1)
+    "h3": {"L": 6.0, "W": 5.0, "mur": "Plaster", "niveaux": [2.5],
            "cotes": {"+Z": ["S", "Wf", "S"], "-Z": ["Wf", "S", "Wf"], "+X": ["S", "Df", "S"], "-X": ["S", "S", "S"]},
            "toit": ("Roof_RoundTiles_6x8", 6.0), "pignon": "Roof_Front_Brick6"},
     # maison du moulin à eau (6 x 6), pierre, porte +Z ; mur -X plein (berge : l'arbre de la roue y entre)
