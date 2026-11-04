@@ -689,6 +689,8 @@ static func _fleche(v, p: Node3D, b: float, y0: float, h: float, coyau_seul := f
 
 # --- moulin à vent -------------------------------------------------------------------------------------------
 
+const MOULIN_KIT := false   # moulin du kit rejeté (voir moulin_vent)
+
 ## Moulin à vent (hors enceinte, butte nord-est) : socle de pierre qui rattrape la pente, tour de pierre tronconique à
 ## 10 pans, cordon, porte au sud, deux fenêtres chaudes, calotte de bois enneigée, arbre et 4 ailes à claires-voies et toile,
 ## tournées vers le village (ouest), qui TOURNENT (village._process : `ailes_moulin`).
@@ -722,7 +724,9 @@ static func moulin_vent(v, g: Node3D, x: float, z: float) -> void:
 	v._quad_z(p, Vector3(0.0, 6.6, -(2.2 + 0.08)), 0.38, 0.48, -1.0, v.m_fen_pignon)
 	# calotte de bois (cône à 10 pans) coiffée de neige
 	var yc := 0.6 + ht + 0.14
-	var moulin_q := VillageBatiQ.detail("bq_toit_tour") and VillageBatiQ.detail("bq_claire_voie") and VillageBatiQ.detail("bq_poutre")
+	# Moulin du kit (gen/bati2) : essayé puis REJETÉ après comparaison (calotte évasée à épi, effet pagode, moins nordique
+	# que le cône enneigé d'origine ; ailes à peine différentes) — MOULIN_KIT le rebranche pour un essai.
+	var moulin_q := MOULIN_KIT and VillageBatiQ.detail("bq_toit_tour") and VillageBatiQ.detail("bq_claire_voie") and VillageBatiQ.detail("bq_poutre")
 	if moulin_q:    # bâti hybride (gen/bati2) : calotte Roof_Tower_RoundTiles du kit (tuiles en bois sombre), neige du village dessus
 		VillageBatiQ.kit(v, p, "bq_toit_tour", Transform3D(Basis.from_scale(Vector3(0.86, 0.55, 0.86)), Vector3(0, yc - 0.05, 0)), v.m_colombage, v.m_brute)
 		v._cylindre(p, 0.12, 0.62, 0.5, Transform3D(Basis(), Vector3(0, yc + 1.75, 0)), v.m_neige, 10)

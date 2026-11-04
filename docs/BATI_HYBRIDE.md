@@ -39,7 +39,7 @@ d'avant (VillageBati.maison et Village._maison reprennent leur code d'origine). 
 | H5 (36, 85), haute rue | rondins, porche | kit : cheminée Prop_Chimney2 | rondins, porche, banc |
 | H6, grenier sur pierres levées (60, 20.5) | stabbur de planches, escalier détaché | kit : escalier extérieur Stairs_Exterior_Straight (en bois sombre) | tout le grenier (pierres levées, étage en surplomb) |
 | Ferme A (79.5, 24.5) | rondins, têtes de dragon | kit : cheminée Prop_Chimney2 | rondins, têtes de dragon, tas de bois |
-| Granges A et B | planches, grandes portes | **gen/bati2** : voir plus bas | — |
+| Granges A et B | planches, grandes portes | gen/bati2 : essayées puis rejetées (voir plus bas) | — |
 | Tour-clocher, moulin à vent, forge ouverte | — | **gen/bati2** : voir plus bas | — |
 | Palissade, crypte, grotte | — | — | inchangés |
 
@@ -103,8 +103,8 @@ branche teste `VillageBatiQ.actif` / `VillageBatiQ.detail(<pièce>)`). Nouvelles
 | Bâtiment | Kit (kitbash) | Gardé fait maison |
 |---|---|---|
 | Tour-clocher (45, 87), ~31 m | flèche `Roof_Tower_RoundTiles` (étirée en hauteur x1,35, tuiles en bois sombre des essentes, son épi de fer remplace l'ancien) sur le coyau carré enneigé d'avant ; garde-corps du beffroi `Balcony_Cross_Straight` (croix de Saint-André, bois sombre) sur un muret bas ; aisseliers `Roof_Support2` sous les linteaux ; encadrement cintré `DoorFrame_Round_Brick` (pierre brute) à la place des claveaux | fût de pierre, chaînages, cordons enneigés, meurtrières éclairées, cloche, collision |
-| Moulin à vent (95.5, 13) | calotte `Roof_Tower_RoundTiles` (tuiles en bois sombre) sous la neige du village ; ailes : vergues `Roof_Log`, claires-voies = 2 barrières `Prop_WoodenFence_Single` couchées par aile | tour de pierre, toile, neige des vergues, **animation des ailes** (nœud `Ailes` inchangé, `village.ailes_moulin`) |
-| Granges A (87.5, 24.5) et B (67.5, 6) | assemblage `grange_a/_b` : bardage de planches `Floor_WoodDark` dressées, poteaux d'angle, toit `Roof_RoundTiles_6x8`, pignons `Roof_Front_Brick6` et bardage passés sur les planches du village (`m_planches`) ; lucarne éclairée dans le pignon ; grandes portes : cadre `DoorFrame_Flat_WoodDark` étiré à 2,95 x 2,6 m, deux vantaux de planches du kit en bois sombre, fond sombre | traverses et écharpes en Z, poignées, seuil de pierre, neige, colombage de pignon, collision |
+| Moulin à vent (95.5, 13) | **rejeté** : calotte `Roof_Tower_RoundTiles` + ailes en `Roof_Log` / `Prop_WoodenFence_Single` (code gardé derrière `VillageBati.MOULIN_KIT = false`) — la calotte évasée à épi faisait pagode, moins nordique que le cône enneigé | tout (moulin d'origine, ailes animées) |
+| Granges A (87.5, 24.5) et B (67.5, 6) | **rejetées** : l'assemblage `b_grange_a/_b` (bardage `Floor_WoodDark`, toit `Roof_RoundTiles_6x8`, portes du kit, `VillageBatiQ.portes_grange`) reste dans le .dat et le code, mais n'est pas branché dans `MODELES` — ses planches horizontales sont moins naturelles que les planches verticales d'origine | tout (granges d'origine) |
 | Forge ouverte (27, 36) | auvent : 4 poteaux `Corner_Exterior_Wood`, aisseliers `Roof_Support2`, 3 pans de bardeaux `Roof_Wooden_2x1` sous la neige épaisse du village (dalle + glaçons), rives sombres | **enseigne à l'enclume**, sablières, dés de pierre, poste de travail (billot, foyer, meule, props), collisions des poteaux (boîtes 0,28 m) |
 
 Corrections de la v2 :
@@ -113,4 +113,5 @@ Corrections de la v2 :
 - Fils de ciel le long des rives de pignon : les tuiles du kit, vues d'en dessous, laissaient passer le ciel ; une sous-face
   de planches sombres (1,15 m) suit chaque rive dans le plan du toit.
 
-Captures : `Desktop/Skyrim captures/gen_bati2/planches/`.
+Captures : `Desktop/Skyrim captures/gen_bati2/planches/`. Règle appliquée : un remplacement moins beau ou moins nordique que
+l'original est rejeté ; seuls la tour-clocher et la forge passent au kit (moulin et granges rejetés).

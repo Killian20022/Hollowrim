@@ -14,8 +14,9 @@ class_name VillageBatiQ
 static var actif := not ("--bati-ancien" in OS.get_cmdline_user_args())
 
 ## Position monde (x, z) arrondie -> modèle du .dat (une entrée par bâtiment remplacé).
-const MODELES := {"36,53": "b_h1", "54,55.5": "b_h2", "54,77": "b_h4", "35.5,71": "b_h3", "25.5,55.5": "b_moulin", "61,3.5": "b_ferme_b",
-	"87.5,24.5": "b_grange_a", "67.5,6": "b_grange_b"}   # lot bâti restant (gen/bati2) : granges en bardage du kit
+const MODELES := {"36,53": "b_h1", "54,55.5": "b_h2", "54,77": "b_h4", "35.5,71": "b_h3", "25.5,55.5": "b_moulin", "61,3.5": "b_ferme_b"}
+# Granges A (87.5, 24.5) et B (67.5, 6) : assemblées en bardage du kit (`b_grange_a/_b` du .dat) mais REJETÉES après
+# comparaison (planches horizontales moins naturelles que les planches verticales d'avant) : elles restent faites maison.
 
 ## Détails Quaternius sur les maisons restées en rondins (hybride) : vrai si la pièce isolée est chargée.
 static func detail(nom: String) -> bool:
