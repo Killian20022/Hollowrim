@@ -627,6 +627,8 @@ func _x_tresor(_m: Dictionary) -> void:
 	_q("q_vase_4", -39.85, -40.5, 1.3, 0.0, true, ARG)
 	_q("q_tas_pieces_2", -42.8, -42.8, 2.4, 0.0, false, ORQ)
 	_q("q_urne_brisee", -40.3, -46.5, 0.2, 0.0, false, ARG)          # urne renversée au pied des armes (les angles restent aux braseros)
+	if PropsQuaternius.lot4:      # props/lot4 : coffre décoratif ouvert, rempli d'or, entre les deux coffres du jarl (les coffres L1 ne changent pas)
+		_q("q_coffre_or", -44.3, -44.0, PI * 0.5, 0.0, true)
 
 # ------------------------------------------------------------------ aile est
 func _x_glaces(_m: Dictionary) -> void:
@@ -693,6 +695,8 @@ func _x_quartiers(_m: Dictionary) -> void:
 	_q("q_assiette", 24.1, -0.88, 0.0, 0.8)
 	_q("q_tabouret", 23.5, -1.55, 0.5, 0.0, true)
 	_q("q_caisse", 18.9, -8.6, 0.15, 0.0, true, {}, 0.85)          # entre deux lits (les angles restent aux braseros)
+	if PropsQuaternius.lot4:      # props/lot4 : coffre de soldat décoratif (fermé) au pied du lit sud
+		_q("q_coffre_d", 22.0, -8.5, PI, 0.0, true)
 	# mur fragile : fissures et poussière au pied du mur est, courant d'air
 	d.fissures(_l(26.66, -4.0, 1.4), Vector3(-1, 0, 0), 2.2, 2.6, 3)
 	souffle(_l(26.4, -4.0, 0.3), Vector3(0.1, 0.12, 1.1), Vector3(-1, 0, 0), 12)
@@ -846,5 +850,7 @@ func _x_garde(_m: Dictionary) -> void:
 	d.table(_l(18.5, -52.0, y), 0.0)
 	d.arme(_l(21.0, -50.0, y), 1.1)
 	d.os_tas(_l(23.4, -51.6, y), 4, 0.5)
+	if PropsQuaternius.lot4:      # props/lot4 : coffre décoratif contre le mur ouest de la salle de garde
+		_q("q_coffre_d", 16.75, -48.6, PI * 0.5, y, true)
 	d.sac_dechire(_l(26.0, -54.0, y), 0.8)
 	d.bouclier_mural(_l(24.6, -59.7, y + 1.9), Vector3(0, 0, 1), 0.34, Color(0.5, 0.4, 0.3))      # pas sur l'applique

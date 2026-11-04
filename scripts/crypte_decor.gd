@@ -1642,6 +1642,63 @@ func tonneau(pos: Vector3, e := 1.0) -> void:
 
 func table(pos: Vector3, lacet := 0.0) -> void:
 	ObjPetitMobilier.table(self, pos, lacet)
+	if _lot4():
+		_table_lot4(pos, lacet)
+
+## props/lot4 : tapis écrasé sous la table, un livre et une fiole sur le plateau (hors des garnitures C6 : leurs disques sont respectés).
+func _table_lot4(pos: Vector3, lacet: float) -> void:
+	if murs_cb.is_valid():
+		pos += murs_cb.call(pos, Vector2(0.55, 0.33), lacet)      # même écart au mur que la table (sans enregistrer de poussée)
+	var b := Basis(Vector3.UP, lacet)
+	var g := _alea_pos(pos)
+	j0("tapis_table", lacet)
+	_q4("q_tapis", pos, lacet + PI * 0.5, Vector3(0.8, 0.22, 0.56), {})
+	j1()
+	var disques: Array = get_meta("c6_disques", [])
+	var places := [Vector2(-0.4, -0.2), Vector2(0.4, 0.2), Vector2(-0.4, 0.2), Vector2(0.4, -0.2)]
+	var d0 := g.randi() % 4
+	var objets := [["q_livre_d1", "q_livre_d2", "q_livre_ouvert"][g.randi() % 3], "q_fiole_%d" % (1 + g.randi() % 6)]
+	var fait := 0
+	for k in 4:
+		if fait >= 2:
+			break
+		var pl: Vector2 = places[(d0 + k) % 4]
+		var p := pos + b * Vector3(pl.x, 0.8, pl.y)
+		var libre := true
+		for dq: Array in disques:
+			var c: Vector3 = dq[0]
+			if Vector2(c.x - p.x, c.z - p.z).length() < float(dq[1]) + 0.12 and absf(c.y - pos.y) < 0.2:
+				libre = false
+		if libre:
+			j0("garniture_lot4", lacet)
+			_q4(objets[fait], p, g.randf() * TAU, Vector3.ONE)
+			disques.append([p, 0.12, emprises])
+			j1()
+			fait += 1
+	set_meta("c6_disques", disques)
+
+## props/lot4 actif pour CE décor (la crypte, pas la grotte qui hérite de cette classe).
+func _lot4() -> bool:
+	return PropsQuaternius.lot4 and est_crypte and not muet
+
+var _sans_maison := false
+
+## Tirages à part, stables, tirés de la position : le rng du décor (donc tout ce qui est posé ensuite) ne bouge pas.
+func _alea_pos(pos: Vector3) -> RandomNumberGenerator:
+	var w := xf * pos
+	var r := RandomNumberGenerator.new()
+	r.seed = absi(floori(w.x * 7.3) * 73856093 ^ floori(w.z * 7.3) * 19349663 ^ floori(w.y * 5.0) * 83492791) + 17
+	return r
+
+## Pose un prop du lot 4 fondu dans les tampons (sans emprise : celle de l'objet qui le porte existe déjà).
+func _q4(nom: String, pos: Vector3, lacet: float, ech: Vector3, mats := {}) -> void:
+	PropsQuaternius.preparer_crypte()
+	if not _modeles_de.has(nom):
+		return
+	PropsQuaternius.compter("crypte_lot4")
+	var m := PropsQuaternius.MATS_CRYPTE.duplicate()
+	m.merge(mats, true)
+	modele(nom, pos, lacet, ech, m, false)
 
 func etagere(pos: Vector3, lacet: float, largeur := 1.8, haut := 2.0) -> void:
 	ObjMobilierBois.etagere(self, pos, lacet, largeur, haut)
@@ -1651,7 +1708,19 @@ func crane(pos: Vector3, lacet := 0.0) -> void:
 	ObjPetitMobilier.crane(self, pos, lacet)
 
 func os_tas(pos: Vector3, n := 4, rayon := 0.4) -> void:
+	if not _lot4():
+		ObjPetitMobilier.os_tas(self, pos, n, rayon)
+		return
+	_sans_maison = true      # props/lot4 : os longs/courts maison retirés (le crâne anatomique, l'emprise et les tirages restent)
 	ObjPetitMobilier.os_tas(self, pos, n, rayon)
+	_sans_maison = false
+	j0("os_tas")
+	var r := _alea_pos(pos)
+	for k in clampi((n + 1) / 2, 1, 3):
+		var a := r.randf() * TAU
+		var d := r.randf_range(0.25, 1.0) * rayon
+		_q4("q_os_tas" if (k + n) % 2 == 0 else "q_os_tas_2", pos + Vector3(cos(a) * d, 0.0, sin(a) * d), r.randf() * TAU, Vector3.ONE * r.randf_range(0.95, 1.25))
+	j1()
 
 # ------------------------------------------------------------------ C7 : ossuaire en relief (panneaux d'os)
 ## Les panneaux d'os (DonjonKit.panneau_os) n'étaient qu'une texture de crânes peints (ossuaire.res) : à 1-3 m, « papier peint ».
@@ -2102,7 +2171,21 @@ func bassin(centre: Vector3, w: float, p: float, h := 0.5) -> void:
 
 ## Parchemins, feuillets et livres éparpillés au sol (archives pillées).
 func parchemins_epars(centre: Vector3, rayon: float, n := 12) -> void:
-	ObjPetitMobilier.parchemins_epars(self, centre, rayon, n)
+	if not _lot4():
+		ObjPetitMobilier.parchemins_epars(self, centre, rayon, n)
+		return
+	j0("parchemins_epars")      # props/lot4 : mêmes tirages ; les « livres » (boîtes de bois) deviennent de vrais livres Quaternius
+	var nb := 0
+	for k in n:
+		var a := rng.randf() * TAU
+		var r := sqrt(rng.randf()) * rayon
+		var p := centre + Vector3(cos(a) * r, 0.01 + 0.004 * (k % 3), sin(a) * r)
+		if k % 4 == 0:
+			_q4(["q_livre_ouvert", "q_livre_d1", "q_livre_d2", "q_livre_ouvert"][nb % 4], p, rng.randf() * TAU, Vector3.ONE)
+			nb += 1
+		else:
+			boite("parchemin", p, Vector3(rng.randf_range(0.2, 0.34), 0.01, rng.randf_range(0.14, 0.24)), rng.randf() * TAU)
+	j1()
 
 ## Étagère renversée (cadre couché et rayons obliques) : décor d'archives en ruine.
 func etagere_renversee(pos: Vector3, lacet := 0.0, largeur := 1.8) -> void:
@@ -2110,7 +2193,29 @@ func etagere_renversee(pos: Vector3, lacet := 0.0, largeur := 1.8) -> void:
 
 ## Tas de gravats (roche effondrée) : cône irrégulier et blocs ; collision facultative.
 func gravats(pos: Vector3, r := 1.0, h := 0.7, avec_collision := true, mat := "mur2") -> void:
+	if not _lot4():
+		ObjPetitMobilier.gravats(self, pos, r, h, avec_collision, mat)
+		return
+	_sans_maison = true      # props/lot4 : blocs maison remplacés par des rochers Quaternius (collision et emprise inchangées)
 	ObjPetitMobilier.gravats(self, pos, r, h, avec_collision, mat)
+	_sans_maison = false
+	j0("gravats")
+	var mats := {"pierre": mat}
+	if v2 and mat != "mur4":
+		mats = {"pierre": "pierre_v2"}      # comme les anciens blocs : pierre claire des murs et du dallage
+	var g := _alea_pos(pos)
+	var pas := PI * 2.0 / 3.0
+	var a0 := g.randf() * TAU
+	var gros := ["q_roc_2", "q_roc_4", "q_roc_3", "q_roc_1"]
+	var s0 := clampf(r * 1.5, 0.45, 1.7)
+	_q4(gros[g.randi() % 4], pos + Vector3(cos(a0), 0.0, sin(a0)) * r * 0.12, g.randf() * TAU, Vector3(s0, clampf(h / 0.3, s0 * 0.8, s0 * 1.5), s0), mats)
+	var n_p := 2 if r < 0.5 else (3 if r < 0.85 else 4)
+	for k in n_p:
+		var a := a0 + pas * (k + 1) + g.randf_range(-0.5, 0.5)
+		var dd := r * g.randf_range(0.4, 0.62)
+		var sk := s0 * g.randf_range(0.5, 0.8)
+		_q4(["q_roc_5", "q_roc_3", "q_roc_1", "q_roc_4"][k % 4], pos + Vector3(cos(a) * dd, 0.0, sin(a) * dd), g.randf() * TAU, Vector3(sk, sk * g.randf_range(0.8, 1.3), sk), mats)
+	j1()
 
 ## Fissures noires qui courent sur un mur (mur fragile : on les voit, et la poussière au pied).
 func fissures(centre: Vector3, vers: Vector3, larg := 2.0, haut := 2.6, n := 3, sol := 0.0, avec_gravats := true) -> void:
@@ -2330,6 +2435,8 @@ func _modele_subst(nom: String, pos: Vector3, lacet: float, ech: Vector3, emp: b
 func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats := {}, emp := true) -> Array:
 	if muet:
 		return []
+	if _sans_maison and (nom.begins_with("oss_long_") or nom.begins_with("os_long_") or nom.begins_with("os_court_") or nom.begins_with("gravats_")):
+		return []      # lot 4 : os longs et gravats maison remplacés par les props Quaternius (emprise, collision et tirages inchangés)
 	if PropsQuaternius.remplace and SUBST.has(nom):
 		var rs: Variant = _modele_subst(nom, pos, lacet, ech, emp)
 		if rs != null:

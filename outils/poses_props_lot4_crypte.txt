@@ -1,0 +1,11 @@
+# props/lot4 : crypte (repère crypte x,z,lacet°,tangage°) ; mêmes noms avant/après
+c_quartiers1 crypte 16.5,0.5,-50,-5 ouvre=s1,s2,s3,secret,herse
+c_quartiers2 crypte 25.5,-8,150,-5 ouvre=s1,s2,s3,secret,herse
+c_quartiers3 crypte 19.5,-4,-90,-4 ouvre=s1,s2,s3,secret,herse
+c_salle crypte 0,-19.5,0,-5 ouvre=s1,s2,s3,secret,herse
+c_etagere crypte -9.5,-14.5,90,-4 ouvre=s1,s2,s3,secret,herse
+c_garde crypte 1,-52,54,-5 ouvre=s1,s2,s3,secret,herse
+c_table crypte -30,-34,51,-4 ouvre=s1,s2,s3,secret,herse
+c_tresor crypte -37.5,-43.5,90,-5 ouvre=s1,s2,s3,secret,herse
+c_ossuaire crypte -17,-11,37,-6 ouvre=s1,s2,s3,secret,herse
+c_archives crypte -8,-43,90,-5 ouvre=s1,s2,s3,secret,herse
