@@ -122,3 +122,11 @@ Fabriqués par `outils/sons_gore/generer.sh` (ffmpeg : silence de tête coupé, 
 | glace_eclate_01-03 | Ice breaking/shattering, IgnasD (opengameart.org/content/ice-breakingshattering) : LedasLuzta, 2, 4 | CC0 |
 | carbonise_01 | Catching Fire, themightyglider (opengameart.org/content/catching-fire) : flame_0 | CC0 |
 | boyaux_01 | Ripping into meat, Eldritch Grim (opengameart.org/content/ripping-into-meat) : rippingintomeat_0 | CC0 |
+
+## Personnages / monstres / animaux Quaternius PS1 (branche essai/persos_quaternius, 2026-11-03)
+Convertis par `sources_blender/scripts/pq_convertir.py` (couleurs accrochées à la palette de la bible, réduction, un maillage) dans assets/modeles/persos_quat/. Catalogue complet : references/quaternius_persos/CATALOGUE.md.
+
+| Fichier(s) | Source | Licence |
+|---|---|---|
+| pq_villageois, pq_villageoise, pq_chasseur, pq_chasseresse | Modular Character Outfits - Fantasy [Standard], Quaternius (quaternius.itch.io/modular-character-outfits-fantasy) + tête/cheveux UBC déjà dans le jeu | CC0 1.0 (License_Standard.txt du pack) |
+| pq_loup, pq_araignee, pq_geant, pq_demon, pq_squelette, pq_cerf, pq_spectre | Quaternius sur Poly Pizza (poly.pizza/u/Quaternius : Wolf P1gU3Qkr9r, Spider yRYJiAJyiM, Giant BldaiPtyJa, Demon LnfIziKv4o, Skeleton DM4QScSmbS, Stag tQdzbZ1Cmw, Ghost Iip30bDHmu) | CC0 1.0 (champ « Licence » de chaque page) |
