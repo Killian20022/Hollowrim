@@ -1,15 +1,53 @@
 class_name VillageBatiQ
-## ESSAI (essai/bati_quaternius, 2026-11-03) : façades du village bâties avec les pièces modulaires du Medieval Village MegaKit (Quaternius,
-## CC0), assemblées et passées à la chaîne PS1 par sources_blender/scripts/assembler_bati_quaternius.py -> assets/modeles/bati_quaternius.dat
-## (+ .json : cotes utiles). Actif SEULEMENT avec `-- --bati-quaternius` ; sans l'option, VillageBati.maison() ne change pas d'un octet.
+## BÂTI HYBRIDE (bati/hybride, 2026-11-04 ; essai d'origine : essai/bati_quaternius) : façades du village bâties avec les pièces
+## modulaires du Medieval Village MegaKit (Quaternius, CC0), assemblées et passées à la chaîne PS1 par
+## sources_blender/scripts/assembler_bati_quaternius.py -> assets/modeles/bati_quaternius.dat (+ .json : cotes utiles).
+## MODE PAR DÉFAUT. `-- --bati-ancien` rend le bâti d'avant (captures avant/après, mesures) : VillageBati.maison() et
+## Village._maison() reprennent alors leur code d'origine sans changer d'un octet. Voir docs/BATI_HYBRIDE.md.
+## Hybride : les maisons de pierre / planches / colombage passent en pièces Quaternius ; les rondins (halle, Sigrun, chasseurs,
+## Grima, H5, ferme A), le grenier, les granges et la tour restent faits maison, avec des détails Quaternius (cheminées, cadres
+## de porte) ; les têtes de dragon des pignons sont reposées sur les maisons Quaternius qui en avaient.
 ## Remplace le corps de la maison (murs, portes, fenêtres, pignons, toit, cheminée) ; garde du bâtiment d'origine : le sol / le socle de pente,
 ## la boîte de collision, l'emprise, la fumée, la torche et l'enseigne. La neige des toits reste celle du village (dalle épaisse + rouleau
 ## de faîte + glaçons : BatiGeo.dalle_neige_epaisse, village.m_toit alpha 0 = neige) posée sur le plan du toit Quaternius.
 
-static var actif := "--bati-quaternius" in OS.get_cmdline_user_args()
+static var actif := not ("--bati-ancien" in OS.get_cmdline_user_args())
 
 ## Position monde (x, z) arrondie -> modèle du .dat (une entrée par bâtiment remplacé).
-const MODELES := {"36,53": "b_h1", "54,55.5": "b_h2", "54,77": "b_h4"}
+const MODELES := {"36,53": "b_h1", "54,55.5": "b_h2", "54,77": "b_h4", "35.5,71": "b_h3", "25.5,55.5": "b_moulin", "61,3.5": "b_ferme_b"}
+
+## Détails Quaternius sur les maisons restées en rondins (hybride) : vrai si la pièce isolée est chargée.
+static func detail(nom: String) -> bool:
+	return actif and PropsQuaternius.existe(nom)
+
+## Cheminée Quaternius (Prop_Chimney2) à la place de la souche de pierre faite maison : même pied (`y_base`), même hauteur (`h_ch`).
+static func cheminee(v, p: Node3D, xch: float, y_base: float, h_ch: float) -> void:
+	var nom := "bq_cheminee_2"
+	var b := PropsQuaternius.boite(nom)
+	var xf := Transform3D(Basis.from_scale(Vector3(0.9, h_ch / maxf(0.1, b.size.y), 0.9)), Vector3(xch, y_base, 0))
+	var mats := _mats(v)
+	for mc: Array in PropsQuaternius.morceaux(nom):
+		v._ajouter(p, mc[1], xf, mats.get(mc[0], v.m_roche))
+
+## Cadre de porte Quaternius (DoorFrame_Flat_WoodDark) autour du vantail sur charnière : ouverture ~1,12 x 2,15 m -> `larg` x `haut`.
+## `c` = milieu du seuil sur le nu du mur, `lacet` = orientation de la façade (0 : face +Z).
+static func cadre_porte(v, p: Node3D, c: Vector3, larg: float, haut: float, lacet := 0.0) -> void:
+	var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(Vector3(larg / 1.12, haut / 2.15, 1.0)), c)
+	for mc: Array in PropsQuaternius.morceaux("bq_cadre_porte"):
+		v._ajouter(p, mc[1], xf, v.m_poutres_h)
+
+## Têtes de dragon croisées au faîte (comme Village._pignon_decor) sur un toit Quaternius : faîte à `faite_y`, égout à `egout_y`,
+## demi-portée `demi`, bout du toit en x = ±`xr`.
+static func dragons(v, p: Node3D, xr: float, faite_y: float, egout_y: float, demi: float, graine: int) -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = graine
+	var phi := atan2(faite_y - egout_y, demi)
+	var Rf := Vector3(xr, faite_y + 0.3, 0)
+	for c in [-1.0, 1.0]:
+		var d := Vector3(0, sin(phi), -c * cos(phi))
+		var b := Rf + d * 0.85
+		v._piece(p, Rf - d * 0.15, b, Vector2(0.14, 0.22), v.m_colombage)
+		v._dragon(p, b, phi, -c, r)
 
 static var _meta := {}
 
@@ -49,6 +87,8 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 			hmin = minf(hmin, hc)
 			hmax = maxf(hmax, hc)
 	var y: float = v.h_sol(x, z) if hmax - hmin < 0.3 else (hmin + hmax) * 0.5 + 0.1
+	if o.has("y"):
+		y = o["y"]   # fermes hors enceinte posées sur leur terrasse (monde._terrasses_fermes), comme VillageBati.maison
 	var p: Node3D = v.pivot_monde(x, z, lacet, y, g)
 	p.name = "BatiQ_%s_%d_%d" % [nom, roundi(x), roundi(z)]
 	var socle := hmin - y
@@ -85,7 +125,11 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	# vitrages des fenêtres (volets ouverts sur le vitrage du village : lueur chaude la nuit, comme les fenêtres d'origine)
 	for w: Array in m.get("vitres", []):
 		v._vitre(p, Vector3(w[0], y_sol + float(w[1]), w[2]), Vector2(w[3], w[4]), w[5])
-	# fumée, torche, enseigne : comme le bâtiment d'origine
+	# têtes de dragon (identité nordique gardée) sur les pignons des maisons qui en avaient
+	if o.get("dragons", false):
+		for cote in [-1.0, 1.0]:
+			dragons(v, p, cote * (Lx * 0.5 - 0.1), faite_y + 0.1, egout_y, demi, graine + int(cote) * 17)
+	# fumée, torche, enseigne, appentis, tas de bois : comme le bâtiment d'origine
 	if m.has("cheminee") and o.get("fumee", false):
 		var c: Array = m["cheminee"]
 		v._fumee(p, Vector3(c[0], y_sol + float(c[1]) + 0.2, c[2]))
@@ -97,6 +141,10 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 		var cporte := Vector3(nporte.x * (L * 0.5 + 0.2), y_sol, nporte.z * (W * 0.5 + 0.2))
 		var pe := cporte + Vector3(0, 2.0, 0) + (Vector3(1.0, 0, 0) if absf(nporte.z) > 0.5 else Vector3(0, 0, 1.0))
 		VillageBati.enseigne(v, p, pe, nporte, o["enseigne"])
+	if o.get("appentis", false):
+		VillageBati._appentis(v, p, g, L, W, graine)
+	if o.get("bois", false):
+		VillageBati.tas_de_bois(v, p, o.get("bois_pos", Vector3(L * 0.5 + 0.55, 0, -0.6)), PI * 0.5, 2.2)
 	# collision et emprise : celles du bâtiment d'origine (même boîte : accès, PNJ, tests inchangés)
 	var Wt: float = W + (0.9 if style == "colombage" else 0.0)
 	var bas_c := minf(socle, 0.0) - 0.3

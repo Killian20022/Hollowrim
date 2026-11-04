@@ -40,6 +40,25 @@ RECETTES = {
     "h4": {"L": 6.0, "W": 5.0, "mur": "UnevenBrick", "niveaux": [2.5],
            "cotes": {"+Z": ["Wf", "S", "Wf"], "-Z": ["S", "Wf", "S"], "+X": ["S", "T", "S"], "-X": ["S", "D", "S"]},
            "toit": ("Roof_RoundTiles_6x8", 6.0), "pignon": "Roof_Front_Brick6", "cheminee": ("Prop_Chimney2", 2.2)},
+    # --- généralisation (bati/hybride, 2026-11-04) ---
+    # H3 : maison de planches de la haute rue (6 x 5), porte sur le pignon est (+X) vers l'escalier -> plâtre à pans de bois (WoodGrid)
+    "h3": {"L": 6.0, "W": 5.0, "mur": "Plaster", "niveaux": [2.5], "plein": "Wall_Plaster_WoodGrid",
+           "cotes": {"+Z": ["S", "Wf", "S"], "-Z": ["Wf", "S", "Wf"], "+X": ["S", "Df", "S"], "-X": ["S", "S", "S"]},
+           "toit": ("Roof_RoundTiles_6x8", 6.0), "pignon": "Roof_Front_Brick6"},
+    # maison du moulin à eau (6 x 6), pierre, porte +Z ; mur -X plein (berge : l'arbre de la roue y entre)
+    "moulin": {"L": 6.0, "W": 6.0, "mur": "UnevenBrick", "niveaux": [2.5],
+           "cotes": {"+Z": ["S", "D", "Wf"], "-Z": ["S", "Wf", "S"], "+X": ["S", "Wf", "S"], "-X": ["S", "S", "S"]},
+           "toit": ("Roof_RoundTiles_6x8", 6.0), "pignon": "Roof_Front_Brick6", "cheminee": ("Prop_Chimney", 1.8)},
+    # ferme B (8 x 5) : pierre, porte à l'ouest (-X), étable sur la terrasse du chemin de la grotte
+    "ferme_b": {"L": 8.0, "W": 5.0, "mur": "UnevenBrick", "niveaux": [2.5],
+           "cotes": {"+Z": ["S", "Wf", "Wf", "S"], "-Z": ["S", "S", "Wf", "S"], "+X": ["S", "T", "S"], "-X": ["S", "Df", "S"]},
+           "toit": ("Roof_RoundTiles_6x8", 8.0), "pignon": "Roof_Front_Brick6", "cheminee": ("Prop_Chimney2", 2.6)},
+    # pièces isolées posées sur les maisons de rondins (hybride : la maison reste en rondins, ces détails sont Quaternius)
+    "cheminee_1": {"piece": "Prop_Chimney"},
+    "cheminee_2": {"piece": "Prop_Chimney2"},
+    "cadre_porte": {"piece": "DoorFrame_Flat_WoodDark"},
+    "cadre_porte_rond": {"piece": "DoorFrame_Round_WoodDark"},
+    "balcon": {"piece": "Balcony_Simple_Straight"},
 }
 
 _cache = {}
@@ -95,6 +114,8 @@ def mur_cote(rec, cote, modules, z0, sz, L, W, decal=0.0, mur=None):
         R = Matrix.Rotation(math.radians(ang), 3, 'Z')
         pos = R @ loc
         nom = "Wall_%s_%s" % (mur or rec["mur"], MURS[m])
+        if m == "S" and rec.get("plein") and not mur:          # pans pleins d'un autre modèle (plâtre à pans de bois)
+            nom = rec["plein"]
         objs += poser(nom, pos, ang, (sx, SY, sz))
         if m in ("D", "Df"):                  # vantail dans l'ouverture (charnière à gauche de l'ouverture, 1,1 m)
             pd = R @ Vector((t - 0.54 * sx, -ds + 0.09 * SY + 0.1, z0))
@@ -109,6 +130,10 @@ def mur_cote(rec, cote, modules, z0, sz, L, W, decal=0.0, mur=None):
 
 def assembler(nom_recette):
     rec = RECETTES[nom_recette]
+    if "piece" in rec:                                  # pièce isolée : posée telle quelle (le jeu l'échelonne)
+        objs = poser(rec["piece"], (0, 0, 0))
+        META[nom_recette] = {"piece": rec["piece"]}
+        return objs, 0.0
     L, W = rec["L"], rec["W"]
     VITRES.clear()
     objs = []

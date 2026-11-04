@@ -1462,13 +1462,19 @@ func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_m
 	else:
 		var xch := longueur * 0.15
 		var h_ch := faite + (0.7 if _sans_refonte else 0.95)
-		_cheminee(p, xch, y0 - 0.2, h_ch, graine + 5)
+		if VillageBatiQ.detail("bq_cheminee_2"):      # bâti hybride : cheminée Quaternius, la maison reste en rondins
+			VillageBatiQ.cheminee(self, p, xch, y0 - 0.2, h_ch)
+		else:
+			_cheminee(p, xch, y0 - 0.2, h_ch, graine + 5)
 		_fumee(p, Vector3(xch, y0 + h_ch + 0.2, 0))
 	# porte (côté +Z) : cadre épais, vantail sur charnière (planches debout, bandes de fer, anneau), marches de 20 cm
 	var zf := largeur * 0.5 + 0.17
-	for jx in [-0.7, 0.7]:
-		_boite(p, Vector3(0.2, 2.05, 0.34), Transform3D(Basis(), Vector3(jx, 0.4 + 1.02, largeur * 0.5 + 0.01)), m_poutres_h)
-	_boite(p, Vector3(1.8, 0.2, 0.36), Transform3D(Basis(), Vector3(0, 0.4 + 2.1, largeur * 0.5 + 0.01)), m_poutres_h)
+	if VillageBatiQ.detail("bq_cadre_porte"):      # bâti hybride : cadre de porte Quaternius (vantail, charnière, collisions inchangés)
+		VillageBatiQ.cadre_porte(self, p, Vector3(0, 0.4, largeur * 0.5 + 0.05), 1.24, 2.05)
+	else:
+		for jx in [-0.7, 0.7]:
+			_boite(p, Vector3(0.2, 2.05, 0.34), Transform3D(Basis(), Vector3(jx, 0.4 + 1.02, largeur * 0.5 + 0.01)), m_poutres_h)
+		_boite(p, Vector3(1.8, 0.2, 0.36), Transform3D(Basis(), Vector3(0, 0.4 + 2.1, largeur * 0.5 + 0.01)), m_poutres_h)
 	var charniere := _vantail(p, Vector3(-0.6, 0.4, largeur * 0.5), 1.2, 2.0)
 	ip.vantaux.append([charniere, -1.75])
 	_bloc(p, Vector3(1.95, 0.2, 0.62), rc.randi(), Vector3(0, 0.1, zf + 0.5), m_brute, 0.0, 0.5, 0.2, 0.05)

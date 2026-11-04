@@ -216,7 +216,7 @@ static func tas_de_bois(v, p: Node3D, c: Vector3, lacet: float, longueur := 2.0)
 ## grenier | grange), pente (°), porte (+Z | -Z | +X | -X), fenetres [[côté, abscisse]], dragons, cheminee (x local),
 ## fumee, torche, porche, appentis, enseigne, bois. Collision : une boîte (corps du bâtiment).
 static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary) -> Node3D:
-	var modele_q := VillageBatiQ.modele_de(x, z)      # essai `--bati-quaternius` : corps de la maison en pièces Quaternius (sinon inchangé)
+	var modele_q := VillageBatiQ.modele_de(x, z)      # bâti hybride (défaut ; `--bati-ancien` : inchangé) : corps de la maison en pièces Quaternius
 	if modele_q != "":
 		return VillageBatiQ.maison(v, g, x, z, lacet, o, modele_q)
 	var L: float = o.get("L", 6.0)
@@ -328,7 +328,10 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	if o.has("cheminee"):
 		var xch: float = o["cheminee"]
 		var h_ch := faite + 0.95
-		v._cheminee(p, xch, y0 - 0.2, h_ch, graine + 5)
+		if VillageBatiQ.detail("bq_cheminee_2"):      # bâti hybride : cheminée Quaternius sur la maison restée en rondins / planches
+			VillageBatiQ.cheminee(v, p, xch, y0 - 0.2, h_ch)
+		else:
+			v._cheminee(p, xch, y0 - 0.2, h_ch, graine + 5)
 		if o.get("fumee", false):
 			v._fumee(p, Vector3(xch, y0 + h_ch + 0.2, 0))
 	if o.get("torche", false):
