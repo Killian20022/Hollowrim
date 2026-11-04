@@ -105,8 +105,8 @@ static func _sigrun(b: Interieurs, xch: float) -> void:
 	# --- étagère aux crânes (mur ouest) et herbier (mur est)
 	b.etagere(Vector3(-3.7, F, 0.9), PI * 0.5, 1.5, 2.0, 4, 0.3)
 	for k in 5:
-		b.crane(Vector3(-3.7, F + 0.52 + 0.43 * (k % 3), 0.35 + 0.3 * k * 0.45), PI * 0.5, 0.9 + 0.1 * (k % 2))
-	b.cruche(Vector3(-3.7, F + 0.96, 1.3), 0.26)
+		b.crane(Vector3(-3.7, F + b.niv(k % 3), 0.35 + 0.3 * k * 0.45), PI * 0.5, 0.9 + 0.1 * (k % 2))
+	b.cruche(Vector3(-3.7, F + b.niv(1), 1.3), 0.26)
 	b.ramure(Vector3(-3.78, 2.05, -0.3), PI * 0.5, 0.9)
 	b.crane(Vector3(-3.7, 1.3, 1.6), PI * 0.5, 2.0)
 	# --- côté est : coffre, tonneaux, sacs, perche d'herbes
@@ -244,9 +244,9 @@ static func _grima(b: Interieurs, xch: float) -> void:
 	# --- cuisine au fond (est) : étagères de pots, table de pétrissage, tonneaux
 	b.etagere(Vector3(xch + 1.3, F, zb + 0.18), 0.0, 1.5, 2.0, 4, 0.3)
 	for k in 6:
-		b.cruche(Vector3(xch + 0.95 + (k % 3) * 0.4, F + 0.52 + 0.46 * int(k / 3), zb + 0.2), 0.26)
+		b.cruche(Vector3(xch + 0.95 + (k % 3) * 0.4, F + b.niv(int(k / 3)), zb + 0.2), 0.26)
 	for k in 3:
-		b.bol(Vector3(xch + 0.95 + k * 0.4, F + 1.44, zb + 0.2))
+		b.bol(Vector3(xch + 0.95 + k * 0.4, F + b.niv(2), zb + 0.2))
 	b.table(Vector3(xch - 0.3, 0, zb + 0.45), 1.8, 0.7, 0.0)
 	var y := F + 0.78
 	b.bx(Vector3(xch - 0.55, y + 0.04, zb + 0.4), Vector3(0.4, 0.07, 0.3), "foin", 0.2)       # pâte

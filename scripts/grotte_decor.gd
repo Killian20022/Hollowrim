@@ -1315,12 +1315,20 @@ func feu_camp(pos: Vector3) -> void:
 	pos = pz["p"]
 	var x0 := _incliner(pz)
 	_prof_pose += 1
-	for k in 9:
-		var a := TAU * k / 9.0 + 0.2
-		rocher("c_roche_nu", pos + Vector3(cos(a) * 0.62, 0.0, sin(a) * 0.62), 0.17, 0.2, 400 + k, 0.0, false, 5)
-	for k in 5:
-		var a := TAU * k / 5.0 + 0.4
-		prisme("bois", pos + Vector3(cos(a) * 0.5, 0.05, sin(a) * 0.5), pos + Vector3(-cos(a) * 0.05, 0.28, -sin(a) * 0.05), 0.05, 6)
+	PropsQuaternius.preparer_crypte()
+	if PropsQuaternius.remplace and _modeles_de.has("q_brique_1") and _modeles_de.has("q_bucher"):
+		# props/remplacement : couronne de briques Quaternius (9) + bûcher Woodfire (Modular Dungeon) au lieu des cailloux et des bûches procédurales
+		for k in 9:
+			var a := TAU * k / 9.0 + 0.2
+			modele("q_brique_" + str(1 + k % 4), pos + Vector3(cos(a) * 0.62, 0.0, sin(a) * 0.62), -a, Vector3(1.3, 1.1, 1.1), PropsQuaternius.MATS_CRYPTE, false)
+		modele("q_bucher", pos, 0.5, Vector3(0.85, 0.5, 0.85), PropsQuaternius.MATS_CRYPTE, false)
+	else:
+		for k in 9:
+			var a := TAU * k / 9.0 + 0.2
+			rocher("c_roche_nu", pos + Vector3(cos(a) * 0.62, 0.0, sin(a) * 0.62), 0.17, 0.2, 400 + k, 0.0, false, 5)
+		for k in 5:
+			var a := TAU * k / 5.0 + 0.4
+			prisme("bois", pos + Vector3(cos(a) * 0.5, 0.05, sin(a) * 0.5), pos + Vector3(-cos(a) * 0.05, 0.28, -sin(a) * 0.05), 0.05, 6)
 	tour("braise", pos + Vector3(0, 0.07, 0), [Vector2(0.42, 0.0), Vector2(0.38, 0.03)], 8, 0.0, true)
 	flamme(pos + Vector3(0, 0.2, 0), 2.1)
 	flamme(pos + Vector3(0.12, 0.2, 0.08), 1.4)

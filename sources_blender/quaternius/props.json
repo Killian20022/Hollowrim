@@ -973,5 +973,439 @@
 "role": "village",
 "categorie": "village",
 "lot2": true
+},
+{
+"nom": "q_coffre",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Chest_Wood.gltf",
+"budget": 900,
+"role": "interieur",
+"categorie": "interieur",
+"lot3": true,
+"hauteur": 0.55,
+"famille": [
+"bois",
+"fer"
+]
+},
+{
+"nom": "q_hache_outil",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Axe_Bronze.gltf",
+"budget": 500,
+"role": "forge",
+"categorie": "forge",
+"lot3": true,
+"famille": [
+"bois",
+"fer"
+]
+},
+{
+"nom": "q_pioche",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Pickaxe_Bronze.gltf",
+"budget": 500,
+"role": "forge",
+"categorie": "forge",
+"lot3": true,
+"famille": [
+"bois",
+"fer"
+]
+},
+{
+"nom": "q_bouclier_bois",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Shield_Wooden.gltf",
+"budget": 600,
+"role": "interieur",
+"categorie": "interieur",
+"lot3": true,
+"famille": [
+"bois",
+"fer"
+]
+},
+{
+"nom": "q_epee_mur",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Sword_Bronze.gltf",
+"budget": 600,
+"role": "interieur",
+"categorie": "interieur",
+"lot3": true,
+"famille": [
+"bois",
+"fer"
+]
+},
+{
+"nom": "q_chandelier_table",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/CandleStick.gltf",
+"budget": 450,
+"role": "interieur",
+"categorie": "interieur",
+"lot3": true
+},
+{
+"nom": "q_chaine",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Chain_Coil.gltf",
+"budget": 1400,
+"role": "forge",
+"categorie": "forge",
+"lot3": true
+},
+{
+"nom": "q_bordure_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_ExteriorBorder_Straight1.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot3": true
+},
+{
+"nom": "q_bordure_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_ExteriorBorder_Straight2.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot3": true
+},
+{
+"nom": "q_bordure_angle",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Prop_ExteriorBorder_Corner.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot3": true
+},
+{
+"nom": "q_marches_ext",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Stairs_Exterior_Straight.gltf",
+"budget": 500,
+"role": "village",
+"categorie": "village",
+"lot3": true
+},
+{
+"nom": "q_planches_sol",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/medieval_village_megakit/Medieval Village MegaKit[Standard]/glTF/Floor_WoodDark_Half1.gltf",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot3": true,
+"famille": [
+"bois"
+]
+},
+{
+"nom": "q_banniere_toile",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Banner_1_Cloth.gltf",
+"budget": 200,
+"role": "village",
+"categorie": "village",
+"lot3": true,
+"famille": [
+"laine",
+"toile"
+]
+},
+{
+"nom": "q_banniere_2_toile",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/fantasy_props_megakit/Exports/glTF/Banner_2_Cloth.gltf",
+"budget": 200,
+"role": "village",
+"categorie": "village",
+"lot3": true,
+"famille": [
+"laine",
+"toile"
+]
+},
+{
+"nom": "q_buche",
+"src": "C:/Users/lopezk19/Jeux/nordique_props_v2/sources_blender/quaternius/kitbash/buche.obj",
+"budget": 200,
+"role": "village",
+"categorie": "village",
+"lot3": true,
+"famille": [
+"bois"
+],
+"eclairer": 2.2
+},
+{
+"nom": "q_poutre_ronde",
+"src": "C:/Users/lopezk19/Jeux/nordique_props_v2/sources_blender/quaternius/kitbash/poutre_ronde.obj",
+"budget": 200,
+"role": "village",
+"categorie": "village",
+"lot3": true,
+"famille": [
+"bois"
+],
+"eclairer": 2.2
+},
+{
+"nom": "q_sac_pieces",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Bag_Coins.fbx",
+"budget": 400,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true
+},
+{
+"nom": "q_sac_debout",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Bag_Standing.fbx",
+"budget": 400,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true
+},
+{
+"nom": "q_banniere_mur",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Banner_wall.fbx",
+"budget": 300,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true
+},
+{
+"nom": "q_tonneau_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Barrel2.fbx",
+"budget": 500,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true,
+"famille": [
+"bois",
+"fer"
+]
+},
+{
+"nom": "q_seau_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Bucket.fbx",
+"budget": 300,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true,
+"famille": [
+"bois",
+"fer"
+]
+},
+{
+"nom": "q_chaise_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Chair.fbx",
+"budget": 300,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true,
+"famille": [
+"bois"
+]
+},
+{
+"nom": "q_coffre_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Chest.fbx",
+"budget": 500,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true,
+"famille": [
+"bois",
+"fer"
+]
+},
+{
+"nom": "q_toile_araignee_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Cobweb.fbx",
+"budget": 200,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true
+},
+{
+"nom": "q_toile_araignee_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Cobweb2.fbx",
+"budget": 200,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true
+},
+{
+"nom": "q_colonne_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Column.fbx",
+"budget": 500,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true,
+"famille": [
+"pierre"
+]
+},
+{
+"nom": "q_colonne_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Column2.fbx",
+"budget": 500,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true,
+"famille": [
+"pierre"
+]
+},
+{
+"nom": "q_caisse_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Crate.fbx",
+"budget": 300,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true,
+"famille": [
+"bois",
+"fer"
+]
+},
+{
+"nom": "q_palissade",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Fence_Straight_Modular.fbx",
+"budget": 300,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true
+},
+{
+"nom": "q_palissade_bout",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Fence_End_Modular.fbx",
+"budget": 300,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true
+},
+{
+"nom": "q_palissade_angle",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Fence_90_Modular.fbx",
+"budget": 300,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true
+},
+{
+"nom": "q_piedestal_1",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Pedestal.fbx",
+"budget": 400,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true,
+"famille": [
+"pierre"
+]
+},
+{
+"nom": "q_piedestal_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Pedestal2.fbx",
+"budget": 400,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true,
+"famille": [
+"pierre"
+]
+},
+{
+"nom": "q_crane",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Skull.fbx",
+"budget": 400,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true,
+"famille": [
+"os"
+]
+},
+{
+"nom": "q_pieux",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Spikes.fbx",
+"budget": 300,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true
+},
+{
+"nom": "q_epee_support",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Sword_WallMount.fbx",
+"budget": 500,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true
+},
+{
+"nom": "q_table_grande_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Table_Big.fbx",
+"budget": 400,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true,
+"famille": [
+"bois"
+]
+},
+{
+"nom": "q_table_petite_2",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Table_Small.fbx",
+"budget": 300,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true,
+"famille": [
+"bois"
+]
+},
+{
+"nom": "q_piege_pieux",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Trap_spikes.fbx",
+"budget": 400,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true
+},
+{
+"nom": "q_vase_5",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Vase.fbx",
+"budget": 300,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true
+},
+{
+"nom": "q_bucher",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/Woodfire.fbx",
+"budget": 400,
+"role": "crypte",
+"categorie": "crypte",
+"lot3": true,
+"famille": [
+"bois",
+"noir"
+]
+},
+{
+"nom": "q_tronc",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_nature_itch/FBX/WoodLog.fbx",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot3": true,
+"famille": [
+"bois"
+]
+},
+{
+"nom": "q_souche",
+"src": "C:/Users/lopezk19/Jeux/references/quaternius_props/ultimate_nature_itch/FBX/TreeStump.fbx",
+"budget": 300,
+"role": "village",
+"categorie": "village",
+"lot3": true,
+"famille": [
+"bois"
+]
 }
 ]
