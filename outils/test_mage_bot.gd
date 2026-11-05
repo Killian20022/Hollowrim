@@ -3,8 +3,8 @@ extends SceneTree
 ## porte QUE des sorts (aucune épée) combat de VRAIS draugrs (104 PV) dans scenes/test_combat.tscn.
 ##   godot --headless --fixed-fps 60 --path . --script res://outils/test_mage_bot.gd -- [--n=6] [--config=feu_s] [--trace] [--film=…]
 ## Configurations : <école>_<s|d> (simple = sort dans la main droite ; double = le même sort dans les deux mains, appuis simultanés).
-##   feu : boule de feu (chargée)      glace : éclat de glace (rapide)      electricite : arc électrique (canalisé)
-##   tenebres : trait d'ombre (rapide) + variantes : feu_jet, glace_lance, electricite_chaine, tenebres_drain (simples).
+##   feu : boule de feu (chargée)      glace : éclat de glace (chargé)      electricite : arc électrique (canalisé)
+##   tenebres : trait d'ombre (chargé ; lot « sorts lancés chargés » : glace et ténèbres se chargent comme la boule de feu) + variantes : feu_jet, glace_lance, electricite_chaine, tenebres_drain (simples).
 ## Comportement (même vision de l'ennemi que le bot de mêlée, aucune triche) :
 ##   - face à l'ennemi le plus proche, tire dès que le sort est prêt et la portée bonne (charge tenue jusqu'au bout) ;
 ##   - recule à 2,6 m/s (marche arrière, sans vigueur ; fond de salle à 1,5 m) quand un ennemi est à moins de 4 m ou que la mana est vide, pour regagner
@@ -191,7 +191,23 @@ func _tirer(sort: DonneesSort, double: bool, dist: float, mana_ok: bool, ctx: Di
 		DonneesSort.Type.CHARGE:
 			for m in mains_l:
 				var i: Incantation = magie.inc[m]
-				if i.tenu and (i.etat == Incantation.CHARGE and i.charge >= 0.99 or not voulu and i.etat != Incantation.INCANTE):
+				# relâche aussi une charge COUPÉE par un coup (bouton encore tenu, incantation retombée) : un joueur relâche et rappuie
+				var coupee := i.etat != Incantation.INCANTE and i.etat != Incantation.CHARGE
+				# charge plafonnée par le mana (elle cesse de monter quand le mana ne suffit plus) : on tire ce qu'on a
+				var cle: String = "plateau_" + String(m)
+				var pl: Array = ctx.get(cle, [-1.0, 0])
+				if i.etat == Incantation.CHARGE and i.charge <= float(pl[0]) + 0.001:
+					pl[1] = int(pl[1]) + 1
+				else:
+					pl[1] = 0
+				pl[0] = i.charge
+				ctx[cle] = pl
+				var plafonnee := i.etat == Incantation.CHARGE and int(pl[1]) >= 12
+				# mage naïf (pendant du bot « spam ») au contact : il martèle le bouton, donc des taps (charge 0), pas des charges
+				if statique and dist < 3.0 and i.etat == Incantation.CHARGE:
+					plafonnee = true
+				if i.tenu and (i.etat == Incantation.CHARGE and i.charge >= 0.99 or plafonnee or coupee or not voulu and i.etat != Incantation.INCANTE):
+					ctx[cle] = [-1.0, 0]
 					magie.relacher(m)
 				elif voulu and not i.tenu and i.libre() and ctx["rel"] <= 0:
 					magie.appuyer(m)
