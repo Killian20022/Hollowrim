@@ -94,29 +94,98 @@ Test : `bash outils/tous_les_tests.sh test_inventaire_mains`.
 
 ## Mana
 
-100 max ; régénération 7 /s après 1,2 s sans dépense ni incantation ; plein à la résurrection ; sauvegardé.
+100 max (+ bonus de niveau) ; régénération **en combat** 7 /s après 1,2 s sans dépense ni incantation, **hors combat** 18 /s après
+4 s sans lancer de sort (`Joueur.REGEN_MANA_CALME`, `DELAI_CALME_MANA` : le réservoir passe de ~14 s à ~6 s de remplissage quand
+on a fini de se battre ; le mage qui temporise en plein combat ne le gagne qu'après 4 s sans dépenser) ; plein à la résurrection ;
+sauvegardé. Potion de mana : +50 sur 4 s (`data/objets/consommables.json`, délai de réutilisation 3 s).
 Coûts payés : RAPIDE / ZONE / ENCHANT au départ ; CHARGE au relâchement (`cout × lerp(cout_charge_min, 1, charge)` ; si le
 mana manque, la charge est réduite à ce qui est payable) ; CANALISE par seconde (arrêt « Mana épuisé »).
 
-## Les sorts (`data/sorts/`, valeurs de départ, phase 6 = équilibrage)
+## Les sorts (`data/sorts/*.tres` = LA source : 21 sorts ; équilibrage du 2026-11-05, voir « Équilibrage » plus bas)
 
 | Sort | École | Type | Coût | Dégâts | Statut | Portée / rayon | Recharge | Double (principaux ×) |
 |---|---|---|---|---|---|---|---|---|
-| Jet de flammes | feu | canalisé, jet (4 cibles) | 13 /s | 20 /s | brûlure 4 /s, 3 s | 5,5 m, largeur 0,9 | — | dégâts 2, coût 2,2, largeur 1,8, portée 1,25 |
-| Boule de feu | feu | chargé 0,8 s, projectile 24 m/s | 24 (×0,6 sans charge) | 34 (×0,55) + explosion 50 % | brûlure 4 /s, 3 s | rayon 2,2 | 0,5 s | dégâts 2,2, coût 2,4, rayon 1,6 |
-| Explosion incendiaire | feu | zone visée, chargée 1 s | 42 | 38 (×0,6) | brûlure 6 /s, 4 s | 14 m, rayon 3 | 4 s | dégâts 2, coût 2,3, rayon 1,5 |
-| Éclat de glace | glace | rapide, 3 éclats 34 m/s | 8 | 8 ×3 | gel 0,25, 2,5 s | — | 0,3 s | 6 éclats, dégâts 1,6, coût 2,2 |
-| Lance de givre | glace | chargé 0,9 s, traverse 1 | 26 | 40 | gel 0,45, 3 s | — | 0,8 s | lance + 2 cristaux, traverse 3, dégâts 2,1 |
-| Nova gelée | glace | zone autour de soi | 40 | 20 | gel 0,55, 4 s | rayon 4,5 | 5 s | rayon 1,5, gel 1,4 |
+| Jet de flammes | feu | canalisé, jet (traverse 3) | 13 /s | 15 /s | brûlure 4 /s, 3 s | 9 m, largeur 0,9 | — | dégâts 2, coût 2,2, largeur 1,8, portée 1,25 |
+| Boule de feu | feu | chargé 0,8 s, projectile 24 m/s | 24 (×0,6 sans charge) | 24 (×0,55 sans charge) + explosion | brûlure 4 /s, 3 s | rayon 2,2 | 0,5 s | dégâts 2,2, coût 2,4, rayon 1,6 |
+| Explosion incendiaire | feu | zone visée, chargée 1 s | 42 | 38 | brûlure 6 /s, 4 s | 14 m, rayon 3 | 4 s | dégâts 2, coût 2,3, rayon 1,5 |
+| Éclat de glace | glace | rapide, 3 éclats 34 m/s | 8 | 6 ×3 | gel 0,25, 2,5 s | — | 0,3 s | 6 éclats, dégâts 1,6, coût 2,2 |
+| Lance de givre | glace | chargé 0,9 s, traverse 1 | 26 | 38 | gel 0,45, 3 s | — | 0,8 s | lance + 2 cristaux, traverse 3, dégâts 2,1 |
+| Souffle de givre | glace | canalisé, jet (traverse 3) | 12 /s | 16 /s | gel 0,35, 2 s | 8 m, largeur 0,9 | — | dégâts 2, coût 2,2, largeur 1,6, portée 1,2 |
+| Nova gelée | glace | zone autour de soi | 40 | 24 | gel 0,55, 4 s | rayon 4,5 | 5 s | rayon 1,5, gel 1,4 |
 | Arc électrique | électricité | canalisé, jet (1 cible) | 14 /s | 24 /s | choc 0,45 s | 9 m | — | portée 1,3, +2 rebonds (propagation) |
 | Chaîne d'éclairs | électricité | rapide, chaîne | 22 | 24, ×0,75 par rebond, 3 rebonds | choc 0,4 s | 20 m, rebond 6,5 m | 1 s | +3 rebonds, dégâts 1,9 |
 | Tempête statique | électricité | zone visée persistante 5 s | 52 | 9 par tic de 0,5 s | choc 0,3 s | 16 m, rayon 4 | 9 s | rayon 1,4, durée 1,3 |
-| Trait d'ombre | ténèbres | rapide, projectile 30 m/s | 10 | 15 | corruption +15 %, 5 s | — | 0,35 s | dégâts 2,1, corruption 1,6 |
-| Drain de vie | ténèbres | canalisé, jet | 11 /s | 13 /s, rend 60 % | corruption +10 %, 3 s | 8 m | — | dégâts 1,9, drain 1,3, +1 cible |
+| Orage runique | électricité | chargé 1 s, foudre visée | 30 | 38 (×0,5 sans charge) | choc 0,5 (0,6 s) | 22 m, rayon 3 | 1 s | dégâts 2,1, coût 2,4, rayon 1,4 |
+| Trait d'ombre | ténèbres | rapide, projectile 30 m/s | 9 | 20 | corruption +15 %, 5 s | — | 0,35 s | dégâts 2,1, corruption 1,6 |
+| Drain de vie | ténèbres | canalisé, jet | 11 /s | 18 /s, rend 60 % | corruption +10 %, 3 s | 8 m | — | dégâts 1,9, drain 1,3, +1 cible |
 | Explosion obscure | ténèbres | zone visée chargée 1 s, vortex | 48 | 34 | corruption +20 %, 6 s | 14 m, rayon 3,5 | 6 s | rayon 1,5, attraction 1,5 |
+| Rayon du néant | ténèbres | chargé 1,4 s, rayon qui traverse 3 | 52 (×0,55 sans charge) | 78 (×0,4 sans charge) | corruption +20 %, 6 s | 32 m | 3 s | dégâts 2, largeur 1,4 |
 | Soin | soin | canalisé, soi | 12 /s | soin 16 /s | — | — | — | soin 1,9 |
 | Protection | protection | canalisé, soi | 5 /s + 0,4 par point absorbé | absorbe 60 % (coups) / 85 % (sorts) de face, cône 120° | — | — | jamais interrompue | réduction × 1,25 (plafond 90 / 97 %) |
-| Lame ardente / de givre / d'orage / des ténèbres | 4 écoles | enchantement | 35 | +7 par coup d'épée | brûlure / gel / choc / corruption | 30 s | 2 s | — |
+| Lame ardente / de givre / d'orage / des ténèbres | 4 écoles | enchantement | 35 | +5 par coup d'épée | brûlure / gel / choc / corruption | 30 s | 2 s | — |
+
+Le doc affichait avant le 2026-11-05 des valeurs qui n'étaient plus celles des données (audit : jet 20 contre 15, boule 34 contre 24,
+éclat 8 ×3 contre 6 ×3, lance 40 contre 28, arc 24 contre 18, chaîne 24 contre 18, enchantement +7 contre 5) et ignorait trois
+sorts (souffle de givre, orage runique, rayon du néant). **Les `.tres` sont la source ; ce tableau les suit.** `outils/generer_sorts.gd`
+(ancien générateur des douze premiers sorts) est PÉRIMÉ : ne pas le relancer, il écraserait les `.tres` de valeurs anciennes.
+
+### Équilibrage (changement n°10 de l'audit, 2026-11-05, branche nuit/magie)
+
+Constat (audit combat, écart 4) : la mêlée donne ~40 dégâts/s presque sans limite (14 par clic, un clic toutes les ~0,3 s, vigueur peu
+entamée) ; les sorts font 15-28 /s ou par tir pour 8-52 de mana, soit 100 à 225 dégâts par réservoir de 100 : pas de quoi tuer deux
+draugrs (104 PV depuis le +30 % de la nuit), alors qu'ils ne coûtaient déjà rien à lancer. **Objectif** : la magie VAUT la mêlée sans
+l'écraser (piège de Lunacid : magie qui rend la mêlée inutile). Répartition voulue :
+
+| | Mêlée | Magie |
+|---|---|---|
+| Dégâts soutenus au contact | **avantage** (~40 /s, sans mana) | 15-24 /s pour 11-14 de mana /s ; le réservoir s'épuise en 6-8 s |
+| Distance | portée de l'épée | **avantage** (9 à 32 m) : le mage tue sans être touché tant qu'il a de l'espace |
+| Contrôle | garde, parade, étourdissement de posture | **avantage** : gel (ralentit), choc (interrompt), zones, vortex, brûlure |
+| Groupes | un coup, une cible | **avantage** : explosions, chaîne, jets qui traversent |
+| Endurance | vigueur 100 (esquive 20) | mana 100 : 2 draugrs max par réservoir, puis il faut temporiser |
+
+Réglages (cohérents sur les 21 sorts : les sorts à dégâts directs visent **~1,6-1,9 dégât effectif par point de mana** sur un draugr, les
+zones et chaînes un peu moins en cible unique mais davantage en groupe ; ténèbres ×0,7 sur les morts-vivants est compensé par le
+prix) :
+
+| Sort | Avant | Après | Pourquoi |
+|---|---|---|---|
+| Trait d'ombre | 14 dégâts, 10 mana | 20, 9 | le sort le plus faible : 100 mana pour un draugr (ténèbres ×0,7 sur les morts-vivants) |
+| Arc électrique | 18 /s | 24 /s | valeur du doc d'origine ; 81 mana par draugr, 2 draugrs impossibles |
+| Chaîne d'éclairs | 18 | 24 | idem (−25 % par rebond) |
+| Lance de givre | 28 | 38 | 26 mana pour 28 : la pire efficacité de la glace ; le doc disait 40 |
+| Souffle de givre | 14 /s | 16 /s | aligné sur le jet de flammes + gel |
+| Nova gelée | 18 | 24 | sort de contrôle de zone à 40 mana |
+| Explosion incendiaire | 30 | 38 | valeur du doc d'origine, 42 mana |
+| Explosion obscure | 28 | 34 | ténèbres ×0,7 sur les morts-vivants ; valeur du doc |
+| Drain de vie | 13 /s | 18 /s | rend 60 % des dégâts : sa raison d'être est la survie, pas le coût |
+| Mana hors combat | 7 /s | 18 /s après 4 s sans lancer | le mage qui a fini son combat repart plein en ~6 s (avant ~14 s) |
+| Inchangés | | | boule de feu 24, jet de flammes 15 /s, éclat de glace 6 ×3 (8 mana), tempête, orage, rayon, soin, protection, enchantements (+5) |
+
+**Banc « bot mage »** : `outils/test_mage_bot.gd` (voir « Tests »). Mesures du 2026-11-05 (graine fixe, draugrs de 104 PV, départ à 5,4 m comme le banc de
+mêlée, 2 essais contre 1 draugr, 2 contre 2 ; le bot est un PLAFOND d'efficacité : il vise toujours) :
+
+*Mage « naïf »* (il tient sa place, ne recule pas, ne se défend jamais : l'équivalent du bot qui spamme la mêlée). Référence mêlée : **1 draugr en 3,6 s, 23 PV perdus ; 2 draugrs en 5,7 s, 50 PV perdus.**
+
+| Sort (simple) | 1 draugr AVANT | 1 draugr APRÈS | 2 draugrs AVANT | 2 draugrs APRÈS |
+|---|---|---|---|---|
+| Boule de feu (24 mana) | 4,1 s, 0 PV, 28 mana restants | inchangé | 7,1 s, 17 PV, 7 mana | inchangé |
+| Éclat de glace (8 mana) | 3,2 s, 0 PV, 44 mana | inchangé | 7,1 s, 33 PV, 6 mana | inchangé |
+| Arc électrique | **18,1 s, il meurt (0 kill sur 2), 100 PV** | 4,6 s, 0 PV, 38 mana | **meurt, 0 kill** | 6,4 s, 0 PV, 13 mana, 2 tués (rebond) |
+| Trait d'ombre | 5,6 s, 16 PV, **0 mana** | 3,4 s, 0 PV, 37 mana | **meurt, 0 kill** | 11,9 s, 95 PV, 50 % de morts, 50 % tués |
+
+Doubles (même sort aux deux mains) : 1 draugr en 1,7-2,6 s (mana restante 0-32) AVANT et APRÈS pour feu / glace ; arc 10,6 s et 63 PV → 2,4 s et 0 PV ;
+trait d'ombre 8,6 s et 38 PV → 1,9 s et 0 PV. Contre 2 draugrs le double immobile reste fragile (une incantation longue se fait interrompre : 1 essai sur 2 se
+termine mal), c'est voulu : le double est un coup de force à placer, pas une garde.
+
+*Mage qui gère sa distance* (marche arrière à 2,6 m/s quand un draugr est à moins de 4 m, temporise quand la mana est vide, esquive à ~0,1 s de l'impact ; fond de salle à 1,5 m) :
+**aucun PV perdu, tous les draugrs tués, 0 mort, pour les 8 configurations** (APRÈS). Durées : 1 draugr 1,7-4,6 s, 2 draugrs 6,4-13,8 s, mana restante 0-44 (simples).
+Indicatif (départ à 9 m, bot sans fond de salle, AVANT) : arc 6,4 s / 81 de mana, 2 draugrs tués dans 50 % des cas en 30 s ; trait d'ombre 5,1 s / 100 de mana, 2 draugrs tués dans
+17 % des cas ; APRÈS : arc 5,0 s / 62, 2 draugrs en 21 s à 100 % ; trait 3,5 s / 63, 2 draugrs en 14 s à 100 %.
+
+Lecture : la boule de feu et l'éclat de glace étaient déjà au niveau (zone + brûlure ; gel + posture brisée) ; le déséquilibre venait de l'arc électrique et du trait d'ombre
+(un draugr = 81 à 100 mana, un deuxième hors de portée), corrigés. Un mage qui reste planté sous les coups paie autant que le guerrier qui spamme (17-95 PV contre 2 draugrs) : la magie
+récompense la distance, pas l'inertie. Les sorts de zone ou à rebond (boule, arc, chaîne) battent la mêlée contre un groupe ; la mêlée garde l'avantage au contact sans limite de mana.
 
 Stagger (posture ennemie) : 5 à 30 par coup (CANALISE : par seconde) ; ≥ 24 = « puissant ». Les sorts passent par la même
 posture / réaction que l'épée : un mage nordique (seuil 7) est interrompu par presque tout, un draugr titube sous une boule
@@ -159,7 +228,7 @@ et la cible ne peut plus réagir pendant `recharge_cible`. Dégâts plafonnés �
 ## Épée + magie : combos et enchantements (phase 5)
 
 - **Enchanter la lame** (4 sorts, main gauche, épée à droite) : 35 mana, incantation 0,5 s (la main passe le long de la
-  lame), 30 s ; chaque coup d'épée ajoute 7 dégâts de l'école (× résistance de la cible) et pose son statut ; le modèle et la
+  lame), 30 s ; chaque coup d'épée ajoute 5 dégâts de l'école (× résistance de la cible) et pose son statut ; le modèle et la
   texture de l'arme ne changent pas (`EffetsMagie.enchant_arme`) ; relancer rafraîchit ; ranger l'épée l'efface.
 - **Combos** (coup d'épée léger / lourd / contre sur une cible qui porte un statut, `combos_epee`) :
   embrasement (brûlure : × 1,3, brûlure prolongée de 2 s), brise-glace (gel : × 1,5 dégâts et stagger, gel consommé),
@@ -266,7 +335,7 @@ protection, double, enchant_<école>, lenteur). Détail : `joueur.mains.magie` (
 
 ## Sauvegarde
 `monde.sauvegarder` écrit `"magie": {gauche, droite, sorts_connus, mana, enchantement}` ; `charger` le relit (la droite
-d'abord : enchantement et deux mains). Les 18 sorts sont connus d'office (pas encore d'apprentissage).
+d'abord : enchantement et deux mains). Les 21 sorts sont connus d'office (pas encore d'apprentissage).
 
 ## Tests
 - `test_magie` (112 vérifications) : compatibilité (refus, deux mains, garde, bouclier), mana (coût / délai / régénération /
@@ -280,7 +349,15 @@ d'abord : enchantement et deux mains). Les 18 sorts sont connus d'office (pas en
   30 i/s : longueurs ±1 mm, torsion bras / avant-bras / main ≤ 15° par image (30 à 30 i/s ; mesuré 13,9 / 27,8), plan du coude
   ≤ 20° par image (mesuré 10,0), accélération du coude ≤ 0,10 m/image² (mesuré 0,035), torsion de la main depuis le repos ≤ 140°
   (mesuré 134,7), retour au repos.
-- Non-régression : test_combat_epee, test_defense, test_degats, test_troll_ia, test_mage_ia.
+- `test_mage_bot` (banc « bot MAGE », 2026-11-05, `outils/test_mage_bot.gd`) : un bot qui ne porte que des sorts combat de VRAIS draugrs
+  (104 PV) dans `test_combat.tscn`, comme `test_menace_bot` pour la mêlée. Configurations `<école>_<s|d>` : feu (boule de feu), glace
+  (éclat), électricité (arc), ténèbres (trait d'ombre), en simple (main droite) ou double (même sort aux deux mains) ; `--variantes` ajoute
+  jet de flammes, lance de givre, chaîne d'éclairs, drain de vie. Le bot tire dès que le sort est prêt (charge tenue jusqu'au bout,
+  jets tenus tant que la cible est à portée), recule en marchant (2,6 m/s) quand un draugr est à moins de 4 m ou que la mana est vide
+  (fond de salle à 1,5 m), esquive ~0,1 s avant l'impact des gestes ennemis ; `--statique` : ne recule jamais. Mesures : durée, PV perdus,
+  mana restante / dépensée, ennemis tués, morts. Options : `--n=<essais>`, `--config=`, `--dist=<m>` (5,4 par défaut), `--nb=1|2`, `--trace`.
+  Seuils : voir `_verifier` et « Équilibrage » ci-dessus.
+- Non-régression : test_combat_epee, test_defense, test_degats, test_troll_ia, test_mage_ia, test_menace_bot (la mêlée ne bouge pas).
 
 ## Limites / suite
 - Visuels = bouchons tant que magie/effets n'est pas fusionnée ; sons de magie non faits (phase 6).
@@ -288,4 +365,5 @@ d'abord : enchantement et deux mains). Les 18 sorts sont connus d'office (pas en
 - Pas d'inventaire graphique des mains (raccourcis + API `magie.equiper`) ; HUD et sélection rapide = agent effets.
 - La corruption n'affaiblit pas encore les coups DE l'ennemi (elle augmente les dégâts reçus).
 - Pas d'arme à deux mains dans les données (gérée par les règles, testée). Bouclier : vrai modèle depuis 2026-10-27.
-- Équilibrage complet (phase 6) à faire en jeu.
+- Équilibrage : fait au banc « bot » le 2026-11-05 (voir « Équilibrage ») ; il reste à le confirmer à la manette / au clavier : le bot vise
+  toujours et ne rate jamais (plafond d'efficacité), un vrai joueur dépensera davantage de mana par draugr.

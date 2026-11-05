@@ -551,9 +551,9 @@ static func carboniser(modele: Node3D) -> void:
 	_poser_voile(modele, mailles, 12)
 	var tw := modele.create_tween()
 	tw.tween_method(func(v: float) -> void:
-		for mi: MeshInstance3D in mailles:
-			if is_instance_valid(mi) and mi.material_overlay == _mat_carbonise:
-				mi.set_instance_shader_parameter("carbonise", v), 0.0, 1.0, 1.6)
+		for m in mailles:
+			if is_instance_valid(m) and (m as MeshInstance3D).material_overlay == _mat_carbonise:
+				(m as MeshInstance3D).set_instance_shader_parameter("carbonise", v), 0.0, 1.0, 1.6)
 	var centre := modele.global_position + Vector3.UP * 0.9
 	for k in 3:
 		tw.tween_callback(func() -> void:
@@ -564,9 +564,10 @@ static func carboniser(modele: Node3D) -> void:
 
 static func _poser_voile(modele: Node3D, mailles: Array, essais: int) -> void:
 	var reste: Array = []
-	for mi: MeshInstance3D in mailles:
-		if not is_instance_valid(mi):
+	for m in mailles:   # (variable NON typée : une maille libérée entre-temps — cadavre supprimé — faisait « assign invalid previously freed instance »)
+		if not is_instance_valid(m):
 			continue
+		var mi: MeshInstance3D = m
 		if mi.material_overlay == null:
 			mi.material_overlay = _mat_carbonise
 			mi.set_instance_shader_parameter("carbonise", 0.0)
@@ -575,9 +576,9 @@ static func _poser_voile(modele: Node3D, mailles: Array, essais: int) -> void:
 	if not reste.is_empty() and essais > 0 and is_instance_valid(modele) and modele.is_inside_tree():
 		modele.get_tree().create_timer(0.5).timeout.connect(func() -> void:
 			_poser_voile(modele, reste, essais - 1)
-			for mi: MeshInstance3D in reste:
-				if is_instance_valid(mi) and mi.material_overlay == _mat_carbonise:
-					mi.set_instance_shader_parameter("carbonise", 1.0))
+			for m in reste:
+				if is_instance_valid(m) and (m as MeshInstance3D).material_overlay == _mat_carbonise:
+					(m as MeshInstance3D).set_instance_shader_parameter("carbonise", 1.0))
 
 ## Allègement des gerbes près de la caméra (elles masquaient le corps) : 0,35 à moins de 2 m, 1 au-delà de 6 m.
 static func attenuation_camera(n: Node, point: Vector3) -> float:

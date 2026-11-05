@@ -175,7 +175,8 @@ var _pms := {}
 var _mats := {}
 var _quad := QuadMesh.new()
 var _mesh_eclat: ArrayMesh
-var _mesh_pic: ArrayMesh
+var _mesh_pic: ArrayMesh            # colonne de quartz à biseau (glace)
+var _mesh_pic_pyramide: ArrayMesh   # pyramide (ténèbres, corrompu)
 var _mesh_flux: ArrayMesh
 var _mesh_faisceau: ArrayMesh
 var _bouffees: Array = []         # {mi, t0, duree, r0, r1, f0} : boules procédurales qui grossissent et s'éteignent
@@ -257,6 +258,7 @@ func _init() -> void:
 	_sphere.rings = 4
 	_mesh_eclat = _creer_eclat()
 	_mesh_pic = _creer_pic()
+	_mesh_pic_pyramide = _creer_pic_pyramide()
 	_mesh_flux = _creer_flux()
 	for i in MAX_LUMIERES:
 		var l := OmniLight3D.new()
@@ -946,7 +948,7 @@ func pic(pal: String, pos: Vector3, haut: Vector3, l: float, h: float, delai: fl
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.use_custom_data = true
-		mm.mesh = _mesh_pic
+		mm.mesh = _mesh_pic if pal == "glace" else _mesh_pic_pyramide
 		mm.instance_count = MAX_PICS
 		mm.visible_instance_count = 0
 		mmi.multimesh = mm
@@ -1060,8 +1062,40 @@ static func _creer_eclat() -> ArrayMesh:
 	st.generate_normals()
 	return st.commit()
 
-## Pic de cristal (pyramide hexagonale irrégulière, base sous le sol, hauteur 1 sur +Y).
+## Pic de cristal : COLONNE de quartz à six pans irréguliers (base sous le sol, fût qui s'amincit, épaule, tête taillée en
+## biseau), hauteur 1 sur +Y. Une trentaine de facettes à plat, de pentes différentes : le shader de cristal leur donne ses
+## 3 tons selon l'angle, comme aux éclats de glace (avant : une pyramide à trois étages, de grands cônes lisses).
 static func _creer_pic() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
+	var rr := [1.0, 0.78, 0.95, 0.72, 1.0, 0.84]          # rayon de chaque pan (irrégulier)
+	var dec := [0.0, 0.16, -0.1, 0.22, -0.18, 0.1]        # torsion de l'étage (les pans ne sont pas alignés)
+	var hs := [0.80, 0.93, 0.84, 0.97, 0.78, 0.9]         # hauteur de l'épaule de chaque pan : la tête est taillée en biseau
+	var bas: Array[Vector3] = []
+	var fut: Array[Vector3] = []
+	var epa: Array[Vector3] = []
+	for i in 6:
+		var a := TAU * i / 6.0
+		bas.append(Vector3(cos(a) * rr[i], -0.15, sin(a) * rr[i]))
+		fut.append(Vector3(cos(a + dec[i]) * rr[i] * 0.82, 0.42, sin(a + dec[i]) * rr[i] * 0.82))
+		epa.append(Vector3(cos(a + dec[i] * 1.6) * rr[i] * 0.58, hs[i] - 0.1, sin(a + dec[i] * 1.6) * rr[i] * 0.58))
+	var pointe := Vector3(0.1, 1.0, 0.06)
+	for i in 6:
+		var j := (i + 1) % 6
+		# fût : deux triangles par pan, de la base à la taille
+		st.add_vertex(bas[i]); st.add_vertex(fut[i]); st.add_vertex(fut[j])
+		st.add_vertex(bas[i]); st.add_vertex(fut[j]); st.add_vertex(bas[j])
+		# épaule : de la taille à la tête (pans plus penchés)
+		st.add_vertex(fut[i]); st.add_vertex(epa[i]); st.add_vertex(epa[j])
+		st.add_vertex(fut[i]); st.add_vertex(epa[j]); st.add_vertex(fut[j])
+		# tête : biseau vers la pointe décalée
+		st.add_vertex(epa[i]); st.add_vertex(pointe); st.add_vertex(epa[j])
+	st.generate_normals()
+	return st.commit()
+
+## Pyramide hexagonale irrégulière (épines obscures, cristaux corrompus : inchangées), base sous le sol, hauteur 1 sur +Y.
+static func _creer_pic_pyramide() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_smooth_group(-1)
@@ -1872,7 +1906,13 @@ func _vague_placer(j: Dictionary, o: Vector3, b: Basis, fin: Vector3, vers: Vect
 	pm.set_shader_parameter("arret", Vector4(fin.x, fin.y, fin.z, 1.0 if touche else 0.0))
 	pm.set_shader_parameter("arret_dir", vers)
 	var mv := p.material_override as ShaderMaterial
+	# cible PROCHE : la masse écrasée sur elle la cachait entièrement ; au-dessous de ~4 m les bouffées rétrécissent, s'éteignent
+	# plus vite et la couverture baisse (jusqu'à 1,5 m : pleine réduction)
+	var proche := clampf((4.0 - o.distance_to(fin)) / 2.5, 0.0, 1.0) if touche else 0.0
 	if mv != null and mv.shader == SH_VAGUE:
+		pm.set_shader_parameter("proximite", proche)
+		mv.set_shader_parameter("opacite", lerpf(1.0, 0.55, proche))
+		mv.set_shader_parameter("fumee", lerpf(0.55, 0.2, proche))
 		_vague_axe(j, mv, float(pm.get_shader_parameter("vitesse")), o, vers, o.distance_to(fin) if touche else VAGUE_PORTEE)
 	elif mv != null and mv.shader == SH_GIVRE:
 		_vague_axe(j, mv, float(pm.get_shader_parameter("vitesse")), o, vers, o.distance_to(fin) if touche else GIVRE_PORTEE,
@@ -2797,7 +2837,7 @@ func zone(ecole: String, position: Vector3, rayon: float, duree: float) -> void:
 				var off := Vector3(cos(a), 0, sin(a)) * dist
 				var axe := (Vector3.UP + off.normalized() * rng.randf_range(0.35, 0.8)).normalized()
 				var h := rng.randf_range(0.6, 1.5) * (1.15 - anneau * 0.3) * kz
-				pic("glace", position + off, axe, h * rng.randf_range(0.18, 0.28), h, dist / r * 0.22, 0.18, horloge + d - 0.3)
+				pic("glace", position + off, axe, h * rng.randf_range(0.26, 0.38), h, dist / r * 0.22, 0.18, horloge + d - 0.3)
 		"electricite":
 			disque(position, Vector3.UP, 0.2, r, 0.3, {"couleur": "#7a7af0", "coeur": "#f0f2ff", "anneau": 0.9, "epaisseur": 0.06, "texels": 64.0, "eclat": 1.8})
 			disque(position, Vector3.UP, r, r, d, {"couleur": "#4a3ad0", "coeur": "#b4c0ff", "anneau": 0.93, "epaisseur": 0.05, "remplissage": 0.12, "runes": 0.9, "texels": 64.0, "tourne": 0.1, "eclat": 1.4}, false, false, 0.2)

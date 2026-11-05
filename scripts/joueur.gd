@@ -46,12 +46,17 @@ var _esquive_dir := Vector3.ZERO
 var _esquive_cote := 0.0           # -1 gauche, +1 droite, 0 en arrière (inclinaison de la caméra)
 var _esquive_attente := 0.0
 var vigueur_max := 100.0
-## Mana (magie) : payé par les sorts, régénéré REGEN_MANA/s après DELAI_MANA s sans dépense ni incantation.
+## Mana (magie) : payé par les sorts, régénéré REGEN_MANA/s après DELAI_MANA s sans dépense ni incantation (« en combat » :
+## un mage qui temporise entre deux salves), puis REGEN_MANA_CALME/s après DELAI_CALME_MANA s sans lancer de sort
+## (« hors combat » : le réservoir se remplit en ~6 s au lieu de ~14 s ; docs/MAGIE.md « Équilibrage »).
 var mana := 100.0
 var mana_max := 100.0
 const REGEN_MANA := 7.0
 const DELAI_MANA := 1.2
+const REGEN_MANA_CALME := 18.0
+const DELAI_CALME_MANA := 4.0
 var _repos_mana := 0.0
+var _calme_mana := 0.0
 ## Lus par le HUD (agent effets) : charge 0..1 de chaque main, recharges {id_sort: s restantes}, effets actifs du
 ## joueur [{nom, duree, ecole}] (protection, enchantement, lenteur…). Tenus par mains.magie (MainSort).
 var charge_gauche: float:
@@ -218,11 +223,13 @@ func depenser_mana(quantite: float) -> bool:
 		return false
 	mana = maxf(0.0, mana - quantite)
 	_repos_mana = DELAI_MANA
+	_calme_mana = 0.0
 	return true
 
 ## Retient la régénération de mana (incantation en cours).
 func retenir_mana() -> void:
 	_repos_mana = maxf(_repos_mana, DELAI_MANA)
+	_calme_mana = 0.0
 
 ## Soin (sort de soin, drain, combo « moisson »).
 ## Maxima recalculés (jamais stockés) : base + attributs du niveau + bonus (équipement, perks) + bénédiction ; charge du
@@ -460,8 +467,10 @@ func _physics_process(dt: float) -> void:
 	if not mort:
 		vie = minf(vie_max, vie + 0.8 * progression.facteur("regen_vie") * dt)
 	_repos_mana -= dt
+	_calme_mana += dt
 	if _repos_mana <= 0.0 and not mort:
-		mana = minf(mana_max, mana + REGEN_MANA * progression.facteur("regen_magie") * dt)
+		var regen := REGEN_MANA_CALME if _calme_mana >= DELAI_CALME_MANA else REGEN_MANA
+		mana = minf(mana_max, mana + regen * progression.facteur("regen_magie") * dt)
 	var recup := progression.prendre_recup_furtive()   # perk Mémoire de Muninn (attaque furtive)
 	if recup > 0.0 and not mort:
 		vigueur = minf(vigueur_max, vigueur + recup)

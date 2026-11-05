@@ -16,6 +16,7 @@ Les phases 5 et 6 (variantes, polish) s'appuient sur la même architecture.
 | Test de la défense | `bash outils/tous_les_tests.sh test_defense` (garde, garde brisée, anti-spam, parade sur vraie attaque de draugr, contre, finisher) |
 | Test de l'esquive | `bash outils/tous_les_tests.sh test_esquive` (pas de côté, invulnérabilité, coût, refus, annulation de la récupération, combo strict, caméra) |
 | Banc « bot » de la menace | `bash outils/tous_les_tests.sh test_menace_bot` (bot qui spamme / garde / pare / esquive contre 1 puis 2 draugrs, SEUILS ; `-- --n=10 --trace`) |
+| Banc « bot MAGE » (magie vs mêlée) | `bash outils/tous_les_tests.sh test_mage_bot` (bot sorts seuls : feu / glace / électricité / ténèbres, simple et double, 1 puis 2 draugrs, mage qui recule et esquive puis mage naïf ; docs/MAGIE.md « Équilibrage ») |
 | Planches défense | `... --script res://outils/captures_defense.gd -- --sortie="$W\captures\combat_defense" [--poses]` |
 | Film défense | idem avec `--write-movie "$W\captures\combat_defense\video\defense_parade_contre_finisher.avi" --fixed-fps 30` et `-- --film` |
 | Planches | `bash /tmp/godot_slot.sh $G --path "$W" --script res://outils/captures_combat_epee.gd -- --sortie="$W\captures\combat_epee\scene"` |
@@ -528,7 +529,7 @@ Un ennemi courant sort **un coup de taille annoncé** : premier au bout de 1,6-2
   0,06 rad. **3e personne** : même déplacement et même roulis de caméra ; pas d'animation de corps dédiée (le corps suit la vitesse).
 - Le son est celui des vêtements (`cloth1/2`). Pas d'effet sur l'eau.
 
-## Banc « bot » (seuils de menace)
+## Banc « bot » (seuils de menace ; le pendant magie est outils/test_mage_bot.gd, docs/MAGIE.md)
 
 `outils/test_menace_bot.gd` (dérivé de la sonde `audit_bot_combat.gd`, qui reste la référence « bot parfait ») : un bot manette
 combat de VRAIS draugrs (104 PV) dans `test_combat.tscn`. Il lit l'état de l'ennemi comme un joueur le verrait (début du geste,
