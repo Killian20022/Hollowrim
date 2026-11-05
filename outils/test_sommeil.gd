@@ -198,7 +198,15 @@ func _tester() -> void:
 			caches += 1
 	_verif(couches >= 4 and couches + caches == 15, "3 h : %d civils couchés dans un lit, %d dorment cachés (15 en tout)" % [couches, caches])
 	_verif(mauvais == 0, "tous les couchés sont dans leur cadre (%d mal posés)" % mauvais)
-	_verif(lit_libre.occupants[0] != null and String(lit_libre.occupants[0].donnees.get("type", "")).begins_with("chass"), "le lit libre des chasseurs accueille un chasseur du foyer")
+	# lot bâtiments ouverts : les trappeurs ont chacun leur lit dans H1-H4 ; à la maison des chasseurs, seule Kari (son lit) : le lit
+	# libre n'accueille donc personne d'un autre foyer. La règle « place libre du foyer » est vérifiée par lit_pour.
+	var occ: Node = lit_libre.occupants[0]
+	_verif(occ == null or String(vie.civils.filter(func(c: Dictionary) -> bool: return c["n"] == occ)[0]["f"].get("maison", "")) == "chasseurs",
+		"le lit libre des chasseurs ne reçoit que quelqu'un du foyer (%s)" % (occ.name if occ != null else "libre"))
+	var sans := sm.lit_pour("essai_sans_lit", "chasseurs")
+	_verif(sans.size() == 2 and sans[0] == lit_libre, "un civil du foyer sans lit à lui reçoit la place libre de son foyer")
+	sm._attrib.erase("essai_sans_lit")
+	sm._reserve.clear()
 
 	# --- le joueur dort 8 h dans un lit libre ; heure, vie, magie justes
 	m.cycle.heure = 22.0
