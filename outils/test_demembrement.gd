@@ -51,6 +51,19 @@ func _info(d: Node3D, rel: float, dir: Vector3, attaque := "legere", lateral := 
 	if d is Node3D and (d as Node3D).get("modele") is Node3D:
 		# le côté se mesure sur le CORPS tel qu'il est tourné (lot ennemis : le guerrier ne fait plus toujours face au joueur au bout de 15 images)
 		cote = -((d.modele as Node3D).global_basis.x * Vector3(1, 0, 1)).normalized()
+		# et sur sa VRAIE ligne d'épaules quand le squelette est accroché : en garde de profil (rythme / ennemis), le buste tourne
+		# d'environ 90° par rapport au nœud du modèle, et l'axe X du modèle passe alors devant-derrière, pas d'une épaule à l'autre
+		var al: Node3D = Demembrement._accroche(d.modele, "upperarm_l")
+		var ar: Node3D = Demembrement._accroche(d.modele, "upperarm_r")
+		if al != null and ar != null:
+			var e := (al.global_position - ar.global_position) * Vector3(1, 0, 1)
+			if e.length() > 0.05:
+				cote = e.normalized()
+			if lateral != 0.0:
+				# décalage latéral compté depuis le MILIEU des épaules (le buste penché en garde n'est pas au-dessus des pieds)
+				var mil := (al.global_position + ar.global_position) * 0.5
+				return {"type": "tranchant", "point": Vector3(mil.x, d.global_position.y + 1.8 * rel, mil.z) + vers * 0.2 + cote * lateral,
+					"direction": dir.normalized(), "normale": vers, "attaque": attaque, "instant": 0.1, "charge": 1.0 if attaque == "chargee_max" else 0.0}
 	return {"type": "tranchant", "point": d.global_position + Vector3(0, 1.8 * rel, 0) + vers * 0.2 + cote * lateral,
 		"direction": dir.normalized(), "normale": vers, "attaque": attaque, "instant": 0.1, "charge": 1.0 if attaque == "chargee_max" else 0.0}
 
