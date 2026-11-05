@@ -12,6 +12,8 @@ extends RigidBody3D
 const SEUIL_LIN := 0.08
 const SEUIL_ANG := 0.2
 const DUREE_REPOS := 0.35
+const DUREE_ERRANCE := 5.0     ## un objet réveillé qui ne fait plus que rouler / tournoyer sur place (< SEUIL_ERRANCE m/s) se rendort après ce délai
+const SEUIL_ERRANCE := 0.25
 
 var ident := ""
 var oid := ""
@@ -25,6 +27,7 @@ var deplace := false
 var coince := false       ## posé DANS un volume de collision du décor (étagère pleine) : ne se réveille que saisi
 var tenu := false
 var _repos := 0.0
+var _errance := 0.0
 var _taille := Vector3.ONE
 var _roule := false        ## forme ronde (pomme, chou) : roule, se rendort dès qu'elle n'avance presque plus
 var _son_t := 0
@@ -105,6 +108,7 @@ func reveiller(force := false) -> bool:
 	contact_monitor = true
 	max_contacts_reported = 4
 	_repos = 0.0
+	_errance = 0.0
 	ObjetsVivants.eveille(self)
 	reveiller_voisins()
 	return true
@@ -164,7 +168,9 @@ func veiller(dt: float) -> bool:
 		_repos += dt
 	else:
 		_repos = 0.0
-	return _repos >= DUREE_REPOS
+	# chope qui tourne sur son pied sans jamais passer sous le seuil angulaire : lente et sans élan, elle finit par se rendormir
+	_errance = _errance + dt if linear_velocity.length() < SEUIL_ERRANCE else 0.0
+	return _repos >= DUREE_REPOS or _errance >= DUREE_ERRANCE
 
 ## Un voisin endormi touché par un objet en mouvement se réveille (pile d'assiettes, chopes renversées en chaîne).
 func _contact(autre: Node) -> void:

@@ -264,13 +264,7 @@ func _tester() -> void:
 	_verif(sm.refus(lit_j) == "", "ennemi parti : permis")
 
 	# --- intrusion : dormir dans le lit de Grima, une fermière éveillée dans la maison -> le nœud « crime » est prévenu
-	var sc2 := GDScript.new()
-	sc2.source_code = "extends Node\nvar vus: Array = []\nfunc signaler_intrusion(lit, proprietaire) -> void:\n\tvus.append([lit, proprietaire])\n"
-	sc2.reload()
-	var crime := Node.new()
-	crime.set_script(sc2)
-	crime.add_to_group("crime")
-	m.add_child(crime)
+	var crime: Crime = m.crime       # le VRAI Crime (scripts/crime.gd) : intrusion consignée dans `dernier` et `crimes_vus`
 	m.cycle.heure = 12.0
 	vie._heure_prec = -1.0
 	vie.tick()
@@ -282,14 +276,18 @@ func _tester() -> void:
 	var ipg: Interieur = m.village.interieur("grima")
 	var temoin: Node3D = vie.civil("hab_paysanne_1")["n"]
 	sm.passer_temps(1, "dormir", lit_grima)
-	_verif(crime.vus.is_empty(), "personne dans la maison : pas de témoin, rien n'est signalé")
+	var vus0: int = crime.crimes_vus
+	_verif(vus0 == 0, "personne dans la maison : pas de témoin, rien n'est signalé")
 	temoin.installer(ipg.to_global(Vector3(1.0, ipg.sol_y, 0.6)), false)
+	j.global_position = lit_grima.global_position + Vector3(0.0, 0.3, 0.0)      # le joueur est dans la maison, à portée de vue de la fermière
+	j.velocity = Vector3.ZERO
 	await _attendre(0.2)
 	sm.passer_temps(1, "dormir", lit_grima)
-	_verif(crime.vus.size() == 1 and crime.vus[0][1] == "ancienne", "une fermière éveillée la voit : intrusion signalée (propriétaire « %s »)" % (crime.vus[0][1] if crime.vus.size() > 0 else "?"))
+	_verif(crime.crimes_vus == vus0 + 1 and String(crime.dernier.get("type", "")) == "intrusion" and int(crime.dernier.get("temoins", 0)) >= 1,
+		"une fermière éveillée la voit : intrusion signalée au vrai Crime (%s)" % str(crime.dernier))
 	sm.passer_temps(1, "dormir", lit_j)
-	_verif(crime.vus.size() == 1, "dans un lit libre : rien n'est signalé")
-	crime.queue_free()
+	_verif(crime.crimes_vus == vus0 + 1, "dans un lit libre : rien n'est signalé")
+	crime._gracier()
 
 	# --- sauvegarde
 	sm._debut_repos("bien_repose")

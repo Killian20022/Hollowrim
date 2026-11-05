@@ -13,7 +13,7 @@ var _ok := true
 var _n := 0
 var _vols: Array = []
 
-class Crime extends Node:
+class FauxCrime extends Node:
 	var recus: Array
 	func signaler_vol(objet: Node, proprietaire: String, position: Vector3) -> void:
 		recus.append([objet, proprietaire, position])
@@ -73,7 +73,10 @@ func _tester() -> void:
 	var j: CharacterBody3D = s.joueur
 	var inv: Inventaire = j.inventaire
 	var ov: ObjetsVivants = s.objets_vivants
-	var crime := Crime.new()
+	# Le vrai Crime (scripts/crime.gd) est dans le monde : on le sort du groupe le temps du test du contrat (le double prend sa place), puis on le remet.
+	var vrai: Crime = s.crime
+	vrai.remove_from_group("crime")
+	var crime := FauxCrime.new()
 	crime.recus = _vols
 	crime.add_to_group("crime")
 	s.add_child(crime)
@@ -204,6 +207,46 @@ func _tester() -> void:
 	await process_frame
 	await process_frame
 	_verif(not pomme.has_meta("pris") and cible.has_meta("pris"), "3 jours plus tard : la pomme est revenue sur l'étal, la chope non")
+
+	# --- intégration avec le VRAI Crime : prendre un objet possédé appelle Crime.signaler_vol (objet noté volé, vol consigné)
+	crime.remove_from_group("crime")
+	crime.queue_free()
+	vrai.add_to_group("crime")
+	_verif(Crime.trouver(s) == vrai, "le vrai Crime est de nouveau le nœud du groupe « crime »")
+	var possede: ObjetVivant = null
+	for o: ObjetVivant in halle:
+		if possede == null and o.proprietaire() != "" and not o.has_meta("pris") and not o.coince and o.oid != "":
+			possede = o
+	var oid_p: String = possede.oid if possede != null else ""
+	var v0 := int(vrai.voles.get(oid_p, 0))
+	var c0: int = vrai.crimes_vus
+	var p_av: float = vrai.prime()
+	_verif(possede != null and ov.prendre(possede), "objet possédé (%s, à %s) pris sous le vrai Crime" % [oid_p, possede.proprietaire() if possede else "?"])
+	_verif(int(vrai.voles.get(oid_p, 0)) == v0 + 1 and String(vrai.dernier.get("type", "")) == "vol",
+		"vrai Crime : objet inscrit parmi les volés, vol consigné (%s)" % str(vrai.dernier))
+	var vu_p: bool = int(vrai.dernier.get("temoins", 0)) > 0
+	_verif(vu_p == (vrai.crimes_vus == c0 + 1) and (not vu_p or vrai.prime() > p_av),
+		"vol %s : prime %.0f -> %.0f" % ["vu" if vu_p else "sans témoin", p_av, vrai.prime()])
+	# vu par un témoin : un villageois placé face au joueur, de jour
+	s.cycle.heure = 12.0
+	var tem: Node3D = null
+	for n in vrai.pnj_actifs():
+		if n is Node3D and is_instance_valid(n) and not vrai.est_garde(n):
+			tem = n
+			break
+	if tem != null:
+		j.global_position = tem.global_position - tem.global_transform.basis.z * 3.0
+		await _images(5)
+		var suivant: ObjetVivant = null
+		for o: ObjetVivant in halle:
+			if suivant == null and o.proprietaire() != "" and not o.has_meta("pris") and not o.coince and o != possede:
+				suivant = o
+		var p1: float = vrai.prime()
+		if suivant != null and vrai.voit(tem, j.global_position):
+			ov.prendre(suivant)
+			_verif(vrai.prime() > p1, "vol sous les yeux de %s : le vrai Crime crée une prime (%.0f -> %.0f)" % [tem.name, p1, vrai.prime()])
+		else:
+			print("INFO   témoin ne voit pas le joueur : cas « prime » non rejoué ici (couvert par test_crime)")
 
 	print("ECHECS : %d" % (0 if _ok else 1))
 	print("RESULTAT ", "OK" if _ok else "ECHEC", " (%d vérifications)" % _n)

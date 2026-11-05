@@ -199,6 +199,8 @@ func signaler_agression(victime: Node) -> String:
 ## Coup du joueur (lame, sort) reçu par un PNJ du village (garde_village / villageois.recevoir_coup) : avertissement sans dégâts (il
 ## bronche), sinon le coup passe au PnjCombat qui a pris son corps (dégâts, sang, mort).
 func coup_sur_pnj(p: Node3D, degats: float, origine: Vector3, puissant: bool, info: Dictionary) -> String:
+	if p.has_method("au_lit") and p.au_lit() and p.has_method("reveiller_en_sursaut"):
+		p.reveiller_en_sursaut()       # frappé dans son lit : il se lève (sinon l'avertissement jouerait « Hit_Chest » sur un corps allongé)
 	var r := signaler_agression(p)
 	var c := combattant_de(p)
 	if r == "avertissement":
@@ -811,7 +813,7 @@ func _id_objet(o: Node) -> String:
 	for k in ["id_objet", "objet", "id"]:
 		if o.has_meta(k):
 			return String(o.get_meta(k))
-	for k in ["id_objet", "objet_id", "id"]:
+	for k in ["id_objet", "objet_id", "oid", "id"]:
 		var v: Variant = o.get(k)
 		if v is String and v != "":
 			return v

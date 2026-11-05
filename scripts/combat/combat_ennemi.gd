@@ -390,12 +390,15 @@ func effets_mort(r: Dictionary, sorte: String, joueur: Node) -> void:
 		if gros and k_sang >= 1.0 and k_cam > 0.7:
 			Sang.giclee(corps, point + Vector3(0, 0.1, 0), (dir + Vector3.UP * 0.5).normalized(), p.sang, profil.couleur_sang, false)
 		# la flaque s'étale sous le corps une fois tombé
-		var c := corps
-		var couleur := profil.couleur_sang
-		var bassin := _accroche("pelvis")
+		# références faibles : une capture libérée avant l'échéance fait échouer l'appel du lambda lui-même (« Lambda capture was freed »)
+		var c_ref: WeakRef = weakref(corps)
+		var couleur: Color = profil.couleur_sang
+		var bassin_ref: WeakRef = weakref(_accroche("pelvis"))
 		corps.get_tree().create_timer(0.9).timeout.connect(func() -> void:
-			if is_instance_valid(c) and c.is_inside_tree():
-				var pos := bassin.global_position if is_instance_valid(bassin) else c.global_position
+			var c: Node3D = c_ref.get_ref()
+			var bassin: Node3D = bassin_ref.get_ref()
+			if c != null and c.is_inside_tree():
+				var pos := bassin.global_position if bassin != null else c.global_position
 				Sang.flaque(c, pos, couleur, randf_range(0.9, 1.3) * (1.25 if gros else 1.0), 5.0))
 	else:
 		Sang.eclats_matiere(corps, point, dir, p.sang * 1.4, profil.couleur_sang if not profil.sang else Color(0.45, 0.42, 0.38))
@@ -414,9 +417,10 @@ func effets_mort(r: Dictionary, sorte: String, joueur: Node) -> void:
 	Plaies.ajouter(modele, point, i.get("normale", -dir), dir, 0.5, profil.couleur_sang, profil.matiere)
 	RetourImpact.son_impact(corps, profil.matiere, p, point, false)
 	RetourImpact.cri(corps, "mort", point, profil.matiere, profil.mort_vivant)
-	var c2 := corps
+	var c2_ref: WeakRef = weakref(corps)
 	corps.get_tree().create_timer(0.55 if sorte != "titubante" else 0.9).timeout.connect(func() -> void:
-		if is_instance_valid(c2) and c2.is_inside_tree():
+		var c2: Node3D = c2_ref.get_ref()
+		if c2 != null and c2.is_inside_tree():
 			RetourImpact.son_chute(c2, c2.global_position))
 	if not bool(i.get("rival", false)):
 		RetourImpact.jouer(corps, p, joueur)

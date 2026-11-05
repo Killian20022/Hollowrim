@@ -352,6 +352,10 @@ func passer_temps(heures: int, mode: String, lit: Lit = null) -> Dictionary:
 	var h0 := float(c.heure) if c != null else 12.0
 	var h1 := fposmod(h0 + heures, 24.0)
 	var temoin := _temoin(lit) if lit != null and _intrus(lit) else null
+	if temoin != null:      # intrusion vue : signalée AVANT le saut d'heure (ensuite les PNJ sont replacés à leur poste et le témoin n'est plus là)
+		var crime := get_tree().get_first_node_in_group("crime")
+		if crime != null and crime.has_method("signaler_intrusion"):
+			crime.signaler_intrusion(lit, lit.proprietaire if lit.proprietaire != "joueur" else "chef")
 	if c != null:
 		c.heure = h1
 		c._process(0.0)                  # éclairage de la nouvelle heure tout de suite (cycle gelé à l'intérieur)
@@ -379,11 +383,6 @@ func passer_temps(heures: int, mode: String, lit: Lit = null) -> Dictionary:
 	# repos
 	if mode == "dormir" and heures >= HEURES_REPOS and lit != null:
 		_debut_repos("bien_repose" if _a_soi(lit) else "repose")
-	# intrusion vue
-	if temoin != null:
-		var crime := get_tree().get_first_node_in_group("crime")
-		if crime != null and crime.has_method("signaler_intrusion"):
-			crime.signaler_intrusion(lit, lit.proprietaire if lit.proprietaire != "joueur" else "chef")
 	dernier = {"heures": heures, "mode": mode, "h0": h0, "h1": h1, "lit": lit, "temoin": temoin, "vie": joueur.vie}
 	return dernier
 

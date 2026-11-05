@@ -732,6 +732,9 @@ func recevoir_coup(degats: float, origine: Vector3, puissant := false, info: Dic
 
 ## Un PnjCombat prend son corps : caché, sans collision, process coupé (Vie le laisse : occupe()).
 func remplacer(c: Node) -> void:
+	if seq != "":
+		_quitter_lit()          # couché / assis au bord de son lit : il se lève d'un coup (lit libéré, modèle redressé) avant de céder son corps
+	_eveil_t = 0.0
 	remplace = c
 	_en_conversation = false
 	_route.clear()

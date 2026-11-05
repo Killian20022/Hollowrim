@@ -78,10 +78,15 @@ static func tacher_voisins(source: Node3D, point: Vector3, direction: Vector3, i
 		var taille := clampf(0.2 + intensite * 0.05, 0.2, 0.42) * clampf(1.4 - dist / portee, 0.6, 1.2)
 		GerbePixels.emettre(source, point, (vn + Vector3.UP * 0.25).normalized(), "sang_jet" if couleur.r >= 0.3 else "draugr_jet", clampf(0.6 + intensite * 0.2, 0.7, 1.5))
 		var delai := 0.06 + dist / 4.5
+		# références faibles : libérés avant l'échéance, `autre` et `modele` feraient échouer l'appel du lambda (« Lambda capture was freed »)
+		var autre_ref: WeakRef = weakref(autre)
+		var modele_ref: WeakRef = weakref(modele)
 		source.get_tree().create_timer(delai).timeout.connect(func() -> void:
-			if is_instance_valid(autre) and is_instance_valid(modele) and modele.is_inside_tree():
+			var a: Node3D = autre_ref.get_ref()
+			var mo: Node3D = modele_ref.get_ref()
+			if a != null and mo != null and mo.is_inside_tree():
 				var t1 := Time.get_ticks_usec()
-				Plaies.tacher(modele, autre.global_position + decalage, normale, taille, couleur)
+				Plaies.tacher(mo, a.global_position + decalage, normale, taille, couleur)
 				SangLame.cout_us += Time.get_ticks_usec() - t1)
 		n += 1
 	SangLame.cout_us += Time.get_ticks_usec() - t_us
