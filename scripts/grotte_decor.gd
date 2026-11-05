@@ -381,6 +381,7 @@ func rocher(nom: String, base: Vector3, r: float, h: float, graine: int, masque 
 		var fo := _g().sol_objet(base.x, base.z, base.y + 0.3)
 		if fo > -1e8 and base.y - fo > 0.04:
 			base.y = fo - 0.05
+	base = enfoncer_neige(base)
 	if not roche_libre(base, r * 0.8, h):        # lot D : pas de rocher dans un objet déjà posé
 		objet_fin()
 		return
@@ -406,7 +407,31 @@ func rocher(nom: String, base: Vector3, r: float, h: float, graine: int, masque 
 ## Renvoie false si la neige ne tient pas là (rien n'est posé).
 var neige_bases: Array = []        # anneaux du bas des congères posées (repère du décor) : test_neige_pente
 var neige_refus := 0               # congères non posées (pente trop raide, marche ou vide sous le disque)
-func congere(base: Vector3, r: float, h: float, graine: int, sol := Callable()) -> bool:
+## Profil en cloche (12 côtés). `lisse` : encore moins d'irrégularité — congères basses qui remplacent celles du kit en pente.
+## Objets déjà posés dans le disque (rochers, caisses : empreintes) : la neige S'AMASSE contre eux (collier qui monte à ~1/3 de leur
+## hauteur) au lieu de passer sous leur bord — un rocher dans une congère y est enfoncé, il ne semble pas posé dessus.
+var neige_disques: Array = []      # [centre, rayon, hauteur, pente°] des congères posées (le kit n'y ajoute ni neige ni roche posée dessus)
+
+## Roche posée au sol dans une congère du décor : enfoncée de 80 % de l'épaisseur de neige (30 cm au plus) — sinon elle semble posée
+## SUR la neige. Gardé pour test_neige_pente : [pied, dessus de la neige].
+func enfoncer_neige(p: Vector3) -> Vector3:
+	var ep := neige_epaisseur(p.x, p.z)
+	if ep < 0.02:
+		return p
+	var q := p - Vector3(0, minf(ep * 0.8, 0.3), 0)
+	neige_colliers.append([q, p.y + ep])
+	return q
+
+## Épaisseur de neige des congères posées en (x, z) (profil en cloche) : 0 hors des congères.
+func neige_epaisseur(x: float, z: float) -> float:
+	var ep := 0.0
+	for dq: Array in neige_disques:
+		var t := Vector2(x - (dq[0] as Vector3).x, z - (dq[0] as Vector3).z).length() / float(dq[1])
+		if t < 1.0:
+			ep = maxf(ep, float(dq[2]) * pow(1.0 - t * t, 0.7))
+	return ep
+var neige_colliers: Array = []     # [pied de l'objet, hauteur de la neige contre son bord] (test_neige_pente)
+func congere(base: Vector3, r: float, h: float, graine: int, sol := Callable(), lisse := false) -> bool:
 	if not sol.is_valid():
 		var g := _g()
 		if g == null:
@@ -415,6 +440,9 @@ func congere(base: Vector3, r: float, h: float, graine: int, sol := Callable()) 
 			var y_ref := base.y + r * tan(deg_to_rad(PENTE_NEIGE)) + 0.3
 			sol = func(x: float, z: float) -> float: return g.sol_objet(x, z, y_ref)
 	var pl := plan_neige(sol, base, r * 1.15)
+	if not pl.is_empty() and float(pl["pente"]) > lerpf(PENTE_NEIGE, 22.0, clampf((r - 1.0) / 1.2, 0.0, 1.0)):
+		refus_neige["pente"] = int(refus_neige.get("pente", 0)) + 1
+		pl = {}                                                  # grand tas sur forte pente : une plaque, pas une congère
 	if pl.is_empty():
 		neige_refus += 1
 		var k_r := "congère r < 0,5" if r < 0.5 else "congère r ≥ 0,5"
@@ -425,9 +453,20 @@ func congere(base: Vector3, r: float, h: float, graine: int, sol := Callable()) 
 	var hh := h * lerpf(1.0, 0.75, k)                          # pente : neige tassée, plus basse
 	var aval: Vector2 = pl["aval"]
 	var c0 := base + Vector3(aval.x, 0.0, aval.y) * (0.12 * k * r)   # le tas glisse un peu vers l'aval
-	var etire := 1.0 + 0.35 * k
+	var etire := 1.0 + 0.15 * k
 	var y_plan: float = pl["y"]
 	var grad: Vector2 = pl["grad"]
+	var objets: Array = []
+	for e: Array in _emp_pres(_grille_emp, base, r * 1.3):
+		var pe: Vector3 = e[0]
+		var ye: float = sol.call(pe.x, pe.z)
+		if Vector2(pe.x - base.x, pe.z - base.z).length() < r * 1.1 + float(e[1]) * 0.5 and (ye < -1e8 or absf(pe.y - ye) < 0.3):
+			objets.append(e)                                     # posé au sol dans le disque (pas un objet sur une corniche au-dessus)
+	if lisse and not objets.is_empty():
+		neige_refus += 1                                         # petite congère sur une caisse, un rocher : pas de tas là
+		refus_neige["objet"] = int(refus_neige.get("objet", 0)) + 1
+		objet_fin()
+		return false
 	var drape := func(v: Vector3) -> Vector3:
 		var d := Vector2(v.x - base.x, v.z - base.z)
 		var t := d.dot(aval)
@@ -439,11 +478,36 @@ func congere(base: Vector3, r: float, h: float, graine: int, sol := Callable()) 
 		var yp := y_plan + grad.x * (x - base.x) + grad.y * (z - base.z)
 		if ys < -1e8:
 			ys = yp                                              # dans la roche (au-delà de la paroi) : le plan du sol, caché
-		ys = minf(ys, yp + 0.3)                                  # pied de paroi qui remonte : le bord entre dans la roche, la neige ne grimpe pas au mur
+		ys = minf(ys, yp + 0.15)                                 # pied de paroi qui remonte : le bord entre dans la roche, la neige ne grimpe pas au mur
 		var dy := v.y - base.y
-		return Vector3(x, ys + (dy - 0.04 if dy < 0.0 else dy * hh / maxf(h, 0.001)), z)
-	var profil := [Vector2(r, -0.06), Vector2(r * 0.93, h * 0.42), Vector2(r * 0.66, h * 0.82), Vector2(r * 0.3, h), Vector2(0.0, h * 1.02)]
-	revolution("c_sol_neige", base, profil, 9, graine, 0.34, 1.6, 0.8, 1.0, 4.0, drape)
+		# bas : sur le sol réel (enterré) ; dessus : sur un sol LISSÉ (moitié plan) — la crête reste ronde, sans pointe sur une bosse
+		var y := ys + dy - 0.04 if dy < 0.0 else lerpf(ys, yp, 0.5) + dy * hh / maxf(h, 0.001)
+		if dy >= 0.0:
+			for e: Array in objets:                              # collier contre les objets du disque
+				var pe: Vector3 = e[0]
+				var lim := float(e[1]) + 0.9                         # collier large et doux (pas de pointe entre deux sommets)
+				var dd := Vector2(x - pe.x, z - pe.z).length()
+				if dd < lim:
+					var col := minf(pe.y + clampf(0.33 * float(e[2]), 0.1, 0.3), y + 0.25)
+					y = maxf(y, lerpf(y, col, smoothstep(lim, float(e[1]) * 0.8, dd)))
+		return Vector3(x, y, z)
+	# cloche y = h (1 - t²)^0,7 : sommet rond, flancs doux, 12 côtés peu irréguliers (ni arête vive ni pointe) ; `lisse` : encore
+	# moins irrégulière (petites congères qui remplacent celles du kit en pente)
+	var profil := [Vector2(r, -0.06)]
+	for t: float in [0.9, 0.75, 0.56, 0.36, 0.17, 0.0]:
+		profil.append(Vector2(r * t, h * pow(1.0 - t * t, 0.7)))
+	var cotes := 12
+	var jit := 0.12 if lisse else 0.2
+	revolution("c_sol_neige", base, profil, cotes, graine, jit, 1.6, 0.8, 1.0, 4.0, drape)
+	neige_disques.append([base, r, hh, float(pl["pente"])])
+	for e: Array in objets:                                      # contrôle (test) : neige au bord de chaque objet du disque
+		var pe: Vector3 = e[0]
+		var dir := Vector2(base.x - pe.x, base.z - pe.z)
+		dir = dir.normalized() if dir.length() > 0.01 else Vector2.RIGHT
+		var bord := Vector2(pe.x, pe.z) + dir * float(e[1]) * 1.02
+		var dist := Vector2(bord.x - base.x, bord.y - base.z).length()
+		if dist < r * 0.9:
+			neige_colliers.append([pe, (drape.call(Vector3(bord.x, base.y + _haut_profil(profil, dist), bord.y)) as Vector3).y])
 	var bas := PackedVector3Array()
 	for i in 18:                                                 # contrôle (test) : 18 points de l'anneau du bas
 		var a := TAU * i / 18.0
@@ -451,6 +515,15 @@ func congere(base: Vector3, r: float, h: float, graine: int, sol := Callable()) 
 	neige_bases.append(bas)
 	objet_fin()
 	return true
+
+## Hauteur d'un profil de révolution (Vector2(rayon, y) de la base vers le sommet) à la distance d de l'axe.
+static func _haut_profil(profil: Array, d: float) -> float:
+	for k in profil.size() - 1:
+		var a: Vector2 = profil[k]
+		var b: Vector2 = profil[k + 1]
+		if d <= a.x and d >= b.x:
+			return lerpf(a.y, b.y, (a.x - d) / maxf(a.x - b.x, 0.0001))
+	return (profil[profil.size() - 1] as Vector2).y
 
 static var refus_neige := {}       # motif -> nombre de tas refusés par plan_neige (diagnostic, test_neige_pente)
 ## Pente maximale (degrés) où un tas de neige tient : au-delà, la neige glisse (pas de tas).

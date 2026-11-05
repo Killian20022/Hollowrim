@@ -3,7 +3,9 @@ extends SceneTree
 ## la grotte (congères du kit et congères drapées du décor) a sa BASE dans le sol : aucun point du bord du bas au-dessus du sol réel
 ## (vide visible sous le tas), aucun tas avalé (plus de la moitié de son bord à plus de 0,5 m sous le sol) et aucun tas sur une pente
 ## plus raide que PENTE_NEIGE.
-##   godot --headless --path . --script outils/test_neige_pente.gd [-- --variante=N]
+##   godot --headless --path . --script outils/test_neige_pente.gd [-- --variante=N] [--sans-acces] [--lister]
+## Aussi : objets (rochers, caisses) des congères enfoncés dans la neige ; congères du kit en pente remplacées par des drapées ;
+## l'entrée extérieure (GrotteAcces, monde chargé) a ses congères posées sur le relief.
 const TOL_HAUT := 0.012      # m : un point du bord du bas plus haut que le sol de plus que ça = vide sous la neige
 const TOL_BAS := 0.5
 
@@ -99,7 +101,17 @@ func _lancer() -> void:
 	var nb: Array = g.decor.get("neige_bases") if g.decor.get("neige_bases") != null else []
 	for b: PackedVector3Array in nb:
 		if OS.get_cmdline_user_args().has("--lister"):
-			print("   congère du décor  %s  r %.1f" % [_ou(b[0]), Vector2(b[0].x - b[9].x, b[0].z - b[9].z).length() * 0.5])
+			var cc := (b[0] + b[9]) * 0.5
+			var rr := Vector2(b[0].x - b[9].x, b[0].z - b[9].z).length() * 0.5
+			print("   congère du décor  %s  r %.1f" % [_ou(cc), rr])
+			for e: Array in g.decor.empreintes:
+				var pe: Vector3 = e[0]
+				if Vector2(pe.x - cc.x, pe.z - cc.z).length() < rr + float(e[1]):
+					print("      objet r %.2f h %.2f pied-sol %.2f roche %s" % [e[1], e[2], pe.y - g.sol_objet(pe.x, pe.z, pe.y + 0.3), e.size() > 3])
+			for cle: String in g.kit._inst:
+				for xf: Transform3D in g.kit._inst[cle]:
+					if Vector2(xf.origin.x - cc.x, xf.origin.z - cc.z).length() < rr + 0.3:
+						print("      kit %s pied-sol %.2f ech %s" % [cle.get_slice("|", 0), xf.origin.y - g.sol_objet(xf.origin.x, xf.origin.z, xf.origin.y + 0.3), xf.basis.get_scale()])
 		bords.append(["congère (%.1f ; %.1f ; %.1f)" % [b[0].x, b[0].y, b[0].z], b])
 	print("%d tas de neige : %d congères du kit, %d congères du décor ; %d + %d refusées (pente, marche, vide)" % [bords.size(), nk, bords.size() - nk,
 		int(g.kit.get("neige_refus")) if g.kit != null and g.kit.get("neige_refus") != null else 0, int(g.decor.get("neige_refus")) if g.decor.get("neige_refus") != null else 0])
@@ -139,5 +151,56 @@ func _lancer() -> void:
 		if not pl.is_empty() and float(pl["pente"]) > GrotteDecor.PENTE_NEIGE + 4.0:
 			raides += 1
 	_verif(raides == 0, "aucun tas sur une pente > %.0f° (%d)" % [GrotteDecor.PENTE_NEIGE + 4.0, raides])
+	# rochers et caisses DANS une congère : la neige monte contre leur bord (enfoncés, pas posés dessus)
+	var posees := 0
+	for c: Array in g.decor.neige_colliers:
+		if float(c[1]) < (c[0] as Vector3).y + 0.05:
+			posees += 1
+			print("      objet posé sur la neige : pied %s, neige au bord %.2f" % [c[0], c[1]])
+	_verif(posees == 0, "objets des congères enfoncés dans la neige (%d sur %d posés dessus)" % [posees, g.decor.neige_colliers.size()])
+	# congères du kit en pente : remplacées (aucune congère cisaillée au-delà de PENTE_KIT)
+	var cisaillees := 0
+	for e: Array in g.kit.neige_poses:
+		if float(e[2]) >= GrotteKit.PENTE_KIT:
+			cisaillees += 1
+	_verif(cisaillees == 0, "aucune congère du kit cisaillée sur une pente ≥ %.0f° (%d)" % [GrotteKit.PENTE_KIT, cisaillees])
+	if not OS.get_cmdline_user_args().has("--sans-acces"):
+		await _acces()
 	print("TEST NEIGE PENTE : %s (%d échec(s))" % ["OK" if _echecs == 0 else "ECHEC", _echecs])
 	quit(_echecs)
+
+## Entrée extérieure (GrotteAcces, dans le monde) : ses congères drapées sur le relief, base dans le sol.
+func _acces() -> void:
+	var m: Node3D = (load("res://scenes/foret_test.tscn") as PackedScene).instantiate()
+	m.set_meta("test", true)
+	root.add_child(m)
+	while not bool(m.get("pret")):
+		await process_frame
+	var a = m.get("grotte_acces")
+	_verif(a != null, "entrée de la grotte construite")
+	if a == null:
+		return
+	var t0 := Time.get_ticks_msec()
+	while (int(a._tache_ext) >= 0 and not WorkerThreadPool.is_task_completed(int(a._tache_ext))) or a.decor == null:
+		await process_frame                                   # l'extérieur se bâtit dans un fil
+		if Time.get_ticks_msec() - t0 > 120000:
+			break
+	_verif(a.decor != null, "décor de l'entrée bâti")
+	if a.decor == null:
+		return
+	var nb: Array = a.decor.neige_bases
+	var flottent := 0
+	var pire := 0.0
+	for b: PackedVector3Array in nb:
+		var haut := -INF
+		for p in b:
+			haut = maxf(haut, p.y - a._hl(p.x, p.z))
+		pire = maxf(pire, haut)
+		if haut > TOL_HAUT:
+			flottent += 1
+	print("entrée : %d congères, %d refusées" % [nb.size(), a.decor.neige_refus])
+	if OS.get_cmdline_user_args().has("--lister"):
+		for dq: Array in a.decor.neige_disques:
+			print("   entrée : congère %s r %.1f h %.2f pente %.0f°" % [dq[0], dq[1], dq[2], dq[3]])
+	_verif(nb.size() >= 6, "l'entrée a ses congères (%d)" % nb.size())
+	_verif(flottent == 0, "entrée : aucune congère dont la base sort du sol (%d, pire %.3f m)" % [flottent, pire])

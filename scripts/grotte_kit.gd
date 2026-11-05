@@ -674,18 +674,30 @@ func _add(nom: String, pos: Vector3, lacet: float, ech: Vector3, incl := Basis()
 	var fam := nom.get_slice("_", 0)
 	stats[fam] = int(stats.get(fam, 0)) + 1
 
-## Retours exe 5 : congère du kit posée sur la PENTE réelle (elle était debout, base plate, au point du sol de son centre : un bord
+## Retours exe 5 : congère du kit posée sur la PENTE réelle (sol presque plat, < PENTE_KIT ; au-delà : congère drapée du décor) (elle était debout, base plate, au point du sol de son centre : un bord
 ## flottait au-dessus de la pente, l'autre s'enterrait). Le gabarit est CISAILLÉ selon le plan du sol (sa base épouse la pente, sa
 ## hauteur reste verticale : la neige se tasse, elle ne bascule pas), étiré et tassé vers l'aval sur une pente, et descendu du plus
 ## grand creux du sol sous son disque (aucun vide sous le bord). Pente trop raide, marche ou rebord sous le disque : pas de congère.
 var neige_poses: Array = []        # [nom du gabarit, Transform3D, pente°, enfoncement, point visé] des congères posées (test_neige_pente)
 var neige_refus := 0               # congères non posées (pente trop raide, marche, vide sous le bord)
+const PENTE_KIT := 8.0             # au-delà (degrés), la congère du kit est remplacée par une congère drapée du décor
 func _neige(nom: String, q: Vector3, lacet: float, ech: Vector3) -> void:
 	var y_ref := q.y + ech.x * tan(deg_to_rad(GrotteDecor.PENTE_NEIGE)) + 0.3
 	var sol := func(x: float, z: float) -> float: return g.sol_objet(x, z, y_ref)
 	var pl := GrotteDecor.plan_neige(sol, q, ech.x * 1.2)
 	if pl.is_empty():
 		neige_refus += 1
+		return
+	for dq: Array in g.decor.neige_disques:                 # déjà sous une grande congère du décor : pas de seconde couche
+		if Vector2(q.x - (dq[0] as Vector3).x, q.z - (dq[0] as Vector3).z).length() < float(dq[1]) * 0.9:
+			neige_refus += 1
+			return
+	if float(pl["pente"]) >= PENTE_KIT:
+		# Retours exe 5 (2e passe) : en pente, le gabarit cisaillé devenait une plaque fine et anguleuse. À la place, une congère
+		# DRAPÉE du décor (sommet par sommet sur le sol, anneau du bas enterré, dôme arrondi), de même emprise et de même hauteur.
+		var hk := float(gab[nom]["h"]) * ech.y
+		if not g.decor.congere(q, ech.x * 1.05, maxf(hk, 0.08), hash(Vector2i(roundi(q.x * 100.0), roundi(q.z * 100.0))), sol, true):
+			neige_refus += 1
 		return
 	var k: float = pl["k"]
 	var grad: Vector2 = pl["grad"]
@@ -966,6 +978,8 @@ func _bloc(id: String, s: float, lat: float, rr: float, solide := true, petit :=
 		var fo := g.sol_objet(p.x, p.z, p.y + 0.3)
 		if fo > -1e8 and p.y - fo > 0.04:
 			p.y = fo
+		# retours exe 5 : dans une congère du décor, la roche s'y enfonce (sinon elle semble posée sur la neige)
+		p = g.decor.enfoncer_neige(p)
 	if g.decor.regles_pose and g._hauteurs(p.x, p.z).x > 1e8:      # lot D : hors de la galerie (dans la roche) : rien, mêmes tirages
 		if not petit and rr > 0.6 and r.randf() < 0.45:
 			r.randf(); r.randf_range(0.4, 0.6); r.randi_range(0, 7); r.randf(); r.randf_range(0.9, 1.3); r.randf_range(-0.4, 0.4)
