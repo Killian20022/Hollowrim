@@ -137,7 +137,7 @@ func ouvrir(id := "") -> void:
 	EchelleUi.appliquer(_vue)
 	_preparer_livre()
 	_montrer(onglet_actif)
-	Sons.jouer(self, ["cloth1", "cloth2"], -10.0)
+	Sons.interface(self, ["ui_menu_ouvre"], -12.0)
 	ouvert_change.emit(true)
 
 func fermer() -> void:
@@ -152,7 +152,7 @@ func fermer() -> void:
 	get_tree().paused = false
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = _souris if _souris != Input.MOUSE_MODE_VISIBLE else Input.MOUSE_MODE_CAPTURED
-	Sons.jouer(self, ["cloth1", "cloth2"], -12.0)
+	Sons.interface(self, ["ui_menu_ferme"], -13.0)
 	ouvert_change.emit(false)
 
 func basculer(id := "") -> void:

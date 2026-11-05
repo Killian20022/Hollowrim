@@ -102,19 +102,15 @@ static func _copier_dans_statiques() -> void:
 	inverser_y = bool(options["commandes"]["inverser_y"])
 	champ_vision = clampf(float(options["affichage"]["champ_vision"]), 60.0, 90.0)
 
-## Bus « Musique » et « Effets » (enfants de Master) ; créés par l'autoload Lancement.
+## Bus audio (Musique, Ambiance, Effets, Interface, SousTerre) et effets du master : voir Mixage ; créés par l'autoload Lancement.
 static func creer_bus() -> void:
-	for nom_bus in ["Musique", "Effets"]:
-		if AudioServer.get_bus_index(nom_bus) == -1:
-			AudioServer.add_bus()
-			var i := AudioServer.bus_count - 1
-			AudioServer.set_bus_name(i, nom_bus)
-			AudioServer.set_bus_send(i, &"Master")
+	Mixage.creer()
 
+## Volumes du joueur (Options) : Général → Master, Musique → Musique, Effets → Effets ; l'Ambiance et l'Interface suivent « Effets ».
 static func appliquer_son() -> void:
 	if options.is_empty():
 		return
-	for p in [["Master", "general"], ["Musique", "musique"], ["Effets", "effets"]]:
+	for p in [["Master", "general"], ["Musique", "musique"], ["Effets", "effets"], ["Ambiance", "effets"], ["Interface", "effets"]]:
 		var i := AudioServer.get_bus_index(p[0])
 		if i == -1:
 			continue

@@ -516,5 +516,7 @@ static func creer(oid: String, n := 1, joueur: CharacterBody3D = null, dialogue:
 ## Met l'objet au sac (ButinTables.prendre : règle des uniques), puis disparaît.
 func prendre(inv: Inventaire) -> Array[Dictionary]:
 	var res := ButinTables.prendre(inv, [{"id": id, "n": nombre, "rarete": ButinTables.rarete_de(id)}])
+	if is_inside_tree() and not res.is_empty():
+		Sons.interface(get_tree().current_scene if get_tree().current_scene != null else get_tree().root, ["ui_ramasse"], -9.0)
 	queue_free()
 	return res

@@ -106,6 +106,8 @@ var mains: Node3D
 var corps: Node3D  # corps visible à la troisième personne
 var camera_tp: Node3D
 var troisieme := false  # V : bascule première / troisième personne
+## Matériau du sol au dernier pas / à la dernière réception (MateriauSol : neige, terre, pierre, bois, eau).
+var materiau_sol := MateriauSol.NEIGE
 var _pas := 0.0
 var _dernier_pas := 0
 var _dist_trace := 0.0
@@ -368,6 +370,7 @@ func _physics_process(dt: float) -> void:
 		velocity.y = SAUT
 		depenser(6.0)
 		EffetsSol.saut(self)
+		MateriauSol.saut(self)
 	var entree := Vector2.ZERO if (mort or en_dialogue) else Input.get_vector("gauche", "droite", "avant", "arriere")
 	var dir := (transform.basis * Vector3(entree.x, 0.0, entree.y)).normalized()
 	potions.avancer(self, dt)
@@ -396,6 +399,8 @@ func _physics_process(dt: float) -> void:
 	move_and_slide()
 	if is_on_floor() and not _etait_au_sol and vy_avant < -3.0 and not mort:
 		EffetsSol.atterrissage(self, -vy_avant)   # gerbe et cuvette dans la neige
+		materiau_sol = MateriauSol.en(get_parent(), global_position)
+		MateriauSol.atterrissage(self, materiau_sol, -vy_avant)
 	_etait_au_sol = is_on_floor()
 	position.x = clampf(position.x, -LIMITE, LIMITE)
 	position.z = clampf(position.z, -LIMITE, LIMITE)
@@ -422,7 +427,8 @@ func _physics_process(dt: float) -> void:
 		var n := floori(_pas / PI)
 		if n != _dernier_pas:
 			_dernier_pas = n
-			Sons.jouer(self, ["footstep_snow_000", "footstep_snow_001", "footstep_snow_002", "footstep_snow_003", "footstep_snow_004"], -12.0 if not court else -8.0, 0.1)
+			materiau_sol = MateriauSol.en(get_parent(), global_position)
+			MateriauSol.pas(self, materiau_sol, court)   # neige, terre, pierre, bois ou eau (docs/SON.md)
 			EffetsSol.pas(self, Vector2(velocity.x, velocity.z), n % 2 == 0, court)   # gerbe (sol enneigé seulement)
 	if is_on_floor() and vitesse_sol > 0.3:   # empreintes : un pas réel tous les ~0,7 m (0,95 m en courant), pied gauche puis droit
 		_dist_trace += vitesse_sol * dt

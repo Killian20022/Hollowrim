@@ -124,6 +124,8 @@ func _completer(q: Dictionary, i: int) -> void:
 	journal.append(etapes[i]["journal"])
 	if i == 0:
 		hud.avis("Nouvelle quête : " + q["titre"])
+		if etapes.size() > 1:
+			Sons.interface(self, ["ui_quete_debut"], -7.0)
 	if i + 1 >= etapes.size():
 		hud.avis("Quête terminée : " + q["titre"])
 		var remis: Dictionary = REMIS.get(q["id"], {})
@@ -137,7 +139,7 @@ func _completer(q: Dictionary, i: int) -> void:
 		for id in r.get("objets", {}):
 			joueur.inventaire.ajouter(id, int(r["objets"][id]))
 			hud.avis("+ " + joueur.inventaire.nom(id))
-		Sons.jouer(self, ["sword-unsheathe"], -6.0)
+		Sons.interface(self, ["ui_quete_fin"], -6.0)
 	elif hud.has_method("objectif_change"):
 		hud.objectif_change()   # l'objectif s'affiche sous la boussole (hud.gd), plus en double en haut à gauche
 	else:

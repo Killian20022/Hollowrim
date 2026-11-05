@@ -1472,6 +1472,9 @@ func _musique() -> void:
 	m.set_script(preload("res://scripts/musique.gd"))
 	m.monde = self
 	add_child(m)
+	var z := ZoneSon.new()   # reverb de la salle (grotte, crypte, maison) et ducking de la musique
+	z.monde = self
+	add_child(z)
 
 # --- son : vent et crépitement générés en direct -------------------------------
 
