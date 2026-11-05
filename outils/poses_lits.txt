@@ -2,6 +2,4 @@
 sigrun sigrun -0.9 1.6 0.3 -2.75 -1.94
 chasseurs_fond chasseurs -0.8 1.6 0.2 -2.75 -1.94
 chasseurs_devant chasseurs -0.8 1.6 -0.1 -2.9 1.7
-chasseurs_nord_est chasseurs 2.1 1.6 1.0 2.88 -1.74
 grima grima -0.3 1.6 -0.2 -2.26 1.39
-halle halle 5.9 1.75 -0.1 5.66 -2.15

@@ -155,8 +155,7 @@ static func _chasseurs(b: Interieurs, xch: float) -> void:
 	b.lit(Vector3(-2.75, F, zb + 0.62), 0.0, 2.0, 1.0, "peau", 0, "chasseuse")
 	b.peau_murale(Vector3(-2.75, 1.7, zb + 0.04), 0.0, 1.1, 1.3, "peau_sombre")
 	b.lit(Vector3(-2.9, F, 1.7), 0.0, 1.95, 1.0, "peau_claire", 1)
-	b.lit(Vector3(2.88, F, zb + 0.82), PI, 1.92, 1.4, "peau_sombre")      # lot sommeil : lit double des chasseurs (coin nord-est, libre)
-	b.parchemin(Vector3(-2.6, F + 0.68, 1.62), 0.5)
+	b.parchemin(Vector3(-2.6, F + 0.56, 1.62), 0.5)      # lot sommeil : posé sur la fourrure du lit procédural (dessus à 0,55 m)
 	b.sac(Vector3(-3.5, F, 0.85), 1.3, 0.55)
 	b.carquois(Vector3(-3.45, F + 0.28, 1.2), 0.3)
 	# --- mur du fond : arcs, carquois, hache, épée ; table de dépeçage

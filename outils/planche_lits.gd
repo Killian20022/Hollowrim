@@ -54,6 +54,8 @@ func _go() -> void:
 		await _avant()
 	if _a("fenetre"):
 		await _fenetre()
+	if _a("halle"):
+		await _halle()
 	print("PLANCHE finie")
 	quit(0)
 
@@ -141,10 +143,10 @@ func _fenetre() -> void:
 	cam.projection = Camera3D.PROJECTION_PERSPECTIVE
 	cam.fov = 62.0
 	var xf := l.global_transform
-	var oeil := xf * Vector3(l.cotes_libres[0] * 1.3, 1.6, -1.6)
-	var vise := xf * Vector3(0, 0.5, 0.2)
+	var oeil := xf * Vector3(l.cotes_libres[0] * (l.largeur * 0.5 + 1.25), 1.45, -l.longueur * 0.5 - 0.6)
+	var vise := xf * Vector3(0, 0.45, 0.1)
 	cam.global_transform = Transform3D(Basis.looking_at(vise - oeil, Vector3.UP), oeil)
-	m.joueur.global_position = Vector3(oeil.x, oeil.y - 1.5, oeil.z)
+	_ecarter_joueur(oeil)
 	m.hud.visible = true
 	sm.demander("dormir", l)
 	await _shot("fenetre_dormir")
@@ -153,3 +155,35 @@ func _fenetre() -> void:
 	sm.fenetre.regler(3)
 	await _shot("fenetre_attendre")
 	sm.fenetre.fermer()
+
+## Lit clos de la halle vu d'en haut, sous le ciel de lit (caméra orthogonale à 1,65 m), puis de trois quarts depuis l'allée.
+func _halle() -> void:
+	var ip: Interieur = m.village.interieur("halle")
+	var sm: Node = m.get("sommeil")
+	var l: Lit = null
+	for x: Lit in sm.lits:
+		if x.foyer == "halle":
+			l = x
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.keep_aspect = Camera3D.KEEP_HEIGHT
+	cam.size = 4.0
+	cam.near = 0.05
+	cam.far = 5.0
+	var haut := l.global_position + Vector3(0, 1.62, 0)
+	cam.global_transform = Transform3D(Basis.looking_at(Vector3.DOWN, ip.global_transform.basis * Vector3(0, 0, -1)), haut)
+	_ecarter_joueur(haut)
+	await _shot("halle_plan_lit")
+	cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+	cam.fov = 62.0
+	cam.far = 60.0
+	sm._regler_cotes(l)
+	var xf := l.global_transform
+	var oeil := xf * Vector3(l.cotes_libres[0] * 1.6, 1.5, -0.9)
+	cam.global_transform = Transform3D(Basis.looking_at(xf * Vector3(0, 0.5, 0.2) - oeil, Vector3.UP), oeil)
+	await _shot("halle_lit")
+	m.cycle.heure = 2.0
+	m.vie._heure_prec = -1.0
+	m.vie.tick()
+	for i in 20:
+		await process_frame
+	await _shot("halle_lit_nuit")

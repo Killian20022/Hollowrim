@@ -5,7 +5,7 @@ extends SceneTree
 ##     sans collision propre) ; le matin elle se redresse, se lève, ressort et rejoint son poste ;
 ##   - heure sautée : les civils qui ont un lit y sont couchés, les autres dorment cachés comme avant ;
 ##   - réveillée (on lui parle) : elle se lève, puis se recouche ;
-##   - le joueur dort 8 h dans un lit : heure + 8 h, vie / magie / vigueur pleines, bonus « reposé » ; attendre 3 h (fenêtre, T) ;
+##   - le joueur dort 8 h dans un lit libre : heure + 8 h, vie / magie / vigueur pleines, bonus « reposé » ; attendre 3 h (fenêtre, T) ;
 ##   - refus en combat et si un ennemi rôde ; intrusion vue par un témoin -> nœud « crime » ; sauvegarde `sommeil`.
 ##   godot --headless --fixed-fps 60 --path . --script res://outils/test_sommeil.gd -- --nouvelle --paisible
 const SCENE := preload("res://scenes/foret_test.tscn")
@@ -73,7 +73,7 @@ func _tester() -> void:
 
 	# --- lits posés sur les marqueurs
 	var marqueurs := root.get_tree().get_nodes_in_group("emplacement_lit")
-	_verif(marqueurs.size() >= 7 and sm.lits.size() == marqueurs.size(), "un lit par marqueur « emplacement_lit » (%d marqueurs, %d lits)" % [marqueurs.size(), sm.lits.size()])
+	_verif(marqueurs.size() >= 4 and sm.lits.size() == marqueurs.size(), "un lit par marqueur « emplacement_lit » (%d marqueurs, %d lits)" % [marqueurs.size(), sm.lits.size()])
 	var simple := Lit.creer(1, "volva")
 	var dbl := Lit.creer(2, "a,b")
 	_verif(simple.places() == 1 and dbl.places() == 2 and dbl.a_pour_proprietaire("b") and simple.get_child_count() >= 4, "Lit.creer : simple (1 place), double (2 places, deux propriétaires), maillages et collision")
@@ -84,10 +84,24 @@ func _tester() -> void:
 	for l: Lit in sm.lits:
 		if l.a_pour_proprietaire("volva"):
 			lit_volva = l
-		elif l.libre() and l.foyer == "chasseurs" and l.double():
+		elif l.libre() and l.foyer == "chasseurs":
 			lit_libre = l
 	_verif(lit_volva != null and lit_volva.foyer == "sigrun", "le lit de Sigrún est chez elle (foyer %s)" % (lit_volva.foyer if lit_volva else "?"))
-	_verif(lit_libre != null, "un lit double libre chez les chasseurs")
+	_verif(lit_libre != null, "un lit libre chez les chasseurs")
+	# lit double posé par un marqueur ajouté après coup (comme ceux d'un autre lot) : deux places côte à côte, un foyer
+	var mk := Marker3D.new()
+	mk.add_to_group("emplacement_lit")
+	mk.set_meta("largeur", 2)
+	mk.set_meta("foyer", "essai")
+	m.add_child(mk)
+	mk.global_position = Vector3(20.0, m.hauteur(20.0, 60.0), 60.0)
+	await _attendre(1.3)
+	var dbl_l: Lit = mk.get_node_or_null("Lit")
+	var a1: Array = sm.lit_pour("essai_1", "essai")
+	var a2: Array = sm.lit_pour("essai_2", "essai")
+	var a3: Array = sm.lit_pour("essai_3", "essai")
+	_verif(dbl_l != null and dbl_l.double() and a1 == [dbl_l, 0] and a2 == [dbl_l, 1] and a3.is_empty(), "marqueur ajouté : lit double posé, deux places attribuées, la troisième personne n'en a pas")
+	_verif(dbl_l != null and dbl_l.pose_couchee(0).origin.distance_to(dbl_l.pose_couchee(1).origin) > 0.6, "les deux places couchées sont côte à côte (%.2f m)" % (dbl_l.pose_couchee(0).origin.distance_to(dbl_l.pose_couchee(1).origin) if dbl_l else 0.0))
 	if lit_volva == null or lit_libre == null:
 		_fin()
 		return
@@ -182,21 +196,21 @@ func _tester() -> void:
 				print("   mal couché : %s%s" % [cc["id"], _couche_dans(nn, nn.lit)])
 		elif nn.est_endormi() and not nn.visible:
 			caches += 1
-	_verif(couches >= 6 and couches + caches == 15, "3 h : %d civils couchés dans un lit, %d dorment cachés (15 en tout)" % [couches, caches])
+	_verif(couches >= 4 and couches + caches == 15, "3 h : %d civils couchés dans un lit, %d dorment cachés (15 en tout)" % [couches, caches])
 	_verif(mauvais == 0, "tous les couchés sont dans leur cadre (%d mal posés)" % mauvais)
-	var double_occupe := 0
-	for k in lit_libre.places():
-		if lit_libre.occupants[k] != null:
-			double_occupe += 1
-	_verif(double_occupe == 2, "le lit double des chasseurs accueille deux dormeurs (%d)" % double_occupe)
+	_verif(lit_libre.occupants[0] != null and String(lit_libre.occupants[0].donnees.get("type", "")).begins_with("chass"), "le lit libre des chasseurs accueille un chasseur du foyer")
 
-	# --- le joueur dort 8 h dans le lit libre des fermières (personne dedans de jour) ; heure, vie, magie justes
+	# --- le joueur dort 8 h dans un lit libre ; heure, vie, magie justes
 	m.cycle.heure = 22.0
 	vie._heure_prec = -1.0
 	vie.tick()
 	var lit_j: Lit = null
-	for l: Lit in sm.lits:
-		if l.libre() and l.place_libre() >= 0 and l.foyer == "chasseurs" and not l.double():
+	sm._reserve.clear()
+	sm._attrib.clear()
+	if dbl_l != null and dbl_l.place_libre() >= 0:
+		lit_j = dbl_l          # lit libre posé plus haut (personne de ce foyer : il reste libre la nuit)
+	for l: Lit in ([] if lit_j != null else sm.lits):
+		if l.libre() and l.place_libre() >= 0 and l.foyer == "chasseurs":
 			lit_j = l
 	if lit_j == null:
 		for l: Lit in sm.lits:
