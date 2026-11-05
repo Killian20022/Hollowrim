@@ -11,10 +11,11 @@ extends EnnemiBase
 ## Création : monde.creer_ennemi(load("res://scripts/bete_quat.gd"), pos, lacet, {"espece": "loup", "ident": "...", "meute": "m1"})
 ## ou, dans les données des lieux, {"ia": "loup" | "araignee" | "cerf" | "biche" | "renard"} (monde.SCRIPTS_IA ; l'espèce est
 ## reprise du nom d'IA, voir EnnemisNordiques._fabriquer_ia).
-## PRÉPARÉ pour le futur système d'apparition par biome / jour-nuit (NON codé ici) : ESPECES décrit chaque bête (hostile, meute,
-## biomes, heures) ; un générateur n'aura qu'à tirer dans cette table et appeler monde.creer_ennemi.
+## Apparition par biome / heure : scripts/faune.gd lit `biomes`, `heures` et `groupe` d'ESPECES (graine ZoneBiome.graine("faune")) et
+## crée les bêtes par monde.creer_ennemi. Il pilote aussi les domestiques (étable le soir, sommeil, husky suiveur) par les crochets
+## `aller_a`, `coucher`, `reveiller` et `suit_joueur` ci-dessous.
 
-enum { REPOS, ERRE, TRAQUE, ENCERCLE, ATTAQUE, TITUBE, FUITE }
+enum { REPOS, ERRE, TRAQUE, ENCERCLE, ATTAQUE, TITUBE, FUITE, SUIT }
 
 ## Fiche de chaque espèce. vitesses en m/s ; ref_* : vitesse que suppose le clip (pieds qui ne glissent pas) ; portee : morsure ;
 ## detection : il voit le joueur (hostile) ou s'effraie (faune) en deçà ; biomes / heures : pour le futur système d'apparition.
@@ -27,10 +28,10 @@ const ESPECES := {
 		"embuscade": true, "biomes": ["grotte", "crypte"], "heures": "toujours", "groupe": [1, 3]},
 	"cerf": {"pq": "pq_cerf2", "nom": "Cerf", "vie": 32.0, "degats": 0.0, "rayon": 0.38, "haut": 1.6, "profil": "gibier", "hostile": false,
 		"marche": 1.0, "course": 8.5, "ref_marche": 1.1, "ref_course": 7.0, "detection": 16.0, "impact": 1.1,
-		"biomes": ["foret", "clairiere"], "heures": "jour+aube", "groupe": [1, 3]},
+		"biomes": ["clairiere", "foret"], "heures": "aube+crepuscule", "groupe": [1, 3]},
 	"biche": {"pq": "pq_biche", "nom": "Biche", "vie": 26.0, "degats": 0.0, "rayon": 0.34, "haut": 1.3, "profil": "gibier", "hostile": false,
 		"marche": 1.0, "course": 8.0, "ref_marche": 1.05, "ref_course": 6.6, "detection": 18.0, "impact": 0.9,
-		"biomes": ["foret", "clairiere"], "heures": "jour+aube", "groupe": [1, 4]},
+		"biomes": ["clairiere", "foret"], "heures": "aube+crepuscule", "groupe": [1, 4]},
 	"renard": {"pq": "pq_renard", "nom": "Renard", "vie": 14.0, "degats": 0.0, "rayon": 0.22, "haut": 0.45, "profil": "gibier", "hostile": false,
 		"marche": 0.9, "course": 6.5, "ref_marche": 0.8, "ref_course": 5.0, "detection": 10.0, "impact": 0.3,
 		"biomes": ["foret", "abords_village"], "heures": "crepuscule+nuit", "groupe": [1, 1]},
@@ -69,6 +70,8 @@ var _duree_titube := 0.4
 var _repos := "Idle"
 var _seuil_bond := 1.0
 var attaques := 0          # morsures données (tests)
+var dort := false             # domestique couché pour la nuit (posé par Faune.coucher) : tête basse, clip Eat au ralenti
+var suit_joueur := false      # husky : suit le joueur tant que Faune l'autorise (état SUIT)
 
 static func espece_de(nom_ia: String) -> String:
 	return nom_ia if ESPECES.has(nom_ia) else "loup"
@@ -101,6 +104,7 @@ func en_combat() -> bool:
 
 func alerter() -> void:
 	degeler()
+	reveiller()
 	if etat in [REPOS, ERRE]:
 		_changer(TRAQUE if bool(fiche["hostile"]) else FUITE)
 
@@ -109,6 +113,29 @@ func point_impact() -> Vector3:
 
 func finisher_possible(_j: Node3D) -> String:
 	return ""      # aucune animation d'exécution pour les quadrupèdes
+
+## Crochets de Faune (domestiques) : le nouveau « chez soi » est `pos` (rayon d'errance réduit), la bête s'y rend à pied.
+func aller_a(pos: Vector3, rayon := 0.8) -> void:
+	dort = false
+	origine = pos
+	rayon_errance = rayon
+	_cible_errance = pos
+	if etat in [REPOS, ERRE]:
+		_changer(ERRE)
+
+func coucher() -> void:
+	if est_mort or dort or etat in [FUITE, SUIT]:
+		return
+	dort = true
+	_changer(REPOS)
+	_choisir_repos()
+
+func reveiller() -> void:
+	if not dort:
+		return
+	dort = false
+	anim.speed_scale = 1.0
+	_t_choix = 0.0
 
 func _changer(e: int) -> void:
 	etat = e
@@ -121,6 +148,7 @@ func _etat_coup() -> Dictionary:
 	return {"peut_bloquer": false, "en_attaque": etat == ATTAQUE, "coup_donne": _coup_donne}
 
 func _apres_degats(_r: Dictionary) -> void:
+	reveiller()
 	if bool(fiche["hostile"]):
 		_alerter_meute()
 		if etat in [REPOS, ERRE]:
@@ -172,6 +200,9 @@ func _ia(dt: float) -> void:
 					Sons.jouer_a(self, ["ambiance_loup"], global_position + Vector3.UP, -6.0, 0.15)
 			elif not hostile and dist < det and (dist < det * 0.5 or _voit(dt)):
 				_changer(FUITE)
+			elif suit_joueur:
+				reveiller()
+				_changer(SUIT)
 			elif etat == REPOS:
 				if _t_choix <= 0.0:
 					_choisir_repos()
@@ -249,6 +280,18 @@ func _ia(dt: float) -> void:
 					_cible_errance = origine
 				_changer(REPOS)
 				_choisir_repos()
+		SUIT:
+			# husky : rejoint le joueur (marche de près, trot de loin), s'arrête à ~2,5 m, rentre chez lui quand Faune le renvoie
+			if not suit_joueur or mort_j:
+				_cible_errance = origine
+				_changer(ERRE)
+			elif dist > 2.6:
+				mv = dir
+				face = dir
+				vitesse = maxf(float(fiche["marche"]), float(fiche["course"]) * minf(dist / 10.0, 1.0)) if dist > 5.0 else float(fiche["marche"])
+				loco = "Walk" if vitesse < 2.4 else ("Jog_Fwd" if anim.has_animation("Jog_Fwd") else "Walk")
+			else:
+				face = dir
 	_bouger(dt, mv, vitesse, loco, face, 6.0 if hostile else 4.0, _repos)
 	_vitesse_clip(loco)
 
@@ -281,6 +324,13 @@ func _nb_meute() -> int:
 ## Au repos : regarde, broute (Eat) ou se gratte (Idle_2) ; de temps en temps il erre dans son rayon.
 func _choisir_repos() -> void:
 	_t_choix = randf_range(4.0, 11.0)
+	if dort:                    # couché : tête basse (Eat) au quart de vitesse, ne bouge plus
+		_t_choix = randf_range(15.0, 25.0)
+		_repos = "Eat" if anim.has_animation("Eat") else "Idle"
+		_jouer(_repos, 0.6)
+		anim.speed_scale = 0.25
+		return
+	anim.speed_scale = 1.0
 	var r := randf()
 	if r < 0.35:
 		var a := randf() * TAU
@@ -313,6 +363,10 @@ func _mourir(origine_coup := Vector3.ZERO, _quantite := 20.0, _puissant := false
 	dir = dir.normalized() if dir.length() > 0.01 else -global_transform.basis.z
 	_jouer("Death" if anim.has_animation("Death") else "Death01", 0.1, true)
 	anim.speed_scale = 1.0
+	# un peu de poids : le corps est poussé dans le sens du coup et glisse en ralentissant (plus loin si le coup était puissant)
+	var glisse := (1.1 if _puissant else 0.6) * clampf(float(fiche.get("haut", 1.0)), 0.5, 1.6)
+	var tw := create_tween()
+	tw.tween_property(self, "global_position", global_position + dir * glisse, 0.55).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 	var point := point_impact()
 	combat.effets_mort(r if not r.is_empty() else {"info": {"point": point, "direction": dir, "normale": -dir}}, sorte if sorte != "" else "legere", joueur)
 	if bool(fiche["hostile"]) or not _contenu_butin().is_empty():

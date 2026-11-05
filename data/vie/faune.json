@@ -1,0 +1,45 @@
+{
+  "_doc": "Fiche de la faune (scripts/faune.gd). Les biomes, heures et tailles de groupe viennent de BeteQuat.ESPECES ; ici : ce qui n'y est pas (plafonds, affinités, domestiques). Heures : voir Faune.poids_heure.",
+  "graine": "faune",
+  "territoires": 44,
+  "espacement": 26.0,
+  "zone": 112.0,
+  "seuil_clairiere": 8.0,
+  "seuil_foret": 17.0,
+  "interdits": [
+    {"nom": "feu_de_camp", "x": 0.0, "z": 0.0, "r": 26.0},
+    {"nom": "cercle", "x": -38.0, "z": -34.0, "r": 22.0},
+    {"nom": "tumulus", "x": -38.0, "z": -50.0, "r": 22.0},
+    {"nom": "grotte", "x": 92.0, "z": -27.0, "r": 26.0},
+    {"nom": "village", "x": 44.0, "z": 40.0, "r": 40.0}
+  ],
+  "village": {"x": 44.0, "z": 40.0, "rayon": 52.0},
+  "apparition": {"dist_min": 46.0, "dist_max": 105.0, "dist_oubli": 135.0, "dist_gel": 90.0, "cadence": 1.5, "hors_plage": 0.2, "regen_heures": 24.0},
+  "plafonds": {"total": 9, "loup": 5, "cerf": 3, "biche": 4, "renard": 2},
+  "affinites": {
+    "loup": {"foret": 3.0, "plaine_neige": 1.0},
+    "cerf": {"clairiere": 3.0, "foret": 1.0},
+    "biche": {"clairiere": 3.0, "foret": 1.0},
+    "renard": {"foret": 1.0, "abords_village": 3.0}
+  },
+  "abris": [],
+  "domestiques": {
+    "soir": 19.0,
+    "nuit": 21.0,
+    "aube": 6.0,
+    "jour": 7.0,
+    "enclos": {
+      "A": {"couche": [[67.7, 39.7], [67.8, 41.5], [67.7, 43.2]]},
+      "B": {"couche": [[71.7, 40.0], [73.4, 39.9], [75.0, 40.1]]}
+    },
+    "liste": [
+      {"espece": "vache", "ident": "vache_enclos_a", "x": 65.7, "z": 40.0, "lacet": 100.0, "rayon": 0.9, "enclos": "A", "place": 0},
+      {"espece": "vache", "ident": "vache_enclos_b", "x": 66.0, "z": 43.3, "lacet": 250.0, "rayon": 0.9, "enclos": "A", "place": 2},
+      {"espece": "taureau", "ident": "taureau_enclos", "x": 66.9, "z": 41.6, "lacet": 60.0, "rayon": 0.8, "enclos": "A", "place": 1},
+      {"espece": "cheval", "ident": "cheval_pre", "x": 72.2, "z": 40.2, "lacet": 30.0, "rayon": 1.2, "enclos": "B", "place": 0},
+      {"espece": "cheval_blanc", "ident": "cheval_blanc_pre", "x": 74.6, "z": 42.4, "lacet": 200.0, "rayon": 1.0, "enclos": "B", "place": 2},
+      {"espece": "ane", "ident": "ane_pre", "x": 73.4, "z": 43.4, "lacet": 120.0, "rayon": 0.8, "enclos": "B", "place": 1},
+      {"espece": "husky", "ident": "husky_chasseurs", "x": 59.0, "z": 32.2, "lacet": 150.0, "rayon": 2.0, "enclos": "", "suiveur": true}
+    ]
+  }
+}

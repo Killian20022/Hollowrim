@@ -1,0 +1,17 @@
+# nom monde x,z,lacet°,tangage° heure=  (planches faune avant/après : A loups du bois, B biches du pré nord, C meute de la plaine, D pré de l'est, E1/E2 enclos)
+A_06h monde -14,-19,0,-3 heure=6
+A_12h monde -14,-19,0,-3 heure=12
+A_22h monde -14,-19,0,-3 heure=22
+B_06h monde -4.3,-31,0,-3 heure=6
+B_12h monde -4.3,-31,0,-3 heure=12
+B_22h monde -4.3,-31,0,-3 heure=22
+C_06h monde -27,11,90,-3 heure=6
+C_12h monde -27,11,90,-3 heure=12
+C_22h monde -27,11,90,-3 heure=22
+D_06h monde 61,2,0,-3 heure=6
+D_12h monde 61,2,0,-3 heure=12
+D_22h monde 61,2,0,-3 heure=22
+E1_12h monde 60.5,41.3,-90,-4 heure=12
+E1_22h monde 60.5,41.3,-90,-4 heure=22
+E2_12h monde 73.3,49.5,0,-4 heure=12
+E2_22h monde 73.3,49.5,0,-4 heure=22
