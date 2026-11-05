@@ -1,0 +1,4 @@
+# retours exe 5 (lot decor) : congères de l'entrée extérieure de la grotte (GrotteAcces)
+a_entree monde 80,-27,-90,-6 heure=12 sans-mains
+a_entree2 monde 83,-34,-55,-8 heure=12 sans-mains
+a_entree3 monde 83,-20,-125,-8 heure=12 sans-mains

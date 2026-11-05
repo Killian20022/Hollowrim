@@ -674,6 +674,80 @@ func _add(nom: String, pos: Vector3, lacet: float, ech: Vector3, incl := Basis()
 	var fam := nom.get_slice("_", 0)
 	stats[fam] = int(stats.get(fam, 0)) + 1
 
+## Retours exe 5 : congère du kit posée sur la PENTE réelle (sol presque plat, < PENTE_KIT ; au-delà : congère drapée du décor) (elle était debout, base plate, au point du sol de son centre : un bord
+## flottait au-dessus de la pente, l'autre s'enterrait). Le gabarit est CISAILLÉ selon le plan du sol (sa base épouse la pente, sa
+## hauteur reste verticale : la neige se tasse, elle ne bascule pas), étiré et tassé vers l'aval sur une pente, et descendu du plus
+## grand creux du sol sous son disque (aucun vide sous le bord). Pente trop raide, marche ou rebord sous le disque : pas de congère.
+var neige_poses: Array = []        # [nom du gabarit, Transform3D, pente°, enfoncement, point visé] des congères posées (test_neige_pente)
+var neige_refus := 0               # congères non posées (pente trop raide, marche, vide sous le bord)
+const PENTE_KIT := 8.0             # au-delà (degrés), la congère du kit est remplacée par une congère drapée du décor
+func _neige(nom: String, q: Vector3, lacet: float, ech: Vector3) -> void:
+	var y_ref := q.y + ech.x * tan(deg_to_rad(GrotteDecor.PENTE_NEIGE)) + 0.3
+	var sol := func(x: float, z: float) -> float: return g.sol_objet(x, z, y_ref)
+	var pl := GrotteDecor.plan_neige(sol, q, ech.x * 1.2)
+	if pl.is_empty():
+		neige_refus += 1
+		return
+	for dq: Array in g.decor.neige_disques:                 # déjà sous une grande congère du décor : pas de seconde couche
+		if Vector2(q.x - (dq[0] as Vector3).x, q.z - (dq[0] as Vector3).z).length() < float(dq[1]) * 0.9:
+			neige_refus += 1
+			return
+	if float(pl["pente"]) >= PENTE_KIT:
+		# Retours exe 5 (2e passe) : en pente, le gabarit cisaillé devenait une plaque fine et anguleuse. À la place, une congère
+		# DRAPÉE du décor (sommet par sommet sur le sol, anneau du bas enterré, dôme arrondi), de même emprise et de même hauteur.
+		var hk := float(gab[nom]["h"]) * ech.y
+		if not g.decor.congere(q, ech.x * 1.05, maxf(hk, 0.08), hash(Vector2i(roundi(q.x * 100.0), roundi(q.z * 100.0))), sol, true):
+			neige_refus += 1
+		return
+	var k: float = pl["k"]
+	var grad: Vector2 = pl["grad"]
+	var aval: Vector2 = pl["aval"]
+	var cis := Basis(Vector3(1, grad.x, 0), Vector3(0, 1, 0), Vector3(0, grad.y, 1))     # (x, y, z) -> (x, y + gx·x + gz·z, z)
+	var et := Basis()
+	if k > 0.0:
+		var u := Vector3(aval.x, 0, aval.y)
+		var rot := Basis(Vector3.UP, atan2(-u.z, u.x))          # repère dont +x regarde l'aval
+		et = rot * Basis.from_scale(Vector3(1.0 + 0.3 * k, 1.0, 1.0)) * rot.inverse()
+	var B := Basis(Vector3.UP, lacet)
+	var incl := B.inverse() * cis * et * B
+	var e := Vector3(ech.x, ech.y * lerpf(1.0, 0.8, k), ech.z)
+	var c := q + Vector3(aval.x, 0, aval.y) * (0.1 * k * ech.x)
+	var y := float(pl["y"]) + grad.dot(Vector2(c.x - q.x, c.z - q.z)) - float(pl["creux"]) - 0.03
+	# contrôle exact : le bord du bas du gabarit, posé, sous le sol réel partout (le sol courbe entre deux échantillons du plan)
+	var xf := Transform3D(B * incl * Basis.from_scale(e), Vector3(c.x, y, c.z))
+	var depasse := -INF
+	for v: Vector3 in _bas_neige(nom):
+		var w := xf * v
+		var ys: float = sol.call(w.x, w.z)
+		if ys < -1e8:
+			continue                                # dans la roche (au-delà de la paroi) : bord caché
+		depasse = maxf(depasse, w.y - ys)
+	if depasse > -0.012 and depasse > -INF:
+		xf.origin.y -= depasse + 0.012
+	if xf.origin.y < y - 0.25:
+		neige_refus += 1
+		return                                      # sol trop creusé sous le bord : la congère serait avalée d'un côté
+	_add(nom, xf.origin, lacet, e, incl)
+	neige_poses.append([nom, xf, float(pl["pente"]), y - xf.origin.y, q])
+
+var _bas_neige_cache := {}
+## Sommets du bas d'un gabarit de congère (repère du gabarit) : son bord posé sur le sol.
+func _bas_neige(nom: String) -> PackedVector3Array:
+	if _bas_neige_cache.has(nom):
+		return _bas_neige_cache[nom]
+	var tous := PackedVector3Array()
+	for mat: String in gab[nom]["surf"]:
+		tous.append_array((gab[nom]["surf"][mat] as Dictionary)["v"])
+	var ymin := INF
+	for v in tous:
+		ymin = minf(ymin, v.y)
+	var bas := PackedVector3Array()
+	for v in tous:
+		if v.y < ymin + 0.02:
+			bas.append(v)
+	_bas_neige_cache[nom] = bas
+	return bas
+
 ## Base qui oriente l'axe +y du gabarit selon `axe` (grappes penchées vers le chemin).
 static func _vers(axe: Vector3) -> Basis:
 	var y := axe.normalized()
@@ -904,6 +978,8 @@ func _bloc(id: String, s: float, lat: float, rr: float, solide := true, petit :=
 		var fo := g.sol_objet(p.x, p.z, p.y + 0.3)
 		if fo > -1e8 and p.y - fo > 0.04:
 			p.y = fo
+		# retours exe 5 : dans une congère du décor, la roche s'y enfonce (sinon elle semble posée sur la neige)
+		p = g.decor.enfoncer_neige(p)
 	if g.decor.regles_pose and g._hauteurs(p.x, p.z).x > 1e8:      # lot D : hors de la galerie (dans la roche) : rien, mêmes tirages
 		if not petit and rr > 0.6 and r.randf() < 0.45:
 			r.randf(); r.randf_range(0.4, 0.6); r.randi_range(0, 7); r.randf(); r.randf_range(0.9, 1.3); r.randf_range(-0.4, 0.4)
@@ -1757,7 +1833,7 @@ func _generique(z: Dictionary) -> void:
 					var lat2 := cote * (VOIE + rn * 0.55 + r.randf_range(0.0, 0.7))
 					if absf(lat2) < w - 0.3 and libre(id, s, lat2, rn * 0.6, 0.5):
 						var q := g.sol_en(id, s, lat2)
-						_add("neige_%d" % r.randi_range(0, 2), q + Vector3(0, -0.03, 0), r.randf() * TAU, Vector3(rn, rn * r.randf_range(0.8, 1.3), rn))
+						_neige("neige_%d" % r.randi_range(0, 2), q, r.randf() * TAU, Vector3(rn, rn * r.randf_range(0.8, 1.3), rn))
 			s += r.randf_range(0.9, 1.8)
 		# 4. aiguilles de glace contre la paroi (couloirs froids seulement)
 		if sty == "neige" or sty == "glace" or sty == "strate":

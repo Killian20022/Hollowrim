@@ -1,0 +1,6 @@
+g_pente1 grotte 7,0,-20,-18 sans-mains
+g_pente2 grotte 10.5,-0.8,-80,-28 sans-mains
+g_pente3 grotte 15,0.3,160,-22 sans-mains
+g_pente4 grotte 5,0,15,-20 sans-mains
+g_pente5 grotte 12,-0.5,-60,-30 sans-mains
+g_pente6 grotte 9,0.8,100,-30 sans-mains

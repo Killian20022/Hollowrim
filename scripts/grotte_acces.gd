@@ -296,10 +296,10 @@ func _neige_glacons() -> void:
 		decor.pointe("c_roche_glace", Vector3(x, _toit(x, 0.0) * 0.55 + 0.3, 0.12), 0.06, -_rng.randf_range(0.3, 0.7), 4100 + k, 1.0, 5)
 	# congères : contre le front de roche et devant le seuil (sans collision)
 	for p: Array in [[-4.2, 2.2, 2.0, 0.5], [4.6, 1.6, 2.3, 0.55], [-7.4, 0.8, 2.6, 0.7], [7.2, 1.2, 2.4, 0.65], [0.6, 3.6, 1.7, 0.32], [-2.2, 5.6, 1.4, 0.28], [9.0, 5.0, 2.0, 0.4], [-9.5, 4.0, 2.2, 0.45]]:
-		decor.congere(_sol(p[0], p[1]), p[2], p[3], _rng.randi())
+		decor.congere(_sol(p[0], p[1]), p[2], p[3], _rng.randi(), _hl)
 	# talus de neige au pied du front, de part et d'autre de la voûte
 	for x: float in [-3.6, 3.6]:
-		decor.congere(_sol(x, 0.5), 1.1, 0.4, _rng.randi())
+		decor.congere(_sol(x, 0.5), 1.1, 0.4, _rng.randi(), _hl)
 
 func _signes_des_bandits() -> void:
 	# crânes sur piques de part et d'autre de la voûte
