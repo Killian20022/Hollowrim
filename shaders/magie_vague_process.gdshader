@@ -21,6 +21,7 @@ uniform float turb = 3.0;         // turbulence (m/s²)
 uniform vec4 arret = vec4(0.0, 0.0, 0.0, 0.0);   // xyz = point touché (monde), w = 1 si le jet touche quelque chose
 uniform vec3 arret_dir = vec3(0.0, 0.0, -1.0);   // direction du jet (monde) au point touché
 uniform float etale = 3.0;        // vieillissement après l'impact (×)
+uniform float proximite = 0.0;      // 0..1 : cible PROCHE (< ~4 m) — bouffées plus petites, écrasées plus vite : la cible reste lisible
 // SOUS-PAS d'émission : repère de l'émetteur à l'image précédente et durée de l'image. Chaque bouffée naît à un instant
 // tiré dans l'image écoulée : origine et direction interpolées entre les deux repères, déjà avancée du temps écoulé.
 // Le jet reste d'un seul tenant même quand on tourne vite (plus de chapelet image par image).
@@ -91,7 +92,7 @@ void process() {
 				// étalement plus doux qu'avant (0,7 → 0,45 de côté) : la vague s'écrase en boule au lieu de gicler en rayons
 				VELOCITY += (dl * 0.45 + vec3(0.0, 0.4, 0.0) - arret_dir) * vp * q;
 			}
-			k_age = etale;
+			k_age = etale * (1.0 + 1.2 * proximite);
 			COLOR.b = 1.0;   // écrasée : plus d'étirement (voir plus bas)
 		}
 	}
@@ -106,7 +107,7 @@ void process() {
 	}
 	CUSTOM.z += CUSTOM.w * DELTA * (1.0 - 0.6 * a);
 	// taille : gonfle vite au départ puis plus lentement (la flamme s'ouvre), chaque bouffée à sa mesure
-	float sz = mix(taille0, taille1, pow(min(a, 1.0), 0.6)) * (0.7 + 0.6 * COLOR.g);
+	float sz = mix(taille0, taille1, pow(min(a, 1.0), 0.6)) * (0.7 + 0.6 * COLOR.g) * (1.0 - proximite * (0.3 + 0.25 * COLOR.b));
 	// étirement dans le sens de la vitesse : les bouffées jeunes et rapides sont des LANGUES qui filent (le jet est
 	// continu à la sortie de la main), les vieilles, freinées, s'arrondissent. Axe Y = vitesse × étirement ; X = rayon.
 	float vl = length(VELOCITY);

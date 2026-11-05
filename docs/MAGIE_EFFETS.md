@@ -425,3 +425,18 @@ La découpe (corps, bruit n, mêmes échelles) est celle du feu : une seule mass
   après +1,64/+1,69/+1,52 ms, soit ≈ +0,4 ms (au-dessus du +0,15 visé) ; jet de flammes dans les mêmes conditions
   +2,0 à +2,5 ms. Levier si besoin : `GIVRE_N` (120).
 - Limite : en tournant vite (70°/s), le bout du cordon s'espace en bouffées séparées, comme le feu.
+
+
+## Pics de la nova en colonnes de quartz, jet de flammes à courte portée (nuit 2026-11-05, branche nuit/magie)
+
+Audit combat, écarts 8 et 9 :
+- **Pics de glace** (`GestionMagie._creer_pic`, palette « glace » seulement : nova gelée et jaillissement des impacts de glace) : la pyramide hexagonale à trois étages
+  (« cônes bleus plats ») devient une colonne de quartz à six pans irréguliers (fût, taille, épaule, tête taillée en biseau vers une pointe décalée), ~30 facettes à plat
+  de pentes différentes : le shader `magie_cristal` leur donne ses 3 tons plus le reflet, comme aux éclats de glace. Largeur : 0,26-0,38 de la hauteur (avant 0,18-0,28).
+  L'ancienne pyramide (`_creer_pic_pyramide`) sert toujours aux épines obscures et aux cristaux corrompus (inchangés).
+- **Jet de flammes à bout portant** (`magie_vague_process.gdshader`, uniforme `proximite`, `GestionMagie._vague_placer`) : sous 4 m de la cible touchée (pleine réduction à
+  1,5 m), les bouffées rétrécissent (−30 %, −55 % une fois écrasées), s'éteignent 2,2 fois plus vite sur la cible et la couverture baisse (opacité 1 → 0,55, fumée 0,55 → 0,2) ;
+  au-delà de 4 m, rien ne change. La cible reste lisible dans les flammes.
+- **« Pics encore visibles dans le film suivant »** (audit) : le code retire bien les pics à `fin + 0,45 s` et `tout_arreter` les vide ; les cônes bleus qui restent sur les
+  planches d'audit à partir du plan suivant la nova ont la FORME DE L'ANCIENNE PYRAMIDE même après ce changement : ce ne sont donc pas des pics de `pic()` (cause non trouvée, à
+  suivre ; sans la nova avant, le plan d'aura électrique est propre). Planches : `Desktop/Skyrim captures/nuit_2026-11-05/magie/planches/`.
