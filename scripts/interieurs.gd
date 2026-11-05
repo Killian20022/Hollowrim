@@ -14,9 +14,11 @@ const SHADER := preload("res://shaders/ps1_interieur.gdshader")
 const FLAMME_SHADER := preload("res://shaders/flamme_fixe.gdshader")
 const RAI_SHADER := preload("res://shaders/ps1_rai.gdshader")
 const F := 0.42
-const AMBIANT := Color(0.29, 0.24, 0.25)
+const AMBIANT := Color(0.52, 0.48, 0.55)   # nuit 2026-11-05 : relevée et moins brune (avant 0.29, 0.24, 0.25) ; le chaud vient du foyer, le froid des fenêtres
+const FROID := Color(0.50, 0.66, 1.0)      # appoint de fenêtre : lueur de lune / d'aurore
+const MAX_FROIDS := 2                      # lumières froides par bâtiment (coût GPU borné)
 const DECAL_PLAFOND := 0.27       # le lambris du plafond pend sous le plan du toit
-const FEU := Color(1.0, 0.56, 0.24)
+const FEU := Color(1.0, 0.66, 0.37)         # foyer moins saturé (avant 1.0, 0.56, 0.24)
 
 var v: Node3D                     # village
 var ip: Interieur
@@ -29,6 +31,7 @@ var rng := RandomNumberGenerator.new()
 var _flammes: Array = []          # [pos, échelle, phase]
 var _halos: Array = []            # [centre, normale, w, h, couleur]
 var _mats_statiques := {}
+var _froids := 0                  # lumières froides de fenêtre déjà posées
 
 ## Lot L6 : modules Blender du mobilier (sources_blender/scripts/mobilier_interieur.py → .dat, lu en bytes_to_var : aucun .glb,
 ## aucun matériau neuf dans le fil). {module: [[matière, arrays], …]} ; chargé une fois, au premier intérieur bâti.
@@ -57,19 +60,21 @@ static func materiaux() -> Dictionary:
 			var img: Image = ResourceLoader.load("res://assets/crypte/%s.res" % nom)
 			TexturesBati._cache[nom] = [ImageTexture.create_from_image(img), TexturesBati.relief_neutre()]
 	var d := {}
-	d["bois"] = _m("planches_h_int", Color(0.95, 0.9, 0.86), 64.0)
+	d["bois"] = _m("planches_h_int", Color(0.97, 0.93, 0.9), 64.0)
 	d["bois_v"] = _m("planches_v_int", Color(0.95, 0.9, 0.86), 64.0)
-	d["bois_sombre"] = _m("planches_h_int", Color(0.74, 0.66, 0.62), 64.0)
+	d["bois_sombre"] = _m("planches_h_int", Color(0.74, 0.69, 0.68), 64.0)
 	d["bois_suie"] = _m("planches_v_int", Color(0.42, 0.38, 0.38), 64.0)
 	d["bois_clair"] = _m("planches_v_int", Color(1.15, 1.08, 0.98), 64.0)
 	d["bois_table"] = _m("planches_h_int", Color(2.0, 1.8, 1.6), 64.0)      # lot 4 : plateaux de la halle plus clairs (la nourriture ressort)
 	d["ame"] = _m("planches_h_int", Color(0.3, 0.29, 0.32), 64.0)
-	d["rondin"] = _m("rondins_int", Color(1.12, 1.05, 1.0), 64.0, 0.9, true)
+	d["rondin"] = _m("rondins_int", Color(1.1, 1.05, 1.02), 64.0, 0.9, true)
+	d["rondin_b"] = _m("rondins_int", Color(0.84, 0.95, 1.12), 64.0, 0.9, true)      # bois gris-bleu, vieilli par la fumée froide
+	d["rondin_c"] = _m("rondins_int", Color(1.24, 1.0, 0.8), 64.0, 0.9, true)        # bois roux, plus frais
 	d["rondin_sombre"] = _m("rondins_int", Color(0.95, 0.87, 0.82), 64.0, 0.9, true)
 	d["bout"] = _m("bout_rondin", Color.WHITE, 64.0, 0.0, true)
-	d["pierre"] = _m("pierre_int", Color(1.04, 0.99, 0.94), 64.0, 0.9)
-	d["pierre_sombre"] = _m("pierre_int", Color(0.7, 0.65, 0.62), 64.0, 0.9)
-	d["brute"] = _m("pierre_int_s", Color(1.0, 0.96, 0.92), 64.0, 0.9)
+	d["pierre"] = _m("pierre_int", Color(0.9, 0.97, 1.08), 64.0, 0.9)          # pierre grise, un peu froide
+	d["pierre_sombre"] = _m("pierre_int", Color(0.62, 0.67, 0.76), 64.0, 0.9)
+	d["brute"] = _m("pierre_int_s", Color(0.92, 0.98, 1.06), 64.0, 0.9)
 	d["seche"] = _m("pierre_int", Color(1.0, 0.95, 0.9), 64.0, 1.0)
 	d["fer"] = _m("fer", Color(0.85, 0.87, 0.95))
 	d["fer_noir"] = _m("fer", Color(0.45, 0.45, 0.5))
@@ -79,7 +84,7 @@ static func materiaux() -> Dictionary:
 	d["herbe"] = _m("foin", Color(0.55, 0.78, 0.45))
 	d["jute"] = _m("foin", Color(0.78, 0.66, 0.5), 64.0, 0.7)          # toile de sac (lot L6)
 	d["argile"] = _m("argile", Color(1.05, 0.95, 0.9), 64.0, 0.4)      # cruches et bols tournés (lot L6)
-	d["peau"] = _m("peau", Color(0.95, 0.85, 0.78), 64.0)
+	d["peau"] = _m("peau", Color(0.88, 0.84, 0.82), 64.0)
 	d["peau_claire"] = _m("peau", Color(1.25, 1.15, 1.05), 64.0)
 	d["peau_sombre"] = _m("peau", Color(0.55, 0.48, 0.46), 64.0)
 	d["terre"] = _m("terre", Color.WHITE, 64.0)
@@ -206,6 +211,8 @@ func rondin(pos: Vector3, lacet: float, longueur: float, rayon: float, graine: i
 		return
 	var r := BatiGeo.rondin(longueur, rayon, graine, sag, graine % 4, float(graine % 9), 1.0)
 	var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, pente), pos)
+	if mat == "rondin" and graine % 3 != 0:       # rondins moins répétitifs : trois bois (teinte par la graine)
+		mat = "rondin_b" if graine % 3 == 1 else "rondin_c"
 	v._ajouter(_p(), (r[0] as BatiGeo.Maillage).arrays(), xf, M[mat])
 	v._ajouter(_p(), (r[1] as BatiGeo.Maillage).arrays(), xf, M["bout"])
 
@@ -590,6 +597,9 @@ func fenetre_cadre(x: float, y: float, z: float, face: float, demi_l := 0.35, de
 		bx(Vector3(x + sx * (demi_l + 0.03), y, zi), Vector3(0.08, demi_h * 2.0 + 0.16, 0.34), "bois_sombre")
 	bx(Vector3(x, y + demi_h + 0.04, zi), Vector3(demi_l * 2.0 + 0.14, 0.09, 0.34), "bois_sombre")
 	bx(Vector3(x, y - demi_h - 0.03, zi), Vector3(demi_l * 2.0 + 0.2, 0.07, 0.4), "bois")
+	if _froids < MAX_FROIDS:       # appoint froid : la lueur du dehors tombe de la fenêtre dans la pièce (sans vaciller)
+		_froids += 1
+		lumiere(Vector3(x, y - 0.1, zi - face * 0.7), 1.0, 4.2, FROID, 1.6, false)
 
 ## Murs : bandeau de poteaux d'angle et chaînages.
 func poteaux_angle() -> void:

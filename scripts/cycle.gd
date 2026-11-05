@@ -20,7 +20,7 @@ var ciel: ShaderMaterial
 ## « froid » = couleur de l'horizon et du brouillard hors du côté du soleil ; « chaud » = côté du soleil (crépuscule seulement) ;
 ## « fin » = distance (m) où le brouillard est total (SOCLE_TECHNIQUE §3 bis).
 const NUIT := {
-	"ambiant": Color(0.34, 0.41, 0.60), "ambiant_e": 0.52, "froid": Color(0.04, 0.07, 0.15), "fin": 62.0, "expo": 1.1,
+	"ambiant": Color(0.34, 0.41, 0.60), "ambiant_e": 0.52, "froid": Color(0.055, 0.10, 0.20), "fin": 62.0, "expo": 1.1,
 	"haut": Color(0.008, 0.014, 0.04), "glow": 0.88,
 }
 ## Jour (lot C3 « midi », réf. references/exterieurs_v2_planche.png, vues de jour) : ciel d'hiver dégagé bleu franc,

@@ -288,6 +288,18 @@ void fragment() {
 				}
 			}
 			vec3 nc = vec3(dx < 0.0 ? 0.6 : -0.6, 0.2, 0.77);
+			// nuit 2026-11-05 (relief du château) : les tours sont des CYLINDRES (normale qui tourne d'un bord à l'autre, flanc
+			// éclairé / flanc dans l'ombre) au lieu d'un aplat, les toits penchent vers le haut
+			for (int k2 = 0; k2 < 5; k2++) {
+				vec4 t2 = tours[k2];
+				float lx2 = dx - t2.x;
+				if (abs(lx2) <= t2.y + 0.5 && dy >= yb && dy < yb + t2.z + 2.0) {
+					nc = normalize(vec3(clamp(lx2 / (t2.y + 0.5), -1.0, 1.0) * -0.9, 0.2, 0.6));
+				}
+			}
+			if (ch > 1.5 && ch < 2.5) {
+				nc = normalize(vec3(nc.x * 0.8, 0.75, 0.45));
+			}
 			if (ch > 3.5) {
 				float vire = fract(dy / 6.0);
 				float cell_s = floor(dx / 3.0);
@@ -305,7 +317,12 @@ void fragment() {
 			} else if (ch > 1.5) {
 				sortie = coder(0.75, nc, 0.4);
 			} else if (ch > 0.5) {
-				sortie = coder(0.75, nc, 0.1);
+				// appareil de pierre : assises de 2 texels, joints décalés d'une assise à l'autre ; la valeur r (0..0,25) module
+				// la teinte de chaque pierre (plans_peints.gdshader), les joints sont plus sombres
+				float rang = floor(dy / 2.0);
+				float pierre = h21(vec2(floor((dx + 1.7 * mod(rang, 2.0)) / 3.0), rang));
+				float joint = (mod(dy, 2.0) < 1.0 && h21(vec2(rang, 5.0)) > 0.5) ? 0.0 : 1.0;
+				sortie = coder(0.75, nc, (0.05 + 0.18 * pierre) * (0.5 + 0.5 * joint));
 			}
 		}
 	}

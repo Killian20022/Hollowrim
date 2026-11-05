@@ -89,7 +89,7 @@ void fragment() {
 		// château et falaise
 		if (t.r < 0.25) {
 			// pierre du château (C6) : gris bleuté lisible, face au soleil nettement éclairée, sombre la nuit
-			col = vec3(0.085, 0.088, 0.105) * (ambiant * 1.1 + col_lum * 0.8 * (0.25 + 0.75 * ton));
+			col = vec3(0.085, 0.088, 0.105) * (ambiant * 1.1 + col_lum * 0.8 * (0.25 + 0.75 * ton)) * mix(0.62, 1.3, clamp(t.r / 0.23, 0.0, 1.0));   // pierre par pierre (peinture_plans)
 			v_fact = 0.3;
 		} else if (t.r < 0.5) {
 			col = neige_o * (ambiant * 1.3 + col_lum * 0.5);
@@ -111,16 +111,32 @@ void fragment() {
 		v_fact = 0.18;
 	}
 
+	float nuit = clamp(1.0 - jour, 0.0, 1.0);
 	// --- perspective aérienne du plan, plus forte au pied ; de jour voile léger en haut et bleu en bas
 	vec2 dh = normalize(wp.xz - CAMERA_POSITION_WORLD.xz + vec2(0.0001));
 	float k = smoothstep(-0.2, 1.0, dot(dh, sh));
 	vec3 hz = mix(horizon, horizon_chaud, crep * k);
 	float pied = 1.0 - smoothstep(base_el - 1.0, base_el + 2.5, el);
 	float bas_j = jour * (1.0 - smoothstep(base_el, base_el + 6.0, el));
-	float v = clamp(voile * mix(1.0, 0.55, jour) + (0.35 * pied + 0.35 * bas_j) * (1.0 - voile) + 0.25 * prof_f, 0.0, 0.95);
+	float v = clamp(voile * mix(1.0, 0.55, jour) + (0.35 * pied + 0.35 * bas_j) * (1.0 - voile) + 0.25 * prof_f + nuit * 0.12 * smoothstep(800.0, 2400.0, rayon), 0.0, 0.95);
 	hz = mix(hz, hz * vec3(0.72, 0.88, 1.25), bas_j);
 	// raccord (correctif lac_horizon) : le pied du plan se fond TOUT À FAIT dans la brume du monde (là où la vallée le
 	// laisse voir au-dessus du sol noyé), sinon un bord sombre « flotte » sur la bande de brouillard
 	float raccord = 1.0 - smoothstep(base_el - 1.0, base_el + 3.5, el);
-	ALBEDO = mix(mix(col, hz, v * v_fact), mix(horizon, horizon_chaud, crep * k), raccord);
+	// COUCHE DE BRUME du château (nuit 2026-11-05) : une nappe intermédiaire, devant la falaise et le bas des murs, le détache du
+	// ciel ET des montagnes (il ne fait plus « décor collé ») ; statique (aucun mouvement)
+	float brume_ch = 0.0;
+	if (classe >= 0.62 && classe < 0.87) {
+		float hc = (el - 10.5) / 26.0;   // 10,5° = pied de la falaise (arriere_plan.gd CHATEAU_EL), ~26° de haut
+		brume_ch = (0.62 * exp(-pow((hc - 0.3) / 0.11, 2.0)) + 0.38 * exp(-pow((hc - 0.06) / 0.1, 2.0))) * 0.9;
+		v = max(v, brume_ch);
+		v_fact = max(v_fact, mix(v_fact, 1.0, 0.8 * brume_ch));
+	}
+	vec3 fin_col = mix(mix(col, hz, v * v_fact), mix(horizon, horizon_chaud, crep * k), raccord);
+	// NUIT (2026-11-05) : teinte bleu des aurores posée APRÈS la brume (le plan retombait dans l'horizon noir) ; le pied
+	// (raccord) reste fondu dans le brouillard du monde ; la brume propre du plan est renforcée au loin (voir v)
+	if (classe < 0.87) {
+		fin_col += nuit * vec3(0.026, 0.055, 0.105) * (classe < 0.37 ? 1.0 : (classe < 0.62 ? 1.6 : 0.7)) * (0.6 + 0.4 * dif) * (1.0 - raccord);
+	}
+	ALBEDO = fin_col;
 }
