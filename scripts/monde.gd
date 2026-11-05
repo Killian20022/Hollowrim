@@ -681,7 +681,7 @@ func _villageois() -> void:
 	village.activer_interieurs(joueur, dialogue)   # portes des maisons (touche E)
 	services.poser(village, dialogue)              # lot E RPG : coffre loué chez Grima, coffre et râtelier de la maison
 	_uniques_village()
-	EtalMarchand.poser_village(village, self)   # objets monde : étals de Brodd et de Grima (stock du moment en 3D)
+	EtalMarchand.poser_village(village, self, not _arguments().has("capture"))   # pièces exposées après le chargement (EtalMarchand : exposition différée) ; objets monde : étals de Brodd et de Grima (stock du moment en 3D)
 	var promenade: Array = village.promenade
 	var rng_pts := RandomNumberGenerator.new()
 	rng_pts.seed = 20261020          # promenades des villageois reproductibles (captures)
@@ -703,14 +703,57 @@ func _villageois() -> void:
 		v.quetes = quetes
 		v.points = points
 		v.position = poste + Vector3(0, 0.05, 0)
-		add_child(v)
-		await _souffle()
+		if Jeu.chargement_etale and not _arguments().has("capture"):
+			_pnj_differes.append(v)   # naissance après le chargement, hors de la vue du joueur (_naissances_differees)
+		else:
+			add_child(v)
+			await _souffle()
 	if not _arguments().has("sans-gardes"):   # D/gardes_village : la garde du village (data/gardes.json) ; --sans-gardes : A/B
 		_chrono("  villageois : PNJ")
 		GardesVillage.peupler(self)
 		_chrono("  villageois : gardes")
 	vie = Vie.peupler(self)     # lot vie_pnj : planning jour/nuit, fuite, répliques (data/vie/) ; --sans-vie : A/B
 	_chrono("  villageois : vie")
+
+## Villageois dont la naissance est reportée APRÈS le chargement (écran de chargement : Jeu.chargement_etale) : créer leur corps
+## coûte 1,5 s (caches chauds) à 6 s (premier lancement) au chargement. Chacun naît dès qu'il est hors de la vue du joueur (trop loin
+## pour le brouillard, ou hors du champ de la caméra) : jamais d'apparition à l'écran ; au bout de DELAI_PNJ_MAX s tout naît quand même.
+## Un par image au plus, au rythme d'un toutes les 0,15 s (naissances espacées). La sauvegarde et le chargement de partie les voient
+## (`_tous_les_villageois`).
+const DELAI_PNJ_MAX := 25.0
+var _pnj_differes: Array[CharacterBody3D] = []
+var _pnj_pause := 0.0
+var _pnj_attente := 0.0
+
+func _tous_les_villageois() -> Array:
+	return get_tree().get_nodes_in_group("villageois") + _pnj_differes
+
+func _hors_de_vue(p: Vector3) -> bool:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null or joueur == null:
+		return true
+	if joueur.global_position.distance_to(p) > 65.0:   # au-delà du brouillard (50-60 m)
+		return true
+	for dy in [0.0, 0.9, 1.9]:
+		if cam.is_position_in_frustum(p + Vector3(0, dy, 0)):
+			return false
+	return true
+
+func _naissances_differees(dt: float) -> void:
+	if _pnj_differes.is_empty() or not pret:
+		return
+	_pnj_attente += dt
+	_pnj_pause -= dt
+	if _pnj_pause > 0.0:
+		return
+	var tout := _pnj_attente > DELAI_PNJ_MAX
+	for i in _pnj_differes.size():
+		var v := _pnj_differes[i]
+		if tout or _hors_de_vue(v.global_position if v.is_inside_tree() else v.position):
+			_pnj_differes.remove_at(i)
+			add_child(v)
+			_pnj_pause = 0.15
+			return
 
 # --- guerrier pilote (refonte des personnages) ------------------------------------
 
@@ -1321,6 +1364,10 @@ func _unhandled_input(e: InputEvent) -> void:
 					Jeu.relancer("continuer")   # l'écran titre du processus relancé charge aussitôt la partie
 
 func _exit_tree() -> void:
+	for v in _pnj_differes:   # villageois jamais nés (monde quitté avant leur naissance)
+		if is_instance_valid(v):
+			v.free()
+	_pnj_differes.clear()
 	CachePersos.ecrire_en_attente()   # corps bâtis pendant le chargement, rangés pour les lancements suivants (différé : cache_persos.gd)
 	Palette.vider()
 	TexturesBati.vider()
@@ -1347,7 +1394,7 @@ func sauvegarder() -> void:
 		if not morts.has(id):
 			morts.append(id)
 	var parles := []
-	for v in get_tree().get_nodes_in_group("villageois"):
+	for v in _tous_les_villageois():
 		if v.get("deja_parle"):
 			parles.append(v.donnees.get("id", ""))
 	var donnees := {
@@ -1454,13 +1501,14 @@ func charger() -> void:
 	if vie != null and d.get("vie") is Dictionary:
 		vie.restaurer(d["vie"])
 	var parles: Array = d.get("villageois_parles", [])
-	for v in get_tree().get_nodes_in_group("villageois"):
+	for v in _tous_les_villageois():
 		if v.donnees.get("id", "") in parles:
 			v.deja_parle = true
 
 func _process(dt: float) -> void:
 	_t += dt
 	_brume_locale(dt)
+	_naissances_differees(dt)
 	if _sous_terre_actif:
 		_gel_ext_t += dt
 		if _gel_ext_t > 1.0:
@@ -1499,17 +1547,46 @@ func _brume_locale(dt: float, net := false) -> void:
 		var a := k * TAU / 8.0
 		moy += hauteur(p.x + cos(a) * 20.0, p.z + sin(a) * 20.0) / 8.0
 	var relief := clampf((p.y - moy) * 0.05, -0.2, 0.25)
-	var n := 0
-	for t: Transform3D in arbres:
-		var dx := t.origin.x - p.x
-		var dz := t.origin.z - p.z
-		if dx * dx + dz * dz < 196.0:  # 14 m
-			n += 1
+	var n := arbres_autour(p, 14.0)
 	var foret := -0.15 * clampf(n / 24.0, 0.0, 1.0)
 	_brume_cible = 1.0 + relief + foret
 	if net:
 		cycle.local = _brume_cible
 		cycle.appliquer_brume()
+
+## Grille spatiale des arbres (cases de CASE_ARBRES m, positions x/z) : « combien d'arbres à moins de r m ? » ne parcourt que les
+## cases voisines (≤ 9) au lieu des ~1 300 arbres (avant : boucle sur tous les arbres toutes les 0,4 s ; ×4 de surface = ×4 de coût).
+## Bâtie à la demande, refaite si le nombre d'arbres change.
+const CASE_ARBRES := 14.0
+var _grille_arbres := {}   # Vector2i -> PackedVector2Array
+var _grille_arbres_n := -1
+
+func _bati_grille_arbres() -> void:
+	_grille_arbres.clear()
+	for t: Transform3D in arbres:
+		var c := Vector2i(floori(t.origin.x / CASE_ARBRES), floori(t.origin.z / CASE_ARBRES))
+		var pts: PackedVector2Array = _grille_arbres.get(c, PackedVector2Array())   # tableau compact = valeur : on le ré-écrit
+		pts.append(Vector2(t.origin.x, t.origin.z))
+		_grille_arbres[c] = pts
+	_grille_arbres_n = arbres.size()
+
+## Nombre d'arbres à moins de `rayon` m (strictement) de `p` en x/z ; `rayon` ≤ CASE_ARBRES.
+func arbres_autour(p: Vector3, rayon: float) -> int:
+	if _grille_arbres_n != arbres.size():
+		_bati_grille_arbres()
+	var cx := floori(p.x / CASE_ARBRES)
+	var cz := floori(p.z / CASE_ARBRES)
+	var r2 := rayon * rayon
+	var n := 0
+	for i in range(cx - 1, cx + 2):
+		for k in range(cz - 1, cz + 2):
+			var pts: PackedVector2Array = _grille_arbres.get(Vector2i(i, k), PackedVector2Array())
+			for q: Vector2 in pts:
+				var dx := q.x - p.x
+				var dz := q.y - p.z
+				if dx * dx + dz * dz < r2:
+					n += 1
+	return n
 
 var _brume_cible := 1.0
 var _sous_terre_actif := false
