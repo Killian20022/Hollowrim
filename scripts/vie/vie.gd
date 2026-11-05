@@ -73,18 +73,25 @@ func _enregistrer() -> void:
 		dir.y = 0.0
 		_portes[id] = {"pos": p, "dir": dir.normalized()}
 	for n in get_tree().get_nodes_in_group("villageois"):
-		if n.is_in_group("gardes_village") or not n.has_method("rentrer"):
-			continue
-		var d: Dictionary = n.donnees
-		var id: String = d.get("id", "")
-		n.vie = self
-		civils.append({"n": n, "id": id, "f": EmploiDuTemps.fiche(id, String(d.get("type", ""))), "mode": "", "fuit": false,
-			"danger_t": -1.0e9, "porte": Vector3.ZERO, "abri": "", "retour_t": -1.0e9})
+		ajouter(n)
 	if FileAccess.file_exists(DONNEES_REPLIQUES):
 		var j: Variant = JSON.parse_string(FileAccess.get_file_as_string(DONNEES_REPLIQUES))
 		if j is Dictionary:
 			_repliques = j
 	print("Vie : %d civils, %d portes" % [civils.size(), _portes.size()])
+
+## Inscrit un civil (appelé aussi par monde._naissances_differees pour les villageois nés après le chargement).
+func ajouter(n: Node) -> void:
+	if n == null or n.is_in_group("gardes_village") or not n.has_method("rentrer"):
+		return
+	for c in civils:
+		if c["n"] == n:
+			return
+	var d: Dictionary = n.donnees
+	var id: String = d.get("id", "")
+	n.vie = self
+	civils.append({"n": n, "id": id, "f": EmploiDuTemps.fiche(id, String(d.get("type", ""))), "mode": "", "fuit": false,
+		"danger_t": -1.0e9, "porte": Vector3.ZERO, "abri": "", "retour_t": -1.0e9})
 
 func de_nuit() -> bool:
 	var h := _heure()

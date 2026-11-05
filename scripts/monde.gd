@@ -752,6 +752,8 @@ func _naissances_differees(dt: float) -> void:
 		if tout or _hors_de_vue(v.global_position if v.is_inside_tree() else v.position):
 			_pnj_differes.remove_at(i)
 			add_child(v)
+			if vie != null:
+				vie.ajouter(v)   # lot vie_pnj × chargement : le civil né après le chargement rejoint l'emploi du temps
 			_pnj_pause = 0.15
 			return
 
