@@ -114,10 +114,14 @@ func _tester() -> void:
 	# 7. un ennemi tué reste mort si la sauvegarde le dit
 	jeu.reinitialiser(["bandit_0"])
 	j.global_position = g.monde_sol(306.0, 0.0) + Vector3(0, 0.2, 0)
-	for i in 8:
+	# au camp, les postes à moins de DIST_APPARITION sont nombreux (arrière-garde de la mine, bêtes du lac : retours exe 5,
+	# factions) et une apparition lourde prend un passage à elle seule : on laisse passer la file (24 passages au plus)
+	for i in 24:
 		jeu._t = 1.0
 		jeu.tick(0.0)
-	_verif(not jeu.ennemis.has("bandit_0") and jeu.ennemis.has("bandit_1"), "bandit_0 tué dans la sauvegarde : ne revient pas ; les autres reviennent")
+		if jeu.ennemis.has("bandit_1"):
+			break
+	_verif(not jeu.ennemis.has("bandit_0") and jeu.ennemis.has("bandit_1"), "bandit_0 tué dans la sauvegarde : ne revient pas ; les autres reviennent %s" % [jeu.ennemis.keys()])
 	# 8. lumières : au plus MAX_LUM allumées
 	var allumees := 0
 	for l: OmniLight3D in g.decor.toutes:

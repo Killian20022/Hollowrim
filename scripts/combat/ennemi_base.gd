@@ -39,6 +39,10 @@ var degats := 15.0
 var vie_imposee := 0.0
 var degats_imposes := 0.0
 var contourne := true
+## Faction (data/factions.json) : vide = déduite du script (Factions.de) ; posée par le lieu si besoin.
+var faction := ""
+## Ennemi d'une faction hostile qu'il combat (Rivalites), pour les IA qui le gèrent (BeteQuat) ; null = le joueur seul.
+var rival: Node3D
 var modele: Node3D
 var anim: AnimationPlayer
 var combat: CombatEnnemi
@@ -179,7 +183,11 @@ func _physics_process(dt: float) -> void:
 
 ## Distance et direction horizontales vers le joueur ; un étage d'écart (> 3,5 m) = hors d'atteinte (1000 m).
 func _vers_joueur() -> Dictionary:
-	var v := joueur.global_position - global_position
+	return _vers(joueur)
+
+## Même mesure vers n'importe quelle cible (joueur ou rival).
+func _vers(n: Node3D) -> Dictionary:
+	var v := n.global_position - global_position
 	var dy := absf(v.y)
 	v.y = 0.0
 	var d := v.length()

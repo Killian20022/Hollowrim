@@ -328,7 +328,8 @@ func effets_impact(r: Dictionary, joueur: Node) -> void:
 		RetourImpact.son(corps, "chair_gore", point, p.volume_db - 3.0, 0.7)   # chair épaisse (troll) : impact sourd
 	if r["reaction"] in ["moyen", "lourd", "recul", "chute"] and randf() < 0.6:
 		RetourImpact.cri(corps, "douleur", point, profil.matiere, profil.mort_vivant)
-	RetourImpact.jouer(corps, p, joueur)
+	if not bool(i.get("rival", false)):        # coup d'un autre ennemi (Rivalites) : ni arrêt sur image ni secousse pour le joueur
+		RetourImpact.jouer(corps, p, joueur)
 	if reaction_os:
 		# réaction selon la zone, la direction de la lame et la puissance : léger = sursaut nerveux, lourd = le corps encaisse
 		var f := {"leger": 0.18, "moyen": 0.32, "lourd": 0.55, "recul": 0.7, "chute": 0.6, "etourdi": 0.6}
@@ -417,7 +418,8 @@ func effets_mort(r: Dictionary, sorte: String, joueur: Node) -> void:
 	corps.get_tree().create_timer(0.55 if sorte != "titubante" else 0.9).timeout.connect(func() -> void:
 		if is_instance_valid(c2) and c2.is_inside_tree():
 			RetourImpact.son_chute(c2, c2.global_position))
-	RetourImpact.jouer(corps, p, joueur)
+	if not bool(i.get("rival", false)):
+		RetourImpact.jouer(corps, p, joueur)
 	if reaction_os:
 		reaction_os.active = false
 	if debug:

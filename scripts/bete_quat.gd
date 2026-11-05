@@ -5,8 +5,9 @@ extends EnnemiBase
 ## couleurs de la bible, AnimationPlayer « Animations », clips Idle / Walk / Run / Attack / Death / Hit (+ Eat, Idle_2 du pack
 ## « Ultimate Animated Animals ») et alias Jog_Fwd / Sword_Idle / Death01 / Hit_Chest du contrat des ennemis).
 ## Socle EnnemiBase : CombatEnnemi (dégâts, posture, sang), signal `mort` (sauvegarde : draugrs_morts), gel, butin.
-## Différences avec les humanoïdes : pas de PiedsAuSol ni de ragdoll (squelettes d'animaux) : la mort joue le clip Death ; pas de
-## finisher ni de démembrement.
+## Différences avec les humanoïdes : pas de PiedsAuSol ni de ragdoll (squelettes d'animaux) : la mort joue le clip Death (l'araignée,
+## une mort calculée : MortAraignee) ; pas de finisher ni de démembrement. Faction (data/factions.json) tirée de l'espèce ; une bête
+## hostile combat les ennemis des factions hostiles qu'elle croise (Rivalites).
 ##
 ## Création : monde.creer_ennemi(load("res://scripts/bete_quat.gd"), pos, lacet, {"espece": "loup", "ident": "...", "meute": "m1"})
 ## ou, dans les données des lieux, {"ia": "loup" | "araignee" | "cerf" | "biche" | "renard"} (monde.SCRIPTS_IA ; l'espèce est
@@ -72,6 +73,7 @@ var _seuil_bond := 1.0
 var attaques := 0          # morsures données (tests)
 var dort := false             # domestique couché pour la nuit (posé par Faune.coucher) : tête basse, clip Eat au ralenti
 var suit_joueur := false      # husky : suit le joueur tant que Faune l'autorise (état SUIT)
+var _t_rival := 0.0
 
 static func espece_de(nom_ia: String) -> String:
 	return nom_ia if ESPECES.has(nom_ia) else "loup"
@@ -181,19 +183,21 @@ func _ia(dt: float) -> void:
 		return
 	_cd_attaque -= dt
 	_t_choix -= dt
-	var vj := _vers_joueur()
-	var dist: float = vj["dist"]
-	var dir: Vector3 = vj["dir"]
-	var mort_j: bool = joueur.get("mort") == true
 	var hostile := bool(fiche["hostile"])
 	var det := float(fiche["detection"])
+	# cible : le joueur, ou une bête / un ennemi d'une faction hostile plus proche que lui (Rivalites : araignée contre pillard…)
+	var c := _cible_du_moment(dt, hostile, det)
+	var vj := _vers(c)
+	var dist: float = vj["dist"]
+	var dir: Vector3 = vj["dir"]
+	var mort_j: bool = (joueur.get("mort") == true) if c == joueur else not Rivalites.vivant(c)
 	var mv := Vector3.ZERO
 	var vitesse := 0.0
 	var loco := ""
 	var face := Vector3.ZERO
 	match etat:
 		REPOS, ERRE:
-			if hostile and not mort_j and dist < det * (0.6 if fiche.get("embuscade", false) else 1.0) and _voit(dt):
+			if hostile and not mort_j and dist < det * (0.6 if fiche.get("embuscade", false) else 1.0) and (c != joueur or _voit(dt)):
 				_changer(TRAQUE)
 				_alerter_meute()
 				if espece == "loup":
@@ -241,7 +245,7 @@ func _ia(dt: float) -> void:
 					_attaquer()
 			else:
 				_angle_meute += dt * 0.45
-				var autour := joueur.global_position + Vector3(sin(_angle_meute), 0, cos(_angle_meute)) * 3.2
+				var autour := c.global_position + Vector3(sin(_angle_meute), 0, cos(_angle_meute)) * 3.2
 				var v := autour - global_position
 				v.y = 0.0
 				if v.length() > 0.4:
@@ -256,7 +260,10 @@ func _ia(dt: float) -> void:
 				var avant := global_transform.basis.z
 				if dist < float(fiche["portee"]) + 0.5 and avant.dot(dir) > 0.4 and not mort_j:
 					attaques += 1
-					joueur.recevoir_coup(degats, global_position, {"recul": 3.0, "secousse": 0.35, "type": "physique"})
+					if c == joueur:
+						joueur.recevoir_coup(degats, global_position, {"recul": 3.0, "secousse": 0.35, "type": "physique"})
+					else:
+						Rivalites.frapper(self, c, degats)
 			if _t > duree:
 				_cd_attaque = randf_range(1.2, 2.2) * (1.0 + 0.35 * (_nb_meute() - 1))   # meute : chacun son tour
 				if fiche.get("meute", false) and _nb_meute() > 1:
@@ -294,6 +301,19 @@ func _ia(dt: float) -> void:
 				face = dir
 	_bouger(dt, mv, vitesse, loco, face, 6.0 if hostile else 4.0, _repos)
 	_vitesse_clip(loco)
+
+## Cible de l'image (Rivalites) : seules les bêtes hostiles ont un rival ; la faune fuit le joueur et ignore le reste.
+func _cible_du_moment(dt: float, hostile: bool, det: float) -> Node3D:
+	if not hostile:
+		return joueur
+	_t_rival -= dt
+	if _t_rival <= 0.0:
+		_t_rival = Rivalites.PERIODE
+		if rival != null and (not Rivalites.vivant(rival) or global_position.distance_to(rival.global_position) > det * 2.2):
+			rival = null
+		if rival == null:
+			rival = Rivalites.chercher(self, det * (0.6 if fiche.get("embuscade", false) else 1.0) if etat in [REPOS, ERRE] else det)
+	return Rivalites.cible(self, rival, joueur)
 
 ## Vitesse des clips selon l'espèce (EnnemiBase règle Walk / Jog_Fwd sur les références humaines).
 func _vitesse_clip(loco: String) -> void:
@@ -345,8 +365,12 @@ func _choisir_repos() -> void:
 		_repos = "Idle"
 	_jouer(_repos, 0.4)
 
-# ------------------------------------------------------------------ mort (sans ragdoll : clip Death)
+# ------------------------------------------------------------------ mort (sans ragdoll : clip Death, ou MortAraignee)
 
+## Mort : clip Death (loup, gibier, domestiques) ; l'araignée bascule sur le dos, pattes repliées, par une animation calculée sur sa pose
+## (MortAraignee : le clip Death du pack la laissait ventre en l'air, perchée sur des pattes tendues). Le corps glisse un peu dans le sens
+## du coup puis se POSE : la destination est prise sur le sol (rayon) et le corps s'aligne sur la pente ; ensuite plus rien ne le bouge
+## (EnnemiBase._physics_process s'arrête au cadavre). Jamais de ragdoll, de finisher ni de démembrement sur une bête.
 func _mourir(origine_coup := Vector3.ZERO, _quantite := 20.0, _puissant := false, r: Dictionary = {}, sorte := "") -> void:
 	if est_mort:
 		return
@@ -361,13 +385,59 @@ func _mourir(origine_coup := Vector3.ZERO, _quantite := 20.0, _puissant := false
 	var dir := global_position - origine_coup
 	dir.y = 0.0
 	dir = dir.normalized() if dir.length() > 0.01 else -global_transform.basis.z
-	_jouer("Death" if anim.has_animation("Death") else "Death01", 0.1, true)
 	anim.speed_scale = 1.0
-	# un peu de poids : le corps est poussé dans le sens du coup et glisse en ralentissant (plus loin si le coup était puissant)
-	var glisse := (1.1 if _puissant else 0.6) * clampf(float(fiche.get("haut", 1.0)), 0.5, 1.6)
+	var sq := modele.find_child("Skeleton3D", true, false) as Skeleton3D
+	if espece == "araignee" and sq != null and anim.has_animation("Death"):
+		var chemin := String(anim.get_animation("Death").track_get_path(0).get_concatenated_names())
+		var local := modele.global_transform.basis.inverse() * dir
+		var lib := AnimationLibrary.new()
+		lib.add_animation("araignee", MortAraignee.animation(sq, chemin, 1.0 if local.x < 0.0 else -1.0, modele))
+		if anim.has_animation_library("mort"):
+			anim.remove_animation_library("mort")
+		anim.add_animation_library("mort", lib)
+		_anim = "mort/araignee"
+		anim.stop()
+		anim.play("mort/araignee", 0.0)
+	else:
+		_jouer("Death" if anim.has_animation("Death") else "Death01", 0.1, true)
+	# un peu de poids : poussé dans le sens du coup, il glisse en ralentissant puis se pose sur le sol (et sur la pente)
+	var glisse := (0.7 if _puissant else 0.35) * clampf(float(fiche.get("haut", 1.0)), 0.5, 1.6)
+	var but := global_position + dir * glisse
+	var sol := _sol_normale(but)
+	if sol.is_empty():
+		sol = _sol_normale(global_position)
+		but = global_position
+	var arrivee := global_position
+	var cible_base := global_basis
+	if not sol.is_empty():
+		arrivee = Vector3(but.x, (sol["p"] as Vector3).y, but.z)
+		var n: Vector3 = sol["n"]
+		var av := global_basis.z - n * global_basis.z.dot(n)
+		if av.length() > 0.01 and n.dot(Vector3.UP) > 0.5:
+			cible_base = Basis.looking_at(-av.normalized(), n).orthonormalized().scaled(global_basis.get_scale())
+	var q0 := global_basis.get_rotation_quaternion()
+	var q1 := cible_base.get_rotation_quaternion()
+	var echelle := global_basis.get_scale()
+	var p0 := global_position
 	var tw := create_tween()
-	tw.tween_property(self, "global_position", global_position + dir * glisse, 0.55).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	tw.tween_method(func(t: float) -> void:
+		if is_instance_valid(self):
+			global_position = p0.lerp(arrivee, t)
+			global_basis = Basis(q0.slerp(q1, t)).scaled(echelle), 0.0, 1.0, 0.55).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 	var point := point_impact()
 	combat.effets_mort(r if not r.is_empty() else {"info": {"point": point, "direction": dir, "normale": -dir}}, sorte if sorte != "" else "legere", joueur)
 	if bool(fiche["hostile"]) or not _contenu_butin().is_empty():
 		_laisser_butin()
+
+## Sol sous `p` (rayon vertical qui ignore les créatures et le joueur) : {"p": point, "n": normale}, {} si rien.
+func _sol_normale(p: Vector3) -> Dictionary:
+	var q := PhysicsRayQueryParameters3D.create(p + Vector3(0, 1.2, 0), p - Vector3(0, 3.0, 0))
+	var ex: Array[RID] = [get_rid()]
+	if joueur != null:
+		ex.append(joueur.get_rid())
+	for e in get_tree().get_nodes_in_group("ennemis"):
+		if e is CollisionObject3D:
+			ex.append((e as CollisionObject3D).get_rid())
+	q.exclude = ex
+	var h := get_world_3d().direct_space_state.intersect_ray(q)
+	return {} if h.is_empty() else {"p": h["position"], "n": h["normal"]}

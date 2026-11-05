@@ -88,6 +88,12 @@ var degats_tir := 10.0
 var reveil_evt := ""
 var boss := ""
 var zombie := false
+## Faction (data/factions.json) : posée par le lieu (grotte_jeu : « pillard » pour les bandits) ; vide = déduite (Factions.de).
+var faction := ""
+## Ennemi d'une faction hostile qu'il combat (Rivalites) ; null = il ne s'occupe que du joueur.
+var rival: Node3D
+var _t_rival := 0.0
+var _menace_base := false      # _menace hors combat contre un rival (séries, geste annoncé, contournement : réservés au joueur)
 var _attend := false           # endormi jusqu'à l'événement reveil_evt
 var _p_i := 0
 var _p_pause := 0.0
@@ -219,6 +225,7 @@ func _ready() -> void:
 	if degats_imposes > 0.0:
 		degats = degats_imposes
 	_menace = boss == "" and not archer
+	_menace_base = _menace
 	if _menace:
 		_rythme *= ReglagesCombat.MENACE_RYTHME
 		_cd_lourd = randf_range(ReglagesCombat.MENACE_LOURD_PREMIER.x, ReglagesCombat.MENACE_LOURD_PREMIER.y)
@@ -418,6 +425,20 @@ func _ligne_de_vue() -> bool:
 func vivant() -> bool:
 	return etat != MORT
 
+## Cible de l'image : le rival (faction hostile, Rivalites) s'il est plus près que le joueur, sinon le joueur. Les chefs et les archers
+## n'ont pas de rival (leurs pouvoirs et leurs tirs visent le joueur) ; un dormeur n'en cherche pas (un coup le réveille et le lui donne).
+func _cible_du_moment(dt: float) -> Node3D:
+	if archer or boss != "":
+		return joueur
+	_t_rival -= dt
+	if _t_rival <= 0.0:
+		_t_rival = Rivalites.PERIODE
+		if rival != null and (not Rivalites.vivant(rival) or global_position.distance_to(rival.global_position) > ABANDON):
+			rival = null
+		if rival == null and etat not in [DORT, REVEIL]:
+			rival = Rivalites.chercher(self, DETECTION)
+	return Rivalites.cible(self, rival, joueur)
+
 func en_combat() -> bool:
 	return etat in [TRAQUE, ATTAQUE, TITUBE, VISE, APPEL, ANNONCE, SOUFFLE, ETOURDI, CHUTE]
 
@@ -501,13 +522,17 @@ func _physics_process(dt: float) -> void:
 	_lateral = Vector3.ZERO
 	if not is_on_floor():
 		velocity.y -= GRAVITE * dt
-	var vers := joueur.global_position - global_position
+	# cible : le joueur, ou un ennemi d'une faction hostile plus proche que lui (Rivalites) ; contre un rival, coups ordinaires seulement
+	var c := _cible_du_moment(dt)
+	var c_mort: bool = joueur.mort if c == joueur else not Rivalites.vivant(c)
+	_menace = _menace_base and c == joueur
+	var vers := c.global_position - global_position
 	vers.y = 0.0
 	var dist := vers.length()
 	var dir := vers / dist if dist > 0.01 else Vector3.ZERO
 	# Étages différents (crypte sous le cercle de pierres, joueur au-dessus ou l'inverse) : il ne
 	# l'entend ni ne le voit, et ne peut pas le frapper à travers le sol.
-	var ecart_y := absf(joueur.global_position.y - global_position.y)
+	var ecart_y := absf(c.global_position.y - global_position.y)
 	if ecart_y > (7.0 if archer else 3.5):
 		dist = 1000.0
 	elif ecart_y > 3.5 and dist < PORTEE + 1.0:
@@ -520,7 +545,7 @@ func _physics_process(dt: float) -> void:
 	match etat:
 		DORT:
 			regard = false
-			if dist < REVEIL_DISTANCE and not joueur.mort and not _attend:
+			if dist < REVEIL_DISTANCE and not c_mort and not _attend:
 				_changer(REVEIL)
 				_reveiller()
 				Sons.jouer_a(self, ["giant1", "giant2", "giant3"], global_position + Vector3.UP, -2.0, 0.15)
@@ -538,7 +563,7 @@ func _physics_process(dt: float) -> void:
 			else:
 				regard = false
 				_jouer("Sword_Idle")
-			if dist < DETECTION and not joueur.mort:
+			if dist < DETECTION and not c_mort:
 				_changer(TRAQUE)
 				Sons.jouer_a(self, ["mnstr1", "mnstr2", "mnstr3", "mnstr4"], global_position + Vector3.UP, -4.0, 0.15)
 		PATROUILLE:
@@ -557,11 +582,11 @@ func _physics_process(dt: float) -> void:
 					vitesse = _marche * 0.85
 					loco = "Walk"
 			# détection : à plus de 8 m, il lui faut voir le joueur (pas de repérage à travers les murs)
-			if dist < DETECTION and not joueur.mort and (dist < 8.0 or _voit(dt)):
+			if dist < DETECTION and not c_mort and (dist < 8.0 or c != joueur or _voit(dt)):
 				_changer(TRAQUE)
 				Sons.jouer_a(self, ["mnstr1", "mnstr2", "mnstr3", "mnstr4"], global_position + Vector3.UP, -4.0, 0.15)
 		TRAQUE:
-			if joueur.mort or dist > ABANDON:
+			if c_mort or dist > ABANDON:
 				_p_i = _plus_proche() if not patrouille.is_empty() else 0
 				_changer(PATROUILLE if not patrouille.is_empty() else GARDE)
 			elif boss == "hrafn" and not _cri_fait:
@@ -701,7 +726,9 @@ func _physics_process(dt: float) -> void:
 					_coup_donne = true
 					Sons.jouer_a(self, ["swing", "swing2", "swing3"], global_position + Vector3.UP, -6.0, 0.2)
 					var face := global_transform.basis.z
-					if dist < PORTEE + 0.6 and dir.dot(Vector3(face.x, 0, face.z).normalized()) > 0.4:
+					if dist < PORTEE + 0.6 and dir.dot(Vector3(face.x, 0, face.z).normalized()) > 0.4 and c != joueur:
+						Rivalites.frapper(self, c, degats * _mult_coup())
+					elif dist < PORTEE + 0.6 and dir.dot(Vector3(face.x, 0, face.z).normalized()) > 0.4:
 						var r: String = joueur.recevoir_coup(degats * _mult_coup(), global_position)
 						if r == "parade":
 							# parade réussie : le draugr est déséquilibré (grosse usure de posture, fenêtre de finisher)
@@ -714,7 +741,7 @@ func _physics_process(dt: float) -> void:
 				if _menace:
 					if not _coup_donne and dist > PORTEE - 0.1:
 						_lateral = dir * ELAN   # pas d'élan pendant la préparation du coup
-					if _coup_donne and _serie < _serie_max and _t >= duree * ReglagesCombat.MENACE_SERIE_DEPART and dist < PORTEE + 0.9 and not joueur.mort:
+					if _coup_donne and _serie < _serie_max and _t >= duree * ReglagesCombat.MENACE_SERIE_DEPART and dist < PORTEE + 0.9 and not c_mort:
 						_serie += 1   # coup suivant de la série, sans reprendre son souffle
 						_combo = _serie - 1
 						_coup_donne = false
