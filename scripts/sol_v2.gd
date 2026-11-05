@@ -270,7 +270,7 @@ static func _poser_touffes(monde: Node, rochers: Array) -> void:
 				continue
 			var s := 0.42 + 0.42 * ZoneBiome.alea_pos(jx, jz, 25)
 			var yaw := ZoneBiome.alea_pos(jx, jz, 26) * TAU
-			xfs.append(SousBois._tf(jx, SousBois._bas(monde, jx, jz, 0.4) - 0.02, jz, yaw, s, 0.75 + 0.45 * ZoneBiome.alea_pos(jx, jz, 27)))
+			xfs.append(SousBois._tf(jx, SousBois._bas(monde, jx, jz, 0.52 * s) - 0.04, jz, yaw, s, 0.75 + 0.45 * ZoneBiome.alea_pos(jx, jz, 27)))
 		x0 += pas
 	xfs = PosesDecor.filtrer(monde, xfs, "touffe", mesh)   # passe D : règles de pose
 	for mmi in Instanciation.repartir(_decor, mesh, xfs, {"portee": 32.0, "ombre": false}):
@@ -431,7 +431,7 @@ static func _poser_ailleurs(monde: Node, rochers_temoin: Array) -> void:
 				continue
 			var s := 0.42 + 0.42 * ZoneBiome.alea_pos(jx, jz, 46)
 			var yaw := ZoneBiome.alea_pos(jx, jz, 47) * TAU
-			xfs.append(SousBois._tf(jx, SousBois._bas(monde, jx, jz, 0.4) - 0.02, jz, yaw, s, 0.75 + 0.45 * ZoneBiome.alea_pos(jx, jz, 48)))
+			xfs.append(SousBois._tf(jx, SousBois._bas(monde, jx, jz, 0.52 * s) - 0.04, jz, yaw, s, 0.75 + 0.45 * ZoneBiome.alea_pos(jx, jz, 48)))
 		x0 += pas
 		if monde.has_method("_souffle"): await monde._souffle()
 	if monde.has_method("_souffle"): await monde._souffle()

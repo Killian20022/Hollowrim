@@ -247,7 +247,7 @@ static func zones_hrafn() -> Array:
 			# nid d'araignées des cavernes (BeteQuat, persos/quaternius_jeu 2026-11-04) : en embuscade dans la galerie du retour, hors des rails
 			"ennemis": [
 				{"id": "araignee_mine_a", "ia": "araignee", "s": 66.0, "lat": 1.7, "face": "entree", "nom": "Araignée des cavernes"},
-				{"id": "araignee_mine_b", "ia": "araignee", "s": 71.0, "lat": -1.8, "face": "entree", "nom": "Araignée des cavernes"},
+				{"id": "araignee_mine_b", "ia": "araignee", "s": 71.0, "lat": 0.0, "face": "entree", "nom": "Araignée des cavernes"},
 			]},
 		# --- caverne du lac (branche B, à gauche)
 		{"id": "lac_acces", "branche": "B", "s": [0.0, 11.5], "theme": "lac", "role": "transition", "graine": 301, "densite": 0.8, "n_lum": 1,

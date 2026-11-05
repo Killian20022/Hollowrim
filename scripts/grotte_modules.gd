@@ -1016,7 +1016,7 @@ static func _cache(g: Grotte, z: Dictionary, r: RandomNumberGenerator) -> void:
 		d.solide_rond(q + Vector3(0, 0.5, 0), 0.38, 1.0)
 	d.urne(_p(g, id, s1 - 3.0, 2.8), 1.0)
 	d.couchage(_p(g, id, s1 - 5.5, 3.2), 0.2, true)
-	d.ratelier(_p(g, id, s1 - 2.0, 0.0) + Vector3(0, 0, 0), -PI * 0.5 + _lacet(g, id, s1 - 2.0) - PI)
+	d.ratelier(_p(g, id, s1 - 2.0, 1.3), -PI * 0.5 + _lacet(g, id, s1 - 2.0) - PI)      # audit 2026-11-04 : à lat 0,0 il était à 90 % dans un caillou
 	d.pieces(_p(g, id, s1 - 4.0, -2.2), 20, 0.4)
 	d.applique(g.mur_en(id, s0 + 9.0, -1.0), g.droite(id, s0 + 9.0), _p(g, id, s0 + 9.0, -3.0).y + 1.9, 4.5, 1.7, true)
 

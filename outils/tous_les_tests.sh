@@ -13,6 +13,13 @@ ICI="$(cd "$(dirname "$0")/.." && pwd)"
 P="$(wslpath -w "$ICI")"
 LOGS="${JOURNAUX:-$ICI/captures/tests}"; mkdir -p "$LOGS"
 MOTIF="${1:-}"
+# journal du moteur (godot.log, %APPDATA%\Hollowrim\logs) : copié à côté du journal du test à chaque ÉCHEC, pour garder la trace d'un plantage
+# sans sortie (rc=255 / 5, shader, fil d'exécution…). Le fichier est partagé par tous les Godot de la machine : au mieux, la fin est la bonne.
+JOURNAL_MOTEUR="${JOURNAL_MOTEUR:-/mnt/c/Users/${USER:-$(whoami)}/AppData/Roaming/Hollowrim/logs/godot.log}"
+garder_journal_moteur() {   # $1 = nom du test
+	[[ -f "$JOURNAL_MOTEUR" ]] && cp -f "$JOURNAL_MOTEUR" "$LOGS/$1.godot.log" 2>/dev/null
+	return 0
+}
 # nom_du_test|arguments après « -- » (toujours au moins un, voir plus haut)
 TESTS=(
 	"test_filet|--nouvelle"
@@ -149,18 +156,18 @@ for t in "${TESTS[@]}"; do
 		[[ $ok -eq 1 || $REEL -eq 0 ]] && break
 		note=", 2e essai"  # test sensible à la charge de la machine : un seul nouvel essai
 	done
-	if [[ $ok -eq 1 ]]; then s="OK    "; nok=$((nok+1)); else s="ÉCHEC "; nko=$((nko+1)); fi
+	if [[ $ok -eq 1 ]]; then s="OK    "; nok=$((nok+1)); else s="ÉCHEC "; nko=$((nko+1)); garder_journal_moteur "$nom"; fi
 	RES+=("$s $nom ($((SECONDS-d0)) s$note)")
 done
 if [[ -n "${AVEC_FENETRE:-}" && ( -z "$MOTIF" || "test_biome" == *"$MOTIF"* ) ]]; then
 	d0=$SECONDS; sortie="$LOGS/test_biome.log"
 	timeout 300 "$G" --path "$P" --resolution 160x90 --script res://outils/test_biome.gd -- comparer captures/biome/ref_ancien_fenetre.sig --sans-zone --sans-cles > "$sortie" 2>&1
-	if grep -q "^OK" "$sortie" && ! grep -qE "DIFF|ERREUR|SCRIPT ERROR" "$sortie"; then s="OK    "; nok=$((nok+1)); else s="ÉCHEC "; nko=$((nko+1)); fi
+	if grep -q "^OK" "$sortie" && ! grep -qE "DIFF|ERREUR|SCRIPT ERROR" "$sortie"; then s="OK    "; nok=$((nok+1)); else s="ÉCHEC "; nko=$((nko+1)); garder_journal_moteur test_biome; fi
 	RES+=("$s test_biome (fenêtre, $((SECONDS-d0)) s)")
 fi
 if [[ -n "${AVEC_FENETRE:-}" && ( -z "$MOTIF" || "test_menus" == *"$MOTIF"* ) ]]; then
 	d0=$SECONDS   # titre → nouvelle partie → pause → sauvegarde (+ copie de secours) → continuer → restaurer (4 lancements à fenêtre)
-	if bash "$ICI/outils/test_menus.sh" > "$LOGS/test_menus.log" 2>&1; then s="OK    "; nok=$((nok+1)); else s="ÉCHEC "; nko=$((nko+1)); fi
+	if bash "$ICI/outils/test_menus.sh" > "$LOGS/test_menus.log" 2>&1; then s="OK    "; nok=$((nok+1)); else s="ÉCHEC "; nko=$((nko+1)); garder_journal_moteur test_menus; fi
 	RES+=("$s test_menus (fenêtre, $((SECONDS-d0)) s)")
 fi
 if [[ -n "${AVEC_FENETRE:-}" && ( -z "$MOTIF" || "test_gel_cache_persos" == *"$MOTIF"* ) ]]; then
@@ -172,7 +179,7 @@ if [[ -n "${AVEC_FENETRE:-}" && ( -z "$MOTIF" || "test_gel_cache_persos" == *"$M
 	for etape in "--nouvelle --remplir" "--nouvelle"; do
 		"${LANCEUR[@]}" "$G" --path "$P" --script res://outils/test_gel_cache_persos.gd -- $etape >> "$sortie" 2>&1 || ok=0
 	done
-	if [[ $ok -eq 1 ]] && [[ $(grep -c "^ECHECS : 0" "$sortie") -eq 2 ]] && ! grep -qE "SCRIPT ERROR|^ECHEC " "$sortie"; then s="OK    "; nok=$((nok+1)); else s="ÉCHEC "; nko=$((nko+1)); fi
+	if [[ $ok -eq 1 ]] && [[ $(grep -c "^ECHECS : 0" "$sortie") -eq 2 ]] && ! grep -qE "SCRIPT ERROR|^ECHEC " "$sortie"; then s="OK    "; nok=$((nok+1)); else s="ÉCHEC "; nko=$((nko+1)); garder_journal_moteur test_gel_cache_persos; fi
 	RES+=("$s test_gel_cache_persos (fenêtre, $((SECONDS-d0)) s)")
 fi
 echo "== Résumé des tests sans fenêtre"

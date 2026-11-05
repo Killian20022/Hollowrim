@@ -7,7 +7,7 @@ extends CrypteDecor
 ## sont peintes dans des fils d'exécution par GrotteTextures et affichées par shaders/grotte.gdshader.
 
 const CASE_C := 10.0
-const PAINT_PARENT := ["bois", "fer", "lame", "os", "argile", "parchemin", "toile", "halo", "flamme"]
+const PAINT_PARENT := ["bois", "fer", "lame", "os", "argile", "parchemin", "toile", "halo", "flamme", "jute", "laine", "lin", "pierre_v2", "mur0"]   # + matières des modules Quaternius (caisses, sacs : MATS_CRYPTE) demandées via CrypteDecor.mat()
 const DOSSIER := "res://assets/grotte"
 const PROPRES_MIPS := ["roche", "roche_b", "roche_givre", "neige_sol", "strate", "sol", "neige", "glace", "glace_sup", "givre", "glacon", "pic", "dalles", "cristal", "cristal_f", "cristal_v", "planches", "peau", "paille", "or", "piste", "bois"]
 const PROPRES_PLATES := ["jour", "ciel", "rai", "flaque", "brume"]
