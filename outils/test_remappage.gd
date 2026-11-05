@@ -31,13 +31,13 @@ func _tester() -> void:
 	for a: Dictionary in Touches.ACTIONS:
 		ok(InputMap.has_action(a["id"]), "action « %s » créée" % a["id"])
 	ok(_evenement(KEY_W).is_action("avant") and _evenement(KEY_UP).is_action("avant"), "avancer : W (ZQSD en AZERTY) et flèche haut")
-	ok(_evenement(KEY_E).is_action("interagir") and _evenement(KEY_T).is_action("torche") and _evenement(KEY_V).is_action("vue"), "E interagir, T torche, V vue")
+	ok(_evenement(KEY_E).is_action("interagir") and _evenement(KEY_H).is_action("torche") and _evenement(KEY_T).is_action("attendre") and _evenement(KEY_V).is_action("vue"), "E interagir, H torche, T attendre, V vue")
 	ok(_evenement(KEY_TAB).is_action("menu") and _evenement(KEY_I).is_action("inventaire") and _evenement(KEY_F5).is_action("sauvegarde_rapide"), "Tab menu, I sac, F5 sauvegarde rapide")
 	ok(_evenement(KEY_F1).is_action("aide") and _evenement(KEY_M).is_action("carte") and _evenement(KEY_F9).is_action("chargement_rapide"), "F1 aide, M carte, F9 chargement rapide")
 	# --- réattribution ---
 	var autre := Touches.lier("torche", 0, KEY_G)
 	ok(autre == "", "G était libre : aucun échange")
-	ok(_evenement(KEY_G).is_action("torche") and not _evenement(KEY_T).is_action("torche"), "la torche est sur G, plus sur T")
+	ok(_evenement(KEY_G).is_action("torche") and not _evenement(KEY_H).is_action("torche"), "la torche est sur G, plus sur H")
 	ok(_evenement(KEY_G).is_action_pressed("torche", false), "is_action_pressed suit la touche (les scripts du jeu testent l'action)")
 	# --- échange ---
 	autre = Touches.lier("vue", 0, KEY_G)
@@ -82,7 +82,7 @@ func _tester() -> void:
 	ok(Touches.libelle("interagir") == "X" and options._message_touches.text.contains("Parler"), "Options : échange annoncé au joueur (%s)" % options._message_touches.text)
 	# --- rétablir ---
 	Touches.retablir()
-	ok(_evenement(KEY_E).is_action("interagir") and _evenement(KEY_UP).is_action("avant") and _evenement(KEY_T).is_action("torche"), "rétablir : touches d'origine")
+	ok(_evenement(KEY_E).is_action("interagir") and _evenement(KEY_UP).is_action("avant") and _evenement(KEY_H).is_action("torche") and _evenement(KEY_T).is_action("attendre"), "rétablir : touches d'origine")
 	# --- mode outil : options.cfg intact ---
 	var mtime2 := FileAccess.get_modified_time(Jeu.FICHIER_OPTIONS) if FileAccess.file_exists(Jeu.FICHIER_OPTIONS) else -1
 	ok(Jeu.mode_outil() and mtime2 == mtime_options, "mode outil : le remappage n'écrit pas options.cfg")
