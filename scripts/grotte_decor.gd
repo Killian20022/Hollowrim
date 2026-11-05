@@ -309,6 +309,10 @@ static func col(ao: float, masque := 0.0) -> Color:
 ## Solide de révolution irrégulier. profil : Vector2(rayon, y) de la base vers la pointe (y négatif = stalactite).
 ## `deforme` (facultatif) : Vector3 -> Vector3 appliqué à chaque sommet (congère drapée sur la pente, voir `congere`).
 func revolution(nom: String, base: Vector3, profil: Array, cotes: int, graine: int, jit: float, masque: float, ao_base := 0.6, ao_tete := 1.0, tuile := 2.0, deforme := Callable()) -> void:
+	_revolution_anneaux(nom, base, profil, cotes, jit, masque, ao_base, ao_tete, tuile, deforme, anneaux_revolution(base, profil, cotes, graine, jit, deforme))
+
+## Anneaux (sommets) d'un solide de révolution, après `deforme` : séparés du tracé pour juger une forme avant de la poser.
+static func anneaux_revolution(base: Vector3, profil: Array, cotes: int, graine: int, jit: float, deforme := Callable()) -> Array:
 	var r := RandomNumberGenerator.new()
 	r.seed = graine
 	var a0 := r.randf() * TAU
@@ -328,6 +332,23 @@ func revolution(nom: String, base: Vector3, profil: Array, cotes: int, graine: i
 			for i in ring.size():
 				ring[i] = deforme.call(ring[i])
 		anneaux.append(ring)
+	return anneaux
+
+## Plus grand écart entre deux sommets voisins de l'anneau du bas, une fois ôtée la pente du plan du sol (m) : le bord fait des marches.
+const SAUT_BORD := 0.4
+var bords_adoucis := 0
+static func saut_anneau_bas(ring: Array, y_plan: float, grad: Vector2, base: Vector3) -> float:
+	var mx := 0.0
+	for i in ring.size():
+		var a: Vector3 = ring[i]
+		var b: Vector3 = ring[(i + 1) % ring.size()]
+		var da := a.y - (y_plan + grad.x * (a.x - base.x) + grad.y * (a.z - base.z))
+		var db := b.y - (y_plan + grad.x * (b.x - base.x) + grad.y * (b.z - base.z))
+		mx = maxf(mx, absf(da - db))
+	return mx
+
+func _revolution_anneaux(nom: String, base: Vector3, profil: Array, cotes: int, jit: float, masque: float, ao_base: float, ao_tete: float, tuile: float, deforme: Callable, anneaux: Array) -> void:
+	var haut: float = (profil[profil.size() - 1] as Vector2).y
 	var axe := base + Vector3(0, haut * 0.5, 0)
 	if deforme.is_valid():
 		axe = deforme.call(axe)
@@ -439,6 +460,22 @@ func congere(base: Vector3, r: float, h: float, graine: int, sol := Callable(), 
 		else:
 			var y_ref := base.y + r * tan(deg_to_rad(PENTE_NEIGE)) + 0.3
 			sol = func(x: float, z: float) -> float: return g.sol_objet(x, z, y_ref)
+	# un contenant (coffre, caisse, tonneau, sac) déjà posé n'est jamais recouvert : la congère se réduit pour le laisser dehors, ou
+	# n'est pas posée si presque rien n'en resterait
+	var r_ini := r
+	for c: Array in contenants:
+		var pc: Vector3 = c[0]
+		if absf(pc.y - base.y) > r_ini + 1.0:
+			continue
+		var dc := Vector2(pc.x - base.x, pc.z - base.z).length()
+		if dc < r * 1.25 + float(c[1]) + 0.1:
+			r = minf(r, (dc - float(c[1]) - 0.3) / 1.25)
+	if r < r_ini:
+		h *= clampf(r / r_ini, 0.0, 1.0)
+		if r < maxf(0.45, r_ini * 0.45):
+			neige_refus += 1
+			refus_neige["contenant"] = int(refus_neige.get("contenant", 0)) + 1
+			return false
 	var pl := plan_neige(sol, base, r * 1.15)
 	if not pl.is_empty() and float(pl["pente"]) > lerpf(PENTE_NEIGE, 22.0, clampf((r - 1.0) / 1.2, 0.0, 1.0)):
 		refus_neige["pente"] = int(refus_neige.get("pente", 0)) + 1
@@ -467,6 +504,7 @@ func congere(base: Vector3, r: float, h: float, graine: int, sol := Callable(), 
 		refus_neige["objet"] = int(refus_neige.get("objet", 0)) + 1
 		objet_fin()
 		return false
+	var adoucir := [false]                                       # bord du bas aplani (voir plus bas) : lu par drape
 	var drape := func(v: Vector3) -> Vector3:
 		var d := Vector2(v.x - base.x, v.z - base.z)
 		var t := d.dot(aval)
@@ -475,13 +513,19 @@ func congere(base: Vector3, r: float, h: float, graine: int, sol := Callable(), 
 		var x := c0.x + d.x
 		var z := c0.z + d.y
 		var ys: float = sol.call(x, z)
+		if adoucir[0] and ys < -1e8:                             # sommet au-delà de la paroi : ramené vers le centre, le bord s'enterre contre la roche au lieu d'y piquer
+			x = lerpf(c0.x, x, 0.55)
+			z = lerpf(c0.z, z, 0.55)
+			ys = sol.call(x, z)
 		var yp := y_plan + grad.x * (x - base.x) + grad.y * (z - base.z)
 		if ys < -1e8:
 			ys = yp                                              # dans la roche (au-delà de la paroi) : le plan du sol, caché
 		ys = minf(ys, yp + 0.15)                                 # pied de paroi qui remonte : le bord entre dans la roche, la neige ne grimpe pas au mur
 		var dy := v.y - base.y
 		# bas : sur le sol réel (enterré) ; dessus : sur un sol LISSÉ (moitié plan) — la crête reste ronde, sans pointe sur une bosse
-		var y := ys + dy - 0.04 if dy < 0.0 else lerpf(ys, yp, 0.5) + dy * hh / maxf(h, 0.001)
+		if adoucir[0]:
+			ys = minf(ys, lerpf(ys, yp, 0.65))                   # bord enterré : les bosses du sol y sont rabotées, les creux suivis
+		var y := ys + dy - 0.04 if dy < 0.0 else lerpf(ys, yp, 0.9 if adoucir[0] else 0.5) + dy * hh / maxf(h, 0.001)
 		if dy >= 0.0:
 			for e: Array in objets:                              # collier contre les objets du disque
 				var pe: Vector3 = e[0]
@@ -498,7 +542,15 @@ func congere(base: Vector3, r: float, h: float, graine: int, sol := Callable(), 
 		profil.append(Vector2(r * t, h * pow(1.0 - t * t, 0.7)))
 	var cotes := 12
 	var jit := 0.12 if lisse else 0.2
-	revolution("c_sol_neige", base, profil, cotes, graine, jit, 1.6, 0.8, 1.0, 4.0, drape)
+	var anneaux := anneaux_revolution(base, profil, cotes, graine, jit, drape)
+	# Grande congère dont le bord du bas suit un sol très inégal (pied de paroi, bosse) : le bord faisait des marches et finissait en
+	# coin, comme une plaque. On la refait avec le bord enterré (aplani vers le plan du sol, jamais au-dessus du sol réel), moins
+	# irrégulier. Les congères au bord déjà régulier ne sont pas touchées.
+	if r >= 1.3 and saut_anneau_bas(anneaux[0], y_plan, grad, base) > SAUT_BORD:
+		adoucir[0] = true
+		anneaux = anneaux_revolution(base, profil, cotes, graine, jit * 0.5, drape)
+		bords_adoucis += 1
+	_revolution_anneaux("c_sol_neige", base, profil, cotes, jit, 1.6, 0.8, 1.0, 4.0, drape, anneaux)
 	neige_disques.append([base, r, hh, float(pl["pente"])])
 	for e: Array in objets:                                      # contrôle (test) : neige au bord de chaque objet du disque
 		var pe: Vector3 = e[0]
@@ -939,7 +991,21 @@ func _evaluer(g: Grotte, q: Vector3, hx: float, hz: float, B: Basis, h: float, m
 		return {}
 	q.y = so["y"]
 	var chev := _chevauche(q, r_emp, h)
-	return {"p": q, "b": so["b"], "ecart": so["ecart"], "chev": chev, "cout": float(so["ecart"]) * 4.0 + chev * 6.0}
+	var neige := _eviter_neige * _sous_neige(q, r_emp)
+	if _eviter_neige == 2:
+		chev = maxf(chev, neige)                    # caisse, tonneau, sac : jamais sous une congère (déplacés ou retirés)
+	return {"p": q, "b": so["b"], "ecart": so["ecart"], "chev": chev, "cout": float(so["ecart"]) * 4.0 + chev * 6.0 + neige * 6.0}
+
+## Contenants : 0 = indifférent, 1 = préfère une place hors neige (coffre : jamais retiré), 2 = refuse les places sous une congère.
+var _eviter_neige := 0
+## Enfoncement (m) du disque (q, r) dans les congères déjà posées : 0 hors neige.
+func _sous_neige(q: Vector3, r: float) -> float:
+	var pire := 0.0
+	for dq: Array in neige_disques:
+		var b: Vector3 = dq[0]
+		if absf(b.y - q.y) < 1.5:
+			pire = maxf(pire, float(dq[1]) * 0.97 + r - Vector2(q.x - b.x, q.z - b.z).length())
+	return pire
 
 ## Dessus d'un objet déjà posé sous p (caisse sur caisse) : son altitude, ou -1e9.
 func _support(p: Vector3, r: float) -> float:
@@ -1108,6 +1174,14 @@ func _empreinte(p: Vector3, r: float, h: float) -> void:
 		_emp_ajouter(_grille_emp, [p, r, h])
 		empreintes.append([p, r, h])
 
+## Contenants (coffres, caisses, tonneaux, sacs : ce qui se fouille ou se casse) : JAMAIS enfouis sous la neige. Une congère cède devant
+## eux (rayon réduit ou refusée) ; [pied, rayon, haut]. Gardé aussi pour test_neige_pente.
+var contenants: Array = []
+func _empreinte_contenant(p: Vector3, r: float, h: float) -> void:
+	_empreinte(p, r, h)
+	if _g() != null and regles_pose:
+		contenants.append([p, r, h])
+
 static func _emp_ajouter(grille: Dictionary, e: Array) -> void:
 	var c: Vector3 = e[0]
 	var r: float = e[1]
@@ -1232,7 +1306,9 @@ static func lacet_libre(pos: Vector3) -> float:
 
 func caisse(pos: Vector3, taille := Vector3(0.7, 0.5, 0.5), lacet := 0.0) -> void:
 	objet_debut("caisse")
+	_eviter_neige = 2
 	var pz := pose_objet(pos, taille.x * 0.5, taille.z * 0.5, lacet, taille.y, INCLINE, 0.5, 0.45, true)
+	_eviter_neige = 0
 	pos = pz["p"]
 	var x0 := _incliner(pz)
 	if not pz["ok"]:          # lot D : aucune place sûre (roche, objet) : objet retiré
@@ -1251,7 +1327,7 @@ func caisse(pos: Vector3, taille := Vector3(0.7, 0.5, 0.5), lacet := 0.0) -> voi
 	else:
 		solide(pos + Vector3(0, taille.y * 0.5, 0), Vector3(absf(s.x), taille.y, absf(s.z)))
 	xf = x0
-	_empreinte(pos, (taille.x + taille.z) * 0.25, taille.y)
+	_empreinte_contenant(pos, (taille.x + taille.z) * 0.25, taille.y)
 	objet_fin()
 
 ## Benne de chariot (interceptée dans boite) : flancs de trois planches, fond, montants et bandes de fer rivetées.
@@ -1303,21 +1379,25 @@ func boite(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0, sans_des
 
 # ------------------------------------------------------------------ pièces de CrypteDecor posées par les règles de pose
 func coffre(pos: Vector3, lacet := 0.0, collision := true, deux_pieces := false) -> Dictionary:
+	_eviter_neige = 1
 	var pz := pose_objet(pos, 0.47, 0.3, lacet, 0.64, INCLINE, 0.35)
+	_eviter_neige = 0
 	var x0 := _incliner(pz)
 	var info := super.coffre(pz["p"], lacet, collision, deux_pieces)      # L1 : repère du couvercle pris SOUS l'inclinaison de la pose
 	xf = x0
-	_empreinte(pz["p"], 0.45, 0.64)
+	_empreinte_contenant(pz["p"], 0.45, 0.64)
 	return info
 
 func tonneau(pos: Vector3, e := 1.0) -> void:
+	_eviter_neige = 2
 	var pz := pose_objet(pos, 0.38 * e, 0.38 * e, 0.0, e, INCLINE, 0.5, 0.45, true)
+	_eviter_neige = 0
 	if not pz["ok"]:
 		return
 	var x0 := _incliner(pz)
 	super.tonneau(pz["p"], e)
 	xf = x0
-	_empreinte(pz["p"], 0.38 * e, e)
+	_empreinte_contenant(pz["p"], 0.38 * e, e)
 
 func table(pos: Vector3, lacet := 0.0) -> void:
 	var pz := pose_objet(pos, 0.55, 0.33, lacet, 0.8, DROIT)
@@ -1384,7 +1464,9 @@ func _bois_etai(a: Vector3, b: Vector3, r: float) -> void:
 
 func coffre_ouvert(pos: Vector3, lacet := 0.0) -> void:
 	objet_debut("coffre_ouvert")
+	_eviter_neige = 1
 	var pose := pose_objet(pos, 0.47, 0.3, lacet, 0.6, INCLINE)
+	_eviter_neige = 0
 	pos = pose["p"]
 	var x0 := _incliner(pose)
 	if not pose["ok"]:          # lot D : aucune place sûre (roche, objet) : objet retiré
@@ -1410,7 +1492,7 @@ func coffre_ouvert(pos: Vector3, lacet := 0.0) -> void:
 	var sz := b * Vector3(0.9, 0, 0.56)
 	solide(pos + Vector3(0, 0.3, 0), Vector3(absf(sz.x), 0.6, absf(sz.z)))
 	xf = x0
-	_empreinte(pos, 0.4, 0.6)
+	_empreinte_contenant(pos, 0.4, 0.6)
 	objet_fin()
 
 func pieces(pos: Vector3, n: int, rayon: float) -> void:
@@ -1425,7 +1507,9 @@ func pieces(pos: Vector3, n: int, rayon: float) -> void:
 
 func sac(pos: Vector3, e := 1.0) -> void:
 	objet_debut("sac")
+	_eviter_neige = 2
 	var pz := pose_objet(pos, 0.25 * e, 0.25 * e, 0.0, 0.56 * e, INCLINE, 0.5, 0.45, true)
+	_eviter_neige = 0
 	pos = pz["p"]
 	var x0 := _incliner(pz)
 	if not pz["ok"]:          # lot D : aucune place sûre (roche, objet) : objet retiré
@@ -1434,7 +1518,7 @@ func sac(pos: Vector3, e := 1.0) -> void:
 		return
 	objet("g_sac_" + variante(pos, 3), pos, lacet_libre(pos), Vector3.ONE * e)     # L5 : sac de jute noué (module)
 	xf = x0
-	_empreinte(pos, 0.25 * e, 0.56 * e)
+	_empreinte_contenant(pos, 0.25 * e, 0.56 * e)
 	objet_fin()
 
 func tabouret(pos: Vector3) -> void:

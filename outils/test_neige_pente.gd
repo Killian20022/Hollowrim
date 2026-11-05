@@ -115,7 +115,7 @@ func _lancer() -> void:
 		bords.append(["congère (%.1f ; %.1f ; %.1f)" % [b[0].x, b[0].y, b[0].z], b])
 	print("%d tas de neige : %d congères du kit, %d congères du décor ; %d + %d refusées (pente, marche, vide)" % [bords.size(), nk, bords.size() - nk,
 		int(g.kit.get("neige_refus")) if g.kit != null and g.kit.get("neige_refus") != null else 0, int(g.decor.get("neige_refus")) if g.decor.get("neige_refus") != null else 0])
-	print("   motifs de refus : ", GrotteDecor.refus_neige)
+	print("   motifs de refus : ", GrotteDecor.refus_neige, " ; bords du bas aplanis : ", g.decor.bords_adoucis)
 	_verif(bords.size() >= 20, "la grotte a des tas de neige (%d)" % bords.size())
 	var flottent := 0
 	var avales := 0
@@ -158,6 +158,22 @@ func _lancer() -> void:
 			posees += 1
 			print("      objet posé sur la neige : pied %s, neige au bord %.2f" % [c[0], c[1]])
 	_verif(posees == 0, "objets des congères enfoncés dans la neige (%d sur %d posés dessus)" % [posees, g.decor.neige_colliers.size()])
+	# contenants (coffres, caisses, tonneaux, sacs) : jamais enfouis sous une congère (ni du décor, ni du kit)
+	var enfouis := 0
+	for c: Array in g.decor.contenants:
+		var pc: Vector3 = c[0]
+		var ep := 0.0
+		for dx: Array in [[0.0, 0.0], [1.0, 0.0], [-1.0, 0.0], [0.0, 1.0], [0.0, -1.0]]:     # centre et bord du contenant
+			ep = maxf(ep, g.decor.neige_epaisseur(pc.x + float(dx[0]) * float(c[1]), pc.z + float(dx[1]) * float(c[1])))
+		var sous_kit := false
+		for e: Array in g.kit.neige_poses:
+			var xf: Transform3D = e[1]
+			if Vector2(pc.x - xf.origin.x, pc.z - xf.origin.z).length() < xf.basis.x.length() * 0.9 and absf(pc.y - xf.origin.y) < 0.8:
+				sous_kit = true
+		if ep > 0.03 or sous_kit:
+			enfouis += 1
+			print("      contenant enfoui : pied %s r %.2f h %.2f, neige %.2f, kit %s  %s" % [pc, c[1], c[2], ep, sous_kit, _ou(pc)])
+	_verif(enfouis == 0, "aucun contenant (coffre, caisse, tonneau, sac) enfoui sous une congère (%d sur %d)" % [enfouis, g.decor.contenants.size()])
 	# congères du kit en pente : remplacées (aucune congère cisaillée au-delà de PENTE_KIT)
 	var cisaillees := 0
 	for e: Array in g.kit.neige_poses:
