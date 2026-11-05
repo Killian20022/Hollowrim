@@ -508,6 +508,19 @@ Un ennemi courant sort **un coup de taille annoncé** : premier au bout de 1,6-2
 - Repères effacés à l'impact, à l'interruption, à la mort et au gel (disque : `scripts/combat/telegraphe_sol.gd`, sans `class_name` pour
   éviter un réimport ; « ! » et pulsation : `draugr._marquer_lourd`).
 
+## Rythme du combat (retour exe 5, 2026-11-05, branche retours/rythme)
+
+« Les ennemis attaquent trop vite, on se fait tuer facilement ; j'attaque moi aussi moins vite. » Réglages dans `ReglagesCombat`.
+- Ennemis courants : `MENACE_RYTHME` 1,3 -> 0,95 (gestes ~37 % plus lents), pause entre séries 0,7-1,4 -> 1,2-2,1 s, départ du
+  coup suivant de la série à 72 % du geste, geste annoncé 0,95 -> 1,35 s (préparation 0,62 -> 0,95 s), attentes du geste annoncé
+  allongées. Mesuré (banc `test_menace_bot`) : anticipation d'un coup normal 0,42 -> 0,60 s (min 0,33 -> 0,45), écart dans une
+  série 0,66 -> 0,96 s, entre séries 2,10 -> 2,74 s. Un joueur passif est toujours tué (16 s par un draugr seul).
+- Joueur : `JOUEUR_LENTEUR` 1,4 (armement, tenue, récupération) et `JOUEUR_LENTEUR_FRAPPE` 1,2 (phase active), `JOUEUR_ENCHAINEMENT`
+  0,35 (le clic suivant lance le coup n+1 à 35 % de la récupération au lieu de 0,04 s). Combo strict et PAUSE_COMBO (2 s, mesurée
+  depuis la FIN du coup) inchangés. Sons, tracé de lame et impacts lisent les mêmes durées : ils restent synchrones.
+  Mesuré (`test_rythme_joueur`) : clic -> touche 0,18 -> 0,25 s, clic -> libre 0,55 -> 0,75 s, clics répétés 0,32 -> 0,46 s
+  entre deux touches (3,2 -> 2,2 coups/s).
+
 ## Esquive du joueur (nuit 2026-11-05)
 
 - **Touche** : **Alt gauche ou C** (action `esquive`, `joueur._actions`). Choix : Alt est libre, proche de la main gauche (ZQSD/WASD),
