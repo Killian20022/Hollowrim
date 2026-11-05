@@ -21,10 +21,10 @@ uniform float soleil_desat = 0.45;  // part de la couleur du soleil/lune ramené
 uniform vec3 ombre_froide : source_color = vec3(0.30, 0.42, 0.75); // teinte de la face non éclairée par le soleil
 uniform float ombre_force = 0.75;   // intensité de cette teinte, relative à la lumière du soleil
 uniform float rehaut = 0.9;
-uniform vec3 appoint = vec3(0.035, 0.045, 0.07); // lumière propre froide (ciel) : la face à l'ombre ne tombe pas au noir
+uniform vec3 appoint = vec3(0.05, 0.065, 0.10); // lumière propre froide (ciel) : la face à l'ombre ne tombe pas au noir (nuit 2026-11-05 : relevé, avant 0.035, 0.045, 0.07)
 // liseré froid propre au personnage (toutes heures, indépendant des lumières de la scène) : la silhouette se détache
 // du fond au crépuscule et de nuit. Large fondu (pas de palier qui scintille), proportionnel à l'albédo + un peu de constant.
-uniform vec3 contour_froid = vec3(0.16, 0.21, 0.32);
+uniform vec3 contour_froid = vec3(0.20, 0.27, 0.40);   // nuit 2026-11-05 : liseré de lune un peu plus net (avant 0.16, 0.21, 0.32)
 // part de lumière retirée sur une face d'un matériau double face (intérieur d'une capuche vu autour du visage) : > 0 = faces
 // ARRIÈRE, < 0 = faces AVANT (maillages Quaternius à l'enroulement inversé : la capuche montre ses faces arrière dehors) ; 0 = inchangé
 uniform float dos_sombre = 0.0;

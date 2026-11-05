@@ -911,7 +911,7 @@ func _rondin(parent: Node3D, pos: Vector3, lacet: float, longueur: float, rayon:
 				cible.uv.append(fut.uv[i + k])
 				cible.c.append(fut.c[i + k])
 		_ajouter(parent, ext.arrays(), xf, m_rondins)
-		_ajouter(interieur.racine, dedans.arrays(), xf, mats_int["rondin"])
+		_ajouter(interieur.racine, dedans.arrays(), xf, mats_int[["rondin", "rondin_b", "rondin_c", "rondin"][graine % 4]])   # trois bois : murs moins répétitifs
 	_ajouter(parent, (r[1] as BatiGeo.Maillage).arrays(), xf, m_bout)
 
 ## Soubassement : remplissage en retrait + pierres brutes en saillie irrégulière (5 à 15 cm), dessus à ~0,4 m.

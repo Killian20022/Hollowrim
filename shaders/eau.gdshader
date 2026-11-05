@@ -289,6 +289,29 @@ void fragment() {
 			float f_fente = 1.0 - smoothstep(0.35, 0.95, pix * 16.0);
 			if (fx || fz || fd) col_glace = mix(col_glace, mix(g_sombre, g_fente, 0.4), f_fente);
 		}
+		// MATIÈRE DE LA GLACE DU LAC (nuit 2026-11-05) : tout est STATIQUE (fonction de la position seule : aucune horloge, aucun
+		// mouvement, pas de reflet ajouté) ; réservé au lac (glace_ton_plaques = 1) et aux glaces pleines (pas les plaques flottantes).
+		// 1) grain : chaque texel de 6 cm varie un peu (glace grenue, jamais un aplat) ;
+		// 2) grandes fissures : arêtes d'un Voronoï large, une sur deux seulement, fines (~1 texel), de plus en plus pâles au loin ;
+		// 3) glace noire : taches bleu profond, plus grandes que les plaques ; 4) neige soufflée : plaques mates, blanc bleuté, bord grenu.
+		if (glace_ton_plaques > 0.5 && g_mode != 4 && glace > 0.5) {
+			float proche_g = 1.0 - smoothstep(0.35, 0.95, pix * 16.0);
+			col_glace = col_glace * (0.86 + 0.20 * rb.r) * (0.96 + 0.08 * rl.g);
+			vec3 vn = voro(pc * 0.16 + 21.0);
+			if (fract(vn.z * 7.3) < 0.34) {
+				col_glace = mix(col_glace, g_sombre * vec3(0.78, 0.86, 1.0), 0.65 * smoothstep(0.55, 0.30, vn.x));
+			}
+			vec3 vf = voro(pc * 0.55 + 3.0);
+			if (vf.y < 0.11 && fract(vf.z * 13.7) < 0.6 && lod < 1.5) {
+				col_glace = mix(col_glace, mix(g_sombre, g_fente, 0.55), 0.85 * proche_g + 0.15);
+			}
+			vec3 vs = voro(pc * 0.21 + 9.0);
+			float bord_s = 0.50 + 0.26 * (rb.g - 0.5) + 0.12 * (rl.r - 0.5);
+			if (vs.z > 0.74 && vs.x < bord_s) {
+				vec3 neige_g = rb.b > 0.72 ? vec3(0.80, 0.86, 0.95) : vec3(0.95, 0.97, 1.0);
+				col_glace = vs.y < 0.06 ? mix(neige_g, g_clair, 0.4) : neige_g;
+			}
+		}
 		if (glace > 0.5 && (g_x < 0.5 || g_z < 0.5)) col_glace = g_clair;
 	}
 

@@ -512,9 +512,16 @@ static func cristal_face_image(vif := false) -> Image:
 				t = maxf(t + 3.0, 8.0)                            # arête claire d'un texel
 			elif x <= 2:
 				t += 1.0
+			# nuit 2026-11-05 : cristal moins « plastique » — grain minéral par texel + stries de croissance horizontales
+			# (un cran sur trois, interrompues) ; le gros du dégradé reste lisse
+			t += (_hash_i(x, y + 91) - 0.5) * 1.5
+			if (y % 5) == 0 and _hash_i(y / 5, x / 7 + 17) > 0.4:
+				t -= 1.1
 			if _hash_i(x / 2, y / 2 + 37) > 0.992:
 				t = 11.0
-			img.set_pixel(x, y, R[clampi(roundi(t), 0, 11)])
+			var col: Color = R[clampi(roundi(t), 0, 11)]
+			var gris := col.get_luminance()
+			img.set_pixel(x, y, col.lerp(Color(gris, gris * 1.02, gris * 1.06), 0.22))   # saturation -22 % (cristal givré, pas du verre coloré)
 	return img
 
 # ------------------------------------------------------------------ planches de bois usées (caisses, chariots, étais)

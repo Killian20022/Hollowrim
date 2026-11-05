@@ -117,6 +117,10 @@ void fragment() {
 	float ciel = 0.55 + 0.45 * n.y;
 	float lum_dir = (cat > 1.5 && cat < 4.5) ? 0.35 : 0.85;
 	vec3 col = albedo * (ambiant * ciel * 1.05 + col_lum * diff * lum_dir);
+	// NUIT (2026-11-05) : le relief ne tombe plus dans le noir plat. Teinte bleu des aurores sur les faces (plus forte sur la
+	// forêt, qui était vert-noir), plus de voile avec la distance : les silhouettes se détachent l'une derrière l'autre.
+	float nuit = clamp(1.0 - jour, 0.0, 1.0);
+
 	if (cat < 0.5 || cat > 3.5 && cat < 4.5) {
 		// neige lointaine : jamais blanc pur au soleil (rosée / dorée au crépuscule, plafonnée)
 		float lc = dot(col, vec3(0.3, 0.55, 0.15));
@@ -140,7 +144,7 @@ void fragment() {
 	float pied0 = 18.0 + 22.0 * couche;
 	float pied1 = pied0 + 55.0 + 35.0 * couche;
 	float hb = 1.0 - smoothstep(pied0, pied1, alt + (nb - 0.5) * 8.0);
-	float haze = hd;
+	float haze = hd + nuit * 0.16 * smoothstep(300.0, 1400.0, dist);   // nuit : plus de brume au loin (couches lisibles)
 	if (cat > 1.5) {
 		haze *= (cat > 4.5) ? 0.25 : 0.45;  // château et falaise : silhouette sombre sur le ciel ; fenêtres nettes
 	}
@@ -154,5 +158,9 @@ void fragment() {
 	col += neige * cime * crep * az * az * (0.3 + 0.7 * diff) * vec3(0.55, 0.36, 0.17) * (1.0 - haze) * (1.0 - hb);
 	col = mix(col, brume, haze);
 	col = mix(col, hz, hb);   // pied : couleur du brouillard du monde (= horizon dans cette direction)
+	// nuit : la teinte bleu des aurores est posée APRÈS la brume (sinon elle retombe dans l'horizon noir) ; le pied reste fondu
+	// dans le brouillard du monde (1 - hb) pour ne laisser aucun bord
+	vec3 teinte_nuit = vec3(0.030, 0.060, 0.110) * (0.6 + 0.4 * n.y) * (cat > 0.5 && cat < 1.5 ? 1.6 : 1.0) * (cat > 4.5 ? 0.0 : 1.0);
+	col += nuit * teinte_nuit * (1.0 - hb);
 	ALBEDO = col;
 }
