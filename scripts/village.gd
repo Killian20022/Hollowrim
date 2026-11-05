@@ -65,7 +65,7 @@ const BUDGET_INT_US := 1500
 var _jobs: Array = []                    # [Interieurs, Callable] : travaux du fil
 var _fil := -1                           # tâche WorkerThreadPool
 var _mutex := Mutex.new()
-var _faits: Array = []                   # [Interieur réel, Interieur temporaire, collisions] construits, à poser
+var _faits: Array = []                   # [Interieur réel, Interieur temporaire, collisions, specs vivants, paresseux] construits, à poser
 var _coll_fil: Array = []                # collisions demandées par le fil : [parent, forme, transform local]
 var _a_poser: Array[Callable] = []       # petites tâches de pose (fil principal)
 var _nb_poses := 0
@@ -193,12 +193,91 @@ func activer_interieurs(joueur: CharacterBody3D, dialogue: Control) -> void:
 	for ip in interieurs:
 		ip.activer(joueur, dialogue)
 
-## Intérieur dont le nom d'id est `id` (« halle », « sigrun », « chasseurs », « grima », « forge »).
+## Intérieur du bâtiment `id` (« halle », « sigrun », « chasseurs », « grima », « forge », et les bâtiments ouverts de
+## data/batiments.json : « h1 », « grange_a », « tour »…).
 func interieur(id: String) -> Interieur:
 	for ip in interieurs:
-		if ip.nom == NOMS_BATIMENTS[id]:
+		if ip.id == id or (ip.id == "" and NOMS_BATIMENTS.has(id) and ip.nom == NOMS_BATIMENTS[id]):
 			return ip
 	return null
+
+## Ids de tous les bâtiments enterables (ordre de construction).
+func ids_interieurs() -> Array[String]:
+	var l: Array[String] = []
+	for ip in interieurs:
+		l.append(ip.id)
+	return l
+
+# --- intérieurs à la demande (bâtiments ouverts) ------------------------------------------------------------------------
+## File des intérieurs paresseux à construire : un seul à la fois dans un fil, posé ensuite par les mêmes petites tâches que ceux
+## du chargement. `construire_interieur_maintenant` fait tout sur le fil principal (joueur téléporté dedans).
+var _file_paresseux: Array[Interieur] = []
+var _fil_p := -1
+var _ip_p: Interieur
+
+func demander_interieur(ip: Interieur) -> void:
+	if ip.construit or ip.en_cours or ip in _file_paresseux:
+		return
+	_file_paresseux.append(ip)
+
+func construire_interieur_maintenant(ip: Interieur) -> void:
+	if ip.construit or ip == _ip_p:
+		return
+	_file_paresseux.erase(ip)
+	ip.en_cours = true
+	var t := _temporaire(ip)
+	_coll_fil = []
+	var viv: Array = ip.constructeur.call(t)
+	_finaliser()
+	var colls := _coll_fil
+	_coll_fil = []
+	_planifier_pose(ip, t, colls, viv, true)
+	while not _a_poser.is_empty():      # tout de suite : le joueur est déjà dedans
+		_a_poser.pop_front().call()
+
+## Préfixe des identifiants des objets vivants d'un intérieur (sauvegarde ObjetsVivants) : le même à chaque reconstruction.
+static func lieu_vivants(ip: Interieur) -> String:
+	return String(ip.get_meta("lieu", ip.id if ip.id != "" else ip.nom))
+
+func _temporaire(reel: Interieur) -> Interieur:
+	var t := Interieur.new()
+	t.nom = reel.nom
+	t.demi = reel.demi
+	t.sol_y = reel.sol_y
+	t.porte_locale = reel.porte_locale
+	t.set_meta("proprietaire", reel.proprietaire)
+	t.set_meta("id", reel.id)
+	return t
+
+func _fil_paresseux() -> void:
+	FilVerrou.prendre()
+	var reel := _ip_p
+	var t := _temporaire(reel)
+	_coll_fil = []
+	var viv: Array = reel.constructeur.call(t)
+	_finaliser()
+	var colls := _coll_fil
+	_coll_fil = []
+	_mutex.lock()
+	_faits.append([reel, t, colls, viv, true])
+	_mutex.unlock()
+	FilVerrou.rendre()
+
+func _gerer_paresseux() -> void:
+	if _fil_p >= 0:
+		if not WorkerThreadPool.is_task_completed(_fil_p):
+			return
+		WorkerThreadPool.wait_for_task_completion(_fil_p)
+		_fil_p = -1
+		_ip_p = null
+	if not prets or _file_paresseux.is_empty() or not _faits.is_empty() or not _a_poser.is_empty():
+		return
+	_ip_p = _file_paresseux.pop_front()
+	if _ip_p.construit:
+		_ip_p = null
+		return
+	_ip_p.en_cours = true
+	_fil_p = WorkerThreadPool.add_task(_fil_paresseux)
 
 func _process(dt: float) -> void:
 	_t += dt
@@ -214,6 +293,10 @@ func _process(dt: float) -> void:
 			_chauffe_images = -1
 	if not prets and _fil >= 0:
 		_poser_interieurs()
+	elif prets:
+		_gerer_paresseux()
+		if not _faits.is_empty() or not _a_poser.is_empty():
+			_poser_interieurs()
 	# vitrages : s'allument la nuit (vus du dehors)
 	var cyc = get_parent().get("cycle") if get_parent() != null else null
 	if cyc != null and mats_int.has("vitre"):
@@ -239,13 +322,22 @@ func _process(dt: float) -> void:
 
 ## Lots fusionnés (socle technique §1) : chaque pièce de bâtiment est ajoutée à un maillage unique par
 ## (pivot, matériau) au lieu d'un MeshInstance3D par pièce ; `_finaliser()` crée les maillages à la fin.
-var _lots := {}   # "pivot|matériau" -> {"parent", "mat", "v", "n", "i"}
-var _arrays_cache := {}
+var _lots_principal := {}   # "pivot|matériau" -> {"parent", "mat", "v", "n", "i"}
+var _cache_principal := {}
+## Le fil de construction des intérieurs (au chargement et à la demande) a ses propres lots et son propre cache : il peut tourner
+## pendant que le fil principal ajoute encore des pièces (mobilier, bâti) sans qu'ils se mélangent.
+var _lots_fil := {}
+var _cache_fil := {}
+var _lots: Dictionary:
+	get: return _lots_principal if FilVerrou.fil_principal() else _lots_fil
+var _arrays_cache: Dictionary:
+	get: return _cache_principal if FilVerrou.fil_principal() else _cache_fil
 
 func _arrays_de(cle: String, fabrique: Callable) -> Array:
-	if not _arrays_cache.has(cle):
-		_arrays_cache[cle] = fabrique.call()
-	return _arrays_cache[cle]
+	var cache := _arrays_cache
+	if not cache.has(cle):
+		cache[cle] = fabrique.call()
+	return cache[cle]
 
 ## Occlusion peinte au pied de tout ce qui touche le sol (y local 0 = sol du village) : le bas des murs, des
 ## poteaux et des pierres s'assombrit (éclaboussures, ombre de contact).
@@ -265,9 +357,10 @@ func _ajouter(parent: Node3D, arrays: Array, xf: Transform3D, mat: Material, ao_
 		xf_lot = g.transform.affine_inverse() * parent.transform * xf
 		parent = g
 	var cle := "%d|%d" % [parent.get_instance_id(), mat.get_instance_id()]
-	if not _lots.has(cle):
-		_lots[cle] = {"parent": parent, "mat": mat, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray(), "i": PackedInt32Array()}
-	var lot: Dictionary = _lots[cle]
+	var lots := _lots
+	if not lots.has(cle):
+		lots[cle] = {"parent": parent, "mat": mat, "v": PackedVector3Array(), "n": PackedVector3Array(), "u": PackedVector2Array(), "c": PackedColorArray(), "i": PackedInt32Array()}
+	var lot: Dictionary = lots[cle]
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var norms: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
@@ -306,8 +399,9 @@ func _ajouter(parent: Node3D, arrays: Array, xf: Transform3D, mat: Material, ao_
 	lot["i"] = ii
 
 func _finaliser() -> void:
-	for cle in _lots:
-		var lot: Dictionary = _lots[cle]
+	var lots := _lots
+	for cle in lots:
+		var lot: Dictionary = lots[cle]
 		var arrays := []
 		arrays.resize(Mesh.ARRAY_MAX)
 		arrays[Mesh.ARRAY_VERTEX] = lot["v"]
@@ -332,7 +426,7 @@ func _finaliser() -> void:
 			# qui projettent déjà l'ombre → pas d'ombre propre (perf : passes d'ombre du soleil)
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		(lot["parent"] as Node3D).add_child(mi)
-	_lots.clear()
+	lots.clear()
 	_arrays_cache.clear()
 
 func _boite(parent: Node3D, taille: Vector3, xf: Transform3D, mat: Material, solide := false) -> void:
@@ -378,18 +472,14 @@ func _construire_interieurs() -> void:
 	for j in _jobs:
 		var ib: Interieurs = j[0]
 		var reel: Interieur = ib.ip
-		var t := Interieur.new()
-		t.nom = reel.nom
-		t.demi = reel.demi
-		t.sol_y = reel.sol_y
-		t.porte_locale = reel.porte_locale
+		var t := _temporaire(reel)
 		ib.ip = t
 		_coll_fil = []
 		(j[1] as Callable).call()
 		_finaliser()
 		ib.ip = reel
 		_mutex.lock()
-		_faits.append([reel, t, _coll_fil, ib.vivants])
+		_faits.append([reel, t, _coll_fil, ib.vivants, false])
 		_mutex.unlock()
 	FilVerrou.rendre()
 
@@ -402,21 +492,23 @@ func _poser_interieurs() -> void:
 			_mutex.unlock()
 			if f == null:
 				break
-			_planifier_pose(f[0], f[1], f[2], f[3])
+			_planifier_pose(f[0], f[1], f[2], f[3], f[4])
 		else:
 			_a_poser.pop_front().call()
 		if Time.get_ticks_usec() - debut > BUDGET_INT_US:
 			break
 	if Chrono.actif:
 		print("CHRONO pose interieurs : %.2f ms (reste %d taches, %d faits, %d poses)" % [(Time.get_ticks_usec() - debut) / 1000.0, _a_poser.size(), _faits.size(), _nb_poses])
-	if _nb_poses == _jobs.size() and _a_poser.is_empty():
+	if not prets and _nb_poses == _jobs.size() and _a_poser.is_empty():
 		FilVerrou.attendre(_fil)
 		_fil = -1
 		prets = true
 		interieurs_prets.emit()
 
 ## Découpe la pose d'un intérieur construit en fil : un enfant du contenu par tâche, collisions par paquets de 24.
-func _planifier_pose(reel: Interieur, t: Interieur, colls: Array, vivants: Array = []) -> void:
+## `vivants` : specs des petits objets vivants de la pièce (ObjetsVivants), peuplés après les collisions.
+## `paresseux` : intérieur à la demande (collisions notées pour le déchargement, `fin_chargement` à la fin).
+func _planifier_pose(reel: Interieur, t: Interieur, colls: Array, vivants: Array = [], paresseux := false) -> void:
 	for c in t.racine.get_children():
 		_a_poser.append(func() -> void:
 			t.racine.remove_child(c)
@@ -433,13 +525,18 @@ func _planifier_pose(reel: Interieur, t: Interieur, colls: Array, vivants: Array
 				var cs := CollisionShape3D.new()
 				cs.shape = c[1]
 				corps.add_child(cs)
-				cs.transform = corps.global_transform.affine_inverse() * parent.global_transform * (c[2] as Transform3D))
+				cs.transform = corps.global_transform.affine_inverse() * parent.global_transform * (c[2] as Transform3D)
+				if paresseux:
+					reel.collisions.append(cs))
 	if not vivants.is_empty():      # petits objets vivants (ObjetsVivants) : après les collisions de la pièce (tables, étagères)
 		_a_poser.append(func() -> void:
-			ObjetsVivants.peupler(reel.racine, vivants, String(reel.get_meta("lieu", reel.nom))))
+			ObjetsVivants.peupler(reel.racine, vivants, lieu_vivants(reel)))
 	_a_poser.append(func() -> void:
 		t.free()
-		_nb_poses += 1)
+		if paresseux:
+			reel.fin_chargement()
+		else:
+			_nb_poses += 1)
 
 ## Préchauffage des shaders d'intérieur (ps1_interieur, ps1_vitre, flammes, halos additifs) : un triangle minuscule par shader,
 ## posé 3 images devant la caméra du joueur, pendant la toute première image (déjà longue : compilation du reste de la scène).
@@ -508,6 +605,9 @@ func _exit_tree() -> void:
 	if _fil >= 0:
 		FilVerrou.attendre(_fil)
 		_fil = -1
+	if _fil_p >= 0:
+		FilVerrou.attendre(_fil_p)
+		_fil_p = -1
 
 func _pivot(position_: Vector3, lacet: float) -> Node3D:
 	var n := Node3D.new()
@@ -1430,6 +1530,7 @@ func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_m
 	ip.porte_locale = Vector3(0, 1.4, largeur * 0.5 + 0.05)
 	p.add_child(ip)
 	interieurs.append(ip)
+	BatimentsOuverts.appliquer(ip, id, self)
 	var ib := Interieurs.new(self, ip, mats_int, longueur, largeur, h_murs, faite)
 	# refonte bâti : le toit EXTÉRIEUR est plus raide (PENTE_TOIT) et son égout plus haut ; l'intérieur (plafond sous
 	# charpente, gaine de fumée) garde `faite` : le nouveau toit l'enveloppe entièrement (plans plus hauts partout).
@@ -1896,6 +1997,7 @@ func _forge(centre: Vector3, lacet := PI * 0.5) -> Node3D:
 	ip.sol_y = 0.04
 	p.add_child(ip)
 	interieurs.append(ip)
+	BatimentsOuverts.appliquer(ip, "forge", self)
 	var ib := Interieurs.new(self, ip, mats_int, 4.2, 3.4, 2.0, 0.6)
 	# poteaux octogonaux (le mur de pierre les enserre) et toit à une pente
 	for x in [-2.4, 2.4]:

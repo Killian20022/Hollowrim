@@ -167,9 +167,13 @@ func _tester() -> void:
 		m.cycle.heure = pas
 		vie.tick()
 		await _attendre(1.0)
-	await _attendre(45.0)
+	await _attendre(70.0)      # retours exe 5 : les maisons de la haute rue sont à ~45 m des postes de la place
 	var au_poste := _nb(func(c: Dictionary) -> bool: return _a_son_poste(c))
-	_verif(au_poste == 16, "réveil à pied : les 16 civils sont à leur poste ou en promenade autour (%d)" % au_poste)
+	var loin: Array = []
+	for c: Dictionary in vie.civils:
+		if not _a_son_poste(c):
+			loin.append("%s (état %d, %.1f m)" % [c["id"], c["n"].etat, (c["n"] as Node3D).global_position.distance_to(c["n"].points[0])])
+	_verif(au_poste == 16, "réveil à pied : les 16 civils sont à leur poste ou en promenade autour (%d) %s" % [au_poste, loin])
 
 	# --- fuite devant un hostile (P2) : faux loup à 10 m du centre
 	await _heure(12.0)

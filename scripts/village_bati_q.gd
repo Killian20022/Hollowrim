@@ -26,12 +26,20 @@ static func detail(nom: String) -> bool:
 ## même cadre, linteau, appui, jambages et meneau en bois sombre que les autres fenêtres), un panneau de planches sombres
 ## fermant le reste de la baie, et deux volets de planches sombres entrouverts (comme les fenêtres faites maison).
 ## `c` = milieu de la baie sur le nu extérieur, `ouv` = taille de la baie, `lacet` = orientation de la façade (0 : face +Z).
-static func fenetre(v, p: Node3D, c: Vector3, ouv: Vector2, lacet: float) -> void:
+static func fenetre(v, p: Node3D, c: Vector3, ouv: Vector2, lacet: float, ouverte := false) -> void:
 	var n := Basis(Vector3.UP, lacet) * Vector3.BACK
 	var larg := minf(ouv.x - 0.36, 0.78)
 	var haut := minf(ouv.y - 0.36, 0.64)
 	var f := VillageBati._face(c, n)
-	v._boite(p, Vector3(ouv.x - 0.04, ouv.y - 0.04, 0.06), f * Transform3D(Basis(), Vector3(0, 0, -0.06)), v.m_poutres)
+	if ouverte:
+		# bâtiment ouvert (retours exe 5) : le panneau est percé au droit du vitrage (on voit le dehors depuis la pièce)
+		var bw := (ouv.x - 0.04 - larg) * 0.5
+		var bh := (ouv.y - 0.04 - haut) * 0.5
+		for sx in [-1.0, 1.0]:
+			v._boite(p, Vector3(bw, ouv.y - 0.04, 0.06), f * Transform3D(Basis(), Vector3(sx * (larg + bw) * 0.5, 0, -0.06)), v.m_poutres)
+			v._boite(p, Vector3(larg, bh, 0.06), f * Transform3D(Basis(), Vector3(0, sx * (haut + bh) * 0.5, -0.06)), v.m_poutres)
+	else:
+		v._boite(p, Vector3(ouv.x - 0.04, ouv.y - 0.04, 0.06), f * Transform3D(Basis(), Vector3(0, 0, -0.06)), v.m_poutres)
 	VillageBati.fenetre(v, p, c, n, larg, haut, false, false)
 	for sx in [-1.0, 1.0]:
 		v._boite(p, Vector3(larg * 0.5, haut + 0.02, 0.04), f * Transform3D(Basis(Vector3.UP, sx * 1.15), Vector3(sx * (larg * 0.5 + 0.12 + larg * 0.18), 0, 0.12 + larg * 0.2)), v.m_poutres)
@@ -168,8 +176,11 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	var y: float = v.h_sol(x, z) if hmax - hmin < 0.3 else (hmin + hmax) * 0.5 + 0.1
 	if o.has("y"):
 		y = o["y"]   # fermes hors enceinte posées sur leur terrasse (monde._terrasses_fermes), comme VillageBati.maison
+	if BatimentsOuverts.actif and o.has("id"):
+		y = maxf(y, hmax + 0.05 - 0.4)      # bâtiment ouvert : le terrain ne perce pas le plancher (VillageBati.maison)
 	var p: Node3D = v.pivot_monde(x, z, lacet, y, g)
 	p.name = "BatiQ_%s_%d_%d" % [nom, roundi(x), roundi(z)]
+	var ouvert := BatimentsOuverts.actif and o.has("id")      # retours exe 5 : enterable
 	var socle := hmin - y
 	if socle < -0.15:      # pente : socle de pierre jusqu'au point bas (comme VillageBati.maison)
 		v._boite(p, Vector3(L + 0.55, 0.75 - socle, W + 0.55), Transform3D(Basis(), Vector3(0, (socle - 0.35 + 0.4) * 0.5, 0)), v.m_soubassement)
@@ -214,23 +225,35 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	var roul := BatiGeo.rondin(Lx - 0.2, 0.3, graine + 11, 0.05, 0, 0.0, 1.0)
 	v._ajouter(p, (roul[0] as BatiGeo.Maillage).arrays(), Transform3D(Basis(), Rp + Vector3(0, 0.38, 0)), v.m_neige)
 	# fenêtres : celles des maisons d'avant (4 carreaux, cadre et volets de bois sombre, lueur chaude la nuit) dans les baies du kit
+	var plat := y_sol + 2.75 if float(m["ztop"]) > 3.2 else NAN      # maison à étage (H2) : plafond plat au-dessus du rez
 	for w: Array in m.get("fenetres", []):
-		fenetre(v, p, Vector3(w[0], y_sol + float(w[1]), w[2]), Vector2(w[3], w[4]), w[5])
-	# âme sombre : l'intérieur de la façade est vide ; sans elle, de près, on voyait à travers les vitrages translucides
-	v._boite(p, Vector3(L - 0.3, y0 - y_sol - 0.1, W - 0.3), Transform3D(Basis(), Vector3(0, (y0 + y_sol) * 0.5, 0)), v.m_poutres)
+		fenetre(v, p, Vector3(w[0], y_sol + float(w[1]), w[2]), Vector2(w[3], w[4]), w[5], ouvert and float(w[3]) >= 0.9 and (is_nan(plat) or y_sol + float(w[1]) < plat - 0.4))
+	# âme sombre : l'intérieur de la façade est vide ; sans elle, de près, on voyait à travers les vitrages translucides (bâtiment
+	# ouvert : dans son propre nœud, masquée quand l'intérieur est chargé)
+	var p_ame: Node3D = p
+	if ouvert:
+		p_ame = Node3D.new()
+		p_ame.name = "Ame"
+		p.add_child(p_ame)
+	v._boite(p_ame, Vector3(L - 0.3, y0 - y_sol - 0.1, W - 0.3), Transform3D(Basis(), Vector3(0, (y0 + y_sol) * 0.5, 0)), v.m_poutres)
 	# têtes de dragon (identité nordique gardée) sur les pignons des maisons qui en avaient
 	if o.get("dragons", false):
 		for cote in [-1.0, 1.0]:
 			dragons(v, p, cote * (Lx * 0.5 - 0.1), faite_y + 0.1, egout_y, demi, graine + int(cote) * 17)
 	# vantaux : planches et ferrures des portes de props validées (q_porte_*, celles des maisons closes d'avant), dans l'ouverture du kit
 	var k := 0
+	var porte_ouverte := {}
 	for d: Array in m.get("portes", []):
 		var vq: String = (["q_porte_1_%s", "q_porte_4_%s", "q_porte_8_%s", "q_porte_2_%s"][(graine + k) % 4] as String) % ("ronde" if d[6] else "plate")
 		k += 1
 		if not PropsQuaternius.existe(vq):
 			continue
 		var bq := PropsQuaternius.boite(vq)
-		vantail(v, p, vq, Transform3D(Basis(Vector3.UP, d[5]) * Basis.from_scale(Vector3(d[3] / bq.size.x, d[4] / bq.size.y, 1.0)), Vector3(d[0], y_sol + float(d[1]), d[2])))
+		var nd0 := Basis(Vector3.UP, d[5]) * Vector3.BACK
+		if ouvert and porte_ouverte.is_empty():
+			porte_ouverte = {"c": Vector3(d[0], y_sol + float(d[1]), d[2]), "n": nd0, "larg": float(d[3]), "haut": float(d[4]), "q": vq}
+		else:
+			vantail(v, p, vq, Transform3D(Basis(Vector3.UP, d[5]) * Basis.from_scale(Vector3(d[3] / bq.size.x, d[4] / bq.size.y, 1.0)), Vector3(d[0], y_sol + float(d[1]), d[2])))
 		# deux marches de pierre devant le seuil (comme VillageBati.porte) : le seuil est au-dessus du soubassement
 		var nd := Basis(Vector3.UP, d[5]) * Vector3.BACK
 		var fd := Transform3D(Basis(Vector3.UP, d[5]), Vector3(d[0], y_sol, d[2]) + nd * 0.17)
@@ -297,6 +320,24 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	var Wt: float = W + (0.9 if style == "colombage" else 0.0)
 	var bas_c := minf(socle, 0.0) - 0.3
 	var haut_c := y0 + (float(m["faite"]) - float(m["ztop"])) * 0.6
+	if ouvert and not porte_ouverte.is_empty():
+		var nd: Vector3 = porte_ouverte["n"]
+		porte_ouverte["cote"] = ("+X" if nd.x > 0.0 else "-X") if absf(nd.x) > 0.5 else ("+Z" if nd.z > 0.0 else "-Z")
+		var sp := {"id": o["id"], "style": {"rondins": "rondins", "pierre": "pierre"}.get(style, "kit"),
+			"int": Vector2(L * 0.5 - 0.03, W * 0.5 - 0.03), "ext": Vector2(L * 0.5 + 0.25, W * 0.5 + 0.25), "y_sol": y_sol, "y_mur": y0,
+			"porte": porte_ouverte, "bas": bas_c, "haut": haut_c, "masque": p_ame, "fenetres": []}
+		if is_nan(plat):
+			sp["toit"] = {"faite": faite_y, "pente": (faite_y - egout_y) / demi}
+		else:
+			sp["plat"] = plat
+		for w: Array in m.get("fenetres", []):
+			if is_nan(plat) or y_sol + float(w[1]) < plat - 0.4:      # baie étroite (pignon, 0,5 m) : volets clos dedans, le vitrage du dehors reste plaqué
+				sp["fenetres"].append([Vector3(w[0], y_sol + float(w[1]), w[2]), Vector2(minf(w[3], 0.62) if float(w[3]) < 0.9 else w[3], minf(w[4], 0.7) if float(w[3]) < 0.9 else w[4]), float(w[3]) >= 0.9])
+		if m.has("cheminee"):
+			sp["foyer"] = Vector2(float(m["cheminee"][0]), float(m["cheminee"][2]))
+		var ip := BatimentsOuverts.ouvrir(v, p, sp)
+		v._emprise(p, Vector2(L * 0.5 + 0.5, Wt * 0.5 + 0.5), Vector2.ZERO, ip)
+		return p
 	v._collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(0, (bas_c + haut_c) * 0.5, 0)), Vector3(L + 0.45, haut_c - bas_c, Wt + 0.45))
 	v._emprise(p, Vector2(L * 0.5 + 0.5, Wt * 0.5 + 0.5))
 	return p

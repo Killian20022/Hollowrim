@@ -63,13 +63,16 @@ static func peupler(monde_: Node3D) -> Vie:
 
 ## Civils = tous les villageois.gd du groupe « villageois » (les gardes ont leur propre gestionnaire).
 func _enregistrer() -> void:
-	for id in ["halle", "sigrun", "chasseurs", "grima", "forge"]:
+	for id in (village.ids_interieurs() if village.has_method("ids_interieurs") else ["halle", "sigrun", "chasseurs", "grima", "forge"]):
 		var ip: Interieur = village.interieur(id)
 		if ip == null:
 			continue
 		var local := Vector3(ip.porte_locale.x, 0.0, ip.porte_locale.z + 1.3)
 		var p := ip.to_global(local)
 		p.y = float(monde.hauteur(p.x, p.z))
+		# retours exe 5 (bâtiments ouverts) : devant une porte haute, une rampe de collision descend du seuil au relief ; le civil
+		# réveillé est posé au niveau du seuil (il retombe sur la rampe), jamais dans la rampe (il passait sous le monde)
+		p.y = maxf(p.y, ip.to_global(Vector3(0, ip.sol_y, 0)).y)
 		var dir := (ip.global_transform.basis * Vector3(0, 0, 1))
 		dir.y = 0.0
 		_portes[id] = {"pos": p, "dir": dir.normalized()}
@@ -314,6 +317,18 @@ func _transition(c: Dictionary, m: String, instant: bool) -> void:
 		n.installer(poste, false, true)
 	else:
 		n.rentrer(poste, false, _sortie(c, n, poste), false, true)
+
+## De nouveaux lits viennent d'être posés (intérieur chargé à la demande, joueur en approche) : les civils qui dormaient cachés
+## faute de lit s'y couchent tout de suite (placement direct, hors de vue : le joueur est encore dehors).
+func lits_poses() -> void:
+	for c: Dictionary in civils:
+		var n: Node3D = c["n"]
+		if not is_instance_valid(n) or String(c["mode"]) != "maison" or not n.has_method("au_lit") or not n.est_endormi() or n.au_lit():
+			continue
+		var maison := String(c["f"].get("maison", ""))
+		var porte := _porte_de(maison, String(c["id"]))
+		if maison != "" and porte != Vector3.ZERO:
+			_vers_le_lit(c, maison, porte, true)
 
 ## Lot sommeil : s'il a un lit dans son foyer (Sommeil), il passe la porte et va se coucher ; sinon (false) il dort caché, comme avant.
 func _vers_le_lit(c: Dictionary, maison: String, porte: Vector3, loin: bool) -> bool:

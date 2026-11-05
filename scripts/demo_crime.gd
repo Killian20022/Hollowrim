@@ -81,6 +81,14 @@ static func _fouiller(crime: Crime, it: Node3D, f: Dictionary) -> Array:
 static func verrouiller_porte(crime: Crime, ip: Node3D, niveau: int, proprietaire: String) -> void:
 	if ip == null or ip.get("interactif") == null:
 		return
+	if ip is Interieur:      # serrure propre des intérieurs (bâtiments ouverts) : toujours fermée à ce niveau jusqu'au crochetage
+		var ii := ip as Interieur
+		ii.difficulte = niveau
+		ii.regle_verrou = "toujours"
+		ii.proprietaire = proprietaire
+		ii.deverrouille = false
+		ii._maj_verrou()
+		return
 	var it: Node3D = ip.interactif
 	ip.set_meta("verrou", niveau)
 	ip.set_meta("proprietaire", proprietaire)

@@ -78,6 +78,7 @@ static func materiaux() -> Dictionary:
 	d["pierre_sombre"] = _m("pierre_int", Color(0.62, 0.67, 0.76), 64.0, 0.9)
 	d["brute"] = _m("pierre_int_s", Color(0.92, 0.98, 1.06), 64.0, 0.9)
 	d["seche"] = _m("pierre_int", Color(1.0, 0.95, 0.9), 64.0, 1.0)
+	d["pierre_mur"] = _m("pierre_int", Color(0.74, 0.7, 0.68), 64.0, 0.9)      # murs de pierre des bâtiments ouverts : moins clair que la pierre des foyers
 	d["fer"] = _m("fer", Color(0.85, 0.87, 0.95))
 	d["fer_noir"] = _m("fer", Color(0.45, 0.45, 0.5))
 	d["etain"] = _m("fer", Color(1.35, 1.38, 1.45))
@@ -711,14 +712,21 @@ func etagere(pos: Vector3, lacet: float, larg: float, haut: float, niveaux := 3,
 
 ## Lit (lot « sommeil ») : un Marker3D du groupe « emplacement_lit » où Sommeil pose un `Lit` (modèle procédural, places de couchage,
 ## collision, « Dormir »). Tête vers -X local (lacet 0), comme les lits d'avant ; le marqueur regarde la tête en +Z (son -Z = le pied).
-## `proprietaire` : id(s) de PNJ séparés par des virgules, « joueur », « auberge », ou "" (lit libre du foyer `foyer`).
+## `larg` / `long` en mètres (Lit : double dès 1,2 m). `proprietaire` : id(s) de PNJ séparés par des virgules, « joueur », « auberge »,
+## ou "" (lit libre du foyer `foyer`, ou de l'intérieur qui le contient) ; "?" (défaut) : celui que data/batiments.json donne au
+## n-ième lit de cet intérieur (« lits_existants », bâtiments ouverts). Les lits des bâtiments ouverts passent par ici aussi.
 ## `marqueur` faux : l'ancien lit fusionné (modules Quaternius / L6), sans couchage (lit clos de la halle, bâti autour de lui).
-func lit(pos: Vector3, lacet: float, long := 1.95, larg := 0.95, peau_mat := "peau", etat := 0, proprietaire := "", foyer := "", marqueur := true) -> void:
+var _n_lits := 0
+
+func lit(pos: Vector3, lacet: float, long := 1.95, larg := 0.95, peau_mat := "peau", etat := 0, proprietaire := "?", foyer := "", marqueur := true) -> void:
 	if not marqueur:
 		_lit_fusionne(pos, lacet, long, larg, peau_mat, etat)
 		return
+	if proprietaire == "?":
+		proprietaire = BatimentsOuverts.proprietaire_lit(String(ip.get_meta("id", "")), _n_lits)
 	var m := Marker3D.new()
-	m.name = "EmplacementLit"
+	m.name = "EmplacementLit%d" % _n_lits
+	_n_lits += 1
 	m.add_to_group("emplacement_lit", true)
 	m.set_meta("proprietaire", proprietaire)
 	m.set_meta("largeur", larg)

@@ -276,6 +276,27 @@ static func reinitialiser() -> void:
 	for o: ObjetVivant in _vivants():
 		_appliquer(o)
 
+## Contenu d'un intérieur à la demande libéré (Interieur.decharger) : les objets déplacés de `parent` gardent leur place dans `etats`
+## (les pris y sont déjà), puis ils sortent de la liste ; `peupler` les recrée à l'identique (mêmes identifiants) au rechargement.
+static func liberer(parent: Node) -> void:
+	var r := []
+	for o in tous:
+		if not is_instance_valid(o):
+			continue
+		if not parent.is_ancestor_of(o):
+			r.append(o)
+			continue
+		_eveilles.erase(o)
+		if o.has_meta("pris"):
+			continue
+		if not o.freeze:
+			o.endormir()
+		if o.deplace:
+			var t: Transform3D = o.transform
+			var q := t.basis.get_rotation_quaternion()
+			etats[o.ident] = {"p": [t.origin.x, t.origin.y, t.origin.z, q.x, q.y, q.z, q.w]}
+	tous = r
+
 static func _vivants() -> Array:
 	var r := []
 	for o in tous:

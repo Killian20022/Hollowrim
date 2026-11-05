@@ -110,6 +110,7 @@ func _unhandled_input(e: InputEvent) -> void:
 func scanner() -> void:
 	if not is_inside_tree():
 		return
+	var nouveaux := false
 	for m: Node in get_tree().get_nodes_in_group(GROUPE_MARQUEURS):
 		var mk := m as Node3D
 		if mk == null or not mk.is_inside_tree() or mk.has_meta("lit_pose"):
@@ -126,8 +127,36 @@ func scanner() -> void:
 		mk.add_child(l)
 		_interactif(l)
 		lits.append(l)
+		l.tree_exiting.connect(_oublier.bind(l))     # contenu d'un intérieur à la demande libéré : le lit sort de la liste
+		_rattacher(l)
+		nouveaux = true
 		_reserve.clear()           # nouvelles places : attributions refaites au prochain coucher
 		_attrib.clear()
+	var v: Node = monde.get("vie") if nouveaux and monde != null else null
+	if v != null and v.has_method("lits_poses"):
+		v.lits_poses()             # intérieur posé à la demande : ses dormeurs cachés se couchent dans leur lit
+
+## Lit retiré de l'arbre (intérieur à la demande déchargé) : il n'est plus proposé à personne ; il sera reposé au rechargement.
+func _oublier(l: Lit) -> void:
+	lits.erase(l)
+	for id: String in _attrib.keys():
+		if _attrib[id][0] == l:
+			_attrib.erase(id)
+	var pre := "%d:" % l.get_instance_id()
+	for cle: String in _reserve.keys():
+		if cle.begins_with(pre):
+			_reserve.erase(cle)
+
+## Intérieur à la demande rechargé (BatimentsOuverts) : son lit est un nouveau `Lit` ; le civil resté couché dans l'ancien (libéré
+## avec le contenu pendant que le joueur était loin) y est rattaché, à sa place.
+func _rattacher(l: Lit) -> void:
+	for n: Node in get_tree().get_nodes_in_group("villageois"):
+		if not n.has_method("au_lit") or not n.au_lit() or is_instance_valid(n.get("lit")):
+			continue
+		var k := int(n.get("place_lit"))
+		if k < l.places() and l.occupants[k] == null and (n as Node3D).global_position.distance_to(l.global_position) < 1.6:
+			n.set("lit", l)
+			l.occupants[k] = n
 
 func _doublon(p: Vector3) -> bool:
 	for l: Lit in lits:
@@ -140,7 +169,11 @@ func _foyer_de(n: Node) -> String:
 	var p := n.get_parent()
 	while p != null and not (p is Interieur):
 		p = p.get_parent()
-	if p == null or village == null or not village.has_method("interieur"):
+	if p == null:
+		return ""
+	if (p as Interieur).id != "":
+		return (p as Interieur).id
+	if village == null or not village.has_method("interieur"):
 		return ""
 	var noms: Dictionary = village.get("NOMS_BATIMENTS") if village.get("NOMS_BATIMENTS") is Dictionary else {}
 	for id: String in noms:
