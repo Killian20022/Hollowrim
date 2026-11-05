@@ -38,6 +38,13 @@ func regler_benediction(active: bool, soigner := false) -> void:
 		vie = minf(vie_max, vie + BONUS_BENEDICTION)
 	vie = minf(vie, vie_max)
 var vigueur := 100.0
+# --- esquive (ReglagesCombat.ESQUIVE_*, docs/COMBAT.md « Esquive »)
+var esquive_t := -1.0              # temps écoulé depuis le début de l'esquive (s) ; -1 = pas d'esquive en cours
+var esquives := 0                  # nombre d'esquives lancées (tests)
+var esquives_evitees := 0          # coups annulés par l'invulnérabilité (tests)
+var _esquive_dir := Vector3.ZERO
+var _esquive_cote := 0.0           # -1 gauche, +1 droite, 0 en arrière (inclinaison de la caméra)
+var _esquive_attente := 0.0
 var vigueur_max := 100.0
 ## Mana (magie) : payé par les sorts, régénéré REGEN_MANA/s après DELAI_MANA s sans dépense ni incantation.
 var mana := 100.0
@@ -179,6 +186,7 @@ func _actions() -> void:
 		"avant": [KEY_W, KEY_UP], "arriere": [KEY_S, KEY_DOWN],
 		"gauche": [KEY_A, KEY_LEFT], "droite": [KEY_D, KEY_RIGHT],
 		"saut": [KEY_SPACE], "course": [KEY_SHIFT],
+		"esquive": [KEY_ALT, KEY_C],   # pas de côté (ou en arrière sans direction) : voir esquiver()
 	}
 	for nom in touches:
 		if InputMap.has_action(nom):
@@ -238,13 +246,43 @@ func depenser(quantite: float) -> void:
 	vigueur = maxf(0.0, vigueur - quantite)
 	_repos_vigueur = 1.0
 
-## Appelé par un ennemi qui frappe. Renvoie "parade", "bloque" ou "touche".
+## ESQUIVE (touche Alt gauche ou C) : pas de côté dans la direction tenue (gauche / droite), en arrière sinon. ESQUIVE_DISTANCE m en
+## ESQUIVE_DUREE s (vitesse décroissante), invulnérable les ESQUIVE_INVULNERABLE premières secondes (recevoir_coup renvoie
+## "esquive"), coûte ESQUIVE_COUT de vigueur. Refusée sans assez de vigueur, pendant l'attente, ou si les mains ne le permettent pas
+## (Mains.peut_esquiver : elle annule une récupération de coup / la garde, jamais un coup en cours). `entree` : direction imposée
+## (tests), sinon les touches de déplacement. Renvoie vrai si elle part.
+func esquiver(entree := Vector2(INF, INF)) -> bool:
+	if mort or en_dialogue or esquive_t >= 0.0 or _esquive_attente > 0.0 or vigueur < ReglagesCombat.ESQUIVE_COUT:
+		return false
+	if mains != null and not mains.peut_esquiver():
+		return false
+	var e := entree if entree.x != INF else Input.get_vector("gauche", "droite", "avant", "arriere")
+	_esquive_cote = signf(e.x) if absf(e.x) > 0.3 else 0.0
+	var local := Vector3(_esquive_cote, 0.0, 0.0) if _esquive_cote != 0.0 else Vector3(0.0, 0.0, 1.0)
+	_esquive_dir = (transform.basis * local).normalized()
+	esquive_t = 0.0
+	esquives += 1
+	depenser(ReglagesCombat.ESQUIVE_COUT)
+	_repos_vigueur = 0.8
+	if mains != null:
+		mains.esquive_commencee()
+	Sons.jouer(self, ["cloth1", "cloth2"], -6.0, 0.1)
+	return true
+
+## Vrai pendant la fenêtre d'invulnérabilité de l'esquive.
+func esquive_invulnerable() -> bool:
+	return esquive_t >= 0.0 and esquive_t < ReglagesCombat.ESQUIVE_INVULNERABLE
+
+## Appelé par un ennemi qui frappe. Renvoie "parade", "bloque", "esquive" (coup évité) ou "touche".
 ## `options` (facultatif ; troll de givre, mage nordique) : "imparable" (part 0..1 des dégâts qui traverse la garde ; > 0 = pas de
 ## parade possible, le coup « se pare mal »), "recul" (m/s, 4 par défaut), "ralenti" (Vector2(durée s, facteur de vitesse)),
 ## "secousse" (minimum de secousse de caméra).
 func recevoir_coup(degats: float, origine: Vector3, options := {}) -> String:
 	if mort:
 		return ""
+	if esquive_invulnerable():
+		esquives_evitees += 1
+		return "esquive"
 	# armure (lot A, EquipementCorps) : coup physique × 120 / (120 + armure × compétence Armure) ; coup élémentaire
 	# (options.type glace / feu / electricite / tenebres) : résistance resist_* + resist_magie de l'équipement et des perks, plafonnée à 80 %
 	var type_coup := String(options.get("type", ""))
@@ -392,6 +430,20 @@ func _physics_process(dt: float) -> void:
 	var reactivite := 1.0 - exp(-(10.0 if is_on_floor() else 2.0) * dt)
 	velocity.x = lerpf(velocity.x, cible.x, reactivite)
 	velocity.z = lerpf(velocity.z, cible.z, reactivite)
+	_esquive_attente = maxf(0.0, _esquive_attente - dt)
+	if not mort and not en_dialogue and Input.is_action_just_pressed("esquive"):
+		esquiver()
+	if esquive_t >= 0.0:
+		# vitesse décroissante (somme = ESQUIVE_DISTANCE sur ESQUIVE_DUREE) : le départ est vif, l'arrivée douce
+		esquive_t += dt
+		var u := esquive_t / ReglagesCombat.ESQUIVE_DUREE
+		if u >= 1.0 or mort:
+			esquive_t = -1.0
+			_esquive_attente = ReglagesCombat.ESQUIVE_ATTENTE
+		else:
+			var v := ReglagesCombat.ESQUIVE_DISTANCE / ReglagesCombat.ESQUIVE_DUREE * 2.0 * (1.0 - u)
+			velocity.x = _esquive_dir.x * v
+			velocity.z = _esquive_dir.z * v
 	var vy_avant := velocity.y
 	move_and_slide()
 	if is_on_floor() and not _etait_au_sol and vy_avant < -3.0 and not mort:
@@ -448,6 +500,13 @@ func _physics_process(dt: float) -> void:
 	else:
 		camera.position = camera_corps.position
 	camera.rotation = camera_corps.rotation
+	if esquive_t >= 0.0 and not mort:
+		# petit décalage + inclinaison vers le côté de l'esquive (en arrière : la tête se relève et la vue s'abaisse), réglés par
+		# l'option « Mouvement de tête » / « Réduire les mouvements »
+		var k := sin(PI * clampf(esquive_t / ReglagesCombat.ESQUIVE_DUREE, 0.0, 1.0)) * float(f["tete"])
+		camera.rotation.z += -_esquive_cote * 0.12 * k
+		camera.rotation.x += (0.06 if _esquive_cote == 0.0 else 0.0) * k
+		camera.position += Vector3(_esquive_cote * 0.07, -0.1, 0.0) * k
 	camera.h_offset = camera_corps.decalage.x
 	camera.v_offset = camera_corps.decalage.y
 	if tassement > 0.0:

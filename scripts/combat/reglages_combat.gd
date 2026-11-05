@@ -14,13 +14,13 @@ class_name ReglagesCombat
 
 ## PV par sorte d'ennemi (draugr.gd, ennemi_base.gd et dérivés, dragon.gd, et les vie_imposee des donjons).
 const VIE := {
-	"sbire": 50.0,          # draugr chétif : 4 coups légers (3 à la tête ; un coup chargé à la tête ne suffit plus)
-	"squelette": 55.0,      # os secs : 4 coups légers, 2 coups puissants
-	"draugr": 80.0,         # draugr / bandit standard : 6-7 coups légers
-	"bandit": 80.0,         # bandits des grottes (grotte_jeu)
-	"guerrier": 115.0,      # draugr ancien (casque, mailles) : 9 coups légers
+	"sbire": 60.0,          # draugr chétif : 4-5 coups légers (3 à la tête ; un coup chargé à la tête ne suffit plus)
+	"squelette": 65.0,      # os secs : 5 coups légers, 3 coups puissants
+	"draugr": 104.0,        # draugr / bandit standard : 7-8 coups légers (+30 % le 2026-11-05 : ils doivent tenir assez pour MENACER)
+	"bandit": 104.0,        # bandits des grottes (grotte_jeu)
+	"guerrier": 135.0,      # draugr ancien (casque, mailles) : 10 coups légers
 	"gardien": 150.0,       # gardiens nommés de la crypte (Os, Givre, Eau) : 12 coups
-	"gardien_serment": 115.0,  # gardiens du serment (vague) : comme un guerrier
+	"gardien_serment": 135.0,  # gardiens du serment (vague) : comme un guerrier
 	"mage": 70.0,           # mage nordique : robe, 5 coups
 	"troll": 420.0,         # troll de givre (mini-chef, régénère) : 30 coups
 	"svanhild": 400.0,      # chefs : 25-40 coups, avec leurs phases
@@ -44,6 +44,51 @@ const DEGATS := {
 	"hrafn": 18.0,          # 5-6 coups, rapide
 	"jarl": 28.0,           # 3-4 coups, lent, bouclier
 }
+
+# ------------------------------------------------------------------ menace des ennemis courants (nuit 2026-11-05)
+
+## Ennemis « courants » (sbire, squelette, draugr, guerrier, bandit ; ni chef, ni archer) : draugr.gd, `_menace`. Modèle : le troll.
+## Coups légers : geste accéléré (premier coup ~0,5 s après l'arrivée au contact au lieu de ~0,65 s) ; enchaînement de 1 à
+## MENACE_SERIE_MAX coups (dégâts × MENACE_SERIE_MULT[n]), le suivant part dès la fin de l'impact du précédent s'il est encore à portée.
+const MENACE_RYTHME := 1.3
+const MENACE_SERIE_MAX := {"sbire": 2, "squelette": 2, "draugr": 3, "bandit": 3, "guerrier": 3}
+const MENACE_SERIE_MULT := [1.0, 1.15, 1.3]
+## Part du geste (0..1) à laquelle le coup suivant de la série démarre.
+const MENACE_SERIE_DEPART := 0.62
+## Pause entre deux séries (s), pendant laquelle l'ennemi tourne autour du joueur au lieu de rester planté.
+const MENACE_PAUSE := Vector2(0.7, 1.4)
+## Une fois sur deux, il fait d'abord un pas en arrière de cette durée (s) : le joueur doit le suivre, le coup suivant arrive de plus loin.
+const MENACE_REPLI := 0.45
+## Hyper-armure : après chaque titubement, les coups légers et moyens ne le font plus tituber pendant ce temps (sinon un joueur
+## qui spamme enchaîne les titubements de 0,3 s et l'ennemi n'attaque jamais).
+const MENACE_ARMURE := 0.9
+## Geste NON PARABLE annoncé (coup de taille) : préparation lente lisible (MENACE_LOURD_PREPARATION s, repère rouge au sol, éclair),
+## puis frappe en MENACE_LOURD_ANNONCE - préparation s. Pas de parade parfaite, MENACE_LOURD_IMPARABLE des dégâts traversent la
+## garde. Seul le pas de côté / l'esquive l'évite (ou un coup lourd qui l'interrompt). Il reste planté ensuite (punition).
+const MENACE_LOURD_ANNONCE := 0.95
+const MENACE_LOURD_PREPARATION := 0.62
+const MENACE_LOURD_DEGATS := 1.6
+const MENACE_LOURD_IMPARABLE := 0.5
+const MENACE_LOURD_RAYON := 1.5
+const MENACE_LOURD_AVANCE := 1.5
+## Attente avant le premier geste annoncé (s) et entre deux (tirage), et part de séries qui deviennent un geste annoncé.
+const MENACE_LOURD_PREMIER := Vector2(1.6, 2.6)
+const MENACE_LOURD_ENTRE := Vector2(3.0, 5.0)
+## Contournement : quand plusieurs ennemis courants sont sur le joueur, ceux qui ne sont pas au contact passent sur le flanc.
+const MENACE_FLANC_ANGLE := 1.35
+const MENACE_FLANC_RAYON := 2.3
+const MENACE_FLANC_MAX := 2.8
+
+# ------------------------------------------------------------------ esquive du joueur (touche Alt gauche ou C)
+
+## Pas de côté (ou en arrière sans direction) : distance, durée, invulnérabilité (depuis le début), coût de vigueur, attente.
+const ESQUIVE_DISTANCE := 2.7
+const ESQUIVE_DUREE := 0.34
+const ESQUIVE_INVULNERABLE := 0.2
+const ESQUIVE_COUT := 20.0
+const ESQUIVE_ATTENTE := 0.2
+## Annulation de la récupération d'un coup : tout de suite si le coup a raté, après ce délai (s) s'il a touché.
+const ESQUIVE_ANNULE_TOUCHE := 0.2
 
 static func vie(sorte: String, defaut := 80.0) -> float:
 	return float(VIE.get(sorte, defaut))

@@ -95,6 +95,27 @@ var _rythme := 1.0             # vitesse des gestes d'attaque (boss lents)
 var _bouclier := 0.3           # chance de bloquer un coup léger de face
 var _phase := 1
 var _combo := 0
+# --- menace des ennemis courants (ReglagesCombat.MENACE_*, docs/COMBAT.md « Menace des ennemis courants »)
+var _menace := false           # ennemi courant : ni chef ni archer (séries de coups, geste annoncé, contournement)
+var _serie := 0                # rang du coup dans la série en cours (1, 2, 3)
+var _serie_max := 1            # longueur tirée de la série
+var _lourd := false            # le geste en cours est le coup de taille ANNONCÉ (non parable)
+var _lourd_pre := 0.0          # durée du clip avant l'impact (s, à vitesse 1)
+var _centre_lourd := Vector3.ZERO   # centre du repère au sol, figé au début de la préparation
+var _alerte: Node3D            # repère rouge au sol (telegraphe_sol.gd)
+var _marque: Label3D           # « ! » rouge au-dessus de la tête pendant la préparation (lisible aussi quand le sol est hors champ)
+var _pulsation: Tween          # lueur pulsée du corps pendant la préparation
+var _cd_lourd := 0.0           # attente avant le prochain geste annoncé (s)
+var _armure := 0.0             # hyper-armure restante après un titubement (s)
+var _cote_pause := 1.0         # sens dans lequel il tourne autour du joueur entre deux séries
+var _lateral := Vector3.ZERO   # vitesse latérale de contournement (m/s, recalculée à chaque image)
+var _t_groupe := 0.0
+var _allie_contact: Node3D     # allié déjà au contact du joueur (il passe alors sur le flanc)
+var _flanc_t := 0.0
+const AMORCE := 0.8            # ennemi courant : il lance son coup à PORTEE + AMORCE, fait un pas d'élan (ELAN m/s) et le coup porte jusqu'à PORTEE + 0,6
+const ELAN := 2.4
+const ENGAGEMENT := 0.35       # part de la préparation d'un coup de série pendant laquelle un coup moyen peut encore l'interrompre
+var _repli := 0.0              # durée restante d'un pas en arrière entre deux séries (s)
 var _appel := ""
 var _appel_fait := false
 var _cri_fait := false
@@ -121,6 +142,7 @@ var _detour := 0.0             # durée restante d'un détour forcé (bloqué)
 var _dernier := Vector3.ZERO
 var _t_bloque := 0.0
 const BUTIN := preload("res://scripts/butin.gd")
+const TELEGRAPHE := preload("res://scripts/combat/telegraphe_sol.gd")   # repère rouge au sol du geste annoncé
 ## Un ennemi immobile au sol ne relance move_and_slide() qu'à cette période (re-vérifie le sol sous ses pieds).
 const IMMO_PERIODE := 0.4
 
@@ -196,6 +218,11 @@ func _ready() -> void:
 		vie_max = vie_imposee
 	if degats_imposes > 0.0:
 		degats = degats_imposes
+	_menace = boss == "" and not archer
+	if _menace:
+		_rythme *= ReglagesCombat.MENACE_RYTHME
+		_cd_lourd = randf_range(ReglagesCombat.MENACE_LOURD_PREMIER.x, ReglagesCombat.MENACE_LOURD_PREMIER.y)
+		_cote_pause = [1.0, -1.0].pick_random()
 	vie = vie_max
 	floor_snap_length = 0.4
 	var forme := CollisionShape3D.new()
@@ -408,6 +435,7 @@ func geler() -> void:
 	if _gele or etat == MORT or not peut_geler():
 		return
 	_gele = true
+	_effacer_alerte()
 	_mode_avant = process_mode
 	process_mode = Node.PROCESS_MODE_DISABLED
 	visible = false
@@ -444,6 +472,9 @@ func _duree(nom: String) -> float:
 	return anim.get_animation(_clip(nom)).length
 
 func _changer(nouvel: int) -> void:
+	if nouvel != ATTAQUE:
+		_lourd = false
+		_effacer_alerte()
 	etat = nouvel
 	_t = 0.0
 	_regler_pieds()
@@ -465,6 +496,9 @@ func _physics_process(dt: float) -> void:
 		return
 	_recharge -= dt
 	_cd_souffle -= dt
+	_cd_lourd -= dt
+	_armure -= dt
+	_lateral = Vector3.ZERO
 	if not is_on_floor():
 		velocity.y -= GRAVITE * dt
 	var vers := joueur.global_position - global_position
@@ -566,22 +600,43 @@ func _physics_process(dt: float) -> void:
 					Sons.jouer_a(self, ["cloth1", "cloth2"], global_position + Vector3.UP, -2.0, 0.1)
 				else:
 					_jouer("Sword_Idle")
-			elif dist > PORTEE:
+			elif dist > (PORTEE + AMORCE if _menace else PORTEE):
 				vitesse = _course if dist > 4.0 else _marche_proche
 				loco = "Jog_Fwd" if dist > 4.0 else "Walk"
+				if _menace:
+					var flanc := _flanc(dist, dt)   # plusieurs ennemis : ceux qui ne sont pas au contact passent sur le flanc
+					if flanc != Vector3.ZERO:
+						dir = flanc
+						vitesse = maxf(vitesse, _marche_proche * 1.4)
+						loco = "Jog_Fwd" if vitesse > 2.4 else "Walk"
+			elif _menace and _recharge > 0.0:
+				# entre deux séries : il tourne autour du joueur, face à lui, au lieu de rester planté
+				_flanc_t = 0.0
+				regard = true
+				var tang := Vector3(-dir.z, 0.0, dir.x) * _cote_pause
+				_lateral = tang * 1.1 + dir * clampf(dist - (PORTEE - 0.2), -1.0, 1.0) * 0.7
+				if _repli > 0.0:
+					_repli -= dt
+					_lateral = tang * 0.8 - dir * 2.8
+				_jouer("Walk")
+				anim.speed_scale = 0.8
 			else:
+				_flanc_t = 0.0
 				_jouer("Sword_Idle")
 				if _recharge <= 0.0:
-					_attaque = (["Sword_Attack"] if _os else ATTAQUES).pick_random()  # le squelette frappe à l’arme (pas de coup de poing : la lame traverserait la tête)
-					if _zombie_ok():
-						_attaque = ATTAQUES_ZOMBIE.pick_random()
-					if boss == "hrafn":
-						_attaque = "Sword_Attack"
 					_coup_donne = false
 					_combo = 0
-					_changer(ATTAQUE)
-					_jouer(_attaque, 0.1, true)
-					anim.speed_scale = _rythme
+					if _menace:
+						_demarrer_serie(dir)
+					else:
+						_attaque = (["Sword_Attack"] if _os else ATTAQUES).pick_random()  # le squelette frappe à l’arme (pas de coup de poing : la lame traverserait la tête)
+						if _zombie_ok():
+							_attaque = ATTAQUES_ZOMBIE.pick_random()
+						if boss == "hrafn":
+							_attaque = "Sword_Attack"
+						_changer(ATTAQUE)
+						_jouer(_attaque, 0.1, true)
+						anim.speed_scale = _rythme
 		VISE:
 			# il suit le joueur des yeux, puis fige sa visée (dernier quart de seconde : le tir est évitable)
 			vitesse_rot = 4.0
@@ -624,38 +679,69 @@ func _physics_process(dt: float) -> void:
 			var a_coup := anim.get_animation(_clip(_attaque))
 			if a_coup.has_meta("impact") and float(a_coup.get_meta("impact")) > 0.0:
 				f_coup = float(a_coup.get_meta("impact"))
-			regard = _t < duree * minf(0.45, f_coup * 0.9)  # il se vise avant de frapper
-			vitesse_rot = 10.0
-			if not _coup_donne and _t >= duree * f_coup:
-				_coup_donne = true
-				Sons.jouer_a(self, ["swing", "swing2", "swing3"], global_position + Vector3.UP, -6.0, 0.2)
-				var face := global_transform.basis.z
-				if dist < PORTEE + 0.6 and dir.dot(Vector3(face.x, 0, face.z).normalized()) > 0.4:
-					var r: String = joueur.recevoir_coup(degats * (1.25 if _combo == 1 else 1.0), global_position)
-					if r == "parade":
-						# parade réussie : le draugr est déséquilibré (grosse usure de posture, fenêtre de finisher)
-						combat.subir_parade()
-						if combat.etourdi > 0.0:
-							_etourdir()
-						else:
-							_tituber(-dir * 1.2, 0.7)
+			if _lourd:
+				# coup de taille ANNONCÉ : préparation lente (arme levée, repère rouge au sol), frappe brusque, puis planté
+				regard = false
+				var pre := ReglagesCombat.MENACE_LOURD_PREPARATION
+				var tot := ReglagesCombat.MENACE_LOURD_ANNONCE
+				if _t < tot:
+					anim.speed_scale = _lourd_pre * 0.5 / pre if _t < pre else _lourd_pre * 0.5 / (tot - pre)
+				elif not _coup_donne:
+					_coup_donne = true
+					anim.speed_scale = 1.0
+					_frapper_lourd()
+				if _coup_donne and _t >= tot + maxf(0.7, _duree(_attaque) * (1.0 - f_coup)):
+					_cd_lourd = randf_range(ReglagesCombat.MENACE_LOURD_ENTRE.x, ReglagesCombat.MENACE_LOURD_ENTRE.y)
+					_recharge = randf_range(0.5, 0.9)
+					_changer(TRAQUE)
+			else:
+				regard = _t < duree * minf(0.45, f_coup * 0.9)  # il se vise avant de frapper
+				vitesse_rot = 10.0
+				if not _coup_donne and _t >= duree * f_coup:
+					_coup_donne = true
+					Sons.jouer_a(self, ["swing", "swing2", "swing3"], global_position + Vector3.UP, -6.0, 0.2)
+					var face := global_transform.basis.z
+					if dist < PORTEE + 0.6 and dir.dot(Vector3(face.x, 0, face.z).normalized()) > 0.4:
+						var r: String = joueur.recevoir_coup(degats * _mult_coup(), global_position)
+						if r == "parade":
+							# parade réussie : le draugr est déséquilibré (grosse usure de posture, fenêtre de finisher)
+							combat.subir_parade()
+							if combat.etourdi > 0.0:
+								_etourdir()
+							else:
+								_tituber(-dir * 1.2, 0.7)
+							return
+				if _menace:
+					if not _coup_donne and dist > PORTEE - 0.1:
+						_lateral = dir * ELAN   # pas d'élan pendant la préparation du coup
+					if _coup_donne and _serie < _serie_max and _t >= duree * ReglagesCombat.MENACE_SERIE_DEPART and dist < PORTEE + 0.9 and not joueur.mort:
+						_serie += 1   # coup suivant de la série, sans reprendre son souffle
+						_combo = _serie - 1
+						_coup_donne = false
+						_lancer_coup_serie()
+					elif _coup_donne and _t >= duree * 0.85:
+						_recharge = randf_range(ReglagesCombat.MENACE_PAUSE.x, ReglagesCombat.MENACE_PAUSE.y)
+						_cote_pause = [1.0, -1.0].pick_random()
+						_repli = ReglagesCombat.MENACE_REPLI if randf() < 0.5 else 0.0
+						_changer(TRAQUE)
+				elif _t >= duree * 0.92:
+					if boss == "hrafn" and _combo == 0 and dist < PORTEE + 1.2:
+						# enchaînement lisible : deuxième coup d'un autre geste, un peu plus fort
+						_combo = 1
+						_attaque = "Punch_Cross"
+						_coup_donne = false
+						_changer(ATTAQUE)
+						_jouer(_attaque, 0.1, true)
+						anim.speed_scale = _rythme
 						return
-			if _t >= duree * 0.92:
-				if boss == "hrafn" and _combo == 0 and dist < PORTEE + 1.2:
-					# enchaînement lisible : deuxième coup d'un autre geste, un peu plus fort
-					_combo = 1
-					_attaque = "Punch_Cross"
-					_coup_donne = false
-					_changer(ATTAQUE)
-					_jouer(_attaque, 0.1, true)
-					anim.speed_scale = _rythme
-					return
-				_combo = 0
-				_recharge = randf_range(1.8, 2.8) if boss != "" else randf_range(0.5, 1.6)
-				_changer(TRAQUE)
+					_combo = 0
+					_recharge = randf_range(1.8, 2.8) if boss != "" else randf_range(0.5, 1.6)
+					_changer(TRAQUE)
 		TITUBE:
 			regard = false
 			if _t > _duree_titube:
+				if _menace:
+					_armure = ReglagesCombat.MENACE_ARMURE
 				_changer(TRAQUE)
 		ETOURDI:
 			# posture brisée : il titube sur place, sans frapper (fenêtre de finisher) ; le corps se balance (ReactionOs)
@@ -714,8 +800,8 @@ func _physics_process(dt: float) -> void:
 	var fv := Statuts.facteur_vitesse(self)   # magie : gel (docs/MAGIE.md)
 	if fv < 1.0 and loco != "" and _vit > 0.01:   # la marche vient d'être réglée : jamais cumulé d'une image à l'autre
 		anim.speed_scale *= fv
-	velocity.x = dir.x * _vit * fv + _recul.x
-	velocity.z = dir.z * _vit * fv + _recul.z
+	velocity.x = dir.x * _vit * fv + _recul.x + _lateral.x * fv
+	velocity.z = dir.z * _vit * fv + _recul.z + _lateral.z * fv
 	# Ennemi immobile au sol : pas de move_and_slide à chaque pas (le plus gros coût de physique contre la coque de la grotte) ; relancé
 	# toutes les IMMO_PERIODE s pour revérifier le sol, et tout de suite dès qu'il bouge, tombe ou est repoussé.
 	if absf(velocity.x) + absf(velocity.z) < 0.01 and velocity.y > -0.01 and is_on_floor() and _immo < IMMO_PERIODE:
@@ -896,6 +982,181 @@ func _eviter(dir: Vector3, dt: float) -> Vector3:
 ## Appelé par l'épée du joueur (et les tests). Renvoie "bloque", "touche" ou "tue".
 ## `info` (facultatif, contrat avec l'épée FPS) : "type", "point", "direction", "normale", "zone", "attaque", "arme", "stagger",
 ## "collider" ; sans info, tout est déduit (CalculDegats.completer).
+# ------------------------------------------------------------------ menace des ennemis courants
+
+## Début d'une série : soit le coup de taille annoncé (quand son attente est écoulée), soit 1 à 3 coups enchaînés.
+func _demarrer_serie(dir: Vector3) -> void:
+	if _cd_lourd <= 0.0:
+		_lancer_lourd(dir)
+		return
+	var cle := "squelette" if _os else type
+	var maxi_serie := int(ReglagesCombat.MENACE_SERIE_MAX.get(cle, 2))
+	var tirage := randf()
+	_serie_max = 1 if tirage < (0.4 if maxi_serie < 3 else 0.25) else (maxi_serie if tirage > 0.65 else mini(2, maxi_serie))
+	_serie = 1
+	_attaque = ""
+	_lancer_coup_serie()
+
+## Lance le coup n° `_serie` de la série (gestes alternés : épée, poing, épée ; squelettes : toujours l'épée).
+func _lancer_coup_serie() -> void:
+	_lourd = false
+	if _zombie_ok():
+		_attaque = "Zombie_Poing"
+	elif _os:
+		_attaque = "Sword_Attack"
+	elif _serie == 1:
+		_attaque = ATTAQUES.pick_random()
+	else:
+		_attaque = "Punch_Cross" if _attaque == "Sword_Attack" else "Sword_Attack"
+	_changer(ATTAQUE)
+	_jouer(_attaque, 0.1, true)
+	anim.speed_scale = _rythme
+
+## Part du geste `nom` où part le coup (42 % pour les clips Quaternius, image mesurée pour les clips Zombie_*).
+func _f_coup(nom: String) -> float:
+	var a := anim.get_animation(_clip(nom))
+	if a.has_meta("impact") and float(a.get_meta("impact")) > 0.0:
+		return float(a.get_meta("impact"))
+	return 0.42
+
+## Multiplicateur de dégâts du coup en cours (série des ennemis courants, 2e coup de Hrafn).
+func _mult_coup() -> float:
+	if _menace:
+		return float(ReglagesCombat.MENACE_SERIE_MULT[clampi(_serie - 1, 0, ReglagesCombat.MENACE_SERIE_MULT.size() - 1)])
+	return 1.25 if _combo == 1 else 1.0
+
+## Coup de taille ANNONCÉ : il se fige face au joueur, arme levée au ralenti, repère rouge au sol (zone figée dès le début :
+## 0,95 s pour en sortir d'un pas de côté), éclair, grognement. Aucun coup parable ensuite : voir _frapper_lourd.
+func _lancer_lourd(dir: Vector3) -> void:
+	_coup_donne = false
+	_combo = 0
+	_serie = 1
+	_serie_max = 1
+	_attaque = "Zombie_Tete" if _zombie_ok() else "Sword_Attack"
+	rotation.y = atan2(dir.x, dir.z)
+	_changer(ATTAQUE)
+	_lourd = true
+	_jouer(_attaque, 0.12, true)
+	var f := 0.42
+	var a := anim.get_animation(_clip(_attaque))
+	if a.has_meta("impact") and float(a.get_meta("impact")) > 0.0:
+		f = float(a.get_meta("impact"))
+	_lourd_pre = _duree(_attaque) * f
+	anim.speed_scale = _lourd_pre * 0.5 / ReglagesCombat.MENACE_LOURD_PREPARATION
+	var face := global_transform.basis.z
+	face.y = 0.0
+	_centre_lourd = global_position + face.normalized() * ReglagesCombat.MENACE_LOURD_AVANCE
+	var exclus: Array[RID] = [get_rid()]
+	if joueur != null:
+		exclus.append(joueur.get_rid())
+	_effacer_alerte()
+	_alerte = TELEGRAPHE.disque(get_parent(), get_world_3d(), _centre_lourd, ReglagesCombat.MENACE_LOURD_RAYON, ReglagesCombat.MENACE_LOURD_ANNONCE, exclus)
+	_eclair()
+	_marquer_lourd()
+	Sons.jouer_a(self, ["giant1", "giant2", "giant3"], global_position + Vector3.UP * 1.5, -3.0, 0.15)
+
+## Repères du geste annoncé en plus du disque au sol (qui sort du champ en vue FPS quand l'ennemi est au contact) : un « ! » rouge
+## au-dessus de la tête et le corps qui pulse (même variable d'éclair que le coup reçu, plus faible, 3 pulsations).
+func _marquer_lourd() -> void:
+	_marque = Label3D.new()
+	_marque.text = "!"
+	_marque.font = Palette.police()
+	_marque.font_size = 64
+	_marque.pixel_size = 0.014
+	_marque.modulate = Color(1.0, 0.3, 0.2)
+	_marque.outline_modulate = Color(0.1, 0.0, 0.0)
+	_marque.outline_size = 12
+	_marque.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_marque.no_depth_test = true
+	_marque.shaded = false
+	_marque.double_sided = true
+	_marque.position = Vector3(0, 2.3 * echelle, 0)
+	add_child(_marque)
+	_pulsation = create_tween()
+	_pulsation.tween_method(func(u: float) -> void:
+		var v := 0.04 + 0.10 * (0.5 - 0.5 * cos(u * TAU * 3.0))
+		for mi in _mailles:
+			if is_instance_valid(mi):
+				mi.set_instance_shader_parameter("eclair", v), 0.0, 1.0, ReglagesCombat.MENACE_LOURD_ANNONCE)
+	_pulsation.tween_callback(func() -> void:
+		for mi in _mailles:
+			if is_instance_valid(mi):
+				mi.set_instance_shader_parameter("eclair", 0.0))
+
+## Impact du coup de taille : touche tout ce qui est dans le repère rouge. Pas de parade parfaite, la moitié des dégâts
+## traverse la garde ; le pas de côté (ou l'esquive) l'évite entièrement.
+func _frapper_lourd() -> void:
+	Sons.jouer_a(self, ["swing", "swing2", "swing3"], global_position + Vector3.UP, 0.0, 0.1)
+	_effacer_alerte()
+	if joueur.mort:
+		return
+	var d := joueur.global_position - _centre_lourd
+	d.y = 0.0
+	if d.length() > ReglagesCombat.MENACE_LOURD_RAYON + 0.2 or absf(joueur.global_position.y - global_position.y) > 1.6:
+		return
+	var r: String = joueur.recevoir_coup(degats * ReglagesCombat.MENACE_LOURD_DEGATS, global_position,
+		{"imparable": ReglagesCombat.MENACE_LOURD_IMPARABLE, "recul": 7.0, "secousse": 0.7, "type": "physique"})
+	if r == "touche":
+		RetourImpact.son(self, "chair", joueur.global_position + Vector3.UP * 1.2, -2.0, 0.85)
+
+func _effacer_alerte() -> void:
+	if is_instance_valid(_alerte):
+		TELEGRAPHE.effacer(_alerte, 0.2)
+	_alerte = null
+	if is_instance_valid(_marque):
+		_marque.queue_free()
+		for mi in _mailles:
+			if is_instance_valid(mi):
+				mi.set_instance_shader_parameter("eclair", 0.0)
+	_marque = null
+	if _pulsation != null and _pulsation.is_valid():
+		_pulsation.kill()
+	_pulsation = null
+
+func _exit_tree() -> void:
+	if is_instance_valid(_alerte):
+		_alerte.queue_free()
+
+## Contournement : un autre ennemi courant est déjà au contact du joueur ; celui-ci décrit un arc sur le flanc (MENACE_FLANC_ANGLE
+## autour du joueur) avant de se jeter dessus. Renvoie la direction à suivre, ZERO = aller droit (pas d'allié, déjà sur le flanc,
+## ou arc trop long : MENACE_FLANC_MAX s).
+func _flanc(dist: float, dt: float) -> Vector3:
+	_t_groupe -= dt
+	if _t_groupe <= 0.0:
+		_t_groupe = 0.25
+		_allie_contact = _chercher_allie_contact(dist)
+	if _allie_contact == null or not is_instance_valid(_allie_contact) or dist > 10.0:
+		_flanc_t = 0.0
+		return Vector3.ZERO
+	_flanc_t += dt
+	if _flanc_t > ReglagesCombat.MENACE_FLANC_MAX:
+		return Vector3.ZERO
+	var pj := joueur.global_position
+	var a_allie := atan2(_allie_contact.global_position.x - pj.x, _allie_contact.global_position.z - pj.z)
+	var a_moi := atan2(global_position.x - pj.x, global_position.z - pj.z)
+	var ecart := angle_difference(a_allie, a_moi)
+	if absf(ecart) >= ReglagesCombat.MENACE_FLANC_ANGLE * 0.8:
+		return Vector3.ZERO
+	var cote := signf(ecart) if absf(ecart) > 0.05 else _cote_pause
+	var voulu := a_allie + cote * ReglagesCombat.MENACE_FLANC_ANGLE
+	var cible := pj + Vector3(sin(voulu), 0.0, cos(voulu)) * ReglagesCombat.MENACE_FLANC_RAYON
+	var v := cible - global_position
+	v.y = 0.0
+	return v.normalized() if v.length() > 0.3 else Vector3.ZERO
+
+func _chercher_allie_contact(ma_dist: float) -> Node3D:
+	var meilleur: Node3D = null
+	for a in get_tree().get_nodes_in_group("ennemis"):
+		if a == self or not (a is CharacterBody3D) or a.get("_menace") != true or a.get("etat") == MORT:
+			continue
+		var d := Vector2(a.global_position.x - joueur.global_position.x, a.global_position.z - joueur.global_position.z).length()
+		if d > PORTEE + 1.2:
+			continue
+		if d < ma_dist - 0.4 or (absf(d - ma_dist) <= 0.4 and a.get_instance_id() < get_instance_id()):
+			meilleur = a
+			break
+	return meilleur
+
 func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, info: Dictionary = {}) -> String:
 	if etat == MORT:
 		return ""
@@ -939,6 +1200,11 @@ func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, in
 		return "touche"  # pouvoir en cours, étourdi ou au sol : seule la réaction procédurale (ReactionOs)
 	if boss != "" and reaction == "leger" and randf() < 0.6:
 		return "touche"  # les chefs encaissent mieux
+	if _menace and reaction in ["leger", "moyen"]:
+		# hyper-armure : le geste annoncé n'est interrompu que par un coup lourd ou la posture brisée ; un coup de série, seulement
+		# avant d'être « engagé » (ENGAGEMENT = part de la préparation) ; un coup léger ne relance pas un titubement en cours et, juste après, ne le fait plus tituber (pas de verrou)
+		if _armure > 0.0 or etat == TITUBE or (etat == ATTAQUE and (_lourd or _t >= _duree(_attaque) / _rythme * _f_coup(_attaque) * ENGAGEMENT)):
+			return "touche"
 	var recul := -vers.normalized() / maxf(combat.profil.poids, 0.3)
 	match reaction:
 		"chute":
